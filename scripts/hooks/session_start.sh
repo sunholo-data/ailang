@@ -349,19 +349,34 @@ if [ "$UNREAD_COUNT" -gt "$INBOX_DUMP_LIMIT" ] 2>/dev/null; then
     INBOX_HEADER="$INBOX_HEADER (showing $INBOX_DUMP_LIMIT most recent)"
 fi
 
-CONTEXT_MESSAGE=$(cat <<EOF
-📦 AILANG $CURRENT_VERSION
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-$INBOX_HEADER
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# The banner is AMBIENT CONTEXT, not a work queue.
+#
+# It used to print four lines per message for the five most recent, plus a triage
+# instruction block ("After handling: ack <id>"). Read at the top of a session
+# that was opened to do something else, that is an implied task list: sessions
+# arrived, saw a backlog addressed to nobody in particular, and triaged it
+# instead of the work they were started for. Most of the volume is eval-suite and
+# mission chatter that no session needs to act on.
+#
+# What a session genuinely needs at startup is: the plane it is reading (a wrong
+# store is silently wrong), that a backlog exists at all, and HOW TO SEND — the
+# capability is worth more than the queue, and nothing else advertises it.
+# Details stay one command away.
+SENDER_SUMMARY=$(echo "$ALL_MESSAGES_JSON" | jq -r '
+    [.[] | .from_agent // "?"] | group_by(.) | map({n: length, who: .[0]})
+    | sort_by(-.n) | .[0:3] | map("\(.who) \(.n)") | join(", ")' 2>/dev/null || echo "")
+INBOX_LINE="📬 $UNREAD_COUNT unread — store: $STORE_LABEL"
+if [ -n "$SENDER_SUMMARY" ]; then
+    INBOX_LINE="$INBOX_LINE · mostly: $SENDER_SUMMARY"
+fi
 
-$(echo "$MESSAGES_JSON" | jq -r '.[] | "ID: \(.id)\nFrom: \(.from_agent)\nTitle: \(.title)\nTime: \(.created_at)\n"')
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-💡 Triage: 'ailang messages list --unread --json' (full IDs + bodies;
-   'messages read' marks read as a side effect — triage via --json instead)
-   After handling: 'ailang messages ack <id>' per message
-   ('ack --all' also sweeps outbound cross-mission inboxes — avoid)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CONTEXT_MESSAGE=$(cat <<EOF
+📦 AILANG $CURRENT_VERSION · $INBOX_LINE
+   Ambient, not a task list — read only if this session is about messages:
+     ailang messages list --unread --json     (full ids + bodies; 'read' marks read)
+   Send work to an agent (handoff topology comes from the registry, not the body):
+     ailang messages send <inbox> "<body>" --title "<t>" [--type feedback]
+     inboxes: design-doc-creator · sprint-planner · pkg:sunholo/<package> · user
 $TRIAGE_SUMMARY
 $SPRINT_CONTEXT
 EOF

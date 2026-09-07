@@ -601,6 +601,20 @@ jobs:
     - name: Run launchd driver tests
       run: make test-launchd-drivers
 
+    # scripts/hooks/ runs on every developer machine and on the rig, all of which
+    # are bash 3.2 — the same constraint as tools/launchd/, and it was not covered.
+    # A single unbalanced apostrophe inside `$(cat <<EOF ...)` makes 3.2 fail to
+    # find the closing paren; bash 5 parses it fine, so ubuntu CI and a Linux
+    # container would both stay green while every mac session lost its hook
+    # (caught by hand 2026-09-07 in session_start.sh, one word into a new line).
+    - name: Syntax-check session hooks under bash 3.2
+      run: |
+        fail=0
+        for f in scripts/hooks/*.sh; do
+          /bin/bash -n "$f" || { echo "::error file=$f::does not parse under bash 3.2"; fail=1; }
+        done
+        exit $fail
+
   govulncheck:
     name: govulncheck (vuln gate)
     runs-on: ubuntu-latest
