@@ -495,15 +495,25 @@ never the source directory (round-2 fix, objection 4). `$RUNNER_TEMP` is the Git
 per-job temp dir; on a local rig, `export RUNNER_TEMP=/tmp` (or any writable dir) before running
 these commands. The fixtures below use ≥50 packages so they satisfy the package-count floor (50).
 
-- **Acceptance (commands):**
+- **Acceptance (commands):** every command below names the fixture it uses. The two checked-in
+  fixtures are `tools/ci/headroom/testdata/real_go_test_output.txt` (a COLD run of this repo's
+  own `go test -count=1 -timeout 416s ./...` — 128 records: 127 `ok` + 1 `FAIL`) and
+  `tools/ci/headroom/testdata/real_go_test_output_cached.txt` (a CACHE-WARM run — 128 `ok`
+  records, 105 of them `(cached)`). Both clear the package-count floor (50).
   - `go test ./tools/ci/headroom/` → passes.
   - **Clean-checkout build + invoke (objection 4's core defect):** from a clean checkout (no
     `$RUNNER_TEMP/headroom` present), `go build -o "$RUNNER_TEMP/headroom" ./tools/ci/headroom`
-    then `"$RUNNER_TEMP/headroom" <(for i in $(seq 1 60); do printf 'ok\tgithub.com/x/pkg%d\t100s\n' "$i"; done) 416`
-    → prints the report and exits 0 (60 packages ≥ floor 50; no threshold crossed).
+    then `"$RUNNER_TEMP/headroom" tools/ci/headroom/testdata/real_go_test_output.txt 416`
+    → prints the report and exits 0. Uses the COLD fixture (128 records ≥ floor 50; no threshold
+    crossed).
+  - `"$RUNNER_TEMP/headroom" tools/ci/headroom/testdata/real_go_test_output_cached.txt 416`
+    → prints the report and exits 0. Uses the CACHE-WARM fixture; the 105 `(cached)` lines parse
+    as 0-second records that still count toward the floor, so a cache-warm run does not red the
+    job for the wrong reason.
   - `"$RUNNER_TEMP/headroom" <(for i in $(seq 1 59); do printf 'ok\tgithub.com/x/pkg%d\t100s\n' "$i"; done; printf 'ok\tgithub.com/x/pkg60\t380s\n') 416`
-    → prints a `::warning::` line and exits **0** (60 packages, one at 380 s = 91% of 416, crossing
-    the 90% WARN tier, but WARN-ONLY — a slow package is a data point, not a failure).
+    → prints a `::warning::` line and exits **0**. Uses an inline 60-package fixture (59 at 100 s
+    + one at 380 s = 91% of 416, crossing the 90% WARN tier, but WARN-ONLY — a slow package is a
+    data point, not a failure).
   - `"$RUNNER_TEMP/headroom" <(printf 'garbage\nnot a go test line\n') 416` → prints
     `::error:: headroom: parsed 0 packages from non-empty log — parser may be stale` and exits
     **non-zero** (anti-vacuity: a broken instrument, not a slow package).

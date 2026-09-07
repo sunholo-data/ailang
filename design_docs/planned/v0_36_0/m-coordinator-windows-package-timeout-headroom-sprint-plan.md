@@ -233,17 +233,30 @@ go test -count=1 ./tools/ci/headroom/
 Expected: `ok  github.com/sunholo-data/ailang/tools/ci/headroom <N>s` — all six tests pass.
 
 **Clean-checkout build + invoke** (objection 4's defect — the instrument must be BUILT, then the
-BINARY invoked, never the source dir):
+BINARY invoked, never the source dir). Uses the checked-in COLD fixture
+`tools/ci/headroom/testdata/real_go_test_output.txt` (128 records — 127 `ok` + 1 `FAIL` — ≥ floor
+50):
 
 ```bash
 rm -f "$RUNNER_TEMP/headroom"                 # simulate clean checkout: no binary present
 go build -o "$RUNNER_TEMP/headroom" ./tools/ci/headroom && test -x "$RUNNER_TEMP/headroom"
-"$RUNNER_TEMP/headroom" <(for i in $(seq 1 60); do printf 'ok\tgithub.com/x/pkg%d\t100s\n' "$i"; done) 416; echo "rc=$?"
+"$RUNNER_TEMP/headroom" tools/ci/headroom/testdata/real_go_test_output.txt 416; echo "rc=$?"
 ```
-Expected: report headed `HEADROOM: top 5 slowest packages (budget 416s)` with rows at
-`100s (24% of budget)`; **rc=0** (60 packages ≥ floor 50; nothing at/over 75%).
+Expected: report headed `HEADROOM: top 5 slowest packages (budget 416s)` naming this repo's
+actual slowest packages; **rc=0** (128 records ≥ floor 50; nothing at/over 75%).
 
-**WARN-ONLY proof** (a slow package is a data point, not a failure):
+**Cached-run proof** (a `(cached)` line has NO duration and must still count toward the floor).
+Uses the checked-in CACHE-WARM fixture `tools/ci/headroom/testdata/real_go_test_output_cached.txt`
+(128 `ok` records, 105 of them `(cached)`):
+
+```bash
+"$RUNNER_TEMP/headroom" tools/ci/headroom/testdata/real_go_test_output_cached.txt 416; echo "rc=$?"
+```
+Expected: report printed; **rc=0** (the 105 `(cached)` lines parse as 0-second records that still
+count toward the floor, so a cache-warm run does not red the job for the wrong reason).
+
+**WARN-ONLY proof** (a slow package is a data point, not a failure). Uses an inline 60-package
+fixture (59 at 100 s + one at 380 s):
 
 ```bash
 "$RUNNER_TEMP/headroom" <(for i in $(seq 1 59); do printf 'ok\tgithub.com/x/pkg%d\t100s\n' "$i"; done; printf 'ok\tgithub.com/x/pkg60\t380s\n') 416; echo "rc=$?"

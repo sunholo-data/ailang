@@ -7,13 +7,14 @@
 // Exit codes:
 //
 //	0  — report printed; a slow package is a data point, not a failure (WARN-ONLY)
-//	1  — a broken INSTRUMENT: anti-vacuity (non-empty log, zero records) or a
-//	     package count below the floor. Distinct from a slow package.
+//	1  — a broken INSTRUMENT, three conditions: cannot-read-log, anti-vacuity
+//	     (non-empty log, zero records), or a package count below the floor.
+//	     All three fail loudly. Distinct from a slow package.
 //	2  — usage error.
 //
-// The two non-zero paths (1 vs 2) and the WARN-ONLY path (0) are kept distinct
-// in code and in tests: a slow package must never red the job, and a silent
-// instrument must never pass.
+// The three non-zero conditions sharing exit 1, the usage path (2), and the
+// WARN-ONLY path (0) are kept distinct in code and in tests: a slow package
+// must never red the job, and a silent instrument must never pass.
 package main
 
 import (
@@ -21,7 +22,6 @@ import (
 	"io"
 	"math"
 	"os"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -39,15 +39,6 @@ const (
 	// reports ~127-131 packages; a parser finding fewer than 50 is broken.
 	minPackages = 50
 )
-
-// okRe matches `ok\t<pkg>\t<N.NNN>s` with optional `(cached)` and
-// `[no tests to run]` suffixes.
-var okRe = regexp.MustCompile(`^ok\t(.+?)\t([0-9.]+)s(?:\s+\(cached\))?(?:\s+\[no tests to run\])?$`)
-
-// failRe matches `FAIL\t<pkg>\t<N.NNN>s`. A `FAIL <pkg> [build failed]` line or
-// a bare `FAIL` does NOT match — those parse to no record (the runtime
-// anti-vacuity guard is what catches a parser that has gone stale).
-var failRe = regexp.MustCompile(`^FAIL\t(.+?)\t([0-9.]+)s$`)
 
 // record is one parsed package-timing line.
 type record struct {
@@ -142,22 +133,54 @@ func run(args []string, stdin io.Reader, stdout io.Writer) int {
 	return 0
 }
 
-// parse extracts package-timing records from go test output. Lines that do not
-// match a record shape (a `FAIL <pkg> [build failed]` line, a bare `FAIL`,
-// panics, build output, etc.) are skipped — that is what the runtime
-// anti-vacuity guard is for.
+// parse extracts package-timing records from go test output by splitting each
+// line on TAB and inspecting the fields — NOT by a hand-anchored literal
+// prefix. Go pads the status column so `ok` aligns with `FAIL`, so a real line
+// is `ok` + two spaces + TAB + pkg + TAB + duration; a prefix regex that
+// expects `ok\t` misses every real line. Field 0 trimmed of spaces must be
+// exactly `ok` or `FAIL` (a `?` line is not a timing record); field 1 is the
+// package; field 2 is the duration or `(cached)`.
+//
+// Lines that do not match a record shape (a `FAIL <pkg> [build failed]` line, a
+// bare `FAIL`, panics, build output, etc.) are skipped — that is what the
+// runtime anti-vacuity guard is for.
 func parse(data []byte) []record {
 	var records []record
 	for _, line := range strings.Split(string(data), "\n") {
-		if m := okRe.FindStringSubmatch(line); m != nil {
-			sec, _ := strconv.ParseFloat(m[2], 64)
-			records = append(records, record{pkg: m[1], seconds: sec, secondsStr: m[2]})
+		fields := strings.Split(line, "\t")
+		if len(fields) < 3 {
+			continue // bare FAIL, ? line, build output, etc.
+		}
+		status := strings.TrimSpace(fields[0])
+		if status != "ok" && status != "FAIL" {
+			continue // a `?` line is not a timing record
+		}
+		pkg := strings.TrimSpace(fields[1])
+		// Field 2 is the duration (e.g. "12.3s", possibly with a
+		// "[no tests to run]" suffix) or "(cached)".
+		if fields[2] == "(cached)" {
+			// A cached package consumed none of this run's budget (0 seconds),
+			// but it must still count toward the package-count floor so a
+			// cache-warm run does not trip the floor for the wrong reason.
+			records = append(records, record{pkg: pkg, seconds: 0, secondsStr: "0"})
 			continue
 		}
-		if m := failRe.FindStringSubmatch(line); m != nil {
-			sec, _ := strconv.ParseFloat(m[2], 64)
-			records = append(records, record{pkg: m[1], seconds: sec, secondsStr: m[2], failed: true})
+		// The duration is the first whitespace-delimited token of field 2.
+		toks := strings.Fields(fields[2])
+		if len(toks) == 0 {
+			continue
 		}
+		numStr := strings.TrimSuffix(toks[0], "s")
+		sec, err := strconv.ParseFloat(numStr, 64)
+		if err != nil {
+			continue // e.g. `FAIL <pkg> [build failed]` — not a timing record
+		}
+		records = append(records, record{
+			pkg:        pkg,
+			seconds:    sec,
+			secondsStr: numStr,
+			failed:     status == "FAIL",
+		})
 	}
 	return records
 }

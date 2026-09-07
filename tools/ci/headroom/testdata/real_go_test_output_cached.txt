@@ -1,0 +1,163 @@
+ok  	github.com/sunholo-data/ailang/cmd/ailang	(cached)
+?   	github.com/sunholo-data/ailang/cmd/ailang-microrag-mcp	[no test files]
+?   	github.com/sunholo-data/ailang/cmd/astdump	[no test files]
+ok  	github.com/sunholo-data/ailang/cmd/registry-validator	0.698s
+?   	github.com/sunholo-data/ailang/cmd/smoke-motoko	[no test files]
+ok  	github.com/sunholo-data/ailang/cmd/wasm	(cached)
+?   	github.com/sunholo-data/ailang/examples/reference/balanced_parens	[no test files]
+?   	github.com/sunholo-data/ailang/examples/reference/binary_tree_sum	[no test files]
+?   	github.com/sunholo-data/ailang/examples/reference/csv_to_json_converter	[no test files]
+?   	github.com/sunholo-data/ailang/examples/reference/expression_evaluator	[no test files]
+?   	github.com/sunholo-data/ailang/examples/reference/fizzbuzz	[no test files]
+?   	github.com/sunholo-data/ailang/examples/reference/fold_reduce	[no test files]
+?   	github.com/sunholo-data/ailang/examples/reference/gcd_lcm	[no test files]
+?   	github.com/sunholo-data/ailang/examples/reference/graph_bfs	[no test files]
+?   	github.com/sunholo-data/ailang/examples/reference/higher_order_functions	[no test files]
+?   	github.com/sunholo-data/ailang/examples/reference/recursion_fibonacci	[no test files]
+?   	github.com/sunholo-data/ailang/internal/agentprompt	[no test files]
+ok  	github.com/sunholo-data/ailang/internal/ai	(cached)
+ok  	github.com/sunholo-data/ailang/internal/ai/anthropic	(cached)
+ok  	github.com/sunholo-data/ailang/internal/ai/configdriven	(cached)
+ok  	github.com/sunholo-data/ailang/internal/ai/gemini	(cached)
+ok  	github.com/sunholo-data/ailang/internal/ai/ollama	(cached)
+ok  	github.com/sunholo-data/ailang/internal/ai/openai	(cached)
+ok  	github.com/sunholo-data/ailang/internal/ai/openrouter	(cached)
+ok  	github.com/sunholo-data/ailang/internal/apiserver	0.815s
+ok  	github.com/sunholo-data/ailang/internal/apiserver/schema	(cached)
+?   	github.com/sunholo-data/ailang/internal/apiserver/templates	[no test files]
+ok  	github.com/sunholo-data/ailang/internal/approvaltoken	(cached)
+ok  	github.com/sunholo-data/ailang/internal/ast	(cached)
+ok  	github.com/sunholo-data/ailang/internal/astedit	0.647s
+?   	github.com/sunholo-data/ailang/internal/auth/gcp	[no test files]
+ok  	github.com/sunholo-data/ailang/internal/bestof	2.553s
+ok  	github.com/sunholo-data/ailang/internal/browser	(cached)
+ok  	github.com/sunholo-data/ailang/internal/browser/auth	0.473s
+ok  	github.com/sunholo-data/ailang/internal/browser/browserbase	(cached)
+ok  	github.com/sunholo-data/ailang/internal/browser/local	(cached)
+ok  	github.com/sunholo-data/ailang/internal/builtins	(cached)
+ok  	github.com/sunholo-data/ailang/internal/bytecode	(cached)
+ok  	github.com/sunholo-data/ailang/internal/bytecode/compiler	(cached)
+ok  	github.com/sunholo-data/ailang/internal/cihygiene	(cached)
+ok  	github.com/sunholo-data/ailang/internal/claudehistory	(cached)
+ok  	github.com/sunholo-data/ailang/internal/cognition	(cached)
+ok  	github.com/sunholo-data/ailang/internal/coordinator	14.765s
+ok  	github.com/sunholo-data/ailang/internal/core	(cached)
+ok  	github.com/sunholo-data/ailang/internal/daemon	(cached)
+ok  	github.com/sunholo-data/ailang/internal/dashboard_transforms	0.945s
+?   	github.com/sunholo-data/ailang/internal/devtoolsprompt	[no test files]
+ok  	github.com/sunholo-data/ailang/internal/diag	1.675s
+ok  	github.com/sunholo-data/ailang/internal/dispatch/cloudrun	(cached)
+ok  	github.com/sunholo-data/ailang/internal/display	(cached)
+?   	github.com/sunholo-data/ailang/internal/docsearch	[no test files]
+ok  	github.com/sunholo-data/ailang/internal/docsearch/github	(cached)
+ok  	github.com/sunholo-data/ailang/internal/dtree	(cached)
+ok  	github.com/sunholo-data/ailang/internal/effects	(cached)
+ok  	github.com/sunholo-data/ailang/internal/effects/testctx	(cached)
+ok  	github.com/sunholo-data/ailang/internal/elaborate	2.099s
+ok  	github.com/sunholo-data/ailang/internal/embed	1.128s
+ok  	github.com/sunholo-data/ailang/internal/embedprefix	(cached)
+ok  	github.com/sunholo-data/ailang/internal/errors	(cached)
+ok  	github.com/sunholo-data/ailang/internal/eval	(cached)
+ok  	github.com/sunholo-data/ailang/internal/eval_analysis	(cached)
+ok  	github.com/sunholo-data/ailang/internal/eval_analyzer	(cached)
+ok  	github.com/sunholo-data/ailang/internal/eval_harness	16.593s
+ok  	github.com/sunholo-data/ailang/internal/eval_harness/langreg	(cached)
+ok  	github.com/sunholo-data/ailang/internal/executor	(cached)
+ok  	github.com/sunholo-data/ailang/internal/executor/claude	(cached)
+ok  	github.com/sunholo-data/ailang/internal/executor/codex	(cached)
+ok  	github.com/sunholo-data/ailang/internal/executor/managed_agents	(cached)
+ok  	github.com/sunholo-data/ailang/internal/executor/motoko	(cached)
+ok  	github.com/sunholo-data/ailang/internal/executor/opencode	(cached)
+ok  	github.com/sunholo-data/ailang/internal/executor/pi	(cached)
+ok  	github.com/sunholo-data/ailang/internal/feedback	(cached)
+ok  	github.com/sunholo-data/ailang/internal/feedbackgate	(cached)
+ok  	github.com/sunholo-data/ailang/internal/format	24.123s
+ok  	github.com/sunholo-data/ailang/internal/gen/block	(cached)
+ok  	github.com/sunholo-data/ailang/internal/gen/emitgo	(cached)
+ok  	github.com/sunholo-data/ailang/internal/gen/golang	5.354s
+ok  	github.com/sunholo-data/ailang/internal/gen/lower	(cached)
+ok  	github.com/sunholo-data/ailang/internal/gen/stmt	(cached)
+ok  	github.com/sunholo-data/ailang/internal/gitexec	(cached)
+ok  	github.com/sunholo-data/ailang/internal/gitutil	(cached)
+ok  	github.com/sunholo-data/ailang/internal/iface	(cached)
+ok  	github.com/sunholo-data/ailang/internal/importhint	(cached)
+ok  	github.com/sunholo-data/ailang/internal/lexer	(cached)
+ok  	github.com/sunholo-data/ailang/internal/link	(cached)
+ok  	github.com/sunholo-data/ailang/internal/linked	(cached)
+ok  	github.com/sunholo-data/ailang/internal/loader	(cached)
+ok  	github.com/sunholo-data/ailang/internal/lsp	1.733s
+ok  	github.com/sunholo-data/ailang/internal/manifest	(cached)
+?   	github.com/sunholo-data/ailang/internal/mcp_client	[no test files]
+ok  	github.com/sunholo-data/ailang/internal/messaging	(cached)
+ok  	github.com/sunholo-data/ailang/internal/microrag	(cached)
+ok  	github.com/sunholo-data/ailang/internal/mission	(cached)
+ok  	github.com/sunholo-data/ailang/internal/mission/dispatch	(cached)
+ok  	github.com/sunholo-data/ailang/internal/mission/quorum	(cached)
+ok  	github.com/sunholo-data/ailang/internal/modelreg	(cached)
+ok  	github.com/sunholo-data/ailang/internal/module	1.208s
+ok  	github.com/sunholo-data/ailang/internal/notify	(cached)
+ok  	github.com/sunholo-data/ailang/internal/observatory	(cached)
+ok  	github.com/sunholo-data/ailang/internal/parser	(cached)
+ok  	github.com/sunholo-data/ailang/internal/pipeline	8.497s
+ok  	github.com/sunholo-data/ailang/internal/pkg	13.356s
+ok  	github.com/sunholo-data/ailang/internal/planning	3.151s
+ok  	github.com/sunholo-data/ailang/internal/policy	(cached)
+ok  	github.com/sunholo-data/ailang/internal/projecteval	3.342s
+ok  	github.com/sunholo-data/ailang/internal/prompt	(cached)
+ok  	github.com/sunholo-data/ailang/internal/pubsub	(cached)
+ok  	github.com/sunholo-data/ailang/internal/repl	(cached)
+ok  	github.com/sunholo-data/ailang/internal/replay	(cached)
+ok  	github.com/sunholo-data/ailang/internal/riglock	(cached)
+ok  	github.com/sunholo-data/ailang/internal/runtime	(cached)
+ok  	github.com/sunholo-data/ailang/internal/runtime/argdecode	(cached)
+ok  	github.com/sunholo-data/ailang/internal/schema	(cached)
+ok  	github.com/sunholo-data/ailang/internal/secrets	(cached)
+ok  	github.com/sunholo-data/ailang/internal/server	(cached)
+ok  	github.com/sunholo-data/ailang/internal/server/auth	(cached)
+ok  	github.com/sunholo-data/ailang/internal/sid	(cached)
+ok  	github.com/sunholo-data/ailang/internal/smt	(cached)
+ok  	github.com/sunholo-data/ailang/internal/stdlib	(cached)
+ok  	github.com/sunholo-data/ailang/internal/stdlibindex	(cached)
+ok  	github.com/sunholo-data/ailang/internal/storage	(cached)
+ok  	github.com/sunholo-data/ailang/internal/storage/firestore	(cached)
+?   	github.com/sunholo-data/ailang/internal/storage/migrate	[no test files]
+ok  	github.com/sunholo-data/ailang/internal/telemetry	(cached)
+ok  	github.com/sunholo-data/ailang/internal/test	(cached)
+ok  	github.com/sunholo-data/ailang/internal/testing	4.347s
+ok  	github.com/sunholo-data/ailang/internal/testutil	5.142s
+ok  	github.com/sunholo-data/ailang/internal/testutil/gatelint	3.139s
+ok  	github.com/sunholo-data/ailang/internal/trace	(cached)
+ok  	github.com/sunholo-data/ailang/internal/typedast	(cached)
+ok  	github.com/sunholo-data/ailang/internal/types	(cached)
+ok  	github.com/sunholo-data/ailang/internal/types/traverse	(cached)
+?   	github.com/sunholo-data/ailang/internal/version	[no test files]
+ok  	github.com/sunholo-data/ailang/internal/vm	(cached)
+ok  	github.com/sunholo-data/ailang/internal/websocket	(cached)
+ok  	github.com/sunholo-data/ailang/runtime	(cached)
+?   	github.com/sunholo-data/ailang/scripts	[no test files]
+ok  	github.com/sunholo-data/ailang/scripts/internal/importextract	(cached)
+?   	github.com/sunholo-data/ailang/scripts/internal/reporttypes	[no test files]
+ok  	github.com/sunholo-data/ailang/serveapi	(cached)
+ok  	github.com/sunholo-data/ailang/serveapi/protocol	(cached)
+?   	github.com/sunholo-data/ailang/std	[no test files]
+ok  	github.com/sunholo-data/ailang/tests/golden/bytecode	3.283s
+ok  	github.com/sunholo-data/ailang/tests/golden/codegen	(cached)
+?   	github.com/sunholo-data/ailang/testutil	[no test files]
+?   	github.com/sunholo-data/ailang/tools/build-snapshot	[no test files]
+ok  	github.com/sunholo-data/ailang/tools/check-git-exec	(cached)
+ok  	github.com/sunholo-data/ailang/tools/ci/headroom	(cached)
+?   	github.com/sunholo-data/ailang/tools/direction-fit	[no test files]
+?   	github.com/sunholo-data/ailang/tools/eval-elo	[no test files]
+?   	github.com/sunholo-data/ailang/tools/eval-regrade	[no test files]
+?   	github.com/sunholo-data/ailang/tools/gen-anchor	[no test files]
+ok  	github.com/sunholo-data/ailang/tools/gen-error-codes	(cached)
+ok  	github.com/sunholo-data/ailang/tools/govulncheck-filter	(cached)
+ok  	github.com/sunholo-data/ailang/tools/internal/spike-listrep	(cached)
+?   	github.com/sunholo-data/ailang/tools/internal/spike-listrep/cmd/gcshape	[no test files]
+?   	github.com/sunholo-data/ailang/tools/internal/spike-listrep/cmd/matrix	[no test files]
+?   	github.com/sunholo-data/ailang/tools/internal/spike-listrep/cmd/retained	[no test files]
+?   	github.com/sunholo-data/ailang/tools/internal/spike-listrep/cmd/runner	[no test files]
+ok  	github.com/sunholo-data/ailang/tools/internal/spike-listrep/matrix	(cached)
+ok  	github.com/sunholo-data/ailang/tools/internal/spike-listrep/protocol	(cached)
+?   	github.com/sunholo-data/ailang/tools/ollama-tap	[no test files]
+ok  	github.com/sunholo-data/ailang/tools/verify-model-pricing	(cached)

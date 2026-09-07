@@ -5,7 +5,7 @@
   "sprint_plan": "design_docs/planned/v0_36_0/m-coordinator-windows-package-timeout-headroom-sprint-plan.md",
   "mission": "v1",
   "mission_iteration": 348,
-  "status": "planned",
+  "status": "completed",
   "target_version": "v0.36.0",
   "estimated_days": 2.0,
   "estimated_hours": 16,
@@ -66,7 +66,18 @@
       "estimated_loc": 90,
       "estimated_hours": 4,
       "dependencies": [],
-      "verification_refs": ["design:V1", "design:V2", "design:V3", "design:V12", "design:V15", "P1", "P2", "P3", "P9", "P11"],
+      "verification_refs": [
+        "design:V1",
+        "design:V2",
+        "design:V3",
+        "design:V12",
+        "design:V15",
+        "P1",
+        "P2",
+        "P3",
+        "P9",
+        "P11"
+      ],
       "ci_yml_lines_changed": {
         "linux_comment_block": "replace lines 86-89 (doc said 86-88 — one line short, verified P2) above '- name: Run tests with timeout (M-DX11)' (line 90) with the derivation comment",
         "linux_value": "line 101: 'go test -timeout 300s ./...' -> 'go test -timeout 416s ./...' (verified P1)",
@@ -82,7 +93,7 @@
         "End the milestone with go build ./... and go test -count=1 ./internal/cihygiene/ passing."
       ],
       "acceptance_commands": [
-        "grep -n 'timeout 416s' .github/workflows/ci.yml   # EXPECT: exactly two hits, both 'go test -timeout 416s ./...' (line numbers will have drifted; count and content are the assertion)",
+        "grep -n 'timeout 416s' .github/workflows/ci.yml   # EXPECT: four hits — two comment lines and two 'go test -timeout 416s ./...' lines (one per leg); line numbers will have drifted, count and content are the assertion",
         "grep -n '172.5\\|1.80\\|1.34' .github/workflows/ci.yml   # EXPECT: hits inside both comment blocks",
         "go test -count=1 ./internal/cihygiene/   # EXPECT: ok github.com/sunholo-data/ailang/internal/cihygiene, TestGoTestTimeoutIsDerived passing"
       ],
@@ -94,7 +105,7 @@
         }
       ],
       "not_in_this_milestone": "No tools/ci/headroom code (M2); no build/headroom wiring or step-body changes (M3); no gated-integration, timeout-minutes, or -p changes; nothing under internal/coordinator/.",
-      "passes": false
+      "passes": true
     },
     {
       "id": "M2_HEADROOM_TOOL",
@@ -106,7 +117,15 @@
       "estimated_loc": 380,
       "estimated_hours": 4,
       "dependencies": [],
-      "verification_refs": ["design:V11", "design:V14", "design:V19", "design:V21", "P6", "P8", "P10"],
+      "verification_refs": [
+        "design:V11",
+        "design:V14",
+        "design:V19",
+        "design:V21",
+        "P6",
+        "P8",
+        "P10"
+      ],
       "interface_contract": {
         "cli": "headroom <logfile|-> <budget-seconds>  (log path FIRST, budget SECOND — all design acceptance examples use this order; '-' reads stdin; usage error exits 2)",
         "exit_codes": "0 = normal (slow packages warn only); 1 = broken instrument — anti-vacuity (non-empty input, 0 records) OR package count below floor minPackages=50; 2 = usage error. These two non-zero paths stay distinct and each has its own unit test.",
@@ -150,7 +169,7 @@
         }
       ],
       "not_in_this_milestone": "No workflow edits (M3 wires the tool); no cihygiene changes; no blocking/FAIL threshold tier (calibration follow-up); the binary is built only by acceptance commands, never by CI yet.",
-      "passes": false
+      "passes": true
     },
     {
       "id": "M3_CI_WIRING",
@@ -160,8 +179,21 @@
       ],
       "estimated_loc": 40,
       "estimated_hours": 8,
-      "dependencies": ["M1_DERIVED_BUDGET", "M2_HEADROOM_TOOL"],
-      "verification_refs": ["design:V16", "design:V17", "design:V18", "design:V20", "design:V22", "P4", "P5", "P7", "P11"],
+      "dependencies": [
+        "M1_DERIVED_BUDGET",
+        "M2_HEADROOM_TOOL"
+      ],
+      "verification_refs": [
+        "design:V16",
+        "design:V17",
+        "design:V18",
+        "design:V20",
+        "design:V22",
+        "P4",
+        "P5",
+        "P7",
+        "P11"
+      ],
       "ci_yml_lines_changed": {
         "linux_build_step": "insert before the derivation comment block heading '- name: Run tests with timeout (M-DX11)': '- name: Build headroom instrument' / 'run: go build -o \"$RUNNER_TEMP/headroom\" ./tools/ci/headroom' — unguarded, set -e makes a broken build loud; precedent verified at ci.yml:627 (govulncheck-filter), with the deliberate $RUNNER_TEMP deviation",
         "linux_test_step_body": "keep env + four poison checks; replace the single 'go test -timeout 416s ./...' line with: go_rc=0 / hr_rc=0 / 'go test -timeout 416s ./... > go_test_headroom.log 2>&1 || go_rc=$?' / 'cat go_test_headroom.log' / '\"$RUNNER_TEMP/headroom\" go_test_headroom.log 416 || hr_rc=$?' / 'if [ $go_rc -ne 0 ]; then exit $go_rc; fi' / 'exit $hr_rc' — redirect+capture, NO pipe",
@@ -208,29 +240,78 @@
         }
       ],
       "not_in_this_milestone": "No tool-code changes (M2's); no budget or comment changes (M1's); no gated-integration, timeout-minutes or -p changes; no internal/coordinator changes or t.Parallel() additions (follow-up row).",
-      "passes": false
+      "passes": true
     }
   ],
   "final_gates": [
     "go build ./...",
     "go test -count=1 ./internal/cihygiene/ ./tools/ci/...",
-    "[ $(grep -c 'timeout 416s' .github/workflows/ci.yml) -eq 2 ]",
+    "[ $(grep -c 'go test -timeout 416s' .github/workflows/ci.yml) -eq 2 ]   # one per leg; the bare 'timeout 416s' grep also matches the 2 derivation comment lines",
     "[ $(grep -c 'go_test_headroom.log' .github/workflows/ci.yml) -ge 6 ]   # 3 per leg",
     "git diff --name-only against base matches the approved file list: .github/workflows/ci.yml, internal/cihygiene/workflow_go_test_timeout_test.go, tools/ci/headroom/main.go, tools/ci/headroom/main_test.go",
     "git diff --exit-code -- internal/coordinator/ tools/ci/motoko_smoke.sh internal/cihygiene/workflow_timeouts_test.go internal/cihygiene/gate_wiring_test.go  (hard-unchanged paths)",
     "sprint PR's own test-windows job log shows: green Build headroom instrument step before Run Go test suite; real ok/FAIL package lines visible; HEADROOM report block present; no '::error:: headroom' line"
   ],
   "verification_log": [
-    {"id": "P1", "command": "grep -n '\\-timeout' .github/workflows/ci.yml", "observed_output": "86:# -timeout is PER TEST BINARY...; 101:go test -timeout 300s ./... (Linux); 292:ailang check --timeout 60s (unrelated); 471:go test -timeout 300s ./... (Windows) — doc's lines 101/471/292 MATCH exactly."},
-    {"id": "P2", "command": "nl -ba ci.yml | sed -n '86,92p'", "observed_output": "The stale Linux comment block is FOUR lines, 86-89 (doc said 86-88 — one line short); step name 'Run tests with timeout (M-DX11)' at 90, env 91-95, run 96, poison checks 97-100, go test at 101."},
-    {"id": "P3", "command": "nl -ba ci.yml | sed -n '454,471p'", "observed_output": "'Run Go test suite' 454, shell: pwsh 455, stale comment 456-458 ('5min timeout (vs 60s on Linux)' at 456 — doc's line MATCHES, refined range 456-458); 459-460 is a separate valid Windows-incompat instruction to KEEP; env 461-465, run 466, poison checks 467-470, go test at 471."},
-    {"id": "P4", "command": "grep -n 'gated_integration.log\\|Assert binary-gated' ci.yml; nl -ba ci.yml | sed -n '108,116p;477,483p'", "observed_output": "Linux: step NAME at 109, run 110, go test 111, tee gated_integration.log 112, grep loop 113-114+ (doc's 'ci.yml:111' is the first command line, not the step — slightly stale). Windows: step NAME 477, go test + Tee-Object gated_integration.log at 480 (doc MATCHES)."},
-    {"id": "P5", "command": "grep -n 'go build -o' .github/workflows/ci.yml; sed -n '626,628p' .github/workflows/ci.yml", "observed_output": "627:      run: go build -o ./bin/govulncheck-filter ./tools/govulncheck-filter (step 'Build filter' at 626) — the doc's precedent line exists verbatim at exactly 627."},
-    {"id": "P6", "command": "ls -la tools/ci/; grep -rln 'go test\\|--- PASS\\|^ok[[:space:]]' tools/ci/; head -3 tools/ci/*", "observed_output": "tools/ci/ contains exactly one file, motoko_smoke.sh (1771 B, executable); broadened grep: no matches, exit 1; control head -3 prints motoko_smoke.sh's shebang + header — no existing tools/ci go test parser; a new tool is warranted (design V14 holds)."},
-    {"id": "P7", "command": "command -v pwsh; command -v bash", "observed_output": "pwsh: no output, exit 1 — NOT on this rig; control bash: /bin/bash. The Windows (pwsh) wiring cannot be executed locally; it is verified by the sprint PR's own test-windows job."},
-    {"id": "P8", "command": "go list ./tools/ci/...; go test ./tools/ci/...", "observed_output": "go: warning: './tools/ci/...' matched no packages; go test: 'no packages to test', rc=1 — therefore M1's green gate omits ./tools/ci/... (nothing to test there until M2 exists)."},
-    {"id": "P9", "command": "grep -n '^  [a-z][a-z0-9_-]*:' .github/workflows/ci.yml", "observed_output": "job ids: test:17, test-windows:391 (plus build:488, docs:511, lint:535, launchd-drivers:582, govulncheck:604, dependency-submission:634) — the M1 gate targets jobs 'test' and 'test-windows'."},
-    {"id": "P10", "command": "git log --oneline -1; git status --porcelain; head -1 go.mod", "observed_output": "HEAD 30d11b0bd (the design-doc commit; design's own measurements were taken at 1b8e7eab1); working tree clean; module github.com/sunholo-data/ailang — tool package path is github.com/sunholo-data/ailang/tools/ci/headroom."},
-    {"id": "P11", "command": "grep -m1 '^package' internal/cihygiene/*_test.go; sed -n '40,110p' internal/cihygiene/workflow_timeouts_test.go", "observed_output": "both cihygiene test files are 'package cihygiene'; loadWorkflows(t) + workflow struct (yaml.v3, workflowDir='../../.github/workflows') parse EVERY .yml/.yaml with anti-vacuity asserts — M1's new test reuses them, and the package doubles as M3's YAML syntax gate."}
+    {
+      "id": "P1",
+      "command": "grep -n '\\-timeout' .github/workflows/ci.yml",
+      "observed_output": "86:# -timeout is PER TEST BINARY...; 101:go test -timeout 300s ./... (Linux); 292:ailang check --timeout 60s (unrelated); 471:go test -timeout 300s ./... (Windows) — doc's lines 101/471/292 MATCH exactly."
+    },
+    {
+      "id": "P2",
+      "command": "nl -ba ci.yml | sed -n '86,92p'",
+      "observed_output": "The stale Linux comment block is FOUR lines, 86-89 (doc said 86-88 — one line short); step name 'Run tests with timeout (M-DX11)' at 90, env 91-95, run 96, poison checks 97-100, go test at 101."
+    },
+    {
+      "id": "P3",
+      "command": "nl -ba ci.yml | sed -n '454,471p'",
+      "observed_output": "'Run Go test suite' 454, shell: pwsh 455, stale comment 456-458 ('5min timeout (vs 60s on Linux)' at 456 — doc's line MATCHES, refined range 456-458); 459-460 is a separate valid Windows-incompat instruction to KEEP; env 461-465, run 466, poison checks 467-470, go test at 471."
+    },
+    {
+      "id": "P4",
+      "command": "grep -n 'gated_integration.log\\|Assert binary-gated' ci.yml; nl -ba ci.yml | sed -n '108,116p;477,483p'",
+      "observed_output": "Linux: step NAME at 109, run 110, go test 111, tee gated_integration.log 112, grep loop 113-114+ (doc's 'ci.yml:111' is the first command line, not the step — slightly stale). Windows: step NAME 477, go test + Tee-Object gated_integration.log at 480 (doc MATCHES)."
+    },
+    {
+      "id": "P5",
+      "command": "grep -n 'go build -o' .github/workflows/ci.yml; sed -n '626,628p' .github/workflows/ci.yml",
+      "observed_output": "627:      run: go build -o ./bin/govulncheck-filter ./tools/govulncheck-filter (step 'Build filter' at 626) — the doc's precedent line exists verbatim at exactly 627."
+    },
+    {
+      "id": "P6",
+      "command": "ls -la tools/ci/; grep -rln 'go test\\|--- PASS\\|^ok[[:space:]]' tools/ci/; head -3 tools/ci/*",
+      "observed_output": "tools/ci/ contains exactly one file, motoko_smoke.sh (1771 B, executable); broadened grep: no matches, exit 1; control head -3 prints motoko_smoke.sh's shebang + header — no existing tools/ci go test parser; a new tool is warranted (design V14 holds)."
+    },
+    {
+      "id": "P7",
+      "command": "command -v pwsh; command -v bash",
+      "observed_output": "pwsh: no output, exit 1 — NOT on this rig; control bash: /bin/bash. The Windows (pwsh) wiring cannot be executed locally; it is verified by the sprint PR's own test-windows job."
+    },
+    {
+      "id": "P8",
+      "command": "go list ./tools/ci/...; go test ./tools/ci/...",
+      "observed_output": "go: warning: './tools/ci/...' matched no packages; go test: 'no packages to test', rc=1 — therefore M1's green gate omits ./tools/ci/... (nothing to test there until M2 exists)."
+    },
+    {
+      "id": "P9",
+      "command": "grep -n '^  [a-z][a-z0-9_-]*:' .github/workflows/ci.yml",
+      "observed_output": "job ids: test:17, test-windows:391 (plus build:488, docs:511, lint:535, launchd-drivers:582, govulncheck:604, dependency-submission:634) — the M1 gate targets jobs 'test' and 'test-windows'."
+    },
+    {
+      "id": "P10",
+      "command": "git log --oneline -1; git status --porcelain; head -1 go.mod",
+      "observed_output": "HEAD 30d11b0bd (the design-doc commit; design's own measurements were taken at 1b8e7eab1); working tree clean; module github.com/sunholo-data/ailang — tool package path is github.com/sunholo-data/ailang/tools/ci/headroom."
+    },
+    {
+      "id": "P11",
+      "command": "grep -m1 '^package' internal/cihygiene/*_test.go; sed -n '40,110p' internal/cihygiene/workflow_timeouts_test.go",
+      "observed_output": "both cihygiene test files are 'package cihygiene'; loadWorkflows(t) + workflow struct (yaml.v3, workflowDir='../../.github/workflows') parse EVERY .yml/.yaml with anti-vacuity asserts — M1's new test reuses them, and the package doubles as M3's YAML syntax gate."
+    },
+    {
+      "id": "R2",
+      "command": "go build -o $RUNNER_TEMP/headroom ./tools/ci/headroom; go test -count=1 -timeout 416s ./... > /tmp/realfull348.log 2>&1; $RUNNER_TEMP/headroom /tmp/realfull348.log 416; go test -count=1 ./tools/ci/headroom/; go vet ./tools/ci/... ./internal/cihygiene/",
+      "observed_output": "Round-2 fix verified: build rc=0, suite rc=0, headroom rc=0 with report naming internal/executor/motoko (37.297s), cmd/ailang (35.061s), internal/eval_harness (33.522s), internal/format (29.101s), internal/mission (28.934s). Parser now splits on TAB (ok+2sp+TAB) and treats (cached) as 0s. Real go test fixtures in tools/ci/headroom/testdata/ (cold + cache-warm) drive TestParseRealGoTestOutput. Three new mutation tests (TestBudgetValidation, TestTopNTieBreak, TestUsageError) each confirmed red under their mutation and green+byte-identical after revert."
+    }
   ]
 }
