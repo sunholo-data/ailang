@@ -1,0 +1,170 @@
+ok  	github.com/sunholo-data/ailang/cmd/ailang	33.739s
+?   	github.com/sunholo-data/ailang/cmd/ailang-microrag-mcp	[no test files]
+?   	github.com/sunholo-data/ailang/cmd/astdump	[no test files]
+ok  	github.com/sunholo-data/ailang/cmd/registry-validator	1.393s
+?   	github.com/sunholo-data/ailang/cmd/smoke-motoko	[no test files]
+ok  	github.com/sunholo-data/ailang/cmd/wasm	1.190s
+?   	github.com/sunholo-data/ailang/examples/reference/balanced_parens	[no test files]
+?   	github.com/sunholo-data/ailang/examples/reference/binary_tree_sum	[no test files]
+?   	github.com/sunholo-data/ailang/examples/reference/csv_to_json_converter	[no test files]
+?   	github.com/sunholo-data/ailang/examples/reference/expression_evaluator	[no test files]
+?   	github.com/sunholo-data/ailang/examples/reference/fizzbuzz	[no test files]
+?   	github.com/sunholo-data/ailang/examples/reference/fold_reduce	[no test files]
+?   	github.com/sunholo-data/ailang/examples/reference/gcd_lcm	[no test files]
+?   	github.com/sunholo-data/ailang/examples/reference/graph_bfs	[no test files]
+?   	github.com/sunholo-data/ailang/examples/reference/higher_order_functions	[no test files]
+?   	github.com/sunholo-data/ailang/examples/reference/recursion_fibonacci	[no test files]
+?   	github.com/sunholo-data/ailang/internal/agentprompt	[no test files]
+ok  	github.com/sunholo-data/ailang/internal/ai	1.505s
+ok  	github.com/sunholo-data/ailang/internal/ai/anthropic	1.829s
+ok  	github.com/sunholo-data/ailang/internal/ai/configdriven	2.144s
+ok  	github.com/sunholo-data/ailang/internal/ai/gemini	2.447s
+ok  	github.com/sunholo-data/ailang/internal/ai/ollama	17.675s
+ok  	github.com/sunholo-data/ailang/internal/ai/openai	2.890s
+ok  	github.com/sunholo-data/ailang/internal/ai/openrouter	3.153s
+ok  	github.com/sunholo-data/ailang/internal/apiserver	3.807s
+ok  	github.com/sunholo-data/ailang/internal/apiserver/schema	3.540s
+?   	github.com/sunholo-data/ailang/internal/apiserver/templates	[no test files]
+ok  	github.com/sunholo-data/ailang/internal/approvaltoken	3.712s
+ok  	github.com/sunholo-data/ailang/internal/ast	3.892s
+ok  	github.com/sunholo-data/ailang/internal/astedit	4.168s
+?   	github.com/sunholo-data/ailang/internal/auth/gcp	[no test files]
+ok  	github.com/sunholo-data/ailang/internal/bestof	6.200s
+ok  	github.com/sunholo-data/ailang/internal/browser	4.038s
+ok  	github.com/sunholo-data/ailang/internal/browser/auth	4.114s
+ok  	github.com/sunholo-data/ailang/internal/browser/browserbase	4.235s
+ok  	github.com/sunholo-data/ailang/internal/browser/local	4.079s
+ok  	github.com/sunholo-data/ailang/internal/builtins	12.587s
+ok  	github.com/sunholo-data/ailang/internal/bytecode	3.903s
+ok  	github.com/sunholo-data/ailang/internal/bytecode/compiler	3.522s
+ok  	github.com/sunholo-data/ailang/internal/cihygiene	3.776s
+ok  	github.com/sunholo-data/ailang/internal/claudehistory	3.170s
+ok  	github.com/sunholo-data/ailang/internal/cognition	3.198s
+ok  	github.com/sunholo-data/ailang/internal/coordinator	17.540s
+ok  	github.com/sunholo-data/ailang/internal/core	3.483s
+ok  	github.com/sunholo-data/ailang/internal/daemon	3.790s
+ok  	github.com/sunholo-data/ailang/internal/dashboard_transforms	3.574s
+?   	github.com/sunholo-data/ailang/internal/devtoolsprompt	[no test files]
+ok  	github.com/sunholo-data/ailang/internal/diag	3.797s
+ok  	github.com/sunholo-data/ailang/internal/dispatch/cloudrun	3.638s
+ok  	github.com/sunholo-data/ailang/internal/display	3.708s
+?   	github.com/sunholo-data/ailang/internal/docsearch	[no test files]
+ok  	github.com/sunholo-data/ailang/internal/docsearch/github	4.301s
+ok  	github.com/sunholo-data/ailang/internal/dtree	4.188s
+ok  	github.com/sunholo-data/ailang/internal/effects	18.052s
+ok  	github.com/sunholo-data/ailang/internal/effects/testctx	4.478s
+ok  	github.com/sunholo-data/ailang/internal/elaborate	4.968s
+ok  	github.com/sunholo-data/ailang/internal/embed	4.928s
+ok  	github.com/sunholo-data/ailang/internal/embedprefix	4.824s
+ok  	github.com/sunholo-data/ailang/internal/errors	4.408s
+ok  	github.com/sunholo-data/ailang/internal/eval	4.622s
+ok  	github.com/sunholo-data/ailang/internal/eval_analysis	4.516s
+ok  	github.com/sunholo-data/ailang/internal/eval_analyzer	4.701s
+ok  	github.com/sunholo-data/ailang/internal/eval_harness	39.401s
+ok  	github.com/sunholo-data/ailang/internal/eval_harness/langreg	3.926s
+ok  	github.com/sunholo-data/ailang/internal/executor	5.145s
+ok  	github.com/sunholo-data/ailang/internal/executor/claude	3.649s
+ok  	github.com/sunholo-data/ailang/internal/executor/codex	17.607s
+ok  	github.com/sunholo-data/ailang/internal/executor/managed_agents	3.614s
+ok  	github.com/sunholo-data/ailang/internal/executor/motoko	41.631s
+ok  	github.com/sunholo-data/ailang/internal/executor/opencode	20.996s
+ok  	github.com/sunholo-data/ailang/internal/executor/pi	22.945s
+ok  	github.com/sunholo-data/ailang/internal/feedback	3.653s
+ok  	github.com/sunholo-data/ailang/internal/feedbackgate	3.578s
+ok  	github.com/sunholo-data/ailang/internal/format	27.718s
+ok  	github.com/sunholo-data/ailang/internal/gen/block	3.466s
+ok  	github.com/sunholo-data/ailang/internal/gen/emitgo	3.142s
+ok  	github.com/sunholo-data/ailang/internal/gen/golang	8.820s
+ok  	github.com/sunholo-data/ailang/internal/gen/lower	3.198s
+ok  	github.com/sunholo-data/ailang/internal/gen/stmt	2.480s
+ok  	github.com/sunholo-data/ailang/internal/gitexec	2.536s
+ok  	github.com/sunholo-data/ailang/internal/gitutil	2.929s
+ok  	github.com/sunholo-data/ailang/internal/iface	2.365s
+ok  	github.com/sunholo-data/ailang/internal/importhint	2.362s
+ok  	github.com/sunholo-data/ailang/internal/lexer	2.055s
+ok  	github.com/sunholo-data/ailang/internal/link	2.346s
+ok  	github.com/sunholo-data/ailang/internal/linked	2.298s
+ok  	github.com/sunholo-data/ailang/internal/loader	2.102s
+ok  	github.com/sunholo-data/ailang/internal/lsp	2.395s
+ok  	github.com/sunholo-data/ailang/internal/manifest	2.415s
+?   	github.com/sunholo-data/ailang/internal/mcp_client	[no test files]
+ok  	github.com/sunholo-data/ailang/internal/messaging	6.314s
+ok  	github.com/sunholo-data/ailang/internal/microrag	2.602s
+ok  	github.com/sunholo-data/ailang/internal/mission	28.594s
+ok  	github.com/sunholo-data/ailang/internal/mission/dispatch	6.035s
+ok  	github.com/sunholo-data/ailang/internal/mission/quorum	3.340s
+ok  	github.com/sunholo-data/ailang/internal/modelreg	3.220s
+ok  	github.com/sunholo-data/ailang/internal/module	3.215s
+ok  	github.com/sunholo-data/ailang/internal/notify	2.753s
+ok  	github.com/sunholo-data/ailang/internal/observatory	4.437s
+ok  	github.com/sunholo-data/ailang/internal/parser	3.114s
+ok  	github.com/sunholo-data/ailang/internal/pipeline	9.903s
+ok  	github.com/sunholo-data/ailang/internal/pkg	16.244s
+ok  	github.com/sunholo-data/ailang/internal/planning	3.162s
+ok  	github.com/sunholo-data/ailang/internal/policy	2.758s
+ok  	github.com/sunholo-data/ailang/internal/projecteval	3.206s
+ok  	github.com/sunholo-data/ailang/internal/prompt	2.487s
+ok  	github.com/sunholo-data/ailang/internal/pubsub	2.419s
+ok  	github.com/sunholo-data/ailang/internal/repl	5.215s
+ok  	github.com/sunholo-data/ailang/internal/replay	1.807s
+ok  	github.com/sunholo-data/ailang/internal/riglock	1.900s
+ok  	github.com/sunholo-data/ailang/internal/runtime	1.975s
+ok  	github.com/sunholo-data/ailang/internal/runtime/argdecode	2.151s
+ok  	github.com/sunholo-data/ailang/internal/schema	2.380s
+ok  	github.com/sunholo-data/ailang/internal/secrets	2.448s
+ok  	github.com/sunholo-data/ailang/internal/server	2.455s
+ok  	github.com/sunholo-data/ailang/internal/server/auth	2.465s
+ok  	github.com/sunholo-data/ailang/internal/sid	2.377s
+--- FAIL: TestSolve_HardTimeout_FakeSolverIgnoringT (9.00s)
+    solver_timeout_test.go:61: attempt 1/3 inconclusive: fake solver killed before recording its child PID (ailang#602)
+    solver_timeout_test.go:61: attempt 2/3 inconclusive: fake solver killed before recording its child PID (ailang#602)
+    solver_timeout_test.go:61: attempt 3/3 inconclusive: fake solver killed before recording its child PID (ailang#602)
+    solver_timeout_test.go:67: all 3 attempts lost the fake-solver startup race; child PID never recorded (ailang#602)
+FAIL
+FAIL	github.com/sunholo-data/ailang/internal/smt	16.331s
+ok  	github.com/sunholo-data/ailang/internal/stdlib	2.312s
+ok  	github.com/sunholo-data/ailang/internal/stdlibindex	2.431s
+ok  	github.com/sunholo-data/ailang/internal/storage	2.148s
+ok  	github.com/sunholo-data/ailang/internal/storage/firestore	2.444s
+?   	github.com/sunholo-data/ailang/internal/storage/migrate	[no test files]
+ok  	github.com/sunholo-data/ailang/internal/telemetry	2.171s
+ok  	github.com/sunholo-data/ailang/internal/test	2.304s
+ok  	github.com/sunholo-data/ailang/internal/testing	4.425s
+ok  	github.com/sunholo-data/ailang/internal/testutil	5.604s
+ok  	github.com/sunholo-data/ailang/internal/testutil/gatelint	3.754s
+ok  	github.com/sunholo-data/ailang/internal/trace	3.872s
+ok  	github.com/sunholo-data/ailang/internal/typedast	3.919s
+ok  	github.com/sunholo-data/ailang/internal/types	4.067s
+ok  	github.com/sunholo-data/ailang/internal/types/traverse	3.916s
+?   	github.com/sunholo-data/ailang/internal/version	[no test files]
+ok  	github.com/sunholo-data/ailang/internal/vm	3.688s
+ok  	github.com/sunholo-data/ailang/internal/websocket	3.569s
+ok  	github.com/sunholo-data/ailang/runtime	3.823s
+?   	github.com/sunholo-data/ailang/scripts	[no test files]
+ok  	github.com/sunholo-data/ailang/scripts/internal/importextract	2.506s
+?   	github.com/sunholo-data/ailang/scripts/internal/reporttypes	[no test files]
+ok  	github.com/sunholo-data/ailang/serveapi	3.178s
+ok  	github.com/sunholo-data/ailang/serveapi/protocol	2.650s
+?   	github.com/sunholo-data/ailang/std	[no test files]
+ok  	github.com/sunholo-data/ailang/tests/golden/bytecode	2.673s
+ok  	github.com/sunholo-data/ailang/tests/golden/codegen	10.470s
+?   	github.com/sunholo-data/ailang/testutil	[no test files]
+?   	github.com/sunholo-data/ailang/tools/build-snapshot	[no test files]
+ok  	github.com/sunholo-data/ailang/tools/check-git-exec	3.063s
+ok  	github.com/sunholo-data/ailang/tools/ci/headroom	2.834s
+?   	github.com/sunholo-data/ailang/tools/direction-fit	[no test files]
+?   	github.com/sunholo-data/ailang/tools/eval-elo	[no test files]
+?   	github.com/sunholo-data/ailang/tools/eval-regrade	[no test files]
+?   	github.com/sunholo-data/ailang/tools/gen-anchor	[no test files]
+ok  	github.com/sunholo-data/ailang/tools/gen-error-codes	2.895s
+ok  	github.com/sunholo-data/ailang/tools/govulncheck-filter	2.793s
+ok  	github.com/sunholo-data/ailang/tools/internal/spike-listrep	3.158s
+?   	github.com/sunholo-data/ailang/tools/internal/spike-listrep/cmd/gcshape	[no test files]
+?   	github.com/sunholo-data/ailang/tools/internal/spike-listrep/cmd/matrix	[no test files]
+?   	github.com/sunholo-data/ailang/tools/internal/spike-listrep/cmd/retained	[no test files]
+?   	github.com/sunholo-data/ailang/tools/internal/spike-listrep/cmd/runner	[no test files]
+ok  	github.com/sunholo-data/ailang/tools/internal/spike-listrep/matrix	2.945s
+ok  	github.com/sunholo-data/ailang/tools/internal/spike-listrep/protocol	3.074s
+?   	github.com/sunholo-data/ailang/tools/ollama-tap	[no test files]
+ok  	github.com/sunholo-data/ailang/tools/verify-model-pricing	2.804s
+FAIL
