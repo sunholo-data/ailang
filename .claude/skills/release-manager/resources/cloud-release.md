@@ -33,9 +33,15 @@ was current, so a prod branch push could ship unreleased code (it did, 2026-09-0
 ## Promote to prod (`promote-to-prod`, ailang-multivac)
 
 ```bash
-scripts/release.sh promote core vX.Y.Z --dry-run   # guards + plan only
-scripts/release.sh promote core vX.Y.Z             # copy, retag, roll
+scripts/release.sh promote core vX.Y.Z --dry-run       # guards + plan only
+YES=1 scripts/release.sh promote core vX.Y.Z           # copy, retag, roll
 ```
+
+`YES=1` (or `SKIP_CONFIRM=1`) is mandatory without a TTY — agent sessions, CI, anything
+with stdin redirected. The promote confirms with `Proceed? [y/N]`; on EOF `$REPLY` is
+empty and the script exits 1. Until 2026-09-07 it did so **silently**, so the command
+appeared to run, printed its banner, and left prod on the old version. `--dry-run` skips
+the prompt, so a passing dry-run is NOT evidence the real command will proceed.
 
 Guards, before anything is copied: a SUCCESSFUL `ailang-core-release` build exists for
 the tag (images are pushed in parallel with the gates, so registry tags alone prove

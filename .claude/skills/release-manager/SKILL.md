@@ -426,9 +426,17 @@ Prod only ever receives images that exist in test, by version. From the ailang-m
 checkout (guards, sets, verification and rollback: `resources/cloud-release.md`):
 
 ```bash
-scripts/release.sh promote core vX.Y.Z --dry-run   # refuses unless the release build
-scripts/release.sh promote core vX.Y.Z             # SUCCEEDED and all 18 :vX exist
+scripts/release.sh promote core vX.Y.Z --dry-run       # refuses unless the release build
+YES=1 scripts/release.sh promote core vX.Y.Z           # SUCCEEDED and all 18 :vX exist
 ```
+
+**`YES=1` is required whenever you are not typing at a terminal** — an agent session, CI,
+anything piping stdin. The promote asks `Proceed? [y/N]` interactively; with no TTY `read`
+takes EOF, `$REPLY` stays empty and the script exits 1. Before 2026-09-07 it printed
+*nothing* when that happened, so the banner scrolled by and prod was silently left
+un-promoted — the failure looked identical to success. It now refuses loudly and names
+this flag. `--dry-run` skips the prompt entirely, which is why a dry-run can pass on the
+same command line that then does nothing.
 
 ### 8. Collect and Close Related Issues
 
