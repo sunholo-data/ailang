@@ -2153,3 +2153,90 @@ across all3 expected push workflows. STATUS rotation retains exactly3 structural
 to the bounded archive. Queue row remains present and is LANDED. Dashboard is30lines. Ledger,
 tracked-path, context-doc, file-size, reference, skill, whitespace and log-rotation checks run on
 the record branch before landing.
+
+## 345 — 2026-09-07 — Clear the required `test` red an attended checkpoint left on dev [HARNESS]
+
+**Picked.** Not the queue head. Gate 1 found `dev` RED at `878939117` on TWO checks, and
+`mission-motoko` iteration 38 had handed both to V1 as the repo-owning mission. The picked one is
+the REQUIRED context `test`, failing at step *"Check file sizes (>800 lines)"*:
+`cmd/ailang/exec.go` at **807** lines against the 800 ceiling (`make/code-health.mk:166`). Required
+means it blocked every open pull request in the repo — PRs #1071 and #1073 were both stranded
+behind it. The second red, `launchd drivers (bash 3.2)`, was NOT picked: iteration 344 already
+parked it on `D-60` with #1073 open, so re-chasing it would have re-run a parked item.
+
+**Reality check.** Reproduced first-party before routing: `make check-file-sizes` fails locally with
+the identical row, and `wc -l cmd/ailang/exec.go` = 807. Attribution measured, not assumed —
+`git log -1 -- cmd/ailang/exec.go` names `8c41d41d4` ("chore: checkpoint existing z.ai provider and
+benchmark work"), an attended-session direct-to-dev checkpoint. Its delta to that file is **10
+insertions / 1 deletion**, i.e. 798 → 807. Note the first draft of this record said "796 → 807,
++11 lines"; that came from misreading `--stat`'s bar width as an insertion count, and the judge
+caught it (below).
+
+**Shipped.** PR [#1074](https://github.com/sunholo-data/ailang/pull/1074) →
+[`16f0cb741`](https://github.com/sunholo-data/ailang/commit/16f0cb74103ec903c8c596e69f775c96e5674f71).
+`spanningEventHandler` and its streaming callbacks (`newSpanningEventHandler`, `SetContext`,
+`OnTurnStart`, `OnText`, `OnToolUse`, `OnToolResult`, `OnTurnEnd`, `OnError`) move **byte-for-byte**
+into a new `cmd/ailang/exec_events.go`, same package `main`. `exec.go` 807 → **614**; new file
+**209**; the `exec.go` diff is **193 deletions and 0 additions**, and its import block is untouched.
+Purity was proven with a comparator carrying its own negative control: the moved region is
+byte-identical to the removed 192 content lines, while the same comparison against a one-line-offset
+region correctly fails to match. Gates: `make check-file-sizes` pass (red at base for this exact
+reason — non-vacuity control), `go build ./cmd/ailang/...` 0, `go test ./cmd/ailang/...` ok 29.9s,
+`gofmt -l cmd/ailang` empty, `go vet ./cmd/ailang/...` 0.
+
+**Routing evidence.** Gate4 base=`16f0cb74103ec903c8c596e69f775c96e5674f71@2026-09-07T08:09:53Z`.
+Controller `claude:claude-opus-5` (tok: not reported). **Designer: deliberately NOT spawned** — no
+new design doc is needed for an inherited required-CI-red fix, and the Fable diet conditions the
+designer on *"only when a new doc is actually needed"*; precedent is iterations 331/332/338, which
+fixed reds forward without a doc or a quorum. This is a routing call, not a lane failure.
+**Planner:** resolver said `agent-tool opus fail-closed:no-doc`, and the Agent spawn was **DENIED**
+at the tool boundary — verbatim: `deny:provider-pin — planner is pinned to codex:gpt-5.6-sol;
+Agent-tool alias spawn refused`. The pinned lane then probed **rc=1** (`ERROR: Selected model is at
+capacity`), so the declared fallback ran: `pi:ollama/kimi-k3:cloud`, probe rc=0, 243s, plan written
+to `/tmp/iter345_plan.md` (tok: not reported). **Executor:** `recipe codex:gpt-5.6-sol` — same
+capacity refusal — fell to the declared first fallback `pi:ollama/deepseek-v4-flash:0731-cloud` via
+`scripts/mission_pi_run.sh`, verdict `ok`, 243s, 49 tool executions, 3 files changed (tok: not
+reported). **Evaluator:** `agent-tool sonnet declared:alias-pin`, spawned through the Agent tool,
+75,914 tokens / 37 tool uses / 517s. Generator (pi deepseek) != judge (sonnet).
+
+**Ruled out.** *`go build ./...` fails in `cmd/wasm`* — NOT ours and not new: it fails identically
+with `function main is undeclared in the main package` at base `878939117` in a separate clean
+checkout, and CI never runs `go build ./...` (its only `go build` line targets
+`tools/govulncheck-filter`). *The surviving `launchd drivers (bash 3.2)` red is ours* — refuted by a
+paired control: the job reports `20 passed, 7 failed` at BOTH the PR head and the base, and this
+commit's diff touches only `cmd/ailang/exec.go`, `cmd/ailang/exec_events.go` and
+`changelogs/v0.32-current.md`, zero files under `tools/launchd/`. *A green `go test ./cmd/ailang/...`
+means the moved handler still behaves* — refuted by the judge's mutation drill; see below.
+
+**Retro lane.** One instrument defect, caught in-flight and worth recording because the natural form
+is wrong: a Gate-3b poll written as `select(.conclusion != null)` counts every RUNNING check as
+complete, because `gh`'s check rollup reports `.conclusion` as the empty STRING `""` while a check
+is in flight, not as `null`. It printed `completed=14 pending=0` — a full green — seconds after the
+PR was opened. It was caught only because the rollup it printed alongside had blank conclusions,
+i.e. by the paired-reading rule, not by the predicate. The correct predicate is
+`select(.status != "COMPLETED")`.
+
+**Progress.** N=12 design docs before v1.0.0 (was 12, change 0); this is a HARNESS/CI item outside
+the ratified clauses 2–5 inventory, so the goal is unmoved.
+
+**Cost.** No metered spend. Controller Anthropic subscription; planner and executor both flat-rate
+pi/ollama-cloud lanes; evaluator Anthropic subscription. The pinned `codex:gpt-5.6-sol` bucket was
+at capacity all iteration and was never billed.
+
+**Next.** `m-cachesrc-cognitive-complexity` (PR #1071 is open, mergeable and now unblocked), then
+the orphan sweep for #1071/#1073, then `m-coordinator-codex-401`. `D-60` and D-55–D-59 stay parked.
+
+**Independent evaluation.** Judge `sonnet`, **PASS 91/100, ZERO blocking findings**. It re-derived
+every load-bearing number independently and built its own negative control for the byte-identity
+comparator. Two non-blocking findings, both actioned: (1) the changelog's "before" numbers were
+wrong — corrected to 798 → 807 / net +9, which is the ONLY post-evaluation delta and is prose in
+`changelogs/v0.32-current.md`; (2) a four-mutation drill on the new file (OTEL attribute-key rename,
+dropped `eventStore` write, inverted nil-check that would panic at runtime, removed `span.End()`)
+found **all four survive** `go build`, `go vet` and `go test ./cmd/ailang/...` green, each restored
+byte-clean and proven by SHA-256 against the committed blob. `spanningEventHandler` has no
+behavioural test coverage at all — equally true before this commit, so not a blocker on a pure move,
+but it bounds what these green gates are worth and is queued below.
+
+**Record verification.** Exact merge SHA `16f0cb741`: **20 checks**, all green except the parked
+`launchd drivers (bash 3.2)`. The four REQUIRED contexts — `test`, `lint`, `build`, `docs-gate` —
+are all `success`, and `test` is the one this iteration set out to clear.
