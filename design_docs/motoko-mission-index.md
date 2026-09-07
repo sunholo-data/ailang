@@ -12,6 +12,7 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 38 | 2026-09-07 | the judge failed the controller, not the code, and it was right — row 16 lands, row 6s is done, measured and parked on how its design was approved |
 | 37 | 2026-09-06 | the remaining suite-bound derivation landed, and two failed judge lanes were not mistaken for verdicts [HARNESS] |
 | 36 | 2026-09-06 | an attended session turned dev red in six checks and left; the fire 37 minutes later inherited it, and found a fifth defect the CI logs could not y... |
 | 35 | 2026-09-05 | the absent reviewer was the one that found the defect at the bottom of the design, and the judge found its twin in the code [HARNESS] |
