@@ -11,6 +11,7 @@ import (
 )
 
 func TestMissionQuotaMissingCodexBlocksWithoutLedger(t *testing.T) {
+	t.Setenv("OLLAMA_API_KEY", "")
 	paths := mission.Paths{Home: t.TempDir()}
 	t.Setenv("CODEX_HOME", filepath.Join(paths.Home, "codex"))
 	output := captureStdout(t, func() {
@@ -23,6 +24,7 @@ func TestMissionQuotaMissingCodexBlocksWithoutLedger(t *testing.T) {
 	}
 }
 func TestMissionQuotaCorruptLedgerCannotBypassCodex(t *testing.T) {
+	t.Setenv("OLLAMA_API_KEY", "")
 	paths := mission.Paths{Home: t.TempDir()}
 	t.Setenv("CODEX_HOME", filepath.Join(paths.Home, "codex"))
 	dir := filepath.Join(paths.Home, ".ailang", "state")
@@ -37,11 +39,12 @@ func TestMissionQuotaCorruptLedgerCannotBypassCodex(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
-	if output != "codex\n" {
+	if output != "codex\nollama\n" {
 		t.Fatalf("corrupt ledger bypass: %q", output)
 	}
 }
 func TestMissionQuotaOtherBucketDoesNotInspectCodex(t *testing.T) {
+	t.Setenv("OLLAMA_API_KEY", "")
 	paths := mission.Paths{Home: t.TempDir()}
 	t.Setenv("CODEX_HOME", filepath.Join(paths.Home, "codex"))
 	if err := mission.AppendSpend(paths, "anthropic", 10, 1, time.Now()); err != nil {

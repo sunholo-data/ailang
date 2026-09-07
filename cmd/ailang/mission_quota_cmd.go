@@ -26,7 +26,7 @@ func missionQuotaWithPaths(args []string, paths mission.Paths, now time.Time) er
 	asJSON := fs.Bool("json", false, "Emit the ledger as JSON")
 	bucket := fs.String("bucket", "", "Report only this bucket (codex, anthropic, openrouter, ollama)")
 	consolidate := fs.Bool("consolidate", false, "Compact the journal into the ledger cache before reporting")
-	over := fs.Bool("over", false, "Print buckets unavailable for quota routing, one per line. Codex uses local provider percentages and blocks on missing/stale observations; other buckets require proven ledger exceedance.")
+	over := fs.Bool("over", false, "Print buckets unavailable for quota routing, one per line. Codex uses local provider percentages. Ollama reads its usage endpoint with OLLAMA_API_KEY and verified account metadata. Both block unknown quota; other buckets require proven ledger exceedance.")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -39,6 +39,12 @@ func missionQuotaWithPaths(args []string, paths mission.Paths, now time.Time) er
 	if *bucket == "" || *bucket == "codex" {
 		observation := mission.ObserveCodexQuota(codexHome, now)
 		codex = &observation
+	}
+
+	var ollama *mission.OllamaQuotaObservation
+	if *bucket == "" || *bucket == "ollama" {
+		observation := mission.ObserveOllamaQuota(paths, os.Getenv("OLLAMA_API_KEY"), now)
+		ollama = &observation
 	}
 
 	if *consolidate {
@@ -55,9 +61,8 @@ func missionQuotaWithPaths(args []string, paths mission.Paths, now time.Time) er
 
 	ledger, err := mission.LoadLedger(paths, now)
 	if err != nil {
-		if *over && codex != nil && codex.Blocked() {
-			fmt.Println("codex")
-			fmt.Fprintf(os.Stderr, "quota: codex %s: %s; token ledger unavailable: %v\n", codex.State, codex.Reason, err)
+		if *over && emitProviderQuotaBlocks(codex, ollama) {
+			fmt.Fprintf(os.Stderr, "quota: token ledger unavailable: %v\n", err)
 			return nil
 		}
 		return err
@@ -70,7 +75,7 @@ func missionQuotaWithPaths(args []string, paths mission.Paths, now time.Time) er
 				filtered = append(filtered, u)
 			}
 		}
-		if len(filtered) == 0 && canon != "codex" {
+		if len(filtered) == 0 && canon != "codex" && canon != "ollama" {
 			// An empty result is a claim ("nothing spent") that could equally mean
 			// "wrong name". Distinguish them.
 			known := map[string]bool{}
@@ -100,32 +105,30 @@ func missionQuotaWithPaths(args []string, paths mission.Paths, now time.Time) er
 		printed := map[string]bool{}
 		for _, v := range ledger.Verdicts(now) {
 			// Codex is admitted using provider percentages, never inferred token capacity.
-			if v.Bucket != "codex" && v.Over() && !printed[v.Bucket] {
+			if v.Bucket != "codex" && v.Bucket != "ollama" && v.Over() && !printed[v.Bucket] {
 				fmt.Println(v.Bucket)
 				printed[v.Bucket] = true
 			}
 		}
-		if codex != nil && codex.Blocked() {
-			fmt.Println("codex")
-			fmt.Fprintf(os.Stderr, "quota: codex %s: %s\n", codex.State, codex.Reason)
-		}
+		emitProviderQuotaBlocks(codex, ollama)
 		return nil
 	}
 
 	verdicts := ledger.Verdicts(now)
 	filteredVerdicts := verdicts[:0:0]
 	for _, v := range verdicts {
-		if v.Bucket != "codex" {
+		if v.Bucket != "codex" && v.Bucket != "ollama" {
 			filteredVerdicts = append(filteredVerdicts, v)
 		}
 	}
 	if *asJSON {
 		out := struct {
 			*mission.Ledger
-			At       time.Time                      `json:"at"`
-			Verdicts []mission.RationVerdict        `json:"verdicts"`
-			Codex    *mission.CodexQuotaObservation `json:"codex_provider_usage,omitempty"`
-		}{Ledger: ledger, At: now, Verdicts: filteredVerdicts, Codex: codex}
+			At       time.Time                       `json:"at"`
+			Verdicts []mission.RationVerdict         `json:"verdicts"`
+			Codex    *mission.CodexQuotaObservation  `json:"codex_provider_usage,omitempty"`
+			Ollama   *mission.OllamaQuotaObservation `json:"ollama_provider_usage,omitempty"`
+		}{Ledger: ledger, At: now, Verdicts: filteredVerdicts, Codex: codex, Ollama: ollama}
 		body, err := json.MarshalIndent(out, "", "  ")
 		if err != nil {
 			return err
@@ -137,7 +140,7 @@ func missionQuotaWithPaths(args []string, paths mission.Paths, now time.Time) er
 	display := *ledger
 	display.Usage = nil
 	for _, u := range ledger.Usage {
-		if u.Bucket != "codex" {
+		if u.Bucket != "codex" && u.Bucket != "ollama" {
 			display.Usage = append(display.Usage, u)
 		}
 	}
@@ -148,8 +151,14 @@ func missionQuotaWithPaths(args []string, paths mission.Paths, now time.Time) er
 			fmt.Printf("  %dm: %.1f%% used / %.1f%% allowed; resets %s (observed %s)\n", w.WindowMinutes, w.UsedPercent, w.AllowancePercent, w.ResetsAt.Format(time.RFC3339), codex.ObservedAt.Format(time.RFC3339))
 		}
 	}
+	if ollama != nil {
+		fmt.Printf("ollama provider usage: %s — %s\n", ollama.State, ollama.Reason)
+		if ollama.SessionUsage != nil && ollama.WeeklyUsage != nil {
+			fmt.Printf("  provider units: session %.6g; weekly %.6g (not assumed percentages)\n", *ollama.SessionUsage, *ollama.WeeklyUsage)
+		}
+	}
 	for _, u := range ledger.Usage {
-		if u.Bucket == "codex" {
+		if u.Bucket == "codex" || u.Bucket == "ollama" {
 			continue
 		} // Provider percentages govern Codex admission.
 		if u.Capacity <= 0 {
@@ -161,4 +170,20 @@ func missionQuotaWithPaths(args []string, paths mission.Paths, now time.Time) er
 		}
 	}
 	return nil
+}
+
+// Preserve provider admission independently of the optional token journal.
+func emitProviderQuotaBlocks(codex *mission.CodexQuotaObservation, ollama *mission.OllamaQuotaObservation) bool {
+	blocked := false
+	if codex != nil && codex.Blocked() {
+		fmt.Println("codex")
+		fmt.Fprintf(os.Stderr, "quota: codex %s: %s\n", codex.State, codex.Reason)
+		blocked = true
+	}
+	if ollama != nil && ollama.Blocked() {
+		fmt.Println("ollama")
+		fmt.Fprintf(os.Stderr, "quota: ollama %s: %s\n", ollama.State, ollama.Reason)
+		blocked = true
+	}
+	return blocked
 }

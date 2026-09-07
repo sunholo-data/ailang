@@ -562,6 +562,17 @@ _mc_probe_codex() {
   return "$rc"
 }
 
+# All Pi role/controller probes share admission; local Ollama maps to no cloud bucket.
+_mc_probe_pi() {
+  local m="$1"
+  if _mc_is_over_ration "pi:$m"; then
+    MC_BOUNDED_OUT="Pi quota admission blocked (over ration or observation unavailable)"
+    log "pi:$m quota admission blocked; skipping inference probe"
+    return 75
+  fi
+  _mc_bounded "$PROBE_TIMEOUT" pi --mode json --no-session --no-tools --model "$m" -p 'reply with exactly: ok'
+}
+
 # ---- runtime bucket exhaustion (M-QUOTA-RATIONING-ROUTING M4) -------------
 #
 # A start-probe CANNOT see a spent bucket. The probe is one tiny request; the
@@ -608,10 +619,8 @@ _mc_is_demoted() {
 # "NO usable controller" refusal takes over: it announces once per episode and
 # spends zero tokens beyond probes, which IS the pause D-4 asks for.
 #
-# FAILS OPEN, deliberately and loudly. If the ledger cannot be read the fleet
-# keeps working unrationed; a bookkeeping problem must never be able to stop
-# every mission. The same rule governs an unknown capacity: `--over` lists only
-# PROVEN exceedances, so silence means "nothing is proven over", never "all fine".
+# Codex and Ollama Cloud fail closed on unavailable accounting. Other providers
+# retain their existing ledger policy. The quota command itself is bounded.
 MC_OVER_RATION=""
 MC_OVER_RATION_READ=0
 
@@ -619,25 +628,27 @@ _mc_load_ration() {
   [ "$MC_OVER_RATION_READ" -eq 1 ] && return 0
   MC_OVER_RATION_READ=1
   if ! command -v ailang >/dev/null 2>&1; then
-    log "ration gate: no ailang on PATH — proceeding UNRATIONED"
+    MC_OVER_RATION="codex ollama"
+    log "ration gate: no ailang on PATH — blocking Codex and Ollama Cloud"
     return 0
   fi
   # rc is taken from ailang DIRECTLY, not through the pipe: a pipeline reports the
   # LAST command's status, so `ailang ... | tr` would report tr's 0 and hide the
   # failure on any shell where pipefail happens to be off.
   local _raw _rc
-  _raw=$(ailang mission quota --over 2>/dev/null); _rc=$?
-  MC_OVER_RATION=$(printf '%s' "$_raw" | tr '\n' ' ')
+  _mc_bounded 15 ailang mission quota --over; _rc=$?
+  _raw="$MC_BOUNDED_OUT"
+  MC_OVER_RATION=$(printf '%s\n' "$_raw" | awk '/^(codex|ollama|anthropic|openrouter|opencode)$/' | tr '\n' ' ')
   if [ "$_rc" -ne 0 ]; then
     # Say so. A silently unrationed fleet looks identical to a rationed one that
     # found nothing over — and that is the exact ambiguity this milestone exists
     # to remove. An `ailang` too old to know --over lands here.
-    MC_OVER_RATION=""
-    log "ration gate: 'ailang mission quota --over' failed (rc=$_rc) — proceeding UNRATIONED"
+    MC_OVER_RATION="codex ollama"
+    log "ration gate: quota command failed (rc=$_rc) — blocking Codex and Ollama Cloud"
     return 0
   fi
   if [ -n "$MC_OVER_RATION" ]; then
-    log "ration gate: buckets OVER their ${MISSION_RATION_PCT:-10}%/day ration:$MC_OVER_RATION"
+    log "ration gate: blocked buckets (over ration or unknown quota):$MC_OVER_RATION"
   fi
   return 0
 }
@@ -650,7 +661,8 @@ _mc_rung_bucket() {
   case "$1" in
     codex:*) printf 'codex' ;;
     pi:openrouter/*) printf 'openrouter' ;;
-    pi:ollama/*) printf 'ollama' ;;
+    pi:ollama/*:cloud|pi:ollama/*-cloud) printf 'ollama' ;;
+    pi:ollama/*) printf '' ;; # Local models do not consume the cloud subscription.
     claude:*) printf 'anthropic' ;;
     pi:*) printf '' ;;
     *) printf 'anthropic' ;;
@@ -685,8 +697,8 @@ select_model() {
   if [ -n "${MISSION_MODEL:-}" ]; then
     # A demoted pin has a SPENT bucket, so honouring it again just reruns the
     # failure. Fall through to probing and let the chain answer.
-    if _mc_is_demoted "$(_mc_canon_id "$MISSION_MODEL")"; then
-      log "env pin $MISSION_MODEL DEMOTED this fire (runtime bucket limit) — falling through to the chain"
+    if _mc_is_demoted "$(_mc_canon_id "$MISSION_MODEL")" || _mc_is_over_ration "$MISSION_MODEL"; then
+      log "env pin $MISSION_MODEL unavailable (runtime limit or quota admission) — falling through to the chain"
     else
       _mc_set_controller "$MISSION_MODEL" "env pin"; return 0
     fi
@@ -700,7 +712,7 @@ select_model() {
       rm -f "$OVERRIDE_FILE"
       log "model override expired — resuming preference probing"
     elif [ -n "${ov_model:-}" ]; then
-      if _mc_is_demoted "$(_mc_canon_id "$ov_model")"; then
+      if _mc_is_demoted "$(_mc_canon_id "$ov_model")" || _mc_is_over_ration "$ov_model"; then
         log "override pin $ov_model DEMOTED this fire (runtime bucket limit) — falling through to the chain"
       else
         _mc_set_controller "$ov_model" "override file"; return 0
@@ -738,7 +750,7 @@ select_model() {
         log "controller preference $m unusable — falling through"
         ;;
       pi:*)
-        _mc_bounded "$PROBE_TIMEOUT" pi --mode json --no-session --no-tools --model "${m#pi:}" -p 'reply with exactly: ok'
+        _mc_probe_pi "${m#pi:}"
         rcode=$?
         if [ "$rcode" -eq 0 ]; then _mc_set_controller "$m" "probe ok"; return 0; fi
         log "controller preference $m probe failed (rc=$rcode within ${PROBE_TIMEOUT}s) — falling through"
@@ -782,7 +794,7 @@ select_model() {
         # token, --no-session avoids polluting ~/.pi/sessions; rc is the verdict.
         # rc captured explicitly: after `if cmd; then...fi` falls through, $? is the
         # IF's status (0), not cmd's — logging it would report every failure as rc=0.
-        _mc_bounded "$PROBE_TIMEOUT" pi --mode json --no-session --no-tools --model "$m" -p 'reply with exactly: ok'
+        _mc_probe_pi "$m"
         rcode=$?
         if [ "$rcode" -eq 0 ]; then
           _mc_set_controller "$fb" "Anthropic+codex unavailable; pi fallback rung"
@@ -1333,7 +1345,7 @@ for role in DESIGNER PLANNER EXECUTOR EVALUATOR; do
     pi_model="${val#pi:}"
     case "$_pi_probed" in *":${pi_model}:"*) : ;; *)   # not yet probed
       _pi_probed="${_pi_probed}${pi_model}:"
-      _mc_bounded "$PROBE_TIMEOUT" pi --mode json --no-session --no-tools --model "$pi_model" -p 'reply with exactly: ok'
+      _mc_probe_pi "$pi_model"
       pi_rc=$?; pi_out="$MC_BOUNDED_OUT"
       if [ "$pi_rc" -ne 0 ]; then
         _pi_failed="${_pi_failed}${pi_model}:"
@@ -1500,10 +1512,14 @@ fi
 #   echo "codex:gpt-5.6-sol" > ~/.ailang/state/mission-executor-model-once
 if [ -f "$EXEC_ONCE_FILE" ]; then
   once=$(head -1 "$EXEC_ONCE_FILE" 2>/dev/null)
-  rm -f "$EXEC_ONCE_FILE"
-  if [ -n "$once" ]; then
-    export MISSION_EXECUTOR_MODEL="$once"
-    log "one-shot executor override consumed: executor=$once (this iteration only)"
+  if [ -n "$once" ] && _mc_is_over_ration "$once"; then
+    log "one-shot executor override deferred by quota admission: $once; keeping checked executor $MISSION_EXECUTOR_MODEL"
+  else
+    rm -f "$EXEC_ONCE_FILE"
+    if [ -n "$once" ]; then
+      export MISSION_EXECUTOR_MODEL="$once"
+      log "one-shot executor override consumed: executor=$once (this iteration only)"
+    fi
   fi
 fi
 

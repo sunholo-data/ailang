@@ -332,10 +332,28 @@ func TestLive_DoctorReportsTheRigAccurately(t *testing.T) {
 		t.Logf("%s", f)
 	}
 
-	// Conditional: if env-source drift returns, it must still name the key.
+	// A live drift need not be the historical allowlist failure. Attended canary
+	// pins deliberately differ too; require each actually differing key to be named.
 	for _, f := range findingsOfKind(rep, "env-source-drift") {
-		if f.Mission == "docs" && !strings.Contains(f.Detail, "MISSION_PLANNER_ALLOWLIST") {
-			t.Errorf("a returning docs drift must NAME the key that routes work to opus; got: %s", f.Detail)
+		paths := DefaultPaths()
+		reviewed, err := os.ReadFile(paths.ReviewedEnvPath(f.Mission))
+		if err != nil {
+			t.Fatal(err)
+		}
+		installed, err := os.ReadFile(paths.EnvPath(f.Mission))
+		if err != nil {
+			t.Fatal(err)
+		}
+		keys := map[string]bool{}
+		for _, line := range strings.Split(string(reviewed)+"\n"+string(installed), "\n") {
+			if key := assignmentKey(line); key != "" {
+				keys[key] = true
+			}
+		}
+		for key := range keys {
+			if envValue(string(reviewed), key) != envValue(string(installed), key) && !strings.Contains(f.Detail, key) {
+				t.Errorf("%s: drift must name differing key %s; got: %s", f.Mission, key, f.Detail)
+			}
 		}
 	}
 	// Conditional: if a PATH regression returns, it must only be on a mission that
