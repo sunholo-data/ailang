@@ -1,39 +1,45 @@
-# V1 Mission Dashboard — snapshot 2026-09-07, iteration 347
-**Release**: v0.35.1 · **Goal**: N=12 design docs before v1.0.0 (unmoved this iteration — HARNESS item)
+# Mission Dashboard — V1
 
-## In flight / just landed
-- **IN FLIGHT — PR #1090, rebased, all gates green (2 of 4 milestones)** `m-launchd-notify-subshell-observation` — PR #1090. Human ruling
-  **D-60 option B**. The three driver notification paths are bounded by `_mc_bounded` at
-  `NOTIFY_TIMEOUT` (30s); the seven inherited notify assertions are restored — `test_driver_notify.sh`
-  **20/7 → 38 passed, 0 failed**. Judge `sonnet` **LAND 80/100**; both BLOCKING findings reproduced
-  first-party and fixed in-iteration.
-- **M3/M4 NOT delivered** — executor hit its 30-min cap; partial banked at
-  `~/.ailang/state/mission-v1-iter347-m3-partial/`, queued as `m-launchd-drain-aggregate-budget`.
+> Snapshot only, overwritten every iteration. History lives in `v1-mission.md` (queue + STATUS)
+> and `v1-mission-log.md` (full records). The bare `mission-dashboard.md` in this directory is
+> **Motoko's** — do not write it.
 
-## Next three picks
-1. `m-launchd-drain-aggregate-budget` — the drain bounds each row, not the whole drain, in the
-   preflight phase whose only backstop is the 6h `HARD_TIMEOUT`; the spool is uncapped.
-3. `m-debugcacheforms-flaky-on-macos-ci` — iteration 346's own macOS flake.
+**Updated**: 2026-09-07 ~21:20 UTC (iteration 348) · **Release**: v0.35.2 (attended, 2026-09-07)
 
-## Loop / routing
-2h interval + overlap guard. Designer = rotation (deepseek ran all 3 passes). Planner pin
-`pi:ollama/kimi-k3:cloud` **probe-timed-out at 120s** → `pi:openrouter/moonshotai/kimi-k3`.
-Executor `pi:ollama/deepseek-v4-flash:0731-cloud`. Evaluator `sonnet`. Generator != judge held.
+## Just landed
+- **iter-348** `m-coordinator-windows-package-timeout-headroom` — PR #1102 → `81fb19b67`,
+  **20 checks / 0 not-green**, judge FAIL 35 → FAIL 61 → **PASS 86**. A derived, explicitly
+  *provisional* `go test -timeout 416s` on both CI legs with its arithmetic written into the
+  workflow, plus `tools/ci/headroom`: a WARN-ONLY per-package budget report whose one non-zero
+  exit is a runtime anti-vacuity guard. It is live on `dev` and reporting.
+- The measurement corrected the row: the slowest Windows package is **`cmd/ailang`** (228.7 s =
+  76% of the old ceiling), not `internal/coordinator`, and the old 300 s sat *inside* the runner's
+  own 1.80x measured variance.
 
-## Parked on Mark
-**Nothing.** Decision ledger: 60 rows, **ZERO open** (`mission_decisions.sh --check` valid).
-D-55–D-60 were all resolved by attended ruling on 2026-09-07.
+## Next three
+1. `m-sonar-dev-branch-security-rating-c-on-new-code` — the `dev` branch quality gate has been red
+   on **C Security Rating on New Code** since `8e3927950`. SonarCloud is a GitHub App, so no
+   workflow name can surface it; use the `sonarcloud-triage` skill.
+2. `m-launchd-drain-aggregate-budget` — iteration 347's unexecuted M3/M4. Design and plan already
+   written and quorum-reviewed; partial executor work banked at
+   `~/.ailang/state/mission-v1-iter347-m3-partial/`. **Verify, do not adopt.**
+3. `m-debugcacheforms-flaky-on-macos-ci` — third platform this one characterization test has failed
+   on; the answer is structural assertions, not a third `t.Skip`.
 
-## Quota / cost posture
-Metered **$0.80** of $5 — quorum $0.177 (3 rounds), OpenRouter planner $0.620. Designer (3 runs) and
-executor flat-rate ollama-cloud at $0; controller and evaluator on Anthropic subscription.
+## Loop health
+- Cadence steady; iterations 341–344 were reaped slots, recovered by 346. 345–348 all landed.
+- Routing: controller `claude:claude-opus-5` · designer/executor
+  `pi:ollama/deepseek-v4-flash:0731-cloud` · planner `pi:ollama/kimi-k3:cloud` (**first successful
+  planner run on this lane** — the D-48 record was a designer run that wrote 0 files) · evaluator
+  `agent-tool sonnet`, each round in its own worktree. Generator != judge held every round.
+- Metered **$0.33** of the $5 ceiling this iteration; every pi lane was flat-rate $0.
 
-## Watch
-- **Attended PR #1082 landed a competing fix for the mission's live item mid-iteration** (14:15Z) and
-  also fixed 9 heartbeat arms this iteration had reported as newly exposed. Rebased; the sprint
-  supersedes it. `make test-launchd-drivers` is rc=0 on `dev` and at the sprint head (notify 38/0).
-- Missing PR runs are a CONFLICT until proven otherwise: iter-347 read `checks=1`, diagnosed a
-  dropped event, and was wrong — a `mergeable` reading expires when a sibling merges. Gate 3b
-  sharpened.
-- The narrow-refinement carve-out authorises a 2nd designer revision the Fable diet forbids. $0 here
-  (flat-rate lane); evidence row 1 for a routing-policy fix.
+## Waiting on Mark
+**Nothing.** Decision ledger: 60 rows, **ZERO open**, `scripts/mission_decisions.sh --check` valid.
+
+## Worth knowing
+- Three consecutive judge rounds each found the **same class** of defect — an untested assumption
+  about the bytes of `go test` output. The rule earned: when a tool parses another tool's output,
+  the fixture must be *generated* by that tool and *pinned against every transformation between
+  them* (`.gitattributes` on the way in, CRLF tolerance in the parser on the way out).
+- A quorum reviewer's blocked-round-1 objection (the anti-vacuity guard) is what caught all three.

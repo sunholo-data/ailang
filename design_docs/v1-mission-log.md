@@ -2377,3 +2377,160 @@ conflict. The true reading came 35 minutes later; one rebase produced all four `
 workflows in 25 seconds and 21 checks with zero not-green. Instance 3 of a rule that already existed,
 so the Gate-5 lane is a SHARPENING, not a new rule: the reading has an expiry, and the dispatch green
 must never be quoted as the item's CI evidence.
+
+## 348 — 2026-09-07 — The Windows timeout was never about the coordinator: a derived budget, a headroom instrument, and three rounds of the same byte-level defect [HARNESS]
+
+**Picked.** `m-coordinator-windows-package-timeout-headroom`, the physically top `[NEXT]` row, filed
+by iteration 347 as a RED on `dev` HEAD that V1 owns. (The row below it still carries a stale
+`[NEXT — TOP OF QUEUE]` label from iteration 346; 347 inserted two rows above it without moving the
+label, so "top = next" and the label disagree. Resolved in favour of physical order, noted here so
+the next controller does not re-adjudicate it.) Ledger: 60 rows, **ZERO open**, `--check` valid; no
+directive on `#1072` or `#972` since the watermark; the four `clients-register dogfood` inbox
+messages from Mark are public feedback about the `ailang` CLI, not directives, and do not outrank.
+
+**Reality check — and it CORRECTED the row I was picking.** The row says the coordinator package's
+baseline grew 40% and asks "measure where the ~100 s goes". Measured first-party from five
+consecutive `test-windows` job logs, per-package wall seconds:
+
+| commit | cmd/ailang | internal/coordinator | internal/format | SUM all pkgs |
+|---|---|---|---|---|
+| `81abc956d` | 144.0 | 88.7 | 116.5 | 650.0 |
+| `8e3927950` | 126.0 | 100.8 | 84.3 | 599.7 |
+| `98730db02` | 143.4 | 99.4 | 108.4 | 640.2 |
+| `e5a325a20` | 172.5 | 124.4 | 114.5 | 739.0 |
+| `72f9cfeca` | **228.7** | **TIMEOUT >300 (FAIL)** | 32.1 | **1080.3** |
+
+Four things follow, and three of them contradict the row. **(a)** The slowest package on Windows is
+**`cmd/ailang`**, not the coordinator — 228.7 s is **76% of the old 300 s ceiling**, so the row
+pointed at the wrong package for "what blows next". **(b)** The failing run was a **1.80x
+whole-runner slowdown** (aggregate 599.7 → 1080.3) on a commit whose entire diff is four markdown
+files, not a coordinator regression. **(c)** Negative control: `internal/format` moved the *other*
+way on that same run (114.5 → 32.1), which is concurrency redistribution under `-p`, not a machine
+that is simply slower. **(d)** So the ceiling sat **inside the measured noise band** — 172.5 x 1.80
+= 310.5 s > 300 s — with zero margin and no instrument anywhere reporting how close any package
+was. The panic block confirms the mechanism: ONE test on the stack, running 2 s, i.e. the budget
+was exhausted cumulatively, not hung. Local control (darwin): `ok internal/coordinator 13.072s`,
+732 tests, **0** `t.Parallel()` against a repo-wide control of 17.
+
+**Shipped.** PR [#1102](https://github.com/sunholo-data/ailang/pull/1102) → squash
+[`81fb19b67`](https://github.com/sunholo-data/ailang/commit/81fb19b67bbc306f3a518b672a7782fc1cd48345),
+**20 checks on the merge SHA, ZERO not-green**. M1 a **provisional** `-timeout 416s` on both legs
+with its arithmetic written into the workflow and `TestGoTestTimeoutIsDerived` pinning it; M2
+`tools/ci/headroom`, WARN-ONLY for slow packages with a runtime **anti-vacuity guard** as its one
+non-zero exit; M3 the two-leg wiring that preserves `go test`'s output and exit code under
+`bash -e` and pwsh's `$PSNativeCommandUseErrorActionPreference`. The instrument is live on `dev`
+and reporting: *"internal/format 93.149s (22% of budget), cmd/ailang 56.329s (14%)…"*.
+
+**The iteration's real finding is that the SAME defect class arrived three times, and each time
+every green instrument agreed it was fine.** All three are an untested assumption about the BYTES
+of `go test` output, and all three passed the full unit suite.
+1. **Round 1 (judge FAIL 35/100).** `okRe` anchored on `^ok\t`; Go pads the status column so a real
+   line is `ok` + TWO SPACES + TAB. The parser matched **zero** records against real output, its own
+   anti-vacuity guard fired, and — because the suite had PASSED, so `go_rc=0` — the wiring correctly
+   propagated the instrument's exit 1 and turned a green build **red on both CI legs**. Every one of
+   the six fixtures had been hand-typed with a single tab, copied from the design doc's illustrative
+   example. The tests verified the arithmetic, never the artifact.
+2. **Round 2 (judge FAIL 61/100).** A real `(cached)` line carries **no duration at all**, and
+   `.gitattributes` declares `* text=auto` while pinning `eol=lf` only for `*.golden`,
+   `prompts/*.md` and `*.sh` — so a Windows checkout rewrote the newly-added real-output fixture and
+   `fields[2]` read `"(cached)\r"`. All 105 cached records were **dropped**, not zeroed. Reproduced
+   before routing with one variable changed: same fixture LF → **128 records / 105 cached**, CRLF →
+   **23 / 0**. 23 is also below the package-count floor, so a CRLF log reds the job twice over.
+3. **Round 3 (judge PASS 86/100).** Fixed on both sides, which are not alternatives: the splitter
+   strips the carriage return, because the pwsh leg can produce a CRLF log **at runtime** where no
+   `.gitattributes` entry reaches; and the fixtures are pinned `eol=lf`, because a fixture that
+   changes shape on checkout is not a fixture. The CRLF test derives its input from the LF fixture
+   *inside* the test, so the pin cannot normalise it away.
+
+**The guard the quorum insisted on is what caught all of it.** Round-1 reviewer `oc-glm-5-2`
+blocked the design on a silent-fallback path — *"if the output format changes the parser will match
+zero packages, report nothing, and exit 0"* — and supplied the runtime anti-vacuity guard verbatim.
+Without it, every one of these three defects would have shipped as a green job silently reporting
+nothing. The instrument that failed loudly is the reason the failure was cheap.
+
+**Not delivered.** Reducing `internal/coordinator`'s own runtime is deliberately **out of scope**
+and queued: the measurements show it is not the package that blows next, and the design says so with
+its evidence. Calibrating a *blocking* headroom threshold is also queued — `gpt6-astra`'s objection
+that the 300.520 s reading is **right-censored** was accepted verbatim, so the budget is labelled
+provisional and the instrument ships WARN-ONLY rather than inventing a new red source on a runner
+whose measured variance is 1.80x.
+
+**Routing evidence.** Gate 4 base=`2c5138eff935637c5754e35b8d30416d88bfecfe@2026-09-07T21:02:40Z`.
+Controller `claude:claude-opus-5` (tok: not reported).
+**Designer:** resolver said `recipe claude:claude-fable-5-1 declared:provider-pin`, the rotation
+SEED; the pointer `~/.ailang/state/mission-v1-designer-rotation` read `codex:gpt-6-astra`, so the
+next entry `pi:ollama/deepseek-v4-flash:0731-cloud` ran. Three runs, all verdict `ok`, all
+flat-rate $0: authoring 284 s (1,523,159 in / 40,683 out), revision r2 172 s (1,059,745 / 31,407),
+carve-out revision r3 203 s (652,900 / 41,915). Deepseek is vendor-independent of all three quorum
+reviewers, so no self-marking collision.
+**Quorum:** round 1 **BLOCKED** 3/3 reject — `gemini-3-1-pro` (the `set -e` wiring bug),
+`oc-glm-5-2` (the silent-fallback parser), and `gpt6-astra`, which was **ABSENT on budget** and was
+re-run alone at a raised cap per the absent-reviewer rule, returning a reject that was the sharpest
+of the three (right-censoring). Round 2 **BLOCKED** 3/3 again, on three *different* surfaces —
+provisioning (no build step for the tool), wiring (pwsh error semantics plus an unprotected
+headroom call), conflict-surface completeness. Objections did not localise and no reviewer flipped
+to pass, so the disposition was a bounded revision, not a SPLIT. Round 3 took the
+**narrow-refinement carve-out**: every surviving objection carried a concrete reviewer-authored
+`proposed_fix` and none disputed the design DIRECTION, so their text was applied verbatim and the
+doc routed straight to the planner.
+**Planner:** resolver `agent-tool opus fail-closed:planner-lane-field-missing`; the spawn-pin hook
+would deny that alias for a `provider:model`-pinned role, so per the amendment the pin ran directly.
+`pi:ollama/kimi-k3:cloud` probed rc=0 and delivered verdict `ok` in 598 s (750,216 in / 44,148 out),
+flat-rate $0 — **kimi's first successful planner run on this mission**, against the D-48 record of a
+designer run that wrote 0 files in 1802 s. It re-derived every `ci.yml` line number the design doc
+cites and found three stale, then prescribed anchoring on step names and asserting hit COUNTS.
+**Executor:** `recipe pi:ollama/deepseek-v4-flash:0731-cloud declared:provider-pin`, three runs, all
+verdict `ok`, flat-rate $0: 406 s (5,106,127 in / 46,732 out), 661 s (4,539,675 / 64,792), 254 s
+(2,119,438 / 24,680). Commits reconstructed from its `.snap/M<k>/` snapshots and proven byte-identical
+by a 5-file sha256 manifest, with the package gate re-run at every milestone boundary.
+**Evaluator:** `agent-tool sonnet declared:alias-pin`, THREE rounds, each in its OWN dedicated
+worktree: r1 231,510 tok / 69 tool uses / 1055 s → FAIL 35, r2 171,936 tok / 82 uses / 1067 s →
+FAIL 61, r3 170,612 tok / 77 uses / 1533 s → **PASS 86**. Generator (pi deepseek) != judge (sonnet).
+
+**Ruled out.** *"The `test` and `lint` reds on my PR are mine"* — **REFUTED**, and this is the one
+that decided LANDED vs parked. GitHub builds the `pull_request` MERGE ref, so `dev` commits that
+landed *during* the iteration compile into the run. `lint`'s SA4000 is in
+`internal/coordinator/msg_id_suffix_test.go`, a file **absent** from my base and from my branch and
+present only on `dev`; the merge ref carried an older, already-superseded version of it.
+`test` failed at `make verify-pi-assets` DRIFT, which I reproduced at **pristine `origin/dev`** in a
+separate control worktree with none of my files present. Both cleared on a rebase onto current
+`dev`; no fix of mine was involved. The independent judge re-derived the attribution and confirmed
+it, correcting one detail: the lint file originated at `a12ed330d`, not the release squash
+`22150ef72` I had cited.
+*"`go build ./...` failing is a regression from this sprint"* — refuted with a negative control: it
+fails identically on `cmd/wasm` at pristine `origin/dev` (`//go:build js && wasm`, so no `main` on
+darwin), and the repo's own `make build` builds only `./cmd/ailang`. Two independent judges
+confirmed it separately.
+*"dev is red and I must fix it"* — refuted mid-flight: `4b7817f53` and the SA4000 repair landed on
+`dev` from another session while I was measuring, so `make pi-assets` in my control worktree
+produced an **empty diff**. I had already claimed the fix on the cross-mission channel; recorded
+here so the claim is not read as work I did.
+*"a blocking headroom threshold is safe"* — refuted by `gpt6-astra` and accepted: a FAIL tier on a
+runner with 1.80x measured variance is a new flake source introduced by the fix for a flake.
+
+**Retro lane.** Three consecutive rounds of the same class — an untested assumption about the bytes
+of an external tool's output — is not three accidents. The generalisable rule, and the one this
+iteration would put in the executor's directive next time: **when a tool parses another tool's
+output, the fixture must be GENERATED by that tool, never typed.** Round 2 added exactly that and
+round 3 still fell to a checkout transformation of the generated file, so the rule needs its
+second half: **and the fixture must be pinned against every transformation between the generator
+and the parser** — `.gitattributes` on the way in, and CRLF tolerance in the parser on the way out,
+because a runtime log has no `.gitattributes`. Evidence row 1 for a designer/executor directive
+change; it is a skill edit, so it goes through Gate 5, not here.
+
+**Progress.** N=12 design docs before v1.0.0 (was 12, change 0); a HARNESS item outside the ratified
+clauses 2–5 inventory, so the goal is unmoved.
+
+**Cost.** Metered **$0.33** of the $5 ceiling: quorum round 1 $0.0418, the `gpt6-astra` solo re-run
+at a raised cap $0.1043, and round 2 $0.1850. Designer (3 runs), planner and executor (3 runs) all
+rode flat-rate ollama-cloud at $0; controller and evaluator are Anthropic subscription. No
+unreported cost was invented.
+
+**Next.** `m-sonar-dev-branch-security-rating-c-on-new-code` (the standing SonarCloud branch-gate
+red no workflow name can surface), then `m-launchd-drain-aggregate-budget` (iteration 347's
+unexecuted M3/M4, partial work banked at `~/.ailang/state/mission-v1-iter347-m3-partial/`), then
+`m-debugcacheforms-flaky-on-macos-ci`. Newly queued by this iteration:
+`m-coordinator-test-parallelism` (732 serial tests, 0 `t.Parallel()`),
+`m-headroom-blocking-threshold-calibration` (astra's censored-measurement objection), and
+`m-headroom-residual-mutations` (four mutations the round-3 judge derived from the diff that survive
+the suite).
