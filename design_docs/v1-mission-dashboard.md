@@ -31,4 +31,5 @@
 
 ## CI and workspace
 - Gate-4 base `d2dd128be` at 2026-09-07T05:59:10Z; the docs-only advance was reconciled.
+- Record PR #1073 is open and inherited the same launchd red; it was not merged.
 - Main checkout's 14 unrelated dirty paths were untouched; PR #1071 remains open.

@@ -2199,6 +2199,12 @@ PASS92 on the park/process disposition, zero authorization to land, with the exa
 and absence of tracked code changes independently checked. The configured Pi MiniMax model was not
 silently replaced; its Agent-selection failure and the fallback model are named above.
 
-**Record verification.** Record-only checks, decision-ledger checks, rotation, inbox delivery,
-GitHub bookkeeping and chain telemetry are performed after this entry. Remote dev remains
-inherited-red; no Gate-3b landing claim is made.
+**Record verification.** Record-only gates passed: context docs, file sizes, referenced paths,
+changelog, personal-email, tmpfile, skills, whitespace, ledger60 and autoclose (one record,
+zero violations). Weekly bookkeeping rotated #972 → #1072; the bounded digest was posted there.
+D-60 approval `inbox_1788760725771_3017d91f` and controlplane digest
+`inbox_1788760832557_4865b4fc` were read back after delivery; correction
+`inbox_1788760928120_e80cbc3c` separates GLM imputation from metered cost. Chain
+`25a4864a-e92a-42ff-99bc-4443979a4074` records 12 actual stages and $0.0915. Record PR #1073
+was MERGEABLE but its exact first head `de07c8832` inherited the same launchd-driver red, so Gate
+3b halted and it was not merged. Remote dev remains inherited-red; no landing claim is made.
