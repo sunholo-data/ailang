@@ -2448,6 +2448,27 @@ work inside the ratified inventory's existing rows, so the goal is unmoved.
 planner or executor lane was spawned or probed, so no flat-rate or metered lane was touched. Fable
 budget: **unspent** — no design doc was authored this iteration.
 
-**Next.** `m-exec-event-handler-untested` (queue head, still), then the three coverage gaps this
-iteration's drill measured, then `m-coordinator-codex-401`. `D-60` and `D-55`–`D-59` stay parked;
-`D-60` is now actually readable on `dev`, which it was not this morning.
+**Human channel — a mid-iteration event, and the reason the Next line below changed while I ran.**
+At 12:16 CEST, `ccd2b4d36` resolved **D-55 through D-60** as attended rulings under the ATTENDED
+LEDGER EDITS contract, on Mark's explicit in-session delegation — *"please make the rulings so we are
+all unblocked"*. Per rule (e) I rebased my record onto them rather than forcing my pre-ruling copy;
+the one conflict was the ledger block, resolved in the human answer's favour verbatim, and
+`mission_decisions.sh --check` reports **60 rows valid** afterwards. Provenance recorded honestly
+rather than confidently: the commit author is the **fleet bot**, and Gate 0's self-resolution guard
+reads exactly like that — but the same contract states that the recording script stamps a fixed
+identity for *every* caller including Mark's own sessions, so the author field cannot separate the
+channels and I did not act as though it could. What distinguishes it is the content: six rows each
+carrying an `Attended ruling 2026-09-07` stamp, a quoted delegation, and per-row reasoning.
+**Note the sequencing, because it is the whole argument for the recovery half of this iteration.**
+`D-60` was answered at 12:16 while existing nowhere on `dev` — this iteration put its park row, its
+log entry, its STATUS stamp and its 258-line design doc there. A ruling with no artifact to attach to
+is how the *next* controller reads a resolved question as an open one.
+
+**Next.** **`m-launchd-notify-subshell-observation`** — `D-60` is RESOLVED as **option B** (bound the
+direct send, the drain-time send and the GitHub notification calls; repair the shell observation spies
+and all seven inherited assertions), and Mark asked for this reliability repair *"early in the week"*.
+It is unparked and it clears the `launchd drivers (bash 3.2)` red that has sat on `dev` all day. It is
+NOT this iteration's second item: it needs a designer revision, a fresh quorum and the full inner loop,
+and standing rule 1 is one backlog item per iteration. Then `m-exec-event-handler-untested`, then the
+three coverage gaps this iteration's drill measured. `D-55`–`D-59` are also resolved, so their items
+are unblocked and re-enter normal ordering.
