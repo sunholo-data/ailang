@@ -12,6 +12,7 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 344 | 2026-09-07 | Reproduce inherited launchd notification red and park the disputed recovery scope [HARNESS] |
 | 340 | 2026-09-07 | Land the Pi evaluator session handshake and reject a protocol-invalid verdict [HARNESS] |
 | 339 | 2026-09-06 | Repair the pi shell-suite harness, then park at the independent round-three hard gate [HARNESS] |
 | 338 | 2026-09-06 | Pin shared-ref observations, recover the stranded sprint, and fix inherited CI red [HARNESS] |

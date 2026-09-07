@@ -42,42 +42,10 @@ section, write "none" rather than omitting:
 > the thing to grep before picking work, so the loop never repeats itself — is in
 > `v1-mission-index.md`.
 
-## 320 — 2026-09-02 — dev was red on Windows for a defect this repo had already fixed three times, each fix private [HARNESS]
-
-**Pick**: **dev RED, which outranks the queue** — `CI` and `Build and Release` both `failure` on `origin/dev` `28002af1e`, and V1 owns `sunholo-data/ailang`. Attribution measured, not assumed: `test-windows` is `failure` on all four commits walked back to the merge `40f0554c1` that introduced it, and the four commits before that merge carry **NO-RUN** (only a push tip gets one — the wrong unit here would have read as a 9-commit outage). SonarCloud was red too and is NOT the pick: inherited, already tracked as `sonarcloud-new-code-gate-red`.
-
-**Progress**: N = **10** design docs remaining before v1.0.0, **unmoved** — this is a HARNESS iteration and it moved the goal by 0, in those words. D-53's UNCLASSIFIED bucket of 4 (which would make it 14) is still named and unruled. What DID move: `m-spawn-pin-enforcement` is on origin for the first time, so the queue an unattended pick sees is finally the queue Mark filed into.
-
-**Outcome**: LANDED · [HARNESS] · evaluator **PASS 95/100 round 2, zero blocking, "ship it"** (round 1: 86/100, one BLOCKING) · PR [#1025](https://github.com/sunholo-data/ailang/pull/1025), four commits. **`test-windows` and `Build windows-latest` are both `success` on the PR head — the only instrument that can verify this fix, and the reason the claim is not "it should work".**
-
-**The defect, and why it was a sweep.**
-`t.Setenv("HOME", dir)` does not redirect `os.UserHomeDir()` on windows. Verified against GOROOT's own source rather than from memory: `UserHomeDir` consults **exactly three** variables — `USERPROFILE` on windows, `$home` on plan9, `HOME` elsewhere — and errors when the chosen one is empty (android/ios return constants and are not in this matrix). So a test that sets only HOME resolves the runner's real profile, never sees its own fixture, and fails **for the platform rather than for the code**. Four arms, two packages: `TestResolveAnthropicCredential_FallsBackToClaudeCredentialsFile`'s two subtests in `internal/ai`, and `TestStandardModeCostProvenance_CredentialFileIsSubscription` in `internal/eval_harness`. The production resolver was correct throughout.
-**The same private helper had already been written three times** — `setHomeDir` (cmd/ailang), `setHomeDirForTest` (internal/effects), and an inline GOOS-branched pair covering 2 of internal/executor's 6 sites. Each was a correct local fix and the next call site went red anyway: *guard the helper, miss the call site*, this loop's own named shape, arriving in the repo it keeps naming it about. So the deliverable is one `testutil.SetHomeDir` (16 bare sites → 1) plus **`make check-home-isolation`**, wired into `make/code-health.mk`, `make/ci.mk`'s `ci:` **and** `.github/workflows/ci.yml` — the third because ci.yml itself records that `make ci` is a local aggregate CI never invokes, so a gate added only to the makefile would not run at all.
-
-**The judge earned its slot twice, and both findings were things I could not have found by re-reading my own work.**
-- **It broke the gate.** The line-oriented first draft missed `t.Setenv(\n\t"HOME",\n\tdir,\n)` — and `gofmt -l` leaves that form alone, so it is reachable **by accident**, not by evasion. The matcher is now whitespace-normalised.
-- **It found a live instance the sweep had missed.** Four `os.Setenv("HOME", …)` sites in `cmd/ailang/pkg_lock_ratchet_test.go`, whose code under test reaches `os.UserHomeDir()` via `internal/messaging/config.go:158,235`. Confirmed first-party before acting; converted; and now pinned — reverting that file alone reds the gate with 8 lines reported, rc=0 after restore. The matcher covers `os.Setenv` as a result, which is what makes the class closed rather than the instance.
-- **It refuted my rule-3n disposition and I reproduced it.** I told it the `ci.yml` hunk had no local killer. It does: `internal/cihygiene/gate_wiring_test.go`'s `TestGateTargetsAreWiredIntoAWorkflow`, a meta-gate I did not know existed. Reverting that hunk alone (sha256 asserted moved, restored byte-identical) gives *"gate-shaped make targets are not wired into any workflow: check-home-isolation, test-check-home-isolation"*.
-
-**Ruled out / corrected**
-- *"The judge's 317 contradicts my 334"* — **neither was wrong, and the disagreement was point-in-time, not scope.** `git grep -c -F 't.Setenv(' -- '*.go'` summed is 334 at base, 317 at the mid-sweep commit the judge measured, 318 at the final head; the delta base→head is exactly 16, the converted sites. The judge found its own instrument bug in the same breath (summing `$2`, the path, instead of `$NF` when a revision is given, which coerces to 0) — the identical class I had just caught in myself: my first re-measure used a mis-quoted `-F` pattern and returned a confident **0** for a pattern the `-n` arm simultaneously showed 3 hits for. Two arms disagreeing is the only reason either of us noticed.
-- *"SonarCloud is a pick"* — inherited red, present on the parent commits, already a queue row.
-- *"The PR's missing CI runs are a dropped webhook"* — **no**, and the rule's own ordering saved a wrong diagnosis: `gh pr view --json mergeable` read `CONFLICTING`/`DIRTY` on the first look. origin/dev had advanced 9 commits; the only shared file was `changelogs/v0.32-current.md`, where both sides had inserted under `## [Unreleased]`. Rebased, resolved keeping both sections, force-pushed my own branch, and all five runs appeared.
-- *"The 4 `os.Setenv` sites in `internal/loader/stdlib_resolver_test.go` are the same defect"* — **no**, and this is why the gate has an exemption rather than a blanket ban: `stdlib_resolver.go:88,94,100` read `os.Getenv("HOME")`/`os.Getenv("APPDATA")` **directly, per GOOS**, never through `os.UserHomeDir()`, so the three-variable helper would be wrong there rather than merely unnecessary. The exemption is asserted **live** — renaming that file's calls away makes the gate exit 2 `INSTRUMENT BROKEN … remove it`, because a stale exemption is how an allowlist quietly becomes the rule.
-
-**Mutation drills** (each asserted LANDED by sha256, BUILDING, intended-effect against the system's own view, and restored byte-identically from a `cp` backup): drop `SetHomeDir`'s USERPROFILE line → `TestSetHomeDir` FAILS; drop its plan9 line → FAILS; reintroduce one bare site → gate rc=1, rc=0 after restore; revert the ratchet fix → gate rc=1 (8 lines); plant a gofmt-canonical multi-line call → rc=1, reported by file; delete the gate's allowlist line → rc=1 flagging `home.go` itself; rename the exempt file's calls → rc=2 INSTRUMENT BROKEN; empty fixture and one-shape fixture → rc=2 both; empty and missing scan root → rc=2 both. **And the one that matters most, rule 3n: reverting the whole `internal/ai` hunk leaves `go test ./internal/ai` rc=0 on darwin — NO local killer, by construction — while the gate reds.** That is the sprint's thesis in one measurement: the gate is the only thing on this machine that can see the defect the sprint exists to fix.
-
-**Routing evidence**: controller `claude:claude-opus-5` (session). **Designer not spawned**, rotation pointer untouched at `claude:claude-fable-5` — a dev-red fix-forward is not a queued design item, and authoring a doc for a test-side sweep would have spent the one-doc Fable diet for nothing. Recorded as a routing judgement, not a probe failure. **Planner not spawned** — no design doc exists for a red, so the "doc but no plan" condition never arose and `derive-planner-lane.sh` was not consulted. **Executor `codex:gpt-5.6-sol`** via the cross-provider recipe (probe rc=0; a `provider:model` value must NOT use the Agent tool), one sandboxed 30-min-capped run, directive delivery asserted ≥200B, stdin closed, no git writes, rc=0, per-milestone `.snap/` snapshots; the controller reconstructed both commits and proved the reconstruction faithful by `shasum -c` over a 17-file manifest, **17/17 OK**. It correctly labelled its own aggregate `go test` UNINFORMATIVE UNDER SANDBOX (denied loopback binds) and I re-ran every gate outside the sandbox, including `internal/daemon`, `cmd/ailang` and `internal/cihygiene`, all rc=0. **Evaluator `sonnet`** via the Agent tool in its **OWN** worktree, two rounds, 86/100 then 95/100; generator≠judge holds on provider (generator OpenAI, judge Anthropic, both distinct from the controller). Round 2's directive re-measured every number on the moved tree per the staleness rule, listed the changed hunks exhaustively from `git diff`, and carried round-1 findings forward by name for adjudication. Every spawn directive carried standing rule 7's operative half in its own words. Metered **$0.00** of the $5 ceiling; every lane a quota bucket; no quorum round.
-
-**Human channel**: **D-54 ANSWERED and RESOLVED in this iteration.** Mark, `#972` `2026-09-02T07:17:34Z`, verbatim *"D-54 b"* — the loop may branch the main checkout's unpushed `dev`, push, and open a PR, leaving the merge to CI. Twenty-one minutes later he cleared the divergence himself, attended, with merge `40f0554c1`, so the grant is standing rather than pending: main checkout `dev` is **0 ahead / 0 behind**, iteration 319's own Gate-5 skill edit `7292ec780` is an ancestor of origin, and **the running skill is byte-identical to `origin/dev` for the first time in at least four iterations** (`cmp` against the RESOLVED `readlink -f` target, not the pin's own copy — different inodes, and the relative-path form reads green from the wrong file).
-
-**Friction / process**
-- **A gate's anti-vacuity floor can itself be vacuous, one level down.** The judge showed the fixture floor (`>= 3` matches) is a COUNT, not a SHAPE check: a fixture with three copies of the same bare shape passes, and the gate's `os.Setenv` coverage would then be silently unprotected. Filed as a queue row with its fix (three named per-shape counts), not fixed inline — a finding is a queue row, not scope growth.
-- The gate costs **22.55s** over 2467 `.go` files, subprocess-per-file (`tr | grep | wc` ×3 each). Acceptable inside `make ci`; annoying for a contributor iterating locally. Architectural, not algorithmic. Same queue row.
-- The self-test's five new arms have **no killer** — nothing asserts a minimum arm count, so losing them would be invisible. Same queue row, and it is the counterpart of the floor finding: the shape-blind floor and the shape-testing arms are currently each other's only backstop.
-- The line-number reporter hardcodes `(t|os)` receivers, so a call on any other receiver is correctly CAUGHT but mis-described as "whitespace-spanning". Diagnostic quality only; same queue row.
-
-**Next**: `m-spawn-pin-enforcement` — the queue head, and newly visible to unattended picks now that Mark's merge put it and its design doc on origin. Design approved attended 2026-09-01; the sprint is enforcement code, not a design round.
+> **Older entries are ARCHIVED.** This file holds the newest 20. The full record of every
+> iteration is in `v1-mission-log-archive.md`, and a one-line index of ALL of them —
+> the thing to grep before picking work, so the loop never repeats itself — is in
+> `v1-mission-index.md`.
 
 ## 321 & 322 — 2026-09-02 — NO ENTRY: both slots died mid-flight holding this fix, and neither left a charter row [ADMIN]
 
@@ -2153,3 +2121,84 @@ across all3 expected push workflows. STATUS rotation retains exactly3 structural
 to the bounded archive. Queue row remains present and is LANDED. Dashboard is30lines. Ledger,
 tracked-path, context-doc, file-size, reference, skill, whitespace and log-rotation checks run on
 the record branch before landing.
+
+## 344 — 2026-09-07 — Reproduce inherited launchd notification red and park the disputed recovery scope [HARNESS]
+
+**Picked.** Gate 1 inherited-red outranked the queue. At exact base
+`c308b2a0a84edb593609af5e7f4bb3b7bc402014` read at `2026-09-07T05:29:19Z`, the
+`launchd drivers (bash 3.2)` job failed in the notification suite. Canonical GCP inbox triage
+found no trusted human directive and acknowledged nothing. Claim
+`inbox_1788759093784_80b2c925` was sent before role work. The main checkout's 14 unrelated dirty
+model-registry/benchmark paths were left untouched. Open, mergeable, green PR #1071 was attributed
+to prior cache-source work and not duplicated.
+
+**Reality check.** A correctly stamped binary at the exact base reports
+`v0.35.1-96-gc308b2a0a`. The pin-root suite passes 54/54; the notification suite passes 20/27.
+The seven failures are the ailang-channel and title assertions plus drift-a first notice, drift-c
+doubling and drift-g original STALE notice. The cause is observational: production retains direct
+`_out=$(ailang messages send …)` calls, but the test's `ailang` shell stub records into `TRACE`
+inside that command-substitution subshell, so the parent cannot observe the mutation. The same red
+exists at `c308b2a0a`, `bc74…`, and introducing commit `63a0d2b32`; later mission/world fixes did
+not repair it. Separately, direct send, drain send, and GitHub notification paths lack the bounded
+wrapper used elsewhere in the same source.
+
+**Shipped.** Parked `needs-human-review` on D-60; no production or test code, sprint plan,
+implementation push, implementation PR, or merge. Astra's rejected design is retained at
+`design_docs/planned/v0_35_2/m-launchd-notify-subshell-observation.md`. Quorum R1 was BLOCKED with
+all3 reviewers present. One designer revision added the requested fixture, project-default,
+exit-status and causal evidence. R2 was again BLOCKED with all3 present. Sol's surviving objection
+changes direction by requiring bounded direct-send, drain-send, and GitHub calls, so the
+narrow-refinement carve-out is inapplicable. Gemini and GLM also retained evidence objections.
+
+**Routing evidence.** Gate-4 base=
+`d2dd128be8f721c00a8982900fc581aad514ed41@2026-09-07T05:59:10Z`; origin advanced after the
+first Gate-4 observation by one disjoint cloud-lane design-doc commit, so this record branch was
+rebased before review. Resolver output:
+designer `recipe codex:gpt-6-astra declared:provider-pin`; planner
+`recipe codex:gpt-5.6-sol anthropic-fallback:fail-closed:no-doc`; executor
+`recipe codex:gpt-5.6-sol declared:provider-pin`; evaluator
+`recipe pi:ollama/minimax-m3:cloud declared:provider-pin`. All four roles were invoked with the
+Agent tool as the unattended operator explicitly required. Designer was Astra Agent (tok: not
+reported), which authored and revised the doc exactly once. Planner was Sol Agent (tok: not
+reported) and returned BLOCKED/no valid sprint plan. Executor was a separate Sol Agent (tok: not
+reported) and returned execution-not-authorized without mutations.
+
+The configured evaluator role genuinely could not be spawned: the Agent model registry exposed
+only `gpt-6-astra`, `gpt-5.6-sol`, `gpt-5.6-terra`, `gpt-5.6-luna`, and `gpt-5.5`, not
+`pi:ollama/minimax-m3:cloud`. Fallback used a separately spawned gpt-5.5 Agent (tok: not reported),
+which independently reproduced 54/54 plus 20/27, verified the clean tracked diff, and scored the
+PARK disposition PASS92/100. It explicitly assigned an implementation score of 0 because no
+implementation was authorized. No code generator ran, so generator≠judge is preserved for the
+only verdict actually made; the fallback is same-provider as Sol but judged process/park, never
+Sol-generated code. No controller verdict substituted for the missing configured judge.
+
+**Ruled out.** The production notification did not stop firing; only the test spy lost visibility.
+Changing `TRACE` capture alone cannot satisfy the R2 design gate because the unbounded subprocess
+surface is real. A complete 3/3 rejection cannot be converted into approval by numeric vote or by
+the evaluator's PASS on parking. PR #1071 is not this repair and was left untouched. The
+planner/executor refusals are gate success, not missing work.
+
+**Retro lane.** backlog/park — D-60 records the only unresolved choice: test-only CI recovery or
+the quorum-required bounded production scope. No skill edit: the gate exposed a genuine direction
+decision on its first occurrence rather than repeated workflow friction.
+
+**Progress.** N=12 design docs before v1.0.0 (was12, change0); this HARNESS diagnosis moved the
+goal by0.
+
+**Cost.** Actual metered $0.09147300 across R1/R2. The quorum artifacts' $0.10572189 aggregate
+also includes GLM's $0.01424889 flat-rate imputation, which is reported separately and not counted
+as metered. Astra/Sol/gpt-5.5 Agent lanes are quota buckets. Role token counts were not reported;
+none are invented. No GPU and no `rig.lock`.
+
+**Next.** If D-60 is unanswered, preserve the indefinite HOLD and first verify/land open PR #1071
+before duplicating its cache-source work. Then consider `m-cachesrc-cognitive-complexity`,
+`m-coordinator-codex-401`, and `m-cache-artifact-adversarial-decode`. D-55–D-59 remain OPEN.
+
+**Independent evaluation.** The gpt-5.5 fallback report was delivered through the Agent channel:
+PASS92 on the park/process disposition, zero authorization to land, with the exact base test counts
+and absence of tracked code changes independently checked. The configured Pi MiniMax model was not
+silently replaced; its Agent-selection failure and the fallback model are named above.
+
+**Record verification.** Record-only checks, decision-ledger checks, rotation, inbox delivery,
+GitHub bookkeeping and chain telemetry are performed after this entry. Remote dev remains
+inherited-red; no Gate-3b landing claim is made.

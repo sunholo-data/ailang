@@ -5,6 +5,8 @@
 > the thing to grep before picking work, so the loop never repeats itself — is in
 > `v1-mission-status-index.md`.
 
+## STATUS 2026-09-06 — ITERATION 338: **Shared-ref provenance LANDED; independent MiniMax PASS95; inherited red fixed forward.** Recovered the died-mid-flight Gate-1 drift sprint, ran designer/planner/executor/evaluator roles through the declared pins, and landed PR #1063 as `0b7f3e3af`. Gate 1/3/3b/4 now carry one full-SHA/read-time observation and distinguish missing evidence from drift; `mission-base.sh` has 8 non-vacuous arms. PR #1063 was fully green including Windows before merge. Its post-merge tree inherited the already-red `aebf8bb73` heading ratchet; Sol fixed the environment-dependent sibling/CRLF census and MiniMax R3 PASS95, then PR #1064 landed as `b50bb366e` with 20/20 checks green. Evaluator route: Ollama transport failed closed (missing sandbox-runtime); configured OpenRouter MiniMax fallback judged R2 PASS93 and R3 PASS95, generator!=judge; first R3 emission errored and same-round MiniMax continuation completed it, no controller score. R1 PASS92. N=12, goal unmoved. Ledger58/four OPEN D-55–D-58; no human input inferred. Actual metered $1.48796278; GLM flat-rate imputation $0.06206547 separate. Main11dirty paths untouched. Full record: v1-mission-log.md iteration338.
+
 > **Older entries are ARCHIVED.** This file holds the newest 20. The full record of every
 > iteration is in `v1-mission-status-archive-old.md`, and a one-line index of ALL of them —
 > the thing to grep before picking work, so the loop never repeats itself — is in
