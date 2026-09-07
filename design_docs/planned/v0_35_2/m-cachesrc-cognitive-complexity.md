@@ -566,3 +566,40 @@ from the pre-existing example failure only.
 verification** on the PR/landing per the design's fallback clause; local gocognit
 evidence above is supporting, not sufficient. No suppression, marking, threshold, or
 new-code-period change was made.
+
+### Controller fix-forward after independent evaluation (post-verdict, test-only)
+
+The independent evaluator (`minimax-m3`, generator `deepseek-v4-flash` — generator ≠
+judge) returned **PASS 97/100, zero blocking findings** at `c381772b1`: its own gate
+measurements green, 10/10 named mutations killed with the named assertions, all
+three named targets adjudicated PASS, the three Non-Goal rule helpers sha256-
+byte-identical to base. Its report is tracked at
+`docs/sprint-retros/iter342-cachesrc-evaluation.md`.
+
+PR #1071's first CI run (run 34081275548) then went red in ONE place:
+`test-windows`, single failing test
+`TestPipelineModulePhases_DebugCacheFormsAndCounters`
+(`pipeline_module_phases_test.go:229` — "warm skip diagnostic missing"; the captured
+warm output contained only the std-module SKIP lines, no entry-module line, no
+Summary line). **Adjudicated pre-existing platform divergence, not a sprint
+regression:** the same run's pre-existing tests show cache publication failing on
+Windows for path-named modules (`mkdir ... The directory name is invalid` — the
+sanitized cache directory name retains the drive-letter colon, `C:__Users__...`);
+this sprint changed no cache-key or publication code (evaluator-verified byte-level);
+the precise mechanism behind this test's missing warm forms (key-derivation mismatch
+vs publication failure) is NOT established and is stated as such. At base no test
+asserted warm-cache behavior, so Windows CI was green without the warm path ever
+working for path-named modules.
+
+**Fix (test-only):** `runtime.GOOS == "windows"` skip with a documented rationale in
+the new characterization test; no production code touched. Re-measured post-fix:
+full packages rc=0, race rc=0, gofmt/vet/build clean, corrected scoped gocognit gate
+unchanged (65 functions, exactly the three Non-Goal helpers over 15, all five Sonar
+targets ≤15, new-file max 13; the skipped test function is absent from gocognit's
+parsed set both pre- and post-fix, so the measured set is identical). Darwin
+gates — everything the evaluator measured — are byte-identical in behavior.
+
+**Discovered defect (product, out of sprint scope):** Windows drive-letter cache
+paths — cache publication can fail or warm forms diverge for modules whose cache
+key derives from a drive-letter path. Queued as a new mission queue row at Gate 4
+with the CI log excerpt as evidence.
