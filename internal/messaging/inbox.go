@@ -65,6 +65,15 @@ const (
 	InboxTypeInfo            = "info"
 	InboxTypeAudit           = "audit"
 	InboxTypeApprovalRequest = "approval_request"
+	// InboxTypeFeedback is user feedback arriving from mcp.ailang.sunholo.com's
+	// submit_feedback. It selects the pkg-feedback template in config.cloud.yaml
+	// (template_by_message_type), so a package agent handed one triages a report
+	// instead of running a cascade repair.
+	//
+	// It was live on Firestore and absent from the SQLite CHECK — the same split
+	// as the coordinator types above, missed when they were added because no
+	// SQLite deployment had yet received one.
+	InboxTypeFeedback = "feedback"
 )
 
 // Message categories (for GitHub sync and coordinator routing)
@@ -270,6 +279,7 @@ var InboxMessageTypes = []string{
 	InboxTypeInfo,
 	InboxTypeAudit,
 	InboxTypeApprovalRequest,
+	InboxTypeFeedback,
 }
 
 // ListInboxMessages returns messages matching the given options

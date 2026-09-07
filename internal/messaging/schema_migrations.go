@@ -80,9 +80,33 @@ func MigrateDB(db *sql.DB) error {
 		if err := migrateV180ToV190(db); err != nil {
 			return fmt.Errorf("migration to v1.9.0 failed: %w", err)
 		}
+		currentVersion = "1.9.0"
+	}
+
+	if currentVersion == "1.9.0" {
+		// The rebuild derives its CHECK from InboxMessageTypes, so re-running it
+		// is how a vocabulary addition reaches an existing database. "feedback"
+		// is the addition that needed it (2026-09-07).
+		if err := migrateV180ToV190(db); err != nil {
+			return fmt.Errorf("migration to v1.10.0 failed: %w", err)
+		}
 	}
 
 	return nil
+}
+
+// messageTypeCheckSQL renders the message_type CHECK from InboxMessageTypes.
+//
+// Derived, never written twice: the constraint and the Go vocabulary disagreeing
+// is what let five coordinator types be rejected on SQLite while succeeding on
+// Firestore, and then let "feedback" repeat it. A table rebuilt from this cannot
+// drift from the code that writes to it.
+func messageTypeCheckSQL() string {
+	quoted := make([]string, 0, len(InboxMessageTypes))
+	for _, t := range InboxMessageTypes {
+		quoted = append(quoted, "'"+t+"'")
+	}
+	return "CHECK (message_type IN (" + strings.Join(quoted, ", ") + "))"
 }
 
 // migrateV100ToV110 adds GitHub integration columns to inbox_messages
@@ -510,7 +534,7 @@ func migrateV180ToV190(db *sql.DB) error {
 		created_at TEXT NOT NULL,
 		read_at TEXT,
 		expires_at TEXT,
-		CHECK (message_type IN ('notification', 'request', 'response', 'completion', 'handoff', 'info', 'audit', 'approval_request')),
+		` + messageTypeCheckSQL() + `,
 		CHECK (status IN ('unread', 'read', 'archived', 'deleted'))
 	)`
 	if _, err := tx.Exec(newTable); err != nil {
