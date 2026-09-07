@@ -1,0 +1,131 @@
+{
+  "sprint_id": "M-MISSION-ITERATION",
+  "status": "in_progress",
+  "created": "2026-09-07T18:54:56.487741+00:00",
+  "design_doc": "design_docs/planned/m-mission-runtime-contract.md",
+  "sprint_plan": "design_docs/planned/m-mission-iteration-sprint-plan.md",
+  "github_issues": [],
+  "velocity": {
+    "target_loc_per_day": 500,
+    "estimated_total_loc": 4000,
+    "estimated_days": 8
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Input contract and shared quota admission",
+      "estimated_loc": 650,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Strict input/result limits and role ordering reject malformed, ambiguous or unsupported input.",
+        "Existing Codex/Ollama/ledger policy is reused before construction/health and before dispatch.",
+        "Unknown/over quota, wire aliases and explicit pins cannot leak a protected provider call.",
+        "Dry-run creates no DB/worktree/receipt and makes zero provider calls.",
+        "Focused spec/admission/dispatch tests and lint pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Parent ownership and atomic child fences",
+      "estimated_loc": 900,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Two DB connections racing identical/different work IDs produce one active mission admission.",
+        "Parent cancellation and lease loss fence child start and accept-and-advance transactionally.",
+        "Quota-blocked prepared attempts resume same request without terminalizing or replacing work.",
+        "Accepted stages remain immutable; altered input/digest/outcome and stale owners fail.",
+        "Existing standalone attempt recovery/cancellation tests pass unchanged in meaning."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Git artifacts and stage acceptance",
+      "estimated_loc": 850,
+      "dependencies": [
+        "M1",
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "Clean committed work is recognized; ancestry/scope/required artifacts are verified from Git.",
+        "Runtime accepts only the reserved protocol file as untracked result output.",
+        "Frozen checks execute at the recorded commit with bounded output and deadlines.",
+        "Wrong revision, changed authority, failed hard checks, mutated candidate or stale judge fails.",
+        "Actual prior author receipts determine evaluator independence, including fallback routes."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4",
+      "description": "Iteration execution and process recovery",
+      "estimated_loc": 900,
+      "dependencies": [
+        "M2",
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "Sequential remaining stages dispatch once, with immutable inputs and persisted acceptance.",
+        "Crash tests cover before/after dispatch, DB/receipt disagreement and acceptance-before-next.",
+        "No fallback/retry after execution starts; completed role is validated without another call.",
+        "Parent cancellation stops owned descendants for each admitted adapter; unrelated processes live.",
+        "Iteration/stage deadlines and remaining budgets survive restart and cannot reset on resume.",
+        "Lost parent with live child waits; ambiguity is preserved and never auto-reclaimed."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M5",
+      "description": "CLI status and one-shot driver seam",
+      "estimated_loc": 450,
+      "dependencies": [
+        "M4"
+      ],
+      "acceptance_criteria": [
+        "Status distinguishes running, waiting reasons, reconciliation, failure and validated completion.",
+        "Missing config/DB and changed inputs fail loudly without creating status-side state.",
+        "Driver fixture shows zero legacy probes/controller calls/retries on the opted-in path.",
+        "Foreign-repository fixture remains in its intended repository through actual driver entry.",
+        "Repeated completed invocation returns the same evidence and zero extra provider calls.",
+        "CLI help and documented fixtures agree; Bash 3.2 compatibility tests pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M6",
+      "description": "Integration evaluation and canary packet",
+      "estimated_loc": 250,
+      "dependencies": [
+        "M5"
+      ],
+      "acceptance_criteria": [
+        "Fault matrix and all preceding acceptance criteria pass with provider call counts recorded.",
+        "Required tests/lint/build/boundary checks and relevant CI asset/shell checks pass.",
+        "Independent evaluation passes with zero blocking findings; repairs are rechecked.",
+        "Canary packet identifies an unowned approved Docs item, base, binary hash, routes, token caps, at most $5 metered spend/60 minutes, isolated paths, idle check and exact rollback commands.",
+        "Canary remains unactivated until reviewed; implementation status and live adoption are separate."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
