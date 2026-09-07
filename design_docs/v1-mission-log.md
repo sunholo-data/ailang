@@ -2154,6 +2154,93 @@ to the bounded archive. Queue row remains present and is LANDED. Dashboard is30l
 tracked-path, context-doc, file-size, reference, skill, whitespace and log-rotation checks run on
 the record branch before landing.
 
+## 344 — 2026-09-07 — Reproduce inherited launchd notification red and park the disputed recovery scope [HARNESS]
+
+**Picked.** Gate 1 inherited-red outranked the queue. At exact base
+`c308b2a0a84edb593609af5e7f4bb3b7bc402014` read at `2026-09-07T05:29:19Z`, the
+`launchd drivers (bash 3.2)` job failed in the notification suite. Canonical GCP inbox triage
+found no trusted human directive and acknowledged nothing. Claim
+`inbox_1788759093784_80b2c925` was sent before role work. The main checkout's 14 unrelated dirty
+model-registry/benchmark paths were left untouched. Open, mergeable, green PR #1071 was attributed
+to prior cache-source work and not duplicated.
+
+**Reality check.** A correctly stamped binary at the exact base reports
+`v0.35.1-96-gc308b2a0a`. The pin-root suite passes 54/54; the notification suite passes 20/27.
+The seven failures are the ailang-channel and title assertions plus drift-a first notice, drift-c
+doubling and drift-g original STALE notice. The cause is observational: production retains direct
+`_out=$(ailang messages send …)` calls, but the test's `ailang` shell stub records into `TRACE`
+inside that command-substitution subshell, so the parent cannot observe the mutation. The same red
+exists at `c308b2a0a`, `bc74…`, and introducing commit `63a0d2b32`; later mission/world fixes did
+not repair it. Separately, direct send, drain send, and GitHub notification paths lack the bounded
+wrapper used elsewhere in the same source.
+
+**Shipped.** Parked `needs-human-review` on D-60; no production or test code, sprint plan,
+implementation push, implementation PR, or merge. Astra's rejected design is retained at
+`design_docs/planned/v0_35_2/m-launchd-notify-subshell-observation.md`. Quorum R1 was BLOCKED with
+all3 reviewers present. One designer revision added the requested fixture, project-default,
+exit-status and causal evidence. R2 was again BLOCKED with all3 present. Sol's surviving objection
+changes direction by requiring bounded direct-send, drain-send, and GitHub calls, so the
+narrow-refinement carve-out is inapplicable. Gemini and GLM also retained evidence objections.
+
+**Routing evidence.** Gate-4 base=
+`d2dd128be8f721c00a8982900fc581aad514ed41@2026-09-07T05:59:10Z`; origin advanced after the
+first Gate-4 observation by one disjoint cloud-lane design-doc commit, so this record branch was
+rebased before review. Resolver output:
+designer `recipe codex:gpt-6-astra declared:provider-pin`; planner
+`recipe codex:gpt-5.6-sol anthropic-fallback:fail-closed:no-doc`; executor
+`recipe codex:gpt-5.6-sol declared:provider-pin`; evaluator
+`recipe pi:ollama/minimax-m3:cloud declared:provider-pin`. All four roles were invoked with the
+Agent tool as the unattended operator explicitly required. Designer was Astra Agent (tok: not
+reported), which authored and revised the doc exactly once. Planner was Sol Agent (tok: not
+reported) and returned BLOCKED/no valid sprint plan. Executor was a separate Sol Agent (tok: not
+reported) and returned execution-not-authorized without mutations.
+
+The configured evaluator role genuinely could not be spawned: the Agent model registry exposed
+only `gpt-6-astra`, `gpt-5.6-sol`, `gpt-5.6-terra`, `gpt-5.6-luna`, and `gpt-5.5`, not
+`pi:ollama/minimax-m3:cloud`. Fallback used a separately spawned gpt-5.5 Agent (tok: not reported),
+which independently reproduced 54/54 plus 20/27, verified the clean tracked diff, and scored the
+PARK disposition PASS92/100. It explicitly assigned an implementation score of 0 because no
+implementation was authorized. No code generator ran, so generator≠judge is preserved for the
+only verdict actually made; the fallback is same-provider as Sol but judged process/park, never
+Sol-generated code. No controller verdict substituted for the missing configured judge.
+
+**Ruled out.** The production notification did not stop firing; only the test spy lost visibility.
+Changing `TRACE` capture alone cannot satisfy the R2 design gate because the unbounded subprocess
+surface is real. A complete 3/3 rejection cannot be converted into approval by numeric vote or by
+the evaluator's PASS on parking. PR #1071 is not this repair and was left untouched. The
+planner/executor refusals are gate success, not missing work.
+
+**Retro lane.** backlog/park — D-60 records the only unresolved choice: test-only CI recovery or
+the quorum-required bounded production scope. No skill edit: the gate exposed a genuine direction
+decision on its first occurrence rather than repeated workflow friction.
+
+**Progress.** N=12 design docs before v1.0.0 (was12, change0); this HARNESS diagnosis moved the
+goal by0.
+
+**Cost.** Actual metered $0.09147300 across R1/R2. The quorum artifacts' $0.10572189 aggregate
+also includes GLM's $0.01424889 flat-rate imputation, which is reported separately and not counted
+as metered. Astra/Sol/gpt-5.5 Agent lanes are quota buckets. Role token counts were not reported;
+none are invented. No GPU and no `rig.lock`.
+
+**Next.** If D-60 is unanswered, preserve the indefinite HOLD and first verify/land open PR #1071
+before duplicating its cache-source work. Then consider `m-cachesrc-cognitive-complexity`,
+`m-coordinator-codex-401`, and `m-cache-artifact-adversarial-decode`. D-55–D-59 remain OPEN.
+
+**Independent evaluation.** The gpt-5.5 fallback report was delivered through the Agent channel:
+PASS92 on the park/process disposition, zero authorization to land, with the exact base test counts
+and absence of tracked code changes independently checked. The configured Pi MiniMax model was not
+silently replaced; its Agent-selection failure and the fallback model are named above.
+
+**Record verification.** Record-only gates passed: context docs, file sizes, referenced paths,
+changelog, personal-email, tmpfile, skills, whitespace, ledger60 and autoclose (one record,
+zero violations). Weekly bookkeeping rotated #972 → #1072; the bounded digest was posted there.
+D-60 approval `inbox_1788760725771_3017d91f` and controlplane digest
+`inbox_1788760832557_4865b4fc` were read back after delivery; correction
+`inbox_1788760928120_e80cbc3c` separates GLM imputation from metered cost. Chain
+`25a4864a-e92a-42ff-99bc-4443979a4074` records 12 actual stages and $0.0915. Record PR #1073
+was MERGEABLE but its exact first head `de07c8832` inherited the same launchd-driver red, so Gate
+3b halted and it was not merged. Remote dev remains inherited-red; no landing claim is made.
+
 ## 345 — 2026-09-07 — Clear the required `test` red an attended checkpoint left on dev [HARNESS]
 
 **Picked.** Not the queue head. Gate 1 found `dev` RED at `878939117` on TWO checks, and
