@@ -14,8 +14,9 @@
 #   * the CHARTER (design_docs)  -> stale charter, iteration 129
 #
 # Three symptoms, one root. Patching any single artefact fixes one third of a bug, so this
-# pins the ROOT: re-exec the driver out of a worktree pinned to a committed ref, which moves
-# the script, the skill and the charter together in one move.
+# pins the ROOT for same-repository missions: re-exec from a committed worktree, moving
+# script, skill and charter together. A de-forked mission keeps its separate work repository
+# while the shared driver code is pinned independently (#1075).
 #
 # WHY THE FAILURE PATH IS LOUD RATHER THAN SILENT. If the fetch fails and we quietly carry on
 # from the working tree, we have rebuilt the exact defect 564cc4640 removed one layer up — a
@@ -34,6 +35,7 @@
 #         AILANG_DRIVER_PIN=0         opt out entirely        (default on)
 #         AILANG_DRIVER_FETCH_TIMEOUT bounded fetch, seconds  (default 120)
 #         AILANG_DRIVER_PIN_DIR       override worktree path
+#         AILANG_DRIVER_MISSION_IS_DE_FORKED  explicit 0/1 work-repo override
 #         MISSION_NAME                namespaces the worktree so missions never collide
 #   out   PIN_STATUS  pinned | disabled | STALE
 #         PIN_NOTE    one-line human summary, safe to log or post
@@ -82,13 +84,70 @@ _pin_stale() {  # $1 = reason -> STALE, caller reports and continues on the work
   return 1
 }
 
+# Repository identity follows origin, not git-common-dir: separate clones can be the
+# same repository. Unknown identities return 2, distinct identities 1, matching ones 0.
+# Keep repository path case; only DNS host names are case-insensitive.
+_pin_origin_identity() {
+  local url host path rest
+  url=$(git -C "$1" config --get-all remote.origin.url 2>/dev/null) || return 2
+  case "$url" in
+    ''|*[[:space:]]*|*\?*|*\#*) return 2 ;;
+    /*) printf 'local:%s\n' "${url%/}"; return 0 ;;
+    *://*)
+      rest="${url#*://}"
+      case "$url" in https://*|http://*|ssh://*|git://*) ;; *) return 2 ;; esac
+      case "$rest" in */*) ;; *) return 2 ;; esac
+      host="${rest%%/*}"; host="${host##*@}"; path="${rest#*/}"
+      # Ports cannot safely be discarded: a different endpoint can host another repo.
+      case "$host" in *:*) return 2 ;; esac
+      ;;
+    *:*)
+      host="${url%%:*}"; host="${host##*@}"; path="${url#*:}"
+      ;;
+    *) return 2 ;;
+  esac
+  case "$host" in ''|*[!a-zA-Z0-9.-]*) return 2 ;; esac
+  while [ "${path%/}" != "$path" ]; do path="${path%/}"; done
+  path="${path%.git}"
+  case "$path" in ''|/*|./*|../*|*/../*|*/./*) return 2 ;; esac
+  host=$(printf '%s' "$host" | tr '[:upper:]' '[:lower:]')
+  printf '%s/%s\n' "$host" "$path"
+}
+
+_pin_same_repo() {
+  local work_origin driver_origin
+  work_origin=$(_pin_origin_identity "$1") || return 2
+  driver_origin=$(_pin_origin_identity "$2") || return 2
+  [ "$work_origin" = "$driver_origin" ]
+}
+
+_set_pin_workdir() {
+  local wt="$1" src="$2" work="${MISSION_WORKDIR:-$2}" rc reason
+  if [ "${AILANG_DRIVER_MISSION_IS_DE_FORKED+x}" = x ]; then
+    case "$AILANG_DRIVER_MISSION_IS_DE_FORKED" in
+      0) MISSION_WORKDIR="$wt"; return 0 ;;
+      1) MISSION_WORKDIR="$work"; return 0 ;;
+      *) reason="invalid AILANG_DRIVER_MISSION_IS_DE_FORKED (expected 0 or 1)" ;;
+    esac
+  else
+    _pin_same_repo "$work" "$src"; rc=$?
+    case "$rc" in
+      0) MISSION_WORKDIR="$wt"; return 0 ;;
+      1) MISSION_WORKDIR="$work"; return 0 ;;
+      *) reason="indeterminate origin identity for mission work repository $work or driver source $src" ;;
+    esac
+  fi
+  printf 'WARN: driver pin: %s\n' "$reason" >&2
+  _pin_stale "$reason"
+}
+
 # pin_root_to_committed_ref "$@" — pass the driver's own args so the re-exec forwards them.
 pin_root_to_committed_ref() {
   if [ -n "${AILANG_DRIVER_PINNED:-}" ]; then
     # we ARE the re-exec'd copy; the values below crossed the exec in the environment
     PIN_STATUS="pinned"
     PIN_DRIFT="${AILANG_DRIVER_DRIFT:-?}"
-    PIN_NOTE="running committed ${AILANG_DRIVER_REF:-origin/dev} @ ${AILANG_DRIVER_PINNED} from ${MISSION_WORKDIR:-?} (source clone ${AILANG_DRIVER_SRC:-?} was ${PIN_DRIFT} behind)"
+    PIN_NOTE="running committed ${AILANG_DRIVER_REF:-origin/dev} @ ${AILANG_DRIVER_PINNED} with mission work repository ${MISSION_WORKDIR:-?} (source clone ${AILANG_DRIVER_SRC:-?} was ${PIN_DRIFT} behind)"
     return 0
   fi
 
@@ -254,17 +313,13 @@ pin_root_to_committed_ref() {
     fi
   fi
 
-  # MISSION_WORKDIR moves too, and that is the point: mission-control.sh:40 reads it AHEAD of
-  # $0-relative resolution, so pinning only the script would leave motoko and World (whose env
-  # files pin MISSION_WORKDIR — mission-motoko.env:8, mission-world.env:5) running a pinned
-  # driver against a stale charter and skill. That half-fix reports green, which is worse than
-  # no fix. Sprint worktrees are unaffected: the skill creates them by absolute path
-  # (mission-control SKILL.md:1662), not relative to cwd.
+  # Pin driver code independently of the mission's work repository. Run in the
+  # current shell so an indeterminate identity retains both STALE and the workdir.
+  _set_pin_workdir "$wt" "$src" || return 1
   AILANG_DRIVER_PINNED="$short"
   AILANG_DRIVER_SRC="$src"
   AILANG_DRIVER_DRIFT="$drift"
   AILANG_DRIVER_REF="$ref"
-  MISSION_WORKDIR="$wt"
   export AILANG_DRIVER_PINNED AILANG_DRIVER_SRC AILANG_DRIVER_DRIFT AILANG_DRIVER_REF MISSION_WORKDIR
 
   exec /bin/bash "$wt/tools/launchd/$script" "$@"
