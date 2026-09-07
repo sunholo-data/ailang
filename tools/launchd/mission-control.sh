@@ -545,6 +545,74 @@ _mc_is_demoted() {
   return 1
 }
 
+# ---- the daily ration gate (M-QUOTA-RATIONING-ROUTING M4, D-1/D-4) ---------
+#
+# Routing has always asked "is this lane UP?" and never "can it AFFORD to be
+# used?". A probe answers the first; only the ledger answers the second. A rung
+# whose bucket is over its 10%/day ration is skipped exactly like a failed probe,
+# so the walk descends to a cheaper rung — and when nothing is left, the existing
+# "NO usable controller" refusal takes over: it announces once per episode and
+# spends zero tokens beyond probes, which IS the pause D-4 asks for.
+#
+# FAILS OPEN, deliberately and loudly. If the ledger cannot be read the fleet
+# keeps working unrationed; a bookkeeping problem must never be able to stop
+# every mission. The same rule governs an unknown capacity: `--over` lists only
+# PROVEN exceedances, so silence means "nothing is proven over", never "all fine".
+MC_OVER_RATION=""
+MC_OVER_RATION_READ=0
+
+_mc_load_ration() {
+  [ "$MC_OVER_RATION_READ" -eq 1 ] && return 0
+  MC_OVER_RATION_READ=1
+  if ! command -v ailang >/dev/null 2>&1; then
+    log "ration gate: no ailang on PATH — proceeding UNRATIONED"
+    return 0
+  fi
+  # rc is taken from ailang DIRECTLY, not through the pipe: a pipeline reports the
+  # LAST command's status, so `ailang ... | tr` would report tr's 0 and hide the
+  # failure on any shell where pipefail happens to be off.
+  local _raw _rc
+  _raw=$(ailang mission quota --over 2>/dev/null); _rc=$?
+  MC_OVER_RATION=$(printf '%s' "$_raw" | tr '\n' ' ')
+  if [ "$_rc" -ne 0 ]; then
+    # Say so. A silently unrationed fleet looks identical to a rationed one that
+    # found nothing over — and that is the exact ambiguity this milestone exists
+    # to remove. An `ailang` too old to know --over lands here.
+    MC_OVER_RATION=""
+    log "ration gate: 'ailang mission quota --over' failed (rc=$_rc) — proceeding UNRATIONED"
+    return 0
+  fi
+  if [ -n "$MC_OVER_RATION" ]; then
+    log "ration gate: buckets OVER their ${MISSION_RATION_PCT:-10}%/day ration:$MC_OVER_RATION"
+  fi
+  return 0
+}
+
+# _mc_rung_bucket ENTRY → canonical bucket, mirroring observatory.CanonicalQuotaBucket.
+# An entry we cannot classify returns EMPTY and is therefore never rationed —
+# attaching an unknown rung to the nearest real bucket is how a ration ends up
+# measuring the wrong thing and saying nothing.
+_mc_rung_bucket() {
+  case "$1" in
+    codex:*) printf 'codex' ;;
+    pi:openrouter/*) printf 'openrouter' ;;
+    pi:ollama/*) printf 'ollama' ;;
+    claude:*) printf 'anthropic' ;;
+    pi:*) printf '' ;;
+    *) printf 'anthropic' ;;
+  esac
+}
+
+_mc_is_over_ration() {
+  local b
+  _mc_load_ration
+  [ -z "$MC_OVER_RATION" ] && return 1
+  b=$(_mc_rung_bucket "$1")
+  [ -z "$b" ] && return 1
+  case " $MC_OVER_RATION " in *" $b "*) return 0 ;; esac
+  return 1
+}
+
 _mc_set_controller() {
   local requested="$1"
   MODEL_WHY="$2"
@@ -604,6 +672,10 @@ select_model() {
       log "controller candidate $m DEMOTED this fire (runtime bucket limit) — skipping"
       continue
     fi
+    if _mc_is_over_ration "$m"; then
+      log "controller candidate $m is OVER RATION (bucket $(_mc_rung_bucket "$m")) — skipping to a cheaper rung"
+      continue
+    fi
     case "$m" in
       codex:*)
         if _mc_probe_codex "${m#codex:}"; then
@@ -636,6 +708,10 @@ select_model() {
   for fb in $(printf '%s' "$CONTROLLER_FALLBACK" | tr ',' ' '); do
     if _mc_is_demoted "$(_mc_canon_id "$fb")"; then
       log "controller fallback rung $fb DEMOTED this fire (runtime bucket limit) — skipping"
+      continue
+    fi
+    if _mc_is_over_ration "$fb"; then
+      log "controller fallback rung $fb is OVER RATION (bucket $(_mc_rung_bucket "$fb")) — skipping to a cheaper rung"
       continue
     fi
     case "$fb" in

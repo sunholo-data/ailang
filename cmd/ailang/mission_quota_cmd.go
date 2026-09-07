@@ -21,6 +21,7 @@ func missionQuota(args []string) error {
 	asJSON := fs.Bool("json", false, "Emit the ledger as JSON")
 	bucket := fs.String("bucket", "", "Report only this bucket (codex, anthropic, openrouter, ollama)")
 	consolidate := fs.Bool("consolidate", false, "Compact the journal into the ledger cache before reporting")
+	over := fs.Bool("over", false, "Print ONLY the canonical buckets that are over their daily ration, one per line (the routing seam: the launchd driver reads this to skip a rung). Prints nothing when every bucket is within ration or its capacity is unknown.")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -71,6 +72,20 @@ func missionQuota(args []string) error {
 			}
 		}
 		ledger.Usage = filtered
+	}
+
+	// --over is the machine seam for routing. It prints ONLY computed exceedances:
+	// a bucket whose capacity is unknown is NOT listed, because rationing on a
+	// guessed capacity would either idle a healthy fleet or wave through an empty
+	// bucket, and either way be confident about it. Silence therefore means "no
+	// bucket is PROVEN over", never "everything is fine".
+	if *over {
+		for _, v := range ledger.Verdicts(now) {
+			if v.Over() {
+				fmt.Println(v.Bucket)
+			}
+		}
+		return nil
 	}
 
 	if *asJSON {
