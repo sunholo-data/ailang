@@ -6,7 +6,7 @@
   "sprint_plan": "design_docs/planned/m-docs-mission-work-item-guide-sprint-plan.md",
   "github_issues": [],
   "velocity": {
-    "estimated_total_loc": 220,
+    "estimated_total_loc": 250,
     "estimated_days": 1,
     "target_loc_per_day": 220
   },
@@ -31,7 +31,7 @@
       "dependencies": [
         "M1"
       ],
-      "estimated_loc": 0,
+      "estimated_loc": 30,
       "acceptance_criteria": [
         "All five frozen criteria independently reviewed",
         "Candidate preserved and acceptance persisted",
@@ -39,7 +39,8 @@
       ],
       "passes": null,
       "started": null,
-      "completed": null
+      "completed": null,
+      "notes": "Estimate is retained evaluation/evidence text, not product changes."
     }
   ]
 }

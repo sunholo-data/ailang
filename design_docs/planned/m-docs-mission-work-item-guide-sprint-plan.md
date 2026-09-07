@@ -27,7 +27,7 @@ Maximum 1,800 seconds, 70,000 fresh tokens, $3 metered guard.
 - [ ] Original lifecycle/exit/recovery sections preserved; only the allowed file changes.
 - [ ] Commit the product, then emit the runtime's untracked stage-result.json.
 
-## M2 — independent acceptance (evaluator; no product changes)
+## M2 — independent acceptance (evaluator; ~30 lines retained evidence, no product changes)
 
 Dependencies: M1 accepted candidate. Maximum 1,200 seconds, 30,000 fresh tokens, $2 guard.
 
