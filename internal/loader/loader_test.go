@@ -159,52 +159,64 @@ func TestLoad_EmbeddedStdlibFallback(t *testing.T) {
 
 func TestCacheSource_ExactSnapshot(t *testing.T) {
 	t.Run("disk bytes", func(t *testing.T) {
-		root := t.TempDir()
-		content := []byte("module exact\n\nexport pure func answer() -> int = 42\n")
-		if err := os.WriteFile(filepath.Join(root, "exact.ail"), content, 0o644); err != nil {
-			t.Fatalf("write source: %v", err)
-		}
-
-		loaded, err := NewModuleLoader(root).Load("exact")
-		if err != nil {
-			t.Fatalf("load disk source: %v", err)
-		}
-		if loaded.SourceContent == nil {
-			t.Fatal("disk source snapshot is unavailable")
-		}
-		if got := *loaded.SourceContent; got != string(content) {
-			t.Fatalf("disk source snapshot = %q, want exact bytes %q", got, content)
-		}
+		assertDiskSourceExactSnapshot(t)
 	})
-
 	t.Run("embedded stdlib bytes", func(t *testing.T) {
-		want, err := std.FS.ReadFile("option.ail")
-		if err != nil {
-			t.Fatalf("read embedded control: %v", err)
-		}
-		ml := NewModuleLoader(t.TempDir())
-		ml.stdlibResolver = &StdlibResolver{
-			searchPaths:   []string{filepath.Join(t.TempDir(), "missing")},
-			negativeCache: make(map[string][]string),
-		}
-
-		loaded, err := ml.Load("std/option")
-		if err != nil {
-			t.Fatalf("load embedded source: %v", err)
-		}
-		if loaded.File == nil {
-			t.Fatal("embedded module has no AST")
-		}
-		if filepath.ToSlash(loaded.File.Path) != "<embedded>/std/option.ail" {
-			t.Fatalf("embedded AST path = %q", loaded.File.Path)
-		}
-		if loaded.SourceContent == nil {
-			t.Fatal("embedded source snapshot is unavailable")
-		}
-		if got := *loaded.SourceContent; got != string(want) {
-			t.Fatalf("embedded source snapshot differs from std.FS bytes")
-		}
+		assertEmbeddedSourceExactSnapshot(t)
 	})
+}
+
+// assertDiskSourceExactSnapshot asserts the loader retains the exact bytes it
+// read from disk as the immutable source snapshot.
+func assertDiskSourceExactSnapshot(t *testing.T) {
+	root := t.TempDir()
+	content := []byte("module exact\n\nexport pure func answer() -> int = 42\n")
+	if err := os.WriteFile(filepath.Join(root, "exact.ail"), content, 0o644); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
+
+	loaded, err := NewModuleLoader(root).Load("exact")
+	if err != nil {
+		t.Fatalf("load disk source: %v", err)
+	}
+	if loaded.SourceContent == nil {
+		t.Fatal("disk source snapshot is unavailable")
+	}
+	if got := *loaded.SourceContent; got != string(content) {
+		t.Fatalf("disk source snapshot = %q, want exact bytes %q", got, content)
+	}
+}
+
+// assertEmbeddedSourceExactSnapshot asserts the embedded stdlib module's source
+// snapshot equals the embedded std.FS bytes and carries the synthetic embedded
+// AST path.
+func assertEmbeddedSourceExactSnapshot(t *testing.T) {
+	want, err := std.FS.ReadFile("option.ail")
+	if err != nil {
+		t.Fatalf("read embedded control: %v", err)
+	}
+	ml := NewModuleLoader(t.TempDir())
+	ml.stdlibResolver = &StdlibResolver{
+		searchPaths:   []string{filepath.Join(t.TempDir(), "missing")},
+		negativeCache: make(map[string][]string),
+	}
+
+	loaded, err := ml.Load("std/option")
+	if err != nil {
+		t.Fatalf("load embedded source: %v", err)
+	}
+	if loaded.File == nil {
+		t.Fatal("embedded module has no AST")
+	}
+	if filepath.ToSlash(loaded.File.Path) != "<embedded>/std/option.ail" {
+		t.Fatalf("embedded AST path = %q", loaded.File.Path)
+	}
+	if loaded.SourceContent == nil {
+		t.Fatal("embedded source snapshot is unavailable")
+	}
+	if got := *loaded.SourceContent; got != string(want) {
+		t.Fatalf("embedded source snapshot differs from std.FS bytes")
+	}
 }
 
 func TestCanonicalModuleID(t *testing.T) {
