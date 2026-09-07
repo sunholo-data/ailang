@@ -69,20 +69,34 @@ func openCoordinatorStore(ctx context.Context, remoteFlag, stateDir string) (*co
 		}, nil
 	}
 
+	// Resolve the project BEFORE opening backends: they read it from the
+	// environment and fail with "AILANG_CLOUD_PROJECT must be set", which told
+	// the caller what was missing but never what to set it to — and made
+	// `--remote gcp` alone insufficient to name a plane.
+	project, source := resolveCloudProject(ctx)
+	if project == "" {
+		return nil, errNoCloudProject(mode)
+	}
+	if os.Getenv("AILANG_CLOUD_PROJECT") == "" {
+		// Process-local only. The backends take no project argument, so this is
+		// how a discovered value reaches them; it does not leak to the shell.
+		if err := os.Setenv("AILANG_CLOUD_PROJECT", project); err != nil {
+			return nil, fmt.Errorf("set AILANG_CLOUD_PROJECT for %s plane: %w", mode, err)
+		}
+	}
+
 	backends, err := storage.NewBackendsForMode(ctx, storage.Mode(mode))
 	if err != nil {
 		return nil, fmt.Errorf("failed to open %s coordinator store: %w", mode, err)
-	}
-	project := os.Getenv("AILANG_CLOUD_PROJECT")
-	if project == "" {
-		project = "(AILANG_CLOUD_PROJECT unset)"
 	}
 	return &coordinatorStoreBundle{
 		Store:      backends.Coordinator,
 		MsgStore:   backends.Messaging,
 		ObsBackend: backends.Observatory,
-		Mode:       fmt.Sprintf("%s (project %s)", mode, project),
-		Close:      func() { _ = backends.Close() },
+		// Report the SOURCE too: a silently-guessed project is the same failure
+		// class as a silently-guessed store.
+		Mode:  fmt.Sprintf("%s (project %s, via %s)", mode, project, source),
+		Close: func() { _ = backends.Close() },
 	}, nil
 }
 
