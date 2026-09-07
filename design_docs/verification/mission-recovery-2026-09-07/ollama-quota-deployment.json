@@ -1,0 +1,37 @@
+{
+  "revision": "8301960c9264d2774cce4ca2d3ffea3d5d6eb6ff",
+  "time": "20260907T151903",
+  "configs": [
+    {
+      "mission": "v1",
+      "backup": "/Users/voightkampff/.config/ailang/mission-v1.env.pre-ollama-quota-20260907T151903",
+      "sha256": "128659c831f474d9a1c551d8dd2bf677c4b04c0c29d85a07f6c66a0b4e267194"
+    },
+    {
+      "mission": "world",
+      "backup": "/Users/voightkampff/.config/ailang/mission-world.env.pre-ollama-quota-20260907T151903",
+      "sha256": "f49fdc2ad3584a38850369becf678b7a8ccc29b519d505008fa0660145db96a1"
+    },
+    {
+      "mission": "motoko",
+      "backup": "/Users/voightkampff/.config/ailang/mission-motoko.env.pre-ollama-quota-20260907T151903",
+      "sha256": "8e61ea9a472ba809d6b669bc161b80402ed49742306f03323a2ec72743db2f77"
+    },
+    {
+      "mission": "docs",
+      "backup": "/Users/voightkampff/.config/ailang/mission-docs.env.pre-ollama-quota-20260907T151903",
+      "sha256": "48eae1cf4bb5e7ee6d033d17e9a41c8031d0046e033b72ae66fab4a781309c2b"
+    }
+  ],
+  "active_iterations_restarted": false,
+  "binary_backup": "/Users/voightkampff/go/bin/ailang.pre-ollama-quota-20260907T151903",
+  "binary_before_sha256": "be2c2d0c51a13f736bd85d99d84a8b0ceb0e26985b26003d11dea6867016387f",
+  "installed_observation": {
+    "state": "unknown",
+    "reason": "Ollama usage recorded, but verified account capacities/reset times are missing; cloud routing blocked",
+    "observed_at": "2026-09-07T13:19:04.535045Z",
+    "session_usage": 0.006,
+    "weekly_usage": 0.357
+  },
+  "binary_after_sha256": "24e062d2951d94a274da530f6df757c86866fbfa254b67a7fb370d3f9a8d4f12"
+}

@@ -25,6 +25,8 @@ bad(){ FAIL=$((FAIL+1)); echo "  FAIL: $1"; echo "        trace: $2"; }
 check(){ case "$2" in *"$3"*) ok "$1";; *) bad "$1" "$(printf '%s' "$2"|tr '\n' '|')";; esac; }
 checkno(){ case "$2" in *"$3"*) bad "$1" "$(printf '%s' "$2"|tr '\n' '|')";; *) ok "$1";; esac; }
 
+# File-backed spies survive the production command substitution used to capture
+# notification diagnostics. Shell-variable writes disappear in that subshell.
 run() { # $1=block  $2=degraded-value  -> prints trace; env AILANG_RC/GH_RC/ISSUE tweak it
   local block="$1" val="$2"
   # A FRESH state dir per arm, not a shared one: the blocks now episode-GATE on files under
@@ -34,13 +36,11 @@ run() { # $1=block  $2=degraded-value  -> prints trace; env AILANG_RC/GH_RC/ISSU
   local state_dir; state_dir=$(mktemp -d)
   /bin/bash -c '
     set -uo pipefail
-    TRACE=""
-    log() { TRACE="$TRACE
-LOG:$*"; }
-    ailang() { TRACE="$TRACE
-AILANG:$*"; return ${AILANG_RC:-0}; }
-    gh()     { TRACE="$TRACE
-GH:$*"; return ${GH_RC:-0}; }
+    TRACE_FILE="$5/trace"; : > "$TRACE_FILE"
+    log() { printf "LOG:%s\n" "$*" >> "$TRACE_FILE"; }
+    ailang() { printf "AILANG:%s\n" "$*" >> "$TRACE_FILE"; return ${AILANG_RC:-0}; }
+    gh() { printf "GH:%s\n" "$*" >> "$TRACE_FILE"; return ${GH_RC:-0}; }
+    sleep() { :; }
     MISSION_NAME=v1; MISSION_REPO=sunholo-data/ailang; MSG_FROM=mission-control
     MISSION_GH_ISSUE="${ISSUE-635}"; LOG=/tmp/x.log; REPO=/tmp/repo
     MODEL=claude-opus-5; MODEL_WHY="probe ok"
@@ -50,9 +50,9 @@ GH:$*"; return ${GH_RC:-0}; }
     . "$1"            # _mc_notify
     eval "$3=\"$4\""  # set the ledger under test
     . "$2"            # the block
-    printf "%s" "$TRACE"
-    echo "
-RC:$?"
+    block_rc=$?
+    cat "$TRACE_FILE"
+    echo "RC:$block_rc"
   ' _ "$LAB/notify.sh" "$LAB/$block.sh" \
     "$( [ "$block" = pin_block ] && echo _pin_degraded || echo _lane_degraded )" "$val" "$state_dir" 2>&1
   rm -rf "$state_dir"
@@ -65,13 +65,10 @@ run_drift() { # $1=status $2=drift $3=threshold $4=state-value (absent for no fi
   if [ "$4" != absent ]; then printf '%s\n' "$4" > "$state_dir/pin-drift"; fi
   /bin/bash -c '
     set -uo pipefail
-    TRACE=""
-    log() { TRACE="$TRACE
-LOG:$*"; }
-    ailang() { TRACE="$TRACE
-AILANG:$*"; return 0; }
-    gh()     { TRACE="$TRACE
-GH:$*"; return 0; }
+    TRACE_FILE="$4/trace"; : > "$TRACE_FILE"
+    log() { printf "LOG:%s\n" "$*" >> "$TRACE_FILE"; }
+    ailang() { printf "AILANG:%s\n" "$*" >> "$TRACE_FILE"; return 0; }
+    gh() { printf "GH:%s\n" "$*" >> "$TRACE_FILE"; return 0; }
     MISSION_NAME=motoko; MISSION_REPO=sunholo-data/ailang; MSG_FROM=mission-motoko
     MISSION_GH_ISSUE=635; LOG=/tmp/x.log; REPO=/pinned/driver-worktree
     AILANG_DRIVER_SRC=/source/ailang-motoko
@@ -93,7 +90,7 @@ GH:$*"; return 0; }
     else
       echo "STATE:absent"
     fi
-    printf "%s" "$TRACE"
+    cat "$TRACE_FILE"
   ' _ "$1" "$2" "$3" "$state_dir" "$LAB/notify.sh" "$LAB/pin_decision.sh" "$LAB/pin_drift_block.sh" "$LAB/pin_block.sh" 2>&1
   rm -rf "$state_dir"
 }

@@ -40,25 +40,37 @@ func missionCommand(args []string) error {
 		return missionRotateLog(args[1:])
 	case "normalize":
 		return missionNormalize(args[1:])
+	case "attempt":
+		return missionAttemptCommand(args[1:])
+	case "role-run":
+		return missionRoleRun(args[1:])
 	case "quota":
 		return missionQuota(args[1:])
 	case "help", "--help", "-h":
 		printMissionHelp()
 		return nil
 	default:
-		return fmt.Errorf("unknown mission subcommand %q (want: list, doctor, install, apply, rotate-log, normalize, quota)", args[0])
+		return fmt.Errorf("unknown mission subcommand %q (want: list, doctor, install, apply, rotate-log, normalize, quota, role-run, attempt)", args[0])
 	}
 }
 
 func printMissionHelp() {
 	fmt.Print(`ailang mission — the mission-loop registry
 
+  ailang mission role-run --request FILE --receipt NEW_FILE [--state-db FILE] [--dry-run]
+                                   execute one explicit role; output is not acceptance
+  ailang mission attempt <status|reconcile|cancel> --state-db FILE
+                                   inspect or fence durable role attempts (see action --help)
   ailang mission list              which missions exist, and how each is wired
   ailang mission doctor [<name>]   does what is installed match what was reviewed?
                                    exit 0 clean, 1 drift, 2 registry error
   ailang mission install <name>    render this mission's artifacts to *.staged
   ailang mission apply <name>      promote the staged artifacts, then reload launchd
-  ailang mission quota [--bucket B] [--json] [--consolidate]
+  ailang mission quota [--bucket B] [--json] [--consolidate] [--over]
+    Codex: local CODEX_HOME (default ~/.codex) provider usage; stale/missing blocks routing.
+    Ollama Cloud: OLLAMA_API_KEY usage gauge warns at 80%, blocks at 95% in either window.
+    Optional ~/.ailang/state/ollama-quota-limits.json adds verified reset-aware pacing.
+    Unknown quota blocks cloud routing; local Ollama models are unaffected.
                                    fleet-wide subscription spend per (bucket, window),
                                    against the 10%/day ration
   ailang mission rotate-log <name> [--keep N]

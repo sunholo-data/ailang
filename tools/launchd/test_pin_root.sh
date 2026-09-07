@@ -26,7 +26,7 @@ export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null
 # pinned", which turns CI green while the test fails on the rig it protects.
 unset AILANG_DRIVER_PINNED AILANG_DRIVER_DRIFT AILANG_DRIVER_SRC AILANG_DRIVER_REF
 unset AILANG_DRIVER_PIN_GATE_REFRESHED
-unset MISSION_WORKDIR
+unset MISSION_WORKDIR AILANG_DRIVER_MISSION_IS_DE_FORKED
 
 PASS=0; FAIL=0
 ok()   { PASS=$((PASS+1)); echo "  PASS: $1"; }
@@ -34,6 +34,7 @@ bad()  { FAIL=$((FAIL+1)); echo "  FAIL: $1"; echo "        got: $2"; }
 check(){ # name haystack needle
   case "$2" in *"$3"*) ok "$1";; *) bad "$1" "$(printf '%s' "$2" | tr '\n' '|' | tail -c 300)";; esac
 }
+checkeq(){ if [ "$2" = "$3" ]; then ok "$1"; else bad "$1" "$2"; fi; }
 checkno(){ case "$2" in *"$3"*) bad "$1" "$(printf '%s' "$2" | tr '\n' '|' | tail -c 300)";; *) ok "$1";; esac; }
 
 # ---- build origin ----------------------------------------------------------
@@ -50,8 +51,9 @@ REPO="${MISSION_WORKDIR:-$(cd "$(dirname "$0")/../.." && pwd)}"
 cd "$REPO" || exit 1
 LOG=/dev/null
 log() { echo "[drv] $*"; }
-if [ -f "$REPO/tools/launchd/lib/pin-root.sh" ]; then
-  . "$REPO/tools/launchd/lib/pin-root.sh"
+DRIVER_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+if [ -f "$DRIVER_ROOT/tools/launchd/lib/pin-root.sh" ]; then
+  . "$DRIVER_ROOT/tools/launchd/lib/pin-root.sh"
   pin_root_to_committed_ref "$@"
 else
   PIN_STATUS="STALE"; PIN_NOTE="helper absent"
@@ -246,6 +248,82 @@ done
 NJ=$(PATH="$T/nojq" /bin/bash "$DRV" 2>&1)
 check "no jq => STALE, not pinned"       "$NJ" "STATUS=STALE"
 check "says it could not verify"         "$NJ" "cannot verify Claude Code onboarding"
+
+echo "== 10. repository identity is independent of clone/worktree identity =="
+. "$SRC_HELPER"
+mkdir -p "$T/identity"
+for repo in driver same foreign missing; do git init --quiet "$T/identity/$repo"; done
+git -C "$T/identity/driver" remote add origin https://GitHub.COM/team/Repo.git/
+git -C "$T/identity/same" remote add origin git@github.com:team/Repo.git
+git -C "$T/identity/foreign" remote add origin ssh://git@github.com/team/repo.git
+_pin_same_repo "$T/identity/driver" "$T/identity/same"; RC=$?
+checkeq "SSH and HTTPS same-origin separate clones" "$RC" "0"
+git -C "$T/identity/same" remote set-url origin ssh://git@GITHUB.COM/team/Repo.git
+_pin_same_repo "$T/identity/driver" "$T/identity/same"; RC=$?
+checkeq "SSH scheme and HTTPS origins are equivalent" "$RC" "0"
+_pin_same_repo "$T/identity/driver" "$T/identity/foreign"; RC=$?
+checkeq "repository path case remains significant" "$RC" "1"
+for shape in same foreign; do
+  MISSION_WORKDIR="$T/identity/$shape"
+  _set_pin_workdir "$T/pinwt" "$T/identity/driver"; RC=$?
+  EXPECT="$T/identity/$shape"; [ "$shape" = same ] && EXPECT="$T/pinwt"
+  checkeq "inferred $shape repository workdir" "$RC:$MISSION_WORKDIR" "0:$EXPECT"
+done
+for flag in 0 1; do
+  AILANG_DRIVER_MISSION_IS_DE_FORKED="$flag"
+  SHAPE=foreign; EXPECT="$T/pinwt"
+  [ "$flag" = 1 ] && SHAPE=same && EXPECT="$T/identity/same"
+  MISSION_WORKDIR="$T/identity/$SHAPE"
+  _set_pin_workdir "$T/pinwt" "$T/identity/driver"; RC=$?
+  checkeq "flag $flag overrides OPPOSITE inference" "$RC:$MISSION_WORKDIR" "0:$EXPECT"
+done
+for flag in '' yes 2; do
+  AILANG_DRIVER_MISSION_IS_DE_FORKED="$flag"; MISSION_WORKDIR="$T/identity/same"
+  _set_pin_workdir "$T/pinwt" "$T/identity/driver" 2>"$T/reason"; RC=$?
+  checkeq "invalid flag '$flag' fails without changing path" "$RC:$PIN_STATUS:$MISSION_WORKDIR" "1:STALE:$T/identity/same"
+done
+unset AILANG_DRIVER_MISSION_IS_DE_FORKED
+for shape in missing absent; do
+  MISSION_WORKDIR="$T/identity/$shape"
+  _set_pin_workdir "$T/pinwt" "$T/identity/driver" 2>"$T/reason"; RC=$?
+  checkeq "unknown $shape retains caller STALE and path" "$RC:$PIN_STATUS:$MISSION_WORKDIR" "1:STALE:$T/identity/$shape"
+  check "unknown $shape emits reason" "$(cat "$T/reason")" "WARN"
+done
+MISSION_WORKDIR="$T/identity/same"
+_set_pin_workdir "$T/pinwt" "$T/identity/missing" 2>"$T/reason"; RC=$?
+checkeq "unknown driver origin retains path" "$RC:$PIN_STATUS:$MISSION_WORKDIR" "1:STALE:$T/identity/same"
+for origin in '' not-an-origin 'ssh://git@github.com:2222/team/Repo.git'; do
+  git -C "$T/identity/missing" config remote.origin.url "$origin"
+  MISSION_WORKDIR="$T/identity/missing"
+  _set_pin_workdir "$T/pinwt" "$T/identity/driver" 2>"$T/reason"; RC=$?
+  checkeq "indeterminate origin '$origin' fails closed" "$RC:$PIN_STATUS:$MISSION_WORKDIR" "1:STALE:$T/identity/missing"
+done
+git -C "$T/identity/missing" config --unset-all remote.origin.url
+git -C "$T/identity/missing" config --add remote.origin.url https://github.com/team/Repo.git
+git -C "$T/identity/missing" config --add remote.origin.url https://github.com/team/Other.git
+MISSION_WORKDIR="$T/identity/missing"
+_set_pin_workdir "$T/pinwt" "$T/identity/driver" 2>"$T/reason"; RC=$?
+checkeq "ambiguous multiple origins fail closed" "$RC:$PIN_STATUS:$MISSION_WORKDIR" "1:STALE:$T/identity/missing"
+git -C "$T/identity/missing" config --unset-all remote.origin.url
+unset MISSION_WORKDIR
+_set_pin_workdir "$T/pinwt" "$T/identity/driver"; RC=$?
+checkeq "absent incoming workdir defaults to driver source" "$RC:$MISSION_WORKDIR" "0:$T/pinwt"
+unset MISSION_WORKDIR
+
+# Exercise the production plain call across the actual driver re-exec, not just helpers.
+printf '{"projects":{"%s":{"hasTrustDialogAccepted":true}}}' "$T/clone" > "$HOME/.claude.json"
+echo FOREIGN-CONTENT > "$T/identity/foreign/MARKER"
+FR=$(MISSION_WORKDIR="$T/identity/foreign" /bin/bash "$DRV" 2>&1)
+check "foreign work repo survives real pinned re-exec" "$FR" "STATUS=pinned"
+check "foreign work repo remains selected" "$FR" "REPO=$T/identity/foreign"
+check "foreign charter content remains selected" "$FR" "MARKER=FOREIGN-CONTENT"
+echo UNKNOWN-CONTENT > "$T/identity/missing/MARKER"
+UK=$(MISSION_WORKDIR="$T/identity/missing" /bin/bash "$DRV" 2>&1)
+check "unknown origin production call stays STALE" "$UK" "STATUS=STALE"
+check "unknown origin production path unchanged" "$UK" "REPO=$T/identity/missing"
+checkno "unknown origin never exports pinned success" "$UK" "STATUS=pinned"
+PLAIN=$(grep -c '^  _set_pin_workdir "$wt" "$src" || return 1$' "$SRC_HELPER")
+checkeq "production call is in current shell" "$PLAIN" "1"
 
 echo ""
 echo "==== $PASS passed, $FAIL failed ===="
