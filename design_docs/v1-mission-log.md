@@ -2317,3 +2317,63 @@ synthesis gate (now any non-zero rc with an empty tail, so a `mktemp` rc=125 is 
 The judge also credited its own error: its first C4 reading contradicted mine at 15/10 vs 9, and it
 traced that to incomplete test isolation in its extracted copy rather than to a discrepancy — the
 right move, and worth recording because a judge that corrects itself is doing the job.
+
+**Correction, recorded after Gate 3b and against my own headline.** The *"clearing one red exposed
+nine older ones"* finding was measured correctly and reported with a shelf life I did not check. The
+nine `test_mission_heartbeat.sh` arms were genuinely failing at my base `81abc956d`, and the paired
+base/head control was sound — but [`063df9917`](https://github.com/sunholo-data/ailang/commit/063df9917),
+inside **attended** PR [#1082](https://github.com/sunholo-data/ailang/pull/1082) merged at **14:15Z**,
+repaired exactly those arms *while this iteration was running*. Verified first-party on `dev`
+afterwards: `test_mission_heartbeat.sh` alone gives **25 arms, rc=0**, and `make test-launchd-drivers`
+gives **rc=0** overall. So the queue row I filed at the top was closed on arrival, and the STATUS stamp
+and the row have both been corrected. The CLASS survives and is worth more than the row: a red early in
+a long ordered target **suspends every gate behind it**, so any such report is a LOWER BOUND — and, the
+part I got wrong, a measurement of *what else is broken* has a shelf life precisely because that is what
+everyone else is also fixing.
+
+**And the same PR landed a competing fix for MY item, mid-iteration.** `2a38f0948`
+("test(launchd): retain notification observations across subshells") is an attended, test-only repair of
+the same seven notify assertions, filed honestly — *"Production driver is unchanged … does not claim
+completion of the broader retry/drain/environment coverage."* D-60 had already **rejected** test-only as
+a scope, and the two are not composable: it keeps `ailang()`/`gh()` as in-shell FUNCTION stubs, which
+`_mc_bounded` cannot reach at all. So the sprint's fixture work SUPERSEDES rather than duplicates it,
+and the rebase kept the superset while carrying the attended note forward verbatim into the design doc.
+After the rebase, `make test-launchd-drivers` is **rc=0** at the sprint head with the notify suite at
+**38 passed / 0 failed** against dev's 27/0, and the D-60 production bounding included.
+No fault attaches to the attended session — it was clearing a red on its own merge and could not see a
+mission mid-flight. The gap is structural and is filed as its own row: **Gate 1 scopes a red to the
+owning mission and Gate 2's traces look for orphaned PRs; neither sees a HUMAN editing the same file
+right now**, and the controlplane CLAIM this loop sends is not something an attended session reads. If
+it recurs a third time, the cheap mitigation is to re-read `origin/dev` for the picked item's own files
+immediately before Gate 3b rather than only at Gate 1.
+
+**Record verification.** Exact merge SHA [`e5a325a20`](https://github.com/sunholo-data/ailang/commit/e5a325a207edbaec0dc5e69e31df5f6519afd9bb):
+**21 checks, ZERO not-green** — `test`, `lint`, `build`, `docs-gate`, `test-windows`, all three
+`Build` matrices, CodeQL, govulncheck, SonarCloud, and **`launchd drivers (bash 3.2)` itself**. That
+last one is the point: the job this item exists for is green on `dev` for the first time, with the
+notify suite at **38 assertions** rather than the 27 it had before this iteration, and with the D-60
+production bounding in place. The Gate-4 record landed as PR #1092 (`98730db02`) and its correction
+as PR #1095. STATUS block holds exactly 3 structural rows; the log rotation moved 4 entries with
+their full bodies and the archive was verified to have gained each one; `v1-mission-index.md` was
+regenerated and is current through 347, closing the stale-since-340 gap Gate 2 depends on. Ledger
+valid at 60 rows, zero open.
+
+**Gate 3b — and my diagnosis here was WRONG, in the exact way this gate already warns about.** The
+second push to #1090 produced **one** check (`automerge/skipped`) instead of twenty, and the PR
+rollup read `pending: 0, failed: []` — a **vacuous green over a near-empty check set**, caught only
+by asserting the check COUNT alongside the pending count. That part stands, and the durable rule is
+the assertion: **never accept `pending: 0` without a non-vacuity floor on `total`.**
+What I then concluded does not stand. I called it a dropped `pull_request` **synchronize** delivery
+(a `dev` push five seconds later fired normally, so Actions was demonstrably healthy) and fired
+`gh workflow run CI --ref <branch>`. The real cause was **`CONFLICTING`**: attended PR #1082 had
+merged to `dev` at 14:15Z touching two of the three files this sprint changed, so Actions was
+declining to build a test-merge. Gate 3b's iteration-198 rule says exactly this — *read `mergeable`
+BEFORE reaching for any dropped-event lever* — and I walked past it because I had read `MERGEABLE`
+at 14:00Z on the previous head and banked it. **A `mergeable` reading is a property of (my head,
+dev's head); it expires when a sibling merges, which is invisible in my own log.** Worse, the
+dispatch *succeeded*: `workflow_dispatch` needs no test-merge, so it returned a clean 8-job green on
+a head whose PR runs were absent because the PR was `DIRTY` — a green from the wrong event, on a real
+conflict. The true reading came 35 minutes later; one rebase produced all four `pull_request`
+workflows in 25 seconds and 21 checks with zero not-green. Instance 3 of a rule that already existed,
+so the Gate-5 lane is a SHARPENING, not a new rule: the reading has an expiry, and the dispatch green
+must never be quoted as the item's CI evidence.
