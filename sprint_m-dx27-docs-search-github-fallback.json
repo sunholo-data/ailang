@@ -1,0 +1,167 @@
+{
+  "sprint_id": "M-DX27-DOCS-SEARCH-GITHUB-FALLBACK",
+  "title": "GitHub repository search fallback for ailang docs search",
+  "design_doc": "design_docs/planned/v0_29_0/m-dx27-docs-search-github-fallback.md",
+  "mission": "docs",
+  "status": "planned",
+  "target_version": "v0.36.0",
+  "estimated_days": 2.0,
+  "estimated_hours": 11,
+  "scope": {
+    "primary_deliverable": "Authenticated GitHub code-search fallback selected at the CLI boundary, with shared git remote parsing, one-hour result caching, tests, and user documentation.",
+    "allowed_paths": [
+      "internal/docsearch/backend.go",
+      "internal/docsearch/github/github.go",
+      "internal/docsearch/github/cache.go",
+      "internal/docsearch/github/github_test.go",
+      "internal/gitutil/remote.go",
+      "internal/gitutil/remote_test.go",
+      "cmd/ailang/coordinator_cloud_github.go",
+      "cmd/ailang/docs_search.go",
+      "docs/docs/guides/cli.md",
+      "CHANGELOG.md"
+    ],
+    "hard_unchanged_paths": [
+      "internal/docsearch/search.go"
+    ],
+    "out_of_scope": [
+      "embedding documentation in the binary",
+      "website search API",
+      "release-asset download fallback",
+      "changes to the local Search implementation",
+      "git staging, commits, and pushes"
+    ]
+  },
+  "milestones": [
+    {
+      "id": "M1_GITUTIL_EXTRACTION",
+      "title": "Extract GitHub owner/repo parsing into internal/gitutil",
+      "files": [
+        "internal/gitutil/remote.go",
+        "internal/gitutil/remote_test.go",
+        "cmd/ailang/coordinator_cloud_github.go"
+      ],
+      "estimated_loc": 55,
+      "estimated_hours": 2,
+      "dependencies": [],
+      "verification_refs": ["V1", "V2", "V3", "V4"],
+      "acceptance_criteria": [
+        "Create internal/gitutil.GitHubOwnerRepo with the current HTTPS/SSH parsing behavior and error behavior preserved; do not add a second parser.",
+        "Delete the private cmd/ailang getGitHubOwnerRepo implementation and update its existing call site to use gitutil.GitHubOwnerRepo.",
+        "Unit tests cover HTTPS and SSH GitHub remotes, .git suffix trimming, malformed/non-GitHub remotes, and git-command errors.",
+        "The coordinator package and the new gitutil package compile and their relevant tests pass.",
+        "End the milestone with go build ./... and go test ./... passing."
+      ],
+      "passes": false
+    },
+    {
+      "id": "M2_BACKEND_AND_GITHUB_CLIENT",
+      "title": "Add the backend seam and authenticated GitHub code-search backend",
+      "files": [
+        "internal/docsearch/backend.go",
+        "internal/docsearch/github/github.go",
+        "internal/docsearch/github/github_test.go"
+      ],
+      "estimated_loc": 220,
+      "estimated_hours": 3.5,
+      "dependencies": ["M1_GITUTIL_EXTRACTION"],
+      "verification_refs": ["V5", "V6", "V7", "V8"],
+      "acceptance_criteria": [
+        "SearchBackend has the design-specified Search signature, and LocalBackend delegates to Search without modifying search.go.",
+        "GitHub backend resolves GITHUB_TOKEN first and gh auth token second, never logs token contents, and returns loud errors when no token or an invalid token is available.",
+        "GitHub requests use HTTPS, the established Accept/Authorization/API-version headers, a ten-second request timeout, validated owner/repo input, and internal/gitutil.GitHubOwnerRepo for repository detection.",
+        "Code-search response conversion preserves the docsearch result/statistics contract and handles pagination plus explicit 401, 403/429 rate-limit, 404, and network errors with actionable messages.",
+        "httptest-based tests cover authenticated success, request shape, token absence/rejection, rate limiting/reset reporting, malformed responses, repository errors, and context cancellation.",
+        "End the milestone with go build ./... and go test ./... passing."
+      ],
+      "passes": false
+    },
+    {
+      "id": "M3_GITHUB_CACHE",
+      "title": "Add one-hour per-query GitHub result caching",
+      "files": [
+        "internal/docsearch/github/cache.go",
+        "internal/docsearch/github/github_test.go"
+      ],
+      "estimated_loc": 100,
+      "estimated_hours": 2,
+      "dependencies": ["M2_BACKEND_AND_GITHUB_CLIENT"],
+      "verification_refs": ["V9", "V10"],
+      "acceptance_criteria": [
+        "Cache entries live under ~/.ailang/cache/docsearch/github/ and use a SHA-256 key over the query/repository/subdirectory/limit dimensions.",
+        "Cache reads honor the one-hour TTL; expired, corrupt, or unwritable entries fail safely without returning incorrect search data.",
+        "Cache files contain results and metadata only, never the GitHub token; writes are atomic enough to avoid publishing partial JSON.",
+        "Tests prove cache hit/miss, TTL expiry, key separation, corrupt-entry handling, and no credential persistence.",
+        "End the milestone with go build ./... and go test ./... passing."
+      ],
+      "passes": false
+    },
+    {
+      "id": "M4_CLI_DOCS_WIRING",
+      "title": "Select the fallback at the CLI boundary and document it",
+      "files": [
+        "cmd/ailang/docs_search.go",
+        "docs/docs/guides/cli.md",
+        "CHANGELOG.md"
+      ],
+      "estimated_loc": 55,
+      "estimated_hours": 2.5,
+      "dependencies": ["M2_BACKEND_AND_GITHUB_CLIENT", "M3_GITHUB_CACHE"],
+      "verification_refs": ["V11", "V12", "V13"],
+      "acceptance_criteria": [
+        "Explicit --path always selects LocalBackend; otherwise local design_docs/ then docs/ remain preferred, with findDocsDir behavior unchanged.",
+        "When local docs are absent, the CLI selects GitHub only when enabled and a usable token exists; AILANG_NO_GITHUB_SEARCH and the matching --no-github flag suppress it with a loud actionable error.",
+        "Local execution makes no GitHub request, and outside-source-tree failures name the missing local docs/token conditions and provide --path/GITHUB_TOKEN/gh-auth guidance.",
+        "Existing docs-search regression behavior remains covered, and CLI tests cover local preference, disabled fallback, no-token, authenticated fallback, and error output without leaking secrets.",
+        "cli.md and CHANGELOG.md state plainly that GitHub code search requires authentication and describe the cache/disable configuration.",
+        "End the milestone with go build ./... and go test ./... passing."
+      ],
+      "passes": false
+    },
+    {
+      "id": "M5_INTEGRATION_AND_ZERO_DIFF_GATE",
+      "title": "Run final integration gates and certify the hard unchanged file",
+      "files": [
+        "internal/docsearch/search.go"
+      ],
+      "estimated_loc": 0,
+      "estimated_hours": 1,
+      "dependencies": ["M4_CLI_DOCS_WIRING"],
+      "verification_refs": ["V14", "V15"],
+      "acceptance_criteria": [
+        "git diff -- internal/docsearch/search.go is empty (zero diff lines); no formatting, import, comment, or incidental change is permitted in that file.",
+        "Relevant package tests, go test ./..., go build ./..., make fmt-check, make lint, make check-boundaries, and make check-file-sizes pass from this worktree.",
+        "An outside-source-tree integration test with a test HTTP server or injected client proves authenticated fallback; no live token is committed or printed.",
+        "The final diff contains only the design-doc Files Changed table plus the explicitly required gitutil test companion, and no dead code remains."
+      ],
+      "passes": false
+    }
+  ],
+  "final_gates": [
+    "go build ./...",
+    "go test ./...",
+    "make fmt-check",
+    "make lint",
+    "make check-boundaries",
+    "make check-file-sizes",
+    "git diff --exit-code -- internal/docsearch/search.go",
+    "git diff --name-only matches the approved file list"
+  ],
+  "verification_log": [
+    {"id": "V1", "command": "nl -ba cmd/ailang/coordinator_cloud_github.go | sed -n '85,105p'", "observed_output": "getGitHubOwnerRepo exists at lines 87-105 and runs git remote get-url origin, trims .git, and parses HTTPS/SSH GitHub prefixes."},
+    {"id": "V2", "command": "test ! -d internal/gitutil && echo 'internal/gitutil: absent'", "observed_output": "internal/gitutil: absent"},
+    {"id": "V3", "command": "rg -n 'getGitHubOwnerRepo|GITHUB_TOKEN' cmd/ailang/coordinator_cloud_github.go", "observed_output": "The private parser has one call site at line 46; GITHUB_TOKEN is already read at line 39."},
+    {"id": "V4", "command": "rg --files cmd/ailang | rg 'coordinator_cloud_github.*_test.go$' || true", "observed_output": "No dedicated coordinator_cloud_github test file was listed; M1 therefore requires a new internal/gitutil test companion."},
+    {"id": "V5", "command": "nl -ba internal/docsearch/search.go | sed -n '17,65p'", "observed_output": "SearchOptions starts at line 18, SearchResult at 31, SearchStats at 38, and Search has the cited signature at line 62."},
+    {"id": "V6", "command": "rg -n 'type Backend interface|type Provider interface' internal/observatory/backend.go internal/ai/provider.go", "observed_output": "Existing interface patterns are present at observatory/backend.go:11 and ai/provider.go:442."},
+    {"id": "V7", "command": "nl -ba cmd/ailang/docs_search.go | sed -n '67,150p'", "observed_output": "Current CLI resolves a local docs path and directly calls docsearch.Search at line 138; no backend selection seam exists."},
+    {"id": "V8", "command": "rg -n 'Authorization: Bearer|application/vnd.github\\+json|X-GitHub-Api-Version|http.NewRequestWithContext' cmd/ailang/coordinator_cloud_github.go", "observed_output": "Existing GitHub REST code establishes the Bearer, Accept, API-version, and context-aware request pattern."},
+    {"id": "V9", "command": "rg -n 'cache/(registry|git|compile)' internal/pkg/registry.go internal/pkg/gitcache.go internal/pipeline/cache_store.go", "observed_output": "Existing cache conventions use feature subdirectories: registry, git, and compile."},
+    {"id": "V10", "command": "rg -n 'cache-info|cleanup|rebuild' cmd/ailang/docs_search.go", "observed_output": "The docs-search CLI already has cache-management flags, so cache wiring must preserve those paths."},
+    {"id": "V11", "command": "sed -n '1,40p' cmd/ailang/docs_search_guard_test.go", "observed_output": "An existing docs-search regression test asserts SimHash behavior over design_docs and must remain green."},
+    {"id": "V12", "command": "test -f docs/docs/guides/cli.md && echo 'docs/docs/guides/cli.md: present'; test -f CHANGELOG.md && echo 'CHANGELOG.md: present'", "observed_output": "Both documentation targets are present."},
+    {"id": "V13", "command": "make help | rg 'build|test|fmt-check|lint|check-boundaries|check-file-sizes'", "observed_output": "The repository exposes build, test, fmt-check, lint, check-boundaries, and check-file-sizes targets."},
+    {"id": "V14", "command": "git status --porcelain=v1; git diff --name-only", "observed_output": "Both commands produced empty output; the worktree was clean before planning."},
+    {"id": "V15", "command": "test -x /Users/voightkampff/.agents/skills/sprint-planner/scripts/analyze_velocity.sh || echo 'velocity helper absent at documented path'", "observed_output": "velocity helper absent at documented path; no numeric velocity was inferred."}
+  ]
+}
