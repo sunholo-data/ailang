@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-MISSION-RECOVERY",
-  "status": "in_progress",
+  "status": "completed",
   "created": "2026-09-07",
   "design_doc": "design_docs/planned/m-mission-runtime-contract.md",
   "sprint_plan": "design_docs/planned/m-mission-recovery-sprint-plan.md",
@@ -50,10 +50,10 @@
         "Heartbeat renews and cancels worker on lost ownership",
         "Bounded checks and independent review pass with documented limits"
       ],
-      "passes": null,
+      "passes": true,
       "started": "2026-09-07",
-      "completed": null,
-      "notes": "CLI and heartbeat tests pass; independent final review pending"
+      "completed": "2026-09-07",
+      "notes": "CLI state/receipt duplicate, external cancellation and heartbeat tests pass. Built binary fake-Pi smoke invoked once and rejected second receipt. Independent engineering PASS; inherited exec.go file-size failure remains owned by V1 #1074."
     }
   ],
   "velocity": {

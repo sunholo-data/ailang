@@ -86,6 +86,55 @@ budget termination and receipt failures return nonzero. A crash can leave an
 incomplete journal requiring inspection. This journal does not provide leases,
 exactly-once execution, or duplicate detection across different receipt paths.
 
-The four live loops continue using their existing drivers. Durable coordinator
-state, resource admission, verified artifact handoffs, remote executors, mission
+The four live loops continue using their existing drivers. Full mission lifecycle, resource admission, verified artifact handoffs, remote executors, mission
 onboarding and workflow comparisons remain subsequent delivery slices.
+
+## Opt-in durable attempt state
+
+Add an explicit coordinator SQLite database to share admission across invocations:
+
+```bash
+ailang mission role-run --request /tmp/mission-request.json \
+  --receipt /tmp/mission-attempt-001.jsonl \
+  --state-db /absolute/path/to/coordinator.db
+ailang mission attempt status --state-db /absolute/path/to/coordinator.db \
+  --mission example --work-item review-001 --stage evaluate
+```
+
+This adds mission-attempt records alongside coordinator records. All callers must use the same
+database to share the fence; a different database or legacy invocation without `--state-db`
+does not participate. Dry-run creates neither the state database nor the receipt. Weekly
+GitHub thread IDs do not affect execution identity, and no thread pointer is modified.
+
+Admission is unique per `(mission_id, work_item_id, stage_id)`, including after completion,
+failure or cancellation. A new attempt ID or receipt path cannot bypass an occupied stage.
+This increment does not yet release or replace terminal stages: inspect the work before
+planning a deliberately new stage. It does not provide artifact acceptance or automatic retry.
+
+A 30-second lease is renewed every 10 seconds using database time. An expired `prepared`
+attempt can be reclaimed only with the identical request and attempt ID, using a fresh receipt
+path and new owner token. A `running` attempt is never automatically reclaimed. Reconciliation
+marks expired running attempts `needs_reconciliation`:
+
+```bash
+ailang mission attempt reconcile --state-db /absolute/path/to/coordinator.db
+```
+
+To cancel one attempt, use the exact `version` observed in its status:
+
+```bash
+ailang mission attempt cancel --state-db /absolute/path/to/coordinator.db \
+  --mission example --work-item review-001 --stage evaluate --version 2
+```
+
+Cancellation fences later completion immediately in the database. The worker requests
+cooperative stopping when its next heartbeat fails; it does not guarantee immediate process
+termination or undo edits already made. A stale cancellation version is rejected. No approval
+or accepted artifact is inferred from cancellation, execution output or reconciliation.
+
+State is persisted before dispatch. If the process dies between marking `running` and launching
+the adapter, that attempt is conservatively ambiguous. Receipt and SQLite writes are separate;
+a crash or disk error can leave one ahead of the other. Keep both for inspection. Tests cover
+abrupt process exit and database reopening; they do not establish power-loss durability,
+exactly-once external effects, distributed leases or Cloud Run support. Protect the database
+and receipts as sensitive local state: both can contain task instructions and output.

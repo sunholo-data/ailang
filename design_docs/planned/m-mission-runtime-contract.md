@@ -323,3 +323,12 @@ not commandeer unrelated dirty work or running missions.
 
 Detailed sprint estimation follows first-slice contract approval and repository velocity review.
 No whole-project delivery date or productivity improvement is claimed before those measurements.
+
+
+### Recovery increment — 2026-09-07
+
+[Recovery sprint](m-mission-recovery-sprint-plan.md) implements repository-safe driver pinning
+and opt-in coordinator-backed attempt admission/fencing. It preserves the four live loops and
+weekly-thread authority. The full durable lifecycle still requires artifact acceptance,
+reconciliation resolution, quota reservations, and canary adoption; this increment is not
+an assertion that those parent delivery criteria are complete.

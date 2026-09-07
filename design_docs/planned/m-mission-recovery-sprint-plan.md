@@ -81,21 +81,39 @@ increments. This plan does not claim the full parent slice-2 fault matrix is com
    cancel/reconcile APIs; two-connection races, reopen recovery, stale tokens, duplicate/conflicting
    completion and stage conflicts. No live coordinator DB used during tests.
 3. **M3 — CLI integration and engineering evaluation** (~350 lines): explicit state DB, live
-   heartbeat, durable recorder ordering; real subprocess crash fixture; status/reconcile/cancel,
+   heartbeat, durable recorder ordering; abrupt subprocess store-recovery fixture plus in-process CLI ordering tests; status/reconcile/cancel,
    docs/example and independent review. Test interruption before/after start and duplicate runs.
 
 M1 is independent of M2; M3 depends on M2. Use independent review after implementation, then
 bounded full tests/lint/build/race/boundaries. Report inherited failures separately. All test
 subprocesses have wall-clock ceilings and synthetic homes/databases. No provider spend.
 
+Terminal stages remain occupied; this increment exposes no retry/reset operation. Cancellation
+fences completion and requests cooperative stop on the next heartbeat. Store crash tests prove
+process-exit persistence, not power-loss durability or distributed execution.
+
 ## Success and remaining work
 
-- [ ] World cannot be redirected into the driver repository when origins differ.
-- [ ] Duplicate role execution cannot bypass a persisted active stage with a new receipt path.
-- [ ] Expired running work, cancellation and stale completion retain their fences after restart.
-- [ ] CLI lifecycle fixture, tests, documentation and independent review pass.
+- [x] World cannot be redirected into the driver repository when origins differ.
+- [x] Duplicate role execution cannot bypass a persisted active stage with a new receipt path.
+- [x] Expired running work, cancellation and stale completion retain their fences after restart.
+- [x] CLI lifecycle fixture, tests, documentation and independent review pass.
 
 Live canary requires an explicit controlled invocation using the tested artifact and an isolated
 worktree, with spend and rollback set before activation. Do not silently cut over launchd or
 restore World's pin using a local commit absent from its configured ref. Mission onboarding,
 verified artifact handoffs, quota reservations and remote workers remain subsequent milestones.
+
+## Delivery evidence
+
+M1/M2/M3 complete in the isolated recovery branch, 2026-09-07. Independent engineering
+review PASS after adding a real lease-renewal/lost-ownership cancellation regression.
+81 pin shell assertions, full make test/lint, build, architecture boundaries, race and vet
+pass. File-size check reports only inherited exec.go at 807 lines (V1 owns #1074).
+Built binary with a fake Pi executable completed one role, persisted matching receipt/state,
+refused a second receipt path, and kept dry-run free of state writes. No provider invoked.
+See [dated fleet baseline](../verification/mission-recovery-2026-09-07/baseline.md).
+
+This is an implemented opt-in increment, not completion of the parent mission runtime.
+World mitigation and live thread pointers remain intact. The reviewed pin commit must
+reach the configured driver ref before World can verify and restore pinning.

@@ -40,6 +40,8 @@ func missionCommand(args []string) error {
 		return missionRotateLog(args[1:])
 	case "normalize":
 		return missionNormalize(args[1:])
+	case "attempt":
+		return missionAttemptCommand(args[1:])
 	case "role-run":
 		return missionRoleRun(args[1:])
 	case "quota":
@@ -48,15 +50,17 @@ func missionCommand(args []string) error {
 		printMissionHelp()
 		return nil
 	default:
-		return fmt.Errorf("unknown mission subcommand %q (want: list, doctor, install, apply, rotate-log, normalize, quota, role-run)", args[0])
+		return fmt.Errorf("unknown mission subcommand %q (want: list, doctor, install, apply, rotate-log, normalize, quota, role-run, attempt)", args[0])
 	}
 }
 
 func printMissionHelp() {
 	fmt.Print(`ailang mission — the mission-loop registry
 
-  ailang mission role-run --request FILE --receipt NEW_FILE [--dry-run]
+  ailang mission role-run --request FILE --receipt NEW_FILE [--state-db FILE] [--dry-run]
                                    execute one explicit role; output is not acceptance
+  ailang mission attempt <status|reconcile|cancel> --state-db FILE
+                                   inspect or fence durable role attempts (see action --help)
   ailang mission list              which missions exist, and how each is wired
   ailang mission doctor [<name>]   does what is installed match what was reviewed?
                                    exit 0 clean, 1 drift, 2 registry error
