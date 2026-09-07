@@ -1,6 +1,8 @@
 package coordinator
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -641,5 +643,38 @@ func msgIDSuffix(id string, n int) string {
 	if len(id) <= n {
 		return id
 	}
-	return id[len(id)-n:]
+	// The tail is only unique when the ID ENDS in a random suffix, which is true
+	// of the inbox form (inbox_<millis>_<8 hex>) and false of the deterministic
+	// form the handoff path uses: task-<parent>:handoff:<target>.
+	//
+	// Measured 2026-09-07: a sprint-evaluator handoff carried the message ID
+	// "task-c871949f:handoff:sprint-evaluator", whose last 8 characters are
+	// "valuator" — so EVERY evaluator handoff, from any parent task, would derive
+	// task-valuator. Firestore's Doc().Set overwrites silently, so the second
+	// such handoff would destroy the first task's record with no error anywhere.
+	//
+	// Hashing the WHOLE id keeps the property that actually matters — the same
+	// message always yields the same task, so a redelivery is idempotent — while
+	// making the collision unrepresentable. The random-tail form keeps its
+	// existing suffix so no in-flight message changes identity mid-redelivery.
+	if tail := id[len(id)-n:]; isRandomHexTail(id, tail) {
+		return tail
+	}
+	sum := sha256.Sum256([]byte(id))
+	return hex.EncodeToString(sum[:])[:n]
+}
+
+// isRandomHexTail reports whether the tail looks like the generated suffix of an
+// inbox ID, i.e. preceded by "_" and entirely hex.
+func isRandomHexTail(id, tail string) bool {
+	if len(id) <= len(tail) || id[len(id)-len(tail)-1] != '_' {
+		return false
+	}
+	for _, c := range tail {
+		isHex := (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')
+		if !isHex {
+			return false
+		}
+	}
+	return true
 }
