@@ -299,7 +299,12 @@ func runEvalSuite() {
 		}
 
 		// Auto-discover benchmarks from benchmarks/ directory (standard mode only)
-		benchmarkList = discoverBenchmarks()
+		// M-EVAL-STANDARD-MODE-INPUT-FILES-GAP: grade_entrypoint-bearing
+		// benchmarks are agent-mode-only — exclude them from standard-mode
+		// scheduling here so no result row is written at all (the dispatch-time
+		// guard in runSingleBenchmark remains as defense in depth for direct
+		// --benchmarks invocations).
+		benchmarkList = filterStandardModeBenchmarks(discoverBenchmarks())
 		if len(benchmarkList) == 0 {
 			fmt.Fprintf(os.Stderr, "Error: No benchmarks found in benchmarks/ directory\n")
 			os.Exit(1)

@@ -69,6 +69,41 @@ func isBenchmarkMetaFile(name string) bool {
 	return false
 }
 
+// filterStandardModeBenchmarks drops agent-workspace-only benchmarks from a
+// standard-mode scheduling list (M-EVAL-STANDARD-MODE-INPUT-FILES-GAP).
+//
+// A benchmark setting grade_entrypoint grades the agent's preserved multi-file
+// workspace — something standard mode never constructs (its prompt omits
+// input_files content and its execution runs a fixed single solution.ail), so
+// scheduling it here can only burn API budget on a run that cannot pass and
+// bank a misleading compile/runtime failure. Excluded IDs are named on stderr
+// rather than dropped silently.
+//
+// Agent-mode scheduling never passes through here: it requires an explicit
+// --benchmarks list (eval_suite.go), which stays unfiltered. Benchmarks whose
+// spec cannot be loaded are left in place so the run's own spec load surfaces
+// the problem exactly as before.
+func filterStandardModeBenchmarks(ids []string) []string {
+	var out, excluded []string
+	for _, id := range ids {
+		spec, err := eval_harness.LoadSpec(filepath.Join(evalBenchmarkDir, id+".yml"))
+		if err != nil {
+			out = append(out, id)
+			continue
+		}
+		if spec.RequiresAgentWorkspace() {
+			excluded = append(excluded, id)
+			continue
+		}
+		out = append(out, id)
+	}
+	if len(excluded) > 0 {
+		fmt.Fprintf(os.Stderr, "%s Excluded %d agent-workspace-only benchmark(s) from standard mode (grade_entrypoint set): %s\n",
+			yellow("⚠️"), len(excluded), strings.Join(excluded, ", "))
+	}
+	return out
+}
+
 // parseTierList splits a comma-separated --tier argument and validates each entry
 // against eval_harness.ValidTiers. Whitespace is trimmed; empty input returns nil.
 func parseTierList(raw string) ([]string, error) {
