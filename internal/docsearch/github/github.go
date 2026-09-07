@@ -20,6 +20,8 @@ import (
 
 const defaultAPI = "https://api.github.com"
 
+const defaultRepo = "sunholo-data/ailang"
+
 // Backend searches the repository's Markdown files through GitHub.
 type Backend struct {
 	Repo   string
@@ -42,12 +44,16 @@ func NewBackend(ctx context.Context) (*Backend, error) {
 	}
 	owner, repo, err := gitutil.GitHubOwnerRepo(ctx, ".")
 	if err != nil {
-		return nil, fmt.Errorf("detecting GitHub repository: %w", err)
+		owner, repo = "sunholo-data", "ailang"
 	}
 	if owner == "" || repo == "" {
-		return nil, fmt.Errorf("current directory has no GitHub origin; use --path from a local checkout")
+		owner, repo = "sunholo-data", "ailang"
 	}
-	return &Backend{Repo: owner + "/" + repo, Token: token, client: &http.Client{Timeout: 10 * time.Second}, apiURL: defaultAPI}, nil
+	resolvedRepo := owner + "/" + repo
+	if resolvedRepo != defaultRepo {
+		return nil, fmt.Errorf("current directory points to GitHub repository %s; refusing to search it (expected %s); use --path from an AILANG checkout", resolvedRepo, defaultRepo)
+	}
+	return &Backend{Repo: resolvedRepo, Token: token, client: &http.Client{Timeout: 10 * time.Second}, apiURL: defaultAPI}, nil
 }
 
 // NewBackendForTest constructs a backend without reading credentials or git.
@@ -144,6 +150,9 @@ func statusError(resp *http.Response, body []byte) error {
 	case http.StatusUnauthorized:
 		return fmt.Errorf("GitHub authentication rejected (401); check GITHUB_TOKEN or `gh auth status`")
 	case http.StatusForbidden, http.StatusTooManyRequests:
+		if resp.Header.Get("X-RateLimit-Remaining") != "0" {
+			return fmt.Errorf("GitHub code-search API returned HTTP %d: %s", resp.StatusCode, message)
+		}
 		reset := resp.Header.Get("X-RateLimit-Reset")
 		if reset != "" {
 			return fmt.Errorf("GitHub code-search rate limit exceeded; reset at Unix time %s", reset)
