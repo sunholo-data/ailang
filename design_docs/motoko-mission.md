@@ -1141,7 +1141,7 @@ are ordered so the UNGATED work runs first.
    origin and NOT the copy that executes — manufacturing exactly the drift iteration 33 measured at 223 lines and this
    iteration found closed. Filed so the next instance is recognised rather than rediscovered · 1 iteration
 
-6u. [NEW — filed by iteration 35's Gate-5 retro, from two first-party frictions in ONE iteration]
+6u. [**INSTANCE 3 OBSERVED 2026-09-07 (iteration 38) — the ≥3-evidence bar for a routing/tooling change is now MET.** The operator's standing request for that fire was to spawn ALL FOUR roles through the Agent tool; the hook denies that path for every role whose `MISSION_<ROLE>_MODEL` contains a colon, i.e. designer (`claude:claude-fable-5-1`), planner and executor (`codex:gpt-5.6-sol`), leaving **one of four** — the evaluator's `sonnet` alias — reachable. Both other arms of `resources/role-spawn-routing.md` §2 also reproduced: `resolve-role-spawn.sh planner` returned `agent-tool opus fail-closed:planner-lane-field-missing` against a `codex:gpt-5.6-sol` pin the hook would deny, and `derive-planner-lane.sh` returned `design document is missing or unreadable` when run from the driver CWD against a doc living only in the sprint worktree. No spawn was burned on a guaranteed denial. Original filing follows —] [NEW — filed by iteration 35's Gate-5 retro, from two first-party frictions in ONE iteration]
    **The spawn-pin hook enforces the DECLARED role pin and knows nothing about either fallbacks or
    `resolve-role-spawn.sh`'s own derivation — so it denies the two spawns the rulebook tells you to make** ·
    loop health · Two measured instances, both this iteration, both at the tool boundary where there is no
