@@ -1652,3 +1652,81 @@ to correct the accumulated drift under time pressure — only prepended its own 
 careful pass should reconcile it. (2) `derive-planner-lane.sh`'s `fail-closed:planner-lane-field-missing`
 reason for a design doc with no obviously-missing field is worth a first-party look at what the
 script actually checks — a `codex:` provider pin made the answer moot here, but will not always.
+
+## 16 — 2026-09-07 — docs-12 LANDED: gate multi-file grading benchmarks out of standard mode
+
+**Pick**: `docs-12` (`m-eval-standard-mode-input-files-gap`) — D-5 was answered via an attended
+ruling recorded directly in the decision ledger (Mark Edmondson, 2026-09-07): accept both
+round-4 quorum objections as wording-precision issues, not design defects, correct both in the
+doc, and route straight to sprint-planner with no 5th quorum round. D-4 and D-5 were both
+resolved in the same attended session (see iteration 15); docs-12 was the queue's only remaining
+item after docs-11 landed.
+
+**Applied fixes (Gate 2, before routing)**: scoped the Axiom-11 "Structured Failure" justification
+to the dispatch-time bypass path only (the normal scheduled path writes no result row, so it
+cannot report a `skip_reason`); marked `docx_reimplement`'s 15 `runtime_error` root-cause
+attribution as not independently confirmed per-model, in both the Problem Statement and the
+Impact section (the earlier fix touched only the Problem Statement; the Impact bullet made the
+identical unverified "two benchmarks depressed" claim and needed the same correction). Committed
+and pushed directly (`fec04c18e`) — no other content changed, verified by re-reading the diff
+before routing.
+
+**Outcome**: LANDED · [PR #1104](https://github.com/sunholo-data/ailang/pull/1104) · merge commit
+`b2cead2ee6231672ebda52a1bf29d92dd06eaf33` · evaluator `sonnet` (independent Agent-tool judge,
+cross-provider from the pi/ollama executor) PASS 98/100, zero blocking findings.
+
+**Progress**: goal advanced. docs-12 (clause 1) LANDED. Both D-4 and D-5 are now fully consumed
+(docs-11 landed iteration 15, docs-12 this iteration) — the mission-docs backlog's `docs-8` draw
+queue is exhausted; next iteration needs a fresh pick (dashboard's prior "next fresh draw:
+`m-anthropic-sandbox`" note still applies — see iteration 14's parked-on-lane record).
+
+**Key find — planner/executor both ran end-to-end on the `pi:ollama/glm-5.3-flash:cloud` lane,
+first full 5-milestone multi-commit run on this lane for docs-mission**: the planner's
+`derive-planner-lane.sh` returned `opus fail-closed:planner-lane-field-missing`, but the role
+carries a `pi:` provider pin (`MISSION_PLANNER_PATH=recipe`), so per the spawn-pin-hook rule this
+routed straight to the pi recipe rather than attempting (and being denied) the Agent-tool opus
+path — both readings recorded here per that rule. The executor directive demanded NO git writes
+and per-milestone cumulative snapshots (`.snap/M<k>/`); the controller reconstructed 5 separate
+commits from those snapshots, running `go build`+the milestone's own `go test` package at every
+boundary (all green, including two CLI-level acceptance checks run live:
+`eval-suite --dry-run --tier frontier` excludes both benchmarks in standard mode,
+`--agent --benchmarks docx_reimplement,markdown_reimplement` still plans both), then
+sha256-verified the final reconstructed tree was byte-identical to the executor's original
+uncommitted output before pushing. One process note: `git worktree add`'s bounded reset step used
+a bare `git stash --include-untracked` by reflex (forbidden — this rig's stash stack is shared
+across every worktree); caught immediately, recovered by exact SHA (`git stash apply <sha>`, never
+`pop`), and dropped cleanly — no data lost, but recorded here as a near-miss, not swept under the
+"it worked out" carpet. All further tree resets in this iteration used `git checkout -- <files>`
+instead.
+
+**Routing evidence**:
+| Role | Model | Outcome |
+|---|---|---|
+| Controller | `claude-sonnet-5` (Agent tool, this session) | Gate 0–5; tokens not reported (session-level) |
+| Planner | `pi:ollama/glm-5.3-flash:cloud` (`derive-planner-lane.sh` → `opus fail-closed:planner-lane-field-missing`; role carries a `pi:` provider pin, spawn-pin-hook rule routes directly to the pi recipe) | 1 bounded run via `mission_pi_run.sh`, verdict `ok`, rc=0, 111s, 29 tool calls, 2 files changed, ~613K tok (591,348 in / 21,777 out). Produced the 5-milestone sprint plan + JSON, 16 first-party verification rows. |
+| Executor | `pi:ollama/glm-5.3-flash:cloud` recipe lane | 1 bounded run via `mission_pi_run.sh`, verdict `ok`, rc=0, 894s, 114 tool calls, 11 files changed, ~7.78M tok (7,742,988 in / 40,829 out). All 5 milestones snapshotted cumulatively; zero git writes (per directive); controller reconstructed 5 commits, sha256 byte-identity confirmed against the executor's final tree. |
+| Evaluator | `sonnet` via Agent tool | Independent of the pi executor — generator≠judge held (Anthropic vs Ollama-hosted GLM, distinct providers). Mutation-tested the two most load-bearing tests first-party (reverted each fix in the worktree, confirmed the paired test fails, restored to clean); live-rebuilt the binary and re-ran both CLI acceptance checks itself rather than trusting the plan/PR claims. PASS 98/100, zero blocking; one non-blocking note (design doc not yet moved to `implemented/` — a release-time step, not a Success Criteria item). |
+| generator≠judge | N/A | Preserved: executor on pi/Ollama-hosted GLM-5.3-Flash, evaluator on Anthropic sonnet |
+
+Resolver evidence: `tools/launchd/resolve-role-spawn.sh planner design_docs/planned/v0_33_1/m-eval-standard-mode-input-files-gap.md` → `agent-tool opus fail-closed:planner-lane-field-missing`; `tools/launchd/resolve-role-spawn.sh executor <same doc>` → `recipe pi:ollama/glm-5.3-flash:cloud declared:provider-pin`. Gate 4 base=`b2cead2ee6231672ebda52a1bf29d92dd06eaf33`@`2026-09-07T20:37:46Z`.
+
+**Cost**: zero further quorum spend (D-5's ruling explicitly waived the 5th round); pi lane is a
+quota bucket, zero metered $ for planner or executor. Prior quorum spend across docs-12's 4 rounds
+($0.1123) stands, recorded at pick time in earlier iterations.
+
+**Ruled out**: none — every gate (local build/test, fmt, lint, boundaries, file-sizes,
+check-git-exec, check-home-isolation, check-changelog, 21/21 remote CI checks, independent
+evaluator) passed on genuine measurement, no false alarms encountered.
+
+**DECISIONS FOR MARK**: none open from this iteration. D-4 and D-5 are both fully consumed
+(no longer just resolved-but-pending-execution — the sprints they authorized have both landed).
+
+**Retro**: no shared-skill edit this iteration. One near-miss worth a watch-item rather than an
+edit: a bare `git stash` was run once (see Key find) before the operator remembered the
+worktree-shared-stash-stack rule mid-command; it self-corrected within the same tool call using
+the exact-SHA recovery procedure the environment's own instructions already prescribe, so no
+skill gap is implicated — but it is the kind of near-miss worth naming so a future controller
+recognizes the same reflex. Second, smaller note: this is the first docs-mission iteration to run
+a full multi-milestone pi executor end-to-end (prior landings used `codex:*`); the snapshot/
+reconstruct/byte-identity-verify workflow the shared skill already prescribes for pi executors
+worked exactly as documented, no gap found.
