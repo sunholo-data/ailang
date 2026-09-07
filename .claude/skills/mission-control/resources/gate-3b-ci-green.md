@@ -350,3 +350,39 @@ generalisable half is about this file rather than about `gh`: when a gate accumu
 war story about an uncommon cause, the common cause needs re-promoting, or the documentation itself
 becomes the bias.** The tell: you are about to explain missing CI runs with an infrastructure
 failure, and you have not yet run the one-line check for the boring one.
+
+**⚠ INSTANCE 3 — AND IT WAS COMMITTED BY A CONTROLLER WHO HAD READ `mergeable` AND BANKED THE
+ANSWER: THAT READING EXPIRES, BECAUSE THE THING THAT MAKES A PR CONFLICT IS A *SIBLING'S MERGE TO
+`dev`*, WHICH HAPPENS WHILE YOU WORK AND CHANGES NOTHING YOU CAN SEE ON YOUR OWN BRANCH** (added
+2026-09-07 V1 iteration 347; instance 1 is iteration 30, instance 2 is iteration 198 immediately
+above, and this is the first time the rule existed and was still missed). The rule above is right
+and its corollary (a) is right — `UNKNOWN` is not a clearance. Neither says how long a `MERGEABLE`
+*is* a clearance, and the natural reading of a rule phrased *"read `mergeable` before diagnosing"*
+is satisfied by a reading you already have. Note the asymmetry that makes this the likely failure:
+your own branch is unchanged, your own tests are green, and every local signal says nothing has
+happened — the state that flipped is on `dev`, produced by someone else, and `mergeable` is the
+ONLY instrument in this gate that reflects it.
+Measured here. Iteration 347 read `MERGEABLE` at 14:00Z on head `58af47580` and banked it. An
+attended PR merged to `dev` at **14:15Z** touching two of the three files the sprint changed. At
+15:05Z the controller pushed a new head and got **`checks=1`** (`automerge/skipped`) — and, having
+"already checked `mergeable`", walked straight past this rule into the dropped-event diagnosis and
+fired `gh workflow run CI --ref <branch>` at 15:09Z. That dispatch **succeeded and was misleading**:
+`workflow_dispatch` does not need a test-merge, so it produced a clean 8-job green on a head whose
+`pull_request` runs were absent *because the PR was already `DIRTY`/`CONFLICTING`*. A green from the
+wrong event, on a real conflict, is worse than no green — and the true reading, taken 35 minutes
+later, was `CONFLICTING`. One rebase, and all four `pull_request` workflows appeared within 25
+seconds and finished 21 checks with zero not-green.
+**Rules. (a)** Re-read `mergeable`/`mergeStateStatus` **on the head you are polling, at the moment
+you are polling it** — it is a property of `(your head, dev's head)`, so it is invalidated by
+commits you will never see in your own log. Treat any reading older than your most recent push, or
+taken on a different SHA, as absent. **(b)** Make it the FIRST branch of the missing-runs decision
+tree in code, not in memory: if `checks` is below your non-vacuity floor, read `mergeable` in the
+same call before anything else. **(c)** A `workflow_dispatch` green does NOT clear a conflicting PR
+and must never be quoted as the item's CI evidence: it runs a different event, with no test-merge,
+so it is silent on precisely the thing that was wrong. Say which EVENT produced the run you are
+banking (`gh api …/actions/runs?head_sha=<sha> --jq '.workflow_runs[].event'`). **(d)** Corollary to
+the war story above rather than a new one: the reason prominence beat evidence twice is that the
+common cause is a *state change elsewhere*, and this gate's instruments are all pointed at your own
+branch. Mission-independent — every mission on this rig shares `dev` with at least one sibling and,
+on `sunholo-data/ailang`, with attended sessions too. The tell: you are explaining missing runs, and
+the `mergeable` reading you are relying on was taken before your most recent push.

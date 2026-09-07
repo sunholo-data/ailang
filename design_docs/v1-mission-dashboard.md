@@ -32,7 +32,8 @@ executor flat-rate ollama-cloud at $0; controller and evaluator on Anthropic sub
 - **Attended PR #1082 landed a competing fix for the mission's live item mid-iteration** (14:15Z) and
   also fixed 9 heartbeat arms this iteration had reported as newly exposed. Rebased; the sprint
   supersedes it. `make test-launchd-drivers` is rc=0 on `dev` and at the sprint head (notify 38/0).
-- Dropped `pull_request` synchronize: the 2nd push to #1090 created **1** check, not 20. Recovered
-  with `gh workflow run CI --ref <branch>`.
+- Missing PR runs are a CONFLICT until proven otherwise: iter-347 read `checks=1`, diagnosed a
+  dropped event, and was wrong — a `mergeable` reading expires when a sibling merges. Gate 3b
+  sharpened.
 - The narrow-refinement carve-out authorises a 2nd designer revision the Fable diet forbids. $0 here
   (flat-rate lane); evidence row 1 for a routing-policy fix.

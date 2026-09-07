@@ -2358,12 +2358,22 @@ their full bodies and the archive was verified to have gained each one; `v1-miss
 regenerated and is current through 347, closing the stale-since-340 gap Gate 2 depends on. Ledger
 valid at 60 rows, zero open.
 
-**Gate 3b note, recorded because it cost a recovery.** The second push to #1090 produced **one**
-check (Dependabot auto-merge) instead of twenty: the `pull_request` **synchronize** event was
-dropped, while a `dev` push five seconds later fired normally, so Actions was demonstrably healthy.
-Read naively the PR rollup then said `pending: 0, failed: []` — a **vacuous green over an empty check
-set**, which is the exact shape Gate 3b warns about, arriving through a dropped webhook rather than a
-truncated query. Caught by asserting the check COUNT alongside the pending count, and recovered with
-`gh workflow run CI --ref <branch>` — Gate 1's dropped-event remedy, which is filed one gate away
-from where it was needed. The durable fix is the assertion, not the dispatch: **never accept
-`pending: 0` without a non-vacuity floor on `total`.**
+**Gate 3b — and my diagnosis here was WRONG, in the exact way this gate already warns about.** The
+second push to #1090 produced **one** check (`automerge/skipped`) instead of twenty, and the PR
+rollup read `pending: 0, failed: []` — a **vacuous green over a near-empty check set**, caught only
+by asserting the check COUNT alongside the pending count. That part stands, and the durable rule is
+the assertion: **never accept `pending: 0` without a non-vacuity floor on `total`.**
+What I then concluded does not stand. I called it a dropped `pull_request` **synchronize** delivery
+(a `dev` push five seconds later fired normally, so Actions was demonstrably healthy) and fired
+`gh workflow run CI --ref <branch>`. The real cause was **`CONFLICTING`**: attended PR #1082 had
+merged to `dev` at 14:15Z touching two of the three files this sprint changed, so Actions was
+declining to build a test-merge. Gate 3b's iteration-198 rule says exactly this — *read `mergeable`
+BEFORE reaching for any dropped-event lever* — and I walked past it because I had read `MERGEABLE`
+at 14:00Z on the previous head and banked it. **A `mergeable` reading is a property of (my head,
+dev's head); it expires when a sibling merges, which is invisible in my own log.** Worse, the
+dispatch *succeeded*: `workflow_dispatch` needs no test-merge, so it returned a clean 8-job green on
+a head whose PR runs were absent because the PR was `DIRTY` — a green from the wrong event, on a real
+conflict. The true reading came 35 minutes later; one rebase produced all four `pull_request`
+workflows in 25 seconds and 21 checks with zero not-green. Instance 3 of a rule that already existed,
+so the Gate-5 lane is a SHARPENING, not a new rule: the reading has an expiry, and the dispatch green
+must never be quoted as the item's CI evidence.
