@@ -6,7 +6,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -130,6 +129,7 @@ func TestStatusErrorOnlyClassifiesZeroRemainingAsRateLimit(t *testing.T) {
 func TestCacheHitMissExpiryIsolationAndNoTokenPersistence(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home) // os.UserHomeDir() reads USERPROFILE, not HOME, on Windows
 	results := []docsearch.SearchResult{{Path: "a.md", Title: "a", Score: 1}}
 	stats := docsearch.SearchStats{TotalDocs: 1}
 	now := time.Now().UTC()
@@ -149,7 +149,11 @@ func TestCacheHitMissExpiryIsolationAndNoTokenPersistence(t *testing.T) {
 	if _, _, ok := readCache("acme/docs", "q", "guides", 1, now.Add(cacheTTL)); ok {
 		t.Fatal("expired cache entry returned a hit")
 	}
-	data, err := os.ReadFile(filepath.Join(home, ".ailang", "cache", "docsearch", "github", cacheKey("acme/docs", "q", "guides", 1)+".json"))
+	onDiskPath, err := cachePath("acme/docs", "q", "guides", 1)
+	if err != nil {
+		t.Fatalf("cachePath: %v", err)
+	}
+	data, err := os.ReadFile(onDiskPath)
 	if err != nil || strings.Contains(string(data), "test-token") {
 		t.Fatalf("cache contains credential or could not be read: %v", err)
 	}
