@@ -1,6 +1,6 @@
 # Mission iteration canary activation packet
 
-Status: **NOT ACTIVATED; replacement task proposed, scope approval pending.** Refreshed 2026-09-07 at 19:54 UTC.
+Status: **APPROVED AND DRY-RUN VALIDATED; waiting for legacy Docs idle before dispatch.** Refreshed 2026-09-07 at 20:14 UTC.
 Implementation evidence is separate from a successful live adoption demonstration.
 
 ## Concrete placement and limits
@@ -65,3 +65,46 @@ Pending: task scope approval, sprint-planner/check freeze, execution authority, 
 prerequisite/approval hashes, exact source base and registry snapshots, input dry-run,
 then idle/ownership recheck and reviewed activation. No provider inference, installation,
 scheduler mutation, outbound message, acknowledgement or live adoption occurred.
+
+## Approved packet — 20:14 UTC
+
+Mark approved the replacement scope and instructed “yep approved - proceed and execute”.
+Design and sprint plan are committed; exact content authority is in `canary/authority.md`.
+The frozen input is `canary/work-item.json`, copied byte-for-byte to
+`/private/tmp/ailang-docs-canary/work-item.json`. Binary, input, registry and check-helper
+hashes are in `canary/manifest.json`. These supersede the initial proposal above.
+
+Actual source is `/private/tmp/ailang-docs-canary/source`, base
+`ad1bf98d3fd8271ac8399f0f83e7e3ddf2675cb9`. Registry:
+`/private/tmp/ailang-docs-canary/registry`; frozen models:
+`/private/tmp/ailang-docs-canary/models.yml`. Executor Claude Sonnet 5; evaluator Pi/OpenRouter
+DeepSeek V4 Flash; no fallbacks. Task `docs-canary-work-item-guide-1`, mission `docs`.
+
+First dry-run found missing M5 wiring: AILANG_MISSION_REGISTRY was documented but ignored.
+A red test reproduced wrong source selection and invalid-path fallback; ad1bf98d3 repairs
+the documented behavior. Focused tests, full CLI/mission package suites, lint and build pass.
+The rebuilt binary validates actual committed authority and resolves the intended source.
+See `canary/dry-run-summary.json`. Original runtime fault-matrix evidence is retained and
+was not rerun for this loader-only repair.
+
+The installed runtime binding was absent; the temporary binding's exact bytes are at
+`/private/tmp/ailang-docs-canary/installed-binding.toml`. Dry-run created no DB or runtime
+workspace. Legacy Docs remains active; scheduler has not changed. Dispatch after idle only.
+
+### Invocation
+
+Run the absolute `/private/tmp/ailang-mission-iteration/bin/ailang` with arguments
+`mission iterate --work-item /private/tmp/ailang-docs-canary/work-item.json` and the
+explicit registry/model paths above in AILANG_MISSION_REGISTRY/AILANG_MODELS_PATH.
+Use existing local authentication; unset ANTHROPIC_API_KEY and AILANG_AUTH_MODE for
+Claude subscription, and use existing OpenRouter credentials without printing them.
+
+### Rollback for this selected item
+
+Read a fresh version with the absolute binary and
+`mission status docs --work-item docs-canary-work-item-guide-1 --json`; if needed call
+`mission cancel docs --work-item docs-canary-work-item-guide-1 --version N`, then inspect
+again. Confirm owner/descendants stopped before restoring placement. Remove installed
+binding only if its bytes equal installed-binding.toml and baseline records it absent.
+Remove Docs disable marker only if the canary created it; preserve pre-existing markers.
+Retain DB/receipts/worktrees; do not restore over another caller's changes.
