@@ -256,3 +256,13 @@ correlation. This is the single permitted revision: V12-V15, the exact causal ta
 separate production follow-up, and corrected A5/net score address those objections. Re-review
 must supply the verdict; this document does not self-approve. The measurements support keeping
 the test-only correction separate from production timeout work.
+
+
+## Attended merge repair, 2026-09-07
+
+While merging mission-runtime PR #1082, reproduced the inherited 20/7 failure from
+GitHub job 101761650374. Applied the narrow observation repair: ordered file-backed
+spies in both send-capable labs, actual block return-code capture, and a no-wait sleep
+stub. All original 27 assertions pass; independent review PASS. Production driver is
+unchanged. This resolves the seven observed failures but does not claim completion
+of the broader retry/drain/environment coverage planned above.
