@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -201,6 +202,9 @@ func TestResolveRefusesIncompleteConfigurationBeforeLaunch(t *testing.T) {
 }
 
 func TestJournalExclusive(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("durable receipt directory sync is unsupported on Windows; execution fails closed")
+	}
 	p := filepath.Join(t.TempDir(), "attempt.jsonl")
 	j, err := OpenJournal(p)
 	if err != nil {

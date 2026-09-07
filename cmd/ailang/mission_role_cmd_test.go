@@ -8,6 +8,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/executor"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/mission/dispatch"
@@ -49,6 +50,9 @@ func TestMissionRoleDryRunAndStrictFlags(t *testing.T) {
 
 // A missing adapter must produce a durable blocked report and a nonzero result.
 func TestMissionRoleBlockedAndExclusiveReceipt(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("durable receipt directory sync is unsupported on Windows; execution fails closed")
+	}
 	dir := t.TempDir()
 	cli, wire := "pi", "openrouter/minimax/model"
 	cfg := &modelreg.ModelsConfig{Models: map[string]modelreg.ModelConfig{"judge": {Provider: "openrouter", APIName: "minimax/model", AgentCLI: &cli, AgentModelName: &wire, Pricing: modelreg.Pricing{InputPer1K: .001, OutputPer1K: .002}}}}

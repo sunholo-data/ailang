@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -53,6 +54,9 @@ func stateRoleFixture(t *testing.T) (dispatch.Request, *modelreg.ModelsConfig, s
 	return r, cfg, filepath.Join(dir, "coordinator.db"), filepath.Join(dir, "receipt.jsonl")
 }
 func TestMissionDurableRoleRejectsSecondReceipt(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("durable receipt directory sync is unsupported on Windows; execution fails closed")
+	}
 	r, cfg, db, receipt := stateRoleFixture(t)
 	e := &stateRoleExecutor{}
 	report, err := runDurableMissionRole(context.Background(), r, receipt, db, cfg, e)
@@ -81,6 +85,9 @@ func TestMissionDurableRoleRejectsSecondReceipt(t *testing.T) {
 	}
 }
 func TestMissionDurableCancellationFencesCompletion(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("durable receipt directory sync is unsupported on Windows; execution fails closed")
+	}
 	r, cfg, db, receipt := stateRoleFixture(t)
 	e := &stateRoleExecutor{}
 	e.run = func() {
@@ -127,6 +134,9 @@ func TestMissionDurableDryRunWritesNothing(t *testing.T) {
 }
 
 func TestMissionHeartbeatRenewsThenCancelsWorker(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("durable receipt directory sync is unsupported on Windows; execution fails closed")
+	}
 	r, cfg, db, receipt := stateRoleFixture(t)
 	e := &stateRoleExecutor{}
 	var observedCancellation bool
