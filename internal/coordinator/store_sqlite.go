@@ -213,7 +213,7 @@ func (s *SQLiteStore) migrate() error {
 	_, _ = s.db.Exec("CREATE INDEX IF NOT EXISTS idx_tasks_github_issue ON tasks(github_issue)")
 	_, _ = s.db.Exec("CREATE INDEX IF NOT EXISTS idx_tasks_stage ON tasks(stage)")
 
-	return nil
+	return s.migrateMissionAttempts()
 }
 
 // CreateTask creates a new task
