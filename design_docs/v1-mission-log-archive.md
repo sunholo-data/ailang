@@ -20691,3 +20691,311 @@ The executor added two arm-scoped stabilizers (`PROBE_TEST_PGREP_LOOP_DELAY=1`, 
 - A bare `ailang messages list --unread --json` returns only **20** of **48** unread; `--limit 200` is required for a complete enumeration. My first count used `grep -c '^ID:'` and read **0**, because the list view has no `ID:` lines — rule 3a fired on my own instrument.
 
 **Next**: the queue head is now `m-probe-discovery-default-30s-unpinned` (the 30s default is a production-path tightening nobody chose; a mutant 30→5 passes 42/42 — and note rule 3n's warning that enlarging it is not a fix), then the VERIFY-then-route `m-docparse-v0340-reports-2026-09-01` whose iface-cache half has already failed to reproduce in two shapes, then `m-changeclass-unknown-consumers` as a precondition for Sprint 2. Three residuals filed here rather than absorbed: both suite-scope leak guards fire only *retrospectively* after arm 41; the suite has a genuine ambient-contention flakiness independent of this diff (judge saw 3/8 under load at three unrelated arms); and `run_lane`'s backgrounded driver is never killed on the `instrument_failure` path.
+
+## 320 — 2026-09-02 — dev was red on Windows for a defect this repo had already fixed three times, each fix private [HARNESS]
+
+**Pick**: **dev RED, which outranks the queue** — `CI` and `Build and Release` both `failure` on `origin/dev` `28002af1e`, and V1 owns `sunholo-data/ailang`. Attribution measured, not assumed: `test-windows` is `failure` on all four commits walked back to the merge `40f0554c1` that introduced it, and the four commits before that merge carry **NO-RUN** (only a push tip gets one — the wrong unit here would have read as a 9-commit outage). SonarCloud was red too and is NOT the pick: inherited, already tracked as `sonarcloud-new-code-gate-red`.
+
+**Progress**: N = **10** design docs remaining before v1.0.0, **unmoved** — this is a HARNESS iteration and it moved the goal by 0, in those words. D-53's UNCLASSIFIED bucket of 4 (which would make it 14) is still named and unruled. What DID move: `m-spawn-pin-enforcement` is on origin for the first time, so the queue an unattended pick sees is finally the queue Mark filed into.
+
+**Outcome**: LANDED · [HARNESS] · evaluator **PASS 95/100 round 2, zero blocking, "ship it"** (round 1: 86/100, one BLOCKING) · PR [#1025](https://github.com/sunholo-data/ailang/pull/1025), four commits. **`test-windows` and `Build windows-latest` are both `success` on the PR head — the only instrument that can verify this fix, and the reason the claim is not "it should work".**
+
+**The defect, and why it was a sweep.**
+`t.Setenv("HOME", dir)` does not redirect `os.UserHomeDir()` on windows. Verified against GOROOT's own source rather than from memory: `UserHomeDir` consults **exactly three** variables — `USERPROFILE` on windows, `$home` on plan9, `HOME` elsewhere — and errors when the chosen one is empty (android/ios return constants and are not in this matrix). So a test that sets only HOME resolves the runner's real profile, never sees its own fixture, and fails **for the platform rather than for the code**. Four arms, two packages: `TestResolveAnthropicCredential_FallsBackToClaudeCredentialsFile`'s two subtests in `internal/ai`, and `TestStandardModeCostProvenance_CredentialFileIsSubscription` in `internal/eval_harness`. The production resolver was correct throughout.
+**The same private helper had already been written three times** — `setHomeDir` (cmd/ailang), `setHomeDirForTest` (internal/effects), and an inline GOOS-branched pair covering 2 of internal/executor's 6 sites. Each was a correct local fix and the next call site went red anyway: *guard the helper, miss the call site*, this loop's own named shape, arriving in the repo it keeps naming it about. So the deliverable is one `testutil.SetHomeDir` (16 bare sites → 1) plus **`make check-home-isolation`**, wired into `make/code-health.mk`, `make/ci.mk`'s `ci:` **and** `.github/workflows/ci.yml` — the third because ci.yml itself records that `make ci` is a local aggregate CI never invokes, so a gate added only to the makefile would not run at all.
+
+**The judge earned its slot twice, and both findings were things I could not have found by re-reading my own work.**
+- **It broke the gate.** The line-oriented first draft missed `t.Setenv(\n\t"HOME",\n\tdir,\n)` — and `gofmt -l` leaves that form alone, so it is reachable **by accident**, not by evasion. The matcher is now whitespace-normalised.
+- **It found a live instance the sweep had missed.** Four `os.Setenv("HOME", …)` sites in `cmd/ailang/pkg_lock_ratchet_test.go`, whose code under test reaches `os.UserHomeDir()` via `internal/messaging/config.go:158,235`. Confirmed first-party before acting; converted; and now pinned — reverting that file alone reds the gate with 8 lines reported, rc=0 after restore. The matcher covers `os.Setenv` as a result, which is what makes the class closed rather than the instance.
+- **It refuted my rule-3n disposition and I reproduced it.** I told it the `ci.yml` hunk had no local killer. It does: `internal/cihygiene/gate_wiring_test.go`'s `TestGateTargetsAreWiredIntoAWorkflow`, a meta-gate I did not know existed. Reverting that hunk alone (sha256 asserted moved, restored byte-identical) gives *"gate-shaped make targets are not wired into any workflow: check-home-isolation, test-check-home-isolation"*.
+
+**Ruled out / corrected**
+- *"The judge's 317 contradicts my 334"* — **neither was wrong, and the disagreement was point-in-time, not scope.** `git grep -c -F 't.Setenv(' -- '*.go'` summed is 334 at base, 317 at the mid-sweep commit the judge measured, 318 at the final head; the delta base→head is exactly 16, the converted sites. The judge found its own instrument bug in the same breath (summing `$2`, the path, instead of `$NF` when a revision is given, which coerces to 0) — the identical class I had just caught in myself: my first re-measure used a mis-quoted `-F` pattern and returned a confident **0** for a pattern the `-n` arm simultaneously showed 3 hits for. Two arms disagreeing is the only reason either of us noticed.
+- *"SonarCloud is a pick"* — inherited red, present on the parent commits, already a queue row.
+- *"The PR's missing CI runs are a dropped webhook"* — **no**, and the rule's own ordering saved a wrong diagnosis: `gh pr view --json mergeable` read `CONFLICTING`/`DIRTY` on the first look. origin/dev had advanced 9 commits; the only shared file was `changelogs/v0.32-current.md`, where both sides had inserted under `## [Unreleased]`. Rebased, resolved keeping both sections, force-pushed my own branch, and all five runs appeared.
+- *"The 4 `os.Setenv` sites in `internal/loader/stdlib_resolver_test.go` are the same defect"* — **no**, and this is why the gate has an exemption rather than a blanket ban: `stdlib_resolver.go:88,94,100` read `os.Getenv("HOME")`/`os.Getenv("APPDATA")` **directly, per GOOS**, never through `os.UserHomeDir()`, so the three-variable helper would be wrong there rather than merely unnecessary. The exemption is asserted **live** — renaming that file's calls away makes the gate exit 2 `INSTRUMENT BROKEN … remove it`, because a stale exemption is how an allowlist quietly becomes the rule.
+
+**Mutation drills** (each asserted LANDED by sha256, BUILDING, intended-effect against the system's own view, and restored byte-identically from a `cp` backup): drop `SetHomeDir`'s USERPROFILE line → `TestSetHomeDir` FAILS; drop its plan9 line → FAILS; reintroduce one bare site → gate rc=1, rc=0 after restore; revert the ratchet fix → gate rc=1 (8 lines); plant a gofmt-canonical multi-line call → rc=1, reported by file; delete the gate's allowlist line → rc=1 flagging `home.go` itself; rename the exempt file's calls → rc=2 INSTRUMENT BROKEN; empty fixture and one-shape fixture → rc=2 both; empty and missing scan root → rc=2 both. **And the one that matters most, rule 3n: reverting the whole `internal/ai` hunk leaves `go test ./internal/ai` rc=0 on darwin — NO local killer, by construction — while the gate reds.** That is the sprint's thesis in one measurement: the gate is the only thing on this machine that can see the defect the sprint exists to fix.
+
+**Routing evidence**: controller `claude:claude-opus-5` (session). **Designer not spawned**, rotation pointer untouched at `claude:claude-fable-5` — a dev-red fix-forward is not a queued design item, and authoring a doc for a test-side sweep would have spent the one-doc Fable diet for nothing. Recorded as a routing judgement, not a probe failure. **Planner not spawned** — no design doc exists for a red, so the "doc but no plan" condition never arose and `derive-planner-lane.sh` was not consulted. **Executor `codex:gpt-5.6-sol`** via the cross-provider recipe (probe rc=0; a `provider:model` value must NOT use the Agent tool), one sandboxed 30-min-capped run, directive delivery asserted ≥200B, stdin closed, no git writes, rc=0, per-milestone `.snap/` snapshots; the controller reconstructed both commits and proved the reconstruction faithful by `shasum -c` over a 17-file manifest, **17/17 OK**. It correctly labelled its own aggregate `go test` UNINFORMATIVE UNDER SANDBOX (denied loopback binds) and I re-ran every gate outside the sandbox, including `internal/daemon`, `cmd/ailang` and `internal/cihygiene`, all rc=0. **Evaluator `sonnet`** via the Agent tool in its **OWN** worktree, two rounds, 86/100 then 95/100; generator≠judge holds on provider (generator OpenAI, judge Anthropic, both distinct from the controller). Round 2's directive re-measured every number on the moved tree per the staleness rule, listed the changed hunks exhaustively from `git diff`, and carried round-1 findings forward by name for adjudication. Every spawn directive carried standing rule 7's operative half in its own words. Metered **$0.00** of the $5 ceiling; every lane a quota bucket; no quorum round.
+
+**Human channel**: **D-54 ANSWERED and RESOLVED in this iteration.** Mark, `#972` `2026-09-02T07:17:34Z`, verbatim *"D-54 b"* — the loop may branch the main checkout's unpushed `dev`, push, and open a PR, leaving the merge to CI. Twenty-one minutes later he cleared the divergence himself, attended, with merge `40f0554c1`, so the grant is standing rather than pending: main checkout `dev` is **0 ahead / 0 behind**, iteration 319's own Gate-5 skill edit `7292ec780` is an ancestor of origin, and **the running skill is byte-identical to `origin/dev` for the first time in at least four iterations** (`cmp` against the RESOLVED `readlink -f` target, not the pin's own copy — different inodes, and the relative-path form reads green from the wrong file).
+
+**Friction / process**
+- **A gate's anti-vacuity floor can itself be vacuous, one level down.** The judge showed the fixture floor (`>= 3` matches) is a COUNT, not a SHAPE check: a fixture with three copies of the same bare shape passes, and the gate's `os.Setenv` coverage would then be silently unprotected. Filed as a queue row with its fix (three named per-shape counts), not fixed inline — a finding is a queue row, not scope growth.
+- The gate costs **22.55s** over 2467 `.go` files, subprocess-per-file (`tr | grep | wc` ×3 each). Acceptable inside `make ci`; annoying for a contributor iterating locally. Architectural, not algorithmic. Same queue row.
+- The self-test's five new arms have **no killer** — nothing asserts a minimum arm count, so losing them would be invisible. Same queue row, and it is the counterpart of the floor finding: the shape-blind floor and the shape-testing arms are currently each other's only backstop.
+- The line-number reporter hardcodes `(t|os)` receivers, so a call on any other receiver is correctly CAUGHT but mis-described as "whitespace-spanning". Diagnostic quality only; same queue row.
+
+**Next**: `m-spawn-pin-enforcement` — the queue head, and newly visible to unattended picks now that Mark's merge put it and its design doc on origin. Design approved attended 2026-09-01; the sprint is enforcement code, not a design round.
+
+## 321 & 322 — 2026-09-02 — NO ENTRY: both slots died mid-flight holding this fix, and neither left a charter row [ADMIN]
+
+Recorded by iteration 323 so the log does not silently skip two numbers. Neither iteration
+wrote a STATUS stamp or a log entry (`grep -ci "ITERATION 321"` and `322` in the charter =
+**0**; control `ITERATION 320` = 2). Both did real work and both died before landing it:
+iteration 321 opened PR [#1030](https://github.com/sunholo-data/ailang/pull/1030) with the fmt A/B removal and the new
+`check-referenced-paths` gate; iteration 322 rebased that PR onto `701f86e5b`, **corrected
+its predecessor's stated root cause** (the original body blamed an `Error 127` from a
+*missing* script; by then the script had been restored and the real mechanism was the
+marker-extraction floor firing), and pushed `e5b62347f`. Then nothing. Their traces were
+exactly the ones Gate 2 names: an open PR on the fleet account, and the worktrees
+`.wt-iter321`, `.wt-v1-iter321-{eval,record,verify}`, `.wt-v1-iter321b-{before,eval}`,
+`.wt-v1-iter322-{eval,fmt-dangling}`, `.wt-iter322-record`.
+
+**With iteration 317, that is three slots in seven that died holding finished work.** The
+loop cannot diagnose why its own slots are dying; it can make the frequency visible.
+
+## 323 — 2026-09-03 — dev was red for 24h on five defects stacked in one job, and only the first was visible [HARNESS]
+
+**Pick**: **NOT the queue head.** A cross-mission handoff from `mission-docs` reported dev
+RED; V1 owns `sunholo-data/ailang`, so per Gate 1 the red outranks the queue and docs
+correctly kept its own pick and handed it over. I corrected their attribution back to them
+on the cross-mission channel: not `55891002f`/`08da6ceea` (resident/A2A, docker-pi) but
+**`327db37cd`, 2026-09-02 13:19**, against the last green `7668ed9df` at 13:18 — ~24 hours
+and ~50 commits, on `test`, `launchd drivers (bash 3.2)` and `Build ubuntu-latest`.
+
+**Progress**: N = **12** design docs remaining before v1.0.0, **unmoved** — this is a
+HARNESS iteration and it moved the goal by 0, in those words.
+
+**Outcome**: LANDED · [HARNESS] · evaluator **PASS 93/100, one BLOCKING finding, reproduced
+first-party and closed** · PR [#1030](https://github.com/sunholo-data/ailang/pull/1030), 10 commits, squash-merged
+[`b51e53f78`](https://github.com/sunholo-data/ailang/commit/b51e53f78).
+
+**Three quarters of this was verifying a dead predecessor's work, not writing my own.**
+Gate 2's died-mid-flight trace found PR #1030 already carrying iterations 321 and 322's
+work. The instruction there is VERIFY AND LAND, not redo — and verify exactly as any other
+inherited claim, because nobody has reviewed that work since the agent that wrote it stopped
+existing. So: baseline arm on a pristine tree first (`go test ./internal/eval_analysis/...`
+**rc=1** with CI's exact text, `make test-launchd-drivers` **rc=2**, same text), then the
+branch (**rc=0**, **0** `FMT_AB` occurrences), then a rebase onto a `dev` that had moved 9
+commits, then an independent judge.
+
+**The cause chain, verified first-party rather than inherited from the PR body.**
+`c8c841e24` deliberately removed the Wednesday fmt A/B from `tools/launchd/nightly-eval.sh`,
+taking the `# BEGIN/END FMT_AB_TESTABLE_FUNCTIONS` markers with it, and its message says
+*"its schedule test is deleted"*. That was true only because a **concurrent docs-mission
+commit** (`327db37cd`, described and intended as docs-only) had deleted
+`tools/launchd/test_fmt_ab_schedule.sh` **by accident** — a staged deletion that rode along
+with a `git add <one path>`. `ce05af862` then correctly reverted the accident, restoring a
+test whose subject had legitimately gone. Two callers went red. Nobody did anything wrong in
+isolation; the three commits compose into a defect.
+
+**The five, each revealed only by fixing the one in front of it.**
+1. the dangling fixture reference (`test`, `launchd drivers`, `Build ubuntu-latest`);
+2. `lint` **step 4** `fmt-check` — 7 files unformatted, arriving with the coordinator merges;
+3. `check-file-sizes` — `backend_gcp.go` 811 and `inbox.go` 850;
+4. `lint` **step 6** `golangci-lint unused` — two findings, only reachable once (2) passed;
+5. `Build windows-latest` — 21 `TestFinalize_*` tests, only reachable once (1) passed.
+
+**The shape is the finding, not any one defect.** `check-file-sizes` is **step 15** of the
+`test` job and the job was dying at **step 11**, so steps 12–60 — **45 gates** — read
+`skipped` for a day. Measured across the boundary: at the last green those two files were
+**788** and **773** lines and step 15 read `success`. They crossed 800 inside the window
+where nothing could see them. The same mechanism operates twice more in different clothes:
+inside the `lint` job's step list (defect 4 behind defect 2), and across the build matrix via
+fail-fast (defect 5 behind defect 1 — `Build windows-latest` reads `cancelled` on **every**
+recent dev commit, so this branch is the first place that leg has COMPLETED in a day). And a
+sixth: `SonarCloud` reads `none` on every dev commit in the window because it is step 58.
+**A red that fails EARLY in a long ordered job silently suspends every gate behind it, and
+the check set then reports ONE failure where there are six.** Filed as `m-ci-serial-gate-masking`.
+
+**What I did NOT do, and why.** Defect 4's `diffResultFromEvidence` was **not** deleted. Its
+consumer is **M1b of M-COMPLETION-PATH-PARITY**, which that sprint's plan records as
+deliberately outstanding, so deleting it would remove half a contract whose other half is
+already on `dev` — the Import System Disaster rule in this repo's own coding standards,
+applied rather than quoted. Annotated `//nolint:unused` with the reason, following the 41
+existing such sites. That leaves a debt with no gate to retire it, filed as
+`m1b-nolint-suppression-owed`. None of defects 2–5 is my work; they arrived with a concurrent
+workstream's merges, and are flagged in the commit messages so that workstream can object.
+
+**Defects 4 and 5 share one root**, which is why the fix is two lines rather than two fixes:
+`newFinalizeHarness` registers a `t.Cleanup` closer for two of its three stores and none for
+the observatory backend, so `observatory.db` stays open. POSIX unlinks open files; Windows
+refuses. The dead `cancel` field is the vestige of the cleanup that was never written.
+**Audited rather than patched** (Principle 3): `observatory_sync_test.go` opens the same
+backend three times and already `defer backend.Close()`s every time — one isolated omission,
+not a package-wide pattern.
+
+**The judge earned its slot, and its blocking finding was real.**
+Directed to attack the new `check-referenced-paths` gate, it made it return **rc=0 on a
+fixture carrying FOUR dangling references** in forms the matcher did not recognise (`.bash`,
+`.pl`, uppercase `.SH`, and a make-variable-composed path). I reproduced it first-party WITH
+a control before acting — the same fixture carrying a `.sh` reference reds at rc=1, so the
+gate was *firing*, just not *looking*. Three forms are now matched (a captured extension
+tested case-insensitively against a set, rather than a hardcoded alternation); the fourth
+cannot be resolved without evaluating make variables, so the script's header now discloses
+the scope in full and ends *"a green here means no LITERAL `tools/`/`scripts/` script
+reference dangles, never no reference dangles"*.
+Its NON-BLOCKING finding was sharper than its label: arm **A2 did not pin the branch it
+named**. It asserted `rc!=0` plus a path substring, and the untracked `elif` catches the same
+fixture and prints the same path — so neutering the missing-path branch left A2 **green**.
+Self-test **6 arms → 10**; four mutants, each asserted LANDED (sha256 differs) and PARSING
+(`bash -n`) before its result was read, restored byte-identical: MUT-1 now kills A2 **by
+name**, MUT-2 kills exactly the `.bash`/`.pl` arms, MUT-3 exactly the uppercase arm, MUT-4
+exactly the disclosure arm.
+
+**Ruled out / corrected**
+- *"My gofmt commit is a semantic no-op because `git diff -w` is empty"* — **I asserted that
+  before measuring it and the measurement refuted me.** `git diff -w` is **2 lines**, both
+  trailing blank lines at the end of one test file; every other hunk is struct-literal key
+  alignment. Amended, with the wrong claim named in the message rather than quietly replaced.
+- *"91 of the removed lines are missing from the new file"* — **an instrument failure of
+  mine**, not a finding. My purity checker's header-skip heuristic consumed the whole file;
+  its own `body_nonblank=0` reading is what exposed it. Re-measured against the whole file
+  with positive and negative controls: **0** missing, **0** added, for both pairs. The judge
+  re-derived it independently by a multiset method and agreed.
+- *"The per-form gate arms all fail (rc=127)"* — **a zsh trap, not a finding.** Assigning
+  `path=` rewrites `PATH`; they are linked. Re-run with a renamed variable, all six arms
+  behave as designed.
+- *"SonarCloud is a pick"* — non-required, `0.0% Coverage on New Code` on a diff that is
+  shell, make, deletions and a pure move; already the queue row `sonarcloud-new-code-gate-red`.
+  It IS, however, a sixth thing the red was hiding, and that is recorded above.
+- *"`go build ./...` rc=1 is ours"* — no, red at base on `cmd/wasm` (no native `main`); the
+  judge reproduced it on an ephemeral `origin/dev` worktree.
+- *"`make test-launchd-drivers` fails on my branch"* — no, it needs `/usr/sbin` on `PATH` for
+  `lsof`. Two arms differing only in `PATH`: rc=1 without, **rc=0 with, 43 probe arms**. This
+  is iteration 317's finding, still true and still costing a measurement each time.
+
+**Routing evidence**: controller `claude:claude-opus-5` (session). **Designer not spawned**,
+rotation pointer untouched at `claude:claude-fable-5` — a dev-red fix-forward is not a queued
+design item and there was no doc to author; recorded as a routing judgement, not a probe
+failure. **Planner not spawned** — no design doc exists for a red, so the "doc but no plan"
+condition never arose and `derive-planner-lane.sh` was not consulted. **Executor
+`codex:gpt-5.6-sol`** via the cross-provider recipe (a `provider:model` value must NOT use the
+Agent tool), probe rc=0, one sandboxed 30-min-capped run, directive delivery asserted at
+3,548B, stdin closed, no git writes; it returned rc=0, touched exactly the four authorised
+files, and **correctly self-labelled its own `go test` rc=1 `UNINFORMATIVE UNDER SANDBOX`** (a
+loopback bind denial in `TestHub_WebSocketIntegration`) — so every gate was re-run by the
+controller outside the sandbox before any verdict was banked. **Evaluator `sonnet`** via the
+Agent tool in its **OWN** worktree; generator≠judge holds against the codex executor.
+**FLAGGED**: the gofmt, split and changelog commits are Anthropic-authored and the judge is
+Anthropic — same provider, different model. The judge named that exposure itself, said which
+claims it was least confident it had escaped (the changelog's causal framing), and that is
+precisely the finding I acted on by rewriting the entry from three defects to five. Metered
+**$0.00** of the $5 ceiling; every lane a quota bucket; no quorum round.
+
+**Human channel**: **0 directives** on `#972` since watermark `2026-09-02T07:17:34Z` (22
+comments). Ledger valid at **54 rows, 0 OPEN** — nothing is waiting on Mark. No rotation owed
+(#972 created `05:56:11Z` = 07:56 CEST Monday, after the 07:00-local boundary; 22 < 80); no
+weekly sweep owed. Cross-mission: replied to `mission-docs` with the corrected attribution and
+the masking finding, body read back and confirmed intact; their handoff acked.
+
+**Friction / process**
+- **`changelogs/v0.32-current.md` is the cross-mission collision surface for the fifth
+  consecutive iteration.** Two conflicts this time, one of them against *my own* earlier
+  commit after a union resolution shifted its context. Both resolved as unions with every
+  section heading asserted present and a fresh negative control absent.
+- **`mergeable` read FIRST at every push** (the iteration-198 rule) and caught a real
+  `CONFLICTING` immediately, so no dropped-event lever was reached for. That rule keeps paying.
+- **A `git commit --amend --only` folded a changelog edit into a commit whose message did not
+  mention it.** Caught by reading `git show --name-only` afterwards and split back out. Same
+  class as `ce05af862`'s own lesson, one layer up: check the resulting file list, not the
+  paths you passed.
+
+- **The Gate-5 skill-edit contract now collides with a CI ratchet, and every future iteration
+  meets this wall.** My first attempt APPENDED the new rule to `SKILL.md`;
+  `make check-context-docs` refused it — *"grew to 2905 lines (baseline 2854) — baselined docs
+  may shrink, never grow. Split before you append."* Gate 5 says "edit the offending SKILL.md",
+  one edit per iteration, and says nothing about where the lines go. The convention's own answer
+  is *"write the pointer, not the payload"*, so this iteration followed it: a new on-demand
+  `resources/ci-health.md` carries the new rule **and** the existing CI-provider-outage war
+  story, with a 7-line pointer left in Gate 1, and `SKILL.md` went **2854 → 2819** — it shrank.
+  Proven a MOVE and not a rewrite (block present verbatim in the new file, absent from
+  `SKILL.md`, negative control not matching). **Worth saying plainly: the ratchet is right and
+  Gate 5 is the one that is now under-specified.** A skill whose gate forbids growth needs its
+  Gate-5 instruction to say "relocate a block of equal or greater size, or write to
+  `resources/`" — otherwise the next controller spends a slot rediscovering this, or worse,
+  baselines its way around the gate.
+
+**Next**: `m-ci-serial-gate-masking` — the job *shape* that hid five defects behind one, and
+the only item here that prevents a recurrence rather than cleaning one up. It wants a design
+doc: the trade-off is CI minutes against observability, and the answer changes which gates are
+"required". `m-spawn-pin-enforcement` remains the queue head and is design-approved.
+
+## 324 — 2026-09-03 — The loop gated its own spawn path, and the judge blocked on the branch I had only asked about [HARNESS]
+
+**Pick**: the queue head, `m-spawn-pin-enforcement` — after first landing iteration 323's orphaned
+record (PR #1035, green and MERGEABLE, no report ever posted; the fourth of eight slots to die holding
+finished work).
+
+**Progress**: N = **12** design docs remaining before v1.0.0, **unmoved** — HARNESS iteration, goal
+moved by 0 in those words. (N went 10 → 12 by Mark's attended D-53 ruling, acknowledged this iteration.)
+
+**Outcome**: LANDED (M1+M2 of 4) · [HARNESS] · evaluator **round 1 FAIL 66/100 (one BLOCKING) →
+round 2 PASS 92/100, zero blocking** · PR [#1038](https://github.com/sunholo-data/ailang/pull/1038)
+→ squash [`70e453060`](https://github.com/sunholo-data/ailang/commit/70e453060) · Gate 3b `test`
+and CI `success` SHA-addressed; SonarCloud inherited (walked back to the parent).
+
+**What landed.** `tools/launchd/resolve-role-spawn.sh` (one line per role in the
+`derive-planner-lane.sh` convention; the planner role CONSUMES that script and copies its reason
+token through — measured 0/0/0/5 references, so the two compose rather than overlap) and
+`tools/launchd/spawn-pin-hook.sh`, a PreToolUse hook wired as a SECOND `Agent|Task` entry. While
+`MISSION_CONTROL_ACTIVE=1`: role by explicit first-line `MISSION-ROLE:` token only (prose
+inference measured to false-positive), `subagent_type: Explore` the one read-only exception, a
+`provider:model` pin denied on ANY alias, unset pin / unknown role / unparsable payload / evaluator
+alias == executor's resolved model all denied, every decision logged (7 tab fields). Marker absent:
+the hook prints NOTHING. Routing suite 36→45 arms; hook suite 17; `launchd drivers (bash 3.2)`
+green; end-to-end through the repo's real settings file in a nested session.
+
+**Two quorum rounds, both 3/3 reject, and the loop measured rather than forwarded.** Round 1 blocked
+on an unverified premise (hook→env inheritance), a Conflict Surface ask and stale line cites; I ran
+the spike myself (env inherited, `SPIKE_MARKER` control, deny honoured under `bypassPermissions`),
+counted the overlap, re-cited by text, then routed the revision to the rotation designer (pi
+deepseek, 61 s). Round 2 localised on ONE surface — evasion by omitting the skill name — with a
+platform premise beside it. Two more measurements (both overlapping hooks fire, deny wins, second
+alias; the real docs-9/10 prompts are NOT on disk) and the reviewers' own fixes applied under the
+ratified narrow-refinement carve-out. Note the design ended at round 3 text without a third quorum:
+that is the carve-out working as ratified, and the round count is data about scoping.
+
+**The judge earned its slot on my own question.** I handed it F1 as an open question ("does an
+explicit `allow` on the marker-absent branch change attended behaviour?"). It upgraded it to
+BLOCKING with the right frame: nothing exports the marker yet, so that branch is the ONLY one that
+fires today, on 100 % of Agent/Task calls in every attended session loading this repo's settings.
+Fixed by printing no decision; drilled (re-adding the allow kills 7ctl alone). It also found arm L
+checking 2 of 7 log fields — a role/pin argument swap survived — and a plan table row that
+under-counted a kill set. Both fixed and drilled.
+
+**Ruled out / corrected**
+- "Layer-3 exports go beside the role exports" (design) — WRONG: the codex/pi loops rewrite
+  `MISSION_<ROLE>_MODEL` in place at driver lines 722/770/779; the export anchor is before the
+  `roles:` log line at 1003. Planner finding, verified by me.
+- "line 904 is per-fire degradation" (design) — WRONG: it is the one-shot executor override.
+- "`make test-launchd-drivers` picks up a sibling suite" — WRONG: each script is named; arm W guards
+  the wiring.
+- "deleting the Explore exception kills 7a alone" (plan) — WRONG: 7a AND L. "dropping `-e` from the
+  payload gate kills 8n alone" (my own row) — WRONG: 8e AND 8n, `printf '' | jq .` exits 0.
+- "the docs-9/docs-10 Agent prompts can be replayed" (reviewer ask) — NOT POSSIBLE: 0 captured in
+  three mission logs and 0 skill names in either PR body; representative replay used instead.
+- The eval-suite "0/23 passed" inbox message — 23 benchmarks in 0.02 s is a lane failure, not a
+  regression; not the pick.
+
+**Routing evidence**: controller `claude:claude-fable-5-1` (driver: opus probe timed out ×2, then
+fable ok). Designer **`pi:ollama/deepseek-v4-flash:0731-cloud`** (rotation next after
+`claude:claude-fable-5`; pointer advanced; `mission_pi_run.sh` verdict `ok`, 61 s, 12 tool calls,
+1 file). Planner **opus** via Agent tool — `derive-planner-lane.sh` emitted
+`opus fail-closed:path-not-in-codex-allowlist` (used verbatim; 592 s, 26 tool calls). Executor
+**`pi:ollama/deepseek-v4-flash:0731-cloud`** (driver fallback, codex probe rc=1 `404` at the
+chatgpt backend; pi probe rc=0; two runs `ok` 488 s / 712 s, no git writes, snapshots faithful) —
+the DeepSeek promotion count is now **2 consecutive `ok` with non-empty diffs in one iteration**;
+the promotion rule says "two consecutive real sprint executions", which these are. Evaluator
+**sonnet** (Agent tool, own worktree; generator≠judge holds against pi/DeepSeek), rounds 1 and 2,
+1052 s + 360 s. Quorum reviewers `gpt5-6-sol`/`gemini-3-1-pro`/`oc-glm-5-2` all present both rounds.
+**metered=$0.10** (round 1 $0.0405, round 2 $0.0605); pi Ollama Cloud flat-rate; Anthropic quota
+buckets fable/opus/sonnet. The new resolver, run on this iteration's real env, reads
+`planner: agent-tool opus fail-closed:path-not-in-codex-allowlist` · `evaluator: agent-tool sonnet`
+· `executor: recipe pi:ollama/deepseek-v4-flash:0731-cloud` · `designer: recipe
+claude:claude-fable-5-1` — which is what actually ran, except the designer, which the rotation
+file (not the env seed) sent to deepseek.
+
+**Friction (one instance, recorded for the ≥2 bar)**: `scripts/mission_pi_run.sh` invokes pi
+WITHOUT the `-e sandbox/index.ts -e worktree-fence.ts` extensions the pi recipe calls mandatory;
+`~/.pi/extensions/` holds only the policy JSON, so designer and executor ran unfenced. The post-hoc
+main-checkout check held (7 dirty files before and after, none mine). Two rules disagree; the next
+instance is the skill-edit trigger.
+
+**Next**: `m-spawn-pin-enforcement` **M3** (driver exports `MISSION_CONTROL_ACTIVE=1`,
+`MISSION_<ROLE>_RESOLVED/PATH` immediately before the `roles:` log line; `scripts/*` appended to
+the versioned docs allowlist) and **M4** (the Gate-3 spawn-pattern paragraph) — M3 ARMS the hook
+fleet-wide, so its landing note must say that a controller running the stale main-checkout skill
+will be denied until it adds the token, with the denial reason naming the fix.

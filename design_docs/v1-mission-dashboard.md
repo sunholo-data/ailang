@@ -1,35 +1,39 @@
-# Mission Dashboard — V1
-*Iteration 345, 2026-09-07. History: v1-mission-log.md and charter STATUS.*
+# V1 Mission Dashboard — snapshot 2026-09-07, iteration 347
+**Release**: v0.35.1 · **Goal**: N=12 design docs before v1.0.0 (unmoved this iteration — HARNESS item)
 
-## Goal and delivery
-- Release v0.35.1; N=12 design docs before v1.0.0; goal unmoved (this was a CI/HARNESS item).
-- `dev` was RED on the REQUIRED `test` context, so every open PR in the repo was blocked.
-- Cleared by PR #1074 → `16f0cb741`: `cmd/ailang/exec.go` 807 → 614, a pure byte-for-byte
-  move of `spanningEventHandler` into `cmd/ailang/exec_events.go` (193 deletions, 0 additions).
-- Cause was an attended checkpoint (`8c41d41d4`), not a sprint. Second instance of that class.
+## In flight / just landed
+- **LANDED (2 of 4 milestones)** `m-launchd-notify-subshell-observation` — PR #1090. Human ruling
+  **D-60 option B**. The three driver notification paths are bounded by `_mc_bounded` at
+  `NOTIFY_TIMEOUT` (30s); the seven inherited notify assertions are restored — `test_driver_notify.sh`
+  **20/7 → 38 passed, 0 failed**. Judge `sonnet` **LAND 80/100**; both BLOCKING findings reproduced
+  first-party and fixed in-iteration.
+- **M3/M4 NOT delivered** — executor hit its 30-min cap; partial banked at
+  `~/.ailang/state/mission-v1-iter347-m3-partial/`, queued as `m-launchd-drain-aggregate-budget`.
 
-## Up next (banked)
-1. m-cachesrc-cognitive-complexity — PR #1071 is open, mergeable and now unblocked.
-2. Orphan sweep — #1071 (iter 341/342) and #1073 (iter 344 park) both still open, no log entries.
-3. m-exec-event-handler-untested — NEW: 4/4 mutations of the exec event handler survive green.
-4. m-coordinator-codex-401 — coordinator websocket auth diverges from the healthy OAuth CLI.
+## Next three picks
+1. `m-launchd-heartbeat-arms-red-behind-the-notify-red` — **a RED on `dev`.** With the notify red
+   gone, `make test-launchd-drivers` reaches three more suites: two pass (84/0, 17/0, never run on
+   `dev` before), `test_mission_heartbeat.sh` fails **9 arms**. Proven pre-existing by a paired
+   base/head control — the job stays red for a different reason than before.
+2. `m-launchd-drain-aggregate-budget` — the drain bounds each row, not the whole drain, in the
+   preflight phase whose only backstop is the 6h `HARD_TIMEOUT`; the spool is uncapped.
+3. `m-debugcacheforms-flaky-on-macos-ci` — iteration 346's own macOS flake.
 
-## Routing and cadence
-- Controller `claude:claude-opus-5`. Designer deliberately not spawned (no new doc for a CI red).
-- The pinned `codex:gpt-5.6-sol` bucket was AT CAPACITY all iteration (probe rc=1) — planner and
-  executor both fell to their declared pi lanes: kimi-k3 and deepseek-v4-flash. Both rc=0.
-- The planner's Agent spawn was DENIED by the spawn-pin hook (`deny:provider-pin`), as documented.
-- Evaluator `sonnet` via the Agent tool: PASS 91/100, zero blocking. Generator != judge.
+## Loop / routing
+2h interval + overlap guard. Designer = rotation (deepseek ran all 3 passes). Planner pin
+`pi:ollama/kimi-k3:cloud` **probe-timed-out at 120s** → `pi:openrouter/moonshotai/kimi-k3`.
+Executor `pi:ollama/deepseek-v4-flash:0731-cloud`. Evaluator `sonnet`. Generator != judge held.
 
 ## Parked on Mark
-- 59 ledger rows, five OPEN: D-55 threat scope; D-56 reviewer independence; D-57 cache naming;
-  D-58 pi-runner snapshot direction; D-59 iter339 three-round cap disposition.
-- D-60 (launchd notification recovery scope) is parked in the UNMERGED #1073, so it is not yet
-  a ledger row on dev. No unattended answer was inferred for any of them.
+**Nothing.** Decision ledger: 60 rows, **ZERO open** (`mission_decisions.sh --check` valid).
+D-55–D-60 were all resolved by attended ruling on 2026-09-07.
 
-## CI, quota and workspace
-- Merge SHA `16f0cb741`: 20 checks; `test`, `lint`, `build`, `docs-gate` all green.
-- ONE red remains on dev — `launchd drivers (bash 3.2)`, parked on D-60, proven inherited
-  (`20 passed, 7 failed` identical at PR head and base; zero `tools/launchd/` files in the diff).
-- No metered spend this iteration; every lane was a subscription or flat-rate bucket.
-- Gate-4 base `16f0cb74103ec903c8c596e69f775c96e5674f71` at 2026-09-07T08:09:53Z.
+## Quota / cost posture
+Metered **$0.80** of $5 — quorum $0.177 (3 rounds), OpenRouter planner $0.620. Designer (3 runs) and
+executor flat-rate ollama-cloud at $0; controller and evaluator on Anthropic subscription.
+
+## Watch
+- Dropped `pull_request` synchronize: the 2nd push to #1090 created **1** check, not 20. Recovered
+  with `gh workflow run CI --ref <branch>`.
+- The narrow-refinement carve-out authorises a 2nd designer revision the Fable diet forbids. $0 here
+  (flat-rate lane); evidence row 1 for a routing-policy fix.
