@@ -206,7 +206,23 @@ func coordinatorResolveRemote(args []string, action string) error {
 		who = "cli-user"
 	}
 
-	agentRegistry, _ := coordinator.LoadAgentRegistry()
+	// An approval that cannot fire its handoffs must not report success.
+	//
+	// ProcessApprovalRequest reads TriggerOnComplete off the agent it looks up in
+	// this registry. LoadAgentRegistry returns the LOCAL config (~/.ailang or
+	// $AILANG_CONFIG) and reports **no error** when that config simply has no
+	// cloud agents — so approving a cloud task from a laptop marked the approval
+	// "approved", fired nothing, and left the task pending_approval forever.
+	//
+	// Measured 2026-09-07 on task-3807b3e1: approval recorded, sprint-planner
+	// never dispatched, task still pending. It is the same signature as two
+	// eval-rig tasks stranded since 2026-08-26, which is how long this has been
+	// silently true. Refusing here is the difference between a bug and a lie.
+	agentRegistry, regErr := coordinator.LoadAgentRegistry()
+	if err := checkRegistryCanDispatch(ctx, bundle, agentRegistry, regErr, taskID); err != nil {
+		return err
+	}
+
 	result, err := coordinator.ProcessApprovalRequest(ctx, &coordinator.ApprovalParams{
 		TaskID:        taskID,
 		Action:        action,
