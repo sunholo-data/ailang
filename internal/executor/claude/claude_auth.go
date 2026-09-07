@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/executor"
+	"github.com/sunholo-data/ailang/internal/executor/proctree"
 )
 
 // installPlugins registers marketplaces and installs third-party plugins.
@@ -21,6 +22,7 @@ func (e *ClaudeExecutor) installPlugins(ctx context.Context, plugins *executor.P
 
 	for _, mkt := range plugins.Marketplaces {
 		cmd := exec.CommandContext(ctx, e.claudePath, "plugin", "marketplace", "add", mkt)
+		proctree.Configure(cmd)
 		if workspace != "" {
 			cmd.Dir = workspace
 		}
@@ -40,6 +42,7 @@ func (e *ClaudeExecutor) installPlugins(ctx context.Context, plugins *executor.P
 
 	for _, plugin := range plugins.Install {
 		cmd := exec.CommandContext(ctx, e.claudePath, "plugin", "install", plugin)
+		proctree.Configure(cmd)
 		if workspace != "" {
 			cmd.Dir = workspace
 		}

@@ -83,10 +83,10 @@
         "Iteration/stage deadlines and remaining budgets survive restart and cannot reset on resume.",
         "Lost parent with live child waits; ambiguity is preserved and never auto-reclaimed."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-07",
+      "completed": "2026-09-07T19:33:23.886679+00:00",
+      "notes": "Sequential Service, durable stage/iteration deadlines, expired prepared cleanup and ambiguous running retention, real abrupt crash boundaries, actual adapter descendant termination and final usage validation. Focused integration and race suites green; shared standalone orchestration extracted from CLI."
     },
     {
       "id": "M5",
@@ -103,10 +103,10 @@
         "Repeated completed invocation returns the same evidence and zero extra provider calls.",
         "CLI help and documented fixtures agree; Bash 3.2 compatibility tests pass."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-07",
+      "completed": "2026-09-07T19:33:23.886679+00:00",
+      "notes": "Strict CLI and binding, read-only redacted status with actual route and usage provenance, frozen resume/versioned cancel; actual driver foreign-cwd one-shot fixture and full Bash3.2 driver suite green."
     },
     {
       "id": "M6",

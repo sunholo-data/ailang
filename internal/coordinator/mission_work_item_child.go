@@ -69,7 +69,8 @@ func (s *SQLiteStore) StartMissionChild(ctx context.Context, k MissionWorkItemKe
 		if err = missionChanged(tx.ExecContext(ctx, "UPDATE mission_attempts SET state='running',version=version+1 WHERE "+missionWhere+" AND owner_token=? AND state='prepared' AND lease_until>"+missionNow, args...)); err != nil {
 			return err
 		}
-		return missionChanged(tx.ExecContext(ctx, "UPDATE mission_work_items SET state='running',reason_code='',next_action='',version=version+1 WHERE "+workWhere+" AND deadline>"+missionNow, k.args()...))
+		startArgs := append(k.args(), parentOwner, key.StageID)
+		return missionChanged(tx.ExecContext(ctx, "UPDATE mission_work_items SET state='running',reason_code='',next_action='',version=version+1 WHERE "+workWhere+" AND owner_token=? AND lease_until>"+missionNow+" AND deadline>"+missionNow+" AND NOT EXISTS(SELECT 1 FROM mission_stage_deadlines d WHERE d.mission_id=mission_work_items.mission_id AND d.work_item_id=mission_work_items.work_item_id AND d.stage_id=? AND d.deadline<="+missionNow+")", startArgs...))
 	})
 }
 func (s *SQLiteStore) ReleaseMissionPreparedChild(ctx context.Context, k MissionWorkItemKey, parentOwner string, key MissionAttemptKey, childOwner, reason, nextAction string) error {
@@ -131,7 +132,8 @@ func (s *SQLiteStore) AcceptMissionStage(ctx context.Context, k MissionWorkItemK
 		if _, err = tx.ExecContext(ctx, "INSERT INTO mission_stage_acceptances("+acceptanceFields+") VALUES(?,?,?,?,?,?,?)", a.MissionID, a.WorkItemID, a.StageID, a.RequestDigest, a.OutcomeDigest, a.AcceptanceJSON, a.AcceptanceDigest); err != nil {
 			return err
 		}
-		return missionChanged(tx.ExecContext(ctx, "UPDATE mission_work_items SET next_stage=next_stage+1,state='ready',reason_code='',next_action='',version=version+1 WHERE "+workWhere, k.args()...))
+		acceptArgs := append(k.args(), owner, a.StageID)
+		return missionChanged(tx.ExecContext(ctx, "UPDATE mission_work_items SET next_stage=next_stage+1,state='ready',reason_code='',next_action='',version=version+1 WHERE "+workWhere+" AND owner_token=? AND lease_until>"+missionNow+" AND deadline>"+missionNow+" AND NOT EXISTS(SELECT 1 FROM mission_stage_deadlines d WHERE d.mission_id=mission_work_items.mission_id AND d.work_item_id=mission_work_items.work_item_id AND d.stage_id=? AND d.deadline<="+missionNow+")", acceptArgs...))
 	})
 }
 

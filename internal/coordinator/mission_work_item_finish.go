@@ -75,7 +75,7 @@ func (s *SQLiteStore) ConfirmMissionWorkItemStopped(ctx context.Context, k Missi
 	}
 	return s.workTx(ctx, func(tx *sql.Tx) error {
 		args := append(k.args(), version)
-		if err := missionChanged(tx.ExecContext(ctx, "UPDATE mission_work_items SET state='cancelled',next_action='',lease_until=0,owner_token='',version=version+1 WHERE "+workWhere+" AND version=? AND state='needs_reconciliation' AND reason_code='operator_cancelled'", args...)); err != nil {
+		if err := missionChanged(tx.ExecContext(ctx, "UPDATE mission_work_items SET state=CASE WHEN reason_code='deadline_exceeded' THEN 'failed' ELSE 'cancelled' END,next_action='',lease_until=0,owner_token='',version=version+1 WHERE "+workWhere+" AND version=? AND state='needs_reconciliation' AND reason_code IN ('operator_cancelled','deadline_exceeded')", args...)); err != nil {
 			return err
 		}
 		if _, err := tx.ExecContext(ctx, "UPDATE mission_attempts SET state='cancelled',lease_until=0,owner_token='',version=version+1 WHERE "+workWhere+" AND state='needs_reconciliation'", k.args()...); err != nil {

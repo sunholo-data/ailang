@@ -73,6 +73,7 @@ func (s *SQLiteStore) migrateMissionWorkItems() error {
  lease_until INTEGER NOT NULL,version INTEGER NOT NULL DEFAULT 1,deadline INTEGER NOT NULL,next_stage INTEGER NOT NULL DEFAULT 0,
  PRIMARY KEY(mission_id,work_item_id));
  CREATE TABLE IF NOT EXISTS mission_admissions(mission_id TEXT PRIMARY KEY,work_item_id TEXT NOT NULL);
+ CREATE TABLE IF NOT EXISTS mission_stage_deadlines(mission_id TEXT NOT NULL,work_item_id TEXT NOT NULL,stage_id TEXT NOT NULL,timeout_seconds INTEGER NOT NULL,deadline INTEGER NOT NULL,PRIMARY KEY(mission_id,work_item_id,stage_id));
  CREATE TABLE IF NOT EXISTS mission_work_children(mission_id TEXT NOT NULL,work_item_id TEXT NOT NULL,stage_id TEXT NOT NULL,parent_owner TEXT NOT NULL,child_owner TEXT NOT NULL,PRIMARY KEY(mission_id,work_item_id,stage_id));
  CREATE TABLE IF NOT EXISTS mission_stage_acceptances(mission_id TEXT NOT NULL,work_item_id TEXT NOT NULL,stage_id TEXT NOT NULL,
  request_digest TEXT NOT NULL,outcome_digest TEXT NOT NULL,acceptance_json TEXT NOT NULL,acceptance_digest TEXT NOT NULL,

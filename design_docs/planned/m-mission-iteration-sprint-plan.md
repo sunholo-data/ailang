@@ -194,7 +194,7 @@ dirty output, stale evaluator and tampered check policy. All generated under tem
 - [x] Wrong revision, changed authority, failed hard checks, mutated candidate or stale judge fails.
 - [x] Actual prior author receipts determine evaluator independence, including fallback routes.
 
-### M4: Iteration execution and process recovery (~900 LOC)
+### M4: ✅ Iteration execution and process recovery (~900 LOC)
 
 **Dependencies:** M2, M3. **Duration:** days 5–6. **Estimate:** 400 implementation + 500 tests.
 Own iteration service/state-machine and move `mission_role_state.go` orchestration behind it;
@@ -203,14 +203,14 @@ process-group helpers; Pi/Claude inspected kill paths target the leader. Reuse a
 if the adapter audit supports it; no broad executor refactor. Examples: counted fake providers
 driving successful execution/evaluation and each crash boundary in isolated subprocesses.
 
-- [ ] Sequential remaining stages dispatch once, with immutable inputs and persisted acceptance.
-- [ ] Crash tests cover before/after dispatch, DB/receipt disagreement and acceptance-before-next.
-- [ ] No fallback/retry after execution starts; completed role is validated without another call.
-- [ ] Parent cancellation stops owned descendants for each admitted adapter; unrelated processes live.
-- [ ] Iteration/stage deadlines and remaining budgets survive restart and cannot reset on resume.
-- [ ] Lost parent with live child waits; ambiguity is preserved and never auto-reclaimed.
+- [x] Sequential remaining stages dispatch once, with immutable inputs and persisted acceptance.
+- [x] Crash tests cover before/after dispatch, DB/receipt disagreement and acceptance-before-next.
+- [x] No fallback/retry after execution starts; completed role is validated without another call.
+- [x] Parent cancellation stops owned descendants for each admitted adapter; unrelated processes live.
+- [x] Iteration/stage deadlines and remaining budgets survive restart and cannot reset on resume.
+- [x] Lost parent with live child waits; ambiguity is preserved and never auto-reclaimed.
 
-### M5: CLI status and one-shot driver seam (~450 LOC)
+### M5: ✅ CLI status and one-shot driver seam (~450 LOC)
 
 **Dependencies:** M4. **Duration:** day 7. **Estimate:** 250 implementation + 200 tests.
 Own mission iterate/status/resume/cancel commands, help.go and mission_cmd.go, local binding loader,
@@ -218,12 +218,12 @@ the narrow driver branch and its Bash fixtures. Read cli-doc-maintainer when imp
 Example: `docs/docs/guides/mission-iteration.md` using a disposable repository and fake executor;
 update `mission-role-dispatch.md` for mandatory quota admission and support limitations.
 
-- [ ] Status distinguishes running, waiting reasons, reconciliation, failure and validated completion.
-- [ ] Missing config/DB and changed inputs fail loudly without creating status-side state.
-- [ ] Driver fixture shows zero legacy probes/controller calls/retries on the opted-in path.
-- [ ] Foreign-repository fixture remains in its intended repository through actual driver entry.
-- [ ] Repeated completed invocation returns the same evidence and zero extra provider calls.
-- [ ] CLI help and documented fixtures agree; Bash 3.2 compatibility tests pass.
+- [x] Status distinguishes running, waiting reasons, reconciliation, failure and validated completion.
+- [x] Missing config/DB and changed inputs fail loudly without creating status-side state.
+- [x] Driver fixture shows zero legacy probes/controller calls/retries on the opted-in path.
+- [x] Foreign-repository fixture remains in its intended repository through actual driver entry.
+- [x] Repeated completed invocation returns the same evidence and zero extra provider calls.
+- [x] CLI help and documented fixtures agree; Bash 3.2 compatibility tests pass.
 
 ### M6: Integration evaluation and canary packet (~250 LOC)
 
