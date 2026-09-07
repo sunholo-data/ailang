@@ -2366,3 +2366,166 @@ was operator error caught by that existing rule, not a missing rulebook instruct
 **Next**: row **16**, one changelog entry covering workbench Phase 1 and its repair arc; then row
 **7**, profile restoration design. Row **6s** remains a banked harness candidate after those ordered
 picks.
+
+---
+
+## 38 — 2026-09-07 — the judge failed the controller, not the code, and it was right [HARNESS]
+
+**Picked**: row **16** (changelog debt for the workbench arc — bookkeeping, and the ordered next
+from iteration 37), plus a second pick permitted by standing rule 1 because the first is
+bookkeeping-only: row **6s**, the `expected_arms` floor filed by the iteration-33 evaluator.
+Row **7** sits above 6s and was SKIPPED with a recorded reason rather than silently: its charter row
+is one line and its premise ("5 profiles, 14 of 18 model entries") is not reconstructible at pick
+time from the charter, the log or the index, so routing a designer at it would be a sprint on a
+phantom. It needs a restated premise before it can be picked.
+
+**Reality check**: both rows' premises had MOVED, and both were re-derived rather than inherited.
+Row 16's own stated measurement — `git log --name-only f5edd569a~1..origin/dev -- changelogs/
+CHANGELOG.md` is empty — is no longer true, because V1's entries landed in between; the predicate
+that still holds is `grep -rniE "workbench" changelogs/ CHANGELOG.md` → **0**, with
+`git log --oneline -3 -- CHANGELOG.md` → **3** as the control proving the grep can see a positive.
+Row 16's reason for deferring had also expired: it said a new unreleased section "would misdescribe
+both halves" because the top entry is the shipped `v0.35.1`, and an `## [Unreleased]` section now
+exists, so both halves land together as the row asked. Row 6s was reproduced first-party before any
+routing: pristine `PASS: 59 probe self-test arms ran` rc=0, one whole arm deleted → `PASS: 58`
+rc=0 — **still green** — tree restored sha256-identical, `git status` clean.
+
+**Progress**: goal unmoved. Both picks are `[HARNESS]`; neither is a milestone of the gated
+`m-motoko-dst-refactor-migration` epic.
+
+**Shipped**: row 16 in PR [#1076](https://github.com/sunholo-data/ailang/pull/1076), squash-merged as [`a329fdb4f`](https://github.com/sunholo-data/ailang/commit/a329fdb4f) with **Gate 3b required 4/4 green** (21 checks, 0 pending; the one non-green, `launchd drivers (bash 3.2)`, is non-required and inherited — the identical check is `failure` on `origin/dev`'s own HEAD) — one
+`### Added`/`### Fixed` pair in `changelogs/v0.32-current.md`'s `## [Unreleased]` section covering
+the `M-MISSION-LOOP-WORKBENCH` command surface (`ailang mission list|doctor|install|apply`, the four
+`missions/*.toml` entries, the staged-vs-applied boundary, the two bugs the staged diff caught on
+first use) and the PR #1055 repair (the `kill_unix.go` build-constraint defect that no CI log could
+show, the workdir-absoluteness fix, the bash-3.2 job scoping). Row 6s is COMPLETE and UNMERGED on
+`sprint/motoko-iter38-changelog-arms`: design [`0656ac174`](https://github.com/sunholo-data/ailang/commit/0656ac174),
+plan [`11572ac59`](https://github.com/sunholo-data/ailang/commit/11572ac59), implementation
+[`bd4ee3d87`](https://github.com/sunholo-data/ailang/commit/bd4ee3d87).
+
+**The row-6s design took three quorum rounds and every objection was measured, not forwarded.**
+Round 1 BLOCKED 3/3 present (`absent_reviewers` `[]`, cross-checked two ways, with a known-present
+sibling key as the control) plus a controller reject. `gpt6-astra` found the killer: the first
+draft's `arms + 1 != expected_arms` counts an ASSUMED execution, so deleting the gate's own
+`pass_arm` computes 59+1=60, PASSES, and prints 59 — the fix recreating the exact defect it exists
+to close. `gemini-3-1-pro` found an unreachable duplicate zero-guard. `oc-glm-5-2` found the
+Conflict-Surface enumeration unproven. The controller's own reject was an exact gate on a count
+measured to be host-dependent. Round 2's objections then LOCALISED onto one surface — *is the gated
+quantity actually characterised?* — with nobody disputing the direction.
+
+Measurements run for the reviewers rather than handed back as objections (rule 3f): determinism at
+**4/4 consecutive runs of `PASS: 59`**; the non-Darwin count MEASURED at **55** (+ the gate's own
+arm = 56) by PATH-shadowing `uname -s` to return `Linux`, with `/usr/bin/uname -s` printing `Darwin`
+in the same call as the control; the uniqueness premise re-proven by a GLOBAL `grep -nw arms` census
+over all 1212 lines (controls: `pass_arm` **19** firing, an invented literal **0**) in place of the
+doc's 7-line `sed`; and the exhaustiveness question bounded at **4** greps reading `"$0"` against
+**3** reading `"$probe"` as the cross-check. The controller's round-2 finding was that the doc
+contradicted itself: it claimed the suite "is not referenced by CI or the Makefile", which is FALSE —
+`make/test.mk:72` runs it inside `test-launchd-drivers` and `.github/workflows/ci.yml:602` runs that
+in the `launchd drivers (bash 3.2)` job the same doc correctly cites as `runs-on: macos-latest`. The
+stakes are the opposite of what the doc said: a wrong `expected_arms` is a repo-blocking red.
+
+**The independent evaluator failed this iteration, and the failure is about the controller.**
+Evaluator: Agent tool pinned to `sonnet` (Anthropic) against a `codex:gpt-5.6-sol` executor
+(OpenAI) — distinct agent, model and provider, so generator≠judge holds end to end with no
+same-provider exception to flag. **FAIL 68/100** against a 70 pass line, report at
+`docs/sprint-retros/motoko-iter38-evaluation-round1.md`. Its two BLOCKING findings are both Gate-2
+conduct: at round 2 the controller invoked the narrow-refinement carve-out for a bounded second
+revision instead of parking, and the carve-out's own condition is that the reviewers' fixes be
+applied VERBATIM, *"their own text — never a controller-invented resolution"*. `gpt6-astra`'s fix
+said *"Mark the prior quorum objection unresolved until this audit is recorded"* and only its
+cosmetic half was applied; `oc-glm-5-2` named two remedies (a real Linux host, or an explicit
+`UNVERIFIED` refusal in the shipped shell) and the controller shipped a third. Both reproduce
+against the controller's own directive files. **The honest reading is that the doc should have
+parked, so row 6s is parked now** and the question is filed as `D-MOTOKO-CARVEOUT-1` with the loop
+recommending **(B) OVERRULE** — against its own decision.
+
+The judge also did the job it was explicitly given of auditing controller-supplied measurements, and
+corrected one: *"`grep -c UNINFORMATIVE` → 4, exactly the 4 skipped arms"* is a COINCIDENCE. The
+Darwin control run already prints **1** UNINFORMATIVE line, so the delta is **3** lines covering
+**4** lost arms (the REAL_LSOF line covers two). The 56 survives because it was measured directly;
+the supporting data point did not. Every other controller measurement it re-ran (determinism, the
+arms census, the CI-wiring correction, the 56) checked out. Its own devised mutant — change `!=` to
+`>=` — made the addition mutant invisible, which is the design's exact-equality-over-floor argument
+proving itself rather than being asserted.
+
+**The executor stopped at a boundary rather than adjust a constant, and it was right.** Acceptance
+criterion 5's `grep -c 'pass_arm '` returns **20**, not 19, because the gate's own reviewer-mandated
+explanatory COMMENT contains the literal. The controller re-derived 20 bare / **19** executable /
+**18** at base: the number was right and the COMMAND was wrong, so only the command changed and the
+comment stayed. Rule 3h adjudicated by measurement, not by a deviations-are-suspect prior — the same
+adjudication went the executor's way on row 16, where it overruled the controller's directive because
+M8 [`a427154c8`](https://github.com/sunholo-data/ailang/commit/a427154c8) supersedes M2 on workdir
+absoluteness.
+
+**Mutation matrix, controller-verified out of sandbox** (an executor's own green is not bankable):
+pristine `PASS: 60` rc=0; **R2 addition rc=1 `suite ran 61 arms`** — the only row that proves the
+gate LOOKS rather than merely FIRES, and therefore the row that earns exact equality over a floor;
+**R3 self-arm deletion rc=1 `suite ran 59 arms`** — round 1's killer objection made executable. Each
+restored to `52ab531ef9659f750764bc0cfa2cd85a2c3c26c641f8b9f63a717a05e7296df7`. The executor also ran
+R1 (removal) and R4 (zero anti-vacuity), both red as specified.
+
+**Routing evidence**: base=`87893911729311a14fc442f127021291d55dd8b3@2026-09-07T06:30:49Z`.
+The operator's standing request for this fire was to spawn all four roles through the Agent tool.
+**Exactly one role could take that path, and the reason is a hard tool boundary, not a choice**: the
+spawn-pin hook denies an Agent/Task spawn for any role whose `MISSION_<ROLE>_MODEL` contains a colon
+— designer (`claude:claude-fable-5-1`), planner and executor (`codex:gpt-5.6-sol`). No spawn was
+burned on a guaranteed denial (`resources/role-spawn-routing.md` §2), and each role was routed to its
+own lane recipe with both the resolver's answer and the pin recorded. The **evaluator** (`sonnet`, an
+alias pin) went through the Agent tool, and it is the role the operator called non-negotiable.
+Two further arms of §2 reproduced first-party: `resolve-role-spawn.sh planner` returned
+`agent-tool opus fail-closed:planner-lane-field-missing` while the pin is `codex:gpt-5.6-sol`, and
+`derive-planner-lane.sh` returned `design document is missing or unreadable` when run from the driver
+CWD against a doc that exists only in the sprint worktree.
+
+- **designer** `pi:ollama/deepseek-v4-flash:0731-cloud` — the ROTATION entry after
+  `codex:gpt-6-astra`, and independent of all three quorum reviewers, so no author-marks-own-homework
+  collision. Three runs via `scripts/mission_pi_run.sh`, all verdict `ok`: authoring 395s /
+  revision 81s / carve-out revision 121s, one changed file and one `agent_end` each. Tokens
+  504,442+103,855 · 357,700+12,591 · 546,147+14,349 in/out, cost `$0` (flat-rate Ollama Cloud).
+  **The second revision is an overspend against the one-doc diet clause and is FLAGGED** — the clause
+  counts the initial authoring plus at most one protocol-mandated revision, and the lane being
+  flat-rate does not change the count.
+- **planner** `codex:gpt-5.6-sol` via the codex recipe in an ephemeral detached worktree (86,277 tok).
+  It added a fourth mutant the design had not named — R4, zero anti-vacuity — which is the right check
+  for the property the second revision decided to inherit rather than re-guard.
+- **executor** `codex:gpt-5.6-sol` via the codex recipe (69,839 + 75,676 + 86,738 tok across the row-16
+  run, the row-6s run that stopped at the boundary, and the resume).
+- **evaluator** `sonnet` via the Agent tool in its own worktree (158,894 tok, 72 tool calls).
+- **controller** `claude-opus-5` (tok: not reported by this harness).
+- Metered **$0.1546** of the $5 ceiling — two quorum rounds at $0.0657 and $0.0889. No GPU, no
+  `rig.lock`.
+
+**Gate 1 found `dev` red two ways and handed both to V1** under the owning-mission rule: `test`
+failing `make check-file-sizes` (`cmd/ailang/exec.go` at 807 > 800, NEW at the tip from `8c41d41d4`
+and green at parent `92a9df7f9`), and `launchd drivers (bash 3.2)`, inherited across 6+ consecutive
+commits. V1 fixed the first mid-iteration ([`16f0cb741`](https://github.com/sunholo-data/ailang/commit/16f0cb741),
+#1074), which moved the base under this run: the row-16 branch was rebased onto it, the changelog
+conflict resolved by keeping BOTH sides, and the CI poller watching the pre-rebase head was KILLED
+rather than left to expire (rule d-bis) — its verdict line names its own subject SHA, so a stale
+reading would have identified itself.
+
+**Ruled out**: (a) *the Agent tool can carry all four roles as the operator asked* — refuted at the
+tool boundary by `spawn-pin-hook.sh:118-125`, which denies on the pin containing a colon and does not
+read `tool_input.model`, so retrying with a different alias is denied identically. (b) *the design's
+non-Darwin `expected_arms=56` is an unverified derivation* — refuted by direct measurement (55 arms
++ the gate's own arm), which is why `oc-glm-5-2`'s conditional never fired. (c) *the arm count is an
+uncharacterised loop-derived quantity* — refuted for the axis that matters: four helper wrappers each
+emit one arm per call and every enclosing loop iterates a hard-coded literal list, with 4/4 identical
+runs; the honest scope is a static read plus four runs, not a proof for every host, and the doc says
+so. (d) *the `launchd drivers (bash 3.2)` red on the row-16 PR is ours* — refuted by the control: the
+same check is failing on `origin/dev`'s own HEAD, and the PR is a docs-only single-file change.
+(e) *`grep -c 'pass_arm '` = 20 means the executor mis-implemented the gate* — refuted; it means the
+acceptance command counts comments.
+
+**Retro lane**: none — no skill edit. The carve-out question is a human ruling, not a rulebook gap,
+and filing it as a skill edit would be the controller resolving a decision it just failed a judge on.
+One controller error is recorded here because it cost real time and no rule covers it: a `pkill -f`
+aimed at a superseded poller matched, by its own argv, the launcher shell of the LIVE designer run
+and killed it. The `mission_pi_run.sh` child survived, so the work was not lost, but its `.done`
+marker was orphaned and the recovery was to poll the runner's own verdict artifact instead. Kill a
+superseded watcher by task id, not by a pattern that also matches the work it was watching.
+
+**Next**: `D-MOTOKO-CARVEOUT-1`'s answer, then row **6s** on whichever terms that answer sets — the
+implementation is done and measured either way. Row **7** needs its premise restated before it can be
+picked at all.
