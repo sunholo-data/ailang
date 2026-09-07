@@ -2346,3 +2346,24 @@ owning mission and Gate 2's traces look for orphaned PRs; neither sees a HUMAN e
 right now**, and the controlplane CLAIM this loop sends is not something an attended session reads. If
 it recurs a third time, the cheap mitigation is to re-read `origin/dev` for the picked item's own files
 immediately before Gate 3b rather than only at Gate 1.
+
+**Record verification.** Exact merge SHA [`e5a325a20`](https://github.com/sunholo-data/ailang/commit/e5a325a207edbaec0dc5e69e31df5f6519afd9bb):
+**21 checks, ZERO not-green** — `test`, `lint`, `build`, `docs-gate`, `test-windows`, all three
+`Build` matrices, CodeQL, govulncheck, SonarCloud, and **`launchd drivers (bash 3.2)` itself**. That
+last one is the point: the job this item exists for is green on `dev` for the first time, with the
+notify suite at **38 assertions** rather than the 27 it had before this iteration, and with the D-60
+production bounding in place. The Gate-4 record landed as PR #1092 (`98730db02`) and its correction
+as PR #1095. STATUS block holds exactly 3 structural rows; the log rotation moved 4 entries with
+their full bodies and the archive was verified to have gained each one; `v1-mission-index.md` was
+regenerated and is current through 347, closing the stale-since-340 gap Gate 2 depends on. Ledger
+valid at 60 rows, zero open.
+
+**Gate 3b note, recorded because it cost a recovery.** The second push to #1090 produced **one**
+check (Dependabot auto-merge) instead of twenty: the `pull_request` **synchronize** event was
+dropped, while a `dev` push five seconds later fired normally, so Actions was demonstrably healthy.
+Read naively the PR rollup then said `pending: 0, failed: []` — a **vacuous green over an empty check
+set**, which is the exact shape Gate 3b warns about, arriving through a dropped webhook rather than a
+truncated query. Caught by asserting the check COUNT alongside the pending count, and recovered with
+`gh workflow run CI --ref <branch>` — Gate 1's dropped-event remedy, which is filed one gate away
+from where it was needed. The durable fix is the assertion, not the dispatch: **never accept
+`pending: 0` without a non-vacuity floor on `total`.**
