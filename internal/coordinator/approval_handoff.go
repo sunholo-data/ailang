@@ -2,6 +2,7 @@ package coordinator
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/sunholo-data/ailang/internal/messaging"
@@ -33,6 +34,11 @@ import (
 // The complement rule is what keeps this from double-dispatching: this fires
 // exactly the targets autoHandoffTargets excluded. The two functions partition
 // TriggerOnComplete, so a target dispatches once and at one moment.
+
+// errHandoffNotDispatched marks the case where the handoff row is durably stored
+// but no dispatch notification went out. The work is not lost, but it will not
+// start on its own — a distinction the caller must be able to report.
+var errHandoffNotDispatched = errors.New("handoff stored but not dispatched")
 
 // approvalHandoffTargets returns the edges that waited for this approval.
 //
@@ -84,7 +90,7 @@ func sendAgentHandoffMessage(
 		"Previous work has been approved. Please continue.",
 		sourceAgent.Label, task.ID, issueNumber, task.Content)
 
-	return msgStore.InsertInboxMessage(&messaging.InboxMessage{
+	msg := &messaging.InboxMessage{
 		FromAgent:     "coordinator",
 		ToInbox:       targetAgent.Inbox,
 		MessageType:   "handoff",
@@ -94,7 +100,50 @@ func sendAgentHandoffMessage(
 		ParentTaskID:  task.ID,
 		ChainID:       task.ChainID,
 		Status:        messaging.InboxStatusUnread,
-	})
+	}
+	if err := msgStore.InsertInboxMessage(msg); err != nil {
+		return err
+	}
+
+	// The row alone does not start work. The cloud coordinator dispatches from a
+	// Pub/Sub notification — the daemon's own deliverHandoffToInbox says so:
+	// "cross-machine chains hear handoffs only via Pub/Sub". Storing the message
+	// and skipping this leaves a handoff that is visible in the inbox, correct in
+	// every field, and never picked up (measured on task-f8ecc37c, 2026-09-07:
+	// inbox row present within seconds, no task for minutes).
+	//
+	// A notify failure does NOT fail the handoff — the row is durable and a sweep
+	// can still find it — but it must be VISIBLE, so it is returned as a typed
+	// warning rather than swallowed.
+	return notifyInboxMessage(msg)
+}
+
+// notifyInboxMessage publishes the dispatch notification for a stored message.
+//
+// Returns errHandoffNotDispatched when the row is safely stored but nothing was
+// told about it, so the caller can say "stored, not dispatched" instead of
+// reporting a handoff that will not start.
+func notifyInboxMessage(msg *messaging.InboxMessage) error {
+	cfg, err := messaging.LoadConfig()
+	if err != nil {
+		return fmt.Errorf("%w: messaging config unreadable: %v", errHandoffNotDispatched, err)
+	}
+	if cfg == nil || cfg.PubSub == nil || !cfg.PubSub.Enabled {
+		return fmt.Errorf("%w: Pub/Sub notification is not enabled in the messaging config", errHandoffNotDispatched)
+	}
+	notifier, err := messaging.NewPubSubNotifier(cfg.PubSub)
+	if err != nil {
+		return fmt.Errorf("%w: %v", errHandoffNotDispatched, err)
+	}
+	if notifier == nil {
+		return fmt.Errorf("%w: no notifier configured", errHandoffNotDispatched)
+	}
+	defer notifier.Close()
+
+	if err := notifier.Notify(context.Background(), msg); err != nil {
+		return fmt.Errorf("%w: %v", errHandoffNotDispatched, err)
+	}
+	return nil
 }
 
 // targetAgentID is nil-safe, for an error message that must not panic.
@@ -141,10 +190,17 @@ func dispatchApprovalHandoffs(
 		if targetAgent == nil {
 			return dispatched, fmt.Errorf("handoff target %q not found in registry (task %s)", targetID, task.ID)
 		}
-		if sErr := sendAgentHandoffMessage(msgStore, sourceAgent, targetAgent, task, task.GithubIssue); sErr != nil {
+		sErr := sendAgentHandoffMessage(msgStore, sourceAgent, targetAgent, task, task.GithubIssue)
+		switch {
+		case sErr == nil:
+			dispatched = append(dispatched, targetID)
+		case errors.Is(sErr, errHandoffNotDispatched):
+			// Stored but not notified: report it as a warning naming the target,
+			// never as a success and never as a lost handoff.
+			return dispatched, fmt.Errorf("handoff %s -> %s: %w", sourceAgent.ID, targetID, sErr)
+		default:
 			return dispatched, fmt.Errorf("handoff %s -> %s: %w", sourceAgent.ID, targetID, sErr)
 		}
-		dispatched = append(dispatched, targetID)
 	}
 	return dispatched, nil
 }
