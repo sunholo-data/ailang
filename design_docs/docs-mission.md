@@ -78,6 +78,85 @@ At Gate 4, after adding your stamp, move the now-4th stamp to the TOP of the arc
 iteration re-reads this charter — unbounded STATUS history is a per-read token tax on the scarcest
 model budget; the append-only history lives in the log + archive.
 
+## STATUS 2026-09-07 — ITERATION 15: docs-11 LANDED — D-4's attended-delegated ruling satisfied, sprint executed, independent evaluator caught one blocking + two non-blocking defects, all fixed and re-verified PASS 93/100; three CI-only reds found and fixed by the controller
+
+Gate 0/1: armed; GitHub account `sunholo-voight-kampff`; billing CLEAN. Pin worktree HEAD detached
+at `origin/dev` tip (`ccd2b4d36`), clean. 0 directives on bookkeeping issue `#979` since the
+watermark. Decision ledger: all 5 rows RESOLVED — D-4 and D-5 both answered via an attended
+ruling delegated to Codex, 2026-09-07, in the same session that unparked both docs-11 and docs-12.
+
+Gate 2 took docs-11 (item 12, ahead of docs-12/D-5 in queue order) as this iteration's one fresh
+pick, per D-4's grant. Re-verified D-4's stated condition first-party at HEAD before routing to
+sprint-planner (no fresh designer needed — the doc was already design-ready): `getGitHubOwnerRepo`
+still at `cmd/ailang/coordinator_cloud_github.go:87`; `internal/docsearch/search.go` still defines
+`SearchOptions`/`SearchStats`/`Search()` unchanged from the doc's citations; `internal/gitutil`
+did not yet exist (no naming collision).
+
+Gate 3: planner `codex:gpt-5.6-luna` (recipe lane; `derive-planner-lane.sh` returned
+`opus fail-closed:planner-lane-field-missing`, but the role carries a `codex:` provider pin, so
+per the spawn-pin-hook rule the codex recipe was used directly rather than the Agent-tool opus
+path the resolver named) produced a 5-milestone plan (`sprint_m-dx27-docs-search-github-fallback.json`
++ `-plan.md`), gitutil extraction first as the lowest-risk milestone. Executor `codex:gpt-5.6-luna`
+needed 3 bounded runs: the first two aborted on flawed/sandboxed gate lists the controller itself
+wrote into the directive (an unscoped `go build ./...` hit the repo's own pre-existing `cmd/wasm`
+non-issue; then the codex sandbox's loopback-bind denial produced a false-negative on the new
+httptest-based GitHub-backend tests) — both corrected in place per the codex-lane-false-greens
+playbook, third run completed all 5 milestones and snapshotted per-milestone for bisectable
+reconstruction. Controller reconstructed one commit per milestone from the snapshots, verified
+build+test at every boundary, and confirmed sha256 byte-identity against the executor's final tree.
+
+Evaluator `sonnet` via Agent tool (independent of the codex executor — generator≠judge held)
+reviewed PR #1083 from scratch: round 1 FAILED 67/100 on a real blocking defect (`NewBackend`
+never implemented the design's documented "default to sunholo-data/ailang" fallback — reproduced
+behaviorally both from a non-git directory and from an unrelated GitHub checkout) plus two
+non-blocking gaps (no cache unit test, imprecise 403 rate-limit classification). Controller routed
+one scoped codex fix-round addressing all three; the SAME evaluator agent was resumed via
+SendMessage to re-review the fix and independently re-reproduced both original failures now fixed,
+confirmed the new regression tests genuinely exercise them, and PASSED 93/100.
+
+Gate 3b found three CI-only reds the sandboxed executor/evaluator runs could not see (none were
+design or implementation defects): `make check-git-exec`'s baseline needed updating for the
+git-exec call site M1 moved from `coordinator_cloud_github.go` into the new `internal/gitutil`;
+`TestCacheHitMissExpiryIsolationAndNoTokenPersistence` failed on `Build windows-latest`/
+`test-windows` only, because `os.UserHomeDir()` reads `%USERPROFILE%` not `%HOME%` on Windows —
+fixed by routing through this repo's existing (and previously undiscovered by the executor)
+`internal/testutil.SetHomeDir` helper, which a THIRD required check (`make check-home-isolation`)
+exists specifically to enforce; and `make check-changelog` rejected M4's `CHANGELOG.md` edit
+(release notes belong in `changelogs/v0.32-current.md`, `CHANGELOG.md` is index-only) — reverted
+and moved. A separate, transient `proxy.golang.org`/`sum.golang.org` network incident hit `test`
+and `Build ubuntu-latest` independently (confirmed fleet-wide: unrelated dependabot PRs failed the
+same way in the same window; SonarCloud was independently already red on `origin/dev`'s own tip) —
+resolved by `gh run rerun --failed`, not a code fix. All 4 required contexts (`test`, `lint`,
+`build`, `docs-gate`) are green on the merge commit `63af7cade`; the two residual reds
+(`SonarCloud Code Analysis`, `launchd drivers (bash 3.2)`, the latter parked on D-60 by V1, repo
+owner) are non-required and inherited, confirmed via `mergeStateStatus=UNSTABLE`/`mergeable=MERGEABLE`.
+
+Outcome: **LANDED**. PR [#1083](https://github.com/sunholo-data/ailang/pull/1083), merge commit
+`63af7cade98177156fd66bf6c1bc56dbe7446c4e`. docs-12/D-5 (also unparked this session) is next
+iteration's pick per standing rule 1 (one fresh pick per iteration).
+
+Routing evidence: controller `codex:gpt-5.6-luna` (tok: not reported this session — session-level
+count unavailable to the sub-agent boundary); planner `codex:gpt-5.6-luna` (117,375 tok, 1 bounded
+run, rc=0); executor `codex:gpt-5.6-luna` (3 bounded runs — 2 aborted on controller-authored
+directive defects rather than lane failures, no fallback traversed; final run 127,122 tok, rc=0;
+fix-round 58,127 tok, rc=0); evaluator `sonnet` via Agent tool (2 rounds, same resumed agent,
+104,689 + 119,477 subagent tok; independent of codex executor, generator≠judge held both rounds).
+No fallback chain was entered for any role. Gate 4 base=`63af7cade98177156fd66bf6c1bc56dbe7446c4e`@`2026-09-07T13:15:51Z`.
+
+**Progress**: goal advanced — docs-11 (clause 1) LANDED; docs-12/D-5 unblocked and next.
+
+**Retro — no shared-skill edit this iteration.** Two findings worth a future iteration's attention,
+neither urgent enough to act on mid-record: (1) the docs-mission charter's STATUS block has drifted
+to 6 live stamps (iterations 14/13/12/8/9/10) against the rotation rule's invariant of 3 — rotation
+was evidently skipped or partially applied by an earlier iteration. Given this gate's own repeated
+warnings that a STATUS rotation is "the most dangerous edit this loop makes" (mass-deletion risk,
+3 recorded incidents on the sibling V1 mission), this iteration deliberately did NOT attempt to
+correct the accumulated drift under time pressure — it only prepended this stamp, leaving the
+pre-existing 6→3 correction for a dedicated, careful pass. (2) `derive-planner-lane.sh` returned a
+`fail-closed:planner-lane-field-missing` reason for a design doc that had no obvious missing field;
+worth a first-party check of what the script actually expects, since a codex `provider:model` pin
+made the fail-closed answer moot this time but won't always.
+
 ## STATUS 2026-09-07 — ITERATION 14: retry of `m-anthropic-sandbox`; Astra Agent lane timed out again, parked-on-lane [HARNESS]
 
 Gate 0/1: armed; GitHub account `sunholo-voight-kampff`; canonical inbox triaged with no docs
@@ -713,8 +792,19 @@ Full record: `design_docs/docs-mission-log.md` §ITERATION 10.
    regressions. CI green on the merge tip (20 checks, only the pre-existing inherited SonarCloud
    red — V1's domain). 8 commits total, zero metered spend (codex is quota-bucket, not billed
    per-token on this lane).
-12. `[PARKED]` **docs-11 · clause 1 · `ailang docs search` GitHub-fallback — design-ready, held on
-    D-4.** First fresh draw from the 31-doc `design_docs/planned/` backlog docs-8 certified
+12. `[LANDED]` **docs-11 · clause 1 · `ailang docs search` GitHub-fallback — LANDED iteration 15.**
+    D-4's attended-delegated ruling (2026-09-07) granted the exception conditional on re-verifying
+    every named correction at HEAD, which the controller did first-party before routing to
+    sprint-planner. Executor `codex:gpt-5.6-luna` (3 bounded runs) implemented all 5 milestones;
+    evaluator `sonnet` (independent, Agent tool) FAILED round 1 at 67/100 on a real blocking defect
+    (missing "default to sunholo-data/ailang" fallback, reproduced behaviorally two ways), PASSED
+    round 2 at 93/100 after a scoped fix. Gate 3b surfaced three CI-only defects invisible to any
+    sandboxed run (git-exec baseline drift, a Windows `os.UserHomeDir()`/`HOME` vs `%USERPROFILE%`
+    test bug, a changelog-index hygiene violation) plus one transient fleet-wide Go-proxy network
+    outage — all resolved by the controller. LANDED as
+    [PR #1083](https://github.com/sunholo-data/ailang/pull/1083), merge commit `63af7cade`. Full
+    account: `design_docs/docs-mission-log.md` §ITERATION 15.
+    First fresh draw from the 31-doc `design_docs/planned/` backlog docs-8 certified
     (iteration 5) — picked because it is small, self-contained, has no other mission's fingerprints
     on it (unlike `m-net-effect-proxy-boundary`, confirmed via `git log` to be V1's own active
     multi-milestone item — M1 landed there, M2-4 still theirs, not ours to touch), and its problem

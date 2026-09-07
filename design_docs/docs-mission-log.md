@@ -1572,3 +1572,83 @@ Resolver evidence: `tools/launchd/resolve-role-spawn.sh designer design_docs/pla
 
 **Retro**: third consecutive fresh-draw designer-lane failure across iterations 12–14. Surface as
 a routing-policy signal for human review; no shared skill edit this iteration.
+
+## 15 — 2026-09-07 — docs-11 LANDED: GitHub code-search fallback for `ailang docs search`
+
+**Pick**: `docs-11` (`m-dx27-docs-search-github-fallback`) — D-4 was answered this session via an
+attended ruling delegated to Codex ("please make the rulings so we are all unblocked"), which
+simultaneously resolved D-5 (docs-12). Standing rule 1 reads a resolved-parked item's resume as
+one fresh pick; docs-11 was taken over docs-12 as it is earlier in queue order (item 12 vs 13).
+D-4's grant was conditional: re-verify every named correction, the reusable GitHub/git-remote
+logic, and the actual `docsearch` types/signature against current code before planning.
+
+**Reality-check (before routing)**: re-verified D-4's condition first-party at HEAD
+(`ailang --version` → `v0.35.1-95-gbc74c307b-dirty`): `getGitHubOwnerRepo` still at
+`cmd/ailang/coordinator_cloud_github.go:87`; `internal/docsearch/search.go` still defines
+`SearchOptions` (line 18), `SearchStats` (line 38), `Search(ctx, opts)` (line 62) unchanged from
+the doc's citations; `internal/gitutil` did not exist (no naming collision for the planned
+extraction). All three held — routed straight to sprint-planner, no fresh designer needed.
+
+**Outcome**: LANDED · [PR #1083](https://github.com/sunholo-data/ailang/pull/1083) · merge commit
+`63af7cade98177156fd66bf6c1bc56dbe7446c4e` · evaluator `sonnet` (independent Agent-tool judge)
+round 1 FAIL 67/100 → round 2 PASS 93/100 after a scoped fix.
+
+**Progress**: goal advanced. docs-11 (clause 1) LANDED; docs-12/D-5 unblocked, next iteration's
+pick.
+
+**Key find — three CI-only defects invisible to every sandboxed run, none a design or
+implementation defect:**
+1. `make check-git-exec` (required `test` job) refused the sprint's own M1 milestone: moving
+   `getGitHubOwnerRepo`'s `git remote get-url origin` call from `coordinator_cloud_github.go` into
+   the new `internal/gitutil/remote.go` shifted an exec-call-site baseline the gate tracks by
+   file+count. Fixed by updating `scripts/git_exec_baseline.txt` (2→1 for the old file, +1 for the
+   new one) — a legitimate, expected maintenance step for any refactor that moves an exec site,
+   not a defect in the moved code.
+2. `TestCacheHitMissExpiryIsolationAndNoTokenPersistence` failed on `Build windows-latest` and
+   `test-windows` only: `os.UserHomeDir()` reads `%USERPROFILE%` on Windows, not `%HOME%`, so
+   `t.Setenv("HOME", tempdir)` silently left the cache pointed at the real runner profile while the
+   test's own on-disk credential check reconstructed the path against the tempdir — mismatch,
+   "system cannot find the path specified", Windows-only. First fix (also setting `USERPROFILE`)
+   tripped a THIRD required check, `make check-home-isolation`, which refuses any hand-rolled HOME
+   override outside `internal/testutil.SetHomeDir` — a shared helper that exists for exactly this
+   class and that the executor (reasonably, it never reads this repo's skills) reinvented instead
+   of finding. Final fix routes through that helper.
+3. `make check-changelog` (required `test` job) rejected M4's edit: it added release-note content
+   directly to `CHANGELOG.md`, which this repo enforces as a pure archive index — active entries
+   belong in `changelogs/v0.32-current.md`. Reverted the index edit, moved the entry to the correct
+   file.
+4. Separately, `test` and `Build ubuntu-latest` both hit a transient `proxy.golang.org`/
+   `sum.golang.org` `stream error ... INTERNAL_ERROR` in the same ~2-minute window — confirmed
+   fleet-wide (two unrelated dependabot PRs failed identically in the same window) rather than
+   caused by this diff; resolved by `gh run rerun --failed`, no code change.
+All three code-level fixes were applied by the controller directly (Gate 2 rule 3f: measure the
+defect, don't forward it) — small, mechanical, unambiguous, no design judgment involved.
+
+**Routing evidence**:
+| Role | Model | Outcome |
+|---|---|---|
+| Controller | `codex:gpt-5.6-luna` | Gate 0–5; tokens not reported (session-level, not surfaced to sub-agent boundary) |
+| Planner | `codex:gpt-5.6-luna` recipe lane (`derive-planner-lane.sh` returned `opus fail-closed:planner-lane-field-missing`; role carries a `codex:` provider pin, so per the spawn-pin-hook rule routed to the codex recipe directly rather than the named Agent-tool opus path) | 1 bounded run, 117,375 tok, rc=0 — 5-milestone plan, gitutil extraction first |
+| Executor | `codex:gpt-5.6-luna` recipe lane | 3 bounded runs. Run 1: aborted — controller's own directive told it to run unscoped `go build ./...`/`go test ./...`, which fails on this repo's `cmd/wasm` (genuinely `js`/`wasm`-build-tag-gated, not a regression) — controller error, not a lane failure. Run 2: aborted — codex sandbox denies loopback socket binds, so the new GitHub-backend httptest suite read as a false negative inside the sandbox (documented false-green class); corrected directive to scope build/test and name the sandbox artifact. Run 3: 127,122 tok, rc=0, all 5 milestones completed and snapshotted per-milestone; controller reconstructed one commit per milestone from the snapshots, verified build+test at every boundary, confirmed sha256 byte-identity against the executor's final tree. Fix-round (post-evaluator): 58,127 tok, rc=0. |
+| Evaluator | `sonnet` via Agent tool | Independent of the codex executor — generator≠judge held. Round 1: FAIL 67/100 — reproduced the blocking `NewBackend` default-repo defect behaviorally (built the PR binary, ran it from both a non-git dir and an unrelated GitHub checkout). Round 2 (same agent, resumed via SendMessage): re-reproduced both original failures now fixed with a freshly rebuilt binary, verified the new regression tests genuinely exercise both scenarios, PASS 93/100. Combined 224,166 subagent tok across both rounds. |
+| generator≠judge | N/A | Preserved both evaluator rounds: executor on codex (OpenAI), evaluator on sonnet (Anthropic) |
+
+Resolver evidence: `tools/launchd/derive-planner-lane.sh design_docs/planned/v0_29_0/m-dx27-docs-search-github-fallback.md` → `opus fail-closed:planner-lane-field-missing`; not acted on directly per the spawn-pin-hook rule (role already carries a `codex:` pin). Gate 4 base=`63af7cade98177156fd66bf6c1bc56dbe7446c4e`@`2026-09-07T13:15:51Z`.
+
+**Ruled out**: none — every red encountered (git-exec baseline, Windows HOME test, changelog
+index, transient network) was real and attributable, not a false alarm.
+
+**DECISIONS FOR MARK**: none open from this iteration. D-4 and D-5 both RESOLVED this session
+(attended, delegated to Codex) — D-4 consumed by this landing; D-5 (docs-12) is next iteration's
+pick.
+
+**Retro**: no shared-skill edit this iteration. Two findings for a future iteration, neither
+urgent enough to act on mid-record: (1) the charter's STATUS block has drifted to 6 live stamps
+(iterations 14/13/12/8/9/10) against the rotation rule's 3-stamp invariant — evidently a prior
+iteration skipped or partially applied rotation. Given this skill's own repeated, detailed
+warnings that a STATUS rotation is "the most dangerous edit this loop makes" (three recorded
+mass-deletion near-misses on the sibling V1 mission), this iteration deliberately did not attempt
+to correct the accumulated drift under time pressure — only prepended its own stamp. A dedicated,
+careful pass should reconcile it. (2) `derive-planner-lane.sh`'s `fail-closed:planner-lane-field-missing`
+reason for a design doc with no obviously-missing field is worth a first-party look at what the
+script actually checks — a `codex:` provider pin made the answer moot here, but will not always.
