@@ -42,11 +42,17 @@ in this first slice; it is stronger than merely comparing friendly names or host
 - A candidate can fall through only BEFORE ExecuteStreaming: factory/capability/health failure.
   Once execution starts, error/timeout/empty output stops the attempt; no automatic rerun over a
   potentially modified workspace. Cancellation stops dispatching further candidates.
+- First-slice adapter admission is limited to Claude, Codex and Pi after review.
+  Known wire-route/vendor contradictions fail before dispatch; unsupported/local routes skip.
 - The executor receives exact wire model, instructions and parent IDs, bounded context, token/USD
-  budget, and canonical command-scoped messaging bindings. Reject ambient Anthropic/OpenAI API
+  budget, and canonical command-scoped messaging bindings. Token guards count fresh input
+  plus output at usage-event boundaries. Live USD guards estimate those tokens at registry
+  prices, excluding cache charges; final metered cost is checked separately. These are
+  adapter guards, not hard billing ceilings or fleet quota reservations. Reject ambient Anthropic/OpenAI API
   credentials for subscription-oriented claude/codex routes instead of silently changing billing.
 - Request SHA-256 binds the full normalized request. A versioned JSONL receipt is created with
-  exclusive create before ANY execution. Events are appended and synced before dispatch and after
+  exclusive create before ANY execution. The parent directory is synced before dispatch; unsupported filesystem sync fails closed.
+  Events are appended and synced before dispatch and after
   completion; an existing receipt cannot be overwritten/replayed. This is a local attempt journal,
   not a second task-state authority. Crash recovery/leases/CAS remain slice 2.
 - Success means `execution_completed`, with `artifact_verified=false` ALWAYS in this slice.
@@ -56,7 +62,7 @@ in this first slice; it is stronger than merely comparing friendly names or host
 - Dry-run resolves and reports without executor construction, probes, receipt writes, or spend.
   Receipt is required only for actual run. Plain JSON stdout; errors return nonzero.
 
-## M1: Requests and conservative model identity
+## ✅ M1: Requests and conservative model identity
 
 **Estimate:** 180 implementation + 180 test LOC; day 1.
 **Files:** internal/modelreg/identity.go and identity_test.go; ModelConfig field in models.go;
@@ -66,18 +72,22 @@ when instructions/input change; OpenRouter/Ollama hosting does not masquerade as
 authors missing/unknown rejected; explicit candidate order preserved and local GPU denied.
 **Example:** request JSON under examples/mission/ with a cloud Pi evaluator and OpenAI author.
 
-## M2: Dispatch and receipts
+## ✅ M2: Dispatch and receipts
 
 **Estimate:** 260 implementation + 220 test LOC; day 2.
-**Files:** internal/mission/dispatch/run.go, receipt.go, corresponding tests.
+**Files:** internal/mission/dispatch/run.go, receipt.go, corresponding tests; focused Pi adapter token-budget regression fix.
 **Acceptance:** fake factory invokes chosen actual adapter exactly once; health/capability failure
 selects the next compatible candidate; same-vendor fallback never executes; active execution failure
 never retries; cancellation stops work; receipt failure stops launch; exclusive receipt prevents
 repeat execution; nominal output, nil/empty/failed result and cost/timeout signals discriminated.
+**Confirmed adapter gap:** Pi accepted `MaxTokensPerBench` without enforcing it. A failing
+fixture test demonstrated success with 685 tokens against a limit of 1. Add termination
+and a non-success result at this existing adapter boundary.
+
 **Integration:** actual Pi adapter driven by an isolated fake executable emitting its real NDJSON
 fixture grammar, with no model/network call; prove exact wire argument and structured output flow.
 
-## M3: CLI, example, independent review
+## ✅ M3: CLI, example, independent review
 
 **Estimate:** 100 implementation + 100 test LOC; day 3 including 25% uncertainty buffer.
 **Files:** cmd/ailang/mission_role_cmd.go and tests; mission_cmd.go command/help entry;
@@ -98,3 +108,19 @@ shell fixture integration skips Windows with an explicit reason while pure dispa
 No live provider call, workflow A/B, cloud deployment, push, or fleet cutover is part of this sprint.
 Success here is a tested reusable dispatch seam and a working opt-in CLI, not a claim the entire
 mission runtime or four mission migrations are complete.
+
+## Delivery evidence (2026-09-07)
+
+Independent engineering review: PASS, 92/100, in a separate agent session. It found
+and drove fixes for wire/vendor contradictions, unsupported adapter admission, and
+receipt directory durability. This was not a provider-backed cross-vendor evaluation.
+The local-first/cloud-fallback regression requested by the reviewer also passes.
+
+Full tests, lint, build, architecture boundaries, focused race checks and vet pass.
+The built binary resolves the checked-in evaluator example without a provider call.
+The file-size check flags only `cmd/ailang/exec.go` at 807 lines; that file is unchanged
+from the inherited checkpoint (878939117). Pi remains at the 800-line limit.
+
+The complete runtime contract remains planned: no live fleet cutover or workflow
+experiment was performed. Next: durable coordinator-backed mission state and recovery,
+then an isolated canary, before project onboarding and migration.

@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-MISSION-ROLE-DISPATCH",
-  "status": "in_progress",
+  "status": "completed",
   "created": "2026-09-07",
   "design_doc": "design_docs/planned/m-mission-runtime-contract.md",
   "sprint_plan": "design_docs/planned/m-mission-role-dispatch-sprint-plan.md",
@@ -49,10 +49,10 @@
         "Strict CLI and zero-spend dry-run",
         "Example, documentation, checks and independent review"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-07",
+      "completed": "2026-09-07",
+      "notes": "Opt-in CLI, dry-run and exclusive receipt failure tests, example and guide delivered. Independent review pass 92/100; baseline-only file-size failure recorded in plan."
     }
   ],
   "velocity": {
