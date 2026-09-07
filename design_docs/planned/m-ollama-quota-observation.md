@@ -67,3 +67,10 @@ and Codex admission regressions passed. Full-suite correction: the live doctor t
 actual differing keys, rather than assuming any Docs drift must be the old planner-allowlist bug.
 Independent review approved both the guard and that test correction. No inference was used in
 verification; authenticated live reads targeted only Ollama's usage endpoint.
+
+Deployment 2026-09-07 15:19 Copenhagen: installed binary and all four next-fire pins select
+`8301960c9264d2774cce4ca2d3ffea3d5d6eb6ff`. Live usage-only replay: session 0.006, weekly 0.357,
+state unknown because verified capacities/reset times are absent. No metadata fabricated.
+No active iterations restarted; live next-fire fallback remains to be observed. Rollback hashes
+and backups are in `design_docs/verification/mission-recovery-2026-09-07/ollama-quota-deployment.json`.
+Account metadata remains an outstanding configuration dependency, not completed allowance pacing.
