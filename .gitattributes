@@ -10,6 +10,9 @@ prompts/*.md text eol=lf
 # Force LF for shell scripts
 *.sh text eol=lf
 
+# Force LF for headroom fixtures (a fixture that changes shape on checkout is not a fixture)
+tools/ci/headroom/testdata/*.txt text eol=lf
+
 # Trace baselines (generated, hide from diffs)
 examples/traces/*.jsonl linguist-generated text eol=lf
 

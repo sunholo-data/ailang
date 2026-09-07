@@ -473,7 +473,7 @@ cihygiene gate test `TestGoTestTimeoutIsDerived` that parses ci.yml (real YAML, 
 and that the derivation comment (containing `172.5`, `1.80`, `1.34`) is present.
 
 - **Acceptance (commands):**
-  - `grep -n 'timeout 416s' .github/workflows/ci.yml` → two hits (lines 101 and 471).
+  - `grep -c 'go test -timeout 416s' .github/workflows/ci.yml` → 2 (one per leg; the bare `timeout 416s` grep also matches the two derivation comment lines, so it is not a count of the go test steps).
   - `grep -n '172.5\|1.80\|1.34' .github/workflows/ci.yml` → the derivation comment is present.
   - `go test ./internal/cihygiene/` → passes.
 - **Mutation killed:** revert `-timeout 416s` to `-timeout 300s` (or any round number) in either

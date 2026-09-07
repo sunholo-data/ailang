@@ -105,7 +105,8 @@
         }
       ],
       "not_in_this_milestone": "No tools/ci/headroom code (M2); no build/headroom wiring or step-body changes (M3); no gated-integration, timeout-minutes, or -p changes; nothing under internal/coordinator/.",
-      "passes": true
+      "passes": true,
+      "status": "PASSES locally (cihygiene gate green on this tree)."
     },
     {
       "id": "M2_HEADROOM_TOOL",
@@ -169,7 +170,8 @@
         }
       ],
       "not_in_this_milestone": "No workflow edits (M3 wires the tool); no cihygiene changes; no blocking/FAIL threshold tier (calibration follow-up); the binary is built only by acceptance commands, never by CI yet.",
-      "passes": true
+      "passes": true,
+      "status": "PASSES locally (unit tests green on this tree). Windows-independent."
     },
     {
       "id": "M3_CI_WIRING",
@@ -240,7 +242,8 @@
         }
       ],
       "not_in_this_milestone": "No tool-code changes (M2's); no budget or comment changes (M1's); no gated-integration, timeout-minutes or -p changes; no internal/coordinator changes or t.Parallel() additions (follow-up row).",
-      "passes": true
+      "passes": false,
+      "status": "NOT VERIFIED on Windows: pwsh is not on this rig, so the test-windows leg cannot be executed locally. Windows verification is PENDING this round's CI (PR #1102). Linux leg wiring is in place."
     }
   ],
   "final_gates": [
@@ -248,7 +251,7 @@
     "go test -count=1 ./internal/cihygiene/ ./tools/ci/...",
     "[ $(grep -c 'go test -timeout 416s' .github/workflows/ci.yml) -eq 2 ]   # one per leg; the bare 'timeout 416s' grep also matches the 2 derivation comment lines",
     "[ $(grep -c 'go_test_headroom.log' .github/workflows/ci.yml) -ge 6 ]   # 3 per leg",
-    "git diff --name-only against base matches the approved file list: .github/workflows/ci.yml, internal/cihygiene/workflow_go_test_timeout_test.go, tools/ci/headroom/main.go, tools/ci/headroom/main_test.go",
+    "git diff --name-only against base matches the approved file list: .github/workflows/ci.yml, changelogs/v0.32-current.md, design_docs/planned/v0_36_0/m-coordinator-windows-package-timeout-headroom-sprint-plan.md, design_docs/planned/v0_36_0/m-coordinator-windows-package-timeout-headroom.md, internal/cihygiene/workflow_go_test_timeout_test.go, sprint_m-coordinator-windows-package-timeout-headroom.json, tools/ci/headroom/main.go, tools/ci/headroom/main_test.go, tools/ci/headroom/testdata/real_go_test_output.txt, tools/ci/headroom/testdata/real_go_test_output_cached.txt",
     "git diff --exit-code -- internal/coordinator/ tools/ci/motoko_smoke.sh internal/cihygiene/workflow_timeouts_test.go internal/cihygiene/gate_wiring_test.go  (hard-unchanged paths)",
     "sprint PR's own test-windows job log shows: green Build headroom instrument step before Run Go test suite; real ok/FAIL package lines visible; HEADROOM report block present; no '::error:: headroom' line"
   ],

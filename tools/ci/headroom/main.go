@@ -147,6 +147,11 @@ func run(args []string, stdin io.Reader, stdout io.Writer) int {
 func parse(data []byte) []record {
 	var records []record
 	for _, line := range strings.Split(string(data), "\n") {
+		// Strip a trailing carriage return so a CRLF log (which the pwsh leg
+		// can genuinely produce at runtime) parses identically to an LF one.
+		// This also covers a lone \r on the LAST field of the LAST line, which
+		// has no following \n to split on.
+		line = strings.TrimSuffix(line, "\r")
 		fields := strings.Split(line, "\t")
 		if len(fields) < 3 {
 			continue // bare FAIL, ? line, build output, etc.

@@ -129,11 +129,12 @@ HIT COUNT, not the line numbers — assert the count and the values, never fixed
 ### Acceptance commands and expected output
 
 ```bash
-grep -n 'timeout 416s' .github/workflows/ci.yml
+grep -c 'go test -timeout 416s' .github/workflows/ci.yml
 ```
-Expected: exactly **two** hits, both `go test -timeout 416s ./...` (one in job `test`, one in job
-`test-windows`). Line numbers will be ≥101 and ≥471 — comment growth shifts them (P-drift note);
-the count and content are the assertion, not the numbers.
+Expected: exactly **2** — one `go test -timeout 416s ./...` in job `test`, one in job
+`test-windows`. (The bare `grep -n 'timeout 416s'` also matches the two derivation comment
+lines, so it is not a count of the go test steps; the count and content are the assertion,
+not line numbers.)
 
 ```bash
 grep -n '172.5\|1.80\|1.34' .github/workflows/ci.yml

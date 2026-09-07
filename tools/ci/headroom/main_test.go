@@ -139,6 +139,98 @@ func TestParseRealGoTestOutput(t *testing.T) {
 	}
 }
 
+// TestParseQuestionLineRejected defends the code comment's claim that the
+// `status != "ok" && status != "FAIL"` guard is what rejects a `?` line. The
+// third field is a VALID duration, so without the status guard the line would
+// fall through to the numeric branch and parse as a 12.3s record — the guard
+// is load-bearing, not masked by a downstream ParseFloat failure.
+func TestParseQuestionLineRejected(t *testing.T) {
+	log := "?\tgithub.com/x/pkg\t12.3s\n"
+	recs := parse([]byte(log))
+	if len(recs) != 0 {
+		t.Fatalf("parse(? line): got %d records, want 0 (a `?` line is not a timing record)\n%+v", len(recs), recs)
+	}
+}
+
+// TestParseTruncatedEmptyDuration defends the `len(toks) == 0` guard. A log
+// cut off mid-line can leave a trailing TAB with an empty duration field; the
+// guard must skip it rather than index toks[0] out of range.
+func TestParseTruncatedEmptyDuration(t *testing.T) {
+	log := "ok\tgithub.com/x/pkg\t\n"
+	recs := parse([]byte(log))
+	if len(recs) != 0 {
+		t.Fatalf("parse(truncated line): got %d records, want 0 (empty duration is not a record)\n%+v", len(recs), recs)
+	}
+}
+
+// TestParseTrimsPackageWhitespace defends the `pkg := strings.TrimSpace(fields[1])`
+// call. A real go test line can carry surrounding whitespace on the package
+// field; the record must carry the trimmed package name.
+func TestParseTrimsPackageWhitespace(t *testing.T) {
+	log := "ok\t github.com/x/pkg \t12.3s\n"
+	recs := parse([]byte(log))
+	if len(recs) != 1 {
+		t.Fatalf("parse: got %d records, want 1\n%+v", len(recs), recs)
+	}
+	if recs[0].pkg != "github.com/x/pkg" {
+		t.Errorf("pkg = %q, want %q (TrimSpace must strip surrounding whitespace)", recs[0].pkg, "github.com/x/pkg")
+	}
+}
+
+// TestParseRealGoTestOutputCRLF proves the parser tolerates CRLF line endings.
+// The pwsh leg of CI can genuinely produce a CRLF log at runtime, and no
+// .gitattributes entry reaches a log the runner writes, so the parser must
+// treat a CRLF fixture byte-for-byte the same as the LF one. The CRLF form is
+// derived from the LF fixture inside the test (a second CRLF fixture would be
+// normalised back to LF by .gitattributes anyway), and the record and cached
+// counts must match the LF input exactly.
+func TestParseRealGoTestOutputCRLF(t *testing.T) {
+	cases := []struct {
+		name       string
+		file       string
+		wantRecs   int
+		wantCached int
+		wantFailed int
+	}{
+		{"cold", "testdata/real_go_test_output.txt", 128, 0, 1},
+		{"cached", "testdata/real_go_test_output_cached.txt", 128, 105, 0},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			data, err := os.ReadFile(c.file)
+			if err != nil {
+				t.Fatalf("read fixture %s: %v", c.file, err)
+			}
+			// Derive the CRLF form: every \n becomes \r\n. The final line has no
+			// trailing \n, so its lone \r (if any) is covered by the parser's
+			// TrimSuffix on the last line.
+			crlf := bytes.ReplaceAll(data, []byte("\n"), []byte("\r\n"))
+			recs := parse(crlf)
+			if len(recs) != c.wantRecs {
+				t.Fatalf("parse(CRLF %s): got %d records, want %d", c.file, len(recs), c.wantRecs)
+			}
+			cached, failed := 0, 0
+			for _, r := range recs {
+				if r.pkg == "" {
+					t.Errorf("record with empty package: %+v", r)
+				}
+				if r.seconds == 0 {
+					cached++
+				}
+				if r.failed {
+					failed++
+				}
+			}
+			if cached != c.wantCached {
+				t.Errorf("parse(CRLF %s): got %d zero-second (cached) records, want %d", c.file, cached, c.wantCached)
+			}
+			if failed != c.wantFailed {
+				t.Errorf("parse(CRLF %s): got %d FAIL records, want %d", c.file, failed, c.wantFailed)
+			}
+		})
+	}
+}
+
 // TestPercentOfBudget pins the rounding: 100s/416s = 24%, 380s/416s = 91%,
 // 12.3s/416s = 3%.
 func TestPercentOfBudget(t *testing.T) {
