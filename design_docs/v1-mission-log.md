@@ -2154,6 +2154,93 @@ to the bounded archive. Queue row remains present and is LANDED. Dashboard is30l
 tracked-path, context-doc, file-size, reference, skill, whitespace and log-rotation checks run on
 the record branch before landing.
 
+## 344 — 2026-09-07 — Reproduce inherited launchd notification red and park the disputed recovery scope [HARNESS]
+
+**Picked.** Gate 1 inherited-red outranked the queue. At exact base
+`c308b2a0a84edb593609af5e7f4bb3b7bc402014` read at `2026-09-07T05:29:19Z`, the
+`launchd drivers (bash 3.2)` job failed in the notification suite. Canonical GCP inbox triage
+found no trusted human directive and acknowledged nothing. Claim
+`inbox_1788759093784_80b2c925` was sent before role work. The main checkout's 14 unrelated dirty
+model-registry/benchmark paths were left untouched. Open, mergeable, green PR #1071 was attributed
+to prior cache-source work and not duplicated.
+
+**Reality check.** A correctly stamped binary at the exact base reports
+`v0.35.1-96-gc308b2a0a`. The pin-root suite passes 54/54; the notification suite passes 20/27.
+The seven failures are the ailang-channel and title assertions plus drift-a first notice, drift-c
+doubling and drift-g original STALE notice. The cause is observational: production retains direct
+`_out=$(ailang messages send …)` calls, but the test's `ailang` shell stub records into `TRACE`
+inside that command-substitution subshell, so the parent cannot observe the mutation. The same red
+exists at `c308b2a0a`, `bc74…`, and introducing commit `63a0d2b32`; later mission/world fixes did
+not repair it. Separately, direct send, drain send, and GitHub notification paths lack the bounded
+wrapper used elsewhere in the same source.
+
+**Shipped.** Parked `needs-human-review` on D-60; no production or test code, sprint plan,
+implementation push, implementation PR, or merge. Astra's rejected design is retained at
+`design_docs/planned/v0_35_2/m-launchd-notify-subshell-observation.md`. Quorum R1 was BLOCKED with
+all3 reviewers present. One designer revision added the requested fixture, project-default,
+exit-status and causal evidence. R2 was again BLOCKED with all3 present. Sol's surviving objection
+changes direction by requiring bounded direct-send, drain-send, and GitHub calls, so the
+narrow-refinement carve-out is inapplicable. Gemini and GLM also retained evidence objections.
+
+**Routing evidence.** Gate-4 base=
+`d2dd128be8f721c00a8982900fc581aad514ed41@2026-09-07T05:59:10Z`; origin advanced after the
+first Gate-4 observation by one disjoint cloud-lane design-doc commit, so this record branch was
+rebased before review. Resolver output:
+designer `recipe codex:gpt-6-astra declared:provider-pin`; planner
+`recipe codex:gpt-5.6-sol anthropic-fallback:fail-closed:no-doc`; executor
+`recipe codex:gpt-5.6-sol declared:provider-pin`; evaluator
+`recipe pi:ollama/minimax-m3:cloud declared:provider-pin`. All four roles were invoked with the
+Agent tool as the unattended operator explicitly required. Designer was Astra Agent (tok: not
+reported), which authored and revised the doc exactly once. Planner was Sol Agent (tok: not
+reported) and returned BLOCKED/no valid sprint plan. Executor was a separate Sol Agent (tok: not
+reported) and returned execution-not-authorized without mutations.
+
+The configured evaluator role genuinely could not be spawned: the Agent model registry exposed
+only `gpt-6-astra`, `gpt-5.6-sol`, `gpt-5.6-terra`, `gpt-5.6-luna`, and `gpt-5.5`, not
+`pi:ollama/minimax-m3:cloud`. Fallback used a separately spawned gpt-5.5 Agent (tok: not reported),
+which independently reproduced 54/54 plus 20/27, verified the clean tracked diff, and scored the
+PARK disposition PASS92/100. It explicitly assigned an implementation score of 0 because no
+implementation was authorized. No code generator ran, so generator≠judge is preserved for the
+only verdict actually made; the fallback is same-provider as Sol but judged process/park, never
+Sol-generated code. No controller verdict substituted for the missing configured judge.
+
+**Ruled out.** The production notification did not stop firing; only the test spy lost visibility.
+Changing `TRACE` capture alone cannot satisfy the R2 design gate because the unbounded subprocess
+surface is real. A complete 3/3 rejection cannot be converted into approval by numeric vote or by
+the evaluator's PASS on parking. PR #1071 is not this repair and was left untouched. The
+planner/executor refusals are gate success, not missing work.
+
+**Retro lane.** backlog/park — D-60 records the only unresolved choice: test-only CI recovery or
+the quorum-required bounded production scope. No skill edit: the gate exposed a genuine direction
+decision on its first occurrence rather than repeated workflow friction.
+
+**Progress.** N=12 design docs before v1.0.0 (was12, change0); this HARNESS diagnosis moved the
+goal by0.
+
+**Cost.** Actual metered $0.09147300 across R1/R2. The quorum artifacts' $0.10572189 aggregate
+also includes GLM's $0.01424889 flat-rate imputation, which is reported separately and not counted
+as metered. Astra/Sol/gpt-5.5 Agent lanes are quota buckets. Role token counts were not reported;
+none are invented. No GPU and no `rig.lock`.
+
+**Next.** If D-60 is unanswered, preserve the indefinite HOLD and first verify/land open PR #1071
+before duplicating its cache-source work. Then consider `m-cachesrc-cognitive-complexity`,
+`m-coordinator-codex-401`, and `m-cache-artifact-adversarial-decode`. D-55–D-59 remain OPEN.
+
+**Independent evaluation.** The gpt-5.5 fallback report was delivered through the Agent channel:
+PASS92 on the park/process disposition, zero authorization to land, with the exact base test counts
+and absence of tracked code changes independently checked. The configured Pi MiniMax model was not
+silently replaced; its Agent-selection failure and the fallback model are named above.
+
+**Record verification.** Record-only gates passed: context docs, file sizes, referenced paths,
+changelog, personal-email, tmpfile, skills, whitespace, ledger60 and autoclose (one record,
+zero violations). Weekly bookkeeping rotated #972 → #1072; the bounded digest was posted there.
+D-60 approval `inbox_1788760725771_3017d91f` and controlplane digest
+`inbox_1788760832557_4865b4fc` were read back after delivery; correction
+`inbox_1788760928120_e80cbc3c` separates GLM imputation from metered cost. Chain
+`25a4864a-e92a-42ff-99bc-4443979a4074` records 12 actual stages and $0.0915. Record PR #1073
+was MERGEABLE but its exact first head `de07c8832` inherited the same launchd-driver red, so Gate
+3b halted and it was not merged. Remote dev remains inherited-red; no landing claim is made.
+
 ## 345 — 2026-09-07 — Clear the required `test` red an attended checkpoint left on dev [HARNESS]
 
 **Picked.** Not the queue head. Gate 1 found `dev` RED at `878939117` on TWO checks, and
@@ -2240,3 +2327,148 @@ but it bounds what these green gates are worth and is queued below.
 **Record verification.** Exact merge SHA `16f0cb741`: **20 checks**, all green except the parked
 `launchd drivers (bash 3.2)`. The four REQUIRED contexts — `test`, `lint`, `build`, `docs-gate` —
 are all `success`, and `test` is the one this iteration set out to clear.
+
+## 346 — 2026-09-07 — Land four dead iterations' work, recover their record, and refute my own judge's correction [PRODUCT]
+
+**Picked.** Gate 1 found `dev` red on `launchd drivers (bash 3.2)`, and V1 owns this repo, so a red
+outranks the queue — but that red is **legitimately parked** on `D-60` by iteration 344, and the
+correct disposition of a parked red is to leave it parked. The queue head was
+`m-exec-event-handler-untested`. Neither became the pick, because Gate 2's died-mid-flight traces
+found something that outranks a queue row: **four consecutive iterations — 341, 342, 343, 344 — had
+died between doing their work and landing it**, and the charter could not see any of them. The
+STATUS stack read 345 → 340 with no gap marker. Their work was not lost, it was stranded:
+
+| iter | produced | stranded in |
+|---|---|---|
+| 341 | design doc + sprint plan + M1–M3 executor work | commits on `sprint/v1-iter341-cachesrc-cognitive`, no record |
+| 342 | opened PR #1071, adjudicated a Windows CI red | PR #1071, no record |
+| 343 | an independent evaluation (`minimax-m3`, PASS, zero blocking) | **uncommitted** in `.eval-wt-v1-iter343`, no record |
+| 344 | reproduced the launchd red, two quorums, parked scope on `D-60` | PR #1073 (CONFLICTING), no record |
+
+Iteration 343's evaluation was found only by Gate 2's trace (c) — `git status --porcelain` in the
+stale worktree — which is the one trace that sees content rather than the existence of an attempt.
+Neither the open-PR trace nor `git worktree list` would have surfaced it: both report that iteration
+343 *ran*, and both are silent on the fact that it produced a finished 286-line judgement.
+
+**Reality check.** Verified first-party before routing, not inherited:
+- The rebase onto current `dev` is **content-neutral**: `git diff origin/dev..508a96939` is
+  **byte-identical** to `git diff d794cac25..f407d187a` — 206,803 bytes both, `diff -q` silent. So
+  the content two prior judges looked at is preserved exactly.
+- File overlap between the PR's 9 files and the 32 files `dev` changed since the merge-base is
+  **EMPTY** (control: the dev list intersected with itself returns 32, so the instrument ran).
+- `gocognit` on the base copy of `pipeline_module.go`: `runModuleWithCacheDependencies` = **106**;
+  at head = **0**. The three Non-Goal helpers read 30/25/20 at BOTH ends — unchanged, as claimed.
+- Local gates on the rebased tree: `go build` 0, `go vet` 0, `gofmt -l` empty, package tests 0,
+  `-race` 0, `make check-file-sizes` 0.
+
+**Shipped.** PR [#1071](https://github.com/sunholo-data/ailang/pull/1071) →
+[`202358fd3`](https://github.com/sunholo-data/ailang/commit/202358fd3d4af042b369432a1dd8d7b01c9e5e76).
+`runModuleWithCacheDependencies` becomes a two-line delegate; the ~500-line orchestration moves to a
+per-call `modulePipelineState` in `pipeline_module_phases.go` (max 13) and
+`pipeline_module_cache.go` (max 7). Four test targets extracted to named scenario helpers.
+Record PR [#1081](https://github.com/sunholo-data/ailang/pull/1081) recovers iteration 344's
+`D-60`, its park row, its STATUS stamp, its log entry and its 258-line design doc onto `dev` —
+the ledger goes 59 → **60 rows**, `mission_decisions.sh --check` valid.
+
+**Why the recovery mattered more than it looks.** With `D-60` absent from `dev`, the
+`launchd drivers (bash 3.2)` red reads as *unparked* to every future iteration, so the next
+controller re-chases a question a human has already been asked. Iteration 345's own STATUS names
+the problem exactly — "D-60 parked in unmerged #1073" — which is a correct description of a record
+nothing could act on. A park that exists only in a conflicting PR is not a park.
+
+**Ruled out.** *The design doc's `103` base-complexity figure is wrong* — **REFUTED, and it was my
+own claim.** I measured `gocognit` = 106, handed that to the judge as a thing to check, and the
+judge independently "confirmed" the doc was wrong by 3. Both of us compared a **gocognit** reading
+against a number the doc attributes to **SonarCloud**, with its issue key (`AaBzgnbFBD7wArG_Hhqs`)
+and the exact `curl` that produced it. The discriminating test is the other four targets, and it is
+unambiguous — every single one differs between the two instruments:
+
+| target | SonarCloud (doc) | gocognit |
+|---|---|---|
+| `pipeline` `TestCacheSource_ExactSnapshot` | 29 | 47 |
+| `TestCachePipeline_EmbeddedKeys` | 19 | 21 |
+| `TestCachePipeline_SourceEditBehavior` | 24 | 38 |
+| `loader` `TestCacheSource_ExactSnapshot` | 16 | 20 |
+| `runModuleWithCacheDependencies` | **103** | **106** |
+
+Confirmed against the live API: SonarCloud reports `Cognitive Complexity from 103` for that exact
+key. The doc was right and correctly sourced; the "defect" was rule 3c aimed at a metric instead of
+a service — *a probe identifies the instrument you REACHED, never the quantity you NAMED*. The
+sharp part is that a **judge agreeing with the controller is not a second measurement** when both
+ran the same wrong instrument: independence of *agent* is not independence of *method*. Nothing was
+edited in the doc as a result. (Enumeration caveat, rule 3a: the API returned `total=756` against
+`ps=500`, so that listing is truncated and proves presence, not absence.)
+
+*The surviving mutations mean the shipped code is wrong* — refuted; all three survivors are
+coverage gaps at spots where the shipped code is correct, queued rather than blocking.
+
+**Routing evidence.** Gate4 base=`1fd1c7a706f2f089b6d6b5a1f3211de0a33e5cf1@2026-09-07T09:24:43Z`.
+Controller `claude:claude-opus-5`. Resolver answers recorded verbatim:
+`designer -> recipe claude:claude-fable-5-1 declared:provider-pin`,
+`planner -> agent-tool opus fail-closed:no-doc`,
+`executor -> recipe codex:gpt-5.6-sol declared:provider-pin`,
+`evaluator -> agent-tool sonnet declared:alias-pin`.
+**Designer, planner and executor deliberately NOT spawned** — this is a verify-and-land: the design
+doc exists and carries its R1/R2 quorum record, the sprint plan exists, and the executor's work
+existed and was already committed. Spawning any of the three would have re-run finished work, which
+is precisely what Gate 2's verify-and-land rule forbids. This is a routing call, not a lane failure;
+no lane was probed and no lane refused. **Evaluator: spawned**, `agent-tool sonnet`, 140,805 tokens
+/ 59 tool uses / 566s. Generator (pi `deepseek-v4-flash` and `glm-5.3`, iterations 341–343) ≠ judge
+(sonnet), and the judge had no prior context on any of it.
+
+**Independent evaluation.** Judge `sonnet`, **LAND, 91/100, ZERO blocking findings**, four
+non-blocking. It re-derived the rebase byte-identity to a matching sha256, re-ran every local gate,
+and adversarially diffed both extracted test files against their base blobs — `t.Fatal` 81→81,
+`if err != nil` 19→19, `func Test` 6→6, no assertion dropped or weakened. It ran a **six-mutation
+drill anchored to the diff**, plus the one sprint-plan-named row it could identify precisely:
+
+| # | mutation | result |
+|---|---|---|
+| 1 | drop the nil-cached-payload fallthrough guard in `serveFromCache` | **SURVIVED** |
+| 2 | invert `!verified` → `verified` in `serveFromCache` | KILLED |
+| 3 | swallow the elaboration error in `compileFreshModule` | KILLED (SIGSEGV) |
+| 4 | `MUT-IFACE-REGISTER-OMIT` (the plan's own named row) | KILLED, matching the plan's oracle |
+| 5 | reorder `registerResolver()` before `compileAllAndFinalize()` | **SURVIVED** |
+| 6 | flip the nil-source `cacheable` flag in `prepareCacheLookup` | **SURVIVED** |
+
+All six restored byte-clean, sha256-verified, `git status --porcelain` empty after each.
+**I reproduced survivor #5 first-party** in my own worktree — mutation applied, `go build` rc=0,
+`go test ./internal/pipeline ./internal/loader` rc=0, restored and sha256-checked — because a
+judge's non-blocking label is its opinion of severity, not a measurement. It survives: reordering
+two phases so the resolver iterates an empty `compiledUnits` map is invisible to both packages'
+suites, including their `ModeEval` tests. That is a genuine test-scope gap and it is now queued.
+The judge also declared what it did **not** measure: 9 of the sprint's 10 named mutation rows are
+**UNMEASURED** — no `.snap/M3/mutations/` evidence tree exists anywhere on disk or in git history,
+so that claim is hearsay from iterations that no longer exist.
+
+**Progress.** N=12 design docs before v1.0.0 (was 12, change 0). This is compile-path maintainability
+work inside the ratified inventory's existing rows, so the goal is unmoved.
+
+**Cost.** No metered spend. Controller and evaluator both on the Anthropic subscription; no designer,
+planner or executor lane was spawned or probed, so no flat-rate or metered lane was touched. Fable
+budget: **unspent** — no design doc was authored this iteration.
+
+**Human channel — a mid-iteration event, and the reason the Next line below changed while I ran.**
+At 12:16 CEST, `ccd2b4d36` resolved **D-55 through D-60** as attended rulings under the ATTENDED
+LEDGER EDITS contract, on Mark's explicit in-session delegation — *"please make the rulings so we are
+all unblocked"*. Per rule (e) I rebased my record onto them rather than forcing my pre-ruling copy;
+the one conflict was the ledger block, resolved in the human answer's favour verbatim, and
+`mission_decisions.sh --check` reports **60 rows valid** afterwards. Provenance recorded honestly
+rather than confidently: the commit author is the **fleet bot**, and Gate 0's self-resolution guard
+reads exactly like that — but the same contract states that the recording script stamps a fixed
+identity for *every* caller including Mark's own sessions, so the author field cannot separate the
+channels and I did not act as though it could. What distinguishes it is the content: six rows each
+carrying an `Attended ruling 2026-09-07` stamp, a quoted delegation, and per-row reasoning.
+**Note the sequencing, because it is the whole argument for the recovery half of this iteration.**
+`D-60` was answered at 12:16 while existing nowhere on `dev` — this iteration put its park row, its
+log entry, its STATUS stamp and its 258-line design doc there. A ruling with no artifact to attach to
+is how the *next* controller reads a resolved question as an open one.
+
+**Next.** **`m-launchd-notify-subshell-observation`** — `D-60` is RESOLVED as **option B** (bound the
+direct send, the drain-time send and the GitHub notification calls; repair the shell observation spies
+and all seven inherited assertions), and Mark asked for this reliability repair *"early in the week"*.
+It is unparked and it clears the `launchd drivers (bash 3.2)` red that has sat on `dev` all day. It is
+NOT this iteration's second item: it needs a designer revision, a fresh quorum and the full inner loop,
+and standing rule 1 is one backlog item per iteration. Then `m-exec-event-handler-untested`, then the
+three coverage gaps this iteration's drill measured. `D-55`–`D-59` are also resolved, so their items
+are unblocked and re-enter normal ordering.
