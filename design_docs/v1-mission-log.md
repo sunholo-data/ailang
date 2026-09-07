@@ -2317,3 +2317,32 @@ synthesis gate (now any non-zero rc with an empty tail, so a `mktemp` rc=125 is 
 The judge also credited its own error: its first C4 reading contradicted mine at 15/10 vs 9, and it
 traced that to incomplete test isolation in its extracted copy rather than to a discrepancy — the
 right move, and worth recording because a judge that corrects itself is doing the job.
+
+**Correction, recorded after Gate 3b and against my own headline.** The *"clearing one red exposed
+nine older ones"* finding was measured correctly and reported with a shelf life I did not check. The
+nine `test_mission_heartbeat.sh` arms were genuinely failing at my base `81abc956d`, and the paired
+base/head control was sound — but [`063df9917`](https://github.com/sunholo-data/ailang/commit/063df9917),
+inside **attended** PR [#1082](https://github.com/sunholo-data/ailang/pull/1082) merged at **14:15Z**,
+repaired exactly those arms *while this iteration was running*. Verified first-party on `dev`
+afterwards: `test_mission_heartbeat.sh` alone gives **25 arms, rc=0**, and `make test-launchd-drivers`
+gives **rc=0** overall. So the queue row I filed at the top was closed on arrival, and the STATUS stamp
+and the row have both been corrected. The CLASS survives and is worth more than the row: a red early in
+a long ordered target **suspends every gate behind it**, so any such report is a LOWER BOUND — and, the
+part I got wrong, a measurement of *what else is broken* has a shelf life precisely because that is what
+everyone else is also fixing.
+
+**And the same PR landed a competing fix for MY item, mid-iteration.** `2a38f0948`
+("test(launchd): retain notification observations across subshells") is an attended, test-only repair of
+the same seven notify assertions, filed honestly — *"Production driver is unchanged … does not claim
+completion of the broader retry/drain/environment coverage."* D-60 had already **rejected** test-only as
+a scope, and the two are not composable: it keeps `ailang()`/`gh()` as in-shell FUNCTION stubs, which
+`_mc_bounded` cannot reach at all. So the sprint's fixture work SUPERSEDES rather than duplicates it,
+and the rebase kept the superset while carrying the attended note forward verbatim into the design doc.
+After the rebase, `make test-launchd-drivers` is **rc=0** at the sprint head with the notify suite at
+**38 passed / 0 failed** against dev's 27/0, and the D-60 production bounding included.
+No fault attaches to the attended session — it was clearing a red on its own merge and could not see a
+mission mid-flight. The gap is structural and is filed as its own row: **Gate 1 scopes a red to the
+owning mission and Gate 2's traces look for orphaned PRs; neither sees a HUMAN editing the same file
+right now**, and the controlplane CLAIM this loop sends is not something an attended session reads. If
+it recurs a third time, the cheap mitigation is to re-read `origin/dev` for the picked item's own files
+immediately before Gate 3b rather than only at Gate 1.
