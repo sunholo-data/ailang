@@ -508,6 +508,43 @@ _mc_probe_codex() {
   return "$rc"
 }
 
+# ---- runtime bucket exhaustion (M-QUOTA-RATIONING-ROUTING M4) -------------
+#
+# A start-probe CANNOT see a spent bucket. The probe is one tiny request; the
+# limit is on the agent-sized request behind it. The rung therefore probes green
+# and dies on its first real call — a FALSE GREEN, and because the walk stopped
+# at it, the rungs below are never reached.
+#
+# Measured 2026-09-07 04:47: world's `pi:ollama/glm-5.3:cloud` rung probed rc=0,
+# then died on its FIRST real call with
+#   429: you (marked) have reached your session usage limit
+# and the fleet crash-looped for hours while `pi:openrouter/z-ai/glm-5.3` — the
+# very next rung, healthy, with $93.33 of credit — was never tried. The comment
+# at TRANSIENT_SIG says quota is "Phase A's start-probe fall-through job"; that
+# assumption is exactly what a false green breaks, and this is what closes it.
+#
+# A demotion lasts for THIS FIRE ONLY. Buckets refill, and the next fire's probe
+# is the right place to re-test one — persisting a demotion would strand a lane
+# that recovered minutes later.
+MC_DEMOTED=""
+MC_PAUSED=0
+
+# _mc_canon_id ENTRY → provider:model, matching _mc_set_controller's parsing, so a
+# bare `opus` in PREFS and the `claude:opus` it becomes are the same rung here.
+_mc_canon_id() {
+  case "$1" in
+    codex:*|pi:*|claude:*) printf '%s' "$1" ;;
+    *) printf 'claude:%s' "$1" ;;
+  esac
+}
+
+_mc_demote() { MC_DEMOTED="$MC_DEMOTED $1"; }
+
+_mc_is_demoted() {
+  case " $MC_DEMOTED " in *" $1 "*) return 0 ;; esac
+  return 1
+}
+
 _mc_set_controller() {
   local requested="$1"
   MODEL_WHY="$2"
@@ -523,7 +560,15 @@ _mc_set_controller() {
 
 select_model() {
   # 1. absolute pin
-  if [ -n "${MISSION_MODEL:-}" ]; then _mc_set_controller "$MISSION_MODEL" "env pin"; return 0; fi
+  if [ -n "${MISSION_MODEL:-}" ]; then
+    # A demoted pin has a SPENT bucket, so honouring it again just reruns the
+    # failure. Fall through to probing and let the chain answer.
+    if _mc_is_demoted "$(_mc_canon_id "$MISSION_MODEL")"; then
+      log "env pin $MISSION_MODEL DEMOTED this fire (runtime bucket limit) — falling through to the chain"
+    else
+      _mc_set_controller "$MISSION_MODEL" "env pin"; return 0
+    fi
+  fi
   # 2. override file pin (optional expiry epoch)
   if [ -f "$OVERRIDE_FILE" ]; then
     local ov_model ov_until now
@@ -533,7 +578,11 @@ select_model() {
       rm -f "$OVERRIDE_FILE"
       log "model override expired — resuming preference probing"
     elif [ -n "${ov_model:-}" ]; then
-      _mc_set_controller "$ov_model" "override file"; return 0
+      if _mc_is_demoted "$(_mc_canon_id "$ov_model")"; then
+        log "override pin $ov_model DEMOTED this fire (runtime bucket limit) — falling through to the chain"
+      else
+        _mc_set_controller "$ov_model" "override file"; return 0
+      fi
     fi
   fi
   # 3. ordered preference probing.
@@ -551,6 +600,10 @@ select_model() {
   # every prefix, so a matched entry needs no special-casing beyond its probe.
   local m why rcode
   for m in $(printf '%s' "$PREFS" | tr ',' ' '); do
+    if _mc_is_demoted "$(_mc_canon_id "$m")"; then
+      log "controller candidate $m DEMOTED this fire (runtime bucket limit) — skipping"
+      continue
+    fi
     case "$m" in
       codex:*)
         if _mc_probe_codex "${m#codex:}"; then
@@ -581,6 +634,10 @@ select_model() {
   log "all Anthropic controller candidates unavailable — walking fallback chain ($CONTROLLER_FALLBACK)"
   local fb
   for fb in $(printf '%s' "$CONTROLLER_FALLBACK" | tr ',' ' '); do
+    if _mc_is_demoted "$(_mc_canon_id "$fb")"; then
+      log "controller fallback rung $fb DEMOTED this fire (runtime bucket limit) — skipping"
+      continue
+    fi
     case "$fb" in
       codex:*)
         m="${fb#codex:}"
@@ -636,6 +693,20 @@ export STALL_CHILD_AGE
 # Phase A's start-probe fall-through job, not a same-model retry), or any other
 # genuine rc. Signature is anchored so an unrelated "503" in a test's output
 # (e.g. the httpbin fixture) cannot trigger a false retry.
+# RUNTIME_QUOTA_SIG is the counterpart to TRANSIENT_SIG: a bucket that is SPENT,
+# not congested. A same-model retry is guaranteed to fail, so the response is to
+# demote the rung and re-walk the chain (see MC_DEMOTED).
+#
+# Anchored to the four emitters we have actually observed, NOT to loose words like
+# "quota" or "rate limit". This log carries mission prose about quota routinely —
+# the codex probe's own output is written to it — so a loose pattern would demote
+# a healthy controller because the iteration happened to be writing about limits.
+RUNTIME_QUOTA_SIG="${MISSION_RUNTIME_QUOTA_SIG:-reached your session usage limit|hit your usage limit|Claude usage limit reached|^429:}"
+# Bound the re-walks. The demote list already guarantees progress (each re-walk
+# removes one rung, so the chain is finite), but a bound keeps a pathological
+# chain from eating the slot.
+RUNTIME_QUOTA_REWALKS="${MISSION_RUNTIME_QUOTA_REWALKS:-4}"
+
 TRANSIENT_RETRIES="${MISSION_TRANSIENT_RETRIES:-3}"   # total attempts incl. the first
 TRANSIENT_BACKOFF="${MISSION_TRANSIENT_BACKOFF:-45}"  # base seconds, ×attempt (45s,90s)
 TRANSIENT_SIG="API Error: Overloaded|socket connection was closed|overloaded_error|API Error: 5[0-9][0-9]|API Error: Internal|API Error: Connection|API Error: Request timed out"
@@ -1511,11 +1582,35 @@ pre_last_record=$(grep '^## ' "$MISSION_LOG_FILE" 2>/dev/null | tail -1)
 # kill (143/137) AND whose THIS-attempt output carries a transient signature,
 # back off and re-run — up to TRANSIENT_RETRIES total attempts.
 attempt=1
+_mc_rewalks=0
 while : ; do
   logpos=$(wc -l < "$LOG" 2>/dev/null || echo 0)
   _mc_run_once; RC=$?
   [ "$RC" -eq 0 ] && break
   case "$RC" in 143|137) break ;; esac   # watchdog kill — never retry
+  # Runtime bucket exhaustion is checked FIRST, because it is the one failure a
+  # same-model retry cannot fix: the rung is spent, not congested.
+  if tail -n +$((logpos + 1)) "$LOG" 2>/dev/null | grep -qE "$RUNTIME_QUOTA_SIG"; then
+    _mc_demote "$CONTROLLER_ID"
+    _mc_prev_controller="$CONTROLLER_ID"
+    log "RUNTIME BUCKET LIMIT on $_mc_prev_controller — probe passed but the real call did not; demoting for this fire"
+    if [ "$_mc_rewalks" -lt "$RUNTIME_QUOTA_REWALKS" ] && select_model \
+       && [ "$CONTROLLER_ID" != "$_mc_prev_controller" ]; then
+      _mc_rewalks=$((_mc_rewalks + 1))
+      attempt=$((attempt + 1))
+      log "controller re-walk $_mc_rewalks/$RUNTIME_QUOTA_REWALKS: $_mc_prev_controller → $CONTROLLER_ID (previous rung's bucket is spent)"
+      continue
+    fi
+    # D-4: nothing left to walk to. PAUSE rather than crash-loop — the slot is
+    # not spent on a run that cannot succeed, and the pause is announced, because
+    # a fleet that stops silently is indistinguishable from one that is working.
+    MC_PAUSED=1
+    log "PAUSE: every controller rung is unusable or spent (demoted:$MC_DEMOTED) — not burning the slot on a doomed run"
+    _mc_notify "Mission ${MISSION_NAME}: PAUSED — no capacity" \
+      "Every controller rung is unusable or its bucket is spent. Demoted this fire:$MC_DEMOTED. The fleet is not working until a bucket refills or a lane is restored. Log: $LOG" \
+      "pause" || true
+    break
+  fi
   if [ "$attempt" -lt "$TRANSIENT_RETRIES" ] \
      && tail -n +$((logpos + 1)) "$LOG" 2>/dev/null | grep -qiE "$TRANSIENT_SIG"; then
     # --- RETRY HISTORY START ---
@@ -1558,6 +1653,9 @@ if [ -f "$_mc_slot_hb" ]; then
     143:*|137:*) _mc_slot_verdict="KILLED at=${_mc_slot_last:-fired}" ;;
     *:*) _mc_slot_verdict="CRASHED at=${_mc_slot_last:-fired}" ;;
   esac
+  # A pause is a DECISION, not a failure, and must read as one: "CRASHED" here
+  # would send someone debugging a mission that did exactly the right thing.
+  [ "$MC_PAUSED" -eq 1 ] && _mc_slot_verdict="PAUSED-NO-CAPACITY at=${_mc_slot_last:-fired}"
 else
   _mc_slot_verdict="HEARTBEAT-MISSING"
 fi
