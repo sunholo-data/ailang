@@ -37,6 +37,12 @@ func (s *ObservatoryStore) GetSpan(ctx context.Context, id string) (*obs.Span, e
 }
 
 func (s *ObservatoryStore) ListSpans(ctx context.Context, opts obs.SpanListOptions) ([]*obs.Span, error) {
+	if opts.Offset < 0 {
+		return nil, fmt.Errorf("span offset must be non-negative")
+	}
+	if opts.Workspace != "" || opts.WorkspaceID != "" {
+		return nil, fmt.Errorf("Firestore ListSpans does not support workspace filters")
+	}
 	q := s.client.Collection(collObsSpans).Query
 	if opts.TraceID != "" {
 		q = q.Where("trace_id", "==", opts.TraceID)
@@ -62,6 +68,7 @@ func (s *ObservatoryStore) ListSpans(ctx context.Context, opts obs.SpanListOptio
 	if !opts.StartBefore.IsZero() {
 		q = q.Where("start_time", "<=", timeToFirestore(opts.StartBefore))
 	}
+	q = q.OrderBy("start_time", firestore.Asc).OrderBy(firestore.DocumentID, firestore.Asc).Offset(opts.Offset)
 	if opts.Limit > 0 {
 		q = q.Limit(opts.Limit)
 	}
@@ -69,7 +76,7 @@ func (s *ObservatoryStore) ListSpans(ctx context.Context, opts obs.SpanListOptio
 	iter := q.Documents(ctx)
 	defer iter.Stop()
 
-	var result []*obs.Span
+	result := make([]*obs.Span, 0)
 	for {
 		doc, err := iter.Next()
 		if err == iterator.Done {

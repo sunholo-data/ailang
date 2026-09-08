@@ -37,7 +37,15 @@
 # Portable to macOS bash 3.2. No GNU timeout on this rig → bash watchdog below.
 set -uo pipefail
 
-REPO="${MISSION_WORKDIR:-$(cd "$(dirname "$0")/../.." && pwd)}"
+# MC_DRIVER_ROOT is the repo the DRIVER ships from; REPO is the repo the mission
+# WORKS in. For v1/docs/motoko they are the same checkout. For a de-forked mission
+# they are NOT: world runs this shared driver out of the ailang repo while its
+# charter, log and worktrees live in ailang-world.
+#
+# Captured HERE, before the `cd`, because $0 is only reliably resolvable relative to
+# the invoking directory and everything below runs from $REPO.
+MC_DRIVER_ROOT=$(cd "$(dirname "$0")/../.." 2>/dev/null && pwd)
+REPO="${MISSION_WORKDIR:-$MC_DRIVER_ROOT}"
 cd "$REPO" || exit 1
 
 # Slot clock. Read bare (no `$`) inside $(( )) by the RETRY HISTORY and SLOT VERDICT
@@ -124,29 +132,98 @@ log() { echo "[$(date '+%F %H:%M:%S')] $*" | tee -a "$LOG"; }
 # NOT fail-closed: aborting on a failed post would make GitHub/controlplane availability a hard
 # dependency of every fire. A failed post is LOUD in the driver log instead — the one thing the
 # silent-fallback class never was (Critical Principle 2).
+# _mc_drain_notices — deliver notices spooled by a previous fire.
+#
+# _mc_notify's spool comment has always said "the next fire's preflight drains this",
+# and NOTHING DID. Measured 2026-09-07: three spool files, the oldest from 2026-09-06
+# 15:29, holding the notices for the largest degradation this fleet has had — written,
+# never sent, and invisible except to someone reading the file. A promised delivery that
+# does not exist is worse than no spool, because the log says the notice was preserved.
+#
+# A notice that still cannot be sent is KEPT, not dropped, so an outage costs a delay
+# rather than the record.
+_mc_drain_notices() {
+  local spool tmp line ts title body sent=0 kept=0 deferred=0 drain_start remaining lineno=0 total=0 DRAIN_BUDGET
+  spool="$STATE_DIR/mission-${MISSION_NAME}-notice-spool.tsv"
+  [ -s "$spool" ] || return 0
+  tmp="${spool}.draining.$$"
+  mv "$spool" "$tmp" 2>/dev/null || return 0
+  drain_start=$(date +%s)
+  DRAIN_BUDGET="${MISSION_DRAIN_BUDGET:-90}"
+  total=$(wc -l < "$tmp" | tr -d ' ')
+  while IFS="$(printf '\t')" read -r ts title body; do
+    lineno=$((lineno + 1))
+    [ -z "${title:-}" ] && continue
+    remaining=$(( DRAIN_BUDGET - ( $(date +%s) - drain_start ) ))
+    if [ "$remaining" -le $(( NOTIFY_TIMEOUT + 2 )) ]; then
+      sed -n "${lineno},\$p" "$tmp" >> "$spool"
+      rm -f "$tmp"
+      deferred=$(( total - sent - kept ))
+      log "notice spool: deferred ${deferred} row(s), aggregate budget ${DRAIN_BUDGET}s exhausted"
+      return 0
+    fi
+    if _mc_bounded "$NOTIFY_TIMEOUT" env AILANG_MESSAGES_STORE=gcp AILANG_MESSAGES_PROJECT="${AILANG_MESSAGES_PROJECT:-ailang-multivac}" \
+       ailang messages send controlplane "[spooled $ts] $body" --title "$title" --from "$MSG_FROM"; then
+      sent=$((sent + 1))
+    else
+      printf '%s\t%s\t%s\n' "$ts" "$title" "$body" >> "$spool"
+      kept=$((kept + 1))
+    fi
+  done < "$tmp"
+  rm -f "$tmp"
+  [ "$sent" -gt 0 ] && log "notice spool: delivered $sent notice(s) held from an earlier fire"
+  [ "$kept" -gt 0 ] && log "notice spool: $kept notice(s) still undeliverable — kept for the next fire"
+  return 0
+}
+
 _mc_notify() {
-  local title="$1" body="$2" label="$3" _try rc=1
+  local title="$1" body="$2" label="$3" _try rc=1 _rc=1
   # RETRY, briefly. Measured 2026-09-06: the lane-degradation notice for the fire that
   # dropped the whole fleet to pi lanes failed to send — and the same send succeeded by
   # hand minutes later, so it was a blip. The consequence was not a lost log line: it
   # was that the LARGEST degradation this fleet has had was invisible on the message
   # plane and a human found it by looking. A one-shot send on a transient channel is
   # how the silent-fallback class comes back wearing a warning.
+  local _out=""
   for _try in 1 2 3; do
-    if ailang messages send controlplane "$body" --title "$title" --from "$MSG_FROM" 2>/dev/null; then
-      rc=0; break
-    fi
+    # The canonical inbox is prod Firestore. WITHOUT these two the CLI falls back to
+    # this machine's private SQLite and still exits 0 — so every degradation notice
+    # this driver has ever sent under launchd landed somewhere nobody reads. Measured
+    # 2026-09-07: the same send is `inbox_...` with them and `msg_...` (local) without.
+    # Scoped to THIS command, never exported: AILANG_STORAGE must not move, or the
+    # coordinator and observatory follow it to Firestore too (backend.go:83).
+    # The D-60 paths stay bounded: a dangling send must be cut off at NOTIFY_TIMEOUT
+    # instead of hanging the preflight or a retry. _mc_bounded forks a background subshell
+    # (`( exec "$@" )`), so `env` carries the two store vars down to the child with the same
+    # per-command scoping (never exported; AILANG_STORAGE untouched) while a `VAR=x` prefix
+    # would make exec treat VAR=x as the command name.
+    _mc_bounded "$NOTIFY_TIMEOUT" env AILANG_MESSAGES_STORE=gcp AILANG_MESSAGES_PROJECT="${AILANG_MESSAGES_PROJECT:-ailang-multivac}" \
+      ailang messages send controlplane "$body" --title "$title" --from "$MSG_FROM"; _rc=$?; _out="$MC_BOUNDED_OUT"
+    # G5 ARM B: a TIMED-OUT command produced no output, so MC_BOUNDED_OUT is empty and the
+    # failure WARNING would degrade to `FAILED ... after 3 attempts:` with nothing after it —
+    # the exact blindness _mc_notify's own comment exists to prevent. Synthesise the reason.
+    # A cut-off command produced no output (rc=124), and so did a helper that could not
+    # even start (rc=125, mktemp failure) — in BOTH cases an empty tail reproduces exactly
+    # the blindness this diagnostic exists to prevent, so synthesise on emptiness, not on a
+    # single rc value.
+    [ "$_rc" -eq 124 ] && _out="timed out after ${NOTIFY_TIMEOUT}s (no output)"
+    [ "$_rc" -ne 0 ] && [ -z "$_out" ] && _out="no output (rc=$_rc)"
+    if [ "$_rc" -eq 0 ]; then rc=0; break; fi
     [ "$_try" -lt 3 ] && sleep $(( _try * 5 ))
   done
   if [ "$rc" -ne 0 ]; then
-    log "WARNING: ${label} notice FAILED to send via ailang messages after 3 attempts"
+    # Keep the reason. "FAILED after 3 attempts" with the error discarded is the same
+    # blindness that made an Anthropic rc=2 unexplainable for a whole day.
+    log "WARNING: ${label} notice FAILED to send via ailang messages after 3 attempts: $(printf '%s' "$_out" | tail -c 300 | tr '\n' ' ')"
     # Spool it. The next fire's preflight drains this, so a notice survives a channel
     # outage instead of existing only in a log nobody is tailing.
     printf '%s\t%s\t%s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$title" "$(printf '%s' "$body" | tr '\n' ' ')" \
       >> "$STATE_DIR/mission-${MISSION_NAME}-notice-spool.tsv" 2>/dev/null || true
   fi
   if [ -n "${MISSION_GH_ISSUE:-}" ]; then
-    gh issue comment "$MISSION_GH_ISSUE" --repo "$MISSION_REPO" --body "$body" >/dev/null 2>&1 \
+    # GH is one-shot (not retried): bounding only caps the wall-clock; a hang or
+    # failure still yields the loud WARNING below (non-aborting).
+    _mc_bounded "$NOTIFY_TIMEOUT" gh issue comment "$MISSION_GH_ISSUE" --repo "$MISSION_REPO" --body "$body" \
       || log "WARNING: ${label} notice FAILED to post to issue #${MISSION_GH_ISSUE}"
   else
     log "WARNING: ${label} notice needed but MISSION_GH_ISSUE is unset — no issue notice possible"
@@ -393,6 +470,21 @@ _mc_mem_ok() {
 #
 # ASTRA IS UNCHANGED AS DESIGNER — that role is BOUNDED to one run per iteration by the Fable
 # diet, which is exactly why it never showed up in the burn.
+# ⚠️ ORDER RESTORED 2026-09-06 (Mark: "I didn't want the preferences reordered").
+# I had reordered this to opus -> fable -> sol on the premise that Anthropic refills far
+# more often than codex. That premise was FALSE — Claude has a weekly cap too — and the
+# replacement premise (Claude is $200/mo vs codex $100) is true but does not apply, because
+# the case it optimises for does not occur:
+#
+#   ANTHROPIC'S LIMIT IS ACCOUNT-WIDE, NOT PER-MODEL. The 2026-08-16 drought recorded
+#   `claude-opus-5`/`claude-opus-4-8`/`claude-fable-5` ALL quota-limited, 45 refusals each.
+#   Today opus-5 and fable-5-1 failed 24 seconds apart. So "opus spent but fable healthy" —
+#   the only window the reorder changes — is not a state this account reaches.
+#
+# The reorder was therefore a no-op that cost one extra failed probe (~20s) on every
+# fall-through. Restored. Recorded rather than quietly reverted, because the lesson is the
+# reusable part: I changed live routing on an unverified premise, and the verification was
+# sitting in our own mission log.
 PREFS="${MISSION_MODEL_PREFS:-claude-opus-5,codex:gpt-5.6-sol,claude-fable-5-1}"
 # CONTROLLER_FALLBACK is an ordered COMMA CHAIN walked left to right (Mark, attended
 # 2026-08-31: "a longer chain of redundancies after codex", explicitly NOT a new default —
@@ -419,6 +511,7 @@ PREFS="${MISSION_MODEL_PREFS:-claude-opus-5,codex:gpt-5.6-sol,claude-fable-5-1}"
 CONTROLLER_FALLBACK="${MISSION_CONTROLLER_FALLBACK:-codex:gpt-5.6-sol,pi:ollama/glm-5.3:cloud,pi:openrouter/z-ai/glm-5.3}"
 QUOTA_SIG="usage limit|rate.?limit|quota|exceeded|too many requests|weekly limit"
 PROBE_TIMEOUT="${MISSION_PROBE_TIMEOUT:-120}"   # per-probe wall-clock cap, seconds
+NOTIFY_TIMEOUT="${MISSION_NOTIFY_TIMEOUT:-30}"   # per-notify wall-clock cap, seconds (D-60)
 
 # _mc_bounded SECONDS CMD... — run CMD with a hard wall-clock cap.
 # rc = CMD's rc, or 124 on expiry (mirrors GNU `timeout`, which this rig does not have).
@@ -452,6 +545,18 @@ _mc_bounded() {
 # _mc_probe MODEL → 0 usable | 1 quota-limited | 2 unusable (auth/transient×2/timeout×2)
 _mc_probe() {
   local m="$1" out rc
+  # Ration gate, symmetric with _mc_probe_codex and _mc_probe_pi. Without it the
+  # Anthropic ration was HALF-WALKED: _mc_set_controller consults the ration for the
+  # controller (so an over-ration controller skips to a cheaper rung), but the ROLE
+  # pre-flight calls this function directly, so the designer and evaluator kept probing
+  # and spending Anthropic while the controller was yielding for exactly that reason.
+  # Declared is not walked — the same shape as the role fallback chains that existed for
+  # weeks with nothing reading them.
+  if _mc_is_over_ration "$m"; then
+    MC_BOUNDED_OUT="Anthropic quota admission blocked (over ration)"
+    log "anthropic:$m quota admission blocked; skipping inference probe"
+    return 75
+  fi
   _mc_bounded "$PROBE_TIMEOUT" claude -p 'reply with exactly: ok' --model "$m"; rc=$?
   out="$MC_BOUNDED_OUT"
   [ "$rc" -eq 0 ] && return 0
@@ -467,6 +572,18 @@ _mc_probe() {
   [ "$rc" -eq 0 ] && return 0
   [ "$rc" -eq 124 ] && log "model $m probe timed out after ${PROBE_TIMEOUT}s (retry) — captured output: '$(printf '%s' "$out" | tail -c 200 | tr '\n' ' ')'"
   printf '%s' "$out" | grep -qiE "$QUOTA_SIG" && return 1
+  # rc=2 is where the fleet loses a lane, so it is the ONE outcome that must not
+  # be silent. Until now the output was logged only on a timeout, so an rc=2
+  # meant "anthropic unusable (rc=2)" and nothing else — no status, no message,
+  # no way to tell an expired token from an overloaded API from a quota reply
+  # whose wording QUOTA_SIG does not match.
+  #
+  # Measured 2026-09-06: that blindness cost a full week of codex. Anthropic
+  # started returning rc=2 at 05:52, every role fell through to codex, and codex
+  # went from ~13M tokens/day to 713M in eighteen hours — spending a weekly
+  # bucket in under fifteen. The probe reproduced clean the next morning, so
+  # whatever the cause was, it was transient and it is now unknowable.
+  log "model $m UNUSABLE after 2 attempts (rc=$rc, no quota signature) — captured output: '$(printf '%s' "$out" | tail -c 300 | tr '\n' ' ')'"
   return 2
 }
 
@@ -474,11 +591,133 @@ _mc_probe() {
 # stripped above, so a pass proves the ChatGPT-subscription OAuth lane works.
 _mc_probe_codex() {
   local m="$1" rc
+  if _mc_is_over_ration "codex:$m"; then
+    MC_BOUNDED_OUT="Codex quota admission blocked (over ration or observation unavailable)"
+    log "codex:$m quota admission blocked; skipping inference probe"
+    return 75
+  fi
   _mc_bounded "$PROBE_TIMEOUT" codex exec --skip-git-repo-check --model "$m" 'reply with exactly: ok'
   rc=$?
   [ "$rc" -eq 124 ] && log "controller fallback codex:$m probe timed out after ${PROBE_TIMEOUT}s"
   [ "$rc" -ne 0 ] && log "controller fallback codex:$m probe failed (rc=$rc): $(printf '%s' "$MC_BOUNDED_OUT" | tail -3 | tr '\n' ' ')"
   return "$rc"
+}
+
+# All Pi role/controller probes share admission; local Ollama maps to no cloud bucket.
+_mc_probe_pi() {
+  local m="$1"
+  if _mc_is_over_ration "pi:$m"; then
+    MC_BOUNDED_OUT="Pi quota admission blocked (over ration or observation unavailable)"
+    log "pi:$m quota admission blocked; skipping inference probe"
+    return 75
+  fi
+  _mc_bounded "$PROBE_TIMEOUT" pi --mode json --no-session --no-tools --model "$m" -p 'reply with exactly: ok'
+}
+
+# ---- runtime bucket exhaustion (M-QUOTA-RATIONING-ROUTING M4) -------------
+#
+# A start-probe CANNOT see a spent bucket. The probe is one tiny request; the
+# limit is on the agent-sized request behind it. The rung therefore probes green
+# and dies on its first real call — a FALSE GREEN, and because the walk stopped
+# at it, the rungs below are never reached.
+#
+# Measured 2026-09-07 04:47: world's `pi:ollama/glm-5.3:cloud` rung probed rc=0,
+# then died on its FIRST real call with
+#   429: you (marked) have reached your session usage limit
+# and the fleet crash-looped for hours while `pi:openrouter/z-ai/glm-5.3` — the
+# very next rung, healthy, with $93.33 of credit — was never tried. The comment
+# at TRANSIENT_SIG says quota is "Phase A's start-probe fall-through job"; that
+# assumption is exactly what a false green breaks, and this is what closes it.
+#
+# A demotion lasts for THIS FIRE ONLY. Buckets refill, and the next fire's probe
+# is the right place to re-test one — persisting a demotion would strand a lane
+# that recovered minutes later.
+MC_DEMOTED=""
+MC_PAUSED=0
+
+# _mc_canon_id ENTRY → provider:model, matching _mc_set_controller's parsing, so a
+# bare `opus` in PREFS and the `claude:opus` it becomes are the same rung here.
+_mc_canon_id() {
+  case "$1" in
+    codex:*|pi:*|claude:*) printf '%s' "$1" ;;
+    *) printf 'claude:%s' "$1" ;;
+  esac
+}
+
+_mc_demote() { MC_DEMOTED="$MC_DEMOTED $1"; }
+
+_mc_is_demoted() {
+  case " $MC_DEMOTED " in *" $1 "*) return 0 ;; esac
+  return 1
+}
+
+# ---- the daily ration gate (M-QUOTA-RATIONING-ROUTING M4, D-1/D-4) ---------
+#
+# Routing has always asked "is this lane UP?" and never "can it AFFORD to be
+# used?". A probe answers the first; only the ledger answers the second. A rung
+# whose bucket is over its 10%/day ration is skipped exactly like a failed probe,
+# so the walk descends to a cheaper rung — and when nothing is left, the existing
+# "NO usable controller" refusal takes over: it announces once per episode and
+# spends zero tokens beyond probes, which IS the pause D-4 asks for.
+#
+# Codex and Ollama Cloud fail closed on unavailable accounting. Other providers
+# retain their existing ledger policy. The quota command itself is bounded.
+MC_OVER_RATION=""
+MC_OVER_RATION_READ=0
+
+_mc_load_ration() {
+  [ "$MC_OVER_RATION_READ" -eq 1 ] && return 0
+  MC_OVER_RATION_READ=1
+  if ! command -v ailang >/dev/null 2>&1; then
+    MC_OVER_RATION="codex ollama"
+    log "ration gate: no ailang on PATH — blocking Codex and Ollama Cloud"
+    return 0
+  fi
+  # rc is taken from ailang DIRECTLY, not through the pipe: a pipeline reports the
+  # LAST command's status, so `ailang ... | tr` would report tr's 0 and hide the
+  # failure on any shell where pipefail happens to be off.
+  local _raw _rc
+  _mc_bounded 15 ailang mission quota --over; _rc=$?
+  _raw="$MC_BOUNDED_OUT"
+  MC_OVER_RATION=$(printf '%s\n' "$_raw" | awk '/^(codex|ollama|anthropic|openrouter|opencode)$/' | tr '\n' ' ')
+  if [ "$_rc" -ne 0 ]; then
+    # Say so. A silently unrationed fleet looks identical to a rationed one that
+    # found nothing over — and that is the exact ambiguity this milestone exists
+    # to remove. An `ailang` too old to know --over lands here.
+    MC_OVER_RATION="codex ollama"
+    log "ration gate: quota command failed (rc=$_rc) — blocking Codex and Ollama Cloud"
+    return 0
+  fi
+  if [ -n "$MC_OVER_RATION" ]; then
+    log "ration gate: blocked buckets (over ration or unknown quota):$MC_OVER_RATION"
+  fi
+  return 0
+}
+
+# _mc_rung_bucket ENTRY → canonical bucket, mirroring observatory.CanonicalQuotaBucket.
+# An entry we cannot classify returns EMPTY and is therefore never rationed —
+# attaching an unknown rung to the nearest real bucket is how a ration ends up
+# measuring the wrong thing and saying nothing.
+_mc_rung_bucket() {
+  case "$1" in
+    codex:*) printf 'codex' ;;
+    pi:openrouter/*) printf 'openrouter' ;;
+    pi:ollama/*:cloud|pi:ollama/*-cloud) printf 'ollama' ;;
+    pi:ollama/*) printf '' ;; # Local models do not consume the cloud subscription.
+    claude:*) printf 'anthropic' ;;
+    pi:*) printf '' ;;
+    *) printf 'anthropic' ;;
+  esac
+}
+
+_mc_is_over_ration() {
+  local b
+  _mc_load_ration
+  [ -z "$MC_OVER_RATION" ] && return 1
+  b=$(_mc_rung_bucket "$1")
+  [ -z "$b" ] && return 1
+  case " $MC_OVER_RATION " in *" $b "*) return 0 ;; esac
+  return 1
 }
 
 _mc_set_controller() {
@@ -496,7 +735,15 @@ _mc_set_controller() {
 
 select_model() {
   # 1. absolute pin
-  if [ -n "${MISSION_MODEL:-}" ]; then _mc_set_controller "$MISSION_MODEL" "env pin"; return 0; fi
+  if [ -n "${MISSION_MODEL:-}" ]; then
+    # A demoted pin has a SPENT bucket, so honouring it again just reruns the
+    # failure. Fall through to probing and let the chain answer.
+    if _mc_is_demoted "$(_mc_canon_id "$MISSION_MODEL")" || _mc_is_over_ration "$MISSION_MODEL"; then
+      log "env pin $MISSION_MODEL unavailable (runtime limit or quota admission) — falling through to the chain"
+    else
+      _mc_set_controller "$MISSION_MODEL" "env pin"; return 0
+    fi
+  fi
   # 2. override file pin (optional expiry epoch)
   if [ -f "$OVERRIDE_FILE" ]; then
     local ov_model ov_until now
@@ -506,7 +753,11 @@ select_model() {
       rm -f "$OVERRIDE_FILE"
       log "model override expired — resuming preference probing"
     elif [ -n "${ov_model:-}" ]; then
-      _mc_set_controller "$ov_model" "override file"; return 0
+      if _mc_is_demoted "$(_mc_canon_id "$ov_model")" || _mc_is_over_ration "$ov_model"; then
+        log "override pin $ov_model DEMOTED this fire (runtime bucket limit) — falling through to the chain"
+      else
+        _mc_set_controller "$ov_model" "override file"; return 0
+      fi
     fi
   fi
   # 3. ordered preference probing.
@@ -524,6 +775,14 @@ select_model() {
   # every prefix, so a matched entry needs no special-casing beyond its probe.
   local m why rcode
   for m in $(printf '%s' "$PREFS" | tr ',' ' '); do
+    if _mc_is_demoted "$(_mc_canon_id "$m")"; then
+      log "controller candidate $m DEMOTED this fire (runtime bucket limit) — skipping"
+      continue
+    fi
+    if _mc_is_over_ration "$m"; then
+      log "controller candidate $m is OVER RATION (bucket $(_mc_rung_bucket "$m")) — skipping to a cheaper rung"
+      continue
+    fi
     case "$m" in
       codex:*)
         if _mc_probe_codex "${m#codex:}"; then
@@ -532,7 +791,7 @@ select_model() {
         log "controller preference $m unusable — falling through"
         ;;
       pi:*)
-        _mc_bounded "$PROBE_TIMEOUT" pi --mode json --no-session --no-tools --model "${m#pi:}" -p 'reply with exactly: ok'
+        _mc_probe_pi "${m#pi:}"
         rcode=$?
         if [ "$rcode" -eq 0 ]; then _mc_set_controller "$m" "probe ok"; return 0; fi
         log "controller preference $m probe failed (rc=$rcode within ${PROBE_TIMEOUT}s) — falling through"
@@ -554,6 +813,14 @@ select_model() {
   log "all Anthropic controller candidates unavailable — walking fallback chain ($CONTROLLER_FALLBACK)"
   local fb
   for fb in $(printf '%s' "$CONTROLLER_FALLBACK" | tr ',' ' '); do
+    if _mc_is_demoted "$(_mc_canon_id "$fb")"; then
+      log "controller fallback rung $fb DEMOTED this fire (runtime bucket limit) — skipping"
+      continue
+    fi
+    if _mc_is_over_ration "$fb"; then
+      log "controller fallback rung $fb is OVER RATION (bucket $(_mc_rung_bucket "$fb")) — skipping to a cheaper rung"
+      continue
+    fi
     case "$fb" in
       codex:*)
         m="${fb#codex:}"
@@ -568,7 +835,7 @@ select_model() {
         # token, --no-session avoids polluting ~/.pi/sessions; rc is the verdict.
         # rc captured explicitly: after `if cmd; then...fi` falls through, $? is the
         # IF's status (0), not cmd's — logging it would report every failure as rc=0.
-        _mc_bounded "$PROBE_TIMEOUT" pi --mode json --no-session --no-tools --model "$m" -p 'reply with exactly: ok'
+        _mc_probe_pi "$m"
         rcode=$?
         if [ "$rcode" -eq 0 ]; then
           _mc_set_controller "$fb" "Anthropic+codex unavailable; pi fallback rung"
@@ -609,6 +876,20 @@ export STALL_CHILD_AGE
 # Phase A's start-probe fall-through job, not a same-model retry), or any other
 # genuine rc. Signature is anchored so an unrelated "503" in a test's output
 # (e.g. the httpbin fixture) cannot trigger a false retry.
+# RUNTIME_QUOTA_SIG is the counterpart to TRANSIENT_SIG: a bucket that is SPENT,
+# not congested. A same-model retry is guaranteed to fail, so the response is to
+# demote the rung and re-walk the chain (see MC_DEMOTED).
+#
+# Anchored to the four emitters we have actually observed, NOT to loose words like
+# "quota" or "rate limit". This log carries mission prose about quota routinely —
+# the codex probe's own output is written to it — so a loose pattern would demote
+# a healthy controller because the iteration happened to be writing about limits.
+RUNTIME_QUOTA_SIG="${MISSION_RUNTIME_QUOTA_SIG:-reached your session usage limit|hit your usage limit|Claude usage limit reached|^429:}"
+# Bound the re-walks. The demote list already guarantees progress (each re-walk
+# removes one rung, so the chain is finite), but a bound keeps a pathological
+# chain from eating the slot.
+RUNTIME_QUOTA_REWALKS="${MISSION_RUNTIME_QUOTA_REWALKS:-4}"
+
 TRANSIENT_RETRIES="${MISSION_TRANSIENT_RETRIES:-3}"   # total attempts incl. the first
 TRANSIENT_BACKOFF="${MISSION_TRANSIENT_BACKOFF:-45}"  # base seconds, ×attempt (45s,90s)
 TRANSIENT_SIG="API Error: Overloaded|socket connection was closed|overloaded_error|API Error: 5[0-9][0-9]|API Error: Internal|API Error: Connection|API Error: Request timed out"
@@ -659,10 +940,19 @@ export MISSION_GH_ISSUE
 #   * AFTER the state block, so a failed pin has LOG, log(), MSG_FROM and MISSION_GH_ISSUE
 #     available to report with. Reporting a stale driver on a channel that needs the stale
 #     driver's own config to be resolved is not reporting.
-# Sourced from $REPO, which on the first pass is the UNPINNED clone: the stale helper re-execs
-# into the pinned driver, which then sources the pinned helper. Two passes by construction.
-if [ -f "$REPO/tools/launchd/lib/pin-root.sh" ]; then
-  . "$REPO/tools/launchd/lib/pin-root.sh"
+# Sourced from MC_DRIVER_ROOT — the repo the DRIVER ships from — which on the first pass is the
+# UNPINNED clone: the stale helper re-execs into the pinned driver, which then sources the pinned
+# helper. Two passes by construction.
+#
+# NOT from $REPO. That was the bug: after world was de-forked it runs this shared driver while
+# $REPO points at ailang-world, which has no lib/pin-root.sh — so EVERY world fire since the
+# de-fork logged `DRIVER PIN FAILED ... is absent — this clone predates the driver pin` and ran
+# the WORKING TREE instead of committed code, which is the one thing the pin exists to prevent.
+# The helper ships beside the driver, so the driver's own root is where it always is; the helper
+# then derives what to pin from its own $0, and MISSION_WORKDIR keeps $REPO pointing at the
+# mission's work repo across the re-exec.
+if [ -f "$MC_DRIVER_ROOT/tools/launchd/lib/pin-root.sh" ]; then
+  . "$MC_DRIVER_ROOT/tools/launchd/lib/pin-root.sh"
   pin_root_to_committed_ref "$@"
 else
   # PIN_DRIFT is normally initialised by the helper. It must be set HERE too: this branch is the
@@ -670,7 +960,7 @@ else
   # abort at the DRY RUN line below — the fallback crashing only on the fallback path.
   PIN_STATUS="STALE"
   PIN_DRIFT="?"
-  PIN_NOTE="$REPO/tools/launchd/lib/pin-root.sh is absent — this clone predates the driver pin (#558)"
+  PIN_NOTE="$MC_DRIVER_ROOT/tools/launchd/lib/pin-root.sh is absent — this clone predates the driver pin (#558)"
 fi
 # --- DRIVER PIN DECISION START ---
 _pin_degraded=""
@@ -734,6 +1024,12 @@ else
   fi
 fi
 # --- DRIVER PIN DECISION END ---
+
+# Deliver anything a previous fire could not. Placed after the pin decision so a
+# drained notice is reported by the same driver the rest of this fire runs.
+if [ -z "${AILANG_MISSION_WORK_ITEM:-}" ]; then
+_mc_drain_notices
+fi
 
 # designer default is the claude-CLI lane (claude:<full-id>), NOT the bare "fable" alias: the
 # Agent tool pins only sonnet|opus|haiku (F1, iteration 31), so under an opus-first controller a
@@ -916,7 +1212,31 @@ export MISSION_EVALUATOR_MODEL="${MISSION_EVALUATOR_MODEL:-sonnet}"
 # between 'judged by the executor's own vendor' and NO JUDGE AT ALL, which is the
 # trade that buys a weekend. The skill's generator!=judge guard still FLAGS it when it
 # fires — that visibility is the point, and the guard stays the authority.
-export MISSION_EVALUATOR_FALLBACK="${MISSION_EVALUATOR_FALLBACK:-pi:ollama/minimax-m3:cloud,pi:openrouter/minimax/minimax-m3,codex:gpt-6-astra}"
+# EVERY RUNG MUST LOAD SKILLS (2026-09-08, attended). The evaluator contract says "act as
+# independent evaluator under sprint-evaluator methodology" — and that methodology IS a skill:
+# a 100-point rubric plus three executable scripts under .agents/skills/sprint-evaluator/. A
+# harness that cannot load it receives the NAME of the procedure and none of its content, so it
+# is asked to apply a rubric it never sees and run scripts it is never told exist.
+#
+# The old chain was pi -> pi -> codex: EVERY rung skill-less. So any Anthropic outage silently
+# swapped a judge with a method for one without, and nothing reported it.
+#
+# Measured 2026-09-08: pi, invoked IN a workspace containing .agents/skills/sprint-evaluator/,
+# answered "I don't have any skills available in this session. No skill definitions have been
+# loaded into my context." The docs canary's evaluator failed 3/3 on that lane. Meanwhile every
+# recorded fleet verdict — hundreds, all in the rubric's NN/100 form — came from a Claude lane,
+# and there are ZERO recorded pi evaluator successes in the v1 or motoko ledgers.
+#
+# So the chain stays inside Anthropic and degrades by MODEL, not by harness. generator != judge
+# still holds: the author lanes are codex/pi/deepseek, so a claude judge is cross-vendor by
+# construction; where an author is also claude, the model-level difference is what the
+# author-vendor exclusion in role-run already enforces.
+#
+# pi CAN load skills — it has --skill and --no-skills — it simply does not DISCOVER
+# .agents/skills/, which is where AGENTS.md says skills live. Fixing that discovery is the
+# follow-on that would make a pi evaluator viable again; until then this chain is the honest
+# routing. ROLLBACK: restore the pi/codex rungs here.
+export MISSION_EVALUATOR_FALLBACK="${MISSION_EVALUATOR_FALLBACK:-claude:claude-sonnet-4-6,claude:claude-haiku-4-5,opus}"
 
 # Codex-lane pre-flight, ROLE-GENERIC (m-planner-codex-lane): probe once per DISTINCT
 # codex model, fall back per-role on ANY non-zero rc (#486: probe MUST carry --model;
@@ -943,6 +1263,18 @@ _cx_failed=":"   # models whose probe failed
 # mis-attributed to a spent quota, before iter-23 found the real cause. A fallback visible only in
 # a routing-evidence row written AFTER the fact is still a silent fallback (Critical Principle 2):
 # by then the iteration has already run on the wrong lane.
+# 1. Kill switch — the intended "off" state, exit silently.
+#
+# THIS MUST STAY ABOVE THE ROLE PROBES. It is numbered 1 because it was gate 1; the probe
+# block was later inserted above it, and a disabled mission went on firing every Anthropic,
+# Codex and Pi probe before discovering it was off. Measured 2026-09-08: the docs fire began
+# at 04:41 and reached this line at 04:49:36 — nineteen minutes and four inference probes on
+# a mission that was already disabled, because that fire also hit the Anthropic probe hang.
+# A pause that still spends is not a pause.
+if [ -f "$KILL_SWITCH" ]; then
+  log "kill switch present ($KILL_SWITCH) — skip"; exit 0
+fi
+
 # ROLE FALLBACK CHAINS (2026-08-26). MISSION_<ROLE>_FALLBACK may now be a
 # COMMA-SEPARATED chain, walked left to right, with opus as the implicit tail:
 #
@@ -984,6 +1316,7 @@ _pi_rcmap=""
 # (rc=2) — a distinction the degradation ledger reports, because "Friday" and "broken pin"
 # have very different resume conditions.
 # BASH 3.2 (L19/L21): ':'-delimited string sets, no associative arrays, no ${var,,}.
+if [ -z "${AILANG_MISSION_WORK_ITEM:-}" ]; then
 _an_probed=":"   # anthropic models probed this fire
 _an_failed=":"   # anthropic models whose probe failed
 _an_rcmap=""     # "model=rc;" so the emit site names the probe's exit code
@@ -999,7 +1332,11 @@ for role in DESIGNER PLANNER EXECUTOR EVALUATOR; do
     _mc_probe "$an_model"; an_rc=$?
     if [ "$an_rc" -ne 0 ]; then
       _an_failed="${_an_failed}${an_model}:"
-      if [ "$an_rc" -eq 1 ]; then an_why="quota-limited"; else an_why="unusable (rc=$an_rc)"; fi
+      # 75 is the ration gate, not a broken lane. "Friday" and "broken pin" have very
+      # different resume conditions, and so does "over our own daily ration".
+      if [ "$an_rc" -eq 1 ]; then an_why="quota-limited"
+      elif [ "$an_rc" -eq 75 ]; then an_why="over daily ration"
+      else an_why="unusable (rc=$an_rc)"; fi
       log "anthropic model '$an_model' $an_why"
       _an_rcmap="${_an_rcmap}${an_model}=${an_rc};"
     fi
@@ -1035,7 +1372,7 @@ for role in DESIGNER PLANNER EXECUTOR EVALUATOR; do
     cx_model="${val#codex:}"
     case "$_cx_probed" in *":${cx_model}:"*) : ;; *)   # not yet probed
       _cx_probed="${_cx_probed}${cx_model}:"
-      _mc_bounded "$PROBE_TIMEOUT" codex exec --skip-git-repo-check --model "$cx_model" 'reply with exactly: ok'
+      _mc_probe_codex "$cx_model"
       cx_rc=$?; cx_out="$MC_BOUNDED_OUT"
       if [ "$cx_rc" -ne 0 ]; then
         _cx_failed="${_cx_failed}${cx_model}:"
@@ -1092,7 +1429,7 @@ for role in DESIGNER PLANNER EXECUTOR EVALUATOR; do
     pi_model="${val#pi:}"
     case "$_pi_probed" in *":${pi_model}:"*) : ;; *)   # not yet probed
       _pi_probed="${_pi_probed}${pi_model}:"
-      _mc_bounded "$PROBE_TIMEOUT" pi --mode json --no-session --no-tools --model "$pi_model" -p 'reply with exactly: ok'
+      _mc_probe_pi "$pi_model"
       pi_rc=$?; pi_out="$MC_BOUNDED_OUT"
       if [ "$pi_rc" -ne 0 ]; then
         _pi_failed="${_pi_failed}${pi_model}:"
@@ -1131,10 +1468,7 @@ for role in DESIGNER PLANNER EXECUTOR EVALUATOR; do
   done
 done
 
-# 1. Kill switch — the intended "off" state, exit silently.
-if [ -f "$KILL_SWITCH" ]; then
-  log "kill switch present ($KILL_SWITCH) — skip"; exit 0
-fi
+fi # legacy role probes; binary iteration owns its own admission
 
 # 1b. ONE iteration at a time (2026-07-10, continuous mode): two concurrent
 #     controllers would stomp the charter/log in the main tree and could pick
@@ -1218,6 +1552,20 @@ while :; do
   sleep "$MEM_POLL"
 done
 
+# Binary iteration is admitted after the existing host guards, before any controller.
+# Keep cwd as the work project; the registry location belongs to the driver source.
+# exec preserves the overlap PID and signal delivery. No legacy retry on this path.
+if [ -n "${AILANG_MISSION_WORK_ITEM:-}" ]; then
+  case "$AILANG_MISSION_WORK_ITEM" in
+    /*) ;;
+    *) log "AILANG_MISSION_WORK_ITEM must be absolute"; exit 2 ;;
+  esac
+  mkdir -p "$STATE_DIR"
+  printf '%s\n' "$$" > "$PIDFILE"
+  export AILANG_MISSION_REGISTRY="$MC_DRIVER_ROOT/missions"
+  exec ailang mission iterate --work-item "$AILANG_MISSION_WORK_ITEM"
+fi
+
 # 4. Select the model (probe doubles as the subscription-auth check: API keys
 #    are stripped above, so a passing probe proves keychain/token auth too).
 if ! select_model; then
@@ -1259,10 +1607,14 @@ fi
 #   echo "codex:gpt-5.6-sol" > ~/.ailang/state/mission-executor-model-once
 if [ -f "$EXEC_ONCE_FILE" ]; then
   once=$(head -1 "$EXEC_ONCE_FILE" 2>/dev/null)
-  rm -f "$EXEC_ONCE_FILE"
-  if [ -n "$once" ]; then
-    export MISSION_EXECUTOR_MODEL="$once"
-    log "one-shot executor override consumed: executor=$once (this iteration only)"
+  if [ -n "$once" ] && _mc_is_over_ration "$once"; then
+    log "one-shot executor override deferred by quota admission: $once; keeping checked executor $MISSION_EXECUTOR_MODEL"
+  else
+    rm -f "$EXEC_ONCE_FILE"
+    if [ -n "$once" ]; then
+      export MISSION_EXECUTOR_MODEL="$once"
+      log "one-shot executor override consumed: executor=$once (this iteration only)"
+    fi
   fi
 fi
 
@@ -1484,11 +1836,35 @@ pre_last_record=$(grep '^## ' "$MISSION_LOG_FILE" 2>/dev/null | tail -1)
 # kill (143/137) AND whose THIS-attempt output carries a transient signature,
 # back off and re-run — up to TRANSIENT_RETRIES total attempts.
 attempt=1
+_mc_rewalks=0
 while : ; do
   logpos=$(wc -l < "$LOG" 2>/dev/null || echo 0)
   _mc_run_once; RC=$?
   [ "$RC" -eq 0 ] && break
   case "$RC" in 143|137) break ;; esac   # watchdog kill — never retry
+  # Runtime bucket exhaustion is checked FIRST, because it is the one failure a
+  # same-model retry cannot fix: the rung is spent, not congested.
+  if tail -n +$((logpos + 1)) "$LOG" 2>/dev/null | grep -qE "$RUNTIME_QUOTA_SIG"; then
+    _mc_demote "$CONTROLLER_ID"
+    _mc_prev_controller="$CONTROLLER_ID"
+    log "RUNTIME BUCKET LIMIT on $_mc_prev_controller — probe passed but the real call did not; demoting for this fire"
+    if [ "$_mc_rewalks" -lt "$RUNTIME_QUOTA_REWALKS" ] && select_model \
+       && [ "$CONTROLLER_ID" != "$_mc_prev_controller" ]; then
+      _mc_rewalks=$((_mc_rewalks + 1))
+      attempt=$((attempt + 1))
+      log "controller re-walk $_mc_rewalks/$RUNTIME_QUOTA_REWALKS: $_mc_prev_controller → $CONTROLLER_ID (previous rung's bucket is spent)"
+      continue
+    fi
+    # D-4: nothing left to walk to. PAUSE rather than crash-loop — the slot is
+    # not spent on a run that cannot succeed, and the pause is announced, because
+    # a fleet that stops silently is indistinguishable from one that is working.
+    MC_PAUSED=1
+    log "PAUSE: every controller rung is unusable or spent (demoted:$MC_DEMOTED) — not burning the slot on a doomed run"
+    _mc_notify "Mission ${MISSION_NAME}: PAUSED — no capacity" \
+      "Every controller rung is unusable or its bucket is spent. Demoted this fire:$MC_DEMOTED. The fleet is not working until a bucket refills or a lane is restored. Log: $LOG" \
+      "pause" || true
+    break
+  fi
   if [ "$attempt" -lt "$TRANSIENT_RETRIES" ] \
      && tail -n +$((logpos + 1)) "$LOG" 2>/dev/null | grep -qiE "$TRANSIENT_SIG"; then
     # --- RETRY HISTORY START ---
@@ -1531,6 +1907,9 @@ if [ -f "$_mc_slot_hb" ]; then
     143:*|137:*) _mc_slot_verdict="KILLED at=${_mc_slot_last:-fired}" ;;
     *:*) _mc_slot_verdict="CRASHED at=${_mc_slot_last:-fired}" ;;
   esac
+  # A pause is a DECISION, not a failure, and must read as one: "CRASHED" here
+  # would send someone debugging a mission that did exactly the right thing.
+  [ "$MC_PAUSED" -eq 1 ] && _mc_slot_verdict="PAUSED-NO-CAPACITY at=${_mc_slot_last:-fired}"
 else
   _mc_slot_verdict="HEARTBEAT-MISSING"
 fi

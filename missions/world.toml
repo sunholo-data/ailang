@@ -11,6 +11,7 @@ repo    = "sunholo-data/ailang-world"
 workdir = "/Users/voightkampff/dev/sunholo-data/ailang-world"
 doc     = "design_docs/world-mission.md"
 
+
 # ── SCHEDULE ─────────────────────────────────────────────────────────────────
 # KeepAlive (Mark, attended 2026-09-05), same reasoning as v1: StartInterval re-armed
 # from exit, so world's measured 14390s gap against a 14400s interval meant the period

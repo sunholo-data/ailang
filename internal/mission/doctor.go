@@ -112,7 +112,11 @@ const sharedDriverRepo = "sunholo-data/ailang"
 // pinSentinel is the line that makes a clone re-exec from the committed driver pin
 // rather than running whatever its working tree holds. Its ABSENCE is what made the
 // world fork invisible to every routing fix landed upstream.
-const pinSentinel = `. "$REPO/tools/launchd/lib/pin-root.sh"`
+//
+// It reads MC_DRIVER_ROOT, not $REPO, since 2026-09-07: the helper ships beside the
+// DRIVER, and sourcing it from the mission's work repo meant every world fire since the
+// de-fork ran unpinned, because ailang-world has no lib/pin-root.sh and never will.
+const pinSentinel = `. "$MC_DRIVER_ROOT/tools/launchd/lib/pin-root.sh"`
 
 // Doctor inspects every registered mission. It is READ-ONLY: it opens no file for
 // writing. It may READ launchd's loaded state via the injected LaunchCtl (print only),
@@ -227,15 +231,37 @@ func DoctorWith(reg *Registry, p Paths, lc LaunchCtl) *Report {
 		case derr != nil:
 			add("driver-missing", Drift, "%s: %v", m.DriverPath(), derr)
 		default:
-			row.Pinned = strings.Contains(string(driver), pinSentinel)
-			row.Fork = m.Repo != sharedDriverRepo
+			// PINNING DEPENDS ON THE DRIVER'S OWN ROOT, not on the mission's workdir.
+			//
+			// This check was the exact inverse until 2026-09-07, and it was RIGHT to be:
+			// the driver really did source `. "$REPO/.../pin-root.sh"`, so a mission whose
+			// workdir lacked the helper was genuinely unpinned, and checking the driver
+			// instead reported world as pinned while every fire logged DRIVER PIN FAILED.
+			//
+			// The DRIVER was then fixed rather than the report: the helper ships beside the
+			// driver, so world could never satisfy a workdir-based lookup. Both the sentinel
+			// and the file check now follow the driver, which is where the helper lives for
+			// every mission whether or not it works in the same repo.
+			driverDir := filepath.Dir(m.DriverPath())
+			row.Pinned = strings.Contains(string(driver), pinSentinel) &&
+				fileExists(filepath.Join(driverDir, "lib", "pin-root.sh"))
+			// A FORK IS NOW A DECLARED CHOICE, not an inference from the repo name.
+			// Before the driver location was decoupled from the workdir, any mission
+			// working in another repo NECESSARILY had its own driver, so "different repo"
+			// implied "fork". It no longer does: a mission elsewhere just has a different
+			// Workdir and runs the shared driver. Only an explicit `driver = "..."` is a
+			// fork now, which means the report says what someone chose rather than what
+			// the layout forced.
+			row.Fork = m.Driver != ""
 			if !row.Pinned {
 				add("no-pin", Drift,
-					"%s does not source pin-root.sh — it runs whatever its working tree holds, so upstream driver fixes never reach it", m.DriverPath())
+					"%s has no lib/pin-root.sh beside it, so this mission runs its WORKING TREE rather than committed code (the helper ships with the DRIVER, not with the mission's work repo)",
+					filepath.Dir(m.DriverPath()))
 			}
 			if row.Fork {
 				add("driver-fork", Note,
-					"driver lives in %s, not %s — every shared-driver change must be ported by hand until it is de-forked", m.Repo, sharedDriverRepo)
+					"this mission declares its OWN driver (%s) instead of the shared one — every shared-driver change must be ported to it by hand, which is how a fork goes stale unseen",
+					m.Driver)
 			}
 		}
 		rep.Rows = append(rep.Rows, row)
@@ -352,4 +378,11 @@ func loadedMismatches(plistFile, loaded string) []string {
 		out = append(out, "file says KeepAlive but the loaded job still has an interval — the cadence change has not taken effect")
 	}
 	return out
+}
+
+// fileExists is a readability shim: the pin check reads better as a question than as a
+// stat-and-compare inline.
+func fileExists(p string) bool {
+	_, err := os.Stat(p)
+	return err == nil
 }

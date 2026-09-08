@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -517,5 +518,159 @@ boot_offset      = 7
 	got, _ := os.ReadFile(s.EnvStaged)
 	if !strings.Contains(string(got), "MISSION_X=keep") {
 		t.Error("fallback render lost the passthrough")
+	}
+}
+
+// THE CENTRALIZED-POINT PROPERTY (Mark, attended 2026-09-06): "a robust centralized point
+// to alter loops but easily configured per loop whether in same repo or another one
+// entirely."
+//
+// A mission working in a DIFFERENT repo must still run the SHARED driver. Before the
+// decoupling, DriverPath was workdir-relative, so a mission elsewhere necessarily had its
+// own copy — which is exactly how world went stale against every routing fix for weeks.
+func TestDriverPath_ForeignRepoMissionStillRunsTheSharedDriver(t *testing.T) {
+	dir := t.TempDir()
+	// The registry lives in the shared repo; the mission works somewhere else entirely.
+	regDir := filepath.Join(dir, "sharedrepo", "missions")
+	if err := os.MkdirAll(regDir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	foreign := filepath.Join(dir, "some-other-repo")
+	if err := os.MkdirAll(foreign, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	writeEntry(t, regDir, "elsewhere.toml", `
+name    = "elsewhere"
+repo    = "someone-else/another-repo"
+workdir = `+strconv.Quote(foreign)+`
+doc     = "design_docs/elsewhere-mission.md"
+[schedule]
+mode             = "keepalive"
+throttle_seconds = 3600
+boot_offset      = 11
+`)
+	reg, err := Load(regDir)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	m, _ := reg.Get("elsewhere")
+
+	wantShared := filepath.Join(dir, "sharedrepo", "tools", "launchd", "mission-control.sh")
+	if got := m.DriverPath(); got != wantShared {
+		t.Errorf("a foreign-repo mission must run the SHARED driver.\n  want %s\n  got  %s", wantShared, got)
+	}
+	if strings.HasPrefix(m.DriverPath(), foreign) {
+		t.Error("the driver must NOT come from the mission's own repo — that is the fork this decoupling removes")
+	}
+	// And the rendered plist must execute that shared path.
+	b, err := RenderPlist(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(b), wantShared) {
+		t.Error("the rendered plist does not point launchd at the shared driver")
+	}
+	// The mission still WORKS in its own repo.
+	if !strings.Contains(string(b), "<key>WorkingDirectory</key>\n\t<string>"+foreign) {
+		t.Error("the mission must still work in its own repo — only the DRIVER is centralized")
+	}
+}
+
+// The escape hatch stays available, and is visible as a fork.
+func TestDriverPath_ExplicitDriverIsHonouredAndIsAFork(t *testing.T) {
+	dir := t.TempDir()
+	regDir := filepath.Join(dir, "repo", "missions")
+	_ = os.MkdirAll(regDir, 0o750)
+	explicitDriver := filepath.Join(dir, "custom", "mission-control.sh")
+	writeEntry(t, regDir, "odd.toml", `
+name    = "odd"
+repo    = "x/y"
+workdir = "/tmp/odd"
+doc     = "d.md"
+driver  = `+strconv.Quote(explicitDriver)+`
+[schedule]
+mode             = "interval"
+interval_seconds = 600
+boot_offset      = 13
+`)
+	reg, err := Load(regDir)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	m, _ := reg.Get("odd")
+	if got := m.DriverPath(); got != explicitDriver {
+		t.Errorf("an explicit driver must be honoured; want %s, got %s", explicitDriver, got)
+	}
+}
+
+// A relative driver path is refused: launchd resolves nothing, so it would simply fail
+// to start with an unhelpful error.
+func TestValidate_RelativeDriverIsRefused(t *testing.T) {
+	p := writeEntry(t, t.TempDir(), "m.toml", `
+name    = "rel"
+repo    = "x/y"
+workdir = "/tmp/rel"
+doc     = "d.md"
+driver  = "tools/launchd/mission-control.sh"
+[schedule]
+mode             = "interval"
+interval_seconds = 600
+boot_offset      = 3
+`)
+	_, err := LoadFile(p)
+	if err == nil || !strings.Contains(err.Error(), "must be an absolute path") {
+		t.Fatalf("a relative driver must be refused; got %v", err)
+	}
+	if err != nil && !strings.Contains(err.Error(), "leave it EMPTY") {
+		t.Error("the error should point at the shared-driver default, which is what they want")
+	}
+}
+
+// MISSION_WORKDIR must be in the PLIST, not left to the env file.
+//
+// The driver computes REPO at line 40 as ${MISSION_WORKDIR:-<script's ../..>} and sources
+// the env file only at line 63. For a mission whose workdir differs from the driver's own
+// repo, an unset MISSION_WORKDIR therefore makes REPO the DRIVER's repo — and pin-root
+// then pins THAT and hands the mission a worktree of the wrong repository.
+//
+// Caught live: repointing world at the shared driver brought it up with
+// workdir=~/.ailang-driver-pin/world, a worktree of ailang, for a mission whose entire job
+// is ailang-world. The dry run missed it because AILANG_DRIVER_PIN=0 skips the re-exec.
+func TestRenderPlist_SetsMissionWorkdirSoThePinCannotHijackIt(t *testing.T) {
+	dir := t.TempDir()
+	regDir := filepath.Join(dir, "sharedrepo", "missions")
+	if err := os.MkdirAll(regDir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	foreign := filepath.Join(dir, "another-repo")
+	if err := os.MkdirAll(foreign, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	writeEntry(t, regDir, "far.toml", `
+name    = "far"
+repo    = "someone/far"
+workdir = `+strconv.Quote(foreign)+`
+doc     = "d.md"
+[schedule]
+mode             = "keepalive"
+throttle_seconds = 3600
+boot_offset      = 17
+`)
+	reg, err := Load(regDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, _ := reg.Get("far")
+	b, err := RenderPlist(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "<key>MISSION_WORKDIR</key>\n\t\t<string>" + foreign + "</string>"
+	if !strings.Contains(string(b), want) {
+		t.Fatalf("the plist must set MISSION_WORKDIR, or the pin hijacks it to the DRIVER's repo.\nwant %s\ngot:\n%s", want, b)
+	}
+	// It must name the MISSION's repo, never the driver's.
+	if strings.Contains(string(b), "<key>MISSION_WORKDIR</key>\n\t\t<string>"+filepath.Join(dir, "sharedrepo")) {
+		t.Error("MISSION_WORKDIR points at the driver's repo — that is the hijack itself")
 	}
 }

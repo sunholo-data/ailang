@@ -1,50 +1,43 @@
 # Mission Dashboard — Motoko
 
-**Snapshot**: 2026-09-06, after iteration 36. Overwritten every iteration; history lives in
-`motoko-mission.md` (STATUS) and `motoko-mission-log.md`.
+*Snapshot, overwritten every iteration. History lives in the charter STATUS stamps and the log.*
+**Last refreshed**: 2026-09-07 (iteration 39) · base `ead709c31`
 
 ## Where the mission is
 
-- **Epic**: `m-motoko-dst-refactor-migration` (gated; ungated work runs first). The thread before
-  this iteration was hardening `tools/eval/motoko_connection_probe.sh`, rows 6a–6t.
-- **This iteration did not advance the epic — goal unmoved.** M-MISSION-LOOP-WORKBENCH Phase 1 was
-  landed **attended**, straight to `dev`, 22:15–23:02 local, with no charter row and no log entry.
-  It left CI red in six checks. The loop fired 37 minutes later and Gate 1's red-outranks-the-queue
-  rule applied; the red is this charter's own territory (clause 6), so it was not handed to V1.
+North star unmoved. Current work is `[HARNESS]` — the connection-probe self-test suite's own
+integrity gates. The gated `m-motoko-dst-refactor-migration` epic is still Phase-0 CLOSED.
 
 ## In flight
 
-- **PR [#1055](https://github.com/sunholo-data/ailang/pull/1055)** — seven commits unbreaking `dev`.
-  Four defects from the CI logs, a **fifth found only by measurement** (`kill_unix.go` had no build
-  constraint, so `internal/mission` did not compile on Windows at all — fixing the validation alone
-  would have left both Windows checks red while looking fixed), plus two self-review commits.
-  Evaluator **PASS 85/100, zero blocking**.
+- **Row 6s — `expected_arms` drift gate.** Code written and measured, **not merged**, on
+  `sprint/motoko-iter39-armcount-r3` (design `f6750002d`). Three quorum rounds, all BLOCKED.
+  **Parked on `D-MOTOKO-P2-1`** — see below. Independent judge passed iteration 39's work
+  **90/100, zero blocking**.
+- **Next after that**: row **7** (profile restoration design), which still needs its premise
+  restated before it can be picked — its one-line charter row is not reconstructible.
 
-## Next picks (banked, ordered)
+## Parked on Mark — 1 open decision
 
-1. **Row 6p M2/M3** — wire the wall-clock class, enforce the floor, gate `p_obs` (M2); derive the
-   node ceiling (M3). Iteration 35 landed M1 only; its executor was capped after one milestone.
-2. **Row 16** — changelog debt for the whole Phase 1 arc (feature + fix in one entry). Bookkeeping,
-   ≤1 iteration. `make check-changelog` is index hygiene and will never surface it.
-3. **Row 7** — profile restoration design (5 profiles, 14 of 18 model entries).
+- **`D-MOTOKO-P2-1`** — the arm-count gate's exact count (60) holds only while one
+  environment-conditional arm stays skipped. `gpt6-astra` and `gemini-3-1-pro` proposed **opposite**
+  remedies and the loop may not choose. **(A)** model the arm with a `loopback_sampled` flag;
+  **(B)** count only environment-independent arms. Loop recommends **(B)**; default (B) if
+  unanswered **2026-09-21**. One word unblocks it.
+- Resolved last iteration: `D-MOTOKO-CARVEOUT-1` → **(B) overrule**. Actioned in full this fire.
 
-## Watch
+## Blocked, not waiting on Mark
 
-- The attended session was **still landing commits while the loop ran** (M5/M6/M7 arrived
-  mid-iteration, forcing a rebase and a re-verify against fresh origin). Expect more Phase 2 work on
-  `dev` from outside the loop; re-check defects against fresh origin before acting on any of them.
-- `TestLive_DoctorReproducesTheMeasuredDivergences` was red on the rig earlier tonight and is **now
-  green** — M6 fixed the underlying drift. Rig-only; it skips off-rig, so CI never saw either state.
+Rows **10/11/12** stay Phase-0 gated on upstream `arniwesth/motoko_agent`: `#154` still open and
+unmerged, **0** maintainer comments on `#165` (controls fire). Re-measured as commands every fire.
 
-## Parked on Mark
+## Loop health
 
-- **None.** Decision ledger valid, 6 rows, **0 OPEN**.
-
-## Loop posture
-
-- Controller `claude:claude-opus-5`; executor `codex:gpt-5.6-sol`; evaluator `sonnet` — distinct
-  providers, so generator≠judge holds. **No designer, no planner**: both routing-table branches gate
-  on artifacts a CI-red fix-forward has not got (`derive-planner-lane.sh` → `opus fail-closed:no-doc`).
-- Rotation pointer untouched at `codex:gpt-6-astra`; **Fable unspent**.
-- Metered **$0.00** of the $5 ceiling. No GPU, no `rig.lock`.
-- Bookkeeping issue **#987**; next weekly rotation Monday 2026-09-07.
+- Cadence 12h (`dev.ailang.mission-motoko`), staggered against V1 (90m) and World (4h).
+- Routing: designer `claude:claude-fable-5-1` (Agent tool DENIED the colon pin — row 6u, instance
+  4 — so the `claude-sub` recipe), evaluator `sonnet` via Agent tool; planner and executor
+  correctly did not run (no approved design ⇒ no plan, nothing to execute).
+- **generator≠judge is model-level only, and FLAGGED.** Codex routing blocked all fire on a stale
+  provider observation; the pi/minimax judge lane timed out at iteration 37. No cross-vendor judge
+  was reachable.
+- Metered **$0.27** of the $5 ceiling. Ollama gauge 38.3% session / 43.1% weekly, unused. No GPU.

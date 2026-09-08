@@ -248,7 +248,12 @@ grep -qE 'MISSION_(MODEL_PREFS|CONTROLLER_FALLBACK):-[^}]*gpt-6-astra' "$driver"
   && bad "astra is NOT a controller rung" "astra is back in a controller ladder" \
   || ok "astra is NOT a controller rung"
 grep -q 'MISSION_MODEL_PREFS:-claude-opus-5,codex:gpt-5.6-sol,claude-fable-5-1}' "$driver" \
-  && ok "controller ladder is opus-5 -> sol -> fable-5-1" || bad "controller ladder is opus-5 -> sol -> fable-5-1" "wrong ladder"
+  && ok "controller ladder is opus-5 -> sol -> fable-5-1 (order RESTORED 2026-09-06)" \
+  || bad "controller ladder is opus-5 -> sol -> fable-5-1 (order RESTORED 2026-09-06)" "wrong ladder"
+# The reorder-to-Anthropic-first arm is deliberately NOT reinstated. Anthropic's limit is
+# account-wide, not per-model — the 08-16 drought quota-limited opus-5, opus-4-8 AND fable-5
+# together — so "opus spent but fable healthy" is not a state this account reaches, and the
+# reorder only bought an extra failed probe on every fall-through.
 grep -q 'MISSION_CONTROLLER_FALLBACK:-codex:gpt-5.6-sol,pi:ollama' "$driver" \
   && ok "controller falls Sol -> pi directly" || bad "controller falls Sol -> pi directly" "missing"
 # The designer keeps its astra rung — the change is scoped to the controller.
@@ -483,6 +488,18 @@ else
 fi
 
 echo ""
+# PER-ROLE TOKEN ATTRIBUTION (2026-09-06). The fleet's cost KPI measures METERED dollars,
+# and every codex/Anthropic role is a subscription bucket billing $0 metered — so it cannot
+# see quota burn. The driver logs the CONTROLLER's tokens only; planner and executor are
+# separate `codex exec` processes whose totals reach no log. The routing-evidence row is the
+# only place that knows which model ran which role, so it is where the number has to land.
+grep -q 'RECORD PER-ROLE TOKEN COST' "$skill_all" \
+  && ok "Gate 4 requires per-role token cost in the routing-evidence row" \
+  || bad "Gate 4 requires per-role token cost in the routing-evidence row" "the rule is missing — 'which role should move off codex' has no evidence without it"
+grep -q 'tok: not reported' "$skill_all" \
+  && ok "an unreported lane must be stated, not omitted" \
+  || bad "an unreported lane must be stated, not omitted" "a silent gap reads as zero"
+
 # ─── CONTEXT BUDGET (2026-09-06) ─────────────────────────────────────────────
 # The controller's SKILL.md is loaded into every session and RE-SENT ON EVERY TURN, so
 # its size multiplies by turn count. Measured 2026-09-05: at 251,637 B (~63k tokens) it

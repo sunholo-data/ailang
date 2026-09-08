@@ -1,5 +1,46 @@
 ## Gate 4 — RECORD (append-only; the log is the mission's memory)
 
+**RECORD PER-ROLE TOKEN COST IN THE ROUTING-EVIDENCE ROW. Every role, every iteration.**
+
+For each role you spawned, add its provider-reported token count beside the model:
+
+```
+Controller `codex:gpt-5.6-sol` (999,376 tok) · designer `codex:gpt-6-astra` (N tok) ·
+planner `codex:gpt-5.6-sol` (N tok) · executor `codex:gpt-5.6-sol` (N tok) ·
+evaluator `pi:ollama/minimax-m3:cloud` (N tok)
+```
+
+A `codex exec` run prints `tokens used` followed by the count as its last output — capture
+it from the run you already made. If a lane reports nothing, write `(tok: not reported)`
+rather than omitting the role; a silent gap reads as zero and is worse than a stated
+unknown.
+
+**Why this is mandatory, and why nothing else can supply it.** `ailang chains stats` measures
+METERED dollars, and every codex and Anthropic role is a subscription bucket that bills $0
+metered — so the fleet's own cost KPI cannot see quota consumption at all. The driver logs
+`tokens used` for the CONTROLLER's session only; planner and executor run as separate
+`codex exec` processes whose totals reach no log. Measured on iteration 338: one token
+report for a five-hour iteration that ran four codex roles.
+
+That gap is why "which role should move off codex?" currently has no evidence behind it.
+The routing-evidence row is the only place that already knows which model ran which role,
+so it is the only place the number can be joined to the role. Recording it here turns a
+guess into a measurement within a few iterations.
+
+**ROTATE THE LOG WHEN IT PASSES ~40 ENTRIES.** After appending this iteration's entry:
+
+```bash
+ailang mission rotate-log ${MISSION_NAME} --keep 20
+```
+
+It keeps the newest 20 full entries live, appends the rest to
+`<name>-mission-log-archive.md` with their FULL bodies, and REGENERATES
+`<name>-mission-index.md` — one line per iteration across live + archive, which is what
+Gate 2 greps before picking. Nothing is deleted; the command is verified lossless by test.
+
+Regenerated, never appended: an append-only index drifts the moment an entry is edited,
+and an index that answers "already tried?" confidently and wrongly is worse than none.
+
 First action: `bash tools/launchd/mission-heartbeat.sh stamp gate-4`.
 
 **FIRST: overwrite `design_docs/${MISSION_NAME}-mission-dashboard.md`** (Mark 2026-08-04: the
@@ -126,13 +167,24 @@ rotate the 4th out", the literal instruction above, would have committed a chart
 arithmetic is self-consistent against the wrong base. Same shape as the STATUS-rotation bug (a
 destructive edit reports success exactly like a correct one), but the corruption arrives from the
 BASE rather than from the edit, so no amount of care inside the edit can catch it. Before the first
-Gate-4 write, re-confirm the base:
+Gate-4 write, re-confirm and record the base. This is the Gate-4 call site for the shared-clone
+protocol in [`resources/ref-drift.md`](ref-drift.md); the helper supplies the `origin/dev` side of
+the existing re-confirmation, so do not add another fetch or ref read:
 
 ```bash
 git fetch origin
-git rev-parse dev origin/dev                     # differ at all? the working tree is NOT the base
-git diff --stat origin/dev -- "$MISSION_DOC" design_docs/*-mission-log.md
+base=$(bash tools/launchd/mission-base.sh record gate4) || exit 2
+base_sha=${base%%$'\t'*}; base_iso=${base#*$'\t'}
+git rev-parse dev "$base_sha"                    # same dev/origin re-confirmation; origin recorded once
+git diff --stat "$base_sha" -- "$MISSION_DOC" design_docs/*-mission-log.md
+echo "Gate 4 Routing evidence field: base=$base_sha@$base_iso"
 ```
+
+The human log's **Routing evidence** row MUST contain `base=<sha>@<iso>` from that same `record
+gate4` result, with the full 40-character SHA. Gate 2's durable `base-gate2` stamp remains deferred:
+its item-level check already fetches immediately before deciding, and a separate durable stamp has
+not yet proved useful;
+it may quote `mission-base.sh snap` in the pick note, but this sprint writes no `base-gate2` row.
 
 If charter/log differ from `origin/dev`, do **not** edit them in the shared checkout: write the
 record in a worktree branched from `origin/dev` (`git worktree add -b … <path> origin/dev`) and land

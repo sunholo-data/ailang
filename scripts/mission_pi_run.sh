@@ -152,7 +152,8 @@ set -m
   # 2026-08-26 when a run reported 4 tool executions and 0 changed files, and the
   # model's own closing message said it could not find the file and created it.
   cd "$WORKDIR" || exit 14
-  pi --mode json --no-session --model "$MODEL" < "$DIRECTIVE" 2>"$ERR" |
+  AILANG_MESSAGES_STORE=gcp AILANG_MESSAGES_PROJECT=ailang-multivac \
+    pi --mode json --no-session --model "$MODEL" < "$DIRECTIVE" 2>"$ERR" |
     awk -v out="$OUT" -v snap="$SNAP" -v every="$SNAP_EVERY" '
       /"type":"message_update"/ {
         n++

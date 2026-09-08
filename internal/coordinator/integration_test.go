@@ -2,6 +2,7 @@ package coordinator
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 )
@@ -182,6 +183,27 @@ func TestIntegration_TaskExecutorWithMockProvider(t *testing.T) {
 	}
 }
 
+// waitRecorder is a test-controlled Wait seam for ExecuteWithRetry
+// (M-COORDINATOR-TEST-PARALLELISM). It records each requested backoff delay
+// and returns immediately, so tests never sleep on the backoff timer.
+type waitRecorder struct {
+	mu     sync.Mutex
+	delays []time.Duration
+}
+
+func (w *waitRecorder) wait(ctx context.Context, d time.Duration) error {
+	w.mu.Lock()
+	w.delays = append(w.delays, d)
+	w.mu.Unlock()
+	return nil
+}
+
+func (w *waitRecorder) recorded() []time.Duration {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return append([]time.Duration(nil), w.delays...)
+}
+
 // TestIntegration_TaskExecutorWithRetry tests retry behavior
 func TestIntegration_TaskExecutorWithRetry(t *testing.T) {
 	attemptCount := 0
@@ -213,9 +235,12 @@ func TestIntegration_TaskExecutorWithRetry(t *testing.T) {
 		Type: TaskTypeBugFix,
 	}
 
+	waitRec := &waitRecorder{}
 	opts := &ExecuteOptions{
-		Timeout:   30 * time.Second,
-		Workspace: t.TempDir(),
+		Timeout:        30 * time.Second,
+		Workspace:      t.TempDir(),
+		RetryBaseDelay: 10 * time.Millisecond, // M2: 1s+2s backoff becomes 10ms+20ms
+		Wait:           waitRec.wait,          // M2: recorded, returns immediately — no real sleep
 	}
 
 	result, err := executor.ExecuteWithRetry(ctx, task, opts, 3)
@@ -229,6 +254,11 @@ func TestIntegration_TaskExecutorWithRetry(t *testing.T) {
 
 	if attemptCount != 3 {
 		t.Errorf("expected 3 attempts, got %d", attemptCount)
+	}
+
+	delays := waitRec.recorded()
+	if len(delays) != 2 || delays[0] != 10*time.Millisecond || delays[1] != 20*time.Millisecond {
+		t.Errorf("expected recorded backoff waits [10ms 20ms], got %v", delays)
 	}
 }
 

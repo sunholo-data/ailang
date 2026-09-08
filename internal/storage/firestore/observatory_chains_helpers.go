@@ -77,6 +77,7 @@ func stageToMap(st *obs.ChainStage) map[string]interface{} {
 		"cost":            st.Cost,
 		"tokens_in":       st.TokensIn,
 		"tokens_out":      st.TokensOut,
+		"quota_tokens":    st.QuotaTokens,
 		"turns":           st.Turns,
 		"tool_calls":      st.ToolCalls,
 		"duration_ms":     st.DurationMs,
@@ -112,6 +113,7 @@ func mapToStage(data map[string]interface{}) *obs.ChainStage {
 		Cost:           getFloat64(data, "cost"),
 		TokensIn:       getInt(data, "tokens_in"),
 		TokensOut:      getInt(data, "tokens_out"),
+		QuotaTokens:    getInt64(data, "quota_tokens"),
 		Turns:          getInt(data, "turns"),
 		ToolCalls:      getInt(data, "tool_calls"),
 		DurationMs:     getInt64(data, "duration_ms"),
@@ -162,7 +164,7 @@ func (s *ObservatoryStore) findChainByField(ctx context.Context, field, value st
 	return mapToChain(doc.Data()), nil
 }
 
-func (s *ObservatoryStore) filterChainsByAgent(ctx context.Context, chains []*obs.ChainSummary, agentID string) []*obs.ChainSummary {
+func (s *ObservatoryStore) chainIDsForAgent(ctx context.Context, agentID string) (map[string]bool, error) {
 	// Build set of chain IDs that have a stage with this agent
 	chainIDsWithAgent := make(map[string]bool)
 	iter := s.client.Collection(collObsChainStages).
@@ -175,18 +177,12 @@ func (s *ObservatoryStore) filterChainsByAgent(ctx context.Context, chains []*ob
 			break
 		}
 		if err != nil {
-			break
+			return nil, err
 		}
 		chainIDsWithAgent[getString(doc.Data(), "chain_id")] = true
 	}
 
-	var filtered []*obs.ChainSummary
-	for _, c := range chains {
-		if chainIDsWithAgent[c.ID] {
-			filtered = append(filtered, c)
-		}
-	}
-	return filtered
+	return chainIDsWithAgent, nil
 }
 
 // --- Chat message operations ---

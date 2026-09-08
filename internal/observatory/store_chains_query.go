@@ -330,8 +330,11 @@ func (s *Store) getStagesForCost(ctx context.Context, createdAfter *time.Time, s
 // GetSpanLitesByStageID returns lightweight spans for a stage without the heavy attributes columns.
 // This avoids reading the 3.9GB attributes data when only metadata is needed (M-PERF-OBSERVATORY).
 func (s *Store) GetSpanLitesByStageID(ctx context.Context, stageID string, limit, offset int) (*SpanLitePage, error) {
+	if offset < 0 {
+		return nil, fmt.Errorf("offset must be non-negative")
+	}
 	if stageID == "" {
-		return &SpanLitePage{}, nil
+		return &SpanLitePage{Spans: []*SpanLite{}}, nil
 	}
 	if limit <= 0 {
 		limit = 200
@@ -354,7 +357,7 @@ func (s *Store) GetSpanLitesByStageID(ctx context.Context, stageID string, limit
 		       model, provider
 		FROM spans
 		WHERE stage_id = ?
-		ORDER BY start_time ASC
+		ORDER BY start_time ASC, id ASC
 		LIMIT ? OFFSET ?
 	`, stageID, limit, offset)
 	if err != nil {
@@ -362,7 +365,7 @@ func (s *Store) GetSpanLitesByStageID(ctx context.Context, stageID string, limit
 	}
 	defer rows.Close()
 
-	var spans []*SpanLite
+	spans := []*SpanLite{}
 	for rows.Next() {
 		sl := &SpanLite{}
 		var parentSpanID, statusMessage, model, provider sql.NullString

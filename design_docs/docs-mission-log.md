@@ -3,54 +3,12 @@
 Append-only. One entry per iteration, newest at the BOTTOM.
 Created 2026-08-28. Iteration 0 (charter ratification) has not yet run.
 
-## ITERATION 11 — 2026-09-06T06:00Z
+> **Older entries are ARCHIVED.** This file holds the newest 20. The full record of every
+> iteration is in `docs-mission-log-archive.md`, and a one-line index of ALL of them —
+> the thing to grep before picking work, so the loop never repeats itself — is in
+> `docs-mission-index.md`.
 
-**Gate 0:** armed; `sunholo-voight-kampff`; clean origin-pinned worktree at `e50066037`.
-Inbox triage found no `mission-docs` directive or genuine regression. D-4 and D-5 remain open.
-
-**Pick:** docs-11 remains parked on D-4 and docs-12 remains parked on D-5. Fresh eligible draw was
-`m-agent-step-cancellation`; its existing quorum artifact is blocked 3/3 on concrete objections
-covering mid-step concurrency, request-context/signal ownership, and existing cancellation APIs.
-
-**Routing / outcome:** designer `codex:gpt-6-astra` was spawned with the Agent tool but stayed
-running without changing the design file and was shut down. Required fallback `codex:gpt-5.6-luna`
-was then spawned with the Agent tool and likewise produced no revision before shutdown. Planner,
-executor, and evaluator were not spawned: no revised artifact reached quorum-ready state. This is
-a designer-lane failure and a correct park; no evaluator verdict was fabricated, so
-generator-not-equal-judge remains intact.
-
-**Cost:** $0.00 newly metered; quota-lane attempts only.
-
-**Decisions for Mark:** D-4 and D-5 unchanged and still open. **Flagged:** both designer attempts
-failed to produce a revision; retry/re-route before another fresh draw. **Ruled out:** none.
-
-**Retro:** no skill edit; one observed designer-lane timeout is below the two-instance threshold.
-
-#### Design-quorum review — `design_docs/docs-mission.md` (2026-08-28T06:29:56Z)
-
-- **Synthesis: BLOCKED** (total $0.0569, 15839 in / 990 out tok)
-- `gpt5-6-sol` → **reject** ($0.0358, 5172/331 tok) — Clause 7 and queue item docs-1 require implementing inbox routing despite the document stating that the existing feedback-dispatch path is broken, while the mission’s mechanical allowlist forbids changes under `internal/` or `cmd/`. No extension mechanism within the permitted blast radius is identified, so a mandatory deliverable cannot proceed under the charter as written.
-- `gemini-3-1-pro` → **reject** ($0.0133, 5545/181 tok) — The document establishes Clause 7 (working the `docs-mission` inbox) but leaves the inbox read path as an unverified premise. It warns that a bare `ailang messages list` reads a local SQLite shadow database instead of the canonical prod Firestore, but fails to provide or verify the correct command to actually read the prod inbox, rendering the task unexecutable.
-- `oc-glm-5-2` → **reject** ($0.0079, 5122/478 tok) — Premise verification failure on clause 7's core deliverable: the doc asserts 'ailang messages send <inbox> takes a free-form inbox name, so docs-mission needs no registration' and 'ailang messages forward <id> --to docs-mission exists' as verified facts, but presents NO verification log — no command output, no rc, no date — unlike every other verification claim in the doc which is explicitly dated and rc=0 stamped. This is the single clause whose queue item (docs-1) is 'build the inbox routing,' yet the doc already asserts the primitives exist without evidence. If the premise is wrong, the entire docs-1 sprint plan collapses.
-- controller (in-session, not an API call) → **pass** — Charter is well-scoped and internally consistent. Clauses 1-6 map to existing instruments (docs-sync skill, make docs-build/verify-examples, CHANGELOG/nav diff, benchmark JSON files) rather than inventing new machinery. Clause 7 honestly states it has no delivery mechanism yet and names that as iteration-0 work rather than assuming one. Guardrails correctly restrict blast radius to docs/examples/README/CHANGELOG and forbid GPU/rig.lock use. Routing policy's cost ladder (subscription -> flat-rate -> metered) is measured (codex gpt-5.6-luna and ollama glm-5.3-flash:cloud both probed rc=0 same day) rather than assumed, and the evaluator is kept vendor-disjoint from the executor at every rung (generator!=judge). One residual risk not addressed in the doc: this mission and V1 share one repo (sunholo-data/ailang) from separate clones, and V1's CI path filters include CHANGELOG.md, so a collision on that file between missions is possible; not a ratification blocker, flagging for the backlog. PASS from the controller.
-- Blocking objections (return to author before planning):
-  - gpt5-6-sol: Clause 7 and queue item docs-1 require implementing inbox routing despite the document stating that the existing feedback-dispatch path is broken, while the mission’s mechanical allowlist forbids changes under `internal/` or `cmd/`. No extension mechanism within the permitted blast radius is identified, so a mandatory deliverable cannot proceed under the charter as written.
-  - gemini-3-1-pro: The document establishes Clause 7 (working the `docs-mission` inbox) but leaves the inbox read path as an unverified premise. It warns that a bare `ailang messages list` reads a local SQLite shadow database instead of the canonical prod Firestore, but fails to provide or verify the correct command to actually read the prod inbox, rendering the task unexecutable.
-  - oc-glm-5-2: Premise verification failure on clause 7's core deliverable: the doc asserts 'ailang messages send <inbox> takes a free-form inbox name, so docs-mission needs no registration' and 'ailang messages forward <id> --to docs-mission exists' as verified facts, but presents NO verification log — no command output, no rc, no date — unlike every other verification claim in the doc which is explicitly dated and rc=0 stamped. This is the single clause whose queue item (docs-1) is 'build the inbox routing,' yet the doc already asserts the primitives exist without evidence. If the premise is wrong, the entire docs-1 sprint plan collapses.
-
-#### Design-quorum review — `design_docs/docs-mission.md` (2026-08-28T06:35:00Z)
-
-- **Synthesis: BLOCKED** (total $0.0617, 18177 in / 886 out tok)
-- `gpt5-6-sol` → **reject** ($0.0381, 5923/283 tok) — Queue item docs-1 is not executable under the charter’s own mechanically enforced blast radius. Its proposed implementations require `tools/` or CI configuration, while the allowlist permits only `docs/`, `examples/`, `README.md`, and `CHANGELOG.md`; leaving this as an open question does not provide a valid route to deliver mandatory clause 7.
-- `gemini-3-1-pro` → **reject** ($0.0150, 6377/190 tok) — The document violates the 'no silent fallbacks' axiom by acknowledging a silent fallback in derive-planner-lane.sh ('a bare sonnet pin emits opus fail-closed:env-pin and silently runs opus') and choosing to work around it via pin selection instead of fixing the script. A script that silently runs the fleet's most expensive model on an invalid pin is a critical hazard that must be fixed, not routed around.
-- `oc-glm-5-2` → **reject** ($0.0085, 5877/413 tok) — Premise verification is systematically asserted, not verified. The doc claims CI workflow behavior — 'this repo has no push paths filter, so a docs-only commit still runs full CI' — without citing or linking the actual workflow YAML. The claim that `Deploy Documentation to GitHub Pages` is path-filtered on `docs/**, prompts/**, llms.txt, CHANGELOG.md` is presented as fact but the workflow file is never shown or referenced by path. If either premise is wrong, the entire Gate 3b polling strategy (wait for CI vs. read its absence as 'not applicable') is built on sand. This is the exact failure mode Gate 1 exists to prevent.
-- controller (in-session, not an API call) → **pass** — Round-2 verdict. The designer's revision (spawned as a pinned sonnet sub-agent, independent of this controller's round-1 pass verdict) addresses all three round-1 objections: (1) gpt5-6-sol's blast-radius objection — docs-1 now explicitly states send/forward need no internal/cmd change and surfaces the tools/ scope question as an open, one-word-answerable ask for Mark rather than assuming an answer; (2) gemini-3-1-pro's missing-read-command objection — the correct AILANG_MESSAGES_STORE=gcp/AILANG_MESSAGES_PROJECT read command is now cited explicitly in clause 7; (3) oc-glm-5-2's unverified-primitives objection — clause 7 now carries a dated, rc=0-stamped verification log for send/forward/list run live against prod Firestore, with positive and negative read controls, matching the doc's existing verification-log style. I independently ran these exact commands myself before handing them to the designer (send to a scratch inbox, forward --to docs-mission, list --inbox docs-mission --unread confirming arrival), so this is not merely the designer's claim -- it is a first-party-verified fact. The CURRENT-GOAL/Queue inconsistency is also resolved in favor of the Queue's sequencing. Scope was held narrow: clauses 1-6, Guardrails, Routing policy, and the not-yet-ratified/ARMED-BUT-SILENT STATUS language are all confirmed unchanged. PASS from the controller.
-- Blocking objections (return to author before planning):
-  - gpt5-6-sol: Queue item docs-1 is not executable under the charter’s own mechanically enforced blast radius. Its proposed implementations require `tools/` or CI configuration, while the allowlist permits only `docs/`, `examples/`, `README.md`, and `CHANGELOG.md`; leaving this as an open question does not provide a valid route to deliver mandatory clause 7.
-  - gemini-3-1-pro: The document violates the 'no silent fallbacks' axiom by acknowledging a silent fallback in derive-planner-lane.sh ('a bare sonnet pin emits opus fail-closed:env-pin and silently runs opus') and choosing to work around it via pin selection instead of fixing the script. A script that silently runs the fleet's most expensive model on an invalid pin is a critical hazard that must be fixed, not routed around.
-  - oc-glm-5-2: Premise verification is systematically asserted, not verified. The doc claims CI workflow behavior — 'this repo has no push paths filter, so a docs-only commit still runs full CI' — without citing or linking the actual workflow YAML. The claim that `Deploy Documentation to GitHub Pages` is path-filtered on `docs/**, prompts/**, llms.txt, CHANGELOG.md` is presented as fact but the workflow file is never shown or referenced by path. If either premise is wrong, the entire Gate 3b polling strategy (wait for CI vs. read its absence as 'not applicable') is built on sand. This is the exact failure mode Gate 1 exists to prevent.
-
-## ITERATION 0 — 2026-08-28T06:41Z (first unattended fire)
+## 0 — 2026-08-28 — first unattended fire
 
 **Pick**: `docs-0` (queue head; unattended run, no allowlisted directive or genuine regression to
 outrank it — Gate 0 found zero docs-mission-specific inbox traffic and zero comments on
@@ -148,7 +106,7 @@ before editing). No role fell back, no routing-policy violation, no billing anom
   - gemini-3-1-pro: Clause 1 asserts the existence and utility of 'audit_design_docs.sh' and 'check_versions.sh' within the 'docs-sync' skill without providing any verification evidence. This violates the premise verification hard gate, as these critical codebase instruments are asserted as working tools but entirely lack execution traces or proof of existence, contrasting sharply with the rigorously verified CLI commands in Clause 7.
   - oc-glm-5-2: The doc's own STATUS section records that iteration 0 quorum was BLOCKED twice and the charter is 'still not ratified,' yet the Queue and CURRENT GOAL already treat clauses 1-7 as the binding bar. The doc is simultaneously an unratified draft and an operational charter with a live launchd job, 5 clauses already tagged to queue items, and a cost ladder claimed as 'verified before being written down.' A self-admittedly unratified document cannot also be the source of truth for its own ratification — the doc pre-commits to its own bar before the quorum that exists to check it has run.
 
-## ITERATION 1 — 2026-08-28T07:26Z
+## 1 — 2026-08-28
 
 **Pick**: `docs-2` (queue head, `[NEXT]`). No allowlisted directive and no genuine regression
 outranked it — 11 unread inbox messages, all triaged as non-directive (V1's own reports/approvals,
@@ -222,7 +180,7 @@ pre-existing on the parent commit). Neither actioned further; outside this missi
 is numeric before comparing it) was already covered by this skill's existing `case … [!0-9]*)`
 prescription and worked as documented; not a gap.
 
-## ITERATION 2 — 2026-08-31T07:58Z (recovering a died-mid-flight prior fire)
+## 2 — 2026-08-31 — recovering a died-mid-flight prior fire
 
 **Pick**: none picked fresh — Gate 2's died-mid-flight check found a complete, unlanded iteration
 already sitting on the repo: an open PR (`sprint/iter2-docs-9`, #973), three orphaned worktrees
@@ -387,7 +345,7 @@ died-mid-flight rule warns about (skipping a number silently). Two consecutive d
 fires (this one, and the docs-1 planner run recovered as PR #1016) in the same short window is a
 pattern worth naming for whoever reviews mission health, not a single-instance skill gap.
 
-## ITERATION 4 — 2026-09-02T04:08Z
+## 4 — 2026-09-02
 
 **Pick**: Gate 2's died-mid-flight check found an open, `MERGEABLE` PR
 ([#1016](https://github.com/sunholo-data/ailang/pull/1016)) recovering iteration 3's complete
@@ -481,7 +439,7 @@ consecutive died-mid-flight fires in one short window (iteration 3, and the `doc
 recovered as PR #1016) is a pattern worth Mark's attention if it recurs a third time — not yet at
 the evidence bar for a charter change.
 
-## ITERATION 5 — 2026-09-02T17:00Z
+## 5 — 2026-09-02
 
 **Pick**: `docs-8` (126 overdue planned design docs, aggregate) — the natural next item per
 iteration 4's own note, the only `[PARKED]` row explicitly unblocked once docs-6/docs-7 resolved.
@@ -636,7 +594,7 @@ independent-verification step is not optional overhead, it is where the real err
 
 ---
 
-## ITERATION 6 — 2026-09-03T10:54Z
+## 6 — 2026-09-03
 
 **Gate 0.** Kill switch armed; billing CLEAN; gh `sunholo-voight-kampff`. Pin worktree at
 `origin/dev` tip (`55891002f`), clean. Watermark check on bookkeeping issue `#979`: 0 directives
@@ -811,7 +769,7 @@ future iterations, not the shared skill: a controller-measured quorum-objection 
 for a one-line correction — worth keeping as the default rather than reflexively re-routing every
 objection back through the designer role.
 
-## ITERATION 7 — 2026-09-03T17:20Z
+## 7 — 2026-09-03
 
 **Gate 0.** Kill switch armed; billing CLEAN; gh `sunholo-voight-kampff`. Pin worktree HEAD
 detached at `origin/dev` tip (`70e453060`), clean working tree. Watermark check on bookkeeping
@@ -926,7 +884,7 @@ queue row's blocking reason names another mission's red, re-run the actual check
 the verdict, especially after several iterations have passed — the CI landscape moves out from
 under a stale note faster than the note gets re-read.
 
-## ITERATION 8 — 2026-09-04T02:19Z
+## 8 — 2026-09-04
 
 **Pick: docs-4** (item 11, `[IN-SPRINT]`, held on D-3). D-3 resolved by Mark (attended,
 2026-09-03, recorded directly in the decision ledger under the ATTENDED LEDGER EDITS contract) in
@@ -1142,7 +1100,7 @@ Both frictions are now first-party-verified working practice for this iteration;
 NEXT iteration (or a sibling mission reading this log) inherits the lesson even before either
 crosses the skill-edit bar.
 
-## ITERATION 9 — 2026-09-05T11:19Z
+## 9 — 2026-09-05
 
 **Pick**: `docs-11` — `design_docs/planned/v0_29_0/m-dx27-docs-search-github-fallback.md`
 (GitHub code-search fallback for `ailang docs search` outside the source tree). Fresh draw from
@@ -1336,7 +1294,7 @@ ownership/last-touched column at classification time (a one-time pass over 31 do
 re-deriving attribution per pick indefinitely — that crosses the ≥2-instance bar for a skill or
 charter-table edit.
 
-## ITERATION 10 — 2026-09-05T19:29Z
+## 10 — 2026-09-05
 
 **Class**: HARNESS/PRODUCT-adjacent (design-only; no code shipped — the quorum blocked before any
 sprint ran, same as iteration 9).
@@ -1485,3 +1443,290 @@ not separately named either — worth a shared-skill watch-item if a second miss
 degrades every doc's review to 2 reviewers without ever surfacing as a "silent pass" (the existing
 `absent_reviewers` rule catches a false PROCEED; it does not catch a quorum that is quietly
 running permanently short-handed).
+
+## 11 — 2026-09-06
+
+**Gate 0:** armed; `sunholo-voight-kampff`; clean origin-pinned worktree at `e50066037`.
+Inbox triage found no `mission-docs` directive or genuine regression. D-4 and D-5 remain open.
+
+**Pick:** docs-11 remains parked on D-4 and docs-12 remains parked on D-5. Fresh eligible draw was
+`m-agent-step-cancellation`; its existing quorum artifact is blocked 3/3 on concrete objections
+covering mid-step concurrency, request-context/signal ownership, and existing cancellation APIs.
+
+**Routing / outcome:** designer `codex:gpt-6-astra` was spawned with the Agent tool but stayed
+running without changing the design file and was shut down. Required fallback `codex:gpt-5.6-luna`
+was then spawned with the Agent tool and likewise produced no revision before shutdown. Planner,
+executor, and evaluator were not spawned: no revised artifact reached quorum-ready state. This is
+a designer-lane failure and a correct park; no evaluator verdict was fabricated, so
+generator-not-equal-judge remains intact.
+
+**Cost:** $0.00 newly metered; quota-lane attempts only.
+
+**Decisions for Mark:** D-4 and D-5 unchanged and still open. **Flagged:** both designer attempts
+failed to produce a revision; retry/re-route before another fresh draw. **Ruled out:** none.
+
+**Retro:** no skill edit; one observed designer-lane timeout is below the two-instance threshold.
+
+#### Design-quorum review — `design_docs/docs-mission.md` (2026-08-28T06:29:56Z)
+
+- **Synthesis: BLOCKED** (total $0.0569, 15839 in / 990 out tok)
+- `gpt5-6-sol` → **reject** ($0.0358, 5172/331 tok) — Clause 7 and queue item docs-1 require implementing inbox routing despite the document stating that the existing feedback-dispatch path is broken, while the mission’s mechanical allowlist forbids changes under `internal/` or `cmd/`. No extension mechanism within the permitted blast radius is identified, so a mandatory deliverable cannot proceed under the charter as written.
+- `gemini-3-1-pro` → **reject** ($0.0133, 5545/181 tok) — The document establishes Clause 7 (working the `docs-mission` inbox) but leaves the inbox read path as an unverified premise. It warns that a bare `ailang messages list` reads a local SQLite shadow database instead of the canonical prod Firestore, but fails to provide or verify the correct command to actually read the prod inbox, rendering the task unexecutable.
+- `oc-glm-5-2` → **reject** ($0.0079, 5122/478 tok) — Premise verification failure on clause 7's core deliverable: the doc asserts 'ailang messages send <inbox> takes a free-form inbox name, so docs-mission needs no registration' and 'ailang messages forward <id> --to docs-mission exists' as verified facts, but presents NO verification log — no command output, no rc, no date — unlike every other verification claim in the doc which is explicitly dated and rc=0 stamped. This is the single clause whose queue item (docs-1) is 'build the inbox routing,' yet the doc already asserts the primitives exist without evidence. If the premise is wrong, the entire docs-1 sprint plan collapses.
+- controller (in-session, not an API call) → **pass** — Charter is well-scoped and internally consistent. Clauses 1-6 map to existing instruments (docs-sync skill, make docs-build/verify-examples, CHANGELOG/nav diff, benchmark JSON files) rather than inventing new machinery. Clause 7 honestly states it has no delivery mechanism yet and names that as iteration-0 work rather than assuming one. Guardrails correctly restrict blast radius to docs/examples/README/CHANGELOG and forbid GPU/rig.lock use. Routing policy's cost ladder (subscription -> flat-rate -> metered) is measured (codex gpt-5.6-luna and ollama glm-5.3-flash:cloud both probed rc=0 same day) rather than assumed, and the evaluator is kept vendor-disjoint from the executor at every rung (generator!=judge). One residual risk not addressed in the doc: this mission and V1 share one repo (sunholo-data/ailang) from separate clones, and V1's CI path filters include CHANGELOG.md, so a collision on that file between missions is possible; not a ratification blocker, flagging for the backlog. PASS from the controller.
+- Blocking objections (return to author before planning):
+  - gpt5-6-sol: Clause 7 and queue item docs-1 require implementing inbox routing despite the document stating that the existing feedback-dispatch path is broken, while the mission’s mechanical allowlist forbids changes under `internal/` or `cmd/`. No extension mechanism within the permitted blast radius is identified, so a mandatory deliverable cannot proceed under the charter as written.
+  - gemini-3-1-pro: The document establishes Clause 7 (working the `docs-mission` inbox) but leaves the inbox read path as an unverified premise. It warns that a bare `ailang messages list` reads a local SQLite shadow database instead of the canonical prod Firestore, but fails to provide or verify the correct command to actually read the prod inbox, rendering the task unexecutable.
+  - oc-glm-5-2: Premise verification failure on clause 7's core deliverable: the doc asserts 'ailang messages send <inbox> takes a free-form inbox name, so docs-mission needs no registration' and 'ailang messages forward <id> --to docs-mission exists' as verified facts, but presents NO verification log — no command output, no rc, no date — unlike every other verification claim in the doc which is explicitly dated and rc=0 stamped. This is the single clause whose queue item (docs-1) is 'build the inbox routing,' yet the doc already asserts the primitives exist without evidence. If the premise is wrong, the entire docs-1 sprint plan collapses.
+
+#### Design-quorum review — `design_docs/docs-mission.md` (2026-08-28T06:35:00Z)
+
+- **Synthesis: BLOCKED** (total $0.0617, 18177 in / 886 out tok)
+- `gpt5-6-sol` → **reject** ($0.0381, 5923/283 tok) — Queue item docs-1 is not executable under the charter’s own mechanically enforced blast radius. Its proposed implementations require `tools/` or CI configuration, while the allowlist permits only `docs/`, `examples/`, `README.md`, and `CHANGELOG.md`; leaving this as an open question does not provide a valid route to deliver mandatory clause 7.
+- `gemini-3-1-pro` → **reject** ($0.0150, 6377/190 tok) — The document violates the 'no silent fallbacks' axiom by acknowledging a silent fallback in derive-planner-lane.sh ('a bare sonnet pin emits opus fail-closed:env-pin and silently runs opus') and choosing to work around it via pin selection instead of fixing the script. A script that silently runs the fleet's most expensive model on an invalid pin is a critical hazard that must be fixed, not routed around.
+- `oc-glm-5-2` → **reject** ($0.0085, 5877/413 tok) — Premise verification is systematically asserted, not verified. The doc claims CI workflow behavior — 'this repo has no push paths filter, so a docs-only commit still runs full CI' — without citing or linking the actual workflow YAML. The claim that `Deploy Documentation to GitHub Pages` is path-filtered on `docs/**, prompts/**, llms.txt, CHANGELOG.md` is presented as fact but the workflow file is never shown or referenced by path. If either premise is wrong, the entire Gate 3b polling strategy (wait for CI vs. read its absence as 'not applicable') is built on sand. This is the exact failure mode Gate 1 exists to prevent.
+- controller (in-session, not an API call) → **pass** — Round-2 verdict. The designer's revision (spawned as a pinned sonnet sub-agent, independent of this controller's round-1 pass verdict) addresses all three round-1 objections: (1) gpt5-6-sol's blast-radius objection — docs-1 now explicitly states send/forward need no internal/cmd change and surfaces the tools/ scope question as an open, one-word-answerable ask for Mark rather than assuming an answer; (2) gemini-3-1-pro's missing-read-command objection — the correct AILANG_MESSAGES_STORE=gcp/AILANG_MESSAGES_PROJECT read command is now cited explicitly in clause 7; (3) oc-glm-5-2's unverified-primitives objection — clause 7 now carries a dated, rc=0-stamped verification log for send/forward/list run live against prod Firestore, with positive and negative read controls, matching the doc's existing verification-log style. I independently ran these exact commands myself before handing them to the designer (send to a scratch inbox, forward --to docs-mission, list --inbox docs-mission --unread confirming arrival), so this is not merely the designer's claim -- it is a first-party-verified fact. The CURRENT-GOAL/Queue inconsistency is also resolved in favor of the Queue's sequencing. Scope was held narrow: clauses 1-6, Guardrails, Routing policy, and the not-yet-ratified/ARMED-BUT-SILENT STATUS language are all confirmed unchanged. PASS from the controller.
+- Blocking objections (return to author before planning):
+  - gpt5-6-sol: Queue item docs-1 is not executable under the charter’s own mechanically enforced blast radius. Its proposed implementations require `tools/` or CI configuration, while the allowlist permits only `docs/`, `examples/`, `README.md`, and `CHANGELOG.md`; leaving this as an open question does not provide a valid route to deliver mandatory clause 7.
+  - gemini-3-1-pro: The document violates the 'no silent fallbacks' axiom by acknowledging a silent fallback in derive-planner-lane.sh ('a bare sonnet pin emits opus fail-closed:env-pin and silently runs opus') and choosing to work around it via pin selection instead of fixing the script. A script that silently runs the fleet's most expensive model on an invalid pin is a critical hazard that must be fixed, not routed around.
+  - oc-glm-5-2: Premise verification is systematically asserted, not verified. The doc claims CI workflow behavior — 'this repo has no push paths filter, so a docs-only commit still runs full CI' — without citing or linking the actual workflow YAML. The claim that `Deploy Documentation to GitHub Pages` is path-filtered on `docs/**, prompts/**, llms.txt, CHANGELOG.md` is presented as fact but the workflow file is never shown or referenced by path. If either premise is wrong, the entire Gate 3b polling strategy (wait for CI vs. read its absence as 'not applicable') is built on sand. This is the exact failure mode Gate 1 exists to prevent.
+
+## 12 — 2026-09-06
+
+**Pick:** fresh docs-8 backlog draw `design_docs/planned/v0_29_0/m-ailang-semantic-context.md`,
+after docs-11/D-4 and docs-12/D-5 remained parked and iteration 11's
+`m-agent-step-cancellation` designer lane failed.
+
+**Quorum:** pick-time quorum BLOCKED 3/3. `gpt6-astra`, `gemini-3-1-pro`, and `oc-glm-5-2` all
+rejected the self-contradictory compaction premise: the document reports compaction never fires
+for qwen3.6 but still proposes compaction-causal fixes and a reduced fire-rate as the success
+metric. Controller also rejected because the document bundled multiple independent routes rather
+than one bounded sprint. Metered cost: $0.0898.
+
+**Routing / outcome:** designer `codex:gpt-6-astra` was spawned through the Agent tool and shut
+down after bounded waits with no file change. The configured fallback `codex:gpt-5.6-luna` was
+then spawned through the Agent tool and failed identically; its file artifact was absent. Planner
+`codex:gpt-5.6-luna` was not spawned because no revised design reached re-quorum. Executor
+`codex:gpt-5.6-luna` was not spawned because no plan existed. Evaluator
+`pi:ollama/minimax-m3:cloud` was not spawned because no generated implementation existed to
+judge. This preserves generator-not-equal-judge; no evaluator verdict was fabricated.
+
+**Outcome:** **PARKED.** No implementation changes. D-4 and D-5 remain OPEN. The two designer
+failures are recorded as retryable lane failures, not as a passing design.
+
+**Cost:** metered $0.0898; quota buckets: `codex:gpt-6-astra`, `codex:gpt-5.6-luna` designer
+attempts; no planner/executor/evaluator spend.
+
+**Decisions for Mark:** D-4 and D-5 unchanged. **Ruled out:** none. **Retro:** no skill edit;
+one designer-lane failure is below the shared-skill two-instance threshold.
+
+## 13 — 2026-09-06
+
+**Pick**: `m-anthropic-sandbox` — next fresh docs-8 backlog item after docs-11/D-4 and docs-12/D-5 remained parked, and iteration 12's fresh designer draw produced no revision.
+
+**Quorum**: pick-time quorum BLOCKED 3/3, metered **$0.0735**. Reviewers rejected missing session-selective worker isolation, unverified bounded termination/timeout behavior, and unverified live API/event and pricing premises. Controller also rejected the fresh design on those grounds.
+
+**Routing / outcome**: designer `codex:gpt-6-astra` was spawned through the required Agent tool. It remained `running` through two bounded 120-second waits with no change to the design file and was explicitly shut down. The resolver reported `recipe codex:gpt-6-astra`; the Agent attempt was made under the unattended operator's explicit Agent-tool instruction. No fallback designer was spawned because no Agent-tool-compatible fallback was authorized. Planner `codex:gpt-5.6-luna` was not spawned because no revised design reached re-quorum. Executor `codex:gpt-5.6-luna` was not spawned because no plan existed. Evaluator `pi:ollama/minimax-m3:cloud` was not spawned because no generated implementation existed to judge. This is a correct park; no evaluator verdict was fabricated and generator-not-equal-judge remains intact. Gate 4 base=`6c03639f518fa45569b879bfa73c2d31e5b3d62f`@`2026-09-06T16:29:19Z`.
+
+**Outcome**: **PARKED** · **HARNESS**. No implementation changes. D-4 and D-5 remain OPEN.
+**Progress**: goal unmoved; no sprint milestone executed.
+**Decisions for Mark**: D-4 and D-5 unchanged and still open.
+**Ruled out**: none.
+**Next**: retry or re-route the designer for `m-anthropic-sandbox`; if design-ready, re-quorum once before planning.
+
+**Retro**: no skill edit. This is the second consecutive docs-mission designer-lane failure; surface it as a routing-policy signal for human review, without changing the shared skill.
+
+## 14 — 2026-09-07 — retry of `m-anthropic-sandbox`; designer lane failed, parked-on-lane [HARNESS]
+
+**Pick**: `m-anthropic-sandbox` — retry of the next fresh draw after docs-11/D-4 and docs-12/D-5
+remained parked and iteration 13's designer attempt produced no artifact.
+
+**Outcome**: PARKED-ON-LANE · HARNESS · evaluator not applicable (no generated implementation) ·
+no implementation commits.
+
+**Progress**: goal unmoved; no sprint milestone executed.
+
+**Key find**: The existing quorum remains blocked 3/3 on session-selective worker isolation,
+bounded termination/timeout evidence, and live API/pricing verification. The required Agent-tool
+designer `gpt-6-astra` timed out twice with the design file unchanged and was shut down; this is a
+capacity/routing park, not a design pass.
+
+**Cost**: no new metered spend · quota buckets: `gpt-6-astra` Agent-tool attempt; prior pick-time
+quorum cost remains $0.0735.
+
+**Routing evidence**:
+| Role | Model | Outcome |
+|---|---|---|
+| Controller | `codex:gpt-5.6-luna` | Gate 0–5; tokens not reported |
+| Designer | `gpt-6-astra` via Agent tool | Spawned; still running after two bounded 120-second waits, target unchanged; explicitly shut down; tokens not reported |
+| Planner | `codex:gpt-5.6-luna` | Not spawned — no revised design reached re-quorum |
+| Executor | `codex:gpt-5.6-luna` | Not spawned — no plan |
+| Evaluator | `pi:ollama/minimax-m3:cloud` | Not spawned — no generated implementation to judge; no verdict invented |
+| generator≠judge | N/A | Preserved: no generation occurred outside the blocked designer lane |
+
+Resolver evidence: `tools/launchd/resolve-role-spawn.sh designer design_docs/planned/v0_29_0/m-anthropic-sandbox.md` returned `recipe codex:gpt-6-astra declared:provider-pin`. No compatible Agent-tool fallback was authorized or used. Resume predicate: re-probe the designer lane next iteration; proceed only after a revised artifact exists and re-quorum passes. Gate 4 base=`aeeafc880dec8bb30215620332d938e96904aaf0`@`2026-09-06T22:41:03Z`.
+
+**Ruled out**: none.
+
+**DECISIONS FOR MARK**: D-4 and D-5 remain OPEN and unchanged; no new decision inferred.
+
+**Retro**: third consecutive fresh-draw designer-lane failure across iterations 12–14. Surface as
+a routing-policy signal for human review; no shared skill edit this iteration.
+
+## 15 — 2026-09-07 — docs-11 LANDED: GitHub code-search fallback for `ailang docs search`
+
+**Pick**: `docs-11` (`m-dx27-docs-search-github-fallback`) — D-4 was answered this session via an
+attended ruling delegated to Codex ("please make the rulings so we are all unblocked"), which
+simultaneously resolved D-5 (docs-12). Standing rule 1 reads a resolved-parked item's resume as
+one fresh pick; docs-11 was taken over docs-12 as it is earlier in queue order (item 12 vs 13).
+D-4's grant was conditional: re-verify every named correction, the reusable GitHub/git-remote
+logic, and the actual `docsearch` types/signature against current code before planning.
+
+**Reality-check (before routing)**: re-verified D-4's condition first-party at HEAD
+(`ailang --version` → `v0.35.1-95-gbc74c307b-dirty`): `getGitHubOwnerRepo` still at
+`cmd/ailang/coordinator_cloud_github.go:87`; `internal/docsearch/search.go` still defines
+`SearchOptions` (line 18), `SearchStats` (line 38), `Search(ctx, opts)` (line 62) unchanged from
+the doc's citations; `internal/gitutil` did not exist (no naming collision for the planned
+extraction). All three held — routed straight to sprint-planner, no fresh designer needed.
+
+**Outcome**: LANDED · [PR #1083](https://github.com/sunholo-data/ailang/pull/1083) · merge commit
+`63af7cade98177156fd66bf6c1bc56dbe7446c4e` · evaluator `sonnet` (independent Agent-tool judge)
+round 1 FAIL 67/100 → round 2 PASS 93/100 after a scoped fix.
+
+**Progress**: goal advanced. docs-11 (clause 1) LANDED; docs-12/D-5 unblocked, next iteration's
+pick.
+
+**Key find — three CI-only defects invisible to every sandboxed run, none a design or
+implementation defect:**
+1. `make check-git-exec` (required `test` job) refused the sprint's own M1 milestone: moving
+   `getGitHubOwnerRepo`'s `git remote get-url origin` call from `coordinator_cloud_github.go` into
+   the new `internal/gitutil/remote.go` shifted an exec-call-site baseline the gate tracks by
+   file+count. Fixed by updating `scripts/git_exec_baseline.txt` (2→1 for the old file, +1 for the
+   new one) — a legitimate, expected maintenance step for any refactor that moves an exec site,
+   not a defect in the moved code.
+2. `TestCacheHitMissExpiryIsolationAndNoTokenPersistence` failed on `Build windows-latest` and
+   `test-windows` only: `os.UserHomeDir()` reads `%USERPROFILE%` on Windows, not `%HOME%`, so
+   `t.Setenv("HOME", tempdir)` silently left the cache pointed at the real runner profile while the
+   test's own on-disk credential check reconstructed the path against the tempdir — mismatch,
+   "system cannot find the path specified", Windows-only. First fix (also setting `USERPROFILE`)
+   tripped a THIRD required check, `make check-home-isolation`, which refuses any hand-rolled HOME
+   override outside `internal/testutil.SetHomeDir` — a shared helper that exists for exactly this
+   class and that the executor (reasonably, it never reads this repo's skills) reinvented instead
+   of finding. Final fix routes through that helper.
+3. `make check-changelog` (required `test` job) rejected M4's edit: it added release-note content
+   directly to `CHANGELOG.md`, which this repo enforces as a pure archive index — active entries
+   belong in `changelogs/v0.32-current.md`. Reverted the index edit, moved the entry to the correct
+   file.
+4. Separately, `test` and `Build ubuntu-latest` both hit a transient `proxy.golang.org`/
+   `sum.golang.org` `stream error ... INTERNAL_ERROR` in the same ~2-minute window — confirmed
+   fleet-wide (two unrelated dependabot PRs failed identically in the same window) rather than
+   caused by this diff; resolved by `gh run rerun --failed`, no code change.
+All three code-level fixes were applied by the controller directly (Gate 2 rule 3f: measure the
+defect, don't forward it) — small, mechanical, unambiguous, no design judgment involved.
+
+**Routing evidence**:
+| Role | Model | Outcome |
+|---|---|---|
+| Controller | `codex:gpt-5.6-luna` | Gate 0–5; tokens not reported (session-level, not surfaced to sub-agent boundary) |
+| Planner | `codex:gpt-5.6-luna` recipe lane (`derive-planner-lane.sh` returned `opus fail-closed:planner-lane-field-missing`; role carries a `codex:` provider pin, so per the spawn-pin-hook rule routed to the codex recipe directly rather than the named Agent-tool opus path) | 1 bounded run, 117,375 tok, rc=0 — 5-milestone plan, gitutil extraction first |
+| Executor | `codex:gpt-5.6-luna` recipe lane | 3 bounded runs. Run 1: aborted — controller's own directive told it to run unscoped `go build ./...`/`go test ./...`, which fails on this repo's `cmd/wasm` (genuinely `js`/`wasm`-build-tag-gated, not a regression) — controller error, not a lane failure. Run 2: aborted — codex sandbox denies loopback socket binds, so the new GitHub-backend httptest suite read as a false negative inside the sandbox (documented false-green class); corrected directive to scope build/test and name the sandbox artifact. Run 3: 127,122 tok, rc=0, all 5 milestones completed and snapshotted per-milestone; controller reconstructed one commit per milestone from the snapshots, verified build+test at every boundary, confirmed sha256 byte-identity against the executor's final tree. Fix-round (post-evaluator): 58,127 tok, rc=0. |
+| Evaluator | `sonnet` via Agent tool | Independent of the codex executor — generator≠judge held. Round 1: FAIL 67/100 — reproduced the blocking `NewBackend` default-repo defect behaviorally (built the PR binary, ran it from both a non-git dir and an unrelated GitHub checkout). Round 2 (same agent, resumed via SendMessage): re-reproduced both original failures now fixed with a freshly rebuilt binary, verified the new regression tests genuinely exercise both scenarios, PASS 93/100. Combined 224,166 subagent tok across both rounds. |
+| generator≠judge | N/A | Preserved both evaluator rounds: executor on codex (OpenAI), evaluator on sonnet (Anthropic) |
+
+Resolver evidence: `tools/launchd/derive-planner-lane.sh design_docs/planned/v0_29_0/m-dx27-docs-search-github-fallback.md` → `opus fail-closed:planner-lane-field-missing`; not acted on directly per the spawn-pin-hook rule (role already carries a `codex:` pin). Gate 4 base=`63af7cade98177156fd66bf6c1bc56dbe7446c4e`@`2026-09-07T13:15:51Z`.
+
+**Ruled out**: none — every red encountered (git-exec baseline, Windows HOME test, changelog
+index, transient network) was real and attributable, not a false alarm.
+
+**DECISIONS FOR MARK**: none open from this iteration. D-4 and D-5 both RESOLVED this session
+(attended, delegated to Codex) — D-4 consumed by this landing; D-5 (docs-12) is next iteration's
+pick.
+
+**Retro**: no shared-skill edit this iteration. Two findings for a future iteration, neither
+urgent enough to act on mid-record: (1) the charter's STATUS block has drifted to 6 live stamps
+(iterations 14/13/12/8/9/10) against the rotation rule's 3-stamp invariant — evidently a prior
+iteration skipped or partially applied rotation. Given this skill's own repeated, detailed
+warnings that a STATUS rotation is "the most dangerous edit this loop makes" (three recorded
+mass-deletion near-misses on the sibling V1 mission), this iteration deliberately did not attempt
+to correct the accumulated drift under time pressure — only prepended its own stamp. A dedicated,
+careful pass should reconcile it. (2) `derive-planner-lane.sh`'s `fail-closed:planner-lane-field-missing`
+reason for a design doc with no obviously-missing field is worth a first-party look at what the
+script actually checks — a `codex:` provider pin made the answer moot here, but will not always.
+
+## 16 — 2026-09-07 — docs-12 LANDED: gate multi-file grading benchmarks out of standard mode
+
+**Pick**: `docs-12` (`m-eval-standard-mode-input-files-gap`) — D-5 was answered via an attended
+ruling recorded directly in the decision ledger (Mark Edmondson, 2026-09-07): accept both
+round-4 quorum objections as wording-precision issues, not design defects, correct both in the
+doc, and route straight to sprint-planner with no 5th quorum round. D-4 and D-5 were both
+resolved in the same attended session (see iteration 15); docs-12 was the queue's only remaining
+item after docs-11 landed.
+
+**Applied fixes (Gate 2, before routing)**: scoped the Axiom-11 "Structured Failure" justification
+to the dispatch-time bypass path only (the normal scheduled path writes no result row, so it
+cannot report a `skip_reason`); marked `docx_reimplement`'s 15 `runtime_error` root-cause
+attribution as not independently confirmed per-model, in both the Problem Statement and the
+Impact section (the earlier fix touched only the Problem Statement; the Impact bullet made the
+identical unverified "two benchmarks depressed" claim and needed the same correction). Committed
+and pushed directly (`fec04c18e`) — no other content changed, verified by re-reading the diff
+before routing.
+
+**Outcome**: LANDED · [PR #1104](https://github.com/sunholo-data/ailang/pull/1104) · merge commit
+`b2cead2ee6231672ebda52a1bf29d92dd06eaf33` · evaluator `sonnet` (independent Agent-tool judge,
+cross-provider from the pi/ollama executor) PASS 98/100, zero blocking findings.
+
+**Progress**: goal advanced. docs-12 (clause 1) LANDED. Both D-4 and D-5 are now fully consumed
+(docs-11 landed iteration 15, docs-12 this iteration) — the mission-docs backlog's `docs-8` draw
+queue is exhausted; next iteration needs a fresh pick (dashboard's prior "next fresh draw:
+`m-anthropic-sandbox`" note still applies — see iteration 14's parked-on-lane record).
+
+**Key find — planner/executor both ran end-to-end on the `pi:ollama/glm-5.3-flash:cloud` lane,
+first full 5-milestone multi-commit run on this lane for docs-mission**: the planner's
+`derive-planner-lane.sh` returned `opus fail-closed:planner-lane-field-missing`, but the role
+carries a `pi:` provider pin (`MISSION_PLANNER_PATH=recipe`), so per the spawn-pin-hook rule this
+routed straight to the pi recipe rather than attempting (and being denied) the Agent-tool opus
+path — both readings recorded here per that rule. The executor directive demanded NO git writes
+and per-milestone cumulative snapshots (`.snap/M<k>/`); the controller reconstructed 5 separate
+commits from those snapshots, running `go build`+the milestone's own `go test` package at every
+boundary (all green, including two CLI-level acceptance checks run live:
+`eval-suite --dry-run --tier frontier` excludes both benchmarks in standard mode,
+`--agent --benchmarks docx_reimplement,markdown_reimplement` still plans both), then
+sha256-verified the final reconstructed tree was byte-identical to the executor's original
+uncommitted output before pushing. One process note: `git worktree add`'s bounded reset step used
+a bare `git stash --include-untracked` by reflex (forbidden — this rig's stash stack is shared
+across every worktree); caught immediately, recovered by exact SHA (`git stash apply <sha>`, never
+`pop`), and dropped cleanly — no data lost, but recorded here as a near-miss, not swept under the
+"it worked out" carpet. All further tree resets in this iteration used `git checkout -- <files>`
+instead.
+
+**Routing evidence**:
+| Role | Model | Outcome |
+|---|---|---|
+| Controller | `claude-sonnet-5` (Agent tool, this session) | Gate 0–5; tokens not reported (session-level) |
+| Planner | `pi:ollama/glm-5.3-flash:cloud` (`derive-planner-lane.sh` → `opus fail-closed:planner-lane-field-missing`; role carries a `pi:` provider pin, spawn-pin-hook rule routes directly to the pi recipe) | 1 bounded run via `mission_pi_run.sh`, verdict `ok`, rc=0, 111s, 29 tool calls, 2 files changed, ~613K tok (591,348 in / 21,777 out). Produced the 5-milestone sprint plan + JSON, 16 first-party verification rows. |
+| Executor | `pi:ollama/glm-5.3-flash:cloud` recipe lane | 1 bounded run via `mission_pi_run.sh`, verdict `ok`, rc=0, 894s, 114 tool calls, 11 files changed, ~7.78M tok (7,742,988 in / 40,829 out). All 5 milestones snapshotted cumulatively; zero git writes (per directive); controller reconstructed 5 commits, sha256 byte-identity confirmed against the executor's final tree. |
+| Evaluator | `sonnet` via Agent tool | Independent of the pi executor — generator≠judge held (Anthropic vs Ollama-hosted GLM, distinct providers). Mutation-tested the two most load-bearing tests first-party (reverted each fix in the worktree, confirmed the paired test fails, restored to clean); live-rebuilt the binary and re-ran both CLI acceptance checks itself rather than trusting the plan/PR claims. PASS 98/100, zero blocking; one non-blocking note (design doc not yet moved to `implemented/` — a release-time step, not a Success Criteria item). |
+| generator≠judge | N/A | Preserved: executor on pi/Ollama-hosted GLM-5.3-Flash, evaluator on Anthropic sonnet |
+
+Resolver evidence: `tools/launchd/resolve-role-spawn.sh planner design_docs/planned/v0_33_1/m-eval-standard-mode-input-files-gap.md` → `agent-tool opus fail-closed:planner-lane-field-missing`; `tools/launchd/resolve-role-spawn.sh executor <same doc>` → `recipe pi:ollama/glm-5.3-flash:cloud declared:provider-pin`. Gate 4 base=`b2cead2ee6231672ebda52a1bf29d92dd06eaf33`@`2026-09-07T20:37:46Z`.
+
+**Cost**: zero further quorum spend (D-5's ruling explicitly waived the 5th round); pi lane is a
+quota bucket, zero metered $ for planner or executor. Prior quorum spend across docs-12's 4 rounds
+($0.1123) stands, recorded at pick time in earlier iterations.
+
+**Ruled out**: none — every gate (local build/test, fmt, lint, boundaries, file-sizes,
+check-git-exec, check-home-isolation, check-changelog, 21/21 remote CI checks, independent
+evaluator) passed on genuine measurement, no false alarms encountered.
+
+**DECISIONS FOR MARK**: none open from this iteration. D-4 and D-5 are both fully consumed
+(no longer just resolved-but-pending-execution — the sprints they authorized have both landed).
+
+**Retro**: no shared-skill edit this iteration. One near-miss worth a watch-item rather than an
+edit: a bare `git stash` was run once (see Key find) before the operator remembered the
+worktree-shared-stash-stack rule mid-command; it self-corrected within the same tool call using
+the exact-SHA recovery procedure the environment's own instructions already prescribe, so no
+skill gap is implicated — but it is the kind of near-miss worth naming so a future controller
+recognizes the same reflex. Second, smaller note: this is the first docs-mission iteration to run
+a full multi-milestone pi executor end-to-end (prior landings used `codex:*`); the snapshot/
+reconstruct/byte-identity-verify workflow the shared skill already prescribes for pi executors
+worked exactly as documented, no gap found.

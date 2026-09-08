@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/docsearch"
+	githubsearch "github.com/sunholo-data/ailang/internal/docsearch/github"
 )
 
 // docsSearchCommand implements `ailang docs search` subcommand
@@ -26,6 +27,7 @@ func docsSearchCommand(args []string) {
 	limitFlag := searchFlags.Int("limit", 10, "Maximum results to return")
 	jsonFlag := searchFlags.Bool("json", false, "Output results as JSON")
 	helpFlag := searchFlags.Bool("help", false, "Show help for docs search")
+	noGitHubFlag := searchFlags.Bool("no-github", false, "Disable GitHub fallback when local docs are unavailable")
 
 	// Timeout flag for neural search
 	timeoutFlag := searchFlags.Duration("timeout", 60*time.Second, "Overall timeout for neural search (default: 60s)")
@@ -67,6 +69,7 @@ func docsSearchCommand(args []string) {
 	// Determine docs path
 	var docsPath string
 	var err error
+	var localDocsErr error
 	if *pathFlag != "" {
 		// User specified path
 		docsPath, err = filepath.Abs(*pathFlag)
@@ -82,10 +85,7 @@ func docsSearchCommand(args []string) {
 		// Try to find docs directory (prefer design_docs for developers, fall back to docs/ for users)
 		docsPath, err = findDocsDir()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
-			fmt.Fprintln(os.Stderr, "\nHint: Use --path flag to specify a documentation directory")
-			fmt.Fprintln(os.Stderr, "Example: ailang docs search --path docs \"query\"")
-			os.Exit(1)
+			localDocsErr = err
 		}
 	}
 
@@ -133,9 +133,24 @@ func docsSearchCommand(args []string) {
 	// Create context with timeout for neural search
 	ctx, cancel := context.WithTimeout(context.Background(), *timeoutFlag)
 	defer cancel()
+	var backend docsearch.SearchBackend = docsearch.LocalBackend{}
+	if localDocsErr != nil {
+		if *noGitHubFlag || os.Getenv("AILANG_NO_GITHUB_SEARCH") != "" {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), localDocsErr)
+			fmt.Fprintln(os.Stderr, "\nHint: Use --path, or unset --no-github and AILANG_NO_GITHUB_SEARCH")
+			os.Exit(1)
+		}
+		gh, ghErr := githubsearch.NewBackend(ctx)
+		if ghErr != nil {
+			fmt.Fprintf(os.Stderr, "%s: no local docs found, and GitHub fallback unavailable: %v\n", red("Error"), ghErr)
+			fmt.Fprintln(os.Stderr, "\nHint: Use --path, or set GITHUB_TOKEN / run `gh auth login`")
+			os.Exit(1)
+		}
+		backend = gh
+	}
 
 	// Run search
-	results, stats, err := docsearch.Search(ctx, opts)
+	results, stats, err := backend.Search(ctx, opts)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 		os.Exit(1)
@@ -288,12 +303,16 @@ func printDocsSearchHelp() {
 	fmt.Println("  --timeout <dur>      Overall timeout for neural search (default: 60s)")
 	fmt.Println("  --limit <n>          Maximum results to return (default: 10)")
 	fmt.Println("  --json               Output results as JSON")
+	fmt.Println("  --no-github          Disable authenticated GitHub fallback")
 	fmt.Println("  --rebuild            Force rebuild of all embeddings (ignore cache)")
 	fmt.Println("  --help               Show this help message")
 	fmt.Println()
 	fmt.Println("Cache Management:")
 	fmt.Println("  --cache-info         Show embedding cache statistics")
 	fmt.Println("  --cleanup            Remove orphaned cache entries (files that no longer exist)")
+	fmt.Println()
+	fmt.Println("GitHub fallback requires GITHUB_TOKEN or `gh auth login` and is used only when")
+	fmt.Println("local documentation is unavailable. Set AILANG_NO_GITHUB_SEARCH=1 to disable it.")
 	fmt.Println()
 	fmt.Println("Note: Flags must come BEFORE the query.")
 	fmt.Println()

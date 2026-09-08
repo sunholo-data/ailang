@@ -127,9 +127,16 @@ type ChainStage struct {
 	CostProvenance string `json:"cost_provenance,omitempty"`
 	TokensIn       int    `json:"tokens_in"`
 	TokensOut      int    `json:"tokens_out"`
-	Turns          int    `json:"turns"`
-	ToolCalls      int    `json:"tool_calls"`
-	DurationMs     int64  `json:"duration_ms"`
+	// QuotaTokens is SUBSCRIPTION token spend, and it is deliberately NOT part of
+	// TokensIn/TokensOut. `tokens > 0` is the fleet's structural marker for "metered
+	// and priceable" (ClassifyStageCost has no schema flag), so a quota lane's real
+	// count in those fields would price a run nobody was billed for. Sum this field
+	// for RATION questions; sum TokensIn/TokensOut for COST questions. Never both
+	// (M-QUOTA-RATIONING-ROUTING M2).
+	QuotaTokens int64 `json:"quota_tokens,omitempty"`
+	Turns       int   `json:"turns"`
+	ToolCalls   int   `json:"tool_calls"`
+	DurationMs  int64 `json:"duration_ms"`
 
 	// Error tracking
 	ErrorMessage string `json:"error_message,omitempty"`

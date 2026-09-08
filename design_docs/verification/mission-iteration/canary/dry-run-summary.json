@@ -1,0 +1,25 @@
+{
+  "result": "pass",
+  "source": "/private/tmp/ailang-docs-canary/source",
+  "workspace_root": "/private/tmp/ailang-docs-canary/workspaces",
+  "base_revision": "ad1bf98d3fd8271ac8399f0f83e7e3ddf2675cb9",
+  "roles": {
+    "designer": [
+      "opencode-or-kimi-k3"
+    ],
+    "evaluator": [
+      "pi-or-deepseek-v4-flash"
+    ],
+    "executor": [
+      "claude-sonnet-5"
+    ],
+    "planner": [
+      "gpt5-6-sol",
+      "opencode-or-kimi-k3"
+    ]
+  },
+  "work_item_id": "docs-canary-work-item-guide-1",
+  "state_database_created": false,
+  "workspace_root_created": false,
+  "input_sha256": "98d7586d766266ce0f304784746298ea77b2c734c1ca638fd9e6efa03f270319"
+}

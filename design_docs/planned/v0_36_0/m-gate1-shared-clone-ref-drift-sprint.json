@@ -1,0 +1,124 @@
+{
+  "sprint_id": "m-gate1-shared-clone-ref-drift",
+  "design_doc": "design_docs/planned/v0_36_0/m-gate1-shared-clone-ref-drift.md",
+  "plan_path": "design_docs/planned/v0_36_0/m-gate1-shared-clone-ref-drift-sprint-plan.md",
+  "created": "2026-09-06",
+  "updated": "2026-09-06",
+  "status": "completed",
+  "risk_level": "low",
+  "scope_note": "Post-c1212b3c recovery plan. M1 remains complete at recovered commit 8fcc1560d, which is patch-equivalent to original 20201e1d9. M2/M3 must be authored afresh in the authoritative split gate resources; the abandoned old-monolith M2 diff and .snap/M2 material are evidence only and must never be copied, merged, applied, restored, or used as implementation input. Reviewed behavior and both quorum-R2 fixes are unchanged; do not rerun quorum.",
+  "execution_preconditions": [
+    "Controller provides a clean base containing the c1212b3c gate-resource split (or descendant) and recovered M1 commit 8fcc1560d.",
+    "The old uncommitted root-SKILL.md M2 diff is cleared or quarantined before executor spawn; root SKILL.md is not an M2/M3 implementation target.",
+    "The existing stale .snap/M2 material is cleared or quarantined; executor creates a fresh split-resource .snap/M2 snapshot.",
+    "All four authoritative gate resources exist before executor spawn: gate-1-observe.md, gate-3-route.md, gate-3b-ci-green.md, gate-4-record.md."
+  ],
+  "hard_constraints": [
+    "M1 is complete and immutable at recovered commit 8fcc1560d (patch-equivalent to original 20201e1d9); preserve record() single-snap, last() exit-1-on-no-match, and drift() explicit non-empty-old guard returning 2 for both no-record cases.",
+    "M2/M3 edit only authoritative resources under .claude/skills/mission-control/resources plus new ref-drift.md; root .claude/skills/mission-control/SKILL.md stays byte-identical to the clean execution base and <= 2781 lines (expected 560).",
+    "Never bump scripts/context_docs_baseline.txt or scripts/context_docs_links_baseline.txt; make check-context-docs and link resolution must pass.",
+    "S1-S5 literals remain in resources/gate-3-route.md: resolve-role-spawn.sh; MISSION-ROLE:; enum in this build lists; now `claude:claude-fable-5-1` → `codex:gpt-6-astra` → `pi:ollama/deepseek-v4-flash:0731-cloud` → repeat; ASTRA IS ALSO A QUORUM REVIEWER.",
+    "No changes to .agents/skills/mission-control/SKILL.md, mission-heartbeat.sh, mission-control.sh, pin-root.sh, test_mission_routing.sh, quorum receipts, mission charter/log, or implementation outside the named resource files.",
+    "Bash 3.2 only; snap performs no fetch; no associative arrays, ${v,,}, or GNU timeout.",
+    "Executor does not run git add, git commit, git checkout, or git push."
+  ],
+  "features": [
+    {
+      "id": "M1_mission_base_helper_and_non_vacuity_test",
+      "description": "Committed helper, eight-arm non-vacuity test, and make test-launchd-drivers wiring. Verify after base alignment; do not regenerate or edit.",
+      "estimated_loc": 152,
+      "actual_loc": 152,
+      "dependencies": [],
+      "files": [
+        "tools/launchd/mission-base.sh",
+        "tools/launchd/test_mission_base.sh",
+        "make/test.mk"
+      ],
+      "acceptance_criteria": [
+        "Recovered commit 8fcc1560d is an ancestor of the execution HEAD.",
+        "Both scripts pass /bin/bash -n and test_mission_base.sh reports all eight arms green.",
+        "make/test.mk contains the test_mission_base.sh invocation.",
+        "Both quorum-R2 fixes remain present exactly in behavior: last no-match exits 1; drift empty-old returns 2; record snaps once."
+      ],
+      "passes": true,
+      "started": "2026-09-06",
+      "completed": "2026-09-06T11:22:34+02:00",
+      "notes": "Recovered as 8fcc1560d with the same stable patch ID and file blobs as original 20201e1d9; 55 + 96 + 1 = 152 added LOC. No M1 work remains."
+    },
+    {
+      "id": "M2_gate1_gate3_split_resource_wiring",
+      "description": "Fresh implementation against the c1212b3c resource split: Gate 1 records the full SHA/read time; Gate 3 re-reads, classifies drift, creates from the fresh SHA, and records provenance; new ref-drift.md carries rationale and protocol. Never reuse the abandoned monolith diff or stale M2 snapshot.",
+      "estimated_loc": 110,
+      "dependencies": [
+        "M1_mission_base_helper_and_non_vacuity_test"
+      ],
+      "files": [
+        ".claude/skills/mission-control/resources/gate-1-observe.md",
+        ".claude/skills/mission-control/resources/gate-3-route.md",
+        ".claude/skills/mission-control/resources/ref-drift.md"
+      ],
+      "acceptance_criteria": [
+        "gate-1-observe.md records gate1 immediately after the existing sync block and echoes the full SHA/read time.",
+        "gate-3-route.md snaps immediately before origin/dev-based worktree creation, compares with last gate1, invokes drift gate1 on disagreement, creates from the fresh full SHA, and carries base into provenance/routing evidence.",
+        "gate-1-observe.md and gate-3-route.md both link to an existing ref-drift.md containing the two-instance rationale, drift protocol, and non-vacuity recipe.",
+        "Root SKILL.md is byte-identical to the clean execution base, remains <= 2781 lines, and make check-context-docs exits 0.",
+        "All five S-guard literals remain in gate-3-route.md and the scrubbed make test-launchd-drivers gate exits 0.",
+        "Fresh .snap/M2 is built from split-resource content and contains no root SKILL.md or abandoned-snapshot content."
+      ],
+      "actual_loc": 110,
+      "passes": true,
+      "started": "2026-09-06T11:02:43Z",
+      "completed": "2026-09-06T11:08:50Z",
+      "notes": "Fresh split-resource implementation: Gate 1 records full SHA/read time after sync; Gate 3 snaps and compares immediately before worktree creation, diagnoses drift, uses the fresh full SHA, and carries provenance; ref-drift.md records both measured instances, the protocol, and non-vacuity recipe. Context docs, links, S1-S5 literals, and scrubbed test-launchd-drivers pass. Gate 2 durable stamp remains deferred; gate-2-pick.md was not edited. Fresh cumulative .snap/M2 contains the three M1 files and three M2 resources, with no root SKILL.md."
+    },
+    {
+      "id": "M3_gate3b_gate4_split_resource_wiring_and_reproof",
+      "description": "Gate 3b records and pins the poll target from the same fresh read, reports real drift, and aborts when Gate-1 evidence is missing; Gate 4 reuses its existing fetch/re-confirmation, records gate4, and requires base=<sha>@<iso> in Routing evidence; final mutation re-proof runs last.",
+      "estimated_loc": 40,
+      "dependencies": [
+        "M2_gate1_gate3_split_resource_wiring"
+      ],
+      "files": [
+        ".claude/skills/mission-control/resources/gate-3b-ci-green.md",
+        ".claude/skills/mission-control/resources/gate-4-record.md"
+      ],
+      "acceptance_criteria": [
+        "gate-3b-ci-green.md contains record gate3b, derives the full-SHA poll target from that same read, preserves SHA-addressed bounded polling, compares against Gate 1, reports drift on exit 1, aborts on exit 2 rather than treating missing Gate-1 evidence as benign drift, and links ref-drift.md.",
+        "gate-4-record.md preserves the existing fetch/rev-parse re-confirmation, contains record gate4, requires base=<sha>@<iso> in Routing evidence, and links ref-drift.md without adding a redundant second fetch.",
+        "Root SKILL.md is unchanged; make check-context-docs, link resolution, S1-S5 checks in gate-3-route.md, and scrubbed make test-launchd-drivers all pass.",
+        "Final non-vacuity check runs last: steady=0, update-ref mutation drift=1 with old->new, absent-file=2, missing-label=2.",
+        "Gate-2 durable stamp is recorded as deferred-with-reason; fresh cumulative .snap/M3 contains all sprint files except root SKILL.md."
+      ],
+      "actual_loc": 29,
+      "passes": true,
+      "started": "2026-09-06T11:12:00Z",
+      "completed": "2026-09-06T11:17:52Z",
+      "notes": "Gate 3b records gate3b and pins the poll target to the same full-SHA read; drift exit 1 remains diagnostic while missing Gate-1 evidence exit 2 aborts. Gate 4 retains one fetch, records gate4 as its origin-side re-confirmation, reuses that SHA for diffing, and requires base=<sha>@<iso> in Routing evidence. Gate 2's durable stamp is explicitly deferred because its item-level check already fetches immediately before deciding. Context docs, links, S1-S5 literals, scrubbed test-launchd-drivers, and the final steady/drift/absent/missing-label mutation re-proof pass. Fresh cumulative .snap/M3 contains the three M1 files and all five split resources, with no root SKILL.md."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 101,
+    "estimated_total_loc": 302,
+    "estimated_days": 3,
+    "remaining_loc": 0,
+    "remaining_days": 0,
+    "actual_total_loc": 291,
+    "actual_days": 3
+  },
+  "velocity_evidence": {
+    "m1_actual": "Recovered commit 8fcc1560d is patch-equivalent to original 20201e1d9 and adds 55 lines in mission-base.sh, 96 in test_mission_base.sh, and 1 in make/test.mk: 152 actual LOC.",
+    "m2_estimate": "Approximately 110 LOC across two narrow gate-resource edits and the new rationale resource.",
+    "m3_estimate": "Approximately 40 LOC across Gate 3b and Gate 4 resource edits; actual was 29 added LOC (15 Gate 3b + 14 Gate 4).",
+    "derivation": "291 actual LOC / 3 completed design-approved milestone-days = 97 LOC/day, versus 302 estimated."
+  },
+  "executor_handoff": {
+    "ready": true,
+    "blocked_until": null,
+    "readiness_evidence": "Planner audit on 2026-09-06: clean worktree before this plan-only correction; c1212b3c and recovered M1 8fcc1560d are ancestors; M1 files match original 20201e1d9 byte-for-byte and all eight helper tests pass; root SKILL.md matches the clean base; no .snap content exists.",
+    "sequence": [
+      "Verify M1 unchanged on the clean post-split base.",
+      "Implement and validate M2 in gate-1-observe.md, gate-3-route.md, and new ref-drift.md; emit fresh split-resource M2 snapshot.",
+      "Implement and validate M3 in gate-3b-ci-green.md and gate-4-record.md; run final mutation re-proof last; emit fresh cumulative M3 snapshot."
+    ]
+  }
+}

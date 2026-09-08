@@ -18,7 +18,12 @@ The web dashboard provides real-time monitoring of agent execution with:
 - **Task Execution Panel** - Live streaming of agent activity
 - **Approval Queue** - Review and approve/reject agent work with git diff viewer
 - **Message Center** - Send directives and view results
-- **Analytics** - Cost tracking, token usage, and performance metrics
+- **Work evidence** - Chain details, timeline and chat inspection, with direct date filters
+
+The simplified UI removes the optional activity/analytics panel and evolution-tree
+mode. Costs shown in retained evidence still depend on capture and backend coverage;
+a missing value is not proof of zero usage. The screenshot below shows the older
+layout and does not represent the simplified navigation.
 
 ![AILANG Collaboration Hub - React Dashboard](/img/aitana-dashboard-react.png)
 

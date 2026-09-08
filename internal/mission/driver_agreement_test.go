@@ -122,15 +122,17 @@ func TestDriverDoesNotReadoptTheHandMaintainedReachTable(t *testing.T) {
 
 // knownDriverCopies is a RATCHET, not a target.
 //
-// There are two real copies of mission-control.sh today: the shared one, and world's
-// fork in a separate GitHub repo. The fork is what this programme exists to remove,
-// but removing it needs a decision about the pin (pin-root re-execs
-// $wt/tools/launchd/<script> from a worktree of the WORK repo, so pinning world at all
-// requires driver-root and work-dir to be decoupled — the same machinery
-// m-driver-pin-rollout is parked on). Until that lands, this test holds the line: the
-// count may FALL, never rise. A third copy is how this became a problem in the first
-// place.
-const knownDriverCopies = 2
+// There is now exactly ONE copy of mission-control.sh in the fleet. World's fork — 1,047
+// lines that silently missed every routing fix for weeks — was deleted on 2026-09-06 once
+// the driver's location was decoupled from the mission's workdir.
+//
+// The count may FALL, never rise. A second copy is how this became a problem in the first
+// place, and the fix was never "keep them in sync"; it was "stop having two".
+// LOWERED 2 -> 1 on 2026-09-06, when world was de-forked and the ratchet itself said so:
+// "driver copies FELL to 1 — good, but lower knownDriverCopies to 1 so the ratchet keeps
+// holding at the new level." There is now exactly ONE driver in the fleet, and any second
+// one is a regression, not a starting point.
+const knownDriverCopies = 1
 
 func TestDriverCopiesDoNotMultiply(t *testing.T) {
 	roots := []string{

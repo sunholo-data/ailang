@@ -9,9 +9,23 @@ unbounded poll — an `until COND; do sleep 30; done` whose condition never came
 6h driver watchdog reclaimed the slot. Use a BOUNDED poll that fails loudly on expiry (portable;
 there is no GNU `timeout` on the rig):
 
+Record the full-SHA poll target and its read time from the same shared-ref read. The comparison and
+missing-evidence protocol are explained in [`resources/ref-drift.md`](ref-drift.md).
+
 ```bash
 # PIN THE POLL TARGET TO THE SHA YOU PUSHED — never `--limit 1` (see the war story below).
-target=$(git rev-parse origin/dev)            # FULL sha; no `--short` (Gate 1's rev-parse lesson)
+target_is=$(bash tools/launchd/mission-base.sh record gate3b) || exit 2
+target=${target_is%%$'\t'*}                   # FULL sha from the SAME recorded read; no `--short`
+if bash tools/launchd/mission-base.sh drift gate1; then
+  : # Gate 1 and the fresh Gate-3b reading agree
+else
+  drift_rc=$?
+  case "$drift_rc" in
+    1) echo "DRIFT: base moved Gate1->Gate3b; poll remains pinned to recorded $target" ;;
+    2) echo "no base recorded — abort, Gate 1 did not stamp" >&2; exit 2 ;;
+    *) echo "Gate 3b: base comparison failed (rc=$drift_rc) — abort" >&2; exit "$drift_rc" ;;
+  esac
+fi
 rid=$(gh run list --branch dev --workflow CI --limit 10 --json databaseId,headSha \
       | jq -r --arg t "$target" '[.[] | select(.headSha == $t)][0].databaseId // empty')
 [ -n "$rid" ] || echo "Gate 3b: no CI run for $target yet — re-list a few times, still bounded"
@@ -23,6 +37,48 @@ while :; do
   sleep 30
 done
 ```
+
+**⚠ AND BEFORE YOU POLL AT ALL: YOUR LOCAL GREEN WAS PRODUCED BY A GATE LIST YOU TYPED, AND TWO OF
+THE CHECKS THAT DECIDE THIS GATE CANNOT BE IN IT — ONE IS A WHOLE-REPO LINTER A LOCAL PACKAGE SWEEP
+NEVER REACHES, THE OTHER IS A GITHUB APP NO `make` TARGET CAN RUN** (added 2026-09-08 V1 iteration
+351; two first-party instances in ONE iteration, each costing a push/CI cycle). Verification rule 3g
+already says your local sweep is a hand-picked subset and that the CI job's command list is knowable,
+and the codex-lane rule (4) already says to baseline the gate list you write into a directive. Both
+are about commands you *could* have run and didn't. This is the residue neither covers: checks that
+are **not runnable from your gate list by construction**, so deriving the job's command list finds
+nothing missing and the sweep reads complete.
+Two shapes, and they fail in opposite directions from the same green.
+**(a) A whole-repo linter reacts to a DELETION somewhere else.** Iteration 351 removed a
+provably-vacuous test assertion — a strictly subtractive edit that cannot break behaviour — and
+`golangci-lint unused` reddened the PR, because that assertion held the last reference to a
+production-default helper (`func defaultPollTick is unused`). Every local gate was green: `go build`,
+`go vet`, `gofmt`, `go test ./internal/<pkg>/ -count=1`. The package-scoped sweep is the trap — the
+red is a fact about the *repo's* reference graph, and a subtractive edit is exactly the shape that
+looks safest and moves that graph.
+**(b) A coverage gate is a GitHub App with no local equivalent.** The same iteration then went red on
+SonarCloud `new_coverage` **78.8%** against a threshold of 80, with the negative control unambiguous
+(`success` on the last **five** `dev` commits, `failure` only on the PR — so rule 3d's discipline
+attributes it to me, not to the standing `dev` Sonar red the charter already tracks). **7 of 33** new
+lines uncovered, and the split was the finding rather than the number: **1** was a real hole in the
+sprint's own new production helper, and **6** were the *only production caller* of the path the sprint
+had just made injectable — a function with no unit test at all, whose lines were uncovered before and
+merely were not *new* before. That second half is the part worth having: a coverage gate is the only
+instrument in this loop that asks *"did anything execute the code you changed?"*, and it answered
+**no** for the one change a quorum reviewer had demanded verbatim.
+**Rules. (a)** Before pushing, run the whole-repo form of any linter whose scope is the repo, not your
+diff — `golangci-lint run --enable-only unused ./<pkg>/...` at minimum after any deletion, and prefer
+the repo scope when the edit removed a reference. **(b)** For gates with no local equivalent, do not
+pretend: push and READ them, and treat the first CI cycle as part of the gate rather than as a
+failure. **(c)** Attribute every such red with rule 3d's negative control *before* fixing it — the same
+check red on your PR and green on the last N `dev` commits is yours; red on both is inherited and is a
+queue row, not a blocker. **(d)** When a coverage gate fires, read the per-file split rather than the
+percentage: uncovered lines concentrated in a file your diff merely *touched* are a pre-existing
+coverage gap you have just been handed a measurement of — file it, say plainly which of your own
+changes is therefore unexecuted by any test, and do not squeeze a token test in behind the gate.
+**(e)** Do not treat a subtractive edit as exempt from the gate list; it has its own failure mode, and
+it is this one. Mission-independent — every mission on this rig has repo-scoped linters and
+app-provided checks outside its `make` targets. The tell: your local sweep was green, and every
+command in it was scoped to the package you edited.
 
 **The poll target must be SHA-PINNED, because `--limit 1` silently watches the WRONG RUN** (added
 2026-07-29 iteration 117; the 4th recorded instance of the stale-instrument class, and the 2nd
@@ -336,3 +392,39 @@ generalisable half is about this file rather than about `gh`: when a gate accumu
 war story about an uncommon cause, the common cause needs re-promoting, or the documentation itself
 becomes the bias.** The tell: you are about to explain missing CI runs with an infrastructure
 failure, and you have not yet run the one-line check for the boring one.
+
+**⚠ INSTANCE 3 — AND IT WAS COMMITTED BY A CONTROLLER WHO HAD READ `mergeable` AND BANKED THE
+ANSWER: THAT READING EXPIRES, BECAUSE THE THING THAT MAKES A PR CONFLICT IS A *SIBLING'S MERGE TO
+`dev`*, WHICH HAPPENS WHILE YOU WORK AND CHANGES NOTHING YOU CAN SEE ON YOUR OWN BRANCH** (added
+2026-09-07 V1 iteration 347; instance 1 is iteration 30, instance 2 is iteration 198 immediately
+above, and this is the first time the rule existed and was still missed). The rule above is right
+and its corollary (a) is right — `UNKNOWN` is not a clearance. Neither says how long a `MERGEABLE`
+*is* a clearance, and the natural reading of a rule phrased *"read `mergeable` before diagnosing"*
+is satisfied by a reading you already have. Note the asymmetry that makes this the likely failure:
+your own branch is unchanged, your own tests are green, and every local signal says nothing has
+happened — the state that flipped is on `dev`, produced by someone else, and `mergeable` is the
+ONLY instrument in this gate that reflects it.
+Measured here. Iteration 347 read `MERGEABLE` at 14:00Z on head `58af47580` and banked it. An
+attended PR merged to `dev` at **14:15Z** touching two of the three files the sprint changed. At
+15:05Z the controller pushed a new head and got **`checks=1`** (`automerge/skipped`) — and, having
+"already checked `mergeable`", walked straight past this rule into the dropped-event diagnosis and
+fired `gh workflow run CI --ref <branch>` at 15:09Z. That dispatch **succeeded and was misleading**:
+`workflow_dispatch` does not need a test-merge, so it produced a clean 8-job green on a head whose
+`pull_request` runs were absent *because the PR was already `DIRTY`/`CONFLICTING`*. A green from the
+wrong event, on a real conflict, is worse than no green — and the true reading, taken 35 minutes
+later, was `CONFLICTING`. One rebase, and all four `pull_request` workflows appeared within 25
+seconds and finished 21 checks with zero not-green.
+**Rules. (a)** Re-read `mergeable`/`mergeStateStatus` **on the head you are polling, at the moment
+you are polling it** — it is a property of `(your head, dev's head)`, so it is invalidated by
+commits you will never see in your own log. Treat any reading older than your most recent push, or
+taken on a different SHA, as absent. **(b)** Make it the FIRST branch of the missing-runs decision
+tree in code, not in memory: if `checks` is below your non-vacuity floor, read `mergeable` in the
+same call before anything else. **(c)** A `workflow_dispatch` green does NOT clear a conflicting PR
+and must never be quoted as the item's CI evidence: it runs a different event, with no test-merge,
+so it is silent on precisely the thing that was wrong. Say which EVENT produced the run you are
+banking (`gh api …/actions/runs?head_sha=<sha> --jq '.workflow_runs[].event'`). **(d)** Corollary to
+the war story above rather than a new one: the reason prominence beat evidence twice is that the
+common cause is a *state change elsewhere*, and this gate's instruments are all pointed at your own
+branch. Mission-independent — every mission on this rig shares `dev` with at least one sibling and,
+on `sunholo-data/ailang`, with attended sessions too. The tell: you are explaining missing runs, and
+the `mergeable` reading you are relying on was taken before your most recent push.

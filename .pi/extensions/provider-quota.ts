@@ -4,7 +4,7 @@
  *   - OpenRouter: GET /api/v1/key → usage vs limit (CRITICAL ≥95%, WARN ≥80%)
  *   - Ollama Cloud: GET https://ollama.com/api/usage (Bearer OLLAMA_API_KEY) —
  *     measured contract in design doc m-ollama-cloud-provider (V24/V26/V36/V50):
- *     coarse numerator, NO published denominator, so % remaining is NOT computable
+ *     legacy fractional gauge: WARN ≥80%, CRITICAL ≥95%; reset times unavailable
  *   - Current session lane via ctx.model
  * Never exposes the API key. Subprocess-free (fetch + 10s aborts).
  */
@@ -58,9 +58,10 @@ async function openRouterSummary(): Promise<string> {
  *   - NOT proxied by the local daemon (localhost:11434/api/usage → 404); direct call required
  *   - shape: activity{cost, period{type,starting_at,ending_at}, models[{name,request_count}]}
  *     + limits{session{usage,models[]}, weekly{usage,models[]}}
- *   - usage is a COARSE numerator (stayed 0 across ~6k tokens); limits publish NO
- *     denominator — % remaining is NOT computable; measured burn: ~0.007–0.124 units
- *     per M tokens across weight classes (V36/V46/V50)
+ *   - V50 measured session usage reaching 1.0 followed by HTTP 429, establishing
+ *     fractional session usage. Weekly uses the same interpretation as policy;
+ *     V50 did not independently measure weekly exhaustion. Earlier numerator-only
+ *     comments were superseded by that measurement. No window reset times returned.
  * Inference does NOT need this key (device key via `ollama signin`); the API key comes
  * from ollama.com settings. Without it we say so rather than pretending.
  */
@@ -85,14 +86,14 @@ async function ollamaCloudUsage(): Promise<string> {
 		const week = d.limits?.weekly?.usage;
 		const cost = d.activity?.cost ?? "?";
 		const periodEnd = d.activity?.period?.ending_at ?? "?";
-		// usage is a 0..1 fraction of the (unpublished) window allowance — V50.
+		// Session fraction measured in V50; weekly follows the same gauge convention.
 		// Classify like the OpenRouter gauge: >=0.8 WARN, >=0.95 CRITICAL.
 		const status = (u: number | undefined) =>
 			typeof u !== "number" ? "?" : u >= 0.95 ? "CRITICAL" : u >= 0.8 ? "WARN" : "ok";
 		const top = (models: Array<{ name?: string; request_count?: number }> | undefined, k = 3) =>
 			(models ?? []).slice(0, 3).map((mm) => `${mm.name}×${mm.request_count ?? 0}`).join(", ");
 		return [
-			`session ${sess ?? "?"} (${status(sess)}), weekly ${week ?? "?"} (${status(week)}) — windows are 0..1 fractions, denominator unpublished`,
+			`session ${sess ?? "?"} (${status(sess)}), weekly ${week ?? "?"} (${status(week)}) — fractional gauges; reset-aware pacing unavailable`,
 			`session top: ${(d.limits?.session?.models ?? []).slice(0, 3).map((mm) => `${mm.name}×${mm.request_count}`).join(", ") || "none"}`,
 			`weekly top: ${(d.limits?.weekly?.models ?? []).slice(0, 3).map((mm) => `${mm.name} ×${mm.request_count}`).join(", ") || "none"}`,
 			`activity cost ${cost}, period ends ${periodEnd}`,
@@ -110,7 +111,7 @@ export default async function (pi: ExtensionAPI) {
 		label: "Provider Quota Report",
 		description:
 			"Report provider budget/quota headroom: OpenRouter key usage vs limit (CRITICAL >=95%, WARN >=80%), " +
-			"Ollama Cloud usage (session/weekly numerators), and which provider the CURRENT session runs on. " +
+			"Ollama Cloud fractional usage (WARN >=80%, CRITICAL >=95%), and which provider the CURRENT session runs on. " +
 			"Call before long tasks or when provider errors mention limits. Never exposes the API key.",
 		parameters: Type.Object({}),
 		async execute(_id, _params, _signal, _onUpdate, ctx) {

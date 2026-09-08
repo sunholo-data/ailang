@@ -193,8 +193,13 @@ func (s *Server) handleControlPlaneHeatmap(w http.ResponseWriter, r *http.Reques
 	}
 
 	if format == "grid" {
-		// Use AILANG bridge if enabled, falls back to Go
-		gridResponse := GetAILANGBridge().BuildHeatmapGrid(cells, totalTasks, totalCost, days)
+		// The grid transform is AILANG, and it is the only implementation.
+		gridResponse, err := GetAILANGBridge().BuildHeatmapGrid(cells, totalTasks, totalCost, days)
+		if err != nil {
+			log.Printf("heatmap grid: %v", err)
+			http.Error(w, "heatmap transform unavailable: "+err.Error(), http.StatusServiceUnavailable)
+			return
+		}
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(gridResponse); err != nil {
 			log.Printf("Failed to encode heatmap grid response: %v", err)
@@ -215,78 +220,8 @@ func (s *Server) handleControlPlaneHeatmap(w http.ResponseWriter, r *http.Reques
 	}
 }
 
-// buildHeatmapGrid builds a week-by-week grid structure from flat cells
-func buildHeatmapGrid(cells []HeatmapCell, totalTasks int, totalCost float64, days int) HeatmapGridResponse {
-	now := time.Now()
-	endDate := now
-	startDate := now.AddDate(0, 0, -days)
-
-	// Build a map for O(1) lookup
-	cellMap := make(map[string]HeatmapCell)
-	maxCount := 0
-	for _, cell := range cells {
-		cellMap[cell.Date] = cell
-		if cell.TaskCount > maxCount {
-			maxCount = cell.TaskCount
-		}
-	}
-
-	// Align to Monday start
-	for startDate.Weekday() != time.Monday {
-		startDate = startDate.AddDate(0, 0, -1)
-	}
-
-	// Build weeks array
-	var weeks [][]HeatmapGridCell
-	var monthLabels []HeatmapMonthLabel
-	lastMonth := -1
-
-	for d := startDate; !d.After(endDate); {
-		week := make([]HeatmapGridCell, 7)
-		weekIndex := len(weeks)
-
-		for i := 0; i < 7; i++ {
-			dateStr := d.Format("2006-01-02")
-			cell := cellMap[dateStr]
-
-			// Calculate intensity (0-1) for coloring
-			intensity := 0.0
-			if maxCount > 0 && cell.TaskCount > 0 {
-				intensity = float64(cell.TaskCount) / float64(maxCount)
-			}
-
-			week[i] = HeatmapGridCell{
-				Date:        dateStr,
-				TaskCount:   cell.TaskCount,
-				Cost:        cell.Cost,
-				SuccessRate: cell.SuccessRate,
-				Intensity:   intensity,
-				DayOfWeek:   int(d.Weekday()),
-			}
-
-			// Track month labels
-			month := int(d.Month())
-			if month != lastMonth && d.Day() <= 7 {
-				monthLabels = append(monthLabels, HeatmapMonthLabel{
-					Name:      d.Format("Jan"),
-					WeekIndex: weekIndex,
-				})
-				lastMonth = month
-			}
-
-			d = d.AddDate(0, 0, 1)
-		}
-		weeks = append(weeks, week)
-	}
-
-	response := HeatmapGridResponse{
-		Weeks:       weeks,
-		MonthLabels: monthLabels,
-	}
-	response.Totals.Tasks = totalTasks
-	response.Totals.Cost = totalCost
-	response.DateRange.Start = startDate.Format("2006-01-02")
-	response.DateRange.End = endDate.Format("2006-01-02")
-
-	return response
-}
+// The Go copy of the grid transform lived here. Removed 2026-09-08: it existed
+// only as the silent fallback for internal/dashboard_transforms/heatmap.ail, and
+// two implementations of one layout rule are free to drift with nothing
+// comparing them. The AILANG module is now the only implementation, and a
+// request it cannot serve returns 503 rather than a differently-shaped grid.

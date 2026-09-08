@@ -162,6 +162,7 @@ func TestIsBuiltinName(t *testing.T) {
 		"ollama":     true,
 		"openrouter": true,
 		"lyceum":     true,
+		"zai":        true,
 		"OpenAI":     true, // case-insensitive
 		"vllm":       false,
 		"":           false,

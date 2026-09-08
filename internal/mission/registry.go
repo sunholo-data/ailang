@@ -63,9 +63,25 @@ type Mission struct {
 	// quietly becoming a competing source of truth.
 	Roles map[string]any `toml:"roles"`
 
+	// Driver optionally overrides where this mission's driver code comes from.
+	//
+	// EMPTY MEANS THE SHARED DRIVER, and that is the point: one centralized place to
+	// change every loop. Set it only for a mission that must run its own copy, which is
+	// a fork and will be reported as one.
+	//
+	// This exists because "where the driver LIVES" and "where the mission WORKS" were the
+	// same thing, and that conflation is what made world unfixable: its work repo is
+	// sunholo-data/ailang-world, so its driver had to live there too, so every shared fix
+	// had to be hand-ported and silently was not. Separating them means a mission in
+	// another repo entirely is just a different `workdir` — no second driver.
+	Driver string `toml:"driver"`
+
 	// Path is the file this entry was loaded from; used in error messages so a
 	// validation failure names the file, never just "invalid config".
 	Path string `toml:"-"`
+
+	// root is the registry directory's repo, i.e. where the shared driver lives.
+	root string `toml:"-"` //nolint:unused // set by Load, read by DriverPath
 }
 
 // nameOK reports whether s is a usable mission name. Mission names become
@@ -156,6 +172,10 @@ func (m *Mission) Validate() error {
 	if m.Sched.BootOffset < 0 {
 		return fmt.Errorf("%s: schedule.boot_offset must be >= 0", where)
 	}
+	if m.Driver != "" && !filepath.IsAbs(m.Driver) {
+		return fmt.Errorf("%s: driver %q must be an absolute path when set (leave it EMPTY to use "+
+			"the shared driver, which is what you almost certainly want)", where, m.Driver)
+	}
 	return nil
 }
 
@@ -220,6 +240,11 @@ func LoadFile(path string) (*Mission, error) {
 		return nil, fmt.Errorf("failed to parse %s: %w", path, err)
 	}
 	m.Path = path
+	// The shared driver lives in the repo that holds the registry: missions/ is beside
+	// tools/launchd/. Self-locating, so no machine-specific path is ever configured.
+	if abs, aerr := filepath.Abs(filepath.Join(filepath.Dir(path), "..")); aerr == nil {
+		m.root = abs
+	}
 	if err := m.Validate(); err != nil {
 		return nil, err
 	}

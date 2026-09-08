@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "mission_id": "example",
+  "work_item_id": "review-001",
+  "stage_id": "evaluate",
+  "attempt_id": "attempt-001",
+  "role": "evaluator",
+  "workspace": "/absolute/path/to/isolated/worktree",
+  "input_revision": "REPLACE_WITH_REVIEWED_REVISION",
+  "instructions": "Review the supplied change against its acceptance criteria. Report concrete findings with file references. Do not publish or merge.",
+  "models": ["pi-or-deepseek-v4-flash"],
+  "author_models": ["gpt5-6-sol"],
+  "timeout_seconds": 300,
+  "max_tokens": 30000,
+  "max_cost_usd": 1
+}

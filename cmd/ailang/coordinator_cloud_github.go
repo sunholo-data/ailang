@@ -15,6 +15,7 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/coordinator"
 	"github.com/sunholo-data/ailang/internal/executor"
+	"github.com/sunholo-data/ailang/internal/gitutil"
 )
 
 // openCascadePullRequest opens a PR via the GitHub REST API after the wrapper
@@ -43,7 +44,7 @@ func openCascadePullRequest(ctx context.Context, workDir, branchName, taskID, ag
 	}
 
 	// Get the GitHub owner/repo by parsing the remote URL inside workDir.
-	repoOwner, repoName, err := getGitHubOwnerRepo(ctx, workDir)
+	repoOwner, repoName, err := gitutil.GitHubOwnerRepo(ctx, workDir)
 	if err != nil || repoOwner == "" || repoName == "" {
 		fmt.Fprintf(os.Stderr, "execute-job: pr create skipped: cannot parse GitHub repo: %v\n", err)
 		return
@@ -80,28 +81,6 @@ func openCascadePullRequest(ctx context.Context, workDir, branchName, taskID, ag
 	if err := addGitHubLabels(ctx, token, repoOwner, repoName, prNum, labels); err != nil {
 		fmt.Fprintf(os.Stderr, "execute-job: pr labels skipped: %v\n", err)
 	}
-}
-
-// getGitHubOwnerRepo parses `git remote get-url origin` to extract owner/repo
-// for HTTPS GitHub URLs. Returns empty strings + nil error for non-GitHub repos.
-func getGitHubOwnerRepo(ctx context.Context, workDir string) (string, string, error) {
-	out, err := exec.CommandContext(ctx, "git", "-C", workDir, "remote", "get-url", "origin").Output()
-	if err != nil {
-		return "", "", fmt.Errorf("git remote: %w", err)
-	}
-	url := strings.TrimSpace(string(out))
-	// Accept https://github.com/OWNER/REPO[.git] or git@github.com:OWNER/REPO[.git]
-	url = strings.TrimSuffix(url, ".git")
-	for _, prefix := range []string{"https://github.com/", "git@github.com:"} {
-		if strings.HasPrefix(url, prefix) {
-			rest := strings.TrimPrefix(url, prefix)
-			parts := strings.SplitN(rest, "/", 2)
-			if len(parts) == 2 {
-				return parts[0], parts[1], nil
-			}
-		}
-	}
-	return "", "", nil
 }
 
 // createGitHubPR makes a POST /repos/{owner}/{repo}/pulls call.

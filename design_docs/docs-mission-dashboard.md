@@ -1,39 +1,32 @@
 # Docs Mission Dashboard (snapshot — history lives in the charter + log)
 
-**Last updated**: 2026-09-06, iteration 11.
+**Last updated**: 2026-09-07, iteration 16.
 
 ## Status
-`docs-11` remains parked on D-4 and `docs-12` on D-5. Fresh draw: `m-agent-step-cancellation`,
-whose existing quorum is blocked 3/3. Astra designer and Codex fallback were both spawned through
-the Agent tool but produced no revision before shutdown. **Parked; no sprint ran.**
+`docs-12` (`m-eval-standard-mode-input-files-gap`) LANDED — PR #1104 squash-merged
+(`b2cead2ee6231672ebda52a1bf29d92dd06eaf33`), evaluator PASS 98/100 zero blocking. Both D-4 and
+D-5 are now fully consumed (docs-11 iteration 15, docs-12 this iteration). **docs-8 backlog draw
+queue is exhausted; next iteration needs a fresh pick.**
 
 ## Blocking on Mark
-**D-4** (OPEN, iteration 9) — one-time OK to run the `m-dx27` sprint under the narrow-refinement
-carve-out. Recommend (a) OK it. Default if unanswered: stays parked, no cost.
-**D-5** (NEW, OPEN, iteration 10) — how to resolve `m-eval-standard-mode-input-files-gap`'s two
-live round-4 objections (Axiom-11 wording accuracy; `docx_reimplement`'s shared-root-cause claim is
-impact-inflating while unconfirmed — NOT a design defect in the fix itself). Recommend (a) accept
-as wording fixes, route straight to `sprint-planner` without a 5th round. Default if unanswered:
-stays parked `needs-human-review`. Ledger: 5 rows, 2 OPEN (D-4, D-5).
+None open. D-4 and D-5 both RESOLVED (attended) and now fully consumed by landed sprints.
 
 ## Queue (top = next)
-1-11. `[LANDED]`/`[RULED OUT]` docs-0 through docs-10 — all exhausted.
-12. `[PARKED]` docs-11 — `m-dx27` GitHub docs-search fallback, design-ready, held on D-4.
-13. `[PARKED]` docs-12 — `m-eval-standard-mode-input-files-gap`, blocked at quorum round 4, held
-    on D-5 (`needs-human-review`).
-
-**Next pick if D-4 or D-5 resolves**: `sprint-planner` runs on the unparked item. If both remain
-unanswered, retry or re-route the parked `m-agent-step-cancellation` designer lane.
+1-12. `[LANDED]`/`[RULED OUT]` docs-0 through docs-11 — exhausted.
+13. `[LANDED]` docs-12 — landed iteration 16.
+Next fresh draw: re-probe or re-route the `m-anthropic-sandbox` designer lane (parked-on-lane at
+iteration 14 on a `gpt-6-astra` Agent-tool timeout; no compatible fallback was authorized then —
+re-check before re-picking).
 
 ## Loop cadence + routing
-launchd `dev.ailang.mission-docs`, every 6h, staggered against v1/world/motoko. Designer: this
-`codex:gpt-6-astra`, then fallback `codex:gpt-5.6-luna`; both Agent-tool attempts failed to produce
-a revision. Planner/executor: `codex:gpt-5.6-luna`, not reached. Evaluator: independent non-Codex
-lane, not reached because no generation passed quorum; no judge verdict was invented.
+Every 6h. Iteration 16: planner + executor both ran end-to-end on `pi:ollama/glm-5.3-flash:cloud`
+(first full multi-milestone pi run for this mission); evaluator `sonnet` via Agent tool,
+independent of the pi executor (generator≠judge held).
 
 ## Cost this iteration
-$0.00 newly metered. No planner, executor, evaluator, or new quorum call ran.
+Zero further quorum spend (D-5's ruling waived the 5th round); pi lane is a quota bucket, zero
+metered $ for planner/executor.
 
 ## Quota posture
-No fallback triggered. `origin/dev` HEAD (`93c952d94`): `CI` and `Deploy Documentation to GitHub
-Pages` both green, SHA-addressed check-runs 16/16 clean, no red.
+Canonical inbox had no docs directive this iteration. Gate 4 base was
+`b2cead2ee6231672ebda52a1bf29d92dd06eaf33` at `2026-09-07T20:37:46Z`.

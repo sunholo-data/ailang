@@ -181,13 +181,20 @@ func (s *Server) handleBudgetStatus(w http.ResponseWriter, r *http.Request) {
 	config := LoadBudgetConfig()
 	bridge := GetAILANGBridge()
 
-	// Check budget status using AILANG (with Go fallback)
-	status := bridge.CheckTaskBudget(config, 0, workspaceSpend, dailySpend)
+	// A budget that cannot be evaluated is reported as such. It used to fall
+	// back to a second Go copy of the same rule, so a broken transform served a
+	// confident number instead.
+	status, err := bridge.CheckTaskBudget(config, 0, workspaceSpend, dailySpend)
+	if err != nil {
+		log.Printf("budget status: %v", err)
+		http.Error(w, "budget transform unavailable: "+err.Error(), http.StatusServiceUnavailable)
+		return
+	}
 
 	response := BudgetStatusResponse{
 		Config:      config,
 		Status:      status,
-		UsingAILANG: bridge.IsEnabled(),
+		UsingAILANG: bridge.Ready() == nil,
 	}
 	response.Usage.WorkspaceSpend = workspaceSpend
 	response.Usage.DailySpend = dailySpend
@@ -347,7 +354,14 @@ func (s *Server) handleBudgetCheck(w http.ResponseWriter, r *http.Request) {
 			TaskMaxCost:      pb.TaskMaxCost,
 			WarningThreshold: pb.WarningThreshold,
 		}
-		status := bridge.CheckTaskBudget(providerConfig, req.EstimatedCost, workspaceSpend, providerSpend)
+		status, err := bridge.CheckTaskBudget(providerConfig, req.EstimatedCost, workspaceSpend, providerSpend)
+		if err != nil {
+			// Refusing the spend is the only safe direction: this endpoint
+			// gates whether work costing money may start.
+			log.Printf("budget check (provider %s): %v", req.Provider, err)
+			http.Error(w, "budget transform unavailable: "+err.Error(), http.StatusServiceUnavailable)
+			return
+		}
 
 		// Add provider context to message
 		if pb.HardLimit && !status.Allowed {
@@ -362,7 +376,12 @@ func (s *Server) handleBudgetCheck(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// No provider specified - use global limits
-	status := bridge.CheckTaskBudget(config, req.EstimatedCost, workspaceSpend, dailySpend)
+	status, err := bridge.CheckTaskBudget(config, req.EstimatedCost, workspaceSpend, dailySpend)
+	if err != nil {
+		log.Printf("budget check: %v", err)
+		http.Error(w, "budget transform unavailable: "+err.Error(), http.StatusServiceUnavailable)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(status); err != nil {
@@ -438,7 +457,12 @@ func (s *Server) calculateBurnRateFiltered(bridge *AILANGBridge, config BudgetCo
 			if remainingBudget < 0 {
 				remainingBudget = 0
 			}
-			info.HoursUntilExhaustion = bridge.ForecastExhaustion(remainingBudget, info.CostPerHour)
+			hours, err := bridge.ForecastExhaustion(remainingBudget, info.CostPerHour)
+			if err != nil {
+				log.Printf("forecast exhaustion: %v", err)
+			} else {
+				info.HoursUntilExhaustion = hours
+			}
 		}
 
 		return info
@@ -477,9 +501,17 @@ func (s *Server) calculateBurnRateFiltered(bridge *AILANGBridge, config BudgetCo
 		return info
 	}
 
-	// Calculate burn rate using AILANG bridge (with Go fallback)
+	// Burn rate and forecast are informational fields on a larger response, not
+	// a gate, so an unavailable transform leaves them UNSET and logs. It still
+	// does not get a second implementation: an absent number is honest, an
+	// invented one is not.
 	windowMillis := int64(windowHours) * 3600000
-	info.CostPerHour = bridge.CalculateBurnRate(costs, windowMillis)
+	rate, err := bridge.CalculateBurnRate(costs, windowMillis)
+	if err != nil {
+		log.Printf("calculate burn rate: %v", err)
+		return info
+	}
+	info.CostPerHour = rate
 
 	// Calculate hours until exhaustion
 	if info.CostPerHour > 0 {
@@ -487,7 +519,12 @@ func (s *Server) calculateBurnRateFiltered(bridge *AILANGBridge, config BudgetCo
 		if remainingBudget < 0 {
 			remainingBudget = 0
 		}
-		info.HoursUntilExhaustion = bridge.ForecastExhaustion(remainingBudget, info.CostPerHour)
+		hours, fErr := bridge.ForecastExhaustion(remainingBudget, info.CostPerHour)
+		if fErr != nil {
+			log.Printf("forecast exhaustion: %v", fErr)
+			return info
+		}
+		info.HoursUntilExhaustion = hours
 	}
 
 	return info

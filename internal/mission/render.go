@@ -165,7 +165,24 @@ func (m *Mission) launchdSuffix() string {
 }
 
 // DriverPath is the script launchd executes for this mission.
+//
+// THE SHARED DRIVER BY DEFAULT, wherever the mission's work repo is. A mission working in
+// another repo entirely is just a different Workdir; it does not get, and must not need,
+// its own copy of the driver. That is the centralized point: change mission-control.sh
+// once and every loop picks it up.
+//
+// An explicit Driver is an escape hatch for a mission that genuinely must run its own
+// copy. `ailang mission doctor` reports any such mission as a fork, because that is what
+// it is, and world spent weeks proving how a fork goes stale unseen.
 func (m *Mission) DriverPath() string {
+	if m.Driver != "" {
+		return m.Driver
+	}
+	if m.root != "" {
+		return filepath.Join(m.root, "tools", "launchd", "mission-control.sh")
+	}
+	// No registry root (a hand-built Mission in a test): fall back to the old
+	// workdir-relative shape rather than returning something empty.
 	return filepath.Join(m.Workdir, "tools", "launchd", "mission-control.sh")
 }
 
@@ -233,6 +250,19 @@ func RenderPlist(m *Mission) ([]byte, error) {
 	b.WriteString("\t<key>EnvironmentVariables</key>\n\t<dict>\n")
 	b.WriteString("\t\t<key>HOME</key>\n\t\t<string>" + xmlEscape(os.Getenv("HOME")) + "</string>\n")
 	b.WriteString("\t\t<key>MISSION_PROFILE</key>\n\t\t<string>" + xmlEscape(m.Name) + "</string>\n")
+	// MISSION_WORKDIR MUST BE SET IN THE PLIST, not left to the env file.
+	//
+	// The driver computes REPO at line 40 as ${MISSION_WORKDIR:-<script's ../..>} and
+	// sources the env file only at line 63 — twenty lines too late. So for a mission whose
+	// workdir differs from the driver's own repo, an unset MISSION_WORKDIR makes REPO the
+	// DRIVER's repo, and pin-root then pins THAT and hands the mission a worktree of the
+	// wrong repository.
+	//
+	// Caught live on 2026-09-06 the moment world was repointed at the shared driver: it
+	// came up with workdir=~/.ailang-driver-pin/world, a worktree of ailang, for a mission
+	// whose entire job is the ailang-world repo. The dry run had missed it because
+	// AILANG_DRIVER_PIN=0 skips the re-exec that causes it.
+	b.WriteString("\t\t<key>MISSION_WORKDIR</key>\n\t\t<string>" + xmlEscape(m.Workdir) + "</string>\n")
 	b.WriteString("\t\t<key>PATH</key>\n\t\t<string>" + missionPATH + "</string>\n")
 	b.WriteString("\t</dict>\n")
 

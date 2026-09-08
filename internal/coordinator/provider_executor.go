@@ -97,6 +97,19 @@ func (p *ExecutorProvider) Execute(ctx context.Context, task *AnalyzedTask, opts
 		ResumeSessionID: task.Task.SessionID, // M-TRANSCRIPT: resume session if iteration > 1
 	}
 
+	// workspace-trust per-repo injection (M-DX-PI-HARNESS): headless pi drops
+	// project resources (.agents/skills/, .pi/) in any checkout without a saved
+	// trust decision. The global workspace-trust extension trusts checkouts whose
+	// git origin matches this pattern — the agent's own repo coordinate from the
+	// registry (machine-owned dispatcher config; the repo never supplies its own
+	// trust input). Applies to every executor; non-pi executors ignore the var.
+	if opts.AgentConfig != nil && opts.AgentConfig.Repo != "" {
+		if execTask.ExtraEnv == nil {
+			execTask.ExtraEnv = make(map[string]string)
+		}
+		execTask.ExtraEnv["PI_WORKSPACE_TRUST_REMOTES"] = opts.AgentConfig.Repo
+	}
+
 	// Pass Observatory context for trace linking (M-TASK-HIERARCHY)
 	if opts.ObservatoryContext != nil {
 		execTask.Metadata["ailang.task_id"] = opts.ObservatoryContext.TaskID

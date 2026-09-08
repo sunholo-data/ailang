@@ -1,0 +1,12 @@
+--- FAIL: TestMissionRegistryExplicitPath (0.00s)
+    mission_registry_env_test.go:25: explicit registry not used: [docs motoko v1 world]
+--- FAIL: TestMissionRegistryExplicitInvalidDoesNotFallback (0.00s)
+    --- FAIL: TestMissionRegistryExplicitInvalidDoesNotFallback/relative-missions (0.00s)
+        mission_registry_env_test.go:38: expected explicit registry error, got <nil>
+    --- FAIL: TestMissionRegistryExplicitInvalidDoesNotFallback//var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/TestMissionRegistryExplicitInvalidDoesNotFallback19428106/002/missing (0.00s)
+        mission_registry_env_test.go:38: expected explicit registry error, got <nil>
+    --- FAIL: TestMissionRegistryExplicitInvalidDoesNotFallback//var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/TestMissionRegistryExplicitInvalidDoesNotFallback19428106/001/file (0.00s)
+        mission_registry_env_test.go:38: expected explicit registry error, got <nil>
+FAIL
+FAIL	github.com/sunholo-data/ailang/cmd/ailang	0.611s
+FAIL

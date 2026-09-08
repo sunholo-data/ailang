@@ -1,6 +1,6 @@
 # M-ZAI-WINDOW-ROUTING: Time-Window-Aware Model Routing (z.ai GLM Coding Plan)
 
-**Status**: Planned — Phase 0 (free discovery spike) UNGATED; Phases 1+ BLOCKED on D1
+**Status**: Phase 1 LANDED 2026-09-05 (metered `zai` provider, PAYG) — Phase 0 spike still open; Phases 2–3 BLOCKED on D1/D4/D6
 **Target**: v0.35.0
 **Priority**: P1
 **Estimated**: Phase 0 ~4h · Phases 1–3 ~3 days (only if Phase 0 clears)
@@ -88,6 +88,10 @@ cannot be re-checked from the repo** — they are the reason quorum trigger #4 f
 | V24 | Existing GLM-5.3-Flash rows across 4 routes; `opencode-or-glm-5-3-flash` carries **AGENT SMOKE GATE: PENDING** | `internal/modelreg/models.yml:2179+,4386,4700` | Confirmed |
 | V25 | Time-of-day pricing already deferred once as a distinct lever | `design_docs/planned/m-eval-batch-api.md:234,288` | Confirmed |
 | V27 | **Claude Code is ALREADY being driven by GLM-5.3-Flash in this fleet, on a flat-rate route** — a 2026-08-28 laptop session ran `claude --model glm-5.3-flash:cloud` (Ollama Cloud; `:cloud` is the `IsOllamaCloudRoute` grammar), recording `message.model=glm-5.3-flash` on 310 assistant turns | session transcript `392d39d5…`, captured `ps` output within it | Confirmed — **materially weakens the Lane A case (see D1)** |
+| V29 | **Phase 1 route verified live end-to-end 2026-09-05**: `GET /api/paas/v4/models` → 200 (catalogue: glm-4.5, -4.5-air, 4.6, 4.7, 5, 5-turbo, 5.1, 5.2, 5.3, 5.3-flash); `POST /api/anthropic/v1/messages` → 200 with a thinking block; and `ailang eval --benchmark adt_option --model zai-glm-5-3-flash` → **PASS**, `cost_provenance=metered`, 26832 in / 196 out / 1612 reason tokens, `finish_reason=stop` | live probes + banked eval row | Confirmed |
+| V30 | Native slug is **`glm-5.3-flash`**, NOT OpenRouter's `z-ai/glm-5.3-flash` — the vendor prefix is a router convention and does not exist on the first-party API | `/api/paas/v4/models` 2026-09-05 | Confirmed |
+| V31 | **Both** `/api/paas/v4/models` and `/api/coding/paas/v4/models` answer 200 to the same key, so the endpoint does **not** self-police which wallet you meant — V5's lane separation is enforced only by our own default base URL and the test that pins it | live probes 2026-09-05 | Confirmed — **the reason `TestZAIBaseURL_DefaultIsPAYGNotCodingPlan` exists** |
+| V32 | **Negative**: `ailang eval --list-models` renders only openai/anthropic/google groups (`cmd/ailang/eval.go:272-317`), so the new row — like all 47 openrouter, 30 ollama and 3 lyceum rows — is invisible there. Pre-existing; not touched by this phase | grep + live run | Confirmed — file separately |
 | V28 | A session's model pin **does not survive a machine transfer**: the transcript stores the *stripped* name (`glm-5.3-flash`), losing the `:cloud` route suffix, so the far side reports "could not be restored … using opus instead" and **continues silently** | reproduced laptop→studio 2026-09-03 | Confirmed — silent, expensive substitution |
 
 ---
@@ -125,7 +129,9 @@ invisible to the harness.
 
 ### Design Freeze
 
-- [ ] **D1** — plan purchased (tier named), or Phase 0 declared sufficient and Phases 1+ dropped
+- [~] **D1** — **PAYG credits purchased** (Mark, attended 2026-09-05), which unblocks Phase 1 and
+      nothing else. The *subscription* question (Coding Plan tier vs the incumbent Ollama Cloud
+      lane, per V27) is still open and still gates Phase 2.
 - [ ] **D2** — subscription rows in banked rotations: yes/no
 - [ ] **D3** — imputed rate card for subscription GLM rows
 - [ ] **D4** — GLM-designer vendor-collision ruling
@@ -211,13 +217,20 @@ is additive.
 - [ ] **P0.5** Verify z.ai's quota-exhaustion error string against `isQuotaExhaustion` (V15) — from the
       docs if a sample exists, else mark PENDING for Phase 1.
 
-**Phase 1 — metered `zai` provider (~2 h, needs a PAYG key only)**
+**Phase 1 — metered `zai` provider (~2 h, needs a PAYG key only) — LANDED 2026-09-05**
 
-- [ ] `ProviderZAI` + `ZAIBaseURL()` (+`ZAI_BASE_URL` override), mirroring V11 exactly
-- [ ] One `case` in `newProviderAdapter`; `ZAI_API_KEY` in both provider switches
-- [ ] Register `zai-glm-5-3` and `zai-glm-5-3-flash`, opt-in, **with the Flash promo as an
-      `expires: "2026-09-09"` + `next:` row** (V6) — the honest use of V17
-- [ ] Smoke gate vs the `or-` twin; this is a **route control**, identical list price, not a cost play
+- [x] `ProviderZAI` + `ZAIBaseURL()` (+`ZAI_BASE_URL` override), mirroring V11 exactly
+- [x] One `case` in `newProviderAdapter`; `ZAI_API_KEY` in both provider switches
+      (+ `cmd/ailang/exec.go` CLI dispatch, `registry.go` built-in name, `SupportsStandardEval`)
+- [x] Register `zai-glm-5-3-flash`, opt-in, **with the Flash promo as an `expires: "2026-09-09"`
+      + `next:` row** (V6) — the honest use of V17. The `next:` numbers are marked INFERRED
+      in-row (2x, read literally off "50% promo"); z.ai publishes the end date but not the
+      post-promo card, so they must be re-read on 2026-09-10.
+- [ ] `zai-glm-5-3` (non-Flash) — **deliberately not registered.** Mark's credits are for Flash
+      only (attended, 2026-09-05); a GLM-5.3 row at $1.40/$4.40 would be an easy typo away from
+      spending 18x per token for a model nobody asked to run.
+- [ ] Smoke gate vs the `or-` twin; this is a **route control**, identical list price, not a cost
+      play. **1/23 done**: `adt_option` PASSed on the wire (see V29) — the remaining 22 are owed.
 
 **Phase 2 — subscription lane (~1 day, BLOCKED on D1)**
 

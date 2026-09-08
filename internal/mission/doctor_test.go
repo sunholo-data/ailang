@@ -46,6 +46,16 @@ func (f *fakeFleet) addMission(name, repo string, sched Schedule, env, plistExtr
 	if err := os.WriteFile(filepath.Join(workdir, "tools", "launchd", "mission-control.sh"), []byte(driver), 0o600); err != nil {
 		f.t.Fatal(err)
 	}
+	// PINNING DEPENDS ON THE WORKDIR: the driver sources
+	// $REPO/tools/launchd/lib/pin-root.sh at runtime, so a pinned fixture needs the
+	// helper beside its workdir, not just the sentinel in the driver.
+	if pinned {
+		_ = os.MkdirAll(filepath.Join(workdir, "tools", "launchd", "lib"), 0o750)
+		if err := os.WriteFile(filepath.Join(workdir, "tools", "launchd", "lib", "pin-root.sh"),
+			[]byte("# pin helper\n"), 0o600); err != nil {
+			f.t.Fatal(err)
+		}
+	}
 	m := &Mission{Name: name, Repo: repo, Doc: "d.md", Workdir: workdir, Sched: sched, Path: "fixture:" + name}
 	if err := m.Validate(); err != nil {
 		f.t.Fatalf("fixture mission invalid: %v", err)
@@ -178,7 +188,11 @@ func TestDoctor_ReportsForkAndMissingPin(t *testing.T) {
 	f := newFleet(t)
 	env := "MISSION_NAME=world\nMISSION_REPO=sunholo-data/ailang-world\nMISSION_DOC=d.md\n"
 	m := f.addMission("world", "sunholo-data/ailang-world", Schedule{Mode: ModeKeepAlive, ThrottleSeconds: 14400},
-		env, "", false) // unpinned fork, exactly like the real world mission
+		env, "", false) // unpinned, exactly like the real world mission
+	// A FORK IS A DECLARED CHOICE since the driver location was decoupled from the
+	// workdir. Working in another repo no longer implies running your own driver — that
+	// is the whole point of the decoupling — so the fixture must SAY it forks.
+	m.Driver = m.DriverPath()
 	rendered, _ := RenderEnv(m, []byte(env))
 	_ = os.WriteFile(f.p.EnvPath("world"), rendered, 0o600)
 

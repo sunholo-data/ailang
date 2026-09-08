@@ -26,6 +26,9 @@ func coordinatorApprovalsCommand(args []string) error {
 	remote := fs.String("remote", "", "plane: local|gcp (default $AILANG_COORDINATOR_REMOTE, then $AILANG_STORAGE)")
 	stateDir := fs.String("state-dir", "", "local state dir (local mode only)")
 	full := fs.Bool("full", false, "print the whole diff rather than a summary")
+	clearOrphans := fs.Bool("clear-orphans", false, "cancel tasks awaiting an approval that does not exist")
+	force := fs.Bool("force", false, "with --clear-orphans, also cancel tasks that still have a worktree")
+	asJSON := fs.Bool("json", false, "emit the queue as JSON (for hooks and agents)")
 	_ = fs.Parse(args)
 
 	ctx := context.Background()
@@ -35,6 +38,17 @@ func coordinatorApprovalsCommand(args []string) error {
 	}
 	defer bundle.Close()
 
+	// --json is the machine path: it prints ONLY the document, and errors as a
+	// non-zero exit rather than an empty queue. Handled before the human view
+	// so no banner line ever lands on stdout ahead of it.
+	if *asJSON {
+		out, jErr := collectPendingApprovals(ctx, bundle, resolveApprovalAuthority(), time.Now())
+		if jErr != nil {
+			return jErr
+		}
+		return printApprovalsJSON(out)
+	}
+
 	// Always say which plane. "approved" against the wrong store looks exactly
 	// like success.
 	fmt.Printf("store: %s\n\n", bundle.Mode)
@@ -43,16 +57,41 @@ func coordinatorApprovalsCommand(args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to list pending approvals: %w", err)
 	}
-	if len(pending) == 0 {
-		fmt.Println("No pending approvals.")
-		return nil
+
+	// Orphans are looked up EVERY time, not behind a flag. A task stuck in
+	// pending_approval with no record is invisible to this view and refused by
+	// approve/reject, so the old "No pending approvals." was a lie told to an
+	// operator with 16 stuck tasks in prod.
+	orphans, oErr := findOrphanedApprovals(ctx, bundle.Store)
+	if oErr != nil {
+		// Loud, not fatal: the real approvals below are still worth showing.
+		fmt.Printf("⚠ could not check for orphaned approvals: %v\n\n", oErr)
 	}
 
-	for _, req := range pending {
-		printApprovalCard(req, *full)
+	if *clearOrphans {
+		if len(orphans) == 0 {
+			fmt.Println("No orphaned approvals to clear.")
+			return nil
+		}
+		cleared, skipped, cErr := clearOrphanedApprovals(ctx, bundle.Store, orphans, *force)
+		fmt.Printf("\ncleared %d, skipped %d\n", cleared, skipped)
+		return cErr
 	}
-	fmt.Printf("\n%d pending. Approve with:\n", len(pending))
-	fmt.Printf("  ailang coordinator approve <task-id> --remote %s\n", firstWord(bundle.Mode))
+
+	switch {
+	case len(pending) == 0 && len(orphans) == 0:
+		fmt.Println("No pending approvals.")
+	case len(pending) == 0:
+		fmt.Println("No actionable approvals.")
+	default:
+		for _, req := range pending {
+			printApprovalCard(req, *full)
+		}
+		fmt.Printf("\n%d pending. Approve with:\n", len(pending))
+		fmt.Printf("  ailang coordinator approve <task-id> --remote %s\n", firstWord(bundle.Mode))
+	}
+
+	reportOrphanedApprovals(orphans, firstWord(bundle.Mode))
 	return nil
 }
 
@@ -171,7 +210,15 @@ func coordinatorResolveRemote(args []string, action string) error {
 		}
 	}
 
+	// Who decided. An unattended controller approval used to record $USER —
+	// on this fleet that is the same login Mark's own sessions run under, so
+	// the audit trail could not tell a 3am fable controller from the operator.
+	// The resolved identity names the actual decider (controller id, or the
+	// attended session), and --by still overrides it.
 	who := *by
+	if who == "" {
+		who = resolveApprovalAuthority().Identity
+	}
 	if who == "" {
 		who = os.Getenv("USER")
 	}
@@ -179,7 +226,23 @@ func coordinatorResolveRemote(args []string, action string) error {
 		who = "cli-user"
 	}
 
-	agentRegistry, _ := coordinator.LoadAgentRegistry()
+	// An approval that cannot fire its handoffs must not report success.
+	//
+	// ProcessApprovalRequest reads TriggerOnComplete off the agent it looks up in
+	// this registry. LoadAgentRegistry returns the LOCAL config (~/.ailang or
+	// $AILANG_CONFIG) and reports **no error** when that config simply has no
+	// cloud agents — so approving a cloud task from a laptop marked the approval
+	// "approved", fired nothing, and left the task pending_approval forever.
+	//
+	// Measured 2026-09-07 on task-3807b3e1: approval recorded, sprint-planner
+	// never dispatched, task still pending. It is the same signature as two
+	// eval-rig tasks stranded since 2026-08-26, which is how long this has been
+	// silently true. Refusing here is the difference between a bug and a lie.
+	agentRegistry, regErr := coordinator.LoadAgentRegistry()
+	if err := checkRegistryCanDispatch(ctx, bundle, agentRegistry, regErr, taskID); err != nil {
+		return err
+	}
+
 	result, err := coordinator.ProcessApprovalRequest(ctx, &coordinator.ApprovalParams{
 		TaskID:        taskID,
 		Action:        action,

@@ -21,125 +21,153 @@ import (
 
 func TestCacheSource_ExactSnapshot(t *testing.T) {
 	t.Run("disk changes after load do not change key", func(t *testing.T) {
-		root := t.TempDir()
-		t.Chdir(root)
-		t.Setenv("AILANG_CACHE_DIR", filepath.Join(root, "cache"))
-		source := "module answer\nexport pure func value() -> int = 7\n"
-		if err := os.WriteFile("answer.ail", []byte(source), 0o644); err != nil {
-			t.Fatalf("write source: %v", err)
-		}
-		deps := productionCacheDependencies()
-		afterLoad := func(modules map[string]*loader.LoadedModule) {
-			if err := os.Remove("answer.ail"); err != nil {
-				t.Fatalf("remove source after load: %v", err)
-			}
-		}
-		if _, err := runModuleWithCacheDependencies(t.Context(), Config{Mode: ModeCheck}, Source{Filename: "answer.ail"}, deps, afterLoad); err != nil {
-			t.Fatalf("compile retained snapshot: %v", err)
-		}
-		manifest := readCacheManifest(t, filepath.Join(root, "cache", "compile", "manifest.json"))
-		entry := manifest.Entries["answer"]
-		if entry == nil {
-			t.Fatal("retained disk snapshot produced no cache entry")
-		}
-		if want := ModuleCacheKey(version.Commit, source, nil); entry.CacheKey != want {
-			t.Fatalf("cache key = %q, want retained-source key %q", entry.CacheKey, want)
-		}
+		diskChangeAfterLoadPreservesKey(t)
 	})
-
 	t.Run("nil bypasses while known empty remains cacheable", func(t *testing.T) {
-		root := t.TempDir()
-		t.Chdir(root)
-		cacheRoot := filepath.Join(root, "cache")
-		t.Setenv("AILANG_CACHE_DIR", cacheRoot)
-		writeCachePipelineSource(t, 42)
-		if _, err := runModuleWithCacheDependencies(t.Context(), Config{Mode: ModeCheck}, Source{Filename: "answer.ail"}, productionCacheDependencies()); err != nil {
-			t.Fatalf("seed cache: %v", err)
-		}
-		manifestPath := filepath.Join(cacheRoot, "compile", "manifest.json")
-		seed := readCacheManifest(t, manifestPath).Entries["answer"]
-		if seed == nil {
-			t.Fatal("seed cache has no answer entry")
-		}
-
-		var warnings bytes.Buffer
-		reads, writes := 0, 0
-		deps := cacheDependencies{
-			stderr: &warnings,
-			newStore: func(projectDir string) (*CacheStore, error) {
-				store, err := NewCacheStore(projectDir)
-				if err != nil {
-					return nil, err
-				}
-				open := store.artifactIO.open
-				store.artifactIO.open = func(path string) (artifactReadFile, error) {
-					if filepath.Base(filepath.Dir(path)) == "answer" {
-						reads++
-					}
-					return open(path)
-				}
-				write := store.artifactIO.writeFile
-				store.artifactIO.writeFile = func(path string, data []byte, mode os.FileMode) error {
-					if filepath.Base(filepath.Dir(path)) == "answer" {
-						writes++
-					}
-					return write(path, data, mode)
-				}
-				return store, nil
-			},
-		}
-		nilSource := func(modules map[string]*loader.LoadedModule) {
-			modules["answer"].SourceContent = nil
-		}
-		if _, err := runModuleWithCacheDependencies(t.Context(), Config{Mode: ModeCheck}, Source{Filename: "answer.ail"}, deps, nilSource); err != nil {
-			t.Fatalf("compile unavailable snapshot: %v", err)
-		}
-		if reads != 0 || writes != 0 {
-			t.Fatalf("nil snapshot touched cache artifacts: reads=%d writes=%d", reads, writes)
-		}
-		if warning := warnings.String(); !strings.Contains(warning, "CACHE_SOURCE_UNAVAILABLE module=answer") {
-			t.Fatalf("nil snapshot diagnostic = %q", warning)
-		}
-		// The design says a module without a snapshot bypasses BOTH lookup and
-		// publication -- it must never ATTEMPT to publish, not merely fail to.
-		// Publication with the zero cache key is separately rejected one layer
-		// down by StoreArtifacts, which would emit a write diagnostic here; the
-		// bypass diagnostic must therefore be the only thing on stderr.
-		if warning := warnings.String(); strings.Contains(warning, "CACHE_WRITE_FAILED") {
-			t.Fatalf("nil snapshot attempted publication: stderr = %q", warning)
-		}
-		afterNil := readCacheManifest(t, manifestPath).Entries["answer"]
-		if afterNil == nil || afterNil.CacheKey != seed.CacheKey || !afterNil.Timestamp.Equal(seed.Timestamp) {
-			t.Fatalf("nil snapshot changed manifest entry: before=%#v after=%#v", seed, afterNil)
-		}
-
-		emptyRoot := t.TempDir()
-		t.Chdir(emptyRoot)
-		t.Setenv("AILANG_CACHE_DIR", filepath.Join(emptyRoot, "cache"))
-		if err := os.WriteFile("answer.ail", []byte("module answer\nexport pure func value() -> int = 42\n"), 0o644); err != nil {
-			t.Fatalf("write known-empty fixture: %v", err)
-		}
-		warnings.Reset()
-		empty := ""
-		emptyDeps := cacheDependencies{
-			newStore: NewCacheStore,
-			stderr:   &warnings,
-		}
-		emptySource := func(modules map[string]*loader.LoadedModule) {
-			modules["answer"].SourceContent = &empty
-		}
-		if _, err := runModuleWithCacheDependencies(t.Context(), Config{Mode: ModeCheck}, Source{Filename: "answer.ail"}, emptyDeps, emptySource); err != nil {
-			t.Fatalf("compile known-empty snapshot: %v", err)
-		}
-		emptyManifest := readCacheManifest(t, filepath.Join(emptyRoot, "cache", "compile", "manifest.json"))
-		emptyEntry := emptyManifest.Entries["answer"]
-		if emptyEntry == nil || emptyEntry.CacheKey != ModuleCacheKey(version.Commit, "", nil) {
-			t.Fatalf("known-empty snapshot entry = %#v", emptyEntry)
-		}
-		if strings.Contains(warnings.String(), "CACHE_SOURCE_UNAVAILABLE") {
-			t.Fatalf("known-empty snapshot treated as unavailable: %q", warnings.String())
-		}
+		nilBypassAndKnownEmptyCacheable(t)
 	})
+}
+
+// diskChangeAfterLoadPreservesKey seeds a cache entry from a source file, then
+// asserts that deleting the file on disk after load does not change the key
+// (the immutable loader snapshot, not the live file, defines the cache key).
+func diskChangeAfterLoadPreservesKey(t *testing.T) {
+	root := t.TempDir()
+	t.Chdir(root)
+	t.Setenv("AILANG_CACHE_DIR", filepath.Join(root, "cache"))
+	source := "module answer\nexport pure func value() -> int = 7\n"
+	if err := os.WriteFile("answer.ail", []byte(source), 0o644); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
+	deps := productionCacheDependencies()
+	afterLoad := func(modules map[string]*loader.LoadedModule) {
+		if err := os.Remove("answer.ail"); err != nil {
+			t.Fatalf("remove source after load: %v", err)
+		}
+	}
+	if _, err := runModuleWithCacheDependencies(t.Context(), Config{Mode: ModeCheck}, Source{Filename: "answer.ail"}, deps, afterLoad); err != nil {
+		t.Fatalf("compile retained snapshot: %v", err)
+	}
+	manifest := readCacheManifest(t, filepath.Join(root, "cache", "compile", "manifest.json"))
+	entry := manifest.Entries["answer"]
+	if entry == nil {
+		t.Fatal("retained disk snapshot produced no cache entry")
+	}
+	if want := ModuleCacheKey(version.Commit, source, nil); entry.CacheKey != want {
+		t.Fatalf("cache key = %q, want retained-source key %q", entry.CacheKey, want)
+	}
+}
+
+// nilBypassAndKnownEmptyCacheable contrasts the two nil-vs-empty snapshot arms:
+// a nil SourceContent must bypass BOTH lookup and publication (never touching
+// cache artifacts and never changing the seeded manifest entry), while a
+// pointer-to-empty SourceContent must remain cacheable and publish a real key.
+func nilBypassAndKnownEmptyCacheable(t *testing.T) {
+	root := t.TempDir()
+	t.Chdir(root)
+	cacheRoot := filepath.Join(root, "cache")
+	t.Setenv("AILANG_CACHE_DIR", cacheRoot)
+	writeCachePipelineSource(t, 42)
+	if _, err := runModuleWithCacheDependencies(t.Context(), Config{Mode: ModeCheck}, Source{Filename: "answer.ail"}, productionCacheDependencies()); err != nil {
+		t.Fatalf("seed cache: %v", err)
+	}
+	manifestPath := filepath.Join(cacheRoot, "compile", "manifest.json")
+	seed := readCacheManifest(t, manifestPath).Entries["answer"]
+	if seed == nil {
+		t.Fatal("seed cache has no answer entry")
+	}
+
+	var warnings bytes.Buffer
+	var reads, writes int
+	deps := newSnapshotIOProbeDeps(&warnings, &reads, &writes)
+	nilSource := func(modules map[string]*loader.LoadedModule) {
+		modules["answer"].SourceContent = nil
+	}
+	if _, err := runModuleWithCacheDependencies(t.Context(), Config{Mode: ModeCheck}, Source{Filename: "answer.ail"}, deps, nilSource); err != nil {
+		t.Fatalf("compile unavailable snapshot: %v", err)
+	}
+	assertNilSnapshotBypass(t, &warnings, reads, writes, seed, manifestPath)
+	assertKnownEmptySourceCacheable(t)
+}
+
+// newSnapshotIOProbeDeps builds the instrumented cache store used to prove that
+// a nil snapshot performs no artifact reads or writes for the answer module.
+func newSnapshotIOProbeDeps(warnings *bytes.Buffer, reads, writes *int) cacheDependencies {
+	return cacheDependencies{
+		stderr: warnings,
+		newStore: func(projectDir string) (*CacheStore, error) {
+			store, err := NewCacheStore(projectDir)
+			if err != nil {
+				return nil, err
+			}
+			open := store.artifactIO.open
+			store.artifactIO.open = func(path string) (artifactReadFile, error) {
+				if filepath.Base(filepath.Dir(path)) == "answer" {
+					(*reads)++
+				}
+				return open(path)
+			}
+			write := store.artifactIO.writeFile
+			store.artifactIO.writeFile = func(path string, data []byte, mode os.FileMode) error {
+				if filepath.Base(filepath.Dir(path)) == "answer" {
+					(*writes)++
+				}
+				return write(path, data, mode)
+			}
+			return store, nil
+		},
+	}
+}
+
+// assertNilSnapshotBypass asserts the nil-snapshot arm: zero artifact IO, the
+// CACHE_SOURCE_UNAVAILABLE diagnostic, no CACHE_WRITE_FAILED (the module must
+// never ATTEMPT publication), and an unchanged seeded manifest key/timestamp.
+func assertNilSnapshotBypass(t *testing.T, warnings *bytes.Buffer, reads, writes int, seed *CacheEntry, manifestPath string) {
+	if reads != 0 || writes != 0 {
+		t.Fatalf("nil snapshot touched cache artifacts: reads=%d writes=%d", reads, writes)
+	}
+	if warning := warnings.String(); !strings.Contains(warning, "CACHE_SOURCE_UNAVAILABLE module=answer") {
+		t.Fatalf("nil snapshot diagnostic = %q", warning)
+	}
+	if warning := warnings.String(); strings.Contains(warning, "CACHE_WRITE_FAILED") {
+		t.Fatalf("nil snapshot attempted publication: stderr = %q", warning)
+	}
+	afterNil := readCacheManifest(t, manifestPath).Entries["answer"]
+	if afterNil == nil || afterNil.CacheKey != seed.CacheKey || !afterNil.Timestamp.Equal(seed.Timestamp) {
+		t.Fatalf("nil snapshot changed manifest entry: before=%#v after=%#v", seed, afterNil)
+	}
+}
+
+// assertKnownEmptySourceCacheable asserts the pointer-to-empty contrast arm: an
+// empty source snapshot is a real, cacheable module that publishes a non-empty
+// key and is not misreported as an unavailable snapshot.
+func assertKnownEmptySourceCacheable(t *testing.T) {
+	emptyRoot := t.TempDir()
+	t.Chdir(emptyRoot)
+	t.Setenv("AILANG_CACHE_DIR", filepath.Join(emptyRoot, "cache"))
+	if err := os.WriteFile("answer.ail", []byte("module answer\nexport pure func value() -> int = 42\n"), 0o644); err != nil {
+		t.Fatalf("write known-empty fixture: %v", err)
+	}
+	var warnings bytes.Buffer
+	empty := ""
+	emptyDeps := cacheDependencies{
+		newStore: NewCacheStore,
+		stderr:   &warnings,
+	}
+	emptySource := func(modules map[string]*loader.LoadedModule) {
+		modules["answer"].SourceContent = &empty
+	}
+	if _, err := runModuleWithCacheDependencies(t.Context(), Config{Mode: ModeCheck}, Source{Filename: "answer.ail"}, emptyDeps, emptySource); err != nil {
+		t.Fatalf("compile known-empty snapshot: %v", err)
+	}
+	emptyManifest := readCacheManifest(t, filepath.Join(emptyRoot, "cache", "compile", "manifest.json"))
+	emptyEntry := emptyManifest.Entries["answer"]
+	if emptyEntry == nil || emptyEntry.CacheKey != ModuleCacheKey(version.Commit, "", nil) {
+		t.Fatalf("known-empty snapshot entry = %#v", emptyEntry)
+	}
+	if strings.Contains(warnings.String(), "CACHE_SOURCE_UNAVAILABLE") {
+		t.Fatalf("known-empty snapshot treated as unavailable: %q", warnings.String())
+	}
 }
 
 func TestCachePipeline_EmbeddedKeys(t *testing.T) {
@@ -161,124 +189,151 @@ func TestCachePipeline_EmbeddedKeys(t *testing.T) {
 	}
 	manifest := readCacheManifest(t, filepath.Join(root, "cache", "compile", "manifest.json"))
 	for _, moduleID := range []string{"std/option", "std/result"} {
-		mod := loaded[moduleID]
-		if mod == nil || mod.File == nil {
-			t.Fatalf("loaded module %s = %#v", moduleID, mod)
-		}
-		wantPath := "<embedded>/" + moduleID + ".ail"
-		if got := filepath.ToSlash(mod.File.Path); got != wantPath {
-			t.Fatalf("%s source path = %q, want %q", moduleID, got, wantPath)
-		}
-		if mod.SourceContent == nil || *mod.SourceContent == "" {
-			t.Fatalf("%s retained empty/unavailable embedded content", moduleID)
-		}
-		if len(mod.Imports) != 0 {
-			t.Fatalf("%s unexpected dependencies: %v", moduleID, mod.Imports)
-		}
-		entry := manifest.Entries[moduleID]
-		if entry == nil {
-			t.Fatalf("manifest has no %s entry", moduleID)
-		}
-		want := ModuleCacheKey(version.Commit, *mod.SourceContent, map[string]string{})
-		if entry.CacheKey != want {
-			t.Fatalf("%s key = %q, want %q", moduleID, entry.CacheKey, want)
-		}
-		if empty := ModuleCacheKey(version.Commit, "", map[string]string{}); entry.CacheKey == empty {
-			t.Fatalf("%s embedded key equals empty-source key %q", moduleID, empty)
-		}
-		if result.Modules[moduleID].SourceContent != nil {
-			t.Fatalf("runtime result copied %s source snapshot", moduleID)
-		}
+		assertEmbeddedModuleKey(t, loaded, manifest, result, moduleID)
+	}
+}
+
+// assertEmbeddedModuleKey verifies the embedded stdlib module's source path,
+// retained non-empty snapshot, dependency set, and cache key, and that the
+// runtime result did not copy the source snapshot into the loaded module.
+func assertEmbeddedModuleKey(t *testing.T, loaded map[string]*loader.LoadedModule, manifest CacheManifest, result Result, moduleID string) {
+	mod := loaded[moduleID]
+	if mod == nil || mod.File == nil {
+		t.Fatalf("loaded module %s = %#v", moduleID, mod)
+	}
+	wantPath := "<embedded>/" + moduleID + ".ail"
+	if got := filepath.ToSlash(mod.File.Path); got != wantPath {
+		t.Fatalf("%s source path = %q, want %q", moduleID, got, wantPath)
+	}
+	if mod.SourceContent == nil || *mod.SourceContent == "" {
+		t.Fatalf("%s retained empty/unavailable embedded content", moduleID)
+	}
+	if len(mod.Imports) != 0 {
+		t.Fatalf("%s unexpected dependencies: %v", moduleID, mod.Imports)
+	}
+	entry := manifest.Entries[moduleID]
+	if entry == nil {
+		t.Fatalf("manifest has no %s entry", moduleID)
+	}
+	want := ModuleCacheKey(version.Commit, *mod.SourceContent, map[string]string{})
+	if entry.CacheKey != want {
+		t.Fatalf("%s key = %q, want %q", moduleID, entry.CacheKey, want)
+	}
+	if empty := ModuleCacheKey(version.Commit, "", map[string]string{}); entry.CacheKey == empty {
+		t.Fatalf("%s embedded key equals empty-source key %q", moduleID, empty)
+	}
+	if result.Modules[moduleID].SourceContent != nil {
+		t.Fatalf("runtime result copied %s source snapshot", moduleID)
 	}
 }
 
 func TestCachePipeline_SourceEditBehavior(t *testing.T) {
 	t.Run("cache edit and verified warm hit", func(t *testing.T) {
-		root := t.TempDir()
-		t.Chdir(root)
-		t.Setenv("AILANG_CACHE_DIR", filepath.Join(root, "cache"))
-		writeCacheBehaviorSources(t, 2)
-		cfg := Config{Mode: ModeCheck}
-		first, err := runModuleWithCacheDependencies(t.Context(), cfg, Source{Filename: "main.ail"}, productionCacheDependencies())
-		if err != nil {
-			t.Fatalf("compile dependency v1: %v", err)
-		}
-		if got := executePipelineMain(t, first); got != "3" {
-			t.Fatalf("v1 output = %s, want 3", got)
-		}
-
-		writeCacheBehaviorSources(t, 40)
-		second, err := runModuleWithCacheDependencies(t.Context(), cfg, Source{Filename: "main.ail"}, productionCacheDependencies())
-		if err != nil {
-			t.Fatalf("compile dependency v2: %v", err)
-		}
-		if second.Modules["dep"] == nil || second.Modules["dep"].Core == nil {
-			t.Fatal("edited dependency has no updated Core")
-		}
-		if got := executePipelineMain(t, second); got != "41" {
-			t.Fatalf("v2 output = %s, want 41", got)
-		}
-
-		depCoreReads, warmEncodes := 0, 0
-		warmDeps := cacheDependencies{stderr: io.Discard, newStore: func(projectDir string) (*CacheStore, error) {
-			store, openErr := NewCacheStore(projectDir)
-			if openErr == nil {
-				open := store.artifactIO.open
-				store.artifactIO.open = func(path string) (artifactReadFile, error) {
-					if filepath.Base(filepath.Dir(path)) == "dep" && filepath.Base(path) == artifactCoreName {
-						depCoreReads++
-					}
-					return open(path)
-				}
-				encode := store.artifactCodec.encodeCore
-				store.artifactCodec.encodeCore = func(program *core.Program) ([]byte, error) {
-					warmEncodes++
-					return encode(program)
-				}
-			}
-			return store, openErr
-		}}
-		warm, err := runModuleWithCacheDependencies(t.Context(), cfg, Source{Filename: "main.ail"}, warmDeps)
-		if err != nil {
-			t.Fatalf("verified warm compile: %v", err)
-		}
-		if depCoreReads == 0 {
-			t.Fatal("edited dependency was not loaded through a verified warm hit")
-		}
-		if warmEncodes != 0 {
-			t.Fatalf("verified warm run recompiled %d modules", warmEncodes)
-		}
-		if got := executePipelineMain(t, warm); got != "41" {
-			t.Fatalf("warm output = %s, want 41", got)
-		}
+		cacheEditAndVerifiedWarmHit(t)
 	})
-
 	t.Run("NoCache parity without persistence", func(t *testing.T) {
-		root := t.TempDir()
-		t.Chdir(root)
-		cacheRoot := filepath.Join(root, "cache")
-		t.Setenv("AILANG_CACHE_DIR", cacheRoot)
-		cfg := Config{Mode: ModeCheck, NoCache: true}
-		writeCacheBehaviorSources(t, 2)
-		first, err := runModuleWithCacheDependencies(t.Context(), cfg, Source{Filename: "main.ail"}, productionCacheDependencies())
-		if err != nil {
-			t.Fatalf("NoCache compile v1: %v", err)
-		}
-		if got := executePipelineMain(t, first); got != "3" {
-			t.Fatalf("NoCache v1 output = %s, want 3", got)
-		}
-		writeCacheBehaviorSources(t, 40)
-		second, err := runModuleWithCacheDependencies(t.Context(), cfg, Source{Filename: "main.ail"}, productionCacheDependencies())
-		if err != nil {
-			t.Fatalf("NoCache compile v2: %v", err)
-		}
-		if got := executePipelineMain(t, second); got != "41" {
-			t.Fatalf("NoCache v2 output = %s, want 41", got)
-		}
-		if _, err := os.Stat(filepath.Join(cacheRoot, "compile")); !os.IsNotExist(err) {
-			t.Fatalf("NoCache persisted compile cache: err=%v", err)
-		}
+		noCacheParityWithoutPersistence(t)
 	})
+}
+
+// cacheEditAndVerifiedWarmHit seeds a dependency at v1, edits it to v2, then
+// asserts a third run reuses the edited dependency through a verified warm hit
+// (positive artifact reads, zero recompiles) while still producing the exact
+// 3 -> 41 -> 41 output sequence.
+func cacheEditAndVerifiedWarmHit(t *testing.T) {
+	root := t.TempDir()
+	t.Chdir(root)
+	t.Setenv("AILANG_CACHE_DIR", filepath.Join(root, "cache"))
+	writeCacheBehaviorSources(t, 2)
+	cfg := Config{Mode: ModeCheck}
+	first, err := runModuleWithCacheDependencies(t.Context(), cfg, Source{Filename: "main.ail"}, productionCacheDependencies())
+	if err != nil {
+		t.Fatalf("compile dependency v1: %v", err)
+	}
+	if got := executePipelineMain(t, first); got != "3" {
+		t.Fatalf("v1 output = %s, want 3", got)
+	}
+
+	writeCacheBehaviorSources(t, 40)
+	second, err := runModuleWithCacheDependencies(t.Context(), cfg, Source{Filename: "main.ail"}, productionCacheDependencies())
+	if err != nil {
+		t.Fatalf("compile dependency v2: %v", err)
+	}
+	if second.Modules["dep"] == nil || second.Modules["dep"].Core == nil {
+		t.Fatal("edited dependency has no updated Core")
+	}
+	if got := executePipelineMain(t, second); got != "41" {
+		t.Fatalf("v2 output = %s, want 41", got)
+	}
+
+	depCoreReads, warmEncodes := 0, 0
+	warmDeps := newWarmHitInstrumentedDeps(&depCoreReads, &warmEncodes)
+	warm, err := runModuleWithCacheDependencies(t.Context(), cfg, Source{Filename: "main.ail"}, warmDeps)
+	if err != nil {
+		t.Fatalf("verified warm compile: %v", err)
+	}
+	if depCoreReads == 0 {
+		t.Fatal("edited dependency was not loaded through a verified warm hit")
+	}
+	if warmEncodes != 0 {
+		t.Fatalf("verified warm run recompiled %d modules", warmEncodes)
+	}
+	if got := executePipelineMain(t, warm); got != "41" {
+		t.Fatalf("warm output = %s, want 41", got)
+	}
+}
+
+// noCacheParityWithoutPersistence runs the same edit scenario with NoCache and
+// asserts identical output plus the absence of any on-disk compile cache dir.
+func noCacheParityWithoutPersistence(t *testing.T) {
+	root := t.TempDir()
+	t.Chdir(root)
+	cacheRoot := filepath.Join(root, "cache")
+	t.Setenv("AILANG_CACHE_DIR", cacheRoot)
+	cfg := Config{Mode: ModeCheck, NoCache: true}
+	writeCacheBehaviorSources(t, 2)
+	first, err := runModuleWithCacheDependencies(t.Context(), cfg, Source{Filename: "main.ail"}, productionCacheDependencies())
+	if err != nil {
+		t.Fatalf("NoCache compile v1: %v", err)
+	}
+	if got := executePipelineMain(t, first); got != "3" {
+		t.Fatalf("NoCache v1 output = %s, want 3", got)
+	}
+	writeCacheBehaviorSources(t, 40)
+	second, err := runModuleWithCacheDependencies(t.Context(), cfg, Source{Filename: "main.ail"}, productionCacheDependencies())
+	if err != nil {
+		t.Fatalf("NoCache compile v2: %v", err)
+	}
+	if got := executePipelineMain(t, second); got != "41" {
+		t.Fatalf("NoCache v2 output = %s, want 41", got)
+	}
+	if _, err := os.Stat(filepath.Join(cacheRoot, "compile")); !os.IsNotExist(err) {
+		t.Fatalf("NoCache persisted compile cache: err=%v", err)
+	}
+}
+
+// newWarmHitInstrumentedDeps builds the cache store that counts dependency core
+// artifact reads and fresh core encodes during a verified warm hit, so the
+// test can prove real reuse rather than merely equal output.
+func newWarmHitInstrumentedDeps(depCoreReads, warmEncodes *int) cacheDependencies {
+	return cacheDependencies{stderr: io.Discard, newStore: func(projectDir string) (*CacheStore, error) {
+		store, openErr := NewCacheStore(projectDir)
+		if openErr == nil {
+			open := store.artifactIO.open
+			store.artifactIO.open = func(path string) (artifactReadFile, error) {
+				if filepath.Base(filepath.Dir(path)) == "dep" && filepath.Base(path) == artifactCoreName {
+					(*depCoreReads)++
+				}
+				return open(path)
+			}
+			encode := store.artifactCodec.encodeCore
+			store.artifactCodec.encodeCore = func(program *core.Program) ([]byte, error) {
+				(*warmEncodes)++
+				return encode(program)
+			}
+		}
+		return store, openErr
+	}}
 }
 
 func TestCacheArtifacts_Migration(t *testing.T) {
@@ -287,164 +342,210 @@ func TestCacheArtifacts_Migration(t *testing.T) {
 	}
 
 	t.Run("v3_manifest_forces_cold_v4_publication", func(t *testing.T) {
-		root := t.TempDir()
-		t.Chdir(root)
-		t.Setenv("AILANG_CACHE_DIR", "")
-		writeCachePipelineSource(t, 99)
-		cfg := Config{Mode: ModeCheck}
-		if _, err := runModuleWithCacheDependencies(t.Context(), cfg, Source{Filename: "answer.ail"}, productionCacheDependencies()); err != nil {
-			t.Fatalf("seed cache: %v", err)
-		}
-
-		manifestPath := filepath.Join(root, ".ailang", "cache", "compile", "manifest.json")
-		manifest := readCacheManifest(t, manifestPath)
-		manifest.Version = "v3"
-		writeCacheManifest(t, manifestPath, manifest)
-
-		var warnings bytes.Buffer
-		result, err := runModuleWithCacheDependencies(t.Context(), cfg, Source{Filename: "answer.ail"}, cacheDependencies{newStore: NewCacheStore, stderr: &warnings})
-		if err != nil || result.Interface == nil || result.Interface.Exports["main"] == nil {
-			t.Fatalf("v3 migration did not compile current source: iface=%v err=%v", result.Interface, err)
-		}
-		migrated := readCacheManifest(t, manifestPath)
-		if migrated.Version != "v4" {
-			t.Fatalf("migrated manifest version = %q, want v4", migrated.Version)
-		}
-		stamp := readArtifactStamp(t, filepath.Join(root, ".ailang", "cache", "compile", "modules", "answer", artifactStampName))
-		if stamp.Version != "v4" || stamp.ModuleID != "answer" {
-			t.Fatalf("migrated stamp = %#v", stamp)
-		}
+		v3ManifestForcesColdV4Publication(t)
 	})
-
 	t.Run("current_manifest_with_legacy_unstamped_blobs_misses", func(t *testing.T) {
-		root := t.TempDir()
-		t.Chdir(root)
-		t.Setenv("AILANG_CACHE_DIR", "")
-		writeCachePipelineSource(t, 99)
-		cfg := Config{Mode: ModeCheck}
-		if _, err := runModuleWithCacheDependencies(t.Context(), cfg, Source{Filename: "answer.ail"}, productionCacheDependencies()); err != nil {
-			t.Fatalf("seed cache: %v", err)
-		}
-		stampPath := filepath.Join(root, ".ailang", "cache", "compile", "modules", "answer", artifactStampName)
-		mustRemove(t, stampPath)
-
-		var warnings bytes.Buffer
-		result, err := runModuleWithCacheDependencies(t.Context(), cfg, Source{Filename: "answer.ail"}, cacheDependencies{newStore: NewCacheStore, stderr: &warnings})
-		if err != nil || result.Interface == nil || result.Interface.Exports["main"] == nil {
-			t.Fatalf("unstamped legacy cache did not compile current source: iface=%v err=%v", result.Interface, err)
-		}
-		if !strings.Contains(warnings.String(), "CACHE_INVALID module=answer") {
-			t.Fatalf("legacy miss was silent: %q", warnings.String())
-		}
-		if stamp := readArtifactStamp(t, stampPath); stamp.Version != "v4" {
-			t.Fatalf("repaired stamp version = %q, want v4", stamp.Version)
-		}
+		legacyUnstampedBlobsMiss(t)
 	})
+}
+
+// v3ManifestForcesColdV4Publication seeds a v4 cache, rewrites the manifest to
+// v3, and asserts the next run recompiles and re-publishes as a fresh v4
+// manifest and stamp (the migration boundary).
+func v3ManifestForcesColdV4Publication(t *testing.T) {
+	root := t.TempDir()
+	t.Chdir(root)
+	t.Setenv("AILANG_CACHE_DIR", "")
+	writeCachePipelineSource(t, 99)
+	cfg := Config{Mode: ModeCheck}
+	if _, err := runModuleWithCacheDependencies(t.Context(), cfg, Source{Filename: "answer.ail"}, productionCacheDependencies()); err != nil {
+		t.Fatalf("seed cache: %v", err)
+	}
+
+	manifestPath := filepath.Join(root, ".ailang", "cache", "compile", "manifest.json")
+	manifest := readCacheManifest(t, manifestPath)
+	manifest.Version = "v3"
+	writeCacheManifest(t, manifestPath, manifest)
+
+	var warnings bytes.Buffer
+	result, err := runModuleWithCacheDependencies(t.Context(), cfg, Source{Filename: "answer.ail"}, cacheDependencies{newStore: NewCacheStore, stderr: &warnings})
+	if err != nil || result.Interface == nil || result.Interface.Exports["main"] == nil {
+		t.Fatalf("v3 migration did not compile current source: iface=%v err=%v", result.Interface, err)
+	}
+	migrated := readCacheManifest(t, manifestPath)
+	if migrated.Version != "v4" {
+		t.Fatalf("migrated manifest version = %q, want v4", migrated.Version)
+	}
+	stamp := readArtifactStamp(t, filepath.Join(root, ".ailang", "cache", "compile", "modules", "answer", artifactStampName))
+	if stamp.Version != "v4" || stamp.ModuleID != "answer" {
+		t.Fatalf("migrated stamp = %#v", stamp)
+	}
+}
+
+// legacyUnstampedBlobsMiss removes the artifact stamp from an otherwise-current
+// cache and asserts the next lookup is treated as an invalid (miss) that
+// recompiles and repairs the stamp, surfacing a CACHE_INVALID diagnostic.
+func legacyUnstampedBlobsMiss(t *testing.T) {
+	root := t.TempDir()
+	t.Chdir(root)
+	t.Setenv("AILANG_CACHE_DIR", "")
+	writeCachePipelineSource(t, 99)
+	cfg := Config{Mode: ModeCheck}
+	if _, err := runModuleWithCacheDependencies(t.Context(), cfg, Source{Filename: "answer.ail"}, productionCacheDependencies()); err != nil {
+		t.Fatalf("seed cache: %v", err)
+	}
+	stampPath := filepath.Join(root, ".ailang", "cache", "compile", "modules", "answer", artifactStampName)
+	mustRemove(t, stampPath)
+
+	var warnings bytes.Buffer
+	result, err := runModuleWithCacheDependencies(t.Context(), cfg, Source{Filename: "answer.ail"}, cacheDependencies{newStore: NewCacheStore, stderr: &warnings})
+	if err != nil || result.Interface == nil || result.Interface.Exports["main"] == nil {
+		t.Fatalf("unstamped legacy cache did not compile current source: iface=%v err=%v", result.Interface, err)
+	}
+	if !strings.Contains(warnings.String(), "CACHE_INVALID module=answer") {
+		t.Fatalf("legacy miss was silent: %q", warnings.String())
+	}
+	if stamp := readArtifactStamp(t, stampPath); stamp.Version != "v4" {
+		t.Fatalf("repaired stamp version = %q, want v4", stamp.Version)
+	}
 }
 
 func TestCachePipeline_WriteFailure(t *testing.T) {
 	t.Run("artifact_failure_keeps_fresh_result_and_manifest_unpublished", func(t *testing.T) {
-		root := t.TempDir()
-		t.Chdir(root)
-		t.Setenv("AILANG_CACHE_DIR", "")
-		writeCachePipelineSource(t, 42)
-		var warnings bytes.Buffer
-		var failedStore *CacheStore
-		deps := cacheDependencies{stderr: &warnings, newStore: func(projectDir string) (*CacheStore, error) {
-			store, err := NewCacheStore(projectDir)
-			if err != nil {
-				return nil, err
-			}
-			failedStore = store
-			write := store.artifactIO.writeFile
-			store.artifactIO.writeFile = func(path string, data []byte, mode os.FileMode) error {
-				if filepath.Base(filepath.Dir(path)) == "answer" && filepath.Base(path) == artifactCoreName {
-					return os.ErrPermission
-				}
-				return write(path, data, mode)
-			}
-			return store, nil
-		}}
-
-		result, err := runModuleWithCacheDependencies(t.Context(), Config{Mode: ModeCheck}, Source{Filename: "answer.ail"}, deps)
-		if err != nil || result.Interface == nil || result.Interface.Exports["main"] == nil {
-			t.Fatalf("optional artifact failure became fatal: iface=%v err=%v", result.Interface, err)
-		}
-		if failedStore == nil {
-			t.Fatal("cache factory was not invoked")
-		}
-		if _, ok := failedStore.Lookup("answer", readCacheKeyIfPresent(t, failedStore, "answer")); ok {
-			t.Fatal("failed artifact publication authorized answer in the manifest")
-		}
-		warning := warnings.String()
-		if !strings.Contains(warning, "CACHE_WRITE_FAILED module=answer stage=publication") || !strings.Contains(warning, "using fresh compilation") {
-			t.Fatalf("artifact failure diagnostic = %q", warning)
-		}
-
-		if _, err := runModuleWithCacheDependencies(t.Context(), Config{Mode: ModeCheck}, Source{Filename: "answer.ail"}, productionCacheDependencies()); err != nil {
-			t.Fatalf("restored publication: %v", err)
-		}
-		decoded := 0
-		hitDeps := cacheDependencies{stderr: io.Discard, newStore: func(projectDir string) (*CacheStore, error) {
-			store, openErr := NewCacheStore(projectDir)
-			if openErr == nil {
-				decode := store.artifactCodec.decodeCore
-				store.artifactCodec.decodeCore = func(data []byte) (*core.Program, error) {
-					decoded++
-					return decode(data)
-				}
-			}
-			return store, openErr
-		}}
-		if _, err := runModuleWithCacheDependencies(t.Context(), Config{Mode: ModeCheck}, Source{Filename: "answer.ail"}, hitDeps); err != nil {
-			t.Fatalf("restored warm hit: %v", err)
-		}
-		if decoded == 0 {
-			t.Fatal("restored cache was not used as a verified warm hit")
-		}
+		artifactFailureKeepsFreshResultAndManifestUnpublished(t)
 	})
-
 	t.Run("initialization_failure_is_visible_and_nonfatal", func(t *testing.T) {
-		root := t.TempDir()
-		t.Chdir(root)
-		writeCachePipelineSource(t, 42)
-		var warnings bytes.Buffer
-		deps := cacheDependencies{
-			stderr: &warnings,
-			newStore: func(string) (*CacheStore, error) {
-				return nil, errors.New("injected initialization failure")
-			},
-		}
-		result, err := runModuleWithCacheDependencies(t.Context(), Config{Mode: ModeCheck}, Source{Filename: "answer.ail"}, deps)
-		if err != nil || result.Interface == nil || result.Interface.Exports["main"] == nil {
-			t.Fatalf("initialization failure became fatal: iface=%v err=%v", result.Interface, err)
-		}
-		if warning := warnings.String(); !strings.Contains(warning, "CACHE_WRITE_FAILED stage=initialization") {
-			t.Fatalf("initialization failure diagnostic = %q", warning)
-		}
+		initializationFailureIsVisibleAndNonfatal(t)
 	})
-
 	t.Run("manifest_save_failure_is_visible_and_nonfatal", func(t *testing.T) {
-		root := t.TempDir()
-		t.Chdir(root)
-		t.Setenv("AILANG_CACHE_DIR", "")
-		writeCachePipelineSource(t, 42)
-		var warnings bytes.Buffer
-		deps := cacheDependencies{stderr: &warnings, newStore: func(projectDir string) (*CacheStore, error) {
-			store, err := NewCacheStore(projectDir)
-			if err == nil {
-				store.writeManifest = func(string, []byte, os.FileMode) error { return os.ErrPermission }
-			}
-			return store, err
-		}}
-		result, err := runModuleWithCacheDependencies(t.Context(), Config{Mode: ModeCheck}, Source{Filename: "answer.ail"}, deps)
-		if err != nil || result.Interface == nil || result.Interface.Exports["main"] == nil {
-			t.Fatalf("manifest save failure became fatal: iface=%v err=%v", result.Interface, err)
-		}
-		if warning := warnings.String(); !strings.Contains(warning, "CACHE_WRITE_FAILED stage=manifest_save") {
-			t.Fatalf("manifest save failure diagnostic = %q", warning)
-		}
+		manifestSaveFailureIsVisibleAndNonfatal(t)
 	})
+}
+
+// artifactFailureKeepsFreshResultAndManifestUnpublished forces an artifact
+// write failure, asserts the fresh compilation result is returned (nonfatal),
+// the manifest entry is not authorized, the write diagnostic is surfaced, and a
+// subsequent normal run publishes and is then served as a verified warm hit.
+func artifactFailureKeepsFreshResultAndManifestUnpublished(t *testing.T) {
+	root := t.TempDir()
+	t.Chdir(root)
+	t.Setenv("AILANG_CACHE_DIR", "")
+	writeCachePipelineSource(t, 42)
+	var warnings bytes.Buffer
+	var failedStore *CacheStore
+	deps := newArtifactWriteFailureDeps(&warnings, &failedStore)
+
+	result, err := runModuleWithCacheDependencies(t.Context(), Config{Mode: ModeCheck}, Source{Filename: "answer.ail"}, deps)
+	if err != nil || result.Interface == nil || result.Interface.Exports["main"] == nil {
+		t.Fatalf("optional artifact failure became fatal: iface=%v err=%v", result.Interface, err)
+	}
+	if failedStore == nil {
+		t.Fatal("cache factory was not invoked")
+	}
+	if _, ok := failedStore.Lookup("answer", readCacheKeyIfPresent(t, failedStore, "answer")); ok {
+		t.Fatal("failed artifact publication authorized answer in the manifest")
+	}
+	warning := warnings.String()
+	if !strings.Contains(warning, "CACHE_WRITE_FAILED module=answer stage=publication") || !strings.Contains(warning, "using fresh compilation") {
+		t.Fatalf("artifact failure diagnostic = %q", warning)
+	}
+
+	if _, err := runModuleWithCacheDependencies(t.Context(), Config{Mode: ModeCheck}, Source{Filename: "answer.ail"}, productionCacheDependencies()); err != nil {
+		t.Fatalf("restored publication: %v", err)
+	}
+	decoded := 0
+	hitDeps := newDecodeCountDeps(&decoded)
+	if _, err := runModuleWithCacheDependencies(t.Context(), Config{Mode: ModeCheck}, Source{Filename: "answer.ail"}, hitDeps); err != nil {
+		t.Fatalf("restored warm hit: %v", err)
+	}
+	if decoded == 0 {
+		t.Fatal("restored cache was not used as a verified warm hit")
+	}
+}
+
+// newArtifactWriteFailureDeps builds a cache store whose artifact core write
+// for the answer module fails with permission denied, capturing the store for
+// later manifest inspection.
+func newArtifactWriteFailureDeps(warnings *bytes.Buffer, failedStore **CacheStore) cacheDependencies {
+	return cacheDependencies{stderr: warnings, newStore: func(projectDir string) (*CacheStore, error) {
+		store, err := NewCacheStore(projectDir)
+		if err != nil {
+			return nil, err
+		}
+		*failedStore = store
+		write := store.artifactIO.writeFile
+		store.artifactIO.writeFile = func(path string, data []byte, mode os.FileMode) error {
+			if filepath.Base(filepath.Dir(path)) == "answer" && filepath.Base(path) == artifactCoreName {
+				return os.ErrPermission
+			}
+			return write(path, data, mode)
+		}
+		return store, nil
+	}}
+}
+
+// newDecodeCountDeps builds a cache store that counts Core artifact decodes
+// during a warm lookup, proving the cache was actually read back.
+func newDecodeCountDeps(decoded *int) cacheDependencies {
+	return cacheDependencies{stderr: io.Discard, newStore: func(projectDir string) (*CacheStore, error) {
+		store, openErr := NewCacheStore(projectDir)
+		if openErr == nil {
+			decode := store.artifactCodec.decodeCore
+			store.artifactCodec.decodeCore = func(data []byte) (*core.Program, error) {
+				(*decoded)++
+				return decode(data)
+			}
+		}
+		return store, openErr
+	}}
+}
+
+// initializationFailureIsVisibleAndNonfatal asserts that a failed cache store
+// initialization surfaces a CACHE_WRITE_FAILED stage=initialization diagnostic
+// without making compilation fatal.
+func initializationFailureIsVisibleAndNonfatal(t *testing.T) {
+	root := t.TempDir()
+	t.Chdir(root)
+	writeCachePipelineSource(t, 42)
+	var warnings bytes.Buffer
+	deps := cacheDependencies{
+		stderr: &warnings,
+		newStore: func(string) (*CacheStore, error) {
+			return nil, errors.New("injected initialization failure")
+		},
+	}
+	result, err := runModuleWithCacheDependencies(t.Context(), Config{Mode: ModeCheck}, Source{Filename: "answer.ail"}, deps)
+	if err != nil || result.Interface == nil || result.Interface.Exports["main"] == nil {
+		t.Fatalf("initialization failure became fatal: iface=%v err=%v", result.Interface, err)
+	}
+	if warning := warnings.String(); !strings.Contains(warning, "CACHE_WRITE_FAILED stage=initialization") {
+		t.Fatalf("initialization failure diagnostic = %q", warning)
+	}
+}
+
+// manifestSaveFailureIsVisibleAndNonfatal asserts that a failed manifest save
+// surfaces a CACHE_WRITE_FAILED stage=manifest_save diagnostic without making
+// compilation fatal.
+func manifestSaveFailureIsVisibleAndNonfatal(t *testing.T) {
+	root := t.TempDir()
+	t.Chdir(root)
+	t.Setenv("AILANG_CACHE_DIR", "")
+	writeCachePipelineSource(t, 42)
+	var warnings bytes.Buffer
+	deps := cacheDependencies{stderr: &warnings, newStore: func(projectDir string) (*CacheStore, error) {
+		store, err := NewCacheStore(projectDir)
+		if err == nil {
+			store.writeManifest = func(string, []byte, os.FileMode) error { return os.ErrPermission }
+		}
+		return store, err
+	}}
+	result, err := runModuleWithCacheDependencies(t.Context(), Config{Mode: ModeCheck}, Source{Filename: "answer.ail"}, deps)
+	if err != nil || result.Interface == nil || result.Interface.Exports["main"] == nil {
+		t.Fatalf("manifest save failure became fatal: iface=%v err=%v", result.Interface, err)
+	}
+	if warning := warnings.String(); !strings.Contains(warning, "CACHE_WRITE_FAILED stage=manifest_save") {
+		t.Fatalf("manifest save failure diagnostic = %q", warning)
+	}
 }
 
 func writeCachePipelineSource(t *testing.T, value int) {

@@ -1,5 +1,22 @@
 ## Gate 2 — PICK + REALITY-CHECK
 
+**⚠ BEFORE PICKING, GREP THE ITERATION INDEX. This is how the loop avoids redoing work.**
+
+```bash
+grep -i '<keyword>' design_docs/${MISSION_NAME}-mission-index.md
+```
+
+`design_docs/<name>-mission-index.md` is ONE LINE PER ITERATION covering the entire
+history — live log and archive together — and it is small enough (~13k tokens for 331
+iterations) to read whole. The live log holds only the newest 20 entries; the rest are in
+`<name>-mission-log-archive.md`, retrievable but never loaded.
+
+Why this rule exists: the v1 log reached 2.86 MB / ~715k tokens / 334 entries with no
+rotation anywhere in this protocol, so "has this been tried?" had no cheap answer — the
+only complete record was a file too big to read. Rotation without an index would have made
+that worse, not better: it would have moved the history out of reach entirely. Grep the
+index first; open the archive only when the index says something relevant happened.
+
 First action: `bash tools/launchd/mission-heartbeat.sh stamp gate-2`.
 
 Take the top `[NEXT]` queue item. **Before any work, verify the doc's claimed status against repo
@@ -373,6 +390,48 @@ close a judge's finding by changing code, prove the new guard actually catches t
 assertion while the mutation is still applied), then revert and confirm byte-identity; (d) a PASS
 with zero blocking findings is not a reason to skip this — both instances of this class arrived
 inside passing evaluations.
+
+**⚠ AND WHEN YOU HAND THE JUDGE A CANDIDATE FINDING TOGETHER WITH THE INSTRUMENT THAT PRODUCED IT,
+ITS AGREEMENT IS NOT A SECOND MEASUREMENT — INDEPENDENCE OF *AGENT* IS NOT INDEPENDENCE OF
+*METHOD*, AND A NUMBER WRITTEN IN A DOC CARRIES AN INSTRUMENT THE WAY A PROBE CARRIES AN ENDPOINT**
+(added 2026-09-07 V1 iteration 346; two frictions, both first-party in one iteration — instance 1 is
+the controller's own reality-check, instance 2 is the independent judge "confirming" it). Everything
+above is written for the case where the judge tells you something you did not already believe:
+reproduce it before acting, reproduce it before dismissing, a NON-BLOCKING label is an opinion. All
+correct, and all silent on the commonest shape of all — the judge **agreeing** with a finding the
+controller put in its directive. Agreement feels like corroboration, so it is the one judge output
+nobody re-derives; and if the controller supplied the *method* along with the claim, the judge has
+re-run your instrument, not checked your conclusion. Note this is generator≠judge holding at the
+level of agents while failing at the level of evidence: two independent minds, one shared error.
+Measured here, at the gate that decides evidence integrity. The controller measured
+`gocognit` = **106** for `runModuleWithCacheDependencies`, saw the design doc say **103**, and wrote
+into the evaluator directive: *"gocognit … = 106 (NOT the 103 the PR body claims — flag this if you
+agree)"*. The judge installed `gocognit` from scratch, re-derived 106, and scored an
+evidence-integrity ding for a "number wrong by 3" that had been "carried through four dead
+iterations without ever being checked". Both were wrong. The doc attributes 103 to **SonarCloud**,
+with its issue key (`AaBzgnbFBD7wArG_Hhqs`) and the exact `curl` that produced it — a different
+implementation of `go:S3776`. The discriminating test is the other four targets of the same sprint,
+and it is unambiguous: Sonar 29/19/24/16/103 against gocognit 47/21/38/20/106, **every one
+different**, with the live API returning `from 103` for that key. The doc was right and correctly
+sourced; two agents agreed it was wrong because one of them chose the ruler.
+**Rules. (a) A quantity is a reading, so cite its instrument inline** — `103 [sonar]`,
+`106 [gocognit]` — in docs, plans, log entries and directives alike. This is verification rule 3c
+(*"a probe identifies the endpoint you REACHED, never the service you NAMED"*) aimed at a **metric**
+instead of a service, and it bites harder, because an endpoint at least announces itself in a URL
+while a bare integer announces nothing. **(b) Before calling a written-down number wrong, find out
+which instrument produced it** — a nearby issue key, a recorded command, the doc's own verification
+log — and re-measure with *that* one. **(c) Do NOT put your candidate finding and your method in the
+same directive.** Ask the judge to derive the quantity from the artifact's own stated source and
+report what it gets; supplying "I measured X, confirm" converts an independent gate into an echo.
+**(d) When the judge agrees with something you supplied, treat the agreement as UNVERIFIED and
+re-derive it by a second route** — the concordance of two runs of one instrument is exactly as
+strong as one run. **(e) A local gate is not evidence for a criterion phrased in another
+instrument's terms:** this sprint's acceptance criterion was a Sonar re-analysis while every gate the
+loop actually runs is `gocognit`, so a green local reading was being quoted for a claim it cannot
+support. Mission-independent, and it generalises past complexity metrics to coverage percentages,
+token counts, benchmark pass rates and timing numbers — anywhere two tools implement "the same"
+measure. The tell: you are about to call a number in someone else's document wrong, and the only
+thing you compared it against is a tool *you* chose.
 
 **Verification protocol** (added iteration 1 after three same-class frictions; now 18
 rules, each one an epistemics failure this loop committed and paid for). Steps 1–3 are the

@@ -54,7 +54,7 @@ run_verdict() {
   (
     set -u
     AILANG_STATE_DIR="$inline_state"; STATE_DIR="$fallback_state"; _mc_slot_state="$state"; MISSION_NAME=v1; MISSION_ATTEMPT="$run_attempt"
-    TRANSIENT_RETRIES=3; RC="$rc"; START_EPOCH=$(date +%s); CONTROLLER_ID=test:test; LOG="$state/driver.log"
+    MC_PAUSED=0; TRANSIENT_RETRIES=3; RC="$rc"; START_EPOCH=$(date +%s); CONTROLLER_ID=test:test; LOG="$state/driver.log"
     log() { echo "$*" >> "$LOG"; }
     . "$verdict_block"
     grep 'slot-verdict:' "$LOG" | tail -1

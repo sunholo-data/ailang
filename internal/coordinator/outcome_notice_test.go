@@ -1,40 +1,46 @@
 package coordinator
 
-import "testing"
+import (
+	"testing"
 
-// TestIsOutcomeNotice guards the feedback loop that ran on the voightkampff rig on
-// 2026-08-26: completion notices are posted into the agent's own inbox, and a
-// LOCAL-mode coordinator on shared storage polls that same inbox. Without this
-// filter each failure notice became a new task, whose failure became another —
-// 40 tasks in ~3 hours, none of which were ever real work.
+	"github.com/sunholo-data/ailang/internal/messaging"
+)
+
+// TestIsOutcomeNotice pins which kinds are reports ABOUT work rather than
+// requests FOR work. Getting this wrong in either direction is expensive:
+// admitting a notice spawns a task whose own failure notice spawns another (40
+// tasks in 3 hours, rig, 2026-08-26), and excluding a real request drops work
+// silently.
 func TestIsOutcomeNotice(t *testing.T) {
-	tests := []struct {
-		name string
-		msg  *Message
-		want bool
-	}{
-		{"completion is a report, not a request", &Message{Kind: "completion"}, true},
-		{"directive is work", &Message{Kind: "directive"}, false},
-		{"question is work", &Message{Kind: "question"}, false},
-		{"empty kind is work (the common case)", &Message{Kind: ""}, false},
-		{"nil is not a notice", nil, false},
+	notices := []string{
+		messaging.InboxTypeCompletion,
+		// A notice TO an approver, not a request FOR work. The backstop sweep
+		// flagged four of these as recoverable in prod on 2026-09-07; dispatching
+		// one would ask an agent to perform its own approval request.
+		messaging.InboxTypeApprovalRequest,
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := isOutcomeNotice(tt.msg); got != tt.want {
-				t.Errorf("isOutcomeNotice() = %v, want %v", got, tt.want)
-			}
-		})
+	for _, kind := range notices {
+		if !isOutcomeNotice(&Message{Kind: kind}) {
+			t.Errorf("kind %q must be an outcome notice — dispatching it creates work from a report", kind)
+		}
 	}
-}
 
-// TestOutcomeNoticeMatchesCompletionWriters pins the filter to the string the
-// completion writers actually use. If they diverge the loop returns silently.
-func TestOutcomeNoticeMatchesCompletionWriters(t *testing.T) {
-	// pubsub_completion_handler.go, stale_task_detector.go and
-	// publishDedupCompletion all set MessageType: "completion", which
-	// message_adapter.go maps onto Message.Kind.
-	if !isOutcomeNotice(&Message{Kind: "completion"}) {
-		t.Fatal(`filter must match MessageType "completion" as written by the completion handlers`)
+	work := []string{
+		messaging.InboxTypeNotification,
+		messaging.InboxTypeRequest,
+		// A handoff IS the request that carries a chain forward. Filtering it
+		// would break every pipeline edge.
+		messaging.InboxTypeHandoff,
+		// User feedback to a package agent is real work.
+		messaging.InboxTypeFeedback,
+	}
+	for _, kind := range work {
+		if isOutcomeNotice(&Message{Kind: kind}) {
+			t.Errorf("kind %q is a request for work — filtering it drops the work silently", kind)
+		}
+	}
+
+	if isOutcomeNotice(nil) {
+		t.Error("nil must not be an outcome notice")
 	}
 }

@@ -63,6 +63,7 @@ func TestEnvVarForProvider(t *testing.T) {
 		{ProviderOllama, ""}, // local, no key
 		{ProviderOpenRouter, "OPENROUTER_API_KEY"},
 		{ProviderLyceum, "LYCEUM_API_KEY"},
+		{ProviderZAI, "ZAI_API_KEY"},
 		{ProviderType("unknown"), ""},
 	}
 	for _, tt := range tests {
@@ -116,5 +117,62 @@ func TestGetAPIKey_Lyceum(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "LYCEUM_API_KEY") {
 		t.Errorf("error %q does not name LYCEUM_API_KEY", err.Error())
+	}
+}
+
+// TestProviderFromString_ZAI ensures z.ai rows resolve, including the two
+// spellings the vendor itself uses ("z-ai" is OpenRouter's vendor prefix and
+// z.ai's own `owned_by` field; "z.ai" is the brand). All three must land on
+// the same provider so a models.yml typo cannot silently fall through to
+// ProviderType("z-ai"), which has no dispatch case and no API key.
+func TestProviderFromString_ZAI(t *testing.T) {
+	for _, in := range []string{"zai", "ZAI", "z-ai", "z.ai"} {
+		if got := ProviderFromString(in); got != ProviderZAI {
+			t.Errorf("ProviderFromString(%q) = %q, want %q", in, got, ProviderZAI)
+		}
+	}
+}
+
+// TestGetAPIKey_ZAI locks the auth path: ZAI_API_KEY is required, missing key
+// errors with the env var NAMED (no silent fallback to another provider's key).
+func TestGetAPIKey_ZAI(t *testing.T) {
+	t.Setenv("ZAI_API_KEY", "zai-test-key")
+	key, err := GetAPIKey(ProviderZAI)
+	if err != nil {
+		t.Fatalf("GetAPIKey(zai) with key set failed: %v", err)
+	}
+	if key != "zai-test-key" {
+		t.Errorf("GetAPIKey(zai) = %q, want zai-test-key", key)
+	}
+
+	os.Unsetenv("ZAI_API_KEY")
+	_, err = GetAPIKey(ProviderZAI)
+	if err == nil {
+		t.Fatal("GetAPIKey(zai) with no key: want error, got nil")
+	}
+	if !strings.Contains(err.Error(), "ZAI_API_KEY") {
+		t.Errorf("error %q does not name ZAI_API_KEY", err.Error())
+	}
+}
+
+// TestZAIBaseURL_DefaultIsPAYGNotCodingPlan is the lane-separation gate
+// (M-ZAI-WINDOW-ROUTING V5). The GLM Coding Plan endpoint is contractually
+// restricted to officially supported tools; this harness is not one, and a
+// default that drifted onto /api/coding/ would risk account freezing rather
+// than a visible error. ZAI_BASE_URL still lets an operator override
+// deliberately — this test pins only what happens when nobody chose.
+func TestZAIBaseURL_DefaultIsPAYGNotCodingPlan(t *testing.T) {
+	os.Unsetenv("ZAI_BASE_URL")
+	got := ZAIBaseURL()
+	if got != "https://api.z.ai/api/paas/v4" {
+		t.Errorf("ZAIBaseURL() = %q, want the PAYG endpoint", got)
+	}
+	if strings.Contains(got, "/coding/") {
+		t.Fatalf("ZAIBaseURL() defaults to the coding-plan endpoint %q — usage-policy violation", got)
+	}
+
+	t.Setenv("ZAI_BASE_URL", "http://127.0.0.1:9/v1")
+	if got := ZAIBaseURL(); got != "http://127.0.0.1:9/v1" {
+		t.Errorf("ZAI_BASE_URL override ignored: got %q", got)
 	}
 }

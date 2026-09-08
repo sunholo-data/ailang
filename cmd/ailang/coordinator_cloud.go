@@ -427,7 +427,7 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 		}
 
 		fmt.Printf("execute-job: running %s executor (unified path)\n", provider)
-		execResult, execErr = runExecutor(ctx, execWorkDir, provider, directive, taskID, pluginDir, model, timeoutStr)
+		execResult, execErr = runExecutor(ctx, execWorkDir, provider, directive, taskID, pluginDir, model, timeoutStr, repoURL)
 		if execErr != nil {
 			return branchName, execResult, gitEvidence{}, fmt.Errorf("executor failed: %w", execErr)
 		}
