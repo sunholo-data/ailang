@@ -122,3 +122,12 @@ Its aggregate cap is also 100,000 because this successor has only an evaluator s
 Authority: `canary/review-authority.md`. Source branch: sprint/docs-canary-review.
 Actual CLI dry-run passed; evaluator-only runtime dispatch started 2026-09-08 05:25 UTC.
 The initial plan/failed input remain historical evidence, not mutable runtime policy.
+
+Evaluator-only retry ended failed at 100,216 fresh tokens (94,912 input + 5,304 output),
+24 turns and 34 tool calls; metered cost $0.02533176. Its retained dispatch receipt shows
+repeated reads of the same design, plan and candidate diff. This is a separate review
+progress problem, not evidence that this bounded task needs another token increase.
+No author rerun or final acceptance. No further retry launched. The 100,000-token
+configuration remains the latest frozen setting. Both temporary binding and canary-created
+Docs marker were removed after terminal-state/process checks; all evidence retained.
+See review-status.json and review-rollback.json.
