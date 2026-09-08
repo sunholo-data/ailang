@@ -1306,6 +1306,26 @@ are ordered so the UNGATED work runs first.
     queue row rather than this iteration's one Gate-5 edit. **This will bite V1, World and docs on their next
     rotations too**, and none of them has hit it yet only because none has rotated a stamp since the lint landed
     (`aebf8bb73`, 2026-09-06) · 1 iteration
+19. [NEW — filed by iteration 39, from a first-party refusal while doing Gate 4's own bookkeeping]
+   **The iteration index — the file Gate 2 tells every controller to grep BEFORE picking — cannot be
+   regenerated, and has been hand-maintained without anyone saying so** · loop health ·
+   `ailang mission rotate-log motoko --status` refuses:
+   *"design_docs/motoko-mission-status-archive.md: 9 non-entry '## ' heading(s) are interleaved with
+   the entries, so rotation would archive them as part of an entry's body — refusing. First:
+   '## Roadmap: BEYOND parity (2026-06-21) — exploit what pi structurally can't do'."* The refusal is
+   CORRECT — that archive holds the pre-2026-08-12 charter in full, by deliberate charter decision,
+   so it is not a records-only file. But `rotate-log` is the ONLY thing that regenerates
+   `motoko-mission-index.md`, and Gate 4 is explicit that the index is *"regenerated, never
+   appended"* precisely because an appended index drifts. So motoko's index is in the one state that
+   rule exists to prevent, and iteration 39 had to append its own row by hand — as, on the evidence
+   of the index being current through 38, its predecessors did too, silently. **Scope:** either move
+   the archive's 9 structural sections above its first entry (cheap, but it edits a file the charter
+   deliberately froze), or give `rotate-log` a way to regenerate the INDEX without rotating — the
+   index build reads both files and does not need the archive to be rotatable. The second is better:
+   the two operations are coupled only by implementation. **Why it matters more than it looks:** the
+   index is the loop's defence against redoing work, and a stale one answers *"has this been tried?"*
+   confidently and wrongly, which Gate 2 says is worse than having no index at all · 1 iteration
+
 18. [NEW — filed by iteration 39's Gate-3b red, from a first-party CI failure this iteration caused
    and fixed for itself]
    **Gate 4's STATUS rotation moves a heading from an UNLINTED file into a LINTED one, so every
