@@ -108,3 +108,17 @@ again. Confirm owner/descendants stopped before restoring placement. Remove inst
 binding only if its bytes equal installed-binding.toml and baseline records it absent.
 Remove Docs disable marker only if the canary created it; preserve pre-existing markers.
 Retain DB/receipts/worktrees; do not restore over another caller's changes.
+
+## Evaluator budget amendment — 2026-09-08
+
+Original canary produced/validated guide commit 58f9fd4bc2d5003dd9f04760edb8054a4367c114.
+Independent evaluation stopped at 34,202 cumulative tokens against 30,000; no final
+acceptance or completed-repeat check was claimed. The failed record is unchanged.
+
+Mark authorized a reasonable evaluator limit. `canary/review-work-item.json` freezes
+100,000 cumulative input+output tokens, the same 1,200-second/$2 evaluator guards,
+and imports the accepted author artifact. Work ID: docs-canary-guide-review-2.
+Its aggregate cap is also 100,000 because this successor has only an evaluator stage.
+Authority: `canary/review-authority.md`. Source branch: sprint/docs-canary-review.
+Actual CLI dry-run passed; evaluator-only runtime dispatch started 2026-09-08 05:25 UTC.
+The initial plan/failed input remain historical evidence, not mutable runtime policy.
