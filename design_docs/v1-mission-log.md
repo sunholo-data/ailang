@@ -2351,6 +2351,176 @@ unexecuted M3/M4, partial work banked at `~/.ailang/state/mission-v1-iter347-m3-
 `m-headroom-residual-mutations` (four mutations the round-3 judge derived from the diff that survive
 the suite).
 
+## 351 — 2026-09-08 — Inherit iteration 350's orphaned design doc, land it — and let the judge's round-1 FAIL catch a production regression the plan had flagged and shipped anyway [HARNESS]
+
+**Picked.** `m-coordinator-test-parallelism` — **inherited, not chosen**. Iteration 350 sent a CLAIM
+message at `2026-09-08T01:14:40Z` and then died mid-flight, leaving **zero** charter rows, **zero**
+log entries, no PR and no remote branch: the died-mid-flight shape Gate 2 names, for the second
+consecutive slot (349 attempt 1 died at Gate 3b holding a green PR). Gate 2 trace (b) found it —
+`git worktree list` in **this clone** carries `.wt-v1-iter350` on
+`sprint/v1-iter350-coordinator-test-parallelism` at `5935053b2`, which is ownership proof `--author`
+cannot give on a repo where V1 and motoko share the push identity. The physically top `[NEXT]` row,
+`m-fleet-sha-pin-freezes-every-driver-fix`, was **not** picked: it is blocked on **D-61**, the
+ledger's one open row, and the loop may not repoint the fleet's env pins on its own recommendation.
+
+**What iteration 350 left, and why it was routable without a designer.** A 416-line **revision-3**
+design doc, committed on the branch. Its quorum artifacts sit in that worktree's own
+`.ailang/state/mission-quorum/`: round 1 `blocked` with two absentees (`gpt6-astra` on budget,
+`oc-glm-5-2` invalid), round 2 `blocked` with **3/3 REJECT and `absent_reviewers` EMPTY** — a full
+panel, no hole to re-run. I read all three round-2 objections before trusting the r3 label. None
+disputes the design DIRECTION (all three accept "inject the timers, do not parallelise"); each
+carries a concrete reviewer-authored `proposed_fix`; and the doc's own quorum log shows the three
+applied verbatim — astra's and gemini's converging FIX 1 (replace elapsed-time guards with a
+test-controlled wait/ticker seam, and give the async path cancellation) and GLM's FIX 2 (remove the
+`if baseDelay == 0 { baseDelay = time.Second }` silent fallback, rebase the production caller on
+`DefaultExecuteOptions()`). That is the narrow-refinement carve-out spent legitimately, so no fourth
+round and **no designer run** was owed.
+
+**Reality check — verify, do not adopt.** Re-measured first-party at `f3783c976` before routing:
+`t.Parallel()` in `internal/coordinator` = **0** against a repo-wide control of **17** under
+`internal/`; `baseDelay := time.Second` at `task_executor.go:158`; `pollInterval: 2 * time.Second` at
+`approval_checkpoint.go:338`; `>= time.Second` at `event_handler.go:282`; `IsThrottled()` present at
+`:306`; `NewStoreBackedApprovalCheckpoint` **0** production callers (the doc's V16 is right — my
+first grep read 1 and the hit was the definition line). The headline: the four timer-bound tests sum
+to **8.13 s** of a **12.65 s** summed package total over **738** top-level pass events. All four
+gates green on the pristine base before any directive was written, which is what makes a later red
+attributable.
+
+**Shipped.** PR [#1111](https://github.com/sunholo-data/ailang/pull/1111) → squash [`5f95a3814`](https://github.com/sunholo-data/ailang/commit/5f95a3814399527c081b0b6b2109f3bc614fc0a7), **21 checks on the PR head, ZERO not-green** — three timer seams as
+per-call config: `ExecuteOptions.RetryBaseDelay` plus a cancellable `Wait func(ctx, d) error`;
+`pollInterval` + `tick` constructor parameters on the store-backed approval checkpoint; a `WithClock`
+functional option on `CoordinatorEventHandler`. **No production default changes** (1 s backoff, 2 s
+poll, 1 s window, 10 events/s) and each is set **explicitly** rather than by a zero-value fallback.
+Measured by the controller **outside** the executor sandbox, `-count=1`, same box: the four tests
+**8.13 s → 0.23 s**, summed package time **12.65 s → 4.65 s**, full-package wall **16 s → 6 s**. No
+`t.Parallel()` anywhere — the row's title is a misnomer the design corrected, and the win is not
+sleeping rather than concurrency.
+
+**Independent judge, round 1: FAIL — and it was right.** `agent-tool sonnet`, in its own worktree,
+handed neither my candidate findings nor my method. One BLOCKING finding, which I reproduced
+first-party from the diff *before* acting on it: `ExecuteWithRetry` had replaced
+
+    select { case <-time.After(delay): case <-ctx.Done(): return nil, ctx.Err() }
+
+with an uncancellable `opts.Wait(delay)` (production default `time.Sleep`) followed by a
+**non-blocking** ctx check. A context cancelled 20 ms into a 1 s backoff was then noticed only after
+the full second. The judge later measured all three states end to end: pre-sprint **22.1 ms**,
+round 1 **1.001 s**, round 2 **22.077 ms** — restored exactly. This contradicted the design doc's own
+**Non-Goal 4** ("no change to production timing semantics"), and the sprint plan had flagged the
+tension as *"noted, not decided"* and then shipped it decided-by-default with zero coverage. That is
+the whole argument for generator≠judge in one finding: three lanes and a full quorum had passed over
+it, and the only thing that caught it was a judge with no stake in the diff.
+
+**The judge's surviving mutant, and why a grep could never have caught it.** Doubling
+`DefaultExecuteOptions().RetryBaseDelay` passed the **entire** suite, because the injection guards
+assert that an *injected* value is honoured — which stays true when the *default* moves. The design
+doc's own grep backstop could not catch it either: `RetryBaseDelay:.*time.Second` **matches**
+`RetryBaseDelay: 2 * time.Second`. Measured three ways: loose pattern **1** on the mutant, precise
+pattern **0** on the mutant, precise pattern **1** on the clean tree. The executor had reported this
+honestly as its own deviation D1 without fixing it; the judge found it independently as a survivor.
+
+**Round 2: PASS 97/100, zero blocking — and its finding was about MY code.** `TestExecuteWithRetry_BackoffIsCancellable`
+and `TestProductionTimerDefaultsPreserved` were controller-authored, so I told the judge so and asked
+it to be harder on them than on the executor's work. It was, and it earned it: the defaults test
+claimed in its docstring to pin "the three production defaults" and pinned one and a half. The judge
+proved the poll sub-check **vacuous** by swapping *both* the constructor argument and the expectation
+to `999*time.Hour` — still green — because `NewStoreBackedApprovalCheckpoint` has zero production
+callers, so there is no code-level default to read and the assertion only proved that Go threads a
+constructor argument into a struct field. **I narrowed the claim rather than widening the code**: the
+vacuous assertion is deleted, the docstring now states exactly what is and is not pinned, and the two
+remaining sub-assertions were re-proven RED against compiling mutants (`RetryBaseDelay` → 2 s;
+`maxEventsPerSec` 10 → 20) with each file restored byte-identical by sha afterwards.
+
+**Ruled out.**
+- *"mission-motoko's warning that Gate 4's STATUS rotation will red CI on V1's next fire — the fleet
+  convention `ITERATION <n> COMPLETE:` has no colon, so every stamp is non-canonical the moment it
+  rotates"* — **REFUTED for V1**, and then re-refuted the strong way. All three of V1's live stamps
+  already carry the canonical colon, `TestMissionDocHeadingsStayCanonical` was rc=0 at exactly the
+  ratchet (`knownNonCanonical = 12`) before the rotation, and rc=0 again **after** this iteration's
+  rotation moved ITERATION 347 across the lint boundary. Replied to motoko with the measurement and
+  with the warning it will need: because the test passes at *exactly* 12, the ratchet's DOWNWARD arm
+  is armed for whoever normalises next.
+- *"the plan's `NewStoreBackedApprovalCheckpoint` has one production caller"* — **REFUTED, my error**:
+  my grep counted the definition line. The doc's V16 (zero callers) is correct.
+
+**Round 3 — PASS, narrow, on the two commits that landed AFTER round 2's PASS.** Those two were mine and had had no review at all, so I resumed the judge on `git diff 40227f958..519aad5d3` alone and asked it to assume I had overclaimed again. No blocking findings; it re-ran the gates plus the `unused` linter and found no divergence from my local green; and on the load question it did better than I asked, re-running the new liveness assertion six times while the box's real load average was **21-23** (unrelated GPU work), firing at ~0.01 s each time, 100x inside its bound. Two non-blocking findings, both real and both kept: `TestDefaultPollTickFires` does **not** pin the `interval` argument (a mutant hardcoding 50 ms survives the 500 ms bound), and the poll path's two production defaults have never been exercised TOGETHER through the real constructor. Filed as `m-approval-poll-production-defaults-unexercised` rather than fixed — a third un-reviewed test on a just-passed path is the same trade I declined twice already this iteration.
+
+**And then SonarCloud found what none of the four gates could, with its negative control firing.** The PR went red on `new_coverage` **78.8%** against a threshold of 80 — and unlike the standing `dev` Sonar red this mission already tracks (`m-sonar-dev-branch-security-rating-c-on-new-code`), this one was **mine**: SonarCloud reads `success` on the last **five** `dev` commits and `failure` only on my PR. **7 of 33** new lines uncovered, and the split is the whole finding: **1** in `provider.go` — `defaultWait`'s ELAPSED arm, which nothing exercised because every test drives the cancelled arm (the round-2 guard) or bypasses it with a recorder, so a wait returning an error unconditionally would have satisfied the cancellation guard and broken every real retry — and **6 of 6** in `daemon_tasks_exec_run.go`, which is the *only* production caller of the retry path and has **no unit test at all**. The first is closed here by `TestDefaultWaitBothBranches`, two compiling mutants RED (`return context.DeadlineExceeded`; and dropping the ctx arm, which failed by taking 10.4 s). The second is queued as `m-daemon-task-exec-run-untested`, and it carries an admission worth stating plainly: the sprint's **FIX 2** — the production-caller rebase that quorum reviewer `oc-glm-5-2` demanded verbatim — is verified only by code reading and by the judge's contract analysis. **No test executes it.**
+
+**A correction against myself, recorded because a surviving mutant is a claim about the MUTANT first.** My initial mutant for the new coverage was `case <-t.C: return ctx.Err()`, and it SURVIVED. The test was not weak: `ctx.Err()` is nil for a live context, so that mutant is semantically identical on the arm under test. I had chosen a no-op and would have read it as a vacuous assertion — the mirror of rule 3d, where a red in the predicted direction seduces; here a GREEN in the predicted direction nearly did.
+
+**Queued from this iteration.** `m-ratelimit-window-default-unpinned` — the hardcoded `time.Second`
+reset window in `checkRateLimit` has no tripwire anywhere; the judge mutated it to 500 ms and the
+whole package stayed green, including both rate-limit tests and the new defaults test. PRE-EXISTING,
+disclosed by the design doc itself as O2c, and deliberately not fixed in-flight.
+
+**Routing evidence.** Gate 1 base=`f3783c9765d1fcdca51533c401bea6a7e53d19b8@2026-09-08T03:03:48Z`;
+Gate 4 base recorded from the same helper after a fresh fetch. **Skill-staleness, both copies
+checked:** the resolved symlink target (`~/dev/sunholo-data/ailang/.claude/skills/mission-control`,
+inode `70895047`) is byte-identical to `origin/dev` on **all 12** files, while the **pin worktree's**
+copy (inode `75367340`) drifts on **four** — `SKILL.md`, `gate-1-observe.md`, `gate-3-route.md`,
+`gate-3b-ci-green.md`. This is exactly the split iteration 349's Gate-5 edit and motoko iter-39's
+Gate-1 edit describe, observed live: I read every resource file from the **resolved** path per rule
+(b)/(c), and the pin is 46 commits behind `origin/dev` because `AILANG_DRIVER_REF` is still the fixed
+SHA `48c4a6e49` (the D-61 item, now 46 rather than 43 commits stale).
+**Designer:** deliberately **NOT spawned** — the inherited r3 doc is complete and re-quorumed; a
+designer run would have been a second Fable-class spend on a doc already past its carve-out.
+**Planner:** `pi:ollama/kimi-k3:cloud` (the declared `MISSION_PLANNER_MODEL`; the resolver returned
+`agent-tool opus fail-closed:no-doc` because the doc path resolves against the driver's CWD and the
+doc lives only in the sprint worktree — the documented resolver/hook disagreement, so I followed the
+pin per role-spawn-routing §2(a)/(c) rather than burning a spawn on a guaranteed denial). Verdict
+`ok`, 547 s, 35 tool executions, 1 changed file, $0 (flat-rate ollama-cloud). A 1,145-line
+executor-ready plan. **kimi's second consecutive successful planner run** — the first was iteration 348.
+**Executor:** `pi:ollama/deepseek-v4-flash:0731-cloud recipe declared:provider-pin`, twice, both
+through `scripts/mission_pi_run.sh` for the typed verdict. Round 1 `ok`, 567 s, 110 tool executions,
+10 changed files. Round 2 `ok`, 233 s, 32 tool executions, 3 changed files — but it delivered only
+FIX 1 of four and wrote no report file, so the controller completed FIX 2–4 inline as mechanical work
+and handed all of it to the judge as controller-authored. **This is deepseek's second consecutive
+sprint execution returning `ok` with a non-empty worktree diff, which is the promotion bar the
+2026-08-26 rule sets** — recorded here, not acted on unilaterally.
+**Evaluator:** `agent-tool sonnet declared:alias-pin`, **two rounds**, in its own dedicated worktree
+`.wt-v1-iter351-eval`, round 2 resumed by `SendMessage` so nothing was re-run. Round 1: 163,922 tok /
+69 tool uses / 792 s. Round 2: 202,569 tok / 25 tool uses / 424 s. Generator≠judge held at the agent
+level in both rounds and, for the round-2 changes, is the *only* review those lines will ever get.
+**Quorum:** none run this iteration — the inherited doc carries iteration 350's two artifacts and the
+carve-out was already spent; re-quorumming an r3 doc no reviewer has objected to would be
+re-litigation, which Gate 2 forbids.
+
+**And my own correction cost a CI red, which is the honest half of this entry.** Deleting the
+vacuous poll assertion took `defaultPollTick` to **zero** references repo-wide, so
+`golangci-lint unused` reddened the PR (`approval_checkpoint.go:350:6: func defaultPollTick is
+unused`). The linter was right, and what it was reporting is the sprint's own shape: this work made a
+production default injectable and then tested only the injected side. Per CLAUDE.md's rule I did not
+delete the function or `//nolint` it — I asked why it was unused (the constructor has zero production
+callers, design doc V16) and covered it by BEHAVIOUR: `TestDefaultPollTickFires` asserts the returned
+channel actually delivers a tick, proven non-vacuous by a compiling mutant returning nil (RED), file
+restored byte-identical. Local `golangci-lint run --enable-only unused ./internal/coordinator/...`
+now reports **0 issues**. Two lessons, both mine: a "purely subtractive" edit is not subtractive when
+something else references what you removed, and the local gate list I baselined at Gate 2 did not
+include the linter that caught it — rule 3g's hand-picked-subset gap, in my own sweep.
+
+**Retro lane — process fix, not a skill edit.** The friction worth recording is that the **executor
+lane silently under-delivered a multi-part directive**: round 2 asked for four numbered fixes, the
+runner returned verdict `ok` (which is a statement about the worktree diff being non-empty, exactly
+as designed), and only fix 1 was present — no report file, `agent_end_events: 4` rather than 1. The
+typed verdict is doing its job and cannot see this: `ok` means "something changed", not "what you
+asked for changed". The cheap guard is on the controller's side and costs nothing: **when a directive
+enumerates N deliverables, check the changed-file set against the N before reading the report** — the
+file list alone showed three files where four fixes needed at least six. Recorded here rather than
+spent as this iteration's skill edit, because one instance is not the ≥2 the Gate-5 rule requires.
+
+**Progress.** N=12 design docs before v1.0.0 (was 12, change 0). This is a HARNESS item outside the
+ratified clause set, so the goal is unmoved; what moved is CI wall time on the slowest package in the
+matrix and one production cancellation regression that never reached `dev`.
+
+**Cost.** Metered **$0.00** of the $5 ceiling — both pi lanes are flat-rate ollama-cloud, the
+evaluator is subscription-billed, and no quorum round was run.
+
+**Next.** `m-fleet-sha-pin-freezes-every-driver-fix` if D-61 comes back (A); otherwise
+`m-headroom-blocking-threshold-calibration` or `m-headroom-residual-mutations`, both iteration 348
+residue with first-party evidence already attached. `m-ratelimit-window-default-unpinned` is cheap
+and now has a measured mutation to guard against.
+
 ## 349 — 2026-09-08 — Attempt 1 died at Gate 3b holding a green PR; attempt 2 judged it, landed it, and found the fleet has been running frozen driver code for 43 commits [HARNESS]
 
 **Picked.** `m-launchd-drain-aggregate-budget` — **inherited, not chosen**. This slot's attempt 1
