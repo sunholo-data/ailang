@@ -65,7 +65,9 @@ checked at usage-event boundaries, so an in-flight response can overshoot. The
 live USD guard estimates those tokens at registry prices; cache charges are not
 included in that live estimate. Final metered cost is also checked. This is not a
 hard ceiling on actual billing or a quota reservation. The existing fleet quota
-guard is unchanged. Ambient `ANTHROPIC_API_KEY`/`ANTHROPIC_AUTH_TOKEN` for Claude
+policy is now mandatory at both preflight and dispatch: missing policy observations
+fail closed, Codex and Ollama Cloud retain their protected quota checks, and
+metered routes consult the existing ledger. Ambient `ANTHROPIC_API_KEY`/`ANTHROPIC_AUTH_TOKEN` for Claude
 or `OPENAI_API_KEY` for Codex refuse those subscription routes. Child commands use
 the canonical AILANG messaging store/project bindings; no inbox is consumed or
 acknowledged by this command.
@@ -86,7 +88,9 @@ budget termination and receipt failures return nonzero. A crash can leave an
 incomplete journal requiring inspection. This journal does not provide leases,
 exactly-once execution, or duplicate detection across different receipt paths.
 
-The four live loops continue using their existing drivers. Full mission lifecycle, resource admission, verified artifact handoffs, remote executors, mission
+The live loops retain their existing drivers unless explicitly opted into
+[`mission iterate`](mission-iteration.md), which adds durable work-item ownership
+and verified stage handoffs. Remote executors, mission
 onboarding and workflow comparisons remain subsequent delivery slices.
 
 ## Opt-in durable attempt state

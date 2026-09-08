@@ -330,7 +330,7 @@ func printHelp() {
 	fmt.Printf("  %s                       Alias for server (backward compat)\n", cyan("serve"))
 	fmt.Println()
 	fmt.Println("Agent Coordination:")
-	fmt.Printf("  %s       Mission registry and opt-in role dispatch (see --help)\n", cyan("mission <command>"))
+	fmt.Printf("  %s       Mission registry, durable iteration and role dispatch (see --help)\n", cyan("mission <command>"))
 	fmt.Printf("  %s <cmd>          Manage autonomous agent daemon (14 subcommands)\n", cyan("coordinator"))
 	fmt.Printf("                          Use '%s' for full command list\n", yellow("ailang coordinator --help"))
 	fmt.Printf("    %s       Start daemon\n", cyan("coordinator start"))

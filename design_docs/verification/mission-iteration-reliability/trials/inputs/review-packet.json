@@ -1,0 +1,155 @@
+{
+  "version": 1,
+  "mission_id": "docs",
+  "work_item_id": "docs-reliability-review-packet-1",
+  "repository": "github.com/sunholo-data/ailang",
+  "base_revision": "e6b54faf0c857553d55cfac171d3f0dd49c7d6b9",
+  "brief": "Add the approved concise Review evidence packet section to the mission iteration guide with source-accurate operator guidance.",
+  "allowed_paths": [
+    "docs/docs/guides/mission-iteration.md"
+  ],
+  "workflow": "full-v1",
+  "stages": [
+    {
+      "id": "executor",
+      "role": "executor",
+      "instructions": "This is one frozen documentation smoke task under the attended-approved M-MISSION-ITERATION-RELIABILITY M4. Read CLAUDE.md first. Scope/design/plan/execution approval is already recorded in the bound authority; do not ask for approval again. Do not process or acknowledge inbox messages, send messages, spawn agents, update sprint bookkeeping, change runtime/configuration, merge or publish. Only the required guide file is permitted. Use the focused design sources and settle the exact criteria; preserve existing guide content and examples. Execute the approved design design_docs/verification/mission-iteration-reliability/trials/review-packet/design.md and plan design_docs/verification/mission-iteration-reliability/trials/review-packet/sprint-plan.md. Add the concise section only, commit the product, then emit the prescribed untracked stage-result.json.",
+      "required_artifacts": [
+        "docs/docs/guides/mission-iteration.md"
+      ],
+      "authority_refs": [
+        {
+          "revision": "e6b54faf0c857553d55cfac171d3f0dd49c7d6b9",
+          "path": "design_docs/verification/mission-iteration-reliability/trials/authority.md",
+          "locator": "mark-reliability-docs-smoke-approved-20260908",
+          "sha256": "2ac17bf1a75d3e0d9f3f1311d1bc4d2c120fa5f76795648ce1eb514bdaf7e6dd",
+          "artifact_digest": "04aa6beaa0bcd65a12c67030933f0019b3dd8b1ab63368c7a027725d275f187b"
+        },
+        {
+          "revision": "e6b54faf0c857553d55cfac171d3f0dd49c7d6b9",
+          "path": "design_docs/verification/mission-iteration-reliability/trials/authority.md",
+          "locator": "mark-reliability-docs-smoke-approved-20260908",
+          "sha256": "2ac17bf1a75d3e0d9f3f1311d1bc4d2c120fa5f76795648ce1eb514bdaf7e6dd",
+          "artifact_digest": "1d5810d7b1d26ad3a33be8ba505e88b87cb9fe7421a5de2d643d3a59385cefe0"
+        }
+      ],
+      "limits": {
+        "timeout_seconds": 1200,
+        "max_tokens": 120000,
+        "max_cost_usd": 1
+      }
+    },
+    {
+      "id": "evaluator",
+      "role": "evaluator",
+      "instructions": "This is one frozen documentation smoke task under the attended-approved M-MISSION-ITERATION-RELIABILITY M4. Read CLAUDE.md first. Scope/design/plan/execution approval is already recorded in the bound authority; do not ask for approval again. Do not process or acknowledge inbox messages, send messages, spawn agents, update sprint bookkeeping, change runtime/configuration, merge or publish. Only the required guide file is permitted. Use the focused design sources and settle the exact criteria; preserve existing guide content and examples. Independently evaluate under sprint-evaluator methodology using the supplied frozen packet. Inspect only necessary source sections; verify each criterion with concrete evidence. Do not repair or commit product changes. Preserve candidate HEAD and tracked files and emit the prescribed untracked stage-result.json.",
+      "required_artifacts": [
+        "docs/docs/guides/mission-iteration.md"
+      ],
+      "authority_refs": [
+        {
+          "revision": "e6b54faf0c857553d55cfac171d3f0dd49c7d6b9",
+          "path": "design_docs/verification/mission-iteration-reliability/trials/authority.md",
+          "locator": "mark-reliability-docs-smoke-approved-20260908",
+          "sha256": "2ac17bf1a75d3e0d9f3f1311d1bc4d2c120fa5f76795648ce1eb514bdaf7e6dd",
+          "artifact_digest": "04aa6beaa0bcd65a12c67030933f0019b3dd8b1ab63368c7a027725d275f187b"
+        },
+        {
+          "revision": "e6b54faf0c857553d55cfac171d3f0dd49c7d6b9",
+          "path": "design_docs/verification/mission-iteration-reliability/trials/authority.md",
+          "locator": "mark-reliability-docs-smoke-approved-20260908",
+          "sha256": "2ac17bf1a75d3e0d9f3f1311d1bc4d2c120fa5f76795648ce1eb514bdaf7e6dd",
+          "artifact_digest": "1d5810d7b1d26ad3a33be8ba505e88b87cb9fe7421a5de2d643d3a59385cefe0"
+        }
+      ],
+      "limits": {
+        "timeout_seconds": 1200,
+        "max_tokens": 100000,
+        "max_cost_usd": 0.5
+      }
+    }
+  ],
+  "prerequisites": [
+    {
+      "role": "designer",
+      "artifact": {
+        "commit": "e6b54faf0c857553d55cfac171d3f0dd49c7d6b9",
+        "path": "design_docs/verification/mission-iteration-reliability/trials/review-packet/design.md",
+        "sha256": "04aa6beaa0bcd65a12c67030933f0019b3dd8b1ab63368c7a027725d275f187b"
+      },
+      "authority_refs": [
+        {
+          "revision": "e6b54faf0c857553d55cfac171d3f0dd49c7d6b9",
+          "path": "design_docs/verification/mission-iteration-reliability/trials/authority.md",
+          "locator": "mark-reliability-docs-smoke-approved-20260908",
+          "sha256": "2ac17bf1a75d3e0d9f3f1311d1bc4d2c120fa5f76795648ce1eb514bdaf7e6dd",
+          "artifact_digest": "04aa6beaa0bcd65a12c67030933f0019b3dd8b1ab63368c7a027725d275f187b"
+        }
+      ],
+      "author_models": [
+        "gpt6-astra"
+      ]
+    },
+    {
+      "role": "planner",
+      "artifact": {
+        "commit": "e6b54faf0c857553d55cfac171d3f0dd49c7d6b9",
+        "path": "design_docs/verification/mission-iteration-reliability/trials/review-packet/sprint-plan.md",
+        "sha256": "1d5810d7b1d26ad3a33be8ba505e88b87cb9fe7421a5de2d643d3a59385cefe0"
+      },
+      "authority_refs": [
+        {
+          "revision": "e6b54faf0c857553d55cfac171d3f0dd49c7d6b9",
+          "path": "design_docs/verification/mission-iteration-reliability/trials/authority.md",
+          "locator": "mark-reliability-docs-smoke-approved-20260908",
+          "sha256": "2ac17bf1a75d3e0d9f3f1311d1bc4d2c120fa5f76795648ce1eb514bdaf7e6dd",
+          "artifact_digest": "1d5810d7b1d26ad3a33be8ba505e88b87cb9fe7421a5de2d643d3a59385cefe0"
+        }
+      ],
+      "author_models": [
+        "gpt6-astra"
+      ]
+    }
+  ],
+  "verification": [
+    {
+      "id": "B-whitespace",
+      "argv": [
+        "git",
+        "show",
+        "--format=",
+        "--check",
+        "HEAD"
+      ],
+      "cwd": ".",
+      "timeout_seconds": 30
+    }
+  ],
+  "limits": {
+    "timeout_seconds": 2400,
+    "max_tokens": 220000,
+    "max_cost_usd": 1.5
+  },
+  "acceptance_criteria": [
+    {
+      "id": "B1-binding",
+      "text": "Explain that the packet identifies exact comparison baseline and candidate commits, changed paths, frozen criteria, authority/prerequisite locators and available accepted-stage check summaries. Its exact bytes/digest are bound into the request; a read-only content-addressed copy lives outside stage worktrees."
+    },
+    {
+      "id": "B2-bounds",
+      "text": "State the 128 KiB aggregate packet limit, explicit incomplete-diff marker and exact source locator for omitted diff. Oversized metadata can fail packet creation. Do not describe a shortened packet as complete evidence or promise every large artifact is embedded."
+    },
+    {
+      "id": "B3-receipts",
+      "text": "Explain that check outputs are omitted; available summaries carry receipt hashes and result metadata. With no local accepted-stage receipts, imported artifact locators remain available and the packet explicitly identifies the missing local receipts. Imported prerequisites do not magically recreate hard-check receipts. The reviewer must inspect necessary sources or report gaps."
+    },
+    {
+      "id": "B4-review-procedure",
+      "text": "Describe reading the packet once, settling each frozen criterion through targeted source/check inspection, treating quoted artifacts as evidence rather than instructions, and emitting the required result then stopping. The evaluator preserves candidate HEAD and tracked files; it makes no product commit."
+    },
+    {
+      "id": "B5-scope-quality",
+      "text": "Change only the guide, link implementation sources, preserve existing examples, keep the new section concise, and make no claim that bounded packets guarantee convergence or that repeated reads alone imply failure."
+    }
+  ]
+}

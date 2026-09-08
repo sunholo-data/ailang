@@ -35,6 +35,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sunholo-data/ailang/internal/executor"
+	"github.com/sunholo-data/ailang/internal/executor/proctree"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -122,6 +123,7 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 	piPath := e.piPath
 
 	cmd := exec.CommandContext(ctx, piPath, args...)
+	proctree.Configure(cmd)
 	if task.Workspace != "" {
 		cmd.Dir = task.Workspace
 	}
@@ -312,13 +314,13 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 					totalCostUSD += u.Cost.Total
 					if task.MaxTokensPerBench > 0 && thrashKilledAt == 0 && inputTokens+outputTokens > task.MaxTokensPerBench {
 						thrashKilledAt = inputTokens + outputTokens
-						_ = cmd.Process.Kill()
+						proctree.Kill(cmd)
 					}
 					// M-EVAL-COST-AND-SPEED-BUDGETS: incremental cost tally on per-turn delta.
 					if task.Budget != nil && (u.Input > 0 || u.Output > 0) {
 						if _, exceeded := task.Budget.Add(u.Input, u.Output); exceeded {
 							costKilled = true
-							_ = cmd.Process.Kill()
+							proctree.Kill(cmd)
 						}
 					}
 				}
@@ -452,7 +454,7 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 			}, nil
 
 		case <-hardTimer.C:
-			_ = cmd.Process.Kill()
+			proctree.Kill(cmd)
 			span.SetStatus(codes.Error, "hard timeout")
 			return &executor.Result{
 				Success:        false,
@@ -466,7 +468,7 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 			}, nil
 
 		case <-ttftTimer.C:
-			_ = cmd.Process.Kill()
+			proctree.Kill(cmd)
 			span.SetStatus(codes.Error, "ttft timeout")
 			return &executor.Result{
 				Success:        false,
@@ -479,7 +481,7 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 		case <-idleCheck.C:
 			since := time.Since(time.Unix(0, lastActivity.Load()))
 			if since > idleTimeout {
-				_ = cmd.Process.Kill()
+				proctree.Kill(cmd)
 				span.SetStatus(codes.Error, "generation idle timeout")
 				return &executor.Result{
 					Success:        false,
@@ -495,7 +497,7 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 			idleCheck.Reset(idleTimeout - since)
 
 		case <-ctx.Done():
-			_ = cmd.Process.Kill()
+			proctree.Kill(cmd)
 			span.SetStatus(codes.Error, ctx.Err().Error())
 			return &executor.Result{
 				Success:        false,
@@ -530,21 +532,6 @@ func (e *PiExecutor) CostModel() *executor.CostModel {
 		OutputTokenCost: 0.0,
 		CacheReadCost:   0.0,
 	}
-}
-
-// HealthCheck verifies the pi binary exists on PATH and responds.
-func (e *PiExecutor) HealthCheck(ctx context.Context) error {
-	piPath := e.piPath
-	if _, err := exec.LookPath(piPath); err != nil {
-		if _, statErr := os.Stat(piPath); statErr != nil {
-			return fmt.Errorf("pi CLI not found: %w (install with: npm i -g @mariozechner/pi-coding-agent)", err)
-		}
-	}
-	checkCmd := exec.CommandContext(ctx, piPath, "--version")
-	if err := checkCmd.Run(); err != nil {
-		return fmt.Errorf("pi --version failed: %w", err)
-	}
-	return nil
 }
 
 // Close releases any resources held by the executor.

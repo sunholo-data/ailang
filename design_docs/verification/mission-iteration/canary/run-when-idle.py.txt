@@ -1,0 +1,78 @@
+import datetime, hashlib, json, os, pathlib, re, subprocess, time
+root=pathlib.Path('/private/tmp/ailang-docs-canary')
+binary='/private/tmp/ailang-mission-iteration/bin/ailang'
+binding=pathlib.Path('/Users/voightkampff/.config/ailang/mission-runtime.toml')
+marker=pathlib.Path('/Users/voightkampff/.ailang/state/mission-docs.disabled')
+pidfile=pathlib.Path('/Users/voightkampff/.ailang/state/mission-docs.pid')
+expected=(root/'installed-binding.toml').read_bytes()
+spec=json.loads((root/'work-item.json').read_text())
+env=os.environ.copy()
+env['AILANG_MISSION_REGISTRY']=str(root/'registry')
+env['AILANG_MODELS_PATH']=str(root/'models.yml')
+for key in ['ANTHROPIC_API_KEY','AILANG_AUTH_MODE']:env.pop(key,None)
+created_marker=False
+started=False
+safe_restore=True
+
+def record(phase,**extra):
+    data={'phase':phase,'at':datetime.datetime.now(datetime.timezone.utc).isoformat(),**extra}
+    (root/'attended-run.json').write_text(json.dumps(data,indent=2)+'\n')
+    print(json.dumps(data),flush=True)
+
+def idle():
+    p=subprocess.run(['launchctl','print',f'gui/{os.getuid()}/dev.ailang.mission-docs'],capture_output=True,text=True,timeout=10)
+    if p.returncode:raise RuntimeError('launchd ownership query failed; no dispatch')
+    if re.search(r'^\s*(state = running|pid = [0-9]+)',p.stdout,re.M):return False
+    if pidfile.exists():
+        pid=int(pidfile.read_text().strip())
+        try:os.kill(pid,0);return False
+        except ProcessLookupError:pass
+    return True
+
+def invoke(args,name):
+    with (root/name).open('w') as out:
+        return subprocess.run([binary,*args],env=env,stdout=out,stderr=subprocess.STDOUT).returncode
+
+def receipt_hashes():
+    return {str(p.relative_to(root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in (root/'workspaces').rglob('*') if p.is_file() and ('receipt' in str(p) or p.suffix=='.jsonl')}
+
+try:
+    if binding.read_bytes()!=expected:raise RuntimeError('runtime binding changed; no dispatch')
+    record('waiting_for_legacy_docs_idle',deadline_seconds=21600,work_item=spec['work_item_id'])
+    deadline=time.monotonic()+21600
+    while not idle():
+        if (root/'stop-waiting').exists():raise RuntimeError('attended waiter stopped before dispatch')
+        if time.monotonic()>deadline:raise RuntimeError('legacy Docs remained active for six hours; no dispatch')
+        time.sleep(15)
+    if binding.read_bytes()!=expected:raise RuntimeError('runtime binding changed while waiting')
+    try:
+        with marker.open('x') as f:f.write('Attended mission-iteration canary; restore after verified stop.\n')
+        created_marker=True
+    except FileExistsError:pass
+    if not idle():raise RuntimeError('legacy Docs acquired ownership during idle transition; no dispatch')
+    # The legacy PID/launchd check is separate from new runtime admission. This
+    # isolated DB has not admitted work yet; any unexpected existing DB is a hold.
+    if (root/'runtime.sqlite').exists():raise RuntimeError('unexpected runtime DB; inspect ownership before dispatch')
+    record('dispatching',work_item=spec['work_item_id'],marker_created=created_marker)
+    started=True;safe_restore=False
+    rc=invoke(['mission','iterate','--work-item',str(root/'work-item.json')],'iteration.log')
+    src=invoke(['mission','status','docs','--work-item',spec['work_item_id'],'--json'],'status.log')
+    if rc==0:
+        before=receipt_hashes()
+        repeat=invoke(['mission','iterate','--work-item',str(root/'work-item.json')],'repeat.log')
+        after=receipt_hashes()
+        safe_restore=True
+        record('completed' if repeat==0 and before==after else 'repeat_verification_failed',exit_code=rc,status_exit=src,repeat_exit=repeat,receipt_files_unchanged=before==after,receipt_file_count=len(before))
+    else:
+        # Preserve the binding for an operator to inspect/resume/cancel any
+        # waiting or ambiguous outcome, rather than hiding state on failure.
+        record('inspection_required',exit_code=rc,status_exit=src,log=str(root/'iteration.log'))
+except Exception as e:
+    record('stopped',error=str(e),dispatched=started)
+finally:
+    if safe_restore:
+        if binding.exists() and binding.read_bytes()==expected:binding.unlink()
+        if created_marker and marker.exists() and marker.read_text()=='Attended mission-iteration canary; restore after verified stop.\n':marker.unlink()
+        print('Restored canary-owned placement/schedule changes; retained evidence.',flush=True)
+    else:
+        print('Held binding/marker for inspection of admitted runtime state.',flush=True)

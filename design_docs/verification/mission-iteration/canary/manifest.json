@@ -1,0 +1,11 @@
+{
+  "base": "ad1bf98d3fd8271ac8399f0f83e7e3ddf2675cb9",
+  "prerequisite_revision": "9d5dc15509aadd6f24691790b9349a121c587d2e",
+  "binary_sha256": "87a4d22b9eca2324a3fc450d102504ed846845be68118d05f5d5eb451353a20e",
+  "helper_sha256": "2c82de8a440257a2d16b20c9e0b7479ce3f38299e63b04e86bca10d6df36152c",
+  "input_sha256": "98d7586d766266ce0f304784746298ea77b2c734c1ca638fd9e6efa03f270319",
+  "models_sha256": "9868f05507919507c00af55773c63ee895216b8a065e86afd4b8d4728d7eef40",
+  "registry_sha256": "2ff2b77b8fa3a244aca7660a56ee22796acaadd2da705561bf7e4ff207eefcfd",
+  "activation": "not yet dispatched",
+  "binary_source": "ad1bf98d3fd8271ac8399f0f83e7e3ddf2675cb9"
+}

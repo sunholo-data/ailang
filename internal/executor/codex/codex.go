@@ -731,6 +731,7 @@ func (e *CodexExecutor) HealthCheck(ctx context.Context) error {
 		}
 	}
 	checkCmd := exec.CommandContext(ctx, codexPath, "--version")
+	configureProcessTree(checkCmd)
 	if err := checkCmd.Run(); err != nil {
 		return fmt.Errorf("codex --version failed: %w", err)
 	}

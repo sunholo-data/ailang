@@ -1,0 +1,95 @@
+{
+  "sprint_id": "M-MISSION-ITERATION-RELIABILITY",
+  "status": "in_progress",
+  "created": "2026-09-08",
+  "design_doc": "design_docs/planned/m-mission-iteration-reliability.md",
+  "sprint_plan": "design_docs/planned/m-mission-iteration-reliability-sprint-plan.md",
+  "velocity": {
+    "estimated_total_loc": 1850,
+    "estimated_days": 4,
+    "target_loc_per_day": 500
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Focused packet and observed progress",
+      "dependencies": [],
+      "estimated_loc": 550,
+      "acceptance_criteria": [
+        "Packet binds candidate and all required evidence; truncation and missing evidence explicit.",
+        "Packet cannot be overwritten through candidate-controlled paths; digest fixed for replay.",
+        "Record bounded tool/progress counters without storing secrets/tool output in status.",
+        "No new repeated-read termination heuristic or model fallback."
+      ],
+      "passes": true,
+      "started": "2026-09-08",
+      "completed": "2026-09-08",
+      "notes": "Implementation and hermetic checks pass; see reliability verification/checks.md. Independent implementation review recorded separately; M4 live gate remains open."
+    },
+    {
+      "id": "M2",
+      "description": "Evaluator-only preparation and recovery CLI",
+      "dependencies": [],
+      "estimated_loc": 550,
+      "acceptance_criteria": [
+        "Preserve original inputs/acceptances and actual author identity; no author redispatch.",
+        "Reject live/ambiguous parents, missing objects, invalid authority and unsafe destinations.",
+        "Explicit new limits/route; original criteria/scope/checks retained.",
+        "Non-completed status explains next valid action; typed categories preserve reason text.",
+        "Confirmation records operator attestation and refuses stale/wrong/unsupported states."
+      ],
+      "passes": true,
+      "started": "2026-09-08",
+      "completed": "2026-09-08",
+      "notes": "Implementation and hermetic checks pass; see reliability verification/checks.md. Independent implementation review recorded separately; M4 live gate remains open."
+    },
+    {
+      "id": "M3",
+      "description": "Recoverable owned activation",
+      "dependencies": [],
+      "estimated_loc": 700,
+      "acceptance_criteria": [
+        "Completion and terminal failure restore absent/present prior state after verified stop.",
+        "Changed files/foreign markers/unknown child state remain held with actionable reason.",
+        "Death around each mutation is recoverable; concurrent operations refuse ownership.",
+        "Retain runtime DB/evidence; read-only inspection works after binding restoration."
+      ],
+      "passes": true,
+      "started": "2026-09-08",
+      "completed": "2026-09-08",
+      "notes": "Implementation and hermetic checks pass; see reliability verification/checks.md. Independent implementation review recorded separately; M4 live gate remains open."
+    },
+    {
+      "id": "M4",
+      "description": "Integration, review and live adoption",
+      "dependencies": [
+        "M1",
+        "M2",
+        "M3"
+      ],
+      "estimated_loc": 50,
+      "acceptance_criteria": [
+        "Independent review passes with zero unresolved code blockers.",
+        "Existing candidate passes live evaluation and completed replay makes zero provider calls.",
+        "Two additional frozen bounded tasks finish with hard checks and independent review.",
+        "Combined new trial spend <=$5; explicit per-item limits; no automatic budget escalation.",
+        "Cleanup/recovery validated and actual costs, tokens, interventions recorded."
+      ],
+      "passes": false,
+      "started": "2026-09-08",
+      "completed": null,
+      "notes": "Independent implementation review 94/100 and full checks pass. First live reviewer failed token guard; automatic cleanup and zero-dispatch failed replay pass. Two additional frozen tasks withheld at success gate. See live-trial.md."
+    }
+  ],
+  "live_adoption": {
+    "status": "incomplete",
+    "blocker": "evaluator did not produce verdict within 100,000 fresh tokens despite focused packet",
+    "trial_work_item": "docs-canary-guide-review-3",
+    "new_metered_spend_usd": 0.016704388,
+    "series_cap_usd": 5,
+    "queued_frozen_tasks": 2,
+    "automatic_cleanup": "passed",
+    "failed_terminal_replay": "zero new dispatches",
+    "completed_success_replay": "not reached"
+  }
+}

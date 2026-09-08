@@ -1,6 +1,6 @@
 //go:build windows
 
-package codex
+package proctree
 
 import (
 	"os"

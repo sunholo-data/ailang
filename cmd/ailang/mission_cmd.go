@@ -28,6 +28,14 @@ func missionCommand(args []string) error {
 		return nil
 	}
 	switch args[0] {
+	case "activation":
+		return missionActivationCommand(args[1:])
+	case "retry-review":
+		return missionRetryReviewCommand(args[1:])
+	case "confirm-stopped":
+		return missionConfirmStoppedCommand(args[1:])
+	case "iterate", "status", "resume", "cancel":
+		return missionIterationCommand(args[0], args[1:])
 	case "list":
 		return missionList()
 	case "doctor":
@@ -50,12 +58,47 @@ func missionCommand(args []string) error {
 		printMissionHelp()
 		return nil
 	default:
-		return fmt.Errorf("unknown mission subcommand %q (want: list, doctor, install, apply, rotate-log, normalize, quota, role-run, attempt)", args[0])
+		return fmt.Errorf("unknown mission subcommand %q (want: list, doctor, install, apply, rotate-log, normalize, quota, role-run, attempt, iterate, status, resume, cancel, retry-review, confirm-stopped, activation)", args[0])
 	}
 }
 
 func printMissionHelp() {
 	fmt.Print(`ailang mission — the mission-loop registry
+
+  ailang mission iterate --work-item FILE [--dry-run]
+                                   one frozen work item through validated completion
+  ailang mission status NAME --work-item ID [--json] [--activation OP]
+                                   read existing state; never creates or migrates a DB
+  ailang mission resume NAME --work-item ID
+                                   continue saved input/routes after ownership expires
+  ailang mission cancel NAME --work-item ID --version N
+                                   fence parent/child; unknown processes retain admission
+  ailang mission retry-review NAME --work-item ID --new-id ID --output FILE
+      --max-tokens N --timeout-seconds N --max-cost-usd N [--activation OP]
+      [--evaluator MODEL] [--authority-file JSON --base-revision COMMIT]
+                                   prepare evaluator-only successor; never dispatches
+                                   creates FILE, FILE.manifest.json, FILE.models.yml
+                                   without authority: non-executable approval draft
+  ailang mission confirm-stopped NAME --work-item ID --version N --attestation TEXT
+                                   record verified process stop after cancellation/deadline
+                                   does not clear generic outcome_unknown or retry work
+  ailang mission activation run docs --operation OP --work-item FILE --binding FILE
+                                   supervise one Docs canary and verified cleanup
+  ailang mission activation inspect docs --operation OP
+                                   inspect owned installation and cleanup status
+  ailang mission activation recover docs --operation OP
+                                   restore unchanged owned files after verified stop
+  Runtime placement: ~/.config/ailang/mission-runtime.toml
+    version=1; absolute state_db and workspace_root (outside source checkout).
+    macOS/Linux execution only; no per-command DB override.
+    AILANG_MODELS_PATH=/absolute/FILE.models.yml selects the retry bundle model
+    snapshot for successor dry-run and first execution.
+    --activation OP reads the exact retained binding for status/retry-review only;
+    requested mission/work item must match the owned activation record.
+    AILANG_MISSION_REGISTRY: optional absolute existing missions/ directory,
+    for first admission from a foreign project. Resume uses the saved snapshot.
+    Exit: 0 complete/read-only, 2 invalid, 3 waiting, 4 reconciliation,
+          5 execution/verification failure, 130 cancelled.
 
   ailang mission role-run --request FILE --receipt NEW_FILE [--state-db FILE] [--dry-run]
                                    execute one explicit role; output is not acceptance
@@ -96,6 +139,23 @@ Model and role assignment is NOT here: see ` + "`ailang models role`" + `.
 }
 
 func loadMissionRegistry() (*mission.Registry, error) {
+	if dir := os.Getenv("AILANG_MISSION_REGISTRY"); dir != "" {
+		if !filepath.IsAbs(dir) {
+			return nil, fmt.Errorf("AILANG_MISSION_REGISTRY must be an absolute existing directory")
+		}
+		info, err := os.Stat(dir)
+		if err != nil {
+			return nil, fmt.Errorf("AILANG_MISSION_REGISTRY: %w", err)
+		}
+		if !info.IsDir() {
+			return nil, fmt.Errorf("AILANG_MISSION_REGISTRY must name a directory")
+		}
+		reg, err := mission.Load(dir)
+		if err != nil {
+			return nil, fmt.Errorf("AILANG_MISSION_REGISTRY: %w", err)
+		}
+		return reg, nil
+	}
 	dir := missionRegistryDir
 	if _, err := os.Stat(dir); err != nil {
 		// Allow running from anywhere inside the repo.

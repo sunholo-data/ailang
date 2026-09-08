@@ -67,7 +67,9 @@ func fixture(t *testing.T) (Request, *Runner, fakeFactory, *[]Event) {
 		f[name] = &fakeExecutor{name: name, caps: []executor.Capability{executor.CapLocalWorkspace}, result: &executor.Result{Success: true, Output: "independent review", FinishReason: executor.FinishStop, SessionID: "session"}}
 	}
 	events := []Event{}
-	runner := &Runner{Models: &modelreg.ModelsConfig{Models: models}, Executors: f, Record: func(e Event) error { events = append(events, e); return nil }, LookupEnv: func(string) string { return "" }}
+	runner := &Runner{Admit: func(context.Context, Candidate) (Admission, error) {
+		return Admission{Allowed: true, Policy: "fixture", ObservedAt: time.Now()}, nil
+	}, Models: &modelreg.ModelsConfig{Models: models}, Executors: f, Record: func(e Event) error { events = append(events, e); return nil }, LookupEnv: func(string) string { return "" }}
 	return r, runner, f, &events
 }
 

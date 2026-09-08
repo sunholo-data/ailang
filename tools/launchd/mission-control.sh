@@ -1015,7 +1015,9 @@ fi
 
 # Deliver anything a previous fire could not. Placed after the pin decision so a
 # drained notice is reported by the same driver the rest of this fire runs.
+if [ -z "${AILANG_MISSION_WORK_ITEM:-}" ]; then
 _mc_drain_notices
+fi
 
 # designer default is the claude-CLI lane (claude:<full-id>), NOT the bare "fable" alias: the
 # Agent tool pins only sonnet|opus|haiku (F1, iteration 31), so under an opus-first controller a
@@ -1266,6 +1268,7 @@ _pi_rcmap=""
 # (rc=2) — a distinction the degradation ledger reports, because "Friday" and "broken pin"
 # have very different resume conditions.
 # BASH 3.2 (L19/L21): ':'-delimited string sets, no associative arrays, no ${var,,}.
+if [ -z "${AILANG_MISSION_WORK_ITEM:-}" ]; then
 _an_probed=":"   # anthropic models probed this fire
 _an_failed=":"   # anthropic models whose probe failed
 _an_rcmap=""     # "model=rc;" so the emit site names the probe's exit code
@@ -1413,6 +1416,8 @@ for role in DESIGNER PLANNER EXECUTOR EVALUATOR; do
   done
 done
 
+fi # legacy role probes; binary iteration owns its own admission
+
 # 1. Kill switch — the intended "off" state, exit silently.
 if [ -f "$KILL_SWITCH" ]; then
   log "kill switch present ($KILL_SWITCH) — skip"; exit 0
@@ -1499,6 +1504,20 @@ while :; do
   log "memory gate: low memory (avail=${_avail}MB, compressed=${_comp}MB) — waiting ${MEM_POLL}s"
   sleep "$MEM_POLL"
 done
+
+# Binary iteration is admitted after the existing host guards, before any controller.
+# Keep cwd as the work project; the registry location belongs to the driver source.
+# exec preserves the overlap PID and signal delivery. No legacy retry on this path.
+if [ -n "${AILANG_MISSION_WORK_ITEM:-}" ]; then
+  case "$AILANG_MISSION_WORK_ITEM" in
+    /*) ;;
+    *) log "AILANG_MISSION_WORK_ITEM must be absolute"; exit 2 ;;
+  esac
+  mkdir -p "$STATE_DIR"
+  printf '%s\n' "$$" > "$PIDFILE"
+  export AILANG_MISSION_REGISTRY="$MC_DRIVER_ROOT/missions"
+  exec ailang mission iterate --work-item "$AILANG_MISSION_WORK_ITEM"
+fi
 
 # 4. Select the model (probe doubles as the subscription-auth check: API keys
 #    are stripped above, so a passing probe proves keychain/token auth too).

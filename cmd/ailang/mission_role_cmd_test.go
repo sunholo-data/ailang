@@ -17,6 +17,7 @@ import (
 
 func TestMissionRoleDryRunAndStrictFlags(t *testing.T) {
 	dir := t.TempDir()
+	t.Setenv("HOME", dir)
 	cli := "pi"
 	wire := "openrouter/minimax/model"
 	cfg := &modelreg.ModelsConfig{Models: map[string]modelreg.ModelConfig{"author": {Provider: "openai", APIName: "gpt"}, "judge": {Provider: "openrouter", APIName: "minimax/model", AgentCLI: &cli, AgentModelName: &wire, Pricing: modelreg.Pricing{InputPer1K: .001, OutputPer1K: .002}}}}
@@ -54,6 +55,7 @@ func TestMissionRoleBlockedAndExclusiveReceipt(t *testing.T) {
 		t.Skip("durable receipt directory sync is unsupported on Windows; execution fails closed")
 	}
 	dir := t.TempDir()
+	t.Setenv("HOME", dir)
 	cli, wire := "pi", "openrouter/minimax/model"
 	cfg := &modelreg.ModelsConfig{Models: map[string]modelreg.ModelConfig{"judge": {Provider: "openrouter", APIName: "minimax/model", AgentCLI: &cli, AgentModelName: &wire, Pricing: modelreg.Pricing{InputPer1K: .001, OutputPer1K: .002}}}}
 	r := dispatch.Request{Version: 1, MissionID: "m", WorkItemID: "w", StageID: "s", AttemptID: "a", Role: "designer", Workspace: dir, InputRevision: "sha", Instructions: "design", Models: []string{"judge"}, TimeoutSeconds: 10, MaxTokens: 1000, MaxCostUSD: .1}
