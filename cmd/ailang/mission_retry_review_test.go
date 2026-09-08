@@ -28,13 +28,15 @@ func TestReviewBundleExclusiveCompletePublication(t *testing.T) {
 		if err != nil {
 			t.Fatalf("stat %s: %v", suffix, err)
 		}
-		// Windows has no unix permission bits: a file created 0600 reports 0666, and there is
-		// no mode expressing "owner only" there. Assert the portable half everywhere — no
-		// group or world bits — and keep the exact 0600 check on the platforms that have them.
-		if info.Mode().Perm()&0077 != 0 {
-			t.Fatalf("unsafe mode %v on %s: group/world bits set", info.Mode().Perm(), suffix)
+		// Windows has NO assertable permission property here, not merely a weaker one: a file
+		// created 0600 reports -rw-rw-rw- (0666), so even "no group or world bits" is false
+		// there. Measured on the runner 2026-09-08 — an earlier attempt asserted exactly that
+		// portable half and failed. The owner-only guarantee is a unix guarantee; assert it
+		// where it exists and say plainly that it does not exist elsewhere.
+		if runtime.GOOS == "windows" {
+			continue
 		}
-		if runtime.GOOS != "windows" && info.Mode().Perm() != 0600 {
+		if info.Mode().Perm() != 0600 {
 			t.Fatalf("unsafe mode %v on %s", info.Mode().Perm(), suffix)
 		}
 	}

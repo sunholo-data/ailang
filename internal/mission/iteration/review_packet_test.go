@@ -24,12 +24,11 @@ func TestReviewPacketCandidateAndBounds(t *testing.T) {
 	if err != nil {
 		t.Fatalf("packet stat: %v", err)
 	}
-	// Windows has no unix permission bits: a file created 0400 reports 0444, and there is no
-	// mode that expresses "owner read-only" there. Assert the portable half — that the packet
-	// is not writable — rather than a number the platform cannot represent.
-	if info.Mode().Perm()&0222 != 0 {
-		t.Fatalf("packet is writable: %v", info.Mode().Perm())
-	}
+	// Unix-only guarantee, asserted where it exists. On Windows a file created 0400 reports
+	// 0444: the not-writable check below happens to hold, but it holds by accident of how Go
+	// maps the read-only attribute, not because the platform can express owner-only access.
+	// Its sibling assertion in mission_retry_review_test.go (0600 -> 0666) does NOT hold, so
+	// this is not a portable property to lean on.
 	if runtime.GOOS != "windows" && info.Mode().Perm() != 0400 {
 		t.Fatalf("packet not read only: %v", info.Mode().Perm())
 	}
