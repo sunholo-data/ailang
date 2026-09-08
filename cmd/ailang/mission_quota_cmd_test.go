@@ -13,6 +13,7 @@ import (
 func TestMissionQuotaMissingCodexBlocksWithoutLedger(t *testing.T) {
 	t.Setenv("OLLAMA_API_KEY", "")
 	t.Setenv("CLAUDE_CODE_OAUTH_TOKEN", "")
+	t.Setenv("OPENROUTER_API_KEY", "")
 	paths := mission.Paths{Home: t.TempDir()}
 	t.Setenv("CODEX_HOME", filepath.Join(paths.Home, "codex"))
 	output := captureStdout(t, func() {
@@ -27,6 +28,7 @@ func TestMissionQuotaMissingCodexBlocksWithoutLedger(t *testing.T) {
 func TestMissionQuotaCorruptLedgerCannotBypassCodex(t *testing.T) {
 	t.Setenv("OLLAMA_API_KEY", "")
 	t.Setenv("CLAUDE_CODE_OAUTH_TOKEN", "")
+	t.Setenv("OPENROUTER_API_KEY", "")
 	paths := mission.Paths{Home: t.TempDir()}
 	t.Setenv("CODEX_HOME", filepath.Join(paths.Home, "codex"))
 	dir := filepath.Join(paths.Home, ".ailang", "state")
@@ -41,16 +43,23 @@ func TestMissionQuotaCorruptLedgerCannotBypassCodex(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
-	// Anthropic joins codex and ollama here (2026-09-08): it is a protected subscription
-	// whose quota is unreadable without a credential, and unknown quota fails closed. A
-	// corrupt ledger must not open ANY of the three.
-	if output != "codex\nollama\nanthropic\n" {
+	// Anthropic joined codex and ollama here (2026-09-08), and OpenRouter joined all three
+	// later the same day: each is a provider whose quota is unreadable without a credential,
+	// and unknown quota fails closed. A corrupt ledger must not open ANY of the four.
+	//
+	// Every one of those credentials is neutralized above, and OPENROUTER_API_KEY was the one
+	// that got missed: a dev box with the key set reads a real quota, drops openrouter from
+	// this list and passes, while CI has no key and fails. The assertion is only meaningful
+	// if the environment cannot supply an answer — keep the Setenv list in step with the
+	// providers this output can name.
+	if output != "codex\nollama\nanthropic\nopenrouter\n" {
 		t.Fatalf("corrupt ledger bypass: %q", output)
 	}
 }
 func TestMissionQuotaOtherBucketDoesNotInspectCodex(t *testing.T) {
 	t.Setenv("OLLAMA_API_KEY", "")
 	t.Setenv("CLAUDE_CODE_OAUTH_TOKEN", "")
+	t.Setenv("OPENROUTER_API_KEY", "")
 	paths := mission.Paths{Home: t.TempDir()}
 	t.Setenv("CODEX_HOME", filepath.Join(paths.Home, "codex"))
 	if err := mission.AppendSpend(paths, "anthropic", 10, 1, time.Now()); err != nil {
