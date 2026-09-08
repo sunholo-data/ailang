@@ -75,10 +75,21 @@
         "Combined new trial spend <=$5; explicit per-item limits; no automatic budget escalation.",
         "Cleanup/recovery validated and actual costs, tokens, interventions recorded."
       ],
-      "passes": null,
+      "passes": false,
       "started": "2026-09-08",
       "completed": null,
-      "notes": "Integration in progress; no new live trials dispatched."
+      "notes": "Independent implementation review 94/100 and full checks pass. First live reviewer failed token guard; automatic cleanup and zero-dispatch failed replay pass. Two additional frozen tasks withheld at success gate. See live-trial.md."
     }
-  ]
+  ],
+  "live_adoption": {
+    "status": "incomplete",
+    "blocker": "evaluator did not produce verdict within 100,000 fresh tokens despite focused packet",
+    "trial_work_item": "docs-canary-guide-review-3",
+    "new_metered_spend_usd": 0.016704388,
+    "series_cap_usd": 5,
+    "queued_frozen_tasks": 2,
+    "automatic_cleanup": "passed",
+    "failed_terminal_replay": "zero new dispatches",
+    "completed_success_replay": "not reached"
+  }
 }

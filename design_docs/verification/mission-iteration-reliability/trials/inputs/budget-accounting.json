@@ -1,0 +1,155 @@
+{
+  "version": 1,
+  "mission_id": "docs",
+  "work_item_id": "docs-reliability-budget-accounting-1",
+  "repository": "github.com/sunholo-data/ailang",
+  "base_revision": "e6b54faf0c857553d55cfac171d3f0dd49c7d6b9",
+  "brief": "Add the approved concise Budget accounting section to the mission iteration guide with source-accurate operator guidance.",
+  "allowed_paths": [
+    "docs/docs/guides/mission-iteration.md"
+  ],
+  "workflow": "full-v1",
+  "stages": [
+    {
+      "id": "executor",
+      "role": "executor",
+      "instructions": "This is one frozen documentation smoke task under the attended-approved M-MISSION-ITERATION-RELIABILITY M4. Read CLAUDE.md first. Scope/design/plan/execution approval is already recorded in the bound authority; do not ask for approval again. Do not process or acknowledge inbox messages, send messages, spawn agents, update sprint bookkeeping, change runtime/configuration, merge or publish. Only the required guide file is permitted. Use the focused design sources and settle the exact criteria; preserve existing guide content and examples. Execute the approved design design_docs/verification/mission-iteration-reliability/trials/budget-accounting/design.md and plan design_docs/verification/mission-iteration-reliability/trials/budget-accounting/sprint-plan.md. Add the concise section only, commit the product, then emit the prescribed untracked stage-result.json.",
+      "required_artifacts": [
+        "docs/docs/guides/mission-iteration.md"
+      ],
+      "authority_refs": [
+        {
+          "revision": "e6b54faf0c857553d55cfac171d3f0dd49c7d6b9",
+          "path": "design_docs/verification/mission-iteration-reliability/trials/authority.md",
+          "locator": "mark-reliability-docs-smoke-approved-20260908",
+          "sha256": "2ac17bf1a75d3e0d9f3f1311d1bc4d2c120fa5f76795648ce1eb514bdaf7e6dd",
+          "artifact_digest": "ac87cfb3f9a7174ee5d644633f2feac81e86b5253cfc2d28b884f711c1285ac0"
+        },
+        {
+          "revision": "e6b54faf0c857553d55cfac171d3f0dd49c7d6b9",
+          "path": "design_docs/verification/mission-iteration-reliability/trials/authority.md",
+          "locator": "mark-reliability-docs-smoke-approved-20260908",
+          "sha256": "2ac17bf1a75d3e0d9f3f1311d1bc4d2c120fa5f76795648ce1eb514bdaf7e6dd",
+          "artifact_digest": "cc01392b5c2ac68929c4419b38ae0b7fb63c43eedc0368ab432841f946bdaa7b"
+        }
+      ],
+      "limits": {
+        "timeout_seconds": 1200,
+        "max_tokens": 120000,
+        "max_cost_usd": 1
+      }
+    },
+    {
+      "id": "evaluator",
+      "role": "evaluator",
+      "instructions": "This is one frozen documentation smoke task under the attended-approved M-MISSION-ITERATION-RELIABILITY M4. Read CLAUDE.md first. Scope/design/plan/execution approval is already recorded in the bound authority; do not ask for approval again. Do not process or acknowledge inbox messages, send messages, spawn agents, update sprint bookkeeping, change runtime/configuration, merge or publish. Only the required guide file is permitted. Use the focused design sources and settle the exact criteria; preserve existing guide content and examples. Independently evaluate under sprint-evaluator methodology using the supplied frozen packet. Inspect only necessary source sections; verify each criterion with concrete evidence. Do not repair or commit product changes. Preserve candidate HEAD and tracked files and emit the prescribed untracked stage-result.json.",
+      "required_artifacts": [
+        "docs/docs/guides/mission-iteration.md"
+      ],
+      "authority_refs": [
+        {
+          "revision": "e6b54faf0c857553d55cfac171d3f0dd49c7d6b9",
+          "path": "design_docs/verification/mission-iteration-reliability/trials/authority.md",
+          "locator": "mark-reliability-docs-smoke-approved-20260908",
+          "sha256": "2ac17bf1a75d3e0d9f3f1311d1bc4d2c120fa5f76795648ce1eb514bdaf7e6dd",
+          "artifact_digest": "ac87cfb3f9a7174ee5d644633f2feac81e86b5253cfc2d28b884f711c1285ac0"
+        },
+        {
+          "revision": "e6b54faf0c857553d55cfac171d3f0dd49c7d6b9",
+          "path": "design_docs/verification/mission-iteration-reliability/trials/authority.md",
+          "locator": "mark-reliability-docs-smoke-approved-20260908",
+          "sha256": "2ac17bf1a75d3e0d9f3f1311d1bc4d2c120fa5f76795648ce1eb514bdaf7e6dd",
+          "artifact_digest": "cc01392b5c2ac68929c4419b38ae0b7fb63c43eedc0368ab432841f946bdaa7b"
+        }
+      ],
+      "limits": {
+        "timeout_seconds": 1200,
+        "max_tokens": 100000,
+        "max_cost_usd": 0.5
+      }
+    }
+  ],
+  "prerequisites": [
+    {
+      "role": "designer",
+      "artifact": {
+        "commit": "e6b54faf0c857553d55cfac171d3f0dd49c7d6b9",
+        "path": "design_docs/verification/mission-iteration-reliability/trials/budget-accounting/design.md",
+        "sha256": "ac87cfb3f9a7174ee5d644633f2feac81e86b5253cfc2d28b884f711c1285ac0"
+      },
+      "authority_refs": [
+        {
+          "revision": "e6b54faf0c857553d55cfac171d3f0dd49c7d6b9",
+          "path": "design_docs/verification/mission-iteration-reliability/trials/authority.md",
+          "locator": "mark-reliability-docs-smoke-approved-20260908",
+          "sha256": "2ac17bf1a75d3e0d9f3f1311d1bc4d2c120fa5f76795648ce1eb514bdaf7e6dd",
+          "artifact_digest": "ac87cfb3f9a7174ee5d644633f2feac81e86b5253cfc2d28b884f711c1285ac0"
+        }
+      ],
+      "author_models": [
+        "gpt6-astra"
+      ]
+    },
+    {
+      "role": "planner",
+      "artifact": {
+        "commit": "e6b54faf0c857553d55cfac171d3f0dd49c7d6b9",
+        "path": "design_docs/verification/mission-iteration-reliability/trials/budget-accounting/sprint-plan.md",
+        "sha256": "cc01392b5c2ac68929c4419b38ae0b7fb63c43eedc0368ab432841f946bdaa7b"
+      },
+      "authority_refs": [
+        {
+          "revision": "e6b54faf0c857553d55cfac171d3f0dd49c7d6b9",
+          "path": "design_docs/verification/mission-iteration-reliability/trials/authority.md",
+          "locator": "mark-reliability-docs-smoke-approved-20260908",
+          "sha256": "2ac17bf1a75d3e0d9f3f1311d1bc4d2c120fa5f76795648ce1eb514bdaf7e6dd",
+          "artifact_digest": "cc01392b5c2ac68929c4419b38ae0b7fb63c43eedc0368ab432841f946bdaa7b"
+        }
+      ],
+      "author_models": [
+        "gpt6-astra"
+      ]
+    }
+  ],
+  "verification": [
+    {
+      "id": "A-whitespace",
+      "argv": [
+        "git",
+        "show",
+        "--format=",
+        "--check",
+        "HEAD"
+      ],
+      "cwd": ".",
+      "timeout_seconds": 30
+    }
+  ],
+  "limits": {
+    "timeout_seconds": 2400,
+    "max_tokens": 220000,
+    "max_cost_usd": 1.5
+  },
+  "acceptance_criteria": [
+    {
+      "id": "A1-fresh-tokens",
+      "text": "Explain `max_tokens` as cumulative executor-reported fresh input plus output across turns, not output-only. Cache-read and cache-creation counters remain separate from this runtime sum; do not infer free provider billing from exclusion from the token guard. Give one small arithmetic example."
+    },
+    {
+      "id": "A2-stage-total",
+      "text": "Explain explicit per-stage and whole-item limits. Each new stage is capped by its own token/cost allowance and the remaining item allowance after accepted local stages; imported prerequisite work is not retrospectively charged to this item's execution budget. A stage's persisted deadline is bounded by the original item deadline; resume does not reset either deadline."
+    },
+    {
+      "id": "A3-cost-provenance",
+      "text": "Distinguish `metered`, `list-price-equivalent`, `free-local` and `unknown`. Only metered cost is deducted from the whole-item dollar balance; subscription list-price-equivalent arithmetic is not actual billed spend. State that per-stage reported-cost validation and pricing-based executor guards can still stop execution: do not promise a subscription lane ignores cost limits."
+    },
+    {
+      "id": "A4-unknown-accounting",
+      "text": "State precisely that OpenRouter work requires metered cost provenance for acceptance and unknown metered accounting blocks further work. Do not generalize this transport-specific rule to every unknown-cost lane."
+    },
+    {
+      "id": "A5-scope-quality",
+      "text": "Change only the guide, preserve existing instructions and examples, use source links for the accounting details, and keep the new section concise. No runtime behavior, tests, pricing tables or live configuration changes."
+    }
+  ]
+}

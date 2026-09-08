@@ -44,7 +44,7 @@ Read at preparation on 2026-09-08; evaluator rechecks the frozen baseline.
 | `internal/mission/iteration/review_packet.go`, `reviewPacket` | Exact baseline/candidate, acceptance summaries, prerequisites, authority and required schema; explicit missing-local-receipt text; 128 KiB packet, incomplete diff and source locator; metadata overflow error; content-addressed 0400 file outside stage roots |
 | `internal/mission/iteration/review_packet.go`, `focusedReviewInstructions` | Targeted criterion procedure, literal artifacts treated as evidence, preserve HEAD/tracked files, no product commit |
 | `internal/mission/iteration/review_packet.go`, `reviewDiff` | Bounded diff collection with external diff/text conversion disabled |
-| `internal/mission/iteration/runtime_stage.go`, evaluator branch of `stageRequest` | Embeds packet bytes, path and SHA256 into frozen request instructions |
+| `internal/mission/iteration/runtime_stage.go`, evaluator branch of `request` | Embeds packet bytes, path and SHA256 into frozen request instructions |
 | `docs/docs/guides/mission-iteration.md` | Existing acceptance/progress explanation lacks a dedicated packet explanation |
 
 This task is independent of Trial A and must start from the same implementation

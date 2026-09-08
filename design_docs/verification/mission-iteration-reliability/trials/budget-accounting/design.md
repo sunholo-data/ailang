@@ -41,7 +41,7 @@ Read at preparation on 2026-09-08; evaluator rechecks the frozen baseline.
 
 | Source | Audited mechanism |
 | --- | --- |
-| `internal/mission/iteration/runtime_stage.go`, `stageRequest` | Subtracts accepted `InputTokens + OutputTokens`; subtracts `CostUSD` only for metered provenance; caps next request; prerequisites contribute author identity rather than retrospective usage |
+| `internal/mission/iteration/runtime_stage.go`, `request` | Subtracts accepted `InputTokens + OutputTokens`; subtracts `CostUSD` only for metered provenance; caps next request; prerequisites contribute author identity rather than retrospective usage |
 | `internal/mission/iteration/runtime.go`, `validateUsage` | Rejects invalid/over-cap token and cost values; OpenRouter requires metered provenance; reported stage cost check is not restricted to metered provenance |
 | `internal/mission/dispatch/run.go`, `taskFor` and `executionError` | Carries cumulative token allowance and pricing-based CostBudget; typed stop flags prevent acceptance |
 | `internal/executor/cost.go`, `CostProvenance` | Defines all four provenance meanings |

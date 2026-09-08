@@ -1,6 +1,6 @@
 # Reliability implementation verification
 
-Isolated branch: `sprint/mission-iteration`. M1–M3 implemented; M4 live adoption pending.
+Isolated branch: `sprint/mission-iteration`. M1–M3 committed at `48e72ef7e`; M4 live adoption incomplete after evaluator noncompletion. See [live result](live-trial.md).
 No provider calls are included in the hermetic checks below.
 
 | Check | Result | Retained log |
@@ -10,6 +10,7 @@ No provider calls are included in the hermetic checks below.
 | Dispatch/iteration/activation/coordinator race tests | PASS | `/private/tmp/reliability-race-tests.log` |
 | Final CLI lifecycle/recovery race tests | PASS | `/private/tmp/reliability-cli-race-final.log` |
 | New multi-role retry approval tests/race | PASS | Worker independently ran full iteration suite and new race cases |
+| Retained binding/progress race boundaries | PASS | `/private/tmp/reliability-retained-race-final.log` |
 | Full `make lint` | PASS, zero issues | `/private/tmp/reliability-lint-final.log` |
 | `make build` | PASS | `/private/tmp/reliability-build.log` |
 | Architecture boundaries | PASS | `/private/tmp/reliability-boundaries.log` |

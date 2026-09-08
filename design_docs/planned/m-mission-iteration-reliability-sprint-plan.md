@@ -60,14 +60,16 @@ Wire activation CLI and status progress. Read sprint-evaluator for independent r
 Run changed packages/race, lint/build, boundaries and relevant CLI/shell checks. Full suite
 once after integration, with GOFLAGS=-p=2 and existing isolated Go/lint caches.
 
-- [ ] Independent review passes with zero unresolved code blockers.
+- [x] Independent review passes with zero unresolved code blockers.
 - [ ] Existing candidate passes live evaluation and completed replay makes zero provider calls.
 - [ ] Two additional frozen bounded tasks finish with hard checks and independent review.
-- [ ] Combined new trial spend <=$5; explicit per-item limits; no automatic budget escalation.
-- [ ] Cleanup/recovery validated and actual costs, tokens, interventions recorded.
+- [x] Combined new trial spend <=$5; explicit per-item limits; no automatic budget escalation.
+- [x] Cleanup/recovery validated and actual costs, tokens, interventions recorded.
 
 Live tasks: first existing guide candidate. Additional two briefs frozen before dispatch
 at integration, restricted to small documentation corrections uncovered by source audit;
 if no justified approved task exists, report adoption partial rather than fabricate work.
 No website publish or merge. Transport failures consume remaining trial budget; no automatic
 infinite retries. Productive success and operational containment reported separately.
+
+Live result 2026-09-08: first reviewer failed at 100,024/100,000 fresh tokens; automatic cleanup and failed-terminal replay pass. Existing-candidate acceptance and both additional tasks remain open. See `design_docs/verification/mission-iteration-reliability/live-trial.md`.

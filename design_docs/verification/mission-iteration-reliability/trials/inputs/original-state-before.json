@@ -1,0 +1,39 @@
+{
+  "at": "2026-09-08T06:05:47.937259+00:00",
+  "input_hashes": {
+    "/private/tmp/ailang-docs-canary/work-item.json": "98d7586d766266ce0f304784746298ea77b2c734c1ca638fd9e6efa03f270319",
+    "/private/tmp/ailang-docs-canary/review-work-item.json": "cbbd54dc1417b4bcb1da13af2f9690329955b9733c5112538c98fad4e54ea05b"
+  },
+  "tables": {
+    "mission_work_items": [
+      {
+        "work_item_id": "docs-canary-work-item-guide-1",
+        "row_sha256": "a0b41729a5fbe0bc23da6f2f62750f550ba09783040d9d8d60d57ecb0e333ac5"
+      },
+      {
+        "work_item_id": "docs-canary-guide-review-2",
+        "row_sha256": "66b7e3acfd415f5f0f63151f08f38625cb543718accf4c785564789ace2df731"
+      }
+    ],
+    "mission_stage_acceptances": [
+      {
+        "work_item_id": "docs-canary-work-item-guide-1",
+        "row_sha256": "5a037a704159373c190152a404d83bdde750b44c4f8841aafa203c43d708e5b1"
+      }
+    ],
+    "mission_attempts": [
+      {
+        "work_item_id": "docs-canary-work-item-guide-1",
+        "row_sha256": "bdc1b1f7feb4359c57b82b1a5f204fa0b17f7ed139c4e811a710942640334b0d"
+      },
+      {
+        "work_item_id": "docs-canary-work-item-guide-1",
+        "row_sha256": "1f570249227066fc31398e0460fc942bd8990a45fdbfa7cfcf503b8800186991"
+      },
+      {
+        "work_item_id": "docs-canary-guide-review-2",
+        "row_sha256": "15f2224335778e2cc06b966173cdb7ec843abfed1ed3d874de0e1d77d465d175"
+      }
+    ]
+  }
+}
