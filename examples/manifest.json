@@ -2805,6 +2805,28 @@
         "stdout": "h\n\nstarts with h\nempty\n[a, ?, c]\n\ud83c\udf89\n",
         "exit_code": 0
       }
+    },
+    {
+      "path": "runnable/bytes_base64url.ail",
+      "status": "working",
+      "tags": [
+        "stdlib",
+        "std/bytes",
+        "base64url",
+        "encoding",
+        "jwt",
+        "gmail"
+      ],
+      "description": "base64url (RFC 4648 \u00a75): URL-safe alphabet, no padding, and an exact round-trip with fromBase64URL",
+      "modules": [
+        "std/bytes",
+        "std/io",
+        "std/option"
+      ],
+      "expected": {
+        "stdout": "standard : YStiL2M/\nURL-safe : YStiL2M_\npadded   : SGVsbG8=\nunpadded : SGVsbG8\nroundtrip: Subject: Caf\u00e9 \u2014 \u00fcn\u00efcode\nmismatch : <not valid base64url>\n",
+        "exit_code": 0
+      }
     }
   ],
   "statistics": {
