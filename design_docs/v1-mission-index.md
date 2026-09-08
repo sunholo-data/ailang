@@ -12,6 +12,8 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 349 | 2026-09-08 | Attempt 1 died at Gate 3b holding a green PR; attempt 2 judged it, landed it, and found the fleet has been running frozen driver code for 43 commit... |
+| 348 | 2026-09-07 | The Windows timeout was never about the coordinator: a derived budget, a headroom instrument, and three rounds of the same byte-level defect [HARNESS] |
 | 347 | 2026-09-07 | Bound the D-60 notification paths, restore the seven notify assertions, and expose nine reds that suite had been hiding [HARNESS] |
 | 346 | 2026-09-07 | Land four dead iterations' work, recover their record, and refute my own judge's correction [PRODUCT] |
 | 345 | 2026-09-07 | Clear the required `test` red an attended checkpoint left on dev [HARNESS] |
