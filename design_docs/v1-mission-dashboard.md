@@ -1,32 +1,41 @@
 # Mission Dashboard — V1
 
-_Snapshot, overwritten each iteration. History lives in `v1-mission.md` STATUS + `v1-mission-log.md`._
+_Snapshot, overwritten every iteration. History: `v1-mission.md` (STATUS) + `v1-mission-log.md`._
 
-**Last iteration:** 320 · 2026-09-02 · LANDED · [HARNESS]
-**Latest release:** v0.34.0
-
-## Goal distance
-**N = 10 design docs remaining before v1.0.0** — unmoved this iteration (HARNESS work moves the goal by 0).
-D-53's **UNCLASSIFIED bucket of 4** (would make it 14) is still named and unruled.
+**Last iteration:** 351 · 2026-09-08 · HARNESS · LANDED · **Goal distance:** N=12 docs before v1.0.0 (±0)
 
 ## Just landed
-**dev was RED on both Windows jobs for four consecutive commits, and V1 owns this repo, so it outranked the queue.**
-`t.Setenv("HOME", dir)` does not redirect `os.UserHomeDir()` on windows — it reads USERPROFILE there, `$home` on plan9 — so four arms across `internal/ai` and `internal/eval_harness` failed **for the platform, not for the code**. The same private helper had already been written **three** times in this repo; the fourth call site went red anyway. Swept to one `testutil.SetHomeDir` (16 bare sites → 1) and gated with `make check-home-isolation`, wired into code-health.mk, `ci:` **and** ci.yml. PR [#1025](https://github.com/sunholo-data/ailang/pull/1025).
+`m-coordinator-test-parallelism` — PR #1111 → `5f95a3814`, 21 checks zero not-green. Three timer seams injected into `internal/coordinator`;
+four timer-bound tests **8.13 s → 0.23 s**, package wall **16 s → 6 s**. No `t.Parallel()` added, no
+production default changed. Judge: round 1 **FAIL** (the sprint had made production retry backoff
+uncancellable — real, reproduced, fixed), round 2 **PASS 97/100**, round 3 PASS on the delta.
 
-## Up next (banked queue head)
-1. `m-spawn-pin-enforcement` — **now visible to unattended picks for the first time**, since Mark's attended merge put it on origin (this is what D-54 was about). Design approved attended 2026-09-01.
-2. `m-probe-discovery-default-30s-unpinned` — a production-path tightening nobody chose and no test pins (mutant 30→5 passes 42/42).
-3. `m-docparse-v0340-reports-2026-09-01` — VERIFY-then-route; a live consumer's silent export drop, already failed to reproduce in two shapes.
+## Next picks
+1. `m-fleet-sha-pin-freezes-every-driver-fix` — **blocked on D-61**. Every driver fix this loop lands
+   is inert until the pin moves (now **46** commits stale, was 43).
+2. `m-headroom-blocking-threshold-calibration` / `m-headroom-residual-mutations` — iter-348 residue.
+3. `m-daemon-task-exec-run-untested` — the daemon's task-exec path has NO unit test. Found by
+   SonarCloud's coverage gate; carries the admission that this sprint's FIX 2 production-caller
+   rebase is verified by code reading only, with no test executing it.
+4. `m-ratelimit-window-default-unpinned` · `m-approval-poll-production-defaults-unexercised` — cheap,
+   each with a measured mutation already attached.
 
-## Loop health / routing
-- Controller `claude:claude-opus-5` · executor `codex:gpt-5.6-sol` (probe rc=0, one sandboxed 30-min-capped run) · evaluator `sonnet` in its **own** worktree, two rounds (generator≠judge holds) · designer rotation at `claude:claude-fable-5`, **did not run** (a dev-red fix-forward needs no design doc).
-- Per-gate `mission-heartbeat.sh` stamps in use (D-52).
-- **The running skill is byte-identical to origin for the first time in at least four iterations** — Mark's attended merge cleared the main checkout's divergence (0 ahead / 0 behind, against 22/31 at iteration 319's Gate 4).
-- **The judge earned its slot twice.** It broke the new gate with a gofmt-canonical multi-line call the line-oriented matcher could not see, and it found a live unswept instance (four `os.Setenv("HOME")` sites reaching `os.UserHomeDir()`). Both closed in round 2.
+## Loop health
+- **Two consecutive slots died mid-flight before this one**: 349 attempt 1 (at Gate 3b, holding a
+  green PR) and 350 (after its designer, holding an r3 doc). Both recovered by the next iteration's
+  Gate-2 traces — nothing lost, but 3 of the last 4 slots inherited rather than picked.
+- Driver pin `AILANG_DRIVER_REF=48c4a6e49` unmoved; `PIN_DRIFT` still reports `0` by construction.
+- Skill drift: resolved-symlink copy == origin on all 12 files; the **pin worktree's** copy drifts on
+  4. Read the rules from the resolved path only.
+- Gate-list gap: the local sweep did not include `golangci-lint unused` or any coverage gate, and CI
+  caught one of each on this PR.
+
+## Routing / cost
+designer NOT spawned (inherited r3 doc) · planner `pi:kimi-k3` ok · executor `pi:deepseek-v4-flash`
+ok ×2 (**second consecutive `ok` — meets the promotion bar; recorded, not acted on unilaterally**) ·
+evaluator `sonnet` ×3 rounds. Metered **$0.00** of $5.
 
 ## Parked on Mark
-- **D-53 (OPEN)** — rule on the 4 UNCLASSIFIED docs (N=10 vs N=14). Loop recommends N=12. Default: keep reporting 10 with the bucket named.
-- **D-54 — RESOLVED**, answered "D-54 b" on #972 at `07:17:34Z`. The loop may now branch the main checkout's unpushed `dev`, push and open a PR. Mark then cleared the divergence himself 21 minutes later, so the grant is standing rather than pending.
-
-## Cost posture
-Metered **$0.00** of the $5 iteration ceiling. Every lane a quota bucket; no quorum round, no designer, no planner.
+**D-61 (the only open row)** — may this loop repoint `AILANG_DRIVER_REF` back to `origin/dev` itself
+once a SHA-pinned deployment's fix has merged, or is every pin edit attended-only? Loop recommends
+**(A)**, narrowly. Unanswered ⇒ drift keeps growing and every driver fix stays inert.

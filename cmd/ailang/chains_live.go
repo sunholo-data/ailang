@@ -241,7 +241,8 @@ func lastSpanForStage(backend observatory.Backend, ctx context.Context, chainID,
 // model, or empty string if Ollama is not running.
 func ollamaCurrent() (string, float64) {
 	client := &http.Client{Timeout: 500 * time.Millisecond}
-	resp, err := client.Get("http://localhost:11434/api/ps")
+	// IPv4-pinned so this reports the server the harness actually uses.
+	resp, err := client.Get("http://127.0.0.1:11434/api/ps")
 	if err != nil {
 		return "", 0
 	}

@@ -41,8 +41,14 @@ log() { printf '[%s] [%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$REPO_NAME" "$*"
 # perl alarm — the portable bound this repo already uses (macOS ships no timeout/gtimeout).
 bounded() { local s="$1"; shift; perl -e 'alarm(shift @ARGV); exec @ARGV' "$s" "$@"; }
 
-cd "$ROOT" 2>/dev/null || exit 0
-git rev-parse --git-dir >/dev/null 2>&1 || exit 0
+if ! cd "$ROOT" 2>/dev/null; then
+    log "SKIP_ROOT: could not cd to resolved root: $ROOT"
+    exit 0
+fi
+if ! git rev-parse --git-dir >/dev/null 2>&1; then
+    log "SKIP_NOT_GIT: resolved root is not a Git worktree: $ROOT"
+    exit 0
+fi
 
 # Only ever act on dev itself. Mission worktrees sit on sprint/* or docs/* and are skipped
 # here by construction — they land their work through PRs, which already works.
@@ -86,6 +92,63 @@ if [ "$BEHIND" -gt 0 ] 2>/dev/null; then
     echo "   Not auto-pushing: this needs a real merge, and conflicts here land in the"
     echo "   mission charter/changelog where a careless resolution drops decision rows."
     echo "   Resolve with a merge, verify, then push."
+    exit 0
+fi
+
+# Judge only the committed Go blobs that this push would add to origin/dev. The shared
+# checkout may contain unrelated edits, so neither the working tree nor deleted/renamed-away
+# paths are part of this integrity gate.
+if ! command -v gofmt >/dev/null 2>&1; then
+    log "REFUSED_FMT_TOOL: gofmt not found; refusing $AHEAD commit(s)"
+    echo "⚠️  local dev has $AHEAD unpushed commit(s), but gofmt is not on PATH."
+    echo "   Not auto-pushing: cannot verify committed Go formatting without gofmt."
+    echo "   Restore gofmt, run make fmt, commit, and let the next Stop push it."
+    exit 0
+fi
+
+FMT_TMP=$(mktemp -d "${TMPDIR:-/tmp}/ailang-autopush-fmt.XXXXXX" 2>/dev/null) || {
+    log "REFUSED_FMT_CHECK: could not create formatting workspace; refusing $AHEAD commit(s)"
+    echo "⚠️  local dev has $AHEAD unpushed commit(s), but its committed Go files could not be checked."
+    echo "   Not auto-pushing: run make fmt, commit, and let the next Stop push it."
+    exit 0
+}
+trap 'rm -rf "$FMT_TMP"' EXIT
+trap 'rm -rf "$FMT_TMP"; exit 0' HUP INT TERM
+
+if ! bounded 10 git diff --name-only -z --diff-filter=ACM origin/dev..dev -- '*.go' > "$FMT_TMP/go-files" 2>/dev/null; then
+    log "REFUSED_FMT_CHECK: could not list committed Go files; refusing $AHEAD commit(s)"
+    echo "⚠️  local dev has $AHEAD unpushed commit(s), but its committed Go files could not be checked."
+    echo "   Not auto-pushing: run make fmt, commit, and let the next Stop push it."
+    exit 0
+fi
+
+BAD_GO_FILES=""
+while IFS= read -r -d '' go_file; do
+    if ! bounded 10 git show "dev:$go_file" > "$FMT_TMP/committed" 2>/dev/null; then
+        BAD_GO_FILES="${BAD_GO_FILES}${go_file}
+"
+        continue
+    fi
+    if [ ! -s "$FMT_TMP/committed" ]; then
+        BAD_GO_FILES="${BAD_GO_FILES}${go_file}
+"
+        continue
+    fi
+    if ! bounded 10 gofmt < "$FMT_TMP/committed" > "$FMT_TMP/formatted" 2>/dev/null; then
+        BAD_GO_FILES="${BAD_GO_FILES}${go_file}
+"
+        continue
+    fi
+    cmp -s "$FMT_TMP/committed" "$FMT_TMP/formatted" || BAD_GO_FILES="${BAD_GO_FILES}${go_file}
+"
+done < "$FMT_TMP/go-files"
+
+if [ -n "$BAD_GO_FILES" ]; then
+    BAD_GO_LOG=$(printf '%s' "$BAD_GO_FILES" | tr '\n' ' ')
+    log "REFUSED_FMT: committed Go files are not gofmt-clean: $BAD_GO_LOG"
+    echo "⚠️  local dev has $AHEAD unpushed commit(s) with Go files that are not gofmt-clean:"
+    printf '   %s\n' "$BAD_GO_FILES"
+    echo "   Not auto-pushing: run make fmt, commit the result, and let the next Stop push it."
     exit 0
 fi
 

@@ -161,6 +161,12 @@ type GenerateResult struct {
 	TotalTokens              int    // Total tokens (for billing; includes reasoning)
 	FinishReason             string // Normalized stop reason ("stop", "length", ...); "" if unreported
 	Model                    string
+
+	// LLM generation latency (M-LYCEUM-PROVIDER M3 route A/B). WallMS is the
+	// client-observed wall time of this generation call; TTFTMS is
+	// time-to-first-token where the transport streams. 0 = unmeasured.
+	WallMS int64
+	TTFTMS int64
 }
 
 // RetryConfig configures retry behavior

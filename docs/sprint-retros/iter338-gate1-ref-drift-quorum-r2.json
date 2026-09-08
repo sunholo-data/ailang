@@ -1,0 +1,64 @@
+{
+  "doc": "design_docs/planned/v0_36_0/m-gate1-shared-clone-ref-drift.md",
+  "iso_ts": "2026-09-06T08:54:14Z",
+  "reviewers": [
+    {
+      "model": "gpt6-astra",
+      "cost_usd": 0,
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "present": false,
+      "absent_reason": "auth",
+      "error": "reviewer \"gpt6-astra\" needs OPENAI_API_KEY (openai provider) — not set",
+      "landed": null
+    },
+    {
+      "model": "gemini-3-1-pro",
+      "cost_usd": 0.030714,
+      "tokens_in": 13455,
+      "tokens_out": 317,
+      "present": true,
+      "result": {
+        "verdict": "reject",
+        "strongest_objection": "The `drift` function relies on `old=$(last \"$label\") || { ...; return 2; }` to detect a missing prior record. However, `last` delegates to an `awk` command that successfully exits 0 (printing an empty string) if the state file exists but contains no matching `base-$label` rows. Because the exit code is 0, the `||` fallback never executes. `drift` will incorrectly fall through with `old=\"\"`, fail the `[ \"$old\" = \"$new\" ]` comparison, trigger a git syntax error on `git rev-list --count \"\"..$new`, and falsely report `DRIFT base label -\u003e \u003cnew\u003e (? commits)`. This guarantees false-positive drifts instead of safely exiting 2 when a record is missing.",
+        "catch": "The missing-record negative control in `drift()` is broken by awk's default exit 0 behavior when no rows match.",
+        "proposed_fix": "Modify the `drift` function to explicitly check for an empty string rather than relying on the exit code, or update `last` to exit 1 if no SHA was found. Example fix for `drift`: `old=$(last \"$label\"); [ -n \"$old\" ] || { echo \"mission-base: no base-$label record yet\" \u003e\u00262; return 2; }`"
+      },
+      "landed": null
+    },
+    {
+      "model": "oc-glm-5-2",
+      "cost_usd": 0.04189633,
+      "tokens_in": 12393,
+      "tokens_out": 7259,
+      "present": true,
+      "result": {
+        "verdict": "reject",
+        "strongest_objection": "The `drift()` function in the provided `mission-base.sh` silently misclassifies 'file exists but no matching label' as DRIFT (exit 1) instead of 'no record' (exit 2). When the base file exists but contains no row with the requested label, `last()` runs `awk` successfully (exit 0) but prints an empty string. The `|| { return 2; }` guard in `drift()` does not fire because awk returned 0. The function then compares empty `old` against a real SHA via `[ \"$old\" = \"$new\" ]`, always finds them unequal, and reports `DRIFT base \u003clabel\u003e  -\u003e \u003cnew\u003e (? commits)` with an empty old SHA — and `git rev-list --count \"..$new\"` fails on the empty SHA, yielding `?`. This violates the no-silent-fallbacks axiom: a missing record silently degrades to a drift verdict (exit 1) instead of the specified no-record verdict (exit 2). The doc's own spec says 'no record → exit 2,' but the code does not deliver it when the file exists yet the label is absent.",
+        "catch": "The non-vacuity mutation recipe's primary form (`git commit --allow-empty -m sibling-advance`) advances the current branch HEAD, not `refs/remotes/origin/dev`. Since `snap` reads `origin/dev` (resolving `refs/remotes/origin/dev`), this mutation would NOT change what `snap` sees, making the test vacuously pass (drift exits 0, steady). The author must verify that `test_mission_base.sh` uses `git update-ref refs/remotes/origin/dev \u003cnew-sha\u003e` (the secondary alternative in the comment) as the mutation, not `git commit --allow-empty`.",
+        "proposed_fix": "Replace `last()` with: `last() { awk -F '\\t' -v l=\"base-$1\" '$3==l {sha=$5} END {if (sha) {print sha; exit 0} else exit 1}' \"$BASE\"; }` — this makes awk exit 1 when no matching label is found, so the `|| { echo \"mission-base: no base-$label record yet\" \u003e\u00262; return 2; }` guard in `drift()` fires correctly for both the missing-file case and the no-matching-label case. Additionally, correct the non-vacuity mutation recipe to use `git update-ref refs/remotes/origin/dev HEAD` as the primary mutation (not `git commit --allow-empty`), since `snap` resolves `refs/remotes/origin/dev`, not the working-tree branch HEAD."
+      },
+      "landed": null
+    }
+  ],
+  "controller_in_session": {
+    "verdict": "pass",
+    "note": "Revision applied both objections with measurements: record destination is now a separate mission-${MISSION_NAME}-base file (driver slot-verdict tail-1 classifier measured at mission-control.sh:1485-1497, REAPED-\u003eCRASHED flip risk cited as Verif. 10); record() snaps exactly once (single-read invariant); new verification rows 10-13 cover the driver reader, both previously-unverified SKILL.md snippets (lines 1742, 794), and a full heartbeat-consumer census."
+  },
+  "synthesis": {
+    "verdict": "blocked",
+    "blocking_objections": [
+      "gemini-3-1-pro: The `drift` function relies on `old=$(last \"$label\") || { ...; return 2; }` to detect a missing prior record. However, `last` delegates to an `awk` command that successfully exits 0 (printing an empty string) if the state file exists but contains no matching `base-$label` rows. Because the exit code is 0, the `||` fallback never executes. `drift` will incorrectly fall through with `old=\"\"`, fail the `[ \"$old\" = \"$new\" ]` comparison, trigger a git syntax error on `git rev-list --count \"\"..$new`, and falsely report `DRIFT base label -\u003e \u003cnew\u003e (? commits)`. This guarantees false-positive drifts instead of safely exiting 2 when a record is missing.",
+      "oc-glm-5-2: The `drift()` function in the provided `mission-base.sh` silently misclassifies 'file exists but no matching label' as DRIFT (exit 1) instead of 'no record' (exit 2). When the base file exists but contains no row with the requested label, `last()` runs `awk` successfully (exit 0) but prints an empty string. The `|| { return 2; }` guard in `drift()` does not fire because awk returned 0. The function then compares empty `old` against a real SHA via `[ \"$old\" = \"$new\" ]`, always finds them unequal, and reports `DRIFT base \u003clabel\u003e  -\u003e \u003cnew\u003e (? commits)` with an empty old SHA — and `git rev-list --count \"..$new\"` fails on the empty SHA, yielding `?`. This violates the no-silent-fallbacks axiom: a missing record silently degrades to a drift verdict (exit 1) instead of the specified no-record verdict (exit 2). The doc's own spec says 'no record → exit 2,' but the code does not deliver it when the file exists yet the label is absent."
+    ],
+    "absent_reviewers": [
+      {
+        "model": "gpt6-astra",
+        "reason": "auth"
+      }
+    ],
+    "total_cost_usd": 0.07261033,
+    "total_tokens_in": 25848,
+    "total_tokens_out": 7576
+  }
+}

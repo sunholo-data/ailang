@@ -403,6 +403,11 @@ func (d *Daemon) Run() error {
 	if d.cloudInboxAdapter != nil && d.pubsubClient != nil && d.taskStore != nil {
 		subscriber := pubsub.NewSubscriber(d.pubsubClient)
 		d.completionHandler = NewCompletionHandler(subscriber, d.taskStore, d.msgStore, d.agentRegistry, d.logger)
+		// Without the observatory backend a cloud completion can set a status and
+		// nothing else — no chain, no stage, no metrics. That was the state of
+		// production: every chain "active", every stage frozen at "pending"
+		// (M-COMPLETION-PATH-PARITY M1).
+		d.completionHandler.SetFinalizationDeps(d.obsBackend, d.instanceID)
 		d.logger.Println("Cloud mode: completion handler ready (push delivery via /pubsub/completions)")
 	}
 

@@ -47,6 +47,25 @@
 # the charter rule, not this code. Tightening it (an explicit --as, or checking the invoking
 # identity) is an open design question, not a lint.
 #
+# WHAT THAT WEAKNESS USED TO MAKE THE ROW SAY (fixed 2026-09-04). The stamped evidence column
+# asserted "provenance is the commit author `<ATT_EMAIL>`, which the fleet bot does not hold".
+# That sentence was FALSE BY CONSTRUCTION for every caller on this machine: git identity here is
+# the fleet bot for every session including Mark's, so the commit author is the bot no matter who
+# rules. The row was therefore citing, as its evidence, the one thing that could not be evidence.
+# Worse, it was self-citing in the D-2 sense — a false claim written by a script became the
+# permanent justification for trusting the script's own output.
+#
+# Measured the same day: nothing reads it. `scripts/mission_decisions.sh` and the mission-control
+# skill contain no commit-author check for a ledger resolution (grep positive-controlled against a
+# term known to exist, then widened once — the only author gating in the repo is on GitHub
+# DIRECTIVES, a different channel). So the stamp now names the attended session as provenance and
+# says plainly that authorship is not evidence here.
+#
+# The cost of the old wording was not theoretical: twice (D-53 on 2026-09-02, and again on
+# 2026-09-03) an agent read that sentence as a control it had to protect, and handed a ruling Mark
+# had already given back to Mark to re-enter by hand. That is CLAUDE.md principle 4 exactly —
+# read the control before refusing on its behalf.
+#
 # Exit codes: 0 = row rewritten (and validated), 1 = refused/error.
 set -uo pipefail
 
@@ -69,7 +88,7 @@ while [ $# -gt 0 ]; do
 		--file)     DOC="${2:-}";      shift 2 ;;
 		--commit)   COMMIT=1;          shift ;;
 		--dry-run)  DRYRUN=1;          shift ;;
-		-h|--help)  sed -n '2,50p' "$0"; exit 0 ;;
+		-h|--help)  sed -n '2,/^# Exit codes:/p' "$0"; exit 0 ;;
 		*) die "unknown argument: $1" ;;
 	esac
 done
@@ -120,7 +139,7 @@ awk '
       }
       c[3]=" RESOLVED "
       c[4]=c[4] " **ANSWERED — " ENVIRON["ANSWER"] "** (" ENVIRON["ATT_NAME"] ", attended " ENVIRON["TODAY"] ", recorded directly in this ledger.)"
-      c[5]=c[5] " **Attended ruling " ENVIRON["TODAY"] "** — recorded in-session under the ATTENDED LEDGER EDITS contract, not via the bookkeeping issue; provenance is the commit author `" ENVIRON["ATT_EMAIL"] "`, which the fleet bot does not hold and the loop may not author with."
+      c[5]=c[5] " **Attended ruling " ENVIRON["TODAY"] "** — recorded in-session under the ATTENDED LEDGER EDITS contract, not via the bookkeeping issue. Provenance is the ATTENDED SESSION, not the commit author: this script stamps a fixed attended identity for EVERY caller (ATT_NAME/ATT_EMAIL are defaults, not derived from the invoker), and nothing in scripts/mission_decisions.sh or the mission-control skill reads the commit author of a ledger resolution (verified 2026-09-04, positive-controlled). The control is the charter rule that the UNATTENDED loop may not resolve a row on its own behalf."
       if (ENVIRON["EVIDENCE"] != "") c[5]=c[5] " " ENVIRON["EVIDENCE"]
       out=c[1]
       for (i=2; i<=n; i++) out=out "|" c[i]

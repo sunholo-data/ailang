@@ -88,6 +88,16 @@ func newProviderAdapter(model string, apiKey string, explicitProvider ai.Provide
 		// is "vendor/model" (e.g., "anthropic/claude-sonnet-4.5").
 		model = strings.TrimPrefix(model, "openrouter:")
 		provider = openrouter.NewClient(apiKey)
+	case ai.ProviderLyceum:
+		// M-LYCEUM-PROVIDER: EU-hosted OpenAI-compatible route — same openai
+		// transport, Lyceum endpoint (ai.LyceumBaseURL honours LYCEUM_BASE_URL).
+		provider = openai.NewClient(apiKey, openai.WithBaseURL(ai.LyceumBaseURL()))
+	case ai.ProviderZAI:
+		// M-ZAI-WINDOW-ROUTING Phase 1: z.ai first-party PAYG route — same
+		// openai transport, z.ai endpoint (ai.ZAIBaseURL honours ZAI_BASE_URL).
+		// api_name is the NATIVE slug ("glm-5.3-flash"), not OpenRouter's
+		// "z-ai/glm-5.3-flash" — that prefix is a router convention and 404s here.
+		provider = openai.NewClient(apiKey, openai.WithBaseURL(ai.ZAIBaseURL()))
 	default:
 		return nil, fmt.Errorf("unsupported provider for model: %s", model)
 	}
@@ -235,6 +245,8 @@ func (p *providerAdapter) generate(ctx context.Context, cachedPrefix, prompt str
 		TotalTokens:              resp.TotalTokens,
 		FinishReason:             resp.FinishReason,
 		Model:                    resp.Model,
+		WallMS:                   resp.WallMS,
+		TTFTMS:                   resp.TTFTMS,
 	}, nil
 }
 

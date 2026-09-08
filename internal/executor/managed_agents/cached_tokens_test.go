@@ -93,3 +93,24 @@ func TestCostModel_CachedTokensAreCheaperAndNotDoubleBilled(t *testing.T) {
 		t.Error("thought tokens must contribute to cost — they are disjoint from output_tokens here")
 	}
 }
+
+// TestResult_InputTokensAreDisjointFromCacheReads pins the executor.Result
+// contract that eval_harness/agent_runner_multi.go relies on: InputTokens is
+// FRESH input, and CacheReadInputTokens is the cached remainder. They must not
+// overlap, because downstream pricing adds them.
+//
+// Regression guard: the first version of the cache fix set CacheReadInputTokens
+// correctly but left InputTokens as the cache-INCLUSIVE total, which
+// double-counted every cached token in the banked row.
+func TestResult_InputTokensAreDisjointFromCacheReads(t *testing.T) {
+	u := Usage{TotalInputTokens: 41332, TotalCachedTokens: 28378, TotalOutputTokens: 384, TotalThoughtTokens: 2032}
+
+	fresh := u.FreshInputTokens()
+	if fresh+u.TotalCachedTokens != u.TotalInputTokens {
+		t.Errorf("fresh(%d) + cached(%d) must equal reported input(%d) exactly — no gap, no overlap",
+			fresh, u.TotalCachedTokens, u.TotalInputTokens)
+	}
+	if fresh >= u.TotalInputTokens {
+		t.Error("fresh input must be strictly less than the cache-inclusive total when caching occurred")
+	}
+}

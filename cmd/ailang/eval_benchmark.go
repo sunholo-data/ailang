@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/ai"
 	"github.com/sunholo-data/ailang/internal/eval_harness"
 	"github.com/sunholo-data/ailang/internal/observatory"
 	"github.com/sunholo-data/ailang/internal/telemetry"
@@ -80,6 +82,54 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 	// eval_benchmark_agent.go — this branch always returns, see its doc comment)
 	if agentConfig != nil {
 		return runSingleBenchmarkAgent(ctx, benchSpan, spec, model, benchmarkID, lang, condition, cond, trial, seed, outputDir, agentConfig, evalChain, onCost)
+	}
+
+	// M-EVAL-STANDARD-MODE-INPUT-FILES-GAP: dispatch-time guard (defense in
+	// depth for the standard-mode scheduler filter at the discoverBenchmarks
+	// call site). This code is standard-mode-only by construction — the agent
+	// branch above already returned — so reaching it with an agent-workspace-only
+	// benchmark (grade_entrypoint set) means a direct --benchmarks invocation
+	// bypassed the scheduler. Short-circuit BEFORE any provider dispatch:
+	// standard mode never constructs the multi-file workspace such a benchmark
+	// grades against, so a doomed API call would burn budget and bank a
+	// misleading compile/runtime failure. The skip is banked as a
+	// visible-but-labelled result row carrying BOTH the human-readable category
+	// below AND the machine-aggregation marker (Validity invalid with
+	// ReasonModeIncompatible) that makes LoadResults → FilterValidResults drop
+	// the row from every downstream aggregate — eval-elo fitting,
+	// confidence-gating ratings, capability stats, dashboard exports.
+	if spec.RequiresAgentWorkspace() {
+		validity := eval_harness.MarkInvalid(eval_harness.ReasonModeIncompatible)
+		validity.Detail = "grade_entrypoint set: agent-workspace-only benchmark dispatched in standard mode"
+		skipMetrics := &eval_harness.RunMetrics{
+			ID:             spec.ID,
+			Lang:           lang,
+			Model:          model,
+			Seed:           seed,
+			CompileOk:      false,
+			RuntimeOk:      false,
+			StdoutOk:       false,
+			ErrorCategory:  "skipped_mode_incompatible", // no constant: metrics.go is a hard-unchanged file for this fix
+			Stderr:         fmt.Sprintf("skipped: benchmark %s requires an agent workspace (grade_entrypoint set); standard mode cannot grade it", spec.ID),
+			ExpectedStdout: spec.ExpectedOut,
+			Timestamp:      time.Now(),
+			Caps:           spec.Caps,
+			EvalMode:       eval_harness.EvalModeStandard,
+			PromptVersion:  promptVersion,
+			Condition:      condition,
+			Trial:          trial,
+			Validity:       validity,
+		}
+		// Best-effort log, same as the API-error path: the row is evidence, not
+		// a reason to fail the suite loop. Zero provider calls were made, so
+		// onCost is deliberately not invoked (see the early-return note above).
+		logger := eval_harness.NewMetricsLogger(outputDir)
+		if logErr := logger.Log(skipMetrics); logErr != nil {
+			benchSpan.RecordError(logErr)
+		}
+		benchSpan.SetAttributes(attribute.Bool("benchmark.skipped_mode_incompatible", true))
+		benchSpan.SetStatus(codes.Ok, "skipped_mode_incompatible")
+		return false, nil
 	}
 
 	// Standard mode: Create chain stage for this benchmark
@@ -222,6 +272,14 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 			PromptVersion:  actualPromptVersion,
 			Condition:      condition,
 			Trial:          trial, // M-EVAL-OS-LONGITUDINAL Phase 3
+		}
+		// M-LYCEUM-PROVIDER M3: carry the FAILED call's latency when the client
+		// measured it (provider clients stamp WallMS on their error paths). This
+		// is what distinguishes "gateway 504 after 30s" from "after 6 minutes"
+		// in the banked rows instead of only in the console log.
+		var pe *ai.ProviderError
+		if errors.As(err, &pe) && pe.WallMS > 0 {
+			apiErrorMetrics.LLMWallMs = pe.WallMS
 		}
 		_ = logger.Log(apiErrorMetrics) // Best effort - don't fail on logging error
 

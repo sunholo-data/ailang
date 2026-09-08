@@ -1,0 +1,22 @@
+// Frozen canary check: uses the production spec decoder; does not validate Git authority.
+package main
+import (
+ "bytes"
+ "fmt"
+ "os"
+ "regexp"
+ "github.com/sunholo-data/ailang/internal/mission/iteration"
+)
+func main() {
+ if len(os.Args)!=2 { panic("usage: validate-example GUIDE") }
+ b,e:=os.ReadFile(os.Args[1]); if e!=nil { panic(e) }
+ blocks:=regexp.MustCompile("(?ms)^```json\\s*\\n(.*?)^```\\s*$").FindAllSubmatch(b,-1)
+ n:=0
+ for _,block:=range blocks {
+  if !bytes.Contains(block[1],[]byte(`"work_item_id"`)) { continue }
+  if _,e:=iteration.Decode(bytes.NewReader(block[1])); e!=nil { fmt.Fprintln(os.Stderr,e); os.Exit(1) }
+  n++
+ }
+ if n!=1 { fmt.Fprintf(os.Stderr,"expected one complete work-item JSON example; got %d\n",n); os.Exit(1) }
+ fmt.Println("PASS: guide example accepted by production WorkItem v1 decoder (Git authority not checked)")
+}

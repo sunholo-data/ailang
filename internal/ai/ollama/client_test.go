@@ -25,10 +25,13 @@ func TestNewClient(t *testing.T) {
 		wantHost string
 	}{
 		{
-			name:     "default endpoint",
+			// Must stay 127.0.0.1, never "localhost": on a host where the Ollama.app
+			// GUI also serves 11434 over ::1 with no memory caps, "localhost" reaches
+			// the uncapped server first. See the comment on defaultEndpoint.
+			name:     "default endpoint pins IPv4",
 			envHost:  "",
 			opts:     nil,
-			wantHost: "http://localhost:11434",
+			wantHost: "http://127.0.0.1:11434",
 		},
 		{
 			name:     "env override",

@@ -1,6 +1,6 @@
 # M-RESIDENT-AGENT-INSTANCES: a coding agent that keeps working when the laptop closes
 
-**Status**: M1 (image), M2 (A2A surface) and M2b (platform-side client) **built and green**; M3 (terraform + instance script) **written and validated, not applied**. Phase 0 gate **passed on measurement** 2026-09-02.
+**Status**: **Live in dev; M4 is COMPLETE and PROVEN END TO END (2026-09-04).** M1, M2, M2b, M3, M7-partial (direct pi execution), M10 (session persistence), per-user provisioning and M4 are built and verified against a running instance — `resident-instance.sh verify` 12/12 including two-turn recall across a restart, cross-tenant isolation 3/3. Phase 0 gate **passed on measurement** 2026-09-02. The idle sweep is now the coordinator route `POST /instances/sweep` on a 15-minute Cloud Scheduler tick (`resident-sweep.sh` deleted, D13), and the way back was proven live: an Aitana chat turn detected the peer asleep, asked the coordinator, and the instance was serving again in 6.44s. Three latent bugs surfaced only by running it — a `/start` vs `/instances/start` mismatch, an unenforced eligibility gate, and an accepted-but-failed start that nothing observed. NOT built: streaming (M7 proper), notifications (M5), chaos/cost (M6), observability (M8) — **M8 is next**, and this session made the case for it by finding all three bugs through raw log grepping.
 **Scope**: `docker/resident/` (image, boot, A2A server), `ailang-multivac/terraform/resident_agents.tf`, `ailang-multivac/scripts/resident-instance.sh`. Runs in `ailang-multivac-dev`, region `europe-west4`.
 **Target**: v0.35.0
 **Priority**: P2 — nothing autonomous is blocked on it. It replaces a laptop, not a pipeline.
@@ -109,7 +109,34 @@ that needs to ask a question must either be `interactive`, or the NDJSON stream
 must carry its own equivalent — check what pi's event schema exposes before
 assuming the second.
 
-### D2 — herdr is the supervisor; the contract to the outside is A2A
+### D2 — A2A is the contract; herdr is optional and off the task path
+
+⚠️ **Revised 2026-09-02 after live testing.** herdr was originally the
+supervisor. It no longer is, because driving pi as a TUI does not work headless:
+
+- `agent.prompt` enters text without submitting it — context stayed at
+  `0.0%/1.3M`, so no model call was made. Passing the documented `wait` object
+  did not fix it.
+- Completion is undetectable: `idle`/`done` are UI-coupled, so a task sits at
+  `working` forever.
+- `session-protocol-gate` branches on `ctx.hasUI`; a TUI makes that true, so it
+  demands a human keypress that never comes.
+
+**Execution is now `pi --mode json` spawned directly** — the same invocation
+`internal/executor/pi/pi.go` uses — whose NDJSON carries an explicit `agent_end`
+and therefore a real terminal state. herdr stays installed for human attach
+(`herdr --remote`) but is **not started by default**
+(`RESIDENT_ENABLE_HERDR=1`), and the pi extension suite is moved aside unless
+`RESIDENT_PI_EXTENSIONS=1` — it is built for a developer in this repo, and
+`session-protocol-gate` would block a resident's tools.
+
+If herdr returns for attach, it belongs in **its own image** rather than beside
+the agent: co-locating them cost a process, memory and a class of silent
+failures for a feature the task path never used.
+
+The outward contract is unchanged. Only what happens inside the container did.
+
+### D2-original (superseded) — herdr as supervisor
 
 herdr supervises the pane and classifies agent state. It stays **inside** the
 container: the outside world talks **A2A**, not a bespoke REST API wrapping
@@ -122,6 +149,36 @@ This is what makes the estate question tractable: because the instance is an
 A2A peer, **which project hosts it is not an architectural question**. The
 Aitana platform reaches it over an authenticated protocol boundary, not by
 sharing identity.
+
+### D7 — Session persistence: the resident is not yet persistent
+
+**This is the gap between what exists and what the design promises.**
+
+`pi --mode json --no-session` is *stateless per call*: every `message/send`
+spawns a fresh pi with no memory of the last. So today there is a persistent
+**host** and an ephemeral **agent** — the box survives, the conversation does
+not. "Long-running context" was the premise of this design, and stream mode as
+first built discards it.
+
+`--no-session` is deliberate in the job executor, documented there as
+*"ephemeral run (avoids ~/.pi/sessions/ pollution)"* — correct for a one-shot
+job, wrong for a resident. pi keeps sessions in `~/.pi/sessions/` and emits a
+`session` event carrying the id, which `pi.go` already reads.
+
+**Design:**
+
+- Drop `--no-session` for resident runs; capture the session id from the first
+  `session` event and store it against the **agent**, not the task — the agent
+  is the thing with continuity.
+- Resume on subsequent calls. **Verify pi's resume flag against the installed
+  version** rather than assuming one exists in the shape we want.
+- ⚠️ **Sessions live on local disk, which does not survive the 7-day restart.**
+  Use the stage-in/stage-out pattern D3 already establishes for the workspace:
+  restore `~/.pi/sessions/` from `/agent-home` at boot, sync back after each
+  run. They must NOT be written directly to the mount — gcsfuse has no POSIX
+  locking and pi writes them actively, which is precisely the corruption case
+  D3 exists to avoid.
+- One session per agent per instance follows from D1.
 
 ### D3 — Code on local disk; the git remote is durability
 
@@ -141,6 +198,347 @@ it silently falls back to `maxTokens` 16384, `contextWindow` 128000,
 `reasoning` false. Passing `z-ai/glm-5.3-flash` unregistered would discard 90%
 of its 1.31M context with no error. The A2A server therefore **refuses**
 unregistered models, naming the fallback and listing what is registered.
+
+### D8 — The tool policy is pi's, and `bash` is outside Decision 6
+
+pi ships `read`, `bash`, `edit` and `write` enabled, and the resident passed no
+`--tools` restriction, so all four were live and **nothing said so**. Two
+consequences, one cosmetic and one not.
+
+The AILANG program allowlist (Decision 6) governs what `resident-run` will
+execute. **pi's `bash` tool does not go through `resident-run`.** So while
+`bash` is enabled the allowlist is a convenience and not a containment
+boundary, and the doc should not imply otherwise. What actually bounds this
+agent is the **container** and the **gcsfuse `only-dir` mount** — which is a
+real boundary, just a coarser one than Decision 6 sounded like.
+
+The policy is therefore explicit (`RESIDENT_TOOLS`, default
+`read,edit,write,bash` — what pi already did), logged at spawn, and reported in
+`/health`. Narrowing it is now a deployment choice rather than a code change.
+Extensions matter here too: they add tools, so an extension is a change to this
+policy and not only to behaviour.
+
+**Extensions now have a blast radius they lacked.** Under `--no-session` a
+misbehaving extension could ruin one call. With D7's sessions it rewrites the
+user's *conversation*, and that rewrite is staged to GCS. Compaction is the
+sharp case — it is genuinely wanted for long threads, and it edits history by
+design. Hence one rotated restore point (`$AGENT_HOME/sessions.prev`) per boot,
+and extensions still off by default.
+
+### D9 — Delegated authority: the agent must act AS the user, and the platform must stay the policy point
+
+Requirement (Mark, 2026-09-03): the resident should be able to drive the ADK
+platform through the `aiplatform` CLI **with the same permissions as the user**,
+to copilot for them.
+
+The trap is the confused deputy. If the agent calls the platform as **itself**,
+its rights are either broader than the user's — so a prompt-injected agent
+reads documents its user cannot — or narrower, so it is useless. Neither is
+"the same permissions as the user".
+
+Three ways to get there:
+
+| | Mechanism | Problem |
+|---|---|---|
+| a | Pass the user's Firebase ID token into the run | A live user credential in an agent's environment, one prompt injection away from exfiltration, and hard to keep out of the transcript |
+| b | Token exchange: platform mints a short-lived delegation token naming (user, agent, scope) | Better and revocable, but a new credential type to build and audit |
+| c | **No credential leaves the platform.** The agent calls back over MCP/A2A carrying only its `contextId`; the platform resolves that to the user it already knows and applies that user's permissions | The agent holds a capability handle, not an identity |
+
+**(c) is the recommendation.** The platform already owns the `contextId → user`
+mapping — `tools/resident_agent.py` derives the contextId from the ADK
+invocation precisely so the model cannot name someone else's thread — so the
+inbound side can resolve the caller without the agent ever holding a user
+credential. Permissions are then enforced by the platform's existing authz
+rather than reimplemented agent-side, and revocation is a platform decision.
+
+It also decides where the CLI sits: the resident does not run `aiplatform` with
+the user's token. It calls the platform, and the platform acts for the user.
+
+### D10 — The fleet's pi is abandoned and eleven versions behind; the resident moved alone
+
+Found while chasing D7: the resident could not hold a conversation because its
+pi had no `--session-id`. The version was 0.73.1, and the reason is structural
+rather than a stale bump.
+
+`docker/Dockerfile.agent-pi` (and `Dockerfile.agent-eval`) ran
+`npm install -g @mariozechner/pi-coding-agent` **unpinned**. That package is
+**abandoned at 0.73.1**; development moved to `@earendil-works/pi-coding-agent`,
+0.84.4 as of 2026-09-03. So the fleet was floating *and* reproducible only by
+the accident that its package stopped moving. Publish a 0.73.2 and every image
+changes silently. herdr, in the same directory, is pinned by version **and**
+sha256 precisely to prevent this.
+
+Since pi is the fleet default, this covers `agent-pi`, `agent-pi-go`,
+`agent-eval` and everything downstream — **including every benchmark number
+measured to date**.
+
+**Done now (no behaviour change):** both Dockerfiles pin `0.73.1` explicitly.
+The image is what it always was; a rebuild now produces it twice.
+
+**Not done — a deliberate decision, not a side effect:** moving the fleet to
+`@earendil-works`. Three reasons it is not a drop-in.
+
+1. `internal/executor/pi/pi.go`'s NDJSON parser was written against 0.73.1, and
+   an unrecognised event is *skipped*, so a schema change degrades **silently** —
+   the failure mode this repo's NEVER SILENT rule exists to forbid.
+2. `ailang pi install` pushes the binary's embedded extension suite across an
+   extension API that may have moved in eleven minor versions.
+3. **Eval comparability.** Changing the harness mid-stream breaks comparison
+   with every historical result. For a benchmarking repo that is a methodology
+   decision, not an infrastructure one.
+
+**Evidence that lowers the risk of (1):** `docker/resident/lib/pi.mjs` is
+written from ailang's own event vocabulary — `session`, `turn_start`,
+`message_update.assistantMessageEvent.text_delta`, `tool_execution_start`,
+`message_end`, `agent_end` — and it parsed **0.84.4** correctly live on
+2026-09-03: 35 events, clean text, a real terminal state, and a resumed session
+across two calls. The schema held for exactly the fields ailang reads. A
+migration should still re-baseline the evals rather than assume it.
+
+The resident moved alone because its requirement is different in kind: it needs
+`--session-id` to exist at all, whereas the job executor is a one-shot that
+`--no-session` suits and that has 0.73.1 numbers behind it.
+
+### D11 — The singleton IS the unit of tenancy; one instance per user, not one instance for users
+
+Asked directly (Mark, 2026-09-03): what happens when several people connect,
+does the GCS mount take care of it, and does it autoscale? Answers, in order:
+they collide, no, and no.
+
+**It does not autoscale, and that is the product.** Cloud Run *instances* are
+singletons — exactly one container, no replicas. That property is what buys the
+stable URL, the stop/start, and a box that can hold state at all. Autoscaling
+belongs to Cloud Run *services*, which is the thing this design deliberately
+did not choose. So the ceiling is fixed and real.
+
+**The mount does not isolate users.** The live spec reads
+`only-dir=homes/mark` — ONE prefix for the whole instance, not one per caller.
+Everyone shares a home, a workspace and a `~/.pi/sessions/`. `contextId`
+separates transcripts *logically*, but the agent holds `read` and `bash`
+(D8), so it can read any session file in that directory. **Several users on one
+instance are not isolated, and the tool must not be offered to a skill handling
+one user's confidential material on behalf of another until they are.**
+
+**Concurrency was unbounded.** The per-session chain serialises turns within one
+conversation and does nothing across conversations, and every `message/send`
+spawns its own pi process. Nothing refused the Nth caller; it OOMed — and M0
+measured the cgroup killing the CHILD while the container survives, so the
+arriving caller silently killed somebody else's run. Now capped by
+`RESIDENT_MAX_CONCURRENT_RUNS` (default 3, a guess pending M6's measurement on
+a 4 GiB box, given M0 found 1 GiB hosted one agent), refused with a message
+naming the ceiling, and the live count is in `/health`.
+
+**Partitioning one instance by folder was considered and REFUSED, on evidence.**
+Probed live 2026-09-03 by asking the agent to run it:
+
+```
+$ curl -H "Metadata-Flavor: Google" .../service-accounts/default/email
+ailang-dev-resident@ailang-multivac-dev.iam.gserviceaccount.com
+$ curl .../service-accounts/default/token        -> HTTP 200
+```
+
+The agent mints its instance's service-account token in one call, and that SA
+holds `roles/storage.objectAdmin` on the **whole** `ailang-dev-agent-home`
+bucket (`resident_agents.tf`), not on a prefix. So it can read and write every
+user's folder through the GCS API, with the `only-dir` mount never involved.
+Two independent reasons folder partitioning fails, either sufficient:
+
+1. **One container.** `bash` reaches other users' session files, their pi
+   process memory, and `~/.pi/agent/models.json` — which carries the live
+   provider key.
+2. **One identity.** The token above is bucket-wide, so the filesystem view is
+   irrelevant.
+
+This is D8's lesson a second time: `bash` bypassed the AILANG program
+allowlist; here it bypasses the mount. **A directory is not a security boundary
+when the tenant runs arbitrary code — the container and the IAM identity are.**
+
+**So per-user isolation needs a per-user IDENTITY, not only a per-user
+instance.** Giving every user their own instance while they share one service
+account leaves the bucket wide open exactly as above. The bootstrap is
+therefore three calls, all already scripted in shape:
+
+1. a service account per user;
+2. `roles/storage.objectAdmin` bound with an **IAM condition** scoping it to
+   that user's prefix (`resource.name.startsWith(".../objects/homes/<user>/")`),
+   so the grant matches the mount rather than merely resembling it;
+3. `resident-instance.sh create` with `--agent <user> --service-account <sa>`.
+
+Both ceilings are ~100 per project — instances *and* service accounts — so they
+scale together, and sharding by project moves both at once.
+
+**Open risk, not solved here:** each per-user instance materialises the shared
+OpenRouter key into its own `models.json`, so a hostile prompt in any user's
+thread can exfiltrate it. Per-user provider keys or an outbound proxy is the
+answer; it is not in this milestone.
+
+**Therefore the unit of tenancy is the instance.** One per user, started on
+dispatch and stopped when idle (M4) — which is affordable precisely because D7
+put the conversation on the GCS home, so a stopped instance loses nothing.
+Per-user isolation then comes free from the mechanism already in place: the
+`only-dir` prefix becomes the user's, not the deployment's.
+
+Two numbers that bound this: **~$25-30/month** per always-RUNNING instance at
+this size versus **≤$6** idle-stopped (M6's target), and a **quota of 100
+instances per project** (`run.googleapis.com/instances`, checked on
+`ailang-multivac-dev` 2026-09-03) — a hard ceiling on users per project before
+a quota increase or sharding.
+
+*(The delegated-authority follow-up Mark deferred — the agent acting on the
+platform as the user — is D12, not D11.)*
+
+### Environments
+
+Only **dev** has a resident instance (`resident-pi-ailang` in
+`ailang-multivac-dev`, europe-west4). `ailang-multivac-test` and
+`ailang-multivac` have none. The consuming URL is derivable rather than
+literal — `https://<instance>-<projectNumber>.<region>.run.app` — so the
+platform's Terraform should COMPUTE it per environment from that env's project
+number, not carry a pasted string per trigger.
+
+### D13 — Idle-stopping needs a way back, and the way back is the coordinator
+
+The economics of D11 rest on stopping idle instances: **~$25-30/month** running
+against **≤$6** idle-stopped, per user. Two measurements decided how that is
+built, both taken before anything was written:
+
+```
+stopped instance -> GET /livez      HTTP 404 in 0s   (frontend; URL unmapped)
+:start           -> serving after   ~30s             (NOT the 6-10s of a restart,
+                                                      which keeps the image warm)
+```
+
+**A stopped instance does not wake on a request.** So a sweep without a start
+path does not save money — it permanently strands the users who were idle
+longest, quietly. That inverts the build order: the way back comes first, and
+the sweep **refuses `--apply`** until a start path is configured, answering
+`409` rather than quietly downgrading to a dry run a caller would record as
+done.
+
+**The sweep is a coordinator route, not a script (2026-09-04).** It began as
+`ailang-multivac/scripts/resident-sweep.sh`, run by hand. A schedule cannot
+drive a shell script without a job to host it, and `/instances/start` already
+lives in the coordinator with the narrow get/start/stop role the work needs — so
+`POST /instances/sweep` rides the same service, for the reason this decision
+already gave the start path: no new thing to deploy or watch. **The script was
+deleted rather than kept as a fallback**, because two implementations of these
+rules would drift and the rules are the whole safety argument.
+
+**The coordinator probes `/health` as ITSELF.** The script impersonated each
+instance's service account. Doing that here would need the coordinator to hold
+`serviceAccountTokenCreator` on every **per-user** agent SA — the exact power
+D11 established must not exist, since one identity could then act as any user's
+agent. Instead each instance lists the coordinator in `RESIDENT_ALLOWED_CALLERS`:
+permission to **ask**, never to **act as**. A per-user instance provisioned
+without it is unassessable, and the sweep — correctly refusing to act on missing
+information — would skip it forever while it ran at full price, so
+`resident-provision.sh` now prints that allowlist entry.
+
+**The sweep asks the instance, not a database.** The agent knows when it last
+did work; reading that from the platform's Firestore would couple two estates
+for a fact one of them holds, and would go stale the moment anything reached the
+agent by another route. `/health` reports `runs.idle_s`, counting **work rather
+than traffic** — a sweep that counted health probes would never stop anything,
+because the sweep's own probe is traffic. Idleness is seeded from the newest
+task on load, since restarts are routine at the 7-day ceiling and an instance
+that looked freshly idle after each one would be swept minutes after returning.
+
+**It never sweeps on missing information.** An instance whose token cannot be
+minted, or whose health does not report idleness, is skipped and the run exits
+non-zero. An instance we cannot assess might be mid-run, and stopping it would
+kill a user's work to save pennies. It declined twice on its first run — once
+for a deleted service account, once for an image predating the field.
+
+**The way back rides the coordinator** (`/instances/start`), because that
+service already runs in this estate with its own identity: no new thing to
+deploy or watch, and the platform still only *asks* (P2). Two deliberate
+departures from what was already there:
+
+- **Not behind `requireAPIKey`.** That middleware passes every request when
+  `COORDINATOR_API_KEY` is unset — right for read-only status in local mode,
+  wrong for a route that operates infrastructure, where a missing env var would
+  silently open it. The lifecycle route verifies Google-signed OIDC against an
+  explicit allowlist and fails **closed**.
+- **A custom IAM role, not `roles/run.developer`.** That is the narrowest
+  *predefined* role containing `run.instances.start`, and it also grants create,
+  delete, `sshRoot` and service deployment. Three permissions — get, start,
+  stop — is the whole job.
+
+The handler additionally accepts only `^resident-[a-z0-9-]+$`, so the
+coordinator's identity may reach more than this endpoint will ever touch. A
+capability is defined by what it refuses.
+
+**Asleep is not broken.** Once a sweep runs, stopped becomes the *normal* case,
+and it surfaces as a 404 — which as a transport error is indistinguishable from
+a crash. The platform now separates three outcomes: asleep and starting (~30s),
+asleep with no start path (said plainly), and genuinely broken (still reported
+as broken; trading one indistinguishable failure for another would be no gain).
+
+**Not enabled yet.** M4 is code-complete and switched off: it needs
+`RESIDENT_LIFECYCLE_{AUDIENCE,ALLOWED_CALLERS,PROJECT,REGION}` on the
+coordinator and `RESIDENT_START_ENDPOINT` on the platform, both by the usual
+branch-push route. The interlock means nothing sweeps until they land.
+
+### D14 — The resident joins the observability plane on THREE endpoints, not one (M8, 2026-09-04)
+
+The resident emitted stdout to Cloud Logging, structured only by `boot|` /
+`server|` / `a2a|` prefixes. Every bug in this arc was found by grepping those
+logs, which is the argument for the milestone.
+
+**The first cut was traces, and traces were the wrong half.** OTLP spans
+correlate services; they are not what an operator reads. An agent job and a
+Claude Code session appear in the observatory as **task records with turns and
+tool calls**, and a resident emitting only spans satisfies "is it traced" while
+staying absent from the view anyone opens. `claude_telemetry.sh` — the hook that
+gives the executors and interactive sessions their visibility — posts to three
+endpoints, so parity is three:
+
+| Endpoint | What it is |
+|---|---|
+| `/api/observatory/hooks` | the **sessions table**; what spans are enriched against, and what makes a run a first-class session rather than a task record that happens to exist |
+| `/api/exec/sessions` | creates the `coordinator.TaskRecord` |
+| `/api/exec/events` | the transcript hung off it (the Chat History view) |
+| OTLP `/v1/traces` | cross-service correlation |
+
+**pi's NDJSON already IS the exec event stream.** `message_update` /
+`tool_execution_start` / `tool_execution_end` / `message_end` map onto
+`text` / `tool_use` / `tool_result` / `turn_end`. The events were flowing
+through `onEvent` and being discarded, so this forwards them rather than
+deriving anything second.
+
+**Text is coalesced.** pi emits one `message_update` per token; a POST each
+would make telemetry the bottleneck of the thing it measures and bury the tool
+calls — the events anyone is looking for — under thousands of one-character
+rows. Deltas flush at the next tool call or the end of the turn, which also
+keeps the transcript in the order it happened rather than showing the agent
+narrating its own past.
+
+**The tracer is hand-written OTLP/HTTP+JSON, ~200 lines, no dependencies.** The
+receiver accepts protobuf or JSON, and the image's Dockerfile pins herdr by
+checksum and pi by exact version precisely because it does not accept an
+unpinned supply chain; there is no `package.json` to hang a lockfile on. The
+trade is named in the module header: no auto-instrumentation, no metrics, no
+propagation beyond the one header we parse.
+
+**Not fail-closed, unlike `MODELS_JSON` and the effect sandbox.** Losing
+telemetry degrades what we can SEE of the agent; refusing to boot over it would
+degrade the agent. An unset endpoint is inert, an unreachable collector drops
+and warns ONCE — logging per span turns someone else's outage into a flood in
+the logs you are reading to diagnose it — and boot states which posture it is
+in, for both planes separately, because they fail separately.
+
+**⚠️ The dashboard record is keyed on `session_id[:8]`.** `handlers_exec.go`
+derives `task_id = "exec-" + session_id[:8]`, so two runs sharing a prefix
+collapse into ONE record — indistinguishable from healthy telemetry, showing one
+enormous fake session. Verified live: `m8probe-1788530540` → `exec-m8probe-`.
+Safe today only because an A2A task id defaults to `randomUUID()`. It is unsafe
+the moment a caller passes a prefixed `metadata.runId`, and the platform's
+thread ids are `aitana-<hash>` — every one of which truncates to
+`exec-aitana-`. `a2a_client.converse` already documents `run_id` as "offered to
+the peer as the task id", so the hazard is one plumbing change away. Left
+documented rather than fixed: the truncation is a shared contract that Claude
+Code sessions also write through, and changing it moves record ids for existing
+producers.
 
 ## Phase 0 findings (2026-09-02) — measured, not assumed
 
@@ -204,15 +602,80 @@ a Node A2A server (`server.mjs` + `lib/`) speaking herdr's **socket API**
 directly — `herdr api schema --json` is authoritative where CLI flag spellings
 would be guesswork, and reading it prevented three wrong-field bugs.
 
-38 acceptance assertions run in Cloud Build against the built image, including
+95 acceptance assertions run in Cloud Build against the built image, including
 that `POST /panes` returns **404** — so the "no bespoke protocol" decision
 cannot silently regress.
+
+They run in a `test-resident-pi` step that did not exist until 2026-09-03: the
+suite was written on 2026-09-02 and wired into no pipeline, so two of its
+assertions had been failing unseen for a day. The step is `allowFailure: true`
+like the build it follows, which means **a green build still says nothing about
+this image** — the gate is `resident-instance.sh verify` against the deployed
+instance, and that is stated here because reading a green build as proof cost
+real time on 2026-09-03.
 
 `ailang-multivac/terraform/resident_agents.tf` declares identity, IAM, bucket
 and secret access; there is **no `google_cloud_run_v2_instance` resource** in
 the provider, so the instance object itself comes from
 `scripts/resident-instance.sh` over REST, with `--validate-only` for CI. The
 IAM half never leaves terraform.
+
+## Self-verification
+
+Per `design_docs/README.md` §6 every design names the one command that proves
+the deployed thing works. For the resident agent:
+
+```bash
+scripts/resident-instance.sh verify --name resident-pi-ailang \
+  --project ailang-multivac-dev
+```
+
+It runs from a developer machine or from CI, needs **no platform backend, no
+Firestore and no CI runner**, and mints its identity by impersonating the
+instance's own runtime service account — read off the instance rather than
+passed in, since that account is by construction on its own allowlist. That
+isolation is the point: a failure here is the instance's, not four systems'
+between us and it.
+
+**Positive assertions**
+
+| | Proves |
+|---|---|
+| instance reports `CONDITION_SUCCEEDED` | it is running, not merely defined |
+| `/livez` serves | the process is up |
+| authenticated `/health` is healthy | a caller on the allowlist is admitted |
+| agent card advertises `<base>/a2a` | the A2A contract is published, not a bespoke route |
+| `message/send` → `tasks/get` reaches `completed` with a non-empty artifact | **the agent can actually think** |
+
+**Negative assertions** — the failures that would otherwise look healthy:
+
+| | Catches |
+|---|---|
+| unauthenticated `/health` is refused | the 2026-09-02 stale image that served 200 to anonymous callers for 96 seconds. Expects **401 when `invokerIamDisabled`** (the app owns auth) and **403 otherwise** (the edge does), read from the live spec — asserting a constant would report config drift as a test failure |
+| an unregistered model is refused | pi has no max-tokens flag, so an unknown model runs silently at 16384/128000/no-reasoning. "It worked" is exactly what this bug looks like |
+| the artifact contains no ANSI escapes | forwarding the TUI instead of text (D1c's trap). Asserted before streaming lands, not after |
+
+Everything above the last row of the positive table can pass on an agent that
+cannot think, which is why the round trip is in the suite and why it is the
+assertion that has failed most often.
+
+**What a green run does not prove**: durability across the 7-day restart,
+context retention between calls (D7 — it is currently `--no-session`, so a green
+run says nothing about memory), cost, or behaviour under concurrent callers.
+
+**Where it runs**: operator-invoked today; the post-deploy gate once M4 lands.
+The image's own 40+ assertions run in Cloud Build separately — those prove the
+build, this proves the deployment.
+
+### Why the boot proves pi runs headless
+
+`boot.sh` runs `pi --version </dev/null` and logs the result. On 2026-09-03 the
+round trip failed for fifteen minutes at a time with **no error and a healthy
+`/health`**: pi had been spawned with Node's default stdin, an open pipe that
+was never written to, where Go's `exec.Cmd` leaves `Stdin` nil and gets
+`/dev/null`. The invocations matched flag for flag; they differed in the one
+thing nobody had written down. One second at boot, with the same stdin
+discipline the executor uses, would have named it immediately.
 
 ## Open questions
 

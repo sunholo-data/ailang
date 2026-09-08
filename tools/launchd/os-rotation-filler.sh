@@ -188,7 +188,7 @@ if rig_in_blackout "$BLACKOUT_START" "$BLACKOUT_END"; then
 fi
 
 # 2. ollama up?
-if ! curl -s --max-time 3 http://localhost:11434/api/version >/dev/null 2>&1; then
+if ! curl -s --max-time 3 http://127.0.0.1:11434/api/version >/dev/null 2>&1; then
   log "ollama unreachable — skip"; exit 0
 fi
 

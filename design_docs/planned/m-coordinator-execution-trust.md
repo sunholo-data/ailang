@@ -50,6 +50,12 @@ file** — four of those six touched only `AGENTS.md`. The last task to change r
 Every load-bearing claim below was checked against the code or against prod
 (`ailang-multivac`) on 2026-09-02, not inferred from behaviour.
 
+**Three deployment rows expired the next day.** The deployment model was unified on
+2026-09-03, so **V26** (two image pipelines; `agent-pi` built by the multivac repo),
+**V31** (promote has no `agent-pi` case) and **V32** (unauthenticated clone throttles)
+describe a pipeline that no longer exists. They are kept as the evidence that motivated
+the change — see the Rollout section for what replaced them.
+
 | # | Claim | How verified | Result |
 |---|---|---|---|
 | V1 | Dispatch works: a message to a registered inbox produces a job in seconds | `gcloud run jobs executions list` timestamps against message `created_at` | **Confirmed** — 4/4: +2s, +8s, +2s, +2s |
@@ -693,40 +699,54 @@ pipeline did not mean the value had moved (V40).
 **The first draft of this section was wrong twice, and the corrections are V26/V27.** It read as
 though one rebuild reached the plane this doc audits. It does not.
 
+> **SUPERSEDED 2026-09-03 — the asymmetry this section describes was fixed, and the fix is
+> exactly what it asked for.** The deployment model was unified
+> (design: [`v0_35_0/m-unified-release-model.md`](v0_35_0/m-unified-release-model.md); the model
+> itself is written down once, in `ailang-multivac/.claude/skills/release/SKILL.md`). **Both**
+> planes now travel together: `cloudbuild-dev.yaml` in *this* repo builds all 18 images —
+> `agent-pi` included — on every push to `dev`, a `v*` tag builds the same set from the tagged
+> tree into **test**, and prod is a manual promote by version whose `core` set covers all 18
+> images and `agents` covers the 14 executor images. `promote-to-prod` **can** now carry
+> `agent-pi` (V31 no longer holds), the `ailang-multivac-{dev,test,prod}` full-pipeline triggers
+> and `ailang-multivac/cloudbuild.yaml` were deleted (V26 and the "two pipelines" framing no
+> longer hold), and the image clones are authenticated (V32 fixed). The original table and order
+> are kept below, struck through, as the record of why the change was made.
+
 | Change | Built by | Lands in | Reaches prod how |
 |---|---|---|---|
-| M2, M3 (coordinator) | `ailang-core-dev`, on push to this repo's `dev` — **automatic** | `ailang-multivac-dev` | promote |
-| **M1a (gate, `agent-pi`)** | **multivac repo's `cloudbuild.yaml`** — not this repo's pipeline at all | `ailang-multivac-dev` (dev trigger) | promote |
+| M2, M3 (coordinator) | `ailang-core-dev`, on push to this repo's `dev` — **automatic** | `ailang-multivac-dev` | `promote core vX.Y.Z` |
+| **M1a (gate, `agent-pi`)** | **the same `ailang-core-dev` build** since 2026-09-03 | `ailang-multivac-dev` | `promote core vX.Y.Z` (or `agents` / `agent-pi`) |
 
-**Consequence worth stating plainly: an ailang-repo build alone ships M1a to nobody**, because the
-gate lives in the pi image and 32 of the 35 cloud agents are `provider: pi`.
+~~**Consequence worth stating plainly: an ailang-repo build alone ships M1a to nobody**, because
+the gate lives in the pi image and 32 of the 35 cloud agents are `provider: pi`.~~ No longer
+true: one push to this repo's `dev` now builds and rolls both the coordinator and `agent-pi`.
 
-**`ailang-multivac` is production.** The automatic dev builds do not touch it. Prod moves via the
-`ailang-multivac-prod` trigger or `promote-to-prod` ("copy images, no rebuild"). **That is a
-deliberate human step and this doc does not authorise it.**
+**`ailang-multivac` is still production, and prod still moves only on a human's call** —
+`scripts/release.sh promote core vX.Y.Z` from the ailang-multivac checkout, which refuses unless
+the release build for that tag SUCCEEDED and every image carries `:vX.Y.Z` in test. **This doc
+does not authorise that step.**
 
-**And promote cannot carry this change (V31).** `promote-to-prod` has no case for `agent-pi` —
-nor for codex, opencode, gemini or eval. It can promote the coordinator (M2/M3) but not the gate
-(M1a), even though 32 of 35 prod agents run pi. Shipping M1a to prod today therefore means a full
-`ailang-multivac-prod` build: every image, every service. **That asymmetry is itself worth fixing
-— a promote path that omits the variant most agents use will keep forcing all-or-nothing prod
-deploys.**
+~~**And promote cannot carry this change (V31).**~~ Fixed: the promote sets are
+`core` (all 18 images + 4 services + 17 jobs), `agents` (the 14 executor images), `agent`,
+`agent-pi`, `coordinator`, `dashboard`, `mcp`. Shipping M1a to prod is no longer an
+all-or-nothing rebuild.
 
 ### Order
 
-1. Push to this repo's `dev` — coordinator (M2/M3) builds and deploys to the dev plane by itself.
-2. Run the multivac **dev** build — this is what carries M1a into `agent-pi`.
-3. **Test on the dev plane, not prod.** `ailang-dev-coordinator` reads `ailang-multivac-dev`
+1. Push to this repo's `dev` — **one build** now carries both the coordinator (M2/M3) and the
+   `agent-pi` gate (M1a) to the dev plane. (Until 2026-09-03 this took two builds in two repos.)
+2. **Test on the dev plane, not prod.** `ailang-dev-coordinator` reads `ailang-multivac-dev`
    Firestore with topic prefix `ailang-dev`, so a probe there cannot touch the prod inbox or
    dispatch against real package repos. This is the correct place to prove the loop end to end.
-4. Only then promote, and only on a human's call. The current prod coordinator image also
+3. Tag `vX.Y.Z` when the dev plane is green — that builds the same tree into **test** and stops.
+4. Only then `promote core vX.Y.Z`, and only on a human's call. The prod coordinator image also
    predates `e0b12bf5f`, so the promote ships that too — verify the sweep's notice filter in prod
    logs before flipping `AILANG_BACKSTOP_SWEEP` back to `dispatch`.
 5. Budget a deploy retry: revision `00065-spk` failed a startup probe on an image digest
-   identical to the serving `00064`.
-6. **Expect the clone step to throttle (V32).** Several image builds in one session is enough.
-   The failure names credentials but is rate limiting; authenticate the clone — the App-sourced
-   builds in the same minute prove the credentialed path is unaffected.
+   identical to the serving `00064`. (The shared library force-rolls and fails the build if a roll
+   never lands, so a silent no-op is no longer a failure mode.)
+6. ~~**Expect the clone step to throttle (V32).**~~ Fixed — both pipelines now authenticate their
+   source clones with the deploy project's GitHub OAuth token.
 
 ## Deferred Decisions
 

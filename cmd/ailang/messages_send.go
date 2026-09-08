@@ -126,10 +126,25 @@ func runMessagesSend(args []string) {
 		return
 	}
 
+	// --type names a CATEGORY (bug/feature/docs, for GitHub sync) but when it
+	// names a declared inbox message TYPE it must set that too.
+	//
+	// It did not, and the gap was invisible: `--type feedback` set Category and
+	// left MessageType as "notification", while config.cloud.yaml selects a
+	// package agent's prompt template on MessageType. So a feedback report sent
+	// from the CLI reached the agent under the CASCADE-REPAIR template and was
+	// worked as a dependency repair — measured 2026-09-07 on task-30429ccd, which
+	// went to the consumer package looking for a breakage that did not exist.
+	// Only mcp-public's submit_feedback could reach the feedback template.
+	messageType := messaging.InboxTypeNotification
+	if t := resolveInboxMessageType(category); t != "" {
+		messageType = t
+	}
+
 	msg := &messaging.InboxMessage{
 		FromAgent:     *from,
 		ToInbox:       inbox,
-		MessageType:   messaging.InboxTypeNotification,
+		MessageType:   messageType,
 		Title:         msgTitle,
 		Payload:       payload,
 		CorrelationID: *correlationID,
@@ -741,4 +756,23 @@ func topicPrefixForProject(project string) (string, bool) {
 		return "ailang-test", true
 	}
 	return "", false
+}
+
+// resolveInboxMessageType maps a --type value onto a declared inbox message
+// type, or returns "" when it is only a category.
+//
+// Deliberately a lookup against messaging.InboxMessageTypes rather than a second
+// list: a type accepted here but absent from the vocabulary is rejected by the
+// SQLite CHECK at write time and accepted by Firestore, which is exactly how the
+// two backends came to disagree about what a valid message is.
+func resolveInboxMessageType(category string) string {
+	if category == "" {
+		return ""
+	}
+	for _, t := range messaging.InboxMessageTypes {
+		if category == t {
+			return t
+		}
+	}
+	return ""
 }

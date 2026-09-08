@@ -123,6 +123,28 @@ Old designs that have been superseded or abandoned:
    - Include archival reason in commit message
    - Keep for historical reference
 
+6. **Self-Verification (required)**: every design doc names the ONE command
+   that proves the built thing works, against the deployed system, runnable on
+   demand by an operator *or by the agent that built it*.
+
+   - **It must need nothing else to be up.** If proving X works requires three
+     other services, a failure cannot be localised and the command is a system
+     test in disguise. Verify the unit of deployment against its own
+     dependencies only.
+   - **It must assert negatives.** Ask what failure of this feature would still
+     *look* healthy, then assert that it is refused. This is the half that gets
+     skipped and the half that pays: a stale resident image served `/health` 200
+     to anonymous callers for 96 seconds, and an unregistered model would have
+     run silently at 16384/128000/no-reasoning. Both looked fine.
+   - **It must say what it does not prove.** A command that claims everything is
+     trusted for nothing.
+   - **A committed command, not a curl recipe in prose.** Anything a human is
+     expected to retype by hand will not be run.
+
+   Tests prove the code was right when written; self-verification proves the
+   deployed thing is right now. A doc without a working one is not finished.
+   See `m-resident-agent-instances.md` §Self-verification for a worked example.
+
 ## Migration Notes
 
 **October 2024**: Reorganized from date-based folders (20250926-20251016) to version-based structure. Date folders removed, all documents now organized by implementation status and version.

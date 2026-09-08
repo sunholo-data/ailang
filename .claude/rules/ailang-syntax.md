@@ -1,8 +1,10 @@
 ---
 paths:
   - "examples/**/*.ail"
-  - "stdlib/**/*.ail"
-  - "stdlib/**"
+  - "std/**"
+  - "benchmarks/**/*.ail"
+  - "eval_projects/**/*.ail"
+  - "mcp_tools/**/*.ail"
   - "prompts/**"
   - "tests/**/*.ail"
 ---

@@ -114,3 +114,10 @@ design_docs/research/*.pdf
 
 # Machine-local pi state (per-session agent-name marker; never versioned)
 .ailang_voice
+
+# Harness scratch dirs. scripts/test_fmt_check.sh, scripts/test_shellcheck_autopush.sh and
+# scripts/hooks/test_push_dev_on_stop.sh mktemp INSIDE the repo (deliberately — a /tmp-rooted
+# checkout makes CWD-relative path tests fail for the location rather than the code). Their
+# EXIT traps clean up; these two lines cover the SIGKILL/crash case only.
+.tmp-fmt-check.*
+.tmp-iter327.*

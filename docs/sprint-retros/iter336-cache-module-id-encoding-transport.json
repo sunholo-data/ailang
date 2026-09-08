@@ -1,0 +1,85 @@
+{
+  "failed_attempt": {
+    "transport_failure": "Repeated session_protocol_ack prerequisite denials; controller-authorized termination, not judge verdict",
+    "runner_rc": 10,
+    "runner_verdict": {
+      "verdict": "empty_worktree",
+      "rc": 10,
+      "model": "ollama/minimax-m3:cloud",
+      "pi_rc": 143,
+      "elapsed_seconds": 446,
+      "worktree_changed_files": 0,
+      "tool_executions": 226,
+      "agent_end_events": 0,
+      "ndjson_bytes_filtered": 1827548,
+      "ndjson": "/tmp/iter336-evaluator-z3hvwppg/review.ndjson",
+      "snapshot": "/tmp/iter336-evaluator-z3hvwppg/review.ndjson.snapshot.ndjson",
+      "stderr": "/tmp/iter336-evaluator-z3hvwppg/review.ndjson.stderr"
+    },
+    "verified_processes": {
+      "outer": 49325,
+      "runner": 49327,
+      "runner_process_group": 49329,
+      "pi": 49331,
+      "awk": 49332
+    },
+    "termination": "kill -TERM -49329",
+    "report_exists": false,
+    "worktree_changed": false,
+    "turns": 226,
+    "models": [
+      "minimax-m3:cloud"
+    ],
+    "providers": [
+      "ollama"
+    ],
+    "usage": {
+      "input": 12436856,
+      "output": 22899,
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "totalTokens": 12459755
+    },
+    "cost": 0
+  },
+  "successful_attempt": {
+    "verdict": "ok",
+    "rc": 0,
+    "model": "ollama/minimax-m3:cloud",
+    "pi_rc": 0,
+    "elapsed_seconds": 182,
+    "worktree_changed_files": 1,
+    "tool_executions": 37,
+    "agent_end_events": 1,
+    "ndjson_bytes_filtered": 1270492,
+    "ndjson": "/tmp/iter336-evaluator-z3hvwppg/review-r2.ndjson",
+    "snapshot": "/tmp/iter336-evaluator-z3hvwppg/review-r2.ndjson.snapshot.ndjson",
+    "stderr": "/tmp/iter336-evaluator-z3hvwppg/review-r2.ndjson.stderr"
+  },
+  "successful_usage": {
+    "models": [
+      "minimax-m3:cloud"
+    ],
+    "responseModels": [
+      "minimax-m3"
+    ],
+    "providers": [
+      "ollama"
+    ],
+    "turns": 38,
+    "usage": {
+      "input": 1270501,
+      "output": 10635,
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "totalTokens": 1281136
+    },
+    "cost": 0
+  },
+  "reviewed_commit": "b2f31b154f2024fa1494092b1f37ff018030fcc8",
+  "report_sha256": "b662181e849725e7b6ae1a62b72de6d74f0d032272a6d1d43b22e3f2dc8ea2d5",
+  "native_wrapper": "gpt-6-astra; transport only, no scoring",
+  "actual_judge": "pi:ollama/minimax-m3:cloud",
+  "raw_score": "14/15 documentation only",
+  "guard_repair": "Read guard source; MiniMax performed bounded inbox list and session_protocol_ack in its own session. No extension removed."
+}

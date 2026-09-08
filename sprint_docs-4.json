@@ -1,0 +1,154 @@
+{
+  "sprint_id": "docs-4",
+  "title": "Guides taxonomy and redundancy pass",
+  "design_doc": "design_docs/docs-4-brief.md",
+  "brief": "design_docs/docs-4-brief.md",
+  "mission": "docs",
+  "status": "planned",
+  "planner_lane": "codex-ok",
+  "target_version": "v0.34.0",
+  "estimated_days": 1.5,
+  "scope": {
+    "primary_deliverable": "docs/sidebars.js and the guide files listed in docs-4-brief.md Files",
+    "allowed_paths": [
+      "docs/sidebars.js",
+      "docs/docs/guides/**",
+      "docs/docs/intro.mdx",
+      "docs/docs/examples.mdx",
+      "docs/docs/architecture/index.md",
+      "docs/docs/guides/debugging.md"
+    ],
+    "out_of_scope": [
+      "internal/**",
+      "cmd/**",
+      "make/docs.mk",
+      "docs/scripts/sync-registry.sh",
+      "deferred stale-fact cleanup",
+      "content rewrites",
+      "surviving-page renames or disk moves",
+      "CHANGELOG.md",
+      "git staging, commits, and pushes"
+    ]
+  },
+  "milestones": [
+    {
+      "id": "M1_PHASE_A",
+      "name": "Phase A: remove cruft and rewrite guide sidebar",
+      "estimated_hours": 3,
+      "tasks": [
+        "Delete docs/docs/guides/agent-integration.mdx.bak.",
+        "Rewrite only guide entries in docs/sidebars.js to Appendix B, wiring nine orphans and applying every Appendix A move.",
+        "Remove Ecosystem and Prompts categories; add Coordinator & Messaging, AI Effect, and Memory & Search; leave non-guide sidebar entries unchanged.",
+        "Do not edit frontmatter or page content in Phase A; verify the Phase A diff before Phase B."
+      ],
+      "files": ["docs/sidebars.js", "docs/docs/guides/agent-integration.mdx.bak"],
+      "acceptance_criteria": [
+        "The .bak file is absent.",
+        "The guide sidebar matches Appendix B and contains 70 guide IDs.",
+        "Surviving page disk paths are unchanged and no Phase B content edit is mixed in."
+      ],
+      "passes": false
+    },
+    {
+      "id": "M2_B1",
+      "name": "B1: carry over CI snippet and delete cross-project messaging",
+      "estimated_hours": 2,
+      "tasks": [
+        "Copy exactly the Automated Feedback (Advanced) fenced bash snippet into agent-messaging.md under Workflows.",
+        "Remove agent-messaging.md's Related link to cross-project-messaging.",
+        "Delete docs/docs/guides/cross-project-messaging.mdx and remove its sidebar entry; do not copy its contradictory Storage section."
+      ],
+      "files": ["docs/docs/guides/agent-messaging.md", "docs/docs/guides/cross-project-messaging.mdx", "docs/sidebars.js"],
+      "acceptance_criteria": [
+        "The CI snippet is present once in agent-messaging.md.",
+        "No cross-project-messaging link or sidebar ID remains.",
+        "No unrelated messaging prose is rewritten."
+      ],
+      "passes": false
+    },
+    {
+      "id": "M3_B2",
+      "name": "B2: delete development page and retarget inbound links",
+      "estimated_hours": 2,
+      "tasks": [
+        "Delete docs/docs/guides/development.md and remove its sidebar entry.",
+        "Retarget intro.mdx, examples.mdx, and architecture/index.md's contributing link to https://github.com/sunholo-data/ailang/blob/dev/CONTRIBUTING.md.",
+        "Retarget guides/debugging.md's full development workflow link to /docs/guides/development-workflow.",
+        "Do not carry over development.md content."
+      ],
+      "files": ["docs/docs/guides/development.md", "docs/docs/intro.mdx", "docs/docs/examples.mdx", "docs/docs/architecture/index.md", "docs/docs/guides/debugging.md", "docs/sidebars.js"],
+      "acceptance_criteria": [
+        "All four inbound links are retargeted exactly as specified.",
+        "No deleted guides/development link remains; development-workflow is not treated as a dangling match."
+      ],
+      "passes": false
+    },
+    {
+      "id": "M4_B3",
+      "name": "B3: trim getting-started agent onboarding duplicate",
+      "estimated_hours": 1,
+      "tasks": [
+        "Replace exactly the B3 section boundary in getting-started.mdx with the brief's three-line AI Agent Integration pointer.",
+        "Keep the preceding MCP Servers section untouched and remove the inline typescript-fenced AILANG block and Best model claim."
+      ],
+      "files": ["docs/docs/guides/getting-started.mdx"],
+      "acceptance_criteria": [
+        "The B3 boundary is replaced by a pointer and surrounding sections remain unchanged.",
+        "The MCP anchor remains available to agent-mcp.md."
+      ],
+      "passes": false
+    },
+    {
+      "id": "M5_B4",
+      "name": "B4: trim hooks message-system duplicate",
+      "estimated_hours": 0.75,
+      "tasks": [
+        "Replace hooks-setup.mdx's Message System section and its three H3s with one pointer to /docs/guides/agent-messaging.",
+        "Preserve SessionStart Hook Behavior and all surrounding hook content."
+      ],
+      "files": ["docs/docs/guides/hooks-setup.mdx"],
+      "acceptance_criteria": [
+        "The three duplicate H3s are removed and exactly one pointer remains.",
+        "SessionStart Hook Behavior is untouched."
+      ],
+      "passes": false
+    },
+    {
+      "id": "M6_B5_AND_GATES",
+      "name": "B5: trim semantic cache duplicate and run final gates",
+      "estimated_hours": 3.25,
+      "tasks": [
+        "Replace semantic-caching-how-to.mdx from Two-Tier Search Architecture up to Embeddings Doctrine with one pointer to /docs/guides/semantic-search.",
+        "Preserve Embeddings Doctrine and remaining caching content.",
+        "Run all eight final acceptance checks in order and capture output.",
+        "After check 6's build, run the mandatory cleanup as a separate step: git checkout -- docs/docs/design-docs.md docs/docs/prompts/current.md docs/docs/roadmap/index.md docs/src/data/packages-sidebar.json, then confirm git status --short shows none of those four paths.",
+        "Run check 7 only after the cleanup; do not stage or commit and do not add CHANGELOG.md."
+      ],
+      "files": ["docs/docs/guides/semantic-caching-how-to.mdx", "docs/sidebars.js", "docs/docs/guides/**", "docs/docs/intro.mdx", "docs/docs/examples.mdx", "docs/docs/architecture/index.md"],
+      "acceptance_criteria": [
+        "B5 is a trim-to-pointer at the exact brief boundary.",
+        "All final gates below pass, with check 6 cleanup before check 7.",
+        "The final diff is limited to the brief's Files list."
+      ],
+      "passes": false
+    }
+  ],
+  "final_gates": [
+    "1. find docs/docs/guides -maxdepth 1 -type f | wc -l => 59",
+    "2. cd docs && for f in $(find docs/guides -type f \\( -name '*.md' -o -name '*.mdx' \\) | sed -E 's|^docs/||; s|\\.mdx?$||'); do grep -q \"'$f'\" sidebars.js || echo \"ORPHAN: $f\"; done => empty",
+    "3. grep -o \"'guides/[^']*'\" docs/sidebars.js | sort -u | wc -l => 70; then the brief's dangling-ID loop prints nothing",
+    "4. grep -rlE \"guides/(cross-project-messaging|development)([^a-z0-9_-]|$)\" docs/docs docs/src docs/sidebars.js => empty",
+    "5. grep -l -- 'ailang messages ack --all' docs/docs/guides/*.md* => exactly 2 files; grep -l \"_ollama_embed\" docs/docs/guides/*.md* does not list semantic-caching-how-to.mdx",
+    "6. bash docs/scripts/sync-registry.sh && make docs-build => green; immediately afterward run git checkout -- docs/docs/design-docs.md docs/docs/prompts/current.md docs/docs/roadmap/index.md docs/src/data/packages-sidebar.json and git status --short, showing none of those four paths",
+    "7. After check 6 cleanup, git diff --stat shows only files listed in the brief's Files section",
+    "8. CHANGELOG entry is not required; git diff --name-only -- CHANGELOG.md is empty"
+  ],
+  "hard_constraints": [
+    "Follow Phase A before Phase B and B1 through B5 in order.",
+    "Use Appendix A dispositions and Appendix B sidebar tree literally.",
+    "No content rewrites; only deletion, trim-to-pointer, link retargeting, and sidebar reorganisation.",
+    "Surviving page URLs remain stable; no surviving page is renamed or moved on disk.",
+    "Blast radius is exactly the brief's Files section plus docs/sidebars.js; never touch internal/ or cmd/.",
+    "Do not stage, commit, or push."
+  ]
+}

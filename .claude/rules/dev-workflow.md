@@ -1,3 +1,8 @@
+<!-- always-on: how to build, test, and land work — needed before the session
+     knows which paths it will touch, so path-scoping cannot fire in time.
+     Detail lives behind pointers (debugging.md, local-models.md, the release
+     skills); only the operationally-biting lines belong in the file itself. -->
+
 # Development Workflow
 
 ## Building and Testing
@@ -20,6 +25,8 @@ Full flags table (DEBUG_*, tracing tiers, CLI profiling flags, all `AILANG_OLLAM
 | `AILANG_TRACE=off\|standard\|deep` | Tracing tier (default `standard`; `deep` ~2x overhead) |
 | `AILANG_OLLAMA_V1_STREAM=1` | Streaming ollama `/v1` (default off; flips the meaning of `HTTP_TIMEOUT_SEC` — 300 buffered / 3600 streaming) |
 | `AILANG_OLLAMA_NUM_CTX=N` | Pin ollama `num_ctx`; unset (default) sends none — ollama sizes from the model |
+| `OLLAMA_GPU_OVERHEAD` / `OLLAMA_CONTEXT_LENGTH` | Rig memory bound — unset, ollama takes 84% of RAM and panicked the box (2026-09-03). Details load with `.claude/rules/local-models.md` |
+| `MISSION_MIN_AVAIL_GB` / `MISSION_BOOT_WINDOW` | Fleet memory admission — four missions all carry `RunAtLoad=true` and stampede a boot; capping ollama did not stop the box filling (3 OOM events, 09-04/09-05). Same rule file |
 
 **Rig gotcha:** `AILANG_OLLAMA_*` reaches a launchd job by TWO paths — the plist AND a
 `launchctl setenv` domain global that no plist edit or repo grep can see. Installed plists are

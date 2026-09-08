@@ -160,6 +160,9 @@ func (r *RepairRunner) Run(ctx context.Context, prompt string) (*RunMetrics, err
 		// The repaired attempt's stop reason is the one that produced the
 		// persisted code.
 		metrics.FinishReason = repairResult.FinishReason
+		// Wall time accumulates like tokens: the row's llm_wall_ms is the TOTAL
+		// generation wall time behind the persisted code (first + repair).
+		metrics.LLMWallMs += repairResult.WallMS
 		// Recompute cost over the accumulated totals: populateMetrics priced
 		// only the first attempt, so repair tokens were never billed.
 		metrics.CostUSD = CalculateCostWithBreakdown(metrics.Model, metrics.InputTokens, metrics.OutputTokens+metrics.ReasonTokens)
@@ -182,6 +185,8 @@ type attemptResult struct {
 	RuntimeOk            bool
 	StdoutOk             bool
 	ConstraintViolations []string // non-empty: source rejected before execution
+	WallMS               int64    // client-observed wall time of this attempt's generation call (0 = unmeasured)
+	TTFTMS               int64    // time-to-first-token of this attempt's generation call (streaming transports only; 0 = unmeasured)
 }
 
 // splitCacheablePrefix separates the stable teaching prompt from the volatile
@@ -238,6 +243,8 @@ func (r *RepairRunner) runSingleAttempt(ctx context.Context, prompt string) (*at
 				RuntimeOk:            false,
 				StdoutOk:             false,
 				ConstraintViolations: violations,
+				WallMS:               genResult.WallMS,
+				TTFTMS:               genResult.TTFTMS,
 			}, nil
 		}
 	}
@@ -264,6 +271,8 @@ func (r *RepairRunner) runSingleAttempt(ctx context.Context, prompt string) (*at
 		CompileOk:           runResult.CompileOk,
 		RuntimeOk:           runResult.RuntimeOk,
 		StdoutOk:            stdoutOk,
+		WallMS:              genResult.WallMS,
+		TTFTMS:              genResult.TTFTMS,
 	}, nil
 }
 
@@ -279,6 +288,18 @@ func (r *RepairRunner) populateMetrics(metrics *RunMetrics, result *attemptResul
 	// belong in both the billing total and the cost calculation. Recomputing
 	// in+out here used to silently drop them (reasoning models undercounted).
 	metrics.TotalTokens = result.InputTokens + result.OutputTokens + result.ReasonTokens
+	// CacheAccounted vouches for the two cache fields above: standard mode
+	// genuinely records them, so a 0 here means "no cache reads", not "nobody
+	// looked". Without the flag FreshTokens() refuses to report on the row.
+	//
+	// CostUSD stays at the UNCACHED list rate deliberately (Mark, 2026-09-05):
+	// it is a conservative ceiling that never understates spend, and because
+	// cache_read_input_tokens is banked alongside it, the true cached cost is
+	// always reconstructible from the row. Measured on gpt-6-astra: benchmark 2
+	// of a run read 26,988 of 26,991 input tokens from cache — real cost ~$0.033
+	// against the $0.276 recorded here. Discount before comparing a
+	// cache-friendly model against one that never hits.
+	metrics.CacheAccounted = true
 	metrics.CostUSD = CalculateCostWithBreakdown(metrics.Model, metrics.InputTokens, metrics.OutputTokens+metrics.ReasonTokens)
 
 	metrics.CompileOk = result.CompileOk
@@ -288,6 +309,13 @@ func (r *RepairRunner) populateMetrics(metrics *RunMetrics, result *attemptResul
 	metrics.DurationMs = result.RunResult.Duration.Milliseconds()
 	metrics.CompileMs = result.RunResult.CompileTime.Milliseconds()
 	metrics.ExecuteMs = result.RunResult.ExecuteTime.Milliseconds()
+
+	// LLM generation latency (M-LYCEUM-PROVIDER M3): first attempt's wall time
+	// + TTFT. On repair success the wall time ACCUMULATES below (mirroring the
+	// token accumulation), while TTFT stays the first attempt's — the primary
+	// route-latency signal. 0 = unmeasured (never "instant").
+	metrics.LLMWallMs = result.WallMS
+	metrics.TTFTMs = result.TTFTMS
 
 	metrics.ErrorCategory = CategorizeError(result.CompileOk, result.RuntimeOk, result.StdoutOk)
 	// M-EVAL-MEM-GUARD: a memory-watchdog kill is its own bucket — the code

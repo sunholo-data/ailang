@@ -39,8 +39,11 @@ func (m *mockGitHubPoster) GetRecentHumanComments(issueNum int, since time.Time)
 }
 
 type mockStore struct {
-	tasks []*TaskRecord
-	err   error
+	approvalIDs map[string]bool // ids already created, so CreateApprovalIfAbsent models first-write-wins
+	ledgers     map[string]FinalizationLedger
+	statuses    map[string]TaskStatus
+	tasks       []*TaskRecord
+	err         error
 }
 
 func (m *mockStore) GetTasksByStage(ctx context.Context, stage TaskStage) ([]*TaskRecord, error) {
@@ -110,6 +113,23 @@ func (m *mockStore) UpdateTaskMetrics(ctx context.Context, id string, peakCPU, p
 func (m *mockStore) CreateApprovalRequest(ctx context.Context, req *ApprovalRequestRecord) error {
 	return nil
 }
+
+// CreateApprovalIfAbsent models first-write-wins rather than returning a
+// constant: a mock that always reports "created" would make any idempotency
+// assertion against it vacuous.
+func (m *mockStore) CreateApprovalIfAbsent(ctx context.Context, req *ApprovalRequestRecord) (bool, error) {
+	if req == nil || req.ID == "" {
+		return false, nil
+	}
+	if m.approvalIDs == nil {
+		m.approvalIDs = map[string]bool{}
+	}
+	if m.approvalIDs[req.ID] {
+		return false, nil
+	}
+	m.approvalIDs[req.ID] = true
+	return true, nil
+}
 func (m *mockStore) GetApprovalRequest(ctx context.Context, id string) (*ApprovalRequestRecord, error) {
 	return nil, nil
 }
@@ -164,4 +184,47 @@ func (m *mockStore) MarkApprovalHandoffsTriggered(ctx context.Context, taskID st
 }
 func (m *mockStore) UpdateTaskChainInfo(ctx context.Context, id, chainID, stageID string) error {
 	return nil
+}
+
+// Ledger accessors backed by a real map, so idempotency assertions against the
+// mock exercise the same first-write-wins logic the stores implement.
+func (m *mockStore) GetTaskFinalization(ctx context.Context, taskID string) (FinalizationLedger, error) {
+
+	if m.ledgers == nil {
+		return FinalizationLedger{}, nil
+	}
+	l, ok := m.ledgers[taskID]
+	if !ok {
+		return FinalizationLedger{}, nil
+	}
+	return l, nil
+}
+
+func (m *mockStore) SetTaskFinalization(ctx context.Context, taskID string, ledger FinalizationLedger) error {
+
+	if m.ledgers == nil {
+		m.ledgers = map[string]FinalizationLedger{}
+	}
+	m.ledgers[taskID] = ledger
+	return nil
+}
+
+// CompareAndSetTaskStatus models the real conditional write, so tests that rely
+// on supersession behave as production does rather than always succeeding.
+func (m *mockStore) CompareAndSetTaskStatus(ctx context.Context, id string, expected []TaskStatus, next TaskStatus) (bool, error) {
+
+	if m.statuses == nil {
+		m.statuses = map[string]TaskStatus{}
+	}
+	current, ok := m.statuses[id]
+	if !ok {
+		current = TaskStatusRunning
+	}
+	for _, want := range expected {
+		if current == want {
+			m.statuses[id] = next
+			return true, nil
+		}
+	}
+	return false, nil
 }

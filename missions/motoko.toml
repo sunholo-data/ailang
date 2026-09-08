@@ -1,0 +1,20 @@
+# The Motoko mission — the harness/agent loop. Runs from ailang-motoko, a clone of
+# sunholo-data/ailang, and re-execs from the driver pin, so its clone being "N behind"
+# is expected and harmless.
+name    = "motoko"
+repo    = "sunholo-data/ailang"
+workdir = "/Users/voightkampff/dev/sunholo-data/ailang-motoko"
+doc     = "design_docs/motoko-mission.md"
+
+# ── SCHEDULE ─────────────────────────────────────────────────────────────────
+# 46800 (13h), NOT 43200 (12h) — DELIBERATELY NON-HARMONIC. On 2026-08-17 all three
+# mission jobs were bootstrapped in one loop and, because every mission plist carries
+# RunAtLoad, they all fired within five seconds of each other. A 12h interval would
+# keep re-colliding with the 6h and 90m loops on a harmonic; 13h drifts the phase.
+#
+# Left on StartInterval: a 3.34h iteration against a 13h fire is intentional spacing,
+# not scheduler waste, and motoko is not one of the two loops Mark asked to accelerate.
+[schedule]
+mode             = "interval"
+interval_seconds = 46800
+boot_offset      = 1260

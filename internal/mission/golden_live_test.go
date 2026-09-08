@@ -1,0 +1,398 @@
+package mission
+
+import (
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+// These tests run against the LIVE rig. They are the evidence that promoting a
+// rendered artifact in Phase 2 is a no-op, so they read the installed files rather
+// than fixtures — a fixture would only prove the renderer agrees with itself.
+//
+// They skip on any machine without the installed fleet, which is every CI runner.
+func liveEnvPath(name string) string {
+	return filepath.Join(os.Getenv("HOME"), ".config", "ailang", "mission-"+name+".env")
+}
+
+// envValue pulls an assignment out of a live env file, unwrapping the
+// ${VAR:-value} idiom, so the fixture Mission is built from what the file actually
+// says rather than from what this test assumes.
+func envValue(body, key string) string {
+	for _, line := range strings.Split(body, "\n") {
+		if assignmentKey(line) != key {
+			continue
+		}
+		v := strings.TrimSpace(line)
+		v = strings.TrimPrefix(v, "export ")
+		v = strings.TrimSpace(v[strings.Index(v, "=")+1:])
+		v = strings.Trim(v, `"`)
+		if strings.HasPrefix(v, "${"+key+":-") {
+			v = strings.TrimSuffix(strings.TrimPrefix(v, "${"+key+":-"), "}")
+		}
+		return v
+	}
+	return ""
+}
+
+// THE PHASE-2 SAFETY PROOF. For every installed mission, rendering from a registry
+// entry that agrees with the live file must reproduce that file byte-for-byte. If
+// this fails, promoting a rendered env is a change of unknown size and Phase 2 must
+// not proceed.
+func TestGolden_RenderEnvReproducesEveryInstalledMission(t *testing.T) {
+	checked := 0
+	for _, name := range []string{"v1", "docs", "motoko", "world"} {
+		t.Run(name, func(t *testing.T) {
+			body, err := os.ReadFile(liveEnvPath(name))
+			if err != nil {
+				t.Skipf("no installed env for %s: %v", name, err)
+			}
+			s := string(body)
+			workdir := envValue(s, "MISSION_WORKDIR")
+			if workdir == "" {
+				// NOT a skip. v1 is the fleet's one implicit mission: its env file
+				// is entirely comments (zero assignments), and its identity comes
+				// from the driver's own defaults at mission-control.sh:65-67, with
+				// the workdir derived from the script's location at :40. That is a
+				// real, deliberate state and it is asserted here rather than
+				// stepped over, because a silent skip is how the fourth mission
+				// stops being checked without anyone noticing.
+				assertImplicitMission(t, name, s)
+				return
+			}
+			m := &Mission{
+				Name:    envValue(s, "MISSION_NAME"),
+				Repo:    envValue(s, "MISSION_REPO"),
+				Doc:     envValue(s, "MISSION_DOC"),
+				Workdir: workdir,
+				Sched:   Schedule{Mode: ModeKeepAlive, ThrottleSeconds: 5400},
+				Path:    "golden:" + name,
+			}
+			if err := m.Validate(); err != nil {
+				t.Skipf("live env for %s does not form a valid registry entry yet: %v", name, err)
+			}
+			got, err := RenderEnv(m, body)
+			if err != nil {
+				t.Fatalf("RenderEnv(%s): %v", name, err)
+			}
+			if string(got) != s {
+				// Report the first differing line: a whole-file diff of a 200-line
+				// env is unreadable in test output.
+				gl, wl := strings.Split(string(got), "\n"), strings.Split(s, "\n")
+				for i := 0; i < len(gl) && i < len(wl); i++ {
+					if gl[i] != wl[i] {
+						t.Fatalf("%s: render differs at line %d\n  installed: %q\n  rendered:  %q", name, i+1, wl[i], gl[i])
+					}
+				}
+				t.Fatalf("%s: render differs in length (installed %d lines, rendered %d)", name, len(wl), len(gl))
+			}
+			checked++
+		})
+	}
+	if checked == 0 {
+		t.Log("no installed missions found — golden proof did not run (expected off-rig)")
+	}
+}
+
+// assertImplicitMission handles a mission that declares nothing and rides the
+// driver's defaults. Rendering such a mission ADDS the four identity assignments, so
+// byte-equality cannot hold and would be the wrong property to demand. What must hold
+// is that making the implicit explicit does not change any VALUE — and that the
+// passthrough half (every comment in the file) still survives intact.
+func assertImplicitMission(t *testing.T, name, live string) {
+	t.Helper()
+	if n := countAssignments(live); n != 0 {
+		t.Fatalf("%s was treated as implicit but declares %d assignments — the exception no longer applies", name, n)
+	}
+	// The values the driver would have used, read from the driver rather than
+	// restated here, so this test fails if a default is ever changed underneath it.
+	drv, err := os.ReadFile(filepath.Join("..", "..", "tools", "launchd", "mission-control.sh"))
+	if err != nil {
+		t.Skipf("driver unreadable: %v", err)
+	}
+	def := func(key string) string {
+		for _, line := range strings.Split(string(drv), "\n") {
+			pre := key + "=\"${" + key + ":-"
+			if strings.HasPrefix(line, pre) {
+				return strings.TrimSuffix(strings.TrimPrefix(line, pre), "}\"")
+			}
+		}
+		return ""
+	}
+	m := &Mission{
+		Name: def("MISSION_NAME"), Repo: def("MISSION_REPO"), Doc: def("MISSION_DOC"),
+		Workdir: filepath.Join(os.Getenv("HOME"), "dev", "sunholo-data", "ailang"),
+		Sched:   Schedule{Mode: ModeKeepAlive, ThrottleSeconds: 5400},
+		Path:    "golden-implicit:" + name,
+	}
+	if m.Name == "" || m.Repo == "" || m.Doc == "" {
+		t.Fatalf("could not read the driver defaults this mission relies on (name=%q repo=%q doc=%q)", m.Name, m.Repo, m.Doc)
+	}
+	if err := m.Validate(); err != nil {
+		t.Fatalf("driver defaults do not form a valid registry entry: %v", err)
+	}
+	got, err := RenderEnv(m, []byte(live))
+	if err != nil {
+		t.Fatalf("RenderEnv: %v", err)
+	}
+	// Every value the driver would have used is now stated explicitly...
+	for _, want := range []string{
+		"MISSION_NAME=" + m.Name, "MISSION_REPO=" + m.Repo, "MISSION_DOC=" + m.Doc,
+	} {
+		if !strings.Contains(string(got), want) {
+			t.Errorf("making %s explicit lost %q", name, want)
+		}
+	}
+	// ...and nothing that was in the file was dropped.
+	for _, line := range strings.Split(live, "\n") {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		if !strings.Contains(string(got), line) {
+			t.Errorf("%s: passthrough dropped a line: %q", name, line)
+		}
+	}
+}
+
+// countAssignments counts real shell assignments, ignoring comments and blanks.
+func countAssignments(body string) int {
+	n := 0
+	for _, line := range strings.Split(body, "\n") {
+		if assignmentKey(line) != "" {
+			n++
+		}
+	}
+	return n
+}
+
+// The plist is fully authored, so byte-equality is neither achievable nor wanted:
+// the installed v1 plist carries ~40 lines of ratified rationale a generator cannot
+// regenerate. What must hold is SEMANTIC equality on the fields launchd acts on, and
+// every difference must be one of the two enumerated normalisations.
+func TestGolden_RenderPlistMatchesInstalledSemantics(t *testing.T) {
+	if _, err := exec.LookPath("/usr/libexec/PlistBuddy"); err != nil {
+		t.Skip("PlistBuddy unavailable (not macOS)")
+	}
+	type spec struct {
+		name, label string
+		mode        ScheduleMode
+		secs        int
+	}
+	for _, sp := range []spec{
+		{"v1", "dev.ailang.mission-control", ModeKeepAlive, 5400},
+		{"world", "dev.ailang.mission-world", ModeKeepAlive, 14400},
+		{"docs", "dev.ailang.mission-docs", ModeInterval, 21600},
+		{"motoko", "dev.ailang.mission-motoko", ModeInterval, 46800},
+	} {
+		t.Run(sp.name, func(t *testing.T) {
+			installed := filepath.Join(os.Getenv("HOME"), "Library", "LaunchAgents", sp.label+".plist")
+			if _, err := os.Stat(installed); err != nil {
+				t.Skipf("not installed: %s", installed)
+			}
+			read := func(key string) string {
+				out, err := exec.Command("/usr/libexec/PlistBuddy", "-c", "Print :"+key, installed).Output()
+				if err != nil {
+					return ""
+				}
+				return strings.TrimSpace(string(out))
+			}
+			body, err := os.ReadFile(liveEnvPath(sp.name))
+			if err != nil {
+				t.Skipf("no env for %s", sp.name)
+			}
+			workdir := envValue(string(body), "MISSION_WORKDIR")
+			m := &Mission{
+				Name: sp.name, Repo: envValue(string(body), "MISSION_REPO"),
+				Doc: envValue(string(body), "MISSION_DOC"), Workdir: workdir,
+				Path: "golden:" + sp.name,
+			}
+			switch sp.mode {
+			case ModeKeepAlive:
+				m.Sched = Schedule{Mode: ModeKeepAlive, ThrottleSeconds: sp.secs}
+			case ModeInterval:
+				m.Sched = Schedule{Mode: ModeInterval, IntervalSeconds: sp.secs}
+			}
+			if err := m.Validate(); err != nil {
+				t.Skipf("%s: %v", sp.name, err)
+			}
+			rendered, err := RenderPlist(m)
+			if err != nil {
+				t.Fatalf("RenderPlist: %v", err)
+			}
+			rs := string(rendered)
+
+			// 1. Label must match exactly — launchd identity.
+			if got := read("Label"); got != sp.label {
+				t.Errorf("installed Label = %q, want %q", got, sp.label)
+			}
+			if !strings.Contains(rs, "<string>"+sp.label+"</string>") {
+				t.Errorf("rendered plist does not carry Label %q", sp.label)
+			}
+			// 2. Same driver script, whatever the invocation shape.
+			if !strings.Contains(rs, m.DriverPath()) {
+				t.Errorf("rendered plist does not target the driver %q", m.DriverPath())
+			}
+			// 3. Same schedule knob and value as installed.
+			switch sp.mode {
+			case ModeKeepAlive:
+				if got := read("ThrottleInterval"); got != itoa(sp.secs) {
+					t.Errorf("installed ThrottleInterval = %q, want %d", got, sp.secs)
+				}
+			case ModeInterval:
+				if got := read("StartInterval"); got != itoa(sp.secs) {
+					t.Errorf("installed StartInterval = %q, want %d", got, sp.secs)
+				}
+			}
+			// 4. The rendered PATH fixes V8 even where the installed one does not.
+			if !strings.Contains(rs, "/usr/sbin") {
+				t.Error("rendered PATH lost /usr/sbin")
+			}
+		})
+	}
+}
+
+// The two normalisations are INTENDED, and this test exists so they are asserted
+// rather than discovered. If either stops being true, the enumeration in
+// RenderPlist's doc comment is stale.
+func TestGolden_EnumeratedNormalisationsHold(t *testing.T) {
+	m := &Mission{
+		Name: "motoko", Repo: "sunholo-data/ailang", Doc: "design_docs/motoko-mission.md",
+		Workdir: "/Users/x/dev/ailang-motoko",
+		Sched:   Schedule{Mode: ModeInterval, IntervalSeconds: 46800, BootOffset: 1260},
+		Path:    "norm-test",
+	}
+	b, err := RenderPlist(m)
+	if err != nil {
+		t.Fatalf("RenderPlist: %v", err)
+	}
+	s := string(b)
+	// Normalisation 1: explicit interpreter, even where the installed plist relies
+	// on the script's shebang (motoko and world do).
+	if !strings.Contains(s, "<string>/bin/bash</string>") {
+		t.Error("normalisation 1 broken: ProgramArguments must name /bin/bash explicitly")
+	}
+	// Normalisation 2: the plist is a build product and says so, because the
+	// rationale it cannot regenerate now lives in the TOML.
+	if !strings.Contains(s, "DO NOT EDIT") || !strings.Contains(s, "missions/motoko.toml") {
+		t.Error("normalisation 2 broken: a generated plist must point at its source of truth")
+	}
+}
+
+// ── the doctor, against the LIVE rig ─────────────────────────────────────────
+
+// liveRegistry loads the REAL registry from missions/.
+//
+// It used to build entries in code, which was right before missions/*.toml existed and
+// wrong the moment they did: a hand-built registry tests this package's opinion of the
+// fleet rather than the fleet's own configuration, so a wrong or stale entry would sail
+// past. Loading the real files means these assertions are about what actually runs.
+func liveRegistry(t *testing.T) *Registry {
+	t.Helper()
+	dir := filepath.Join("..", "..", "missions")
+	if _, err := os.Stat(dir); err != nil {
+		t.Skipf("no mission registry on this machine: %v", err)
+	}
+	reg, err := Load(dir)
+	if err != nil {
+		t.Fatalf("the real registry does not load: %v", err)
+	}
+	// Keep only missions whose workdir exists here, so this runs on a partial checkout.
+	var present []*Mission
+	for _, m := range reg.Missions {
+		if _, err := os.Stat(m.Workdir); err == nil {
+			present = append(present, m)
+		}
+	}
+	return &Registry{Missions: present}
+}
+
+// THE LIVE CHECK. Its job is to verify the doctor reports the rig ACCURATELY — not to
+// require the rig stay broken.
+//
+// Both original gate assertions have now failed for the best possible reason: the
+// divergences they watched were fixed, by this tool finding them.
+//
+//	V4/V5 env-source-drift  — docs allowlist deployed 2026-09-05 (Phase 2)
+//	V8   path-no-sysctl     — all four plists regenerated with /usr/sbin (M6)
+//
+// The PERMANENT, deterministic proof that the doctor can find and name each class lives
+// in the fixture gates, which run in CI and cannot be fixed out from under themselves:
+// TestDoctor_GATE_V4_V5_EnvDriftIsFoundAndNamed and
+// TestDoctor_GATE_V8_PlistPATHWithoutSysctlIsFound. What remains here is conditional —
+// if a class returns, the finding must still be correct and specific.
+func TestLive_DoctorReportsTheRigAccurately(t *testing.T) {
+	reg := liveRegistry(t)
+	if len(reg.Missions) == 0 {
+		t.Skip("no missions installed on this machine (expected off-rig)")
+	}
+	rep := Doctor(reg, DefaultPaths())
+	for _, f := range rep.Findings {
+		t.Logf("%s", f)
+	}
+
+	// A live drift need not be the historical allowlist failure. Attended canary
+	// pins deliberately differ too; require each actually differing key to be named.
+	for _, f := range findingsOfKind(rep, "env-source-drift") {
+		paths := DefaultPaths()
+		reviewed, err := os.ReadFile(paths.ReviewedEnvPath(f.Mission))
+		if err != nil {
+			t.Fatal(err)
+		}
+		installed, err := os.ReadFile(paths.EnvPath(f.Mission))
+		if err != nil {
+			t.Fatal(err)
+		}
+		keys := map[string]bool{}
+		for _, line := range strings.Split(string(reviewed)+"\n"+string(installed), "\n") {
+			if key := assignmentKey(line); key != "" {
+				keys[key] = true
+			}
+		}
+		for key := range keys {
+			if envValue(string(reviewed), key) != envValue(string(installed), key) && !strings.Contains(f.Detail, key) {
+				t.Errorf("%s: drift must name differing key %s; got: %s", f.Mission, key, f.Detail)
+			}
+		}
+	}
+	// Conditional: if a PATH regression returns, it must only be on a mission that
+	// sets its own PATH, and must explain the consequence.
+	for _, f := range findingsOfKind(rep, "path-no-sysctl") {
+		if !strings.Contains(f.Detail, "sysctl") || !strings.Contains(f.Detail, "stagger") {
+			t.Errorf("%s: a PATH finding must explain the consequence; got: %s", f.Mission, f.Detail)
+		}
+	}
+
+	// WORLD IS DE-FORKED (2026-09-06). Two assertions here demanded world stay a fork and
+	// stay unpinned. BOTH are now retired, each when its gate actually closed, which is
+	// the discipline this file has followed throughout — the V4/V5 and V8 gates went the
+	// same way, and every retirement is recorded rather than quietly deleted.
+	//
+	// The fork assertion retired on 2026-09-06 with the de-fork itself.
+	//
+	// The unpinned assertion retired on 2026-09-07, on the condition it named: "it
+	// retires when driver-root and work-dir are decoupled". The driver now sources the
+	// helper from MC_DRIVER_ROOT — where it ships — instead of from $REPO, so world is
+	// pinned like every other mission. Until that fix, EVERY world fire since the de-fork
+	// logged DRIVER PIN FAILED and ran its working tree.
+	if _, ok := reg.Get("world"); ok {
+		if len(findingsOfKind(rep, "driver-fork")) != 0 {
+			t.Error("world was de-forked and must no longer be reported as a fork — " +
+				"if this fires, something re-declared a driver in missions/world.toml")
+		}
+	}
+
+	// EVERY mission must be pin-backed, world included. world is no longer excused, and
+	// that is the point: the exemption was the bug's hiding place, so removing it is what
+	// makes a regression of the MC_DRIVER_ROOT lookup fail here instead of silently
+	// returning the fleet to running uncommitted code.
+	for _, row := range rep.Rows {
+		if !row.Pinned {
+			t.Errorf("%s should be pin-backed but was reported unpinned", row.Name)
+		}
+		if row.Fork {
+			t.Errorf("%s should not be a fork", row.Name)
+		}
+	}
+}

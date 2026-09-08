@@ -54,6 +54,7 @@ func chainsCommand() {
 		fmt.Println("  ailang chains chat <id> --stage 3    # View stage conversation")
 		fmt.Println("  ailang chains chat <id> --compact    # One-line turn summaries")
 		fmt.Println("  ailang chains health                # System-wide validation")
+		fmt.Println("  ailang chains reconcile             # Close chains that can never progress (dry run by default)")
 		fmt.Println("  ailang chains import-motoko <id>     # Import a motoko run log into chains")
 		fmt.Println()
 		fmt.Println("Run 'ailang chains' in a terminal for interactive mode.")
@@ -88,6 +89,8 @@ func chainsCommand() {
 		chainsChatCommand()
 	case "journey":
 		chainsJourneyCommand()
+	case "reconcile":
+		chainsReconcileCommand()
 	case "import-motoko":
 		chainsImportMotokoCommand()
 	default:

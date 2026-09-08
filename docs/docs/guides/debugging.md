@@ -247,7 +247,8 @@ Both option maps in `internal/ai/ollama` previously hardcoded **8192**, below th
 Affects the non-tool paths only (`Generate`, tool-less chat, and the legacy
 native tool path incl. motoko's `compaction_ai`); motoko's tool-calling turns
 route via `/v1`, where `num_ctx` is not expressible. Raise or lower only for
-VRAM: the KV cache scales with it.
+VRAM: the KV cache scales with it — see **Ollama Memory Budget on the Rig**
+below for the machine-level bound and the panic that established it.
 
 When request logging is enabled — `AILANG_OLLAMA_LOG_REQUESTS=<path>`, or a path
 written to the `~/.ailang/state/ollama-log-requests` **sentinel file** whose
@@ -280,6 +281,140 @@ jq -c 'select(.kind=="stream_metrics" and .idle_window_sec==120)' "$LOG"
 Prefer an explicit `AILANG_OLLAMA_LOG_REQUESTS=<path>` per capture where the
 harness propagates env; reach for the sentinel only when it does not, and remove
 it when the capture ends.
+:::
+
+### Ollama Memory Budget on the Rig (`OLLAMA_GPU_OVERHEAD`, `OLLAMA_CONTEXT_LENGTH`)
+
+The section above tunes `num_ctx` per request for **quality** — don't truncate the
+28k–44k-token prompts the harness sends. These two **server-side** variables bound
+what ollama may consume on the *machine*, and they are what stands between a local
+eval and a kernel panic.
+
+Measured 2026-09-03, after the rig panicked at 02:23 (incident `561F0912`):
+
+- ollama claims **84% of unified memory** as VRAM — `total="107.5 GiB"` of 128 GiB —
+  and by default reserves nothing for anything else: `overhead="0 B"`.
+- Because that budget looks large, it auto-selects the model's full native context:
+  `msg="vram-based default context" total_vram="107.5 GiB" default_num_ctx=262144`.
+  This is not ollama over-reaching — 262144 *is* `qwen3.8:27b`'s trained maximum.
+- At 256k that runner peaked at **90.39 GiB** (max of 2,322 `peak memory` samples),
+  leaving ~38 GB for the desktop, the agent fleet and the eval harness. Memory ran
+  out, the pager stopped making progress (20 pages reclaimed of 3,088 wanted), and
+  the hardware watchdog panicked the machine.
+
+**`OLLAMA_GPU_OVERHEAD` is admission control, not a runtime limit.** It is a
+bookkeeping subtraction inside the scheduler, not an allocation — nothing is held,
+and every other process still sees the full machine:
+
+```
+available="45.3 GiB"   free="77.8 GiB"   overhead="32.0 GiB"
+```
+
+`free` is real free VRAM; `available = free − overhead` is only what ollama will
+*consider* when deciding whether a model fits. A model admitted under that budget
+can still grow past it as the KV cache fills — which is precisely what the 90 GiB
+peaks were.
+
+**`OLLAMA_CONTEXT_LENGTH` is the runtime bound**, because KV size is a direct
+function of context length. Both are required: the reservation stops ollama loading
+something too big, the context length stops what it *did* load from growing into
+the reservation.
+
+Current rig values (`~/Library/LaunchAgents/dev.ollama.serve.plist`):
+
+| Variable | Value | Why |
+|----------|-------|-----|
+| `OLLAMA_GPU_OVERHEAD` | `34359738368` (32 GiB) | headroom for desktop + agent fleet + harness |
+| `OLLAMA_CONTEXT_LENGTH` | `131072` | halves KV against the 256k native max; largest prompt ever observed was 108,738 tokens |
+| `OLLAMA_MAX_LOADED_MODELS` | `2` | keeps the embedder resident — see "Embedder evicts the eval LLM" |
+
+Sizing a new model is one inequality: `weights + KV(context) < available`. Raising
+context is safe only while that holds. A 1M-context model's KV alone would exceed
+this machine no matter how these are set — at that point it is hardware talking,
+not configuration.
+
+:::caution No swap on the rig — there is no warning phase
+
+`/private/var/vm` is empty and ollama logs `free_swap="0 B"` on every sample. A
+machine with swap thrashes audibly before it dies and someone notices; this one
+goes straight from healthy to wedged. The kernel's own `memoryPressure` flag also
+read **false** throughout the panic, so never key a guard to it — use free pages
+and reclaim rate instead.
+:::
+
+:::caution `OLLAMA_CONTEXT_LENGTH` is applied but UNPROVEN (2026-09-03)
+
+After the change ollama still logged `default_num_ctx=262144` against the reduced
+75.5 GiB budget, and small-prompt probes cannot discriminate — a 33-token prompt
+populates almost no KV, so load peak barely moves either way. The discriminating
+test is a real large-context eval: a peak near **59 GiB** means the cap is working,
+near **90 GiB** means it is not. Do not record this as fixed until that
+measurement exists.
+:::
+
+### Fleet Memory Admission (`MISSION_MIN_AVAIL_GB`, `MISSION_BOOT_WINDOW`)
+
+Capping ollama moved the ceiling; it did not remove it. In the two days after the
+caps landed the rig hit `JetsamEvent` three times — 2026-09-04 05:08, 09-05 08:29,
+09-05 09:23 — at ~60 MB free each time.
+
+ollama was **not** the growth term any more. Its physical footprint was
+**25.77 GB at all three events, identical to two decimals**: flat, under load, days
+apart. What filled the machine was 46 GB wired plus a compressor holding **131 GB**
+of logical pages, while only 37 GB was resident across 566 processes. The largest
+identifiable population was ours — **22 concurrent Claude Code processes**, 12.7
+CPU-hours between them.
+
+The structural cause is in the plists. Every mission carries `RunAtLoad=true`,
+deliberately: it is what restores the cadence after a reboot (the 18h outage of
+2026-07-20). The cost is that a boot or GUI login fires **all four missions within
+seconds**. The motoko plist recorded exactly this on 2026-08-17 (world 20:55:45, v1
+20:55:49, motoko 20:55:50) and fixed the steady-state half with non-harmonic
+`StartInterval`s — 5400 / 14400 / 21600 / 46800. The boot half was never fixed, and
+on 09-05 all four fired together again: 33 `claude` processes inside ten minutes.
+
+`tools/launchd/mission-control.sh` now gates both, as two deliberately separate
+mechanisms:
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `MISSION_BOOT_WINDOW` | `900` | Seconds after boot during which the stagger applies. Outside it the offset is not taken at all, so the tuned non-harmonic phase is untouched. |
+| `MISSION_MIN_AVAIL_GB` | `16` | Refuse to start an iteration below this much available memory. |
+| `MISSION_MAX_COMPRESSED_GB` | `48` | Refuse when the compressor already holds this much — the arm for a box that is paging hard while `inactive` still looks healthy. |
+| `MISSION_MEM_WAIT` | `600` | Wait this long for room before yielding the slot. A transient spike should delay a fire, not cancel it: skipping outright costs motoko 13h. |
+| `MISSION_MEM_POLL` | `60` | Re-check interval while waiting. |
+
+Boot offsets are v1 0s · world 420s · docs 840s · motoko 1260s. The 7-minute spacing
+exceeds the worst measured controller preamble (a v1 slot burned 240s on opus
+probes), so each mission's spawn burst finishes before the next begins. v1 is 0
+because it has the shortest interval and the deepest ladder.
+
+:::tip Available memory is not `free`
+
+The gate reads `free + inactive + speculative + purgeable`. A **free-only** threshold
+cannot be set sanely: at the 09-05 09:23 event free was 4,030 pages (66 MB) while
+506,169 pages (7.7 GB) sat reclaimable in `inactive`. With the full expression the
+two states are two orders of magnitude apart — **7.8 GB** at each OOM event, **104 GB**
+on a healthy idle box — so the threshold is not delicate.
+
+Do not use the kernel's `memoryPressure` flag: it read `false` throughout the 09-03
+panic.
+:::
+
+:::caution Thresholds are starting values, not measured ones
+
+Nobody has profiled an iteration's peak footprint. The numbers above are chosen to
+sit far from both observed states, and **every fire logs the live values** —
+`memory gate: ok (avail=…MB …)` — so the driver log is what should correct them.
+`tools/launchd/test_mission_memgate.sh` pins the parsers and both refusal arms.
+:::
+
+:::caution The driver pin delays any fix here
+
+The loops re-exec out of `~/.ailang-driver-pin/<mission>/`, a worktree at *committed
+`origin/dev`*. A driver edit therefore changes nothing until it is committed **and
+pushed** — a local-only commit leaves every mission running the old script. Check
+with `git -C ~/.ailang-driver-pin/v1 log --oneline -1`.
 :::
 
 ### CLI Flags
@@ -775,5 +910,5 @@ Measured: declaring 20000 sends 20000; declaring 65536 sends 32000.
 
 - [Telemetry & Tracing](/docs/guides/telemetry) - Distributed tracing for performance analysis and debugging
 - [Evaluation Framework](/docs/guides/evaluation) - Debugging failed AI benchmarks
-- [Development Guide](/docs/guides/development) - Full development workflow
+- [Development Guide](/docs/guides/development-workflow) - Full development workflow
 - [Known Limitations](/docs/reference/limitations) - Current limitations and workarounds

@@ -300,6 +300,15 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 				ProviderName:    cfg.Provider,
 				InputTokenCost:  cfg.Pricing.InputPer1K,
 				OutputTokenCost: cfg.Pricing.OutputPer1K,
+				// CacheReadCost was omitted until 2026-09-02, which silently
+				// zeroed cache-read pricing for EVERY agent-mode row: this
+				// struct overrides the executor's own CostModel via
+				// ResolveCostModel, so an executor that priced cache reads
+				// correctly had that pricing discarded here. Cached tokens then
+				// billed at $0 — the same undercount the 2026-08-11 note above
+				// says was fixed, reintroduced one layer up by an incomplete
+				// copy of the price table.
+				CacheReadCost: cfg.Pricing.CacheReadPer1K,
 			}
 			// The WORK gate. A per-model budgets:max_tokens_per_bench overrides
 			// the global --max-tokens-per-bench flag; this is what makes the

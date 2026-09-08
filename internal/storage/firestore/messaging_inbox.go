@@ -19,10 +19,12 @@ func (s *MessagingStore) InsertInboxMessage(msg *messaging.InboxMessage) error {
 	return s.InsertInboxMessageWithContext(context.Background(), msg)
 }
 
-func (s *MessagingStore) InsertInboxMessageWithContext(ctx context.Context, msg *messaging.InboxMessage) error {
-	if msg.ID == "" {
-		msg.ID = fmt.Sprintf("inbox_%d_%s", time.Now().UnixMilli(), generateShortID())
-	}
+// normalizeInboxDefaults fills the fields every write path must agree on.
+//
+// Shared by InsertInboxMessageWithContext and PutMessageIfAbsent so the two
+// cannot drift: a finalisation replay that normalized differently would produce a
+// document that looks like a different message.
+func normalizeInboxDefaults(msg *messaging.InboxMessage) {
 	// MessageID is the stable business identifier used by the Pub/Sub publisher
 	// (MessageNotification.MessageID) and by the daemon's downstream fetch. For
 	// the Firestore backend the doc ID is the only lookup key (GetInboxMessage
@@ -43,6 +45,13 @@ func (s *MessagingStore) InsertInboxMessageWithContext(ctx context.Context, msg 
 	if msg.CreatedAt.IsZero() {
 		msg.CreatedAt = time.Now()
 	}
+}
+
+func (s *MessagingStore) InsertInboxMessageWithContext(ctx context.Context, msg *messaging.InboxMessage) error {
+	if msg.ID == "" {
+		msg.ID = fmt.Sprintf("inbox_%d_%s", time.Now().UnixMilli(), generateShortID())
+	}
+	normalizeInboxDefaults(msg)
 	_, err := s.client.Doc(collInbox, msg.ID).Set(ctx, inboxToMap(msg))
 	return err
 }

@@ -33,7 +33,17 @@ type MissionRollup struct {
 	Rollup  CostRollup `json:"rollup"`
 	// QuotaByBucket counts quota-lane stages per subscription bucket
 	// (fable|opus|sonnet|…), parsed from the free-text agent_id.
+	//
+	// RAW spellings, deliberately unchanged: existing callers read this as a count and a
+	// past rollup must still reproduce. The canonical view lives beside it.
 	QuotaByBucket map[string]int `json:"quota_by_bucket"`
+	// QuotaTokensByBucket sums TOKENS per CANONICAL bucket (codex|anthropic|openrouter|
+	// ollama). Counts cannot be rationed against — an iteration is not a unit of quota —
+	// and the raw spellings cannot be summed, since one bucket is written four ways.
+	QuotaTokensByBucket map[string]int64 `json:"quota_tokens_by_bucket"`
+	// QuotaStagesByCanonicalBucket counts stages under the same canonical key, so a token
+	// total can be read against the number of stages that produced it.
+	QuotaStagesByCanonicalBucket map[string]int `json:"quota_stages_by_canonical_bucket"`
 	// TopStages are the most expensive classified stages (reported+estimated), desc.
 	TopStages []MissionStageCost `json:"top_stages"`
 }
@@ -49,6 +59,7 @@ func (s *Store) GetMissionRollups(ctx context.Context, createdAfter *time.Time, 
 
 	query := `
 		SELECT c.source_ref, cs.agent_id, cs.cost, cs.tokens_in, cs.tokens_out,
+		       COALESCE(cs.quota_tokens, 0) AS quota_tokens,
 		       COALESCE(json_extract(cs.eval_assessment, '$.model'), '') AS ea_model,
 		       COALESCE((
 		           SELECT sp.model FROM spans sp
@@ -75,6 +86,8 @@ func (s *Store) GetMissionRollups(ctx context.Context, createdAfter *time.Time, 
 	type acc struct {
 		rollup    CostRollup
 		byBucket  map[string]int
+		canonTok  map[string]int64
+		canonN    map[string]int
 		allStages []MissionStageCost
 	}
 	missions := map[string]*acc{}
@@ -84,8 +97,9 @@ func (s *Store) GetMissionRollups(ctx context.Context, createdAfter *time.Time, 
 		var sourceRef, agentID, eaModel, spanModel string
 		var cost float64
 		var tokensIn, tokensOut int
+		var quotaTokens int64
 		var sourceRefNull, agentIDNull sql.NullString
-		if err := rows.Scan(&sourceRefNull, &agentIDNull, &cost, &tokensIn, &tokensOut, &eaModel, &spanModel); err != nil {
+		if err := rows.Scan(&sourceRefNull, &agentIDNull, &cost, &tokensIn, &tokensOut, &quotaTokens, &eaModel, &spanModel); err != nil {
 			return nil, fmt.Errorf("failed to scan mission rollup row: %w", err)
 		}
 		sourceRef = sourceRefNull.String
@@ -94,7 +108,7 @@ func (s *Store) GetMissionRollups(ctx context.Context, createdAfter *time.Time, 
 		missionName := missionKey(sourceRef)
 		a, ok := missions[missionName]
 		if !ok {
-			a = &acc{byBucket: map[string]int{}}
+			a = &acc{byBucket: map[string]int{}, canonTok: map[string]int64{}, canonN: map[string]int{}}
 			missions[missionName] = a
 			order = append(order, missionName)
 		}
@@ -109,11 +123,25 @@ func (s *Store) GetMissionRollups(ctx context.Context, createdAfter *time.Time, 
 		a.rollup.AddStage(stage)
 
 		if sc.Status == CostStatusQuota {
-			if bucket := parseQuotaBucket(agentID); bucket != "" {
+			bucket := parseQuotaBucket(agentID)
+			if bucket != "" {
 				a.byBucket[bucket]++
 			} else {
 				a.byBucket["unlabeled"]++
 			}
+			// Tokens under the CANONICAL key. An unlabelled stage is counted as
+			// "unlabeled" rather than dropped or attributed to a neighbour: it still
+			// consumed a bucket, and a ration that cannot see it is measuring low. 43
+			// such stages exist in v1 alone.
+			ck := CanonicalQuotaBucket(bucket)
+			if ck == "" {
+				ck = "unlabeled"
+			}
+			// QuotaTokens, NOT TokensIn+TokensOut: a quota stage posts 0/0 by
+			// contract, so summing those measured zero for all 4,979 of them. The
+			// two sums stay separate on purpose — see ChainStage.QuotaTokens.
+			a.canonTok[ck] += quotaTokens
+			a.canonN[ck]++
 		}
 		a.allStages = append(a.allStages, MissionStageCost{
 			AgentID: agentID,
@@ -139,10 +167,12 @@ func (s *Store) GetMissionRollups(ctx context.Context, createdAfter *time.Time, 
 			top = top[:topN]
 		}
 		results = append(results, MissionRollup{
-			Mission:       name,
-			Rollup:        a.rollup,
-			QuotaByBucket: a.byBucket,
-			TopStages:     top,
+			Mission:                      name,
+			Rollup:                       a.rollup,
+			QuotaByBucket:                a.byBucket,
+			QuotaTokensByBucket:          a.canonTok,
+			QuotaStagesByCanonicalBucket: a.canonN,
+			TopStages:                    top,
 		})
 	}
 	return results, nil
@@ -172,4 +202,39 @@ func parseQuotaBucket(agentID string) string {
 		return strings.TrimSpace(rest)
 	}
 	return strings.TrimSpace(rest[:end])
+}
+
+// CanonicalQuotaBucket folds the spellings of one subscription bucket into a single key.
+//
+// The bucket is parsed out of a FREE-TEXT agent_id, so nothing has ever constrained how it
+// is written, and four spellings of codex accumulated in the v1 mission alone:
+//
+//	codex 70 · codex-chatgpt 6 · Codex-OAuth 1 · codex-oauth 4
+//
+// That is harmless while the value is only displayed, and fatal the moment anything RATIONS
+// against it: a limit computed over `codex` would see 70 stages and miss 11. Canonicalising
+// happens at READ time and the stored agent_id is left untouched, so the raw record stays
+// auditable and a past rollup can still be re-derived from it.
+//
+// Unrecognised values are returned trimmed-and-lowercased rather than folded into a
+// neighbour. An unknown bucket must stay visible as itself; quietly attaching it to the
+// nearest real one is how a ration ends up measuring the wrong thing and saying nothing.
+func CanonicalQuotaBucket(raw string) string {
+	b := strings.ToLower(strings.TrimSpace(raw))
+	if b == "" {
+		return ""
+	}
+	switch {
+	case strings.HasPrefix(b, "codex"), b == "chatgpt", strings.HasPrefix(b, "chatgpt-"),
+		strings.HasPrefix(b, "gpt-"), strings.HasPrefix(b, "gpt5"), strings.HasPrefix(b, "gpt6"):
+		return "codex"
+	case b == "opus", b == "sonnet", b == "haiku", b == "fable",
+		strings.HasPrefix(b, "claude"), strings.HasPrefix(b, "weekly-"):
+		return "anthropic"
+	case strings.HasPrefix(b, "openrouter"), strings.HasPrefix(b, "or-"):
+		return "openrouter"
+	case strings.HasPrefix(b, "ollama"), strings.HasPrefix(b, "pi-"), strings.HasPrefix(b, "pi:"):
+		return "ollama"
+	}
+	return b
 }

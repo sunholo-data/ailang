@@ -45,15 +45,16 @@ type PackageResolver interface {
 
 // LoadedModule represents a loaded and parsed module
 type LoadedModule struct {
-	Path         string
-	File         *ast.File
-	Imports      []string                 // Module paths this module imports
-	Exports      map[string]*ast.FuncDecl // Export table (for now, just functions)
-	Types        map[string]*ast.TypeDecl // Exported type declarations
-	Constructors map[string]string        // Constructor name -> Type name mapping
-	Core         *core.Program            // Core representation (after elaboration)
-	Iface        *iface.Iface             // Module interface (after type checking)
-	CoreTI       interface{}              // Type info for Core expressions (types.CoreTypeInfo, interface{} to avoid import cycle)
+	Path          string
+	File          *ast.File
+	SourceContent *string                  // Exact source text parsed by the lexer; nil when unavailable
+	Imports       []string                 // Module paths this module imports
+	Exports       map[string]*ast.FuncDecl // Export table (for now, just functions)
+	Types         map[string]*ast.TypeDecl // Exported type declarations
+	Constructors  map[string]string        // Constructor name -> Type name mapping
+	Core          *core.Program            // Core representation (after elaboration)
+	Iface         *iface.Iface             // Module interface (after type checking)
+	CoreTI        interface{}              // Type info for Core expressions (types.CoreTypeInfo, interface{} to avoid import cycle)
 }
 
 // NewModuleLoader creates a new module loader
@@ -282,8 +283,10 @@ func (ml *ModuleLoader) Load(path string) (*LoadedModule, error) {
 		}
 	}
 
-	// Parse file
-	l := lexer.New(string(content), fullPath)
+	// Parse the exact source snapshot retained on the loaded module. The pointer
+	// distinguishes known-empty source from source that was never available.
+	sourceText := string(content)
+	l := lexer.New(sourceText, fullPath)
 	p := parser.New(l)
 	p.SetStrictSyntaxMode(ml.strictSyntaxMode)
 	file := p.ParseFile()
@@ -332,13 +335,14 @@ func (ml *ModuleLoader) Load(path string) (*LoadedModule, error) {
 	// Cache and return with canonical ID
 	canonicalID = CanonicalModuleID(path)
 	loaded := &LoadedModule{
-		Path:         canonicalID, // Store canonical form
-		File:         file,
-		Imports:      imports,
-		Exports:      exports,
-		Types:        types,
-		Constructors: constructors,
-		Core:         nil, // Will be populated by runtime
+		Path:          canonicalID, // Store canonical form
+		File:          file,
+		SourceContent: &sourceText,
+		Imports:       imports,
+		Exports:       exports,
+		Types:         types,
+		Constructors:  constructors,
+		Core:          nil, // Will be populated by runtime
 	}
 	ml.cache[canonicalID] = loaded
 

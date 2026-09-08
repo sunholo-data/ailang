@@ -19,6 +19,14 @@ func coordinatorApprove(args []string) error {
 		return fmt.Errorf("usage: ailang coordinator approve <task-id|approval-id>")
 	}
 
+	// A selected plane means a cloud coordinator, whose approvals live in
+	// Firestore and whose tasks have no worktree to merge. Delegate rather than
+	// silently resolving nothing against a local SQLite file — which is what this
+	// command did before, reporting success either way.
+	if remoteCoordinatorSelected(args) {
+		return coordinatorResolveRemote(args, "approve")
+	}
+
 	taskID := args[0]
 	stateDir := ""
 	skipMerge := false
@@ -129,6 +137,9 @@ func coordinatorApprove(args []string) error {
 }
 
 func coordinatorReject(args []string) error {
+	if remoteCoordinatorSelected(args) {
+		return coordinatorResolveRemote(args, "reject")
+	}
 	// Check for help flag first
 	for _, arg := range args {
 		if arg == "--help" || arg == "-h" {

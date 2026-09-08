@@ -54,7 +54,7 @@ run_verdict() {
   (
     set -u
     AILANG_STATE_DIR="$inline_state"; STATE_DIR="$fallback_state"; _mc_slot_state="$state"; MISSION_NAME=v1; MISSION_ATTEMPT="$run_attempt"
-    TRANSIENT_RETRIES=3; RC="$rc"; START_EPOCH=$(date +%s); CONTROLLER_ID=test:test; LOG="$state/driver.log"
+    MC_PAUSED=0; TRANSIENT_RETRIES=3; RC="$rc"; START_EPOCH=$(date +%s); CONTROLLER_ID=test:test; LOG="$state/driver.log"
     log() { echo "$*" >> "$LOG"; }
     . "$verdict_block"
     grep 'slot-verdict:' "$LOG" | tail -1
@@ -144,13 +144,69 @@ check "phase-2 notifies HEARTBEAT-MISSING through _mc_bounded" "[ \"\$(wc -l < '
 rm -rf "$t"
 
 skill="$ROOT/.claude/skills/mission-control/SKILL.md"
+# THE SKILL IS CORE + RESOURCES since the 2026-09-06 context split: each gate's rules —
+# including its stamp instruction — moved to resources/gate-*.md so the always-loaded
+# prefix fell 63k -> 12k tokens. The per-gate stamp rules still exist; asserting them
+# against the core alone would report their ABSENCE when they merely moved, which is a
+# test failing for the wrong reason. Concatenate, and keep asserting all eight.
+skill=$(mktemp -t skill_all_hb) || exit 1
+cat "$(dirname "$0")/../../.claude/skills/mission-control/SKILL.md" \
+    "$(dirname "$0")/../../.claude/skills/mission-control/resources"/gate-*.md > "$skill" 2>/dev/null
+trap 'rm -f "$skill"' EXIT
+# EACH GATE NOW OWNS A FILE (2026-09-06 context split), so the old "scan the span between
+# two ## Gate headings" logic is obsolete — and worse than obsolete: the concatenation has
+# a stub AND a real section per gate, so a span scan stops at the stub and reports the rule
+# missing when it is merely one file over. Check each gate's own resource instead, which is
+# both simpler and says what it means.
+_res="$ROOT/.claude/skills/mission-control/resources"
 span_ok=0
-for pair in 'Gate 0:gate-0' 'Gate 1:gate-1' 'Gate 2:gate-2' 'Gate 3 —:gate-3' 'Gate 3b:gate-3b' 'Gate 4:gate-4' 'Gate 5:gate-5'; do
-  heading=${pair%%:*}; label=${pair#*:}
-  if awk -v h="$heading" -v l="stamp $label" 'index($0,"## " h)==1 {inspan=1; next} inspan && /^## Gate/ {exit} inspan && index($0,l) {found=1} END {exit !found}' "$skill"; then span_ok=$((span_ok + 1)); fi
+for pair in 'gate-0-preflight:gate-0' 'gate-1-observe:gate-1' 'gate-2-pick:gate-2' \
+            'gate-3-route:gate-3' 'gate-3b-ci-green:gate-3b' 'gate-4-record:gate-4' \
+            'gate-5-retro:gate-5'; do
+  file=${pair%%:*}; label=${pair#*:}
+  if grep -q "stamp $label" "$_res/$file.md" 2>/dev/null; then
+    span_ok=$((span_ok + 1))
+  else
+    echo "    $file.md carries no 'stamp $label' instruction"
+  fi
 done
-if awk 'index($0,"## Gate 5")==1 {inspan=1; next} inspan && /^## Gate/ {exit} inspan && /stamp complete/ {found=1} END {exit !found}' "$skill"; then span_ok=$((span_ok + 1)); fi
+# Gate 5 additionally stamps completion.
+grep -q 'stamp complete' "$_res/gate-5-retro.md" 2>/dev/null && span_ok=$((span_ok + 1))
 check "every gate section carries its own stamp instruction (8/8)" "[ '$span_ok' -eq 8 ] && grep -q 'stamp abort <reason>' '$skill'"
+
+# Every arm above extracts a block from the driver and supplies its variables by hand.
+# That seam cannot see a variable the DRIVER forgets to set: run_verdict assigned
+# START_EPOCH itself, so both the SLOT VERDICT and RETRY HISTORY arms stayed green
+# from iter-315 to 2026-09-03 while every real v1/docs/motoko iteration died on
+# `START_EPOCH: unbound variable` under `set -u`, after its work had landed.
+#
+# So: for each extracted block, assert the driver actually assigns every bare
+# variable it reads. Arithmetic matters — inside $(( )) a variable is named with no
+# `$`, which is how the original slipped past review and past shellcheck (SC2154 is
+# silent on ALL-CAPS names, verified against a positive control on this rig).
+unassigned=""
+for block in 'SLOT VERDICT' 'SLOT NOTIFY' 'RETRY HISTORY' 'ATTEMPT HEARTBEAT' 'HEARTBEAT STATE DIR' 'DRIVER PIN DECISION'; do
+  blk=$(awk -v s="# --- $block START ---" -v e="# --- $block END ---" \
+        'index($0,s){f=1} f{print} index($0,e){f=0}' "$DRIVER")
+  if [ -z "$blk" ]; then unassigned="$unassigned [$block:NOT-FOUND]"; continue; fi
+  # Drop nested $(...) so a command substitution's contents are not read as refs.
+  stripped=$(printf '%s\n' "$blk" | sed 's/\$([^()]*)//g')
+  # Match the MAXIMAL identifier, then keep only all-caps ones: matching
+  # [A-Z_]+ directly truncates `$_mc_slot_state` to a bare `_`.
+  refs=$(
+    { printf '%s\n' "$stripped" | grep -oE '\$\{?[A-Za-z_][A-Za-z0-9_]*' | tr -d '${'
+      printf '%s\n' "$stripped" | grep -F '$((' | sed 's/.*\$((//' | grep -oE '[A-Za-z_][A-Za-z0-9_]*'
+    } | grep -E '^[A-Z_][A-Z0-9_]*$' | grep -E '[A-Z]' | sort -u
+  )
+  for v in $refs; do
+    # ${VAR:-default} is safe under set -u even when unassigned.
+    printf '%s\n' "$blk" | grep -q "\${$v:-" && continue
+    grep -qE "(^|[[:space:]]|;|\()${v}=|export[[:space:]]+${v}\b" "$DRIVER" \
+      || unassigned="$unassigned $block:$v"
+  done
+done
+check "driver assigns every bare variable its extracted blocks read" "[ -z '$unassigned' ]"
+[ -n "$unassigned" ] && echo "   unassigned:$unassigned" >&2
 
 if [ "$fail" -eq 0 ]; then
   echo "PASS: $pass heartbeat arms ran"

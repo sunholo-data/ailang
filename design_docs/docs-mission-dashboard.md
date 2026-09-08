@@ -1,47 +1,32 @@
 # Docs Mission Dashboard (snapshot — history lives in the charter + log)
 
-**Last updated**: 2026-09-02T17:00Z, iteration 5.
+**Last updated**: 2026-09-07, iteration 16.
 
 ## Status
-`docs-8`'s stale "126 overdue planned docs" corrected to a verified **54** (count had drifted).
-All 54 classified against live codebase evidence by 6 parallel sonnet sub-agents; an independent
-7th, adversarial sub-agent re-verified the 22 highest-stakes claims before any file moved —
-**caught 3 wrong (14%), 2 outright reversals** (an abandoned/deleted experiment misread as
-shipped; a retired nightly A/B schedule misread as a settled negative). Result: **18 docs
-archived** (`planned/` → `implemented/vX_Y/`, 27 files incl. sprint-plans), **1 ruled out** with
-evidence in its own header, **31 confirmed still-planned** (this mission's accurate backlog now).
-Also credited a second orphaned fire: `docs-3` (benchmark provenance wiring) is fully verified
-and evaluator-passed (85/100) but its PR [#1031](https://github.com/sunholo-data/ailang/pull/1031)
-is blocked on an inherited, V1-owned CI red on `origin/dev`'s own tip (not a stale-base issue) —
-left open, ready to merge once V1 clears it.
+`docs-12` (`m-eval-standard-mode-input-files-gap`) LANDED — PR #1104 squash-merged
+(`b2cead2ee6231672ebda52a1bf29d92dd06eaf33`), evaluator PASS 98/100 zero blocking. Both D-4 and
+D-5 are now fully consumed (docs-11 iteration 15, docs-12 this iteration). **docs-8 backlog draw
+queue is exhausted; next iteration needs a fresh pick.**
 
 ## Blocking on Mark
-None. Decision ledger: 2 rows, both `RESOLVED`. No new ask this iteration.
+None open. D-4 and D-5 both RESOLVED (attended) and now fully consumed by landed sprints.
 
 ## Queue (top = next)
-1. `[LANDED]` docs-0 · charter ratified (attended).
-2. `[LANDED]` docs-2 · clauses 1+3 · first `docs-sync` sweep.
-3. `[RULED OUT]` docs-9 · intro.mdx version claim was a false positive.
-4-6. `[LANDED]` docs-5/6/10 · examples hygiene, `check_examples.sh` fix, verify-examples floor.
-7. `[RULED OUT]` docs-7 · "mission cannot edit its own content" — premise was false.
-8. `[LANDED]` docs-8 · 126→54 corrected, 18 archived, 1 ruled out, 31 accurate backlog remains.
-9. `[LANDED]` docs-1 · clause 7 · inbox-routing trigger built and verified.
-10. `[IN-SPRINT]` docs-3 · benchmark provenance wiring — verified, blocked on V1's CI red.
-11. `[PARKED]` docs-4 · taxonomy pass, sequenced after docs-3.
-
-**Queue is empty of `[NEXT]` items.** 31 individually-evidenced docs in `design_docs/planned/`
-are the mission's real backlog now (see log §ITERATION 5 for the full list) — next fire picks one
-directly, or resumes docs-3 once V1's CI red clears.
+1-12. `[LANDED]`/`[RULED OUT]` docs-0 through docs-11 — exhausted.
+13. `[LANDED]` docs-12 — landed iteration 16.
+Next fresh draw: re-probe or re-route the `m-anthropic-sandbox` designer lane (parked-on-lane at
+iteration 14 on a `gpt-6-astra` Agent-tool timeout; no compatible fallback was authorized then —
+re-check before re-picking).
 
 ## Loop cadence + routing
-launchd `dev.ailang.mission-docs`, every 6h, staggered against v1/world/motoko. Routing ladder:
-subscription (`claude-sonnet-5`/`codex:gpt-5.6-luna`) → flat-rate (Ollama Cloud) → metered
-OpenRouter twin. Evaluator vendor-disjoint from executor at every rung. Metered ceiling $1/iter.
+Every 6h. Iteration 16: planner + executor both ran end-to-end on `pi:ollama/glm-5.3-flash:cloud`
+(first full multi-milestone pi run for this mission); evaluator `sonnet` via Agent tool,
+independent of the pi executor (generator≠judge held).
 
 ## Cost this iteration
-$0.00 of $1 — 7 sonnet Agent-tool sub-agents (6 classifiers + 1 independent verifier), all
-subscription-lane; no metered $ calls.
+Zero further quorum spend (D-5's ruling waived the 5th round); pi lane is a quota bucket, zero
+metered $ for planner/executor.
 
 ## Quota posture
-No fallback triggered. `origin/dev` red (`test`, 3× `Build *-latest`, `launchd drivers`)
-confirmed inherited/pre-existing, V1's domain — not re-flagged as new, blocks PR #1031 only.
+Canonical inbox had no docs directive this iteration. Gate 4 base was
+`b2cead2ee6231672ebda52a1bf29d92dd06eaf33` at `2026-09-07T20:37:46Z`.

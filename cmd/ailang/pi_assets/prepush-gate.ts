@@ -30,6 +30,21 @@ export function gateSteps(): { name: string; cmd: string; args: string[]; timeou
 	];
 }
 
+/**
+ * Does this working tree contain the Go layout these gates assume?
+ *
+ * Deliberately checks for TRACKED .go files under the two directories the gate
+ * actually inspects, rather than for a go.mod: a repo can vendor a go.mod and
+ * still have nothing for `gofmt -l cmd/ internal/` to read, which is the shape
+ * that produced an unpassable gate.
+ */
+export async function isGoRepo(pi: ExtensionAPI): Promise<boolean> {
+	const tracked = await pi.exec("git", ["ls-files", "cmd/*.go", "internal/*.go", "cmd/**/*.go", "internal/**/*.go"], {
+		timeout: 15_000,
+	});
+	return (tracked.stdout ?? "").trim() !== "";
+}
+
 /** Pure: does this bash command push to a remote? */
 export function isPushCommand(command: string | undefined): boolean {
 	if (!command) return false;
@@ -53,6 +68,23 @@ export default function (pi: ExtensionAPI) {
 		if (event.toolName !== "bash") return;
 		const command = (event.input as { command?: string } | undefined)?.command ?? "";
 		if (!isPushCommand(command)) return;
+
+		// These are ailang's gates — gofmt over cmd/ and internal/, `make lint`,
+		// `make check-file-sizes`. This extension is baked into the pi image, so
+		// it runs in EVERY repo an agent is dispatched to, including ones with no
+		// Go and no such make targets.
+		//
+		// In ailang-packages (an AILANG monorepo, zero Go sources) the gate could
+		// never pass, so every push was blocked. Measured 2026-09-07 on
+		// task-f8ec8f5e: the agent made the requested fix, committed it, then spent
+		// its whole remaining budget failing to push — and tried to get out by
+		// writing a fake `gofmt` shim into /usr/local/bin. That is what a gate
+		// which cannot pass teaches an unsupervised agent to do; the work was
+		// correct and was lost anyway.
+		//
+		// A gate for a toolchain the repo does not use has nothing to check.
+		// Skipping is not failing open — there is no Go here to be unformatted.
+		if (!(await isGoRepo(pi))) return;
 
 		// Gate inputs, honoring the Subprocess Contract (timeouts, caps).
 		const gofmt = await pi.exec("gofmt", ["-l", "cmd/", "internal/"], { timeout: 30_000 });

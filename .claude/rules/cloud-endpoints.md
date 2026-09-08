@@ -19,12 +19,24 @@ here is a route on the internet.
 | Env | Cloud Run service | Project | Public URL |
 |-----|-------------------|---------|-----------|
 | **prod** | `ailang-dashboard` | `ailang-multivac` | `https://dashboard.ailang.sunholo.com` (DNS) · `https://ailang-dashboard-ao6kuhcibq-ew.a.run.app` |
+| **test** | `ailang-test-dashboard` | `ailang-multivac-test` | `https://ailang-test-dashboard-rrmdhcxo4a-ew.a.run.app` (no DNS name) |
 | **dev** | `ailang-dev-dashboard` | `ailang-multivac-dev` | `https://ailang-dev-dashboard-ejjw6zt3bq-ew.a.run.app` (no DNS name) |
 
-Both in `europe-west1`. Related: `ailang-coordinator`, `ailang-mcp` (`mcp.ailang.sunholo.com`),
+All in `europe-west1`. Related: `ailang-coordinator`, `ailang-mcp` (`mcp.ailang.sunholo.com`),
 `ailang-billing-api`, `ailang-docparse-api`, `ailang-website-builder`; registry-validator lives in
-the separate `ailang-registry` project. Deploy is Terraform-only via `ailang-multivac-deploy`
-(Cloud Build, **`europe-west3`** — builds are invisible without `--region`).
+the separate `ailang-registry` project.
+
+**How a route you add here reaches each environment** (unified 2026-09-03 — the model is
+written down once, in `ailang-multivac/.claude/skills/release/SKILL.md`; how to cut a release
+is in [`.claude/skills/release-manager/SKILL.md`](../skills/release-manager/SKILL.md) §7.6–7.7):
+a push to ailang `dev` builds and rolls **dev**; a `v*` tag builds the same images from the
+tagged tree and rolls **test**, then stops; **prod** is a manual promote by version
+(`scripts/release.sh promote core vX.Y.Z` in ailang-multivac). Terraform and config travel by
+ailang-multivac branch (`dev → test → prod`) and build no images. So a merged dashboard change
+is public on **dev only** until it is tagged and promoted — do not read "it deployed" as "it is
+on `dashboard.ailang.sunholo.com`". The builds themselves run in **`europe-west3`**, project
+`ailang-multivac-deploy` — `gcloud builds list` defaults to `global` and shows nothing, which
+reads as "the trigger never fired" when it did.
 
 `dashboard.ailang.sunholo.com` maps to **prod**, which is why `DATA_BASE` in the benchmark fetch
 path still points at the dev run.app URL — see `design_docs/planned/m-eval-data-hosting-decouple.md:60`.

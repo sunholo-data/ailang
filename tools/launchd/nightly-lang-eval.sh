@@ -32,7 +32,7 @@ LANGS="${LANG_EVAL_LANGS:-ailang,python,javascript,go}"
 log() { echo "[$(date '+%H:%M:%S')] $*" | tee -a "$LOG"; }
 
 # Ensure ollama is reachable.
-if ! curl -s --max-time 3 http://localhost:11434/api/version >/dev/null 2>&1; then
+if ! curl -s --max-time 3 http://127.0.0.1:11434/api/version >/dev/null 2>&1; then
     log "ollama not reachable — skipping language eval (retry next week)"
     ailang messages send controlplane "Weekly language eval skipped: ollama unreachable. Check rig-watchdog." \
         --title "Lang eval skipped" --from "lang-eval" 2>/dev/null || true

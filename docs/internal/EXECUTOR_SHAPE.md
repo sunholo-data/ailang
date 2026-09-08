@@ -11,16 +11,25 @@ The contract has **two pillars**:
   make a new executor auto-discovered by both the coordinator
   (`internal/coordinator/provider_executor.go`) and the eval harness
   (`cmd/ailang/eval_suite.go`) with zero dispatch-layer code changes.
-- **Pillar 2 — Cloud deployment** (`docker/` here + `ailang-multivac` repo):
-  four cloud-side touchpoints that make the same executor routable through the
-  Cloud Run coordinator. Required for any executor used in production cloud
-  dispatch; optional if the executor is local-only.
+- **Pillar 2 — Cloud deployment** (`docker/` + the build pipelines here, plus
+  the `ailang-multivac` repo): the cloud-side touchpoints that make the same
+  executor routable through the Cloud Run coordinator. Required for any
+  executor used in production cloud dispatch; optional if the executor is
+  local-only.
 
 The total touch points outside the new executor package are: one-line blank
 import in `provider_executor.go`, an `agent_cli` string in `models.yml`,
-one Dockerfile under `docker/`, **two Cloud Build steps** (one in
-`ailang-multivac/cloudbuild.yaml` and one in `ailang-multivac/cloudbuild-images.yaml`),
-and one Cloud Run Job block in `ailang-multivac/terraform/cloud_run_jobs.tf`.
+one Dockerfile under `docker/`, **a build step in each of this repo's two
+pipelines** (`cloudbuild-dev.yaml` and `cloudbuild-release.yaml`) plus the
+bootstrap mirror in `ailang-multivac/cloudbuild-images.yaml`, one Cloud Run Job
+block in `ailang-multivac/terraform/cloud_run_jobs.tf`, and the matching
+`job:image` pair in `ailang-multivac/scripts/cloudbuild-lib.sh`.
+
+**Deployment model (unified 2026-09-03): push → dev, `v*` tag → test, promote by
+version → prod.** This document does not restate it — the model lives in
+`ailang-multivac/.claude/skills/release/SKILL.md`, and how to cut a release in
+[`.claude/skills/release-manager/SKILL.md`](../../.claude/skills/release-manager/SKILL.md)
+§7.6–7.7 + `resources/cloud-release.md`.
 
 ## Pillar 1 — Local Executor
 
@@ -156,32 +165,57 @@ compiles AILANG → Go inside the agent), also add `Dockerfile.agent-<name>-go`
 mirroring `Dockerfile.agent-codex-go`. Most new executors do **not** need the
 `-go` variant; defer it until a concrete benchmark requires it.
 
-### 6. Cloud Build Step (BOTH `cloudbuild.yaml` AND `cloudbuild-images.yaml`)
+### 6. Cloud Build Steps (dev pipeline, release pipeline, bootstrap mirror)
 
-**⚠️ Critical**: a new executor variant must be added to **both** Cloud Build
-configs in `ailang-multivac/`:
+**⚠️ Critical**: a new executor variant needs a build step in **three** files
+and its job→image pair registered in a fourth. Two of them are in *this* repo —
+since 2026-09-03 ailang's own pipelines build every image, and a push to an
+`ailang-multivac` branch builds nothing:
 
-1. **`cloudbuild.yaml`** — the auto-trigger pipeline that runs on push to
-   dev/test/prod. This is the file that builds images **before** running
-   `terraform apply`. If a new variant is missing here, `terraform apply` will
-   fail with `Image 'agent-<name>:latest' not found.` for the new Cloud Run
-   Job, and Cloud Run will cache that failure (`ContainerMissing` condition)
-   until the next successful apply re-validates the resource.
-2. **`cloudbuild-images.yaml`** — the manual image-only pipeline (no
-   terraform, no deploy). Useful for rebuilding images without paying for a
-   full deploy. Must stay in sync with `cloudbuild.yaml` so manual rebuilds
-   produce the same image set as auto-triggered runs.
+1. **`cloudbuild-dev.yaml`** (this repo) — fires on every push to ailang `dev`
+   (trigger `ailang-core-dev`), builds all 18 images and rolls dev's 4 services
+   and 17 executor jobs. This is the **only** builder of dev's images: a variant
+   missing here does not exist in dev, `terraform apply` fails with
+   `Image 'agent-<name>:latest' not found.` for the new Cloud Run Job, and Cloud
+   Run caches that failure (`ContainerMissing`) until the next successful apply
+   re-validates the resource.
+2. **`cloudbuild-release.yaml`** (this repo) — fires on a `v*` tag (trigger
+   `ailang-core-release`), builds the same 18 images from the tagged tree,
+   deploys **test**, runs the CI + smoke gates, and stops. Same step shape as
+   dev, with three differences: it substitutes `$_TEST_PROJECT`, it adds a
+   second `-t "$$AR/agent-<name>:$TAG_NAME"` tag, and it carries **no
+   `allowFailure`** — a version names the whole deployment, so a variant that
+   cannot build fails the release.
+3. **`ailang-multivac/cloudbuild-images.yaml`** — the manual, image-only
+   pipeline (no terraform, no deploy). Keep the mirror so a fresh environment
+   can be seeded before its first ailang push; it is **bootstrap only** and is
+   on neither the dev nor the release path.
+4. **`ailang-multivac/scripts/cloudbuild-lib.sh`** — add the `job:image` pair to
+   `AGENT_JOBS` (suffix `:optional` only for an externally-maintained image that
+   dev is allowed to skip). This is the one copy of the roll / job→image /
+   promote-guard logic, cloned at run time and sourced by all four pipelines;
+   its offline harness (`make test-lib`) cross-checks `AGENT_JOBS` against
+   `terraform/cloud_run_jobs.tf`, so a job added to terraform without a pair
+   here fails that test.
 
-In each file, add a `build-agent-<name>` step (and `push-agent-<name>` if a
-downstream `-go` variant `FROM`s it). Mirror the `build-agent-opencode`
-block exactly — same `--build-arg PROJECT=$_TARGET_PROJECT`, same registry path
-(`${_REGION}-docker.pkg.dev/$_TARGET_PROJECT/ailang/agent-<name>:latest`).
-Also add the new image to the `push-images` `waitFor` list and the top-level
-`images:` declaration so it's recorded as a build artifact.
+In each build step, add `build-agent-<name>` mirroring the `build-agent-opencode`
+block **of the file you are editing** — same `--cache-from` / `--cache-to`
+registry refs, same `--build-arg PROJECT=...`, same `--push`, same
+`waitFor: ['build-agent-base']`. Pushes are embedded in the build step, so there
+is no separate `push-agent-<name>` step and no top-level `images:` list; instead
+add the new step to the `deploy-*` step's `waitFor` list, or the deploy races the
+build.
 
-The historical drift between the two files (cloudbuild.yaml missing all
-executor variants for several months) is exactly the kind of silent breakage
-this contract is designed to prevent. Updating both is non-negotiable.
+Prod receives nothing from any of these. It is a manual promote by version from
+the ailang-multivac checkout (`scripts/release.sh promote core vX.Y.Z`), which
+refuses unless the release build for that tag SUCCEEDED and every image of the
+set carries `:vX.Y.Z` in test.
+
+(Until 2026-09-03 this section said "BOTH `cloudbuild.yaml` AND
+`cloudbuild-images.yaml`", both in ailang-multivac. That branch-push full
+pipeline was retired and `ailang-multivac/cloudbuild.yaml` deleted — it rebuilt
+every image from whatever ailang `dev` head was current, which is how unreleased
+code reached prod on 2026-09-02.)
 
 ### 7. Cloud Run Job
 
@@ -222,11 +256,14 @@ For a new cloud-deployable executor:
 1. `docker/Dockerfile.agent-<name>` builds locally with
    `docker build -f docker/Dockerfile.agent-<name> --build-arg PROJECT=<dev-project> -t agent-<name>:dev .`
 2. `<cli> --version` succeeds inside the built image
-3. **Both** `cloudbuild.yaml` AND `cloudbuild-images.yaml` produce
-   `agent-<name>:latest` in Artifact Registry (not just one!)
-4. `terraform apply` creates an `agent-<name>` Cloud Run Job in dev
+3. A push to ailang `dev` produces `agent-<name>:latest` in the dev Artifact
+   Registry via `cloudbuild-dev.yaml` (and the same step exists in
+   `cloudbuild-release.yaml`, with the `:$TAG_NAME` tag and no `allowFailure`)
+4. `terraform apply` creates an `agent-<name>` Cloud Run Job in dev, and
+   `make test-lib` in ailang-multivac passes with the new `AGENT_JOBS` pair
 5. Coordinator-dispatched task targeting the new Job completes end-to-end
-6. Promote to prod after dev smoke passes
+6. It reaches test on the next `v*` tag, and prod only via
+   `scripts/release.sh promote core vX.Y.Z`
 
 ---
 
@@ -288,23 +325,26 @@ See `internal/executor/codex/codex_test.go` for the complete blueprint.
 
 7. Author `docker/Dockerfile.agent-<name>` (mirror `Dockerfile.agent-opencode`);
    verify `docker build` + `<cli> --version` locally
-8. Add `build-agent-<name>` (+ `push-agent-<name>` if needed) to **BOTH**
-   `ailang-multivac/cloudbuild.yaml` AND `ailang-multivac/cloudbuild-images.yaml`.
-   Update each file's `push-images.waitFor` and `images:` lists.
+8. Add `build-agent-<name>` to **this repo's** `cloudbuild-dev.yaml` AND
+   `cloudbuild-release.yaml` (release adds `-t …:$TAG_NAME`, no `allowFailure`),
+   mirror it into `ailang-multivac/cloudbuild-images.yaml` for bootstrap, and
+   add the step to each pipeline's `deploy-*` `waitFor` list
 9. Add `"<name>"` to `knownVariants` in
    `internal/dispatch/cloudrun/dispatcher.go` so the coordinator accepts the
    new variant in `DispatchParams.ExecutorVariant`
 10. Add a Cloud Run Job block in
     `ailang-multivac/terraform/cloud_run_jobs.tf` (one for the project-keys
     variant, one for the user-API-key variant) with the policy-appropriate
-    secret bindings — see §8 above for the cost-control rule
+    secret bindings — see §8 above for the cost-control rule — and the matching
+    `job:image` pair in `ailang-multivac/scripts/cloudbuild-lib.sh` `AGENT_JOBS`
 11. Smoke-test in dev: build pipeline → `terraform apply` → coordinator
     dispatch with `--executor <name>` → completion
 
 No coordinator code change. No eval-harness code change. No factory
 modifications. The registration runs at import time, and both
 `ExecutorProvider` and `eval-suite` resolve names dynamically. Cloud
-deployment is purely declarative (Dockerfile + cloudbuild + terraform).
+deployment is purely declarative (Dockerfile + cloudbuild + terraform +
+the `AGENT_JOBS` pair).
 
 ## Why this shape?
 

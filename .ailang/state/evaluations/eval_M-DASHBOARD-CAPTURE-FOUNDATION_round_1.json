@@ -1,0 +1,115 @@
+{
+  "sprint_id": "M-DASHBOARD-CAPTURE-FOUNDATION",
+  "evaluation_round": 1,
+  "timestamp": "2026-09-08T06:23:57.126783+00:00",
+  "reviewed_commit": "935c5934d",
+  "design_doc": "design_docs/dashboard-live-audit-2026-09-08.md",
+  "sprint_plan": "design_docs/planned/m-dashboard-capture-foundation-sprint-plan.md",
+  "total_score": 75,
+  "pass_threshold": 70,
+  "result": "fail",
+  "score_breakdown": {
+    "tests_pass": 0,
+    "lint_clean": 10,
+    "acceptance_criteria": 30,
+    "code_quality": 10,
+    "documentation": 15,
+    "design_fidelity": 10
+  },
+  "hard_fails": [
+    {
+      "condition": "full_suite_verification_not_green",
+      "details": "Fresh effective-unfiltered make test on reviewed implementation exited nonzero with exactly four environment-sensitive failures in unchanged eval_harness and pkg tests. Telemetry and observatory now pass. Correctly filtered full-repository make test excluding only those four tests exited zero. Strict rubric still requires unfiltered green."
+    }
+  ],
+  "automated_checks": {
+    "tests_pass": false,
+    "targeted_packages_pass": true,
+    "targeted_race_pass": true,
+    "lint_clean": true,
+    "architecture_boundaries_pass": true,
+    "changed_implementation_files_below_800_lines": true,
+    "coverage_pct": null,
+    "evidence": [
+      "/tmp/dashboard-sprint-full-test.log",
+      "/tmp/dashboard-sprint-packages-v2.log",
+      "/tmp/dashboard-sprint-race-v2.log",
+      "/tmp/dashboard-sprint-lint-v2.log",
+      "/tmp/dashboard-sprint-boundaries.log",
+      "/tmp/dashboard-sprint-full-filtered.log",
+      "/tmp/dashboard-sprint-full-filtered-v2.log"
+    ],
+    "independent_test": "go test ./internal/telemetry ./internal/observatory -run TestInitialization|TestOTLP|TestTelemetryExporterReceiverPreservesWorkProvenance -count=1: telemetry 5.309s; observatory 0.492s; both pass with loopback permissions",
+    "filtered_full_repository_pass": true,
+    "build_pass": true,
+    "pi_checks_pass": true,
+    "excluded_tests": [
+      "TestMemWatchdogKillsAllocator",
+      "TestMemWatchdogKillsGrandchild",
+      "TestProcessGroupRSSSamplesGroup",
+      "TestPackageDir_RegistryRuntimeResolution"
+    ]
+  },
+  "acceptance_criteria": [
+    {
+      "feature_id": "M1",
+      "met": true,
+      "evidence": "All five criteria marked passing; recovery, default443 CONNECT, failed-batch bound, later recovery and malformed URL regression tests reviewed."
+    },
+    {
+      "feature_id": "M2",
+      "met": true,
+      "evidence": "All five criteria marked passing; actual report consumers, compatible wrappers, cloud timeout/error/cancellation/dual registration and single-owner disposal reviewed."
+    },
+    {
+      "feature_id": "M3",
+      "met": true,
+      "evidence": "All five local criteria now recorded passes:true, completion timestamp and notes. Real protobuf receiver persistence and race tests pass; build/lint/boundaries and filtered full suite pass. Full-suite exceptions and independent evaluation are explicitly recorded, as the M3 contract requires. Production rollout stays separate."
+    }
+  ],
+  "baseline_analysis": {
+    "unchanged_paths": [
+      "internal/eval_harness",
+      "internal/pkg"
+    ],
+    "identity_evidence": "git diff HEAD^ HEAD -- internal/eval_harness internal/pkg is empty",
+    "failures": [
+      {
+        "tests": [
+          "TestMemWatchdogKillsAllocator",
+          "TestMemWatchdogKillsGrandchild",
+          "TestProcessGroupRSSSamplesGroup"
+        ],
+        "evidence": "Full log records allocator timeout and no live process group. process_unix.go invokes ps -axo pgid=,rss=; results are consistent with restricted process inspection. No independent unsandboxed baseline execution performed."
+      },
+      {
+        "tests": [
+          "TestPackageDir_RegistryRuntimeResolution"
+        ],
+        "evidence": "loader_test.go:291 computes actual user cache path, ignores mkdir/write errors and defers RemoveAll. Full log fails resolving /Users/voightkampff/.ailang/cache/registry/sunholo/testpkg/0.1.0. Protecting home writes explains failure; test should not be run against real home merely to obtain green."
+      }
+    ]
+  },
+  "documentation_check": {
+    "changelog_updated": true,
+    "examples_created": "not applicable: no new language feature; real OTLP integration fixture supplies executable example",
+    "design_doc_status": "implementation complete; formal promotion held by unfiltered test gate"
+  },
+  "code_quality_deductions": [
+    "-5: multiple functions exceed 50 lines (initialization and transport test orchestration). No deduction for truthful paused promotion status or separate rollout checklist. Milestone completion, notes and LOC totals are now populated; elapsed engineering days are not invented."
+  ],
+  "design_fidelity": {
+    "score": 10,
+    "notes": "Matches scoped F1 recovery contract. SQLite explicit chain/stage preservation is a narrow data-loss repair demonstrated by the required M3 roundtrip. No UI rewrite, migration, production mutation or language semantics changes."
+  },
+  "feedback": [
+    {
+      "file": ".ailang/state/sprints/sprint_M-DASHBOARD-CAPTURE-FOUNDATION.json",
+      "category": "verification",
+      "severity": "medium",
+      "issue": "Strict unfiltered full-suite verification gate remains unmet; all local acceptance criteria are met and no remaining implementation blocker was found.",
+      "suggestion": "Obtain unfiltered green in an appropriately isolated test environment before claiming strict evaluator PASS. Preserve real home-data protection; retain production rollout and live-cohort acceptance as separate gates."
+    }
+  ],
+  "notes": "Independent review performed. Initial discarded coordinator shutdown and test gaps were corrected. Current-snapshot effective-unfiltered run has exactly four environment-sensitive failures in unchanged code; correctly filtered full-repository run passes. All local acceptance criteria met. FAIL at 75/100 reflects the mandatory unfiltered verification gate, not demonstrated remaining product defects. No merge, rollout, messages or production actions performed."
+}

@@ -12,15 +12,35 @@ import (
 )
 
 // runDesignQuorum implements `ailang design-quorum` (M-MISSION-FLEET-AB Phase B2):
-// it composes N off-Anthropic reviewers (default gpt5-6-sol + gemini-3-1-pro +
+// it composes N off-Anthropic reviewers (default gpt6-astra + gemini-3-1-pro +
 // oc-glm-5-2 — OpenAI, Google and Ollama Cloud, three independent priors)
+//
+// OpenAI seat: gpt5-6-sol -> gpt6-astra, straight swap, Mark attended 2026-09-05.
+// Newer generation on the same vendor seat; the three-independent-priors property
+// the roster exists for is unchanged.
+//
+// ⚠️ KNOWN COLLISION, and it is NOT theoretical: astra is ALSO an entry in the
+// design-doc-creator rotation as of the same day, so on astra's rotation turn the
+// author and one reviewer are the SAME MODEL — a doc marking its own homework at
+// Gate 2. That is the 2026-08-26 defect that got codex:gpt-5.6-sol removed from
+// that rotation, and it is the thing Mark named as the constraint to respect
+// ("ideally no model provider marks its own work"). Until a resolution is
+// ratified, a doc AUTHORED by astra must be quorumed with the OpenAI seat
+// substituted back to sol:
+//
+//	ailang design-quorum --reviewers gpt5-6-sol,gemini-3-1-pro,oc-glm-5-2 < doc.md
+//
+// PROPOSED fix (not ratified, so not implemented here): make the OpenAI seat
+// resolve to whichever OpenAI model did NOT author the doc — astra normally, sol
+// when astra designed it. That keeps three independent vendors AND keeps every
+// reviewer independent of the author, instead of trading one against the other.
 // in parallel into one quorum verdict, records a machine JSON artifact + an
 // optional mission-log markdown block, and degrades gracefully to N-1 (naming
 // any absent reviewer). The Claude controller's own review is IN-SESSION (not
 // an API call) and can be folded in via flags.
 func runDesignQuorum() {
 	fs := flag.NewFlagSet("design-quorum", flag.ExitOnError)
-	reviewers := fs.String("reviewers", "gpt5-6-sol,gemini-3-1-pro,oc-glm-5-2", "comma-separated reviewer model ids from models.yml")
+	reviewers := fs.String("reviewers", "gpt6-astra,gemini-3-1-pro,oc-glm-5-2", "comma-separated reviewer model ids from models.yml")
 	maxCost := fs.Float64("max-cost-usd", quorum.DefaultMaxCostUSD, "per-reviewer budget cap in USD")
 	artifactDir := fs.String("artifact-dir", quorum.ArtifactDir, "directory for the machine JSON artifact")
 	logPath := fs.String("mission-log", "", "optional mission log path to append the markdown block")
@@ -104,10 +124,10 @@ const designQuorumHelp = `ailang design-quorum — N-reviewer quorum verdict on 
 
 USAGE:
   ailang design-quorum <doc.md> [flags]
-  ailang design-quorum --reviewers gpt5-6-sol,gemini-3-1-pro,oc-glm-5-2 < doc.md
+  ailang design-quorum --reviewers gpt6-astra,gemini-3-1-pro,oc-glm-5-2 < doc.md
 
 FLAGS:
-  --reviewers <csv>          reviewer model ids (default gpt5-6-sol,gemini-3-1-pro,oc-glm-5-2)
+  --reviewers <csv>          reviewer model ids (default gpt6-astra,gemini-3-1-pro,oc-glm-5-2)
   --max-cost-usd <n>         per-reviewer budget cap in USD (default 0.10)
   --artifact-dir <dir>       machine JSON artifact dir (default .ailang/state/mission-quorum)
   --mission-log <path>       append the human markdown block to this mission log

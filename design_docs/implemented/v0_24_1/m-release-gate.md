@@ -1,6 +1,7 @@
 ## M-RELEASE-GATE: Gated release pipeline — tag → test → smoke gate → prod
 
 **Status**: ✅ Implemented (v0.24.1; validated on v0.25.0) — gated release pipeline live
+**Superseded (2026-09-03)**: steps (4)–(5) and the trigger changes — the pipeline now builds all 18 images and STOPS at test; prod is a manual promote by version. See `design_docs/planned/v0_35_0/m-unified-release-model.md`.
 **Target**: v0.25.0
 **Priority**: P1 — prod (public `mcp.ailang.sunholo.com` + coordinator) had silently frozen at 0.19.1 for ~3 weeks (v0.20–v0.24 never reached prod).
 **Owner**: release-manager

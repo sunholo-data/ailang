@@ -79,6 +79,22 @@ type TaskCompletion struct {
 	// GCS path prefix for raw artifacts: transcript.txt, session.jsonl, metrics.json
 	// Format: "tasks/{taskID}" (relative to the per-environment artifact bucket)
 	ArtifactGCSPath string `json:"artifact_gcs_path,omitempty"`
+
+	// Approval evidence, produced by the executor because it is the only
+	// component with a git tree — the cloud coordinator has no clone and cannot
+	// run `git diff` at any price (M-COMPLETION-PATH-PARITY M3).
+	//
+	// The diff is bounded by two IMMUTABLE commit SHAs rather than by a branch
+	// name: a branch can move or be deleted between delivery attempts, so a
+	// branch-bounded diff could render differently on a replay of the same
+	// completion.
+	BaseCommit string `json:"base_commit,omitempty"`
+	HeadCommit string `json:"head_commit,omitempty"`
+	DiffStat   string `json:"diff_stat,omitempty"`
+	// Diff is capped by the executor; a patch large enough to breach the Pub/Sub
+	// message limit would fail the whole completion, losing the run's status in
+	// order to make its approval card prettier.
+	Diff string `json:"diff,omitempty"`
 }
 
 // MessageAttributes carries routing metadata as Pub/Sub message attributes.

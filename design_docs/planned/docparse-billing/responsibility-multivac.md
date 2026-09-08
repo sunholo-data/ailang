@@ -329,6 +329,16 @@ billing_min_instances = 1  # Always-on for webhook reliability
 
 ## Cloud Build Pipeline Changes
 
+> **Stale as of 2026-09-03 — `ailang-multivac/cloudbuild.yaml` was deleted.** The branch-push
+> full pipeline was retired when the deployment model was unified (push → dev, `v*` tag → test,
+> promote by version → prod; design
+> [`../v0_35_0/m-unified-release-model.md`](../v0_35_0/m-unified-release-model.md), model in
+> `ailang-multivac/.claude/skills/release/SKILL.md`). The docparse and billing images are built
+> by `ailang-multivac/cloudbuild-images.yaml` (steps `build-docparse` / `build-billing`, from a
+> clone of the private docparse repo) and are promoted to prod by **their own** version series
+> — `scripts/release.sh promote billing vX.Y.Z` — never by ailang's `_VERSION`. The YAML below
+> is still the right *shape* for a build step; the file it goes in is `cloudbuild-images.yaml`.
+
 ### cloudbuild.yaml additions
 
 Add a clone + build step for the billing service (after the existing docparse steps):
@@ -414,7 +424,7 @@ gcloud secrets versions add "${PREFIX}-stripe-webhook-secret" \
 - [ ] Add billing variables to `variables.tf`
 - [ ] Add env configs to `environments/dev/terraform.tfvars` and `environments/prod/terraform.tfvars`
 - [ ] Add billing output to `outputs.tf`
-- [ ] Add Cloud Build steps to `cloudbuild.yaml` and `cloudbuild-images.yaml`
+- [ ] Add Cloud Build steps to `cloudbuild-images.yaml` (`cloudbuild.yaml` was deleted 2026-09-03)
 - [ ] Update `scripts/setup-secrets.sh` with Stripe secret prompts
 - [ ] Verify `sa-billing` has correct IAM roles after apply
 - [ ] Set Stripe secret values in dev environment

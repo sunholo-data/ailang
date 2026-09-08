@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	ollamaapi "github.com/ollama/ollama/api"
 	"github.com/sunholo-data/ailang/internal/ai"
@@ -20,7 +21,16 @@ import (
 var ollamaTracer = telemetry.Tracer("ai.ollama")
 
 const (
-	defaultEndpoint = "http://localhost:11434"
+	// 127.0.0.1, deliberately not "localhost". On the rig two ollama servers can
+	// listen on 11434 at once — ours from dev.ollama.serve.plist bound to
+	// 127.0.0.1 (IPv4, carrying OLLAMA_GPU_OVERHEAD and OLLAMA_CONTEXT_LENGTH),
+	// and the Ollama.app GUI bound to *:11434 (IPv6) with NO memory caps at all.
+	// "localhost" resolves to both and Go tries ::1 first, so the harness silently
+	// reached the UNCAPPED server: measured 2026-09-03, every eval request in the
+	// server log carries client address "::1". Pinning IPv4 makes the lane
+	// deterministic. Verify with `lsof -nP -iTCP:11434 -sTCP:LISTEN` — more than
+	// one listener means the GUI app is running and its server must be stopped.
+	defaultEndpoint = "http://127.0.0.1:11434"
 )
 
 // Client implements ai.Provider for local Ollama models.
@@ -162,13 +172,23 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 		}
 	}
 
-	// Use Generate API for instruction following
+	// Use Generate API for instruction following.
+	// M-LYCEUM-PROVIDER M3: this transport STREAMS, so both wall time and TTFT
+	// are observable client-side: TTFT = call start → first stream callback.
 	var tally tokenTally
+	start := time.Now()
+	var ttft time.Duration
+	firstChunk := true
 	err := c.client.Generate(ctx, genReq, func(resp ollamaapi.GenerateResponse) error {
+		if firstChunk {
+			ttft = time.Since(start)
+			firstChunk = false
+		}
 		response.WriteString(resp.Response)
 		tally.observe(resp.Metrics)
 		return nil
 	})
+	wallMS := time.Since(start).Milliseconds()
 
 	if err != nil {
 		span.SetAttributes(
@@ -177,14 +197,14 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 		)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
-		return nil, ai.NewProviderError("ollama", 0, err.Error(), err)
+		return nil, &ai.ProviderError{Provider: "ollama", Message: err.Error(), Err: err, WallMS: wallMS}
 	}
 	// Surface a swallowed ctx deadline/cancel (stalled native stream) explicitly —
 	// see the matching guard in Step (M-OLLAMA-NATIVE-TIMEOUT).
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		span.RecordError(ctxErr)
 		span.SetStatus(codes.Error, ctxErr.Error())
-		return nil, ai.NewProviderError("ollama", 0, ctxErr.Error(), ctxErr)
+		return nil, &ai.ProviderError{Provider: "ollama", Message: ctxErr.Error(), Err: ctxErr, WallMS: wallMS}
 	}
 
 	span.SetAttributes(
@@ -195,8 +215,10 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 	)
 
 	out := &ai.Response{
-		Text:  response.String(),
-		Model: req.Model,
+		Text:   response.String(),
+		Model:  req.Model,
+		WallMS: wallMS,
+		TTFTMS: ttft.Milliseconds(),
 	}
 	tally.apply(out)
 	return out, nil

@@ -121,43 +121,7 @@ ailang messages read <id>
 ailang messages ack --all
 ```
 
-## Message System
-
-### Checking Inbox
-
-```bash
-# List unread messages
-ailang messages list --unread
-
-# List messages for a specific inbox
-ailang messages list --inbox user
-
-# Read full message content
-ailang messages read <message-id>
-
-# Acknowledge messages
-ailang messages ack <message-id>    # Mark specific as read
-ailang messages ack --all           # Mark all as read
-
-# Move back to unread (for retry)
-ailang messages unack <message-id>
-```
-
-### Sending Messages
-
-```bash
-# Send to an agent inbox
-ailang messages send sprint-planner "Plan sprint for M-CACHE" \
-  --title "Sprint: M-CACHE" --from "user"
-
-# Send bug report (auto-creates GitHub issue)
-ailang messages send user "Parser crashes on empty input" \
-  --type bug --title "Bug: Parser crash"
-```
-
-### Message Storage
-
-All messages are stored in `~/.ailang/state/collaboration.db` (SQLite), shared between the CLI and the Collaboration Hub dashboard.
+For messaging, see [Agent Messaging](/docs/guides/agent-messaging).
 
 ## SessionStart Hook Behavior
 
@@ -240,5 +204,5 @@ These command hooks are still used (not replaced by HTTP):
 
 - **[Claude Code Integration Guide](./claude-code-integration.mdx)** — Complete integration guide
 - **[Coordinator Guide](./coordinator.md)** — Agent orchestration and task delegation
-- **[Cross-Project Messaging](./cross-project-messaging.mdx)** — Inter-project communication
+- **[Agent Messaging](./agent-messaging.md)** — Inter-project communication
 - **[Telemetry Guide](./telemetry.md)** — Distributed tracing and observability

@@ -13,6 +13,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sunholo-data/ailang/internal/executor"
+	"github.com/sunholo-data/ailang/internal/executor/proctree"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -239,6 +240,7 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	}
 
 	cmd := exec.CommandContext(ctx, e.claudePath, args...)
+	proctree.Configure(cmd)
 	if task.Workspace != "" {
 		cmd.Dir = task.Workspace
 	}
@@ -469,14 +471,14 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 						if task.Budget != nil && (deltaIn > 0 || deltaOut > 0) {
 							if _, exceeded := task.Budget.Add(deltaIn, deltaOut); exceeded {
 								costKilled = true
-								_ = cmd.Process.Kill()
+								proctree.Kill(cmd)
 							}
 						}
 						if task.MaxTokensPerBench > 0 && !thrashKilled &&
 							runningInputTokens+runningOutputTokens > task.MaxTokensPerBench {
 							thrashKilled = true
 							thrashKilledAtTokens = runningInputTokens + runningOutputTokens
-							_ = cmd.Process.Kill()
+							proctree.Kill(cmd)
 						}
 					}
 
@@ -567,7 +569,7 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	// Wait for completion or timeout
 	select {
 	case <-timer.C:
-		_ = cmd.Process.Kill()
+		proctree.Kill(cmd)
 		timeoutErr := fmt.Errorf("timeout after %v", timeout)
 		handler.OnError(timeoutErr)
 		span.RecordError(timeoutErr)

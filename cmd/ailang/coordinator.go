@@ -26,6 +26,8 @@ func coordinatorCommand(args []string) error {
 		return coordinatorRouting(subargs)
 	case "pending":
 		return coordinatorPending(subargs)
+	case "approvals":
+		return coordinatorApprovalsCommand(subargs)
 	case "list":
 		return coordinatorList(subargs)
 	case "approve":

@@ -433,6 +433,74 @@ models:
       agent-mode `cost_usd` is a list-price equivalent, never billed spend.
       Uses max_completion_tokens instead of max_tokens.
 
+  # OpenAI GPT-6 Astra (released August 27, 2026) — first GPT-6-generation model.
+  # 1.05M context, 128K max output, knowledge cutoff Apr 30 2026,
+  # reasoning.effort low/medium/high/xhigh/max (NOTE: no none/minimal, unlike 5.5).
+  # >272K-token prompts bill at 2x input/cache and 1.5x output for the WHOLE request.
+  # Service tiers: batch/flex 50% off ($5/$25), fast 2x ($20/$100) — this row is standard.
+  # Source: developers.openai.com/api/docs/models/gpt-6-astra (fetched 2026-09-05).
+  gpt6-astra:
+    api_name: "gpt-6-astra"
+    provider: "openai"
+    default_thinking: "on"  # probed 2026-09-05: bare request returned reasoning_tokens=14 of 183
+                            # completion (adaptive — light by default, not an always-on thinker)
+    description: "GPT-6 Astra - first GPT-6 generation flagship (Aug 2026)"
+    env_var: "OPENAI_API_KEY"
+    agent_cli: "codex"
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM convention; declared ceiling is 128000
+    pricing:
+      input_per_1k: 0.010     # $10.00 per 1M = $0.010 per 1K
+      output_per_1k: 0.050    # $50.00 per 1M = $0.050 per 1K
+    notes: |
+      GPT-6 Astra — OpenAI's first GPT-6-generation model (August 27, 2026).
+      ⚠️ MOST EXPENSIVE non-Pro OpenAI row in this file: $10/$50 per 1M is
+      2x gpt-5.6-sol ($5/$30) and 4x gpt-5.4 ($2.50/$15). Same list price as
+      Anthropic Fable 5.1. Cached input $1/M (90% off); cache writes $12.50/M.
+      API access VERIFIED 2026-09-05 (chat/completions, finish_reason=stop).
+      PLACEMENT 2026-09-05: `--tier core,frontier` N=1, candidate alone per §5.5
+      → 29/31, anchored standard ELO 2554.4, banked $9.76 (2m18s). The two
+      failures are frontier-tier `docx_reimplement` (runtime_error) and
+      `markdown_reimplement` (compile_error); both finish_reason=stop with small
+      reasoning counts, so they are capability, NOT truncation (§2a checked).
+      ⚠️ That 2554.4 has NOTHING to compare against on this box: model_ratings,
+      benchmark_ratings and trial_history were all EMPTY before this run, so
+      gpt6-astra is the seed of the local standard series, not a ranked entry.
+      A leaderboard position needs other models banked into the same anchored fit.
+      IN benchmark_suite AND extended_suite since 2026-09-05. It BEAT gpt5-6-sol
+      on sol's banked v0.32.0 baseline rows — frontier 6/8 vs 3/8 as a strict
+      superset (astra additionally passes contract_sorted_merge, gauntlet_10,
+      quine; loses nothing sol wins), core 7/7 vs 6/7 on comparable cells
+      including explicit_dataflow_ssa. 4 wins to 0 across 15 comparable cells.
+      Comparison used BANKED sol rows, not a re-run (§5.5 / M-EVAL-ROLLING-ELO).
+      sol is kept alongside as the cheaper longitudinal anchor, not retired.
+      NEVER agent_suite — that suite is the curated weak+reference set and
+      explicitly must not carry the expensive multi-turn cloud fleet.
+      ⏳ SMOKE TIER NOT RUN (deferred for budget, per Mark). Cloud rows do not
+      normally run smoke anyway (it is the local OS-model iteration loop), so
+      this is a smaller gap than it looks — but it means the model has cleared
+      core/frontier placement WITHOUT the canonical floor gate.
+      💰 Cost note: that $9.76 is 87% input ($8.44 in / $1.32 out) and got ZERO
+      prompt-cache reads — the run finished in 2m18s, inside OpenAI's ~5-10min
+      cache write-availability latency. A warm repeat re-prices to ~$2.17.
+      Budget re-gates and N>=3 de-flakes at the warm number, not the cold one.
+      Uses max_completion_tokens instead of max_tokens.
+      ✅ CODEX CLI SUPPORT VERIFIED 2026-09-05, and on the SUBSCRIPTION lane —
+      `codex exec --model gpt-6-astra` with OPENAI_API_KEY stripped (the state a
+      mission iteration runs in, mission-control.sh:110) returns rc=0 and prints
+      `model: gpt-6-astra`. Negative control: `gpt-9-nonexistent-zzz` 400s with
+      "not supported when using Codex with a ChatGPT account" AND warns that model
+      metadata was not found — astra emits neither, so the probe discriminates and
+      codex genuinely knows this model. Positive control: gpt-5.6-sol rc=0.
+      `-c model_reasoning_effort=high` is accepted (codex prints "reasoning effort:
+      none" by DEFAULT for gpt-5.6-sol too, so that display is codex's, not a sign
+      astra is being sent an effort value its API rejects).
+      ⚠️ CONSEQUENCE: this row's $10/$50 metered pricing does NOT apply on the codex
+      lane, which bills the ChatGPT subscription. Metered vs subscription is a lane
+      property here, not a model property — do not quote this row's per-1K cost for
+      a mission-loop iteration. What a 1-token probe CANNOT see is the subscription
+      QUOTA BURN RATE, which for a flagship is the real constraint; only a full
+      agent run reveals that.
+
   # OpenAI GPT-5.4 (released March 5, 2026)
   gpt5-4:
     api_name: "gpt-5.4"
@@ -1407,6 +1475,63 @@ models:
   # The full gate record, including what was RETRACTED at N=3, is in the
   # extended_suite annotation — read that before re-litigating this row.
   # Google Gemini 3.8 Flash (released September 2, 2026)
+  # Vertex Managed Agents — DELIBERATELY VERSION-FREE (added 2026-09-02, Mark's design)
+  managed-agents-antigravity:
+    api_name: "antigravity-preview-05-2026"
+    provider: "google"
+    default_thinking: "unknown"   # the model is undiscoverable; see notes. NOT a guess-worthy field.
+    description: "Vertex Managed Agents (antigravity) — agent lane that tracks whatever model Google runs; version-free by design"
+    env_var: ""  # Vertex ADC (gcloud auth application-default login)
+    agent_cli: "managed_agents"
+    agent_model_name: "antigravity-preview-05-2026"
+    gcp_project: "ailang-dev"
+    gcp_location: "global"
+    max_output_tokens: 65536
+    pricing:
+      # Billed as the model Google runs behind the agent. Rates below track
+      # gemini-3.5-flash, the last publicly stated model for this agent; they are
+      # a BEST-AVAILABLE proxy, not a verified rate for whatever runs today.
+      input_per_1k: 0.0015     # $1.50 per 1M fresh input
+      output_per_1k: 0.009     # $9.00 per 1M (thought tokens bill here too)
+      cache_read_per_1k: 0.00015  # $0.15 per 1M — measured live 2026-09-02; see notes
+    budgets:
+      max_cost_usd: 2.00
+      hard_timeout_secs: 900
+    notes: |
+      WHY THIS ROW HAS NO VERSION IN ITS NAME (the whole point):
+      `agent` is a stable SERVER-SIDE identity. Google upgrades the model behind
+      it without renaming, and the model is UNDISCOVERABLE by three independent
+      routes, all probed 2026-09-02:
+        1. The /interactions response carries NO model/version field anywhere
+           (recursive walk of the full JSON: zero matches).
+        2. `agent_config.model` is ACCEPTED BUT IGNORED — "bogus-model-xyz"
+           returns HTTP 200 and the interaction runs to completion. Contrast
+           `agent`, which IS validated: a bogus agent name returns 404 "Agent
+           not found". So acceptance of a model name proves nothing.
+        3. Asked to self-identify, the agent searched its own sandbox (env,
+           find / -name "*gemini*", model/metadata files), found nothing, and
+           answered "gemini-1.5-pro, November 2024" — certainly false.
+      Therefore any row claiming "<specific model> in agent mode" would be
+      labelling Google's choice with our guess, and its longitudinal series would
+      silently change meaning at every upgrade. This row measures THE LANE.
+      Read a jump in its series as "Google changed something", never as a
+      generational comparison.
+
+      Agent-name probe 2026-09-02: antigravity-preview-05-2026 is the ONLY public
+      agent. -08-2026, -09-2026, "antigravity" and "antigravity-latest" all 404.
+      The "05-2026" suffix looks stale but is current — it is the agent's
+      identity, not a model version.
+
+      CACHING WORKS ON THIS PATH, WITH TOOLS (falsifies the old gemini-3-5-flash
+      header claim; see that row). Live probes:
+        unique prompt + 6 tool calls -> 28,378 of 41,332 input cached (68.7%)
+        repeated prompt, no tools    -> 5,350 of 13,107 input cached (40.8%)
+      Multi-turn agents cache WELL because they replay a stable prefix. Cache
+      reads are now parsed and priced (executor fix 48c92640d); before that they
+      billed as fresh input, overstating cost by 42.9% / 84.3% on those probes.
+
+      GATE: cost + pass-rate measurement PENDING at registration. In NO suite.
+
   gemini-3-8-flash:
     api_name: "gemini-3.8-flash"
     provider: "google"
@@ -2112,6 +2237,36 @@ models:
       Independent of the designer rotation by construction: the skill forbids
       routing a designer to a model that is also a reviewer of the same doc, and
       the rotation is fable-5 -> kimi-k3, neither of which is this model.
+
+  oc-glm-5-3-flash:
+    api_name: "glm-5.3-flash:cloud"                   # Ollama Cloud route (M-OLLAMA-CLOUD-PROVIDER); proxy strips :cloud (V21)
+    provider: "ollama"
+    default_thinking: "always_on"                      # same weights as or-glm-5-3-flash: reasoning mandatory (OR probe 2026-08-27: explicit disable → 400)
+    description: "GLM-5.3-Flash via Ollama Cloud — third route for the or-glm-5-3-flash route A/B (OpenRouter / Lyceum / Ollama Cloud), same weights, flat-rate subscription metering."
+    env_var: ""                                        # device key via `ollama signin`; OLLAMA_API_KEY is only for /api/usage
+    model_family: "glm-5"
+    max_output_tokens: 65536                           # always-thinking headroom, per the GLM-5.2 truncation lesson
+    pricing:
+      # PROVISIONAL — D1 UNRATIFIED. NOT 0/0 (that maps to the false `free-local`
+      # provenance). Imputed from the OpenRouter twin or-glm-5-3-flash per the
+      # model-manager D1 convention (flat-rate route banks list-price-equivalent).
+      # Ollama.com library list price (2026-09-03): $0.15/M in, $0.50/M out — do
+      # not confuse the banked OR-twin rate with the ollama list rate in reports.
+      input_per_1k: 0.000075
+      output_per_1k: 0.00025
+    budgets:
+      max_cost_usd: 0.30
+      hard_timeout_secs: 600                           # equal-work A/B: matches or-glm-5-3-flash and lyceum-glm-5-3-flash
+    notes: |
+      Added 2026-09-03 for the three-route GLM-5.3-flash A/B requested by Mark
+      (OpenRouter vs Lyceum vs Ollama Cloud, frontier tier, standard mode).
+      Access verified 2026-09-03 via test_model_access.sh: signed in, cloud
+      inference OK, /v1 usage reporting OK (V27), quota session=0.342
+      weekly=0.291. Real marginal cost is the flat-rate subscription (quota),
+      not the banked price. Route-faithfulness question: ollama.com hosts US/EU
+      with zero data retention; V20 showed ollama tokenization can differ from
+      other routes, so input-token counts are route-confounded — compare
+      pass-rate/latency primarily, tokens secondarily.
 
   motoko-cloud-kimi-k3:
     api_name: "kimi-k3:cloud"                          # untagged model -> `:cloud`
@@ -4654,6 +4809,172 @@ models:
       output_per_1k: 0.0
     notes: "Pricing varies — see OpenRouter dashboard for resolved-model cost."
 
+  # =============================================================================
+  # Lyceum (https://dashboard.lyceum.technology/inference) — EU-hosted
+  # =============================================================================
+  # Per-token metered, OpenAI-compatible (POST /openai/v1/chat/completions,
+  # Bearer auth). Slugs follow the OpenRouter "vendor/model" convention
+  # (V16: /openai/v1/models, 39-model catalogue, verified live 2026-09-03).
+  # WHY THIS ROUTE: EU data residency + a second metered vendor for models we
+  # already run on OpenRouter (429-fallback hedge; same-weights A/B control).
+  # PRICE CAVEAT: Lyceum is more expensive than OR on 7/8 shared models
+  # (glm-5.3-flash ~2.7x, kimi ~1.9x on input) — a route hedge, NOT a cost play.
+  # Auth: LYCEUM_API_KEY. Endpoint override for tests: LYCEUM_BASE_URL.
+  # No self-serve billing API exists (V22) — reconcile spend via the dashboard.
+
+  lyceum-glm-5-3-flash:
+    api_name: "z-ai/glm-5.3-flash"             # V16-verified live 2026-09-03
+    provider: "lyceum"
+    default_thinking: "always_on"               # V19 probe 2026-09-03: reasoning_content on EVERY response incl. trivial prompts
+    description: "GLM-5.3-Flash via Lyceum (EU-hosted) — same weights as or-glm-5-3-flash, different route/jurisdiction/price. Route A/B control."
+    env_var: "LYCEUM_API_KEY"
+    max_output_tokens: 65536                   # always-thinking headroom, per the GLM-5.2 truncation lesson
+    model_family: "glm-5"
+    pricing:
+      input_per_1k: 0.0002    # $0.20 per 1M — dashboard 2026-09-03; no billing API (V22),
+      output_per_1k: 0.0005   # $0.50 per 1M — reconcile against dashboard after first runs
+    budgets:
+      max_cost_usd: 0.30
+      hard_timeout_secs: 600
+    notes: |
+      Added 2026-09-03 (M-LYCEUM-PROVIDER). OR twin: or-glm-5-3-flash
+      ($0.075/$0.25) — Lyceum is ~2.7x/~2x, the worst markup in their list.
+      SMOKE GATE (floor) 2026-09-03: PASSED — 23/23, $0.15 metered, zero
+      finish=length, reasoning_tokens banked (V19 confirmed on real runs).
+      FRONTIER A/B (discriminator, 2026-09-03, three-route vs OR twin and
+      oc-glm-5-3-flash): route faithful on short-horizon calls; long-horizon
+      NOT faithful — 6/8 frontier calls 504'd at Lyceum's gateway
+      ("upstream request timeout"), 4/6 failures reproduced on retry. The one
+      survivor (quine PASS, 38k reason toks, finish=stop) shows the route CAN
+      carry long streams; the mode is per-request upstream instability at
+      frontier lengths. Full record: m-lyceum-provider-sprint-plan.md M3.
+      ROLE (Mark, attended 2026-09-03): **EU-only backup route.** NOT in the
+      default rotation or any suite; default remains the OpenRouter rows.
+      Proven for smoke/core-class requests; do NOT lean on it for
+      frontier-length generations until the gateway 504s are fixed. Any suite
+      entry requires Mark ratification.
+      V19: reasoning_content + usage.completion_tokens_details.reasoning_tokens
+      both present on the wire. V20: glm counted prompt_tokens=17 for a probe
+      kimi counted as 93 — input-side A/B reads are model-confounded.
+      M3 latency fix: llm_wall_ms + ttft_ms now bank per row (this route's
+      504 latency was previously only visible in console logs).
+
+  lyceum-qwen3-8-flash-next:
+    api_name: "qwen/qwen3.8-flash-next"        # V16-verified 2026-09-03 — the '-next' suffix IS the slug
+    provider: "lyceum"
+    default_thinking: "on"                     # per or-qwen3-8-flash twin (default-on, disableable); Lyceum probe pending
+    description: "Qwen3.8-Flash-Next via Lyceum (EU-hosted) — same weights as or-qwen3-8-flash (qwen/qwen3.8-flash on OR). 429-fallback candidate."
+    env_var: "LYCEUM_API_KEY"
+    max_output_tokens: 65536                   # expected-thinking headroom (GLM-5.2 truncation lesson)
+    model_family: "qwen3-8-flash"
+    pricing:
+      input_per_1k: 0.0002    # $0.20 per 1M — dashboard 2026-09-03 (OR twin: $0.15/$0.47)
+      output_per_1k: 0.0005   # $0.50 per 1M
+    budgets:
+      max_cost_usd: 0.30
+      hard_timeout_secs: 600
+    notes: |
+      Added 2026-09-03 (M-LYCEUM-PROVIDER). NAMING: the OR twin row is
+      or-qwen3-8-flash (slug qwen/qwen3.8-flash); Lyceum's slug carries
+      -next (qwen/qwen3.8-flash-next) — same open-weight release per the OR
+      row's naming note. This is the row that matters most operationally:
+      the OR row's first smoke gate was invalidated 19/23 by Alibaba-pool
+      429s (2026-08-31), so a second metered route is the fallback.
+      Smoke gate PENDING — after the glm-5-3-flash route check.
+
+  lyceum-kimi-k3:
+    api_name: "moonshotai/kimi-k3"             # V16-verified live 2026-09-03 (also the sample-curl slug)
+    provider: "lyceum"
+    default_thinking: "on"                     # reasoning field present on trivial probes (V19)
+    description: "Kimi K3 via Lyceum (EU-hosted) — same price as or-kimi-k3 ($3.00/$15.00); identical-price route control."
+    env_var: "LYCEUM_API_KEY"
+    max_output_tokens: 65536                   # thinking headroom, per the kimi/k3 OR-row precedent
+    model_family: "kimi"
+    pricing:
+      input_per_1k: 0.003     # $3.00 per 1M — dashboard 2026-09-03, IDENTICAL to OR
+      output_per_1k: 0.015    # $15.00 per 1M
+    budgets:
+      max_cost_usd: 0.60
+      hard_timeout_secs: 600
+    notes: |
+      Added 2026-09-03 (M-LYCEUM-PROVIDER). Only model where Lyceum matches
+      OR pricing exactly — the cleanest same-weights/same-price A/B in the
+      seed set. V19 CAVEAT: Lyceum's kimi-k3 returns thinking in a 'reasoning'
+      message field (parsed by our transport) but NO reasoning_tokens in usage
+      — bank reason_tokens as unavailable for this row; do not read its token
+      counts as efficiency data. V20 CAVEAT: prompt_tokens read ~5x higher
+      than the OR-equivalent prompt (93 vs 17 on the shared probe) — possible
+      hidden system prompt or chat-template accounting; flag any A/B delta.
+
+  # =============================================================================
+  # z.ai first-party (https://api.z.ai/api/paas/v4) — PAYG
+  # =============================================================================
+  # M-ZAI-WINDOW-ROUTING Phase 1. Per-token metered against a PREPAID PAYG
+  # balance, OpenAI-compatible (POST /chat/completions, Bearer auth).
+  # Auth: ZAI_API_KEY. Endpoint override for tests: ZAI_BASE_URL.
+  #
+  # SLUG GRAMMAR: api_name is the NATIVE slug — "glm-5.3-flash", NOT OpenRouter's
+  # "z-ai/glm-5.3-flash". The vendor prefix is a router convention; sending it
+  # here is a 404. (Catalogue read live 2026-09-05, GET /api/paas/v4/models:
+  # glm-4.5, glm-4.5-air, glm-4.6, glm-4.7, glm-5, glm-5-turbo, glm-5.1,
+  # glm-5.2, glm-5.3, glm-5.3-flash.)
+  #
+  # WHY THIS ROUTE: it is where Mark's prepaid z.ai credits are drawn from. Every
+  # other GLM-Flash row in this file spends someone else's meter — OpenRouter
+  # (or-/opencode-or-/motoko-or-), Lyceum, or the Ollama Cloud subscription.
+  #
+  # LANE SEPARATION (M-ZAI-WINDOW-ROUTING V5, non-negotiable): this is the PAYG
+  # endpoint. The GLM Coding Plan (/api/coding/paas/v4) is contractually usable
+  # ONLY in officially supported tools — driving it from this harness risks rate
+  # limiting, account freezing, and a ban after three violations. Plan credits
+  # belong in opencode/claude/ZCode lanes; harness evals belong here.
+
+  zai-glm-5-3-flash:
+    api_name: "glm-5.3-flash"                  # native slug — verified live 2026-09-05
+    provider: "zai"
+    default_thinking: "always_on"              # same weights as or-/lyceum-glm-5-3-flash; probe 2026-09-05 returned a thinking block on a 16-token "say ok"
+    description: "GLM-5.3-Flash direct from z.ai (first-party PAYG) — the route that spends our prepaid z.ai credits instead of OpenRouter's meter. Route control for or-glm-5-3-flash: same weights, one hop fewer."
+    env_var: "ZAI_API_KEY"
+    max_output_tokens: 65536                   # always-thinking headroom, per the GLM-5.2 truncation lesson
+    model_family: "glm-5"                      # joins the glm-5 failover chain (M-PROVIDER-FAILOVER)
+    pricing:
+      input_per_1k: 0.000075   # $0.075 per 1M — z.ai PAYG list, 2026-09-03 (docs.z.ai/guides/overview/pricing)
+      output_per_1k: 0.00025   # $0.25 per 1M
+      expires: "2026-09-09"    # 50% launch promo ends 24:00 SGT 2026-09-09; enforced by tools/verify-model-pricing
+      next:
+        # INFERRED, NOT VERIFIED: "50% off" read literally → 2x on 2026-09-10.
+        # z.ai publishes the promo end date but not the post-promo card. Re-read
+        # docs.z.ai/guides/overview/pricing on 2026-09-10 and replace these two
+        # numbers with the observed rates. They are a placeholder that fails
+        # SAFE (overstates spend) rather than a measured price.
+        input_per_1k: 0.00015  # $0.15 per 1M
+        output_per_1k: 0.0005  # $0.50 per 1M
+    budgets:
+      max_cost_usd: 0.30
+      hard_timeout_secs: 600   # equal-work A/B: matches or-glm-5-3-flash, lyceum-glm-5-3-flash and oc-glm-5-3-flash
+    notes: |
+      Added 2026-09-05 (M-ZAI-WINDOW-ROUTING Phase 1) after Mark bought PAYG
+      credits. FIFTH route for these weights, joining or-glm-5-3-flash (OpenRouter),
+      lyceum-glm-5-3-flash (EU), oc-glm-5-3-flash (Ollama Cloud) and the two agent
+      twins. Unlike those, this one is FIRST-PARTY: no router fan-out, so a result
+      here is attributable to z.ai's own serving stack rather than to whichever of
+      OpenRouter's 16 upstreams answered.
+      OPT-IN ONLY — in no suite. Suite entry requires Mark's ratification (the
+      M-LYCEUM-PROVIDER and M-OLLAMA-CLOUD D2 precedent: a new route proves itself
+      on a smoke gate before it can bank a cohort).
+      SMOKE GATE: PENDING. Until it runs, treat this row as a wired route with an
+      unmeasured pass rate — do NOT read the or- twin's 22/23 as this row's number.
+      TRANSPORT VERIFIED 2026-09-05: GET /api/paas/v4/models → 200 (catalogue
+      above); POST /api/anthropic/v1/messages with glm-5.3-flash → 200, thinking
+      block present, usage banked. The harness uses the OpenAI-compatible path,
+      not the anthropic-shaped one.
+      PRICE CAVEAT: identical LIST price to or-glm-5-3-flash ($0.075/$0.25), so
+      this is a credit-utilisation and attribution play, not a cost cut. The
+      saving is that the spend comes out of credits already paid for.
+      Phase 2 (subscription lane) and Phase 3 (time-window routing) are NOT in
+      this row — no window multipliers are modelled here, and this row must
+      never bank cost_provenance other than `metered`.
+
 # Default model for benchmarks
 default: "claude-sonnet-4-6"
 
@@ -4729,7 +5050,25 @@ roles:
   evaluator: [opencode-or-minimax-m3, opencode-or-deepseek-v4-flash]
 
 benchmark_suite:
+  - "gpt6-astra"       # OpenAI GPT-6 flagship (Aug 2026) — PROMOTED 2026-09-05 (Mark) on a clean
+    # win over gpt5-6-sol, measured against sol's banked v0.32.0 baseline rows (the same corpus
+    # the ELO anchor was fitted from — no comparator re-run, per M-EVAL-ROLLING-ELO / §5.5):
+    #   frontier  astra 6/8  vs sol 3/8  — a STRICT SUPERSET: astra additionally passes
+    #             contract_sorted_merge, gauntlet_10 and quine, and loses nothing sol wins.
+    #             Both fail only docx_reimplement + markdown_reimplement.
+    #   core      astra 7/7  vs sol 6/7 over the comparable cells — astra passes
+    #             explicit_dataflow_ssa, the one this file long recorded as "every OpenAI
+    #             model fails it". Astra's full core panel is 23/23.
+    #   Across all 15 comparable cells: astra 4 wins, sol 0. N=2 for astra (identical runs).
+    # This is what §5.5 asks for and what an earlier pass in this session got WRONG: that pass
+    # read the models.yml prose ("core 26/26") instead of the banked rows, concluded "tie", and
+    # withheld promotion. A tie would have kept sol at 2x cheaper; a strict superset does not.
+    # ⚠️ Costs 2x sol ($10/$50 vs $5/$30) — it is the expensive seat in this suite, so trim it
+    # first if a run needs to shrink. sol is KEPT below as the cost-effective longitudinal
+    # anchor rather than being retired (the claude-sonnet-5 / sonnet-4-6 precedent).
   - "gpt5-6-sol"       # OpenAI flagship (Jul 2026) — replaced gpt5-5 (core tie 25/26 at identical $5/$30, newer gen)
+    # KEPT alongside gpt6-astra from 2026-09-05: astra beats it outright (see above) but at 2x
+    # the price, so this row stays as the cheaper OpenAI reference and longitudinal anchor.
   - "claude-opus-5"    # Anthropic flagship (Jul 2026) — REPLACED claude-opus-4-8 2026-07-27.
     # Gate: core N=1 19/19 vs 4.8's 18/19, then N=3 57/57 (100%) vs 53/57 (93.0%). Opus 5 did
     # not fail once in 76 core runs; 4.8 failed 5 times across 5 DIFFERENT benchmarks
@@ -4744,9 +5083,13 @@ benchmark_suite:
     # this seat does NOT contest 5.3-flash's extended_suite slot). If the flagship
     # loses to 5.2 on core, revisit this membership.
 
-# Extended suite - flagship frontier + modern open-source (16 models)
+# Extended suite - flagship frontier + modern open-source (17 models)
 # Use for: Release baselines, comprehensive comparisons, cloud-vs-OS cost/quality.
-# Cost: ~$3-6 per full benchmark run (+~$16 for fable on core,stretch)
+# Cost: ~$3-6 per full benchmark run (+~$16 each for the two $10/$50 rows, fable-5-1
+# and gpt6-astra, on core,stretch). Those two dominate the bill — drop them first when
+# a baseline needs trimming. Note a REPEAT baseline is far cheaper than the sticker:
+# prompt-cache reads make a warm re-run ~3x cheaper in real spend, though banked
+# cost_usd stays at the uncached ceiling and will not show it.
 # Standard mode only — cloud models never run the smoke tier (smoke is the local
 # OS-model iteration loop); release baselines run core,stretch.
 # OS roster: glm-5.3-flash (replaced 5.2 2026-08-27; 5.2 replaced 5.1 2026-07-19),
@@ -4775,6 +5118,15 @@ extended_suite:
     # Gate: core 23/26 at $0.73, LOST to gpt5-4-mini (25/26, $0.55) — in suite for longitudinal
     # visibility only; dev_models/lang_harness_suite keep mini. Revisit both at next OpenAI gen.
   - "gpt5-4-mini"       # OpenAI cheap (Mar 2026)
+  - "gpt6-astra"        # OpenAI GPT-6 generation (Aug 2026) — added 2026-09-05 for new-release
+    # tracking, the same basis as terra/luna. Placement N=2 (identical both runs): core 23/23,
+    # frontier 6/8, anchored standard ELO 2554.4. Only frontier docx_reimplement (runtime_error)
+    # and markdown_reimplement (compile_error) fail — finish_reason=stop, small reason counts,
+    # so capability not truncation.
+    # ALSO in benchmark_suite since 2026-09-05 — it beat gpt5-6-sol outright on sol's banked
+    # v0.32.0 rows (frontier 6/8 vs 3/8, a strict superset; core 7/7 vs 6/7 comparable).
+    # See the benchmark_suite annotation for the full record.
+    # Standard eval only, NEVER agent_suite (cost).
   - "claude-fable-5-1"  # Anthropic most-capable (Sep 2026) — REPLACED claude-fable-5 2026-09-02
     # (Mark, attended directive). Same-price generational swap: $10/$50 per 1M is UNCHANGED,
     # so the usual "does it beat the incumbent on core" bar is not what decided this — a

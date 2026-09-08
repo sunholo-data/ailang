@@ -1,6 +1,8 @@
 package coordinator
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -53,8 +55,24 @@ func (d *Daemon) resolveInboxAgent(inbox string) (string, bool) {
 // previous one's failure notice, every task dying at dispatch. Cheap per iteration and
 // therefore quiet — it burned container starts, not tokens, and nothing in the unread
 // counts moved because completions are auto-read.
+//
+// approval_request joins completion for the same reason, found 2026-09-07 when the
+// backstop sweep was first read in prod: it flagged four "Approval needed: ..."
+// notices addressed to design-doc-creator's own inbox as recoverable work. They are
+// notices TO an approver, not requests FOR work, so dispatching one would have asked
+// design-doc-creator to perform its own approval request as a task. Push has never
+// created those tasks, so nothing broke — but the sweep reaches messages push
+// skipped, and would have been the first component to act on them.
 func isOutcomeNotice(msg *Message) bool {
-	return msg != nil && msg.Kind == "completion"
+	if msg == nil {
+		return false
+	}
+	switch msg.Kind {
+	case messaging.InboxTypeCompletion, messaging.InboxTypeApprovalRequest:
+		return true
+	default:
+		return false
+	}
 }
 
 // pollAndProcessTasks polls for new messages and queues them as tasks.
@@ -641,5 +659,38 @@ func msgIDSuffix(id string, n int) string {
 	if len(id) <= n {
 		return id
 	}
-	return id[len(id)-n:]
+	// The tail is only unique when the ID ENDS in a random suffix, which is true
+	// of the inbox form (inbox_<millis>_<8 hex>) and false of the deterministic
+	// form the handoff path uses: task-<parent>:handoff:<target>.
+	//
+	// Measured 2026-09-07: a sprint-evaluator handoff carried the message ID
+	// "task-c871949f:handoff:sprint-evaluator", whose last 8 characters are
+	// "valuator" — so EVERY evaluator handoff, from any parent task, would derive
+	// task-valuator. Firestore's Doc().Set overwrites silently, so the second
+	// such handoff would destroy the first task's record with no error anywhere.
+	//
+	// Hashing the WHOLE id keeps the property that actually matters — the same
+	// message always yields the same task, so a redelivery is idempotent — while
+	// making the collision unrepresentable. The random-tail form keeps its
+	// existing suffix so no in-flight message changes identity mid-redelivery.
+	if tail := id[len(id)-n:]; isRandomHexTail(id, tail) {
+		return tail
+	}
+	sum := sha256.Sum256([]byte(id))
+	return hex.EncodeToString(sum[:])[:n]
+}
+
+// isRandomHexTail reports whether the tail looks like the generated suffix of an
+// inbox ID, i.e. preceded by "_" and entirely hex.
+func isRandomHexTail(id, tail string) bool {
+	if len(id) <= len(tail) || id[len(id)-len(tail)-1] != '_' {
+		return false
+	}
+	for _, c := range tail {
+		isHex := (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')
+		if !isHex {
+			return false
+		}
+	}
+	return true
 }

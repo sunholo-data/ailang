@@ -47,6 +47,11 @@ func New(cfg *executor.Config) (*CodexExecutor, error) {
 	// the point of USE (getModel) rather than construction — checking here would
 	// reject the normal path where the model arrives with the task.
 
+	// NOTE: constructing an executor deliberately does NOT materialise a
+	// credential. Writing ~/.codex/auth.json is a deployment action, not a
+	// library side effect — see EnsureAPIKeyAuth, called from the cloud job
+	// entry point where the job's own key is the intended credential.
+
 	return &CodexExecutor{
 		codexPath:      codexPath,
 		model:          model,
@@ -726,6 +731,7 @@ func (e *CodexExecutor) HealthCheck(ctx context.Context) error {
 		}
 	}
 	checkCmd := exec.CommandContext(ctx, codexPath, "--version")
+	configureProcessTree(checkCmd)
 	if err := checkCmd.Run(); err != nil {
 		return fmt.Errorf("codex --version failed: %w", err)
 	}

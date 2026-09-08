@@ -7,7 +7,7 @@
 .PHONY: test-operator-assertions test-regression-guards test-builtin-consistency
 .PHONY: test-stdlib-canaries test-row-properties test-golden-types test-repl-smoke
 .PHONY: test-sim-stub test-stdlib-freeze verify-no-shim verify-lowering
-.PHONY: test-nightly-classifier test-launchd-drivers test-check-changelog test-check-protocol-closure test-check-autoclose
+.PHONY: test-nightly-classifier test-launchd-drivers test-fmt-check test-shellcheck-autopush test-check-changelog test-check-protocol-closure test-check-autoclose test-check-referenced-paths
 
 # Core tests. Depends on build so integration tests that shell out to the
 # ailang binary never see a stale bin/ailang — a stale binary caused phantom
@@ -43,6 +43,14 @@ test-pi-extensions: ## Run the pi extension (TypeScript) test suite
 test-nightly-classifier: ## Run nightly variance-guard contract and replay tests
 	@python3 tools/test_nightly_classify.py -v
 
+test-fmt-check: ## Run the Go formatting gate's self-test (bash 3.2)
+	@/bin/bash scripts/test_fmt_check.sh
+	@/bin/bash -n scripts/test_fmt_check.sh
+
+test-shellcheck-autopush: ## Run mutation controls for the scoped ShellCheck gate
+	@/bin/bash scripts/test_shellcheck_autopush.sh
+	@/bin/bash -n scripts/test_shellcheck_autopush.sh
+
 # The launchd drivers carried ZERO automated coverage until #558's second recurrence — a large
 # part of why two silent-staleness bugs shipped unnoticed. /bin/bash explicitly, not $$SHELL:
 # the rig runs 3.2.57, so a suite that only passes under a newer bash proves nothing about it.
@@ -52,15 +60,28 @@ test-launchd-drivers: ## Run launchd driver tests (pin-root + routing + notices 
 	@/bin/bash tools/launchd/test_pin_root.sh
 	@/bin/bash tools/launchd/test_driver_notify.sh
 	@/bin/bash tools/launchd/test_mission_routing.sh
+	@/bin/bash tools/launchd/test_spawn_pin_hook.sh
 	@/bin/bash tools/launchd/test_hook_stdout.sh
-	@/bin/bash tools/launchd/test_fmt_ab_schedule.sh
 	@/bin/bash tools/launchd/test_controller_chain.sh
 	@/bin/bash tools/launchd/test_mission_heartbeat.sh
+	@/bin/bash tools/launchd/test_mission_stall.sh
+	@/bin/bash tools/launchd/test_mission_memgate.sh
+	@/bin/bash tools/launchd/test_mission_iteration.sh
+	@/bin/bash tools/launchd/test_cron_kicker.sh
+	@/bin/bash tools/launchd/test_mission_base.sh
+	@/bin/bash tools/launchd/test_codex_quota_admission.sh
+	@/bin/bash tools/launchd/test_ollama_quota_admission.sh
+	@/bin/bash tools/launchd/test_anthropic_quota_admission.sh
+# Keep this shell-only: the bash-3.2 CI job deliberately has no Go toolchain.
 	@/bin/bash tools/eval/test_motoko_connection_probe.sh
 	@for f in tools/launchd/*.sh tools/launchd/lib/*.sh; do /bin/bash -n "$$f" || exit 1; done
 	@/bin/bash -n tools/eval/motoko_connection_probe.sh
 	@/bin/bash -n tools/eval/test_motoko_connection_probe.sh
 	@/bin/bash -n scripts/mission_decisions.sh
+# Its sibling was ungated until 2026-09-04 (mission_decisions.sh had a line here,
+# mission_answer.sh did not) — so an edit to the attended-ruling writer reached the
+# ledger with no syntax check anywhere in CI.
+	@/bin/bash -n scripts/mission_answer.sh
 	@echo "launchd drivers: tests + bash 3.2 syntax OK"
 
 # `make check-changelog` is a refusal gate that shipped with no coverage of WHICH release-note
@@ -79,6 +100,10 @@ test-check-protocol-closure: ## Run the protocol-closure gate's own self-test (b
 test-check-autoclose: ## Run the issue-autoclose gate's own self-test (bash 3.2)
 	@/bin/bash scripts/test_check_autoclose.sh
 	@/bin/bash -n scripts/check_autoclose.sh
+
+test-check-referenced-paths: ## Run the referenced-paths gate's own self-test (bash 3.2)
+	@/bin/bash scripts/test_check_referenced_paths.sh
+	@/bin/bash -n scripts/check_referenced_paths.sh
 
 test-parser: ## Run parser tests only
 	@echo "Testing parser..."
@@ -326,3 +351,12 @@ test-stdlib-ail: build ## Run the .ail test suites + run-fixtures under tests/st
 	rm -f /tmp/ailang_stdlib_fixtures.$$$$; \
 	echo "  $$fixtures run-fixture(s) matched expected stdout"
 	@echo "$(GREEN)✓ stdlib .ail suites and run-fixtures pass$(NC)"
+
+.PHONY: test-mission-registry
+# Deliberately NOT referenced by any other target or CI job: it needs Go, and the
+# only target that would naturally call it (test-launchd-drivers) is the Go-less
+# bash-3.2 job. The package is covered by `make test` and by CI's own
+# `go test ./...`; this target exists as a hand-run entry point. Do not delete it
+# as unused.
+test-mission-registry: ## Run mission-registry tests (schema, renderer, doctor; live gates skip off-rig)
+	@go test ./internal/mission/...

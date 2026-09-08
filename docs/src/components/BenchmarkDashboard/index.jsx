@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { benchmarkFetch } from '@site/src/lib/benchmarkFetch';
+import { benchmarkFetchWithSource } from '@site/src/lib/benchmarkFetch';
 import { TrendingUp, TrendingDown, Activity, Zap, CheckCircle, Target } from 'lucide-react';
 import ModelChart from './ModelChart';
 import ModelComparisonTable from './ModelComparisonTable';
@@ -131,13 +131,15 @@ export default function BenchmarkDashboard({ view, showGallery = true }) {
   const [error, setError] = useState(null);
   const [selectedTier, setSelectedTier] = useState(null); // null = all tiers
   const [selectedTag, setSelectedTag] = useState(null);   // null = all tags
+  const [dataSource, setDataSource] = useState(null);
 
   useEffect(() => {
     // Fetch benchmark data
-    benchmarkFetch('latest.json')
-      .then(res => {
-        if (!res.ok) throw new Error('Failed to load benchmark data');
-        return res.json();
+    benchmarkFetchWithSource('latest.json')
+      .then(({ response, source }) => {
+        if (!response.ok) throw new Error('Failed to load benchmark data');
+        setDataSource(source);
+        return response.json();
       })
       .then(data => {
         setData(data);
@@ -294,7 +296,7 @@ export default function BenchmarkDashboard({ view, showGallery = true }) {
 
   return (
     <div className={styles.dashboard}>
-      <DataProvenance version={version} timestamp={data?.timestamp} />
+      <DataProvenance version={version} timestamp={data?.timestamp} source={dataSource} />
       {/* Tier Toggle (M6) */}
       {tiers && Object.keys(tiers).length > 0 && (
         <TierToggle

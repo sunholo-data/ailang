@@ -409,6 +409,22 @@ type Response struct {
 	//   "error"       — provider-side error after partial response
 	// Empty on legacy Generate responses (back-compat).
 	FinishReason string
+
+	// WallMS is the client-observed wall time of the whole generation HTTP
+	// round trip (request sent → response fully read), in milliseconds.
+	// M-LYCEUM-PROVIDER M3 route A/B: this is the per-call latency datum the
+	// result JSONs were missing. 0 means unmeasured (not "instant").
+	WallMS int64
+
+	// TTFTMS is time-to-first-token: client-observed delay from request sent
+	// to the first byte of the response body, in milliseconds. Only measurable
+	// on streaming transports (ollama native stream); non-streaming HTTP
+	// (openai chat/responses) cannot observe it — the whole body arrives at
+	// once, so any number would be the wall time, not TTFT. 0 means
+	// unmeasured, NOT instant. OpenRouter's server-side TTFT is visible in
+	// the broadcast observatory (trace.metadata.openrouter.provider_time_to_first_token_ms)
+	// but not client-side on this transport.
+	TTFTMS int64
 }
 
 // RequestsImage returns true if the request asks for image generation.
@@ -460,6 +476,13 @@ type ProviderError struct {
 	StatusCode int    // HTTP status code (0 if not applicable)
 	Message    string // Error message
 	Err        error  // Underlying error (may be nil)
+
+	// WallMS is the client-observed wall time from request sent to the error
+	// surfacing, in milliseconds — the latency of the FAILED call. This is the
+	// datum that answers "did the gateway time out after 30s or 5 minutes?"
+	// for route A/Bs (M-LYCEUM-PROVIDER M3). 0 = unmeasured. Stamp sites: the
+	// provider clients, on the error paths where the round trip was measured.
+	WallMS int64
 }
 
 func (e *ProviderError) Error() string {

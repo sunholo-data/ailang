@@ -16,7 +16,24 @@ log() { echo "boot | $*"; }
 # runs under a command substitution, would hold its stdout open forever.
 die() { echo "boot | FATAL: $*" >&2; [ -n "${HEALTH_PID:-}" ] && kill "$HEALTH_PID" 2>/dev/null; exit 1; }
 HEALTH_PID=""
-cleanup() { [ -n "${HEALTH_PID:-}" ] && kill "$HEALTH_PID" 2>/dev/null; }
+# WAIT for the server to finish shutting down, do not just signal it.
+#
+# This script is PID 1, so Cloud Run's SIGTERM arrives HERE and the container is
+# torn down the moment this script exits. Signalling the child and returning
+# immediately gave the server no scheduling window at all: its SIGTERM handler
+# stages the task store to $AGENT_HOME, and a real stop mid-run recovered
+# NOTHING because the container died first. Signal, then wait — bounded, so a
+# server that will not go never holds the instance open (M6).
+cleanup() {
+  [ -n "${HEALTH_PID:-}" ] || return 0
+  kill "$HEALTH_PID" 2>/dev/null || return 0
+  for _ in $(seq 1 80); do
+    kill -0 "$HEALTH_PID" 2>/dev/null || return 0
+    sleep 0.1
+  done
+  log "WARN server did not exit within 8s of SIGTERM — killing"
+  kill -9 "$HEALTH_PID" 2>/dev/null
+}
 trap cleanup EXIT INT TERM
 
 PORT="${RESIDENT_PORT:-8080}"
@@ -78,6 +95,80 @@ const c=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));
 console.log(Object.values(c.providers||{}).reduce((n,p)=>n+((p.models||[]).length),0));' "$PI_HOME/agent/models.json")
 [ "${REG_COUNT:-0}" -gt 0 ] || die "model registry declares no models"
 log "model registry: $REG_COUNT models -> $PI_HOME/agent/models.json (0600, local disk)"
+
+# ─── 1a-bis. Vertex AI: a provider with NO KEY IN THE CONTAINER ──────────────
+# pi's google-vertex provider authenticates with Application Default
+# Credentials, which on Cloud Run is this instance's service account via the
+# metadata server. Its config comes from env, not from the registry file, so
+# it is set here — BEFORE the server starts in section 2, since pi inherits the
+# server's environment and nothing exported later would reach it.
+#
+# Why this is the preferred path (design P6): the alternative bakes one shared
+# provider key into every per-user instance, where a hostile prompt in ANY
+# user's thread exfiltrates a credential that works for everyone. An ADC token
+# is reachable too — the agent has bash — but it is scoped to THIS instance's
+# own account, so stealing it grants exactly the permissions its thief had.
+HAS_VERTEX=$(node -e '
+const c=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));
+console.log(Object.values(c.providers||{}).some(p=>p.api==="google-vertex") ? "1" : "0");'   "$PI_HOME/agent/models.json")
+if [ "$HAS_VERTEX" = "1" ]; then
+  # Prefer explicit config; fall back to the metadata server rather than
+  # guessing, and fail closed if neither answers — a Vertex provider with no
+  # project would fail on every call, at call time, looking like a model fault.
+  # The metadata host is a SEAM, defaulted to the real one. The fail-closed
+  # branch below only happens when this lookup comes back empty, and inside
+  # Cloud Build the metadata server always answers — so without a way to point
+  # it at nothing, the assertion covering that branch could never pass in CI.
+  # It never did: added 2026-09-03, it failed every build from then on and the
+  # last green image predates it.
+  METADATA_HOST="${METADATA_HOST:-metadata.google.internal}"
+  if [ -z "${GOOGLE_CLOUD_PROJECT:-}" ]; then
+    GOOGLE_CLOUD_PROJECT=$(curl -s --max-time 5 -H "Metadata-Flavor: Google"       "http://${METADATA_HOST}/computeMetadata/v1/project/project-id" 2>/dev/null || true)
+  fi
+  [ -n "${GOOGLE_CLOUD_PROJECT:-}" ]     || die "the registry declares a google-vertex provider but GOOGLE_CLOUD_PROJECT is unset and the metadata server did not answer. Every model call would fail at call time looking like a model fault."
+  # `global` is the default because the current Flash generation is served ONLY
+  # there — probed 2026-09-03 across nine EU regions, all 404. Override with
+  # GOOGLE_CLOUD_LOCATION where a region does serve the model and residency
+  # matters more than the generation.
+  export GOOGLE_CLOUD_PROJECT
+  export GOOGLE_CLOUD_LOCATION="${GOOGLE_CLOUD_LOCATION:-global}"
+  log "vertex: ADC as $(curl -s --max-time 5 -H 'Metadata-Flavor: Google' "http://${METADATA_HOST}/computeMetadata/v1/instance/service-accounts/default/email" 2>/dev/null || echo 'local ADC') project=$GOOGLE_CLOUD_PROJECT location=$GOOGLE_CLOUD_LOCATION"
+fi
+
+# State plainly whether a long-lived secret reached the container. This is the
+# assertion the design's self-verification asks for, and a regression to a
+# shared key should be visible in a log line rather than inferred.
+if grep -q '"apiKey"' "$PI_HOME/agent/models.json" 2>/dev/null; then
+  log "provider keys: PRESENT in the registry (per-instance secret material)"
+else
+  log "provider keys: NONE — every provider authenticates by ambient identity"
+fi
+
+# ─── 1a-ter. Observability (M8) ──────────────────────────────────────────────
+# State plainly whether this instance is on the observability plane, for the
+# same reason the provider-key line above exists: "invisible in the observatory"
+# and "working but quiet" look identical from outside, and the first is a
+# regression somebody should notice in a boot log rather than discover while
+# trying to debug something else.
+#
+# NOT fail-closed, deliberately — unlike the model registry and the sandbox.
+# Telemetry going missing degrades our ability to see the agent; refusing to
+# boot over it would degrade the agent itself, which is a worse trade.
+# TWO planes, stated separately because they fail separately and only one of
+# them is what an operator reads. Traces correlate services; the observatory
+# session is the task record with its turns and tool calls — the same shape an
+# agent job and a Claude Code session appear as. An instance with traces and no
+# session is "traced" and still invisible in the view anyone actually opens.
+if [ -n "${OTEL_EXPORTER_OTLP_ENDPOINT:-}" ]; then
+  log "observability: traces -> $OTEL_EXPORTER_OTLP_ENDPOINT (service=${OTEL_SERVICE_NAME:-resident-agent} instance=${RESIDENT_INSTANCE_NAME:-unset})"
+else
+  log "observability: NO OTEL_EXPORTER_OTLP_ENDPOINT — this instance appears in no trace chain"
+fi
+if [ -n "${AILANG_OBSERVATORY_URL:-}" ]; then
+  log "observability: sessions -> $AILANG_OBSERVATORY_URL/api/exec/{sessions,events}"
+else
+  log "observability: NO AILANG_OBSERVATORY_URL — runs will NOT appear in the observatory alongside agent jobs"
+fi
 
 # ─── 1b. AILANG effect sandbox ───────────────────────────────────────────────
 # The containment story for anything this agent PROGRAMS is AILANG's effect
@@ -152,26 +243,121 @@ if [ -n "${WORKSPACE_REPO:-}" ]; then
   fi
 fi
 
-# ─── 5. herdr ────────────────────────────────────────────────────────────────
-# NEVER `setsid herdr server`: it fails silently — no output, an empty log, and
-# a server that never starts (Phase 0 §10). Plain backgrounding works.
-# NEVER bare `herdr`: that launches the TUI, which in a container with no
-# terminal hangs.
-mkdir -p "$(dirname "$HERDR_SOCKET_PATH")"
-herdr server >/tmp/herdr-server.log 2>&1 &
-HERDR_PID=$!
-log "herdr server pid=$HERDR_PID socket=$HERDR_SOCKET_PATH"
+# ─── 5. pi extensions ────────────────────────────────────────────────────────
+# agent-pi bakes AILANG's dev extension suite in via `ailang pi install`:
+# sprint-steward, prepush-gate, microrag-context, session-protocol-gate and the
+# rest. They exist for a developer working in the ailang repo and are wrong for
+# a resident agent:
+#   * they cost startup time and memory on every container start;
+#   * session-protocol-gate blocks edit/write and fail-closes bash until
+#     `session_protocol_ack`, which a headless resident cannot satisfy the
+#     interactive way — it branches on ctx.hasUI and asks for a human keypress.
+# Off by default, opt back in with RESIDENT_PI_EXTENSIONS=1 when a resident is
+# genuinely doing ailang repo work and can satisfy the protocol.
+EXT_DIR="$PI_HOME/agent/extensions"
+if [ "${RESIDENT_PI_EXTENSIONS:-0}" = "1" ]; then
+  log "pi extensions: ENABLED (RESIDENT_PI_EXTENSIONS=1)"
+elif [ -d "$EXT_DIR" ]; then
+  mv "$EXT_DIR" "$EXT_DIR.disabled" 2>/dev/null || true
+  log "pi extensions: disabled (moved aside; set RESIDENT_PI_EXTENSIONS=1 to keep)"
+fi
 
-# Readiness is probed with `api snapshot`, NOT `herdr status`: status exits 0
-# whether or not the server is running and merely prints "status: not running"
-# in its body, so a loop keyed on its exit code never waits (Phase 0 §10).
-READY=0
-for i in $(seq 1 60); do
-  if herdr api snapshot >/tmp/herdr-snapshot.json 2>/dev/null; then READY=1; break; fi
-  sleep 1
-done
-[ "$READY" = "1" ] || { sed 's/^/boot |   /' /tmp/herdr-server.log; die "herdr server did not become ready in 60s"; }
-log "herdr ready after ${i}s: $(herdr --version 2>&1)"
+# ─── 5b. prove pi runs headless ──────────────────────────────────────────────
+# A boot that reports "ready" while the agent binary cannot actually run is the
+# failure this design keeps repeating: on 2026-09-03 pi spawned, emitted
+# nothing, and never exited, and the instance looked perfectly healthy for the
+# fifteen minutes the hard timeout allowed. The cause was an inherited stdin
+# pipe rather than /dev/null, which `pi --version </dev/null` would have caught
+# in one second.
+#
+# So the boot proves it, with the SAME stdin discipline the executor uses. This
+# is a warning, not a die(): a resident that cannot run pi should still serve
+# /health so an operator can see why, rather than crash-looping silently.
+PI_VERSION=$(timeout 20 pi --version </dev/null 2>&1 | head -1 || true)
+if [ -z "$PI_VERSION" ]; then
+  log "WARN pi did not answer --version within 20s — the agent path will not work"
+else
+  log "pi headless check: $PI_VERSION"
+fi
+
+# ─── 5c. session persistence (M10) ───────────────────────────────────────────
+# A resident whose conversation dies with every call is a host that persists
+# and an agent that does not. `--session-id <id>` is documented as "use exact
+# project session ID, CREATING IT IF MISSING", which makes resume idempotent
+# and lets the CALLER own the identifier — so nothing has to be captured from
+# the event stream and stored.
+#
+# But that flag is verified, never assumed. The image pins its own pi and this
+# boot has already been wrong once about what pi does headless. If the flag is
+# absent the agent still serves; it serves STATELESS AND SAYS SO, rather than
+# passing an unknown flag and having pi fail on every call.
+PI_SESSION_DIR="${PI_SESSION_DIR:-$PI_HOME/sessions}"
+mkdir -p "$PI_SESSION_DIR"
+# The result is written to a FILE, not exported: the server was started back in
+# section 2 so it could answer the startup probe before the slow work, which
+# means it long predates this env. It re-reads the file per run instead.
+CAP_FILE="${TASK_STATE_DIR:-/home/ailang/.resident}/capabilities.json"
+mkdir -p "$(dirname "$CAP_FILE")"
+if timeout 20 pi --help </dev/null 2>&1 | grep -q -- "--session-id"; then
+  SESSION_FLAG="--session-id"
+  log "session persistence: ENABLED via --session-id ($PI_SESSION_DIR)"
+else
+  SESSION_FLAG=""
+  log "WARN session persistence DISABLED: pi $PI_VERSION has no --session-id, so every call is stateless"
+fi
+printf '{"piVersion":"%s","sessionFlag":"%s","sessionDir":"%s","agentHome":"%s"}\n' \
+  "$PI_VERSION" "$SESSION_FLAG" "$PI_SESSION_DIR" "$AGENT_HOME" > "$CAP_FILE"
+
+# Sessions live on LOCAL disk and are staged to the mount, never written
+# straight to it: gcsfuse has no POSIX locking and pi rewrites a session file
+# throughout a run. Same rule as the workspace and for the same reason.
+# One restore point, rotated per boot. Extensions have a blast radius they did
+# not have before M10: with --no-session a misbehaving extension could ruin one
+# call, whereas a compaction extension now rewrites the user's CONVERSATION and
+# that rewrite is staged to GCS. One previous generation costs a single copy per
+# boot and is the difference between "the assistant forgot last week" and a
+# recoverable mistake.
+if [ -d "$AGENT_HOME/sessions" ]; then
+  rm -rf "$AGENT_HOME/sessions.prev" 2>/dev/null || true
+  cp -a "$AGENT_HOME/sessions" "$AGENT_HOME/sessions.prev" 2>/dev/null \
+    && log "previous sessions kept at $AGENT_HOME/sessions.prev" \
+    || log "WARN could not snapshot sessions to sessions.prev"
+fi
+
+if [ -d "$AGENT_HOME/sessions" ]; then
+  if cp -a "$AGENT_HOME/sessions/." "$PI_SESSION_DIR/" 2>/dev/null; then
+    log "sessions restored from $AGENT_HOME/sessions ($(find "$PI_SESSION_DIR" -type f 2>/dev/null | wc -l | tr -d ' ') files)"
+  else
+    log "WARN could not restore sessions from $AGENT_HOME/sessions — continuing with a fresh store"
+  fi
+fi
+
+# ─── 6. herdr (optional) ─────────────────────────────────────────────────────
+# herdr is NOT on the task path any more: stream mode runs `pi --mode json`
+# directly, because driving pi as a TUI headless does not submit prompts and
+# cannot report completion. herdr remains installed for human attach
+# (`herdr --remote`), but starting it by default costs a process and memory for
+# nothing.
+#
+# NEVER `setsid herdr server` — it fails silently. NEVER bare `herdr` — that
+# launches the TUI and hangs with no terminal.
+if [ "${RESIDENT_ENABLE_HERDR:-0}" = "1" ]; then
+  mkdir -p "$(dirname "$HERDR_SOCKET_PATH")"
+  herdr server >/tmp/herdr-server.log 2>&1 &
+  HERDR_PID=$!
+  log "herdr server pid=$HERDR_PID socket=$HERDR_SOCKET_PATH"
+  # Readiness via `api snapshot`, NOT `herdr status`: status exits 0 whether or
+  # not the server runs.
+  READY=0
+  for i in $(seq 1 60); do
+    if herdr api snapshot >/tmp/herdr-snapshot.json 2>/dev/null; then READY=1; break; fi
+    sleep 1
+  done
+  [ "$READY" = "1" ] || { sed 's/^/boot |   /' /tmp/herdr-server.log; die "herdr server did not become ready in 60s"; }
+  log "herdr ready after ${i}s: $(herdr --version 2>&1)"
+else
+  log "herdr: not started (RESIDENT_ENABLE_HERDR=1 to enable for human attach)"
+fi
 
 # ─── 6. Hand over ────────────────────────────────────────────────────────────
 # The health endpoint owns the foreground. If it exits the container should

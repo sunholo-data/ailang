@@ -46,6 +46,8 @@ _mc_bounded(){                                  # succeed iff --model's value is
   return 7
 }
 
+_mc_probe_pi(){ _mc_bounded "$PROBE_TIMEOUT" pi --model "$1"; }
+
 . "$TMP/fn_set.sh"
 . "$TMP/fn_sel.sh"
 

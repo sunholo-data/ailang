@@ -55,6 +55,25 @@ const (
 	InboxTypeNotification = "notification"
 	InboxTypeRequest      = "request"
 	InboxTypeResponse     = "response"
+	// Types the coordinator emits. These were written as bare string literals at
+	// their call sites for a long time and were NOT in the schema's CHECK
+	// constraint, so every one of them was rejected by SQLite while succeeding on
+	// Firestore, which has no such constraint. Handoffs never surfaced it because
+	// handoffs have never fired in production (M-COMPLETION-PATH-PARITY V5).
+	InboxTypeCompletion      = "completion"
+	InboxTypeHandoff         = "handoff"
+	InboxTypeInfo            = "info"
+	InboxTypeAudit           = "audit"
+	InboxTypeApprovalRequest = "approval_request"
+	// InboxTypeFeedback is user feedback arriving from mcp.ailang.sunholo.com's
+	// submit_feedback. It selects the pkg-feedback template in config.cloud.yaml
+	// (template_by_message_type), so a package agent handed one triages a report
+	// instead of running a cascade repair.
+	//
+	// It was live on Firestore and absent from the SQLite CHECK — the same split
+	// as the coordinator types above, missed when they were added because no
+	// SQLite deployment had yet received one.
+	InboxTypeFeedback = "feedback"
 )
 
 // Message categories (for GitHub sync and coordinator routing)
@@ -91,6 +110,43 @@ func (s *Store) InsertInboxMessage(msg *InboxMessage) error {
 // InsertInboxMessageWithContext adds a new message to the inbox with trace context propagation.
 // Use this when you want the messages.send span to be a child of the caller's trace.
 func (s *Store) InsertInboxMessageWithContext(ctx context.Context, msg *InboxMessage) error {
+	_, err := s.insertInbox(ctx, msg, "")
+	return err
+}
+
+// PutMessageIfAbsent inserts a message unless one with the same id already
+// exists, and reports whether it created the row (M-COMPLETION-PATH-PARITY M0b).
+//
+// Task finalisation dispatches handoffs and completion notices under a
+// deterministic message id, and finalisation is replayed because Pub/Sub push is
+// at-least-once. A plain INSERT raises a UNIQUE violation on the second delivery,
+// which would turn a normal replay into a crash loop; the Firestore backend has
+// the opposite problem, silently overwriting a message the recipient has already
+// read. Both are wrong, and this is the shared contract: first write wins,
+// replays are a no-op, and the caller is told which happened.
+func (s *Store) PutMessageIfAbsent(ctx context.Context, msg *InboxMessage) (bool, error) {
+	if msg.ID == "" {
+		return false, fmt.Errorf("PutMessageIfAbsent requires an explicit message id: the whole point is that a replay collides")
+	}
+	// MessageID must be derived from the id, not from a timestamp plus an 8-char
+	// prefix. Finalisation writes several messages for one task under
+	// deterministic ids — "task-x:approval" and "task-x:handoff:sprint-planner" —
+	// which share their first eight characters, so within the same second the
+	// generated MessageIDs collide and the UNIQUE constraint on message_id
+	// rejects the second write. The whole point of a deterministic id is that
+	// only a genuine replay collides. This matches the Firestore backend, where
+	// MessageID already equals ID.
+	if msg.MessageID == "" {
+		msg.MessageID = msg.ID
+	}
+	return s.insertInbox(ctx, msg, " ON CONFLICT(id) DO NOTHING")
+}
+
+// insertInbox is the shared insert path. onConflict lets the caller choose
+// whether a duplicate id is an error or a no-op; everything else — field
+// defaulting, simhash, envelope serialisation — is deliberately shared so the two
+// callers cannot drift apart. Returns whether a row was actually created.
+func (s *Store) insertInbox(ctx context.Context, msg *InboxMessage, onConflict string) (bool, error) {
 	// Start span for message send operation
 	_, span := telemetry.StartSpan(ctx, messagingTracer, "messages.send",
 		trace.WithAttributes(
@@ -106,7 +162,15 @@ func (s *Store) InsertInboxMessageWithContext(ctx context.Context, msg *InboxMes
 		msg.ID = uuid.New().String()
 	}
 	if msg.MessageID == "" {
-		msg.MessageID = fmt.Sprintf("msg_%s_%s", time.Now().Format("20060102_150405"), msg.ID[:8])
+		// msg.ID is caller-supplied here — finalisation uses deterministic ids
+		// like "task-abc:handoff:sprint-planner" precisely so a replay collides —
+		// and a fixed [:8] slice panics outright on anything shorter. Take a
+		// prefix instead of assuming a length.
+		suffix := msg.ID
+		if len(suffix) > 8 {
+			suffix = suffix[:8]
+		}
+		msg.MessageID = fmt.Sprintf("msg_%s_%s", time.Now().Format("20060102_150405"), suffix)
 	}
 	if NormalizeInboxRouting(msg) {
 		span.SetAttributes(attribute.Bool("message.rerouted_from_empty_inbox", true))
@@ -179,20 +243,43 @@ func (s *Store) InsertInboxMessageWithContext(ctx context.Context, msg *InboxMes
 		envelopeJSON = &s
 	}
 
-	_, err := s.db.Exec(`
+	res, err := s.db.Exec(`
 		INSERT INTO inbox_messages (id, message_id, correlation_id, from_agent, to_inbox, message_type, title, payload, category, github_issue_number, github_repo, simhash, dup_of, parent_task_id, chain_id, envelope, status, created_at, read_at, expires_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, msg.ID, msg.MessageID, msg.CorrelationID, msg.FromAgent, msg.ToInbox, msg.MessageType, msg.Title, msg.Payload, category, msg.GitHubIssue, githubRepo, simhash, dupOf, parentTaskID, chainID, envelopeJSON, msg.Status, msg.CreatedAt.Format(time.RFC3339), readAt, expiresAt)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`+onConflict,
+		msg.ID, msg.MessageID, msg.CorrelationID, msg.FromAgent, msg.ToInbox, msg.MessageType, msg.Title, msg.Payload, category, msg.GitHubIssue, githubRepo, simhash, dupOf, parentTaskID, chainID, envelopeJSON, msg.Status, msg.CreatedAt.Format(time.RFC3339), readAt, expiresAt)
 
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to insert message")
-	} else {
-		span.SetAttributes(attribute.String("message.id", msg.ID))
-		span.SetStatus(codes.Ok, "message sent")
+		return false, err
 	}
 
-	return err
+	rows, _ := res.RowsAffected()
+	created := rows > 0
+	span.SetAttributes(
+		attribute.String("message.id", msg.ID),
+		attribute.Bool("message.created", created),
+	)
+	span.SetStatus(codes.Ok, "message sent")
+	return created, nil
+}
+
+// InboxMessageTypes is the closed vocabulary of message types, and the single
+// source of truth for the database CHECK constraint.
+//
+// Keep this in step with the constraint in schema.go and the newest migration:
+// a type present here but absent there is rejected at write time on SQLite and
+// silently accepted on Firestore, which is how the two backends came to disagree.
+var InboxMessageTypes = []string{
+	InboxTypeNotification,
+	InboxTypeRequest,
+	InboxTypeResponse,
+	InboxTypeCompletion,
+	InboxTypeHandoff,
+	InboxTypeInfo,
+	InboxTypeAudit,
+	InboxTypeApprovalRequest,
+	InboxTypeFeedback,
 }
 
 // ListInboxMessages returns messages matching the given options
@@ -669,105 +756,4 @@ func (s *Store) CountInboxMessagesByStatus(inbox string) (map[string]int64, erro
 	}
 
 	return counts, rows.Err()
-}
-
-// ===== Observed Topology Queries =====
-
-// MessageFlowEdge represents an edge between agents based on actual message handoffs
-type MessageFlowEdge struct {
-	FromAgent    string `json:"from_agent"`
-	ToInbox      string `json:"to_inbox"`
-	MessageCount int    `json:"message_count"`
-	LastActivity string `json:"last_activity,omitempty"`
-}
-
-// ActiveAgent represents an agent that has sent or received messages
-type ActiveAgent struct {
-	ID           string `json:"id"`
-	Label        string `json:"label"`
-	MessagesSent int    `json:"messages_sent"`
-	MessagesRecv int    `json:"messages_recv"`
-	LastActivity string `json:"last_activity"`
-}
-
-// GetMessageFlowEdges returns edges derived from actual from_agent → to_inbox message flows
-func (s *Store) GetMessageFlowEdges() ([]MessageFlowEdge, error) {
-	rows, err := s.db.Query(`
-		SELECT
-			from_agent,
-			to_inbox,
-			COUNT(*) as message_count,
-			MAX(created_at) as last_activity
-		FROM inbox_messages
-		WHERE from_agent IS NOT NULL AND from_agent != ''
-		  AND to_inbox IS NOT NULL AND to_inbox != ''
-		GROUP BY from_agent, to_inbox
-		ORDER BY message_count DESC
-	`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var edges []MessageFlowEdge
-	for rows.Next() {
-		var edge MessageFlowEdge
-		if err := rows.Scan(&edge.FromAgent, &edge.ToInbox, &edge.MessageCount, &edge.LastActivity); err != nil {
-			return nil, err
-		}
-		edges = append(edges, edge)
-	}
-	return edges, rows.Err()
-}
-
-// GetActiveAgents returns agents that have sent or received messages
-func (s *Store) GetActiveAgents() ([]ActiveAgent, error) {
-	// Get agents who have sent messages
-	sentQuery := `
-		SELECT from_agent as id, COUNT(*) as count, MAX(created_at) as last_activity
-		FROM inbox_messages
-		WHERE from_agent IS NOT NULL AND from_agent != ''
-		GROUP BY from_agent
-	`
-
-	// Get agents who have received messages (using to_inbox as agent id)
-	recvQuery := `
-		SELECT to_inbox as id, COUNT(*) as count, MAX(created_at) as last_activity
-		FROM inbox_messages
-		WHERE to_inbox IS NOT NULL AND to_inbox != ''
-		GROUP BY to_inbox
-	`
-
-	// Combine both using a union and aggregate
-	combinedQuery := `
-		SELECT
-			id,
-			id as label,
-			COALESCE(SUM(sent_count), 0) as messages_sent,
-			COALESCE(SUM(recv_count), 0) as messages_recv,
-			MAX(last_activity) as last_activity
-		FROM (
-			SELECT id, count as sent_count, 0 as recv_count, last_activity FROM (` + sentQuery + `)
-			UNION ALL
-			SELECT id, 0 as sent_count, count as recv_count, last_activity FROM (` + recvQuery + `)
-		)
-		GROUP BY id
-		ORDER BY messages_sent + messages_recv DESC
-	`
-
-	rows, err := s.db.Query(combinedQuery)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var agents []ActiveAgent
-	for rows.Next() {
-		var agent ActiveAgent
-		if err := rows.Scan(&agent.ID, &agent.Label, &agent.MessagesSent, &agent.MessagesRecv, &agent.LastActivity); err != nil {
-			return nil, err
-		}
-		agents = append(agents, agent)
-	}
-	return agents, rows.Err()
 }

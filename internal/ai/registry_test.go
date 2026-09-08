@@ -161,6 +161,8 @@ func TestIsBuiltinName(t *testing.T) {
 		"gemini":     true,
 		"ollama":     true,
 		"openrouter": true,
+		"lyceum":     true,
+		"zai":        true,
 		"OpenAI":     true, // case-insensitive
 		"vllm":       false,
 		"":           false,

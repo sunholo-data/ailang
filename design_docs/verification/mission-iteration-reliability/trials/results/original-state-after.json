@@ -1,0 +1,6 @@
+{
+  "mission_work_items": true,
+  "mission_stage_acceptances": true,
+  "mission_attempts": true,
+  "inputs": true
+}

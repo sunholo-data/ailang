@@ -287,13 +287,27 @@ git tag -a vX.X.X -m "Release vX.X.X"
 git describe --tags --exact-match HEAD  # Must output "vX.X.X"
 
 # 3. VERIFY binary version matches BEFORE pushing
-go install -ldflags "-X main.Version=$(git describe --tags --always) -X main.Commit=$(git rev-parse --short HEAD) -X main.BuildTime=$(date -u '+%Y-%m-%d_%H:%M:%S')" ./cmd/ailang/
+make install
 ailang --version  # Must show "AILANG vX.X.X"
 
 # 4. Only push AFTER verification passes
 git push origin dev
 git push origin vX.X.X
 ```
+
+**Use `make install` for step 3 — do not hand-roll the ldflags.** The version
+symbol lives at `github.com/sunholo-data/ailang/internal/version.Version`, not
+`main.Version` (see `Makefile` `LDFLAGS` and `.github/workflows/release.yml`).
+This step previously documented `-X main.Version=…`, which silently sets nothing:
+the binary reports `AILANG dev` while `Commit:` still looks right, because Go
+stamps the commit automatically from VCS info. That makes the check read as a
+release-blocking failure on a perfectly good tag. (Hit during v0.31.0.)
+
+**A `-dirty` suffix here is expected when the working tree has unrelated
+uncommitted files** (e.g. an in-flight mission-control iteration). `make install`
+stamps `git describe --tags --always --dirty`. Only the version core must match —
+`v0.31.0-dirty` is a pass. Released binaries never carry it: `release.yml` derives
+`VERSION=${GITHUB_REF#refs/tags/}` from the tag itself on a clean checkout.
 
 **If `git describe` doesn't show the expected version:**
 - The tag is on a different commit than HEAD — DELETE the tag and re-tag on HEAD
@@ -344,23 +358,45 @@ this step, the public MCP keeps serving the **previous** version and agents get
 `unknown_version` for the new release (this silently happened across v0.20–v0.24;
 prod was frozen at 0.19.1 for ~3 weeks).
 
-**This is now automatic and gated** (M-RELEASE-GATE, v0.25.0+): pushing the `v*` tag fires
-the `ailang-core-release` Cloud Build trigger → `cloudbuild-release.yaml`:
-`build → deploy test → SMOKE GATE → (only on pass) crane copy test→prod → deploy prod`.
-The smoke gate requires the **test** MCP to serve the released version, so **`std/VERSION`
-must equal the tag** (the gate fails the release otherwise — this is intentional: it catches
-tagging without bumping `std/VERSION`).
+**Test is automatic and gated; prod is a manual promote by version** (unified
+2026-09-03 — full picture in `resources/cloud-release.md`). Pushing the `v*` tag fires
+`ailang-core-release` → `cloudbuild-release.yaml`: CI gate → build **all 18 images**
+(`:vX.Y.Z` + `:latest`) → deploy TEST (4 services + 17 jobs) → smoke gate, and it
+**stops there**. The smoke gate requires the **test** MCP to serve the released
+version, so **`std/VERSION` must equal the tag** (intentional: it catches tagging
+without bumping `std/VERSION`; `ailang-multivac/scripts/release.sh tag ailang vX.Y.Z`
+refuses up front for the same reason).
 
-**Per-environment:**
-- **dev** (`ailang-dev-mcp`) — `ailang-core-dev` trigger on every `dev` push. No action.
-- **test** (`ailang-test-mcp`) — deployed as step 2 of the gated release pipeline on each `v*`
-  tag. (The standalone `ailang-core-test-release` trigger is **disabled** — superseded.)
-- **prod** (`ailang-mcp` → `mcp.ailang.sunholo.com`) — deployed as the final step, **only if
-  the smoke gate passes**. No manual step in the happy path.
+**Where the build actually runs — `europe-west3`.** Cloud Build triggers and builds live
+in **`europe-west3`**, in project `ailang-multivac-deploy`. This is NOT the same as
+`_REGION=europe-west1` in the break-glass below — that substitution is the *deploy target*
+(Cloud Run + Artifact Registry), not the build's execution region. `gcloud builds list`
+defaults to `global` and shows **nothing**, which reads as "the trigger never fired" when
+it did. Always pass `--region=europe-west3`:
 
-**Break-glass (gate/pipeline broken, need prod NOW):** build+deploy prod directly with the
-maintained `cloudbuild-dev.yaml` (core images only — NOT the docparse-coupled
-`cloudbuild-images.yaml`):
+```bash
+# Did the release build fire, and what happened to it?
+gcloud builds list --project=ailang-multivac-deploy --region=europe-west3 \
+  --limit=5 --sort-by=~createTime --format="value(id,status,createTime,substitutions.TAG_NAME)"
+
+# Why did it fail? (step-level log)
+gcloud builds log <BUILD_ID> --project=ailang-multivac-deploy --region=europe-west3
+```
+
+**Do not conclude "the trigger is missing" from an empty list** until you have run the
+above with `--region=europe-west3`. (v0.31.0: a region-less search returned zero across
+five other regions and produced a wrong root-cause report — the trigger was healthy and
+had fired.)
+
+**`ci-gate` fails closed on red or slow CI** (40-min budget; CI takes 19–23 min). Push
+`dev`, let CI finish, then push the tag. A red CI fails the release at step 0 and test is
+untouched. Recovery is **Retry build** once CI is green — not the break-glass.
+
+**Per-environment:** dev — `ailang-core-dev` on every push; test — the tag; prod — §7.7.
+
+**Break-glass (gate/pipeline broken, need prod NOW):** build+deploy prod directly with
+`cloudbuild-dev.yaml` (NOT the docparse-coupled `cloudbuild-images.yaml`). It tags
+`:latest` only and bypasses promote-by-version — re-promote a real version afterwards:
 
 ```bash
 SA="projects/ailang-multivac-deploy/serviceAccounts/sa-cloudbuild@ailang-multivac-deploy.iam.gserviceaccount.com"
@@ -380,9 +416,19 @@ curl -s -X POST -H "Content-Type: application/json" -d '{}' \
 # Must print the version you just released.
 ```
 
-If `latest` is stale, the prod build/deploy didn't run or didn't roll the revision
-(`:latest` tag moves don't auto-roll Cloud Run — `cloudbuild-dev.yaml`'s
-`deploy-services` step force-rolls via `gcloud run services update`).
+If `latest` is stale, the promote didn't run or didn't roll the revision (`:latest` tag
+moves don't auto-roll Cloud Run — the shared library force-rolls and fails the build if
+a roll never lands).
+
+### 7.7. Promote to prod (REQUIRED, manual)
+
+Prod only ever receives images that exist in test, by version. From the ailang-multivac
+checkout (guards, sets, verification and rollback: `resources/cloud-release.md`):
+
+```bash
+scripts/release.sh promote core vX.Y.Z --dry-run   # refuses unless the release build
+scripts/release.sh promote core vX.Y.Z             # SUCCEEDED and all 18 :vX exist
+```
 
 ### 8. Collect and Close Related Issues
 
@@ -491,7 +537,7 @@ Both are embedded in the binary via `//go:embed all:prompts`. New toolchain feat
 
 ## ailang_bootstrap Plugin Sync
 
-The user-facing Codex marketplace lives in the sibling repo `ailang_bootstrap` ([`.Codex-plugin/marketplace.json`](../../../../ailang_bootstrap/.Codex-plugin/marketplace.json)). It mirrors a small set of LSP plugins from this repo so end users get them via their bootstrap install.
+The user-facing Claude Code marketplace lives in the sibling repo `ailang_bootstrap` ([`.claude-plugin/marketplace.json`](../../../../ailang_bootstrap/.claude-plugin/marketplace.json)). It mirrors a small set of LSP plugins from this repo so end users get them via their bootstrap install.
 
 **Plugins mirrored**: `ailang-lsp` (sourced at `ailang_bootstrap/plugins/ailang-lsp/`).
 
@@ -499,16 +545,16 @@ The user-facing Codex marketplace lives in the sibling repo `ailang_bootstrap` (
 
 ```bash
 # Compare and resync if drift detected (typically only the version field bumps).
-diff -q .Codex/plugins/ailang-lsp/.lsp.json \
+diff -q .claude/plugins/ailang-lsp/.lsp.json \
         ../ailang_bootstrap/plugins/ailang-lsp/.lsp.json
-diff -q .Codex/plugins/ailang-lsp/.Codex-plugin/plugin.json \
-        ../ailang_bootstrap/plugins/ailang-lsp/.Codex-plugin/plugin.json
+diff -q .claude/plugins/ailang-lsp/.claude-plugin/plugin.json \
+        ../ailang_bootstrap/plugins/ailang-lsp/.claude-plugin/plugin.json
 
 # If diff reports differences:
-cp .Codex/plugins/ailang-lsp/.lsp.json \
+cp .claude/plugins/ailang-lsp/.lsp.json \
    ../ailang_bootstrap/plugins/ailang-lsp/.lsp.json
-cp .Codex/plugins/ailang-lsp/.Codex-plugin/plugin.json \
-   ../ailang_bootstrap/plugins/ailang-lsp/.Codex-plugin/plugin.json
+cp .claude/plugins/ailang-lsp/.claude-plugin/plugin.json \
+   ../ailang_bootstrap/plugins/ailang-lsp/.claude-plugin/plugin.json
 # Then commit in ailang_bootstrap.
 ```
 

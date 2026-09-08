@@ -346,3 +346,23 @@ func (d *Dispatcher) Dispatch(ctx context.Context, params coordinator.DispatchPa
 
 	return nil
 }
+
+// ProvidersForVariant exposes the variant/provider table for cross-package drift
+// checks (M-COMPLETION-PATH-PARITY follow-up, 2026-09-03).
+//
+// The coordinator's startup audit needs this table but cannot import it — this
+// package already imports the coordinator's types, so the reverse edge would be
+// a cycle. It therefore keeps a copy, and a drift arm compares the two. A
+// duplicated table that silently diverges is worse than no table at all: the
+// audit would clear an agent the dispatcher then refuses.
+func ProvidersForVariant() map[string][]string {
+	out := make(map[string][]string, len(providersForVariant))
+	for k, v := range providersForVariant {
+		if v == nil {
+			out[k] = nil
+			continue
+		}
+		out[k] = append([]string(nil), v...)
+	}
+	return out
+}

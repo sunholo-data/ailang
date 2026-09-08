@@ -3,6 +3,8 @@ package openai
 import (
 	"context"
 	"net/http"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ai"
@@ -160,11 +162,25 @@ func (c *Client) NewHandler(model string, opts ...ai.HandlerOption) *ai.Handler 
 	return ai.NewHandler(c, model, opts...)
 }
 
+// gptGenerationRe extracts the generation number from a GPT model id:
+// "gpt-5" -> 5, "gpt-5.6-sol" -> 5, "gpt-6-astra" -> 6, "gpt-4o" -> 4.
+var gptGenerationRe = regexp.MustCompile(`^gpt-(\d+)`)
+
 // usesMaxCompletionTokens returns true if the model uses max_completion_tokens.
 // All GPT-5+ models and o-series reasoning models require this instead of max_tokens.
+//
+// The generation is PARSED, not prefix-matched against a literal. A hardcoded
+// strings.HasPrefix(lower, "gpt-5") silently broke the day gpt-6-astra was added
+// (2026-09-05): the request went out with max_tokens and OpenAI rejected every
+// call with 400 "Unsupported parameter". Anything gpt-N for N>=5 is covered here,
+// so the next generation does not need a code change to be evaluated.
 func usesMaxCompletionTokens(model string) bool {
 	lower := strings.ToLower(model)
-	return strings.HasPrefix(lower, "gpt-5") || // All GPT-5 models
-		strings.Contains(lower, "o1") ||
+	if m := gptGenerationRe.FindStringSubmatch(lower); m != nil {
+		if gen, err := strconv.Atoi(m[1]); err == nil {
+			return gen >= 5
+		}
+	}
+	return strings.Contains(lower, "o1") ||
 		strings.Contains(lower, "o3")
 }

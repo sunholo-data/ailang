@@ -8,3 +8,8 @@ FROM europe-west1-docker.pkg.dev/${PROJECT}/ailang/agent-base:latest
 USER root
 RUN npm install -g @openai/codex
 USER ailang
+
+# The image declares the executor CLI it installs. cmd/ailang execute-job
+# refuses a task whose AILANG_PROVIDER disagrees, instead of cloning the repo
+# and then exec-failing on a binary that was never here (2026-08-27/28).
+ENV AILANG_IMAGE_PROVIDER=codex

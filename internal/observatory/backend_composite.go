@@ -452,6 +452,11 @@ func (b *CompositeBackend) UpdateStageEvalAssessment(ctx context.Context, stageI
 	return b.local.UpdateStageEvalAssessment(ctx, stageID, assessment)
 }
 
+// UpdateStageQuotaTokens delegates to local, like every other chain-stage write.
+func (b *CompositeBackend) UpdateStageQuotaTokens(ctx context.Context, stageID string, tokens int64) error {
+	return b.local.UpdateStageQuotaTokens(ctx, stageID, tokens)
+}
+
 func (b *CompositeBackend) GetSpansByStageID(ctx context.Context, stageID string) ([]*Span, error) {
 	return b.local.GetSpansByStageID(ctx, stageID)
 }
@@ -517,4 +522,31 @@ func (b *CompositeBackend) GetSpanLitesByStageID(ctx context.Context, stageID st
 }
 
 // Ensure CompositeBackend implements Backend
+// M-COMPLETION-PATH-PARITY M0b — idempotent finalisation writes, routed to the
+// local backend like every other chain/stage write on this composite.
+func (b *CompositeBackend) SetStageStatus(ctx context.Context, stageID string, status ChainStageStatus) error {
+	return b.local.SetStageStatus(ctx, stageID, status)
+}
+
+func (b *CompositeBackend) SetStageMetrics(ctx context.Context, stageID string, cost float64, tokensIn, tokensOut, turns, toolCalls int, durationMs int64, costProvenance string) error {
+	return b.local.SetStageMetrics(ctx, stageID, cost, tokensIn, tokensOut, turns, toolCalls, durationMs, costProvenance)
+}
+
+func (b *CompositeBackend) SetStageError(ctx context.Context, stageID, errorMessage string) error {
+	return b.local.SetStageError(ctx, stageID, errorMessage)
+}
+
+func (b *CompositeBackend) RecomputeChainAggregates(ctx context.Context, chainID string) error {
+	return b.local.RecomputeChainAggregates(ctx, chainID)
+}
+
+// Chain reconciliation (M-COMPLETION-PATH-PARITY M4).
+func (b *CompositeBackend) FindStrandedChains(ctx context.Context, minAge time.Duration) ([]StrandedChain, error) {
+	return b.local.FindStrandedChains(ctx, minAge)
+}
+
+func (b *CompositeBackend) AbandonChain(ctx context.Context, chainID, reason string) error {
+	return b.local.AbandonChain(ctx, chainID, reason)
+}
+
 var _ Backend = (*CompositeBackend)(nil)
