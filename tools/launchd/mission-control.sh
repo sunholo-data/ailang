@@ -1239,6 +1239,18 @@ _cx_failed=":"   # models whose probe failed
 # mis-attributed to a spent quota, before iter-23 found the real cause. A fallback visible only in
 # a routing-evidence row written AFTER the fact is still a silent fallback (Critical Principle 2):
 # by then the iteration has already run on the wrong lane.
+# 1. Kill switch — the intended "off" state, exit silently.
+#
+# THIS MUST STAY ABOVE THE ROLE PROBES. It is numbered 1 because it was gate 1; the probe
+# block was later inserted above it, and a disabled mission went on firing every Anthropic,
+# Codex and Pi probe before discovering it was off. Measured 2026-09-08: the docs fire began
+# at 04:41 and reached this line at 04:49:36 — nineteen minutes and four inference probes on
+# a mission that was already disabled, because that fire also hit the Anthropic probe hang.
+# A pause that still spends is not a pause.
+if [ -f "$KILL_SWITCH" ]; then
+  log "kill switch present ($KILL_SWITCH) — skip"; exit 0
+fi
+
 # ROLE FALLBACK CHAINS (2026-08-26). MISSION_<ROLE>_FALLBACK may now be a
 # COMMA-SEPARATED chain, walked left to right, with opus as the implicit tail:
 #
@@ -1433,11 +1445,6 @@ for role in DESIGNER PLANNER EXECUTOR EVALUATOR; do
 done
 
 fi # legacy role probes; binary iteration owns its own admission
-
-# 1. Kill switch — the intended "off" state, exit silently.
-if [ -f "$KILL_SWITCH" ]; then
-  log "kill switch present ($KILL_SWITCH) — skip"; exit 0
-fi
 
 # 1b. ONE iteration at a time (2026-07-10, continuous mode): two concurrent
 #     controllers would stomp the charter/log in the main tree and could pick

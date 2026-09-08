@@ -61,3 +61,16 @@ eval "$role"
 # The ledger must name the ration, not report a broken lane: they resume differently.
 printf '%s' "$_lane_degraded" | grep -q 'over daily ration' || { echo "FAIL degradation ledger hid the cause: $_lane_degraded";exit 1; }
 echo 'PASS role loop yields Anthropic lanes to their chains and reports the ration as the cause'
+
+# ORDERING: the kill switch must be reached BEFORE any inference probe.
+#
+# It is numbered gate 1 and was gate 1, but the role-probe block was inserted above it, so a
+# disabled mission went on probing every provider before discovering it was off — 19 minutes
+# and four Anthropic probes on the docs fire of 2026-09-08. A line-order assertion is crude,
+# but the property is a line-order property: there is no behaviour to observe once the two
+# are the wrong way round except wasted spend.
+ks=$(grep -n '^# 1\. Kill switch' "$DRIVER" | head -1 | cut -d: -f1)
+probes=$(grep -n '^fi # legacy role probes' "$DRIVER" | head -1 | cut -d: -f1)
+[ -n "$ks" ] && [ -n "$probes" ] || { echo 'FAIL could not locate kill switch or probe block';exit 1; }
+[ "$ks" -lt "$probes" ] || { echo "FAIL kill switch (line $ks) is BELOW the probe block (line $probes) — a disabled mission would probe first";exit 1; }
+echo "PASS kill switch (line $ks) precedes the role probes (line $probes)"

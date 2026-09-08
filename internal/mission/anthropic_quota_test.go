@@ -123,7 +123,7 @@ func TestParseAnthropicUsage_MalformedIsUnknownNotOK(t *testing.T) {
 	}
 }
 
-func TestObserveAnthropicQuota_OverRationIsReportedButNotEnforcedByDefault(t *testing.T) {
+func TestObserveAnthropicQuota_OverRationBlocksByDefault(t *testing.T) {
 	t.Setenv("AILANG_ANTHROPIC_RATION", "")
 	client, done := anthropicServer(t, http.StatusOK, liveAnthropicPayload)
 	defer done()
@@ -133,15 +133,30 @@ func TestObserveAnthropicQuota_OverRationIsReportedButNotEnforcedByDefault(t *te
 	if o.State != "over" {
 		t.Fatalf("state = %q, want over (34%% used vs ~11%% allowance)", o.State)
 	}
-	if o.Blocked() {
-		t.Error("Blocked() = true with enforcement off; this would refuse every controller probe")
+	if !o.Blocked() {
+		t.Error("Blocked() = false; the ration is default-ON and 34%% exceeds the allowance")
 	}
-	if o.Enforced {
-		t.Error("Enforced = true without AILANG_ANTHROPIC_RATION=1")
+	if !o.Enforced {
+		t.Error("Enforced = false by default; unset must mean rationed, not unrationed")
 	}
 }
 
-func TestObserveAnthropicQuota_EnforcementOptInBlocks(t *testing.T) {
+func TestObserveAnthropicQuota_ExplicitOptOutAdmitsButStillReportsOver(t *testing.T) {
+	t.Setenv("AILANG_ANTHROPIC_RATION", "0")
+	client, done := anthropicServer(t, http.StatusOK, liveAnthropicPayload)
+	defer done()
+
+	o := observeAnthropicQuota("test-token", anthropicNow(), client)
+	if o.Blocked() {
+		t.Error("Blocked() = true despite the explicit opt-out")
+	}
+	// The number must not be laundered into ok just because nothing acts on it.
+	if o.State != "over" {
+		t.Errorf("state = %q, want over even when unenforced", o.State)
+	}
+}
+
+func TestObserveAnthropicQuota_ExplicitOptInBlocks(t *testing.T) {
 	t.Setenv("AILANG_ANTHROPIC_RATION", "1")
 	client, done := anthropicServer(t, http.StatusOK, liveAnthropicPayload)
 	defer done()

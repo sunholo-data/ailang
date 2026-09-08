@@ -12,6 +12,7 @@ import (
 
 func TestMissionQuotaMissingCodexBlocksWithoutLedger(t *testing.T) {
 	t.Setenv("OLLAMA_API_KEY", "")
+	t.Setenv("CLAUDE_CODE_OAUTH_TOKEN", "")
 	paths := mission.Paths{Home: t.TempDir()}
 	t.Setenv("CODEX_HOME", filepath.Join(paths.Home, "codex"))
 	output := captureStdout(t, func() {
@@ -25,6 +26,7 @@ func TestMissionQuotaMissingCodexBlocksWithoutLedger(t *testing.T) {
 }
 func TestMissionQuotaCorruptLedgerCannotBypassCodex(t *testing.T) {
 	t.Setenv("OLLAMA_API_KEY", "")
+	t.Setenv("CLAUDE_CODE_OAUTH_TOKEN", "")
 	paths := mission.Paths{Home: t.TempDir()}
 	t.Setenv("CODEX_HOME", filepath.Join(paths.Home, "codex"))
 	dir := filepath.Join(paths.Home, ".ailang", "state")
@@ -39,12 +41,16 @@ func TestMissionQuotaCorruptLedgerCannotBypassCodex(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
-	if output != "codex\nollama\n" {
+	// Anthropic joins codex and ollama here (2026-09-08): it is a protected subscription
+	// whose quota is unreadable without a credential, and unknown quota fails closed. A
+	// corrupt ledger must not open ANY of the three.
+	if output != "codex\nollama\nanthropic\n" {
 		t.Fatalf("corrupt ledger bypass: %q", output)
 	}
 }
 func TestMissionQuotaOtherBucketDoesNotInspectCodex(t *testing.T) {
 	t.Setenv("OLLAMA_API_KEY", "")
+	t.Setenv("CLAUDE_CODE_OAUTH_TOKEN", "")
 	paths := mission.Paths{Home: t.TempDir()}
 	t.Setenv("CODEX_HOME", filepath.Join(paths.Home, "codex"))
 	if err := mission.AppendSpend(paths, "anthropic", 10, 1, time.Now()); err != nil {

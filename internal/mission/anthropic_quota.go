@@ -13,8 +13,8 @@ package mission
 // capacity has to be inferred, invented or configured. Ollama is the one provider that
 // still cannot do this, because its gauge has no reset.
 //
-// ENFORCEMENT IS OPT-IN. See AnthropicRationEnabled below — wiring this to the routing gate
-// without a ruling would have blocked the fleet's own controller on the day it landed.
+// ENFORCEMENT IS ON BY DEFAULT (Mark, attended 2026-09-08). AILANG_ANTHROPIC_RATION=0 is an
+// attended operator's escape hatch for one process, not a fleet setting.
 
 import (
 	"context"
@@ -60,15 +60,20 @@ func (o AnthropicQuotaObservation) Blocked() bool {
 
 // AnthropicRationEnabled reports whether the Anthropic ration gates routing.
 //
-// Default OFF, and the default is the entire point. Measured 2026-09-08: seven_day was at
-// 34% utilisation 26.7h into its window, against an 11.1% allowance under the 10%/day rule
-// — so enforcing on the day this landed would have marked `anthropic` over, and Anthropic
-// is where the CONTROLLER lives. Every fire would have refused with "NO usable controller"
-// and the fleet would have paused itself on a rule nobody had ratified.
+// Default ON (Mark, attended 2026-09-08: "really I just want it standard on everything").
+// The ration paces UNATTENDED mission loops so ATTENDED sessions keep headroom, so the
+// provider is the wrong place to make it opt-in — a bucket nobody paces is exactly the
+// state that let ollama run at five times its ration for sixteen hours.
 //
-// Codex can be rationed unilaterally because a blocked Codex lane falls through to another
-// rung. A blocked Anthropic lane has nothing behind it.
-func AnthropicRationEnabled() bool { return os.Getenv("AILANG_ANTHROPIC_RATION") == "1" }
+// It was briefly written opt-in on the fear that gating Anthropic would wedge the fleet,
+// since that is where the controller lives. That fear was wrong twice over: the controller
+// walks CONTROLLER_FALLBACK to a cheaper rung on an over-ration verdict, and when nothing
+// is left the existing "NO usable controller" refusal is the pause D-4 asks for — announced
+// once per episode, zero tokens beyond probes.
+//
+// AILANG_ANTHROPIC_RATION=0 opts out for one process. It is an escape hatch for an attended
+// operator, not a fleet setting; unset means rationed.
+func AnthropicRationEnabled() bool { return os.Getenv("AILANG_ANTHROPIC_RATION") != "0" }
 
 // anthropicOAuthToken returns the subscription OAuth token, or "".
 //
@@ -80,7 +85,12 @@ func AnthropicRationEnabled() bool { return os.Getenv("AILANG_ANTHROPIC_RATION")
 // shells often do not. That is why this resolves at RUN time in the mission fire rather
 // than being captured into config by a human session.
 func anthropicOAuthToken(ctx context.Context) string {
-	if t := os.Getenv("CLAUDE_CODE_OAUTH_TOKEN"); t != "" {
+	// LookupEnv, not Getenv: an explicitly EMPTY CLAUDE_CODE_OAUTH_TOKEN means "no
+	// credential" and must not fall through to the keychain. That is the same seam
+	// OLLAMA_API_KEY="" gives the Ollama reader, and without it a test — or an operator
+	// trying to observe the unauthenticated path — silently gets the login keychain and a
+	// verdict that depends on the real account's live quota.
+	if t, ok := os.LookupEnv("CLAUDE_CODE_OAUTH_TOKEN"); ok {
 		return t
 	}
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
@@ -272,6 +282,6 @@ func evaluateAnthropicQuota(o *AnthropicQuotaObservation, now time.Time) {
 		o.Reason = "provider-reported Anthropic utilisation exceeds ration or exhausts a window"
 	}
 	if !o.Enforced && o.State != "ok" {
-		o.Reason += " (REPORT ONLY — set AILANG_ANTHROPIC_RATION=1 to gate routing)"
+		o.Reason += " (NOT ENFORCED — AILANG_ANTHROPIC_RATION=0 is set for this process)"
 	}
 }

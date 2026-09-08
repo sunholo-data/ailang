@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/sunholo-data/ailang/internal/coordinator"
 	"github.com/sunholo-data/ailang/internal/mission/activation"
+	"github.com/sunholo-data/ailang/internal/testutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,7 +16,7 @@ import (
 
 func TestMissionRetainedBindingMissingReadOnly(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	testutil.SetHomeDir(t, home)
 	err := runMissionIteration(context.Background(), "status", []string{"docs", "--work-item", "w", "--activation", "missing"}, &bytes.Buffer{}, missionIterationDeps{})
 	if err == nil {
 		t.Fatal("missing activation accepted")
@@ -42,7 +43,7 @@ func TestMissionRetainedBindingMissingReadOnly(t *testing.T) {
 
 func TestMissionRetainedStatusAfterRestore(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	testutil.SetHomeDir(t, home)
 	config := filepath.Join(home, ".config", "ailang")
 	if err := os.MkdirAll(config, 0700); err != nil {
 		t.Fatal(err)
