@@ -1,6 +1,6 @@
 # M-STD-BASE64URL-ENCODE: close the base64url encode/decode asymmetry in std/bytes
 
-**Status**: Implemented on `dev`, unreleased (ships in v0.35.4) — see Delivery Notes
+**Status**: Implemented — shipped in v0.35.4 (2026-09-08)
 **Target**: v0.35.4 (small additive stdlib change)
 **Priority**: P1 — Medium-High. Blocks a named downstream deliverable (`sunholo/gmail`), and the
 workaround's failure mode is silent-wrong-output rather than a compile error.
