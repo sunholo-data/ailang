@@ -155,16 +155,17 @@ func (te *TaskExecutor) ExecuteWithRetry(ctx context.Context, task *AnalyzedTask
 	}
 
 	var lastResult *ExecuteResult
-	baseDelay := time.Second
+	baseDelay := opts.RetryBaseDelay
 
 	for attempt := 0; attempt <= maxRetries; attempt++ {
 		if attempt > 0 {
-			// Exponential backoff
+			// Exponential backoff (injected wait seam: M-COORDINATOR-TEST-PARALLELISM)
 			delay := baseDelay * time.Duration(1<<(attempt-1))
+			opts.Wait(delay)
 			select {
-			case <-time.After(delay):
 			case <-ctx.Done():
 				return nil, ctx.Err()
+			default:
 			}
 		}
 

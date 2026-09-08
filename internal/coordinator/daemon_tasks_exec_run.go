@@ -235,13 +235,15 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 			task.ID, targetAgent, assignmentID, workspaceID)
 	}
 
-	opts := &ExecuteOptions{
-		Timeout:            agentConfig.GetEffectiveTimeout(),     // Hard ceiling (v0.8.1), default 60m
-		IdleTimeout:        agentConfig.GetEffectiveIdleTimeout(), // Idle kill (v0.8.1), default 3m
-		Workspace:          workspacePath,                         // Worktree path for AI agents, direct workspace for script agents
-		ObservatoryContext: obsContext,
-		AgentConfig:        agentConfig, // For system prompt construction (v0.8.0+)
-	}
+	// Base on DefaultExecuteOptions so RetryBaseDelay/Wait are set explicitly
+	// (M-COORDINATOR-TEST-PARALLELISM, FIX 2). Each override below wins over the
+	// default, so the five fields are identical to today's literal.
+	opts := DefaultExecuteOptions()
+	opts.Timeout = agentConfig.GetEffectiveTimeout()         // Hard ceiling (v0.8.1), default 60m
+	opts.IdleTimeout = agentConfig.GetEffectiveIdleTimeout() // Idle kill (v0.8.1), default 3m
+	opts.Workspace = workspacePath                           // Worktree path for AI agents, direct workspace for script agents
+	opts.ObservatoryContext = obsContext
+	opts.AgentConfig = agentConfig // For system prompt construction (v0.8.0+)
 
 	// Per-agent model, resolved through the REGISTRY
 	// (M-MODEL-REGISTRY-SINGLE-SOURCE M7, superseding M-PIPELINE-RECONCILIATION

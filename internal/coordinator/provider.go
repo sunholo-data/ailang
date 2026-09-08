@@ -79,6 +79,15 @@ type ExecuteOptions struct {
 
 	// Plugins for per-agent third-party plugin installation (M-CLOUD-PLUGIN-SKILLS, v0.9.1).
 	Plugins *PluginsConfig
+
+	// RetryBaseDelay is the base delay for ExecuteWithRetry's exponential backoff
+	// (M-COORDINATOR-TEST-PARALLELISM). Set explicitly by DefaultExecuteOptions;
+	// there is deliberately no zero-value fallback (FIX 2).
+	RetryBaseDelay time.Duration
+
+	// Wait is the backoff wait seam used by ExecuteWithRetry
+	// (M-COORDINATOR-TEST-PARALLELISM). Set explicitly by DefaultExecuteOptions.
+	Wait func(time.Duration)
 }
 
 // ObservatoryContext holds context for linking traces to coordinator entities.
@@ -98,8 +107,10 @@ type ObservatoryContext struct {
 // DefaultExecuteOptions returns sensible defaults
 func DefaultExecuteOptions() *ExecuteOptions {
 	return &ExecuteOptions{
-		Timeout: 5 * time.Minute,
-		DryRun:  false,
+		Timeout:        5 * time.Minute,
+		DryRun:         false,
+		RetryBaseDelay: time.Second,
+		Wait:           time.Sleep,
 	}
 }
 
