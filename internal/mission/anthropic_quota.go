@@ -85,7 +85,12 @@ func AnthropicRationEnabled() bool { return os.Getenv("AILANG_ANTHROPIC_RATION")
 // shells often do not. That is why this resolves at RUN time in the mission fire rather
 // than being captured into config by a human session.
 func anthropicOAuthToken(ctx context.Context) string {
-	if t := os.Getenv("CLAUDE_CODE_OAUTH_TOKEN"); t != "" {
+	// LookupEnv, not Getenv: an explicitly EMPTY CLAUDE_CODE_OAUTH_TOKEN means "no
+	// credential" and must not fall through to the keychain. That is the same seam
+	// OLLAMA_API_KEY="" gives the Ollama reader, and without it a test — or an operator
+	// trying to observe the unauthenticated path — silently gets the login keychain and a
+	// verdict that depends on the real account's live quota.
+	if t, ok := os.LookupEnv("CLAUDE_CODE_OAUTH_TOKEN"); ok {
 		return t
 	}
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)

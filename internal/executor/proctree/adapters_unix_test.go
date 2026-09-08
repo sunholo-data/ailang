@@ -4,6 +4,7 @@ package proctree_test
 
 import (
 	"context"
+	"github.com/sunholo-data/ailang/internal/testutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -23,7 +24,7 @@ import (
 // Real adapters run local shell fixtures: no credentials or providers are used.
 // The child inherits the adapter's pipes, reproducing MCP/server orphan hangs.
 func TestAdaptersStopOwnedDescendants(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	testutil.SetHomeDir(t, t.TempDir())
 	t.Setenv("CLAUDE_CODE_OAUTH_TOKEN", "")
 	for _, adapter := range []string{"claude", "pi", "codex"} {
 		for _, reason := range []string{"cancel", "deadline", "timeout", "tokens", "cost"} {
