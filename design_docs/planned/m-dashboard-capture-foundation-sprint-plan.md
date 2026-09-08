@@ -1,6 +1,6 @@
 # M-DASHBOARD-CAPTURE-FOUNDATION — exporter recovery and honest initialization
 
-**Status:** In progress
+**Status:** Implementation complete; formal evaluation/promotion held by the unfiltered test gate
 **Authorized:** Mark, 2026-09-08: “please continue to sprint plan then execute,” following the production audit and its proposed first repair.
 **Design basis:** [Live audit F1](../dashboard-live-audit-2026-09-08.md), [recovery plan](../dashboard-recovery-plan-2026-09-08.md).
 **Branch/worktree:** `sprint/dashboard-capture-foundation`, isolated from unrelated work on `dev`.
@@ -57,11 +57,11 @@ This sprint does not migrate databases, change language semantics, backfill reco
 **Dependencies:** M1, M2.
 **Files:** integration tests under `internal/telemetry/` or `internal/observatory/`, `docs/docs/guides/telemetry.md`, `changelogs/v0.32-current.md`, this plan, sprint/evaluation JSON.
 
-- [ ] Real OTLP HTTP protobuf emission reaches the production receiver/conversion path and stores trace/task/chain/stage identities in a temporary database.
-- [ ] Recovery and failure tests use isolated loopback fixtures, no production writes and no external model calls.
-- [ ] Relevant tests, race checks, lint/build and architecture boundaries pass; any full-suite environmental/baseline failure is recorded rather than hidden.
-- [ ] Documentation distinguishes registration from receipt, explains outage/data-loss limits, and gives a concrete staged production verification procedure.
-- [ ] Independent sprint evaluation records acceptance evidence and any remaining rollout gate.
+- [x] Real OTLP HTTP protobuf emission reaches the production receiver/conversion path and stores trace/task/chain/stage identities in a temporary database.
+- [x] Recovery and failure tests use isolated loopback fixtures, no production writes and no external model calls.
+- [x] Relevant tests, race checks, lint/build and architecture boundaries pass; any full-suite environmental/baseline failure is recorded rather than hidden.
+- [x] Documentation distinguishes registration from receipt, explains outage/data-loss limits, and gives a concrete staged production verification procedure.
+- [x] Independent sprint evaluation records acceptance evidence and any remaining rollout gate.
 
 ## Evidence-driven implementation adjustments
 
@@ -102,3 +102,60 @@ Baseline telemetry package first; tests that invoke the CLI must remain sandboxe
 ## Axiom review
 
 A1 0, A2 +1, A3 0, A4 0, A5 +1, A6 +1, A7 +1, A8 0, A9 0, A10 +1, A11 +1, A12 +1 = +7. No language semantics or authority changes. Gains come from explicit failure/registration state, bounded verification, safe lifecycle handling and preserving existing initializer composition.
+
+## Execution results (2026-09-08)
+
+Implementation commit: `935c5934d` on `sprint/dashboard-capture-foundation`.
+No release, merge, push or production deployment was performed. The original
+checkout and inbox were left untouched. Added implementation/test lines: 755;
+this is diff size, not a measured engineering velocity.
+
+| Check | Result |
+|---|---|
+| Original startup regression | Red: HTTPS registration and both late-collector cases failed before removal of the gate |
+| Initial integrated tests | Exposed retry-cycle timeout and SQLite provenance loss; corrected and rerun |
+| `go test ./internal/telemetry ./internal/observatory -count=1` | Pass: 5.426s / 1.531s |
+| Same packages with `-race -count=1` | Pass: 7.522s / 3.590s |
+| Independent focused review/test run | Pass; no remaining concrete implementation blocker |
+| `make lint` | Pass, zero issues |
+| `make check-boundaries` | Pass |
+| Build and pi extension tests | Pass through `make test` |
+| Unfiltered repository suite | Not green; four environment-sensitive failures remain (listed below) |
+| Repository suite with explicit four-test exclusions | Pass, exit 0 on implementation commit |
+| Sprint JSON validator and `git diff --check` | Pass |
+
+The full test command runs under a nested macOS sandbox denying writes to the
+real `/Users/voightkampff/.ailang`, with `AILANG_STORAGE=local` and
+`AILANG_MESSAGES_STORE=local`. This protects production-like local observatory
+data from the CLI’s unrelated startup auto-retention. The four exclusions are:
+
+- `TestMemWatchdogKillsAllocator`
+- `TestMemWatchdogKillsGrandchild`
+- `TestProcessGroupRSSSamplesGroup`
+- `TestPackageDir_RegistryRuntimeResolution`
+
+The first three require process-group memory visibility unavailable in this run;
+the fourth writes and removes a fixture under the actual home package cache, which
+is deliberately protected. Their source paths are unchanged from the base commit.
+They are recorded as environment-sensitive failures, not proven passing tests.
+The correctly quoted exclusion expression was
+`Test(MemWatchdogKills|ProcessGroupRSSSamplesGroup|PackageDir_RegistryRuntimeResolution)`.
+
+Logs are local, not committed: `/tmp/dashboard-sprint-red.log`,
+`/tmp/dashboard-sprint-packages-v2.log`, `/tmp/dashboard-sprint-race-v2.log`,
+`/tmp/dashboard-sprint-lint-v2.log`, `/tmp/dashboard-sprint-boundaries.log`,
+`/tmp/dashboard-sprint-full-test.log`,
+`/tmp/dashboard-sprint-full-filtered.log`, and
+`/tmp/dashboard-sprint-full-filtered-v2.log`.
+The first full run predates the final fixes. The second full run on the commit
+(`full-filtered.log`) had an ineffective exclusion expression, excluded no tests,
+and confirms exactly the four unchanged failures; telemetry and observatory pass.
+The final correctly quoted filtered run exits 0.
+
+The independent evaluation artifact is
+`.ailang/state/evaluations/eval_M-DASHBOARD-CAPTURE-FOUNDATION_round_1.json`.
+Its strict rubric requires unfiltered `make test` exit 0; filtered success does
+not satisfy that requirement. Therefore the implementation milestones are locally
+met but sprint promotion remains paused. Re-run unfiltered tests in an isolated
+runner with normal process inspection and disposable user data before promotion.
+The separate production rollout checklist above remains entirely pending.

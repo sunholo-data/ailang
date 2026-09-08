@@ -10,7 +10,7 @@
       "id": "M1",
       "description": "Recover OTLP destinations after startup outages",
       "estimated_loc": 190,
-      "actual_loc": null,
+      "actual_loc": 203,
       "dependencies": [],
       "acceptance_criteria": [
         "Regression test fails on the original startup gate, then passes after its removal.",
@@ -28,7 +28,7 @@
       "id": "M2",
       "description": "Report actual exporter registration",
       "estimated_loc": 280,
-      "actual_loc": null,
+      "actual_loc": 460,
       "dependencies": [
         "M1"
       ],
@@ -48,7 +48,7 @@
       "id": "M3",
       "description": "Verify linked delivery and document rollout",
       "estimated_loc": 180,
-      "actual_loc": null,
+      "actual_loc": 92,
       "dependencies": [
         "M1",
         "M2"
@@ -60,19 +60,19 @@
         "Documentation distinguishes registration from receipt, explains outage/data-loss limits, and gives a concrete staged production verification procedure.",
         "Independent sprint evaluation records acceptance evidence and any remaining rollout gate."
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-09-08T06:23:17.474052+00:00",
+      "notes": "Real receiver persistence/race tests pass; build/lint/boundaries and repository suite excluding four environment-sensitive tests pass. Independent report records strict full-suite promotion failure. No production rollout."
     }
   ],
   "velocity": {
     "estimated_total_loc": 650,
-    "actual_total_loc": 0,
+    "actual_total_loc": 755,
     "estimated_days": 2,
     "actual_days": null
   },
-  "status": "in_progress",
-  "last_session": "2026-09-08T06:19:12.602181+00:00",
-  "last_checkpoint": "M1 and M2 implemented; M3 full-suite and independent final evaluation pending."
+  "status": "paused",
+  "last_session": "2026-09-08T06:23:17.474052+00:00",
+  "last_checkpoint": "All local implementation criteria met at 935c5934d; formal promotion held by unfiltered make test requirement. Four environment-sensitive tests remain; production rollout not performed."
 }
