@@ -315,3 +315,37 @@ func TestDefaultPollTickFires(t *testing.T) {
 		t.Fatal("defaultPollTick(5ms) delivered no tick within 500ms — production poll default is dead")
 	}
 }
+
+// TestDefaultWaitBothBranches covers `defaultWait`, the production-default
+// backoff wait, on BOTH of its arms. The cancelled arm was already exercised
+// end-to-end by TestExecuteWithRetry_BackoffIsCancellable; the elapsed arm
+// (`case <-t.C: return nil`) had no coverage at all, because no test lets the
+// production wait run to completion — SonarCloud's new-code coverage gate is
+// what surfaced it.
+//
+// Both arms matter and they are not symmetric: the cancelled arm is the
+// regression this sprint's round-2 fix exists to prevent, while the elapsed arm
+// is the ordinary path every production retry takes. A wait that returned
+// ctx.Err() unconditionally would satisfy the cancellation guard and break every
+// real retry.
+func TestDefaultWaitBothBranches(t *testing.T) {
+	// Arm 1 — the timer fires first: returns nil.
+	if err := defaultWait(context.Background(), time.Millisecond); err != nil {
+		t.Errorf("defaultWait with a live context returned %v, want nil — the ordinary retry path is broken", err)
+	}
+
+	// Arm 2 — the context is already cancelled: returns ctx.Err() rather than
+	// sleeping. The duration is deliberately long: if this returns promptly it
+	// can only be because the ctx arm won.
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	start := time.Now()
+	err := defaultWait(ctx, 10*time.Second)
+	elapsed := time.Since(start)
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("defaultWait with a cancelled context returned %v, want context.Canceled", err)
+	}
+	if elapsed >= time.Second {
+		t.Errorf("defaultWait ignored an already-cancelled context for %v — it slept instead of returning", elapsed)
+	}
+}
