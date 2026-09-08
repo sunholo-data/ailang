@@ -48,17 +48,18 @@
         "Independent review recorded and regressions resolved.",
         "Changelog/recovery plan record deletion counts and limitations."
       ],
-      "passes": null,
+      "passes": true,
       "started": "2026-09-08T12:37:18.226032+00:00",
-      "completed": null,
-      "notes": null
+      "completed": "2026-09-08T12:45:58.518523+00:00",
+      "notes": "Independent scoped evaluation PASS80/100 at bd06e6534; browser/production/full Go suite not certified."
     }
   ],
   "velocity": {
     "estimated_total_loc": 300,
-    "actual_total_loc": 0,
-    "estimated_days": 1
+    "actual_total_loc": 134,
+    "estimated_days": 1,
+    "net_source_lines_removed": 11206
   },
-  "status": "in_progress",
-  "last_session": "2026-09-08T12:44:11.858965+00:00"
+  "status": "completed",
+  "last_session": "2026-09-08T12:45:58.518523+00:00"
 }

@@ -1,6 +1,6 @@
 # M-DASHBOARD-DELETE-ANALYTICS
 
-Status: In progress. Authorized by Mark’s “yes continue” after the deletion sequence in the dashboard recovery plan. Work directly on dev; preserve unrelated changes.
+Status: Implemented on dev; not deployed. Authorized by Mark’s “yes continue” after the deletion sequence in the dashboard recovery plan. Work directly on dev; preserve unrelated changes.
 
 Design: [Recovery plan](../dashboard-recovery-plan-2026-09-08.md), deletion sprint A. Scope: remove optional analytics/heatmap panel and evolution-tree mode, including exclusive dependencies. Keep Work/chain explorer, approvals, message date filters, timeline and chat inspection. No backend changes or deployment.
 
@@ -33,3 +33,9 @@ Validation: existing UI tests/build baseline first; lint via UI build, import cl
 - Independent review caught the lost heatmap date-input path, local/UTC mismatch and narrow-sidebar wrapping; all corrected. Native browser inspection unavailable (`cgWindowNotFound`); browser interaction and production rollout remain unverified.
 - `make ui-deploy` here only builds/copies checked-in assets; no running service restart or cloud deploy. Architecture boundaries pass. Full Go suite was not rerun for this frontend-only change; prior environmental limits are not relabeled passing.
 - Logs: `/tmp/dashboard-delete-baseline-test.log`, `/tmp/dashboard-delete-baseline-build.log`, `/tmp/dashboard-delete-test-v3.log`, `/tmp/dashboard-delete-ui-assets-final.log`, `/tmp/dashboard-delete-boundaries.log`.
+
+Independent scoped evaluation: **PASS, 80/100**, implementation commit `bd06e6534`.
+Report: `.ailang/state/evaluations/eval_M-DASHBOARD-DELETE-ANALYTICS_round_1.json`.
+Final source reduction: **11,206 lines**. UI and embedded server assets match byte
+for byte. Remaining deductions concern inherited large files/functions; browser,
+full Go-suite and production behavior are not certified by this UI evaluation.
