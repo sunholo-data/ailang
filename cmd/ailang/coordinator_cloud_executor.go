@@ -23,7 +23,7 @@ import (
 // Instead of shelling out to raw CLI commands, it uses executor.GlobalFactory() to get
 // the registered executor and calls ExecuteStreaming() — giving us stream-JSON parsing,
 // token extraction, OTEL spans, session tracking, and a full executor.Result.
-func runExecutor(ctx context.Context, workDir, provider, directive, taskID, pluginDir, model, timeoutStr string) (*executor.Result, error) {
+func runExecutor(ctx context.Context, workDir, provider, directive, taskID, pluginDir, model, timeoutStr, repoURL string) (*executor.Result, error) {
 	// M-CLOUD-PROGRESS-TRACKING M4: Extract trace context from env (injected by dispatcher).
 	// This links Cloud Run Job spans to the coordinator's dispatch span in Cloud Trace.
 	ctx = telemetry.ExtractTraceContext(ctx)
@@ -58,6 +58,16 @@ func runExecutor(ctx context.Context, workDir, provider, directive, taskID, plug
 		Model:     model,   // From AILANG_MODEL env var (agent config) — empty means executor default
 		Timeout:   timeout, // From AILANG_TIMEOUT env var — overrides executor default (5m)
 		Metadata:  make(map[string]string),
+		ExtraEnv:  make(map[string]string),
+	}
+	// workspace-trust per-repo injection (M-DX-PI-HARNESS): the container's pi
+	// runs headless against a fresh clone with a fresh HOME, so pi's project-trust
+	// gate would silently drop the repo's .agents/skills/ and .pi/ resources. The
+	// global workspace-trust extension trusts checkouts whose git origin matches
+	// this pattern — the task's own repo, sourced from the job spec (machine-owned
+	// dispatcher config; the repo never supplies its own trust input).
+	if repoURL != "" {
+		task.ExtraEnv["PI_WORKSPACE_TRUST_REMOTES"] = repoURL
 	}
 	if pluginDir != "" {
 		task.PluginDirs = []string{pluginDir}

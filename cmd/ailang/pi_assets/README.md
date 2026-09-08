@@ -1,6 +1,6 @@
 # Session Protocol Gate + Dev-Harness Extensions
 
-The eleven-extension AILANG pi suite (M-DX-SESSION-GATE, M-DX-PI-HARNESS,
+The twelve-extension AILANG pi suite (M-DX-SESSION-GATE, M-DX-PI-HARNESS,
 M-DX-QUALITY-MONITOR, M-DX-MICRORAG-CONTEXT). Tested against pi **0.84.3**
 (0.84.4 verified for quality-monitor and microrag-context).
 
@@ -8,7 +8,7 @@ M-DX-QUALITY-MONITOR, M-DX-MICRORAG-CONTEXT). Tested against pi **0.84.3**
 
 ### Tier 0 — every repo on a machine: install from the ailang binary
 
-Release binaries embed all eleven `.ts` extensions plus this README. Install the
+Release binaries embed all twelve `.ts` extensions plus this README. Install the
 managed global copy into `~/.pi/agent/extensions/` with:
 
 ```bash
@@ -34,8 +34,8 @@ First session per machine prompts once to trust the project; after that every
 session arms the gate and gets the tools (`ailang_check`, `builtins_search`,
 `freshness_report`, `quota_report`). Verify with `pi -p --no-session "call quota_report"`.
 
-**⚠ Headless sessions never see that prompt and are silently extension-less until
-trust is saved** (measured 2026-08-31 on pi 0.84.4; pi ≤0.73 had no gate at all).
+**⚠ Headless sessions never see that prompt and are silently project-resource-less
+until trust is saved** (measured 2026-08-31 on pi 0.84.4; pi ≤0.73 had no gate at all).
 `-p` / `--mode json` / `--mode rpc` show no trust prompt — with no saved decision they
 fall back to `defaultProjectTrust: "ask"`, which *ignores* project resources and reports
 no error anywhere. The fix is one saved decision in `~/.pi/agent/trust.json` (flat map,
@@ -46,6 +46,32 @@ fire, so per-project trust does not scale — parent trust is the mechanism. And
 verifying, require `tool_execution_start`/`end` events in the JSON stream: a substring
 match on the tool name is satisfied by the model merely *echoing* it, and `pi list`
 lists settings-installed packages only, not repo-auto extensions.
+
+**`workspace-trust` closes the headless gap — configurable per repo** (2026-09-08,
+same trap measured a second time: `.agents/skills/` silently dropped in the skills
+canary — see the mission-control.sh evaluator note). The extension handles pi's
+`project_trust` event and trusts any checkout whose git origin remote matches a
+configured pattern (case-insensitive substring; an `org/repo` coordinate matches
+both ssh and https remote forms). Pattern sources, in precedence order:
+
+1. `PI_WORKSPACE_TRUST=0` — kill switch; the extension abstains entirely.
+2. `~/.pi/agent/workspace-trust.json` — `{"remotes": ["org/repo", ...]}`. Machine-owned,
+   per-repo list; when valid it REPLACES the built-in defaults (`{"remotes": []}` = no
+   default patterns on this machine). Invalid or unreadable → loud stderr warning +
+   ABSTAIN (fail-closed — a broken config never silently reverts to defaults).
+3. `PI_WORKSPACE_TRUST_REMOTES="a/b,c/d"` — always ADDITIVE. The coordinator also
+   injects this per task (local dispatch: the agent's `repo:` coordinate; cloud
+   execute-job: the job's clone URL), so every dispatched repo is trusted in its
+   own checkout with zero per-repo setup.
+4. Built-in defaults: `sunholo`, `arniwesth/motoko_agent`.
+
+The decision is per-process (`remember: false` — never writes `trust.json`) and
+never returns `"no"`; non-matching directories keep pi's normal flow. A repo can
+never supply its own trust config — that would be self-approving trust, exactly
+what the gate exists to prevent — so all configuration is machine- or
+dispatcher-owned. Human-saved parent trust remains the mechanism for humans;
+this is the mechanism for headless lanes and cloud containers, whose HOMEs are
+fresh every run.
 
 ### Tier 2 — cloud/fleet images: installed at build time
 
@@ -67,6 +93,7 @@ human-owned release operations.
 | `ail-fmt-autolint.ts` | After a successful write/edit of a `.ail` file, runs `ailang fmt --write` so saved AILANG is canonically formatted (motoko-measured fmt arm) |
 | `quality-monitor.ts` | Bounded-excerpt rewrite of >16KB tool results (head+tail + narrowing directive); blocks the 3rd identical consecutive tool call with a directive; detects empty/zero-content turns and steers once (capped); opt-in thinking-budget fallback (`PI_QUALITY_THINKING_FALLBACK=1`). Kill switch `PI_QUALITY_MONITOR=0` (M-DX-QUALITY-MONITOR) |
 | `microrag-context.ts` | μRAG retrieval frontend for pi: prompt-intent injection (`before_agent_start`, trailing message only — never a system-prompt edit), error-triggered injection from the last `ailang_check` failure (the lane no other frontend has), and the `microrag_search` tool. Engine untouched — rides `ailang micro-rag user-prompt`. REQUIRES explicit `AILANG_MICRORAG_ENABLED=1` (unset/0 = fully inert, eval-arm parity); knobs `PI_MICRORAG_INJECT=0` (no auto-injection), `PI_MICRORAG_TOOL=0` (no tool), kill switch `PI_MICRORAG_CONTEXT=0` (M-DX-MICRORAG-CONTEXT) |
+| `workspace-trust.ts` | Handles pi's `project_trust` event: auto-trusts checkouts whose git origin matches a configured pattern, so headless lanes and fresh cloud containers load project `.agents/skills/` and `.pi/` resources instead of silently dropping them. Per repo: `~/.pi/agent/workspace-trust.json` `{"remotes": [...]}` (replaces defaults; invalid → warn + abstain) or `PI_WORKSPACE_TRUST_REMOTES` (additive; also injected per task by the coordinator — agent `repo:` coordinate locally, clone URL in cloud). `remember: false` (never writes `trust.json`); never returns `"no"`; kill switch `PI_WORKSPACE_TRUST=0` (2026-09-08 doctrine addition) |
 
 All subprocesses run under the Subprocess Contract (per-command timeouts, structured
 TIMEOUT failures, 64KB output caps, no silent retries).

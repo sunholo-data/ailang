@@ -199,7 +199,16 @@ for repo cloners (tier 1, unchanged).
 session after session. Extensions ship via the binary (`ailang pi install`) so the fix
 reaches every user, and become the knowledge source for motoko ports and Claude Code
 hook diffs. Landed this way so far: session gate, quota, attribution, prepush gates,
-fmt autolint (below).
+fmt autolint (below), workspace-trust (2026-09-08: the project-trust gate silently
+drops `.agents/skills/` in headless runs on fresh/untrusted paths — the same trap that
+bit extensions on 2026-08-31; `project_trust` event handler auto-trusts checkouts whose
+git origin matches a configured pattern, per-process, never touching `trust.json`.
+Per-repo config: machine file `~/.pi/agent/workspace-trust.json` (replaces built-in
+defaults when valid; invalid → warn + abstain), additive `PI_WORKSPACE_TRUST_REMOTES` —
+which the coordinator injects per task (local: the agent's `repo:` coordinate,
+provider_executor.go; cloud execute-job: the job's clone URL) — so every dispatched
+repo is trusted in its own checkout with zero per-repo setup. A repo can never supply
+its own trust config — all inputs are machine- or dispatcher-owned).
 
 **Diffusion map** — each technique exists in the three harnesses:
 
@@ -212,6 +221,7 @@ fmt autolint (below).
 | Quota/lane visibility | provider-quota (/api/v1/key + /api/usage) | quota multiplier (measured, V36) | — |
 | Structured diagnostics | ail-lsp-lite (slots before bash) | `ailang_docs`/`microrag` contexts | MCP server |
 | Provenance | commit-attribution (in gate) | Co-Authored-By precedent | Co-Authored-By: Claude |
+| Workspace trust (headless lanes / fresh containers) | workspace-trust (`project_trust` event, family-remote match) | fleet inherits via `ailang pi install` | — |
 
 ## Solution Design
 

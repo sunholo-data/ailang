@@ -23,6 +23,7 @@ var expectedPiExtensions = []string{
 	"session-protocol-gate.ts",
 	"sprint-steward.ts",
 	"unowned-dirty.ts",
+	"workspace-trust.ts",
 }
 
 // M-DX-PI-HARNESS Distribution v2: the managed-file install contract.
