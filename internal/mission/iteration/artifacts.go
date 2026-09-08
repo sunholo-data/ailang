@@ -10,13 +10,13 @@ import (
 	"io"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/executor/proctree"
+	"github.com/sunholo-data/ailang/internal/gitexec"
 	"github.com/sunholo-data/ailang/internal/gitutil"
 	"github.com/sunholo-data/ailang/internal/mission/dispatch"
 )
@@ -46,7 +46,7 @@ func (e Evidence) Digest() string { return digest(e) }
 func Git(ctx context.Context, repo string, args ...string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "git", append([]string{"-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false", "--literal-pathspecs", "-C", repo}, args...)...)
+	cmd := gitexec.CommandContext(ctx, append([]string{"-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false", "--literal-pathspecs", "-C", repo}, args...)...)
 	proctree.Configure(cmd)
 	cmd.Env = append(os.Environ(), "GIT_NO_REPLACE_OBJECTS=1", "GIT_TERMINAL_PROMPT=0")
 	out := &boundedOutput{limit: 16 * 1024 * 1024}
