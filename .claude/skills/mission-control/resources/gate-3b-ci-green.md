@@ -38,6 +38,48 @@ while :; do
 done
 ```
 
+**⚠ AND BEFORE YOU POLL AT ALL: YOUR LOCAL GREEN WAS PRODUCED BY A GATE LIST YOU TYPED, AND TWO OF
+THE CHECKS THAT DECIDE THIS GATE CANNOT BE IN IT — ONE IS A WHOLE-REPO LINTER A LOCAL PACKAGE SWEEP
+NEVER REACHES, THE OTHER IS A GITHUB APP NO `make` TARGET CAN RUN** (added 2026-09-08 V1 iteration
+351; two first-party instances in ONE iteration, each costing a push/CI cycle). Verification rule 3g
+already says your local sweep is a hand-picked subset and that the CI job's command list is knowable,
+and the codex-lane rule (4) already says to baseline the gate list you write into a directive. Both
+are about commands you *could* have run and didn't. This is the residue neither covers: checks that
+are **not runnable from your gate list by construction**, so deriving the job's command list finds
+nothing missing and the sweep reads complete.
+Two shapes, and they fail in opposite directions from the same green.
+**(a) A whole-repo linter reacts to a DELETION somewhere else.** Iteration 351 removed a
+provably-vacuous test assertion — a strictly subtractive edit that cannot break behaviour — and
+`golangci-lint unused` reddened the PR, because that assertion held the last reference to a
+production-default helper (`func defaultPollTick is unused`). Every local gate was green: `go build`,
+`go vet`, `gofmt`, `go test ./internal/<pkg>/ -count=1`. The package-scoped sweep is the trap — the
+red is a fact about the *repo's* reference graph, and a subtractive edit is exactly the shape that
+looks safest and moves that graph.
+**(b) A coverage gate is a GitHub App with no local equivalent.** The same iteration then went red on
+SonarCloud `new_coverage` **78.8%** against a threshold of 80, with the negative control unambiguous
+(`success` on the last **five** `dev` commits, `failure` only on the PR — so rule 3d's discipline
+attributes it to me, not to the standing `dev` Sonar red the charter already tracks). **7 of 33** new
+lines uncovered, and the split was the finding rather than the number: **1** was a real hole in the
+sprint's own new production helper, and **6** were the *only production caller* of the path the sprint
+had just made injectable — a function with no unit test at all, whose lines were uncovered before and
+merely were not *new* before. That second half is the part worth having: a coverage gate is the only
+instrument in this loop that asks *"did anything execute the code you changed?"*, and it answered
+**no** for the one change a quorum reviewer had demanded verbatim.
+**Rules. (a)** Before pushing, run the whole-repo form of any linter whose scope is the repo, not your
+diff — `golangci-lint run --enable-only unused ./<pkg>/...` at minimum after any deletion, and prefer
+the repo scope when the edit removed a reference. **(b)** For gates with no local equivalent, do not
+pretend: push and READ them, and treat the first CI cycle as part of the gate rather than as a
+failure. **(c)** Attribute every such red with rule 3d's negative control *before* fixing it — the same
+check red on your PR and green on the last N `dev` commits is yours; red on both is inherited and is a
+queue row, not a blocker. **(d)** When a coverage gate fires, read the per-file split rather than the
+percentage: uncovered lines concentrated in a file your diff merely *touched* are a pre-existing
+coverage gap you have just been handed a measurement of — file it, say plainly which of your own
+changes is therefore unexecuted by any test, and do not squeeze a token test in behind the gate.
+**(e)** Do not treat a subtractive edit as exempt from the gate list; it has its own failure mode, and
+it is this one. Mission-independent — every mission on this rig has repo-scoped linters and
+app-provided checks outside its `make` targets. The tell: your local sweep was green, and every
+command in it was scoped to the package you edited.
+
 **The poll target must be SHA-PINNED, because `--limit 1` silently watches the WRONG RUN** (added
 2026-07-29 iteration 117; the 4th recorded instance of the stale-instrument class, and the 2nd
 landing squarely on Gate 3b's own verdict). The old snippet selected the newest run on the branch

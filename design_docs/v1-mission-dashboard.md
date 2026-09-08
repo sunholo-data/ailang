@@ -1,43 +1,41 @@
 # Mission Dashboard — V1
 
-> Snapshot only, overwritten every iteration. History lives in `v1-mission.md` (queue + STATUS)
-> and `v1-mission-log.md` (full records). The bare `mission-dashboard.md` here is **Motoko's**.
+_Snapshot, overwritten every iteration. History: `v1-mission.md` (STATUS) + `v1-mission-log.md`._
 
-**Updated**: 2026-09-08 ~00:00 UTC (iteration 349) · **Release**: v0.35.2 (attended, 2026-09-07)
-
-## ⚠ Read this first
-**The whole fleet has been running frozen driver code since 2026-09-07 15:19.** All four missions
-carry `AILANG_DRIVER_REF=48c4a6e49…` (attended deployment pin); `origin/dev` is **43 commits**
-ahead, **3 touching `tools/launchd/`** — including `e5a325a20`, M1/M2 of the very sprint whose M3
-just merged. **This landing is inert on the rig until the pin moves.** `PIN_DRIFT` cannot report it
-— it measures the clone against *the ref*, so a SHA pin reads `0` forever, and this fire logged
-`driver pin drift: 0` with 43 commits of drift. → **D-61**.
+**Last iteration:** 351 · 2026-09-08 · HARNESS · LANDED · **Goal distance:** N=12 docs before v1.0.0 (±0)
 
 ## Just landed
-- **iter-349** `m-launchd-drain-aggregate-budget` (M3) — PR #1107 → [`b5513ccdf`](https://github.com/sunholo-data/ailang/commit/b5513ccdfb7b9e014c197e9021d27be5272ebbe1), judge
-  **PASS 88/100, zero blocking**. `MISSION_DRAIN_BUDGET` (default 90 s) caps the WHOLE notice drain in the one
-  phase of a fire with no deadline behind it but the 6-hour `HARD_TIMEOUT`; deferred rows are
-  re-spooled unchanged, so an outage costs a delay, not the record.
-- **Attempt 1 of this slot died at Gate 3b** holding that PR green and unmerged, with no record at
-  all. Attempt 2 verified it independently rather than adopting it, then landed it.
+`m-coordinator-test-parallelism` — PR #1111 → `5f95a3814`, 21 checks zero not-green. Three timer seams injected into `internal/coordinator`;
+four timer-bound tests **8.13 s → 0.23 s**, package wall **16 s → 6 s**. No `t.Parallel()` added, no
+production default changed. Judge: round 1 **FAIL** (the sprint had made production retry backoff
+uncancellable — real, reproduced, fixed), round 2 **PASS 97/100**, round 3 PASS on the delta.
 
-## Next three
-1. `m-fleet-sha-pin-freezes-every-driver-fix` — the env-pin half is blocked on D-61; making
-   `pin-root.sh` report drift against `origin/dev` under a SHA pin is not blocked.
-2. `m-sonar-dev-branch-security-rating-c-on-new-code` — `dev` quality gate red on C Security Rating
-   since `8e3927950`, deferred three iterations. A GitHub App, so no workflow name surfaces it.
-3. `m-debugcacheforms-flaky-on-macos-ci` — structural assertions, not a third `t.Skip`.
+## Next picks
+1. `m-fleet-sha-pin-freezes-every-driver-fix` — **blocked on D-61**. Every driver fix this loop lands
+   is inert until the pin moves (now **46** commits stale, was 43).
+2. `m-headroom-blocking-threshold-calibration` / `m-headroom-residual-mutations` — iter-348 residue.
+3. `m-daemon-task-exec-run-untested` — the daemon's task-exec path has NO unit test. Found by
+   SonarCloud's coverage gate; carries the admission that this sprint's FIX 2 production-caller
+   rebase is verified by code reading only, with no test executing it.
+4. `m-ratelimit-window-default-unpinned` · `m-approval-poll-production-defaults-unexercised` — cheap,
+   each with a measured mutation already attached.
 
 ## Loop health
-- 345–349 all landed, but **349 needed two fires** (attempt 1 stall-killed at Gate 3b, `rc=143`).
-- Routing: controller `claude:claude-opus-5` · evaluator `agent-tool sonnet` in its own worktree.
-  Designer/planner/executor **not spawned** — verify-and-land of an already-quorumed sprint.
-- `codex:gpt-5.6-sol` **ration-blocked before the probe for six consecutive fires**; planner and
-  executor run on pi fallbacks every time.
-- V1's lane-degradation notices have **never delivered**: 3 rows stuck since 2026-09-07T00:37Z,
-  re-failing on six fires, while `mission-docs` delivers the identical notice.
-- Metered **$0.00** of the $5 ceiling.
+- **Two consecutive slots died mid-flight before this one**: 349 attempt 1 (at Gate 3b, holding a
+  green PR) and 350 (after its designer, holding an r3 doc). Both recovered by the next iteration's
+  Gate-2 traces — nothing lost, but 3 of the last 4 slots inherited rather than picked.
+- Driver pin `AILANG_DRIVER_REF=48c4a6e49` unmoved; `PIN_DRIFT` still reports `0` by construction.
+- Skill drift: resolved-symlink copy == origin on all 12 files; the **pin worktree's** copy drifts on
+  4. Read the rules from the resolved path only.
+- Gate-list gap: the local sweep did not include `golangci-lint unused` or any coverage gate, and CI
+  caught one of each on this PR.
 
-## Waiting on Mark
-**D-61** — may this loop return `AILANG_DRIVER_REF` to the `origin/dev` default itself once a
-SHA-pinned deployment's fix has merged (never pin forward, never pick a SHA)? Ledger 61 rows, 1 open.
+## Routing / cost
+designer NOT spawned (inherited r3 doc) · planner `pi:kimi-k3` ok · executor `pi:deepseek-v4-flash`
+ok ×2 (**second consecutive `ok` — meets the promotion bar; recorded, not acted on unilaterally**) ·
+evaluator `sonnet` ×3 rounds. Metered **$0.00** of $5.
+
+## Parked on Mark
+**D-61 (the only open row)** — may this loop repoint `AILANG_DRIVER_REF` back to `origin/dev` itself
+once a SHA-pinned deployment's fix has merged, or is every pin edit attended-only? Loop recommends
+**(A)**, narrowly. Unanswered ⇒ drift keeps growing and every driver fix stays inert.
