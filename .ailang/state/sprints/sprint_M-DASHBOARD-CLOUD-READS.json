@@ -1,0 +1,63 @@
+{
+  "sprint_id": "M-DASHBOARD-CLOUD-READS",
+  "created": "2026-09-08T13:09:14.430167+00:00",
+  "estimated_duration_days": 2,
+  "design_doc": "design_docs/dashboard-recovery-plan-2026-09-08.md",
+  "markdown_plan": "design_docs/planned/m-dashboard-cloud-reads-sprint-plan.md",
+  "features": [
+    {
+      "id": "M1",
+      "description": "Query contract",
+      "estimated_loc": 350,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Chain/span page contract and tie ordering tested.",
+        "Agent filtering precedes paging and errors propagate.",
+        "SQLite agrees and unsupported workspace filter is explicit."
+      ],
+      "passes": true,
+      "started": "2026-09-08T13:09:14.430167+00:00",
+      "completed": "2026-09-08T13:22:07.449798+00:00",
+      "notes": "Implemented and tested canonical chain/span/stage paging, filter-before-page agent membership, query error propagation and nonnil empty pages. Real SDK wire fixtures and fixed-cohort SQLite comparisons pass; no live Firestore certification."
+    },
+    {
+      "id": "M2",
+      "description": "Retained API/CLI",
+      "estimated_loc": 250,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Existing CLI offset and API filter forwarding tested.",
+        "Stage ownership and storage/index errors are explicit."
+      ],
+      "passes": true,
+      "started": "2026-09-08T13:09:14.430167+00:00",
+      "completed": "2026-09-08T13:22:07.449798+00:00",
+      "notes": "Implemented CLI paging/workspace/repository options, strict supplied HTTP paging/since validation, stage ownership and explicit storage/index failures. Parser and server regression tests pass."
+    },
+    {
+      "id": "M3",
+      "description": "Verification and rollout record",
+      "estimated_loc": 100,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Relevant checks and independent review recorded.",
+        "Index/deployment contract and remaining gaps documented."
+      ],
+      "passes": false,
+      "started": "2026-09-08T13:09:14.430167+00:00",
+      "completed": "2026-09-08T13:22:07.449798+00:00",
+      "notes": "Implementation, rollout/index documentation and focused/race checks complete. Formal full-suite gate remains blocked: two memory watchdog tests, process-group RSS test, and real-home registry fixture fail under this environment. Independent evaluation pending final evidence. No infrastructure apply or production deployment. Filtered full make test passes when exactly those four tests are excluded; final lint, race and boundary checks pass. This does not waive the full-suite gate."
+    }
+  ],
+  "velocity": {
+    "estimated_total_loc": 700,
+    "actual_total_loc": 956,
+    "estimated_days": 2,
+    "actual_days": 0.01
+  },
+  "status": "paused"
+}

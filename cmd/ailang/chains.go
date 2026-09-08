@@ -39,6 +39,7 @@ func chainsCommand() {
 		fmt.Println()
 		fmt.Println("Examples:")
 		fmt.Println("  ailang chains list                  # List all chains")
+		fmt.Println("  ailang chains list --remote gcp --limit 20 --offset 20 # Next cloud page")
 		fmt.Println("  ailang chains active                # Currently running chains")
 		fmt.Println("  ailang chains view <chain-id>       # View chain details")
 		fmt.Println("  ailang chains view --spans <id>     # View with span summaries (no attributes)")
@@ -100,19 +101,17 @@ func chainsCommand() {
 }
 
 func chainsListCommand() {
-	fs := flag.NewFlagSet("chains list", flag.ExitOnError)
-	status := fs.String("status", "", "Filter by status (active, pending_approval, completed, failed)")
-	sourceType := fs.String("source", "", "Filter by source type (github_issue, message, manual)")
-	agent := fs.String("agent", "", "Filter by agent ID (e.g., design-doc-creator)")
-	since := fs.String("since", "", "Show chains created after (e.g., 24h, 7d, 2026-02-01)")
-	limit := fs.Int("limit", 20, "Maximum number of chains to show")
-	jsonOutput := fs.Bool("json", false, "Output as JSON")
-	fullIDs := fs.Bool("full", false, "Show full chain IDs (for copy-paste)")
-	remote := fs.String("remote", "", "Read from this observatory storage mode (gcp). Default: $AILANG_CHAINS_READ")
-	fs.Parse(flag.Args()[2:])
+	options, err := parseChainsListFlags(flag.Args()[2:], os.Stderr)
+	if err == flag.ErrHelp {
+		return
+	}
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
 
 	// Connect to observatory database
-	backend, closeBackend, err := openChainsReadBackend(context.Background(), *remote)
+	backend, closeBackend, err := openChainsReadBackend(context.Background(), options.Remote)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: failed to connect to observatory: %v\n", err)
 		os.Exit(1)
@@ -120,34 +119,14 @@ func chainsListCommand() {
 	defer closeBackend()
 
 	ctx := context.Background()
-	opts := observatory.ChainListOptions{
-		Limit: *limit,
-	}
-	if *status != "" {
-		opts.Status = observatory.ChainStatus(*status)
-	}
-	if *sourceType != "" {
-		opts.SourceType = *sourceType
-	}
-	if *agent != "" {
-		opts.AgentID = *agent
-	}
-	if *since != "" {
-		t, err := parseSinceFlag(*since)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: invalid --since value %q: %v\n", *since, err)
-			os.Exit(1)
-		}
-		opts.CreatedAfter = &t
-	}
 
-	chains, err := backend.ListChains(ctx, opts)
+	chains, err := backend.ListChains(ctx, options.Query)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: failed to list chains: %v\n", err)
 		os.Exit(1)
 	}
 
-	if *jsonOutput {
+	if options.JSON {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
 		enc.Encode(chains)
@@ -172,7 +151,7 @@ func chainsListCommand() {
 
 		// Show full or truncated ID based on flag
 		chainID := truncateChainID(chain.ID)
-		if *fullIDs {
+		if options.FullIDs {
 			chainID = chain.ID
 		}
 

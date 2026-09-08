@@ -251,3 +251,12 @@ For each current chart/view, record **keep, merge, defer, remove** and the user 
 | A12 System boundary | +1 | Explicit producer, transport, storage and query responsibilities |
 
 Net +10; no proposed hard violation of A1/A3/A4/A7. These are design intentions, not implementation certification.
+
+## Cloud read repair increment — 2026-09-08
+
+M-DASHBOARD-CLOUD-READS repairs fixed-cohort chain/span paging, agent filtering,
+CLI query options, stage ownership and explicit chain read errors. See
+[rollout contract](../docs/internal/dashboard-cloud-read-indexes.md) for indexes,
+verification steps and inherited summary/legacy API gaps. No index apply or
+production deployment occurred. Production stability remains unproven; further
+React evidence-view deletion waits on live acceptance checks.

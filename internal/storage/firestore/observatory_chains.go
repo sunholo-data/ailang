@@ -101,65 +101,6 @@ func (s *ObservatoryStore) GetChainByGitHubIssue(ctx context.Context, repo strin
 	return mapToChain(doc.Data()), nil
 }
 
-func (s *ObservatoryStore) ListChains(ctx context.Context, opts obs.ChainListOptions) ([]*obs.ChainSummary, error) {
-	q := s.client.Collection(collObsChains).Query
-	if opts.Status != "" {
-		q = q.Where("status", "==", string(opts.Status))
-	}
-	if opts.SourceType != "" {
-		q = q.Where("source_type", "==", opts.SourceType)
-	}
-	if opts.WorkspaceID != "" {
-		q = q.Where("workspace_id", "==", opts.WorkspaceID)
-	}
-	if opts.GitHubRepo != "" {
-		q = q.Where("github_repo", "==", opts.GitHubRepo)
-	}
-	if opts.CreatedAfter != nil {
-		q = q.Where("created_at", ">=", timeToFirestore(*opts.CreatedAfter))
-	}
-	q = q.OrderBy("created_at", firestore.Desc)
-	if opts.Limit > 0 {
-		q = q.Limit(opts.Limit)
-	}
-
-	iter := q.Documents(ctx)
-	defer iter.Stop()
-
-	var result []*obs.ChainSummary
-	for {
-		doc, err := iter.Next()
-		if err == iterator.Done {
-			break
-		}
-		if err != nil {
-			return nil, err
-		}
-		data := doc.Data()
-		result = append(result, &obs.ChainSummary{
-			ID:                getString(data, "id"),
-			SourceType:        getString(data, "source_type"),
-			SourceRef:         getString(data, "source_ref"),
-			GitHubRepo:        getString(data, "github_repo"),
-			GitHubIssueNumber: getInt(data, "github_issue_number"),
-			Status:            obs.ChainStatus(getString(data, "status")),
-			CurrentStage:      getInt(data, "current_stage"),
-			TotalCost:         getFloat64(data, "total_cost"),
-			TotalTokens:       getInt(data, "total_tokens"),
-			TotalTurns:        getInt(data, "total_turns"),
-			StagesCompleted:   getInt(data, "stages_completed"),
-			CreatedAt:         snapshotToTime(data, "created_at"),
-			CompletedAt:       snapshotToTimePtr(data, "completed_at"),
-		})
-	}
-
-	if opts.AgentID != "" {
-		result = s.filterChainsByAgent(ctx, result, opts.AgentID)
-	}
-
-	return result, nil
-}
-
 func (s *ObservatoryStore) UpdateChainStatus(ctx context.Context, chainID string, chainStatus obs.ChainStatus) error {
 	updates := []firestore.Update{
 		{Path: "status", Value: string(chainStatus)},
@@ -278,7 +219,7 @@ func (s *ObservatoryStore) GetStage(ctx context.Context, id string) (*obs.ChainS
 	doc, err := s.client.Doc(collObsChainStages, id).Get(ctx)
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
-			return nil, fmt.Errorf("stage not found: %s", id)
+			return nil, fmt.Errorf("%w: stage %s", obs.ErrNotFound, id)
 		}
 		return nil, err
 	}
@@ -592,6 +533,9 @@ func (s *ObservatoryStore) GetMissionRollups(ctx context.Context, createdAfter *
 }
 
 func (s *ObservatoryStore) GetSpanLitesByStageID(ctx context.Context, stageID string, limit, offset int) (*obs.SpanLitePage, error) {
+	if offset < 0 {
+		return nil, fmt.Errorf("offset must be non-negative")
+	}
 	if limit <= 0 {
 		limit = 50
 	}
@@ -599,6 +543,7 @@ func (s *ObservatoryStore) GetSpanLitesByStageID(ctx context.Context, stageID st
 	allIter := s.client.Collection(collObsSpans).
 		Where("stage_id", "==", stageID).
 		Documents(ctx)
+	defer allIter.Stop()
 	allDocs, err := collectDocs(allIter)
 	total := len(allDocs)
 	if err != nil {
@@ -608,13 +553,14 @@ func (s *ObservatoryStore) GetSpanLitesByStageID(ctx context.Context, stageID st
 	q := s.client.Collection(collObsSpans).
 		Where("stage_id", "==", stageID).
 		OrderBy("start_time", firestore.Asc).
+		OrderBy(firestore.DocumentID, firestore.Asc).
 		Offset(offset).
 		Limit(limit)
 
 	iter := q.Documents(ctx)
 	defer iter.Stop()
 
-	var spans []*obs.SpanLite
+	spans := []*obs.SpanLite{}
 	for {
 		doc, err := iter.Next()
 		if err == iterator.Done {

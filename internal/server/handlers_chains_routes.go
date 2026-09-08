@@ -12,9 +12,7 @@ import (
 
 // handleStageChat returns chat messages for a specific stage.
 // GET /api/chains/{id}/stages/{stageId}/chat
-// Query params:
-//   - limit: max results (default 100)
-//   - offset: pagination offset (default 0)
+// Returns the available transcript; limit/offset pagination is not supported.
 //
 // This is Level 4 loading — only called when user clicks the "Chat" tab (M-PERF-OBSERVATORY).
 func (s *Server) handleStageChat(w http.ResponseWriter, r *http.Request) {
@@ -28,29 +26,15 @@ func (s *Server) handleStageChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Parse path: /api/chains/{chainId}/stages/{stageId}/chat
-	path := strings.TrimPrefix(r.URL.Path, "/api/chains/")
-	parts := strings.Split(path, "/stages/")
-	if len(parts) != 2 {
-		http.Error(w, "Invalid path", http.StatusBadRequest)
+	stage, ok := s.readOwnedStage(w, r, "chat")
+	if !ok {
 		return
 	}
-	stageID := strings.TrimSuffix(parts[1], "/chat")
-	if stageID == "" {
-		http.Error(w, "Missing stage ID", http.StatusBadRequest)
-		return
-	}
-
+	stageID := stage.ID
 	ctx := r.Context()
 
-	// Look up the stage to get its task_id or session_id
-	stage, err := s.obsBackend.GetStage(ctx, stageID)
-	if err != nil || stage == nil {
-		http.Error(w, "Stage not found", http.StatusNotFound)
-		return
-	}
-
 	var messages []*observatory.ChatMessage
+	var err error
 
 	// Try task_id first, fall back to session_id
 	if stage.TaskID != "" {
@@ -70,7 +54,7 @@ func (s *Server) handleStageChat(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Printf("Failed to get chat for stage %s: %v", stageID, err)
-		http.Error(w, "Failed to get chat messages", http.StatusInternalServerError)
+		writeChainReadError(w, err)
 		return
 	}
 
