@@ -1,6 +1,6 @@
 # Dashboard cloud read rollout contract
 
-Status: code repair on dev, 2026-09-08; production verification pending.
+Status: code deployed in dev, 2026-09-08; production verification pending.
 Infrastructure source: adjacent `ailang-multivac/terraform/firestore.tf`.
 This document specifies query requirements; it does not provision indexes.
 
@@ -102,3 +102,32 @@ a stage or ascending span query. Index definitions were inspected, not applied.
   have inherited row-shape parity gaps. ID/page parity does not certify summaries.
 - Capture deployment, normalized costs, aggregate timeout/empty results, historical
   provenance gaps and approval delivery remain unverified in production.
+
+## Rollout audit, 2026-09-08
+
+- Code build `b1dea44b-dab7-4a5a-a999-5e33bd74ce69` succeeded at `dd0a96ed8`,
+  containing the dashboard repairs. Dev dashboard revision `02424-hc2` serves
+  distinct pages, empty arrays and invalid-since 400 responses. Missing workspace,
+  repository and stage evidence indexes produce explicit 503 responses.
+- Infrastructure commit `f32693c` in `ailang-multivac` adds the 12 missing indexes
+  in `terraform/dashboard_read_indexes.tf`. Read-only plans for dev, test and prod
+  each report 12 additions, zero changes and zero deletions. No branch drift in
+  existing `terraform/` or `config/` was present before promotion.
+- Hosted unfiltered Go tests clear the former local test gate. Separate outstanding checks remain at the audited source SHA: launchd hook positive-control test
+  fails; SonarCloud reports 77.3% new-code coverage (80% required) and security C.
+- Additional CLI audit gap: `openChainsReadBackend` calls `NewGCPBackends`, which
+  starts coordinator cost synchronization. If metadata is missing, this may scan
+  tasks and write cost metadata. Isolate observatory-only backend construction
+  before calling the CLI read path side-effect-free. No live CLI invocation was
+  made during this audit.
+
+- All 12 dev additions reached READY. Workspace/repository filters (including
+  their combination), stage spans and transcripts changed from 503 to 200;
+  wrong-chain stage access remains 404. The sampled failed stage has zero stored
+  spans; repairing the query does not reconstruct missing historical evidence.
+- Dev serves the simplified UI (720,858-byte main JS, 203,195-byte CSS); production
+  still serves 1,266,342-byte JS and 266,862-byte CSS at this checkpoint.
+- Gate clarification: `cloudbuild-release.yaml` requires the hosted `CI/test` job,
+  then complete image builds and smoke checks. SonarCloud and launchd are separate
+  outstanding findings, not conditions enforced by that image promotion gate.
+  Preparing v0.35.3 through the existing release process; no direct prod rebuild.
