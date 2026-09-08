@@ -1,0 +1,110 @@
+{
+  "sprint_id": "v1-iter352-daemon-task-exec",
+  "design_doc": "design_docs/planned/v0_35_2/m-daemon-task-exec-run-untested.md",
+  "base_commit": "fc84c57d4",
+  "duration_days_max": 3,
+  "namespace_disambiguation": "Milestones are M1/M2/M3 (commit boundaries). Mutations are M1-M5 (audit variants of production code or the fixture pin) plus planner-added supplements S1-S3 and compile guards G1/G2. The labels collide in the doc; this sprint always prefixes them ('milestone M1' vs 'mutation M1').",
+  "baseline": {
+    "measured_at": "fc84c57d4",
+    "all_local_go_build_and_go_test_no_network": true,
+    "commands": [
+      {"cmd": "go build ./internal/coordinator/; rc=$?", "observed": "no output", "rc": 0, "note": "matches doc V12"},
+      {"cmd": "go build ./cmd/ailang/; rc=$?", "observed": "no output", "rc": 0, "note": "matches doc V13"},
+      {"cmd": "go test ./internal/coordinator/ -run TestExecuteTask_HandsDefaultBasedOptionsToExecutor -count=1; rc=$?", "observed": "ok ... 2.125s [no tests to run]", "rc": 0, "note": "VACUOUS GREEN at base; load-bearing only from M2 with -v PASS-line check"},
+      {"cmd": "go test ./internal/coordinator/ -run 'TestExecuteTaskQueueSurvivesClosedStore|TestExecuteTask_HandsDefaultBasedOptionsToExecutor' -count=1; rc=$?", "observed": "ok ... 2.736s; -v shows --- PASS: TestExecuteTaskQueueSurvivesClosedStore", "rc": 0, "note": "real pass at base (V25 anchor)"},
+      {"cmd": "go build ./...; rc=$?", "observed": "# github.com/sunholo-data/ailang/cmd/wasm / runtime.main_main·f: function main is undeclared in the main package", "rc": 1, "note": "confirmed: red at base on cmd/wasm only; no milestone gates on ./..."}
+    ],
+    "verified_measurements": {
+      "d_executor_production_references": {"count": 5, "agrees_with_doc_V9": true, "refs": ["daemon.go:88 (declaration, executor *TaskExecutor)", "daemon.go:516 (nil check)", "daemon_tasks_exec.go:37 (nil check)", "daemon_tasks_exec_run.go:335 (call)", "daemon_tasks_init.go:274 (assignment)"], "false_positive_excluded": "provider_executor.go hits are p.executorName, a different field"},
+      "taskExecutor_identifier_collision": {"finding": "name used only as local variable at daemon_tasks_init.go:269/274/275; package-level interface named taskExecutor is legal; local shadows type in that function only", "compile_proof": "M1 build gate"},
+      "key_lines_at_base": {"opts_base": 241, "opts_Timeout": 242, "opts_IdleTimeout": 243, "opts_Workspace": 244, "opts_ObservatoryContext": 245, "opts_AgentConfig": 246, "ExecuteWithRetry_call": 335, "budget_gate_return_nil": "104-110", "budget_default_provider_claude": "daemon_tasks_budget.go:22-26"},
+      "mutation_compilability": {"time_imported_in_exec_run_go_line_11": true, "ExecuteResult_has_Success_Provider_SessionID": true, "new_test_file_absent_at_base": true},
+      "m5_constants_verified": {"default_budgets_claude": {"daily_budget": 30.0, "hard_limit": true}, "provider_default": "claude when agentConfig.Provider == '' (daemon_tasks_budget.go:22-26)", "yaml_keys": "budgets.providers.claude.daily_budget / hard_limit (agent_config.go:132-137,158-177)"}
+    }
+  },
+  "milestones": [
+    {
+      "id": "M1",
+      "title": "Introduce the seam: narrow taskExecutor interface + one-line field widening",
+      "day": 1,
+      "files": ["internal/coordinator/daemon.go"],
+      "change": "Add 'type taskExecutor interface { ExecuteWithRetry(ctx context.Context, task *AnalyzedTask, opts *ExecuteOptions, maxRetries int) (*ExecuteResult, error) }' with comment naming *TaskExecutor as sole production implementor; change daemon.go:88 from 'executor         *TaskExecutor' to 'executor         taskExecutor'. Nothing else changes; the other 4 references compile unchanged.",
+      "acceptance": [
+        "go build ./internal/coordinator/; rc=$? -> 0",
+        "go build ./cmd/ailang/; rc=$? -> 0",
+        "go test ./internal/coordinator/ -run TestExecuteTaskQueueSurvivesClosedStore -count=1 -v -> 0 with --- PASS line"
+      ],
+      "mutations": [
+        {"id": "G1", "kind": "compile-guard", "file": "internal/coordinator/daemon.go", "line": "interface block", "old": "maxRetries int) (*ExecuteResult, error)\n}", "new": "maxRetries int) (*ExecuteResult, error)\n\tBogus()\n}", "expectation": "build rc=1 at daemon_tasks_init.go:274 (*TaskExecutor does not implement taskExecutor); proves interface is load-bearing", "kills_gate": "go build ./internal/coordinator/ && go build ./cmd/ailang/"},
+        {"id": "G2", "kind": "compile-guard", "file": "internal/coordinator/daemon.go", "line": 88, "old": "executor         taskExecutor", "new": "executor         *TaskExecutor", "expectation": "compiles clean at M1 boundary (no consumer yet); only has teeth from M2 on, when the test file's 'executor: cap' fails to compile. Demonstrated during M3.", "kills_gate": "whole-suite compile once M2 exists"}
+      ],
+      "test_plan": [
+        {"test": "go build ./internal/coordinator/ && go build ./cmd/ailang/ (rc=0)", "asserts": "*TaskExecutor satisfies taskExecutor; the 4 unchanged references still type-check", "killed_by_mutation": "G1 (concrete edit above)"},
+        {"test": "TestExecuteTaskQueueSurvivesClosedStore passes", "asserts": "existing &Daemon{executor: &TaskExecutor{}} construction (daemon_tasks_exec_shutdown_test.go:20) still compiles and passes post-widening", "killed_by_mutation": "G2 (teeth only from M2 onward; honest caveat recorded in plan)"}
+      ],
+      "committed_at_boundary": "Exactly one file: internal/coordinator/daemon.go (interface + comment + one-line widening). Both targeted builds rc=0; full pre-existing coordinator suite compiles and passes. Trivially bisectable, provably behaviour-neutral.",
+      "production_behaviour_change": "none"
+    },
+    {
+      "id": "M2",
+      "title": "First executing test: TestExecuteTask_HandsDefaultBasedOptionsToExecutor with hermetic-by-construction fixture",
+      "day": 2,
+      "files": ["internal/coordinator/daemon_tasks_exec_run_test.go"],
+      "change": "New test file only. capturingExecutor fake; script-agent fixture (ID/Inbox 'coordinator', Invoke script 'true', Timeout '15m', IdleTimeout '90s', SkipApproval true); Daemon with ctx context.Background() (gemini fix applied though premise REFUTED per doc V35), logger io.Discard, NewMockStore(), NewResourceTrackerRegistry(), NewObservatorySync(nil, logger), executor cap; TaskRecord task-exec-1. REQUIRED first line: t.Setenv(\"AILANG_CONFIG\", filepath.Join(t.TempDir(), \"absent.yaml\")). Fatal naming the budget gate on cap.opts == nil. Six assertions: base (RetryBaseDelay 1s, Wait != nil, DryRun false) + overrides (Timeout 15m, IdleTimeout 90s, Workspace == task.Workspace, ObservatoryContext.TaskID == task.ID, AgentConfig == scriptAgent pointer).",
+      "acceptance": [
+        "go build ./internal/coordinator/; rc=$? -> 0",
+        "go build ./cmd/ailang/; rc=$? -> 0",
+        "go test ./internal/coordinator/ -run TestExecuteTask_HandsDefaultBasedOptionsToExecutor -count=1 -> 0 AND -v variant prints --- PASS: TestExecuteTask_HandsDefaultBasedOptionsToExecutor (kills the vacuous-green baseline trap)",
+        "go test ./internal/coordinator/ -run 'TestExecuteTaskQueueSurvivesClosedStore|TestExecuteTask_HandsDefaultBasedOptionsToExecutor' -count=1 -> 0 AND -v shows === RUN x2 / --- PASS x2"
+      ],
+      "mutations": [
+        {"id": "M1", "kind": "mutation", "file": "internal/coordinator/daemon_tasks_exec_run.go", "line": 241, "old": "opts := DefaultExecuteOptions()", "new": "opts := &ExecuteOptions{}", "expectation": "RED: assertion 1 fails (RetryBaseDelay 0 != 1s; Wait nil). NB: DryRun==false does not discriminate.", "kills_test": "TestExecuteTask_HandsDefaultBasedOptionsToExecutor assertion 1"},
+        {"id": "M2", "kind": "mutation", "file": "internal/coordinator/daemon_tasks_exec_run.go", "line": 242, "old": "opts.Timeout = agentConfig.GetEffectiveTimeout()", "new": "opts.Timeout = 5*time.Minute", "expectation": "RED: assertion 2 fails (5m != 15m). Compiles: time imported at line 11.", "kills_test": "TestExecuteTask_HandsDefaultBasedOptionsToExecutor assertion 2"},
+        {"id": "M3", "kind": "mutation", "file": "internal/coordinator/daemon_tasks_exec_run.go", "line": 246, "old": "opts.AgentConfig = agentConfig // For system prompt construction (v0.8.0+)", "new": "(delete the entire line)", "expectation": "RED: assertion 6 fails (nil != scriptAgent)", "kills_test": "TestExecuteTask_HandsDefaultBasedOptionsToExecutor assertion 6"},
+        {"id": "M4", "kind": "mutation", "file": "internal/coordinator/daemon_tasks_exec_run.go", "line": 335, "old": "result, err := d.executor.ExecuteWithRetry(taskCtx, analyzed, opts, 2)", "new": "result, err := &ExecuteResult{Success: true}, error(nil)", "expectation": "RED: Fatal 'ExecuteWithRetry was never called (cap.opts == nil); check the budget gate'", "kills_test": "TestExecuteTask_HandsDefaultBasedOptionsToExecutor (reach)"},
+        {"id": "M5", "kind": "two-run-experiment", "variable": "presence of the fixture's AILANG_CONFIG pin (the only variable)", "held_constant": ["test-local wrapper 'type fixedSpendStore struct{ *MockStore }' overriding GetCostByProvider to return map[string]float64{\"claude\": 5.0}; fixture line 'taskStore: NewMockStore(),' -> 'taskStore: fixedSpendStore{NewMockStore()},'", "hostile config at $M5_DIR/hostile.yaml: budgets.providers.claude = {daily_budget: 1.0, hard_limit: true}", "go test invoked with AILANG_CONFIG=$M5_DIR/hostile.yaml exported by the shell (outer env)"], "run_a": {"state": "fixture unchanged (inner pin present)", "cmd": "AILANG_CONFIG=$M5_DIR/hostile.yaml go test ./internal/coordinator/ -run TestExecuteTask_HandsDefaultBasedOptionsToExecutor -count=1", "expected": "GREEN rc=0", "why": "inner pin overrides outer (uncached, C3/V28); DefaultBudgetsConfig claude daily 30 > spend 5 -> not blocked -> executor reached"}, "run_b": {"state": "delete ONLY the line 't.Setenv(\"AILANG_CONFIG\", filepath.Join(t.TempDir(), \"absent.yaml\"))' from the test; everything else byte-identical to run A", "cmd": "same as run A", "expected": "RED rc=1 with 'ExecuteWithRetry was never called (cap.opts == nil); check the budget gate'", "why": "outer hostile config applies: claude dailyLimit 1, spend 5 >= 1, hardLimit -> blocked, executeTask returns nil at daemon_tasks_exec_run.go:110 before line 335"}, "provider_selection_check": "fixture agent sets no Provider, so daemon_tasks_budget.go:22-26 resolves 'claude'; spend map and hostile config both key on 'claude'. Asserted/verified, not assumed.", "teardown": "restore test file, rm -rf $M5_DIR, unset AILANG_CONFIG; record both rc values and run B's failure line", "kills_test": "hermeticity guard (proves the pin is load-bearing)"},
+        {"id": "S1", "kind": "supplemental-audit (planner-added, optional)", "file": "internal/coordinator/daemon_tasks_exec_run.go", "line": 243, "old": "opts.IdleTimeout = agentConfig.GetEffectiveIdleTimeout()", "new": "opts.IdleTimeout = 3*time.Minute", "expectation": "RED: assertion 3 fails (3m != 90s)", "kills_test": "assertion 3"},
+        {"id": "S2", "kind": "supplemental-audit (planner-added, optional)", "file": "internal/coordinator/daemon_tasks_exec_run.go", "line": 244, "old": "opts.Workspace = workspacePath", "new": "opts.Workspace = \"\"", "expectation": "RED: assertion 4 fails", "kills_test": "assertion 4"},
+        {"id": "S3", "kind": "supplemental-audit (planner-added, optional)", "file": "internal/coordinator/daemon_tasks_exec_run.go", "line": 245, "old": "opts.ObservatoryContext = obsContext", "new": "opts.ObservatoryContext = nil", "expectation": "RED: assertion 5 fails", "kills_test": "assertion 5"}
+      ],
+      "committed_at_boundary": "Exactly one new file: internal/coordinator/daemon_tasks_exec_run_test.go. Zero production diff (verify with git diff --stat). Reverting M2 alone removes coverage but keeps the seam compiling.",
+      "production_behaviour_change": "none"
+    },
+    {
+      "id": "M3",
+      "title": "Mutation audit (optional hardening): run M1-M5 + G2 + supplements, each RED, revert, record",
+      "day": 3,
+      "files": [],
+      "change": "No tree change. Apply each mutation one at a time in the working copy, observe RED, revert, verify GREEN, record. Order: mutations M1, M2, M3, M4, then M5 two-run experiment, then G2 demonstration, then S1-S3 if budget remains.",
+      "acceptance": [
+        "per mutation M1-M4: apply -> go test ./internal/coordinator/ -run TestExecuteTask_HandsDefaultBasedOptionsToExecutor -count=1; rc=$? -> 1 (RED) with the failure mode named in M2's plan",
+        "after every revert: same command -> 0",
+        "G2: revert daemon.go:88 to 'executor         *TaskExecutor' -> go build ./internal/coordinator/ -> rc=1 (test file no longer compiles); then restore",
+        "M5 two-run: run A rc=0, run B rc=1 with the named Fatal; both outcomes recorded",
+        "audit table written to PR/commit body; tree byte-identical to end-of-M2 (re-run M2 acceptance)"
+      ],
+      "mutations": [
+        {"id": "M5-procedure", "kind": "two-run-experiment", "steps": ["0. provider pre-check: fixture Provider empty -> 'claude' (daemon_tasks_budget.go:22-26)", "1. add fixedSpendStore wrapper returning claude spend 5.0 and swap fixture taskStore line", "2. write $M5_DIR/hostile.yaml budgets.providers.claude {daily_budget: 1.0, hard_limit: true}", "3. export AILANG_CONFIG=$M5_DIR/hostile.yaml in invoking shell", "run A: fixture unchanged -> expect GREEN rc=0", "run B: delete ONLY the fixture pin line -> expect RED rc=1 with 'ExecuteWithRetry was never called'", "teardown: restore test file, rm hostile config, unset env; record both outcomes"]}
+      ],
+      "committed_at_boundary": "Nothing in the tree. Boundary artefact is the audit table in the PR/commit body. Tree state identical to M2 boundary; re-run M2 acceptance after teardown (rc=0, -v shows the new test ran).",
+      "production_behaviour_change": "none"
+    }
+  ],
+  "budget_cut_set": {
+    "cut_order": ["S1-S3 supplemental audit rows", "M3 milestone entire (doc: optional hardening; within a partial audit cut order is S1-S3, mutation M2, mutation M3, mutation M1, mutation M5, mutation M4 -- M4 and M5 are last because they prove non-vacuity and load-bearing hermeticity)", "M2 landing (worst case): commit M1 alone"],
+    "partial_state_must_satisfy": ["both targeted builds rc=0", "pre-existing coordinator suite green", "zero production behaviour change (only production edit in the sprint is daemon.go:88 + interface block)", "no de-scoped M2 ever ships: t.Setenv first line, cap.opts==nil Fatal naming the budget gate, and all six assertions are reviewer-mandated minima; an M2 missing any of them waits rather than lands", "no gate uses go build ./... (red at baseline on cmd/wasm)"]
+  },
+  "risks": [
+    {"id": "R1", "risk": "vacuous-green acceptance (measured: baseline rc=0 with [no tests to run])", "mitigation": "-v PASS-line check built into every M2/M3 acceptance row"},
+    {"id": "R2", "risk": "taskExecutor interface name collides with local variable at daemon_tasks_init.go:269", "mitigation": "planner-verified legal Go (local shadows type in one function; :274 still type-checks); M1 build gate proves it; doc's name kept verbatim. Not an open question."},
+    {"id": "R3", "risk": "re-planning around a refuted premise", "mitigation": "gemini's nil-d.ctx panic premise is REFUTED by doc V35; the ctx: context.Background() fixture line is belt-and-braces only. This plan schedules NO nil-d.ctx handling, assertions, or production changes in that area."},
+    {"id": "R4", "risk": "line-number drift on rebase", "mitigation": "mutations keyed by planner-verified unique old text, not line numbers; executor greps the old text before applying (stop if 2+ hits)"},
+    {"id": "R5", "risk": "go build ./... red at base on cmd/wasm (rc=1, planner-confirmed)", "mitigation": "no acceptance gate uses ./...; the known-red gate measures the repo, not the change"},
+    {"id": "R6", "risk": "network-tainted evidence", "mitigation": "every acceptance command is local go build/go test on a warm module cache; any run needing the network is uninformative and must be re-run warm, not reported from a sandbox artefact"},
+    {"id": "R7", "risk": "M5 outer-env leakage", "mitigation": "outer AILANG_CONFIG exported in the invoking shell only; teardown is unset-clean; fixture pin remains the sole variable"}
+  ],
+  "open_questions": [
+    {"id": "OQ1", "question": "audit-record destination when no PR exists at M3 time (doc says PR description; controller commits)", "status": "noted, not decided", "default_if_undecided": "audit table goes into the M2 commit body (or controller squash body); nothing added to the tree", "coverage_consequence": "none -- record-keeping text, not code; unlike the cited prior incident, no production path or default is decided here"},
+    {"id": "OQ2", "question": "exact hunk placement of the interface block within daemon.go (doc fixes content, name, and 'next to the field declaration' but not the precise line)", "status": "noted, not decided", "default_if_undecided": "immediately above the Daemon struct declaration", "coverage_consequence": "none -- compile-gated either way"}
+  ]
+}
