@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -20,8 +21,17 @@ func TestReviewPacketCandidateAndBounds(t *testing.T) {
 		t.Fatal("candidate diff missing")
 	}
 	info, err := os.Stat(path)
-	if err != nil || info.Mode().Perm() != 0400 {
-		t.Fatalf("packet not read only: %v %v", info, err)
+	if err != nil {
+		t.Fatalf("packet stat: %v", err)
+	}
+	// Windows has no unix permission bits: a file created 0400 reports 0444, and there is no
+	// mode that expresses "owner read-only" there. Assert the portable half — that the packet
+	// is not writable — rather than a number the platform cannot represent.
+	if info.Mode().Perm()&0222 != 0 {
+		t.Fatalf("packet is writable: %v", info.Mode().Perm())
+	}
+	if runtime.GOOS != "windows" && info.Mode().Perm() != 0400 {
+		t.Fatalf("packet not read only: %v", info.Mode().Perm())
 	}
 	if within(f.repo, path) {
 		t.Fatal("packet in author root")

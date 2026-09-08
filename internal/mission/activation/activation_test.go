@@ -18,6 +18,9 @@ func fixture(t *testing.T) (*Manager, Request) {
 }
 func stopped(context.Context, Record) error { return nil }
 func TestRestoreBaselines(t *testing.T) {
+	if !HostSupported() {
+		t.Skip("local mission activation requires macOS or Linux host locking (lock_other.go)")
+	}
 	for _, present := range []bool{false, true} {
 		t.Run(map[bool]string{false: "absent", true: "present"}[present], func(t *testing.T) {
 			m, q := fixture(t)
@@ -59,6 +62,9 @@ func TestRestoreBaselines(t *testing.T) {
 	}
 }
 func TestUnverifiedOrChangedFilesStayHeld(t *testing.T) {
+	if !HostSupported() {
+		t.Skip("local mission activation requires macOS or Linux host locking (lock_other.go)")
+	}
 	m, q := fixture(t)
 	if _, err := m.Activate(context.Background(), q, stopped); err != nil {
 		t.Fatal(err)
@@ -107,6 +113,9 @@ func TestForeignMarkerAndSecretsRejected(t *testing.T) {
 	}
 }
 func TestProcessDeathRecovery(t *testing.T) {
+	if !HostSupported() {
+		t.Skip("local mission activation requires macOS or Linux host locking (lock_other.go)")
+	}
 	if os.Getenv("AILANG_ACTIVATION_CRASH") != "" {
 		root := os.Getenv("AILANG_ACTIVATION_ROOT")
 		m := &Manager{Dir: filepath.Join(root, "records"), checkpoint: func(point string) {

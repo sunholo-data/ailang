@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -62,6 +63,9 @@ func TestMissionIterationFlagsFailClosed(t *testing.T) {
 }
 
 func TestMissionIterationStatusRedactsSnapshotAndCancelVersion(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("mission iteration execution requires macOS/Linux: Windows descendant cleanup and receipt sync are unsupported")
+	}
 	deps, db := iterationTestDeps(t)
 	store, err := coordinator.NewSQLiteStore(db)
 	if err != nil {
