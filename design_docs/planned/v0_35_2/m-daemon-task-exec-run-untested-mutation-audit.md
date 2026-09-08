@@ -33,10 +33,21 @@ byte-identically would be a failed audit; none was.
 | guard G2 (correct gate) | same | `go test ./internal/coordinator/ -run TestExecuteTask_HandsDefaultBasedOptionsToExecutor -count=1` | **1 (RED)** | `# …/coordinator [build failed]` / `daemon_tasks_exec_run_test.go:50:13: cannot use cap (variable of type *capturingExecutor) as *TaskExecutor value in struct literal` | `e13fd869…` | `e13fd869…` (identical) |
 | supplement S1 | `daemon_tasks_exec_run.go:243` `opts.IdleTimeout = agentConfig.GetEffectiveIdleTimeout()` → `opts.IdleTimeout = 3 * time.Minute` | same | **1 (RED)** | `--- FAIL` / `daemon_tasks_exec_run_test.go:83: IdleTimeout = 3m0s, want 90s` | `efd85d4e…` | `efd85d4e…` (identical) |
 | supplement S2 | `daemon_tasks_exec_run.go:244` `opts.Workspace = workspacePath` → `opts.Workspace = ""` | same | **1 (RED)** | `--- FAIL` / `daemon_tasks_exec_run_test.go:88: Workspace = "", want "/tmp/ailang-test-workspace"` | `efd85d4e…` | `efd85d4e…` (identical) |
-| supplement S3 | `daemon_tasks_exec_run.go:245` `opts.ObservatoryContext = obsContext` → `opts.ObservatoryContext = nil` | same | **1 (RED)** | `--- FAIL` / `daemon_tasks_exec_run_test.go:93: ObservatoryContext = <nil>, want non-nil with TaskID "task-exec-1"` | `efd85d4e…` | `efd85d4e…` (identical) |
+| supplement S3 | `daemon_tasks_exec_run.go:245` `opts.ObservatoryContext = obsContext` → `opts.ObservatoryContext = nil` | same | **1 (BUILD FAILURE, not test-failure)** | `# …/coordinator [build failed]` / `daemon_tasks_exec_run.go:202:6: declared and not used: obsContext` | `efd85d4e…` | `efd85d4e…` (identical) |
 
-Every mutation that was expected to turn the gate RED did so (via test assertion failure), except
-the two plan-defect rows (M4 plan edit, G2 plan gate) which are documented below. Every revert
+Every mutation that was expected to turn the gate RED did so, except the two plan-defect rows
+(M4 plan edit, G2 plan gate) documented below and the S3 row **corrected above by the round-1
+judge**.
+
+**CORRECTION (controller, after round-1 evaluation).** The S3 row as originally written claimed a
+clean test-assertion failure. It is a **build** failure: nulling `opts.ObservatoryContext` leaves
+`obsContext` declared and unused at `daemon_tasks_exec_run.go:202`, exactly the defect class this
+same audit correctly identified for the plan's M4 edit and did not apply to its own row.
+Reproduced first-party by the controller: `go test … -run TestExecuteTask_HandsDefaultBasedOptionsToExecutor -count=1`
+→ rc=1, `internal/coordinator/daemon_tasks_exec_run.go:202:6: declared and not used: obsContext`,
+with `daemon_tasks_exec_run.go` restored to `efd85d4e…` afterwards. S3 therefore establishes that
+the assignment is load-bearing at COMPILE time; it does not, on its own, establish that assertion 5
+fires. Assertion 5's own kill is still owed and is not claimed here. Every revert
 restored the file byte-identically (after-sha256 == before-sha256 == baseline).
 
 ## Mutation M5 — the two-run controlled isolation experiment
@@ -130,3 +141,70 @@ The M2 test is **not vacuously passing** and every assertion is individually loa
 
 Two plan defects were found and are recorded verbatim above (M4's non-compiling edit and G2's
 wrong gate command); neither affects production behaviour or the validity of the delivered test.
+
+---
+
+## Round-1 judge findings and their disposition (controller, after the independent evaluation)
+
+The independent judge (Anthropic `sonnet`, its own worktree, score **85/100 PASS**) found three
+things this audit did not. All three were reproduced first-party by the controller before being
+acted on, and all three are recorded here rather than quietly fixed.
+
+### 1. S3 was misreported — CONFIRMED, corrected in the matrix above
+
+See the CORRECTION note. The judge was right and the audit was wrong in the direction that
+flatters the sprint.
+
+### 2. Two surviving mutants on the exact call this sprint claims to cover — CONFIRMED, CLOSED
+
+Both reproduced by the controller against the **whole** `internal/coordinator` package, not just
+the targeted test:
+
+| mutant | edit | full-package result before the fix |
+|---|---|---|
+| retry count | `daemon_tasks_exec_run.go:335` `…, opts, 2)` → `…, opts, 99)` | `ok internal/coordinator 10.775s` — **SURVIVED** |
+| directive content | `daemon_tasks_exec_run.go:117` `Content: directive,` → `Content: "MUTANT",` | `ok internal/coordinator 10.936s` — **SURVIVED** |
+
+The judge's diagnosis is exactly right and is worth stating as the general lesson: the fake already
+*received* `maxRetries` and the `AnalyzedTask`, and the test simply never looked at them. The
+sprint pinned the `ExecuteOptions` argument and left the call's other two arguments unasserted, so
+"the call is covered" was true of one argument out of three.
+
+**Closed in-iteration** by assertions 7 and 8, each proven RED against a **compiling** mutant with
+`daemon_tasks_exec_run.go` restored to `efd85d4e…` after each:
+
+- assertion 7 → `maxRetries = 99, want 2 (the literal at daemon_tasks_exec_run.go:335)`, rc=1.
+- assertion 8 → `AnalyzedTask.Task.Content = "MUTANT", want "iter352-directive-payload"`, rc=1.
+  This required giving the fixture task a distinctive `Content`, because for a script agent
+  `BuildDirectiveFromConfig` returns `task.Content` verbatim (`stage_execution.go`) and the
+  original fixture left it empty — an empty expected value cannot discriminate.
+
+The narrower claim, stated so no reader over-reads it: assertions 7 and 8 pin the retry literal and
+the directive payload **as they reach the executor**. They do not pin anything else about the
+`AnalyzedTask`, and the remaining `AnalyzedTask` fields are still unasserted.
+
+### 3. The baseline sha256 for the test file does not match any committed version — CONFIRMED, and it is the CONTROLLER's defect, not the executor's
+
+The audit's baseline `6d6f247e3783e2c9516bddf397c2f743f97a9591c74c81430bfb9900c3d049d9` was correct
+**in the executor's own tree**. Between the executor finishing and the M2 commit, the controller ran
+`gofmt -w` on that file — it was not gofmt-clean as delivered (`gofmt -l` listed it), which CI lint
+would have reddened. The change is two whitespace-alignment lines and nothing else
+(`Invoke:` → `Invoke: ` and `agentRegistry:` → `agentRegistry:   `), and the committed file was
+`eb61961932c2ac725b3166542a481aae79894fd858cb4382d891e367259c6f58` before assertions 7 and 8 were
+added.
+
+So the reconstruction was faithful for `daemon.go` (`e13fd869…`, byte-identical to the executor's
+manifest) and NOT byte-identical for the test file. The PR description's blanket "verified
+byte-identical by sha256" was therefore false as published, and has been corrected there too. The
+lesson is the one this loop keeps re-earning: a byte-identity claim is void the moment the
+controller edits the tree, however cosmetically, and the fix is to record the edit rather than to
+keep the claim.
+
+### Also raised by the judge
+
+- **No CHANGELOG entry** — a real gap against `.claude/rules/coding-standards.md`. Added.
+- **PR #1113's `test` job red on `make check-git-exec`**, traced by the judge to baseline drift in
+  `internal/mission/iteration/*.go`, files this diff never touches. Attributed at Gate 3b, not here.
+- **UNMEASURED by the judge, and it says so:** it did not itself re-run the two-run M5 isolation
+  experiment (it verified the mechanism from source), and the Windows and docs-build jobs were
+  still pending when it reported.
