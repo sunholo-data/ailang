@@ -88,3 +88,56 @@ resolves against the work item's FROZEN model snapshot (`retry_review.go:255`), 
 registry — the immutability guarantee working as designed. Within that snapshot every bare-id
 deepseek option also changes the harness, so a single-variable route test on that lineage is
 impossible without re-freezing.
+
+---
+
+# Follow-up: the exploration-mandate probe (2026-09-08, same session)
+
+The route probe above failed to discriminate because its control passed. This one fixes that:
+same failing lane on both arms (`deepseek-v4-flash-0731:floor`), real repository worktrees at
+the review base revision `ad1bf98d3`, and the VERBATIM frozen contract text — so the probe
+exercises the real exploration surface instead of a toy fixture.
+
+| | Arm A | Arm B |
+|---|---|---|
+| Instructions | verbatim frozen contract (1,368 chars) | identical minus two sentences |
+| Removed in B | — | "Read CLAUDE.md first." and "…and the production spec/authority/CLI code." |
+| Replaced with | — | "Do not read any other repository file: the packet and the validator are the evidence." |
+
+## Result
+
+| run | turns | tools | tokens | verdict |
+|---|---|---|---|---|
+| Arm A (mandate present) | 53 | 55 | **147,233** | none |
+| Arm B (mandate removed) | 37 | 36 | **44,839** | none |
+| real canary run, for reference | 19 | 26 | 100,024 | none |
+
+**Arm A reproduced the failure**, which the first probe never did — so this probe is
+representative. Its first tool calls are `ls -la && git status`, then `cat CLAUDE.md`, then
+`ls -la` again: exactly the shape the trial recorded.
+
+**Removing the mandate cut token consumption by 69%** (147,233 → 44,839) with every other
+variable held. That is a large single-variable effect and the strongest evidence yet that the
+contract's own instructions are a major contributor.
+
+## The confound, which is mine
+
+NEITHER arm converged, and that does NOT refute the hypothesis, because this probe never bound
+a review packet. The contract says "inspect the bound review packet"; out-of-band there was
+none, so the agent went hunting for one. Arm B's last ten tool calls are a search through
+`/private/tmp/ailang-docs-canary` for the packet, and it invoked the validator ZERO times.
+
+Both arms lacked the packet equally, so the 69% comparison stands. But convergence was never
+achievable in either, and any claim that "removing the mandate is sufficient" is unsupported.
+
+The real packet exists and is content-addressed, 18,181 bytes:
+`workspaces/docs/docs-canary-guide-review-3/review-packets/9660977d….txt`
+
+## What this changes
+
+The fix is very likely BOTH halves of M1's intent — bind the focused packet AND stop the
+instructions sending the evaluator into the repository — not either alone. The next test must
+deliver the packet; without it the experiment cannot distinguish "mandate removed is enough"
+from "mandate removed plus packet is enough".
+
+Not yet run. Worktrees removed; no lineage spent; both arms flat-rate/metered-trivial.
