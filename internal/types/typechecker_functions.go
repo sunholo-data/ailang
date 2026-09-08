@@ -224,6 +224,12 @@ func (tc *CoreTypeChecker) inferLet(ctx *InferenceContext, let *core.Let) (*type
 				nonGroundConstraints = append(nonGroundConstraints, c)
 			}
 		}
+		// M-EFFECT-PURE-ROW-OVERGENERALIZATION (#1091): same closure as the LetRec
+		// path. A non-recursive binding usually resolves its own row, so this is
+		// normally a no-op; it is applied here too so the rule does not depend on
+		// which binding form a function happens to elaborate into.
+		defaultedType = tc.closeDeclaredEffectRowForBinding(let.Value.ID(), defaultedType)
+
 		binding = tc.generalizeWithConstraints(defaultedType, valueEffects, nonGroundConstraints, ctx.env, ctx.baseEnvFreeVars)
 	} else {
 		binding = defaultedType
@@ -369,6 +375,13 @@ func (tc *CoreTypeChecker) inferLetRec(ctx *InferenceContext, letrec *core.LetRe
 				nonGroundConstraints = append(nonGroundConstraints, c)
 			}
 		}
+
+		// M-EFFECT-PURE-ROW-OVERGENERALIZATION (#1091): close an unresolved effect
+		// row against the DECLARED row before generalizing. This is the recursive
+		// path, and recursion is exactly what leaves the row open: the self-call
+		// shares the enclosing row variable without binding it, so a `pure` function
+		// has nothing to close against and would otherwise export `! {...ρN}`.
+		valueType = tc.closeDeclaredEffectRowForBinding(binding.Value.ID(), valueType)
 
 		// Generalize for recursion. Use the *outer* env (oldEnv) as currentEnv:
 		// the recursive bindings' own fresh vars live only in newEnv, so they
