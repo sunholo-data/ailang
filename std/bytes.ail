@@ -44,6 +44,18 @@ export pure func fromBase64URL(s: string) -> Option[bytes] {
   _bytes_from_base64url(s)
 }
 
+-- Encode bytes as a base64url string (RFC 4648 §5, no padding)
+-- Uses the URL-safe alphabet: '-' and '_' replace '+' and '/', and no '='
+-- padding is emitted. This is the wire encoding the Gmail API requires for a
+-- message's `raw` field, and the one JWT header/payload segments use.
+-- Exact inverse of fromBase64URL: fromBase64URL(toBase64URL(b)) == Some(b).
+-- Example: toBase64URL(fromString("Hello")) returns "SGVsbG8"
+-- Example: toBase64URL(fromString("a+b/c?")) returns "YStiL2M_"
+--          (toBase64 would return "YStiL2M/", which is not URL-safe)
+export pure func toBase64URL(b: bytes) -> string {
+  _bytes_to_base64url(b)
+}
+
 -- Get the length of a byte slice (O(1))
 -- Returns raw byte count, not UTF-8 character count
 -- Example: length(fromString("hello")) returns 5

@@ -1,6 +1,8 @@
 package builtins
 
 import (
+	"bytes"
+	"strings"
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/eval"
@@ -404,5 +406,184 @@ func TestBytesIntsRoundTrip(t *testing.T) {
 		if v := elem.(*eval.IntValue).Value; v != i {
 			t.Errorf("round trip corrupted index %d: got %d", i, v)
 		}
+	}
+}
+
+// ============================================================================
+// base64url (M-STD-BASE64URL-ENCODE)
+// ============================================================================
+
+// encodeB64URL is a test helper: runs _bytes_to_base64url and returns the string.
+func encodeB64URL(t *testing.T, b []byte) string {
+	t.Helper()
+	result, err := bytesToBase64URLImpl(nil, []eval.Value{&eval.BytesValue{Value: b}})
+	if err != nil {
+		t.Fatalf("_bytes_to_base64url(%v) failed: %v", b, err)
+	}
+	strVal, ok := result.(*eval.StringValue)
+	if !ok {
+		t.Fatalf("expected StringValue, got %T", result)
+	}
+	return strVal.Value
+}
+
+// decodeB64URL is a test helper: runs _bytes_from_base64url, requiring Some.
+func decodeB64URL(t *testing.T, s string) []byte {
+	t.Helper()
+	result, err := bytesFromBase64URLImpl(nil, []eval.Value{&eval.StringValue{Value: s}})
+	if err != nil {
+		t.Fatalf("_bytes_from_base64url(%q) failed: %v", s, err)
+	}
+	tagged, ok := result.(*eval.TaggedValue)
+	if !ok {
+		t.Fatalf("expected TaggedValue, got %T", result)
+	}
+	if tagged.CtorName != "Some" {
+		t.Fatalf("_bytes_from_base64url(%q): expected Some, got %s", s, tagged.CtorName)
+	}
+	return tagged.Fields[0].(*eval.BytesValue).Value
+}
+
+func TestBytesToBase64URL(t *testing.T) {
+	tests := []struct {
+		name  string
+		input []byte
+		want  string
+	}{
+		{
+			name:  "hello — unpadded where standard base64 pads",
+			input: []byte("Hello"),
+			want:  "SGVsbG8",
+		},
+		{
+			name:  "empty",
+			input: []byte{},
+			want:  "",
+		},
+		{
+			// The exact case from fb_dfb699d91224be9c. Standard base64 gives
+			// "YStiL2M/" — the '/' is what the Gmail API rejects.
+			name:  "reported case: URL-safe alphabet differs from standard",
+			input: []byte("a+b/c?"),
+			want:  "YStiL2M_",
+		},
+		{
+			// 0xFB 0xFF exercises both substituted characters at once:
+			// standard base64 of these bytes contains '+' and '/'.
+			name:  "binary exercising both '-' and '_'",
+			input: []byte{0xFB, 0xFF, 0xFE},
+			want:  "-__-",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := encodeB64URL(t, tt.input); got != tt.want {
+				t.Errorf("got %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+// TestBytesToBase64URLDiffersFromStandard pins the difference the feature
+// exists for, asserting both encoders side by side on the reported input.
+func TestBytesToBase64URLDiffersFromStandard(t *testing.T) {
+	input := []byte("a+b/c?")
+
+	stdResult, err := bytesToBase64Impl(nil, []eval.Value{&eval.BytesValue{Value: input}})
+	if err != nil {
+		t.Fatalf("_bytes_to_base64 failed: %v", err)
+	}
+	std := stdResult.(*eval.StringValue).Value
+	url := encodeB64URL(t, input)
+
+	if std != "YStiL2M/" {
+		t.Errorf("standard base64: got %q, want %q", std, "YStiL2M/")
+	}
+	if url != "YStiL2M_" {
+		t.Errorf("base64url: got %q, want %q", url, "YStiL2M_")
+	}
+	if std == url {
+		t.Error("standard and URL-safe encodings must differ on this input")
+	}
+}
+
+// TestBytesBase64URLAlphabet asserts the encoder never emits a character that
+// is invalid in a URL or in a JWT segment: '+', '/' or '='.
+func TestBytesBase64URLAlphabet(t *testing.T) {
+	// Deterministic pseudorandom inputs — no seed dependence across Go versions.
+	var state uint32 = 0x12345678
+	next := func() byte {
+		state = state*1664525 + 1013904223
+		return byte(state >> 24)
+	}
+
+	for length := 0; length < 64; length++ {
+		buf := make([]byte, length)
+		for i := range buf {
+			buf[i] = next()
+		}
+		encoded := encodeB64URL(t, buf)
+		for _, bad := range []rune{'+', '/', '='} {
+			if strings.ContainsRune(encoded, bad) {
+				t.Fatalf("encoding of %v contains %q (not URL-safe): %q", buf, bad, encoded)
+			}
+		}
+	}
+}
+
+// TestBytesBase64URLRoundTrip covers all 256 byte values and all three
+// length-mod-3 padding residues — the residues are where a hand-rolled
+// encoder characteristically breaks.
+func TestBytesBase64URLRoundTrip(t *testing.T) {
+	t.Run("all 256 single byte values", func(t *testing.T) {
+		for i := 0; i < 256; i++ {
+			original := []byte{byte(i)}
+			got := decodeB64URL(t, encodeB64URL(t, original))
+			if !bytes.Equal(got, original) {
+				t.Errorf("byte %d: round trip gave %v, want %v", i, got, original)
+			}
+		}
+	})
+
+	t.Run("all padding residues", func(t *testing.T) {
+		// Lengths 0..6 cover every length mod 3, twice.
+		for length := 0; length <= 6; length++ {
+			original := make([]byte, length)
+			for i := range original {
+				original[i] = byte(0xF0 + i)
+			}
+			encoded := encodeB64URL(t, original)
+			if strings.Contains(encoded, "=") {
+				t.Errorf("length %d: encoding %q must not be padded", length, encoded)
+			}
+			got := decodeB64URL(t, encoded)
+			if !bytes.Equal(got, original) {
+				t.Errorf("length %d: round trip gave %v, want %v", length, got, original)
+			}
+		}
+	})
+
+	t.Run("RFC 5322 message with CRLF and UTF-8 subject", func(t *testing.T) {
+		// The Gmail `raw` field shape: CRLF line endings, a UTF-8 subject.
+		original := []byte("To: a@example.com\r\n" +
+			"Subject: Café — ünïcode\r\n" +
+			"Content-Type: text/plain; charset=UTF-8\r\n" +
+			"\r\n" +
+			"Body with a + and a / in it.\r\n")
+		encoded := encodeB64URL(t, original)
+		if strings.ContainsAny(encoded, "+/=") {
+			t.Errorf("encoding is not URL-safe: %q", encoded)
+		}
+		if got := decodeB64URL(t, encoded); !bytes.Equal(got, original) {
+			t.Errorf("round trip failed:\n got %q\nwant %q", got, original)
+		}
+	})
+}
+
+func TestBytesToBase64URLWrongType(t *testing.T) {
+	_, err := bytesToBase64URLImpl(nil, []eval.Value{&eval.StringValue{Value: "not bytes"}})
+	if err == nil {
+		t.Fatal("expected an error for a non-Bytes argument, got nil")
 	}
 }

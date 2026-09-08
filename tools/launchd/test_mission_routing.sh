@@ -211,10 +211,15 @@ grep -q 'MISSION_MODEL_PREFS:-[^}]*claude-fable-5[,}]' "$driver" \
 grep -v '^[[:space:]]*#' "$driver" | grep -q 'claude-opus-4-8' \
   && bad "opus-4.8 stays removed" "opus-4.8 reappeared in active driver code" \
   || ok "opus-4.8 stays removed"
-# NO-SINGLE-PROVIDER-ROLE: the evaluator was the only role with no fallback at
-# all. Every role must now name at least two providers across its chain.
-grep -q 'MISSION_EVALUATOR_FALLBACK:-pi:ollama/minimax-m3:cloud,pi:openrouter/minimax/minimax-m3,codex:gpt-6-astra}' "$driver" \
-  && ok "evaluator chain is ollama -> openrouter twin -> codex tail" || bad "evaluator chain is ollama -> openrouter twin -> codex tail" "missing evaluator chain"
+# NO-SINGLE-PROVIDER-ROLE IS RETIRED (Mark, 2026-09-08). It required every role to name at
+# least two providers across its chain, and pinned the evaluator to an exact
+# ollama -> openrouter twin -> codex tail. The driver has since moved the evaluator to
+# claude:claude-sonnet-4-6,claude:claude-haiku-4-5,opus, and cross-provider breadth is a
+# nice-to-have here, not a release blocker — so the assertion went red for eight consecutive
+# CI runs (including the v0.35.3 release) while guarding a policy nobody intended to keep.
+# Do NOT reinstate an exact-chain grep: it re-freezes a routing decision that is meant to move.
+# The evaluator's live guards are the two below — codex stays the LAST rung (D-62, generator
+# != judge at vendor level), and anthropic-pinned roles get a pre-flight probe.
 # The codex rung must stay LAST. The executor is codex:gpt-5.6-sol, so promoting a codex
 # judge above minimax would make the vendor-level generator==judge collision the DEFAULT
 # rather than the last resort before having no judge at all (2026-09-05).
