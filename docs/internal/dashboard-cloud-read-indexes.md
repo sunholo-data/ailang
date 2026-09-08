@@ -1,7 +1,9 @@
 # Dashboard cloud read rollout contract
 
-Status: code deployed in dev, 2026-09-08; production verification pending.
-Infrastructure source: adjacent `ailang-multivac/terraform/firestore.tf`.
+Status: v0.35.3 and all twelve indexes deployed through production, 2026-09-08.
+Query/function smoke checks pass; global task completeness remains unverified.
+Infrastructure source: adjacent `ailang-multivac/terraform/firestore.tf` and
+`terraform/dashboard_read_indexes.tf`.
 This document specifies query requirements; it does not provision indexes.
 
 ## Read contract
@@ -51,7 +53,7 @@ Concrete Terraform form for the first missing stage index, using the existing
 infrastructure resource conventions:
 
 ```hcl
-resource "google_firestore_index" "obs_spans_stage_time" {
+resource "google_firestore_index" "obs_spans_stage_id_page" {
   provider   = google-beta
   project    = var.project_id
   database   = google_firestore_database.default.name
@@ -73,7 +75,8 @@ this table does not certify every combination. Validate the actual production
 filter combinations and range bounds against READY indexes. See the official
 [Firestore index overview](https://firebase.google.com/docs/firestore/query-data/index-overview).
 The existing `parent_span_id ASC, start_time DESC` index does not substitute for
-a stage or ascending span query. Index definitions were inspected, not applied.
+a stage or ascending span query. The initial audit inspected definitions; the subsequent rollout applied them
+through infrastructure CI (see the rollout report below).
 
 ## Verification before declaring production repaired
 
@@ -118,7 +121,7 @@ a stage or ascending span query. Index definitions were inspected, not applied.
 - Additional CLI audit gap: `openChainsReadBackend` calls `NewGCPBackends`, which
   starts coordinator cost synchronization. If metadata is missing, this may scan
   tasks and write cost metadata. Isolate observatory-only backend construction
-  before calling the CLI read path side-effect-free. No live CLI invocation was
+  before calling the CLI read path side-effect-free. No live cloud chain-read CLI invocation was
   made during this audit.
 
 - All 12 dev additions reached READY. Workspace/repository filters (including
@@ -130,4 +133,10 @@ a stage or ascending span query. Index definitions were inspected, not applied.
 - Gate clarification: `cloudbuild-release.yaml` requires the hosted `CI/test` job,
   then complete image builds and smoke checks. SonarCloud and launchd are separate
   outstanding findings, not conditions enforced by that image promotion gate.
-  Preparing v0.35.3 through the existing release process; no direct prod rebuild.
+  v0.35.3 completed the existing release process; no direct prod rebuild.
+
+Final rollout: all three infrastructure builds and the versioned test/prod image
+promotion succeeded. Production now serves the simplified UI and repaired chain
+reads. Standard/deep standalone function tracing was verified against production,
+including serialized factorial arguments/results. Full evidence and remaining
+acceptance work: [rollout report](dashboard-rollout-2026-09-08.md).

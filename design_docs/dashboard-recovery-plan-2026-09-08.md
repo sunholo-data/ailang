@@ -260,3 +260,17 @@ CLI query options, stage ownership and explicit chain read errors. See
 verification steps and inherited summary/legacy API gaps. No index apply or
 production deployment occurred. Production stability remains unproven; further
 React evidence-view deletion waits on live acceptance checks.
+
+## Production rollout — 2026-09-08
+
+v0.35.3 now deploys the capture/read repairs and simplified React UI to production.
+Twelve new Firestore indexes are READY across dev/test/prod. Hosted Go tests and
+independent scoped review pass; versioned release and production promotion pass.
+Production page/filter/ownership checks succeed. Standalone standard/deep traces
+were read back, including 22 function spans with actual args/results in deep mode.
+
+This does not certify all task data: two sampled historical tasks still lack stage,
+transcript and direct task-ID spans. Next foundation work is an observatory-only
+CLI read constructor, reported-cost normalization (including explicit zero),
+deployment version stamping and a fresh coordinator task-to-delivery cohort.
+See [final rollout audit](../docs/internal/dashboard-rollout-2026-09-08.md).
