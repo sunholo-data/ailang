@@ -294,3 +294,57 @@ func TestConflictingWireNeverDispatches(t *testing.T) {
 		}
 	}
 }
+
+// An evaluator must not hold a tool that can write. Its contract says so three times in
+// prose — "preserve HEAD and all tracked files", "do not repair the candidate", "do not add
+// review docs in the workspace" — and until 2026-09-08 the harness handed it pi's defaults,
+// which include edit and write. A judge able to rewrite the artifact it is judging
+// invalidates the acceptance evidence the whole canary exists to produce.
+func TestTaskFor_EvaluatorCannotMutate(t *testing.T) {
+	task := taskFor(Request{Role: "evaluator", MissionID: "docs", WorkItemID: "w", StageID: "evaluator"}, testCandidate())
+	if task.AllowedTools == nil {
+		t.Fatal("evaluator got nil AllowedTools — pi's defaults include edit and write")
+	}
+	got := map[string]bool{}
+	for _, tool := range task.AllowedTools {
+		got[tool] = true
+	}
+	for _, banned := range []string{"edit", "write"} {
+		if got[banned] {
+			t.Errorf("evaluator may hold %q", banned)
+		}
+	}
+	// bash must remain: the contract requires the bound verification commands to run.
+	if !got["bash"] {
+		t.Error("evaluator lost bash — it cannot run its bound validator")
+	}
+	if !got["read"] {
+		t.Error("evaluator lost read")
+	}
+}
+
+// Author roles are unchanged: nil means "pi's defaults apply", and they must keep write.
+// Restricting them here would silently stop every executor from producing an artifact.
+func TestTaskFor_NonEvaluatorRolesKeepDefaults(t *testing.T) {
+	for _, role := range []string{"executor", "designer", "planner"} {
+		task := taskFor(Request{Role: role, MissionID: "docs", WorkItemID: "w", StageID: role}, testCandidate())
+		if task.AllowedTools != nil {
+			t.Errorf("role %q got AllowedTools=%v, want nil (pi defaults)", role, task.AllowedTools)
+		}
+	}
+}
+
+// Role matching is case-insensitive: the bound is a security property, and it must not be
+// defeated by a spec that spells the role "Evaluator".
+func TestTaskFor_EvaluatorBoundIsCaseInsensitive(t *testing.T) {
+	for _, spelling := range []string{"Evaluator", "EVALUATOR", "evaluator"} {
+		if taskFor(Request{Role: spelling}, testCandidate()).AllowedTools == nil {
+			t.Errorf("role %q escaped the evaluator tool bound", spelling)
+		}
+	}
+}
+
+// testCandidate supplies the non-nil model config taskFor dereferences.
+func testCandidate() Candidate {
+	return Candidate{Model: "m", WireModel: "wire", config: &modelreg.ModelConfig{}}
+}

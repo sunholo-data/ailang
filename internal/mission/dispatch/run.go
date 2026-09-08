@@ -174,9 +174,31 @@ func (r *Runner) preflight(ctx context.Context, c Candidate) (executor.Executor,
 	return e, ""
 }
 
+// evaluatorTools is what an evaluator may hold: everything readable, nothing that mutates.
+//
+// pi's defaults are read, bash, edit and write. An evaluator was therefore handed edit and
+// write while its own contract told it, in prose, to "preserve HEAD and all tracked files",
+// "do not repair the candidate" and "do not add review docs in the workspace" — three
+// mutation prohibitions, none enforced. A judge that can silently rewrite the artifact it is
+// judging invalidates the acceptance evidence, and no amount of instruction text makes that
+// safe. internal/mission/quorum already bounds question-kind tasks this way; the stage path
+// simply never did.
+//
+// bash STAYS. The evaluator contract requires it — the bound verification commands are run
+// through it — so a read-only allowlist would break the role rather than protect it.
+// grep/find/ls are OFF by default in pi and are added here deliberately: they strictly
+// increase what an evaluator can read, so this allowlist cannot break an evaluator that
+// worked before, while removing every tool that can write.
+var evaluatorTools = []string{"read", "bash", "grep", "find", "ls"}
+
 func taskFor(r Request, c Candidate) *executor.Task {
 	m := c.config
+	var allowed []string
+	if strings.EqualFold(r.Role, "evaluator") {
+		allowed = evaluatorTools
+	}
 	return &executor.Task{
+		AllowedTools: allowed,
 		ID:           strings.Join([]string{r.MissionID, r.WorkItemID, r.StageID, r.AttemptID}, "/"),
 		ParentTaskID: r.WorkItemID, Directive: r.Instructions,
 		SystemPrompt: fmt.Sprintf("Mission role contract v1. Role: %s. Input revision declared by caller: %s. Request digest: %s. Produce the requested artifact; execution success is not acceptance or permission to publish.", r.Role, r.InputRevision, r.Digest()),
