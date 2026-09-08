@@ -141,6 +141,43 @@ rate, which needs neither capacity nor reset.
 whose own diff touches neither file. Fixed in `4e8074483` by routing through `internal/gitexec`
 rather than growing the ten-line legacy baseline. 131 of 561 iteration summaries mention "red".
 
+### 3.5b THREE dev reds from one landing, not one
+
+`48e72ef7e` left three CI gates red on dev, and every PR inherited all three:
+
+| Gate | Cause | Status |
+|---|---|---|
+| `check-git-exec` | two bare-name `git` exec sites | **fixed** `4e8074483` (routed through `internal/gitexec`) |
+| `check-home-isolation` | six hand-rolled `HOME` overrides | **fixed** `84f4308c1` (routed through `testutil.SetHomeDir`) |
+| `test-windows` | 15 tests, POSIX assumptions | **open** — diagnosed below |
+
+**`test-windows` diagnosis (2026-09-08).** `cmd/ailang/mission_activation.go:158` carries an
+UN-TAGGED inline copy of a POSIX privacy check:
+
+```go
+if !info.IsDir() || info.Mode().Perm()&0077 != 0 {
+    return errors.New("activation state directory must be private and not a symlink")
+}
+```
+
+On Windows `os.MkdirAll(dir, 0700)` does not yield 0700, so the check fires, the state file is
+never written, and 12 downstream tests then fail with `missing hold: … The system cannot find
+the file specified`.
+
+The package it belongs to already solved this: `internal/mission/activation` is split into
+`lock_unix.go` (`//go:build darwin || linux`) and `lock_other.go`, and the latter states
+plainly that **"local mission activation requires macOS or Linux host locking"**. So activation
+is deliberately unix-only, and the 15 failures are tests exercising a feature the package
+declares unsupported on that platform.
+
+The fix is therefore a platform guard, not a portable permission check: give the `cmd/ailang`
+check the same build-tagged treatment so it refuses on Windows with the package's own message,
+and tag the tests to match. This is a decision about someone else's just-landed subsystem, so
+it is recorded here rather than taken unilaterally.
+
+Verified not caused by this session's work: the Windows failure set is byte-identical at
+`4e8074483` (before) and `84f4308c1` (after) — 15 tests, nothing added.
+
 ### 3.6 Agent handoff never fires — 7 design docs stranded in PRs
 
 | PR | Design doc | Lines |
@@ -160,7 +197,13 @@ work is sitting.**
 ### 3.7 Accumulated clutter
 
 330 local branches, 128 worktrees. 264 branches had a merged PR; 63 had no PR and hold nothing
-absent from dev. **327 of 329 are safe to delete** — only the 2 with open PRs matter.
+absent from dev.
+
+**Cleared 2026-09-08** (attended, Mark): 107 stale worktrees removed and 320 branches deleted,
+after snapshotting every branch SHA to `.ailang/state/cleanup-2026-09-08/` so the set is
+recoverable. 128 → 21 worktrees, 330 → 10 branches, ~83 GB reclaimed. Two worktrees were
+correctly REFUSED and left alone: one locked by a live Claude session, one now removed. The
+four pinned driver roots, the eval-infra worktrees and every open-PR branch were preserved.
 
 ---
 
