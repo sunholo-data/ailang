@@ -421,6 +421,49 @@ else
 fi
 rm -rf "$_dn_spool" "$_dn_tr" "$_dn_outf"
 
+# (4b) large-backlog drain: 5-row spool + hanging ailang + aggregate budget -> whole
+# drain bounded, 1 attempt, 4 deferred. Outer 30s. Instrument hygiene: the driver log
+# (MC_TRACE_FILE) is the ONLY thing asserted; the bounded helper's job-control stderr
+# lands in the run_bounded output file, never the trace file.
+_dl_spool=$(mktemp -d)
+for _i in 1 2 3 4 5; do printf 'TS\tTitle%s\tBody%s\n' "$_i" "$_i" >> "$_dl_spool/mission-v1-notice-spool.tsv"; done
+_dl_tr=$(mktemp); _dl_att=$(mktemp); _dl_outf=$(mktemp); _dl_beg=$(date +%s)
+run_bounded 30 "$_dl_outf" env MC_TRACE_FILE="$_dl_tr" MC_ATTEMPT_FILE="$_dl_att" \
+  STUB_HANG_AILANG=1 MISSION_NOTIFY_TIMEOUT=2 MISSION_DRAIN_BUDGET=8 \
+  /bin/bash -c '
+    set -uo pipefail
+    . "$MC_BND"
+    NOTIFY_TIMEOUT="${MISSION_NOTIFY_TIMEOUT:-30}"
+    log() { printf "LOG:%s\n" "$*" >> "$MC_TRACE_FILE"; }
+    MISSION_NAME=v1; MISSION_REPO=sunholo-data/ailang; MSG_FROM=mission-control
+    STATE_DIR="$1"
+    . "$2"
+    _mc_drain_notices
+    echo "DRAIN_RC:$?"
+  ' _ "$_dl_spool" "$LAB/drain.sh"
+_dl_rc=$?; _dl_elapsed=$(( $(date +%s) - _dl_beg ))
+_dl_rows=0; [ -f "$_dl_spool/mission-v1-notice-spool.tsv" ] && _dl_rows=$(wc -l < "$_dl_spool/mission-v1-notice-spool.tsv" | tr -d ' ')
+_dl_attn=$(cat "$_dl_att" 2>/dev/null || echo 0)
+_dl_log="$(cat "$_dl_tr" 2>/dev/null || true)"
+if [ "$_dl_rc" = "124" ]; then
+  bad "drain: whole drain returns within aggregate budget and preserves unattempted rows" "outer 30s watchdog tripped - aggregate budget removed"
+else
+  _dl_good=1
+  [ "$_dl_elapsed" -le 15 ] || _dl_good=0
+  [ "$_dl_rows" -eq 5 ] || _dl_good=0
+  [ "$_dl_attn" -eq 1 ] || _dl_good=0
+  if [ "$_dl_good" -eq 1 ]; then
+    ok "drain: whole drain returns within aggregate budget and preserves unattempted rows"
+  else
+    bad "drain: whole drain returns within aggregate budget and preserves unattempted rows" "elapsed=${_dl_elapsed}s rows=$_dl_rows attempts=$_dl_attn rc=$_dl_rc"
+  fi
+fi
+case "$_dl_log" in
+  *"deferred 4 row(s), aggregate budget 8s exhausted"*) ok "drain: deferred-drain diagnostic names deferred row count";;
+  *) bad "drain: deferred-drain diagnostic names deferred row count" "$(printf '%s' "$_dl_log"|tr '\n' '|')";;
+esac
+rm -rf "$_dl_spool" "$_dl_tr" "$_dl_att" "$_dl_outf"
+
 # (5) hanging gh comment: ailang healthy, gh hangs -> bounded cutoff, WARNING, exit 0.
 _gh_tr=$(mktemp); _gh_outf=$(mktemp); _gh_sp=$(mktemp -d); _gh_beg=$(date +%s)
 run_bounded 15 "$_gh_outf" env MC_TRACE_FILE="$_gh_tr" STUB_HANG_GH=1 MISSION_NOTIFY_TIMEOUT=2 \

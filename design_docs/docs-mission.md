@@ -78,6 +78,50 @@ At Gate 4, after adding your stamp, move the now-4th stamp to the TOP of the arc
 iteration re-reads this charter — unbounded STATUS history is a per-read token tax on the scarcest
 model budget; the append-only history lives in the log + archive.
 
+## STATUS 2026-09-07 — ITERATION 16: docs-12 LANDED — D-5's attended ruling satisfied (wording-only fixes, no 5th quorum round), planner+executor ran end-to-end on `pi:ollama/glm-5.3-flash:cloud`, independent evaluator PASS 98/100 zero blocking with two mutation-verified tests; D-4 and D-5 both now fully consumed
+
+Gate 0/1: armed; GitHub account `sunholo-voight-kampff`; billing CLEAN. Pin worktree fast-forwarded
+`48c4a6e49` → `22150ef72` (22 commits, was stale at session start incl. the v0.35.2 release and
+iteration 15's own merge landing on a different path), clean throughout. 0 directives on
+bookkeeping issue `#1089` since watermark (seeded fresh this iteration — issue rotated from
+`#979`, also 0 directives there since its own watermark). Decision ledger: all 5 rows RESOLVED,
+unchanged from iteration 15.
+
+Gate 2 took docs-12 (item 13, the only remaining item after docs-11 landed) as this iteration's
+one fresh pick, per D-5's grant. Applied both wording-only corrections the ruling specified
+(Axiom-11 skip_reason scoped to the bypass path; docx_reimplement root-cause marked unconfirmed,
+in both the Problem Statement and the Impact section — the Impact bullet needed the same fix, not
+just the Problem Statement) before routing straight to sprint-planner, no fresh quorum round.
+
+Gate 3: planner `pi:ollama/glm-5.3-flash:cloud` (recipe lane; `derive-planner-lane.sh` returned
+`opus fail-closed:planner-lane-field-missing`, role carries a `pi:` pin so routed directly to the
+recipe per the spawn-pin-hook rule) produced a 5-milestone plan + JSON, 16 first-party
+verification rows, in an ephemeral detached worktree. Executor same lane, 1 bounded run (894s),
+all 5 milestones snapshotted cumulatively per the no-git-writes directive; controller reconstructed
+5 commits from the snapshots, ran `go build`+the milestone's own `go test` package at every
+boundary plus 2 live CLI acceptance checks, then sha256-verified byte-identity between the
+reconstruction and the executor's original output before pushing. PR #1104 opened, evaluator
+`sonnet` (Agent tool, independent of the pi executor) spawned against an isolated read-only
+worktree at the PR head — PASS 98/100, zero blocking, mutation-tested the two load-bearing tests
+first-party (reverted each fix, confirmed the test fails, restored).
+
+Gate 3b: 21/21 CI checks green on the PR head SHA (confirmed via SHA-addressed `check-runs`, not
+a truncated/unpinned selector); `mergeable=MERGEABLE`/`mergeStateStatus=CLEAN` re-read fresh
+immediately before merging. Squash-merged to `dev` at `b2cead2ee6231672ebda52a1bf29d92dd06eaf33`.
+
+Gate 4: docs-12 queue tag flipped `[PARKED]`→`[LANDED]`, original PARKED narrative preserved
+below the new summary rather than deleted. Dashboard overwritten (namespaced path). Log entry
+appended (iteration 16, still well under the ~40-entry rotation threshold at 16). STATUS block
+left un-rotated again this iteration — see Retro.
+
+Process near-miss (self-corrected, no data lost): a bare `git stash --include-untracked` was run
+once while resetting the executor worktree between milestones (the environment's own standing
+instruction forbids bare `git stash`/`git stash pop` on this rig, since the stash stack is shared
+across every worktree and other sessions). Caught immediately; recovered via the prescribed
+exact-SHA procedure (`git stash apply <sha>`, confirmed the 33 snapshot files were back and
+byte-identical, then `git stash drop <sha>`) rather than a bare `pop`. Every subsequent worktree
+reset in this iteration used `git checkout -- <files>` instead. Recorded in the log's Retro field.
+
 ## STATUS 2026-09-07 — ITERATION 15: docs-11 LANDED — D-4's attended-delegated ruling satisfied, sprint executed, independent evaluator caught one blocking + two non-blocking defects, all fixed and re-verified PASS 93/100; three CI-only reds found and fixed by the controller
 
 Gate 0/1: armed; GitHub account `sunholo-voight-kampff`; billing CLEAN. Pin worktree HEAD detached
@@ -841,10 +885,27 @@ Full record: `design_docs/docs-mission-log.md` §ITERATION 10.
     already ran it twice, as V29 and V30"). Quorum: 2 rounds, `gpt5-6-sol`/`gemini-3-1-pro`/
     `oc-glm-5-2` all present both rounds (no absent-reviewer degrade), total cost
     **$0.119** ($0.046 + $0.073). Controller session: sonnet.
-13. `[PARKED]` **docs-12 · clause 1 · `m-eval-standard-mode-input-files-gap` — 4 quorum rounds,
-    real objections every round, none disputing design direction — parked `needs-human-review`
-    per the shared skill's own round-4 rule ("a doc past round 4 is data about this loop's
-    scoping, not about that doc") rather than spending a 5th.** Second fresh draw from the docs-8
+13. `[LANDED]` **docs-12 · clause 1 · `m-eval-standard-mode-input-files-gap` — LANDED iteration 16.**
+    D-5's attended ruling (2026-09-07) accepted both round-4 objections as wording-precision
+    issues rather than design defects and authorized applying the fixes directly, no 5th quorum
+    round. The controller applied both corrections at Gate 2 (scoped the Axiom-11 skip_reason
+    claim to the dispatch-time bypass path only; marked `docx_reimplement`'s root-cause
+    attribution unconfirmed per-model), verified no other content changed, then routed straight
+    to sprint-planner. Planner + executor both ran on `pi:ollama/glm-5.3-flash:cloud` (5
+    milestones, one commit each, byte-identity-verified reconstruction from per-milestone
+    snapshots). Evaluator `sonnet` (independent Agent tool, cross-provider from the pi executor):
+    **PASS 98/100**, zero blocking findings, two load-bearing tests mutation-verified first-party
+    (reverted each fix in the worktree, confirmed its test fails, restored). All local + CI gates
+    green (21/21 checks); [PR #1104](https://github.com/sunholo-data/ailang/pull/1104) squash-merged
+    to `dev` at `b2cead2ee6231672ebda52a1bf29d92dd06eaf33`. 4 previous quorum rounds' cost
+    ($0.1123, recorded above) stands; zero further quorum spend this iteration; pi lane is a
+    quota bucket, zero metered $ for planner/executor.
+
+    **Original PARKED account, preserved for the record (superseded by the LANDED summary above):**
+    4 quorum rounds, real objections every round, none disputing design direction — parked
+    `needs-human-review` per the shared skill's own round-4 rule ("a doc past round 4 is data
+    about this loop's scoping, not about that doc") rather than spending a 5th. Second fresh draw
+    from the docs-8
     backlog this iteration, since docs-11 (item 12) needs no further loop action while D-4 sits
     unanswered (Standing rule 1 — "one backlog item per iteration" was read as one FRESH pick,
     not counting a re-confirmation of an already-parked item). Picked

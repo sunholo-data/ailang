@@ -54,6 +54,58 @@ advances origin/dev without touching the local ref, so the working-tree copies a
 pull/reset the shared main tree (Critical Principle 0 — it may hold a sibling's uncommitted work);
 treat origin as truth, and if you need the code, branch a worktree from `origin/dev`.
 
+**⚠ AND THE RUNNING-SKILL DRIFT CHECK NAMES *ONE* PATH WHILE THREE COPIES EXIST, SO IT GREENS ON A
+FILE THE CONTROLLER NEVER OPENED — AND IT COMPARES ONLY `SKILL.md`, WHICH IS A 560-LINE INDEX OF
+STUBS WHOSE ACTUAL RULES ALL LIVE IN `resources/`** (added 2026-09-07 motoko iteration 39; instance
+1 is V1 iteration 241, which caught the relative form greening on the wrong file and prescribed the
+resolved-symlink form, instance 2 is this iteration, where the *prescribed* form greened on the
+wrong file in the mirror direction). `SKILL.md`'s Repo Profile is emphatic that the second path
+"MUST be the RESOLVED symlink target, never the relative `.claude/skills/...`". That is correct for
+the failure it was written about — a V1 driver running from a pin worktree checked out at
+`origin/dev` **by construction**, so the relative copy is green exactly when the main checkout has
+drifted. It has a mirror hole nobody aimed at, and the two are not alternatives: **which copy is
+authoritative depends on how the controller READS the skill, not on how the driver was launched.**
+A controller reads its rulebook with `cat .claude/skills/…` or the Read tool, and both resolve
+against **CWD** — which is the pin worktree. The symlink meanwhile resolves to a *third* tree
+(on this rig `~/dev/sunholo-data/ailang`, V1's main checkout — note it is not even this mission's
+clone). So the check reads file C, the controller obeys file B, and origin is file A.
+Measured here, on a fire that had already passed the prescribed check: the resolved symlink target
+was byte-identical to `origin/dev` on **all 12** skill files — a clean green — while the pin
+worktree's copy, the one this controller was actually executing, was **68 lines behind origin on
+`gate-3-route.md` and `gate-3b-ci-green.md`**. The pin sat 20 commits back, and the newest of those
+commits (`ead709c31`) was itself a Gate-5 skill edit. It was caught only by running a diff this
+gate does not prescribe.
+**And note WHICH files differed, because it is the second half of the defect:** `SKILL.md` itself
+matched. Since the 2026-08 progressive-disclosure split, `SKILL.md` is an index of `⚠ THE FULL
+RULES FOR THIS GATE ARE NOT IN THIS FILE` stubs and every operative rule lives in `resources/*.md`
+— so a check scoped to `SKILL.md` is **blind by construction** to a stale gate rulebook, and its
+green is loudest precisely when the stubs are stable and the rules behind them are moving.
+**Rules. (a)** Diff the whole skill DIRECTORY, not `SKILL.md` — `git show origin/dev:<f>` against
+each file, or `git diff origin/dev -- .claude/skills/mission-control/`. **(b)** Check EVERY copy
+that could be read: the resolved symlink target AND the CWD-relative one. Assert first whether they
+are the same file (`readlink -f` on both, compare inodes); when they are not, both must match
+origin, and if either does not, **read the delta before proceeding and say so in the report**.
+**(c)** When the CWD copy is the stale one, do not merely note it — READ THE ORIGIN VERSION of the
+affected files for the rest of the iteration (`git show origin/dev:<f>`), because that is the
+rulebook the mission agreed on and the local one is not. **(d)** One command that covers both, and
+it is cheap:
+```bash
+SK=.claude/skills/mission-control
+for base in "$(readlink -f ~/.claude/skills/mission-control)" "$PWD/$SK"; do
+  [ -d "$base" ] || continue
+  for f in "$base"/SKILL.md "$base"/resources/*.md; do
+    rel="$SK/${f#"$base"/}"
+    git show "origin/dev:$rel" 2>/dev/null | cmp -s - "$f" || echo "DRIFT $f"
+  done
+done   # silence = every readable copy matches origin; pair with a known-edited file as the control
+```
+Mission-independent — every mission on this rig is pinned this way and every one reads its rules
+relative to CWD — and the generalisation is the one iteration 241 already earned, turned back on
+the remedy it produced: **naming a path does not answer "which file runs", it only moves the
+question to a different path.** The only complete answer enumerates the copies. The tell: your
+drift check passed, and you have not asked how many files it compared or which of them you have
+actually been reading.
+
 **REPAIRING the divergence, not just routing around it** (added 2026-08-03 iteration 132, after
 THREE iterations each escalated the reconcile as a human ask instead of performing it — iter-128's
 stale *skill*, iter-129's stale *charter*, iter-131's stale *driver*, which defeated an explicit

@@ -1,39 +1,41 @@
-# V1 Mission Dashboard — snapshot 2026-09-07, iteration 347
-**Release**: v0.35.1 · **Goal**: N=12 design docs before v1.0.0 (unmoved this iteration — HARNESS item)
+# Mission Dashboard — V1
 
-## In flight / just landed
-- **IN FLIGHT — PR #1090, rebased, all gates green (2 of 4 milestones)** `m-launchd-notify-subshell-observation` — PR #1090. Human ruling
-  **D-60 option B**. The three driver notification paths are bounded by `_mc_bounded` at
-  `NOTIFY_TIMEOUT` (30s); the seven inherited notify assertions are restored — `test_driver_notify.sh`
-  **20/7 → 38 passed, 0 failed**. Judge `sonnet` **LAND 80/100**; both BLOCKING findings reproduced
-  first-party and fixed in-iteration.
-- **M3/M4 NOT delivered** — executor hit its 30-min cap; partial banked at
-  `~/.ailang/state/mission-v1-iter347-m3-partial/`, queued as `m-launchd-drain-aggregate-budget`.
+_Snapshot, overwritten every iteration. History: `v1-mission.md` (STATUS) + `v1-mission-log.md`._
 
-## Next three picks
-1. `m-launchd-drain-aggregate-budget` — the drain bounds each row, not the whole drain, in the
-   preflight phase whose only backstop is the 6h `HARD_TIMEOUT`; the spool is uncapped.
-3. `m-debugcacheforms-flaky-on-macos-ci` — iteration 346's own macOS flake.
+**Last iteration:** 351 · 2026-09-08 · HARNESS · LANDED · **Goal distance:** N=12 docs before v1.0.0 (±0)
 
-## Loop / routing
-2h interval + overlap guard. Designer = rotation (deepseek ran all 3 passes). Planner pin
-`pi:ollama/kimi-k3:cloud` **probe-timed-out at 120s** → `pi:openrouter/moonshotai/kimi-k3`.
-Executor `pi:ollama/deepseek-v4-flash:0731-cloud`. Evaluator `sonnet`. Generator != judge held.
+## Just landed
+`m-coordinator-test-parallelism` — PR #1111 → `5f95a3814`, 21 checks zero not-green. Three timer seams injected into `internal/coordinator`;
+four timer-bound tests **8.13 s → 0.23 s**, package wall **16 s → 6 s**. No `t.Parallel()` added, no
+production default changed. Judge: round 1 **FAIL** (the sprint had made production retry backoff
+uncancellable — real, reproduced, fixed), round 2 **PASS 97/100**, round 3 PASS on the delta.
+
+## Next picks
+1. `m-fleet-sha-pin-freezes-every-driver-fix` — **blocked on D-61**. Every driver fix this loop lands
+   is inert until the pin moves (now **46** commits stale, was 43).
+2. `m-headroom-blocking-threshold-calibration` / `m-headroom-residual-mutations` — iter-348 residue.
+3. `m-daemon-task-exec-run-untested` — the daemon's task-exec path has NO unit test. Found by
+   SonarCloud's coverage gate; carries the admission that this sprint's FIX 2 production-caller
+   rebase is verified by code reading only, with no test executing it.
+4. `m-ratelimit-window-default-unpinned` · `m-approval-poll-production-defaults-unexercised` — cheap,
+   each with a measured mutation already attached.
+
+## Loop health
+- **Two consecutive slots died mid-flight before this one**: 349 attempt 1 (at Gate 3b, holding a
+  green PR) and 350 (after its designer, holding an r3 doc). Both recovered by the next iteration's
+  Gate-2 traces — nothing lost, but 3 of the last 4 slots inherited rather than picked.
+- Driver pin `AILANG_DRIVER_REF=48c4a6e49` unmoved; `PIN_DRIFT` still reports `0` by construction.
+- Skill drift: resolved-symlink copy == origin on all 12 files; the **pin worktree's** copy drifts on
+  4. Read the rules from the resolved path only.
+- Gate-list gap: the local sweep did not include `golangci-lint unused` or any coverage gate, and CI
+  caught one of each on this PR.
+
+## Routing / cost
+designer NOT spawned (inherited r3 doc) · planner `pi:kimi-k3` ok · executor `pi:deepseek-v4-flash`
+ok ×2 (**second consecutive `ok` — meets the promotion bar; recorded, not acted on unilaterally**) ·
+evaluator `sonnet` ×3 rounds. Metered **$0.00** of $5.
 
 ## Parked on Mark
-**Nothing.** Decision ledger: 60 rows, **ZERO open** (`mission_decisions.sh --check` valid).
-D-55–D-60 were all resolved by attended ruling on 2026-09-07.
-
-## Quota / cost posture
-Metered **$0.80** of $5 — quorum $0.177 (3 rounds), OpenRouter planner $0.620. Designer (3 runs) and
-executor flat-rate ollama-cloud at $0; controller and evaluator on Anthropic subscription.
-
-## Watch
-- **Attended PR #1082 landed a competing fix for the mission's live item mid-iteration** (14:15Z) and
-  also fixed 9 heartbeat arms this iteration had reported as newly exposed. Rebased; the sprint
-  supersedes it. `make test-launchd-drivers` is rc=0 on `dev` and at the sprint head (notify 38/0).
-- Missing PR runs are a CONFLICT until proven otherwise: iter-347 read `checks=1`, diagnosed a
-  dropped event, and was wrong — a `mergeable` reading expires when a sibling merges. Gate 3b
-  sharpened.
-- The narrow-refinement carve-out authorises a 2nd designer revision the Fable diet forbids. $0 here
-  (flat-rate lane); evidence row 1 for a routing-policy fix.
+**D-61 (the only open row)** — may this loop repoint `AILANG_DRIVER_REF` back to `origin/dev` itself
+once a SHA-pinned deployment's fix has merged, or is every pin edit attended-only? Loop recommends
+**(A)**, narrowly. Unanswered ⇒ drift keeps growing and every driver fix stays inert.

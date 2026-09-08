@@ -73,6 +73,42 @@ improvement loop, since retro fixes must benefit all missions). What differs per
 > Prefer saving Gate-5 edits in the MAIN checkout when that tree is clean enough to commit from;
 > when Principle 0 forbids that, land via the worktree AND escalate the reconcile as a human
 > decision — the loop cannot fix its own rulebook by writing only to a tree nobody executes.
+>
+> **⚠ AND THAT `cmp` COVERS `SKILL.md` AND NOTHING ELSE, WHILE ALMOST EVERY OPERATIVE RULE NOW
+> LIVES IN A `resources/*.md` FILE THAT EACH GATE STUB TELLS YOU TO READ BY *RELATIVE* PATH — SO
+> THE STALENESS CHECK GREENS ON THE ONE FILE THAT IS FRESH WHILE YOU READ ELEVEN THAT MAY NOT BE**
+> (added 2026-09-08 V1 iteration 349; instance 1 is iteration 241's `readlink` rule immediately
+> above, which closed exactly this hole for `SKILL.md` — and was written *before* the gates were
+> split out under the progressive-disclosure gate, so the remedy stayed pointed at the file that
+> shrank while the rules moved into files it does not cover). Every gate stub in this file says
+> **"Read `.claude/skills/mission-control/resources/gate-N-….md` NOW … this stub is an index entry,
+> not a summary you may act on."** That path is relative, the loop executes from a pin worktree, and
+> so the file you obediently read is the **pin's** copy — which is exactly the tree the rule above
+> has already established is NOT the tree the skill runs from. The two halves are now inconsistent
+> by construction: `SKILL.md` arrives through the symlink (the main checkout) and its own resources
+> arrive through the CWD (the pin), so a single invocation can execute a *current* rulebook whose
+> *rules* are a different vintage.
+> **Measured first-party this iteration**, and note which way it fails: `SKILL.md` `cmp`s
+> byte-identical to `origin/dev`, so the prescribed check reads **green** — while
+> `resources/gate-3-route.md` is **75,448 B** in the pin against **78,390 B** running and
+> `resources/gate-3b-ci-green.md` **30,155 B** against **33,494 B**. **Ten of the twelve resource
+> files matched**, which is what makes this quiet rather than obvious: a spot check almost anywhere
+> agrees, and the two that differ are the routing and CI-verdict gates — i.e. the two whose rules
+> decide what gets spawned and what counts as LANDED. Under a SHA-pinned `AILANG_DRIVER_REF` (which
+> is how this fleet currently deploys) the gap does not close on its own and grows with every merge.
+> **Rules. (a)** Diff the resource DIRECTORY, not just `SKILL.md`, and do it in the same Gate-1
+> breath — for each `resources/*.md`, `git show origin/dev:.claude/skills/mission-control/resources/<f>`
+> against `"$(readlink -f ~/.claude/skills/mission-control)"/resources/<f>`, and print the per-file
+> verdict rather than an aggregate (an aggregate over twelve files reads green when two differ and
+> ten do not). **(b)** READ every resource file from the **resolved symlink target**, never from the
+> relative path the stubs are written with — the stub's path is prose about where the file lives, not
+> a claim about which copy you are standing next to. **(c)** Where the two disagree, the resolved
+> copy WINS, because it is the one `SKILL.md` itself came from; say in the report which files
+> differed and which vintage you followed. **(d)** Do not "fix" this by editing the pin's copy — the
+> pin is a throwaway worktree, so an edit there reaches nothing and is destroyed on the next
+> re-pin. Mission-independent: every mission on this rig is pinned this way and shares these twelve
+> files. The tell: a gate told you to read a file "NOW", you typed the path exactly as written, and
+> you have not asked which checkout that path resolved against.
 
 - **Driver env** (exported by `tools/launchd/mission-control.sh`): `MISSION_NAME` (default `v1`),
   `MISSION_REPO` (default `sunholo-data/ailang`), `MISSION_DOC` (default `design_docs/v1-mission.md`);

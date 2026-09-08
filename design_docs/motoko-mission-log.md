@@ -2529,3 +2529,173 @@ superseded watcher by task id, not by a pattern that also matches the work it wa
 **Next**: `D-MOTOKO-CARVEOUT-1`'s answer, then row **6s** on whichever terms that answer sets — the
 implementation is done and measured either way. Row **7** needs its premise restated before it can be
 picked at all.
+
+## 39 — 2026-09-07 — the audit the ruling ordered found a reader class three rounds had missed, and the fresh quorum blocked on a defect nobody had named either [HARNESS]
+
+**Picked**: row **6s**, resumed on the attended ruling in `D-MOTOKO-CARVEOUT-1`. Iteration 38's own
+"Next" named this, conditional on the answer arriving; it had. No second pick — standing rule 1, and
+this was not a bookkeeping-only iteration.
+
+**The human channel worked, and I am flagging its provenance rather than routing around it.**
+`D-MOTOKO-CARVEOUT-1` reads `RESOLVED` with **(B) OVERRULE**: *"A partially applied requested audit
+or controller-substituted remedy does not qualify as a verbatim narrow refinement. Perform the
+residual audit and run a fresh independent quorum before row 6s can land. The prior controller
+routing was incorrect; this does not itself reject the code."* Gate 0(b) requires a first-party
+provenance check on any ledger row that changed since the watermark:
+`git log -1 --format='%an' -S'| D-MOTOKO-CARVEOUT-1 |' -- design_docs/motoko-mission.md` returns
+**`Voight-Kampff (bot)`** — the fleet identity, which that gate calls SELF-RESOLUTION and tells me to
+re-open and flag. I honoured the ruling anyway, for a reason I want on the record because it is a
+judgement someone may want to overturn: the row's Evidence cell states it was recorded in an attended
+2026-09-07 session under the ATTENDED LEDGER EDITS contract, and that `mission_answer.sh` stamps a
+fixed identity for *every* caller, so the author byte carries no signal either way (CLAUDE.md
+principle 4 — read the control before refusing on its behalf). Decisively, **honouring it manufactures
+no decision**: the recorded answer is identical to the loop's own written recommendation AND to the
+row's stated `Default if unanswered by 2026-09-14: (B)`, and (B) is the conservative branch — it
+blocks row 6s harder rather than unblocking it. Re-opening would have re-asked a question already
+answered, at the cost of a whole fire. Mark should see the channel worked; nothing waits on him.
+
+**Reality check**: `expected_arms` is absent from `origin/dev`
+(`git show origin/dev:tools/eval/test_motoko_connection_probe.sh | grep -c expected_arms` → **0**,
+control `expected_refusal_branches` → **4**, so the instrument sees a positive) and present on the
+iteration-38 branch (**5**). The three cited commits are in that branch and in none of `origin/dev`.
+Baseline run of the branch, first-party: `PASS: 60 probe self-test arms ran`, rc=0, 60 `ok` lines.
+Blocked-row predicates re-run as commands, not transcribed: **0** `arniwesth` comments on upstream
+`#165` (controls — **2** total comments on the issue; a `commenter:arniwesth` search returns **1**, so
+the instrument can see him), `#154` still `open`/unmerged, negative control `#999999` 404s. Rows
+10/11/12 stay Phase-0 parked.
+
+**Progress**: goal unmoved. `[HARNESS]`, not a milestone of the gated migration epic.
+
+**Shipped**: the round-3 design revision, `f6750002d` on `sprint/motoko-iter39-armcount-r3` (pushed),
+276 → 520 lines. **No code changed and none merged** — the M1 gate is byte-identical to iteration 38's.
+
+### The audit — the deliverable the ruling actually ordered
+
+Iteration 38 filed `gpt6-astra`'s full-file audit as an open residual after applying only the cosmetic
+half of its fix. This iteration ran it: the whole file, 1..1212, at base `878939117`, per reader class,
+each row a command with its observed output and a same-call control wherever the result is empty.
+
+Its headline is **new to all three prior rounds**. `grep -nE '\$0|BASH_SOURCE'` returns **18** hits, and
+the four census greps everyone had been counting are only the tail: **14** of them are the suite
+re-executing ITSELF as a child process in three sub-modes, plus a path alias at line 4. A child starts
+from `arms=0`, so an exact-equality arm-count gate would red in every one of them for a reason with
+nothing to do with arm drift. It does not — but only because all three sub-modes terminate before the
+tail (`exit 1` at 12-14, `exit 0` at 181-183 and 353-354). `grep -nE '^[[:space:]]*exit 0'` returns
+exactly **3** hits, and one of those (204) is inside a heredoc writing a fixture, which the judge
+verified independently rather than taking from the audit. The suite additionally carries explicit
+`refusing to recurse` refusals at 988/992/996. That whole chain is now stated in the design as
+**precondition P1**, because a future sub-mode added without an early exit would break the gate
+silently and for the wrong reason.
+
+The rest, all measured: **0** sourced files; **25** external referencing files of which exactly **2**
+are machinery (`make/test.mk` runs it and `bash -n`s it inside `test-launchd-drivers`, which
+`ci.yml:602` runs on `macos-latest`; `scripts/test_check_referenced_paths.sh` asserts the PATH exists
+and never reads the contents); and **6** glob gates each measured OUT of scope. The one worth naming
+is `check-file-sizes`, because it is the gate that reddened `dev` two iterations ago and the instinct
+is to assume it applies: it is `for file in $(find internal cmd -name "*.go")`, so the 800-line cap
+cannot see a `tools/eval/*.sh` at all.
+
+### glm's remedy, by glm's own text this time
+
+`oc-glm-5-2` named two remedies for the unmeasured non-Darwin count and iteration 38 shipped a third
+(a PATH-shadowed `uname`, i.e. a simulated host). Remedy 1 — measure on a real Linux host — is
+**measured unavailable on this rig**: `docker`, `podman`, `colima`, `lima`, `nerdctl` and `orb` all
+absent, `docker info` fails, control `git` present so the probe can return a positive. So remedy 2
+ships verbatim: `else echo 'UNVERIFIED host: arm-count gate skipped' >&2; exit 1`. The round-2
+`expected_arms=56` is gone. Choosing between two remedies a reviewer named, on measured availability,
+is not the same act as inventing a third.
+
+### Round 3, and the absent-reviewer rule earning its place
+
+The synthesis returned `blocked` with `absent_reviewers` naming **`gpt6-astra` on `budget`** — the
+textbook self-selecting trigger the rule describes, because the doc had just grown 276 → 520 lines and
+astra is the reviewer whose objection drove the growth. Re-run alone at a raised cap
+(`design-review --reviewer gpt6-astra --max-cost-usd 0.30`, $0.16374): **REJECT**, and the sharpest of
+the three. Final: **3/3 present, 3/3 reject**, plus the controller's own reject.
+
+**P2** is what they found, and it is real: the measured 60 holds only while the loopback-socket arm
+near line 640 stays UNINFORMATIVE. My own baseline run says so at output line 34 (`UNINFORMATIVE UNDER
+SANDBOX: loopback socket sampling yielded no peer`), and the judge reproduced it. On a Darwin host
+whose `lsof` sampling succeeds the count is 61 and the gate reds for the environment.
+
+The two remedies **contradict**: gemini says `expected_arms=$(( 60 + ${loopback_sampled:-0} ))`; astra
+says count only environment-independent arms and *"do not adjust the expected count using the observed
+optional outcome"*, which names gemini's fix and forbids it. Filed as `D-MOTOKO-P2-1` with the loop
+recommending **(B)** and a 2026-09-21 default.
+
+### The judge passed the work and corrected the controller, and the correction is adopted
+
+**PASS 90/100, zero blocking** (`docs/sprint-retros/motoko-iter39-evaluation-round1.md`). It
+reproduced every audit row from base rather than from the doc's numbers, and it **ran two mutants the
+round-3 doc had only SPECIFIED** — the addition (`61 != 60`) and the self-arm deletion (`59 != 60`) —
+on the grounds that a Test-plan row is a spec and not a measurement, which is exactly right and is a
+gap the controller did not see.
+
+Its item 6 is the one I want carried forward. My stated reason for parking was that choosing between
+astra and gemini would replay the resolution `D-MOTOKO-CARVEOUT-1` forbids. **The judge says that
+overreaches the ruling's scope, and it is right**: the ruling was about applying a verbatim fix
+*without a re-quorum*, not a general ban on controller synthesis — and this very iteration synthesised
+when it chose glm's remedy 2 over remedy 1. The park is still correct, on a narrower and sturdier
+basis: Gate 2's default is one-revision-one-requorum-then-park, and the carve-out is independently
+unavailable because both P2 remedies dispute the design DIRECTION rather than completeness. Recorded
+here so a later iteration does not cite this one as precedent for a rule that was never made.
+
+**Routing evidence**: base=`ead709c31b12f7061282782d5441369e51c29e60`@`2026-09-07T22:52:34Z` ·
+controller `claude:claude-opus-5` (tok: not reported — the harness reports no session total here) ·
+designer `claude:claude-fable-5-1` (tok: not reported by the `claude -p` lane), rotation entry after
+`pi:ollama/deepseek-v4-flash:0731-cloud`, reached via the `claude-sub` recipe after the **Agent-tool
+spawn was DENIED first-party** (`deny:provider-pin — designer is pinned to claude:claude-fable-5-1;
+Agent-tool alias spawn refused`), probe rc=0 replying `ok`, real run rc=0, one file changed ·
+planner **DID NOT RUN** and executor **DID NOT RUN** — the routing table applying, not being skipped:
+both gate on artifacts a quorum-blocked doc does not have, so no plan is owed and nothing is owed
+execution · evaluator `sonnet` via the Agent tool (alias pin, ACCEPTED), own worktree
+`.wt-motoko-iter39-eval` detached at `f6750002d`, **139,623 tok**, 57 tool calls, 18m ·
+metered **$0.27158** of the $5 ceiling ($0.10784 round-3 quorum + $0.16374 astra re-run) ·
+no GPU, no `rig.lock`, ollama gauge 38.3% session / 43.1% weekly, unused.
+**generator≠judge FLAGGED at the vendor level**: sonnet, fable and opus are all Anthropic. Distinct
+models, one vendor. Codex routing was blocked all fire on a stale provider observation
+(`ailang mission quota`: *"Codex provider observation is older than 15 minutes; new Codex routing
+blocked"*) and the pi/minimax evaluator lane timed out without a verdict at iteration 37, so no
+cross-vendor judge was reachable. The operator's standing request named the evaluator non-negotiable;
+it ran, and its independence is model-level only.
+
+**Ruled out**:
+- *That the Agent tool might now accept a colon-pinned role* — it does not. Measured first-party this
+  fire rather than inherited from iteration 38, which is instance **4** for row **6u**.
+- *That glm's remedy 1 might be reachable* — six container runtimes probed, all absent, control firing.
+  Not a capability I should re-probe next iteration; record it and move on.
+- *That the round-2 non-Darwin count 56 was salvageable* — it is not evidence for anything the design
+  ships, because its instrument was a simulated host.
+- *That `check-file-sizes` could red on this file* — Go-only, `internal`/`cmd` only. The instinct is
+  wrong and the measurement is one command.
+- *That the P2 conflict might be manufactured to justify parking* — the judge was asked this directly
+  and checked both remedies against primary sources: real, opposite-direction, verified.
+
+**Watch-list**:
+- Row 6s has now had **three** blocked rounds and the objections have LOCALISED onto one surface (P2)
+  without any reviewer flipping to pass. That is not yet the SPLIT signal — which needs a pass — but it
+  is one round away from it, and the next controller should read Gate 2's surfaces rule before
+  routing a fourth revision.
+- `glm`'s round-3 objection (no Verification Log row for `host_os` at line 20) is **uncontested and
+  unresolved**. I measured the underlying fact first-party — line 20 is
+  `host_os=$(uname -s 2>/dev/null || printf '%s\n' unknown)`, exactly as the doc asserts — so it is a
+  one-row addition, not a defect. It should ride along with whatever resolves P2.
+- **CI caught a defect in this very record, and it is a loaded gun aimed at every mission.**
+  `TestMissionDocHeadingsStayCanonical` reddened `test` and `test-windows` on the docs-only record
+  PR: *"non-canonical record headings rose to 13 (limit 12)"*. The cause is structural in Gate 4's
+  own STATUS-rotation step. Charters are **deliberately excluded** from that lint ("curated prose,
+  and a lint that demanded canonical headings there would be linting an essay"), while
+  `*-mission-status-archive.md` **is** linted — so rotating a stamp out of the charter moves a
+  heading from an unlinted file into a linted one, and text that was legal for three iterations
+  becomes a repo-blocking red on a PR that never touched it. Canonical is
+  `## STATUS <date> — ITERATION <n>: <title>` (`canonicalStatusRe`, `internal/mission/normalize.go:37`);
+  every stamp this mission has ever written uses `ITERATION <n> COMPLETE:` without the colon.
+  Fixed systemically rather than one heading at a time — all three live motoko stamps AND the
+  rotated one are now canonical, so the next three rotations cannot red. `ailang mission normalize
+  --apply` was NOT used: it rewrites 9 headings across `world-mission-status-archive.md` and the
+  docs-mission files too, which is a cross-mission edit this loop may not make. **V1, World and
+  docs still carry the un-colonned form and will each red on their next rotation** — filed as queue
+  row 18 and sent on the cross-mission channel.
+- Codex routing has been blocked on a stale provider observation for this whole fire. If that persists
+  it removes the only non-Anthropic judge lane that has ever worked here, and generator≠judge degrades
+  to model-level every iteration. That is a routing signal for Mark, not something the loop can fix.

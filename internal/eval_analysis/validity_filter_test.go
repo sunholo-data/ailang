@@ -68,6 +68,34 @@ func TestLoadResultsIncludingInvalid_OptsBackIn(t *testing.T) {
 	}
 }
 
+// TestFilterValidResults_DropsModeIncompatibleSkipRow is the aggregation half
+// of M-EVAL-STANDARD-MODE-INPUT-FILES-GAP: the dispatch-time guard banks a
+// skip row (error_category "skipped_mode_incompatible", Validity invalid with
+// reason "mode_incompatible") whenever a grade_entrypoint benchmark reaches
+// runSingleBenchmark in standard mode. The model was never invoked, so the row
+// is a "we failed to measure the subject" record, not a measurement — it must
+// be dropped by FilterValidResults, and therefore by LoadResults, which is what
+// eval-elo's fitLang, the confidence-gating ratings, and every capability/success-rate
+// statistic load through. The row itself stays on disk (quarantined, never
+// deleted) and CountInvalid keeps it inspectable under exactly the banked reason.
+func TestFilterValidResults_DropsModeIncompatibleSkipRow(t *testing.T) {
+	results := []*BenchmarkResult{
+		{ID: "good", Lang: "ailang", Model: "m", StdoutOk: true},
+		{ID: "markdown_reimplement", Lang: "ailang", Model: "m", ErrorCategory: "skipped_mode_incompatible",
+			Validity: eval_harness.MarkInvalid(eval_harness.ReasonModeIncompatible)},
+	}
+
+	filtered := FilterValidResults(results)
+	if len(filtered) != 1 || filtered[0].ID != "good" {
+		t.Fatalf("FilterValidResults kept %d row(s), want exactly the 1 valid row — mode_incompatible skip rows are not measurements", len(filtered))
+	}
+
+	counts := CountInvalid(results)
+	if counts[eval_harness.ReasonModeIncompatible] != 1 {
+		t.Errorf("CountInvalid[mode_incompatible] = %d, want 1 — the skip row must stay inspectable under the reason the guard banked", counts[eval_harness.ReasonModeIncompatible])
+	}
+}
+
 // TestLoadResults_LegacyRowsSurvive re-asserts the back-compat guarantee at the
 // LOADER level, not just on the struct: a directory of pre-v0.31.0 results must
 // load completely.

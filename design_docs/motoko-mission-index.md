@@ -12,6 +12,7 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 39 | 2026-09-07 | the audit the ruling ordered found a reader class three rounds had missed; round-3 quorum blocked 3/3 on a new environment-dependence, row 6s parked on D-MOTOKO-P2-1 [HARNESS] |
 | 38 | 2026-09-07 | the judge failed the controller, not the code, and it was right — row 16 lands, row 6s is done, measured and parked on how its design was approved |
 | 37 | 2026-09-06 | the remaining suite-bound derivation landed, and two failed judge lanes were not mistaken for verdicts [HARNESS] |
 | 36 | 2026-09-06 | an attended session turned dev red in six checks and left; the fire 37 minutes later inherited it, and found a fifth defect the CI logs could not y... |
