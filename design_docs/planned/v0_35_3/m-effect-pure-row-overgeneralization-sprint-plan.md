@@ -53,11 +53,11 @@ real one. M3 treats the reconstructed `ailang-parse` tree as a **required** acce
 Write every test before touching the fix, so each is observed failing for the right reason.
 
 **Tasks:**
-- [ ] `internal/types/effect_row_defaulting_test.go` — Scheme-level assertions:
+- [x] `internal/types/effect_row_defaulting_test.go` — Scheme-level assertions:
   - recursive `pure` binding ⇒ `RowVars == nil/[]` and a closed effect row (currently RED)
   - declared `! {e}` binding ⇒ `RowVars == ["e"]` preserved (currently GREEN — pins V14)
   - recursive `! {IO}` binding ⇒ closed `{IO}` (currently GREEN — pins V9)
-- [ ] `internal/pipeline/validate_effects_xmod_test.go` — two-module fixtures:
+- [x] `internal/pipeline/validate_effects_xmod_test.go` — two-module fixtures:
   - accept case: `pure` export delegating to a private recursive scan, imported by a `pure`
     function that is reachable from an `! {FS}` function (currently RED — the #1091 shape)
   - reject case: importer calling a genuinely `! {IO}` cross-module function from a `pure`
@@ -79,14 +79,14 @@ the RED test to fail with the *exact* `Missing effects: FS` message before M2 st
 **Estimated**: 4 hours · ~50 LOC
 
 **Tasks:**
-- [ ] Add effect-row defaulting alongside the existing type-class defaulting pass in the LetRec
+- [x] Add effect-row defaulting alongside the existing type-class defaulting pass in the LetRec
       path (`typechecker_functions.go:330-377`) and the corresponding Let/top-level binding path
-- [ ] Resolve the binding's declared effect row; bind unresolved effect-row variables to it when
+- [x] Resolve the binding's declared effect row; bind unresolved effect-row variables to it when
       that declared row is closed
-- [ ] Leave declared row-polymorphic signatures untouched — discriminate on **the declaration**,
+- [x] Leave declared row-polymorphic signatures untouched — discriminate on **the declaration**,
       never on the row variable's name (`ρN` vs `e`); the naming shortcut breaks the first time a
       user names a row `rho` (Design Freeze)
-- [ ] Default only *unresolved variables*, never concrete labels — a genuine effect must still
+- [x] Default only *unresolved variables*, never concrete labels — a genuine effect must still
       reach the effect checker
 
 **Acceptance criteria:**
@@ -105,14 +105,14 @@ being pinned in both directions, and by defaulting variables only.
 **Estimated**: 3 hours · ~6 LOC (CHANGELOG)
 
 **Tasks:**
-- [ ] `make test`, `make lint`, `make verify-examples`
-- [ ] Reconstruct the `ailang-parse` extraction in a scratch copy (`160c7f1` + extract
+- [x] `make test`, `make lint`, `make verify-examples`
+- [x] Reconstruct the `ailang-parse` extraction in a scratch copy (`160c7f1` + extract
       `pkgLastIndexOf`/`pkgDropSpans` and their private scans into `docparse/services/pkg_template`),
       then run `ailang check docparse/services/docx_template.ail` **and**
       `ailang run docparse/main.ail --entry main` — both must pass with no `.ail` edits
-- [ ] Sweep `std/` for any `pure`-declared export still carrying a quantified effect row
-- [ ] Confirm `std/list.mapE` still shows `RowVars=[e]`
-- [ ] CHANGELOG.md entry under v0.35.3
+- [x] Sweep `std/` for any `pure`-declared export still carrying a quantified effect row — **criterion refined during execution**, see note below
+- [x] Confirm `std/list.mapE` still shows `RowVars=[e]`
+- [x] CHANGELOG.md entry under v0.35.3
 
 **Acceptance criteria:**
 - Every design-doc Success Criterion checked
@@ -124,13 +124,13 @@ requiring the pre-fix baseline to fail first.
 
 ## Success Metrics
 
-- [ ] #1091 reproduction passes `check` and `run` with no `.ail` source edits
-- [ ] `std/list.mapE`/`filterE`/`foldlE` keep `RowVars=[e]`
-- [ ] No `pure`-declared export in `std/` carries a quantified effect row
-- [ ] Genuine cross-module effect requirement still rejected (V9)
-- [ ] `make test` green, no existing expected-text changes
-- [ ] `make verify-examples` green
-- [ ] CHANGELOG.md updated
+- [x] #1091 reproduction passes `check` and `run` with no `.ail` source edits
+- [x] `std/list.mapE`/`filterE`/`foldlE` keep `RowVars=[e]`
+- [x] ~~No `pure`-declared export in `std/` carries a quantified effect row~~ → **refined**: none carries an *unshared* quantified outer row (`TestStdlib_NoUnsharedQuantifiedEffectRows`). `std/option.flatMap` and `std/result.flatMap` are declared `pure` and legitimately keep a row shared with their callback
+- [x] Genuine cross-module effect requirement still rejected (V9)
+- [x] `make test` green, no existing expected-text changes
+- [x] `make verify-examples` green
+- [x] CHANGELOG.md updated
 
 ## Example Files
 
@@ -170,3 +170,107 @@ trigger fired (design doc, Quorum Trigger Check).
 ## Commit Convention
 
 Development commits: `refs #1091`. Final sprint commit: `Fixes #1091`.
+
+---
+
+## Execution Notes (2026-09-08)
+
+Recorded because several items landed differently from the plan. Deviations are within the
+latitude the design doc's Deferred Decisions granted, but the plan's own text is now stale in
+places, so the actual shape is written down here rather than left implied by ticked boxes.
+
+### Deviation 1 — test files consolidated, and located in `internal/pipeline`
+
+Planned: `internal/types/effect_row_defaulting_test.go` + `internal/pipeline/validate_effects_xmod_test.go`.
+Actual: one file, `internal/pipeline/effect_pure_row_overgeneralization_test.go` (7 tests).
+
+Reason: a pure `internal/types` unit test of `generalizeWithConstraints` **cannot** observe this
+defect. The declared effect row is not one of that function's inputs — the whole point of the bug
+is that generalization never sees the declaration — so the assertion has to be made after the
+module interface is built, which is the `pipeline` layer. Asserting on `Result.Interface.Exports[...].Type`
+gives the `Scheme` (and therefore `RowVars`) at the level where it actually matters: what an
+importer receives.
+
+### Deviation 2 — the fix is narrower than the design doc described
+
+The design doc said to bind the unresolved variable to the declared row and apply the substitution
+to the **whole** type, arguing that a variable shared with a callback row should close along with
+the outer row. **That reasoning was wrong, and the end-to-end artifact caught it.**
+
+A row variable can be load-bearing with **no** `! {e}` annotation at all: `std/list.flatMap`
+declares no effects, yet its callback and result rows share an inferred row, and that sharing is
+precisely what lets a caller pass an effectful lambda. Closing it made every such combinator
+strictly pure and broke `docparse/services/epub_parser`:
+
+```
+epub_parser.ail:72:25: failed to unify parameter 0: failed to unify effect rows:
+  incompatible closed rows: r1 has extra labels [], r2 has extra labels [FS]
+```
+
+(the line is `flatMap(\entry. epubParseContentFile(filepath, entry), contentFiles)`).
+
+The rule now applies **only when the outer row's variable occurs nowhere else in the type**. The
+#1091 shape is exactly that case — `(string, string) -> int ! {...ρ2}` has no function-typed
+parameter. Pinned by `TestInferredRowPolymorphicCombinator_AcceptsEffectfulCallback`, which was
+verified RED against the over-broad version with that same unification error.
+
+**Consequence for the design doc**: its Solution Design paragraph beginning "The substitution is
+returned rather than applied so the caller can apply it to the WHOLE type" is superseded. The
+`internal/types/effect_row_declared_closure.go` doc comment carries the corrected rationale.
+
+### Deviation 3 — the `std/` sweep criterion was wrong as written
+
+Planned criterion: "No `pure`-declared export in `std/` carries a quantified effect row."
+Measured: `std/option.flatMap` and `std/result.flatMap` are declared `export pure func` and **do**
+carry a quantified outer row — shared with their callback, for the Deviation-2 reason. Four more
+(`option.map`, `option.filter`, `result.map`, `result.mapErr`) carry one on the callback parameter
+only.
+
+`pure` constrains a function's **own** effects; it does not make a combinator opaque to its
+callback's. The criterion is therefore "no **unshared** quantified outer row", encoded as
+`TestStdlib_NoUnsharedQuantifiedEffectRows`.
+
+That sweep is a **forward guard, not a #1091 regression test** — verified to pass with the fix
+disabled, because nothing in `std/` currently pairs a `pure` declaration with a recursive,
+callback-free body. The two tests that genuinely go red without the fix are
+`TestPureExport_RecursiveBody_HasNoQuantifiedEffectRow` and (against the over-broad variant)
+`TestInferredRowPolymorphicCombinator_AcceptsEffectfulCallback`.
+
+### End-to-end artifact — actual output
+
+Reconstruction: `ailang-parse` @ `160c7f1`, compile cache removed, `pkgLastIndexOf`/`pkgDropSpans`
+plus their private scans extracted into `docparse/services/pkg_template`, call sites renamed, one
+import line added. No other `.ail` edits.
+
+| Tree | Binary | `check docx_template.ail` | `run docparse/main.ail --entry main` |
+|---|---|---|---|
+| unpatched | pre-fix | ✓ no errors | compiles; runtime `effect 'IO' requires capability` (expected without `--caps`) |
+| unpatched | **fixed** | ✓ no errors | compiles; same expected capability error — **no regression** |
+| patched | pre-fix | ✗ `Missing effects: FS` | ✗ same, before reaching runtime |
+| patched | **fixed** | **✓ no errors** | **compiles**; same expected capability error |
+
+The bottom row is the acceptance criterion: the extraction that #1091 blocked now compiles and
+runs. The capability error is the program asking for `--caps IO,FS`, not a compile failure.
+
+One false alarm worth recording: an early run showed a `type unification failed` error in
+`epub_parser` on the *patched* tree with **both** binaries. That was a **stale compile cache** in a
+scratch copy that had been warmed before the patch — not a code defect. All results above were
+re-measured on trees with `docparse/.ailang/` removed. Controls are in the table: adding the
+module alone (importing only the non-triggering `pkgDropSpans`) compiles clean pre- and post-fix.
+
+### Gates
+
+`make test` (exit 0), `make lint` (0 issues), `make fmt-check`, `make check-boundaries`,
+`make check-file-sizes`, `make verify-examples` — all green.
+
+Baseline note: the *first* `make test` of the session failed in `internal/smt`
+(`TestSolve_HardTimeout_FakeSolverIgnoringT`), a pre-existing startup-race flake that
+self-documents as `ailang#602`. It passes standalone and passed in both subsequent full runs.
+Unrelated to this change (different package, no effect-system surface).
+
+### Windows-safety scan (rule #10)
+
+The new test file: no path assertions (it compares `RowVars` and error presence, never rendered
+paths); no external binaries (no z3); no golden files. `findStdDir` uses `filepath.Join`/`Dir` and
+`filepath.Walk`, and `strings.HasSuffix(p, ".ail")` is separator-independent. `t.TempDir()` handles
+its own cleanup. No Windows-specific risk identified.

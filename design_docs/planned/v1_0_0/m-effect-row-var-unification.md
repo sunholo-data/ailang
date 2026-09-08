@@ -719,9 +719,39 @@ identically. This design changes *semantic* positions only.
 | Lambda sub-pass (`validate_effects.go:162`) | Enforces only CLOSED declared lambda rows (`declared.Tail == nil`) — open rows deliberately skipped (#386) | Unchanged. Note: after this fix `required` reaching :164 can newly contain resolved labels where it silently carried/dropped tails before; the closed-row gate’s semantics are unaffected, but the M3 test matrix must include an inline-lambda arm | V20 |
 | Ghost-effect erasure (`eraseGhostEffects`, runs on `required` before subsumption) | Label-based removal (`Debug`) | Operates on labels only; tails pass through it untouched — no interaction, but pin with one test (mixed `{Debug, e}` callee) | code read, `validate_effects.go:31-40` |
 | Effect budgets/params on rows (`Budgets`/`Params`, mode subsumption) | `DiffEffectRows` param logic; `unionRequiredEffectRows` conflict-preserving param merge | Untouched by tail logic (params key off labels). Budgets on a row-var tail are meaningless today and remain out of scope | V22 code read |
-| Cross-module callees (`VarGlobal` → typeInfo path) | Already correct (V14/V15) | Unchanged — the new resolution applies only when the declared-map path is taken (`*core.Var` hit) | V14/V15 as pinned ACs |
+| Cross-module callees (`VarGlobal` → typeInfo path) | ~~Already correct (V14/V15)~~ — **see correction below, this premise was too broad** | Unchanged — the new resolution applies only when the declared-map path is taken (`*core.Var` hit) | V14/V15 as pinned ACs, **re-scoped** |
 | `iface` freezing / formatter / elaboration (`internal/iface/builder.go` 25 RowVar mentions, `internal/format/types.go` 8, `internal/elaborate/file_funcs.go` 2) | Serialize/print/carry row-var signatures | Read-only consumers of the same `Row` struct; no struct field is changed (the new field is on `EffectRowDiff`, a validation-only type) | `grep -rn RowVar internal/ --include="*.go" \| grep -v _test` file census |
 | Runtime capability checks | Label/capability-based, no row vars (`internal/effects/` absent from the RowVar census) | Unchanged; remains the backstop measured in V11 | same census |
+
+### CORRECTION (2026-09-08, from [#1091](https://github.com/sunholo-data/ailang/issues/1091) / M-EFFECT-PURE-ROW-OVERGENERALIZATION)
+
+**This doc is parked. Before unparking it, re-scope the V14/V15 pinned ACs — the premise they
+support is narrower than stated.**
+
+This doc's Problem Statement says the shipped stdlib row-variable signatures "survive today only
+because cross-module calls take a different, **correct** code path (V14–V15)", and the Conflict
+Surface row above pins that path as "already correct". Both are true only for **declared**
+row-polymorphic callees, which is all V14/V15 measured (`std/list.mapE`, arms h/i). They are
+**false** for a callee whose row was *inferred* rather than declared:
+
+- A `pure func` whose body calls a recursive function exported
+  `(string, string) -> int ! {...ρ2}` with `RowVars=[ρ2]` — an effect-polymorphic row on a
+  declaration that promised the closed empty row.
+- Importing it produced `Callee type effects (from CoreTypeInfo): [FS]` on a call path where no
+  `FS` exists, i.e. the `VarGlobal` → typeInfo path yielded a wrong answer.
+
+So the accurate statement is: **the cross-module path is correct for declared row-polymorphic
+callees, and was wrong for over-generalized ones.** The over-generalization itself is fixed at
+source (v0.35.3): declared-closed rows are now closed before generalization, so the specific wrong
+input is gone. The re-scoping still matters, because "already correct" was being carried as a
+justification for leaving the `VarGlobal` path untouched — a justification that rested on a class
+of callee this doc never measured.
+
+Note also that a row variable can be load-bearing **without** any `! {e}` annotation: several
+stdlib combinators (`std/option.map`/`filter`/`flatMap`, `std/result.map`/`mapErr`/`flatMap`,
+`std/list.flatMap`) declare no effects yet share an inferred row between callback and result, which
+is what makes them effect-transparent. Any future work here must treat "declared `! {e}`" and
+"effect-polymorphic" as different sets.
 
 ### Disambiguation strategy
 
