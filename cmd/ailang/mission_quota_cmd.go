@@ -56,6 +56,14 @@ func missionQuotaWithPaths(args []string, paths mission.Paths, now time.Time) er
 		anthropic = &observation
 	}
 
+	// The fourth provider, and the one that had NO row in this report at all — not
+	// "unrationed and loud", simply absent, while pi:openrouter/* sat in every role chain.
+	var openrouter *mission.OpenRouterQuotaObservation
+	if *bucket == "" || *bucket == "openrouter" {
+		observation := mission.ObserveOpenRouterQuota(os.Getenv("OPENROUTER_API_KEY"), now)
+		openrouter = &observation
+	}
+
 	if *consolidate {
 		ran, err := mission.Consolidate(paths, now)
 		if err != nil {
@@ -70,7 +78,7 @@ func missionQuotaWithPaths(args []string, paths mission.Paths, now time.Time) er
 
 	ledger, err := mission.LoadLedger(paths, now)
 	if err != nil {
-		if *over && emitProviderQuotaBlocks(codex, ollama, anthropic) {
+		if *over && emitProviderQuotaBlocks(codex, ollama, anthropic, openrouter) {
 			fmt.Fprintf(os.Stderr, "quota: token ledger unavailable: %v\n", err)
 			return nil
 		}
@@ -119,7 +127,7 @@ func missionQuotaWithPaths(args []string, paths mission.Paths, now time.Time) er
 				printed[v.Bucket] = true
 			}
 		}
-		emitProviderQuotaBlocks(codex, ollama, anthropic)
+		emitProviderQuotaBlocks(codex, ollama, anthropic, openrouter)
 		return nil
 	}
 
@@ -133,12 +141,13 @@ func missionQuotaWithPaths(args []string, paths mission.Paths, now time.Time) er
 	if *asJSON {
 		out := struct {
 			*mission.Ledger
-			At        time.Time                          `json:"at"`
-			Verdicts  []mission.RationVerdict            `json:"verdicts"`
-			Codex     *mission.CodexQuotaObservation     `json:"codex_provider_usage,omitempty"`
-			Ollama    *mission.OllamaQuotaObservation    `json:"ollama_provider_usage,omitempty"`
-			Anthropic *mission.AnthropicQuotaObservation `json:"anthropic_provider_usage,omitempty"`
-		}{Ledger: ledger, At: now, Verdicts: filteredVerdicts, Codex: codex, Ollama: ollama, Anthropic: anthropic}
+			At         time.Time                           `json:"at"`
+			Verdicts   []mission.RationVerdict             `json:"verdicts"`
+			Codex      *mission.CodexQuotaObservation      `json:"codex_provider_usage,omitempty"`
+			Ollama     *mission.OllamaQuotaObservation     `json:"ollama_provider_usage,omitempty"`
+			Anthropic  *mission.AnthropicQuotaObservation  `json:"anthropic_provider_usage,omitempty"`
+			OpenRouter *mission.OpenRouterQuotaObservation `json:"openrouter_provider_usage,omitempty"`
+		}{Ledger: ledger, At: now, Verdicts: filteredVerdicts, Codex: codex, Ollama: ollama, Anthropic: anthropic, OpenRouter: openrouter}
 		body, err := json.MarshalIndent(out, "", "  ")
 		if err != nil {
 			return err
@@ -178,6 +187,9 @@ func missionQuotaWithPaths(args []string, paths mission.Paths, now time.Time) er
 				w.WindowMinutes, w.UsedPercent, w.AllowancePercent, w.ResetsAt.Format(time.RFC3339))
 		}
 	}
+	if openrouter != nil {
+		fmt.Printf("openrouter provider usage: %s — %s\n", openrouter.State, openrouter.Reason)
+	}
 	for _, u := range ledger.Usage {
 		if u.Bucket == "codex" || u.Bucket == "ollama" {
 			continue
@@ -198,7 +210,7 @@ func missionQuotaWithPaths(args []string, paths mission.Paths, now time.Time) er
 }
 
 // Preserve provider admission independently of the optional token journal.
-func emitProviderQuotaBlocks(codex *mission.CodexQuotaObservation, ollama *mission.OllamaQuotaObservation, anthropic *mission.AnthropicQuotaObservation) bool {
+func emitProviderQuotaBlocks(codex *mission.CodexQuotaObservation, ollama *mission.OllamaQuotaObservation, anthropic *mission.AnthropicQuotaObservation, openrouter *mission.OpenRouterQuotaObservation) bool {
 	blocked := false
 	if codex != nil && codex.Blocked() {
 		fmt.Println("codex")
@@ -220,6 +232,15 @@ func emitProviderQuotaBlocks(codex *mission.CodexQuotaObservation, ollama *missi
 		}
 		if anthropic.State != "ok" {
 			fmt.Fprintf(os.Stderr, "quota: anthropic %s: %s\n", anthropic.State, anthropic.Reason)
+		}
+	}
+	if openrouter != nil {
+		if openrouter.Blocked() {
+			fmt.Println("openrouter")
+			blocked = true
+		}
+		if openrouter.State != "ok" {
+			fmt.Fprintf(os.Stderr, "quota: openrouter %s: %s\n", openrouter.State, openrouter.Reason)
 		}
 	}
 	return blocked
