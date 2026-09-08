@@ -1,0 +1,70 @@
+{
+  "sprint_id": "M-MISSION-ITERATION-RELIABILITY",
+  "status": "in_progress",
+  "created": "2026-09-08",
+  "design_doc": "design_docs/planned/m-mission-iteration-reliability.md",
+  "sprint_plan": "design_docs/planned/m-mission-iteration-reliability-sprint-plan.md",
+  "velocity": {
+    "estimated_total_loc": 1850,
+    "estimated_days": 4,
+    "target_loc_per_day": 500
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Focused packet and observed progress",
+      "dependencies": [],
+      "estimated_loc": 550,
+      "acceptance_criteria": [
+        "Meet M1 criteria in approved sprint plan",
+        "Boundary tests and required checks pass"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null
+    },
+    {
+      "id": "M2",
+      "description": "Evaluator-only preparation and recovery CLI",
+      "dependencies": [],
+      "estimated_loc": 550,
+      "acceptance_criteria": [
+        "Meet M2 criteria in approved sprint plan",
+        "Boundary tests and required checks pass"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null
+    },
+    {
+      "id": "M3",
+      "description": "Recoverable owned activation",
+      "dependencies": [],
+      "estimated_loc": 700,
+      "acceptance_criteria": [
+        "Meet M3 criteria in approved sprint plan",
+        "Boundary tests and required checks pass"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null
+    },
+    {
+      "id": "M4",
+      "description": "Integration, review and live adoption",
+      "dependencies": [
+        "M1",
+        "M2",
+        "M3"
+      ],
+      "estimated_loc": 50,
+      "acceptance_criteria": [
+        "Meet M4 criteria in approved sprint plan",
+        "Boundary tests and required checks pass"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null
+    }
+  ]
+}

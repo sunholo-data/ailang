@@ -1,6 +1,6 @@
 # M-MISSION-ITERATION-RELIABILITY
 
-**Status:** Proposed implementation contract, following Mark's 2026-09-08 instruction to continue the reliability work.
+**Status:** Approved by Mark, attended 2026-09-08: “yep please continue” in response to design approval and plan/execute request.
 **Priority:** P0 before unattended adoption. **Release:** unassigned.
 **Dependency:** M-MISSION-ITERATION, including registry repair ad1bf98d3.
 **Estimate:** three bounded implementation milestones plus live validation; detailed sizing at sprint planning.
