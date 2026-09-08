@@ -1236,7 +1236,27 @@ export MISSION_EVALUATOR_MODEL="${MISSION_EVALUATOR_MODEL:-sonnet}"
 # .agents/skills/, which is where AGENTS.md says skills live. Fixing that discovery is the
 # follow-on that would make a pi evaluator viable again; until then this chain is the honest
 # routing. ROLLBACK: restore the pi/codex rungs here.
-export MISSION_EVALUATOR_FALLBACK="${MISSION_EVALUATOR_FALLBACK:-claude:claude-sonnet-4-6,claude:claude-haiku-4-5,opus}"
+# PI IS BACK, AHEAD OF THE CLAUDE TAIL (2026-09-08, measured after the workspace-trust fix).
+#
+# This chain was briefly claude-only because pi could not load the sprint-evaluator skill, so
+# every non-claude rung handed the judge the NAME of a methodology and none of its content.
+# That is fixed: measured in a FRESH WORKTREE under an untrusted path — the exact shape a
+# mission stage runs in — pi answered "sprint-evaluator is available in my skills list.
+# Scoring threshold: 70 points out of 100 to pass" without reading a file.
+#
+# Cross-vendor pi goes FIRST because it is the better judge: minimax is a different vendor from
+# every author lane (claude/codex/deepseek), so generator != judge holds at vendor level again
+# and D-62's same-vendor concession is not needed. The claude rungs stay as the TAIL because
+# pi's skill loading depends on a MACHINE PRECONDITION this chain cannot verify —
+# workspace-trust.ts must be installed globally in ~/.pi/agent/extensions/. Where that
+# precondition is unmet (a fresh rig, a container that clones but installs nothing), pi loads
+# no skills and the claude tail is the lane that still works.
+#
+# DEPLOYMENT TRAP, measured: install workspace-trust.ts ALONE. `ailang pi install` copies all
+# 14 extensions globally, where they collide with the repo's own .pi/extensions/ — fatally, not
+# as warnings. Same model outside a checkout: 0 errors, replies ok. Inside: 5 errors, no output
+# at all, including workspace-trust.ts itself failing to load.
+export MISSION_EVALUATOR_FALLBACK="${MISSION_EVALUATOR_FALLBACK:-pi:openrouter/minimax/minimax-m3,claude:claude-sonnet-4-6,opus}"
 
 # Codex-lane pre-flight, ROLE-GENERIC (m-planner-codex-lane): probe once per DISTINCT
 # codex model, fall back per-role on ANY non-zero rc (#486: probe MUST carry --model;
