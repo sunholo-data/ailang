@@ -26,7 +26,7 @@ func missionQuotaWithPaths(args []string, paths mission.Paths, now time.Time) er
 	asJSON := fs.Bool("json", false, "Emit the ledger as JSON")
 	bucket := fs.String("bucket", "", "Report only this bucket (codex, anthropic, openrouter, ollama)")
 	consolidate := fs.Bool("consolidate", false, "Compact the journal into the ledger cache before reporting")
-	over := fs.Bool("over", false, "Print buckets unavailable for quota routing, one per line. Codex uses local provider percentages. Ollama uses its OLLAMA_API_KEY usage gauge (95% cutoff), plus a trailing-24h rate ration because the gauge carries no reset. Anthropic uses /api/oauth/usage percentages and resets, and is REPORT ONLY unless AILANG_ANTHROPIC_RATION=1. These block unknown quota; other buckets require proven ledger exceedance.")
+	over := fs.Bool("over", false, "Print buckets unavailable for quota routing, one per line. Codex uses local provider percentages. Ollama uses its OLLAMA_API_KEY usage gauge (95% cutoff), plus a trailing-24h rate ration because the gauge carries no reset. Anthropic uses /api/oauth/usage percentages and resets; AILANG_ANTHROPIC_RATION=0 opts one process out. These block unknown quota; other buckets require proven ledger exceedance.")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -48,9 +48,8 @@ func missionQuotaWithPaths(args []string, paths mission.Paths, now time.Time) er
 	}
 
 	// Anthropic reports its own utilisation and reset, so it is paced by the same rule as
-	// Codex rather than by an inferred token capacity. Enforcement is opt-in — see
-	// mission.AnthropicRationEnabled; the controller lives on this bucket and has no rung
-	// behind it, so gating it is a ruling, not a default.
+	// Codex rather than by an inferred token capacity. Rationed by default; an over-ration
+	// controller walks CONTROLLER_FALLBACK to a cheaper rung rather than wedging.
 	var anthropic *mission.AnthropicQuotaObservation
 	if *bucket == "" || *bucket == "anthropic" {
 		observation := mission.ObserveAnthropicQuota(now)
@@ -211,9 +210,9 @@ func emitProviderQuotaBlocks(codex *mission.CodexQuotaObservation, ollama *missi
 		fmt.Fprintf(os.Stderr, "quota: ollama %s: %s\n", ollama.State, ollama.Reason)
 		blocked = true
 	}
-	// Anthropic.Blocked() is false whenever enforcement is off, so an over-ration
-	// observation is reported on stderr and NOT emitted as a blocked bucket. Routing
-	// therefore keeps its controller until the ration is deliberately switched on.
+	// Blocked() honours the AILANG_ANTHROPIC_RATION=0 escape hatch: under it an over-ration
+	// observation is still REPORTED on stderr but not emitted as a blocked bucket, so the
+	// number never reads as ok just because nothing is acting on it.
 	if anthropic != nil {
 		if anthropic.Blocked() {
 			fmt.Println("anthropic")
