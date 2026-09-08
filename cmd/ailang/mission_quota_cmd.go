@@ -26,7 +26,7 @@ func missionQuotaWithPaths(args []string, paths mission.Paths, now time.Time) er
 	asJSON := fs.Bool("json", false, "Emit the ledger as JSON")
 	bucket := fs.String("bucket", "", "Report only this bucket (codex, anthropic, openrouter, ollama)")
 	consolidate := fs.Bool("consolidate", false, "Compact the journal into the ledger cache before reporting")
-	over := fs.Bool("over", false, "Print buckets unavailable for quota routing, one per line. Codex uses local provider percentages. Ollama uses its OLLAMA_API_KEY usage gauge (95% cutoff), with optional verified pacing metadata. Both block unknown quota; other buckets require proven ledger exceedance.")
+	over := fs.Bool("over", false, "Print buckets unavailable for quota routing, one per line. Codex uses local provider percentages. Ollama uses its OLLAMA_API_KEY usage gauge (95% cutoff), plus a trailing-24h rate ration because the gauge carries no reset. Anthropic uses /api/oauth/usage percentages and resets, and is REPORT ONLY unless AILANG_ANTHROPIC_RATION=1. These block unknown quota; other buckets require proven ledger exceedance.")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -47,6 +47,16 @@ func missionQuotaWithPaths(args []string, paths mission.Paths, now time.Time) er
 		ollama = &observation
 	}
 
+	// Anthropic reports its own utilisation and reset, so it is paced by the same rule as
+	// Codex rather than by an inferred token capacity. Enforcement is opt-in — see
+	// mission.AnthropicRationEnabled; the controller lives on this bucket and has no rung
+	// behind it, so gating it is a ruling, not a default.
+	var anthropic *mission.AnthropicQuotaObservation
+	if *bucket == "" || *bucket == "anthropic" {
+		observation := mission.ObserveAnthropicQuota(now)
+		anthropic = &observation
+	}
+
 	if *consolidate {
 		ran, err := mission.Consolidate(paths, now)
 		if err != nil {
@@ -61,7 +71,7 @@ func missionQuotaWithPaths(args []string, paths mission.Paths, now time.Time) er
 
 	ledger, err := mission.LoadLedger(paths, now)
 	if err != nil {
-		if *over && emitProviderQuotaBlocks(codex, ollama) {
+		if *over && emitProviderQuotaBlocks(codex, ollama, anthropic) {
 			fmt.Fprintf(os.Stderr, "quota: token ledger unavailable: %v\n", err)
 			return nil
 		}
@@ -110,7 +120,7 @@ func missionQuotaWithPaths(args []string, paths mission.Paths, now time.Time) er
 				printed[v.Bucket] = true
 			}
 		}
-		emitProviderQuotaBlocks(codex, ollama)
+		emitProviderQuotaBlocks(codex, ollama, anthropic)
 		return nil
 	}
 
@@ -124,11 +134,12 @@ func missionQuotaWithPaths(args []string, paths mission.Paths, now time.Time) er
 	if *asJSON {
 		out := struct {
 			*mission.Ledger
-			At       time.Time                       `json:"at"`
-			Verdicts []mission.RationVerdict         `json:"verdicts"`
-			Codex    *mission.CodexQuotaObservation  `json:"codex_provider_usage,omitempty"`
-			Ollama   *mission.OllamaQuotaObservation `json:"ollama_provider_usage,omitempty"`
-		}{Ledger: ledger, At: now, Verdicts: filteredVerdicts, Codex: codex, Ollama: ollama}
+			At        time.Time                          `json:"at"`
+			Verdicts  []mission.RationVerdict            `json:"verdicts"`
+			Codex     *mission.CodexQuotaObservation     `json:"codex_provider_usage,omitempty"`
+			Ollama    *mission.OllamaQuotaObservation    `json:"ollama_provider_usage,omitempty"`
+			Anthropic *mission.AnthropicQuotaObservation `json:"anthropic_provider_usage,omitempty"`
+		}{Ledger: ledger, At: now, Verdicts: filteredVerdicts, Codex: codex, Ollama: ollama, Anthropic: anthropic}
 		body, err := json.MarshalIndent(out, "", "  ")
 		if err != nil {
 			return err
@@ -157,11 +168,26 @@ func missionQuotaWithPaths(args []string, paths mission.Paths, now time.Time) er
 			fmt.Printf("  fractional gauge: session %.1f%%; weekly %.1f%%\n", 100**ollama.SessionUsage, 100**ollama.WeeklyUsage)
 		}
 	}
+	if anthropic != nil {
+		mode := "REPORT ONLY"
+		if anthropic.Enforced {
+			mode = "ENFORCED"
+		}
+		fmt.Printf("anthropic provider usage: %s [%s] — %s\n", anthropic.State, mode, anthropic.Reason)
+		for _, w := range anthropic.Windows {
+			fmt.Printf("  %dm: %.1f%% used / %.1f%% allowed; resets %s\n",
+				w.WindowMinutes, w.UsedPercent, w.AllowancePercent, w.ResetsAt.Format(time.RFC3339))
+		}
+	}
 	for _, u := range ledger.Usage {
 		if u.Bucket == "codex" || u.Bucket == "ollama" {
 			continue
 		} // Provider percentages govern Codex admission.
-		if u.Capacity <= 0 {
+		// Anthropic is paced by provider percentages once /api/oauth/usage answers, so the
+		// token capacity stays 0 by design. Warning "UNRATIONED" there would now contradict
+		// the anthropic line printed above; warn only when no provider window was obtained.
+		pacedByProvider := u.Bucket == "anthropic" && anthropic != nil && len(anthropic.Windows) > 0
+		if u.Capacity <= 0 && !pacedByProvider {
 			// LOUD, per D-2: an unrationed bucket is a bucket nothing is pacing.
 			fmt.Fprintf(os.Stderr, "quota: %s/%s has no known capacity — UNRATIONED until a provider probe supplies one\n", u.Bucket, u.Window)
 		}
@@ -173,7 +199,7 @@ func missionQuotaWithPaths(args []string, paths mission.Paths, now time.Time) er
 }
 
 // Preserve provider admission independently of the optional token journal.
-func emitProviderQuotaBlocks(codex *mission.CodexQuotaObservation, ollama *mission.OllamaQuotaObservation) bool {
+func emitProviderQuotaBlocks(codex *mission.CodexQuotaObservation, ollama *mission.OllamaQuotaObservation, anthropic *mission.AnthropicQuotaObservation) bool {
 	blocked := false
 	if codex != nil && codex.Blocked() {
 		fmt.Println("codex")
@@ -184,6 +210,18 @@ func emitProviderQuotaBlocks(codex *mission.CodexQuotaObservation, ollama *missi
 		fmt.Println("ollama")
 		fmt.Fprintf(os.Stderr, "quota: ollama %s: %s\n", ollama.State, ollama.Reason)
 		blocked = true
+	}
+	// Anthropic.Blocked() is false whenever enforcement is off, so an over-ration
+	// observation is reported on stderr and NOT emitted as a blocked bucket. Routing
+	// therefore keeps its controller until the ration is deliberately switched on.
+	if anthropic != nil {
+		if anthropic.Blocked() {
+			fmt.Println("anthropic")
+			blocked = true
+		}
+		if anthropic.State != "ok" {
+			fmt.Fprintf(os.Stderr, "quota: anthropic %s: %s\n", anthropic.State, anthropic.Reason)
+		}
 	}
 	return blocked
 }
