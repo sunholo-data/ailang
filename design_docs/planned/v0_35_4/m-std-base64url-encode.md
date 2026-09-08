@@ -1,7 +1,7 @@
 # M-STD-BASE64URL-ENCODE: close the base64url encode/decode asymmetry in std/bytes
 
-**Status**: Planned
-**Target**: v0.35.2 (small additive stdlib change)
+**Status**: Implemented on `dev`, unreleased (ships in v0.35.4) — see Delivery Notes
+**Target**: v0.35.4 (small additive stdlib change)
 **Priority**: P1 — Medium-High. Blocks a named downstream deliverable (`sunholo/gmail`), and the
 workaround's failure mode is silent-wrong-output rather than a compile error.
 **Estimated**: ~2.5–3.5 hours
@@ -203,7 +203,7 @@ substitution.
 1. **`_bytes_to_base64url` builtin** — `internal/builtins/bytes.go`, registered via
    `RegisterEffectBuiltin` with `IsPure: true, Effect: ""`, type `bytes -> string`, implementation
    `base64.RawURLEncoding.EncodeToString(bytesVal.Value)`. Placed immediately after
-   `registerBytesFromBase64URL` so the pair reads together. `Since: "v0.35.2"`,
+   `registerBytesFromBase64URL` so the pair reads together. `Since: "v0.35.4"`,
    `SeeAlso: ["_bytes_from_base64url", "_bytes_to_base64"]`, and — importantly — the existing
    `registerBytesFromBase64URL` metadata's `SeeAlso` gains `_bytes_to_base64url` so the pointer
    works in both directions.
@@ -304,16 +304,46 @@ for every byte sequence b:
 
 ## Success Criteria
 
-- [ ] `toBase64URL(b: bytes) -> string` exported from `std/bytes`, and visible in `ailang docs std/bytes`
-- [ ] `toBase64URL(fromString("a+b/c?")) == "YStiL2M_"` (acceptance test: `ailang run examples/runnable/bytes_base64url.ail`)
-- [ ] Round-trip test over all 256 byte values and all three length-mod-3 residues passes (`TestBytesBase64URLRoundTrip`)
-- [ ] Alphabet test: encoder output contains no `+`, `/` or `=` for 1000 pseudorandom inputs (`TestBytesBase64URLAlphabet`)
-- [ ] `.stdlib-golden/bytes.{json,sha256}` regenerated; `make verify-stdlib` green
-- [ ] `make test` and `make verify-examples` green
-- [ ] `examples/runnable/bytes_base64url.ail` added and runs clean
-- [ ] Teaching prompt `v0.16.7` registered; `v0.16.6` still served byte-identically
-- [ ] Changelog entry in `changelogs/v0.32-current.md`
+- [x] `toBase64URL(b: bytes) -> string` exported from `std/bytes`, and visible in `ailang docs std/bytes`
+- [x] `toBase64URL(fromString("a+b/c?")) == "YStiL2M_"` (acceptance test: `ailang run examples/runnable/bytes_base64url.ail`)
+- [x] Round-trip test over all 256 byte values and all three length-mod-3 residues passes (`TestBytesBase64URLRoundTrip`)
+- [x] Alphabet test: encoder output contains no `+`, `/` or `=` for 1000 pseudorandom inputs (`TestBytesBase64URLAlphabet`)
+- [x] `.stdlib-golden/bytes.{json,sha256}` regenerated; `make verify-stdlib` green
+- [x] `make test` and `make verify-examples` green
+- [x] `examples/runnable/bytes_base64url.ail` added and runs clean
+- [x] Teaching prompt `v0.16.7` registered; `v0.16.6` still served byte-identically
+- [x] Changelog entry in `changelogs/v0.32-current.md`
 - [ ] `fb_dfb699d91224be9c` answered and acked
+
+## Delivery Notes
+
+Implemented 2026-09-08 in one session, as estimated. Four things the doc did not anticipate,
+all mechanical, all found by a gate rather than by review:
+
+1. **`tools/freeze-stdlib.sh` resolves `./bin/ailang` before `$PATH`.** `make quick-install`
+   alone is not enough — the script regenerated `bytes.json` with a stale v0.34 binary and
+   *emptied* the golden rather than failing loudly about the unknown builtin. `make build`
+   first, then freeze. (V9 named the script but not which binary it picks.)
+2. **`examples/manifest.json` carries a `statistics` block** that `verify-examples` validates
+   against the entry count. Adding an example means updating `total`, `working` and `coverage`,
+   not just appending the entry. Undocumented in the doc's Phase 2.
+3. **`internal/pipeline/testdata/builtin_types.golden` is a second golden** covering every
+   builtin signature — a new builtin fails `TestBuiltinTypes_GoldenSnapshot` until
+   `UPDATE_GOLDEN=1 go test ./internal/pipeline -run TestBuiltinTypes_GoldenSnapshot` is run.
+   The doc only knew about the stdlib-interface golden.
+4. **`cmd/ailang/prompts/` is a mirror, not the source.** The source of truth is the repo-root
+   `prompts/`; a build step re-syncs the mirror and silently deleted a new prompt file written
+   only into `cmd/`. Edits go in `prompts/`, then get copied across; `ailang prompt freeze
+   --check` validates the mirror (60 entries, clean).
+
+Verified after the change: `ailang prompt` (active v0.16.7) mentions `toBase64URL` 4 times and
+`ailang prompt --version v0.16.6` mentions it 0 times — the pinned-baseline guarantee holds.
+The reporter's exact repro returns `YStiL2M_`.
+
+Merged 194 upstream commits mid-sprint; v0.35.2 and v0.35.3 shipped while this was in flight,
+so the target moved from v0.35.2 to v0.35.4 and the changelog entry moved to a fresh
+`[Unreleased]`.
+
 
 ## Testing Strategy
 

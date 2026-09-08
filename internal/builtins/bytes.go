@@ -350,7 +350,7 @@ func registerBytesToBase64URL() {
 				{Code: `_bytes_to_base64url(_bytes_from_string("a+b/c?"))`, Description: `Returns "YStiL2M_" (standard base64 would be "YStiL2M/")`},
 			},
 			SeeAlso:   []string{"_bytes_from_base64url", "_bytes_to_base64"},
-			Since:     "v0.35.2",
+			Since:     "v0.35.4",
 			Stability: StabilityStable,
 			Tags:      []string{"bytes", "base64url", "jwt", "gmail", "encoding", "serialization"},
 			Category:  "bytes",

@@ -1010,13 +1010,24 @@
       "created": "2026-08-12",
       "tags": [
         "production",
-        "latest",
         "strict-evaluation"
       ],
       "notes": "Teaches that take(n, flatMap(f, xs)) materialises all outputs under strict evaluation and should be rewritten as takeFlatMap(n, f, xs), while stating the remaining source-list and single-f(x) bounds. Also teaches takeMap for take-after-map when f allocates. v0.16.5 remains served byte-identical for pinned eval baselines."
+    },
+    "v0.16.7": {
+      "file": "prompts/v0.16.7.md",
+      "hash": "1f2144ba3a8a8b7400a7643f862888faf9e1e0b0fd6545034195c4c778fd5515",
+      "description": "v0.16.6 + std/bytes.toBase64URL: teaches the base64url encoder and warns against hand-rolling it from toBase64 + replaceMany.",
+      "created": "2026-09-08",
+      "tags": [
+        "production",
+        "latest",
+        "stdlib-discoverability"
+      ],
+      "notes": "M-STD-BASE64URL-ENCODE. std/bytes shipped fromBase64URL with no encoder, so an agent needing base64url -- the Gmail API's `raw` field, JWT segments -- had to derive it as toBase64 + replaceMany([(\"+\",\"-\"),(\"/\",\"_\")]) + strip padding. That derivation type-checks, runs and exits 0 while producing a plausible-looking base64 string when it is wrong, and the failure only surfaces as a 400 from a third party, so the prompt states the concrete divergence rather than only naming the function: toBase64(fromString(\"a+b/c?\")) is \"YStiL2M/\", toBase64URL of the same bytes is \"YStiL2M_\". Three edits from v0.16.6: toBase64URL/fromBase64URL added to the canonical `import std/bytes (...)` line (which listed neither), the bytes function list gains both URL entries and now records that fromBase64 REQUIRES padding while fromBase64URL REJECTS it, and the JWT section names the pair as an exact round-trip. v0.16.6 remains served byte-identical for pinned eval baselines."
     }
   },
-  "active": "v0.16.6",
+  "active": "v0.16.7",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",
