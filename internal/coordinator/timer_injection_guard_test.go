@@ -2,6 +2,7 @@ package coordinator
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"testing"
 	"time"
@@ -184,5 +185,100 @@ func TestCoordinatorEventHandler_RateLimitWindowInjected(t *testing.T) {
 	mu.Unlock()
 	if got != 11 {
 		t.Errorf("expected 11 broadcasts after clock-driven window reset, got %d — injected clock not honored", got)
+	}
+}
+
+// TestExecuteWithRetry_BackoffIsCancellable proves the PRODUCTION wait seam is
+// still cancellable. Round 1 of this sprint replaced
+//
+//	select { case <-time.After(delay): case <-ctx.Done(): return nil, ctx.Err() }
+//
+// with an uncancellable `opts.Wait(delay)` followed by a non-blocking ctx check,
+// so a context cancelled 20ms into a 1s backoff was not noticed for the full
+// second. The independent judge measured ~45x. This guard runs the DEFAULT
+// production wait (defaultWait, via DefaultExecuteOptions) rather than a
+// recorder, because the property under test is exactly "it returns early".
+//
+// The elapsed bound below is deliberate and is the one legitimate use of one in
+// this package: it is generous (half the delay) so a loaded runner cannot fail a
+// correct implementation, while an uncancellable sleep overshoots it by 2x.
+func TestExecuteWithRetry_BackoffIsCancellable(t *testing.T) {
+	const backoff = 2 * time.Second
+
+	mockProvider := NewIntegrationMockProvider("guard-cancel-mock")
+	mockProvider.SetExecuteFunc(func(ctx context.Context, task *AnalyzedTask, opts *ExecuteOptions) (*ExecuteResult, error) {
+		// Always fail, so ExecuteWithRetry always enters the backoff wait.
+		return &ExecuteResult{Success: false, Error: "rate limit exceeded - 429"}, nil
+	})
+
+	executor := NewTaskExecutor(mockProvider)
+	task := &AnalyzedTask{
+		Task: &Task{
+			ID:      "guard-cancel-task",
+			Title:   "Guard Cancel Task",
+			Content: "Guard cancellable backoff",
+		},
+		Type: TaskTypeBugFix,
+	}
+
+	opts := DefaultExecuteOptions()
+	opts.Workspace = t.TempDir()
+	opts.RetryBaseDelay = backoff
+	// opts.Wait is deliberately left at the production default (defaultWait).
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		time.Sleep(20 * time.Millisecond)
+		cancel()
+	}()
+
+	start := time.Now()
+	_, err := executor.ExecuteWithRetry(ctx, task, opts, 3)
+	elapsed := time.Since(start)
+
+	if err == nil {
+		t.Fatal("expected a context error from ExecuteWithRetry, got nil — cancellation not propagated")
+	}
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context.Canceled, got %v", err)
+	}
+	if elapsed >= backoff/2 {
+		t.Errorf("backoff wait is not cancellable: ExecuteWithRetry took %v to notice a context cancelled after 20ms (bound %v)", elapsed, backoff/2)
+	}
+}
+
+// TestProductionTimerDefaultsPreserved pins the three production defaults this
+// sprint made injectable. Without it, silently doubling a default passes the
+// whole suite: the injection guards above assert that an INJECTED value is
+// honored, which stays true when the DEFAULT changes. The design doc's grep
+// backstop cannot cover this either — `RetryBaseDelay:.*time\.Second` still
+// matches `RetryBaseDelay: 2 * time.Second` (executor finding D1, reproduced by
+// the controller and by the judge, which found this mutant SURVIVING).
+func TestProductionTimerDefaultsPreserved(t *testing.T) {
+	if got := DefaultExecuteOptions().RetryBaseDelay; got != time.Second {
+		t.Errorf("DefaultExecuteOptions().RetryBaseDelay = %v, want 1s — production retry backoff default changed", got)
+	}
+	if DefaultExecuteOptions().Wait == nil {
+		t.Error("DefaultExecuteOptions().Wait is nil — the production wait seam has no default")
+	}
+
+	tmpDir := t.TempDir()
+	store, err := NewSQLiteStore(tmpDir + "/defaults.db")
+	if err != nil {
+		t.Fatalf("failed to create store: %v", err)
+	}
+	defer func() { _ = store.Close() }()
+
+	sac := NewStoreBackedApprovalCheckpoint(store, time.Hour, 2*time.Second, defaultPollTick)
+	if sac.pollInterval != 2*time.Second {
+		t.Errorf("store-backed approval poll interval = %v, want 2s — production poll default changed", sac.pollInterval)
+	}
+
+	handler := NewCoordinatorEventHandler("defaults-task", "", nil)
+	if handler.maxEventsPerSec != 10 {
+		t.Errorf("maxEventsPerSec = %d, want 10 — production rate-limit burst default changed", handler.maxEventsPerSec)
+	}
+	if handler.now == nil {
+		t.Error("event handler clock is nil — the production clock seam has no default")
 	}
 }

@@ -191,10 +191,11 @@ type waitRecorder struct {
 	delays []time.Duration
 }
 
-func (w *waitRecorder) wait(d time.Duration) {
+func (w *waitRecorder) wait(ctx context.Context, d time.Duration) error {
 	w.mu.Lock()
 	w.delays = append(w.delays, d)
 	w.mu.Unlock()
+	return nil
 }
 
 func (w *waitRecorder) recorded() []time.Duration {
