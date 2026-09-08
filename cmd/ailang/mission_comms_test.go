@@ -1,9 +1,12 @@
 package main
 
 import (
+	"github.com/sunholo-data/ailang/internal/mission/comms"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 // M3 of M-MISSION-COMMS-P1.
@@ -140,3 +143,37 @@ func TestMissionReport_PostFailureIsLoud(t *testing.T) {
 type failOnPost struct{}
 
 func (failOnPost) AddComment(string, int, string) error { return os.ErrPermission }
+
+func TestMissionReportSharedDispatcher(t *testing.T) {
+	withMissionState(t)
+	orig := newMissionPoster
+	t.Cleanup(func() { newMissionPoster = orig })
+	newMissionPoster = func() (missionPoster, error) { t.Fatal("report help/dry-run constructed a poster"); return nil, nil }
+	if err := missionCommand([]string{"report", "--mission", "v1", "--body-file", bodyFile(t, "dispatcher smoke"), "--dry-run"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := missionCommand([]string{"report", "--help"}); err != nil {
+		t.Fatal(err)
+	}
+	if code := missionErrorExitCode(missionCommand([]string{"report"})); code != 2 {
+		t.Fatalf("invalid report exit = %d, want 2", code)
+	}
+	if code := missionErrorExitCode(missionCommand([]string{"status"})); code != 2 {
+		t.Fatalf("existing iteration dispatch exit = %d, want 2", code)
+	}
+}
+
+func TestMissionReportSuppliedBodyUsesSharedPayloadCap(t *testing.T) {
+	withMissionState(t)
+	rec := &recordingPoster{}
+	orig := newMissionPoster
+	t.Cleanup(func() { newMissionPoster = orig })
+	newMissionPoster = func() (missionPoster, error) { return rec, nil }
+	err := missionCommand([]string{"report", "--mission", "v1", "--body-file", bodyFile(t, strings.Repeat("本", 200))})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rec.calls != 1 || len(rec.body) > comms.MaxReportChars || !utf8.ValidString(rec.body) || !strings.HasSuffix(rec.body, "…[truncated]") {
+		t.Fatalf("unbounded or invalid report: calls=%d bytes=%d body=%q", rec.calls, len(rec.body), rec.body)
+	}
+}

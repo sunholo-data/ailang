@@ -152,8 +152,12 @@ func RenderReport(r Report) string {
 	if r.LogCommit != "" {
 		fmt.Fprintf(&b, " · log: %s", r.LogCommit)
 	}
-	return truncate(b.String(), MaxReportChars)
+	return LimitReport(b.String())
 }
+
+// LimitReport applies the same payload cap to structured and supplied reports.
+// It preserves UTF-8 and marks truncation explicitly.
+func LimitReport(body string) string { return truncate(body, MaxReportChars) }
 
 // truncate cuts to at most max BYTES while never splitting a rune, and marks that
 // it did. Byte-based because the cap is about payload size; rune-safe because the

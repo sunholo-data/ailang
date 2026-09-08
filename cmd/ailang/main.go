@@ -476,9 +476,6 @@ func main() {
 	case "design-quorum":
 		runDesignQuorum()
 
-	case "mission":
-		runMissionCommand(os.Args[2:])
-
 	case "verify":
 		verifyCommand()
 

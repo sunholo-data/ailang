@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -33,25 +34,7 @@ var newMissionPoster = func() (missionPoster, error) {
 	return messaging.NewGitHubClient(cfg), nil
 }
 
-func runMissionCommand(args []string) {
-	if len(args) == 0 {
-		missionUsage()
-		os.Exit(1)
-	}
-	switch args[0] {
-	case "report":
-		os.Exit(runMissionReport(args[1:]))
-	case "-h", "--help", "help":
-		missionUsage()
-		os.Exit(0)
-	default:
-		fmt.Fprintf(os.Stderr, "ailang mission: unknown subcommand %q\n\n", args[0])
-		missionUsage()
-		os.Exit(1)
-	}
-}
-
-func missionUsage() {
+func missionReportUsage() {
 	fmt.Fprint(os.Stderr, `ailang mission — mission↔human comms
 
 USAGE:
@@ -78,10 +61,14 @@ NOTES:
 func runMissionReport(args []string) int {
 	fs := flag.NewFlagSet("mission report", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
+	fs.Usage = missionReportUsage
 	mission := fs.String("mission", "", "mission name (v1|world|docs|motoko)")
 	bodyFile := fs.String("body-file", "", `file holding the report body ("-" for stdin)`)
 	dryRun := fs.Bool("dry-run", false, "print what would be posted; make no network call")
 	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return 0
+		}
 		return 2
 	}
 
@@ -118,6 +105,8 @@ func runMissionReport(args []string) int {
 		fmt.Fprintln(os.Stderr, "ailang mission report: body is empty — refusing to post an empty comment")
 		return 1
 	}
+
+	body = comms.LimitReport(body)
 
 	if *dryRun {
 		// No client is constructed at all. Building one here would make the

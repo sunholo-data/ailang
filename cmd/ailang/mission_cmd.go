@@ -28,6 +28,11 @@ func missionCommand(args []string) error {
 		return nil
 	}
 	switch args[0] {
+	case "report":
+		if code := runMissionReport(args[1:]); code != 0 {
+			return iterationExit(code, fmt.Errorf("mission report failed (exit %d)", code))
+		}
+		return nil
 	case "activation":
 		return missionActivationCommand(args[1:])
 	case "retry-review":
@@ -58,13 +63,16 @@ func missionCommand(args []string) error {
 		printMissionHelp()
 		return nil
 	default:
-		return fmt.Errorf("unknown mission subcommand %q (want: list, doctor, install, apply, rotate-log, normalize, quota, role-run, attempt, iterate, status, resume, cancel, retry-review, confirm-stopped, activation)", args[0])
+		return fmt.Errorf("unknown mission subcommand %q (want: list, doctor, install, apply, rotate-log, normalize, quota, role-run, attempt, iterate, status, resume, cancel, retry-review, confirm-stopped, activation, report)", args[0])
 	}
 }
 
 func printMissionHelp() {
-	fmt.Print(`ailang mission — the mission-loop registry
+	fmt.Print(`ailang mission — registry, execution and communications
 
+  ailang mission report --mission NAME --body-file FILE [--dry-run]
+                                   post a report to the resolved bookkeeping issue
+                                   see report --help for state/issue overrides
   ailang mission iterate --work-item FILE [--dry-run]
                                    one frozen work item through validated completion
   ailang mission status NAME --work-item ID [--json] [--activation OP]
