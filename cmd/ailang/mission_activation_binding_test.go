@@ -15,6 +15,9 @@ import (
 )
 
 func TestMissionRetainedBindingMissingReadOnly(t *testing.T) {
+	if !activation.HostSupported() {
+		t.Skip("local mission activation requires macOS or Linux host locking (activation/lock_other.go)")
+	}
 	home := t.TempDir()
 	testutil.SetHomeDir(t, home)
 	err := runMissionIteration(context.Background(), "status", []string{"docs", "--work-item", "w", "--activation", "missing"}, &bytes.Buffer{}, missionIterationDeps{})
@@ -42,6 +45,9 @@ func TestMissionRetainedBindingMissingReadOnly(t *testing.T) {
 }
 
 func TestMissionRetainedStatusAfterRestore(t *testing.T) {
+	if !activation.HostSupported() {
+		t.Skip("local mission activation requires macOS or Linux host locking (activation/lock_other.go)")
+	}
 	home := t.TempDir()
 	testutil.SetHomeDir(t, home)
 	config := filepath.Join(home, ".config", "ailang")

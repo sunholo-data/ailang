@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -20,8 +21,16 @@ func TestReviewPacketCandidateAndBounds(t *testing.T) {
 		t.Fatal("candidate diff missing")
 	}
 	info, err := os.Stat(path)
-	if err != nil || info.Mode().Perm() != 0400 {
-		t.Fatalf("packet not read only: %v %v", info, err)
+	if err != nil {
+		t.Fatalf("packet stat: %v", err)
+	}
+	// Unix-only guarantee, asserted where it exists. On Windows a file created 0400 reports
+	// 0444: the not-writable check below happens to hold, but it holds by accident of how Go
+	// maps the read-only attribute, not because the platform can express owner-only access.
+	// Its sibling assertion in mission_retry_review_test.go (0600 -> 0666) does NOT hold, so
+	// this is not a portable property to lean on.
+	if runtime.GOOS != "windows" && info.Mode().Perm() != 0400 {
+		t.Fatalf("packet not read only: %v", info.Mode().Perm())
 	}
 	if within(f.repo, path) {
 		t.Fatal("packet in author root")

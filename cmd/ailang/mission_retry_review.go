@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/fsyncdir"
 	"io"
 	"os"
 	"path/filepath"
@@ -152,9 +153,7 @@ func publishReviewFile(parent, path string, body []byte) error {
 	if err = os.Link(f.Name(), path); err != nil {
 		return err
 	}
-	dir, err := os.Open(parent)
-	if err != nil {
-		return err
-	}
-	return errors.Join(dir.Sync(), dir.Close())
+	// Directory fsync is unix-only; see internal/fsyncdir. This was the fourth hand-rolled
+	// copy and the one the first sweep missed, which is the argument for the helper.
+	return fsyncdir.Sync(parent)
 }
