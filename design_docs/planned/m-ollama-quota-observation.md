@@ -113,3 +113,32 @@ the existing gauge credential. Installed verification sourced those secrets with
 session key removed: state OK, session 0.020, weekly 0.359. No active iteration restarted.
 See `design_docs/verification/mission-recovery-2026-09-07/ollama-gauge-deployment.json`
 for rollback backups and hashes. Reset-aware pacing remains optional and unconfigured.
+
+## ADDENDUM 2026-09-08 — the bucket IS now rationed, by rate rather than by position
+
+The sentence above stays true as written: `~/.ailang/state/ollama-quota-limits.json` still does
+not exist, and reset-aware pacing is still unconfigured. What changed is that this no longer
+means "unrationed", and reading only the paragraph above would now give the wrong answer.
+
+**Why the limits file cannot simply be written.** Verified against the live endpoint on
+2026-09-08: `/api/usage` returns `limits.session.usage` and `limits.weekly.usage` and *nothing
+else* — no capacity, and no `resets_at`. Capacity is not the blocker (V50 already established
+the gauge is a fraction of the limit, so it is 1.0 by construction); the reset timestamps are,
+and inventing them is forbidden by the correction below.
+
+**What was done instead.** `evaluateOllamaQuota`'s percentage pacing needs a window POSITION,
+which needs a reset. A RATE does not. D-1 says "spend at most 10% of a bucket per day", and
+with a fraction gauge that is directly measurable as percentage points consumed in a trailing
+24 hours — needing neither capacity nor reset, the two things the provider withholds.
+Implemented in `internal/mission/ollama_rate_ration.go`; readings are banked to
+`ollama-quota-observations.jsonl`, and consumption sums POSITIVE deltas so a window rollover
+contributes zero instead of reading as negative spend and licensing a fresh burst.
+
+**Why it was needed, measured.** The weekly gauge went 36.1% → 43.1% → 69.4% between
+2026-09-07 17:02 and 2026-09-08 09:06 — about 2.1pp/h against a 0.42pp/h ration, with nothing
+to stop it before the 95% cutoff. Ollama was the fleet's only wholly unrationed bucket.
+
+Thin history is UNPACED and loud rather than blocking (2+ readings spanning 1h+ are required),
+and the ration can only ever make the verdict stricter — it cannot launder a critical gauge
+into `ok`. If reset metadata is ever OBSERVED (not invented), the original reset-aware path
+above still applies and is strictly better; this addendum does not retire it.
