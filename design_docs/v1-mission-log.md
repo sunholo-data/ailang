@@ -47,194 +47,10 @@ section, write "none" rather than omitting:
 > the thing to grep before picking work, so the loop never repeats itself — is in
 > `v1-mission-index.md`.
 
-## 325 — 2026-09-03 — The hook is ARMED, and the acceptance criterion meant to prove it was dead on arrival [HARNESS]
-
-**Pick**: the queue head, `m-spawn-pin-enforcement` — M3 + M4, the two milestones that ARM the
-Layer-1/Layer-2 machinery iteration 324 landed inert.
-
-**Progress**: N = **12** design docs remaining before v1.0.0, **goal unmoved** — HARNESS iteration.
-The sprint itself is now 4/4 milestones complete.
-
-**Outcome**: LANDED (M3+M4 of 4 — sprint complete) · [HARNESS] · evaluator **PASS 94/100, zero
-blocking, round 1** · commits `11aff5819` (M3) + `e21c3f1bd` (M4).
-
-**What landed.** M3: the driver now publishes the plan it VERIFIED rather than the one it declared —
-`export MISSION_CONTROL_ACTIVE=1` plus `MISSION_<ROLE>_RESOLVED` / `MISSION_<ROLE>_PATH` for all four
-roles, inserted immediately before the `=== mission iteration starting` log line, i.e. AFTER the
-codex lane loop (`:722`), the pi loop (`:770`/`:779`) and the one-shot override (`:904`) have all
-finished rewriting `MISSION_<ROLE>_MODEL` in place. Plus `|scripts/*` appended to the versioned
-docs-mission planner allowlist (the docs-10 / PR #1010 cost). M4: the Gate-3 spawn paragraph now
-names `resolve-role-spawn.sh` and requires every role prompt to open with `MISSION-ROLE: <role>`,
-with `subagent_type: Explore` as the one machine-readable read-only exception — +13/−3, one
-paragraph, the fable capability paragraph beside it untouched. Routing suite 45 → **51** arms
-(D1, D2, 12, 12-control, S1, S2); hook suite 17 unchanged; `launchd drivers (bash 3.2)` green.
-
-**THE FINDING: A3.2 IS A DEAD ACCEPTANCE CRITERION, AND IT IS DEAD UNCONDITIONALLY.** The plan's
-A3.2 is `MISSION_PROFILE=v1 MISSION_DRY_RUN=1 bash tools/launchd/mission-control.sh` → rc=0, and it
-is the only criterion aimed at M3's production code running. I noticed it returned rc=0 having taken
-the overlap-guard yield path, and handed that to the judge as my sharpest open question. The judge
-came back with a stronger answer than I had: the `MISSION_DRY_RUN=1` branch `exit 0`s at **line 858**
-and the Layer-3 block starts at **line 1008**, so the dry run can never reach it — with or without
-the overlap guard, on an idle machine or a busy one. It proved it by running the criterion against
-the BASE copy of the script: byte-identical output, rc=0, pre-M3. A criterion that passes identically
-whether or not the milestone exists measures nothing. Reproduced first-party (`grep -n 'DRY RUN ok:'`
-→ 858 with its `exit 0` on the same line; `grep -n 'export MISSION_CONTROL_ACTIVE=1'` → 1008). **Arm
-D2 is the real coverage** and is not vacuous: it extracts the live block by `awk` and asserts the
-four variables across a `/usr/bin/env` process boundary — mutation-drilled as a sole killer.
-
-**The plan's own control could not fire, which is why the executor got a corrected one.** A4.4 and
-test arm S2 both asserted a grep for ``the Agent tool's `model` enum in this build lists``. That
-string is LINE-WRAPPED in SKILL.md (1109 ends `…tool's `model``, 1110 begins `enum in this build
-lists`), so a line-oriented grep returns **0 on a healthy file** — the plan records "At base: 1",
-which is simply wrong. Measured at base before routing, and the executor was given
-`grep -c 'enum in this build lists'` (base 1, unique) instead, with a comment in the arm saying why.
-The judge confirmed the base value is 0 against the base commit rather than taking my word for it.
-
-**And the corrected control is narrower than it looks (non-blocking, recorded for the next reader).**
-The judge probed S2 with a *different* realistic damage — deleting the fable paragraph's evidentiary
-sentence (`model="fable"` was ACCEPTED and ran to completion) rather than the grepped line — and the
-suite stayed **51/0**. So S2 pins one line, not the paragraph's substance. That is inherent to every
-line-grep arm in this suite rather than a defect of this one, but it means "the fable paragraph
-survives" is a weaker guarantee than its arm name implies.
-
-**Ruled out / corrected**
-- "A3.2's rc=0 was an overlap-guard artifact" (my own framing to the judge) — WRONG, and the judge
-  said so: it is structural, `exit 0` at 858 precedes the block at 1008 on every path.
-- "the plan's A4.4 reads 1 at base" (plan) — WRONG: 0, the literal is line-wrapped.
-- "the plan's hook suite has 13 arms" (plan §7) — STALE: 17, the extra four (`NS`, `8p`, `8e`, `8n`)
-  are iteration 324's judge findings. Reported as the real number, no arm adjusted to match.
-- "`scripts/*` widens the allowlist into a traversal hole" (my adversarial ask) — REFUTED by the
-  judge: `derive-planner-lane.sh` applies a prefix-independent `/*|~*|*..*` deny before the allowlist
-  check; `scripts/../internal/foo.go` reads `opus fail-closed:path-not-in-codex-allowlist`.
-- "the M4 skill text promises enforcement the hook may not implement" (the worst defect available
-  here) — REFUTED: the judge read `spawn-pin-hook.sh` in full; the unlabelled-spawn deny
-  (`fail-closed:role-missing`) and the `Explore` allow are both present as shipped.
-- 3 bash-3.2 forbidden-construct grep hits in `mission-control.sh` — PRE-EXISTING at base (all three
-  are comments naming the constructs), not introduced.
-- SonarCloud red on dev HEAD — INHERITED: `failure` on every walked-back commit that has a Sonar run
-  at all; already the tracked queue row, not this iteration's pick.
-- `mission-world` iter-152's claim that `make check-no-personal-email` "does not exist in the V1
-  Makefile" — **REFUTED for this repo**: it exists at `make/code-health.mk:192` and is wired into the
-  `ci:` aggregate at `make/ci.mk:11`. World's grep was scoped to `Makefile` and missed the `make/*.mk`
-  includes. The skill's ATTENDED-LEDGER sentence citing it is TRUE here. World's own repo genuinely
-  lacks the gate; that is World's row, not ours.
-- `mission-world` iter-152's claim that `ailang messages send --type` is MISFILED —
-  **CONFIRMED first-party**: `cmd/ailang/messages_send.go:42` binds `--type` to `Category`
-  ("Message category") while `:132` hardcodes `MessageType: InboxTypeNotification`. Entered as a
-  queue row tagged [WORLD-DEMAND]; it does NOT outrank the queue (a sibling cannot set our
-  priorities) and it does not break the approvals channel — Discord routes on `ToInbox`.
-
-**Routing evidence**: controller `claude:claude-opus-5` (session). **Designer: NOT SPAWNED** — the
-design doc and its sprint plan both existed on disk (`design_docs/m-spawn-pin-enforcement.md`,
-`…-sprint-plan.md`), and Gate 3 routes by artifact state; spawning one would have spent the Fable
-diet on a document that was already written and already quorum'd (two rounds, iteration 324).
-Rotation pointer untouched. **Planner: NOT SPAWNED** — same reason: the plan covers all four
-milestones and M3/M4's sections are fully specified with frozen contracts. **Executor
-`codex:gpt-5.6-sol`** via the cross-provider recipe (the resolver's own output for this env is
-`recipe codex:gpt-5.6-sol declared:provider-pin`, so the Agent tool is not a valid path for it):
-probe rc=0 — the codex lane is UP this fire, against iteration 324's 404 — one sandboxed 30-min-capped
-run, zero git writes, `.snap/M3` + `.snap/M4` cumulative and `shasum -c` **4/4 OK** against the
-reconstructed commits. **Evaluator `sonnet`** via the Agent tool in its OWN worktree
-(`.wt-v1-iter325-eval`, detached at `e21c3f1bd`) — generator≠judge holds (OpenAI executor vs
-Anthropic judge), one round, PASS 94/100. Its directive carried standing rule 7's operative half in
-its own words, and it returned a complete report rather than an intention to wait. No quorum at pick
-(the doc carries iteration 324's artifacts and Mark's attended approval). **metered=$0.00** of the $5
-ceiling — codex and sonnet are both quota buckets, and no quorum ran. No GPU, no `rig.lock`.
-
-**Gate 1 health**: running skill byte-identical to origin (`cmp` rc=0 against the RESOLVED
-`readlink -f` target, main checkout inode `9992963`; the pin's own copy is `35318787`, a different
-file). Pin worktree, main checkout `dev` and `origin/dev` all at `5e860afeb` — zero divergence, the
-first clean three-way reading in some time. Main checkout dirty with 7 files, none mine, left alone
-(Principle 0).
-
-**Friction (one instance, recorded for the ≥2 bar) — I silenced stderr on my own `git add` and it swallowed a fatal, producing a record commit with no record in it.** The Gate-4 staging command listed the pre-move paths of two files `git mv` had already staged, so `git add` aborted the WHOLE add on `pathspec ... did not match any files` — and I had written `2>/dev/null`, so nothing printed. The commit then succeeded, with the right message, containing only the two renames: charter, log and archive were all still unstaged. Caught by reading `git show --stat` afterwards rather than by any error. This is verification-protocol rule 3 (exit codes through pipes lie) aimed at the commit step, and the tell is exact: **a `2>/dev/null` on a command whose failure mode is "did nothing".** Amended rather than re-committed. Gate 4 already mandates `git diff --stat` before `git add` on the charter; the gap is that it says nothing about reading `git show --stat` *after* the commit, which is the only thing that catches a staging failure.
-
-**Next**: the sprint is complete, so the deliverable is bookkeeping plus the first ARMED fire —
-`m-spawn-pin-enforcement` moves to `design_docs/implemented/` WITH its sprint plan, and the next
-iteration is the first to run with `MISSION_CONTROL_ACTIVE=1` exported, i.e. the first whose own
-Agent spawns are denied without a `MISSION-ROLE:` line. Watch for a controller running the stale
-main-checkout skill being denied with a reason that names the fix — that is the design working, not
-a regression. Then `m-ci-serial-gate-masking` (one early red hid 45 gates for a day) and
-`m1b-nolint-suppression-owed`.
-
----
-
-## 326 — 2026-09-04 — The gofmt hook only ever guarded one of the ways we write Go, and the publish step guarded none [HARNESS]
-
-**Pick**: NOT the queue head. dev HEAD `646bda1e1` was `lint: failure` with `lint: success` on all
-three parents — a new red, and V1 owns `sunholo-data/ailang`, so per Gate 1 it outranks
-`m-release-manager-skill-split`.
-
-**Progress**: N = **12** design docs remaining before v1.0.0, **goal unmoved** — HARNESS iteration.
-
-**Outcome**: LANDED · [HARNESS] · evaluator **PASS 86/100, zero blocking, round 1** · commits
-[`fdba98d32`](https://github.com/sunholo-data/ailang/commit/fdba98d32) (M1),
-[`d2ef77e09`](https://github.com/sunholo-data/ailang/commit/d2ef77e09) (M2),
-[`c5227e6d7`](https://github.com/sunholo-data/ailang/commit/c5227e6d7) (M1b).
-
-**What was actually wrong.** Not a careless commit — a hole with a shape. `scripts/hooks/format_go.sh`
-runs `gofmt -w`, and `.claude/settings.json:136` wires it as a **PostToolUse hook with matcher
-`Edit|Write`**. It therefore fires for the Claude Edit/Write tools and for nothing else: not for a
-bash/sed/heredoc edit (which this repo's own bypass-permissions guidance actively prefers), and not
-at all for a cross-provider executor, because codex and pi writes are not Claude tool calls.
-Downstream, `push_dev_on_stop.sh` — the Stop hook that publishes local dev to origin/dev — had zero
-correctness gates. So the formatting guarantee was **tool-shaped**, and the publish step, which is
-the one chokepoint every executor passes through, had nothing on it. Measured end to end:
-`646bda1e1` committed `00:14:14`, `autopush.log` records `[00:14:29] pushed 1 commit(s)`, `lint`
-failed `00:15:07`. Fifteen seconds from commit to a red on the branch four loops build from.
-
-**The second instance arrived mid-iteration, and it is the argument for the fix.** After the executor
-finished, origin/dev had moved five commits; rebasing turned `make fmt-check` red again on a
-different file — `cmd/ailang/coordinator_approvals_remote.go` from `17a363ca6` (`00:22:14`, unsorted
-imports), auto-pushed `[00:27:06]`. Different author, different violation class, thirteen minutes
-apart, identical mechanism. Fixed as its own commit (M1b) so the two causes stay separable.
-
-**The gate.** It judges the committed blobs in `origin/dev..dev` — never the working tree, because
-the shared checkout routinely holds other sessions' edits (8 of them during this iteration).
-Deletions and renames-away are excluded, so removing an unformatted file still pushes. A missing
-`gofmt`, or any check that cannot run, refuses **loudly** rather than passing silently (Principle 2).
-The hook still always exits 0 and still honours `AILANG_AUTOPUSH=0`. Arms H–M, 18 passed / 0 failed;
-I and J are the controls that stop it being a gate that refuses everything.
-
-**Ruled out / corrected.**
-- *"The first implementation was fine because its four arms passed."* **REFUTED by probing rather
-  than reading.** It compared two command substitutions, and command substitution strips all
-  trailing newlines, so violations living only in the trailing bytes were normalised away on both
-  sides. Probe with controls in both directions: no-trailing-newline and trailing-blank-lines were
-  both `UNFORMATTED` to `gofmt -l` and both **PUSHED**. Fixed with temp files + `cmp -s`; re-probed
-  7/7. The judge's drill reverting to the old comparison kills L and M and nothing else.
-- *"The judge's zero-byte finding is blocking."* **NARROWED, then ruled non-blocking.** The
-  gate/`gofmt -l` disagreement is specific to a **zero-byte** `.go` file; a non-empty unparseable
-  file returns rc=2 both ways and is correctly refused. And `make/code-health.mk:19` tests
-  `[ -n "$(gofmt -l .)" ]` — stdout only, never gofmt's rc — so **CI's own fmt gate has the same
-  blind spot**. The new gate is exactly as strong as the gate it mirrors; it cannot produce a false
-  LANDED. Queued, not patched here.
-- *"The harness returns rc=0 on 9 failures."* **My own instrument.** That reading came through a
-  `| tail` pipe; the harness ends `[ "$fail" -eq 0 ]` and is correct.
-- *"SonarCloud went red on my change."* **Inherited** — `failure` on `850f04189` and `ea6e0fbb6`
-  before my commits existed, and my diff is five whitespace/import lines plus two shell scripts.
-
-**Routing evidence**: controller `claude:claude-opus-5`. `resolve-role-spawn.sh` run for all four
-roles and used verbatim — executor `recipe codex:gpt-5.6-sol declared:provider-pin`, evaluator
-`agent-tool sonnet declared:alias-pin`, planner `agent-tool opus fail-closed:no-doc`, designer
-`recipe claude:claude-fable-5-1 declared:provider-pin`. **Designer and planner not spawned — routing
-call, not omission**: a Gate-1 red fix-forward has no doc to author and no plan to write, so neither
-role's condition fires, and a designer run would have spent the Fable diet on a four-blank-line
-deletion. Executor codex, probe rc=0, two bounded sandboxed 30-min-capped runs, zero git writes,
-snapshots `.snap/M1|M2|M2b`; it self-labelled two results `UNINFORMATIVE UNDER SANDBOX` and I re-ran
-every gate outside the sandbox. Evaluator sonnet in its **own** worktree at the landing commit
-(generator≠judge holds: codex vs Anthropic). Rotation pointer untouched. metered **$0.00** of $5.
-
-**Gate 1 health**: `lint` NEW-red at `646bda1e1` (control: `success` on ~1/~2/~3); after landing,
-`c5227e6d7` reads `total=20 completed=20`, **`lint: success`**, 19/20 green, one inherited SonarCloud.
-
-**FLAGGED**: the executor's sandboxed harness runs wrote four synthetic `[local] pushed …` /
-`[local] REFUSED …` rows into the **real** shared `~/.ailang/state/autopush.log`, because the harness
-does not override `$HOME` and codex ran with the real one. Every run of mine used a temp HOME. A
-later iteration could read those rows as fleet evidence. Queued.
-
-**Next**: `m-autopush-gate-followups` (the five findings below), then back to the queue head
-`m-release-manager-skill-split`. The standing SonarCloud red on dev remains unowned.
+> **Older entries are ARCHIVED.** This file holds the newest 20. The full record of every
+> iteration is in `v1-mission-log-archive.md`, and a one-line index of ALL of them —
+> the thing to grep before picking work, so the loop never repeats itself — is in
+> `v1-mission-index.md`.
 
 ## 327 — 2026-09-04 — The test written to prove the harness never touches the fleet log is the thing that destroyed it, and the sandbox is why nobody saw [HARNESS]
 
@@ -2534,3 +2350,154 @@ unexecuted M3/M4, partial work banked at `~/.ailang/state/mission-v1-iter347-m3-
 `m-headroom-blocking-threshold-calibration` (astra's censored-measurement objection), and
 `m-headroom-residual-mutations` (four mutations the round-3 judge derived from the diff that survive
 the suite).
+
+## 349 — 2026-09-08 — Attempt 1 died at Gate 3b holding a green PR; attempt 2 judged it, landed it, and found the fleet has been running frozen driver code for 43 commits [HARNESS]
+
+**Picked.** `m-launchd-drain-aggregate-budget` — **inherited, not chosen**. This slot's attempt 1
+(fire 00:02:48, killed 01:20:55 by the stall watchdog, `rc=143`, `at=gate-3b`, `attempt=1/3`) had
+already run the whole inner loop and opened PR [#1107](https://github.com/sunholo-data/ailang/pull/1107)
+at `22:58:37Z`, then died waiting on CI. It left **zero** charter rows, **zero** log entries and
+**zero** STATUS stamps — the died-mid-flight shape Gate 2 names, at its most nearly-done point.
+Gate 2's trace (a) found the open PR under this loop's account and trace (b) attributed it to this
+mission first-party: `sprint/v1-iter349-launchd-drain-budget` has a worktree
+(`.wt-v1-iter349-drain`) in **this clone's** `git worktree list`, which is proof of ownership in a
+way `--author` is not (V1 and motoko share the push identity).
+
+**Reality check — verify, do not adopt.** The inherited work had **no independent evaluation on
+record**: no review, no verdict artifact under `.ailang/state/evaluations/`, nothing on the PR but
+SonarCloud's own comment. Attempt 1's `.wt-v1-iter349-eval` worktree exists at the reviewed commit
+and is clean, so a judge was spawned and its verdict died with the slot. Landing on that would have
+been a generator-only landing. Reproduced first-party before routing: `test_driver_notify.sh` at
+`abaa190f2` → **40 passed, 0 failed, rc=0**, matching the PR body exactly; the PR's live-rig claim
+("three spool files, v1 3 rows, motoko 1, world 1") reproduces exactly, with a known-absent spool
+as the negative control. The PR base `ead709c31` is **1** commit behind `origin/dev` and **nothing**
+has touched either of its two files since (control: the range is non-empty at 1).
+
+**Shipped.** PR [#1107](https://github.com/sunholo-data/ailang/pull/1107) → squash
+[`b5513ccdf`](https://github.com/sunholo-data/ailang/commit/b5513ccdfb7b9e014c197e9021d27be5272ebbe1),
+**21 checks on the PR head, zero not-green**. `MISSION_DRAIN_BUDGET` (default `90`) caps the whole
+drain: before each row the loop requires `DRAIN_BUDGET - elapsed > NOTIFY_TIMEOUT + 2`, and when it
+does not, the current row **and every still-unattempted row** are appended back to the spool
+unchanged, the drain logs `notice spool: deferred <k> row(s), aggregate budget <B>s exhausted`, and
+returns 0. No notice is dropped; the pre-existing failed-row re-append path is untouched.
+
+**Independent judge** `agent-tool sonnet`, round 1, **PASS 88/100, ZERO blocking**, and it did the
+work rather than confirming mine — I deliberately withheld both my candidate findings and my method,
+so its numbers are a second measurement and not an echo of my instrument. It re-derived the base
+(`38 passed, 0 failed` at `ead709c31`, so the gate was green before the change and measures M3 and
+not the repo), the reviewed commit (`40 passed, 0 failed` over two identical runs), and
+`make test-launchd-drivers` rc=0. Its mutation drill was anchored to the DIFF, not to the plan's
+list: removing the whole budget-check block kills **both** new assertions (38/2); blanking **only**
+the diagnostic `log` line kills **only** the diagnostic assertion (39/1), which is what proves the
+two assertions are independently anchored rather than redundant; and a `-le`→`-lt` off-by-one is
+caught, not a survivor. Non-vacuity was established the strict way — `patch -R` reverting **M3's own
+production hunk alone** with M1/M2 and the new test kept, verified byte-identical to `ead709c31`
+afterwards, and both new assertions go red (38/2). It restored the worktree by MD5-verified copy and
+left it clean.
+
+**Three non-blocking findings, all reproduced by me before disposition — including the two that
+were about my own side of the record.**
+1. **A real arithmetic bug, narrow.** `deferred=$(( total - sent - kept ))`
+   (`mission-control.sh:161`) over-counts by the number of malformed (empty-title) rows the
+   pre-existing `continue` silently drops before the deferral point. The judge built a standalone
+   extraction of `_mc_drain_notices`/`_mc_bounded` and demonstrated it: a 4-row spool with one
+   malformed line logs `deferred 2 row(s)` while 3 rows land back in the spool. Production always
+   writes well-formed rows, so the operational likelihood is low — but the diagnostic exists
+   *precisely* for when things have already gone wrong, which is the worst place for a counter to
+   lie. I reached the same defect independently by code reading before the judge reported it, which
+   is corroboration by a second route rather than agreement with my own instrument. Filed as
+   `m-drain-deferred-counter-overcounts`; NOT fixed in-flight, because a one-line change to a
+   just-merged green production path with no new test is exactly the un-reviewed edit this loop
+   keeps closing.
+2. **The PR body carried a wrong number, and it was the author's own measurement.** The Measurements
+   table claimed `grep -c MISSION_DRAIN_BUDGET mission-control.sh` → `0 → 2`; the actual count at
+   `abaa190f2` is **1** (control: `NOTIFY_TIMEOUT` reads 7 in the same file, so the grep fires).
+   The plan's criterion is `≥1`, so acceptance still holds — but a self-reported number in a public
+   PR body was wrong. **Corrected in the PR body before merging**, with the correction stated as a
+   correction rather than silently overwritten.
+3. **No changelog entry**, against a repo standard the sibling M1/M2 landing observed — `e5a325a20`
+   added 39 lines to `changelogs/v0.32-current.md`, `abaa190f2` adds none (control: the sibling's
+   diff is non-empty at 39). Repaired in this record, not left as a note.
+
+**Not delivered.** M4 (the sprint's full 11-row M1–M3 mutation sweep, verification-only) remains
+unexecuted — attempt 1's executor lane hit `wall_timeout` partway through it. The four M3-anchored
+mutations were run; the M1/M2 rows are still owed and stay queued.
+
+**Ruled out.**
+1. *"`NOTIFY_TIMEOUT` may be unset where `_mc_drain_notices` reads it, which would make the new
+   budget guard vacuous in production while the tests — which set it — stay green."* **REFUTED,
+   first-party.** `NOTIFY_TIMEOUT` is assigned at `mission-control.sh:514` and the drain is called
+   at `:1018`; bash resolves function-body references at call time, and `set -uo pipefail` (`:38`)
+   would abort loudly rather than silently substituting `0`. This was the one way the fix could
+   have been a green-reporting no-op, and it is closed.
+2. *"Tonight's `Eval Suite partial: 0/2 passed (0.0%)` is the new standard-mode gate firing."*
+   **REFUTED by timestamp.** That run finished `2026-09-07T19:59:50Z`; `#1104` merged at
+   `20:36:26Z`. The 0/2 predates the gate and is the pre-existing `input_files` defect the gate was
+   written to close. The *residual* question it raised is real and is filed as
+   `m-eval-suite-notification-blind-to-validity`.
+3. *"The `mcp-public` `std/ai` report is a ghost."* **REFUTED — it is real and UNDER-stated.** Four
+   exported step entry points, not the three reported, and `max_tokens`/`maxTokens`/`max_output`
+   appear zero times in the module (controls: `StepResult` 12, invented symbol 0). Its cited line
+   numbers are from an older copy, so the *report* was stale while the *defect* was not — filed on
+   my evidence, not on the strength of the request.
+
+**Routing evidence.** Gate 4 base=`b12ee3370758d18f3181ad2d1f3b66f11885ea69@2026-09-07T23:47:30Z`.
+Controller `claude:claude-opus-5` (tok: not reported).
+**Designer / planner / executor:** deliberately **NOT spawned** — this is a verify-and-land of a
+sprint whose design (`planned/v0_35_2/m-launchd-notify-subshell-observation.md`), plan and code all
+already existed and were quorum-reviewed at iteration 347. Re-running them would have re-executed
+finished work and opened a duplicate PR against a green one, which is exactly what Gate 2's
+died-mid-flight rule exists to prevent. The driver's declared lanes for this fire are recorded for
+the routing series even though unspent: designer `claude:claude-fable-5-1`, planner
+`pi:ollama/kimi-k3:cloud`, executor `pi:ollama/deepseek-v4-flash:0731-cloud` — the last two are
+**lane-degraded substitutions**, `codex:gpt-5.6-sol` having been ration-blocked before the inference
+probe (`rc=75`) for the sixth consecutive fire.
+**Evaluator:** `agent-tool sonnet declared:alias-pin`, round 1, in its **own** dedicated worktree
+`.wt-v1-iter349b-eval` at `abaa190f2` (the judge mutates source; it must not share the tree the
+controller is verifying in). **131,510 tokens / 73 tool uses / 1,821 s**, flat-rate $0. Generator≠judge holds on both readings: the code
+was written by `pi:ollama/deepseek-v4-flash` (attempt 1's executor) with controller measurements
+from `claude-opus-5`, and the judge is `sonnet` — a different model from both.
+**Quorum:** none run, and correctly so — the design doc carries iteration 347's quorum artifact and
+Gate 2's quorum-at-pick is a gate on *new or revised* docs, not a re-litigation of a doc whose text
+has not changed.
+
+**Retro lane — the Gate-5 skill edit, and it is the reason this iteration nearly followed the wrong
+rules.** The Repo Profile's 2026-08-21 `readlink` rule closes the "which copy of the skill is
+running?" hole for `SKILL.md`, and it was written **before** the gates were split into
+`resources/*.md` under the progressive-disclosure gate. Every gate stub now says *"Read
+`.claude/skills/mission-control/resources/gate-N-….md` NOW … this stub is an index entry, not a
+summary you may act on"* — a **relative** path, resolved against a CWD that is the pin worktree,
+while `SKILL.md` itself arrives through the symlink into the main checkout. So one invocation can
+execute a current rulebook whose rules are a different vintage, and the prescribed `cmp` greens
+because it compares only the file that is fresh. Measured here: `SKILL.md` byte-identical to
+`origin/dev`, `resources/gate-3-route.md` **75,448 B** (pin) vs **78,390 B** (running),
+`resources/gate-3b-ci-green.md` **30,155 B** vs **33,494 B** — and **ten of twelve matched**, which
+is what makes it quiet. The two that differed are the routing gate and the CI-verdict gate, i.e. the
+two that decide what gets spawned and what counts as LANDED. The edit adds a per-file directory diff
+at Gate 1, requires reading resources from the resolved symlink target, and states that the resolved
+copy wins. Saved in the record worktree and landed by PR; `scripts/check_context_docs.sh` rc=0.
+
+**And the finding behind that finding, which is bigger than the skill edit.** The reason the pin's
+resources are stale at all is that `AILANG_DRIVER_REF` is a **fixed SHA** —
+`48c4a6e4975632e1ac3c1452ebbb55e2de52c80f`, set for all four missions by an attended deployment
+stamped `20260907T151903` — and it has not moved in **43** commits. Three of those change
+`tools/launchd/`, including `e5a325a20`, which is **M1/M2 of this very sprint**: the driver running
+on the rig does not contain the D-60 bounding that M3 builds on, so the merge this iteration just
+made is inert until the pin moves. `pin-root.sh` cannot report it — its contract defines `PIN_DRIFT`
+as commits the clone is behind **the ref**, so a SHA pin that is an ancestor of the clone reads `0`
+forever, and this fire logged `driver pin drift: 0 below warning threshold 25; notice re-armed` while
+43 commits of drift existed. Self-refuting staleness reporting, the shape the Repo Profile already
+names for `MISSION_WORKDIR`, arriving through a different variable. Zero prior mentions of
+`AILANG_DRIVER_REF` anywhere in the charter or the log — this mechanism has never been in the
+mission's memory. Filed as `m-fleet-sha-pin-freezes-every-driver-fix` and, because the loop may not
+repoint the fleet's env files on its own, as decision **D-61**.
+
+**Progress.** N=12 design docs before v1.0.0 (was 12, change 0); a HARNESS item outside the ratified
+v1.0.0 bar, so the goal distance is unmoved.
+
+**Cost.** Metered **$0.00** of the $5 ceiling — no quorum round, no codex lane (ration-blocked), no
+managed-agents run. The evaluator is a subscription-bucket alias pin. Fable designer budget unspent.
+
+**Next.** `m-fleet-sha-pin-freezes-every-driver-fix` if D-61 comes back (A); otherwise
+`m-sonar-dev-branch-security-rating-c-on-new-code`, the standing SonarCloud branch-gate red that no
+workflow name can surface, which has now been deferred for three iterations.

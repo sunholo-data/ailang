@@ -1,45 +1,43 @@
 # Mission Dashboard — V1
 
 > Snapshot only, overwritten every iteration. History lives in `v1-mission.md` (queue + STATUS)
-> and `v1-mission-log.md` (full records). The bare `mission-dashboard.md` in this directory is
-> **Motoko's** — do not write it.
+> and `v1-mission-log.md` (full records). The bare `mission-dashboard.md` here is **Motoko's**.
 
-**Updated**: 2026-09-07 ~21:20 UTC (iteration 348) · **Release**: v0.35.2 (attended, 2026-09-07)
+**Updated**: 2026-09-08 ~00:00 UTC (iteration 349) · **Release**: v0.35.2 (attended, 2026-09-07)
+
+## ⚠ Read this first
+**The whole fleet has been running frozen driver code since 2026-09-07 15:19.** All four missions
+carry `AILANG_DRIVER_REF=48c4a6e49…` (attended deployment pin); `origin/dev` is **43 commits**
+ahead, **3 touching `tools/launchd/`** — including `e5a325a20`, M1/M2 of the very sprint whose M3
+just merged. **This landing is inert on the rig until the pin moves.** `PIN_DRIFT` cannot report it
+— it measures the clone against *the ref*, so a SHA pin reads `0` forever, and this fire logged
+`driver pin drift: 0` with 43 commits of drift. → **D-61**.
 
 ## Just landed
-- **iter-348** `m-coordinator-windows-package-timeout-headroom` — PR #1102 → `81fb19b67`,
-  **20 checks / 0 not-green**, judge FAIL 35 → FAIL 61 → **PASS 86**. A derived, explicitly
-  *provisional* `go test -timeout 416s` on both CI legs with its arithmetic written into the
-  workflow, plus `tools/ci/headroom`: a WARN-ONLY per-package budget report whose one non-zero
-  exit is a runtime anti-vacuity guard. It is live on `dev` and reporting.
-- The measurement corrected the row: the slowest Windows package is **`cmd/ailang`** (228.7 s =
-  76% of the old ceiling), not `internal/coordinator`, and the old 300 s sat *inside* the runner's
-  own 1.80x measured variance.
+- **iter-349** `m-launchd-drain-aggregate-budget` (M3) — PR #1107 → [`b5513ccdf`](https://github.com/sunholo-data/ailang/commit/b5513ccdfb7b9e014c197e9021d27be5272ebbe1), judge
+  **PASS 88/100, zero blocking**. `MISSION_DRAIN_BUDGET` (default 90 s) caps the WHOLE notice drain in the one
+  phase of a fire with no deadline behind it but the 6-hour `HARD_TIMEOUT`; deferred rows are
+  re-spooled unchanged, so an outage costs a delay, not the record.
+- **Attempt 1 of this slot died at Gate 3b** holding that PR green and unmerged, with no record at
+  all. Attempt 2 verified it independently rather than adopting it, then landed it.
 
 ## Next three
-1. `m-sonar-dev-branch-security-rating-c-on-new-code` — the `dev` branch quality gate has been red
-   on **C Security Rating on New Code** since `8e3927950`. SonarCloud is a GitHub App, so no
-   workflow name can surface it; use the `sonarcloud-triage` skill.
-2. `m-launchd-drain-aggregate-budget` — iteration 347's unexecuted M3/M4. Design and plan already
-   written and quorum-reviewed; partial executor work banked at
-   `~/.ailang/state/mission-v1-iter347-m3-partial/`. **Verify, do not adopt.**
-3. `m-debugcacheforms-flaky-on-macos-ci` — third platform this one characterization test has failed
-   on; the answer is structural assertions, not a third `t.Skip`.
+1. `m-fleet-sha-pin-freezes-every-driver-fix` — the env-pin half is blocked on D-61; making
+   `pin-root.sh` report drift against `origin/dev` under a SHA pin is not blocked.
+2. `m-sonar-dev-branch-security-rating-c-on-new-code` — `dev` quality gate red on C Security Rating
+   since `8e3927950`, deferred three iterations. A GitHub App, so no workflow name surfaces it.
+3. `m-debugcacheforms-flaky-on-macos-ci` — structural assertions, not a third `t.Skip`.
 
 ## Loop health
-- Cadence steady; iterations 341–344 were reaped slots, recovered by 346. 345–348 all landed.
-- Routing: controller `claude:claude-opus-5` · designer/executor
-  `pi:ollama/deepseek-v4-flash:0731-cloud` · planner `pi:ollama/kimi-k3:cloud` (**first successful
-  planner run on this lane** — the D-48 record was a designer run that wrote 0 files) · evaluator
-  `agent-tool sonnet`, each round in its own worktree. Generator != judge held every round.
-- Metered **$0.33** of the $5 ceiling this iteration; every pi lane was flat-rate $0.
+- 345–349 all landed, but **349 needed two fires** (attempt 1 stall-killed at Gate 3b, `rc=143`).
+- Routing: controller `claude:claude-opus-5` · evaluator `agent-tool sonnet` in its own worktree.
+  Designer/planner/executor **not spawned** — verify-and-land of an already-quorumed sprint.
+- `codex:gpt-5.6-sol` **ration-blocked before the probe for six consecutive fires**; planner and
+  executor run on pi fallbacks every time.
+- V1's lane-degradation notices have **never delivered**: 3 rows stuck since 2026-09-07T00:37Z,
+  re-failing on six fires, while `mission-docs` delivers the identical notice.
+- Metered **$0.00** of the $5 ceiling.
 
 ## Waiting on Mark
-**Nothing.** Decision ledger: 60 rows, **ZERO open**, `scripts/mission_decisions.sh --check` valid.
-
-## Worth knowing
-- Three consecutive judge rounds each found the **same class** of defect — an untested assumption
-  about the bytes of `go test` output. The rule earned: when a tool parses another tool's output,
-  the fixture must be *generated* by that tool and *pinned against every transformation between
-  them* (`.gitattributes` on the way in, CRLF tolerance in the parser on the way out).
-- A quorum reviewer's blocked-round-1 objection (the anti-vacuity guard) is what caught all three.
+**D-61** — may this loop return `AILANG_DRIVER_REF` to the `origin/dev` default itself once a
+SHA-pinned deployment's fix has merged (never pin forward, never pick a SHA)? Ledger 61 rows, 1 open.
