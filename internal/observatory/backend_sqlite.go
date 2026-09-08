@@ -156,7 +156,7 @@ func (b *SQLiteBackend) createSpanWithAggregation(ctx context.Context, span *Spa
 	defer tx.Rollback() // No-op if committed
 
 	// Insert span
-	var parentSpanID, taskID, agentAssignmentID interface{}
+	var parentSpanID, taskID, agentAssignmentID, chainID, stageID interface{}
 	if span.ParentSpanID != "" {
 		parentSpanID = span.ParentSpanID
 	}
@@ -166,14 +166,20 @@ func (b *SQLiteBackend) createSpanWithAggregation(ctx context.Context, span *Spa
 	if span.AgentAssignmentID != "" {
 		agentAssignmentID = span.AgentAssignmentID
 	}
+	if span.ChainID != "" {
+		chainID = span.ChainID
+	}
+	if span.StageID != "" {
+		stageID = span.StageID
+	}
 
 	_, err = tx.ExecContext(ctx, `
-		INSERT INTO spans (id, trace_id, parent_span_id, task_id, agent_assignment_id,
+		INSERT INTO spans (id, trace_id, parent_span_id, task_id, agent_assignment_id, chain_id, stage_id,
 		                   name, kind, status, status_message, start_time, end_time,
 		                   duration_ms, tokens_in, tokens_out, cost_usd, model, provider,
 		                   attributes, resource_attributes, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, span.ID, span.TraceID, parentSpanID, taskID, agentAssignmentID,
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, span.ID, span.TraceID, parentSpanID, taskID, agentAssignmentID, chainID, stageID,
 		span.Name, span.Kind, span.Status, span.StatusMessage, span.StartTime, span.EndTime,
 		span.DurationMs, span.TokensIn, span.TokensOut, span.CostUSD, span.Model, span.Provider,
 		span.AttributesJSON(), span.ResourceAttributesJSON(), span.CreatedAt)

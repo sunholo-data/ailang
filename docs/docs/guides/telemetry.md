@@ -885,7 +885,45 @@ export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:1957
 export GOOGLE_CLOUD_PROJECT=your-project-id
 ```
 
-The AILANG server will export to both destinations.
+The AILANG server attempts to register exporters for both destinations. Check its initialization report and persisted spans to verify the result.
+
+## Registration, recovery and delivery evidence
+
+Coordinator and server startup report each destination as `disabled`, `registered`,
+or `degraded`, followed by `delivery unverified`. Registration means the exporter
+was constructed and attached to a provider. It does not prove authentication,
+collector receipt, persistence, or complete fleet coverage. A Cloud Trace
+initialization timeout is reported as degraded; its late constructor result is
+closed, and a restart is needed to retry Cloud Trace initialization.
+
+OTLP initialization does not probe the collector. The HTTP SDK handles TLS,
+endpoint paths and default ports (`https://collector.example` uses 443). A
+collector unavailable at startup remains configured, so later batches can arrive
+when it recovers. Export attempts have a three-second timeout; shutdown shares a
+two-second deadline across providers, and the coordinator flushes on normal exit.
+A forced process kill cannot flush pending work.
+
+These exporters use memory queues. Failed batches and work interrupted before
+flush can be lost; this change adds no durable spool or replay. Malformed endpoint
+URLs fail initialization instead of falling back to a different destination.
+Export errors and missing records must remain visible in operational checks.
+
+### Staged verification for the capture recovery change
+
+1. Review the exact commit, built image digest and deployment diff before rollout.
+   Record the canary revision and retain the previous revision for rollback.
+2. Confirm the canary's startup report lists the expected registered exporters.
+   Treat that as registration evidence only.
+3. For a fresh, authorized coordinator task, record its task, chain, stage and
+   trace identifiers. Query the receiving cloud store and match these identifiers,
+   span parents, timestamps and token fields. A query error is not an empty result.
+4. In an isolated canary collector fixture, start the collector after initialization
+   and verify receipt of a later batch; repeat with a failed batch followed by
+   recovery. Record timeout/error behavior and distinguish lost batches from later
+   successful receipt. Do not interrupt the shared production collector for this test.
+5. Record the revision/digest, query identifiers, receipt latency and outcome before
+   expanding rollout. Function tracing, fleet coverage, accounting and approval
+   delivery still require their separate data-audit acceptance checks.
 
 ## Troubleshooting
 
