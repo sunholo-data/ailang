@@ -348,3 +348,24 @@ func TestTaskFor_EvaluatorBoundIsCaseInsensitive(t *testing.T) {
 func testCandidate() Candidate {
 	return Candidate{Model: "m", WireModel: "wire", config: &modelreg.ModelConfig{}}
 }
+
+// A frozen work item whose behaviour depends on the current contents of AGENTS.md is not
+// frozen. pi discovers AGENTS.md and CLAUDE.md by default; measured 2026-09-08, an evaluator
+// inherited "Read CLAUDE.md first - hard gate", "Work Routing (do not self-approve)" and
+// "Classify every task BEFORE touching code" from a repo worktree, none of it in its
+// contract, and one model refused the job as a suspected prompt injection.
+func TestTaskFor_EvaluatorIsIsolatedFromAmbientRepoInstructions(t *testing.T) {
+	if !taskFor(Request{Role: "evaluator"}, testCandidate()).IsolateFromAmbientContext {
+		t.Fatal("evaluator inherits AGENTS.md/CLAUDE.md — its contract is not frozen")
+	}
+}
+
+// Author roles keep ambient context until that is ruled on separately; flipping it here
+// would change every executor's behaviour with no evidence.
+func TestTaskFor_AuthorRolesKeepAmbientContextForNow(t *testing.T) {
+	for _, role := range []string{"executor", "designer", "planner"} {
+		if taskFor(Request{Role: role}, testCandidate()).IsolateFromAmbientContext {
+			t.Errorf("role %q was isolated without a ruling", role)
+		}
+	}
+}

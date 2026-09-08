@@ -194,13 +194,22 @@ var evaluatorTools = []string{"read", "bash", "grep", "find", "ls"}
 func taskFor(r Request, c Candidate) *executor.Task {
 	m := c.config
 	var allowed []string
-	if strings.EqualFold(r.Role, "evaluator") {
+	isEvaluator := strings.EqualFold(r.Role, "evaluator")
+	if isEvaluator {
 		allowed = evaluatorTools
 	}
 	return &executor.Task{
 		AllowedTools: allowed,
-		ID:           strings.Join([]string{r.MissionID, r.WorkItemID, r.StageID, r.AttemptID}, "/"),
-		ParentTaskID: r.WorkItemID, Directive: r.Instructions,
+		// SCOPED TO THE EVALUATOR DELIBERATELY. Its contract states that the bound packet
+		// is the evidence, so ambient repo instructions are pure contamination. Author
+		// roles are left alone pending a decision: they arguably SHOULD follow the repo's
+		// conventions while writing code, and silently changing that could regress every
+		// executor with no evidence either way. The determinism argument applies to them
+		// too — a frozen work item whose behaviour depends on today's AGENTS.md is not
+		// frozen — but that is a ruling, not a refactor.
+		IsolateFromAmbientContext: isEvaluator,
+		ID:                        strings.Join([]string{r.MissionID, r.WorkItemID, r.StageID, r.AttemptID}, "/"),
+		ParentTaskID:              r.WorkItemID, Directive: r.Instructions,
 		SystemPrompt: fmt.Sprintf("Mission role contract v1. Role: %s. Input revision declared by caller: %s. Request digest: %s. Produce the requested artifact; execution success is not acceptance or permission to publish.", r.Role, r.InputRevision, r.Digest()),
 		Workspace:    r.Workspace, Model: c.WireModel, Timeout: time.Duration(r.TimeoutSeconds) * time.Second,
 		MaxTokensPerBench: r.MaxTokens, MaxOutputTokens: m.MaxOutputTokens, ReasoningEffort: m.ReasoningEffort,

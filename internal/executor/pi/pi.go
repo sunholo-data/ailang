@@ -599,6 +599,12 @@ func buildPiArgs(model string, task *executor.Task, directive string) ([]string,
 		args = append(args, "--thinking", task.ReasoningEffort)
 	}
 
+	// AGENTS.md / CLAUDE.md discovery is ON by default in pi. A frozen mission stage must
+	// not inherit whatever those files happen to say today.
+	if task.IsolateFromAmbientContext {
+		args = append(args, "--no-context-files")
+	}
+
 	switch {
 	case task.AllowedTools == nil:
 		// nil = caller does not specify; let pi's defaults apply.
