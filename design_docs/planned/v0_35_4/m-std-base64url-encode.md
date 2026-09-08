@@ -334,7 +334,20 @@ all mechanical, all found by a gate rather than by review:
 4. **`cmd/ailang/prompts/` is a mirror, not the source.** The source of truth is the repo-root
    `prompts/`; a build step re-syncs the mirror and silently deleted a new prompt file written
    only into `cmd/`. Edits go in `prompts/`, then get copied across; `ailang prompt freeze
-   --check` validates the mirror (60 entries, clean).
+   --check` validates the mirror (59 entries, clean).
+5. **The doc's "cut a new prompt version" decision (V11) was WRONG, and CI caught it.**
+   The registry admits exactly **one unfrozen head**, asserted by
+   `TestRealRegistry_PostMigrationSplitCounts` (`cmd/ailang/prompt_freeze_test.go:154`). Adding
+   `v0.16.7` made two, turning the `test` and `test-windows` CI jobs red on commit `a097d7718`.
+   The V11 precedent was read too literally: `v0.16.5` is frozen with reason `legacy` because the
+   **bulk `--migrate`** froze it on 2026-08-27, not because cutting `v0.16.6` froze it.
+   `ailang prompt freeze v0.16.6` refuses — *"has no banked corpus evidence"* — and that refusal is
+   the actual signal: **nothing is pinned to `v0.16.6`, so there was no baseline to protect and no
+   reason to cut a version.** The edits belong in `v0.16.6` in place; the next eval run that banks
+   against it is what freezes it. Corrected in `24b8b3e`-and-after.
+
+   The general rule the doc should have stated: *cut a new prompt version only when the current
+   head is frozen.* If `freeze` refuses, edit in place.
 
 Verified after the change: `ailang prompt` (active v0.16.7) mentions `toBase64URL` 4 times and
 `ailang prompt --version v0.16.6` mentions it 0 times — the pinned-baseline guarantee holds.
