@@ -21,8 +21,6 @@ export type { GlobalStatsProps, GlobalStatsData } from './GlobalStats';
 export { AggregationNav } from './AggregationNav';
 export type { AggregationNavProps, BreakdownData } from './AggregationNav';
 
-export { ActivityHeatmap } from './ActivityHeatmap';
-export type { ActivityHeatmapProps } from './ActivityHeatmap';
 
 export { ExecHierarchy } from './ExecHierarchy';
 export type { ExecHierarchyProps } from './ExecHierarchy/types';
@@ -44,6 +42,3 @@ export type { CliCommandHintProps, CommandType } from './CliCommandHint';
 
 export { FilterIndicator } from './FilterIndicator';
 export type { FilterIndicatorProps } from './FilterIndicator';
-
-export { VisualizationPanel } from './VisualizationPanel';
-export type { VisualizationPanelProps, ChartType } from './VisualizationPanel';

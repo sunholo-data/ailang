@@ -77,6 +77,17 @@ builder. Remove dependencies/lockfile entries only after confirming zero retaine
 imports. `ControlPlane.tsx` (786 lines) and `ExecHierarchy.tsx` (881) should shrink
 as wiring disappears, rather than being decomposed into equally complex layers.
 
+### Deletion sprint A implementation update
+
+Authorized continuation implemented on dev: optional analytics/heatmap panel and
+evolution-tree mode removed, including 19 exclusive source files and approximately
+11,200 net source lines. Chart/tree dependencies removed; direct From/To filters
+replace the heatmap selection dependency. Work/chains, approvals, timeline/chat
+and raw evidence inspection remain. UI 147 tests and build pass; minified JS falls
+from 1,265.62kB to 720.26kB. Checked-in embedded assets refreshed; **not deployed**.
+Browser interactions and production data stability remain unverified.
+See [deletion sprint record](planned/m-dashboard-delete-analytics-sprint-plan.md).
+
 ### Next bounded sequence
 
 1. **Deploy and prove the merged capture fix.** Prepare exact image/revision diff,

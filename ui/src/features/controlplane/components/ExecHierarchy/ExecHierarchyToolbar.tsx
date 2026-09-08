@@ -203,13 +203,6 @@ export const ExecHierarchyToolbar: React.FC<ExecHierarchyToolbarProps> = ({
           >
             💬
           </button>
-          <button
-            className={`${styles.viewToggleBtn} ${viewMode === 'evolution' ? styles.viewToggleBtnActive : ''}`}
-            onClick={() => onViewModeChange('evolution')}
-            title="Evolution Tree"
-          >
-            🌳
-          </button>
         </div>
 
         {/* Reverse Order Toggle */}

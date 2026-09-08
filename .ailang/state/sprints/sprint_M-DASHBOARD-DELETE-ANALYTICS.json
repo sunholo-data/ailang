@@ -1,0 +1,64 @@
+{
+  "sprint_id": "M-DASHBOARD-DELETE-ANALYTICS",
+  "created": "2026-09-08T12:37:18.226032+00:00",
+  "estimated_duration_days": 1,
+  "design_doc": "design_docs/dashboard-recovery-plan-2026-09-08.md",
+  "markdown_plan": "design_docs/planned/m-dashboard-delete-analytics-sprint-plan.md",
+  "features": [
+    {
+      "id": "M1",
+      "description": "Remove optional views",
+      "estimated_loc": 100,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Analytics panel and heatmap polling removed.",
+        "Evolution mode and tree removed.",
+        "Work, approvals, date filters and timeline/chat retained."
+      ],
+      "passes": true,
+      "started": "2026-09-08T12:37:18.226032+00:00",
+      "completed": "2026-09-08T12:44:11.858965+00:00",
+      "notes": "UI147 tests, lint and production build pass; retained date input regression repaired and tested."
+    },
+    {
+      "id": "M2",
+      "description": "Remove dependency closure",
+      "estimated_loc": 100,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Exclusive hooks, styles and exports deleted.",
+        "Chart/tree dependencies removed with no retained imports.",
+        "UI tests and production build pass."
+      ],
+      "passes": true,
+      "started": "2026-09-08T12:37:18.226032+00:00",
+      "completed": "2026-09-08T12:44:11.858965+00:00",
+      "notes": "UI147 tests, lint and production build pass; retained date input regression repaired and tested."
+    },
+    {
+      "id": "M3",
+      "description": "Review and record",
+      "estimated_loc": 100,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Independent review recorded and regressions resolved.",
+        "Changelog/recovery plan record deletion counts and limitations."
+      ],
+      "passes": null,
+      "started": "2026-09-08T12:37:18.226032+00:00",
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "velocity": {
+    "estimated_total_loc": 300,
+    "actual_total_loc": 0,
+    "estimated_days": 1
+  },
+  "status": "in_progress",
+  "last_session": "2026-09-08T12:44:11.858965+00:00"
+}

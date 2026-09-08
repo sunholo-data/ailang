@@ -7,7 +7,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import styles from './ControlPlane.module.css';
 import {
-  useHeatmapData,
   useTopologyData,
   useControlPlaneStats,
   useEventQueue,
@@ -27,19 +26,16 @@ import {
 // Import extracted components
 import {
   AggregationNav,
-  ActivityHeatmap,
   ExecHierarchy,
   MessageQueue,
   DetailPanel,
   EventDetail,
-  VisualizationPanel,
   defaultTrustCapabilities,
 } from './components';
 import type {
   Agent,
   DateRange,
   DetailPanelState,
-  HeatmapCell,
   EventMessage,
   TrustCapability,
   TopologyEdge,
@@ -148,7 +144,7 @@ export const ControlPlane: React.FC = () => {
   const [trustCapabilities, setTrustCapabilities] = useState<TrustCapability[]>(defaultTrustCapabilities);
   const [theme, setTheme] = useState<'dark' | 'light'>('light');
 
-  // Track time range selection from heatmap (separate from dimension filters)
+  // Track time range selection from message filters (separate from dimension filters)
   const [selectedDateRange, setSelectedDateRange] = useState<DateRange | null>(null);
   // Track event type filter (for MessageQueue)
   const [selectedEventTypes, setSelectedEventTypes] = useState<EventType[]>([]);
@@ -213,7 +209,7 @@ export const ControlPlane: React.FC = () => {
     setSortOrder(order);
   }, []);
 
-  // Merge dimension filters with time range from heatmap selection, status, search, and sort
+  // Merge dimension filters with selected date range, status, search, and sort
   const filters = useMemo((): ControlPlaneFilters => {
     let merged = { ...dimensionFilters };
     if (selectedDateRange && selectedDateRange.start && selectedDateRange.end) {
@@ -241,7 +237,6 @@ export const ControlPlane: React.FC = () => {
   // Fetch real data from APIs - pass merged filters to all applicable hooks
   // Use grid format for server-side date calculations (removes ~80 lines of client-side logic)
   // Polling intervals are set to 0 (disabled) when the tab is hidden
-  const { gridData, data: heatmapResponse } = useHeatmapData({ days: 90, filters, format: 'grid', refreshInterval: isVisible ? 30000 : 0 });
   const { data: topologyData } = useTopologyData({ refreshInterval: isVisible ? 5000 : 0 });
   const { stats, loading: statsLoading } = useControlPlaneStats({ refreshInterval: isVisible ? 10000 : 0, filters });
   const { breakdowns, loading: breakdownLoading } = useBreakdownData({ refreshInterval: isVisible ? 30000 : 0, filters });
@@ -284,7 +279,6 @@ export const ControlPlane: React.FC = () => {
 
   // Transform data for components - NO MOCK FALLBACKS
   // Simple property extraction - no memo needed
-  const heatmapData = heatmapResponse?.cells || [];
   const messageBasedAgents = topologyData?.agents || [];
 
   // Edges with active status based on agent state
@@ -329,20 +323,6 @@ export const ControlPlane: React.FC = () => {
     setTrustCapabilities(prev =>
       prev.map(cap => cap.name === name ? { ...cap, score } : cap)
     );
-  }, []);
-
-  const handleDateSelect = useCallback((range: DateRange) => {
-    if (range.start === '' && range.end === '') {
-      setSelectedDateRange(null);
-    } else {
-      setSelectedDateRange(range);
-    }
-  }, []);
-
-  const handleCellClick = useCallback((cell: HeatmapCell) => {
-    // Date selection now acts as a filter - no detail panel needed
-    // The date range is already set by handleDateSelect on mouseDown
-    // This callback is kept for potential future use (e.g., double-click behavior)
   }, []);
 
   // Approval handlers
@@ -441,33 +421,6 @@ export const ControlPlane: React.FC = () => {
       source_type: metadata?.source_type as string | undefined,
     });
   }, [fetchSpansForTrace]);
-
-  // Handler for task selection from Evolution chart
-  const handleTaskSelect = useCallback((taskId: string) => {
-    // Try to find matching event in the events list
-    const matchingEvent = events.find((event) => {
-      // Check direct task_id field
-      if (event.task_id === taskId) return true;
-      // Check metadata fields
-      const metadata = event.metadata as Record<string, unknown> | undefined;
-      if (metadata?.task_id === taskId) return true;
-      if (metadata?.parent_task_id === taskId) return true;
-      // Check if event.id matches the short task ID format
-      if (taskId.includes('/') && event.id?.startsWith(taskId.split('/')[1])) return true;
-      return false;
-    });
-
-    if (matchingEvent) {
-      // Found matching event, use the full event click handler
-      handleEventClick(matchingEvent);
-    } else {
-      // No matching event found, but still show spans for this task
-      setSelectedEventTraceId(taskId);
-      fetchSpansForTrace(taskId, 'auto');
-      // Clear detail panel to show "Select an event" state
-      setDetailPanel({ type: null, id: null });
-    }
-  }, [events, handleEventClick, fetchSpansForTrace]);
 
   const closeDetailPanel = useCallback(() => {
     setDetailPanel({ type: null, id: null });
@@ -647,38 +600,8 @@ export const ControlPlane: React.FC = () => {
 
         {/* Main Canvas */}
         <main className={`${styles.mainCanvas} ${topologyExpanded ? styles.canvasWithExpanded : ''}`}>
-          {/* Top Row: Visualization Panel + Event Detail (always side by side) */}
-          <div className={`${styles.canvasRow} ${styles.canvasRowSplit}`}>
-            <VisualizationPanel
-              filters={filters}
-              heatmapData={heatmapData}
-              heatmapGridData={gridData}
-              selectedDateRange={selectedDateRange}
-              onDateSelect={handleDateSelect}
-              onHeatmapCellClick={handleCellClick}
-              onClearFilter={(key) => {
-                // Handle different filter types
-                if (key === 'start_date' || key === 'end_date') {
-                  setSelectedDateRange(null);
-                } else if (key === 'status') {
-                  setStatusFilter('all');
-                } else if (key === 'search') {
-                  setSearchQuery('');
-                } else {
-                  // Dimension filters (provider, model, workspace, source_type)
-                  // Note: selectedFilters uses 'source' but filters use 'source_type'
-                  const internalKey = key === 'source_type' ? 'source' : key;
-                  setSelectedFilters(prev => {
-                    const newFilters = { ...prev };
-                    delete newFilters[internalKey];
-                    return newFilters;
-                  });
-                }
-              }}
-              onClearAllFilters={handleClearFilters}
-              onSetFilter={handleFilterToggle}
-              onTaskSelect={handleTaskSelect}
-            />
+          {/* Selected event evidence */}
+          <div className={styles.canvasRow}>
             {/* Event Detail Panel - always visible, shows placeholder when no event selected */}
             {!topologyExpanded && (
               <EventDetail
