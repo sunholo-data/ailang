@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"sync"
 
 	ailembed "github.com/sunholo-data/ailang/internal/embed"
@@ -44,48 +42,17 @@ var (
 	authorityEngineErr  error
 )
 
-// authorityRoot finds the tree holding the authority module.
-//
-// The CLI runs from anywhere — the hook from the project root, a mission
-// controller from $REPO, a package agent from a different repository entirely —
-// so a bare ailembed.New(".") would resolve differently for each caller and
-// silently change who is trusted. Walking up for the module itself makes the
-// answer depend on the tree, not on the caller's cwd.
-func authorityRoot() (string, error) {
-	if root := os.Getenv("AILANG_ROOT"); root != "" {
-		if _, err := os.Stat(filepath.Join(root, authorityModule+".ail")); err == nil {
-			return root, nil
-		}
-		return "", fmt.Errorf("AILANG_ROOT=%s does not contain %s.ail", root, authorityModule)
-	}
-
-	dir, err := os.Getwd()
-	if err != nil {
-		return "", fmt.Errorf("cannot determine working directory: %w", err)
-	}
-	for {
-		if _, err := os.Stat(filepath.Join(dir, authorityModule+".ail")); err == nil {
-			return dir, nil
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			return "", fmt.Errorf("no %s.ail found above %s (set AILANG_ROOT)", authorityModule, dir)
-		}
-		dir = parent
-	}
-}
-
 // loadAuthorityEngine compiles the authority module once per process.
+//
+// Root resolution is embed.ProjectRoot's, shared with the dashboard bridge and
+// the budget CLI: the CLI runs from anywhere — the hook from the project root, a
+// mission controller from $REPO, a package agent from another repository
+// entirely — so a cwd-relative base path would silently change who is trusted.
 func loadAuthorityEngine() (*ailembed.Engine, error) {
 	authorityEngineOnce.Do(func() {
-		root, err := authorityRoot()
+		eng, err := ailembed.NewForModule(authorityModule)
 		if err != nil {
 			authorityEngineErr = err
-			return
-		}
-		eng := ailembed.New(root)
-		if err := eng.Load(authorityModule); err != nil {
-			authorityEngineErr = fmt.Errorf("loading %s: %w", authorityModule, err)
 			return
 		}
 		authorityEngine = eng

@@ -31,6 +31,16 @@ FROM gcr.io/distroless/static-debian12:nonroot
 
 COPY --from=go-builder /ailang /usr/local/bin/ailang
 
+# The dashboard's transforms (event formatting, heatmap, budget) are AILANG
+# modules, and since 2026-09-08 they are the ONLY implementation — the Go copies
+# that used to answer when these were missing have been removed. They were
+# missing here: this image shipped the binary and no .ail files at all, so the
+# AILANG path had never once run in production and the "fallback" was in fact
+# the only thing executing. Ship the modules, and their std/ imports.
+COPY --from=go-builder /build/internal/dashboard_transforms /app/internal/dashboard_transforms
+COPY --from=go-builder /build/std /app/std
+ENV AILANG_PROJECT_ROOT=/app
+
 # The React build output is embedded in the Go binary via go:embed,
 # but we also copy it separately in case of static file serving.
 # The ailang serve command serves from internal/server/dist/ (embedded).
