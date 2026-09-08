@@ -62,6 +62,12 @@ type Status struct {
 	TotalTokens      int     `json:"total_tokens,omitempty"`
 }
 
+// taskExecutor is the narrow seam executeTask needs. The single production
+// implementor is *TaskExecutor (assigned in daemon_tasks_init.go).
+type taskExecutor interface {
+	ExecuteWithRetry(ctx context.Context, task *AnalyzedTask, opts *ExecuteOptions, maxRetries int) (*ExecuteResult, error)
+}
+
 // Daemon is the coordinator daemon
 type Daemon struct {
 	config    *Config
@@ -85,7 +91,7 @@ type Daemon struct {
 	analyzer         *TaskAnalyzer
 	worktreeMgr      *WorktreeManager // Legacy: default worktree manager
 	taskStore        Store
-	executor         *TaskExecutor
+	executor         taskExecutor
 
 	// Agent configuration
 	agentRegistry *AgentRegistry
