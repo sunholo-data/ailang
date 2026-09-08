@@ -280,6 +280,27 @@ drove the ollama gauge to 69.4%.**
 
 ---
 
+### 3.8 Two timing-sensitive tests that will keep reddening CI
+
+Neither was touched by this session; both are recorded because a red that recurs and gets
+explained away each time is how a real regression eventually hides behind a known flake.
+
+| Test | Assertion | Measured |
+|---|---|---|
+| `test_driver_notify.sh` "hanging gh comment" | `elapsed -le 7` wall-clock, on a 2s timeout | failed at **8s** under concurrent load; 3/3 unloaded passes |
+| `TestIterationWaitingDeadlineExpiresDurably` | first `s.Run` returns `waiting` with `TimeoutSeconds = 1` | `git rev-parse --absolute-git-dir: signal: killed` — the 1s stage budget kills the git subprocess |
+
+The second is rare and load-correlated: **0/15** isolated runs and **0/5** batches of ten
+reproduced it, but it failed twice while the machine was also running the full suite, lint
+and CI polling — and once on the GitHub runner. An earlier note in this session called it
+"does not reproduce locally" on the strength of 3 and 8 passing runs; that was overstated,
+and the correction is recorded here rather than quietly dropped.
+
+The honest fix is not to widen either bound. For the second, the question to settle is
+whether a work item's `TimeoutSeconds` should be charged against the repository probe at
+`runtime_stage.go:226,238` at all — a one-second work item is currently unusable not because
+its work is slow but because `git rev-parse` is inside its budget.
+
 ## 5. Remediation backlog
 
 Ordered by value, not effort.
