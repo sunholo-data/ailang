@@ -285,3 +285,33 @@ func TestProductionTimerDefaultsPreserved(t *testing.T) {
 		t.Error("event handler clock is nil — the production clock seam has no default")
 	}
 }
+
+// TestDefaultPollTickFires covers `defaultPollTick`, the PRODUCTION-default tick
+// source the store-backed approval checkpoint's constructor documents. It had no
+// coverage at all: its only reference was the vacuous poll sub-check deleted
+// above, and removing that turned it into a `golangci-lint unused` red — which is
+// the linter correctly reporting that this sprint made a production default
+// injectable and then tested only the injected side.
+//
+// CLAUDE.md's rule applies here ("never delete a function just because the linter
+// says unused"): `defaultPollTick` is the value the constructor's own comment
+// names as the production default, and the reason it has no non-test caller is
+// that `NewStoreBackedApprovalCheckpoint` has zero production callers (design doc
+// V16). So it is covered rather than deleted, and covered by BEHAVIOUR — it must
+// actually deliver a tick — not by a reference that merely satisfies the linter.
+//
+// The deadline is a liveness safeguard on the failure path, not a timing
+// assertion: a correct ticker fires at 5ms and this waits 100x that.
+func TestDefaultPollTickFires(t *testing.T) {
+	ch := defaultPollTick(5 * time.Millisecond)
+	if ch == nil {
+		t.Fatal("defaultPollTick returned a nil channel — the production poll default cannot tick")
+	}
+	select {
+	case <-ch:
+		// A real ticker delivered. This is what the store-backed poll loop
+		// selects on when no tick seam is injected.
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("defaultPollTick(5ms) delivered no tick within 500ms — production poll default is dead")
+	}
+}
