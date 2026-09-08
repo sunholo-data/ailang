@@ -3594,6 +3594,49 @@ models:
   # MISSION-FLEET TRIAL lane (codex quota offload candidate, per Mark). Opt-in
   # only; smoke gate CLEARED (see notes) — suite promotion still pending a
   # core-tier ranking run + Mark's decision (smoke is a floor, not a ranking).
+  # A/B CONTROL for the mission evaluator route, added 2026-09-08 (attended).
+  #
+  # Identical to pi-or-deepseek-v4-flash in EVERY field except the `:floor` suffix, so a
+  # comparison between the two changes exactly one variable: the OpenRouter provider sort.
+  #
+  # Why it exists: the reliability canary's evaluator failed on the `:floor` route —
+  # 19 turns, 26 tool calls, never ran its bound validator, aborted at 100,024 of 100,000
+  # tokens. `:floor` is provider.sort=price, and it was DROPPED from the mission EXECUTOR
+  # lane on 2026-08-18 for exactly this class: the two cheapest hosts for this model carry
+  # NEGATIVE health status (StreamLake -2, Decart -5 of 28), and World iteration 91 returned
+  # rc=0 with ZERO BYTES CHANGED twice at 625 output tokens against a 65,536 budget. The
+  # registry kept `:floor` because per-provider prompt caching made repeat calls ~4.8x
+  # cheaper; the evaluator lane inherited it and was never re-measured after the executor
+  # lane moved off it.
+  #
+  # Accepted cost if this becomes the route: caches far less (measured 2026-08-11, unpinned
+  # cacheRead=0 across two identical ~27.7k prompts). A lane that does not converge has
+  # worse economics than any cache multiplier can repair.
+  pi-or-deepseek-v4-flash-bare:
+    api_name: "deepseek/deepseek-v4-flash-0731"
+    provider: "openrouter"
+    default_thinking: "on"
+    description: "DeepSeek V4 Flash 0731 via pi — BARE id (no :floor), A/B control for the evaluator route"
+    env_var: "OPENROUTER_API_KEY"
+    agent_cli: "pi"
+    agent_model_name: "openrouter/deepseek/deepseek-v4-flash-0731"
+    model_family: "deepseek-v4"
+    max_output_tokens: 32000  # PI_WIRE_CLAMP — must match the :floor sibling; pi clamps to
+                              # min(declared, 32000) regardless of what is declared.
+    pricing:
+      # MUST match every other row for this slug — the pricing-consistency gate compares
+      # them, and it caught this row copied from an unrelated model on first write.
+      # Caveat inherited from the :floor sibling: 26 hosts serve this model at
+      # $0.08-0.14/M input, so a single number is approximate. These track DeepInfra,
+      # which is what :floor selects; a BARE id load-balances and may bill differently.
+      input_per_1k: 0.000065   # $0.065 per 1M (OpenRouter API, verified 2026-08-31)
+      output_per_1k: 0.00018   # $0.18 per 1M (OpenRouter API, verified 2026-08-31)
+      cache_read_per_1k: 0.000016
+    notes: |
+      Bare-id control. Same weights, same harness, same budget as pi-or-deepseek-v4-flash;
+      only the OpenRouter provider sort differs. Do not add :floor here — that is the
+      variable under test.
+
   pi-or-deepseek-v4-flash:
     api_name: "deepseek/deepseek-v4-flash-0731"
     provider: "openrouter"
