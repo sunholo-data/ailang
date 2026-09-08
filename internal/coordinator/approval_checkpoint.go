@@ -328,15 +328,27 @@ type StoreBackedApprovalCheckpoint struct {
 	*ApprovalCheckpoint
 	store        ApprovalStore
 	pollInterval time.Duration
+	tick         func(time.Duration) <-chan time.Time
 }
 
-// NewStoreBackedApprovalCheckpoint creates a store-backed approval checkpoint
-func NewStoreBackedApprovalCheckpoint(store ApprovalStore, defaultTimeout time.Duration) *StoreBackedApprovalCheckpoint {
+// NewStoreBackedApprovalCheckpoint creates a store-backed approval checkpoint.
+// pollInterval and tick are per-call injection points (M-COORDINATOR-TEST-PARALLELISM,
+// FIX 1). Callers pass the production defaults 2*time.Second and defaultPollTick to
+// preserve pre-injection behavior exactly. There are no production callers.
+func NewStoreBackedApprovalCheckpoint(store ApprovalStore, defaultTimeout, pollInterval time.Duration, tick func(time.Duration) <-chan time.Time) *StoreBackedApprovalCheckpoint {
 	return &StoreBackedApprovalCheckpoint{
 		ApprovalCheckpoint: NewApprovalCheckpoint(defaultTimeout),
 		store:              store,
-		pollInterval:       2 * time.Second,
+		pollInterval:       pollInterval,
+		tick:               tick,
 	}
+}
+
+// defaultPollTick is the production-default tick source: a real ticker channel.
+// Unreferenced tickers are garbage-collected since Go 1.23; this module targets
+// Go 1.26, so dropping pollTicker.Stop() leaks nothing.
+func defaultPollTick(interval time.Duration) <-chan time.Time {
+	return time.NewTicker(interval).C
 }
 
 // RequestApproval creates an approval request and waits for resolution.
@@ -383,9 +395,8 @@ func (sac *StoreBackedApprovalCheckpoint) RequestApproval(ctx context.Context, r
 	timeoutCtx, cancel := context.WithTimeout(ctx, request.Timeout)
 	defer cancel()
 
-	// Start polling for store changes
-	pollTicker := time.NewTicker(sac.pollInterval)
-	defer pollTicker.Stop()
+	// Start polling for store changes (injected tick seam: M-COORDINATOR-TEST-PARALLELISM)
+	tickCh := sac.tick(sac.pollInterval)
 
 	for {
 		select {
@@ -393,7 +404,7 @@ func (sac *StoreBackedApprovalCheckpoint) RequestApproval(ctx context.Context, r
 			// Resolved in-process
 			return status, nil
 
-		case <-pollTicker.C:
+		case <-tickCh:
 			// Poll store for status changes
 			if sac.store != nil {
 				record, err := sac.store.GetApprovalRequest(ctx, request.ID)

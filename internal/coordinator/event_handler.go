@@ -43,6 +43,7 @@ type CoordinatorEventHandler struct {
 	eventCount      int
 	maxEventsPerSec int
 	throttled       bool
+	now             func() time.Time // Injected clock (M-COORDINATOR-TEST-PARALLELISM); default time.Now
 
 	// Event buffering for replay
 	eventBuffer   []*websocket.TaskStreamEvent
@@ -57,9 +58,20 @@ type CoordinatorEventHandler struct {
 	startTime   time.Time
 }
 
+// CoordinatorEventHandlerOption is a functional option for NewCoordinatorEventHandler.
+type CoordinatorEventHandlerOption func(*CoordinatorEventHandler)
+
+// WithClock injects the clock used by the rate-limit window check
+// (M-COORDINATOR-TEST-PARALLELISM). Default: time.Now.
+func WithClock(now func() time.Time) CoordinatorEventHandlerOption {
+	return func(h *CoordinatorEventHandler) {
+		h.now = now
+	}
+}
+
 // NewCoordinatorEventHandler creates a new event handler for a task.
-func NewCoordinatorEventHandler(taskID, threadID string, broadcast EventBroadcaster) *CoordinatorEventHandler {
-	return &CoordinatorEventHandler{
+func NewCoordinatorEventHandler(taskID, threadID string, broadcast EventBroadcaster, opts ...CoordinatorEventHandlerOption) *CoordinatorEventHandler {
+	h := &CoordinatorEventHandler{
 		taskID:          taskID,
 		threadID:        threadID,
 		broadcast:       broadcast,
@@ -67,7 +79,12 @@ func NewCoordinatorEventHandler(taskID, threadID string, broadcast EventBroadcas
 		maxBufferSize:   100, // Keep last 100 events for replay
 		eventBuffer:     make([]*websocket.TaskStreamEvent, 0, 100),
 		startTime:       time.Now(),
+		now:             time.Now,
 	}
+	for _, opt := range opts {
+		opt(h)
+	}
+	return h
 }
 
 // SetEventStorer sets the database storage function for persisting events.
@@ -276,7 +293,7 @@ func (h *CoordinatorEventHandler) checkRateLimit() bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	now := time.Now()
+	now := h.now()
 
 	// Reset counter every second
 	if now.Sub(h.lastEventTime) >= time.Second {

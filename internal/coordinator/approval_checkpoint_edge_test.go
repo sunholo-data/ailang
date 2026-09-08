@@ -8,6 +8,33 @@ import (
 	"time"
 )
 
+// tickRecorder is a test-controlled tick seam for StoreBackedApprovalCheckpoint
+// (M-COORDINATOR-TEST-PARALLELISM, FIX 1). It records the requested poll interval
+// and returns ch, which the test drives explicitly. ch is unbuffered: one release
+// is consumed by exactly one poll iteration.
+type tickRecorder struct {
+	mu       sync.Mutex
+	interval time.Duration
+	ch       chan time.Time
+}
+
+func newTickRecorder() *tickRecorder {
+	return &tickRecorder{ch: make(chan time.Time)}
+}
+
+func (tr *tickRecorder) tick(d time.Duration) <-chan time.Time {
+	tr.mu.Lock()
+	tr.interval = d
+	tr.mu.Unlock()
+	return tr.ch
+}
+
+func (tr *tickRecorder) recordedInterval() time.Duration {
+	tr.mu.Lock()
+	defer tr.mu.Unlock()
+	return tr.interval
+}
+
 // TestStoreBackedApprovalCheckpoint tests the store-backed version
 func TestStoreBackedApprovalCheckpoint(t *testing.T) {
 	// Create a temp database
@@ -18,16 +45,19 @@ func TestStoreBackedApprovalCheckpoint(t *testing.T) {
 	}
 	defer store.Close()
 
-	sac := NewStoreBackedApprovalCheckpoint(store, 1*time.Hour)
+	tr := newTickRecorder()
+	sac := NewStoreBackedApprovalCheckpoint(store, 1*time.Hour, 10*time.Millisecond, tr.tick)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	// Request approval in background
-	var wg sync.WaitGroup
 	var status ApprovalStatus
-	wg.Add(1)
+	done := make(chan struct{})
 	go func() {
-		defer wg.Done()
+		defer close(done)
 		var err error
-		status, err = sac.RequestApproval(context.Background(), &ApprovalRequest{
+		status, err = sac.RequestApproval(ctx, &ApprovalRequest{
 			ID:          "test-store-1",
 			TaskID:      "task-store-1",
 			Type:        ApprovalTypeMerge,
@@ -56,8 +86,19 @@ func TestStoreBackedApprovalCheckpoint(t *testing.T) {
 		t.Fatalf("failed to resolve: %v", err)
 	}
 
-	// Wait for polling to detect the change
-	wg.Wait()
+	// Explicitly release ticks until the poll observes the resolution (FIX 1).
+	// The deadline is a LIVENESS safeguard, not a timing-correctness assertion.
+	liveness := time.After(5 * time.Second)
+releaseLoop:
+	for {
+		select {
+		case <-done:
+			break releaseLoop
+		case <-liveness:
+			t.Fatal("poll did not detect the store resolution (liveness safeguard)")
+		case tr.ch <- time.Now():
+		}
+	}
 
 	if status != ApprovalStatusApproved {
 		t.Errorf("expected approved, got %s", status)
@@ -73,15 +114,18 @@ func TestStoreBackedApprovalCheckpoint_Rejection(t *testing.T) {
 	}
 	defer store.Close()
 
-	sac := NewStoreBackedApprovalCheckpoint(store, 1*time.Hour)
+	tr := newTickRecorder()
+	sac := NewStoreBackedApprovalCheckpoint(store, 1*time.Hour, 10*time.Millisecond, tr.tick)
 
-	var wg sync.WaitGroup
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	var status ApprovalStatus
-	wg.Add(1)
+	done := make(chan struct{})
 	go func() {
-		defer wg.Done()
+		defer close(done)
 		var err error
-		status, err = sac.RequestApproval(context.Background(), &ApprovalRequest{
+		status, err = sac.RequestApproval(ctx, &ApprovalRequest{
 			ID:          "test-reject-1",
 			TaskID:      "task-reject-1",
 			Type:        ApprovalTypeDestroy,
@@ -100,7 +144,19 @@ func TestStoreBackedApprovalCheckpoint_Rejection(t *testing.T) {
 		t.Fatalf("failed to reject: %v", err)
 	}
 
-	wg.Wait()
+	// Explicitly release ticks until the poll observes the rejection (FIX 1).
+	// The deadline is a LIVENESS safeguard, not a timing-correctness assertion.
+	liveness := time.After(5 * time.Second)
+releaseLoop:
+	for {
+		select {
+		case <-done:
+			break releaseLoop
+		case <-liveness:
+			t.Fatal("poll did not detect the store rejection (liveness safeguard)")
+		case tr.ch <- time.Now():
+		}
+	}
 
 	if status != ApprovalStatusRejected {
 		t.Errorf("expected rejected, got %s", status)
