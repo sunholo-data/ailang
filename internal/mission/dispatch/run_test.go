@@ -369,3 +369,26 @@ func TestTaskFor_AuthorRolesKeepAmbientContextForNow(t *testing.T) {
 		}
 	}
 }
+
+// Every stage — not just the evaluator — must be marked as frozen execution so the repo's
+// Claude Code hooks inject nothing into it. The AGENTS.md isolation above is evaluator-only
+// because repo conventions are arguably an author's business; prompt-matched brain
+// resolutions and an inbox banner are neither conventions nor contract, and content that
+// varies run to run makes a "frozen" work item not frozen.
+func TestTaskFor_EveryStageIsMarkedFrozenForHooks(t *testing.T) {
+	for _, role := range []string{"evaluator", "executor", "designer", "planner"} {
+		got := taskFor(Request{Role: role}, testCandidate()).ExtraEnv["AILANG_MISSION_STAGE"]
+		if got != "1" {
+			t.Errorf("role %q: AILANG_MISSION_STAGE=%q, want \"1\" — hooks will inject into a frozen stage", role, got)
+		}
+	}
+}
+
+// The canonical inbox pinning must survive alongside the new marker: these ride in the same
+// map, and dropping one while adding the other is the obvious regression.
+func TestTaskFor_StageKeepsCanonicalMessageStore(t *testing.T) {
+	env := taskFor(Request{Role: "evaluator"}, testCandidate()).ExtraEnv
+	if env["AILANG_MESSAGES_STORE"] != "gcp" || env["AILANG_MESSAGES_PROJECT"] != "ailang-multivac" {
+		t.Fatalf("canonical store pinning lost: %v", env)
+	}
+}

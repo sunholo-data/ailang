@@ -215,9 +215,18 @@ func taskFor(r Request, c Candidate) *executor.Task {
 		MaxTokensPerBench: r.MaxTokens, MaxOutputTokens: m.MaxOutputTokens, ReasoningEffort: m.ReasoningEffort,
 		TTFTTimeout: time.Duration(m.TTFTTimeoutSeconds) * time.Second, IdleTimeout: time.Duration(m.GenerationTimeoutSeconds) * time.Second,
 		GCPProject: m.GCPProject, GCPLocation: m.GCPLocation,
-		Budget:   executor.NewCostBudget(r.MaxCostUSD, m.Pricing.InputPer1K, m.Pricing.OutputPer1K),
-		Pricing:  &executor.CostModel{InputTokenCost: m.Pricing.InputPer1K, OutputTokenCost: m.Pricing.OutputPer1K, CacheReadCost: m.Pricing.CacheReadPer1K},
-		ExtraEnv: map[string]string{"AILANG_MESSAGES_STORE": "gcp", "AILANG_MESSAGES_PROJECT": "ailang-multivac"},
+		Budget:  executor.NewCostBudget(r.MaxCostUSD, m.Pricing.InputPer1K, m.Pricing.OutputPer1K),
+		Pricing: &executor.CostModel{InputTokenCost: m.Pricing.InputPer1K, OutputTokenCost: m.Pricing.OutputPer1K, CacheReadCost: m.Pricing.CacheReadPer1K},
+		ExtraEnv: map[string]string{
+			"AILANG_MESSAGES_STORE": "gcp", "AILANG_MESSAGES_PROJECT": "ailang-multivac",
+			// Marks this process as FROZEN STAGE EXECUTION so the repo's Claude Code hooks
+			// inject nothing into it. Applies to EVERY role, unlike the AGENTS.md isolation
+			// above: repo conventions are arguably an author's business, but prompt-matched
+			// brain resolutions and an inbox banner are neither conventions nor contract —
+			// they are per-run-variable content, and a work item whose input varies run to
+			// run is not frozen. Read by scripts/hooks/{brain_on_prompt,session_start}.sh.
+			"AILANG_MISSION_STAGE": "1",
+		},
 		Metadata: map[string]string{"chain_id": r.WorkItemID, "stage_id": r.StageID, "mission_id": r.MissionID, "request_digest": r.Digest()},
 	}
 }

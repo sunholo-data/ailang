@@ -22,6 +22,23 @@
 # Environment variables:
 #   CLAUDE_ENV_FILE - File to write environment variables to (provided by Claude Code)
 
+
+# ISOLATED MISSION STAGE — emit nothing.
+#
+# A mission work item is meant to be FROZEN: same spec, same inputs, same result. This hook
+# injects prompt-MATCHED brain resolutions, so its content differs run to run with whatever is
+# in the brain DB that day. A stage whose input varies per run is not frozen, and the whole
+# work-item design rests on it being so.
+#
+# It is also the shape this repo has already been burned by: d6060c325 fixed the SessionStart
+# banner because "sessions arrived, found a backlog addressed to nobody in particular, and
+# triaged it instead of the work they were started for". Measured 2026-09-08, a mission
+# evaluator handed ambient repo instructions declined the job as a suspected prompt injection.
+#
+# The CONTROLLER is deliberately NOT isolated: it is a session-shaped agent and this context is
+# doing its job there. Only frozen stage execution is exempted.
+[ -n "${AILANG_MISSION_STAGE:-}" ] && exit 0
+
 set -euo pipefail
 
 # Read hook JSON from stdin (Claude Code sends hook data via stdin, not env var)
