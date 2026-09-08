@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/fsyncdir"
 	"io"
 	"os"
 	"path/filepath"
@@ -210,11 +211,4 @@ func atomicWrite(path string, b []byte, mode os.FileMode) error {
 	}
 	return syncDir(filepath.Dir(path))
 }
-func syncDir(path string) error {
-	f, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	return f.Sync()
-}
+func syncDir(path string) error { return fsyncdir.Sync(path) }

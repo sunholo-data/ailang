@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"testing"
 )
@@ -13,14 +14,14 @@ import (
 func fixture(t *testing.T) (*Manager, Request) {
 	t.Helper()
 	root := t.TempDir()
-	return &Manager{Dir: filepath.Join(root, "records")}, Request{OperationID: "test-one", MissionID: "docs", WorkItemID: "work-one", MarkerPath: filepath.Join(root, "disabled"), BindingPath: filepath.Join(root, "binding.toml"), Binding: []byte("version = 1\nstate_db = \"/tmp/canary.db\"\nworkspace_root = \"/tmp/canary\"\n")}
+	return &Manager{Dir: filepath.Join(root, "records")}, Request{OperationID: "test-one", MissionID: "docs", WorkItemID: "work-one", MarkerPath: filepath.Join(root, "disabled"), BindingPath: filepath.Join(root, "binding.toml"), Binding: []byte("version = 1\nstate_db = \"" + testAbsPath("canary.db") + "\"\nworkspace_root = \"" + testAbsPath("canary") + "\"\n")}
 }
 func stopped(context.Context, Record) error { return nil }
 func TestRestoreBaselines(t *testing.T) {
 	for _, present := range []bool{false, true} {
 		t.Run(map[bool]string{false: "absent", true: "present"}[present], func(t *testing.T) {
 			m, q := fixture(t)
-			old := []byte("version=1\nstate_db=\"/tmp/old.db\"\nworkspace_root=\"/tmp/old\"\n")
+			old := []byte("version=1\nstate_db=\"" + testAbsPath("old.db") + "\"\nworkspace_root=\"" + testAbsPath("old") + "\"\n")
 			if present {
 				if err := os.WriteFile(q.BindingPath, old, 0640); err != nil {
 					t.Fatal(err)
@@ -113,7 +114,7 @@ func TestProcessDeathRecovery(t *testing.T) {
 				os.Exit(37)
 			}
 		}}
-		q := Request{OperationID: "crash", MissionID: "docs", WorkItemID: "work", MarkerPath: filepath.Join(root, "disabled"), BindingPath: filepath.Join(root, "binding.toml"), Binding: []byte("version=1\nstate_db=\"/tmp/crash.db\"\nworkspace_root=\"/tmp/crash\"\n")}
+		q := Request{OperationID: "crash", MissionID: "docs", WorkItemID: "work", MarkerPath: filepath.Join(root, "disabled"), BindingPath: filepath.Join(root, "binding.toml"), Binding: []byte("version=1\nstate_db=\"" + testAbsPath("crash.db") + "\"\nworkspace_root=\"" + testAbsPath("crash") + "\"\n")}
 		if os.Getenv("AILANG_ACTIVATION_RECOVER") == "yes" {
 			_, _ = m.Recover(context.Background(), q.OperationID, stopped)
 		} else {
@@ -125,7 +126,7 @@ func TestProcessDeathRecovery(t *testing.T) {
 		t.Run(point, func(t *testing.T) {
 			root := t.TempDir()
 			m := &Manager{Dir: filepath.Join(root, "records")}
-			q := Request{OperationID: "crash", MissionID: "docs", WorkItemID: "work", MarkerPath: filepath.Join(root, "disabled"), BindingPath: filepath.Join(root, "binding.toml"), Binding: []byte("version=1\nstate_db=\"/tmp/crash.db\"\nworkspace_root=\"/tmp/crash\"\n")}
+			q := Request{OperationID: "crash", MissionID: "docs", WorkItemID: "work", MarkerPath: filepath.Join(root, "disabled"), BindingPath: filepath.Join(root, "binding.toml"), Binding: []byte("version=1\nstate_db=\"" + testAbsPath("crash.db") + "\"\nworkspace_root=\"" + testAbsPath("crash") + "\"\n")}
 			env := append(os.Environ(), "AILANG_ACTIVATION_CRASH="+point, "AILANG_ACTIVATION_ROOT="+root)
 			if len(point) >= 7 && point[:7] == "restore" || point == "owner_released" {
 				if _, err := m.Activate(context.Background(), q, stopped); err != nil {
@@ -222,7 +223,7 @@ func TestCrashRecoveryPresentBinding(t *testing.T) {
 	for _, point := range []string{"marker_after", "binding_after", "restore_binding_after", "restore_marker_after"} {
 		t.Run(point, func(t *testing.T) {
 			m, q := fixture(t)
-			old := []byte("version=1\nstate_db=\"/tmp/baseline.db\"\nworkspace_root=\"/tmp/baseline\"\n")
+			old := []byte("version=1\nstate_db=\"" + testAbsPath("baseline.db") + "\"\nworkspace_root=\"" + testAbsPath("baseline") + "\"\n")
 			if err := os.WriteFile(q.BindingPath, old, 0644); err != nil {
 				t.Fatal(err)
 			}
@@ -283,4 +284,17 @@ func TestLegacyStartDuringPauseKeepsOriginalBinding(t *testing.T) {
 	if _, err := m.Recover(context.Background(), q.OperationID, stopped); err != nil {
 		t.Fatal(err)
 	}
+}
+
+// testAbsPath returns a host-absolute path for a binding fixture.
+//
+// The fixtures hardcoded "/tmp/...", which filepath.IsAbs REJECTS on Windows, so the binding
+// validator refused every fixture there and four tests failed for a reason that had nothing
+// to do with what they assert. Forward slashes after a drive letter are absolute on Windows
+// and need no TOML escaping, unlike a backslash inside a basic string.
+func testAbsPath(rel string) string {
+	if runtime.GOOS == "windows" {
+		return "C:/tmp/" + rel
+	}
+	return "/tmp/" + rel
 }

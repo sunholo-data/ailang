@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/sunholo-data/ailang/internal/executor/proctree"
+	"github.com/sunholo-data/ailang/internal/fsyncdir"
 	"github.com/sunholo-data/ailang/internal/gitexec"
 	"github.com/sunholo-data/ailang/internal/mission/dispatch"
 	"os"
@@ -160,7 +161,7 @@ func (s *Service) reviewPacket(ctx context.Context, spec Spec, stage Stage, cand
 	if err != nil {
 		return "", "", err
 	}
-	syncErr := dir.Sync()
+	syncErr := fsyncdir.Sync(dir.Name())
 	closeErr = dir.Close()
 	if syncErr != nil {
 		return "", "", syncErr

@@ -73,6 +73,9 @@ func activationFixtureTerminal(t *testing.T, db string, terminal bool) {
 	}
 }
 func TestActivationCLIConfirmedCancellationRestores(t *testing.T) {
+	if !activation.HostSupported() {
+		t.Skip("local mission activation requires macOS or Linux host locking (activation/lock_other.go)")
+	}
 	d, args, db := activationCLIFixture(t)
 	runErr := errors.New("child cancelled")
 	d.RunChild = func(_ context.Context, dir string, p *activationProcess, _ io.Writer) error {
@@ -100,6 +103,9 @@ func TestActivationCLIConfirmedCancellationRestores(t *testing.T) {
 	}
 }
 func TestActivationCLIUnknownWorkAndLiveSessionHeld(t *testing.T) {
+	if !activation.HostSupported() {
+		t.Skip("local mission activation requires macOS or Linux host locking (activation/lock_other.go)")
+	}
 	for _, live := range []bool{false, true} {
 		t.Run(fmt.Sprint(live), func(t *testing.T) {
 			d, args, db := activationCLIFixture(t)
@@ -174,6 +180,9 @@ func TestActivationFreezesSourceBeforeRun(t *testing.T) {
 }
 
 func TestActivationMissingDBRequiresNoDispatchReceipt(t *testing.T) {
+	if !activation.HostSupported() {
+		t.Skip("local mission activation requires macOS or Linux host locking (activation/lock_other.go)")
+	}
 	for _, receipt := range []bool{false, true} {
 		t.Run(fmt.Sprint(receipt), func(t *testing.T) {
 			d, args, _ := activationCLIFixture(t)

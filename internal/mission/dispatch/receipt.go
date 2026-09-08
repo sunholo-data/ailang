@@ -3,6 +3,7 @@ package dispatch
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/fsyncdir"
 	"os"
 	"path/filepath"
 	"time"
@@ -35,7 +36,7 @@ func OpenJournal(path string) (*Journal, error) {
 		_ = f.Close()
 		return nil, err
 	}
-	syncErr := parent.Sync()
+	syncErr := fsyncdirSync(parent)
 	closeErr := parent.Close()
 	if syncErr != nil {
 		_ = f.Close()
@@ -61,3 +62,7 @@ func (j *Journal) Record(e Event) error {
 	return nil
 }
 func (j *Journal) Close() error { return j.f.Close() }
+
+// fsyncdirSync flushes an already-open directory handle where the platform supports it.
+// Windows has no fsync-on-directory; see internal/fsyncdir.
+func fsyncdirSync(dir *os.File) error { return fsyncdir.Sync(dir.Name()) }
