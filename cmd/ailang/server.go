@@ -136,20 +136,12 @@ func serverCommand(args []string) error {
 
 	// Initialize OpenTelemetry (if configured via environment variables)
 	ctx := context.Background()
-	shutdownTelemetry, err := telemetry.Init(ctx, "ailang-server")
+	shutdownTelemetry, telemetryStatus, err := telemetry.InitWithStatus(ctx, "ailang-server")
 	if err != nil {
 		log.Printf("Warning: Failed to initialize OpenTelemetry: %v", err)
 	} else {
 		defer shutdownTelemetry(ctx)
-		if telemetry.IsDualExportEnabled() {
-			log.Printf("Dual telemetry export enabled:")
-			log.Printf("  → Google Cloud Trace (project: %s)", telemetry.GoogleCloudProject())
-			log.Printf("  → OTLP endpoint: %s", os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"))
-		} else if telemetry.IsGoogleCloudEnabled() {
-			log.Printf("Google Cloud Trace enabled (project: %s)", telemetry.GoogleCloudProject())
-		} else if telemetry.IsEnabled() {
-			log.Printf("OpenTelemetry OTLP export enabled")
-		}
+		log.Printf("Telemetry: %s", telemetryStatus)
 	}
 
 	// Build server options based on storage mode

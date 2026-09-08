@@ -66,20 +66,17 @@ func coordinatorStart(args []string) error {
 
 	// Initialize OpenTelemetry (if configured via environment variables)
 	ctx := context.Background()
-	shutdownTelemetry, err := telemetry.Init(ctx, "ailang-coordinator")
+	shutdownTelemetry, telemetryStatus, err := telemetry.InitWithStatus(ctx, "ailang-coordinator")
 	if err != nil {
 		fmt.Printf("  %s Warning: Failed to initialize OpenTelemetry: %v\n", yellow("!"), err)
-	} else if telemetry.IsDualExportEnabled() {
-		fmt.Printf("  %s Dual telemetry export enabled:\n", green("✓"))
-		fmt.Printf("      → Google Cloud Trace (project: %s)\n", telemetry.GoogleCloudProject())
-		fmt.Printf("      → OTLP endpoint: %s\n", os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"))
-	} else if telemetry.IsGoogleCloudEnabled() {
-		fmt.Printf("  %s Google Cloud Trace enabled (project: %s)\n", green("✓"), telemetry.GoogleCloudProject())
-	} else if telemetry.IsEnabled() {
-		fmt.Printf("  %s OpenTelemetry OTLP export enabled\n", green("✓"))
+	} else {
+		fmt.Printf("  Telemetry: %s\n", telemetryStatus)
+		defer func() {
+			if err := shutdownTelemetry(context.Background()); err != nil {
+				fmt.Printf("  %s Warning: Failed to flush OpenTelemetry: %v\n", yellow("!"), err)
+			}
+		}()
 	}
-	// Note: shutdownTelemetry will be called when daemon stops via defer in daemon.Run()
-	_ = shutdownTelemetry // We don't call it here since daemon runs indefinitely
 
 	// Create daemon
 	daemon, err := coordinator.NewDaemon(cfg)
