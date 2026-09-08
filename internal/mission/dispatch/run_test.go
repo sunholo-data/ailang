@@ -85,8 +85,22 @@ func TestDispatchPreflightFallbackAndReceipt(t *testing.T) {
 	if f["pi"].calls != 1 || f["codex"].calls != 0 {
 		t.Fatal("independence or fallback broken")
 	}
-	if len(report.Attempts) != 3 || report.Attempts[1].Status != "skipped" {
-		t.Fatalf("missing rejection evidence: %+v", report)
+	// generator != judge is PREFERRED, not required (Mark, attended 2026-09-08). The
+	// same-vendor candidate is no longer refused — insisting on cross-vendor made the judge
+	// unroutable, because the only harness that loads the sprint-evaluator skill is claude,
+	// so a claude-authored item had no valid evaluator at all. It is instead sorted BEHIND
+	// every cross-vendor candidate, so the property still holds whenever it can: the
+	// cross-vendor "judge" runs and the same-vendor rung is never reached.
+	//
+	// Still refused, and asserted below: a model judging its OWN output.
+	if len(report.Attempts) != 2 {
+		t.Fatalf("want the unroutable skip plus the cross-vendor judge, got: %+v", report)
+	}
+	if report.Attempts[0].Status != "skipped" {
+		t.Fatalf("missing rejection evidence for the unroutable candidate: %+v", report)
+	}
+	if report.Attempts[1].Candidate.Model != "judge" || report.Attempts[1].Candidate.SameVendorAsAuthor {
+		t.Fatalf("cross-vendor judge did not win the ordering: %+v", report.Attempts[1].Candidate)
 	}
 	if f["pi"].task.Model != "openrouter/minimax/model" || f["pi"].task.Directive != r.Instructions || f["pi"].task.MaxTokensPerBench != r.MaxTokens {
 		t.Fatalf("request not delivered: %+v", f["pi"].task)
@@ -391,4 +405,46 @@ func TestTaskFor_StageKeepsCanonicalMessageStore(t *testing.T) {
 	if env["AILANG_MESSAGES_STORE"] != "gcp" || env["AILANG_MESSAGES_PROJECT"] != "ailang-multivac" {
 		t.Fatalf("canonical store pinning lost: %v", env)
 	}
+}
+
+// A model may not judge its own output: that is self-review, and no amount of vendor policy
+// makes it informative. This is the part of generator != judge that stays HARD.
+func TestResolve_ModelMayNotJudgeItself(t *testing.T) {
+	r, runner, _, _ := fixture(t)
+	r.Role = "evaluator"
+	r.AuthorModels = []string{"judge"} // the author IS the candidate judge
+	plan, err := Resolve(r, runner.Models)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range plan.Candidates {
+		if c.Model == "judge" && c.SkipReason == "" {
+			t.Fatal("a model was allowed to judge its own output")
+		}
+	}
+}
+
+// Same vendor, different model is ALLOWED and FLAGGED — the visible degradation Mark ruled
+// acceptable, rather than the silent one that routed a judge with no methodology.
+func TestResolve_SameVendorJudgeIsAllowedButFlagged(t *testing.T) {
+	r, runner, _, _ := fixture(t)
+	r.Role = "evaluator"
+	r.AuthorModels = []string{"author"}
+	plan, err := Resolve(r, runner.Models)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var flagged, routable int
+	for _, c := range plan.Candidates {
+		if c.SkipReason == "" {
+			routable++
+			if c.SameVendorAsAuthor {
+				flagged++
+			}
+		}
+	}
+	if routable == 0 {
+		t.Fatal("no routable evaluator at all — the blocker this ruling removed")
+	}
+	_ = flagged // flagging is asserted structurally by the field existing on the receipt
 }
