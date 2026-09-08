@@ -65,6 +65,7 @@ func missionIterationCommand(verb string, args []string) error {
 
 type iterationFlags struct {
 	name, work string
+	activation string
 	dry, json  bool
 	version    int64
 }
@@ -81,6 +82,7 @@ func parseIterationFlags(verb string, args []string, out io.Writer) (iterationFl
 	case "iterate":
 		fs.BoolVar(&o.dry, "dry-run", false, "validate and resolve without state writes or provider calls")
 	case "status":
+		fs.StringVar(&o.activation, "activation", "", "read retained binding for this operation; status only")
 		fs.BoolVar(&o.json, "json", false, "machine-readable status without prompts or credentials")
 	case "resume":
 	case "cancel":
@@ -116,15 +118,7 @@ func runMissionIteration(ctx context.Context, verb string, args []string, out io
 	if err != nil {
 		return iterationExit(2, err)
 	}
-	path := deps.BindingPath
-	if path == "" {
-		home, e := os.UserHomeDir()
-		if e != nil {
-			return iterationExit(2, e)
-		}
-		path = filepath.Join(home, ".config", "ailang", "mission-runtime.toml")
-	}
-	binding, err := iteration.LoadBinding(path)
+	binding, err := resolveMissionReadBinding(deps.BindingPath, opts.activation, opts.name, opts.work)
 	if err != nil {
 		return iterationExit(2, err)
 	}

@@ -22,10 +22,10 @@ with exact revisions, diff completeness, criteria, checks and authority/provenan
 Bind digest in request; keep context readable and tell reviewers to settle criteria and finish.
 Observer uses existing executor events; bounded exact-call repetition diagnostics only.
 
-- [ ] Packet binds candidate and all required evidence; truncation and missing evidence explicit.
-- [ ] Packet cannot be overwritten through candidate-controlled paths; digest fixed for replay.
-- [ ] Record bounded tool/progress counters without storing secrets/tool output in status.
-- [ ] No new repeated-read termination heuristic or model fallback.
+- [x] Packet binds candidate and all required evidence; truncation and missing evidence explicit.
+- [x] Packet cannot be overwritten through candidate-controlled paths; digest fixed for replay.
+- [x] Record bounded tool/progress counters without storing secrets/tool output in status.
+- [x] No new repeated-read termination heuristic or model fallback.
 
 ## M2 — evaluator-only preparation and actionable recovery (~550 lines)
 
@@ -35,11 +35,11 @@ writes a reviewable successor and immutable acceptance manifest. Never creates a
 Use supplied authority for final validation; draft may explicitly need approval.
 Expose versioned confirm-stopped only for supported cancellation/deadline states.
 
-- [ ] Preserve original inputs/acceptances and actual author identity; no author redispatch.
-- [ ] Reject live/ambiguous parents, missing objects, invalid authority and unsafe destinations.
-- [ ] Explicit new limits/route; original criteria/scope/checks retained.
-- [ ] Non-completed status explains next valid action; typed categories preserve reason text.
-- [ ] Confirmation records operator attestation and refuses stale/wrong/unsupported states.
+- [x] Preserve original inputs/acceptances and actual author identity; no author redispatch.
+- [x] Reject live/ambiguous parents, missing objects, invalid authority and unsafe destinations.
+- [x] Explicit new limits/route; original criteria/scope/checks retained.
+- [x] Non-completed status explains next valid action; typed categories preserve reason text.
+- [x] Confirmation records operator attestation and refuses stale/wrong/unsupported states.
 
 ## M3 — recoverable activation/cleanup (~700 lines)
 
@@ -49,10 +49,10 @@ host operation lock; compare-before-restore; no secrets. Crash-recoverable state
 recovery. Process-stop verification is an explicit injected boundary, never inferred from
 a terminal DB label. Parent integrates CLI after worker reports API.
 
-- [ ] Completion and terminal failure restore absent/present prior state after verified stop.
-- [ ] Changed files/foreign markers/unknown child state remain held with actionable reason.
-- [ ] Death around each mutation is recoverable; concurrent operations refuse ownership.
-- [ ] Retain runtime DB/evidence; read-only inspection works after binding restoration.
+- [x] Completion and terminal failure restore absent/present prior state after verified stop.
+- [x] Changed files/foreign markers/unknown child state remain held with actionable reason.
+- [x] Death around each mutation is recoverable; concurrent operations refuse ownership.
+- [x] Retain runtime DB/evidence; read-only inspection works after binding restoration.
 
 ## M4 — integration and live adoption (no fixed production LOC)
 

@@ -16,12 +16,15 @@
       "dependencies": [],
       "estimated_loc": 550,
       "acceptance_criteria": [
-        "Meet M1 criteria in approved sprint plan",
-        "Boundary tests and required checks pass"
+        "Packet binds candidate and all required evidence; truncation and missing evidence explicit.",
+        "Packet cannot be overwritten through candidate-controlled paths; digest fixed for replay.",
+        "Record bounded tool/progress counters without storing secrets/tool output in status.",
+        "No new repeated-read termination heuristic or model fallback."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null
+      "passes": true,
+      "started": "2026-09-08",
+      "completed": "2026-09-08",
+      "notes": "Implementation and hermetic checks pass; see reliability verification/checks.md. Independent implementation review recorded separately; M4 live gate remains open."
     },
     {
       "id": "M2",
@@ -29,12 +32,16 @@
       "dependencies": [],
       "estimated_loc": 550,
       "acceptance_criteria": [
-        "Meet M2 criteria in approved sprint plan",
-        "Boundary tests and required checks pass"
+        "Preserve original inputs/acceptances and actual author identity; no author redispatch.",
+        "Reject live/ambiguous parents, missing objects, invalid authority and unsafe destinations.",
+        "Explicit new limits/route; original criteria/scope/checks retained.",
+        "Non-completed status explains next valid action; typed categories preserve reason text.",
+        "Confirmation records operator attestation and refuses stale/wrong/unsupported states."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null
+      "passes": true,
+      "started": "2026-09-08",
+      "completed": "2026-09-08",
+      "notes": "Implementation and hermetic checks pass; see reliability verification/checks.md. Independent implementation review recorded separately; M4 live gate remains open."
     },
     {
       "id": "M3",
@@ -42,12 +49,15 @@
       "dependencies": [],
       "estimated_loc": 700,
       "acceptance_criteria": [
-        "Meet M3 criteria in approved sprint plan",
-        "Boundary tests and required checks pass"
+        "Completion and terminal failure restore absent/present prior state after verified stop.",
+        "Changed files/foreign markers/unknown child state remain held with actionable reason.",
+        "Death around each mutation is recoverable; concurrent operations refuse ownership.",
+        "Retain runtime DB/evidence; read-only inspection works after binding restoration."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null
+      "passes": true,
+      "started": "2026-09-08",
+      "completed": "2026-09-08",
+      "notes": "Implementation and hermetic checks pass; see reliability verification/checks.md. Independent implementation review recorded separately; M4 live gate remains open."
     },
     {
       "id": "M4",
@@ -59,12 +69,16 @@
       ],
       "estimated_loc": 50,
       "acceptance_criteria": [
-        "Meet M4 criteria in approved sprint plan",
-        "Boundary tests and required checks pass"
+        "Independent review passes with zero unresolved code blockers.",
+        "Existing candidate passes live evaluation and completed replay makes zero provider calls.",
+        "Two additional frozen bounded tasks finish with hard checks and independent review.",
+        "Combined new trial spend <=$5; explicit per-item limits; no automatic budget escalation.",
+        "Cleanup/recovery validated and actual costs, tokens, interventions recorded."
       ],
       "passes": null,
-      "started": null,
-      "completed": null
+      "started": "2026-09-08",
+      "completed": null,
+      "notes": "Integration in progress; no new live trials dispatched."
     }
   ]
 }

@@ -1,6 +1,7 @@
 # M-MISSION-ITERATION-RELIABILITY
 
 **Status:** Approved by Mark, attended 2026-09-08: “yep please continue” in response to design approval and plan/execute request.
+**Implementation:** M1–M3 implemented in isolated sprint checkout; integrated review/checks completing. M4 live adoption pending; no reliability smoke-series success claimed.
 **Priority:** P0 before unattended adoption. **Release:** unassigned.
 **Dependency:** M-MISSION-ITERATION, including registry repair ad1bf98d3.
 **Estimate:** three bounded implementation milestones plus live validation; detailed sizing at sprint planning.

@@ -50,10 +50,17 @@ func checkValue(d *json.Decoder, t reflect.Type) error {
 			return fmt.Errorf("expected JSON object")
 		}
 		fields := map[string]reflect.Type{}
+		optional := map[string]bool{}
 		if t.Kind() == reflect.Struct {
 			for i := 0; i < t.NumField(); i++ {
 				f := t.Field(i)
-				fields[strings.Split(f.Tag.Get("json"), ",")[0]] = f.Type
+				parts := strings.Split(f.Tag.Get("json"), ",")
+				fields[parts[0]] = f.Type
+				for _, option := range parts[1:] {
+					if option == "omitempty" {
+						optional[parts[0]] = true
+					}
+				}
 			}
 		}
 		seen := map[string]bool{}
@@ -82,7 +89,7 @@ func checkValue(d *json.Decoder, t reflect.Type) error {
 		}
 		if t.Kind() == reflect.Struct {
 			for field := range fields {
-				if !seen[field] {
+				if !seen[field] && !optional[field] {
 					return fmt.Errorf("missing required JSON field %q", field)
 				}
 			}

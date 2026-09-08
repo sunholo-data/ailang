@@ -65,6 +65,7 @@ type Spec struct {
 	WorkItemID         string         `json:"work_item_id"`
 	Repository         string         `json:"repository"`
 	BaseRevision       string         `json:"base_revision"`
+	ReviewBaseRevision string         `json:"review_base_revision,omitempty"`
 	Brief              string         `json:"brief"`
 	AllowedPaths       []string       `json:"allowed_paths"`
 	Workflow           string         `json:"workflow"`
@@ -93,6 +94,9 @@ func (s Spec) Validate() error {
 	if strings.TrimSpace(s.Repository) == "" || strings.TrimSpace(s.Repository) != s.Repository || strings.ContainsAny(s.Repository, "\x00\r\n\t ") {
 		return fmt.Errorf("repository must be an explicit normalized origin")
 	}
+	if s.ReviewBaseRevision != "" && !validRevision(s.ReviewBaseRevision) {
+		return fmt.Errorf("review_base_revision must be a full Git commit ID")
+	}
 	if !validRevision(s.BaseRevision) {
 		return fmt.Errorf("base_revision must be a full Git commit ID")
 	}
@@ -107,6 +111,9 @@ func (s Spec) Validate() error {
 	}
 	if len(s.Stages) < 1 || len(s.Stages) > 4 || len(s.Prerequisites) > 3 {
 		return fmt.Errorf("require 1..4 stages and at most 3 prerequisites")
+	}
+	if s.ReviewBaseRevision != "" && (len(s.Stages) != 1 || s.Stages[0].Role != "evaluator" || len(s.Prerequisites) != 3 || s.Prerequisites[2].Role != "executor") {
+		return fmt.Errorf("review_base_revision is only valid for evaluator-only work with imported executor evidence")
 	}
 	roles := []string{"designer", "planner", "executor", "evaluator"}
 	if len(s.Stages)+len(s.Prerequisites) != len(roles) {

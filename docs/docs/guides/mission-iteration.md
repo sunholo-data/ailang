@@ -28,7 +28,9 @@ workspace_root = "/absolute/local/mission-workspaces"
 Both paths must be absolute. The workspace root must be outside the source
 repository. The database filename cannot contain `?` or `#`. Missing configuration,
 unknown keys, and unsupported versions fail with an error. There is no command-line
-database override: iterate, status, resume, and cancel use this same binding.
+database override. Mutating runtime commands use this same binding. Status and
+prepare-only `retry-review` can select a retained owned activation with
+`--activation OP` after the temporary binding has been restored.
 
 `missions/*.toml` remains the mission registry; `models.yml` remains model policy.
 For first admission from a foreign project, set `AILANG_MISSION_REGISTRY` to the
@@ -81,6 +83,14 @@ Use the version from a fresh status response when cancelling. Status opens an
 existing database read-only without schema migration. Its JSON includes phase,
 reason, next action, current stage, version, lease/deadline, route provenance, and
 accepted artifact digests. It omits saved prompts, owner tokens, and transcripts.
+The additive `diagnostic` object identifies a typed category, next valid action,
+and suggested command when one is available. Budget failures use executor limit
+flags/finish reasons, rather than guessing from provider error text. Stage
+`progress` reports tool counts, exact repeated calls and last completed tool;
+repetition is diagnostic evidence, not a failed verdict. Before a final report,
+status reads bounded receipt evidence for the exact frozen request.
+`progress_status` identifies the last complete observation, an incomplete journal
+tail, or why progress is unavailable; it never claims a partial receipt is current.
 
 Resume preserves frozen input, routes, accumulated limits, and accepted stages.
 It does not steal a live lease or blindly repeat a dispatched stage. Repeating a
@@ -101,6 +111,93 @@ There is no automatic rerun or automatic acceptance for an ambiguous outcome.
 | 4 | Reconciliation required |
 | 5 | Execution or verification failure |
 | 130 | Cancelled |
+
+## Prepare an evaluator-only successor
+
+A terminal failed or cancelled item with an accepted author artifact can supply
+its existing candidate to an independent evaluator. The parent must have no live,
+prepared or ambiguous child. Preparation preserves the original input, acceptance
+hashes, actual author identity, scope, criteria and verification policy.
+
+```bash
+ailang mission retry-review docs --work-item item-1 --new-id item-1-review-2 \
+  --output /absolute/review-2-draft.json \
+  --max-tokens 100000 --timeout-seconds 1200 --max-cost-usd 2
+```
+
+This writes a new specification, `.manifest.json` evidence and `.models.yml`
+sidecar, without dispatching or creating approval. Existing destinations are
+rejected. Without authority, the manifest identifies missing approval artifacts
+and the draft is non-executable. Review the exact candidate and those digests,
+commit the approved authority, then prepare a new output with
+`--authority-file /absolute/authority-refs.json --base-revision FULL_COMMIT`.
+The authority file is an array using the existing authority-reference schema.
+An explicit `--evaluator MODEL` changes the successor route; independence is
+checked against actual author vendors, including imported prerequisites.
+
+Select the emitted model snapshot explicitly for both validation and execution:
+
+```bash
+AILANG_MODELS_PATH=/absolute/review-2-ready.json.models.yml \
+  ailang mission iterate --work-item /absolute/review-2-ready.json --dry-run
+AILANG_MODELS_PATH=/absolute/review-2-ready.json.models.yml \
+  ailang mission iterate --work-item /absolute/review-2-ready.json
+```
+
+This uses retained model definitions for the successor's initial admission.
+It reuses accepted author work and dispatches evaluation only.
+New limits apply to the successor; the original failed record stays immutable.
+
+## Confirm a stopped cancellation or deadline
+
+If status has `needs_reconciliation` with reason `operator_cancelled` or
+`deadline_exceeded`, first verify that the exact child processes and descendants
+are stopped. Record the evidence with the current status version:
+
+```bash
+ailang mission confirm-stopped docs --work-item item-1 --version 9 \
+  --attestation "Verified the recorded child process and descendants are absent"
+```
+
+The transaction retains the assertion and exact child attempt IDs/versions before
+releasing admission. The command does not stop a process itself. Stale versions,
+wrong states and generic `outcome_unknown` are rejected. Generic ambiguous effects
+still require investigation; an assertion of process death does not establish
+what those effects were. Keep credentials out of attestation text.
+
+## Run and recover an owned Docs canary
+
+Use an approved work item and a strict temporary binding file:
+
+```bash
+ailang mission activation run docs --operation docs-canary-1 \
+  --work-item /absolute/reviewed-work-item.json --binding /absolute/canary-binding.toml
+ailang mission activation inspect docs --operation docs-canary-1
+ailang mission activation recover docs --operation docs-canary-1
+```
+
+The supervisor records ownership before installing the Docs scheduling pause and
+runtime binding. Normal completion and terminal failure trigger cleanup after
+verified process stop. Recovery applies the same checks after supervisor death.
+A terminal database label alone does not prove descendants are stopped. Live
+sessions, ambiguous work or changed files leave cleanup pending with a reason.
+Externally changed files and foreign markers are preserved. Retained databases,
+receipts and worktrees remain available; repeated completed cleanup is idempotent.
+This operation is scoped to the local Docs canary, not fleet rollout.
+
+## Inspect retained activation evidence
+
+After a supervised canary restores its original binding, select the owned
+operation record to inspect its retained database:
+
+```bash
+ailang mission status docs --work-item item-1 --activation docs-canary-1 --json
+```
+
+Records live in `~/.ailang/state/mission-activations/`. The operation must match the
+requested mission and work item. Missing records fail without creating state.
+`retry-review` accepts the same selector for prepare-only recovery; `iterate`,
+`resume`, `cancel` and `confirm-stopped` require the active binding and reject it.
 
 ## Hermetic example
 

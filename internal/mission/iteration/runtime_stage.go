@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -27,8 +28,26 @@ type AcceptedStage struct {
 func digestBytes(b []byte) string { sum := sha256.Sum256(b); return hex.EncodeToString(sum[:]) }
 
 func (s *Service) request(ctx context.Context, spec Spec, stage Stage, index int, item *coordinator.MissionWorkItem) (dispatch.Request, error) {
+	// Existing attempt requests are immutable; do not rebuild packets on recovery.
+	if s.Store != nil {
+		child, err := s.Store.GetMissionAttempt(ctx, coordinator.MissionAttemptKey{MissionID: spec.MissionID, WorkItemID: spec.WorkItemID, StageID: stage.ID})
+		if err == nil {
+			var saved dispatch.Request
+			if err := json.Unmarshal([]byte(child.RequestJSON), &saved); err != nil {
+				return saved, err
+			}
+			if saved.Digest() != child.RequestDigest {
+				return saved, fmt.Errorf("saved request digest mismatch")
+			}
+			return saved, nil
+		}
+		if !errors.Is(err, sql.ErrNoRows) {
+			return dispatch.Request{}, err
+		}
+	}
 	base := spec.BaseRevision
 	authors := []string{}
+	var reviewEvidence []*Evidence
 	tokens := spec.Limits.MaxTokens
 	cost := spec.Limits.MaxCostUSD
 	for _, p := range spec.Prerequisites {
@@ -46,6 +65,7 @@ func (s *Service) request(ctx context.Context, spec Spec, stage Stage, index int
 		if accepted.Evidence == nil || accepted.Report == nil || accepted.Report.Result == nil {
 			return dispatch.Request{}, fmt.Errorf("incomplete accepted stage")
 		}
+		reviewEvidence = append(reviewEvidence, accepted.Evidence)
 		base = accepted.Evidence.OutputRevision
 		authors = appendUnique(authors, accepted.Evidence.AuthorModels...)
 		result := accepted.Report.Result
@@ -87,6 +107,11 @@ func (s *Service) request(ctx context.Context, spec Spec, stage Stage, index int
 	req := dispatch.Request{Version: 1, MissionID: spec.MissionID, WorkItemID: spec.WorkItemID, StageID: stage.ID, AttemptID: "a1", Role: stage.Role, Workspace: filepath.Join(s.WorkspaceRoot, spec.MissionID, spec.WorkItemID, "stages", stage.ID), InputRevision: base, Instructions: stage.Instructions + "\nFrozen work contract: " + string(instruction) + "\n" + resultInstructions, Models: names, TimeoutSeconds: limits.TimeoutSeconds, MaxTokens: limits.MaxTokens, MaxCostUSD: limits.MaxCostUSD}
 	if stage.Role == "evaluator" {
 		req.AuthorModels = authors
+		packet, path, err := s.reviewPacket(ctx, spec, stage, base, reviewEvidence)
+		if err != nil {
+			return dispatch.Request{}, err
+		}
+		req.Instructions = focusedReviewInstructions + "\nStage instructions: " + stage.Instructions + "\nReview packet path: " + path + "\nReview packet SHA256: " + digestBytes([]byte(packet)) + "\n" + packet
 	}
 	return req, nil
 }

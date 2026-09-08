@@ -2,6 +2,7 @@ package dispatch
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -37,6 +38,7 @@ type Report struct {
 	ArtifactVerified   bool             `json:"artifact_verified"`
 	IdentityProvenance string           `json:"identity_provenance"`
 	Attempts           []Attempt        `json:"attempts"`
+	Progress           *Progress        `json:"progress,omitempty"`
 	Result             *executor.Result `json:"execution,omitempty"`
 }
 
@@ -91,7 +93,11 @@ func (r *Runner) Run(ctx context.Context, req Request) (*Report, error) {
 		if err := ctx.Err(); err != nil {
 			return r.finish(report, err)
 		}
-		result, runErr := e.ExecuteStreaming(ctx, taskFor(req, c), &executor.NoOpEventHandler{})
+		observer := newProgressObserver(p.RequestDigest, r.Record)
+		result, runErr := e.ExecuteStreaming(ctx, taskFor(req, c), observer)
+		progress := observer.snapshot()
+		report.Progress = &progress
+		runErr = errors.Join(runErr, observer.failure())
 		report.Result = result
 		if result != nil && result.CostProvenance == "" {
 			result.CostProvenance = executor.CostProvenanceUnknown

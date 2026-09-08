@@ -73,17 +73,7 @@ func (s *SQLiteStore) ConfirmMissionWorkItemStopped(ctx context.Context, k Missi
 	if version < 1 {
 		return fmt.Errorf("expected version is required")
 	}
-	return s.workTx(ctx, func(tx *sql.Tx) error {
-		args := append(k.args(), version)
-		if err := missionChanged(tx.ExecContext(ctx, "UPDATE mission_work_items SET state=CASE WHEN reason_code='deadline_exceeded' THEN 'failed' ELSE 'cancelled' END,next_action='',lease_until=0,owner_token='',version=version+1 WHERE "+workWhere+" AND version=? AND state='needs_reconciliation' AND reason_code IN ('operator_cancelled','deadline_exceeded')", args...)); err != nil {
-			return err
-		}
-		if _, err := tx.ExecContext(ctx, "UPDATE mission_attempts SET state='cancelled',lease_until=0,owner_token='',version=version+1 WHERE "+workWhere+" AND state='needs_reconciliation'", k.args()...); err != nil {
-			return err
-		}
-		_, err := tx.ExecContext(ctx, "DELETE FROM mission_admissions WHERE "+workWhere, k.args()...)
-		return err
-	})
+	return s.workTx(ctx, func(tx *sql.Tx) error { return confirmMissionStoppedTx(ctx, tx, k, version) })
 }
 
 // ReconcileMissionWorkItem conservatively marks an expired running child as
@@ -99,4 +89,16 @@ func (s *SQLiteStore) ReconcileMissionWorkItem(ctx context.Context, k MissionWor
 		_, err := tx.ExecContext(ctx, "UPDATE mission_work_items SET state='needs_reconciliation',reason_code='outcome_unknown',next_action='reconcile_child',version=version+1 WHERE "+workWhere+" AND state NOT IN ('completed','failed','cancelled','needs_reconciliation') AND EXISTS(SELECT 1 FROM mission_attempts a WHERE a.mission_id=mission_work_items.mission_id AND a.work_item_id=mission_work_items.work_item_id AND a.state='needs_reconciliation')", k.args()...)
 		return err
 	})
+}
+
+func confirmMissionStoppedTx(ctx context.Context, tx *sql.Tx, k MissionWorkItemKey, version int64) error {
+	args := append(k.args(), version)
+	if err := missionChanged(tx.ExecContext(ctx, "UPDATE mission_work_items SET state=CASE WHEN reason_code='deadline_exceeded' THEN 'failed' ELSE 'cancelled' END,next_action='',lease_until=0,owner_token='',version=version+1 WHERE "+workWhere+" AND version=? AND state='needs_reconciliation' AND reason_code IN ('operator_cancelled','deadline_exceeded')", args...)); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, "UPDATE mission_attempts SET state='cancelled',lease_until=0,owner_token='',version=version+1 WHERE "+workWhere+" AND state='needs_reconciliation'", k.args()...); err != nil {
+		return err
+	}
+	_, err := tx.ExecContext(ctx, "DELETE FROM mission_admissions WHERE "+workWhere, k.args()...)
+	return err
 }
