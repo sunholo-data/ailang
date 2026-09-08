@@ -5,6 +5,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -24,8 +25,17 @@ func TestReviewBundleExclusiveCompletePublication(t *testing.T) {
 			t.Fatalf("%s: %q %v", suffix, got, err)
 		}
 		info, err := os.Stat(path + suffix)
-		if err != nil || info.Mode().Perm() != 0600 {
-			t.Fatalf("unsafe mode: %v %v", info, err)
+		if err != nil {
+			t.Fatalf("stat %s: %v", suffix, err)
+		}
+		// Windows has no unix permission bits: a file created 0600 reports 0666, and there is
+		// no mode expressing "owner only" there. Assert the portable half everywhere — no
+		// group or world bits — and keep the exact 0600 check on the platforms that have them.
+		if info.Mode().Perm()&0077 != 0 {
+			t.Fatalf("unsafe mode %v on %s: group/world bits set", info.Mode().Perm(), suffix)
+		}
+		if runtime.GOOS != "windows" && info.Mode().Perm() != 0600 {
+			t.Fatalf("unsafe mode %v on %s", info.Mode().Perm(), suffix)
 		}
 	}
 	if err := writeReviewFiles(path, [][]byte{[]byte("changed"), nil, nil}); err == nil {
