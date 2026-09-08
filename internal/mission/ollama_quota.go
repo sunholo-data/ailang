@@ -75,6 +75,10 @@ func observeOllamaQuota(paths Paths, key string, now time.Time, client *http.Cli
 	if o.SessionUsage == nil || o.WeeklyUsage == nil {
 		return o
 	}
+	// Bank the reading BEFORE any verdict. The rate ration is the only pacing available
+	// when reset metadata is absent, and it can only ever be built from history we kept.
+	history := recordOllamaObservation(paths, o, now)
+
 	metadataPath := filepath.Join(paths.Home, ".ailang", "state", "ollama-quota-limits.json")
 	info, statErr := os.Lstat(metadataPath)
 	if statErr == nil && (!info.Mode().IsRegular() || info.Size() > 16<<10) {
@@ -83,7 +87,9 @@ func observeOllamaQuota(paths Paths, key string, now time.Time, client *http.Cli
 	}
 	f, err := os.Open(metadataPath)
 	if os.IsNotExist(err) {
-		return evaluateOllamaGauge(o)
+		// No verified reset metadata, which is the normal state: the provider does not
+		// return one. Pace on observed rate instead of window position.
+		return applyOllamaRateRation(evaluateOllamaGauge(o), history, now)
 	}
 	if err != nil {
 		o.Reason = "Ollama quota metadata cannot be read"
