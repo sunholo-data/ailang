@@ -194,6 +194,36 @@ Produced by design-doc-creator/sprint-planner via the coordinator, never collect
 known `ProcessApprovalRequest` → `OnAgentApproved` gap. **This is the one place real unfinished
 work is sitting.**
 
+### 3.6b Three of the stranded PRs were chain-integrity TESTS, not work
+
+Reviewed and merged 2026-09-08, then **reverted the same day**. The task prompts said so
+outright — "this is a chain-integrity test as much as a design task", "The point is to
+exercise the handoff, not to produce a large design" — and the review checked whether each
+described defect was real (it was) without checking whether the work was ever intended.
+`design_docs/planned/` is the queue the loops draw from, so a test artifact left there
+becomes committed work the next time a loop picks it up.
+
+**The defects they describe ARE real and were verified against dev HEAD on 2026-09-08.**
+Recorded here so reverting the docs does not lose the findings:
+
+| Defect | Evidence at dev HEAD |
+|---|---|
+| `coordinator list\|logs\|diff\|pending\|status` accept `--remote` and silently act on the LOCAL store | `coordinator_list.go` and `coordinator_inspect.go` contain **zero** `remoteCoordinatorSelected` calls, while `approve`/`reject` honour it at `coordinator_actions.go:26,140` |
+| `coordinator reopen` is local-only | no `remoteCoordinatorSelected` in `coordinator_lifecycle.go` |
+| hand-rolled flag parsers silently swallow unknown flags | `coordinator_lifecycle.go` has **zero** `default:` cases |
+
+Whoever picks these up should write the design fresh rather than restoring a doc that was
+authored to exercise a handoff.
+
+**The genuinely-intended one was merged and kept**: #1093
+`m-unroutable-inbox-visibility` — a message to an inbox no agent serves is accepted, marked
+unread and never dispatched, with zero signal to sender or operator. Verified: no unroutable
+check exists anywhere in the send path.
+
+**Two more were already implemented** and were closed with reasons: #1100 (registry-load
+failure on remote approval — `checkRegistryCanDispatch` now fails before mutation) and #1101,
+its sprint plan, whose M1 tests exist in `coordinator_approvals_registry_test.go`.
+
 ### 3.7 Accumulated clutter
 
 330 local branches, 128 worktrees. 264 branches had a merged PR; 63 had no PR and hold nothing
