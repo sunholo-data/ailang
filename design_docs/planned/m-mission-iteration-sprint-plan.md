@@ -1,6 +1,6 @@
 # M-MISSION-ITERATION — one durable work item through validated completion
 
-**Status:** M1–M5 implemented and verified; M6 partial pending approved canary task. Mark authorized execution on 2026-09-07: “lets go! spritn execute”.
+**Status:** Implementation milestones M1–M6 complete; live adoption remains open after two evaluator budget failures. Mark authorized execution on 2026-09-07: “lets go! spritn execute”.
 **Design:** [Runtime contract, next increment](m-mission-runtime-contract.md#next-increment-proposal--binary-owned-work-item-iteration-7-september-2026).
 **Duration:** 8 engineering days including integration buffer; not a calendar promise.
 **Estimate:** 4,000 implementation/test lines. **Priority:** P0. **Risk:** High at crash,
@@ -235,7 +235,7 @@ excluded from the LOC estimate. Example: runnable hermetic end-to-end command pl
 - [x] Fault matrix and all preceding acceptance criteria pass with provider call counts recorded.
 - [x] Required tests/lint/build/boundary checks and relevant CI asset/shell checks pass.
 - [x] Independent evaluation passes with zero blocking findings; repairs are rechecked.
-- [ ] Canary packet identifies an unowned approved Docs item, base, binary hash, routes, token caps,
+- [x] Canary packet identifies an unowned approved Docs item, base, binary hash, routes, token caps,
       at most $5 metered spend/60 minutes, isolated paths, idle check and exact rollback commands.
 - [x] Canary remains unactivated until reviewed; implementation status and live adoption are separate.
 
@@ -269,3 +269,12 @@ proves productivity improvement. Restore scheduling using the packet; ambiguous 
 
 No runtime deployment, process restart, outbound handoff message or canary activation is performed
 by sprint planning. The next step after plan review is the repository's “execute sprint” gate.
+
+## Status correction — 2026-09-08
+
+M6 packet requirement was satisfied by the committed approved guide task, bound input,
+validated dry-run and activation packet. Live canary produced an accepted author artifact,
+but both evaluator attempts exhausted their budgets; no end-to-end acceptance is claimed.
+The later registry-loader repair passed CLI/mission suites, lint/build. The historical
+87/100 review predates that repair and is not represented as a new review of it.
+See m-mission-iteration-reliability.md for the proposed follow-up and canary evidence.

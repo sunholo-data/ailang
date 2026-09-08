@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-MISSION-ITERATION",
-  "status": "in_progress",
+  "status": "completed",
   "created": "2026-09-07T18:54:56.487741+00:00",
   "design_doc": "design_docs/planned/m-mission-runtime-contract.md",
   "sprint_plan": "design_docs/planned/m-mission-iteration-sprint-plan.md",
@@ -126,11 +126,16 @@
         "Canary packet identifies an unowned approved Docs item, base, binary hash, routes, token caps, at most $5 metered spend/60 minutes, isolated paths, idle check and exact rollback commands.",
         "Canary remains unactivated until reviewed; implementation status and live adoption are separate."
       ],
-      "passes": false,
+      "passes": true,
       "started": "2026-09-07",
-      "completed": null,
-      "notes": "Approved guide task, authority, base, hash, routes, caps, checks and rollback committed. Actual dry-run passes after missing M5 registry-env wiring repaired (ad1bf98d3); CLI/mission tests, lint/build pass. Waiter /private/tmp/ailang-docs-canary/run-when-idle.py awaits legacy Docs, then invokes runtime. Live adoption not yet claimed."
+      "completed": "2026-09-08T05:38:48.141724+00:00",
+      "notes": "Approved task/input, hashes, routes/caps/rollback and actual dry-run retained in verification/mission-iteration/canary/. Packet criterion complete. Two live evaluations failed on token caps; no final acceptance or live duplicate-dispatch proof. Follow-up reliability design proposed."
     }
   ],
-  "last_checkpoint": "2026-09-07T20:21Z: approved bound canary passed actual CLI dry-run; waiter active for legacy Docs idle. Registry env omission repaired and regression tested."
+  "last_checkpoint": "2026-09-08: M6 approved packet complete; live adoption failed at evaluation and remains open.",
+  "live_adoption": {
+    "status": "incomplete",
+    "reason": "Both live evaluator attempts exhausted token budgets; author artifact retained.",
+    "follow_up": "design_docs/planned/m-mission-iteration-reliability.md"
+  }
 }
