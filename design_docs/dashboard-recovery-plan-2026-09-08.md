@@ -1,16 +1,110 @@
 # Dashboard recovery: prove the data, then simplify the interface
 
 **Date:** 2026-09-08
-**Status:** Proposed recovery plan; initial production data audit complete. Visual interaction and full fleet lifecycle certification remain pending.
+**Status:** Capture-foundation sprint merged into dev; production remains on pre-fix revisions. Data stability is not established. Consolidation/deletion sequence updated after bounded live recheck at 2026-09-08 12:31–12:35 UTC.
 **Priority:** P1. Release target and implementation estimates follow the audit.
 **Scope:** Fleet provenance, data contracts, API/CLI parity, approvals, and a minimal human inspection UI.
-**Authorization:** Mark requested an audit and plan. This document authorizes no implementation, production repair, or approval execution.
+**Authorization:** Mark authorized the capture-foundation sprint, execution and merge; it is merged through `9b6bfa6f4`. This update records the requested continuation and next deletion scope. No production deployment, historical repair or approval execution has occurred in this workstream.
 
 ## Outcome
 
 A human or agent can start with a request, follow every execution attempt and handoff, inspect the evidence and approval decisions, and reach the delivered artifact. This works across cloud and local agents and across sessions. Optional AILANG function tracing adds detail without being required to establish the work lifecycle.
 
 The first deliverable is an evidence-backed data audit, not a replacement dashboard. The second is a reliable query and approval contract. The replacement interface follows only after those contracts pass acceptance tests against the cloud backend.
+
+## Current position and shortest path to deleting React
+
+**Rechecked 2026-09-08, 12:31–12:35 UTC**, checkout `e0df69cc5`.
+The earlier findings below are historical evidence, superseded by this section
+where implementation or deployment status differs.
+
+The first sprint fixed OTLP startup registration/recovery, truthful initialization
+reports, coordinator shutdown flush, retry-cycle deadlines and explicit chain/stage
+persistence in SQLite. It did **not** implement durable fleet capture, cloud query
+parity or dashboard consolidation. Its independent evaluation recorded green
+focused/race/lint/build checks and four environment-sensitive full-suite failures.
+The user authorized merging the code despite that recorded verification gate.
+
+### Live recheck
+
+| Check | Observation | Meaning |
+|---|---|---|
+| Coordinator revision | `ailang-coordinator-00077-tjr`, 100% traffic | Same revision as original audit; merged fix not deployed |
+| Dashboard revision | `ailang-dashboard-00044-469`, 100% traffic | Same revision as original audit |
+| `/api/version` | `dev` | Still cannot identify backend commit from this endpoint |
+| Chain pagination, limit 5, offsets 0 and 5 | Identical five IDs | Pagination still unreliable |
+| One sampled chain detail | HTTP 200 with stages | Basic work records remain readable |
+| That chain's first stage spans and chat | Both HTTP 500 | Evidence drilldown still broken; current error body does not establish its cause |
+| Stats, unfiltered and future-date request | Both exceeded 25-second client read timeout | No fresh claim about totals/filter correctness; response availability failed this check |
+| Breakdown / task evolution / usage timeseries | HTTP 200, empty dimensions/tasks/points; reported costs zero where present | Existing unsupported analytics still look like empty activity |
+| Thirty span rows in 06:30–12:30 UTC window | All provider-generation/attempt records; zero task/chain/stage links | Sample does not establish coordinator/fleet coverage; not a census |
+| Same thirty rows | Ten positive raw `gen_ai.usage.total_cost`; zero positive normalized `cost_usd` | Normalized accounting remains unreliable in this sample |
+
+Read-only commands: `gcloud run services describe` for both named services in
+`ailang-multivac/europe-west1`; bounded GET requests to the original audit paths.
+Raw responses remain local at `/tmp/dashboard-consolidation-live.json`; no prompt
+payloads or credentials copied here. Revision-only snapshots are at
+`/tmp/dashboard-current-coordinator.json` and `/tmp/dashboard-current-service.json`.
+The recent-span query used `limit=30`, `start_after=2026-09-08T06:30:00Z`,
+`start_before=2026-09-08T12:30:00Z`. No temporal ordering or complete denominator
+is inferred from that limit. Browser interaction remains unverified.
+
+### Two different gates: remove optional UI vs replace core work inspection
+
+We should **not** wait for a complete fleet-reliability certification before
+removing optional analytics. Retiring a view we no longer want eliminates a
+maintenance obligation; repairing every discarded chart's API is unnecessary.
+The broader seven-day data gate still applies to claiming stable fleet coverage,
+not to removing optional charts.
+
+| Existing surface | Decision / deletion boundary | Required retained behavior |
+|---|---|---|
+| `VisualizationPanel.tsx`, chart components, analytics-only hooks and styles | Remove the analytics panel and its evolution/usage/cost visualizations; remove heatmap from the first minimal shell as well | Work list retains direct date/status/agent filters; errors and freshness remain visible |
+| `ExecHierarchy` evolution mode, `EvolutionTree`, builders/utils/slideovers/styles | Delete alternate evolution visualization after import closure review | One work list/detail remains; preserve transcript and trace evidence in detail |
+| Top-level timeline/chat execution modes and duplicate event-detail paths | Consolidate into the one work detail in a later cutover | Requests, attempts, handoffs, transcript and raw trace drilldown remain reachable |
+| Approval surfaces | Keep one authoritative queue and detail; consolidate after reviewing current approval work | Exact action, evidence, authenticated decision and execution outcome remain distinct |
+| `ChainExplorer` family | Reuse as the initial Work surface, simplify its surrounding container | Correct pagination, filters and explicit missing/error states first |
+| Function evidence | Preserve available raw trace inspection; defer dedicated Functions page until its contract is verified | Disabled tracing must be distinct from missing records |
+| `TraceWaterfall.tsx`, other export-only candidates | Audit runtime imports, then delete unused files | Do not remove the only accessible span inspector |
+
+Measured source footprint of the first two candidate groups: 443 lines in
+`VisualizationPanel.tsx`, 1,939 in `ui/src/components/charts/` (including CSS),
+2,061 in `EvolutionTree.tsx`, 950 in `evolutionTreeBuilders.ts`, 467 in
+`evolutionTreeUtils.ts`: **5,860 lines to assess for removal**, plus related
+styles/hooks/slideovers. This is candidate footprint, not a promised net deletion.
+`recharts` is imported by the three analytics charts; `d3-hierarchy` by the tree
+builder. Remove dependencies/lockfile entries only after confirming zero retained
+imports. `ControlPlane.tsx` (786 lines) and `ExecHierarchy.tsx` (881) should shrink
+as wiring disappears, rather than being decomposed into equally complex layers.
+
+### Next bounded sequence
+
+1. **Deploy and prove the merged capture fix.** Prepare exact image/revision diff,
+   run the outstanding checks in a disposable runner, then perform an authorized
+   rollout and observe one fresh task-linked span. Merged code is not receipt evidence.
+2. **Deletion sprint A: retire optional analytics and the evolution-tree mode.**
+   Keep Work and Approvals usable, including existing evidence inspection. Remove
+   the corresponding fetches, polling, state, CSS, unused exports and dependencies;
+   do not just hide tabs. Verify UI build/tests and known-record navigation, error
+   rendering and approval detail reachability. No new dashboard framework.
+3. **Minimal Work API/CLI contract sprint.** Correct cloud paging/filter semantics,
+   required stage read indexes and explicit errors; prove API/remote CLI parity on
+   a fixed cohort. Keep costs unavailable until normalization/coverage is reliable.
+   Represent missing transcripts and delivery receipts explicitly. Do not infer
+   work identity from timestamps or synthesize it in React.
+4. **Deletion sprint B: one work detail replaces duplicate execution surfaces.**
+   Gate this on the minimal contract and a verified request → attempt → decision →
+   artifact path. Then delete superseded timeline/chat/event orchestration. Add
+   function inspection only from verified revision/function evidence.
+5. **Continue fleet certification and historical reconciliation** under the existing
+   plan. Do not call the platform stable based on one successful task or UI cutover.
+
+Steps 1 and 2 can be prepared independently; step 2 does not need chart-backend
+repairs. Step 4 depends on step 3. Each deletion sprint needs the repository's
+concrete plan/approval/execution gate; this update does not claim deletion occurred.
+Work on dev where safe, per the user's preference to avoid branch proliferation.
+Current unrelated uncommitted server/approval/budget/Docker changes remain parked;
+do not treat them as reviewed or deployed fixes during this audit.
 
 ## Preliminary audit: what is actually established
 
