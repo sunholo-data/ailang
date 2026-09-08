@@ -41,6 +41,10 @@ type typeDoc struct {
 func docsCommand() {
 	// Check for subcommands first
 	args := flag.Args()[1:]
+	if len(args) == 1 && args[0] == "package-authoring" {
+		fmt.Print(packageAuthoringGuide)
+		return
+	}
 	if len(args) > 0 && args[0] == "search" {
 		docsSearchCommand(args[1:])
 		return
@@ -562,6 +566,7 @@ func printDocsHelp() {
 	fmt.Println("Usage: ailang docs [options] [module]")
 	fmt.Println()
 	fmt.Println("Show documentation for AILANG stdlib modules.")
+	fmt.Println("  ailang docs package-authoring  Offline package style, evidence and publishing guide")
 	fmt.Println()
 	fmt.Println("Options:")
 	fmt.Println("  --list             List all available stdlib modules")

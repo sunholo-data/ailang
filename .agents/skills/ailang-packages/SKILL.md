@@ -16,6 +16,33 @@ Create, validate, and publish AILANG packages with correct conventions. Use when
 - User asks "how do I import from another package" or "how do I export types"
 - Code has `import pkg/` or `import ./` paths that aren't resolving
 
+## Start with the installed binary
+
+Read `ailang docs package-authoring` first. If unavailable on an older binary,
+read the **whole** `ailang prompt`, including its contracts, testing and package
+sections. Use `ailang docs --all-functions <term>` and `ailang pkg-docs --help`
+before web search or guessing APIs. Verify historic limitations with a minimal
+reproducer against the installed version.
+
+## Native quality evidence
+
+Separate pure logic from effectful adapters. Use ADTs for closed states/errors,
+meaningful requires/ensures for pure functions, boundary/invalid examples in
+native tests and properties for algebraic invariants. Declare minimal effect
+ceilings and bounded effect counts with @limit where meaningful. Never add
+vacuous contracts just to satisfy a count.
+
+Run `ailang pkg quality --strict .` to inventory missing native tests, contracts,
+effect budgets and AGENT.md. It is static evidence, **not** compilation, test
+execution, coverage or proof. Older binaries lacking this command require a
+manual evidence review; report that limitation explicitly.
+
+`ailang test --package .` only discovers *_test.ail. Run source modules with
+inline tests explicitly (`ailang test module.ail`) too. A plain function named
+test_* is not a native test declaration. Report actual totals, failures and skips;
+zero discovered tests does not validate behavior. Use `ailang verify --help` for
+SMT verification and report proved/unknown/skipped outcomes separately.
+
 ## Quick Reference
 
 ### Create a Package
@@ -41,7 +68,8 @@ ailang install sunholo/auth@0.1.0     # Install exact version
 ailang lock                    # Resolve dependencies → ailang.lock
 ailang check --package .       # Type-check all modules (cross-module resolution)
 ailang test --package .        # Run *_test.ail files
-ailang publish --dry-run       # Preview registry publication (rewrites path deps → registry versions)
+ailang pkg quality --strict .  # Inventory missing authoring evidence
+ailang publish --dry-run       # Packaging preview, not remote validation or proof
 ailang publish                 # Publish to registry
 ```
 
@@ -173,7 +201,7 @@ level = "experimental"          # experimental | stable | frozen
 
 ### Lock File Portability
 
-`ailang.lock` is portable — it does **not** contain absolute paths. Registry and git package paths are resolved at runtime from the local cache (`~/.ailang/cache/`).
+Registry and git lock entries resolve from the local cache (`~/.ailang/cache/`). Local path dependency locks may contain absolute paths: regenerate with `ailang lock` after moving or cloning. Do not describe path dependency locks as portable.
 
 **Docker workflow:**
 ```dockerfile
@@ -183,7 +211,7 @@ RUN ailang install sunholo/auth    # Populates cache from lock file versions
 
 **Key facts:**
 - Lock file stores: name, version, content hash, source type, git URL/rev
-- Lock file does NOT store: absolute cache paths
+- Registry/git entries do not need absolute cache paths; local path entries are workspace-specific
 - `ailang install` populates the cache; `ailang lock` resolves + downloads
 - Old lock files with stored paths still work (backward compatible)
 
@@ -237,7 +265,12 @@ See [resources/error_solutions.md](resources/error_solutions.md) for full troubl
 4. `[exports].modules` lists all public modules
 5. `[effects].max` includes all effects used
 6. `AGENT.md` exists with usage guide
-7. Publish in dependency order (leaf packages first)
+7. Native tests/properties have been executed with totals and skips reviewed; source inline tests run explicitly
+8. Meaningful contracts and effect budgets reviewed; proof outcomes recorded separately
+9. `ailang pkg quality --strict .` reports no missing evidence, or gaps are explicitly documented (do not claim the strict gate passed)
+10. Publish in dependency order (leaf packages first)
+
+`publish --dry-run` returns before remote registry validation. It is packaging evidence, not a test or proof gate.
 
 ## Registry Validator
 

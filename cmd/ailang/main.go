@@ -540,6 +540,7 @@ func main() {
 			fmt.Println("Usage: ailang pkg <command>")
 			fmt.Println()
 			fmt.Println("Commands:")
+			fmt.Println("  quality [--json] [--strict] [DIR]  Inventory authoring evidence offline")
 			fmt.Println("  info <vendor/name>          Show detailed package information")
 			fmt.Println("  versions <vendor/name>      List all versions with hashes")
 			fmt.Println("  stats                       Show ecosystem-wide statistics")
@@ -553,6 +554,11 @@ func main() {
 			os.Exit(1)
 		}
 		switch subArgs[0] {
+		case "quality":
+			if err := pkgQualityCommand(subArgs[1:]); err != nil {
+				fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+				os.Exit(1)
+			}
 		case "info":
 			if err := pkgInfoCommand(subArgs[1:]); err != nil {
 				fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
