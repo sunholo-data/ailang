@@ -3,6 +3,7 @@ package activation
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -18,9 +19,6 @@ func fixture(t *testing.T) (*Manager, Request) {
 }
 func stopped(context.Context, Record) error { return nil }
 func TestRestoreBaselines(t *testing.T) {
-	if !HostSupported() {
-		t.Skip("local mission activation requires macOS or Linux host locking (lock_other.go)")
-	}
 	for _, present := range []bool{false, true} {
 		t.Run(map[bool]string{false: "absent", true: "present"}[present], func(t *testing.T) {
 			m, q := fixture(t)
@@ -62,9 +60,6 @@ func TestRestoreBaselines(t *testing.T) {
 	}
 }
 func TestUnverifiedOrChangedFilesStayHeld(t *testing.T) {
-	if !HostSupported() {
-		t.Skip("local mission activation requires macOS or Linux host locking (lock_other.go)")
-	}
 	m, q := fixture(t)
 	if _, err := m.Activate(context.Background(), q, stopped); err != nil {
 		t.Fatal(err)
@@ -113,9 +108,6 @@ func TestForeignMarkerAndSecretsRejected(t *testing.T) {
 	}
 }
 func TestProcessDeathRecovery(t *testing.T) {
-	if !HostSupported() {
-		t.Skip("local mission activation requires macOS or Linux host locking (lock_other.go)")
-	}
 	if os.Getenv("AILANG_ACTIVATION_CRASH") != "" {
 		root := os.Getenv("AILANG_ACTIVATION_ROOT")
 		m := &Manager{Dir: filepath.Join(root, "records"), checkpoint: func(point string) {
@@ -306,4 +298,20 @@ func testAbsPath(rel string) string {
 		return "C:/tmp/" + rel
 	}
 	return "/tmp/" + rel
+}
+
+// TestMain gates the WHOLE package, because every test here calls Activate or Recover and
+// those need flock-style host locking that lock_other.go declares unavailable.
+//
+// Per-test skips were not enough and the difference was measured: with three tests skipped,
+// TestConcurrentHostOperations still ran and HUNG — it blocks on `<-entered`, a channel closed
+// by the verify callback, which Activate never reaches because it fails at the lock first. The
+// Windows job then burned 416s, 100% of the package budget, and reported no failing test at
+// all. A fast, honest refusal beats a timeout that names nothing.
+func TestMain(m *testing.M) {
+	if !HostSupported() {
+		fmt.Println("skipping internal/mission/activation: requires macOS or Linux host locking (lock_other.go)")
+		os.Exit(0)
+	}
+	os.Exit(m.Run())
 }
