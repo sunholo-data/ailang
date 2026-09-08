@@ -151,3 +151,13 @@ func TestOllamaObservations_MalformedRowsAreSkippedNotFatal(t *testing.T) {
 		t.Errorf("rows = %d, want 1 good row kept and the malformed one skipped", len(got))
 	}
 }
+
+// trimFloat trimmed trailing zeros unconditionally, so the 10pp/day allowance rendered as
+// "1pp". The guard still compared floats correctly; only the operator-facing number lied.
+func TestTrimFloat_DoesNotEatIntegerZeros(t *testing.T) {
+	for in, want := range map[float64]string{10: "10", 100: "100", 0: "0", 20: "20", 10.5: "10.5", 33.30: "33.3", 0.42: "0.4"} {
+		if got := trimFloat(in); got != want {
+			t.Errorf("trimFloat(%v) = %q, want %q", in, got, want)
+		}
+	}
+}

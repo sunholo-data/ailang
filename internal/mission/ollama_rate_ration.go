@@ -176,8 +176,16 @@ func applyOllamaRateRation(o OllamaQuotaObservation, history []ollamaObservation
 }
 
 // trimFloat renders a percentage without trailing noise.
+//
+// The zero-trim applies ONLY to a fractional part. Trimming unconditionally turned the
+// 10pp/day allowance into "1pp" in the operator-facing ration line — the comparison used the
+// float and stayed correct, so the guard behaved while the number it reported was wrong by
+// 10x. A report that misstates the budget is how the next reader mis-tunes it.
 func trimFloat(f float64) string {
-	s := strings.TrimRight(strings.TrimRight(formatFloat(f), "0"), ".")
+	s := formatFloat(f)
+	if strings.Contains(s, ".") {
+		s = strings.TrimRight(strings.TrimRight(s, "0"), ".")
+	}
 	if s == "" || s == "-" {
 		return "0"
 	}
