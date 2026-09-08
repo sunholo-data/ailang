@@ -55,8 +55,24 @@ func (d *Daemon) resolveInboxAgent(inbox string) (string, bool) {
 // previous one's failure notice, every task dying at dispatch. Cheap per iteration and
 // therefore quiet — it burned container starts, not tokens, and nothing in the unread
 // counts moved because completions are auto-read.
+//
+// approval_request joins completion for the same reason, found 2026-09-07 when the
+// backstop sweep was first read in prod: it flagged four "Approval needed: ..."
+// notices addressed to design-doc-creator's own inbox as recoverable work. They are
+// notices TO an approver, not requests FOR work, so dispatching one would have asked
+// design-doc-creator to perform its own approval request as a task. Push has never
+// created those tasks, so nothing broke — but the sweep reaches messages push
+// skipped, and would have been the first component to act on them.
 func isOutcomeNotice(msg *Message) bool {
-	return msg != nil && msg.Kind == "completion"
+	if msg == nil {
+		return false
+	}
+	switch msg.Kind {
+	case messaging.InboxTypeCompletion, messaging.InboxTypeApprovalRequest:
+		return true
+	default:
+		return false
+	}
 }
 
 // pollAndProcessTasks polls for new messages and queues them as tasks.
