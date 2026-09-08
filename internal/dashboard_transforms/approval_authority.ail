@@ -1,0 +1,172 @@
+-- Approval Authority
+--
+-- Who may resolve a pending approval unattended.
+--
+-- This is the DECISION, written in AILANG on purpose. It is the same shape as
+-- budget_checker: a pure function from a declared configuration and a set of
+-- observed facts to a structured verdict carrying its own reason. Axiom A4 is
+-- "Explicit Authority", and an authority rule that lives only in a Go if-chain
+-- is neither explicit nor separately checkable.
+--
+-- Everything around it stays in Go, because none of it is a decision: reading
+-- the environment, talking to Firestore, printing a banner.
+--
+-- Operator rule (Mark, attended 2026-09-08): the default is none — everything
+-- needs approval — but controller sessions, and high-end models in mission
+-- loops such as fable/astra, have the authority to approve unattended.
+--
+-- Called from: cmd/ailang/coordinator_approvals_authority.go
+
+module internal/dashboard_transforms/approval_authority
+
+import std/list (any)
+import std/string (contains, toLower)
+
+-- ============================================================================
+-- Types
+-- ============================================================================
+
+-- Who the session is, as reported by the DRIVER rather than by the session.
+-- missionControlActive and controllerId come from tools/launchd/mission-control.sh,
+-- which exports them only after resolving the controller ladder — so a
+-- controller demoted to a dry-out rung is described here as the rung it
+-- actually got.
+-- controllerId is "<provider>:<model>", empty when this is not a mission
+-- controller. missionRole names a spawned role (designer|planner|executor|
+-- evaluator) and is empty or "controller" otherwise. attendedGrant is the
+-- operator's standing grant for a session they drive themselves.
+export type Decider = {
+  missionControlActive: bool,
+  controllerId: string,
+  missionRole: string,
+  attendedGrant: bool
+}
+
+-- The facts about one pending approval that bear on whether it may be decided
+-- without a human. Deliberately NOT the whole row: nothing here depends on who
+-- wrote the code or what it says, only on whether it can be reviewed at all.
+-- evaluation is PASS|FAIL|UNAVAILABLE, empty when no evaluator ran.
+export type Row = {
+  diffAvailable: bool,
+  evaluation: string
+}
+
+-- The answer, always with its reason. A bare bool cannot be rendered in a
+-- banner, recorded in an audit line, or argued with.
+export type Verdict = {
+  granted: bool,
+  identity: string,
+  reason: string
+}
+
+-- ============================================================================
+-- Trusted rungs
+-- ============================================================================
+
+-- Is this controller id one of the rungs trusted to decide?
+--
+-- Substring, not equality, so a version bump does not silently revoke a grant:
+-- claude-fable-5-1 -> claude-fable-5-2 still matches "fable".
+export pure func rungIsTrusted(controllerId: string, trusted: [string]) -> bool
+  tests [
+    (("claude:claude-fable-5-1", ["fable", "astra", "opus"]), true),
+    (("claude:claude-fable-5-2", ["fable", "astra", "opus"]), true),
+    (("claude:claude-astra-5", ["fable", "astra", "opus"]), true),
+    (("claude:claude-opus-5", ["fable", "astra", "opus"]), true),
+    (("codex:gpt-5.6-sol", ["fable", "astra", "opus"]), false),
+    (("pi:ollama/glm-5.3:cloud", ["fable", "astra", "opus"]), false),
+    (("", ["fable", "astra", "opus"]), false),
+    (("claude:claude-fable-5-1", []), false)
+  ]
+{
+  any(func(m: string) -> bool { contains(toLower(controllerId), toLower(m)) }, trusted)
+}
+
+-- A spawned role is any mission role that is not the controller.
+--
+-- The load-bearing distinction: generator is not judge. The agent that produced
+-- a change must never be the one that approves it, however strong its model.
+export pure func isSpawnedRole(missionRole: string) -> bool
+  tests [
+    (("designer"), true),
+    (("planner"), true),
+    (("executor"), true),
+    (("evaluator"), true),
+    (("controller"), false),
+    ((""), false)
+  ]
+{
+  let r = toLower(missionRole);
+  if r == "" then false
+  else if r == "controller" then false
+  else true
+}
+
+-- ============================================================================
+-- The decision
+-- ============================================================================
+
+-- May this decider approve at all, and as whom?
+--
+-- Ordered so the refusals that are NOT preferences come first: a spawned role
+-- is refused before any model is consulted, because no model makes a generator
+-- into its own judge.
+export func decide(decider: Decider, trusted: [string]) -> Verdict ! {}
+{
+  if isSpawnedRole(decider.missionRole) then {
+    granted: false,
+    identity: "mission role ${decider.missionRole}",
+    reason: "a spawned role does not approve — the agent that produces a change is not its judge"
+  }
+  else if decider.missionControlActive then {
+    if decider.controllerId == "" then {
+      granted: false,
+      identity: "mission controller (unnamed)",
+      reason: "MISSION_CONTROL_ACTIVE is set but no controller id was published — an unnamed decider is not a trusted one"
+    }
+    else if rungIsTrusted(decider.controllerId, trusted) then {
+      granted: true,
+      identity: "mission controller ${decider.controllerId}",
+      reason: "controller on a trusted rung"
+    }
+    else {
+      granted: false,
+      identity: "mission controller ${decider.controllerId}",
+      reason: "this rung is a dry-out fallback, not a trusted decider — park the row for the operator"
+    }
+  }
+  else if decider.attendedGrant then {
+    granted: true,
+    identity: "attended controller session",
+    reason: "standing operator grant for controller sessions"
+  }
+  else {
+    granted: false,
+    identity: "",
+    reason: "no controller identity — approvals are the operator's"
+  }
+}
+
+-- Does a granted decider cover THIS row?
+--
+-- Authority says who may decide; this says what is decidable. A row whose
+-- executor recorded no diff cannot be reviewed by an agent at all — it cannot
+-- go and look at the pull request — so approving it is approving what you
+-- cannot see. requireEvaluatorPass additionally demands an independent verdict;
+-- it is not implied by a controller grant, because the package lanes have no
+-- evaluator edge and so never carry one.
+export pure func coversRow(row: Row, requireReviewable: bool, requireEvaluatorPass: bool) -> bool
+  tests [
+    (({diffAvailable: true, evaluation: ""}, true, false), true),
+    (({diffAvailable: false, evaluation: "PASS"}, true, false), false),
+    (({diffAvailable: false, evaluation: "PASS"}, false, false), true),
+    (({diffAvailable: true, evaluation: "PASS"}, true, true), true),
+    (({diffAvailable: true, evaluation: ""}, true, true), false),
+    (({diffAvailable: true, evaluation: "FAIL"}, true, true), false),
+    (({diffAvailable: true, evaluation: "UNAVAILABLE"}, true, true), false)
+  ]
+{
+  if requireReviewable && row.diffAvailable == false then false
+  else if requireEvaluatorPass && toLower(row.evaluation) != "pass" then false
+  else true
+}

@@ -98,8 +98,16 @@ type pendingApprovalJSON struct {
 // trustworthy: which plane it was read from, and how many stuck rows exist that
 // the pending list structurally cannot show.
 type approvalsJSONOutput struct {
-	Store     string                `json:"store"`
-	Policy    string                `json:"policy"`
+	Store string `json:"store"`
+
+	// Authority answers "may THIS session decide?", with the identity it
+	// resolved as and why. An approval with no named decider is a decision with
+	// no author, so the identity travels with the queue rather than being
+	// reconstructed later from a shell's environment.
+	Authority       bool   `json:"authority"`
+	Identity        string `json:"identity,omitempty"`
+	AuthorityReason string `json:"authority_reason"`
+
 	Pending   []pendingApprovalJSON `json:"pending"`
 	Orphans   int                   `json:"orphans"`
 	OrphanErr string                `json:"orphan_error,omitempty"`
@@ -130,7 +138,7 @@ func parseApprovalContext(raw string) (approvalContext, bool) {
 }
 
 // buildPendingApprovalJSON projects one record through the policy.
-func buildPendingApprovalJSON(req *coordinator.ApprovalRequestRecord, policy approvalPolicy, now time.Time) pendingApprovalJSON {
+func buildPendingApprovalJSON(req *coordinator.ApprovalRequestRecord, authority approvalAuthority, now time.Time) pendingApprovalJSON {
 	ctxData, ok := parseApprovalContext(req.ContextJSON)
 
 	row := pendingApprovalJSON{
@@ -148,30 +156,8 @@ func buildPendingApprovalJSON(req *coordinator.ApprovalRequestRecord, policy app
 	}
 	row.DiffAvailable = ok && ctxData.DiffUnavailable == "" && len(ctxData.ChangedFiles) > 0
 
-	row.AgentActionable, row.PolicyReason = agentMayApprove(row, policy)
+	row.AgentActionable, row.PolicyReason = authority.coversRow(row)
 	return row
-}
-
-// agentMayApprove applies the policy to one row and RETURNS ITS REASON, so a
-// banner can say why a row is the operator's rather than just that it is.
-func agentMayApprove(row pendingApprovalJSON, policy approvalPolicy) (bool, string) {
-	switch policy {
-	case approvalPolicyAlways:
-		return true, "policy=always"
-	case approvalPolicyEvaluated:
-		if !row.DiffAvailable {
-			return false, "no visible diff — cannot approve what cannot be reviewed"
-		}
-		if !strings.EqualFold(row.Evaluation, "PASS") {
-			if row.Evaluation == "" {
-				return false, "no evaluator verdict yet"
-			}
-			return false, "evaluator verdict " + row.Evaluation
-		}
-		return true, "policy=evaluated, verdict PASS, diff visible"
-	default:
-		return false, "policy=never — approvals are the operator's (set AILANG_APPROVAL_POLICY to change)"
-	}
 }
 
 // collectPendingApprovals reads the queue for a resolved plane.
@@ -179,19 +165,21 @@ func agentMayApprove(row pendingApprovalJSON, policy approvalPolicy) (bool, stri
 // It returns an error rather than an empty queue whenever the read itself
 // failed. Orphans are counted alongside because a pending list of zero with
 // stuck rows behind it is the misleading case, not the healthy one.
-func collectPendingApprovals(ctx context.Context, bundle *coordinatorStoreBundle, policy approvalPolicy, now time.Time) (*approvalsJSONOutput, error) {
+func collectPendingApprovals(ctx context.Context, bundle *coordinatorStoreBundle, authority approvalAuthority, now time.Time) (*approvalsJSONOutput, error) {
 	pending, err := bundle.Store.ListPendingApprovals(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list pending approvals: %w", err)
 	}
 
 	out := &approvalsJSONOutput{
-		Store:   bundle.Mode,
-		Policy:  string(policy),
-		Pending: make([]pendingApprovalJSON, 0, len(pending)),
+		Store:           bundle.Mode,
+		Authority:       authority.Granted,
+		Identity:        authority.Identity,
+		AuthorityReason: authority.Reason,
+		Pending:         make([]pendingApprovalJSON, 0, len(pending)),
 	}
 	for _, req := range pending {
-		out.Pending = append(out.Pending, buildPendingApprovalJSON(req, policy, now))
+		out.Pending = append(out.Pending, buildPendingApprovalJSON(req, authority, now))
 	}
 
 	orphans, oErr := findOrphanedApprovals(ctx, bundle.Store)

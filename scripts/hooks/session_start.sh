@@ -263,10 +263,12 @@ get_approvals_context() {
         return
     fi
 
-    local COUNT ORPHANS POLICY ACTIONABLE
+    local COUNT ORPHANS AUTHORITY IDENTITY AUTH_REASON ACTIONABLE
     COUNT=$(echo "$JSON" | jq '.pending | length')
     ORPHANS=$(echo "$JSON" | jq '.orphans // 0')
-    POLICY=$(echo "$JSON" | jq -r '.policy // "never"')
+    AUTHORITY=$(echo "$JSON" | jq -r '.authority // false')
+    IDENTITY=$(echo "$JSON" | jq -r '.identity // ""')
+    AUTH_REASON=$(echo "$JSON" | jq -r '.authority_reason // ""')
     ACTIONABLE=$(echo "$JSON" | jq '[.pending[] | select(.agent_actionable)] | length')
 
     if [ "$COUNT" -eq 0 ] && [ "$ORPHANS" -eq 0 ]; then
@@ -300,16 +302,23 @@ get_approvals_context() {
        ailang coordinator approvals --remote ${PLANE} --clear-orphans"
     fi
 
-    # Say who may act. The policy is ADVICE — an agent session and Mark drive the
-    # same CLI against the same store, so nothing here can enforce it, and
-    # claiming otherwise would invent a safeguard that does not exist.
+    # Say who this session IS, and therefore whether it may decide.
+    #
+    # Authority is identity, not row quality (Mark, attended 2026-09-08): the
+    # default is none, and controller sessions — attended, or a mission loop on
+    # fable/astra/opus — may resolve unattended. The grant comes off the driver's
+    # own exports, so a controller demoted to a dry-out rung loses it by itself.
+    #
+    # It is ADVICE. An agent and Mark drive the same CLI against the same store,
+    # so nothing printed here can enforce anything; claiming otherwise would be a
+    # safeguard that does not exist.
     local POLICY_LINE
-    case "$POLICY" in
-        always)    POLICY_LINE="     policy=always — you may resolve any row below." ;;
-        evaluated) POLICY_LINE="     policy=evaluated — you may resolve the ${ACTIONABLE} marked ✓you-may (evaluator PASS + visible diff); the rest are Mark's." ;;
-        *)         POLICY_LINE="     policy=never — these are Mark's to decide. Surface them; do not resolve them.
-     (AILANG_APPROVAL_POLICY=evaluated lets a session resolve evaluator-PASSed rows with a visible diff.)" ;;
-    esac
+    if [ "$AUTHORITY" = "true" ]; then
+        POLICY_LINE="     YOU MAY DECIDE as ${IDENTITY} — ${ACTIONABLE} of ${COUNT} covered (✓you-may). ${AUTH_REASON}
+     Rows without ✓you-may stay Mark's (no visible diff, or an evaluator verdict that is not PASS)."
+    else
+        POLICY_LINE="     NOT yours to decide — surface, do not resolve. ${AUTH_REASON}"
+    fi
 
     echo "$HEADER
 $ROWS$ORPHAN_LINE

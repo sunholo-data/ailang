@@ -42,7 +42,7 @@ func coordinatorApprovalsCommand(args []string) error {
 	// non-zero exit rather than an empty queue. Handled before the human view
 	// so no banner line ever lands on stdout ahead of it.
 	if *asJSON {
-		out, jErr := collectPendingApprovals(ctx, bundle, resolveApprovalPolicy(), time.Now())
+		out, jErr := collectPendingApprovals(ctx, bundle, resolveApprovalAuthority(), time.Now())
 		if jErr != nil {
 			return jErr
 		}
@@ -210,7 +210,15 @@ func coordinatorResolveRemote(args []string, action string) error {
 		}
 	}
 
+	// Who decided. An unattended controller approval used to record $USER —
+	// on this fleet that is the same login Mark's own sessions run under, so
+	// the audit trail could not tell a 3am fable controller from the operator.
+	// The resolved identity names the actual decider (controller id, or the
+	// attended session), and --by still overrides it.
 	who := *by
+	if who == "" {
+		who = resolveApprovalAuthority().Identity
+	}
 	if who == "" {
 		who = os.Getenv("USER")
 	}
