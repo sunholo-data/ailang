@@ -545,6 +545,18 @@ _mc_bounded() {
 # _mc_probe MODEL → 0 usable | 1 quota-limited | 2 unusable (auth/transient×2/timeout×2)
 _mc_probe() {
   local m="$1" out rc
+  # Ration gate, symmetric with _mc_probe_codex and _mc_probe_pi. Without it the
+  # Anthropic ration was HALF-WALKED: _mc_set_controller consults the ration for the
+  # controller (so an over-ration controller skips to a cheaper rung), but the ROLE
+  # pre-flight calls this function directly, so the designer and evaluator kept probing
+  # and spending Anthropic while the controller was yielding for exactly that reason.
+  # Declared is not walked — the same shape as the role fallback chains that existed for
+  # weeks with nothing reading them.
+  if _mc_is_over_ration "$m"; then
+    MC_BOUNDED_OUT="Anthropic quota admission blocked (over ration)"
+    log "anthropic:$m quota admission blocked; skipping inference probe"
+    return 75
+  fi
   _mc_bounded "$PROBE_TIMEOUT" claude -p 'reply with exactly: ok' --model "$m"; rc=$?
   out="$MC_BOUNDED_OUT"
   [ "$rc" -eq 0 ] && return 0
@@ -1284,7 +1296,11 @@ for role in DESIGNER PLANNER EXECUTOR EVALUATOR; do
     _mc_probe "$an_model"; an_rc=$?
     if [ "$an_rc" -ne 0 ]; then
       _an_failed="${_an_failed}${an_model}:"
-      if [ "$an_rc" -eq 1 ]; then an_why="quota-limited"; else an_why="unusable (rc=$an_rc)"; fi
+      # 75 is the ration gate, not a broken lane. "Friday" and "broken pin" have very
+      # different resume conditions, and so does "over our own daily ration".
+      if [ "$an_rc" -eq 1 ]; then an_why="quota-limited"
+      elif [ "$an_rc" -eq 75 ]; then an_why="over daily ration"
+      else an_why="unusable (rc=$an_rc)"; fi
       log "anthropic model '$an_model' $an_why"
       _an_rcmap="${_an_rcmap}${an_model}=${an_rc};"
     fi

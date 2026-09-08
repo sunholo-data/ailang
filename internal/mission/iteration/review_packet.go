@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/sunholo-data/ailang/internal/executor/proctree"
+	"github.com/sunholo-data/ailang/internal/gitexec"
 	"github.com/sunholo-data/ailang/internal/mission/dispatch"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -176,7 +176,7 @@ func (s *Service) reviewPacket(ctx context.Context, spec Spec, stage Stage, cand
 func reviewDiff(ctx context.Context, repo, base, candidate string) (string, bool, error) {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "git", "-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false", "--literal-pathspecs", "-C", repo, "diff", "--no-ext-diff", "--no-textconv", "--no-color", base, candidate, "--")
+	cmd := gitexec.CommandContext(ctx, "-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false", "--literal-pathspecs", "-C", repo, "diff", "--no-ext-diff", "--no-textconv", "--no-color", base, candidate, "--")
 	cmd.Env = append(os.Environ(), "GIT_NO_REPLACE_OBJECTS=1", "GIT_TERMINAL_PROMPT=0")
 	proctree.Configure(cmd)
 	out := &boundedOutput{limit: MaxReviewPacketBytes}
