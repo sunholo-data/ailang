@@ -70,6 +70,7 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [Sprint Plan: M-MISSION-LOOP-WORKBENCH — Phase 1](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_36_0/m-mission-loop-workbench-sprint-plan.md)
 - [M-MISSION-LOOP-WORKBENCH: One Registry, Generated Artifacts, and a Command That Answers "Does This Reach Mission X?"](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_36_0/m-mission-loop-workbench.md)
 - [M-STATE-DISK-RETENTION: Bounded On-Disk State and a `ailang disk` Command](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_36_0/m-state-disk-retention.md)
+- [M-TRACE-TIER-NOT-ENFORCED: the tracing tier is resolved, printed, and then ignored](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_36_0/m-trace-tier-not-enforced.md)
 
 ## Planned for v0.35.3
 
@@ -203,4 +204,4 @@ For the complete vision, see [Why AILANG](/docs/why-ailang) and [Vision](/docs/v
 
 ---
 
-*Generated at build time. 144 planned features across 12 upcoming versions.*
+*Generated at build time. 145 planned features across 12 upcoming versions.*
