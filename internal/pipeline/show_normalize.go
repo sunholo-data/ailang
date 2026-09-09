@@ -327,6 +327,10 @@ func (s *ShowNormalizer) rewriteShow(fnName string, app *core.App, arg core.Core
 		s.Rewritten++
 		return s.boolToString(newArg, app.OrigSpan), nil
 
+	case isPrimType(argType, "int"):
+		s.Rewritten++
+		return s.intToString(newArg, argType, app.OrigSpan), nil
+
 	default:
 		// float, list, record, ADT, type variable: no encodable equivalent.
 		// Leave show in place — the residue is honest.
@@ -354,6 +358,39 @@ func (s *ShowNormalizer) boolToString(cond core.CoreExpr, span ast.Pos) core.Cor
 	s.coreTI.Set(ifNode.ID(), stringType)
 
 	return ifNode
+}
+
+// intToString builds `$builtin._string_intToStr(n)`, whose runtime behavior is
+// strconv.Itoa — identical to show's rendering for ints (verified for 42, -5 and
+// 0). The SMT side encodes it with an explicit sign branch, because Z3's
+// str.from_int returns "" for a negative argument; see
+// StringBuiltinSpecial["_string_intToStr"].
+//
+// The reference is deliberately the $builtin one, NOT the std/string wrapper:
+// AddBuiltinsToGlobalEnv binds every registered builtin under $builtin
+// (elaborate/core.go:137), so the rewritten Core carries no module dependency
+// and a program that never imports std/string still links and runs. Emitting
+// `std/string.intToStr` here would break exactly those programs.
+//
+// Both minted nodes are registered: the App as `string`, the callee as
+// `int -> string`. The argument keeps its own node and entry.
+func (s *ShowNormalizer) intToString(arg core.CoreExpr, argType types.Type, span ast.Pos) core.CoreExpr {
+	stringType := types.Type(&types.TCon{Name: "string"})
+
+	callee := &core.VarGlobal{
+		CoreNode: s.mintNode(span),
+		Ref:      core.GlobalRef{Module: "$builtin", Name: "_string_intToStr"},
+	}
+	app := &core.App{
+		CoreNode: s.mintNode(span),
+		Func:     callee,
+		Args:     []core.CoreExpr{arg},
+	}
+
+	s.coreTI.Set(callee.ID(), &types.TFunc2{Params: []types.Type{argType}, Return: stringType})
+	s.coreTI.Set(app.ID(), stringType)
+
+	return app
 }
 
 // mintNode allocates a fresh Core node header, preserving the surface position

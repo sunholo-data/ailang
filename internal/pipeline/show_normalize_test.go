@@ -292,3 +292,79 @@ let fl = 3.5 in
 		})
 	}
 }
+
+// TestShowNormalize_IntHoleRewritten (M2): an int hole becomes an APPLICATION of
+// $builtin._string_intToStr — not a bare VarGlobal, which would leave an
+// unapplied `int -> string` where a `string` is required.
+//
+// The $builtin ref matters: AddBuiltinsToGlobalEnv binds every registered
+// builtin under $builtin (elaborate/core.go:137), so the rewritten Core carries
+// no module dependency and a program that never imports std/string still links.
+func TestShowNormalize_IntHoleRewritten(t *testing.T) {
+	prog, ti := compileForNormalize(t, "inthole", `module inthole
+export func f(n: int) -> string ! {} { "n=${n}" }
+`)
+	if got := countShowCalls(prog); got != 0 {
+		t.Fatalf("int hole: %d show calls survived, want 0", got)
+	}
+
+	var app *core.App
+	for _, d := range prog.Decls {
+		walkCore(d, func(e core.CoreExpr) {
+			a, ok := e.(*core.App)
+			if !ok {
+				return
+			}
+			if vg, ok := a.Func.(*core.VarGlobal); ok &&
+				vg.Ref.Module == "$builtin" && vg.Ref.Name == "_string_intToStr" {
+				app = a
+			}
+		})
+	}
+	if app == nil {
+		t.Fatal("int hole: no $builtin._string_intToStr APPLICATION in the normalized Core")
+	}
+	if len(app.Args) != 1 {
+		t.Fatalf("int hole: rewrite has %d args, want exactly 1", len(app.Args))
+	}
+
+	appType, has := ti.Get(app.ID())
+	if !has || !isTConNamed(appType, "string") {
+		t.Errorf("minted App %d: type %v (has=%v), want string", app.ID(), appType, has)
+	}
+	fnType, has := ti.Get(app.Func.ID())
+	if !has {
+		t.Errorf("minted VarGlobal %d has no CoreTypeInfo entry", app.Func.ID())
+	} else if fn, ok := fnType.(*types.TFunc2); !ok {
+		t.Errorf("minted VarGlobal %d: type %v, want a function type int -> string", app.Func.ID(), fnType)
+	} else if len(fn.Params) != 1 || !isTConNamed(fn.Params[0], "int") || !isTConNamed(fn.Return, "string") {
+		t.Errorf("minted VarGlobal %d: type %v, want int -> string", app.Func.ID(), fnType)
+	}
+
+	argType, has := ti.Get(app.Args[0].ID())
+	if !has || !isTConNamed(argType, "int") {
+		t.Errorf("reused arg %d: type %v (has=%v), want int — it must NOT be re-registered",
+			app.Args[0].ID(), argType, has)
+	}
+}
+
+// TestShowNormalize_IntHoleNeedsNoImport: the rewrite must not inject a
+// cross-module dependency. A module that never imports std/string and uses an
+// int hole has to compile and link. This was the r1 design-quorum's second
+// blocking objection; it is a real hazard if the rewrite names the std/string
+// wrapper instead of the $builtin ref.
+func TestShowNormalize_IntHoleNeedsNoImport(t *testing.T) {
+	prog, _ := compileForNormalize(t, "noimport", `module noimport
+export func f(n: int) -> string ! {} { "n=${n}" }
+`)
+	for _, d := range prog.Decls {
+		walkCore(d, func(e core.CoreExpr) {
+			if vg, ok := e.(*core.VarGlobal); ok && vg.Ref.Module == "std/string" {
+				t.Errorf("rewrite emitted a std/string ref (%s) into a module that does not import it", vg.Ref.Name)
+			}
+		})
+	}
+	if prog == nil {
+		t.Fatal("compile produced no program")
+	}
+}
