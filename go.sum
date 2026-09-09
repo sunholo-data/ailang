@@ -156,8 +156,8 @@ github.com/mattn/go-sqlite3 v1.14.50 h1:dmdFvo1XG4MPzA4IkAmE9upVz/Nj31uRoM5+jC8h
 github.com/mattn/go-sqlite3 v1.14.50/go.mod h1:6JTjA44L93a0QCyJef5YvlPoKXntQPjzWv5gtm9sB6w=
 github.com/modelcontextprotocol/go-sdk v1.7.0 h1:yqjY2dsbKAC0LSuWZVBMrHgiG8ukXv6NRo0JiALay44=
 github.com/modelcontextprotocol/go-sdk v1.7.0/go.mod h1:dL7u98E/zjJTGzEq+j30jQ8K2k1mb6LeAH4inEcSGts=
-github.com/ollama/ollama v0.33.3 h1:MRbU7xvqbOYFHptzm45Cs/H7KG/woZ1KLIfGup8gf3A=
-github.com/ollama/ollama v0.33.3/go.mod h1:D2fxVZuCQ7KQqszQMNx+k21Ig8hQEAWOwDIPFgwB8C8=
+github.com/ollama/ollama v0.34.0 h1:6BrPUjSiGVuYz+Um6YawOrZanVXeurjjfX2rRVpRR3E=
+github.com/ollama/ollama v0.34.0/go.mod h1:D2fxVZuCQ7KQqszQMNx+k21Ig8hQEAWOwDIPFgwB8C8=
 github.com/peterh/liner v1.2.2 h1:aJ4AOodmL+JxOZZEL2u9iJf8omNRpqHc/EbrK+3mAXw=
 github.com/peterh/liner v1.2.2/go.mod h1:xFwJyiKIXJZUKItq5dGHZSTBRAuG/CpeNpWLyiNRNwI=
 github.com/petermattis/goid v0.0.0-20260330135022-df67b199bc81 h1:WDsQxOJDy0N1VRAjXLpi8sCEZRSGarLWQevDxpTBRrM=
