@@ -19,6 +19,13 @@ const (
 	// TierStandard emits module, top-level effect, coordinator, executor,
 	// compile, task/chain-linked spans, but NOT per-call function spans or
 	// nested effect spans. This is the default.
+	//
+	// ENFORCED, as of M-TRACE-TIER-NOT-ENFORCED (v0.36.0), by Collector.tier.
+	// Before that the tier never reached the collector and this comment described
+	// a behavior the code did not implement — costing 2059 MB of peak RSS on a
+	// 400-iteration accumulator loop, and retaining every function's arguments and
+	// results by default. TestTierGovernsWhatIsRecorded pins the matrix so prose
+	// and behavior cannot drift apart again.
 	TierStandard
 	// TierDeep emits everything, including per-call eval.function.* spans
 	// and per-op eval.effect.* spans. Opt-in for profiling / training data.

@@ -470,7 +470,7 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 				emitTrace = "auto"
 			}
 			if !noTrace && emitTrace != "" {
-				effCtx.Trace = ailtrace.NewCollector()
+				effCtx.Trace = ailtrace.NewCollectorWithTier(traceOpts.Tier)
 				if strings.Contains(emitTrace, "jsonl") {
 					effCtx.IOWriter = os.Stderr // Program output to stderr so stdout is pure JSONL
 				}

@@ -438,6 +438,34 @@ explicitly with `--trace-tier deep` or `AILANG_TRACE=deep` when you need them.
 See [Telemetry: Tracing tiers](/docs/guides/telemetry#tracing-tiers).
 :::
 
+### What each tier records
+
+| Tier | Module / effect / contract spans | Per-call function args and results |
+|------|----------------------------------|------------------------------------|
+| `off` | — | — |
+| `standard` (default) | yes | **no** |
+| `deep` | yes | **yes** — this is its purpose |
+
+**`deep` captures values verbatim.** Every function's arguments and its result are
+rendered to strings and retained. Two consequences worth planning around:
+
+- **Memory is superlinear when a function carries a growing argument.** A recursive
+  accumulator serialises O(n) data on each of n calls. Measured on a 400-iteration
+  `concat(acc, [x])` loop: **2478 MB** at `deep` versus **105 MB** at `standard`.
+  Use `standard` (or `off`) for anything data-intensive.
+- **Recorded values are not filtered by IFC labels.** A `string<secret>` value crossing
+  a traced call boundary is written to the trace in full — the label governs sinks the
+  type system can see, and the tracer is below it. Do not enable `deep` while resolving
+  secrets. Tracked as `M-TRACE-LABEL-AWARE`.
+
+Before v0.36.0 the tier was resolved but never reached the collector, so `standard`
+recorded per-call values too. If you are on an older binary, `--trace-tier off` is the
+only setting that avoids it. The per-tier behaviour above is now pinned by
+`TestTierGovernsWhatIsRecorded` (`internal/trace/tier_enforcement_test.go`).
+
+**Effect args and results are still recorded at `standard`** — a `readFile` span carries
+what was read. That surface is separate and not yet gated; see `M-TRACE-LABEL-AWARE`.
+
 ### Latency Budget Workloads
 
 `benchmarks/workloads/` holds six self-contained `.ail` programs that act as
