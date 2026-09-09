@@ -385,6 +385,24 @@ func runPostTypeCheckPhases(
 		fmt.Fprintf(os.Stderr, "[DEBUG] Monomorphization disabled for module %s\n", modID)
 	}
 
+	// M-SMT-INTERP-SHOW: drop the `show` the interpolation desugar inserts around
+	// holes whose type makes it redundant (string) or trivially encodable (bool).
+	// Runs AFTER monomorphization so a generic helper's string instantiation is
+	// visible, and unconditionally so the DisableMonomorphization path is covered
+	// too. See internal/pipeline/show_normalize.go.
+	{
+		normalizer := NewShowNormalizer(&typeChecker.CoreTI)
+		normalized, err := normalizer.Normalize(unit.Core)
+		if err != nil {
+			return fmt.Errorf("show normalization failed in %s: %w", modID, err)
+		}
+		unit.Core = normalized
+		if cfg.DebugCompile {
+			fmt.Fprintf(os.Stderr, "[DEBUG] ShowNormalize (module %s): %d elided, %d rewritten, %d residue\n",
+				modID, normalizer.Elided, normalizer.Rewritten, normalizer.Residue)
+		}
+	}
+
 	// Phase 3.5.5: Var Type Resolution (M-DX4 workaround) for this module
 	if !cfg.DisableVarResolution {
 		resolver := NewVarResolver(typeChecker.CoreTI)

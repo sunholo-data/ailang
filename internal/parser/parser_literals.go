@@ -100,9 +100,22 @@ func (p *Parser) parseInterpolatedString() ast.Expr {
 			return nil
 		}
 
-		// Wrap in show(expr). The Show class dispatches to the right instance
-		// at elaboration time (show_Int, show_String≡id, etc.), so string-typed
-		// expressions incur no runtime cost beyond the dictionary lookup.
+		// Wrap in show(expr).
+		//
+		// NOTE: this happens at PARSE time, before any type is known, so the
+		// wrapper lands on every hole — including holes that are already
+		// `string`, where `show` is the identity. There is NO elaboration-time
+		// dispatch to a monomorphic show_Int/show_String: `show` is a single
+		// polymorphic $builtin (internal/builtins/show.go), and show_Int and
+		// friends exist only in the frozen interface table
+		// (internal/iface/builtin_freeze.go). An earlier version of this comment
+		// claimed otherwise and sent readers looking for a dispatch that does
+		// not exist.
+		//
+		// The redundant wrapper is removed later, by type, in
+		// internal/pipeline/show_normalize.go (M-SMT-INTERP-SHOW) — which is
+		// what puts string-building functions back inside the Z3-decidable
+		// fragment.
 		//
 		// The synthesized `show` identifier carries the `${` position, NOT the
 		// inner expression's — otherwise it collides with the user's own
