@@ -19,6 +19,10 @@ const (
 	EventContractCheck EventType = "contract_check"
 	EventBudgetDelta   EventType = "budget_delta"
 	EventError         EventType = "error"
+	// EventTraceTruncated marks a discontinuity: the retention cap evicted the
+	// events before it. Present so a truncated trace cannot be mistaken for a
+	// complete one that merely starts late.
+	EventTraceTruncated EventType = "trace_truncated"
 )
 
 // TraceEvent is the top-level envelope for all trace events.
@@ -43,6 +47,20 @@ type TraceEvent struct {
 	Contract *ContractEvent `json:"contract,omitempty"`
 	Budget   *BudgetEvent   `json:"budget,omitempty"`
 	Error    *ErrorEvent    `json:"error,omitempty"`
+	// Truncation is set only on EventTraceTruncated.
+	Truncation *TruncationEvent `json:"truncation,omitempty"`
+}
+
+// TruncationEvent records that the retention cap evicted earlier events.
+//
+// It exists so the artifact declares its own incompleteness. A consumer reading
+// a trace that begins mid-execution must be able to tell "this is where the run
+// started" from "this is where the buffer began" — otherwise a truncated trace
+// is a measurement that lies.
+type TruncationEvent struct {
+	DroppedEvents    int    `json:"dropped_events"`
+	MaxRetainedBytes int    `json:"max_retained_bytes"`
+	Reason           string `json:"reason"`
 }
 
 // ModuleEvent captures module start/end.
