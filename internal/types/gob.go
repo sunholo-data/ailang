@@ -20,6 +20,11 @@ func init() {
 	gob.Register(&TRecordOpen{})
 	gob.Register(&TRecord2{})
 	gob.Register(&TApp{})
+	// M-TAINT-TYPES: without this, every compile of an IFC-labelled module fails
+	// its cache write with "gob: type not registered for interface:
+	// types.TLabelled" and silently falls back to fresh compilation.
+	// Reported as inbox_1788847828665_f0c5db58.
+	gob.Register(&TLabelled{})
 	gob.Register(&Row{})
 	gob.Register(&RowVar{})
 

@@ -190,13 +190,34 @@ audit whether any other stdlib module has a safety note currently invisible for 
 
 ## Open Questions — these are real, and they are why this is a design and not a bug fix
 
-1. **Does a label survive through every path a value takes?** `classify` above launders a plain
-   `string` into `string<secret>` by annotation. What about the reverse — a labelled value
-   flowing into an unlabelled `let`, a list, a record field, or a closure capture? If the static
-   type at the *call site* is unlabelled, the flag is unset and the value is traced. **This is
-   the crux: static redaction is only as good as label propagation**, and M-TAINT-TYPES' Phase 1
-   is contract-checked rather than type-enforced (`fb_a71eab12139bee26`). Answering this may
-   require the Phase 2 type-level enforcement that report argues for.
+1. ~~**Does a label survive through every path a value takes?**~~ **ANSWERED by a spike,
+   2026-09-09 — mostly yes, with one hole that is a security defect in its own right.**
+
+   Measured against a `{not secret}` sink, with the direct case as a firing control:
+
+   | path | verdict |
+   |---|---|
+   | `sink(s)` — control | **BLOCKED** ✓ |
+   | `let copied = s in sink(copied)` | **BLOCKED** ✓ |
+   | `let r = { payload: s } in sink(r.payload)` | **BLOCKED** ✓ |
+   | `let xs = [s] in match xs { ... x :: _ => sink(x) }` | **BLOCKED** ✓ |
+   | `let f = \u. sink(s) in f(0)` — sink *inside* the lambda | **BLOCKED** ✓ |
+   | `let f = \u. s in sink(f(0))` — label returned *from* a lambda | **LAUNDERED** ✗ |
+   | `(\u. sink(s))(0)` | **LAUNDERED** ✗ |
+   | `let f = \u. s in let g: string<secret> = f(0) in sink(g)` | **LAUNDERED** ✗ |
+
+   **Good news for this design:** propagation through `let`, record fields and lists is sound, so
+   static redaction is viable and does not depend on M-TAINT-TYPES Phase 2 for the common paths.
+
+   **Bad news, and it is not about tracing:** a label is dropped from a lambda's inferred return
+   type. `let f = \u. s in sink(f(0))` defeats the `{not secret}` guarantee in three tokens, and
+   an explicit `string<secret>` annotation on the result does not restore it. The checker *does*
+   look inside lambdas — a sink called within one is correctly blocked — so this is specifically
+   the label being lost on the way out.
+
+   **This must be fixed before, or acknowledged alongside, static redaction**, which would
+   otherwise inherit the same hole: a traced call whose argument type lost its label gets no
+   redaction flag. Tracked separately; it is an IFC soundness bug, not a tracing bug.
 2. **Higher-order calls.** At `App` the callee may be a runtime closure whose parameter labels
    are not statically known at that site.
 3. **Should redaction be conservative?** A defensible fallback: when a call site's argument type
