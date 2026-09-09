@@ -396,3 +396,66 @@ export func g(s: string) -> string ! {} { "v=${s}" }
 		t.Errorf("g: %d residue notes on a fully-normalized function, want 0", len(gm.ShowResidue))
 	}
 }
+
+// TestShowNormalize_InterpolationIsNotHijackedByALocalShow is a TRAP GUARD, and
+// it is almost certainly why you are reading this file.
+//
+// The interpolation desugar synthesizes a bare `ast.Identifier{Name: "show"}`
+// (parser_literals.go:113). Identifier elaboration consults globalEnv BEFORE
+// falling through to a local binding (elaborate/expressions.go:53), and
+// AddBuiltinsToGlobalEnv puts `show` in globalEnv — so today that identifier
+// always reaches $builtin.show, whatever the module defines.
+//
+// That is the ONLY reason the separately-reported shadowing bug
+// (inbox_1788928007403_88e5056a: "a module's own `export func show` is silently
+// ignored") does not corrupt interpolation. Its most natural fix — "let a
+// module's own top-level definition win" — would make every "${x}" hole call
+// the user's function instead, with TWO silent failures at once:
+//
+//   1. Runtime: "${s}" returns whatever the user's show returns. Measured on
+//      v0.36.0-dev with `export func show(x: string) -> string { "HIJACKED" }`:
+//      today "hi", after such a fix "HIJACKED".
+//   2. Verification: ShowNormalizer matches $builtin.show STRUCTURALLY, so it
+//      would stop rewriting and the function would silently drop from VERIFIED
+//      back to SKIPPED — the proof lost without a word.
+//
+// If this test is failing, do not adjust it. The desugar needs to reference the
+// builtin hygienically — resolved directly to $builtin.show rather than by a
+// name a user can bind — in the SAME change that fixes the shadowing bug.
+func TestShowNormalize_InterpolationIsNotHijackedByALocalShow(t *testing.T) {
+	// A local show whose signature WOULD type-check against a string hole, so
+	// the hijack would be silent rather than a loud type error.
+	prog, _ := compileForNormalize(t, "hijack", `module hijack
+export func show(x: string) -> string { "HIJACKED" }
+export func f(s: string) -> string ! {} { "${s}" }
+`)
+
+	for _, d := range prog.Decls {
+		walkCore(d, func(e core.CoreExpr) {
+			app, ok := e.(*core.App)
+			if !ok {
+				return
+			}
+			vg, ok := app.Func.(*core.VarGlobal)
+			if !ok {
+				return
+			}
+			if vg.Ref.Name == "show" && vg.Ref.Module != "$builtin" {
+				t.Fatalf("interpolation resolved `show` to %s.%s, not $builtin.show.\n\n"+
+					"The desugar's synthesized identifier is now being captured by a module-local\n"+
+					"definition. Every \"${x}\" hole in this program calls user code, and\n"+
+					"ShowNormalizer no longer recognises it — so string builders silently stop\n"+
+					"verifying too. Fix the desugar to reference the builtin hygienically rather\n"+
+					"than by a bindable name. See M-SMT-INTERP-SHOW's Conflict Surface.",
+					vg.Ref.Module, vg.Ref.Name)
+			}
+		})
+	}
+
+	// Positive control: the hole was normalized, which is only true if it
+	// reached $builtin.show. Without this the test would pass vacuously on a
+	// tree where interpolation stopped emitting a show call at all.
+	if got := countShowCalls(prog); got != 0 {
+		t.Fatalf("string hole left %d show calls — the normalizer did not see $builtin.show", got)
+	}
+}

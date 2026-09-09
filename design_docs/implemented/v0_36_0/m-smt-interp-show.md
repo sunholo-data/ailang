@@ -336,8 +336,25 @@ point that this doc must record:
 > bug into another with a wider blast radius.
 
 Whoever takes that bug must make the desugar reference the builtin **hygienically** (emit the
-`$builtin.show` global ref directly, or a name users cannot bind) in the same change. Recorded
-here so the two lanes do not collide; **not** fixed in this doc.
+`$builtin.show` global ref directly, or a name users cannot bind) in the same change.
+
+**Mitigation shipped (r4, 2026-09-09): a guard test, not prose.**
+`TestShowNormalize_InterpolationIsNotHijackedByALocalShow`
+(`internal/pipeline/show_normalize_test.go`) compiles a module defining
+`export func show(x: string) -> string { "HIJACKED" }` — a signature that would type-check
+against a string hole, so the hijack would be silent rather than a loud type error — and fails
+if the interpolation's `show` resolves anywhere but `$builtin`. It is green today and goes red
+the moment the precedence changes, with the required fix in its failure message. It carries a
+positive control (the hole must still normalize) so it cannot pass vacuously.
+
+The blast radius, measured on v0.36.0-dev, is **two silent failures at once**: `"${s}"` returns
+`HIJACKED` instead of `hi`, *and* the enclosing function drops from VERIFIED back to SKIPPED,
+because `ShowNormalizer` matches `$builtin.show` structurally and would stop recognising it.
+
+The hygiene fix itself is deliberately **not** shipped here. Nothing can test it today: the
+local does not win yet, so no test can distinguish a hygienic desugar from the current one, and
+landing it alone would mean adding a field to a shared AST node on speculation. It belongs in
+the same change as the precedence fix, where it is testable against the behavior it protects.
 
 ### Programs that MUST still work
 
