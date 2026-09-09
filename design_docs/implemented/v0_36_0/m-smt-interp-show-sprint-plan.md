@@ -55,13 +55,13 @@ plus tests.
   100-char string, `0`, `-5`, `MinInt`, `true`/`false`)
 
 **Acceptance:**
-- [ ] `withInterp` VERIFIED; `noInterp` still VERIFIED
-- [ ] `safeConcat` (string_verify.ail) and `prefixedLength` (showcase.ail) VERIFIED
-- [ ] `${b}` (bool) hole verifies
-- [ ] `make verify-examples` — zero output diffs
-- [ ] `internal/format/interp_test.go` byte-identical; `#386` tests green **including** its
+- [x] `withInterp` VERIFIED; `noInterp` still VERIFIED
+- [x] `safeConcat` (string_verify.ail) and `prefixedLength` (showcase.ail) VERIFIED
+- [x] `${b}` (bool) hole verifies
+- [x] `make verify-examples` — zero output diffs
+- [x] `internal/format/interp_test.go` byte-identical; `#386` tests green **including** its
       must-reject controls
-- [ ] `make test`, `make lint`, `make check-file-sizes` clean
+- [x] `make test`, `make lint`, `make check-file-sizes` clean
 
 **Risks:** `show(s:string)` not exactly identity → mitigated by the value-equivalence table
 plus the whole-corpus diff. Minted nodes missing a `CoreTypeInfo` entry → caught by
@@ -84,9 +84,9 @@ plus the whole-corpus diff. Minted nodes missing a `CoreTypeInfo` entry → caug
   sampled range, plus symbolic `str.len(showInt(n)) > 0`); a no-import regression fixture
 
 **Acceptance:**
-- [ ] `${n}` verifies for positive, negative and zero
-- [ ] A module using `${n}` with **no** `import std/string` compiles, links and runs
-- [ ] Exactness assertions in CI, so a solver upgrade that breaks them fails loudly
+- [x] `${n}` verifies for positive, negative and zero
+- [x] A module using `${n}` with **no** `import std/string` compiles, links and runs
+- [x] Exactness assertions in CI, so a solver upgrade that breaks them fails loudly
 
 ### M3 — honest residue diagnostic
 **Goal**: the surviving skip names the measured argument **type** and never claims an origin.
@@ -103,17 +103,17 @@ plus the whole-corpus diff. Minted nodes missing a `CoreTypeInfo` entry → caug
   not misdiagnosed; no-note fallback
 
 **Acceptance:**
-- [ ] `${f}` (float) skips with the type named and no origin claimed
-- [ ] An explicit `show(p: float)` call is not misdiagnosed as interpolation
+- [x] `${f}` (float) skips with the type named and no origin claimed
+- [x] An explicit `show(p: float)` call is not misdiagnosed as interpolation
 
 ### M4 — gates, docs, close the loop
 **Estimated**: ~3h
-- [ ] `CHANGELOG.md` entry; remove the "string building cannot be verified" limitation from
+- [x] `CHANGELOG.md` entry; remove the "string building cannot be verified" limitation from
       `docs/LIMITATIONS.md`
-- [ ] `examples/runnable/contracts/` — update any comment documenting the old skip
-- [ ] New example exercising a verified string builder (per the project example rule)
-- [ ] Reply to `fb_913ee851c83c0d8c` with the diagnosis and what shipped
-- [ ] Move design doc to `design_docs/implemented/v0_36_0/` with an implementation report
+- [x] `examples/runnable/contracts/` — update any comment documenting the old skip
+- [x] New example exercising a verified string builder (per the project example rule)
+- [x] Reply to `fb_913ee851c83c0d8c` with the diagnosis and what shipped
+- [x] Move design doc to `design_docs/implemented/v0_36_0/` with an implementation report
 
 ## Success Metrics
 - `show` skips across `examples/runnable/contracts/` — **2 → 0**

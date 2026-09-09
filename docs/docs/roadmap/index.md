@@ -69,7 +69,6 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-MISSION-COMMS-INTO-THE-BINARY: Decisions Are Issues, Reports Are Links, Telemetry Leaves the Thread](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_36_0/m-mission-comms-into-the-binary.md)
 - [Sprint Plan: M-MISSION-LOOP-WORKBENCH — Phase 1](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_36_0/m-mission-loop-workbench-sprint-plan.md)
 - [M-MISSION-LOOP-WORKBENCH: One Registry, Generated Artifacts, and a Command That Answers "Does This Reach Mission X?"](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_36_0/m-mission-loop-workbench.md)
-- [M-SMT-INTERP-SHOW: Type-directed `show` normalization — unblock Z3 verification of string-building functions](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_36_0/m-smt-interp-show.md)
 - [M-STATE-DISK-RETENTION: Bounded On-Disk State and a `ailang disk` Command](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_36_0/m-state-disk-retention.md)
 
 ## Planned for v0.35.3
@@ -204,4 +203,4 @@ For the complete vision, see [Why AILANG](/docs/why-ailang) and [Vision](/docs/v
 
 ---
 
-*Generated at build time. 145 planned features across 12 upcoming versions.*
+*Generated at build time. 144 planned features across 12 upcoming versions.*

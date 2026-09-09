@@ -1,11 +1,11 @@
 # M-SMT-INTERP-SHOW: Type-directed `show` normalization — unblock Z3 verification of string-building functions
 
-**Status**: Approved — freeze items ratified 2026-09-09, sprint in progress
+**Status**: Implemented (v0.36.0) — see Implementation Report at the end
 **Target**: v0.36.0
 **Priority**: P0 (the contract/IFC story's load-bearing case — string construction — cannot be proved today)
 **Estimated**: 2–2.5 days (3 milestones, each independently committable; M1 alone closes the report)
 **Dependencies**: None. Independent of, and complementary to,
-[m-contract-verification-coverage](../m-contract-verification-coverage.md) (which
+[m-contract-verification-coverage](../../planned/m-contract-verification-coverage.md) (which
 re-*categorizes* skips; this doc *removes* a class of them).
 **Author**: design-doc-creator role, attended session 2026-09-09, at `dev` = `8e8e8c9bf` (v0.35.4)
 **Revision**: r3 — two quorum rounds, both **blocked**, four objections in total, all four
@@ -619,11 +619,11 @@ Two of the four attended-session triggers fire, so this doc **should** go to
   the rewrite is value-preserving.
 
 **Planned (checked for overlap — all distinct):**
-- [m-contract-verification-coverage](../m-contract-verification-coverage.md) — *complementary,
+- [m-contract-verification-coverage](../../planned/m-contract-verification-coverage.md) — *complementary,
   not overlapping.* That doc splits `verify_skipped` into `skipped` vs `not_applicable`; this
   one removes a class of genuine `skipped`. Landing both makes the encoder-coverage figure both
   correctly categorized and smaller.
-- [m-verify-bounded-unrolling-false-counterexample](../m-verify-bounded-unrolling-false-counterexample.md)
+- [m-verify-bounded-unrolling-false-counterexample](../../planned/m-verify-bounded-unrolling-false-counterexample.md)
   (0.27) — recursion-depth soundness, orthogonal to the builtin-encoding surface.
 
 **Source reports:**
@@ -728,3 +728,75 @@ not start before they are.
 
 **Document created**: 2026-09-09
 **Last updated**: 2026-09-09 (r2, post-quorum)
+
+---
+
+## Implementation Report
+
+**Implemented**: 2026-09-09, one attended session (~1h wall clock against a 2–2.5 day estimate).
+**Commits**: `e48ab4b48` (M1) · `8ac85ca9f` (M2) · `2568ff20a` (M3) · M4 with this move.
+
+### What was built
+
+| Milestone | Outcome |
+|---|---|
+| M1 `ShowNormalizer` | `internal/pipeline/show_normalize.go` (~480 LOC), wired after `Specialize` in both pipeline paths. string elided, bool → `core.If` |
+| M2 int encoding | `StringBuiltinSpecial["_string_intToStr"]` with `IntToStrMode`; int row emits the full `core.App` on the `$builtin` ref |
+| M3 residue diagnostic | `DeclMeta.ShowResidue` + `internal/smt/show_rejection.go`; the skip names the measured type, claims no origin |
+| M4 | changelog, `examples/runnable/contracts/interpolation_verify.ail` + manifest, feedback reply `inbox_1788935232151_c8628b8e` |
+
+### Measured results
+
+```
+BEFORE (v0.35.4)                       AFTER
+⚠ SKIPPED withInterp                   ✓ VERIFIED withInterp        5ms
+⚠ SKIPPED safeConcat                   ✓ VERIFIED safeConcat        4ms
+⚠ SKIPPED prefixedLength               ✓ VERIFIED prefixedLength    4ms
+```
+
+`show` skips across `examples/runnable/contracts/`: **2 → 0**. The reporter's RFC 5322
+composer verifies verbatim, with interpolation, at 8ms. Mixed holes
+(`"${s}|${n}|${b}"`) verify. A float hole still skips — with the type named.
+
+Runtime output is byte-identical corpus-wide (`make verify-examples`, 195 modules,
+0 drift). Lint 0 issues; all files under the 800-line gate; `#386`'s effect-row accept
+**and** must-reject controls both still hold; `ailang fmt` round-trip untouched.
+
+### Deviations from the design
+
+1. **`docs/LIMITATIONS.md` needed no edit.** The design assumed a "string building cannot be
+   verified" limitation was documented there. It was not — checked rather than assumed, so
+   nothing was removed.
+2. **`internal/smt/encodable.go` was split.** M3 pushed it to 778 lines, 22 short of the
+   `check-file-sizes` CI gate that `make test`/`lint` do not cover. The block was extracted to
+   `internal/smt/show_rejection.go` (729 + 60) rather than shaved.
+3. **The value-equivalence suite runs on the bare-expression path**, which needed a
+   `GlobalResolver` wired exactly as the CLI does (`main_run_exec.go:197`) for the residue rows
+   to evaluate at all. That path was chosen because it actually evaluates; the module path is
+   covered by the Core-shape tests.
+4. **M2 came in under estimate** because the design's measurement work had already established
+   both the encoding and its exactness — the milestone was two table entries and a codegen branch.
+
+### Test surface added
+
+- `internal/pipeline/show_normalize_test.go` — 8 Core-shape/invariant tests + 15
+  value-equivalence subtests (empty, embedded quote, embedded newline, a 100-char string over
+  `show`'s `maxWidth=80`, `0`, `-5`, both bools, float residue, mixed)
+- `internal/smt/int_to_str_test.go` — encoding shape, stdlib wrapper mapping, the
+  `str.from_int` premise, and 17 Z3 exactness assertions (all `Z3Available()`-guarded, since
+  Windows CI has no z3)
+- `internal/smt/show_rejection_test.go` — the message names the recorded type, claims no
+  origin, and falls back rather than inventing one
+
+### Known-red at hand-off, not caused here
+
+`internal/mission TestDriverCopiesDoNotMultiply` — a driver fork under `../../../ailang-world/`.
+Red before the first commit of this sprint; untouched by it.
+`internal/mission/iteration TestIterationWaitingDeadlineExpiresDurably` — timing-sensitive under
+full-suite load; passes 3/3 in isolation.
+
+### Still open
+
+The `export func show` shadowing bug (`inbox_1788928007403_88e5056a`) is unfixed and now has a
+documented trap: the desugar's unhygienic `show` identifier is why it does not corrupt
+interpolation today. See [Conflict Surface](#interaction-with-the-export-func-show-shadowing-bug-inbox_1788928007403_88e5056a).

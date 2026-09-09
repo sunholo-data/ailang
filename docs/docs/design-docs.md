@@ -28,6 +28,11 @@ This page is automatically generated from the [design_docs/implemented](https://
 - [Sprint Plan: M-PLANNER-CODEX-LANE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v1_0_0/m-planner-codex-lane-sprint-plan.md)
 - [M-PLANNER-CODEX-LANE: Route the Mission Planner Through the Hardened codex Spawn Recipe](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v1_0_0/m-planner-codex-lane.md)
 
+## v0.36.0
+
+- [Sprint Plan — M-SMT-INTERP-SHOW](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_36_0/m-smt-interp-show-sprint-plan.md)
+- [M-SMT-INTERP-SHOW: Type-directed `show` normalization — unblock Z3 verification of string-building functions](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_36_0/m-smt-interp-show.md)
+
 ## v0.35.4
 
 - [M-STD-BASE64URL-ENCODE: close the base64url encode/decode asymmetry in std/bytes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_4/m-std-base64url-encode.md)
@@ -1470,4 +1475,4 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ---
 
-*Generated at build time. 1070 design documents across 130 versions.*
+*Generated at build time. 1072 design documents across 131 versions.*
