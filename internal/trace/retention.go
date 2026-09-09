@@ -37,6 +37,50 @@ const (
 	evictionLowWater = 3 // evict to 3/4 of the cap
 )
 
+// ValueMode controls whether rendered VALUES are recorded at all. It is
+// deliberately orthogonal to Tier: the tier decides which events exist, this
+// decides whether those events carry payloads.
+//
+// The two are independent because the most useful configuration for a
+// confidentiality-bound workload is `deep` + `ValuesRedacted`: the COMPLETE call
+// tree — every function, every effect, arity, durations, parentage — with no
+// content whatsoever. Most of a trace's audit value is structural. Knowing that
+// `readMail -> extractAttachment -> httpPost` ran, in that order, at those
+// depths, is what answers "what did it do"; the message body is not needed to
+// answer it and is exactly what must not be written down.
+type ValueMode int
+
+const (
+	// ValuesFull records arguments and results as rendered. The default.
+	ValuesFull ValueMode = iota
+	// ValuesRedacted replaces every argument and result with a size descriptor.
+	//
+	// This is a BLUNT control, and for a confidentiality engagement that is a
+	// feature rather than a compromise. Label-aware redaction
+	// (M-TRACE-LABEL-AWARE) is more precise — it would redact only values the
+	// checker flagged — but its guarantee is "the trace contains only values the
+	// label checker did not flag", which is worth exactly as much as the
+	// checker. ValuesRedacted's guarantee is "the trace contains no values", and
+	// it is explicable in one sentence to someone reading a contract.
+	ValuesRedacted
+)
+
+// SetValueMode selects whether values are recorded. See ValueMode.
+func (c *Collector) SetValueMode(m ValueMode) { c.valueMode = m }
+
+// redactValue replaces a rendered value with a size descriptor.
+//
+// The length is retained deliberately: it costs no confidentiality — a byte
+// count is not the content — and it preserves real debugging signal. An empty
+// response, a body that grew between retries, a token of an unexpected size are
+// all visible without a single byte of payload.
+func redactValue(s string) string {
+	if s == "" {
+		return ""
+	}
+	return fmt.Sprintf("<redacted:%d bytes>", len(s))
+}
+
 // SetLimits overrides the retention bounds. A value <= 0 disables that bound.
 // Exposed for tests and for callers that genuinely want everything.
 func (c *Collector) SetLimits(maxValueBytes, maxRetainedBytes int) {
@@ -59,6 +103,10 @@ func truncateValue(s string, max int) string {
 
 // boundValues applies maxValueBytes to every rendered value on an event.
 func (c *Collector) boundValues(evt *TraceEvent) {
+	if c.valueMode == ValuesRedacted {
+		c.redactEventValues(evt)
+		return
+	}
 	if c.maxValueBytes <= 0 {
 		return
 	}
@@ -171,5 +219,25 @@ func (c *Collector) truncationMarker() TraceEvent {
 					"The tail is retained. Raise the cap, or attach an exporter to stream the full trace.",
 				c.maxRetainedBytes, c.dropped),
 		},
+	}
+}
+
+// redactEventValues strips payloads from every value-bearing field.
+//
+// Applied at the collector, not at the call sites, so no recorder can bypass it
+// — the guarantee has to hold for paths added later, not just the ones that
+// exist today.
+func (c *Collector) redactEventValues(evt *TraceEvent) {
+	if evt.Function != nil {
+		for i, a := range evt.Function.Args {
+			evt.Function.Args[i] = redactValue(a)
+		}
+		evt.Function.Result = redactValue(evt.Function.Result)
+	}
+	if evt.Effect != nil {
+		for i, a := range evt.Effect.Args {
+			evt.Effect.Args[i] = redactValue(a)
+		}
+		evt.Effect.Result = redactValue(evt.Effect.Result)
 	}
 }

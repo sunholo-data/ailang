@@ -138,3 +138,108 @@ func itoa(i int) string {
 	}
 	return string(b)
 }
+
+// ValuesRedacted is the setting a confidentiality-bound workload runs: the
+// COMPLETE call tree with no payloads. Orthogonal to tier on purpose — the
+// useful combination is `deep` + redacted, which folding it into the tier ladder
+// would have made unexpressible.
+func TestValuesRedactedKeepsStructureAndDropsContent(t *testing.T) {
+	const secret = "ya29.CANARY_LIVE_BEARER_TOKEN"
+
+	full := NewCollectorWithTier(TierDeep)
+	redacted := NewCollectorWithTier(TierDeep)
+	redacted.SetValueMode(ValuesRedacted)
+
+	for _, c := range []*Collector{full, redacted} {
+		c.RecordModuleStart("m", []string{"IO", "Net"})
+		c.RecordFunctionEnter("exchangeRefresh", []string{secret})
+		c.RecordEffect("Net", "httpRequest", []string{secret}, secret)
+		c.RecordFunctionExit("exchangeRefresh", secret)
+		c.RecordModuleEnd("m", 1)
+	}
+
+	// Control: without redaction the canary IS present, so a green result below
+	// cannot come from the fixture simply not recording anything.
+	if !containsSecret(full.Events(), secret) {
+		t.Fatal("control failed: the unredacted collector did not retain the canary, so this test proves nothing")
+	}
+	if containsSecret(redacted.Events(), secret) {
+		t.Error("redacted collector retained the secret verbatim")
+	}
+
+	// The whole point: structure is untouched.
+	if len(redacted.Events()) != len(full.Events()) {
+		t.Errorf("redaction changed the event count: %d vs %d — it must drop CONTENT, not events",
+			len(redacted.Events()), len(full.Events()))
+	}
+	var sawNames, sawEffect, sawSize bool
+	for _, e := range redacted.Events() {
+		if e.Function != nil && e.Function.Name == "exchangeRefresh" {
+			sawNames = true
+			for _, a := range e.Function.Args {
+				if strings.Contains(a, "bytes") {
+					sawSize = true
+				}
+			}
+		}
+		if e.Effect != nil && e.Effect.EffectName == "Net" && e.Effect.OpName == "httpRequest" {
+			sawEffect = true
+		}
+	}
+	if !sawNames {
+		t.Error("function names were lost; the call tree is the audit value")
+	}
+	if !sawEffect {
+		t.Error("effect name/op were lost; 'which effects ran' is the core provenance question")
+	}
+	if !sawSize {
+		t.Error("no size descriptor: a byte count leaks no content but keeps real debugging signal")
+	}
+}
+
+// TestResolveValueModeFailsClosed: a typo must not silently record everything.
+func TestResolveValueModeFailsClosed(t *testing.T) {
+	for _, s := range []string{"on", "full", ""} {
+		if m, err := ResolveValueMode(s); err != nil || m != ValuesFull {
+			t.Errorf("ResolveValueMode(%q) = %v, %v; want ValuesFull, nil", s, m, err)
+		}
+	}
+	for _, s := range []string{"off", "redacted", "none", "OFF"} {
+		if m, err := ResolveValueMode(s); err != nil || m != ValuesRedacted {
+			t.Errorf("ResolveValueMode(%q) = %v, %v; want ValuesRedacted, nil", s, m, err)
+		}
+	}
+	m, err := ResolveValueMode("of") // the typo that matters
+	if err == nil {
+		t.Error("a misspelled setting was accepted; a typo must not become a data leak")
+	}
+	if m != ValuesRedacted {
+		t.Error("on error the mode must fall to ValuesRedacted — fail closed, not open")
+	}
+}
+
+func containsSecret(evs []TraceEvent, secret string) bool {
+	for _, e := range evs {
+		if e.Function != nil {
+			if strings.Contains(e.Function.Result, secret) {
+				return true
+			}
+			for _, a := range e.Function.Args {
+				if strings.Contains(a, secret) {
+					return true
+				}
+			}
+		}
+		if e.Effect != nil {
+			if strings.Contains(e.Effect.Result, secret) {
+				return true
+			}
+			for _, a := range e.Effect.Args {
+				if strings.Contains(a, secret) {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}

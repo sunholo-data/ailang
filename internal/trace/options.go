@@ -119,3 +119,30 @@ func (o TracingOptions) DeepTrace() bool {
 func (o TracingOptions) Enabled() bool {
 	return o.Tier != TierOff
 }
+
+// ResolveValueMode reads AILANG_TRACE_VALUES (on|off). Default: on.
+//
+// Orthogonal to the tier on purpose. A confidentiality-bound workload wants
+// `AILANG_TRACE=deep AILANG_TRACE_VALUES=off`: the complete call tree, no
+// payloads. Folding this into the tier ladder would have forced a choice between
+// structure and safety, which is the choice this exists to remove.
+//
+// Unknown values are an ERROR rather than a silent default. Defaulting a
+// misspelled AILANG_TRACE_VALUES=of to "record everything" would turn a typo into
+// a data leak, which is the wrong direction to fail.
+func ResolveValueMode(s string) (ValueMode, error) {
+	if s == "" {
+		if env := os.Getenv("AILANG_TRACE_VALUES"); env != "" {
+			s = env
+		}
+	}
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "", "on", "full":
+		return ValuesFull, nil
+	case "off", "redacted", "none":
+		return ValuesRedacted, nil
+	default:
+		return ValuesRedacted, fmt.Errorf(
+			"unknown AILANG_TRACE_VALUES %q (want on|off); refusing to record values on an unrecognised setting", s)
+	}
+}

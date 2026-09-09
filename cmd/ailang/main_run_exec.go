@@ -470,7 +470,21 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 				emitTrace = "auto"
 			}
 			if !noTrace && emitTrace != "" {
-				effCtx.Trace = ailtrace.NewCollectorWithTier(traceOpts.Tier)
+				collector := ailtrace.NewCollectorWithTier(traceOpts.Tier)
+				// AILANG_TRACE_VALUES=off records the full call tree with no
+				// payloads — for workloads under confidentiality terms, where
+				// the structure is the audit value and the content must not be
+				// written to disk at all.
+				vm, vmErr := ailtrace.ResolveValueMode("")
+				if vmErr != nil {
+					fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), vmErr)
+					os.Exit(1)
+				}
+				collector.SetValueMode(vm)
+				if !quiet && vm == ailtrace.ValuesRedacted {
+					fmt.Fprintln(os.Stderr, "Trace: values redacted (AILANG_TRACE_VALUES=off) — structure only, no payloads")
+				}
+				effCtx.Trace = collector
 				if strings.Contains(emitTrace, "jsonl") {
 					effCtx.IOWriter = os.Stderr // Program output to stderr so stdout is pure JSONL
 				}

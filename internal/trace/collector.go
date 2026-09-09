@@ -27,6 +27,9 @@ type Collector struct {
 	// truncated trace announces itself rather than silently lying.
 	dropped int
 
+	// valueMode decides whether values are recorded at all. Orthogonal to tier.
+	valueMode ValueMode
+
 	// maxValueBytes bounds each rendered argument/result. This is what turns a
 	// recursion over a growing accumulator from O(n^2) into O(n): every call
 	// still gets its event, but no single value can be arbitrarily large.
