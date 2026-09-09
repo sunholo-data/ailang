@@ -1,6 +1,9 @@
 # M-TRACE-LABEL-AWARE: the tracer is below the type system, so IFC labels do not reach it
 
-**Status**: Planned
+**Status**: Planned — **unblocked**. Its main open question (does the label propagate?) is
+resolved favourably, and the IFC hole it would have inherited is fixed (`1af9f5f30`). M0 (the
+`std/secret` doc correction) has shipped. The remaining unknowns are higher-order call sites and
+the conservative-redaction policy, both stated below.
 **Target**: v0.36.0
 **Priority**: P0 — `std/secret` documents a guarantee the runtime does not provide. A user who
 follows the documentation exactly still writes their credential to disk.
@@ -215,9 +218,19 @@ audit whether any other stdlib module has a safety note currently invisible for 
    look inside lambdas — a sink called within one is correctly blocked — so this is specifically
    the label being lost on the way out.
 
-   **This must be fixed before, or acknowledged alongside, static redaction**, which would
-   otherwise inherit the same hole: a traced call whose argument type lost its label gets no
-   redaction flag. Tracked separately; it is an IFC soundness bug, not a tracing bug.
+   **FIXED, commit `1af9f5f30`** — so this design no longer inherits the hole. Two gaps had to
+   line up: `ifc_check.go`'s `Lambda` case returned `LabelBottom()`, and `labelOfCall`'s
+   fallback (the path every local closure takes) joined only the *argument* labels, discarding
+   the callee's own. Both now propagate; nine paths are pinned by
+   `TestIFCClosureCannotLaunderALabel` with the direct call as a firing control.
+
+   **Net effect on this doc: Open Question 1 is closed, favourably.** Label propagation is sound
+   across `let`, record fields, lists, closures and annotated bindings, so static redaction is
+   viable and does **not** depend on M-TAINT-TYPES Phase 2.
+
+   One caveat carried forward: propagation is now *over*-approximate (a closure is labelled with
+   what its body returns, used or not). For redaction that is the safe direction — it redacts
+   more than strictly necessary, never less.
 2. **Higher-order calls.** At `App` the callee may be a runtime closure whose parameter labels
    are not statically known at that site.
 3. **Should redaction be conservative?** A defensible fallback: when a call site's argument type

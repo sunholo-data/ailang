@@ -1,6 +1,12 @@
 # M-TRACE-TIER-NOT-ENFORCED: the tracing tier is resolved, printed, and then ignored
 
-**Status**: Planned
+**Status**: M1 + M3 IMPLEMENTED (commit `324373066`) — M2 (bounding the collector) outstanding.
+Measured after: n=400 peak RSS 2059 MB -> **105 MB** (tracing off: 102 MB); `deep` unchanged at
+2478 MB; the `string<secret>` canary went from 4 verbatim copies at `standard` to **0**.
+Blast radius was smaller than feared: only 2 non-test construction sites, and `scorer`/`comparator`
+have no non-test consumers, so `NewCollector()` defaulting to deep left all 32 test callers green.
+**Still not fixed, and stated rather than implied:** effect args/results are recorded at
+`standard`, so a `readFile` span still carries what was read — that is M-TRACE-LABEL-AWARE M2.
 **Target**: v0.36.0
 **Priority**: P0 — one defect, two P0 consequences: an OOM that killed a real workload, and an
 information-exposure surface that two independent field reports have now filed against.
