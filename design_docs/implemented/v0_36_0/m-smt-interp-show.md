@@ -351,10 +351,45 @@ The blast radius, measured on v0.36.0-dev, is **two silent failures at once**: `
 `HIJACKED` instead of `hi`, *and* the enclosing function drops from VERIFIED back to SKIPPED,
 because `ShowNormalizer` matches `$builtin.show` structurally and would stop recognising it.
 
-The hygiene fix itself is deliberately **not** shipped here. Nothing can test it today: the
-local does not win yet, so no test can distinguish a hygienic desugar from the current one, and
-landing it alone would mean adding a field to a shared AST node on speculation. It belongs in
-the same change as the precedence fix, where it is testable against the behavior it protects.
+**The hygiene fix shipped too (r5, 2026-09-09), and it is testable after all.**
+The r4 note claimed nothing could test a hygienic desugar until the precedence changed. That was
+wrong: the hostile precedence can be *simulated* at the elaborator level by pointing
+`globalEnv["show"]` at a user module, which asserts the protection directly, today
+(`internal/elaborate/builtin_hygiene_test.go`).
+
+`ast.Identifier` gains `ResolveAsBuiltin`, set only by `parseInterpolatedString`. The elaborator
+resolves such an identifier straight to `$builtin.<Name>`, bypassing constructor lookup,
+`globalEnv` and local resolution alike, and **errors** if the name is not a registered builtin —
+a desugar that synthesizes a reference to a non-existent builtin is a compiler bug, and emitting
+a plausible one would surface much later as an unresolved global with nothing pointing back.
+
+`ast.Identifier` was chosen over a new `ast.Expr` variant deliberately: an additive field with a
+zero value that means "current behavior" has no blast radius, whereas a new expression node must
+be handled by every exhaustive switch in the formatter, elaborator and typechecker.
+
+Three tests, each with a non-vacuity control: the marked identifier survives a hijacked
+`globalEnv`; an *unmarked* one is captured by it (proving the fixture bites); a hand-written
+`show` is never marked (proving hygiene does not overreach into user code).
+
+### What the hygiene fix uncovered: `ailang fmt` was making a meaning-changing rewrite
+
+Adding the marker turned `TestHandWrittenConcatIsLeftAlone/right-nested_chain` red, and the
+failure was real rather than churn. `internal/format/interp.go` re-sugars a `concat_String`
+chain back into `"${...}"` by pattern-matching the `show(x)` **shape** — so a hand-written
+`concat_String("a", show(n))`, which is shape-identical to a desugared one, was reprinted as
+`"a${n}"`.
+
+That rewrite is meaning-preserving only for as long as `show` cannot be shadowed. The moment a
+module-local `show` wins, the chain calls the user's function and the interpolation does not —
+so the formatter would silently change which function a program calls. The test file's own
+comment already stated the principle ("re-sugaring any of them would change what the source
+re-parses to"); the structural guards were an approximation of "did the user write this?", which
+the marker now answers exactly.
+
+`interp.go` now re-sugars only a `show` carrying `ResolveAsBuiltin`. Real interpolations are
+unaffected — the parser marks them — and a control test pins that. This also delivers the
+"make `fmt`'s round-trip exact rather than heuristic" item this doc had listed under Future
+Work.
 
 ### Programs that MUST still work
 
@@ -651,11 +686,12 @@ Two of the four attended-session triggers fire, so this doc **should** go to
 
 ## Future Work
 
-- **Node provenance for synthesized desugar output.** A flag on `ast.FuncCall` marking
-  parser-synthesized nodes would let M3 say "the `show` at line 12 col 20 came from a `${}`
-  hole" exactly, and would let `internal/format/interp.go` re-sugar from a marker instead of
-  pattern-matching the `show(...)` shape — making `ailang fmt`'s round-trip exact rather than
-  heuristic.
+- ~~**Node provenance for synthesized desugar output**, so `fmt` can re-sugar from a marker
+  instead of pattern-matching the `show(...)` shape.~~ **Delivered in r5** as
+  `ast.Identifier.ResolveAsBuiltin`; `fmt`'s round-trip is now exact. What remains unbuilt is
+  *positional* provenance — "the `show` at line 12 col 20 came from a `${}` hole" — which would
+  let M3's diagnostic point at the hole itself. M3 does not need it: it names the type, and
+  deliberately claims no origin.
 - **Float holes via a rational-to-decimal encoding**, if a benchmark ever demands it.
 - **Hygienic desugar**, jointly with the `export func show` shadowing fix.
 

@@ -201,3 +201,78 @@ func TestInterp_NestedFunctionCall(t *testing.T) {
 		t.Fatalf("expected show(show(x)), inner arg = %v", innerShowArg)
 	}
 }
+
+// TestInterpolationMarksShowAsHygienicBuiltin: the `show` this desugar inserts
+// is not a name the user wrote, so it must carry ResolveAsBuiltin — otherwise a
+// module-local `show` captures every "${x}" hole the moment local definitions
+// are allowed to win over builtins (the natural fix for the `export func show`
+// shadowing bug). The failure would be silent: `string -> string` type-checks
+// against a string hole, and the enclosing function would also drop out of the
+// Z3-decidable fragment, since ShowNormalizer matches $builtin.show
+// structurally.
+//
+// Resolution side: internal/elaborate/builtin_hygiene_test.go.
+func TestInterpolationMarksShowAsHygienicBuiltin(t *testing.T) {
+	for _, input := range []string{`"a${x}b"`, `"${x}"`, `"${x}${y}"`} {
+		t.Run(input, func(t *testing.T) {
+			found := 0
+			var walk func(ast.Expr)
+			walk = func(e ast.Expr) {
+				call, ok := e.(*ast.FuncCall)
+				if !ok {
+					return
+				}
+				if id, isID := call.Func.(*ast.Identifier); isID && id.Name == "show" {
+					found++
+					if !id.ResolveAsBuiltin {
+						t.Errorf("synthesized `show` at %v is not marked ResolveAsBuiltin; "+
+							"a module-local `show` would be able to capture this hole", id.Pos)
+					}
+				}
+				for _, a := range call.Args {
+					walk(a)
+				}
+				walk(call.Func)
+			}
+			walk(parseInterpExpr(t, input))
+
+			if found == 0 {
+				t.Fatalf("no synthesized show call found in %s — the desugar shape changed "+
+					"and this guard has stopped covering it", input)
+			}
+		})
+	}
+}
+
+// TestHandWrittenShowIsNotMarked is the non-vacuity control: a `show` the USER
+// wrote must stay an ordinary identifier, subject to normal name resolution. If
+// the parser marked every `show`, the guard above would pass while the hygiene
+// mechanism silently overreached into user code.
+func TestHandWrittenShowIsNotMarked(t *testing.T) {
+	expr := parseInterpExpr(t, `concat_String("a", show(x))`)
+
+	var checked bool
+	var walk func(ast.Expr)
+	walk = func(e ast.Expr) {
+		call, ok := e.(*ast.FuncCall)
+		if !ok {
+			return
+		}
+		if id, isID := call.Func.(*ast.Identifier); isID && id.Name == "show" {
+			checked = true
+			if id.ResolveAsBuiltin {
+				t.Error("a hand-written `show` was marked ResolveAsBuiltin; hygiene must apply " +
+					"only to identifiers a desugar synthesized, never to user code")
+			}
+		}
+		for _, a := range call.Args {
+			walk(a)
+		}
+		walk(call.Func)
+	}
+	walk(expr)
+
+	if !checked {
+		t.Fatal("no hand-written show call found — the control is not exercising anything")
+	}
+}

@@ -123,7 +123,17 @@ func (p *Parser) parseInterpolatedString() ast.Expr {
 		// `basicReplace` at the same line:col), which breaks LSP cursor→symbol
 		// resolution and the position-fidelity probe.
 		showCall := &ast.FuncCall{
-			Func: &ast.Identifier{Name: "show", Pos: interpPos},
+			Func: &ast.Identifier{
+				Name: "show",
+				Pos:  interpPos,
+				// HYGIENE: this identifier is synthesized, not written by the
+				// user, so it must reach $builtin.show whatever the module
+				// binds. Without the marker, the day module-local definitions
+				// win over builtins, a user's own `show` captures every hole in
+				// the program — silently, since `string -> string` type-checks.
+				// See internal/elaborate/builtin_hygiene_test.go.
+				ResolveAsBuiltin: true,
+			},
 			Args: []ast.Expr{expr},
 			Pos:  interpPos,
 		}

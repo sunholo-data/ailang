@@ -412,12 +412,12 @@ export func g(s: string) -> string ! {} { "v=${s}" }
 // module's own top-level definition win" — would make every "${x}" hole call
 // the user's function instead, with TWO silent failures at once:
 //
-//   1. Runtime: "${s}" returns whatever the user's show returns. Measured on
-//      v0.36.0-dev with `export func show(x: string) -> string { "HIJACKED" }`:
-//      today "hi", after such a fix "HIJACKED".
-//   2. Verification: ShowNormalizer matches $builtin.show STRUCTURALLY, so it
-//      would stop rewriting and the function would silently drop from VERIFIED
-//      back to SKIPPED — the proof lost without a word.
+//  1. Runtime: "${s}" returns whatever the user's show returns. Measured on
+//     v0.36.0-dev with `export func show(x: string) -> string { "HIJACKED" }`:
+//     today "hi", after such a fix "HIJACKED".
+//  2. Verification: ShowNormalizer matches $builtin.show STRUCTURALLY, so it
+//     would stop rewriting and the function would silently drop from VERIFIED
+//     back to SKIPPED — the proof lost without a word.
 //
 // If this test is failing, do not adjust it. The desugar needs to reference the
 // builtin hygienically — resolved directly to $builtin.show rather than by a
