@@ -47,13 +47,20 @@ type ShowNormalizer struct {
 	Rewritten int
 	// Residue counts show calls deliberately left in place (unsupported types).
 	Residue int
+
+	// residueByFunc collects, per enclosing function, the argument types of the
+	// `show` calls left unrewritten. Written into DeclMeta.ShowResidue so the
+	// SMT layer — which has no type information of its own — can name the type
+	// in its skip message instead of emitting a bare "unencodable builtin: show"
+	// that sends readers hunting a call the source does not contain.
+	residueByFunc map[string][]core.ShowResidueNote
 }
 
 // NewShowNormalizer creates the pass. coreTI must be the live type table for the
 // program being normalized: the pass both reads argument types from it and
 // registers types for the nodes it mints.
 func NewShowNormalizer(coreTI *types.CoreTypeInfo) *ShowNormalizer {
-	return &ShowNormalizer{coreTI: coreTI}
+	return &ShowNormalizer{coreTI: coreTI, residueByFunc: make(map[string][]core.ShowResidueNote)}
 }
 
 // Normalize returns a new program with redundant `show` calls removed.
@@ -83,6 +90,15 @@ func (s *ShowNormalizer) Normalize(prog *core.Program) (*core.Program, error) {
 			return nil, err
 		}
 		out.Decls[i] = rewritten
+	}
+
+	// Publish the residue notes so the SMT layer can name the blocking type.
+	// Assigned (not appended) so re-running the pass on the same program is
+	// idempotent rather than accumulating duplicates.
+	for fnName, notes := range s.residueByFunc {
+		if meta, ok := out.Meta[fnName]; ok && meta != nil {
+			meta.ShowResidue = notes
+		}
 	}
 	return out, nil
 }
@@ -333,10 +349,37 @@ func (s *ShowNormalizer) rewriteShow(fnName string, app *core.App, arg core.Core
 
 	default:
 		// float, list, record, ADT, type variable: no encodable equivalent.
-		// Leave show in place — the residue is honest.
+		// Leave show in place — the residue is honest — and record the type so
+		// the verifier can say WHICH type blocked it.
 		s.Residue++
+		s.recordResidue(fnName, argType)
 		return &core.App{CoreNode: app.CoreNode, Func: app.Func, Args: []core.CoreExpr{newArg}}, nil
 	}
+}
+
+// recordResidue notes one `show` left in place, and the argument type that
+// caused it. Only the type is recorded — never the origin, because the same
+// Core shape comes from a "${x}" hole and from an explicit user `show(x)` call
+// and nothing in Core distinguishes them.
+func (s *ShowNormalizer) recordResidue(fnName string, argType types.Type) {
+	if fnName == "" {
+		return
+	}
+	s.residueByFunc[fnName] = append(s.residueByFunc[fnName],
+		core.ShowResidueNote{ArgType: renderTypeName(argType)})
+}
+
+// renderTypeName gives a short, user-facing name for a type. Named constructors
+// render as themselves ("float", "Option"); anything else falls back to the
+// type's own rendering rather than a guess.
+func renderTypeName(ty types.Type) string {
+	if con, ok := ty.(*types.TCon); ok {
+		return con.Name
+	}
+	if ty == nil {
+		return "value of unknown type"
+	}
+	return ty.String()
 }
 
 // boolToString builds `if cond then "true" else "false"`, matching show's own

@@ -368,3 +368,31 @@ export func f(n: int) -> string ! {} { "n=${n}" }
 		t.Fatal("compile produced no program")
 	}
 }
+
+// TestShowNormalize_RecordsResidueType (M3): the pass records the argument type
+// of every `show` it leaves in place, so the SMT layer — which has no type
+// information of its own — can name it instead of emitting a bare
+// "unencodable builtin: show" that sends readers hunting a call the source of an
+// interpolation does not contain.
+func TestShowNormalize_RecordsResidueType(t *testing.T) {
+	prog, _ := compileForNormalize(t, "residue", `module residue
+export func f(x: float) -> string ! {} { "v=${x}" }
+export func g(s: string) -> string ! {} { "v=${s}" }
+`)
+	meta, ok := prog.Meta["f"]
+	if !ok || meta == nil {
+		t.Fatal("no DeclMeta for f")
+	}
+	if len(meta.ShowResidue) != 1 {
+		t.Fatalf("f: %d residue notes, want 1", len(meta.ShowResidue))
+	}
+	if meta.ShowResidue[0].ArgType != "float" {
+		t.Errorf("f: residue type %q, want \"float\"", meta.ShowResidue[0].ArgType)
+	}
+
+	// g's hole was rewritten, so it must carry NO note — a spurious note would
+	// make the verifier report a blocker on a function that has none.
+	if gm, ok := prog.Meta["g"]; ok && gm != nil && len(gm.ShowResidue) != 0 {
+		t.Errorf("g: %d residue notes on a fully-normalized function, want 0", len(gm.ShowResidue))
+	}
+}

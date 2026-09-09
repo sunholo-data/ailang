@@ -95,11 +95,7 @@ func IsSMTEncodable(funcName string, meta *core.DeclMeta, body core.CoreExpr) (b
 		// narrow contracts or refactor rather than guessing which call is
 		// the offender. We keep the leading underscore (e.g., `_str_trim`)
 		// so the message matches what users see in source / error logs.
-		reasons = append(reasons, SMTRejectionReason{
-			Code:    RejectUnencodable,
-			Message: fmt.Sprintf("Function %q uses an unencodable builtin: %s", funcName, blocker),
-			Hint:    fmt.Sprintf("Z3 has no SMT-LIB encoding for %s. Either remove its use, refactor to use a supported builtin, or narrow the function's contracts.", blocker),
-		})
+		reasons = append(reasons, showAwareRejection(funcName, blocker, meta))
 	} else if hasUnencodableTypes(body) {
 		// Fallback: the body has an unencodable shape (e.g., core.Array)
 		// that isn't a named builtin. Keep the generic message.
