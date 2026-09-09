@@ -1,6 +1,6 @@
 # M-SMT-INTERP-SHOW: Type-directed `show` normalization — unblock Z3 verification of string-building functions
 
-**Status**: Planned
+**Status**: Approved — freeze items ratified 2026-09-09, sprint in progress
 **Target**: v0.36.0
 **Priority**: P0 (the contract/IFC story's load-bearing case — string construction — cannot be proved today)
 **Estimated**: 2–2.5 days (3 milestones, each independently committable; M1 alone closes the report)
@@ -437,12 +437,25 @@ ensures { contains(result, "$") } { "$${p}" }
 
 ### Design Freeze
 
-- [ ] **Pipeline-wide vs verify-local placement.** Approve rewriting Core for every compiled
-      program (accepting the trace-span change in Conflict Surface §3.2), or restrict to a
-      verify-local pass and accept threading a sort oracle through `internal/smt/`.
-- [ ] **M2's Z3 dependence.** Approve depending on `str.from_int` semantics, with the
-      `ite` correction. (Verified against the installed Z3 4.15.4 — V7 — but it is a claim
-      about a solver we do not control.)
+**Both ratified 2026-09-09 by Mark (attended session). Sprint may proceed.**
+
+- [x] **Pipeline-wide vs verify-local placement — GRANTED: pipeline-wide.**
+      The decisive argument is not blast radius but soundness posture: a verify-local rewrite
+      would have the verifier prove properties of a Core tree the evaluator never executes.
+      Pipeline-wide keeps "what was proved" and "what runs" the **same tree**. Secondary: the
+      SMT layer stays untyped (no sort oracle threaded through `encodable.go`, `codegen.go`
+      and `callee_resolver.go`), and M3's diagnostic needs the pass to exist regardless, since
+      the pass is the only place the argument type is known. The trace-span change (Conflict
+      Surface §3.2) is accepted: the elided span represented a no-op.
+- [x] **M2's Z3 dependence — GRANTED**, and weaker than r1 assessed. `str.from_int` returning
+      `""` for a negative argument is **SMT-LIB standard behavior**, not a Z3 implementation
+      quirk, so the dependence is on the specification. Further, the `ite` form never passes a
+      negative to `str.from_int` at all — a future solver that began handling negatives would
+      not change our result. The CI exactness assertions (M2) mean a solver upgrade that does
+      break it fails loudly rather than silently producing wrong proofs.
+      *Pre-existing and out of scope:* Z3's `Int` is unbounded while AILANG's `int` is 64-bit.
+      That gap already applies to every arithmetic encoding in the fragment; this doc neither
+      widens nor narrows it.
 
 ---
 
