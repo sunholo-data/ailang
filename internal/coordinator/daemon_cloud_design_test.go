@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/pubsub"
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 type designDispatchRecorder struct {
@@ -35,7 +36,7 @@ func (*designDispatchRecorder) Stop() {}
 // Exercise dispatchTasksCloud itself, not just the scope-reducing helper. The
 // release probe caught an uninitialized agent config bypassing that helper.
 func TestCloudDispatchDesignScopeAndOrdinaryControl(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	testutil.SetHomeDir(t, t.TempDir())
 	for _, design := range []bool{false, true} {
 		name := "ordinary"
 		if design {
