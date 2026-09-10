@@ -42,8 +42,8 @@ func AgentForTask(agent *AgentConfig, task *TaskRecord) *AgentConfig {
 }
 
 const designDocumentScope = `This is a design-document-only request. Invoke the existing design-doc-creator
-skill: first read .agents/skills/design-doc-creator/SKILL.md or
-.claude/skills/design-doc-creator/SKILL.md in the target repository. If neither
+skill: first read .claude/skills/design-doc-creator/SKILL.md in the target
+repository; if absent, read .agents/skills/design-doc-creator/SKILL.md. If neither
 exists, read /plugins/ailang_bootstrap/skills/design-doc-creator/SKILL.md (cloud)
 or the installed shared design-doc-creator skill (local).
 Read its SKILL.md and follow its scaffolding, verification and review requirements.
