@@ -157,8 +157,8 @@ func (d *Daemon) dispatchTasksCloud() error {
 			var agentCfg *AgentConfig
 			if d.agentRegistry != nil {
 				if agent := d.agentRegistry.GetAgentByID(task.AgentID); agent != nil {
-					agentCfg = AgentForTask(agent, task)
-					directive = BuildDirectiveFromConfig(task, agentCfg)
+					agentCfg = agent
+					directive = BuildDirectiveFromConfig(task, agent)
 				}
 			}
 
@@ -204,8 +204,7 @@ func (d *Daemon) dispatchTasksCloud() error {
 			// Use agent config for branch resolution and skip_approval push mode.
 			// The agent's MergeBranch is the correct clone branch for repos that
 			// don't use "dev" as default (e.g., sunholo-websites uses "main").
-			// Use the same scoped config that produced the directive above.
-			if agent := agentCfg; agent != nil {
+			if agent := d.agentRegistry.GetAgentByID(task.AgentID); agent != nil {
 				if agent.MergeBranch != "" && params.Branch == "" {
 					params.Branch = agent.MergeBranch
 				}

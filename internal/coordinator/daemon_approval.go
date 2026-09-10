@@ -22,9 +22,6 @@ var approvalTracer = telemetry.Tracer("coordinator.approval")
 // handleAgentHandoffs checks if the completed task should trigger handoffs to other agents.
 // This implements the agent-to-agent messaging with optional approval gates.
 func (d *Daemon) handleAgentHandoffs(task *TaskRecord, result *ExecuteResult) error {
-	if IsDesignDocumentRequest(task) {
-		return nil
-	}
 	if d.agentRegistry == nil {
 		return nil // No agent registry configured
 	}
@@ -317,7 +314,7 @@ func (d *Daemon) HandleApproval(ctx context.Context, taskID, approvedBy string) 
 	// Config-driven approval handling (M-GENERIC-PIPELINE)
 	// Look up agent from task.AgentID and use GetEffectiveApprovalConfig() for labels
 	if task.GithubIssue > 0 && d.taskChain != nil && d.agentRegistry != nil && task.AgentID != "" {
-		agent := AgentForTask(d.agentRegistry.GetAgentByID(task.AgentID), task)
+		agent := d.agentRegistry.GetAgentByID(task.AgentID)
 		if agent != nil {
 			approval := agent.GetEffectiveApprovalConfig()
 			if approval != nil && approval.ApprovedLabel != "" {
@@ -365,7 +362,7 @@ func (d *Daemon) HandleApproval(ctx context.Context, taskID, approvedBy string) 
 	// Resolve merge branch: per-agent > global config > default
 	mergeBranch := "dev"
 	if d.agentRegistry != nil && task.AgentID != "" {
-		if agent := AgentForTask(d.agentRegistry.GetAgentByID(task.AgentID), task); agent != nil && agent.MergeBranch != "" {
+		if agent := d.agentRegistry.GetAgentByID(task.AgentID); agent != nil && agent.MergeBranch != "" {
 			mergeBranch = agent.MergeBranch
 		}
 	}

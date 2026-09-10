@@ -141,10 +141,6 @@ func FinalizeTaskCompletion(ctx context.Context, deps *FinalizeDeps, in Finalize
 		return nil, fmt.Errorf("FinalizeTaskCompletion requires a task with an id")
 	}
 
-	if IsDesignDocumentRequest(in.Task) {
-		in.SkipApproval = true // terminal document result; no merge/handoff approval to release
-	}
-
 	ledger, err := deps.TaskStore.GetTaskFinalization(ctx, in.Task.ID)
 	if err != nil {
 		// Proceeding with an unknown ledger would re-run every effect while
@@ -394,7 +390,7 @@ func (f *finalizer) autoHandoffTargets() []string {
 	if f.deps.AgentRegistry == nil || f.in.Task.AgentID == "" {
 		return nil
 	}
-	agent := AgentForTask(f.deps.AgentRegistry.GetAgentByID(f.in.Task.AgentID), f.in.Task)
+	agent := f.deps.AgentRegistry.GetAgentByID(f.in.Task.AgentID)
 	if agent == nil {
 		return nil
 	}

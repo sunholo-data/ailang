@@ -99,8 +99,6 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 		}
 	}
 
-	agentConfig = AgentForTask(agentConfig, task)
-
 	// Budget enforcement check (M-PER-PROVIDER-BUDGETS)
 	// Check budget before executing task. If hard limit exceeded, create approval request.
 	if budgetBlocked, budgetErr := d.checkBudgetBeforeExecution(taskCtx, task, agentConfig); budgetBlocked {
@@ -399,7 +397,7 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 	// Update task status based on result
 	if result.Success {
 		// Check if this agent skips approval (e.g., script agents)
-		skipApproval := IsDesignDocumentRequest(task) || (agentConfig != nil && agentConfig.SkipApproval)
+		skipApproval := agentConfig != nil && agentConfig.SkipApproval
 
 		// PRESERVE WORKTREE - mark as pending approval, not completed
 		// Human must approve/reject before worktree is cleaned up

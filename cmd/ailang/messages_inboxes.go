@@ -43,8 +43,6 @@ const (
 )
 
 type inboxRow struct {
-	DesignRequests bool `json:"design_requests"`
-
 	Inbox   string      `json:"inbox"`
 	Effect  inboxEffect `json:"effect"`
 	Agent   string      `json:"agent,omitempty"`
@@ -142,7 +140,6 @@ func buildInboxRows(registry *coordinator.AgentRegistry, unread, recent map[stri
 		if agent := registry.GetAgentForInbox(inbox); agent != nil {
 			row.Agent = agent.ID
 			row.Model = agent.Model
-			row.DesignRequests = agent.DesignRequests
 			row.Detail = fmt.Sprintf("creates a task for %s", agent.ID)
 		} else if row.Pattern {
 			row.Detail = "wildcard — any matching name dispatches"
@@ -161,7 +158,6 @@ func buildInboxRows(registry *coordinator.AgentRegistry, unread, recent map[stri
 		case registry.GetAgentForInbox(inbox) != nil:
 			agent := registry.GetAgentForInbox(inbox)
 			row.Effect, row.Agent, row.Model = effectDispatches, agent.ID, agent.Model
-			row.DesignRequests = agent.DesignRequests
 			row.Detail = fmt.Sprintf("creates a task for %s", agent.ID)
 		case registry.IsTriageOnly(inbox):
 			row.Effect = effectTriage
