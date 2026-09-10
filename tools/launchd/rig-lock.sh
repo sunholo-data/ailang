@@ -20,8 +20,12 @@ rig_lock_eval_binary() {
   if [ -n "${AILANG_EVAL_BIN:-}" ]; then printf '%s\n' "$AILANG_EVAL_BIN"
   elif [ -x "$HOME/.local/share/ailang/rig-priority/ailang" ]; then
     local pinned current
-    pinned=$(cat "$HOME/.local/share/ailang/rig-priority/VERSION" 2>/dev/null) || return 1
     current=$(cat std/VERSION 2>/dev/null) || return 1
+    if [ -x "$HOME/.local/share/ailang/rig-priority/$current/ailang" ]; then
+      printf '%s\n' "$HOME/.local/share/ailang/rig-priority/$current/ailang"
+      return 0
+    fi
+    pinned=$(cat "$HOME/.local/share/ailang/rig-priority/VERSION" 2>/dev/null) || return 1
     if [ "$pinned" != "$current" ]; then
       echo "riglock: priority runner version $pinned differs from checkout $current; rebuild the local runner before evaluating" >&2
       return 1
