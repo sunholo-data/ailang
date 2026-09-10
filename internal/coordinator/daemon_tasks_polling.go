@@ -402,7 +402,17 @@ func (d *Daemon) pollAndProcessTasksCloud() error {
 		// resolveInboxAgent for why an empty agent ID must never reach the job.
 		agentID, ok := d.resolveInboxAgent(inbox)
 		if !ok {
-			d.logger.Printf("Skipping message %s: no agent registered for inbox %q (left unread for triage)", msg.ID, inbox)
+			// The message stays unread and discoverable, exactly as before. What
+			// changes is that the SENDER is told, instead of the fact living only
+			// in this log line. Fifteen reports were lost this way over
+			// 2026-09-08..10 — see unrouted_bounce.go for the measurement and for
+			// the loop guards, which are not optional in a component that answers
+			// messages with messages.
+			if d.bounceUnroutedMessage(msg, inbox) {
+				d.logger.Printf("Skipping message %s: no agent registered for inbox %q (left unread for triage; sender %q notified)", msg.ID, inbox, msg.From)
+			} else {
+				d.logger.Printf("Skipping message %s: no agent registered for inbox %q (left unread for triage)", msg.ID, inbox)
+			}
 			continue
 		}
 

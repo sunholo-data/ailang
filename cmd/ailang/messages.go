@@ -97,6 +97,11 @@ func messagesCommand() {
 		runMessagesReply(args)
 	case "health":
 		runMessagesHealth(args)
+	case "inboxes":
+		if err := messagesInboxesCommand(args); err != nil {
+			fmt.Fprintf(os.Stderr, "%s %v\n", red("Error:"), err)
+			os.Exit(1)
+		}
 	case "activity":
 		runMessagesActivity(args)
 	case "triage":

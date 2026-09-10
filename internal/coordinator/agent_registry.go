@@ -720,6 +720,21 @@ func (r *AgentRegistry) IsTriageOnly(inbox string) bool {
 	return r.triageOnly[inbox]
 }
 
+// TriageInboxes lists the inboxes declared human-triage, sorted.
+//
+// The declaration is the only thing that distinguishes "unrouted on purpose"
+// from "unrouted by accident", so it has to be listable, not just queryable.
+func (r *AgentRegistry) TriageInboxes() []string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	out := make([]string, 0, len(r.triageOnly))
+	for in := range r.triageOnly {
+		out = append(out, in)
+	}
+	sort.Strings(out)
+	return out
+}
+
 // IsUndeclaredUnrouted reports an inbox that has neither an agent nor a
 // triage_only declaration — i.e. the third state D2 exists to eliminate.
 //
