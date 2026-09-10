@@ -211,11 +211,13 @@ func coordinatorConfig(args []string) error {
 		return coordinatorConfigSet(ctx, rest)
 	case "diff":
 		return coordinatorConfigDiff(ctx, rest)
+	case "roll":
+		return coordinatorConfigRoll(ctx)
 	case "help", "-h", "--help":
 		printCoordinatorConfigHelp()
 		return nil
 	default:
-		return fmt.Errorf("unknown subcommand %q (want: get, set, diff)", sub)
+		return fmt.Errorf("unknown subcommand %q (want: get, set, diff, roll)", sub)
 	}
 }
 
@@ -250,8 +252,9 @@ func coordinatorConfigGet(ctx context.Context, args []string) error {
 
 // coordinatorConfigSet validates and writes, refusing a stale generation.
 func coordinatorConfigSet(ctx context.Context, args []string) error {
+	args, skipRoll := noRollRequested(args)
 	if len(args) == 0 {
-		return errors.New("usage: ailang coordinator config set <file> --if-generation N [--force]")
+		return errors.New("usage: ailang coordinator config set <file> --if-generation N [--force] [--no-roll]")
 	}
 	path := args[0]
 
@@ -301,7 +304,17 @@ func coordinatorConfigSet(ctx context.Context, args []string) error {
 	if err := writeConfigCAS(store, data, ifGen); err != nil {
 		return err
 	}
+	// The write is reported FIRST and on its own line. Whatever happens to the
+	// roll below, this much is true and durable — conflating the two is how an
+	// operator ends up re-writing config that was already correct.
 	fmt.Fprintf(os.Stderr, "wrote gs://%s/%s\n", store.bucket, store.object)
+
+	// A write that does not reach the running service is the failure this
+	// command existed to have. Rolling is the default; --no-roll is for staging
+	// a config you do not want live yet.
+	if !reportConfigRoll(ctx, skipRoll) {
+		return errors.New("config written but NOT live — see above")
+	}
 	return nil
 }
 
@@ -339,13 +352,24 @@ func printCoordinatorConfigHelp() {
 	fmt.Fprintln(os.Stdout, `ailang coordinator config — read/write the shared coordinator config safely
 
   get [file]                              Fetch config; reports its generation
-  set <file> --if-generation N [--force]  Validate and write iff unchanged
+  set <file> --if-generation N [--force]  Validate, write iff unchanged, then ROLL
   diff <file>                             Compare a local copy against live
+  roll                                    Force the coordinator to re-read the config
 
 Writes use a generation precondition. A write built on a stale read is REFUSED
 rather than applied, because overwriting silently discards the other machine's
 edit (measured 2026-08-26: a correct change was clobbered 13 minutes later, with
 no error on either side).
+
+A successful write ROLLS the coordinator, because writing is not deploying. The
+bucket is mounted into the service via gcsfuse, so the file it sees updates in
+seconds — but the agent registry is built ONCE at startup, so routing keeps
+following the old config until a new revision serves. Measured 2026-09-10: an
+inbox declared triage_only still bounced after a successful write.
+
+So "set" exits NON-ZERO if the write lands but the roll does not, and says
+so in those terms — the file is durable, the plane is not yet using it. Pass
+--no-roll to stage a config deliberately.
 
 Location: $AILANG_CONFIG_BUCKET / $AILANG_CONFIG_OBJECT, defaulting to
 <AILANG_CLOUD_PROJECT>-ailang-config/config.yaml.`)
