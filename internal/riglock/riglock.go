@@ -11,8 +11,8 @@
 // could collide with the rotation. This package closes that gap so the lock is
 // enforced by the command we already run, not by remembering to source a script.
 //
-// The lock is an atomic mkdir (portable; macOS has no flock). A lock whose
-// directory is older than the staleness window is stolen (crash recovery).
+// The lock is an atomic mkdir (portable; macOS has no flock). Only a positively
+// dead holder is reclaimed; age alone cannot distinguish a long eval from a crash.
 package riglock
 
 import (
@@ -34,10 +34,8 @@ const (
 	// EnvLockDir overrides the lock directory (mirrors rig-lock.sh RIG_LOCK_DIR).
 	EnvLockDir = "RIG_LOCK_DIR"
 
-	// EnvStaleMin overrides the staleness window in minutes (RIG_LOCK_STALE_MIN).
+	// EnvStaleMin is retained for caller compatibility; age-only stealing is removed.
 	EnvStaleMin = "RIG_LOCK_STALE_MIN"
-
-	defaultStaleMin = 360 // steal a lock older than 6h (matches rig-lock.sh)
 )
 
 // Mode controls Acquire's blocking behaviour.
@@ -62,16 +60,6 @@ func lockDir() string {
 		home = os.TempDir()
 	}
 	return filepath.Join(home, ".ailang", "state", "rig.lock.d")
-}
-
-func staleWindow() time.Duration {
-	if v := os.Getenv(EnvStaleMin); v != "" {
-		var n int
-		if _, err := fmt.Sscanf(v, "%d", &n); err == nil && n > 0 {
-			return time.Duration(n) * time.Minute
-		}
-	}
-	return defaultStaleMin * time.Minute
 }
 
 // HeldByAncestor reports whether an ancestor process already holds the lock
@@ -116,7 +104,14 @@ func holderAlive(dir string) bool {
 	if len(fields) == 0 {
 		return true
 	}
-	pid, err := strconv.Atoi(fields[0])
+	pidText := fields[0]
+	for _, field := range fields {
+		if strings.HasPrefix(field, "pid=") {
+			pidText = strings.TrimPrefix(field, "pid=")
+			break
+		}
+	}
+	pid, err := strconv.Atoi(pidText)
 	if err != nil || pid <= 0 {
 		return true
 	}
@@ -131,7 +126,7 @@ func holderAlive(dir string) bool {
 //     live holder; the caller should report Holder() and exit.
 //   - In Wait mode, blocks until the lock is free.
 //
-// A stale lock (directory older than the staleness window) is stolen. On
+// A lock whose holder is positively dead is reclaimed. On
 // success Acquire writes a holder file and sets EnvHeld=1 for child processes.
 func Acquire(mode Mode) (bool, Release, error) {
 	if HeldByAncestor() {
@@ -142,19 +137,29 @@ func Acquire(mode Mode) (bool, Release, error) {
 		return false, func() {}, fmt.Errorf("riglock: cannot create state dir: %w", err)
 	}
 	for {
+		if PriorityPending() {
+			if mode == NoWait {
+				return false, func() {}, nil
+			}
+			time.Sleep(time.Second)
+			continue
+		}
 		err := os.Mkdir(dir, 0o755)
 		if err == nil {
+			if PriorityPending() {
+				_ = os.Remove(dir)
+				continue
+			}
 			break // acquired
 		}
 		if !os.IsExist(err) {
 			return false, func() {}, fmt.Errorf("riglock: mkdir lock: %w", err)
 		}
-		// Lock is held — steal it if stale (holder crashed without releasing)
-		// or if the recorded holder PID is no longer running (holder exited via
+		// Lock is held — reclaim if the recorded holder PID is no longer running (holder exited via
 		// os.Exit, which skips the deferred release — observed 2026-07-11 when
 		// a completed eval-suite left the lock held for its full 6h window).
-		if fi, statErr := os.Stat(dir); statErr == nil {
-			if time.Since(fi.ModTime()) > staleWindow() || !holderAlive(dir) {
+		if _, statErr := os.Stat(dir); statErr == nil {
+			if !holderAlive(dir) {
 				_ = os.RemoveAll(dir)
 				continue
 			}
@@ -169,6 +174,7 @@ func Acquire(mode Mode) (bool, Release, error) {
 	_ = os.WriteFile(filepath.Join(dir, "holder"),
 		[]byte(fmt.Sprintf("%d %s", pid, time.Now().UTC().Format(time.RFC3339))), 0o644)
 	_ = os.Setenv(EnvHeld, "1")
+	_ = os.Setenv(EnvOwner, strconv.Itoa(pid))
 
 	var released bool
 	release := func() {
@@ -176,8 +182,11 @@ func Acquire(mode Mode) (bool, Release, error) {
 			return
 		}
 		released = true
-		_ = os.RemoveAll(dir)
+		if ownedBy(strconv.Itoa(pid)) {
+			_ = os.RemoveAll(dir)
+		}
 		_ = os.Unsetenv(EnvHeld)
+		_ = os.Unsetenv(EnvOwner)
 	}
 	return true, release, nil
 }

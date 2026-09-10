@@ -78,6 +78,7 @@ func runBenchmarksParallel(ctx context.Context, jobs []Job, seed int64, outputDi
 
 	completed := 0
 	totalJobs := len(jobs)
+	rigGate := newEvalRigGate()
 
 	for i, job := range jobs {
 		// Check if we should abort early
@@ -103,6 +104,13 @@ func runBenchmarksParallel(ctx context.Context, jobs []Job, seed int64, outputDi
 			// Acquire semaphore
 			sem <- struct{}{}
 			defer func() { <-sem }()
+
+			releaseRig, rigErr := rigGate.enter(ctx)
+			if rigErr != nil {
+				results[idx] = SuiteResult{BenchmarkID: j.Benchmark, Language: j.Language, Model: j.Model, Error: rigErr}
+				return
+			}
+			defer releaseRig()
 
 			// Update progress
 			mu.Lock()

@@ -77,7 +77,7 @@ func TestAcquire_AncestorHeldIsNoop(t *testing.T) {
 	release() // safe no-op
 }
 
-func TestAcquire_StealsStaleLock(t *testing.T) {
+func TestAcquire_DoesNotStealOldUnknownLock(t *testing.T) {
 	dir := isolate(t)
 	t.Setenv(EnvStaleMin, "1") // 1-minute staleness window
 
@@ -94,8 +94,8 @@ func TestAcquire_StealsStaleLock(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Acquire: %v", err)
 	}
-	if !ok {
-		t.Fatal("expected to steal a stale lock")
+	if ok {
+		t.Fatal("age does not prove an unknown owner is dead")
 	}
 	release()
 }

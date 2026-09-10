@@ -28,6 +28,10 @@ export PATH="$HOME/go/bin:$HOME/.local/bin:$PATH"
 source "$(dirname "$0")/rig-lock.sh"
 
 LOG=/tmp/ailang-os-filler.log
+
+# Optional local priority-capable eval runner, installed independently of fleet
+# releases. An explicit AILANG_EVAL_BIN always wins; other machines use PATH.
+RIG_EVAL_BIN=$(rig_lock_eval_binary) || exit 1
 log() { echo "[$(date '+%F %H:%M:%S')] $*" | tee -a "$LOG"; }
 
 # Cross-harness TRIO on the SAME local qwen3.6: opencode (multi-turn) vs pi
@@ -176,10 +180,12 @@ split_pick() {
 run_chunk() {
   rc_label="$1"; rc_picks="$2"; rc_langs="$3"; rc_trials="$4"; rc_tmo="$CHUNK_TIMEOUT"
   [ -n "$rc_picks" ] || return 0
+  rig_lock_yield || return 1
   case "$rc_picks" in *reimplement*) rc_trials=1; rc_tmo="5400s";; esac
-  ailang eval-suite --agent --models "$MODELS" --benchmarks "$rc_picks" --langs "$rc_langs" \
+  "$RIG_EVAL_BIN" eval-suite --agent --models "$MODELS" --benchmarks "$rc_picks" --langs "$rc_langs" \
     --parallel 1 --microrag on --trials "$rc_trials" --skip-existing --bank-by-version --timeout "$rc_tmo" \
     --output "$ROLL" >>"$LOG" 2>&1 || log "$rc_label chunk had failures (continuing)"
+  rig_lock_yield || return 1
 }
 
 # 1. Blackout window — stay clear of the scheduled nightly jobs.

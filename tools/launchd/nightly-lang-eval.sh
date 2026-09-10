@@ -61,7 +61,7 @@ log "rig lock acquired"
 log "=== Weekly LANGUAGE eval ==="
 log "model: $MODEL   langs: $LANGS   benchmarks: $N   output: $RESULTS_DIR"
 
-ailang eval-suite --agent \
+"$(rig_lock_eval_binary)" eval-suite --agent \
     --models "$MODEL" \
     --benchmarks "$BENCH" \
     --langs "$LANGS" \
