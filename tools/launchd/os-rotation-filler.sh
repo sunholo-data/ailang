@@ -31,7 +31,6 @@ LOG=/tmp/ailang-os-filler.log
 
 # Optional local priority-capable eval runner, installed independently of fleet
 # releases. An explicit AILANG_EVAL_BIN always wins; other machines use PATH.
-RIG_EVAL_BIN=$(rig_lock_eval_binary) || exit 1
 log() { echo "[$(date '+%F %H:%M:%S')] $*" | tee -a "$LOG"; }
 
 # Cross-harness TRIO on the SAME local qwen3.6: opencode (multi-turn) vs pi
@@ -180,6 +179,9 @@ split_pick() {
 run_chunk() {
   rc_label="$1"; rc_picks="$2"; rc_langs="$3"; rc_trials="$4"; rc_tmo="$CHUNK_TIMEOUT"
   [ -n "$rc_picks" ] || return 0
+  # Resolve after the release-pickup stage, so a pinned runner cannot prevent
+  # the checkout from advancing to the release it was built for.
+  RIG_EVAL_BIN=$(rig_lock_eval_binary) || return 1
   rig_lock_yield || return 1
   case "$rc_picks" in *reimplement*) rc_trials=1; rc_tmo="5400s";; esac
   "$RIG_EVAL_BIN" eval-suite --agent --models "$MODELS" --benchmarks "$rc_picks" --langs "$rc_langs" \
