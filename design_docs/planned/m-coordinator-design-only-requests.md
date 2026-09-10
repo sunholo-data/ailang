@@ -63,6 +63,48 @@ skill and ends with DESIGN_DOC_PATH. The same envelope at `pkg:sunholo/email` us
 that inbox's email-parse repository and cannot publish a package. An ordinary request
 or feedback message still uses the configured maintenance route.
 
+### Worked example: request and correlated completion
+
+Daneel sends one `message_type=request` envelope to the `design-doc-creator` inbox.
+The top-level workflow discriminator selects the design-only path; the request data
+contains the document topic only — it cannot select the repository, model, or
+permission tier, which all come from the inbox's registry entry:
+
+```json
+{
+  "message_type": "request",
+  "workflow": "design-document-v1",
+  "request_id": "req-2026-0910-0007",
+  "data": {
+    "title": "design-only doc requests",
+    "target": "design_docs/planned/m-example-doc.md",
+    "summary": "One-page design for the example feature; document only, no implementation."
+  }
+}
+```
+
+The coordinator persists the task (Kind/Content capture the design scope), runs on
+task branch `coordinator/<task-id>`, invokes the repository's design-doc-creator
+skill, and produces a terminal result — no merge, no package publication, no
+successor task. Daneel correlates the completion to the original `request_id`:
+
+```json
+{
+  "agent_id": "design-doc-creator",
+  "branch_name": "coordinator/task-9d0b57ff",
+  "correlation": { "request_id": "req-2026-0910-0007" },
+  "status": "success",
+  "result": "terminal",
+  "artifacts": { "DESIGN_DOC_PATH": "design_docs/planned/m-example-doc.md" },
+  "successors": []
+}
+```
+
+Later implementation of the document's design is **not** part of this job. Promoting
+the document into a sprint requires a separate, explicit request (a new envelope
+through the ordinary approval-gated route); neither completion, replay, nor later
+approval of the design task can release a successor. See Non-Goals.
+
 ## Verification Log
 
 | Claim | Evidence |
