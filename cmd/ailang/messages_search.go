@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/sunholo-data/ailang/internal/messaging"
+	"github.com/sunholo-data/ailang/internal/storage"
 )
 
 // Semantic search and deduplication commands for messages
@@ -36,6 +37,10 @@ func runMessagesSearch(args []string) {
 	}
 
 	query := fs.Arg(0)
+
+	if desc := describeMessageStore(); desc != "" {
+		fmt.Printf("  %s\n", dim(desc))
+	}
 
 	store, err := openStore()
 	if err != nil {
@@ -90,7 +95,7 @@ func runMessagesSearch(args []string) {
 
 	if len(hits) == 0 {
 		fmt.Println("No messages found matching query.")
-		printSearchFooter("SQLite", scoreKind, 0, *threshold)
+		printSearchFooter(searchBackendName(), scoreKind, 0, *threshold)
 		return
 	}
 
@@ -100,7 +105,7 @@ func runMessagesSearch(args []string) {
 		printInboxMessage(hit.Message, false)
 	}
 
-	printSearchFooter("SQLite", scoreKind, len(hits), *threshold)
+	printSearchFooter(searchBackendName(), scoreKind, len(hits), *threshold)
 }
 
 // runMessagesDedupe handles the 'messages dedupe' subcommand
@@ -114,6 +119,10 @@ func runMessagesDedupe(args []string) {
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 		os.Exit(1)
+	}
+
+	if desc := describeMessageStore(); desc != "" {
+		fmt.Printf("  %s\n", dim(desc))
 	}
 
 	store, err := openStore()
@@ -185,6 +194,20 @@ func runMessagesDedupe(args []string) {
 	fmt.Printf("%s Marked %d messages as duplicates.\n", green("Done!"), totalDuplicates)
 }
 
+// searchBackendName names the store that was actually scanned.
+//
+// The footer used to print a hardcoded "SQLite" regardless of where the search
+// ran. Under AILANG_MESSAGES_STORE=gcp that is a lie in the one place a reader
+// looks to check they are not reading a stale local graveyard — the same failure
+// that once left prod feedback unread for weeks.
+func searchBackendName() string {
+	mode, _ := messagesTarget()
+	if mode == storage.ModeGCP {
+		return "Firestore"
+	}
+	return "SQLite"
+}
+
 // printSearchFooter prints the explainability footer for semantic queries
 func printSearchFooter(backend, scoreKind string, results int, threshold float64) {
 	fmt.Printf("\n%s backend=%s score=%s results=%d threshold=%.2f\n",
@@ -196,9 +219,15 @@ func inferInbox() string {
 	// Try git repo name
 	repoName := getGitRepoName()
 	if repoName != "" {
-		// Map known repo names to inboxes
+		// Map known repo names to inboxes.
+		//
+		// This MUST match the inbox names the store actually uses. It said
+		// "ailang_core" (the v0.6.0 spelling) long after the store standardised on
+		// "ailang-core", so every bare `messages search` / `dedupe` / `triage` run
+		// from this repo filtered on an inbox with zero documents and reported
+		// "No messages found" — indistinguishable from a genuinely empty result.
 		inboxMap := map[string]string{
-			"ailang": "ailang_core",
+			"ailang": "ailang-core",
 		}
 		if mapped, ok := inboxMap[repoName]; ok {
 			return mapped

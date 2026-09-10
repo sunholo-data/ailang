@@ -52,6 +52,14 @@ func (s *MessagingStore) InsertInboxMessageWithContext(ctx context.Context, msg 
 		msg.ID = fmt.Sprintf("inbox_%d_%s", time.Now().UnixMilli(), generateShortID())
 	}
 	normalizeInboxDefaults(msg)
+	// Populate the search index at write time, exactly as the SQLite backend does.
+	// Without this every cloud-written message landed with simhash=nil, and both
+	// SemanticSearch and FindDuplicates skip such documents — so `messages search`
+	// against the canonical prod store scanned everything and matched nothing.
+	if msg.Simhash == nil {
+		h := messaging.ComputeSimhash(msg.Title, msg.Payload)
+		msg.Simhash = &h
+	}
 	_, err := s.client.Doc(collInbox, msg.ID).Set(ctx, inboxToMap(msg))
 	return err
 }
