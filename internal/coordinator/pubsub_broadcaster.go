@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 
+	"github.com/sunholo-data/ailang/internal/pubsub"
 	"github.com/sunholo-data/ailang/internal/websocket"
 )
 
@@ -12,13 +13,13 @@ import (
 // This replaces HTTPBroadcaster when running in cloud mode, enabling the
 // dashboard and laptop to receive events via pull subscriptions.
 type PubSubBroadcaster struct {
-	publisher coordinatorPublisher
+	publisher *pubsub.Publisher
 	workspace string
 	logger    *log.Logger
 }
 
 // NewPubSubBroadcaster creates a broadcaster that publishes events to Pub/Sub.
-func NewPubSubBroadcaster(publisher coordinatorPublisher, workspace string, logger *log.Logger) *PubSubBroadcaster {
+func NewPubSubBroadcaster(publisher *pubsub.Publisher, workspace string, logger *log.Logger) *PubSubBroadcaster {
 	return &PubSubBroadcaster{
 		publisher: publisher,
 		workspace: workspace,

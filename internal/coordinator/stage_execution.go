@@ -80,16 +80,6 @@ func BuildStageDirective(task *TaskRecord) string {
 //   - {{.Stage}}: The current task stage
 //   - {{.OutputMarkers}}: Comma-separated list of expected output markers
 func BuildDirectiveFromConfig(task *TaskRecord, agent *AgentConfig) string {
-	if IsDesignDocumentRequest(task) {
-		if agent == nil || !agent.DesignRequests {
-			return "Design-document requests are not enabled for this inbox. Stop without making changes."
-		}
-		scopedTask := *task
-		scopedTask.Content = designDocumentScope + task.Content
-		effective := AgentForTask(agent, task)
-		return buildSkillDirectiveWithConfig(&scopedTask, effective, effective.Invoke)
-	}
-
 	if agent == nil {
 		// No agent config, return raw task content
 		// DO NOT call BuildStageDirective here - that causes infinite recursion!

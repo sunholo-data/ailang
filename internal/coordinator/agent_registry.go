@@ -99,9 +99,6 @@ type ApprovalConfig struct {
 // AgentConfig represents a configured agent in the coordinator system.
 // Each agent has an inbox, workspace, and capabilities for task execution.
 type AgentConfig struct {
-	// Explicit opt-in for scope-reduced design requests on this existing inbox.
-	DesignRequests bool `yaml:"design_requests" json:"design_requests,omitempty"`
-
 	ID        string `yaml:"id" json:"id"`
 	Label     string `yaml:"label" json:"label"`
 	Inbox     string `yaml:"inbox" json:"inbox"`         // Message inbox to watch

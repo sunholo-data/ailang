@@ -176,7 +176,7 @@ func dispatchApprovalHandoffs(
 			task.AgentID, task.ID)
 	}
 
-	targets := approvalHandoffTargets(AgentForTask(sourceAgent, task))
+	targets := approvalHandoffTargets(sourceAgent)
 	if len(targets) == 0 {
 		return nil, nil
 	}
