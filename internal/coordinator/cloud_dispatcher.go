@@ -1,6 +1,19 @@
 package coordinator
 
-import "context"
+import (
+	"context"
+
+	"github.com/sunholo-data/ailang/internal/pubsub"
+)
+
+// coordinatorPublisher is the cloud audit/notification boundary, independent of
+// the task dispatcher. Keeping it injectable lets tests exercise real routing.
+type coordinatorPublisher interface {
+	PublishTask(context.Context, string, string, string, string) error
+	PublishMessage(context.Context, string, pubsub.MessageAttributes) error
+	PublishEvent(context.Context, []byte, string, string, string) error
+	Stop()
+}
 
 // CloudDispatcher triggers remote task execution on a cloud backend.
 // Implementations are backend-specific (Cloud Run Jobs, K8s Jobs, etc.)
