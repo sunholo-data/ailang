@@ -90,7 +90,7 @@ func ProcessApprovalRequest(ctx context.Context, params *ApprovalParams) (*Appro
 	mergeBranch := params.MergeBranch
 	if mergeBranch == "" && params.AgentRegistry != nil && task.AgentID != "" {
 		// Look up agent's merge branch
-		if agent := params.AgentRegistry.GetAgentByID(task.AgentID); agent != nil && agent.MergeBranch != "" {
+		if agent := AgentForTask(params.AgentRegistry.GetAgentByID(task.AgentID), task); agent != nil && agent.MergeBranch != "" {
 			mergeBranch = agent.MergeBranch
 		}
 	}
@@ -138,7 +138,7 @@ func processApproval(ctx context.Context, span trace.Span, params *ApprovalParam
 	// 1.5. Config-driven GitHub label handling (M-GENERIC-PIPELINE)
 	// Look up agent from task.AgentID and use GetEffectiveApprovalConfig() for labels
 	if task.GithubIssue > 0 && params.GitHubPoster != nil && params.AgentRegistry != nil && task.AgentID != "" {
-		agent := params.AgentRegistry.GetAgentByID(task.AgentID)
+		agent := AgentForTask(params.AgentRegistry.GetAgentByID(task.AgentID), task)
 		if agent != nil {
 			approval := agent.GetEffectiveApprovalConfig()
 			if approval != nil && approval.ApprovedLabel != "" {
@@ -383,7 +383,7 @@ func ResumeStrandedApproval(ctx context.Context, params *ApprovalParams, task *T
 
 	mergeBranch := params.MergeBranch
 	if mergeBranch == "" && params.AgentRegistry != nil && task.AgentID != "" {
-		if agent := params.AgentRegistry.GetAgentByID(task.AgentID); agent != nil && agent.MergeBranch != "" {
+		if agent := AgentForTask(params.AgentRegistry.GetAgentByID(task.AgentID), task); agent != nil && agent.MergeBranch != "" {
 			mergeBranch = agent.MergeBranch
 		}
 	}

@@ -45,7 +45,7 @@ func (f *finalizer) applyApproval(ctx context.Context) (FinalizationState, error
 
 	var embedded []string
 	if f.deps.AgentRegistry != nil && f.in.Task.AgentID != "" {
-		if agent := f.deps.AgentRegistry.GetAgentByID(f.in.Task.AgentID); agent != nil {
+		if agent := AgentForTask(f.deps.AgentRegistry.GetAgentByID(f.in.Task.AgentID), f.in.Task); agent != nil {
 			for _, tgt := range agent.TriggerOnComplete {
 				if !agent.AutoApproveHandoffs && !agent.AutoApprovesHandoffTo(tgt) {
 					embedded = append(embedded, tgt)
