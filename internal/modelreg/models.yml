@@ -4981,17 +4981,13 @@ models:
     max_output_tokens: 65536                   # always-thinking headroom, per the GLM-5.2 truncation lesson
     model_family: "glm-5"                      # joins the glm-5 failover chain (M-PROVIDER-FAILOVER)
     pricing:
-      input_per_1k: 0.000075   # $0.075 per 1M — z.ai PAYG list, 2026-09-03 (docs.z.ai/guides/overview/pricing)
-      output_per_1k: 0.00025   # $0.25 per 1M
-      expires: "2026-09-09"    # 50% launch promo ends 24:00 SGT 2026-09-09; enforced by tools/verify-model-pricing
-      next:
-        # INFERRED, NOT VERIFIED: "50% off" read literally → 2x on 2026-09-10.
-        # z.ai publishes the promo end date but not the post-promo card. Re-read
-        # docs.z.ai/guides/overview/pricing on 2026-09-10 and replace these two
-        # numbers with the observed rates. They are a placeholder that fails
-        # SAFE (overstates spend) rather than a measured price.
-        input_per_1k: 0.00015  # $0.15 per 1M
-        output_per_1k: 0.0005  # $0.50 per 1M
+      # Post-promo list price, VERIFIED against docs.z.ai/guides/overview/pricing
+      # on 2026-09-10 — the day the schedule said to re-read it. The 50% launch
+      # promo ($0.075/$0.25 per 1M) ended 24:00 SGT 2026-09-09, and the observed
+      # card matches the rates that had been recorded as the inferred successor,
+      # so the placeholder is now a measurement.
+      input_per_1k: 0.00015    # $0.15 per 1M
+      output_per_1k: 0.0005    # $0.50 per 1M
     budgets:
       max_cost_usd: 0.30
       hard_timeout_secs: 600   # equal-work A/B: matches or-glm-5-3-flash, lyceum-glm-5-3-flash and oc-glm-5-3-flash
