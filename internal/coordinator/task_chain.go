@@ -395,7 +395,7 @@ func (tc *TaskChain) OnAgentApproved(ctx context.Context, event *ApprovalEvent, 
 		return fmt.Errorf("agent registry not available")
 	}
 
-	agent := tc.registry.GetAgentByID(agentID)
+	agent := AgentForTask(tc.registry.GetAgentByID(agentID), task)
 	if agent == nil {
 		return fmt.Errorf("agent %s not found in registry", agentID)
 	}

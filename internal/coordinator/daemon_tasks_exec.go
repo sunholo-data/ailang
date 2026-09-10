@@ -156,9 +156,9 @@ func (d *Daemon) dispatchTasksCloud() error {
 			directive := task.Content
 			var agentCfg *AgentConfig
 			if d.agentRegistry != nil {
-				if agent := d.agentRegistry.GetAgentByID(task.AgentID); agent != nil {
-					agentCfg = agent
-					directive = BuildDirectiveFromConfig(task, agent)
+				if agent := agentCfg; agent != nil {
+					agentCfg = AgentForTask(agent, task)
+					directive = BuildDirectiveFromConfig(task, agentCfg)
 				}
 			}
 
