@@ -83,6 +83,14 @@
       "pure": true
     },
     {
+      "name": "mkdirResult",
+      "type": "(string)-\u003eResult[(),string]!{FS}",
+      "effects": [
+        "FS"
+      ],
+      "pure": true
+    },
+    {
       "name": "readFile",
       "type": "(string)-\u003estring!{FS}",
       "effects": [
@@ -101,6 +109,14 @@
     {
       "name": "readFileResult",
       "type": "(string)-\u003eResult[string,string]!{FS}",
+      "effects": [
+        "FS"
+      ],
+      "pure": true
+    },
+    {
+      "name": "removeDirResult",
+      "type": "(string)-\u003eResult[(),string]!{FS}",
       "effects": [
         "FS"
       ],

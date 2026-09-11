@@ -15,6 +15,12 @@
       "pure": true
     },
     {
+      "name": "contains",
+      "type": "(list[a],a)-\u003ebool",
+      "effects": [],
+      "pure": true
+    },
+    {
       "name": "dedup",
       "type": "(list[a])-\u003elist[a]",
       "effects": [],
