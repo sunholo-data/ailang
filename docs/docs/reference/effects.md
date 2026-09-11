@@ -282,7 +282,8 @@ func runCommand(cmd: string, args: [string]) -> () ! {IO, Process} {
 | Flag | Meaning |
 |------|---------|
 | `--caps Process` | Grant the effect. Without it every `exec` fails with a capability error. |
-| `--process-allowlist <bins>` | Comma-separated binaries the program may exec. Each entry is resolved via `PATH` **once, at startup**, and pinned to that absolute path — a same-named binary placed earlier in `PATH` later cannot satisfy it. Anything not listed fails with `NotAllowed`. This is the flag that turns "the tool has Process, so it is effectively a shell" into "the tool may run these five binaries". Granularity is **per binary**: allowlisting `git` permits every git subcommand (per-subcommand narrowing is unbuilt — [m-process-subcmd-allowlist](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_38_0/m-process-subcmd-allowlist.md)). Allowlisting a shell *script* does not grant its interpreter: an argument-free wrapper script is the current way to expose exactly one subcommand. |
+| `--process-allowlist <bins>` | Comma-separated binaries the program may exec. Each entry is resolved via `PATH` **once, at startup**, and pinned to that absolute path — a same-named binary placed earlier in `PATH` later cannot satisfy it. Anything not listed fails with `NotAllowed`. This is the flag that turns "the tool has Process, so it is effectively a shell" into "the tool may run these five binaries". Enforced identically by `exec`, `spawnProcess` and `asyncExecProcess`. Allowlisting a shell *script* does not grant its interpreter. |
+| `--process-allowlist cmd:sub[:sub…]` | **Subcommand narrowing.** `git:status,git:commit,gh:pr:list` allows `git status …`, `git commit …` and `gh pr list …` and refuses every other invocation of `git`/`gh` with `NotAllowed("git push")` — the refusal names the subcommand that was tried. Rules: a chain must match **positionally from the first argument**, so `git -C /x status` is refused under `git:status` (fail closed; put global options after the subcommand or add a wrapper); arguments *after* the chain are unrestricted (`git:commit` allows `git commit --amend` — narrowing is per subcommand, not per flag); a bare `git` or `git:*` in the same list is the broadest grant and wins; an empty segment (`git:`, `git::status`) is a startup error, never a wider allow. |
 | `--process-timeout <dur>` | Per-exec wall-clock limit (default 30s) → `Timeout`. |
 | `--process-max-output <bytes>` | Combined stdout+stderr cap (default 10MB) → `OutputLimitExceeded`, `truncated: true`. |
 
@@ -290,8 +291,11 @@ func runCommand(cmd: string, args: [string]) -> () ! {IO, Process} {
 ailang run --caps Process --entry main module.ail
 ailang run --caps IO,Process --process-timeout 10s --entry main module.ail
 ailang run --caps IO,Process --process-allowlist "echo,curl,git" --entry main module.ail
+ailang run --caps IO,Process --process-allowlist "git:status,git:log,gh:pr:list" --entry main module.ail
 ailang run --caps IO,Process --process-max-output 5242880 --entry main module.ail
 ```
+
+Runnable example: [`examples/runnable/process_subcmd_allowlist.ail`](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/process_subcmd_allowlist.ail).
 
 The allowlist is a property of the **invocation**, not of the program's signature — run the `.ail` without the flag and it may exec anything. Signature-level narrowing (`! {Process[scope=...]}`) is tracked under [M-EFFECT-REFINEMENT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-effect-refinement.md).
 

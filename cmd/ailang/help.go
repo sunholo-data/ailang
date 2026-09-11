@@ -371,7 +371,7 @@ func printHelp() {
 	fmt.Println()
 	fmt.Println("Run Command Flags (must come BEFORE filename):")
 	fmt.Printf("  --caps <list>        Enable capabilities (comma-separated: %s; or 'auto' to infer from the entrypoint)\n", CapsList)
-	fmt.Println("  --process-allowlist <list>   Process effect: only these binaries may be exec'd (path-pinned at startup)")
+	fmt.Println("  --process-allowlist <list>   Process effect: only these binaries may be exec'd (path-pinned at startup); cmd:sub narrows to a subcommand chain (git:status,gh:pr:list)")
 	fmt.Println("  --ai <model>         Enable AI effect with model (e.g., gemini-2-5-flash, anthropic/claude-sonnet-4.5 (OpenRouter))")
 	fmt.Println("  --ai-stub            Enable AI effect with stub handler (for testing)")
 	fmt.Println("  --routing-fallback <list>     OpenRouter provider order (e.g., \"anthropic,openai,google\")")

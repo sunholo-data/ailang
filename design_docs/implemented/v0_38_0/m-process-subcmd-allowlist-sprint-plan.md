@@ -8,6 +8,7 @@ exec path, not just `exec`. Closes the consumer ask in #1137 (Daneel: `git` on t
 grants `git push --force` against its own audit trail).
 
 **Design doc:** [m-process-subcmd-allowlist.md](m-process-subcmd-allowlist.md)
+**Status:** ✅ Complete 2026-09-11 — all three milestones landed on dev; `make test` red only on the pre-existing `internal/cihygiene` `TestWiredGatesAreCanonical` (from `868b55898`, reproduces with this sprint stashed)
 **Duration:** 1 day (~6–8h; design doc said 4h — buffer is for the third exec path and the e2e test)
 **Dependencies:** none (M-PROCESS-EXEC shipped v0.8.1; per-binary allowlist verified on HEAD 2026-09-11)
 **Risk Level:** Low — additive parse of an existing flag, no type-system change, no new effect
@@ -77,10 +78,10 @@ only these subcommand chains".
   - `echo,date` → `Subcommands` empty, existing tests untouched
 
 **Acceptance Criteria:**
-- [ ] Every entry shape above parses to the documented structure (table test green)
-- [ ] Malformed entries fail at startup with the offending entry in the message
-- [ ] Existing `TestProcessContext_ResolveAllowlist` / `_AbsolutePath` unchanged and green
-- [ ] `go vet`, `gofmt -l` clean
+- [x] Every entry shape above parses to the documented structure (table test green)
+- [x] Malformed entries fail at startup with the offending entry in the message
+- [x] Existing `TestProcessContext_ResolveAllowlist` / `_AbsolutePath` unchanged and green
+- [x] `go vet`, `gofmt -l` clean
 
 **Risks:**
 - Windows drive-letter paths (`C:\git.exe:status`) collide with `:` — Mitigation: Process exec
@@ -116,10 +117,10 @@ subcommand allowlist cannot be bypassed by choosing a different std/process entr
   - Existing allowlist tests in `process_test.go`, `process_managed_test.go`, `stream_async_ops_test.go` stay green (behaviour for bare entries unchanged).
 
 **Acceptance Criteria:**
-- [ ] `grep -n "pc.Allowlist\[" internal/effects/*.go` (non-test) hits exactly one site: `Authorize`
-- [ ] All-three-paths test green; each path's refusal names the subcommand (`git push`)
-- [ ] `go test ./internal/effects/...` green; no test deleted except by replacement
-- [ ] Error text for the existing bare case is unchanged (`NotAllowed(/bin/echo)` etc.)
+- [x] `grep -n "pc.Allowlist\[" internal/effects/*.go` (non-test) hits exactly one *read* site: `Authorize` (the other hits are the writes in `ResolveAllowlist`)
+- [x] All-three-paths test green; each path's refusal names the subcommand (`git push`)
+- [x] `go test ./internal/effects/...` green; no test deleted except by replacement
+- [x] Error text for the existing bare case is unchanged (`NotAllowed(/bin/echo)` etc.)
 
 **Risks:**
 - `git` not present on a CI runner — Mitigation: tests use `echo:hello` / a `t.TempDir()` script for the hermetic cases and skip git-specific ones with a logged reason.
@@ -141,11 +142,11 @@ matching rule; #1137 and Daneel's three messages are answered with a verified co
 - Close-out: comment on #1137 with the verified command line (`Fixes #1137` in the final commit), and `ailang messages send daneel … --type feedback` under the messaging env prefix; ack the three inbox messages (`inbox_1789049068346_981d871c`, `inbox_1789049189112_68ccbe3a`, `inbox_1789049365811_6809da5e`) individually — never `ack --all`.
 
 **Acceptance Criteria:**
-- [ ] `ailang run --help | grep process-allowlist` shows the `cmd:sub` syntax
-- [ ] e2e test green against the built binary
-- [ ] `make verify-examples` green with the new example in the manifest
-- [ ] Design doc in `implemented/`, links resolve, CHANGELOG entry present
-- [ ] #1137 closed by the final commit; Daneel messaged and acked per id
+- [x] `ailang run --help | grep process-allowlist` shows the `cmd:sub` syntax
+- [x] e2e test green against the built binary
+- [x] `make verify-examples` green with the new example in the manifest
+- [x] Design doc in `implemented/`, links resolve, CHANGELOG entry present
+- [x] #1137 closed by the final commit; Daneel messaged and acked per id
 
 ## Success Metrics
 - `internal/effects` coverage on the new file ≥ 90% (small, table-driven)

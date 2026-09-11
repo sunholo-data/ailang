@@ -2105,6 +2105,28 @@
       }
     },
     {
+      "path": "runnable/process_subcmd_allowlist.ail",
+      "status": "working",
+      "tags": [
+        "effects",
+        "process",
+        "exec",
+        "std/process",
+        "security",
+        "allowlist"
+      ],
+      "description": "Narrow a binary to named subcommands with --process-allowlist cmd:sub (M-PROCESS-SUBCMD); header gives the narrowed invocation, verify-examples runs it un-narrowed",
+      "modules": [
+        "std/bytes",
+        "std/io",
+        "std/process"
+      ],
+      "expected": {
+        "stdout": "allowed: hello world\n\nran: no --process-allowlist in effect\nran: no --process-allowlist in effect\n",
+        "exit_code": 0
+      }
+    },
+    {
       "path": "runnable/process_stdin_write.ail",
       "status": "working",
       "tags": [
@@ -2852,11 +2874,11 @@
     }
   ],
   "statistics": {
-    "total": 201,
-    "working": 193,
+    "total": 202,
+    "working": 194,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9601990049751243,
+    "coverage": 0.9603960396039604,
     "experimental": 0
   },
   "milestones": {

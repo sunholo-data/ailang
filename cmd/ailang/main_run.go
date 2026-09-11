@@ -79,7 +79,7 @@ func runCommand() {
 
 	// Process capability flags (M-PROCESS)
 	processTimeoutFlag := fs.String("process-timeout", "30s", "Process execution timeout (e.g., 10s, 1m)")
-	processAllowlistFlag := fs.String("process-allowlist", "", "Allowed commands (comma-separated, path-pinned at startup)")
+	processAllowlistFlag := fs.String("process-allowlist", "", "Allowed commands (comma-separated, path-pinned at startup). cmd:sub narrows a command to a subcommand chain: git:status,gh:pr:list; git:* = any subcommand")
 	processMaxOutputFlag := fs.Int64("process-max-output", 10*1024*1024, "Maximum stdout+stderr bytes before kill (default: 10MB)")
 
 	// Budget bypass flag (M-CAPABILITY-BUDGETS)
