@@ -65,7 +65,7 @@ func (lw *lineBufferedWriter) Write(p []byte) (int, error) {
 // interface used by EffContext.FlushIO() and the exit-time flush.
 func (lw *lineBufferedWriter) Flush() error { return lw.w.Flush() }
 
-func runFile(filename string, programArgs []string, trace bool, seed int, virtualTime bool, jsonOutput bool, compact bool, quiet bool, binopShim bool, failOnShim bool, requireLowering bool, trackInstantiations bool, noMono bool, debugCompile bool, strictSyntax bool, entry string, argsJSON string, print bool, noprint bool, batch bool, caps string, maxRecursionDepth int, stdlibPath string, traceLoader bool, strictVersion bool, allowEnv string, allowEnvFile string, env string, envSnapshot string, writeEnvSnapshot string, aiStub bool, aiModel string, aiRoutingValues routingFlagValues, debugEffect bool, relaxModules bool, debugTypes bool, debugTypesNode uint64, noBudgets bool, budgetReport string, verifyContracts bool, emitTrace string, traceTier string, netAllowHTTP bool, netAllowDomains string, netAllowLocalhost bool, netAllowMetadata bool, streamAllowHTTP bool, streamAllowDomains string, streamAllowLocalhost bool, processTimeout string, processAllowlist string, processMaxOutput int64, release bool, bytecodeMode bool, strictBytecode bool, orReferer string, orTitle string, orCategories string) {
+func runFile(filename string, programArgs []string, trace bool, seed int, virtualTime bool, jsonOutput bool, compact bool, quiet bool, binopShim bool, failOnShim bool, requireLowering bool, trackInstantiations bool, noMono bool, debugCompile bool, strictSyntax bool, entry string, argsJSON string, print bool, noprint bool, batch bool, caps string, maxRecursionDepth int, stdlibPath string, traceLoader bool, strictVersion bool, allowEnv string, allowEnvFile string, env string, envSnapshot string, writeEnvSnapshot string, aiStub bool, aiModel string, aiRoutingValues routingFlagValues, debugEffect bool, relaxModules bool, debugTypes bool, debugTypesNode uint64, noBudgets bool, budgetReport string, verifyContracts bool, emitTrace string, traceTier string, netAllowHTTP bool, netAllowDomains string, netAllowLocalhost bool, netAllowMetadata bool, netTimeout string, streamAllowHTTP bool, streamAllowDomains string, streamAllowLocalhost bool, processTimeout string, processAllowlist string, processMaxOutput int64, release bool, bytecodeMode bool, strictBytecode bool, orReferer string, orTitle string, orCategories string) {
 	// M-PERF-DOCPARSE: Reduce GC pressure for batch/CLI workloads.
 	// Default GOGC=100 triggers GC when heap doubles — too aggressive for short-lived CLI runs.
 	// GOGC=500 allows heap to grow 6x before GC, trading ~50MB extra memory for 25%+ speedup.
@@ -326,7 +326,7 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 				batchErr := executeBatchItem(ctx, result, input, entry, argsJSON, print, noprint, caps,
 					maxRecursionDepth, noBudgets, budgetReport, debugEffect, verifyContracts,
 					emitTrace, binopShim, quiet,
-					netAllowHTTP, netAllowDomains, netAllowLocalhost, netAllowMetadata,
+					netAllowHTTP, netAllowDomains, netAllowLocalhost, netAllowMetadata, netTimeout,
 					streamAllowHTTP, streamAllowDomains, streamAllowLocalhost,
 					processTimeout, processAllowlist, processMaxOutput,
 					aiStub, aiModel, batchRoutingPolicy, attr, allowEnv, allowEnvFile, env, envSnapshot, writeEnvSnapshot,
@@ -402,10 +402,13 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 			}
 
 			// Set up effect handlers if requested
-			setupSharedMemHandler(effCtx)                                                               // SharedMem for semantic caching (M-DX15)
-			setupSharedIndexHandler(effCtx)                                                             // SharedIndex for semantic retrieval (M-DX16)
-			setupNetHandler(effCtx, netAllowHTTP, netAllowDomains, netAllowLocalhost, netAllowMetadata) // Net HTTP request security settings
-			setupStreamHandler(effCtx, streamAllowHTTP, streamAllowDomains, streamAllowLocalhost)       // Stream for WebSocket connections (M-STREAM-BIDI)
+			setupSharedMemHandler(effCtx)                                                                                                   // SharedMem for semantic caching (M-DX15)
+			setupSharedIndexHandler(effCtx)                                                                                                 // SharedIndex for semantic retrieval (M-DX16)
+			if err := setupNetHandler(effCtx, netAllowHTTP, netAllowDomains, netAllowLocalhost, netAllowMetadata, netTimeout); err != nil { // Net HTTP request security settings
+				fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+				os.Exit(1)
+			}
+			setupStreamHandler(effCtx, streamAllowHTTP, streamAllowDomains, streamAllowLocalhost) // Stream for WebSocket connections (M-STREAM-BIDI)
 			if err := setupProcessHandler(effCtx, processTimeout, processAllowlist, processMaxOutput); err != nil {
 				fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 				os.Exit(1)

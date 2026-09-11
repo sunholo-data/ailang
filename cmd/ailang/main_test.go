@@ -390,7 +390,9 @@ func TestSetupNetHandler(t *testing.T) {
 			if err := grantCapabilities(effCtx, tt.caps); err != nil {
 				t.Fatal(err)
 			}
-			setupNetHandler(effCtx, tt.allowHTTP, tt.allowDomains, tt.allowLocalhost, tt.allowMetadata)
+			if err := setupNetHandler(effCtx, tt.allowHTTP, tt.allowDomains, tt.allowLocalhost, tt.allowMetadata, ""); err != nil {
+				t.Fatal(err)
+			}
 
 			if effCtx.Net.AllowHTTP != tt.wantHTTP {
 				t.Errorf("AllowHTTP = %v, want %v", effCtx.Net.AllowHTTP, tt.wantHTTP)

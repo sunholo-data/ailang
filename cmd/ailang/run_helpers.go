@@ -216,8 +216,18 @@ func setupSharedMemHandler(effCtx *effects.EffContext) {
 }
 
 // setupNetHandler configures Net effect security settings if the capability is granted.
-func setupNetHandler(effCtx *effects.EffContext, allowHTTP bool, allowDomains string, allowLocalhost bool, allowMetadata bool) {
+func setupNetHandler(effCtx *effects.EffContext, allowHTTP bool, allowDomains string, allowLocalhost bool, allowMetadata bool, timeout string) error {
 	if effCtx.HasCap("Net") {
+		// --net-timeout mirrors --process-timeout: the 30s default was a hard
+		// ceiling with no flag, so a local 27B model answering in 45s looked
+		// identical to a dead one (Daneel, 2026-09-11).
+		if timeout != "" {
+			d, err := time.ParseDuration(timeout)
+			if err != nil || d <= 0 {
+				return fmt.Errorf("invalid --net-timeout %q: want a positive Go duration such as 300s or 5m", timeout)
+			}
+			effCtx.Net.Timeout = d
+		}
 		effCtx.Net.AllowHTTP = allowHTTP
 		effCtx.Net.AllowLocalhost = allowLocalhost
 		effCtx.Net.AllowMetadata = allowMetadata
@@ -230,6 +240,7 @@ func setupNetHandler(effCtx *effects.EffContext, allowHTTP bool, allowDomains st
 			}
 		}
 	}
+	return nil
 }
 
 // setupStreamHandler initializes the Stream effect context if the capability is granted.
@@ -625,7 +636,7 @@ func executeBatchItem(ctx context.Context, result pipeline.Result, input string,
 	entry string, argsJSON string, printResult bool, noprint bool, caps string,
 	maxRecursionDepth int, noBudgets bool, budgetReport string, debugEffect bool,
 	verifyContracts bool, emitTrace string, binopShim bool, quiet bool,
-	netAllowHTTP bool, netAllowDomains string, netAllowLocalhost bool, netAllowMetadata bool,
+	netAllowHTTP bool, netAllowDomains string, netAllowLocalhost bool, netAllowMetadata bool, netTimeout string,
 	streamAllowHTTP bool, streamAllowDomains string, streamAllowLocalhost bool,
 	processTimeout string, processAllowlist string, processMaxOutput int64,
 	aiStub bool, aiModel string, aiRoutingPolicy *ai.AIRoutingPolicy, attr *ai.Attribution,
@@ -653,7 +664,9 @@ func executeBatchItem(ctx context.Context, result pipeline.Result, input string,
 	// Set up effect handlers
 	setupSharedMemHandler(effCtx)
 	setupSharedIndexHandler(effCtx)
-	setupNetHandler(effCtx, netAllowHTTP, netAllowDomains, netAllowLocalhost, netAllowMetadata)
+	if err := setupNetHandler(effCtx, netAllowHTTP, netAllowDomains, netAllowLocalhost, netAllowMetadata, netTimeout); err != nil {
+		return err
+	}
 	setupStreamHandler(effCtx, streamAllowHTTP, streamAllowDomains, streamAllowLocalhost)
 	if err := setupProcessHandler(effCtx, processTimeout, processAllowlist, processMaxOutput); err != nil {
 		return fmt.Errorf("process handler setup: %w", err)
