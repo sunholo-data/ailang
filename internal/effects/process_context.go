@@ -17,6 +17,11 @@ type ProcessContext struct {
 	MaxOutput    int64             // Maximum stdout/stderr bytes before kill
 	Allowlist    map[string]string // Allowed commands: name → resolved absolute path (nil = all)
 	HasAllowlist bool              // True if allowlist was explicitly set
+	// Subcommands narrows an allowlisted command to arg-prefix chains, keyed the
+	// same way as Allowlist (the entry as written: name or absolute path). An
+	// entry `git:status,gh:pr:list` yields {"git": [["status"]], "gh": [["pr","list"]]}.
+	// A command absent from this map may run with any arguments (M-PROCESS-SUBCMD).
+	Subcommands map[string][][]string
 
 	// Managed process fields are platform-specific (see process_context_managed.go)
 	managedState

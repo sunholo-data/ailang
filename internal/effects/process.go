@@ -26,10 +26,26 @@ func (pc *ProcessContext) ResolveAllowlist(allowlistStr string) error {
 
 	pc.HasAllowlist = true
 	pc.Allowlist = make(map[string]string)
+	pc.Subcommands = make(map[string][][]string)
+	bare := make(map[string]bool) // commands granted without a subcommand chain
 
-	for _, cmd := range strings.Split(allowlistStr, ",") {
-		cmd = strings.TrimSpace(cmd)
-		if cmd == "" {
+	for _, entry := range strings.Split(allowlistStr, ",") {
+		entry = strings.TrimSpace(entry)
+		if entry == "" {
+			continue
+		}
+
+		cmd, chain, err := splitSubcommandEntry(entry)
+		if err != nil {
+			return err
+		}
+		if chain == nil {
+			bare[cmd] = true
+			delete(pc.Subcommands, cmd) // bare grant is the broadest; it wins
+		} else if !bare[cmd] {
+			pc.Subcommands[cmd] = append(pc.Subcommands[cmd], chain)
+		}
+		if _, seen := pc.Allowlist[cmd]; seen {
 			continue
 		}
 
@@ -49,6 +65,30 @@ func (pc *ProcessContext) ResolveAllowlist(allowlistStr string) error {
 		}
 	}
 	return nil
+}
+
+// splitSubcommandEntry parses one --process-allowlist entry. `git` → ("git", nil);
+// `git:status` → ("git", ["status"]); `gh:pr:list` → ("gh", ["pr","list"]);
+// `git:*` → ("git", nil). An empty segment anywhere is an error: a typo must
+// not widen the grant.
+func splitSubcommandEntry(entry string) (cmd string, chain []string, err error) {
+	parts := strings.Split(entry, ":")
+	cmd = parts[0]
+	if cmd == "" {
+		return "", nil, fmt.Errorf("--process-allowlist entry %q has no command before ':'", entry)
+	}
+	if len(parts) == 1 {
+		return cmd, nil, nil
+	}
+	if len(parts) == 2 && parts[1] == "*" {
+		return cmd, nil, nil
+	}
+	for _, seg := range parts[1:] {
+		if seg == "" {
+			return "", nil, fmt.Errorf("--process-allowlist entry %q has an empty subcommand segment", entry)
+		}
+	}
+	return cmd, parts[1:], nil
 }
 
 func init() {
