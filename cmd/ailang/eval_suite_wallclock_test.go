@@ -48,9 +48,15 @@ func TestRunBenchmarksParallel_WallClockStopsDispatch(t *testing.T) {
 		{Benchmark: "never_runs_b", Model: "test-model", Language: "ailang", Trial: 1},
 	}
 
-	// 1ns is already in the past by the time the dispatch loop reads it.
+	// A NEGATIVE cap is a deadline already in the past — deterministically, on
+	// every platform. The previous 1ns relied on the clock ticking between the
+	// deadline being computed and first read, which holds on Linux and macOS and
+	// does NOT on Windows, where the timer granularity is ~15.6ms: `now` and
+	// `now+1ns` compared equal, the deadline read as still in the future, and
+	// both jobs dispatched (CI, 2026-09-11). A timing-dependent assertion about
+	// a timing mechanism is the one place not to rely on luck.
 	results := runBenchmarksParallel(context.Background(), jobs, 42, dir,
-		time.Second, 1, false, "", nil, "", nil, 0, time.Nanosecond)
+		time.Second, 1, false, "", nil, "", nil, 0, -time.Second)
 
 	if len(results) != len(jobs) {
 		t.Fatalf("results length = %d, want %d (the slice is pre-sized, not appended)", len(results), len(jobs))
@@ -82,5 +88,28 @@ func TestRunBenchmarksParallel_ZeroWallClockIsNoCap(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(dir, "wallclock_stopped.json")); !os.IsNotExist(err) {
 		t.Error("no cap must not write a stopped sentinel")
+	}
+}
+
+// A negative cap must mean "already expired", never "unlimited".
+//
+// `--max-wall-clock=-5m` is a plausible typo for a ceiling, and the old `> 0`
+// test read it as no cap at all — silently removing the bound the operator was
+// asking for. Unlimited is the one answer a negative ceiling cannot mean, and
+// on the single-GPU rig an unbounded suite holds the lock all night.
+func TestRunBenchmarksParallel_NegativeWallClockIsNotUnlimited(t *testing.T) {
+	dir := t.TempDir()
+	jobs := []Job{{Benchmark: "never_runs", Model: "test-model", Language: "ailang", Trial: 1}}
+
+	results := runBenchmarksParallel(context.Background(), jobs, 42, dir,
+		time.Second, 1, false, "", nil, "", nil, 0, -5*time.Minute)
+
+	for i, r := range results {
+		if r.BenchmarkID != "" {
+			t.Errorf("results[%d] populated (%q) — a negative cap was treated as unlimited", i, r.BenchmarkID)
+		}
+	}
+	if _, err := os.ReadFile(filepath.Join(dir, "wallclock_stopped.json")); err != nil {
+		t.Errorf("a negative cap must stop dispatch AND leave the sentinel: %v", err)
 	}
 }

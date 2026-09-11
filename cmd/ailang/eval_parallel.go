@@ -78,8 +78,13 @@ func runBenchmarksParallel(ctx context.Context, jobs []Job, seed int64, outputDi
 
 	// Wall-clock deadline. Zero time means "no cap", which IsZero() answers
 	// without a second flag to keep in step.
+	//
+	// NEGATIVE is a deadline already in the past, not "no cap". `> 0` read it as
+	// unlimited, so `--max-wall-clock=-5m` — a plausible typo for a cap — quietly
+	// removed the bound it was asking for. Unlimited is the one answer a negative
+	// ceiling cannot mean.
 	var deadline time.Time
-	if maxWallClock > 0 {
+	if maxWallClock != 0 {
 		deadline = time.Now().Add(maxWallClock)
 	}
 	var wallClockStopped bool
