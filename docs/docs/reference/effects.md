@@ -73,6 +73,37 @@ func greet(name: string) -> () ! {IO} {
 | `println` | `string -> () ! {IO}` | Print with newline |
 | `print` | `string -> () ! {IO}` | Print without newline |
 | `readLine` | `() -> string ! {IO}` | Read line from stdin |
+| `exit` | `int -> () ! {IO}` | Terminate this program with an exit code (see below) |
+
+#### Exit code
+
+`exit(code)` is how a CLI written in AILANG fails. It lives in `std/io` (not `std/process`,
+which runs *other* programs), needs only `--caps IO`, never returns, and flushes
+telemetry/traces before the process ends. Shipped v0.10.1 (M-EXIT-CODE).
+
+```typescript
+import std/io (println, exit)
+
+export func main() -> () ! {IO} {
+  match validate(args) {
+    Ok(())   => println("ok"),
+    Err(msg) => {
+      println("error: ${msg}");
+      exit(1)
+    }
+  }
+}
+```
+
+| Surface | `exit(0)` | `exit(n≠0)` |
+|---------|-----------|-------------|
+| `ailang run` | process exits 0 | process exits `n` (OS applies `& 0xFF`) |
+| `ailang run --batch` | that item succeeds | that item fails with `program called exit(n)`; remaining items still run (v0.33.1, #607) |
+| `serve-api` route / A2A / MCP handler | success (unit result) | request fails — HTTP 500 / task `failed` / MCP error `program called exit(n)`; the server keeps running (#706) |
+
+Do not use `exit()` to report a *value* — return it. A runtime panic also exits non-zero,
+so an exit-code-only test cannot tell "found a negative answer" from "crashed"; print the
+reason before exiting.
 
 ### FS Effect
 
@@ -232,7 +263,9 @@ func getConfig() -> string ! {Env} {
 
 ### Process Effect
 
-Execute external commands with capability-based security.
+Execute external commands with capability-based security. (This effect runs *other*
+programs. To set *this* program's own exit code — a CLI that must fail non-zero — use
+`exit(code)` from **`std/io`**, under the IO effect; see [Exit code](#exit-code) below.)
 
 ```typescript
 import std/process (exec)

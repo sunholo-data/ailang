@@ -7,13 +7,18 @@
 --
 -- Security features:
 --   - No shell expansion (os/exec.Command directly)
---   - Path-pinned command allowlist (--process-allowlist)
+--   - Path-pinned command allowlist (--process-allowlist; git:status narrows to subcommands)
 --   - Configurable timeout (--process-timeout, default: 30s)
 --   - Output size limits (--process-max-output, default: 10MB)
 --
 -- Completion semantics:
 --   - Ok for ALL completed processes (even non-zero exit)
 --   - Err only for infrastructure/spawn failures
+--
+-- This module runs OTHER programs. To set THIS program's own exit code
+-- (a CLI that must fail non-zero), use std/io:
+--   import std/io (exit)
+--   exit(1)   -- () ! {IO}; never returns; traces are flushed first
 
 module std/process
 

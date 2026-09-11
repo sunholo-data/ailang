@@ -13,7 +13,8 @@ import (
 // moduleDoc represents documentation for a stdlib module
 type moduleDoc struct {
 	Name        string      // e.g., "std/io"
-	Description string      // First comment block (module description)
+	Description string      // First meaningful header line (one-liner for --list)
+	Header      []string    // Whole header block minus the file-name line — the module page shows it all
 	Types       []typeDoc   // Exported type declarations
 	Exports     []exportDoc // Exported functions
 	Examples    []string    // Usage examples from comments
@@ -258,6 +259,22 @@ func parseModuleFile(filePath string) moduleDoc {
 						break
 					}
 				}
+				// The rest of the header is the part a reader actually needs
+				// — security flags, completion semantics, "use std/io.exit to
+				// set THIS program's exit code". Showing only the first line
+				// hid all of it, so std/process read as if exit lived nowhere.
+				for _, c := range headerComments {
+					if strings.HasPrefix(c, "std/") && strings.HasSuffix(c, ".ail") || strings.HasPrefix(c, "std/") && strings.Contains(c, " - ") {
+						continue
+					}
+					mod.Header = append(mod.Header, c)
+				}
+				for len(mod.Header) > 0 && mod.Header[0] == "" {
+					mod.Header = mod.Header[1:]
+				}
+				for len(mod.Header) > 0 && mod.Header[len(mod.Header)-1] == "" {
+					mod.Header = mod.Header[:len(mod.Header)-1]
+				}
 			}
 			continue
 		}
@@ -397,7 +414,11 @@ func showModuleDocs(stdlibPath, moduleName string, showExamples bool) {
 
 	// Print module header
 	fmt.Printf("# %s\n", mod.Name)
-	if mod.Description != "" {
+	if len(mod.Header) > 0 {
+		for _, line := range mod.Header {
+			fmt.Println(line)
+		}
+	} else if mod.Description != "" {
 		fmt.Printf("%s\n", mod.Description)
 	}
 	fmt.Println()
