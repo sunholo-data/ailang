@@ -65,6 +65,15 @@ func decodeValue(raw interface{}, expectedType types.Type) (eval.Value, error) {
 	case *types.TList:
 		return decodeList(raw, typ.Element)
 
+	case *types.TApp:
+		// The checker writes `list[T]` as TApp{list, [T]} (DX-17), so this is
+		// the case every real list parameter takes; TList above is the legacy
+		// spelling. Any other constructor stays unsupported — no guessing.
+		if elem, ok := types.AsList(typ); ok {
+			return decodeList(raw, elem)
+		}
+		return nil, fmt.Errorf("unsupported type for argument decoding: %s (only list[T], records and scalars decode from JSON)", typ)
+
 	case *types.TRecord:
 		return decodeRecord(raw, typ)
 
