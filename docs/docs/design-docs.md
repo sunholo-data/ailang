@@ -894,7 +894,7 @@ This page is automatically generated from the [design_docs/implemented](https://
 - [M-PERF3: Performance Quick Wins for 1.0.0](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-perf3-performance-quick-wins.md)
 - [M-PROCESS: std/process Module for External Command Execution](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-process-exec.md)
 - [Sprint Plan: M-PROCESS — std/process Module](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-process-sprint-plan.md)
-- [M-PROCESS-SUBCMD: Subcommand Allowlists for Process Effect](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/m-process-subcmd-allowlist.md)
+- [M-PROCESS-SUBCMD: Subcommand Allowlists for Process Effect](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_38_0/m-process-subcmd-allowlist.md)
 - [M-SEMANTIC-ENVELOPE: Multi-Aspect Semantic Embeddings for Agent Messaging](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-semantic-envelope.md)
 - [M-STREAM-BIDI: Generic Bidirectional Streaming Primitives](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-stream-bidi-primitives.md)
 - [Sprint Plan: M-STREAM-BIDI Phase 1 — Core WebSocket Streaming](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-stream-bidi-sprint-plan.md)

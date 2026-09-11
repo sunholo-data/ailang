@@ -252,7 +252,7 @@ if os.Getenv("AILANG_GIT_MODE") == "" {
 <!-- Auto-populated by Ollama neural search on "git guardrails" -->
 
 **Implemented (informs design):**
-- [design_docs/planned/m-process-subcmd-allowlist.md](design_docs/planned/m-process-subcmd-allowlist.md) — Similar pattern: constraining what commands agents can execute
+- [design_docs/planned/v0_38_0/m-process-subcmd-allowlist.md](design_docs/planned/v0_38_0/m-process-subcmd-allowlist.md) — Similar pattern: constraining what commands agents can execute
 - [design_docs/implemented/v0_3_14/BULLETPROOF_SUMMARY.md](design_docs/implemented/v0_3_14/BULLETPROOF_SUMMARY.md) — Robustness patterns for agent execution
 
 **Planned (check for overlap):**

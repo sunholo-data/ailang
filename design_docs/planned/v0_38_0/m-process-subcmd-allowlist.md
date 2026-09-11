@@ -1,7 +1,7 @@
 # M-PROCESS-SUBCMD: Subcommand Allowlists for Process Effect
 
 **Status**: Planned (not built — sat in `implemented/v0_8_1/` until 2026-09-11; per-subcommand filtering measured absent on v0.36.0, #1137)
-**Target**: unscheduled (was v0.9.0)
+**Target**: v0.38.0 (scheduled 2026-09-11; was v0.9.0)
 **Consumer on record**: Daneel (#1137) — wants `-process-allowlist "git:status,git:commit,..."`; current workaround is an argument-free wrapper binary on the per-binary allowlist
 **Priority**: P1 (High — capability-secure AI agents need this)
 **Estimated**: 4 hours (Phase 1: CLI) + future (Phase 2: Type system)
