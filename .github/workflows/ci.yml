@@ -72,9 +72,13 @@ jobs:
           echo "-> docs-only lane (compiler matrix skipped)"
         fi
 
+  # NOT gated by the docs-only lane, deliberately. This job carries 19 hygiene
+  # gates — check-no-personal-email, check-referenced-paths, check-context-docs
+  # among them — and those are about DOCUMENTATION as much as code: a design doc
+  # can leak an address or cite a path that does not exist. Putting the job
+  # behind an `if:` skipped all 19 on a docs PR, which TestWiredGatesAreCanonical
+  # exists to catch and did. Only the OS/compiler-specific jobs below skip.
   test:
-    needs: changes
-    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
