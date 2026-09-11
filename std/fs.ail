@@ -146,6 +146,15 @@ export func removeFileResult(path: string) -> Result[(), string] ! {FS} = _fs_re
 -- @sandbox Respects AILANG_FS_SANDBOX
 export func mkdirAllResult(path: string) -> Result[(), string] ! {FS} = _fs_mkdirAllResult(path)
 
+-- mkdirResult: Create ONE directory; Err if it already exists (or cannot be created).
+-- The atomic try-lock: of N concurrent callers exactly one gets Ok(()).
+-- (mkdirAllResult is Ok on an existing directory, so it cannot express this.)
+export func mkdirResult(path: string) -> Result[(), string] ! {FS} = _fs_mkdirResult(path)
+
+-- removeDirResult: Remove an EMPTY directory (the lock release). Never recursive:
+-- Err if the directory is missing, non-empty, or not a directory.
+export func removeDirResult(path: string) -> Result[(), string] ! {FS} = _fs_removeDirResult(path)
+
 -- Atomically rename (move) a file or directory, returning Result instead of panicking (M-FS-RENAME, since v0.35.0)
 -- @example match renameFileResult("run.json.tmp", "run.json") { Ok(_) => (), Err(msg) => () }
 -- @requires FS capability

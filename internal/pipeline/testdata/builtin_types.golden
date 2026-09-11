@@ -77,6 +77,7 @@ _embedding_decode : bytes -> Option[list[float]]
 _embedding_encode : list[float] -> bytes
 _env_getArgs : () -> list[string] ! {Env}
 _env_getEnv : string -> Result[string, EnvError] ! {Env}
+_env_getPid : () -> int ! {Env}
 _env_hasEnv : string -> bool ! {Env}
 _escapeXml : string -> string
 _float_to_int : float -> int
@@ -90,9 +91,11 @@ _fs_listDir : string -> list[string] ! {FS}
 _fs_mkdir : string -> () ! {FS}
 _fs_mkdirAll : string -> () ! {FS}
 _fs_mkdirAllResult : string -> Result[(), string] ! {FS}
+_fs_mkdirResult : string -> Result[(), string] ! {FS}
 _fs_readFile : string -> string ! {FS}
 _fs_readFileBytes : string -> Result[string, string] ! {FS}
 _fs_readFileResult : string -> Result[string, string] ! {FS}
+_fs_removeDirResult : string -> Result[(), string] ! {FS}
 _fs_removeFile : string -> () ! {FS}
 _fs_removeFileResult : string -> Result[(), string] ! {FS}
 _fs_rename : (string, string) -> () ! {FS}

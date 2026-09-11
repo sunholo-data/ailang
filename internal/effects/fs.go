@@ -91,6 +91,8 @@ func init() {
 	RegisterOp("FS", "appendFileResult", fsAppendFileResult)
 	RegisterOp("FS", "removeFileResult", fsRemoveFileResult)
 	RegisterOp("FS", "mkdirAllResult", fsMkdirAllResult)
+	RegisterOp("FS", "mkdirResult", fsMkdirResult)
+	RegisterOp("FS", "removeDirResult", fsRemoveDirResult)
 }
 
 // fsReadFile implements FS.readFile(path: String) -> String

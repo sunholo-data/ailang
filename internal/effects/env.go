@@ -2,6 +2,7 @@ package effects
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/sunholo-data/ailang/internal/eval"
 )
@@ -11,6 +12,7 @@ func init() {
 	RegisterOp("Env", "getEnv", envGetEnv)
 	RegisterOp("Env", "hasEnv", envHasEnv)
 	RegisterOp("Env", "getArgs", envGetArgs)
+	RegisterOp("Env", "getPid", envGetPid)
 }
 
 // envGetEnv implements Env.getEnv(name: String) -> Result(String, EnvError)
@@ -242,4 +244,20 @@ func envGetArgs(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 	}
 
 	return result, nil
+}
+
+// envGetPid returns the running program's own process id. A lock client
+// records its pid so a peer can tell a live holder from a dead one; a bash
+// client writes $$, and an AILANG one had no equivalent (Daneel, 2026-09-11).
+func envGetPid(ctx *EffContext, args []eval.Value) (eval.Value, error) {
+	if !ctx.HasCap("Env") {
+		return nil, fmt.Errorf("getPid: Env capability required. Use --caps Env flag")
+	}
+	if len(args) != 1 {
+		return nil, fmt.Errorf("getPid: expected 1 argument (unit), got %d", len(args))
+	}
+	if _, ok := args[0].(*eval.UnitValue); !ok {
+		return nil, fmt.Errorf("getPid: expected unit argument, got %T", args[0])
+	}
+	return &eval.IntValue{Value: os.Getpid()}, nil
 }

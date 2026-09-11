@@ -285,3 +285,64 @@ func fsMkdirAllResult(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 	}
 	return fsMakeOk(&eval.UnitValue{}), nil
 }
+
+// fsMkdirResult creates ONE directory and reports an existing one as Err —
+// the atomic try-lock primitive (`mkdir lock.d` succeeds for exactly one
+// caller). mkdirAllResult is the wrong tool for that: it is Ok on an existing
+// directory. Daneel's rig-lock client had to exec("mkdir") to get this.
+func fsMkdirResult(ctx *EffContext, args []eval.Value) (eval.Value, error) {
+	if len(args) != 1 {
+		return nil, fmt.Errorf("mkdirResult: expected 1 argument, got %d", len(args))
+	}
+	pathVal, ok := args[0].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("mkdirResult: expected String, got %T", args[0])
+	}
+
+	path := pathVal.Value
+	if ctx.Env.Sandbox != "" {
+		resolved, sandboxErr := resolveSandboxPath(ctx.Env.Sandbox, path)
+		if sandboxErr != nil {
+			return nil, sandboxErr
+		}
+		path = resolved
+	}
+
+	if err := os.Mkdir(path, 0755); err != nil {
+		return fsMakeErr(fmt.Sprintf("cannot create directory: %v", err)), nil
+	}
+	return fsMakeOk(&eval.UnitValue{}), nil
+}
+
+// fsRemoveDirResult removes an EMPTY directory (the lock release). A
+// non-empty directory or a non-directory is Err, never a recursive delete.
+func fsRemoveDirResult(ctx *EffContext, args []eval.Value) (eval.Value, error) {
+	if len(args) != 1 {
+		return nil, fmt.Errorf("removeDirResult: expected 1 argument, got %d", len(args))
+	}
+	pathVal, ok := args[0].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("removeDirResult: expected String, got %T", args[0])
+	}
+
+	path := pathVal.Value
+	if ctx.Env.Sandbox != "" {
+		resolved, sandboxErr := resolveSandboxPath(ctx.Env.Sandbox, path)
+		if sandboxErr != nil {
+			return nil, sandboxErr
+		}
+		path = resolved
+	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		return fsMakeErr(fmt.Sprintf("cannot remove directory: %v", err)), nil
+	}
+	if !info.IsDir() {
+		return fsMakeErr(fmt.Sprintf("cannot remove directory: %s is not a directory", pathVal.Value)), nil
+	}
+	if err := os.Remove(path); err != nil {
+		return fsMakeErr(fmt.Sprintf("cannot remove directory: %v", err)), nil
+	}
+	return fsMakeOk(&eval.UnitValue{}), nil
+}

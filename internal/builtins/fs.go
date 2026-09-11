@@ -619,6 +619,57 @@ func registerFS() {
 		panic(fmt.Sprintf("failed to register _fs_mkdirAllResult: %v", err))
 	}
 
+	// _fs_mkdirResult — single directory, Err on exists: the try-lock primitive
+	err = RegisterEffectBuiltin(BuiltinSpec{
+		Module: "std/fs", Name: "_fs_mkdirResult", NumArgs: 1, IsPure: false, Effect: "FS",
+		Type: typeMkdirAllResult,
+		Impl: func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+			return effects.Call(ctx, "FS", "mkdirResult", args)
+		},
+		Metadata: &BuiltinMetadata{
+			Description: "Create one directory, returning Err if it already exists (atomic try-lock)",
+			Params:      []ParamDoc{{Name: "path", Description: "Directory to create; parent must exist"}},
+			Returns:     "Result[(), string] - Ok(()) if created, Err(message) if it exists or cannot be created",
+			Examples: []Example{
+				{Code: `_fs_mkdirResult("rig.lock.d")`, Description: "Ok(()) for exactly one concurrent caller; the rest get Err(\"cannot create directory: ... file exists\")"},
+			},
+			LongDesc:  "Result-returning variant of _fs_mkdir. Unlike _fs_mkdirAllResult, an existing directory is an Err — which is what makes it usable as a lock: mkdir is atomic on every platform, so exactly one of N concurrent callers gets Ok.",
+			SeeAlso:   []string{"_fs_mkdir", "_fs_mkdirAllResult", "_fs_removeDirResult"},
+			Since:     "v0.38.0",
+			Stability: StabilityStable,
+			Tags:      []string{"fs", "directory", "mkdir", "result", "lock"},
+			Category:  "fs",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _fs_mkdirResult: %v", err))
+	}
+
+	// _fs_removeDirResult — empty directory only: the lock release
+	err = RegisterEffectBuiltin(BuiltinSpec{
+		Module: "std/fs", Name: "_fs_removeDirResult", NumArgs: 1, IsPure: false, Effect: "FS",
+		Type: typeMkdirAllResult,
+		Impl: func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+			return effects.Call(ctx, "FS", "removeDirResult", args)
+		},
+		Metadata: &BuiltinMetadata{
+			Description: "Remove an empty directory, returning Result; never recursive",
+			Params:      []ParamDoc{{Name: "path", Description: "Directory to remove; must be empty"}},
+			Returns:     "Result[(), string] - Ok(()) if removed, Err(message) if missing, non-empty, or not a directory",
+			Examples: []Example{
+				{Code: `_fs_removeDirResult("rig.lock.d")`, Description: "Releases a mkdir-based lock"},
+			},
+			SeeAlso:   []string{"_fs_mkdirResult", "_fs_removeFileResult"},
+			Since:     "v0.38.0",
+			Stability: StabilityStable,
+			Tags:      []string{"fs", "directory", "remove", "result", "lock"},
+			Category:  "fs",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _fs_removeDirResult: %v", err))
+	}
+
 	// _fs_rename
 	implRename := func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
 		return effects.Call(ctx, "FS", "renameFile", args)
