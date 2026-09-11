@@ -136,24 +136,10 @@ func processExec(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 		pc = NewProcessContext()
 	}
 
-	// Step 1: Allowlist check
-	var resolvedPath string
-	if pc.HasAllowlist {
-		resolved, allowed := pc.Allowlist[cmdName]
-		if !allowed {
-			return makeProcessResultErr("NotAllowed", cmdName), nil
-		}
-		if resolved == "" {
-			return makeProcessResultErr("NotFound", cmdName), nil
-		}
-		resolvedPath = resolved
-	} else {
-		// No allowlist — resolve via LookPath
-		resolved, err := exec.LookPath(cmdName)
-		if err != nil {
-			return makeProcessResultErr("NotFound", cmdName), nil
-		}
-		resolvedPath = resolved
+	// Step 1: Allowlist check — the one authorizer shared with spawnProcess and asyncExecProcess
+	resolvedPath, denial := pc.Authorize(cmdName, cmdArgs)
+	if denial != nil {
+		return makeProcessResultErr(denial.Ctor, denial.Detail), nil
 	}
 
 	// Step 2: Set up command with timeout

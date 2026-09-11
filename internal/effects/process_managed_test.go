@@ -214,7 +214,7 @@ func TestProcessSpawn_AllowlistBlocking(t *testing.T) {
 	}
 
 	// Allowed command should resolve
-	path, err := resolveCommand(pc, "echo")
+	path, err := resolveCommand(pc, "echo", nil)
 	if err != nil {
 		t.Fatalf("resolveCommand(echo): %v", err)
 	}
@@ -223,7 +223,7 @@ func TestProcessSpawn_AllowlistBlocking(t *testing.T) {
 	}
 
 	// Blocked command should fail
-	_, err = resolveCommand(pc, "cat")
+	_, err = resolveCommand(pc, "cat", nil)
 	if err == nil {
 		t.Fatal("expected error for blocked command, got nil")
 	}

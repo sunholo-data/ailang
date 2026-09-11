@@ -5,7 +5,6 @@ package effects
 import (
 	"context"
 	"fmt"
-	"os/exec"
 
 	"github.com/sunholo-data/ailang/internal/eval"
 )
@@ -57,33 +56,10 @@ func StreamAsyncExecProcess(ctx *EffContext, args []eval.Value) (eval.Value, err
 		return nil, fmt.Errorf("E_STREAM_NO_CONTEXT: Stream effect not configured (missing --caps Stream)")
 	}
 
-	// Resolve command path via ProcessContext (reuse allowlist + LookPath)
-	cmdName := cmdVal.Value
-	var resolvedPath string
-
-	pc := ctx.Process
-	if pc == nil {
-		// No Process context — resolve via LookPath directly
-		resolved, err := exec.LookPath(cmdName)
-		if err != nil {
-			return nil, fmt.Errorf("_stream_async_exec_process: command not found: %s", cmdName)
-		}
-		resolvedPath = resolved
-	} else if pc.HasAllowlist {
-		resolved, allowed := pc.Allowlist[cmdName]
-		if !allowed {
-			return nil, fmt.Errorf("_stream_async_exec_process: command not allowed: %s", cmdName)
-		}
-		if resolved == "" {
-			return nil, fmt.Errorf("_stream_async_exec_process: command not found: %s", cmdName)
-		}
-		resolvedPath = resolved
-	} else {
-		resolved, err := exec.LookPath(cmdName)
-		if err != nil {
-			return nil, fmt.Errorf("_stream_async_exec_process: command not found: %s", cmdName)
-		}
-		resolvedPath = resolved
+	// Resolve command path via the one Process authorizer (allowlist + subcommands + LookPath)
+	resolvedPath, denial := ctx.Process.Authorize(cmdVal.Value, cmdArgs)
+	if denial != nil {
+		return nil, fmt.Errorf("_stream_async_exec_process: %w", denial)
 	}
 
 	source, err := NewProcessSource(
