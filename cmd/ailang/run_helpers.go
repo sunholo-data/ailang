@@ -134,6 +134,12 @@ func resolveAutoCaps(moduleIface *iface.Iface, entry string) []string {
 	return caps
 }
 
+// CapsList is the comma-separated list of capabilities `--caps` accepts, in the
+// order the help text shows them. Every `--caps` usage string must be built from
+// this constant: four hand-typed copies drifted apart and none named Process,
+// so agents grepping `ailang --help` concluded the effect did not exist (#1137).
+const CapsList = "IO,FS,Net,Env,Process,Clock,AI,Stream,SharedMem,SharedIndex,Secret,Trace,DOM,Msg,Cog"
+
 // grantCapabilities parses capability string and grants them to the effect context
 func grantCapabilities(effCtx *effects.EffContext, caps string) {
 	if caps != "" {

@@ -279,12 +279,21 @@ func runCommand(cmd: string, args: [string]) -> () ! {IO, Process} {
 
 **CLI Flags:**
 
+| Flag | Meaning |
+|------|---------|
+| `--caps Process` | Grant the effect. Without it every `exec` fails with a capability error. |
+| `--process-allowlist <bins>` | Comma-separated binaries the program may exec. Each entry is resolved via `PATH` **once, at startup**, and pinned to that absolute path — a same-named binary placed earlier in `PATH` later cannot satisfy it. Anything not listed fails with `NotAllowed`. This is the flag that turns "the tool has Process, so it is effectively a shell" into "the tool may run these five binaries". Granularity is **per binary**: allowlisting `git` permits every git subcommand (per-subcommand narrowing is unbuilt — [m-process-subcmd-allowlist](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/m-process-subcmd-allowlist.md)). Allowlisting a shell *script* does not grant its interpreter: an argument-free wrapper script is the current way to expose exactly one subcommand. |
+| `--process-timeout <dur>` | Per-exec wall-clock limit (default 30s) → `Timeout`. |
+| `--process-max-output <bytes>` | Combined stdout+stderr cap (default 10MB) → `OutputLimitExceeded`, `truncated: true`. |
+
 ```bash
 ailang run --caps Process --entry main module.ail
 ailang run --caps IO,Process --process-timeout 10s --entry main module.ail
 ailang run --caps IO,Process --process-allowlist "echo,curl,git" --entry main module.ail
 ailang run --caps IO,Process --process-max-output 5242880 --entry main module.ail
 ```
+
+The allowlist is a property of the **invocation**, not of the program's signature — run the `.ail` without the flag and it may exec anything. Signature-level narrowing (`! {Process[scope=...]}`) is tracked under [M-EFFECT-REFINEMENT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-effect-refinement.md).
 
 ### Stream Effect
 
