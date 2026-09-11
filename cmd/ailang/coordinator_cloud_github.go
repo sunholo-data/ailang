@@ -53,10 +53,13 @@ func openCascadePullRequest(ctx context.Context, workDir, branchName, taskID, ag
 	// Detect cascade vs generic agent task from env (set by dispatcher when
 	// the inbound message had source=cascade + root_package attribute).
 	rootPackage := os.Getenv("AILANG_CASCADE_ROOT_PACKAGE")
-	title := fmt.Sprintf("[agent] %s: %s", agentID, taskID)
-	body := fmt.Sprintf("Autonomous task `%s` completed and pushed by agent `%s`.\n\n"+
-		"This PR was opened deterministically by the AILANG coordinator wrapper.\n\n"+
-		"View execution chain: `ailang chains view %s`", taskID, agentID, taskID)
+	directive := os.Getenv("AILANG_DIRECTIVE")
+
+	// The title carries WHAT the change is; the task id moves into the body,
+	// where a lookup key belongs. Still a pure function of the directive — the
+	// determinism was never what made the old title uninformative.
+	title := agentPRTitle(agentID, taskID, directive)
+	body := agentPRBody(ctx, taskID, agentID, directive, workDir, baseBranch)
 	labels := []string{"agent-task"}
 
 	if rootPackage != "" {
@@ -134,13 +137,10 @@ func maybeEnableAutoMerge(ctx context.Context, token, owner, repo string, prNum 
 // If the two ever disagree, a PR could take the fast CI lane and then be
 // auto-merged on the strength of checks that never ran the thing it changed.
 func branchIsDocsOnly(ctx context.Context, workDir, baseBranch string) (bool, string, error) {
-	cmd := exec.CommandContext(ctx, "git", "diff", "--name-only", "origin/"+baseBranch+"...HEAD")
-	cmd.Dir = workDir
-	out, err := cmd.Output()
+	files, err := changedFiles(ctx, workDir, baseBranch)
 	if err != nil {
 		return false, "", fmt.Errorf("git diff against origin/%s: %w", baseBranch, err)
 	}
-	files := strings.Fields(strings.TrimSpace(string(out)))
 	if len(files) == 0 {
 		return false, "the branch changes no files", nil
 	}
@@ -572,4 +572,68 @@ func githubGraphQL(ctx context.Context, token string, payload []byte) ([]byte, e
 		return nil, fmt.Errorf("github graphql: HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
 	}
 	return body, nil
+}
+
+// agentPRBody says what the change is, what asked for it, and how to audit it —
+// without a click.
+//
+// The old body said only "Autonomous task X completed and pushed by agent Y",
+// which is the two facts a reader already had from the title. What was missing
+// is what the request WAS and what the branch touched, both of which the wrapper
+// is holding at this point.
+func agentPRBody(ctx context.Context, taskID, agentID, directive, workDir, baseBranch string) string {
+	var b strings.Builder
+
+	if d := strings.TrimSpace(directive); d != "" {
+		// A structured request gets its human field quoted and the payload
+		// folded away. Printing the JSON as the request is what made these PRs
+		// unreadable in the first place; dropping it entirely would lose the
+		// routing fields, which are the part worth auditing later.
+		if human := subjectFromJSON(d); human != "" {
+			b.WriteString("**Request**\n\n")
+			for _, line := range strings.Split(human, "\n") {
+				b.WriteString("> " + line + "\n")
+			}
+			b.WriteString("\n<details><summary>full request payload</summary>\n\n```json\n")
+			b.WriteString(d)
+			b.WriteString("\n```\n</details>\n\n")
+		} else {
+			b.WriteString("**Request**\n\n")
+			// Quoted, so a directive containing markdown cannot restructure the
+			// PR description around it.
+			for _, line := range strings.Split(d, "\n") {
+				b.WriteString("> " + line + "\n")
+			}
+			b.WriteString("\n")
+		}
+	}
+
+	if files, err := changedFiles(ctx, workDir, baseBranch); err == nil && len(files) > 0 {
+		fmt.Fprintf(&b, "**Files (%d)**\n\n", len(files))
+		for i, f := range files {
+			if i == 20 {
+				fmt.Fprintf(&b, "- …and %d more\n", len(files)-20)
+				break
+			}
+			b.WriteString("- `" + f + "`\n")
+		}
+		b.WriteString("\n")
+	}
+	// A missing file list is left out rather than rendered as "Files (0)": a
+	// confident zero is how #921's blind approvals happened.
+
+	fmt.Fprintf(&b, "---\nTask `%s` · agent `%s` · opened deterministically by the AILANG coordinator wrapper.\n", taskID, agentID)
+	fmt.Fprintf(&b, "Execution chain: `ailang chains view %s`\n", taskID)
+	return b.String()
+}
+
+// changedFiles lists what the branch changes against its base.
+func changedFiles(ctx context.Context, workDir, baseBranch string) ([]string, error) {
+	cmd := exec.CommandContext(ctx, "git", "diff", "--name-only", "origin/"+baseBranch+"...HEAD")
+	cmd.Dir = workDir
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+	return strings.Fields(strings.TrimSpace(string(out))), nil
 }
