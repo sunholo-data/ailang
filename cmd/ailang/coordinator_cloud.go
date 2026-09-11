@@ -282,6 +282,20 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 		}
 	}
 
+	// Who the commits are BY. Separate from the token that pushes them: git
+	// distinguishes authorship from transport, and only authorship is a claim
+	// about who did the work.
+	//
+	// Unset inherits the container's identity, which resolves to the fleet bot.
+	// That was every agent's author line in every repo — including an agent
+	// working inside another identity's own memory repo, where the record being
+	// that identity's own is the point.
+	//
+	// Repo-local, not --global: the credential helper above IS global (it must
+	// cover clones of other repos), but authorship belongs to the work, and a
+	// global author would silently follow the process into any other checkout.
+	configureGitAuthor(ctx, workDir)
+
 	// Step 0: Resolve shared skills plugin directory (M-CLOUD-PLUGIN-SKILLS, v0.9.1)
 	pluginDir := ""
 	if pluginRepo != "" {
@@ -307,6 +321,30 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 	if repoURL == "" {
 		return "", nil, gitEvidence{}, fmt.Errorf("AILANG_REPO_URL is required: set workspace to GitHub org/repo (e.g., sunholo-data/ailang) in agent config")
 	}
+	// A per-agent SSH deploy key, when the registry gave this agent one. It
+	// replaces the fleet token for THIS repo only, because the fleet token is
+	// deliberately read-only on some repos and a deploy key is scoped to one.
+	//
+	// Fatal on failure, not best-effort: the alternative is silently falling
+	// back to the fleet identity, which would push as the wrong actor or fail
+	// later with a confusing permission error. If an agent was configured to use
+	// its own credential, using someone else's instead is never the right
+	// recovery.
+	if sshDeployKeyRequested() {
+		alias, keyErr := configureSSHDeployKey(ctx, os.Getenv("AILANG_CLOUD_PROJECT"))
+		if keyErr != nil {
+			return "", nil, gitEvidence{}, fmt.Errorf("ssh deploy key: %w", keyErr)
+		}
+		if ownerRepo := gitHubOwnerRepoFromURL(repoURL); ownerRepo != "" {
+			if vErr := verifyDeployKey(ctx, alias, ownerRepo); vErr != nil {
+				// Pre-flight, so this costs seconds instead of surfacing after a
+				// full agent run has produced work it then cannot push.
+				return "", nil, gitEvidence{}, vErr
+			}
+		}
+		repoURL = sshCloneURL(repoURL, alias)
+	}
+
 	fmt.Printf("execute-job: cloning %s (branch=%s)\n", repoURL, baseBranch)
 	cloneCmd := exec.CommandContext(ctx, "git", "clone", "--branch", baseBranch, "--depth", "1", repoURL, workDir)
 	cloneCmd.Stdout = os.Stdout
@@ -701,4 +739,30 @@ func deterministicCascadeBump(ctx context.Context, workDir, rootPackage, toVersi
 		return fmt.Errorf("git commit failed: %w", err)
 	}
 	return nil
+}
+
+// configureGitAuthor sets the commit author for this task's checkout.
+//
+// Both halves or neither: git resolves user.name and user.email independently,
+// so setting one leaves the other on the container default and produces a commit
+// half-attributed to each identity — worse than either alone, and hard to spot.
+func configureGitAuthor(ctx context.Context, workDir string) {
+	name := strings.TrimSpace(os.Getenv("AILANG_GIT_AUTHOR_NAME"))
+	email := strings.TrimSpace(os.Getenv("AILANG_GIT_AUTHOR_EMAIL"))
+	if name == "" || email == "" {
+		if name != "" || email != "" {
+			fmt.Fprintf(os.Stderr, "warning: git identity is half-configured (name=%q email=%q) — using the container default for BOTH rather than mixing identities\n", name, email)
+		}
+		return
+	}
+	for _, kv := range [][2]string{{"user.name", name}, {"user.email", email}} {
+		cmd := exec.CommandContext(ctx, "git", "-C", workDir, "config", kv[0], kv[1])
+		if err := cmd.Run(); err != nil {
+			// Loud: the commit will still be made, but by somebody else, and an
+			// author line nobody checked is how a record stops being evidence.
+			fmt.Fprintf(os.Stderr, "warning: could not set git %s=%q: %v — commits will carry the container's identity\n", kv[0], kv[1], err)
+			return
+		}
+	}
+	fmt.Printf("execute-job: commits authored as %s <%s>\n", name, email)
 }

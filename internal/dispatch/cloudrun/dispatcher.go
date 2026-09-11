@@ -281,6 +281,28 @@ func (d *Dispatcher) Dispatch(ctx context.Context, params coordinator.DispatchPa
 			})
 		}
 	}
+	if params.SSHKeySecret != "" {
+		envOverrides = append(envOverrides, &runpb.EnvVar{
+			Name: "AILANG_SSH_KEY_SECRET", Values: &runpb.EnvVar_Value{Value: params.SSHKeySecret},
+		})
+		alias := params.SSHHostAlias
+		if alias == "" {
+			alias = "agent-repo"
+		}
+		envOverrides = append(envOverrides, &runpb.EnvVar{
+			Name: "AILANG_SSH_HOST_ALIAS", Values: &runpb.EnvVar_Value{Value: alias},
+		})
+	}
+	if params.GitAuthorName != "" {
+		envOverrides = append(envOverrides, &runpb.EnvVar{
+			Name: "AILANG_GIT_AUTHOR_NAME", Values: &runpb.EnvVar_Value{Value: params.GitAuthorName},
+		})
+	}
+	if params.GitAuthorEmail != "" {
+		envOverrides = append(envOverrides, &runpb.EnvVar{
+			Name: "AILANG_GIT_AUTHOR_EMAIL", Values: &runpb.EnvVar_Value{Value: params.GitAuthorEmail},
+		})
+	}
 	// M-PKG-CASCADE-DETERMINISTIC-FIRST: cascade envelope env vars. The Cloud
 	// Run Job wrapper reads these to choose deterministic-bump vs AI-escalation.
 	if params.RootPackage != "" {

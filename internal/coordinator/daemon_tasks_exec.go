@@ -250,6 +250,12 @@ func (d *Daemon) dispatchTasksCloud() error {
 				// metadata, so a message cannot ask for its own auto-merge.
 				params.AutoMerge = agent.AutoMerge
 				params.ArtifactPatterns = agent.GetEffectiveArtifactPatterns()
+				params.SSHKeySecret = agent.SSHKeySecret
+				params.SSHHostAlias = agent.SSHHostAlias
+				if agent.GitIdentity != nil {
+					params.GitAuthorName = agent.GitIdentity.Name
+					params.GitAuthorEmail = agent.GitIdentity.Email
+				}
 			}
 			// M-HARNESS-COMMIT-CONTRACT: Pass site metadata for structured commit messages.
 			if task.SiteSlug != "" {

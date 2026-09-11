@@ -73,6 +73,16 @@ type DispatchParams struct {
 	// AutoMerge itself.
 	ArtifactPatterns []string
 
+	// GitAuthorName/Email author this agent's commits. Empty inherits the
+	// container's identity (the fleet bot).
+	GitAuthorName  string
+	GitAuthorEmail string
+
+	// SSHKeySecret/SSHHostAlias select a per-repo deploy key. The secret NAME
+	// only — never its value.
+	SSHKeySecret string
+	SSHHostAlias string
+
 	// M-PKG-CASCADE-DETERMINISTIC-FIRST: cascade envelope fields, propagated
 	// from TaskRecord so the Cloud Run Job wrapper can decide deterministic-
 	// bump vs AI-escalation without re-fetching the task. Empty/false for

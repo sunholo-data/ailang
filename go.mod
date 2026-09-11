@@ -7,6 +7,7 @@ require (
 	cloud.google.com/go/kms v1.33.0
 	cloud.google.com/go/pubsub v1.51.1
 	cloud.google.com/go/run v1.22.0
+	cloud.google.com/go/secretmanager v1.21.0
 	cloud.google.com/go/storage v1.67.0
 	cloud.google.com/go/trace v1.16.0
 	firebase.google.com/go/v4 v4.21.0

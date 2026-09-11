@@ -159,10 +159,35 @@ type AgentConfig struct {
 	SessionContinuity  bool   `yaml:"session_continuity" json:"session_continuity"`     // Use --resume for Claude Code / --conversation-id for Gemini
 
 	// Generic workflow configuration (v0.6.3+)
-	Invoke           *InvokeConfig   `yaml:"invoke" json:"invoke,omitempty"`                       // How to invoke this agent
-	OutputMarkers    []string        `yaml:"output_markers" json:"output_markers,omitempty"`       // Markers to extract from output (e.g., "DESIGN_DOC_PATH:")
-	ArtifactPatterns []string        `yaml:"artifact_patterns" json:"artifact_patterns,omitempty"` // File patterns for artifacts (e.g., "*.md", "design_docs/**")
-	Approval         *ApprovalConfig `yaml:"approval" json:"approval,omitempty"`                   // Approval workflow configuration
+	Invoke           *InvokeConfig `yaml:"invoke" json:"invoke,omitempty"`                       // How to invoke this agent
+	OutputMarkers    []string      `yaml:"output_markers" json:"output_markers,omitempty"`       // Markers to extract from output (e.g., "DESIGN_DOC_PATH:")
+	ArtifactPatterns []string      `yaml:"artifact_patterns" json:"artifact_patterns,omitempty"` // File patterns for artifacts (e.g., "*.md", "design_docs/**")
+
+	// GitIdentity is who this agent's commits are AUTHORED by. Distinct from
+	// the push credential: git separates authorship from the token that moves
+	// the bytes, and only the first is a statement about who did the work.
+	//
+	// Unset inherits the container's identity, which resolves to the fleet bot —
+	// so before this, every agent's commits in every repo read
+	// "Voight-Kampff (bot)", including an agent working inside another
+	// identity's own memory repo.
+	GitIdentity *GitIdentity `yaml:"git_identity" json:"git_identity,omitempty"`
+
+	// SSHKeySecret names a Secret Manager secret holding a per-repo SSH deploy
+	// key. Set it when the fleet token is deliberately read-only on this agent's
+	// workspace. Only the NAME lives here and in the job env — the key material
+	// is fetched by the job's own service account, so it never enters the Cloud
+	// Run execution spec, which project viewers can read.
+	//
+	// A deploy key cannot use the GitHub API, so an agent with one cannot open a
+	// PR or enable auto-merge: pair it with push_branch.
+	SSHKeySecret string `yaml:"ssh_key_secret" json:"ssh_key_secret,omitempty"`
+
+	// SSHHostAlias is the ssh_config Host the key is bound to. The alias IS the
+	// bound: with IdentitiesOnly yes, a push to git@github.com has no identity
+	// and fails, so the agent cannot reach any other repository.
+	SSHHostAlias string          `yaml:"ssh_host_alias" json:"ssh_host_alias,omitempty"`
+	Approval     *ApprovalConfig `yaml:"approval" json:"approval,omitempty"` // Approval workflow configuration
 
 	// Per-agent system prompt (v0.8.0+)
 	// Appended to the global meta-prompt for agent-specific instructions.
@@ -654,6 +679,12 @@ func (a *AgentConfig) GetEffectiveOutputMarkers() []string {
 		return a.OutputMarkers
 	}
 	return DefaultOutputMarkers(a.ID)
+}
+
+// GitIdentity is the git author for an agent's commits.
+type GitIdentity struct {
+	Name  string `yaml:"name" json:"name"`
+	Email string `yaml:"email" json:"email"`
 }
 
 // GetEffectiveArtifactPatterns returns the agent's artifact patterns, or defaults for known agents.
