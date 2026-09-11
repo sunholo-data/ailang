@@ -45,9 +45,20 @@ rig_yield_pending() {
   if [ -z "$req" ] || [ -z "$until_s" ]; then
     rm -f "$RIG_HANDOFF_FILE" 2>/dev/null; return 1
   fi
-  # `date -j -f ... -u` parses the RFC3339 stamp as UTC, which is what it is.
-  # Parsing it in the local zone is the CEST bug daneel already paid for once.
-  until_epoch=$(TZ=UTC date -j -u -f '%Y-%m-%dT%H:%M:%SZ' "$until_s" +%s 2>/dev/null) || true
+  # Parse the RFC3339 stamp as UTC, which is what it is. Parsing it in the local
+  # zone is the CEST bug daneel already paid for once.
+  #
+  # BSD form first (the rig is macOS), GNU form second. `date -j -f` is BSD-only:
+  # on Linux it fails, until_epoch comes back empty, and the branch below then
+  # treats "cannot parse" as "expired" and DELETES the handoff. So a Linux caller
+  # silently destroyed every handoff it looked at — and the Go test that drives
+  # this script runs on ubuntu in CI, where it failed exactly that way
+  # (2026-09-11: "shell read ABSENT" plus "filler got ACQUIRED", both from this
+  # one line). Production is macOS so the rig never saw it, which is precisely
+  # why it survived: the only platform that exercised it was the one it worked on.
+  until_epoch=$(TZ=UTC date -j -u -f '%Y-%m-%dT%H:%M:%SZ' "$until_s" +%s 2>/dev/null) \
+    || until_epoch=$(date -u -d "$until_s" +%s 2>/dev/null) \
+    || true
   now_s=$(date -u +%s)
   if [ -z "$until_epoch" ] || [ "$now_s" -ge "$until_epoch" ]; then
     rm -f "$RIG_HANDOFF_FILE" 2>/dev/null; return 1
