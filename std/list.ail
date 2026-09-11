@@ -104,6 +104,13 @@ export pure func take[a](n: int, xs: [a]) -> [a] {
 -- Delegates to the iterative builtin to avoid recursion-depth failures on large n.
 export pure func drop[a](n: int, xs: [a]) -> [a] = _list_drop(n, xs)
 
+-- contains: Is x an element of xs?
+-- Delegates to the _list_contains builtin, which the contract verifier encodes
+-- as SMT sequence membership — so `ensures { contains(allowed, result) }`
+-- verifies, where a hand-written recursive membership is skipped as
+-- "not SMT-encodable". The builtin existed since v0.5.x; this export did not.
+export pure func contains[a](xs: [a], x: a) -> bool = _list_contains(xs, x)
+
 -- ============================================================================
 -- Index Access (v0.6.5) - Element access by index
 -- ============================================================================
@@ -351,7 +358,8 @@ export pure func minimumString(xs: [string]) -> Option[string] {
 
 -- M-DOCPARSE-DX M2: Set operations
 
--- member: Check if element is in list
+-- member: Check if element is in list (argument order flipped vs contains).
+-- NOT SMT-encodable: in an ensures clause use contains(xs, x) instead.
 export pure func member[a](elem: a, xs: [a]) -> bool = _list_member(elem, xs)
 
 -- dedup: Remove duplicates, preserving first occurrence order
