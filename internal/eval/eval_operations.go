@@ -115,7 +115,13 @@ func (e *CoreEvaluator) evalCoreApp(app *core.App) (retVal Value, err error) {
 
 		// M-TRACE-EXPORT: Record function entry
 		funcName := extractFuncName(app.Func)
-		if recorder, ok := e.effContext.(TraceRecorder); ok && recorder.HasTraceCollector() {
+		// M-TRACE-TIER-NOT-ENFORCED: check the TIER before rendering. Each
+		// a.String() materialises the whole value, so for a function carrying an
+		// accumulator this loop is O(n) per call and O(n^2) over a recursion —
+		// the measured cause of 2059 MB peak RSS on a 400-iteration loop that
+		// costs 106 MB with tracing off. Rendering and then discarding would fix
+		// the retention and leave the memory cost exactly where it was.
+		if recorder, ok := e.effContext.(TraceRecorder); ok && recorder.HasTraceCollector() && recorder.RecordsFunctionCalls() {
 			argStrs := make([]string, len(args))
 			for i, a := range args {
 				argStrs[i] = a.String()
@@ -206,8 +212,10 @@ func (e *CoreEvaluator) evalCoreApp(app *core.App) (retVal Value, err error) {
 			e.resolver = oldResolver
 		}
 
-		// M-TRACE-EXPORT: Record function exit
-		if recorder, ok := e.effContext.(TraceRecorder); ok && recorder.HasTraceCollector() {
+		// M-TRACE-EXPORT: Record function exit.
+		// Tier-gated before rendering, for the same reason as the enter site above:
+		// result.String() on a returned accumulator is the other half of the O(n^2).
+		if recorder, ok := e.effContext.(TraceRecorder); ok && recorder.HasTraceCollector() && recorder.RecordsFunctionCalls() {
 			resultStr := ""
 			if result != nil {
 				resultStr = result.String()

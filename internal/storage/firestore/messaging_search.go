@@ -45,7 +45,7 @@ func (s *MessagingStore) SemanticSearch(opts messaging.SearchOptions) ([]messagi
 	}
 
 	// Compute SimHash of query for comparison
-	queryHash := simhashText(opts.Query)
+	queryHash := messaging.ComputeSimhash(opts.Query, "")
 
 	var hits []messaging.SearchHit
 	for {
@@ -58,11 +58,7 @@ func (s *MessagingStore) SemanticSearch(opts messaging.SearchOptions) ([]messagi
 		}
 		m := mapToInbox(doc.Data())
 
-		if m.Simhash == nil {
-			continue
-		}
-
-		score := simhashSimilarity(queryHash, *m.Simhash)
+		score := simhashSimilarity(queryHash, messageSimhash(m))
 		if score >= threshold {
 			hits = append(hits, messaging.SearchHit{
 				Message:   *m,
@@ -85,9 +81,6 @@ func (s *MessagingStore) FindSimilar(msgID string, threshold float64, limit int)
 	msg, err := s.GetInboxMessage(msgID)
 	if err != nil {
 		return nil, err
-	}
-	if msg.Simhash == nil {
-		return nil, nil
 	}
 
 	ctx := context.Background()
@@ -113,11 +106,11 @@ func (s *MessagingStore) FindSimilar(msgID string, threshold float64, limit int)
 			return nil, err
 		}
 		m := mapToInbox(doc.Data())
-		if m.ID == msgID || m.Simhash == nil {
+		if m.ID == msgID {
 			continue
 		}
 
-		score := simhashSimilarity(*msg.Simhash, *m.Simhash)
+		score := simhashSimilarity(messageSimhash(msg), messageSimhash(m))
 		if score >= threshold {
 			hits = append(hits, messaging.SearchHit{
 				Message:   *m,
@@ -159,10 +152,7 @@ func (s *MessagingStore) FindDuplicates(inbox string, threshold float64) ([]mess
 		if err != nil {
 			return nil, err
 		}
-		m := mapToInbox(doc.Data())
-		if m.Simhash != nil {
-			msgs = append(msgs, m)
-		}
+		msgs = append(msgs, mapToInbox(doc.Data()))
 	}
 
 	// Group by similarity using union-find approach
@@ -182,7 +172,7 @@ func (s *MessagingStore) FindDuplicates(inbox string, threshold float64) ([]mess
 			if used[j] {
 				continue
 			}
-			score := simhashSimilarity(*msgs[i].Simhash, *msgs[j].Simhash)
+			score := simhashSimilarity(messageSimhash(msgs[i]), messageSimhash(msgs[j]))
 			if score >= threshold {
 				group.Duplicates = append(group.Duplicates, *msgs[j])
 				if score < group.MinScore {
@@ -263,13 +253,20 @@ func (s *MessagingStore) UpdateMessageEnvelope(msgID string, env *messaging.Enve
 
 // --- SimHash helpers ---
 
-// simhashText computes a simple SimHash for text comparison.
-func simhashText(text string) int64 {
-	var hash int64
-	for i, r := range text {
-		hash ^= int64(r) << uint(i%8)
+// messageSimhash returns a message's simhash, computing it if the stored document
+// does not carry one.
+//
+// Every document written before the write path populated the field has
+// simhash=nil. The loops here used to `continue` past those, which silently
+// turned a full-corpus search into a no-op scan that reported "No messages
+// found" — a claim of absence produced by an index that was never built.
+// Computing on read keeps the whole historical corpus searchable without a
+// migration; the write path persists it for everything new.
+func messageSimhash(m *messaging.InboxMessage) int64 {
+	if m.Simhash != nil {
+		return *m.Simhash
 	}
-	return hash
+	return messaging.ComputeSimhash(m.Title, m.Payload)
 }
 
 // simhashSimilarity computes similarity between two SimHash values (0.0-1.0).

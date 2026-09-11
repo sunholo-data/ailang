@@ -427,7 +427,7 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 		}
 
 		fmt.Printf("execute-job: running %s executor (unified path)\n", provider)
-		execResult, execErr = runExecutor(ctx, execWorkDir, provider, directive, taskID, pluginDir, model, timeoutStr)
+		execResult, execErr = runExecutor(ctx, execWorkDir, provider, directive, taskID, pluginDir, model, timeoutStr, repoURL)
 		if execErr != nil {
 			return branchName, execResult, gitEvidence{}, fmt.Errorf("executor failed: %w", execErr)
 		}
@@ -474,8 +474,12 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 			commitMsg = fmt.Sprintf("%s\n\nTask: %s\nAgent: %s\nTimestamp: %s\n\nCo-Authored-By: %s",
 				subject, taskID, agentID, time.Now().UTC().Format(time.RFC3339), coAuthor)
 		} else {
-			commitMsg = fmt.Sprintf("Task %s: %s\n\nAgent: %s\nTimestamp: %s\n\nCo-Authored-By: %s",
-				taskID, directive, agentID, time.Now().UTC().Format(time.RFC3339), coAuthor)
+			// Subject is a bounded, readable summary; the FULL directive moves
+			// into the body. Previously the whole prompt was the subject line —
+			// raw JSON for a structured request, unbounded for prose.
+			commitMsg = fmt.Sprintf("%s\n\nTask: %s\nAgent: %s\nTimestamp: %s\n\n%s\n\nCo-Authored-By: %s",
+				agentCommitSubject(taskID, directive), taskID, agentID,
+				time.Now().UTC().Format(time.RFC3339), strings.TrimSpace(directive), coAuthor)
 		}
 
 		commitCmd := exec.CommandContext(ctx, "git", "-C", workDir, "commit", "-m", commitMsg)

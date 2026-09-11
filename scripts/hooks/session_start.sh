@@ -22,6 +22,23 @@
 # Environment variables:
 #   CLAUDE_ENV_FILE - File to write environment variables to (provided by Claude Code)
 
+
+# ISOLATED MISSION STAGE — emit nothing.
+#
+# A mission work item is meant to be FROZEN: same spec, same inputs, same result. This hook
+# injects prompt-MATCHED brain resolutions, so its content differs run to run with whatever is
+# in the brain DB that day. A stage whose input varies per run is not frozen, and the whole
+# work-item design rests on it being so.
+#
+# It is also the shape this repo has already been burned by: d6060c325 fixed the SessionStart
+# banner because "sessions arrived, found a backlog addressed to nobody in particular, and
+# triaged it instead of the work they were started for". Measured 2026-09-08, a mission
+# evaluator handed ambient repo instructions declined the job as a suspected prompt injection.
+#
+# The CONTROLLER is deliberately NOT isolated: it is a session-shaped agent and this context is
+# doing its job there. Only frozen stage execution is exempted.
+[ -n "${AILANG_MISSION_STAGE:-}" ] && exit 0
+
 set -euo pipefail
 
 # Read hook JSON from stdin (Claude Code sends hook data via stdin, not env var)
@@ -227,6 +244,106 @@ $FILTERED
     echo "$BRAIN_CONTEXT"
 }
 
+# ── Pending approvals: the lead line, and the only genuinely actionable one ──
+#
+# The message plane's binding constraint moved. Delivery, execution and the
+# design→plan→execute handoff all work now (measured 2026-09-07/08), so what
+# stalls the loop is no longer a lost message — it is a decision nobody was
+# told was waiting. Six approvals sat pending in prod the day this was written,
+# the oldest 8h, each one holding a finished branch; the banner said "20 unread"
+# and nothing about any of them.
+#
+# Unread counts are ambient. A pending approval is addressed to WHOEVER IS HERE,
+# so it leads, and it is the one block that names commands meant to be run.
+#
+# Fail-loud, per Principle 2: an unreachable queue prints UNREADABLE, never 0.
+# "No approvals pending" and "I could not ask" are the same picture to a reader
+# and opposite facts, and this project has been burned by exactly that shape
+# (the inbox banner reading local SQLite while prod held four months of unseen
+# feedback, 2026-08-26).
+get_approvals_context() {
+    local APPROVALS_TIMEOUT="${AILANG_APPROVALS_TIMEOUT:-5}"
+    local PLANE="${AILANG_APPROVALS_REMOTE:-gcp}"
+
+    if [ "${AILANG_APPROVALS_HOOK:-1}" = "0" ] || ! command -v ailang &> /dev/null; then
+        echo ""
+        return
+    fi
+
+    local JSON
+    JSON=$(run_bounded "$APPROVALS_TIMEOUT" ailang coordinator approvals --remote "$PLANE" --json 2>/dev/null || echo "")
+
+    if [ -z "$JSON" ] || ! echo "$JSON" | jq -e '.pending' >/dev/null 2>&1; then
+        log "Approvals query FAILED or timed out (plane: $PLANE)"
+        echo "⚖️  APPROVALS: UNREADABLE — could not reach the ${PLANE} queue (this is NOT 'none pending')
+     retry: ailang coordinator approvals --remote ${PLANE}"
+        return
+    fi
+
+    local COUNT ORPHANS AUTHORITY IDENTITY AUTH_REASON ACTIONABLE
+    COUNT=$(echo "$JSON" | jq '.pending | length')
+    ORPHANS=$(echo "$JSON" | jq '.orphans // 0')
+    AUTHORITY=$(echo "$JSON" | jq -r '.authority // false')
+    IDENTITY=$(echo "$JSON" | jq -r '.identity // ""')
+    AUTH_REASON=$(echo "$JSON" | jq -r '.authority_reason // ""')
+    ACTIONABLE=$(echo "$JSON" | jq '[.pending[] | select(.agent_actionable)] | length')
+
+    if [ "$COUNT" -eq 0 ] && [ "$ORPHANS" -eq 0 ]; then
+        log "No pending approvals on $PLANE"
+        echo ""
+        return
+    fi
+
+    # Oldest first — age is the whole signal. A row that has waited a day is a
+    # finished branch nobody merged, not a new arrival.
+    local ROWS
+    ROWS=$(echo "$JSON" | jq -r '
+        .pending | sort_by(.created_at) | .[0:5] | .[] |
+        "     " + .task_id
+          + "  " + (if .age_hours >= 24 then ((.age_hours/24)|floor|tostring) + "d"
+                    else ((.age_hours)|floor|tostring) + "h" end)
+          + (if .agent_actionable then "  ✓you-may" else "" end)
+          + (if (.diff_available|not) then "  ⚠NO-DIFF" else "  " + (.changed_files|tostring) + "f" end)
+          + (if (.handoff_targets|length) > 0 then "  →dispatches " + (.handoff_targets|join(",")) else "" end)
+          + "  " + (.description // "" | .[0:72])' 2>/dev/null)
+
+    local HEADER="⚖️  ${COUNT} APPROVAL(S) PENDING on ${PLANE} — work is finished and waiting on a decision"
+    if [ "$COUNT" -eq 0 ]; then
+        HEADER="⚖️  0 pending, but ${ORPHANS} STUCK task(s) the queue cannot show"
+    fi
+
+    local ORPHAN_LINE=""
+    if [ "$ORPHANS" -gt 0 ]; then
+        ORPHAN_LINE="
+     ⚠ plus ${ORPHANS} orphaned (awaiting an approval record that does not exist):
+       ailang coordinator approvals --remote ${PLANE} --clear-orphans"
+    fi
+
+    # Say who this session IS, and therefore whether it may decide.
+    #
+    # Authority is identity, not row quality (Mark, attended 2026-09-08): the
+    # default is none, and controller sessions — attended, or a mission loop on
+    # fable/astra/opus — may resolve unattended. The grant comes off the driver's
+    # own exports, so a controller demoted to a dry-out rung loses it by itself.
+    #
+    # It is ADVICE. An agent and Mark drive the same CLI against the same store,
+    # so nothing printed here can enforce anything; claiming otherwise would be a
+    # safeguard that does not exist.
+    local POLICY_LINE
+    if [ "$AUTHORITY" = "true" ]; then
+        POLICY_LINE="     YOU MAY DECIDE as ${IDENTITY} — ${ACTIONABLE} of ${COUNT} covered (✓you-may). ${AUTH_REASON}
+     Rows without ✓you-may stay Mark's (no visible diff, or an evaluator verdict that is not PASS)."
+    else
+        POLICY_LINE="     NOT yours to decide — surface, do not resolve. ${AUTH_REASON}"
+    fi
+
+    echo "$HEADER
+$ROWS$ORPHAN_LINE
+     review: ailang coordinator approvals --remote ${PLANE} [--full]
+     act:    ailang coordinator approve|reject <task-id> --remote ${PLANE} --yes
+$POLICY_LINE"
+}
+
 # Function to check for active sprint and return context
 get_sprint_context() {
     local SPRINT_DIR="$PROJECT_ROOT/.ailang/state/sprints"
@@ -296,9 +413,15 @@ if [ "$UNREAD_COUNT" -eq 0 ]; then
     # Check for active sprint and brain context even when no inbox messages
     SPRINT_CONTEXT=$(get_sprint_context)
     BRAIN_CONTEXT=$(get_brain_context)
+    # An empty inbox does NOT mean an empty decision queue — the two are
+    # independent, and approvals outlive the messages that created them.
+    APPROVALS_CONTEXT=$(get_approvals_context)
 
     # Output context (will appear in system reminders)
     echo "📦 AILANG $CURRENT_VERSION"
+    if [ -n "$APPROVALS_CONTEXT" ]; then
+        echo "$APPROVALS_CONTEXT"
+    fi
     echo "📭 Agent inbox: No unread messages — store: $STORE_LABEL"
     if [ -n "$SPRINT_CONTEXT" ]; then
         echo "$SPRINT_CONTEXT"
@@ -370,8 +493,17 @@ if [ -n "$SENDER_SUMMARY" ]; then
     INBOX_LINE="$INBOX_LINE · mostly: $SENDER_SUMMARY"
 fi
 
+# Approvals lead. They are the only block here that is addressed to whoever is
+# reading it, and the only one naming commands meant to be run.
+APPROVALS_CONTEXT=$(get_approvals_context)
+if [ -n "$APPROVALS_CONTEXT" ]; then
+    APPROVALS_CONTEXT="$APPROVALS_CONTEXT
+"
+fi
+
 CONTEXT_MESSAGE=$(cat <<EOF
-📦 AILANG $CURRENT_VERSION · $INBOX_LINE
+📦 AILANG $CURRENT_VERSION
+$APPROVALS_CONTEXT$INBOX_LINE
    Ambient, not a task list — read only if this session is about messages:
      ailang messages list --unread --json     (full ids + bodies; 'read' marks read)
    Send work to an agent (handoff topology comes from the registry, not the body):

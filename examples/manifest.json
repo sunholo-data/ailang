@@ -457,6 +457,28 @@
       ]
     },
     {
+      "path": "runnable/contracts/interpolation_verify.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "smt-verification",
+        "ailang-verify",
+        "string-interpolation",
+        "show-normalization",
+        "header-injection",
+        "m-smt-interp-show"
+      ],
+      "description": "Interpolated string builders under Z3 \u2014 \"${...}\" holes of string, bool and int type now verify, so an RFC 5322 composer's CR/LF injection guard is proved rather than tested",
+      "modules": [
+        "std/io",
+        "std/string"
+      ],
+      "expected": {
+        "stdout": "header/body separator: ok\nverbose=true\nquiet=false\ncount=42\ncount=-7\n",
+        "exit_code": 0
+      }
+    },
+    {
       "path": "runnable/contracts/list_recursive_verify.ail",
       "status": "working",
       "tags": [
@@ -2805,14 +2827,36 @@
         "stdout": "h\n\nstarts with h\nempty\n[a, ?, c]\n\ud83c\udf89\n",
         "exit_code": 0
       }
+    },
+    {
+      "path": "runnable/bytes_base64url.ail",
+      "status": "working",
+      "tags": [
+        "stdlib",
+        "std/bytes",
+        "base64url",
+        "encoding",
+        "jwt",
+        "gmail"
+      ],
+      "description": "base64url (RFC 4648 \u00a75): URL-safe alphabet, no padding, and an exact round-trip with fromBase64URL",
+      "modules": [
+        "std/bytes",
+        "std/io",
+        "std/option"
+      ],
+      "expected": {
+        "stdout": "standard : YStiL2M/\nURL-safe : YStiL2M_\npadded   : SGVsbG8=\nunpadded : SGVsbG8\nroundtrip: Subject: Caf\u00e9 \u2014 \u00fcn\u00efcode\nmismatch : <not valid base64url>\n",
+        "exit_code": 0
+      }
     }
   ],
   "statistics": {
-    "total": 199,
-    "working": 191,
+    "total": 201,
+    "working": 193,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9597989949748744,
+    "coverage": 0.9601990049751243,
     "experimental": 0
   },
   "milestones": {

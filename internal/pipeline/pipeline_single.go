@@ -476,6 +476,24 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 			result.PhaseTimings["monomorphization"])
 	}
 
+	// M-SMT-INTERP-SHOW: drop the `show` the interpolation desugar inserts around
+	// holes whose type makes it redundant (string) or trivially encodable (bool).
+	// Runs AFTER monomorphization so a generic helper's string instantiation is
+	// visible, and unconditionally so the DisableMonomorphization path is covered
+	// too. See internal/pipeline/show_normalize.go.
+	{
+		normalizer := NewShowNormalizer(&typeChecker.CoreTI)
+		normalized, err := normalizer.Normalize(coreProg)
+		if err != nil {
+			return result, fmt.Errorf("show normalization failed: %w", err)
+		}
+		coreProg = normalized
+		if cfg.DebugCompile {
+			fmt.Fprintf(os.Stderr, "[DEBUG] ShowNormalize: %d elided, %d rewritten, %d residue\n",
+				normalizer.Elided, normalizer.Rewritten, normalizer.Residue)
+		}
+	}
+
 	// Phase 3.5.5: Var Type Resolution (M-DX4 workaround)
 	// Resolve Var types from monomorphic bindings to fix operand types for lowering.
 	// This propagates concrete types from Let bindings to Var usages when the binding

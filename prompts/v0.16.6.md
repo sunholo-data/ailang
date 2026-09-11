@@ -632,7 +632,7 @@ import std/ai (call, callJson, callJsonSimple)
 import std/sem (make_frame_at, store_frame, load_frame, update_frame)
 import std/option (Option, Some, None)
 import std/result (Result, Ok, Err)
-import std/bytes (fromString, toString, toBase64, fromBase64, length, slice, fromInts, toInts, byteAt)
+import std/bytes (fromString, toString, toBase64, fromBase64, toBase64URL, fromBase64URL, length, slice, fromInts, toInts, byteAt)
 import std/stream (connect, transmit, transmitBinary, onEvent, runEventLoop, disconnect, sseConnect, ssePost, withSSE, sourceOfConn, asyncReadStdinLines, asyncExecProcess, selectEvents, StreamConn, StreamSource, StreamEvent, Message, Binary, Opened, Closed, StreamError, Ping, SSEData, SourceText, SourceBytes)
 import std/process (exec, spawnProcess, writeProcessStdin, closeProcessStdin, ProcessHandle)
 import std/zip (_zip_listEntries, _zip_readEntry, _zip_readEntryBytes)
@@ -726,8 +726,10 @@ let total = foldlE(func(acc: int, x: int) -> int ! {IO} { println("fold"); acc +
 **Bytes functions** (std/bytes) — pure binary data operations:
 - `fromString(s) -> bytes` - UTF-8 encode string to bytes
 - `toString(b) -> string` - Decode bytes to UTF-8 string
-- `toBase64(b) -> string` - Base64 encode
-- `fromBase64(s) -> Option[bytes]` - Base64 decode (None if invalid)
+- `toBase64(b) -> string` - Base64 encode (standard alphabet, padded)
+- `fromBase64(s) -> Option[bytes]` - Base64 decode (None if invalid; REQUIRES padding)
+- `toBase64URL(b) -> string` - base64url encode (RFC 4648 §5: URL-safe alphabet, NO padding). Required by the Gmail API's `raw` field and by JWT segments. Do NOT hand-roll it from `toBase64` + `replaceMany` — a missed substitution still looks like valid base64 and is rejected at the far end: `toBase64(fromString("a+b/c?"))` is `"YStiL2M/"`, `toBase64URL` of the same bytes is `"YStiL2M_"`
+- `fromBase64URL(s) -> Option[bytes]` - base64url decode (None if invalid; REJECTS padding). Exact inverse of `toBase64URL`
 - `length(b) -> int` - Byte length
 - `slice(b, start, len) -> Option[bytes]` - Extract subsequence (None if out of bounds)
 - `fromInts(xs: [int]) -> bytes` - Construct bytes from list of integers (0-255)
@@ -1980,7 +1982,8 @@ verifyWithKid(token, \kid. lookupKey(kid, jwks))
 ```
 
 Backed by `rsaVerifyPKCS1v15(message, signature, publicKeyPEM)` in
-`std/crypto`, plus `fromBase64URL` in `std/bytes` (RFC 4648 §5, no padding).
+`std/crypto`, plus `fromBase64URL`/`toBase64URL` in `std/bytes` (RFC 4648 §5,
+no padding — the pair round-trips exactly).
 JWT functions are pure — fetch keys yourself via `std/net`.
 
 ## Custom Tracing (std/trace, v0.11.1)

@@ -10,7 +10,17 @@
   Tunables via EnvironmentVariables below:
     OS_FILLER_CHUNK           benchmarks per cycle (default 3)
     OS_FILLER_TIMEOUT         wall budget per chunk (default 1500s)
-    OS_FILLER_BLACKOUT_START  / OS_FILLER_BLACKOUT_END  (default 04:00-07:00)
+    OS_FILLER_NIGHTLY_START   nightly's start time; READ FROM ITS PLIST when one
+                              is installed, so the two cannot drift (fallback 03:00)
+    OS_FILLER_PRE_NIGHTLY_MIN how long before that to stop starting chunks
+                              (default 60). This replaced a fixed 04:00-07:00
+                              blackout, which was sized for a ~3h nightly and had
+                              stopped being true: the nightly now runs 03:00 to
+                              roughly 13:00, so the window never covered the job it
+                              was named for, and skipped three hours of free rig on
+                              the days it DID finish early. What covers the nightly
+                              while it runs is the rig lock; all this guard does is
+                              keep us out of the run-up.
     OS_FILLER_MODELS         comma list (default opencode-qwen3 + pi-qwen3 —
                              the cross-harness pair on the same local model)
     OS_FILLER_LANGS          ailang,python,javascript,go

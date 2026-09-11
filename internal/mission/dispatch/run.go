@@ -174,19 +174,59 @@ func (r *Runner) preflight(ctx context.Context, c Candidate) (executor.Executor,
 	return e, ""
 }
 
+// evaluatorTools is what an evaluator may hold: everything readable, nothing that mutates.
+//
+// pi's defaults are read, bash, edit and write. An evaluator was therefore handed edit and
+// write while its own contract told it, in prose, to "preserve HEAD and all tracked files",
+// "do not repair the candidate" and "do not add review docs in the workspace" — three
+// mutation prohibitions, none enforced. A judge that can silently rewrite the artifact it is
+// judging invalidates the acceptance evidence, and no amount of instruction text makes that
+// safe. internal/mission/quorum already bounds question-kind tasks this way; the stage path
+// simply never did.
+//
+// bash STAYS. The evaluator contract requires it — the bound verification commands are run
+// through it — so a read-only allowlist would break the role rather than protect it.
+// grep/find/ls are OFF by default in pi and are added here deliberately: they strictly
+// increase what an evaluator can read, so this allowlist cannot break an evaluator that
+// worked before, while removing every tool that can write.
+var evaluatorTools = []string{"read", "bash", "grep", "find", "ls"}
+
 func taskFor(r Request, c Candidate) *executor.Task {
 	m := c.config
+	var allowed []string
+	isEvaluator := strings.EqualFold(r.Role, "evaluator")
+	if isEvaluator {
+		allowed = evaluatorTools
+	}
 	return &executor.Task{
-		ID:           strings.Join([]string{r.MissionID, r.WorkItemID, r.StageID, r.AttemptID}, "/"),
-		ParentTaskID: r.WorkItemID, Directive: r.Instructions,
+		AllowedTools: allowed,
+		// SCOPED TO THE EVALUATOR DELIBERATELY. Its contract states that the bound packet
+		// is the evidence, so ambient repo instructions are pure contamination. Author
+		// roles are left alone pending a decision: they arguably SHOULD follow the repo's
+		// conventions while writing code, and silently changing that could regress every
+		// executor with no evidence either way. The determinism argument applies to them
+		// too — a frozen work item whose behaviour depends on today's AGENTS.md is not
+		// frozen — but that is a ruling, not a refactor.
+		IsolateFromAmbientContext: isEvaluator,
+		ID:                        strings.Join([]string{r.MissionID, r.WorkItemID, r.StageID, r.AttemptID}, "/"),
+		ParentTaskID:              r.WorkItemID, Directive: r.Instructions,
 		SystemPrompt: fmt.Sprintf("Mission role contract v1. Role: %s. Input revision declared by caller: %s. Request digest: %s. Produce the requested artifact; execution success is not acceptance or permission to publish.", r.Role, r.InputRevision, r.Digest()),
 		Workspace:    r.Workspace, Model: c.WireModel, Timeout: time.Duration(r.TimeoutSeconds) * time.Second,
 		MaxTokensPerBench: r.MaxTokens, MaxOutputTokens: m.MaxOutputTokens, ReasoningEffort: m.ReasoningEffort,
 		TTFTTimeout: time.Duration(m.TTFTTimeoutSeconds) * time.Second, IdleTimeout: time.Duration(m.GenerationTimeoutSeconds) * time.Second,
 		GCPProject: m.GCPProject, GCPLocation: m.GCPLocation,
-		Budget:   executor.NewCostBudget(r.MaxCostUSD, m.Pricing.InputPer1K, m.Pricing.OutputPer1K),
-		Pricing:  &executor.CostModel{InputTokenCost: m.Pricing.InputPer1K, OutputTokenCost: m.Pricing.OutputPer1K, CacheReadCost: m.Pricing.CacheReadPer1K},
-		ExtraEnv: map[string]string{"AILANG_MESSAGES_STORE": "gcp", "AILANG_MESSAGES_PROJECT": "ailang-multivac"},
+		Budget:  executor.NewCostBudget(r.MaxCostUSD, m.Pricing.InputPer1K, m.Pricing.OutputPer1K),
+		Pricing: &executor.CostModel{InputTokenCost: m.Pricing.InputPer1K, OutputTokenCost: m.Pricing.OutputPer1K, CacheReadCost: m.Pricing.CacheReadPer1K},
+		ExtraEnv: map[string]string{
+			"AILANG_MESSAGES_STORE": "gcp", "AILANG_MESSAGES_PROJECT": "ailang-multivac",
+			// Marks this process as FROZEN STAGE EXECUTION so the repo's Claude Code hooks
+			// inject nothing into it. Applies to EVERY role, unlike the AGENTS.md isolation
+			// above: repo conventions are arguably an author's business, but prompt-matched
+			// brain resolutions and an inbox banner are neither conventions nor contract —
+			// they are per-run-variable content, and a work item whose input varies run to
+			// run is not frozen. Read by scripts/hooks/{brain_on_prompt,session_start}.sh.
+			"AILANG_MISSION_STAGE": "1",
+		},
 		Metadata: map[string]string{"chain_id": r.WorkItemID, "stage_id": r.StageID, "mission_id": r.MissionID, "request_digest": r.Digest()},
 	}
 }

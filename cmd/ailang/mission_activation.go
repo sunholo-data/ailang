@@ -148,15 +148,11 @@ func runMissionActivation(ctx context.Context, args []string, out io.Writer, d m
 		return err
 	}
 	work := filepath.Join(dir, o.operation+".work-item.json")
-	if err = os.MkdirAll(dir, 0700); err != nil {
+	// One implementation, build-tagged in internal/mission/activation: this was an
+	// un-tagged inline copy, and on Windows MkdirAll(dir, 0700) does not yield 0700, so it
+	// rejected every directory it had just created.
+	if err = activation.EnsurePrivateDir(dir); err != nil {
 		return err
-	}
-	info, err := os.Lstat(dir)
-	if err != nil {
-		return err
-	}
-	if !info.IsDir() || info.Mode().Perm()&0077 != 0 {
-		return errors.New("activation state directory must be private and not a symlink")
 	}
 	frozen, err := json.Marshal(spec)
 	if err != nil {

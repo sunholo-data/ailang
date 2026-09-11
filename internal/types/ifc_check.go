@@ -234,13 +234,23 @@ func (c *ifcChecker) labelOf(expr ast.Expr, env map[string]Label) Label {
 	case *ast.Tuple:
 		return c.joinElems(e.Elements, env)
 	case *ast.Lambda:
-		// A closure value carries no label; still walk the body so sink
-		// violations fed by captured labelled variables are reported.
-		c.labelOf(e.Body, env)
-		return LabelBottom()
+		// A closure carries the label of what it RETURNS.
+		//
+		// This used to return LabelBottom() on the reasoning that "a closure
+		// value carries no label". True of the function value itself, but it
+		// made the guarantee bypassable in three tokens, because applying the
+		// closure then yielded an unlabelled result:
+		//
+		//   let f = \u. s in sink(f(0))   -- s : string<secret>, sink : {not secret}
+		//
+		// Propagating the body's label is a conservative over-approximation: it
+		// can label a closure whose result a caller never uses, which blocks more
+		// than strictly necessary. For a security control that is the correct
+		// direction to err — over-approximating rejects safe programs, while
+		// under-approximating admits leaks silently.
+		return c.labelOf(e.Body, env)
 	case *ast.FuncLit:
-		c.labelOf(e.Body, env)
-		return LabelBottom()
+		return c.labelOf(e.Body, env)
 	default:
 		return LabelBottom()
 	}
@@ -279,8 +289,16 @@ func (c *ifcChecker) labelOfCall(call *ast.FuncCall, env map[string]Label) Label
 	if src, ok := ifcBuiltinSourceLabels[name]; ok {
 		return LabelConst(src)
 	}
-	// Unknown or imported callee: transparent — propagate the join of args.
-	return joinLabels(argLabels)
+	// Unknown or imported callee: transparent — propagate the join of the args
+	// AND of the callee expression itself.
+	//
+	// The callee's own label is what makes a local closure safe. `f` in
+	// `let f = \u. s in f(0)` has no entry in c.sigs (it is a binding, not a
+	// declaration), so this fallback is the path it takes; joining only the
+	// argument labels discarded the captured <secret> entirely and made the
+	// guarantee bypassable in three tokens. c.labelOf on the callee reads the
+	// binding out of env, where the Let case put it.
+	return LabelJoin(c.labelOf(call.Func, env), joinLabels(argLabels))
 }
 
 // calleeResultLabel computes the label produced by calling a known local function.

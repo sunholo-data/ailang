@@ -50,6 +50,19 @@ func (e *TypedEvaluator) valuesEqual(left, right interface{}) bool {
 	return false
 }
 
+// tracedValueMaxBytes bounds a value rendered into this evaluator's trace.
+//
+// Mirrors trace.DefaultMaxValueBytes deliberately rather than importing it: the
+// eval package reaches the trace subsystem through interfaces, not a direct
+// dependency, and one constant is not worth inverting that. If the collector's
+// policy changes, change this with it.
+//
+// The previous call site passed 10, which boundedShow ignored along with every
+// other bound. Honouring 10 as a byte budget would have truncated every traced
+// value to ten characters, so the budget is restated here rather than the stub
+// simply being made literal.
+const tracedValueMaxBytes = 1024
+
 // recordTrace records a function call trace
 func (e *TypedEvaluator) recordTrace(app *typedast.TypedApp, fn Value, args []Value) {
 	if e.trace == nil || !e.trace.Enabled {
@@ -60,7 +73,7 @@ func (e *TypedEvaluator) recordTrace(app *typedast.TypedApp, fn Value, args []Va
 	// For now, create a placeholder trace
 	var inputs []string
 	for _, arg := range args {
-		inputs = append(inputs, boundedShow(arg, 3, 10))
+		inputs = append(inputs, boundedShow(arg, 3, tracedValueMaxBytes))
 	}
 
 	entry := TraceEntry{
@@ -89,8 +102,21 @@ func (e *TypedEvaluator) getTimestamp() int64 {
 
 // boundedShow produces bounded string representation
 func boundedShow(v Value, maxDepth, maxWidth int) string {
-	// TODO: Implement bounded show with depth/width limits
-	return showValue(v, 0)
+	// This used to ignore BOTH limits and call showValue unbounded, while its
+	// caller (recordTrace) relied on it to keep trace values small — the same
+	// defect as M-TRACE-TIER-NOT-ENFORCED, latent in the typed evaluator's
+	// tracing path. A helper that takes bounds and discards them is worse than
+	// one that does not take them: the caller believes it is protected.
+	//
+	// maxWidth is honoured as a byte budget on the rendered result, matching the
+	// collector's per-value policy (trace.DefaultMaxValueBytes), with an explicit
+	// marker so an elided value is distinguishable from a short one. maxDepth is
+	// applied by showValue's own depth limiting.
+	s := showValue(v, 0)
+	if maxWidth > 0 && len(s) > maxWidth {
+		return fmt.Sprintf("%s…(+%d bytes elided)", s[:maxWidth], len(s)-maxWidth)
+	}
+	return s
 }
 
 // capRequirer is implemented by effect contexts that gate effects on granted

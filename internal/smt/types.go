@@ -313,6 +313,15 @@ var StringBuiltinSpecial = map[string]StringBuiltinSpec{
 	"_str_slice": {Op: "str.substr", SubstrMode: true},
 	// _str_contains(s,sub) → (str.contains s sub)
 	"_str_contains": {Op: "str.contains"},
+	// _string_intToStr(n) → (ite (>= n 0) (str.from_int n) (str.++ "-" (str.from_int (- n))))
+	//
+	// M-SMT-INTERP-SHOW M2. Z3's str.from_int is defined only for non-negative
+	// arguments and returns "" for a negative one, so the bare (str.from_int n)
+	// would be SILENTLY WRONG for every negative input — AILANG renders -5 as
+	// "-5" (strconv.Itoa). The sign branch makes the encoding exact, and it
+	// never passes a negative to str.from_int, so it stays correct even if a
+	// future solver starts defining that case.
+	"_string_intToStr": {Op: "str.from_int", IntToStrMode: true},
 }
 
 // StringBuiltinSpec describes how to encode a string builtin in SMT-LIB.
@@ -322,6 +331,9 @@ type StringBuiltinSpec struct {
 	Unary      bool   // Single argument
 	AppendZero bool   // Append literal 0 as extra argument
 	SubstrMode bool   // Convert (s, start, end) → (str.substr s start (- end start))
+	// IntToStrMode encodes a signed integer→string conversion with an explicit
+	// sign branch; see the "_string_intToStr" entry above.
+	IntToStrMode bool
 }
 
 // ListBuiltinSpecial maps AILANG list builtins that need non-standard encoding.
@@ -389,6 +401,9 @@ var StdlibStringToSMT = map[string]string{
 	"startsWith": "_str_startsWith",
 	"endsWith":   "_str_endsWith",
 	"contains":   "_str_contains",
+	// M-SMT-INTERP-SHOW M2: the normalizer emits the $builtin ref directly, but a
+	// user's own `import std/string (intToStr)` should verify too.
+	"intToStr": "_string_intToStr",
 }
 
 // StdlibListToSMT maps std/list function names to their builtin equivalents.

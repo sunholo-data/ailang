@@ -14,7 +14,67 @@ permissions:
   contents: read
 
 jobs:
+  # Which lane is this change in?
+  #
+  # A design-doc PR is one markdown file under design_docs/, and it was being
+  # gated on the whole compiler matrix: macOS builds, Windows tests, and a bash
+  # 3.2 shell suite. Measured 2026-09-10 — PR #1143 (a single .md) was red on
+  # `TestPipelineModulePhases_DebugCacheFormsAndCounters`, a compiler pipeline
+  # test it could not possibly affect. Four design docs sat unmerged, the oldest
+  # nine days, none of them for a reason to do with their content.
+  #
+  # The filter is JOB-LEVEL, deliberately. A workflow-level `paths:` filter would
+  # mean the required contexts (test, lint, build, docs-gate) never report at
+  # all, and branch protection blocks on "Expected — waiting for status"
+  # FOREVER. A job skipped by `if:` still produces a check run, and GitHub counts
+  # a skipped required check as satisfied. The distinction is the whole design.
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.classify.outputs.code }}
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        fetch-depth: 0
+
+    - name: Classify the change
+      id: classify
+      env:
+        BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      run: |
+        set -euo pipefail
+        # Anything that is not a pure documentation file counts as code, and the
+        # DEFAULT IS CODE: a push, a dispatch, an unreadable diff, or a path this
+        # rule has not thought about all run the full matrix. A misclassification
+        # that runs too much costs minutes; one that runs too little merges
+        # untested code.
+        if [ "${{ github.event_name }}" != "pull_request" ]; then
+          echo "code=true" >> "$GITHUB_OUTPUT"
+          echo "not a pull_request event -> full matrix"
+          exit 0
+        fi
+        if ! files=$(git diff --name-only "${BASE_SHA}"...HEAD 2>/dev/null) || [ -z "$files" ]; then
+          echo "code=true" >> "$GITHUB_OUTPUT"
+          echo "could not read the diff -> full matrix"
+          exit 0
+        fi
+        echo "changed files:"
+        echo "$files" | while read -r f; do echo "  $f"; done
+        # Docs-only lane: design docs and changelogs. NOT docs/ (the website has
+        # its own build), NOT .md anywhere (CLAUDE.md and .claude/**/*.md change
+        # agent behaviour and must stay gated).
+        if echo "$files" | grep -qvE '^(design_docs/.*\.md|changelogs/.*\.md)$'; then
+          echo "code=true" >> "$GITHUB_OUTPUT"
+          echo "-> code lane (full matrix)"
+        else
+          echo "code=false" >> "$GITHUB_OUTPUT"
+          echo "-> docs-only lane (compiler matrix skipped)"
+        fi
+
   test:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
@@ -406,6 +466,8 @@ jobs:
   # -args-file / -args-json - paths that motivated this work. Future work:
   # expand to make verify-examples / make test-imports once stable.
   test-windows:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: windows-latest
     timeout-minutes: 25
 
@@ -522,7 +584,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: test
+    needs: [changes, test]
+    if: needs.changes.outputs.code == 'true'
     
     steps:
     - uses: actions/checkout@v7
@@ -620,6 +683,8 @@ jobs:
     # green on bash 5 proves nothing about the constraint that actually bites here — every
     # `declare -A` or ${v,,} that reaches tools/launchd/ breaks the rig and passes on ubuntu.
     # No Go, no cache: these are shell + git tests and nothing else.
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: macos-latest
     timeout-minutes: 15
 
@@ -651,6 +716,8 @@ jobs:
 
   govulncheck:
     name: govulncheck (vuln gate)
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     # Reads .govulncheck-allow.yml. Fails on any new finding or any

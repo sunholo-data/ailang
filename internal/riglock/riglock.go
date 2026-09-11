@@ -123,7 +123,12 @@ func holderAlive(dir string) bool {
 	return pidAlive(pid)
 }
 
-// Acquire attempts to take the rig lock.
+// Acquire attempts to take the rig lock as an unnamed caller. See AcquireAs.
+func Acquire(mode Mode) (bool, Release, error) {
+	return AcquireAs(mode, "")
+}
+
+// AcquireAs attempts to take the rig lock on behalf of a named requester.
 //
 //   - If an ancestor already holds it (EnvHeld=1), returns (true, noop-release,
 //     nil) without touching the filesystem — the ancestor owns release.
@@ -132,11 +137,37 @@ func holderAlive(dir string) bool {
 //   - In Wait mode, blocks until the lock is free.
 //
 // A stale lock (directory older than the staleness window) is stolen. On
-// success Acquire writes a holder file and sets EnvHeld=1 for child processes.
-func Acquire(mode Mode) (bool, Release, error) {
+// success it writes a holder file and sets EnvHeld=1 for child processes.
+//
+// requester names this caller for the cooperative-yield protocol (yield.go).
+// While a handoff to SOMEONE ELSE is in force, the gap the holder opened
+// belongs to the named requester: a NoWait caller is refused rather than
+// allowed to race into it, and a Wait caller queues behind it. Pass the same
+// name here that was given to RequestYield; "" means "not the requester", which
+// is the right default for every caller that never asks for a yield.
+func AcquireAs(mode Mode, requester string) (bool, Release, error) {
 	if HeldByAncestor() {
 		return true, func() {}, nil
 	}
+	requester = strings.TrimSpace(requester)
+	for {
+		y, pending := PendingYield()
+		if !pending || y.Requester == requester {
+			break
+		}
+		if mode == NoWait {
+			return false, func() {}, nil
+		}
+		time.Sleep(yieldPollInterval)
+	}
+	return acquireDir(mode)
+}
+
+// acquireDir does the raw mkdir-lock work with no ancestor or handoff checks.
+// Checkpoint re-acquires through here because both of those guards would be
+// wrong for it: it IS the ancestor-held holder stepping back in, and the
+// handoff it is honouring is the one it just served.
+func acquireDir(mode Mode) (bool, Release, error) {
 	dir := lockDir()
 	if err := os.MkdirAll(filepath.Dir(dir), 0o755); err != nil {
 		return false, func() {}, fmt.Errorf("riglock: cannot create state dir: %w", err)

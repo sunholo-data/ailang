@@ -17,6 +17,36 @@ type Collector struct {
 	depth     int
 	enabled   bool
 
+	// retainedBytes tracks the approximate size of the values held in events,
+	// so the retention cap can be expressed in BYTES. Event count is the wrong
+	// dimension: one function_enter carrying an accumulator was measured at
+	// 6,133 bytes, so a count cap admits a thousand fat events (6 MB) while
+	// rejecting a hundred thousand thin ones (2 MB).
+	retainedBytes int
+	// dropped counts events evicted by the retention cap. Surfaced so a
+	// truncated trace announces itself rather than silently lying.
+	dropped int
+
+	// valueMode decides whether values are recorded at all. Orthogonal to tier.
+	valueMode ValueMode
+
+	// maxValueBytes bounds each rendered argument/result. This is what turns a
+	// recursion over a growing accumulator from O(n^2) into O(n): every call
+	// still gets its event, but no single value can be arbitrarily large.
+	maxValueBytes int
+	// maxRetainedBytes bounds the total retained. On overflow the OLDEST events
+	// are evicted — the tail is what a debugger needs.
+	maxRetainedBytes int
+
+	// tier governs WHICH events are recorded. Before M-TRACE-TIER-NOT-ENFORCED
+	// the collector had no tier at all: it was resolved in cmd/ailang, used to
+	// decide whether a collector existed and which banner to print, and never
+	// passed in — so `standard` and `deep` recorded identically, against the
+	// documented behavior in options.go. That cost 2059 MB of peak RSS on a
+	// 400-iteration accumulator loop (106 MB with tracing off), and made every
+	// function's arguments and results a retained value surface by default.
+	tier Tier
+
 	// Track function entry times for duration calculation
 	funcEntryTimes map[int]time.Time // depth -> entry time
 
@@ -30,17 +60,42 @@ type Collector struct {
 	spanStack []string // stack of active span IDs (push on enter, pop on exit)
 }
 
-// NewCollector creates a new trace collector.
+// NewCollector creates a new trace collector that records everything.
+//
+// Callers with a tier in hand should use NewCollectorWithTier. This constructor
+// defaults to TierDeep because a caller that supplied no tier has expressed no
+// preference, and silently recording LESS than such a caller expects would lose
+// data with no diagnostic. The CLI always passes a tier.
 func NewCollector() *Collector {
+	return NewCollectorWithTier(TierDeep)
+}
+
+// NewCollectorWithTier creates a collector that records only what the given tier
+// admits. See Tier in options.go for what each one covers.
+func NewCollectorWithTier(tier Tier) *Collector {
 	return &Collector{
-		events:         make([]TraceEvent, 0, 256),
-		startTime:      time.Now(),
-		depth:          0,
-		enabled:        true,
-		funcEntryTimes: make(map[int]time.Time),
-		traceID:        generateID(16), // 32-hex-char trace ID (W3C trace-context)
-		spanStack:      make([]string, 0, 16),
+		events:           make([]TraceEvent, 0, 256),
+		startTime:        time.Now(),
+		depth:            0,
+		enabled:          true,
+		tier:             tier,
+		maxValueBytes:    DefaultMaxValueBytes,
+		maxRetainedBytes: DefaultMaxRetainedBytes,
+		funcEntryTimes:   make(map[int]time.Time),
+		traceID:          generateID(16), // 32-hex-char trace ID (W3C trace-context)
+		spanStack:        make([]string, 0, 16),
 	}
+}
+
+// RecordsFunctionCalls reports whether per-call function events are admitted at
+// this collector's tier.
+//
+// Exposed so the evaluator can skip RENDERING arguments that would be discarded.
+// The rendering — a String() per argument, per call — is where the superlinear
+// cost is actually paid, so gating only inside the collector would fix the
+// retention without fixing the memory.
+func (c *Collector) RecordsFunctionCalls() bool {
+	return c.tier >= TierDeep
 }
 
 // generateID returns a random hex string of the given byte length (2*n hex chars).
@@ -108,8 +163,7 @@ func (c *Collector) RecordModuleStart(name string, caps []string) {
 			Caps: caps,
 		},
 	}
-	c.events = append(c.events, evt)
-	c.notify(evt)
+	c.record(evt)
 }
 
 // RecordModuleEnd records module completion.
@@ -129,13 +183,12 @@ func (c *Collector) RecordModuleEnd(name string, durationNS int64) {
 			DurationNS: durationNS,
 		},
 	}
-	c.events = append(c.events, evt)
-	c.notify(evt)
+	c.record(evt)
 }
 
 // RecordFunctionEnter records function call entry.
 func (c *Collector) RecordFunctionEnter(name string, args []string) {
-	if !c.Enabled() {
+	if !c.Enabled() || !c.RecordsFunctionCalls() {
 		return
 	}
 	c.depth++
@@ -155,13 +208,12 @@ func (c *Collector) RecordFunctionEnter(name string, args []string) {
 			Args: args,
 		},
 	}
-	c.events = append(c.events, evt)
-	c.notify(evt)
+	c.record(evt)
 }
 
 // RecordFunctionExit records function return.
 func (c *Collector) RecordFunctionExit(name string, result string) {
-	if !c.Enabled() {
+	if !c.Enabled() || !c.RecordsFunctionCalls() {
 		return
 	}
 	var durationNS int64
@@ -183,8 +235,7 @@ func (c *Collector) RecordFunctionExit(name string, result string) {
 			DurationNS: durationNS,
 		},
 	}
-	c.events = append(c.events, evt)
-	c.notify(evt)
+	c.record(evt)
 	if c.depth > 0 {
 		c.depth--
 	}
@@ -215,8 +266,7 @@ func (c *Collector) RecordEffect(effectName, opName string, args []string, resul
 		SpanID:      c.currentSpanID(),
 		Effect:      &evt,
 	}
-	c.events = append(c.events, traceEvt)
-	c.notify(traceEvt)
+	c.record(traceEvt)
 }
 
 // RecordModedEffect records an effect invocation carrying a parameterised-effect
@@ -249,8 +299,7 @@ func (c *Collector) RecordModedEffect(effectName, opName string, args []string, 
 		SpanID:      c.currentSpanID(),
 		Effect:      &evt,
 	}
-	c.events = append(c.events, traceEvt)
-	c.notify(traceEvt)
+	c.record(traceEvt)
 }
 
 // RecordAIEffect records an AI effect invocation with optional routing metadata.
@@ -283,8 +332,7 @@ func (c *Collector) RecordAIEffect(opName string, args []string, result string, 
 		SpanID:      c.currentSpanID(),
 		Effect:      &evt,
 	}
-	c.events = append(c.events, traceEvt)
-	c.notify(traceEvt)
+	c.record(traceEvt)
 }
 
 // RecordContractCheck records a contract verification result.
@@ -307,8 +355,7 @@ func (c *Collector) RecordContractCheck(kind string, passed bool, msg, location,
 			Function: function,
 		},
 	}
-	c.events = append(c.events, evt)
-	c.notify(evt)
+	c.record(evt)
 }
 
 // RecordBudgetDelta records a budget state change after an effect invocation.
@@ -331,8 +378,7 @@ func (c *Collector) RecordBudgetDelta(effect string, used, limit, remaining, phy
 			Physical:  physical,
 		},
 	}
-	c.events = append(c.events, evt)
-	c.notify(evt)
+	c.record(evt)
 }
 
 // RecordError records an error event.
@@ -352,8 +398,7 @@ func (c *Collector) RecordError(msg, location string) {
 			Location: location,
 		},
 	}
-	c.events = append(c.events, evt)
-	c.notify(evt)
+	c.record(evt)
 }
 
 // BaseTime returns the collector's creation time.

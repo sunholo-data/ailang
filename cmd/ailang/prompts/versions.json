@@ -1005,15 +1005,16 @@
     },
     "v0.16.6": {
       "file": "prompts/v0.16.6.md",
-      "hash": "2a868106214d3a4fc94dcb5431560cebacbec05c1e1835a168b8dcb15f804b67",
-      "description": "v0.16.5 + strict-evaluation guidance for fused takeFlatMap and allocating-f takeMap forms.",
+      "hash": "1f2144ba3a8a8b7400a7643f862888faf9e1e0b0fd6545034195c4c778fd5515",
+      "description": "v0.16.5 + strict-evaluation guidance for fused takeFlatMap and allocating-f takeMap forms, + std/bytes.toBase64URL.",
       "created": "2026-08-12",
       "tags": [
         "production",
+        "strict-evaluation",
         "latest",
-        "strict-evaluation"
+        "stdlib-discoverability"
       ],
-      "notes": "Teaches that take(n, flatMap(f, xs)) materialises all outputs under strict evaluation and should be rewritten as takeFlatMap(n, f, xs), while stating the remaining source-list and single-f(x) bounds. Also teaches takeMap for take-after-map when f allocates. v0.16.5 remains served byte-identical for pinned eval baselines."
+      "notes": "Teaches that take(n, flatMap(f, xs)) materialises all outputs under strict evaluation and should be rewritten as takeFlatMap(n, f, xs), while stating the remaining source-list and single-f(x) bounds. Also teaches takeMap for take-after-map when f allocates. v0.16.5 remains served byte-identical for pinned eval baselines. M-STD-BASE64URL-ENCODE (2026-09-08) amends this UNFROZEN head in place rather than cutting v0.16.7: v0.16.6 carries no banked corpus evidence, so no eval baseline is pinned to it and `ailang prompt freeze v0.16.6` correctly refuses; the registry admits exactly one mutable head (TestRealRegistry_PostMigrationSplitCounts) and this is it. Adds std/bytes.toBase64URL: the canonical `import std/bytes (...)` line gains toBase64URL/fromBase64URL (it listed neither), the bytes function list gains both URL entries and now records that fromBase64 REQUIRES padding while fromBase64URL REJECTS it, and the JWT section names the pair as an exact round-trip. It states the concrete divergence rather than only naming the function -- toBase64(fromString(\"a+b/c?\")) is \"YStiL2M/\", toBase64URL of the same bytes is \"YStiL2M_\" -- because the hand-rolled toBase64+replaceMany derivation type-checks, runs, exits 0 and fails only at the far end."
     }
   },
   "active": "v0.16.6",

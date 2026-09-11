@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"sort"
 
 	"github.com/sunholo-data/ailang/internal/modelreg"
 )
@@ -16,7 +17,10 @@ type Candidate struct {
 	Transport  string `json:"transport"`
 	Vendor     string `json:"vendor"`
 	SkipReason string `json:"skip_reason,omitempty"`
-	config     *modelreg.ModelConfig
+	// SameVendorAsAuthor records that generator != judge held only at MODEL level for this
+	// candidate. Recorded, not fatal: see the evaluator branch in Resolve.
+	SameVendorAsAuthor bool `json:"same_vendor_as_author,omitempty"`
+	config             *modelreg.ModelConfig
 }
 
 type Plan struct {
@@ -37,12 +41,14 @@ func Resolve(r Request, models *modelreg.ModelsConfig) (*Plan, error) {
 		return nil, fmt.Errorf("model registry is required")
 	}
 	authors := map[string]bool{}
+	authorModels := map[string]bool{}
 	for _, name := range r.AuthorModels {
 		v, err := models.DispatchOriginVendor(name)
 		if err != nil {
 			return nil, fmt.Errorf("author identity: %w", err)
 		}
 		authors[v] = true
+		authorModels[name] = true
 	}
 	registryJSON, err := json.Marshal(models)
 	if err != nil {
@@ -74,9 +80,23 @@ func Resolve(r Request, models *modelreg.ModelsConfig) (*Plan, error) {
 		if models.UsesLocalGPU(name) {
 			c.SkipReason = "local GPU admission is not supported by role-run"
 		}
-		if r.Role == "evaluator" && authors[vendor] {
-			c.SkipReason = "evaluator origin vendor matches a declared author"
+		// generator != judge: PREFERRED, not required (Mark, attended 2026-09-08 — "its a nice
+		// to have, not a blocker").
+		//
+		// The same MODEL judging its own output is still refused: that is self-review and it
+		// is worthless. A different model from the same VENDOR is now ALLOWED and flagged,
+		// because insisting on cross-vendor made the judge unroutable outright — the only
+		// harness that loads the sprint-evaluator skill is claude, so a claude-authored work
+		// item had no valid evaluator at all. A same-vendor judge WITH its methodology beats a
+		// cross-vendor judge without one; the canary proved the second option 3/3.
+		//
+		// SameVendorAsAuthor is set so the choice is visible in the receipt rather than
+		// silently taken. Cross-vendor candidates sort first, so the property still holds
+		// whenever it can be had.
+		if r.Role == "evaluator" && authorModels[name] {
+			c.SkipReason = "evaluator model is itself a declared author (self-review)"
 		}
+		c.SameVendorAsAuthor = r.Role == "evaluator" && authors[vendor]
 		if c.SkipReason == "" {
 			if _, err := models.DispatchOriginVendor(name); err != nil {
 				return nil, err
@@ -88,6 +108,15 @@ func Resolve(r Request, models *modelreg.ModelsConfig) (*Plan, error) {
 			}
 		}
 		p.Candidates = append(p.Candidates, c)
+	}
+	// Cross-vendor judges first, so generator != judge still holds whenever it CAN. The
+	// same-vendor rungs remain available behind them rather than being refused, which is the
+	// difference between a preference and a blocker. Stable within each group: the caller's
+	// declared model order is a routing decision and must survive this sort.
+	if r.Role == "evaluator" {
+		sort.SliceStable(p.Candidates, func(i, j int) bool {
+			return !p.Candidates[i].SameVendorAsAuthor && p.Candidates[j].SameVendorAsAuthor
+		})
 	}
 	return p, nil
 }

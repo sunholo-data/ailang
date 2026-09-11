@@ -90,12 +90,32 @@ Verify with `opencode models | grep ollama` — should print `ollama/gemma4:26b`
 
 ```bash
 # Set in your shell init or via launchctl setenv if running Ollama.app
-launchctl setenv OLLAMA_MAX_LOADED_MODELS 1   # one model resident at a time
+launchctl setenv OLLAMA_MAX_LOADED_MODELS 2   # residency is cheap; reloading is not
 launchctl setenv OLLAMA_NUM_PARALLEL 1        # serialize requests (bandwidth-bound box)
 launchctl setenv OLLAMA_MAX_QUEUE 64          # back-pressure threshold
 ```
 
 Restart Ollama for these to take effect.
+
+:::tip Residency and concurrency are different resources
+This guide previously said `OLLAMA_MAX_LOADED_MODELS 1`, "one model resident at a
+time". **That was wrong and cost real time** — corrected 10 Sept 2026 after a
+consumer built a whole unloading strategy on it.
+
+- **Two models RESIDENT** costs memory that is otherwise idle, and **saves a reload
+  every time the pipeline alternates between them**. A 27B is ~46 GB to load; paying
+  that repeatedly because a setting says "one at a time" is pure waste.
+- **Two models INFERRING AT ONCE** saturates memory bandwidth, which is what actually
+  thrashes on Apple Silicon.
+
+So the thing to control is **execution, not residency**: `OLLAMA_NUM_PARALLEL 1`, plus
+job-level serialisation through the rig lock (`tools/launchd/rig-lock.sh`) for anything
+scheduled. Do **not** set `keep_alive: 0` to force an unload — the next job simply pays
+the reload the previous one discarded.
+
+A pipeline that alternates models — e.g. triage with an 8B, then summarise with a 27B —
+wants both resident and neither concurrent.
+:::
 
 `OLLAMA_NUM_PARALLEL 1` matches the harness `--parallel 1` rule (see
 "How parallelism behaves on M4 Max" below) — the box is memory-bandwidth-bound,
@@ -182,6 +202,56 @@ Two design choices worth knowing:
 2. **`budgets.hard_timeout_secs` wins over benchmark-spec `timeout:` fields**
    (M-EVAL-LOCAL-OLLAMA precedence fix). Local thinking models can iterate
    long even on benchmarks that have a cloud-tuned `timeout: 90s`.
+
+## Sharing the rig: the lock, and asking a holder to step aside
+
+Everything scheduled against the local GPU serialises through one lock
+(`~/.ailang/state/rig.lock.d`, implemented in `tools/launchd/rig-lock.sh` and
+`internal/riglock`). Three kinds of job take it:
+
+| job | cadence | how it takes the lock |
+|---|---|---|
+| `nightly-eval` | 03:00 daily | waits — it is the priority job |
+| `os-rotation-filler` | every 45 min | no-wait; yields immediately if busy |
+| Daneel mail intake | every 10 min | tries once, then **asks**, then defers |
+
+A lock alone gave no priority, and that was a real problem rather than a
+theoretical one: a ten-hour nightly and a forty-second classification competed
+as equals, and the nightly won every time by arriving first. Measured
+2026-09-11, Daneel's intake deferred on 83% of its runs.
+
+**The handoff.** A short job writes `~/.ailang/state/rig.handoff` naming itself
+and a deadline. The holder notices at its next checkpoint — for `eval-suite`,
+between benchmarks — releases the lock, waits for the requester to finish, and
+takes it back.
+
+```bash
+# shell side (tools/launchd/rig-lock.sh)
+rig_lock_request_yield my-job 180     # ask; 180s grant
+rig_lock_acquire nowait my-job        # pass your name, or the guard refuses YOU
+rig_lock_clear_yield my-job           # hand back early when done
+```
+
+Three properties worth knowing before you rely on it:
+
+- **The marker is outside the lock directory** on purpose. A yielding holder
+  *deletes* the lock directory, so anything stored inside it vanishes exactly
+  when it is needed, and the gap would read as an ordinary free lock — which the
+  45-minute filler would win. No-wait acquirers that are not the named requester
+  are refused while a handoff is in force.
+- **Every handoff expires and carries a pid.** A requester that dies between
+  asking and acquiring cannot strand the holder; an expired or dead marker is
+  removed by the next reader rather than blocking no-wait acquirers.
+- **Deferral is still the outcome** when nobody checkpoints in time — a holder
+  that predates the protocol simply never looks. Nothing depends on the other
+  side cooperating.
+
+**Bounding a run.** `--max-tokens-per-bench` and `--timeout` bound one
+benchmark. `eval-suite --max-wall-clock` bounds the *suite*: it stops dispatch,
+lets in-flight trials finish, keeps everything already banked, and writes
+`wallclock_stopped.json` so a partial run is detectable as partial.
+`nightly-eval.sh` budgets `AILANG_NIGHTLY_MAX_HOURS` (default 8) for the night,
+split between the arms that will run.
 
 ## Live monitoring
 

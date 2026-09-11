@@ -53,10 +53,13 @@ func openCascadePullRequest(ctx context.Context, workDir, branchName, taskID, ag
 	// Detect cascade vs generic agent task from env (set by dispatcher when
 	// the inbound message had source=cascade + root_package attribute).
 	rootPackage := os.Getenv("AILANG_CASCADE_ROOT_PACKAGE")
-	title := fmt.Sprintf("[agent] %s: %s", agentID, taskID)
-	body := fmt.Sprintf("Autonomous task `%s` completed and pushed by agent `%s`.\n\n"+
-		"This PR was opened deterministically by the AILANG coordinator wrapper.\n\n"+
-		"View execution chain: `ailang chains view %s`", taskID, agentID, taskID)
+	directive := os.Getenv("AILANG_DIRECTIVE")
+
+	// The title carries WHAT the change is; the task id moves into the body,
+	// where a lookup key belongs. Still a pure function of the directive — the
+	// determinism was never what made the old title uninformative.
+	title := agentPRTitle(agentID, taskID, directive)
+	body := agentPRBody(ctx, taskID, agentID, directive, workDir, baseBranch)
 	labels := []string{"agent-task"}
 
 	if rootPackage != "" {
@@ -81,6 +84,83 @@ func openCascadePullRequest(ctx context.Context, workDir, branchName, taskID, ag
 	if err := addGitHubLabels(ctx, token, repoOwner, repoName, prNum, labels); err != nil {
 		fmt.Fprintf(os.Stderr, "execute-job: pr labels skipped: %v\n", err)
 	}
+
+	maybeEnableAutoMerge(ctx, token, repoOwner, repoName, prNum, workDir, baseBranch)
+}
+
+// maybeEnableAutoMerge turns on GitHub's native auto-merge, under TWO
+// independent conditions that must both hold.
+//
+//  1. The agent is registry-configured for it (AILANG_AUTO_MERGE, set by the
+//     dispatcher from agent.auto_merge — never from message content).
+//  2. The branch actually changes nothing but documentation.
+//
+// The second is not redundant. Condition 1 says "this agent is allowed to
+// auto-merge because it writes design docs"; condition 2 checks that this
+// particular run DID. An agent that is meant to write markdown and emits Go is
+// exactly the case where nobody should be merging on green — and it is a
+// plausible failure, not a hypothetical: the prompt is model-driven.
+//
+// Native auto-merge rather than merging ourselves: GitHub waits for the required
+// checks, honours branch protection, and if the checks never go green it simply
+// never merges. There is no polling loop of ours to get wrong, and no path where
+// we merge something protection would have refused.
+func maybeEnableAutoMerge(ctx context.Context, token, owner, repo string, prNum int, workDir, baseBranch string) {
+	if os.Getenv("AILANG_AUTO_MERGE") != "1" {
+		return
+	}
+
+	docsOnly, reason, err := branchIsDocsOnly(ctx, workDir, baseBranch)
+	if err != nil {
+		// Could not tell -> do not enable. A PR left for a human is a delay; an
+		// auto-merged one we could not classify is a change nobody reviewed.
+		fmt.Fprintf(os.Stderr, "execute-job: auto-merge NOT enabled: cannot classify the diff: %v\n", err)
+		return
+	}
+	if !docsOnly {
+		fmt.Fprintf(os.Stderr, "execute-job: auto-merge NOT enabled: %s\n", reason)
+		return
+	}
+
+	if err := enableGitHubAutoMerge(ctx, token, owner, repo, prNum); err != nil {
+		// Not fatal: the PR exists and a human can merge it. Saying so is the
+		// point — silence here would look identical to "it will merge itself".
+		fmt.Fprintf(os.Stderr, "execute-job: auto-merge could not be enabled on #%d: %v\n", prNum, err)
+		return
+	}
+	fmt.Printf("execute-job: auto-merge enabled on #%d (docs-only; GitHub will merge when required checks pass)\n", prNum)
+}
+
+// branchIsDocsOnly reports whether the branch changes only documentation.
+//
+// The predicate deliberately MATCHES the docs-only lane in .github/workflows/ci.yml.
+// If the two ever disagree, a PR could take the fast CI lane and then be
+// auto-merged on the strength of checks that never ran the thing it changed.
+func branchIsDocsOnly(ctx context.Context, workDir, baseBranch string) (bool, string, error) {
+	files, err := changedFiles(ctx, workDir, baseBranch)
+	if err != nil {
+		return false, "", fmt.Errorf("git diff against origin/%s: %w", baseBranch, err)
+	}
+	if len(files) == 0 {
+		return false, "the branch changes no files", nil
+	}
+	for _, f := range files {
+		if !isDocsPath(f) {
+			return false, fmt.Sprintf("%s is not a documentation file", f), nil
+		}
+	}
+	return true, "", nil
+}
+
+// isDocsPath mirrors the ci.yml docs-only lane exactly.
+//
+// NOT every .md: CLAUDE.md and .claude/**/*.md change agent behaviour, and
+// docs/ is the website with its own build. Only design docs and changelogs.
+func isDocsPath(f string) bool {
+	if !strings.HasSuffix(f, ".md") {
+		return false
+	}
+	return strings.HasPrefix(f, "design_docs/") || strings.HasPrefix(f, "changelogs/")
 }
 
 // createGitHubPR makes a POST /repos/{owner}/{repo}/pulls call.
@@ -387,4 +467,173 @@ func printExecuteJobHelp() {
 	fmt.Println("  AILANG_PLUGIN_REPO      Git URL for shared skills plugin (--plugin-dir)")
 	fmt.Println("  AILANG_MODEL            AI model override (e.g., sonnet, opus)")
 	fmt.Println("  AILANG_MAX_COST_USD     Per-task cost budget in USD (0 = unlimited)")
+}
+
+// enableGitHubAutoMerge turns on auto-merge for a PR.
+//
+// GraphQL, because there is no REST endpoint for this: `enablePullRequestAutoMerge`
+// is the only API that sets it. It needs the PR's node_id, which the REST create
+// response does not give us in a form we kept, so we fetch it first.
+//
+// SQUASH deliberately: an agent branch is a working history ("fix lint", "address
+// review"), and dev keeps one commit per landed change.
+func enableGitHubAutoMerge(ctx context.Context, token, owner, repo string, prNum int) error {
+	nodeID, err := pullRequestNodeID(ctx, token, owner, repo, prNum)
+	if err != nil {
+		return err
+	}
+
+	const mutation = `mutation($id:ID!){enablePullRequestAutoMerge(input:{pullRequestId:$id,mergeMethod:SQUASH}){clientMutationId}}`
+	payload, _ := json.Marshal(map[string]interface{}{
+		"query":     mutation,
+		"variables": map[string]string{"id": nodeID},
+	})
+
+	body, err := githubGraphQL(ctx, token, payload)
+	if err != nil {
+		return err
+	}
+
+	// GraphQL reports failures in the body with HTTP 200, so a status check
+	// alone would call every refusal a success — including "auto-merge is not
+	// allowed on this repository", which is precisely what we need to hear.
+	var resp struct {
+		Errors []struct {
+			Message string `json:"message"`
+		} `json:"errors"`
+	}
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return fmt.Errorf("decoding the auto-merge response: %w", err)
+	}
+	if len(resp.Errors) > 0 {
+		return fmt.Errorf("%s", resp.Errors[0].Message)
+	}
+	return nil
+}
+
+// pullRequestNodeID fetches the GraphQL node id for a PR number.
+func pullRequestNodeID(ctx context.Context, token, owner, repo string, prNum int) (string, error) {
+	const query = `query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){pullRequest(number:$n){id}}}`
+	payload, _ := json.Marshal(map[string]interface{}{
+		"query": query,
+		"variables": map[string]interface{}{
+			"o": owner, "r": repo, "n": prNum,
+		},
+	})
+	body, err := githubGraphQL(ctx, token, payload)
+	if err != nil {
+		return "", err
+	}
+	var resp struct {
+		Data struct {
+			Repository struct {
+				PullRequest struct {
+					ID string `json:"id"`
+				} `json:"pullRequest"`
+			} `json:"repository"`
+		} `json:"data"`
+		Errors []struct {
+			Message string `json:"message"`
+		} `json:"errors"`
+	}
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return "", fmt.Errorf("decoding the node-id response: %w", err)
+	}
+	if len(resp.Errors) > 0 {
+		return "", fmt.Errorf("%s", resp.Errors[0].Message)
+	}
+	if resp.Data.Repository.PullRequest.ID == "" {
+		return "", fmt.Errorf("no node id returned for #%d", prNum)
+	}
+	return resp.Data.Repository.PullRequest.ID, nil
+}
+
+// githubGraphQL posts a GraphQL request and returns the raw body.
+func githubGraphQL(ctx context.Context, token string, payload []byte) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, "POST", "https://api.github.com/graphql", strings.NewReader(string(payload)))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		return nil, fmt.Errorf("github graphql: HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+	}
+	return body, nil
+}
+
+// agentPRBody says what the change is, what asked for it, and how to audit it —
+// without a click.
+//
+// The old body said only "Autonomous task X completed and pushed by agent Y",
+// which is the two facts a reader already had from the title. What was missing
+// is what the request WAS and what the branch touched, both of which the wrapper
+// is holding at this point.
+func agentPRBody(ctx context.Context, taskID, agentID, directive, workDir, baseBranch string) string {
+	var b strings.Builder
+
+	if d := strings.TrimSpace(directive); d != "" {
+		// A structured request gets its human field quoted and the payload
+		// folded away. Printing the JSON as the request is what made these PRs
+		// unreadable in the first place; dropping it entirely would lose the
+		// routing fields, which are the part worth auditing later.
+		if human := subjectFromJSON(d); human != "" {
+			b.WriteString("**Request**\n\n")
+			for _, line := range strings.Split(human, "\n") {
+				b.WriteString("> " + line + "\n")
+			}
+			b.WriteString("\n<details><summary>full request payload</summary>\n\n```json\n")
+			b.WriteString(d)
+			b.WriteString("\n```\n</details>\n\n")
+		} else {
+			b.WriteString("**Request**\n\n")
+			// Quoted, so a directive containing markdown cannot restructure the
+			// PR description around it.
+			for _, line := range strings.Split(d, "\n") {
+				b.WriteString("> " + line + "\n")
+			}
+			b.WriteString("\n")
+		}
+	}
+
+	if files, err := changedFiles(ctx, workDir, baseBranch); err == nil && len(files) > 0 {
+		fmt.Fprintf(&b, "**Files (%d)**\n\n", len(files))
+		for i, f := range files {
+			if i == 20 {
+				fmt.Fprintf(&b, "- …and %d more\n", len(files)-20)
+				break
+			}
+			b.WriteString("- `" + f + "`\n")
+		}
+		b.WriteString("\n")
+	}
+	// A missing file list is left out rather than rendered as "Files (0)": a
+	// confident zero is how #921's blind approvals happened.
+
+	fmt.Fprintf(&b, "---\nTask `%s` · agent `%s` · opened deterministically by the AILANG coordinator wrapper.\n", taskID, agentID)
+	fmt.Fprintf(&b, "Execution chain: `ailang chains view %s`\n", taskID)
+	return b.String()
+}
+
+// changedFiles lists what the branch changes against its base.
+func changedFiles(ctx context.Context, workDir, baseBranch string) ([]string, error) {
+	cmd := exec.CommandContext(ctx, "git", "diff", "--name-only", "origin/"+baseBranch+"...HEAD")
+	cmd.Dir = workDir
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+	return strings.Fields(strings.TrimSpace(string(out))), nil
 }

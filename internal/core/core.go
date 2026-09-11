@@ -434,6 +434,29 @@ type DeclMeta struct {
 	SID         string      // Source ID for tracing
 	Contracts   []*Contract // M-VERIFY: Contract clauses (requires/ensures)
 	VerifyDepth int         // Per-function SMT verify depth override (0 = use global default)
+
+	// ShowResidue lists the `show` calls ShowNormalizer deliberately left in
+	// this function because the argument type has no encodable equivalent
+	// (M-SMT-INTERP-SHOW M3).
+	//
+	// It exists because the SMT layer cannot derive this itself: encodable.go
+	// has no CoreTypeInfo and no source provenance, so without a note it can
+	// only say "unencodable builtin: show" — which sends readers hunting a
+	// `show` call that, for an interpolation, does not appear in the source.
+	// The pass DOES know the type, by construction, so it records it here and
+	// the diagnostic reports a measured fact rather than a guess.
+	ShowResidue []ShowResidueNote
+}
+
+// ShowResidueNote records one `show` application left unrewritten, and why.
+//
+// It carries the argument TYPE only. It deliberately does NOT claim where the
+// call came from: the same Core shape is produced both by a `"${x}"` hole and
+// by an explicit user `show(x)` call, and nothing in Core distinguishes them.
+// Claiming an origin would misdiagnose the explicit case.
+type ShowResidueNote struct {
+	// ArgType is the argument's type as resolved from CoreTypeInfo, e.g. "float".
+	ArgType string
 }
 
 // ContractKind distinguishes between requires and ensures contracts.

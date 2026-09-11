@@ -109,6 +109,9 @@ func (s *Store) GetChain(ctx context.Context, id string, opts ChainReadOptions) 
 
 // ListChains returns chains matching the given options.
 func (s *Store) ListChains(ctx context.Context, opts ChainListOptions) ([]*ChainSummary, error) {
+	if opts.Offset < 0 {
+		return nil, fmt.Errorf("chain offset must be non-negative")
+	}
 	var conditions []string
 	var args []interface{}
 
@@ -158,7 +161,7 @@ func (s *Store) ListChains(ctx context.Context, opts ChainListOptions) ([]*Chain
 		LEFT JOIN chain_stages s ON s.chain_id = c.id
 		%s
 		GROUP BY c.id
-		ORDER BY c.created_at DESC
+		ORDER BY c.created_at DESC, c.id DESC
 		LIMIT ? OFFSET ?
 	`, whereClause)
 
@@ -170,7 +173,7 @@ func (s *Store) ListChains(ctx context.Context, opts ChainListOptions) ([]*Chain
 	}
 	defer rows.Close()
 
-	var chains []*ChainSummary
+	chains := []*ChainSummary{}
 	for rows.Next() {
 		chain := &ChainSummary{}
 		var completedAt sql.NullTime

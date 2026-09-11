@@ -3,7 +3,6 @@ package coordinator
 import (
 	"database/sql"
 	"fmt"
-	"net/url"
 	"os"
 	"path/filepath"
 )
@@ -22,8 +21,7 @@ func OpenMissionReadOnlyStore(path string) (*SQLiteStore, error) {
 	if !info.Mode().IsRegular() {
 		return nil, fmt.Errorf("runtime database is not a regular file")
 	}
-	uri := url.URL{Scheme: "file", Path: path, RawQuery: "mode=ro&_query_only=1&_busy_timeout=5000"}
-	db, err := sql.Open("sqlite3", uri.String())
+	db, err := sql.Open("sqlite3", sqliteFileURI(path, "mode=ro&_query_only=1&_busy_timeout=5000"))
 	if err != nil {
 		return nil, err
 	}

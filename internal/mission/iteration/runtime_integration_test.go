@@ -238,9 +238,23 @@ func TestIterationFinalUsageCannotBypassBudget(t *testing.T) {
 }
 func TestIterationWaitingDeadlineExpiresDurably(t *testing.T) {
 	s, spec, f := runtimeFixture(t)
-	spec.Limits.TimeoutSeconds = 1
+	// The deadline has to outlive this test's own SETUP, not just be short.
+	//
+	// With a 1s budget the first Run below had to finish preflight and return
+	// "waiting" inside the same second the deadline was measuring, so on a loaded
+	// runner preflight overran and the first Run came back
+	// failed/deadline_exceeded — failing at line ~250 with "wait: ... stage
+	// deadline exhausted during preflight". That is the setup racing its own
+	// clock, not the behaviour under test. Measured flaky ~1 in 3 in a
+	// full-package run locally and red on macos in CI (run 34360400780).
+	//
+	// The budget only needs to be comfortably longer than preflight; the test
+	// still expires it deliberately below, so nothing about what is asserted
+	// changes.
+	const timeoutSeconds = 5
+	spec.Limits.TimeoutSeconds = timeoutSeconds
 	for i := range spec.Stages {
-		spec.Stages[i].Limits.TimeoutSeconds = 1
+		spec.Stages[i].Limits.TimeoutSeconds = timeoutSeconds
 	}
 	s.Admit = func(context.Context, dispatch.Candidate) (dispatch.Admission, error) {
 		return dispatch.Admission{Policy: "fixture", ObservedAt: time.Now(), Reason: "quota"}, nil
@@ -249,7 +263,11 @@ func TestIterationWaitingDeadlineExpiresDurably(t *testing.T) {
 	if err != nil || item.State != "waiting" {
 		t.Fatalf("wait: %+v %v", item, err)
 	}
-	time.Sleep(time.Until(time.Unix(item.Deadline, 0)) + 10*time.Millisecond)
+	// Sleep past the NEXT whole second, not deadline+10ms. Deadlines are stored
+	// as integer Unix seconds (coordinator's missionNow truncates), so a 10ms
+	// margin leaves time.Now().Unix() EQUAL to the deadline rather than past it,
+	// which puts the expiry checks on a boundary for no benefit.
+	time.Sleep(time.Until(time.Unix(item.Deadline+1, 0)))
 	item, err = s.Run(context.Background(), spec)
 	if item == nil || item.State != "failed" || f.calls != 0 {
 		t.Fatalf("expired admission retained: %+v %v", item, err)

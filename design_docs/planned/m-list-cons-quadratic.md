@@ -754,6 +754,40 @@ What it does not deliver is the general guarantee the doc's title claims.
 - **B** — take true cons cells / structural sharing: O(1) under all sharing, correct by
   construction, and a substantially larger sprint that must be decomposed before it is planned.
 
+### Controller recommendation (2026-09-09, attended session — advisory, D-19 is still Mark's)
+
+**Recommend A**, with one addition that is not currently in either option.
+
+The reviewer's objection is correct and A does not answer it — it rescopes around it. Three
+things make that the right trade anyway:
+
+1. **Every consumer measured so far is the linear-use case.** #676's `gen(n-1, "constant" :: acc)`
+   never retains the old `acc`. So does the second report,
+   `inbox_1788936332313_c08c55b5`'s `build(n, i+1, concat(acc, [x]))`. Two independent
+   consumers, zero branching. B buys a guarantee no reported workload has yet needed.
+2. **A is a strict improvement, never a regression.** Today every op is O(n) under every sharing
+   pattern. A makes linear chains amortized O(1) and leaves branching exactly where it is. B's
+   advantage over A is real but is entirely in cases that are currently *equally* slow.
+3. **B's blast radius is the runtime's central value type** — 902 `.Elements` references, 386
+   constructions — and the doc itself says it "must be decomposed before it is planned". Holding
+   a P0 that unblocks a downstream consumer behind that decomposition has already cost two weeks.
+
+**The addition, and it is the condition on recommending A:** A leaves a *silent* performance
+cliff that depends on whether a value happens to be retained — invisible in the source, with no
+diagnostic. That is the same failure class as the defect being fixed. Ship A **with the residual
+made observable**: a counter or debug-tier notice when a CAS loss forces a full copy above a size
+threshold. The second report asks for exactly this instrument independently ("a lint or runtime
+warning when `concat(acc, [x])` appears in a self-recursive tail position"), so it serves both.
+Without it, A is "fixed for the shape we measured" and the next consumer rediscovers it the same
+expensive way.
+
+**One fact that lowers the urgency, and it is measured** (see
+[m-trace-tier-not-enforced](v0_36_0/m-trace-tier-not-enforced.md), V1–V6): the *second* report's
+OOM is ~95% tracing, not list representation — at n=400, peak RSS is 2059 MB with the default
+trace tier and 106 MB with it off. That report is therefore **not** a third independent
+motivation for this doc, and its "`concat` deep-copies the records" inference is refuted.
+#676 remains real and first-party at n=6,400; nothing here weakens it.
+
 ## Related Documents
 
 Neural search on "list cons quadratic" returned no doc above 0.29 (duplicate gate: proceed).

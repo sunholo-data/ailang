@@ -438,6 +438,65 @@ explicitly with `--trace-tier deep` or `AILANG_TRACE=deep` when you need them.
 See [Telemetry: Tracing tiers](/docs/guides/telemetry#tracing-tiers).
 :::
 
+### What each tier records
+
+| Tier | Module / effect / contract spans | Per-call function args and results |
+|------|----------------------------------|------------------------------------|
+| `off` | — | — |
+| `standard` (default) | yes | **no** |
+| `deep` | yes | **yes** — this is its purpose |
+
+**`deep` captures values verbatim.** Every function's arguments and its result are
+rendered to strings and retained. Two consequences worth planning around:
+
+- **Memory is superlinear when a function carries a growing argument.** A recursive
+  accumulator serialises O(n) data on each of n calls. Measured on a 400-iteration
+  `concat(acc, [x])` loop: **2478 MB** at `deep` versus **105 MB** at `standard`.
+  Use `standard` (or `off`) for anything data-intensive.
+- **Recorded values are not filtered by IFC labels.** A `string<secret>` value crossing
+  a traced call boundary is written to the trace in full — the label governs sinks the
+  type system can see, and the tracer is below it. Do not enable `deep` while resolving
+  secrets. Tracked as `M-TRACE-LABEL-AWARE`.
+
+Before v0.36.0 the tier was resolved but never reached the collector, so `standard`
+recorded per-call values too. If you are on an older binary, `--trace-tier off` is the
+only setting that avoids it. The per-tier behaviour above is now pinned by
+`TestTierGovernsWhatIsRecorded` (`internal/trace/tier_enforcement_test.go`).
+
+**Effect args and results are recorded at every tier above `off`** — a `readFile` span carries
+what was read. The tier does not gate them; `AILANG_TRACE_VALUES` does.
+
+### Tracing under confidentiality terms
+
+`AILANG_TRACE_VALUES=off` records the **complete call tree with no payloads**. It is orthogonal
+to the tier, so the useful setting for a workload handling credentials or client data is:
+
+```bash
+AILANG_TRACE=deep AILANG_TRACE_VALUES=off ailang run --caps ... prog.ail --emit-trace jsonl
+```
+
+Every function, every effect, arity, depth, span parentage and timings are retained. Each
+argument and result becomes a size descriptor:
+
+```json
+{"event":"effect","effect":{"effect_name":"Net","op_name":"httpRequest",
+ "args":["<redacted:46 bytes>"],"result":"<redacted:2 bytes>"}}
+```
+
+Measured on a program handling a bearer token and a client document: **17 trace lines with
+values on, 17 with them off — 8 verbatim copies of the secrets versus 0.** The byte count is
+kept deliberately: it leaks no content, and an empty response, a body that grew between
+retries, or a token of unexpected size all remain visible.
+
+Why a blunt switch rather than redacting only *labelled* values: its guarantee is "the trace
+contains no values", which is explicable in one sentence to someone reading a contract.
+Label-aware redaction (`M-TRACE-LABEL-AWARE`) is more precise but its guarantee is only ever
+"no values the label checker flagged" — worth exactly as much as the checker. For a
+confidentiality engagement, blunt is the stronger claim.
+
+A misspelling (`AILANG_TRACE_VALUES=of`) is an **error**, not a silent default: a typo must not
+turn into a data leak.
+
 ### Latency Budget Workloads
 
 `benchmarks/workloads/` holds six self-contained `.ail` programs that act as

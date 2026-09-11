@@ -3594,6 +3594,49 @@ models:
   # MISSION-FLEET TRIAL lane (codex quota offload candidate, per Mark). Opt-in
   # only; smoke gate CLEARED (see notes) — suite promotion still pending a
   # core-tier ranking run + Mark's decision (smoke is a floor, not a ranking).
+  # A/B CONTROL for the mission evaluator route, added 2026-09-08 (attended).
+  #
+  # Identical to pi-or-deepseek-v4-flash in EVERY field except the `:floor` suffix, so a
+  # comparison between the two changes exactly one variable: the OpenRouter provider sort.
+  #
+  # Why it exists: the reliability canary's evaluator failed on the `:floor` route —
+  # 19 turns, 26 tool calls, never ran its bound validator, aborted at 100,024 of 100,000
+  # tokens. `:floor` is provider.sort=price, and it was DROPPED from the mission EXECUTOR
+  # lane on 2026-08-18 for exactly this class: the two cheapest hosts for this model carry
+  # NEGATIVE health status (StreamLake -2, Decart -5 of 28), and World iteration 91 returned
+  # rc=0 with ZERO BYTES CHANGED twice at 625 output tokens against a 65,536 budget. The
+  # registry kept `:floor` because per-provider prompt caching made repeat calls ~4.8x
+  # cheaper; the evaluator lane inherited it and was never re-measured after the executor
+  # lane moved off it.
+  #
+  # Accepted cost if this becomes the route: caches far less (measured 2026-08-11, unpinned
+  # cacheRead=0 across two identical ~27.7k prompts). A lane that does not converge has
+  # worse economics than any cache multiplier can repair.
+  pi-or-deepseek-v4-flash-bare:
+    api_name: "deepseek/deepseek-v4-flash-0731"
+    provider: "openrouter"
+    default_thinking: "on"
+    description: "DeepSeek V4 Flash 0731 via pi — BARE id (no :floor), A/B control for the evaluator route"
+    env_var: "OPENROUTER_API_KEY"
+    agent_cli: "pi"
+    agent_model_name: "openrouter/deepseek/deepseek-v4-flash-0731"
+    model_family: "deepseek-v4"
+    max_output_tokens: 32000  # PI_WIRE_CLAMP — must match the :floor sibling; pi clamps to
+                              # min(declared, 32000) regardless of what is declared.
+    pricing:
+      # MUST match every other row for this slug — the pricing-consistency gate compares
+      # them, and it caught this row copied from an unrelated model on first write.
+      # Caveat inherited from the :floor sibling: 26 hosts serve this model at
+      # $0.08-0.14/M input, so a single number is approximate. These track DeepInfra,
+      # which is what :floor selects; a BARE id load-balances and may bill differently.
+      input_per_1k: 0.000065   # $0.065 per 1M (OpenRouter API, verified 2026-08-31)
+      output_per_1k: 0.00018   # $0.18 per 1M (OpenRouter API, verified 2026-08-31)
+      cache_read_per_1k: 0.000016
+    notes: |
+      Bare-id control. Same weights, same harness, same budget as pi-or-deepseek-v4-flash;
+      only the OpenRouter provider sort differs. Do not add :floor here — that is the
+      variable under test.
+
   pi-or-deepseek-v4-flash:
     api_name: "deepseek/deepseek-v4-flash-0731"
     provider: "openrouter"
@@ -4938,17 +4981,13 @@ models:
     max_output_tokens: 65536                   # always-thinking headroom, per the GLM-5.2 truncation lesson
     model_family: "glm-5"                      # joins the glm-5 failover chain (M-PROVIDER-FAILOVER)
     pricing:
-      input_per_1k: 0.000075   # $0.075 per 1M — z.ai PAYG list, 2026-09-03 (docs.z.ai/guides/overview/pricing)
-      output_per_1k: 0.00025   # $0.25 per 1M
-      expires: "2026-09-09"    # 50% launch promo ends 24:00 SGT 2026-09-09; enforced by tools/verify-model-pricing
-      next:
-        # INFERRED, NOT VERIFIED: "50% off" read literally → 2x on 2026-09-10.
-        # z.ai publishes the promo end date but not the post-promo card. Re-read
-        # docs.z.ai/guides/overview/pricing on 2026-09-10 and replace these two
-        # numbers with the observed rates. They are a placeholder that fails
-        # SAFE (overstates spend) rather than a measured price.
-        input_per_1k: 0.00015  # $0.15 per 1M
-        output_per_1k: 0.0005  # $0.50 per 1M
+      # Post-promo list price, VERIFIED against docs.z.ai/guides/overview/pricing
+      # on 2026-09-10 — the day the schedule said to re-read it. The 50% launch
+      # promo ($0.075/$0.25 per 1M) ended 24:00 SGT 2026-09-09, and the observed
+      # card matches the rates that had been recorded as the inferred successor,
+      # so the placeholder is now a measurement.
+      input_per_1k: 0.00015    # $0.15 per 1M
+      output_per_1k: 0.0005    # $0.50 per 1M
     budgets:
       max_cost_usd: 0.30
       hard_timeout_secs: 600   # equal-work A/B: matches or-glm-5-3-flash, lyceum-glm-5-3-flash and oc-glm-5-3-flash

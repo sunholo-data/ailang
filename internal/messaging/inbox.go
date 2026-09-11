@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/sunholo-data/ailang/internal/builtins"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -209,11 +208,7 @@ func (s *Store) insertInbox(ctx context.Context, msg *InboxMessage, onConflict s
 	if msg.Simhash != nil {
 		simhash = msg.Simhash
 	} else {
-		searchText := msg.Title
-		if msg.Payload != "" {
-			searchText += " " + msg.Payload
-		}
-		hash := builtins.SimHash(searchText)
+		hash := ComputeSimhash(msg.Title, msg.Payload)
 		simhash = &hash
 		msg.Simhash = simhash // Store back in msg for caller
 	}

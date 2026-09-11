@@ -266,3 +266,39 @@ func TestFmtIsAByteNoOpOnPromptHeaderShape(t *testing.T) {
 			"tell the model its file is non-canonical.\n--- want ---\n%q\n--- got ---\n%q", src, out)
 	}
 }
+
+// TestHandWrittenShowIsNeverResugared covers the case the STRUCTURAL guards in
+// TestHandWrittenConcatIsLeftAlone cannot: a hand-written chain whose shape is
+// indistinguishable from a desugared one.
+//
+// `concat_String("a", show(n))` is exactly what `"a${n}"` desugars to, so before
+// ResolveAsBuiltin the formatter reprinted it as `"a${n}"`. That is a
+// meaning-preserving rewrite only for as long as `show` cannot be shadowed: the
+// moment a module-local `show` wins over the builtin, the chain calls the user's
+// function and the interpolation does not. A formatter must never be the thing
+// that changes which function a program calls.
+//
+// The marker answers "did a desugar synthesize this?" exactly, so the formatter
+// no longer has to guess. See internal/parser/interpolation_test.go and
+// internal/elaborate/builtin_hygiene_test.go.
+func TestHandWrittenShowIsNeverResugared(t *testing.T) {
+	src := "module m\nexport func main() -> () ! {IO} {\n  let n = 1\n  println(concat_String(\"a\", show(n)))\n}\n"
+	out := fmtExpr(t, src)
+	if strings.Contains(out, `"a${`) {
+		t.Errorf("a hand-written show() chain was rewritten as an interpolation:\n%s", out)
+	}
+	if !strings.Contains(out, "concat_String") {
+		t.Errorf("the hand-written chain did not survive formatting:\n%s", out)
+	}
+}
+
+// TestRealInterpolationStillResugars is the non-vacuity control for the test
+// above: tightening the guard must not stop the formatter re-sugaring an actual
+// interpolation, which is the feature's whole point.
+func TestRealInterpolationStillResugars(t *testing.T) {
+	src := "module m\nexport func main() -> () ! {IO} {\n  let n = 1\n  println(\"a${n}b\")\n}\n"
+	out := fmtExpr(t, src)
+	if !strings.Contains(out, `"a${n}b"`) {
+		t.Errorf("a real interpolation stopped round-tripping as one:\n%s", out)
+	}
+}

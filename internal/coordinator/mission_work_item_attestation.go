@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"path/filepath"
 	"strings"
 )
@@ -94,8 +93,7 @@ func OpenMissionExistingWriteStore(path string) (*SQLiteStore, error) {
 	if !filepath.IsAbs(path) {
 		return nil, fmt.Errorf("runtime database path must be absolute")
 	}
-	uri := url.URL{Scheme: "file", Path: path, RawQuery: "mode=rw&_busy_timeout=5000"}
-	db, err := sql.Open("sqlite3", uri.String())
+	db, err := sql.Open("sqlite3", sqliteFileURI(path, "mode=rw&_busy_timeout=5000"))
 	if err != nil {
 		return nil, err
 	}

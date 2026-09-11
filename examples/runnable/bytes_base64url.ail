@@ -1,0 +1,40 @@
+-- std/bytes — base64url encoding (RFC 4648 §5)
+-- Capabilities: IO only (all bytes operations are pure)
+--
+-- Pattern: base64url is the URL-safe base64 alphabet — '-' and '_' replace
+-- '+' and '/', and no '=' padding is emitted. It is the wire encoding the
+-- Gmail API requires for a message's `raw` field, and the one JWT header and
+-- payload segments use. toBase64URL and fromBase64URL are exact inverses;
+-- standard toBase64/fromBase64 are NOT interchangeable with them.
+module examples/runnable/bytes_base64url
+import std/io (println)
+import std/bytes (fromString, toString, toBase64, toBase64URL, fromBase64URL)
+import std/option (Option, Some, None)
+
+-- Decode a base64url string back to text, or report the failure.
+export func decodeOrFail(b64url: string) -> string {
+  match fromBase64URL(b64url) {
+    Some(b) => toString(b),
+    None => "<not valid base64url>"
+  }
+}
+
+export func main() -> () ! {IO} {
+  -- The two alphabets differ on any input whose base64 lands on 62 or 63.
+  let tricky = fromString("a+b/c?");
+  println("standard : ${toBase64(tricky)}");      -- YStiL2M/  <- '/' breaks URLs
+  println("URL-safe : ${toBase64URL(tricky)}");   -- YStiL2M_  <- safe, unpadded
+
+  -- Unpadded: "Hello" is 5 bytes, so standard base64 pads it and base64url does not.
+  let hello = fromString("Hello");
+  println("padded   : ${toBase64(hello)}");       -- SGVsbG8=
+  println("unpadded : ${toBase64URL(hello)}");    -- SGVsbG8
+
+  -- Round-trip: fromBase64URL(toBase64URL(b)) recovers the original bytes.
+  let subject = "Subject: Café — ünïcode";
+  let encoded = toBase64URL(fromString(subject));
+  println("roundtrip: ${decodeOrFail(encoded)}");
+
+  -- Standard base64 output is NOT valid base64url when it contains '/' or '='.
+  println("mismatch : ${decodeOrFail(toBase64(tricky))}")
+}

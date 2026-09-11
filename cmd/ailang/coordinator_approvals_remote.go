@@ -28,6 +28,7 @@ func coordinatorApprovalsCommand(args []string) error {
 	full := fs.Bool("full", false, "print the whole diff rather than a summary")
 	clearOrphans := fs.Bool("clear-orphans", false, "cancel tasks awaiting an approval that does not exist")
 	force := fs.Bool("force", false, "with --clear-orphans, also cancel tasks that still have a worktree")
+	asJSON := fs.Bool("json", false, "emit the queue as JSON (for hooks and agents)")
 	_ = fs.Parse(args)
 
 	ctx := context.Background()
@@ -36,6 +37,17 @@ func coordinatorApprovalsCommand(args []string) error {
 		return err
 	}
 	defer bundle.Close()
+
+	// --json is the machine path: it prints ONLY the document, and errors as a
+	// non-zero exit rather than an empty queue. Handled before the human view
+	// so no banner line ever lands on stdout ahead of it.
+	if *asJSON {
+		out, jErr := collectPendingApprovals(ctx, bundle, resolveApprovalAuthority(), time.Now())
+		if jErr != nil {
+			return jErr
+		}
+		return printApprovalsJSON(out)
+	}
 
 	// Always say which plane. "approved" against the wrong store looks exactly
 	// like success.
@@ -198,7 +210,15 @@ func coordinatorResolveRemote(args []string, action string) error {
 		}
 	}
 
+	// Who decided. An unattended controller approval used to record $USER —
+	// on this fleet that is the same login Mark's own sessions run under, so
+	// the audit trail could not tell a 3am fable controller from the operator.
+	// The resolved identity names the actual decider (controller id, or the
+	// attended session), and --by still overrides it.
 	who := *by
+	if who == "" {
+		who = resolveApprovalAuthority().Identity
+	}
 	if who == "" {
 		who = os.Getenv("USER")
 	}

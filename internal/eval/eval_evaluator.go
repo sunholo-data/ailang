@@ -108,6 +108,10 @@ func (e *CoreEvaluator) enterBudgetChargeBoundary() func() {
 // M-TRACE-EXPORT: Used to record function calls during AILANG program execution.
 type TraceRecorder interface {
 	HasTraceCollector() bool
+	// RecordsFunctionCalls reports whether per-call events are admitted at the
+	// active tracing tier. Callers must consult it before rendering arguments;
+	// the rendering, not the recording, is the expensive part.
+	RecordsFunctionCalls() bool
 	RecordFunctionEnter(name string, args []string)
 	RecordFunctionExit(name string, result string)
 }

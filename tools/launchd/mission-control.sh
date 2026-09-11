@@ -1212,7 +1212,51 @@ export MISSION_EVALUATOR_MODEL="${MISSION_EVALUATOR_MODEL:-sonnet}"
 # between 'judged by the executor's own vendor' and NO JUDGE AT ALL, which is the
 # trade that buys a weekend. The skill's generator!=judge guard still FLAGS it when it
 # fires — that visibility is the point, and the guard stays the authority.
-export MISSION_EVALUATOR_FALLBACK="${MISSION_EVALUATOR_FALLBACK:-pi:ollama/minimax-m3:cloud,pi:openrouter/minimax/minimax-m3,codex:gpt-6-astra}"
+# EVERY RUNG MUST LOAD SKILLS (2026-09-08, attended). The evaluator contract says "act as
+# independent evaluator under sprint-evaluator methodology" — and that methodology IS a skill:
+# a 100-point rubric plus three executable scripts under .agents/skills/sprint-evaluator/. A
+# harness that cannot load it receives the NAME of the procedure and none of its content, so it
+# is asked to apply a rubric it never sees and run scripts it is never told exist.
+#
+# The old chain was pi -> pi -> codex: EVERY rung skill-less. So any Anthropic outage silently
+# swapped a judge with a method for one without, and nothing reported it.
+#
+# Measured 2026-09-08: pi, invoked IN a workspace containing .agents/skills/sprint-evaluator/,
+# answered "I don't have any skills available in this session. No skill definitions have been
+# loaded into my context." The docs canary's evaluator failed 3/3 on that lane. Meanwhile every
+# recorded fleet verdict — hundreds, all in the rubric's NN/100 form — came from a Claude lane,
+# and there are ZERO recorded pi evaluator successes in the v1 or motoko ledgers.
+#
+# So the chain stays inside Anthropic and degrades by MODEL, not by harness. generator != judge
+# still holds: the author lanes are codex/pi/deepseek, so a claude judge is cross-vendor by
+# construction; where an author is also claude, the model-level difference is what the
+# author-vendor exclusion in role-run already enforces.
+#
+# pi CAN load skills — it has --skill and --no-skills — it simply does not DISCOVER
+# .agents/skills/, which is where AGENTS.md says skills live. Fixing that discovery is the
+# follow-on that would make a pi evaluator viable again; until then this chain is the honest
+# routing. ROLLBACK: restore the pi/codex rungs here.
+# PI IS BACK, AHEAD OF THE CLAUDE TAIL (2026-09-08, measured after the workspace-trust fix).
+#
+# This chain was briefly claude-only because pi could not load the sprint-evaluator skill, so
+# every non-claude rung handed the judge the NAME of a methodology and none of its content.
+# That is fixed: measured in a FRESH WORKTREE under an untrusted path — the exact shape a
+# mission stage runs in — pi answered "sprint-evaluator is available in my skills list.
+# Scoring threshold: 70 points out of 100 to pass" without reading a file.
+#
+# Cross-vendor pi goes FIRST because it is the better judge: minimax is a different vendor from
+# every author lane (claude/codex/deepseek), so generator != judge holds at vendor level again
+# and D-62's same-vendor concession is not needed. The claude rungs stay as the TAIL because
+# pi's skill loading depends on a MACHINE PRECONDITION this chain cannot verify —
+# workspace-trust.ts must be installed globally in ~/.pi/agent/extensions/. Where that
+# precondition is unmet (a fresh rig, a container that clones but installs nothing), pi loads
+# no skills and the claude tail is the lane that still works.
+#
+# DEPLOYMENT TRAP, measured: install workspace-trust.ts ALONE. `ailang pi install` copies all
+# 14 extensions globally, where they collide with the repo's own .pi/extensions/ — fatally, not
+# as warnings. Same model outside a checkout: 0 errors, replies ok. Inside: 5 errors, no output
+# at all, including workspace-trust.ts itself failing to load.
+export MISSION_EVALUATOR_FALLBACK="${MISSION_EVALUATOR_FALLBACK:-pi:openrouter/minimax/minimax-m3,claude:claude-sonnet-4-6,opus}"
 
 # Codex-lane pre-flight, ROLE-GENERIC (m-planner-codex-lane): probe once per DISTINCT
 # codex model, fall back per-role on ANY non-zero rc (#486: probe MUST carry --model;

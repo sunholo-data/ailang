@@ -5,7 +5,6 @@ package server
 import (
 	"fmt"
 	"log"
-	"os"
 	"sync"
 	"time"
 
@@ -17,12 +16,28 @@ import (
 // timeNow is a function variable for time.Now, allowing tests to mock time.
 var timeNow = time.Now
 
-// AILANGBridge provides AILANG-based event formatting as an alternative to Go.
-// Enable with AILANG_DASHBOARD=1 environment variable.
+// AILANGBridge runs the dashboard's transforms, which are written in AILANG.
+//
+// It used to be a SWITCH between two implementations: AILANG when
+// AILANG_DASHBOARD=1, a Go copy otherwise, plus a silent fall back to that copy
+// whenever an AILANG call errored. Removed 2026-09-08 on Mark's instruction,
+// because a second implementation of a rule is not a safety net:
+//
+//   - the copies were free to drift, and nothing compared them;
+//   - the substitution was visible only in a log line nobody reads, so a broken
+//     AILANG path looked exactly like a working one;
+//   - `budget_checker` decides SPENDING. CLAUDE.md Principle 2 puts business
+//     logic explicitly outside what may be quietly defaulted;
+//   - and the flag was off in production while the deployed image shipped no
+//     `.ail` files at all — so the AILANG path had never run there, and the
+//     "fallback" was in fact the only thing that had ever executed.
+//
+// Now there is one implementation. Every method returns an error the caller must
+// handle, and a transform that cannot run says so.
 type AILANGBridge struct {
-	engine  *embed.Engine
-	enabled bool
-	mu      sync.RWMutex
+	engine *embed.Engine
+	err    error
+	mu     sync.RWMutex
 }
 
 var (
@@ -33,131 +48,106 @@ var (
 // GetAILANGBridge returns the singleton AILANG bridge instance.
 func GetAILANGBridge() *AILANGBridge {
 	ailangBridgeOnce.Do(func() {
-		enabled := os.Getenv("AILANG_DASHBOARD") == "1"
-		ailangBridge = &AILANGBridge{
-			enabled: enabled,
+		// Resolve against a module we actually call, so a tree that is present
+		// but missing the transforms fails here rather than on first request.
+		eng, err := embed.NewForModule(moduleEventFormatter)
+		ailangBridge = &AILANGBridge{engine: eng, err: err}
+		if err != nil {
+			log.Printf("[AILANG] dashboard transforms UNAVAILABLE: %v", err)
+			return
 		}
-		if enabled {
-			// Find AILANG project root (assumes server runs from project root or near it)
-			basePath := os.Getenv("AILANG_PROJECT_ROOT")
-			if basePath == "" {
-				// Default to current working directory
-				basePath, _ = os.Getwd()
+		for _, m := range []string{moduleHeatmap, moduleBudgetChecker} {
+			if lErr := eng.Load(m); lErr != nil {
+				ailangBridge.err = fmt.Errorf("loading %s: %w", m, lErr)
+				log.Printf("[AILANG] dashboard transforms UNAVAILABLE: %v", ailangBridge.err)
+				return
 			}
-			ailangBridge.engine = embed.New(basePath)
-			log.Printf("[AILANG] Dashboard bridge enabled (basePath=%s)", basePath)
 		}
+		log.Printf("[AILANG] dashboard transforms ready")
 	})
 	return ailangBridge
 }
 
-// IsEnabled returns true if the AILANG bridge is enabled.
-func (b *AILANGBridge) IsEnabled() bool {
+// AILANG module paths, named once so a typo is a compile error rather than a
+// runtime miss that used to be absorbed by a fallback.
+const (
+	moduleEventFormatter = "internal/dashboard_transforms/event_formatter"
+	moduleHeatmap        = "internal/dashboard_transforms/heatmap"
+	moduleBudgetChecker  = "internal/dashboard_transforms/budget_checker"
+)
+
+// Ready reports whether the transforms can run, and why not if they cannot.
+//
+// Replaces IsEnabled. The old name asked whether a FEATURE was switched on; the
+// question that matters now is whether the only implementation is reachable.
+func (b *AILANGBridge) Ready() error {
 	if b == nil {
-		return false
+		return fmt.Errorf("AILANG bridge not initialised")
 	}
-	return b.enabled
+	if b.err != nil {
+		return b.err
+	}
+	if b.engine == nil {
+		return fmt.Errorf("AILANG engine not loaded")
+	}
+	return nil
 }
 
 // SummarizeEvents calls the AILANG summarizeEvents function.
-// Falls back to Go implementation on error.
-func (b *AILANGBridge) SummarizeEvents(events []*coordinator.TaskEventRecord) string {
-	if !b.IsEnabled() || b.engine == nil {
-		return coordinator.SummarizeEvents(events)
+func (b *AILANGBridge) SummarizeEvents(events []*coordinator.TaskEventRecord) (string, error) {
+	if err := b.Ready(); err != nil {
+		return "", err
 	}
-
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 
-	// Convert events to AILANG-compatible format
-	ailangEvents := convertEventsForAILANG(events)
-
-	result, err := b.engine.Call(
-		"internal/dashboard_transforms/event_formatter",
-		"summarizeEvents",
-		ailangEvents,
-	)
+	result, err := b.engine.Call(moduleEventFormatter, "summarizeEvents", convertEventsForAILANG(events))
 	if err != nil {
-		log.Printf("[AILANG] SummarizeEvents failed, falling back to Go: %v", err)
-		return coordinator.SummarizeEvents(events)
+		return "", fmt.Errorf("summarizeEvents: %w", err)
 	}
-
 	str, err := embed.ToString(result)
 	if err != nil {
-		log.Printf("[AILANG] SummarizeEvents result conversion failed: %v", err)
-		return coordinator.SummarizeEvents(events)
+		return "", fmt.Errorf("summarizeEvents result: %w", err)
 	}
-
-	return str
+	return str, nil
 }
 
 // CountTurns calls the AILANG countTurns function.
-// Falls back to Go implementation on error.
-func (b *AILANGBridge) CountTurns(events []*coordinator.TaskEventRecord) int {
-	if !b.IsEnabled() || b.engine == nil {
-		return coordinator.CountTurns(events)
+func (b *AILANGBridge) CountTurns(events []*coordinator.TaskEventRecord) (int, error) {
+	if err := b.Ready(); err != nil {
+		return 0, err
 	}
-
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 
-	ailangEvents := convertEventsForAILANG(events)
-
-	result, err := b.engine.Call(
-		"internal/dashboard_transforms/event_formatter",
-		"countTurns",
-		ailangEvents,
-	)
+	result, err := b.engine.Call(moduleEventFormatter, "countTurns", convertEventsForAILANG(events))
 	if err != nil {
-		log.Printf("[AILANG] CountTurns failed, falling back to Go: %v", err)
-		return coordinator.CountTurns(events)
+		return 0, fmt.Errorf("countTurns: %w", err)
 	}
-
 	count, err := embed.ToInt(result)
 	if err != nil {
-		log.Printf("[AILANG] CountTurns result conversion failed: %v", err)
-		return coordinator.CountTurns(events)
+		return 0, fmt.Errorf("countTurns result: %w", err)
 	}
-
-	return count
+	return count, nil
 }
 
 // Truncate calls the AILANG truncate function.
-// Falls back to Go implementation on error.
-func (b *AILANGBridge) Truncate(text string, maxLen int) string {
-	if !b.IsEnabled() || b.engine == nil {
-		return goTruncate(text, maxLen)
+func (b *AILANGBridge) Truncate(text string, maxLen int) (string, error) {
+	if err := b.Ready(); err != nil {
+		return "", err
 	}
-
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 
-	result, err := b.engine.Call(
-		"internal/dashboard_transforms/event_formatter",
-		"truncate",
-		text,
-		maxLen,
-	)
+	result, err := b.engine.Call(moduleEventFormatter, "truncate", text, maxLen)
 	if err != nil {
-		log.Printf("[AILANG] Truncate failed, falling back to Go: %v", err)
-		return goTruncate(text, maxLen)
+		return "", fmt.Errorf("truncate: %w", err)
 	}
-
 	str, err := embed.ToString(result)
 	if err != nil {
-		log.Printf("[AILANG] Truncate result conversion failed: %v", err)
-		return goTruncate(text, maxLen)
+		return "", fmt.Errorf("truncate result: %w", err)
 	}
-
-	return str
-}
-
-// goTruncate is the Go fallback for truncate.
-func goTruncate(text string, maxLen int) string {
-	if maxLen == 0 || len(text) <= maxLen {
-		return text
-	}
-	return text[:maxLen] + "..."
+	return str, nil
 }
 
 // ailangEvent is the struct format expected by the AILANG event_formatter module.
@@ -182,42 +172,23 @@ func convertEventsForAILANG(events []*coordinator.TaskEventRecord) []ailangEvent
 
 // BuildHeatmapGrid calls the AILANG buildHeatmapGridAt function.
 // Falls back to Go implementation on error.
-func (b *AILANGBridge) BuildHeatmapGrid(cells []HeatmapCell, totalTasks int, totalCost float64, days int) HeatmapGridResponse {
-	if !b.IsEnabled() || b.engine == nil {
-		return buildHeatmapGrid(cells, totalTasks, totalCost, days)
+func (b *AILANGBridge) BuildHeatmapGrid(cells []HeatmapCell, totalTasks int, totalCost float64, days int) (HeatmapGridResponse, error) {
+	if err := b.Ready(); err != nil {
+		return HeatmapGridResponse{}, err
 	}
-
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 
-	// Convert cells to AILANG-compatible format
-	ailangCells := convertHeatmapCellsForAILANG(cells)
-
-	// Use current time as Unix milliseconds for AILANG
-	endTs := timeNow().UnixMilli()
-
-	result, err := b.engine.Call(
-		"internal/dashboard_transforms/heatmap",
-		"buildHeatmapGridAt",
-		ailangCells,
-		totalTasks,
-		totalCost,
-		days,
-		endTs,
-	)
+	result, err := b.engine.CallPreserveFloats(moduleHeatmap, "buildHeatmapGridAt",
+		convertHeatmapCellsForAILANG(cells), totalTasks, totalCost, days, timeNow().UnixMilli())
 	if err != nil {
-		log.Printf("[AILANG] BuildHeatmapGrid failed, falling back to Go: %v", err)
-		return buildHeatmapGrid(cells, totalTasks, totalCost, days)
+		return HeatmapGridResponse{}, fmt.Errorf("buildHeatmapGridAt: %w", err)
 	}
-
-	// Convert result back to Go types
-	goResult, err := convertHeatmapResultFromAILANG(result)
+	grid, err := convertHeatmapResultFromAILANG(result)
 	if err != nil {
-		log.Printf("[AILANG] BuildHeatmapGrid result conversion failed: %v", err)
-		return buildHeatmapGrid(cells, totalTasks, totalCost, days)
+		return HeatmapGridResponse{}, fmt.Errorf("buildHeatmapGridAt result: %w", err)
 	}
-
-	return goResult
+	return grid, nil
 }
 
 // ailangHeatmapCell is the struct format expected by the AILANG heatmap module.
@@ -395,82 +366,26 @@ type BudgetStatus struct {
 }
 
 // CheckTaskBudget calls the AILANG checkTaskBudget function with contracts.
-// Falls back to Go implementation on error.
-// Demonstrates: requires contracts for input validation
-func (b *AILANGBridge) CheckTaskBudget(config BudgetConfig, estimatedCost, workspaceSpend, dailySpend float64) BudgetStatus {
-	if !b.IsEnabled() || b.engine == nil {
-		return goCheckTaskBudget(config, estimatedCost, workspaceSpend, dailySpend)
+//
+// This one decides SPENDING, which is why it may not quietly default. A caller
+// that cannot evaluate the budget must refuse the spend, not invent an answer.
+func (b *AILANGBridge) CheckTaskBudget(config BudgetConfig, estimatedCost, workspaceSpend, dailySpend float64) (BudgetStatus, error) {
+	if err := b.Ready(); err != nil {
+		return BudgetStatus{}, err
 	}
-
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 
-	result, err := b.engine.Call(
-		"internal/dashboard_transforms/budget_checker",
-		"checkTaskBudget",
-		config,
-		estimatedCost,
-		workspaceSpend,
-		dailySpend,
-	)
+	result, err := b.engine.CallPreserveFloats(moduleBudgetChecker, "checkTaskBudget",
+		config, estimatedCost, workspaceSpend, dailySpend)
 	if err != nil {
-		log.Printf("[AILANG] CheckTaskBudget failed, falling back to Go: %v", err)
-		return goCheckTaskBudget(config, estimatedCost, workspaceSpend, dailySpend)
+		return BudgetStatus{}, fmt.Errorf("checkTaskBudget: %w", err)
 	}
-
 	status, err := convertBudgetStatusFromAILANG(result)
 	if err != nil {
-		log.Printf("[AILANG] CheckTaskBudget result conversion failed: %v", err)
-		return goCheckTaskBudget(config, estimatedCost, workspaceSpend, dailySpend)
+		return BudgetStatus{}, fmt.Errorf("checkTaskBudget result: %w", err)
 	}
-
-	return status
-}
-
-// goCheckTaskBudget is the Go fallback for budget checking.
-func goCheckTaskBudget(config BudgetConfig, estimatedCost, workspaceSpend, dailySpend float64) BudgetStatus {
-	remainingWorkspace := config.WorkspaceBudget - workspaceSpend
-	remainingDaily := config.DailyBudget - dailySpend
-	minRemaining := remainingWorkspace
-	if remainingDaily < minRemaining {
-		minRemaining = remainingDaily
-	}
-
-	if estimatedCost > minRemaining {
-		return BudgetStatus{
-			Allowed:            false,
-			RemainingWorkspace: remainingWorkspace,
-			RemainingDaily:     remainingDaily,
-			WarningLevel:       "exceeded",
-			Message:            "Task cost exceeds remaining budget",
-		}
-	}
-
-	if estimatedCost > config.TaskMaxCost {
-		return BudgetStatus{
-			Allowed:            false,
-			RemainingWorkspace: remainingWorkspace,
-			RemainingDaily:     remainingDaily,
-			WarningLevel:       "exceeded",
-			Message:            "Task exceeds maximum single-task cost",
-		}
-	}
-
-	usageRatio := (dailySpend + estimatedCost) / config.DailyBudget
-	level := "ok"
-	if usageRatio > 0.9 {
-		level = "critical"
-	} else if usageRatio > config.WarningThreshold {
-		level = "warning"
-	}
-
-	return BudgetStatus{
-		Allowed:            true,
-		RemainingWorkspace: remainingWorkspace - estimatedCost,
-		RemainingDaily:     remainingDaily - estimatedCost,
-		WarningLevel:       level,
-		Message:            "Task approved",
-	}
+	return status, nil
 }
 
 // convertBudgetStatusFromAILANG converts AILANG result to Go BudgetStatus.
@@ -509,108 +424,57 @@ type CostRecord struct {
 
 // CalculateBurnRate calls the AILANG calculateBurnRate function.
 // Returns cost per hour based on recent spending within the time window.
-// Falls back to Go implementation on error.
-func (b *AILANGBridge) CalculateBurnRate(costs []CostRecord, windowMillis int64) float64 {
-	if !b.IsEnabled() || b.engine == nil {
-		return goCalculateBurnRate(costs, windowMillis)
+func (b *AILANGBridge) CalculateBurnRate(costs []CostRecord, windowMillis int64) (float64, error) {
+	if err := b.Ready(); err != nil {
+		return 0, err
 	}
-
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 
-	// Convert to AILANG-compatible format
 	ailangCosts := make([]map[string]interface{}, len(costs))
 	for i, c := range costs {
-		ailangCosts[i] = map[string]interface{}{
-			"timestamp": c.Timestamp,
-			"cost":      c.Cost,
-		}
+		ailangCosts[i] = map[string]interface{}{"timestamp": c.Timestamp, "cost": c.Cost}
 	}
 
-	result, err := b.engine.Call(
-		"internal/dashboard_transforms/budget_checker",
-		"calculateBurnRate",
-		ailangCosts,
-		windowMillis,
-	)
+	result, err := b.engine.CallPreserveFloats(moduleBudgetChecker, "calculateBurnRate", ailangCosts, windowMillis)
 	if err != nil {
-		log.Printf("[AILANG] CalculateBurnRate failed, falling back to Go: %v", err)
-		return goCalculateBurnRate(costs, windowMillis)
+		return 0, fmt.Errorf("calculateBurnRate: %w", err)
 	}
-
 	rate, err := embed.ToFloat(result)
 	if err != nil {
-		log.Printf("[AILANG] CalculateBurnRate result conversion failed: %v", err)
-		return goCalculateBurnRate(costs, windowMillis)
+		return 0, fmt.Errorf("calculateBurnRate result: %w", err)
 	}
-
-	return rate
-}
-
-// goCalculateBurnRate is the Go fallback for burn rate calculation.
-func goCalculateBurnRate(costs []CostRecord, windowMillis int64) float64 {
-	if len(costs) == 0 || windowMillis <= 0 {
-		return 0.0
-	}
-	var totalCost float64
-	for _, c := range costs {
-		totalCost += c.Cost
-	}
-	windowHours := float64(windowMillis) / 3600000.0
-	return totalCost / windowHours
+	return rate, nil
 }
 
 // ForecastExhaustion calls the AILANG forecastExhaustion function.
-// Returns estimated hours until budget exhaustion, or -1 if burn rate is zero.
-// Falls back to Go implementation on error.
-func (b *AILANGBridge) ForecastExhaustion(remainingBudget, burnRate float64) int {
-	if !b.IsEnabled() || b.engine == nil {
-		return goForecastExhaustion(remainingBudget, burnRate)
+// Returns estimated hours until budget exhaustion, or -1 for None (no burn).
+func (b *AILANGBridge) ForecastExhaustion(remainingBudget, burnRate float64) (int, error) {
+	if err := b.Ready(); err != nil {
+		return 0, err
 	}
-
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 
-	result, err := b.engine.Call(
-		"internal/dashboard_transforms/budget_checker",
-		"forecastExhaustion",
-		remainingBudget,
-		burnRate,
-	)
+	result, err := b.engine.CallPreserveFloats(moduleBudgetChecker, "forecastExhaustion", remainingBudget, burnRate)
 	if err != nil {
-		log.Printf("[AILANG] ForecastExhaustion failed, falling back to Go: %v", err)
-		return goForecastExhaustion(remainingBudget, burnRate)
+		return 0, fmt.Errorf("forecastExhaustion: %w", err)
 	}
-
-	// Result is Option[int] - extract value or return -1 for None
 	goResult, err := embed.ToGo(result)
 	if err != nil {
-		log.Printf("[AILANG] ForecastExhaustion result conversion failed: %v", err)
-		return goForecastExhaustion(remainingBudget, burnRate)
+		return 0, fmt.Errorf("forecastExhaustion result: %w", err)
 	}
 
-	// Handle Option type (Some has "value" key, None is empty or has no value)
+	// Option[int]: Some carries "value"; None is the -1 sentinel this API uses.
 	if resultMap, ok := goResult.(map[string]interface{}); ok {
 		if _, exists := resultMap["value"]; exists {
-			return getInt(resultMap, "value")
+			return getInt(resultMap, "value"), nil
 		}
-		// Check for tag-based ADT representation
-		if tag, exists := resultMap["_tag"]; exists {
-			if tag == "Some" {
-				return getInt(resultMap, "value")
-			}
+		if tag, exists := resultMap["_tag"]; exists && tag == "Some" {
+			return getInt(resultMap, "value"), nil
 		}
 	}
-
-	return -1 // None case
-}
-
-// goForecastExhaustion is the Go fallback for exhaustion forecasting.
-func goForecastExhaustion(remainingBudget, burnRate float64) int {
-	if burnRate <= 0 {
-		return -1 // Infinite / no burn
-	}
-	return int(remainingBudget / burnRate)
+	return -1, nil
 }
 
 // Close shuts down the AILANG engine.

@@ -1,0 +1,61 @@
+-- Interpolated string builders under Z3 (M-SMT-INTERP-SHOW)
+--
+-- Interpolation is how strings are built in AILANG (`++` is list-only), and
+-- string construction is exactly where the injection bug classes live: a CR or
+-- LF in an RFC 5322 header value splits the header block and lets the caller
+-- forge headers or a body.
+--
+-- Before v0.36.0 none of these could be PROVED. The parser desugars every
+-- "${...}" hole to `show(<expr>)` before any type is known, and `show` has no
+-- SMT-LIB encoding — so `"X${a}"` skipped where the identical
+-- `concat_String("X", a)` verified. ShowNormalizer now removes `show` wherever
+-- the argument type makes it redundant (string) or trivially encodable
+-- (bool, int), and these contracts are checked by Z3 rather than merely tested.
+--
+--   ailang verify examples/runnable/contracts/interpolation_verify.ail
+
+module examples/runnable/contracts/interpolation_verify
+
+import std/io (println)
+import std/string (contains)
+
+-- The archetypal case: a pure, contract-bearing core with the guard that
+-- matters. The `requires` rules out header injection; the `ensures` pins the
+-- header/body separator. Both are now proved, not assumed.
+export pure func buildMessage(to: string, subject: string, body: string) -> string
+requires {
+  not(contains(to, "\r")),
+  not(contains(to, "\n")),
+  not(contains(subject, "\r")),
+  not(contains(subject, "\n"))
+}
+ensures { contains(result, "\r\n\r\n") }
+{
+  "To: ${to}\r\nSubject: ${subject}\r\n\r\n${body}"
+}
+
+-- A bool hole: `show(b)` becomes `if b then "true" else "false"`, which the
+-- encoder already handled.
+export pure func flagLine(name: string, on: bool) -> string
+requires { not(contains(name, "=")) }
+ensures { contains(result, "=") }
+{
+  "${name}=${on}"
+}
+
+-- An int hole. Z3's str.from_int is undefined for negatives, so the encoding
+-- branches on the sign — which is why a negative count still proves.
+export pure func countLine(n: int) -> string
+ensures { contains(result, "count=") }
+{
+  "count=${n}"
+}
+
+export func main() -> () ! {IO} {
+  let msg = buildMessage("ops@example.com", "Deploy", "shipped") in
+  let _ = println(if contains(msg, "\r\n\r\n") then "header/body separator: ok" else "MISSING") in
+  let _ = println(flagLine("verbose", true)) in
+  let _ = println(flagLine("quiet", false)) in
+  let _ = println(countLine(42)) in
+  println(countLine(-7))
+}

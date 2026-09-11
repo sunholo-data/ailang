@@ -164,7 +164,7 @@ func (s *ObservatoryStore) findChainByField(ctx context.Context, field, value st
 	return mapToChain(doc.Data()), nil
 }
 
-func (s *ObservatoryStore) filterChainsByAgent(ctx context.Context, chains []*obs.ChainSummary, agentID string) []*obs.ChainSummary {
+func (s *ObservatoryStore) chainIDsForAgent(ctx context.Context, agentID string) (map[string]bool, error) {
 	// Build set of chain IDs that have a stage with this agent
 	chainIDsWithAgent := make(map[string]bool)
 	iter := s.client.Collection(collObsChainStages).
@@ -177,18 +177,12 @@ func (s *ObservatoryStore) filterChainsByAgent(ctx context.Context, chains []*ob
 			break
 		}
 		if err != nil {
-			break
+			return nil, err
 		}
 		chainIDsWithAgent[getString(doc.Data(), "chain_id")] = true
 	}
 
-	var filtered []*obs.ChainSummary
-	for _, c := range chains {
-		if chainIDsWithAgent[c.ID] {
-			filtered = append(filtered, c)
-		}
-	}
-	return filtered
+	return chainIDsWithAgent, nil
 }
 
 // --- Chat message operations ---

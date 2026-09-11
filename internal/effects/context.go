@@ -689,6 +689,17 @@ func (ctx *EffContext) HasTraceCollector() bool {
 	return ctx.Trace != nil && ctx.Trace.Enabled()
 }
 
+// RecordsFunctionCalls reports whether the active collector's tier admits
+// per-call function events.
+//
+// The evaluator consults this BEFORE rendering arguments (M-TRACE-TIER-NOT-ENFORCED):
+// rendering a String() per argument per call is where the superlinear memory cost
+// is paid, so discovering inside the collector that the event is unwanted would be
+// too late.
+func (ctx *EffContext) RecordsFunctionCalls() bool {
+	return ctx.Trace != nil && ctx.Trace.Enabled() && ctx.Trace.RecordsFunctionCalls()
+}
+
 // RecordFunctionEnter delegates to trace collector if present.
 func (ctx *EffContext) RecordFunctionEnter(name string, args []string) {
 	if ctx.Trace != nil && ctx.Trace.Enabled() {

@@ -340,7 +340,7 @@ func printHelp() {
 	fmt.Printf("    %s <task-id>     Show git diff of changes\n", cyan("coordinator diff"))
 	fmt.Printf("    %s <task-id>     Show streaming execution logs\n", cyan("coordinator logs"))
 	fmt.Printf("  %s <cmd>              View execution chains (task→session→chat linkage)\n", cyan("chains"))
-	fmt.Printf("    %s                  List all chains\n", cyan("chains list"))
+	fmt.Printf("    %s                  List chains (--remote gcp --limit N --offset N; --workspace ID --repo owner/repo)\n", cyan("chains list"))
 	fmt.Printf("    %s <chain-id>       View chain stages and details\n", cyan("chains view"))
 	fmt.Printf("    %s <chain-id>       ASCII tree with chat history\n", cyan("chains tree"))
 	fmt.Printf("    %s          Cost summary (add --by-mission for per-mission budget rollup)\n", cyan("chains stats"))

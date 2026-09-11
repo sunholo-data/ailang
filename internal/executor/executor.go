@@ -52,13 +52,27 @@ type Task struct {
 	// coordinator leaves it false so opencode keeps auto-loading the repo's CLAUDE.md.
 	PersistentSystemPrompt bool
 
-	Workspace    string            // Working directory (local path)
-	Timeout      time.Duration     // Hard ceiling execution timeout
-	IdleTimeout  time.Duration     // Kill if no events for this long after first event (0 = use default 3m)
-	TTFTTimeout  time.Duration     // Kill if no output before first event (prefill budget; 0 = use default 30s)
-	AllowedTools []string          // Tools the agent can use
-	Model        string            // Model to use (provider-specific)
-	Metadata     map[string]string // Provider-specific options
+	Workspace    string        // Working directory (local path)
+	Timeout      time.Duration // Hard ceiling execution timeout
+	IdleTimeout  time.Duration // Kill if no events for this long after first event (0 = use default 3m)
+	TTFTTimeout  time.Duration // Kill if no output before first event (prefill budget; 0 = use default 30s)
+	AllowedTools []string      // Tools the agent can use
+
+	// IsolateFromAmbientContext asks the harness NOT to auto-discover and load the
+	// repository's standing agent-instruction files (AGENTS.md, CLAUDE.md and friends).
+	//
+	// pi loads them by default. For a mission stage that is a correctness problem, not a
+	// convenience: the stage's contract is meant to be FROZEN, and a work item whose
+	// behaviour depends on the current contents of AGENTS.md is not frozen. Measured
+	// 2026-09-08 — a mission evaluator dispatched into a repo worktree inherited
+	// AGENTS.md's "Read CLAUDE.md first - hard gate", "Work Routing (do not self-approve)"
+	// and "Classify every task BEFORE touching code", none of which its contract mentions,
+	// and one model correctly refused the job as a suspected prompt injection.
+	//
+	// Harnesses that cannot express this may ignore it; it is a request, not a guarantee.
+	IsolateFromAmbientContext bool
+	Model                     string            // Model to use (provider-specific)
+	Metadata                  map[string]string // Provider-specific options
 
 	// ExtraEnv are additional environment variables exported to the agent
 	// subprocess, merged into the executor's process env by BuildEnvironment.

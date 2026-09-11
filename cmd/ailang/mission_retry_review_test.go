@@ -5,6 +5,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -24,8 +25,19 @@ func TestReviewBundleExclusiveCompletePublication(t *testing.T) {
 			t.Fatalf("%s: %q %v", suffix, got, err)
 		}
 		info, err := os.Stat(path + suffix)
-		if err != nil || info.Mode().Perm() != 0600 {
-			t.Fatalf("unsafe mode: %v %v", info, err)
+		if err != nil {
+			t.Fatalf("stat %s: %v", suffix, err)
+		}
+		// Windows has NO assertable permission property here, not merely a weaker one: a file
+		// created 0600 reports -rw-rw-rw- (0666), so even "no group or world bits" is false
+		// there. Measured on the runner 2026-09-08 — an earlier attempt asserted exactly that
+		// portable half and failed. The owner-only guarantee is a unix guarantee; assert it
+		// where it exists and say plainly that it does not exist elsewhere.
+		if runtime.GOOS == "windows" {
+			continue
+		}
+		if info.Mode().Perm() != 0600 {
+			t.Fatalf("unsafe mode %v on %s", info.Mode().Perm(), suffix)
 		}
 	}
 	if err := writeReviewFiles(path, [][]byte{[]byte("changed"), nil, nil}); err == nil {

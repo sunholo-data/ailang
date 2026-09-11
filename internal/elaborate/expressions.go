@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/sunholo-data/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/builtins"
 	"github.com/sunholo-data/ailang/internal/core"
 )
 
@@ -36,6 +37,13 @@ func (e *Elaborator) normalize(expr ast.Expr) (core.CoreExpr, error) {
 		return e.normalizeLiteral(ex)
 
 	case *ast.Identifier:
+		// Hygienic builtin reference synthesized by a desugar (currently the
+		// `show` wrapper the interpolation desugar inserts). It must reach
+		// $builtin whatever the module binds, so it deliberately skips
+		// constructor lookup, globalEnv and local resolution alike.
+		if ex.ResolveAsBuiltin {
+			return e.resolveSynthesizedBuiltin(ex)
+		}
 		// Check if this is a nullary constructor (e.g., None, True, False)
 		if ctorInfo, isConstructor := e.constructors[ex.Name]; isConstructor && ctorInfo.Arity == 0 {
 			// Nullary constructor: transform None → $adt.make_Option_None
@@ -119,4 +127,28 @@ func (e *Elaborator) normalize(expr ast.Expr) (core.CoreExpr, error) {
 		}
 		return nil, fmt.Errorf("normalization not implemented for %T", expr)
 	}
+}
+
+// resolveSynthesizedBuiltin resolves a desugar-synthesized builtin reference
+// directly to $builtin.<Name>, bypassing every form of user-visible name
+// resolution so nothing a program declares can capture it.
+//
+// An unregistered name here is a compiler bug in whichever desugar produced it,
+// not a user error: emitting a plausible reference to a builtin that does not
+// exist would surface much later, as an unresolved global at link or eval time,
+// with nothing pointing back at the desugar. Fail here instead.
+func (e *Elaborator) resolveSynthesizedBuiltin(ex *ast.Identifier) (core.CoreExpr, error) {
+	if _, ok := builtins.GetSpec(ex.Name); !ok {
+		return nil, fmt.Errorf(
+			"internal: desugar synthesized a builtin reference to %q, which is not a registered builtin "+
+				"(ResolveAsBuiltin set at %v). This is a compiler bug in the desugar, not an error in the source",
+			ex.Name, ex.Position())
+	}
+	return &core.VarGlobal{
+		CoreNode: e.makeNode(ex.Position()),
+		Ref: core.GlobalRef{
+			Module: "$builtin",
+			Name:   ex.Name,
+		},
+	}, nil
 }
