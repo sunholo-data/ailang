@@ -756,7 +756,7 @@ func configureGitAuthor(ctx context.Context, workDir string) {
 		return
 	}
 	for _, kv := range [][2]string{{"user.name", name}, {"user.email", email}} {
-		cmd := exec.CommandContext(ctx, "git", "-C", workDir, "config", kv[0], kv[1])
+		cmd := gitexec.CommandContext(ctx, "-C", workDir, "config", kv[0], kv[1])
 		if err := cmd.Run(); err != nil {
 			// Loud: the commit will still be made, but by somebody else, and an
 			// author line nobody checked is how a record stops being evidence.

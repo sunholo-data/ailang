@@ -15,6 +15,7 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/coordinator"
 	"github.com/sunholo-data/ailang/internal/executor"
+	"github.com/sunholo-data/ailang/internal/gitexec"
 	"github.com/sunholo-data/ailang/internal/gitutil"
 )
 
@@ -657,7 +658,7 @@ func agentPRBody(ctx context.Context, taskID, agentID, directive, workDir, baseB
 
 // changedFiles lists what the branch changes against its base.
 func changedFiles(ctx context.Context, workDir, baseBranch string) ([]string, error) {
-	cmd := exec.CommandContext(ctx, "git", "diff", "--name-only", "origin/"+baseBranch+"...HEAD")
+	cmd := gitexec.CommandContext(ctx, "diff", "--name-only", "origin/"+baseBranch+"...HEAD")
 	cmd.Dir = workDir
 	out, err := cmd.Output()
 	if err != nil {

@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/gitexec"
 
 	secretmanager "cloud.google.com/go/secretmanager/apiv1"
 	"cloud.google.com/go/secretmanager/apiv1/secretmanagerpb"
@@ -168,14 +169,14 @@ func sshCloneURL(repoURL, alias string) string {
 func verifyDeployKey(ctx context.Context, alias, ownerRepo string) error {
 	remote := fmt.Sprintf("git@%s:%s.git", alias, ownerRepo)
 
-	lsCmd := exec.CommandContext(ctx, "git", "ls-remote", remote, "HEAD")
+	lsCmd := gitexec.CommandContext(ctx, "ls-remote", remote, "HEAD")
 	out, err := lsCmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("deploy key cannot READ %s: %v: %s", remote, err, strings.TrimSpace(string(out)))
 	}
 
 	// --dry-run so nothing is created; the point is the permission answer.
-	pushCmd := exec.CommandContext(ctx, "git", "push", "--dry-run", remote, "HEAD:refs/heads/ailang-deploy-key-smoke")
+	pushCmd := gitexec.CommandContext(ctx, "push", "--dry-run", remote, "HEAD:refs/heads/ailang-deploy-key-smoke")
 	pushOut, pushErr := pushCmd.CombinedOutput()
 	combined := string(pushOut)
 	if strings.Contains(combined, "denied") || strings.Contains(combined, "read-only") {
