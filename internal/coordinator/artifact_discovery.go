@@ -287,3 +287,19 @@ func sliceContains(slice []string, item string) bool {
 	}
 	return false
 }
+
+// MatchesArtifactPattern reports whether a file matches one of an agent's
+// declared artifact patterns.
+//
+// Exported for the Cloud Run wrapper's auto-merge guard, which asks a narrower
+// question than artifact discovery does: "did this branch change ONLY what this
+// agent is declared to produce?" A branch that strays outside the declaration is
+// not the work the operator authorised auto-merge for, whatever its checks say.
+func MatchesArtifactPattern(patterns []string, file string) bool {
+	for _, p := range patterns {
+		if matchGlob(p, file) {
+			return true
+		}
+	}
+	return false
+}

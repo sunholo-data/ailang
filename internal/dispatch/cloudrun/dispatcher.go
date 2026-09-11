@@ -271,6 +271,15 @@ func (d *Dispatcher) Dispatch(ctx context.Context, params coordinator.DispatchPa
 		envOverrides = append(envOverrides, &runpb.EnvVar{
 			Name: "AILANG_AUTO_MERGE", Values: &runpb.EnvVar_Value{Value: "1"},
 		})
+		// Newline-separated: a pattern may legitimately contain a comma, and a
+		// separator that can appear in the data is how a scope guard silently
+		// widens.
+		if len(params.ArtifactPatterns) > 0 {
+			envOverrides = append(envOverrides, &runpb.EnvVar{
+				Name:   "AILANG_ARTIFACT_PATTERNS",
+				Values: &runpb.EnvVar_Value{Value: strings.Join(params.ArtifactPatterns, "\n")},
+			})
+		}
 	}
 	// M-PKG-CASCADE-DETERMINISTIC-FIRST: cascade envelope env vars. The Cloud
 	// Run Job wrapper reads these to choose deterministic-bump vs AI-escalation.

@@ -110,7 +110,7 @@ func maybeEnableAutoMerge(ctx context.Context, token, owner, repo string, prNum 
 		return
 	}
 
-	docsOnly, reason, err := branchIsDocsOnly(ctx, workDir, baseBranch)
+	docsOnly, reason, err := branchIsAutoMergeable(ctx, workDir, baseBranch, artifactPatternsFromEnv())
 	if err != nil {
 		// Could not tell -> do not enable. A PR left for a human is a delay; an
 		// auto-merged one we could not classify is a change nobody reviewed.
@@ -131,12 +131,28 @@ func maybeEnableAutoMerge(ctx context.Context, token, owner, repo string, prNum 
 	fmt.Printf("execute-job: auto-merge enabled on #%d (docs-only; GitHub will merge when required checks pass)\n", prNum)
 }
 
-// branchIsDocsOnly reports whether the branch changes only documentation.
+// branchIsAutoMergeable reports whether a branch may be merged without a human.
 //
-// The predicate deliberately MATCHES the docs-only lane in .github/workflows/ci.yml.
-// If the two ever disagree, a PR could take the fast CI lane and then be
-// auto-merged on the strength of checks that never ran the thing it changed.
-func branchIsDocsOnly(ctx context.Context, workDir, baseBranch string) (bool, string, error) {
+// TWO conditions, both required:
+//
+//  1. every changed file matches one of the agent's DECLARED artifact patterns
+//     (AILANG_ARTIFACT_PATTERNS, from the registry);
+//  2. every changed file is MARKDOWN.
+//
+// This replaced a hardcoded `design_docs/|changelogs/` list, which was an
+// AILANG-REPO assumption baked into a wrapper that runs in EVERY agent's repo.
+// `daneel-writer` works in sunholo-data/daneel-memory and produces
+// `documents/**/*.md`; under the old rule it would have been configured for
+// auto-merge, done exactly what it should, and never merged — with nothing
+// saying why. Scope has to come from the agent's own declaration, because only
+// that is per-repo.
+//
+// (2) is the floor, and it is not redundant. Patterns declare SCOPE, not safety:
+// pkg-sunholo-ailang-parse legitimately declares `**/*`, which as a sole gate
+// would auto-merge anything the day someone flips its flag. The floor means
+// auto-merge can only ever land documents, so widening a pattern cannot quietly
+// widen what merges unreviewed.
+func branchIsAutoMergeable(ctx context.Context, workDir, baseBranch string, patterns []string) (bool, string, error) {
 	files, err := changedFiles(ctx, workDir, baseBranch)
 	if err != nil {
 		return false, "", fmt.Errorf("git diff against origin/%s: %w", baseBranch, err)
@@ -144,23 +160,35 @@ func branchIsDocsOnly(ctx context.Context, workDir, baseBranch string) (bool, st
 	if len(files) == 0 {
 		return false, "the branch changes no files", nil
 	}
+	if len(patterns) == 0 {
+		return false, "the agent declares no artifact patterns, so nothing bounds what it may merge", nil
+	}
 	for _, f := range files {
-		if !isDocsPath(f) {
-			return false, fmt.Sprintf("%s is not a documentation file", f), nil
+		if !strings.HasSuffix(f, ".md") {
+			return false, fmt.Sprintf("%s is not a document; auto-merge only ever lands markdown", f), nil
+		}
+		if !coordinator.MatchesArtifactPattern(patterns, f) {
+			return false, fmt.Sprintf("%s is outside the agent's declared artifacts (%s)", f, strings.Join(patterns, ", ")), nil
 		}
 	}
 	return true, "", nil
 }
 
-// isDocsPath mirrors the ci.yml docs-only lane exactly.
-//
-// NOT every .md: CLAUDE.md and .claude/**/*.md change agent behaviour, and
-// docs/ is the website with its own build. Only design docs and changelogs.
-func isDocsPath(f string) bool {
-	if !strings.HasSuffix(f, ".md") {
-		return false
+// artifactPatternsFromEnv reads the declared patterns the dispatcher passed.
+// Newline-separated: a pattern may contain a comma, and a separator that can
+// appear in the data is how a scope guard silently widens.
+func artifactPatternsFromEnv() []string {
+	raw := strings.TrimSpace(os.Getenv("AILANG_ARTIFACT_PATTERNS"))
+	if raw == "" {
+		return nil
 	}
-	return strings.HasPrefix(f, "design_docs/") || strings.HasPrefix(f, "changelogs/")
+	var out []string
+	for _, p := range strings.Split(raw, "\n") {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 // createGitHubPR makes a POST /repos/{owner}/{repo}/pulls call.

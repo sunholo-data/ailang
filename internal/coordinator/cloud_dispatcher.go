@@ -66,6 +66,13 @@ type DispatchParams struct {
 	// same authority boundary as WorkTier.
 	AutoMerge bool
 
+	// ArtifactPatterns is what this agent is DECLARED to produce. The wrapper's
+	// auto-merge guard requires every changed file to match one, so a run that
+	// strays outside the declaration is not auto-merged even when the agent is
+	// configured for it and the checks are green. Registry metadata, like
+	// AutoMerge itself.
+	ArtifactPatterns []string
+
 	// M-PKG-CASCADE-DETERMINISTIC-FIRST: cascade envelope fields, propagated
 	// from TaskRecord so the Cloud Run Job wrapper can decide deterministic-
 	// bump vs AI-escalation without re-fetching the task. Empty/false for

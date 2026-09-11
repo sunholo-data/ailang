@@ -249,6 +249,7 @@ func (d *Daemon) dispatchTasksCloud() error {
 				// Whether GitHub may merge this agent's PR on green. Registry
 				// metadata, so a message cannot ask for its own auto-merge.
 				params.AutoMerge = agent.AutoMerge
+				params.ArtifactPatterns = agent.GetEffectiveArtifactPatterns()
 			}
 			// M-HARNESS-COMMIT-CONTRACT: Pass site metadata for structured commit messages.
 			if task.SiteSlug != "" {
