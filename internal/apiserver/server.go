@@ -11,7 +11,6 @@ package apiserver
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -305,56 +304,21 @@ func (s *Server) DroppedModules() []DroppedModule {
 	return out
 }
 
-// flushDebugOutput collects Debug ghost effect logs and prints them to stderr,
-// then resets the context for the next request. Respects s.logLevel for filtering.
+// flushDebugOutput collects Debug ghost effect logs and prints them to stderr
+// via the shared effects.DebugSink, then resets the context for the next
+// request. Structured (JSON-object) lines and failed checks are written
+// verbatim as JSON so Cloud Logging lifts their severity; unstructured lines
+// keep the timestamped "[Debug] " decoration (M-DEBUG-SINK-STRUCTURED-LINES).
 func (s *Server) flushDebugOutput() {
-	if s.effCtx == nil || s.effCtx.Debug == nil {
+	if s.effCtx == nil {
 		return
 	}
-	out := s.effCtx.Debug.Collect()
-	for _, l := range out.Logs {
-		if s.logLevel > 0 {
-			sev := extractServerSeverity(l.Message)
-			if sev != "" && serverSeverityLevel(sev) < s.logLevel {
-				continue
-			}
-		}
-		log.Printf("[Debug] %s", l.Message)
-	}
-	for _, a := range out.Assertions {
-		if !a.Passed {
-			log.Printf("[Debug ASSERT FAIL] %s at %s", a.Message, a.Location)
-		}
-	}
-	s.effCtx.Debug.Reset()
-}
-
-func extractServerSeverity(msg string) string {
-	if len(msg) < 2 || msg[0] != '{' {
-		return ""
-	}
-	var parsed struct {
-		Severity string `json:"severity"`
-	}
-	if err := json.Unmarshal([]byte(msg), &parsed); err != nil {
-		return ""
-	}
-	return parsed.Severity
-}
-
-func serverSeverityLevel(severity string) int {
-	switch severity {
-	case "DEBUG", "TRACE":
-		return 0
-	case "INFO":
-		return 1
-	case "WARNING":
-		return 2
-	case "ERROR":
-		return 3
-	default:
-		return 1
-	}
+	effects.DebugSink{
+		W:          os.Stderr,
+		Logf:       func(format string, args ...any) { log.Printf("[Debug] "+format, args...) },
+		MinLevel:   s.logLevel,
+		Structured: true,
+	}.Flush(s.effCtx.Debug)
 }
 
 // LoadModules compiles and loads AILANG modules from the given paths.

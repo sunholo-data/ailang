@@ -1236,6 +1236,39 @@ DEBUG_CONCURRENCY=1 CAPS=IO,FS ./tools/test-concurrency.sh path/to/modules/
 > ailang serve-api ./api/ 2>&1 | tee /tmp/server.log &
 > ```
 
+### Structured Logging (Cloud Run, jq, Loki) — v0.37.3+
+
+`Debug.log` is the logging channel for a served handler. The server flushes
+every line to **stderr** after each request, with one rule:
+
+- A line that is a **bare JSON object** is written **verbatim**, on its own
+  line — no timestamp, no `[Debug]` prefix. Cloud Logging (and any JSON-line
+  consumer) parses it as `jsonPayload` and lifts the `severity` field.
+- Any other line is written as `YYYY/MM/DD HH:MM:SS [Debug] <text>`.
+- A **failed `Debug.check`** is emitted as
+  `{"severity":"ERROR","message":"assertion failed: <msg>","location":"<loc>","source":"Debug.check"}`
+  so a `severity>=ERROR` alert catches it.
+
+```ailang
+import std/debug as Debug
+
+-- @route POST /order
+export func order(id: string) -> string =
+  let _ = Debug.log("{\"severity\":\"ERROR\",\"message\":\"payment declined\",\"order\":\"" ++ id ++ "\"}") in
+  "declined"
+```
+
+stderr (exactly what Cloud Logging receives):
+```
+{"severity":"ERROR","message":"payment declined","order":"42"}
+```
+
+Rules of thumb: one JSON object per line (a multi-line pretty-printed object
+is treated as text); use Google's severity names (`DEBUG`, `INFO`, `WARNING`,
+`ERROR`); `--log-level` filters structured lines by that field — a structured
+line with no `severity` always passes, and a failed check always surfaces.
+Debug output is always emitted — no `--caps` is needed for it.
+
 ### Debug Tracing
 
 Set `DEBUG_CONCURRENCY=1` to trace per-request evaluator lifecycle:

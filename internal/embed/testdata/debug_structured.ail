@@ -1,0 +1,14 @@
+-- debug_structured.ail: fixture for M-DEBUG-SINK-STRUCTURED-LINES — a
+-- served handler that emits one structured Debug.log line, one plain line,
+-- and one failed Debug.check. The apiserver sink must write the structured
+-- line and the failed check as bare JSON (no timestamp, no "[Debug] ") so
+-- Cloud Logging lifts their severity; the plain line keeps its decoration.
+
+module internal/embed/testdata/debug_structured
+import std/debug as Debug
+
+export func main() -> string =
+  let _ = Debug.log("{\"severity\":\"ERROR\",\"message\":\"structured-line\"}") in
+  let _ = Debug.log("plain-line") in
+  let _ = Debug.check(false, "served-check") in
+  "ok"

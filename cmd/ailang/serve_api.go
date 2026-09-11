@@ -92,9 +92,12 @@ func serveAPICommand(args []string) error {
 	}
 
 	// Set up effect context if capabilities, AI, or contract flags are provided
-	var effCtx *effects.EffContext
+	// Always construct the effect context: NewEffContext grants only the
+	// ghost Debug capability, and without it serve-api silently dropped
+	// every Debug.log line when no --caps/--ai-*/--verify-contracts flag was
+	// set (M-DEBUG-SINK-STRUCTURED-LINES D5). Real capabilities stay gated.
+	effCtx := effects.NewEffContext(nil)
 	if *capsFlag != "" || *aiModelFlag != "" || *aiStubFlag || *verifyContractsFlag {
-		effCtx = effects.NewEffContext(nil)
 		if err := grantCapabilities(effCtx, *capsFlag); err != nil {
 			return err
 		}

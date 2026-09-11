@@ -29,14 +29,14 @@ func capturingLogf(buf *bytes.Buffer) func(string, ...any) {
 
 func TestIsStructuredLine(t *testing.T) {
 	cases := map[string]bool{
-		`{"severity":"ERROR","message":"x"}`:   true,
-		`  {"severity":"ERROR"}`:                true,  // leading whitespace tolerated (Cloud Logging tolerates it)
-		`{"severity":"ERROR"`:                   false, // unterminated → text
-		`{not json}`:                            false,
-		`["a","b"]`:                             false, // an array is not a log object
-		`plain text`:                            false,
-		``:                                      false,
-		`{}`:                                    true,
+		`{"severity":"ERROR","message":"x"}`: true,
+		`  {"severity":"ERROR"}`:             true,  // leading whitespace tolerated (Cloud Logging tolerates it)
+		`{"severity":"ERROR"`:                false, // unterminated → text
+		`{not json}`:                         false,
+		`["a","b"]`:                          false, // an array is not a log object
+		`plain text`:                         false,
+		``:                                   false,
+		`{}`:                                 true,
 	}
 	for in, want := range cases {
 		if got := IsStructuredLine(in); got != want {
