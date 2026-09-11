@@ -166,6 +166,22 @@ BENCH_TIERS="smoke,core"   # display label for alerts/log
 # 8.3M-token runaway); 4M is the looser nightly ceiling that protects legit passes.
 MAX_TOKENS_PER_BENCH=4000000
 
+# WALL-CLOCK CEILING FOR THE NIGHT (M-RIG-LOCK-YIELD, 2026-09-11).
+#
+# MAX_TOKENS_PER_BENCH and --timeout bound ONE benchmark; nothing bounded the
+# suite. Measured 09-10: 12 benchmarks x 2 trials took 9h45m and held the
+# single-GPU rig lock 04:36->14:21, of which two runs spent the full 1h hard
+# timeout each and produced nothing. The rig has other tenants — the
+# os-rotation-filler got one acquisition that whole day, Daneel's mail intake
+# deferred on 83% of its runs — so an unbounded night is not just a long night,
+# it is everyone else's day.
+#
+# This is a budget for the NIGHT, divided between the arms that will run, so an
+# A/B Monday costs the rig the same as an ordinary Tuesday instead of double.
+# At 03:00 + 8h the rig is free by 11:00 either way. It stops DISPATCH only:
+# in-flight trials finish and everything banked stays banked.
+NIGHT_MAX_WALL_CLOCK_HOURS="${AILANG_NIGHTLY_MAX_HOURS:-8}"
+
 BENCH_LIST=$( {
     grep -lE '^[[:space:]]*tier:[[:space:]]*smoke' benchmarks/*.yml
     grep -lE '^[[:space:]]*tier:[[:space:]]*core'  benchmarks/*.yml
@@ -253,9 +269,23 @@ select_ab_benchmarks() {
         | grep '^Benchmarks:' | sed 's/^Benchmarks:[[:space:]]*//' | tr -d ' '
 }
 
+# arm_wall_clock — the night's budget divided by the number of arms this run
+# will execute. Computed at call time rather than stored, because RUN_AB_MICRORAG
+# can be turned off mid-script (the confidence-selection skip below does exactly
+# that) and a cap fixed before that point would halve an ordinary night for an
+# A/B that never happened.
+arm_wall_clock() {
+    local arms=1
+    [[ "$RUN_AB_MICRORAG" == "1" ]] && arms=2
+    # Integer minutes: bash has no floats, and `8h/2` in Go duration syntax is
+    # not a thing we can hand to a flag.
+    printf '%dm' $(( NIGHT_MAX_WALL_CLOCK_HOURS * 60 / arms ))
+}
+
 run_eval() {
-    local mode="$1" outdir="$2"
-    log "running smoke: microrag=${mode} → ${outdir}"
+    local mode="$1" outdir="$2" cap
+    cap=$(arm_wall_clock)
+    log "running smoke: microrag=${mode} → ${outdir} (wall-clock cap ${cap})"
     "$BIN" eval-suite --agent \
         --models "$MODEL" \
         --benchmarks "${RAG_BENCH_LIST:-$BENCH_LIST}" \
@@ -264,8 +294,15 @@ run_eval() {
         --output "$outdir" \
         --parallel 1 \
         --trials 2 \
+        --max-wall-clock "$cap" \
         --max-tokens-per-bench "$MAX_TOKENS_PER_BENCH" >> "$LOG" 2>&1
+    if [[ -f "${outdir}/wallclock_stopped.json" ]]; then
+        log "WALL-CLOCK CAP HIT on the ${mode} arm (${cap}) — this arm is PARTIAL: $(tr -d '\n' < "${outdir}/wallclock_stopped.json")"
+    fi
 }
+
+# arm_truncated DIR — true if that arm stopped on the wall-clock cap.
+arm_truncated() { [[ -f "$1/wallclock_stopped.json" ]]; }
 
 # Count passing results in an arm dir. Both arms of an A/B MUST be counted the
 # same way — the old PASS_ON had a grep-first path whose `||` fallback could
@@ -385,10 +422,22 @@ print(json.dumps({
             AB_VALID=0
         fi
     done
+    # Same rule, time axis. A truncated arm ran a DIFFERENT benchmark set from
+    # its partner — the cap cuts wherever each arm happened to be — so the pair
+    # is no longer paired and the delta is not a treatment effect. That is the
+    # ambiguity the confidence-selected arm set exists to avoid; do not reopen
+    # it from the other end. Refuse to bank, loudly, and keep both dirs.
+    for arm_dir in "ON:${RESULTS_DIR}_rag_on" "OFF:${RESULTS_DIR}_rag_off"; do
+        arm=${arm_dir%%:*}; d=${arm_dir#*:}
+        if arm_truncated "$d"; then
+            log "A/B INVALID: ${arm} arm hit the wall-clock cap — a partial arm is not comparable; refusing to bank this week"
+            AB_VALID=0
+        fi
+    done
 
     if [[ "$AB_VALID" == "0" ]]; then
         ailang messages send controlplane \
-            "Weekly A/B (${DATE}) NOT banked — an arm returned zero passes or zero result files. This is a harness failure, not a result. Check ${RESULTS_DIR}_rag_on / _rag_off and $LOG" \
+            "Weekly A/B (${DATE}) NOT banked — an arm returned zero passes/zero result files, or hit the wall-clock cap and is partial. Either way it is not a result. Check ${RESULTS_DIR}_rag_on / _rag_off and $LOG" \
             --title "A/B invalid (${DATE})" --from "nightly-eval" 2>/dev/null || true
         REC=""
     fi
@@ -435,6 +484,12 @@ PASS=$(python3 -c "import json,glob; r=[json.load(open(f)) for f in glob.glob('$
 RATE=$(python3 -c "import json,glob; r=[json.load(open(f)) for f in glob.glob('${RESULTS_AGENT}/*.json')]; p=sum(1 for d in r if d.get('compile_ok') and d.get('runtime_ok') and d.get('stdout_ok')); n=len(r); print(f'{100*p//n if n else 0}%')" 2>/dev/null || echo "?%")
 
 log "regression check result: ${PASS} (${RATE})"
+# A short night is an ABSENCE, not a result. The classifier reads per-benchmark
+# rows, so a missing benchmark cannot look like a regression — but a human
+# reading "18/24" needs to know whether the other 6 failed or never ran.
+if arm_truncated "${RESULTS_DIR}_rag_on"; then
+    log "NOTE: tonight's canonical arm was TRUNCATED by the wall-clock cap — ${PASS} is out of what RAN, not out of the tier"
+fi
 
 # Durable cross-night history is classifier-owned. Absence is deliberately a
 # loud degraded state; only a manual --bootstrap may create the history file.

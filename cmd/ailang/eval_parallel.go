@@ -11,6 +11,7 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/eval_harness"
 	"github.com/sunholo-data/ailang/internal/messaging"
+	"github.com/sunholo-data/ailang/internal/riglock"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -33,7 +34,16 @@ type EvalBenchmarkJob struct {
 // scheduled, and a budget_stopped.json sentinel is written to outputDir so
 // callers (e.g. run_eval_baseline.sh) can detect a partial run and label it
 // rather than silently treat it as complete.
-func runBenchmarksParallel(ctx context.Context, jobs []Job, seed int64, outputDir string, timeout time.Duration, maxConcurrent int, selfRepair bool, promptVersion string, agentConfig *eval_harness.AgentBenchmarkConfig, taskID string, evalChain *EvalChainContext, budgetUSD float64) []SuiteResult {
+//
+// maxWallClock is the same graceful stop on a TIME axis (0 = no cap). The
+// token and cost ceilings bound a single benchmark, not a suite, so a night
+// could still run away in aggregate: measured 2026-09-11, a 12-benchmark
+// nightly took 9h45m — two of its runs burning the full 1h hard timeout for
+// zero information — and held the single-GPU rig lock through the working day.
+// A deadline stops DISPATCH, never an in-flight trial: everything already
+// banked stays banked and the suite still finalizes, which is the difference
+// between a short night and a lost one.
+func runBenchmarksParallel(ctx context.Context, jobs []Job, seed int64, outputDir string, timeout time.Duration, maxConcurrent int, selfRepair bool, promptVersion string, agentConfig *eval_harness.AgentBenchmarkConfig, taskID string, evalChain *EvalChainContext, budgetUSD float64, maxWallClock time.Duration) []SuiteResult {
 
 	if maxConcurrent <= 0 {
 		maxConcurrent = 1 // Sequential
@@ -65,6 +75,27 @@ func runBenchmarksParallel(ctx context.Context, jobs []Job, seed int64, outputDi
 	// banked), not a byte-exact real-time meter — see the design doc's Risks
 	// section. maxConcurrent bounds how far over budgetUSD a breach can run.
 	tracker := newBudgetTracker(budgetUSD)
+
+	// Wall-clock deadline. Zero time means "no cap", which IsZero() answers
+	// without a second flag to keep in step.
+	var deadline time.Time
+	if maxWallClock > 0 {
+		deadline = time.Now().Add(maxWallClock)
+	}
+	var wallClockStopped bool
+	// pastDeadline must be called with mu held.
+	pastDeadline := func() bool {
+		if deadline.IsZero() || !time.Now().After(deadline) {
+			return false
+		}
+		if !wallClockStopped {
+			wallClockStopped = true
+			fmt.Printf("\n%s Wall-clock cap reached: %s elapsed >= %s — stopping new trials (in-flight trials finish)\n",
+				red("🚨"), maxWallClock.Round(time.Second), maxWallClock)
+		}
+		return true
+	}
+
 	onCost := func(costUSD float64) {
 		if !tracker.Add(costUSD) {
 			return
@@ -82,7 +113,7 @@ func runBenchmarksParallel(ctx context.Context, jobs []Job, seed int64, outputDi
 	for i, job := range jobs {
 		// Check if we should abort early
 		mu.Lock()
-		if aborted {
+		if aborted || pastDeadline() {
 			mu.Unlock()
 			break
 		}
@@ -103,6 +134,36 @@ func runBenchmarksParallel(ctx context.Context, jobs []Job, seed int64, outputDi
 			// Acquire semaphore
 			sem <- struct{}{}
 			defer func() { <-sem }()
+
+			// Re-check the deadline AFTER the semaphore. A job can sit queued
+			// behind a long predecessor for hours, and the dispatch-loop check
+			// it passed is by then stale — starting it anyway is precisely the
+			// overrun the cap exists to stop.
+			mu.Lock()
+			expired := pastDeadline()
+			mu.Unlock()
+			if expired {
+				return
+			}
+
+			// Cooperative yield checkpoint (M-RIG-LOCK-YIELD). Holding the rig
+			// lock for a whole multi-hour suite starved every short job on the
+			// box: measured 2026-09-11, Daneel's mail intake deferred on 83% of
+			// its runs while the nightly ran 03:00→13:00. Between benchmarks the
+			// GPU is idle, so this is where a 40-second job can be let in front
+			// of a 10-hour one. riglock.Checkpoint is a single stat when nothing
+			// is pending, and a no-op when we do not hold the lock at all.
+			//
+			// ONLY at maxConcurrent==1. The lock means "nobody else is driving
+			// the GPU"; with siblings still streaming, releasing it would hand
+			// out a promise that is already false. Every rig job runs
+			// --parallel 1, so the checkpoint is live exactly where it matters.
+			if maxConcurrent == 1 {
+				if yielded, waited := riglock.Checkpoint("eval-suite"); yielded {
+					fmt.Printf("  %s yielded the rig for %s (cooperative handoff)\n",
+						cyan("⏸"), waited.Round(time.Second))
+				}
+			}
 
 			// Update progress
 			mu.Lock()
@@ -156,6 +217,13 @@ func runBenchmarksParallel(ctx context.Context, jobs []Job, seed int64, outputDi
 	if tracker.Exceeded() {
 		writeBudgetStoppedSentinel(outputDir, budgetUSD, tracker.Spent())
 	}
+	mu.Lock()
+	stoppedOnTime := wallClockStopped
+	ran := completed
+	mu.Unlock()
+	if stoppedOnTime {
+		writeWallClockStoppedSentinel(outputDir, maxWallClock, ran, totalJobs)
+	}
 
 	return results
 }
@@ -177,6 +245,36 @@ func writeBudgetStoppedSentinel(outputDir string, budgetUSD, spentUSD float64) {
 		return
 	}
 	path := filepath.Join(outputDir, "budget_stopped.json")
+	if err := os.WriteFile(path, data, 0644); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: could not write %s: %v\n", path, err)
+	}
+}
+
+// wallClockStoppedSentinel is written to outputDir when --max-wall-clock stops
+// a run early. Same contract as budget_stopped.json: a partial run must be
+// detectable as partial. Without it a short night is indistinguishable from a
+// complete one, and the regression check would read the missing benchmarks as
+// a result rather than an absence.
+type wallClockStoppedSentinel struct {
+	MaxWallClock  string    `json:"max_wall_clock"`
+	JobsCompleted int       `json:"jobs_completed"`
+	JobsTotal     int       `json:"jobs_total"`
+	StoppedAt     time.Time `json:"stopped_at"`
+}
+
+func writeWallClockStoppedSentinel(outputDir string, maxWallClock time.Duration, completed, total int) {
+	sentinel := wallClockStoppedSentinel{
+		MaxWallClock:  maxWallClock.String(),
+		JobsCompleted: completed,
+		JobsTotal:     total,
+		StoppedAt:     time.Now(),
+	}
+	data, err := json.MarshalIndent(sentinel, "", "  ")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "warning: could not marshal wallclock_stopped sentinel: %v\n", err)
+		return
+	}
+	path := filepath.Join(outputDir, "wallclock_stopped.json")
 	if err := os.WriteFile(path, data, 0644); err != nil {
 		fmt.Fprintf(os.Stderr, "warning: could not write %s: %v\n", path, err)
 	}

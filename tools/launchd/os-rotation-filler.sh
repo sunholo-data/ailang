@@ -28,7 +28,13 @@ export PATH="$HOME/go/bin:$HOME/.local/bin:$PATH"
 source "$(dirname "$0")/rig-lock.sh"
 
 LOG=/tmp/ailang-os-filler.log
-log() { echo "[$(date '+%F %H:%M:%S')] $*" | tee -a "$LOG"; }
+# APPEND ONLY, no tee. The plist sets BOTH StandardOutPath and StandardErrorPath
+# to this same file, so a `| tee -a "$LOG"` wrote every line twice — once by tee
+# and once by launchd capturing the same line on stdout. Harmless to read, but it
+# silently doubled every count taken from this log, which is the instrument we
+# use to judge how much rig time the filler is actually getting. Sub-command
+# output still lands here via launchd's capture, so nothing is lost.
+log() { printf '[%s] %s\n' "$(date '+%F %H:%M:%S')" "$*" >> "$LOG"; }
 
 # Cross-harness TRIO on the SAME local qwen3.6: opencode (multi-turn) vs pi
 # (minimal) vs motoko (AILANG-native). All three drive the ONE loaded qwen3.6
@@ -97,8 +103,39 @@ FULL_MAX_LAPS="${OS_FILLER_FULL_MAX_LAPS:-3}"
 # AILANG-first pass) for cross-language signal before AILANG fully fills. Set
 # OS_FILLER_AILANG_FULL=0 for a legacy pure cross-language rig.
 FORCE_4LANG="${OS_FILLER_4LANG:-0}"
-BLACKOUT_START="${OS_FILLER_BLACKOUT_START:-04:00}"  # covers nightly + lang-eval + model reloads
-BLACKOUT_END="${OS_FILLER_BLACKOUT_END:-07:00}"
+# PRE-NIGHTLY GUARD (replaced a fixed 04:00-07:00 blackout, 2026-09-11).
+#
+# The old window was sized for a ~3-hour nightly and had stopped being true: the
+# nightly now runs 03:00 to roughly 13:00 (9h45m measured on 09-10), so the
+# window never covered the job it was named for, and on the days the nightly DID
+# finish early it skipped the filler for three hours of free rig. Both halves of
+# a fixed window are wrong once the thing it guards has variable length.
+#
+# What actually covers the nightly is the rig lock, which the filler yields to on
+# every cycle (step 3). The one thing a lock CANNOT do is stop us starting a
+# multi-hour chunk ten minutes before the nightly is due and making the priority
+# job queue behind it — a lock has no notion of a job that has not started yet.
+# So that, and only that, is what this guard does: stay out of the run-up.
+#
+# NIGHTLY_START must match dev.ailang.nightly-eval.plist's StartCalendarInterval.
+# It is read from the installed plist when one is present, so the two cannot
+# drift; the literal is the fallback for a box with no plist installed (CI, a
+# fresh checkout) and is logged when it is used.
+NIGHTLY_START="${OS_FILLER_NIGHTLY_START:-}"
+if [ -z "$NIGHTLY_START" ]; then
+  _np="$HOME/Library/LaunchAgents/dev.ailang.nightly-eval.plist"
+  if [ -f "$_np" ]; then
+    _nh=$(/usr/libexec/PlistBuddy -c "Print :StartCalendarInterval:Hour" "$_np" 2>/dev/null)
+    _nm=$(/usr/libexec/PlistBuddy -c "Print :StartCalendarInterval:Minute" "$_np" 2>/dev/null)
+    [ -n "$_nh" ] && NIGHTLY_START=$(printf '%02d:%02d' "$_nh" "${_nm:-0}")
+  fi
+fi
+NIGHTLY_START="${NIGHTLY_START:-03:00}"
+# One filler interval (45 min) plus headroom: long enough that a chunk started
+# just before the guard has a fair chance of being done by NIGHTLY_START.
+PRE_NIGHTLY_MIN="${OS_FILLER_PRE_NIGHTLY_MIN:-60}"
+BLACKOUT_START="$(rig_time_minus "$NIGHTLY_START" "$PRE_NIGHTLY_MIN")"
+BLACKOUT_END="$NIGHTLY_START"
 AUTOPUSH="${OS_FILLER_PUSH:-0}"   # 0 = accumulate + commit LOCALLY only (safe default);
                                   # set OS_FILLER_PUSH=1 to autonomously push -> docs deploy.
 # M-EVAL-DATA-HOSTING-DECOUPLE W5: the routine per-cycle data commits are RETIRED.
@@ -182,9 +219,10 @@ run_chunk() {
     --output "$ROLL" >>"$LOG" 2>&1 || log "$rc_label chunk had failures (continuing)"
 }
 
-# 1. Blackout window — stay clear of the scheduled nightly jobs.
+# 1. Pre-nightly guard — do not start a chunk the priority job would queue behind.
+#    Everything AFTER the nightly starts is handled by the rig lock in step 3.
 if rig_in_blackout "$BLACKOUT_START" "$BLACKOUT_END"; then
-  log "in blackout ${BLACKOUT_START}-${BLACKOUT_END} — skip"; exit 0
+  log "pre-nightly guard ${BLACKOUT_START}-${BLACKOUT_END} (nightly starts ${NIGHTLY_START}) — skip"; exit 0
 fi
 
 # 2. ollama up?
