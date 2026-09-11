@@ -1,6 +1,6 @@
 # M-DEBUG-SINK-STRUCTURED-LINES: Structured Debug.log lines survive every host sink
 
-**Status:** Planned
+**Status:** Implemented (2026-09-11)
 **Target:** v0.37.3
 **Priority:** P1 (production observability — `severity>=ERROR` returns nothing on Cloud Run)
 **Estimated:** 1 day
