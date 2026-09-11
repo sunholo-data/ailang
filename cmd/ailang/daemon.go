@@ -76,7 +76,16 @@ func daemonRun(args []string) error {
 	dryRun := fs.Bool("dry-run", false, "Log notifications instead of firing them. Useful for tests.")
 	var alsoSubscribe multiFlag
 	fs.Var(&alsoSubscribe, "also-subscribe", "ADDITIONAL cloud env whose inbox messages to also watch (dev|test|prod). Repeatable. Appends to daemon.yaml extra_message_envs. Example: --env dev --also-subscribe prod.")
-	extraMessagesSub := fs.String("extra-messages-sub", "", "Base subscription name for the EXTRA message sources (default messages-laptop). Give each device its own (e.g. messages-rig) — shared subscriptions work-steal, so two daemons on one sub each see only some messages. Overrides daemon.yaml extra_messages_sub.")
+	extraMessagesSub := fs.String("extra-messages-sub", "", "Base subscription name for the EXTRA message sources (default messages-laptop). Give each device its own (e.g. messages-rig) — shared subscriptions work-steal, so two daemons on one sub each see only some messages. Overrides daemon.yaml extra_messages_sub. Does NOT rename the PRIMARY subscription — use --messages-sub for that.")
+	// --messages-sub names the PRIMARY subscription, which nothing could do
+	// before. Measured on the rig 2026-09-11: the plist passed
+	// `--extra-messages-sub messages-rig` intending "this device pulls
+	// messages-rig", but that flag only names the subscription for EXTRA envs,
+	// and there were none — so the daemon reported `extra_message_sources=[]`
+	// and quietly pulled `messages-laptop` instead. Two daemons then shared one
+	// subscription, which work-steals: each sees only some messages, and
+	// messages appear to vanish. The operator's intent was not expressible.
+	messagesSub := fs.String("messages-sub", "", "Subscription for the PRIMARY env's inbox messages (default messages-laptop). Give each device its own — two daemons on one subscription work-steal and each sees only part of the traffic.")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -96,6 +105,13 @@ func daemonRun(args []string) error {
 
 	cfg, project, prefix, err := daemon.ConfigForEnv(*envFlag, fc)
 	if err != nil {
+		return err
+	}
+	if *messagesSub != "" {
+		cfg.MessagesSub = *messagesSub
+	}
+
+	if err := validateSubscriptionFlags(*extraMessagesSub, fc.ExtraMessageEnvs); err != nil {
 		return err
 	}
 	primaryEnv := envOrDefault(*envFlag, fc.Env, "prod")
@@ -270,4 +286,29 @@ type storeFetcher struct {
 
 func (f storeFetcher) Fetch(_ context.Context, messageID string) (*messaging.InboxMessage, error) {
 	return f.store.GetInboxMessage(messageID)
+}
+
+// validateSubscriptionFlags refuses a subscription name that would be silently
+// ignored.
+//
+// --extra-messages-sub renames the subscription for EXTRA message sources only.
+// Given without any extra envs it names nothing, and the daemon starts happily
+// on a different subscription than the one the operator asked for.
+//
+// Measured on the rig 2026-09-11: the plist passed
+// `--extra-messages-sub messages-rig`, meaning "this device pulls messages-rig".
+// There were no extra envs, so the daemon printed `extra_message_sources=[]` and
+// pulled `messages-laptop` — the same subscription as another machine. Pub/Sub
+// work-steals across consumers of one subscription, so each daemon saw only part
+// of the traffic and messages appeared to vanish. Nothing was broken enough to
+// report itself; the flag was simply accepted and ignored.
+func validateSubscriptionFlags(extraMessagesSub string, extraEnvs []string) error {
+	if extraMessagesSub == "" || len(extraEnvs) > 0 {
+		return nil
+	}
+	return fmt.Errorf(
+		"--extra-messages-sub=%q was given but no extra message envs are configured, so it names nothing and NOTHING would subscribe to it.\n"+
+			"  It renames the subscription for --also-subscribe / extra_message_envs sources only.\n"+
+			"  To make THIS daemon pull %q, use: --messages-sub %s",
+		extraMessagesSub, extraMessagesSub, extraMessagesSub)
 }
