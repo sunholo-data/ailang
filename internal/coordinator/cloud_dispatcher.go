@@ -50,6 +50,22 @@ type DispatchParams struct {
 	// behaviour this milestone exists to remove.
 	AcknowledgeOnly bool
 
+	// AutoMerge asks the wrapper to enable GitHub's NATIVE auto-merge on the PR
+	// it opens, so GitHub merges it once the required checks pass.
+	//
+	// Native rather than a merge call of our own: GitHub does the waiting, honours
+	// branch protection, and simply never merges if the checks do not go green —
+	// no polling loop of ours to get wrong, and no path where we merge something
+	// protection would have refused. Before this, NOTHING in the codebase merged a
+	// PR at all: `auto_merge` was read by the autonomy router and never reached a
+	// merge API, so approving a cloud task marked it COMPLETED "(merge skipped)"
+	// and left the branch open. Four design docs were open on 2026-09-10, the
+	// oldest since 09-02, two of them MERGEABLE and simply waiting for a human.
+	//
+	// Trusted metadata from the agent registry, never from message content — the
+	// same authority boundary as WorkTier.
+	AutoMerge bool
+
 	// M-PKG-CASCADE-DETERMINISTIC-FIRST: cascade envelope fields, propagated
 	// from TaskRecord so the Cloud Run Job wrapper can decide deterministic-
 	// bump vs AI-escalation without re-fetching the task. Empty/false for

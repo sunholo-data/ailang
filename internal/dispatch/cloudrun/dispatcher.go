@@ -265,6 +265,13 @@ func (d *Dispatcher) Dispatch(ctx context.Context, params coordinator.DispatchPa
 			Name: "AILANG_SUBDIRECTORY", Values: &runpb.EnvVar_Value{Value: params.Subdirectory},
 		})
 	}
+	// Only set when true: an absent variable and "0" must mean the same thing, so
+	// a wrapper reading it cannot accidentally treat "false" as enabled.
+	if params.AutoMerge {
+		envOverrides = append(envOverrides, &runpb.EnvVar{
+			Name: "AILANG_AUTO_MERGE", Values: &runpb.EnvVar_Value{Value: "1"},
+		})
+	}
 	// M-PKG-CASCADE-DETERMINISTIC-FIRST: cascade envelope env vars. The Cloud
 	// Run Job wrapper reads these to choose deterministic-bump vs AI-escalation.
 	if params.RootPackage != "" {
