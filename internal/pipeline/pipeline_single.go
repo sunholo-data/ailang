@@ -563,6 +563,10 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 
 		loweredProg.Flags.Lowered = true
 
+		// M-DEBUG-SINK-STRUCTURED-LINES: inject call-site locations into
+		// std/debug wrapper calls (always; erasure below sees the builtin shape)
+		loweredProg = (&DebugLocationInjector{}).Inject(loweredProg)
+
 		// M-DEBUG-ERASURE: Erase Debug ghost effect in release mode
 		if cfg.ReleaseMode {
 			eraser := &DebugEraser{}

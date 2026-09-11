@@ -76,14 +76,31 @@ export func ping() -> string =
 	}
 	out := stderr.String()
 
-	var want = []string{
-		`{"severity":"ERROR","message":"nocaps-structured"}`,
-		`{"severity":"ERROR","message":"assertion failed: nocaps-check","location":"unknown","source":"Debug.check"}`,
+	if want := `{"severity":"ERROR","message":"nocaps-structured"}`; !hasExactLine(out, want) {
+		t.Errorf("expected bare JSON line %q on stderr (silently dropped, or decorated?); stderr:\n%s", want, out)
 	}
-	for _, line := range want {
-		if !hasExactLine(out, line) {
-			t.Errorf("expected bare JSON line %q on stderr (silently dropped, or decorated?); stderr:\n%s", line, out)
+	// The failed check carries the CALL SITE (line 6 of the fixture above),
+	// injected by pipeline.DebugLocationInjector — not std/debug's "unknown".
+	// serve-api loads by absolute path under a temp dir outside cwd, so the
+	// location is an absolute path (symlink-resolved on macOS, /var → /private/var),
+	// slash-normalised; assert on the stable tail.
+	wantLoc := "/api/logs.ail:6"
+	var check map[string]any
+	for _, line := range strings.Split(out, "\n") {
+		if strings.Contains(line, `"source":"Debug.check"`) {
+			if err := json.Unmarshal([]byte(strings.TrimRight(line, "\r")), &check); err != nil {
+				t.Fatalf("check line is not bare JSON: %q", line)
+			}
 		}
+	}
+	if check == nil {
+		t.Fatalf("failed check never reached stderr as JSON; stderr:\n%s", out)
+	}
+	if check["message"] != "assertion failed: nocaps-check" || check["severity"] != "ERROR" {
+		t.Errorf("check fields: %v", check)
+	}
+	if loc, _ := check["location"].(string); !strings.HasSuffix(loc, wantLoc) {
+		t.Errorf("location = %q, want suffix %q", loc, wantLoc)
 	}
 	if strings.Contains(out, "[Debug] {") || strings.Contains(out, "ASSERT FAIL") {
 		t.Errorf("old decorated forms present:\n%s", out)

@@ -457,6 +457,10 @@ func runPostTypeCheckPhases(
 
 		unit.Core.Flags.Lowered = true
 
+		// M-DEBUG-SINK-STRUCTURED-LINES: inject call-site locations into
+		// std/debug wrapper calls (always; erasure below sees the builtin shape)
+		unit.Core = (&DebugLocationInjector{}).Inject(unit.Core)
+
 		// M-DEBUG-ERASURE: Erase Debug ghost effect in release mode
 		if cfg.ReleaseMode {
 			eraser := &DebugEraser{}

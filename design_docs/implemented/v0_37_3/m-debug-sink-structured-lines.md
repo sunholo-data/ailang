@@ -408,6 +408,31 @@ Exactly the design: `internal/effects/debug_sink.go` (`DebugSink`, `IsStructured
 | V8 (`grantCapabilities(ctx, "")`) | Confirmed at authoring; behaviour unchanged |
 
 ### Known limitations
-- `location` is `"unknown"` in every fixture — the compiler's location injection for
-  `Debug.log`/`Debug.check` is not landing (pre-existing, listed under Future Work).
 - Multi-line pretty-printed JSON is text, by design (D1); documented in the guide.
+- A std/debug wrapper used as a first-class value (not a direct call) still reports
+  `location: "unknown"` — there is no call site to name.
+
+### Addendum (same day): call-site location — the "Future Work" item, done
+
+`location` was `"unknown"` because `std/debug.ail` passes a literal `"unknown"` and no
+compiler injection existed. Added `internal/pipeline/debug_location.go`
+(`DebugLocationInjector`): on lowered Core, `App(VarGlobal{std/debug,log}, [msg])` →
+`App(VarGlobal{$builtin,_debug_log}, [msg, "file.ail:LINE"])` from the App's own span;
+wired next to the eraser in both `pipeline_single.go` and `pipeline_module_compile.go`.
+The eraser's 200-line walker became the shared `mapCoreChildren`.
+
+Verified on the fixture: `run` / `--bytecode` / `serve-api` all report `api.ail:8`.
+Two pre-existing faults fell out of the verification:
+
+| Fault | Evidence | Fix |
+|---|---|---|
+| `--release` never erased user-level calls | HEAD binary from `git archive`: `--release` prints both Debug lines | `isDebugCall` accepts the `$builtin` module the injector produces |
+| Cache key ignores `ReleaseMode` | Fresh cache dir: normal→release served un-erased Core; release→normal served erased Core (all output gone) | `compilerIdentity(commit, cfg)` appends `+release`; normal keys unchanged |
+
+Tests: `debug_location_test.go` (rewrite, arity guard, first-class/other-module/builtin
+left alone, nested, no-position fallback, `displayPath`), `TestCompilerIdentity_ReleaseModeChangesKey`,
+and the two end-to-end sink tests now assert the real line (`:13`, `:6`).
+
+Local trap hit twice while verifying: dirty builds share one commit stamp, so a
+project-dir `.ailang/cache/compile` served pre-injector Core to the in-process test
+until it was deleted. CI stamps a clean commit; not a product bug.

@@ -86,3 +86,18 @@ func TestModuleCacheKey_NoDeps(t *testing.T) {
 		t.Errorf("nil deps and empty deps produced different keys")
 	}
 }
+
+// A --release compile erases Debug calls, so it must never share a cache key
+// with a normal compile of the same source (measured 2026-09-11: a release
+// run poisoned the cache and every later normal run lost all Debug output).
+func TestCompilerIdentity_ReleaseModeChangesKey(t *testing.T) {
+	src := "module m\nexport func f() -> int = 1\n"
+	normal := ModuleCacheKey(compilerIdentity("abc", Config{}), src, nil)
+	release := ModuleCacheKey(compilerIdentity("abc", Config{ReleaseMode: true}), src, nil)
+	if normal == release {
+		t.Fatal("release and normal compiles share a cache key")
+	}
+	if compilerIdentity("abc", Config{}) != "abc" {
+		t.Errorf("normal mode must leave the commit identity untouched (existing keys stay valid)")
+	}
+}

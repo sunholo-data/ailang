@@ -22,6 +22,12 @@ module std/debug
 -- Wrappers around Go builtins (_debug_log, _debug_check)
 -- Effects are tracked at the type level with ! {Debug}
 -- Using equation-form exports for thin wrappers
+--
+-- The trailing "unknown" is the location FALLBACK only. A direct call such as
+-- `log("x")` or `Debug.check(c, "m")` is rewritten by the compiler
+-- (pipeline.DebugLocationInjector) into the builtin with the call site's own
+-- "file.ail:LINE" appended; the wrapper body below is reached only when the
+-- wrapper is used as a first-class value, where there is no call site to name.
 
 -- log: Log a debug message (write-only, host collects)
 export func log(msg: string) -> () ! {Debug} = _debug_log(msg, "unknown")

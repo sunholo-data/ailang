@@ -27,7 +27,21 @@ func (st *modulePipelineState) prepareCacheLookup(mod *loader.LoadedModule, modI
 			depDigests[imp] = cu.Iface.Digest
 		}
 	}
-	return ModuleCacheKey(version.Commit, *mod.SourceContent, depDigests), true
+	// The compiled Core differs by pipeline mode — --release erases Debug
+	// calls — so the mode is part of the compiler identity: without it a
+	// --release compile was served to normal runs (all Debug output gone)
+	// and vice versa (M-DEBUG-SINK-STRUCTURED-LINES, measured 2026-09-11).
+	return ModuleCacheKey(compilerIdentity(version.Commit, st.cfg), *mod.SourceContent, depDigests), true
+}
+
+// compilerIdentity is the cache-key component that must change whenever the
+// same source would compile to different Core: the build commit plus every
+// Config flag that alters the emitted program.
+func compilerIdentity(commit string, cfg Config) string {
+	if cfg.ReleaseMode {
+		return commit + "+release"
+	}
+	return commit
 }
 
 // serveFromCache performs the verified lookup accounting and, on a verified hit

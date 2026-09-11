@@ -98,6 +98,12 @@ func TestServeAPI_StructuredDebugLinesReachStderrVerbatim(t *testing.T) {
 	if structured[1]["source"] != "Debug.check" || structured[1]["message"] != "assertion failed: served-check" {
 		t.Errorf("failed check was not emitted as structured ERROR: %v", structured[1])
 	}
+	// Call-site location, injected by the compiler: the fixture's Debug.check
+	// is on line 13; the file is under the repo root (cwd of this test is the
+	// package dir, so the path stays absolute), slash-normalised.
+	if loc, _ := structured[1]["location"].(string); !strings.HasSuffix(loc, "/"+debugFixture+".ail:13") {
+		t.Errorf("location = %q, want suffix %q", loc, "/"+debugFixture+".ail:13")
+	}
 	if len(plain) != 1 || !strings.HasSuffix(plain[0], "[Debug] plain-line") {
 		t.Errorf("plain line should keep its [Debug] decoration exactly once; got %v", plain)
 	}
