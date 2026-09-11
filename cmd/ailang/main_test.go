@@ -387,7 +387,9 @@ func TestSetupNetHandler(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			effCtx := effects.NewEffContext([]string{})
-			grantCapabilities(effCtx, tt.caps)
+			if err := grantCapabilities(effCtx, tt.caps); err != nil {
+				t.Fatal(err)
+			}
 			setupNetHandler(effCtx, tt.allowHTTP, tt.allowDomains, tt.allowLocalhost, tt.allowMetadata)
 
 			if effCtx.Net.AllowHTTP != tt.wantHTTP {

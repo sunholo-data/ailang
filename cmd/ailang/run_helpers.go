@@ -140,20 +140,69 @@ func resolveAutoCaps(moduleIface *iface.Iface, entry string) []string {
 // so agents grepping `ailang --help` concluded the effect did not exist (#1137).
 const CapsList = "IO,FS,Net,Env,Process,Clock,AI,Stream,SharedMem,SharedIndex,Secret,Trace,DOM,Msg,Cog"
 
-// grantCapabilities parses capability string and grants them to the effect context
-func grantCapabilities(effCtx *effects.EffContext, caps string) {
-	if caps != "" {
-		for _, capName := range strings.Split(caps, ",") {
-			capName = strings.TrimSpace(capName)
-			if capName != "" {
-				effCtx.Grant(effects.NewCapability(capName))
-			}
+// grantCapabilities parses the --caps string and grants each name to the effect
+// context. An unknown name is an error and NOTHING is granted: --caps is a
+// security boundary (a script's `IO,FS` is the reason it cannot reach the
+// network), and a typo used to run silently with the capability missing (#1116).
+func grantCapabilities(effCtx *effects.EffContext, caps string) error {
+	var names []string
+	for _, capName := range strings.Split(caps, ",") {
+		capName = strings.TrimSpace(capName)
+		if capName == "" {
+			continue
 		}
+		if !types.IsKnownEffect(capName) {
+			msg := fmt.Sprintf("unknown capability %q in --caps", capName)
+			if hint := closestCapability(capName); hint != "" {
+				msg += fmt.Sprintf(" (did you mean %s?)", hint)
+			}
+			return fmt.Errorf("%s; valid: %s", msg, CapsList)
+		}
+		names = append(names, capName)
+	}
+	for _, capName := range names {
+		effCtx.Grant(effects.NewCapability(capName))
 	}
 	// M-SECRET-REMOTE-APPROVAL-WIRING: in cloud mode, gate secret() behind a
 	// networked human approval. No-op (un-gated) for local runs. Covers every
 	// run path, since they all configure capabilities through here.
 	attachCloudSecretApprover(effCtx)
+	return nil
+}
+
+// closestCapability suggests a documented capability for a misspelt one: a
+// case-insensitive match first, else the nearest by edit distance within 2.
+func closestCapability(name string) string {
+	best, bestDist := "", 3
+	for _, c := range strings.Split(CapsList, ",") {
+		if strings.EqualFold(c, name) {
+			return c
+		}
+		if d := editDistance(strings.ToLower(c), strings.ToLower(name)); d < bestDist {
+			best, bestDist = c, d
+		}
+	}
+	return best
+}
+
+func editDistance(a, b string) int {
+	prev := make([]int, len(b)+1)
+	for j := range prev {
+		prev[j] = j
+	}
+	for i := 1; i <= len(a); i++ {
+		cur := make([]int, len(b)+1)
+		cur[0] = i
+		for j := 1; j <= len(b); j++ {
+			cost := 1
+			if a[i-1] == b[j-1] {
+				cost = 0
+			}
+			cur[j] = min(prev[j]+1, cur[j-1]+1, prev[j-1]+cost)
+		}
+		prev = cur
+	}
+	return prev[len(b)]
 }
 
 // setupSharedMemHandler initializes the SharedMem effect context if the capability is granted.
@@ -591,7 +640,9 @@ func executeBatchItem(ctx context.Context, result pipeline.Result, input string,
 	defer func() {
 		flushDebugOutput(effCtx, input)
 	}()
-	grantCapabilities(effCtx, caps)
+	if err := grantCapabilities(effCtx, caps); err != nil {
+		return err
+	}
 
 	effCtx.GoCtx = ctx
 

@@ -355,7 +355,10 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 
 			// Set up effect context with capability grants
 			effCtx := effects.NewEffContext(programArgs)
-			grantCapabilities(effCtx, caps)
+			if err := grantCapabilities(effCtx, caps); err != nil {
+				fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+				os.Exit(1)
+			}
 
 			// M-PERF6B: Buffer stdout writes to reduce syscall overhead from println
 			// — but only when stdout is a terminal. Long-running programs that

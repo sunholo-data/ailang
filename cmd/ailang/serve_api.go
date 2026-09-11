@@ -95,7 +95,9 @@ func serveAPICommand(args []string) error {
 	var effCtx *effects.EffContext
 	if *capsFlag != "" || *aiModelFlag != "" || *aiStubFlag || *verifyContractsFlag {
 		effCtx = effects.NewEffContext(nil)
-		grantCapabilities(effCtx, *capsFlag)
+		if err := grantCapabilities(effCtx, *capsFlag); err != nil {
+			return err
+		}
 		// serve-api does not expose --routing-* flags today (no routing per request);
 		// pass nil for the routing policy so the handler matches the run/exec shape.
 		if err := setupAIHandler(effCtx, *aiStubFlag, *aiModelFlag, nil, nil); err != nil {
