@@ -38,12 +38,12 @@ silent drop). Design: [m-debug-sink-structured-lines.md](m-debug-sink-structured
 - `Flush` calls `d.Reset()`; nil-safe on nil `*DebugContext`
 
 **Acceptance Criteria:**
-- [ ] Structured line: verbatim, no label, written to `W` not `Logf`
-- [ ] Unstructured line: `Logf("%s%s", labelPrefix, msg)` — byte-identical to today's decoration
-- [ ] `{`-prefixed invalid JSON: decorated, never dropped
-- [ ] Filter suppresses below `MinLevel` for structured lines only (unstructured lines have no severity → always pass, as today)
-- [ ] `Structured:true` assertion failure → one `json.Valid` line with `severity:"ERROR"`
-- [ ] `go test ./internal/effects/` green; `golangci-lint` clean
+- [x] Structured line: verbatim, no label, written to `W` not `Logf`
+- [x] Unstructured line: `Logf("%s%s", labelPrefix, msg)` — byte-identical to today's decoration
+- [x] `{`-prefixed invalid JSON: decorated, never dropped
+- [x] Filter suppresses below `MinLevel` for structured lines only (unstructured lines have no severity → always pass, as today)
+- [x] `Structured:true` assertion failure → one `json.Valid` line with `severity:"ERROR"`
+- [x] `go test ./internal/effects/` green; `golangci-lint` clean
 
 ### Milestone M2: Rewire the three hosts, delete the duplicates
 **Goal:** `run_helpers.go`, `server.go`, `serve_api.go` use the sink; D3/D4/D5 applied.
@@ -57,11 +57,11 @@ silent drop). Design: [m-debug-sink-structured-lines.md](m-debug-sink-structured
 - `make build && make quick-install`; re-run the design-doc fixture against the new binary for all three hosts
 
 **Acceptance Criteria:**
-- [ ] `grep -rn 'extractServerSeverity\|serverSeverityLevel\|func extractSeverity\|func severityLevel' cmd internal` empty
-- [ ] Fixture via `serve-api --caps FS,Env`: two `json.Valid` `ERROR` lines, no timestamp prefix
-- [ ] Fixture via `serve-api` (no caps): same two lines (D5)
-- [ ] Fixture via `run --batch … X`: JSON verbatim, no `[X] `; `[X] [ASSERT FAIL] …` still labelled
-- [ ] `go build ./... && go vet ./...` clean
+- [x] `grep -rn 'extractServerSeverity\|serverSeverityLevel\|func extractSeverity\|func severityLevel' cmd internal` empty
+- [x] Fixture via `serve-api --caps FS,Env`: two `json.Valid` `ERROR` lines, no timestamp prefix
+- [x] Fixture via `serve-api` (no caps): same two lines (D5)
+- [x] Fixture via `run --batch … X`: JSON verbatim, no `[X] `; `[X] [ASSERT FAIL] …` still labelled
+- [x] `go build ./... && go vet ./...` clean
 
 ### Milestone M3: Tests, docs, changelog
 **Goal:** Pin the fixed behaviour where the old behaviour was pinned; document the contract.
@@ -78,10 +78,10 @@ silent drop). Design: [m-debug-sink-structured-lines.md](m-debug-sink-structured
 - `make test`, `make verify-examples`
 
 **Acceptance Criteria:**
-- [ ] Both mutation checks fail as predicted, then pass restored
-- [ ] `make test` green; `make verify-examples` green; `make lint` clean
-- [ ] serve-api guide + CHANGELOG updated
-- [ ] Design doc moved to `implemented/v0_37_3/` with implementation report
+- [x] Both mutation checks fail as predicted, then pass restored
+- [x] `make test` green; `make verify-examples` green; `make lint` clean
+- [x] serve-api guide + CHANGELOG updated
+- [x] Design doc moved to `implemented/v0_37_3/` with implementation report
 
 ## Success Metrics
 - Test coverage: sink 100% branch-covered by the table test

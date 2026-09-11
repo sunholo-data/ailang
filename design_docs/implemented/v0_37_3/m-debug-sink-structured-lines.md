@@ -366,3 +366,48 @@ no prior doc on the Debug sink or host log formatting. Nearest:
 - `location: "unknown"` — compiler location injection for `Debug.log`/`Debug.check` is absent in these fixtures; once fixed, the structured assertion line carries a real `file.ail:NN`.
 - A `std/log` package that builds the severity object so users stop hand-escaping JSON strings (the escaping in Example 1 is the kind of thing a model gets wrong under eval).
 - If a second structured-line consumer appears (Loki, Datadog), consider a `--log-format` flag; not warranted by one contract that all of them already share.
+
+---
+
+## Implementation Report (2026-09-11)
+
+**Shipped in:** v0.37.3 (unreleased at time of writing) — commits `eb8674487` (M1), `ec4497df7` (M2+M3).
+
+### What was built
+Exactly the design: `internal/effects/debug_sink.go` (`DebugSink`, `IsStructuredLine`, `Severity`,
+`SeverityLevel`, `Flush`) and all three hosts routed through it. D1–D5 applied as recommended.
+
+### Deviations from plan
+- **None in behaviour.** One addition the table test forced: a structured line with **no**
+  `severity` field must still pass every `--log-level` — the old filter had that property
+  (`sev != "" && …`) and the first sink draft ranked it INFO. Caught by the table, fixed before commit.
+- `run_helpers.go` was already over the 800-line gate at HEAD (856); the CLI log-level block moved
+  to `cmd/ailang/run_debug_output.go` (46 lines) rather than shaving lines.
+- Assertion-line field order is fixed by a struct (`severity, message, location, source`) so the
+  bytes are stable across Go versions.
+
+### Code locations
+- NEW `internal/effects/debug_sink.go` (131) · `internal/effects/debug_sink_test.go` (168)
+- NEW `internal/apiserver/debug_sink_test.go` (127) · `cmd/ailang/serve_api_debug_sink_test.go` (115)
+- NEW `cmd/ailang/run_debug_output.go` (46) · `internal/embed/testdata/debug_structured.ail`
+- MOD `cmd/ailang/run_helpers.go` (−82) · `internal/apiserver/server.go` (−35/+17) ·
+  `cmd/ailang/serve_api.go` (+5/−2) · `cmd/ailang/main_run_batch_debug_test.go` (retargeted)
+- DOC `docs/docs/guides/serve-api.md` §Structured Logging · `changelogs/v0.32-current.md`
+
+### Verification
+| Check | Result |
+|---|---|
+| Fixture, `serve-api --caps FS,Env` | two bare `json.Valid` `ERROR` lines, no timestamp ✓ |
+| Fixture, `serve-api` no caps | same two lines (was: zero lines) ✓ |
+| Fixture, `run --batch … X` | JSON verbatim; `[X] [ASSERT FAIL] …` still labelled ✓ |
+| Mutation: old `server.go` sink | `TestServeAPI_StructuredDebugLinesReachStderrVerbatim` FAILS ✓ |
+| Mutation: old flag-gated effCtx | `TestServeAPI_NoCapsStillFlushesDebugOutput` FAILS ✓ |
+| Duplicate-parser grep | empty ✓ |
+| `make lint` · `make verify-examples` · `make check-file-sizes` | green ✓ |
+| `make test` | green except `internal/cihygiene.TestWiredGatesAreCanonical` — **pre-existing** from `868b55898` (docs-only CI lane `if:` guards), untouched by this sprint |
+| V8 (`grantCapabilities(ctx, "")`) | Confirmed at authoring; behaviour unchanged |
+
+### Known limitations
+- `location` is `"unknown"` in every fixture — the compiler's location injection for
+  `Debug.log`/`Debug.check` is not landing (pre-existing, listed under Future Work).
+- Multi-line pretty-printed JSON is text, by design (D1); documented in the guide.
