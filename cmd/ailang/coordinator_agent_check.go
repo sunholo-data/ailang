@@ -386,7 +386,20 @@ func checkCoherence(a *coordinator.AgentConfig) agentCheck {
 	return c
 }
 
-// checkSkill verifies an invoke.type=skill agent has its skill in the workspace.
+// sharedSkillsPlugin is the plugin every executor image pre-clones
+// (docker/Dockerfile.agent-base, M-CLOUD-PLUGIN-SKILLS). A skill there is
+// available to EVERY agent regardless of its workspace.
+const sharedSkillsPlugin = "sunholo-data/ailang_bootstrap"
+
+// checkSkill verifies an invoke.type=skill agent has a skill to run.
+//
+// TWO places resolve, and checking only the first is a false negative: the
+// workspace clone (.claude/skills/<name>/SKILL.md) and the shared plugin baked
+// into agent-base. Found 2026-09-12 registering design-doc-creator-daneel —
+// sunholo-data/daneel has no .claude/ at all, yet the agent runs, because
+// design-doc-creator lives in the plugin. Reporting that as a failure would
+// have sent someone to commit a duplicate skill into a repo that does not need
+// one.
 func checkSkill(ctx context.Context, a *coordinator.AgentConfig) agentCheck {
 	c := agentCheck{Name: "skill present"}
 	if a.Invoke == nil || a.Invoke.Type != "skill" {
@@ -400,19 +413,45 @@ func checkSkill(ctx context.Context, a *coordinator.AgentConfig) agentCheck {
 		c.Detail = "workspace is not a GitHub owner/repo coordinate"
 		return c
 	}
-	path := ".claude/skills/" + a.Invoke.Name + "/SKILL.md"
-	if _, code, _ := githubGET(ctx, "/repos/"+repo+"/contents/"+path); code == 200 {
-		c.State = statePass
-		c.Detail = path + " exists in " + repo
-		return c
-	} else if code == 404 {
-		c.State = stateFail
-		c.Detail = fmt.Sprintf("%s not found in %s — the dispatch will have no skill to run", path, repo)
-		c.Fix = "commit the skill to the workspace repo (invoke.type=skill resolves from the clone)"
-		return c
+
+	workspacePath := ".claude/skills/" + a.Invoke.Name + "/SKILL.md"
+	pluginPath := "skills/" + a.Invoke.Name + "/SKILL.md"
+
+	_, wsCode, _ := githubGET(ctx, "/repos/"+repo+"/contents/"+workspacePath)
+	plCode := 0
+	if wsCode != 200 {
+		_, plCode, _ = githubGET(ctx, "/repos/"+sharedSkillsPlugin+"/contents/"+pluginPath)
 	}
-	c.State = stateUnknown
-	c.Detail = "cannot check " + path
+	return skillVerdict(a.Invoke.Name, repo, wsCode, plCode)
+}
+
+// skillVerdict is the decision, split from the fetching so it can be tested.
+//
+// The distinction it exists to keep: a definite 404 from BOTH places is a real
+// miss, and anything else — a 403 on a private repo, a 5xx, a rate limit — is
+// UNKNOWN. Reading "I could not look" as "it is not there" is the failure mode
+// this whole command was written against.
+func skillVerdict(skill, repo string, wsCode, plCode int) agentCheck {
+	c := agentCheck{Name: "skill present"}
+	workspacePath := ".claude/skills/" + skill + "/SKILL.md"
+	pluginPath := "skills/" + skill + "/SKILL.md"
+
+	switch {
+	case wsCode == 200:
+		c.State = statePass
+		c.Detail = workspacePath + " exists in " + repo
+	case plCode == 200:
+		c.State = statePass
+		c.Detail = pluginPath + " exists in the shared plugin " + sharedSkillsPlugin + " (pre-cloned into every executor image)"
+	case wsCode == 404 && plCode == 404:
+		c.State = stateFail
+		c.Detail = fmt.Sprintf("%s is in neither %s nor the shared plugin %s — the dispatch will have no skill to run",
+			skill, repo, sharedSkillsPlugin)
+		c.Fix = "commit the skill to the workspace repo, or to " + sharedSkillsPlugin + "/skills/ if every agent should have it"
+	default:
+		c.State = stateUnknown
+		c.Detail = fmt.Sprintf("cannot check the skill (workspace HTTP %d, shared plugin HTTP %d)", wsCode, plCode)
+	}
 	return c
 }
 

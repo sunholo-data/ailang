@@ -130,3 +130,36 @@ coordinator:
 		t.Errorf("a clean config must report nothing, got %v", keys)
 	}
 }
+
+// Found 2026-09-12 registering design-doc-creator-daneel: the skill check looked
+// only in the workspace repo, and sunholo-data/daneel has no .claude/ at all —
+// yet the agent runs, because design-doc-creator lives in the shared plugin that
+// every executor image pre-clones. Reporting that as a failure would have sent
+// someone to commit a duplicate skill into a repo that does not need one.
+func TestSkillVerdict_ResolvesFromWorkspaceOrSharedPlugin(t *testing.T) {
+	tests := []struct {
+		name           string
+		wsCode, plCode int
+		want           checkState
+		why            string
+	}{
+		{"in the workspace repo", 200, 0, statePass, "design-doc-creator in sunholo-data/ailang"},
+		{"only in the shared plugin", 404, 200, statePass, "design-doc-creator-daneel: no .claude/ in sunholo-data/daneel"},
+		{"in neither", 404, 404, stateFail, "a genuine miss — nothing to run"},
+		// The one that matters. A private repo answers 403, and GitHub answers
+		// 404 for repos you may not see, so only a definite no from BOTH is a no.
+		{"workspace forbidden, plugin absent", 403, 404, stateUnknown, "could not look is not the same as not there"},
+		{"github 500", 500, 500, stateUnknown, "a broken instrument reports nothing, not a pass"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := skillVerdict("design-doc-creator", "sunholo-data/daneel", tt.wsCode, tt.plCode)
+			if got.State != tt.want {
+				t.Errorf("state = %v, want %v (%s) — %s", got.State, tt.want, tt.why, got.Detail)
+			}
+			if got.State == stateFail && got.Fix == "" {
+				t.Error("a failure must name its fix")
+			}
+		})
+	}
+}
