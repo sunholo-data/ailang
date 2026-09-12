@@ -560,52 +560,93 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 	// Observed 2026-08-26 on task-90d5eeef, an acknowledge-only probe. Every
 	// no-op cloud task left an orphan branch behind and logged a failure for
 	// doing exactly the right thing. Compare against the clone point instead.
-	if newBranch {
-		aheadCmd := gitexec.CommandContext(ctx, "-C", workDir, "log", clonePoint+"..HEAD", "--oneline")
-		if aheadOut, aheadErr := aheadCmd.Output(); aheadErr == nil && len(strings.TrimSpace(string(aheadOut))) == 0 {
-			fmt.Println("execute-job: no commits to push (agent made no changes) — not creating branch or PR")
-			return branchName, execResult, gitEvidence{BaseCommit: clonePoint, ChangedFiles: discoverChangedFilesFromCommit(workDir, clonePoint)}, nil
-		}
+	// Does this branch actually CONTAIN work? That is the question the PR
+	// depends on, and it is not the same as "does the wrapper have something
+	// left to push".
+	//
+	// Measured 2026-09-12, task-389b7a51 (design-doc-creator-daneel, its first
+	// run): the agent pushed the branch itself, so origin/BRANCH..HEAD was empty,
+	// the wrapper logged "no commits to push" and returned — and the PR call
+	// lived INSIDE the push block, so no PR was ever opened. The design doc sat
+	// on a pushed branch nobody was told about, and the PR was opened by hand six
+	// minutes later. An agent that does its own pushing is not an agent that
+	// wants no review.
+	hasWork := true
+	aheadCmd := gitexec.CommandContext(ctx, "-C", workDir, "log", clonePoint+"..HEAD", "--oneline")
+	if aheadOut, aheadErr := aheadCmd.Output(); aheadErr == nil {
+		hasWork = len(strings.TrimSpace(string(aheadOut))) > 0
 	}
-
-	if !newBranch && len(strings.TrimSpace(string(logOutput))) == 0 {
-		fmt.Println("execute-job: no commits to push")
+	if !hasWork {
+		fmt.Println("execute-job: no commits since the clone point (agent made no changes) — not creating branch or PR")
 		return branchName, execResult, gitEvidence{BaseCommit: clonePoint, ChangedFiles: discoverChangedFilesFromCommit(workDir, clonePoint)}, nil
 	}
 
-	fmt.Printf("execute-job: unpushed commits:\n%s", string(logOutput))
+	unpushed := branchNeedsPush(newBranch, string(logOutput))
 
-	// Step 5c: Push all commits.
+	// Step 5c: Push all commits, if any are still local.
 	// Shallow clones can't push new branches — unshallow first so the remote
 	// has full history context for the new branch ref.
 	if repoURL != "" {
-		unshallowCmd := exec.CommandContext(ctx, "git", "-C", workDir, "fetch", "--unshallow")
-		unshallowCmd.Stdout = os.Stdout
-		unshallowCmd.Stderr = os.Stderr
-		if err := unshallowCmd.Run(); err != nil {
-			// Already a full clone or network issue — log and continue
-			fmt.Fprintf(os.Stderr, "execute-job: fetch --unshallow skipped: %v\n", err)
+		if unpushed {
+			fmt.Printf("execute-job: unpushed commits:\n%s", string(logOutput))
+			unshallowCmd := exec.CommandContext(ctx, "git", "-C", workDir, "fetch", "--unshallow")
+			unshallowCmd.Stdout = os.Stdout
+			unshallowCmd.Stderr = os.Stderr
+			if err := unshallowCmd.Run(); err != nil {
+				// Already a full clone or network issue — log and continue
+				fmt.Fprintf(os.Stderr, "execute-job: fetch --unshallow skipped: %v\n", err)
+			}
+			pushCmd := exec.CommandContext(ctx, "git", "-C", workDir, "push", "origin", branchName)
+			pushCmd.Stdout = os.Stdout
+			pushCmd.Stderr = os.Stderr
+			if err := pushCmd.Run(); err != nil {
+				return branchName, execResult, gitEvidence{}, fmt.Errorf("git push failed: %w", err)
+			}
+			fmt.Printf("execute-job: pushed branch %s\n", branchName)
+		} else {
+			fmt.Printf("execute-job: branch %s is already on the remote (the agent pushed it) — still opening the PR\n", branchName)
 		}
-		pushCmd := exec.CommandContext(ctx, "git", "-C", workDir, "push", "origin", branchName)
-		pushCmd.Stdout = os.Stdout
-		pushCmd.Stderr = os.Stderr
-		if err := pushCmd.Run(); err != nil {
-			return branchName, execResult, gitEvidence{}, fmt.Errorf("git push failed: %w", err)
-		}
-		fmt.Printf("execute-job: pushed branch %s\n", branchName)
 
 		// Step 5d: Open a deterministic PR (M-PKG-AUTONOMOUS-CASCADE-SAFE follow-up).
 		// Always-PR is the design — no autonomous merge for v1. Doing this in the
 		// wrapper (vs the agent) means the agent doesn't need to know `gh` syntax,
 		// and we get a consistent PR title/body across every agent run.
-		// Best-effort: failures don't fail the task (branch is already pushed).
-		openCascadePullRequest(ctx, workDir, branchName, taskID, agentID, baseBranch)
+		//
+		// Deliberately outside the `if unpushed` arm, and deliberately NOT gated on
+		// auto_merge: whether a PR gets merged automatically is a separate question
+		// from whether one exists. Best-effort: failures don't fail the task.
+		//
+		// A direct-push agent (skip_approval, committing onto merge_branch itself)
+		// has no head/base pair to open a PR between, and GitHub answers 422; skip
+		// it rather than log a failure for working as designed.
+		if !branchWantsPR(branchName, baseBranch) {
+			fmt.Printf("execute-job: %s IS the base branch (direct-push agent) — no PR to open\n", branchName)
+		} else {
+			openCascadePullRequest(ctx, workDir, branchName, taskID, agentID, baseBranch)
+		}
 	}
 
 	// Step 6: Discover changed files for the completion message.
 	// After the push: HEAD is final, so the two SHAs bounding the diff are
 	// immutable and the approval card renders identically on every replay.
 	return branchName, execResult, collectGitEvidence(ctx, workDir, clonePoint), nil
+}
+
+// branchNeedsPush reports whether the wrapper still has commits to send.
+//
+// It answers ONLY that. It used to be the same test that decided whether to
+// open a PR, which meant an agent that pushed its own branch got no PR at all
+// (task-389b7a51). Pushing and reviewing are separate questions.
+func branchNeedsPush(newBranch bool, logOutput string) bool {
+	return newBranch || len(strings.TrimSpace(logOutput)) > 0
+}
+
+// branchWantsPR reports whether there is a head/base pair to open a PR between.
+//
+// A direct-push agent commits onto the base branch itself; GitHub answers 422
+// for a PR from a branch to itself, and that is not a failure worth logging.
+func branchWantsPR(branchName, baseBranch string) bool {
+	return branchName != "" && branchName != baseBranch
 }
 
 // DispatchPath classifies how a cascade task should be handled.
