@@ -330,17 +330,22 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 	// later with a confusing permission error. If an agent was configured to use
 	// its own credential, using someone else's instead is never the right
 	// recovery.
+	deployKeyRepo := ""
 	if sshDeployKeyRequested() {
 		alias, keyErr := configureSSHDeployKey(ctx, os.Getenv("AILANG_CLOUD_PROJECT"))
 		if keyErr != nil {
 			return "", nil, gitEvidence{}, fmt.Errorf("ssh deploy key: %w", keyErr)
 		}
+		// READ only, here: `git push --dry-run ... HEAD:...` resolves a LOCAL ref
+		// and cannot run outside a repository, which is what broke attempt 3 on
+		// task-98301715. The write half runs from inside the clone, below.
 		if ownerRepo := gitHubOwnerRepoFromURL(repoURL); ownerRepo != "" {
-			if vErr := verifyDeployKey(ctx, alias, ownerRepo); vErr != nil {
+			if vErr := verifyDeployKeyRead(ctx, alias, ownerRepo); vErr != nil {
 				// Pre-flight, so this costs seconds instead of surfacing after a
 				// full agent run has produced work it then cannot push.
 				return "", nil, gitEvidence{}, vErr
 			}
+			deployKeyRepo = ownerRepo
 		}
 		repoURL = sshCloneURL(repoURL, alias)
 	}
@@ -351,6 +356,16 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 	cloneCmd.Stderr = os.Stderr
 	if err := cloneCmd.Run(); err != nil {
 		return "", nil, gitEvidence{}, fmt.Errorf("git clone failed: %w", err)
+	}
+
+	// The WRITE half of the deploy-key pre-flight. Here because it needs a
+	// repository, and still before the agent does any work — which is what a
+	// pre-flight is for. Fatal: an agent that cannot push should not spend a run
+	// discovering that at the end.
+	if deployKeyRepo != "" {
+		if vErr := verifyDeployKeyWrite(ctx, workDir, deployKeyRepo); vErr != nil {
+			return "", nil, gitEvidence{}, vErr
+		}
 	}
 
 	// M-HARNESS-COMMIT-CONTRACT: Capture clone point for artifact discovery.

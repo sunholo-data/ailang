@@ -168,38 +168,78 @@ func sshCloneURL(repoURL, alias string) string {
 	return repoURL // not a GitHub URL; leave it alone rather than mangle it
 }
 
-// verifyDeployKey is the pre-flight smoke test.
+// The deploy-key pre-flight, in two halves, because they cannot run in the same
+// place.
 //
-// Run BEFORE any task work, because a key that cannot push turns into a
-// mysterious failure at the end of an expensive run instead of a clear one at
-// the start.
+// Measured 2026-09-12 on task-98301715 (daneel-writer, attempt 3): the whole
+// check ran BEFORE the clone and failed with
 //
-// Note the write check is `! grep -q denied`, NOT `grep -qv denied`. The latter
-// succeeds whenever ANY line lacks the word, and a denial prints several lines
-// of which only the first contains it — so the inverted form reports success on
-// exactly the failure it is meant to catch. Confirmed against POSIX grep with a
-// real denial transcript (2026-09-11); note it behaves differently under ugrep,
-// which is why reasoning about it on a dev laptop is not enough.
-func verifyDeployKey(ctx context.Context, alias, ownerRepo string) error {
-	remote := fmt.Sprintf("git@%s:%s.git", alias, ownerRepo)
+//	deploy key push check failed on sunholo-data/daneel-memory: exit status 128:
+//	fatal: not a git repository (or any of the parent directories): .git
+//
+// `git push --dry-run <remote> HEAD:refs/...` resolves HEAD, which is a LOCAL
+// ref, so it needs a repository; `git ls-remote <url>` does not. The key was
+// never exercised, and the failure read as a key problem when it was an
+// ordering problem — the third time in two days that a broken check has been
+// mistaken for the thing it was checking.
+//
+// So: READ before the clone (cheap, and a read failure would only turn into a
+// confusing "git clone failed" a moment later), WRITE straight after it, from
+// inside the clone. Both still land before the agent does any work, which is
+// the entire point of a pre-flight.
 
-	lsCmd := gitexec.CommandContext(ctx, "ls-remote", remote, "HEAD")
-	out, err := lsCmd.CombinedOutput()
+// verifyDeployKeyRead proves the alias resolves and the key can read the repo.
+// Safe to call outside a git repository.
+func verifyDeployKeyRead(ctx context.Context, alias, ownerRepo string) error {
+	remote := fmt.Sprintf("git@%s:%s.git", alias, ownerRepo)
+	out, err := gitexec.CommandContext(ctx, "ls-remote", remote, "HEAD").CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("deploy key cannot READ %s: %v: %s", remote, err, strings.TrimSpace(string(out)))
 	}
+	return nil
+}
 
-	// --dry-run so nothing is created; the point is the permission answer.
-	pushCmd := gitexec.CommandContext(ctx, "push", "--dry-run", remote, "HEAD:refs/heads/ailang-deploy-key-smoke")
-	pushOut, pushErr := pushCmd.CombinedOutput()
-	combined := string(pushOut)
-	if strings.Contains(combined, "denied") || strings.Contains(combined, "read-only") {
-		return fmt.Errorf("deploy key is READ-ONLY on %s — it needs --allow-write: %s", ownerRepo, strings.TrimSpace(combined))
-	}
-	if pushErr != nil {
-		return fmt.Errorf("deploy key push check failed on %s: %v: %s", ownerRepo, pushErr, strings.TrimSpace(combined))
+// verifyDeployKeyWrite proves the key can push. MUST run inside the clone.
+//
+// --dry-run so nothing is created; the point is the permission answer.
+func verifyDeployKeyWrite(ctx context.Context, workDir, ownerRepo string) error {
+	cmd := gitexec.CommandContext(ctx, "-C", workDir, "push", "--dry-run", "origin", "HEAD:refs/heads/ailang-deploy-key-smoke")
+	out, err := cmd.CombinedOutput()
+	if verdictErr := pushProbeVerdict(ownerRepo, string(out), err); verdictErr != nil {
+		return verdictErr
 	}
 	fmt.Printf("execute-job: deploy key verified read+write on %s\n", ownerRepo)
+	return nil
+}
+
+// pushProbeVerdict reads the outcome of the push probe.
+//
+// Split out and tested because the two ways to be wrong here are symmetrical:
+// calling a broken check a bad key (what happened on task-98301715), and calling
+// a bad key a broken check. A probe that could not run says so, in those words,
+// and never renders a verdict on the key.
+//
+// Note the denial test is a substring search, NOT `grep -qv denied`: the
+// inverted form succeeds whenever ANY line lacks the word, and a denial prints
+// several lines of which only the first contains it.
+func pushProbeVerdict(ownerRepo, combined string, err error) error {
+	trimmed := strings.TrimSpace(combined)
+
+	// The probe itself could not run. Not a statement about the key.
+	if strings.Contains(combined, "not a git repository") {
+		return fmt.Errorf("deploy key push check could not RUN for %s (it needs to execute inside the clone, and did not): %s",
+			ownerRepo, trimmed)
+	}
+	// Both spellings. GitHub's own wording is "has been marked as read only"
+	// (a SPACE), and matching only the hyphen let a genuinely read-only key fall
+	// through to the generic arm — caught by the test, not by reading the code.
+	lower := strings.ToLower(combined)
+	if strings.Contains(lower, "denied") || strings.Contains(lower, "read only") || strings.Contains(lower, "read-only") {
+		return fmt.Errorf("deploy key is READ-ONLY on %s — it needs --allow-write: %s", ownerRepo, trimmed)
+	}
+	if err != nil {
+		return fmt.Errorf("deploy key push check failed on %s: %v: %s", ownerRepo, err, trimmed)
+	}
 	return nil
 }
 
