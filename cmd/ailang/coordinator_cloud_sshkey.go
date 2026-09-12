@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -65,6 +67,18 @@ func sshDeployKeyRequested() bool {
 // project viewer can read it — a secret is only as scoped as its least careful
 // hop.
 func configureSSHDeployKey(ctx context.Context, project string) (string, error) {
+	// The ssh BINARY, before the key. Debian's git only Recommends
+	// openssh-client and every executor image is built with
+	// --no-install-recommends, so agent-base shipped without it (found in
+	// production 2026-09-12, first real dispatch of a deploy-key agent). git
+	// then reports "cannot run ssh: No such file or directory" from inside a
+	// clone, which reads as a key or permission problem and sends you to the
+	// wrong place entirely. Say what is actually missing.
+	if _, err := exec.LookPath("ssh"); err != nil {
+		return "", errors.New("no ssh binary in this executor image, so the deploy key cannot be used: " +
+			"install openssh-client in docker/Dockerfile.agent-base (git Recommends it, and the images build with --no-install-recommends)")
+	}
+
 	secretName := strings.TrimSpace(os.Getenv(sshKeySecretEnv))
 	alias := strings.TrimSpace(os.Getenv(sshHostAliasEnv))
 	if alias == "" {

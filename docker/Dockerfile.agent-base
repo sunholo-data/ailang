@@ -18,9 +18,16 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
 # ── Runtime stage ────────────────────────────────────────────
 FROM debian:bookworm-slim
 
+# openssh-client is a *Recommends* of Debian's git, not a dependency, so
+# --no-install-recommends leaves it out and `git@host:...` fails at runtime with
+# "cannot run ssh: No such file or directory". It is required by the per-agent
+# deploy-key path (configureSSHDeployKey) — the only way an agent pushes to a
+# repo the fleet token cannot write. Every executor image derives from this one,
+# so this is the single place it belongs.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     git \
+    openssh-client \
     curl \
     gnupg \
     && rm -rf /var/lib/apt/lists/*

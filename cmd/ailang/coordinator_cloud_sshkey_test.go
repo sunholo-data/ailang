@@ -1,6 +1,10 @@
 package main
 
-import "testing"
+import (
+	"context"
+	"strings"
+	"testing"
+)
 
 // The alias IS the security bound, so the URL rewrite is the thing that makes
 // scoping bite. If it silently leaves a github.com URL in place, the agent
@@ -61,5 +65,33 @@ func TestPinnedHostKey_IsGitHubs(t *testing.T) {
 	const want = "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl"
 	if githubEd25519HostKey != want {
 		t.Errorf("pinned host key changed:\n got  %q\n want %q\nVerify against api.github.com/meta before accepting.", githubEd25519HostKey, want)
+	}
+}
+
+// Found in production 2026-09-12, on the first real dispatch of a deploy-key
+// agent: agent-base had no ssh binary. Debian's git only *Recommends*
+// openssh-client and every executor image builds with --no-install-recommends,
+// so the key, the config and the known_hosts were all written correctly onto an
+// image that could not run `ssh` — and git reported it from inside a clone as
+// "cannot run ssh: No such file or directory", which reads as a key problem.
+//
+// The assertion is about ORDER as much as message: the binary check must come
+// before the Secret Manager fetch, or the first thing an operator sees is a
+// secrets error on an image whose real defect is a missing package.
+func TestConfigureSSHDeployKey_NamesTheMissingBinary(t *testing.T) {
+	t.Setenv("PATH", "")
+	t.Setenv(sshKeySecretEnv, "some-secret-that-must-never-be-fetched")
+
+	_, err := configureSSHDeployKey(context.Background(), "ailang-multivac")
+	if err == nil {
+		t.Fatal("with no ssh on PATH this must fail, not proceed to fetch a key it cannot use")
+	}
+	for _, want := range []string{"no ssh binary", "openssh-client", "Dockerfile.agent-base"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the error must name %q so the fix is obvious; got: %v", want, err)
+		}
+	}
+	if strings.Contains(err.Error(), "secret") {
+		t.Errorf("the binary check must run BEFORE the secret fetch; got: %v", err)
 	}
 }
