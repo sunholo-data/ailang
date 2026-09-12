@@ -1,7 +1,10 @@
 package coordinator
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -750,4 +753,60 @@ coordinator:
   #         - label_prefix: "feature"
   #           target: stapledon-design-doc
 `
+}
+
+// UnknownConfigKeys returns config keys that no struct field reads.
+//
+// YAML silently drops keys it cannot map, so a plausible-looking setting can sit
+// in the config doing nothing. Measured 2026-09-11: `push_branch: dev` was added
+// to an agent entry to make it push directly. AgentConfig has no PushBranch
+// field — the real control is skip_approval + merge_branch — so the key was
+// inert, and the entry read as if it were configured.
+//
+// Returns the offending key paths rather than an error, because the caller
+// wants to report all of them, not stop at the first.
+func UnknownConfigKeys(data []byte) ([]string, error) {
+	dec := yaml.NewDecoder(bytes.NewReader(data))
+	dec.KnownFields(true)
+
+	var cfg struct {
+		Coordinator CoordinatorConfig `yaml:"coordinator"`
+	}
+	var keys []string
+	for {
+		err := dec.Decode(&cfg)
+		if err == nil {
+			continue
+		}
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		// yaml.v3 reports every unknown field in one TypeError.
+		var te *yaml.TypeError
+		if errors.As(err, &te) {
+			for _, e := range te.Errors {
+				// Only AGENT keys. The decode target models `coordinator:` alone,
+				// so every sibling top-level block (github:, pubsub:) reports as
+				// unknown and is a false positive — and a checker that cries wolf
+				// gets ignored, which is the same as not having one.
+				if !strings.Contains(e, "in type coordinator.AgentConfig") {
+					continue
+				}
+				// "line 1266: field push_branch not found in type
+				// coordinator.AgentConfig" -> "line 1266: push_branch"
+				msg := e
+				if i := strings.Index(msg, "field "); i >= 0 {
+					if j := strings.Index(msg[i:], " not found"); j >= 0 {
+						msg = msg[:i] + msg[i+len("field "):i+j]
+					}
+				}
+				keys = append(keys, strings.TrimSpace(msg))
+			}
+			break
+		}
+		// A genuine parse error is the caller's problem to report, not a
+		// list of unknown keys.
+		return nil, err
+	}
+	return keys, nil
 }

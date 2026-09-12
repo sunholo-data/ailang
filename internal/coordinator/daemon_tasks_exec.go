@@ -249,7 +249,13 @@ func (d *Daemon) dispatchTasksCloud() error {
 				// Whether GitHub may merge this agent's PR on green. Registry
 				// metadata, so a message cannot ask for its own auto-merge.
 				params.AutoMerge = agent.AutoMerge
-				params.ArtifactPatterns = agent.GetEffectiveArtifactPatterns()
+				// DECLARED patterns, not GetEffectiveArtifactPatterns(): that
+				// falls back to `**/*` for any unrecognised agent
+				// (DefaultArtifactPatterns), which is the opposite of a bound. The
+				// auto-merge guard treats an empty list as "nothing constrains
+				// this, refuse" — so an agent that never declared its artifacts
+				// gets no auto-merge instead of unlimited scope.
+				params.ArtifactPatterns = agent.ArtifactPatterns
 				params.SSHKeySecret = agent.SSHKeySecret
 				params.SSHHostAlias = agent.SSHHostAlias
 				if agent.GitIdentity != nil {
