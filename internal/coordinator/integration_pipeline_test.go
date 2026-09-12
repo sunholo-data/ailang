@@ -138,7 +138,7 @@ func TestIntegration_DuplicateTaskDetection(t *testing.T) {
 	}
 
 	// Try to find duplicate with same fingerprint
-	dup, err := store.FindDuplicateTask(ctx, fingerprint, 0.9)
+	dup, err := store.FindDuplicateTask(ctx, fingerprint, DedupSince(time.Now()))
 	if err != nil {
 		t.Fatalf("failed to find duplicate: %v", err)
 	}
@@ -152,7 +152,7 @@ func TestIntegration_DuplicateTaskDetection(t *testing.T) {
 	}
 
 	// Different fingerprint should not match
-	dup2, _ := store.FindDuplicateTask(ctx, 0x111111111111, 0.9)
+	dup2, _ := store.FindDuplicateTask(ctx, 0x111111111111, DedupSince(time.Now()))
 	if dup2 != nil {
 		t.Error("expected no duplicate for different fingerprint")
 	}

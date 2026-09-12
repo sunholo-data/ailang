@@ -375,7 +375,7 @@ func TestSQLiteStoreFingerprint(t *testing.T) {
 	}
 
 	// Find by exact fingerprint
-	dup, err := store.FindDuplicateTask(ctx, fingerprint, 0.9)
+	dup, err := store.FindDuplicateTask(ctx, fingerprint, DedupSince(time.Now()))
 	if err != nil {
 		t.Fatalf("failed to find duplicate: %v", err)
 	}
@@ -387,7 +387,7 @@ func TestSQLiteStoreFingerprint(t *testing.T) {
 	}
 
 	// Non-matching fingerprint
-	dup2, err := store.FindDuplicateTask(ctx, 99999999, 0.9)
+	dup2, err := store.FindDuplicateTask(ctx, 99999999, DedupSince(time.Now()))
 	if err != nil {
 		t.Fatalf("failed to find duplicate: %v", err)
 	}

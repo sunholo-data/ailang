@@ -676,22 +676,40 @@ func (s *SQLiteStore) ResetTaskToPending(ctx context.Context, id string) error {
 }
 
 // FindDuplicateTask finds a similar task by fingerprint
-func (s *SQLiteStore) FindDuplicateTask(ctx context.Context, fingerprint uint64, threshold float64) (*TaskRecord, error) {
-	row := s.db.QueryRowContext(ctx,
+func (s *SQLiteStore) FindDuplicateTask(ctx context.Context, fingerprint uint64, since time.Time) (*TaskRecord, error) {
+	// The status rule is NOT in the SQL. It lives in BlocksDuplicate so that this
+	// store and the Firestore one cannot drift into two different answers — the
+	// old `status != 'cancelled'` here had no counterpart in Firestore at all,
+	// so the cloud coordinator suppressed against cancelled tasks and this one
+	// did not.
+	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, message_id, thread_id, parent_task_id, title, content, type, kind, source, priority, status, provider, agent_id,
 		        worktree_id, worktree_path, base_branch, base_commit, workspace, github_issue, github_repo, stage, design_doc_path, sprint_plan_path,
 		        session_id, iteration, chain_id, stage_id,
 		        created_at, started_at, completed_at, duration_ns,
 		        error, output, cost, tokens_used,
 		        capabilities_json, impact_level, estimated_cost
-		FROM tasks WHERE fingerprint = ? AND status != 'cancelled' LIMIT 1`,
-		fingerprint,
+		FROM tasks WHERE fingerprint = ? ORDER BY created_at DESC LIMIT ?`,
+		fingerprint, DedupCandidateLimit,
 	)
-	task, err := s.scanTask(row)
-	if err == sql.ErrNoRows {
-		return nil, nil
+	if err != nil {
+		return nil, err
 	}
-	return task, err
+	defer func() { _ = rows.Close() }()
+
+	for rows.Next() {
+		task, err := s.scanTaskFromRows(rows)
+		if err != nil {
+			return nil, err
+		}
+		if task.BlocksDuplicate(since) {
+			return task, nil
+		}
+	}
+	if err := rows.Err(); err != nil && err != sql.ErrNoRows {
+		return nil, err
+	}
+	return nil, nil
 }
 
 // SetTaskFingerprint sets the fingerprint for duplicate detection

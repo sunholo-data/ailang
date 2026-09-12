@@ -215,8 +215,12 @@ type Store interface {
 	RequeueTask(ctx context.Context, id string) error        // Reset status to pending for next stage execution
 	ResetTaskToPending(ctx context.Context, id string) error // Reset running task back to pending (worktree limit recovery)
 
-	// Duplicate detection
-	FindDuplicateTask(ctx context.Context, fingerprint uint64, threshold float64) (*TaskRecord, error)
+	// Duplicate detection. `since` is the oldest task that may suppress a new
+	// one; the status rule is BlocksDuplicate, shared by every implementation.
+	// The old signature took a `threshold float64` that NO implementation read —
+	// both match the fingerprint exactly — which is where the "similar to recent
+	// task" wording came from.
+	FindDuplicateTask(ctx context.Context, fingerprint uint64, since time.Time) (*TaskRecord, error)
 	SetTaskFingerprint(ctx context.Context, id string, fingerprint uint64) error
 
 	// Thread linking (for dashboard visibility)

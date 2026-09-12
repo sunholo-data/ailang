@@ -80,7 +80,7 @@ func (m *mockStore) MarkTaskFailed(ctx context.Context, id string, err error) er
 func (m *mockStore) MarkTaskRejected(ctx context.Context, id string) error          { return nil }
 func (m *mockStore) MarkTaskCancelled(ctx context.Context, id string) error         { return nil }
 func (m *mockStore) RequeueTask(ctx context.Context, id string) error               { return nil }
-func (m *mockStore) FindDuplicateTask(ctx context.Context, fingerprint uint64, threshold float64) (*TaskRecord, error) {
+func (m *mockStore) FindDuplicateTask(ctx context.Context, fingerprint uint64, since time.Time) (*TaskRecord, error) {
 	return nil, nil
 }
 func (m *mockStore) SetTaskFingerprint(ctx context.Context, id string, fingerprint uint64) error {

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/sunholo-data/ailang/internal/messaging"
 	"github.com/sunholo-data/ailang/internal/observatory"
@@ -216,13 +217,20 @@ func (d *Daemon) pollAndProcessTasks() error {
 		// Check for duplicates
 		fingerprint := analyzed.Fingerprint
 		if fingerprint != 0 {
-			if dup, _ := d.taskStore.FindDuplicateTask(d.ctx, fingerprint, 0.9); dup != nil {
-				d.logger.Printf("Skipping duplicate task for message %s (similar to task %s)", msg.ID, dup.ID)
+			dup, dupErr := d.taskStore.FindDuplicateTask(d.ctx, fingerprint, DedupSince(time.Now()))
+			if dupErr != nil {
+				// Fail open — running the work twice is recoverable, refusing it
+				// on a lookup error is not — but say so, because a store that
+				// always errors here looks exactly like a store with no duplicates.
+				d.logger.Printf("Duplicate check failed for message %s (dispatching anyway): %v", msg.ID, dupErr)
+			}
+			if dup != nil {
+				d.logger.Printf("Skipping duplicate task for message %s (same content as task %s, status %s)", msg.ID, dup.ID, dup.Status)
 				// Mark message as read since we're skipping it
 				if adapter := d.inboxAdapters[im.inbox]; adapter != nil {
 					_ = adapter.MarkAsRead(msg.ID)
 				}
-				d.publishDedupCompletion(taskID, agentID, dup.ID)
+				d.publishDedupCompletion(taskID, agentID, msg.ID, dup)
 				continue
 			}
 		}
@@ -522,9 +530,13 @@ func (d *Daemon) pollAndProcessTasksCloud() error {
 		// Check for duplicates
 		fingerprint := analyzed.Fingerprint
 		if fingerprint != 0 {
-			if dup, _ := d.taskStore.FindDuplicateTask(d.ctx, fingerprint, 0.9); dup != nil {
-				d.logger.Printf("Skipping duplicate task for message %s (similar to task %s)", msg.ID, dup.ID)
-				d.publishDedupCompletion(taskID, agentID, dup.ID)
+			dup, dupErr := d.taskStore.FindDuplicateTask(d.ctx, fingerprint, DedupSince(time.Now()))
+			if dupErr != nil {
+				d.logger.Printf("Duplicate check failed for message %s (dispatching anyway): %v", msg.ID, dupErr)
+			}
+			if dup != nil {
+				d.logger.Printf("Skipping duplicate task for message %s (same content as task %s, status %s)", msg.ID, dup.ID, dup.Status)
+				d.publishDedupCompletion(taskID, agentID, msg.ID, dup)
 				continue
 			}
 		}
@@ -629,17 +641,35 @@ func (d *Daemon) pollAndProcessTasksCloud() error {
 // publishDedupCompletion posts a completion notification when a task is skipped
 // due to deduplication. This ensures external clients (portal, sidecar) receive
 // a response instead of hanging indefinitely waiting for a build that never starts.
-func (d *Daemon) publishDedupCompletion(taskID, agentID, originalTaskID string) {
+//
+// messageID is the request this answers, and it MUST be carried as the
+// correlation: this was the one completion publisher of three that omitted it
+// (the pubsub and stale-task paths both set task.MessageID), so a client with a
+// request in flight received a reply it could not attribute and went on waiting
+// — the hang this function exists to prevent. There is no task record to read it
+// from here, precisely because no task was created.
+func (d *Daemon) publishDedupCompletion(taskID, agentID, messageID string, dup *TaskRecord) {
 	if d.msgStore == nil {
 		return
+	}
+
+	originalTaskID := ""
+	originalStatus := ""
+	if dup != nil {
+		originalTaskID = dup.ID
+		originalStatus = string(dup.Status)
 	}
 
 	payload, _ := json.Marshal(map[string]interface{}{
 		"task_id":          taskID,
 		"agent_id":         agentID,
 		"status":           "deduplicated",
-		"error_msg":        fmt.Sprintf("Skipped: similar to recent task %s", originalTaskID),
+		"correlation_id":   messageID,
+		"error_msg":        fmt.Sprintf("Skipped: identical content to task %s (%s)", originalTaskID, originalStatus),
 		"original_task_id": originalTaskID,
+		// The status of what suppressed this, so a client can tell "already
+		// running" from "already done" without a second lookup.
+		"original_task_status": originalStatus,
 	})
 
 	toInbox := agentID
@@ -648,17 +678,18 @@ func (d *Daemon) publishDedupCompletion(taskID, agentID, originalTaskID string) 
 	}
 
 	msg := &messaging.InboxMessage{
-		FromAgent:   agentID,
-		ToInbox:     toInbox,
-		MessageType: "completion",
-		Title:       fmt.Sprintf("Task %s: deduplicated", taskID),
-		Payload:     string(payload),
+		FromAgent:     agentID,
+		ToInbox:       toInbox,
+		MessageType:   "completion",
+		Title:         fmt.Sprintf("Task %s: deduplicated", taskID),
+		Payload:       string(payload),
+		CorrelationID: messageID,
 	}
 
 	if err := d.msgStore.InsertInboxMessage(msg); err != nil {
 		d.logger.Printf("Failed to post dedup completion for task %s: %v", taskID, err)
 	} else {
-		d.logger.Printf("Posted dedup completion for task %s (original: %s)", taskID, originalTaskID)
+		d.logger.Printf("Posted dedup completion for task %s (original: %s, correlation: %s)", taskID, originalTaskID, messageID)
 	}
 }
 
