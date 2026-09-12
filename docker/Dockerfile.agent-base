@@ -12,8 +12,18 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
+# Stamp the version from std/VERSION, which is IN the build context and which the
+# release smoke gate already asserts equals the tag. Without this the binary
+# reports "AILANG dev" and an image can only be identified by digest — measured
+# 2026-09-12 inside the promoted prod agent-pi:v0.38.3.
+#
+# The module path matters: it is github.com/sunholo-data/ailang (see go.mod).
+# A -X against a path that does not exist sets nothing and reports no error,
+# which is how Dockerfile.registry-validator came to stamp
+# github.com/sunholo/ailang/... and silently do nothing, and how the
+# release-manager skill once documented -X main.Version.
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-    go build -ldflags="-s -w" -o /ailang ./cmd/ailang/
+    go build -ldflags="-s -w -X github.com/sunholo-data/ailang/internal/version.Version=$(cat std/VERSION)" -o /ailang ./cmd/ailang/
 
 # ── Runtime stage ────────────────────────────────────────────
 FROM debian:bookworm-slim
