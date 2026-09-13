@@ -610,13 +610,39 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 				// Already a full clone or network issue — log and continue
 				fmt.Fprintf(os.Stderr, "execute-job: fetch --unshallow skipped: %v\n", err)
 			}
-			pushCmd := exec.CommandContext(ctx, "git", "-C", workDir, "push", "origin", branchName)
+			// HEAD:refs/heads/<branch>, never the bare branch NAME.
+			//
+			// Measured 2026-09-13, tasks 70b77905 and 1063e5fd
+			// (design-doc-creator-daneel): the wrapper creates
+			// coordinator/task-<id> and the agent then made its OWN branch
+			// (design-doc/...) and committed there, so the coordinator branch
+			// never moved. `git push origin coordinator/task-<id>` pushed that
+			// unmoved ref — an empty branch — and GitHub refused the PR with
+			// 422 "No commits between main and coordinator/task-1063e5fd".
+			// The design docs existed the whole time, on a branch nobody was
+			// told about, and a human opened and merged the PRs six hours later.
+			//
+			// hasWork above already measures clonePoint..HEAD, so it FOUND those
+			// commits; the push then sent a different ref. The check and the push
+			// have to be talking about the same commits, and HEAD is the one
+			// thing that means "what the agent actually produced" whichever
+			// branch it decided to stand on.
+			pushCmd := exec.CommandContext(ctx, "git", "-C", workDir, "push", "origin", pushRefspec(branchName))
 			pushCmd.Stdout = os.Stdout
 			pushCmd.Stderr = os.Stderr
 			if err := pushCmd.Run(); err != nil {
 				return branchName, execResult, gitEvidence{}, fmt.Errorf("git push failed: %w", err)
 			}
 			fmt.Printf("execute-job: pushed branch %s\n", branchName)
+
+			// Assert the remote ref IS what we just built. "git push exited 0"
+			// and "the work is published" were the same claim until 2026-09-13,
+			// and they came apart: the push sent an unmoved ref, exited 0, and
+			// the completion went out as completed with changed_files listing a
+			// document that was on no published branch.
+			if err := assertRemoteMatchesHead(ctx, workDir, branchName); err != nil {
+				return branchName, execResult, gitEvidence{}, err
+			}
 		} else {
 			fmt.Printf("execute-job: branch %s is already on the remote (the agent pushed it) — still opening the PR\n", branchName)
 		}
@@ -636,7 +662,9 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 		if !branchWantsPR(branchName, baseBranch) {
 			fmt.Printf("execute-job: %s IS the base branch (direct-push agent) — no PR to open\n", branchName)
 		} else {
-			openCascadePullRequest(ctx, workDir, branchName, taskID, agentID, baseBranch)
+			if prErr := openCascadePullRequest(ctx, workDir, branchName, taskID, agentID, baseBranch); prErr != nil {
+				return branchName, execResult, gitEvidence{}, prErr
+			}
 		}
 	}
 
@@ -644,6 +672,46 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 	// After the push: HEAD is final, so the two SHAs bounding the diff are
 	// immutable and the approval card renders identically on every replay.
 	return branchName, execResult, collectGitEvidence(ctx, workDir, clonePoint), nil
+}
+
+// assertRemoteMatchesHead proves the branch we published carries the commit we
+// built. A push can exit 0 having sent something other than the agent's work —
+// measured 2026-09-13, when it sent a branch ref still sitting at the clone
+// point while HEAD held two design documents.
+//
+// This is deliberately an assertion and not a log line: a completion that names
+// changed_files on a branch that does not contain them is worse than a failure,
+// because everything downstream believes it.
+func assertRemoteMatchesHead(ctx context.Context, workDir, branchName string) error {
+	headOut, err := gitexec.CommandContext(ctx, "-C", workDir, "rev-parse", "HEAD").Output()
+	if err != nil {
+		return fmt.Errorf("cannot read local HEAD to verify the push: %w", err)
+	}
+	head := strings.TrimSpace(string(headOut))
+
+	lsOut, err := gitexec.CommandContext(ctx, "-C", workDir, "ls-remote", "origin", "refs/heads/"+branchName).Output()
+	if err != nil {
+		return fmt.Errorf("cannot read origin/%s to verify the push: %w", branchName, err)
+	}
+	fields := strings.Fields(string(lsOut))
+	if len(fields) == 0 {
+		return fmt.Errorf("push reported success but origin/%s does not exist — the work is at %s locally and was NOT published", branchName, head)
+	}
+	if remote := fields[0]; remote != head {
+		return fmt.Errorf("push reported success but origin/%s is %s, not the HEAD we built (%s) — the work was NOT published to that branch",
+			branchName, remote, head)
+	}
+	fmt.Printf("execute-job: verified origin/%s is at %s\n", branchName, head)
+	return nil
+}
+
+// pushRefspec sends whatever HEAD is to the named branch.
+//
+// Deliberately not the bare branch name: that pushes the local ref of that name,
+// which is only the agent's work if the agent stayed on the branch the wrapper
+// created. Nothing makes it stay.
+func pushRefspec(branchName string) string {
+	return "HEAD:refs/heads/" + branchName
 }
 
 // branchNeedsPush reports whether the wrapper still has commits to send.

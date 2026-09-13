@@ -31,7 +31,7 @@ import (
 //
 // Cascade context (root_package, root_version) is surfaced via env vars set
 // by the dispatcher; if absent, we open a generic agent-task PR instead.
-func openCascadePullRequest(ctx context.Context, workDir, branchName, taskID, agentID, baseBranch string) {
+func openCascadePullRequest(ctx context.Context, workDir, branchName, taskID, agentID, baseBranch string) error {
 	if baseBranch == "" {
 		baseBranch = "main"
 	}
@@ -41,14 +41,14 @@ func openCascadePullRequest(ctx context.Context, workDir, branchName, taskID, ag
 	token := strings.TrimSpace(os.Getenv("GITHUB_TOKEN"))
 	if token == "" {
 		fmt.Fprintln(os.Stderr, "execute-job: pr create skipped: GITHUB_TOKEN not set")
-		return
+		return nil
 	}
 
 	// Get the GitHub owner/repo by parsing the remote URL inside workDir.
 	repoOwner, repoName, err := gitutil.GitHubOwnerRepo(ctx, workDir)
 	if err != nil || repoOwner == "" || repoName == "" {
 		fmt.Fprintf(os.Stderr, "execute-job: pr create skipped: cannot parse GitHub repo: %v\n", err)
-		return
+		return nil
 	}
 
 	// Detect cascade vs generic agent task from env (set by dispatcher when
@@ -75,8 +75,11 @@ func openCascadePullRequest(ctx context.Context, workDir, branchName, taskID, ag
 
 	prNum, prURL, err := createGitHubPR(ctx, token, repoOwner, repoName, title, body, branchName, baseBranch)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "execute-job: pr create failed: %v\n", err)
-		return
+		// NOT best-effort. This branch carries work — the caller only reaches
+		// here when hasWork held — so a PR that does not exist means the work
+		// reached no reviewer. Swallowing it to stderr is how a 422 and a 500
+		// both became "completed" on 2026-09-13.
+		return fmt.Errorf("the work is pushed to %s but no PR could be opened for it: %w", branchName, err)
 	}
 	fmt.Printf("execute-job: opened PR #%d: %s\n", prNum, prURL)
 
@@ -87,6 +90,7 @@ func openCascadePullRequest(ctx context.Context, workDir, branchName, taskID, ag
 	}
 
 	maybeEnableAutoMerge(ctx, token, repoOwner, repoName, prNum, workDir, baseBranch)
+	return nil
 }
 
 // maybeEnableAutoMerge turns on GitHub's native auto-merge, under TWO
@@ -195,6 +199,40 @@ func artifactPatternsFromEnv() []string {
 // createGitHubPR makes a POST /repos/{owner}/{repo}/pulls call.
 // Returns the PR number, its html_url, and any error.
 func createGitHubPR(ctx context.Context, token, owner, repo, title, body, head, base string) (int, string, error) {
+	num, url, status, err := createGitHubPROnce(ctx, token, owner, repo, title, body, head, base)
+	// A 5xx is GitHub having a moment, not a verdict on this PR. Measured
+	// 2026-09-13 on task-70b77905: `pr create failed: github api returned 500`
+	// with an empty body, best-effort, so the run reported success and the work
+	// simply had no PR. Retry a transient status; never retry a 4xx, which is a
+	// real answer (422 "No commits between ..." must stay a hard failure).
+	for attempt := 1; attempt <= 2 && shouldRetryPRCreate(status, err); attempt++ {
+		delay := time.Duration(attempt*2) * time.Second
+		fmt.Fprintf(os.Stderr, "execute-job: pr create attempt %d hit a transient error (%v) — retrying in %s\n", attempt, err, delay)
+		select {
+		case <-ctx.Done():
+			return 0, "", err
+		case <-time.After(delay):
+		}
+		num, url, status, err = createGitHubPROnce(ctx, token, owner, repo, title, body, head, base)
+	}
+	return num, url, err
+}
+
+// shouldRetryPRCreate reports whether a PR-create outcome is worth another go.
+//
+// Transport errors and 5xx are transient; every 4xx is GitHub's considered
+// answer and retrying it just repeats the same rejection more slowly.
+func shouldRetryPRCreate(status int, err error) bool {
+	if err == nil {
+		return false
+	}
+	if status == 0 {
+		return true // never reached the API: DNS, TLS, connection reset
+	}
+	return status >= 500
+}
+
+func createGitHubPROnce(ctx context.Context, token, owner, repo, title, body, head, base string) (int, string, int, error) {
 	apiURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/pulls", owner, repo)
 	payload := map[string]string{
 		"title": title,
@@ -205,7 +243,7 @@ func createGitHubPR(ctx context.Context, token, owner, repo, title, body, head, 
 	bodyBytes, _ := json.Marshal(payload)
 	req, err := http.NewRequestWithContext(ctx, "POST", apiURL, strings.NewReader(string(bodyBytes)))
 	if err != nil {
-		return 0, "", err
+		return 0, "", 0, err
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Accept", "application/vnd.github+json")
@@ -214,21 +252,21 @@ func createGitHubPR(ctx context.Context, token, owner, repo, title, body, head, 
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return 0, "", err
+		return 0, "", 0, err
 	}
 	defer resp.Body.Close()
 	respBody, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode >= 300 {
-		return 0, "", fmt.Errorf("github api returned %d: %s", resp.StatusCode, strings.TrimSpace(string(respBody)))
+		return 0, "", resp.StatusCode, fmt.Errorf("github api returned %d: %s", resp.StatusCode, strings.TrimSpace(string(respBody)))
 	}
 	var prResp struct {
 		Number  int    `json:"number"`
 		HTMLURL string `json:"html_url"`
 	}
 	if err := json.Unmarshal(respBody, &prResp); err != nil {
-		return 0, "", fmt.Errorf("decode pr response: %w", err)
+		return 0, "", resp.StatusCode, fmt.Errorf("decode pr response: %w", err)
 	}
-	return prResp.Number, prResp.HTMLURL, nil
+	return prResp.Number, prResp.HTMLURL, resp.StatusCode, nil
 }
 
 // addGitHubLabels makes a POST /repos/{owner}/{repo}/issues/{prNum}/labels call.

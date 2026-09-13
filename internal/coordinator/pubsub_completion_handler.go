@@ -188,11 +188,18 @@ func (h *CompletionHandler) postCompletionNotification(ctx context.Context, task
 		return
 	}
 
+	// head_commit and base_commit travel WITH the claim. They are on the Pub/Sub
+	// struct already but were dropped here, so a poller reading the inbox could
+	// see changed_files and had no way to check the branch actually carries
+	// them. On 2026-09-13 a completion named a document that was on no published
+	// branch, and nothing downstream could tell.
 	payload, _ := json.Marshal(map[string]interface{}{
 		"task_id":       completion.TaskID,
 		"agent_id":      completion.AgentID,
 		"status":        completion.Status,
 		"branch_name":   completion.BranchName,
+		"base_commit":   completion.BaseCommit,
+		"head_commit":   completion.HeadCommit,
 		"error_msg":     completion.ErrorMsg,
 		"changed_files": completion.ChangedFiles,
 	})
