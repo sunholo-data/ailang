@@ -76,14 +76,27 @@ func summarizeDirective(directive string) string {
 }
 
 // subjectFromJSON returns a human field from a JSON object directive, or "".
+//
+// Decodes the FIRST JSON value and ignores whatever follows, because by the time
+// a directive reaches here it is rarely pure JSON: the skill path appends
+// "Invoke the <skill> skill to complete this task." after the payload
+// (buildSkillDirectiveWithConfig). json.Unmarshal rejects that as
+// `invalid character 'I' after top-level value`, so this returned "" and the
+// caller fell back to "first line" — which for a single-line payload is the
+// whole blob. Measured 2026-09-13 on five design-doc PRs (#1145-#1149), every
+// title reading:
+//
+//	[agent] design-doc-creator: {"workflow":"design-document-v1","project":"ail…
+//
+// Still a pure function of the directive: same bytes in, same subject out.
 func subjectFromJSON(s string) string {
 	if !strings.HasPrefix(s, "{") {
 		return ""
 	}
 	var obj map[string]interface{}
-	if err := json.Unmarshal([]byte(s), &obj); err != nil {
-		// Not valid JSON after all — a directive that merely starts with a
-		// brace is prose, and prose is handled by the caller.
+	if err := json.NewDecoder(strings.NewReader(s)).Decode(&obj); err != nil {
+		// Not JSON after all — a directive that merely starts with a brace is
+		// prose, and prose is handled by the caller.
 		return ""
 	}
 	for _, k := range jsonSubjectKeys {

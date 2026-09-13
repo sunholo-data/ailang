@@ -145,3 +145,48 @@ func TestAgentCommitSubject_FallsBackToTheTaskID(t *testing.T) {
 		t.Errorf("fallback got %q", got)
 	}
 }
+
+// Measured 2026-09-13 on PRs #1145-#1149: every title was the raw payload,
+//
+//	[agent] design-doc-creator: {"workflow":"design-document-v1","project":"ail…
+//
+// even though subjectFromJSON existed and the payload carried a perfectly good
+// `request`. By the time a directive reaches here it is rarely pure JSON — the
+// skill path appends "Invoke the <skill> skill to complete this task." after it
+// — and json.Unmarshal rejects trailing content outright ("invalid character
+// 'I' after top-level value"), so the JSON arm returned "" and the first-line
+// fallback printed the whole single-line blob.
+//
+// The JSON extractor has to survive whatever the wrapper wraps around it.
+func TestSummarizeDirective_JSONWithTrailingWrapperText(t *testing.T) {
+	// Exactly what buildSkillDirectiveWithConfig produces.
+	directive := `{"workflow":"design-document-v1","project":"ailang","request":"Suppress cascading parser errors after the first failure."}
+
+Invoke the design-doc-creator skill to complete this task.
+Return DESIGN_DOC_PATH: followed by the path.`
+
+	got := summarizeDirective(directive)
+	if strings.Contains(got, "{") || strings.Contains(got, "workflow") {
+		t.Fatalf("the payload leaked into the subject: %q", got)
+	}
+	if !strings.HasPrefix(got, "Suppress cascading parser errors") {
+		t.Errorf("want the request field, got %q", got)
+	}
+
+	// And the whole point: the PR title a person reads.
+	title := agentPRTitle("design-doc-creator", "task-087ae04b", directive)
+	if strings.Contains(title, "design-document-v1") {
+		t.Errorf("title still carries the payload: %q", title)
+	}
+	if !strings.Contains(title, "Suppress cascading parser errors") {
+		t.Errorf("title should say what the change is, got %q", title)
+	}
+}
+
+// Trailing content must not turn NON-JSON prose into a bad extraction either.
+func TestSummarizeDirective_BraceProseIsStillProse(t *testing.T) {
+	got := summarizeDirective("{ this is not json } and never was")
+	if got != "{ this is not json } and never was" {
+		t.Errorf("prose that merely starts with a brace must survive intact, got %q", got)
+	}
+}
