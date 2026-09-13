@@ -509,6 +509,10 @@ $APPROVALS_CONTEXT$INBOX_LINE
    Send work to an agent (handoff topology comes from the registry, not the body):
      ailang messages send <inbox> "<body>" --title "<t>" [--type feedback]
      inboxes: design-doc-creator · sprint-planner · pkg:sunholo/<package> · user
+   LOOK UP the inbox — a wrong one is FILED, NOT DISPATCHED, and only bounces:
+     ailang messages inboxes            what each inbox does, and which dispatch
+     ailang coordinator agents          the 37 agents on the LIVE plane
+     ailang coordinator agents <id>     one agent, declared vs effective (defaults are NOT unset)
 $TRIAGE_SUMMARY
 $SPRINT_CONTEXT
 EOF
