@@ -278,3 +278,22 @@ func TestFmtStdout_LeavesFileUnchanged(t *testing.T) {
 		t.Error("stdout mode must not modify the input file")
 	}
 }
+
+// TestFormatOne_MultiSpaceInCallParens is the #962 regression: multi-space
+// inside a declaration's empty parens used to fail round-trip verification
+// ("formatter defect; AST changed") because the parser gave `func f(   )`
+// zero params while `func f()` got the S-CALL0 unit param. The parser now
+// applies the unit-param convention to ANY empty parameter list, so interior
+// whitespace cannot change the AST.
+func TestFormatOne_MultiSpaceInCallParens(t *testing.T) {
+	dir := t.TempDir()
+	path := writeTemp(t, dir, "a.ail", "module t/a\nexport func    main2(   )   ->   int   {   7   }\n")
+	_, canonical, err := formatOne(path)
+	if err != nil {
+		t.Fatalf("formatOne: %v", err)
+	}
+	want := "module t/a\n\nexport func main2() -> int {\n  7\n}\n"
+	if string(canonical) != want {
+		t.Errorf("canonical mismatch:\n got %q\nwant %q", canonical, want)
+	}
+}
