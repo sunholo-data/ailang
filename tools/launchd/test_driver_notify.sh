@@ -223,6 +223,69 @@ check "lane logs its summary"               "$T" "LOG:LANE DEGRADED this fire"
 T=$(run lane_block "")
 checkno "lane SILENT when healthy"          "$T" "AILANG:"
 
+echo "== EPISODE GATING: suppression + recovery reset (#978) =="
+# #978: both dedupe guards (_lane_ep/_pin_ep fingerprints over a digit-stripped
+# ledger) had NO test at any level — both guards could be deleted with the suite
+# still green. These arms pin, against the EXTRACTED production blocks:
+#   (a) the second identical notice is suppressed (sends stay at 1) and the
+#       suppression is logged,
+#   (b) a CHANGED reason re-announces,
+#   (c) healing clears the marker so the NEXT episode announces again,
+#   (d) the fingerprint strips digits, so a moving counter cannot defeat the gate.
+run_episode_seq() { # $1=block; remaining args = ledger values, in fire order ("" = healed)
+  local block="$1"; shift
+  local state_dir="$LAB/epstate.$$.$block"
+  rm -rf "$state_dir"; mkdir -p "$state_dir"
+  local mc_trace; mc_trace=$(mktemp)
+  local attempt_file; attempt_file=$(mktemp)
+  MC_TRACE_FILE="$mc_trace" MC_ATTEMPT_FILE="$attempt_file" /bin/bash -c '
+    set -uo pipefail
+    . "$MC_BND"
+    NOTIFY_TIMEOUT="${MISSION_NOTIFY_TIMEOUT:-30}"
+    log() { printf "LOG:%s\n" "$*" >> "$MC_TRACE_FILE"; }
+    MISSION_NAME=v1; MISSION_REPO=sunholo-data/ailang; MSG_FROM=mission-control
+    MISSION_GH_ISSUE=635; LOG=/tmp/x.log; REPO=/tmp/repo
+    MODEL=claude-opus-5; MODEL_WHY="probe ok"
+    MISSION_DESIGNER_MODEL=d; MISSION_PLANNER_MODEL=p; MISSION_EXECUTOR_MODEL=e; MISSION_EVALUATOR_MODEL=v
+    STATE_DIR="$1"   # episode gating (_lane_ep/_pin_ep) reads this
+    _pin_degraded=""; _lane_degraded=""
+    . "$2"            # _mc_notify
+    ledger_var=$( [ "$3" = pin_block ] && echo _pin_degraded || echo _lane_degraded )
+    ep_file="$STATE_DIR/mission-v1-$( [ "$3" = pin_block ] && echo driver-pin || echo lane-degraded ).episode"
+    # positional args: $1=STATE_DIR $2=notify.sh $3=block name $4=block path
+    # $5.. = the ledger values, one per fire
+    phase=0
+    for val in "${@:5}"; do
+      phase=$((phase+1))
+      : > "$MC_TRACE_FILE"   # per-phase medium: each phase gets its own send count
+      eval "$ledger_var=\"\$val\""
+      . "$4"                 # the REAL extracted block
+      n=$(grep -c "^AILANG:messages send controlplane" "$MC_TRACE_FILE" 2>/dev/null || true); n=${n:-0}
+      if [ -f "$ep_file" ]; then m=present; else m=absent; fi
+      suppressed=no
+      case "$(cat "$MC_TRACE_FILE" 2>/dev/null)" in *"unchanged this episode"*|*"notice suppressed"*) suppressed=yes;; esac
+      printf "PHASE%s:sends=%s marker=%s suppressed=%s\n" "$phase" "$n" "$m" "$suppressed"
+    done
+  ' _ "$state_dir" "$LAB/notify.sh" "$block" "$LAB/$block.sh" "$@" 2>&1
+  rm -rf "$state_dir" "$mc_trace" "$attempt_file"
+}
+
+T=$(run_episode_seq lane_block "- codex lane down" "- codex lane down" "- planner lane down" "")
+check "lane ep: first fire announces"           "$T" "PHASE1:sends=1 marker=present"
+check "lane ep: second identical fire suppressed" "$T" "PHASE2:sends=0 marker=present suppressed=yes"
+check "lane ep: changed reason re-announces"    "$T" "PHASE3:sends=1 marker=present suppressed=no"
+check "lane ep: heal clears the marker"         "$T" "PHASE4:sends=0 marker=absent"
+checkno "lane ep: heal announces nothing"       "$T" "PHASE4:sends=1"
+
+T=$(run_episode_seq lane_block "- codex lane down rc=17" "- codex lane down rc=99")
+check "lane ep: moving rc (digit strip) does not re-announce" "$T" "PHASE2:sends=0 marker=present suppressed=yes"
+
+T=$(run_episode_seq pin_block "- driver pin: FAILED" "- driver pin: FAILED" "- driver pin: FAILED (other clone)" "")
+check "pin ep: first fire announces"            "$T" "PHASE1:sends=1 marker=present"
+check "pin ep: second identical fire suppressed" "$T" "PHASE2:sends=0 marker=present suppressed=yes"
+check "pin ep: changed reason re-announces"     "$T" "PHASE3:sends=1 marker=present suppressed=no"
+check "pin ep: heal clears the marker"          "$T" "PHASE4:sends=0 marker=absent"
+
 echo "== RC capture: not masked by printf (G2) =="
 # Drop the STATE_DIR assignment; the sourced pin_block reads $STATE_DIR for spool/episode
 # gating, so under `set -u` it aborts rc=1. With the old code the `$?`-after-`printf`
