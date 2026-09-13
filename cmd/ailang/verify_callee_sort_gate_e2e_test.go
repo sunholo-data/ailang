@@ -165,3 +165,53 @@ func TestVerify_CrossFunctionIntChainStillVerifies(t *testing.T) {
 		t.Fatalf("instrument failure: no contract-bearing results in cross_function.ail:\n%s", stdout)
 	}
 }
+
+// TestVerify_ListPatternMatchSkipsNotError is the end-to-end acceptance test
+// for #757: a contracted function matching on list patterns (`x :: rest`)
+// used to hard-ERROR with "unsupported pattern type *core.ListPattern" — a Go
+// type name leaking into user-facing output. It must SKIP with an honest
+// capability reason instead.
+func TestVerify_ListPatternMatchSkipsNotError(t *testing.T) {
+	if !smt.Z3Available() {
+		t.Skip("Z3 not installed (e.g. Windows CI) — verify e2e needs the solver")
+	}
+	bin := buildAilang(t)
+
+	src := `module m
+
+export func sumList(ls: [int]) -> int ! {}
+ensures { result >= 0 }
+{
+  match ls {
+    [] => 0,
+    x :: rest => x + sumList(rest)
+  }
+}
+`
+	dir := t.TempDir()
+	f := filepath.Join(dir, "m.ail")
+	if err := os.WriteFile(f, []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	stdout, stderr, _ := runAilangBin(t, bin, "verify", "--json", "--relax-modules", f)
+	combined := stdout + stderr
+	// The precise leak the issue reported — a Go type name in user-facing output.
+	// (Not a bare "ListPattern" substring: this test's own name lands in the
+	// temp dir path.)
+	if strings.Contains(combined, "*core.ListPattern") {
+		t.Fatalf("verify leaked the internal pattern type name; output:\n%s", combined)
+	}
+	var payload struct {
+		Skipped int `json:"skipped"`
+		Errors  int `json:"errors"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("invalid JSON: %v\n%s", err, stdout)
+	}
+	if payload.Errors != 0 {
+		t.Fatalf("expected 0 errors, got %d:\n%s", payload.Errors, stdout)
+	}
+	if payload.Skipped != 1 {
+		t.Fatalf("expected 1 skipped, got %d:\n%s", payload.Skipped, stdout)
+	}
+}

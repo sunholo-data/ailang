@@ -16,6 +16,13 @@ import (
 // Functions with this error should be SKIPPED, not reported as errors.
 var ErrUnresolvableTypes = errors.New("unresolvable SMT declaration types")
 
+// ErrUnsupportedConstruct marks a Core construct the SMT encoder cannot
+// represent (e.g. a match on list patterns, *core.ListPattern). Functions with
+// this error should be SKIPPED with an honest capability reason, not reported
+// as hard errors — the tool has a skip path with good diagnostics and the
+// construct is a language-feature boundary, not a verifier fault (#757).
+var ErrUnsupportedConstruct = errors.New("unsupported construct in SMT encoding")
+
 // FunctionParam describes a function parameter for SMT encoding.
 type FunctionParam struct {
 	Name string

@@ -389,6 +389,23 @@ func verifyCommand() {
 				skipped++
 				continue
 			}
+			// #757: an unsupported Core construct (e.g. match on list patterns)
+			// is an honest capability boundary of the decidable fragment — skip
+			// with the reason, never a hard ERROR leaking Go type names.
+			if errors.Is(err, smt.ErrUnsupportedConstruct) {
+				results = append(results, verifyResult{
+					Function: funcName,
+					Status:   "skipped",
+					Reason:   fmt.Sprintf("unsupported construct in SMT encoding: %v", err),
+					Rejections: []smt.SMTRejectionReason{{
+						Code:    smt.RejectUnencodable,
+						Message: fmt.Sprintf("Function %q uses a construct the SMT encoder cannot represent", funcName),
+						Hint:    "Match on list patterns (x :: rest), string patterns, and similar unsupported constructs are outside the decodable fragment. Rewrite using length/element access on lists, or verify a version without the unsupported construct.",
+					}},
+				})
+				skipped++
+				continue
+			}
 			results = append(results, verifyResult{
 				Function: funcName,
 				Status:   "error",
