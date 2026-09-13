@@ -93,3 +93,49 @@ func TestSetAgentField_UnknownAgentIsAnError(t *testing.T) {
 		t.Fatal("an inbox name is not an agent id — this must fail loudly, not edit nothing silently")
 	}
 }
+
+// Measured on agent-set's first real run, 2026-09-13: the ladder reported three
+// SUCCESSes in about a second and pushed prod before test had finished
+// building. It matched the trigger NAME and read the newest build for it —
+// which, minutes after any other config change, is a SUCCESS from a different
+// commit. A wait that cannot fail is not a wait.
+func TestFindBuildStatus_IsScopedToTheCommit(t *testing.T) {
+	// Newest-first, exactly as `gcloud builds list --sort-by=~createTime` emits.
+	listing := strings.Join([]string{
+		"WORKING\tailang-multivac-config-prod\t16a189d",
+		"WORKING\tailang-multivac-config-test\t16a189d",
+		"SUCCESS\tailang-multivac-config-prod\tdeb0c47",
+		"SUCCESS\tailang-multivac-config-test\tdeb0c47",
+		"SUCCESS\tailang-multivac-config-dev\tdeb0c47",
+		"SUCCESS\t\t", // a build with no trigger and no sha
+	}, "\n")
+
+	// The bug: an older SUCCESS for the same trigger must not answer for us.
+	if st, found := findBuildStatus(listing, "ailang-multivac-config-prod", "16a189d"); !found || st != "WORKING" {
+		t.Errorf("our own build is WORKING; got found=%v status=%q", found, st)
+	}
+	// Our dev build has not appeared yet — "not found" must not read as done.
+	if _, found := findBuildStatus(listing, "ailang-multivac-config-dev", "16a189d"); found {
+		t.Error("a build that has not appeared must report not-found, not the previous commit's SUCCESS")
+	}
+	// The older commit still resolves correctly when asked about explicitly.
+	if st, found := findBuildStatus(listing, "ailang-multivac-config-dev", "deb0c47"); !found || st != "SUCCESS" {
+		t.Errorf("deb0c47 dev build: found=%v status=%q", found, st)
+	}
+	if _, found := findBuildStatus("", "ailang-multivac-config-dev", "16a189d"); found {
+		t.Error("an empty listing finds nothing")
+	}
+}
+
+func TestIsTerminalBuildStatus(t *testing.T) {
+	for _, s := range []string{"SUCCESS", "FAILURE", "CANCELLED", "TIMEOUT", "INTERNAL_ERROR", "EXPIRED"} {
+		if !isTerminalBuildStatus(s) {
+			t.Errorf("%q is terminal", s)
+		}
+	}
+	for _, s := range []string{"WORKING", "QUEUED", "PENDING", ""} {
+		if isTerminalBuildStatus(s) {
+			t.Errorf("%q is not terminal — waiting must continue", s)
+		}
+	}
+}
