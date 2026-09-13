@@ -26,6 +26,8 @@ func coordinatorCommand(args []string) error {
 		return coordinatorRouting(subargs)
 	case "pending":
 		return coordinatorPending(subargs)
+	case "agents":
+		return coordinatorAgents(subargs)
 	case "agent-set":
 		return coordinatorAgentSet(subargs)
 	case "agent-check":
@@ -74,6 +76,9 @@ func printCoordinatorHelp() {
 	fmt.Println("  stop           Stop the coordinator daemon")
 	fmt.Println("  status         Show coordinator status (summary)")
 	fmt.Println("  watcher-status Show ApprovalWatcher status (GitHub polling)")
+	fmt.Println("  agents         List agents on the LIVE plane (agents <id> for every field)")
+	fmt.Println("  agent-check    Verify one agent is deployed and coherent")
+	fmt.Println("  agent-set      Edit one field on one agent (validates + commits; does not deploy)")
 	fmt.Println("  list           List all tasks (with filters)")
 	fmt.Println("  pending        List tasks awaiting approval (interactive)")
 	fmt.Println("  diff           Show changes made by a task (git diff)")
