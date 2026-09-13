@@ -26,6 +26,7 @@ func printMessagesHelp() {
 	fmt.Printf("  %s                    Watch for new messages\n", cyan("watch"))
 	fmt.Printf("  %s                  Clean up old messages\n", cyan("cleanup"))
 	fmt.Printf("  %s            Import GitHub issues as messages\n", cyan("import-github"))
+	fmt.Printf("  %s <id>        Retry GitHub sync for a locally-stored message\n", cyan("github-sync"))
 	fmt.Println()
 	fmt.Println("List Flags:")
 	fmt.Println("  --inbox <name>       Filter by inbox (user, claude-code, etc.)")

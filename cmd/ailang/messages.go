@@ -93,6 +93,8 @@ func messagesCommand() {
 		runMessagesCleanup(args)
 	case "import-github":
 		runMessagesImportGitHub(args)
+	case "github-sync":
+		runMessagesGitHubSync(args)
 	case "reply":
 		runMessagesReply(args)
 	case "health":

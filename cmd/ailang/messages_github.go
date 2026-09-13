@@ -297,3 +297,71 @@ func syncMessageToGitHub(msg *messaging.InboxMessage, repoOverride string, githu
 
 	return client.CreateIssue(input)
 }
+
+// runMessagesGitHubSync retries the GitHub sync for a locally-stored message
+// whose send-time sync failed (#754). The send path always saves the message
+// to the store BEFORE syncing, and on a GitHub 5xx it prints this subcommand's
+// name as the recovery hint — but the subcommand itself did not exist, so a
+// 5xx during issue creation left the message stranded locally with a hint
+// naming nothing.
+func runMessagesGitHubSync(args []string) {
+	fs := flag.NewFlagSet("messages github-sync", flag.ExitOnError)
+	repo := fs.String("repo", "", "GitHub repo (owner/repo) - overrides message's repo")
+	githubUser := fs.String("github-user", "", "Override expected GitHub user (bypass config.expected_user)")
+
+	if err := fs.Parse(args); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+	if fs.NArg() != 1 {
+		fmt.Fprintf(os.Stderr, "%s: github-sync requires exactly one message ID\n", red("Error"))
+		fmt.Fprintln(os.Stderr, "  Usage: ailang messages github-sync MSG_ID [--repo owner/repo]")
+		os.Exit(1)
+	}
+
+	store, err := openStore()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+	defer store.Close()
+
+	msgID, err := resolveMessageID(store, fs.Arg(0))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+
+	msg, err := store.GetInboxMessage(msgID)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+	if msg == nil {
+		fmt.Fprintf(os.Stderr, "%s: message %q not found\n", red("Error"), msgID)
+		os.Exit(1)
+	}
+
+	// Idempotent by default: a message that already carries an issue number is
+	// not re-posted — re-running the hint after a partial success must not
+	// create a duplicate issue.
+	if msg.GitHubIssue != nil {
+		fmt.Printf("%s Message %s is already synced to #%d\n", yellow("⚠"), msg.MessageID, *msg.GitHubIssue)
+		return
+	}
+
+	issueNum, err := syncMessageToGitHub(msg, *repo, *githubUser)
+	if err != nil {
+		if errors.Is(err, messaging.ErrAccountMismatch) {
+			fmt.Fprintf(os.Stderr, "\n%s %v\n\n", red("ERROR:"), err)
+		} else {
+			fmt.Fprintf(os.Stderr, "%s GitHub sync failed: %v\n", yellow("⚠"), err)
+		}
+		os.Exit(1)
+	}
+
+	if err := store.UpdateInboxMessageGitHub(msg.MessageID, issueNum, *repo); err != nil {
+		fmt.Fprintf(os.Stderr, "%s Could not save issue number: %v\n", yellow("⚠"), err)
+	}
+	fmt.Printf("%s GitHub issue #%d created for %s\n", green("✓"), issueNum, msg.MessageID)
+}
