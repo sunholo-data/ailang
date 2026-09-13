@@ -77,7 +77,11 @@ func coordinatorPending(args []string) error {
 	// machine running storage=gcp keeps its approval records in Firestore, and
 	// without the inbox union this command silently shows a subset and calls
 	// it everything.
-	printApprovalsInboxPending()
+	//
+	// #1036: the "No pending" verdict below MUST derive from the same union —
+	// deriving it from the store half alone printed a green all-clear directly
+	// under spine rows this command had just listed.
+	spinePending := printApprovalsInboxPending()
 
 	// Non-interactive mode: --approve <id> or --approve-all
 	if approveID != "" || approveAll {
@@ -87,6 +91,12 @@ func coordinatorPending(args []string) error {
 		}
 
 		if len(pending) == 0 {
+			if spinePending > 0 {
+				// The ask lives in the spine (inbox) half; the store half is
+				// empty. Never print a green all-clear under listed asks (#1036).
+				fmt.Println(yellow("⚠"), "No pending approvals in the coordinator store — but the decision spine above has", spinePending, "unread ask(s) awaiting a decision")
+				return nil
+			}
 			fmt.Println(green("✓"), "No pending approval requests")
 			return nil
 		}
@@ -134,6 +144,10 @@ taskList:
 		}
 
 		if len(pending) == 0 {
+			if spinePending > 0 {
+				fmt.Println(yellow("⚠"), "No pending approvals in the coordinator store — but the decision spine above has", spinePending, "unread ask(s) awaiting a decision")
+				return nil
+			}
 			fmt.Println(green("✓"), "No pending approval requests")
 			return nil
 		}

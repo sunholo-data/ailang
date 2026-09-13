@@ -11,21 +11,26 @@ import (
 // AILANG_MESSAGES_STORE), with provenance per row. Best-effort: a store error
 // is printed, never silently dropped — an unreachable spine must not read as
 // an empty one.
-func printApprovalsInboxPending() {
+//
+// Returns the number of unread spine rows, so the caller's all-clear verdict
+// (#1036) can derive from the UNION of both sources — store AND inbox —
+// instead of announcing "No pending approval requests" directly under rows
+// this function just printed.
+func printApprovalsInboxPending() int {
 	msgStore, err := openStore()
 	if err != nil {
 		fmt.Println(yellow("⚠"), "approvals inbox unavailable:", err)
-		return
+		return 0
 	}
 	defer func() { _ = msgStore.Close() }()
 
 	msgs, err := msgStore.ListInboxMessages(messaging.InboxListOptions{Inbox: "approvals", UnreadOnly: true, Limit: 50})
 	if err != nil {
 		fmt.Println(yellow("⚠"), "approvals inbox unavailable:", err)
-		return
+		return 0
 	}
 	if len(msgs) == 0 {
-		return
+		return 0
 	}
 	fmt.Println()
 	fmt.Println(cyan("Decision spine — unread in the `approvals` inbox:"))
@@ -33,4 +38,5 @@ func printApprovalsInboxPending() {
 		fmt.Printf("  ● %-22s %s  (from %s, %s)\n", m.ID, m.Title, m.FromAgent, m.CreatedAt.Format("01-02 15:04"))
 	}
 	fmt.Println("  Resolve via dashboard, `ailang coordinator approve <id>`, or ack the message when handled elsewhere.")
+	return len(msgs)
 }
