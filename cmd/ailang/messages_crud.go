@@ -30,6 +30,18 @@ func runMessagesList(args []string) {
 		os.Exit(1)
 	}
 
+	// #1037: Go's flag parser STOPS at the first positional argument and leaves
+	// everything from there on in fs.Args() — so `messages list approvals
+	// --unread` silently discarded --unread and printed the unfiltered listing,
+	// indistinguishable from a correctly-filtered one. Gate-0 triages its inbox
+	// with this command, so a silently-unfiltered listing is a decision-spine
+	// hazard: refuse instead of guessing.
+	if fs.NArg() > 0 {
+		fmt.Fprintf(os.Stderr, "%s: unexpected argument %q — 'messages list' takes only flags; the inbox goes in --inbox\n", red("Error"), fs.Arg(0))
+		fmt.Fprintln(os.Stderr, "  Usage: ailang messages list [--inbox NAME] [--unread] [--from AGENT] [--limit N]")
+		os.Exit(1)
+	}
+
 	store, err := openStore()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
