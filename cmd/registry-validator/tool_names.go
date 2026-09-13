@@ -38,6 +38,16 @@ var providedToolsBlockPattern = regexp.MustCompile(`provided_tools\s*[:=]\s*\[([
 var nameFieldPattern = regexp.MustCompile(`\bname\s*:\s*"([^"]+)"`)
 var stringLiteralPattern = regexp.MustCompile(`"([^"]*)"`)
 
+// #1133: HTTP header pairs — { name: "Content-Type", value: "application/json" }
+// passed to std/net.httpRequest — are not tool names and cannot be renamed
+// (Content-Type is the wire format). A flat record literal carrying BOTH a
+// name and a value field is a key/value pair (header, query param), not a
+// tool schema: tool schemas have name/description/input-shape siblings, never
+// a value sibling. flatRecordPattern matches brace-balanced-one-level blocks;
+// valueFieldPattern marks the record as a key/value pair.
+var flatRecordPattern = regexp.MustCompile(`\{[^{}]*\}`)
+var valueFieldPattern = regexp.MustCompile(`\bvalue\s*:`)
+
 // validateToolNames walks every .ail file in dir and extracts advertised
 // tool names from:
 //
@@ -61,6 +71,20 @@ func validateToolNames(dir string) (allNames []string, firstBadName string, reas
 		}
 		src := string(data)
 
+		// #1133: collect the names exempted as header-style key/value records
+		// before Pattern 2 runs, so their name fields never reach the scan.
+		headerNames := map[string]bool{}
+		for _, rec := range flatRecordPattern.FindAllString(src, -1) {
+			if !valueFieldPattern.MatchString(rec) {
+				continue
+			}
+			for _, m := range nameFieldPattern.FindAllStringSubmatch(rec, -1) {
+				if name := m[1]; name != "" {
+					headerNames[name] = true
+				}
+			}
+		}
+
 		// Pattern 1: provided_tools: [ "A", "B", ... ]
 		for _, match := range providedToolsBlockPattern.FindAllStringSubmatch(src, -1) {
 			inner := match[1]
@@ -77,10 +101,15 @@ func validateToolNames(dir string) (allNames []string, firstBadName string, reas
 		// other record literals — but the safe-name validator is permissive
 		// enough that false-positive matches on non-tool names won't flag
 		// (they almost always conform to [A-Za-z0-9_] anyway).
+		// #1133: EXCEPT header-style key/value records — { name: "X", value: ... }
+		// — whose names are HTTP wire data, not tools, and are exempt from the
+		// scan entirely.
 		for _, match := range nameFieldPattern.FindAllStringSubmatch(src, -1) {
 			if name := match[1]; name != "" && !seen[name] {
 				seen[name] = true
-				allNames = append(allNames, name)
+				if !headerNames[name] {
+					allNames = append(allNames, name)
+				}
 			}
 		}
 		return nil
