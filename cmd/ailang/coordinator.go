@@ -78,7 +78,7 @@ func printCoordinatorHelp() {
 	fmt.Println("  watcher-status Show ApprovalWatcher status (GitHub polling)")
 	fmt.Println("  agents         List agents on the LIVE plane (agents <id> for every field)")
 	fmt.Println("  agent-check    Verify one agent is deployed and coherent")
-	fmt.Println("  agent-set      Edit one field on one agent (validates + commits; does not deploy)")
+	fmt.Println("  agent-set      Change one field on one agent and deploy it (dev->test->prod)")
 	fmt.Println("  list           List all tasks (with filters)")
 	fmt.Println("  pending        List tasks awaiting approval (interactive)")
 	fmt.Println("  diff           Show changes made by a task (git diff)")

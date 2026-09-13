@@ -93,3 +93,45 @@ func TestSetAgentField_UnknownAgentIsAnError(t *testing.T) {
 		t.Fatal("an inbox name is not an agent id — this must fail loudly, not edit nothing silently")
 	}
 }
+
+// Measured on agent-set's first real run, 2026-09-13: the ladder reported three
+// SUCCESSes in about a second and pushed prod before test had finished
+// building. It matched the trigger NAME and read the newest build for it —
+// which, minutes after any other config change, is a SUCCESS from a different
+// commit. A wait that cannot fail is not a wait.
+func TestFindBuildStatus_IsScopedToTheCommit(t *testing.T) {
+	listing := strings.Join([]string{
+		"WORKING\tailang-multivac-agents-prod\t16a189d",
+		"WORKING\tailang-multivac-agents-test\t16a189d",
+		"SUCCESS\tailang-multivac-agents-prod\tdeb0c47",
+		"SUCCESS\tailang-multivac-agents-dev\tdeb0c47",
+		"SUCCESS\t\t",
+	}, "\n")
+
+	if st, found := findBuildStatus(listing, "ailang-multivac-agents-prod", "16a189d"); !found || st != "WORKING" {
+		t.Errorf("our own build is WORKING; got found=%v status=%q", found, st)
+	}
+	// The bug: an older SUCCESS for the same trigger must not answer for us.
+	if _, found := findBuildStatus(listing, "ailang-multivac-agents-dev", "16a189d"); found {
+		t.Error("a build that has not appeared must report not-found, not the previous commit's SUCCESS")
+	}
+	if st, found := findBuildStatus(listing, "ailang-multivac-agents-dev", "deb0c47"); !found || st != "SUCCESS" {
+		t.Errorf("deb0c47 dev build: found=%v status=%q", found, st)
+	}
+	if _, found := findBuildStatus("", "ailang-multivac-agents-dev", "16a189d"); found {
+		t.Error("an empty listing finds nothing")
+	}
+}
+
+func TestIsTerminalBuildStatus(t *testing.T) {
+	for _, s := range []string{"SUCCESS", "FAILURE", "CANCELLED", "TIMEOUT", "INTERNAL_ERROR", "EXPIRED"} {
+		if !isTerminalBuildStatus(s) {
+			t.Errorf("%q is terminal", s)
+		}
+	}
+	for _, s := range []string{"WORKING", "QUEUED", "PENDING", ""} {
+		if isTerminalBuildStatus(s) {
+			t.Errorf("%q is not terminal — waiting must continue", s)
+		}
+	}
+}
