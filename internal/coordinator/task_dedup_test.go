@@ -207,3 +207,28 @@ func TestDedupCompletionCarriesCorrelationID(t *testing.T) {
 		t.Errorf("payload must say WHAT suppressed this, got %v", payload["original_task_status"])
 	}
 }
+
+// The distinction that has already cost us once: DISCOVERY reads the effective
+// patterns (widest possible, so evidence omits nothing), and any SAFETY decision
+// reads the declared ones (empty means refuse).
+//
+// Measured 2026-09-11: the auto-merge scope guard read the effective list, so an
+// agent with auto_merge and no declared patterns got `**/*` — the opposite of a
+// bound. This pins both halves so the next caller cannot quietly pick the wrong
+// accessor.
+func TestArtifactPatterns_EffectiveIsForDiscovery_DeclaredIsForSafety(t *testing.T) {
+	undeclared := &AgentConfig{ID: "some-new-agent", AutoMerge: true}
+
+	if got := undeclared.GetEffectiveArtifactPatterns(); len(got) != 1 || got[0] != "**/*" {
+		t.Errorf("discovery must default to the WIDEST pattern so evidence omits nothing, got %v", got)
+	}
+	if len(undeclared.ArtifactPatterns) != 0 {
+		t.Error("the declared list must stay empty — that is what a safety decision reads as refuse")
+	}
+
+	// A declared agent gets its own list from both, and they agree.
+	declared := &AgentConfig{ID: "daneel-writer", ArtifactPatterns: []string{"documents/**/*.md"}}
+	if got := declared.GetEffectiveArtifactPatterns(); len(got) != 1 || got[0] != "documents/**/*.md" {
+		t.Errorf("a declared list must win over the default, got %v", got)
+	}
+}

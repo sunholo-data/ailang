@@ -687,8 +687,19 @@ type GitIdentity struct {
 	Email string `yaml:"email" json:"email"`
 }
 
-// GetEffectiveArtifactPatterns returns the agent's artifact patterns, or defaults for known agents.
-// These patterns are used with git diff to discover created/modified files.
+// GetEffectiveArtifactPatterns returns the agent's artifact patterns, or defaults
+// for known agents. Use it to DISCOVER what changed — never to BOUND what may.
+//
+// The default for an agent not in DefaultArtifactPatterns is `**/*`, and that is
+// correct here: discovery should report every file the agent touched, and a
+// narrower default would silently omit real changes from the evidence.
+//
+// It is wrong for any safety decision, because the widest possible pattern is
+// the opposite of a bound. Measured 2026-09-11: the auto-merge scope guard read
+// this method, so an agent with auto_merge and no declared patterns got `**/*`
+// and the scope half of the guard bounded nothing. Safety decisions read the
+// DECLARED field (a.ArtifactPatterns) and treat empty as refuse —
+// daemon_tasks_exec.go does this deliberately and says so at the call site.
 func (a *AgentConfig) GetEffectiveArtifactPatterns() []string {
 	if len(a.ArtifactPatterns) > 0 {
 		return a.ArtifactPatterns
