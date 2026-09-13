@@ -431,3 +431,47 @@ func TestREPLImportFromRegistry(t *testing.T) {
 		t.Errorf("Expected ['math'], got %v", mods)
 	}
 }
+
+// #1114: the browser path (ailangLoadModule → LoadModule) must enforce the
+// same IFC gate the CLI enforces (pipeline_module_compile.go). Before the fix,
+// a module the CLI rejects with an information-flow violation loaded fine in
+// the WASM REPL and published its exports.
+func TestLoadModule_IFCViolation_Rejected(t *testing.T) {
+	reg := NewModuleRegistry()
+
+	leak := `module leak_lab
+
+func getSecret() -> string<secret> ! {} { "sk-xxx" }
+func logIt(msg: string{not secret}) -> string ! {} { msg }
+func leak() -> string ! {} {
+  let s = getSecret() in logIt(s)
+}`
+
+	exports, err := reg.LoadModule("leak_lab", leak)
+	if err == nil {
+		t.Fatalf("LoadModule accepted an IFC-violating module (exports: %v)", exports)
+	}
+	if !strings.Contains(err.Error(), "information-flow") {
+		t.Errorf("error should name the information-flow gate, got: %v", err)
+	}
+	if len(reg.modules) != 0 {
+		t.Errorf("rejected module must not be registered, got %d entries", len(reg.modules))
+	}
+}
+
+// Control: the same module with the sink relabelled through Declassify loads —
+// the gate is the CLI's semantics, not a blanket refusal of labelled data.
+func TestLoadModule_IFCClean_Loads(t *testing.T) {
+	reg := NewModuleRegistry()
+
+	clean := `module leak_lab_ok
+
+func getSecret() -> string<secret> ! {} { "sk-xxx" }
+func reveal(s: string<secret>) -> string ! {Declassify} { s }
+func logIt(msg: string{not secret}) -> string ! {} { msg }
+func fine() -> string ! {Declassify} { logIt(reveal(getSecret())) }`
+
+	if _, err := reg.LoadModule("leak_lab_ok", clean); err != nil {
+		t.Fatalf("LoadModule rejected a clean module: %v", err)
+	}
+}
