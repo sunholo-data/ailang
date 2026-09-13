@@ -50,3 +50,20 @@ func (s *Server) checkSecretApprovalToken(r *http.Request, approvalID, action st
 	}
 	return true, true
 }
+
+// approverSessionAuthorized enforces the same bar as the requireApprover route
+// wrapper (server.go) for the in-handler case, where the secret-approval token
+// is an alternative authorization (#920). When Firebase auth is not configured
+// it passes through — every route on an auth-less dashboard is public by
+// design; otherwise the request must carry a bearer-token session whose role
+// is Approver. Writes the error response and returns false when unauthorized.
+func (s *Server) approverSessionAuthorized(w http.ResponseWriter, r *http.Request) bool {
+	if s.tokenVerifier == nil {
+		return true
+	}
+	authorized := false
+	s.requireApprover(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		authorized = true
+	})).ServeHTTP(w, r)
+	return authorized
+}

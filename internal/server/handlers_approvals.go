@@ -319,6 +319,17 @@ func (s *Server) handleApproval(w http.ResponseWriter, r *http.Request) {
 	if handled, ok := s.checkSecretApprovalToken(r, approvalID, action); handled && !ok {
 		http.Error(w, "Invalid or expired approval token", http.StatusUnauthorized)
 		return
+	} else if !handled {
+		// No secret-approval token: this is a dashboard/browser action, so it
+		// must meet the same bar as /api/coordinator/approve/ — an
+		// authenticated session with the Approver role (#920). Without this
+		// gate the endpoint approved as "dashboard-user" for ANY unauthenticated
+		// caller. When Firebase auth is not configured the gate passes through,
+		// consistent with requireApprover; the single-use ntfy token above
+		// remains the only no-session way to resolve an approval.
+		if !s.approverSessionAuthorized(w, r) {
+			return
+		}
 	}
 
 	// Parse request body for review notes. The body is optional — ntfy action
