@@ -2551,7 +2551,7 @@ docs mission's own bookkeeping thread, which is not an orphan). Also owed by lat
 **AC6** — zero `Build macos-latest` jobs failing on this test across the next 25 `dev` runs.
 
 **Routing evidence.** Gate 1 base=`05a6457d1e702e522205a682d365fd86ab712a6a@2026-09-14T06:00:15Z`;
-Gate 4 base=`3faaf47fa06549c94eac95432a6933ee11df4cf6` (the merge SHA; recorded via
+Gate 4 base=`3faaf47fa06549c94eac95432a6933ee11df4cf6@2026-09-14T08:12:03Z` (the merge SHA; recorded via
 `mission-base.sh record gate4` below). Controller `claude:claude-opus-5` (session; tok: driver-reported
 at exit, not visible in-iteration) · **designer** `recipe claude:claude-fable-5-1 declared:provider-pin`
 via `claude-sub` — probe rc=0, one authoring run (~19 min) + ONE protocol-mandated revision (~10 min),
