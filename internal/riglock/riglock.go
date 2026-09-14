@@ -34,6 +34,18 @@ const (
 	// EnvLockDir overrides the lock directory (mirrors rig-lock.sh RIG_LOCK_DIR).
 	EnvLockDir = "RIG_LOCK_DIR"
 
+	// EnvSharedDir overrides the machine-wide parent directory (RIG_SHARED_DIR).
+	EnvSharedDir = "RIG_SHARED_DIR"
+
+	// DefaultSharedDir is the machine-wide home for the lock on a rig where more
+	// than one OS user runs GPU jobs. It is used ONLY when it already exists:
+	// the directory is created deliberately by an operator (group-owned,
+	// inheritable ACL so any member can reclaim another member's stale holder),
+	// never by this package, so a rig with one user keeps the per-user path.
+	// A symlink cannot stand in for this — the take is an atomic mkdir, and
+	// mkdir on a symlink is EEXIST forever.
+	DefaultSharedDir = "/Users/Shared/ailang"
+
 	// EnvStaleMin overrides the staleness window in minutes (RIG_LOCK_STALE_MIN).
 	EnvStaleMin = "RIG_LOCK_STALE_MIN"
 
@@ -53,9 +65,21 @@ const (
 // Release frees the lock. It is always safe to call (idempotent, nil-safe).
 type Release func()
 
+// lockDir resolves where the lock lives, in this order: an explicit
+// RIG_LOCK_DIR; the machine-wide directory if it exists on this rig; the
+// per-user path. The middle step is what lets two OS users (the eval fleet
+// and a virtual employee drafting on the same GPU) hold ONE lock; without it
+// each would hold a private lock and both would run, and both would degrade.
 func lockDir() string {
 	if d := os.Getenv(EnvLockDir); d != "" {
 		return d
+	}
+	shared := os.Getenv(EnvSharedDir)
+	if shared == "" {
+		shared = DefaultSharedDir
+	}
+	if st, err := os.Stat(shared); err == nil && st.IsDir() {
+		return filepath.Join(shared, "rig.lock.d")
 	}
 	home, err := os.UserHomeDir()
 	if err != nil || home == "" {
