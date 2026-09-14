@@ -103,6 +103,14 @@ func TestModels_CloudHeadroomEqualised(t *testing.T) {
 		"pi-or-deepseek-v4-flash": 32000,
 		// Same pi harness clamp; bare-id A/B control for the evaluator route (2026-09-08).
 		"pi-or-deepseek-v4-flash-bare": 32000,
+		// Same clamp again, for the binary mission path's evaluator lane (2026-09-14).
+		// INHERITED, not separately measured: the clamp is in pi-ai's buildBaseOptions
+		// for every openai-compat provider, and minimax-m3 reaches OpenRouter over the
+		// same openai-compat lane as the deepseek rows above, so the mechanism is
+		// identical rather than model-specific. Confirm with
+		// scripts/check_pi_wire_budget.sh if this row ever needs to carry weight on its
+		// own. The opencode sibling declares 65536 because opencode has no such clamp.
+		"pi-or-minimax-m3": 32000,
 	}
 
 	c, err := LoadModelsConfig("../modelreg/models.yml")
