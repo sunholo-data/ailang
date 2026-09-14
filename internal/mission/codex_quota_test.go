@@ -160,3 +160,59 @@ func TestCodexQuotaBoundedScanRequiresNewerObservation(t *testing.T) {
 		t.Fatalf("fresh observation should win safely: %+v", o)
 	}
 }
+
+// A blocked observation must still report a TRUTHFUL allowance.
+//
+// The allowance used to be computed after the staleness and expiry early returns, so on
+// exactly the paths an operator reads when something is wrong, the report printed an
+// uninitialised `0.0% allowed`. Live on 2026-09-14 that rendered as "73.0% used / 0.0%
+// allowed" against a real allowance of 20.1%, and the reason named only the staleness —
+// pointing at a refresh that could not have helped, because the bucket was 3.6x over.
+//
+// The reset is placed 5 days out on a 7-day window so the window STARTED 2 days ago,
+// reproducing the measured 20% allowance rather than the 10% first-day floor.
+func TestCodexQuotaBlockedStatesStillReportAllowance(t *testing.T) {
+	now := time.Date(2026, 9, 14, 10, 0, 0, 0, time.UTC)
+	twoDaysIn := func(used float64) map[string]any {
+		return map[string]any{"used_percent": used, "window_minutes": int64(10080), "resets_at": now.Add(5 * 24 * time.Hour).Unix()}
+	}
+	for _, tc := range []struct {
+		name          string
+		used          float64
+		age           time.Duration
+		wantState     string
+		wantAllowance float64
+		wantOverNote  bool
+	}{
+		{"stale and over ration", 73, 16 * time.Minute, "stale", 20, true},
+		{"stale but within ration", 5, 16 * time.Minute, "stale", 20, false},
+		{"fresh and over ration", 73, 0, "over", 20, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			o := parseCodexQuota(quotaFixture(t, now.Add(-tc.age), twoDaysIn(tc.used), nil), now)
+			if o == nil {
+				t.Fatal("missing observation")
+			}
+			o.evaluate(now)
+			if o.State != tc.wantState {
+				t.Fatalf("state = %q, want %q (reason: %s)", o.State, tc.wantState, o.Reason)
+			}
+			if !o.Blocked() {
+				t.Fatal("every case here must block")
+			}
+			if len(o.Windows) != 1 {
+				t.Fatalf("want 1 window, got %d", len(o.Windows))
+			}
+			// The regression: this was 0 on the stale path.
+			if got := o.Windows[0].AllowancePercent; got < tc.wantAllowance-0.5 || got > tc.wantAllowance+0.5 {
+				t.Fatalf("allowance = %.2f%%, want ~%.0f%% — an uninitialised zero reads as a computed hard block", got, tc.wantAllowance)
+			}
+			// A stale reading that is ALSO over ration must say so, or the operator is
+			// told to refresh an observation that will block again on arrival.
+			const note = "ALSO over ration"
+			if strings.Contains(o.Reason, note) != tc.wantOverNote {
+				t.Fatalf("reason %q: want over-ration note = %v", o.Reason, tc.wantOverNote)
+			}
+		})
+	}
+}

@@ -94,19 +94,25 @@ func parseCodexQuota(line []byte, now time.Time) *CodexQuotaObservation {
 }
 
 func (o *CodexQuotaObservation) evaluate(now time.Time) {
-	if now.Sub(o.ObservedAt) > 15*time.Minute {
-		o.State = "stale"
-		o.Reason = "Codex provider observation is older than 15 minutes; new Codex routing blocked"
-		return
-	}
+	// The allowance is arithmetic on the window itself, so it is computed for EVERY window
+	// before any early return. It used to be computed after the staleness and expiry checks,
+	// which left AllowancePercent at its zero value on those paths — and the report prints
+	// the window rows regardless. Measured 2026-09-14: a stale observation displayed
+	//
+	//	10080m: 73.0% used / 0.0% allowed
+	//
+	// where the real allowance was 20.1%. An uninitialised zero reads as a computed hard
+	// block, and the stated reason ("observation older than 15 minutes") invites the wrong
+	// remedy — refresh the observation — when the bucket was over ration by 3.6x and no
+	// refresh would have helped. Blocking semantics are unchanged: stale still blocks, and
+	// still outranks every other state.
 	hasLong := false
 	over := false
+	expired := false
 	for i := range o.Windows {
 		w := &o.Windows[i]
 		if !w.ResetsAt.After(now) {
-			o.State = "expired"
-			o.Reason = "Codex provider window expired; refresh required before routing"
-			return
+			expired = true
 		}
 		w.AllowancePercent = 100
 		if w.WindowMinutes > 24*60 {
@@ -123,6 +129,22 @@ func (o *CodexQuotaObservation) evaluate(now time.Time) {
 		if w.UsedPercent >= 100 || w.UsedPercent > w.AllowancePercent {
 			over = true
 		}
+	}
+	// Precedence is unchanged from when these were early returns: stale > expired >
+	// unknown > over. Only the reason text is richer, and only when the weaker fact would
+	// otherwise be hidden behind the stronger one.
+	if now.Sub(o.ObservedAt) > 15*time.Minute {
+		o.State = "stale"
+		o.Reason = "Codex provider observation is older than 15 minutes; new Codex routing blocked"
+		if over {
+			o.Reason += "; the last reading was ALSO over ration, so refreshing it will not unblock Codex"
+		}
+		return
+	}
+	if expired {
+		o.State = "expired"
+		o.Reason = "Codex provider window expired; refresh required before routing"
+		return
 	}
 	if !hasLong {
 		o.State = "unknown"
