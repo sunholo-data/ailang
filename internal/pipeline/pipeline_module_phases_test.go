@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/sunholo-data/ailang/internal/core"
 	"github.com/sunholo-data/ailang/internal/elaborate"
@@ -22,25 +23,73 @@ import (
 // CACHE_INVALID, CACHE_WRITE_FAILED) already route through deps.stderr; capture
 // here is for the DebugCompile forms that go straight to os.Stderr.
 //
+// Teardown ordering invariant: the pipe's read end must OUTLIVE the copier's
+// drain. The writer is closed first (`w.Close()` delivers EOF to the copier once
+// the kernel buffer is drained); then the drain-wait hook (if any) lets an
+// injected gated reader start reading; then the teardown bounds the wait on the
+// copier's completion channel and only THEN closes the reader. Closing the
+// reader before the drain completes truncates the capture (the HEAD defect
+// fixed here). The named return is assigned only after the copier has returned
+// with a nil error, so the capture is always complete and never silently cut.
+//
 // These fixtures are sequential by design (they change the process working
 // directory, AILANG_CACHE_DIR, and the global os.Stderr); they must never be
 // parallelized.
 func capturePipelineStderr(f func()) string {
+	return capturePipelineStderrWith(nil, f)
+}
+
+// captureOpts are test-only hooks for the capture helper's teardown seam.
+// With nil options (the production path) no wrapper and no hook are installed
+// and the drain deadline is the 10s default.
+type captureOpts struct {
+	wrap         func(io.Reader) io.Reader // test-only reader wrapper
+	release      func()                    // drain-wait hook: runs after w.Close(), before the wait
+	drainTimeout time.Duration             // 0 → 10s; set by the drain-timeout test only
+}
+
+func capturePipelineStderrWith(opts *captureOpts, f func()) (out string) {
 	r, w, err := os.Pipe()
 	if err != nil {
 		panic("os.Pipe: " + err.Error())
 	}
 	old := os.Stderr
 	os.Stderr = w
+	var src io.Reader = r
+	if opts != nil && opts.wrap != nil {
+		src = opts.wrap(r)
+	}
+	timeout := 10 * time.Second
+	if opts != nil && opts.drainTimeout > 0 {
+		timeout = opts.drainTimeout
+	}
 	var buf bytes.Buffer
-	done := make(chan struct{})
-	go func() { _, _ = io.Copy(&buf, r); close(done) }()
+	copied := make(chan error, 1) // buffered: the copier never blocks on send, even if we time out
+	go func() { _, err := io.Copy(&buf, src); copied <- err }()
+	defer func() {
+		os.Stderr = old // 1. restore first: even a panicking f() leaves no swapped stderr behind
+		_ = w.Close()   // 2. writer: the only write-end fd; EOF reaches the copier once drained
+		if opts != nil && opts.release != nil {
+			opts.release() // 3. drain-wait hook (nil in production): lets a gated reader start reading
+		}
+		var copyErr error
+		select { // 4. bounded wait: the copier has RETURNED when copied delivers
+		case copyErr = <-copied:
+		case <-time.After(timeout):
+			_ = r.Close() // unblocks a production reader parked in Read; do NOT read buf here
+			panic("capturePipelineStderr: copier did not drain within " + timeout.String() +
+				" after the write end was closed (f passed os.Stderr to a still-running subprocess, or an injected reader never released)")
+		}
+		_ = r.Close() // 5. reader: release the fd only after the copier returned
+		if copyErr != nil {
+			// A non-nil io.Copy error means the drain STOPPED, not that it finished: buf may be a
+			// prefix. Returning it as a capture would be the silent truncation this fix removes.
+			panic("capturePipelineStderr: copier failed: " + copyErr.Error())
+		}
+		out = buf.String() // 6. named return: assigned only after a SUCCESSFUL, complete copy
+	}()
 	f()
-	os.Stderr = old
-	_ = w.Close()
-	_ = r.Close()
-	<-done
-	return buf.String()
+	return
 }
 
 // TestPipelineModulePhases_ModeCheckDoesNotEvaluate freezes the ModeCheck
