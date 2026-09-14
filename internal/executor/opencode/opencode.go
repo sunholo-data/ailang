@@ -15,7 +15,6 @@
 package opencode
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -252,12 +251,11 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 	var thrashKilledAtTokens int
 
 	go func() {
-		stdoutScanner := bufio.NewScanner(stdout)
-		stderrScanner := bufio.NewScanner(stderr)
-
-		const maxScannerBuffer = 1024 * 1024
-		stdoutScanner.Buffer(make([]byte, 0, maxScannerBuffer), maxScannerBuffer)
-		stderrScanner.Buffer(make([]byte, 0, maxScannerBuffer), maxScannerBuffer)
+		// executor.LineReader, not bufio.Scanner — a token cap turns one long
+		// line into a failed task (measured on codex, 2026-09-14). One cap for
+		// every harness, and exceeding it truncates rather than failing.
+		stdoutScanner := executor.NewLineReader(stdout)
+		stderrScanner := executor.NewLineReader(stderr)
 
 		go func() {
 			for stderrScanner.Scan() {

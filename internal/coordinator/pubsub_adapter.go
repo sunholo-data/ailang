@@ -156,7 +156,7 @@ func (a *PubSubInboxAdapter) HandleNotification(data []byte, attrs map[string]st
 		From:    msgAttrs.FromAgent,
 		Inbox:   msgAttrs.Inbox,
 		Title:   fmt.Sprintf("Pub/Sub notification from %s", msgAttrs.FromAgent),
-		Content: notification.MessageID, // Fallback: just the ID
+		Content: notification.MessageID, // Placeholder; MUST be replaced by hydration below
 		Type:    msgAttrs.Category,
 		Kind:    msgAttrs.MessageType,
 		// M-PKG-AUTONOMOUS-CASCADE-SAFE M1: surface the source topic so
@@ -187,18 +187,63 @@ func (a *PubSubInboxAdapter) HandleNotification(data []byte, attrs map[string]st
 	// Fetch full message content from Firestore.
 	// The Pub/Sub notification is intentionally minimal (just message_id);
 	// the actual title, content, and metadata live in Firestore.
-	if a.msgStore != nil {
-		fullMsg, fetchErr := a.msgStore.GetInboxMessage(notification.MessageID)
-		if fetchErr != nil {
-			a.logger.Printf("PubSubInboxAdapter: failed to fetch message %s from store: %v (using notification-only data)",
-				notification.MessageID, fetchErr)
-		} else if fullMsg != nil {
-			msg.Title = fullMsg.Title
-			msg.Content = fullMsg.Payload
-			msg.From = fullMsg.FromAgent
-			msg.Type = fullMsg.Category
-			msg.Inbox = fullMsg.ToInbox
-		}
+	//
+	// HYDRATION IS REQUIRED, NOT BEST-EFFORT.
+	//
+	// The notification carries only a message id by design; the title and body
+	// live in Firestore. When that fetch failed this used to proceed with the
+	// placeholder above — dispatching a task whose ENTIRE CONTENT was the string
+	// "msg_20260914_153340_b787f96a" and whose title was "Pub/Sub notification
+	// from coordinator". An agent was then given a message id and asked to do
+	// work with it.
+	//
+	// Measured 2026-09-14 13:33-13:39: sixteen such tasks for sprint-planner in
+	// four minutes. Four died in the executor; the rest "completed", each
+	// firing a handoff into sprint-executor — an agent that writes code — on the
+	// strength of a task with no request in it. That is a fallback value
+	// reaching business logic, which this repo's second critical principle
+	// forbids outright.
+	//
+	// The two failure modes are genuinely different and are handled differently:
+	//
+	//   fetch ERROR  -> transient (a read against an eventually-consistent
+	//                   store, a network blip). Return it, so Pub/Sub redelivers
+	//                   with backoff. The message is durable; nothing is lost.
+	//   fetch nil    -> the notification names a message that does not exist.
+	//                   Retrying cannot fix that, so ack and say so loudly
+	//                   rather than spinning.
+	//
+	// Neither buffers work. A notification we cannot read is not a task.
+	if a.msgStore == nil {
+		a.logger.Printf("PubSubInboxAdapter: no message store — cannot hydrate %s, refusing to dispatch a task with no content",
+			notification.MessageID)
+		return fmt.Errorf("no message store to hydrate notification %s", notification.MessageID)
+	}
+	fullMsg, fetchErr := a.msgStore.GetInboxMessage(notification.MessageID)
+	if fetchErr != nil {
+		a.logger.Printf("PubSubInboxAdapter: cannot fetch message %s: %v — NOT dispatching; Pub/Sub will redeliver",
+			notification.MessageID, fetchErr)
+		return fmt.Errorf("hydrating notification %s: %w", notification.MessageID, fetchErr)
+	}
+	if fullMsg == nil {
+		// Ack: a redelivery would find the same absence.
+		a.logger.Printf("PubSubInboxAdapter: notification %s names a message that does not exist in the store — dropping, NOT dispatching",
+			notification.MessageID)
+		return nil
+	}
+	msg.Title = fullMsg.Title
+	msg.Content = fullMsg.Payload
+	msg.From = fullMsg.FromAgent
+	msg.Type = fullMsg.Category
+	msg.Inbox = fullMsg.ToInbox
+
+	// Belt and braces: hydration succeeded but produced nothing to act on. A
+	// task whose content is empty or is merely its own id is not work, and the
+	// agent would be asked to invent the request.
+	if strings.TrimSpace(msg.Content) == "" || strings.TrimSpace(msg.Content) == notification.MessageID {
+		a.logger.Printf("PubSubInboxAdapter: message %s hydrated with no usable content (title=%q) — NOT dispatching",
+			notification.MessageID, msg.Title)
+		return nil
 	}
 
 	a.mu.Lock()

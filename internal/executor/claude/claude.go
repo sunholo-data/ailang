@@ -2,7 +2,6 @@
 package claude
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -347,14 +346,14 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	var runningCacheCreationTokens int
 
 	go func() {
-		stdoutScanner := bufio.NewScanner(stdout)
-		stderrScanner := bufio.NewScanner(stderr)
+		// executor.LineReader, not bufio.Scanner — a token cap turns one long
+		// line into a failed task (measured on codex, 2026-09-14). One cap for
+		// every harness, and exceeding it truncates rather than failing.
+		stdoutScanner := executor.NewLineReader(stdout)
+		stderrScanner := executor.NewLineReader(stderr)
 
 		// Increase buffer size to 1MB to handle large JSON output from Claude Code
 		// (e.g., tool results with large file contents or base64-encoded images)
-		const maxScannerBuffer = 1024 * 1024 // 1MB
-		stdoutScanner.Buffer(make([]byte, 0, maxScannerBuffer), maxScannerBuffer)
-		stderrScanner.Buffer(make([]byte, 0, maxScannerBuffer), maxScannerBuffer)
 
 		// Read stderr in background — log to os.Stderr for Cloud Logging visibility.
 		// Previously discarded, making it impossible to diagnose tool-use regressions.
@@ -565,7 +564,7 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		}
 
 		if err := stdoutScanner.Err(); err != nil {
-			done <- fmt.Errorf("stdout scanner error: %w", err)
+			done <- fmt.Errorf("stdout read error: %w", err)
 			return
 		}
 
