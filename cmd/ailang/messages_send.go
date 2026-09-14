@@ -73,6 +73,12 @@ func runMessagesSend(args []string) {
 	}
 
 	inbox := fs.Arg(0)
+
+	// Before anything is written: does this inbox do anything? An unknown one
+	// is accepted, filed, bounced and never acted on, so the cheapest place to
+	// catch a typo is here. --force is the deliberate-probe escape hatch.
+	guardSendInbox(inbox, *force)
+
 	var payload string
 
 	if *payloadFlag != "" {
