@@ -324,26 +324,19 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	// M-EVAL-COST-AND-SPEED-BUDGETS: speed instrumentation.
 	// firstAttemptMs records ms from task start to the first time the agent
 	// commits a candidate solution (first Write/Edit tool call OR first
-	// assistant text if no tool calls). costKilled signals cost-budget
-	// breach mid-stream (budget.Add() returned exceeded == true).
+	// assistant text if no tool calls).
 	var firstAttemptMs int64 = -1
 	var firstStreamEventAt time.Time
-	var costKilled bool
 	// The WORK gate (M-EVAL-OS-LONGITUDINAL Phase 1, extended to claude 2026-07-31).
 	// A dollar budget buys work in inverse proportion to model price: at $3/$15,
 	// claude-sonnet-4-6 — the suite's longitudinal ANCHOR — got 0.14M tokens from
 	// the same $0.50 that bought deepseek-v4-flash 3.40M. On the rig's OAuth lane
 	// there is also no spend to control, so tokens are the only meaningful gate.
-	var thrashKilled bool
-	var thrashKilledAtTokens int
-	// runningInputTokens / runningOutputTokens track the cumulative usage
-	// reported in message_delta events; we feed deltas into Budget.Add().
-	// Claude emits cumulative output_tokens in message_delta and the full
-	// usage block only at the terminal "result" event.
-	var runningInputTokens, runningOutputTokens int
-	// Populated from the RESULT event, not message_delta — see usage_cap.go for why,
-	// and for the in-flight limitation that follows from it.
-	var runningCacheCreationTokens int
+	//
+	// All token accounting — per-turn accumulation, budget charging and the cap kill —
+	// lives in usageGuard (usage_cap.go), so the streaming loop below only has to say
+	// WHEN a turn boundary or a usage block arrived, not what either means.
+	guard := newUsageGuard(task, func() { proctree.Kill(cmd) })
 
 	go func() {
 		// executor.LineReader, not bufio.Scanner — a token cap turns one long
@@ -403,6 +396,17 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 				switch streamType {
 				case "message_start":
 					turnNum++
+					// Claude resets its usage counters here, so bank the turn that just
+					// ended before reading the new one.
+					guard.endTurn()
+					// message_start already carries this turn's full input and
+					// cache-creation accounting, so a turn large enough to breach the cap
+					// is caught before its output is generated rather than after.
+					if msg, ok := streamEvent["message"].(map[string]interface{}); ok {
+						if u, ok := msg["usage"].(map[string]interface{}); ok {
+							guard.fold(u)
+						}
+					}
 					// End previous turn span if still open
 					if turnSpan != nil {
 						turnSpan.End()
@@ -453,35 +457,10 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 					}
 
 				case "message_delta":
-					// M-EVAL-COST-AND-SPEED-BUDGETS: incremental cost tally.
-					// Claude emits cumulative usage in message_delta.usage; convert
-					// cumulative→delta and feed to Budget.Add(). Out-of-order or
-					// duplicate values are guarded by max(running, new).
+					// The turn's final usage, cache creation included — the whole
+					// accounting for this turn, in one block.
 					if usage, ok := streamEvent["usage"].(map[string]interface{}); ok {
-						newIn := intFromAny(usage["input_tokens"])
-						newOut := intFromAny(usage["output_tokens"])
-						deltaIn := newIn - runningInputTokens
-						deltaOut := newOut - runningOutputTokens
-						if deltaIn < 0 {
-							deltaIn = 0
-						}
-						if deltaOut < 0 {
-							deltaOut = 0
-						}
-						runningInputTokens = newIn
-						runningOutputTokens = newOut
-						if task.Budget != nil && (deltaIn > 0 || deltaOut > 0) {
-							if _, exceeded := task.Budget.Add(deltaIn, deltaOut); exceeded {
-								costKilled = true
-								proctree.Kill(cmd)
-							}
-						}
-						// Under-counts a cached run; the result-event check closes it.
-						if tp, over := capExceeded(task.MaxTokensPerBench, runningInputTokens, runningCacheCreationTokens, runningOutputTokens); over && !thrashKilled {
-							thrashKilled = true
-							thrashKilledAtTokens = tp
-							proctree.Kill(cmd)
-						}
+						guard.fold(usage)
 					}
 
 				case "content_block_stop":
@@ -520,27 +499,10 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 					done <- fmt.Errorf("failed to parse final result: %w", err)
 					return
 				}
-				// M-EVAL-COST-AND-SPEED-BUDGETS: reconcile cumulative usage from final result.
-				// message_delta deltas may under-count cache tokens; the result event has
-				// the canonical totals. Add only the residual to keep Budget.Current accurate.
-				if task.Budget != nil && finalResult != nil {
-					residualIn := residual(finalResult.Usage.InputTokens, runningInputTokens)
-					residualOut := residual(finalResult.Usage.OutputTokens, runningOutputTokens)
-					if residualIn > 0 || residualOut > 0 {
-						_, _ = task.Budget.Add(residualIn, residualOut)
-					}
-					runningInputTokens = finalResult.Usage.InputTokens
-					runningOutputTokens = finalResult.Usage.OutputTokens
-				}
-				// Not gated on task.Budget: a cap must hold whether or not a cost budget
-				// was supplied, and the mission path sets no Budget at all.
-				if finalResult != nil {
-					runningCacheCreationTokens = finalResult.Usage.CacheCreationInputTokens
-					if tp, over := capExceeded(task.MaxTokensPerBench, finalResult.Usage.InputTokens, runningCacheCreationTokens, finalResult.Usage.OutputTokens); over && !thrashKilled {
-						thrashKilled = true
-						thrashKilledAtTokens = tp
-					}
-				}
+				// The stream is over. The guard banks the final turn, reconciles against
+				// the result event's canonical totals and re-tests the cap as a backstop
+				// behind the in-flight kill.
+				guard.finalize(finalResult)
 				// Notify MetricsHandler with cost/token data (M-CLOUD-PROGRESS-TRACKING).
 				// This lets cloud handlers broadcast metrics before the executor returns.
 				if mh, ok := handler.(executor.MetricsHandler); ok && finalResult != nil {
@@ -584,19 +546,22 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 			attribute.Bool("task.success", false),
 		)
 		return &executor.Result{
-			Success:        false,
-			Error:          fmt.Sprintf("timeout after %v", timeout),
-			DurationMS:     int(time.Since(startTime).Milliseconds()),
-			NumTurns:       turnNum,
-			ToolCallCount:  toolCallCount,
-			SessionID:      sessionID,
-			Transcript:     transcriptBuf.String(),
-			InputTokens:    runningInputTokens,
-			OutputTokens:   runningOutputTokens,
-			CostKilledAt:   task.Budget.KilledAt(),
-			ThrashKilledAt: thrashKilledAtTokens,
-			FirstAttemptMs: firstAttemptMs,
-			SuccessAtMs:    -1,
+			Success:                  false,
+			Error:                    fmt.Sprintf("timeout after %v", timeout),
+			DurationMS:               int(time.Since(startTime).Milliseconds()),
+			NumTurns:                 turnNum,
+			ToolCallCount:            toolCallCount,
+			SessionID:                sessionID,
+			Transcript:               transcriptBuf.String(),
+			InputTokens:              guard.inputTokens(),
+			OutputTokens:             guard.outputTokens(),
+			CacheCreationInputTokens: guard.cacheCreationTokens(),
+			CacheReadInputTokens:     guard.cacheReadTokens(),
+			CostKilledAt:             task.Budget.KilledAt(),
+			ThrashKilledAt:           guard.thrashKilledAt,
+			FinishReason:             killFinishReason(guard.thrashKilled, guard.costKilled, executor.FinishTimeout),
+			FirstAttemptMs:           firstAttemptMs,
+			SuccessAtMs:              -1,
 		}, nil
 
 	case err := <-done:
@@ -611,28 +576,31 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 				attribute.Bool("task.success", false),
 			)
 			errMsg := err.Error()
-			if costKilled {
+			if guard.costKilled {
 				errMsg = fmt.Sprintf("cost budget exceeded ($%.4f) — %s", task.Budget.KilledAt(), errMsg)
 			}
 			// Token gate outranks the cost gate — on OAuth the dollars are notional.
-			if thrashKilled {
+			if guard.thrashKilled {
 				errMsg = fmt.Sprintf("thrash abort: cumulative tokens %d exceeded MaxTokensPerBench=%d — %s",
-					thrashKilledAtTokens, task.MaxTokensPerBench, errMsg)
+					guard.thrashKilledAt, task.MaxTokensPerBench, errMsg)
 			}
 			return &executor.Result{
-				Success:        false,
-				Error:          errMsg,
-				DurationMS:     int(duration.Milliseconds()),
-				NumTurns:       turnNum,
-				ToolCallCount:  toolCallCount,
-				SessionID:      sessionID,
-				Transcript:     transcriptBuf.String(),
-				InputTokens:    runningInputTokens,
-				OutputTokens:   runningOutputTokens,
-				CostKilledAt:   task.Budget.KilledAt(),
-				ThrashKilledAt: thrashKilledAtTokens,
-				FirstAttemptMs: firstAttemptMs,
-				SuccessAtMs:    -1,
+				Success:                  false,
+				Error:                    errMsg,
+				DurationMS:               int(duration.Milliseconds()),
+				NumTurns:                 turnNum,
+				ToolCallCount:            toolCallCount,
+				SessionID:                sessionID,
+				Transcript:               transcriptBuf.String(),
+				InputTokens:              guard.inputTokens(),
+				OutputTokens:             guard.outputTokens(),
+				CacheCreationInputTokens: guard.cacheCreationTokens(),
+				CacheReadInputTokens:     guard.cacheReadTokens(),
+				CostKilledAt:             task.Budget.KilledAt(),
+				ThrashKilledAt:           guard.thrashKilledAt,
+				FinishReason:             killFinishReason(guard.thrashKilled, guard.costKilled, executor.FinishError),
+				FirstAttemptMs:           firstAttemptMs,
+				SuccessAtMs:              -1,
 			}, nil
 		}
 
@@ -644,19 +612,22 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 				attribute.Int("task.duration_ms", int(duration.Milliseconds())),
 			)
 			return &executor.Result{
-				Success:        true,
-				Output:         "Session completed",
-				DurationMS:     int(duration.Milliseconds()),
-				NumTurns:       turnNum,
-				ToolCallCount:  toolCallCount,
-				SessionID:      sessionID,
-				Transcript:     transcriptBuf.String(),
-				InputTokens:    runningInputTokens,
-				OutputTokens:   runningOutputTokens,
-				CostKilledAt:   task.Budget.KilledAt(),
-				ThrashKilledAt: thrashKilledAtTokens,
-				FirstAttemptMs: firstAttemptMs,
-				SuccessAtMs:    -1,
+				Success:                  true,
+				Output:                   "Session completed",
+				DurationMS:               int(duration.Milliseconds()),
+				NumTurns:                 turnNum,
+				ToolCallCount:            toolCallCount,
+				SessionID:                sessionID,
+				Transcript:               transcriptBuf.String(),
+				InputTokens:              guard.inputTokens(),
+				OutputTokens:             guard.outputTokens(),
+				CacheCreationInputTokens: guard.cacheCreationTokens(),
+				CacheReadInputTokens:     guard.cacheReadTokens(),
+				CostKilledAt:             task.Budget.KilledAt(),
+				ThrashKilledAt:           guard.thrashKilledAt,
+				FinishReason:             killFinishReason(guard.thrashKilled, guard.costKilled, executor.FinishStop),
+				FirstAttemptMs:           firstAttemptMs,
+				SuccessAtMs:              -1,
 			}, nil
 		}
 
@@ -682,13 +653,13 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		if permissionDeniedCount > 0 && errorMsg == "" {
 			errorMsg = fmt.Sprintf("permission denied: %d tool calls were blocked", permissionDeniedCount)
 		}
-		if costKilled && errorMsg == "" {
+		if guard.costKilled && errorMsg == "" {
 			errorMsg = fmt.Sprintf("cost budget exceeded ($%.4f)", task.Budget.KilledAt())
 			success = false
 		}
-		if thrashKilled {
+		if guard.thrashKilled {
 			errorMsg = fmt.Sprintf("thrash abort: cumulative tokens %d exceeded MaxTokensPerBench=%d",
-				thrashKilledAtTokens, task.MaxTokensPerBench)
+				guard.thrashKilledAt, task.MaxTokensPerBench)
 			success = false
 		}
 
@@ -727,11 +698,12 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 			SessionID:                sessionID,
 			Transcript:               transcriptBuf.String(),
 			CostKilledAt:             task.Budget.KilledAt(),
-			ThrashKilledAt:           thrashKilledAtTokens,
+			ThrashKilledAt:           guard.thrashKilledAt,
 			FirstAttemptMs:           firstAttemptMs,
 			SuccessAtMs:              -1,
 			TokensPerSec:             tokensPerSec,
-			FinishReason:             normalizeClaudeFinishReason(finalResult.Subtype),
+			FinishReason: killFinishReason(guard.thrashKilled, guard.costKilled,
+				normalizeClaudeFinishReason(finalResult.Subtype)),
 		}, nil
 	}
 }

@@ -109,11 +109,20 @@ length.
 `cachedInputTokens` a subset split out later. Both its guard sites are commented so nobody
 "fixes" it into double-counting.
 
-**Known gap:** on claude the cap is checked at the *result event*, not killed mid-stream,
-because `cache_creation_input_tokens` sits outside the usage block the `message_delta`
-handler reads and there is no recorded claude-code stream in this tree to verify its
-position. The same missing fixtures are why "pi sums / claude assigns" is documented rather
-than asserted. **One stream capture per harness closes both.**
+**Known gap — CLOSED 2026-09-14, and the premise was wrong.** This said the claude cap
+could only be checked at the result event because `cache_creation_input_tokens` sits outside
+the usage block the `message_delta` handler reads. A recorded stream
+(`internal/executor/claude/testdata/claude_stream_partial.ndjson`) shows it **inside** both
+`message_start.message.usage` and `message_delta.usage`, so the cap is now enforced in
+flight. The same recording also falsified "claude assigns": its counters are cumulative
+*within* a turn and **reset every turn**, so a run total is the SUM of the per-turn finals —
+assigning kept 8 input and 54 output against a true 50 and 706. Net effect of the two
+mistakes together: the guard weighed **62 tokens against a cap of 20,000** on a run that
+processed 49,970. Full record and the four defects it surfaced:
+`design_docs/verification/mission-iteration-reliability/claude-stream-fixture.md`.
+
+pi needed **no new capture** — `internal/executor/pi/testdata/tool_use.ndjson` already
+carries four turns and 9,264 tokens of `cacheWrite`; it only lacked an assertion.
 
 Related: cache **writes** were priced at $0 everywhere (no parameter existed). Now billed at
 the input rate when undeclared — which OVERSTATES Anthropic reads ~10x, since only 6 models
@@ -248,9 +257,12 @@ with fresh attended authority before that brief is dispatched — it is not a re
 
 ## 7. Suggested next steps, in order
 
-1. **Capture one claude-code and one pi stream fixture.** Closes the claude in-flight cap gap
-   and lets the per-harness accumulation table be asserted instead of documented. Cheapest
-   high-value item.
+1. ~~**Capture one claude-code and one pi stream fixture.**~~ **DONE 2026-09-14.** It did not
+   confirm the table — it falsified the claude row, in the direction that disarms a guard.
+   Four defects fixed (inert in-flight cap, assign-instead-of-sum, a thrash kill banked as
+   `FinishReason: "stop"`, and a kill path that omitted the cache bucket it was killed for).
+   See §3 and the verification record. **opencode, codex and motoko rows remain beliefs** —
+   no recorded stream stands behind any of them.
 2. **Re-freeze `budget-accounting`'s A1 criterion** against current runtime behaviour, with
    attended authority, then dispatch it to close M4 criterion 2. `review-packet` is already
    done (§6b). Use the backstop cap convention, not a derived budget.

@@ -70,12 +70,13 @@ func nonNeg(n int) int {
 // PER-HARNESS ACCUMULATION SEMANTICS — the table, in one place, because they differ and
 // nothing asserted which was which until 2026-09-14.
 //
-//	harness    stream shape                     code does   cache buckets
-//	pi         per-turn DELTAS (message_end)    SUM (+=)    write/read reported separately
-//	opencode   per-step DELTAS (step_finish)    SUM (+=)    EXCLUSIVE of input/output
-//	claude     CUMULATIVE (message_delta)       ASSIGN (=)  creation arrives only at result
-//	codex      CUMULATIVE (usage events)        ASSIGN (=)  cached is a SUBSET of input
-//	motoko     sums, then final usage wins      BOTH        reported separately
+//	harness    stream shape                      code does   cache buckets
+//	pi         per-turn DELTAS (message_end)     SUM (+=)    write/read reported separately
+//	opencode   per-step DELTAS (step_finish)     SUM (+=)    EXCLUSIVE of input/output
+//	claude     per-TURN, cumulative within turn  SUM of      creation present in flight, in
+//	                                             turns       message_start AND message_delta
+//	codex      CUMULATIVE (usage events)         ASSIGN (=)  cached is a SUBSET of input
+//	motoko     sums, then final usage wins       BOTH        reported separately
 //
 // Two consequences that have each already caused a wrong conclusion:
 //
@@ -86,7 +87,14 @@ func nonNeg(n int) int {
 //     harness. Measured: the identical five-file read charged 36,303 on pi and 698 on
 //     claude under the old Input+Output expression.
 //
-// NOT YET PINNED BY TEST, and honestly so: proving "pi sums / claude assigns" needs a
-// recorded stream per harness, and this tree has no claude-code or pi stream fixture. The
-// same gap blocks killing an over-cap claude run mid-stream rather than at its result
-// event. Capturing those fixtures closes both at once.
+// The claude row was WRONG until 2026-09-14, and it was wrong in the direction that
+// disarms a guard. It read "CUMULATIVE (message_delta), ASSIGN (=), creation arrives only
+// at result" — inferred, never measured. A recorded stream
+// (executor/claude/testdata/claude_stream_partial.ndjson) shows the counters reset every
+// turn and cache creation present in flight, so assigning kept one turn's tail: 62 tokens
+// weighed against a cap of 20,000 on a run that processed 49,970. Pinned now by
+// TestClaudeStreamUsageIsPerTurnAndSums and TestClaudeTokenCapKillsInFlight.
+//
+// Still NOT pinned by a recorded stream: opencode, codex and motoko. pi's rows are
+// exercised by its own fixtures (executor/pi/testdata). Any row in this table without a
+// fixture behind it is a belief, and the claude row is what a belief costs.
