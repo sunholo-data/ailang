@@ -21188,3 +21188,243 @@ later iteration could read those rows as fleet evidence. Queued.
 
 **Next**: `m-autopush-gate-followups` (the five findings below), then back to the queue head
 `m-release-manager-skill-split`. The standing SonarCloud red on dev remains unowned.
+
+## 327 — 2026-09-04 — The test written to prove the harness never touches the fleet log is the thing that destroyed it, and the sandbox is why nobody saw [HARNESS]
+
+**Pick**: queue head `m-autopush-gate-followups` — the five non-blocking findings iteration 326's judge
+raised about the committed-Go auto-push gate. All five re-confirmed first-party at HEAD before routing
+(rule 3b(v)); none was a ghost.
+
+**Progress**: N = **12** design docs remaining before v1.0.0, **goal unmoved** — HARNESS iteration.
+
+**Outcome**: LANDED · [HARNESS] · evaluator **PASS 85/100, round 1, one blocking finding fixed
+in-iteration** · PR [#1044](https://github.com/sunholo-data/ailang/pull/1044) → squash
+[`da2b6689b`](https://github.com/sunholo-data/ailang/commit/da2b6689b), **20 checks, 0 pending,
+0 failures**, all four required contexts green and SonarCloud green on the PR.
+
+**What landed.** Five milestones, one commit each, bisectable: M1 `c717ee8a6` gives the test harness
+its own `HOME` (it had **zero** `HOME` references, so every run appended `[local] …` rows to the real
+shared `~/.ailang/state/autopush.log`) and repairs all eight `SC2164` sites. M2 `9bf9c5db2` makes both
+formatting gates read gofmt's **exit code** rather than only its stdout — `gofmt -l empty.go` is rc=2
+with the diagnostic on stderr and stdout empty, `gofmt < empty.go` is rc=0, and `make/code-health.mk`
+tested `[ -n "$(gofmt -l .)" ]`. M3 `d08352176` moves the file list to `--name-only -z` +
+`read -r -d ''`, because default `core.quotepath` returns `"caf\303\251.go"` for a committed
+`café.go` and the hook then classed correctly-formatted code as unformatted. M4 `62d7aad4b` makes the
+two earliest guards log `SKIP_ROOT` / `SKIP_NOT_GIT` instead of exiting silently. M5 `2eb6e25e4` wires
+a **scoped** ShellCheck gate — an explicit two-file list, because repo-wide shellcheck is rc=1 across
+**187** other tracked shell files — with `scripts/test_shellcheck_autopush.sh` as its anti-vacuity
+control. Harness: **18 → 26** arms.
+
+**The finding, and it cost real evidence.** M1's test row was specified in the sprint plan as a
+*"caller sentinel"*: seed a known line into the caller's real `$HOME/.ailang/state/autopush.log`, then
+assert it is unchanged. The executor implemented that literally, `printf … > "$CALLER_LOG"`. **Under
+`--sandbox workspace-write` that write is DENIED**, so the executor's own run reported the arm passing.
+My first re-run outside the sandbox truncated the real shared fleet log from **92 lines to 1**.
+Unrecoverable — `find` over `$HOME` returned no second copy, and the only local snapshots are
+`com.apple.os.update-*`. A test written to prove the harness never touches the caller's log was the
+thing that touched it. The arm is now read-only (sha + line count on both sides, `absent` a legitimate
+reading on each), propagated into **all five** snapshots so no commit on the branch carries the
+landmine, and a marker row was written into the truncated log so a later reader cannot mistake one
+line for a quiet fleet. The mutation it exists for still fires: dropping `export HOME="$W/home"` takes
+it from 3 lines to 17 with a different sha, plus four other arms.
+
+**The generalisation outranks the incident**: a sandboxed executor cannot distinguish *"my destructive
+step was denied"* from *"my step was harmless"*, so **any acceptance step that writes outside the
+worktree is unverifiable on that lane by construction** — and a guard for a shared artifact must be
+specified as an **observation**, never as a seeded write. That is a defect in how the sprint plan
+worded an acceptance criterion, not in the executor that implemented it faithfully.
+
+**CI caught what my own sweep did not — rule 3g, on my hands.** `test` and `test-windows` went red on
+`TestPackageInstallStepsAreBounded` (`internal/cihygiene`): my ShellCheck install step shells out to a
+package mirror with no step-level `timeout-minutes:`. `lint` — including the new shellcheck gate
+itself — passed throughout. Fixed at `8547d0dab` with `timeout-minutes: 5`, the value the three other
+`apt-get` steps already use, mutation-verified both directions. My pre-push sweep was hand-picked
+(fmt-check, shellcheck, the harness, check-referenced-paths, actionlint); the CI job's own command list
+was knowable and I did not derive it.
+
+**The judge's blocking finding, reproduced before acting.** M2's and M5's self-tests were added to the
+`ci:` aggregate **and nowhere else** — and `ci.yml:228` states the rule in the repo's own words:
+*"`make ci` is a LOCAL aggregate: CI never invokes it … Adding a target to `ci:` is necessary and NOT
+sufficient."* Measured: **0** invocations of `make ci` across all workflows (control `make fmt-check`
+= 1); **9 of 9** pre-existing `test-check-*` self-tests ARE wired as their own steps, the two new ones
+the only exceptions. So the controls that prove the empty-Go rejection and the scoped file list would
+never have run on a PR — a gate without its control, found inside the sprint that adds the control.
+Fixed at `cacd35103`, plus two new rows in `test_shellcheck_autopush.sh` asserting each self-test
+reaches CI (mutation-verified: 5/5 → 4/5 with the named row red).
+
+**Ruled out / corrected.**
+- **My "3 SC2164 findings at base" was a TRUNCATION, not an error** — the planner measured **8**. My
+  baseline command ended in `head -20`. Rule 3a aimed at an instrument's *display width* rather than at
+  its emptiness; the fix repairs all eight.
+- **My directive's summary table said "base was 20 arms, +6"; the base is 18 (+8)** — the judge caught
+  it, and the same table's other row said 18, so I contradicted myself inside one table. The M1
+  *boundary* is 20; I conflated boundary with base.
+- **My `8547d0dab` commit message says three Go packages read `.github/workflows/`; only
+  `internal/cihygiene` does** — my grep was a union over `workflows|make/|Makefile|scripts/hooks` and I
+  described it as if it were the first term alone. The fix is unaffected; the stated audit scope was
+  overclaimed. Left in history rather than rewritten, recorded here.
+- **PR #1041's `lint` red is entirely base-inherited, and I did NOT touch it.** Its head tree has 5
+  unformatted files — all `internal/observatory/*` + `coordinator_approvals_remote.go`, exactly what
+  iteration 326 fixed — while `origin/dev` is gofmt-clean (control fired: 5 vs 0). A rebase clears it.
+  Left alone on attribution grounds: its worktree is `ailang-worktrees/mission-comms-p1`, not the
+  `.wt-v1-iterN` mission convention, and `mission-comms-into-the-binary` appears **0** times in V1's,
+  motoko's or docs' charters. The motoko-iter-17 rule says an unattributable PR is not mine to rebase.
+- **SonarCloud on dev is inherited, again** — `failure` on `c5227e6d7`, `850f04189` and `ea6e0fbb6`
+  before this iteration existed. It PASSED on PR #1044.
+
+**Routing evidence**: controller `claude:claude-opus-5`. `resolve-role-spawn.sh` run for all four
+roles, output used verbatim: designer `recipe claude:claude-fable-5-1`, planner `agent-tool opus
+fail-closed:no-doc`, executor `recipe codex:gpt-5.6-sol declared:provider-pin`, evaluator `agent-tool
+sonnet declared:alias-pin`. **Designer NOT spawned and not owed** — a five-item measured punch list
+with named files is not a design doc, the Fable diet is for authoring, and the rotation pointer
+`pi:ollama/deepseek-v4-flash:0731-cloud` is untouched. **The spawn-pin hook FIRED on the planner and it
+was RIGHT**: I spawned the resolver's `opus` answer and got
+`deny:provider-pin — planner is pinned to codex:gpt-5.6-sol`. That is `m-spawn-pin-enforcement` working
+two iterations after landing; I followed the hook and routed the planner through the codex recipe.
+Planner + executor both `codex:gpt-5.6-sol`, probe rc=0, one bounded sandboxed 30-min-capped run each,
+zero git writes, `.snap/M1`–`.snap/M5` cumulative; reconstruction faithful by sha256 manifest, **7 of 8
+files byte-identical**, `ci.yml` differing only by one documented controller edit. Evaluator `sonnet` in
+its OWN worktree at the landing commit — generator≠judge holds (OpenAI executor, Anthropic judge). It
+drilled **8 of 8** named mutations as exact sole killers with `shasum` restore each time, proved the
+read-only arm non-destructive across five caller-log states (present / absent / unreadable / a
+directory / a symlink), and confirmed by `git log -p` over all six commits that the destructive form
+appears in **no** commit's code. `metered=$0.00` of the `$5` ceiling — codex and sonnet are quota
+buckets, no quorum ran, no GPU, no `rig.lock`.
+
+**Gate 1 health**: dev HEAD `2b5750ad9` checks=16, one NOT-GREEN = SonarCloud, inherited. Skill
+byte-identical to origin (`cmp` rc=0 against the RESOLVED `readlink -f` target; pin inode `67083825` vs
+main `67058129`, a different file). Ledger valid, 54 rows, **0 OPEN**. 0 directives on #972. No
+rotation and no weekly sweep owed. 16 unread inbox rows triaged by sender, none directive-class, none
+acked — including `mission-world`'s **D-WORLD-31 approval row, open for Mark since 2026-09-03T15:12Z**,
+which is not V1's to answer or to ack.
+
+**Next**: `m-release-manager-skill-split` (standing queue head — the 18-image walkthrough out of
+`release-manager/SKILL.md`, and the `check-context-docs` ratchet back down 625 → 596), then
+`m-gate-wiring-classifier-prefix-blind` (the systemic half of this iteration's blocking finding), then
+`m-acceptance-criterion-green-at-base`.
+
+## 328 — 2026-09-05 — The compile cache verifies the receipt and never the goods, so a correct source file does not describe the program that runs [PRODUCT]
+
+**Pick.** NOT the queue head. Two downstream reports from `email-parse` sat unread in the canonical
+cloud inbox; one was a correctness bug, ghost-disciplined at HEAD, confirmed, and a confirmed
+correctness defect in a shipped surface outranks the queue. `m-gate-wiring-classifier-prefix-blind`
+stays [NEXT].
+
+**Progress.** N = **13** design docs remaining before v1.0.0 (was 12, **+1**): a new clause-2
+soundness doc entered the count. The unit going up is the unit working.
+
+**What was confirmed, all first-party at HEAD and all reproduced independently by the judge.**
+The compile cache has TWO keyspaces and verifies only one.
+
+- The **manifest** is content-keyed and IS checked (`pipeline_module.go:276-277` →
+  `cache_store.go:85-91`). That half is correct and was never the bug.
+- The **artifact blobs that actually execute** live in a path-derived directory and are loaded with
+  **no verification of any kind**: `LoadArtifacts(moduleID string)` (`cache_store.go:185`) receives
+  no key, and `grep -n "CacheKey" cache_store.go` returns exactly two lines — the struct field and
+  the manifest comparison — neither in the artifact path (known-positive control `modDir` = 11).
+- The two writes are neither ordered nor checked: `pipeline_module.go:369` writes the manifest
+  entry unconditionally, then `:377` does `_ = cacheStore.StoreArtifacts(...)` with the error
+  **discarded**. Any artifact-write failure advances the manifest to the new source's key while the
+  blobs stay from the previous compile; every later run then passes the lookup, loads the old blobs
+  and skips compilation.
+
+**The end-to-end reproduction, which is the whole iteration.** Source on disk says `99`; the manifest
+`cache_key` is the CORRECT key for the `99` source; the blobs are from the `42` compile;
+`ailang run` prints **42**, with no diagnostic. Negative control: ordinary edit-and-re-run
+invalidation works correctly (42 → 99), so this is not "invalidation is broken" — it is
+"the artifacts that execute are never checked against the key that authorises them". Script banked at
+`/tmp/iter328_repro_defectA.sh`; the judge re-ran it AND re-derived the mechanism from the call site
+rather than trusting the script, explicitly checking it was not rigged.
+
+This explains every one of the reporter's four elimination results, including the two that look like
+exculpation: a byte-identical copy at a NEW path works because it is a new module id with no entry,
+and `rm -rf` of that one directory works because it forces `loadErr != nil`.
+
+**Second defect, independent: the source read is a silent fallback.** `pipeline_module.go:269`
+swallows its `os.ReadFile` error, so a failed read leaves `sourceContent = ""` and the key collapses
+to f(cacheKeyVersion, commit, depDigests) — the module's own source contributes nothing and later
+edits are invisible. Measured: `ModuleCacheKey(commit, "", {})` =
+`b5149f5d2d7eac93707cf159b94ccdcc9f97b8d2960fe843a7eeb20c3e6f8136`, and **both** `std/option` and
+`std/result` carry that byte-identical key in a manifest generated at HEAD while their
+`iface_digest`s differ. Cause: `loader.go:203` gives embedded stdlib modules the synthetic path
+`<embedded>/std/<file>`. The judge reproduced this from scratch with an isolated binary that forces
+the embedded-fallback branch — a stronger construction than the controller's.
+**The comment three lines above the swallow records that this class was already found and fixed once**
+(`mod.Path` vs `mod.File.Path`). The path bug was fixed; the silent fallback that let it become a
+correctness bug was left in place. That is this loop's own *guard the helper, miss the call site*,
+in the compiler.
+
+**Third: `Clear()` never deletes `modules/`** (`cache_store.go:109-115`), so the documented remedy
+for a suspected cache problem leaves every stale artifact on disk.
+
+**Routing.** Resolver run for all four roles, output used verbatim.
+Designer `codex:gpt-6-astra` (probe rc=0) — the **first real astra designer run**. Two bounded
+sandboxed runs, zero git writes: the initial authoring run, then the ONE protocol-mandated revision.
+**The first authoring run was killed and restarted by the controller after ~4 minutes**, because a
+read-only reality-check agent returned a second, more severe mechanism (the unverified artifact load)
+than the directive had described — a doc scoped only to the swallowed read would not have closed the
+user's report. Restarting cost 4 minutes; a revision round would have cost a full run.
+Planner and executor **NOT spawned, and that is the routing call rather than an omission**: the doc
+is BLOCKED, so there is no approved design to plan or execute, and planning a blocked doc is work on
+an unapproved design. Evaluator `sonnet` in its OWN worktree — generator≠judge holds (OpenAI author,
+Anthropic judge).
+
+**Quorum: BLOCKED after one revision and one re-quorum, so the doc PARKS.** Round 1 PROCEED — but
+with `gpt5-6-sol` **ABSENT on budget**, the self-selecting degrade this skill warns about. Re-running
+that reviewer alone at a raised cap returned **reject**, and the objection was real: the doc claimed
+axiom A5 "Bounded Verification" on a fixed file COUNT (line 20) while deferring size limits to
+out-of-scope (line 457) — a measured internal contradiction, handed to the designer as a measurement
+rather than as an objection. The revision answered it well (16 MiB/64 KiB/32 MiB ceilings justified
+against a 27-module survey, TOCTOU-safe `Stat` + `io.ReadAll(io.LimitReader(f, limit+1))` with the
+extra byte as an overflow sentinel, over-limit always a MISS never a compile error).
+Round 2 still BLOCKED: `gpt5-6-sol` rejected a second time on the SAME A5 surface (hashes prove
+consistency, not compiler provenance; gob decode work unbounded), and `oc-glm-5-2` rejected on the
+doc's self-admitted V54 row. `gemini-3-1-pro` passed both rounds. **PARK is correct and the judge
+independently agreed**: objection A needs controller judgement about the threat model and carries no
+verbatim fix, which forecloses the narrow-refinement carve-out regardless of objection B.
+
+**Reviewer independence, and a policy that changed underneath this iteration.** `c4e692918` landed
+**four minutes after this iteration's Gate-0 stamp** and moved the quorum's OpenAI seat to astra —
+the model the rotation had just handed this iteration as its DESIGNER. The controller had already
+pinned `--reviewers gpt5-6-sol,gemini-3-1-pro,oc-glm-5-2` on round 2 for exactly that reason,
+independently, before reading the commit; both quorum artifacts confirm astra reviewed nothing.
+**The rulebook changed mid-flight** — the running skill was byte-identical to origin at Gate 1 and is
+byte-identical to a DIFFERENT origin now — and the same commit also restored fable as a rotation
+entry, so under the new list this iteration's next-entry would have been fable rather than astra.
+The pointer records what actually ran (`codex:gpt-6-astra`); fable simply comes round next cycle.
+
+**The judge corrected the controller twice, and both stand (Ruled out).**
+1. The controller wrote that `LoadArtifacts` performs "**5** unbounded `os.ReadFile` calls and then
+   `gob.Decode`". It performs **4**, only **2** of them gob-decoded; the 5th grep hit is an unrelated
+   JSON manifest read in `load()`. A whole-file grep count quoted as per-function behaviour — rule
+   3b's scope error, in the controller's own evidence for a routing decision.
+2. The controller's rebuttal of objection B restated the doc's own self-admittedly incomplete V54
+   row (flag NAMES present in source text) as though it settled CLI acceptance. The judge actually
+   invoked the binary — `serve-api --help` plus a live MCP `initialize` RPC — and settled it. The
+   flags are real and work; the controller's check was weaker than the claim it supported, and
+   closing it would have taken under a minute.
+The judge also **weakened objection A** on its own initiative by reading `encoding/gob`'s decoder:
+it does cap preallocation against remaining input, so a 16 MiB-capped blob cannot be amplified
+arbitrarily. And it sharpened the other side: a poisoned cache blob is decoded on every routine
+`ailang run` **without the victim knowingly compiling anything**, unlike a malicious `.ail` file.
+That asymmetry is the strongest argument for the objection and neither the controller nor the doc
+had made it.
+
+**Ruled out.** "Invalidation is broken" — REFUTED, ordinary edit-and-re-run works (42 → 99).
+"The degenerate stdlib key is itself the user's bug" — it is a real second defect but does NOT
+produce the reporter's frozen-artifact-mtime signature; defect A does.
+"Objection A is a defect this doc introduces" — REFUTED and measured: at HEAD `LoadArtifacts`
+already reads unbounded and gob-decodes with **0** byte ceilings and **0** hash checks anywhere in
+the file, so the doc strictly reduces that surface.
+
+**Landed.** Issue [#1046](https://github.com/sunholo-data/ailang/issues/1046) — the confirmed defect,
+public, with the workaround, filed independently of the doc's fate; body asserted present after
+posting. Reply to the reporter on the canonical cloud inbox, body asserted after sending. The design
+doc itself lands under `design_docs/planned/v0_35_2/` tagged PARKED with both quorum artifacts, so
+the work is not lost and Mark's decision has something to act on. Retargeted from `v0_35_1` because
+v0.35.1 shipped mid-iteration.
+
+**Next.** `D-55` is the only thing between this doc and a sprint. If Mark rules the
+accidental-corruption threat model sufficient, the doc goes straight to the planner next iteration
+with no further design work. If not, the doc needs an adversarial-decode section and a third round.
+Then `m-gate-wiring-classifier-prefix-blind`.

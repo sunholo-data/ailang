@@ -2,40 +2,36 @@
 
 _Snapshot, overwritten every iteration. History: `v1-mission.md` (STATUS) + `v1-mission-log.md`._
 
-**Last iteration:** 351 · 2026-09-08 · HARNESS · LANDED · **Goal distance:** N=12 docs before v1.0.0 (±0)
+**Last iteration:** 353 · 2026-09-14 · HARNESS · LANDED · **Goal distance:** N=12 docs before v1.0.0 (±0)
+**Latest release:** v0.38.5 (2026-09-13). Loop was kill-switched 2026-09-08 → 09-14 (six days); this was the first fire back.
 
 ## Just landed
-`m-coordinator-test-parallelism` — PR #1111 → `5f95a3814`, 21 checks zero not-green. Three timer seams injected into `internal/coordinator`;
-four timer-bound tests **8.13 s → 0.23 s**, package wall **16 s → 6 s**. No `t.Parallel()` added, no
-production default changed. Judge: round 1 **FAIL** (the sprint had made production retry backoff
-uncancellable — real, reproduced, fixed), round 2 **PASS 97/100**, round 3 PASS on the delta.
+`m-debugcacheforms-flaky-on-macos-ci` — PR #1161 → `3faaf47fa`, 22 checks zero not-green. The macOS
+flake was the **capture helper**, not the assertions: it closed the pipe's read end before the copier
+drained. Fixed with a named-return `defer` teardown + copy-error propagation, four gated-reader tests,
+six-mutant drill. Judge `sonnet` r1 PASS 88 / r2 PASS 98. **AC6 owed by the next 25 dev runs**: zero
+`Build macos-latest` failures on this test (base rate was ~8%/execution).
+Also credited: **iteration 352** (orphaned slot) landed `m-daemon-task-exec-run-untested` as `45f02deb3`.
 
 ## Next picks
-1. `m-fleet-sha-pin-freezes-every-driver-fix` — **blocked on D-61**. Every driver fix this loop lands
-   is inert until the pin moves (now **46** commits stale, was 43).
-2. `m-headroom-blocking-threshold-calibration` / `m-headroom-residual-mutations` — iter-348 residue.
-3. `m-daemon-task-exec-run-untested` — the daemon's task-exec path has NO unit test. Found by
-   SonarCloud's coverage gate; carries the admission that this sprint's FIX 2 production-caller
-   rebase is verified by code reading only, with no test executing it.
-4. `m-ratelimit-window-default-unpinned` · `m-approval-poll-production-defaults-unexercised` — cheap,
-   each with a measured mutation already attached.
+1. `m-sonar-dev-branch-security-rating-c-on-new-code` — standing SonarCloud branch red, deferred 4 iterations.
+2. `m-approval-poll-production-defaults-unexercised` · `m-ratelimit-window-default-unpinned` — small, judge-measured.
+3. `m-weekly-sweep-orphans-2026-09-14` — 7 orphans of 85 (5 daneel issues, 4 already have docs; #1096 pi-runner).
+4. `m-pin-drift-blind-under-sha-pin` — `PIN_DRIFT` reads 0 under any ancestor SHA pin (instrument only).
 
 ## Loop health
-- **Two consecutive slots died mid-flight before this one**: 349 attempt 1 (at Gate 3b, holding a
-  green PR) and 350 (after its designer, holding an r3 doc). Both recovered by the next iteration's
-  Gate-2 traces — nothing lost, but 3 of the last 4 slots inherited rather than picked.
-- Driver pin `AILANG_DRIVER_REF=48c4a6e49` unmoved; `PIN_DRIFT` still reports `0` by construction.
-- Skill drift: resolved-symlink copy == origin on all 12 files; the **pin worktree's** copy drifts on
-  4. Read the rules from the resolved path only.
-- Gate-list gap: the local sweep did not include `golangci-lint unused` or any coverage gate, and CI
-  caught one of each on this PR.
+- Attended rulings 2026-09-08: **D-61 (A) executed** — all four mission pins back on `origin/dev`;
+  **D-62** generator≠judge preferred at vendor / required at model; **D-63** single-provider-role gate retired.
+- Ledger 63 rows, **ZERO open**.
+- codex lanes ration-blocked this fire (`gpt-5.6-sol` rc=75); planner/executor ran on the pi fallbacks —
+  kimi 3rd consecutive planner ok, deepseek 3rd consecutive executor ok.
+- Skill copies: 13/13 files identical to origin in BOTH the symlink target and the pin. Main checkout 15 behind origin.
+- Gate-5 skill edit landed: job logs with escape sequences need `--allow-escape-sequences`; an empty grep over a
+  refused log is not an absence (two frictions this iteration).
 
 ## Routing / cost
-designer NOT spawned (inherited r3 doc) · planner `pi:kimi-k3` ok · executor `pi:deepseek-v4-flash`
-ok ×2 (**second consecutive `ok` — meets the promotion bar; recorded, not acted on unilaterally**) ·
-evaluator `sonnet` ×3 rounds. Metered **$0.00** of $5.
+designer `claude-fable-5-1` (1 doc + 1 revision) · quorum r1/r2 blocked → carve-out r3 · planner `pi:kimi-k3` ok ·
+executor `pi:deepseek-v4-flash` ok · evaluator `sonnet` ×2. Metered **$0.45** of $5.
 
 ## Parked on Mark
-**D-61 (the only open row)** — may this loop repoint `AILANG_DRIVER_REF` back to `origin/dev` itself
-once a SHA-pinned deployment's fix has merged, or is every pin edit attended-only? Loop recommends
-**(A)**, narrowly. Unanswered ⇒ drift keeps growing and every driver fix stays inert.
+none.

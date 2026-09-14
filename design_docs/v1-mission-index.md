@@ -12,6 +12,8 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 353 | 2026-09-14 | First fire in six days: the macOS flake was the capture helper, not the assertions; orphaned iteration 352 credited; three attended rulings acknowl... |
+| 351 | 2026-09-08 | Inherit iteration 350's orphaned design doc, land it — and let the judge's round-1 FAIL catch a production regression the plan had flagged and ship... |
 | 349 | 2026-09-08 | Attempt 1 died at Gate 3b holding a green PR; attempt 2 judged it, landed it, and found the fleet has been running frozen driver code for 43 commit... |
 | 348 | 2026-09-07 | The Windows timeout was never about the coordinator: a derived budget, a headroom instrument, and three rounds of the same byte-level defect [HARNESS] |
 | 347 | 2026-09-07 | Bound the D-60 notification paths, restore the seven notify assertions, and expose nine reds that suite had been hiding [HARNESS] |

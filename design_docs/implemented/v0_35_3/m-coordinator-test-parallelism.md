@@ -1,6 +1,6 @@
 # M-COORDINATOR-TEST-PARALLELISM: Attack the Four Timer-Bound Coordinator Tests by Injecting Their Timers
 
-**Status**: Planned — mission iteration 350, design-doc-creator (REVISION pass, round 3, final). **Target**: v0.35.2 ·
+**Status**: Implemented
 **Priority**: P1 (standing latency floor, not a CI timeout fix) · **Estimated**: 3–3.5 hours
 (3 injection points + 4 test updates + regression guard + mutation + evaluation)
 **Dependencies**: none (self-contained in `internal/coordinator`); base commit `f3783c976` (origin/dev).
