@@ -82,14 +82,28 @@
     }
   ],
   "live_adoption": {
-    "status": "incomplete",
-    "blocker": "evaluator did not produce verdict within 100,000 fresh tokens despite focused packet",
-    "trial_work_item": "docs-canary-guide-review-3",
-    "new_metered_spend_usd": 0.016704388,
+    "status": "criterion_1_complete",
+    "criterion_1": "COMPLETE \u2014 existing candidate passes live evaluation and completed replay makes zero provider calls",
+    "criterion_2": "OPEN \u2014 two additional frozen bounded tasks; review-packet.json and budget-accounting.json are the tasks",
+    "successor_work_item": "docs-canary-guide-review-4",
+    "authority": "mark-docs-canary-review-4-approved-20260914 (attended, 2026-09-14)",
+    "route": "pi-or-minimax-m3 / pi / openrouter/minimax/minimax-m3",
+    "verdict": "pass \u2014 5/5 criteria, zero blocking findings",
+    "tokens_used": 136478,
+    "tokens_allowed": 150000,
+    "tool_calls": 53,
+    "repeated_calls": 0,
+    "gate_refusals": 0,
+    "new_metered_spend_usd": 0.17616282,
+    "series_spend_usd": 0.4746,
     "series_cap_usd": 5,
-    "queued_frozen_tasks": 2,
-    "automatic_cleanup": "passed",
-    "failed_terminal_replay": "zero new dispatches",
-    "completed_success_replay": "not reached"
+    "completed_success_replay": "PASS \u2014 zero provider calls (receipts 1->1, attempts 2->2, spend $0.55->$0.55)",
+    "predecessor": "docs-canary-guide-review-3 preserved in terminal failed state; four runs, all killed at the 100,000 cap",
+    "blockers_resolved": [
+      "evaluator lane repointed from opencode to pi (7423434b4) \u2014 the opencode rung is structurally inadmissible on this path",
+      "session-protocol gate isolated for evaluator stages (b06f3c148) \u2014 its --tools allowlist had removed session_protocol_ack, the gate's only disarm",
+      "token cap raised 100,000 -> 150,000 on attended authority; actual requirement measured at 136,478"
+    ],
+    "evidence": "design_docs/verification/mission-iteration-reliability/live-trial.md"
   }
 }
