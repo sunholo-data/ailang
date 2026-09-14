@@ -46,6 +46,7 @@ import (
 //	AILANG_BRANCH        - Base branch to clone (default: "dev")
 //	AILANG_PUSH_BRANCH   - Push directly to this branch (skip coordinator/ branch creation)
 //	AILANG_DIRECTIVE     - Task directive/prompt
+//	AILANG_TASK_TITLE    - Human task title, used for PR/commit subjects
 //	AILANG_TOPIC_PREFIX  - Topic prefix (default: "ailang")
 //	AILANG_PLUGIN_REPO   - Git URL for shared skills plugin (cloned as --plugin-dir)
 //	AILANG_MAX_COST_USD  - Per-task cost budget in USD (0 = unlimited) from budget config
@@ -81,6 +82,8 @@ func coordinatorExecuteJob(args []string) error {
 		branch = "dev"
 	}
 	directive := os.Getenv("AILANG_DIRECTIVE")
+	// AILANG_TASK_TITLE is read where it is used (taskSubject); named here so
+	// the env contract above stays the complete list.
 	prefix := os.Getenv("AILANG_TOPIC_PREFIX")
 	if prefix == "" {
 		prefix = pubsub.DefaultTopicPrefix

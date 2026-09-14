@@ -190,3 +190,54 @@ func TestSummarizeDirective_BraceProseIsStillProse(t *testing.T) {
 		t.Errorf("prose that merely starts with a brace must survive intact, got %q", got)
 	}
 }
+
+// TestTaskSubject_PrefersTheCarriedTitle is the third shape of one mistake.
+//
+// The directive reaching the job is the TEMPLATE-WRAPPED prompt, so its first
+// line is harness boilerplate. Measured 2026-09-14, PR #62:
+//
+//	[agent] pkg-sunholo-testing-utils: You are an autonomous AIL…
+//
+// The 2026-09-13 fix handled the JSON shape of the same error. Deriving a
+// description from a prompt yields a new wrong answer every time the prompt
+// template changes, so the title is now carried instead.
+func TestTaskSubject_PrefersTheCarriedTitle(t *testing.T) {
+	wrapped := "You are an autonomous AILANG package agent.\n\nTask:\n`sunholo/testing_utils` 0.1.1 does not compile."
+	t.Setenv("AILANG_TASK_TITLE", "sunholo/testing_utils 0.1.1: ++ on strings — does not compile on v0.38.5")
+
+	got := taskSubject(wrapped)
+	if strings.Contains(got, "autonomous") {
+		t.Errorf("the subject names the harness, not the change: %q", got)
+	}
+	if !strings.Contains(got, "testing_utils") {
+		t.Errorf("the carried title must win: %q", got)
+	}
+}
+
+// With no carried title — an older dispatcher — derivation is still the
+// fallback, unchanged.
+func TestTaskSubject_FallsBackToDerivationWhenNoTitleIsCarried(t *testing.T) {
+	t.Setenv("AILANG_TASK_TITLE", "")
+	got := taskSubject("Fix the parser cascade\n\nmore context here")
+	if got != "Fix the parser cascade" {
+		t.Errorf("derivation must still work for a dispatcher that sends no title: %q", got)
+	}
+}
+
+// A carried title is human-written and occasionally long. Unbounded subjects
+// were the original bug, so the same budget applies to both sources.
+func TestTaskSubject_CarriedTitleIsBounded(t *testing.T) {
+	t.Setenv("AILANG_TASK_TITLE", strings.Repeat("words that go on ", 20))
+	got := taskSubject("")
+	if len([]rune(got)) > directiveSubjectMax+1 { // +1 for the ellipsis
+		t.Errorf("a carried title must be bounded like a derived one: %d runes", len([]rune(got)))
+	}
+}
+
+// Whitespace-only is not a title.
+func TestTaskSubject_BlankCarriedTitleDoesNotWin(t *testing.T) {
+	t.Setenv("AILANG_TASK_TITLE", "   \n\t ")
+	if got := taskSubject("Real directive first line"); got != "Real directive first line" {
+		t.Errorf("a blank title must not beat a usable directive: %q", got)
+	}
+}

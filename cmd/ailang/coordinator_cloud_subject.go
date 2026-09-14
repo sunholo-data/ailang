@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"os"
 	"strings"
 	"unicode"
 )
@@ -141,13 +142,37 @@ func truncateOnWord(s string, max int) string {
 	return strings.TrimRight(string(cut), " \t.,;:—-") + "…"
 }
 
+// taskSubject is the description to put on a PR or commit, most trustworthy
+// source first.
+//
+// THE TITLE IS CARRIED, NOT DERIVED. The directive reaching this binary is the
+// template-wrapped prompt, not the request: its first line is boilerplate, so
+// the "first non-empty line" rule produced
+//
+//	PR #62  [agent] pkg-sunholo-testing-utils: You are an autonomous AIL…
+//
+// measured 2026-09-14 — a title naming the harness instead of the change. The
+// earlier JSON fix (2026-09-13) addressed a different shape of the same
+// mistake, which is the tell: deriving a description from a prompt produces a
+// new wrong answer each time the prompt template changes. The task already HAS
+// a human title, written by whoever asked; AILANG_TASK_TITLE carries it, and
+// derivation is now only the fallback for a dispatcher too old to send it.
+func taskSubject(directive string) string {
+	if t := strings.TrimSpace(os.Getenv("AILANG_TASK_TITLE")); t != "" {
+		// Same bounds as a derived subject: a title is human-written and
+		// occasionally long, and an unbounded subject is the original bug.
+		return truncateOnWord(strings.Join(strings.Fields(stripTaskPrefix(t)), " "), directiveSubjectMax)
+	}
+	return summarizeDirective(directive)
+}
+
 // agentPRTitle is the PR title: descriptive when we can be, and always
 // deterministic.
 //
 // The task id moves into the body. It is a lookup key, not a description, and
 // it was occupying the one line a reader actually sees.
 func agentPRTitle(agentID, taskID, directive string) string {
-	if subject := summarizeDirective(directive); subject != "" {
+	if subject := taskSubject(directive); subject != "" {
 		return "[agent] " + agentID + ": " + subject
 	}
 	return "[agent] " + agentID + ": " + taskID
@@ -155,7 +180,7 @@ func agentPRTitle(agentID, taskID, directive string) string {
 
 // agentCommitSubject is the git subject line for the wrapper's commit.
 func agentCommitSubject(taskID, directive string) string {
-	if subject := summarizeDirective(directive); subject != "" {
+	if subject := taskSubject(directive); subject != "" {
 		return subject
 	}
 	return "Task " + taskID

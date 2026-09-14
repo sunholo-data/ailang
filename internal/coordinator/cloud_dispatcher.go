@@ -14,11 +14,17 @@ type CloudDispatcher interface {
 
 // DispatchParams contains the parameters needed to trigger remote task execution.
 type DispatchParams struct {
-	TaskID          string  // Coordinator task ID (e.g., "task-29404032")
-	AgentID         string  // Target agent (e.g., "sprint-executor")
-	Workspace       string  // Workspace path
-	Provider        string  // AI provider ("claude" or "gemini")
-	Directive       string  // Task prompt (optional — job can fetch from Firestore)
+	TaskID    string // Coordinator task ID (e.g., "task-29404032")
+	AgentID   string // Target agent (e.g., "sprint-executor")
+	Workspace string // Workspace path
+	Provider  string // AI provider ("claude" or "gemini")
+	Directive string // Task prompt (optional — job can fetch from Firestore)
+	// TaskTitle is the human description of the work, carried so the job does not
+	// have to RE-DERIVE one from the prompt. The prompt is template-wrapped before
+	// dispatch, so its first line is boilerplate ("You are an autonomous AILANG
+	// …") and any heuristic that reads it produces a PR title naming the harness
+	// instead of the change — measured on PR #62, 2026-09-14.
+	TaskTitle       string
 	RepoURL         string  // Git repo URL
 	Branch          string  // Base branch (default: "dev")
 	PushBranch      string  // If set, push directly to this branch (skip coordinator/ branch creation)

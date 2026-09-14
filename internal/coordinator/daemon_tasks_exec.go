@@ -185,6 +185,7 @@ func (d *Daemon) dispatchTasksCloud() error {
 				Workspace: task.Workspace,
 				Provider:  provider,
 				Directive: directive,
+				TaskTitle: task.Title,
 				RepoURL:   repoURL,
 				Branch:    task.BaseBranch, // From task record, defaults handled by job
 				// M-PKG-CASCADE-DETERMINISTIC-FIRST: propagate cascade envelope so the

@@ -113,6 +113,10 @@ func TestDispatchEnvVarOverrides(t *testing.T) {
 		// false on a bare DispatchParams — the Go zero value IS the loud
 		// direction, which is why the field is named acknowledge-only.
 		"AILANG_ACKNOWLEDGE_ONLY": "false",
+		// Empty on a bare DispatchParams: the job then falls back to deriving a
+		// subject from the directive, which is the pre-2026-09-14 behaviour and
+		// still correct for a dispatcher that sends no title.
+		"AILANG_TASK_TITLE": "",
 	}
 
 	for _, env := range envVars {
