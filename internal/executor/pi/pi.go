@@ -605,6 +605,25 @@ func buildPiArgs(model string, task *executor.Task, directive string) ([]string,
 		args = append(args, "--no-context-files")
 	}
 
+	// Repo-local extensions off, project-local skills ON. Both flags are required and the
+	// pairing was established by ablation in the gated workspace (2026-09-14), asking one
+	// model to run `pwd && git rev-parse HEAD` and report whether sprint-evaluator was
+	// loaded:
+	//
+	//	current flags            bash REFUSED by the gate      skill loaded
+	//	--no-extensions --approve    bash ran                  skill loaded
+	//	--no-extensions alone        bash ran                  skill NOT loaded
+	//
+	// The third row is why --approve is not optional: --no-extensions also disables the
+	// globally installed workspace-trust extension, which is what had been granting
+	// project trust headlessly, and without trust pi ignores project-local `.agents/skills`.
+	// The evaluator's skill IS its terminator (sprint-evaluator, 100-point rubric,
+	// threshold 70), so dropping extensions without restoring trust trades a deadlock for
+	// a silently unqualified judge — strictly worse, and invisible in the result.
+	if task.IsolateFromProjectExtensions {
+		args = append(args, "--no-extensions", "--approve")
+	}
+
 	switch {
 	case task.AllowedTools == nil:
 		// nil = caller does not specify; let pi's defaults apply.

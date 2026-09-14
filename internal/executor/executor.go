@@ -71,8 +71,34 @@ type Task struct {
 	//
 	// Harnesses that cannot express this may ignore it; it is a request, not a guarantee.
 	IsolateFromAmbientContext bool
-	Model                     string            // Model to use (provider-specific)
-	Metadata                  map[string]string // Provider-specific options
+
+	// IsolateFromProjectExtensions asks the harness NOT to load the repository's own
+	// agent extensions (pi: `.pi/extensions/*.ts`), while keeping project-local skills.
+	//
+	// This is not tidiness — it repairs a DEADLOCK, measured 2026-09-14 on the
+	// M-MISSION-ITERATION-RELIABILITY M4 canary. The repo's `session-protocol-gate.ts`
+	// arms in every pi workspace and refuses `bash` until a `session_protocol_ack` tool
+	// call. That is survivable for author roles: they run with no `--tools` allowlist, so
+	// the ack tool is present and they ack and proceed (measured across this machine's pi
+	// sessions: 14 of 16 gated sessions acked, ~2 refusals each).
+	//
+	// The EVALUATOR is the one stage that carries an allowlist — read/bash/grep/find/ls,
+	// added to strip edit and write from a judge. That allowlist also removes
+	// `session_protocol_ack`, so the gate arms with NO reachable disarm, and `bash` is
+	// permanently confined to the gate's three start-anchored allow-regexes. Measured
+	// refusals, all read-only: `pwd`; `git rev-parse HEAD`; `cd <dir> && git status`
+	// (`cd` unlisted, and one non-matching segment sinks the whole compound);
+	// `/usr/bin/git ... status` (absolute path fails `^git `); `git --no-pager -C <dir>
+	// status` (flag before subcommand). The canary burned 51 of 63 bash calls on
+	// refusals and died 1.1% over its immutable token budget with no verdict.
+	//
+	// Safe for a judge specifically because it holds no edit/write: the gate also carries
+	// commit attribution in its tool_call handler, so extending this to a role that
+	// COMMITS would silently drop `Co-Authored-By` until that is split out.
+	IsolateFromProjectExtensions bool
+
+	Model    string            // Model to use (provider-specific)
+	Metadata map[string]string // Provider-specific options
 
 	// ExtraEnv are additional environment variables exported to the agent
 	// subprocess, merged into the executor's process env by BuildEnvironment.

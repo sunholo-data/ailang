@@ -208,8 +208,17 @@ func taskFor(r Request, c Candidate) *executor.Task {
 		// too — a frozen work item whose behaviour depends on today's AGENTS.md is not
 		// frozen — but that is a ruling, not a refactor.
 		IsolateFromAmbientContext: isEvaluator,
-		ID:                        strings.Join([]string{r.MissionID, r.WorkItemID, r.StageID, r.AttemptID}, "/"),
-		ParentTaskID:              r.WorkItemID, Directive: r.Instructions,
+		// Same scoping, same reason, and it is what unblocks the stage at all: the
+		// evaluator's own AllowedTools allowlist above removes `session_protocol_ack`,
+		// so the repo's session-protocol gate arms with no disarm reachable and confines
+		// bash to three allow-regexes that refuse `pwd`, `git rev-parse` and any `cd`
+		// prefix. Author roles keep the full default tool set, so they retain the ack
+		// tool and are unaffected — which is why executors were fine and only the judge
+		// deadlocked. Do NOT extend this to a committing role before the gate's
+		// commit-attribution handler is split out of it.
+		IsolateFromProjectExtensions: isEvaluator,
+		ID:                           strings.Join([]string{r.MissionID, r.WorkItemID, r.StageID, r.AttemptID}, "/"),
+		ParentTaskID:                 r.WorkItemID, Directive: r.Instructions,
 		SystemPrompt: fmt.Sprintf("Mission role contract v1. Role: %s. Input revision declared by caller: %s. Request digest: %s. Produce the requested artifact; execution success is not acceptance or permission to publish.", r.Role, r.InputRevision, r.Digest()),
 		Workspace:    r.Workspace, Model: c.WireModel, Timeout: time.Duration(r.TimeoutSeconds) * time.Second,
 		MaxTokensPerBench: r.MaxTokens, MaxOutputTokens: m.MaxOutputTokens, ReasoningEffort: m.ReasoningEffort,

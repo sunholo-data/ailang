@@ -227,3 +227,54 @@ So the fix has a cheap half and a real half. Cheap: the allowlist is too literal
 automated use — `pwd`, `git rev-parse`, `-C <dir>`, and a leading `cd` are all read-only and
 all refused. Real: decide whether an isolated mission stage loads repo-local pi extensions at
 all, which is the question the section above states correctly.
+
+---
+
+## Third live trial — 2026-09-14, with project extensions isolated
+
+Same frozen item, fresh lineage (`runtime-2.sqlite`; the failed lineage and its receipt are
+preserved untouched, not cleared). Only change: `IsolateFromProjectExtensions` for the
+evaluator → pi `--no-extensions --approve`.
+
+### The gate is gone, measured in the receipt
+
+| | trial 2 | trial 3 |
+|---|---|---|
+| Gate refusals in receipt | **51** | **0** |
+| `validate-example` mentions | 2 | **39** |
+| Tool calls | 102 | **23** (bash 15, read 8) |
+| Repeated calls | 5 | **0** |
+| Output tokens | 10,141 | **1,720** |
+| Duration | 172s | **36s** |
+| Metered | $0.2089 | **$0.0728** |
+
+77% fewer tool calls, zero repetition, 65% cheaper, and the effort moved from hunting
+workarounds to actually exercising the bound validator.
+
+### But it still exceeded the allowance — and THIS time the cap is the real cause
+
+`101,542 > 100,000`, of which **input 99,822 and output only 1,720**. `CacheReadInputTokens`
+is 679,040 and counted separately, so the 99,822 is NEW input, not replay. Per-turn new input
+from the receipt: 15,060 on turn 1 (the 20,716-character contract and packet), then 9,509,
+3,446, 2,460, 2,251 and a tail of 100-1,000 chunks — i.e. the cost of reading the candidate
+diff, the production spec/authority/CLI source the contract names, and the validator output.
+
+**This supersedes the previous trial's conclusion.** Trial 2 said a cap increase was not
+supported because the budget went on gate workarounds; with the gate removed that reasoning
+no longer applies. The evidence now points the other way: 0 refusals, 0 repeated calls, 1,720
+output tokens across 36 seconds, 23 productive calls, and `progress_status: "final report"`
+again. Nothing here is waste — the stage simply needs more fresh input than 100,000 to read
+what it was told to read.
+
+### Owed decision — a reviewed successor, not a silent edit
+
+The allowance is immutable in a content-addressed work item, so it cannot be raised in place,
+and this record has twice said not to raise it silently. The runtime's own `next_action` is
+the right route: *"prepare a reviewed successor"*. A successor should either carry a justified
+larger allowance (it overran by 1.5%, so the shortfall is small) or reduce the reading load by
+pre-binding the source excerpts the criteria actually need into the review packet, rather than
+sending the evaluator to read production code live.
+
+Unchanged: the immutable allowance was not raised, the failure was not relabelled, no state
+was cleared, and both additional frozen briefs remain undispatched. Series spend now
+**$0.2984 of $5**.

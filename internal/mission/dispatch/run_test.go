@@ -448,3 +448,35 @@ func TestResolve_SameVendorJudgeIsAllowedButFlagged(t *testing.T) {
 	}
 	_ = flagged // flagging is asserted structurally by the field existing on the receipt
 }
+
+// The evaluator must not load the repository's own pi extensions.
+//
+// Measured 2026-09-14 on the M4 canary. Author roles run with AllowedTools=nil, so pi's full
+// default tool set applies and `session_protocol_ack` is present — they hit the repo's
+// session-protocol gate, ack, and proceed (14 of 16 gated pi sessions on this machine did
+// exactly that, ~2 refusals each). The evaluator is the ONLY role with an allowlist, and that
+// allowlist omits the ack tool, so the gate arms with no disarm reachable: 51 of 63 bash calls
+// refused, the stage killed 1.1% over its immutable token budget with no verdict.
+//
+// Verified against live pi in the gated workspace, three arms:
+//
+//	current flags             bash REFUSED     sprint-evaluator loaded
+//	--no-extensions --approve bash ran         loaded
+//	--no-extensions alone     bash ran         NOT loaded
+func TestTaskFor_EvaluatorIsIsolatedFromProjectExtensions(t *testing.T) {
+	if !taskFor(Request{Role: "evaluator"}, testCandidate()).IsolateFromProjectExtensions {
+		t.Fatal("evaluator loads repo-local pi extensions — the session-protocol gate arms with no reachable disarm")
+	}
+}
+
+// Author roles keep extensions, and this is load-bearing rather than conservatism: the gate
+// carries pi's commit attribution inside its own tool_call handler, so dropping extensions
+// for a role that COMMITS would silently stop emitting Co-Authored-By. They also keep the ack
+// tool, so the gate is survivable for them.
+func TestTaskFor_AuthorRolesKeepProjectExtensions(t *testing.T) {
+	for _, role := range []string{"executor", "designer", "planner"} {
+		if taskFor(Request{Role: role, MissionID: "docs", WorkItemID: "w", StageID: role}, testCandidate()).IsolateFromProjectExtensions {
+			t.Errorf("role %q lost repo extensions — commit attribution lives in the gate and would be dropped silently", role)
+		}
+	}
+}
