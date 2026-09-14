@@ -80,6 +80,28 @@ __pycache__/
 
 # Agent protocol runtime state (like .git/)
 .ailang/
+# ...EXCEPT the sprint state files, which are a pipeline ARTIFACT, not runtime
+# scratch. sprint-planner declares `.ailang/state/sprints/*.json` in its
+# artifact_patterns and sprint-executor REFUSES to start without the matching
+# file — so ignoring them makes the handoff between those two agents impossible
+# to complete.
+#
+# Measured 2026-09-14: sprint-planner produced a 178-line plan, it merged, and
+# sprint-executor then stopped with "Execution is blocked by the mandatory
+# sprint-executor gate: .ailang/state/sprints/sprint_M-OPENROUTER-EU-ROUTING.json
+# is missing." The planner had nothing to commit it WITH; `git add` skipped it
+# in silence. Older sprint JSONs are in the repo only because they were tracked
+# before this rule, and gitignore does not apply to already-tracked files —
+# which is exactly why the gap was invisible.
+#
+# Git cannot re-include a path whose parent directory is excluded, so each level
+# is re-admitted in turn. Everything else under .ailang/ stays ignored.
+!.ailang/
+.ailang/*
+!.ailang/state/
+.ailang/state/*
+!.ailang/state/sprints/
+!.ailang/state/sprints/*.json
 /ui/node_modules
 internal/executor/opencode/plugins/node_modules
 internal/executor/opencode/plugins/coverage
