@@ -20,16 +20,15 @@ func TestResolveRole_TranscribesLiveChainsByteIdentically(t *testing.T) {
 	// Verbatim from ailang-multivac/config/config.cloud.yaml:61-64 as measured
 	// 2026-08-27 — the strings the coordinator handed an executor.
 	//
-	// `evaluator` is NO LONGER in this map. It was deliberately repointed on
-	// 2026-09-14 (attended, Mark) and is asserted separately below, because a
+	// Neither `evaluator` nor `executor` is in this map any more. It was deliberately repointed on
+	// 2026-09-14 (attended, Mark) and both are asserted separately below, because a
 	// transcription guard cannot also be the record of an intentional departure —
 	// leaving it here would have meant either a silent edit to the "verbatim"
 	// baseline or deleting the guard for the other three roles. The other three
-	// remain pure transcriptions and are still held byte-identical.
+	// remaining two are pure transcriptions and are still held byte-identical.
 	want := map[string][]string{
 		"designer": {"openrouter/moonshotai/kimi-k3"},
 		"planner":  {"gpt-5.6-sol", "openrouter/moonshotai/kimi-k3"},
-		"executor": {"gpt-5.6-sol", "openrouter/deepseek/deepseek-v4-flash-0731"},
 	}
 
 	for role, wantChain := range want {
@@ -165,4 +164,52 @@ func contains(hay, needle string) bool {
 			}
 			return false
 		}())
+}
+
+// The executor chain is a DELIBERATE departure too, for the same reason as evaluator.
+//
+// Measured 2026-09-14: with codex over ration, `mission iterate` reported "no available
+// candidate" — gpt5-6-sol blocked on quota and opencode-or-deepseek-v4-flash refused with
+// "executor budget contract is not admitted by role-run". The executor role therefore had
+// NO usable route on the binary path whenever codex is rationed, which blocked
+// M-MISSION-ITERATION-RELIABILITY M4's last acceptance criterion.
+//
+// The bare-id pi row is deliberate: `:floor` was dropped from the mission executor lane on
+// 2026-08-18 because its two cheapest hosts carry negative health status and it returned
+// rc=0 with zero bytes changed twice.
+func TestResolveRole_ExecutorHasAnAdmissibleNonCodexRung(t *testing.T) {
+	if err := InitModelsConfig(); err != nil {
+		t.Fatalf("InitModelsConfig: %v", err)
+	}
+	want := []struct{ friendly, executor string }{
+		{"gpt5-6-sol", "codex"},
+		{"pi-or-deepseek-v4-flash-bare", "pi"},
+		{"opencode-or-deepseek-v4-flash", "opencode"},
+	}
+	for _, lane := range []Lane{LaneLocal, LaneCloud} {
+		got, err := GlobalModelsConfig.ResolveRole("executor", lane)
+		if err != nil {
+			t.Fatalf("ResolveRole(executor, %s): %v", lane, err)
+		}
+		if len(got) != len(want) {
+			t.Fatalf("lane %s: chain length %d, want %d (%v)", lane, len(got), len(want), got)
+		}
+		for i, w := range want {
+			if got[i].FriendlyName != w.friendly || got[i].Executor != w.executor {
+				t.Errorf("lane %s entry %d: got %s/%s, want %s/%s", lane, i,
+					got[i].FriendlyName, got[i].Executor, w.friendly, w.executor)
+			}
+		}
+		// The point: at least one rung must be neither codex (rationable) nor opencode
+		// (inadmissible on role-run), or the role has no route when codex is blocked.
+		usable := false
+		for _, e := range got {
+			if e.Executor != "codex" && e.Executor != "opencode" {
+				usable = true
+			}
+		}
+		if !usable {
+			t.Errorf("lane %s: no rung outside codex/opencode — executor has no route when codex is rationed", lane)
+		}
+	}
 }

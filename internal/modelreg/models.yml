@@ -2089,6 +2089,10 @@ models:
     pricing:
       input_per_1k: 0.00030
       output_per_1k: 0.0012
+      # Same slug as pi-or-minimax-m3, so the same provider rate applies — the provider
+      # bills the model, not the harness (TestModels_PricingIsSlugConsistent). Derived
+      # from a metered run, see pi-or-minimax-m3 for the arithmetic.
+      cache_read_per_1k: 0.00006  # $0.06 per 1M
     budgets:
       max_cost_usd: 0.50
       hard_timeout_secs: 3600
@@ -3487,6 +3491,10 @@ models:
     pricing:
       input_per_1k: 0.0003   # $0.30 per 1M
       output_per_1k: 0.0012  # $1.20 per 1M
+      # Same slug as pi-or-minimax-m3, so the same provider rate applies — the provider
+      # bills the model, not the harness (TestModels_PricingIsSlugConsistent). Derived
+      # from a metered run, see pi-or-minimax-m3 for the arithmetic.
+      cache_read_per_1k: 0.00006  # $0.06 per 1M
     budgets:
       max_cost_usd: 0.30
       hard_timeout_secs: 600
@@ -3643,6 +3651,15 @@ models:
     pricing:
       input_per_1k: 0.0003   # $0.30 per 1M
       output_per_1k: 0.0012  # $1.20 per 1M
+      # DERIVED FROM A METERED RUN, not a vendor doc. docs-canary-guide-review-4
+      # (2026-09-14) reported input 121,577 / output 14,901 / cacheRead 2,030,142 and a
+      # metered total of $0.176163. Declared input+output accounts for $0.0544, leaving
+      # $0.1218 for 2,030,142 cache reads = $0.00006/1K exactly, i.e. 20% of the input
+      # rate — which is the share the CacheReadPer1K doc-comment already describes for
+      # OpenRouter. Declaring it matters: the undeclared fallback bills cache reads at the
+      # FULL input rate, which on that run computes $0.6634 against an actual $0.1762 —
+      # 3.8x overstated, enough to kill a healthy run on a cost budget.
+      cache_read_per_1k: 0.00006  # $0.06 per 1M
     budgets:
       max_cost_usd: 0.30
       hard_timeout_secs: 600
@@ -4689,6 +4706,10 @@ models:
     pricing:
       input_per_1k: 0.0003   # $0.30 per 1M
       output_per_1k: 0.0012  # $1.20 per 1M
+      # Same slug as pi-or-minimax-m3, so the same provider rate applies — the provider
+      # bills the model, not the harness (TestModels_PricingIsSlugConsistent). Derived
+      # from a metered run, see pi-or-minimax-m3 for the arithmetic.
+      cache_read_per_1k: 0.00006  # $0.06 per 1M
     budgets:
       max_cost_usd: 0.30
       hard_timeout_secs: 600
@@ -5124,7 +5145,18 @@ default: "claude-sonnet-4-6"
 roles:
   designer:  [opencode-or-kimi-k3]
   planner:   [gpt5-6-sol, opencode-or-kimi-k3]
-  executor:  [gpt5-6-sol, opencode-or-deepseek-v4-flash]
+  # executor gains a pi rung (2026-09-14), same defect and same fix as evaluator above.
+  # Measured: with codex over ration, `mission iterate` reported "no available candidate" —
+  # gpt5-6-sol blocked on quota, and opencode-or-deepseek-v4-flash refused with "executor
+  # budget contract is not admitted by role-run". Two rungs, neither usable, so the executor
+  # role had NO route on the binary path whenever codex is rationed. That blocked
+  # M-MISSION-ITERATION-RELIABILITY M4's last criterion.
+  #
+  # The bare-id pi row, not pi-or-deepseek-v4-flash: the comment above that row records why
+  # `:floor` was dropped from the mission executor lane on 2026-08-18 — its two cheapest
+  # hosts carry negative health status and it returned rc=0 with zero bytes changed twice.
+  # opencode stays last, reachable for comparison rather than deleted.
+  executor:  [gpt5-6-sol, pi-or-deepseek-v4-flash-bare, opencode-or-deepseek-v4-flash]
   # evaluator leads with pi, not opencode (changed 2026-09-14). The binary mission path is
   # the only LaneLocal consumer of this row; the coordinator's retry chain reads it on
   # LaneCloud but short-circuits first for any agent carrying an explicit model
