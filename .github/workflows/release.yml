@@ -214,13 +214,25 @@ jobs:
       if: matrix.os != 'windows-latest'
       run: |
         chmod +x bin/${{ matrix.binary_name }}
-        tar -czf ${{ matrix.artifact_name }}.tar.gz -C bin ${{ matrix.binary_name }}
+        tar -czf ${{ matrix.artifact_name }}.tar.gz bin/${{ matrix.binary_name }} std
+
+    - name: Verify archive (Unix)
+      if: matrix.os != 'windows-latest'
+      run: |
+        smoke=""
+        if [ "${{ matrix.goos }}" = "linux" ] && [ "${{ matrix.goarch }}" = "amd64" ]; then smoke="--smoke"; fi
+        scripts/verify_release_archive.sh ${{ matrix.artifact_name }}.tar.gz ${{ matrix.binary_name }} "$smoke"
 
     - name: Create archive (Windows)
       if: matrix.os == 'windows-latest'
       shell: pwsh
       run: |
-        Compress-Archive -Path bin\${{ matrix.binary_name }} -DestinationPath ${{ matrix.artifact_name }}.zip
+        Compress-Archive -Path bin,std -DestinationPath ${{ matrix.artifact_name }}.zip
+
+    - name: Verify archive (Windows)
+      if: matrix.os == 'windows-latest'
+      shell: bash
+      run: scripts/verify_release_archive.sh ${{ matrix.artifact_name }}.zip ${{ matrix.binary_name }}
 
     - name: Upload artifact (Unix)
       if: matrix.os != 'windows-latest'
@@ -373,19 +385,19 @@ jobs:
         echo '```bash' >> changelog.md
         echo '# macOS (Intel)' >> changelog.md
         echo 'curl -L https://github.com/${{ github.repository }}/releases/download/${{ steps.get_version.outputs.VERSION }}/darwin.x64.ailang.tar.gz | tar -xz' >> changelog.md
-        echo 'sudo mv ailang /usr/local/bin/' >> changelog.md
+        echo 'sudo cp bin/ailang /usr/local/bin/ && sudo mkdir -p /usr/local/share/ailang && sudo cp -R std /usr/local/share/ailang/' >> changelog.md
         echo '' >> changelog.md
         echo '# macOS (Apple Silicon)' >> changelog.md
         echo 'curl -L https://github.com/${{ github.repository }}/releases/download/${{ steps.get_version.outputs.VERSION }}/darwin.arm64.ailang.tar.gz | tar -xz' >> changelog.md
-        echo 'sudo mv ailang /usr/local/bin/' >> changelog.md
+        echo 'sudo cp bin/ailang /usr/local/bin/ && sudo mkdir -p /usr/local/share/ailang && sudo cp -R std /usr/local/share/ailang/' >> changelog.md
         echo '' >> changelog.md
         echo '# Linux (x86_64)' >> changelog.md
         echo 'curl -L https://github.com/${{ github.repository }}/releases/download/${{ steps.get_version.outputs.VERSION }}/linux.x64.ailang.tar.gz | tar -xz' >> changelog.md
-        echo 'sudo mv ailang /usr/local/bin/' >> changelog.md
+        echo 'sudo cp bin/ailang /usr/local/bin/ && sudo mkdir -p /usr/local/share/ailang && sudo cp -R std /usr/local/share/ailang/' >> changelog.md
         echo '' >> changelog.md
         echo '# Linux (aarch64 / arm64)' >> changelog.md
         echo 'curl -L https://github.com/${{ github.repository }}/releases/download/${{ steps.get_version.outputs.VERSION }}/linux.arm64.ailang.tar.gz | tar -xz' >> changelog.md
-        echo 'sudo mv ailang /usr/local/bin/' >> changelog.md
+        echo 'sudo cp bin/ailang /usr/local/bin/ && sudo mkdir -p /usr/local/share/ailang && sudo cp -R std /usr/local/share/ailang/' >> changelog.md
         echo '```' >> changelog.md
         echo '' >> changelog.md
         echo '### Examples' >> changelog.md

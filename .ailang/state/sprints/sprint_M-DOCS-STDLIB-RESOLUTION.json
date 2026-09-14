@@ -1,7 +1,7 @@
 {
   "sprint_id": "M-DOCS-STDLIB-RESOLUTION",
   "title": "Docs stdlib resolution for release installs",
-  "status": "planned",
+  "status": "completed",
   "design_doc": "design_docs/planned/m-docs-stdlib-resolution.md",
   "sprint_plan": "design_docs/planned/m-docs-stdlib-resolution-sprint-plan.md",
   "github_issues": [
@@ -19,10 +19,10 @@
         "Tests pin override, development, binary-relative, user-data, and system precedence",
         "Terminal errors contain the attempted roots and override remedy"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-14T18:09:00Z",
+      "completed": "2026-09-14T18:12:00Z",
+      "notes": "Added loader-owned root resolution, override-first candidate ordering, traced errors, and focused precedence tests."
     },
     {
       "id": "M2_EMBEDDED_DOCS_SOURCE",
@@ -37,10 +37,10 @@
         "Genuine absence remains a traced non-zero failure",
         "Docs search behavior is unchanged"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-14T18:12:00Z",
+      "completed": "2026-09-14T18:14:00Z",
+      "notes": "Converted stdlib docs readers to fs.FS and reused the existing version-matched std.FS fallback; focused docs tests pass."
     },
     {
       "id": "M3_RELEASE_ARCHIVE_GATE",
@@ -56,10 +56,10 @@
         "Extracted compiler smoke test resolves a stdlib import",
         "Release validation fails when stdlib contents are missing"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-14T18:14:00Z",
+      "completed": "2026-09-14T18:16:00Z",
+      "notes": "Release archives now contain bin/ plus std/ and run a content gate; local extracted docs and compiler smoke tests pass."
     }
   ],
   "velocity": {

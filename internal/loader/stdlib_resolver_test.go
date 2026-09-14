@@ -406,6 +406,34 @@ func TestStdlibResolver_ResolveStdlib(t *testing.T) {
 	})
 }
 
+func TestResolveStdlibRoot_EnvironmentOverridePrecedesWorkingDirectory(t *testing.T) {
+	override := t.TempDir()
+	if err := os.WriteFile(filepath.Join(override, "io.ail"), []byte("module std/io"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("AILANG_STDLIB_PATH", override)
+
+	root, err := ResolveStdlibRoot("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if root != override {
+		t.Fatalf("root = %q, want environment override %q", root, override)
+	}
+}
+
+func TestResolveStdlibRoot_ErrorContainsSearchTrace(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "missing")
+	t.Setenv("AILANG_STDLIB_PATH", missing)
+	r := &StdlibResolver{cliOverridePath: "", negativeCache: make(map[string][]string)}
+	r.searchPaths = []string{missing}
+
+	_, err := r.ResolveStdlibRoot()
+	if err == nil || !strings.Contains(err.Error(), missing) || !strings.Contains(err.Error(), "AILANG_STDLIB_PATH") {
+		t.Fatalf("expected traced error with remedy, got %v", err)
+	}
+}
+
 func TestStdlibResolver_SearchPathOrder(t *testing.T) {
 	// Create multiple stdlib directories
 	tmpDir := t.TempDir()

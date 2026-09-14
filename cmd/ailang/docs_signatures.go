@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"strings"
 
@@ -36,6 +37,18 @@ func parseExportSignatures(filePath string) (exportSignatures, []string, error) 
 		return nil, nil, fmt.Errorf("cannot read %s: %w", filePath, err)
 	}
 
+	return parseExportSignaturesSource(source, filePath)
+}
+
+func parseExportSignaturesFS(sourceFS fs.FS, filePath string) (exportSignatures, []string, error) {
+	source, err := fs.ReadFile(sourceFS, filePath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("cannot read %s: %w", filePath, err)
+	}
+	return parseExportSignaturesSource(source, filePath)
+}
+
+func parseExportSignaturesSource(source []byte, filePath string) (exportSignatures, []string, error) {
 	l := lexer.New(string(source), filePath)
 	p := parser.New(l)
 	prog := p.Parse()

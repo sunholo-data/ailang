@@ -52,10 +52,10 @@ Only one repository commit is visible in the last seven days, so recent history 
 
 **Acceptance Criteria:**
 
-- [ ] Docs and compiler filesystem resolution are driven by the same loader-owned candidate builder.
-- [ ] Table tests pin precedence and path-list handling across supported OS conventions.
-- [ ] Invalid overrides are reported in the search trace instead of being silently treated as success.
-- [ ] Existing loader resolution/version tests pass.
+- [x] Docs and compiler filesystem resolution are driven by the same loader-owned candidate builder.
+- [x] Table tests pin precedence and path-list handling across supported OS conventions.
+- [x] Invalid overrides are reported in the search trace instead of being silently treated as success.
+- [x] Existing loader resolution/version tests pass.
 
 **Risk:** Changing precedence can affect users with both repo-local and environment stdlibs. **Mitigation:** Pin the approved override-first order in tests and document the behavior in code.
 
@@ -83,11 +83,11 @@ Only one repository commit is visible in the last seven days, so recent history 
 
 **Acceptance Criteria:**
 
-- [ ] `ailang docs --list`, `ailang docs std/io`, `--examples`, and `--all-functions` work using only embedded full sources.
-- [ ] A filesystem override wins over embedded content.
-- [ ] Docs output from filesystem and embedded copies is equivalent for the tagged tree.
-- [ ] Genuine absence fails loudly and reports every filesystem tier tried.
-- [ ] `docs search` and `docs embed-warmup` behavior is unchanged.
+- [x] `ailang docs --list`, `ailang docs std/io`, `--examples`, and `--all-functions` work using only embedded full sources.
+- [x] A filesystem override wins over embedded content.
+- [x] Docs output from filesystem and embedded copies is equivalent for the tagged tree.
+- [x] Genuine absence fails loudly and reports every filesystem tier tried.
+- [x] `docs search` and `docs embed-warmup` behavior is unchanged.
 
 **Risk:** Existing parsing helpers accept file paths and may be coupled to `os.*`. **Mitigation:** Keep the abstraction narrow (`ReadDir`/`ReadFile`) and add parity tests before mechanical conversion.
 
@@ -111,10 +111,10 @@ Only one repository commit is visible in the last seven days, so recent history 
 
 **Acceptance Criteria:**
 
-- [ ] Unix tarballs and Windows zip files contain the executable and all 45 current `.ail` files plus `std/VERSION`.
-- [ ] The archive layout satisfies the loader's `<bindir>/../std` lookup.
-- [ ] An extracted archive passes zero-config docs and compiler stdlib smoke tests.
-- [ ] Archive verification fails if `std/` is omitted or incomplete.
+- [x] Unix tarballs and Windows zip files contain the executable and all 45 current `.ail` files plus `std/VERSION`.
+- [x] The archive layout satisfies the loader's `<bindir>/../std` lookup.
+- [x] An extracted archive passes zero-config docs and compiler stdlib smoke tests.
+- [x] Archive verification fails if `std/` is omitted or incomplete.
 
 **Risk:** Moving the executable under `bin/` changes current one-line install examples. **Mitigation:** update those examples atomically and test the exact documented extraction invocation.
 
