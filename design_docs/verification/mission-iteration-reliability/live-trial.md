@@ -312,3 +312,54 @@ budget is dominated by READING the artifact and the source it must verify agains
 **Both queued frozen briefs carry the same 100,000 evaluator cap** (`review-packet.json`,
 `budget-accounting.json`) while granting their executors 120,000. Dispatching either without
 revisiting that number would be the fifth run into the same wall.
+
+### Why the executor's 70,000 "works" — the cap is not the same quantity per harness
+
+Asked how an executor survives 70,000 when an evaluator dies at 100,000, the answer is that
+the two numbers do not measure the same thing. Measured 2026-09-14 with `ailang mission
+role-run`, two requests identical except the model — same role (`executor`), same workspace,
+same instructions (read five named files, one tool call each, then reply DONE), `max_tokens`
+raised to 400,000 so the guard could not fire and mask the result:
+
+| Harness | Model | Turns | Tool calls | **InputTokens** | OutputTokens | CacheRead |
+|---|---|---|---|---|---|---|
+| pi | `pi-or-minimax-m3` | 2 | 5 | **35,992** | 311 | 1,024 |
+| claude | `claude-haiku-4-5` | 6 | 5 | **50** | 648 | **172,565** |
+
+The same five file reads are **35,992** input tokens to pi and **50** to claude — a ~720x
+difference in the quantity the thrash guard tests.
+
+The cause is in the accounting, not the models. `internal/executor/pi/pi.go:310` does
+`inputTokens += u.Input`, summing every turn's reported input.
+`internal/executor/claude/claude.go:469` does `runningInputTokens = newIn`, an assignment
+from the provider's per-message value, reconciled at the end to
+`finalResult.Usage.InputTokens`. Claude Code serves nearly all context from its prompt cache
+and reports only the uncached delta as `input_tokens` — here 50, with 172,565 booked
+separately as `CacheReadInputTokens`, which the guard does not count. The guard is
+`InputTokens + OutputTokens > MaxTokensPerBench`, so the claude arm charged **698** against
+its cap and the pi arm **36,303** for identical work.
+
+**This explains the whole pattern, including the four-run convergence above.** All four failed
+evaluator runs were pi (`pi-or-deepseek-v4-flash` twice, `pi-or-minimax-m3` twice). The one
+stage that ever completed — `docs-canary-work-item-guide-1`'s executor — ran on
+`claude-sonnet-5`, where the counter barely moves. The executor's 70,000 was never tested
+against the quantity that kills the evaluator.
+
+So the earlier statement that "the evaluator is systematically the tightest-capped role"
+is not supportable as written: 30,000 or 100,000 on pi and 70,000 or 120,000 on claude are
+not comparable numbers, and the role asymmetry may be entirely an artefact of which harness
+happens to run each stage.
+
+**Consequence for the thrash guard itself.** Its stated purpose
+(`claude/claude.go:336-337`) is that "on the rig's OAuth lane there is also no spend to
+control, so tokens are the only meaningful gate". If cached context is excluded and both
+counters track the final message rather than session totals, that gate is close to inert for
+claude — a claude stage could run many times longer than a pi stage before tripping it. That
+is an inference from this one measurement plus the code, not a measured claim; the cheap
+confirmation is a deliberately long claude run checking whether InputTokens stays small as
+turns grow.
+
+**Consequence for the successor decision.** Raising the evaluator's allowance is still right,
+but the number should be chosen against the pi accounting it will actually be measured by —
+and a cap expressed in a unit that means two different things by harness is itself worth
+fixing before more limits are frozen into work items.
