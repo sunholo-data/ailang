@@ -615,3 +615,61 @@ those observations must be refreshed before activation.
 
 Net +11; design intent has no negative A1/A3/A4/A7 score. This is a design assessment, not
 implementation evidence or independent evaluator approval.
+
+---
+
+## Migration ledger — 2026-09-14
+
+Added because "are we migrating?" had no answer short of reading four documents and
+inferring, and the inference was wrong twice in one attended session. The contract's own
+acceptance rule is *"merely adding a CLI wrapper is not acceptance — each slice must
+retire a concrete repeated interpretation or recovery burden and demonstrate that
+removal."* This table is where that demonstration goes, one row per responsibility.
+
+**Retired** means the shell no longer interprets it: the binary is called in the live path
+and the shell's own logic is gone. Not "a command exists".
+
+| # | Responsibility | Shell location | Binary command | Retired? | Evidence |
+|---|---|---|---|---|---|
+| 1 | Quota ration admission | `mission-control.sh:684` | `mission quota --over` | **YES** | Called live and bounded (15s). Today's fires log `ration gate: blocked buckets … codex` and degrade planner/executor accordingly. The shell parses only the bucket names; all pacing is in Go. |
+| 2 | Iteration orchestration (Gates 0–5) | `mission-control.sh` (~2000 lines) | `mission iterate --work-item` | **NO** | Wired at `mission-control.sh:1637` (`exec ailang mission iterate`) but gated on `AILANG_MISSION_WORK_ITEM`, which no live mission sets — so it never fires. The binary path has never completed a stage: four evaluator attempts, all terminal. Retiring this is M4. |
+| 3 | Role dispatch to pi | `scripts/mission_pi_run.sh` (269) | `mission role-run` | **NO** | Duplicated, not retired. Both exist and the shell path is the one in use. |
+| 4 | Role/fallback resolution | `derive-planner-lane.sh` (182), `resolve-role-spawn.sh` (79) | `ailang models role` | **NO** | Verified 2026-09-14: **no shell script consumes `models role`**, despite `models_cmd.go:79` claiming "the mission driver reads field 2". Two role tables, independently maintained — they had silently diverged on the evaluator lane until `7423434b4`. |
+| 5 | Registry install / drift | `install_coordinator.sh` (295) | `mission install\|apply\|doctor` | **NO** | Binary commands exist; `list`/`doctor` appear in `mission-control.sh` only inside COMMENTS (lines 1135–1136), not as calls. |
+| 6 | Log rotation + index | `mission-control.sh` | `mission rotate-log` | **NO** | Command exists, shell still rotates. |
+| 7 | Bookkeeping report | `mission-control.sh` | `mission report` | **NO** | Command exists, unused by the driver. |
+| 8 | Successor preparation | — (controller does it by hand) | `mission retry-review` | **N/A** | Binary-only, no shell equivalent. Produces a non-executable approval draft without authority. |
+| 9 | Driver pin + drift/age | `lib/pin-root.sh` (326) | — | **NO** | No counterpart, and growing: iteration 354 added `PIN_AGE` here. |
+| 10 | Provider probes | `mission-control.sh` | partial (row 1) | **NO** | Admission is in Go; the inference probes are not. |
+| 11 | Memory admission gate | `mission-control.sh` | — | **NO** | No counterpart. |
+| 12 | Heartbeat + stall watchdog | `mission-heartbeat.sh` (28), `mission-control.sh` | — | **NO** | No counterpart. |
+| 13 | Kill switch / overlap guard | `mission-control.sh` | — | **NO** | No counterpart. Deliberate: it is what holds an operator pause. |
+| 14 | Recovery / kickstart | `mission-recovery.sh` (99) | `mission resume\|cancel` | **NO** | Different semantics — the shell kickstarts launchd, the binary fences work items. |
+| 15 | Spawn pin enforcement | `spawn-pin-hook.sh` (135) | — | **NO** | No counterpart. |
+| 16 | Decisions + directives | `scripts/mission_decisions.sh` (39), `mission_answer.sh` (185), `mission_directives.sh` (103) | — | **NO** | No counterpart. |
+| 17 | Scheduling / host watchdog | `rig-watchdog.sh` (173), `rig-lock.sh` (153), `cron-kicker.sh` (126), launchd plists | — | **NON-GOAL** | Explicitly deferred: "a learned scheduler is deferred until a simpler runtime earns its need." |
+
+**Score: 1 of 16 in-scope responsibilities retired.** ~6,000 lines of production shell remain,
+plus 3,085 lines of shell tests.
+
+### What the ledger makes obvious
+
+Row 2 is the whole project. Three binary commands already duplicate parts of
+`mission-control.sh`, and none has retired anything, because the migrated path has not
+completed a live stage. Every other row is downstream of that: until `iterate` demonstrably
+runs an iteration, moving rows 3–7 adds a second implementation of something that works,
+which is exactly the "reproducing shell complexity in Go" risk this contract names.
+
+Row 4 is the cheapest real win and the one already causing incidents: two role tables that
+nobody reconciles, where the divergence was invisible until it routed an evaluator to a
+harness that could not load its own rubric.
+
+### Honest counterweight
+
+The shell loop is not idle — V1 ran 354 iterations and iteration 354 landed a real fix with
+an independent judge scoring 96 then 100. But by the loop's own tags, **55% of iterations
+309–348 are `[HARNESS]`** and 348–351 are all `[HARNESS]`; over 2026-08-25 → 09-08 the
+files touched were 883 mission-docs against **16 lines of compiler and stdlib**, and the
+loop's own goal distance moved 10 → 13 → 12. See `m-mission-loop-lifetime-audit.md`.
+The migration is worth doing because the harness is consuming the program, not because the
+shell has stopped working.
