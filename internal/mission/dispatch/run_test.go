@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -478,5 +479,66 @@ func TestTaskFor_AuthorRolesKeepProjectExtensions(t *testing.T) {
 		if taskFor(Request{Role: role, MissionID: "docs", WorkItemID: "w", StageID: role}, testCandidate()).IsolateFromProjectExtensions {
 			t.Errorf("role %q lost repo extensions — commit attribution lives in the gate and would be dropped silently", role)
 		}
+	}
+}
+
+// A stage's max_tokens must mean the same thing on every harness.
+//
+// executionError's cap check was `InputTokens+OutputTokens`, which omits
+// CacheCreationInputTokens. Measured 2026-09-14, the SAME five-file read reported
+// Input=35,992/CacheCreation=0 on pi and Input=50/CacheCreation=44,841 on claude — so a
+// claude stage could process ~45k and be judged as having used 698. That is how the
+// canary's executor appeared to fit inside 70,000 while its evaluator died four times at
+// 100,000: the two numbers were never the same quantity.
+//
+// The claude row here is the real measurement. Under the old expression it passes a
+// 1,000-token cap; under the canonical one it is correctly refused.
+func TestExecutionError_CapCountsCachedPromptCreation(t *testing.T) {
+	base := func(r *executor.Result) *executor.Result {
+		r.Success, r.FinishReason, r.Output = true, executor.FinishStop, "done"
+		return r
+	}
+	for _, tc := range []struct {
+		name      string
+		result    *executor.Result
+		maxTokens int
+		wantErr   bool
+	}{
+		{
+			name:      "claude-shaped run over cap only once cache creation counts",
+			result:    base(&executor.Result{InputTokens: 50, OutputTokens: 648, CacheCreationInputTokens: 44841, CacheReadInputTokens: 172565}),
+			maxTokens: 1000,
+			wantErr:   true,
+		},
+		{
+			name:      "same run inside a cap that actually fits it",
+			result:    base(&executor.Result{InputTokens: 50, OutputTokens: 648, CacheCreationInputTokens: 44841, CacheReadInputTokens: 172565}),
+			maxTokens: 100000,
+			wantErr:   false,
+		},
+		{
+			// Cache READS must not count, or the cap measures conversation length: this
+			// real 23-turn stage processed 101,542 and re-read 679,040 from cache.
+			name:      "cache reads do not count toward the cap",
+			result:    base(&executor.Result{InputTokens: 99822, OutputTokens: 1720, CacheReadInputTokens: 679040}),
+			maxTokens: 150000,
+			wantErr:   false,
+		},
+		{
+			name:      "pi-shaped run, unchanged by the fix",
+			result:    base(&executor.Result{InputTokens: 35992, OutputTokens: 311, CacheReadInputTokens: 1024}),
+			maxTokens: 30000,
+			wantErr:   true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := Request{Role: "evaluator", MaxTokens: tc.maxTokens, MaxCostUSD: 100}
+			err := executionError(context.Background(), r, tc.result, nil)
+			over := err != nil && strings.Contains(err.Error(), "exceeded max_tokens")
+			if over != tc.wantErr {
+				t.Fatalf("over-cap = %v, want %v (err: %v; TokensProcessed=%d, cap=%d)",
+					over, tc.wantErr, err, tc.result.TokensProcessed(), tc.maxTokens)
+			}
+		})
 	}
 }

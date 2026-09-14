@@ -363,3 +363,55 @@ turns grow.
 but the number should be chosen against the pi accounting it will actually be measured by —
 and a cap expressed in a unit that means two different things by harness is itself worth
 fixing before more limits are frozen into work items.
+
+---
+
+## F1/F6 — the cap now means one thing, and what that changes
+
+**F1 landed.** Every token-cap comparison in the mission path and the executor thrash
+guards now tests one canonical quantity, `executor.Result.TokensProcessed()` =
+fresh input + newly cached input + output + reasoning. Cache READS stay excluded (they are
+the re-sent prefix; counting them measures conversation length, and the real 23-turn stage
+above re-read 679,040 against 101,542 processed).
+
+Per harness, because they are not all the same fix:
+
+| Harness | Change | Why |
+|---|---|---|
+| pi | guard → canonical | cache writes tracked per turn; usually 0 on OpenRouter, so its own number barely moves |
+| opencode | guard → canonical | cache and reasoning are EXCLUSIVE of input/output there, so additive |
+| claude | cap checked at the RESULT event | its message_delta handler cannot see cache creation — see below |
+| codex | **unchanged, deliberately** | `inputTokens` is already the provider's WHOLE input; `cachedInputTokens` is a SUBSET split out later by `splitCodexInputTokens`, so adding a cache term would double-count |
+| motoko, managed_agents | no guard to change | F5 is still open |
+
+**A stated limitation rather than a hidden one.** On claude the over-cap condition is
+detected when the result event arrives, not killed mid-stream, because
+`cache_creation_input_tokens` sits outside the usage block the `message_delta` handler
+reads and there is no recorded claude-code stream in the tree to verify its position
+against. pi and opencode do kill in-flight. Closing it needs a fixture, not a guess.
+
+**What F1 changes about existing caps.** A cap is now compared against a strictly larger
+number on any caching harness, so the same declared figure is stricter than it was. The
+two queued frozen briefs declare 100,000 for their evaluator and 120,000 for their
+executor; their evaluator lane is now pi, whose accounting was already close to whole, so
+their effective budget moves little — but a claude-lane stage that previously sat
+comfortably inside 70,000 may now trip it, which is the intended correction and not a
+regression. The live shell fleet is unaffected: it sets no token cap at all.
+
+**F6 — the number a successor should carry, with the arithmetic shown.** The measured
+requirement for this evaluation, after the session-gate waste was removed, is **101,542
+processed tokens** with zero repeated calls and 1,720 output tokens — i.e. essentially no
+slack to reclaim. Under the canonical unit the same run is unchanged (pi reports no cache
+creation), so 101,542 is the figure to budget against, not a lower one.
+
+Recommended for a reviewed successor: **150,000** for the evaluator stage. That is ~1.48x
+the measured requirement, which covers the two sources of variance actually observed —
+model choice (deepseek and minimax differed by ~1.5% on the same contract) and the reading
+load growing as the production source it must verify grows — without being so loose that a
+genuinely looping stage runs for free. The $2 cost ceiling needs no change: the worst
+observed run cost $0.209, a tenth of it.
+
+This is a recommendation, not a change. The allowance is immutable in a content-addressed
+work item and a successor needs its own authority refs, so the number is recorded here for
+an attended decision rather than applied. The two queued briefs should be re-examined at
+the same time: dispatching either with 100,000 would be the fifth run into the same wall.

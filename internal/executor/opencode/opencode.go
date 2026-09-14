@@ -367,10 +367,13 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 				// tokens. Local Ollama models have $0 cost so the cost-budget
 				// path never trips — this is the only safety net against runaway
 				// 2.88M-token thrashing observed in fizzbuzz.
+				// Canonical quantity: opencode reports cache and reasoning tokens
+				// EXCLUSIVE of input/output (see the comment above and the testdata
+				// assertion), so these are additive here rather than double-counted.
 				if task.MaxTokensPerBench > 0 && !thrashKilled {
-					if inputTokens+outputTokens > task.MaxTokensPerBench {
+					if tp := executor.TokensProcessedFrom(inputTokens, cacheWriteTokens, outputTokens, reasonTokens); tp > task.MaxTokensPerBench {
 						thrashKilled = true
-						thrashKilledAtTokens = inputTokens + outputTokens
+						thrashKilledAtTokens = tp
 						fmt.Fprintf(os.Stderr, "[OPENCODE] thrash abort: cumulative tokens %d exceeded MaxTokensPerBench=%d\n",
 							thrashKilledAtTokens, task.MaxTokensPerBench)
 						_ = cmd.Process.Kill()

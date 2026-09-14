@@ -358,7 +358,15 @@ func validateUsage(req dispatch.Request, report *dispatch.Report, evidence *Evid
 		return fmt.Errorf("resource evidence missing")
 	}
 	result := report.Result
-	if result.InputTokens < 0 || result.OutputTokens < 0 || result.InputTokens > req.MaxTokens || result.OutputTokens > req.MaxTokens-result.InputTokens {
+	// The pairwise arithmetic here was an Input+Output cap spelled defensively; it also
+	// omitted cache creation, so a claude stage could bank far more processed tokens than
+	// its frozen allowance and still validate. TokensProcessed clamps negatives itself,
+	// so the explicit negative checks stay only for the two fields this function is
+	// asserting are well-formed.
+	if result.InputTokens < 0 || result.OutputTokens < 0 {
+		return fmt.Errorf("stage token cap exceeded or invalid usage")
+	}
+	if result.TokensProcessed() > req.MaxTokens {
 		return fmt.Errorf("stage token cap exceeded or invalid usage")
 	}
 	if evidence.AuthorRoute.Transport == "openrouter" && result.CostProvenance != executor.CostMetered {

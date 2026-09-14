@@ -352,6 +352,13 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 								killProcessTree(cmd)
 							}
 						}
+						// DELIBERATELY NOT TokensProcessedFrom. codex's inputTokens is the
+						// provider's WHOLE input: cachedInputTokens is a SUBSET of it
+						// (OpenAI Responses semantics) and is split out only at the end by
+						// splitCodexInputTokens, whose test pins the split as
+						// total-preserving. So this expression already counts every input
+						// token, and adding a cache bucket here would double-count. codex
+						// reports no cache-creation bucket at all.
 						if task.MaxTokensPerBench > 0 && !thrashKilled &&
 							inputTokens+outputTokens > task.MaxTokensPerBench {
 							thrashKilled = true
@@ -426,6 +433,9 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 							killProcessTree(cmd)
 						}
 					}
+					// Same reasoning as the site above: codex's inputTokens already
+					// includes cached input, so this is whole-input and must not gain a
+					// cache term.
 					if task.MaxTokensPerBench > 0 && !thrashKilled &&
 						inputTokens+outputTokens > task.MaxTokensPerBench {
 						thrashKilled = true

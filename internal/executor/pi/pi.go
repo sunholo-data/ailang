@@ -312,8 +312,12 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 					cacheReadTokens += u.CacheRead
 					cacheWriteTokens += u.CacheWrite
 					totalCostUSD += u.Cost.Total
-					if task.MaxTokensPerBench > 0 && thrashKilledAt == 0 && inputTokens+outputTokens > task.MaxTokensPerBench {
-						thrashKilledAt = inputTokens + outputTokens
+					// Canonical quantity (executor.TokensProcessedFrom): fresh input, newly
+					// cached input and output. pi reports cache writes separately and
+					// usually as 0 on OpenRouter, so this rarely changes pi's own number —
+					// it is here so every harness's guard tests the same expression.
+					if tp := executor.TokensProcessedFrom(inputTokens, cacheWriteTokens, outputTokens, 0); task.MaxTokensPerBench > 0 && thrashKilledAt == 0 && tp > task.MaxTokensPerBench {
+						thrashKilledAt = tp
 						proctree.Kill(cmd)
 					}
 					// M-EVAL-COST-AND-SPEED-BUDGETS: incremental cost tally on per-turn delta.

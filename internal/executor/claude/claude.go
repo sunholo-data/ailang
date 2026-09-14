@@ -342,6 +342,17 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	// Claude emits cumulative output_tokens in message_delta and the full
 	// usage block only at the terminal "result" event.
 	var runningInputTokens, runningOutputTokens int
+	// runningCacheCreationTokens exists so the token cap can see newly cached prompt.
+	//
+	// It is populated from the RESULT event, not from message_delta. claude-code's
+	// stream places cache_creation_input_tokens outside the usage block that the
+	// message_delta handler reads, and rather than guess at that shape this tracks the
+	// canonical figure the result event carries. Consequence, stated rather than hidden:
+	// on this harness an over-cap run is detected when the result arrives instead of
+	// being killed mid-stream. pi and opencode carry their cache counters per-turn and
+	// do kill in-flight. Closing the gap needs a recorded claude-code stream to verify
+	// the field's position — there is no fixture in the tree today.
+	var runningCacheCreationTokens int
 
 	go func() {
 		stdoutScanner := bufio.NewScanner(stdout)
@@ -474,8 +485,11 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 								proctree.Kill(cmd)
 							}
 						}
+						// In-flight kill on what this handler can see. It CANNOT see
+						// cache creation (see runningCacheCreationTokens above), so it
+						// under-counts on a cached run; the result-event check closes it.
 						if task.MaxTokensPerBench > 0 && !thrashKilled &&
-							runningInputTokens+runningOutputTokens > task.MaxTokensPerBench {
+							executor.TokensProcessedFrom(runningInputTokens, runningCacheCreationTokens, runningOutputTokens, 0) > task.MaxTokensPerBench {
 							thrashKilled = true
 							thrashKilledAtTokens = runningInputTokens + runningOutputTokens
 							proctree.Kill(cmd)
@@ -535,6 +549,19 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 					}
 					runningInputTokens = finalResult.Usage.InputTokens
 					runningOutputTokens = finalResult.Usage.OutputTokens
+				}
+				// Canonical cap check. Separate from the block above because that one is
+				// gated on task.Budget != nil, and a token cap must hold whether or not a
+				// cost budget was supplied — the mission path sets MaxTokensPerBench with
+				// no Budget at all.
+				if finalResult != nil {
+					runningCacheCreationTokens = finalResult.Usage.CacheCreationInputTokens
+					tp := executor.TokensProcessedFrom(finalResult.Usage.InputTokens,
+						runningCacheCreationTokens, finalResult.Usage.OutputTokens, 0)
+					if task.MaxTokensPerBench > 0 && !thrashKilled && tp > task.MaxTokensPerBench {
+						thrashKilled = true
+						thrashKilledAtTokens = tp
+					}
 				}
 				// Notify MetricsHandler with cost/token data (M-CLOUD-PROGRESS-TRACKING).
 				// This lets cloud handlers broadcast metrics before the executor returns.

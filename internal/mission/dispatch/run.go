@@ -253,8 +253,14 @@ func executionError(ctx context.Context, r Request, result *executor.Result, err
 	if !result.Success || result.FinishReason != executor.FinishStop || result.CostKilledAt > 0 || result.ThrashKilledAt > 0 {
 		return fmt.Errorf("executor did not finish successfully (finish=%q): %s", result.FinishReason, result.Error)
 	}
-	if result.InputTokens+result.OutputTokens > r.MaxTokens {
-		return fmt.Errorf("execution exceeded max_tokens")
+	// Canonical quantity, not Input+Output. The old expression omitted
+	// CacheCreationInputTokens, which on a caching harness is nearly the whole prompt:
+	// measured 2026-09-14, the same five-file read reported Input=35,992/CacheCreation=0
+	// on pi and Input=50/CacheCreation=44,841 on claude, so one max_tokens meant two
+	// different things depending on which harness happened to run the stage. See
+	// executor.Result.TokensProcessed.
+	if tp := result.TokensProcessed(); tp > r.MaxTokens {
+		return fmt.Errorf("execution exceeded max_tokens (%d > %d)", tp, r.MaxTokens)
 	}
 	if result.CostProvenance == executor.CostMetered && result.CostUSD > r.MaxCostUSD {
 		return fmt.Errorf("execution exceeded max_cost_usd")
