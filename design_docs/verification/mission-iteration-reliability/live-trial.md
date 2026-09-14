@@ -278,3 +278,37 @@ sending the evaluator to read production code live.
 Unchanged: the immutable allowance was not raised, the failure was not relabelled, no state
 was cleared, and both additional frozen briefs remain undispatched. Series spend now
 **$0.2984 of $5**.
+
+### Four runs, two models, two harness configurations — all at the same cap
+
+Surveying the caps turned up `docs-canary-guide-review-2`'s status, which had not been read
+alongside the others. The evaluator stage has now been killed by the token guard **four
+times**, and the clustering is the finding:
+
+| Run | Route | Cumulative tokens | Cap |
+|---|---|---|---|
+| review-2, 09-08 | `pi-or-deepseek-v4-flash:floor` | 100,216 | 100,000 |
+| review-3, 09-08 | `pi-or-deepseek-v4-flash` | 100,024 | 100,000 |
+| review-3, 09-14 trial 2 | `pi-or-minimax-m3` (gate armed) | 101,131 | 100,000 |
+| review-3, 09-14 trial 3 | `pi-or-minimax-m3` (gate isolated) | 101,542 | 100,000 |
+
+Two different models, two different vendors, and two different harness configurations — one
+losing 51 bash calls to the session gate, one losing none — and all four land between 0.02%
+and 1.5% over the same number. Four runs reaching ~100k and being killed there is not four
+coincidences; it is a task whose input requirement sits above the cap, with the guard firing
+at the boundary every time.
+
+**This qualifies the second and third trial records above.** Trial 2's failure was attributed
+to the session-protocol gate. The gate was real and removing it was worth doing — 102 tool
+calls to 23, 5 repeated to 0, $0.209 to $0.073, 172s to 36s — but review-2 and review-3 hit
+the same ~100k on 09-08 with a different model, so **the cap was always going to bind.** The
+gate fix made the stage efficient; it could not make an undersized budget sufficient. Neither
+alone explains all four runs; the cap explains all four.
+
+The evidence for a larger allowance is therefore four independent runs rather than one, and
+the shape of the spend is now known: input 99,822 against output 1,720, i.e. a reviewer's
+budget is dominated by READING the artifact and the source it must verify against.
+
+**Both queued frozen briefs carry the same 100,000 evaluator cap** (`review-packet.json`,
+`budget-accounting.json`) while granting their executors 120,000. Dispatching either without
+revisiting that number would be the fifth run into the same wall.
