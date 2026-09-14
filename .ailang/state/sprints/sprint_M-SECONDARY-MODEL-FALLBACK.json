@@ -1,0 +1,73 @@
+{
+  "sprint_id": "M-SECONDARY-MODEL-FALLBACK",
+  "title": "Bounded in-container secondary-model fallback",
+  "status": "planned",
+  "design_doc": "design_docs/planned/m-secondary-model-fallback.md",
+  "sprint_plan": "design_docs/planned/v1_2_0/m-secondary-model-fallback-sprint-plan.md",
+  "target_version": "v1.2.0",
+  "github_issues": [],
+  "risk_level": "high",
+  "velocity": {
+    "target_loc_per_day": 400,
+    "estimated_total_loc": 1200,
+    "estimated_days": 3
+  },
+  "features": [
+    {
+      "id": "M1_REGISTRY_VALIDATION",
+      "description": "Add explicit fallback_models configuration, chain construction, transport classification updates, and fail-loud startup validation.",
+      "estimated_loc": 380,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Pinned agents resolve explicitly configured fallbacks after the head while unconfigured agents remain single-link",
+        "Exact idle and signal-killed errors are walkable while hard-timeout and git-push errors are terminal",
+        "Invalid fallback count, identity, resolution, harness, and price configurations fail with agent-specific errors",
+        "All 37 currently unconfigured agents preserve their chain head and runtime behavior",
+        "A documented fallback_models YAML example is parsed and validated by tests"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_BOUNDED_CLOUD_WALK",
+      "description": "Propagate the model chain and run one isolated fallback attempt inside the same Cloud Run execution only for transport failures.",
+      "estimated_loc": 400,
+      "dependencies": [
+        "M1_REGISTRY_VALIDATION"
+      ],
+      "acceptance_criteria": [
+        "A deterministic fake 503 on model A invokes model B once and succeeds without re-dispatch",
+        "Git-push and hard-timeout failures invoke only the head model",
+        "MaxInContainerWalks is enforced so a three-link chain executes at most two model runs",
+        "Each attempt uses a clean attempt-specific work directory",
+        "Single-link dispatch retains existing timeout and behavior with AILANG_MODEL_CHAIN equal to the pin"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_COMPLETION_ATTRIBUTION",
+      "description": "Serialize per-attempt history, bank terminal model/link attribution, forward it to completion consumers, and pin global execution bounds.",
+      "estimated_loc": 420,
+      "dependencies": [
+        "M2_BOUNDED_CLOUD_WALK"
+      ],
+      "acceptance_criteria": [
+        "Every cloud completion path reports terminal ModelUsed and ChainLinkIndex including link zero",
+        "Walked completions contain two ordered attempt records with first-attempt error and cost data",
+        "Completion handling banks and forwards terminal model and link attribution",
+        "Walked failure narration names both models and the first transport classification",
+        "Tests enforce the existing two executions times two model runs maximum",
+        "make test, make lint, and make check-boundaries pass"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
