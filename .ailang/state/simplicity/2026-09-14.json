@@ -1,6 +1,6 @@
 {
   "date": "2026-09-14",
-  "commit": "7133edd32",
+  "commit": "ee29b0941",
   "metrics": {
     "closure_internal_packages": {
       "value": 41,
@@ -29,13 +29,13 @@
       "how": "go list -deps ./cmd/ailang"
     },
     "internal_packages": {
-      "value": 124,
+      "value": 123,
       "gate": null,
       "dir": "le",
       "how": "go list ./internal/..."
     },
     "internal_loc": {
-      "value": 302661,
+      "value": 297740,
       "gate": null,
       "dir": "le",
       "how": "non-test Go lines under internal/"
@@ -65,13 +65,13 @@
       "how": "distinct FlagSet definition names in cmd/ailang"
     },
     "getenv_sites_total": {
-      "value": 483,
+      "value": 480,
       "gate": null,
       "dir": "le",
       "how": "os.Getenv/LookupEnv call sites, non-test"
     },
     "getenv_outside_config": {
-      "value": 391,
+      "value": 390,
       "gate": 0,
       "dir": "le",
       "how": "same, excluding internal/config and DEBUG_* knobs"
@@ -96,7 +96,7 @@
       "how": "independent which-backend env vars still read"
     },
     "dup_symbol_names": {
-      "value": 32,
+      "value": 31,
       "gate": null,
       "dir": "le",
       "how": "top-level func names declared in >=3 packages (tools/dup_symbols.sh lists them)"
@@ -115,25 +115,25 @@
       "how": ".agents/skills present and differing from .claude/skills"
     },
     "instruction_surface_bytes": {
-      "value": 25717,
+      "value": 26780,
       "gate": 25600,
       "dir": "le",
       "how": "CLAUDE.md + unscoped rules + skill descriptions"
     },
     "instruction_surface_with_memory_bytes": {
-      "value": 49039,
+      "value": 50102,
       "gate": null,
       "dir": "le",
       "how": "plus the MEMORY.md index on this machine"
     },
     "tracked_files": {
-      "value": 24856,
+      "value": 24826,
       "gate": 8000,
       "dir": "le",
       "how": "git ls-files"
     },
     "root_entries": {
-      "value": 76,
+      "value": 73,
       "gate": null,
       "dir": "le",
       "how": "entries at repo root incl. untracked"

@@ -2,7 +2,7 @@
 # CODE HEALTH & ORGANIZATION TARGETS
 # =============================================================================
 
-.PHONY: check-file-sizes report-file-sizes codebase-health largest-files check-pi-wire-budget check-prompt-freeze check-referenced-paths
+.PHONY: check-file-sizes report-file-sizes codebase-health largest-files check-pi-wire-budget check-prompt-freeze check-referenced-paths simplicity-metrics simplicity-metrics-fast simplicity-audit simplicity-audit-fast
 .PHONY: fmt fmt-check fmt-check-ail shellcheck-autopush vet lint install-lint
 
 check-referenced-paths: ## Check that referenced tools/scripts paths exist and are tracked
@@ -298,3 +298,9 @@ simplicity-metrics: ## Bank the v1.0.0 simplicity release-gate table (.ailang/st
 
 simplicity-metrics-fast: ## Same, without the timed test-core run
 	@/bin/bash tools/simplicity_metrics.sh --no-test
+
+simplicity-audit: ## Weekly: re-measure, diff vs last banked snapshot, exit 2 on regression (simplicity-audit skill)
+	@/bin/bash .claude/skills/simplicity-audit/scripts/audit.sh
+
+simplicity-audit-fast: ## Same, without the timed test-core run
+	@/bin/bash .claude/skills/simplicity-audit/scripts/audit.sh --fast
