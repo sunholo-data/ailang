@@ -13,6 +13,16 @@ func coordinatorCommand(args []string) error {
 	subcommand := args[0]
 	subargs := args[1:]
 
+	// One seam for the whole family. Nine of these subcommands parse their own
+	// arguments with a `switch` and no default case, so an unknown flag was
+	// skipped in silence — `coordinator list --remote gcp` answered from local
+	// SQLite and reported a task from May as the state of production. Guarding
+	// at the dispatch point means a new subcommand cannot inherit that by
+	// forgetting to add a default case.
+	if err := rejectUnknownCoordinatorFlags(subcommand, subargs); err != nil {
+		return err
+	}
+
 	switch subcommand {
 	case "start":
 		return coordinatorStart(subargs)
