@@ -119,8 +119,11 @@ The partial-capture shape the probe produces (`"[CACHE] std/opti"`, V7) is the C
 red on the pre-fix ordering.
 
 **Success Metrics:**
-- `TestCapturePipelineStderr_SlowReaderLosesNothing` (new): `0/N` lost iterations post-fix, and
-  red when the `r.Close()`/`<-done` order is restored (named mutation MUT-1).
+- `TestCapturePipelineStderr_GatedReaderLosesNothing` (new): exact-equality capture on every
+  iteration post-fix, and `rc=1` on **every** run under MUT-1 (`r.Close()` moved before the gate
+  release) — a structural kill, no parameters to tune.
+- `TestCapturePipelineStderr_PanicRestoresStderr` and `TestCapturePipelineStderr_DrainTimeoutIsLoud`
+  (new): the teardown is panic-safe and its wait is bounded with a loud diagnostic.
 - `go test ./internal/pipeline/ -run 'TestPipelineModulePhases' -count=1` stays `rc=0` (baseline
   `rc=0`, V10).
 - CI watch (secondary, explicitly weak — see Success Criteria): no `Build macos-latest` job whose
@@ -132,7 +135,8 @@ red on the pre-fix ordering.
 | Decision | Why High Impact | Chosen By | Deadline | Change Cost |
 |----------|-----------------|-----------|----------|-------------|
 | Fix the **helper's teardown order** (writer → wait → reader), not the assertions | The assertions are correct once the capture is complete; a structural-counter oracle read through the same broken capture truncates identically. Fixing the oracle would leave the root cause in place and hide it | agent (controller recommendation adopted; argued in Ruled-out) | design | low |
-| Inject the slow reader through a **wrapper seam** (`capturePipelineStderrWith(wrap, f)`), keeping `capturePipelineStderr(f)` as the production-facing signature | The three existing call sites must not change; the regression test needs a hook that simulates a late reader without `time.Sleep`-ing the pipeline itself | agent | design | low |
+| Inject a **channel-gated reader** and a **drain-wait hook** through an options seam (`capturePipelineStderrWith(opts, f)`), keeping `capturePipelineStderr(f)` as the production-facing signature with `opts == nil` | The three existing call sites must not change; the regression test needs to *hold the reader before its first underlying `Read` until the teardown releases it*, so that the broken ordering (MUT-1) is red by construction rather than by scheduling luck. A `nil` options value must reproduce today's behaviour exactly (nil-hook invariant) | agent (quorum r1: gpt6-astra's fix adopted) | design | low |
+| The teardown is a **named-return `defer`** and its wait on the copier is **bounded by a fixed local deadline** with a panic diagnostic, not an unbounded `<-done` | Without `defer`, a panicking `f()` leaves `os.Stderr` swapped and the copier leaked for every later test in the package; a naive `defer` with `return buf.String()` evaluates the operand *before* the deferred `<-done` (data race, AC4). `testutil.HangGuard` (V18) needs a `*testing.T` the helper does not have; a 10 s local deadline is six orders of magnitude above the microsecond drain of a ≤4 KiB payload and far below both `go test`'s default 10 m and the 30 m CI job timeout (V14), so it bounds the hang without threading `t` through the frozen call sites | agent (quorum r1: gemini-3-1-pro's fix + gpt6-astra's bounded-wait ask) | design | low |
 | **M2 does not exist**: the audit (V5) finds the close-before-wait order in exactly one helper; every other pipe-capture helper in the repo drains synchronously or waits before closing | Padding the sprint with "harmless" reorders of correct helpers would be scope without a killer test | agent (measured) | design | low |
 | Primary acceptance is the **deterministic helper test**; the CI green streak is a **secondary observation with stated power**, and a single green re-run is NOT evidence | The mechanism is a scheduling race; local greens certify nothing about the runner. At the measured base rate (4 failures in ≤50 macOS job executions across 25 runs, ~8% per execution, V2) a 50-execution clean streak has ~1.5% probability with no fix, so the streak corroborates but the helper test is the proof | agent | design | low |
 
@@ -140,8 +144,25 @@ red on the pre-fix ordering.
 
 Before implementation begins, these must be resolved:
 
-- [x] Teardown order is `os.Stderr = old; w.Close(); <-done; r.Close()` — no `time.Sleep`, no
-  `runtime.Gosched()`, no retry loop (all three would be silent fallbacks, Principle 2).
+- [x] Teardown runs inside a **`defer` with a named return** `(out string)` in this order:
+  `os.Stderr = old; w.Close(); <drain-wait hook, if set>; bounded wait on done; r.Close();
+  out = buf.String()`. The named return is mandatory: a bare `return buf.String()` evaluates its
+  operand before the deferred wait and races the copier. No `time.Sleep`, no `runtime.Gosched()`,
+  no retry loop (all three would be silent fallbacks, Principle 2).
+- [x] The wait on `done` is bounded by a **fixed local deadline (10 s, overridable via the options
+  seam for the timeout test only)**. On expiry the teardown closes `r` (which unblocks a production
+  reader parked in `Read`) and **panics** with a diagnostic naming the deadline and the two possible
+  causes (a writer still holds the pipe's write end — `f()` leaked `os.Stderr` into a goroutine —
+  or an injected reader never released). `os.Stderr` is already restored at that point. The
+  diagnostic does not read `buf` (the copier may still own it). `testutil.HangGuard` is *not*
+  reused — it needs `*testing.T` (V18) and the seam deliberately does not thread `t`; the
+  rationale is in High-Impact Decisions.
+- [x] The regression test's fixed payload is the four V9 cold lines (~150 bytes) and the test
+  asserts `len(payload) <= 4096` with a comment stating why: below pipe capacity, `f()`'s writes
+  never block while the gated reader is parked (V19: 64 KiB measured locally; 4 KiB is under every
+  documented default on any platform).
+- [x] `capturePipelineStderr(f)` is `capturePipelineStderrWith(nil, f)`; with `nil` options the
+  helper installs no wrapper and no hook — production call sites see only the reorder.
 - [x] The regression test lives in the same package and file family
   (`internal/pipeline/pipeline_module_phases_test.go` or a sibling `_test.go`) and uses an
   injected reader; it does not exercise the compiler pipeline at all.
@@ -161,31 +182,51 @@ guarantees EOF once the buffer is drained); waiting on `done` then guarantees th
 byte; closing the reader last releases the fd. This is the ordering already used by
 `internal/eval/prelude_cap_gate_test.go:73-77` (V5, positive control for the audit scanner).
 
-A regression test for the helper itself injects a reader wrapper that sleeps briefly before each
-`Read` and returns at most 16 bytes, mirroring the probe. Under the pre-fix order this loses bytes
-in every iteration on a laptop; under the fixed order it loses none. Because the test is
-deterministic in the *fixed* direction (a correct drain cannot lose bytes) and reliably red in the
-*broken* direction on any machine, it is a real killer for the hunk, not a flake-of-a-flake.
+A regression test for the helper itself injects a **channel-gated reader**: its `Read` parks on a
+channel before its first underlying `Read`, so the copier cannot consume anything until the
+teardown's **drain-wait hook** closes the gate. The payload is fixed and far below pipe capacity, so
+`f()`'s writes complete into the kernel buffer without blocking. Under the fixed order the hook
+runs after `w.Close()`, the reader then drains the whole buffer to EOF and `done` closes: exact
+capture, every time. Under MUT-1 (`r.Close()` before the hook) the reader's *first* underlying
+`Read` is on an already-closed file: it returns an error, `io.Copy` stops with nothing captured, and
+the exact-equality assertion is red — regardless of goroutine scheduling, because the reader was
+never runnable before the close. The kill is structural, not timing-based; nothing is tuned.
 
 ### Architecture
 
 **Components:**
-1. **`capturePipelineStderrWith(wrap func(io.Reader) io.Reader, f func()) string`** — the helper
-   body, with the corrected teardown and an optional reader wrapper. `wrap == nil` reads the pipe
-   directly.
-2. **`capturePipelineStderr(f func()) string`** — unchanged signature, now `return
+1. **`captureOpts`** (test-local struct) — `wrap func(io.Reader) io.Reader` (reader wrapper),
+   `release func()` (the drain-wait hook: invoked by the teardown after `w.Close()` and before the
+   bounded wait; the helper's own wait is the wait-for-completion, so the hook has no timing role),
+   `drainTimeout time.Duration` (zero → the 10 s default; set only by the timeout test).
+2. **`capturePipelineStderrWith(opts *captureOpts, f func()) (out string)`** — the helper body,
+   with the named-return `defer` teardown. `opts == nil` → no wrapper, no hook, default deadline.
+3. **`capturePipelineStderr(f func()) string`** — unchanged signature, now `return
    capturePipelineStderrWith(nil, f)`. All three call sites (`:226`, `:239`, `:256`, V4) are
    byte-for-byte untouched.
-3. **`slowPipeReader`** (test-local type) — `Read` sleeps 200µs then reads ≤16 bytes. Parameters are
-   the probe's (V6/V7); the agent may tune them but must keep MUT-1 red (see Mutations).
-4. **`TestCapturePipelineStderr_SlowReaderLosesNothing`** — N (≥50) iterations; each writes four
-   fixed lines to `os.Stderr` inside `f` and asserts the capture equals them exactly; `t.Fatalf`
-   with the iteration index and the captured bytes on the first loss. Post-condition: `os.Stderr`
-   is restored after each iteration.
+4. **`gatedReader`** (test-local type) — holds the underlying reader, a `gate chan struct{}` and an
+   atomic `reads` counter. `Read` blocks on `<-gate`, increments `reads`, then delegates. The test
+   closes the gate from `opts.release`.
+5. **`TestCapturePipelineStderr_GatedReaderLosesNothing`** — N (≥50) iterations; each installs a
+   fresh gated reader, writes the four fixed V9 cold lines to `os.Stderr` inside `f`, and asserts
+   (a) the capture equals the payload exactly and (b) `reads ≥ 1` (the wrapper was actually
+   installed and invoked — kills MUT-2). `t.Fatalf` with the iteration index, `reads`, and the
+   captured bytes on the first miss. Post-condition: `os.Stderr` restored after each iteration.
+6. **`TestCapturePipelineStderr_PanicRestoresStderr`** — `f()` panics; the test recovers and asserts
+   `os.Stderr` is the original and `w` is closed (kills MUT-3a).
+7. **`TestCapturePipelineStderr_DrainTimeoutIsLoud`** — a wrapper whose gate is never released,
+   `drainTimeout: 50ms`; asserts the helper panics with a message containing `did not drain` and
+   that `os.Stderr` is restored (kills MUT-3b; see the mutation table for the leak note).
 
 ```go
-// After (sketch — the executor writes the real code):
-func capturePipelineStderrWith(wrap func(io.Reader) io.Reader, f func()) string {
+// After (sketch — the executor writes the real code; probed end-to-end in V20):
+type captureOpts struct {
+	wrap         func(io.Reader) io.Reader // test-only reader wrapper
+	release      func()                    // drain-wait hook: runs after w.Close(), before the wait
+	drainTimeout time.Duration             // 0 → 10s
+}
+
+func capturePipelineStderrWith(opts *captureOpts, f func()) (out string) {
 	r, w, err := os.Pipe()
 	if err != nil {
 		panic("os.Pipe: " + err.Error())
@@ -193,32 +234,68 @@ func capturePipelineStderrWith(wrap func(io.Reader) io.Reader, f func()) string 
 	old := os.Stderr
 	os.Stderr = w
 	var src io.Reader = r
-	if wrap != nil {
-		src = wrap(r)
+	if opts != nil && opts.wrap != nil {
+		src = opts.wrap(r)
+	}
+	timeout := 10 * time.Second
+	if opts != nil && opts.drainTimeout > 0 {
+		timeout = opts.drainTimeout
 	}
 	var buf bytes.Buffer
 	done := make(chan struct{})
 	go func() { _, _ = io.Copy(&buf, src); close(done) }()
+	defer func() {
+		os.Stderr = old // 1. restore first: even a panicking f() leaves no swapped stderr behind
+		_ = w.Close()   // 2. writer: the only write-end fd; EOF reaches the copier once drained
+		if opts != nil && opts.release != nil {
+			opts.release() // 3. drain-wait hook (nil in production): lets a gated reader start reading
+		}
+		select { // 4. bounded wait: every byte is in buf when done closes
+		case <-done:
+		case <-time.After(timeout):
+			_ = r.Close() // unblocks a production reader parked in Read; do NOT read buf here
+			panic("capturePipelineStderr: copier did not drain within " + timeout.String() +
+				" after the write end was closed (f leaked os.Stderr into a goroutine, or an injected reader never released)")
+		}
+		_ = r.Close()     // 5. reader: release the fd only after the drain
+		out = buf.String() // 6. named return: assigned AFTER <-done, so no race with the copier
+	}()
 	f()
-	os.Stderr = old
-	_ = w.Close() // 1. writer: delivers EOF to the copier once the buffer is drained
-	<-done        // 2. wait: every byte is now in buf
-	_ = r.Close() // 3. reader: release the fd
-	return buf.String()
+	return
 }
 
 func capturePipelineStderr(f func()) string { return capturePipelineStderrWith(nil, f) }
 ```
 
+**Why MUT-1 is deterministic under this design:** MUT-1 moves step 5 (`r.Close()`) above step 3.
+The gated reader has not executed a single underlying `Read` before step 3 — it is parked on the
+gate, not on the file — so when it is released its first `Read` is on a closed `*os.File`, which
+returns `os.ErrClosed` unconditionally. `io.Copy` returns, `done` closes, `buf` is empty, and the
+exact-equality assertion fails on iteration 0. No scheduler interleaving can make the reader
+consume the buffer before the close, because it cannot run until after the close. In production
+(nil options) MUT-1 is exactly the HEAD defect.
+
+**Bounded wait, stated:** the mechanism is a local `select` on `done` versus `time.After(10s)`.
+`testutil.HangGuard`/`HangGuardContext` (V18) were examined and not reused: both take `*testing.T`
+(their value is capping by `t.Deadline()`), the helper has none, and threading `t` would change the
+seam to `(t, opts, f)` for a wait that completes in microseconds. On expiry: `r.Close()`, then a
+panic whose text names the deadline and the two possible causes; `os.Stderr` is restored before the
+panic. The panic is loud (Principle 2), not a silent fallback.
+
 ### Implementation Plan
 
 **M1: reorder the teardown + regression test of the helper** (~3 hours)
-- [ ] H1 — `pipeline_module_phases_test.go:28-44`: introduce `capturePipelineStderrWith`, move
-  `r.Close()` after `<-done`, keep `capturePipelineStderr` as a one-line wrapper. Update the doc
-  comment to state the ordering invariant and why (pipe read end must outlive the drain).
-- [ ] H2 — add `slowPipeReader` + `TestCapturePipelineStderr_SlowReaderLosesNothing`. Before
-  committing, run the mutation drill: restore `_ = r.Close()` above `<-done` → the new test must
-  fail; restore the fix → green. Record both `rc`s and the loss count in the sprint checkpoint.
+- [ ] H1 — `pipeline_module_phases_test.go:28-44`: introduce `captureOpts` and
+  `capturePipelineStderrWith(opts, f) (out string)` with the named-return `defer` teardown
+  (restore → `w.Close()` → hook → bounded wait → `r.Close()` → `out = buf.String()`); keep
+  `capturePipelineStderr` as a one-line wrapper passing `nil`. Update the doc comment to state the
+  ordering invariant and why (the pipe read end must outlive the drain; the named return must be
+  assigned after the wait).
+- [ ] H2 — add `gatedReader` + the three tests (`GatedReaderLosesNothing`, `PanicRestoresStderr`,
+  `DrainTimeoutIsLoud`). Before committing, run the mutation drill (MUT-1, MUT-2, MUT-3a, MUT-3b
+  from the table); each mutant must be `rc≠0` on every run, the restored tree `rc=0`. Record the
+  rcs in the sprint checkpoint. Nothing is tuned: a mutant that is not red is a design defect to
+  report, not a parameter to raise.
 - [ ] H3 — one line in `changelogs/v0.32-current.md` under the unreleased section (`Fixed`).
 - [ ] Acceptance sweep (commands below) on the branch; then open the PR. The CI watch starts at
   the merge commit.
@@ -229,8 +306,10 @@ close-before-wait order occurs in one helper only. Nothing else to reorder.
 ### Files to Modify/Create
 
 **Modified files:**
-- `internal/pipeline/pipeline_module_phases_test.go` (+~60/−6 LOC) — H1 helper reorder + seam,
-  H2 slow-reader type and regression test. Call sites at `:226`, `:239`, `:256` unchanged.
+- `internal/pipeline/pipeline_module_phases_test.go` (+~110/−8 LOC) — H1 helper reorder + options
+  seam + bounded `defer` teardown, H2 gated-reader type and the three helper tests. Call sites at
+  `:226`, `:239`, `:256` unchanged. The file is 403 LOC today; H2 in a sibling file keeps it in
+  the comfort band (Deferred Decisions).
 - `changelogs/v0.32-current.md` (+1 LOC) — H3.
 
 **New files:** none. (The agent may put H2 in a sibling `pipeline_stderr_capture_test.go` if the
@@ -257,9 +336,10 @@ assertion: true
 
 ```bash
 # green at the fixed ordering
-go test ./internal/pipeline/ -run TestCapturePipelineStderr_SlowReaderLosesNothing -count=1   # rc=0
-# MUT-1: move `_ = r.Close()` back above `<-done` (one-line edit), then:
-go test ./internal/pipeline/ -run TestCapturePipelineStderr_SlowReaderLosesNothing -count=1   # rc=1, "lost bytes at iteration 0: got …"
+go test ./internal/pipeline/ -run 'TestCapturePipelineStderr_' -count=1 -timeout 60s -v        # rc=0, three --- PASS lines
+# MUT-1: move `_ = r.Close()` above the release hook / bounded wait (one-line edit), then:
+for i in 1 2 3 4 5; do go test ./internal/pipeline/ -run TestCapturePipelineStderr_GatedReaderLosesNothing -count=1; done
+#   → rc=1 all five times: "iteration 0: reads=1 got="" want <payload>" (V20: 50/50 lost, 5/5 runs red)
 # restore; whole package green again
 go test ./internal/pipeline/ -count=1                                                          # rc=0
 ```
@@ -273,11 +353,19 @@ Verification Log). `go build ./...` is **not** listed: it is `rc=1` at base on t
 - [ ] **AC1** `go test ./internal/pipeline/ -run 'TestPipelineModulePhases' -count=1` → `rc=0`
   (baseline `rc=0`, V10). Can fail for this diff: H1 changes the helper all six assertions read
   through.
-- [ ] **AC2** `go test ./internal/pipeline/ -run TestCapturePipelineStderr_SlowReaderLosesNothing -count=1 -v`
-  → `rc=0` AND the output contains `--- PASS: TestCapturePipelineStderr_SlowReaderLosesNothing`
-  (baseline: `no tests to run`, so the `--- PASS` line is the load-bearing half).
-- [ ] **AC3** MUT-1 drill recorded: with `r.Close()` restored above `<-done`, AC2's command is
-  `rc=1`; restored, `rc=0`. Both rcs and the loss count go in the checkpoint.
+- [ ] **AC2** `go test ./internal/pipeline/ -run 'TestCapturePipelineStderr_' -count=1 -timeout 60s -v`
+  → `rc=0` AND the output contains all three of
+  `--- PASS: TestCapturePipelineStderr_GatedReaderLosesNothing`,
+  `--- PASS: TestCapturePipelineStderr_PanicRestoresStderr`,
+  `--- PASS: TestCapturePipelineStderr_DrainTimeoutIsLoud`
+  (baseline: `no tests to run`, so the `--- PASS` lines are the load-bearing half).
+- [ ] **AC3 — deterministic MUT-1 drill.** With `_ = r.Close()` moved above the release hook, run
+  `go test ./internal/pipeline/ -run TestCapturePipelineStderr_GatedReaderLosesNothing -count=1`
+  **five times**: `rc=1` on every run, first failure at iteration 0 with an empty capture. Restore:
+  `rc=0`. No parameter is tuned between runs; if any run is `rc=0` the gate is not holding the
+  reader before its first `Read` and the test is wrong, not slow. All rcs go in the checkpoint.
+  The same drill for MUT-2, MUT-3a, MUT-3b (one run each suffices — each is structural) is
+  recorded alongside.
 - [ ] **AC4** `go test ./internal/pipeline/ -run TestPipelineModulePhases_DebugCacheFormsAndCounters -count=20 -race`
   → `rc=0` (baseline `rc=0`, V3). Cannot *prove* the flake is gone (see AC6) but can catch a
   regression in the reordered teardown under the race detector.
@@ -303,22 +391,40 @@ Verification Log). `go build ./...` is **not** listed: it is `rc=1` at base on t
 
 | Hunk | Mutation | Killer test | Measured basis |
 |------|----------|-------------|----------------|
-| H1 (helper reorder) | **MUT-1**: restore `_ = r.Close()` above `<-done` | `TestCapturePipelineStderr_SlowReaderLosesNothing` → `rc=1` | Probe: `50/50` lost under this ordering vs `0/50` fixed, both reader variants (V6, V7). The sprint re-measures on the real helper before commit |
-| H1 (seam) | **MUT-2**: make `capturePipelineStderrWith` ignore `wrap` (always read `r` directly) | `TestCapturePipelineStderr_SlowReaderLosesNothing` — the slow reader is never installed, so the test cannot demonstrate the drain; assert this by having the test count `Read` calls on the wrapper and fail if `0` | Design-time; the executor adds the call counter so MUT-2 has a killer rather than passing vacuously |
-| H2 (new test) | — | none: H2 *is* the killer; declared as such | — |
+| H1 (helper reorder) | **MUT-1**: move `_ = r.Close()` above the release hook / bounded wait (= the HEAD defect for nil options) | `TestCapturePipelineStderr_GatedReaderLosesNothing` → `rc=1` **on every run** | **Deterministic by construction:** the gated reader has performed no underlying `Read` before the hook releases it, so under MUT-1 its first `Read` is on a closed fd → `os.ErrClosed` → `io.Copy` returns with an empty `buf` → exact-equality fails at iteration 0. No interleaving lets the reader run before the close. Probed: `50/50` lost, `5/5` runs `rc=1`, `0/50` lost fixed, race-clean (V20). Mechanism link to CI: V6/V7 |
+| H1 (seam) | **MUT-2a**: `capturePipelineStderrWith` ignores `opts.wrap` (always reads `r` directly) | `TestCapturePipelineStderr_GatedReaderLosesNothing` — the `reads ≥ 1` assertion on the gated reader is red (the wrapper was never invoked) | Structural: `reads` is only incremented inside the wrapper's `Read` |
+| H1 (seam) | **MUT-2b**: `capturePipelineStderrWith` ignores `opts.release` (hook never invoked) | `TestCapturePipelineStderr_GatedReaderLosesNothing` — the gate is never opened, the bounded wait expires, the helper panics → `rc=1` (the test sets `drainTimeout: 2s` so the mutant is red in seconds, not 10 s × N) | Structural: nothing else closes the gate |
+| H1 (teardown) | **MUT-3a**: the `defer` removed (teardown inlined after `f()`) | `TestCapturePipelineStderr_PanicRestoresStderr` — a panicking `f()` skips the inlined teardown, `os.Stderr` stays swapped → assertion red | Structural; probed green at the fixed form (V20) |
+| H1 (teardown) | **MUT-3b**: the bounded wait replaced by a bare `<-done` | `TestCapturePipelineStderr_DrainTimeoutIsLoud` — the never-released wrapper makes the bare wait hang; the test is red via `go test`'s `-timeout` (AC2 passes `-timeout 60s`; the mutant exits `rc=2` with a goroutine dump). Non-hermetic kill, declared as such: the mutant is red in 60 s, not instantly | Structural; probed green at the fixed form in 50 ms (V20). Note: the test deliberately leaks one goroutine parked on its own gate; `os.Stderr` is restored and `r`/`w` are closed before the panic, so nothing leaks into later tests |
+| H2 (new tests) | — | none: H2 *is* the killer; declared as such | — |
 | H3 (changelog) | — | none: prose | — |
 
-Intermittent-kill clause: MUT-1's kill is deterministic on the probe at 200µs/16B and expected to be
-so on the real helper; if the executor measures anything less than N/N losses under MUT-1, raise
-the sleep (not the byte cap) until it is N/N, and record the parameters. A killer that reds only
-sometimes is not a killer.
+**Determinism argument (replaces any tuning clause).** Every mutant above is red because of a
+happens-before relation the test constructs, not because of a duration: MUT-1 because the reader
+cannot read before the close; MUT-2a because the counter lives in the wrapper; MUT-2b/MUT-3b
+because a gate nobody closes is never open; MUT-3a because a panic skips non-deferred code. There
+are no sleeps, byte caps or iteration counts to raise. If the executor finds any of them not red,
+the correct action is to report the design defect, not to adjust a parameter.
 
 ## Testing Strategy
 
 **Unit tests:**
-- `TestCapturePipelineStderr_SlowReaderLosesNothing` (new, hermetic, no pipeline involvement):
-  N≥50 iterations, four fixed lines, exact-equality assertion, `Read`-call counter on the wrapper
-  (kills MUT-2), `os.Stderr` restored post-condition.
+- `TestCapturePipelineStderr_GatedReaderLosesNothing` (new, hermetic, no pipeline involvement):
+  N≥50 iterations, the four fixed V9 cold lines (~150 B, asserted ≤ 4 KiB), gated reader released
+  by the drain-wait hook, exact-equality assertion, `reads ≥ 1` on the wrapper (kills MUT-2a),
+  `drainTimeout: 2s` (kills MUT-2b quickly), `os.Stderr` restored post-condition.
+- `TestCapturePipelineStderr_PanicRestoresStderr` (new): panicking `f()`; asserts restore and a
+  closed write end (kills MUT-3a).
+- `TestCapturePipelineStderr_DrainTimeoutIsLoud` (new): never-released wrapper, `drainTimeout:
+  50ms`; asserts a panic containing `did not drain` and a restored `os.Stderr` (kills MUT-3b).
+
+**What the regression test is, and is not.** The regression test is a structural invariant proof,
+not a natural-failure reproduction: under the fixed ordering, a complete drain is guaranteed by
+`w.Close()` → EOF → `<-done` regardless of reader speed, so the gated reader serves only to make
+MUT-1 (broken ordering) deterministically red. The CI failure mode (scheduler-late reader) is the
+same mechanism the gate forces — a reader that has not yet read when the close happens; V6/V7
+establish the causal link, and the fixed-ordering guarantee is unconditional. (Recorded from
+oc-glm-5-2's round-1 objection.)
 
 **Integration tests (existing, unchanged):**
 - The six `[CACHE]` assertions in `TestPipelineModulePhases_DebugCacheFormsAndCounters` continue
@@ -356,13 +462,10 @@ The following are intentionally left open for the implementer:
 
 - Whether H2 lives in `pipeline_module_phases_test.go` or a sibling
   `pipeline_stderr_capture_test.go` — agent may choose (file-size band).
-- Exact `N`, sleep and byte-cap for the slow reader, subject to the intermittent-kill clause —
-  agent may choose.
-- Whether to add a `defer`-based `os.Stderr` restore so a panicking `f()` cannot leave stderr
-  swapped (pre-existing gap, unrelated to the flake) — agent may add if it stays inside H1;
-  not required.
-- Name of the seam function — agent may choose; `capturePipelineStderr(f)` must keep its
-  signature.
+- Exact `N` (≥50) for the gated-reader test — agent may choose; it has no bearing on the kill.
+- Names of the seam function, the options struct and its fields — agent may choose;
+  `capturePipelineStderr(f)` must keep its signature and the `nil`-options path must be
+  behaviour-identical to today apart from the reorder and the bounded wait.
 
 ## Non-Goals
 
@@ -382,7 +485,7 @@ The following are intentionally left open for the implementer:
 
 **Day 1** (~4 hours, single milestone):
 - H1 helper reorder + seam (0.5h)
-- H2 slow-reader regression test + mutation drill MUT-1/MUT-2 (2h)
+- H2 gated-reader + panic + timeout tests, mutation drill MUT-1/2a/2b/3a/3b (2h)
 - H3 changelog, acceptance sweep, PR (1h)
 - Controller: AC6 watch runs passively over the following `dev` pushes
 
@@ -392,8 +495,10 @@ The following are intentionally left open for the implementer:
 
 | Risk | Impact | Mitigation |
 |------|--------|-----------|
-| The regression test itself is timing-based and could pass under MUT-1 on a very fast machine | Med | MUT-1 drill is a required checkpoint artefact (AC3); the intermittent-kill clause says raise the sleep until N/N; the `Read`-call counter proves the slow reader was actually installed (MUT-2) |
-| `<-done` hangs if EOF never arrives | Low | EOF is guaranteed once `w` (the only write-end fd) is closed; `f()` is synchronous and the assignment `os.Stderr = old` precedes the close. If a future `f()` leaks `w` into a goroutine, the hang is loud (test timeout), not silent |
+| The fixed payload grows past pipe capacity (a future edit adds lines) → `f()` blocks writing while the gated reader is parked → deadlock | Low | The test asserts `len(payload) <= 4096` with the reason in a comment; capacity measured at 64 KiB locally (V19) and the smallest documented default anywhere is 4 KiB (V19, EXTERNAL PREMISE for other kernels). If it ever happens the bounded wait does not help (the hang is inside `f()`), but `go test -timeout` reds it loudly and the comment names the cause |
+| The options seam or the hook leaks into production call sites and changes the behaviour the six `[CACHE]` assertions read through | Low | Nil-hook invariant (Design Freeze): `capturePipelineStderr(f)` passes `nil`; with `nil` no wrapper is installed, no hook runs, the default deadline applies. AC1 (`-count=1`) and AC4 (`-count=20 -race`) exercise exactly this path |
+| The bounded wait expires spuriously on a loaded runner and panics a test that would have drained | Very low | 10 s for a microsecond drain of ≤ 4 KiB after the only write end is closed; the CI job's own budget is 30 min (V14). A spurious expiry would be loud with a diagnostic naming the two real causes — not a silent drop, which is the failure mode being fixed |
+| A future `f()` leaks `w` (via `os.Stderr`) into a goroutine, so EOF never arrives | Low | Now bounded: the wait expires, `r` is closed, and the panic names this exact cause. Previously an unbounded hang |
 | AC6 cannot distinguish "fixed" from "lucky" at the measured base rate | Med | Stated in AC6 with the power estimate; AC2/AC3 are the proof; the controller does not close the row on AC6 alone |
 | A different macOS red appears after this lands and gets blamed on this test | Low | AC6 counts only job logs carrying `--- FAIL: TestPipelineModulePhases_DebugCacheFormsAndCounters`; any other `Build macos-latest` red is a new row |
 
@@ -416,7 +521,7 @@ because the helper swaps a process-global (`os.Stderr`).
 | Callers of `capturePipelineStderr` | 3 call sites, all in `pipeline_module_phases_test.go` (`:226` cold, `:239` warm, `:256` invalid) — the queue briefing said six; grep shows 3 calls + 1 definition + 1 doc-comment mention = 5 hits (V4) | `x := capturePipelineStderr(func() { … })` | reuse — signature unchanged |
 | Writers to the captured stream | `pipeline_module_cache.go:65,85,87,123` (`fmt.Fprintf(os.Stderr, "[CACHE] …")`) — direct global; `cache_runtime.go:110-131` writes `CACHE_INVALID`/`CACHE_SOURCE_UNAVAILABLE`/`CACHE_WRITE_FAILED` through the `cacheDependencies.stderr` seam, which `productionCacheDependencies()` binds to `os.Stderr` at construction (V8) | `fmt.Fprintf(os.Stderr, …)` / `fmt.Fprintf(runtime.stderr, …)` | untouched |
 | Other test helpers that swap `os.Stderr` (must not be affected; none imports this one) | `cmd/ailang/messages_send_test.go:184`, `cmd/ailang/pkg_lock_ratchet_test.go:27,65,127,155`, `internal/ai/cache_warnings_test.go:20`, `internal/apiserver/debug_sink_test.go:27`, `internal/coordinator/daemon_test.go:230,285`, `internal/effects/fs_sandbox_debug_test.go:29,138,165`, `internal/parser/delimiter_trace_test.go:137,180,220,269,392,449,587` (V4) | per-package helpers, all in their own package | untouched; each was read for the audit (V5) and none has the close-before-wait order |
-| Shared test utilities | `internal/testutil` has **no** pipe/capture helper (`grep 'os\.Pipe\|func Capture'` → 0; control: 6 exported helpers present, V12) | — | no reuse candidate exists; do not create one in this sprint (one consumer) |
+| Shared test utilities | `internal/testutil` has **no** pipe/capture helper (`grep 'os\.Pipe\|func Capture'` → 0; control: 6 exported helpers present, V12). It does have `HangGuard(t, cap)` / `HangGuardContext(t, cap)` (V18), both `*testing.T`-bound | — | no capture helper to reuse; do not create one in this sprint (one consumer). `HangGuard` examined and not reused — the helper has no `t`; a fixed 10 s local deadline is used instead (High-Impact Decisions). `internal/pipeline` tests already import `testutil` (3 files) and there is no cycle (V18), so reuse would be *possible* later if the seam ever threads `t` |
 
 ### Programs / tests that MUST still work
 
@@ -454,6 +559,9 @@ Every codebase/CI claim above maps to a row. Commands were run in the worktree a
 | V15 | The test file's only history is the #1071 landing; Windows skip is attributed there to a separate defect | `git log --oneline -- internal/pipeline/pipeline_module_phases_test.go`; `sed -n 201,215p …` | `202358fd3 Mission V1 iter342 … (#1071)` (sole commit); skip comment cites drive-letter cache paths and "V1 mission charter (Windows drive-letter cache paths)" |
 | V16 | Related docs exist at the cited paths | `ls design_docs/planned/v0_36_0/m-cache-module-id-encoding.md design_docs/implemented/v0_35_2/m-compile-cache-unverified-artifacts.md design_docs/planned/v0_35_2/m-cachesrc-cognitive-complexity.md design_docs/implemented/v0_33_1/m-ci-flake-systemic-fix.md`; `ls changelogs/ \| grep current` | all four present; `v0.32-current.md` |
 | V17 | External premise, NOT verified in-session, not load-bearing | — | "GitHub-hosted `macos-latest` runners have 3 vCPUs" is taken from GitHub's runner documentation, not measured here. The design does not depend on the number; it depends only on the reader being scheduled late, which V6/V7 reproduce on a 12-core laptop by construction |
+| V18 | `testutil.HangGuard`/`HangGuardContext`: signatures, behaviour, callers, and no import cycle with `internal/pipeline` (round-2, gpt6-astra) | `sed -n 86,107p internal/testutil/gate.go`; `grep -rn 'HangGuard(' --include='*.go' internal/ cmd/ \| grep -v 'func HangGuard'`; `grep -rl 'HangGuard' --include='*.go' .`; `grep -rl '"github.com/sunholo-data/ailang/internal/testutil"' internal/pipeline/*_test.go`; `go list -deps ./internal/testutil \| grep -c internal/pipeline` (control: `\| grep -c internal/`) | `:88 func HangGuard(t *testing.T, cap time.Duration) time.Duration` — returns `cap` when `t.Deadline()` is unset, else `min(cap, until(deadline)−20s)` floored at 1 s; `:103 func HangGuardContext(t *testing.T, cap time.Duration) (context.Context, context.CancelFunc)` = `context.WithTimeout(Background, HangGuard(...))`. Callers: 9 call lines in 3 files (`eval_harness/reference_solutions_test.go` ×2, `testutil/gate.go` ×1, `testutil/gate_test.go` ×6); 4 files mention the name at all (the controller's briefing said 14 `_test.go` files — measured here as **1** external test file; the discrepancy does not affect the decision). `internal/pipeline` test files importing `testutil`: 3 (`prelude_capability_test.go:10`, `cache_invalidation_test.go:18`, `jwt_test.go:9`). Cycle check: `0` (control: 40 `internal/` deps). **Decision:** not reused — both need `*testing.T`, the helper has none and the seam does not thread it; a fixed 10 s local deadline with a panic diagnostic is used (Design Freeze) |
+| V19 | Pipe capacity bound the gated design relies on: `f()`'s writes of the fixed payload never block while the reader is parked | Probe `/tmp/iter353_probe2/pipecap_test.go`: `syscall.Pipe`, `SetNonblock` on the write end, write chunks of 1/512/4096/16384/65536 B until `EAGAIN`, count bytes accepted (`go test -run TestPipeCapacity -v`), macOS 26.6.2 / Darwin 25.6.0 arm64 | `65536` bytes accepted before `EAGAIN` for **every** chunk size, including 1-byte writes — so on this kernel the capacity is 64 KiB from the first byte (the "16 KiB default, growable to 64 KiB" description did not match this kernel; measured, not cited). The CI runner's kernel is **not** measured here — EXTERNAL PREMISE, labelled as V17 is: the design keeps the payload ≤ 4 KiB (actual ~150 B), which is below the smallest pipe buffer any documented Unix ships (4 KiB, PIPE_BUF minimum), so the bound holds without relying on the 64 KiB figure |
+| V20 | The gated design itself: 0 loss fixed, deterministic loss under MUT-1, panic-safe teardown, loud bounded wait, race-clean | Probe `/tmp/iter353_probe2/gated_test.go` (the Architecture sketch verbatim, `MUT1=1` env moves `r.Close()` above the hook): `go test -count=1 -race -run 'TestGated\|TestPanicRestores\|TestDrainTimeoutIsLoud' -v`; `MUT1=1 go test -count=1 -race -run TestGated -v`; `for i in 1..5: MUT1=1 go test -count=1 -run TestGated; echo rc` | Fixed: `lost=0/50`, `--- PASS` ×3 (`TestDrainTimeoutIsLoud` in 0.05 s at a 50 ms deadline), `ok`, no `DATA RACE`. MUT-1: `iteration 0: reads=1 got=""`, `lost=50/50`, `--- FAIL`; five repeated runs `rc=1 rc=1 rc=1 rc=1 rc=1`. The `reads=1` under MUT-1 is the closed-fd first `Read` returning immediately — the mechanism the determinism argument predicts |
 
 ## Related Documents
 
@@ -494,9 +602,11 @@ Read the 0.45 hit: it concerns a local eval sandbox on Apple containers — unre
 
 | round | reviewer | verdict | objection | disposition |
 |-------|----------|---------|-----------|-------------|
-|       |          |         |           |             |
+| 1 | gemini-3-1-pro | REJECT | `defer` teardown left optional in Deferred Decisions: a panicking `f()` leaves `os.Stderr` swapped and the copier leaked for every later test; and a naive `defer` with `return buf.String()` evaluates before `<-done` (data race, AC4) | applied verbatim in r2: named-return `(out string)` `defer` teardown mandated in Design Freeze + Architecture sketch; Deferred-Decisions bullet deleted; MUT-3a + `PanicRestoresStderr` added; probed (V20) |
+| 1 | gpt6-astra (ABSENT on budget in the quorum run; re-run alone at a $0.40 cap) | REJECT | The 200 µs sleeping reader does not guarantee MUT-1 is red — a descheduled writer lets the reader drain first; V6/V7 show observed kills, not a deterministic one. `<-done` unbounded although V12 found `HangGuard`/`HangGuardContext` and never examined them | applied verbatim in r2: channel-gated reader + drain-wait hook (nil in production), payload ≤ 4 KiB with the bound stated (V19), MUT-1 = `r.Close()` before the hook → first `Read` on a closed fd (deterministic; V20 5/5); all sleeps/tuning/N-of-N claims removed; bounded wait with a local 10 s deadline, diagnostic and cleanup; `HangGuard` examined in V18 and the non-reuse reasoned |
+| 1 | oc-glm-5-2 | PASS | The regression test's injected reader simulates rather than reproduces the natural CI scheduling race | applied verbatim in r2: the "structural invariant proof, not a natural-failure reproduction" paragraph added to Testing Strategy, adapted to the gated design |
 
 ---
 
 **Document created**: 2026-09-14
-**Last updated**: 2026-09-14
+**Last updated**: 2026-09-14 (revision r2 after quorum round 1)
