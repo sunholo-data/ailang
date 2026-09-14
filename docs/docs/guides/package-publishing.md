@@ -195,6 +195,68 @@ The package also auto-appears at `https://ailang.sunholo.com/docs/packages/<name
 
 ---
 
+## For maintainers: issuing and managing keys
+
+Keys are minted centrally (CRAN-style) — there is no signup. The superuser key in Secret
+Manager (`ailang-registry-api-key`, project `ailang-registry`) is the only thing that can mint.
+
+### What a publisher may write
+
+A key carries one or more **scopes**, globs over the full `vendor/name`. Two shapes cover
+the cases we actually have:
+
+| Situation | Scope | Effect |
+|---|---|---|
+| Their own namespace — they publish whatever they like there | `daneel/*` | any package under `daneel/` |
+| A package of ours we hand to them | `sunholo/daneel_tools` | that one package, nothing else under `sunholo/` |
+| A family of ours we hand to them | `sunholo/daneel_*` | every `sunholo/daneel_…` package |
+
+Combine with repeated `--scope`:
+
+```bash
+ailang pkg key create --owner daneel \
+  --scope 'daneel/*' \
+  --scope 'sunholo/daneel_tools' \
+  --note "Daneel: own namespace + the docs tooling we delegated"
+```
+
+Rules of thumb:
+
+- **Namespace = owner name.** The `--owner` you record and the vendor they publish under
+  should match (`--owner daneel` ↔ `daneel/*`). `published_by` in metadata is stamped with
+  the owner, so provenance reads cleanly.
+- **Never hand out `sunholo/*`.** Delegate specific packages or a prefix; the wildcard on our
+  own namespace is superuser territory.
+- **Nothing stops two keys covering the same package.** Scopes are permissions, not ownership
+  records. Before minting a scope inside a namespace someone else already holds, check
+  `ailang pkg key list` — it is the only registry of who can write what.
+
+### Changing what someone can publish
+
+There is deliberately no "edit scopes" — mint a replacement and revoke the old one, so the
+change is a new key in the holder's hands and an audit row, not a silent widening:
+
+```bash
+ailang pkg key list                          # find the id
+ailang pkg key create --owner daneel --scope 'daneel/*' --scope 'sunholo/new_thing'
+ailang pkg key revoke <old-id>               # after they have switched
+```
+
+Revocation is immediate (checked on every write) and permanent — a revoked id cannot be
+re-enabled. Keys are stored as SHA-256 only; a lost key is re-minted, never recovered.
+
+### The superuser key
+
+- Existing holders keep working unchanged. It is still the break-glass and the minting authority.
+- **Rotate it once every current holder has a scoped key** — the point of scoping is that only
+  maintainers hold `*`. Rotation: add a new version to the `ailang-registry-api-key` secret in
+  `ailang-registry`, mirror it into `ailang-multivac`'s copy (recipe in that repo's
+  `terraform/secrets.tf`), then roll the validator revision so the new version is read — the
+  env is resolved at instance start, not on every request.
+- The fleet's own publish jobs (`ailang-multivac/terraform/cloud_run_jobs.tf`) currently use
+  the superuser key. They should be moved to a scoped `sunholo/*`-shaped key before rotation
+  so a leaked job env cannot mint keys.
+
 ## Current limitations
 
 These are real today. Known and tracked.
