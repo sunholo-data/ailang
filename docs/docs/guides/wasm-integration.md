@@ -796,8 +796,6 @@ ailangSetMsgRecvHandler((mailbox) => {
 });
 ```
 
-For the underlying Go-side primitives (Lamport clock, transport trait, scheduler, replay engine), see the [`internal/cognition/`](https://github.com/sunholo-data/ailang/tree/dev/internal/cognition) package.
-
 ### Example: replayable DOM mutation
 
 ```ailang
