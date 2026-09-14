@@ -7,7 +7,6 @@
 package codex
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"os"
@@ -236,12 +235,14 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 	var prevBudgetIn, prevBudgetOut int
 
 	go func() {
-		stdoutScanner := bufio.NewScanner(stdout)
-		stderrScanner := bufio.NewScanner(stderr)
-
-		const maxScannerBuffer = 1024 * 1024
-		stdoutScanner.Buffer(make([]byte, 0, maxScannerBuffer), maxScannerBuffer)
-		stderrScanner.Buffer(make([]byte, 0, maxScannerBuffer), maxScannerBuffer)
+		// executor.LineReader, not bufio.Scanner. A Scanner's token cap turns a
+		// single long line into a FAILED TASK: four sprint-planner runs died on
+		// 2026-09-14 with "stdout scanner error: bufio.Scanner: token too long",
+		// after the agent had already done the work. A long line is one event we
+		// cannot parse, not a broken run — LineReader truncates and continues,
+		// and counts what it cut so the loss is reportable.
+		stdoutScanner := executor.NewLineReader(stdout)
+		stderrScanner := executor.NewLineReader(stderr)
 
 		go func() {
 			for stderrScanner.Scan() {
@@ -352,13 +353,8 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 								killProcessTree(cmd)
 							}
 						}
-						// DELIBERATELY NOT TokensProcessedFrom. codex's inputTokens is the
-						// provider's WHOLE input: cachedInputTokens is a SUBSET of it
-						// (OpenAI Responses semantics) and is split out only at the end by
-						// splitCodexInputTokens, whose test pins the split as
-						// total-preserving. So this expression already counts every input
-						// token, and adding a cache bucket here would double-count. codex
-						// reports no cache-creation bucket at all.
+						// Whole-input already; see splitCodexInputTokens' doc for why this
+						// must NOT gain a cache term.
 						if task.MaxTokensPerBench > 0 && !thrashKilled &&
 							inputTokens+outputTokens > task.MaxTokensPerBench {
 							thrashKilled = true
@@ -433,9 +429,7 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 							killProcessTree(cmd)
 						}
 					}
-					// Same reasoning as the site above: codex's inputTokens already
-					// includes cached input, so this is whole-input and must not gain a
-					// cache term.
+					// Whole-input already — see splitCodexInputTokens' doc.
 					if task.MaxTokensPerBench > 0 && !thrashKilled &&
 						inputTokens+outputTokens > task.MaxTokensPerBench {
 						thrashKilled = true
@@ -496,9 +490,16 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 			turnSpan.End()
 		}
 
+		// Err() is now a GENUINE read error only — never a length one.
 		if err := stdoutScanner.Err(); err != nil {
-			done <- fmt.Errorf("stdout scanner error: %w", err)
+			done <- fmt.Errorf("stdout read error: %w", err)
 			return
+		}
+		if n := stdoutScanner.Truncations; n > 0 {
+			// Not fatal, never silent: a caller seeing a parse gap must be able
+			// to learn that output was cut rather than malformed.
+			fmt.Fprintf(os.Stderr, "[CODEX] %d output line(s) exceeded %d bytes and were truncated\n",
+				n, executor.MaxLineBytes)
 		}
 		done <- cmd.Wait()
 	}()

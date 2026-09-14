@@ -22,7 +22,6 @@
 package pi
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
@@ -208,14 +207,13 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 	var costKilled bool
 
 	go func() {
-		stdoutScanner := bufio.NewScanner(stdout)
-		stderrScanner := bufio.NewScanner(stderr)
+		// executor.LineReader: a Scanner token cap turns one long line into a
+		// failed task. Rationale in internal/executor/linescan.go.
+		stdoutScanner := executor.NewLineReader(stdout)
+		stderrScanner := executor.NewLineReader(stderr)
 
 		// pi emits very large lines (full cumulative state in every message_update).
 		// 8MB is sufficient headroom for multi-turn long-output runs.
-		const maxScannerBuffer = 8 * 1024 * 1024
-		stdoutScanner.Buffer(make([]byte, 0, 64*1024), maxScannerBuffer)
-		stderrScanner.Buffer(make([]byte, 0, 64*1024), maxScannerBuffer)
 
 		go func() {
 			for stderrScanner.Scan() {
@@ -312,20 +310,13 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 					cacheReadTokens += u.CacheRead
 					cacheWriteTokens += u.CacheWrite
 					totalCostUSD += u.Cost.Total
-					// Canonical quantity — see capExceeded in isolation.go.
 					if tp, over := capExceeded(task.MaxTokensPerBench, inputTokens, cacheWriteTokens, outputTokens); over && thrashKilledAt == 0 {
 						thrashKilledAt = tp
 						proctree.Kill(cmd)
 					}
-					// Cache tokens are most of a cached run's bill and were invisible to the
-					// budget until 2026-09-14. Priced only where models.yml declares a rate;
-					// an undeclared rate stays at zero rather than guessing the input rate,
-					// which would overstate ~3.8x on a measured run and kill it.
-					if task.Budget != nil && (u.CacheRead > 0 || u.CacheWrite > 0) {
-						if _, exceeded := task.Budget.AddCache(u.CacheRead, u.CacheWrite); exceeded {
-							costKilled = true
-							proctree.Kill(cmd)
-						}
+					if chargeCache(task, u.CacheRead, u.CacheWrite) {
+						costKilled = true
+						proctree.Kill(cmd)
 					}
 					// M-EVAL-COST-AND-SPEED-BUDGETS: incremental cost tally on per-turn delta.
 					if task.Budget != nil && (u.Input > 0 || u.Output > 0) {
@@ -616,8 +607,7 @@ func buildPiArgs(model string, task *executor.Task, directive string) ([]string,
 		args = append(args, "--no-context-files")
 	}
 
-	// Repo-local extensions off, project-local skills ON — see isolation.go for the
-	// ablation that establishes both flags are required.
+	// Both flags or neither — see isolationArgs.
 	args = append(args, isolationArgs(task)...)
 
 	switch {

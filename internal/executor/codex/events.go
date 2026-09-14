@@ -126,6 +126,13 @@ func parseCodexEvent(line []byte) (*codexEvent, error) {
 // the counters exclusive. It also lets CostModel.CacheReadCost, declared since
 // the executor was written but never applicable, finally apply.
 //
+// WHY THE THRASH GUARD HERE IS NOT executor.TokensProcessedFrom (2026-09-14): because
+// cachedInputTokens is a SUBSET of inputTokens, codex's running `inputTokens` is already
+// the provider's WHOLE input, and this function only separates the cached part at the end.
+// So `inputTokens + outputTokens` already counts every input token; adding a cache bucket
+// to it would double-count. pi and opencode DO add theirs, because their providers report
+// cache exclusive of input. Do not "unify" these without re-reading this paragraph.
+//
 // codex reports no cache-CREATION counter, so CacheCreationInputTokens stays 0.
 // Not verified against a real codex stream: the repo's only codex fixture is
 // synthetic and carries no usage block (see README). Re-check when a real

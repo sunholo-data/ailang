@@ -40,3 +40,17 @@ func capExceeded(maxTokens, input, cacheWrite, output int) (int, bool) {
 	processed := executor.TokensProcessedFrom(input, cacheWrite, output, 0)
 	return processed, maxTokens > 0 && processed > maxTokens
 }
+
+// chargeCache feeds prompt-cache tokens to the cost budget and reports whether it tripped.
+//
+// Lives here to keep the stream loop short. Cache is most of a cached run's bill (69% on a
+// measured run), and it was invisible to the budget until 2026-09-14. Undeclared rates
+// price at zero rather than guessing the input rate, which would overstate ~3.8x and kill
+// a healthy run — see executor/cost.go.
+func chargeCache(task *executor.Task, cacheRead, cacheWrite int) bool {
+	if task == nil || task.Budget == nil || (cacheRead <= 0 && cacheWrite <= 0) {
+		return false
+	}
+	_, exceeded := task.Budget.AddCache(cacheRead, cacheWrite)
+	return exceeded
+}
