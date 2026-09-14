@@ -3612,6 +3612,45 @@ models:
   # Accepted cost if this becomes the route: caches far less (measured 2026-08-11, unpinned
   # cacheRead=0 across two identical ~27.7k prompts). A lane that does not converge has
   # worse economics than any cache multiplier can repair.
+  # Added 2026-09-14 so the BINARY mission path can reach the evaluator lane the shell
+  # driver already uses. The two tables had diverged: tools/launchd/mission-control.sh
+  # resolves `pi:openrouter/minimax/minimax-m3,claude:claude-sonnet-4-6,opus`, while the
+  # `roles:` table below offered only opencode rows — so `ailang mission iterate` dispatched
+  # its evaluator to a harness that never received the workspace-trust fix that lets pi load
+  # the sprint-evaluator skill. That skill IS the evaluator's terminator (100-point rubric,
+  # threshold 70); without it the stage produces no verdict, which is exactly how the
+  # M-MISSION-ITERATION-RELIABILITY M4 canary failed 3/3.
+  #
+  # Companion to opencode-or-minimax-m3: same OpenRouter model, pi harness.
+  pi-or-minimax-m3:
+    api_name: "minimax/minimax-m3"
+    provider: "openrouter"
+    default_thinking: "unknown"  # NOT VERIFIED — inherited from the opencode sibling; do not
+                                 # read this row's token counts as efficiency data
+    description: "MiniMax M3 via pi minimal harness — binary mission-path evaluator lane"
+    env_var: "OPENROUTER_API_KEY"
+    agent_cli: "pi"
+    # Bare id, NOT `:floor`. The comment block above records why the evaluator lane must not
+    # inherit `:floor`: its two cheapest hosts carry negative health status, and that route
+    # returned rc=0 with zero bytes changed twice. Cheaper repeat caching does not pay for a
+    # lane that fails to converge.
+    agent_model_name: "openrouter/minimax/minimax-m3"
+    model_family: "minimax-m3"
+    max_output_tokens: 32000  # PI_WIRE_CLAMP min(declared, 32000) — the opencode sibling
+                              # declares 65536, but pi has no max-tokens flag and reads
+                              # maxTokens from ~/.pi/agent/models.json, so a larger number
+                              # here would not reach the wire.
+    pricing:
+      input_per_1k: 0.0003   # $0.30 per 1M
+      output_per_1k: 0.0012  # $1.20 per 1M
+    budgets:
+      max_cost_usd: 0.30
+      hard_timeout_secs: 600
+    notes: |
+      Exists to make the binary and the shell driver agree on the evaluator lane. Before
+      this row the only pi OpenRouter entries were deepseek-v4-flash variants, so there was
+      no way to express the driver's first evaluator rung as a registry friendly name.
+
   pi-or-deepseek-v4-flash-bare:
     api_name: "deepseek/deepseek-v4-flash-0731"
     provider: "openrouter"
@@ -5086,7 +5125,14 @@ roles:
   designer:  [opencode-or-kimi-k3]
   planner:   [gpt5-6-sol, opencode-or-kimi-k3]
   executor:  [gpt5-6-sol, opencode-or-deepseek-v4-flash]
-  evaluator: [opencode-or-minimax-m3, opencode-or-deepseek-v4-flash]
+  # evaluator leads with pi, not opencode (changed 2026-09-14). The binary mission path is
+  # the only LaneLocal consumer of this row; the coordinator's retry chain reads it on
+  # LaneCloud but short-circuits first for any agent carrying an explicit model
+  # (retry_chain.go:118), and the one evaluator-role cloud agent — sprint-evaluator — pins
+  # `pi openrouter/z-ai/glm-5.3-flash`, so it never reaches here. Verified before landing.
+  # The opencode row is KEPT as the last rung rather than deleted: it is the route the 09-08
+  # canary actually ran, so it stays reachable for comparison.
+  evaluator: [pi-or-minimax-m3, pi-claude-sonnet-4-6, opencode-or-minimax-m3]
 
 benchmark_suite:
   - "gpt6-astra"       # OpenAI GPT-6 flagship (Aug 2026) — PROMOTED 2026-09-05 (Mark) on a clean

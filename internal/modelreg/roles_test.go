@@ -19,11 +19,17 @@ func TestResolveRole_TranscribesLiveChainsByteIdentically(t *testing.T) {
 
 	// Verbatim from ailang-multivac/config/config.cloud.yaml:61-64 as measured
 	// 2026-08-27 — the strings the coordinator handed an executor.
+	//
+	// `evaluator` is NO LONGER in this map. It was deliberately repointed on
+	// 2026-09-14 (attended, Mark) and is asserted separately below, because a
+	// transcription guard cannot also be the record of an intentional departure —
+	// leaving it here would have meant either a silent edit to the "verbatim"
+	// baseline or deleting the guard for the other three roles. The other three
+	// remain pure transcriptions and are still held byte-identical.
 	want := map[string][]string{
-		"designer":  {"openrouter/moonshotai/kimi-k3"},
-		"planner":   {"gpt-5.6-sol", "openrouter/moonshotai/kimi-k3"},
-		"executor":  {"gpt-5.6-sol", "openrouter/deepseek/deepseek-v4-flash-0731"},
-		"evaluator": {"openrouter/minimax/minimax-m3", "openrouter/deepseek/deepseek-v4-flash-0731"},
+		"designer": {"openrouter/moonshotai/kimi-k3"},
+		"planner":  {"gpt-5.6-sol", "openrouter/moonshotai/kimi-k3"},
+		"executor": {"gpt-5.6-sol", "openrouter/deepseek/deepseek-v4-flash-0731"},
 	}
 
 	for role, wantChain := range want {
@@ -43,6 +49,56 @@ func TestResolveRole_TranscribesLiveChainsByteIdentically(t *testing.T) {
 			if got[i].Executor == "" {
 				t.Errorf("role %q entry %d (%s): empty Executor", role, i, got[i].FriendlyName)
 			}
+		}
+	}
+}
+
+// The evaluator chain is a DELIBERATE departure from the transcription above.
+//
+// Repointed 2026-09-14 (attended, Mark) from opencode to pi. The binary mission path
+// (internal/mission/iteration, LaneLocal) is this row's only local consumer, and it was
+// dispatching evaluator stages to opencode while tools/launchd/mission-control.sh resolved
+// `pi:openrouter/minimax/minimax-m3,claude:claude-sonnet-4-6,opus`. The two tables had
+// silently diverged, so `ailang mission iterate` ran a harness that never received the
+// workspace-trust fix that lets pi load the sprint-evaluator skill — the 100-point rubric
+// that is the evaluator's terminator. That is how M-MISSION-ITERATION-RELIABILITY M4's
+// canary failed 3/3 with no verdict.
+//
+// This assertion exists so the departure stays intentional: an accidental reorder or a
+// revert to opencode-first reds here with the reason attached, rather than silently
+// re-breaking the lane. It is NOT a transcription of config.cloud.yaml.
+func TestResolveRole_EvaluatorIsDeliberatelyPiFirst(t *testing.T) {
+	if err := InitModelsConfig(); err != nil {
+		t.Fatalf("InitModelsConfig: %v", err)
+	}
+	want := []struct{ friendly, model, executor string }{
+		{"pi-or-minimax-m3", "openrouter/minimax/minimax-m3", "pi"},
+		{"pi-claude-sonnet-4-6", "anthropic/claude-sonnet-4-6", "pi"},
+		// Kept as the last rung, not deleted: it is the route the 09-08 canary ran.
+		{"opencode-or-minimax-m3", "openrouter/minimax/minimax-m3", "opencode"},
+	}
+	// Both lanes, because the coordinator reads this row on LaneCloud. It short-circuits
+	// first for any agent with an explicit model (retry_chain.go:118) and the one
+	// evaluator-role cloud agent pins its own, so nothing on the plane reaches this today —
+	// but the chain must still be well-formed if something ever does.
+	for _, lane := range []Lane{LaneLocal, LaneCloud} {
+		got, err := GlobalModelsConfig.ResolveRole("evaluator", lane)
+		if err != nil {
+			t.Fatalf("ResolveRole(evaluator, %s): %v", lane, err)
+		}
+		if len(got) != len(want) {
+			t.Fatalf("lane %s: chain length %d, want %d (%v)", lane, len(got), len(want), got)
+		}
+		for i, w := range want {
+			if got[i].FriendlyName != w.friendly || got[i].ModelName != w.model || got[i].Executor != w.executor {
+				t.Errorf("lane %s entry %d: got %s/%s/%s, want %s/%s/%s", lane, i,
+					got[i].FriendlyName, got[i].ModelName, got[i].Executor, w.friendly, w.model, w.executor)
+			}
+		}
+		// The point of the change: the FIRST rung must be pi, or the binary dispatches
+		// its evaluator to a harness that cannot load the sprint-evaluator skill.
+		if got[0].Executor != "pi" {
+			t.Errorf("lane %s: first rung executor = %q, want pi", lane, got[0].Executor)
 		}
 	}
 }
