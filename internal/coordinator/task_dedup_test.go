@@ -314,3 +314,66 @@ func TestDedupScopeFor_CarriesAgentAndParent(t *testing.T) {
 		t.Error("a nil task must still produce a usable window, not an unbounded one")
 	}
 }
+
+// TestFindDuplicateTask_ReplaysTheProductionHandoffSuppression exercises the
+// STORE path, not just the predicate, on the exact shape that killed the
+// pipeline in production on 2026-09-14.
+//
+// The unit tests above pin BlocksDuplicate. This pins that the candidate fetch
+// and filter in FindDuplicateTask carry the scope through — which is where a
+// correct predicate would still have been useless, because the store is what
+// the daemon actually calls.
+func TestFindDuplicateTask_ReplaysTheProductionHandoffSuppression(t *testing.T) {
+	store := createTestStore(t)
+	defer store.Close()
+	ctx := context.Background()
+
+	// The real fingerprint collision: a handoff embeds its parent's request
+	// verbatim, so both sides hash identically.
+	fingerprint := uint64(0x08032EBC5150)
+	const request = "Design a secondary-model fallback for cloud executor agents"
+
+	parent := &TaskRecord{
+		ID:        "task-08032ebc",
+		AgentID:   "design-doc-creator",
+		Title:     "Design: secondary-model fallback",
+		Content:   request,
+		Type:      TaskTypeFeature,
+		Status:    TaskStatusCompleted, // completed is what suppressed it
+		CreatedAt: time.Now().Add(-7 * time.Minute),
+	}
+	if err := store.CreateTask(ctx, parent); err != nil {
+		t.Fatalf("create parent: %v", err)
+	}
+	if err := store.SetTaskFingerprint(ctx, parent.ID, fingerprint); err != nil {
+		t.Fatalf("fingerprint: %v", err)
+	}
+
+	// The handoff, exactly as daemon_tasks_polling builds it.
+	handoff := &TaskRecord{
+		ID:           "task-b8f905ae",
+		AgentID:      "sprint-planner",
+		ParentTaskID: parent.ID,
+		Content:      request,
+	}
+	dup, err := store.FindDuplicateTask(ctx, fingerprint, DedupScopeFor(handoff, time.Now()))
+	if err != nil {
+		t.Fatalf("find: %v", err)
+	}
+	if dup != nil {
+		t.Fatalf("the handoff was suppressed by %s (%s) — this is the bug that meant no "+
+			"pipeline stage could ever start", dup.ID, dup.Status)
+	}
+
+	// The control: a genuine redelivery of the SAME request to the SAME agent,
+	// with no parent, must still be suppressed. Without this the fix would read
+	// as "dedup disabled", which it is not.
+	redelivery := &TaskRecord{ID: "task-dup", AgentID: "design-doc-creator", Content: request}
+	dup, err = store.FindDuplicateTask(ctx, fingerprint, DedupScopeFor(redelivery, time.Now()))
+	if err != nil {
+		t.Fatalf("find: %v", err)
+	}
+	if dup == nil || dup.ID != parent.ID {
+		t.Fatalf("a genuine repeat to the same agent must still be suppressed, got %v", dup)
+	}
+}
