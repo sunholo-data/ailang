@@ -2,6 +2,7 @@ package format
 
 import (
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/testutil"
 	"strings"
 	"testing"
 
@@ -66,9 +67,7 @@ func extractMarker(text string) string {
 // file that the formatter accepts, then formats the output again, requiring
 // byte-identity (fmt(fmt(x)) == fmt(x)).
 func TestMarkerProperty_CorpusIdempotence(t *testing.T) {
-	if testing.Short() {
-		t.Skip("corpus walk (~12s); runs in make test, skipped in make test-core")
-	}
+	testutil.SkipInFastLoop(t, "examples corpus idempotence walk, ~12s")
 	var checked, idempotent int
 	walkAilExamples(t, func(path string, data []byte) {
 		p := parser.New(lexer.New(string(data), path))

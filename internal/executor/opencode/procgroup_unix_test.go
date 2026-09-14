@@ -43,14 +43,18 @@ func TestOpenCodeTerminationKillsProcessGroup(t *testing.T) {
 			defer cancel()
 			task := &executor.Task{Directive: "fixture", Workspace: dir, Timeout: 10 * time.Second}
 			if reason == "timeout" {
-				task.Timeout = 500 * time.Millisecond
+				// Wide enough that the fixture shell has written child.pid before
+				// the hard timer fires even under full-suite CPU load (500ms raced:
+				// the group was killed before `sh` had exec'd, and the test read
+				// "fixture never started" instead of the assertion it is for).
+				task.Timeout = 5 * time.Second
 			}
 
 			done := make(chan *executor.Result, 1)
 			go func() { result, _ := e.Execute(ctx, task); done <- result }()
 
 			var child int
-			until := time.Now().Add(8 * time.Second)
+			until := time.Now().Add(4 * time.Second)
 			for time.Now().Before(until) {
 				b, err := os.ReadFile(filepath.Join(dir, "child.pid"))
 				if err == nil {

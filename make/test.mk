@@ -373,4 +373,4 @@ CORE_PKGS := ./internal/lexer/... ./internal/parser/... ./internal/ast/... ./int
 	./internal/errors/... ./internal/stdlib/...
 
 test-core: ## Run the language-core tests only (lexer→VM, stdlib, fmt) — the fast inner loop
-	@$(GOTEST) $(CORE_PKGS) -count=1 -short
+	@AILANG_TEST_FAST_LOOP=1 $(GOTEST) $(CORE_PKGS) -count=1

@@ -2,6 +2,7 @@ package format
 
 import (
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/testutil"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -49,9 +50,7 @@ func (c refusalClass) String() string {
 }
 
 func TestCorpusCommentGate(t *testing.T) {
-	if testing.Short() {
-		t.Skip("corpus walk (~9s); runs in make test, skipped in make test-core")
-	}
+	testutil.SkipInFastLoop(t, "examples corpus walk, ~9s")
 	var (
 		parseValidN   int
 		formattedN    int

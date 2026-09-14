@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-V1-SIMPLIFY-S1",
-  "status": "not_started",
+  "status": "completed",
   "created": "2026-09-14T19:45:19Z",
   "design_doc": "design_docs/planned/m-v1-simplification-program.md",
   "sprint_plan": "design_docs/planned/m-v1-simplification-s1-sprint-plan.md",
@@ -24,10 +24,10 @@
         "make test-core passes in <15s",
         "baseline snapshot committed"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-14T20:05:01Z",
+      "completed": "2026-09-14T20:05:01Z",
+      "notes": "f8c2661cc. test-core 14s under -short (formatter corpus walks skip). Baseline banked .ailang/state/simplicity/2026-09-14.json. Two instrument bugs fixed in M6: piped grep -q under pipefail, BSD grep BRE alternation."
     },
     {
       "id": "M2_OPENCODE_PROCTREE",
@@ -39,10 +39,10 @@
         "grandchild-orphan test passes",
         "existing opencode fixtures pass"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-14T20:05:01Z",
+      "completed": "2026-09-14T20:05:01Z",
+      "notes": "583431d33 (merged 20807bbdf). Negative control: pre-fix opencode.go fails the grandchild test. Also configured the --version probe, matching pi/codex."
     },
     {
       "id": "M3_DASHBOARD_APPROVE_HANDOFF",
@@ -54,10 +54,10 @@
         "dashboard approve produces a handoff message in test",
         "all tests pass"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-14T20:05:01Z",
+      "completed": "2026-09-14T20:05:01Z",
+      "notes": "0aa08cd64 (merged ced9fa983). One processTaskApproval helper now serves both HTTP routes; negative control: pre-fix handler puts 0 messages in the sprint-planner inbox. Also fail-loud: 503 when coordStoreRaw nil, registry load error logged."
     },
     {
       "id": "M4_DELETE_DEAD",
@@ -69,10 +69,10 @@
         "go vet + make test green",
         "no AILANG_ENABLE_GCP_TRACE read remains"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-14T20:05:01Z",
+      "completed": "2026-09-14T20:05:01Z",
+      "notes": "5 commits merged at ee29b0941, 7,448 LOC removed. DEVIATION: sendHandoffMessage KEPT — audit missed handleAgentHandoffs calls it on the auto-approve path; its duplication with sendAgentHandoffMessage is a Phase 2 consolidation, not a delete. Fmt-hook stream-scan block removed with its only caller."
     },
     {
       "id": "M5_ROOT_HOUSEKEEPING",
@@ -84,10 +84,10 @@
         "references to moved files updated",
         "git status quiet on clean tree"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-14T20:05:01Z",
+      "completed": "2026-09-14T20:05:01Z",
+      "notes": "7133edd32. 8 JSON → .ailang/state/sprints/sprint_<ID>.json, 3 plans → design_docs/planned/*-sprint-plan.md. .gitignore .ailang block anchored (nested examples/**/.ailang were un-ignored by !.ailang/). Eval droppings deleted; both standard runners already set cmd.Dir. D6 (eval_results untracking) NOT done: baselines are explicitly re-included and read by the docs dashboard + eval-weekly.yml — owner decision."
     },
     {
       "id": "M6_CLOSURE_TEST_HOTPATH",
@@ -101,10 +101,10 @@
         "ailang version prints one line, fmt opens no state dir",
         "all tests pass"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-14T20:05:01Z",
+      "completed": "2026-09-14T20:05:01Z",
+      "notes": "1a0b52a55. Closure test passes with 9 listed leaks; positive controls in both directions. ailang version: 4 stderr lines + observatory cleanup before, 0 after; fmt with AILANG_STATE_DIR at a missing path creates nothing."
     },
     {
       "id": "M7_SIMPLICITY_AUDIT_SKILL",
@@ -118,10 +118,10 @@
         "positive control: a planted os.Getenv is reported",
         "skill description triggers on weekly/duplicate/health phrasing"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-14T20:05:01Z",
+      "completed": "2026-09-14T20:05:01Z",
+      "notes": "a21e5b24b. Planted os.Getenv → exit 2 naming only getenv_outside_config; clean tree → exit 0. First run flagged the skill description itself (+628 B surface) — left flagged for Phase 4. dup_symbols found setProcessGroup ×4 (audit said 3)."
     }
   ]
 }

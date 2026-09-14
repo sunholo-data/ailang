@@ -1,6 +1,6 @@
 {
   "date": "2026-09-14",
-  "commit": "ee29b0941",
+  "commit": "a21e5b24b",
   "metrics": {
     "closure_internal_packages": {
       "value": 41,
@@ -35,7 +35,7 @@
       "how": "go list ./internal/..."
     },
     "internal_loc": {
-      "value": 297740,
+      "value": 297767,
       "gate": null,
       "dir": "le",
       "how": "non-test Go lines under internal/"
@@ -65,16 +65,16 @@
       "how": "distinct FlagSet definition names in cmd/ailang"
     },
     "getenv_sites_total": {
-      "value": 480,
+      "value": 481,
       "gate": null,
       "dir": "le",
       "how": "os.Getenv/LookupEnv call sites, non-test"
     },
     "getenv_outside_config": {
-      "value": 390,
+      "value": 388,
       "gate": 0,
       "dir": "le",
-      "how": "same, excluding internal/config and DEBUG_* knobs"
+      "how": "same, excluding internal/config, internal/testutil and DEBUG_* knobs"
     },
     "env_vars_distinct": {
       "value": 211,
@@ -121,19 +121,19 @@
       "how": "CLAUDE.md + unscoped rules + skill descriptions"
     },
     "instruction_surface_with_memory_bytes": {
-      "value": 50102,
+      "value": 50337,
       "gate": null,
       "dir": "le",
       "how": "plus the MEMORY.md index on this machine"
     },
     "tracked_files": {
-      "value": 24826,
+      "value": 24829,
       "gate": 8000,
       "dir": "le",
       "how": "git ls-files"
     },
     "root_entries": {
-      "value": 73,
+      "value": 74,
       "gate": null,
       "dir": "le",
       "how": "entries at repo root incl. untracked"

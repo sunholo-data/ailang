@@ -102,9 +102,29 @@ func TestArtifactsRejectBoundaryViolations(t *testing.T) {
 			writeTest(t, f.repo, ResultFile, string(b))
 		},
 		"missing_artifact": func(f *artifactFixture) { f.stage.RequiredArtifacts = []string{"docs/missing.md"} },
+		// The symlink is what this case is ABOUT, so a failure to create one is
+		// not something to shrug at.
+		//
+		// os.Symlink's error was discarded, and on Windows it needs
+		// SeCreateSymbolicLinkPrivilege — present under Developer Mode, absent
+		// otherwise. So the case sometimes ran with no symlink at all, leaving
+		// the protocol file merely DELETED and the fixture's git commit failing
+		// on it. That is the flake: three passes and one
+		// "git [commit -qm base]: exit status 1" on CI within an hour
+		// (2026-09-14), and the one failure was testing something the case does
+		// not claim to test.
 		"protocol_symlink": func(f *artifactFixture) {
-			os.Remove(filepath.Join(f.repo, ResultFile))
-			os.Symlink("docs/result.md", filepath.Join(f.repo, ResultFile))
+			path := filepath.Join(f.repo, ResultFile)
+			if err := os.Remove(path); err != nil {
+				t.Fatalf("removing the protocol file: %v", err)
+			}
+			if err := os.Symlink("docs/result.md", path); err != nil {
+				// Restore, so the deferred fixture is not left in a state no
+				// case intended, then skip: an unprivileged Windows runner
+				// cannot express this violation at all.
+				writeTest(t, f.repo, ResultFile, "restored")
+				t.Skipf("cannot create a symlink here, so this violation cannot be constructed: %v", err)
+			}
 		},
 		"verification_inside_author": func(f *artifactFixture) { f.verify = filepath.Join(f.repo, "verify") },
 		"failed_check": func(f *artifactFixture) {

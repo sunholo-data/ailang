@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"github.com/sunholo-data/ailang/internal/testutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -44,7 +45,7 @@ func newDashboardApprovalFixture(t *testing.T) *dashboardApprovalFixture {
 	// this test so a developer's real config (and a real Pub/Sub topic) is
 	// never touched. With no messaging config the handoff row is stored and
 	// the notify step reports "not dispatched" — the row is the observable.
-	t.Setenv("HOME", dir)
+	testutil.SetHomeDir(t, dir)
 	cfgPath := filepath.Join(dir, "coordinator.yaml")
 	cfg := `coordinator:
   agents:
