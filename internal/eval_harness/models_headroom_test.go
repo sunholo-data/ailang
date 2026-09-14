@@ -103,6 +103,9 @@ func TestModels_CloudHeadroomEqualised(t *testing.T) {
 		"pi-or-deepseek-v4-flash": 32000,
 		// Same pi harness clamp; bare-id A/B control for the evaluator route (2026-09-08).
 		"pi-or-deepseek-v4-flash-bare": 32000,
+		// Same pi harness clamp; the binary mission path's evaluator lane (roles: evaluator
+		// leads with pi since 2026-09-14). Its yml row already declares min(65536, 32000).
+		"pi-or-minimax-m3": 32000,
 	}
 
 	c, err := LoadModelsConfig("../modelreg/models.yml")
