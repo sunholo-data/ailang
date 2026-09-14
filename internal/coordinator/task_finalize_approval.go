@@ -178,15 +178,31 @@ func (f *finalizer) applyHandoff(ctx context.Context) (FinalizationState, error)
 			continue
 		}
 
-		body := fmt.Sprintf("**Handoff from %s**\n\nTask: %s\nTitle: %s\n\nOriginal request:\n%s\n\nPlease continue this work.",
-			f.in.Task.AgentID, f.in.Task.ID, f.in.Task.Title, truncateString(f.in.Task.Content, 500))
+		// handoffContent, not a body built here.
+		//
+		// This was the THIRD handoff producer, with its own wording, its own
+		// title format, no artifact line and a 500-character truncation of the
+		// request. Three producers meant three descriptions of the same event:
+		// one of them accidentally dodged dedup by being worded differently
+		// (2026-09-14, 13:33), and this one never named the artifact at all — an
+		// omission masked for as long as handoffs nested, because the parent's
+		// envelope happened to mention it.
+		//
+		// Sharing the builder is the point. A fourth description of the same
+		// event is not a feature anyone asked for.
+		source := f.deps.AgentRegistry.GetAgentByID(f.in.Task.AgentID)
+		if source == nil {
+			source = &AgentConfig{ID: f.in.Task.AgentID, Label: f.in.Task.AgentID}
+		}
+		artifacts := resolveHandoffArtifacts(ctx, f.deps.TaskStore, f.in.Task, source)
+		body := handoffContent(source, f.in.Task, f.in.Task.GithubIssue, artifacts)
 
 		created, err := f.deps.MsgStore.PutMessageIfAbsent(ctx, &messaging.InboxMessage{
 			ID:           HandoffMessageID(f.in.Task.ID, targetID),
 			FromAgent:    "coordinator",
 			ToInbox:      target.Inbox,
 			MessageType:  messaging.InboxTypeHandoff,
-			Title:        fmt.Sprintf("Handoff: %s", f.in.Task.Title),
+			Title:        handoffTitle(f.in.Task.Title),
 			Payload:      body,
 			ParentTaskID: f.in.Task.ID,
 			ChainID:      f.in.Task.ChainID,

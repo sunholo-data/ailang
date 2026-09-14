@@ -269,3 +269,101 @@ func TestResolveHandoffArtifacts_ToleratesMissingOrJunkContext(t *testing.T) {
 		t.Errorf("nil store = no recovery, got %v", got)
 	}
 }
+
+// The fourth stage's subject line, measured 2026-09-14:
+//
+//	Handoff: Handoff: Handoff: Daneel design 8adb4ff62af619b745106cbe...
+//
+// Three-quarters bookkeeping, and the remaining quarter a hex digest.
+func TestHandoffTitle_PrefixesOnce(t *testing.T) {
+	for _, in := range []string{
+		"Design: stdlib resolution",
+		"Handoff: Design: stdlib resolution",
+		"Handoff: Handoff: Design: stdlib resolution",
+		"Handoff:  Handoff: Handoff: Design: stdlib resolution",
+	} {
+		if got := handoffTitle(in); got != "Handoff: Design: stdlib resolution" {
+			t.Errorf("handoffTitle(%q) = %q", in, got)
+		}
+	}
+}
+
+// Each stage embedded its predecessor's content verbatim, so by the third the
+// task carried every envelope before it — 1728 bytes of re-quoted request with
+// the actual ask at the bottom. That is also what makes consecutive stages
+// simhash alike.
+func TestRootRequestOf_UnwrapsNestedEnvelopes(t *testing.T) {
+	root := `{"workflow":"design-document-v1","request":"unify the stdlib resolvers"}`
+
+	stage1 := "**Handoff from Design Doc Creator**\n\nTask: task-a\nArtifact: design_docs/x.md\n\nOriginal Request: " + root + "\n\nPrevious work has been approved. Please continue."
+	stage2 := "**Handoff from Sprint Planner**\n\nTask: task-b\n\nOriginal Request: " + stage1 + "\n\nPrevious work has been approved. Please continue."
+
+	if got := rootRequestOf(stage2); !strings.HasPrefix(got, root) {
+		t.Errorf("two envelopes deep, got:\n%s", got)
+	}
+	if got := rootRequestOf(stage1); !strings.HasPrefix(got, root) {
+		t.Errorf("one envelope deep, got:\n%s", got)
+	}
+	// And a plain request is left exactly alone — it IS the request.
+	if got := rootRequestOf(root); got != root {
+		t.Errorf("a bare request must pass through untouched, got %q", got)
+	}
+}
+
+// A malformed envelope must degrade to the content, never to nothing: an empty
+// directive is worse than a verbose one.
+func TestRootRequestOf_MalformedEnvelopeKeepsTheContent(t *testing.T) {
+	for _, in := range []string{
+		"**Handoff from X**\n\nno marker here at all",
+		"**Handoff from X**\n\nOriginal Request:   ",
+	} {
+		if got := rootRequestOf(in); got != in {
+			t.Errorf("rootRequestOf(%q) = %q, want the input unchanged", in, got)
+		}
+	}
+}
+
+// The evaluator's whole job is to judge the previous stage's diff, and it was
+// told the wrong branch.
+//
+// Measured 2026-09-14: the handoff said "Branch: dev" — the base the worktree
+// was cut FROM, not the branch carrying the change. sprint-evaluator found
+// nothing to evaluate, ran `git diff origin/dev...HEAD` against its OWN empty
+// branch, and returned FAIL 0/100 on a sprint it had never been handed. A wrong
+// verdict on unexamined work is worse than no verdict.
+func TestHandoffContent_NamesTheWorkBranchNotJustTheBase(t *testing.T) {
+	task := &TaskRecord{
+		ID: "task-80ad9d65", Content: "implement it",
+		WorktreeID: "coordinator/task-80ad9d65", BaseBranch: "dev",
+	}
+	got := handoffContent(&AgentConfig{ID: "sprint-executor", Label: "Sprint Executor"}, task, 0, nil)
+
+	if !strings.Contains(got, "Work branch: coordinator/task-80ad9d65") {
+		t.Errorf("the branch carrying the change must be named:\n%s", got)
+	}
+	if !strings.Contains(got, "Base branch: dev") {
+		t.Errorf("the base to diff against must also be named, as the base:\n%s", got)
+	}
+	// "Branch: dev" alone is what caused the wrong verdict.
+	if strings.Contains(got, "\nBranch: dev") {
+		t.Errorf("the bare ambiguous form must be gone:\n%s", got)
+	}
+}
+
+// A cloud task has no worktree; the wrapper's branch convention applies.
+func TestWorkBranchOf(t *testing.T) {
+	if got := workBranchOf(&TaskRecord{ID: "task-x"}); got != "coordinator/task-x" {
+		t.Errorf("cloud task branch = %q", got)
+	}
+	if got := workBranchOf(&TaskRecord{ID: "task-x", WorktreeID: "feature/y"}); got != "feature/y" {
+		t.Errorf("a recorded worktree branch must win, got %q", got)
+	}
+	if got := workBranchOf(nil); got != "" {
+		t.Errorf("nil task has no branch, got %q", got)
+	}
+	// No id, no branch — the handoff omits the line rather than naming one that
+	// does not exist.
+	if got := workBranchOf(&TaskRecord{}); got != "" {
+		t.Errorf("a task with no id has no branch, got %q", got)
+	}
+}

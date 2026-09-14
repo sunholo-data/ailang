@@ -89,31 +89,6 @@ All milestones have been completed and tests pass.
 **FILES_MODIFIED**: `internal/existing.go`
 ```
 
-### When you CANNOT start — say so, do not just do nothing
-
-If a precondition is unmet and you did not attempt the work, end with:
-
-```
-BLOCKED: the sprint state file has not been committed
-BLOCKED_ON: .ailang/state/sprints/sprint_M-FOO.json
-```
-
-`BLOCKED_ON` is optional and is the machine-readable half — the thing a human
-has to fix.
-
-**Why this matters.** Without it, a run that declined for a good reason and a
-run that did the work and found nothing to change both report `no_changes`.
-Measured 2026-09-14: this skill correctly refused to start because
-`sprint_M-OPENROUTER-EU-ROUTING.json` was missing, explained it clearly, and the
-coordinator recorded the same outcome it would record for a package agent whose
-dependency was already current. One of those needs a person; the other needs
-nobody, and nobody could tell them apart.
-
-`BLOCKED` is terminal for that attempt but does **not** suppress a later
-identical request — re-running once the blocker is cleared is the point. It is
-only honoured when you changed no files: if you declared a blocker and then
-worked around it, the files are the stronger evidence and they win.
-
 ## Core Principles
 
 1. **Test-Driven**: All code must pass tests before moving to next milestone

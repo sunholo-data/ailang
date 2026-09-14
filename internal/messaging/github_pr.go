@@ -124,11 +124,30 @@ func (c *GitHubClient) FindPRForBranch(repo, branch string) (*PullRequest, error
 	return pr, nil
 }
 
-// MergePR squash-merges and deletes the head branch.
+// MergePR squash-merges and deletes the head branch, waiting for required
+// checks if the base branch demands them.
 //
 // Squash deliberately: an agent's branch is a working record — clone, retry,
 // fixup — and the unit that belongs on the base branch is the change, not the
 // process that produced it.
+//
+// `--auto` is what makes this work on a PROTECTED branch. Without it an
+// immediate merge is refused outright:
+//
+//	X Pull request sunholo-data/ailang#1196 is not mergeable: the base branch
+//	  policy prohibits the merge.
+//
+// measured 2026-09-14 on the first approval that tried. The approval is a
+// decision about the WORK, and it is made minutes before CI can possibly have
+// run — so "merge when the requirements are met" is the honest reading of it,
+// where "refuse because they are not met yet" is a race the operator would have
+// to lose on purpose.
+//
+// --auto degrades correctly on an UNPROTECTED branch: GitHub merges immediately
+// when there is nothing to wait for. And it never bypasses a check — a PR whose
+// CI fails simply stays open, which is the outcome anyone would want.
+// --admin is deliberately NOT used: an approval is permission to land the work,
+// not permission to skip the repository's own gates.
 func (c *GitHubClient) MergePR(repo string, number int, subject, body string) error {
 	if err := c.PreFlightChecks(); err != nil {
 		return err
@@ -140,7 +159,7 @@ func (c *GitHubClient) MergePR(repo string, number int, subject, body string) er
 		return fmt.Errorf("no repository specified")
 	}
 	args := []string{"pr", "merge", "--repo", repo, strconv.Itoa(number),
-		"--squash", "--delete-branch"}
+		"--squash", "--delete-branch", "--auto"}
 	if subject != "" {
 		args = append(args, "--subject", subject)
 	}
