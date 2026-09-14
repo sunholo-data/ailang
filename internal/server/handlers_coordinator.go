@@ -141,8 +141,16 @@ func (s *Server) handleCoordinatorApproval(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if s.approvalStore == nil {
+	// Both stores are required: cmd/ailang/server.go always sets them together,
+	// and resolving the record with only approvalStore is the bug this route
+	// had — an approval that fires no handoff and merges nothing.
+	if s.approvalStore == nil || s.coordStoreRaw == nil {
 		http.Error(w, "Coordinator approval store not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	body, ok := decodeApprovalDecisionBody(w, r)
+	if !ok {
 		return
 	}
 
@@ -150,7 +158,7 @@ func (s *Server) handleCoordinatorApproval(w http.ResponseWriter, r *http.Reques
 
 	// Check if approval request exists
 	req, err := s.approvalStore.GetApprovalRequest(ctx, id)
-	if err != nil {
+	if err != nil || req == nil {
 		log.Printf("Failed to get approval request %s: %v", id, err)
 		http.Error(w, "Approval request not found", http.StatusNotFound)
 		return
@@ -161,15 +169,16 @@ func (s *Server) handleCoordinatorApproval(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// Resolve the request
-	status := "approved"
-	if action == "reject" {
-		status = "rejected"
+	// Secret approvals have no task behind them; they resolve on their own path.
+	if req.Type == "secret" {
+		s.resolveSecretApproval(w, r, req, action, "dashboard-user")
+		return
 	}
 
-	if err := s.approvalStore.ResolveApprovalRequest(ctx, id, status, "dashboard-user"); err != nil {
-		log.Printf("Failed to resolve approval request %s: %v", id, err)
-		http.Error(w, "Failed to resolve approval request", http.StatusInternalServerError)
+	// The same processor the /api/approvals route uses — the only path that
+	// fires handoffs (M-V1-SIMPLIFY-S1 M3).
+	if _, err := s.processTaskApproval(ctx, req, action, body); err != nil {
+		http.Error(w, "Failed to resolve approval request: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
