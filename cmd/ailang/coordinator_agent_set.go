@@ -117,6 +117,7 @@ func runAgentSet(ctx context.Context, o agentSetOpts) error {
 		return err
 	}
 	fmt.Println("  ✓ strict parse: every key in the config is read by the registry")
+	fmt.Println("  ✓ registry lint: chain edges resolve, no cycles, no dead handoffs")
 	fmt.Println("  ✓ registry loads and still contains the agent")
 
 	if o.dryRun {
@@ -314,6 +315,22 @@ func validateEditedConfig(edited, agentID, field string) error {
 	}
 	if reg.GetAgentByID(agentID) == nil {
 		return fmt.Errorf("after the edit the registry no longer contains %q", agentID)
+	}
+
+	// Relational checks, on the WHOLE registry rather than the edited entry.
+	// A one-field edit can break another agent: pointing trigger_on_complete at
+	// a renamed target, or closing the last auto edge into a chain, is invisible
+	// from inside the entry being changed. Same rules as
+	// `ailang coordinator lint`, run here so the fast path cannot deploy a
+	// registry the linter would reject.
+	agents := reg.ListAgents()
+	if findings := lintRegistry(agents); len(findings) > 0 {
+		var lines []string
+		for _, f := range findings {
+			lines = append(lines, fmt.Sprintf("%s [%s] %s", f.Agent, f.Rule, f.Msg))
+		}
+		return fmt.Errorf("the edited registry has %d finding(s):\n  %s",
+			len(findings), strings.Join(lines, "\n  "))
 	}
 	return nil
 }
