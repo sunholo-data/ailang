@@ -49,9 +49,27 @@ That's the whole flow. The rest of this guide explains the prerequisites and got
 
 ### 1. An API key
 
-Today the registry uses a single shared API key for publish authorization. Contact [the AILANG maintainers](https://github.com/sunholo-data/ailang/issues) (or your existing channel — for arniwesth and other established partners, this is direct) to be issued the key.
+Publishing needs a key in `AILANG_REGISTRY_API_KEY`. There are two kinds:
 
-> **Honest disclosure:** the current key is a superuser key — it can publish under any namespace. Per-namespace key scoping is on the roadmap (see [Limitations](#current-limitations) below). The key MUST be kept private — don't commit it, don't paste it in a PR, don't put it in a GitHub Action without using a secret.
+| Kind | Who holds it | Can write |
+|---|---|---|
+| **Scoped key** (`ailr_…`) | each publisher | only the package globs it was minted with, e.g. `daneel/*` or `sunholo/daneel_*` |
+| **Superuser key** | the AILANG maintainers | every namespace, plus `unpublish` of anything, `rebuild-index`, and minting scoped keys |
+
+Ask [the AILANG maintainers](https://github.com/sunholo-data/ailang/issues) (or your existing channel) for a scoped key for your namespace. Reads never need a key — the registry bucket is public.
+
+A maintainer mints one with:
+
+```bash
+export AILANG_REGISTRY_API_KEY=<superuser key>
+ailang pkg key create --owner daneel --scope 'daneel/*' --note "Daneel's publish key"
+# ✓ Minted key for daneel (scopes: daneel/*)
+#   id:  3f9c…        ← for `ailang pkg key revoke <id>`
+#   key: ailr_…       ← shown ONCE; hand over on a private channel
+ailang pkg key list
+```
+
+The key MUST be kept private — don't commit it, don't paste it in a PR, don't put it in a GitHub Action without using a secret. A scoped key publishing outside its scope gets a 403 that names the owner and the package; the scopes are enforced on `publish` and `unpublish` alike, and `published_by` in the package metadata is stamped with the key's owner.
 
 ### 2. A namespace
 
@@ -181,13 +199,13 @@ The package also auto-appears at `https://ailang.sunholo.com/docs/packages/<name
 
 These are real today. Known and tracked.
 
-1. **Single shared API key.** No per-namespace scoping at the validator (see [`cmd/registry-validator/main.go:178`](https://github.com/sunholo-data/ailang/blob/dev/cmd/registry-validator/main.go#L178) — `// Step 5: Namespace auth — deferred (accept all publishers for now)`). Whoever holds the key can publish under any namespace. **Acceptable for trusted partners; not yet ready for an open ecosystem.** Tracked as `M-PKG-MULTI-NAMESPACE-AUTH` (planned).
+1. **No self-registration.** Only a maintainer can mint a scoped key (CRAN-style curation); there is no signup flow. Scopes are globs, not ownership records — two keys can be minted over the same namespace, and nothing stops a maintainer from doing so.
 
 2. **No version yanking yet.** Once published, a version is immutable — no way to retract a broken release. Workaround: publish a fixed `x.y.(z+1)`. Yanking is on the roadmap.
 
 3. **No private registries.** All publishes go to the same Sunholo-hosted GCS bucket. For private packages, keep them as path-deps in a monorepo.
 
-4. **No package owners other than via the API key.** Future namespace scoping will introduce an owner concept, but today there's no per-package ACL — the key is the only authority.
+4. **The key is the only identity.** `published_by` records the key's owner, but there is no owner concept beyond that — no transfer, no co-owners, no per-package ACL other than the key scopes.
 
 ---
 

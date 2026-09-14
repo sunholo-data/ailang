@@ -547,6 +547,7 @@ func main() {
 			fmt.Println("  history <pkg>@<ver>         Show version history timeline")
 			fmt.Println("  notify-upgrade <pkg>@<ver>  Emit upgrade-available message (manual fallback)")
 			fmt.Println("  affected-by <pkg>           List workspaces depending on a package")
+			fmt.Println("  key create|list|revoke      Manage scoped publish keys (superuser only)")
 			fmt.Println()
 			fmt.Println("To publish a new version and fire the full cascade bus:")
 			fmt.Println("  ailang publish              (preferred — wraps notify-upgrade + cascade-topic)")
@@ -591,6 +592,12 @@ func main() {
 		case "cascade":
 			// M-PKG-AUTONOMOUS-CASCADE-SAFE M4
 			if err := pkgCascadeCommand(subArgs[1:]); err != nil {
+				fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+				os.Exit(1)
+			}
+		case "key":
+			// M-PKG-MULTI-NAMESPACE-AUTH
+			if err := pkgKeyCommand(subArgs[1:]); err != nil {
 				fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 				os.Exit(1)
 			}

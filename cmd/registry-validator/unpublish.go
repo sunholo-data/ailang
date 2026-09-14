@@ -23,14 +23,10 @@ func (v *validator) handleRebuildIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Same API key auth as publish
+	// Rebuilding the index touches every namespace — superuser only.
 	if v.apiKey != "" {
-		provided := r.Header.Get("X-API-Key")
-		if provided == "" {
-			provided = r.URL.Query().Get("api_key")
-		}
-		if provided != v.apiKey {
-			jsonError(w, http.StatusForbidden, "Invalid or missing API key")
+		if aerr := v.requireSuperuser(r.Context(), r); aerr != nil {
+			jsonError(w, aerr.status, "%s", aerr.msg)
 			return
 		}
 	}
@@ -160,19 +156,17 @@ func (v *validator) handleUnpublish(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, http.StatusForbidden, "Unpublish requires API key configuration on the server")
 		return
 	}
-	provided := r.Header.Get("X-API-Key")
-	if provided == "" {
-		provided = r.URL.Query().Get("api_key")
-	}
-	if provided != v.apiKey {
-		jsonError(w, http.StatusForbidden, "Invalid or missing API key")
-		return
-	}
 
 	name := r.URL.Query().Get("name")
 	version := r.URL.Query().Get("version")
 	if name == "" || version == "" {
 		jsonError(w, http.StatusBadRequest, "Both 'name' and 'version' query parameters are required")
+		return
+	}
+
+	// Scoped keys may only unpublish what they could have published.
+	if _, aerr := v.authorizeWrite(r.Context(), r, name); aerr != nil {
+		jsonError(w, aerr.status, "%s", aerr.msg)
 		return
 	}
 
