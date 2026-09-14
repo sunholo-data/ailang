@@ -66,3 +66,27 @@ func nonNeg(n int) int {
 	}
 	return n
 }
+
+// PER-HARNESS ACCUMULATION SEMANTICS — the table, in one place, because they differ and
+// nothing asserted which was which until 2026-09-14.
+//
+//	harness    stream shape                     code does   cache buckets
+//	pi         per-turn DELTAS (message_end)    SUM (+=)    write/read reported separately
+//	opencode   per-step DELTAS (step_finish)    SUM (+=)    EXCLUSIVE of input/output
+//	claude     CUMULATIVE (message_delta)       ASSIGN (=)  creation arrives only at result
+//	codex      CUMULATIVE (usage events)        ASSIGN (=)  cached is a SUBSET of input
+//	motoko     sums, then final usage wins      BOTH        reported separately
+//
+// Two consequences that have each already caused a wrong conclusion:
+//
+//  1. codex's guard must NOT gain a cache term. Its inputTokens is already the WHOLE
+//     input and splitCodexInputTokens separates the cached part at the end
+//     (total-preserving, per its test), so adding one would double-count.
+//  2. Comparing a token cap between two roles is meaningless unless both run on the same
+//     harness. Measured: the identical five-file read charged 36,303 on pi and 698 on
+//     claude under the old Input+Output expression.
+//
+// NOT YET PINNED BY TEST, and honestly so: proving "pi sums / claude assigns" needs a
+// recorded stream per harness, and this tree has no claude-code or pi stream fixture. The
+// same gap blocks killing an over-cap claude run mid-stream rather than at its result
+// event. Capturing those fixtures closes both at once.
