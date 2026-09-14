@@ -13,9 +13,18 @@
 #   rig_lock_acquire nowait  # return 1 immediately if held (background filler)
 # The lock is auto-released on process exit (EXIT trap).
 
-RIG_LOCK_DIR="${RIG_LOCK_DIR:-$HOME/.ailang/state/rig.lock.d}"
+# WHERE THE LOCK LIVES — the same rule as internal/riglock.lockDir, so a shell
+# job and a Go job on the same rig cannot disagree: an explicit RIG_LOCK_DIR;
+# else the machine-wide directory IF an operator has created it (two OS users
+# sharing one GPU must share one lock — group-owned, inheritable ACL, never
+# created here); else the per-user path. The handoff marker follows the lock.
+RIG_SHARED_DIR="${RIG_SHARED_DIR:-/Users/Shared/ailang}"
+if [ -z "${RIG_LOCK_DIR:-}" ]; then
+  if [ -d "$RIG_SHARED_DIR" ]; then RIG_LOCK_DIR="$RIG_SHARED_DIR/rig.lock.d"
+  else RIG_LOCK_DIR="$HOME/.ailang/state/rig.lock.d"; fi
+fi
 RIG_LOCK_STALE_MIN="${RIG_LOCK_STALE_MIN:-360}" # steal a lock older than 6h (crash recovery)
-RIG_HANDOFF_FILE="${RIG_HANDOFF_FILE:-$HOME/.ailang/state/rig.handoff}"
+RIG_HANDOFF_FILE="${RIG_HANDOFF_FILE:-$(dirname "$RIG_LOCK_DIR")/rig.handoff}"
 RIG_YIELD_WINDOW_SEC="${RIG_YIELD_WINDOW_SEC:-180}"
 
 # --- cooperative yield (M-RIG-LOCK-YIELD) -----------------------------------

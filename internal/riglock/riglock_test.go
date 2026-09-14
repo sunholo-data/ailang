@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 // isolate points the lock at a temp dir and clears inherited env so tests are
@@ -146,5 +148,38 @@ func TestHolder_FreeLock(t *testing.T) {
 	isolate(t)
 	if h := Holder(); h != "" {
 		t.Errorf("Holder on a free lock = %q, want empty", h)
+	}
+}
+
+// The resolution order: explicit env, then the machine-wide directory only if
+// it already exists, then the per-user path. A rig with two OS users on one
+// GPU depends on the middle step; a rig with one must not be moved by it.
+func TestLockDir_SharedOnlyWhenPresent(t *testing.T) {
+	t.Setenv(EnvLockDir, "")
+	base := t.TempDir()
+	home := filepath.Join(base, "home")
+	testutil.SetHomeDir(t, home)
+
+	absent := filepath.Join(base, "absent")
+	t.Setenv(EnvSharedDir, absent)
+	if got, want := lockDir(), filepath.Join(home, ".ailang", "state", "rig.lock.d"); got != want {
+		t.Fatalf("shared dir absent: got %q, want per-user %q", got, want)
+	}
+
+	shared := filepath.Join(base, "shared")
+	if err := os.MkdirAll(shared, 0o775); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv(EnvSharedDir, shared)
+	if got, want := lockDir(), filepath.Join(shared, "rig.lock.d"); got != want {
+		t.Fatalf("shared dir present: got %q, want %q", got, want)
+	}
+	if got, want := handoffPath(), filepath.Join(shared, "rig.handoff"); got != want {
+		t.Fatalf("handoff should follow the lock: got %q, want %q", got, want)
+	}
+
+	t.Setenv(EnvLockDir, filepath.Join(base, "explicit"))
+	if got, want := lockDir(), filepath.Join(base, "explicit"); got != want {
+		t.Fatalf("explicit env must win: got %q, want %q", got, want)
 	}
 }
