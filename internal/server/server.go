@@ -74,7 +74,6 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
-	"os"
 	"os/exec"
 	"strings"
 	"sync"
@@ -307,74 +306,21 @@ func WithCoordinatorStore(store CoordinatorStore) ServerOption {
 }
 
 // WithObservatoryDB sets up the observatory backend with SQLite at the given path.
-// If GCP project is configured (via GOOGLE_CLOUD_PROJECT or OTLP_GOOGLE_CLOUD_PROJECT),
-// it also adds a GCP Trace remote backend for federated trace queries.
+// The observatory is local-only; the GCP Trace / composite remote backends were
+// deleted in M-V1-SIMPLIFY-S1 M4 (nothing ever set AILANG_ENABLE_GCP_TRACE).
 func WithObservatoryDB(dbPath string) ServerOption {
 	return func(s *Server) {
-		// Create local SQLite backend
 		sqliteBackend, err := observatory.NewSQLiteBackendFromPath(dbPath)
 		if err != nil {
 			log.Printf("Warning: Failed to initialize observatory: %v", err)
 			return
 		}
+		log.Printf("Observatory: Local-only mode")
 
-		// Check for GCP project configuration
-		gcpProject := getGCPProject()
-		var backend observatory.Backend
-
-		// GCP Trace federation disabled until M-GEMINI-TRACE investigation is complete
-		// See: design_docs/planned/v0_6_4/m-gemini-trace-investigation.md
-		// Issue: Gemini CLI exports to Cloud Logging, not Cloud Trace
-		if gcpProject != "" && getEnv("AILANG_ENABLE_GCP_TRACE") == "1" {
-			// Create GCP Trace remote backend
-			gcpBackend, err := observatory.NewGCPTraceBackend(observatory.GCPConfig{
-				ProjectID: gcpProject,
-			})
-			if err != nil {
-				log.Printf("Warning: Failed to initialize GCP Trace backend (will use local only): %v", err)
-				backend = sqliteBackend
-			} else {
-				// Create composite backend with local + GCP remote
-				compositeBackend, err := observatory.NewCompositeBackend(observatory.CompositeConfig{
-					Local:   sqliteBackend,
-					Remotes: []observatory.Backend{gcpBackend},
-				})
-				if err != nil {
-					log.Printf("Warning: Failed to create composite backend: %v", err)
-					backend = sqliteBackend
-				} else {
-					backend = compositeBackend
-					log.Printf("Observatory: Composite backend enabled (local + GCP Trace project=%s)", gcpProject)
-				}
-			}
-		} else {
-			backend = sqliteBackend
-			if gcpProject != "" {
-				log.Printf("Observatory: Local-only mode (GCP Trace disabled, set AILANG_ENABLE_GCP_TRACE=1 to enable)")
-			} else {
-				log.Printf("Observatory: Local-only mode")
-			}
-		}
-
-		s.obsBackend = backend
-		s.obsAPI = observatory.NewAPI(backend)
+		s.obsBackend = sqliteBackend
+		s.obsAPI = observatory.NewAPI(sqliteBackend)
 		s.obsHub = observatory.NewHub()
 	}
-}
-
-// getGCPProject returns the GCP project ID from environment variables.
-func getGCPProject() string {
-	// Check OTLP-specific variable first (for dual-export scenarios)
-	if project := getEnv("OTLP_GOOGLE_CLOUD_PROJECT"); project != "" {
-		return project
-	}
-	// Fall back to standard GCP variable
-	return getEnv("GOOGLE_CLOUD_PROJECT")
-}
-
-// getEnv returns an environment variable value.
-func getEnv(key string) string {
-	return os.Getenv(key)
 }
 
 // WithFirebaseAuth initializes Firebase authentication and Firestore-based access control.
