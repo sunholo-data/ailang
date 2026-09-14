@@ -96,16 +96,19 @@ __pycache__/
 #
 # Git cannot re-include a path whose parent directory is excluded, so each level
 # is re-admitted in turn. Everything else under .ailang/ stays ignored.
-!.ailang/
-.ailang/*
-!.ailang/state/
-.ailang/state/*
-!.ailang/state/sprints/
-!.ailang/state/sprints/*.json
+# The exceptions are anchored to the repo root on purpose: an unanchored
+# `!.ailang/` re-admits every nested `.ailang/cache` the compiler drops next
+# to a source file (examples/**/.ailang showed as untracked for months).
+!/.ailang/
+/.ailang/*
+!/.ailang/state/
+/.ailang/state/*
+!/.ailang/state/sprints/
+!/.ailang/state/sprints/*.json
 # ...and the simplicity-metrics snapshots (M-V1-SIMPLIFY-S1): the weekly audit
 # diffs against the last banked one, so they must travel with the repo.
-!.ailang/state/simplicity/
-!.ailang/state/simplicity/*.json
+!/.ailang/state/simplicity/
+!/.ailang/state/simplicity/*.json
 /ui/node_modules
 internal/executor/opencode/plugins/node_modules
 internal/executor/opencode/plugins/coverage
@@ -147,3 +150,7 @@ design_docs/research/*.pdf
 # EXIT traps clean up; these two lines cover the SIGKILL/crash case only.
 .tmp-fmt-check.*
 .tmp-iter327.*
+
+# Build/scratch outputs at the root (M-V1-SIMPLIFY-S1 M5)
+/gen/
+/.eval_workspace/
