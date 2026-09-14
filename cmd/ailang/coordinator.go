@@ -40,6 +40,8 @@ func coordinatorCommand(args []string) error {
 		return coordinatorAgents(subargs)
 	case "agent-set":
 		return coordinatorAgentSet(subargs)
+	case "pipeline":
+		return coordinatorPipeline(subargs)
 	case "lint":
 		return coordinatorLint(subargs)
 	case "agent-check":
@@ -92,6 +94,7 @@ func printCoordinatorHelp() {
 	fmt.Println("                 --registry <path> to judge a config before deploying it)")
 	fmt.Println("  agent-check    Verify one agent is deployed and coherent")
 	fmt.Println("  lint           Validate the WHOLE registry: chain edges, cycles, dead handoffs")
+	fmt.Println("  pipeline       Did the agent chain run, and which stage stopped it?")
 	fmt.Println("  agent-set      Change one field on one agent and deploy it (dev->test->prod)")
 	fmt.Println("  list           List all tasks (with filters)")
 	fmt.Println("  pending        List tasks awaiting approval (interactive)")

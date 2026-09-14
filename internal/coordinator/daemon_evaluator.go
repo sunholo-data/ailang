@@ -69,7 +69,29 @@ func (d *Daemon) agentEvaluatesParent(task *TaskRecord) bool {
 // requests never pinged anyone. Nil publisher (pure-local setups) is a no-op;
 // on the shared plane init guarantees one.
 func (d *Daemon) publishInboxNotification(msg *messaging.InboxMessage) {
-	if d.pubsubPublisher == nil || msg == nil {
+	if msg == nil {
+		return
+	}
+	// A nil publisher on a CLOUD plane strands the message permanently, and
+	// used to do so in silence.
+	//
+	// The row is written and nothing is ever told about it. Push is the only
+	// delivery path — the backstop sweep defaults to REPORT mode
+	// (backstopModeFromEnv), so it logs "WOULD recover" and dispatches nothing.
+	// The message is therefore unread and routable forever, which is exactly
+	// what twelve sprint-executor handoffs looked like on 2026-09-14: stored,
+	// correct in every field, and no task ever created.
+	//
+	// Returning quietly is right for a pure-local daemon, where the poller reads
+	// the store directly. It is a fault anywhere else, and the two cases are
+	// distinguishable: cloudInboxAdapter is non-nil exactly when push is the
+	// delivery mechanism.
+	if d.pubsubPublisher == nil {
+		if d.cloudInboxAdapter != nil {
+			d.logger.Printf("ERROR: no Pub/Sub publisher — inbox message %s to %q is STORED BUT UNDELIVERABLE. "+
+				"Push is the only delivery path on this plane and the backstop sweep reports rather than dispatches, "+
+				"so nothing will pick it up.", msg.ID, msg.ToInbox)
+		}
 		return
 	}
 	if err := d.pubsubPublisher.PublishMessage(d.ctx, messaging.NotificationIDFor(msg), pubsub.MessageAttributes{
