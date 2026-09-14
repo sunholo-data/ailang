@@ -27,6 +27,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sunholo-data/ailang/internal/executor"
+	"github.com/sunholo-data/ailang/internal/executor/proctree"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -153,6 +154,9 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 	opencodePath := e.opencodePath
 
 	cmd := exec.CommandContext(ctx, opencodePath, args...)
+	// Own process group: opencode forks a server (fixed port 8080) and MCP
+	// children; killing only the leader orphaned them on timeout (M-V1-SIMPLIFY-S1 M2).
+	proctree.Configure(cmd)
 	if task.Workspace != "" {
 		cmd.Dir = task.Workspace
 	}
@@ -358,14 +362,14 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 				if task.Budget != nil && (ev.Part.Tokens.Cache.Read > 0 || ev.Part.Tokens.Cache.Write > 0) {
 					if _, exceeded := task.Budget.AddCache(ev.Part.Tokens.Cache.Read, ev.Part.Tokens.Cache.Write); exceeded {
 						costKilled = true
-						_ = cmd.Process.Kill()
+						proctree.Kill(cmd)
 					}
 				}
 				// M-EVAL-COST-AND-SPEED-BUDGETS: incremental cost tally on per-step deltas.
 				if task.Budget != nil && (ev.Part.Tokens.Input > 0 || ev.Part.Tokens.Output > 0) {
 					if _, exceeded := task.Budget.Add(ev.Part.Tokens.Input, ev.Part.Tokens.Output); exceeded {
 						costKilled = true
-						_ = cmd.Process.Kill()
+						proctree.Kill(cmd)
 					}
 				}
 
@@ -382,7 +386,7 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 						thrashKilledAtTokens = tp
 						fmt.Fprintf(os.Stderr, "[OPENCODE] thrash abort: cumulative tokens %d exceeded MaxTokensPerBench=%d\n",
 							thrashKilledAtTokens, task.MaxTokensPerBench)
-						_ = cmd.Process.Kill()
+						proctree.Kill(cmd)
 					}
 				}
 
@@ -485,7 +489,7 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 			}, nil
 
 		case <-hardTimer.C:
-			_ = cmd.Process.Kill()
+			proctree.Kill(cmd)
 			span.SetStatus(codes.Error, "hard timeout")
 			return &executor.Result{
 				Success:                  false,
@@ -501,7 +505,7 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 			}, nil
 
 		case <-ttftTimer.C:
-			_ = cmd.Process.Kill()
+			proctree.Kill(cmd)
 			span.SetStatus(codes.Error, "ttft timeout")
 			return &executor.Result{
 				Success:        false,
@@ -513,7 +517,7 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 		case <-idleCheck.C:
 			since := time.Since(time.Unix(0, lastActivity.Load()))
 			if since > idleTimeout {
-				_ = cmd.Process.Kill()
+				proctree.Kill(cmd)
 				span.SetStatus(codes.Error, "generation idle timeout")
 				return &executor.Result{
 					Success:                  false,
@@ -531,7 +535,7 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 			idleCheck.Reset(idleTimeout - since)
 
 		case <-ctx.Done():
-			_ = cmd.Process.Kill()
+			proctree.Kill(cmd)
 			span.SetStatus(codes.Error, ctx.Err().Error())
 			return &executor.Result{
 				Success:                  false,
@@ -580,6 +584,7 @@ func (e *OpenCodeExecutor) HealthCheck(ctx context.Context) error {
 		}
 	}
 	checkCmd := exec.CommandContext(ctx, opencodePath, "--version")
+	proctree.Configure(checkCmd)
 	if err := checkCmd.Run(); err != nil {
 		return fmt.Errorf("opencode --version failed: %w", err)
 	}
