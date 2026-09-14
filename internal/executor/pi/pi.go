@@ -317,6 +317,16 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 						thrashKilledAt = tp
 						proctree.Kill(cmd)
 					}
+					// Cache tokens are most of a cached run's bill and were invisible to the
+					// budget until 2026-09-14. Priced only where models.yml declares a rate;
+					// an undeclared rate stays at zero rather than guessing the input rate,
+					// which would overstate ~3.8x on a measured run and kill it.
+					if task.Budget != nil && (u.CacheRead > 0 || u.CacheWrite > 0) {
+						if _, exceeded := task.Budget.AddCache(u.CacheRead, u.CacheWrite); exceeded {
+							costKilled = true
+							proctree.Kill(cmd)
+						}
+					}
 					// M-EVAL-COST-AND-SPEED-BUDGETS: incremental cost tally on per-turn delta.
 					if task.Budget != nil && (u.Input > 0 || u.Output > 0) {
 						if _, exceeded := task.Budget.Add(u.Input, u.Output); exceeded {

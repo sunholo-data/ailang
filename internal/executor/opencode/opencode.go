@@ -355,6 +355,14 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 					lastFinishReason = ev.Part.Reason
 				}
 
+				// Cache tokens, which opencode reports EXCLUSIVE of input/output (see above),
+				// and which were invisible to the budget until 2026-09-14.
+				if task.Budget != nil && (ev.Part.Tokens.Cache.Read > 0 || ev.Part.Tokens.Cache.Write > 0) {
+					if _, exceeded := task.Budget.AddCache(ev.Part.Tokens.Cache.Read, ev.Part.Tokens.Cache.Write); exceeded {
+						costKilled = true
+						_ = cmd.Process.Kill()
+					}
+				}
 				// M-EVAL-COST-AND-SPEED-BUDGETS: incremental cost tally on per-step deltas.
 				if task.Budget != nil && (ev.Part.Tokens.Input > 0 || ev.Part.Tokens.Output > 0) {
 					if _, exceeded := task.Budget.Add(ev.Part.Tokens.Input, ev.Part.Tokens.Output); exceeded {

@@ -224,7 +224,12 @@ func taskFor(r Request, c Candidate) *executor.Task {
 		MaxTokensPerBench: r.MaxTokens, MaxOutputTokens: m.MaxOutputTokens, ReasoningEffort: m.ReasoningEffort,
 		TTFTTimeout: time.Duration(m.TTFTTimeoutSeconds) * time.Second, IdleTimeout: time.Duration(m.GenerationTimeoutSeconds) * time.Second,
 		GCPProject: m.GCPProject, GCPLocation: m.GCPLocation,
-		Budget:  executor.NewCostBudget(r.MaxCostUSD, m.Pricing.InputPer1K, m.Pricing.OutputPer1K),
+		// Cache-aware: on the measured review-4 run the cache was 69% of the real bill
+		// ($0.1218 of $0.1762), so a budget blind to it cannot be the guard that binds
+		// first. Undeclared rates price at zero rather than guessing — see cost.go.
+		Budget: executor.NewCostBudgetWithCache(r.MaxCostUSD,
+			m.Pricing.InputPer1K, m.Pricing.OutputPer1K,
+			m.Pricing.CacheReadPer1K, m.Pricing.CacheWritePer1K),
 		Pricing: &executor.CostModel{InputTokenCost: m.Pricing.InputPer1K, OutputTokenCost: m.Pricing.OutputPer1K, CacheReadCost: m.Pricing.CacheReadPer1K},
 		ExtraEnv: map[string]string{
 			"AILANG_MESSAGES_STORE": "gcp", "AILANG_MESSAGES_PROJECT": "ailang-multivac",
