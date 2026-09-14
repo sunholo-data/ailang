@@ -3,7 +3,7 @@
 - **Queue item:** `m-daemon-task-exec-run-untested`
 - **Scope:** sprint-sized (<= 3 days)
 - **Commit under test:** `3ee5bb177ca1bf9fe498d190e37af1f6b8b10f07` (the tree this doc was written in)
-- **Status:** planned
+- **Status:** implemented (PR #1113 → 45f02deb3, 2026-09-08; recorded by V1 iteration 353)
 - **Date:** 2026-09-08
 - **Revision:** 2 (post-quorum). Round 1 was BLOCKED 3/3; this revision answers the three
   evidence/hermeticity objections. See the **Quorum verification log** at the end.

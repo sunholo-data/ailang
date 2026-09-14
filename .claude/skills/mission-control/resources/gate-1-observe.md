@@ -232,7 +232,23 @@ your CI health check printed nothing alarming and you have not confirmed that an
 Any non-success → a RED dev outranks the queue (added 2026-07-10 per Mark; that day's red was a
 pre-existing gofmt miss + a newly published stdlib vuln — neither from a sprint, both invisible
 to local gates). Diagnose via `gh run view <id> --log-failed` — and check whether the SAME
-failure exists on the parent commits before blaming any merge (iteration 3's three reds all
+failure exists on the parent commits before blaming any merge.
+**⚠ A JOB LOG THAT CARRIES TERMINAL ESCAPE SEQUENCES IS REFUSED BY `gh` — `gh api …/actions/jobs/<id>/logs`
+RETURNS A 99-BYTE `the response contains terminal escape sequences; pass --allow-escape-sequences`
+LINE WITH rc=1, `gh run view --log` PRINTS AN ERROR INSTEAD OF THE LOG, AND AN EMPTY `grep` OVER
+EITHER READS AS "THIS TEST DID NOT FAIL HERE"** (added 2026-09-14 V1 iteration 353; two frictions in
+one iteration — the controller's first fetch of a failed `Build macos-latest` job, and the designer's
+Verification Log row V2, which concluded from exactly that empty grep that only 1 of 6 failed macOS
+jobs had failed on the test under study, when the raw logs show 4 of 4). Rule 3a aimed at a log
+reader: an empty match over a body you have not sized is a claim. **Rules. (a)** Fetch with
+`gh api --allow-escape-sequences "repos/<o>/<r>/actions/jobs/<id>/logs" > <file>` and strip ANSI
+before grepping (`sed 's/\x1b\[[0-9;]*m//g'`); **(b)** assert the body is a LOG before reading its
+emptiness — a job log is tens of thousands of lines, so `wc -c` under ~200 bytes is an instrument
+failure, never an absence; **(c)** pair the grep with a known-present line from the same log
+(`=== RUN` or `--- PASS:` count) so a zero proves the pattern missed rather than that the fetch did;
+**(d)** the `cancelled` sibling jobs beside a matrix `failure` are `fail-fast` casualties, completing
+seconds after the failing leg — attribute the run to the leg that FAILED, and read only that job's
+log. Mission-independent: every mission on this rig reads Actions job logs at this gate and at 3b (iteration 3's three reds all
 pre-dated the sprint; one first appeared on a docs-only commit). The fix (or a reasoned
 allowlist/revert) IS this iteration's first deliverable. Time-based reds (new vuln advisories,
 runner-image changes un-hiding latent bugs, dependabot peer-dep breaks) hit whoever observes

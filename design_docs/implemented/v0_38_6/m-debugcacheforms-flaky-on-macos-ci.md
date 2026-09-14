@@ -1,6 +1,6 @@
 # M-DEBUGCACHEFORMS-FLAKY-ON-MACOS-CI — drain the capture pipe before closing its read end
 
-**Status**: Planned
+**Status**: Implemented
 **Target**: v0.38.6
 **Priority**: P1 (non-blocking red on `dev` — `Build macos-latest` is not a required context, but every occurrence costs a re-run and hides other reds)
 **Estimated**: 0.5 day (one milestone; M2 does not exist — see the audit)
