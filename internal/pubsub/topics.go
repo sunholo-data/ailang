@@ -76,6 +76,25 @@ type TaskCompletion struct {
 	CacheReadTokens     int `json:"cache_read_tokens,omitempty"`
 	CacheCreationTokens int `json:"cache_creation_tokens,omitempty"`
 
+	// Summary is the agent's OWN account of what it did, in its own words.
+	//
+	// Without it a `no_changes` or `failed` completion says only that nothing
+	// happened, and the reason — which the agent stated plainly — lives in a GCS
+	// transcript nobody reads. Measured 2026-09-14: sprint-executor ran, spent
+	// 33,737 input tokens, produced 1,015 tokens of output ending
+	//
+	//	Execution is blocked by the mandatory sprint-executor gate:
+	//	.ailang/state/sprints/sprint_M-OPENROUTER-EU-ROUTING.json is missing.
+	//
+	// and the completion that reached the message plane carried an empty
+	// error_msg, changed_files:null, and nothing else. An agent that declines to
+	// act for a GOOD reason is indistinguishable from one that silently did
+	// nothing, and that is the single worst outcome for trusting a pipeline.
+	//
+	// Bounded, because this rides on every completion: the tail, since an
+	// agent's conclusion is at the end.
+	Summary string `json:"summary,omitempty"`
+
 	// GCS path prefix for raw artifacts: transcript.txt, session.jsonl, metrics.json
 	// Format: "tasks/{taskID}" (relative to the per-environment artifact bucket)
 	ArtifactGCSPath string `json:"artifact_gcs_path,omitempty"`

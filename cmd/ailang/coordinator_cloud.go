@@ -132,6 +132,7 @@ func coordinatorExecuteJob(args []string) error {
 		}
 		// Populate executor metrics when available (same data as local coordinator)
 		if execResult != nil {
+			completion.Summary = completionSummary(execResult.Transcript)
 			completion.SessionID = execResult.SessionID
 			completion.NumTurns = execResult.NumTurns
 			completion.ToolCallCount = execResult.ToolCallCount

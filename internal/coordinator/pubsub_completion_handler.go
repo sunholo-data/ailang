@@ -202,6 +202,11 @@ func (h *CompletionHandler) postCompletionNotification(ctx context.Context, task
 		"head_commit":   completion.HeadCommit,
 		"error_msg":     completion.ErrorMsg,
 		"changed_files": completion.ChangedFiles,
+		// WHY, in the agent's own words. A no_changes completion without this
+		// says only that nothing happened, which reads identically whether the
+		// agent declined for a good reason or silently did nothing.
+		"summary":           completion.Summary,
+		"artifact_gcs_path": completion.ArtifactGCSPath,
 	})
 
 	// Resolve the agent's INBOX, not its ID: they differ for package agents
