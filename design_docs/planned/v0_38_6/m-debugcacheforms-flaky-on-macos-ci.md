@@ -145,15 +145,15 @@ red on the pre-fix ordering.
 Before implementation begins, these must be resolved:
 
 - [x] Teardown runs inside a **`defer` with a named return** `(out string)` in this order:
-  `os.Stderr = old; w.Close(); <drain-wait hook, if set>; bounded wait on done; r.Close();
+  `os.Stderr = old; w.Close(); <drain-wait hook, if set>; bounded wait on the copier's completion channel; r.Close();
   out = buf.String()`. The named return is mandatory: a bare `return buf.String()` evaluates its
   operand before the deferred wait and races the copier. No `time.Sleep`, no `runtime.Gosched()`,
   no retry loop (all three would be silent fallbacks, Principle 2).
-- [x] The wait on `done` is bounded by a **fixed local deadline (10 s, overridable via the options
+- [x] The wait on the copier's completion channel (`copied chan error`, buffered) is bounded by a **fixed local deadline (10 s, overridable via the options
   seam for the timeout test only)**. On expiry the teardown closes `r` (which unblocks a production
   reader parked in `Read`) and **panics** with a diagnostic naming the deadline and the two possible
-  causes (a writer still holds the pipe's write end — `f()` leaked `os.Stderr` into a goroutine —
-  or an injected reader never released). `os.Stderr` is already restored at that point. The
+  causes (`f()` passed `os.Stderr` to a still-running subprocess — a duplicated fd is the only
+  thing that keeps the OS write end open after `w.Close()` — or an injected reader never released). `os.Stderr` is already restored at that point. The
   diagnostic does not read `buf` (the copier may still own it). `testutil.HangGuard` is *not*
   reused — it needs `*testing.T` (V18) and the seam deliberately does not thread `t`; the
   rationale is in High-Impact Decisions.
@@ -178,7 +178,7 @@ Nothing here needs a human: every row is agent-resolvable and measured.
 The helper's teardown closes the read end of the pipe before the copier goroutine has finished
 draining it. The fix is to close in the order **writer → wait for drain → reader**: closing the
 writer is what delivers EOF to the copier (the write end has exactly one fd, `w`, so `w.Close()`
-guarantees EOF once the buffer is drained); waiting on `done` then guarantees the buffer holds every
+guarantees EOF once the buffer is drained); waiting for the copier's completion (and checking its error) then guarantees the buffer holds every
 byte; closing the reader last releases the fd. This is the ordering already used by
 `internal/eval/prelude_cap_gate_test.go:73-77` (V5, positive control for the audit scanner).
 
@@ -186,7 +186,7 @@ A regression test for the helper itself injects a **channel-gated reader**: its 
 channel before its first underlying `Read`, so the copier cannot consume anything until the
 teardown's **drain-wait hook** closes the gate. The payload is fixed and far below pipe capacity, so
 `f()`'s writes complete into the kernel buffer without blocking. Under the fixed order the hook
-runs after `w.Close()`, the reader then drains the whole buffer to EOF and `done` closes: exact
+runs after `w.Close()`, the reader then drains the whole buffer to EOF and the copier reports `nil`: exact
 capture, every time. Under MUT-1 (`r.Close()` before the hook) the reader's *first* underlying
 `Read` is on an already-closed file: it returns an error, `io.Copy` stops with nothing captured, and
 the exact-equality assertion is red — regardless of goroutine scheduling, because the reader was
@@ -217,6 +217,10 @@ never runnable before the close. The kill is structural, not timing-based; nothi
 7. **`TestCapturePipelineStderr_DrainTimeoutIsLoud`** — a wrapper whose gate is never released,
    `drainTimeout: 50ms`; asserts the helper panics with a message containing `did not drain` and
    that `os.Stderr` is restored (kills MUT-3b; see the mutation table for the leak note).
+8. **`TestCapturePipelineStderr_CopyErrorIsLoud`** (astra, r2) — an injected reader that returns a
+   prefix of the payload and then a sentinel error (`errors.New("sentinel read failure")`); asserts
+   the helper PANICS with a diagnostic containing that sentinel text and that `os.Stderr` is
+   restored — never a successful partial capture (kills MUT-4).
 
 ```go
 // After (sketch — the executor writes the real code; probed end-to-end in V20):
@@ -242,23 +246,29 @@ func capturePipelineStderrWith(opts *captureOpts, f func()) (out string) {
 		timeout = opts.drainTimeout
 	}
 	var buf bytes.Buffer
-	done := make(chan struct{})
-	go func() { _, _ = io.Copy(&buf, src); close(done) }()
+	copied := make(chan error, 1) // buffered: the copier never blocks on send, even if we time out
+	go func() { _, err := io.Copy(&buf, src); copied <- err }()
 	defer func() {
 		os.Stderr = old // 1. restore first: even a panicking f() leaves no swapped stderr behind
 		_ = w.Close()   // 2. writer: the only write-end fd; EOF reaches the copier once drained
 		if opts != nil && opts.release != nil {
 			opts.release() // 3. drain-wait hook (nil in production): lets a gated reader start reading
 		}
-		select { // 4. bounded wait: every byte is in buf when done closes
-		case <-done:
+		var copyErr error
+		select { // 4. bounded wait: the copier has RETURNED when copied delivers
+		case copyErr = <-copied:
 		case <-time.After(timeout):
 			_ = r.Close() // unblocks a production reader parked in Read; do NOT read buf here
 			panic("capturePipelineStderr: copier did not drain within " + timeout.String() +
-				" after the write end was closed (f leaked os.Stderr into a goroutine, or an injected reader never released)")
+				" after the write end was closed (f passed os.Stderr to a still-running subprocess, or an injected reader never released)")
 		}
-		_ = r.Close()     // 5. reader: release the fd only after the drain
-		out = buf.String() // 6. named return: assigned AFTER <-done, so no race with the copier
+		_ = r.Close() // 5. reader: release the fd only after the copier returned
+		if copyErr != nil {
+			// A non-nil io.Copy error means the drain STOPPED, not that it finished: buf may be a
+			// prefix. Returning it as a capture would be the silent truncation this fix removes.
+			panic("capturePipelineStderr: copier failed: " + copyErr.Error())
+		}
+		out = buf.String() // 6. named return: assigned only after a SUCCESSFUL, complete copy
 	}()
 	f()
 	return
@@ -270,12 +280,15 @@ func capturePipelineStderr(f func()) string { return capturePipelineStderrWith(n
 **Why MUT-1 is deterministic under this design:** MUT-1 moves step 5 (`r.Close()`) above step 3.
 The gated reader has not executed a single underlying `Read` before step 3 — it is parked on the
 gate, not on the file — so when it is released its first `Read` is on a closed `*os.File`, which
-returns `os.ErrClosed` unconditionally. `io.Copy` returns, `done` closes, `buf` is empty, and the
-exact-equality assertion fails on iteration 0. No scheduler interleaving can make the reader
-consume the buffer before the close, because it cannot run until after the close. In production
-(nil options) MUT-1 is exactly the HEAD defect.
+returns `os.ErrClosed` unconditionally. `io.Copy` returns that error, the copier delivers it on
+`copied`, and the teardown **panics with `copier failed: … file already closed`** (r2: the copy
+error is propagated, so the failure is an explicit diagnostic rather than an empty capture that
+happens to fail an equality). No scheduler interleaving can make the reader consume the buffer
+before the close, because it cannot run until after the close. In production (nil options) MUT-1
+is exactly the HEAD defect — and note the HEAD helper discards that same error, which is why HEAD
+reports a *truncated* capture instead of failing loudly.
 
-**Bounded wait, stated:** the mechanism is a local `select` on `done` versus `time.After(10s)`.
+**Bounded wait, stated:** the mechanism is a local `select` on the copier's completion channel versus `time.After(10s)`.
 `testutil.HangGuard`/`HangGuardContext` (V18) were examined and not reused: both take `*testing.T`
 (their value is capping by `t.Deadline()`), the helper has none, and threading `t` would change the
 seam to `(t, opts, f)` for a wait that completes in microseconds. On expiry: `r.Close()`, then a
@@ -354,18 +367,21 @@ Verification Log). `go build ./...` is **not** listed: it is `rc=1` at base on t
   (baseline `rc=0`, V10). Can fail for this diff: H1 changes the helper all six assertions read
   through.
 - [ ] **AC2** `go test ./internal/pipeline/ -run 'TestCapturePipelineStderr_' -count=1 -timeout 60s -v`
-  → `rc=0` AND the output contains all three of
+  → `rc=0` AND the output contains all four of
   `--- PASS: TestCapturePipelineStderr_GatedReaderLosesNothing`,
   `--- PASS: TestCapturePipelineStderr_PanicRestoresStderr`,
-  `--- PASS: TestCapturePipelineStderr_DrainTimeoutIsLoud`
+  `--- PASS: TestCapturePipelineStderr_DrainTimeoutIsLoud`,
+  `--- PASS: TestCapturePipelineStderr_CopyErrorIsLoud`
   (baseline: `no tests to run`, so the `--- PASS` lines are the load-bearing half).
 - [ ] **AC3 — deterministic MUT-1 drill.** With `_ = r.Close()` moved above the release hook, run
   `go test ./internal/pipeline/ -run TestCapturePipelineStderr_GatedReaderLosesNothing -count=1`
-  **five times**: `rc=1` on every run, first failure at iteration 0 with an empty capture. Restore:
-  `rc=0`. No parameter is tuned between runs; if any run is `rc=0` the gate is not holding the
-  reader before its first `Read` and the test is wrong, not slow. All rcs go in the checkpoint.
-  The same drill for MUT-2, MUT-3a, MUT-3b (one run each suffices — each is structural) is
-  recorded alongside.
+  **five times**: `rc=1` on every run, failing on iteration 0 with the helper's explicit
+  `copier failed: … file already closed` panic (r2: an explicit copy-error failure, not an
+  empty-capture equality failure). Restore: `rc=0`. No parameter is tuned between runs; if any run
+  is `rc=0` the gate is not holding the reader before its first `Read` and the test is wrong, not
+  slow. All rcs go in the checkpoint. The same drill for MUT-2a, MUT-2b, MUT-3a, MUT-3b and MUT-4
+  (one run each suffices — each is structural) is recorded alongside, and the MUT-4 /
+  `CopyErrorIsLoud` result is recorded in the Verification Log as V21.
 - [ ] **AC4** `go test ./internal/pipeline/ -run TestPipelineModulePhases_DebugCacheFormsAndCounters -count=20 -race`
   → `rc=0` (baseline `rc=0`, V3). Cannot *prove* the flake is gone (see AC6) but can catch a
   regression in the reordered teardown under the race detector.
@@ -391,18 +407,19 @@ Verification Log). `go build ./...` is **not** listed: it is `rc=1` at base on t
 
 | Hunk | Mutation | Killer test | Measured basis |
 |------|----------|-------------|----------------|
-| H1 (helper reorder) | **MUT-1**: move `_ = r.Close()` above the release hook / bounded wait (= the HEAD defect for nil options) | `TestCapturePipelineStderr_GatedReaderLosesNothing` → `rc=1` **on every run** | **Deterministic by construction:** the gated reader has performed no underlying `Read` before the hook releases it, so under MUT-1 its first `Read` is on a closed fd → `os.ErrClosed` → `io.Copy` returns with an empty `buf` → exact-equality fails at iteration 0. No interleaving lets the reader run before the close. Probed: `50/50` lost, `5/5` runs `rc=1`, `0/50` lost fixed, race-clean (V20). Mechanism link to CI: V6/V7 |
+| H1 (helper reorder) | **MUT-1**: move `_ = r.Close()` above the release hook / bounded wait (= the HEAD defect for nil options) | `TestCapturePipelineStderr_GatedReaderLosesNothing` → `rc=1` **on every run**, failing with the helper's explicit `copier failed: … file already closed` panic (r2, astra) | **Deterministic by construction:** the gated reader has performed no underlying `Read` before the hook releases it, so under MUT-1 its first `Read` is on a closed fd → `os.ErrClosed` → `io.Copy` returns that error → the teardown panics. No interleaving lets the reader run before the close. Probed under the r1 (equality-failure) form: `50/50` lost, `5/5` runs `rc=1`, `0/50` lost fixed, race-clean (V20); the executor re-measures the r2 form (V21) |
+| H1 (teardown) | **MUT-4**: the copy error discarded (`_, _ = io.Copy(...)`; `copied <- nil`) | `TestCapturePipelineStderr_CopyErrorIsLoud` — the sentinel error is swallowed and a partial capture is returned as success → the "panics with the sentinel" assertion is red | Structural: the sentinel can only surface through the propagated error (r2, astra) |
 | H1 (seam) | **MUT-2a**: `capturePipelineStderrWith` ignores `opts.wrap` (always reads `r` directly) | `TestCapturePipelineStderr_GatedReaderLosesNothing` — the `reads ≥ 1` assertion on the gated reader is red (the wrapper was never invoked) | Structural: `reads` is only incremented inside the wrapper's `Read` |
 | H1 (seam) | **MUT-2b**: `capturePipelineStderrWith` ignores `opts.release` (hook never invoked) | `TestCapturePipelineStderr_GatedReaderLosesNothing` — the gate is never opened, the bounded wait expires, the helper panics → `rc=1` (the test sets `drainTimeout: 2s` so the mutant is red in seconds, not 10 s × N) | Structural: nothing else closes the gate |
 | H1 (teardown) | **MUT-3a**: the `defer` removed (teardown inlined after `f()`) | `TestCapturePipelineStderr_PanicRestoresStderr` — a panicking `f()` skips the inlined teardown, `os.Stderr` stays swapped → assertion red | Structural; probed green at the fixed form (V20) |
-| H1 (teardown) | **MUT-3b**: the bounded wait replaced by a bare `<-done` | `TestCapturePipelineStderr_DrainTimeoutIsLoud` — the never-released wrapper makes the bare wait hang; the test is red via `go test`'s `-timeout` (AC2 passes `-timeout 60s`; the mutant exits `rc=2` with a goroutine dump). Non-hermetic kill, declared as such: the mutant is red in 60 s, not instantly | Structural; probed green at the fixed form in 50 ms (V20). Note: the test deliberately leaks one goroutine parked on its own gate; `os.Stderr` is restored and `r`/`w` are closed before the panic, so nothing leaks into later tests |
+| H1 (teardown) | **MUT-3b**: the bounded wait replaced by a bare receive on the completion channel | `TestCapturePipelineStderr_DrainTimeoutIsLoud` — the never-released wrapper makes the bare wait hang; the test is red via `go test`'s `-timeout` (AC2 passes `-timeout 60s`; the mutant exits `rc=2` with a goroutine dump). Non-hermetic kill, declared as such: the mutant is red in 60 s, not instantly | Structural; probed green at the fixed form in 50 ms (V20). Note: the test deliberately leaks one goroutine parked on its own gate; `os.Stderr` is restored and `r`/`w` are closed before the panic, so nothing leaks into later tests |
 | H2 (new tests) | — | none: H2 *is* the killer; declared as such | — |
 | H3 (changelog) | — | none: prose | — |
 
 **Determinism argument (replaces any tuning clause).** Every mutant above is red because of a
 happens-before relation the test constructs, not because of a duration: MUT-1 because the reader
 cannot read before the close; MUT-2a because the counter lives in the wrapper; MUT-2b/MUT-3b
-because a gate nobody closes is never open; MUT-3a because a panic skips non-deferred code. There
+because a gate nobody closes is never open; MUT-3a because a panic skips non-deferred code; MUT-4 because the sentinel error can reach the assertion only through the propagated copy error. There
 are no sleeps, byte caps or iteration counts to raise. If the executor finds any of them not red,
 the correct action is to report the design defect, not to adjust a parameter.
 
@@ -420,7 +437,7 @@ the correct action is to report the design defect, not to adjust a parameter.
 
 **What the regression test is, and is not.** The regression test is a structural invariant proof,
 not a natural-failure reproduction: under the fixed ordering, a complete drain is guaranteed by
-`w.Close()` → EOF → `<-done` regardless of reader speed, so the gated reader serves only to make
+`w.Close()` → EOF → copier completion regardless of reader speed, so the gated reader serves only to make
 MUT-1 (broken ordering) deterministically red. The CI failure mode (scheduler-late reader) is the
 same mechanism the gate forces — a reader that has not yet read when the close happens; V6/V7
 establish the causal link, and the fixed-ordering guarantee is unconditional. (Recorded from
@@ -498,7 +515,7 @@ The following are intentionally left open for the implementer:
 | The fixed payload grows past pipe capacity (a future edit adds lines) → `f()` blocks writing while the gated reader is parked → deadlock | Low | The test asserts `len(payload) <= 4096` with the reason in a comment; capacity measured at 64 KiB locally (V19) and the smallest documented default anywhere is 4 KiB (V19, EXTERNAL PREMISE for other kernels). If it ever happens the bounded wait does not help (the hang is inside `f()`), but `go test -timeout` reds it loudly and the comment names the cause |
 | The options seam or the hook leaks into production call sites and changes the behaviour the six `[CACHE]` assertions read through | Low | Nil-hook invariant (Design Freeze): `capturePipelineStderr(f)` passes `nil`; with `nil` no wrapper is installed, no hook runs, the default deadline applies. AC1 (`-count=1`) and AC4 (`-count=20 -race`) exercise exactly this path |
 | The bounded wait expires spuriously on a loaded runner and panics a test that would have drained | Very low | 10 s for a microsecond drain of ≤ 4 KiB after the only write end is closed; the CI job's own budget is 30 min (V14). A spurious expiry would be loud with a diagnostic naming the two real causes — not a silent drop, which is the failure mode being fixed |
-| A future `f()` leaks `w` (via `os.Stderr`) into a goroutine, so EOF never arrives | Low | Now bounded: the wait expires, `r` is closed, and the panic names this exact cause. Previously an unbounded hang |
+| A future `f()` spawns a subprocess that inherits `os.Stderr` (a duplicated fd keeps the OS write end open past `w.Close()`), so EOF never arrives | Low | Now bounded: the wait expires, `r` is closed, and the panic names this exact cause. Previously an unbounded hang. (r2, gemini: a goroutine that merely holds the `*os.File` does NOT delay EOF — `w.Close()` closes the process's fd and the goroutine's later writes get `os.ErrClosed`; only an inherited/duplicated fd can) |
 | AC6 cannot distinguish "fixed" from "lucky" at the measured base rate | Med | Stated in AC6 with the power estimate; AC2/AC3 are the proof; the controller does not close the row on AC6 alone |
 | A different macOS red appears after this lands and gets blamed on this test | Low | AC6 counts only job logs carrying `--- FAIL: TestPipelineModulePhases_DebugCacheFormsAndCounters`; any other `Build macos-latest` red is a new row |
 
@@ -549,6 +566,26 @@ Every codebase/CI claim above maps to a row. Commands were run in the worktree a
 | V5 | Systemic audit: 14 test files use `os.Pipe()`; exactly one closes the read end before waiting; by-eye per-file verdicts | `grep -rl 'os\.Pipe()' --include='*_test.go' .` (14 files); awk window "`r.Close()` then `<-done`/`wg.Wait()` within 3 lines" (HEAD order) and the mirrored window (positive control); then `sed -n` of each helper body | HEAD-order scan: **`internal/pipeline/pipeline_module_phases_test.go:41→42` only**. Mirror scan (control): `internal/eval/prelude_cap_gate_test.go:76→77`. By-eye: `cmd/ailang/eval_suite_flags_test.go:239-262` goroutine reads, `w.Close()` then `return <-done`, `r` never closed → safe; `ext_registry_gen_test.go:109-117` `w.Close()` then synchronous read → safe; `messages_send_test.go:180-194` goroutine, `w.Close()`, `<-done` → safe; `mission_activation_unix_test.go:64-73` pipe is a child's stdin (`defer read.Close()`, parent closes `write`) → not a capture, safe; `pkg_commands_test.go:723-742,760-777` `writeEnd.Close()` → `io.ReadAll(readEnd)` → `readEnd.Close()` synchronous → safe; `pkg_lock_ratchet_test.go:26-38 (+64,126,154)` `w.Close()` → `buf.ReadFrom(r)` synchronous → safe; `internal/ai/cache_warnings_test.go:15-27` `w.Close()` → `io.Copy` synchronous → safe; `internal/apiserver/debug_sink_test.go:22-39` goroutine, `w.Close()`, `<-done` → safe; `internal/coordinator/daemon_test.go:226-251,281-304` `w.Close()` → single synchronous `r.Read(4096)` → `r.Close()` → safe for the one-line message it captures; `internal/effects/fs_sandbox_debug_test.go:25-37 (+134,161)` `w.Close()` → `io.Copy` synchronous → safe; `internal/effects/io_test.go:19-37,51-69` synchronous; `:140-146` writer goroutine feeding stdin → safe; `internal/eval/prelude_cap_gate_test.go:60-77` goroutine, `w.Close()`, `<-done`, `r.Close()` → the correct order; `internal/parser/delimiter_trace_test.go:136-156 (+6 more)` `w.Close()` → synchronous `buf.ReadFrom(r)` → safe. **Verdict: one defective helper; M2 does not exist** |
 | V6 | Mechanism: closing the read end before the drain loses bytes; waiting first loses none | Standalone probe `/tmp/iter353_probe/main_test.go` (Go, `os.Pipe`, copier goroutine, reader sleeps 200µs before each ≤16-byte `Read`), 50 iterations per arm, `go test -count=1 -v` | `HEAD ordering (r.Close before <-done): lost 50/50` (first loss `got ""`); `FIX ordering (<-done before r.Close): lost 0/50` |
 | V7 | The CI partial-capture shape reproduces (reader prompt on first read, late afterwards) | probe `variant_b_test.go`: first `Read` prompt, later reads sleep 200µs, ≤16 bytes | `head=true lost=50/50 partial(non-empty)=24 sample="[CACHE] std/opti"`; `head=false lost=0/50` |
+| V8b | (r2, glm) The COLD assertions at `:225-244` are `strings.Contains` against two of the four V9 cold lines (the `answer: MISS` line and the exact `Summary` line, which is the LAST line written) — no timing-dependent or duration-comparing component; under the broken ordering the Summary line is the one most likely lost | `sed -n 225,244p internal/pipeline/pipeline_module_phases_test.go` | ```	// Cold: everything MISSES.
+	cold := capturePipelineStderr(func() {
+		if _, err := runModuleWithCacheDependencies(t.Context(), cfg, src, productionCacheDependencies()); err != nil {
+			t.Fatalf("cold compile: %v", err)
+		}
+	})
+	if !strings.Contains(cold, "[CACHE] answer: MISS") {
+		t.Fatalf("cold miss diagnostic missing: %q", cold)
+	}
+	if !strings.Contains(cold, "[CACHE] Summary: 0 hits, 3 misses (3 modules cached)") {
+		t.Fatalf("cold summary counters missing: %q", cold)
+	}
+
+	// Warm: the same source is a verified hit.
+	warm := capturePipelineStderr(func() {
+		if _, err := runModuleWithCacheDependencies(t.Context(), cfg, src, productionCacheDependencies()); err != nil {
+			t.Fatalf("warm compile: %v", err)
+		}
+	})
+	if !strings.Contains(warm, "[CACHE] answer: SKIP (cached ") {``` |
 | V8 | Writers/seam/no goroutines/no `t.Parallel`; warm & invalid assertions are prefixes | `grep -n 'Fprintf(os.Stderr' internal/pipeline/pipeline_module_cache.go`; `sed -n 10,36p internal/pipeline/cache_runtime.go` + `grep -n 'runtime.stderr' …`; `grep -rn "go func\|errgroup\|sync.WaitGroup" internal/pipeline/pipeline_module*.go internal/pipeline/cache_runtime.go \| grep -v _test.go`; `grep -rn 't.Parallel()' internal/pipeline/*_test.go`; `sed -n 245,268p pipeline_module_phases_test.go` | writers at `:65` (SKIP), `:85` (INVALID), `:87` (MISS), `:123` (Summary), all `os.Stderr`; `cacheDependencies{newStore, stderr io.Writer}`, `productionCacheDependencies()` → `stderr: os.Stderr`, `CACHE_INVALID` at `cache_runtime.go:110`; goroutine grep → rc=1 (0 hits; control `grep -rln "go func" internal/pipeline/*.go` → `metrics.go`); `t.Parallel` → rc=1 (control: `internal/lsp/hover_test.go`, `index_test.go`); warm assertion `"[CACHE] answer: SKIP (cached "` (prefix), invalid `"[CACHE] answer: INVALID, recompiling"` (prefix) |
 | V9 | Cold compile writes exactly four `[CACHE]` lines in a fixed order; Summary is last | temp binary `go build -o $d/ailang ./cmd/ailang`; `AILANG_CACHE_DIR=$d/cache ./ailang check --debug-compile answer.ail` twice | cold: `[CACHE] std/option: MISS`, `[CACHE] std/result: MISS`, `[CACHE] answer: MISS`, `[CACHE] Summary: 0 hits, 3 misses (3 modules cached)`; warm: three `SKIP (cached 0s ago)` then `Summary: 3 hits, 0 misses (3 modules cached)` |
 | V10 | AC1 baseline green | `go test ./internal/pipeline/ -run 'TestPipelineModulePhases' -count=1` | `ok … 0.792s`, rc=0 |
@@ -561,6 +598,7 @@ Every codebase/CI claim above maps to a row. Commands were run in the worktree a
 | V17 | External premise, NOT verified in-session, not load-bearing | — | "GitHub-hosted `macos-latest` runners have 3 vCPUs" is taken from GitHub's runner documentation, not measured here. The design does not depend on the number; it depends only on the reader being scheduled late, which V6/V7 reproduce on a 12-core laptop by construction |
 | V18 | `testutil.HangGuard`/`HangGuardContext`: signatures, behaviour, callers, and no import cycle with `internal/pipeline` (round-2, gpt6-astra) | `sed -n 86,107p internal/testutil/gate.go`; `grep -rn 'HangGuard(' --include='*.go' internal/ cmd/ \| grep -v 'func HangGuard'`; `grep -rl 'HangGuard' --include='*.go' .`; `grep -rl '"github.com/sunholo-data/ailang/internal/testutil"' internal/pipeline/*_test.go`; `go list -deps ./internal/testutil \| grep -c internal/pipeline` (control: `\| grep -c internal/`) | `:88 func HangGuard(t *testing.T, cap time.Duration) time.Duration` — returns `cap` when `t.Deadline()` is unset, else `min(cap, until(deadline)−20s)` floored at 1 s; `:103 func HangGuardContext(t *testing.T, cap time.Duration) (context.Context, context.CancelFunc)` = `context.WithTimeout(Background, HangGuard(...))`. Callers: 9 call lines in 3 files (`eval_harness/reference_solutions_test.go` ×2, `testutil/gate.go` ×1, `testutil/gate_test.go` ×6); 4 files mention the name at all (the controller's briefing said 14 `_test.go` files — measured here as **1** external test file; the discrepancy does not affect the decision). `internal/pipeline` test files importing `testutil`: 3 (`prelude_capability_test.go:10`, `cache_invalidation_test.go:18`, `jwt_test.go:9`). Cycle check: `0` (control: 40 `internal/` deps). **Decision:** not reused — both need `*testing.T`, the helper has none and the seam does not thread it; a fixed 10 s local deadline with a panic diagnostic is used (Design Freeze) |
 | V19 | Pipe capacity bound the gated design relies on: `f()`'s writes of the fixed payload never block while the reader is parked | Probe `/tmp/iter353_probe2/pipecap_test.go`: `syscall.Pipe`, `SetNonblock` on the write end, write chunks of 1/512/4096/16384/65536 B until `EAGAIN`, count bytes accepted (`go test -run TestPipeCapacity -v`), macOS 26.6.2 / Darwin 25.6.0 arm64 | `65536` bytes accepted before `EAGAIN` for **every** chunk size, including 1-byte writes — so on this kernel the capacity is 64 KiB from the first byte (the "16 KiB default, growable to 64 KiB" description did not match this kernel; measured, not cited). The CI runner's kernel is **not** measured here — EXTERNAL PREMISE, labelled as V17 is: the design keeps the payload ≤ 4 KiB (actual ~150 B), which is below the smallest pipe buffer any documented Unix ships (4 KiB, PIPE_BUF minimum), so the bound holds without relying on the 64 KiB figure |
+| V21 | (to be recorded by the EXECUTOR at sprint time — an unrun test result is not a measurement) `TestCapturePipelineStderr_CopyErrorIsLoud` green at the fixed form; MUT-4 red; MUT-1 red with the `copier failed` panic text | `go test ./internal/pipeline/ -run 'TestCapturePipelineStderr_' -count=1 -timeout 60s -v` at the fixed form; the MUT-1/MUT-4 drills of AC3 | UNMEASURED at r3 |
 | V20 | The gated design itself: 0 loss fixed, deterministic loss under MUT-1, panic-safe teardown, loud bounded wait, race-clean | Probe `/tmp/iter353_probe2/gated_test.go` (the Architecture sketch verbatim, `MUT1=1` env moves `r.Close()` above the hook): `go test -count=1 -race -run 'TestGated\|TestPanicRestores\|TestDrainTimeoutIsLoud' -v`; `MUT1=1 go test -count=1 -race -run TestGated -v`; `for i in 1..5: MUT1=1 go test -count=1 -run TestGated; echo rc` | Fixed: `lost=0/50`, `--- PASS` ×3 (`TestDrainTimeoutIsLoud` in 0.05 s at a 50 ms deadline), `ok`, no `DATA RACE`. MUT-1: `iteration 0: reads=1 got=""`, `lost=50/50`, `--- FAIL`; five repeated runs `rc=1 rc=1 rc=1 rc=1 rc=1`. The `reads=1` under MUT-1 is the closed-fd first `Read` returning immediately — the mechanism the determinism argument predicts |
 
 ## Related Documents
@@ -604,9 +642,12 @@ Read the 0.45 hit: it concerns a local eval sandbox on Apple containers — unre
 |-------|----------|---------|-----------|-------------|
 | 1 | gemini-3-1-pro | REJECT | `defer` teardown left optional in Deferred Decisions: a panicking `f()` leaves `os.Stderr` swapped and the copier leaked for every later test; and a naive `defer` with `return buf.String()` evaluates before `<-done` (data race, AC4) | applied verbatim in r2: named-return `(out string)` `defer` teardown mandated in Design Freeze + Architecture sketch; Deferred-Decisions bullet deleted; MUT-3a + `PanicRestoresStderr` added; probed (V20) |
 | 1 | gpt6-astra (ABSENT on budget in the quorum run; re-run alone at a $0.40 cap) | REJECT | The 200 µs sleeping reader does not guarantee MUT-1 is red — a descheduled writer lets the reader drain first; V6/V7 show observed kills, not a deterministic one. `<-done` unbounded although V12 found `HangGuard`/`HangGuardContext` and never examined them | applied verbatim in r2: channel-gated reader + drain-wait hook (nil in production), payload ≤ 4 KiB with the bound stated (V19), MUT-1 = `r.Close()` before the hook → first `Read` on a closed fd (deterministic; V20 5/5); all sleeps/tuning/N-of-N claims removed; bounded wait with a local 10 s deadline, diagnostic and cleanup; `HangGuard` examined in V18 and the non-reuse reasoned |
+| 2 | gpt6-astra | REJECT | `io.Copy`'s error is discarded and copier termination is read as a complete drain, so a non-EOF read error returns a truncated buffer as success (silent fallback) | applied verbatim in r3 (controller, narrow-refinement carve-out): buffered `copied chan error`, panic on a non-nil copy error before `out` is assigned, `TestCapturePipelineStderr_CopyErrorIsLoud` + MUT-4, MUT-1/AC3 restated as the explicit copy-error failure, V21 reserved for the executor's measurement |
+| 2 | gemini-3-1-pro | REJECT | Factual contradiction on `os.Pipe` semantics: a goroutine holding `os.Stderr` does not delay EOF (it gets `os.ErrClosed`); only a duplicated fd — a spawned subprocess inheriting stderr — keeps the write end open | applied verbatim in r3: panic diagnostic and Risks row reworded to the subprocess cause; Design Freeze sentence corrected |
+| 2 | oc-glm-5-2 | REJECT | The cold assertion at `:232` was never displayed in the Verification Log, so "all assertions are correct once capture is complete" was verified for two of three blocks | applied verbatim in r3: V8b added with `sed -n 225,244p` output; both cold assertions are `strings.Contains` prefixes/exact lines, the Summary line last |
 | 1 | oc-glm-5-2 | PASS | The regression test's injected reader simulates rather than reproduces the natural CI scheduling race | applied verbatim in r2: the "structural invariant proof, not a natural-failure reproduction" paragraph added to Testing Strategy, adapted to the gated design |
 
 ---
 
 **Document created**: 2026-09-14
-**Last updated**: 2026-09-14 (revision r2 after quorum round 1)
+**Last updated**: 2026-09-14 (revision r3 — controller-applied verbatim reviewer fixes after quorum round 2, narrow-refinement carve-out)
