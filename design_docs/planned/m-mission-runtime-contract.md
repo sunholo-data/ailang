@@ -678,3 +678,83 @@ files touched were 883 mission-docs against **16 lines of compiler and stdlib**,
 loop's own goal distance moved 10 → 13 → 12. See `m-mission-loop-lifetime-audit.md`.
 The migration is worth doing because the harness is consuming the program, not because the
 shell has stopped working.
+
+---
+
+## Limit convention — 2026-09-14 (attended: "set them high enough for that")
+
+**A token cap is a runaway backstop. Cost and time are the budget.** Getting this backwards
+cost four failed canary runs and most of a day.
+
+### Why the old numbers were a category error
+
+`dispatch/run.go:224` maps a work item's `max_tokens` onto the executor's
+`MaxTokensPerBench` — which is the EVAL HARNESS's thrash guard. That guard's own comment
+states its purpose (`opencode.go:366`):
+
+> thrash detection on cumulative tokens. Local Ollama models have $0 cost so the
+> cost-budget path never trips — this is the only safety net against runaway
+> **2.88M-token** thrashing observed in fizzbuzz.
+
+Its threshold across 48 registry rows is **3,000,000**, derived from a measured runaway. The
+canary work items declared 30,000–120,000 — a backstop set 25-100x tighter than the
+mechanism was designed for, which turned it into the binding constraint. Measured on the one
+run that passed:
+
+| Guard | Used | Headroom |
+|---|---|---|
+| **tokens** | 136,478 / 150,000 | **91% — bound** |
+| cost | $0.176 / $2 | 11x |
+| time | ~36-172s / 1800s | 10-50x |
+
+The two guards an operator actually reasons about sat under 10% while tokens bound at 91%.
+
+### The convention
+
+- **`max_tokens`: 3,000,000**, matching the codebase's own runaway threshold. It should fire
+  only on genuine thrashing, never on a large-but-productive stage.
+- **`max_cost_usd`: the real budget.** This is the number to think about, and a breach is
+  information worth acting on rather than noise.
+- **`timeout_seconds`: the real bound on wall-clock.** Size it to the milestone; V1's own
+  Gate-3 rule (2026-09-14) is 3600s for anything above ~150 LOC or carrying a mutation drill.
+
+**A token budget cannot be predicted from diff size, which is why it should not be a budget
+at all.** Measured: a 185-line docs diff cost 136,478 tokens because verifying it meant
+reading **1,664 lines of production source** across 12 files — a 9x ratio. An evaluator's
+cost scales with CLAIM COUNT and verification surface, not with the size of the change. A
+1,000-line mechanical rename would verify for less.
+
+### Where cost cannot bind, and tokens must
+
+Cost only binds on a **metered** lane. On claude OAuth and ollama the cost is $0 or notional
+(`cost>0` never means billed on a subscription), so there the token backstop is the only
+guard. 3,000,000 is the number chosen for exactly that case.
+
+### Prerequisite, now landed
+
+Cost could not be trusted as the primary guard while it was blind to prompt-cache tokens.
+`NewCostBudget` priced only input and output, and on the measured run the cache was **69% of
+the real bill** ($0.1218 of $0.1762). `NewCostBudgetWithCache` now takes the cache rates and
+`AddCache` feeds them from pi and opencode, which carry per-turn counters.
+
+**An undeclared cache rate prices at ZERO here, not at the input rate.** The post-hoc cost
+model falls back to the input rate because overstating only makes a report pessimistic; the
+in-flight guard would KILL A HEALTHY RUN. Same measured run, cache reads at the input-rate
+fallback: $0.6634 computed against $0.1762 actual — **3.8x over**, enough to trip a $0.30
+ceiling the run never approached.
+
+So declaring real rates is what makes cost exact. `pi-or-minimax-m3` and its three
+slug-siblings now declare `cache_read_per_1k: 0.00006`, **derived from a metered run** rather
+than a vendor doc: $0.176163 total less $0.0544 of declared input+output leaves $0.1218 for
+2,030,142 cache reads = $0.06/1M, i.e. 20% of input — the share the `CacheReadPer1K`
+doc-comment already describes for OpenRouter. `TestModels_PricingIsSlugConsistent` requires
+all four rows of a slug to agree, which is correct: the provider bills the model, not the
+harness.
+
+### Raising a limit does not invalidate authority
+
+Measured: both frozen briefs validate with `max_tokens` raised to 3,000,000 and their
+`authority_refs` intact. Authority binds ARTIFACTS (by commit, path and digest), not limits.
+A stale-revision failure looks identical to an authority failure at the CLI, so run the
+unmodified original as a control before concluding otherwise — that control is what
+distinguished "my edit broke it" from "the base revision is not in the docs clone".
