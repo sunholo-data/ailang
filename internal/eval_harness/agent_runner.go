@@ -1,19 +1,9 @@
 package eval_harness
 
 import (
-	"bytes"
-	"context"
-	"encoding/json"
-	"fmt"
-	"os"
-	"os/exec"
-	"path/filepath"
-	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/sunholo-data/ailang/internal/browser"
-	"github.com/sunholo-data/ailang/internal/eval_harness/langreg"
 )
 
 // AgentBenchmarkConfig configures agent-based evaluation
@@ -217,27 +207,6 @@ type ModelStats struct {
 	ContextWindow            int     `json:"contextWindow"`
 }
 
-// ClaudeHeadlessResult is the JSON structure returned by `claude -p --output-format json`
-type ClaudeHeadlessResult struct {
-	Type              string                `json:"type"`
-	Subtype           string                `json:"subtype"`
-	IsError           bool                  `json:"is_error"`
-	DurationMS        int                   `json:"duration_ms"`
-	DurationAPIMS     int                   `json:"duration_api_ms"`
-	NumTurns          int                   `json:"num_turns"`
-	Result            string                `json:"result"`
-	SessionID         string                `json:"session_id"`
-	TotalCostUSD      float64               `json:"total_cost_usd"`
-	Usage             TokenUsage            `json:"usage"`
-	ModelUsage        map[string]ModelStats `json:"modelUsage"`
-	PermissionDenials []interface{}         `json:"permission_denials"`
-	UUID              string                `json:"uuid"`
-	Transcript        string                `json:"-"` // Full conversation transcript (not in JSON, set by streaming)
-	// FmtHookEvents (M-EVAL-FMT-WEAKMODEL-AB): per-turn fmt PostToolUse hook
-	// reality captured from the stream-json (not part of Claude's JSON).
-	FmtHookEvents []FmtHookEvent `json:"-"`
-}
-
 // NOTE (M4a-3 / BF-1): the legacy RunAgentBenchmark() Claude-headless runner was
 // DELETED here. It had no caller — cmd/ailang/eval_benchmark.go always uses
 // RunAgentBenchmarkWithExecutor (agent_runner_multi.go) because the legacy runner
@@ -247,156 +216,12 @@ type ClaudeHeadlessResult struct {
 // lives in exactly one place: applyAgentVerification (verify.go), called from the
 // live multi-executor path. Do not reintroduce a second copy.
 //
-// The Claude-headless helpers below (checkClaudeCLI, determineSuccess,
-// getErrorMessage, ClaudeHeadlessResult, RunHeadlessSessionStreaming) are retained
-// deliberately: they are a self-contained subsystem still covered by tests, and
-// removing them is a separate refactor that also touches the fmt-hook A/B
-// machinery. They no longer carry any verification logic, so they cannot drift
-// from the live path on the axis BF-1 was about.
-
-// checkClaudeCLI verifies Claude CLI is installed and has correct version
-func checkClaudeCLI(claudePath string) error {
-	// Check if claude command exists
-	cmd := exec.Command("command", "-v", claudePath)
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("claude command not found. Install with: make setup-claude")
-	}
-
-	// Verify version (need v2.0+ for JSON output)
-	cmd = exec.Command(claudePath, "--version")
-	output, err := cmd.Output()
-	if err != nil {
-		return fmt.Errorf("failed to get claude version: %w", err)
-	}
-
-	version := strings.TrimSpace(string(output))
-	if !strings.Contains(version, "2.") {
-		return fmt.Errorf("claude CLI v2.0+ required for JSON output, got: %s", version)
-	}
-
-	return nil
-}
-
-// Note: prepareWorkspace and generateAgentPrompt moved to agent_prompt.go
-// for better organization and enhanced prompt generation with full syntax reference
-
-// runHeadlessSession executes Claude Code in headless mode
-//
-//nolint:unused // Kept for backwards compatibility, superseded by runHeadlessSessionStreaming
-func runHeadlessSession(prompt, workspace string, config AgentBenchmarkConfig) (*ClaudeHeadlessResult, error) {
-	// Generate UUID for session ID (Claude CLI requires valid UUID)
-	sessionID := uuid.New().String()
-
-	// Fmt-hook A/B (M-EVAL-FMT-WEAKMODEL-AB): when ON, emit a workspace
-	// .claude/settings.json registering the LANDED format_ail.sh PostToolUse
-	// hook and pass --settings. When OFF, nothing changes (byte-identical path).
-	fmtSettingsPath, _, fmtErr := config.FmtHook.Apply(workspace)
-	if fmtErr != nil {
-		return nil, fmt.Errorf("fmt-hook setup failed: %w", fmtErr)
-	}
-
-	// Build command: claude -p <prompt> --output-format json --model <model> --session-id <id>
-	// Note: --add-dir grants tool access to workspace directory
-	args := []string{"-p", prompt,
-		"--output-format", "json",
-		"--model", config.ClaudeModel,
-		"--session-id", sessionID,
-		"--add-dir", workspace,
-		"--allowedTools", strings.Join(config.AllowedTools, ","),
-	}
-	if fmtSettingsPath != "" {
-		args = append(args, "--settings", fmtSettingsPath)
-	}
-	cmd := exec.Command(config.ClaudePath, args...)
-
-	// Set working directory to workspace so relative paths work
-	cmd.Dir = workspace
-
-	// Override environment to make workspace the "project" directory
-	// This prevents Claude from finding the parent AILANG repo and creating files there
-	env := os.Environ()
-	// Remove parent project dir markers
-	filteredEnv := make([]string, 0, len(env))
-	for _, e := range env {
-		// Skip environment variables that might leak parent project context
-		if strings.HasPrefix(e, "PWD=") || strings.HasPrefix(e, "OLDPWD=") {
-			continue
-		}
-		filteredEnv = append(filteredEnv, e)
-	}
-	// Set PWD to workspace so Claude knows this is the "project"
-	filteredEnv = append(filteredEnv, fmt.Sprintf("PWD=%s", workspace))
-	// Apply μRAG mode (M-BRAIN-MICRORAG): force AILANG_MICRORAG_ENABLED for A/B comparison.
-	filteredEnv = config.MicroragMode.ApplyToEnv(filteredEnv)
-	cmd.Env = filteredEnv
-
-	// DEBUG: Capture stderr for visibility
-	var stderrBuf bytes.Buffer
-	cmd.Stderr = &stderrBuf
-
-	// DEBUG: If DEBUG_AGENT is set, print command being run
-	if os.Getenv("DEBUG_AGENT") != "" {
-		fmt.Fprintf(os.Stderr, "[DEBUG_AGENT] Running: %s\n", strings.Join(cmd.Args, " "))
-		fmt.Fprintf(os.Stderr, "[DEBUG_AGENT] Workspace: %s\n", workspace)
-		fmt.Fprintf(os.Stderr, "[DEBUG_AGENT] Prompt length: %d chars\n", len(prompt))
-	}
-
-	// Set timeout
-	timeout := time.Duration(config.TimeoutSeconds) * time.Second
-
-	// Run command with timeout
-	done := make(chan error, 1)
-	var output []byte
-	var err error
-
-	go func() {
-		output, err = cmd.Output()
-		done <- err
-	}()
-
-	select {
-	case <-time.After(timeout):
-		_ = cmd.Process.Kill()
-		stderr := stderrBuf.String()
-		if stderr != "" {
-			fmt.Fprintf(os.Stderr, "[TIMEOUT] Claude stderr:\n%s\n", stderr)
-		}
-		return nil, fmt.Errorf("claude session timed out after %d seconds", config.TimeoutSeconds)
-	case err := <-done:
-		if err != nil {
-			stderr := stderrBuf.String()
-			if stderr != "" {
-				fmt.Fprintf(os.Stderr, "[ERROR] Claude stderr:\n%s\n", stderr)
-			}
-			return nil, fmt.Errorf("claude failed: %w\nStderr: %s", err, stderr)
-		}
-	}
-
-	// DEBUG: Print stderr even on success if DEBUG_AGENT is set
-	if os.Getenv("DEBUG_AGENT") != "" {
-		stderr := stderrBuf.String()
-		if stderr != "" {
-			fmt.Fprintf(os.Stderr, "[DEBUG_AGENT] Claude stderr:\n%s\n", stderr)
-		}
-	}
-
-	// Save session log to workspace for inspection
-	logPath := filepath.Join(workspace, "claude_session.log")
-	logData := fmt.Sprintf("=== Claude Session Log ===\n\nPrompt:\n%s\n\nStderr:\n%s\n\nJSON Output:\n%s\n",
-		prompt, stderrBuf.String(), string(output))
-	if err := os.WriteFile(logPath, []byte(logData), 0644); err != nil {
-		// Don't fail if we can't write log, just warn
-		fmt.Fprintf(os.Stderr, "[WARN] Failed to write session log: %v\n", err)
-	}
-
-	// Parse JSON result
-	var result ClaudeHeadlessResult
-	if err := json.Unmarshal(output, &result); err != nil {
-		return nil, fmt.Errorf("failed to parse claude JSON output: %w\nOutput: %s", err, string(output))
-	}
-
-	return &result, nil
-}
+// The Claude-headless helpers that lived alongside it (checkClaudeCLI,
+// runHeadlessSession, determineSuccess, getErrorMessage, getSolutionFilename,
+// ClaudeHeadlessResult, RunHeadlessSessionStreaming) were deleted in
+// M-V1-SIMPLIFY-S1 M4 — zero callers since the ailang-agent deprecation
+// (8fd71b4cf, 2026-01-03). The live Claude result type is
+// internal/executor/claude (claudeHeadlessResult).
 
 // ValidationResult holds detailed validation results for agent benchmarks
 type ValidationResult struct {
@@ -405,87 +230,4 @@ type ValidationResult struct {
 	StdoutOk  bool
 	Stdout    string
 	Stderr    string
-}
-
-// determineSuccess checks if the benchmark succeeded and returns detailed validation results
-func determineSuccess(result *ClaudeHeadlessResult, spec *BenchmarkSpec, workspace string, language string) ValidationResult {
-	// If Claude session errored, everything fails
-	if result.IsError || result.Subtype != "success" {
-		return ValidationResult{
-			CompileOk: false,
-			RuntimeOk: false,
-			StdoutOk:  false,
-			Stderr:    result.Result,
-		}
-	}
-
-	// Locate solution file via the language registry.
-	var solutionPath string
-	if language == "ailang" {
-		solutionPath = filepath.Join(workspace, "benchmark", "solution.ail")
-	} else {
-		lang, langErr := langreg.Get(language)
-		if langErr != nil {
-			return ValidationResult{Stderr: fmt.Sprintf("unknown language %q: %v", language, langErr)}
-		}
-		solutionPath = filepath.Join(workspace, lang.SolutionFilename())
-	}
-
-	solutionContent, err := os.ReadFile(solutionPath)
-	if err != nil || len(solutionContent) == 0 {
-		return ValidationResult{
-			Stderr: fmt.Sprintf("solution file not found or empty: %v", err),
-		}
-	}
-
-	// Obtain a runner for this language via the registry.  AILANG gets its
-	// special runner (needs spec for caps/stdin/input_files); everything else
-	// uses GetRunnerWithContext which routes through langreg.
-	var runner LanguageRunner
-	if language == "ailang" {
-		runner = NewAILANGRunnerWithTask(context.Background(), "", spec.Caps, "", spec)
-	} else {
-		r, runErr := GetRunnerWithContext(context.Background(), language, spec, "")
-		if runErr != nil {
-			return ValidationResult{Stderr: fmt.Sprintf("no runner for %q: %v", language, runErr)}
-		}
-		runner = r
-	}
-
-	timeout := 30 * time.Second
-	runResult, err := runner.Run(string(solutionContent), timeout)
-	if err != nil {
-		return ValidationResult{Stderr: fmt.Sprintf("validation runner error: %v", err)}
-	}
-
-	stdoutOk := runResult.RuntimeOk && GradeStdout(spec, runResult.Stdout, string(solutionContent))
-	return ValidationResult{
-		CompileOk: runResult.CompileOk,
-		RuntimeOk: runResult.RuntimeOk,
-		StdoutOk:  stdoutOk,
-		Stdout:    runResult.Stdout,
-		Stderr:    runResult.Stderr,
-	}
-}
-
-// getErrorMessage extracts error message from result
-func getErrorMessage(result *ClaudeHeadlessResult) string {
-	if result.IsError {
-		return result.Result
-	}
-	if result.Subtype == "error" {
-		return result.Result
-	}
-	return ""
-}
-
-// getSolutionFilename returns the language-specific solution filename
-//
-//nolint:unused // Kept for backwards compatibility
-func getSolutionFilename(language string) string {
-	lang, err := langreg.Get(language)
-	if err != nil {
-		return "solution.ail"
-	}
-	return lang.SolutionFilename()
 }

@@ -581,9 +581,9 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 // hook's exit-0 stderr in stream-json mode, so those markers never reached the
 // stream — the handler was structurally always empty on the active claude path.
 // Hook reality is now read from the out-of-band file sink post-run via
-// ReadFmtHookSink (see the ON-arm block after ExecuteStreaming above). The legacy
-// RunHeadlessSessionStreaming path still uses detectFmtHookEvent directly for
-// executors whose hook stderr DOES surface in the stream.
+// ReadFmtHookSink (see the ON-arm block after ExecuteStreaming above).
+// (The legacy RunHeadlessSessionStreaming stream-scan path and detectFmtHookEvent
+// were deleted in M-V1-SIMPLIFY-S1 M4.)
 
 // debugEventHandler prints streaming events when DEBUG_AGENT is set
 type debugEventHandler struct{}
