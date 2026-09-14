@@ -70,9 +70,16 @@ func main() {
 
 	flag.Parse()
 
-	// Observatory health check — detect bloated DB early (M-OBS-RETENTION).
-	// Fast path: just os.Stat, no DB open unless cleanup needed.
-	observatory.CheckHealth(observatory.DefaultDatabasePath())
+	// Language commands (run/check/fmt/...) open no state database and print
+	// nothing to stderr that the program itself did not print. The observatory
+	// health check and the stale-binary probe run only for platform commands
+	// (M-V1-SIMPLIFY-S1 M6; the dispatch table in Phase 3 replaces this list).
+	platformCommand := flag.NArg() > 0 && !isLanguageCommand(flag.Arg(0))
+	if platformCommand {
+		// Observatory health check — detect bloated DB early (M-OBS-RETENTION).
+		// Fast path: just os.Stat, no DB open unless cleanup needed.
+		observatory.CheckHealth(observatory.DefaultDatabasePath())
+	}
 
 	// Set binary version for stdlib compatibility check
 	// Version is set by ldflags at build time (e.g., "v0.4.8")
@@ -97,7 +104,9 @@ func main() {
 	}
 
 	// Check for stale binary (DX: prevents confusion when testing changes)
-	checkStaleBinary()
+	if platformCommand {
+		checkStaleBinary()
+	}
 
 	command := flag.Arg(0)
 	if err := guardEvalRemoteRead(command, flag.Args()[1:], os.Stderr); err != nil {
@@ -635,4 +644,21 @@ func replayTargetArg(path string) string {
 		return "'" + strings.ReplaceAll(path, "'", "'\\''") + "'"
 	}
 	return path
+}
+
+// isLanguageCommand reports whether cmd is one a user or agent runs to work
+// WITH AILANG (as opposed to operating the fleet). These commands must stay
+// quiet and dependency-free at startup: no observatory DB stat, no git probe.
+// Keep in step with the "language user-facing" class in the CLI audit
+// (design_docs/planned/m-v1-simplification-program.md); Phase 3's dispatch
+// table carries this as a Group attribute instead.
+func isLanguageCommand(cmd string) bool {
+	switch cmd {
+	case "version", "run", "repl", "test", "watch", "check", "fmt", "ai-check",
+		"iface", "internal-dump-iface", "verify", "compile", "disasm", "debug",
+		"prompt", "devtools-prompt", "docs", "builtins", "examples", "lsp",
+		"init", "select-best", "ast-edit", "replay", "export-training":
+		return true
+	}
+	return false
 }

@@ -58,7 +58,7 @@ closure_internal="$(printf '%s\n' "$closure" | grep "^$MODULE/internal/" | wc -l
 closure_leaks=0
 closure_leak_list=""
 for leak in $LEAK_ROOTS; do
-  if printf '%s\n' "$closure" | grep -q "^$leak"; then
+  if printf '%s\n' "$closure" | grep "^$leak" >/dev/null; then
     closure_leaks=$((closure_leaks + 1))
     closure_leak_list="$closure_leak_list $leak"
   fi
@@ -66,7 +66,7 @@ done
 closure_platform=0
 closure_platform_list=""
 for p in $PLATFORM_PKGS; do
-  if printf '%s\n' "$closure" | grep -q "^$MODULE/$p\$\|^$MODULE/$p/"; then
+  if printf '%s\n' "$closure" | grep -E "^$MODULE/$p(\$|/)" >/dev/null; then
     closure_platform=$((closure_platform + 1))
     closure_platform_list="$closure_platform_list $p"
   fi
@@ -89,9 +89,9 @@ commands_top_level="$(grep -oE 'case "[a-z0-9-]+"' cmd/ailang/main.go | sort -u 
 flag_names="$(grep -rhoE '\.(String|Int|Bool|Duration|Float64|Int64|Var|StringVar|IntVar|BoolVar|DurationVar)\("[a-zA-Z0-9_-]+"' cmd/ailang --include='*.go' 2>/dev/null | grep -oE '"[^"]+"' | sort -u | wc -l | tr -d ' ')"
 
 # ---- configuration routes --------------------------------------------------
-getenv_all="$(grep -rn 'os\.Getenv(\|os\.LookupEnv(' --include='*.go' internal cmd 2>/dev/null | grep -v '_test\.go:' || true)"
+getenv_all="$(grep -rnE 'os\.(Getenv|LookupEnv)\(' --include='*.go' internal cmd 2>/dev/null | grep -v '_test\.go:' || true)"
 getenv_sites_total="$(printf '%s\n' "$getenv_all" | grep -c . || true)"
-getenv_outside_config="$(printf '%s\n' "$getenv_all" | grep -v '^internal/config/' | grep -v 'Getenv("DEBUG_\|LookupEnv("DEBUG_' | grep -c . || true)"
+getenv_outside_config="$(printf '%s\n' "$getenv_all" | grep -v '^internal/config/' | grep -vE '(Getenv|LookupEnv)\("DEBUG_' | grep -c . || true)"
 env_names="$(printf '%s\n' "$getenv_all" | grep -oE '(Getenv|LookupEnv)\("[A-Z][A-Z0-9_]*"' | grep -oE '"[^"]+"' | tr -d '"' | sort -u)"
 env_distinct="$(printf '%s\n' "$env_names" | grep -c . || true)"
 doc_sources="CLAUDE.md README.md docs/docs/guides/debugging.md"
@@ -106,7 +106,7 @@ if [ "$env_distinct" -gt 0 ]; then env_documented_pct=$((env_documented * 100 / 
 # Independent "which backend" switches. Shrinks to 1 (+ per-store overrides) in Phase 2.5.
 backend_switches=0
 for v in AILANG_STORAGE AILANG_MESSAGES_STORE AILANG_COORDINATOR_REMOTE AILANG_CHAINS_READ AILANG_CHAINS_CLOUD COORDINATOR_MODE; do
-  if printf '%s\n' "$env_names" | grep -qx "$v"; then backend_switches=$((backend_switches + 1)); fi
+  if printf '%s\n' "$env_names" | grep -x "$v" >/dev/null; then backend_switches=$((backend_switches + 1)); fi
 done
 
 # ---- duplication -----------------------------------------------------------
@@ -129,7 +129,7 @@ for d in $(go list -f '{{.Dir}}' ./internal/... 2>/dev/null); do
   rel="${d#"$REPO_ROOT"/}"
   if ! grep -lqE '^// Package [a-zA-Z0-9_]+' "$d"/*.go 2>/dev/null; then
     # test-only packages have no non-test files; skip those
-    if find "$d" -maxdepth 1 -name "*.go" ! -name "*_test.go" | grep -q .; then
+    if find "$d" -maxdepth 1 -name "*.go" ! -name "*_test.go" | grep . >/dev/null; then
       pkgs_no_doc=$((pkgs_no_doc + 1))
       pkgs_no_doc_list="$pkgs_no_doc_list $rel"
     fi
@@ -147,7 +147,7 @@ fi
 surface=0
 surface=$((surface + $(wc -c < CLAUDE.md)))
 for f in .claude/rules/*.md; do
-  if ! head -5 "$f" | grep -q '^paths:'; then surface=$((surface + $(wc -c < "$f"))); fi
+  if ! head -5 "$f" | grep '^paths:' >/dev/null; then surface=$((surface + $(wc -c < "$f"))); fi
 done
 skill_desc_bytes="$(grep -h '^description:' .claude/skills/*/SKILL.md 2>/dev/null | wc -c | tr -d ' ')"
 surface=$((surface + skill_desc_bytes))

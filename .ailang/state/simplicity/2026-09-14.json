@@ -1,6 +1,6 @@
 {
   "date": "2026-09-14",
-  "commit": "c02c4f2ba",
+  "commit": "7133edd32",
   "metrics": {
     "closure_internal_packages": {
       "value": 41,
@@ -16,10 +16,10 @@
       "how": "third-party roots {sqlite3, otel, grpc, cloud.google.com, ollama} in that closure"
     },
     "closure_platform_packages": {
-      "value": 0,
+      "value": 4,
       "gate": 0,
       "dir": "le",
-      "detail": "",
+      "detail": "internal/ai internal/telemetry internal/secrets internal/mcp_client",
       "how": "platform packages reachable from the language roots"
     },
     "binary_internal_packages": {
@@ -35,13 +35,13 @@
       "how": "go list ./internal/..."
     },
     "internal_loc": {
-      "value": 302604,
+      "value": 302661,
       "gate": null,
       "dir": "le",
       "how": "non-test Go lines under internal/"
     },
     "cmd_ailang_loc": {
-      "value": 63270,
+      "value": 63296,
       "gate": null,
       "dir": "le",
       "how": "non-test Go lines under cmd/ailang"
@@ -127,25 +127,25 @@
       "how": "plus the MEMORY.md index on this machine"
     },
     "tracked_files": {
-      "value": 24852,
+      "value": 24856,
       "gate": 8000,
       "dir": "le",
       "how": "git ls-files"
     },
     "root_entries": {
-      "value": 93,
+      "value": 76,
       "gate": null,
       "dir": "le",
       "how": "entries at repo root incl. untracked"
     },
     "root_sprint_files": {
-      "value": 11,
+      "value": 0,
       "gate": 0,
       "dir": "le",
       "how": "sprint_* / sprint-* files at repo root"
     },
     "planned_design_docs": {
-      "value": 240,
+      "value": 243,
       "gate": null,
       "dir": "le",
       "how": "markdown files under design_docs/planned"
