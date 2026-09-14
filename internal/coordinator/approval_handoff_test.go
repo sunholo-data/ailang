@@ -322,3 +322,48 @@ func TestRootRequestOf_MalformedEnvelopeKeepsTheContent(t *testing.T) {
 		}
 	}
 }
+
+// The evaluator's whole job is to judge the previous stage's diff, and it was
+// told the wrong branch.
+//
+// Measured 2026-09-14: the handoff said "Branch: dev" — the base the worktree
+// was cut FROM, not the branch carrying the change. sprint-evaluator found
+// nothing to evaluate, ran `git diff origin/dev...HEAD` against its OWN empty
+// branch, and returned FAIL 0/100 on a sprint it had never been handed. A wrong
+// verdict on unexamined work is worse than no verdict.
+func TestHandoffContent_NamesTheWorkBranchNotJustTheBase(t *testing.T) {
+	task := &TaskRecord{
+		ID: "task-80ad9d65", Content: "implement it",
+		WorktreeID: "coordinator/task-80ad9d65", BaseBranch: "dev",
+	}
+	got := handoffContent(&AgentConfig{ID: "sprint-executor", Label: "Sprint Executor"}, task, 0, nil)
+
+	if !strings.Contains(got, "Work branch: coordinator/task-80ad9d65") {
+		t.Errorf("the branch carrying the change must be named:\n%s", got)
+	}
+	if !strings.Contains(got, "Base branch: dev") {
+		t.Errorf("the base to diff against must also be named, as the base:\n%s", got)
+	}
+	// "Branch: dev" alone is what caused the wrong verdict.
+	if strings.Contains(got, "\nBranch: dev") {
+		t.Errorf("the bare ambiguous form must be gone:\n%s", got)
+	}
+}
+
+// A cloud task has no worktree; the wrapper's branch convention applies.
+func TestWorkBranchOf(t *testing.T) {
+	if got := workBranchOf(&TaskRecord{ID: "task-x"}); got != "coordinator/task-x" {
+		t.Errorf("cloud task branch = %q", got)
+	}
+	if got := workBranchOf(&TaskRecord{ID: "task-x", WorktreeID: "feature/y"}); got != "feature/y" {
+		t.Errorf("a recorded worktree branch must win, got %q", got)
+	}
+	if got := workBranchOf(nil); got != "" {
+		t.Errorf("nil task has no branch, got %q", got)
+	}
+	// No id, no branch — the handoff omits the line rather than naming one that
+	// does not exist.
+	if got := workBranchOf(&TaskRecord{}); got != "" {
+		t.Errorf("a task with no id has no branch, got %q", got)
+	}
+}

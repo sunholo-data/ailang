@@ -154,8 +154,21 @@ func handoffContent(sourceAgent *AgentConfig, task *TaskRecord, issueNumber int,
 		}
 		fmt.Fprintf(&b, "Artifact: %s\n", a)
 	}
+	// The branch the WORK is on, and the base to diff it against — both, named
+	// as what they are.
+	//
+	// This said `Branch: <BaseBranch>`, which is the base the worktree was cut
+	// FROM — "dev" — not the branch carrying the change. Measured 2026-09-14:
+	// sprint-evaluator, whose whole job is to judge the previous stage's diff,
+	// was told "Branch: dev", found nothing to evaluate, ran
+	// `git diff origin/dev...HEAD` on its OWN empty branch and returned
+	// FAIL 0/100 against a sprint it had never been handed. A wrong verdict on
+	// unexamined work is worse than no verdict.
+	if b2 := workBranchOf(task); b2 != "" {
+		fmt.Fprintf(&b, "Work branch: %s\n", b2)
+	}
 	if task.BaseBranch != "" {
-		fmt.Fprintf(&b, "Branch: %s\n", task.BaseBranch)
+		fmt.Fprintf(&b, "Base branch: %s\n", task.BaseBranch)
 	}
 	fmt.Fprintf(&b, "\nOriginal Request: %s\n\n", rootRequestOf(task.Content))
 	b.WriteString("Previous work has been approved. Please continue.")
@@ -253,6 +266,24 @@ func rootRequestOf(content string) string {
 		}
 	}
 	return content
+}
+
+// workBranchOf is the branch carrying a task's change.
+//
+// WorktreeID holds it when a worktree was used; otherwise the cloud wrapper's
+// convention applies. Returns "" for a task that produced no branch, so the
+// handoff omits the line rather than naming one that does not exist.
+func workBranchOf(task *TaskRecord) string {
+	if task == nil {
+		return ""
+	}
+	if task.WorktreeID != "" {
+		return task.WorktreeID
+	}
+	if task.ID != "" {
+		return BranchForTask(task.ID)
+	}
+	return ""
 }
 
 // notifyInboxMessage publishes the dispatch notification for a stored message.
