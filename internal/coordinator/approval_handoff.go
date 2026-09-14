@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/sunholo-data/ailang/internal/messaging"
 )
@@ -83,12 +84,7 @@ func sendAgentHandoffMessage(
 		return fmt.Errorf("target agent %q has no inbox to deliver to", targetAgentID(targetAgent))
 	}
 
-	content := fmt.Sprintf("**Handoff from %s**\n\n"+
-		"Task: %s\n"+
-		"GitHub Issue: #%d\n"+
-		"Original Request: %s\n\n"+
-		"Previous work has been approved. Please continue.",
-		sourceAgent.Label, task.ID, issueNumber, task.Content)
+	content := handoffContent(sourceAgent, task, issueNumber)
 
 	msg := &messaging.InboxMessage{
 		FromAgent:     "coordinator",
@@ -116,6 +112,42 @@ func sendAgentHandoffMessage(
 	// can still find it — but it must be VISIBLE, so it is returned as a typed
 	// warning rather than swallowed.
 	return notifyInboxMessage(msg)
+}
+
+// handoffContent is what the next agent actually reads.
+//
+// It used to say "Previous work has been approved. Please continue." and never
+// name the ARTIFACT that work produced. design-doc-creator declares an
+// output_marker of `DESIGN_DOC_PATH:`, the finalizer stores it on the task
+// (task_chain.go SetTaskDesignDocPath), and the handoff then dropped it — so
+// sprint-planner was asked to plan a design doc whose path it was never told,
+// from a copy of the original REQUEST. The one fact the next stage needs was
+// the one fact omitted.
+//
+// The GitHub issue line is likewise conditional. Cloud tasks have no issue, so
+// it rendered "GitHub Issue: #0" — a reference to nothing, indistinguishable
+// from a real one at a glance.
+func handoffContent(sourceAgent *AgentConfig, task *TaskRecord, issueNumber int) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "**Handoff from %s**\n\n", sourceAgent.Label)
+	fmt.Fprintf(&b, "Task: %s\n", task.ID)
+	if issueNumber > 0 {
+		fmt.Fprintf(&b, "GitHub Issue: #%d\n", issueNumber)
+	}
+	// The artifacts, most specific first. Named explicitly so the next stage
+	// works from what was produced rather than re-deriving it from the request.
+	if task.DesignDocPath != "" {
+		fmt.Fprintf(&b, "Design doc: %s\n", task.DesignDocPath)
+	}
+	if task.SprintPlanPath != "" {
+		fmt.Fprintf(&b, "Sprint plan: %s\n", task.SprintPlanPath)
+	}
+	if task.BaseBranch != "" {
+		fmt.Fprintf(&b, "Branch: %s\n", task.BaseBranch)
+	}
+	fmt.Fprintf(&b, "\nOriginal Request: %s\n\n", task.Content)
+	b.WriteString("Previous work has been approved. Please continue.")
+	return b.String()
 }
 
 // notifyInboxMessage publishes the dispatch notification for a stored message.

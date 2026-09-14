@@ -2,6 +2,7 @@ package coordinator
 
 import (
 	"context"
+	"strings"
 	"testing"
 )
 
@@ -118,5 +119,61 @@ func TestDispatchApprovalHandoffs_NoMessageStoreIsLoud(t *testing.T) {
 	_, err := dispatchApprovalHandoffs(context.Background(), registryWith(agent, target), nil, task)
 	if err == nil {
 		t.Fatal("expected an error: a handoff is owed but nothing can deliver it")
+	}
+}
+
+// TestHandoffContent_NamesTheArtifact is the fact the next stage actually needs.
+//
+// design-doc-creator declares an output_marker of DESIGN_DOC_PATH:, the
+// finalizer stores it on the task, and the handoff dropped it — so
+// sprint-planner was asked to plan a design doc whose path it was never told,
+// from a copy of the original request.
+func TestHandoffContent_NamesTheArtifact(t *testing.T) {
+	src := &AgentConfig{ID: "design-doc-creator", Label: "Design Doc Creator"}
+	task := &TaskRecord{
+		ID:            "task-08032ebc",
+		Content:       "Design a secondary-model fallback for cloud executor agents",
+		DesignDocPath: "design_docs/planned/m-secondary-model-fallback.md",
+		BaseBranch:    "dev",
+	}
+
+	got := handoffContent(src, task, 0)
+
+	if !strings.Contains(got, "design_docs/planned/m-secondary-model-fallback.md") {
+		t.Errorf("the handoff must name the artifact the previous stage produced:\n%s", got)
+	}
+	if !strings.Contains(got, "Design Doc Creator") || !strings.Contains(got, "task-08032ebc") {
+		t.Errorf("the handoff lost its provenance:\n%s", got)
+	}
+	if !strings.Contains(got, task.Content) {
+		t.Errorf("the original request is still context the next stage needs:\n%s", got)
+	}
+}
+
+// A cloud task has no GitHub issue, and "#0" is a reference to nothing that
+// reads exactly like a real one.
+func TestHandoffContent_OmitsAbsentIssueNumber(t *testing.T) {
+	src := &AgentConfig{ID: "a", Label: "A"}
+	task := &TaskRecord{ID: "task-x", Content: "do the thing"}
+
+	if got := handoffContent(src, task, 0); strings.Contains(got, "#0") {
+		t.Errorf("an absent issue must be omitted, not rendered as #0:\n%s", got)
+	}
+	if got := handoffContent(src, task, 1170); !strings.Contains(got, "#1170") {
+		t.Errorf("a real issue number must still appear:\n%s", got)
+	}
+}
+
+// A task with no artifact still produces a usable handoff — the fields are
+// additive, not required.
+func TestHandoffContent_SurvivesAnEmptyTask(t *testing.T) {
+	got := handoffContent(&AgentConfig{ID: "a", Label: "A"}, &TaskRecord{ID: "task-y"}, 0)
+	if !strings.Contains(got, "Please continue") {
+		t.Errorf("a bare task must still hand off:\n%s", got)
+	}
+	for _, unwanted := range []string{"Design doc:", "Sprint plan:", "Branch:"} {
+		if strings.Contains(got, unwanted) {
+			t.Errorf("an unset field must be omitted, not rendered empty (%s):\n%s", unwanted, got)
+		}
 	}
 }
