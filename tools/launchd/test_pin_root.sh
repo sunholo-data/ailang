@@ -25,6 +25,8 @@ export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null
 # inherited AILANG_DRIVER_PINNED makes every case short-circuit as "already
 # pinned", which turns CI green while the test fails on the rig it protects.
 unset AILANG_DRIVER_PINNED AILANG_DRIVER_DRIFT AILANG_DRIVER_SRC AILANG_DRIVER_REF
+unset AILANG_DRIVER_AGE AILANG_DRIVER_AGE_BASE_SHA
+unset PIN_AGE_SUPPORTED
 unset AILANG_DRIVER_PIN_GATE_REFRESHED
 unset MISSION_WORKDIR AILANG_DRIVER_MISSION_IS_DE_FORKED
 
@@ -36,6 +38,12 @@ check(){ # name haystack needle
 }
 checkeq(){ if [ "$2" = "$3" ]; then ok "$1"; else bad "$1" "$2"; fi; }
 checkno(){ case "$2" in *"$3"*) bad "$1" "$(printf '%s' "$2" | tr '\n' '|' | tail -c 300)";; *) ok "$1";; esac; }
+# Line-anchored value assertion (Lane Rule 9): the fake driver prints both AGE=<n> and
+# ENV_AGE=<n>, so a substring check on 'AGE=3' would alias ENV_AGE=3 and vacuously green a
+# broken readback (MUT-D). Anchoring on ^NAME=value$ disambiguates.
+checkline(){ # name haystack ^name=value$
+  if printf '%s\n' "$2" | grep -q "^$3$"; then ok "$1"; else bad "$1" "$2"; fi;
+}
 
 # ---- build origin ----------------------------------------------------------
 git init --quiet --bare "$T/origin.git"
@@ -60,6 +68,11 @@ else
 fi
 echo "STATUS=$PIN_STATUS"
 echo "DRIFT=$PIN_DRIFT"
+echo "AGE=$PIN_AGE"
+echo "AGE_BASE_SHA=$PIN_AGE_BASE_SHA"
+echo "ENV_AGE=${AILANG_DRIVER_AGE:-unset}"
+echo "ENV_AGE_BASE_SHA=${AILANG_DRIVER_AGE_BASE_SHA:-unset}"
+echo "ENV_REF=${AILANG_DRIVER_REF:-unset}"
 echo "NOTE=$PIN_NOTE"
 echo "REPO=$REPO"
 echo "MARKER=$(cat "$REPO/MARKER" 2>/dev/null)"
@@ -69,6 +82,7 @@ chmod +x tools/launchd/fake-driver.sh
 echo "STALE-CONTENT" > MARKER
 git add -A >/dev/null; git commit --quiet -m "base"
 git push --quiet origin dev 2>/dev/null
+A=$(git -C "$T/seed" rev-parse HEAD)
 
 # clone that will go stale
 git clone --quiet --branch dev "$T/origin.git" "$T/clone" 2>/dev/null
@@ -110,6 +124,13 @@ check "reads FRESH content, not stale"   "$OUT" "MARKER=FRESH-CONTENT"
 checkno "stale content is NOT read"      "$OUT" "MARKER=STALE-CONTENT"
 check "args survive the re-exec"         "$OUT" "ARGS=alpha beta"
 
+# AC-A: at the origin/dev tip, age is 0 and the baseline is origin/dev's full commit.
+DEV=$(git -C "$T/seed" rev-parse "dev^{commit}" 2>/dev/null)
+checkline "age is exactly 0 at the origin/dev tip"  "$OUT" "AGE=0"
+checkline "baseline SHA is origin/dev's full commit" "$OUT" "AGE_BASE_SHA=$DEV"
+check "note carries the pinned-age clause"            "$OUT" "pinned target 0 behind origin/dev (baseline"
+
+
 # REGRESSION: the SECOND fire must pin too. The first implementation matched `worktree list`
 # by string, which never matches a realpath-resolved entry, so fire 2 hit `worktree add` on an
 # existing directory and refused. A one-shot fix that reports STALE forever after.
@@ -127,6 +148,14 @@ echo "== 3. no recursion: second pass returns without re-exec =="
 REC=$(AILANG_DRIVER_PINNED=deadbee AILANG_DRIVER_DRIFT=7 /bin/bash "$DRV" 2>&1)
 check "already-pinned short-circuits"    "$REC" "STATUS=pinned"
 check "carries drift across the exec"    "$REC" "DRIFT=7"
+# AC-C: age + baseline cross the exec on the already-pinned pass (T3 readback).
+RAC=$(AILANG_DRIVER_PINNED=deadbee AILANG_DRIVER_DRIFT=7 AILANG_DRIVER_AGE=3 AILANG_DRIVER_AGE_BASE_SHA=0000000000000000000000000000000000000001 /bin/bash "$DRV" 2>&1)
+checkline "carries age across the exec"        "$RAC" "AGE=3"
+checkline "carries the age baseline across the exec" "$RAC" "AGE_BASE_SHA=0000000000000000000000000000000000000001"
+# D-2 witness: missing age must carry as ?, never zero (kills MUT-G).
+RMG=$(AILANG_DRIVER_PINNED=deadbee AILANG_DRIVER_DRIFT=7 /bin/bash "$DRV" 2>&1)
+checkline "missing age carries as ?, never zero" "$RMG" "AGE=?"
+
 
 echo "== 4. fetch failure is STALE + loud, never silent-ok =="
 git -C "$T/clone" remote set-url origin "$T/does-not-exist.git"
@@ -324,6 +353,203 @@ check "unknown origin production path unchanged" "$UK" "REPO=$T/identity/missing
 checkno "unknown origin never exports pinned success" "$UK" "STATUS=pinned"
 PLAIN=$(grep -c '^  _set_pin_workdir "$wt" "$src" || return 1$' "$SRC_HELPER")
 checkeq "production call is in current shell" "$PLAIN" "1"
+
+# ---- M1 PIN_AGE lab arms (sections 11-16) ----
+# Restore the onboarding fixture and confirm the clone's origin URL (restored in case 4) still
+# points at the lab origin before the SHA-ref arms below.
+printf '{"projects":{"%s":{"hasTrustDialogAccepted":true}}}' "$T/clone" > "$HOME/.claude.json"
+
+# REAL_GIT is resolved ONCE here and baked into every PATH shim as a literal (Lane Rule 10).
+REAL_GIT="$(command -v git)"
+
+# -------- §11 AC-B pin-age-sha : pin to SHA $A, origin/dev exactly 3 ahead --------
+echo "== 11. AC-B: pin to a SHA; origin/dev is exactly 3 ahead =="
+# origin/dev is currently 1 (base+advance) ahead of A; push two empty commits to make it 3.
+git -C "$T/seed" commit --quiet --allow-empty -m "ac-b-1"
+git -C "$T/seed" commit --quiet --allow-empty -m "ac-b-2"
+git -C "$T/seed" push --quiet origin dev
+checkeq "lab control: origin/dev is exactly 3 ahead of A" "$(git -C "$T/seed" rev-list --count "$A..origin/dev")" "3"
+B11=$(AILANG_DRIVER_REF="$A" /bin/bash "$DRV" 2>&1)
+check "sha pin reports pinned"                   "$B11" "STATUS=pinned"
+checkline "sha pin has exact line AGE=3"          "$B11" "AGE=3"
+checkline "sha pin still has exact line DRIFT=0"  "$B11" "DRIFT=0"
+DEV11=$(git -C "$T/seed" rev-parse "dev^{commit}")
+check "sha pin note names age 3 and the baseline SHA" "$B11" "pinned target 3 behind origin/dev (baseline $DEV11)"
+
+# -------- §12 AC-C2 pin-age-export : pin to SHA $A, origin/dev exactly 9 ahead --------
+echo "== 12. AC-C2: real re-exec exports AILANG_DRIVER_AGE=9 to the driver =="
+for i in 3 4 5 6 7 8; do git -C "$T/seed" commit --quiet --allow-empty -m "ac-c2-$i"; done
+git -C "$T/seed" push --quiet origin dev
+checkeq "lab control: origin/dev is exactly 9 ahead of A" "$(git -C "$T/seed" rev-list --count "$A..origin/dev")" "9"
+unset AILANG_DRIVER_AGE AILANG_DRIVER_AGE_BASE_SHA
+B12=$(AILANG_DRIVER_REF="$A" /bin/bash "$DRV" 2>&1)
+DEV12=$(git -C "$T/seed" rev-parse "dev^{commit}")
+checkline "real exec exports AILANG_DRIVER_AGE=9 to the driver" "$B12" "ENV_AGE=9"
+checkline "pinned pass reads back exact line AGE=9"            "$B12" "AGE=9"
+checkline "exported baseline equals origin/dev's full commit"   "$B12" "ENV_AGE_BASE_SHA=$DEV12"
+
+# -------- §13 AC-D pin-age-old-helper --------
+echo "== 13. AC-D: old helper (lacks PIN_AGE) gets a pre-handoff compat warning =="
+mkdir -p "$T/oldbuild"
+python3 - "$SRC_HELPER" "$T/oldbuild/pin-root.sh" "$T/oldbuild/fake-driver.sh" "$T/clone/tools/launchd/fake-driver.sh" <<'OLDPY' > "$T/oldbuild/report"
+import sys, re
+helper_src, hdst, ddst, dsrc = sys.argv[1:5]
+h = open(helper_src).read()
+out = []
+def note(name, n):
+    out.append('%s=%d' % (name, n))
+def cut(name, old):
+    n = h.count(old); h2 = h.replace(old, '', 1); out.append('%s=%d' % (name, n)); return h2
+# t4clear: the T4 comment + unset line. Run BEFORE the export-name cut, which would otherwise
+# steal the AILANG_DRIVER_AGE AILANG_DRIVER_AGE_BASE_SHA names off this unset line.
+m4 = re.search(r'  # Clear inherited age readings on an unpinned invocation:.*?unset AILANG_DRIVER_AGE AILANG_DRIVER_AGE_BASE_SHA\n', h, re.S)
+note('t4clear', 1 if m4 else 0)
+if m4: h = h[:m4.start()] + h[m4.end():]
+# t6block: the whole T6 computation (ends on the combined AILANG_DRIVER_AGE/AGE_BASE_SHA assignment).
+m = re.search(r'\n  # PIN_AGE .*\n.*?AILANG_DRIVER_AGE_BASE_SHA="\$origin_dev_sha"\n', h, re.S)
+note('t6block', 1 if m else 0)
+if m: h = h[:m.start()] + h[m.end():]
+# T5 refresh-hop handshake comment + unset
+m5 = re.search(r'    # Capability handshake for PIN_AGE:.*?unset PIN_AGE_SUPPORTED\n    PIN_AGE="\?"\n', h, re.S)
+note('t5handshake', 1 if m5 else 0)
+if m5: h = h[:m5.start()] + h[m5.end():]
+# T5 warning line
+m6 = re.search(r'    if \[ "\${PIN_AGE_SUPPORTED:-}" != "1" \]; then printf.*?lacks PIN_AGE; notice suppressed" >&2; fi\n', h)
+note('t5warn', 1 if m6 else 0)
+if m6: h = h[:m6.start()] + h[m6.end():]
+# header rows
+hdr = '#         PIN_AGE     commits on fetched origin/dev NOT reachable from the pinned target ("?" if unknown);\n#                     crosses the re-exec via AILANG_DRIVER_AGE\n#         PIN_AGE_BASE_SHA  full origin/dev SHA captured after the gate refresh that the age was\n#                     measured against ("?" if unknown); crosses the re-exec via AILANG_DRIVER_AGE_BASE_SHA\n'
+note('hdr', h.count(hdr)); h = h.replace(hdr, '')
+# init block
+note('init', h.count('PIN_AGE="?"\nPIN_AGE_BASE_SHA="?"\nPIN_AGE_SUPPORTED=1\n')); h = h.replace('PIN_AGE="?"\nPIN_AGE_BASE_SHA="?"\nPIN_AGE_SUPPORTED=1\n', '')
+# readback block
+note('readback', h.count('    PIN_AGE="${AILANG_DRIVER_AGE:-?}"\n    PIN_AGE_BASE_SHA="${AILANG_DRIVER_AGE_BASE_SHA:-?}"\n')); h = h.replace('    PIN_AGE="${AILANG_DRIVER_AGE:-?}"\n    PIN_AGE_BASE_SHA="${AILANG_DRIVER_AGE_BASE_SHA:-?}"\n', '')
+# note clause
+note('note_clause', h.count('; pinned target ${PIN_AGE} behind origin/dev (baseline ${PIN_AGE_BASE_SHA})')); h = h.replace('; pinned target ${PIN_AGE} behind origin/dev (baseline ${PIN_AGE_BASE_SHA})', '')
+# export names (single replacement removes them from the export line)
+note('export', h.count(' AILANG_DRIVER_AGE AILANG_DRIVER_AGE_BASE_SHA')); h = h.replace(' AILANG_DRIVER_AGE AILANG_DRIVER_AGE_BASE_SHA', '')
+open(hdst, 'w').write(h)
+d = open(dsrc).read()
+for i, l in enumerate(['echo "AGE=$PIN_AGE"\n','echo "AGE_BASE_SHA=$PIN_AGE_BASE_SHA"\n','echo "ENV_AGE=${AILANG_DRIVER_AGE:-unset}"\n','echo "ENV_AGE_BASE_SHA=${AILANG_DRIVER_AGE_BASE_SHA:-unset}"\n','echo "ENV_REF=${AILANG_DRIVER_REF:-unset}"\n']):
+    out.append('drv%d=%d' % (i, d.count(l))); d = d.replace(l, '', 1)
+open(ddst, 'w').write(d)
+sys.stdout.write('\n'.join(out) + '\n')
+OLDPY
+# Every checked transformation must have matched >=1 line (fixture-rot guard, never vacuous green).
+OK=1
+while read -r kv; do val=${kv#*=}; if [ "$val" -lt 1 ]; then OK=0; echo "fixture error: old-helper substitution '$kv' matched 0 lines" >&2; fi; done < "$T/oldbuild/report"
+[ "$OK" -eq 1 ] || exit 1
+if ! /bin/bash -n "$T/oldbuild/pin-root.sh"; then echo "fixture error: old helper does not parse" >&2; exit 1; fi
+if /bin/bash -n "$T/oldbuild/fake-driver.sh"; then :; else echo "fixture error: old fake-driver does not parse" >&2; exit 1; fi
+[ "$(grep -c 'PIN_AGE' "$T/oldbuild/pin-root.sh")" -eq 0 ] || { echo "fixture error: old helper still mentions PIN_AGE" >&2; exit 1; }
+[ "$(grep -c 'AILANG_DRIVER_AGE' "$T/oldbuild/pin-root.sh")" -eq 0 ] || { echo "fixture error: old helper still mentions AILANG_DRIVER_AGE" >&2; exit 1; }
+[ "$(grep -c 'rev-list --count "HEAD..$ref"' "$T/oldbuild/pin-root.sh")" -eq 1 ] || { echo "fixture error: old helper lost the drift line" >&2; exit 1; }
+# Commit the old helper + old fake-driver on a branch from dev, push to the lab origin.
+git -C "$T/seed" checkout --quiet -b oldhelper
+cp "$T/oldbuild/pin-root.sh" "$T/seed/tools/launchd/lib/pin-root.sh"
+cp "$T/oldbuild/fake-driver.sh" "$T/seed/tools/launchd/fake-driver.sh"
+git -C "$T/seed" add -A >/dev/null; git -C "$T/seed" commit --quiet -m "oldhelper fixture"
+git -C "$T/seed" push --quiet origin oldhelper
+git -C "$T/seed" checkout --quiet dev
+AD1=$(AILANG_DRIVER_REF=origin/oldhelper /bin/bash "$DRV" 2>&1)
+check "old-helper pin still reports pinned"            "$AD1" "STATUS=pinned"
+check "pre-handoff compatibility warning fires"        "$AD1" "lacks PIN_AGE"
+checkno "no fabricated AGE=0 under an old helper"       "$AD1" "AGE="
+AD2=$(AILANG_DRIVER_AGE=99 AILANG_DRIVER_AGE_BASE_SHA=bogus AILANG_DRIVER_REF=origin/oldhelper /bin/bash "$DRV" 2>&1)
+checkno "inherited bogus AGE is not carried into the target" "$AD2" "AGE="
+# Consumer witness: the REAL new-consumer age decision (mission-control.sh extraction) logs unknown
+# for a genuinely unset PIN_AGE under set -u, rc=0 (kills MUT-F's consumer half).
+awk '/^# --- DRIVER PIN AGE DECISION START ---/,/^# --- DRIVER PIN AGE DECISION END ---/' "$REPO_ROOT/tools/launchd/mission-control.sh" > "$T/agedec.sh"
+if [ ! -s "$T/agedec.sh" ]; then echo "FATAL: age decision extraction produced nothing" >&2; exit 1; fi
+rm -rf "$T/agedec"; mkdir -p "$T/agedec"
+ADEC=$(/bin/bash -c '
+  set -uo pipefail
+  log(){ printf "LOG:%s\n" "$*"; }
+  PIN_STATUS=pinned; PIN_AGE_FILE="$1/pin-age"; AILANG_DRIVER_AGE_WARN=25
+  _pin_age_degraded=""
+  . "$2"
+  echo "DECISION_RC:$?"
+  [ -n "$_pin_age_degraded" ] && echo "DEGRADED:$_pin_age_degraded"
+' _ "$T/agedec" "$T/agedec.sh" 2>&1)
+case "$ADEC" in *"DECISION_RC:0"*"LOG:driver pin age: unknown"*) ok "extracted new-consumer age decision logs unknown for unset PIN_AGE";; *"LOG:driver pin age: unknown"*"DECISION_RC:0"*) ok "extracted new-consumer age decision logs unknown for unset PIN_AGE";; *) bad "extracted new-consumer age decision logs unknown for unset PIN_AGE" "$ADEC";; esac
+
+# -------- §14 AC-N age-measure-fails (two PATH-shim sub-arms) --------
+echo "== 14. AC-N: failed age rev-list / failed baseline resolution stay loud, never zero =="
+mkdir -p "$T/shim1"
+cat > "$T/shim1/git" <<EOF
+#!/usr/bin/env bash
+REAL_GIT="$REAL_GIT"
+prev=""; range=""
+for a in "\$@"; do [ "\$prev" = "--count" ] && range="\$a"; prev="\$a"; done
+# Fail only rev-list --count whose range does NOT begin HEAD.. (the age shape; drift is the control).
+if [ -n "\$range" ]; then case "\$range" in HEAD\.\.*) ;; *) echo "ACN1 fail" >&2; exit 1;; esac; fi
+exec "\$REAL_GIT" "\$@"
+EOF
+chmod +x "$T/shim1/git"
+N1=$(PATH="$T/shim1:$PATH" AILANG_DRIVER_REF="$A" /bin/bash "$DRV" 2>&1)
+checkline "failed age rev-list yields AGE=?"        "$N1" "AGE=?"
+checkno "failed age rev-list fabricates no zero"    "$N1" "AGE=0"
+check "pin still reports pinned when age fails"     "$N1" "STATUS=pinned"
+checkline "drift control still succeeds during age failure" "$N1" "DRIFT=0"
+mkdir -p "$T/shim2"
+cat > "$T/shim2/git" <<EOF
+#!/usr/bin/env bash
+REAL_GIT="$REAL_GIT"
+for a in "\$@"; do case "\$a" in *"origin/dev^{commit}"*) echo "ACN2 fail" >&2; exit 1;; esac; done
+exec "\$REAL_GIT" "\$@"
+EOF
+chmod +x "$T/shim2/git"
+N2=$(PATH="$T/shim2:$PATH" AILANG_DRIVER_REF="$A" /bin/bash "$DRV" 2>&1)
+checkline "failed baseline resolution keeps AGE and baseline ?" "$N2" "AGE=?"
+checkline "failed baseline resolution keeps AGE and baseline ? (2)" "$N2" "AGE_BASE_SHA=?"
+check "failed baseline resolution is loud on stderr" "$N2" "driver pin age: unknown (?); origin/dev baseline resolution failed"
+
+# -------- §15 AC-P pin-age-baseline-moves (moving-baseline shim) --------
+echo "== 15. AC-P: origin/dev moves under the fire; age stays anchored to captured baseline B =="
+rm -f "$T/acp_b" "$T/acp_count"
+mkdir -p "$T/acpdir" "$T/shimP"
+cat > "$T/shimP/git" <<EOF
+#!/usr/bin/env bash
+REAL_GIT="$REAL_GIT"
+intercept=0
+for a in "\$@"; do case "\$a" in *"origin/dev^{commit}"*) intercept=1;; esac; done
+if [ "\$intercept" = 1 ]; then
+  B="\$(\$REAL_GIT -C "$T/seed" rev-parse --verify --quiet 'origin/dev^{commit}' 2>/dev/null)"
+  printf '%s\n' "\$B" > "$T/acp_b"
+  printf 'x\n' >> "$T/acp_count"
+  \$REAL_GIT -C "$T/seed" commit --quiet --allow-empty -m "acp-move" 2>/dev/null
+  \$REAL_GIT -C "$T/seed" push --quiet origin dev 2>/dev/null
+  \$REAL_GIT -C "$T/clone" fetch --quiet origin 2>/dev/null
+  printf '%s\n' "\$B"
+  exit 0
+fi
+exec "\$REAL_GIT" "\$@"
+EOF
+chmod +x "$T/shimP/git"
+P1=$(PATH="$T/shimP:$PATH" AILANG_DRIVER_REF="$A" /bin/bash "$DRV" 2>&1)
+B15=$(cat "$T/acp_b" 2>/dev/null)
+CNT15=$(wc -l < "$T/acp_count" 2>/dev/null | tr -d ' ')
+checkeq "baseline shim fired exactly once" "$CNT15" "1"
+MOVED15=$(git -C "$T/seed" rev-parse origin/dev)
+if [ "$MOVED15" != "$B15" ]; then ok "moved origin/dev differs from captured baseline B"; else bad "moved origin/dev differs from captured baseline B" "$MOVED15"; fi
+EXP15=$(git -C "$T/seed" rev-list --count "$A..$B15")
+checkline "reported age is B's count, not the moved ref's" "$P1" "AGE=$EXP15"
+checkline "exported baseline SHA equals captured B"       "$P1" "ENV_AGE_BASE_SHA=$B15"
+check "note baseline equals captured B"                 "$P1" "baseline $B15"
+
+# -------- §16 AC-Q pin-age-nondefault-ref (lab half) --------
+echo "== 16. AC-Q: origin/feature ref is 26 behind origin/dev; AGE=26 =="
+git -C "$T/seed" push --quiet origin "$A:refs/heads/feature"
+CNT16=$(git -C "$T/seed" rev-list --count "$A..origin/dev")
+ADD16=$((26 - CNT16))
+i=0
+while [ "$i" -lt "$ADD16" ]; do git -C "$T/seed" commit --quiet --allow-empty -m "ac-q-$i"; i=$((i+1)); done
+git -C "$T/seed" push --quiet origin dev
+checkeq "lab control: origin/feature is exactly 26 behind origin/dev" "$(git -C "$T/seed" rev-list --count "origin/feature..origin/dev")" "26"
+Q16=$(AILANG_DRIVER_REF=origin/feature /bin/bash "$DRV" 2>&1)
+check "feature-ref pin reports pinned"         "$Q16" "STATUS=pinned"
+checkline "feature-ref pin has exact line AGE=26" "$Q16" "AGE=26"
+checkline "driver sees exported AILANG_DRIVER_REF=origin/feature" "$Q16" "ENV_REF=origin/feature"
 
 echo ""
 echo "==== $PASS passed, $FAIL failed ===="

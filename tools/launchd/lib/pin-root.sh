@@ -40,6 +40,10 @@
 #   out   PIN_STATUS  pinned | disabled | STALE
 #         PIN_NOTE    one-line human summary, safe to log or post
 #         PIN_DRIFT   how many commits the source clone is behind the ref ("?" if unknown)
+#         PIN_AGE     commits on fetched origin/dev NOT reachable from the pinned target ("?" if unknown);
+#                     crosses the re-exec via AILANG_DRIVER_AGE
+#         PIN_AGE_BASE_SHA  full origin/dev SHA captured after the gate refresh that the age was
+#                     measured against ("?" if unknown); crosses the re-exec via AILANG_DRIVER_AGE_BASE_SHA
 #   exit  re-execs on success and NEVER RETURNS; returns 0 (already pinned / opted out) or
 #         1 (STALE — caller continues on the working tree, loudly)
 #
@@ -52,6 +56,9 @@
 PIN_STATUS="unknown"
 PIN_NOTE=""
 PIN_DRIFT="?"
+PIN_AGE="?"
+PIN_AGE_BASE_SHA="?"
+PIN_AGE_SUPPORTED=1
 
 # _pin_bounded SECONDS CMD... — hard wall-clock cap; rc = CMD's rc, or 124 on expiry.
 # Deliberately duplicates mission-control.sh's _mc_bounded rather than depending on it: this
@@ -147,9 +154,16 @@ pin_root_to_committed_ref() {
     # we ARE the re-exec'd copy; the values below crossed the exec in the environment
     PIN_STATUS="pinned"
     PIN_DRIFT="${AILANG_DRIVER_DRIFT:-?}"
-    PIN_NOTE="running committed ${AILANG_DRIVER_REF:-origin/dev} @ ${AILANG_DRIVER_PINNED} with mission work repository ${MISSION_WORKDIR:-?} (source clone ${AILANG_DRIVER_SRC:-?} was ${PIN_DRIFT} behind)"
+    PIN_AGE="${AILANG_DRIVER_AGE:-?}"
+    PIN_AGE_BASE_SHA="${AILANG_DRIVER_AGE_BASE_SHA:-?}"
+    PIN_NOTE="running committed ${AILANG_DRIVER_REF:-origin/dev} @ ${AILANG_DRIVER_PINNED} with mission work repository ${MISSION_WORKDIR:-?} (source clone ${AILANG_DRIVER_SRC:-?} was ${PIN_DRIFT} behind); pinned target ${PIN_AGE} behind origin/dev (baseline ${PIN_AGE_BASE_SHA})"
     return 0
   fi
+
+  # Clear inherited age readings on an unpinned invocation: ambient AILANG_DRIVER_AGE values
+  # must not masquerade as a fresh measurement. The already-pinned branch above does NOT clear
+  # them — it consumes the transport that crossed the exec.
+  unset AILANG_DRIVER_AGE AILANG_DRIVER_AGE_BASE_SHA
 
   if [ "${AILANG_DRIVER_PIN:-1}" = "0" ]; then
     PIN_STATUS="disabled"
@@ -157,7 +171,7 @@ pin_root_to_committed_ref() {
     return 0
   fi
 
-  local ref src script wt target short drift fetch_s rc onboarding_key_count projects_len refreshed_helper
+  local ref src script wt target short drift fetch_s rc onboarding_key_count projects_len refreshed_helper age origin_dev_sha
   ref="${AILANG_DRIVER_REF:-origin/dev}"
   fetch_s="${AILANG_DRIVER_FETCH_TIMEOUT:-120}"
   script=$(basename "$0")
@@ -205,12 +219,18 @@ pin_root_to_committed_ref() {
     fi
     AILANG_DRIVER_PIN_GATE_REFRESHED="$target"
     export AILANG_DRIVER_PIN_GATE_REFRESHED
+    # Capability handshake for PIN_AGE: the marker is source-time state, never an env transport.
+    # Unset it (and reset the reading) immediately before sourcing so only the sourced blob's own
+    # declaration counts; an old helper that lacks PIN_AGE must not inherit the outer's marker.
+    unset PIN_AGE_SUPPORTED
+    PIN_AGE="?"
     . "$refreshed_helper"
     rc=$?
     rm -f "$refreshed_helper"
     if [ "$rc" -ne 0 ]; then
       _pin_stale "could not load $ref's tools/launchd/lib/pin-root.sh (rc=$rc)"; return 1
     fi
+    if [ "${PIN_AGE_SUPPORTED:-}" != "1" ]; then printf '%s\n' "driver pin age: unknown (?); helper at $ref @ $target lacks PIN_AGE; notice suppressed" >&2; fi
     pin_root_to_committed_ref "$@"
     return $?
   fi
@@ -219,6 +239,23 @@ pin_root_to_committed_ref() {
   drift=$(git -C "$src" rev-list --count "HEAD..$ref" 2>/dev/null)
   [ -n "$drift" ] || drift="?"
   PIN_DRIFT="$drift"
+
+  # PIN_AGE — how many commits on the freshly-fetched origin/dev are NOT reachable from the
+  # pinned target. Computed ONCE against an immutable full origin_dev_sha captured now, so a
+  # later origin/dev move mid-fire cannot change the answer (AC-P observes the race). Unknown is
+  # never zero: any failure path yields "?" and a loud stderr line.
+  age="?"
+  origin_dev_sha=$(git -C "$src" rev-parse --verify --quiet "origin/dev^{commit}") || origin_dev_sha="?"
+  case "$origin_dev_sha" in
+    ''|'?')
+      origin_dev_sha="?"
+      printf '%s\n' 'driver pin age: unknown (?); origin/dev baseline resolution failed' >&2 ;;
+    *)
+      age=$(git -C "$src" rev-list --count "$target..$origin_dev_sha" 2>/dev/null) || age="?" ;;
+  esac
+  case "$age" in ''|*[!0-9]*) age="?" ;; esac
+  PIN_AGE="$age"; PIN_AGE_BASE_SHA="$origin_dev_sha"
+  AILANG_DRIVER_AGE="$age"; AILANG_DRIVER_AGE_BASE_SHA="$origin_dev_sha"
 
   wt="${AILANG_DRIVER_PIN_DIR:-$HOME/.ailang-driver-pin/${MISSION_NAME:-$(basename "$script" .sh)}}"
 
@@ -320,7 +357,7 @@ pin_root_to_committed_ref() {
   AILANG_DRIVER_SRC="$src"
   AILANG_DRIVER_DRIFT="$drift"
   AILANG_DRIVER_REF="$ref"
-  export AILANG_DRIVER_PINNED AILANG_DRIVER_SRC AILANG_DRIVER_DRIFT AILANG_DRIVER_REF MISSION_WORKDIR
+  export AILANG_DRIVER_PINNED AILANG_DRIVER_SRC AILANG_DRIVER_DRIFT AILANG_DRIVER_REF MISSION_WORKDIR AILANG_DRIVER_AGE AILANG_DRIVER_AGE_BASE_SHA
 
   exec /bin/bash "$wt/tools/launchd/$script" "$@"
 }
