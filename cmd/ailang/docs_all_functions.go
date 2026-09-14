@@ -20,7 +20,11 @@ import (
 // order. A stdlib file that does not parse fails the command loudly (non-zero
 // exit, file named) — never a silently dropped or partial row.
 func allFunctionsCommand(stdlibPath, filter string) {
-	lines := buildAllFunctionsLines(stdlibPath)
+	allFunctionsCommandFS(docsSource{FS: os.DirFS(stdlibPath), Label: stdlibPath}, filter)
+}
+
+func allFunctionsCommandFS(source docsSource, filter string) {
+	lines := buildAllFunctionsLinesFS(source)
 	lowerFilter := strings.ToLower(filter)
 
 	for _, line := range lines {
@@ -37,6 +41,10 @@ func allFunctionsCommand(stdlibPath, filter string) {
 // name + signature + description) so the caller can substring-filter over all
 // of it.
 func buildAllFunctionsLines(stdlibPath string) []string {
+	return buildAllFunctionsLinesFS(docsSource{FS: os.DirFS(stdlibPath), Label: stdlibPath})
+}
+
+func buildAllFunctionsLinesFS(source docsSource) []string {
 	var lines []string
 
 	// Prelude pseudo-module first (single source of truth: M4's renderer).
@@ -45,9 +53,9 @@ func buildAllFunctionsLines(stdlibPath string) []string {
 	}
 
 	// discoverModules is already sorted by module name (docs.go).
-	modules := discoverModules(stdlibPath)
+	modules := discoverModulesFS(source)
 	for _, mod := range modules {
-		astSigs, order, err := parseExportSignatures(mod.FilePath)
+		astSigs, order, err := parseExportSignaturesFS(mod.SourceFS, mod.FilePath)
 		if err != nil {
 			// Loud failure: name the file, non-zero exit. Never drop a row.
 			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)

@@ -210,12 +210,35 @@ func (r *StdlibResolver) ResolveStdlib(moduleName string) (string, error) {
 	return "", r.errWithSearchTrace(moduleName, triedPaths)
 }
 
+// ResolveStdlibRoot returns the first stdlib root containing io.ail. It uses
+// the exact candidate list used by module resolution so commands which need to
+// enumerate the stdlib cannot drift from compiler behavior.
+func ResolveStdlibRoot(cliPath string) (string, error) {
+	r := NewStdlibResolver(cliPath, false, false)
+	return r.ResolveStdlibRoot()
+}
+
+// ResolveStdlibRoot resolves a filesystem stdlib root and reports every root
+// attempted when none is usable.
+func (r *StdlibResolver) ResolveStdlibRoot() (string, error) {
+	if r.searchPaths == nil {
+		r.initializeSearchPaths()
+	}
+	for _, root := range r.searchPaths {
+		if info, err := os.Stat(filepath.Join(root, "io.ail")); err == nil && !info.IsDir() {
+			return root, nil
+		}
+	}
+	return "", fmt.Errorf("stdlib directory not found; searched:\n  %s\nrelease archives should include std/ beside bin/; override with AILANG_STDLIB_PATH",
+		strings.Join(r.searchPaths, "\n  "))
+}
+
 // initializeSearchPaths initializes the search path list
 // Search order (highest priority first):
 // 1. CLI flag (--stdlib-path)
-// 2. Current working directory (./std) - for development and `go run`
-// 3. Binary-relative (../std from binary location)
-// 4. AILANG_STDLIB_PATH environment variable (colon/semicolon separated)
+// 2. AILANG_STDLIB_PATH environment variable (colon/semicolon separated)
+// 3. Current working directory (./std) - for development and `go run`
+// 4. Binary-relative (../std from binary location)
 // 5. User data directory (platform-specific)
 // 6. System directories (/usr/local/share/ailang/std, /usr/share/ailang/std)
 func (r *StdlibResolver) initializeSearchPaths() {
@@ -226,7 +249,17 @@ func (r *StdlibResolver) initializeSearchPaths() {
 		paths = append(paths, r.cliOverridePath)
 	}
 
-	// 2. Current working directory (for development, `go run`, CI)
+	// 2. Environment override (multi-path).
+	if envPath := os.Getenv("AILANG_STDLIB_PATH"); envPath != "" {
+		sep := getPathSeparator()
+		for _, p := range strings.Split(envPath, sep) {
+			if p = strings.TrimSpace(p); p != "" {
+				paths = append(paths, p)
+			}
+		}
+	}
+
+	// 3. Current working directory (for development, `go run`, CI)
 	// This is critical for running from repo root where std/ lives
 	if cwd, err := os.Getwd(); err == nil {
 		cwdStd := filepath.Join(cwd, "std")
@@ -235,23 +268,12 @@ func (r *StdlibResolver) initializeSearchPaths() {
 		}
 	}
 
-	// 3. Binary-relative path
+	// 4. Binary-relative path
 	if binPath, err := os.Executable(); err == nil {
 		binDir := filepath.Dir(binPath)
 		stdPath := filepath.Join(binDir, "..", "std")
 		if absPath, err := filepath.Abs(stdPath); err == nil {
 			paths = append(paths, absPath)
-		}
-	}
-
-	// 4. AILANG_STDLIB_PATH environment variable (multi-path)
-	if envPath := os.Getenv("AILANG_STDLIB_PATH"); envPath != "" {
-		sep := getPathSeparator()
-		for _, p := range strings.Split(envPath, sep) {
-			p = strings.TrimSpace(p)
-			if p != "" {
-				paths = append(paths, p)
-			}
 		}
 	}
 

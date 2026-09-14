@@ -3,11 +3,15 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/loader"
+	stdlib "github.com/sunholo-data/ailang/std"
 )
 
 // moduleDoc represents documentation for a stdlib module
@@ -19,6 +23,7 @@ type moduleDoc struct {
 	Exports     []exportDoc // Exported functions
 	Examples    []string    // Usage examples from comments
 	FilePath    string      // Full path to .ail file
+	SourceFS    fs.FS       // Source containing FilePath
 }
 
 // exportDoc represents an exported function
@@ -69,7 +74,7 @@ func docsCommand() {
 	}
 
 	// Find stdlib directory
-	stdlibPath, err := findStdlibDir()
+	stdlibSource, err := findStdlibSource()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 		fmt.Fprintf(os.Stderr, "\nTip: Set AILANG_STDLIB_PATH or run from project root\n")
@@ -82,13 +87,13 @@ func docsCommand() {
 	// positional (the filter) is not treated as a module name.
 	if *allFunctionsFlag {
 		filter := docsFlags.Arg(0)
-		allFunctionsCommand(stdlibPath, filter)
+		allFunctionsCommandFS(stdlibSource, filter)
 		return
 	}
 
 	// List mode
 	if *listFlag {
-		listModules(stdlibPath)
+		listModulesFS(stdlibSource)
 		return
 	}
 
@@ -102,7 +107,7 @@ func docsCommand() {
 			renderPreludeDocs()
 			return
 		}
-		showModuleDocs(stdlibPath, moduleName, *examplesFlag)
+		showModuleDocsFS(stdlibSource, moduleName, *examplesFlag)
 		return
 	}
 
@@ -110,32 +115,27 @@ func docsCommand() {
 	printDocsHelp()
 }
 
+type docsSource struct {
+	FS    fs.FS
+	Label string
+}
+
+var embeddedStdlibFS fs.FS = stdlib.FS
+
+func findStdlibSource() (docsSource, error) {
+	root, err := loader.ResolveStdlibRoot("")
+	if err == nil {
+		return docsSource{FS: os.DirFS(root), Label: root}, nil
+	}
+	if embeddedStdlibFS != nil {
+		return docsSource{FS: embeddedStdlibFS, Label: "embedded stdlib"}, nil
+	}
+	return docsSource{}, err
+}
+
 // findStdlibDir finds the stdlib directory
 func findStdlibDir() (string, error) {
-	// Priority order:
-	// 1. AILANG_STDLIB_PATH environment variable
-	// 2. ./std (current directory)
-	// 3. ../std (parent directory)
-
-	if envPath := os.Getenv("AILANG_STDLIB_PATH"); envPath != "" {
-		if isStdlibDir(envPath) {
-			return envPath, nil
-		}
-	}
-
-	// Check ./std
-	if isStdlibDir("std") {
-		absPath, _ := filepath.Abs("std")
-		return absPath, nil
-	}
-
-	// Check ../std (for running from cmd/ailang)
-	if isStdlibDir("../std") {
-		absPath, _ := filepath.Abs("../std")
-		return absPath, nil
-	}
-
-	return "", fmt.Errorf("stdlib directory not found")
+	return loader.ResolveStdlibRoot("")
 }
 
 // isStdlibDir checks if path looks like stdlib directory
@@ -150,7 +150,11 @@ func isStdlibDir(path string) bool {
 
 // listModules lists all available stdlib modules
 func listModules(stdlibPath string) {
-	modules := discoverModules(stdlibPath)
+	listModulesFS(docsSource{FS: os.DirFS(stdlibPath), Label: stdlibPath})
+}
+
+func listModulesFS(source docsSource) {
+	modules := discoverModulesFS(source)
 
 	fmt.Println("Available stdlib modules:")
 	fmt.Println()
@@ -171,9 +175,13 @@ func listModules(stdlibPath string) {
 
 // discoverModules finds all stdlib modules
 func discoverModules(stdlibPath string) []moduleDoc {
+	return discoverModulesFS(docsSource{FS: os.DirFS(stdlibPath), Label: stdlibPath})
+}
+
+func discoverModulesFS(source docsSource) []moduleDoc {
 	var modules []moduleDoc
 
-	entries, err := os.ReadDir(stdlibPath)
+	entries, err := fs.ReadDir(source.FS, ".")
 	if err != nil {
 		return modules
 	}
@@ -183,8 +191,7 @@ func discoverModules(stdlibPath string) []moduleDoc {
 			continue
 		}
 
-		filePath := filepath.Join(stdlibPath, entry.Name())
-		mod := parseModuleFile(filePath)
+		mod := parseModuleFileFS(source, entry.Name())
 		if mod.Name != "" {
 			modules = append(modules, mod)
 		}
@@ -204,12 +211,16 @@ func discoverModules(stdlibPath string) []moduleDoc {
 // `export func` signature and the multi-line `export type` declaration need
 // to look ahead, and a bufio.Scanner can only over-read.
 func parseModuleFile(filePath string) moduleDoc {
-	data, err := os.ReadFile(filePath)
+	return parseModuleFileFS(docsSource{FS: os.DirFS(filepath.Dir(filePath)), Label: filepath.Dir(filePath)}, filepath.Base(filePath))
+}
+
+func parseModuleFileFS(source docsSource, filePath string) moduleDoc {
+	data, err := fs.ReadFile(source.FS, filePath)
 	if err != nil {
 		return moduleDoc{}
 	}
 
-	mod := moduleDoc{FilePath: filePath}
+	mod := moduleDoc{FilePath: filePath, SourceFS: source.FS}
 	lines := strings.Split(string(data), "\n")
 
 	var headerComments []string
@@ -384,6 +395,10 @@ func typeDeclContinues(decl []string, lines []string, next int) bool {
 
 // showModuleDocs displays documentation for a specific module
 func showModuleDocs(stdlibPath, moduleName string, showExamples bool) {
+	showModuleDocsFS(docsSource{FS: os.DirFS(stdlibPath), Label: stdlibPath}, moduleName, showExamples)
+}
+
+func showModuleDocsFS(source docsSource, moduleName string, showExamples bool) {
 	// Normalize module name (allow both "std/io" and "io")
 	if !strings.HasPrefix(moduleName, "std/") {
 		moduleName = "std/" + moduleName
@@ -391,22 +406,22 @@ func showModuleDocs(stdlibPath, moduleName string, showExamples bool) {
 
 	// Find the file
 	fileName := strings.TrimPrefix(moduleName, "std/") + ".ail"
-	filePath := filepath.Join(stdlibPath, fileName)
+	filePath := filepath.ToSlash(fileName)
 
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+	if _, err := fs.Stat(source.FS, filePath); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: module '%s' not found\n", red("Error"), moduleName)
 		fmt.Fprintf(os.Stderr, "\nUse 'ailang docs --list' to see available modules\n")
 		os.Exit(1)
 	}
 
-	mod := parseModuleFile(filePath)
+	mod := parseModuleFileFS(source, filePath)
 
 	// Signatures are rendered from the AST (fixes V16: the exportSigRe regex
 	// truncated effect rows at `{`, so `now() -> int ! {Clock}` printed as
 	// `now() -> int ! `). A parse failure fails loudly — stdlib must always
 	// parse (CI's contract). The regex-derived exp.Signature is kept only as a
 	// fallback should the AST somehow lack an export.
-	astSigs, _, err := parseExportSignatures(filePath)
+	astSigs, _, err := parseExportSignaturesFS(source.FS, filePath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 		os.Exit(1)
