@@ -369,6 +369,30 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
        #    13=wall_timeout · 14=launch_failed.  Anything non-zero is a LANE FAILURE,
        #    not a result: fall back and FLAG, never re-prompt in place.
        ```
+       **⚠ SIZE THE WALL CLOCK TO THE MILESTONE — THE 1800 s DEFAULT IS SMALLER THAN A PLAN-SIZED
+       MILESTONE, AND A `wall_timeout` ON THAT ACCOUNT SPENDS THE WHOLE FALLBACK CHAIN ON WORK THE LANE
+       WAS DOING CORRECTLY** (added 2026-09-14 V1 iteration 354; third instance — iteration 347 M3
+       `wall_timeout` rc=13 partial discarded, iteration 354 M1 `wall_timeout` at 1810 s with every
+       production task landed and every gate green outside the sandbox, iteration 354 M2 on the
+       OpenRouter fallback link `wall_timeout` at 1810 s with all 31 arms written and none run). The
+       recipe's "bounded ≤30-min cap" was written for a `#590`-sized replay (12.6 min); a milestone the
+       planner sizes at ~+270 LOC with a nine-mutant drill is ~45–60 min on ollama-cloud and slower
+       still on OpenRouter (~4× the per-call latency this iteration). Because rc=13 is classed a LANE
+       FAILURE, the chain walks to the next link and hands it the SAME milestone under the SAME cap —
+       so both links time out on the same shape, and the end-of-chain `opus` Agent spawn is denied by
+       the spawn-pin hook under a provider pin (`deny:provider-pin`, role-spawn-routing §2), leaving the
+       controller to finish the executor's unrun tests by hand. **Rules. (a)** The cap is a per-run
+       parameter, not a constant: pass `--max-seconds 3600` to `mission_pi_run.sh` for any milestone
+       the plan estimates above ~150 LOC or that carries a mutation drill; keep 1800 for smaller work.
+       Never `0`, never unbounded — standing rule 6 still binds; 3600 is still a bound, and the
+       `--stall-seconds` no-progress cap (600) is unchanged, so a stalled run still dies in ten minutes.
+       **(b)** A `wall_timeout` whose worktree diff is NON-EMPTY and whose gates the controller can run
+       green is not a lane failure in the sense the fallback rule means — measure the partial first
+       (rule 3b(v)); a second run on the next link of the SAME milestone under the SAME cap is the shape
+       to avoid, not the default. **(c)** Split at the plan: a planner that sizes a milestone above
+       ~250 LOC should cut it, because the rule above only doubles the budget once. Mission-independent
+       — every mission on this rig runs the same runner and the same 30-minute default. The tell: you
+       are about to fall back on rc=13 and `worktree_changed_files` in the verdict is not zero.
        **ROOT CAUSE, MEASURED 2026-08-26 FROM THE PROVIDER'S OWN SIDE OF THE WIRE.** Every
        silent pi failure on record has one shape: the model streams ONLY reasoning tokens and
        never emits content or a tool call. In the whole OpenRouter Broadcast corpus for

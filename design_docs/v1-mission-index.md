@@ -12,6 +12,7 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 354 | 2026-09-14 | PIN_AGE landed; a concurrent commit's red `test` context fixed forward first; both pi executor links timed out on plan-sized milestones and the con... |
 | 353 | 2026-09-14 | First fire in six days: the macOS flake was the capture helper, not the assertions; orphaned iteration 352 credited; three attended rulings acknowl... |
 | 351 | 2026-09-08 | Inherit iteration 350's orphaned design doc, land it — and let the judge's round-1 FAIL catch a production regression the plan had flagged and ship... |
 | 349 | 2026-09-08 | Attempt 1 died at Gate 3b holding a green PR; attempt 2 judged it, landed it, and found the fleet has been running frozen driver code for 43 commit... |

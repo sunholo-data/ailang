@@ -57,148 +57,10 @@ section, write "none" rather than omitting:
 > the thing to grep before picking work, so the loop never repeats itself — is in
 > `v1-mission-index.md`.
 
-## 329 — 2026-09-05 — The parked compile-cache fix unparked itself on its own pre-registered default, and the acceptance gate it will be judged by was proven non-vacuous before a line of it was planned [ADMIN]
-
-**Pick.** The queue head, `m-compile-cache-unverified-artifacts` — [PARKED] since iteration 328 on
-ledger row `D-55`. The row's resume predicate is not a human answer but a **pre-registered default**:
-*"(a), applied at the next iteration, and recorded as a controller routing call rather than as a
-ruling."* This is that next iteration and `D-55` is still unanswered, so the default fired. The item
-unparked and routed straight to the planner with no further design work, exactly as the row predicted.
-
-**`D-55` REMAINS OPEN, and that is deliberate, not an oversight.** The loop may not resolve a ledger
-row on its own behalf (Gate 0's decision-recording contract, rule (c)), and a default is not a
-ruling. So the scope decision was applied and the question stays live and answerable: a later ruling
-of (b) or (c) supersedes this sprint's scope and the plan must then be revised. Both the plan and the
-report say so in those words. The first draft of the plan said *"the mission has resolved D-55 with
-default option (a)"* — the controller corrected that wording before the judge saw it, because a plan
-asserting a ruling that was never made would launder a controller routing call into a human decision,
-which is precisely what the contract exists to prevent.
-
-**Progress.** N = **13** design docs remaining before v1.0.0 (was 13, **±0**). **Goal unmoved.** By
-the unit's own definition sprint plans are not design docs and never count, so an iteration that
-plans rather than lands cannot move N — the doc leaves the count when it LANDS, is RULED OUT, or is
-re-scored off the bar. What moved is the doc's *state*: from PARKED-on-a-human-decision to
-[IN-SPRINT] with a verified 4-day plan, which is the step immediately before the count can fall.
-
-**What was verified first-party, and why it is the substance of this iteration.**
-
-The planner's most load-bearing claim was that the design doc's executable acceptance gate fails at
-baseline *for the right reason*. That claim was made from inside a `workspace-write` sandbox, and an
-in-sandbox gate verdict is not evidence. The controller re-ran it **outside the sandbox**, in a clean
-worktree at `137842bfd`:
-
-- M1 returns `go returncode=0` with **zero** selected passes. That zero-with-success is Go's vacuous
-  zero-selected-tests result — the failure mode the gate exists to reject — and the gate's
-  `assert set(names) <= passed` rejects it correctly. It fails on **missing test names**, not on a
-  compile error, a wrong package path, a python fault or a timeout, any one of which would have made
-  every milestone's acceptance vacuous.
-- Positive control on the same mechanism: run against an existing test
-  (`TestAliasPolyE2E_RecordSingleModule`, `./internal/pipeline`) it reports
-  `passed=['TestAliasPolyE2E_RecordSingleModule']`. The instrument can see a pass, so the zero above
-  is a fact about the tests rather than about the harness.
-
-This is the check that decides whether the next four days of work can be graded at all, and it is the
-one thing a plan cannot be trusted to self-report.
-
-**The judge's two findings, both reproduced before being acted on.**
-
-Evaluator `sonnet` returned **PASS 93/100, zero blocking**, having independently re-run the baseline
-gate, rebuilt a binary at `137842bfd` and reproduced the stale-execution defect end to end, and run
-**two live mutation drills** (T1 module-ID/key authorization; T9 `Clear()` error propagation). The T9
-drill is the more interesting result: with the mutant applied, the *entire existing suite* including
-`TestCacheStore_Clear` stayed green, and only a T9-shaped drill test caught it — so the plan's claim
-that the named test, not the existing suite, is the killer holds.
-
-- **F1 (non-blocking, CONFIRMED, fixed).** `cmd/ailang/serve_api_mcp_surface_test.go` receives
-  fixtures from **two** milestones (T10 in M3, T12 in M4) and had no size contingency, while the two
-  production files got a measured one. Reproduced: `make check-file-sizes` globs
-  `find internal cmd -name "*.go"` (`make/code-health.mk:167`) with the ceiling at `:169` and no
-  `_test.go` exclusion, and the file is **140** lines today. Real, and cheap: the plan now carries an
-  explicit contingency (split the M4 fixtures into a sibling test file in the same package past 650
-  lines; re-run the gate at the M3 *and* M4 boundaries, not only at the end).
-- **F2 (non-blocking, fixed).** The doc's M3 section says that commit is independent of the API
-  diagnostic work; the plan did not restate it. Now restated, with the reason the omission was
-  harmless — the shared test file is a *location*, not a dependency.
-
-**Ruled out.**
-
-- *"The planner's sandbox-viability claim can be banked."* Not banked. The planner reports nothing is
-  sandbox-blind, specifically that M4's fresh-binary bounded MCP stdio probe ran fine under
-  `workspace-write`. The judge read `TestServeAPI_MCPToolSurface` and `buildAilang(t)` in full and
-  found no network, socket or PATH-binary dependency, which is corroboration from a second reader —
-  but it remains an executor-time confirmation, not a controller measurement, and is recorded as such.
-- *"A quorum verdict of `proceed` in round 1 could have been banked."* It could not, and iteration 328
-  was right not to. Read with the corrected paths, round 1 reads `verdict: proceed` with
-  `absent_reviewers: [{model: gpt5-6-sol, reason: budget}]` — a pass with a named hole, and the absent
-  reviewer is the one that rejected twice when restored in round 2. The re-run is what produced `D-55`
-  at all.
-- *"The resolver's routing line can be followed."* It could not. See below.
-
-**Routing evidence.**
-
-| Role | Configured | Resolver said | ACTUAL | Note |
-|---|---|---|---|---|
-| Controller | `claude:claude-opus-5` | — | opus (session) | quota bucket |
-| Designer | rotation (`claude:claude-fable-5-1` next) | `recipe claude:claude-fable-5-1` | **not spawned** | doc already exists; Fable budget unspent, rotation pointer NOT advanced |
-| Planner | `codex:gpt-5.6-sol` | `agent-tool opus fail-closed:planner-lane-field-missing` | **`codex:gpt-5.6-sol`** | resolver/hook DISAGREED — see below |
-| Executor | `codex:gpt-5.6-sol` | `recipe codex:gpt-5.6-sol` | **not spawned** | deliverable is a plan; execution is the next iteration |
-| Evaluator | `sonnet` | `agent-tool sonnet declared:alias-pin` | **`sonnet`** | generator≠judge holds: codex/OpenAI wrote it, Anthropic judged it |
-
-`metered=$0.00` — every lane this iteration ran on a subscription or quota bucket (opus controller,
-codex `gpt-5.6-sol` planner, sonnet evaluator). No metered call was made; no quorum round was run,
-because the doc's quorum was already complete at two rounds and `D-55` is the disposition of its
-outcome, not a third round.
-
-**The routing defect, and it is a second instance.** `tools/launchd/resolve-role-spawn.sh planner`
-returned `agent-tool opus fail-closed:planner-lane-field-missing`, and this skill says an `opus`
-lane is spawned directly through the Agent tool. The spawn-pin **hook** refused it at the tool
-boundary: `deny:provider-pin — planner is pinned to codex:gpt-5.6-sol; Agent-tool alias spawn
-refused — use the cross-provider recipe (resolve-role-spawn.sh planner)`. Note the refusal message
-names, as its remedy, the very script whose answer it is rejecting. The hook reads
-`$MISSION_PLANNER_MODEL` directly; the resolver applies the lane-derivation fail-closed logic on top
-of it, and the two disagree whenever that derivation fires. The hook wins because it is the
-enforcement boundary, so the planner ran on codex as configured — the right outcome, reached by
-being denied rather than by routing. Queue row `m-resolver-hook-disagree-on-docless-pick` (iteration
-327) records instance 1 as a disagreement *on a doc-less pick*, and iteration **328 already recorded
-instance 2** in that same row, with a doc in hand and the root cause named: `derive-planner-lane.sh`
-requires a `planner_lane` field that only **2** design docs in the whole repo carry, so it returns
-`opus fail-closed` for essentially every real pick and the hook then denies opus. This iteration is
-**instance 3**, reproducing that mechanism exactly (`fail-closed:planner-lane-field-missing`). Three
-instances clears both Gate-5 bars — the ≥2 for a skill fix and the ≥3 for a routing-policy change —
-so the skill edit was spent here; the durable fix still belongs in the TOOL, as iteration 328 said,
-and stays queued.
-
-**The skill edit had to pay for its own space, and that is the more useful half.** The first form of
-it appended 38 lines to `SKILL.md` and turned CI **red** — step 40, `Check context docs respect
-progressive disclosure`, a **ratchet**: *"Baselined docs may shrink, never grow."* Attribution was
-unambiguous rather than assumed: `test` is `completed/success` on the base commit and `failure` on
-the PR head, and the diff is docs plus one markdown file. The escape valve is to bump the baseline,
-and the baseline file itself names that as the wrong answer — it carries a standing note that
-iteration 325 loosened the `release-manager` ratchet 596 → 625 without writing the growth, a debt
-still owed under `m-release-manager-skill-split`. So the edit was restructured instead: the new note
-AND the 2026-08-20 fable-pin correction both moved into a new linked
-`resources/role-spawn-routing.md`, with the operative rules kept inline. `SKILL.md` went **2790 →
-2781**, the baseline was ratcheted DOWN to match rather than up, and the gate is green. An iteration
-that wanted the space did the burn-down instead of deferring it.
-
-**And the layering was caught overreaching by a guard another sprint had written two days earlier.**
-The first restructure moved the whole 2026-08-20 fable-pin correction out, and
-`tools/launchd/test_mission_routing.sh` arm **S2** — *"fable capability paragraph survives the
-spawn-pattern edit"*, added by `M-SPAWN-PIN-ENFORCEMENT` on 2026-09-03 — went red, because it greps
-`SKILL.md` for the literal `enum in this build lists`. The guard is right and its intent is that the
-capability MEASUREMENT stays discoverable inline, so the measurement sentence was restored to
-`SKILL.md` rather than the guard being widened to accept the resources file: an unattended iteration
-does not relax a two-day-old guard to fit its own edit. Reproduced locally on `/bin/bash 3.2.57`
-before and after. The suite's one remaining local red (`run_lane fixture arm requires real lsof on
-Darwin CI target`) is **pre-existing and environmental** — identical on a pristine tree at
-`137842bfd`, and green on the real Darwin runner, which is why the previous head's `launchd drivers`
-check reads `success`.
-
-**Next.** Execute the sprint: M1 (2d) → M2 (0.75d) → M3 (0.5d) → M4 (0.75d), one commit per
-milestone, each boundary green on that milestone's named tests. The executor lane is
-`codex:gpt-5.6-sol` with the pi chain behind it; the judge must be non-codex. Two things to carry
-forward: the M4 sandbox-viability claim needs an out-of-sandbox confirmation at execution time, and
-if Mark answers `D-55` with (b) or (c) the plan's scope section is the thing to revise first.
+> **Older entries are ARCHIVED.** This file holds the newest 20. The full record of every
+> iteration is in `v1-mission-log-archive.md`, and a one-line index of ALL of them —
+> the thing to grep before picking work, so the loop never repeats itself — is in
+> `v1-mission-index.md`.
 
 ## 330 — 2026-09-05 — The compile cache now verifies the artifacts it executes, and the judge found the two guards the plan's own mutation table could not see [PRODUCT]
 
@@ -2596,3 +2458,172 @@ four iterations now) or `m-approval-poll-production-defaults-unexercised` / `m-r
 (both small, pre-planned by their judge findings). Watch AC6 on every fire: `gh run list --workflow
 "Build and Release" --branch dev --limit 25`, and for any `Build macos-latest` failure read the job
 log with `--allow-escape-sequences` for `--- FAIL: TestPipelineModulePhases_DebugCacheFormsAndCounters`.
+
+## 354 — 2026-09-14 — PIN_AGE landed; a concurrent commit's red `test` context fixed forward first; both pi executor links timed out on plan-sized milestones and the controller finished the arms [HARNESS]
+
+**Picked.** `m-pin-drift-blind-under-sha-pin` — the top `[NEXT]` row. Reality-checked first-party at
+`9422ff628`: `pin-root.sh:219` measures `HEAD..$ref`, so `git rev-list --count HEAD..48c4a6e49` = **0**
+[git rev-list] while `48c4a6e49..origin/dev` = **266** and the branch-ref form reads **17** (this fire
+logged `driver pin drift: 17`); `PIN_AGE` = 0 hits in `tools/launchd/` against `PIN_DRIFT` = 32. No
+design doc, no quorum artifact, no open PR or worktree for it (trace (a): the only bot PR is `#945`,
+a charter-tracked 08-28 item; trace (b): 10 worktrees, none iter-35x).
+
+**Gate 0/1.** Kill switch armed; billing CLEAN; gh `sunholo-voight-kampff`. Skill staleness, per-file:
+`SKILL.md` SAME, 11/12 resources SAME, **`gate-1-observe.md` DIFFERS** — origin/dev carries iteration
+353's `gh api --allow-escape-sequences` job-log rule that the main checkout's running copy lacks (the
+reverse direction of the usual drift: a Gate-5 edit committed from a worktree never reached the tree
+the symlink resolves to). Resolved copy followed per Repo Profile rule (c). `#1163` (created 08:31Z by
+iteration 353's rotation) 0 directives of 2; `#1072` 0 of 16 since the watermark. `dev` `9422ff628`:
+CI/Build in progress at Gate 1, later `success` on all 17 checks but the standing Sonar red. Inbox: 20
+unread, all coordinator/daneel task notices plus three `inbox_unrouted_notice` rows for controlplane
+reports (mine and World's) — the controlplane inbox still dispatches to nobody.
+
+**Cross-mission (World row 73, [#1160](https://github.com/sunholo-data/ailang/issues/1160)).** Claim:
+Gate 0's directive read is blind by construction to the driver's own `FAILED to complete` notices.
+Ghost-disciplined REAL on V1: `#1072` carries one self-authored `rc=143` notice at
+`2026-09-07T23:20:56Z` (the slot the verdicts log records as `KILLED_at=gate-3b`) and
+`mission_directives.sh` correctly reports `0 directive(s)` over it. Queued as
+`m-gate0-self-crash-notice-read` **[world-DEMAND]** (never the pick); verdict posted on ailang-world#138
+(2 → 3 comments) and #1160 (0 → 1, left open as the tracking issue).
+
+**Design.** Rotation last-used `claude:claude-fable-5-1` → entry 2 `codex:gpt-6-astra`; probe rc=0
+(`env -u OPENAI_API_KEY codex exec`, 16.6k tokens). One authoring run 424 s / 88,902 tok → 427 lines,
+17 verification rows, 15 acceptance arms each naming its killer. Astra is a quorum reviewer, so its own
+doc was reviewed by `gpt5-6-sol,gemini-3-1-pro,oc-glm-5-2`. **r1 BLOCKED** ($0.101): sol — the
+measurement evaluates the mutable name `origin/dev` (premise MEASURED REAL: `nightly-eval.sh:85`,
+`os-rotation-filler.sh:251`, `push_dev_on_stop.sh:71` all fetch the shared source clone); glm —
+`AILANG_DRIVER_REF` export unverified (premise MEASURED FALSE: set at `pin-root.sh:322`, exported at
+`:323`, control `AILANG_DRIVER_AGE` 0 hits); gemini pass. One protocol-mandated revision (137 s /
+44,953 tok): immutable `origin/dev^{commit}` baseline captured once, `AILANG_DRIVER_AGE_BASE_SHA`
+transport, AC-P/MUT-U, V18/V19, AC-Q/MUT-V. **r2 BLOCKED 3/3, zero absentees** ($0.103): sol and glm
+both rejected the r2 test hook `AILANG_TEST_PIN_AGE_AFTER_BASELINE_HOOK` — an env-gated executable in
+the production bootstrap path that **my own revision directive had suggested** (the drain-wait-hook
+analogy from iteration 353) — with the same concrete fix (delete it; AC-P via a lab-only PATH `git`
+shim); gemini wanted a V20 row for `pin_root_to_committed_ref`/`_mc_notify` (measured: `:145`/`:179`).
+Every fix concrete, none disputing direction → narrow-refinement carve-out r3 applied by the
+controller. My directive's `planner_lane: opus` header was the wrong form (`**Planner-Lane**:` is what
+`derive-planner-lane.sh` reads) — corrected mechanically.
+
+**Plan.** Resolver `agent-tool opus fail-closed:unparsable-path-entry` (the doc's Files section is a
+table, not bullets) vs `MISSION_PLANNER_MODEL=pi:ollama/kimi-k3:cloud` → the pin followed per
+role-spawn-routing §2(a). Probe: first attempt silent past my 120 s cap, retry rc=0 — the SAME cold
+shape on all three pi lanes today (kimi, ollama deepseek, OpenRouter deepseek). Verdict `ok` 960 s /
+42 tools, in=113,942 out=59,912 cacheRead=1,628,627 — **kimi's fourth consecutive successful planner
+run**. 589 lines; 14 re-verification rows; D-1 (stale line numbers), D-2 (MUT-G had no producer-side
+killer → one witness assertion added transparently), D-3 (doc says one milestone, mission wants two —
+the instrument stays atomic in M1). Its ~+555 LOC estimate is the number that should have made me
+size the pi runs differently.
+
+**Execute.** M1 on `pi:ollama/deepseek-v4-flash:0731-cloud` (probe cold-then-rc=0): verdict
+**`wall_timeout` rc=13 at 1810 s**, 172 tools, in=439,904 out=108,822 cacheRead=9,639,089, T1–T11
+landed, no drill, no snapshot hashes. Measured by me outside the sandbox: `-n` rc=0 ×3; pin suite
+**`117 passed, 0 failed`** — all 35 plan-named PASS lines present plus one split sibling
+(`… keeps AGE and baseline ? (2)`), all 81 baseline names retained; notify **50/0** (D-3 invariant).
+Its HANDOFF claimed "bash and read returned empty for every command" from mid-run — **REFUTED** by its
+NDJSON: 3 of 172 `tool_execution_end` results were zero-length, all `read`s. Nine-mutant drill run by
+the controller: A/B/C/D/E/G/S/U killed by their named arms; **MUT-F killed (rc=1) by the AC-D
+fixture-rot guard** (`t5warn=0 matched 0 lines`) rather than the named assertion — the fixture derives
+the old helper from the file under test, so MUT-F′ (`!=`→`=`) and MUT-F″ (drop the `unset`) die the
+same way; the named assertion is the positive control, not the killer. Committed M1 `e1dcb1796`.
+M2 → fallback link `pi:openrouter/deepseek/deepseek-v4-flash-0731` (probe cold-then-rc=0; metered):
+**`wall_timeout` at 1810 s**, 41 tools (~4× slower per call than ollama-cloud), all 31 arms written
+and never run: **71 passed, 10 failed** as delivered, and every one of the ten `trace:` dumps showed
+the PRODUCTION behaviour correct (notice armed + sent, state written/preserved, STALE skipped,
+`origin/feature` in the ref line). End-of-chain `opus` executor = an Agent spawn the spawn-pin hook
+denies under a provider pin (`deny:provider-pin`, no fallback escape), so I repaired the ten needles
+myself, each against its trace: `AGE_STATE:`/`DRIFT_STATE:` lines are echoed BEFORE the trace (7
+arms), the title rides the `AILANG:` line not the `GH:` one (age-a), and `arm_ok` takes ONE required
+substring so a second one became a forbidden needle (age-f/f2) → **81/0**. Thirteen-mutant drill:
+twelve killed; **MUT-R SURVIVED** (delete the non-pinned status guard): with previous state 170 and
+age 30 the doubling dedupe suppressed the notice and left the file untouched, so the arm could not see
+the guard go. Repaired as a ROW (age-m1/age-m3 now use an ABSENT previous state), re-drilled: `79
+passed, 2 failed`, restore byte-identical, green. Committed M2 `f8fae5165`.
+
+**Mid-iteration RED on `dev`.** At Gate 3b's first read, `origin/dev` had moved by four concurrent
+direct-to-dev bot commits (12:21–12:35, the attended quota-rationing session) and `test`/`test-windows`
+were red on three of them; walk-back: `9422ff628` green, `7423434b4` first red. Cause: `7423434b4`
+added `pi-or-minimax-m3` to `models.yml` at `max_output_tokens: 32000` (the pi wire clamp its own
+comment documents) without a `ceilingLimited` entry → `TestModels_CloudHeadroomEqualised`: "1 cloud
+entries are off-policy … [pi-or-minimax-m3]". Reproduced red at `fea3db8e3` with `-count=1`, green
+with the one entry, package ok. Fixed forward as [#1165](https://github.com/sunholo-data/ailang/pull/1165)
+→ `fd44be9ee` (22 checks zero not-green; `test` ran 19m59s). Sprint rebased onto it — zero file
+overlap between the dev delta (8 files) and mine (8 files). Also found and NOT mine:
+`test_codex_quota_admission.sh` red on the rig (`FAIL role routing`) with base `tools/launchd` in a
+clean worktree while CI's `launchd drivers` job is green — it reads the live `quota-ledger.json`
+(mtime 13:01); queued.
+
+**Shipped.** PR [#1166](https://github.com/sunholo-data/ailang/pull/1166) → squash
+[`266cf23a2`](https://github.com/sunholo-data/ailang/commit/266cf23a2ea6c7247243ed9a687226639897b9e4),
+**22 checks on the PR head `0db4f3c89`, ZERO not-green**, `MERGEABLE`/`CLEAN` re-read at merge.
+`PIN_AGE`/`PIN_AGE_BASE_SHA` in `pin-root.sh` (+43/−1), the age decision + `pin-age` notice in
+`mission-control.sh` (+63), pin suite 81 → 117, notify suite 50 → 82, changelog entry, 22-mutant
+audit with the round-1 findings dispositioned.
+
+**Independent judge** `agent-tool sonnet`, own worktree at the reviewed tip, both rounds. **Round 1:
+PASS 96/100, zero blocking** (218,665 tok / 97 tool uses / 1,797 s): 17/17 acceptance arms observed
+as real PASS lines; 69 base pin names + 49 base notify names retained; 7 of 22 mutants re-drilled
+(A, S, U, F, R, H, Q — deliberately including both audit-flagged rows) matching the audit's rc/total/
+FAIL lines exactly; two diff-anchored mutants of its own — the T4 unset (killed incidentally by the
+same fixture guard) and **inverting the notice's two explanatory sentences, which SURVIVED at 81/0**.
+Reproduced first-party before acting (81/0 with the sentences inverted); `age-a` gains `notice
+carries the not-in-effect and repeat-on-doubling sentences`; the mutant is now `81 passed, 1 failed`
+with that sole line red; 82/0 green. Its finding 3 — the M2 drill footer's `sha256 == PRE: False` —
+was **my friction**: I launched the MUT-R re-drill while the batch drill's final check was still
+running (my poll returned on its deadline, not on the `.done` marker; the rule-7 concurrent-writer
+trap exactly). No residue: `git diff 065973903 b2bb2f2f8 -- <both production files>` empty, control 3
+files. **Round 2 on the delta (`SendMessage` resume): PASS 100/100**, all three r1 findings
+dispositioned CLOSED / NO-ACTION / CLOSED, production hashes byte-identical to its r1 PRE.
+
+**Ruled out.**
+- *"bash and read tools returned empty for every command"* (M1 executor HANDOFF) — **REFUTED** by the
+  run's own NDJSON: 3 zero-length results of 172, all `read`s of absent files.
+- *"The ten red notify arms are production defects"* — **REFUTED**: every trace showed the shipped
+  behaviour correct; all ten were needle defects in an unrun harness.
+- *"A test-only hook variable the helper honours only when set"* (my r2 directive) — **REJECTED 2/3 at
+  quorum** and rightly: an env-gated executable in the bootstrap path is an authority expansion; the
+  PATH shim observes the race from outside the helper.
+- *"MUT-F is killed by `pre-handoff compatibility warning fires`"* (the plan's row) — the kill is the
+  fixture-rot guard for every mutation of the T5 text; the named assertion is a positive control.
+- *"`make test-launchd-drivers` red = this sprint"* — **REFUTED**: identical failure with base
+  `tools/launchd`; the suite reads live rig state; CI green on the same SHA.
+- *"dev's `test` red is mine"* — **REFUTED** by walk-back: first red at `7423434b4`, a concurrent commit.
+
+**Queued from this iteration.** `m-gate0-self-crash-notice-read` [world-DEMAND];
+`m-codex-quota-admission-test-reads-live-ledger`; process row `note-pi-executor-30-min-cap-vs-milestone-size`
+(third instance: iter-347 M3, iter-354 M1, iter-354 M2 → the Gate-5 skill edit). Also observed, one
+reading, not fixed: `scripts/mission_pi_run.sh` does not pass the two `-e` sandbox extensions the
+recipe calls mandatory (`grep -c sandbox` = 0 in the runner; `~/.pi/agent/extensions/` holds no fence).
+
+**Routing evidence.** Gate 1 base=`9422ff628f9086b40d7a2b69b9aacb3effd389d3@2026-09-14T08:35:36Z`;
+Gate 4 base=`266cf23a2ea6c7247243ed9a687226639897b9e4@2026-09-14T12:36:03Z` (the merge SHA, via
+`mission-base.sh record gate4`). Controller `claude:claude-opus-5` (session; tok: driver-reported at
+exit) · **designer** `recipe codex:gpt-6-astra declared:provider-pin` (resolver said the seed
+`claude:claude-fable-5-1`; the rotation pointer, not the seed, decides — advanced `claude:claude-fable-5-1`
+→ `codex:gpt-6-astra` below) — probe rc=0, authoring 424 s / 88,902 tok, ONE mandated revision 137 s /
+44,953 tok; quorum r1 blocked / r2 blocked / r3 carve-out, reviewers sol+gemini+glm with sol
+substituted for the author (astra) · **planner** resolver `agent-tool opus
+fail-closed:unparsable-path-entry` vs pin `pi:ollama/kimi-k3:cloud` → pin followed (§2); probe
+cold/rc=0; verdict `ok` 960 s / 42 tools, in=113,942 out=59,912 cacheRead=1,628,627 (flat-rate) ·
+**executor** M1 `recipe pi:ollama/deepseek-v4-flash:0731-cloud declared:provider-pin` — probe cold/rc=0;
+verdict **`wall_timeout` rc=13** 1810 s / 172 tools, in=439,904 out=108,822 cacheRead=9,639,089
+(flat-rate); M2 fallback link `pi:openrouter/deepseek/deepseek-v4-flash-0731` — probe cold/rc=0;
+verdict **`wall_timeout` rc=13** 1810 s / 41 tools, in=702,105 out=41,556 cacheRead=872,704 =
+**$0.086 metered**; end-of-chain `opus` Agent spawn hook-denied under the provider pin → controller
+finished the arms and both drills (FLAGGED; the deepseek promotion count resets to 0 on the rc=13) ·
+**evaluator** `agent-tool sonnet declared:alias-pin` (executor provider pi/DeepSeek ≠ Anthropic;
+generator≠judge holds at vendor level, D-62) — r1 218,665 tok / 97 tools / 1,797 s; r2 237,374 tok /
+24 tools / 551 s (quota bucket sonnet) · quorum reviewers r1 sol $0.051 (8,594/280) · gemini $0.022
+(9,632/190) · glm $0.028 (8,574/4,821); r2 sol $0.058 (9,991/281) · gemini $0.025 (11,272/205) · glm
+$0.019 (9,974/1,976) · CI-fix PR [#1165](https://github.com/sunholo-data/ailang/pull/1165) authored by
+the controller (one-line test-map entry, red→green proven locally). metered=$0.29.
+
+**Progress.** N=12 design docs before v1.0.0 (±0) — goal unmoved (HARNESS).
+
+**Cost.** Metered **$0.29** of $5 (quorum $0.20 + OpenRouter executor $0.09). Quota: codex (astra
+designer ×2), ollama-cloud (kimi planner, deepseek M1), sonnet (judge ×2), opus (controller).
+
+**Next.** Queue head after this iteration: `m-weekly-sweep-orphans-2026-09-14` (triage-lite, 7
+orphans), then `m-approval-poll-production-defaults-unexercised` / `m-ratelimit-window-default-unpinned`
+(small, judge-measured) and `m-gate0-self-crash-notice-read` [world-DEMAND]. Watch: the next fire's
+driver log should carry `driver pin age: 0 below warning threshold 25` beside the drift line — the
+first live reading of the instrument this iteration shipped.

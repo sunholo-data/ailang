@@ -1,6 +1,6 @@
 # M-PIN-DRIFT-BLIND-UNDER-SHA-PIN: PIN_AGE — a stale deployment pin reports its distance from origin/dev
 
-**Status**: Planned
+**Status**: Implemented (V1 iteration 354 — PR #1166 → `266cf23a2`; judge sonnet r1 PASS 96, r2 PASS 100)
 **Version**: v0.38.6
 **Priority**: P2 (instrument gap; the fleet is currently on origin/dev so no live harm today)
 **Estimated**: 0.5 day
