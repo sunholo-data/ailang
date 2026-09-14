@@ -342,16 +342,8 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	// Claude emits cumulative output_tokens in message_delta and the full
 	// usage block only at the terminal "result" event.
 	var runningInputTokens, runningOutputTokens int
-	// runningCacheCreationTokens exists so the token cap can see newly cached prompt.
-	//
-	// It is populated from the RESULT event, not from message_delta. claude-code's
-	// stream places cache_creation_input_tokens outside the usage block that the
-	// message_delta handler reads, and rather than guess at that shape this tracks the
-	// canonical figure the result event carries. Consequence, stated rather than hidden:
-	// on this harness an over-cap run is detected when the result arrives instead of
-	// being killed mid-stream. pi and opencode carry their cache counters per-turn and
-	// do kill in-flight. Closing the gap needs a recorded claude-code stream to verify
-	// the field's position — there is no fixture in the tree today.
+	// Populated from the RESULT event, not message_delta — see usage_cap.go for why,
+	// and for the in-flight limitation that follows from it.
 	var runningCacheCreationTokens int
 
 	go func() {
@@ -485,13 +477,10 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 								proctree.Kill(cmd)
 							}
 						}
-						// In-flight kill on what this handler can see. It CANNOT see
-						// cache creation (see runningCacheCreationTokens above), so it
-						// under-counts on a cached run; the result-event check closes it.
-						if task.MaxTokensPerBench > 0 && !thrashKilled &&
-							executor.TokensProcessedFrom(runningInputTokens, runningCacheCreationTokens, runningOutputTokens, 0) > task.MaxTokensPerBench {
+						// Under-counts a cached run; the result-event check closes it.
+						if tp, over := capExceeded(task.MaxTokensPerBench, runningInputTokens, runningCacheCreationTokens, runningOutputTokens); over && !thrashKilled {
 							thrashKilled = true
-							thrashKilledAtTokens = runningInputTokens + runningOutputTokens
+							thrashKilledAtTokens = tp
 							proctree.Kill(cmd)
 						}
 					}
@@ -536,29 +525,19 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 				// message_delta deltas may under-count cache tokens; the result event has
 				// the canonical totals. Add only the residual to keep Budget.Current accurate.
 				if task.Budget != nil && finalResult != nil {
-					residualIn := finalResult.Usage.InputTokens - runningInputTokens
-					residualOut := finalResult.Usage.OutputTokens - runningOutputTokens
-					if residualIn < 0 {
-						residualIn = 0
-					}
-					if residualOut < 0 {
-						residualOut = 0
-					}
+					residualIn := residual(finalResult.Usage.InputTokens, runningInputTokens)
+					residualOut := residual(finalResult.Usage.OutputTokens, runningOutputTokens)
 					if residualIn > 0 || residualOut > 0 {
 						_, _ = task.Budget.Add(residualIn, residualOut)
 					}
 					runningInputTokens = finalResult.Usage.InputTokens
 					runningOutputTokens = finalResult.Usage.OutputTokens
 				}
-				// Canonical cap check. Separate from the block above because that one is
-				// gated on task.Budget != nil, and a token cap must hold whether or not a
-				// cost budget was supplied — the mission path sets MaxTokensPerBench with
-				// no Budget at all.
+				// Not gated on task.Budget: a cap must hold whether or not a cost budget
+				// was supplied, and the mission path sets no Budget at all.
 				if finalResult != nil {
 					runningCacheCreationTokens = finalResult.Usage.CacheCreationInputTokens
-					tp := executor.TokensProcessedFrom(finalResult.Usage.InputTokens,
-						runningCacheCreationTokens, finalResult.Usage.OutputTokens, 0)
-					if task.MaxTokensPerBench > 0 && !thrashKilled && tp > task.MaxTokensPerBench {
+					if tp, over := capExceeded(task.MaxTokensPerBench, finalResult.Usage.InputTokens, runningCacheCreationTokens, finalResult.Usage.OutputTokens); over && !thrashKilled {
 						thrashKilled = true
 						thrashKilledAtTokens = tp
 					}

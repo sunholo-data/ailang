@@ -312,11 +312,8 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 					cacheReadTokens += u.CacheRead
 					cacheWriteTokens += u.CacheWrite
 					totalCostUSD += u.Cost.Total
-					// Canonical quantity (executor.TokensProcessedFrom): fresh input, newly
-					// cached input and output. pi reports cache writes separately and
-					// usually as 0 on OpenRouter, so this rarely changes pi's own number —
-					// it is here so every harness's guard tests the same expression.
-					if tp := executor.TokensProcessedFrom(inputTokens, cacheWriteTokens, outputTokens, 0); task.MaxTokensPerBench > 0 && thrashKilledAt == 0 && tp > task.MaxTokensPerBench {
+					// Canonical quantity — see capExceeded in isolation.go.
+					if tp, over := capExceeded(task.MaxTokensPerBench, inputTokens, cacheWriteTokens, outputTokens); over && thrashKilledAt == 0 {
 						thrashKilledAt = tp
 						proctree.Kill(cmd)
 					}
@@ -609,24 +606,9 @@ func buildPiArgs(model string, task *executor.Task, directive string) ([]string,
 		args = append(args, "--no-context-files")
 	}
 
-	// Repo-local extensions off, project-local skills ON. Both flags are required and the
-	// pairing was established by ablation in the gated workspace (2026-09-14), asking one
-	// model to run `pwd && git rev-parse HEAD` and report whether sprint-evaluator was
-	// loaded:
-	//
-	//	current flags            bash REFUSED by the gate      skill loaded
-	//	--no-extensions --approve    bash ran                  skill loaded
-	//	--no-extensions alone        bash ran                  skill NOT loaded
-	//
-	// The third row is why --approve is not optional: --no-extensions also disables the
-	// globally installed workspace-trust extension, which is what had been granting
-	// project trust headlessly, and without trust pi ignores project-local `.agents/skills`.
-	// The evaluator's skill IS its terminator (sprint-evaluator, 100-point rubric,
-	// threshold 70), so dropping extensions without restoring trust trades a deadlock for
-	// a silently unqualified judge — strictly worse, and invisible in the result.
-	if task.IsolateFromProjectExtensions {
-		args = append(args, "--no-extensions", "--approve")
-	}
+	// Repo-local extensions off, project-local skills ON — see isolation.go for the
+	// ablation that establishes both flags are required.
+	args = append(args, isolationArgs(task)...)
 
 	switch {
 	case task.AllowedTools == nil:
