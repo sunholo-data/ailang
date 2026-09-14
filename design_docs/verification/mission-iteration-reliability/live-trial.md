@@ -173,3 +173,57 @@ either the dispatch supplies the gate's coordinator context, or isolated stages 
 repo-local extensions at all. `IsolateFromAmbientContext` (`--no-context-files`) does not
 cover extensions today. M4 remains **adoption partial**; both additional frozen briefs stay
 undispatched behind the unchanged existing-candidate gate.
+
+### Correction to the section above — it is NOT evaluator-specific
+
+The root-cause section frames this as a conflict between the gate's headless prerequisites
+and the frozen work item's message prohibition. That conflict is real, but it is **not the
+operative cause and not specific to the evaluator role**. Asked why an executor was fine
+while a read-only evaluator was not, the honest answer is three facts:
+
+**1. The executor that succeeded ran on a different HARNESS, not a different role.** The
+09-08 executor was `claude-sonnet-5` (evaluator-route-probe.md:22). The gate is a **pi**
+extension; the claude and codex harnesses never load it. So the comparison is claude-vs-pi,
+not executor-vs-evaluator. Both frozen stages in `canary/work-item.json` carry the identical
+*"Do not process or acknowledge inbox messages"* clause, so the binary's executor would hit
+the same wall on pi — and harder, because `edit`/`write` are refused outright with no
+allowlist path at all (`shouldBlock`: `toolName === "edit" || toolName === "write"`).
+
+**2. The gate gates the TOOL, not the mutation, so being read-only buys nothing.** `bash` is
+refused unless EVERY `&&`/`;`/`|`-separated segment matches one of three start-anchored
+regexes (`BASH_ALLOW`, lines 29-33). Measured refusals from this run, all read-only:
+
+| Command issued | Why refused |
+|---|---|
+| `cd <repo> && git status && git log --oneline -5` | `cd` is not allowlisted; one bad segment sinks the whole compound |
+| `pwd` | not on the list at all |
+| `env GIT_PAGER=cat bash -c "git rev-parse HEAD"` | `git rev-parse` is not among status/log/diff/show/branch |
+| `/usr/bin/git --no-pager -C <dir> status --short` | absolute path fails `^git `; a flag before the subcommand also fails it |
+| `PATH=/usr/bin:/bin git --git-dir=... status` | assignment prefix fails `^git ` |
+| `echo "hello"` | not on the list |
+
+**51 of 63 bash calls were refused (81%).** The model tried eight distinct legitimate
+read-only formulations and was refused each time. This is not a model failure
+([[feedback_motoko_never_model_wall]] again).
+
+**3. The asymmetry is real but it runs the other way from intuition.** An executor's writing
+happens through the `edit`/`write` TOOLS, so it needs few allowlisted bash calls. A reviewer's
+entire job is read-only git plus inspection — precisely the shape this allowlist handles
+worst. The gate was designed for an *attended writer* who acks once and proceeds; an
+automated read-only *reviewer* lives almost entirely inside the blocked set and has no ack
+available to it. "It does no code" is why it is exposed, not why it should have been safe.
+
+**And it never needed to leave its own directory.** The stage dir IS a full worktree
+(`rev-parse --show-toplevel` returns it), HEAD is the base revision `97e695be5`, and both
+`ad1bf98d3` and `58f9fd4bc` are present. A bare
+
+    git diff ad1bf98d3fd8271ac8399f0f83e7e3ddf2675cb9 -- docs/docs/guides/mission-iteration.md
+
+is allowlisted and yields exactly the 185-line candidate diff the stage was asked to review.
+It reached for the source clone by absolute path on its first call, was blocked, and never
+came back to the in-place form.
+
+So the fix has a cheap half and a real half. Cheap: the allowlist is too literal for
+automated use — `pwd`, `git rev-parse`, `-C <dir>`, and a leading `cd` are all read-only and
+all refused. Real: decide whether an isolated mission stage loads repo-local pi extensions at
+all, which is the question the section above states correctly.
