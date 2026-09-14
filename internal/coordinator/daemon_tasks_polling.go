@@ -217,7 +217,7 @@ func (d *Daemon) pollAndProcessTasks() error {
 		// Check for duplicates
 		fingerprint := analyzed.Fingerprint
 		if fingerprint != 0 {
-			dup, dupErr := d.taskStore.FindDuplicateTask(d.ctx, fingerprint, DedupSince(time.Now()))
+			dup, dupErr := d.taskStore.FindDuplicateTask(d.ctx, fingerprint, DedupScopeFor(task, time.Now()))
 			if dupErr != nil {
 				// Fail open — running the work twice is recoverable, refusing it
 				// on a lookup error is not — but say so, because a store that
@@ -530,7 +530,7 @@ func (d *Daemon) pollAndProcessTasksCloud() error {
 		// Check for duplicates
 		fingerprint := analyzed.Fingerprint
 		if fingerprint != 0 {
-			dup, dupErr := d.taskStore.FindDuplicateTask(d.ctx, fingerprint, DedupSince(time.Now()))
+			dup, dupErr := d.taskStore.FindDuplicateTask(d.ctx, fingerprint, DedupScopeFor(task, time.Now()))
 			if dupErr != nil {
 				d.logger.Printf("Duplicate check failed for message %s (dispatching anyway): %v", msg.ID, dupErr)
 			}

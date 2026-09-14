@@ -220,7 +220,7 @@ type Store interface {
 	// The old signature took a `threshold float64` that NO implementation read —
 	// both match the fingerprint exactly — which is where the "similar to recent
 	// task" wording came from.
-	FindDuplicateTask(ctx context.Context, fingerprint uint64, since time.Time) (*TaskRecord, error)
+	FindDuplicateTask(ctx context.Context, fingerprint uint64, scope DedupScope) (*TaskRecord, error)
 	SetTaskFingerprint(ctx context.Context, id string, fingerprint uint64) error
 
 	// Thread linking (for dashboard visibility)

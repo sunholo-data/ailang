@@ -181,7 +181,7 @@ func (s *CoordinatorStore) ResetTaskToPending(ctx context.Context, id string) er
 
 // --- Duplicate Detection ---
 
-func (s *CoordinatorStore) FindDuplicateTask(ctx context.Context, fingerprint uint64, since time.Time) (*coordinator.TaskRecord, error) {
+func (s *CoordinatorStore) FindDuplicateTask(ctx context.Context, fingerprint uint64, scope coordinator.DedupScope) (*coordinator.TaskRecord, error) {
 	// Firestore doesn't support bitwise operations, so we do exact fingerprint
 	// match. The status and age rule is coordinator.BlocksDuplicate — applied here
 	// rather than as query filters, because status + fingerprint + created_at
@@ -202,7 +202,7 @@ func (s *CoordinatorStore) FindDuplicateTask(ctx context.Context, fingerprint ui
 		if err != nil {
 			return nil, err
 		}
-		if task := mapToTask(doc.Data()); task.BlocksDuplicate(since) {
+		if task := mapToTask(doc.Data()); task.BlocksDuplicate(scope) {
 			return task, nil
 		}
 	}

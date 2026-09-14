@@ -169,7 +169,7 @@ func (m *MockStore) ResetTaskToPending(ctx context.Context, id string) error {
 	return nil
 }
 
-func (m *MockStore) FindDuplicateTask(ctx context.Context, fingerprint uint64, since time.Time) (*TaskRecord, error) {
+func (m *MockStore) FindDuplicateTask(ctx context.Context, fingerprint uint64, scope DedupScope) (*TaskRecord, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.calls["FindDuplicateTask"]++

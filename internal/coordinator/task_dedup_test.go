@@ -68,20 +68,20 @@ func TestDedupIsBoundedInTime(t *testing.T) {
 	since := DedupSince(now)
 
 	fresh := &TaskRecord{Status: TaskStatusCompleted, CreatedAt: now.Add(-time.Hour)}
-	if !fresh.BlocksDuplicate(since) {
+	if !fresh.BlocksDuplicate(DedupScope{Since: since}) {
 		t.Error("a task completed an hour ago must still suppress an identical request")
 	}
 
 	ancient := &TaskRecord{Status: TaskStatusCompleted, CreatedAt: now.Add(-DedupWindow - time.Minute)}
-	if ancient.BlocksDuplicate(since) {
+	if ancient.BlocksDuplicate(DedupScope{Since: since}) {
 		t.Error("a task older than the window must not suppress — that is what made it permanent")
 	}
 
 	// An unknown age is a data defect, not a recent task.
-	if (&TaskRecord{Status: TaskStatusRunning}).BlocksDuplicate(since) {
+	if (&TaskRecord{Status: TaskStatusRunning}).BlocksDuplicate(DedupScope{Since: since}) {
 		t.Error("a task with no CreatedAt must not suppress")
 	}
-	if (*TaskRecord)(nil).BlocksDuplicate(since) {
+	if (*TaskRecord)(nil).BlocksDuplicate(DedupScope{Since: since}) {
 		t.Error("nil must not suppress")
 	}
 }
@@ -108,7 +108,7 @@ func TestFindDuplicateTask_SkipsFailedPredecessor(t *testing.T) {
 		t.Fatalf("fingerprint: %v", err)
 	}
 
-	dup, err := store.FindDuplicateTask(ctx, fingerprint, DedupSince(time.Now()))
+	dup, err := store.FindDuplicateTask(ctx, fingerprint, DedupScope{Since: DedupSince(time.Now())})
 	if err != nil {
 		t.Fatalf("find: %v", err)
 	}
@@ -132,7 +132,7 @@ func TestFindDuplicateTask_SkipsFailedPredecessor(t *testing.T) {
 		t.Fatalf("fingerprint: %v", err)
 	}
 
-	dup, err = store.FindDuplicateTask(ctx, fingerprint, DedupSince(time.Now()))
+	dup, err = store.FindDuplicateTask(ctx, fingerprint, DedupScope{Since: DedupSince(time.Now())})
 	if err != nil {
 		t.Fatalf("find: %v", err)
 	}
@@ -162,7 +162,7 @@ func TestFindDuplicateTask_IgnoresTasksOlderThanTheWindow(t *testing.T) {
 		t.Fatalf("fingerprint: %v", err)
 	}
 
-	dup, err := store.FindDuplicateTask(ctx, fingerprint, DedupSince(time.Now()))
+	dup, err := store.FindDuplicateTask(ctx, fingerprint, DedupScope{Since: DedupSince(time.Now())})
 	if err != nil {
 		t.Fatalf("find: %v", err)
 	}
@@ -230,5 +230,87 @@ func TestArtifactPatterns_EffectiveIsForDiscovery_DeclaredIsForSafety(t *testing
 	declared := &AgentConfig{ID: "daneel-writer", ArtifactPatterns: []string{"documents/**/*.md"}}
 	if got := declared.GetEffectiveArtifactPatterns(); len(got) != 1 || got[0] != "documents/**/*.md" {
 		t.Errorf("a declared list must win over the default, got %v", got)
+	}
+}
+
+// TestBlocksDuplicate_HandoffIsNotADuplicateOfItsParent pins the bug that kept
+// the pipeline from EVER running.
+//
+// Measured in production 2026-09-14, on the first handoff that ever fired:
+// design-doc-creator completed task-08032ebc, the approval dispatched
+// sprint-planner, and the new task was suppressed one second later against
+// task-08032ebc itself. sendAgentHandoffMessage embeds the predecessor's
+// request verbatim, so a handoff always simhashes to its parent, and a parent
+// at handoff time is always `completed` — which suppresses.
+func TestBlocksDuplicate_HandoffIsNotADuplicateOfItsParent(t *testing.T) {
+	now := time.Now()
+	parent := &TaskRecord{
+		ID:        "task-08032ebc",
+		AgentID:   "design-doc-creator",
+		Status:    TaskStatusCompleted,
+		CreatedAt: now.Add(-7 * time.Minute),
+	}
+
+	// The handoff, as the daemon builds it: same content, next agent, parent set.
+	handoff := DedupScope{
+		Since:        DedupSince(now),
+		AgentID:      "sprint-planner",
+		ParentTaskID: "task-08032ebc",
+	}
+	if parent.BlocksDuplicate(handoff) {
+		t.Error("a handoff was suppressed by the stage it follows — the pipeline cannot advance")
+	}
+
+	// Either guard alone must be enough: a same-agent re-entry naming the parent…
+	sameAgent := DedupScope{Since: DedupSince(now), AgentID: "design-doc-creator", ParentTaskID: "task-08032ebc"}
+	if parent.BlocksDuplicate(sameAgent) {
+		t.Error("a task must never be suppressed by its own declared parent")
+	}
+	// …and a different agent with no parent link.
+	otherAgent := DedupScope{Since: DedupSince(now), AgentID: "sprint-planner"}
+	if parent.BlocksDuplicate(otherAgent) {
+		t.Error("the same words sent to a DIFFERENT agent are different work, not a repeat")
+	}
+}
+
+// The guards must not open a hole in the thing dedup is actually for: the same
+// request, to the same agent, arriving twice.
+func TestBlocksDuplicate_GenuineRepeatToTheSameAgentStillSuppressed(t *testing.T) {
+	now := time.Now()
+	existing := &TaskRecord{
+		ID: "task-aaa", AgentID: "pkg-sunholo-email",
+		Status: TaskStatusRunning, CreatedAt: now.Add(-2 * time.Minute),
+	}
+	scope := DedupScope{Since: DedupSince(now), AgentID: "pkg-sunholo-email"}
+	if !existing.BlocksDuplicate(scope) {
+		t.Error("a redelivery of the same request to the same agent must still be suppressed")
+	}
+}
+
+// An unknown agent on either side is UNKNOWN, not "matches anything". Guessing
+// would silently change which requests are suppressed, in a direction nobody
+// chose — older tasks predate agent_id being recorded.
+func TestBlocksDuplicate_MissingAgentDoesNotDecide(t *testing.T) {
+	now := time.Now()
+	legacy := &TaskRecord{ID: "task-old", Status: TaskStatusCompleted, CreatedAt: now.Add(-time.Hour)}
+	if !legacy.BlocksDuplicate(DedupScope{Since: DedupSince(now), AgentID: "whoever"}) {
+		t.Error("an existing task with no agent must keep its pre-scoping behaviour")
+	}
+	current := &TaskRecord{ID: "task-new", AgentID: "someone", Status: TaskStatusCompleted, CreatedAt: now.Add(-time.Hour)}
+	if !current.BlocksDuplicate(DedupScope{Since: DedupSince(now)}) {
+		t.Error("an incoming request with no agent must keep its pre-scoping behaviour")
+	}
+}
+
+func TestDedupScopeFor_CarriesAgentAndParent(t *testing.T) {
+	s := DedupScopeFor(&TaskRecord{AgentID: "sprint-planner", ParentTaskID: "task-parent"}, time.Now())
+	if s.AgentID != "sprint-planner" || s.ParentTaskID != "task-parent" {
+		t.Errorf("scope lost the fields that decide suppression: %+v", s)
+	}
+	if s.Since.IsZero() {
+		t.Error("scope must always carry the window")
+	}
+	if got := DedupScopeFor(nil, time.Now()); got.Since.IsZero() {
+		t.Error("a nil task must still produce a usable window, not an unbounded one")
 	}
 }

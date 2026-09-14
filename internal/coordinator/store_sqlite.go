@@ -676,7 +676,7 @@ func (s *SQLiteStore) ResetTaskToPending(ctx context.Context, id string) error {
 }
 
 // FindDuplicateTask finds a similar task by fingerprint
-func (s *SQLiteStore) FindDuplicateTask(ctx context.Context, fingerprint uint64, since time.Time) (*TaskRecord, error) {
+func (s *SQLiteStore) FindDuplicateTask(ctx context.Context, fingerprint uint64, scope DedupScope) (*TaskRecord, error) {
 	// The status rule is NOT in the SQL. It lives in BlocksDuplicate so that this
 	// store and the Firestore one cannot drift into two different answers — the
 	// old `status != 'cancelled'` here had no counterpart in Firestore at all,
@@ -702,7 +702,7 @@ func (s *SQLiteStore) FindDuplicateTask(ctx context.Context, fingerprint uint64,
 		if err != nil {
 			return nil, err
 		}
-		if task.BlocksDuplicate(since) {
+		if task.BlocksDuplicate(scope) {
 			return task, nil
 		}
 	}
