@@ -304,7 +304,7 @@ panic. The panic is loud (Principle 2), not a silent fallback.
   `capturePipelineStderr` as a one-line wrapper passing `nil`. Update the doc comment to state the
   ordering invariant and why (the pipe read end must outlive the drain; the named return must be
   assigned after the wait).
-- [ ] H2 — add `gatedReader` + the three tests (`GatedReaderLosesNothing`, `PanicRestoresStderr`,
+- [ ] H2 — add `gatedReader` + the four tests (`GatedReaderLosesNothing`, `PanicRestoresStderr`, `CopyErrorIsLoud`,
   `DrainTimeoutIsLoud`). Before committing, run the mutation drill (MUT-1, MUT-2, MUT-3a, MUT-3b
   from the table); each mutant must be `rc≠0` on every run, the restored tree `rc=0`. Record the
   rcs in the sprint checkpoint. Nothing is tuned: a mutant that is not red is a design defect to
