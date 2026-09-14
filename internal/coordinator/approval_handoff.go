@@ -93,7 +93,7 @@ func sendAgentHandoffMessage(
 		FromAgent:     "coordinator",
 		ToInbox:       targetAgent.Inbox,
 		MessageType:   "handoff",
-		Title:         fmt.Sprintf("Handoff: %s", task.Title),
+		Title:         handoffTitle(task.Title),
 		Payload:       content,
 		CorrelationID: task.ID,
 		ParentTaskID:  task.ID,
@@ -157,7 +157,7 @@ func handoffContent(sourceAgent *AgentConfig, task *TaskRecord, issueNumber int,
 	if task.BaseBranch != "" {
 		fmt.Fprintf(&b, "Branch: %s\n", task.BaseBranch)
 	}
-	fmt.Fprintf(&b, "\nOriginal Request: %s\n\n", task.Content)
+	fmt.Fprintf(&b, "\nOriginal Request: %s\n\n", rootRequestOf(task.Content))
 	b.WriteString("Previous work has been approved. Please continue.")
 	return b.String()
 }
@@ -207,6 +207,52 @@ func resolveHandoffArtifacts(ctx context.Context, store Store, task *TaskRecord,
 	}
 	sort.Strings(out) // deterministic: the same approval must render identically
 	return out
+}
+
+// handoffTitle prefixes ONCE, however many stages the work has crossed.
+//
+// Each stage prefixed the parent's title unconditionally, so by the fourth the
+// subject read
+//
+//	Handoff: Handoff: Handoff: Daneel design 8adb4ff62af619b745106cbe...
+//
+// measured on the first chain to reach the evaluator (2026-09-14). The one line
+// a reader sees was three-quarters bookkeeping and the remaining quarter a hex
+// digest.
+func handoffTitle(parentTitle string) string {
+	const p = "Handoff: "
+	t := strings.TrimSpace(parentTitle)
+	for strings.HasPrefix(t, p) {
+		t = strings.TrimSpace(strings.TrimPrefix(t, p))
+	}
+	return p + t
+}
+
+// rootRequestOf unwraps nested handoff envelopes down to the ORIGINAL request.
+//
+// A handoff embeds its predecessor's content verbatim, and that content is
+// itself a handoff once the chain is two stages deep — so each stage carried
+// every stage before it. Measured on the same run: the planner's task was 1466
+// bytes and the executor's 1728, all of it the same request re-quoted, with the
+// actual ask at the bottom of three envelopes.
+//
+// That is not only waste. It is what makes consecutive stages simhash alike,
+// which is the collision DedupScope exists to survive — and an agent reading its
+// own instructions should not have to unwrap them first.
+//
+// Takes the LAST "Original Request:" because envelopes nest outermost-first, so
+// the deepest one is the original.
+func rootRequestOf(content string) string {
+	const marker = "Original Request:"
+	if !strings.HasPrefix(strings.TrimSpace(content), "**Handoff from") {
+		return content // not an envelope: this IS the request
+	}
+	if i := strings.LastIndex(content, marker); i >= 0 {
+		if inner := strings.TrimSpace(content[i+len(marker):]); inner != "" {
+			return inner
+		}
+	}
+	return content
 }
 
 // notifyInboxMessage publishes the dispatch notification for a stored message.

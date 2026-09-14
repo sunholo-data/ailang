@@ -269,3 +269,56 @@ func TestResolveHandoffArtifacts_ToleratesMissingOrJunkContext(t *testing.T) {
 		t.Errorf("nil store = no recovery, got %v", got)
 	}
 }
+
+// The fourth stage's subject line, measured 2026-09-14:
+//
+//	Handoff: Handoff: Handoff: Daneel design 8adb4ff62af619b745106cbe...
+//
+// Three-quarters bookkeeping, and the remaining quarter a hex digest.
+func TestHandoffTitle_PrefixesOnce(t *testing.T) {
+	for _, in := range []string{
+		"Design: stdlib resolution",
+		"Handoff: Design: stdlib resolution",
+		"Handoff: Handoff: Design: stdlib resolution",
+		"Handoff:  Handoff: Handoff: Design: stdlib resolution",
+	} {
+		if got := handoffTitle(in); got != "Handoff: Design: stdlib resolution" {
+			t.Errorf("handoffTitle(%q) = %q", in, got)
+		}
+	}
+}
+
+// Each stage embedded its predecessor's content verbatim, so by the third the
+// task carried every envelope before it — 1728 bytes of re-quoted request with
+// the actual ask at the bottom. That is also what makes consecutive stages
+// simhash alike.
+func TestRootRequestOf_UnwrapsNestedEnvelopes(t *testing.T) {
+	root := `{"workflow":"design-document-v1","request":"unify the stdlib resolvers"}`
+
+	stage1 := "**Handoff from Design Doc Creator**\n\nTask: task-a\nArtifact: design_docs/x.md\n\nOriginal Request: " + root + "\n\nPrevious work has been approved. Please continue."
+	stage2 := "**Handoff from Sprint Planner**\n\nTask: task-b\n\nOriginal Request: " + stage1 + "\n\nPrevious work has been approved. Please continue."
+
+	if got := rootRequestOf(stage2); !strings.HasPrefix(got, root) {
+		t.Errorf("two envelopes deep, got:\n%s", got)
+	}
+	if got := rootRequestOf(stage1); !strings.HasPrefix(got, root) {
+		t.Errorf("one envelope deep, got:\n%s", got)
+	}
+	// And a plain request is left exactly alone — it IS the request.
+	if got := rootRequestOf(root); got != root {
+		t.Errorf("a bare request must pass through untouched, got %q", got)
+	}
+}
+
+// A malformed envelope must degrade to the content, never to nothing: an empty
+// directive is worse than a verbose one.
+func TestRootRequestOf_MalformedEnvelopeKeepsTheContent(t *testing.T) {
+	for _, in := range []string{
+		"**Handoff from X**\n\nno marker here at all",
+		"**Handoff from X**\n\nOriginal Request:   ",
+	} {
+		if got := rootRequestOf(in); got != in {
+			t.Errorf("rootRequestOf(%q) = %q, want the input unchanged", in, got)
+		}
+	}
+}
