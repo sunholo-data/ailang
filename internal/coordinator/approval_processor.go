@@ -204,7 +204,7 @@ func processApproval(ctx context.Context, span trace.Span, params *ApprovalParam
 	// durably resolved and cannot be retried, so returning an error here would
 	// report failure for work that succeeded. It is surfaced in the result
 	// instead, which is what callers print.
-	handedOff, hErr := dispatchApprovalHandoffs(ctx, params.AgentRegistry, params.MsgStore, task)
+	handedOff, hErr := dispatchApprovalHandoffs(ctx, params.AgentRegistry, params.MsgStore, params.Store, task)
 	switch {
 	case hErr != nil:
 		span.AddEvent("warning: approval handoff failed", trace.WithAttributes(

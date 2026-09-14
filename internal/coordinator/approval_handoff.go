@@ -2,8 +2,10 @@ package coordinator
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/messaging"
@@ -75,6 +77,7 @@ func sendAgentHandoffMessage(
 	msgStore messaging.MessageStore,
 	sourceAgent, targetAgent *AgentConfig,
 	task *TaskRecord,
+	artifacts []string,
 	issueNumber int,
 ) error {
 	if msgStore == nil {
@@ -84,7 +87,7 @@ func sendAgentHandoffMessage(
 		return fmt.Errorf("target agent %q has no inbox to deliver to", targetAgentID(targetAgent))
 	}
 
-	content := handoffContent(sourceAgent, task, issueNumber)
+	content := handoffContent(sourceAgent, task, issueNumber, artifacts)
 
 	msg := &messaging.InboxMessage{
 		FromAgent:     "coordinator",
@@ -127,7 +130,7 @@ func sendAgentHandoffMessage(
 // The GitHub issue line is likewise conditional. Cloud tasks have no issue, so
 // it rendered "GitHub Issue: #0" — a reference to nothing, indistinguishable
 // from a real one at a glance.
-func handoffContent(sourceAgent *AgentConfig, task *TaskRecord, issueNumber int) string {
+func handoffContent(sourceAgent *AgentConfig, task *TaskRecord, issueNumber int, artifacts []string) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "**Handoff from %s**\n\n", sourceAgent.Label)
 	fmt.Fprintf(&b, "Task: %s\n", task.ID)
@@ -142,12 +145,68 @@ func handoffContent(sourceAgent *AgentConfig, task *TaskRecord, issueNumber int)
 	if task.SprintPlanPath != "" {
 		fmt.Fprintf(&b, "Sprint plan: %s\n", task.SprintPlanPath)
 	}
+	// Anything else the task produced inside its declared artifact scope. This
+	// is what carries a task whose marker was never recorded — see
+	// resolveHandoffArtifacts.
+	for _, a := range artifacts {
+		if a == task.DesignDocPath || a == task.SprintPlanPath {
+			continue
+		}
+		fmt.Fprintf(&b, "Artifact: %s\n", a)
+	}
 	if task.BaseBranch != "" {
 		fmt.Fprintf(&b, "Branch: %s\n", task.BaseBranch)
 	}
 	fmt.Fprintf(&b, "\nOriginal Request: %s\n\n", task.Content)
 	b.WriteString("Previous work has been approved. Please continue.")
 	return b.String()
+}
+
+// resolveHandoffArtifacts names what the previous stage actually produced.
+//
+// DesignDocPath is populated from an OUTPUT MARKER the agent prints
+// ("DESIGN_DOC_PATH:"), which makes it model-dependent: a run that does the work
+// and forgets the marker records nothing, and the handoff then says "continue"
+// without saying from what. Every design-doc task created before 2026-09-14 is
+// in that state — nineteen of them sitting approved-pending — so this is not a
+// hypothetical gap, it is the backlog.
+//
+// The approval record's changed_files is the mechanical answer to the same
+// question: it is computed from the diff, not printed by a model. Filtering it
+// through the agent's DECLARED artifact_patterns keeps it honest — the same
+// bound auto-merge uses, and the reason patterns must be declared rather than
+// defaulted to `**/*`.
+//
+// Order matters: the marker still WINS when present. It is the agent naming its
+// own primary output, which a file list cannot distinguish among several.
+func resolveHandoffArtifacts(ctx context.Context, store Store, task *TaskRecord, agent *AgentConfig) []string {
+	if task == nil || agent == nil || len(agent.ArtifactPatterns) == 0 {
+		return nil
+	}
+	if task.DesignDocPath != "" || task.SprintPlanPath != "" {
+		return nil // already named
+	}
+	if store == nil {
+		return nil
+	}
+	req, err := store.GetApprovalRequestByTaskAnyStatus(ctx, task.ID)
+	if err != nil || req == nil || req.ContextJSON == "" {
+		return nil
+	}
+	var ctxObj struct {
+		ChangedFiles []string `json:"changed_files"`
+	}
+	if err := json.Unmarshal([]byte(req.ContextJSON), &ctxObj); err != nil {
+		return nil
+	}
+	var out []string
+	for _, f := range ctxObj.ChangedFiles {
+		if MatchesArtifactPattern(agent.ArtifactPatterns, f) {
+			out = append(out, f)
+		}
+	}
+	sort.Strings(out) // deterministic: the same approval must render identically
+	return out
 }
 
 // notifyInboxMessage publishes the dispatch notification for a stored message.
@@ -192,9 +251,10 @@ func targetAgentID(a *AgentConfig) string {
 // approval that says "approved" while silently dispatching nothing is what this
 // exists to end, so a caller that cannot see what happened is only half fixed.
 func dispatchApprovalHandoffs(
-	_ context.Context,
+	ctx context.Context,
 	registry *AgentRegistry,
 	msgStore messaging.MessageStore,
+	store Store,
 	task *TaskRecord,
 ) (dispatched []string, err error) {
 	if registry == nil || task == nil || task.AgentID == "" {
@@ -212,6 +272,9 @@ func dispatchApprovalHandoffs(
 	if len(targets) == 0 {
 		return nil, nil
 	}
+	// Resolved once, not per target: every target of the same task is being
+	// handed the same work.
+	artifacts := resolveHandoffArtifacts(ctx, store, task, sourceAgent)
 	if msgStore == nil {
 		return nil, fmt.Errorf("task %s owes handoffs to %v but no message store is configured",
 			task.ID, targets)
@@ -222,7 +285,7 @@ func dispatchApprovalHandoffs(
 		if targetAgent == nil {
 			return dispatched, fmt.Errorf("handoff target %q not found in registry (task %s)", targetID, task.ID)
 		}
-		sErr := sendAgentHandoffMessage(msgStore, sourceAgent, targetAgent, task, task.GithubIssue)
+		sErr := sendAgentHandoffMessage(msgStore, sourceAgent, targetAgent, task, artifacts, task.GithubIssue)
 		switch {
 		case sErr == nil:
 			dispatched = append(dispatched, targetID)

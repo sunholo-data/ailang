@@ -435,7 +435,10 @@ func (tc *TaskChain) OnAgentApproved(ctx context.Context, event *ApprovalEvent, 
 			// approval path in approval_handoff.go. Two copies of this shape
 			// would let the daemon and the CLI hand off differently for the
 			// same edge.
-			if err := sendAgentHandoffMessage(tc.msgStore, agent, targetAgent, task, event.IssueNumber); err != nil {
+			// OnAgentApproved's own path, resolving the same way so the two
+			// handoff producers cannot describe the same task differently.
+			artifacts := resolveHandoffArtifacts(ctx, tc.store, task, agent)
+			if err := sendAgentHandoffMessage(tc.msgStore, agent, targetAgent, task, artifacts, event.IssueNumber); err != nil {
 				log.Printf("[TaskChain] Warning: failed to send handoff message: %v", err)
 			}
 		}

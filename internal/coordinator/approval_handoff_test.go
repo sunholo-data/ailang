@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestApprovalHandoffTargets_ExcludesAutoEdges(t *testing.T) {
@@ -103,7 +104,7 @@ func registryWith(agents ...*AgentConfig) *AgentRegistry {
 // must not report "nothing to do".
 func TestDispatchApprovalHandoffs_LoudWhenAgentUnknown(t *testing.T) {
 	task := &TaskRecord{ID: "task-x", AgentID: "ghost"}
-	_, err := dispatchApprovalHandoffs(context.Background(), NewAgentRegistry(), nil, task)
+	_, err := dispatchApprovalHandoffs(context.Background(), NewAgentRegistry(), nil, nil, task)
 	if err == nil {
 		t.Fatal("expected an error when the registry does not know the task's agent")
 	}
@@ -116,7 +117,7 @@ func TestDispatchApprovalHandoffs_NoMessageStoreIsLoud(t *testing.T) {
 	target := &AgentConfig{ID: "b", Inbox: "b"}
 	task := &TaskRecord{ID: "task-y", AgentID: "a"}
 
-	_, err := dispatchApprovalHandoffs(context.Background(), registryWith(agent, target), nil, task)
+	_, err := dispatchApprovalHandoffs(context.Background(), registryWith(agent, target), nil, nil, task)
 	if err == nil {
 		t.Fatal("expected an error: a handoff is owed but nothing can deliver it")
 	}
@@ -137,7 +138,7 @@ func TestHandoffContent_NamesTheArtifact(t *testing.T) {
 		BaseBranch:    "dev",
 	}
 
-	got := handoffContent(src, task, 0)
+	got := handoffContent(src, task, 0, nil)
 
 	if !strings.Contains(got, "design_docs/planned/m-secondary-model-fallback.md") {
 		t.Errorf("the handoff must name the artifact the previous stage produced:\n%s", got)
@@ -156,10 +157,10 @@ func TestHandoffContent_OmitsAbsentIssueNumber(t *testing.T) {
 	src := &AgentConfig{ID: "a", Label: "A"}
 	task := &TaskRecord{ID: "task-x", Content: "do the thing"}
 
-	if got := handoffContent(src, task, 0); strings.Contains(got, "#0") {
+	if got := handoffContent(src, task, 0, nil); strings.Contains(got, "#0") {
 		t.Errorf("an absent issue must be omitted, not rendered as #0:\n%s", got)
 	}
-	if got := handoffContent(src, task, 1170); !strings.Contains(got, "#1170") {
+	if got := handoffContent(src, task, 1170, nil); !strings.Contains(got, "#1170") {
 		t.Errorf("a real issue number must still appear:\n%s", got)
 	}
 }
@@ -167,7 +168,7 @@ func TestHandoffContent_OmitsAbsentIssueNumber(t *testing.T) {
 // A task with no artifact still produces a usable handoff — the fields are
 // additive, not required.
 func TestHandoffContent_SurvivesAnEmptyTask(t *testing.T) {
-	got := handoffContent(&AgentConfig{ID: "a", Label: "A"}, &TaskRecord{ID: "task-y"}, 0)
+	got := handoffContent(&AgentConfig{ID: "a", Label: "A"}, &TaskRecord{ID: "task-y"}, 0, nil)
 	if !strings.Contains(got, "Please continue") {
 		t.Errorf("a bare task must still hand off:\n%s", got)
 	}
@@ -175,5 +176,96 @@ func TestHandoffContent_SurvivesAnEmptyTask(t *testing.T) {
 		if strings.Contains(got, unwanted) {
 			t.Errorf("an unset field must be omitted, not rendered empty (%s):\n%s", unwanted, got)
 		}
+	}
+}
+
+// TestResolveHandoffArtifacts_RecoversAPathNoMarkerRecorded is the backfill.
+//
+// DesignDocPath comes from an output marker the agent PRINTS, so a run that did
+// the work and forgot the marker records nothing — and the handoff then says
+// "continue" without saying from what. Every design-doc task created before
+// 2026-09-14 is in that state. The approval's changed_files answers the same
+// question mechanically, from the diff rather than from a model.
+func TestResolveHandoffArtifacts_RecoversAPathNoMarkerRecorded(t *testing.T) {
+	store := createTestStore(t)
+	defer store.Close()
+	ctx := context.Background()
+
+	task := &TaskRecord{ID: "task-080f4657", AgentID: "design-doc-creator", Content: "x"}
+	if err := store.CreateTask(ctx, task); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if err := store.CreateApprovalRequest(ctx, &ApprovalRequestRecord{
+		ID: ApprovalIDForTask(task.ID), TaskID: task.ID, Type: string(ApprovalTypeMerge),
+		Status: "pending", CreatedAt: time.Now(),
+		ContextJSON: `{"changed_files":["design_docs/planned/v0_38_0/m-openrouter-eu-routing.md","README.md"]}`,
+	}); err != nil {
+		t.Fatalf("approval: %v", err)
+	}
+	agent := &AgentConfig{ID: "design-doc-creator", ArtifactPatterns: []string{"design_docs/**/*.md"}}
+
+	got := resolveHandoffArtifacts(ctx, store, task, agent)
+	if len(got) != 1 || got[0] != "design_docs/planned/v0_38_0/m-openrouter-eu-routing.md" {
+		t.Fatalf("got %v — want only the file inside the agent's declared artifact scope", got)
+	}
+
+	// And it reaches the message the next stage reads.
+	body := handoffContent(&AgentConfig{ID: "design-doc-creator", Label: "Design Doc Creator"}, task, 0, got)
+	if !strings.Contains(body, "m-openrouter-eu-routing.md") {
+		t.Errorf("the recovered artifact must appear in the handoff:\n%s", body)
+	}
+}
+
+// The marker WINS when present: it is the agent naming its own primary output,
+// which a file list cannot distinguish among several.
+func TestResolveHandoffArtifacts_MarkerWins(t *testing.T) {
+	store := createTestStore(t)
+	defer store.Close()
+	task := &TaskRecord{ID: "task-m", AgentID: "a", DesignDocPath: "design_docs/planned/the-one.md"}
+	agent := &AgentConfig{ID: "a", ArtifactPatterns: []string{"design_docs/**/*.md"}}
+	if got := resolveHandoffArtifacts(context.Background(), store, task, agent); got != nil {
+		t.Errorf("a recorded marker needs no recovery, got %v", got)
+	}
+}
+
+// artifact_patterns is the bound. Without a declared list the default is `**/*`,
+// which would put every touched file in the handoff — the same reason auto-merge
+// refuses on an undeclared list.
+func TestResolveHandoffArtifacts_RefusesWithoutDeclaredPatterns(t *testing.T) {
+	store := createTestStore(t)
+	defer store.Close()
+	task := &TaskRecord{ID: "task-n", AgentID: "a"}
+	if got := resolveHandoffArtifacts(context.Background(), store, task, &AgentConfig{ID: "a"}); got != nil {
+		t.Errorf("no declared patterns means no bound, so no recovery: %v", got)
+	}
+}
+
+func TestResolveHandoffArtifacts_ToleratesMissingOrJunkContext(t *testing.T) {
+	store := createTestStore(t)
+	defer store.Close()
+	ctx := context.Background()
+	agent := &AgentConfig{ID: "a", ArtifactPatterns: []string{"design_docs/**/*.md"}}
+
+	// No approval record at all.
+	if got := resolveHandoffArtifacts(ctx, store, &TaskRecord{ID: "task-none", AgentID: "a"}, agent); got != nil {
+		t.Errorf("no approval record = nothing to recover, got %v", got)
+	}
+	// An approval whose context is not the shape we expect.
+	task := &TaskRecord{ID: "task-junk", AgentID: "a"}
+	if err := store.CreateTask(ctx, task); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if err := store.CreateApprovalRequest(ctx, &ApprovalRequestRecord{
+		ID: ApprovalIDForTask(task.ID), TaskID: task.ID, Status: "pending",
+		CreatedAt: time.Now(), ContextJSON: `not json`,
+	}); err != nil {
+		t.Fatalf("approval: %v", err)
+	}
+	if got := resolveHandoffArtifacts(ctx, store, task, agent); got != nil {
+		t.Errorf("unparseable context must degrade to no artifacts, not a crash: %v", got)
+	}
+	// Nil store must not panic — OnAgentApproved can be constructed without one.
+	if got := resolveHandoffArtifacts(ctx, nil, task, agent); got != nil {
+		t.Errorf("nil store = no recovery, got %v", got)
 	}
 }
