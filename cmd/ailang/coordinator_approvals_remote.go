@@ -262,6 +262,12 @@ func coordinatorResolveRemote(args []string, action string) error {
 	}
 
 	fmt.Printf("\n✓ %sd %s (by %s)\n", action, taskID, who)
+
+	// And the pull request the decision was ABOUT. A cloud task sets SkipMerge
+	// (there is no worktree), which used to mean the branch was simply
+	// abandoned: 22 open coordinator PRs belonged to already-rejected or failed
+	// tasks, and one belonged to a task approved twenty minutes earlier.
+	reconcileTaskPR(taskID, bundle.Store, agentRegistry)
 	if result != nil && result.Message != "" {
 		fmt.Printf("  %s\n", result.Message)
 	}

@@ -53,7 +53,7 @@ var handParsedCoordinatorFlags = map[string]map[string]bool{
 // duplicating it here would drift.
 var flagSetCoordinatorSubcommands = map[string]bool{
 	"start": true, "stop": true, "config": true, "routing": true,
-	"agents": true, "pipeline": true, "agent-set": true, "agent-check": true, "lint": true,
+	"agents": true, "pipeline": true, "prs": true, "agent-set": true, "agent-check": true, "lint": true,
 	"approvals": true, "approve": true, "reject": true,
 	"watcher-status": true, "sync-threads": true, "execute-job": true,
 	"workers": true, "help": true, "--help": true, "-h": true,
