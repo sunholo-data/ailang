@@ -632,7 +632,7 @@ and the shell's own logic is gone. Not "a command exists".
 | # | Responsibility | Shell location | Binary command | Retired? | Evidence |
 |---|---|---|---|---|---|
 | 1 | Quota ration admission | `mission-control.sh:684` | `mission quota --over` | **YES** | Called live and bounded (15s). Today's fires log `ration gate: blocked buckets … codex` and degrade planner/executor accordingly. The shell parses only the bucket names; all pacing is in Go. |
-| 2 | Iteration orchestration (Gates 0–5) | `mission-control.sh` (~2000 lines) | `mission iterate --work-item` | **NO** | Wired at `mission-control.sh:1637` (`exec ailang mission iterate`) but gated on `AILANG_MISSION_WORK_ITEM`, which no live mission sets — so it never fires. The binary path has never completed a stage: four evaluator attempts, all terminal. Retiring this is M4. |
+| 2 | Iteration orchestration (Gates 0–5) | `mission-control.sh` (~2000 lines) | `mission iterate --work-item` | **NO** — but unblocked | Wired at `mission-control.sh:1637` (`exec ailang mission iterate`) and still gated on `AILANG_MISSION_WORK_ITEM`, which no live mission sets, so it never fires in normal operation. **The stated blocker is now cleared:** 2026-09-14 the binary path completed a stage end-to-end — `docs-canary-guide-review-4`, verdict pass on 5/5 criteria with zero blocking findings, and a completed replay that made zero provider calls. Retiring this row is now a scheduling/opt-in decision rather than an unproven-path question. |
 | 3 | Role dispatch to pi | `scripts/mission_pi_run.sh` (269) | `mission role-run` | **NO** | Duplicated, not retired. Both exist and the shell path is the one in use. |
 | 4 | Role/fallback resolution | `derive-planner-lane.sh` (182), `resolve-role-spawn.sh` (79) | `ailang models role` | **NO** | Verified 2026-09-14: **no shell script consumes `models role`**, despite `models_cmd.go:79` claiming "the mission driver reads field 2". Two role tables, independently maintained — they had silently diverged on the evaluator lane until `7423434b4`. |
 | 5 | Registry install / drift | `install_coordinator.sh` (295) | `mission install\|apply\|doctor` | **NO** | Binary commands exist; `list`/`doctor` appear in `mission-control.sh` only inside COMMENTS (lines 1135–1136), not as calls. |
@@ -655,10 +655,15 @@ plus 3,085 lines of shell tests.
 ### What the ledger makes obvious
 
 Row 2 is the whole project. Three binary commands already duplicate parts of
-`mission-control.sh`, and none has retired anything, because the migrated path has not
-completed a live stage. Every other row is downstream of that: until `iterate` demonstrably
-runs an iteration, moving rows 3–7 adds a second implementation of something that works,
-which is exactly the "reproducing shell complexity in Go" risk this contract names.
+`mission-control.sh`, and none has retired anything.
+
+**Updated 2026-09-14:** the reason given here — "the migrated path has not completed a live
+stage" — no longer holds. It has, once, on a one-file docs work item with an independent
+evaluator and a zero-call replay. That is a single data point on the narrowest possible
+work item, not a fleet cutover: it proves the path can complete, not that it can carry a
+real mission. The next question is an opt-in decision (which mission, under what
+supervision, sets `AILANG_MISSION_WORK_ITEM`), and rows 3–7 remain downstream of that
+rather than of feasibility.
 
 Row 4 is the cheapest real win and the one already causing incidents: two role tables that
 nobody reconciles, where the divergence was invisible until it routed an evaluator to a
