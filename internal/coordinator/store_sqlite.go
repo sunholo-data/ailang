@@ -690,7 +690,7 @@ func (s *SQLiteStore) FindDuplicateTask(ctx context.Context, fingerprint uint64,
 		        error, output, cost, tokens_used,
 		        capabilities_json, impact_level, estimated_cost
 		FROM tasks WHERE fingerprint = ? ORDER BY created_at DESC LIMIT ?`,
-		fingerprint, DedupCandidateLimit,
+		int64(fingerprint), DedupCandidateLimit, // int64 on BOTH sides — see SetTaskFingerprint
 	)
 	if err != nil {
 		return nil, err
@@ -713,10 +713,25 @@ func (s *SQLiteStore) FindDuplicateTask(ctx context.Context, fingerprint uint64,
 }
 
 // SetTaskFingerprint sets the fingerprint for duplicate detection
+// SetTaskFingerprint stores the dedup fingerprint.
+//
+// int64, not uint64. go-sqlite3 REFUSES a uint64 with the high bit set —
+// "converting argument $1 type: uint64 values with high bit set are not
+// supported" — and simhash returns a full 64-bit value, so roughly half of all
+// content failed to store a fingerprint at all. Both callers in
+// daemon_tasks_polling discarded the error, so the effect was silent: a task
+// with no stored fingerprint can never be matched, and dedup simply did not
+// apply to half the traffic on any SQLite coordinator.
+//
+// The cast is what Firestore has always done (int64(fingerprint) in
+// coordinator_transitions.go), so this makes the two stores agree rather than
+// inventing a third behaviour. Values below 2^63 are unchanged, so fingerprints
+// already stored keep matching; higher ones wrap to negative consistently on
+// both write and read.
 func (s *SQLiteStore) SetTaskFingerprint(ctx context.Context, id string, fingerprint uint64) error {
 	_, err := s.db.ExecContext(ctx,
 		"UPDATE tasks SET fingerprint = ? WHERE id = ?",
-		fingerprint, id,
+		int64(fingerprint), id,
 	)
 	return err
 }

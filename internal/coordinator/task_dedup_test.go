@@ -377,3 +377,40 @@ func TestFindDuplicateTask_ReplaysTheProductionHandoffSuppression(t *testing.T) 
 		t.Fatalf("a genuine repeat to the same agent must still be suppressed, got %v", dup)
 	}
 }
+
+// TestSetTaskFingerprint_AcceptsAHighBitFingerprint pins the type that silently
+// disabled dedup for half of all content.
+//
+// simhash returns a full 64-bit value, and go-sqlite3 refuses a uint64 with the
+// high bit set: "uint64 values with high bit set are not supported". Both
+// callers discarded the error, so a task simply had no fingerprint — and a task
+// with no fingerprint can never be matched, which is indistinguishable from
+// "no duplicate found". Firestore had always cast to int64; SQLite had not.
+func TestSetTaskFingerprint_AcceptsAHighBitFingerprint(t *testing.T) {
+	store := createTestStore(t)
+	defer store.Close()
+	ctx := context.Background()
+
+	const highBit = uint64(0xF000000000000001) // top bit set, as ~half of simhashes are
+
+	task := &TaskRecord{
+		ID: "task-highbit", AgentID: "a", Content: "some content",
+		Type: TaskTypeBugFix, Status: TaskStatusRunning, CreatedAt: time.Now(),
+	}
+	if err := store.CreateTask(ctx, task); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if err := store.SetTaskFingerprint(ctx, task.ID, highBit); err != nil {
+		t.Fatalf("a high-bit fingerprint must store, not error: %v", err)
+	}
+
+	// And it must be FINDABLE — a write that stores a value the read cannot
+	// match would leave dedup just as broken, one layer down.
+	dup, err := store.FindDuplicateTask(ctx, highBit, DedupScope{Since: DedupSince(time.Now()), AgentID: "a"})
+	if err != nil {
+		t.Fatalf("find: %v", err)
+	}
+	if dup == nil || dup.ID != task.ID {
+		t.Fatal("a high-bit fingerprint stored but did not match on read — dedup is still blind to half of all content")
+	}
+}

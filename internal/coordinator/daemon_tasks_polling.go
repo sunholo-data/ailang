@@ -277,7 +277,12 @@ func (d *Daemon) pollAndProcessTasks() error {
 
 		// Set fingerprint for deduplication
 		if fingerprint != 0 {
-			_ = d.taskStore.SetTaskFingerprint(d.ctx, task.ID, fingerprint)
+			if fpErr := d.taskStore.SetTaskFingerprint(d.ctx, task.ID, fingerprint); fpErr != nil {
+				// Not fatal — the task runs either way — but never silent: a task
+				// with no stored fingerprint is invisible to every future dedup
+				// check, and that looked exactly like "no duplicates found".
+				d.logger.Printf("Warning: task %s has no stored fingerprint, it cannot suppress a future duplicate: %v", task.ID, fpErr)
+			}
 		}
 
 		// M-CHAINS-SIMPLIFY: Create execution chain and stage for unified hierarchy tracking
@@ -565,7 +570,12 @@ func (d *Daemon) pollAndProcessTasksCloud() error {
 		}
 
 		if fingerprint != 0 {
-			_ = d.taskStore.SetTaskFingerprint(d.ctx, task.ID, fingerprint)
+			if fpErr := d.taskStore.SetTaskFingerprint(d.ctx, task.ID, fingerprint); fpErr != nil {
+				// Not fatal — the task runs either way — but never silent: a task
+				// with no stored fingerprint is invisible to every future dedup
+				// check, and that looked exactly like "no duplicates found".
+				d.logger.Printf("Warning: task %s has no stored fingerprint, it cannot suppress a future duplicate: %v", task.ID, fpErr)
+			}
 		}
 
 		// M-CHAINS-SIMPLIFY: Create execution chain and stage
