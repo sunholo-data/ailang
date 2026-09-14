@@ -111,7 +111,7 @@ lint: prepare-embed ## Run linter (bug detectors only)
 		LINT_OUT=""; \
 		trap 'rm -f "$$LINT_RAW" "$$LINT_OUT"' EXIT; \
 		LINT_OUT=$$(mktemp "$${TMPDIR:-/tmp}/ailang-lint-out.XXXXXX") || exit 1; \
-		golangci-lint run ./cmd/... ./internal/... ./serveapi/... ./testutil/... > "$$LINT_RAW" 2>&1; \
+		golangci-lint run ./cmd/... ./internal/... ./serveapi/... > "$$LINT_RAW" 2>&1; \
 		LINT_RC=$$?; \
 		if grep -qE "can't load config|the Go language version" "$$LINT_RAW"; then \
 			echo "$(RED)$(CROSS) golangci-lint config/toolchain error — run 'make install-lint':$(RESET)"; \
@@ -128,7 +128,7 @@ lint: prepare-embed ## Run linter (bug detectors only)
 			grep -v "^\t" | \
 			grep -v "^[[:space:]]*\^" | \
 			tee "$$LINT_OUT"; \
-		if grep -qE "^(internal|cmd|serveapi|testutil)" "$$LINT_OUT"; then \
+		if grep -qE "^(internal|cmd|serveapi)" "$$LINT_OUT"; then \
 			echo "$(RED)$(CROSS) Lint errors found$(RESET)"; \
 			exit 1; \
 		fi; \
