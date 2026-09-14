@@ -1,0 +1,127 @@
+{
+  "sprint_id": "M-V1-SIMPLIFY-S1",
+  "status": "not_started",
+  "created": "2026-09-14T19:45:19Z",
+  "design_doc": "design_docs/planned/m-v1-simplification-program.md",
+  "sprint_plan": "design_docs/planned/m-v1-simplification-s1-sprint-plan.md",
+  "github_issues": [
+    1198
+  ],
+  "velocity": {
+    "target_loc_per_day": 400,
+    "estimated_total_loc": 1110,
+    "estimated_days": 3
+  },
+  "features": [
+    {
+      "id": "M1_METRICS_TESTCORE",
+      "description": "tools/simplicity_metrics.sh + make simplicity-metrics banking .ailang/state/simplicity/<date>.json; make test-core (<15s)",
+      "estimated_loc": 260,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "make simplicity-metrics runs from repo root and banks JSON",
+        "every Goals-table row has a value",
+        "make test-core passes in <15s",
+        "baseline snapshot committed"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_OPENCODE_PROCTREE",
+      "description": "opencode executor uses proctree.Configure/Kill; 7 bare Process.Kill removed; grandchild-orphan regression test",
+      "estimated_loc": 90,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "grep -c Process.Kill opencode.go = 0",
+        "grandchild-orphan test passes",
+        "existing opencode fixtures pass"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_DASHBOARD_APPROVE_HANDOFF",
+      "description": "handlers_coordinator.go approve/reject route through coordinator.ProcessApprovalRequest; handoff-fires test",
+      "estimated_loc": 120,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "ResolveApprovalRequest not called directly from handlers_coordinator.go",
+        "dashboard approve produces a handoff message in test",
+        "all tests pass"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_DELETE_DEAD",
+      "description": "Delete zero-caller code: daemon_approval HandleApproval family, headless runner + streaming + tests, observatory jaeger/gcp/composite + server.go flag branch, internal/cognition, root testutil/, benchmark/, output/",
+      "estimated_loc": -3500,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "each deletion cites its zero-caller grep in the commit",
+        "go vet + make test green",
+        "no AILANG_ENABLE_GCP_TRACE read remains"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M5_ROOT_HOUSEKEEPING",
+      "description": "Move 11 tracked root sprint files; delete eval droppings; gitignore gen/ .eval_workspace/; check examples/**/.ailang ignore",
+      "estimated_loc": 20,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "no sprint_* at repo root",
+        "references to moved files updated",
+        "git status quiet on clean tree"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M6_CLOSURE_TEST_HOTPATH",
+      "description": "internal/diag/closure_test.go with shrinking expected-violations list; CheckHealth + checkStaleBinary gated off language commands",
+      "estimated_loc": 210,
+      "dependencies": [
+        "M1_METRICS_TESTCORE"
+      ],
+      "acceptance_criteria": [
+        "closure test passes with known leaks listed; positive control fails when a line is removed",
+        "ailang version prints one line, fmt opens no state dir",
+        "all tests pass"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M7_SIMPLICITY_AUDIT_SKILL",
+      "description": ".claude/skills/simplicity-audit with scripts/audit.sh (diff vs last snapshot, exit 2 on regression) + dup_symbols.sh; make simplicity-audit; CLAUDE.md instrument row",
+      "estimated_loc": 410,
+      "dependencies": [
+        "M1_METRICS_TESTCORE"
+      ],
+      "acceptance_criteria": [
+        "make simplicity-audit reports zero regressions on final tree",
+        "positive control: a planted os.Getenv is reported",
+        "skill description triggers on weekly/duplicate/health phrasing"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
