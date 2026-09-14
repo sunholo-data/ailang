@@ -200,13 +200,60 @@ verify with `scripts/mission_decisions.sh --check`, then push.
   attended consumption); ollama recovering; anthropic ok; OpenRouter $0.55 of $2.33 today,
   $92.02 of $100 this month. A fleet restart will run degraded until codex resets.
 
+## 6b. LATE UPDATE — the binary path ran a full author->judge pipeline
+
+After the section above was written, `docs-reliability-review-packet-2` (the Review evidence
+packet brief, re-issued with backstop caps) **completed both stages**:
+
+```
+executor   pi-or-deepseek-v4-flash-bare / pi   156,993 tok   $0.0177   21 calls
+evaluator  pi-or-minimax-m3 / pi                31,615 tok   $0.0311   15 calls
+evidence: 2 accepted stages
+```
+
+An EXECUTOR stage had never completed on the binary path before — every prior run was
+evaluator-only. So the path can now author and judge, not just judge.
+
+**The executor used 156,993 tokens against its old 120,000 cap.** It would have been killed
+having done nothing wrong. The backstop convention (§ limit convention in the runtime
+contract) is the only reason this ran. Note also that the executor used **5x the evaluator's
+tokens while costing half as much** ($0.0177 vs $0.0311) — tokens and cost are not even
+ordered the same way between roles, which is the clearest argument for not making one do the
+other's job.
+
+**Two blockers found on the way, both worth knowing:**
+
+1. The **executor role had no admissible route** when codex is rationed: `gpt5-6-sol`
+   (quota-blocked until 09-19) then `opencode-or-deepseek-v4-flash` ("executor budget
+   contract is not admitted by role-run"). Identical defect to the evaluator's, fixed the
+   same way (`e9e8ce32e`). Ledger row 4 bit twice in one day.
+2. **A saved work item pins the routes it resolved.** After fixing the registry, `iterate`
+   still reported the old two candidates, because the item was saved at version 4 and
+   `resume` replays saved routes by design. A NEW work-item id re-resolves. And a mission
+   admits **one work item at a time** (`mission_admissions` had a single row), so the stale
+   `waiting` item blocked the new one until `mission cancel` released it. The runtime's
+   "mission attempt conflict: inspect status; do not retry execution blindly" is accurate
+   advice — inspecting is what found this.
+
+### Criterion 2 is half closed, and the other half is blocked by me
+
+`review-packet` is done. **`budget-accounting` cannot legitimately run**: its frozen
+criterion `A1-fresh-tokens` asserts *"cache-read and cache-creation counters remain separate
+from this runtime sum"*, which was true on 09-08 and which **F1 (`134e3ebfe`) made false
+today**. An executor would have to write something untrue or fail its own criterion.
+
+That is a real hazard in the freezing model worth stating plainly: **freezing a brief against
+runtime behaviour assumes the runtime is the constant.** It was not. A1 needs re-freezing
+with fresh attended authority before that brief is dispatched — it is not a retry.
+
 ## 7. Suggested next steps, in order
 
 1. **Capture one claude-code and one pi stream fixture.** Closes the claude in-flight cap gap
    and lets the per-harness accumulation table be asserted instead of documented. Cheapest
    high-value item.
-2. **Decide the two remaining briefs' allowance**, measured not assumed, then dispatch them to
-   close M4 criterion 2.
+2. **Re-freeze `budget-accounting`'s A1 criterion** against current runtime behaviour, with
+   attended authority, then dispatch it to close M4 criterion 2. `review-packet` is already
+   done (§6b). Use the backstop cap convention, not a derived budget.
 3. **Row 4 of the ledger** — make one role table. It has already caused one incident.
 4. **Declare real cache read/write rates** for the fleet's models.
 5. **F5** — motoko and managed_agents have no thrash guard. Deferred by Mark, not resolved.
