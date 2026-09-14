@@ -521,6 +521,12 @@ case "$T" in
   *"executing code 25 commits behind origin/dev"*)
     ok "age-a: notice carries the executing-old-code wording";;
   *) bad "age-a: notice carries the executing-old-code wording" "$(printf '%s' "$T"|tr '\n' '|')";; esac
+# The two trailing explanatory sentences are asserted too (judge r1 finding: inverting them left the
+# suite green). Both sentences are design-frozen wording, so a substring of each is pinned.
+case "$T" in
+  *"newer than this pin is NOT in effect"*"repeats only when the measured pin age doubles"*)
+    ok "age-a: notice carries the not-in-effect and repeat-on-doubling sentences";;
+  *) bad "age-a: notice carries the not-in-effect and repeat-on-doubling sentences" "$(printf '%s' "$T"|tr '\n' '|')";; esac
 case "$T" in
   *"AGE_STATE:25"*) ok "age-a: age state stores 25";;
   *) bad "age-a: age state stores 25" "$(printf '%s' "$T"|tr '\n' '|')";; esac

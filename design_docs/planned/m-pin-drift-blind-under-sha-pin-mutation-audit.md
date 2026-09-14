@@ -3,8 +3,8 @@
 **Tree**: M1 `e1dcb1796` (pin-root.sh / mission-control.sh / test_pin_root.sh) + M2 working tree
 (test_driver_notify.sh, this record, changelog). **Suites at the audited tree**:
 `test_pin_root.sh` **117 passed, 0 failed** (plan contract 116; one assertion was split into two numbered
-siblings — controller sign-off under Lane Rule 8), `test_driver_notify.sh` **81 passed, 0 failed**
-(plan contract 81), `/bin/bash -n` rc=0 on all four touched shell files.
+siblings — controller sign-off under Lane Rule 8), `test_driver_notify.sh` **82 passed, 0 failed**
+(plan contract 81 + one assertion added after the judge's round-1 finding, below), `/bin/bash -n` rc=0 on all four touched shell files.
 
 **Who drilled**: the CONTROLLER (V1 iteration 354), outside the executor sandbox, because both pi
 executor runs (ollama-cloud deepseek for M1, OpenRouter deepseek for M2) hit the lane's 30-minute wall
@@ -90,3 +90,21 @@ Post-drill green re-run: rc=0 ==== 81 passed, 0 failed ====; sha256 == PRE: Fals
 ---
 
 MUT-R re-drill after the row repair (controller, 2026-09-14): build rc=0, landed True, suite rc=1, `FAIL: age-m1: STALE skips age with no pin-age send, state untouched`, `FAIL: age-m3: disabled skips age silently with state untouched`, `==== 79 passed, 2 failed ====`, restore sha match True, post-restore `==== 81 passed, 0 failed ====`.
+
+---
+
+## Round-1 judge findings (sonnet, independent worktree) and their disposition
+
+1. **Notice prose unasserted (judge's own diff-anchored mutant; reproduced first-party).** Inverting the two
+   trailing sentences of the pin-age notice body left the suite at `81 passed, 0 failed`. Repaired as a ROW:
+   `age-a` gains `notice carries the not-in-effect and repeat-on-doubling sentences`; the same mutant now
+   yields `==== 81 passed, 1 failed ====` (rc=1, that line red), restore byte-identical, green re-run
+   `==== 82 passed, 0 failed ====`.
+2. **T4 unset and every T5 edit are killed by the AC-D fixture-rot guard, not behaviourally** — informational,
+   matches the MUT-F note above; no action.
+3. **`sha256 == PRE: False` in the M2 batch footer** — a controller friction, recorded honestly: the MUT-R
+   re-drill was launched while the batch drill's final check was still running (the poll returned on its
+   deadline, not on the `.done` marker), so the batch's last hash read saw the re-drill's mutant. The
+   committed production files are byte-identical between the M1 and M2 commits (`git diff 065973903
+   b2bb2f2f8 -- tools/launchd/mission-control.sh tools/launchd/lib/pin-root.sh` empty; control: 3 other
+   files changed), and the judge's 7-mutant re-drill matched PRE on every restore.
