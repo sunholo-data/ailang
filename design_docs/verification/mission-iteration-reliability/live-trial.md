@@ -415,3 +415,68 @@ This is a recommendation, not a change. The allowance is immutable in a content-
 work item and a successor needs its own authority refs, so the number is recorded here for
 an attended decision rather than applied. The two queued briefs should be re-examined at
 the same time: dispatching either with 100,000 would be the fifth run into the same wall.
+
+---
+
+## M4 live adoption — PASSED, 2026-09-14
+
+`docs-canary-guide-review-4`, the reviewed successor authorized at 150,000 tokens
+(`mark-docs-canary-review-4-approved-20260914`), **completed**.
+
+| | |
+|---|---|
+| Route | `pi-or-minimax-m3` / pi / `openrouter/minimax/minimax-m3` |
+| Verdict | `outcome: "pass"`, **5/5 criteria pass**, `blocking_findings: []` |
+| Usage | input 121,577 + output 14,901 = **136,478 of 150,000** (91%) |
+| Tool calls | 53, **0 repeated**, 0 gate refusals |
+| Cost | $0.176 metered |
+| Acceptance digest | `7f15fa05bec0f0676f05f451de9f5e31e00ff4ab52c7e5f15534ee8fe427ffbc` |
+| Output revision | `d68f10d7e25c122f8515596c2198caa86c2f0b67` |
+
+It is a real evaluation, not a rubber stamp. It ran the bound validator
+(`PASS: guide example accepted by production WorkItem v1 decoder`), read production source
+to check every prose claim against behaviour, and cited specifics: `Plan()` calls only
+`spec.Validate`/`VerifyPrerequisites`/`ResolveRole` with no dispatch; `iterationOutcome`
+maps waiting/ready/running/validating to exit 3; the locator-presence check in
+`authority.go`; `git diff --name-only` returning exactly two paths with 185 lines inserted
+at offset 70 and **zero existing lines modified**; `git diff --check` exit 0. On
+`real-artifact-inputs` it independently flagged that `git rev-parse <rev>:<path>` returns a
+Git blob object ID rather than the SHA-256 of raw bytes — a trap the guide now documents.
+
+### Completed replay — zero provider calls
+
+Re-running the same work item returned `phase: completed` and replayed the accepted stage
+from state:
+
+| | before | after |
+|---|---|---|
+| Receipt files | 1 | **1** |
+| `mission_attempts` rows | 2 | **2** |
+| OpenRouter spend today | $0.55 | **$0.55** |
+
+$0.37 before the live run, + $0.176 for it, = $0.55; the replay moved it by $0.00. No new
+dispatch, no new receipt, no new attempt.
+
+**M4 acceptance criterion 1 of 2 is therefore complete:** *"Existing candidate passes live
+evaluation and completed replay makes zero provider calls."*
+
+### Correction to this record's own arithmetic
+
+The 150,000 recommendation was reasoned from 101,542 — "the measured requirement, with no
+waste left to reclaim" — and called 150,000 a 1.48x margin for variance. The actual
+requirement was **136,478**. 101,542 was where the previous run was *killed*, mid-final-report,
+not where it would have finished; the remaining 34% was work it never got to do. So the
+margin chosen for model variance was in fact consumed by the evaluation itself, and a
+recommendation of 120,000 — which looked conservative on that reasoning — would have failed.
+
+The lesson for the two remaining briefs is direct: **a kill point is a lower bound, not a
+requirement.** Both `review-packet.json` and `budget-accounting.json` still declare 100,000
+for their evaluator. They are smaller briefs, so 100,000 may suffice — but that is now an
+open question to measure, not an assumption, and the honest reading of the four-run history
+is that the number was never derived from evidence in the first place.
+
+### Remaining
+
+Criterion 2 — *"Two additional frozen bounded tasks finish with hard checks and independent
+review"* — is still open, and those two briefs are the tasks. Nothing else in M4 is
+outstanding.
