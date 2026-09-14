@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 // isolate points the lock at a temp dir and clears inherited env so tests are
@@ -156,7 +158,7 @@ func TestLockDir_SharedOnlyWhenPresent(t *testing.T) {
 	t.Setenv(EnvLockDir, "")
 	base := t.TempDir()
 	home := filepath.Join(base, "home")
-	t.Setenv("HOME", home)
+	testutil.SetHomeDir(t, home)
 
 	absent := filepath.Join(base, "absent")
 	t.Setenv(EnvSharedDir, absent)
