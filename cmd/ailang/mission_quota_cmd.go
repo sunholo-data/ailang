@@ -92,7 +92,15 @@ func missionQuotaWithPaths(args []string, paths mission.Paths, now time.Time) er
 				filtered = append(filtered, u)
 			}
 		}
-		if len(filtered) == 0 && canon != "codex" && canon != "ollama" {
+		// Buckets paced ENTIRELY by a provider gauge have no token-ledger rows, so an
+		// empty filter result is normal for them and must not be reported as a typo.
+		// openrouter was missing from this list: `--bucket openrouter` errored with
+		// `no bucket "openrouter" in the ledger` even though the -bucket flag help
+		// advertises it and the full report prints its row. Measured 2026-09-14 — the
+		// gauge-only providers are codex, ollama and openrouter; anthropic has ledger
+		// rows and so reaches this check legitimately.
+		gaugeOnly := canon == "codex" || canon == "ollama" || canon == "openrouter"
+		if len(filtered) == 0 && !gaugeOnly {
 			// An empty result is a claim ("nothing spent") that could equally mean
 			// "wrong name". Distinguish them.
 			known := map[string]bool{}

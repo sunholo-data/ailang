@@ -74,3 +74,59 @@ func TestMissionQuotaOtherBucketDoesNotInspectCodex(t *testing.T) {
 		t.Fatalf("unrequested bucket: %q", output)
 	}
 }
+
+// Every bucket the -bucket flag advertises must be selectable.
+//
+// codex, ollama and openrouter are paced entirely by a provider gauge and never write
+// token-ledger rows, so filtering the ledger by one of them legitimately yields nothing.
+// The empty-result guard — which exists to catch a MISTYPED bucket name — listed only
+// codex and ollama, so `--bucket openrouter` failed with
+//
+//	no bucket "openrouter" in the ledger (have: [anthropic ollama opencode])
+//
+// on a correctly spelled, documented name. Measured 2026-09-14, against a real ledger.
+// The typo guard itself is still worth having, so the last case keeps it honest.
+func TestMissionQuotaAdvertisedBucketsAreAllSelectable(t *testing.T) {
+	for _, bucket := range []string{"codex", "ollama", "openrouter", "anthropic"} {
+		t.Run(bucket, func(t *testing.T) {
+			t.Setenv("OLLAMA_API_KEY", "")
+			t.Setenv("CLAUDE_CODE_OAUTH_TOKEN", "")
+			t.Setenv("OPENROUTER_API_KEY", "")
+			paths := mission.Paths{Home: t.TempDir()}
+			t.Setenv("CODEX_HOME", filepath.Join(paths.Home, "codex"))
+			// Only anthropic gets a ledger row: the other three must be selectable with
+			// an entirely empty ledger, which is their normal state.
+			if bucket == "anthropic" {
+				if err := mission.AppendSpend(paths, "anthropic", 10, 1, time.Now()); err != nil {
+					t.Fatal(err)
+				}
+			}
+			_ = captureStdout(t, func() {
+				if err := missionQuotaWithPaths([]string{"--over", "--bucket", bucket}, paths, time.Now()); err != nil {
+					t.Fatalf("advertised bucket %q is not selectable: %v", bucket, err)
+				}
+			})
+		})
+	}
+
+	// The guard must still catch a genuine typo rather than accept anything.
+	t.Run("typo still refused", func(t *testing.T) {
+		t.Setenv("OLLAMA_API_KEY", "")
+		t.Setenv("CLAUDE_CODE_OAUTH_TOKEN", "")
+		t.Setenv("OPENROUTER_API_KEY", "")
+		paths := mission.Paths{Home: t.TempDir()}
+		t.Setenv("CODEX_HOME", filepath.Join(paths.Home, "codex"))
+		if err := mission.AppendSpend(paths, "anthropic", 10, 1, time.Now()); err != nil {
+			t.Fatal(err)
+		}
+		_ = captureStdout(t, func() {
+			err := missionQuotaWithPaths([]string{"--over", "--bucket", "openrouterr"}, paths, time.Now())
+			if err == nil {
+				t.Fatal("a misspelled bucket must be refused, not silently reported as empty")
+			}
+			if !strings.Contains(err.Error(), "openrouterr") {
+				t.Fatalf("error should name the bad bucket: %v", err)
+			}
+		})
+	})
+}
