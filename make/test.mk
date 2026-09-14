@@ -362,3 +362,15 @@ test-stdlib-ail: build ## Run the .ail test suites + run-fixtures under tests/st
 # as unused.
 test-mission-registry: ## Run mission-registry tests (schema, renderer, doctor; live gates skip off-rig)
 	@go test ./internal/mission/...
+
+# M-V1-SIMPLIFY-S1 M1: the language inner loop. Lexer → VM plus stdlib and the
+# formatter, nothing platform-shaped. Target: under 15s wall. `make test` is the
+# full suite; this is what you run between edits to the language.
+CORE_PKGS := ./internal/lexer/... ./internal/parser/... ./internal/ast/... ./internal/core/... \
+	./internal/types/... ./internal/elaborate/... ./internal/typedast/... ./internal/eval/... \
+	./internal/effects/... ./internal/pipeline/... ./internal/link/... ./internal/loader/... \
+	./internal/module/... ./internal/runtime/... ./internal/iface/... ./internal/format/... \
+	./internal/errors/... ./internal/stdlib/...
+
+test-core: ## Run the language-core tests only (lexer→VM, stdlib, fmt) — the fast inner loop
+	@$(GOTEST) $(CORE_PKGS) -count=1 -short

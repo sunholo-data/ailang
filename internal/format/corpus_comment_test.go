@@ -49,6 +49,9 @@ func (c refusalClass) String() string {
 }
 
 func TestCorpusCommentGate(t *testing.T) {
+	if testing.Short() {
+		t.Skip("corpus walk (~9s); runs in make test, skipped in make test-core")
+	}
 	var (
 		parseValidN   int
 		formattedN    int

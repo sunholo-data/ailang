@@ -291,3 +291,10 @@ largest-files: ## Show 20 largest files
 	@echo "$(BOLD)=== 20 Largest Files ===$(RESET)"
 	@find internal cmd -name "*.go" -exec wc -l {} \; | sort -rn | head -20 | \
 		awk '{printf "%4d lines: %s\n", $$1, $$2}'
+
+# M-V1-SIMPLIFY-S1: count-and-duplication metrics the 800-line gate cannot see.
+simplicity-metrics: ## Bank the v1.0.0 simplicity release-gate table (.ailang/state/simplicity/<date>.json)
+	@/bin/bash tools/simplicity_metrics.sh
+
+simplicity-metrics-fast: ## Same, without the timed test-core run
+	@/bin/bash tools/simplicity_metrics.sh --no-test

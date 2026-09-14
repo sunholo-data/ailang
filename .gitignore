@@ -102,6 +102,10 @@ __pycache__/
 .ailang/state/*
 !.ailang/state/sprints/
 !.ailang/state/sprints/*.json
+# ...and the simplicity-metrics snapshots (M-V1-SIMPLIFY-S1): the weekly audit
+# diffs against the last banked one, so they must travel with the repo.
+!.ailang/state/simplicity/
+!.ailang/state/simplicity/*.json
 /ui/node_modules
 internal/executor/opencode/plugins/node_modules
 internal/executor/opencode/plugins/coverage
