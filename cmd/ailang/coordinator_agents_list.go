@@ -28,17 +28,28 @@ import (
 
 func coordinatorAgents(args []string) error {
 	asJSON := false
-	var want string
-	for _, a := range args {
+	var want, registryPath string
+	for i := 0; i < len(args); i++ {
+		a := args[i]
 		switch {
 		case a == "--json":
 			asJSON = true
+		case a == "--registry" && i+1 < len(args):
+			i++
+			registryPath = args[i]
+		case strings.HasPrefix(a, "--registry="):
+			registryPath = strings.TrimPrefix(a, "--registry=")
 		case !strings.HasPrefix(a, "-"):
 			want = a
 		}
 	}
 
-	reg, source, err := loadCloudInboxRegistry()
+	// resolveInboxRegistry, not loadCloudInboxRegistry: --registry and
+	// $AILANG_CONFIG must win, or this command cannot be used to check a config
+	// BEFORE deploying it. It silently ignored both and always read the bucket,
+	// so a local edit inspected here showed the live values and looked like the
+	// edit had not been made (2026-09-14).
+	reg, source, err := resolveInboxRegistry(registryPath)
 	if err != nil {
 		return fmt.Errorf("cannot read the live registry: %w", err)
 	}
@@ -101,6 +112,9 @@ func printAgentDetail(a *coordinator.AgentConfig, source string) {
 	fmt.Printf("  %-20s %v\n", "auto_merge", a.AutoMerge)
 	fmt.Printf("  %-20s %v\n", "skip_approval", a.SkipApproval)
 	fmt.Printf("  %-20s %v\n", "auto_approve_handoffs", a.AutoApproveHandoffs)
+	if len(a.AutoApproveHandoffTo) > 0 {
+		fmt.Printf("  %-20s %s\n", "auto_approve_handoff_to", strings.Join(a.AutoApproveHandoffTo, ", "))
+	}
 	if len(a.Capabilities) > 0 {
 		fmt.Printf("  %-20s %s\n", "capabilities", strings.Join(a.Capabilities, ", "))
 	}
@@ -138,6 +152,11 @@ func agentDetail(a *coordinator.AgentConfig) map[string]any {
 		"id": a.ID, "inbox": a.Inbox, "workspace": a.Workspace, "provider": a.Provider,
 		"model": a.Model, "role": a.Role, "merge_branch": a.MergeBranch,
 		"auto_merge": a.AutoMerge, "skip_approval": a.SkipApproval,
+		// The handoff topology. Absent until 2026-09-14, so `--json` could not
+		// answer "does this agent chain, and does the chain wait for a human?"
+		// — the question a stalled pipeline actually poses.
+		"trigger_on_complete": a.TriggerOnComplete, "auto_approve_handoffs": a.AutoApproveHandoffs,
+		"auto_approve_handoff_to": a.AutoApproveHandoffTo,
 		"declared": map[string]any{
 			"timeout": a.Timeout, "idle_timeout": a.IdleTimeout,
 			"output_markers": a.OutputMarkers, "artifact_patterns": a.ArtifactPatterns,

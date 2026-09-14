@@ -26,7 +26,32 @@ const (
 	bucketRoutable   inboxBucket = iota // an agent is registered: should have been dispatched
 	bucketTriage                        // declared human-triage: sitting unread is correct
 	bucketUnroutable                    // no agent AND not declared: a config gap
+	bucketResult                        // an agent's own OUTPUT, filed in its own inbox
 )
+
+// resultMessageTypes are the types an agent EMITS. They land in the agent's own
+// inbox as the durable record of what it did, and nothing is supposed to pick
+// them up — a completion is not a request for more work.
+//
+// Counting them as "routable but never dispatched" is why this command read
+// DEGRADED 87 on a plane whose real undispatched backlog was 4 (measured
+// 2026-09-14: 61 of 65 were completion/approval_request rows the agents had
+// just written themselves). A health number that is never zero in a healthy
+// plane teaches the reader to ignore it, which is worse than not printing it.
+//
+// inbox_unrouted_notice is here too: it is the bounce the coordinator files
+// when a send had nowhere to go. It reports a fault, it is not one.
+var resultMessageTypes = map[string]bool{
+	messaging.InboxTypeCompletion:      true,
+	messaging.InboxTypeApprovalRequest: true,
+	messaging.InboxTypeResponse:        true,
+	bounceMessageType:                  true,
+}
+
+// bounceMessageType mirrors coordinator.bounceMessageType, which is unexported.
+const bounceMessageType = "inbox_unrouted_notice"
+
+func isResultMessageType(t string) bool { return resultMessageTypes[t] }
 
 func runMessagesHealth(args []string) {
 	fs := flag.NewFlagSet("messages health", flag.ExitOnError)
@@ -60,32 +85,25 @@ func runMessagesHealth(args []string) {
 	// from this machine. Measured 2026-08-31 — the local config carried 41
 	// agents while prod carried 34. A routing verdict computed from the wrong
 	// registry is worse than none, so name the source every time.
-	var registry *coordinator.AgentRegistry
-	var err error
-	if *registryPath != "" {
-		registry, err = coordinator.LoadAgentRegistryFrom(*registryPath)
-	} else {
-		registry, err = coordinator.LoadAgentRegistry()
-	}
+	//
+	// resolveInboxRegistry is the SAME resolver `messages inboxes` and
+	// `coordinator agents` use: when the store is a remote plane it fetches that
+	// plane's own config out of GCS, and only falls back to this machine's on a
+	// credential failure (loudly, on stderr).
+	//
+	// This command used to load ~/.ailang/config.yaml unconditionally and print a
+	// warning above the verdict. On a laptop whose local config holds 2 agents it
+	// reported a 177-message "config gap" against a plane whose real gap was 54 —
+	// a wrong number with a caveat under it, which readers take as a number.
+	// Sharing the resolver means the three commands cannot disagree about what
+	// the plane's agents are.
+	registry, src, err := resolveInboxRegistry(*registryPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "\n%s cannot load the agent registry: %v\n", red("Error"), err)
 		fmt.Fprintf(os.Stderr, "  Routing cannot be judged without it. Refusing to guess.\n")
 		os.Exit(1)
 	}
-	src := *registryPath
-	if src == "" {
-		src = messaging.GetConfigPath()
-	}
 	fmt.Printf("  registry: %s (%d agents)\n", src, len(registry.ListAgents()))
-	// Only warn when the registry was IMPLIED. An operator who named one with
-	// --registry has already made the choice this warning exists to prompt, and
-	// repeating it there would be false: the path shown may well BE the cloud
-	// coordinator's config, pulled from the bucket.
-	if mode == storage.ModeGCP && *registryPath == "" {
-		fmt.Printf("            %s this is THIS machine's config, not the cloud coordinator's\n", yellow("!"))
-		fmt.Printf("            (that reads gs://%s-ailang-config/config.yaml — they can diverge;\n", project)
-		fmt.Printf("             pass --registry <path> to judge against a copy of that one)\n")
-	}
 
 	store, err := openStore()
 	if err != nil {
@@ -102,10 +120,10 @@ func runMessagesHealth(args []string) {
 
 	counts := map[inboxBucket]int{}
 	byInbox := map[inboxBucket]map[string]int{
-		bucketRoutable: {}, bucketTriage: {}, bucketUnroutable: {},
+		bucketRoutable: {}, bucketTriage: {}, bucketUnroutable: {}, bucketResult: {},
 	}
 	for _, m := range msgs {
-		b := classifyInbox(registry, m.ToInbox)
+		b := classifyInbox(registry, m.ToInbox, m.MessageType)
 		counts[b]++
 		byInbox[b][m.ToInbox]++
 	}
@@ -113,6 +131,7 @@ func runMessagesHealth(args []string) {
 	fmt.Println()
 	fmt.Printf("  Unread total:                 %d\n", len(msgs))
 	fmt.Printf("  ├─ routable (agent exists):   %s\n", emphasizeIfNonZero(counts[bucketRoutable]))
+	fmt.Printf("  ├─ agent output (not work):   %d\n", counts[bucketResult])
 	fmt.Printf("  ├─ human-triage (by design):  %d\n", counts[bucketTriage])
 	fmt.Printf("  └─ no agent, not declared:    %s\n", emphasizeIfNonZero(counts[bucketUnroutable]))
 
@@ -143,13 +162,25 @@ func runMessagesHealth(args []string) {
 }
 
 // classifyInbox decides what should have happened to a message.
-func classifyInbox(registry *coordinator.AgentRegistry, inbox string) inboxBucket {
+//
+// The message TYPE is load-bearing, not decoration. An agent's inbox holds both
+// the work sent to it and the completions it wrote itself, and only the first
+// kind can be "undelivered". Judging by inbox alone counts an agent's own output
+// as a failure to dispatch it.
+func classifyInbox(registry *coordinator.AgentRegistry, inbox, msgType string) inboxBucket {
 	if registry.GetAgentForInbox(inbox) != nil {
+		if isResultMessageType(msgType) {
+			return bucketResult
+		}
 		return bucketRoutable
 	}
 	if registry.IsTriageOnly(inbox) {
 		return bucketTriage
 	}
+	// Deliberately NOT short-circuited on the result type: a bounce filed to an
+	// inbox no agent serves is a bounce that itself went nowhere, and that is a
+	// config gap worth seeing (measured 2026-09-13 — five UNDELIVERED notices
+	// addressed to "ailang", which is also unregistered).
 	return bucketUnroutable
 }
 

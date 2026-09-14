@@ -28,23 +28,72 @@ func TestClassifyInbox(t *testing.T) {
 	reg.SetTriageOnlyInboxes([]string{"public-feedback", "user"})
 
 	tests := []struct {
-		inbox string
-		want  inboxBucket
-		why   string
+		inbox   string
+		msgType string
+		want    inboxBucket
+		why     string
 	}{
-		{"pkg:sunholo/ailang_parse", bucketRoutable, "exact agent registered"},
-		{"pkg:sunholo/motoko_ext_abi", bucketRoutable, "wildcard family member"},
-		{"public-feedback", bucketTriage, "declared human-triage"},
-		{"user", bucketTriage, "declared human-triage"},
-		{"nobody-watches-this", bucketUnroutable, "no agent, not declared"},
-		{"", bucketUnroutable, "empty inbox is unroutable, never routable"},
+		{"pkg:sunholo/ailang_parse", "request", bucketRoutable, "exact agent registered"},
+		{"pkg:sunholo/motoko_ext_abi", "request", bucketRoutable, "wildcard family member"},
+		{"public-feedback", "feedback", bucketTriage, "declared human-triage"},
+		{"user", "notification", bucketTriage, "declared human-triage"},
+		{"nobody-watches-this", "notification", bucketUnroutable, "no agent, not declared"},
+		{"", "notification", bucketUnroutable, "empty inbox is unroutable, never routable"},
 	}
 	for _, tc := range tests {
-		t.Run(tc.inbox, func(t *testing.T) {
-			if got := classifyInbox(reg, tc.inbox); got != tc.want {
-				t.Errorf("classifyInbox(%q) = %v, want %v (%s)", tc.inbox, got, tc.want, tc.why)
+		t.Run(tc.inbox+"/"+tc.msgType, func(t *testing.T) {
+			if got := classifyInbox(reg, tc.inbox, tc.msgType); got != tc.want {
+				t.Errorf("classifyInbox(%q, %q) = %v, want %v (%s)", tc.inbox, tc.msgType, got, tc.want, tc.why)
 			}
 		})
+	}
+}
+
+// TestClassifyInboxAgentOutputIsNotUndelivered is the bug this bucket exists for.
+//
+// An agent files its own completion and approval_request into its own inbox.
+// Judged by inbox alone they are "routable and unread", so the verdict counted
+// them as work that was never dispatched: on 2026-09-14 prod read
+// "DEGRADED 87 filed, routable, and never dispatched" when the real number was
+// 4 — the other 83 were the agents' own output. A number that is never zero on a
+// healthy plane trains the reader to skip it.
+func TestClassifyInboxAgentOutputIsNotUndelivered(t *testing.T) {
+	reg := coordinator.NewAgentRegistry()
+	if err := reg.Register(&coordinator.AgentConfig{
+		ID: "design-doc-creator", Inbox: "design-doc-creator", Workspace: "/tmp/t",
+	}); err != nil {
+		t.Fatalf("register: %v", err)
+	}
+
+	for _, tc := range []struct {
+		msgType string
+		want    inboxBucket
+	}{
+		{"completion", bucketResult},
+		{"approval_request", bucketResult},
+		{"response", bucketResult},
+		{"inbox_unrouted_notice", bucketResult},
+		{"request", bucketRoutable},
+		{"handoff", bucketRoutable},
+		{"notification", bucketRoutable},
+		{"feedback", bucketRoutable},
+	} {
+		if got := classifyInbox(reg, "design-doc-creator", tc.msgType); got != tc.want {
+			t.Errorf("a %q on an agent inbox = %v, want %v", tc.msgType, got, tc.want)
+		}
+	}
+}
+
+// TestClassifyInboxBounceToUnservedInboxStaysAGap: the result-type shortcut must
+// apply ONLY on an inbox an agent serves.
+//
+// Measured 2026-09-13: five UNDELIVERED notices were addressed to "ailang",
+// which is itself unregistered — a bounce that bounced. Bucketing every
+// inbox_unrouted_notice as "output" would hide exactly that.
+func TestClassifyInboxBounceToUnservedInboxStaysAGap(t *testing.T) {
+	reg := coordinator.NewAgentRegistry()
+	if got := classifyInbox(reg, "ailang", "inbox_unrouted_notice"); got != bucketUnroutable {
+		t.Errorf("bounce to an unserved inbox = %v, want bucketUnroutable", got)
 	}
 }
 
@@ -60,7 +109,7 @@ func TestClassifyInboxPrefersAgentOverTriage(t *testing.T) {
 	}
 	reg.SetTriageOnlyInboxes([]string{"contested"})
 
-	if got := classifyInbox(reg, "contested"); got != bucketRoutable {
+	if got := classifyInbox(reg, "contested", "request"); got != bucketRoutable {
 		t.Errorf("got %v, want bucketRoutable: an agent that exists will take the work", got)
 	}
 }
