@@ -491,11 +491,17 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 	// Pricing.CacheReadPer1K, and a model that declares no rate bills its cache
 	// reads at the FULL input rate — overstating is visible in a budget, whereas
 	// $0 hides both the spend and a broken cache. result.InputTokens is FRESH
-	// input here (executors report cache reads separately), so the two arguments
+	// input here (executors report cache reads separately), so the arguments
 	// stay disjoint and no token is billed twice.
+	//
+	// CACHE WRITES ADDED 2026-09-14. There are THREE disjoint input buckets, not two,
+	// and cache CREATION had no parameter here at all — so a cached prompt was created
+	// for free. Measured: one role-run reading five files reported InputTokens=50 and
+	// CacheCreationInputTokens=44,841, i.e. 99.9% of its paid-for prompt was invisible
+	// to this calculation.
 	costUSD := result.CostUSD
 	if costUSD == 0 {
-		if c := CalculateCostWithCache(lookupKey, result.InputTokens, result.OutputTokens+result.ReasonTokens, result.CacheReadInputTokens); c > 0 {
+		if c := CalculateCostWithCache(lookupKey, result.InputTokens, result.OutputTokens+result.ReasonTokens, result.CacheReadInputTokens, result.CacheCreationInputTokens); c > 0 {
 			costUSD = c
 		}
 	}

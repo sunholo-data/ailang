@@ -405,12 +405,12 @@ func CalculateCostWithBreakdown(model string, inputTokens, outputTokens int) flo
 // CalculateCostWithCache is CalculateCostWithBreakdown for callers that know the
 // run's prompt-cache reads. inputTokens must be FRESH input, disjoint from
 // cacheReadTokens. Same no-silent-fallback stance: an unpriced model returns 0.
-func CalculateCostWithCache(model string, inputTokens, outputTokens, cacheReadTokens int) float64 {
+func CalculateCostWithCache(model string, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens int) float64 {
 	if modelreg.GlobalModelsConfig == nil {
 		return 0.0
 	}
 
-	cost, err := modelreg.GlobalModelsConfig.CalculateCostForModelWithCache(model, inputTokens, outputTokens, cacheReadTokens)
+	cost, err := modelreg.GlobalModelsConfig.CalculateCostForModelWithCache(model, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens)
 	if err != nil {
 		return 0.0
 	}

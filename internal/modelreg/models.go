@@ -51,6 +51,21 @@ type Pricing struct {
 	// hides both the spend and a broken cache. Declare it wherever it is known.
 	CacheReadPer1K float64 `yaml:"cache_read_per_1k"`
 
+	// CacheWritePer1K prices prompt-cache WRITE (creation) tokens.
+	//
+	// Cache writes were billed at $0 everywhere until 2026-09-14, because the cost
+	// helpers took no cache-write argument at all. Not a rounding error on a caching
+	// harness: one measured `mission role-run` reading five files reported
+	// InputTokens=50 and CacheCreationInputTokens=44,841, so 99.9% of the prompt it
+	// paid to cache was free in our accounting.
+	//
+	// Zero means "no write rate declared" and the helpers then bill writes at the FULL
+	// input rate, the same stance as CacheReadPer1K above and for the same reason.
+	// Note this UNDERSTATES Anthropic, which bills cache writes at 1.25x input — the
+	// undeclared default deliberately does not guess a per-provider multiplier, so
+	// declare the real rate where it is known rather than relying on the default.
+	CacheWritePer1K float64 `yaml:"cache_write_per_1k"`
+
 	// Expires is the last date (INCLUSIVE, "YYYY-MM-DD") on which the rates
 	// above are the ones actually billed. Empty means "no scheduled change
 	// known", which is the normal case.
@@ -82,6 +97,9 @@ type ScheduledPricing struct {
 	InputPer1K     float64 `yaml:"input_per_1k"`
 	OutputPer1K    float64 `yaml:"output_per_1k"`
 	CacheReadPer1K float64 `yaml:"cache_read_per_1k"`
+	// Present so a scheduled rate change cannot silently drop a declared write rate
+	// back to the input-rate default on the switchover date.
+	CacheWritePer1K float64 `yaml:"cache_write_per_1k"`
 }
 
 // Budgets represents per-model cost-and-speed budget overrides
@@ -340,7 +358,7 @@ func (c *ModelsConfig) CalculateCostForModel(name string, inputTokens, outputTok
 //
 // A model with no declared cache rate bills cache reads at the full input rate:
 // overstating is visible, whereas $0 hides both the spend and a broken cache.
-func (c *ModelsConfig) CalculateCostForModelWithCache(name string, inputTokens, outputTokens, cacheReadTokens int) (float64, error) {
+func (c *ModelsConfig) CalculateCostForModelWithCache(name string, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens int) (float64, error) {
 	model, err := c.GetModel(name)
 	if err != nil {
 		// NO FALLBACK - same stance as CalculateCostForModel.
@@ -352,11 +370,19 @@ func (c *ModelsConfig) CalculateCostForModelWithCache(name string, inputTokens, 
 		cacheRate = model.Pricing.InputPer1K
 	}
 
+	// Writes were previously absent from this calculation entirely, not defaulted —
+	// the parameter did not exist, so every cached prompt was created for free.
+	writeRate := model.Pricing.CacheWritePer1K
+	if writeRate == 0 {
+		writeRate = model.Pricing.InputPer1K
+	}
+
 	inputCost := float64(inputTokens) / 1000.0 * model.Pricing.InputPer1K
 	cacheCost := float64(cacheReadTokens) / 1000.0 * cacheRate
+	writeCost := float64(cacheWriteTokens) / 1000.0 * writeRate
 	outputCost := float64(outputTokens) / 1000.0 * model.Pricing.OutputPer1K
 
-	return inputCost + cacheCost + outputCost, nil
+	return inputCost + cacheCost + writeCost + outputCost, nil
 }
 
 // SupportsAgentEval returns true if the model supports agent-based evaluation
