@@ -485,7 +485,7 @@ func (d *Daemon) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 			// requirements so PubSubInboxAdapter can do tag-subset filtering.
 			Requires: req.Requires,
 		}
-		if err := d.pubsubPublisher.PublishMessage(ctx, msg.ID, attrs); err != nil {
+		if err := d.pubsubPublisher.PublishMessage(ctx, messaging.NotificationIDFor(msg), attrs); err != nil {
 			d.logger.Printf("POST /api/messages: pubsub publish warning (message stored OK): %v", err)
 			// Don't fail the request — message is safely stored.
 		}

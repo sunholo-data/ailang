@@ -72,7 +72,7 @@ func (d *Daemon) publishInboxNotification(msg *messaging.InboxMessage) {
 	if d.pubsubPublisher == nil || msg == nil {
 		return
 	}
-	if err := d.pubsubPublisher.PublishMessage(d.ctx, msg.ID, pubsub.MessageAttributes{
+	if err := d.pubsubPublisher.PublishMessage(d.ctx, messaging.NotificationIDFor(msg), pubsub.MessageAttributes{
 		Inbox:       msg.ToInbox,
 		FromAgent:   msg.FromAgent,
 		MessageType: msg.MessageType,

@@ -64,7 +64,42 @@ func (n *PubSubNotifier) Notify(ctx context.Context, msg *InboxMessage) error {
 		MessageType: msg.MessageType,
 	}
 
-	return n.publisher.PublishMessage(ctx, msg.MessageID, attrs)
+	return n.publisher.PublishMessage(ctx, NotificationIDFor(msg), attrs)
+}
+
+// NotificationIDFor is the identifier a notification must carry so the RECIPIENT
+// can fetch the message back.
+//
+// The two stores resolve differently and only one identifier works on both:
+//
+//	Firestore  GetInboxMessage(id) -> client.Doc(collInbox, id)   — ID ONLY
+//	SQLite     GetInboxMessage(id) -> WHERE id = ? OR message_id = ?  — either
+//
+// So ID is the answer, and MessageID is the answer only by coincidence — on
+// Firestore normalizeInboxDefaults sets MessageID = ID, which makes publishing
+// MessageID look correct for as long as nothing sets it first. A message that
+// picked up a SQLite-style "msg_<ts>_<prefix>" MessageID before reaching
+// Firestore publishes an id whose document does not exist, the recipient's
+// fetch fails, and the notification is unresolvable.
+//
+// That is the shape behind the 2026-09-14 content-free tasks: ids like
+// "msg_20260914_153340_b787f96a" — the "msg_" form, whose suffix is the first
+// eight characters of a UUID, i.e. a message id minted by the SQLite path —
+// arriving at a coordinator reading Firestore.
+//
+// Three publishers existed with two answers (daemon_evaluator.go and
+// daemon_http.go send msg.ID; this one sent msg.MessageID). One helper, so
+// there is one answer.
+func NotificationIDFor(msg *InboxMessage) string {
+	if msg == nil {
+		return ""
+	}
+	if msg.ID != "" {
+		return msg.ID
+	}
+	// No ID: pre-insert, or a caller that only set the business id. MessageID
+	// still resolves on SQLite, and an empty publish resolves nowhere.
+	return msg.MessageID
 }
 
 // Close releases Pub/Sub resources.
