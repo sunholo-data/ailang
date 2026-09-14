@@ -248,7 +248,30 @@ func coordinatorExecuteJob(args []string) error {
 		// older dispatcher fails LOUD rather than silently lenient.
 		expectChanges := os.Getenv("AILANG_ACKNOWLEDGE_ONLY") != "true"
 		status := coordinator.ClassifyCompletionStatus(evidence.ChangedFiles, false, expectChanges)
-		publishCompletion(string(status), "", branchName, execResult, evidence, artifactPath)
+
+		// The agent's own word on the outcome, which it has never had.
+		//
+		// A BLOCKED: marker means it did not attempt the work — a precondition
+		// was unmet — and that is a different fact from `no_changes`, which also
+		// means "I did the work and nothing needed changing". One of those needs
+		// a human and the other needs nobody, and they were indistinguishable.
+		//
+		// Only honoured when the run produced NOTHING. An agent that declared a
+		// blocker and then changed files worked around it, and the files are the
+		// stronger evidence — trusting the marker over them would discard real
+		// work on the strength of a sentence.
+		blockedMsg := ""
+		if len(evidence.ChangedFiles) == 0 && execResult != nil {
+			if report, ok := coordinator.ParseBlockedMarker(execResult.Transcript); ok {
+				status = coordinator.TaskStatusBlocked
+				blockedMsg = report.Reason
+				if report.On != "" {
+					blockedMsg += " (blocked on: " + report.On + ")"
+				}
+				fmt.Printf("execute-job: task %s BLOCKED: %s\n", taskID, blockedMsg)
+			}
+		}
+		publishCompletion(string(status), blockedMsg, branchName, execResult, evidence, artifactPath)
 		fmt.Printf("execute-job: task %s %s (branch=%s, files=%d)\n", taskID, status, branchName, len(evidence.ChangedFiles))
 	}
 

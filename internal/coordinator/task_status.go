@@ -37,6 +37,7 @@ func AllTaskStatuses() []TaskStatus {
 		TaskStatusRejected,
 		TaskStatusCancelled,
 		TaskStatusDuplicate,
+		TaskStatusBlocked,
 	}
 }
 
@@ -56,6 +57,9 @@ var terminalByStatus = map[TaskStatus]bool{
 	TaskStatusRejected:        true,
 	TaskStatusCancelled:       true,
 	TaskStatusDuplicate:       true,
+	// Terminal for THIS attempt: re-running changes nothing until the
+	// precondition is fixed, and the fix is not something the agent can do.
+	TaskStatusBlocked: true,
 }
 
 // observatoryByStatus maps each status onto the observatory's smaller vocabulary.
@@ -76,6 +80,10 @@ var observatoryByStatus = map[TaskStatus]observatory.TaskStatus{
 	TaskStatusRejected:  observatory.TaskStatusFailed,
 	TaskStatusCancelled: observatory.TaskStatusFailed,
 	TaskStatusDuplicate: observatory.TaskStatusFailed,
+	// Not a success: the work did not happen. Reporting it as completed would
+	// put a task nobody ran into the success column, which is the ambiguity
+	// TaskStatusNoChanges above was separated out to remove.
+	TaskStatusBlocked: observatory.TaskStatusFailed,
 }
 
 // TerminalStatuses returns every status that means the task is over, derived

@@ -105,6 +105,11 @@ const (
 	TaskStatusRejected        TaskStatus = "rejected" // Human rejected the work
 	TaskStatusCancelled       TaskStatus = "cancelled"
 	TaskStatusDuplicate       TaskStatus = "duplicate"
+	// TaskStatusBlocked: the agent did not attempt the work because a
+	// precondition was unmet, and said so. Distinct from no_changes ("I did the
+	// work and nothing needed changing") and from failed ("something broke").
+	// See task_blocked.go.
+	TaskStatusBlocked TaskStatus = "blocked"
 )
 
 // TaskStage represents the pipeline stage for GitHub-linked tasks.

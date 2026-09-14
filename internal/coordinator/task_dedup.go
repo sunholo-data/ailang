@@ -51,6 +51,7 @@ var dedupSuppressesByStatus = map[TaskStatus]bool{
 	TaskStatusRejected:        false, // a human refused that attempt, not every future one
 	TaskStatusCancelled:       false, //
 	TaskStatusDuplicate:       false, // suppressing against a suppression record chains forever
+	TaskStatusBlocked:         false, // the whole point is to re-run it once the blocker is cleared
 }
 
 // DedupSuppresses reports whether an existing task in this status should

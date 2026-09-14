@@ -148,8 +148,32 @@ func buildSkillDirectiveWithConfig(task *TaskRecord, agent *AgentConfig, invoke 
 		sb.WriteString("```\n")
 	}
 
+	sb.WriteString(blockedContract)
 	return sb.String()
 }
+
+// blockedContract tells every agent how to say "I could not start".
+//
+// On the SHARED directive path rather than in one skill, because the outcome it
+// reports is a coordinator concept, not a skill's: without it a run that
+// declined for a good reason and a run that did the work and found nothing to
+// change both report `no_changes`. Measured 2026-09-14 on sprint-executor,
+// which refused correctly, explained itself clearly, and was recorded
+// identically to a package agent whose dependency was already current.
+//
+// Deliberately short. It rides on every directive, and an instruction block
+// long enough to skim is one agents skim.
+const blockedContract = "\n---\n\n" +
+	"## If you CANNOT start\n\n" +
+	"If a precondition is unmet and you did not attempt the work, end with:\n\n" +
+	"```\n" +
+	"BLOCKED: <one line: what stopped you>\n" +
+	"BLOCKED_ON: <optional: the file, config or agent that must change first>\n" +
+	"```\n\n" +
+	"Do not report success, and do not stay silent — a task that changed no files " +
+	"is otherwise indistinguishable from one that had nothing to change. " +
+	"BLOCKED is only read when you changed NO files; if you worked around the " +
+	"blocker, just report the work.\n"
 
 // buildAgentHandoffDirectiveWithConfig creates a directive that hands off to another agent.
 // Uses effective config (explicit or defaults) for agent name and output markers.

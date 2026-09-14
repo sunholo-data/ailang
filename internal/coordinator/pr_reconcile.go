@@ -41,6 +41,7 @@ var prStatusVerdict = map[TaskStatus]PRVerdict{
 	TaskStatusCancelled:       PRClose,
 	TaskStatusDuplicate:       PRClose,
 	TaskStatusNoChanges:       PRClose, // produced nothing; any branch is empty
+	TaskStatusBlocked:         PRClose, // never started; the branch is the clone and nothing else
 	TaskStatusPendingApproval: PRLeave, // the decision has not been made yet
 	TaskStatusPending:         PRLeave,
 	TaskStatusQueued:          PRLeave,
