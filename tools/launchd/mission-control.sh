@@ -81,6 +81,7 @@ export MISSION_NAME MISSION_REPO MISSION_DOC
 [ -f "$HOME/.config/ailang/mission-${MISSION_NAME}.env" ] \
   && . "$HOME/.config/ailang/mission-${MISSION_NAME}.env"
 STATE_DIR="$HOME/.ailang/state"
+# --- DRIVER PIN STATE PATHS START ---
 if [ "$MISSION_NAME" = "v1" ]; then
   # LEGACY paths — bit-for-bit compat with the live V1 loop (no migration).
   LOG=/tmp/ailang-mission-control.log
@@ -98,6 +99,7 @@ if [ "$MISSION_NAME" = "v1" ]; then
   GH_ISSUE_FILE="$STATE_DIR/mission-v1-gh-issue"
   BLOCKED_FILE="$STATE_DIR/mission-control.blocked"
   PIN_DRIFT_FILE="$STATE_DIR/mission-control.pin-drift"
+  PIN_AGE_FILE="$STATE_DIR/mission-control.pin-age"
   MSG_FROM="mission-control"
 else
   LOG="/tmp/ailang-mission-${MISSION_NAME}.log"
@@ -109,8 +111,10 @@ else
   GH_ISSUE_FILE="$STATE_DIR/mission-${MISSION_NAME}-gh-issue"
   BLOCKED_FILE="$STATE_DIR/mission-${MISSION_NAME}.blocked"
   PIN_DRIFT_FILE="$STATE_DIR/mission-${MISSION_NAME}.pin-drift"
+  PIN_AGE_FILE="$STATE_DIR/mission-${MISSION_NAME}.pin-age"
   MSG_FROM="mission-${MISSION_NAME}"
 fi
+# --- DRIVER PIN STATE PATHS END ---
 # -----------------------------------------------------------------------------
 [ -f "$HOME/.config/ailang/secrets.env" ] && . "$HOME/.config/ailang/secrets.env"
 
@@ -1023,6 +1027,53 @@ else
     log "driver pin drift: skipped (status=$PIN_STATUS)"
   fi
 fi
+# --- DRIVER PIN AGE DECISION START ---
+_pin_age_degraded=""
+PIN_AGE="${PIN_AGE:-?}"
+if [ "$PIN_STATUS" != "pinned" ]; then
+  log "driver pin age: skipped (status=$PIN_STATUS)"
+else
+  _pin_age_warn="${AILANG_DRIVER_AGE_WARN:-25}"
+  # A non-positive threshold floors to 25, loudly; an explicitly positive override remains valid.
+  case "$_pin_age_warn" in
+    ''|*[!0-9]*|0)
+      log "driver pin age: AILANG_DRIVER_AGE_WARN='$_pin_age_warn' is not a positive integer; using 25"
+      _pin_age_warn=25
+      ;;
+  esac
+  case "$PIN_AGE" in
+    ''|*[!0-9]*)
+      log "driver pin age: unknown ($PIN_AGE); notice suppressed"
+      ;;
+    *)
+      if [ "$PIN_AGE" -lt "$_pin_age_warn" ]; then
+        rm -f "$PIN_AGE_FILE"
+        log "driver pin age: $PIN_AGE below warning threshold $_pin_age_warn; notice re-armed"
+      else
+        _pin_age_previous=""
+        [ -r "$PIN_AGE_FILE" ] && _pin_age_previous="$(head -1 "$PIN_AGE_FILE" 2>/dev/null)"
+        case "$_pin_age_previous" in
+          ''|*[!0-9]*) _pin_age_emit=1 ;;
+          *)
+            if [ "$PIN_AGE" -ge $((_pin_age_previous * 2)) ]; then
+              _pin_age_emit=1
+            else
+              _pin_age_emit=0
+            fi
+            ;;
+        esac
+        if [ "$_pin_age_emit" -eq 1 ]; then
+          _pin_age_degraded="$PIN_AGE"
+          printf '%s\n' "$PIN_AGE" > "$PIN_AGE_FILE"
+          log "driver pin age: $PIN_AGE at/above threshold $_pin_age_warn; notice armed (previous=${_pin_age_previous:-none})"
+        else
+          log "driver pin age: $PIN_AGE at/above threshold $_pin_age_warn; deduped until doubling from $_pin_age_previous"
+        fi
+      fi
+      ;;
+  esac
+fi
+# --- DRIVER PIN AGE DECISION END ---
 # --- DRIVER PIN DECISION END ---
 
 # Deliver anything a previous fire could not. Placed after the pin decision so a
@@ -1730,6 +1781,18 @@ drift doubles.
 re-execing, and REPO is derived from it, so on the pinned pass REPO names the throwaway worktree —
 whose drift is 0 by construction. AILANG_DRIVER_SRC is the source clone."
   _mc_notify "Mission ${MISSION_NAME}: pinned source clone drifted (${_pin_drift_degraded} behind)" "$_pin_drift_body" "pin-drift"
+fi
+
+if [ -n "$_pin_age_degraded" ]; then
+  _pin_age_body="**The driver is executing code ${_pin_age_degraded} commits behind origin/dev.**
+
+Pinned ref: ${AILANG_DRIVER_REF:-origin/dev}. Target SHA: ${AILANG_DRIVER_PINNED:-?}.
+Baseline origin/dev SHA: ${AILANG_DRIVER_AGE_BASE_SHA:-?}
+
+Every landed driver/skill fix newer than this pin is NOT in effect.
+
+This notice repeats only when the measured pin age doubles."
+  _mc_notify "Mission ${MISSION_NAME}: driver pin is stale (${_pin_age_degraded} behind)" "$_pin_age_body" "pin-age"
 fi
 
 # Layer 3 (M-SPAWN-PIN-ENFORCEMENT): export the RESOLVED plan, post-degradation.
