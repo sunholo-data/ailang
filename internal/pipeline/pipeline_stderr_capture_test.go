@@ -76,6 +76,7 @@ func (g *gatedReader) release() {
 // waiting out the full 10s default.
 func TestCapturePipelineStderr_GatedReaderLosesNothing(t *testing.T) {
 	const n = 50
+	original := os.Stderr
 	payload := coldPayload
 	if len(payload) >= 4096 {
 		t.Fatal("payload exceeds the pipe-capacity bound; keep it well below 4 KiB so writes never block while the reader is parked")
@@ -99,8 +100,8 @@ func TestCapturePipelineStderr_GatedReaderLosesNothing(t *testing.T) {
 			t.Fatalf("iteration %d: reader wrapper never invoked (reads=%d); the seam is broken", i, gr.reads.Load())
 		}
 	}
-	if got := os.Stderr; got == nil {
-		t.Fatal("os.Stderr was not restored after the loop")
+	if os.Stderr != original {
+		t.Fatal("os.Stderr was not restored to the original after the loop")
 	}
 }
 

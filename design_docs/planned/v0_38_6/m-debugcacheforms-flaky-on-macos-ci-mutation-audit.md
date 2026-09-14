@@ -126,3 +126,18 @@ ok  	github.com/sunholo-data/ailang/internal/pipeline	0.374s
 
 All six mutants are red; every restoration hash equals the pre-mutation hash. No mutant survived;
 nothing was tuned. All gates green at the fixed form (AC1/AC2/AC4/AC5 + whole-package `go test`).
+
+## Round-1 judge corrections (sonnet, own worktree at 36a5cc8ee; each reproduced by the controller before recording)
+
+- Red SETS measured with `-skip` (rule 3j: a single-test criterion is unsatisfiable for a broad-blast mutant):
+  MUT-1 = {GatedReaderLosesNothing, TestPipelineModulePhases_DebugCacheFormsAndCounters} — the controller
+  reproduced the second member: under MUT-1 the production test is red LOCALLY on the first run, because the
+  read-on-closed-fd error that HEAD swallowed is now propagated. MUT-2a = {GatedReaderLosesNothing,
+  DrainTimeoutIsLoud, CopyErrorIsLoud}. MUT-2b, MUT-3a, MUT-4 are sole-killers. MUT-3b is non-hermetic.
+- `GatedReaderLosesNothing`'s post-loop check `os.Stderr == nil` could not fail (rc=0 with the helper's restore
+  step skipped — mutant landed, vet rc=0). Fixed in r3: the test records the original stderr and asserts
+  `os.Stderr == original`; against the same restore-skip mutant it is now rc=1
+  (`os.Stderr was not restored to the original after the loop`), fixed form rc=0 with four `--- PASS:` lines.
+- MUT-3b exits rc=1 (not the plan's rc=2); a regressed bounded wait would hang CI's un-scoped `internal/pipeline`
+  run to go test's default 10-minute timeout — loud, not silent, and declared.
+
