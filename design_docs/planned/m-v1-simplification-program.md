@@ -125,6 +125,11 @@ None of this is file size: no file exceeds the 800-line gate. The complexity is 
 - [x] D6 — untrack sprint JSON per the recommendation. **`eval_results/baselines/` stays tracked**: Sprint 1 found it is deliberately re-included in `.gitignore` and read by the docs BenchmarkDashboard and `eval-weekly.yml`; moving those readers to the bucket is a separate item before any untracking.
 - [x] D7 — the removal list stands as written; each removal PR cites the audit's last-commit date and reference counts.
 
+**Ruled by Mark, 2026-09-15 (second round, from the Sprint 3 leftovers):**
+
+- [x] **D8 — mission dispatch prod pin: keep it, make it explicit.** `internal/mission/dispatch/run.go` keeps filing every stage to the prod message plane regardless of the parent environment; the literal becomes a named constant (`mission.message_plane_project`) with a comment saying it is deliberate. No behaviour change. (Applied in S4 close-out.)
+- [x] **D9 — pass flags unified, bank-forward.** Standard mode gates `stdout_ok` on `runtime_ok` from the next run, as agent mode already does. Nothing re-banked; the D2 read-side predicate already makes published rates identical, so this only makes stored flags consistent. A dated note joins the D2 annotation. (Applied in S4 close-out.)
+
 ## Solution Design
 
 ### Overview
