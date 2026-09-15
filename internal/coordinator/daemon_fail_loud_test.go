@@ -60,6 +60,7 @@ func TestRun_FailsLoudlyWhenTaskProcessingCannotInit(t *testing.T) {
 		StateDir:     filepath.Join(tmpDir, "state"),
 	}
 
+	clearDaemonPlaneEnv(t) // hermetic: the shell may export a plane variable
 	daemon, err := NewDaemon(cfg)
 	if err != nil {
 		t.Fatalf("failed to create daemon: %v", err)

@@ -1,10 +1,14 @@
 package coordinator
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 func TestDefaultConfig(t *testing.T) {
@@ -38,6 +42,7 @@ func TestNewDaemon(t *testing.T) {
 		StateDir:     filepath.Join(tmpDir, "state"),
 	}
 
+	clearDaemonPlaneEnv(t) // hermetic: the shell may export a plane variable
 	daemon, err := NewDaemon(cfg)
 	if err != nil {
 		t.Fatalf("failed to create daemon: %v", err)
@@ -67,6 +72,7 @@ func TestDaemonPIDFile(t *testing.T) {
 		StateDir:     filepath.Join(tmpDir, "state"),
 	}
 
+	clearDaemonPlaneEnv(t) // hermetic: the shell may export a plane variable
 	daemon, err := NewDaemon(cfg)
 	if err != nil {
 		t.Fatalf("failed to create daemon: %v", err)
@@ -105,6 +111,7 @@ func TestDaemonStatus(t *testing.T) {
 		StateDir:     filepath.Join(tmpDir, "state"),
 	}
 
+	clearDaemonPlaneEnv(t) // hermetic: the shell may export a plane variable
 	daemon, err := NewDaemon(cfg)
 	if err != nil {
 		t.Fatalf("failed to create daemon: %v", err)
@@ -132,6 +139,7 @@ func TestDaemonStatusJSON(t *testing.T) {
 		StateDir:     filepath.Join(tmpDir, "state"),
 	}
 
+	clearDaemonPlaneEnv(t) // hermetic: the shell may export a plane variable
 	daemon, err := NewDaemon(cfg)
 	if err != nil {
 		t.Fatalf("failed to create daemon: %v", err)
@@ -163,6 +171,7 @@ func TestDaemonCleanup(t *testing.T) {
 		StateDir:     filepath.Join(tmpDir, "state"),
 	}
 
+	clearDaemonPlaneEnv(t) // hermetic: the shell may export a plane variable
 	daemon, err := NewDaemon(cfg)
 	if err != nil {
 		t.Fatalf("failed to create daemon: %v", err)
@@ -193,6 +202,7 @@ func TestIsProcessRunning(t *testing.T) {
 		StateDir:     filepath.Join(tmpDir, "state"),
 	}
 
+	clearDaemonPlaneEnv(t) // hermetic: the shell may export a plane variable
 	daemon, err := NewDaemon(cfg)
 	if err != nil {
 		t.Fatalf("failed to create daemon: %v", err)
@@ -207,6 +217,56 @@ func TestIsProcessRunning(t *testing.T) {
 	// Non-existent PID should not be running
 	if daemon.isProcessRunning(999999) {
 		t.Error("non-existent PID should not be detected as running")
+	}
+}
+
+// clearDaemonPlaneEnv isolates a test from the plane variables, COORDINATOR_MODE
+// and the retired selectors a developer's shell may still export.
+func clearDaemonPlaneEnv(t *testing.T) {
+	t.Helper()
+	for _, v := range []string{config.EnvStorage, config.EnvStorageCoordinator, config.EnvStorageMessaging,
+		config.EnvStorageObservatory, config.EnvCoordinatorMode} {
+		t.Setenv(v, "")
+	}
+	for _, v := range config.RemovedEnvNames() {
+		t.Setenv(v, "")
+	}
+}
+
+// COORDINATOR_MODE=cloud with the coordinator store in SQLite used to start a
+// daemon that ran Pub/Sub push intake against a database no Cloud Run Job
+// could see. NewDaemon now refuses it, naming what to set.
+func TestNewDaemonRefusesCloudModeOnALocalPlane(t *testing.T) {
+	tmpDir := t.TempDir()
+	cfg := &Config{
+		PollInterval: time.Second,
+		MaxWorktrees: 2,
+		LogFile:      filepath.Join(tmpDir, "logs", "coordinator.log"),
+		PIDFile:      filepath.Join(tmpDir, "state", "coordinator.pid"),
+		StateDir:     filepath.Join(tmpDir, "state"),
+	}
+	clearDaemonPlaneEnv(t)
+	t.Setenv("COORDINATOR_MODE", "cloud")
+
+	_, err := NewDaemon(cfg)
+	if !errors.Is(err, config.ErrCoordinatorModeDisagrees) {
+		t.Fatalf("NewDaemon: err = %v, want config.ErrCoordinatorModeDisagrees", err)
+	}
+	if !strings.Contains(err.Error(), "AILANG_STORAGE=gcp") {
+		t.Fatalf("error must say what to set: %v", err)
+	}
+
+	// The rig's configuration: gcp plane, no COORDINATOR_MODE — a local-execution
+	// daemon on the shared plane. That must keep starting.
+	t.Setenv("COORDINATOR_MODE", "")
+	t.Setenv("AILANG_STORAGE", "gcp")
+	d, err := NewDaemon(cfg)
+	if err != nil {
+		t.Fatalf("gcp plane without COORDINATOR_MODE must start a local-mode daemon: %v", err)
+	}
+	d.Close()
+	if IsCloudMode() {
+		t.Fatal("gcp plane without COORDINATOR_MODE must be local mode, not derived cloud")
 	}
 }
 
@@ -229,6 +289,9 @@ func TestNewDaemonCloudModeMultiWriter(t *testing.T) {
 	}
 	os.Stderr = w
 
+	// Cloud mode is only valid on the gcp plane (config.CoordinatorMode).
+	clearDaemonPlaneEnv(t)
+	t.Setenv("AILANG_STORAGE", "gcp")
 	t.Setenv("COORDINATOR_MODE", "cloud")
 
 	daemon, err := NewDaemon(cfg)
@@ -285,7 +348,7 @@ func TestNewDaemonLocalModeNoStderr(t *testing.T) {
 	os.Stderr = w
 
 	// Explicitly unset COORDINATOR_MODE (local mode)
-	t.Setenv("COORDINATOR_MODE", "")
+	clearDaemonPlaneEnv(t)
 
 	daemon, err := NewDaemon(cfg)
 	if err != nil {
@@ -328,6 +391,7 @@ func TestDaemonIncrementTasksRun(t *testing.T) {
 		StateDir:     filepath.Join(tmpDir, "state"),
 	}
 
+	clearDaemonPlaneEnv(t) // hermetic: the shell may export a plane variable
 	daemon, err := NewDaemon(cfg)
 	if err != nil {
 		t.Fatalf("failed to create daemon: %v", err)

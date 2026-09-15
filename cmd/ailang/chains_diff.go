@@ -16,7 +16,7 @@ func chainsDiffCommand() {
 	fs := flag.NewFlagSet("chains diff", flag.ExitOnError)
 	statOnly := fs.Bool("stat", false, "Show diffstat only")
 	jsonOutput := fs.Bool("json", false, "Output as JSON (stage metadata)")
-	remote := fs.String("remote", "", "Read from this observatory storage mode (gcp). Default: $AILANG_CHAINS_READ")
+	remote := fs.String("remote", "", "Read from this observatory storage mode (gcp). Default: the plane's observatory store ($AILANG_STORAGE_OBSERVATORY, else $AILANG_STORAGE)")
 	fs.Parse(flag.Args()[2:])
 
 	if fs.NArg() < 1 {

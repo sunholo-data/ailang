@@ -26,7 +26,7 @@ import (
 
 func chainsReconcileCommand() {
 	fs := flag.NewFlagSet("chains reconcile", flag.ExitOnError)
-	remote := fs.String("remote", "", "backend: local|gcp (default $AILANG_CHAINS_READ, else local)")
+	remote := fs.String("remote", "", "backend: local|gcp (default: the plane's observatory store — $AILANG_STORAGE_OBSERVATORY, else $AILANG_STORAGE, else local)")
 	minAgeH := fs.Float64("min-age-hours", 1, "only consider chains older than this")
 	apply := fs.Bool("apply", false, "actually write; without it this is a dry run")
 	reason := fs.String("reason", observatory.AbandonReasonPreFix, "reason recorded on each abandoned chain")

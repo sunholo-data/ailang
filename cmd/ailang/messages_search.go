@@ -197,7 +197,7 @@ func runMessagesDedupe(args []string) {
 // searchBackendName names the store that was actually scanned.
 //
 // The footer used to print a hardcoded "SQLite" regardless of where the search
-// ran. Under AILANG_MESSAGES_STORE=gcp that is a lie in the one place a reader
+// ran. Under AILANG_STORAGE_MESSAGING=gcp that is a lie in the one place a reader
 // looks to check they are not reading a stale local graveyard — the same failure
 // that once left prod feedback unread for weeks.
 func searchBackendName() string {

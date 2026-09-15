@@ -3,16 +3,29 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/sunholo-data/ailang/internal/testutil"
-
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/observatory"
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
+
+// clearObservatoryPlaneEnv isolates a test from the plane variables and the
+// retired selectors a developer's shell may still export.
+func clearObservatoryPlaneEnv(t *testing.T) {
+	t.Helper()
+	for _, v := range []string{config.EnvStorage, config.EnvStorageObservatory, config.EnvStorageMessaging, config.EnvStorageCoordinator} {
+		t.Setenv(v, "")
+	}
+	for _, v := range config.RemovedEnvNames() {
+		t.Setenv(v, "")
+	}
+}
 
 // hermeticLocalObservatory points DefaultDatabasePath() at a throwaway home and
 // creates the state directory sqlite needs.
@@ -36,7 +49,7 @@ func hermeticLocalObservatory(t *testing.T) {
 }
 
 func TestRemoteReadRefusal_LocalOnlySurfaces(t *testing.T) {
-	t.Setenv("AILANG_CHAINS_READ", "")
+	clearObservatoryPlaneEnv(t)
 	tests := []struct {
 		command string
 		reason  string
@@ -63,14 +76,14 @@ func TestRemoteReadRefusal_LocalOnlySurfaces(t *testing.T) {
 	if err := refuseRemoteReadForLocalOnlySurface("chains live", "local"); err != nil {
 		t.Errorf("explicit local mode refused: %v", err)
 	}
-	t.Setenv("AILANG_CHAINS_READ", "gcp")
+	t.Setenv("AILANG_STORAGE_OBSERVATORY", "gcp")
 	if err := refuseRemoteReadForLocalOnlySurface("chains journey", ""); err == nil {
 		t.Fatal("environment-selected remote mode was not refused")
 	}
 }
 
 func TestEvalRemoteReadIsRefused(t *testing.T) {
-	t.Setenv("AILANG_CHAINS_READ", "")
+	clearObservatoryPlaneEnv(t)
 	commands := []struct {
 		command string
 		args    []string
@@ -114,7 +127,7 @@ func TestEvalRemoteReadEnvWarnsAndProceeds(t *testing.T) {
 
 func TestOpenChainsReadBackend_DefaultsToLocal(t *testing.T) {
 	hermeticLocalObservatory(t)
-	t.Setenv("AILANG_CHAINS_READ", "")
+	clearObservatoryPlaneEnv(t)
 	backend, closeBackend, err := openChainsReadBackend(context.Background(), "")
 	if err != nil {
 		t.Fatalf("openChainsReadBackend: %v", err)
@@ -127,17 +140,34 @@ func TestOpenChainsReadBackend_DefaultsToLocal(t *testing.T) {
 
 func TestOpenChainsReadBackend_RemoteRoutesThroughStorageMode(t *testing.T) {
 	noCloudIdentity(t)
-	t.Setenv("AILANG_CHAINS_READ", "")
+	clearObservatoryPlaneEnv(t)
 	_, _, err := openChainsReadBackend(context.Background(), "gcp")
 	if err == nil || !strings.Contains(err.Error(), "AILANG_CLOUD_PROJECT") {
 		t.Fatalf("error = %v, want error containing AILANG_CLOUD_PROJECT", err)
 	}
 }
 
+// AILANG_CHAINS_READ was retired by M-V1-SIMPLIFY-S3 M3: a value that is now
+// ignored must not LOOK honoured, so it is an error naming the replacement
+// from every reader — the refusal check and the opener alike.
+func TestOpenChainsReadBackend_RemovedSelectorIsAHardError(t *testing.T) {
+	hermeticLocalObservatory(t)
+	clearObservatoryPlaneEnv(t)
+	t.Setenv("AILANG_CHAINS_READ", "gcp")
+	_, _, err := openChainsReadBackend(context.Background(), "")
+	if !errors.Is(err, config.ErrRemovedEnv) || !strings.Contains(err.Error(), "AILANG_STORAGE_OBSERVATORY=gcp") {
+		t.Fatalf("err = %v, want config.ErrRemovedEnv naming AILANG_STORAGE_OBSERVATORY=gcp", err)
+	}
+	if err := refuseRemoteReadForLocalOnlySurface("chains journey", ""); !errors.Is(err, config.ErrRemovedEnv) {
+		t.Fatalf("refusal check: err = %v, want config.ErrRemovedEnv", err)
+	}
+}
+
 func TestOpenChainsReadBackend_EnvIsTheFallbackNotTheOverride(t *testing.T) {
 	t.Run("env selects remote", func(t *testing.T) {
 		noCloudIdentity(t)
-		t.Setenv("AILANG_CHAINS_READ", "gcp")
+		clearObservatoryPlaneEnv(t)
+		t.Setenv("AILANG_STORAGE_OBSERVATORY", "gcp")
 		_, _, err := openChainsReadBackend(context.Background(), "")
 		if err == nil || !strings.Contains(err.Error(), "AILANG_CLOUD_PROJECT") {
 			t.Fatalf("error = %v, want remote routing error", err)
@@ -146,7 +176,8 @@ func TestOpenChainsReadBackend_EnvIsTheFallbackNotTheOverride(t *testing.T) {
 
 	t.Run("flag beats env", func(t *testing.T) {
 		hermeticLocalObservatory(t)
-		t.Setenv("AILANG_CHAINS_READ", "gcp")
+		clearObservatoryPlaneEnv(t)
+		t.Setenv("AILANG_STORAGE_OBSERVATORY", "gcp")
 		backend, closeBackend, err := openChainsReadBackend(context.Background(), "local")
 		if err != nil {
 			t.Fatalf("openChainsReadBackend: %v", err)
@@ -165,7 +196,7 @@ func TestOpenChainsReadBackend_EnvIsTheFallbackNotTheOverride(t *testing.T) {
 // D-15 text, which is the entire signalling mechanism the D-15 ruling chose
 // `view` in order to get. Found by the iteration-198 evaluator.
 func TestEvalRemoteReadIsRefused_AllFlagSpellings(t *testing.T) {
-	t.Setenv("AILANG_CHAINS_READ", "")
+	clearObservatoryPlaneEnv(t)
 	for _, args := range [][]string{
 		{"--remote", "gcp"},
 		{"--remote=gcp"},
@@ -189,7 +220,7 @@ func TestEvalRemoteReadIsRefused_AllFlagSpellings(t *testing.T) {
 // Positive control for the above: tokens that merely LOOK flag-shaped, or that
 // name a different flag, must NOT be swallowed by the normalizer.
 func TestEvalRemoteReadIsRefused_DoesNotOverMatch(t *testing.T) {
-	t.Setenv("AILANG_CHAINS_READ", "")
+	clearObservatoryPlaneEnv(t)
 	for _, args := range [][]string{
 		{"--remotely", "gcp"},
 		{"--baseline", "v1.0"},

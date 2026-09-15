@@ -18,7 +18,7 @@ import (
 func chainsDiagnoseCommand() {
 	fs := flag.NewFlagSet("chains diagnose", flag.ExitOnError)
 	jsonOutput := fs.Bool("json", false, "Output as JSON")
-	remote := fs.String("remote", "", "Read from this observatory storage mode (gcp). Default: $AILANG_CHAINS_READ")
+	remote := fs.String("remote", "", "Read from this observatory storage mode (gcp). Default: the plane's observatory store ($AILANG_STORAGE_OBSERVATORY, else $AILANG_STORAGE)")
 	fs.Parse(flag.Args()[2:])
 
 	if fs.NArg() < 1 {
@@ -286,7 +286,7 @@ func chainsHealthCommand() {
 	fs := flag.NewFlagSet("chains health", flag.ExitOnError)
 	hours := fs.Int("hours", 24, "Time window in hours")
 	jsonOutput := fs.Bool("json", false, "Output as JSON")
-	remote := fs.String("remote", "", "Read from this observatory storage mode (gcp). Default: $AILANG_CHAINS_READ")
+	remote := fs.String("remote", "", "Read from this observatory storage mode (gcp). Default: the plane's observatory store ($AILANG_STORAGE_OBSERVATORY, else $AILANG_STORAGE)")
 	fs.Parse(flag.Args()[2:])
 
 	// Connect to observatory database

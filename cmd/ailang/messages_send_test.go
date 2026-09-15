@@ -215,10 +215,14 @@ func TestWarnIfFiledButUndispatchable(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Setenv("AILANG_MESSAGES_STORE", tc.store)
+			clearMessagesEnv(t)
+			// hybrid is a plane value; local and gcp are per-store values.
+			if tc.store == "hybrid" {
+				t.Setenv("AILANG_STORAGE", tc.store)
+			} else {
+				t.Setenv("AILANG_STORAGE_MESSAGING", tc.store)
+			}
 			t.Setenv("AILANG_MESSAGES_PROJECT", tc.project)
-			t.Setenv("AILANG_STORAGE", "")
-			t.Setenv("AILANG_CLOUD_PROJECT", "")
 
 			out := captureStderr(t, func() {
 				warnIfFiledButUndispatchable("pkg:sunholo/ailang_parse", tc.notified)
@@ -272,10 +276,9 @@ func TestTopicPrefixForProject(t *testing.T) {
 // coordinator was never told and the task never ran. Notifying a project you did
 // not write to is never correct, so the store wins.
 func TestNotifyConfigForStoreFollowsStore(t *testing.T) {
-	t.Setenv("AILANG_MESSAGES_STORE", "gcp")
+	clearMessagesEnv(t)
+	t.Setenv("AILANG_STORAGE_MESSAGING", "gcp")
 	t.Setenv("AILANG_MESSAGES_PROJECT", "ailang-multivac-dev")
-	t.Setenv("AILANG_STORAGE", "")
-	t.Setenv("AILANG_CLOUD_PROJECT", "")
 
 	in := &messaging.PubSubConfig{Enabled: true, ProjectID: "ailang-multivac", TopicPrefix: "ailang"}
 	out := notifyConfigForStore(in)
@@ -295,10 +298,8 @@ func TestNotifyConfigForStoreFollowsStore(t *testing.T) {
 // TestNotifyConfigForStoreLeavesLocalAlone: a local store needs no notification
 // and must not have its config rewritten.
 func TestNotifyConfigForStoreLeavesLocalAlone(t *testing.T) {
-	t.Setenv("AILANG_MESSAGES_STORE", "local")
-	t.Setenv("AILANG_MESSAGES_PROJECT", "")
-	t.Setenv("AILANG_STORAGE", "")
-	t.Setenv("AILANG_CLOUD_PROJECT", "")
+	clearMessagesEnv(t)
+	t.Setenv("AILANG_STORAGE_MESSAGING", "local")
 
 	in := &messaging.PubSubConfig{Enabled: true, ProjectID: "ailang-multivac", TopicPrefix: "ailang"}
 	if out := notifyConfigForStore(in); out != in {

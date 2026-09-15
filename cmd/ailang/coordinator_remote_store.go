@@ -3,10 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/coordinator"
 	"github.com/sunholo-data/ailang/internal/messaging"
 	"github.com/sunholo-data/ailang/internal/observatory"
@@ -37,19 +37,38 @@ type coordinatorStoreBundle struct {
 	Close      func()
 }
 
+// coordinatorPlane resolves the plane the coordinator commands act on:
+// --remote when given, else the coordinator store's mode from the ONE plane
+// switch (AILANG_STORAGE, or AILANG_STORAGE_COORDINATOR for this store
+// alone — the scoped AILANG_COORDINATOR_REMOTE this replaced is a hard error
+// naming it). The source is returned so the caller can print it.
+func coordinatorPlane(remoteFlag string) (mode string, source config.Source, err error) {
+	if remoteFlag != "" {
+		if _, err := config.ParsePlane(remoteFlag); err != nil {
+			return "", "", err
+		}
+		return remoteFlag, "--remote", nil
+	}
+	sel, err := config.StoragePlane()
+	if err != nil {
+		return "", "", err
+	}
+	if sel.Coordinator.Source != sel.PlaneSource {
+		return string(sel.Coordinator.Mode), sel.Coordinator.Source, nil
+	}
+	return string(sel.Plane), sel.PlaneSource, nil
+}
+
 // openCoordinatorStore resolves which coordinator the command should act on.
 //
-// Precedence: --remote, then $AILANG_COORDINATOR_REMOTE, then
-// $AILANG_STORAGE, then local. The mode is RETURNED so every caller can print
-// it: a command that mutates approvals must say which plane it is mutating,
-// because "approved" against the wrong store looks exactly like success.
+// Precedence: --remote, then the plane (see coordinatorPlane), then local.
+// The mode is RETURNED so every caller can print it: a command that mutates
+// approvals must say which plane it is mutating, because "approved" against
+// the wrong store looks exactly like success.
 func openCoordinatorStore(ctx context.Context, remoteFlag, stateDir string) (*coordinatorStoreBundle, error) {
-	mode := remoteFlag
-	if mode == "" {
-		mode = os.Getenv("AILANG_COORDINATOR_REMOTE")
-	}
-	if mode == "" {
-		mode = os.Getenv("AILANG_STORAGE")
+	mode, _, err := coordinatorPlane(remoteFlag)
+	if err != nil {
+		return nil, err
 	}
 
 	if mode == "" || storage.Mode(mode) == storage.ModeLocal {
@@ -97,7 +116,10 @@ func openCoordinatorStore(ctx context.Context, remoteFlag, stateDir string) (*co
 // plane, either with --remote or through the environment.
 //
 // It is a pre-parse check because the local approve path has its own hand-rolled
-// argument loop; routing has to happen before that consumes the flags.
+// argument loop; routing has to happen before that consumes the flags. An
+// environment that does not resolve (a retired selector, an unknown value)
+// counts as remote so the command reaches openCoordinatorStore and fails with
+// the real error instead of silently acting on local SQLite.
 func remoteCoordinatorSelected(args []string) bool {
 	for i, a := range args {
 		if a == "--remote" && i+1 < len(args) {
@@ -108,10 +130,9 @@ func remoteCoordinatorSelected(args []string) bool {
 			return storage.Mode(v) != storage.ModeLocal && v != ""
 		}
 	}
-	for _, env := range []string{"AILANG_COORDINATOR_REMOTE", "AILANG_STORAGE"} {
-		if v := os.Getenv(env); v != "" && storage.Mode(v) != storage.ModeLocal {
-			return true
-		}
+	mode, _, err := coordinatorPlane("")
+	if err != nil {
+		return true
 	}
-	return false
+	return mode != "" && storage.Mode(mode) != storage.ModeLocal
 }

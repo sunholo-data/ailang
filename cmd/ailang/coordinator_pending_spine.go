@@ -8,7 +8,7 @@ import (
 
 // printApprovalsInboxPending lists unread approval_request messages from the
 // `approvals` inbox on the CANONICAL message store (honors
-// AILANG_MESSAGES_STORE), with provenance per row. Best-effort: a store error
+// AILANG_STORAGE_MESSAGING), with provenance per row. Best-effort: a store error
 // is printed, never silently dropped — an unreachable spine must not read as
 // an empty one.
 //

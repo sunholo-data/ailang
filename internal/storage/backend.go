@@ -1,8 +1,16 @@
-// Package storage provides a unified backend selector for all AILANG databases.
-// It enables pluggable storage backends via the AILANG_STORAGE environment variable:
-//   - "local" (default): SQLite databases on local filesystem
-//   - "gcp": Firestore (coordinator + messaging) + BigQuery (observatory)
-//   - "hybrid": SQLite for coordinator/messaging, BigQuery for observatory
+// Package storage opens the three AILANG databases — coordinator, messaging,
+// observatory — where the ONE plane switch says they live.
+//
+// Which store lives where is decided in internal/config (StoragePlane):
+// AILANG_STORAGE=local|gcp|hybrid, with AILANG_STORAGE_{MESSAGING,
+// COORDINATOR,OBSERVATORY}=local|gcp moving one store. This package reads
+// no environment itself; it opens what the resolved selection says, one
+// store at a time, so a per-store override and a whole plane go through the
+// same code (M-V1-SIMPLIFY-S3 M3).
+//
+//   - local: SQLite under statedir.Dir()
+//   - gcp:   Firestore in the cloud project
+//   - hybrid: every store in SQLite, on the shared plane (project required)
 package storage
 
 import (
@@ -19,13 +27,20 @@ import (
 	fsstore "github.com/sunholo-data/ailang/internal/storage/firestore"
 )
 
-// Mode represents the storage backend mode.
-type Mode string
+// Mode is a plane value: local, gcp or hybrid. It is config.Plane under the
+// name this package's callers have always used.
+type Mode = config.Plane
 
+// The planes.
 const (
-	ModeLocal  Mode = "local"
-	ModeGCP    Mode = "gcp"
-	ModeHybrid Mode = "hybrid"
+	ModeLocal  = config.PlaneLocal
+	ModeGCP    = config.PlaneGCP
+	ModeHybrid = config.PlaneHybrid
+	// ModeInvalid is what GetMode returns when the environment does not
+	// resolve — a retired selector is set, or a value is unknown. It is never
+	// equal to ModeLocal, so a caller that branches on "not local" reaches
+	// NewBackends, which returns the real error.
+	ModeInvalid Mode = "invalid"
 )
 
 // Backends holds all three database backends used by AILANG services.
@@ -33,6 +48,13 @@ type Backends struct {
 	Coordinator coordinator.Store
 	Messaging   messaging.MessageStore
 	Observatory observatory.Backend
+
+	// Selection is what was opened, per store, with sources — for status
+	// lines and logs.
+	Selection config.Storage
+	// Project is the cloud project the Firestore stores use ("" when none
+	// was needed).
+	Project string
 }
 
 // Close closes all backends.
@@ -56,198 +78,190 @@ func (b *Backends) Close() error {
 	return firstErr
 }
 
-// GetMode reads the AILANG_STORAGE environment variable and returns the storage mode.
-// Returns ModeLocal if unset or empty.
+// GetMode returns the resolved plane, or ModeInvalid when the environment
+// does not resolve (the error surfaces from NewBackends).
 func GetMode() Mode {
-	mode := Mode(os.Getenv("AILANG_STORAGE"))
-	switch mode {
-	case ModeLocal, ModeGCP, ModeHybrid:
-		return mode
-	case "":
-		return ModeLocal
-	default:
-		return mode // Will be caught by NewBackends validation
+	s, err := config.StoragePlane()
+	if err != nil {
+		return ModeInvalid
 	}
+	return s.Plane
 }
 
-// NewBackends creates all three backends based on the AILANG_STORAGE environment variable.
+// NewBackends opens all three stores as the environment selects them.
 func NewBackends(ctx context.Context) (*Backends, error) {
-	return NewBackendsForMode(ctx, GetMode())
-}
-
-// NewBackendsForMode resolves an EXPLICIT mode instead of reading the process-wide
-// AILANG_STORAGE. It exists so a caller can open a SECOND set of backends alongside
-// its own — the mission loop dual-writes its telemetry to a remote observatory while
-// its coordinator and messaging stay local (M-MISSION-LOOP-UNIFIED-TELEMETRY M3).
-//
-// This is the same resolution NewBackends performs, factored out — deliberately NOT
-// a second local/gcp/hybrid selector, since two selectors drift.
-func NewBackendsForMode(ctx context.Context, mode Mode) (*Backends, error) {
-	switch mode {
-	case ModeLocal, "":
-		return NewSQLiteBackends()
-	case ModeGCP, ModeHybrid:
-		project, err := config.CloudProject(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("AILANG_STORAGE=%s: %w", mode, err)
-		}
-		return NewBackendsForModeProject(ctx, mode, project)
-	default:
-		return nil, fmt.Errorf("unknown AILANG_STORAGE mode: %q (valid: local, gcp, hybrid)", mode)
-	}
-}
-
-// NewBackendsForModeProject is NewBackendsForMode with the cloud project
-// supplied by the caller instead of resolved through config.CloudProject. It
-// exists for the one caller that discovers the project by a wider search than
-// the resolver performs (`ailang coordinator --remote`, which also accepts the
-// messaging plane's pin) and used to hand the answer down by mutating the
-// process environment. Plumbing it is the honest alternative.
-func NewBackendsForModeProject(ctx context.Context, mode Mode, project string) (*Backends, error) {
-	switch mode {
-	case ModeLocal, "":
-		return NewSQLiteBackends()
-	case ModeGCP:
-		return NewGCPBackendsForProject(ctx, project)
-	case ModeHybrid:
-		return NewHybridBackendsForProject(ctx, project)
-	default:
-		return nil, fmt.Errorf("unknown AILANG_STORAGE mode: %q (valid: local, gcp, hybrid)", mode)
-	}
-}
-
-// NewSQLiteBackends creates all three backends using local SQLite databases
-// under statedir.Dir().
-func NewSQLiteBackends() (*Backends, error) {
-	dir, err := statedir.Dir()
+	sel, err := config.StoragePlane()
 	if err != nil {
 		return nil, err
 	}
-
-	// Ensure state directory exists
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create state directory %s: %w", dir, err)
-	}
-
-	// 1. Coordinator store
-	coordStore, err := coordinator.NewSQLiteStore(filepath.Join(dir, "coordinator.db"))
-	if err != nil {
-		return nil, fmt.Errorf("failed to open coordinator store: %w", err)
-	}
-
-	// 2. Messaging store
-	msgStore, err := messaging.OpenStore(filepath.Join(dir, "collaboration.db"))
-	if err != nil {
-		coordStore.Close()
-		return nil, fmt.Errorf("failed to open messaging store: %w", err)
-	}
-
-	// 3. Observatory backend
-	obsBackend, err := observatory.NewSQLiteBackendFromPath(filepath.Join(dir, "observatory.db"))
-	if err != nil {
-		coordStore.Close()
-		msgStore.Close()
-		return nil, fmt.Errorf("failed to open observatory backend: %w", err)
-	}
-
-	return &Backends{
-		Coordinator: coordStore,
-		Messaging:   msgStore,
-		Observatory: obsBackend,
-	}, nil
+	return NewBackendsForSelection(ctx, sel, "")
 }
 
-// NewGCPBackends creates all three backends using GCP services (Firestore)
-// in the project config.CloudProject resolves.
-func NewGCPBackends(ctx context.Context) (*Backends, error) {
-	project, err := config.CloudProject(ctx)
+// NewBackendsForMode opens the stores for an EXPLICIT plane, ignoring the
+// environment's plane and overrides. It exists so a caller can open a
+// SECOND set of backends alongside its own — the mission loop dual-writes
+// its telemetry to a remote observatory while its coordinator and messaging
+// stay local (M-MISSION-LOOP-UNIFIED-TELEMETRY M3). Same resolution, not a
+// second selector.
+func NewBackendsForMode(ctx context.Context, mode Mode) (*Backends, error) {
+	plane, err := config.ParsePlane(string(mode))
 	if err != nil {
-		return nil, fmt.Errorf("AILANG_STORAGE=gcp: %w", err)
+		return nil, err
 	}
-	return NewGCPBackendsForProject(ctx, project)
+	return NewBackendsForSelection(ctx, config.StorageForPlane(plane), "")
+}
+
+// NewBackendsForModeProject is NewBackendsForMode with the cloud project
+// supplied by the caller instead of resolved through config.CloudProject —
+// for the one caller that discovers the project by a wider search than the
+// resolver performs (`ailang coordinator --remote`, which also accepts the
+// messaging plane's pin).
+func NewBackendsForModeProject(ctx context.Context, mode Mode, project string) (*Backends, error) {
+	plane, err := config.ParsePlane(string(mode))
+	if err != nil {
+		return nil, err
+	}
+	return NewBackendsForSelection(ctx, config.StorageForPlane(plane), project)
+}
+
+// NewBackendsForSelection opens each store where sel says it lives. The
+// project is needed when any store is in Firestore or the plane is shared
+// (hybrid: the project is what the Pub/Sub publisher needs); an empty
+// project is resolved through config.CloudProject, and a plane that needs
+// one and has none is config.ErrNoCloudProject.
+func NewBackendsForSelection(ctx context.Context, sel config.Storage, project string) (*Backends, error) {
+	if sel.AnyGCP() || sel.Shared() {
+		if project == "" {
+			p, err := config.CloudProject(ctx)
+			if err != nil {
+				return nil, fmt.Errorf("%s=%s: %w", config.EnvStorage, sel.Plane, err)
+			}
+			project = p
+		}
+	}
+
+	b := &Backends{Selection: sel, Project: project}
+	var dir string
+	if sel.Messaging.Mode == config.StoreLocal || sel.Coordinator.Mode == config.StoreLocal || sel.Observatory.Mode == config.StoreLocal {
+		d, err := localStateDir()
+		if err != nil {
+			return nil, err
+		}
+		dir = d
+	}
+	var fsClient *fsstore.Client
+	if sel.AnyGCP() {
+		c, err := fsstore.NewClientForProject(ctx, project)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create Firestore client (project: %s): %w", project, err)
+		}
+		fsClient = c
+	}
+
+	// 1. Coordinator
+	switch sel.Coordinator.Mode {
+	case config.StoreGCP:
+		cs := fsstore.NewCoordinatorStore(fsClient)
+		cs.StartCostSync(ctx)
+		b.Coordinator = cs
+	default:
+		cs, err := coordinator.NewSQLiteStore(filepath.Join(dir, "coordinator.db"))
+		if err != nil {
+			return nil, fmt.Errorf("failed to open coordinator store: %w", err)
+		}
+		b.Coordinator = cs
+	}
+
+	// 2. Messaging
+	switch sel.Messaging.Mode {
+	case config.StoreGCP:
+		b.Messaging = fsstore.NewMessagingStore(fsClient)
+	default:
+		ms, err := messaging.OpenStore(filepath.Join(dir, "collaboration.db"))
+		if err != nil {
+			_ = b.Coordinator.Close()
+			return nil, fmt.Errorf("failed to open messaging store: %w", err)
+		}
+		b.Messaging = ms
+	}
+
+	// 3. Observatory
+	switch sel.Observatory.Mode {
+	case config.StoreGCP:
+		b.Observatory = fsstore.NewObservatoryStore(fsClient)
+	default:
+		ob, err := observatory.NewSQLiteBackendFromPath(filepath.Join(dir, "observatory.db"))
+		if err != nil {
+			_ = b.Coordinator.Close()
+			_ = b.Messaging.Close()
+			return nil, fmt.Errorf("failed to open observatory backend: %w", err)
+		}
+		b.Observatory = ob
+	}
+	return b, nil
+}
+
+// localStateDir resolves and creates the directory the SQLite stores live in.
+func localStateDir() (string, error) {
+	dir, err := statedir.Dir()
+	if err != nil {
+		return "", err
+	}
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create state directory %s: %w", dir, err)
+	}
+	return dir, nil
+}
+
+// LocalPath is the SQLite file a store uses under the local plane, or ""
+// when no state directory resolves — for status output.
+func LocalPath(store config.StoreName) string {
+	dir, err := statedir.Dir()
+	if err != nil {
+		return ""
+	}
+	switch store {
+	case config.StoreMessaging:
+		return filepath.Join(dir, "collaboration.db")
+	case config.StoreCoordinator:
+		return filepath.Join(dir, "coordinator.db")
+	default:
+		return filepath.Join(dir, "observatory.db")
+	}
+}
+
+// NewSQLiteBackends opens all three stores in local SQLite under
+// statedir.Dir(), whatever the environment says — the migration source.
+func NewSQLiteBackends() (*Backends, error) {
+	return NewBackendsForSelection(context.Background(), config.StorageForPlane(config.PlaneLocal), "")
+}
+
+// NewGCPBackends opens all three stores in Firestore in the project
+// config.CloudProject resolves — the migration destination.
+func NewGCPBackends(ctx context.Context) (*Backends, error) {
+	return NewBackendsForSelection(ctx, config.StorageForPlane(config.PlaneGCP), "")
 }
 
 // NewGCPBackendsForProject is NewGCPBackends for an explicit project.
 func NewGCPBackendsForProject(ctx context.Context, project string) (*Backends, error) {
 	if project == "" {
-		return nil, fmt.Errorf("AILANG_STORAGE=gcp: %w", config.ErrNoCloudProject)
+		return nil, fmt.Errorf("%s=gcp: %w", config.EnvStorage, config.ErrNoCloudProject)
 	}
-
-	// Firestore client (shared by coordinator and messaging)
-	fsClient, err := fsstore.NewClientForProject(ctx, project)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create Firestore client (project: %s): %w", project, err)
-	}
-
-	// 1. Coordinator → Firestore
-	coordStore := fsstore.NewCoordinatorStore(fsClient)
-	coordStore.StartCostSync(ctx)
-
-	// 2. Messaging → Firestore
-	msgStore := fsstore.NewMessagingStore(fsClient)
-
-	// 3. Observatory → Firestore
-	obsBackend := fsstore.NewObservatoryStore(fsClient)
-
-	return &Backends{
-		Coordinator: coordStore,
-		Messaging:   msgStore,
-		Observatory: obsBackend,
-	}, nil
+	return NewBackendsForSelection(ctx, config.StorageForPlane(config.PlaneGCP), project)
 }
 
-// NewHybridBackends creates a hybrid setup: SQLite for coordinator/messaging,
-// BigQuery for observatory (analytics scale), in the project
-// config.CloudProject resolves.
+// NewHybridBackends opens every store in SQLite on the shared plane: the
+// project config.CloudProject resolves is required even though no store
+// uses it here, because hybrid is what the coordinator's Pub/Sub publisher
+// and the secret approver key on.
 func NewHybridBackends(ctx context.Context) (*Backends, error) {
-	project, err := config.CloudProject(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("AILANG_STORAGE=hybrid: %w", err)
-	}
-	return NewHybridBackendsForProject(ctx, project)
+	return NewBackendsForSelection(ctx, config.StorageForPlane(config.PlaneHybrid), "")
 }
 
 // NewHybridBackendsForProject is NewHybridBackends for an explicit project.
-func NewHybridBackendsForProject(_ context.Context, project string) (*Backends, error) {
+func NewHybridBackendsForProject(ctx context.Context, project string) (*Backends, error) {
 	if project == "" {
-		return nil, fmt.Errorf("AILANG_STORAGE=hybrid: %w", config.ErrNoCloudProject)
+		return nil, fmt.Errorf("%s=hybrid: %w", config.EnvStorage, config.ErrNoCloudProject)
 	}
-
-	dir, err := statedir.Dir()
-	if err != nil {
-		return nil, err
-	}
-
-	// Ensure state directory exists
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create state directory %s: %w", dir, err)
-	}
-
-	// Coordinator and messaging: local SQLite (fast writes)
-	coordStore, err := coordinator.NewSQLiteStore(filepath.Join(dir, "coordinator.db"))
-	if err != nil {
-		return nil, fmt.Errorf("failed to open coordinator store: %w", err)
-	}
-
-	msgStore, err := messaging.OpenStore(filepath.Join(dir, "collaboration.db"))
-	if err != nil {
-		coordStore.Close()
-		return nil, fmt.Errorf("failed to open messaging store: %w", err)
-	}
-
-	// Observatory: BigQuery (analytics scale)
-	// TODO: Implement BigQuery observatory backend (M4)
-	// For now, fall back to SQLite
-	obsBackend, err := observatory.NewSQLiteBackendFromPath(filepath.Join(dir, "observatory.db"))
-	if err != nil {
-		coordStore.Close()
-		msgStore.Close()
-		return nil, fmt.Errorf("failed to open observatory backend: %w", err)
-	}
-
-	return &Backends{
-		Coordinator: coordStore,
-		Messaging:   msgStore,
-		Observatory: obsBackend,
-	}, nil
+	return NewBackendsForSelection(ctx, config.StorageForPlane(config.PlaneHybrid), project)
 }

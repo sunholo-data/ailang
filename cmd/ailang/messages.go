@@ -45,10 +45,20 @@ func (d *humanDuration) Set(s string) error {
 }
 
 // messagesCommand handles the 'messages' (alias: 'msg') subcommand.
-// The store is selected by messagesTarget: the canonical cloud store when
-// AILANG_MESSAGES_STORE=gcp, otherwise this machine's local collaboration.db.
-// Both are also readable by the Collaboration Hub dashboard.
+// The store is selected by messagesTarget: the messaging store of the ONE
+// storage plane (AILANG_STORAGE, overridable for this store alone with
+// AILANG_STORAGE_MESSAGING=gcp), so the canonical cloud inbox or this
+// machine's local collaboration.db. Both are also readable by the
+// Collaboration Hub dashboard.
 func messagesCommand() {
+	// The plane must resolve before any subcommand touches a store: a retired
+	// selector (AILANG_MESSAGES_STORE) or an unknown value is a hard error
+	// here, not a silent local read.
+	if _, err := resolveMessagesTarget(); err != nil {
+		fmt.Fprintf(os.Stderr, "%s %v\n", red("Error:"), err)
+		os.Exit(2)
+	}
+
 	// Initialize telemetry (traces exported if GOOGLE_CLOUD_PROJECT or OTEL_EXPORTER_OTLP_ENDPOINT set)
 	ctx := context.Background()
 	shutdownTelemetry, err := otelplatform.Init(ctx, "ailang-messages")
@@ -121,41 +131,57 @@ func messagesCommand() {
 // messagesTarget resolves WHICH message store the inbox commands talk to, and in
 // which project, WITHOUT moving this process's coordinator or observatory backends.
 //
-// AILANG_STORAGE is a process-wide switch over all three backends, so a machine that
-// wants its inbox on the shared cloud store but its eval banking and coordinator state
-// local could not express that with AILANG_STORAGE alone — the only way to reach the
-// canonical inbox was to move everything, which is why the docs said "never export it".
-// AILANG_MESSAGES_STORE is the scoped selector for messaging, the same shape
-// AILANG_CHAINS_READ already provides for the observatory (see openChainsReadBackend).
+// The messaging store follows the ONE plane switch: AILANG_STORAGE for every
+// store, or AILANG_STORAGE_MESSAGING=local|gcp for this one alone — which is
+// how a machine keeps its eval banking and coordinator state local while its
+// inbox is the shared cloud store (M-V1-SIMPLIFY-S3 M3; the scoped
+// AILANG_MESSAGES_STORE this replaced is a hard error naming it).
 //
-// Resolution order (first non-empty wins):
+// Resolution (first non-empty wins):
 //
-//	mode:    AILANG_MESSAGES_STORE > AILANG_STORAGE > "local"
-//	project: AILANG_MESSAGES_PROJECT > AILANG_CLOUD_PROJECT
+//	store:   AILANG_STORAGE_MESSAGING > AILANG_STORAGE > local
+//	project: AILANG_MESSAGES_PROJECT > config.CloudProject
 //
-// Only "gcp" reaches Firestore; "hybrid" keeps messaging in SQLite, matching
-// storage.NewHybridBackends.
+// Only gcp reaches Firestore; hybrid keeps messaging in SQLite, matching
+// storage.NewHybridBackends. The plane value is returned (not the per-store
+// mode) so callers that print "hybrid" keep doing so.
+//
+// It cannot fail after messagesCommand's up-front check; any other entry
+// point that reaches it with an unresolvable plane exits with the error
+// rather than reading a store the operator did not name.
 func messagesTarget() (storage.Mode, string) {
-	mode := os.Getenv("AILANG_MESSAGES_STORE")
-	if mode == "" {
-		mode = os.Getenv("AILANG_STORAGE")
+	t, err := resolveMessagesTarget()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s %v\n", red("Error:"), err)
+		os.Exit(2)
+	}
+	return t.mode, t.project
+}
+
+// messagesTargetResolution is what resolveMessagesTarget returns.
+type messagesTargetResolution struct {
+	mode    storage.Mode // the plane value the messaging store follows
+	store   config.StoreSelection
+	project string
+}
+
+func resolveMessagesTarget() (messagesTargetResolution, error) {
+	sel, err := config.StoragePlane()
+	if err != nil {
+		return messagesTargetResolution{}, err
 	}
 	project := os.Getenv("AILANG_MESSAGES_PROJECT")
-	if project == "" {
+	if project == "" && sel.Messaging.Mode == config.StoreGCP {
 		// The messaging pin wins; otherwise the one cloud-project resolver.
 		// An unresolvable project is "" here and openStore names what to set.
 		project, _ = config.CloudProject(context.Background())
 	}
-	switch storage.Mode(mode) {
-	case storage.ModeGCP, storage.ModeHybrid:
-		return storage.Mode(mode), project
-	case storage.ModeLocal, "":
-		return storage.ModeLocal, project
-	default:
-		// Unknown value: refuse rather than silently reading the wrong store.
-		// openStore turns this into an error naming the offending value.
-		return storage.Mode(mode), project
+	mode := sel.Plane
+	if sel.Messaging.Source != sel.PlaneSource {
+		// A per-store override: report the store's own mode, not the plane's.
+		mode = storage.Mode(sel.Messaging.Mode)
 	}
+	return messagesTargetResolution{mode: mode, store: sel.Messaging, project: project}, nil
 }
 
 // openStore opens the message store selected by messagesTarget.
@@ -168,23 +194,23 @@ func messagesTarget() (storage.Mode, string) {
 // storage.NewGCPBackends also constructs a coordinator store and starts its
 // background cost-sync goroutine, which a one-shot `messages list` has no use for.
 func openStore() (messaging.MessageStore, error) {
-	mode, project := messagesTarget()
-
-	switch mode {
-	case storage.ModeLocal, storage.ModeHybrid:
-		// Both keep messaging in SQLite.
-		return messaging.OpenStore(messaging.GetDefaultDatabasePath())
-	case storage.ModeGCP:
-		if project == "" {
-			return nil, fmt.Errorf("openStore: AILANG_MESSAGES_PROJECT or AILANG_CLOUD_PROJECT must be set for gcp message store")
+	t, err := resolveMessagesTarget()
+	if err != nil {
+		return nil, fmt.Errorf("openStore: %w", err)
+	}
+	switch t.store.Mode {
+	case config.StoreGCP:
+		if t.project == "" {
+			return nil, fmt.Errorf("openStore: AILANG_MESSAGES_PROJECT or AILANG_CLOUD_PROJECT must be set for the gcp message store (%s via %s)", t.store.Mode, t.store.Source)
 		}
-		client, err := fsstore.NewClientForProject(context.Background(), project)
+		client, err := fsstore.NewClientForProject(context.Background(), t.project)
 		if err != nil {
 			return nil, fmt.Errorf("openStore: %w", err)
 		}
 		return fsstore.NewMessagingStore(client), nil
 	default:
-		return nil, fmt.Errorf("openStore: unknown message store mode %q (valid: local, gcp, hybrid)", string(mode))
+		// local and hybrid both keep messaging in SQLite.
+		return messaging.OpenStore(messaging.GetDefaultDatabasePath())
 	}
 }
 
@@ -193,9 +219,12 @@ func openStore() (messaging.MessageStore, error) {
 // a stale dev graveyard for the canonical inbox — the failure that made prod
 // feedback invisible was indistinguishable from an empty inbox.
 func describeMessageStore() string {
-	mode, project := messagesTarget()
-	if mode == storage.ModeGCP {
-		return fmt.Sprintf("store: %s (Firestore, project %s)", mode, project)
+	t, err := resolveMessagesTarget()
+	if err != nil {
+		return ""
+	}
+	if t.store.Mode == config.StoreGCP {
+		return fmt.Sprintf("store: %s (Firestore, project %s, via %s)", t.store.Mode, t.project, t.store.Source)
 	}
 	return ""
 }

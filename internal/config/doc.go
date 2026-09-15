@@ -1,6 +1,25 @@
 // Package config is the one place AILANG resolves its cloud identity — which
-// GCP project and region a process acts on — and the one place a deprecated
-// production default is allowed to live while it is being retired.
+// GCP project and region a process acts on — the one place the storage plane
+// is chosen, the one loader of ~/.ailang/config.yaml, and the one place a
+// deprecated production default is allowed to live while it is being retired.
+//
+// # Storage plane (M-V1-SIMPLIFY-S3 M3)
+//
+// StoragePlane resolves AILANG_STORAGE=local|gcp|hybrid and the per-store
+// overrides AILANG_STORAGE_{MESSAGING,COORDINATOR,OBSERVATORY}=local|gcp into
+// one Storage value naming each store's mode AND its source. It is the only
+// reader of those variables; internal/storage opens what it says and `ailang
+// storage status` prints it per store. The retired selectors
+// AILANG_MESSAGES_STORE, AILANG_COORDINATOR_REMOTE, AILANG_CHAINS_READ and
+// AILANG_CHAINS_CLOUD are hard errors naming the replacement for one release.
+// CoordinatorMode reads COORDINATOR_MODE and refuses cloud on a plane whose
+// coordinator or messaging store is not in Firestore.
+//
+// # Config file
+//
+// Load parses the file named by AILANG_CONFIG, else ~/.ailang/config.yaml,
+// once per process per path (re-read when it changes on disk), and hands
+// sections to callers through File.Section. Nothing else opens the file.
 //
 // # Cloud project
 //
@@ -9,8 +28,7 @@
 //  1. AILANG_CLOUD_PROJECT
 //  2. GOOGLE_CLOUD_PROJECT (what Cloud Run, GKE and App Engine set)
 //  3. the pubsub.project_id key of ~/.ailang/config.yaml (or the file named by
-//     AILANG_CONFIG). Only that one key is read here; the full config loader
-//     is a later Phase 2.1 step and does not belong in a leaf.
+//     AILANG_CONFIG), read through Load.
 //  4. the GCE metadata server, with a short timeout, unless AILANG_NO_METADATA
 //     is set. The outcome is cached for the life of the process, so a laptop
 //     pays the timeout once, not per call.
@@ -39,8 +57,9 @@
 //
 // This package is the ONLY place that reads AILANG_CLOUD_PROJECT,
 // GOOGLE_CLOUD_PROJECT, AILANG_CLOUD_REGION, GOOGLE_CLOUD_REGION,
-// AILANG_STRICT_CONFIG, AILANG_NO_METADATA and AILANG_CONFIG. Every other
-// package calls in. A forbidigo rule will enforce that in Phase 2.14; until
+// AILANG_STRICT_CONFIG, AILANG_NO_METADATA, AILANG_CONFIG, AILANG_STORAGE,
+// AILANG_STORAGE_{MESSAGING,COORDINATOR,OBSERVATORY} and COORDINATOR_MODE.
+// Every other package calls in. A forbidigo rule will enforce that in Phase 2.14; until
 // then tools/simplicity_metrics.sh counts the leaks as getenv_outside_config.
 //
 // It is a leaf — standard library plus gopkg.in/yaml.v3 — so the store

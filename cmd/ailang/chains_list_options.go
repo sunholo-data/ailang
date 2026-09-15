@@ -30,7 +30,7 @@ func parseChainsListFlags(args []string, output io.Writer) (chainsListFlags, err
 	fs.IntVar(&options.Query.Offset, "offset", 0, "Skip this many matching chains (non-negative; newest first)")
 	fs.BoolVar(&options.JSON, "json", false, "Output as JSON")
 	fs.BoolVar(&options.FullIDs, "full", false, "Show full chain IDs (for copy-paste)")
-	fs.StringVar(&options.Remote, "remote", "", "Read from this observatory storage mode (gcp). Default: $AILANG_CHAINS_READ")
+	fs.StringVar(&options.Remote, "remote", "", "Read from this observatory storage mode (gcp). Default: the plane's observatory store ($AILANG_STORAGE_OBSERVATORY, else $AILANG_STORAGE)")
 	if err := fs.Parse(args); err != nil {
 		return options, err
 	}

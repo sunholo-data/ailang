@@ -29,11 +29,12 @@ package main
 // cost rollup.
 //
 // DUAL-WRITE (M3). The local store is always written. A node that also names a
-// remote one — `--cloud <mode>` or `AILANG_CHAINS_CLOUD=<mode>`, resolved through
-// internal/storage, the same selector `AILANG_STORAGE` uses — gets the iteration
-// written to BOTH, under the SAME chain and stage ids so spans carrying those ids
-// join either copy. The node is a parameter: nothing here assumes a particular
-// machine, and with no remote named the behaviour is exactly what it was.
+// remote one — `--cloud <mode>`, or a plane whose observatory store is in
+// Firestore (`AILANG_STORAGE=gcp` / `AILANG_STORAGE_OBSERVATORY=gcp`, the ONE
+// plane switch) — gets the iteration written to BOTH, under the SAME chain and
+// stage ids so spans carrying those ids join either copy. The node is a
+// parameter: nothing here assumes a particular machine, and with no remote named
+// the behaviour is exactly what it was.
 //
 // Each target keeps its OWN bounded spool. That is deliberate: sharing one would
 // let a long cloud outage evict local posts that were only waiting on a locked DB.
@@ -49,6 +50,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/mission"
 	"github.com/sunholo-data/ailang/internal/observatory"
 	"github.com/sunholo-data/ailang/internal/statedir"
@@ -90,7 +92,7 @@ func chainsPostIterationCommand() {
 	file := fs.String("file", "", "Read the iteration JSON from this file (default: stdin)")
 	spoolPath := fs.String("spool", "", "Override the spool path (default: ~/.ailang/state/chains-iteration-spool.jsonl)")
 	flushOnly := fs.Bool("flush-only", false, "Only flush any buffered spool; do not read a new post")
-	cloud := fs.String("cloud", "", "Also write to a remote observatory in this storage mode (gcp). Default: $AILANG_CHAINS_CLOUD")
+	cloud := fs.String("cloud", "", "Also write to a remote observatory in this storage mode (gcp). Default: gcp when $AILANG_STORAGE_OBSERVATORY (or $AILANG_STORAGE) is gcp")
 	fs.Parse(flag.Args()[2:])
 
 	spPath := *spoolPath
@@ -179,9 +181,13 @@ func openPostTargets(ctx context.Context, spPath, cloudFlag string) []*postTarge
 	}
 	targets := []*postTarget{local}
 
-	mode := cloudFlag
-	if mode == "" {
-		mode = os.Getenv("AILANG_CHAINS_CLOUD")
+	mode, err := chainsCloudMode(cloudFlag)
+	if err != nil {
+		// The remote target is named but not resolvable (a retired selector,
+		// an unknown value): keep the local write and spool the remote one
+		// under the error, so the post is neither lost nor silently local-only.
+		remote := &postTarget{name: "cloud", spool: observatory.NewSpool(cloudSpoolPath(spPath)), connErr: err}
+		return append(targets, remote)
 	}
 	if mode == "" {
 		return targets // no remote named: unchanged, offline-first behaviour
@@ -202,6 +208,27 @@ func openPostTargets(ctx context.Context, spPath, cloudFlag string) []*postTarge
 		remote.close = func() { _ = backends.Close() }
 	}
 	return append(targets, remote)
+}
+
+// chainsCloudMode resolves the dual-write target: --cloud when given, else
+// gcp when the plane's observatory store is in Firestore (AILANG_STORAGE=gcp
+// or AILANG_STORAGE_OBSERVATORY=gcp — the scoped AILANG_CHAINS_CLOUD this
+// replaced is a hard error naming it). "" means no remote target.
+func chainsCloudMode(cloudFlag string) (string, error) {
+	if cloudFlag != "" {
+		if _, err := config.ParsePlane(cloudFlag); err != nil {
+			return "", err
+		}
+		return cloudFlag, nil
+	}
+	sel, err := config.StoragePlane()
+	if err != nil {
+		return "", err
+	}
+	if sel.Observatory.Mode == config.StoreGCP {
+		return string(config.StoreGCP), nil
+	}
+	return "", nil
 }
 
 // checkRemoteIsElsewhere rejects a remote target that resolves to the SAME SQLite

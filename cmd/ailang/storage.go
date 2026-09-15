@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"time"
@@ -189,40 +190,68 @@ func storageVerify(args []string) error {
 	return nil
 }
 
+// storageStatus prints ONE line per store: the resolved mode, the variable
+// (or default) it came from, and the path or project it means. Before
+// M-V1-SIMPLIFY-S3 M3 this printed AILANG_STORAGE alone while four other
+// selectors could move a store elsewhere — the status could say "local"
+// while `ailang messages list` read Firestore.
 func storageStatus() error {
-	mode := storage.GetMode()
-	fmt.Println(bold("Storage Configuration"))
-	fmt.Printf("  Mode: %s\n", mode)
-	fmt.Printf("  Env:  AILANG_STORAGE=%s\n", os.Getenv("AILANG_STORAGE"))
+	return writeStorageStatus(os.Stdout)
+}
 
-	// Say where the answer came from: a project that resolved through the
-	// config file or the metadata server is the same fact as an env var, but
-	// the operator needs to know which one to change.
-	describeProject := func() string {
-		p, src, err := config.CloudProjectSource(context.Background())
-		if err != nil {
-			return fmt.Sprintf("(unresolved: %v)", err)
-		}
-		return fmt.Sprintf("%s (via %s)", p, src)
+func writeStorageStatus(w io.Writer) error {
+	sel, err := config.StoragePlane()
+	if err != nil {
+		return err
 	}
+	fmt.Fprintln(w, bold("Storage plane"))
+	fmt.Fprintf(w, "  plane  %-7s (%s)\n", sel.Plane, sel.PlaneSource)
+	fmt.Fprintln(w)
 
-	switch mode {
-	case storage.ModeLocal:
-		fmt.Println()
-		if dir, err := statedir.Dir(); err == nil {
-			fmt.Printf("  Using local SQLite databases in %s\n", dir)
+	// Resolve the project once, with its source, for the stores that need it.
+	// A plane that needs one and has none says so per store and still exits
+	// 0: status is a report, not a gate.
+	var project, projectSrc string
+	if sel.AnyGCP() || sel.Shared() {
+		p, src, perr := config.CloudProjectSource(context.Background())
+		if perr != nil {
+			project, projectSrc = "", perr.Error()
 		} else {
-			fmt.Printf("  Local SQLite databases: %v\n", err)
+			project, projectSrc = p, string(src)
 		}
-	case storage.ModeGCP:
-		fmt.Println()
-		fmt.Printf("  GCP Project: %s\n", describeProject())
-		fmt.Println("  All databases stored in Firestore")
-	case storage.ModeHybrid:
-		fmt.Println()
-		fmt.Printf("  GCP Project: %s\n", describeProject())
-		fmt.Println("  Coordinator/Messaging: local SQLite")
-		fmt.Println("  Observatory: GCP Firestore")
+	}
+	for _, st := range []config.StoreSelection{sel.Messaging, sel.Coordinator, sel.Observatory} {
+		var where string
+		switch st.Mode {
+		case config.StoreGCP:
+			if project == "" {
+				where = "project (unresolved: " + projectSrc + ")"
+			} else {
+				where = fmt.Sprintf("project %s (%s)", project, projectSrc)
+			}
+		default:
+			if p := storage.LocalPath(st.Store); p != "" {
+				where = p
+			} else if d, derr := statedir.Dir(); derr != nil {
+				where = "(unresolved: " + derr.Error() + ")"
+			} else {
+				where = d
+			}
+		}
+		fmt.Fprintf(w, "  %-12s %-6s (%s)  %s\n", st.Store, st.Mode, st.Source, where)
+	}
+	if sel.Plane == config.PlaneHybrid {
+		fmt.Fprintln(w)
+		if project != "" {
+			fmt.Fprintf(w, "  shared plane: project %s (%s) — Pub/Sub publisher and secret approver on; every store stays in SQLite\n", project, projectSrc)
+		} else {
+			fmt.Fprintf(w, "  shared plane: project unresolved (%s)\n", projectSrc)
+		}
+	}
+	if mode, src, merr := config.CoordinatorMode(); merr != nil {
+		fmt.Fprintf(w, "\n  %s %v\n", yellow("!"), merr)
+	} else if src != config.SourceDefault {
+		fmt.Fprintf(w, "\n  coordinator mode  %s  (%s)\n", mode, src)
 	}
 	return nil
 }

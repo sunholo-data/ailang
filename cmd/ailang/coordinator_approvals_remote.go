@@ -23,7 +23,7 @@ import (
 
 func coordinatorApprovalsCommand(args []string) error {
 	fs := flag.NewFlagSet("coordinator approvals", flag.ExitOnError)
-	remote := fs.String("remote", "", "plane: local|gcp (default $AILANG_COORDINATOR_REMOTE, then $AILANG_STORAGE)")
+	remote := fs.String("remote", "", "plane: local|gcp (default $AILANG_STORAGE_COORDINATOR, then $AILANG_STORAGE)")
 	stateDir := fs.String("state-dir", "", "local state dir (local mode only)")
 	full := fs.Bool("full", false, "print the whole diff rather than a summary")
 	clearOrphans := fs.Bool("clear-orphans", false, "cancel tasks awaiting an approval that does not exist")

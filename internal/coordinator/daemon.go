@@ -241,10 +241,19 @@ func NewDaemon(config *Config) (*Daemon, error) {
 		return nil, fmt.Errorf("failed to open log file: %w", err)
 	}
 
+	// The coordinator mode must agree with the storage plane before anything
+	// else starts: COORDINATOR_MODE=cloud with a SQLite coordinator or
+	// messaging store used to open the wrong database and publish to
+	// Pub/Sub about it (M-V1-SIMPLIFY-S3 M3).
+	if err := validateCoordinatorMode(); err != nil {
+		_ = logFile.Close()
+		return nil, err
+	}
+
 	// M-CLOUD-DISPATCH: In cloud mode, log to both file and stderr.
 	// Cloud Run only ingests stdout/stderr into Cloud Logging.
 	var writer io.Writer = logFile
-	if os.Getenv("COORDINATOR_MODE") == CoordinatorModeCloud {
+	if IsCloudMode() {
 		writer = io.MultiWriter(logFile, os.Stderr)
 	}
 	logger := log.New(writer, "[coordinator] ", log.LstdFlags|log.Lshortfile)
@@ -357,7 +366,7 @@ func (d *Daemon) Run() error {
 	// M-CLOUD-WEBHOOK: In cloud mode, use a longer poll interval (safety net only).
 	// Primary work arrives via push handlers and webhooks, not polling.
 	pollInterval := d.config.PollInterval
-	if os.Getenv("COORDINATOR_MODE") == CoordinatorModeCloud {
+	if IsCloudMode() {
 		pollInterval = 5 * time.Minute
 	}
 	ticker := time.NewTicker(pollInterval)
@@ -409,7 +418,7 @@ func (d *Daemon) Run() error {
 	}
 
 	// Initialize event broadcaster for real-time streaming
-	// COORDINATOR_MODE=cloud uses Pub/Sub, local (default) uses HTTP
+	// cloud mode uses Pub/Sub, local (default) uses HTTP
 	if err := d.initEventBroadcaster(); err != nil {
 		d.logger.Printf("Warning: Event broadcaster not available: %v", err)
 		d.logger.Println("Task streaming disabled - events will be logged only")
@@ -459,8 +468,7 @@ func (d *Daemon) Run() error {
 
 	// M-CLOUD-WEBHOOK: In cloud mode, GitHub webhooks replace polling goroutines.
 	// Local mode keeps polling as before.
-	mode := os.Getenv("COORDINATOR_MODE")
-	if mode != CoordinatorModeCloud {
+	if !IsCloudMode() {
 		// Local mode: start polling-based GitHub sync and approval watcher
 		if d.coordConfig != nil && d.coordConfig.GitHubSync != nil && d.coordConfig.GitHubSync.Enabled {
 			go d.runGitHubSync()
