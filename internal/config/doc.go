@@ -91,8 +91,9 @@
 // # The rule
 //
 // This package is the ONLY place that reads the environment, apart from
-// internal/testutil (test-lane opt-ins) and the DEBUG_* knobs. Every other
-// package calls in. tools/simplicity_metrics.sh counts the leaks as
+// internal/statedir (a stdlib-only leaf below this one; its AILANG_STATE_DIR
+// is registered here for the reference), internal/testutil (test-lane
+// opt-ins) and the DEBUG_* knobs. Every other package calls in. tools/simplicity_metrics.sh counts the leaks as
 // getenv_outside_config, and a forbidigo rule on os.Getenv/os.LookupEnv
 // enforces it in lint.
 //

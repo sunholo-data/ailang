@@ -1,8 +1,6 @@
 package telemetry
 
 import (
-	"os"
-
 	"github.com/sunholo-data/ailang/internal/config"
 )
 
@@ -13,7 +11,7 @@ import (
 // internal/platform/otel, which reads the same intent through these.
 
 // IsEnabled reports whether an OTLP endpoint is configured.
-func IsEnabled() bool { return os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT") != "" }
+func IsEnabled() bool { return config.OTLPEndpoint() != "" }
 
 // IsGoogleCloudEnabled reports whether a Cloud Trace project is configured.
 func IsGoogleCloudEnabled() bool { return GoogleCloudProject() != "" }

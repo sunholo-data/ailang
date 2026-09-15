@@ -6,7 +6,9 @@ import (
 	"path/filepath"
 )
 
-// EnvVar is the override honoured by Dir.
+// EnvVar is the override honoured by Dir. It is read HERE, not through
+// internal/config, because statedir is a stdlib-only leaf below config
+// (leaf_test.go); config registers the same name for the reference page.
 const EnvVar = "AILANG_STATE_DIR"
 
 // Dir returns the per-user state directory: $AILANG_STATE_DIR when set, else

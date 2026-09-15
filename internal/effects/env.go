@@ -18,7 +18,7 @@ func init() {
 // envGetEnv implements Env.getEnv(name: String) -> Result(String, EnvError)
 //
 // Retrieves an environment variable value from the immutable snapshot.
-// Respects allowlist if configured. Never accesses os.Getenv() directly.
+// Respects allowlist if configured. Never reads the live process environment.
 //
 // Parameters:
 //   - ctx: Effect context with EnvSnapshot and optional EnvAllowlist

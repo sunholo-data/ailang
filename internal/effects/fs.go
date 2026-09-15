@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/eval"
 	"github.com/sunholo-data/ailang/internal/trace"
 )
@@ -19,7 +20,7 @@ import (
 //     [ailang/sandbox] REJECT <op>(<path>) → escapes sandbox "<sandbox>" (returns <result>)
 //  2. AILANG_TRACE=deep + active trace collector → RecordEffect event tagged sandbox.reject
 func logSandboxReject(ctx *EffContext, op, attemptedPath, result string) {
-	if os.Getenv("AILANG_FS_SANDBOX_DEBUG") == "1" {
+	if config.FSSandboxDebug() {
 		fmt.Fprintf(os.Stderr, "[ailang/sandbox] REJECT %s(%q) → escapes sandbox %q (returns %s)\n",
 			op, attemptedPath, ctx.Env.Sandbox, result)
 	}

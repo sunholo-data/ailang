@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/core"
 	"github.com/sunholo-data/ailang/internal/dtree"
 	"github.com/sunholo-data/ailang/internal/types"
@@ -33,7 +34,7 @@ func (e *CoreEvaluator) evalCoreMatch(match *core.Match) (Value, error) {
 	// the dtree returns an error instead of falling through to the next arm.
 	// Also missing: list/record/tuple pattern support, guard backtracking.
 	// Enable with AILANG_DTREE=1 for experimentation (no guards in match).
-	useDecisionTree := os.Getenv("AILANG_DTREE") == "1"
+	useDecisionTree := config.DTree()
 	if useDecisionTree {
 		compiler := dtree.NewDecisionTreeCompiler(match.Arms)
 		tree := compiler.Compile()

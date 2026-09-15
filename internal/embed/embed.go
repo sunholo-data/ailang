@@ -29,6 +29,7 @@ import (
 	"sync"
 
 	"github.com/petermattis/goid"
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/eval"
 	"github.com/sunholo-data/ailang/internal/loader"
 	"github.com/sunholo-data/ailang/internal/pipeline"
@@ -64,8 +65,8 @@ func New(basePath string) *Engine {
 
 	// Set AILANG_STDLIB_PATH to basePath so stdlib modules can be found
 	// This is needed because the loader resolves stdlib relative to CWD by default
-	if os.Getenv("AILANG_STDLIB_PATH") == "" {
-		os.Setenv("AILANG_STDLIB_PATH", absBasePath)
+	if config.StdlibPath() == "" {
+		os.Setenv(config.EnvStdlibPath, absBasePath)
 	}
 
 	return &Engine{

@@ -1,9 +1,10 @@
 package effects
 
 import (
-	"os"
 	"regexp"
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // Redaction patterns for sensitive environment variable values
@@ -18,7 +19,7 @@ var (
 	}
 
 	// Redaction enabled by default (disable with AILANG_REDACT_ENV=off)
-	redactionEnabled = os.Getenv("AILANG_REDACT_ENV") != "off"
+	redactionEnabled = config.RedactEnv()
 )
 
 // RedactEnvValue redacts sensitive environment variable values

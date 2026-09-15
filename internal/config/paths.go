@@ -16,7 +16,7 @@ const (
 )
 
 var pathVars = []Var{
-	{EnvStateDir, "~/.ailang", AreaPaths, "Directory for every local store (SQLite databases, ledgers, locks); statedir.Dir cleans and returns it."},
+	{EnvStateDir, "~/.ailang", AreaPaths, "Directory for every local store (SQLite databases, ledgers, locks). Read by internal/statedir itself — a stdlib-only leaf that cannot import this package — and registered here so the reference lists it."},
 	{EnvCacheDir, "", AreaPaths, "Root of the compile cache (<dir>/compile) and the prompt cache; unset means <project>/.ailang/cache and $XDG_CACHE_HOME/ailang (else ~/.cache/ailang) respectively."},
 	{EnvStdlibPath, "", AreaPaths, "Path-list (OS separator) of stdlib roots searched before the bundled and installed copies; the embed engine sets it for child processes when unset."},
 	{EnvProjectRoot, "", AreaPaths, "Root the embed engine resolves module paths against; must contain the requested module or Load fails."},
@@ -28,10 +28,6 @@ var pathVars = []Var{
 	{EnvXDGDataHome, "", AreaPaths, "XDG data base on Linux/BSD; the installed stdlib lives under it (else ~/.local/share)."},
 	{EnvAppData, "", AreaPaths, "Windows application-data base; the installed stdlib lives under it."},
 }
-
-// StateDir returns AILANG_STATE_DIR uncleaned, "" when unset. statedir.Dir
-// is the resolver that applies the ~/.ailang default.
-func StateDir() string { return get(EnvStateDir) }
 
 // CacheDir returns AILANG_CACHE_DIR, "" when unset.
 func CacheDir() string { return get(EnvCacheDir) }

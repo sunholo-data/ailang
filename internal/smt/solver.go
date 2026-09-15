@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	ailangconfig "github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/proctree"
 )
 
@@ -78,7 +79,7 @@ func DefaultSolverConfig() SolverConfig {
 // Search order: AILANG_Z3_PATH env, PATH, common locations.
 func FindZ3() (string, error) {
 	// 1. Check AILANG_Z3_PATH environment variable
-	if envPath := os.Getenv("AILANG_Z3_PATH"); envPath != "" {
+	if envPath := ailangconfig.Z3Path(); envPath != "" {
 		if _, err := os.Stat(envPath); err == nil {
 			return envPath, nil
 		}
@@ -135,7 +136,7 @@ func Solve(smtlib string, config SolverConfig) (*SolverResult, error) {
 		return nil, fmt.Errorf("creating temp file: %w", err)
 	}
 	tmpPath := tmpFile.Name()
-	if os.Getenv("AILANG_DUMP_SMT") == "" {
+	if !ailangconfig.DumpSMT() {
 		defer os.Remove(tmpPath)
 	}
 

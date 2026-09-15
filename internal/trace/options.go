@@ -2,9 +2,9 @@ package trace
 
 import (
 	"fmt"
-	"os"
-	"strconv"
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // Tier controls how much detail the tracing emitter writes.
@@ -75,11 +75,7 @@ func DefaultTracingOptions() TracingOptions {
 		Tier:             TierStandard,
 		MaxSpansPerTrace: 500,
 	}
-	if v := os.Getenv("AILANG_TRACE_MAX_SPANS"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
-			opts.MaxSpansPerTrace = n
-		}
-	}
+	opts.MaxSpansPerTrace = config.TraceMaxSpans()
 	return opts
 }
 
@@ -92,10 +88,10 @@ func DefaultTracingOptions() TracingOptions {
 // Returns the resolved tier and a non-nil error only when AILANG_TRACE
 // is set to an unrecognized value.
 func TierFromEnv() (Tier, error) {
-	if v := os.Getenv("AILANG_TRACE"); v != "" {
+	if v := config.TraceTier(); v != "" {
 		return ParseTier(v)
 	}
-	if os.Getenv("AILANG_NO_TRACE") == "1" {
+	if config.NoTrace() {
 		return TierOff, nil
 	}
 	return TierStandard, nil
@@ -132,7 +128,7 @@ func (o TracingOptions) Enabled() bool {
 // a data leak, which is the wrong direction to fail.
 func ResolveValueMode(s string) (ValueMode, error) {
 	if s == "" {
-		if env := os.Getenv("AILANG_TRACE_VALUES"); env != "" {
+		if env := config.TraceValues(); env != "" {
 			s = env
 		}
 	}

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // Finding the tree that holds the AILANG modules a Go caller wants to run.
@@ -38,7 +40,7 @@ import (
 func ProjectRoot(modulePath string) (string, error) {
 	rel := filepath.FromSlash(modulePath) + ".ail"
 
-	if root := os.Getenv("AILANG_PROJECT_ROOT"); root != "" {
+	if root := config.ProjectRoot(); root != "" {
 		if _, err := os.Stat(filepath.Join(root, rel)); err != nil {
 			return "", fmt.Errorf("AILANG_PROJECT_ROOT=%q does not contain %s: %w", root, rel, err)
 		}

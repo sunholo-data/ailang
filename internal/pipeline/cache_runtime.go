@@ -6,6 +6,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 type cacheDependencies struct {
@@ -43,7 +45,7 @@ func newCacheRuntime(projectDir string, deps cacheDependencies) *cacheRuntime {
 }
 
 func cacheRootPath(projectDir string) string {
-	if override := os.Getenv("AILANG_CACHE_DIR"); override != "" {
+	if override := config.CacheDir(); override != "" {
 		return filepath.Join(override, "compile")
 	}
 	return filepath.Join(projectDir, ".ailang", "cache", "compile")
