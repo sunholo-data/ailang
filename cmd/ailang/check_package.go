@@ -12,6 +12,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/core"
 	"github.com/sunholo-data/ailang/internal/pipeline"
 	"github.com/sunholo-data/ailang/internal/pkg"
+	otelplatform "github.com/sunholo-data/ailang/internal/platform/otel"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -31,7 +32,7 @@ func checkPackageWithContext(dir string, strictSyntax bool, relaxModules bool, t
 
 	// Initialize telemetry
 	ctx := context.Background()
-	shutdownTelemetry, err := telemetry.Init(ctx, "ailang-check-package")
+	shutdownTelemetry, err := otelplatform.Init(ctx, "ailang-check-package")
 	if err != nil {
 		// Non-fatal: continue without telemetry
 	} else {

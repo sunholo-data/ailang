@@ -14,10 +14,10 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/approvaltoken"
 	"github.com/sunholo-data/ailang/internal/coordinator"
+	otelplatform "github.com/sunholo-data/ailang/internal/platform/otel"
 	"github.com/sunholo-data/ailang/internal/pubsub"
 	"github.com/sunholo-data/ailang/internal/server"
 	"github.com/sunholo-data/ailang/internal/storage"
-	"github.com/sunholo-data/ailang/internal/telemetry"
 )
 
 func serverCommand(args []string) error {
@@ -136,7 +136,7 @@ func serverCommand(args []string) error {
 
 	// Initialize OpenTelemetry (if configured via environment variables)
 	ctx := context.Background()
-	shutdownTelemetry, telemetryStatus, err := telemetry.InitWithStatus(ctx, "ailang-server")
+	shutdownTelemetry, telemetryStatus, err := otelplatform.InitWithStatus(ctx, "ailang-server")
 	if err != nil {
 		log.Printf("Warning: Failed to initialize OpenTelemetry: %v", err)
 	} else {

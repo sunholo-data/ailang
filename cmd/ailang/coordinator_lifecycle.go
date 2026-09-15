@@ -17,10 +17,10 @@ import (
 	"github.com/sunholo-data/ailang/internal/coordinator"
 	"github.com/sunholo-data/ailang/internal/dispatch/cloudrun"
 	"github.com/sunholo-data/ailang/internal/feedbackgate"
+	otelplatform "github.com/sunholo-data/ailang/internal/platform/otel"
 	"github.com/sunholo-data/ailang/internal/pubsub"
 	"github.com/sunholo-data/ailang/internal/storage"
 	fsstore "github.com/sunholo-data/ailang/internal/storage/firestore"
-	"github.com/sunholo-data/ailang/internal/telemetry"
 )
 
 func coordinatorStart(args []string) error {
@@ -66,7 +66,7 @@ func coordinatorStart(args []string) error {
 
 	// Initialize OpenTelemetry (if configured via environment variables)
 	ctx := context.Background()
-	shutdownTelemetry, telemetryStatus, err := telemetry.InitWithStatus(ctx, "ailang-coordinator")
+	shutdownTelemetry, telemetryStatus, err := otelplatform.InitWithStatus(ctx, "ailang-coordinator")
 	if err != nil {
 		fmt.Printf("  %s Warning: Failed to initialize OpenTelemetry: %v\n", yellow("!"), err)
 	} else {

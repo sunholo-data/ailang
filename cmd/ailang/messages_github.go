@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/messaging"
-	"github.com/sunholo-data/ailang/internal/telemetry"
+	otelplatform "github.com/sunholo-data/ailang/internal/platform/otel"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -20,7 +20,7 @@ import (
 func runMessagesImportGitHub(args []string) {
 	// Initialize telemetry (traces exported if GOOGLE_CLOUD_PROJECT or OTEL_EXPORTER_OTLP_ENDPOINT set)
 	ctx := context.Background()
-	shutdownTelemetry, err := telemetry.Init(ctx, "ailang-messages")
+	shutdownTelemetry, err := otelplatform.Init(ctx, "ailang-messages")
 	if err != nil {
 		// Non-fatal: continue without telemetry
 	} else {

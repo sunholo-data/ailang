@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sunholo-data/ailang/internal/telemetry"
+	otelplatform "github.com/sunholo-data/ailang/internal/platform/otel"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -49,12 +49,12 @@ func TestTelemetryExporterReceiverPreservesWorkProvenance(t *testing.T) {
 		otel.SetMeterProvider(oldMeters)
 		otel.SetTextMapPropagator(oldPropagation)
 	}()
-	shutdown, status, err := telemetry.InitWithStatus(ctx, "ailang-coordinator-fixture")
+	shutdown, status, err := otelplatform.InitWithStatus(ctx, "ailang-coordinator-fixture")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() { _ = shutdown(ctx) }()
-	if status.OTLPTraces != telemetry.ExporterRegistered {
+	if status.OTLPTraces != otelplatform.ExporterRegistered {
 		t.Fatalf("%+v", status)
 	}
 	provider := otel.GetTracerProvider().(*sdktrace.TracerProvider)

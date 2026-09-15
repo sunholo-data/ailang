@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	otelplatform "github.com/sunholo-data/ailang/internal/platform/otel"
 	"github.com/sunholo-data/ailang/internal/repl"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 )
@@ -14,7 +15,7 @@ import (
 func runREPL(learn bool, trace bool, strictSyntax bool) {
 	// Initialize telemetry (traces exported if GOOGLE_CLOUD_PROJECT or OTEL_EXPORTER_OTLP_ENDPOINT set)
 	ctx := context.Background()
-	shutdownTelemetry, err := telemetry.Init(ctx, "ailang-repl")
+	shutdownTelemetry, err := otelplatform.Init(ctx, "ailang-repl")
 	if err != nil {
 		// Non-fatal: continue without telemetry
 	} else {

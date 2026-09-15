@@ -25,10 +25,14 @@ func IsTraceRecordingEnabled() bool {
 	return traceRecordingEnabled
 }
 
-// Tracer returns an OTEL tracer for the given name.
-// This is a simple wrapper around otel.Tracer for consistency.
+// Tracer returns a tracer from the process-global OTel API provider
+// (otel.GetTracerProvider().Tracer(name)). With nothing registered that is the
+// API's built-in no-op; once internal/platform/otel has installed the SDK
+// provider from cmd, spans from the same call export. The lookup is per call,
+// so tracers obtained before registration still resolve to the real provider
+// afterwards (the global is a delegating provider).
 func Tracer(name string) trace.Tracer {
-	return otel.Tracer(name)
+	return otel.GetTracerProvider().Tracer(name)
 }
 
 // RecordSpan records a span name to TraceRegistry if recording is enabled.

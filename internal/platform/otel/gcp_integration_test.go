@@ -1,12 +1,13 @@
 //go:build integration
 
-package telemetry_test
+package otelplatform_test
 
 import (
 	"context"
 	"testing"
 	"time"
 
+	otelplatform "github.com/sunholo-data/ailang/internal/platform/otel"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -32,7 +33,7 @@ func TestGoogleCloudTrace_Integration(t *testing.T) {
 	ctx := context.Background()
 
 	// Initialize Google Cloud Trace
-	shutdown, err := telemetry.InitGoogleCloudTrace(ctx, "ailang-integration-test")
+	shutdown, err := otelplatform.InitGoogleCloudTrace(ctx, "ailang-integration-test")
 	if err != nil {
 		t.Fatalf("Failed to initialize Google Cloud Trace: %v", err)
 	}
@@ -87,7 +88,7 @@ func TestAIProviderTrace_Integration(t *testing.T) {
 	ctx := context.Background()
 
 	// Initialize Google Cloud Trace
-	shutdown, err := telemetry.InitGoogleCloudTrace(ctx, "ailang-ai-provider-test")
+	shutdown, err := otelplatform.InitGoogleCloudTrace(ctx, "ailang-ai-provider-test")
 	if err != nil {
 		t.Fatalf("Failed to initialize Google Cloud Trace: %v", err)
 	}
