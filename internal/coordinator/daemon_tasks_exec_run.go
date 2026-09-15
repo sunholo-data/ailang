@@ -207,12 +207,16 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 			d.logger.Printf("Warning: Failed to sync task to Observatory: %v", err)
 		}
 
-		// Create agent assignment and get ID for context propagation
-		providerName := "claude" // fallback
-		if agentConfig != nil && agentConfig.Provider != "" {
-			providerName = agentConfig.Provider
-		} else if d.coordConfig != nil && d.coordConfig.DefaultProvider != "" {
-			providerName = d.coordConfig.DefaultProvider
+		// Create agent assignment and get ID for context propagation. The
+		// provider labels this assignment's cost in the observatory, so a
+		// guessed one mislabels spend — resolved through the one helper, never
+		// a literal (M-V1-SIMPLIFY-S4 M1).
+		providerName, provErr := d.taskProvider(agentConfig)
+		if provErr != nil {
+			if err := d.taskStore.MarkTaskFailed(taskCtx, task.ID, provErr); err != nil {
+				d.logger.Printf("Warning: Failed to mark task %s as failed: %v", task.ID, err)
+			}
+			return provErr
 		}
 		assignmentID, err := d.observatorySync.SyncAgentAssignment(taskCtx, task.ID, targetAgent, providerName)
 		if err != nil {
