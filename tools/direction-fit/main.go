@@ -117,7 +117,7 @@ func main() {
 		if _, ok := panel.Benchmarks[r.ID]; !ok {
 			continue
 		}
-		trials = append(trials, eval_harness.Trial{Model: r.Model, Bench: r.ID, Pass: r.CompileOk && r.RuntimeOk && r.StdoutOk})
+		trials = append(trials, eval_harness.Trial{Model: r.Model, Bench: r.ID, Pass: r.Passed()})
 		covered[r.ID+"|"+r.Model+"|"+r.Lang] = true
 	}
 
