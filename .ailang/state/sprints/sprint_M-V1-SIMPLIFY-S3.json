@@ -1,0 +1,120 @@
+{
+  "sprint_id": "M-V1-SIMPLIFY-S3",
+  "status": "not_started",
+  "created": "2026-09-15T10:12:09Z",
+  "design_doc": "design_docs/planned/m-v1-simplification-program.md",
+  "sprint_plan": "design_docs/planned/m-v1-simplification-s3-sprint-plan.md",
+  "github_issues": [
+    1198,
+    1199
+  ],
+  "velocity": {
+    "target_loc_per_day": 1000,
+    "estimated_total_loc": 3050,
+    "estimated_days": 4
+  },
+  "features": [
+    {
+      "id": "M1_EVAL_ROWS_PREDICATE",
+      "description": "BenchmarkResult embeds RunMetrics; one LoadRows with validity filter; one Passed() (D2); discordant-count measurement + OS-history annotation",
+      "estimated_loc": 600,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "one loader, one predicate",
+        "discordant table in PR",
+        "boundary annotation dated",
+        "eval tests green"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_PRICING_MODELREG",
+      "description": "observatory/pricing.go second loader deleted; executor/quorum/seed cost through modelreg; aliases in models.yml; cost delta measured",
+      "estimated_loc": 300,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "one pricing source",
+        "cost delta by provider reported",
+        "tests green"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_PLANE_SWITCH_SQLITEOPEN_CONFIGYAML",
+      "description": "AILANG_STORAGE + per-store overrides only; old names hard-error; storage status per store; internal/sqliteopen leaf; one config.yaml loader; docs/plists/CLAUDE.md updated",
+      "estimated_loc": 700,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "backend_switches 6->1",
+        "storage status per-store with source",
+        "9 openers -> 1",
+        "3 loaders -> 1",
+        "every repo file setting old names updated"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_AI_FACTORY_PROMPT_LOADER",
+      "description": "ai.NewProviderFor, ai.ClassifyError (429 fix), openrouter reuses openai types, one doJSON; internal/prompt parameterised replaces 3 loaders",
+      "estimated_loc": 500,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "5 factories -> 1",
+        "3 classifiers -> 1 with 429 test",
+        "4 prompt loaders -> 1",
+        "check-prompt-freeze green"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M5_HTTP_PROCTREE_SIMHASH_HELPERS",
+      "description": "one writeJSON, one ws hub, fail-closed daemon auth, route collision; internal/proctree leaf (4 copies -> 1); internal/simhash leaf (3 -> 1, migration-safe); observatory classifier/tree/decoder dupes; strutil for truncate/fileExists/sortedKeys outside M1-M4 files; getInt int64 fix",
+      "estimated_loc": 900,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "fail-closed auth test",
+        "proctree+simhash leaves; closure test green",
+        "writeJSON 7->1",
+        "hash-space migration handled or proven unchanged"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M6_CLOSEOUT",
+      "description": "audit vs 2026-09-15; full test + gates; Sprint 4 backlog",
+      "estimated_loc": 50,
+      "dependencies": [
+        "M1_EVAL_ROWS_PREDICATE",
+        "M2_PRICING_MODELREG",
+        "M3_PLANE_SWITCH_SQLITEOPEN_CONFIGYAML",
+        "M4_AI_FACTORY_PROMPT_LOADER",
+        "M5_HTTP_PROCTREE_SIMHASH_HELPERS"
+      ],
+      "acceptance_criteria": [
+        "dup_symbol_names <= 20",
+        "backend_switches 1",
+        "make test + gates green",
+        "S4 backlog written"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
