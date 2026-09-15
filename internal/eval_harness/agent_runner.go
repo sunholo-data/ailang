@@ -46,7 +46,19 @@ type AgentBenchmarkConfig struct {
 	MaxTokensPerBench int
 }
 
-// DefaultAgentConfig returns sensible defaults
+// DefaultAgentConfig returns sensible defaults.
+//
+// ClaudeModel is deliberately EMPTY (M-V1-SIMPLIFY-S4 M1). It used to be
+// "haiku", and cmd/ailang/eval_benchmark_agent.go treats a non-empty
+// ClaudeModel as an explicit --agent-model override that SKIPS the models.yml
+// lookup — so the default was not a fallback, it was a silent override of the
+// benchmark's configured model, with the weakest model in the family. No
+// production caller used this constructor, which is the only reason it never
+// banked a row; an empty value routes through the registry like every real
+// run and, per M-MODEL-REGISTRY-SINGLE-SOURCE M6 D2(a), fails loudly at the
+// point of use if nothing resolves. No env var replaces it: the model is a
+// per-benchmark registry decision, and an ambient default would reintroduce
+// exactly this override.
 func DefaultAgentConfig() AgentBenchmarkConfig {
 	return AgentBenchmarkConfig{
 		RequestsPerSecond: 1, // Conservative for API quotas
@@ -54,7 +66,6 @@ func DefaultAgentConfig() AgentBenchmarkConfig {
 		WorkspaceDir:      "/tmp/ailang_eval",
 		AllowedTools:      []string{"Bash", "Read", "Write", "Edit", "Grep"},
 		ClaudePath:        "claude", // Use PATH
-		ClaudeModel:       "haiku",  // Default to Haiku for cost efficiency
 		VerifyTimeout:     DefaultVerifyTimeout,
 	}
 }

@@ -296,20 +296,14 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 			// (maxCost > 0), but a cost_usd is banked either way, and before
 			// this the two came from different price tables — a codex row could
 			// bank $0.34 while the budget that spared it saw $0.27.
-			task.Pricing = &executor.CostModel{
-				ProviderName:    cfg.Provider,
-				InputTokenCost:  cfg.Pricing.InputPer1K,
-				OutputTokenCost: cfg.Pricing.OutputPer1K,
-				// CacheReadCost was omitted until 2026-09-02, which silently
-				// zeroed cache-read pricing for EVERY agent-mode row: this
-				// struct overrides the executor's own CostModel via
-				// ResolveCostModel, so an executor that priced cache reads
-				// correctly had that pricing discarded here. Cached tokens then
-				// billed at $0 — the same undercount the 2026-08-11 note above
-				// says was fixed, reintroduced one layer up by an incomplete
-				// copy of the price table.
-				CacheReadCost: cfg.Pricing.CacheReadPer1K,
-			}
+			//
+			// Through the one adapter, never a hand copy: CacheReadCost was
+			// omitted until 2026-09-02 and CacheWriteCost until 2026-09-15,
+			// each silently zeroing that rate for EVERY agent-mode row —
+			// this struct overrides the executor's own CostModel via
+			// ResolveCostModel, so an executor that priced the cache
+			// correctly had that pricing discarded here.
+			task.Pricing = executor.CostModelFromPricing(cfg.Provider, lookupKey, cfg.Pricing)
 			// The WORK gate. A per-model budgets:max_tokens_per_bench overrides
 			// the global --max-tokens-per-bench flag; this is what makes the
 			// agent suite comparable, because the dollar gate above buys work

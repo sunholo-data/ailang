@@ -31,7 +31,7 @@ const (
 type Client struct {
 	apiKey     string   // API key for AI Studio
 	projectID  string   // GCP project for Vertex AI
-	location   string   // GCP location (default: "global")
+	location   string   // Vertex AI location; see NewVertexAIClient for how it resolves
 	authType   AuthType // Authentication type
 	httpClient *http.Client
 	baseURL    string // Override base URL (for testing)
@@ -61,12 +61,13 @@ func WithBaseURL(url string) ClientOption {
 	}
 }
 
-// NewClient creates a new Gemini client using API key (AI Studio).
+// NewClient creates a new Gemini client using API key (AI Studio). The AI
+// Studio endpoint has no location; the field stays empty unless WithLocation
+// sets it, so no regional default is ever implied here.
 func NewClient(apiKey string, opts ...ClientOption) *Client {
 	c := &Client{
 		apiKey:     apiKey,
 		authType:   AuthAPIKey,
-		location:   "global",
 		httpClient: http.DefaultClient,
 	}
 	for _, opt := range opts {
@@ -75,21 +76,37 @@ func NewClient(apiKey string, opts ...ClientOption) *Client {
 	return c
 }
 
+// EnvVertexLocation names the Vertex AI location a request is routed to. It
+// decides the regional endpoint, data residency and — since Vertex prices
+// some models per region — the bill, so it is not a cosmetic default.
+const EnvVertexLocation = "GOOGLE_CLOUD_LOCATION"
+
+// deprecatedVertexLocation is the value served when nothing names one
+// (M-V1-SIMPLIFY-S4 M1): warned once via config.DeprecatedDefault, refused
+// under AILANG_STRICT_CONFIG=1.
+const deprecatedVertexLocation = "global"
+
 // NewVertexAIClient creates a new Gemini client using ADC (Vertex AI).
-// If projectID is empty, it will be fetched from gcloud config.
+// If projectID is empty, it will be fetched from gcloud config. The location
+// is WithLocation, else GOOGLE_CLOUD_LOCATION, else the deprecated "global".
 func NewVertexAIClient(projectID string, opts ...ClientOption) (*Client, error) {
-	location := os.Getenv("GOOGLE_CLOUD_LOCATION")
-	if location == "" {
-		location = "global"
-	}
 	c := &Client{
 		projectID:  projectID,
 		authType:   AuthADC,
-		location:   location,
 		httpClient: http.DefaultClient,
 	}
 	for _, opt := range opts {
 		opt(c)
+	}
+	if c.location == "" {
+		c.location = strings.TrimSpace(os.Getenv(EnvVertexLocation))
+	}
+	if c.location == "" {
+		loc, err := config.DeprecatedDefault(EnvVertexLocation, deprecatedVertexLocation)
+		if err != nil {
+			return nil, ai.NewProviderError("gemini", 0, "no Vertex AI location", err)
+		}
+		c.location = loc
 	}
 
 	// Get project ID from gcloud if not provided

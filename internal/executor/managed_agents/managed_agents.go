@@ -288,7 +288,13 @@ func (e *Executor) ExecuteStreaming(
 	// stored separately.
 	cm := executor.ResolveCostModel(task, e.CostModel())
 	// Vertex ADC bills a real GCP project — the one agent lane that is metered.
+	// Unless the registry cannot price the model: then CalculateCost yields $0
+	// and "metered $0" would be a fabricated free run, so the provenance says
+	// "unknown" (M-V1-SIMPLIFY-S4 M1).
 	res.CostProvenance = executor.ResolveCostProvenance(task, executor.AuthLaneBilled)
+	if cm.Unpriced {
+		res.CostProvenance = executor.CostProvenanceUnknown
+	}
 	// InputTokens here is the FRESH count: CalculateCost adds cache-read cost on
 	// top of input cost, so passing the cache-inclusive total would bill the
 	// cached tokens at both rates.

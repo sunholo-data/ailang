@@ -52,6 +52,18 @@ import (
 //	AILANG_PLUGIN_REPO   - Git URL for shared skills plugin (cloned as --plugin-dir)
 //	AILANG_MAX_COST_USD  - Per-task cost budget in USD (0 = unlimited) from budget config
 //	AILANG_MODEL         - AI model override (e.g., "sonnet", "opus") from agent config
+//
+// executeJobWorkspace resolves the workspace a job's completion is published
+// under. A silent "default" filed a mis-dispatched job's result where nothing
+// listened, so it is a deprecated default under D3 (M-V1-SIMPLIFY-S4 M1):
+// served with one stderr warning, refused under AILANG_STRICT_CONFIG=1.
+func executeJobWorkspace() (string, error) {
+	if ws := os.Getenv(coordinator.EnvWorkspace); ws != "" {
+		return ws, nil
+	}
+	return config.DeprecatedDefault(coordinator.EnvWorkspace, coordinator.DeprecatedWorkspaceDefault)
+}
+
 func coordinatorExecuteJob(args []string) error {
 	// Parse flags
 	for _, arg := range args {
@@ -64,9 +76,12 @@ func coordinatorExecuteJob(args []string) error {
 	// Read ALL environment variables upfront (before any early returns).
 	taskID := os.Getenv("AILANG_TASK_ID")
 	agentID := os.Getenv("AILANG_AGENT_ID")
-	workspace := os.Getenv("AILANG_WORKSPACE")
-	if workspace == "" {
-		workspace = "default"
+	// Refused before Pub/Sub exists, because there is no workspace to publish
+	// a failure to.
+	workspace, wsErr := executeJobWorkspace()
+	if wsErr != nil {
+		fmt.Fprintf(os.Stderr, "COMPLETION_FAILED|task=%s|agent=%s|error=%v\n", taskID, agentID, wsErr)
+		return wsErr
 	}
 	// The container's project: the one resolver, which on Cloud Run also has
 	// the metadata server. Unresolvable is reported below, once
@@ -199,7 +214,9 @@ func coordinatorExecuteJob(args []string) error {
 	pluginRepo := os.Getenv("AILANG_PLUGIN_REPO")
 
 	// Read model override from agent config (passed via AILANG_MODEL env var).
-	// Without this, the executor defaults to "haiku" which is too weak for coding tasks.
+	// The executor has NO default model (M-MODEL-REGISTRY-SINGLE-SOURCE M6,
+	// D2(a)): an empty value fails at the point of use rather than silently
+	// running "haiku", which is too weak for coding tasks.
 	model := os.Getenv("AILANG_MODEL")
 
 	// Read timeout from agent config (passed via AILANG_TIMEOUT env var, M-CLOUD-OAUTH).

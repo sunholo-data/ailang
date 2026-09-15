@@ -230,7 +230,11 @@ func taskFor(r Request, c Candidate) *executor.Task {
 		Budget: executor.NewCostBudgetWithCache(r.MaxCostUSD,
 			m.Pricing.InputPer1K, m.Pricing.OutputPer1K,
 			m.Pricing.CacheReadPer1K, m.Pricing.CacheWritePer1K),
-		Pricing: &executor.CostModel{InputTokenCost: m.Pricing.InputPer1K, OutputTokenCost: m.Pricing.OutputPer1K, CacheReadCost: m.Pricing.CacheReadPer1K},
+		// The same four rates the budget above enforces at, through the one
+		// adapter: the hand copy this replaced dropped CacheWritePer1K, so the
+		// banked cost_usd and the budget that spared it disagreed on every
+		// cache-writing stage (M-V1-SIMPLIFY-S4 M1).
+		Pricing: executor.CostModelFromPricing(m.Provider, c.Model, m.Pricing),
 		ExtraEnv: map[string]string{
 			"AILANG_STORAGE_MESSAGING": "gcp", "AILANG_MESSAGES_PROJECT": "ailang-multivac",
 			// Marks this process as FROZEN STAGE EXECUTION so the repo's Claude Code hooks

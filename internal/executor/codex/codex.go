@@ -660,11 +660,19 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 			// Bill the model that actually ran, not codex's default. The harness
 			// supplies per-model rates via Task.Pricing; CostModel() is the
 			// fallback for callers that don't (see executor.ResolveCostModel).
-			cost := executor.ResolveCostModel(task, e.CostModel()).CalculateCost(executor.TokenUsage{
+			cm := executor.ResolveCostModel(task, e.CostModel())
+			cost := cm.CalculateCost(executor.TokenUsage{
 				InputTokens:          freshInput,
 				OutputTokens:         outputTokens,
 				CacheReadInputTokens: cachedInput,
 			})
+			// A model the registry cannot price yields $0 from CalculateCost;
+			// banking that as metered would be a fabricated free run. The
+			// provenance says "unknown" instead (M-V1-SIMPLIFY-S4 M1).
+			provenance := executor.ResolveCostProvenance(task, e.authLane())
+			if cm.Unpriced {
+				provenance = executor.CostProvenanceUnknown
+			}
 			success := sawResult
 			// The codex CLI's --json stream carries NO model-level stop reason
 			// (see the schema note on codexEvent), so "stop" here asserts only
@@ -707,7 +715,7 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 				NumTurns:             turnNum,
 				ToolCallCount:        toolCallCount,
 				CostUSD:              cost,
-				CostProvenance:       executor.ResolveCostProvenance(task, e.authLane()),
+				CostProvenance:       provenance,
 				InputTokens:          freshInput,
 				OutputTokens:         outputTokens,
 				CacheReadInputTokens: cachedInput,

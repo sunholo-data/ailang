@@ -4,8 +4,12 @@ package coordinator
 import (
 	"context"
 	"fmt"
+	"os"
+	"strings"
 	"sync"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // ApprovalType defines the kind of approval being requested
@@ -74,18 +78,54 @@ type ApprovalCheckpoint struct {
 
 	// Default timeout for approval requests
 	defaultTimeout time.Duration
+	// timeoutErr is set when the constructor was given no timeout and the
+	// deprecated default was refused (AILANG_STRICT_CONFIG=1) or
+	// AILANG_APPROVAL_TIMEOUT did not parse. It is deferred to the first
+	// RequestApproval that needs the default, so a checkpoint that only ever
+	// sees requests carrying their own Timeout is unaffected.
+	timeoutErr error
 }
 
-// NewApprovalCheckpoint creates a new approval checkpoint manager
+// EnvApprovalTimeout is how long an approval request waits for a human when
+// neither the request nor the constructor says (a Go duration, e.g. "24h").
+// Before M-V1-SIMPLIFY-S4 M1 a zero constructor timeout silently became 1h —
+// a wait bound nobody chose, on a gate that decides whether work merges.
+const EnvApprovalTimeout = "AILANG_APPROVAL_TIMEOUT"
+
+// deprecatedApprovalTimeout is the value served when the variable is unset.
+const deprecatedApprovalTimeout = 1 * time.Hour
+
+// NewApprovalCheckpoint creates a new approval checkpoint manager. A zero
+// defaultTimeout resolves through AILANG_APPROVAL_TIMEOUT, then the deprecated
+// 1h default via config.DeprecatedDefault (one stderr warning per process;
+// under AILANG_STRICT_CONFIG=1 the checkpoint is built but refuses every
+// request that relies on the default, with config.ErrDeprecatedDefault).
 func NewApprovalCheckpoint(defaultTimeout time.Duration) *ApprovalCheckpoint {
-	if defaultTimeout == 0 {
-		defaultTimeout = 1 * time.Hour // Default to 1 hour
-	}
-	return &ApprovalCheckpoint{
+	ac := &ApprovalCheckpoint{
 		requests:       make(map[string]*ApprovalRequest),
 		waiters:        make(map[string]chan ApprovalStatus),
 		defaultTimeout: defaultTimeout,
 	}
+	if defaultTimeout == 0 {
+		ac.defaultTimeout, ac.timeoutErr = resolveDefaultApprovalTimeout()
+	}
+	return ac
+}
+
+// resolveDefaultApprovalTimeout reads AILANG_APPROVAL_TIMEOUT, else serves the
+// deprecated default. A set-but-unparseable value is an error, never 1h.
+func resolveDefaultApprovalTimeout() (time.Duration, error) {
+	if v := strings.TrimSpace(os.Getenv(EnvApprovalTimeout)); v != "" {
+		d, err := time.ParseDuration(v)
+		if err != nil || d <= 0 {
+			return 0, fmt.Errorf("%s=%q is not a positive duration (e.g. 24h): %v", EnvApprovalTimeout, v, err)
+		}
+		return d, nil
+	}
+	if _, err := config.DeprecatedDefault(EnvApprovalTimeout, deprecatedApprovalTimeout.String()); err != nil {
+		return 0, err
+	}
+	return deprecatedApprovalTimeout, nil
 }
 
 // SetCallback sets the callback for approval resolution events
@@ -104,8 +144,8 @@ func (ac *ApprovalCheckpoint) RequestApproval(ctx context.Context, request *Appr
 	if request.CreatedAt.IsZero() {
 		request.CreatedAt = time.Now()
 	}
-	if request.Timeout == 0 {
-		request.Timeout = ac.defaultTimeout
+	if err := ac.applyDefaultTimeout(request); err != nil {
+		return ApprovalStatusRejected, err
 	}
 	request.Status = ApprovalStatusPending
 
@@ -137,6 +177,20 @@ func (ac *ApprovalCheckpoint) RequestApproval(ctx context.Context, request *Appr
 		ac.cleanup(request.ID)
 		return ApprovalStatusRejected, ctx.Err()
 	}
+}
+
+// applyDefaultTimeout gives a request without a Timeout the checkpoint's
+// default — or the deferred configuration error, so the refusal lands on the
+// request that needed the default and on no other.
+func (ac *ApprovalCheckpoint) applyDefaultTimeout(request *ApprovalRequest) error {
+	if request.Timeout != 0 {
+		return nil
+	}
+	if ac.timeoutErr != nil {
+		return fmt.Errorf("approval %s: no timeout on the request and no usable default: %w", request.ID, ac.timeoutErr)
+	}
+	request.Timeout = ac.defaultTimeout
+	return nil
 }
 
 // Approve approves an approval request
@@ -360,8 +414,8 @@ func (sac *StoreBackedApprovalCheckpoint) RequestApproval(ctx context.Context, r
 	if request.CreatedAt.IsZero() {
 		request.CreatedAt = time.Now()
 	}
-	if request.Timeout == 0 {
-		request.Timeout = sac.defaultTimeout
+	if err := sac.applyDefaultTimeout(request); err != nil {
+		return ApprovalStatusRejected, err
 	}
 	request.Status = ApprovalStatusPending
 

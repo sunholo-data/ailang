@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"time"
 
 	collogspb "go.opentelemetry.io/proto/otlp/collector/logs/v1"
@@ -29,6 +30,31 @@ var backgroundOperationSpans = map[string]bool{
 	"messages.send":          true,
 	"messages.search":        true,
 	"messages.import-github": true,
+}
+
+// AttrCostUnpriced is stamped true on a span whose tokens the registry could
+// not price. The stored cost_usd is then 0 by necessity, and this attribute is
+// what distinguishes that from a genuinely free or unbilled call — a reader
+// that sees cost_usd=0 without it may trust the zero (M-V1-SIMPLIFY-S4 M1).
+const AttrCostUnpriced = "ailang.cost.unpriced"
+
+// priceSpanTokens prices a span's tokens through the one registry call and,
+// when the model cannot be priced, stamps AttrCostUnpriced on the span's
+// attributes and logs the model once per process. It returns 0 in that case —
+// the float column has no other honest value — but the row now says why.
+func priceSpanTokens(attrs map[string]any, model string, tokensIn, tokensOut, cacheRead, cacheWrite int64) float64 {
+	cost, err := PriceTokens(model, tokensIn, tokensOut, cacheRead, cacheWrite)
+	if err == nil {
+		return cost
+	}
+	attrs[AttrCostUnpriced] = true
+	attrs[AttrCostUnpriced+"_reason"] = err.Error()
+	if _, dup := unpricedSeen.LoadOrStore(model, struct{}{}); !dup {
+		// Diagnostic goes to stderr so it never corrupts --json stdout.
+		fmt.Fprintf(os.Stderr, "observatory: UNPRICED model %q — %v; recording cost_usd=0 with %s=true. Add the row or an alias to models.yml.\n",
+			model, err, AttrCostUnpriced)
+	}
+	return 0
 }
 
 // FilterPattern defines a single span filter rule.
@@ -386,7 +412,7 @@ func (r *OTLPReceiver) convertLogToSpan(log *logspb.LogRecord, resourceAttrs map
 	// Calculate cost from tokens if not provided (M-TASK-HIERARCHY-FOLLOWUPS M6)
 	// Use cache-aware pricing when cache tokens are present
 	if costUSD == 0 && (tokensIn > 0 || tokensOut > 0 || cacheReadTokens > 0 || cacheCreationTokens > 0) && model != "" {
-		costUSD = CalculateCostFromTokensWithCache(model, tokensIn, tokensOut, cacheReadTokens, cacheCreationTokens)
+		costUSD = priceSpanTokens(attrs, model, tokensIn, tokensOut, cacheReadTokens, cacheCreationTokens)
 	}
 
 	// Determine status
@@ -631,7 +657,7 @@ func (r *OTLPReceiver) convertSpan(span *tracepb.Span, resourceAttrs map[string]
 	// Calculate cost from tokens if not provided (M-TASK-HIERARCHY-FOLLOWUPS M6)
 	// AI providers emit tokens but not cost, so we calculate from models.yml pricing
 	if costUSD == 0 && (tokensIn > 0 || tokensOut > 0) && model != "" {
-		costUSD = CalculateCostFromTokens(model, tokensIn, tokensOut)
+		costUSD = priceSpanTokens(attrs, model, tokensIn, tokensOut, 0, 0)
 	}
 	providerStr := extractString(attrs, "ailang.provider", "gen_ai.system")
 
