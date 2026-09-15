@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/sunholo-data/ailang/internal/modelreg"
-	"strings"
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/ai"
@@ -207,17 +206,11 @@ func (a *AIAgent) GenerateWithRetry(ctx context.Context, prompt string, cfg Retr
 // (M-V1-SIMPLIFY-S3 M4), which refuses quota exhaustion — it ARRIVES AS A 429
 // but an Ollama Cloud session limit does not clear until the 5-hour window
 // rolls, and a weekly limit takes days, so retrying burns the remaining run
-// against a bucket that cannot recover (AC8, M-OLLAMA-CLOUD). The harness's own
-// categoriser list (isQuotaExhaustion, error_categorizer.go) is consulted too so
-// the retry predicate can never disagree with what the row is banked as.
+// against a bucket that cannot recover (AC8, M-OLLAMA-CLOUD). The categoriser
+// (error_categorizer.go) banks the row through the same ai.IsQuotaExhausted
+// that ShouldRetry consults, so the two cannot disagree about one error.
 func isRetryableError(err error) bool {
-	if err == nil {
-		return false
-	}
-	if isQuotaExhaustion(strings.ToLower(err.Error())) {
-		return false
-	}
-	return ai.ShouldRetry(err)
+	return err != nil && ai.ShouldRetry(err)
 }
 
 // MockAIAgent is a mock implementation for testing
