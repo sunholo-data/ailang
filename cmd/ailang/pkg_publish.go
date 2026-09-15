@@ -600,10 +600,7 @@ func newCascadePublisher() *pubsub.Publisher {
 	if err != nil {
 		return nil
 	}
-	prefix := os.Getenv("AILANG_TOPIC_PREFIX")
-	if prefix == "" {
-		prefix = pubsub.DefaultTopicPrefix
-	}
+	prefix := pubsub.TopicPrefixFromEnv()
 	client, err := pubsub.NewClient(ctx, projectID, prefix)
 	if err != nil {
 		fmt.Printf("%s Cascade publisher init failed: %v (continuing without cascade topic)\n", yellow("⚠"), err)

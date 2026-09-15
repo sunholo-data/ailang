@@ -1,9 +1,23 @@
 package pubsub
 
-import "strings"
+import (
+	"os"
+	"strings"
+)
 
 // DefaultTopicPrefix is the default prefix for all AILANG Pub/Sub topics.
 const DefaultTopicPrefix = "ailang"
+
+// TopicPrefixFromEnv resolves the topic prefix: AILANG_TOPIC_PREFIX (set by
+// terraform per environment: ailang / ailang-dev) or DefaultTopicPrefix.
+// The one place that reads the variable; eight call sites used to repeat
+// the two-line fallback (M-V1-SIMPLIFY-S3 M5).
+func TopicPrefixFromEnv() string {
+	if p := os.Getenv("AILANG_TOPIC_PREFIX"); p != "" {
+		return p
+	}
+	return DefaultTopicPrefix
+}
 
 // Topic base names. The full topic name is "{prefix}-{base}".
 const (

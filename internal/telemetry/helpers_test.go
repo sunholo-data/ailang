@@ -17,8 +17,8 @@ func TestTruncate(t *testing.T) {
 		{"exact length", "hello", 5, "hello"},
 		{"needs truncation", "hello world", 8, "hello..."},
 		{"very short max", "hello", 3, "hel"},
-		{"zero max", "hello", 0, ""},
-		{"negative max", "hello", -1, ""},
+		{"zero max means no cap", "hello", 0, "hello"},
+		{"negative max means no cap", "hello", -1, "hello"},
 		{"unicode string", "hello 世界", 10, "hello 世界"},           // 8 runes, no truncation needed
 		{"unicode needs truncation", "hello 世界!", 8, "hello..."}, // 9 runes, truncate
 		{"long unicode", "世界世界世界世界世界", 8, "世界世界世..."},            // 10 runes, truncate to 5+...

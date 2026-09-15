@@ -193,10 +193,7 @@ func serverCommand(args []string) error {
 		// Create Pub/Sub subscriber for real-time event streaming.
 		// Dashboard pulls from ailang-events-dashboard and broadcasts via WebSocket.
 		project, projErr := config.CloudProject(ctx)
-		topicPrefix := os.Getenv("AILANG_TOPIC_PREFIX")
-		if topicPrefix == "" {
-			topicPrefix = pubsub.DefaultTopicPrefix
-		}
+		topicPrefix := pubsub.TopicPrefixFromEnv()
 		if projErr != nil {
 			log.Printf("Warning: no Pub/Sub event streaming: %v", projErr)
 		} else {

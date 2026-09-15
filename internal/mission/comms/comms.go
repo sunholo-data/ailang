@@ -12,11 +12,12 @@ package comms
 import (
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
-	"unicode/utf8"
 
 	"github.com/sunholo-data/ailang/internal/statedir"
+	"github.com/sunholo-data/ailang/internal/strutil"
 )
 
 // MaxReportChars caps a single iteration report.
@@ -69,7 +70,7 @@ func ResolveMission(name string) (Mission, error) {
 			known = append(known, k)
 		}
 		// Sorted so the error message is deterministic (A1).
-		sortStrings(known)
+		sort.Strings(known)
 		return Mission{}, fmt.Errorf("unknown mission %q (known: %s)", name, strings.Join(known, ", "))
 	}
 
@@ -150,33 +151,9 @@ func RenderReport(r Report) string {
 
 // LimitReport applies the same payload cap to structured and supplied reports.
 // It preserves UTF-8 and marks truncation explicitly.
-func LimitReport(body string) string { return truncate(body, MaxReportChars) }
-
-// truncate cuts to at most max BYTES while never splitting a rune, and marks that
-// it did. Byte-based because the cap is about payload size; rune-safe because the
-// reports are full of em dashes and arrows and a byte-boundary cut would emit
-// invalid UTF-8 into a GitHub comment.
-func truncate(s string, max int) string {
-	if len(s) <= max {
-		return s
-	}
-	keep := max - len(truncationMark)
-	if keep < 0 {
-		keep = 0
-	}
-	// Back off to a rune boundary.
-	for keep > 0 && !utf8.RuneStart(s[keep]) {
-		keep--
-	}
-	return s[:keep] + truncationMark
-}
-
-// sortStrings is a tiny insertion sort, used only to make an error message
-// deterministic. Avoids pulling in "sort" for one call on a 4-element slice.
-func sortStrings(xs []string) {
-	for i := 1; i < len(xs); i++ {
-		for j := i; j > 0 && xs[j] < xs[j-1]; j-- {
-			xs[j], xs[j-1] = xs[j-1], xs[j]
-		}
-	}
+// LimitReport cuts to at most MaxReportChars BYTES (the cap is about payload
+// size) without splitting a rune — the reports are full of em dashes and
+// arrows — and marks that it did.
+func LimitReport(body string) string {
+	return strutil.TruncateBytes(body, MaxReportChars, truncationMark)
 }

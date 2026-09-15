@@ -4,6 +4,8 @@ package display
 
 import (
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/strutil"
 )
 
 // WrapText wraps text at the specified width, preserving existing newlines.
@@ -45,17 +47,10 @@ func WrapText(text string, width int) string {
 	return result.String()
 }
 
-// Truncate truncates a string to maxLen characters, adding "..." if truncated.
-// If maxLen is 0 or negative, returns the original string.
-func Truncate(s string, maxLen int) string {
-	if maxLen <= 0 || len(s) <= maxLen {
-		return s
-	}
-	if maxLen <= 3 {
-		return "..."
-	}
-	return s[:maxLen-3] + "..."
-}
+// Truncate is strutil.Truncate: rune-aware, "..." when cut, maxLen <= 0 means
+// no cap. Kept as a name here for the display helpers below and for callers
+// in files M-V1-SIMPLIFY-S3 could not touch; fold them in Sprint 4.
+func Truncate(s string, maxLen int) string { return strutil.Truncate(s, maxLen) }
 
 // TruncateID truncates an ID string (like UUIDs) to a short form.
 // Default length is 12 characters if not specified.

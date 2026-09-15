@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/strutil"
 	"io"
 	"net/http"
 	"net/url"
@@ -119,7 +120,7 @@ func displayMessageHierarchy(body []byte) {
 			title = "(no title)"
 		}
 		age := formatTimestampAge(msg.CreatedAt)
-		fmt.Printf("\n◉ Message: %s [%s]\n", truncate(title, 40), age)
+		fmt.Printf("\n◉ Message: %s [%s]\n", strutil.Truncate(title, 40), age)
 		fmt.Printf("  From: %s | ID: %s\n", msg.FromAgent, truncateID(msg.MessageID))
 
 		for _, exec := range msg.Execs {
@@ -314,9 +315,9 @@ func dashboardStatsCommand() {
 		fmt.Println("\nBy Model:")
 		for _, m := range models {
 			mod, _ := m.(map[string]interface{})
-			name := truncate(getString(mod, "label"), 28)
+			name := strutil.Truncate(getString(mod, "label"), 28)
 			if name == "" {
-				name = truncate(getString(mod, "id"), 28)
+				name = strutil.Truncate(getString(mod, "id"), 28)
 			}
 			spans := getInt(mod, "span_count")
 			cost := getFloat(mod, "cost_usd")
@@ -496,7 +497,7 @@ func dashboardSessionsCommand() {
 		if idx := strings.LastIndex(workspace, "/"); idx > 0 {
 			workspace = ".../" + workspace[idx+1:]
 		}
-		workspace = truncate(workspace, 30)
+		workspace = strutil.Truncate(workspace, 30)
 		started := formatTimestampAge(getString(session, "started_at"))
 		turns := getInt(session, "turn_count")
 
@@ -657,17 +658,17 @@ func displayToolsList(body []byte, sessionID string) {
 				}
 				details = filePath
 			} else if pattern, ok := metadata["pattern"].(string); ok {
-				details = "grep: " + truncate(pattern, 35)
+				details = "grep: " + strutil.Truncate(pattern, 35)
 			} else if cmd, ok := metadata["command"].(string); ok {
-				details = truncate(cmd, 40)
+				details = strutil.Truncate(cmd, 40)
 			} else if desc, ok := metadata["description"].(string); ok {
 				// Task: prefer description over prompt
-				details = truncate(desc, 50)
+				details = strutil.Truncate(desc, 50)
 			} else if skill, ok := metadata["skill"].(string); ok {
 				// Skill: show skill name
 				details = "skill: " + skill
 			} else if prompt, ok := metadata["prompt"].(string); ok {
-				details = truncate(prompt, 40)
+				details = strutil.Truncate(prompt, 40)
 			}
 		}
 

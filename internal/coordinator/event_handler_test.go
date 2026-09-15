@@ -270,25 +270,6 @@ func TestCoordinatorEventHandler_Error(t *testing.T) {
 	}
 }
 
-func TestCoordinatorEventHandler_TruncateString(t *testing.T) {
-	// Test truncation
-	long := "This is a very long string that should be truncated"
-	truncated := truncateString(long, 20)
-	if len(truncated) > 20 {
-		t.Errorf("expected string to be truncated to 20 chars, got %d", len(truncated))
-	}
-	if truncated[len(truncated)-3:] != "..." {
-		t.Error("expected truncated string to end with ...")
-	}
-
-	// Test no truncation needed
-	short := "Short"
-	notTruncated := truncateString(short, 20)
-	if notTruncated != short {
-		t.Errorf("expected '%s', got '%s'", short, notTruncated)
-	}
-}
-
 func TestCoordinatorEventHandler_NilBroadcaster(t *testing.T) {
 	// Should not panic with nil broadcaster
 	handler := NewCoordinatorEventHandler("task-123", "", nil)

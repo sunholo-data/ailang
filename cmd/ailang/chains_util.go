@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/observatory"
+	"github.com/sunholo-data/ailang/internal/strutil"
 )
 
 // runChainsInteractive shows an interactive menu for viewing execution chains.
@@ -77,7 +78,7 @@ func runChainsInteractive() {
 					}
 					source = fmt.Sprintf("%s#%d", repoName, chain.GitHubIssueNumber)
 				} else if chain.SourceRef != "" {
-					source = fmt.Sprintf("%s:%s", chain.SourceType, truncateString(chain.SourceRef, 10))
+					source = fmt.Sprintf("%s:%s", chain.SourceType, strutil.Truncate(chain.SourceRef, 10))
 				}
 				if len(source) > 24 {
 					source = source[:21] + "..."

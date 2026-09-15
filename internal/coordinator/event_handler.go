@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/strutil"
 	"github.com/sunholo-data/ailang/internal/websocket"
 )
 
@@ -270,9 +271,9 @@ func (h *CoordinatorEventHandler) broadcastEvent(event *websocket.TaskStreamEven
 	if h.broadcast != nil {
 		// Truncate for WebSocket broadcast (live streaming)
 		broadcastEvent := *event
-		broadcastEvent.Text = truncateString(event.Text, 2000)
-		broadcastEvent.ToolInput = truncateString(event.ToolInput, 1000)
-		broadcastEvent.ToolOutput = truncateString(event.ToolOutput, 2000)
+		broadcastEvent.Text = strutil.Truncate(event.Text, 2000)
+		broadcastEvent.ToolInput = strutil.Truncate(event.ToolInput, 1000)
+		broadcastEvent.ToolOutput = strutil.Truncate(event.ToolOutput, 2000)
 
 		// Enrich with task context if available
 		if h.taskContext != nil {
@@ -280,7 +281,7 @@ func (h *CoordinatorEventHandler) broadcastEvent(event *websocket.TaskStreamEven
 			broadcastEvent.AgentID = h.taskContext.AgentID
 			broadcastEvent.SourceType = h.taskContext.SourceType
 			// Truncate directive for preview, include full for detail view
-			broadcastEvent.Directive = truncateString(h.taskContext.Directive, 200)
+			broadcastEvent.Directive = strutil.Truncate(h.taskContext.Directive, 200)
 			broadcastEvent.DirectiveFull = h.taskContext.Directive
 		}
 
@@ -324,12 +325,4 @@ func (h *CoordinatorEventHandler) IsThrottled() bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	return h.throttled
-}
-
-// truncateString truncates a string to maxLen characters
-func truncateString(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
-	}
-	return s[:maxLen-3] + "..."
 }

@@ -15,6 +15,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/messaging"
 	"github.com/sunholo-data/ailang/internal/observatory"
 	"github.com/sunholo-data/ailang/internal/pkg"
+	"github.com/sunholo-data/ailang/internal/strutil"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -109,7 +110,7 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 	}
 
 	directive := BuildDirectiveFromConfig(task, agentConfig)
-	d.logger.Printf("[DEBUG] Built directive (first 500 chars): %s", truncateString(directive, 500))
+	d.logger.Printf("[DEBUG] Built directive (first 500 chars): %s", strutil.Truncate(directive, 500))
 	analyzed := &AnalyzedTask{
 		Task: &Task{
 			ID:           task.ID,

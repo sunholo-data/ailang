@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/strutil"
 )
 
 // isEffectRowVar returns true if name is a lowercase identifier (effect row variable)
@@ -98,7 +99,7 @@ func validateEffectParams(effectName string, params map[string]string) error {
 	schema, hasSchema := effectSchema[effectName]
 	if !hasSchema {
 		// Deterministic listing of the offending keys for the message.
-		keys := sortedKeys(params)
+		keys := strutil.SortedKeys(params)
 		return fmt.Errorf(
 			"EFF_PARAMS_NOT_SUPPORTED: effect '%s' does not support parameters (found: %s). "+
 				"Only Rand and AI accept parameters in v1.0.0; Clock/Net/FS modes are tracked in m-effect-clock-net-fs-modes.\n"+
@@ -108,7 +109,7 @@ func validateEffectParams(effectName string, params map[string]string) error {
 
 	// Validate each supplied key/value against the closed schema. Iterate in
 	// sorted key order so the FIRST reported error is deterministic.
-	for _, key := range sortedKeys(params) {
+	for _, key := range strutil.SortedKeys(params) {
 		value := params[key]
 		allowed, keyOK := schema[key]
 		if !keyOK {
@@ -125,16 +126,6 @@ func validateEffectParams(effectName string, params map[string]string) error {
 		}
 	}
 	return nil
-}
-
-// sortedKeys returns the keys of a string map in deterministic sorted order.
-func sortedKeys(m map[string]string) []string {
-	out := make([]string, 0, len(m))
-	for k := range m {
-		out = append(out, k)
-	}
-	sort.Strings(out)
-	return out
 }
 
 // sortedSetKeys returns the outer keys of a schema (the legal param keys) sorted.

@@ -10,6 +10,7 @@ import (
 	"context"
 
 	"github.com/sunholo-data/ailang/internal/coordinator"
+	"github.com/sunholo-data/ailang/internal/strutil"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -80,7 +81,7 @@ func (h *spanningEventHandler) OnText(text string) {
 	// Text is recorded on turn span as an event, not a separate span
 	if h.turnSpan != nil {
 		h.turnSpan.AddEvent("text", trace.WithAttributes(
-			attribute.String("text.content", truncateString(text, 500)),
+			attribute.String("text.content", strutil.Truncate(text, 500)),
 		))
 	}
 	// Store FULL text to database for chat history (not truncated!)
@@ -105,7 +106,7 @@ func (h *spanningEventHandler) OnToolUse(toolName, input string) {
 	_, toolSpan := h.tracer.Start(h.ctx, "exec.tool_use",
 		trace.WithAttributes(
 			attribute.String("tool.name", toolName),
-			attribute.String("tool.input", truncateString(input, 1000)),
+			attribute.String("tool.input", strutil.Truncate(input, 1000)),
 			attribute.String("exec.task_id", h.taskID),
 			attribute.Int("turn.number", h.currentTurn),
 		),
@@ -134,7 +135,7 @@ func (h *spanningEventHandler) OnToolUse(toolName, input string) {
 func (h *spanningEventHandler) OnToolResult(toolName, output string) {
 	// End the matching tool span with the result
 	if span, ok := h.toolSpans[toolName]; ok {
-		span.SetAttributes(attribute.String("tool.output", truncateString(output, 1000)))
+		span.SetAttributes(attribute.String("tool.output", strutil.Truncate(output, 1000)))
 		span.End()
 		delete(h.toolSpans, toolName)
 	}

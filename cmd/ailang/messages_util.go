@@ -14,6 +14,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/messaging"
 	"github.com/sunholo-data/ailang/internal/pubsub"
+	"github.com/sunholo-data/ailang/internal/strutil"
 	"golang.org/x/term"
 )
 
@@ -472,9 +473,7 @@ func formatAge(t time.Time) string {
 }
 
 // truncateString truncates a string to maxLen and adds "..." if needed.
-func truncateString(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
-	}
-	return s[:maxLen-3] + "..."
-}
+// truncateString delegates to strutil.Truncate. It survives only because
+// cmd/ailang/exec.go (M4-owned in M-V1-SIMPLIFY-S3) still calls it; fold that
+// call and delete this in Sprint 4.
+func truncateString(s string, maxLen int) string { return strutil.Truncate(s, maxLen) }
