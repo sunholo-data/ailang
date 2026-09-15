@@ -168,7 +168,7 @@ func BuildEnvironment(opts EnvironmentOptions) []string {
 	// exporter then stays unconfigured).
 	project := opts.GCPProject
 	if project == "" {
-		project = config.Raw(config.EnvTraceProject)
+		project = config.TraceProjectOverride()
 	}
 	if project == "" {
 		project, _ = config.CloudProject(context.Background())

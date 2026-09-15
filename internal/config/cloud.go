@@ -178,6 +178,11 @@ func resetMetadataForTest() {
 // Trace export, so this is a switch as much as a value.
 const EnvTraceProject = "OTLP_GOOGLE_CLOUD_PROJECT"
 
+// TraceProjectOverride returns OTLP_GOOGLE_CLOUD_PROJECT alone, "" when
+// unset — for a caller that falls through to CloudProject itself and must
+// not let GOOGLE_CLOUD_PROJECT jump ahead of AILANG_CLOUD_PROJECT.
+func TraceProjectOverride() string { return get(EnvTraceProject) }
+
 // TraceProjectFromEnv returns the project Cloud Trace export should target, or
 // "" when export is not enabled. It reads the environment ONLY — deliberately
 // not CloudProject's yaml/metadata fallbacks, because falling through would

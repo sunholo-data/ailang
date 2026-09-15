@@ -26,6 +26,11 @@ const (
 	EnvSpanFilterDeny        = "AILANG_SPAN_FILTER_DENY"
 )
 
+// DefaultWALCheckpointMB is the observatory WAL size that triggers a
+// checkpoint: well below the 2GB total-DB warning so normal rotation load
+// never reaches the manual-intervention state.
+const DefaultWALCheckpointMB int64 = 1024
+
 var telemetryVars = []Var{
 	{EnvOTLPEndpoint, "", AreaTelemetry, "OTLP collector URL; setting it enables OTLP export, and executors default their children to http://localhost:1957 (the local observatory) when it is unset."},
 	{EnvOTLPProtocol, "", AreaTelemetry, "OTLP transport (grpc, http/protobuf) passed through to executor children when set."},
@@ -39,7 +44,7 @@ var telemetryVars = []Var{
 	{EnvSessionID, "", AreaTelemetry, "Session id of this process, recorded on spans."},
 	{EnvParentTaskID, "", AreaTelemetry, "Task id of the parent that spawned this ailang process; inherited by check, run and exec for hierarchy linking."},
 	{EnvOTLPIngestToken, "", AreaTelemetry, "Shared secret the observatory's OTLP receiver requires from callers; empty disables ingest auth."},
-	{EnvWALCheckpointMB, "1024", AreaTelemetry, "Observatory SQLite WAL size in MB that triggers a checkpoint; non-positive or malformed keeps the default."},
+	{EnvWALCheckpointMB, strconv.FormatInt(DefaultWALCheckpointMB, 10), AreaTelemetry, "Observatory SQLite WAL size in MB that triggers a checkpoint; non-positive or malformed keeps the default."},
 	{EnvSpanFilterDisable, "false", AreaTelemetry, "true disables the observatory's span filter entirely."},
 	{EnvSpanFilterAllow, "", AreaTelemetry, "Comma-separated span-name patterns the observatory keeps."},
 	{EnvSpanFilterDeny, "", AreaTelemetry, "Comma-separated span-name patterns the observatory drops."},
@@ -84,8 +89,7 @@ func WALCheckpointMB() int64 {
 			return n
 		}
 	}
-	n, _ := strconv.ParseInt(defaultOf(EnvWALCheckpointMB), 10, 64)
-	return n
+	return DefaultWALCheckpointMB
 }
 
 // SpanFilterDisabled reports AILANG_SPAN_FILTER_DISABLE=true.
