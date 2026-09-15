@@ -1,0 +1,6 @@
+# AILANG Core Backlog (triage rows)
+
+| Date | Title | Class | Recommend | Why |
+|---|---|---|---|---|
+| 2026-09-15 | Nightly-eval and os-rotation-filler hold the rig lock for the whole suite; release/re-acquire between benchmarks | bug | direct-fix | Measured overnight: nightly-eval held the rig 4h+ with 52 consecutive Daneel intake runs deferred; `tools/launchd/nightly-eval.sh:54` (`rig_lock_acquire wait`) acquires once and never yields, and the benchmark loop is already independent invocations, so a lock-release/re-acquire between benchmarks (or models) is an obvious once-seen change needing no new protocol — context in `design_docs/implemented/v0_29_0/m-eval-rig-reliability.md` (P2 "de-fragile the rig"). |
+| 2026-09-15 | Coordinator design-doc PRs (#1143, #1140) accumulate unmerged — enable squash auto-merge, scoped to docs-only paths | feature | direct-fix | Agent PRs lack auto-merge while all same-day human PRs had it and merged within the hour, all four required checks pass on #1143, and the fix is a single flag at coordinator PR-open time (`internal/messaging/github_pr.go`, `MergePR` already passes `--squash --auto`) gated to `design_docs/**`-only paths — the only decision (scope to docs) the reporter has already made. |
