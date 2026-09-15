@@ -1,4 +1,4 @@
-package main
+package runner
 
 import (
 	"net/http"
@@ -25,7 +25,7 @@ func TestSetupNetHandler_TimeoutReachesTheWire(t *testing.T) {
 	fetch := func(timeout string) (eval.Value, error) {
 		effCtx := effects.NewEffContext(nil)
 		effCtx.Grant(effects.NewCapability("Net"))
-		if err := setupNetHandler(effCtx, true, "", true, false, timeout); err != nil {
+		if err := SetupNetHandler(effCtx, true, "", true, false, timeout); err != nil {
 			t.Fatal(err)
 		}
 		return effects.Call(effCtx, "Net", "httpGet", []eval.Value{&eval.StringValue{Value: server.URL}})
@@ -47,12 +47,12 @@ func TestSetupNetHandler_TimeoutRejectsGarbage(t *testing.T) {
 	for _, bad := range []string{"soon", "-1s", "0", "30"} {
 		effCtx := effects.NewEffContext(nil)
 		effCtx.Grant(effects.NewCapability("Net"))
-		if err := setupNetHandler(effCtx, false, "", false, false, bad); err == nil {
+		if err := SetupNetHandler(effCtx, false, "", false, false, bad); err == nil {
 			t.Errorf("--net-timeout %q accepted", bad)
 		}
 	}
 	// Without the Net capability the flag is inert, not an error.
-	if err := setupNetHandler(effects.NewEffContext(nil), false, "", false, false, "soon"); err != nil {
+	if err := SetupNetHandler(effects.NewEffContext(nil), false, "", false, false, "soon"); err != nil {
 		t.Errorf("flag validated without Net cap: %v", err)
 	}
 }

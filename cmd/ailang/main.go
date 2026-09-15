@@ -38,7 +38,6 @@ var (
 	blue    = color.New(color.FgBlue).SprintFunc()
 	magenta = color.New(color.FgMagenta).SprintFunc()
 	bold    = color.New(color.Bold).SprintFunc()
-	// dim is defined in debug_types.go
 
 	// Global flags
 	_ = false // quietMode placeholder for future use
@@ -661,4 +660,9 @@ func isLanguageCommand(cmd string) bool {
 		return true
 	}
 	return false
+}
+
+// dim renders text in the terminal's dim attribute.
+func dim(s string) string {
+	return "\033[2m" + s + "\033[0m"
 }

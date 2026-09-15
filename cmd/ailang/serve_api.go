@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/runner"
 	"log"
 	"os"
 	"path/filepath"
@@ -20,7 +21,7 @@ func serveAPICommand(args []string) error {
 	frontendFlag := fs.String("frontend", "", "Path to React/Vite project (proxies non-/api/ requests to Vite dev server)")
 	staticFlag := fs.String("static", "", "Path to built frontend files (serve as static files)")
 	watchFlag := fs.Bool("watch", false, "Watch .ail files for changes and hot-reload")
-	capsFlag := fs.String("caps", "", "Capabilities to grant (comma-separated: "+CapsList+")")
+	capsFlag := fs.String("caps", "", "Capabilities to grant (comma-separated: "+runner.CapsList+")")
 	aiModelFlag := fs.String("ai", "", "AI model for AI effect (e.g., gemini-2-5-flash, claude-sonnet-4-6)")
 	aiStubFlag := fs.Bool("ai-stub", false, "Use stub AI handler (for testing)")
 	verifyContractsFlag := fs.Bool("verify-contracts", false, "Enable runtime contract validation (requires/ensures)")
@@ -98,7 +99,7 @@ func serveAPICommand(args []string) error {
 	// set (M-DEBUG-SINK-STRUCTURED-LINES D5). Real capabilities stay gated.
 	effCtx := effects.NewEffContext(nil)
 	if *capsFlag != "" || *aiModelFlag != "" || *aiStubFlag || *verifyContractsFlag {
-		if err := grantCapabilities(effCtx, *capsFlag); err != nil {
+		if err := runner.GrantCapabilities(effCtx, *capsFlag); err != nil {
 			return err
 		}
 		// serve-api does not expose --routing-* flags today (no routing per request);
@@ -252,7 +253,7 @@ func printServeAPIHelp() {
 	fmt.Println("  --frontend PATH      Path to React/Vite project for dev proxy")
 	fmt.Println("  --static PATH        Path to built frontend files")
 	fmt.Println("  --watch              Watch .ail files for changes and hot-reload")
-	fmt.Printf("  --caps CAPS          Capabilities to grant (comma-separated: %s)\n", CapsList)
+	fmt.Printf("  --caps CAPS          Capabilities to grant (comma-separated: %s)\n", runner.CapsList)
 	fmt.Println("  --ai MODEL           AI model for AI effect (e.g., gemini-2-5-flash, claude-sonnet-4-6)")
 	fmt.Println("  --ai-stub            Use stub AI handler (for testing)")
 	fmt.Println("  --verify-contracts   Enable runtime contract validation (requires/ensures)")

@@ -1,4 +1,4 @@
-package main
+package runner
 
 import (
 	"fmt"
@@ -26,9 +26,9 @@ import (
 // likewise out of scope for M3 — the bridge will land them in M-BYTECODE-2E
 // alongside effect-trap callbacks.
 //
-// Per M-BYTECODE-VM §11, this type lives in cmd/ailang (not in internal/vm)
-// because the VM package must not import internal/eval. The vm.EvalInterop
-// interface is the seam.
+// Per M-BYTECODE-VM §11, this type lives outside internal/vm (here in the
+// runner, formerly cmd/ailang) because the VM package must not import
+// internal/eval. The vm.EvalInterop interface is the seam.
 type bytecodeBridge struct {
 	rt        *runtime.ModuleRuntime
 	inst      *runtime.ModuleInstance

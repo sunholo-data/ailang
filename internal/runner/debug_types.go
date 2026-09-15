@@ -1,4 +1,4 @@
-package main
+package runner
 
 import (
 	"fmt"
@@ -220,7 +220,7 @@ func (d *TypeDebugDumper) dumpCoreTI() {
 	fmt.Println()
 }
 
-// Helper color functions (reuse from main.go)
+// dim renders text in the terminal's dim attribute (cmd/ailang keeps its own copy).
 func dim(s string) string {
 	return "\033[2m" + s + "\033[0m"
 }
