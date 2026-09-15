@@ -349,31 +349,47 @@ func (ml *ModuleLoader) Load(path string) (*LoadedModule, error) {
 	return loaded, nil
 }
 
-// resolvePath resolves a module path to a file path
-func (ml *ModuleLoader) resolvePath(path string) string {
+// resolvePath resolves a module path to a file path.
+//
+// A std/ path goes through the SAME StdlibResolver Load uses (CLI flag, cwd,
+// binary-relative, AILANG_STDLIB_PATH, user and system dirs), then the
+// embedded copy. Until M-V1-SIMPLIFY-S4 M1 this function had its own second
+// implementation — AILANG_STDLIB_PATH else "." — so with the variable unset it
+// named `./std/<module>.ail` relative to whatever the process cwd happened to
+// be: a stale cwd meant the wrong stdlib, or a path to nothing, with no error.
+// No caller wants "."; an unresolvable stdlib module is an error here exactly
+// as it is in Load.
+func (ml *ModuleLoader) resolvePath(path string) (string, error) {
 	// If path already ends with .ail, use it as-is (absolute)
 	if strings.HasSuffix(path, ".ail") {
-		return path
+		return path, nil
 	}
 
 	// Handle explicit relative imports (starts with ./ or ../)
 	if strings.HasPrefix(path, "./") || strings.HasPrefix(path, "../") {
-		return filepath.Join(ml.basePath, path) + ".ail"
+		return filepath.Join(ml.basePath, path) + ".ail", nil
 	}
 
-	// Handle standard library imports (always relative to std root)
+	// Handle standard library imports (always relative to the std root the
+	// resolver finds — never the cwd)
 	if strings.HasPrefix(path, "std/") {
-		// Resolve from AILANG_STDLIB_PATH env or default to current directory
-		stdlibPath := os.Getenv("AILANG_STDLIB_PATH")
-		if stdlibPath == "" {
-			stdlibPath = "." // std/ is at repository root
+		if ml.stdlibResolver == nil {
+			ml.stdlibResolver = NewStdlibResolver("", false, false)
 		}
-		return filepath.Join(stdlibPath, path) + ".ail"
+		resolved, err := ml.stdlibResolver.ResolveStdlib(path)
+		if err == nil {
+			return resolved, nil
+		}
+		embFile := strings.TrimPrefix(path, "std/") + ".ail"
+		if _, embErr := std.FS.ReadFile(embFile); embErr == nil {
+			return "<embedded>/std/" + embFile, nil
+		}
+		return "", err
 	}
 
 	// Default: treat as project-relative (join with basePath)
 	// Example: "examples/v3_3/math/gcd" → "/abs/path/examples/v3_3/math/gcd.ail"
-	return filepath.Join(ml.basePath, path) + ".ail"
+	return filepath.Join(ml.basePath, path) + ".ail", nil
 }
 
 // CanonicalModuleID returns the canonical module ID for a path
@@ -624,7 +640,10 @@ func (ml *ModuleLoader) NormalizeContent(content []byte) []byte {
 // CanonicalPath returns the canonical path for a module
 func (ml *ModuleLoader) CanonicalPath(path string) (string, error) {
 	// Resolve to absolute path
-	fullPath := ml.resolvePath(path)
+	fullPath, err := ml.resolvePath(path)
+	if err != nil {
+		return "", err
+	}
 
 	// Get canonical path (resolves symlinks, etc.)
 	canonical, err := filepath.EvalSymlinks(fullPath)
