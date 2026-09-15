@@ -112,7 +112,10 @@ getenv_sites_total="$(printf '%s\n' "$getenv_all" | grep -c . || true)"
 # internal/testutil is test infrastructure (AILANG_LIVE_NET, AILANG_TEST_FAST_LOOP):
 # its switches are opt-ins for the test lane, not configuration of the binary.
 getenv_outside_config="$(printf '%s\n' "$getenv_all" | grep -v '^internal/config/' | grep -v '^internal/statedir/' | grep -v '^internal/testutil/' | grep -vE '(Getenv|LookupEnv)\("DEBUG_' | grep -c . || true)"
-env_names="$(printf '%s\n' "$getenv_all" | grep -oE '(Getenv|LookupEnv)\("[A-Z][A-Z0-9_]*"' | grep -oE '"[^"]+"' | tr -d '"' | sort -u)"
+# The names the binary reads = the literal reads (DEBUG_* knobs, statedir) plus
+# every Env* constant in internal/config — since S4, reads go through the
+# Registry and a literal-name census would see almost none of them.
+env_names="$( { printf '%s\n' "$getenv_all" | grep -oE '(Getenv|LookupEnv)\("[A-Z][A-Z0-9_]*"' | grep -oE '"[^"]+"'; grep -hoE 'Env[A-Za-z0-9]+ *= *"[A-Z][A-Z0-9_]*"' internal/config/*.go 2>/dev/null | grep -oE '"[^"]+"'; } | tr -d '"' | sort -u)"
 env_distinct="$(printf '%s\n' "$env_names" | grep -c . || true)"
 doc_sources="CLAUDE.md README.md docs/docs/guides/debugging.md"
 for f in .claude/rules/*.md; do doc_sources="$doc_sources $f"; done

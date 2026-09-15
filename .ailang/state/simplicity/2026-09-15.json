@@ -1,15 +1,15 @@
 {
   "date": "2026-09-15",
-  "commit": "bfec36414",
+  "commit": "6e64b246e",
   "metrics": {
     "closure_internal_packages": {
-      "value": 44,
+      "value": 45,
       "gate": null,
       "dir": "le",
       "how": "go list -deps over the language roots (leaves included)"
     },
     "closure_nonleaf_packages": {
-      "value": 30,
+      "value": 31,
       "gate": 36,
       "dir": "le",
       "how": "closure packages that import something under the module — the coupling that can ripple"
@@ -47,13 +47,13 @@
       "how": "go list ./internal/..."
     },
     "internal_loc": {
-      "value": 303239,
+      "value": 305310,
       "gate": null,
       "dir": "le",
       "how": "non-test Go lines under internal/"
     },
     "cmd_ailang_loc": {
-      "value": 60151,
+      "value": 59942,
       "gate": null,
       "dir": "le",
       "how": "non-test Go lines under cmd/ailang"
@@ -77,28 +77,28 @@
       "how": "distinct FlagSet definition names in cmd/ailang"
     },
     "getenv_sites_total": {
-      "value": 406,
+      "value": 110,
       "gate": null,
       "dir": "le",
       "how": "os.Getenv/LookupEnv call sites, non-test"
     },
     "getenv_outside_config": {
-      "value": 300,
+      "value": 0,
       "gate": 0,
       "dir": "le",
       "how": "same, excluding internal/config, internal/statedir, internal/testutil and DEBUG_* knobs"
     },
     "env_vars_distinct": {
-      "value": 198,
+      "value": 241,
       "gate": null,
       "dir": "le",
       "how": "distinct literal names read"
     },
     "env_vars_documented_pct": {
-      "value": 11,
+      "value": 100,
       "gate": 100,
       "dir": "ge",
-      "detail": "23",
+      "detail": "241",
       "how": "named in CLAUDE.md, .claude/rules, debugging.md, README, reference/env-vars.md"
     },
     "backend_switches": {
@@ -108,7 +108,7 @@
       "how": "independent which-backend env vars still read"
     },
     "dup_symbol_names": {
-      "value": 17,
+      "value": 14,
       "gate": null,
       "dir": "le",
       "how": "top-level func names declared in >=3 packages (tools/dup_symbols.sh lists them)"
@@ -133,13 +133,13 @@
       "how": "CLAUDE.md + unscoped rules + skill descriptions"
     },
     "instruction_surface_with_memory_bytes": {
-      "value": 50918,
+      "value": 51155,
       "gate": null,
       "dir": "le",
       "how": "plus the MEMORY.md index on this machine"
     },
     "tracked_files": {
-      "value": 24912,
+      "value": 24960,
       "gate": 8000,
       "dir": "le",
       "how": "git ls-files"

@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-V1-SIMPLIFY-S4",
-  "status": "not_started",
+  "status": "completed",
   "created": "2026-09-15T12:23:38Z",
   "design_doc": "design_docs/planned/m-v1-simplification-program.md",
   "sprint_plan": "design_docs/planned/m-v1-simplification-s4-sprint-plan.md",
@@ -21,10 +21,10 @@
         "no $0 banked for unpriced",
         "tests green"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-15T13:54:07Z",
+      "completed": "2026-09-15T13:54:07Z",
+      "notes": "9 commits merged. 10 sites → DeprecatedDefault with new env vars (AILANG_DEFAULT_PROVIDER, AILANG_WORKSPACE, AILANG_EMBED_*_MODEL, AILANG_APPROVAL_TIMEOUT, AILANG_BUDGET_UNLIMITED, AILANG_APPROVAL_URL…); haiku removed outright (was an override); loader \".\" → shared resolver, error. Unpriced → CostProvenanceUnknown; OTLP stamps ailang.cost.unpriced."
     },
     {
       "id": "M2_ENV_TO_CONFIG",
@@ -36,10 +36,10 @@
         "env doc generated and linked",
         "precedence documented once"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-15T13:54:07Z",
+      "completed": "2026-09-15T13:54:07Z",
+      "notes": "6 commits merged. 301 → 91 sites (88 in other lanes); Registry 159 vars/20 areas; make docs-env + reference page + sidebar; TestEveryGetenvNameIsRegistered bidirectional."
     },
     {
       "id": "M3A_EVAL_LEFTOVERS",
@@ -51,10 +51,10 @@
         "ai_check_exit_test pins contract",
         "tests green"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-15T13:54:07Z",
+      "completed": "2026-09-15T13:54:07Z",
+      "notes": "9 commits merged. proctree/strutil adoption; Truncate delegates deleted (40 callers); ai-check unified onto smt.Verify — cross-module verification was FAILING in ai-check (bug); unsupported-construct stays an ai-check error via option; D2 events.yml + history notes."
     },
     {
       "id": "M3B_STORAGE_AI_LEFTOVERS",
@@ -68,10 +68,10 @@
         "one handoff sender",
         "tests green"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-15T13:54:07Z",
+      "completed": "2026-09-15T13:54:07Z",
+      "notes": "8 commits merged. simhash leaf everywhere; coordinator.db versioned data migrations + fingerprint re-index; mapval leaf (482 sites); agentprompt/devtoolsprompt deleted (byte-identical output); repo leaf; ONE handoff sender — daemon thread-trail had written nothing since 775028c1e (empty thread id); observatory v21 cache columns."
     },
     {
       "id": "M4_CLOSEOUT",
@@ -89,10 +89,10 @@
         "env_vars_documented_pct = 100",
         "make test + gates green"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-15T13:54:07Z",
+      "completed": "2026-09-15T13:54:07Z",
+      "notes": "6 commits merged. 95 → 0 sites; Registry 222/24 areas; forbidigo on (canary-proven); v1 lint exclusions had been silently ignored under v2 — migrated. D8 config.MissionMessagePlaneProject constant; D9 standard-mode stdout_ok gated on runtime_ok + note + tests; ollama OLLAMA_HOST Setenv removed. Close-out: metric counts registry names; DEBUG_* + AILANG_LIVE_NET documented → 100%. Rig coordinator key ROTATED after a test failure message echoed it."
     }
   ]
 }
