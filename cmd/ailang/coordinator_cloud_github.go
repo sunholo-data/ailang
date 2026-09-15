@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/fs"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -215,7 +216,73 @@ func createGitHubPR(ctx context.Context, token, owner, repo, title, body, head, 
 		}
 		num, url, status, err = createGitHubPROnce(ctx, token, owner, repo, title, body, head, base)
 	}
+	// "A pull request already exists" is SUCCESS, not a verdict against us.
+	//
+	// It is the idempotency signal: a previous execution of this task already
+	// pushed the branch and opened the PR. Treating it as fatal marks a task
+	// FAILED for having succeeded twice.
+	//
+	// Measured 2026-09-15: task-1074a9cf pushed and opened PR #1223 at 07:16,
+	// was re-executed, and at 07:19 reported
+	//
+	//   the work is pushed to coordinator/task-1074a9cf but no PR could be
+	//   opened for it: github api returned 422: A pull request already exists
+	//
+	// Two of fifteen parallel triage runs died this way with their work landed
+	// and a PR open. Re-execution is normal — the stale detector re-dispatches,
+	// and MaxTaskExecutions allows two — so the create path has to be replayable
+	// for the same reason PutMessageIfAbsent is.
+	if err != nil && isPRAlreadyExists(status, err) {
+		if n, u, findErr := findOpenPRForBranch(ctx, token, owner, repo, head); findErr == nil && n > 0 {
+			fmt.Fprintf(os.Stderr, "execute-job: PR #%d already exists for %s — a previous execution opened it\n", n, head)
+			return n, u, nil
+		}
+		// Could not look it up. The PR exists, so the work is not lost, but say
+		// what is known rather than reporting a create failure that is really a
+		// duplicate.
+		fmt.Fprintf(os.Stderr, "execute-job: a PR already exists for %s but it could not be looked up\n", head)
+		return 0, "", nil
+	}
 	return num, url, err
+}
+
+// isPRAlreadyExists reports GitHub's duplicate-PR answer.
+//
+// Matched on the message rather than the status alone: 422 is also "No commits
+// between ...", which IS a real failure and must stay one.
+func isPRAlreadyExists(status int, err error) bool {
+	if status != 422 || err == nil {
+		return false
+	}
+	return strings.Contains(strings.ToLower(err.Error()), "pull request already exists")
+}
+
+// findOpenPRForBranch resolves the PR a previous execution opened.
+func findOpenPRForBranch(ctx context.Context, token, owner, repo, head string) (int, string, error) {
+	apiURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/pulls?state=open&head=%s:%s",
+		owner, repo, owner, url.QueryEscape(head))
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
+	if err != nil {
+		return 0, "", err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Accept", "application/vnd.github+json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return 0, "", err
+	}
+	defer func() { _ = resp.Body.Close() }()
+	var prs []struct {
+		Number  int    `json:"number"`
+		HTMLURL string `json:"html_url"`
+	}
+	if decErr := json.NewDecoder(resp.Body).Decode(&prs); decErr != nil {
+		return 0, "", decErr
+	}
+	if len(prs) == 0 {
+		return 0, "", fmt.Errorf("no open PR found for %s", head)
+	}
+	return prs[0].Number, prs[0].HTMLURL, nil
 }
 
 // shouldRetryPRCreate reports whether a PR-create outcome is worth another go.

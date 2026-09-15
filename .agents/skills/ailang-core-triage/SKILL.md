@@ -80,10 +80,18 @@ Apply in order. The FIRST row that matches decides.
 | 6 | The change is **more than DIRECT_FIX_MAX_LINES lines** | `design-doc` |
 | 7 | Otherwise | `direct-fix` |
 
-**State your estimate.** Every `direct-fix` row must carry
-`Estimate: <n> lines in <file>`. That is what makes the call auditable: when the
-fix lands, its diff either matches or it does not, and a pattern of
-underestimates is a reason to raise the thresholds rather than trust the label.
+**State your estimate, then OBEY it.** Every `direct-fix` must carry
+`Estimate: <n> lines in <file>`. Write the estimate BEFORE the recommendation,
+and if it exceeds `DIRECT_FIX_MAX_LINES` or names more than
+`DIRECT_FIX_MAX_FILES` file, go back to row 5/6: the answer is `design-doc`.
+
+Measured 2026-09-15: one row estimated `~15–30 lines` and still said
+`direct-fix`. The estimate was right and was then ignored. A number you write
+and disregard is worse than no number, because it looks like evidence.
+
+That is what makes the call auditable: when the fix lands, its diff either
+matches or it does not, and a pattern of underestimates is a reason to raise the
+thresholds rather than trust the label.
 
 If you cannot estimate the size, you do not understand the fix well enough to
 call it direct — say `design-doc`.
