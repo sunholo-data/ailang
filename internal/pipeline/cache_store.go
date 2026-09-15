@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/core"
 	_ "github.com/sunholo-data/ailang/internal/core" // registers gob types
 	"github.com/sunholo-data/ailang/internal/iface"
@@ -63,7 +64,7 @@ type CacheEntry struct {
 // the point of use, zero plumbing change for callers.
 func NewCacheStore(projectDir string) (*CacheStore, error) {
 	var dir string
-	if override := os.Getenv("AILANG_CACHE_DIR"); override != "" {
+	if override := config.CacheDir(); override != "" {
 		// Operator override: full control, no projectDir prefix.
 		dir = filepath.Join(override, "compile")
 	} else {

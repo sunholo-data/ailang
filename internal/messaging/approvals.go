@@ -7,8 +7,9 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"os"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // Approval represents an approval request for effect-gated actions
@@ -359,7 +360,7 @@ func VerifyCapabilityToken(tokenString string) (*CapabilityToken, error) {
 // getSigningSecret returns the HMAC signing secret (from env or generated)
 func getSigningSecret() []byte {
 	// Try to get from environment first
-	if secret := os.Getenv("AILANG_TOKEN_SECRET"); secret != "" {
+	if secret := config.TokenSecret(); secret != "" {
 		return []byte(secret)
 	}
 

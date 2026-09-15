@@ -131,6 +131,7 @@ const sidebars = {
             'reference/implementation-status',
             'reference/stability',
             'reference/limitations',
+            'reference/env-vars',
           ],
         },
         {

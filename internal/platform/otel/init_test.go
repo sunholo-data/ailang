@@ -67,31 +67,3 @@ func TestNewResource(t *testing.T) {
 		t.Error("service.name attribute not found in resource")
 	}
 }
-
-func TestGetEnv(t *testing.T) {
-	tests := []struct {
-		name         string
-		key          string
-		defaultValue string
-		envValue     string
-		want         string
-	}{
-		{"uses default when not set", "TEST_UNSET_VAR", "default", "", "default"},
-		{"uses env when set", "TEST_SET_VAR", "default", "custom", "custom"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if tt.envValue != "" {
-				os.Setenv(tt.key, tt.envValue)
-				defer os.Unsetenv(tt.key)
-			} else {
-				os.Unsetenv(tt.key)
-			}
-
-			if got := getEnv(tt.key, tt.defaultValue); got != tt.want {
-				t.Errorf("getEnv() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}

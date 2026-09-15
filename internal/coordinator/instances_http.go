@@ -29,7 +29,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -37,6 +36,8 @@ import (
 	run "cloud.google.com/go/run/apiv2"
 	"cloud.google.com/go/run/apiv2/runpb"
 	"google.golang.org/api/idtoken"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // Only instances whose name matches this may be operated through this route.
@@ -85,8 +86,8 @@ func instanceNameFromURL(rawURL string) string {
 // verifyLifecycleCaller checks a Google-signed ID token against an explicit
 // allowlist. Fails closed: unconfigured means nobody, not everybody.
 func verifyLifecycleCaller(ctx context.Context, r *http.Request) error {
-	audience := os.Getenv("RESIDENT_LIFECYCLE_AUDIENCE")
-	allowed := os.Getenv("RESIDENT_LIFECYCLE_ALLOWED_CALLERS")
+	rl := config.ResidentLifecycleConfig()
+	audience, allowed := rl.Audience, rl.AllowedCallers
 	if audience == "" || allowed == "" {
 		return fmt.Errorf("resident lifecycle is not configured (audience/allowlist unset)")
 	}
@@ -149,8 +150,8 @@ func (d *Daemon) handleStartInstance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	project := os.Getenv("RESIDENT_LIFECYCLE_PROJECT")
-	region := os.Getenv("RESIDENT_LIFECYCLE_REGION")
+	rl := config.ResidentLifecycleConfig()
+	project, region := rl.Project, rl.Region
 	if project == "" || region == "" {
 		http.Error(w, "resident lifecycle project/region not configured", http.StatusServiceUnavailable)
 		return

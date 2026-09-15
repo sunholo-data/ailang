@@ -32,7 +32,7 @@ func serverCommand(args []string) error {
 	firebaseProject := ""                        // Firebase project ID for authentication
 
 	// Check PORT env var (Cloud Run convention) — overridden by --port flag
-	if envPort := os.Getenv("PORT"); envPort != "" {
+	if envPort := config.Port(); envPort != "" {
 		port = envPort
 		bindAddr = "0.0.0.0" // Cloud Run requires binding to all interfaces
 	}
@@ -100,7 +100,7 @@ func serverCommand(args []string) error {
 	// Check for Firebase project from config or environment if not specified via flag
 	if firebaseProject == "" {
 		// Try environment variable first
-		firebaseProject = os.Getenv("AILANG_FIREBASE_PROJECT")
+		firebaseProject = config.FirebaseProject()
 	}
 	if firebaseProject == "" {
 		// Try config file
@@ -157,13 +157,13 @@ func serverCommand(args []string) error {
 	}
 
 	// Add hook token auth if configured (for cloud deployments)
-	if hookToken := os.Getenv("AILANG_HUB_TOKEN"); hookToken != "" {
+	if hookToken := config.HubToken(); hookToken != "" {
 		serverOpts = append(serverOpts, server.WithHookToken(hookToken))
 		log.Printf("Hook token authentication enabled for /api/hooks/*")
 	}
 
 	// Add WebSocket token auth if configured (reuses COORDINATOR_API_KEY)
-	if wsToken := os.Getenv("COORDINATOR_API_KEY"); wsToken != "" {
+	if wsToken := config.CoordinatorAPIKey(); wsToken != "" {
 		serverOpts = append(serverOpts, server.WithWebSocketToken(wsToken))
 		log.Printf("WebSocket token authentication enabled (external clients require ?token= parameter)")
 	}
@@ -262,7 +262,7 @@ func serverCommand(args []string) error {
 	// M-SECRET-REMOTE-APPROVAL-WIRING: enable signed single-use token auth on the
 	// secret approve/reject endpoints when a signing key is configured, so the
 	// iPhone ntfy action buttons can POST without Google IAM.
-	if keyStr := os.Getenv("AILANG_APPROVAL_SIGNING_KEY"); keyStr != "" {
+	if keyStr := config.ApprovalSigningKey(); keyStr != "" {
 		if signer, err := approvaltoken.NewSigner([]byte(keyStr)); err == nil {
 			srv.SetSecretApprovalAuth(signer)
 			log.Printf("Secret approval token auth enabled")

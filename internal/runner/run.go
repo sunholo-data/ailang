@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/ai"
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/effects"
 	"github.com/sunholo-data/ailang/internal/eval"
 	"github.com/sunholo-data/ailang/internal/iface"
@@ -191,13 +192,7 @@ func Run(ctx context.Context, opts Options) int {
 
 	// Check AILANG_RELAX_MODULES environment variable
 	// CLI flag takes precedence, but env var can also enable relaxation
-	relaxModulesEffective := opts.RelaxModules
-	if envVal := os.Getenv("AILANG_RELAX_MODULES"); envVal != "" {
-		switch strings.ToLower(envVal) {
-		case "1", "true", "yes":
-			relaxModulesEffective = true
-		}
-	}
+	relaxModulesEffective := opts.RelaxModules || config.RelaxModules()
 
 	cfg := pipeline.Config{
 		Mode:                    mode,
@@ -208,7 +203,7 @@ func Run(ctx context.Context, opts Options) int {
 		TrackInstantiations:     opts.TrackInstantiations,
 		DisableMonomorphization: opts.NoMono,
 		DebugCompile:            opts.DebugCompile,
-		NoCache:                 os.Getenv("AILANG_NO_CACHE") == "1",
+		NoCache:                 config.NoCache(),
 		StrictSyntaxMode:        opts.StrictSyntax,
 		RelaxModules:            relaxModulesEffective,
 		GlobalResolver:          builtinResolver,     // Provide builtin access for type checking

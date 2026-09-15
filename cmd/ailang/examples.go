@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // ExampleManifest represents the examples/manifest.json structure
@@ -671,7 +673,7 @@ func loadExamplesManifest() (*ExampleManifest, error) {
 
 func findExamplesDir() (string, error) {
 	// 1. Check AILANG_EXAMPLES environment variable
-	if envExamples := os.Getenv("AILANG_EXAMPLES"); envExamples != "" {
+	if envExamples := config.ExamplesDir(); envExamples != "" {
 		if info, err := os.Stat(envExamples); err == nil && info.IsDir() {
 			absPath, _ := filepath.Abs(envExamples)
 			return absPath, nil

@@ -3,12 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
 	"cloud.google.com/go/firestore"
 	firebase "firebase.google.com/go/v4"
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/coordinator"
 )
 
@@ -97,7 +97,7 @@ func accessControlAdd(args []string) error {
 
 	// Get Firebase project
 	if projectID == "" {
-		projectID = os.Getenv("AILANG_FIREBASE_PROJECT")
+		projectID = config.FirebaseProject()
 	}
 	if projectID == "" {
 		cfg := coordinator.LoadFirebaseConfig()
@@ -177,7 +177,7 @@ func accessControlRemove(args []string) error {
 
 	// Get Firebase project
 	if projectID == "" {
-		projectID = os.Getenv("AILANG_FIREBASE_PROJECT")
+		projectID = config.FirebaseProject()
 	}
 	if projectID == "" {
 		cfg := coordinator.LoadFirebaseConfig()
@@ -237,7 +237,7 @@ func accessControlList(args []string) error {
 
 	// Get Firebase project
 	if projectID == "" {
-		projectID = os.Getenv("AILANG_FIREBASE_PROJECT")
+		projectID = config.FirebaseProject()
 	}
 	if projectID == "" {
 		cfg := coordinator.LoadFirebaseConfig()

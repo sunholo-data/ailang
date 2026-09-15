@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/mission"
 	"github.com/sunholo-data/ailang/internal/statedir"
 )
@@ -148,7 +149,7 @@ Model and role assignment is NOT here: see ` + "`ailang models role`" + `.
 }
 
 func loadMissionRegistry() (*mission.Registry, error) {
-	if dir := os.Getenv("AILANG_MISSION_REGISTRY"); dir != "" {
+	if dir := config.MissionRegistry(); dir != "" {
 		if !filepath.IsAbs(dir) {
 			return nil, fmt.Errorf("AILANG_MISSION_REGISTRY must be an absolute existing directory")
 		}

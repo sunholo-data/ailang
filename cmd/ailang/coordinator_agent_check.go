@@ -71,7 +71,7 @@ func (c agentCheck) marker() string {
 
 func coordinatorAgentCheck(args []string) error {
 	var agentID string
-	repoConfig := os.Getenv("AILANG_AGENT_CHECK_REPO_CONFIG")
+	repoConfig := config.AgentCheckRepoConfig()
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
 		case "--repo-config":
@@ -557,7 +557,7 @@ func ownerRepoOf(a *coordinator.AgentConfig) string {
 
 // githubGET is a read-only API call using the fleet token.
 func githubGET(ctx context.Context, path string) ([]byte, int, error) {
-	token := strings.TrimSpace(os.Getenv("GITHUB_TOKEN"))
+	token := config.GitHubToken()
 	if token == "" {
 		if out, err := exec.CommandContext(ctx, "gh", "auth", "token").Output(); err == nil {
 			token = strings.TrimSpace(string(out))

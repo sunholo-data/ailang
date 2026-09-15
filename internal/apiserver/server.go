@@ -27,6 +27,7 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/sunholo-data/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/effects"
 	"github.com/sunholo-data/ailang/internal/embed"
 	"github.com/sunholo-data/ailang/internal/iface"
@@ -228,7 +229,7 @@ func New(basePath string, cfg Config) *Server {
 // version where the same layout was silently degraded). NOT a CLI flag
 // — env-var-only forces operators to make the bypass explicit in their
 // Dockerfile / deployment manifest. See M-SERVEAPI-SURFACE-DROPS.
-const AllowDropsEnvVar = "AILANG_SERVE_API_ALLOW_DROPS"
+const AllowDropsEnvVar = config.EnvServeAPIAllowDrops
 
 // ValidateRegistration must be called after LoadModules and before
 // Start. Returns a non-nil error if any module rejected by the
@@ -273,7 +274,7 @@ func (s *Server) ValidateRegistration() error {
 	}
 	log.Printf("⚠  Dropped %d module(s) outside basePath: %s", len(drops), strings.Join(names, ", "))
 
-	allowDrops := os.Getenv(AllowDropsEnvVar) == "1"
+	allowDrops := config.ServeAPIAllowDrops()
 	if len(fatal) > 0 && allowDrops {
 		log.Printf("⚠  %s=1 — starting with %d @route-bearing module(s) dropped (NOT recommended for production)",
 			AllowDropsEnvVar, len(fatal))

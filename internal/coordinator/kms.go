@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"os"
 
 	kms "cloud.google.com/go/kms/apiv1"
 	kmspb "cloud.google.com/go/kms/apiv1/kmspb"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // kmsEncryptPrefix marks a value as KMS-encrypted. Values with this prefix
@@ -27,7 +28,7 @@ type KMSEncrypter struct {
 // NewKMSEncrypter creates an encrypter using the AILANG_KMS_KEY env var.
 // Returns nil if the env var is not set (local dev — plaintext passthrough).
 func NewKMSEncrypter() *KMSEncrypter {
-	keyName := os.Getenv("AILANG_KMS_KEY")
+	keyName := config.KMSKey()
 	if keyName == "" {
 		return nil
 	}

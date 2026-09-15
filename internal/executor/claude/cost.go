@@ -1,8 +1,7 @@
 package claude
 
 import (
-	"os"
-
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/executor"
 )
 
@@ -20,7 +19,7 @@ import (
 // nobody is charged. On the eval rig the key is deliberately stripped, so the
 // default is the common case, not an edge case.
 func (e *ClaudeExecutor) authLane() executor.AuthLane {
-	if os.Getenv("AILANG_AUTH_MODE") == "apikey" {
+	if config.AuthMode() == "apikey" {
 		return executor.AuthLaneBilled
 	}
 	return executor.AuthLaneSubscription

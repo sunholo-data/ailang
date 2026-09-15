@@ -268,7 +268,7 @@ func uploadTarball(url string, tarballData []byte, allowDottedToolNames bool) er
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
 	// API key auth (from AILANG_REGISTRY_API_KEY env var)
-	if apiKey := os.Getenv("AILANG_REGISTRY_API_KEY"); apiKey != "" {
+	if apiKey := config.RegistryAPIKey(); apiKey != "" {
 		req.Header.Set("X-API-Key", apiKey)
 	}
 

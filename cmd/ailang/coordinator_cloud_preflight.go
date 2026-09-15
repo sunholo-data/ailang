@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/executor"
 	"github.com/sunholo-data/ailang/internal/executor/codex"
 )
@@ -124,7 +125,7 @@ func preflightExecutor(ctx context.Context, provider string) error {
 // describeImage reports what the image says it is, for an error message read by
 // someone who cannot see which container ran.
 func describeImage() string {
-	if declared := strings.TrimSpace(os.Getenv("AILANG_IMAGE_PROVIDER")); declared != "" {
+	if declared := config.ImageProvider(); declared != "" {
 		return "AILANG_IMAGE_PROVIDER=" + declared
 	}
 	// ListAvailable is what this BINARY can build, not what the image installs —

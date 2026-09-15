@@ -11,6 +11,7 @@ import (
 
 	trace "cloud.google.com/go/trace/apiv1"
 	"cloud.google.com/go/trace/apiv1/tracepb"
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"google.golang.org/api/iterator"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -55,7 +56,7 @@ func traceStatusCommand() {
 	fmt.Println(strings.Repeat("─", 40))
 
 	gcpProject := telemetry.GoogleCloudProject()
-	otlpEndpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+	otlpEndpoint := config.OTLPEndpoint()
 
 	fmt.Printf("Google Cloud Project: %s\n", valueOrNone(gcpProject))
 	fmt.Printf("OTLP Endpoint:        %s\n", valueOrNone(otlpEndpoint))

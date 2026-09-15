@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // M-MODEL-REGISTRY-SINGLE-SOURCE M4 (decision D1(a), ratified by Mark 2026-08-27).
@@ -27,15 +29,15 @@ const (
 	// ModelsPathEnv names one registry file explicitly. It wins over everything
 	// — it is the operator saying "use this one", and a developer with a local
 	// file must be able to beat a published registry.
-	ModelsPathEnv = "AILANG_MODELS_PATH"
+	ModelsPathEnv = config.EnvModelsPath
 
 	// PublishedDirEnv is the directory a published registry is mounted into
 	// (the gcsfuse volume on Cloud Run — see M2). Contains models.yml.
-	PublishedDirEnv = "AILANG_MODELS_PUBLISHED_DIR"
+	PublishedDirEnv = config.EnvModelsPublishedDir
 
 	// DefaultPublishedDir is where cloud jobs mount the registry when
 	// PublishedDirEnv is unset.
-	DefaultPublishedDir = "/registry"
+	DefaultPublishedDir = config.DefaultModelsPublishedDir
 )
 
 // SourceKind says which of the three levels supplied the loaded registry.
@@ -130,7 +132,7 @@ func initModelsConfigFrom() (Source, error) {
 	// 1. Explicit path. If the operator named a file and it is broken, that is
 	//    a hard error — silently ignoring an explicit instruction is worse than
 	//    stopping.
-	if p := os.Getenv(ModelsPathEnv); p != "" {
+	if p := config.ModelsPath(); p != "" {
 		cfg, ver, present, err := tryFile(p)
 		if err != nil {
 			return Source{}, fmt.Errorf("%s=%s could not be parsed: %w", ModelsPathEnv, p, err)
@@ -146,10 +148,7 @@ func initModelsConfigFrom() (Source, error) {
 
 	// 2. Published registry (the gcsfuse mount). Broken here degrades to the
 	//    floor rather than taking the fleet down — but never quietly.
-	dir := os.Getenv(PublishedDirEnv)
-	if dir == "" {
-		dir = DefaultPublishedDir
-	}
+	dir := config.ModelsPublishedDir()
 	pubPath := filepath.Join(dir, "models.yml")
 	cfg, ver, present, err := tryFile(pubPath)
 	switch {

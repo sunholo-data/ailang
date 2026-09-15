@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/executor"
 )
 
@@ -183,7 +184,7 @@ func ParseSessionLine(line []byte) (*SessionEvent, map[string]any, error) {
 //     emits a Result with Error pointing to that fact.
 func findSessionJSONL(workspace, sessionID, discoveredRepo string) (string, error) {
 	candidates := []string{filepath.Join(workspace, motokoStateDir, "logfile")}
-	if motokoRepo := os.Getenv("MOTOKO_REPO"); motokoRepo != "" {
+	if motokoRepo := config.MotokoRepo(); motokoRepo != "" {
 		candidates = append(candidates, filepath.Join(motokoRepo, motokoStateDir, "logfile"))
 	} else if discoveredRepo != "" {
 		// MOTOKO_REPO env was unset but `motoko --version` reported one.

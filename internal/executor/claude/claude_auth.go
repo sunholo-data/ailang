@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/executor"
 	"github.com/sunholo-data/ailang/internal/proctree"
 )
@@ -73,7 +74,7 @@ func (e *ClaudeExecutor) installPlugins(ctx context.Context, plugins *executor.P
 //
 // Returns nil if CLAUDE_CODE_OAUTH_TOKEN is not set (no-op for local dev).
 func writeCredentialsFile() error {
-	token := os.Getenv("CLAUDE_CODE_OAUTH_TOKEN")
+	token, _ := config.ClaudeCodeOAuthToken()
 	if token == "" {
 		return nil
 	}
@@ -112,7 +113,7 @@ func writeCredentialsFile() error {
 
 	// When CLAUDE_CONFIG_DIR is set it overrides ~/.claude/ entirely, so credentials
 	// must also exist there — otherwise Claude prompts for login.
-	if configDir := os.Getenv("CLAUDE_CONFIG_DIR"); configDir != "" && configDir != claudeDir {
+	if configDir := config.ClaudeConfigDir(); configDir != "" && configDir != claudeDir {
 		if err := os.MkdirAll(configDir, 0700); err == nil {
 			altPath := filepath.Join(configDir, ".credentials.json")
 			if err := os.WriteFile(altPath, data, 0600); err == nil {

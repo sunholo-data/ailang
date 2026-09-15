@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/importhint"
 )
 
@@ -83,21 +84,21 @@ func getUserDataDir() string {
 	switch runtime.GOOS {
 	case "linux", "freebsd", "openbsd", "netbsd":
 		// Linux/BSD: Use XDG_DATA_HOME or ~/.local/share
-		if xdg := os.Getenv("XDG_DATA_HOME"); xdg != "" {
+		if xdg := config.XDGDataHome(); xdg != "" {
 			baseDir = xdg
-		} else if home := os.Getenv("HOME"); home != "" {
+		} else if home := config.Home(); home != "" {
 			baseDir = filepath.Join(home, ".local", "share")
 		}
 
 	case "darwin":
 		// macOS: Use ~/Library/Application Support
-		if home := os.Getenv("HOME"); home != "" {
+		if home := config.Home(); home != "" {
 			baseDir = filepath.Join(home, "Library", "Application Support")
 		}
 
 	case "windows":
 		// Windows: Use %APPDATA%
-		if appdata := os.Getenv("APPDATA"); appdata != "" {
+		if appdata := config.AppData(); appdata != "" {
 			baseDir = appdata
 		}
 
@@ -196,7 +197,7 @@ func (r *StdlibResolver) ResolveStdlib(moduleName string) (string, error) {
 				// M-DX21: Non-strict: log warning only once per process
 				// AILANG_NO_VERSION_WARNINGS: suppress entirely
 				// AILANG_QUIET_WARNINGS: suppress in JSON/quiet mode (set by CLI)
-				if !stdlibVersionWarningShown && os.Getenv("AILANG_NO_VERSION_WARNINGS") == "" && os.Getenv("AILANG_QUIET_WARNINGS") == "" {
+				if !stdlibVersionWarningShown && !config.StdlibVersionWarningsSuppressed() {
 					fmt.Fprintf(os.Stderr, "Warning: %v\n", err)
 					stdlibVersionWarningShown = true
 				}
@@ -245,7 +246,7 @@ func (r *StdlibResolver) initializeSearchPaths() {
 	}
 
 	// 4. AILANG_STDLIB_PATH environment variable (multi-path)
-	if envPath := os.Getenv("AILANG_STDLIB_PATH"); envPath != "" {
+	if envPath := config.StdlibPath(); envPath != "" {
 		sep := getPathSeparator()
 		for _, p := range strings.Split(envPath, sep) {
 			p = strings.TrimSpace(p)

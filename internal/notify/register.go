@@ -2,14 +2,15 @@ package notify
 
 import (
 	"log"
-	"os"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // DiscordWebhookEnv holds the Discord incoming-webhook URL. Fail-closed: when it
 // is neither set nor in the Keychain, the Discord channel is simply not
 // registered (the daemon still boots — it just has no Discord output). Treat the
 // value as a secret.
-const DiscordWebhookEnv = "AILANG_DISCORD_WEBHOOK_URL"
+const DiscordWebhookEnv = config.EnvDiscordWebhookURL
 
 // keychainLookup resolves the Discord webhook from the OS keychain. It is a var
 // so tests can stub it and stay hermetic (independent of the dev's real Keychain).
@@ -19,7 +20,7 @@ var keychainLookup = discordWebhookFromKeychain
 // (AILANG_DISCORD_WEBHOOK_URL), then the macOS login Keychain (darwin only).
 // Returns "" when unconfigured.
 func discordWebhookURL() string {
-	if v := os.Getenv(DiscordWebhookEnv); v != "" {
+	if v := config.DiscordWebhookURL(); v != "" {
 		return v
 	}
 	return keychainLookup()

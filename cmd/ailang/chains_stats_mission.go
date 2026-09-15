@@ -14,6 +14,8 @@ import (
 	"strconv"
 	"text/tabwriter"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // missionRollupJSON is the JSON shape for `chains stats --by-mission`.
@@ -74,7 +76,7 @@ func chainsStatsByMission(sourcePrefix string, hours int, jsonOutput, strict boo
 	// Budget: NO silent fallback. If MISSION_METERED_BUDGET_USD is unset, we show
 	// "budget unset" and never compare against 0.
 	var budget *float64
-	if raw := os.Getenv("MISSION_METERED_BUDGET_USD"); raw != "" {
+	if raw := config.MissionMeteredBudgetUSD(); raw != "" {
 		if v, perr := strconv.ParseFloat(raw, 64); perr == nil {
 			budget = &v
 		} else {

@@ -8,6 +8,8 @@ import (
 	"os"
 	"runtime"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // PipelineMetrics contains timing and resource metrics from compilation
@@ -60,11 +62,11 @@ type MetricsCollector struct {
 // NewMetricsCollector creates a new metrics collector
 // Only enabled if AILANG_METRICS=1 is set
 func NewMetricsCollector(filename string, isModule bool) *MetricsCollector {
-	enabled := os.Getenv("AILANG_METRICS") == "1"
+	enabled := config.Metrics()
 
 	mc := &MetricsCollector{
 		enabled: enabled,
-		hubURL:  os.Getenv("AILANG_HUB_URL"),
+		hubURL:  config.HubURL(),
 		metrics: PipelineMetrics{
 			Filename:  filename,
 			IsModule:  isModule,
@@ -129,7 +131,7 @@ func (mc *MetricsCollector) RecordFromResult(result *Result) {
 	}
 
 	// Debug: show what's in the PhaseTimings
-	if os.Getenv("AILANG_METRICS_DEBUG") == "1" {
+	if config.MetricsDebug() {
 		fmt.Fprintf(os.Stderr, "[METRICS DEBUG] PhaseTimings has %d entries:\n", len(result.PhaseTimings))
 		for name, durationMs := range result.PhaseTimings {
 			fmt.Fprintf(os.Stderr, "[METRICS DEBUG]   %s: %dms\n", name, durationMs)
@@ -167,7 +169,7 @@ func (mc *MetricsCollector) Finalize() *PipelineMetrics {
 	mc.metrics.AllocsCount = int64(endMem.Mallocs - mc.startMem.Mallocs)
 
 	// Print summary to stderr if AILANG_METRICS_VERBOSE=1
-	if os.Getenv("AILANG_METRICS_VERBOSE") == "1" {
+	if config.MetricsVerbose() {
 		mc.printSummary()
 	}
 

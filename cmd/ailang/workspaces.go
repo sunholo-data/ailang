@@ -3,12 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
 	"cloud.google.com/go/firestore"
 	firebase "firebase.google.com/go/v4"
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/coordinator"
 	"github.com/sunholo-data/ailang/internal/server/auth"
 )
@@ -435,7 +435,7 @@ func workspacesShow(args []string) error {
 // getFirestoreClient creates a Firestore client with the configured project
 func getFirestoreClient(projectID string) (*firestore.Client, context.CancelFunc, error) {
 	if projectID == "" {
-		projectID = os.Getenv("AILANG_FIREBASE_PROJECT")
+		projectID = config.FirebaseProject()
 	}
 	if projectID == "" {
 		cfg := coordinator.LoadFirebaseConfig()

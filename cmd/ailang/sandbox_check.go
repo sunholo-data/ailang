@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // sandboxCheckCommand implements `ailang sandbox-check <path>`.
@@ -16,7 +18,7 @@ import (
 // Designed for shell-level debugging of sandbox path issues — pipe into
 // scripts or run manually to diagnose silent-false from exists/isDir/isFile.
 func sandboxCheckCommand(args []string) {
-	sandbox := os.Getenv("AILANG_FS_SANDBOX")
+	sandbox := config.FSSandbox()
 
 	if sandbox == "" {
 		fmt.Println("sandbox:  (not configured — AILANG_FS_SANDBOX is unset)")

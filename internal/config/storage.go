@@ -294,3 +294,13 @@ func CoordinatorMode() (string, Source, error) {
 		return "", "", fmt.Errorf("%w: %s=%q (valid: local, cloud)", ErrBadPlane, EnvCoordinatorMode, v)
 	}
 }
+
+// storageVars documents the storage-plane variables. See StoragePlane and
+// CoordinatorMode for resolution.
+var storageVars = []Var{
+	{EnvStorage, "local", AreaStorage, "The one plane switch: local (SQLite under the state dir), gcp (Firestore in the cloud project) or hybrid (SQLite stores that join the shared Pub/Sub plane)."},
+	{EnvStorageMessaging, "", AreaStorage, "local or gcp; moves the messaging store alone, reported as its Source."},
+	{EnvStorageCoordinator, "", AreaStorage, "local or gcp; moves the coordinator store alone."},
+	{EnvStorageObservatory, "", AreaStorage, "local or gcp; moves the observatory store alone."},
+	{EnvCoordinatorMode, "local", AreaStorage, "Coordinator execution mode, local (worktrees on this host) or cloud (Cloud Run Jobs fed by Pub/Sub push); cloud is refused unless the coordinator and messaging stores are in Firestore."},
+}

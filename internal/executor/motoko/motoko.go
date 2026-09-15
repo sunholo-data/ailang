@@ -47,6 +47,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/executor"
 	"github.com/sunholo-data/ailang/internal/proctree"
 	"github.com/sunholo-data/ailang/internal/strutil"
@@ -90,7 +91,7 @@ func attachStderrTail(msg, stderrLogPath, stderr string) string {
 // the DEFAULT (unset → true) so reverting it back to gated fails CI, per the
 // "guard the call-site, not the helper" lesson (M-RIG-RELIABILITY).
 func systemPromptViaSystemRole() bool {
-	return os.Getenv("AILANG_MOTOKO_SYSTEM_ROLE") != "0"
+	return config.MotokoSystemRole()
 }
 
 // writeMotokoSystemPrompt writes the system prompt to a file INSIDE the workspace
@@ -252,7 +253,7 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	// variable). When AILANG_MOTOKO_AGENT_SYSTEM_FILE points to a file, use ITS content as
 	// the system-role prompt (a lean agentic prompt, NOT the teaching) and keep the teaching
 	// in the user message. This isolates exactly one variable: empty vs lean-agentic system.
-	if agentSys := os.Getenv("AILANG_MOTOKO_AGENT_SYSTEM_FILE"); agentSys != "" && task.Workspace != "" {
+	if agentSys := config.MotokoAgentSystemFile(); agentSys != "" && task.Workspace != "" {
 		if content, rerr := os.ReadFile(agentSys); rerr == nil && len(content) > 0 {
 			if p, werr := writeMotokoSystemPrompt(task.Workspace, string(content)); werr == nil {
 				systemPromptPath = p

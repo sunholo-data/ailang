@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
-	"strings"
 
 	"github.com/sunholo-data/ailang/internal/config"
 )
@@ -41,7 +39,7 @@ func resolveCloudProject(ctx context.Context, mode string) (string, config.Sourc
 	if !errors.Is(err, config.ErrNoCloudProject) {
 		return "", "", err
 	}
-	if v := strings.TrimSpace(os.Getenv("AILANG_MESSAGES_PROJECT")); v != "" {
+	if v := config.MessagesProject(); v != "" {
 		return v, projectFromMessages, nil
 	}
 	return "", "", errNoCloudProject(mode)

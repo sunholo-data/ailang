@@ -50,10 +50,10 @@ package types
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/core"
 	"github.com/sunholo-data/ailang/internal/typedast"
 )
@@ -192,7 +192,7 @@ func NewCoreTypeChecker() *CoreTypeChecker {
 	var instanceEnv *InstanceEnv
 
 	// Auto-import std/prelude instances unless explicitly disabled
-	if os.Getenv("AILANG_NO_PRELUDE") == "1" {
+	if config.NoPrelude() {
 		// Explicit mode: start with empty environment
 		instanceEnv = NewInstanceEnv()
 	} else {
@@ -206,7 +206,7 @@ func NewCoreTypeChecker() *CoreTypeChecker {
 	instanceEnv.SetDefault("Fractional", &TCon{Name: "float"})
 
 	// Check environment flag for records v2
-	useRecordsV2 := os.Getenv("AILANG_RECORDS_V2") == "1"
+	useRecordsV2 := config.RecordsV2()
 
 	return &CoreTypeChecker{
 		instanceEnv:         instanceEnv,
@@ -233,7 +233,7 @@ func NewCoreTypeChecker() *CoreTypeChecker {
 // NewCoreTypeCheckerWithInstances creates a type checker with preloaded instances
 func NewCoreTypeCheckerWithInstances(instances *InstanceEnv) *CoreTypeChecker {
 	// Check environment flag for records v2
-	useRecordsV2 := os.Getenv("AILANG_RECORDS_V2") == "1"
+	useRecordsV2 := config.RecordsV2()
 
 	return &CoreTypeChecker{
 		instanceEnv:         instances,

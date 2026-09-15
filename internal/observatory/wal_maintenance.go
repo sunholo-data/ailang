@@ -16,8 +16,8 @@ package observatory
 import (
 	"log"
 	"os"
-	"strconv"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/sqliteopen"
 )
 
@@ -27,19 +27,12 @@ import (
 // rotation load.
 //
 // Override at runtime via AILANG_OBSERVATORY_WAL_CHECKPOINT_MB env var.
-const DefaultWALCheckpointThresholdMB = 1024
+const DefaultWALCheckpointThresholdMB = config.DefaultWALCheckpointMB
 
 // walCheckpointThresholdMB returns the configured WAL checkpoint threshold,
 // honoring the env override. Falls back to DefaultWALCheckpointThresholdMB
 // if the env var is unset, malformed, or non-positive.
-func walCheckpointThresholdMB() int64 {
-	if v := os.Getenv("AILANG_OBSERVATORY_WAL_CHECKPOINT_MB"); v != "" {
-		if n, err := strconv.ParseInt(v, 10, 64); err == nil && n > 0 {
-			return n
-		}
-	}
-	return DefaultWALCheckpointThresholdMB
-}
+func walCheckpointThresholdMB() int64 { return config.WALCheckpointMB() }
 
 // WALSizeMB returns the size of the WAL file in MB, or 0 if the file
 // doesn't exist or is unreadable. Pure stat call — no DB open.

@@ -174,7 +174,7 @@ func runExec() {
 	// Inherit parent task from environment if not explicitly provided
 	// This enables automatic hierarchy linking when one exec spawns another
 	if *parentTaskID == "" {
-		*parentTaskID = os.Getenv("AILANG_PARENT_TASK_ID")
+		*parentTaskID = config.ParentTaskID()
 	}
 
 	// If still no parent task, use generic root marker for analytics
@@ -403,7 +403,7 @@ func executeCLI(ctx context.Context, provider, directive, workspace, model, syst
 		Timeout:        timeout,
 		Model:          model,
 		GCPProject:     execGCPProject(ctx),
-		GCPLocation:    os.Getenv("GOOGLE_CLOUD_LOCATION"), // empty → executor default ("global")
+		GCPLocation:    config.GoogleCloudLocation(), // empty → executor default ("global")
 		RequiresEgress: requiresEgress,
 	}
 

@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/mission"
 )
 
@@ -31,7 +32,7 @@ func missionQuotaWithPaths(args []string, paths mission.Paths, now time.Time) er
 		return err
 	}
 
-	codexHome := os.Getenv("CODEX_HOME")
+	codexHome := config.CodexHome()
 	if codexHome == "" {
 		codexHome = filepath.Join(paths.Home, ".codex")
 	}
@@ -43,7 +44,7 @@ func missionQuotaWithPaths(args []string, paths mission.Paths, now time.Time) er
 
 	var ollama *mission.OllamaQuotaObservation
 	if *bucket == "" || *bucket == "ollama" {
-		observation := mission.ObserveOllamaQuota(paths, os.Getenv("OLLAMA_API_KEY"), now)
+		observation := mission.ObserveOllamaQuota(paths, config.OllamaAPIKey(), now)
 		ollama = &observation
 	}
 
@@ -60,7 +61,7 @@ func missionQuotaWithPaths(args []string, paths mission.Paths, now time.Time) er
 	// "unrationed and loud", simply absent, while pi:openrouter/* sat in every role chain.
 	var openrouter *mission.OpenRouterQuotaObservation
 	if *bucket == "" || *bucket == "openrouter" {
-		observation := mission.ObserveOpenRouterQuota(os.Getenv("OPENROUTER_API_KEY"), now)
+		observation := mission.ObserveOpenRouterQuota(config.OpenRouterAPIKey(), now)
 		openrouter = &observation
 	}
 

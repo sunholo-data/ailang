@@ -4,9 +4,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strings"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/pipeline"
 	"github.com/sunholo-data/ailang/internal/smt"
 )
@@ -74,13 +74,7 @@ func verifyCommand() {
 	}
 
 	// Check AILANG_RELAX_MODULES environment variable
-	relaxModulesEffective := *relaxModulesFlag
-	if envVal := os.Getenv("AILANG_RELAX_MODULES"); envVal != "" {
-		switch strings.ToLower(envVal) {
-		case "1", "true", "yes":
-			relaxModulesEffective = true
-		}
-	}
+	relaxModulesEffective := *relaxModulesFlag || config.RelaxModules()
 
 	cfg := pipeline.Config{
 		DryLink:      true, // Don't evaluate, just compile

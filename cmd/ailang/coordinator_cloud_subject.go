@@ -2,9 +2,10 @@ package main
 
 import (
 	"encoding/json"
-	"os"
 	"strings"
 	"unicode"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // Turning a task directive into a subject line a person can read.
@@ -158,7 +159,7 @@ func truncateOnWord(s string, max int) string {
 // a human title, written by whoever asked; AILANG_TASK_TITLE carries it, and
 // derivation is now only the fallback for a dispatcher too old to send it.
 func taskSubject(directive string) string {
-	if t := strings.TrimSpace(os.Getenv("AILANG_TASK_TITLE")); t != "" {
+	if t := config.TaskTitle(); t != "" {
 		// Same bounds as a derived subject: a title is human-written and
 		// occasionally long, and an unbounded subject is the original bug.
 		return truncateOnWord(strings.Join(strings.Fields(stripTaskPrefix(t)), " "), directiveSubjectMax)

@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/statedir"
 )
 
@@ -31,13 +32,13 @@ const (
 	// (tools/launchd/rig-lock.sh sets it after acquiring, and Acquire sets it
 	// for child processes). When present, Acquire is a no-op so a wrapper-driven
 	// eval-suite does not deadlock against its own parent's lock.
-	EnvHeld = "AILANG_RIG_LOCK_HELD"
+	EnvHeld = config.EnvRigLockHeld
 
 	// EnvLockDir overrides the lock directory (mirrors rig-lock.sh RIG_LOCK_DIR).
-	EnvLockDir = "RIG_LOCK_DIR"
+	EnvLockDir = config.EnvRigLockDir
 
 	// EnvSharedDir overrides the machine-wide parent directory (RIG_SHARED_DIR).
-	EnvSharedDir = "RIG_SHARED_DIR"
+	EnvSharedDir = config.EnvRigSharedDir
 
 	// DefaultSharedDir is the machine-wide home for the lock on a rig where more
 	// than one OS user runs GPU jobs. It is used ONLY when it already exists:
@@ -46,12 +47,12 @@ const (
 	// never by this package, so a rig with one user keeps the per-user path.
 	// A symlink cannot stand in for this — the take is an atomic mkdir, and
 	// mkdir on a symlink is EEXIST forever.
-	DefaultSharedDir = "/Users/Shared/ailang"
+	DefaultSharedDir = config.DefaultRigSharedDir
 
 	// EnvStaleMin overrides the staleness window in minutes (RIG_LOCK_STALE_MIN).
-	EnvStaleMin = "RIG_LOCK_STALE_MIN"
+	EnvStaleMin = config.EnvRigLockStale
 
-	defaultStaleMin = 360 // steal a lock older than 6h (matches rig-lock.sh)
+	defaultStaleMin = config.DefaultRigLockStaleMin // steal a lock older than 6h (matches rig-lock.sh)
 )
 
 // Mode controls Acquire's blocking behaviour.
@@ -73,13 +74,10 @@ type Release func()
 // and a virtual employee drafting on the same GPU) hold ONE lock; without it
 // each would hold a private lock and both would run, and both would degrade.
 func lockDir() string {
-	if d := os.Getenv(EnvLockDir); d != "" {
+	if d := config.RigLockDir(); d != "" {
 		return d
 	}
-	shared := os.Getenv(EnvSharedDir)
-	if shared == "" {
-		shared = DefaultSharedDir
-	}
+	shared := config.RigSharedDir()
 	if st, err := os.Stat(shared); err == nil && st.IsDir() {
 		return filepath.Join(shared, "rig.lock.d")
 	}
@@ -93,19 +91,13 @@ func lockDir() string {
 }
 
 func staleWindow() time.Duration {
-	if v := os.Getenv(EnvStaleMin); v != "" {
-		var n int
-		if _, err := fmt.Sscanf(v, "%d", &n); err == nil && n > 0 {
-			return time.Duration(n) * time.Minute
-		}
-	}
-	return defaultStaleMin * time.Minute
+	return config.RigLockStaleWindow()
 }
 
 // HeldByAncestor reports whether an ancestor process already holds the lock
 // (via EnvHeld). Callers can skip their own acquire when true.
 func HeldByAncestor() bool {
-	return os.Getenv(EnvHeld) == "1"
+	return config.RigLockHeld()
 }
 
 // Holder returns a human-readable description of the current lock holder

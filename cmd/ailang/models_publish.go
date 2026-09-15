@@ -7,6 +7,7 @@ import (
 
 	"cloud.google.com/go/storage"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/modelreg"
 )
 
@@ -30,18 +31,13 @@ import (
 // embedded floor keeps every binary running (that is what the floor is for) and
 // the registry must be re-published by hand.
 
-const registryObjectDefault = "registry.yml"
-
 // registryLocation mirrors configLocation, but for the registry object.
 func registryLocation(ctx context.Context) (bucket, object string, err error) {
 	bucket, _, err = configLocation(ctx)
 	if err != nil {
 		return "", "", err
 	}
-	object = os.Getenv("AILANG_REGISTRY_OBJECT")
-	if object == "" {
-		object = registryObjectDefault
-	}
+	object = config.RegistryObject()
 	return bucket, object, nil
 }
 
@@ -84,7 +80,7 @@ func modelsPublish(args []string) error {
 		}
 	}
 
-	path := os.Getenv(modelreg.ModelsPathEnv)
+	path := config.ModelsPath()
 	if path == "" {
 		path = "internal/modelreg/models.yml"
 	}

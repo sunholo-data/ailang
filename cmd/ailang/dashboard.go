@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // Default dashboard server URL
@@ -22,7 +24,7 @@ func getDashboardURL(flagValue string) string {
 	if flagValue != "" {
 		return flagValue
 	}
-	if envURL := os.Getenv("AILANG_DASHBOARD_URL"); envURL != "" {
+	if envURL := config.DashboardURL(); envURL != "" {
 		return envURL
 	}
 	return defaultDashboardURL

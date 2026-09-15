@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/docsearch"
 	githubsearch "github.com/sunholo-data/ailang/internal/docsearch/github"
 )
@@ -135,7 +136,7 @@ func docsSearchCommand(args []string) {
 	defer cancel()
 	var backend docsearch.SearchBackend = docsearch.LocalBackend{}
 	if localDocsErr != nil {
-		if *noGitHubFlag || os.Getenv("AILANG_NO_GITHUB_SEARCH") != "" {
+		if *noGitHubFlag || config.NoGitHubSearch() {
 			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), localDocsErr)
 			fmt.Fprintln(os.Stderr, "\nHint: Use --path, or unset --no-github and AILANG_NO_GITHUB_SEARCH")
 			os.Exit(1)

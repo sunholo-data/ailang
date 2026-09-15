@@ -2,17 +2,17 @@ package telemetry
 
 import (
 	"context"
-	"os"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/effects"
 )
 
 // traceRecordingEnabled controls whether span names are recorded to TraceRegistry.
 // Set AILANG_TRACE_RECORDING=1 to enable.
-var traceRecordingEnabled = os.Getenv("AILANG_TRACE_RECORDING") == "1"
+var traceRecordingEnabled = config.TraceRecording()
 
 // SetTraceRecordingEnabled allows programmatic control of trace recording.
 // Primarily used for testing.

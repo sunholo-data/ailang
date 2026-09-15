@@ -8,9 +8,9 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"strconv"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/eval"
 	"github.com/sunholo-data/ailang/internal/trace"
 )
@@ -508,27 +508,17 @@ func (ctx *EffContext) PopBudgetFrame(fnName string, bodyErr error) error {
 func loadEffEnv() (EffEnv, bool) {
 	seed := int64(0)
 	seedSet := false
-	if seedStr := os.Getenv("AILANG_SEED"); seedStr != "" {
-		if s, err := strconv.ParseInt(seedStr, 10, 64); err == nil {
-			seed = s
-			seedSet = true // M-EFFECT-REPLAY-CONTRACTS: AILANG_SEED present → seeded mode may draw
-		}
+	if s, ok := config.Seed(); ok {
+		seed = s
+		seedSet = true // M-EFFECT-REPLAY-CONTRACTS: AILANG_SEED present → seeded mode may draw
 	}
 
 	return EffEnv{
 		Seed:    seed,
-		TZ:      getEnv("TZ", "UTC"),
-		Locale:  getEnv("LANG", "C"),
-		Sandbox: os.Getenv("AILANG_FS_SANDBOX"),
+		TZ:      config.TZ(),
+		Locale:  config.Locale(),
+		Sandbox: config.FSSandbox(),
 	}, seedSet
-}
-
-// getEnv gets an environment variable with a default fallback
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
 }
 
 // captureEnvSnapshot creates an immutable snapshot of environment variables

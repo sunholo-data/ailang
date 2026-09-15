@@ -3,10 +3,10 @@ package mission
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/mission/dispatch"
 	"github.com/sunholo-data/ailang/internal/modelreg"
 )
@@ -23,14 +23,14 @@ type AdmissionPolicy struct {
 func NewAdmissionPolicy(paths Paths) *AdmissionPolicy {
 	return &AdmissionPolicy{Now: time.Now,
 		Codex: func(now time.Time) CodexQuotaObservation {
-			home := os.Getenv("CODEX_HOME")
+			home := config.CodexHome()
 			if home == "" {
 				home = filepath.Join(paths.Home, ".codex")
 			}
 			return ObserveCodexQuota(home, now)
 		},
 		Ollama: func(now time.Time) OllamaQuotaObservation {
-			return ObserveOllamaQuota(paths, os.Getenv("OLLAMA_API_KEY"), now)
+			return ObserveOllamaQuota(paths, config.OllamaAPIKey(), now)
 		},
 		Ledger: func(now time.Time) (*Ledger, error) { return LoadLedger(paths, now) },
 	}

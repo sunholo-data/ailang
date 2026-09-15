@@ -2,9 +2,9 @@ package coordinator
 
 import (
 	"context"
-	"os"
 	"strings"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/feedbackgate"
 )
 
@@ -39,10 +39,10 @@ type FeedbackGateConfig = feedbackgate.FeedbackGateConfig
 // top of the config value. Env wins (operator kill-switch). Returns the config
 // unchanged when the env is unset/empty.
 func resolveFeedbackGateMode(cfg feedbackgate.FeedbackGateConfig) feedbackgate.FeedbackGateConfig {
-	if m := strings.TrimSpace(os.Getenv("AILANG_FEEDBACK_GATE_MODE")); m != "" {
+	if m := config.FeedbackGateMode(); m != "" {
 		cfg.Mode = m
 	}
-	if isTruthyEnv(os.Getenv("AILANG_FEEDBACK_GATE_DRY_RUN")) {
+	if isTruthyEnv(config.FeedbackGateDryRun()) {
 		cfg.DryRun = true
 	}
 	return cfg

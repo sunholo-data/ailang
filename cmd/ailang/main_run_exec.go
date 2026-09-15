@@ -10,6 +10,7 @@ import (
 	"runtime/debug"
 
 	"github.com/sunholo-data/ailang/internal/ai"
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/effects"
 	"github.com/sunholo-data/ailang/internal/iface"
 	otelplatform "github.com/sunholo-data/ailang/internal/platform/otel"
@@ -29,7 +30,7 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 	// Default GOGC=100 triggers GC when heap doubles — too aggressive for short-lived CLI runs.
 	// GOGC=500 allows heap to grow 6x before GC, trading ~50MB extra memory for 25%+ speedup.
 	// Only applies when GOGC is not already set by the user.
-	if os.Getenv("GOGC") == "" {
+	if !config.GOGCSet() {
 		debug.SetGCPercent(500)
 	}
 
@@ -54,7 +55,7 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 
 	// Inherit parent task from environment if set
 	// This enables automatic hierarchy linking when ailang exec spawns ailang run
-	parentTaskID := os.Getenv("AILANG_PARENT_TASK_ID")
+	parentTaskID := config.ParentTaskID()
 
 	// If no parent task, use generic root marker for analytics
 	// This ensures all runs appear in Observatory hierarchy views

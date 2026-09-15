@@ -170,7 +170,7 @@ func resolveMessagesTarget() (messagesTargetResolution, error) {
 	if err != nil {
 		return messagesTargetResolution{}, err
 	}
-	project := os.Getenv("AILANG_MESSAGES_PROJECT")
+	project := config.MessagesProject()
 	if project == "" && sel.Messaging.Mode == config.StoreGCP {
 		// The messaging pin wins; otherwise the one cloud-project resolver.
 		// An unresolvable project is "" here and openStore names what to set.

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -79,10 +78,7 @@ func coordinatorService(ctx context.Context) (project, region, service string, e
 // coordinatorServiceName is the service half of coordinatorService, for the
 // callers that only name it in output.
 func coordinatorServiceName() string {
-	if s := os.Getenv("AILANG_COORDINATOR_SERVICE"); s != "" {
-		return s
-	}
-	return "ailang-coordinator"
+	return config.CoordinatorService()
 }
 
 // rollCoordinatorForConfig forces a new revision so the coordinator re-reads the

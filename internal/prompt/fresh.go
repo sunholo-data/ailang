@@ -21,6 +21,7 @@ import (
 	"path/filepath"
 	"runtime/debug"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/mcp_client"
 )
 
@@ -193,10 +194,10 @@ func loadEmbedded(kind, version string) (*FreshResult, error) {
 // Falls back to ~/.cache/ailang/prompts/... when XDG_CACHE_HOME is unset.
 
 func cacheBaseDir() string {
-	if env := os.Getenv("AILANG_CACHE_DIR"); env != "" {
+	if env := config.CacheDir(); env != "" {
 		return env
 	}
-	if env := os.Getenv("XDG_CACHE_HOME"); env != "" {
+	if env := config.XDGCacheHome(); env != "" {
 		return filepath.Join(env, "ailang")
 	}
 	home, err := os.UserHomeDir()

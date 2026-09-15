@@ -7,9 +7,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strings"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // M-PKG-MULTI-NAMESPACE-AUTH — `ailang pkg key` mints, lists and revokes
@@ -133,7 +134,7 @@ func pkgKeyRevoke(id string) error {
 }
 
 func registryAdminRequest(method, path string, body []byte) ([]byte, error) {
-	apiKey := os.Getenv("AILANG_REGISTRY_API_KEY")
+	apiKey := config.RegistryAPIKey()
 	if apiKey == "" {
 		return nil, fmt.Errorf("AILANG_REGISTRY_API_KEY not set (the superuser key is required for key management)")
 	}

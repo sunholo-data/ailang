@@ -178,6 +178,11 @@ func resetMetadataForTest() {
 // Trace export, so this is a switch as much as a value.
 const EnvTraceProject = "OTLP_GOOGLE_CLOUD_PROJECT"
 
+// TraceProjectOverride returns OTLP_GOOGLE_CLOUD_PROJECT alone, "" when
+// unset — for a caller that falls through to CloudProject itself and must
+// not let GOOGLE_CLOUD_PROJECT jump ahead of AILANG_CLOUD_PROJECT.
+func TraceProjectOverride() string { return get(EnvTraceProject) }
+
 // TraceProjectFromEnv returns the project Cloud Trace export should target, or
 // "" when export is not enabled. It reads the environment ONLY — deliberately
 // not CloudProject's yaml/metadata fallbacks, because falling through would
@@ -188,4 +193,17 @@ func TraceProjectFromEnv() string {
 		return p
 	}
 	return os.Getenv(EnvGoogleCloudProject)
+}
+
+// cloudVars documents the cloud-identity variables. See the package comment
+// for CloudProject's precedence.
+var cloudVars = []Var{
+	{EnvCloudProject, "", AreaCloud, "GCP project this process acts on; first of AILANG_CLOUD_PROJECT, GOOGLE_CLOUD_PROJECT, pubsub.project_id in the config file, then the GCE metadata server. No default: unresolved is an error."},
+	{EnvGoogleCloudProject, "", AreaCloud, "Project set by Cloud Run, GKE and App Engine; second source for CloudProject and, with OTLP_GOOGLE_CLOUD_PROJECT, the switch that enables Cloud Trace export."},
+	{EnvCloudRegion, "europe-west1", AreaCloud, "Cloud region; falls through GOOGLE_CLOUD_REGION to a deprecated default that warns once and is refused under AILANG_STRICT_CONFIG=1."},
+	{EnvGoogleCloudRegion, "", AreaCloud, "Region alias read after AILANG_CLOUD_REGION."},
+	{EnvNoMetadata, "", AreaCloud, "Set to anything to skip the GCE metadata server when resolving the project (a laptop pays the 500ms timeout once per process otherwise)."},
+	{EnvConfigFile, "~/.ailang/config.yaml", AreaCloud, "Path of the user config file that Load parses; every section reader goes through it."},
+	{EnvTraceProject, "", AreaCloud, "Project Cloud Trace export targets. Setting it (or GOOGLE_CLOUD_PROJECT) is what turns export on; the config file and metadata server are deliberately not consulted."},
+	{EnvStrict, "0", AreaCloud, "1 or true makes every deprecated production default a hard error instead of a one-time warning — the v1.0.0 behaviour, rehearsable today."},
 }

@@ -33,7 +33,7 @@ func runExecutor(ctx context.Context, workDir, provider, directive, taskID, plug
 		trace.WithAttributes(
 			attribute.String("task.id", taskID),
 			attribute.String("provider", provider),
-			attribute.String("agent.id", os.Getenv("AILANG_AGENT_ID")),
+			attribute.String("agent.id", config.AgentID()),
 		),
 	)
 	defer span.End()
@@ -95,7 +95,7 @@ func runExecutor(ctx context.Context, workDir, provider, directive, taskID, plug
 
 	// M-CLOUD-PROGRESS-TRACKING M3: Parse per-task cost budget from env var.
 	var maxCostUSD float64
-	if maxCostStr := os.Getenv("AILANG_MAX_COST_USD"); maxCostStr != "" {
+	if maxCostStr := config.MaxCostUSD(); maxCostStr != "" {
 		if parsed, parseErr := fmt.Sscanf(maxCostStr, "%f", &maxCostUSD); parsed != 1 || parseErr != nil {
 			fmt.Fprintf(os.Stderr, "execute-job: invalid AILANG_MAX_COST_USD=%q, ignoring\n", maxCostStr)
 			maxCostUSD = 0
@@ -108,7 +108,7 @@ func runExecutor(ctx context.Context, workDir, provider, directive, taskID, plug
 
 	handler := &cloudEventHandler{
 		taskID:      taskID,
-		agentID:     os.Getenv("AILANG_AGENT_ID"),
+		agentID:     config.AgentID(),
 		workspace:   workDir,
 		broadcaster: broadcaster,
 		maxCostUSD:  maxCostUSD,

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"sync"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // ExecutorFactory creates and manages executor instances
@@ -132,7 +134,7 @@ func (f *ExecutorFactory) GetExecutor(name string) (Executor, error) {
 // GetDefault returns the default executor
 func (f *ExecutorFactory) GetDefault() (Executor, error) {
 	// Check AILANG_EXECUTOR environment variable first
-	if envExecutor := os.Getenv("AILANG_EXECUTOR"); envExecutor != "" {
+	if envExecutor := config.Executor(); envExecutor != "" {
 		return f.GetExecutor(envExecutor)
 	}
 	return f.GetExecutor(f.config.DefaultExecutor)

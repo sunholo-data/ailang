@@ -3,10 +3,9 @@ package coordinator
 import (
 	"context"
 	"log"
-	"os"
-	"strings"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/messaging"
 )
 
@@ -70,7 +69,7 @@ func NewBackstopSweep(
 // "dispatch" — the safe reading of an unclear instruction is the one that
 // cannot double-run somebody's work.
 func backstopModeFromEnv() BackstopSweepMode {
-	switch strings.ToLower(strings.TrimSpace(os.Getenv("AILANG_BACKSTOP_SWEEP"))) {
+	switch config.BackstopSweep() {
 	case "dispatch":
 		return BackstopDispatch
 	case "off":

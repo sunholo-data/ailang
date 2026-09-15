@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/feedbackgate"
 	"github.com/sunholo-data/ailang/internal/messaging"
 	"github.com/sunholo-data/ailang/internal/observatory"
@@ -413,7 +414,7 @@ func (d *Daemon) Run() error {
 	d.logger.Println("Daemon running, polling for tasks...")
 
 	// Start HTTP health server if PORT env var is set (Cloud Run convention)
-	if port := os.Getenv("PORT"); port != "" {
+	if port := config.Port(); port != "" {
 		go d.startHealthServer(port)
 	}
 
