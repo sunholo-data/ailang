@@ -43,7 +43,7 @@ var handParsedCoordinatorFlags = map[string]map[string]bool{
 	"logs":     {"--state-dir": true, "--follow": false, "--json": false, "--limit": true, "--help": false, "-h": false},
 	"worktree": {"--state-dir": true, "--open": false, "--help": false, "-h": false},
 	"retry":    {"--state-dir": true, "--all": false, "--yes": false, "--help": false, "-h": false},
-	"reopen":   {"--state-dir": true, "--yes": false, "--help": false, "-h": false},
+	"reopen":   {"--state-dir": true, "--yes": false, "--remote": true, "--help": false, "-h": false},
 	"cleanup":  {"--state-dir": true, "--yes": false, "--older-than": true, "--help": false, "-h": false},
 	"status":   {"--state-dir": true, "--json": false, "--help": false, "-h": false},
 }
@@ -61,7 +61,7 @@ var flagSetCoordinatorSubcommands = map[string]bool{
 
 // remoteAwareSubcommands actually read the plane named by --remote. Everything
 // else only knows the flag well enough to refuse it honestly.
-var remoteAwareSubcommands = []string{"approve", "approvals", "list", "reject"}
+var remoteAwareSubcommands = []string{"approve", "approvals", "list", "prs", "reject", "reopen"}
 
 func rejectUnknownCoordinatorFlags(sub string, args []string) error {
 	known, ok := handParsedCoordinatorFlags[sub]

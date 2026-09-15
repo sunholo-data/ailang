@@ -2,6 +2,7 @@ package coordinator
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 )
@@ -504,4 +505,25 @@ func (m *MockStore) CompareAndSetTaskStatus(ctx context.Context, id string, expe
 // resolved approval goes back to pending. Mock reports "nothing reopened".
 func (m *MockStore) ReopenApprovalForNewWork(ctx context.Context, taskID, description, contextJSON string) (bool, error) {
 	return false, nil
+}
+
+// ReopenTask: rejected/cancelled goes back to pending_approval, anything else
+// is refused — the guard is the part worth modelling.
+func (m *MockStore) ReopenTask(ctx context.Context, taskID string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.calls["ReopenTask"]++
+	task, ok := m.tasks[taskID]
+	if !ok {
+		return fmt.Errorf("task not found: %s", taskID)
+	}
+	if task.Status != TaskStatusRejected && task.Status != TaskStatusCancelled {
+		return fmt.Errorf("cannot reopen task with status %q (only rejected or cancelled tasks can be reopened)", task.Status)
+	}
+	task.Status = TaskStatusPendingApproval
+	task.CompletedAt = nil
+	if m.statuses != nil {
+		m.statuses[taskID] = TaskStatusPendingApproval
+	}
+	return nil
 }

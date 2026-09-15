@@ -263,6 +263,15 @@ func coordinatorReject(args []string) error {
 	return nil
 }
 
+// coordinatorReopen puts a rejected or cancelled task back in front of the
+// operator.
+//
+// It opened a hardcoded local SQLite path until 2026-09-15, and ReopenTask was
+// not even on the Store interface — so a cloud task could not be reopened at
+// all, and the command's silence about which plane it acted on made that look
+// like "the task does not exist" rather than "you are reading the wrong
+// database". Same resolver as approve/reject/list now, and the plane is printed
+// before anything is changed.
 func coordinatorReopen(args []string) error {
 	// Check for help first
 	for _, arg := range args {
@@ -273,6 +282,7 @@ func coordinatorReopen(args []string) error {
 			fmt.Println("Useful if you accidentally rejected a task.")
 			fmt.Println("")
 			fmt.Println("Options:")
+			fmt.Println("  --remote MODE    Act on a remote coordinator (e.g. gcp)")
 			fmt.Println("  --state-dir DIR  Use custom state directory")
 			return nil
 		}
@@ -284,6 +294,7 @@ func coordinatorReopen(args []string) error {
 
 	taskID := args[0]
 	stateDir := ""
+	remote := ""
 
 	// Parse flags
 	for i := 1; i < len(args); i++ {
@@ -293,25 +304,26 @@ func coordinatorReopen(args []string) error {
 				stateDir = args[i+1]
 				i++
 			}
+		case "--remote":
+			if i+1 < len(args) {
+				remote = args[i+1]
+				i++
+			}
 		}
 	}
 
-	cfg := coordinator.DefaultConfig()
-	if stateDir != "" {
-		cfg.StateDir = stateDir
-	}
-
-	// Open the coordinator database
-	dbPath := filepath.Join(cfg.StateDir, "coordinator.db")
-	store, err := coordinator.NewSQLiteStore(dbPath)
-	if err != nil {
-		return fmt.Errorf("failed to open coordinator database: %w", err)
-	}
-	defer store.Close()
-
-	// Reopen the task
 	ctx := context.Background()
-	if err := store.ReopenTask(ctx, taskID); err != nil {
+	bundle, err := openCoordinatorStore(ctx, remote, stateDir)
+	if err != nil {
+		return err
+	}
+	defer bundle.Close()
+
+	// Name the plane BEFORE mutating it: "reopened" against the wrong store
+	// looks exactly like success.
+	fmt.Printf("store: %s\n", bundle.Mode)
+
+	if err := bundle.Store.ReopenTask(ctx, taskID); err != nil {
 		return fmt.Errorf("failed to reopen task: %w", err)
 	}
 

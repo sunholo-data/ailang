@@ -234,3 +234,5 @@ func (m *mockStore) CompareAndSetTaskStatus(ctx context.Context, id string, expe
 func (m *mockStore) ReopenApprovalForNewWork(ctx context.Context, taskID, description, contextJSON string) (bool, error) {
 	return false, nil
 }
+
+func (m *mockStore) ReopenTask(ctx context.Context, taskID string) error { return m.err }

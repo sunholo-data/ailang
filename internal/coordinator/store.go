@@ -265,6 +265,16 @@ type Store interface {
 	// approval id is derived from the task id alone, so two executions collide
 	// on one row and a stale decision would otherwise strand the new work.
 	ReopenApprovalForNewWork(ctx context.Context, taskID, description, contextJSON string) (bool, error)
+	// ReopenTask puts a REJECTED or CANCELLED task back in front of the
+	// operator: status returns to pending_approval, completed_at is cleared and
+	// the task's approval is reset to pending (created if it never existed).
+	// Anything else is refused — reopening a running or completed task would
+	// invent a decision point the work has already passed.
+	//
+	// It is on the interface because `coordinator reopen` was local-only for as
+	// long as it existed: the method lived on *SQLiteStore alone, so asking to
+	// reopen a cloud task silently acted on this machine's database.
+	ReopenTask(ctx context.Context, taskID string) error
 
 	// Finalisation ledger (M-COMPLETION-PATH-PARITY C1). Read once at the start
 	// of finalisation, written after each effect.
