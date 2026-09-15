@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/executor"
+	"github.com/sunholo-data/ailang/internal/strutil"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -145,7 +146,7 @@ func (e *Executor) ExecuteStreaming(
 			attribute.String("executor.name", "managed_agents"),
 			attribute.String("task.id", task.ID),
 			attribute.String("task.parent_task_id", task.ParentTaskID),
-			attribute.String("task.directive", telemetry.Truncate(task.Directive, 500)),
+			attribute.String("task.directive", strutil.Truncate(task.Directive, 500)),
 		),
 	)
 	defer span.End()

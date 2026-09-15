@@ -472,8 +472,8 @@ func formatAge(t time.Time) string {
 	return t.Format("Jan 2")
 }
 
-// truncateString truncates a string to maxLen and adds "..." if needed.
-// truncateString delegates to strutil.Truncate. It survives only because
-// cmd/ailang/exec.go (M4-owned in M-V1-SIMPLIFY-S3) still calls it; fold that
-// call and delete this in Sprint 4.
+// truncateString delegates to strutil.Truncate. The Sprint 3 note said only
+// exec.go still called it; a grep at M-V1-SIMPLIFY-S4 M3A found five more
+// callers (messages_send, observatory_sync_chat, observatory_hierarchy_print
+// ×2, trace_local) outside the eval lane — fold them and delete this.
 func truncateString(s string, maxLen int) string { return strutil.Truncate(s, maxLen) }

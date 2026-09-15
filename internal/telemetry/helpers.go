@@ -8,11 +8,6 @@ import (
 	"github.com/sunholo-data/ailang/internal/strutil"
 )
 
-// Truncate is strutil.Truncate: rune-aware, "..." when cut, maxLen <= 0 means
-// no cap (it used to return ""). Kept as a name for the ai/** callers that
-// M-V1-SIMPLIFY-S3 could not touch; fold them in Sprint 4.
-func Truncate(s string, maxLen int) string { return strutil.Truncate(s, maxLen) }
-
 // ErrorCategory represents categories of errors for filtering in traces.
 type ErrorCategory string
 
@@ -109,7 +104,7 @@ func LineSnippet(source string, lineNum int, maxLen int) string {
 	// Trim whitespace and truncate
 	snippet := strings.TrimSpace(targetLine)
 	if len(snippet) > maxLen {
-		return Truncate(snippet, maxLen)
+		return strutil.Truncate(snippet, maxLen)
 	}
 
 	return snippet

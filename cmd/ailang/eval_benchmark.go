@@ -12,6 +12,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/ai"
 	"github.com/sunholo-data/ailang/internal/eval_harness"
 	"github.com/sunholo-data/ailang/internal/observatory"
+	"github.com/sunholo-data/ailang/internal/strutil"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -292,7 +293,7 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 				Condition:     condition,
 				EvalMode:      "standard",
 				ErrorCategory: stdErrCategory,
-				Stderr:        telemetry.Truncate(fmt.Sprintf("API Error: %v", err), 500),
+				Stderr:        strutil.Truncate(fmt.Sprintf("API Error: %v", err), 500),
 			}
 			_ = evalChain.Store.UpdateStageEvalAssessment(ctx, stageID, assessment)
 			_ = evalChain.Store.UpdateStageError(ctx, stageID, err.Error())
@@ -341,10 +342,10 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 			VerifyErrors:    metrics.VerifyErrors,
 			PromptVersion:   actualPromptVersion,
 			CodeHash:        telemetry.ShortHash(metrics.Code, 8),
-			Code:            telemetry.Truncate(metrics.Code, 2000),
-			Stdout:          telemetry.Truncate(metrics.Stdout, 500),
-			ExpectedStdout:  telemetry.Truncate(spec.ExpectedOut, 500),
-			Stderr:          telemetry.Truncate(metrics.Stderr, 500),
+			Code:            strutil.Truncate(metrics.Code, 2000),
+			Stdout:          strutil.Truncate(metrics.Stdout, 500),
+			ExpectedStdout:  strutil.Truncate(spec.ExpectedOut, 500),
+			Stderr:          strutil.Truncate(metrics.Stderr, 500),
 		}
 		_ = evalChain.Store.UpdateStageEvalAssessment(ctx, stageID, assessment)
 		_ = evalChain.Store.UpdateStageMetrics(ctx, stageID, metrics.CostUSD,
@@ -374,7 +375,7 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 	// Add code preview and hash for debugging and deduplication
 	if metrics.Code != "" {
 		benchSpan.SetAttributes(
-			attribute.String("code.preview", telemetry.Truncate(metrics.Code, 100)),
+			attribute.String("code.preview", strutil.Truncate(metrics.Code, 100)),
 			attribute.String("code.hash", telemetry.ShortHash(metrics.Code, 8)),
 		)
 	}
@@ -382,7 +383,7 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 	// Add error summary for failed benchmarks
 	if !metrics.Passed() && metrics.Stderr != "" {
 		benchSpan.SetAttributes(
-			attribute.String("error.summary", telemetry.Truncate(metrics.Stderr, 200)),
+			attribute.String("error.summary", strutil.Truncate(metrics.Stderr, 200)),
 		)
 	}
 
