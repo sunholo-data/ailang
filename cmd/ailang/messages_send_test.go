@@ -52,6 +52,12 @@ func TestSplitAndTrim(t *testing.T) {
 // "comma-separated form `--requires 'agent:motoko,ollama:gemma4-26b-ailang'`
 // accepts and stores them as a 2-element slice".
 func TestSendViaHTTP_PostsCorrectShape(t *testing.T) {
+	// discoverCoordinatorAPIKey falls back to the installed LaunchAgent plist
+	// under $HOME; on the rig that plist carries a real key, so the test must
+	// run against an empty home (measured 2026-09-15: the assertion below
+	// printed the rig's key into a session transcript before this isolation).
+	testutil.SetHomeDir(t, t.TempDir())
+	t.Setenv("COORDINATOR_API_KEY", "")
 	var gotBody map[string]interface{}
 	var gotAuth string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -112,7 +118,7 @@ func TestSendViaHTTP_PostsCorrectShape(t *testing.T) {
 	// (the daemon's middleware accepts open requests when COORDINATOR_API_KEY
 	// is unset, matching the local-mode default).
 	if gotAuth != "" {
-		t.Errorf("Authorization header = %q, want empty (no COORDINATOR_API_KEY in test env)", gotAuth)
+		t.Errorf("Authorization header present (%d bytes), want empty (no COORDINATOR_API_KEY in test env)", len(gotAuth))
 	}
 }
 
