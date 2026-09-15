@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/mission"
+	"github.com/sunholo-data/ailang/internal/statedir"
 )
 
 // M-MISSION-LOOP-WORKBENCH: `ailang mission <list|doctor|install>`.
@@ -252,7 +253,11 @@ func missionInstall(args []string) error {
 
 func missionApply(args []string) error {
 	var name string
-	opts := mission.ApplyOpts{BackupDir: filepath.Join(os.Getenv("HOME"), ".ailang", "state", "mission-backups")}
+	backupDir, err := statedir.Path("mission-backups")
+	if err != nil {
+		return err
+	}
+	opts := mission.ApplyOpts{BackupDir: backupDir}
 	for _, a := range args {
 		switch a {
 		case "--adopt":

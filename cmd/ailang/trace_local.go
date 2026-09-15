@@ -6,11 +6,11 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/coordinator"
 	"github.com/sunholo-data/ailang/internal/observatory"
+	"github.com/sunholo-data/ailang/internal/statedir"
 )
 
 // traceHierarchyCommand shows span hierarchy from the local observatory database
@@ -113,8 +113,11 @@ func traceTaskHierarchyCommand(workspace, taskID string, limit int, jsonOutput b
 	ctx := context.Background()
 
 	// Open coordinator database for tasks
-	homeDir, _ := os.UserHomeDir()
-	coordDBPath := filepath.Join(homeDir, ".ailang", "state", "coordinator.db")
+	coordDBPath, err := statedir.Path("coordinator.db")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error opening coordinator database: %v\n", err)
+		os.Exit(1)
+	}
 	coordStore, err := coordinator.NewSQLiteStore(coordDBPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error opening coordinator database: %v\n", err)

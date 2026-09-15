@@ -4,12 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"os"
-	"path/filepath"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/sunholo-data/ailang/internal/observatory"
+	"github.com/sunholo-data/ailang/internal/statedir"
 )
 
 // taskEvent represents an event from coordinator task_events table (basic)
@@ -74,11 +73,10 @@ type toolResultBlock struct {
 
 // getTaskEvents queries coordinator.db for basic task events (for tree display)
 func getTaskEvents(taskID string) []taskEvent {
-	homeDir, err := os.UserHomeDir()
+	dbPath, err := statedir.Path("coordinator.db")
 	if err != nil {
 		return nil
 	}
-	dbPath := filepath.Join(homeDir, ".ailang", "state", "coordinator.db")
 
 	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
@@ -110,11 +108,10 @@ func getTaskEvents(taskID string) []taskEvent {
 
 // getSessionInfoFromTask looks up session_id and time range from coordinator.db tasks table
 func getSessionInfoFromTask(taskID string) *taskSessionInfo {
-	homeDir, err := os.UserHomeDir()
+	dbPath, err := statedir.Path("coordinator.db")
 	if err != nil {
 		return nil
 	}
-	dbPath := filepath.Join(homeDir, ".ailang", "state", "coordinator.db")
 
 	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {

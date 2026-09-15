@@ -29,7 +29,7 @@ func activationProcessAlive(pid int) (bool, error) {
 	}
 	return true, nil
 }
-func activationLegacyIdle(ctx context.Context, home string) error {
+func activationLegacyIdle(ctx context.Context, stateDir string) error {
 	if runtime.GOOS != "darwin" {
 		return errors.New("local Docs scheduler verification currently requires macOS launchd")
 	}
@@ -55,7 +55,7 @@ func activationLegacyIdle(ctx context.Context, home string) error {
 	if !idle {
 		return errors.New("Docs launchd state is unknown; inspect before activation")
 	}
-	b, err := os.ReadFile(filepath.Join(home, ".ailang", "state", "mission-docs.pid"))
+	b, err := os.ReadFile(filepath.Join(stateDir, "mission-docs.pid"))
 	if err == nil {
 		pid, e := strconv.Atoi(strings.TrimSpace(string(b)))
 		if e != nil || pid < 1 {
