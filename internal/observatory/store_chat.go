@@ -10,17 +10,21 @@ import (
 
 // ChatMessage represents a stored chat message from a Claude/Gemini session.
 type ChatMessage struct {
-	ID          string    `json:"id"`
-	SessionID   string    `json:"session_id"`
-	TurnNumber  int       `json:"turn_number"`
-	Role        string    `json:"role"`
-	ContentJSON string    `json:"content_json,omitempty"` // Raw JSON content blocks
-	TokensIn    int       `json:"tokens_in,omitempty"`
-	TokensOut   int       `json:"tokens_out,omitempty"`
-	Model       string    `json:"model,omitempty"`
-	Timestamp   time.Time `json:"timestamp"`
-	TaskID      string    `json:"task_id,omitempty"`
-	ChainID     string    `json:"chain_id,omitempty"`
+	ID          string `json:"id"`
+	SessionID   string `json:"session_id"`
+	TurnNumber  int    `json:"turn_number"`
+	Role        string `json:"role"`
+	ContentJSON string `json:"content_json,omitempty"` // Raw JSON content blocks
+	TokensIn    int    `json:"tokens_in,omitempty"`
+	TokensOut   int    `json:"tokens_out,omitempty"`
+	// Cache tokens (v21): the part of TokensIn served from / written to the
+	// provider's prompt cache. Same names as the spans columns.
+	CacheReadTokens     int       `json:"cache_read_tokens,omitempty"`
+	CacheCreationTokens int       `json:"cache_creation_tokens,omitempty"`
+	Model               string    `json:"model,omitempty"`
+	Timestamp           time.Time `json:"timestamp"`
+	TaskID              string    `json:"task_id,omitempty"`
+	ChainID             string    `json:"chain_id,omitempty"`
 }
 
 // ChatMessageQuery options for filtering chat messages.
@@ -42,7 +46,8 @@ func (s *Store) GetChatMessagesByTaskID(ctx context.Context, taskID string) ([]*
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT id, session_id, turn_number, role, content_json,
 		       tokens_in, tokens_out, model, timestamp,
-		       COALESCE(task_id, ''), COALESCE(chain_id, '')
+		       COALESCE(task_id, ''), COALESCE(chain_id, ''),
+		       COALESCE(cache_read_tokens, 0), COALESCE(cache_creation_tokens, 0)
 		FROM chat_messages
 		WHERE task_id = ?
 		ORDER BY turn_number, timestamp
@@ -65,7 +70,8 @@ func (s *Store) GetChatMessagesBySession(ctx context.Context, sessionID string, 
 	query := `
 		SELECT id, session_id, turn_number, role, content_json,
 		       tokens_in, tokens_out, model, timestamp,
-		       COALESCE(task_id, ''), COALESCE(chain_id, '')
+		       COALESCE(task_id, ''), COALESCE(chain_id, ''),
+		       COALESCE(cache_read_tokens, 0), COALESCE(cache_creation_tokens, 0)
 		FROM chat_messages
 		WHERE session_id = ?
 	`
@@ -131,6 +137,7 @@ func scanChatMessages(rows *sql.Rows) ([]*ChatMessage, error) {
 			&msg.ID, &msg.SessionID, &msg.TurnNumber, &msg.Role,
 			&contentJSON, &msg.TokensIn, &msg.TokensOut, &model,
 			&msg.Timestamp, &msg.TaskID, &msg.ChainID,
+			&msg.CacheReadTokens, &msg.CacheCreationTokens,
 		); err != nil {
 			continue
 		}
