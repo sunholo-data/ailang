@@ -1,0 +1,5 @@
+# AILANG Core Backlog (triage rows)
+
+| Date | Title | Class | Recommend | Why |
+|---|---|---|---|---|
+| 2026-09-15 | Compile cache not invalidated when a PATH dependency's interface changes (lock warns, check serves stale iface) | bug | direct-fix | `prepareCacheLookup` (internal/pipeline/pipeline_module_cache.go) only feeds `st.compiledUnits` ifaces into `depDigests`, so package dependencies resolved via the package resolver never change the key — and `ModuleCacheKey` already accepts dep digests plus the lock already computes the content hash, so the fix is to include package-dep iface digests (or the lock's dep hashes) in the key; no design trade-off found (searched: cache, invalidate, iface hash, lock in design_docs/ — none cover compile-cache invalidation). Reproduced on v0.38.5, sunholo-data/daneel 74eb5f3→v0.2.0. |
