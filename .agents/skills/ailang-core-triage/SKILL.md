@@ -38,6 +38,7 @@ share an append target.
 - **Class**: bug | feature | question | already-covered | not-actionable
 - **Recommend**: design-doc | direct-fix | duplicate-of <path> | drop
 - **Searched**: the terms you actually used
+- **Estimate**: `<n> lines in <file>` (required for direct-fix; omit otherwise)
 
 <One paragraph: the reason, not a restatement of the title. Name the file and
 the mechanism if you found them.>
@@ -56,16 +57,49 @@ ls design_docs/planned/ | head -50
 A report covered by an existing doc is `already-covered` / `duplicate-of <path>`.
 Say which doc. This is the single most useful answer you can give.
 
-- `design-doc` — the fix needs a decision someone could disagree with: a
-  semantics change, a new surface, a trade-off between two workable designs.
-- `direct-fix` — the change is obvious once seen, and a doc would be ceremony.
-  A wrong error message, a missing flag, an absolute path where a relative one
-  belongs.
-- `drop` — not actionable as written. Say what would make it actionable.
+### The thresholds
 
-**When the report already tells you the fix, that is evidence for
-`direct-fix`, not against it.** A reporter who has located the line does not
-need a design doc to re-derive it.
+Tunable — change the numbers here and the rubric below follows.
+
+| | |
+|---|---|
+| `DIRECT_FIX_MAX_LINES` | **2** |
+| `DIRECT_FIX_MAX_FILES` | **1** |
+
+### The rubric
+
+Apply in order. The FIRST row that matches decides.
+
+| # | Test | Answer |
+|---|---|---|
+| 1 | An existing design doc already rules on this | `duplicate-of <path>` |
+| 2 | Not actionable as written — no reproduction, no subject | `drop`, and say what would make it actionable |
+| 3 | There is **more than one acceptable way** to do it | `design-doc` |
+| 4 | It changes a semantics, a public surface, a file format, or a gate's contract | `design-doc` |
+| 5 | The change spans **more than DIRECT_FIX_MAX_FILES file** | `design-doc` |
+| 6 | The change is **more than DIRECT_FIX_MAX_LINES lines** | `design-doc` |
+| 7 | Otherwise | `direct-fix` |
+
+**State your estimate.** Every `direct-fix` row must carry
+`Estimate: <n> lines in <file>`. That is what makes the call auditable: when the
+fix lands, its diff either matches or it does not, and a pattern of
+underestimates is a reason to raise the thresholds rather than trust the label.
+
+If you cannot estimate the size, you do not understand the fix well enough to
+call it direct — say `design-doc`.
+
+### Two traps, both measured on the first batch
+
+**A thorough report is not evidence of a small fix.** An earlier version of this
+skill said "when the report already tells you the fix, that is evidence for
+direct-fix". That is wrong and it was actively harmful: Daneel writes thorough
+reports, so the rule fired on almost everything. A reporter who has located the
+line has saved you the search — it says nothing about how many lines change.
+
+**"Here are three acceptable fixes" is row 3, not row 7.** The daemon-liveness
+report offered three remedies (log the error / exit non-zero / expose a
+timestamp) and was labelled `direct-fix`. Three acceptable remedies is the
+definition of a decision someone could disagree with.
 
 ## Rules
 
