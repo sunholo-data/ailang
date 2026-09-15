@@ -1,0 +1,7 @@
+# AILANG Core Backlog
+
+Rows appended by `ailang-core-triage`. One row per report.
+
+| Date | Title | Class | Recommend | Why |
+|---|---|---|---|---|
+| 2026-09-15 | Two daneel design-doc runs (task-70b77905, task-1063e5fd) completed with changed_files on a branch that does not hold the work — agent's own `design-doc/*` branch pushed, empty `coordinator/task-*` at base reported, no PR | bug | direct-fix | The reporter already measured the mechanism: something between v0.38.2 and v0.38.4 (pre-flight before clone + PR step) changed which ref the executor pushes, so the completion payload names files on a branch that 404s — the fix is to push the ref the agent's HEAD is actually on (or check the agent's branch out of the task branch before it runs), plus land auto_merge docs-only completions directly per Mark's ruling ("no PRs for design docs is fine but work needs to land in the repo"), which is obvious once seen and needs no design doc. Not duplicate-of [m-completion-path-parity](m-completion-path-parity.md): that doc covers the payload/diff machinery (BaseCommit/HeadCommit/DiffSource), not ref selection at push time; searched terms branch_name, auto_merge, changed_files, coordinator/task- — no doc covers the pushed-ref mismatch. |
