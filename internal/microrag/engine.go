@@ -11,6 +11,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/statedir"
 )
 
 // EnvEnabled is the master eval-toggle env var (0/1). Default: enabled.
@@ -483,6 +485,11 @@ func DefaultSessionDir() string {
 	if sid == "" {
 		sid = fmt.Sprintf("pid-%d", os.Getpid())
 	}
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".ailang", "state", "microrag", sid)
+	dir, err := statedir.Path("microrag", sid)
+	if err != nil {
+		// A session ledger is an optional cache; without a resolvable state
+		// tree it lives in the OS temp dir rather than beside the process.
+		return filepath.Join(os.TempDir(), "ailang-microrag", sid)
+	}
+	return dir
 }

@@ -156,6 +156,7 @@ func TestHolder_FreeLock(t *testing.T) {
 // GPU depends on the middle step; a rig with one must not be moved by it.
 func TestLockDir_SharedOnlyWhenPresent(t *testing.T) {
 	t.Setenv(EnvLockDir, "")
+	t.Setenv("AILANG_STATE_DIR", "") // the per-user path resolves through statedir
 	base := t.TempDir()
 	home := filepath.Join(base, "home")
 	testutil.SetHomeDir(t, home)
