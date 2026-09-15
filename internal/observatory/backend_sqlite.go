@@ -35,29 +35,18 @@ func NewSQLiteBackend(db *sql.DB) (*SQLiteBackend, error) {
 	return &SQLiteBackend{store: NewStore(db)}, nil
 }
 
-// NewSQLiteBackendFromPath creates a SQLite backend from a file path.
+// NewSQLiteBackendFromPath creates a SQLite backend from a file path. It is
+// OpenStore wrapped: observatory.db used to be opened two ways — this one
+// with a one-connection pool and foreign keys, OpenStore with the default
+// pool and no foreign keys — and which settings a process got depended on
+// which constructor it happened to call. TestObservatoryOpenersAgree pins
+// them equal.
 func NewSQLiteBackendFromPath(path string) (*SQLiteBackend, error) {
-	if path == "" {
-		return nil, errNoDatabasePath
-	}
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL&_busy_timeout=5000")
+	store, err := OpenStore(path)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open database: %w", err)
+		return nil, err
 	}
-
-	// SQLite is single-writer; limit to 1 connection to serialize writes at
-	// the Go pool level instead of contending on the SQLite file lock.
-	db.SetMaxOpenConns(1)
-	db.SetMaxIdleConns(1)
-	db.SetConnMaxLifetime(0)
-
-	// Enable foreign keys
-	if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("failed to enable foreign keys: %w", err)
-	}
-
-	return NewSQLiteBackend(db)
+	return &SQLiteBackend{store: store}, nil
 }
 
 // Close closes the database connection.

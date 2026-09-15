@@ -14,10 +14,11 @@
 package observatory
 
 import (
-	"database/sql"
 	"log"
 	"os"
 	"strconv"
+
+	"github.com/sunholo-data/ailang/internal/sqliteopen"
 )
 
 // DefaultWALCheckpointThresholdMB is the WAL size at which auto-checkpoint
@@ -68,7 +69,7 @@ func MaybeCheckpointWAL(dbPath string) (sizeBeforeMB, sizeAfterMB int64, didChec
 	log.Printf("Observatory WAL: %dMB exceeds checkpoint threshold (%dMB) — running PRAGMA wal_checkpoint(TRUNCATE)",
 		sizeBeforeMB, threshold)
 
-	db, err := sql.Open("sqlite3", dbPath+"?_journal_mode=WAL&_busy_timeout=5000")
+	db, err := sqliteopen.Open(dbPath, sqliteopen.Options{MustExist: true})
 	if err != nil {
 		log.Printf("Observatory WAL: failed to open DB for checkpoint: %v", err)
 		return sizeBeforeMB, sizeBeforeMB, false

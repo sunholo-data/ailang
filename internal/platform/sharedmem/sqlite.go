@@ -13,15 +13,12 @@ import (
 	"database/sql"
 	"fmt"
 	"math"
-	"os"
-	"path/filepath"
 	"sort"
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/effects"
 	"github.com/sunholo-data/ailang/internal/embedprefix"
-
-	_ "github.com/mattn/go-sqlite3"
+	"github.com/sunholo-data/ailang/internal/sqliteopen"
 )
 
 // Compile-time check: the SQLite cache satisfies the core's seam.
@@ -53,8 +50,8 @@ func Open(dbPath string, opts ...effects.CacheOption) (effects.BrainCache, error
 //   - TTL support: automatic expiration via GarbageCollect
 //   - Namespace support: partition frames by namespace
 //
-// The schema uses the same pragmas as internal/messaging/schema.go:
-//   - WAL mode, NORMAL synchronous, 5s busy timeout, 64MB cache
+// Opened through internal/sqliteopen (WAL, NORMAL synchronous, 5s busy
+// timeout, foreign keys, one writer) plus a 64MB cache.
 type SQLiteSharedCache struct {
 	db       *sql.DB
 	embedder effects.Embedder // optional, for auto-embedding on PutFrame
@@ -64,38 +61,16 @@ const brainSchemaVersion = "2.0.0"
 
 // NewSQLiteSharedCache opens or creates a SQLite-backed SharedCache at the given path.
 //
-// The database is configured with WAL mode and the same pragmas as the messaging system.
+// The database is opened with the sqliteopen recipe.
 // If the database doesn't exist, it is created with the brain_frames schema.
 // Optional effects.CacheOption values can configure the cache (e.g., WithEmbedder).
 func NewSQLiteSharedCache(dbPath string, opts ...effects.CacheOption) (*SQLiteSharedCache, error) {
-	dbDir := filepath.Dir(dbPath)
-	if err := os.MkdirAll(dbDir, 0755); err != nil {
-		return nil, fmt.Errorf("brain: failed to create directory %s: %w", dbDir, err)
-	}
-
-	db, err := sql.Open("sqlite3", dbPath)
+	// The one recipe (WAL, NORMAL synchronous, 5s busy timeout, foreign
+	// keys, one writer, directory creation) — this used to be a copy of
+	// messaging's pragma list. The 64MB cache is the brain's own tuning.
+	db, err := sqliteopen.Open(dbPath, sqliteopen.Options{CacheSizeKB: 64000})
 	if err != nil {
 		return nil, fmt.Errorf("brain: failed to open database: %w", err)
-	}
-
-	// Single-writer serialization (same as messaging)
-	db.SetMaxOpenConns(1)
-	db.SetMaxIdleConns(1)
-	db.SetConnMaxLifetime(0)
-
-	// Configure pragmas
-	pragmas := []string{
-		"PRAGMA journal_mode=WAL",
-		"PRAGMA synchronous=NORMAL",
-		"PRAGMA busy_timeout=5000",
-		"PRAGMA foreign_keys=ON",
-		"PRAGMA cache_size=-64000",
-	}
-	for _, p := range pragmas {
-		if _, err := db.Exec(p); err != nil {
-			db.Close()
-			return nil, fmt.Errorf("brain: pragma %q failed: %w", p, err)
-		}
 	}
 
 	// Create schema
