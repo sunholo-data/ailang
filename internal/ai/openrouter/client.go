@@ -3,9 +3,9 @@ package openrouter
 import (
 	"context"
 	"net/http"
-	"os"
 
 	"github.com/sunholo-data/ailang/internal/ai"
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/strutil"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
@@ -49,14 +49,14 @@ func attributionHeaders(attr *ai.Attribution) http.Header {
 	title := defaultXTitle
 	categories := defaultCategories
 
-	// Layer 2: env vars override defaults
-	if v := os.Getenv("OPENROUTER_HTTP_REFERER"); v != "" {
+	envAttr := config.OpenRouterAttributionConfig() // Layer 2: env vars override defaults
+	if v := envAttr.HTTPReferer; v != "" {
 		referer = v
 	}
-	if v := os.Getenv("OPENROUTER_X_TITLE"); v != "" {
+	if v := envAttr.XTitle; v != "" {
 		title = v
 	}
-	if v := os.Getenv("OPENROUTER_CATEGORIES"); v != "" {
+	if v := envAttr.Categories; v != "" {
 		categories = v
 	}
 

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ai"
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/statedir"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
@@ -21,7 +22,7 @@ import (
 // e.g. motoko's bun→ailang chain — which is why the env alone wasn't enough to
 // see what motoko actually sends). Empty string = logging off.
 func aiHTTPLogPath() string {
-	if p := strings.TrimSpace(os.Getenv("AILANG_AI_HTTP_LOG")); p != "" {
+	if p := config.AIHTTPLog(); p != "" {
 		return p
 	}
 	sentinel, err := statedir.Path("ai-http-log")

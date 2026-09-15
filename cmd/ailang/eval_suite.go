@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/eval_harness"
 	"github.com/sunholo-data/ailang/internal/messaging"
 	otelplatform "github.com/sunholo-data/ailang/internal/platform/otel"
@@ -60,12 +61,12 @@ func runEvalSuite() {
 		assignmentID = fmt.Sprintf("aa_%d", time.Now().UnixNano())
 		// Set in environment so it gets picked up by otelplatform.NewResource()
 		// Both task_id and assignment_id are needed for full hierarchy visibility
-		existingAttrs := os.Getenv("OTEL_RESOURCE_ATTRIBUTES")
+		existingAttrs := config.OTELResourceAttributes()
 		newAttrs := fmt.Sprintf("ailang.task_id=%s,ailang.assignment_id=%s", taskID, assignmentID)
 		if existingAttrs != "" {
-			os.Setenv("OTEL_RESOURCE_ATTRIBUTES", existingAttrs+","+newAttrs)
+			os.Setenv(config.EnvOTELResourceAttrs, existingAttrs+","+newAttrs)
 		} else {
-			os.Setenv("OTEL_RESOURCE_ATTRIBUTES", newAttrs)
+			os.Setenv(config.EnvOTELResourceAttrs, newAttrs)
 		}
 	}
 

@@ -189,7 +189,7 @@ func runAILANGSolution(solutionCode string, spec *BenchmarkSpec) ValidationResul
 // used to run whatever `ailang` PATH resolved — the stale-binary trap: a
 // developer's `/Users/mark/go/bin/ailang` from last week grading this week's
 // benchmarks, indistinguishable from the build under test.
-const EnvAILANGBin = "AILANG_BIN"
+const EnvAILANGBin = config.EnvAILANGBin
 
 // resolveAILANGBin returns the binary the grade probe executes. AILANG_BIN
 // wins; otherwise the PATH `ailang` is looked up and its RESOLVED path is
@@ -198,7 +198,7 @@ const EnvAILANGBin = "AILANG_BIN"
 // grade with an unpinned one (M-V1-SIMPLIFY-S4 M1). No `ailang` on PATH is an
 // error either way.
 func resolveAILANGBin() (string, error) {
-	if bin := strings.TrimSpace(os.Getenv(EnvAILANGBin)); bin != "" {
+	if bin := config.AILANGBin(); bin != "" {
 		return bin, nil
 	}
 	resolved, err := exec.LookPath("ailang")

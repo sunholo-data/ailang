@@ -3,7 +3,6 @@ package runner
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/effects"
@@ -13,7 +12,7 @@ import (
 // EnvApprovalURL names the service that serves /api/approvals (the dashboard)
 // for the networked secret gate. On the shared storage plane it is what makes
 // secret() gated at all.
-const EnvApprovalURL = "AILANG_APPROVAL_URL"
+const EnvApprovalURL = config.EnvApprovalURL
 
 // attachCloudSecretApprover wires a networked secret-approval gate onto the
 // effect context when running in cloud mode (M-SECRET-REMOTE-APPROVAL-WIRING).
@@ -61,10 +60,7 @@ func attachCloudSecretApprover(effCtx *effects.EffContext) error {
 	// The approver POSTs to the service that serves /api/approvals — the
 	// dashboard. AILANG_APPROVAL_URL names it explicitly; fall back to
 	// AILANG_COORDINATOR_URL for compatibility.
-	approvalURL := os.Getenv(EnvApprovalURL)
-	if approvalURL == "" {
-		approvalURL = os.Getenv("AILANG_COORDINATOR_URL")
-	}
+	approvalURL := config.ApprovalURL()
 	if approvalURL == "" {
 		if _, err := config.DeprecatedDefault(EnvApprovalURL, "<none: secret() un-gated on the shared plane>"); err != nil {
 			effCtx.Secret.Approver = deferredPlaneError{err: fmt.Errorf("secret approver: shared storage plane with no approval endpoint: %w", err)}
@@ -73,8 +69,8 @@ func attachCloudSecretApprover(effCtx *effects.EffContext) error {
 	}
 	effCtx.Secret.Approver = secrets.NewCloudSecretApprover(
 		approvalURL,
-		secrets.WithApproverIdentity(os.Getenv("AILANG_AGENT_ID"), os.Getenv("AILANG_TASK_ID")),
-		secrets.WithApproverAuthToken(os.Getenv("AILANG_APPROVAL_TOKEN")),
+		secrets.WithApproverIdentity(config.AgentID(), config.TaskID()),
+		secrets.WithApproverAuthToken(config.ApprovalToken()),
 	)
 	return nil
 }

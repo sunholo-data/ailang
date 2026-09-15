@@ -58,7 +58,7 @@ import (
 // listened, so it is a deprecated default under D3 (M-V1-SIMPLIFY-S4 M1):
 // served with one stderr warning, refused under AILANG_STRICT_CONFIG=1.
 func executeJobWorkspace() (string, error) {
-	if ws := os.Getenv(coordinator.EnvWorkspace); ws != "" {
+	if ws := config.Workspace(); ws != "" {
 		return ws, nil
 	}
 	return config.DeprecatedDefault(coordinator.EnvWorkspace, coordinator.DeprecatedWorkspaceDefault)
@@ -74,8 +74,8 @@ func coordinatorExecuteJob(args []string) error {
 	}
 
 	// Read ALL environment variables upfront (before any early returns).
-	taskID := os.Getenv("AILANG_TASK_ID")
-	agentID := os.Getenv("AILANG_AGENT_ID")
+	taskID := config.TaskID()
+	agentID := config.AgentID()
 	// Refused before Pub/Sub exists, because there is no workspace to publish
 	// a failure to.
 	workspace, wsErr := executeJobWorkspace()
@@ -89,15 +89,12 @@ func coordinatorExecuteJob(args []string) error {
 	projectID, projErr := config.CloudProject(context.Background())
 	// Resolved (and verified) below, once publishCompletion exists to report a
 	// bad answer. Deliberately not defaulted here — see resolveContainerProvider.
-	requestedProvider := os.Getenv("AILANG_PROVIDER")
-	imageProvider := os.Getenv("AILANG_IMAGE_PROVIDER")
+	requestedProvider := config.Provider()
+	imageProvider := config.ImageProvider()
 	var provider string
-	repoURL := os.Getenv("AILANG_REPO_URL")
-	branch := os.Getenv("AILANG_BRANCH")
-	if branch == "" {
-		branch = "dev"
-	}
-	directive := os.Getenv("AILANG_DIRECTIVE")
+	repoURL := config.RepoURL()
+	branch := config.Branch()
+	directive := config.Directive()
 	// AILANG_TASK_TITLE is read where it is used (taskSubject); named here so
 	// the env contract above stays the complete list.
 	prefix := pubsub.TopicPrefixFromEnv()
@@ -211,17 +208,17 @@ func coordinatorExecuteJob(args []string) error {
 	}
 
 	// Read plugin repo for shared skills (M-CLOUD-PLUGIN-SKILLS, v0.9.1)
-	pluginRepo := os.Getenv("AILANG_PLUGIN_REPO")
+	pluginRepo := config.PluginRepo()
 
 	// Read model override from agent config (passed via AILANG_MODEL env var).
 	// The executor has NO default model (M-MODEL-REGISTRY-SINGLE-SOURCE M6,
 	// D2(a)): an empty value fails at the point of use rather than silently
 	// running "haiku", which is too weak for coding tasks.
-	model := os.Getenv("AILANG_MODEL")
+	model := config.Model()
 
 	// Read timeout from agent config (passed via AILANG_TIMEOUT env var, M-CLOUD-OAUTH).
 	// Without this, the executor defaults to 5m which is too short for complex tasks.
-	timeoutStr := os.Getenv("AILANG_TIMEOUT")
+	timeoutStr := config.Timeout()
 	if timeoutStr == "" {
 		// M-COORDINATOR-EXECUTION-TRUST M8: was 30m. Cloud Run Jobs allow 24h and
 		// were chosen for that; idle_timeout is the liveness guard, so a generous
@@ -261,7 +258,7 @@ func coordinatorExecuteJob(args []string) error {
 		// Only an explicit "true" declares acknowledge-only. Unset, empty or
 		// malformed all mean "changes were expected", so a misconfigured or
 		// older dispatcher fails LOUD rather than silently lenient.
-		expectChanges := os.Getenv("AILANG_ACKNOWLEDGE_ONLY") != "true"
+		expectChanges := !config.AcknowledgeOnly()
 		status := coordinator.ClassifyCompletionStatus(evidence.ChangedFiles, false, expectChanges)
 
 		// The agent's own word on the outcome, which it has never had.
@@ -301,7 +298,7 @@ func coordinatorExecuteJob(args []string) error {
 // used for skip_approval agents like website-builder that push directly to main.
 func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch, directive, provider, pluginRepo, model, timeoutStr string) (string, *executor.Result, gitEvidence, error) {
 	workDir := fmt.Sprintf("/workspace/%s", taskID)
-	pushBranch := os.Getenv("AILANG_PUSH_BRANCH")
+	pushBranch := config.PushBranch()
 
 	// When push branch is set, clone that branch instead of baseBranch.
 	// This handles repos where the default branch differs from "dev"
@@ -315,7 +312,7 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 	// Step -1: Configure git credentials from GITHUB_TOKEN.
 	// Cloud containers don't have a credential helper — git can't authenticate HTTPS
 	// requests without this. GITHUB_TOKEN is provided via Secret Manager.
-	if token := os.Getenv("GITHUB_TOKEN"); token != "" {
+	if token := config.GitHubToken(); token != "" {
 		credHelper := fmt.Sprintf("!f() { echo username=x-access-token; echo \"password=%s\"; }; f", token)
 		credCmd := exec.CommandContext(ctx, "git", "config", "--global", "credential.helper", credHelper)
 		if err := credCmd.Run(); err != nil {
@@ -449,7 +446,7 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 
 	// M-PKG-AUTONOMOUS-UPDATES: Scope executor to monorepo subdirectory if set.
 	execWorkDir := workDir
-	if subdir := os.Getenv("AILANG_SUBDIRECTORY"); subdir != "" {
+	if subdir := config.Subdirectory(); subdir != "" {
 		execWorkDir = filepath.Join(workDir, subdir)
 		fmt.Printf("execute-job: scoped to subdirectory %s (within %s)\n", subdir, workDir)
 	}
@@ -462,9 +459,9 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 	var execResult *executor.Result
 	var execErr error
 	deterministicSuccess := false
-	if rootPackage := os.Getenv("AILANG_CASCADE_ROOT_PACKAGE"); rootPackage != "" {
-		changeClass := os.Getenv("AILANG_CASCADE_CHANGE_CLASS")
-		toVersion := os.Getenv("AILANG_CASCADE_TO_VERSION")
+	if rootPackage := config.CascadeRootPackage(); rootPackage != "" {
+		changeClass := config.CascadeChangeClass()
+		toVersion := config.CascadeToVersion()
 		path := classifyDispatchPath(changeClass)
 		fmt.Printf("execute-job: cascade detected — root=%s, change_class=%s, dispatch_path=%s\n",
 			rootPackage, changeClass, path)
@@ -495,8 +492,8 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 		}
 
 		// M-GIT-GUARDRAILS: Default to guardrails if not set per-agent or via Terraform.
-		if os.Getenv("AILANG_GIT_MODE") == "" {
-			os.Setenv("AILANG_GIT_MODE", "guardrails")
+		if !config.GitModeSet() {
+			os.Setenv(config.EnvGitMode, "guardrails")
 		}
 
 		// Direct Claude Code session storage into the GCS-mounted artifact directory.
@@ -559,11 +556,11 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 		// when there's no model — e.g., the deterministic bump path that doesn't invoke AI.
 		var commitMsg string
 		coAuthor := "AILANG cascade wrapper <noreply@sunholo.com>"
-		if m := os.Getenv("AILANG_MODEL"); m != "" {
+		if m := config.Model(); m != "" {
 			coAuthor = fmt.Sprintf("Claude (%s) <noreply@anthropic.com>", m)
 		}
-		siteSlug := os.Getenv("AILANG_SITE_SLUG")
-		briefID := os.Getenv("AILANG_BRIEF_ID")
+		siteSlug := config.SiteSlug()
+		briefID := config.BriefID()
 		if siteSlug != "" {
 			subject := fmt.Sprintf("Build: %s", siteSlug)
 			if briefID != "" {
@@ -783,8 +780,7 @@ func branchWantsPR(branchName, baseBranch string) bool {
 // so setting one leaves the other on the container default and produces a commit
 // half-attributed to each identity — worse than either alone, and hard to spot.
 func configureGitAuthor(ctx context.Context, workDir string) {
-	name := strings.TrimSpace(os.Getenv("AILANG_GIT_AUTHOR_NAME"))
-	email := strings.TrimSpace(os.Getenv("AILANG_GIT_AUTHOR_EMAIL"))
+	name, email := config.GitAuthor()
 	if name == "" || email == "" {
 		if name != "" || email != "" {
 			fmt.Fprintf(os.Stderr, "warning: git identity is half-configured (name=%q email=%q) — using the container default for BOTH rather than mixing identities\n", name, email)

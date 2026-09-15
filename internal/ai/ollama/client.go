@@ -6,12 +6,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
+	"net/http"
 	"strings"
 	"time"
 
 	ollamaapi "github.com/ollama/ollama/api"
 	"github.com/sunholo-data/ailang/internal/ai"
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/strutil"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
@@ -66,21 +67,15 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 		opt(c)
 	}
 
-	// Check environment variable
-	if envEndpoint := os.Getenv("OLLAMA_HOST"); envEndpoint != "" {
+	if envEndpoint := config.OllamaHost(); envEndpoint != "" {
 		c.endpoint = envEndpoint
 	}
 
-	// Set OLLAMA_HOST for the client library
-	os.Setenv("OLLAMA_HOST", c.endpoint)
-
-	// Create Ollama client
-	client, err := ollamaapi.ClientFromEnvironment()
-	if err != nil {
-		return nil, ai.NewProviderError("ollama", 0, "failed to create Ollama client", err)
-	}
-
-	c.client = client
+	// The resolved endpoint is handed to the SDK client explicitly. Before
+	// M-V1-SIMPLIFY-S4 M4 it was exported as OLLAMA_HOST for the whole
+	// process and read back through ollamaapi.ClientFromEnvironment — a
+	// process-wide side effect of constructing one client.
+	c.client = ollamaapi.NewClient(parseHost(c.endpoint), http.DefaultClient)
 	return c, nil
 }
 

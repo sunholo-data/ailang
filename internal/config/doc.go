@@ -4,8 +4,8 @@
 // and — since M-V1-SIMPLIFY-S4 M2 — every other operator-facing variable,
 // through a typed getter grouped by area (compiler.go, paths.go, trace.go,
 // telemetry.go, coordinator.go, job.go, server.go, executor.go, providers.go,
-// mission.go, rig.go, pubsub.go, pkgregistry.go, models.go, mcp.go,
-// microrag.go, apiserver.go, notify.go).
+// ai.go, ollama.go, embed.go, eval.go, mission.go, rig.go, pubsub.go,
+// pkgregistry.go, models.go, mcp.go, microrag.go, apiserver.go, notify.go).
 //
 // # Precedence
 //
@@ -94,9 +94,9 @@
 // internal/statedir (a stdlib-only leaf below this one; its AILANG_STATE_DIR
 // is registered here for the reference), internal/testutil (test-lane
 // opt-ins) and the DEBUG_* knobs. Every other package calls in.
-// tools/simplicity_metrics.sh counts the leaks as getenv_outside_config;
-// the forbidigo rule on os.Getenv/os.LookupEnv lands in `make lint` at the
-// S4 close-out, once the packages the other S4 lanes own are migrated.
+// tools/simplicity_metrics.sh counts the leaks as getenv_outside_config, and
+// since the S4 close-out the forbidigo rule in .golangci.yml refuses
+// os.Getenv / os.LookupEnv anywhere else in `make lint`.
 //
 // It is a leaf — standard library plus gopkg.in/yaml.v3 — so the store
 // implementations, the AI providers and cmd/ailang can all import it.

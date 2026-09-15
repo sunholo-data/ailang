@@ -3,7 +3,6 @@ package gemini
 import (
 	"context"
 	"net/http"
-	"os"
 	"os/exec"
 	"strings"
 
@@ -80,7 +79,7 @@ func NewClient(apiKey string, opts ...ClientOption) *Client {
 // EnvVertexLocation names the Vertex AI location a request is routed to. It
 // decides the regional endpoint, data residency and — since Vertex prices
 // some models per region — the bill, so it is not a cosmetic default.
-const EnvVertexLocation = "GOOGLE_CLOUD_LOCATION"
+const EnvVertexLocation = config.EnvGoogleCloudLocation
 
 // deprecatedVertexLocation is the value served when nothing names one
 // (M-V1-SIMPLIFY-S4 M1): warned once via config.DeprecatedDefault, refused
@@ -100,7 +99,7 @@ func NewVertexAIClient(projectID string, opts ...ClientOption) (*Client, error) 
 		opt(c)
 	}
 	if c.location == "" {
-		c.location = strings.TrimSpace(os.Getenv(EnvVertexLocation))
+		c.location = strings.TrimSpace(config.GoogleCloudLocation())
 	}
 	if c.location == "" {
 		loc, err := config.DeprecatedDefault(EnvVertexLocation, deprecatedVertexLocation)

@@ -28,6 +28,13 @@ const (
 	EnvApprovalBaseURL         = "AILANG_APPROVAL_BASE_URL"
 	EnvTokenSecret             = "AILANG_TOKEN_SECRET"
 	EnvMessagesProject         = "AILANG_MESSAGES_PROJECT"
+	EnvWorkspace               = "AILANG_WORKSPACE"
+	EnvDefaultProvider         = "AILANG_DEFAULT_PROVIDER"
+	EnvBudgetUnlimited         = "AILANG_BUDGET_UNLIMITED"
+	EnvApprovalTimeout         = "AILANG_APPROVAL_TIMEOUT"
+	EnvApprovalURL             = "AILANG_APPROVAL_URL"
+	EnvCoordinatorURL          = "AILANG_COORDINATOR_URL"
+	EnvApprovalToken           = "AILANG_APPROVAL_TOKEN"
 )
 
 var coordinatorVars = []Var{
@@ -55,6 +62,13 @@ var coordinatorVars = []Var{
 	{EnvApprovalBaseURL, "", AreaCoordinator, "Public base URL for the secret-approval action links pushed to ntfy; unset skips the push."},
 	{EnvTokenSecret, "", AreaCoordinator, "HMAC secret for approval tokens; unset generates one per process."},
 	{EnvMessagesProject, "", AreaCoordinator, "Pins the messaging store's Firestore project without moving anything else to the cloud project."},
+	{EnvWorkspace, "", AreaCoordinator, "Workspace a cloud process partitions its data under: the daemon's broadcast events and the execute-job's completion; unset serves default as a deprecated default (D3), refused under AILANG_STRICT_CONFIG=1."},
+	{EnvDefaultProvider, "", AreaCoordinator, "Provider a task is attributed to for budgeting when neither the task nor its agent names one; unset serves claude as a deprecated default (D3)."},
+	{EnvBudgetUnlimited, "0", AreaCoordinator, "1 acknowledges that a task may run with NO spend cap when no budget resolves; unset serves that as a deprecated default (D3), refused under AILANG_STRICT_CONFIG=1."},
+	{EnvApprovalTimeout, "", AreaCoordinator, "How long an approval request waits for a human, as a positive Go duration (e.g. 24h); unset serves the built-in wait as a deprecated default (D3)."},
+	{EnvApprovalURL, "", AreaCoordinator, "Service that serves /api/approvals (the dashboard), which secret() on the shared storage plane POSTs approval requests to; falls back to AILANG_COORDINATOR_URL, and unset leaves secret() un-gated as a deprecated default (D3)."},
+	{EnvCoordinatorURL, "", AreaCoordinator, "Compatibility fallback for AILANG_APPROVAL_URL."},
+	{EnvApprovalToken, "", AreaCoordinator, "Bearer token the cloud secret approver authenticates its requests with."},
 }
 
 // CoordinatorAPIKey returns COORDINATOR_API_KEY, "" when unset.
@@ -134,3 +148,29 @@ func TokenSecret() string { return get(EnvTokenSecret) }
 
 // MessagesProject returns the trimmed AILANG_MESSAGES_PROJECT, "" when unset.
 func MessagesProject() string { return strings.TrimSpace(get(EnvMessagesProject)) }
+
+// Workspace returns AILANG_WORKSPACE, "" when unset; the caller serves the
+// deprecated default through DeprecatedDefault.
+func Workspace() string { return get(EnvWorkspace) }
+
+// DefaultProvider returns the trimmed AILANG_DEFAULT_PROVIDER, "" when unset.
+func DefaultProvider() string { return strings.TrimSpace(get(EnvDefaultProvider)) }
+
+// BudgetUnlimited reports AILANG_BUDGET_UNLIMITED=1.
+func BudgetUnlimited() bool { return getOr(EnvBudgetUnlimited) == "1" }
+
+// ApprovalTimeout returns the trimmed AILANG_APPROVAL_TIMEOUT verbatim, ""
+// when unset; the coordinator parses it so a malformed wait is an error.
+func ApprovalTimeout() string { return strings.TrimSpace(get(EnvApprovalTimeout)) }
+
+// ApprovalURL returns AILANG_APPROVAL_URL, else AILANG_COORDINATOR_URL, ""
+// when neither is set.
+func ApprovalURL() string {
+	if v := get(EnvApprovalURL); v != "" {
+		return v
+	}
+	return get(EnvCoordinatorURL)
+}
+
+// ApprovalToken returns AILANG_APPROVAL_TOKEN, "" when unset.
+func ApprovalToken() string { return get(EnvApprovalToken) }

@@ -5,9 +5,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strings"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/pipeline"
 	"github.com/sunholo-data/ailang/internal/smt"
 )
@@ -84,14 +84,8 @@ func aiCheckCommand() {
 		os.Exit(1)
 	}
 
-	// Check AILANG_RELAX_MODULES environment variable
-	relaxModulesEffective := *relaxModulesFlag
-	if envVal := os.Getenv("AILANG_RELAX_MODULES"); envVal != "" {
-		switch strings.ToLower(envVal) {
-		case "1", "true", "yes":
-			relaxModulesEffective = true
-		}
-	}
+	// The flag and AILANG_RELAX_MODULES are OR-ed.
+	relaxModulesEffective := *relaxModulesFlag || config.RelaxModules()
 
 	// Run pipeline ONCE (both check and verify use the same compilation result)
 	cfg := pipeline.Config{

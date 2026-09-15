@@ -2,10 +2,10 @@ package eval_harness
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
-	"strings"
 	"sync"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // PinnedPythonVersion is the Python version the eval suite targets. Both the
@@ -63,7 +63,7 @@ func (e *ErrUvMissing) Unwrap() error { return e.cause }
 // Returns an ErrUvMissing if uv can't be found.
 func resolveUv() (string, error) {
 	uvResolveOnce.Do(func() {
-		if env := strings.TrimSpace(os.Getenv("AILANG_UV")); env != "" {
+		if env := config.UV(); env != "" {
 			uvBinPath = env
 			return
 		}

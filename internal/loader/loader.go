@@ -694,26 +694,17 @@ func IsTempPath(path string) bool {
 		return false
 	}
 
-	// Check os.TempDir() first (cross-platform)
+	// Check os.TempDir() first (cross-platform). On Windows this IS the
+	// %TMP%-then-%TEMP% lookup, so there is no separate Windows branch
+	// (M-V1-SIMPLIFY-S4 M4: the two reads it duplicated were the last
+	// os.Getenv calls in the loader).
 	tempDir := os.TempDir()
 	if strings.HasPrefix(absPath, tempDir) {
 		return true
 	}
 
 	// Platform-specific patterns
-	if runtime.GOOS == "windows" {
-		// Windows: check %TEMP% and %TMP% environment variables
-		if temp := os.Getenv("TEMP"); temp != "" {
-			if strings.HasPrefix(absPath, temp) {
-				return true
-			}
-		}
-		if tmp := os.Getenv("TMP"); tmp != "" {
-			if strings.HasPrefix(absPath, tmp) {
-				return true
-			}
-		}
-	} else {
+	if runtime.GOOS != "windows" {
 		// Unix-like systems
 		// Check /tmp/ prefix
 		if strings.HasPrefix(absPath, "/tmp/") || absPath == "/tmp" {

@@ -15,7 +15,6 @@ package factory
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ai"
@@ -24,6 +23,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/ai/ollama"
 	"github.com/sunholo-data/ailang/internal/ai/openai"
 	"github.com/sunholo-data/ailang/internal/ai/openrouter"
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // Lane names how the provider was authenticated. Safe to log — never the secret.
@@ -107,7 +107,7 @@ func New(name string, opts ...Option) (*Client, error) {
 	case ai.ProviderOpenAI:
 		baseURL := o.baseURL
 		if baseURL == "" {
-			baseURL = strings.TrimSpace(os.Getenv("OPENAI_BASE_URL"))
+			baseURL = config.OpenAIBaseURL()
 		}
 		key := o.key(typ)
 		if key == "" && baseURL == "" {
@@ -182,7 +182,7 @@ func New(name string, opts ...Option) (*Client, error) {
 		}
 		key := o.key(typ)
 		if key == "" && o.apiKeyEnv == "" {
-			key = os.Getenv("GEMINI_API_KEY")
+			key = config.GeminiAPIKey()
 		}
 		if key != "" {
 			return &Client{Provider: gemini.NewClient(key, o.geminiOpts()...), Type: typ, Lane: LaneAPIKey}, nil
@@ -243,7 +243,7 @@ func (o *options) key(typ ai.ProviderType) string {
 		return o.apiKey
 	}
 	if env := o.keyEnv(typ); env != "" {
-		return os.Getenv(env)
+		return config.Raw(env)
 	}
 	return ""
 }

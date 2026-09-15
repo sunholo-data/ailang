@@ -41,6 +41,10 @@ const (
 	AreaServer      = "Dashboard server"
 	AreaExecutor    = "Executors"
 	AreaProviders   = "Provider credentials"
+	AreaAI          = "AI clients"
+	AreaOllama      = "Ollama"
+	AreaEmbed       = "Embeddings"
+	AreaEval        = "Eval harness"
 	AreaMission     = "Mission loop"
 	AreaRig         = "Rig lock"
 	AreaPubSub      = "Pub/Sub"
@@ -55,9 +59,9 @@ const (
 // Areas lists the areas in the order the generated page presents them.
 var Areas = []string{
 	AreaCloud, AreaStorage, AreaCompiler, AreaPaths, AreaTrace, AreaTelemetry,
-	AreaCoordinator, AreaJob, AreaServer, AreaExecutor, AreaProviders, AreaMission,
-	AreaRig, AreaPubSub, AreaRegistry, AreaModels, AreaMCP, AreaMicroRAG,
-	AreaAPIServer, AreaNotify,
+	AreaCoordinator, AreaJob, AreaServer, AreaExecutor, AreaProviders, AreaAI,
+	AreaOllama, AreaEmbed, AreaEval, AreaMission, AreaRig, AreaPubSub, AreaRegistry,
+	AreaModels, AreaMCP, AreaMicroRAG, AreaAPIServer, AreaNotify,
 }
 
 // Registry is every environment variable this package reads, grouped by
@@ -65,9 +69,9 @@ var Areas = []string{
 // appears here exactly once and that every entry names an Env* constant.
 var Registry = concat(
 	cloudVars, storageVars, compilerVars, pathVars, traceVars, telemetryVars,
-	coordinatorVars, jobVars, serverVars, executorVars, providerVars, missionVars,
-	rigVars, pubsubVars, registryVars, modelVars, mcpVars, microragVars,
-	apiserverVars, notifyVars,
+	coordinatorVars, jobVars, serverVars, executorVars, providerVars, aiVars,
+	ollamaVars, embedVars, evalVars, missionVars, rigVars, pubsubVars, registryVars,
+	modelVars, mcpVars, microragVars, apiserverVars, notifyVars,
 )
 
 func concat(groups ...[]Var) []Var {

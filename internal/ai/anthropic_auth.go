@@ -6,19 +6,21 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // Anthropic credential env vars, in resolution order.
 const (
 	// EnvAnthropicAPIKey holds an sk-ant-... API key. METERED.
-	EnvAnthropicAPIKey = "ANTHROPIC_API_KEY"
+	EnvAnthropicAPIKey = config.EnvAnthropicAPIKey
 	// EnvAnthropicAuthToken holds an OAuth access token from a Claude
 	// subscription profile. SUBSCRIPTION QUOTA, not billed per token.
-	EnvAnthropicAuthToken = "ANTHROPIC_AUTH_TOKEN"
+	EnvAnthropicAuthToken = config.EnvAnthropicAuthToken
 	// EnvClaudeCodeOAuthToken holds the JSON credential blob this fleet already
 	// injects for headless Claude in cloud containers (M-CLOUD-OAUTH):
 	// {"accessToken":"...","refreshToken":"...","expiresAt":...}
-	EnvClaudeCodeOAuthToken = "CLAUDE_CODE_OAUTH_TOKEN"
+	EnvClaudeCodeOAuthToken = config.EnvClaudeCodeOAuthToken
 )
 
 // claudeCredentialsPath is where Claude Code keeps its local OAuth credential.
@@ -117,14 +119,14 @@ func (c AnthropicCredential) Lane() string {
 // to fall back to (CLAUDE.md §2 — a fallback that changes who gets billed is
 // exactly the class that must error instead).
 func ResolveAnthropicCredential() (AnthropicCredential, error) {
-	if k := os.Getenv(EnvAnthropicAPIKey); k != "" {
+	if k := config.AnthropicAPIKey(); k != "" {
 		return AnthropicCredential{Value: k, OAuth: false}, nil
 	}
-	if t := os.Getenv(EnvAnthropicAuthToken); t != "" {
+	if t := config.AnthropicAuthToken(); t != "" {
 		return AnthropicCredential{Value: t, OAuth: true}, nil
 	}
 	// The fleet's existing cloud convention: a JSON blob in the env.
-	if blob := os.Getenv(EnvClaudeCodeOAuthToken); blob != "" {
+	if blob, _ := config.ClaudeCodeOAuthToken(); blob != "" {
 		var c claudeOAuth
 		if err := json.Unmarshal([]byte(blob), &c); err != nil {
 			return AnthropicCredential{}, fmt.Errorf("%s is not valid JSON: %w", EnvClaudeCodeOAuthToken, err)

@@ -130,13 +130,13 @@ func LoadEmbedConfigFromEnv() EmbedConfig {
 	}
 
 	// Environment variables override config file
-	if provider := os.Getenv("AILANG_EMBED_PROVIDER"); provider != "" {
+	if provider := config.EmbedProvider(); provider != "" {
 		cfg.Provider = provider
 	}
-	if model := os.Getenv("AILANG_OLLAMA_MODEL"); model != "" {
+	if model := config.EmbedOllamaModel(); model != "" {
 		cfg.Ollama.Model = model
 	}
-	if endpoint := os.Getenv("AILANG_OLLAMA_ENDPOINT"); endpoint != "" {
+	if endpoint := config.EmbedOllamaEndpoint(); endpoint != "" {
 		cfg.Ollama.Endpoint = endpoint
 	}
 
@@ -144,9 +144,9 @@ func LoadEmbedConfigFromEnv() EmbedConfig {
 	// NewEmbedderFromConfig resolves it (env var, else the deprecated default
 	// with a warning), because this function cannot return an error.
 	if cfg.OpenAI.APIKey == "" {
-		cfg.OpenAI.APIKey = os.Getenv("OPENAI_API_KEY")
+		cfg.OpenAI.APIKey = config.OpenAIAPIKey()
 	}
-	if m := os.Getenv(EnvEmbedOpenAIModel); m != "" {
+	if m := config.EmbedOpenAIModel(); m != "" {
 		cfg.OpenAI.Model = m
 	}
 	if cfg.OpenAI.Timeout == 0 {
@@ -155,9 +155,9 @@ func LoadEmbedConfigFromEnv() EmbedConfig {
 
 	// Gemini env var defaults — same shape.
 	if cfg.Gemini.APIKey == "" {
-		cfg.Gemini.APIKey = os.Getenv("GOOGLE_API_KEY")
+		cfg.Gemini.APIKey = config.GoogleAPIKey()
 	}
-	if m := os.Getenv(EnvEmbedGeminiModel); m != "" {
+	if m := config.EmbedGeminiModel(); m != "" {
 		cfg.Gemini.Model = m
 	}
 	if cfg.Gemini.Timeout == 0 {
@@ -172,8 +172,8 @@ func LoadEmbedConfigFromEnv() EmbedConfig {
 // ~/.ailang/config.yaml > the deprecated default below. Ollama's model already
 // has AILANG_OLLAMA_MODEL.
 const (
-	EnvEmbedOpenAIModel = "AILANG_EMBED_OPENAI_MODEL"
-	EnvEmbedGeminiModel = "AILANG_EMBED_GEMINI_MODEL"
+	EnvEmbedOpenAIModel = config.EnvEmbedOpenAIModel
+	EnvEmbedGeminiModel = config.EnvEmbedGeminiModel
 )
 
 // The models served when nothing names one. Each fixes a VECTOR DIMENSION
@@ -255,7 +255,7 @@ type OllamaEmbedder struct {
 func NewOllamaEmbedder(cfg OllamaConfig) (*OllamaEmbedder, error) {
 	// Set OLLAMA_HOST for the client
 	if cfg.Endpoint != "" {
-		os.Setenv("OLLAMA_HOST", cfg.Endpoint)
+		os.Setenv(config.EnvOllamaHost, cfg.Endpoint)
 	}
 
 	client, err := api.ClientFromEnvironment()

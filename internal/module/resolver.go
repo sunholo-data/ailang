@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/repo"
 )
 
@@ -272,7 +273,7 @@ func findProjectRoot() string {
 // findStdlibPath finds the standard library path
 func findStdlibPath() string {
 	// Check environment variable
-	if stdlib := os.Getenv("AILANG_STDLIB"); stdlib != "" {
+	if stdlib := config.Stdlib(); stdlib != "" {
 		return stdlib
 	}
 
@@ -307,7 +308,7 @@ func getSearchPaths() []string {
 	paths := []string{}
 
 	// Add AILANG_PATH if set
-	if ailangPath := os.Getenv("AILANG_PATH"); ailangPath != "" {
+	if ailangPath := config.ModulePath(); ailangPath != "" {
 		for _, p := range strings.Split(ailangPath, string(os.PathListSeparator)) {
 			if p != "" {
 				paths = append(paths, p)

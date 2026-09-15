@@ -8,6 +8,8 @@ import (
 	"os"
 	"sync"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // TelemetryReporter sends telemetry updates to the collaboration hub server
@@ -43,7 +45,7 @@ type telemetryRequest struct {
 // If neither is set, telemetry reporting is disabled
 func NewTelemetryReporter(serverURL, instanceID string) *TelemetryReporter {
 	if serverURL == "" {
-		serverURL = os.Getenv("AILANG_HUB_URL")
+		serverURL = config.HubURL()
 	}
 
 	enabled := serverURL != ""

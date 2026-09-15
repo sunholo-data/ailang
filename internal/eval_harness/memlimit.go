@@ -18,12 +18,12 @@ package eval_harness
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/proctree"
 )
 
@@ -33,7 +33,7 @@ const (
 	// ("8589934592") or an integer with a K/M/G/T suffix ("8G", "512M";
 	// "GB"/"GiB" spellings allowed, all binary multiples). "0" or "off"
 	// disables the watchdog.
-	EnvEvalMaxRSS = "AILANG_EVAL_MAX_RSS"
+	EnvEvalMaxRSS = config.EnvEvalMaxRSS
 
 	// DefaultEvalMaxRSS is the default cap: 8 GiB. Far above what any
 	// legitimate benchmark solution needs, far below host RAM even with
@@ -55,7 +55,7 @@ const (
 // value is unparseable. A bad value is an error, not a silent fallback — a
 // misconfigured safety cap must fail loudly (CLAUDE.md §2).
 func evalMaxRSS() (int64, error) {
-	raw := strings.TrimSpace(os.Getenv(EnvEvalMaxRSS))
+	raw := config.EvalMaxRSS()
 	if raw == "" {
 		return DefaultEvalMaxRSS, nil
 	}

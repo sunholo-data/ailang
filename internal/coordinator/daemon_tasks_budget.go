@@ -3,8 +3,6 @@ package coordinator
 import (
 	"context"
 	"fmt"
-	"os"
-	"strings"
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/config"
@@ -20,14 +18,14 @@ const (
 	// sites, which mislabelled provider and cost in the observatory and keyed
 	// the wrong per-provider spend cap for every agent dispatched without a
 	// declaration.
-	EnvDefaultProvider = "AILANG_DEFAULT_PROVIDER"
+	EnvDefaultProvider = config.EnvDefaultProvider
 	// EnvBudgetUnlimited, set to 1, acknowledges that tasks may run with NO
 	// spend cap. Without it, every path where the cap disappears (no budgets
 	// section, an unreadable config, a spend lookup that fails, or limits
 	// that resolve to zero) warns once per process and, under
 	// AILANG_STRICT_CONFIG=1, refuses the task instead of running it
 	// unlimited. Before M1 each of those paths silently allowed the task.
-	EnvBudgetUnlimited = "AILANG_BUDGET_UNLIMITED"
+	EnvBudgetUnlimited = config.EnvBudgetUnlimited
 )
 
 // taskProvider resolves the provider a task runs under: the agent's own
@@ -42,7 +40,7 @@ func (d *Daemon) taskProvider(agentConfig *AgentConfig) (string, error) {
 	if d.coordConfig != nil && d.coordConfig.DefaultProvider != "" {
 		return d.coordConfig.DefaultProvider, nil
 	}
-	if v := strings.TrimSpace(os.Getenv(EnvDefaultProvider)); v != "" {
+	if v := config.DefaultProvider(); v != "" {
 		return v, nil
 	}
 	return config.DeprecatedDefault(EnvDefaultProvider, "claude")
@@ -127,7 +125,7 @@ func (d *Daemon) uncapped(ctx context.Context, task *TaskRecord, provider, reaso
 	d.logger.Printf("[BUDGET] no spend cap for provider %s on task %s: %s — set budgets.providers.%s.daily_budget "+
 		"(or budgets.global.daily_budget) in %s, or %s=1 to acknowledge unlimited spend",
 		provider, task.ID, reason, provider, config.FilePath(), EnvBudgetUnlimited)
-	if os.Getenv(EnvBudgetUnlimited) == "1" {
+	if config.BudgetUnlimited() {
 		return false, nil
 	}
 	if _, err := config.DeprecatedDefault(EnvBudgetUnlimited, "1 (no spend cap)"); err != nil {

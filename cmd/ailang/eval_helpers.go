@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ai"
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/eval_harness"
 )
 
@@ -161,7 +162,7 @@ func checkAPIKeys(models []string) {
 	for _, model := range models {
 		switch {
 		case strings.Contains(model, "gpt"):
-			if os.Getenv("OPENAI_API_KEY") == "" {
+			if config.OpenAIAPIKey() == "" {
 				warnings = append(warnings, fmt.Sprintf("%s OPENAI_API_KEY not set (needed for %s)", yellow("⚠️"), model))
 			}
 		case strings.Contains(model, "claude"):
@@ -174,7 +175,7 @@ func checkAPIKeys(models []string) {
 				warnings = append(warnings, fmt.Sprintf("%s no Anthropic credential set — need ANTHROPIC_API_KEY (metered) or ANTHROPIC_AUTH_TOKEN (subscription) for %s", yellow("⚠️"), model))
 			}
 		case strings.Contains(model, "gemini"):
-			if os.Getenv("GOOGLE_API_KEY") == "" {
+			if config.GoogleAPIKey() == "" {
 				warnings = append(warnings, fmt.Sprintf("%s GOOGLE_API_KEY not set (needed for %s)", yellow("⚠️"), model))
 			}
 		}

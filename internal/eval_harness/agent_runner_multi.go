@@ -18,6 +18,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/executor"
 
 	// Register executors via init()
+	"github.com/sunholo-data/ailang/internal/config"
 	_ "github.com/sunholo-data/ailang/internal/executor/claude"
 	_ "github.com/sunholo-data/ailang/internal/executor/managed_agents"
 )
@@ -701,7 +702,7 @@ var trapsCardDefaultPath = "prompts/agent/dialect-traps.md"
 // card file is unreadable the directive is returned unchanged — this is an
 // additive salience aid, not a data-integrity path.
 func maybePrependTrapsCard(directive string) string {
-	path := strings.TrimSpace(os.Getenv("AILANG_EVAL_TRAPS_CARD"))
+	path := config.EvalTrapsCard()
 	switch strings.ToLower(path) {
 	case "off", "0", "false", "no", "none":
 		return directive // explicitly disabled
@@ -726,14 +727,7 @@ func maybePrependTrapsCard(directive string) string {
 // was the WORST delivery — 1/6 vs 3/6 for turn-1 concatenation — because it
 // bloated the context (up to 39 turns / 2.4M tokens) and the model lost the
 // signal. Set AILANG_EVAL_PERSIST_PROMPT=1/true/on to re-enable for A/B testing.
-func persistentSystemPromptEnabled() bool {
-	switch strings.ToLower(strings.TrimSpace(os.Getenv("AILANG_EVAL_PERSIST_PROMPT"))) {
-	case "1", "true", "on", "yes":
-		return true
-	default:
-		return false
-	}
-}
+func persistentSystemPromptEnabled() bool { return config.EvalPersistPrompt() }
 
 // modelMaxOutputTokens returns the registry's declared max_output_tokens for a
 // model (its per-request output strength), or 0 if unknown. Forwarded on the Task

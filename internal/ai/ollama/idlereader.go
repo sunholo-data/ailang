@@ -23,11 +23,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // Typed sentinels. All four are distinguishable with errors.Is, which is what
@@ -44,41 +45,28 @@ var (
 	ErrStreamDeadlineInvalid = errors.New("ollama stream: invalid hard deadline configuration")
 )
 
-// Window defaults, in seconds.
+// Window defaults, in seconds. The two soft windows are registered in
+// internal/config (one source for the getter and the reference page).
 const (
 	// defaultOllamaIdleTimeoutSec bounds silence *between* bytes. Short, because
 	// a healthy stream emits tokens continuously.
-	defaultOllamaIdleTimeoutSec = 120
+	defaultOllamaIdleTimeoutSec = config.DefaultOllamaIdleTimeoutSec
 	// defaultOllamaTTFTTimeoutSec bounds silence *before* the first byte. Long,
 	// because a cold 35B load under GPU contention legitimately takes minutes.
-	defaultOllamaTTFTTimeoutSec = 600
+	defaultOllamaTTFTTimeoutSec = config.DefaultOllamaTTFTTimeoutSec
 	// defaultOllamaStreamDeadlineSec bounds the whole stream.
 	defaultOllamaStreamDeadlineSec = 3600
 )
 
 // ollamaIdleTimeout resolves the inter-byte silence window.
-// Override with AILANG_OLLAMA_IDLE_TIMEOUT_SEC (a positive integer, seconds).
-func ollamaIdleTimeout() time.Duration {
-	return envSeconds("AILANG_OLLAMA_IDLE_TIMEOUT_SEC", defaultOllamaIdleTimeoutSec)
-}
+// Override with AILANG_OLLAMA_IDLE_TIMEOUT_SEC (a positive integer, seconds);
+// unset or unusable falls back to defaultOllamaIdleTimeoutSec.
+func ollamaIdleTimeout() time.Duration { return config.OllamaIdleTimeout() }
 
 // ollamaTTFTTimeout resolves the pre-first-byte window.
-// Override with AILANG_OLLAMA_TTFT_TIMEOUT_SEC (a positive integer, seconds).
-func ollamaTTFTTimeout() time.Duration {
-	return envSeconds("AILANG_OLLAMA_TTFT_TIMEOUT_SEC", defaultOllamaTTFTTimeoutSec)
-}
-
-// envSeconds reads a positive-integer seconds value, falling back to def when
-// unset or unusable. Only used for the two *soft* windows, where a bad value
-// costs nothing but a wrong watchdog period.
-func envSeconds(key string, defSec int) time.Duration {
-	if v := os.Getenv(key); v != "" {
-		if n, err := strconv.Atoi(v); err == nil && n > 0 {
-			return time.Duration(n) * time.Second
-		}
-	}
-	return time.Duration(defSec) * time.Second
-}
+// Override with AILANG_OLLAMA_TTFT_TIMEOUT_SEC (a positive integer, seconds);
+// unset or unusable falls back to defaultOllamaTTFTTimeoutSec.
+func ollamaTTFTTimeout() time.Duration { return config.OllamaTTFTTimeout() }
 
 // ollamaStreamHardDeadline resolves the total-stream budget for the STREAMING
 // path from AILANG_OLLAMA_HTTP_TIMEOUT_SEC, defaulting to 3600s.
@@ -89,7 +77,7 @@ func envSeconds(key string, defSec int) time.Duration {
 // exists to remove, so here <= 0 is rejected rather than silently honoured — no
 // silent fallback on a value that decides whether a rig job can hang forever.
 func ollamaStreamHardDeadline() (time.Duration, error) {
-	v := os.Getenv("AILANG_OLLAMA_HTTP_TIMEOUT_SEC")
+	v := config.OllamaHTTPTimeoutSec()
 	if v == "" {
 		return defaultOllamaStreamDeadlineSec * time.Second, nil
 	}

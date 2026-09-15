@@ -105,7 +105,9 @@ commands_top_level="$(grep -oE 'case "[a-z0-9-]+"' cmd/ailang/main.go | sort -u 
 flag_names="$(grep -rhoE '\.(String|Int|Bool|Duration|Float64|Int64|Var|StringVar|IntVar|BoolVar|DurationVar)\("[a-zA-Z0-9_-]+"' cmd/ailang --include='*.go' 2>/dev/null | grep -oE '"[^"]+"' | sort -u | wc -l | tr -d ' ')"
 
 # ---- configuration routes --------------------------------------------------
-getenv_all="$(grep -rnE 'os\.(Getenv|LookupEnv)\(' --include='*.go' internal cmd 2>/dev/null | grep -v '_test\.go:' || true)"
+# A call, not a string literal: a line where an unclosed `"` precedes the call
+# (internal/gen/golang/effects.go's ExampleDoc text) is documentation, not a read.
+getenv_all="$(grep -rnE 'os\.(Getenv|LookupEnv)\(' --include='*.go' internal cmd 2>/dev/null | grep -v '_test\.go:' | grep -vE '^[^:]*:[0-9]+:[^"]*"[^"]*os\.(Getenv|LookupEnv)\(' || true)"
 getenv_sites_total="$(printf '%s\n' "$getenv_all" | grep -c . || true)"
 # internal/testutil is test infrastructure (AILANG_LIVE_NET, AILANG_TEST_FAST_LOOP):
 # its switches are opt-ins for the test lane, not configuration of the binary.

@@ -416,10 +416,7 @@ func (d *Daemon) initPubSub(ctx context.Context) error {
 		return fmt.Errorf("cloud mode: %w", err)
 	}
 
-	prefix := os.Getenv("AILANG_TOPIC_PREFIX")
-	if prefix == "" {
-		prefix = pubsub.DefaultTopicPrefix
-	}
+	prefix := pubsub.TopicPrefixFromEnv()
 
 	client, err := pubsub.NewClient(ctx, projectID, prefix)
 	if err != nil {
@@ -439,7 +436,7 @@ func (d *Daemon) initPubSub(ctx context.Context) error {
 // both silently assumed before M-V1-SIMPLIFY-S4 M1; it is now served only
 // through config.DeprecatedDefault.
 const (
-	EnvWorkspace               = "AILANG_WORKSPACE"
+	EnvWorkspace               = config.EnvWorkspace
 	DeprecatedWorkspaceDefault = "default"
 )
 
@@ -456,7 +453,7 @@ func (d *Daemon) initPubSubBroadcaster() error {
 	// "default" put a mis-deployed daemon's events in a partition nobody
 	// watched. Deprecated default under D3 (M-V1-SIMPLIFY-S4 M1): warned once,
 	// refused under AILANG_STRICT_CONFIG=1.
-	workspace := os.Getenv(EnvWorkspace)
+	workspace := config.Workspace()
 	if workspace == "" {
 		var err error
 		if workspace, err = config.DeprecatedDefault(EnvWorkspace, DeprecatedWorkspaceDefault); err != nil {

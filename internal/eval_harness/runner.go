@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/eval_harness/langreg"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 )
@@ -552,7 +553,7 @@ func FindAILANG() (string, error) {
 	paths := []string{
 		"ailang",       // In PATH
 		"./bin/ailang", // Local build
-		filepath.Join(os.Getenv("GOPATH"), "bin", "ailang"), // GOPATH
+		filepath.Join(config.GOPATH(), "bin", "ailang"), // GOPATH
 	}
 
 	for _, path := range paths {

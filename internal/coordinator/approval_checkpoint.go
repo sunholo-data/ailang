@@ -4,8 +4,6 @@ package coordinator
 import (
 	"context"
 	"fmt"
-	"os"
-	"strings"
 	"sync"
 	"time"
 
@@ -90,7 +88,7 @@ type ApprovalCheckpoint struct {
 // neither the request nor the constructor says (a Go duration, e.g. "24h").
 // Before M-V1-SIMPLIFY-S4 M1 a zero constructor timeout silently became 1h —
 // a wait bound nobody chose, on a gate that decides whether work merges.
-const EnvApprovalTimeout = "AILANG_APPROVAL_TIMEOUT"
+const EnvApprovalTimeout = config.EnvApprovalTimeout
 
 // deprecatedApprovalTimeout is the value served when the variable is unset.
 const deprecatedApprovalTimeout = 1 * time.Hour
@@ -115,7 +113,7 @@ func NewApprovalCheckpoint(defaultTimeout time.Duration) *ApprovalCheckpoint {
 // resolveDefaultApprovalTimeout reads AILANG_APPROVAL_TIMEOUT, else serves the
 // deprecated default. A set-but-unparseable value is an error, never 1h.
 func resolveDefaultApprovalTimeout() (time.Duration, error) {
-	if v := strings.TrimSpace(os.Getenv(EnvApprovalTimeout)); v != "" {
+	if v := config.ApprovalTimeout(); v != "" {
 		d, err := time.ParseDuration(v)
 		if err != nil || d <= 0 {
 			return 0, fmt.Errorf("%s=%q is not a positive duration (e.g. 24h): %v", EnvApprovalTimeout, v, err)

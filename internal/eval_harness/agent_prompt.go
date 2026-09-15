@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	envcfg "github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/eval_harness/langreg"
 )
 
@@ -494,7 +495,7 @@ func GenerateAgentPromptsWithSystemPrompt(spec *BenchmarkSpec, config AgentBench
 	// 2026-06-18): +11pp pass/WriteFile (44%→55%), no regression — principled +
 	// non-harmful, so ON by default for agent mode. Opt OUT with
 	// AILANG_AGENT_OUTPUT_DELIVERY=0 (e.g. for a clean A/B control arm).
-	if os.Getenv("AILANG_AGENT_OUTPUT_DELIVERY") != "0" {
+	if envcfg.AgentOutputDelivery() {
 		systemPrompt = systemPrompt + agentModeOutputDelivery
 	}
 

@@ -5,8 +5,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"sync"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // MoonBit is installed by the upstream installer at $MOON_HOME/bin (defaulting
@@ -36,7 +37,7 @@ func (e *ErrMoonMissing) Unwrap() error { return e.cause }
 // resolveMoon locates the moon binary and caches the path.
 func resolveMoon() (string, error) {
 	moonResolveOnce.Do(func() {
-		if env := strings.TrimSpace(os.Getenv("AILANG_MOON")); env != "" {
+		if env := config.Moon(); env != "" {
 			moonBinPath = env
 			return
 		}
@@ -45,7 +46,7 @@ func resolveMoon() (string, error) {
 			return
 		}
 		// Fallback to the standard installer location.
-		moonHome := strings.TrimSpace(os.Getenv("MOON_HOME"))
+		moonHome := config.MoonHome()
 		if moonHome == "" {
 			home, err := os.UserHomeDir()
 			if err != nil {
