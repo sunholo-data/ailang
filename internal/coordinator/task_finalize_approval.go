@@ -80,6 +80,17 @@ func (f *finalizer) applyApproval(ctx context.Context) (FinalizationState, error
 		}
 	}
 
+	// The work id: what this completion is asking approval FOR. It is what lets
+	// a later collision tell a replay from a re-run.
+	var cf []string
+	if v, ok := approvalContext["changed_files"].([]string); ok {
+		cf = v
+	}
+	ds, _ := approvalContext["diff_stat"].(string)
+	if wid := WorkIDForApproval(cf, ds); wid != "" {
+		approvalContext["work_id"] = wid
+	}
+
 	contextJSON := ""
 	if len(approvalContext) > 0 {
 		b, err := json.Marshal(approvalContext)
@@ -109,10 +120,43 @@ func (f *finalizer) applyApproval(ctx context.Context) (FinalizationState, error
 		return FinalizationPending, err
 	}
 	if !created {
-		// The approval already exists — a replay, or a human has since resolved
-		// it. Either way this completion has nothing left to add, and overwriting
-		// would undo a decision.
-		return FinalizationSuperseded, nil
+		// The approval row already exists, and that is THREE different events
+		// wearing one shape:
+		//
+		//   a replay of this completion        -> nothing to add
+		//   a human already decided it         -> must not be disturbed
+		//   a LATER EXECUTION with new work    -> needs a fresh decision
+		//
+		// Treating all three as superseded stranded eleven tasks on 2026-09-15:
+		// rejected, re-dispatched, ran again, and each finished
+		// `pending_approval` behind a `rejected` record — invisible to
+		// `coordinator approvals` and refused by approve, because an
+		// already-resolved approval cannot be resolved again.
+		existing, getErr := f.deps.TaskStore.GetApprovalRequestByTaskAnyStatus(ctx, f.in.Task.ID)
+		if getErr != nil {
+			// Cannot tell them apart, so change nothing. The old behaviour is
+			// the safe one when the evidence is missing.
+			f.deps.logf("finalize %s: approval exists and could not be read (%v) — leaving the standing decision alone",
+				f.in.Task.ID, getErr)
+			return FinalizationSuperseded, nil
+		}
+		newWorkID, _ := approvalContext["work_id"].(string)
+		if ClassifyApprovalCollision(existing, newWorkID) != CollisionNewWork {
+			return FinalizationSuperseded, nil
+		}
+		reopened, rErr := f.deps.TaskStore.ReopenApprovalForNewWork(ctx, f.in.Task.ID, description, contextJSON)
+		if rErr != nil {
+			return FinalizationPending, rErr
+		}
+		if !reopened {
+			return FinalizationSuperseded, nil
+		}
+		// Loud: a decision that was made has been set aside because the work it
+		// described no longer exists.
+		f.deps.logf("finalize %s: a later execution produced DIFFERENT work (%s) than the %s approval described — reopened for a fresh decision",
+			f.in.Task.ID, newWorkID, existing.Status)
+		f.notifyApproval(ctx, description)
+		return FinalizationDone, nil
 	}
 
 	f.notifyApproval(ctx, description)

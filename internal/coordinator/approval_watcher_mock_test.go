@@ -228,3 +228,9 @@ func (m *mockStore) CompareAndSetTaskStatus(ctx context.Context, id string, expe
 	}
 	return false, nil
 }
+
+// ReopenApprovalForNewWork: a later execution produced different work, so the
+// resolved approval goes back to pending. Mock reports "nothing reopened".
+func (m *mockStore) ReopenApprovalForNewWork(ctx context.Context, taskID, description, contextJSON string) (bool, error) {
+	return false, nil
+}

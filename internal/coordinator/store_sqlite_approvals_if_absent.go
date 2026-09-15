@@ -37,3 +37,31 @@ func (s *SQLiteStore) CreateApprovalIfAbsent(ctx context.Context, req *ApprovalR
 	}
 	return rows > 0, nil
 }
+
+// ReopenApprovalForNewWork puts a RESOLVED approval back to pending because a
+// later execution of the same task produced a different change.
+//
+// Guarded on status so it can never reopen a pending row (nothing to reopen)
+// and reports whether it moved one, so the caller can say what happened instead
+// of assuming. The work id and the fresh diff go in with it — a reopened
+// approval that still describes the previous change is worse than no approval,
+// because the card looks authoritative.
+func (s *SQLiteStore) ReopenApprovalForNewWork(ctx context.Context, taskID, description, contextJSON string) (bool, error) {
+	if taskID == "" {
+		return false, fmt.Errorf("ReopenApprovalForNewWork requires a task id")
+	}
+	res, err := s.db.ExecContext(ctx, `
+		UPDATE approval_requests
+		   SET status = 'pending', resolved_by = NULL, resolved_at = NULL,
+		       description = ?, context_json = ?
+		 WHERE task_id = ? AND status IN ('approved','rejected')
+	`, description, contextJSON, taskID)
+	if err != nil {
+		return false, fmt.Errorf("reopening approval for %s: %w", taskID, err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("rows affected reopening %s: %w", taskID, err)
+	}
+	return n > 0, nil
+}

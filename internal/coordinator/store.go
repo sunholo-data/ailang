@@ -260,6 +260,11 @@ type Store interface {
 	// the approval id is deterministic and Pub/Sub delivery is at-least-once
 	// (M-COMPLETION-PATH-PARITY M0b).
 	CreateApprovalIfAbsent(ctx context.Context, req *ApprovalRequestRecord) (bool, error)
+	// ReopenApprovalForNewWork moves a RESOLVED approval back to pending when a
+	// later execution of the same task produced a different change. The
+	// approval id is derived from the task id alone, so two executions collide
+	// on one row and a stale decision would otherwise strand the new work.
+	ReopenApprovalForNewWork(ctx context.Context, taskID, description, contextJSON string) (bool, error)
 
 	// Finalisation ledger (M-COMPLETION-PATH-PARITY C1). Read once at the start
 	// of finalisation, written after each effect.

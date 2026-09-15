@@ -580,10 +580,28 @@ func (s *SQLiteStore) GetCostByProvider() (map[string]float64, error) {
 	return result, nil
 }
 
-// MarkTaskQueued marks a task as queued
+// MarkTaskQueued marks a task as queued AND clears its finalization ledger.
+//
+// The ledger makes finalisation idempotent across REDELIVERIES of one
+// completion. It is not meant to span EXECUTIONS — but it lives on the task
+// record, so a re-dispatched task carried the previous run's ledger, every
+// effect read as already-done, and the new work was never finalised at all.
+//
+// Measured 2026-09-15: eleven ailang-core-triage tasks were rejected,
+// re-dispatched, ran again and produced new rows. Each second finalisation
+// skipped `approval (already done)`, so the task settled into
+// `pending_approval` behind the previous attempt's `rejected` record —
+// invisible to `coordinator approvals` and refused by approve, because an
+// already-resolved approval cannot be resolved again. Eleven finished pieces of
+// work with no way to accept them.
+//
+// Queueing is the right place: a task entering the queue is about to produce
+// new work, and the previous execution's effects are history. Clearing on the
+// FIRST queue is a no-op, so there is no separate re-dispatch path to keep in
+// step — which is exactly the kind of second path this codebase keeps growing.
 func (s *SQLiteStore) MarkTaskQueued(ctx context.Context, id string) error {
 	_, err := s.db.ExecContext(ctx,
-		"UPDATE tasks SET status = ? WHERE id = ?",
+		"UPDATE tasks SET status = ?, finalization = NULL WHERE id = ?",
 		TaskStatusQueued, id,
 	)
 	return err
