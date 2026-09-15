@@ -1,4 +1,4 @@
-package main
+package check
 
 import (
 	"testing"
@@ -51,7 +51,7 @@ func TestFindUnresolvedVars_ConsPatternNotFalsePositive(t *testing.T) {
 
 	// "xs" is in outer scope
 	scope := map[string]bool{"xs": true}
-	unresolved := findUnresolvedVars(matchExpr, scope)
+	unresolved := FindUnresolvedVars(matchExpr, scope)
 
 	for _, name := range unresolved {
 		if name == "rest" {
