@@ -1,0 +1,5 @@
+# AILANG Core Backlog (triaged reports)
+
+| Date | Title | Class | Recommend | Why |
+|---|---|---|---|---|
+| 2026-09-15 | Encode pure _dt_* datetime builtins (addDays/startOfDay/weekday) for SMT | feature | direct-fix | Reporter supplies exact linear encodings under the module's documented UTC-ms contract (`addDays` = `ts + n*86400000`, `startOfDay` = `ts - ts mod 86400000`, `weekday` = `((ts div 86400000) + 4) mod 7`) — extend the builtin SMT mapping in `internal/smt/encodable.go` (see also `firstUnencodableBuiltin`, and the skip path from `m-smt-callee-sort-gate.md`), leaving calendar-irregular `addMonths`/`addYears` opaque; no design decision remains that a reviewer could disagree with. No existing doc found (searched: SMT, encodab, addDays, weekday, startOfDay across design_docs/). Secondary related item: zero-argument callees still rejected as `UNENCODABLE_TYPE ()` (maxCreatesPerRun() had to be inlined 3×). |
