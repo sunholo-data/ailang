@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/iface"
+	"github.com/sunholo-data/ailang/internal/proctree"
 )
 
 // PublishLimits bounds the work performed while constructing package interfaces.
@@ -108,16 +109,14 @@ func BuildModuleIface(ctx context.Context, packageDir, modulePath string, lim Pu
 	}
 	cmd := exec.CommandContext(moduleCtx, binary, "internal-dump-iface", packageRoot, modulePath)
 	cmd.Dir = packageRoot
-	setProcessGroup(cmd)
+	proctree.Configure(cmd)
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	runErr := cmd.Run()
 	if moduleCtx.Err() != nil {
-		if cmd.Process != nil {
-			_ = killProcessGroup(cmd.Process.Pid)
-		}
+		proctree.Kill(cmd)
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}

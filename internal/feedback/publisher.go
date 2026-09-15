@@ -150,10 +150,7 @@ func newPublisher(ctx context.Context) (*Publisher, error) {
 	}
 	store := firestore.NewMessagingStore(fsClient)
 
-	prefix := os.Getenv("AILANG_TOPIC_PREFIX")
-	if prefix == "" {
-		prefix = pubsub.DefaultTopicPrefix
-	}
+	prefix := pubsub.TopicPrefixFromEnv()
 	psClient, err := pubsub.NewClient(ctx, projectID, prefix)
 	if err != nil {
 		return nil, fmt.Errorf("pubsub client: %w", err)

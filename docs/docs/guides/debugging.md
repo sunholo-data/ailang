@@ -162,6 +162,7 @@ $ DEBUG_PARSER=1 ailang run test.ail
 | `AILANG_CLOUD_REGION=<region>` | Cloud Run region (`AILANG_CLOUD_REGION` > `GOOGLE_CLOUD_REGION`, else the deprecated `europe-west1` default with a warning) | Config rolls, dispatcher | One stderr deprecation warning per process when defaulted |
 | `AILANG_STRICT_CONFIG=1` | Refuse every deprecated production default (D3 ruling: warn in v0.39, hard error in v1.0.0) — rehearses the v1.0.0 failure today | Proving a plist or Cloud Run env is complete before v1.0.0 | Error wrapping `config.ErrDeprecatedDefault` naming the unset variable |
 | `AILANG_NO_METADATA=1` | Skip the GCE metadata-server step of project resolution | Tests, offline laptops, anywhere the 500 ms probe is unwanted | Resolution stops at the config file |
+| `COORDINATOR_API_KEY=<token>` | Bearer token for the coordinator daemon's HTTP API (`/status`, `/pending`, `/chains/*`, `/api/messages`); compared in constant time and **fail-closed** — unset means every request is rejected, not admitted (M-V1-SIMPLIFY-S3 M5; before that unset meant open). `/health` and the OIDC-guarded `/instances/*` routes are unaffected. Also the `?token=` for non-same-origin WebSocket clients on the dashboard | Any caller of the daemon HTTP API; `make coord-install` writes one into the plist and `ailang messages send --requires` reads it from there when the shell has none | Missing/wrong → `401 {"error": ...}` naming the variable; the daemon logs `SECURITY: COORDINATOR_API_KEY is unset` at start |
 
 ### Ollama Streaming Timeouts (v0.34.0)
 

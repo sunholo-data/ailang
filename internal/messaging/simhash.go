@@ -1,6 +1,6 @@
 package messaging
 
-import "github.com/sunholo-data/ailang/internal/builtins"
+import "github.com/sunholo-data/ailang/internal/simhash"
 
 // SearchText builds the text that a message's simhash is computed over.
 //
@@ -20,9 +20,9 @@ func SearchText(title, payload string) string {
 // This is the ONLY simhash a message store may use, at write time or at query
 // time. The Firestore backend previously carried a private `simhashText` that
 // XOR-folded runes into eight shift positions — not a simhash at all, and not
-// comparable with builtins.SimHash. Combined with a write path that never
+// comparable with simhash.Hash. Combined with a write path that never
 // populated the field, semantic search over the canonical prod store matched
 // nothing and reported it as an empty result.
 func ComputeSimhash(title, payload string) int64 {
-	return builtins.SimHash(SearchText(title, payload))
+	return simhash.Hash(SearchText(title, payload))
 }

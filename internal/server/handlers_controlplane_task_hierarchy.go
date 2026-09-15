@@ -299,7 +299,7 @@ func (s *Server) handleTaskHierarchy(w http.ResponseWriter, r *http.Request) {
 						result.Stats.TotalSpans += len(spans)
 
 						if groupBy == "turns" {
-							spanNodes := buildSpanNodeTreeFromFlat(spans)
+							spanNodes := observatory.BuildSpanNodeTree(spans)
 							node.TurnGrouped = observatory.GroupSpansByTurn(spanNodes)
 						}
 					}
@@ -409,99 +409,26 @@ func buildSpanHierarchyForTask(spans []*observatory.Span) []*TaskSpanNode {
 		return nil
 	}
 
-	// Convert spans to TaskSpanNode and build lookup map
-	nodeMap := make(map[string]*TaskSpanNode)
-	for _, span := range spans {
+	roots, _ := observatory.LinkSpans(spans, func(span *observatory.Span) *TaskSpanNode {
 		node := &TaskSpanNode{
 			ID:         span.ID,
 			Name:       span.Name,
-			NodeType:   classifySpanNodeType(span.Name),
+			NodeType:   string(observatory.ClassifySpanNodeType(span.Name)),
 			DurationMs: span.DurationMs,
 			TokensIn:   span.TokensIn,
 			TokensOut:  span.TokensOut,
 			CostUSD:    span.CostUSD,
 			Status:     string(span.Status),
 		}
-
-		// Extract turn number from attributes if present
 		if span.Attributes != nil {
-			if turnNum, ok := span.Attributes["turn.number"]; ok {
-				if tn, ok := turnNum.(float64); ok {
-					node.TurnNumber = int(tn)
-				}
+			if tn, ok := span.Attributes["turn.number"].(float64); ok {
+				node.TurnNumber = int(tn)
 			}
-			if toolName, ok := span.Attributes["tool.name"]; ok {
-				if tn, ok := toolName.(string); ok {
-					node.ToolName = tn
-				}
+			if tn, ok := span.Attributes["tool.name"].(string); ok {
+				node.ToolName = tn
 			}
 		}
-
-		nodeMap[span.ID] = node
-	}
-
-	// Build parent-child relationships
-	var roots []*TaskSpanNode
-	for _, span := range spans {
-		node := nodeMap[span.ID]
-		if span.ParentSpanID != "" {
-			if parent, ok := nodeMap[span.ParentSpanID]; ok {
-				parent.Children = append(parent.Children, node)
-			} else {
-				// Parent not in this task's spans - treat as root
-				roots = append(roots, node)
-			}
-		} else {
-			roots = append(roots, node)
-		}
-	}
-
-	return roots
-}
-
-// classifySpanNodeType determines the node type based on span name.
-func classifySpanNodeType(name string) string {
-	switch {
-	case strings.HasPrefix(name, "coordinator."):
-		return "coordinator"
-	case strings.HasPrefix(name, "claude.") || strings.HasPrefix(name, "gemini.") ||
-		strings.HasPrefix(name, "openai.") || name == "ailang.exec":
-		return "executor"
-	case strings.HasPrefix(name, "exec.turn") || strings.HasPrefix(name, "turn."):
-		return "turn"
-	case strings.HasPrefix(name, "exec.tool_use") || strings.HasPrefix(name, "tool."):
-		return "tool"
-	default:
-		return "other"
-	}
-}
-
-// buildSpanNodeTreeFromFlat converts a flat list of spans into observatory.SpanNode tree.
-// This is used for turn grouping which requires the SpanNode tree structure.
-func buildSpanNodeTreeFromFlat(spans []*observatory.Span) []*observatory.SpanNode {
-	if len(spans) == 0 {
-		return nil
-	}
-
-	// Build node map
-	nodeMap := make(map[string]*observatory.SpanNode)
-	for _, span := range spans {
-		nodeMap[span.ID] = &observatory.SpanNode{Span: span}
-	}
-
-	// Build parent-child relationships
-	var roots []*observatory.SpanNode
-	for _, span := range spans {
-		node := nodeMap[span.ID]
-		if span.ParentSpanID == "" {
-			roots = append(roots, node)
-		} else if parent, ok := nodeMap[span.ParentSpanID]; ok {
-			parent.Children = append(parent.Children, node)
-		} else {
-			// Parent not in our set, treat as root
-			roots = append(roots, node)
-		}
-	}
-
+		return node
+	}, func(p, c *TaskSpanNode) { p.Children = append(p.Children, c) })
 	return roots
 }

@@ -48,9 +48,9 @@ func chainsImportMotokoCommand() {
 		errSuffix = "/" + res.Error
 	}
 	fmt.Printf("Imported motoko run -> chain %s\n", res.ChainID)
-	fmt.Printf("  session=%s  status=%s (%s%s)  steps=%d  tools=%d  tokens=%d->%d  peak_input=%d\n",
+	fmt.Printf("  session=%s  status=%s (%s%s)  steps=%d  tools=%d  tokens=%d->%d  peak_input=%d  cache_read=%d  cache_create=%d\n",
 		res.SessionLabel, res.Status, res.FinishReason, errSuffix,
-		res.Steps, res.ToolCalls, res.TokensIn, res.TokensOut, res.PeakInput)
+		res.Steps, res.ToolCalls, res.TokensIn, res.TokensOut, res.PeakInput, res.CacheReadTokens, res.CacheCreationTokens)
 	fmt.Println()
 	fmt.Printf("  ailang chains view %s\n", res.ChainID)
 	fmt.Printf("  ailang chains chat %s --stage 1\n", res.ChainID)

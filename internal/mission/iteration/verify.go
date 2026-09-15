@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sunholo-data/ailang/internal/executor/proctree"
+	"github.com/sunholo-data/ailang/internal/proctree"
 )
 
 // MaxCheckOutputBytes bounds the total retained output across a stage. JSON

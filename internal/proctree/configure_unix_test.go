@@ -1,6 +1,6 @@
 //go:build !windows
 
-package motoko
+package proctree_test
 
 import (
 	"context"
@@ -9,14 +9,17 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/proctree"
 )
 
-// TestRunCtxTimeoutKillsProcessGroup validates the M-MOTOKO-RIG-WEDGE-FIX wiring:
-// when the run's ctx deadline expires, the Cancel func kills the whole process
-// GROUP — so a hung motoko AND its backgrounded env-server child (the analogue
-// that squatted port 8080 for 10h on 2026-06-29) both die, and cmd.Run() returns
-// promptly instead of blocking forever. Models exactly the executor's setup:
-// CommandContext(timeoutCtx) + setProcessGroup + group-kill Cancel + WaitDelay.
+// TestRunCtxTimeoutKillsProcessGroup validates the M-MOTOKO-RIG-WEDGE-FIX wiring
+// (now the shared proctree recipe): when the run's ctx deadline expires, the
+// Cancel func kills the whole process GROUP — so a hung motoko AND its
+// backgrounded env-server child (the analogue that squatted port 8080 for 10h
+// on 2026-06-29) both die, and cmd.Run() returns promptly instead of blocking
+// forever. Models exactly every executor's setup: CommandContext(timeoutCtx)
+// + Configure (Setpgid + group-kill Cancel + WaitDelay).
 func TestRunCtxTimeoutKillsProcessGroup(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
 	defer cancel()
@@ -24,14 +27,7 @@ func TestRunCtxTimeoutKillsProcessGroup(t *testing.T) {
 	// A group leader (sh) that backgrounds a long-lived child, prints its PID,
 	// then waits — i.e. it never exits on its own within the test window.
 	cmd := exec.CommandContext(ctx, "sh", "-c", "sleep 300 & echo $! ; wait")
-	setProcessGroup(cmd)
-	cmd.Cancel = func() error {
-		if cmd.Process != nil {
-			_ = killProcessGroup(cmd.Process.Pid)
-		}
-		return nil
-	}
-	cmd.WaitDelay = 2 * time.Second
+	proctree.Configure(cmd)
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {

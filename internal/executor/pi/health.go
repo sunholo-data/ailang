@@ -3,7 +3,7 @@ package pi
 import (
 	"context"
 	"fmt"
-	"github.com/sunholo-data/ailang/internal/executor/proctree"
+	"github.com/sunholo-data/ailang/internal/proctree"
 	"os"
 	"os/exec"
 )

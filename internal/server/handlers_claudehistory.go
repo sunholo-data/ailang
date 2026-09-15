@@ -11,6 +11,7 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/claudehistory"
 	"github.com/sunholo-data/ailang/internal/observatory"
+	"github.com/sunholo-data/ailang/internal/strutil"
 )
 
 // ClaudeHistoryHandler provides HTTP handlers for Claude Code conversation history.
@@ -689,11 +690,11 @@ func (s *Server) GetChatContextForSpan(ctx context.Context, span *observatory.Sp
 
 	for _, msg := range messages {
 		if msg.Role == "user" && preview.UserPrompt == "" {
-			preview.UserPrompt = truncateString(msg.ContentText, 500)
+			preview.UserPrompt = strutil.Truncate(msg.ContentText, 500)
 			preview.TurnNumber = msg.TurnNumber
 		} else if msg.Role == "assistant" {
 			if preview.AssistantResponse == "" {
-				preview.AssistantResponse = truncateString(msg.ContentText, 500)
+				preview.AssistantResponse = strutil.Truncate(msg.ContentText, 500)
 			}
 			if msg.ContentThinking != "" {
 				preview.HasThinking = true
@@ -702,12 +703,4 @@ func (s *Server) GetChatContextForSpan(ctx context.Context, span *observatory.Sp
 	}
 
 	return preview
-}
-
-// truncateString truncates a string to maxLen characters, adding "..." if truncated
-func truncateString(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
-	}
-	return s[:maxLen-3] + "..."
 }

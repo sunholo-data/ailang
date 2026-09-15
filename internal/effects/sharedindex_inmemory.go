@@ -5,6 +5,8 @@ package effects
 import (
 	"sort"
 	"sync"
+
+	"github.com/sunholo-data/ailang/internal/simhash"
 )
 
 // InMemorySharedIndex is the default in-memory implementation of SharedIndex.
@@ -93,9 +95,7 @@ func (idx *InMemorySharedIndex) FindSimilarSimHash(
 		}
 		scanned++
 
-		// Calculate hamming distance and score
-		distance := hammingDistance(entry.SimHash, querySimHash)
-		score := 1.0 - float64(distance)/64.0
+		score := simhash.Similarity(entry.SimHash, querySimHash)
 
 		results = append(results, SearchResult{
 			Key:       key,
@@ -122,58 +122,6 @@ func (idx *InMemorySharedIndex) FindSimilarSimHash(
 	}
 
 	return results
-}
-
-// hammingDistance counts the number of differing bits between two int64 values.
-// Used for SimHash similarity scoring.
-func hammingDistance(a, b int64) int {
-	xor := uint64(a ^ b)
-	count := 0
-	for xor != 0 {
-		count++
-		xor &= xor - 1 // Clear lowest set bit
-	}
-	return count
-}
-
-// cosineSimilarity calculates the cosine similarity between two vectors.
-// Returns a value in [-1, 1], normalized to [0, 1] for consistency with SimHash scores.
-// Returns 0.0 if either vector is zero-length or has zero magnitude.
-func cosineSimilarity(a, b []float64) float64 {
-	if len(a) != len(b) || len(a) == 0 {
-		return 0.0
-	}
-
-	var dotProduct, normA, normB float64
-	for i := range a {
-		dotProduct += a[i] * b[i]
-		normA += a[i] * a[i]
-		normB += b[i] * b[i]
-	}
-
-	// Avoid division by zero
-	if normA == 0 || normB == 0 {
-		return 0.0
-	}
-
-	// Calculate cosine similarity (range: [-1, 1])
-	cosine := dotProduct / (sqrt(normA) * sqrt(normB))
-
-	// Normalize to [0, 1] for consistency with SimHash scoring
-	// -1 -> 0, 0 -> 0.5, 1 -> 1
-	return (cosine + 1.0) / 2.0
-}
-
-// sqrt is a simple square root implementation to avoid math import.
-func sqrt(x float64) float64 {
-	if x <= 0 {
-		return 0
-	}
-	z := x / 2.0
-	for i := 0; i < 20; i++ { // Newton's method, 20 iterations is plenty
-		z = z - (z*z-x)/(2*z)
-	}
-	return z
 }
 
 // EntryCount returns the number of entries in a namespace.
@@ -262,8 +210,8 @@ func (idx *InMemorySharedIndex) FindSimilarByEmbedding(
 			continue
 		}
 
-		// Calculate cosine similarity score
-		score := cosineSimilarity(entry.Embedding, queryEmbedding)
+		// Cosine on the [0, 1] scale so it ranks against SimHash scores.
+		score := simhash.CosineUnit(entry.Embedding, queryEmbedding)
 
 		results = append(results, SearchResult{
 			Key:       key,

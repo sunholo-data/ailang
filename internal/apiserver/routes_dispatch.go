@@ -14,6 +14,7 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/embed"
 	"github.com/sunholo-data/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/httpjson"
 )
 
 // callOpts controls per-route behavior for callFunction.
@@ -41,7 +42,7 @@ func (s *Server) callFunction(w http.ResponseWriter, r *http.Request, modulePath
 		// @raw routes: pass full HttpRequest record instead of parsed args
 		body, err := readRequestBody(r, 1<<20) // 1MB limit
 		if err != nil {
-			writeJSON(w, http.StatusBadRequest, FunctionCallResponse{
+			httpjson.Write(w, http.StatusBadRequest, FunctionCallResponse{
 				Module: modulePath,
 				Func:   funcName,
 				Error:  "failed to read request body",
@@ -56,7 +57,7 @@ func (s *Server) callFunction(w http.ResponseWriter, r *http.Request, modulePath
 			maxSize = 50 << 20 // 50MB default
 		}
 		if err := r.ParseMultipartForm(maxSize); err != nil {
-			writeJSON(w, http.StatusRequestEntityTooLarge, FunctionCallResponse{
+			httpjson.Write(w, http.StatusRequestEntityTooLarge, FunctionCallResponse{
 				Module: modulePath,
 				Func:   funcName,
 				Error:  fmt.Sprintf("multipart parse error: %v", err),
@@ -70,7 +71,7 @@ func (s *Server) callFunction(w http.ResponseWriter, r *http.Request, modulePath
 			defer cleanup()
 		}
 		if parseErr != nil {
-			writeJSON(w, http.StatusBadRequest, FunctionCallResponse{
+			httpjson.Write(w, http.StatusBadRequest, FunctionCallResponse{
 				Module: modulePath,
 				Func:   funcName,
 				Error:  fmt.Sprintf("failed to parse multipart: %v", parseErr),
@@ -81,7 +82,7 @@ func (s *Server) callFunction(w http.ResponseWriter, r *http.Request, modulePath
 		// Default: JSON body
 		body, err := readRequestBody(r, 1<<20) // 1MB limit
 		if err != nil {
-			writeJSON(w, http.StatusBadRequest, FunctionCallResponse{
+			httpjson.Write(w, http.StatusBadRequest, FunctionCallResponse{
 				Module: modulePath,
 				Func:   funcName,
 				Error:  "failed to read request body",
@@ -97,7 +98,7 @@ func (s *Server) callFunction(w http.ResponseWriter, r *http.Request, modulePath
 		var parseErr error
 		args, _, parseErr = resolveArgs(r, body, opt.ParamNames, opt.ParamTypes)
 		if parseErr != nil {
-			writeJSON(w, http.StatusBadRequest, FunctionCallResponse{
+			httpjson.Write(w, http.StatusBadRequest, FunctionCallResponse{
 				Module: modulePath,
 				Func:   funcName,
 				Error:  fmt.Sprintf("invalid arguments: %v", parseErr),
@@ -144,7 +145,7 @@ func (s *Server) callFunction(w http.ResponseWriter, r *http.Request, modulePath
 
 	if callErr != nil {
 		if isCleanExit(callErr) {
-			writeJSON(w, http.StatusOK, FunctionCallResponse{
+			httpjson.Write(w, http.StatusOK, FunctionCallResponse{
 				Module:    modulePath,
 				Func:      funcName,
 				ElapsedMs: elapsed,
@@ -152,7 +153,7 @@ func (s *Server) callFunction(w http.ResponseWriter, r *http.Request, modulePath
 			return
 		}
 		log.Printf("[API] %s/%s failed: %v", modulePath, funcName, callErr)
-		writeJSON(w, http.StatusInternalServerError, FunctionCallResponse{
+		httpjson.Write(w, http.StatusInternalServerError, FunctionCallResponse{
 			Module:    modulePath,
 			Func:      funcName,
 			Error:     callErr.Error(),
@@ -188,7 +189,7 @@ func (s *Server) callFunction(w http.ResponseWriter, r *http.Request, modulePath
 			return
 		}
 
-		writeJSON(w, errStatus, FunctionCallResponse{
+		httpjson.Write(w, errStatus, FunctionCallResponse{
 			Module:    modulePath,
 			Func:      funcName,
 			Error:     fmt.Sprintf("%v", goErr),
@@ -200,7 +201,7 @@ func (s *Server) callFunction(w http.ResponseWriter, r *http.Request, modulePath
 	// Convert result to Go value
 	goResult, err := embed.ToGo(result)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, FunctionCallResponse{
+		httpjson.Write(w, http.StatusInternalServerError, FunctionCallResponse{
 			Module:    modulePath,
 			Func:      funcName,
 			Error:     fmt.Sprintf("result conversion failed: %v", err),
@@ -213,7 +214,7 @@ func (s *Server) callFunction(w http.ResponseWriter, r *http.Request, modulePath
 	if tagged, ok := result.(*eval.TaggedValue); ok && tagged.CtorName == "Ok" {
 		goResult, err = embed.ToGo(tagged.Fields[0])
 		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, FunctionCallResponse{
+			httpjson.Write(w, http.StatusInternalServerError, FunctionCallResponse{
 				Module:    modulePath,
 				Func:      funcName,
 				Error:     fmt.Sprintf("result conversion failed: %v", err),
@@ -260,7 +261,7 @@ func (s *Server) callFunction(w http.ResponseWriter, r *http.Request, modulePath
 	}
 
 	// Default: JSON-wrapped response
-	writeJSON(w, http.StatusOK, FunctionCallResponse{
+	httpjson.Write(w, http.StatusOK, FunctionCallResponse{
 		Module:    modulePath,
 		Func:      funcName,
 		Result:    goResult,
@@ -351,13 +352,8 @@ func writeRawResponse(w http.ResponseWriter, rec *eval.RecordValue, elapsedMs in
 			w.Header().Set("Content-Type", "application/json")
 		}
 		goVal, _ := embed.ToGo(body)
-		_ = writeJSONBody(w, goVal)
+		_ = json.NewEncoder(w).Encode(goVal) // status already written above
 	}
-}
-
-// writeJSONBody writes a JSON body to the response writer.
-func writeJSONBody(w http.ResponseWriter, v interface{}) error {
-	return json.NewEncoder(w).Encode(v)
 }
 
 // readRequestBody reads the request body with a size limit.

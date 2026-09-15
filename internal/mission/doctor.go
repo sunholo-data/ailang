@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/statedir"
+	"github.com/sunholo-data/ailang/internal/strutil"
 )
 
 // Paths locates the two artifact trees. Injected rather than read from the
@@ -268,7 +269,7 @@ func DoctorWith(reg *Registry, p Paths, lc LaunchCtl) *Report {
 			// every mission whether or not it works in the same repo.
 			driverDir := filepath.Dir(m.DriverPath())
 			row.Pinned = strings.Contains(string(driver), pinSentinel) &&
-				fileExists(filepath.Join(driverDir, "lib", "pin-root.sh"))
+				strutil.FileExists(filepath.Join(driverDir, "lib", "pin-root.sh"))
 			// A FORK IS NOW A DECLARED CHOICE, not an inference from the repo name.
 			// Before the driver location was decoupled from the workdir, any mission
 			// working in another repo NECESSARILY had its own driver, so "different repo"
@@ -402,11 +403,4 @@ func loadedMismatches(plistFile, loaded string) []string {
 		out = append(out, "file says KeepAlive but the loaded job still has an interval — the cadence change has not taken effect")
 	}
 	return out
-}
-
-// fileExists is a readability shim: the pin check reads better as a question than as a
-// stat-and-compare inline.
-func fileExists(p string) bool {
-	_, err := os.Stat(p)
-	return err == nil
 }

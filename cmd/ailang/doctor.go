@@ -12,6 +12,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/builtins"
 	"github.com/sunholo-data/ailang/internal/executor"
 	_ "github.com/sunholo-data/ailang/internal/executor/managed_agents"
+	"sort"
 )
 
 // runDoctor implements `ailang doctor <subcommand>` commands.
@@ -166,7 +167,7 @@ func listAllBuiltins(specs map[string]*builtins.BuiltinSpec) {
 	for name := range specs {
 		names = append(names, name)
 	}
-	sortStrings(names)
+	sort.Strings(names)
 
 	fmt.Printf("Total: %d builtins\n\n", len(specs))
 
@@ -188,7 +189,7 @@ func listBuiltinsByEffect(specs map[string]*builtins.BuiltinSpec) {
 	for effect := range grouped {
 		effects = append(effects, effect)
 	}
-	sortStrings(effects)
+	sort.Strings(effects)
 
 	for _, effect := range effects {
 		names := grouped[effect]
@@ -209,7 +210,7 @@ func listBuiltinsByModule(specs map[string]*builtins.BuiltinSpec) {
 	for module := range grouped {
 		modules = append(modules, module)
 	}
-	sortStrings(modules)
+	sort.Strings(modules)
 
 	for _, module := range modules {
 		names := grouped[module]
@@ -223,19 +224,6 @@ func listBuiltinsByModule(specs map[string]*builtins.BuiltinSpec) {
 			fmt.Printf("  %-30s [%s]\n", name, effect)
 		}
 		fmt.Println()
-	}
-}
-
-// sortStrings sorts a string slice in place
-func sortStrings(s []string) {
-	// Simple bubble sort for small slices
-	n := len(s)
-	for i := 0; i < n-1; i++ {
-		for j := 0; j < n-i-1; j++ {
-			if s[j] > s[j+1] {
-				s[j], s[j+1] = s[j+1], s[j]
-			}
-		}
 	}
 }
 
@@ -300,7 +288,7 @@ func listBuiltinsVerbose(specs map[string]*builtins.BuiltinSpec) {
 	for name := range specs {
 		names = append(names, name)
 	}
-	sortStrings(names)
+	sort.Strings(names)
 
 	fmt.Printf("Total: %d builtins\n\n", len(specs))
 
@@ -317,7 +305,7 @@ func listBuiltinsVerboseByModule(specs map[string]*builtins.BuiltinSpec) {
 	for module := range grouped {
 		modules = append(modules, module)
 	}
-	sortStrings(modules)
+	sort.Strings(modules)
 
 	for _, module := range modules {
 		names := grouped[module]
@@ -336,7 +324,7 @@ func listBuiltinsVerboseByEffect(specs map[string]*builtins.BuiltinSpec) {
 	for effect := range grouped {
 		effects = append(effects, effect)
 	}
-	sortStrings(effects)
+	sort.Strings(effects)
 
 	for _, effect := range effects {
 		names := grouped[effect]
@@ -395,7 +383,7 @@ func runBuiltinsShow() {
 				matches = append(matches, n)
 			}
 		}
-		sortStrings(matches)
+		sort.Strings(matches)
 
 		if jsonOut {
 			emitBuiltinShowError(name, matches)
@@ -507,7 +495,7 @@ func emitBuiltinsListJSON(specs map[string]*builtins.BuiltinSpec) {
 	for n := range specs {
 		names = append(names, n)
 	}
-	sortStrings(names)
+	sort.Strings(names)
 	out := struct {
 		Count    int    `json:"count"`
 		Builtins []item `json:"builtins"`

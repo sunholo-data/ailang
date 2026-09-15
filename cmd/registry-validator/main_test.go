@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/pkg"
+	"github.com/sunholo-data/ailang/internal/strutil"
 )
 
 func TestHealthEndpoint(t *testing.T) {
@@ -223,10 +224,10 @@ func TestHelpers(t *testing.T) {
 	// Test fileExists
 	dir := t.TempDir()
 	os.WriteFile(filepath.Join(dir, "exists.txt"), []byte("hi"), 0644)
-	if !fileExists(filepath.Join(dir, "exists.txt")) {
+	if !strutil.FileExists(filepath.Join(dir, "exists.txt")) {
 		t.Error("fileExists should find existing file")
 	}
-	if fileExists(filepath.Join(dir, "nope.txt")) {
+	if strutil.FileExists(filepath.Join(dir, "nope.txt")) {
 		t.Error("fileExists should not find missing file")
 	}
 }

@@ -373,7 +373,7 @@ func buildHierarchyFromTrace(ctx context.Context, backend observatory.Backend, t
 	// Build span tree
 	if includeSpans {
 		result.Spans = buildSpanTreeFromList(spans)
-		result.SpanNodes = buildSpanNodeTreeFromList(spans) // For turn grouping
+		result.SpanNodes = observatory.BuildSpanNodeTree(spans) // For turn grouping
 		result.Stats.TotalSpans = len(spans)
 	}
 
@@ -431,7 +431,7 @@ func buildHierarchyFromSession(ctx context.Context, backend observatory.Backend,
 	// Build span tree
 	if includeSpans {
 		result.Spans = buildSpanTreeFromList(spans)
-		result.SpanNodes = buildSpanNodeTreeFromList(spans) // For turn grouping
+		result.SpanNodes = observatory.BuildSpanNodeTree(spans) // For turn grouping
 		result.Stats.TotalSpans = len(spans)
 	}
 
@@ -447,46 +447,10 @@ func buildHierarchyFromSession(ctx context.Context, backend observatory.Backend,
 	return result, nil
 }
 
-// buildSpanNodeTreeFromList converts a flat span list to observatory.SpanNode tree.
-// This is needed for turn-based grouping which uses the observatory types.
-func buildSpanNodeTreeFromList(spans []*observatory.Span) []*observatory.SpanNode {
-	if len(spans) == 0 {
-		return nil
-	}
-
-	// Build node map
-	nodeMap := make(map[string]*observatory.SpanNode)
-	for _, span := range spans {
-		nodeMap[span.ID] = &observatory.SpanNode{Span: span}
-	}
-
-	// Build parent-child relationships
-	var roots []*observatory.SpanNode
-	for _, span := range spans {
-		node := nodeMap[span.ID]
-		if span.ParentSpanID == "" {
-			roots = append(roots, node)
-		} else if parent, ok := nodeMap[span.ParentSpanID]; ok {
-			parent.Children = append(parent.Children, node)
-		} else {
-			// Parent not in our set, treat as root
-			roots = append(roots, node)
-		}
-	}
-
-	return roots
-}
-
-// buildSpanTreeFromList converts a flat span list to a tree
+// buildSpanTreeFromList converts a flat span list to a unifiedSpan tree.
 func buildSpanTreeFromList(spans []*observatory.Span) []*unifiedSpan {
-	if len(spans) == 0 {
-		return nil
-	}
-
-	// Build node map
-	nodeMap := make(map[string]*unifiedSpan)
-	for _, span := range spans {
-		nodeMap[span.ID] = &unifiedSpan{
+	roots, _ := observatory.LinkSpans(spans, func(span *observatory.Span) *unifiedSpan {
+		return &unifiedSpan{
 			ID:         span.ID,
 			Name:       span.Name,
 			DurationMs: span.DurationMs,
@@ -495,22 +459,7 @@ func buildSpanTreeFromList(spans []*observatory.Span) []*unifiedSpan {
 			TokensOut:  span.TokensOut,
 			Status:     string(span.Status),
 		}
-	}
-
-	// Build parent-child relationships
-	var roots []*unifiedSpan
-	for _, span := range spans {
-		node := nodeMap[span.ID]
-		if span.ParentSpanID == "" {
-			roots = append(roots, node)
-		} else if parent, ok := nodeMap[span.ParentSpanID]; ok {
-			parent.Children = append(parent.Children, node)
-		} else {
-			// Parent not in our set, treat as root
-			roots = append(roots, node)
-		}
-	}
-
+	}, func(p, c *unifiedSpan) { p.Children = append(p.Children, c) })
 	return roots
 }
 

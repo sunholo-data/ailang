@@ -2,6 +2,7 @@ package observatory
 
 import (
 	"encoding/json"
+	"github.com/sunholo-data/ailang/internal/httpjson"
 	"net/http"
 	"strconv"
 	"time"
@@ -20,16 +21,16 @@ func (a *API) handleListSessions(w http.ResponseWriter, r *http.Request) {
 	// Access Store directly via SQLiteBackend
 	sqliteBackend, ok := a.backend.(*SQLiteBackend)
 	if !ok {
-		writeError(w, http.StatusNotImplemented, "session queries require SQLite backend")
+		httpjson.Error(w, http.StatusNotImplemented, "session queries require SQLite backend")
 		return
 	}
 
 	sessions, err := sqliteBackend.store.ListRecentSessions(r.Context(), limit)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		httpjson.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"sessions": sessions})
+	httpjson.Write(w, http.StatusOK, map[string]any{"sessions": sessions})
 }
 
 func (a *API) handleGetSession(w http.ResponseWriter, r *http.Request) {
@@ -37,20 +38,20 @@ func (a *API) handleGetSession(w http.ResponseWriter, r *http.Request) {
 
 	sqliteBackend, ok := a.backend.(*SQLiteBackend)
 	if !ok {
-		writeError(w, http.StatusNotImplemented, "session queries require SQLite backend")
+		httpjson.Error(w, http.StatusNotImplemented, "session queries require SQLite backend")
 		return
 	}
 
 	session, err := sqliteBackend.store.GetSession(r.Context(), id)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		httpjson.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	if session == nil {
-		writeError(w, http.StatusNotFound, "session not found: "+id)
+		httpjson.Error(w, http.StatusNotFound, "session not found: "+id)
 		return
 	}
-	writeJSON(w, http.StatusOK, session)
+	httpjson.Write(w, http.StatusOK, session)
 }
 
 func (a *API) handleGetSessionTools(w http.ResponseWriter, r *http.Request) {
@@ -58,7 +59,7 @@ func (a *API) handleGetSessionTools(w http.ResponseWriter, r *http.Request) {
 
 	sqliteBackend, ok := a.backend.(*SQLiteBackend)
 	if !ok {
-		writeError(w, http.StatusNotImplemented, "session queries require SQLite backend")
+		httpjson.Error(w, http.StatusNotImplemented, "session queries require SQLite backend")
 		return
 	}
 
@@ -66,18 +67,18 @@ func (a *API) handleGetSessionTools(w http.ResponseWriter, r *http.Request) {
 	if requestedWorkspace := r.URL.Query().Get("workspace"); requestedWorkspace != "" {
 		sessionWorkspace, err := sqliteBackend.store.GetSessionWorkspace(id)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			httpjson.Error(w, http.StatusInternalServerError, err.Error())
 			return
 		}
 		if sessionWorkspace != "" && sessionWorkspace != requestedWorkspace {
-			writeError(w, http.StatusForbidden, "session belongs to different workspace")
+			httpjson.Error(w, http.StatusForbidden, "session belongs to different workspace")
 			return
 		}
 	}
 
 	tools, err := sqliteBackend.store.GetSessionTools(r.Context(), id)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		httpjson.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -120,7 +121,7 @@ func (a *API) handleGetSessionTools(w http.ResponseWriter, r *http.Request) {
 		enrichedTools = append(enrichedTools, enriched)
 	}
 
-	writeJSON(w, http.StatusOK, enrichedTools)
+	httpjson.Write(w, http.StatusOK, enrichedTools)
 }
 
 func (a *API) handleGetSessionToolsSummary(w http.ResponseWriter, r *http.Request) {
@@ -128,7 +129,7 @@ func (a *API) handleGetSessionToolsSummary(w http.ResponseWriter, r *http.Reques
 
 	sqliteBackend, ok := a.backend.(*SQLiteBackend)
 	if !ok {
-		writeError(w, http.StatusNotImplemented, "session queries require SQLite backend")
+		httpjson.Error(w, http.StatusNotImplemented, "session queries require SQLite backend")
 		return
 	}
 
@@ -136,18 +137,18 @@ func (a *API) handleGetSessionToolsSummary(w http.ResponseWriter, r *http.Reques
 	if requestedWorkspace := r.URL.Query().Get("workspace"); requestedWorkspace != "" {
 		sessionWorkspace, err := sqliteBackend.store.GetSessionWorkspace(id)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			httpjson.Error(w, http.StatusInternalServerError, err.Error())
 			return
 		}
 		if sessionWorkspace != "" && sessionWorkspace != requestedWorkspace {
-			writeError(w, http.StatusForbidden, "session belongs to different workspace")
+			httpjson.Error(w, http.StatusForbidden, "session belongs to different workspace")
 			return
 		}
 	}
 
 	tools, err := sqliteBackend.store.GetSessionTools(r.Context(), id)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		httpjson.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -235,7 +236,7 @@ func (a *API) handleGetSessionToolsSummary(w http.ResponseWriter, r *http.Reques
 		})
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{"tools": toolsArray})
+	httpjson.Write(w, http.StatusOK, map[string]any{"tools": toolsArray})
 }
 
 // parseToolMetadata extracts structured metadata from tool input JSON.
@@ -329,21 +330,21 @@ func uniqueStrings(slice []string) []string {
 func (a *API) handleGetSessionMetrics(w http.ResponseWriter, r *http.Request) {
 	sessionID := r.PathValue("id")
 	if sessionID == "" {
-		writeError(w, http.StatusBadRequest, "session ID required")
+		httpjson.Error(w, http.StatusBadRequest, "session ID required")
 		return
 	}
 
 	summary, err := a.backend.GetSessionMetricsSummary(r.Context(), sessionID)
 	if err != nil {
 		if isNotFoundError(err) {
-			writeError(w, http.StatusNotFound, "session not found")
+			httpjson.Error(w, http.StatusNotFound, "session not found")
 			return
 		}
-		writeError(w, http.StatusInternalServerError, err.Error())
+		httpjson.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	writeJSON(w, http.StatusOK, summary)
+	httpjson.Write(w, http.StatusOK, summary)
 }
 
 // handleListTelemetryMetrics returns OTLP metrics with optional filtering.
@@ -394,11 +395,11 @@ func (a *API) handleListTelemetryMetrics(w http.ResponseWriter, r *http.Request)
 
 	metrics, err := a.backend.ListMetrics(r.Context(), opts)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		httpjson.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{
+	httpjson.Write(w, http.StatusOK, map[string]any{
 		"metrics": metrics,
 		"count":   len(metrics),
 		"limit":   opts.Limit,

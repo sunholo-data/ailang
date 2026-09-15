@@ -1,7 +1,7 @@
 package codex
 
 import (
-	"github.com/sunholo-data/ailang/internal/executor/proctree"
+	"github.com/sunholo-data/ailang/internal/proctree"
 	"os/exec"
 )
 

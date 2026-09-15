@@ -78,10 +78,7 @@ func runExecutor(ctx context.Context, workDir, provider, directive, taskID, plug
 	// Reuses the same GCP project/prefix env vars as the completion publisher.
 	var broadcaster *coordinator.PubSubBroadcaster
 	evtProjectID, _ := config.CloudProject(ctx) // "" (no broadcaster) when unresolvable; the job already failed loud on it above
-	evtPrefix := os.Getenv("AILANG_TOPIC_PREFIX")
-	if evtPrefix == "" {
-		evtPrefix = pubsub.DefaultTopicPrefix
-	}
+	evtPrefix := pubsub.TopicPrefixFromEnv()
 	if evtProjectID != "" {
 		evtClient, evtErr := pubsub.NewClient(ctx, evtProjectID, evtPrefix)
 		if evtErr == nil {

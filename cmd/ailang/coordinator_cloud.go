@@ -85,10 +85,7 @@ func coordinatorExecuteJob(args []string) error {
 	directive := os.Getenv("AILANG_DIRECTIVE")
 	// AILANG_TASK_TITLE is read where it is used (taskSubject); named here so
 	// the env contract above stays the complete list.
-	prefix := os.Getenv("AILANG_TOPIC_PREFIX")
-	if prefix == "" {
-		prefix = pubsub.DefaultTopicPrefix
-	}
+	prefix := pubsub.TopicPrefixFromEnv()
 
 	// Initialize Pub/Sub client as early as possible so the defer guard can use it.
 	// If Pub/Sub init itself fails, we fall back to stderr logging.

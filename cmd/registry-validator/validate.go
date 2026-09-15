@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/pkg"
+	"github.com/sunholo-data/ailang/internal/strutil"
 )
 
 // runAilangCheck runs ailang check on the package directory.
@@ -19,7 +20,7 @@ import (
 // and cross-module types), falls back to per-file checks for bare packages.
 func runAilangCheck(dir string) (bool, string) {
 	// If ailang.toml exists, use package-level check (resolves deps + cross-module types)
-	if fileExists(filepath.Join(dir, "ailang.toml")) {
+	if strutil.FileExists(filepath.Join(dir, "ailang.toml")) {
 		// Step 1: Rewrite any remaining path deps to registry versions.
 		// The publish command now rewrites path deps client-side, but older clients
 		// may still send tarballs with path deps.
@@ -231,11 +232,6 @@ func getAilangVersion() string {
 		return "unknown"
 	}
 	return strings.TrimSpace(string(output))
-}
-
-func fileExists(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
 }
 
 func getMetaString(meta map[string]interface{}, key string) string {

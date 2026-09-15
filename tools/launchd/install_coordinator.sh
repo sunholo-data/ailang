@@ -116,6 +116,27 @@ resolve_cloud_project() {
     fi
 }
 
+# COORDINATOR_API_KEY: the daemon's HTTP API (/status, /pending, /chains/*,
+# /api/messages) FAILS CLOSED without one since M-V1-SIMPLIFY-S3 M5 — an unset
+# key used to mean "open". Precedence: the env var, then the key already in the
+# installed plist (a re-install must not rotate it under `ailang messages send`,
+# which reads it from the rendered plist), then a fresh random one. The value is
+# never printed.
+resolve_api_key() {
+    API_KEY="${COORDINATOR_API_KEY:-}"
+    if [[ -z "$API_KEY" && -f "$PLIST_DEST" ]]; then
+        API_KEY="$(awk '/<key>COORDINATOR_API_KEY<\/key>/{getline; sub(/^[[:space:]]*<string>/, ""); sub(/<\/string>.*$/, ""); print; exit}' "$PLIST_DEST")"
+    fi
+    if [[ -z "$API_KEY" ]]; then
+        API_KEY="$(openssl rand -hex 24)"
+        API_KEY_SOURCE="generated"
+    elif [[ -n "${COORDINATOR_API_KEY:-}" ]]; then
+        API_KEY_SOURCE="env COORDINATOR_API_KEY"
+    else
+        API_KEY_SOURCE="existing plist"
+    fi
+}
+
 # Repo coordinate handed to the coordinator as AILANG_REPO_URL. See the
 # template's AILANG_REPO_URL comment for why this is an env var and not the
 # agent's `workspace` field.
@@ -131,6 +152,7 @@ render_plist() {
         -e "s|@AILANG_BIN@|$AILANG_BIN|g" \
         -e "s|@AILANG_CLOUD_PROJECT@|$CLOUD_PROJECT|g" \
         -e "s|@HTTP_PORT@|$HTTP_PORT|g" \
+        -e "s|@COORDINATOR_API_KEY@|$API_KEY|g" \
         -e "s|@PATH_PREFIX@|$PATH_PREFIX|g" \
         -e "s|@AILANG_REPO_URL@|$REPO_URL|g" \
         -e "s|@COORDINATOR_WORKDIR@|$COORDINATOR_WORKDIR|g" \
@@ -185,6 +207,7 @@ if [[ ! -x "$AILANG_BIN" ]]; then
 fi
 
 resolve_cloud_project
+resolve_api_key
 
 # Header
 echo "AILANG coordinator launchd install"
@@ -194,6 +217,7 @@ log "host_id:         ${HOST_ID:-<hostname auto>}"
 log "tags:            ${TAGS:-<none>}"
 log "cloud project:   $CLOUD_PROJECT"
 log "HTTP port:       $HTTP_PORT (curl http://127.0.0.1:$HTTP_PORT/health)"
+log "API key:         $API_KEY_SOURCE (never printed; the CLI reads it from the plist)"
 log "plist target:    $PLIST_DEST"
 log "config file:     $CONFIG_FILE"
 [[ "$DRY_RUN" -eq 1 ]] && log "MODE:            DRY RUN (no changes will be made)"

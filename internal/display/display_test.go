@@ -15,7 +15,8 @@ func TestTruncate(t *testing.T) {
 		{"hello world", 8, "hello..."},
 		{"hello", 5, "hello"},
 		{"hello", 4, "h..."},
-		{"hello", 3, "..."},
+		{"hello", 3, "hel"},
+		{"héllo wörld", 8, "héllo..."},
 		{"", 10, ""},
 		{"hello", 0, "hello"},
 	}

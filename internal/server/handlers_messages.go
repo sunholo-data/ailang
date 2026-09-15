@@ -7,8 +7,9 @@ import (
 	"net/http"
 )
 
-// GET /api/messages?thread_id={id} - Get messages for a thread
-// POST /api/messages - Send a message
+// GET /api/thread-messages?thread_id={id} - Get messages for a thread
+// POST /api/thread-messages - Send a message
+// (Not /api/messages: that path is the coordinator daemon's INBOX messages API.)
 func (s *Server) handleMessages(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:

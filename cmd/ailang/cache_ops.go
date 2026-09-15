@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sunholo-data/ailang/internal/builtins"
 	"github.com/sunholo-data/ailang/internal/effects"
 	"github.com/sunholo-data/ailang/internal/embedprefix"
+	"github.com/sunholo-data/ailang/internal/simhash"
 )
 
 func runCacheSearch(args []string) {
@@ -48,7 +48,7 @@ func runCacheSearch(args []string) {
 		}
 	}
 
-	queryHash := builtins.SimHash(query)
+	queryHash := simhash.Hash(query)
 	sc := parseScope(*scope)
 
 	var merged []effects.BrainSearchResult
@@ -192,7 +192,7 @@ func runCachePut(args []string) {
 		Key:       key,
 		Namespace: *ns,
 		Value:     []byte(*content),
-		SimHash:   builtins.SimHash(*content),
+		SimHash:   simhash.Hash(*content),
 		Content:   *content,
 		Version:   1,
 		Source:    *source,
@@ -270,7 +270,7 @@ func runCachePutResolution(args []string) {
 		Key:       key,
 		Namespace: "resolutions",
 		Value:     []byte(content),
-		SimHash:   builtins.SimHash(content),
+		SimHash:   simhash.Hash(content),
 		Content:   content,
 		Version:   1,
 		Source:    *source,

@@ -17,12 +17,12 @@ package coordinator
 //
 // WHY NOT requireAPIKey
 //
-// That middleware passes every request when COORDINATOR_API_KEY is unset —
-// correct for read-only status in local mode, wrong for a route that starts and
-// stops infrastructure, where a missing env var would silently open it. This
-// verifies Google-signed OIDC against an explicit caller allowlist and FAILS
-// CLOSED when unconfigured, matching the resident's own auth (docker/resident/
-// lib/auth.mjs) rather than inventing a third rule.
+// A shared bearer token is the wrong credential for a route that starts and
+// stops infrastructure: this verifies Google-signed OIDC against an explicit
+// caller allowlist and FAILS CLOSED when unconfigured, matching the resident's
+// own auth (docker/resident/lib/auth.mjs). (requireAPIKey used to pass every
+// request when COORDINATOR_API_KEY was unset; since M-V1-SIMPLIFY-S3 M5 it
+// fails closed too — the two rules now agree on that.)
 
 import (
 	"context"

@@ -224,27 +224,9 @@ func buildAgentHierarchy(ctx context.Context, backend Backend, agent *AgentAssig
 
 // buildTraceHierarchy builds the span tree for a single trace.
 func buildTraceHierarchy(traceID string, spans []*Span, maxDepth int) *TraceHierarchy {
-	// Build span index for parent lookups
-	spanIndex := make(map[string]*SpanNode)
-	for _, span := range spans {
-		spanIndex[span.ID] = &SpanNode{Span: span}
-	}
-
-	// Build tree structure
-	var rootNodes []*SpanNode
-	for _, span := range spans {
-		node := spanIndex[span.ID]
-		if span.ParentSpanID == "" {
-			// Root span
-			rootNodes = append(rootNodes, node)
-		} else if parent, ok := spanIndex[span.ParentSpanID]; ok {
-			// Has parent in this trace
-			parent.Children = append(parent.Children, node)
-		} else {
-			// Parent not in trace, treat as root
-			rootNodes = append(rootNodes, node)
-		}
-	}
+	rootNodes, spanIndex := LinkSpans(spans,
+		func(s *Span) *SpanNode { return &SpanNode{Span: s} },
+		func(p, c *SpanNode) { p.Children = append(p.Children, c) })
 
 	// Apply virtual re-parenting for ailang.* spans based on timestamps.
 	// This creates a "logical" hierarchy where ailang.* spans are nested

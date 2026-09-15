@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/coordinator"
+	"github.com/sunholo-data/ailang/internal/httpjson"
 )
 
 // secretApprovalTokenTTL bounds how long an Approve/Deny action token is valid.
@@ -99,7 +100,7 @@ func (s *Server) handleSecretApprovalIntake(w http.ResponseWriter, r *http.Reque
 
 	s.publishSecretApprovalRequested(r.Context(), rec)
 
-	writeJSONStatus(w, http.StatusOK, map[string]string{"id": rec.ID})
+	httpjson.Write(w, http.StatusOK, map[string]string{"id": rec.ID})
 }
 
 // handleSecretApprovalStatus returns the current status of one approval.
@@ -114,7 +115,7 @@ func (s *Server) handleSecretApprovalStatus(w http.ResponseWriter, r *http.Reque
 		http.Error(w, "approval not found", http.StatusNotFound)
 		return
 	}
-	writeJSONStatus(w, http.StatusOK, map[string]string{
+	httpjson.Write(w, http.StatusOK, map[string]string{
 		"id":     rec.ID,
 		"status": rec.Status, // pending | approved | rejected | timeout
 		"type":   rec.Type,
@@ -136,7 +137,7 @@ func (s *Server) resolveSecretApproval(w http.ResponseWriter, r *http.Request, r
 	// (Read-then-write isn't atomic, but human taps are seconds apart and the
 	// per-token single-use guard serialises same-button retries.)
 	if rec.Status != "" && rec.Status != "pending" {
-		writeJSONStatus(w, http.StatusConflict, map[string]string{
+		httpjson.Write(w, http.StatusConflict, map[string]string{
 			"status":      "already_resolved",
 			"resolution":  rec.Status,
 			"resolved_by": rec.ResolvedBy,
@@ -157,7 +158,7 @@ func (s *Server) resolveSecretApproval(w http.ResponseWriter, r *http.Request, r
 	// Confirmation push: ntfy action buttons can't reflect their own outcome, so
 	// send a follow-up so the operator sees the decision landed.
 	s.publishSecretApprovalResolved(r.Context(), rec, status)
-	writeJSONStatus(w, http.StatusOK, map[string]string{"status": "success", "action": action})
+	httpjson.Write(w, http.StatusOK, map[string]string{"status": "success", "action": action})
 	return true
 }
 
@@ -220,10 +221,4 @@ func (s *Server) publishSecretApprovalRequested(ctx context.Context, rec *coordi
 	if err := s.approvalPublisher.PublishApproval(ctx, rec.ID, rec.Type, sc.Agent, payload); err != nil {
 		log.Printf("secret approval: publish for %s failed: %v", rec.ID, err)
 	}
-}
-
-func writeJSONStatus(w http.ResponseWriter, code int, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-	_ = json.NewEncoder(w).Encode(v)
 }

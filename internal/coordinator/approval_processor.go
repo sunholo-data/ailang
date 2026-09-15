@@ -12,6 +12,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/gitexec"
 	"github.com/sunholo-data/ailang/internal/messaging"
 	"github.com/sunholo-data/ailang/internal/observatory"
+	"github.com/sunholo-data/ailang/internal/strutil"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -495,7 +496,7 @@ func processRejection(ctx context.Context, span trace.Span, params *ApprovalPara
 				FromAgent:     params.ApprovedBy,
 				ToInbox:       agentInbox,
 				MessageType:   messaging.InboxTypeNotification,
-				Title:         fmt.Sprintf("Feedback: %s (iteration %d)", truncateString(task.Title, 30), nextIteration),
+				Title:         fmt.Sprintf("Feedback: %s (iteration %d)", strutil.Truncate(task.Title, 30), nextIteration),
 				Payload:       payload,
 				CorrelationID: taskID,
 				ParentTaskID:  taskID,
@@ -673,7 +674,7 @@ func triggerHandoffsFromApprovalRecord(ctx context.Context, span trace.Span, par
 		"Title: %s\n"+
 		"Original Request: %s\n\n"+
 		"Please continue this work.",
-		handoffContext.SourceAgent, task.ID, task.Title, truncateString(task.Content, 500))
+		handoffContext.SourceAgent, task.ID, task.Title, strutil.Truncate(task.Content, 500))
 
 	// Trigger each handoff
 	triggered := false

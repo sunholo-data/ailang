@@ -10,6 +10,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/proctree"
 )
 
 // SmokeFile is the conventional name of a package's pre-publish smoke test.
@@ -92,7 +94,7 @@ func RunSmokeInTempDir(packageDir, ailangBin string, timeout time.Duration) (*Sm
 	// MOD010 check would otherwise reject the load. The smoke is a one-shot
 	// verifier, not production code; relax checks for this run only.
 	cmd.Env = append(os.Environ(), "AILANG_RELAX_MODULES=1")
-	setProcessGroup(cmd)
+	proctree.Configure(cmd)
 
 	var combined bytes.Buffer
 	cmd.Stdout = &combined
@@ -107,9 +109,7 @@ func RunSmokeInTempDir(packageDir, ailangBin string, timeout time.Duration) (*Sm
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		// Belt-and-braces: CommandContext already kills the leader, but the
 		// children survive unless we reap the whole group.
-		if cmd.Process != nil {
-			_ = killProcessGroup(cmd.Process.Pid)
-		}
+		proctree.Kill(cmd)
 		return &SmokeResult{
 			Passed:   false,
 			Output:   out,

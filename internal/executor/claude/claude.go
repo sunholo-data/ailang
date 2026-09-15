@@ -12,7 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sunholo-data/ailang/internal/executor"
-	"github.com/sunholo-data/ailang/internal/executor/proctree"
+	"github.com/sunholo-data/ailang/internal/proctree"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"

@@ -5,13 +5,14 @@ package docsearch
 import (
 	"bufio"
 	"context"
-	"crypto/md5"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/simhash"
 )
 
 // SearchOptions configures a documentation search
@@ -49,7 +50,7 @@ type DocFrame struct {
 	Path               string    // Full path to document
 	Title              string    // Document title
 	Content            string    // Full text content
-	SimHash            uint64    // 64-bit SimHash of content
+	SimHash            int64     // 64-bit SimHash of content (simhash.Hash)
 	Embedding          []float64 // Neural embedding (lazy computed)
 	EmbeddingModel     string    // Model used for embedding
 	EmbeddingUpdatedAt time.Time // When embedding was computed
@@ -85,7 +86,7 @@ func Search(ctx context.Context, opts SearchOptions) ([]SearchResult, SearchStat
 	}
 
 	// Stage 1: SimHash shortlist across ALL docs
-	queryHash := simhash(opts.Query)
+	queryHash := simhash.Hash(opts.Query)
 	candidates := simhashShortlist(docs, queryHash, opts.NeuralCandidates)
 	stats.SimHashCandidates = len(candidates)
 
@@ -213,64 +214,12 @@ func parseDoc(path string) (DocFrame, error) {
 		Path:    path,
 		Title:   title,
 		Content: contentStr,
-		SimHash: simhash(contentStr),
+		SimHash: simhash.Hash(contentStr),
 	}, nil
 }
 
-// simhash computes a 64-bit SimHash for the given text
-// This is a simplified implementation using MD5 for determinism
-func simhash(text string) uint64 {
-	// Tokenize: split on whitespace and punctuation
-	words := strings.Fields(strings.ToLower(text))
-	if len(words) == 0 {
-		return 0
-	}
-
-	// Vector for bit accumulation
-	var v [64]int
-
-	for _, word := range words {
-		// Hash each word to 64 bits using MD5 (deterministic)
-		hash := md5.Sum([]byte(word))
-		var h uint64
-		for i := 0; i < 8; i++ {
-			h = (h << 8) | uint64(hash[i])
-		}
-
-		// Accumulate into vector
-		for i := 0; i < 64; i++ {
-			if (h>>i)&1 == 1 {
-				v[i]++
-			} else {
-				v[i]--
-			}
-		}
-	}
-
-	// Convert vector to hash
-	var result uint64
-	for i := 0; i < 64; i++ {
-		if v[i] > 0 {
-			result |= 1 << i
-		}
-	}
-
-	return result
-}
-
-// hammingDistance calculates the number of differing bits between two hashes
-func hammingDistance(a, b uint64) int {
-	x := a ^ b
-	count := 0
-	for x != 0 {
-		count++
-		x &= x - 1 // Clear lowest set bit
-	}
-	return count
-}
-
 // simhashShortlist returns the top candidates by SimHash similarity
-func simhashShortlist(docs []DocFrame, queryHash uint64, maxCandidates int) []DocFrame {
+func simhashShortlist(docs []DocFrame, queryHash int64, maxCandidates int) []DocFrame {
 	type scored struct {
 		doc   DocFrame
 		dist  int
@@ -279,9 +228,8 @@ func simhashShortlist(docs []DocFrame, queryHash uint64, maxCandidates int) []Do
 
 	var scoredDocs []scored
 	for _, doc := range docs {
-		dist := hammingDistance(queryHash, doc.SimHash)
-		score := 1.0 - float64(dist)/64.0
-		scoredDocs = append(scoredDocs, scored{doc: doc, dist: dist, score: score})
+		dist := simhash.HammingDistance(queryHash, doc.SimHash)
+		scoredDocs = append(scoredDocs, scored{doc: doc, dist: dist, score: simhash.Similarity(queryHash, doc.SimHash)})
 	}
 
 	// Sort by score descending

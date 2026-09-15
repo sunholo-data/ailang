@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/coordinator"
+	"github.com/sunholo-data/ailang/internal/strutil"
 )
 
 // showWorktreeDiff shows the git diff for a worktree
@@ -500,7 +501,7 @@ func showTaskLogs(ctx context.Context, store *coordinator.SQLiteStore, task *coo
 		}
 
 		// Interactive menu
-		hasWorktree := task.WorktreePath != "" && fileExists(task.WorktreePath)
+		hasWorktree := task.WorktreePath != "" && strutil.FileExists(task.WorktreePath)
 
 		fmt.Println(strings.Repeat("─", 70))
 		fmt.Print("Options: ")

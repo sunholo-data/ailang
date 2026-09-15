@@ -318,7 +318,7 @@ func sendViaHTTP(inbox, title, content, from, category, repo string, requires []
 		return fmt.Errorf("building HTTP request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	if key := os.Getenv("COORDINATOR_API_KEY"); key != "" {
+	if key := discoverCoordinatorAPIKey(); key != "" {
 		req.Header.Set("Authorization", "Bearer "+key)
 	}
 
@@ -331,7 +331,11 @@ func sendViaHTTP(inbox, title, content, from, category, repo string, requires []
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		respBody, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("POST %s returned %d: %s", url, resp.StatusCode, strings.TrimSpace(string(respBody)))
+		hint := ""
+		if resp.StatusCode == http.StatusUnauthorized {
+			hint = "\n  The daemon's HTTP API fails closed: it needs COORDINATOR_API_KEY in its plist and the CLI sends the same key (env COORDINATOR_API_KEY, else read from ~/Library/LaunchAgents/dev.ailang.coordinator.plist). `make coord-install` writes both."
+		}
+		return fmt.Errorf("POST %s returned %d: %s%s", url, resp.StatusCode, strings.TrimSpace(string(respBody)), hint)
 	}
 	return nil
 }

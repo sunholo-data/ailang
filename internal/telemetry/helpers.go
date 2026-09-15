@@ -4,29 +4,14 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/strutil"
 )
 
-// Truncate safely truncates a string to maxLen runes (characters), appending "..." if truncated.
-// Handles UTF-8 correctly to avoid breaking multi-byte characters.
-func Truncate(s string, maxLen int) string {
-	if maxLen <= 0 {
-		return ""
-	}
-
-	runes := []rune(s)
-	if len(runes) <= maxLen {
-		return s
-	}
-
-	// For very short maxLen, just return what we can
-	if maxLen <= 3 {
-		return string(runes[:maxLen])
-	}
-
-	// Leave room for "..."
-	targetLen := maxLen - 3
-	return string(runes[:targetLen]) + "..."
-}
+// Truncate is strutil.Truncate: rune-aware, "..." when cut, maxLen <= 0 means
+// no cap (it used to return ""). Kept as a name for the ai/** callers that
+// M-V1-SIMPLIFY-S3 could not touch; fold them in Sprint 4.
+func Truncate(s string, maxLen int) string { return strutil.Truncate(s, maxLen) }
 
 // ErrorCategory represents categories of errors for filtering in traces.
 type ErrorCategory string

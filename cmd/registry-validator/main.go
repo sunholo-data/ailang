@@ -29,6 +29,7 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/pkg"
+	"github.com/sunholo-data/ailang/internal/strutil"
 )
 
 const cacheTTL = 5 * time.Minute
@@ -254,7 +255,7 @@ func (v *validator) handlePublish(w http.ResponseWriter, r *http.Request) {
 
 	// Step 10: Generate metadata.json
 	ailangVersion := getAilangVersion()
-	hasAgentDoc := fileExists(filepath.Join(tempDir, "AGENT.md"))
+	hasAgentDoc := strutil.FileExists(filepath.Join(tempDir, "AGENT.md"))
 
 	meta := pkg.PackageMetadata{
 		Schema:      "ailang.package-metadata/v1",

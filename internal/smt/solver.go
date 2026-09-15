@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/proctree"
 )
 
 const (
@@ -160,10 +162,7 @@ func Solve(smtlib string, config SolverConfig) (*SolverResult, error) {
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, z3Path, args...)
-	setProcessGroup(cmd)
-	cmd.Cancel = func() error {
-		return killProcessGroup(cmd.Process.Pid)
-	}
+	proctree.Configure(cmd)
 	cmd.WaitDelay = solverKillGrace
 	output, err := cmd.CombinedOutput()
 	result.Duration = time.Since(start)
@@ -303,10 +302,7 @@ func Z3Version() string {
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, z3Path, "--version")
-	setProcessGroup(cmd)
-	cmd.Cancel = func() error {
-		return killProcessGroup(cmd.Process.Pid)
-	}
+	proctree.Configure(cmd)
 	cmd.WaitDelay = solverKillGrace
 	out, err := cmd.Output()
 	if err != nil {

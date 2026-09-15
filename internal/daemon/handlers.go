@@ -7,9 +7,13 @@ import (
 	"github.com/sunholo-data/ailang/internal/messaging"
 	"github.com/sunholo-data/ailang/internal/notify"
 	"github.com/sunholo-data/ailang/internal/pubsub"
+	"github.com/sunholo-data/ailang/internal/strutil"
 )
 
 const (
+	// bodyMark ends a notification body that hit messageBodyMax (a BYTE cap —
+	// a payload limit, not a display one; rune-safe via strutil).
+	bodyMark        = "…"
 	messageBodyMax  = 220
 	taskGroupPrefix = "ailang-task-"
 )
@@ -52,7 +56,7 @@ func taskNotification(t pubsub.TaskCompletion) (notify.Notification, bool) {
 		return notify.Notification{
 			Title:     "❌ Task failed",
 			Subtitle:  t.AgentID,
-			Body:      truncate(body, messageBodyMax),
+			Body:      strutil.TruncateBytes(body, messageBodyMax, bodyMark),
 			Sound:     "Basso",
 			Group:     taskGroupPrefix + t.TaskID,
 			URL:       taskURL(t.TaskID),
@@ -128,7 +132,7 @@ func messageNotification(m *messaging.InboxMessage) (notify.Notification, bool) 
 		return notify.Notification{
 			Title:     title,
 			Subtitle:  m.FromAgent,
-			Body:      truncate(body, messageBodyMax),
+			Body:      strutil.TruncateBytes(body, messageBodyMax, bodyMark),
 			Sound:     "Pop",
 			Group:     "ailang-public-feedback",
 			URL:       inboxURL(m.ToInbox),
@@ -138,7 +142,7 @@ func messageNotification(m *messaging.InboxMessage) (notify.Notification, bool) 
 	return notify.Notification{
 		Title:     "✉️  Message from " + m.FromAgent,
 		Subtitle:  m.ToInbox,
-		Body:      truncate(fmt.Sprintf("%s — %s", m.Title, m.Payload), messageBodyMax),
+		Body:      strutil.TruncateBytes(fmt.Sprintf("%s — %s", m.Title, m.Payload), messageBodyMax, bodyMark),
 		Sound:     "Pop",
 		Group:     "ailang-msg-" + m.ToInbox,
 		URL:       inboxURL(m.ToInbox),
@@ -181,16 +185,4 @@ func taskURL(_ string) string {
 
 func inboxURL(_ string) string {
 	return dashboardURL
-}
-
-func truncate(s string, max int) string {
-	if len(s) <= max {
-		return s
-	}
-	const ellipsis = "…" // 3 bytes (UTF-8)
-	cut := max - len(ellipsis)
-	if cut < 0 {
-		cut = 0
-	}
-	return s[:cut] + ellipsis
 }

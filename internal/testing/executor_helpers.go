@@ -9,6 +9,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/eval"
 	"github.com/sunholo-data/ailang/internal/loader"
 	"github.com/sunholo-data/ailang/internal/runtime"
+	"sort"
 )
 
 // CombinedResolver resolves both builtin functions and user-defined functions from the environment.
@@ -555,7 +556,7 @@ func (e *Executor) injectModuleBindings(evaluator *eval.CoreEvaluator, env *eval
 		sortedPaths = append(sortedPaths, modPath)
 	}
 	// Sort: shorter paths (std/*) before longer (pkg/sunholo/...) for stable dependency order
-	sortStrings(sortedPaths)
+	sort.Strings(sortedPaths)
 
 	for _, modulePath := range sortedPaths {
 		mod := e.modules[modulePath]
@@ -656,18 +657,5 @@ func (e *Executor) injectModuleBindings(evaluator *eval.CoreEvaluator, env *eval
 		if err == nil && val != nil {
 			env.Set(dv.name, val)
 		}
-	}
-}
-
-// sortStrings sorts a slice of strings in-place (ascending lexicographic order).
-func sortStrings(ss []string) {
-	for i := 1; i < len(ss); i++ {
-		key := ss[i]
-		j := i - 1
-		for j >= 0 && ss[j] > key {
-			ss[j+1] = ss[j]
-			j--
-		}
-		ss[j+1] = key
 	}
 }

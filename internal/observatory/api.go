@@ -3,7 +3,6 @@ package observatory
 
 import (
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"net/http"
 )
@@ -92,18 +91,6 @@ func (a *API) RegisterRoutes(mux *http.ServeMux) {
 }
 
 // ===== Response Helpers =====
-
-func writeJSON(w http.ResponseWriter, status int, data any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	if err := json.NewEncoder(w).Encode(data); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
-
-func writeError(w http.ResponseWriter, status int, message string) {
-	writeJSON(w, status, map[string]string{"error": message})
-}
 
 // isNotFoundError checks if an error indicates a record was not found.
 func isNotFoundError(err error) bool {

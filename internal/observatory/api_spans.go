@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/claudehistory"
+	"github.com/sunholo-data/ailang/internal/httpjson"
 )
 
 // ===== Span Handlers =====
@@ -48,7 +49,7 @@ func (a *API) handleListSpans(w http.ResponseWriter, r *http.Request) {
 
 	spans, err := a.backend.ListSpans(r.Context(), opts)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		httpjson.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -57,20 +58,20 @@ func (a *API) handleListSpans(w http.ResponseWriter, r *http.Request) {
 		spans = a.enrichSpansWithChat(r.Context(), spans)
 	}
 
-	writeJSON(w, http.StatusOK, spans)
+	httpjson.Write(w, http.StatusOK, spans)
 }
 
 func (a *API) handleCreateSpan(w http.ResponseWriter, r *http.Request) {
 	var span Span
 	if err := json.NewDecoder(r.Body).Decode(&span); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
+		httpjson.Error(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
 		return
 	}
 	if err := a.backend.CreateSpan(r.Context(), &span); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		httpjson.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusCreated, span)
+	httpjson.Write(w, http.StatusCreated, span)
 }
 
 func (a *API) handleGetSpan(w http.ResponseWriter, r *http.Request) {
@@ -78,13 +79,13 @@ func (a *API) handleGetSpan(w http.ResponseWriter, r *http.Request) {
 	span, err := a.backend.GetSpan(r.Context(), id)
 	if err != nil {
 		if isNotFoundError(err) {
-			writeError(w, http.StatusNotFound, "span not found: "+id)
+			httpjson.Error(w, http.StatusNotFound, "span not found: "+id)
 		} else {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			httpjson.Error(w, http.StatusInternalServerError, err.Error())
 		}
 		return
 	}
-	writeJSON(w, http.StatusOK, span)
+	httpjson.Write(w, http.StatusOK, span)
 }
 
 // handleGetEnrichedSpan returns a single span with tool metadata from session_tools.
@@ -97,9 +98,9 @@ func (a *API) handleGetEnrichedSpan(w http.ResponseWriter, r *http.Request) {
 	span, err := a.backend.GetSpan(ctx, id)
 	if err != nil {
 		if isNotFoundError(err) {
-			writeError(w, http.StatusNotFound, "span not found: "+id)
+			httpjson.Error(w, http.StatusNotFound, "span not found: "+id)
 		} else {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			httpjson.Error(w, http.StatusInternalServerError, err.Error())
 		}
 		return
 	}
@@ -147,28 +148,28 @@ func (a *API) handleGetEnrichedSpan(w http.ResponseWriter, r *http.Request) {
 		enriched.DisplayName = span.Name
 	}
 
-	writeJSON(w, http.StatusOK, enriched)
+	httpjson.Write(w, http.StatusOK, enriched)
 }
 
 func (a *API) handleUpdateSpan(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	var span Span
 	if err := json.NewDecoder(r.Body).Decode(&span); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
+		httpjson.Error(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
 		return
 	}
 	span.ID = id
 	if err := a.backend.UpdateSpan(r.Context(), &span); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		httpjson.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, span)
+	httpjson.Write(w, http.StatusOK, span)
 }
 
 func (a *API) handleDeleteSpan(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if err := a.backend.DeleteSpan(r.Context(), id); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		httpjson.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -178,25 +179,25 @@ func (a *API) handleGetSpanEvents(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	events, err := a.backend.GetSpanEvents(r.Context(), id)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		httpjson.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, events)
+	httpjson.Write(w, http.StatusOK, events)
 }
 
 func (a *API) handleCreateSpanEvent(w http.ResponseWriter, r *http.Request) {
 	spanID := r.PathValue("id")
 	var event SpanEvent
 	if err := json.NewDecoder(r.Body).Decode(&event); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
+		httpjson.Error(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
 		return
 	}
 	event.SpanID = spanID
 	if err := a.backend.CreateSpanEvent(r.Context(), &event); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		httpjson.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusCreated, event)
+	httpjson.Write(w, http.StatusCreated, event)
 }
 
 // enrichSpansWithChat populates ChatContext for spans that have session.id attributes.

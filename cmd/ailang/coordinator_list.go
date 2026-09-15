@@ -10,6 +10,7 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/coordinator"
 	"github.com/sunholo-data/ailang/internal/display"
+	"github.com/sunholo-data/ailang/internal/strutil"
 )
 
 func coordinatorList(args []string) error {
@@ -289,7 +290,7 @@ func showTaskDetail(ctx context.Context, store *coordinator.SQLiteStore, task *c
 
 		// Show available actions based on task state
 		fmt.Println(bold("Actions:"))
-		hasWorktree := task.WorktreePath != "" && fileExists(task.WorktreePath)
+		hasWorktree := task.WorktreePath != "" && strutil.FileExists(task.WorktreePath)
 
 		if hasWorktree {
 			fmt.Println("  [d]  View diff (full)")

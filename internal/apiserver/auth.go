@@ -2,6 +2,7 @@ package apiserver
 
 import (
 	"crypto/subtle"
+	"github.com/sunholo-data/ailang/internal/httpjson"
 	"log"
 	"net/http"
 	"os"
@@ -45,7 +46,7 @@ func (s *Server) authMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		}
 
 		if key == "" || subtle.ConstantTimeCompare([]byte(key), []byte(expected)) != 1 {
-			writeJSON(w, http.StatusUnauthorized, FunctionCallResponse{
+			httpjson.Write(w, http.StatusUnauthorized, FunctionCallResponse{
 				Error: "unauthorized: invalid or missing API key",
 			})
 			return
