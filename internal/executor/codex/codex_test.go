@@ -761,3 +761,46 @@ func TestRegister_Idempotent(t *testing.T) {
 		t.Errorf("expected 'codex' to appear exactly once, got %d", count)
 	}
 }
+
+// M-V1-SIMPLIFY-S4 M1: a model the registry cannot price yields $0 from
+// CalculateCost, and banking that as the auth lane's provenance ("metered" or
+// "list-price-equivalent") fabricates a free run. The provenance must say
+// "unknown" — with a POSITIVE control on the priced fixture run above, whose
+// provenance is NOT unknown, so this cannot pass because every run is unknown.
+func TestExecuteStreaming_UnpricedModelBanksUnknownProvenance(t *testing.T) {
+	fixture, err := os.ReadFile("testdata/codex_response.jsonl")
+	if err != nil {
+		t.Fatalf("read fixture: %v", err)
+	}
+	run := func(model string) *executor.Result {
+		t.Helper()
+		tmpDir := t.TempDir()
+		fake := writeFakeCodex(t, tmpDir, string(fixture))
+		ex, err := New(&executor.Config{CodexPath: fake, CodexModel: model, TimeoutSeconds: 30})
+		if err != nil {
+			t.Fatalf("New(%s): %v", model, err)
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		res, err := ex.ExecuteStreaming(ctx, &executor.Task{ID: "t", Directive: "x", Workspace: tmpDir}, &recordingHandler{})
+		if err != nil || res == nil {
+			t.Fatalf("ExecuteStreaming(%s): %v", model, err)
+		}
+		return res
+	}
+
+	control := run("gpt-5.2-codex")
+	if !control.Success || control.CostUSD <= 0 || control.CostProvenance == executor.CostProvenanceUnknown {
+		t.Fatalf("control (priced model): success=%v cost=%v provenance=%q — the instrument must see a priced run",
+			control.Success, control.CostUSD, control.CostProvenance)
+	}
+
+	unpriced := run("codex-model-nobody-registered")
+	if unpriced.CostUSD != 0 {
+		t.Fatalf("unpriced model cost = %v, want 0", unpriced.CostUSD)
+	}
+	if unpriced.CostProvenance != executor.CostProvenanceUnknown {
+		t.Fatalf("unpriced model provenance = %q, want %q: a $0 with the lane's provenance is a fabricated free run",
+			unpriced.CostProvenance, executor.CostProvenanceUnknown)
+	}
+}

@@ -542,3 +542,25 @@ func TestExecutionError_CapCountsCachedPromptCreation(t *testing.T) {
 		})
 	}
 }
+
+// M-V1-SIMPLIFY-S4 M1: the task's Pricing carries every rate the budget
+// enforces at, through executor.CostModelFromPricing. The hand copy this
+// replaced dropped CacheWritePer1K, so the banked cost and the budget that
+// spared it disagreed on every cache-writing stage.
+func TestTaskFor_PricingCarriesAllFourRatesAndProvenance(t *testing.T) {
+	c := Candidate{Model: "kimi-k3", WireModel: "wire", config: &modelreg.ModelConfig{
+		Provider: "openrouter",
+		Pricing:  modelreg.Pricing{InputPer1K: 0.001, OutputPer1K: 0.002, CacheReadPer1K: 0.0001, CacheWritePer1K: 0.00125},
+	}}
+	p := taskFor(Request{Role: "executor"}, c).Pricing
+	if p == nil {
+		t.Fatal("Pricing not set")
+	}
+	want := executor.CostModelFromPricing("openrouter", "kimi-k3", c.config.Pricing)
+	if *p != *want {
+		t.Fatalf("Pricing = %+v, want %+v (every registry rate, plus provider and model key)", *p, *want)
+	}
+	if p.CacheWriteCost != 0.00125 {
+		t.Fatalf("CacheWriteCost = %v, want 0.00125 — the rate the hand copy dropped", p.CacheWriteCost)
+	}
+}

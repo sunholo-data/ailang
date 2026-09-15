@@ -535,3 +535,42 @@ func TestCapabilities_AdvertisesNetworkEgress(t *testing.T) {
 		t.Errorf("ValidateTaskCapabilities rejected egress on managed_agents: %v", err)
 	}
 }
+
+// M-V1-SIMPLIFY-S4 M1: Vertex ADC is the metered lane, but a Task.Pricing the
+// registry could not price (Unpriced) yields $0 — and "metered $0" is a
+// fabricated free run. The provenance must be unknown. The priced run is the
+// positive control: same fixture, metered provenance, so this cannot pass
+// because every run reads unknown.
+func TestExecuteWithFixture_UnpricedTaskPricingBanksUnknownProvenance(t *testing.T) {
+	fixture, err := os.ReadFile("testdata/sse_pong.txt")
+	if err != nil {
+		t.Fatalf("read fixture: %v", err)
+	}
+	run := func(pricing *executor.CostModel) *executor.Result {
+		t.Helper()
+		ex := &Executor{
+			agent: defaultAgent, project: "ailang-dev", location: defaultLocation,
+			httpClient: &stubHTTP{resp: &http.Response{StatusCode: 200,
+				Body: io.NopCloser(bytes.NewReader(fixture)), Header: make(http.Header)}},
+			tokens: stubToken, timeoutSeconds: 30,
+		}
+		res, err := ex.Execute(context.Background(), &executor.Task{ID: "pong", Directive: "PONG", GCPProject: "ailang-dev", Pricing: pricing})
+		if err != nil {
+			t.Fatalf("Execute: %v", err)
+		}
+		return res
+	}
+
+	control := run(nil)
+	if control.CostUSD <= 0 || control.CostProvenance != executor.CostMetered {
+		t.Fatalf("control: cost=%v provenance=%q, want a priced metered run", control.CostUSD, control.CostProvenance)
+	}
+
+	unpriced := run(executor.UnpricedCostModel("google", "gemini-nobody-registered"))
+	if unpriced.CostUSD != 0 {
+		t.Fatalf("unpriced: cost=%v, want 0", unpriced.CostUSD)
+	}
+	if unpriced.CostProvenance != executor.CostProvenanceUnknown {
+		t.Fatalf("unpriced: provenance=%q, want %q", unpriced.CostProvenance, executor.CostProvenanceUnknown)
+	}
+}
