@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -453,6 +454,40 @@ func runMessagesForward(args []string) {
 
 	fmt.Printf("%s Forwarded message from '%s' to '%s'%s\n",
 		green("✓"), oldInbox, *toInbox, reasonStr)
+
+	// ANNOUNCE it, or the forward is only a database edit.
+	//
+	// ForwardInboxMessage rewrites to_inbox in place and stops. Nothing is told,
+	// and on a cloud plane push is the only delivery path — so the message
+	// arrives at an inbox with an agent, sits unread, and no task is ever
+	// created. Measured 2026-09-15: a report forwarded to `ailang-core` at
+	// 06:04 was still unread fifteen minutes later with no task, which is
+	// exactly the "FILED, NOT DISPATCHED" outcome this command exists to
+	// REPAIR.
+	//
+	// The row carries its ORIGINAL created_at, so the message also looks old to
+	// anything that ages it. That is left alone deliberately: the message really
+	// was sent then, and rewriting history to make dispatch work would hide when
+	// the report actually arrived.
+	msg.ToInbox = *toInbox
+	notified := false
+	if cfg, cfgErr := messaging.LoadConfig(); cfgErr != nil {
+		fmt.Fprintf(os.Stderr, "%s messaging config unreadable (%v) — cannot tell whether this will be dispatched\n", yellow("!"), cfgErr)
+	} else if cfg != nil && cfg.PubSub != nil && cfg.PubSub.Enabled {
+		notifier, nErr := messaging.NewPubSubNotifier(notifyConfigForStore(cfg.PubSub))
+		if nErr != nil {
+			fmt.Fprintf(os.Stderr, "%s Pub/Sub notify failed: %v\n", yellow("!"), nErr)
+		} else if notifier != nil {
+			defer notifier.Close()
+			if nErr := notifier.Notify(context.Background(), msg); nErr != nil {
+				fmt.Fprintf(os.Stderr, "%s Pub/Sub notify failed: %v\n", yellow("!"), nErr)
+			} else {
+				notified = true
+				fmt.Printf("%s Pub/Sub notification published\n", green("✓"))
+			}
+		}
+	}
+	warnIfFiledButUndispatchable(*toInbox, notified)
 	fmt.Printf("   Title: %s\n", msg.Title)
 	fmt.Printf("   ID: %s\n", msgID[:8]+"...")
 }
