@@ -1,0 +1,5 @@
+# AILANG Core Backlog (triaged reports)
+
+| Date | Title | Class | Recommend | Why |
+|---|---|---|---|---|
+| 2026-09-15 | Registry validator flags non-tool `name:` fields (daneel_ext_help publish rejected) | bug | design-doc | `cmd/registry-validator/tool_names.go` Pattern 2 deliberately over-matches every `name: "X"` literal in `.ail` source (its own comment admits "it'll also catch `name:` fields from other record literals"), so a human-readable `Authority.name` title from `register_with_config` ("Explain how to ask") is treated as an advertised tool name and blocks publish; the #1133 header-pair exemption fixed one false-positive class by shape, and this report shows the same pattern class recurs — so the fix (scope Pattern 2 to `provided_tools`/`on_describe_tools` blocks vs a package-level "advertises no tools" declaration) changes the provider-safety gate's contract and risks false-negatives if done naively, which is a decision worth a doc rather than another exemption patch. |
