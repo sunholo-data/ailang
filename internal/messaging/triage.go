@@ -1,5 +1,7 @@
 package messaging
 
+import "github.com/sunholo-data/ailang/internal/simhash"
+
 // Cluster is a group of inbox messages judged semantically similar on a
 // single envelope slot. It is the unit produced by ClusterMessages and
 // consumed by the `ailang messages triage` CLI and the coordinator's
@@ -48,7 +50,7 @@ func ClusterMessages(messages []InboxMessage, slot string, threshold float64) []
 			if other == nil {
 				continue
 			}
-			if CosineSimilarity(vec.Vector, other.Vector) >= threshold {
+			if simhash.Cosine(vec.Vector, other.Vector) >= threshold {
 				assigned[j] = true
 				cluster.Messages = append(cluster.Messages, messages[j])
 				cluster.Count++

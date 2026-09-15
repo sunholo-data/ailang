@@ -6,7 +6,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/sunholo-data/ailang/internal/builtins"
+	"github.com/sunholo-data/ailang/internal/simhash"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -87,7 +87,7 @@ func (s *Store) SemanticSearch(opts SearchOptions) ([]SearchHit, error) {
 	}
 
 	// Compute query simhash
-	queryHash := builtins.SimHash(opts.Query)
+	queryHash := simhash.Hash(opts.Query)
 
 	// Build query for messages
 	query := `SELECT id, message_id, correlation_id, from_agent, to_inbox, message_type, title, payload, category, github_issue_number, github_repo, simhash, dup_of, status, created_at, read_at, expires_at
@@ -125,9 +125,7 @@ func (s *Store) SemanticSearch(opts SearchOptions) ([]SearchHit, error) {
 			continue
 		}
 
-		// Compute similarity: 1.0 - (hamming_distance / 64.0)
-		distance := builtins.HammingDistance(queryHash, *msg.Simhash)
-		score := 1.0 - (float64(distance) / 64.0)
+		score := simhash.Similarity(queryHash, *msg.Simhash)
 
 		// Apply threshold
 		if score >= opts.Threshold {
@@ -183,7 +181,7 @@ func (s *Store) FindSimilar(msgID string, threshold float64, limit int) ([]Searc
 		if msg.Payload != "" {
 			searchText += " " + msg.Payload
 		}
-		queryHash = builtins.SimHash(searchText)
+		queryHash = simhash.Hash(searchText)
 	}
 
 	// Apply defaults
@@ -227,9 +225,7 @@ func (s *Store) FindSimilar(msgID string, threshold float64, limit int) ([]Searc
 			continue
 		}
 
-		// Compute similarity
-		distance := builtins.HammingDistance(queryHash, *candidate.Simhash)
-		score := 1.0 - (float64(distance) / 64.0)
+		score := simhash.Similarity(queryHash, *candidate.Simhash)
 
 		if score >= threshold {
 			hits = append(hits, SearchHit{
@@ -380,8 +376,7 @@ func (s *Store) FindDuplicates(inbox string, threshold float64) ([]DuplicateGrou
 			if messages[i].Simhash == nil || messages[j].Simhash == nil {
 				continue
 			}
-			distance := builtins.HammingDistance(*messages[i].Simhash, *messages[j].Simhash)
-			score := 1.0 - (float64(distance) / 64.0)
+			score := simhash.Similarity(*messages[i].Simhash, *messages[j].Simhash)
 
 			if score >= threshold {
 				group.Duplicates = append(group.Duplicates, messages[j])

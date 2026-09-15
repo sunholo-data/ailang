@@ -4,8 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
-
-	"github.com/sunholo-data/ailang/internal/builtins"
 )
 
 // MigrateDB applies any necessary schema migrations to an existing database.
@@ -266,12 +264,8 @@ func backfillSimhash(tx *sql.Tx) error {
 			return err
 		}
 
-		// Compute simhash from title + payload
-		searchText := title
-		if payload.Valid && payload.String != "" {
-			searchText += " " + payload.String
-		}
-		hash := computeSimhash(searchText)
+		// The SAME bytes and algorithm as every write path (messaging.ComputeSimhash).
+		hash := ComputeSimhash(title, payload.String)
 
 		if _, err := stmt.Exec(hash, id); err != nil {
 			return err
@@ -279,11 +273,6 @@ func backfillSimhash(tx *sql.Tx) error {
 	}
 
 	return rows.Err()
-}
-
-// computeSimhash computes a SimHash for the given text using the builtins implementation
-func computeSimhash(text string) int64 {
-	return builtins.SimHash(text)
 }
 
 // migrateV130ToV140 removes the category CHECK constraint to allow any string

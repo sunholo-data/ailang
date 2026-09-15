@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/messaging"
+	"github.com/sunholo-data/ailang/internal/simhash"
 )
 
 // EmbeddingCache stores document embeddings with model versioning
@@ -217,7 +218,7 @@ func neuralSearchImpl(ctx context.Context, candidates []DocFrame, query string, 
 		// Check cache first (validates model AND content hash)
 		if cachedEmb, ok := cache.Get(doc.Path, docHash); ok {
 			stats.EmbeddingsReused++
-			score := messaging.CosineSimilarity(queryEmb, cachedEmb)
+			score := simhash.Cosine(queryEmb, cachedEmb)
 			scoredDocs = append(scoredDocs, scoredDoc{
 				doc:   doc,
 				emb:   cachedEmb,
@@ -241,7 +242,7 @@ func neuralSearchImpl(ctx context.Context, candidates []DocFrame, query string, 
 		stats.EmbeddingsComputed++
 
 		// Compute score
-		score := messaging.CosineSimilarity(queryEmb, emb)
+		score := simhash.Cosine(queryEmb, emb)
 		scoredDocs = append(scoredDocs, scoredDoc{
 			doc:   doc,
 			emb:   emb,

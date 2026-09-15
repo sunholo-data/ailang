@@ -3,6 +3,8 @@ package coordinator
 import (
 	"strings"
 	"sync"
+
+	"github.com/sunholo-data/ailang/internal/simhash"
 )
 
 // TaskAnalyzer analyzes and classifies tasks
@@ -32,13 +34,23 @@ func (a *TaskAnalyzer) Analyze(task *Task) *AnalyzedTask {
 		Keywords: extractKeywords(task.Content),
 	}
 
-	// Calculate fingerprint for duplicate detection
-	analyzed.Fingerprint = simhash(task.Content)
+	// Fingerprint for duplicate detection — the one simhash every store
+	// persists (internal/simhash). Stored as uint64 here and as int64 in the
+	// task stores; the bit pattern is the same, compare with Hamming only.
+	//
+	// HASH-SPACE NOTE (M-V1-SIMPLIFY-S3 M5, 2026-09-15): before this the
+	// coordinator ran its own variant (ASCII-only tokens, 1-char words dropped),
+	// so fingerprints written before the switch live in a different space.
+	// FindDuplicateTask matches by exact equality inside DedupWindow (24h), so
+	// a pre-switch row can fail to suppress a post-switch duplicate for at most
+	// that window; it can never false-match. Re-indexing the stored column
+	// needs the M3-owned stores (store_sqlite.go, firestore) — Sprint 4.
+	analyzed.Fingerprint = uint64(simhash.Hash(task.Content))
 
 	// Check for duplicates
 	a.mu.RLock()
 	for fp, taskID := range a.fingerprints {
-		if hammingSimilarity(analyzed.Fingerprint, fp) >= a.similarityThreshold {
+		if simhash.Similarity(int64(analyzed.Fingerprint), int64(fp)) >= a.similarityThreshold {
 			analyzed.DuplicateOf = taskID
 			break
 		}
@@ -158,76 +170,6 @@ func extractKeywords(content string) []string {
 	}
 
 	return keywords
-}
-
-// simhash computes a SimHash fingerprint for a string
-// SimHash is a locality-sensitive hashing algorithm
-func simhash(content string) uint64 {
-	// Tokenize
-	words := strings.FieldsFunc(strings.ToLower(content), func(r rune) bool {
-		return !((r >= 'a' && r <= 'z') || (r >= '0' && r <= '9'))
-	})
-
-	// Initialize vector
-	var v [64]int
-
-	// For each word, compute hash and update vector
-	for _, word := range words {
-		if len(word) < 2 {
-			continue
-		}
-
-		h := fnv1a64(word)
-		for i := uint(0); i < 64; i++ {
-			if (h>>i)&1 == 1 {
-				v[i]++
-			} else {
-				v[i]--
-			}
-		}
-	}
-
-	// Convert vector to hash
-	var fingerprint uint64
-	for i := uint(0); i < 64; i++ {
-		if v[i] > 0 {
-			fingerprint |= 1 << i
-		}
-	}
-
-	return fingerprint
-}
-
-// fnv1a64 computes FNV-1a hash for a string
-func fnv1a64(s string) uint64 {
-	const (
-		offset64 = 14695981039346656037
-		prime64  = 1099511628211
-	)
-
-	h := uint64(offset64)
-	for i := 0; i < len(s); i++ {
-		h ^= uint64(s[i])
-		h *= prime64
-	}
-	return h
-}
-
-// hammingSimilarity computes similarity between two fingerprints
-// Returns a value between 0 and 1
-func hammingSimilarity(a, b uint64) float64 {
-	// XOR to find differing bits
-	diff := a ^ b
-
-	// Count differing bits (Hamming distance)
-	distance := 0
-	for diff != 0 {
-		distance++
-		diff &= diff - 1
-	}
-
-	// Convert to similarity (1 - normalized distance)
-	return 1.0 - float64(distance)/64.0
 }
 
 // CalculatePriority calculates task priority based on keywords and type
