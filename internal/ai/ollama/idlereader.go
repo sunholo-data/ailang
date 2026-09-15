@@ -45,27 +45,19 @@ var (
 	ErrStreamDeadlineInvalid = errors.New("ollama stream: invalid hard deadline configuration")
 )
 
-// Window defaults, in seconds. The two soft windows are registered in
-// internal/config (one source for the getter and the reference page).
-const (
-	// defaultOllamaIdleTimeoutSec bounds silence *between* bytes. Short, because
-	// a healthy stream emits tokens continuously.
-	defaultOllamaIdleTimeoutSec = config.DefaultOllamaIdleTimeoutSec
-	// defaultOllamaTTFTTimeoutSec bounds silence *before* the first byte. Long,
-	// because a cold 35B load under GPU contention legitimately takes minutes.
-	defaultOllamaTTFTTimeoutSec = config.DefaultOllamaTTFTTimeoutSec
-	// defaultOllamaStreamDeadlineSec bounds the whole stream.
-	defaultOllamaStreamDeadlineSec = 3600
-)
+// defaultOllamaStreamDeadlineSec bounds the whole stream. The two soft
+// windows' defaults live beside their getters in internal/config
+// (config.DefaultOllamaIdleTimeoutSec, config.DefaultOllamaTTFTTimeoutSec).
+const defaultOllamaStreamDeadlineSec = 3600
 
-// ollamaIdleTimeout resolves the inter-byte silence window.
-// Override with AILANG_OLLAMA_IDLE_TIMEOUT_SEC (a positive integer, seconds);
-// unset or unusable falls back to defaultOllamaIdleTimeoutSec.
+// ollamaIdleTimeout resolves the inter-byte silence window. Short (120s),
+// because a healthy stream emits tokens continuously. Override with
+// AILANG_OLLAMA_IDLE_TIMEOUT_SEC (a positive integer, seconds).
 func ollamaIdleTimeout() time.Duration { return config.OllamaIdleTimeout() }
 
-// ollamaTTFTTimeout resolves the pre-first-byte window.
-// Override with AILANG_OLLAMA_TTFT_TIMEOUT_SEC (a positive integer, seconds);
-// unset or unusable falls back to defaultOllamaTTFTTimeoutSec.
+// ollamaTTFTTimeout resolves the pre-first-byte window. Long (600s), because
+// a cold 35B load under GPU contention legitimately takes minutes. Override
+// with AILANG_OLLAMA_TTFT_TIMEOUT_SEC (a positive integer, seconds).
 func ollamaTTFTTimeout() time.Duration { return config.OllamaTTFTTimeout() }
 
 // ollamaStreamHardDeadline resolves the total-stream budget for the STREAMING

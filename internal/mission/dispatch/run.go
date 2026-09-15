@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/executor"
 	"github.com/sunholo-data/ailang/internal/modelreg"
 )
@@ -149,14 +149,14 @@ func (r *Runner) preflight(ctx context.Context, c Candidate) (executor.Executor,
 	}
 	lookup := r.LookupEnv
 	if lookup == nil {
-		lookup = os.Getenv
+		lookup = config.Raw
 	}
 	var keys []string
 	switch c.Executor {
 	case "claude":
-		keys = []string{"ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"}
+		keys = []string{config.EnvAnthropicAPIKey, config.EnvAnthropicAuthToken}
 	case "codex":
-		keys = []string{"OPENAI_API_KEY"}
+		keys = []string{config.EnvOpenAIAPIKey}
 	}
 	for _, key := range keys {
 		if lookup(key) != "" {

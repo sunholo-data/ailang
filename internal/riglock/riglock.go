@@ -51,8 +51,6 @@ const (
 
 	// EnvStaleMin overrides the staleness window in minutes (RIG_LOCK_STALE_MIN).
 	EnvStaleMin = config.EnvRigLockStale
-
-	defaultStaleMin = config.DefaultRigLockStaleMin // steal a lock older than 6h (matches rig-lock.sh)
 )
 
 // Mode controls Acquire's blocking behaviour.
