@@ -10,14 +10,16 @@
 #   internal/secrets     effects/secret.go           → Phase 1.3 registration seam
 #   internal/telemetry   pipeline, repl, effects cb  → Phase 1.3 no-op interface in core
 #   internal/mcp_client  prompt                       → Phase 1.3
-#   go-sqlite3           effects/sharedmem_sqlite.go → Phase 1.3 (platform/sharedmem)
 #   ollama SDK           builtins/ollama_embed.go    → Phase 1.3
 #   otel / grpc / gcp    via telemetry               → gone when telemetry is a no-op here
+#
+# Cleared (M-V1-SIMPLIFY-S2 M2, 2026-09-15): go-sqlite3 and gorilla/websocket —
+# effects now opens its persistent SharedCache and its ws:// transport through
+# registration seams; the implementations live in internal/platform/{sharedmem,streamws}.
 internal/ai
 internal/secrets
 internal/telemetry
 internal/mcp_client
-github.com/mattn/go-sqlite3
 github.com/ollama/ollama
 go.opentelemetry.io
 google.golang.org/grpc

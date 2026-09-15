@@ -1,19 +1,17 @@
 package effects
 
 import (
+	"errors"
 	"fmt"
-	"time"
 
-	"github.com/gorilla/websocket"
 	"github.com/sunholo-data/ailang/internal/eval"
 )
 
-// WebSocket transport for the Stream effect. Everything that touches
-// gorilla/websocket lives in this file; stream.go holds the protocol-neutral
-// connection state, the op surface and the SSE-shared helpers.
-
-// wsConn is the WebSocket handle held by StreamConnection.
-type wsConn = *websocket.Conn
+// WebSocket side of the Stream effect. The wire library lives in
+// internal/platform/streamws behind the StreamTransport seam
+// (stream_transport.go); this file owns the connect op, the read goroutine
+// and the frame accounting. stream.go holds the protocol-neutral connection
+// state, the op surface and the SSE-shared helpers.
 
 // StreamConnect establishes a WebSocket connection.
 //
@@ -72,42 +70,38 @@ func StreamConnect(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 		}
 	}
 
-	// Dial WebSocket
-	dialer := websocket.Dialer{
-		HandshakeTimeout: ctx.Stream.ConnectTimeout,
+	// Dial through the registered transport. No registration is a harness
+	// error (the binary forgot platform_init), not a program-visible result.
+	transport, err := openStreamTransport(urlVal.Value, StreamDialConfig{
+		URL:              urlVal.Value,
+		Headers:          headers,
 		Subprotocols:     subprotocols,
-		ReadBufferSize:   1024,
-		WriteBufferSize:  1024,
-	}
-
-	wsConn, resp, err := dialer.Dial(urlVal.Value, headers)
+		HandshakeTimeout: ctx.Stream.ConnectTimeout,
+		MaxFrameSize:     ctx.Stream.MaxFrameSize,
+	})
 	if err != nil {
-		msg := fmt.Sprintf("WebSocket dial failed: %s", err.Error())
-		if resp != nil {
-			msg = fmt.Sprintf("WebSocket dial failed (HTTP %d): %s", resp.StatusCode, err.Error())
+		if errors.Is(err, ErrBackendNotRegistered) {
+			return nil, fmt.Errorf("_stream_connect: %w", err)
 		}
-		return makeStreamErr("ConnectionFailed", msg), nil
+		return makeStreamErr("ConnectionFailed", "WebSocket dial failed: "+err.Error()), nil
 	}
-
-	// Set read limit
-	wsConn.SetReadLimit(ctx.Stream.MaxFrameSize)
 
 	// Create connection
 	conn := &StreamConnection{
-		conn:        wsConn,
+		transport:   transport,
 		protocol:    "WebSocket",
 		status:      StreamStatusOpen,
 		eventBuffer: make(chan streamEvent, ctx.Stream.EventBufferSize),
 		done:        make(chan struct{}),
 		idleTimeout: ctx.Stream.IdleTimeout,
 		maxDuration: ctx.Stream.MaxDuration,
-		subprotocol: wsConn.Subprotocol(),
+		subprotocol: transport.Subprotocol(),
 	}
 
 	// Register connection
 	id, err := ctx.Stream.AcquireConnection(conn)
 	if err != nil {
-		wsConn.Close()
+		_ = transport.Close()
 		return makeStreamErr("ConnectionFailed", err.Error()), nil
 	}
 
@@ -145,59 +139,49 @@ func (sc *StreamConnection) readLoop() {
 		default:
 		}
 
-		msgType, data, err := sc.conn.ReadMessage()
+		frame, err := sc.transport.Recv()
 		if err != nil {
-			if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway) {
-				closeCode := websocket.CloseNormalClosure
-				closeReason := ""
-				if ce, ok := err.(*websocket.CloseError); ok {
-					closeCode = ce.Code
-					closeReason = ce.Text
-				}
-				sc.eventBuffer <- streamEvent{kind: "closed", code: closeCode, reason: closeReason}
+			var ce *StreamCloseError
+			if errors.As(err, &ce) {
+				sc.eventBuffer <- streamEvent{kind: "closed", code: ce.Code, reason: ce.Reason}
 				return
 			}
 			sc.eventBuffer <- streamEvent{kind: "error", errType: "ProtocolError", text: err.Error()}
 			return
 		}
 
-		switch msgType {
-		case websocket.TextMessage:
+		switch frame.Kind {
+		case StreamFrameText:
 			sc.mu.Lock()
 			sc.messagesRecv++
-			sc.bytesRecv += int64(len(data))
+			sc.bytesRecv += int64(len(frame.Data))
 			sc.mu.Unlock()
-			sc.eventBuffer <- streamEvent{kind: "message", text: string(data)}
-		case websocket.BinaryMessage:
+			sc.eventBuffer <- streamEvent{kind: "message", text: string(frame.Data)}
+		case StreamFrameBinary:
 			sc.mu.Lock()
 			sc.messagesRecv++
-			sc.bytesRecv += int64(len(data))
+			sc.bytesRecv += int64(len(frame.Data))
 			sc.mu.Unlock()
-			sc.eventBuffer <- streamEvent{kind: "binary", data: data}
-		case websocket.PingMessage:
-			sc.eventBuffer <- streamEvent{kind: "ping", data: data}
+			sc.eventBuffer <- streamEvent{kind: "binary", data: frame.Data}
+		case StreamFramePing:
+			sc.eventBuffer <- streamEvent{kind: "ping", data: frame.Data}
 		}
 	}
 }
 
-// closeWS sends a close frame with a deadline, then closes the socket.
+// closeWS runs the transport's close handshake and releases the socket.
 func (sc *StreamConnection) closeWS() {
-	if sc.conn == nil {
+	if sc.transport == nil {
 		return
 	}
-	_ = sc.conn.WriteControl(
-		websocket.CloseMessage,
-		websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""),
-		time.Now().Add(3*time.Second),
-	)
-	_ = sc.conn.Close()
+	_ = sc.transport.Close()
 }
 
 // writeWS writes one text (text=true) or binary frame. Caller holds sc.mu.
 func (sc *StreamConnection) writeWS(text bool, data []byte) error {
-	msgType := websocket.BinaryMessage
+	kind := StreamFrameBinary
 	if text {
-		msgType = websocket.TextMessage
+		kind = StreamFrameText
 	}
-	return sc.conn.WriteMessage(msgType, data)
+	return sc.transport.Send(StreamFrame{Kind: kind, Data: data})
 }

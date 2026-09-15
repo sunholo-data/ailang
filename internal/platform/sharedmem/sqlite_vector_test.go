@@ -1,61 +1,15 @@
-package effects
+package sharedmem
 
 import (
 	"database/sql"
 	"fmt"
-	"math"
+	"github.com/sunholo-data/ailang/internal/effects"
 	"os"
 	"path/filepath"
 	"testing"
 )
 
 // --- Embedding / Vector tests (M-BRAIN-VECTORS M1) ---
-
-func TestEncodeDecodeEmbedding(t *testing.T) {
-	tests := []struct {
-		name string
-		vec  []float32
-	}{
-		{"empty", nil},
-		{"single", []float32{1.0}},
-		{"typical", []float32{0.1, -0.5, 0.9, 0.0, -1.0}},
-		{"zeros", []float32{0, 0, 0, 0}},
-		{"large_dim", func() []float32 {
-			v := make([]float32, 768)
-			for i := range v {
-				v[i] = float32(i) / 768.0
-			}
-			return v
-		}()},
-		{"extremes", []float32{math.MaxFloat32, -math.MaxFloat32, math.SmallestNonzeroFloat32}},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if tt.vec == nil {
-				// nil encodes to empty, decodes to empty slice
-				b := encodeEmbedding(nil)
-				if len(b) != 0 {
-					t.Errorf("expected empty encoding for nil, got %d bytes", len(b))
-				}
-				return
-			}
-			encoded := encodeEmbedding(tt.vec)
-			if len(encoded) != len(tt.vec)*4 {
-				t.Fatalf("expected %d bytes, got %d", len(tt.vec)*4, len(encoded))
-			}
-			decoded := decodeEmbedding(encoded)
-			if len(decoded) != len(tt.vec) {
-				t.Fatalf("expected %d elements, got %d", len(tt.vec), len(decoded))
-			}
-			for i, v := range tt.vec {
-				if decoded[i] != v {
-					t.Errorf("index %d: expected %v, got %v", i, v, decoded[i])
-				}
-			}
-		})
-	}
-}
 
 func TestCosineSimilarityF32(t *testing.T) {
 	tests := []struct {
@@ -131,7 +85,7 @@ func TestSQLiteSharedCache_SchemaMigrationV1toV2(t *testing.T) {
 	}
 
 	// Verify new columns exist and accept data
-	err = cache.PutFrame(BrainFrame{
+	err = cache.PutFrame(effects.BrainFrame{
 		Key: "new_frame", Namespace: "test", Value: []byte("v"),
 		Content: "test", Embedding: []float32{0.1, 0.2, 0.3},
 		EmbedModel: "ollama:gemma",
@@ -219,7 +173,7 @@ func TestSQLiteSharedCache_SearchByEmbedding(t *testing.T) {
 	}
 
 	// Also store a frame WITHOUT embedding
-	err := cache.PutFrame(BrainFrame{
+	err := cache.PutFrame(effects.BrainFrame{
 		Key: "no_embed", Namespace: "test", Value: []byte("v"),
 		Content: "no embedding here", SimHash: 42,
 	})
@@ -283,7 +237,7 @@ func TestSQLiteSharedCache_PutFrameWithEmbedding(t *testing.T) {
 	cache := newTestSQLiteCache(t)
 
 	// Store a frame with both content and embedding
-	err := cache.PutFrame(BrainFrame{
+	err := cache.PutFrame(effects.BrainFrame{
 		Key: "hybrid", Namespace: "learnings", Value: []byte("v"),
 		Content: "Use sync.Pool for hot paths", SimHash: 12345,
 		Embedding: []float32{0.1, 0.2, 0.3, 0.4}, EmbedModel: "gemini",
@@ -327,7 +281,7 @@ func TestSQLiteSharedCache_EmbeddingStats(t *testing.T) {
 	// 2 frames with embedding, 1 without
 	cache.PutVector("v1", "test", []float32{1, 0}, "ollama:gemma", []byte("p"))
 	cache.PutVector("v2", "test", []float32{0, 1}, "gemini", []byte("p"))
-	cache.PutFrame(BrainFrame{Key: "no_emb", Namespace: "test", Value: []byte("v"), Content: "c"})
+	cache.PutFrame(effects.BrainFrame{Key: "no_emb", Namespace: "test", Value: []byte("v"), Content: "c"})
 
 	total, withEmb, models := cache.EmbeddingStats()
 	if total != 3 {

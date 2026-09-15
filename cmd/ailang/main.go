@@ -45,6 +45,9 @@ var (
 )
 
 func main() {
+	// Platform backends behind the core's registration seams (platform_init.go).
+	registerPlatform()
+
 	// Set embedded filesystem for prompts (bundled in binary)
 	// This allows `ailang prompt` and `ailang devtools-prompt` to work from anywhere
 	prompt.SetEmbeddedFS(embeddedPrompts)

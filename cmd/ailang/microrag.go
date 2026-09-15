@@ -428,7 +428,7 @@ func bootstrapResetNamespaces(store *effects.BrainStore, scope effects.BrainScop
 	return nil
 }
 
-func scopeCache(store *effects.BrainStore, scope effects.BrainScope) *effects.SQLiteSharedCache {
+func scopeCache(store *effects.BrainStore, scope effects.BrainScope) effects.BrainCache {
 	switch scope {
 	case effects.ScopeUser:
 		return store.User

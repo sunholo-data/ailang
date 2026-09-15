@@ -37,10 +37,10 @@ func (s StreamStatus) String() string {
 // StreamConnection holds per-connection state for a WebSocket or SSE connection.
 type StreamConnection struct {
 	mu           sync.Mutex
-	conn         wsConn         // WebSocket only (stream_ws.go)
-	httpResp     *http.Response // SSE only: HTTP response for body close
-	protocol     string         // "WebSocket" or "SSE"
-	lastEventID  string         // SSE only: last received id: field
+	transport    StreamTransport // WebSocket only: registered platform transport (stream_ws.go)
+	httpResp     *http.Response  // SSE only: HTTP response for body close
+	protocol     string          // "WebSocket" or "SSE"
+	lastEventID  string          // SSE only: last received id: field
 	status       StreamStatus
 	handler      eval.Value // AILANG handler function (StreamEvent -> bool ! {e})
 	eventBuffer  chan streamEvent

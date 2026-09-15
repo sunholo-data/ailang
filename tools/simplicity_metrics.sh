@@ -46,7 +46,7 @@ command -v go >/dev/null || { echo "go is required" >&2; exit 69; }
 # same roots; keep the two lists identical (the test reads this file's list).
 LANGUAGE_ROOTS="internal/pipeline internal/eval internal/effects internal/builtins internal/format internal/repl internal/prompt internal/loader internal/link internal/lsp internal/vm internal/gen/golang internal/smt"
 # Third-party roots a language binary must not link.
-LEAK_ROOTS="github.com/mattn/go-sqlite3 go.opentelemetry.io google.golang.org/grpc cloud.google.com github.com/ollama/ollama"
+LEAK_ROOTS="github.com/mattn/go-sqlite3 github.com/gorilla/websocket go.opentelemetry.io google.golang.org/grpc cloud.google.com github.com/ollama/ollama"
 # Platform packages the language closure must not reach.
 PLATFORM_PKGS="internal/ai internal/telemetry internal/secrets internal/mcp_client internal/coordinator internal/observatory internal/storage internal/executor internal/eval_harness internal/messaging"
 

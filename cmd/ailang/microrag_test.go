@@ -7,6 +7,7 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/builtins"
 	"github.com/sunholo-data/ailang/internal/effects"
+	"github.com/sunholo-data/ailang/internal/platform/sharedmem"
 )
 
 // TestChunkPromptByH2 verifies the markdown chunker:
@@ -79,7 +80,7 @@ func TestSanitizeKey(t *testing.T) {
 // `builtin-<sanitized-name>` keys.
 func TestBootstrapEmitsBuiltins(t *testing.T) {
 	dir := t.TempDir()
-	cache, err := effects.NewSQLiteSharedCache(filepath.Join(dir, "brain.db"))
+	cache, err := sharedmem.NewSQLiteSharedCache(filepath.Join(dir, "brain.db"))
 	if err != nil {
 		t.Fatalf("NewSQLiteSharedCache: %v", err)
 	}
@@ -119,7 +120,7 @@ func TestBootstrapEmitsBuiltins(t *testing.T) {
 func TestBootstrapGracefulNoOllama(t *testing.T) {
 	dir := t.TempDir()
 	// Open WITHOUT WithEmbedder — simulates Ollama-down scenario.
-	cache, err := effects.NewSQLiteSharedCache(filepath.Join(dir, "brain.db"))
+	cache, err := sharedmem.NewSQLiteSharedCache(filepath.Join(dir, "brain.db"))
 	if err != nil {
 		t.Fatalf("NewSQLiteSharedCache: %v", err)
 	}
