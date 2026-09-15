@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/coordinator"
 )
 
@@ -315,9 +317,14 @@ func checkSecret(ctx context.Context, a *coordinator.AgentConfig) agentCheck {
 		c.Detail = "none configured (uses the fleet token)"
 		return c
 	}
-	project := os.Getenv("AILANG_CLOUD_PROJECT")
-	if project == "" {
-		project = "ailang-multivac"
+	project, err := config.CloudProject(ctx)
+	if errors.Is(err, config.ErrNoCloudProject) {
+		project, err = config.DeprecatedDefault("AILANG_CLOUD_PROJECT", "ailang-multivac")
+	}
+	if err != nil {
+		c.State = stateFail
+		c.Detail = err.Error()
+		return c
 	}
 
 	if out, err := exec.CommandContext(ctx, "gcloud", "secrets", "describe", a.SSHKeySecret,
@@ -460,7 +467,12 @@ func skillVerdict(skill, repo string, wsCode, plCode int) agentCheck {
 // is built once at startup, so routing follows the config loaded then.
 func checkRolled(ctx context.Context) agentCheck {
 	c := agentCheck{Name: "coordinator current"}
-	project, region, service := coordinatorService()
+	project, region, service, err := coordinatorService(ctx)
+	if err != nil {
+		c.State = stateFail
+		c.Detail = err.Error()
+		return c
+	}
 	out, err := exec.CommandContext(ctx, "gcloud", "run", "revisions", "list",
 		"--service", service, "--project", project, "--region", region,
 		"--limit", "1", "--format=value(metadata.creationTimestamp)").CombinedOutput()
@@ -494,7 +506,10 @@ func checkRolled(ctx context.Context) agentCheck {
 
 // configLastModified reads the config object's update time.
 func configLastModified(ctx context.Context) (time.Time, error) {
-	bucket, object := configLocation()
+	bucket, object, err := configLocation(ctx)
+	if err != nil {
+		return time.Time{}, err
+	}
 	out, err := exec.CommandContext(ctx, "gsutil", "stat", fmt.Sprintf("gs://%s/%s", bucket, object)).CombinedOutput()
 	if err != nil {
 		return time.Time{}, err

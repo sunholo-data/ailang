@@ -69,23 +69,16 @@ func openCoordinatorStore(ctx context.Context, remoteFlag, stateDir string) (*co
 		}, nil
 	}
 
-	// Resolve the project BEFORE opening backends: they read it from the
-	// environment and fail with "AILANG_CLOUD_PROJECT must be set", which told
-	// the caller what was missing but never what to set it to — and made
-	// `--remote gcp` alone insufficient to name a plane.
-	project, source := resolveCloudProject(ctx)
-	if project == "" {
-		return nil, errNoCloudProject(mode)
-	}
-	if os.Getenv("AILANG_CLOUD_PROJECT") == "" {
-		// Process-local only. The backends take no project argument, so this is
-		// how a discovered value reaches them; it does not leak to the shell.
-		if err := os.Setenv("AILANG_CLOUD_PROJECT", project); err != nil {
-			return nil, fmt.Errorf("set AILANG_CLOUD_PROJECT for %s plane: %w", mode, err)
-		}
+	// Resolve the project BEFORE opening backends, so the error can say what
+	// to set rather than merely what was missing — and hand it to the backends
+	// EXPLICITLY. This used to os.Setenv the discovered value for the whole
+	// process; the backends now take the project as an argument.
+	project, source, err := resolveCloudProject(ctx, mode)
+	if err != nil {
+		return nil, err
 	}
 
-	backends, err := storage.NewBackendsForMode(ctx, storage.Mode(mode))
+	backends, err := storage.NewBackendsForModeProject(ctx, storage.Mode(mode), project)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open %s coordinator store: %w", mode, err)
 	}

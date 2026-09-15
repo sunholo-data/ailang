@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/storage"
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 // TestMessagesTarget covers the scoped messaging selector. The bug this guards
@@ -72,7 +73,13 @@ func TestMessagesTarget(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			for _, k := range []string{"AILANG_STORAGE", "AILANG_MESSAGES_STORE", "AILANG_CLOUD_PROJECT", "AILANG_MESSAGES_PROJECT"} {
+			// The fallback project now comes from config.CloudProject, which
+			// also reads ~/.ailang/config.yaml and the metadata server — so the
+			// test must isolate those too, or the machine's own pin leaks in.
+			testutil.SetHomeDir(t, t.TempDir())
+			t.Setenv("AILANG_NO_METADATA", "1")
+			for _, k := range []string{"AILANG_STORAGE", "AILANG_MESSAGES_STORE", "AILANG_CLOUD_PROJECT",
+				"GOOGLE_CLOUD_PROJECT", "AILANG_MESSAGES_PROJECT", "AILANG_CONFIG"} {
 				t.Setenv(k, "")
 			}
 			for k, v := range tt.env {
@@ -105,9 +112,8 @@ func TestOpenStoreRejectsUnknownMode(t *testing.T) {
 // TestOpenStoreGCPRequiresProject asserts gcp mode without a project is an error
 // rather than a Firestore client pointed at nothing.
 func TestOpenStoreGCPRequiresProject(t *testing.T) {
+	noCloudIdentity(t)
 	t.Setenv("AILANG_MESSAGES_STORE", "gcp")
-	t.Setenv("AILANG_CLOUD_PROJECT", "")
-	t.Setenv("AILANG_MESSAGES_PROJECT", "")
 
 	if _, err := openStore(); err == nil {
 		t.Fatal("openStore() returned nil error for gcp mode with no project set")

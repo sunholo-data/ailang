@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/approvaltoken"
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/coordinator"
 	"github.com/sunholo-data/ailang/internal/pubsub"
 	"github.com/sunholo-data/ailang/internal/server"
@@ -185,12 +186,14 @@ func serverCommand(args []string) error {
 
 		// Create Pub/Sub subscriber for real-time event streaming.
 		// Dashboard pulls from ailang-events-dashboard and broadcasts via WebSocket.
-		project := os.Getenv("AILANG_CLOUD_PROJECT")
+		project, projErr := config.CloudProject(ctx)
 		topicPrefix := os.Getenv("AILANG_TOPIC_PREFIX")
 		if topicPrefix == "" {
 			topicPrefix = pubsub.DefaultTopicPrefix
 		}
-		if project != "" {
+		if projErr != nil {
+			log.Printf("Warning: no Pub/Sub event streaming: %v", projErr)
+		} else {
 			psClient, psErr := pubsub.NewClient(ctx, project, topicPrefix)
 			if psErr != nil {
 				log.Printf("Warning: Failed to create Pub/Sub client for event streaming: %v", psErr)

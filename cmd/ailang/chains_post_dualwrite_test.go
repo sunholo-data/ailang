@@ -54,8 +54,8 @@ func TestOpenPostTargets_NoCloudIsUnchanged(t *testing.T) {
 // would silently discard the post instead of spooling it — the failure mode the
 // never-block decision exists to prevent.
 func TestOpenPostTargets_BrokenCloudConfigStillReturnsTarget(t *testing.T) {
-	// A genuinely broken config: gcp mode with no project set.
-	t.Setenv("AILANG_CLOUD_PROJECT", "")
+	// A genuinely broken config: gcp mode with no project resolvable.
+	noCloudIdentity(t)
 	spool := filepath.Join(t.TempDir(), "spool.jsonl")
 
 	targets := openPostTargets(context.Background(), spool, "gcp")
@@ -210,12 +210,17 @@ func TestCheckRemoteIsElsewhere_PositiveControls(t *testing.T) {
 		}
 	})
 
-	t.Run("different local directory is accepted", func(t *testing.T) {
-		home := t.TempDir()
-		testutil.SetHomeDir(t, home)
-		t.Setenv("AILANG_STATE_DIR", filepath.Join(t.TempDir(), "remote-state"))
-		if err := checkRemoteIsElsewhere("local"); err != nil {
-			t.Fatalf("distinct local target rejected: %v", err)
+	// There is no "different local directory" arm any more: AILANG_STATE_DIR
+	// moves the LOCAL target too (one resolver, M-V1-SIMPLIFY-S2 M4), so a
+	// local remote target is always this node. The self-target test above
+	// covers it; gcp is the only elsewhere.
+	t.Run("AILANG_STATE_DIR moves both targets, so local is still self", func(t *testing.T) {
+		testutil.SetHomeDir(t, t.TempDir())
+		state := filepath.Join(t.TempDir(), "remote-state")
+		t.Setenv("AILANG_STATE_DIR", state)
+		err := checkRemoteIsElsewhere("local")
+		if err == nil || !strings.Contains(err.Error(), state) {
+			t.Fatalf("err = %v, want self-observatory rejection naming %s", err, state)
 		}
 	})
 }

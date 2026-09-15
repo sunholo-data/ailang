@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/ai"
 	"github.com/sunholo-data/ailang/internal/ai/anthropic"
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/coordinator"
 	"github.com/sunholo-data/ailang/internal/dispatch/cloudrun"
 	"github.com/sunholo-data/ailang/internal/feedbackgate"
@@ -155,16 +157,17 @@ func coordinatorStart(args []string) error {
 	// M-CLOUD-DISPATCH: Create Cloud Run Jobs dispatcher in cloud mode.
 	// Created here (not in coordinator package) to avoid circular imports.
 	if os.Getenv("COORDINATOR_MODE") == "cloud" {
-		projectID := os.Getenv("AILANG_CLOUD_PROJECT")
-		region := os.Getenv("AILANG_CLOUD_REGION")
-		if region == "" {
-			region = "europe-west1"
-		}
+		projectID, projErr := config.CloudProject(ctx)
+		region, regionErr := config.Region()
 		prefix := os.Getenv("AILANG_TOPIC_PREFIX")
 		if prefix == "" {
 			prefix = pubsub.DefaultTopicPrefix
 		}
-		dispatcher, dispErr := cloudrun.NewDispatcher(ctx, projectID, region, prefix)
+		var dispatcher *cloudrun.Dispatcher
+		dispErr := errors.Join(projErr, regionErr)
+		if dispErr == nil {
+			dispatcher, dispErr = cloudrun.NewDispatcher(ctx, projectID, region, prefix)
+		}
 		if dispErr != nil {
 			fmt.Printf("  %s Cloud Run Jobs dispatcher: %v\n", yellow("⚠"), dispErr)
 		} else {

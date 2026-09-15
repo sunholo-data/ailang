@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"cloud.google.com/go/storage"
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/coordinator"
 	"gopkg.in/yaml.v3"
 )
@@ -169,12 +170,19 @@ func isPreconditionFailure(err error) bool {
 
 // defaultConfigBucket/Object locate the shared coordinator config. Overridable
 // so a staging bucket can be targeted without a code change.
-func configLocation() (bucket, object string) {
+//
+// The bucket is derived from the cloud project; with no project resolvable
+// it falls through to the deprecated prod default (D3: a warning now, an
+// error in v1.0.0 — and today under AILANG_STRICT_CONFIG=1).
+func configLocation(ctx context.Context) (bucket, object string, err error) {
 	bucket = os.Getenv("AILANG_CONFIG_BUCKET")
 	if bucket == "" {
-		project := os.Getenv("AILANG_CLOUD_PROJECT")
-		if project == "" {
-			project = "ailang-multivac"
+		project, perr := config.CloudProject(ctx)
+		if errors.Is(perr, config.ErrNoCloudProject) {
+			project, perr = config.DeprecatedDefault("AILANG_CLOUD_PROJECT", "ailang-multivac")
+		}
+		if perr != nil {
+			return "", "", perr
 		}
 		bucket = project + "-ailang-config"
 	}
@@ -182,15 +190,18 @@ func configLocation() (bucket, object string) {
 	if object == "" {
 		object = "config.yaml"
 	}
-	return bucket, object
+	return bucket, object, nil
 }
 
 func newGCSConfigStore(ctx context.Context) (*gcsConfigStore, error) {
+	bucket, object, err := configLocation(ctx)
+	if err != nil {
+		return nil, err
+	}
 	client, err := storage.NewClient(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("create GCS client: %w", err)
 	}
-	bucket, object := configLocation()
 	return &gcsConfigStore{ctx: ctx, client: client, bucket: bucket, object: object}, nil
 }
 

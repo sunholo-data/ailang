@@ -6,23 +6,17 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
-// defaultConfigPath returns the AILANG config file path.
-// Checks AILANG_CONFIG env var first (for Cloud Run), falls back to ~/.ailang/config.yaml.
+// defaultConfigPath returns the AILANG config file path: AILANG_CONFIG (for
+// Cloud Run), else ~/.ailang/config.yaml — resolved by config.FilePath.
 func defaultConfigPath() string {
-	if p := os.Getenv("AILANG_CONFIG"); p != "" {
-		return p
-	}
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return ""
-	}
-	return filepath.Join(homeDir, ".ailang", "config.yaml")
+	return config.FilePath()
 }
 
 // CoordinatorConfig is the coordinator section of the global config file.

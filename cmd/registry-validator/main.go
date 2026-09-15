@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/pkg"
 )
 
@@ -65,7 +66,11 @@ func main() {
 		if col == "" {
 			col = keysCollection
 		}
-		ks, err := newFirestoreKeyStore(ctx, os.Getenv("GOOGLE_CLOUD_PROJECT"), db, col)
+		project, err := config.CloudProject(ctx)
+		if err != nil {
+			log.Fatalf("Scoped keys need a cloud project: %v", err)
+		}
+		ks, err := newFirestoreKeyStore(ctx, project, db, col)
 		if err != nil {
 			log.Fatalf("Failed to create Firestore key store (db=%s): %v", db, err)
 		}

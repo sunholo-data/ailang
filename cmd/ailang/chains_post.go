@@ -51,16 +51,19 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/mission"
 	"github.com/sunholo-data/ailang/internal/observatory"
+	"github.com/sunholo-data/ailang/internal/statedir"
 	"github.com/sunholo-data/ailang/internal/storage"
 )
 
-// defaultSpoolPath returns the mission iteration spool path next to observatory.db.
+// defaultSpoolPath returns the mission iteration spool path next to
+// observatory.db, or "" when no state directory resolves (the spool then
+// refuses to open rather than landing beside the process).
 func defaultSpoolPath() string {
-	home, err := os.UserHomeDir()
+	p, err := statedir.Path("chains-iteration-spool.jsonl")
 	if err != nil {
-		return "chains-iteration-spool.jsonl"
+		return ""
 	}
-	return filepath.Join(home, ".ailang", "state", "chains-iteration-spool.jsonl")
+	return p
 }
 
 // cloudSpoolPath derives the remote target's spool from the local one, so an
@@ -93,6 +96,10 @@ func chainsPostIterationCommand() {
 	spPath := *spoolPath
 	if spPath == "" {
 		spPath = defaultSpoolPath()
+	}
+	if spPath == "" {
+		fmt.Fprintf(os.Stderr, "chains post-iteration: no spool path: set %s (or HOME), or pass --spool\n", statedir.EnvVar)
+		os.Exit(1)
 	}
 
 	ctx := context.Background()
@@ -199,28 +206,23 @@ func openPostTargets(ctx context.Context, spPath, cloudFlag string) []*postTarge
 
 // checkRemoteIsElsewhere rejects a remote target that resolves to the SAME SQLite
 // file as the local one. `local` and `hybrid` both put the observatory in
-// $AILANG_STATE_DIR (default ~/.ailang/state), so without this the command would
-// "dual-write" an iteration into one store twice, and the second write would fail
-// on the pinned ids — loudly, but for a reason nobody would guess. Naming another
-// node's state directory is still allowed; only writing to yourself is not.
+// statedir.Dir() — the very directory the local target writes — so the command
+// would "dual-write" an iteration into one store twice, and the second write
+// would fail on the pinned ids: loudly, but for a reason nobody would guess.
+//
+// Before M-V1-SIMPLIFY-S2 M4 the local target ignored AILANG_STATE_DIR while
+// this check read it, so the variable could name "another node's directory".
+// That was the two-resolver disagreement the audit found; with one resolver
+// there is no such thing as a local remote target. Only gcp is elsewhere.
 func checkRemoteIsElsewhere(mode storage.Mode) error {
 	if mode != storage.ModeLocal && mode != storage.ModeHybrid {
 		return nil
 	}
-	remoteDir := os.Getenv("AILANG_STATE_DIR")
-	if remoteDir == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return fmt.Errorf("cannot resolve the %q remote target's directory: %w", mode, err)
-		}
-		remoteDir = filepath.Join(home, ".ailang", "state")
+	dir, err := statedir.Dir()
+	if err != nil {
+		return fmt.Errorf("cannot resolve the %q remote target's directory: %w", mode, err)
 	}
-	localDir := filepath.Dir(observatory.DefaultDatabasePath())
-	if filepath.Clean(remoteDir) == filepath.Clean(localDir) {
-		return fmt.Errorf("remote target %q resolves to this node's own observatory (%s); "+
-			"use gcp, or point AILANG_STATE_DIR at a different store", mode, localDir)
-	}
-	return nil
+	return fmt.Errorf("remote target %q resolves to this node's own observatory (%s); use gcp", mode, dir)
 }
 
 // writeToTarget posts to one target, spooling on failure, and reports whether the

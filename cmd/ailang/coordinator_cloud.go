@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/executor"
 	"github.com/sunholo-data/ailang/internal/gitexec"
 	// Import to trigger init() registration — same as local coordinator (provider_executor.go)
@@ -67,10 +68,10 @@ func coordinatorExecuteJob(args []string) error {
 	if workspace == "" {
 		workspace = "default"
 	}
-	projectID := os.Getenv("AILANG_CLOUD_PROJECT")
-	if projectID == "" {
-		projectID = os.Getenv("GOOGLE_CLOUD_PROJECT")
-	}
+	// The container's project: the one resolver, which on Cloud Run also has
+	// the metadata server. Unresolvable is reported below, once
+	// publishCompletion exists — it is "" here so the guard can still say so.
+	projectID, projErr := config.CloudProject(context.Background())
 	// Resolved (and verified) below, once publishCompletion exists to report a
 	// bad answer. Deliberately not defaulted here — see resolveContainerProvider.
 	requestedProvider := os.Getenv("AILANG_PROVIDER")
@@ -179,9 +180,9 @@ func coordinatorExecuteJob(args []string) error {
 		publishCompletion("failed", "AILANG_AGENT_ID environment variable is required", "", nil, gitEvidence{}, "")
 		return fmt.Errorf("AILANG_AGENT_ID environment variable is required")
 	}
-	if projectID == "" {
-		publishCompletion("failed", "AILANG_CLOUD_PROJECT or GOOGLE_CLOUD_PROJECT is required", "", nil, gitEvidence{}, "")
-		return fmt.Errorf("AILANG_CLOUD_PROJECT or GOOGLE_CLOUD_PROJECT is required")
+	if projErr != nil {
+		publishCompletion("failed", projErr.Error(), "", nil, gitEvidence{}, "")
+		return projErr
 	}
 
 	// Settle which executor runs, and prove it can, BEFORE cloning the repo.
@@ -358,7 +359,11 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 	// recovery.
 	deployKeyRepo := ""
 	if sshDeployKeyRequested() {
-		alias, keyErr := configureSSHDeployKey(ctx, os.Getenv("AILANG_CLOUD_PROJECT"))
+		keyProject, keyErr := config.CloudProject(ctx)
+		if keyErr != nil {
+			return "", nil, gitEvidence{}, fmt.Errorf("ssh deploy key: %w", keyErr)
+		}
+		alias, keyErr := configureSSHDeployKey(ctx, keyProject)
 		if keyErr != nil {
 			return "", nil, gitEvidence{}, fmt.Errorf("ssh deploy key: %w", keyErr)
 		}
