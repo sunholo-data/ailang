@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/eval_analysis"
+	"github.com/sunholo-data/ailang/internal/strutil"
 )
 
 // printTagsSection emits a per-tag breakdown table for all eval languages
@@ -27,7 +28,7 @@ func printTagsSection(results []*eval_analysis.BenchmarkResult, benchmarkDir str
 			langSet[lang] = true
 		}
 	}
-	langs := sortedKeys(langSet)
+	langs := strutil.SortedKeys(langSet)
 
 	// Preferred display order: ailang first, then python, then alphabetical.
 	preferred := []string{"ailang", "python"}
@@ -126,16 +127,6 @@ func printAILANGWinsSection(results []*eval_analysis.BenchmarkResult) {
 			fmt.Printf("- `%s` (%d models)\n", id, report.PerBenchmark[id])
 		}
 	}
-}
-
-// sortedKeys returns the sorted keys of a string bool map.
-func sortedKeys(m map[string]bool) []string {
-	out := make([]string, 0, len(m))
-	for k := range m {
-		out = append(out, k)
-	}
-	sort.Strings(out)
-	return out
 }
 
 // reorderLangs moves preferred languages to the front (in order), with

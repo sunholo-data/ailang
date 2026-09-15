@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"math"
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/strutil"
 )
 
 // formatOverhead renders a CostOverheadVsBest / TokenOverheadVsBest ratio
@@ -48,7 +50,7 @@ func FormatSweetSpotText(report SweetSpotReport, useColor bool) string {
 		if row.Harness != "" && row.Harness != row.Model {
 			label = row.Model + " · " + row.Harness
 		}
-		label = truncate(label, 38)
+		label = strutil.Truncate(label, 38)
 		sb.WriteString(fmt.Sprintf("%-38s %5.1f%% %7.1fs %7.0f %9.4f$ %7s %8s %5d %5d %5d %5d\n",
 			label,
 			row.PassRate*100,
@@ -89,7 +91,7 @@ func FormatSweetSpotText(report SweetSpotReport, useColor bool) string {
 				continue
 			}
 			sb.WriteString(fmt.Sprintf("%-38s %6d %6d %6d %6d %6d %6d\n",
-				truncate(row.Model, 38),
+				strutil.Truncate(row.Model, 38),
 				row.CostKilledCount, row.StepExhaustedCount, row.TimeoutCount,
 				row.QuotaCount, row.RateLimitCount, row.APIErrorCount))
 		}
@@ -110,10 +112,10 @@ func FormatSweetSpotText(report SweetSpotReport, useColor bool) string {
 			"Benchmark", "Cheapest", "$/win", "Fastest", "TTS"))
 		for _, c := range report.Champions {
 			sb.WriteString(fmt.Sprintf("%-28s %-30s %8.4f$ %-30s %6.1fs\n",
-				truncate(c.BenchmarkID, 28),
-				truncate(c.CheapestModel, 30),
+				strutil.Truncate(c.BenchmarkID, 28),
+				strutil.Truncate(c.CheapestModel, 30),
 				c.CheapestCost,
-				truncate(c.FastestModel, 30),
+				strutil.Truncate(c.FastestModel, 30),
 				c.FastestTTSMs/1000))
 		}
 	}
@@ -314,7 +316,7 @@ func FormatCostSpeedFrontier(report SweetSpotReport, useColor bool) string {
 			paretoFlag = "dominated"
 		}
 		sb.WriteString(fmt.Sprintf(" %c  %-38s %9.4f$ %8.1fs  %s\n",
-			ch, truncate(p.label, 38), p.costUSD, p.ttsSec, paretoFlag))
+			ch, strutil.Truncate(p.label, 38), p.costUSD, p.ttsSec, paretoFlag))
 	}
 	return sb.String()
 }

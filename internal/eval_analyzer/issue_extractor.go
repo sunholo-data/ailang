@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/strutil"
 )
 
 // ErrorPattern represents a recognized error pattern with extraction rules
@@ -162,7 +164,7 @@ func (e *ErrorExtractor) Extract(stderr, code string) *ParsedError {
 	return &ParsedError{
 		Pattern:  "unknown",
 		Category: "unknown_error",
-		Context:  truncate(stderr, 200),
+		Context:  strutil.Truncate(stderr, 200+3), // N+3: the old local truncate kept N chars THEN appended "..."
 		Metadata: make(map[string]string),
 	}
 }
@@ -201,7 +203,7 @@ func extractContext(code, stderr string) string {
 		return strings.Join(significant, "\n")
 	}
 
-	return truncate(code, 500)
+	return strutil.Truncate(code, 500+3)
 }
 
 // generateSuggestion provides a fix suggestion based on the error pattern

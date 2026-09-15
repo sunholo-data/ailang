@@ -8,6 +8,7 @@ import (
 	"sort"
 
 	"github.com/sunholo-data/ailang/internal/eval_harness"
+	"github.com/sunholo-data/ailang/internal/strutil"
 )
 
 // LoadResults loads all benchmark results from a directory
@@ -204,7 +205,7 @@ func ListBaselines() ([]string, error) {
 		if entry.IsDir() {
 			// Check if it contains baseline.json or any result files
 			dir := filepath.Join(baselinesDir, entry.Name())
-			hasMetadata := fileExists(filepath.Join(dir, "baseline.json"))
+			hasMetadata := strutil.FileExists(filepath.Join(dir, "baseline.json"))
 			hasResults := hasJSONFiles(dir)
 
 			if hasMetadata || hasResults {
@@ -275,11 +276,6 @@ func Filter(results []*BenchmarkResult, filter ResultFilter) []*BenchmarkResult 
 }
 
 // Helper functions
-
-func fileExists(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
-}
 
 func hasJSONFiles(dir string) bool {
 	found := false
