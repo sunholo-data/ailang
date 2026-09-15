@@ -11,9 +11,11 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/coordinator"
 	"github.com/sunholo-data/ailang/internal/messaging"
 	"github.com/sunholo-data/ailang/internal/observatory"
+	"github.com/sunholo-data/ailang/internal/statedir"
 	fsstore "github.com/sunholo-data/ailang/internal/storage/firestore"
 )
 
@@ -84,31 +86,43 @@ func NewBackendsForMode(ctx context.Context, mode Mode) (*Backends, error) {
 	switch mode {
 	case ModeLocal, "":
 		return NewSQLiteBackends()
-	case ModeGCP:
-		return NewGCPBackends(ctx)
-	case ModeHybrid:
-		return NewHybridBackends(ctx)
+	case ModeGCP, ModeHybrid:
+		project, err := config.CloudProject(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("AILANG_STORAGE=%s: %w", mode, err)
+		}
+		return NewBackendsForModeProject(ctx, mode, project)
 	default:
 		return nil, fmt.Errorf("unknown AILANG_STORAGE mode: %q (valid: local, gcp, hybrid)", mode)
 	}
 }
 
-// stateDir returns the AILANG state directory for database files.
-func stateDir() string {
-	dir := os.Getenv("AILANG_STATE_DIR")
-	if dir != "" {
-		return dir
+// NewBackendsForModeProject is NewBackendsForMode with the cloud project
+// supplied by the caller instead of resolved through config.CloudProject. It
+// exists for the one caller that discovers the project by a wider search than
+// the resolver performs (`ailang coordinator --remote`, which also accepts the
+// messaging plane's pin) and used to hand the answer down by mutating the
+// process environment. Plumbing it is the honest alternative.
+func NewBackendsForModeProject(ctx context.Context, mode Mode, project string) (*Backends, error) {
+	switch mode {
+	case ModeLocal, "":
+		return NewSQLiteBackends()
+	case ModeGCP:
+		return NewGCPBackendsForProject(ctx, project)
+	case ModeHybrid:
+		return NewHybridBackendsForProject(ctx, project)
+	default:
+		return nil, fmt.Errorf("unknown AILANG_STORAGE mode: %q (valid: local, gcp, hybrid)", mode)
 	}
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return filepath.Join(".ailang", "state")
-	}
-	return filepath.Join(home, ".ailang", "state")
 }
 
-// NewSQLiteBackends creates all three backends using local SQLite databases.
+// NewSQLiteBackends creates all three backends using local SQLite databases
+// under statedir.Dir().
 func NewSQLiteBackends() (*Backends, error) {
-	dir := stateDir()
+	dir, err := statedir.Dir()
+	if err != nil {
+		return nil, err
+	}
 
 	// Ensure state directory exists
 	if err := os.MkdirAll(dir, 0755); err != nil {
@@ -143,16 +157,24 @@ func NewSQLiteBackends() (*Backends, error) {
 	}, nil
 }
 
-// NewGCPBackends creates all three backends using GCP services (Firestore).
-// Requires AILANG_CLOUD_PROJECT to be set.
+// NewGCPBackends creates all three backends using GCP services (Firestore)
+// in the project config.CloudProject resolves.
 func NewGCPBackends(ctx context.Context) (*Backends, error) {
-	project := os.Getenv("AILANG_CLOUD_PROJECT")
+	project, err := config.CloudProject(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("AILANG_STORAGE=gcp: %w", err)
+	}
+	return NewGCPBackendsForProject(ctx, project)
+}
+
+// NewGCPBackendsForProject is NewGCPBackends for an explicit project.
+func NewGCPBackendsForProject(ctx context.Context, project string) (*Backends, error) {
 	if project == "" {
-		return nil, fmt.Errorf("AILANG_CLOUD_PROJECT must be set for AILANG_STORAGE=gcp")
+		return nil, fmt.Errorf("AILANG_STORAGE=gcp: %w", config.ErrNoCloudProject)
 	}
 
 	// Firestore client (shared by coordinator and messaging)
-	fsClient, err := fsstore.NewClient(ctx)
+	fsClient, err := fsstore.NewClientForProject(ctx, project)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Firestore client (project: %s): %w", project, err)
 	}
@@ -175,14 +197,26 @@ func NewGCPBackends(ctx context.Context) (*Backends, error) {
 }
 
 // NewHybridBackends creates a hybrid setup: SQLite for coordinator/messaging,
-// BigQuery for observatory (analytics scale).
+// BigQuery for observatory (analytics scale), in the project
+// config.CloudProject resolves.
 func NewHybridBackends(ctx context.Context) (*Backends, error) {
-	project := os.Getenv("AILANG_CLOUD_PROJECT")
+	project, err := config.CloudProject(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("AILANG_STORAGE=hybrid: %w", err)
+	}
+	return NewHybridBackendsForProject(ctx, project)
+}
+
+// NewHybridBackendsForProject is NewHybridBackends for an explicit project.
+func NewHybridBackendsForProject(_ context.Context, project string) (*Backends, error) {
 	if project == "" {
-		return nil, fmt.Errorf("AILANG_CLOUD_PROJECT must be set for AILANG_STORAGE=hybrid")
+		return nil, fmt.Errorf("AILANG_STORAGE=hybrid: %w", config.ErrNoCloudProject)
 	}
 
-	dir := stateDir()
+	dir, err := statedir.Dir()
+	if err != nil {
+		return nil, err
+	}
 
 	// Ensure state directory exists
 	if err := os.MkdirAll(dir, 0755); err != nil {

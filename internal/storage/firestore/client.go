@@ -4,11 +4,12 @@ package firestore
 import (
 	"context"
 	"fmt"
-	"os"
 	"time"
 
 	"cloud.google.com/go/firestore"
 	"google.golang.org/api/iterator"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // Client wraps a Firestore client with project-specific configuration.
@@ -17,12 +18,12 @@ type Client struct {
 	projectID string
 }
 
-// NewClient creates a new Firestore client using Application Default Credentials.
-// Requires AILANG_CLOUD_PROJECT to be set.
+// NewClient creates a new Firestore client using Application Default
+// Credentials in the project config.CloudProject resolves.
 func NewClient(ctx context.Context) (*Client, error) {
-	projectID := os.Getenv("AILANG_CLOUD_PROJECT")
-	if projectID == "" {
-		return nil, fmt.Errorf("AILANG_CLOUD_PROJECT must be set for Firestore backend")
+	projectID, err := config.CloudProject(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("firestore backend: %w", err)
 	}
 	return NewClientForProject(ctx, projectID)
 }

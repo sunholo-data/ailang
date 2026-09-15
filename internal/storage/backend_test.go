@@ -2,9 +2,13 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/sunholo-data/ailang/internal/config"
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 func TestGetMode(t *testing.T) {
@@ -93,23 +97,45 @@ func TestNewBackendsUnknownMode(t *testing.T) {
 	}
 }
 
-func TestNewGCPBackendsRequiresProject(t *testing.T) {
-	os.Unsetenv("AILANG_CLOUD_PROJECT")
+// noCloudProject isolates a test from every source config.CloudProject reads:
+// both env vars, the user's config file (via a fixture home) and the metadata
+// server.
+func noCloudProject(t *testing.T) {
+	t.Helper()
+	testutil.SetHomeDir(t, t.TempDir())
+	t.Setenv(config.EnvCloudProject, "")
+	t.Setenv(config.EnvGoogleCloudProject, "")
+	t.Setenv(config.EnvConfigFile, "")
+	t.Setenv(config.EnvNoMetadata, "1")
+}
 
-	ctx := context.Background()
-	_, err := NewGCPBackends(ctx)
-	if err == nil {
-		t.Error("Expected error when AILANG_CLOUD_PROJECT is not set")
+func TestNewGCPBackendsRequiresProject(t *testing.T) {
+	noCloudProject(t)
+
+	_, err := NewGCPBackends(context.Background())
+	if !errors.Is(err, config.ErrNoCloudProject) {
+		t.Errorf("err = %v, want config.ErrNoCloudProject when no project resolves", err)
+	}
+	if _, err := NewGCPBackendsForProject(context.Background(), ""); !errors.Is(err, config.ErrNoCloudProject) {
+		t.Errorf("explicit empty project: err = %v, want config.ErrNoCloudProject", err)
 	}
 }
 
 func TestNewHybridBackendsRequiresProject(t *testing.T) {
-	os.Unsetenv("AILANG_CLOUD_PROJECT")
+	noCloudProject(t)
 
-	ctx := context.Background()
-	_, err := NewHybridBackends(ctx)
-	if err == nil {
-		t.Error("Expected error when AILANG_CLOUD_PROJECT is not set")
+	_, err := NewHybridBackends(context.Background())
+	if !errors.Is(err, config.ErrNoCloudProject) {
+		t.Errorf("err = %v, want config.ErrNoCloudProject when no project resolves", err)
+	}
+}
+
+func TestNewSQLiteBackendsFailsWithoutAnyStateDir(t *testing.T) {
+	testutil.SetHomeDir(t, "")
+	t.Setenv("AILANG_STATE_DIR", "")
+
+	if _, err := NewSQLiteBackends(); err == nil {
+		t.Fatal("expected an error, not a relative .ailang/state fallback, when neither AILANG_STATE_DIR nor HOME resolves")
 	}
 }
 
