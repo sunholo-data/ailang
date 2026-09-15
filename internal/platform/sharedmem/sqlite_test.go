@@ -1,6 +1,7 @@
-package effects
+package sharedmem
 
 import (
+	"github.com/sunholo-data/ailang/internal/effects"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -183,7 +184,7 @@ func TestSQLiteSharedCache_Persistence(t *testing.T) {
 func TestSQLiteSharedCache_PutFrame(t *testing.T) {
 	cache := newTestSQLiteCache(t)
 
-	f := BrainFrame{
+	f := effects.BrainFrame{
 		Key:       "test_frame",
 		Namespace: "resolutions",
 		Value:     []byte(`{"content": "fix bug"}`),
@@ -209,7 +210,7 @@ func TestSQLiteSharedCache_SearchBySimHash(t *testing.T) {
 	cache := newTestSQLiteCache(t)
 
 	// Store frames with known SimHash values
-	frames := []BrainFrame{
+	frames := []effects.BrainFrame{
 		{Key: "f1", Namespace: "test", Value: []byte("v1"), SimHash: 0x0000000000000000, Content: "frame 1"},
 		{Key: "f2", Namespace: "test", Value: []byte("v2"), SimHash: 0x0000000000000001, Content: "frame 2"},  // 1 bit diff from f1
 		{Key: "f3", Namespace: "test", Value: []byte("v3"), SimHash: 0x00000000000000FF, Content: "frame 3"},  // 8 bits diff
@@ -246,7 +247,7 @@ func TestSQLiteSharedCache_SearchBySimHash(t *testing.T) {
 func TestSQLiteSharedCache_SearchByText(t *testing.T) {
 	cache := newTestSQLiteCache(t)
 
-	frames := []BrainFrame{
+	frames := []effects.BrainFrame{
 		{Key: "f1", Namespace: "test", Value: []byte("v1"), Content: "Fix the parser crash on nested records"},
 		{Key: "f2", Namespace: "test", Value: []byte("v2"), Content: "Add new stdlib function for string splitting"},
 		{Key: "f3", Namespace: "test", Value: []byte("v3"), Content: "Parser improvement for effect annotations"},
@@ -273,7 +274,7 @@ func TestSQLiteSharedCache_ListRecent(t *testing.T) {
 	cache := newTestSQLiteCache(t)
 
 	now := time.Now().UnixMilli()
-	frames := []BrainFrame{
+	frames := []effects.BrainFrame{
 		{Key: "old", Namespace: "test", Value: []byte("v1"), Content: "old", CreatedAt: now - 3000, UpdatedAt: now - 3000},
 		{Key: "mid", Namespace: "test", Value: []byte("v2"), Content: "mid", CreatedAt: now - 2000, UpdatedAt: now - 2000},
 		{Key: "new", Namespace: "test", Value: []byte("v3"), Content: "new", CreatedAt: now - 1000, UpdatedAt: now - 1000},
@@ -300,7 +301,7 @@ func TestSQLiteSharedCache_GarbageCollect(t *testing.T) {
 	expired := now - 1000 // 1 second ago
 	future := now + 60000 // 1 minute from now
 
-	frames := []BrainFrame{
+	frames := []effects.BrainFrame{
 		{Key: "expired", Namespace: "test", Value: []byte("v1"), Content: "expired", ExpiresAt: &expired},
 		{Key: "alive", Namespace: "test", Value: []byte("v2"), Content: "alive", ExpiresAt: &future},
 		{Key: "permanent", Namespace: "test", Value: []byte("v3"), Content: "permanent"}, // no expiry
@@ -326,7 +327,7 @@ func TestSQLiteSharedCache_GarbageCollect(t *testing.T) {
 func TestSQLiteSharedCache_Stats(t *testing.T) {
 	cache := newTestSQLiteCache(t)
 
-	frames := []BrainFrame{
+	frames := []effects.BrainFrame{
 		{Key: "f1", Namespace: "resolutions", Value: []byte("v1"), Content: "fix"},
 		{Key: "f2", Namespace: "resolutions", Value: []byte("v2"), Content: "fix"},
 		{Key: "f3", Namespace: "code-context", Value: []byte("v3"), Content: "ctx"},
@@ -378,145 +379,6 @@ func TestSQLiteSharedCache_ConcurrentAccess(t *testing.T) {
 	// Verify cache is consistent
 	if cache.Len() > goroutines {
 		t.Errorf("more keys than goroutines: %d", cache.Len())
-	}
-}
-
-// --- BrainStore two-tier tests ---
-
-func TestBrainStore_TwoTier(t *testing.T) {
-	dir := t.TempDir()
-	userDB := filepath.Join(dir, "user_brain.db")
-	projectDB := filepath.Join(dir, "project_brain.db")
-
-	store, err := NewBrainStore(userDB, projectDB)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer store.Close()
-
-	// Write to project (default)
-	if err := store.Put(BrainFrame{
-		Key: "proj_frame", Namespace: "resolutions", Value: []byte("project fix"),
-		SimHash: 100, Content: "Fix parser crash",
-	}, ScopeProject); err != nil {
-		t.Fatal(err)
-	}
-
-	// Write to user
-	if err := store.Put(BrainFrame{
-		Key: "user_frame", Namespace: "patterns", Value: []byte("Go pattern"),
-		SimHash: 200, Content: "Always use sync.Pool for allocations",
-	}, ScopeUser); err != nil {
-		t.Fatal(err)
-	}
-
-	// Search both — project should rank higher
-	results := store.Search("resolutions", 100, 10, ScopeBoth)
-	if len(results) != 1 {
-		t.Fatalf("expected 1 result, got %d", len(results))
-	}
-	if results[0].Tier != "project" {
-		t.Errorf("expected project tier, got %s", results[0].Tier)
-	}
-
-	// Search user only
-	results = store.Search("patterns", 200, 10, ScopeUser)
-	if len(results) != 1 {
-		t.Fatalf("expected 1 result from user, got %d", len(results))
-	}
-	if results[0].Tier != "user" {
-		t.Errorf("expected user tier, got %s", results[0].Tier)
-	}
-}
-
-func TestBrainStore_Promote(t *testing.T) {
-	dir := t.TempDir()
-	store, err := NewBrainStore(
-		filepath.Join(dir, "user.db"),
-		filepath.Join(dir, "project.db"),
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer store.Close()
-
-	// Store in project
-	if err := store.Put(BrainFrame{
-		Key: "promote_me", Namespace: "learnings", Value: []byte("useful insight"),
-		Content: "This pattern applies everywhere", Source: "cli",
-	}, ScopeProject); err != nil {
-		t.Fatal(err)
-	}
-
-	// Promote to user
-	if !store.Promote("promote_me") {
-		t.Fatal("promote should succeed")
-	}
-
-	// Verify it exists in user brain
-	val, ok := store.User.Get("promote_me")
-	if !ok {
-		t.Fatal("promoted frame should exist in user brain")
-	}
-	if string(val) != "useful insight" {
-		t.Errorf("unexpected value: %s", val)
-	}
-
-	// Promote non-existent should fail
-	if store.Promote("nonexistent") {
-		t.Error("promote of nonexistent key should return false")
-	}
-}
-
-func TestBrainStore_Stats(t *testing.T) {
-	dir := t.TempDir()
-	store, err := NewBrainStore(
-		filepath.Join(dir, "user.db"),
-		filepath.Join(dir, "project.db"),
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer store.Close()
-
-	store.Put(BrainFrame{Key: "u1", Namespace: "patterns", Value: []byte("v"), Content: "c"}, ScopeUser)
-	store.Put(BrainFrame{Key: "p1", Namespace: "resolutions", Value: []byte("v"), Content: "c"}, ScopeProject)
-	store.Put(BrainFrame{Key: "p2", Namespace: "resolutions", Value: []byte("v"), Content: "c"}, ScopeProject)
-
-	stats := store.Stats()
-	if stats["user"].TotalFrames != 1 {
-		t.Errorf("expected 1 user frame, got %d", stats["user"].TotalFrames)
-	}
-	if stats["project"].TotalFrames != 2 {
-		t.Errorf("expected 2 project frames, got %d", stats["project"].TotalFrames)
-	}
-}
-
-func TestBrainStore_NilTier(t *testing.T) {
-	dir := t.TempDir()
-
-	// Project only (no user brain)
-	store, err := NewBrainStore("", filepath.Join(dir, "project.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer store.Close()
-
-	if store.User != nil {
-		t.Error("user should be nil")
-	}
-
-	// Put should work (falls back to project)
-	if err := store.Put(BrainFrame{
-		Key: "f1", Namespace: "test", Value: []byte("v"), Content: "c",
-	}, ScopeProject); err != nil {
-		t.Fatal(err)
-	}
-
-	// Search should work with only one tier
-	results := store.Search("test", 0, 10, ScopeBoth)
-	if len(results) != 1 {
-		t.Errorf("expected 1 result, got %d", len(results))
 	}
 }
 

@@ -288,8 +288,10 @@ func TestPromptCommand_EndsWithNewline(t *testing.T) {
 	}
 }
 
-// TestMain ensures we're running from project root
+// TestMain ensures we're running from project root and wires the platform
+// backends the way main does (tests never call main).
 func TestMain(m *testing.M) {
+	registerPlatform()
 	// Check if we're in the project root
 	if _, err := os.Stat("prompts/versions.json"); os.IsNotExist(err) {
 		// Try to find project root

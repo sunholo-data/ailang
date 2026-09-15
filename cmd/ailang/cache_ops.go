@@ -300,7 +300,7 @@ func runCacheExport(args []string) {
 
 	for _, tier := range []struct {
 		name  string
-		cache *effects.SQLiteSharedCache
+		cache effects.BrainCache
 	}{
 		{"project", store.Project},
 		{"user", store.User},
@@ -449,7 +449,7 @@ func runCacheEmbed(args []string) {
 	sc := parseScope(*scope)
 	for _, tier := range []struct {
 		name  string
-		cache *effects.SQLiteSharedCache
+		cache effects.BrainCache
 	}{
 		{"project", store.Project},
 		{"user", store.User},

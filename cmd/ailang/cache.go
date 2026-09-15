@@ -230,7 +230,7 @@ func runCacheShow(args []string) {
 	// Try project first, then user
 	for _, tier := range []struct {
 		name  string
-		cache *effects.SQLiteSharedCache
+		cache effects.BrainCache
 	}{
 		{"project", store.Project},
 		{"user", store.User},
@@ -324,7 +324,7 @@ func runCacheGC(args []string) {
 
 	for _, tier := range []struct {
 		name  string
-		cache *effects.SQLiteSharedCache
+		cache effects.BrainCache
 	}{
 		{"project", store.Project},
 		{"user", store.User},
@@ -384,7 +384,7 @@ func runCacheDeleteNamespace(args []string) {
 	for _, tier := range []struct {
 		name  string
 		match bool
-		cache *effects.SQLiteSharedCache
+		cache effects.BrainCache
 	}{
 		{"project", *scope == "project" || *scope == "both", store.Project},
 		{"user", *scope == "user" || *scope == "both", store.User},

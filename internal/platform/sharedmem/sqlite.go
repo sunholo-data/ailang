@@ -1,11 +1,16 @@
-// Package effects provides SQLiteSharedCache, a persistent SharedCache backed by SQLite.
-// Part of M-BRAIN (Persistent Semantic Cache).
-package effects
+// Package sharedmem is the SQLite implementation of the language core's
+// persistent SharedCache / BrainCache seam (internal/effects).
+//
+// The core defines the contract, the frame types and the option surface and
+// never links cgo sqlite; this package implements them and the binary
+// registers it once at startup via Register (cmd/ailang/platform_init.go).
+// Part of M-BRAIN (Persistent Semantic Cache) and M-V1-SIMPLIFICATION-PROGRAM
+// Phase 1.3 (the core is a leaf of the platform).
+package sharedmem
 
 import (
 	"bytes"
 	"database/sql"
-	"encoding/binary"
 	"fmt"
 	"math"
 	"os"
@@ -13,18 +18,28 @@ import (
 	"sort"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/effects"
 	"github.com/sunholo-data/ailang/internal/embedprefix"
 
 	_ "github.com/mattn/go-sqlite3"
 )
 
-// Embedder is the interface for generating text embeddings.
-// Matches messaging.Embedder but defined here to avoid circular imports.
-type Embedder interface {
-	Embed(text string) ([]float32, error)
-	EmbedBatch(texts []string) ([][]float32, error)
-	Dimension() int
-	ModelName() string
+// Compile-time check: the SQLite cache satisfies the core's seam.
+var _ effects.BrainCache = (*SQLiteSharedCache)(nil)
+
+// Register installs this package as the persistent SharedCache backend.
+func Register() {
+	effects.RegisterSharedCacheOpener(Open)
+}
+
+// Open is the effects.SharedCacheOpener for SQLite. A nil *SQLiteSharedCache
+// is never returned as a non-nil interface.
+func Open(dbPath string, opts ...effects.CacheOption) (effects.BrainCache, error) {
+	c, err := NewSQLiteSharedCache(dbPath, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return c, nil
 }
 
 // SQLiteSharedCache is a persistent implementation of SharedCache backed by SQLite.
@@ -42,19 +57,7 @@ type Embedder interface {
 //   - WAL mode, NORMAL synchronous, 5s busy timeout, 64MB cache
 type SQLiteSharedCache struct {
 	db       *sql.DB
-	embedder Embedder // optional, for auto-embedding on PutFrame
-}
-
-// CacheOption configures a SQLiteSharedCache after creation.
-type CacheOption func(*SQLiteSharedCache)
-
-// WithEmbedder sets an embedder for auto-embedding on PutFrame.
-// When set, PutFrame will automatically compute and store embeddings
-// for frames that have content but no embedding.
-func WithEmbedder(e Embedder) CacheOption {
-	return func(c *SQLiteSharedCache) {
-		c.embedder = e
-	}
+	embedder effects.Embedder // optional, for auto-embedding on PutFrame
 }
 
 const brainSchemaVersion = "2.0.0"
@@ -63,8 +66,8 @@ const brainSchemaVersion = "2.0.0"
 //
 // The database is configured with WAL mode and the same pragmas as the messaging system.
 // If the database doesn't exist, it is created with the brain_frames schema.
-// Optional CacheOption values can configure the cache (e.g., WithEmbedder).
-func NewSQLiteSharedCache(dbPath string, opts ...CacheOption) (*SQLiteSharedCache, error) {
+// Optional effects.CacheOption values can configure the cache (e.g., WithEmbedder).
+func NewSQLiteSharedCache(dbPath string, opts ...effects.CacheOption) (*SQLiteSharedCache, error) {
 	dbDir := filepath.Dir(dbPath)
 	if err := os.MkdirAll(dbDir, 0755); err != nil {
 		return nil, fmt.Errorf("brain: failed to create directory %s: %w", dbDir, err)
@@ -101,11 +104,8 @@ func NewSQLiteSharedCache(dbPath string, opts ...CacheOption) (*SQLiteSharedCach
 		return nil, fmt.Errorf("brain: schema creation failed: %w", err)
 	}
 
-	cache := &SQLiteSharedCache{db: db}
-	for _, opt := range opts {
-		opt(cache)
-	}
-	return cache, nil
+	o := effects.ResolveCacheOptions(opts...)
+	return &SQLiteSharedCache{db: db, embedder: o.Embedder}, nil
 }
 
 func createBrainSchema(db *sql.DB) error {
@@ -289,35 +289,11 @@ func (c *SQLiteSharedCache) Close() error {
 
 // --- Extended methods for brain-specific operations ---
 
-// BrainFrame represents a frame stored in the brain with its metadata.
-type BrainFrame struct {
-	Key          string
-	Namespace    string
-	Value        []byte
-	SimHash      int64
-	Content      string
-	Version      int
-	CreatedAt    int64
-	UpdatedAt    int64
-	ExpiresAt    *int64
-	Source       string
-	Embedding    []float32 // optional embedding vector
-	EmbeddingDim int       // dimension of embedding (0 if none)
-	EmbedModel   string    // model that produced the embedding
-}
-
-// SearchResult represents a search hit with a relevance score.
-type BrainSearchResult struct {
-	Frame BrainFrame
-	Score float64
-	Tier  string // "user" or "project"
-}
-
 // PutFrame stores a frame with full metadata.
 // If an embedder is configured (via WithEmbedder) and the frame has content
-// but no embedding, the embedding is computed automatically. Embedder errors
+// but no embedding, the embedding is computed automatically. effects.Embedder errors
 // are silently ignored — the frame is stored with SimHash only.
-func (c *SQLiteSharedCache) PutFrame(f BrainFrame) error {
+func (c *SQLiteSharedCache) PutFrame(f effects.BrainFrame) error {
 	now := time.Now().UnixMilli()
 	if f.CreatedAt == 0 {
 		f.CreatedAt = now
@@ -340,12 +316,12 @@ func (c *SQLiteSharedCache) PutFrame(f BrainFrame) error {
 			f.EmbeddingDim = len(emb)
 			f.EmbedModel = c.embedder.ModelName()
 		}
-		// Embedder errors silently ignored — falls back to SimHash only
+		// effects.Embedder errors silently ignored — falls back to SimHash only
 	}
 
 	var embBlob []byte
 	if len(f.Embedding) > 0 {
-		embBlob = encodeEmbedding(f.Embedding)
+		embBlob = effects.EncodeEmbedding(f.Embedding)
 		f.EmbeddingDim = len(f.Embedding)
 	}
 
@@ -364,10 +340,31 @@ func (c *SQLiteSharedCache) PutFrame(f BrainFrame) error {
 	return err
 }
 
+// GetFrame reads one frame with full metadata. Returns (nil, false) when the
+// key is absent or the row cannot be scanned.
+func (c *SQLiteSharedCache) GetFrame(key string) (*effects.BrainFrame, bool) {
+	rows, err := c.db.Query(
+		`SELECT key, namespace, value, simhash, content, version, created_at, updated_at, expires_at, source, embedding, embedding_dim, embed_model
+		 FROM brain_frames WHERE key = ?`, key,
+	)
+	if err != nil {
+		return nil, false
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		return nil, false
+	}
+	f := scanBrainFrame(rows)
+	if f == nil {
+		return nil, false
+	}
+	return f, true
+}
+
 // PutVector stores a frame with an embedding but no text content.
 // Used for machine-to-machine vector communication.
 func (c *SQLiteSharedCache) PutVector(key, namespace string, embedding []float32, model string, payload []byte) error {
-	f := BrainFrame{
+	f := effects.BrainFrame{
 		Key:          key,
 		Namespace:    namespace,
 		Value:        payload,
@@ -381,7 +378,7 @@ func (c *SQLiteSharedCache) PutVector(key, namespace string, embedding []float32
 
 // SearchBySimHash finds frames with similar SimHash values in a given namespace.
 // Returns results sorted by score descending, key ascending (deterministic).
-func (c *SQLiteSharedCache) SearchBySimHash(namespace string, queryHash int64, limit int) []BrainSearchResult {
+func (c *SQLiteSharedCache) SearchBySimHash(namespace string, queryHash int64, limit int) []effects.BrainSearchResult {
 	var rows *sql.Rows
 	var err error
 	if namespace != "" {
@@ -401,7 +398,7 @@ func (c *SQLiteSharedCache) SearchBySimHash(namespace string, queryHash int64, l
 	}
 	defer rows.Close()
 
-	var results []BrainSearchResult
+	var results []effects.BrainSearchResult
 	for rows.Next() {
 		f := scanBrainFrame(rows)
 		if f == nil {
@@ -409,7 +406,7 @@ func (c *SQLiteSharedCache) SearchBySimHash(namespace string, queryHash int64, l
 		}
 		dist := hammingDistance64(queryHash, f.SimHash)
 		score := 1.0 - float64(dist)/64.0
-		results = append(results, BrainSearchResult{Frame: *f, Score: score})
+		results = append(results, effects.BrainSearchResult{Frame: *f, Score: score})
 	}
 
 	// Deterministic sort: score DESC, key ASC
@@ -428,7 +425,7 @@ func (c *SQLiteSharedCache) SearchBySimHash(namespace string, queryHash int64, l
 
 // SearchByText performs keyword search across all namespaces (or a specific one).
 // If namespace is empty, searches all namespaces.
-func (c *SQLiteSharedCache) SearchByText(query string, namespace string, limit int) []BrainSearchResult {
+func (c *SQLiteSharedCache) SearchByText(query string, namespace string, limit int) []effects.BrainSearchResult {
 	var rows *sql.Rows
 	var err error
 
@@ -464,19 +461,19 @@ func (c *SQLiteSharedCache) SearchByText(query string, namespace string, limit i
 	}
 	defer rows.Close()
 
-	var results []BrainSearchResult
+	var results []effects.BrainSearchResult
 	for rows.Next() {
 		f := scanBrainFrame(rows)
 		if f == nil {
 			continue
 		}
-		results = append(results, BrainSearchResult{Frame: *f, Score: 1.0})
+		results = append(results, effects.BrainSearchResult{Frame: *f, Score: 1.0})
 	}
 	return results
 }
 
 // ListRecent returns the most recently updated frames.
-func (c *SQLiteSharedCache) ListRecent(namespace string, limit int) []BrainFrame {
+func (c *SQLiteSharedCache) ListRecent(namespace string, limit int) []effects.BrainFrame {
 	var rows *sql.Rows
 	var err error
 
@@ -498,7 +495,7 @@ func (c *SQLiteSharedCache) ListRecent(namespace string, limit int) []BrainFrame
 	}
 	defer rows.Close()
 
-	var frames []BrainFrame
+	var frames []effects.BrainFrame
 	for rows.Next() {
 		f := scanBrainFrame(rows)
 		if f == nil {
@@ -547,17 +544,9 @@ func (c *SQLiteSharedCache) GarbageCollectOlderThan(namespace string, age time.D
 	return result.RowsAffected()
 }
 
-// BrainStats holds aggregate statistics about the brain.
-type BrainStats struct {
-	TotalFrames int
-	Namespaces  map[string]int // namespace -> frame count
-	OldestFrame int64          // unix millis
-	NewestFrame int64          // unix millis
-}
-
 // Stats returns aggregate statistics about the brain.
-func (c *SQLiteSharedCache) Stats() BrainStats {
-	var stats BrainStats
+func (c *SQLiteSharedCache) Stats() effects.BrainStats {
+	var stats effects.BrainStats
 	stats.Namespaces = make(map[string]int)
 
 	_ = c.db.QueryRow(`SELECT COUNT(*) FROM brain_frames`).Scan(&stats.TotalFrames)
@@ -580,7 +569,7 @@ func (c *SQLiteSharedCache) Stats() BrainStats {
 
 // SearchByEmbedding performs brute-force cosine similarity scan over all frames with embeddings.
 // Returns results sorted by cosine similarity descending, key ascending (deterministic).
-func (c *SQLiteSharedCache) SearchByEmbedding(queryEmbedding []float32, namespace string, limit int) []BrainSearchResult {
+func (c *SQLiteSharedCache) SearchByEmbedding(queryEmbedding []float32, namespace string, limit int) []effects.BrainSearchResult {
 	var rows *sql.Rows
 	var err error
 
@@ -601,14 +590,14 @@ func (c *SQLiteSharedCache) SearchByEmbedding(queryEmbedding []float32, namespac
 	}
 	defer rows.Close()
 
-	var results []BrainSearchResult
+	var results []effects.BrainSearchResult
 	for rows.Next() {
 		f := scanBrainFrame(rows)
 		if f == nil || len(f.Embedding) == 0 {
 			continue
 		}
 		score := cosineSimilarityF32(queryEmbedding, f.Embedding)
-		results = append(results, BrainSearchResult{Frame: *f, Score: score})
+		results = append(results, effects.BrainSearchResult{Frame: *f, Score: score})
 	}
 
 	// Deterministic sort: score DESC, key ASC
@@ -646,12 +635,12 @@ func (c *SQLiteSharedCache) EmbeddingStats() (total, withEmbedding int, models m
 }
 
 // SetEmbedder configures the embedder for auto-embedding on PutFrame.
-func (c *SQLiteSharedCache) SetEmbedder(e Embedder) {
+func (c *SQLiteSharedCache) SetEmbedder(e effects.Embedder) {
 	c.embedder = e
 }
 
 // GetEmbedder returns the configured embedder (may be nil).
-func (c *SQLiteSharedCache) GetEmbedder() Embedder {
+func (c *SQLiteSharedCache) GetEmbedder() effects.Embedder {
 	return c.embedder
 }
 
@@ -696,7 +685,7 @@ func (c *SQLiteSharedCache) BackfillEmbeddings(namespace string) (int, int) {
 			continue
 		}
 
-		embBlob := encodeEmbedding(emb)
+		embBlob := effects.EncodeEmbedding(emb)
 		_, err = c.db.Exec(
 			`UPDATE brain_frames SET embedding = ?, embedding_dim = ?, embed_model = ?, updated_at = ? WHERE key = ?`,
 			embBlob, len(emb), c.embedder.ModelName(), time.Now().UnixMilli(), p.key,
@@ -717,9 +706,9 @@ func (c *SQLiteSharedCache) DB() *sql.DB {
 
 // --- Embedding helpers ---
 
-// scanBrainFrame scans a full row (13 columns) into a BrainFrame.
-func scanBrainFrame(rows *sql.Rows) *BrainFrame {
-	var f BrainFrame
+// scanBrainFrame scans a full row (13 columns) into a effects.BrainFrame.
+func scanBrainFrame(rows *sql.Rows) *effects.BrainFrame {
+	var f effects.BrainFrame
 	var embBlob []byte
 	var embedModel sql.NullString
 	if err := rows.Scan(&f.Key, &f.Namespace, &f.Value, &f.SimHash, &f.Content,
@@ -731,28 +720,9 @@ func scanBrainFrame(rows *sql.Rows) *BrainFrame {
 		f.EmbedModel = embedModel.String
 	}
 	if len(embBlob) > 0 {
-		f.Embedding = decodeEmbedding(embBlob)
+		f.Embedding = effects.DecodeEmbedding(embBlob)
 	}
 	return &f
-}
-
-// encodeEmbedding serializes a float32 slice to bytes using IEEE 754 little-endian encoding.
-func encodeEmbedding(v []float32) []byte {
-	buf := make([]byte, len(v)*4)
-	for i, f := range v {
-		binary.LittleEndian.PutUint32(buf[i*4:], math.Float32bits(f))
-	}
-	return buf
-}
-
-// decodeEmbedding deserializes bytes back to a float32 slice (IEEE 754 little-endian).
-func decodeEmbedding(b []byte) []float32 {
-	n := len(b) / 4
-	v := make([]float32, n)
-	for i := 0; i < n; i++ {
-		v[i] = math.Float32frombits(binary.LittleEndian.Uint32(b[i*4:]))
-	}
-	return v
 }
 
 // cosineSimilarityF32 computes the cosine similarity between two float32 vectors.
