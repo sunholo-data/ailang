@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/eval_harness"
+	"github.com/sunholo-data/ailang/internal/strutil"
 )
 
 // IssueReport represents a pattern of failures discovered in eval results
@@ -168,17 +169,17 @@ func (a *Analyzer) extractIssues(failures []*eval_harness.RunMetrics) []IssueRep
 			models[m.Model] = true
 
 			if m.Stderr != "" && !contains(errorMsgs, m.Stderr) {
-				errorMsgs = append(errorMsgs, truncate(m.Stderr, 500))
+				errorMsgs = append(errorMsgs, strutil.Truncate(m.Stderr, 500+3)) // N+3: the old local truncate kept N chars THEN appended "..."
 			}
 
 			if m.Code != "" && len(examples) < 3 {
-				examples = append(examples, truncate(m.Code, 1000))
+				examples = append(examples, strutil.Truncate(m.Code, 1000+3))
 			}
 		}
 
 		// Convert maps to sorted slices
-		benchmarkList := sortedKeys(benchmarks)
-		modelList := sortedKeys(models)
+		benchmarkList := strutil.SortedKeys(benchmarks)
+		modelList := strutil.SortedKeys(models)
 
 		// Generate title from category and context
 		title := generateTitle(k.category, k.lang, benchmarkList)
@@ -283,20 +284,4 @@ func contains(slice []string, item string) bool {
 		}
 	}
 	return false
-}
-
-func truncate(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
-	}
-	return s[:maxLen] + "..."
-}
-
-func sortedKeys(m map[string]bool) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	return keys
 }

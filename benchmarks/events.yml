@@ -81,3 +81,21 @@
   kind: taxonomy
   color: "#dc2626"
   affects_tiers: [frontier, stretch]
+
+# v0.38.8 (2026-09-15, M-V1-SIMPLIFY-S3 M1 / ruling D2): one pass predicate
+# everywhere — compile_ok && runtime_ok && stdout_ok (RunMetrics.Passed).
+# Cloud-baseline views had read stdout_ok alone; measured over every baseline
+# dir (26,758 valid rows) the two disagree on 31 rows, -0.12pp overall, worst
+# version v0.4.1 at -0.90pp. Nothing re-banked. OS leaderboard/history rows are
+# unaffected (SummarizeRotation always used the conjunction). Full table:
+# TestD2DiscordantCount in internal/eval_analysis.
+#
+# Tick placement: D2 is a READ-side change (0fbbcb9d2, committed after the
+# v0.38.9 tag on the same day as both releases), so every dashboard published
+# from here on recomputes the WHOLE series under it — the tick says "series
+# published from v0.38.8 on use D2", not "v0.38.8's data changed". Matches the
+# dated OSDataNote in os/latest.json + os/history.json (eval_publish.go).
+- version: v0.38.8
+  label: "D2: pass = compile∧runtime∧stdout (−0.12pp over history)"
+  kind: taxonomy
+  color: "#2E86DE"

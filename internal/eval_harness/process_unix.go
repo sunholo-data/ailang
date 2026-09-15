@@ -1,5 +1,10 @@
 //go:build !windows
 
+// process_unix.go — the eval memory watchdog's process-group RSS sampler.
+// Process-group creation and kill live in internal/proctree (the one recipe for
+// every subprocess AILANG spawns); this file only measures a group proctree
+// created. M-V1-SIMPLIFY-S4 M3A.
+
 package eval_harness
 
 import (
@@ -7,24 +12,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
-	"syscall"
 )
-
-// SetProcessGroup configures the command to run in its own process group (Unix only)
-func SetProcessGroup(cmd *exec.Cmd) {
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-}
-
-// KillProcessGroup kills the entire process group (Unix only)
-// Uses negative PID to kill all processes in the group
-func KillProcessGroup(pid int) error {
-	return syscall.Kill(-pid, syscall.SIGKILL)
-}
-
-// KillProcess kills a single process
-func KillProcess(pid int) error {
-	return syscall.Kill(pid, syscall.SIGKILL)
-}
 
 // psBinPath returns the ps binary at its fixed system location (/bin/ps on
 // macOS, /usr/bin/ps on most Linux). A fixed path keeps the watchdog working
@@ -42,7 +30,7 @@ func psBinPath() string {
 
 // ProcessGroupRSS returns the total resident set size (bytes) of every process
 // in pid's process group. pid must be a group leader started via
-// SetProcessGroup (Setpgid makes pgid == pid). Sampling shells out to
+// proctree.SetGroup (Setpgid makes pgid == pid). Sampling shells out to
 // `ps -axo pgid=,rss=` — portable across macOS and Linux, and the reliable
 // option on macOS where RLIMIT_AS is not dependably enforced. ok=false means
 // the sample failed (ps error, or the group has no live members).

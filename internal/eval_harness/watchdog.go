@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/proctree"
 )
 
 // Watchdog monitors for orphaned eval processes and kills them
@@ -85,8 +87,8 @@ func (w *Watchdog) checkAndKill() {
 			log.Printf("WATCHDOG: Killing orphan PID %d (running %v, max %v)",
 				pid, elapsed, w.MaxAge)
 			// Try to kill process group first, fall back to single process
-			if err := KillProcessGroup(pid); err != nil {
-				_ = KillProcess(pid)
+			if err := proctree.KillGroup(pid); err != nil {
+				_ = proctree.KillProcess(pid)
 			}
 			w.KilledCount++
 		}

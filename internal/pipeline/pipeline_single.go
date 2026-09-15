@@ -15,6 +15,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/link"
 	"github.com/sunholo-data/ailang/internal/linked"
 	"github.com/sunholo-data/ailang/internal/parser"
+	"github.com/sunholo-data/ailang/internal/strutil"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"github.com/sunholo-data/ailang/internal/types"
 	"go.opentelemetry.io/otel/attribute"
@@ -96,7 +97,7 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 		if len(p.Errors()) > 0 {
 			parseErr := convertParserErrors(p.Errors())
 			attrs := []attribute.KeyValue{
-				attribute.String("error.message", telemetry.Truncate(parseErr.Error(), 200)),
+				attribute.String("error.message", strutil.Truncate(parseErr.Error(), 200)),
 				attribute.String("error.category", telemetry.CategorizeError(parseErr)),
 			}
 			// Extract position and code snippet if ParserError
@@ -133,7 +134,7 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 		if len(p.Errors()) > 0 {
 			parseErr := convertParserErrors(p.Errors())
 			attrs := []attribute.KeyValue{
-				attribute.String("error.message", telemetry.Truncate(parseErr.Error(), 200)),
+				attribute.String("error.message", strutil.Truncate(parseErr.Error(), 200)),
 				attribute.String("error.category", telemetry.CategorizeError(parseErr)),
 			}
 			// Extract position and code snippet if ParserError
@@ -175,7 +176,7 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 	if err != nil {
 		elabErr := fmt.Errorf("elaboration error: %w", err)
 		elabSpan.SetAttributes(
-			attribute.String("error.message", telemetry.Truncate(elabErr.Error(), 200)),
+			attribute.String("error.message", strutil.Truncate(elabErr.Error(), 200)),
 			attribute.String("error.category", telemetry.CategorizeError(elabErr)),
 		)
 		elabSpan.RecordError(elabErr)
@@ -352,7 +353,7 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 	if err != nil {
 		typeErr := fmt.Errorf("type error: %w", err)
 		typeSpan.SetAttributes(
-			attribute.String("error.message", telemetry.Truncate(typeErr.Error(), 200)),
+			attribute.String("error.message", strutil.Truncate(typeErr.Error(), 200)),
 			attribute.String("error.category", telemetry.CategorizeError(typeErr)),
 		)
 		typeSpan.RecordError(typeErr)

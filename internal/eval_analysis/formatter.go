@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/strutil"
 )
 
 // ANSI color codes
@@ -174,7 +176,7 @@ func FormatMatrix(matrix *PerformanceMatrix, useColor bool) string {
 		sb.WriteString(fmt.Sprintf("%-25s %10s %10s %8s\n", "Model", "0-shot", "Final", "Tokens"))
 		for model, stats := range matrix.Models {
 			sb.WriteString(fmt.Sprintf("%-25s %9.1f%% %9.1f%% %8d\n",
-				truncate(model, 25),
+				strutil.Truncate(model, 25),
 				stats.Aggregates.ZeroShotSuccess*100,
 				stats.Aggregates.FinalSuccess*100,
 				stats.Aggregates.TotalTokens))
@@ -244,11 +246,4 @@ func colorize(text, color string, enabled bool) string {
 		return text
 	}
 	return color + text + colorReset
-}
-
-func truncate(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
-	}
-	return s[:maxLen-3] + "..."
 }

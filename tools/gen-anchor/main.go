@@ -77,7 +77,7 @@ func main() {
 		trials = append(trials, eval_harness.Trial{
 			Model: r.Model,
 			Bench: r.ID,
-			Pass:  r.CompileOk && r.RuntimeOk && r.StdoutOk,
+			Pass:  r.Passed(),
 		})
 	}
 	if len(trials) == 0 {

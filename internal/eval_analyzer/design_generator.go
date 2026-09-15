@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/eval_harness"
+	"github.com/sunholo-data/ailang/internal/strutil"
 )
 
 // DesignDocData contains all data for rendering a design document
@@ -290,9 +291,9 @@ SUCCESS_RATE_AFTER:
 TOKEN_EFFICIENCY_AFTER:
 [description]
 `,
-		truncate(claudeMd, 8000),    // Increased: Full CLAUDE.md context is critical
-		truncate(readmeMd, 4000),    // Increased: More implementation status
-		truncate(similarDocs, 3000), // Increased: Full design doc examples
+		strutil.Truncate(claudeMd, 8000+3),    // Increased: Full CLAUDE.md context is critical
+		strutil.Truncate(readmeMd, 4000+3),    // Increased: More implementation status
+		strutil.Truncate(similarDocs, 3000+3), // Increased: Full design doc examples
 		issue.Category,
 		issue.Title,
 		issue.Lang,
@@ -322,8 +323,8 @@ func (g *DesignGenerator) parseGPTOutput(output string, issue IssueReport, total
 		}
 		errorExamples = append(errorExamples, ErrorExample{
 			Index: i + 1,
-			Error: truncate(errMsg, 500),
-			Code:  truncate(code, 1000),
+			Error: strutil.Truncate(errMsg, 500+3),
+			Code:  strutil.Truncate(code, 1000+3),
 			Lang:  issue.Lang,
 		})
 		if i >= 2 { // Limit to 3 examples
@@ -387,7 +388,7 @@ func (g *DesignGenerator) formatErrors(errors []string) string {
 
 	var buf bytes.Buffer
 	for i, err := range errors {
-		buf.WriteString(fmt.Sprintf("**Error %d:**\n```\n%s\n```\n\n", i+1, truncate(err, 500)))
+		buf.WriteString(fmt.Sprintf("**Error %d:**\n```\n%s\n```\n\n", i+1, strutil.Truncate(err, 500+3)))
 		if i >= 2 { // Limit to 3 examples
 			break
 		}
@@ -402,7 +403,7 @@ func (g *DesignGenerator) formatCode(examples []string, lang string) string {
 
 	var buf bytes.Buffer
 	for i, code := range examples {
-		buf.WriteString(fmt.Sprintf("**Example %d:**\n```%s\n%s\n```\n\n", i+1, lang, truncate(code, 1000)))
+		buf.WriteString(fmt.Sprintf("**Example %d:**\n```%s\n%s\n```\n\n", i+1, lang, strutil.Truncate(code, 1000+3)))
 		if i >= 2 { // Limit to 3 examples
 			break
 		}
@@ -439,7 +440,7 @@ func (g *DesignGenerator) findSimilarDesigns(category string) string {
 		// Add type system docs
 		typeDoc := loadFile(filepath.Join(implementedDir, "v0_3_0/M-R7_type_fixes.md"))
 		if typeDoc != "" && !strings.Contains(typeDoc, "Could not load") {
-			docs = append(docs, fmt.Sprintf("**M-R7_type_fixes.md**:\n%s\n", truncate(typeDoc, 300)))
+			docs = append(docs, fmt.Sprintf("**M-R7_type_fixes.md**:\n%s\n", strutil.Truncate(typeDoc, 300+3)))
 		}
 	}
 
@@ -506,10 +507,10 @@ func extractDesignDocSummary(content string) string {
 
 	if len(result) == 0 {
 		// Fallback: just return first 500 chars
-		return truncate(content, 500)
+		return strutil.Truncate(content, 500+3)
 	}
 
-	return truncate(strings.Join(result, "\n\n"), 800)
+	return strutil.Truncate(strings.Join(result, "\n\n"), 800+3)
 }
 
 func loadFile(path string) string {

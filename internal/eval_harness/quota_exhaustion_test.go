@@ -69,15 +69,52 @@ func TestWeeklyLimitAlsoRecognised(t *testing.T) {
 	}
 }
 
-// TestOtherProvidersStillMatch guards the pre-existing matchers that the shared
-// helper absorbed — the refactor must not have dropped any.
+// TestOtherProvidersStillMatch guards the pre-existing matchers the shared
+// predicate absorbed — a refactor must not have dropped any. Since
+// M-V1-SIMPLIFY-S4 M3A the categoriser calls ai.IsQuotaExhausted directly
+// (the harness's own copy is gone), so this is asserted through the banked
+// category, which is what the eval reader sees.
 func TestOtherProvidersStillMatch(t *testing.T) {
 	for _, msg := range []string{
 		"key limit exceeded", "monthly limit reached",
 		"insufficient_quota", "quota exceeded", "billing issue",
 	} {
-		if !isQuotaExhaustion(msg) {
-			t.Errorf("pre-existing quota matcher lost in the refactor: %q", msg)
+		if got := CategorizeAgentError(errors.New(msg), ""); got != ErrorCategoryQuotaExhausted {
+			t.Errorf("pre-existing quota matcher lost in the refactor: %q categorised %q", msg, got)
 		}
+	}
+}
+
+// TestTwoClassesOf429BankDifferently is the M-V1-SIMPLIFY-S4 M3A pin: the
+// categoriser and the retry predicate now share ONE quota predicate
+// (ai.IsQuotaExhausted), and the two classes of 429 body must still land
+// where they did before the fold — spent quota as quota_exhausted (and not
+// retried), a transient throttle as rate_limit (and retried). Same inputs,
+// both instruments, in one table so a drift between them is a test failure
+// rather than a silent disagreement about the same error.
+func TestTwoClassesOf429BankDifferently(t *testing.T) {
+	cases := []struct {
+		name      string
+		body      string
+		category  string
+		retryable bool
+	}{
+		{"ollama session limit (api_error type, 429 status)", ollamaSessionLimitBody, ErrorCategoryQuotaExhausted, false},
+		{"ollama weekly limit", `429 {"error":{"message":"you (marked) have reached your weekly usage limit, upgrade for higher limits: https://ollama.com/upgrade","type":"api_error"}}`, ErrorCategoryQuotaExhausted, false},
+		{"openai insufficient_quota", `429 {"error":{"message":"You exceeded your current quota","type":"insufficient_quota"}}`, ErrorCategoryQuotaExhausted, false},
+		{"bare 429", "429 Too Many Requests", ErrorCategoryRateLimit, true},
+		{"rate_limit_error type", `429 {"error":{"message":"Rate limit reached for requests","type":"rate_limit_error"}}`, ErrorCategoryRateLimit, true},
+		{"rate limit prose", "rate limit exceeded, please slow down", ErrorCategoryRateLimit, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := errors.New(tc.body)
+			if got := CategorizeAgentError(err, ""); got != tc.category {
+				t.Errorf("category = %q, want %q", got, tc.category)
+			}
+			if got := isRetryableError(err); got != tc.retryable {
+				t.Errorf("retryable = %v, want %v", got, tc.retryable)
+			}
+		})
 	}
 }

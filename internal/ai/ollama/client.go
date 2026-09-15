@@ -12,6 +12,7 @@ import (
 
 	ollamaapi "github.com/ollama/ollama/api"
 	"github.com/sunholo-data/ailang/internal/ai"
+	"github.com/sunholo-data/ailang/internal/strutil"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -129,7 +130,7 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 			attribute.String("ai.provider", "ollama"),
 			attribute.String("ai.model", req.Model),
 			attribute.String("ai.endpoint", c.endpoint),
-			attribute.String("ai.prompt_preview", telemetry.Truncate(req.UserPrompt, 100)),
+			attribute.String("ai.prompt_preview", strutil.Truncate(req.UserPrompt, 100)),
 		),
 	)
 	defer span.End()
@@ -196,7 +197,7 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 
 	if err != nil {
 		span.SetAttributes(
-			attribute.String("error.message", telemetry.Truncate(err.Error(), 200)),
+			attribute.String("error.message", strutil.Truncate(err.Error(), 200)),
 			attribute.String("error.category", telemetry.CategorizeError(err)),
 		)
 		span.RecordError(err)
@@ -213,7 +214,7 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 
 	span.SetAttributes(
 		attribute.String("ai.response_model", req.Model),
-		attribute.String("ai.response_preview", telemetry.Truncate(response.String(), 100)),
+		attribute.String("ai.response_preview", strutil.Truncate(response.String(), 100)),
 		attribute.Int("ai.tokens_in", tally.in),
 		attribute.Int("ai.tokens_out", tally.out),
 	)

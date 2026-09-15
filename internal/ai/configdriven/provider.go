@@ -10,6 +10,7 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/ai"
 	"github.com/sunholo-data/ailang/internal/pkg"
+	"github.com/sunholo-data/ailang/internal/strutil"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -109,7 +110,7 @@ func (p *Provider) Generate(ctx context.Context, req *ai.Request) (*ai.Response,
 			attribute.String("ai.model", req.Model),
 			attribute.String("ai.request_shape", p.spec.RequestShape),
 			attribute.String("ai.endpoint", safeEndpointForTrace(p.spec)),
-			attribute.String("ai.prompt_preview", telemetry.Truncate(req.UserPrompt, 100)),
+			attribute.String("ai.prompt_preview", strutil.Truncate(req.UserPrompt, 100)),
 		),
 	)
 	defer span.End()
@@ -211,7 +212,7 @@ func (p *Provider) Generate(ctx context.Context, req *ai.Request) (*ai.Response,
 		attribute.Int("ai.tokens_out", resp.OutputTokens),
 		attribute.Int("ai.tokens_total", resp.TotalTokens),
 		attribute.String("ai.cost_usd", resp.CostUSD),
-		attribute.String("ai.response_preview", telemetry.Truncate(resp.Text, 100)),
+		attribute.String("ai.response_preview", strutil.Truncate(resp.Text, 100)),
 	)
 	return resp, nil
 }

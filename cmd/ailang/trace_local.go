@@ -11,6 +11,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/coordinator"
 	"github.com/sunholo-data/ailang/internal/observatory"
 	"github.com/sunholo-data/ailang/internal/statedir"
+	"github.com/sunholo-data/ailang/internal/strutil"
 )
 
 // traceHierarchyCommand shows span hierarchy from the local observatory database
@@ -330,7 +331,7 @@ func printUnifiedTask(u *unifiedTaskSpan, prefix string) {
 
 	// Print title if different from ID
 	if task.Title != "" && task.Title != task.ID {
-		fmt.Printf("%s  Title: %s\n", prefix, truncateString(task.Title, 60))
+		fmt.Printf("%s  Title: %s\n", prefix, strutil.Truncate(task.Title, 60))
 	}
 
 	// Print spans

@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/proctree"
 )
 
 // JSRunner executes JavaScript (Node.js) code
@@ -307,7 +309,7 @@ func averCheckDiagnostics(file, workDir string, timeout time.Duration) string {
 		return ""
 	}
 	cmd.Dir = workDir
-	SetProcessGroup(cmd)
+	proctree.SetGroup(cmd)
 
 	stdout := NewLimitedWriter(MaxOutputSize)
 	stderr := NewLimitedWriter(MaxOutputSize)

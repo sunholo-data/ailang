@@ -47,11 +47,6 @@ func WrapText(text string, width int) string {
 	return result.String()
 }
 
-// Truncate is strutil.Truncate: rune-aware, "..." when cut, maxLen <= 0 means
-// no cap. Kept as a name here for the display helpers below and for callers
-// in files M-V1-SIMPLIFY-S3 could not touch; fold them in Sprint 4.
-func Truncate(s string, maxLen int) string { return strutil.Truncate(s, maxLen) }
-
 // TruncateID truncates an ID string (like UUIDs) to a short form.
 // Default length is 12 characters if not specified.
 func TruncateID(id string, length ...int) string {
@@ -70,14 +65,14 @@ func TruncateID(id string, length ...int) string {
 func TruncateFirstLine(text string, maxLen int) string {
 	lines := strings.Split(text, "\n")
 	firstLine := strings.TrimSpace(lines[0])
-	return Truncate(firstLine, maxLen)
+	return strutil.Truncate(firstLine, maxLen)
 }
 
 // TruncateOutput truncates output text and trims whitespace.
 // Convenience function for tool outputs and results.
 func TruncateOutput(output string, maxLen int) string {
 	output = strings.TrimSpace(output)
-	return Truncate(output, maxLen)
+	return strutil.Truncate(output, maxLen)
 }
 
 // WordWrapIndent wraps text at width and adds a prefix indent to each line.

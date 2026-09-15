@@ -10,6 +10,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/ai"
 	gcpauth "github.com/sunholo-data/ailang/internal/auth/gcp"
 	"github.com/sunholo-data/ailang/internal/config"
+	"github.com/sunholo-data/ailang/internal/strutil"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -134,7 +135,7 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 			attribute.String("ai.provider", "gemini"),
 			attribute.String("ai.model", req.Model),
 			attribute.String("ai.auth_type", string(c.authType)),
-			attribute.String("ai.prompt_preview", telemetry.Truncate(req.UserPrompt, 100)),
+			attribute.String("ai.prompt_preview", strutil.Truncate(req.UserPrompt, 100)),
 		),
 	)
 	defer span.End()
@@ -142,7 +143,7 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 	resp, err := c.generateContent(ctx, req)
 	if err != nil {
 		span.SetAttributes(
-			attribute.String("error.message", telemetry.Truncate(err.Error(), 200)),
+			attribute.String("error.message", strutil.Truncate(err.Error(), 200)),
 			attribute.String("error.category", telemetry.CategorizeError(err)),
 		)
 		span.RecordError(err)
@@ -155,7 +156,7 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 		attribute.Int("ai.tokens_in", resp.InputTokens),
 		attribute.Int("ai.tokens_out", resp.OutputTokens),
 		attribute.Int("ai.tokens_total", resp.TotalTokens),
-		attribute.String("ai.response_preview", telemetry.Truncate(resp.Text, 100)),
+		attribute.String("ai.response_preview", strutil.Truncate(resp.Text, 100)),
 	)
 
 	return resp, nil

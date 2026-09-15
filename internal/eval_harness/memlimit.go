@@ -23,6 +23,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/proctree"
 )
 
 const (
@@ -97,7 +99,7 @@ type guardedWait struct {
 }
 
 // waitWithGuards waits for an already-started cmd (which MUST be in its own
-// process group via SetProcessGroup) while enforcing both the wall-clock
+// process group via proctree.SetGroup) while enforcing both the wall-clock
 // timeout and, when maxRSS > 0, the process-group resident-memory cap. On
 // either breach the entire process group is killed, so wrapper children
 // (uv → python, go run → binary) die with the leader.
@@ -123,7 +125,7 @@ func waitWithGuards(cmd *exec.Cmd, timeout time.Duration, maxRSS int64) guardedW
 			return g
 		case <-timer.C:
 			g.timedOut = true
-			_ = KillProcessGroup(cmd.Process.Pid)
+			_ = proctree.KillGroup(cmd.Process.Pid)
 			// Drain Wait after the kill to avoid racing the goroutine.
 			g.waitErr = <-done
 			return g
@@ -137,7 +139,7 @@ func waitWithGuards(cmd *exec.Cmd, timeout time.Duration, maxRSS int64) guardedW
 			}
 			if rss > maxRSS {
 				g.memKilled = true
-				_ = KillProcessGroup(cmd.Process.Pid)
+				_ = proctree.KillGroup(cmd.Process.Pid)
 				g.waitErr = <-done
 				return g
 			}
@@ -168,7 +170,7 @@ func runGuarded(cmd *exec.Cmd, timeout time.Duration, timeoutMsg string) *RunRes
 		}
 	}
 
-	SetProcessGroup(cmd)
+	proctree.SetGroup(cmd)
 
 	stdout := NewLimitedWriter(MaxOutputSize)
 	stderr := NewLimitedWriter(MaxOutputSize)

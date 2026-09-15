@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/strutil"
 )
 
 // PrettyJSON formats a JSON string with indentation.
@@ -32,9 +34,9 @@ func CompactJSON(data string) string {
 func FormatJSONValue(val interface{}, maxLen int) string {
 	switch v := val.(type) {
 	case string:
-		return Truncate(v, maxLen)
+		return strutil.Truncate(v, maxLen)
 	case float64:
-		return Truncate(formatNumber(v), maxLen)
+		return strutil.Truncate(formatNumber(v), maxLen)
 	case bool:
 		if v {
 			return "true"
@@ -44,13 +46,13 @@ func FormatJSONValue(val interface{}, maxLen int) string {
 		return "null"
 	case map[string]interface{}:
 		data, _ := json.Marshal(v)
-		return Truncate(string(data), maxLen)
+		return strutil.Truncate(string(data), maxLen)
 	case []interface{}:
 		data, _ := json.Marshal(v)
-		return Truncate(string(data), maxLen)
+		return strutil.Truncate(string(data), maxLen)
 	default:
 		data, _ := json.Marshal(v)
-		return Truncate(string(data), maxLen)
+		return strutil.Truncate(string(data), maxLen)
 	}
 }
 
@@ -80,7 +82,7 @@ func IsJSON(s string) bool {
 func FormatJSONKeyValue(data string, maxValueLen int) string {
 	var parsed map[string]interface{}
 	if err := json.Unmarshal([]byte(data), &parsed); err != nil {
-		return Truncate(data, maxValueLen*3) // Fallback for invalid JSON
+		return strutil.Truncate(data, maxValueLen*3) // Fallback for invalid JSON
 	}
 
 	var sb strings.Builder

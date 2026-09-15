@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/proctree"
 )
 
 func TestEvalMaxRSSParsing(t *testing.T) {
@@ -210,12 +212,12 @@ func TestRunGuardedTimeoutStillWorks(t *testing.T) {
 func TestProcessGroupRSSSamplesGroup(t *testing.T) {
 	py := requirePython3(t)
 	cmd := exec.Command(py, "-c", "import time; time.sleep(30)")
-	SetProcessGroup(cmd)
+	proctree.SetGroup(cmd)
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
-		_ = KillProcessGroup(cmd.Process.Pid)
+		_ = proctree.KillGroup(cmd.Process.Pid)
 		_ = cmd.Wait()
 	}()
 

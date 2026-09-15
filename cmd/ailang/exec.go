@@ -21,6 +21,7 @@ import (
 	_ "github.com/sunholo-data/ailang/internal/executor/claude"
 	_ "github.com/sunholo-data/ailang/internal/executor/managed_agents"
 	otelplatform "github.com/sunholo-data/ailang/internal/platform/otel"
+	"github.com/sunholo-data/ailang/internal/strutil"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -212,7 +213,7 @@ func runExec() {
 
 	// Dry run mode - just validate and exit
 	if *dryRun {
-		fmt.Printf("Dry run: would execute %s with directive: %s\n", provider, truncateString(directive, 50))
+		fmt.Printf("Dry run: would execute %s with directive: %s\n", provider, strutil.Truncate(directive, 50))
 		span.SetStatus(codes.Ok, "dry run")
 		if *streamJSON && !*quiet && !*jsonOutput {
 			emitEvent(ExecEvent{

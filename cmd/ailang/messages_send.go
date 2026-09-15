@@ -16,6 +16,7 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/messaging"
 	"github.com/sunholo-data/ailang/internal/storage"
+	"github.com/sunholo-data/ailang/internal/strutil"
 )
 
 // Send and reply operations for messages
@@ -100,7 +101,7 @@ func runMessagesSend(args []string) {
 	// Determine message title
 	msgTitle := *title
 	if msgTitle == "" {
-		msgTitle = truncateString(payload, 50)
+		msgTitle = strutil.Truncate(payload, 50)
 	}
 
 	// Determine category from --type flag (any string allowed)
