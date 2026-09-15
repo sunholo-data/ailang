@@ -157,6 +157,11 @@ $ DEBUG_PARSER=1 ailang run test.ail
 | `DEBUG_CODEGEN=1` | Record type fallback warnings | Codegen issues | Fallback warnings |
 | `DEBUG_APPROVAL_WATCHER=1` | ApprovalWatcher polling | Coordinator approval flow | Poll tracing |
 | `DEBUG_CONCURRENCY=1` | Per-request evaluator Fork/Call/Done tracing | Concurrency issues | Goroutine IDs |
+| `AILANG_STATE_DIR=/path` | Relocate the per-user state tree (coordinator/collaboration/observatory DBs, mission pid files, ledgers); default `~/.ailang/state`, resolved ONLY by `internal/statedir` | Isolating a run from the machine's live state; two commands disagreeing about which `coordinator.db` is real | Every store opens under that dir; unresolvable (no var, no HOME) is an error, never `./.ailang/state` |
+| `AILANG_CLOUD_PROJECT=<id>` | The GCP project a process acts on; precedence `AILANG_CLOUD_PROJECT` > `GOOGLE_CLOUD_PROJECT` > `~/.ailang/config.yaml` `pubsub.project_id` > GCE metadata, resolved ONLY by `internal/config` | Any Firestore/Pub/Sub/Cloud Run command; `ailang storage status` prints the value AND its source | Unresolvable → `config.ErrNoCloudProject` (names what to set); never a default |
+| `AILANG_CLOUD_REGION=<region>` | Cloud Run region (`AILANG_CLOUD_REGION` > `GOOGLE_CLOUD_REGION`, else the deprecated `europe-west1` default with a warning) | Config rolls, dispatcher | One stderr deprecation warning per process when defaulted |
+| `AILANG_STRICT_CONFIG=1` | Refuse every deprecated production default (D3 ruling: warn in v0.39, hard error in v1.0.0) — rehearses the v1.0.0 failure today | Proving a plist or Cloud Run env is complete before v1.0.0 | Error wrapping `config.ErrDeprecatedDefault` naming the unset variable |
+| `AILANG_NO_METADATA=1` | Skip the GCE metadata-server step of project resolution | Tests, offline laptops, anywhere the 500 ms probe is unwanted | Resolution stops at the config file |
 
 ### Ollama Streaming Timeouts (v0.34.0)
 
