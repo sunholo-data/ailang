@@ -26,22 +26,25 @@ func (e *ClaudeExecutor) authLane() executor.AuthLane {
 	return executor.AuthLaneSubscription
 }
 
-// CostModel returns pricing information for cost calculations.
+// CostModel returns the registry rate card for the executor's configured
+// model (M-V1-SIMPLIFY-S3 M2: this used to be a hard-coded Haiku table
+// applied to every Claude model — `git log -S 'Default to Haiku pricing'`).
 //
 // NOT used for Result.CostUSD: the claude CLI reports its own
 // total_cost_usd and the executor banks that figure directly. Kept because
 // the Executor interface requires it and callers may use it for pre-flight
-// estimates. Audited 2026-07-30 — do not assume this table is what gets
-// banked. Note the CLI's figure is itself a list-price equivalent when the
+// estimates. Note the CLI's figure is itself a list-price equivalent when the
 // rig authenticates via OAuth subscription, not metered spend.
+//
+// A model the registry cannot resolve — the CLI short names "haiku"/"sonnet"
+// /"opus" are deliberately NOT aliases, since what they point at moves with
+// CLI releases — yields an explicit Unpriced card, never Haiku's rates.
 func (e *ClaudeExecutor) CostModel() *executor.CostModel {
-	// Default to Haiku pricing
-	return &executor.CostModel{
-		ProviderName:    "anthropic",
-		InputTokenCost:  0.001,  // $1.00 per 1M
-		OutputTokenCost: 0.005,  // $5.00 per 1M
-		CacheReadCost:   0.0001, // $0.10 per 1M
+	cm, err := executor.CostModelFor(e.model)
+	if err != nil {
+		return executor.UnpricedCostModel("anthropic", e.model)
 	}
+	return cm
 }
 
 // Close releases any resources held by the executor

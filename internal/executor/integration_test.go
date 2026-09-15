@@ -145,9 +145,8 @@ func TestCostModelEdgeCases(t *testing.T) {
 			costModel: &executor.CostModel{
 				InputTokenCost:  0.001,
 				OutputTokenCost: 0.003,
-				MinimumCharge:   0.01,
 			},
-			expectedResult: 0.01, // Should return minimum charge
+			expectedResult: 0, // no tokens, no charge — MinimumCharge was removed with the dollar tables (M-V1-SIMPLIFY-S3 M2)
 		},
 		{
 			name: "large token count",
@@ -175,7 +174,28 @@ func TestCostModelEdgeCases(t *testing.T) {
 				CacheReadCost:   0.0001,
 				CacheWriteCost:  0.0005,
 			},
-			expectedResult: 0.0026, // (1K/1K)*0.001 + (0.5K/1K)*0.003 + (1K/1K)*0.0001
+			// (1K/1K)*0.001 + (0.5K/1K)*0.003 + (1K/1K)*0.0001 + (0.5K/1K)*0.0005.
+			// Cache WRITES are billed since M-V1-SIMPLIFY-S3 M2 routed this through
+			// modelreg.Pricing.Cost; the old executor arithmetic ignored them.
+			expectedResult: 0.00285,
+		},
+		{
+			name: "undeclared cache rates bill at the input rate, not $0",
+			usage: executor.TokenUsage{
+				CacheReadInputTokens:     1000,
+				CacheCreationInputTokens: 1000,
+			},
+			costModel: &executor.CostModel{
+				InputTokenCost:  0.001,
+				OutputTokenCost: 0.003,
+			},
+			expectedResult: 0.002,
+		},
+		{
+			name:           "unpriced card is explicit and bills nothing",
+			usage:          executor.TokenUsage{InputTokens: 1_000_000, OutputTokens: 1_000_000},
+			costModel:      executor.UnpricedCostModel("test", "no-such-model"),
+			expectedResult: 0,
 		},
 	}
 
