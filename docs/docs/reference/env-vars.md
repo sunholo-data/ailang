@@ -72,7 +72,7 @@ comes from the fallback the description names. The `DEBUG_*` compiler knobs are 
 | `AILANG_CACHE_DIR` | — | Root of the compile cache (&lt;dir&gt;/compile) and the prompt cache; unset means &lt;project&gt;/.ailang/cache and $XDG_CACHE_HOME/ailang (else ~/.cache/ailang) respectively. |
 | `AILANG_EXAMPLES` | — | Directory `ailang examples` reads instead of searching upward from the binary. |
 | `AILANG_PROJECT_ROOT` | — | Root the embed engine resolves module paths against; must contain the requested module or Load fails. |
-| `AILANG_STATE_DIR` | `~/.ailang` | Directory for every local store (SQLite databases, ledgers, locks); statedir.Dir cleans and returns it. |
+| `AILANG_STATE_DIR` | `~/.ailang` | Directory for every local store (SQLite databases, ledgers, locks). Read by internal/statedir itself — a stdlib-only leaf that cannot import this package — and registered here so the reference lists it. |
 | `AILANG_STDLIB_PATH` | — | Path-list (OS separator) of stdlib roots searched before the bundled and installed copies; the embed engine sets it for child processes when unset. |
 | `AILANG_Z3_PATH` | — | Path of the z3 binary, tried before PATH and the usual install locations. |
 | `APPDATA` | — | Windows application-data base; the installed stdlib lives under it. |
