@@ -228,9 +228,9 @@ func TestGetVersionMetadata_Invalid(t *testing.T) {
 
 func TestLoadVersionsManifest(t *testing.T) {
 	// Test loading the versions manifest directly
-	manifest, err := loadVersionsManifest()
+	manifest, err := NewLoader(Syntax).Manifest()
 	if err != nil {
-		t.Fatalf("loadVersionsManifest() failed: %v", err)
+		t.Fatalf("Manifest() failed: %v", err)
 	}
 
 	if manifest.SchemaVersion == "" {

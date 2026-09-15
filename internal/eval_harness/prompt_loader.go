@@ -1,15 +1,16 @@
 package eval_harness
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/sunholo-data/ailang/internal/prompt"
 )
 
-// PromptVersion represents metadata about a prompt version
+// PromptVersion represents metadata about a prompt version. Same JSON shape as
+// prompt.VersionMetadata; kept as its own type because FrozenMarker (in
+// prompt_frozen.go) and the freeze tooling in cmd/ailang name it.
 type PromptVersion struct {
 	File        string        `json:"file"`
 	Hash        string        `json:"hash"`
@@ -28,161 +29,96 @@ type PromptRegistry struct {
 	Notes         []string                 `json:"notes"`
 }
 
-// PromptLoader loads and verifies prompt versions
+// PromptLoader loads prompt versions from an explicit registry file WITH hash
+// verification: a frozen version must match its recorded sha256 exactly, a
+// mutable one must match unless its hash is the PLACEHOLDER escape hatch
+// (D-41c). It is prompt.Loader with WithVerify — the eval harness must never
+// measure edited bytes under a banked version's name.
 type PromptLoader struct {
-	registry *PromptRegistry
-	rootDir  string // Root directory for resolving relative paths
+	loader *prompt.Loader
 }
 
-// NewPromptLoader creates a loader from versions.json
+// NewPromptLoader creates a loader from versions.json. Prompt `file` entries
+// resolve against the registry's project root (the directory above prompts/).
 func NewPromptLoader(registryPath string) (*PromptLoader, error) {
-	data, err := os.ReadFile(registryPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read registry: %w", err)
-	}
-
-	var registry PromptRegistry
-	if err := json.Unmarshal(data, &registry); err != nil {
-		return nil, fmt.Errorf("failed to parse registry: %w", err)
-	}
-
-	// Determine root directory from registry path
 	rootDir := filepath.Dir(registryPath)
 	if filepath.Base(rootDir) == "prompts" {
 		rootDir = filepath.Dir(rootDir) // Go up one level to project root
 	}
-
-	return &PromptLoader{
-		registry: &registry,
-		rootDir:  rootDir,
-	}, nil
+	l := prompt.NewLoader(prompt.Syntax,
+		prompt.WithManifestFile(registryPath),
+		prompt.WithRoot(rootDir),
+		prompt.WithVerify(),
+	)
+	// Fail at construction, as before, rather than on the first load.
+	if _, err := l.Manifest(); err != nil {
+		return nil, fmt.Errorf("failed to read registry: %w", err)
+	}
+	return &PromptLoader{loader: l}, nil
 }
 
-// LoadPrompt loads a prompt by version ID with hash verification
+// LoadPrompt loads a prompt by version ID with hash verification.
 func (l *PromptLoader) LoadPrompt(versionID string) (string, error) {
-	version, exists := l.registry.Versions[versionID]
-	if !exists {
-		return "", fmt.Errorf("prompt version %q not found in registry", versionID)
-	}
-
-	// Resolve file path relative to root directory
-	promptPath := filepath.Join(l.rootDir, version.File)
-
-	// Read prompt content
-	content, err := os.ReadFile(promptPath)
-	if err != nil {
-		return "", fmt.Errorf("failed to read prompt %q: %w", version.File, err)
-	}
-
-	if version.Frozen != nil {
-		if !IsHexSHA256(version.Hash) {
-			return "", FrozenUnenforceableHashError(versionID, version)
-		}
-		if actual := computeSHA256(content); actual != version.Hash {
-			return "", FrozenHashMismatchError(versionID, version, actual)
-		}
-		return string(content), nil
-	}
-	// never-banked: the PLACEHOLDER development escape hatch remains available.
-	if version.Hash != "PLACEHOLDER" {
-		if actual := computeSHA256(content); actual != version.Hash {
-			return "", MutableHashMismatchError(versionID, version, actual)
-		}
-	}
-
-	return string(content), nil
+	return l.loader.LoadPrompt(versionID)
 }
 
-// GetActivePrompt loads the active prompt version
-// Supports special value "latest" to automatically use the most recent version
+// GetActivePrompt loads the active prompt version. A registry whose active
+// field is "latest" resolves to its most recent production version.
 func (l *PromptLoader) GetActivePrompt() (string, error) {
-	if l.registry.Active == "" {
-		return "", fmt.Errorf("no active prompt version specified in registry")
-	}
-
-	versionID := l.registry.Active
-
-	// Handle "latest" special value - find most recent version
-	if versionID == "latest" {
-		latest := l.findLatestVersion()
-		if latest == "" {
-			return "", fmt.Errorf("no versions available to select as latest")
-		}
-		versionID = latest
-	}
-
-	return l.LoadPrompt(versionID)
+	return l.loader.LoadPrompt("")
 }
 
-// GetActiveVersionID returns the active version ID (resolving "latest" if needed)
+// GetActiveVersionID returns the active version ID (resolving "latest" if
+// needed); "" when the registry names none.
 func (l *PromptLoader) GetActiveVersionID() string {
-	if l.registry.Active == "" {
-		return ""
-	}
-
-	versionID := l.registry.Active
-
-	// Handle "latest" special value - find most recent version
-	if versionID == "latest" {
-		return l.findLatestVersion()
-	}
-
-	return versionID
-}
-
-// findLatestVersion returns the most recent version ID by comparing creation dates
-func (l *PromptLoader) findLatestVersion() string {
-	var latest string
-	var latestDate string
-
-	for id, version := range l.registry.Versions {
-		// Skip non-production versions for "latest"
-		hasProduction := false
-		for _, tag := range version.Tags {
-			if tag == "production" {
-				hasProduction = true
-				break
-			}
-		}
-		if !hasProduction {
-			continue
-		}
-
-		// Compare dates (format: YYYY-MM-DD)
-		if version.Created > latestDate {
-			latestDate = version.Created
-			latest = id
-		}
-	}
-
-	return latest
+	v, _ := l.loader.GetActiveVersion()
+	return v
 }
 
 // GetVersion returns metadata for a specific version
 func (l *PromptLoader) GetVersion(versionID string) (*PromptVersion, error) {
-	version, exists := l.registry.Versions[versionID]
-	if !exists {
+	manifest, err := l.loader.Manifest()
+	if err != nil {
+		return nil, err
+	}
+	meta, ok := manifest.Versions[versionID]
+	if !ok {
 		return nil, fmt.Errorf("prompt version %q not found", versionID)
 	}
-	return &version, nil
+	v := promptVersionFrom(meta)
+	return &v, nil
 }
 
 // ListVersions returns all available prompt versions
 func (l *PromptLoader) ListVersions() map[string]PromptVersion {
-	return l.registry.Versions
+	manifest, err := l.loader.Manifest()
+	if err != nil {
+		return nil
+	}
+	out := make(map[string]PromptVersion, len(manifest.Versions))
+	for id, meta := range manifest.Versions {
+		out[id] = promptVersionFrom(meta)
+	}
+	return out
 }
 
-// computeSHA256 calculates the SHA256 hash of content
-func computeSHA256(content []byte) string {
-	hash := sha256.Sum256(content)
-	return hex.EncodeToString(hash[:])
+func promptVersionFrom(m prompt.VersionMetadata) PromptVersion {
+	return PromptVersion{
+		File:        m.File,
+		Hash:        m.Hash,
+		Description: m.Description,
+		Created:     m.Created,
+		Tags:        m.Tags,
+		Notes:       m.Notes,
+		Frozen:      (*FrozenMarker)(m.Frozen),
+	}
 }
 
 // ComputePromptHash is a helper to compute hash for a prompt file (for updating registry)
 func ComputePromptHash(filePath string) (string, error) {
-	content, err := os.ReadFile(filePath)
+	content, err := os.ReadFile(filePath) // #nosec G304 -- operator-supplied prompt path
 	if err != nil {
 		return "", fmt.Errorf("failed to read file: %w", err)
 	}
-	return computeSHA256(content), nil
+	return prompt.SHA256Hex(content), nil
 }

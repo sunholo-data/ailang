@@ -14,8 +14,6 @@ package prompt
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -159,12 +157,11 @@ func fetchFromMCP(ctx context.Context, mcpURL, callerVersion, wantVersion, kind 
 	if servedFor != wantVersion {
 		return nil, fmt.Errorf("server returned prompt for %s but we asked for %s", servedFor, wantVersion)
 	}
-	sum := sha256.Sum256([]byte(markdown))
 	return &FreshResult{
 		Content: markdown,
 		Source:  SourceMCP,
 		Version: servedFor,
-		SHA256:  hex.EncodeToString(sum[:]),
+		SHA256:  SHA256Hex([]byte(markdown)),
 		MCPNote: "fresh from MCP",
 	}, nil
 }
@@ -181,12 +178,11 @@ func loadEmbedded(kind, version string) (*FreshResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	sum := sha256.Sum256([]byte(content))
 	return &FreshResult{
 		Content:   content,
 		Source:    SourceEmbedded,
 		Version:   ver,
-		SHA256:    hex.EncodeToString(sum[:]),
+		SHA256:    SHA256Hex([]byte(content)),
 		FromCache: false,
 		MCPNote:   "embedded copy (compiled in)",
 	}, nil
@@ -223,12 +219,11 @@ func readCache(version, kind string) (*FreshResult, bool) {
 	if err != nil {
 		return nil, false
 	}
-	sum := sha256.Sum256(body)
 	return &FreshResult{
 		Content: string(body),
 		Source:  SourceMCP,
 		Version: version,
-		SHA256:  hex.EncodeToString(sum[:]),
+		SHA256:  SHA256Hex(body),
 	}, true
 }
 
@@ -248,7 +243,7 @@ func EmbeddedSHA256() string {
 	if embeddedPrompts == nil {
 		return ""
 	}
-	manifest, err := loadVersionsManifest()
+	manifest, err := NewLoader(Syntax).Manifest()
 	if err != nil {
 		return ""
 	}
@@ -260,8 +255,7 @@ func EmbeddedSHA256() string {
 	if err != nil {
 		return ""
 	}
-	sum := sha256.Sum256(body)
-	return hex.EncodeToString(sum[:])
+	return SHA256Hex(body)
 }
 
 // BuildInfo exposes the binary's resolved version (build info if available).
