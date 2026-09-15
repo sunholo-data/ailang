@@ -212,7 +212,7 @@ func openPostTargets(ctx context.Context, spPath, cloudFlag string) []*postTarge
 
 // chainsCloudMode resolves the dual-write target: --cloud when given, else
 // gcp when the plane's observatory store is in Firestore (AILANG_STORAGE=gcp
-// or AILANG_STORAGE_OBSERVATORY=gcp — the scoped AILANG_CHAINS_CLOUD this
+// or AILANG_STORAGE_OBSERVATORY=gcp — the scoped selector this
 // replaced is a hard error naming it). "" means no remote target.
 func chainsCloudMode(cloudFlag string) (string, error) {
 	if cloudFlag != "" {

@@ -52,7 +52,7 @@ func (d *humanDuration) Set(s string) error {
 // Collaboration Hub dashboard.
 func messagesCommand() {
 	// The plane must resolve before any subcommand touches a store: a retired
-	// selector (AILANG_MESSAGES_STORE) or an unknown value is a hard error
+	// selector (see config.RemovedEnvNames) or an unknown value is a hard error
 	// here, not a silent local read.
 	if _, err := resolveMessagesTarget(); err != nil {
 		fmt.Fprintf(os.Stderr, "%s %v\n", red("Error:"), err)
@@ -135,7 +135,7 @@ func messagesCommand() {
 // store, or AILANG_STORAGE_MESSAGING=local|gcp for this one alone — which is
 // how a machine keeps its eval banking and coordinator state local while its
 // inbox is the shared cloud store (M-V1-SIMPLIFY-S3 M3; the scoped
-// AILANG_MESSAGES_STORE this replaced is a hard error naming it).
+// selector this replaced is a hard error naming it).
 //
 // Resolution (first non-empty wins):
 //

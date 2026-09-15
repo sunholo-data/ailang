@@ -20,7 +20,7 @@ var localOnlyChainsSurfaces = map[string]string{
 // chainsReadMode resolves where Backend-shaped chains views read from:
 // --remote when given, else the observatory store's mode from the ONE plane
 // switch (AILANG_STORAGE, or AILANG_STORAGE_OBSERVATORY for this store alone
-// — the scoped AILANG_CHAINS_READ this replaced is a hard error naming it).
+// — the scoped selector this replaced is a hard error naming it).
 // "" means local.
 func chainsReadMode(remoteFlag string) (string, error) {
 	if remoteFlag != "" {

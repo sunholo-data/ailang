@@ -40,7 +40,7 @@ type coordinatorStoreBundle struct {
 // coordinatorPlane resolves the plane the coordinator commands act on:
 // --remote when given, else the coordinator store's mode from the ONE plane
 // switch (AILANG_STORAGE, or AILANG_STORAGE_COORDINATOR for this store
-// alone — the scoped AILANG_COORDINATOR_REMOTE this replaced is a hard error
+// alone — the scoped selector this replaced is a hard error
 // naming it). The source is returned so the caller can print it.
 func coordinatorPlane(remoteFlag string) (mode string, source config.Source, err error) {
 	if remoteFlag != "" {
