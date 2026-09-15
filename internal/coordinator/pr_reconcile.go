@@ -7,7 +7,9 @@ package coordinator
 // one irreversible thing in this file.
 
 import (
+	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -55,7 +57,16 @@ var prStatusVerdict = map[TaskStatus]PRVerdict{
 // which fall back to `**/*` and would bound nothing. An operator approving a
 // task consented to the diff on the card; this is the second, mechanical check
 // that the branch still matches what that agent is allowed to land.
-func DecidePR(task *TaskRecord, agent *AgentConfig, changedFiles []string) PRDecision {
+//
+// cardFiles is what the approval card SAID would land, read back from the
+// approval record. Passing it is not optional politeness: measured 2026-09-15,
+// all eleven reopened ailang-core-triage approvals named
+// `design_docs/planned/ailang-core-backlog.md` while every branch carried a
+// different per-report file, because a re-run replaced the work and left the
+// card alone. One of them was approved and merged a file its card never named.
+// An empty cardFiles means "no evidence recorded" and skips the check; a
+// non-empty one that disagrees with the branch refuses the merge.
+func DecidePR(task *TaskRecord, agent *AgentConfig, changedFiles, cardFiles []string) PRDecision {
 	if task == nil {
 		return PRDecision{PRLeave, "no task record"}
 	}
@@ -91,8 +102,76 @@ func DecidePR(task *TaskRecord, agent *AgentConfig, changedFiles []string) PRDec
 			"%d file(s) outside %q's declared artifact_patterns: %s",
 			len(outside), agent.ID, strings.Join(outside, ", "))}
 	}
-	return PRDecision{PRMerge, fmt.Sprintf("task completed and all %d file(s) are inside %s",
-		len(changedFiles), strings.Join(agent.ArtifactPatterns, ", "))}
+	// The card and the branch must be describing the same change. Refusing here
+	// is the only place that can catch an approval made on superseded evidence,
+	// because by then the decision is already recorded.
+	if missing, extra := CardBranchDisagreement(cardFiles, changedFiles); len(cardFiles) > 0 && (len(missing) > 0 || len(extra) > 0) {
+		var b strings.Builder
+		b.WriteString("the approval card and the branch describe DIFFERENT changes, so the recorded decision was made on evidence that is not what would land")
+		if len(missing) > 0 {
+			fmt.Fprintf(&b, "; on the card but NOT on the branch: %s", strings.Join(missing, ", "))
+		}
+		if len(extra) > 0 {
+			fmt.Fprintf(&b, "; on the branch but NOT on the card: %s", strings.Join(extra, ", "))
+		}
+		b.WriteString(". Re-run the task (finalisation now refreshes a pending card) or merge by hand if the branch is what you meant to approve")
+		return PRDecision{PRRefuse, b.String()}
+	}
+	reason := fmt.Sprintf("task completed and all %d file(s) are inside %s",
+		len(changedFiles), strings.Join(agent.ArtifactPatterns, ", "))
+	if len(cardFiles) == 0 {
+		// Never silent: proceeding without the check is a fact about this merge.
+		reason += " (the approval recorded no file list, so the card could not be checked against the branch)"
+	}
+	return PRDecision{PRMerge, reason}
+}
+
+// CardBranchDisagreement compares two file lists as SETS, ignoring order.
+//
+// Order varies between the approval's recorded diff and GitHub's PR listing,
+// and a check that treats that as disagreement would refuse every merge —
+// which is how a safety check gets switched off.
+func CardBranchDisagreement(card, branch []string) (missing, extra []string) {
+	inBranch := make(map[string]bool, len(branch))
+	for _, f := range branch {
+		inBranch[f] = true
+	}
+	inCard := make(map[string]bool, len(card))
+	for _, f := range card {
+		inCard[f] = true
+	}
+	for f := range inCard {
+		if !inBranch[f] {
+			missing = append(missing, f)
+		}
+	}
+	for f := range inBranch {
+		if !inCard[f] {
+			extra = append(extra, f)
+		}
+	}
+	sort.Strings(missing)
+	sort.Strings(extra)
+	return missing, extra
+}
+
+// CardFilesFromContext reads the file list the approval card showed.
+//
+// Returns nil when the approval recorded no diff — which must read as "no
+// evidence", never as "no files": an approval with no recorded diff and a
+// branch with three files are not in disagreement, they are simply not
+// comparable.
+func CardFilesFromContext(contextJSON string) []string {
+	if strings.TrimSpace(contextJSON) == "" {
+		return nil
+	}
+	var obj struct {
+		ChangedFiles []string `json:"changed_files"`
+	}
+	if err := json.Unmarshal([]byte(contextJSON), &obj); err != nil {
+		return nil
+	}
+	return obj.ChangedFiles
 }
 
 // BranchForTask is the branch the cloud wrapper creates.

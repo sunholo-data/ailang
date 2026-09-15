@@ -29,6 +29,8 @@ func coordinatorApprovalsCommand(args []string) error {
 	clearOrphans := fs.Bool("clear-orphans", false, "cancel tasks awaiting an approval that does not exist")
 	force := fs.Bool("force", false, "with --clear-orphans, also cancel tasks that still have a worktree")
 	asJSON := fs.Bool("json", false, "emit the queue as JSON (for hooks and agents)")
+	refreshCards := fs.Bool("refresh-cards", false, "check every pending card against its branch and report disagreements")
+	apply := fs.Bool("apply", false, "with --refresh-cards, rewrite the stale cards from their branches")
 	_ = fs.Parse(args)
 
 	ctx := context.Background()
@@ -52,6 +54,16 @@ func coordinatorApprovalsCommand(args []string) error {
 	// Always say which plane. "approved" against the wrong store looks exactly
 	// like success.
 	fmt.Printf("store: %s\n\n", bundle.Mode)
+
+	// Card repair is its own job: it rewrites evidence rather than listing it,
+	// so it never runs as a side effect of viewing the queue.
+	if *refreshCards {
+		reg, _, rErr := resolveInboxRegistry("")
+		if rErr != nil {
+			return fmt.Errorf("cannot load the registry — a task's repo comes from its agent: %w", rErr)
+		}
+		return refreshApprovalCards(ctx, bundle, reg, *apply)
+	}
 
 	pending, err := bundle.Store.ListPendingApprovals(ctx)
 	if err != nil {

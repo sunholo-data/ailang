@@ -265,6 +265,12 @@ type Store interface {
 	// approval id is derived from the task id alone, so two executions collide
 	// on one row and a stale decision would otherwise strand the new work.
 	ReopenApprovalForNewWork(ctx context.Context, taskID, description, contextJSON string) (bool, error)
+	// RefreshPendingApproval replaces a PENDING approval's description and
+	// context because a later execution produced different work. No decision is
+	// disturbed — there is none yet — but the card must describe the change
+	// that would actually land, or the operator approves the previous run's
+	// evidence.
+	RefreshPendingApproval(ctx context.Context, taskID, description, contextJSON string) (bool, error)
 	// ReopenTask puts a REJECTED or CANCELLED task back in front of the
 	// operator: status returns to pending_approval, completed_at is cleared and
 	// the task's approval is reset to pending (created if it never existed).

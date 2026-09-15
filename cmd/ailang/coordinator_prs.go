@@ -105,7 +105,14 @@ func coordinatorPRs(args []string) error {
 			}})
 			continue
 		}
-		rows = append(rows, row{pr, t, coordinator.DecidePR(t, reg.GetAgentByID(t.AgentID), pr.Files)})
+		// The card the approval was decided on, so a merge cannot land a change
+		// the operator never saw. Unreadable is not the same as absent: say so
+		// rather than checking nothing in silence.
+		cardFiles, cardErr := approvalCardFiles(ctx, bundle.Store, taskID)
+		if cardErr != nil {
+			fmt.Fprintf(os.Stderr, "  %s could not read the approval card for %s (%v) — the branch/card check is NOT running for it\n", yellow("!"), taskID, cardErr)
+		}
+		rows = append(rows, row{pr, t, coordinator.DecidePR(t, reg.GetAgentByID(t.AgentID), pr.Files, cardFiles)})
 	}
 	if len(rows) == 0 {
 		fmt.Printf("%s no open coordinator PRs.\n\n", green("✓"))
@@ -216,7 +223,11 @@ func reconcileTaskPR(taskID string, store coordinator.Store, reg *coordinator.Ag
 	if pr == nil {
 		return // no PR: a no-changes task, or a direct-push agent
 	}
-	dec := coordinator.DecidePR(task, agent, pr.Files)
+	cardFiles, cardErr := approvalCardFiles(ctx, store, taskID)
+	if cardErr != nil {
+		fmt.Fprintf(os.Stderr, "  %s could not read the approval card for %s (%v) — the branch/card check is NOT running\n", yellow("!"), taskID, cardErr)
+	}
+	dec := coordinator.DecidePR(task, agent, pr.Files, cardFiles)
 	switch dec.Verdict {
 	case coordinator.PRClose:
 		if err := gh.ClosePR(repo, pr.Number, fmt.Sprintf(
@@ -270,4 +281,23 @@ func verdictLabel(v coordinator.PRVerdict) string {
 	default:
 		return dim("leave")
 	}
+}
+
+// approvalCardFiles is the file list the approval card showed, read back from
+// the stored decision.
+//
+// A task with no approval row at all is not an error — a skip_approval agent
+// never creates one — and reads as "no card to check against".
+func approvalCardFiles(ctx context.Context, store coordinator.Store, taskID string) ([]string, error) {
+	if store == nil {
+		return nil, nil
+	}
+	apr, err := store.GetApprovalRequestByTaskAnyStatus(ctx, taskID)
+	if err != nil || apr == nil {
+		if err != nil && strings.Contains(err.Error(), "no approval") {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return coordinator.CardFilesFromContext(apr.ContextJSON), nil
 }

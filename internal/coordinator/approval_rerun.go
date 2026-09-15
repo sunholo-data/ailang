@@ -60,6 +60,11 @@ const (
 	// CollisionUnknown: not enough evidence to tell them apart. Treated as a
 	// replay, because reopening a decision on a guess is the worse error.
 	CollisionUnknown
+	// CollisionStaleCard: the approval is still PENDING, but it describes the
+	// previous execution's work. Nobody has decided anything, so there is no
+	// decision to reopen — the evidence just has to be replaced before someone
+	// reads it.
+	CollisionStaleCard
 )
 
 // ClassifyApprovalCollision decides what an existing approval row means.
@@ -70,17 +75,34 @@ func ClassifyApprovalCollision(existing *ApprovalRequestRecord, newWorkID string
 	if existing == nil {
 		return CollisionUnknown
 	}
-	// A pending row needs nothing: the decision has not been made, and the work
-	// it describes is about to be judged either way.
-	if existing.Status == "pending" {
-		return CollisionReplay
-	}
 	existingWorkID := workIDFromContext(existing.ContextJSON)
+	sameWork := existingWorkID != "" && newWorkID != "" && existingWorkID == newWorkID
+	noEvidence := existingWorkID == "" || newWorkID == ""
+
+	// A PENDING row was read as "needs nothing: the decision has not been made,
+	// and the work it describes is about to be judged either way". The second
+	// half of that is false. The card is the evidence the decision is made ON,
+	// and a re-run replaces the work WITHOUT replacing the card — so the
+	// operator judges run 1 and merges run 2.
+	//
+	// Measured 2026-09-15, task-c0ca6301: the card said
+	// `design_docs/planned/ailang-core-backlog.md | 7 +++++++`; what merged was
+	// `design_docs/planned/ailang-core-triage/coordinator-completion-wrong-ref.md`
+	// (+11), a file the card never named. Nothing was broken at the merge — the
+	// branch was correct throughout. The approval simply described an execution
+	// that had been superseded two minutes after it finished.
+	if existing.Status == "pending" {
+		if sameWork || noEvidence {
+			return CollisionReplay
+		}
+		return CollisionStaleCard
+	}
+
 	// Either side unknown: no evidence, so do not disturb a recorded decision.
-	if existingWorkID == "" || newWorkID == "" {
+	if noEvidence {
 		return CollisionUnknown
 	}
-	if existingWorkID == newWorkID {
+	if sameWork {
 		return CollisionReplay
 	}
 	return CollisionNewWork

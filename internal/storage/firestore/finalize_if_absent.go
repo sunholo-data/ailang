@@ -121,3 +121,41 @@ func (s *MessagingStore) PutMessageIfAbsent(ctx context.Context, msg *messaging.
 	}
 	return true, nil
 }
+
+// RefreshPendingApproval rewrites a PENDING approval's evidence because a later
+// execution of the same task produced a different change.
+//
+// Transactional for the same reason ReopenApprovalForNewWork is: the 'pending'
+// guard is a read, and a human resolving the approval between the read and the
+// write would otherwise have their decision silently overwritten with a new
+// card.
+func (s *CoordinatorStore) RefreshPendingApproval(ctx context.Context, taskID, description, contextJSON string) (bool, error) {
+	if taskID == "" {
+		return false, fmt.Errorf("RefreshPendingApproval requires a task id")
+	}
+	ref := s.client.Doc(collApprovals, coordinator.ApprovalIDForTask(taskID))
+	refreshed := false
+	err := s.client.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
+		snap, err := tx.Get(ref)
+		if err != nil {
+			if status.Code(err) == codes.NotFound {
+				refreshed = false
+				return nil // nothing to refresh; the caller creates instead
+			}
+			return err
+		}
+		if cur, _ := snap.Data()["status"].(string); cur != "pending" {
+			refreshed = false
+			return nil
+		}
+		refreshed = true
+		return tx.Update(ref, []firestore.Update{
+			{Path: "description", Value: description},
+			{Path: "context_json", Value: contextJSON},
+		})
+	})
+	if err != nil {
+		return false, fmt.Errorf("refreshing pending approval for %s: %w", taskID, err)
+	}
+	return refreshed, nil
+}

@@ -507,6 +507,15 @@ func (m *MockStore) ReopenApprovalForNewWork(ctx context.Context, taskID, descri
 	return false, nil
 }
 
+// RefreshPendingApproval: a pending card describing superseded work. The mock
+// records the call and reports "nothing refreshed".
+func (m *MockStore) RefreshPendingApproval(ctx context.Context, taskID, description, contextJSON string) (bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.calls["RefreshPendingApproval"]++
+	return false, nil
+}
+
 // ReopenTask: rejected/cancelled goes back to pending_approval, anything else
 // is refused — the guard is the part worth modelling.
 func (m *MockStore) ReopenTask(ctx context.Context, taskID string) error {

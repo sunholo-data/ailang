@@ -141,7 +141,27 @@ func (f *finalizer) applyApproval(ctx context.Context) (FinalizationState, error
 			return FinalizationSuperseded, nil
 		}
 		newWorkID, _ := approvalContext["work_id"].(string)
-		if ClassifyApprovalCollision(existing, newWorkID) != CollisionNewWork {
+		switch ClassifyApprovalCollision(existing, newWorkID) {
+		case CollisionStaleCard:
+			// Nobody has decided anything yet, so nothing is reopened — the
+			// PENDING card is simply describing work that no longer exists, and
+			// it has to be replaced before someone approves the wrong evidence.
+			refreshed, rErr := f.deps.TaskStore.RefreshPendingApproval(ctx, f.in.Task.ID, description, contextJSON)
+			if rErr != nil {
+				return FinalizationPending, rErr
+			}
+			if !refreshed {
+				// The row moved out of pending between the read and the write —
+				// a human decided it. That is the reopen case, and it belongs to
+				// the NEXT delivery, which will read the resolved status.
+				return FinalizationSuperseded, nil
+			}
+			f.deps.logf("finalize %s: a later execution produced DIFFERENT work (%s) than the pending approval described — card refreshed before anyone reads it",
+				f.in.Task.ID, newWorkID)
+			return FinalizationDone, nil
+		case CollisionNewWork:
+			// handled below
+		default:
 			return FinalizationSuperseded, nil
 		}
 		reopened, rErr := f.deps.TaskStore.ReopenApprovalForNewWork(ctx, f.in.Task.ID, description, contextJSON)

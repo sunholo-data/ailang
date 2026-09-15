@@ -65,3 +65,37 @@ func (s *SQLiteStore) ReopenApprovalForNewWork(ctx context.Context, taskID, desc
 	}
 	return n > 0, nil
 }
+
+// RefreshPendingApproval rewrites a PENDING approval's evidence because a later
+// execution of the same task produced a different change.
+//
+// The card the operator reads and the branch the merge lands were allowed to
+// come apart. Measured 2026-09-15 on task-c0ca6301: run 1 wrote
+// `design_docs/planned/ailang-core-backlog.md` (+7) and created the approval;
+// the task was re-dispatched and run 2 wrote
+// `design_docs/planned/ailang-core-triage/coordinator-completion-wrong-ref.md`
+// (+11) onto the same branch. CreateApprovalIfAbsent said "already exists",
+// ClassifyApprovalCollision called a pending row a replay, and the approval kept
+// run 1's diff. The operator approved a card describing a file that no longer
+// existed and merged a file the card never named.
+//
+// Guarded on 'pending' so it can never touch a decision that has been made —
+// that case is ReopenApprovalForNewWork's, and the two must not overlap.
+func (s *SQLiteStore) RefreshPendingApproval(ctx context.Context, taskID, description, contextJSON string) (bool, error) {
+	if taskID == "" {
+		return false, fmt.Errorf("RefreshPendingApproval requires a task id")
+	}
+	res, err := s.db.ExecContext(ctx, `
+		UPDATE approval_requests
+		   SET description = ?, context_json = ?
+		 WHERE task_id = ? AND status = 'pending'
+	`, description, contextJSON, taskID)
+	if err != nil {
+		return false, fmt.Errorf("refreshing pending approval for %s: %w", taskID, err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("rows affected refreshing %s: %w", taskID, err)
+	}
+	return n > 0, nil
+}
