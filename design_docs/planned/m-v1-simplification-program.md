@@ -87,8 +87,8 @@ None of this is file size: no file exceeds the 800-line gate. The complexity is 
 
 | Metric | Today | v1.0.0 gate |
 |---|---|---|
-| Internal packages in the `run/check/fmt/prompt/repl` closure | 43 (112 linked) | ≤ 36, enforced by test |
-| Third-party roots in that closure from {sqlite3, otel, grpc, cloud.google.com, ollama} | 5 | 0 |
+| Internal packages in the `run/check/fmt/prompt/repl` closure | 43 (112 linked) | ≤ 40, enforced by test (was 36 before `ai`/`secrets`/`mcp_client` were measured as legitimately core) |
+| Third-party roots in that closure from {sqlite3, otel-sdk/exporters, grpc, websocket, cloud.google.com/go/{firestore,pubsub,storage,trace}} | 5 | 0 |
 | Top-level commands visible in default `ailang --help` | 78 | ≤ 20 |
 | Commands where `<cmd> --help` exits 0 | ~70% | 100% |
 | Distinct `os.Getenv` call sites outside `internal/config` (excluding `DEBUG_*`) | ~400 | 0, enforced by `forbidigo` |
@@ -173,7 +173,12 @@ Goal: the language closure is a checked invariant; the platform registers into i
 
 1. `internal/diag/closure_test.go` (pattern: `modelreg/leaf_test.go` with its positive control): closure of `{pipeline, eval, effects, builtins, format, repl, prompt, lsp, vm, gen/golang, smt}` must not contain `ai, telemetry(impl), secrets, mcp_client, coordinator, observatory, storage/*, executor, eval_harness, messaging` nor third-party roots `{sqlite3, otel, grpc, cloud.google.com, ollama}`. Lands day one with an **expected-violations list** that must only shrink (the test fails if a listed violation disappears without being removed from the list, and if a new one appears).
 2. Hot path: remove `observatory.CheckHealth` and `checkStaleBinary` from `main.go:75,100`; run them only for ops commands and `doctor`. `ailang version` must open no database.
-3. Registration seams: `effects/ai*.go` → `internal/platform/aieffects` registering via `effects.RegisterAIHandler`; same for `sharedmem_sqlite.go` and `stream.go` (websocket); `builtins/ollama_embed.go` → platform; `internal/telemetry` split into a no-op interface in core (the callback slot in `effects/context.go:84` already exists) and the otel/GCP exporter registered from cmd; `repl` drops `telemetry/planning/test`; `prompt` drops `mcp_client`.
+3. Registration seams — **amended 2026-09-15 after measuring each leak's carrier** (per-package `go list -deps`; the original list was inferred from direct imports):
+   - `internal/telemetry` is the one carrier of every heavy root. It imports the OTel SDK, the OTLP and GCP exporters (→ grpc, `cloud.google.com/go/{trace,auth,compute}`) *and* `effects` + `eval`, and every `internal/ai/<provider>` imports it directly. **The seam: `internal/telemetry` keeps the types and a no-op default; `internal/platform/otel` holds the SDK and exporters and registers itself from cmd/ailang's platform init.** One move clears otel/grpc/cloud-trace from ai, effects, pipeline and repl at once.
+   - `effects/sharedmem_sqlite.go` (sqlite) and `effects/stream.go` (websocket) → `internal/platform/{sharedmem,stream}` behind `effects.Register…` seams, as planned.
+   - **`internal/ai` is part of the language closure, not a leak.** The AI effect is a language feature; `ailang run` of a program that calls a model must link the provider clients. `internal/secrets` (1Password via exec, no cloud deps), `internal/mcp_client` and `internal/auth/gcp` (Vertex ADC for gemini) measured clean and stay too. `effects/ai*.go` therefore does **not** move.
+   - The ollama client SDK (`github.com/ollama/ollama/api`, used by `ai/ollama` and `builtins/ollama_embed.go`) is an HTTP client library and is **not** a boundary violation; it leaves the leak-root list. Phase 2.8's single `ai.doJSON` may retire it later on its own merits.
+   - Leak roots become specific: `go-sqlite3`, `go.opentelemetry.io/otel/sdk`, `go.opentelemetry.io/otel/exporters`, `GoogleCloudPlatform/opentelemetry-operations-go`, `google.golang.org/grpc`, `gorilla/websocket`, `cloud.google.com/go/{firestore,pubsub,storage,trace}`. The OTel *API* (`internal/trace` uses it for span types) is allowed. Platform deny-list becomes `telemetry-impl (platform/otel), coordinator, observatory, storage, executor, eval_harness, messaging`.
 4. Pull compiler logic out of cmd: `verify.go` AST→SMT into `internal/smt`; `check_package.go` analyses into `internal/pipeline` (or new `internal/check`); `run_helpers.go` capability resolution + `main_run_exec.go runFile` into `internal/runner`. These are what a WASM or embedded caller needs and cannot reach today.
 5. Widen `scripts/check_boundaries.sh` sets as the interim gate until (1) is green: add `ai, secrets, telemetry, mcp_client, storage, executor, eval_harness` to the deny side and `builtins, loader, link, runtime, effects` to the core side.
 6. Rewrite ARCHITECTURE.md **from the closure test output** so the map is derived, not aspirational (it currently names ~27 of 124 packages).
