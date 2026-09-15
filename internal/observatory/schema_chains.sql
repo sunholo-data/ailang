@@ -65,6 +65,8 @@ CREATE TABLE IF NOT EXISTS chain_stages (
     cost REAL DEFAULT 0,
     tokens_in INTEGER DEFAULT 0,
     tokens_out INTEGER DEFAULT 0,
+    cache_read_tokens INTEGER DEFAULT 0,      -- v21: same names as spans
+    cache_creation_tokens INTEGER DEFAULT 0,  -- v21
     turns INTEGER DEFAULT 0,
     tool_calls INTEGER DEFAULT 0,
     duration_ms INTEGER DEFAULT 0,

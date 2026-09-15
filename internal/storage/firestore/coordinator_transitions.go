@@ -181,6 +181,24 @@ func (s *CoordinatorStore) ResetTaskToPending(ctx context.Context, id string) er
 
 // --- Duplicate Detection ---
 
+// HASH-SPACE NOTE (M-V1-SIMPLIFY-S4 M3B). Until M-V1-SIMPLIFY-S3 M5
+// (5731a1f38) the coordinator fingerprinted with an ASCII-only SimHash
+// variant; the survivor, simhash.Hash, differs for content holding a
+// non-ASCII rune or a one-character token. The SQLite store re-indexes the
+// column at open (store_sqlite_schema.go). This store deliberately does NOT:
+//
+//   - A stored fingerprint only matters while its row is inside DedupWindow
+//     (24h): BlocksDuplicate ignores anything older.
+//   - So the only rows a re-index could touch are those written in the 24h
+//     before a binary carrying the survivor first runs against the project,
+//     and they age out on their own within 24h of that moment.
+//   - The failure mode inside that day is a MISSED suppression — one extra
+//     execution of a request whose predecessor had a non-ASCII or one-char
+//     token — never a false suppression, which needs exact equality between
+//     two hashes of different content in different spaces.
+//   - Running the re-index once per project would need a `_meta` marker plus
+//     a start-up hook the daemon does not have, for a fix whose value is
+//     zero after the first day. The exposure was accepted at the S3 switch.
 func (s *CoordinatorStore) FindDuplicateTask(ctx context.Context, fingerprint uint64, scope coordinator.DedupScope) (*coordinator.TaskRecord, error) {
 	// Firestore doesn't support bitwise operations, so we do exact fingerprint
 	// match. The status and age rule is coordinator.BlocksDuplicate — applied here

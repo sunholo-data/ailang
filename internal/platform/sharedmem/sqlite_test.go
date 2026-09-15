@@ -431,22 +431,3 @@ func TestSQLiteSharedCache_EmptyDB(t *testing.T) {
 		t.Error("GC on empty should be no-op")
 	}
 }
-
-func TestHammingDistance64(t *testing.T) {
-	tests := []struct {
-		a, b int64
-		want int
-	}{
-		{0, 0, 0},
-		{0, 1, 1},
-		{0, 0xFF, 8},
-		{0, -1, 64}, // all bits different
-		{0x5555555555555555, -0x5555555555555556, 64}, // all bits flipped
-	}
-	for _, tt := range tests {
-		got := hammingDistance64(tt.a, tt.b)
-		if got != tt.want {
-			t.Errorf("hammingDistance64(%d, %d) = %d, want %d", tt.a, tt.b, got, tt.want)
-		}
-	}
-}

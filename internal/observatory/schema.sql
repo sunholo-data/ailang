@@ -231,6 +231,8 @@ CREATE TABLE IF NOT EXISTS chat_messages (
     content_json TEXT,                -- Full content array as JSON
     tokens_in INTEGER DEFAULT 0,
     tokens_out INTEGER DEFAULT 0,
+    cache_read_tokens INTEGER DEFAULT 0,      -- v21: same names as spans
+    cache_creation_tokens INTEGER DEFAULT 0,  -- v21
     model TEXT,
     request_id TEXT,                  -- Links to api_request spans
     timestamp TIMESTAMP NOT NULL,

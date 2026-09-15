@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/sunholo-data/ailang/internal/mapval"
 	obs "github.com/sunholo-data/ailang/internal/observatory"
 )
 
@@ -124,20 +125,20 @@ func obsMessageToMap(m *obs.Message) map[string]interface{} {
 
 func mapToObsMessage(data map[string]interface{}) *obs.Message {
 	return &obs.Message{
-		ID:                getString(data, "id"),
-		TaskID:            getString(data, "task_id"),
-		Inbox:             getString(data, "inbox"),
-		FromAgent:         getString(data, "from_agent"),
-		Title:             getString(data, "title"),
-		Content:           getString(data, "content"),
-		MessageType:       getString(data, "message_type"),
-		Status:            obs.MessageStatus(getString(data, "status")),
-		Priority:          getString(data, "priority"),
-		GitHubIssueNumber: getInt(data, "github_issue_number"),
-		GitHubRepo:        getString(data, "github_repo"),
-		CorrelationID:     getString(data, "correlation_id"),
-		ReplyToID:         getString(data, "reply_to_id"),
-		ContentHash:       getString(data, "content_hash"),
+		ID:                mapval.String(data, "id"),
+		TaskID:            mapval.String(data, "task_id"),
+		Inbox:             mapval.String(data, "inbox"),
+		FromAgent:         mapval.String(data, "from_agent"),
+		Title:             mapval.String(data, "title"),
+		Content:           mapval.String(data, "content"),
+		MessageType:       mapval.String(data, "message_type"),
+		Status:            obs.MessageStatus(mapval.String(data, "status")),
+		Priority:          mapval.String(data, "priority"),
+		GitHubIssueNumber: mapval.Int(data, "github_issue_number"),
+		GitHubRepo:        mapval.String(data, "github_repo"),
+		CorrelationID:     mapval.String(data, "correlation_id"),
+		ReplyToID:         mapval.String(data, "reply_to_id"),
+		ContentHash:       mapval.String(data, "content_hash"),
 		CreatedAt:         snapshotToTime(data, "created_at"),
 		ReadAt:            snapshotToTimePtr(data, "read_at"),
 		ArchivedAt:        snapshotToTimePtr(data, "archived_at"),

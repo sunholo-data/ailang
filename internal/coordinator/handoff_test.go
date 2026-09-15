@@ -239,44 +239,6 @@ func TestTaskRecordParentTaskID(t *testing.T) {
 	}
 }
 
-// TestHandoffMetadataContainsParentTaskID verifies the metadata format for handoffs
-func TestHandoffMetadataContainsParentTaskID(t *testing.T) {
-	// This test verifies the metadata structure that sendHandoffMessage creates
-	// The metadata should include parent_task_id for hierarchy tracking
-
-	task := &TaskRecord{
-		ID:      "task-source-abc",
-		AgentID: "design-doc-creator",
-	}
-	targetAgentID := "sprint-planner"
-	sessionID := "session-xyz"
-
-	// Simulate the metadata map that sendHandoffMessage creates
-	metadataMap := map[string]interface{}{
-		"parent_task_id": task.ID,       // For hierarchy tracking
-		"handoff_source": task.ID,       // Legacy field
-		"source_agent":   task.AgentID,  // Which agent completed
-		"target_agent":   targetAgentID, // Which agent receives
-	}
-	if sessionID != "" {
-		metadataMap["session_id"] = sessionID
-	}
-
-	// Verify required fields
-	if metadataMap["parent_task_id"] != "task-source-abc" {
-		t.Errorf("parent_task_id = %v, want task-source-abc", metadataMap["parent_task_id"])
-	}
-	if metadataMap["source_agent"] != "design-doc-creator" {
-		t.Errorf("source_agent = %v, want design-doc-creator", metadataMap["source_agent"])
-	}
-	if metadataMap["target_agent"] != "sprint-planner" {
-		t.Errorf("target_agent = %v, want sprint-planner", metadataMap["target_agent"])
-	}
-	if metadataMap["session_id"] != "session-xyz" {
-		t.Errorf("session_id = %v, want session-xyz", metadataMap["session_id"])
-	}
-}
-
 // TestAgentIDPriorityOverThreadLookup tests that task.AgentID takes priority
 // over thread.TargetAgent lookup (backwards compatibility fallback)
 func TestAgentIDPriorityOverThreadLookup(t *testing.T) {

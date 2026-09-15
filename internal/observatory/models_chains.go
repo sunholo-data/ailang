@@ -134,9 +134,15 @@ type ChainStage struct {
 	// for RATION questions; sum TokensIn/TokensOut for COST questions. Never both
 	// (M-QUOTA-RATIONING-ROUTING M2).
 	QuotaTokens int64 `json:"quota_tokens,omitempty"`
-	Turns       int   `json:"turns"`
-	ToolCalls   int   `json:"tool_calls"`
-	DurationMs  int64 `json:"duration_ms"`
+	// Cache tokens are the part of TokensIn served from the provider's prompt
+	// cache (read) or written into it (creation) — priced differently, and
+	// the reason a stage's tokens_in overstates what it cost. Same names and
+	// meaning as the spans columns (v21).
+	CacheReadTokens     int   `json:"cache_read_tokens,omitempty"`
+	CacheCreationTokens int   `json:"cache_creation_tokens,omitempty"`
+	Turns               int   `json:"turns"`
+	ToolCalls           int   `json:"tool_calls"`
+	DurationMs          int64 `json:"duration_ms"`
 
 	// Error tracking
 	ErrorMessage string `json:"error_message,omitempty"`
@@ -312,6 +318,10 @@ type AgentStatsResult struct {
 	TotalCost float64 `json:"total_cost"`
 	TokensIn  int     `json:"total_tokens_in"`
 	TokensOut int     `json:"total_tokens_out"`
+	// Summed from chain_stages' v21 columns; zero for every stage written
+	// before them, so the split is only meaningful for recent imports.
+	CacheReadTokens     int `json:"total_cache_read_tokens,omitempty"`
+	CacheCreationTokens int `json:"total_cache_creation_tokens,omitempty"`
 }
 
 // ChainStatusCounts holds per-status chain counts from a single SQL aggregation.

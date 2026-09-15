@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/sunholo-data/ailang/internal/mapval"
 	obs "github.com/sunholo-data/ailang/internal/observatory"
 )
 
@@ -79,7 +80,7 @@ func (s *ObservatoryStore) GetChainByTaskID(ctx context.Context, taskID string) 
 	if err != nil {
 		return nil, err
 	}
-	chainID := getString(doc.Data(), "chain_id")
+	chainID := mapval.String(doc.Data(), "chain_id")
 	return s.GetChain(ctx, chainID, obs.ChainReadOptions{IncludeStages: true})
 }
 
@@ -140,11 +141,11 @@ func (s *ObservatoryStore) GetChainStats(ctx context.Context) (*obs.ChainStats, 
 		}
 		data := doc.Data()
 		stats.TotalChains++
-		stats.TotalCost += getFloat64(data, "total_cost")
-		stats.TotalTokens += getInt64(data, "total_tokens")
-		totalStages += getInt(data, "stages_completed")
+		stats.TotalCost += mapval.Float(data, "total_cost")
+		stats.TotalTokens += mapval.Int64(data, "total_tokens")
+		totalStages += mapval.Int(data, "stages_completed")
 
-		st := obs.ChainStatus(getString(data, "status"))
+		st := obs.ChainStatus(mapval.String(data, "status"))
 		switch st {
 		case obs.ChainStatusActive:
 			stats.ActiveChains++
@@ -424,9 +425,9 @@ func (s *ObservatoryStore) GetChainStatusCounts(ctx context.Context, createdAfte
 		}
 		data := doc.Data()
 		counts.Total++
-		counts.TotalCost += getFloat64(data, "total_cost")
-		counts.TotalTokens += getInt64(data, "total_tokens")
-		switch obs.ChainStatus(getString(data, "status")) {
+		counts.TotalCost += mapval.Float(data, "total_cost")
+		counts.TotalTokens += mapval.Int64(data, "total_tokens")
+		switch obs.ChainStatus(mapval.String(data, "status")) {
 		case obs.ChainStatusCompleted:
 			counts.Completed++
 		case obs.ChainStatusActive:
@@ -459,7 +460,7 @@ func (s *ObservatoryStore) GetChainStatsByAgent(ctx context.Context, createdAfte
 			return nil, err
 		}
 		data := doc.Data()
-		agentID := getString(data, "agent_id")
+		agentID := mapval.String(data, "agent_id")
 		if agentID == "" {
 			continue
 		}
@@ -469,10 +470,10 @@ func (s *ObservatoryStore) GetChainStatsByAgent(ctx context.Context, createdAfte
 			agentMap[agentID] = stats
 		}
 		stats.Stages++
-		stats.TotalCost += getFloat64(data, "cost")
-		stats.TokensIn += getInt(data, "tokens_in")
-		stats.TokensOut += getInt(data, "tokens_out")
-		switch obs.ChainStageStatus(getString(data, "status")) {
+		stats.TotalCost += mapval.Float(data, "cost")
+		stats.TokensIn += mapval.Int(data, "tokens_in")
+		stats.TokensOut += mapval.Int(data, "tokens_out")
+		switch obs.ChainStageStatus(mapval.String(data, "status")) {
 		case obs.StageStatusCompleted:
 			stats.Completed++
 		case obs.StageStatusFailed:
@@ -514,11 +515,11 @@ func (s *ObservatoryStore) GetCostRollup(ctx context.Context, createdAfter *time
 		// carry source_ref); sourcePrefix is honored by the SQLite backend which the
 		// mission uses. Firestore callers pass "" today.
 		stage := &obs.ChainStage{
-			Cost:      getFloat64(data, "cost"),
-			TokensIn:  getInt(data, "tokens_in"),
-			TokensOut: getInt(data, "tokens_out"),
+			Cost:      mapval.Float(data, "cost"),
+			TokensIn:  mapval.Int(data, "tokens_in"),
+			TokensOut: mapval.Int(data, "tokens_out"),
 		}
-		if model := getString(data, "model"); model != "" {
+		if model := mapval.String(data, "model"); model != "" {
 			stage.EvalAssessment = &obs.EvalAssessment{Model: model}
 		}
 		rollup.AddStage(stage)
@@ -577,23 +578,23 @@ func (s *ObservatoryStore) GetSpanLitesByStageID(ctx context.Context, stageID st
 			durationMs = endTime.Sub(startTime).Milliseconds()
 		}
 		spans = append(spans, &obs.SpanLite{
-			ID:            getString(data, "id"),
-			TraceID:       getString(data, "trace_id"),
-			ParentSpanID:  getString(data, "parent_span_id"),
-			ChainID:       getString(data, "chain_id"),
-			StageID:       getString(data, "stage_id"),
-			Name:          getString(data, "name"),
-			Kind:          obs.SpanKind(getString(data, "kind")),
-			Status:        getString(data, "status"),
-			StatusMessage: getString(data, "status_message"),
+			ID:            mapval.String(data, "id"),
+			TraceID:       mapval.String(data, "trace_id"),
+			ParentSpanID:  mapval.String(data, "parent_span_id"),
+			ChainID:       mapval.String(data, "chain_id"),
+			StageID:       mapval.String(data, "stage_id"),
+			Name:          mapval.String(data, "name"),
+			Kind:          obs.SpanKind(mapval.String(data, "kind")),
+			Status:        mapval.String(data, "status"),
+			StatusMessage: mapval.String(data, "status_message"),
 			StartTime:     startTime,
 			EndTime:       endTime,
 			DurationMs:    durationMs,
-			TokensIn:      getInt64(data, "tokens_in"),
-			TokensOut:     getInt64(data, "tokens_out"),
-			CostUSD:       getFloat64(data, "cost_usd"),
-			Model:         getString(data, "model"),
-			Provider:      getString(data, "provider"),
+			TokensIn:      mapval.Int64(data, "tokens_in"),
+			TokensOut:     mapval.Int64(data, "tokens_out"),
+			CostUSD:       mapval.Float(data, "cost_usd"),
+			Model:         mapval.String(data, "model"),
+			Provider:      mapval.String(data, "provider"),
 		})
 	}
 
@@ -635,16 +636,16 @@ func (s *ObservatoryStore) ListPendingApprovals(ctx context.Context, limit int) 
 		}
 		data := doc.Data()
 		result = append(result, &obs.PendingApprovalInfo{
-			ChainID:        getString(data, "chain_id"),
-			StageID:        getString(data, "id"),
-			StageNumber:    getInt(data, "stage_number"),
-			AgentID:        getString(data, "agent_id"),
-			ApprovalStatus: getString(data, "approval_status"),
-			ApprovalType:   obs.ApprovalType(getString(data, "approval_type")),
-			TaskID:         getString(data, "task_id"),
-			SessionID:      getString(data, "session_id"),
-			Cost:           getFloat64(data, "cost"),
-			Turns:          getInt(data, "turns"),
+			ChainID:        mapval.String(data, "chain_id"),
+			StageID:        mapval.String(data, "id"),
+			StageNumber:    mapval.Int(data, "stage_number"),
+			AgentID:        mapval.String(data, "agent_id"),
+			ApprovalStatus: mapval.String(data, "approval_status"),
+			ApprovalType:   obs.ApprovalType(mapval.String(data, "approval_type")),
+			TaskID:         mapval.String(data, "task_id"),
+			SessionID:      mapval.String(data, "session_id"),
+			Cost:           mapval.Float(data, "cost"),
+			Turns:          mapval.Int(data, "turns"),
 		})
 	}
 	return result, nil

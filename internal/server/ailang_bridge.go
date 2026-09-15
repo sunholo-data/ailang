@@ -11,6 +11,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/coordinator"
 	"github.com/sunholo-data/ailang/internal/embed"
 	"github.com/sunholo-data/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/mapval"
 )
 
 // timeNow is a function variable for time.Now, allowing tests to mock time.
@@ -246,8 +247,8 @@ func convertHeatmapResultFromAILANG(result eval.Value) (HeatmapGridResponse, err
 			for i, labelRaw := range labelsSlice {
 				if labelMap, ok := labelRaw.(map[string]interface{}); ok {
 					response.MonthLabels[i] = HeatmapMonthLabel{
-						Name:      getString(labelMap, "name"),
-						WeekIndex: getInt(labelMap, "weekIndex"),
+						Name:      mapval.String(labelMap, "name"),
+						WeekIndex: mapval.Int(labelMap, "weekIndex"),
 					}
 				}
 			}
@@ -255,56 +256,25 @@ func convertHeatmapResultFromAILANG(result eval.Value) (HeatmapGridResponse, err
 	}
 
 	// Extract totals
-	response.Totals.Tasks = getInt(resultMap, "totalTasks")
-	response.Totals.Cost = getFloat(resultMap, "totalCost")
+	response.Totals.Tasks = mapval.Int(resultMap, "totalTasks")
+	response.Totals.Cost = mapval.Float(resultMap, "totalCost")
 
 	// Extract date range
-	response.DateRange.Start = getString(resultMap, "startDate")
-	response.DateRange.End = getString(resultMap, "endDate")
+	response.DateRange.Start = mapval.String(resultMap, "startDate")
+	response.DateRange.End = mapval.String(resultMap, "endDate")
 
 	return response, nil
 }
 
 func extractGridCell(m map[string]interface{}) HeatmapGridCell {
 	return HeatmapGridCell{
-		Date:        getString(m, "date"),
-		TaskCount:   getInt(m, "count"),
-		Cost:        getFloat(m, "cost"),
-		SuccessRate: getFloat(m, "successRate"),
-		Intensity:   getFloat(m, "intensity"),
-		DayOfWeek:   getInt(m, "dayOfWeek"),
+		Date:        mapval.String(m, "date"),
+		TaskCount:   mapval.Int(m, "count"),
+		Cost:        mapval.Float(m, "cost"),
+		SuccessRate: mapval.Float(m, "successRate"),
+		Intensity:   mapval.Float(m, "intensity"),
+		DayOfWeek:   mapval.Int(m, "dayOfWeek"),
 	}
-}
-
-func getString(m map[string]interface{}, key string) string {
-	if v, ok := m[key].(string); ok {
-		return v
-	}
-	return ""
-}
-
-func getInt(m map[string]interface{}, key string) int {
-	switch v := m[key].(type) {
-	case int:
-		return v
-	case int64:
-		return int(v)
-	case float64:
-		return int(v)
-	}
-	return 0
-}
-
-func getFloat(m map[string]interface{}, key string) float64 {
-	switch v := m[key].(type) {
-	case float64:
-		return v
-	case int:
-		return float64(v)
-	case int64:
-		return float64(v)
-	}
-	return 0.0
 }
 
 // BudgetConfig represents budget configuration for task execution.
@@ -401,19 +371,12 @@ func convertBudgetStatusFromAILANG(result eval.Value) (BudgetStatus, error) {
 	}
 
 	return BudgetStatus{
-		Allowed:            getBool(resultMap, "allowed"),
-		RemainingWorkspace: getFloat(resultMap, "remainingWorkspace"),
-		RemainingDaily:     getFloat(resultMap, "remainingDaily"),
-		WarningLevel:       getString(resultMap, "warningLevel"),
-		Message:            getString(resultMap, "message"),
+		Allowed:            mapval.Bool(resultMap, "allowed"),
+		RemainingWorkspace: mapval.Float(resultMap, "remainingWorkspace"),
+		RemainingDaily:     mapval.Float(resultMap, "remainingDaily"),
+		WarningLevel:       mapval.String(resultMap, "warningLevel"),
+		Message:            mapval.String(resultMap, "message"),
 	}, nil
-}
-
-func getBool(m map[string]interface{}, key string) bool {
-	if v, ok := m[key].(bool); ok {
-		return v
-	}
-	return false
 }
 
 // CostRecord represents a historical cost entry for burn rate calculation.
@@ -468,10 +431,10 @@ func (b *AILANGBridge) ForecastExhaustion(remainingBudget, burnRate float64) (in
 	// Option[int]: Some carries "value"; None is the -1 sentinel this API uses.
 	if resultMap, ok := goResult.(map[string]interface{}); ok {
 		if _, exists := resultMap["value"]; exists {
-			return getInt(resultMap, "value"), nil
+			return mapval.Int(resultMap, "value"), nil
 		}
 		if tag, exists := resultMap["_tag"]; exists && tag == "Some" {
-			return getInt(resultMap, "value"), nil
+			return mapval.Int(resultMap, "value"), nil
 		}
 	}
 	return -1, nil

@@ -8,6 +8,7 @@ import (
 	"cloud.google.com/go/firestore"
 	"google.golang.org/api/iterator"
 
+	"github.com/sunholo-data/ailang/internal/mapval"
 	obs "github.com/sunholo-data/ailang/internal/observatory"
 )
 
@@ -133,10 +134,10 @@ func (s *ObservatoryStore) RecomputeChainAggregates(ctx context.Context, chainID
 				return fmt.Errorf("reading stages for chain %s: %w", chainID, err)
 			}
 			data := doc.Data()
-			totalCost += getFloat64(data, "cost")
-			totalTokens += getInt(data, "tokens_in") + getInt(data, "tokens_out")
-			totalTurns += getInt(data, "turns")
-			if getString(data, "status") == string(obs.StageStatusCompleted) {
+			totalCost += mapval.Float(data, "cost")
+			totalTokens += mapval.Int(data, "tokens_in") + mapval.Int(data, "tokens_out")
+			totalTurns += mapval.Int(data, "turns")
+			if mapval.String(data, "status") == string(obs.StageStatusCompleted) {
 				stagesCompleted++
 			}
 		}

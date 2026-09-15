@@ -372,6 +372,7 @@ func (s *Store) GetChainStages(ctx context.Context, chainID string, opts ChainRe
 		       started_at, completed_at,
 		       cost, tokens_in, tokens_out, turns, tool_calls, duration_ms,
 		       COALESCE(quota_tokens, 0),
+		       COALESCE(cache_read_tokens, 0), COALESCE(cache_creation_tokens, 0),
 		       COALESCE(cost_provenance, ''),
 		       error_message, error_count,
 		       eval_assessment
@@ -401,6 +402,7 @@ func (s *Store) GetChainStages(ctx context.Context, chainID string, opts ChainRe
 			&startedAt, &completedAt,
 			&stage.Cost, &stage.TokensIn, &stage.TokensOut, &stage.Turns, &stage.ToolCalls, &stage.DurationMs,
 			&stage.QuotaTokens,
+			&stage.CacheReadTokens, &stage.CacheCreationTokens,
 			&stage.CostProvenance,
 			&errorMessage, &stage.ErrorCount,
 			&evalAssessmentJSON,
@@ -491,6 +493,7 @@ func (s *Store) GetStage(ctx context.Context, id string) (*ChainStage, error) {
 		       started_at, completed_at,
 		       cost, tokens_in, tokens_out, turns, tool_calls, duration_ms,
 		       COALESCE(quota_tokens, 0),
+		       COALESCE(cache_read_tokens, 0), COALESCE(cache_creation_tokens, 0),
 		       COALESCE(cost_provenance, ''),
 		       error_message, error_count
 		FROM chain_stages WHERE id = ?
@@ -502,6 +505,7 @@ func (s *Store) GetStage(ctx context.Context, id string) (*ChainStage, error) {
 		&startedAt, &completedAt,
 		&stage.Cost, &stage.TokensIn, &stage.TokensOut, &stage.Turns, &stage.ToolCalls, &stage.DurationMs,
 		&stage.QuotaTokens,
+		&stage.CacheReadTokens, &stage.CacheCreationTokens,
 		&stage.CostProvenance,
 		&errorMessage, &stage.ErrorCount,
 	)

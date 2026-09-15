@@ -222,7 +222,9 @@ func (s *Store) GetChainStatsByAgent(ctx context.Context, createdAfter *time.Tim
 		       SUM(CASE WHEN cs.status = 'failed' THEN 1 ELSE 0 END) as failed,
 		       COALESCE(SUM(cs.cost), 0) as total_cost,
 		       COALESCE(SUM(cs.tokens_in), 0) as total_tokens_in,
-		       COALESCE(SUM(cs.tokens_out), 0) as total_tokens_out
+		       COALESCE(SUM(cs.tokens_out), 0) as total_tokens_out,
+		       COALESCE(SUM(cs.cache_read_tokens), 0) as total_cache_read_tokens,
+		       COALESCE(SUM(cs.cache_creation_tokens), 0) as total_cache_creation_tokens
 		FROM chain_stages cs
 		JOIN execution_chains c ON cs.chain_id = c.id
 	`
@@ -241,7 +243,8 @@ func (s *Store) GetChainStatsByAgent(ctx context.Context, createdAfter *time.Tim
 	var results []*AgentStatsResult
 	for rows.Next() {
 		r := &AgentStatsResult{}
-		if err := rows.Scan(&r.AgentID, &r.Stages, &r.Completed, &r.Failed, &r.TotalCost, &r.TokensIn, &r.TokensOut); err != nil {
+		if err := rows.Scan(&r.AgentID, &r.Stages, &r.Completed, &r.Failed, &r.TotalCost, &r.TokensIn, &r.TokensOut,
+			&r.CacheReadTokens, &r.CacheCreationTokens); err != nil {
 			return nil, fmt.Errorf("failed to scan agent stats row: %w", err)
 		}
 		results = append(results, r)

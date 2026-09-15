@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/sunholo-data/ailang/internal/devtoolsprompt"
+	"github.com/sunholo-data/ailang/internal/prompt"
 )
 
 // runDevtoolsPrompt handles the 'ailang devtools-prompt' command
@@ -48,7 +48,7 @@ func runDevtoolsPrompt() {
 	// --compact appends "-compact" to the resolved version
 	if *compactFlag {
 		if version == "latest" {
-			activeVer, err := devtoolsprompt.GetActiveVersion()
+			activeVer, err := prompt.DevTools.GetActiveVersion()
 			if err == nil && activeVer != "" {
 				version = activeVer + "-compact"
 			} else {
@@ -59,7 +59,7 @@ func runDevtoolsPrompt() {
 		}
 	}
 
-	content, err := devtoolsprompt.LoadPrompt(version)
+	content, err := prompt.DevTools.LoadPrompt(version)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 		os.Exit(1)
@@ -119,13 +119,13 @@ DESCRIPTION:
 
 // listDevtoolsPromptVersions lists all available devtools prompt versions
 func listDevtoolsPromptVersions() {
-	versions, err := devtoolsprompt.ListVersions()
+	versions, err := prompt.DevTools.ListVersions()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 		os.Exit(1)
 	}
 
-	activeVersion, err := devtoolsprompt.GetActiveVersion()
+	activeVersion, err := prompt.DevTools.GetActiveVersion()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: failed to get active version: %v\n", yellow("Warning"), err)
 		activeVersion = ""
@@ -150,13 +150,13 @@ func listDevtoolsPromptVersions() {
 
 // showDevtoolsPromptInfo displays metadata for a specific devtools prompt version
 func showDevtoolsPromptInfo(version string) {
-	metadata, err := devtoolsprompt.GetVersionMetadata(version)
+	metadata, err := prompt.DevTools.GetVersionMetadata(version)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 		os.Exit(1)
 	}
 
-	activeVersion, _ := devtoolsprompt.GetActiveVersion()
+	activeVersion, _ := prompt.DevTools.GetActiveVersion()
 	isActive := false
 	if version == "latest" || version == "" {
 		version = activeVersion

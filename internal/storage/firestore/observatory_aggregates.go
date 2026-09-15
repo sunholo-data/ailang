@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/sunholo-data/ailang/internal/mapval"
 	obs "github.com/sunholo-data/ailang/internal/observatory"
 )
 
@@ -46,12 +47,12 @@ func (s *ObservatoryStore) GetMetricsSummary(ctx context.Context) (*obs.MetricsS
 		}
 		data := doc.Data()
 		totalSpans++
-		summary.TotalTokensIn += getInt64(data, "tokens_in")
-		summary.TotalTokensOut += getInt64(data, "tokens_out")
-		summary.TotalCostUSD += getFloat64(data, "cost_usd")
-		summary.TotalCacheReadTokens += getInt64(data, "cache_read_tokens")
-		summary.TotalCacheCreationTokens += getInt64(data, "cache_creation_tokens")
-		if getString(data, "status") == "error" {
+		summary.TotalTokensIn += mapval.Int64(data, "tokens_in")
+		summary.TotalTokensOut += mapval.Int64(data, "tokens_out")
+		summary.TotalCostUSD += mapval.Float(data, "cost_usd")
+		summary.TotalCacheReadTokens += mapval.Int64(data, "cache_read_tokens")
+		summary.TotalCacheCreationTokens += mapval.Int64(data, "cache_creation_tokens")
+		if mapval.String(data, "status") == "error" {
 			errorCount++
 		}
 	}
@@ -72,7 +73,7 @@ func (s *ObservatoryStore) GetMetricsSummary(ctx context.Context) (*obs.MetricsS
 		if err != nil {
 			break
 		}
-		agentMap[getString(doc.Data(), "agent_id")] = true
+		agentMap[mapval.String(doc.Data(), "agent_id")] = true
 	}
 	summary.TotalAgents = len(agentMap)
 
@@ -94,7 +95,7 @@ func (s *ObservatoryStore) GetProviderComparison(ctx context.Context) ([]*obs.Pr
 			return nil, err
 		}
 		data := doc.Data()
-		p := getString(data, "provider")
+		p := mapval.String(data, "provider")
 		if p == "" {
 			continue
 		}
@@ -104,12 +105,12 @@ func (s *ObservatoryStore) GetProviderComparison(ctx context.Context) ([]*obs.Pr
 			providerStats[p] = pc
 		}
 		pc.TotalExecutions++
-		pc.TotalTokensIn += getInt64(data, "tokens_in")
-		pc.TotalTokensOut += getInt64(data, "tokens_out")
-		pc.TotalCost += getFloat64(data, "cost_usd")
-		dur := getInt64(data, "duration_ms")
+		pc.TotalTokensIn += mapval.Int64(data, "tokens_in")
+		pc.TotalTokensOut += mapval.Int64(data, "tokens_out")
+		pc.TotalCost += mapval.Float(data, "cost_usd")
+		dur := mapval.Int64(data, "duration_ms")
 		pc.AvgDurationMs += float64(dur)
-		if getString(data, "status") != "error" {
+		if mapval.String(data, "status") != "error" {
 			pc.SuccessRate += 1.0
 		}
 	}
@@ -181,12 +182,12 @@ func (s *ObservatoryStore) GetExecTaskHierarchy(ctx context.Context, limit int) 
 		data := doc.Data()
 		startTime := snapshotToTime(data, "start_time")
 		nodes = append(nodes, &obs.ExecTaskNode{
-			TaskID:     getString(data, "task_id"),
-			Command:    getString(data, "name"),
-			Provider:   getString(data, "provider"),
-			Status:     getString(data, "status"),
+			TaskID:     mapval.String(data, "task_id"),
+			Command:    mapval.String(data, "name"),
+			Provider:   mapval.String(data, "provider"),
+			Status:     mapval.String(data, "status"),
 			StartTime:  &startTime,
-			DurationMs: int(getInt64(data, "duration_ms")),
+			DurationMs: int(mapval.Int64(data, "duration_ms")),
 		})
 	}
 	return nodes, nil
@@ -225,12 +226,12 @@ func (s *ObservatoryStore) GetExecTaskHierarchyWithMessages(ctx context.Context,
 				continue
 			}
 			data := doc.Data()
-			taskID := getString(data, "id")
+			taskID := mapval.String(data, "id")
 			if taskID == "" {
 				taskID = doc.Ref.ID
 			}
-			if getString(data, "source_type") == "message" {
-				if ref := getString(data, "source_ref"); ref != "" {
+			if mapval.String(data, "source_type") == "message" {
+				if ref := mapval.String(data, "source_ref"); ref != "" {
 					taskToMessage[taskID] = ref
 				}
 			}
@@ -299,17 +300,17 @@ func (s *ObservatoryStore) GetSpanHierarchy(ctx context.Context, limit int) (*ob
 		data := doc.Data()
 		startTime := snapshotToTime(data, "start_time")
 		node := &obs.SpanHierarchyNode{
-			ID:         getString(data, "id"),
-			Name:       getString(data, "name"),
-			ParentID:   getString(data, "parent_span_id"),
+			ID:         mapval.String(data, "id"),
+			Name:       mapval.String(data, "name"),
+			ParentID:   mapval.String(data, "parent_span_id"),
 			StartTime:  startTime,
-			DurationMs: getInt64(data, "duration_ms"),
-			TokensIn:   getInt64(data, "tokens_in"),
-			TokensOut:  getInt64(data, "tokens_out"),
-			CostUSD:    getFloat64(data, "cost_usd"),
-			SessionID:  getString(data, "session_id"),
-			Status:     obs.SpanStatus(getString(data, "status")),
-			Provider:   obs.Provider(getString(data, "provider")),
+			DurationMs: mapval.Int64(data, "duration_ms"),
+			TokensIn:   mapval.Int64(data, "tokens_in"),
+			TokensOut:  mapval.Int64(data, "tokens_out"),
+			CostUSD:    mapval.Float(data, "cost_usd"),
+			SessionID:  mapval.String(data, "session_id"),
+			Status:     obs.SpanStatus(mapval.String(data, "status")),
+			Provider:   obs.Provider(mapval.String(data, "provider")),
 		}
 		spanMap[node.ID] = node
 		allNodes = append(allNodes, node)
@@ -369,20 +370,20 @@ func (s *ObservatoryStore) GetToolsByTimestampRange(ctx context.Context, start, 
 		}
 		data := doc.Data()
 		tool := obs.SessionTool{
-			ToolUseID: getString(data, "tool_use_id"),
-			SessionID: getString(data, "session_id"),
-			ToolName:  getString(data, "tool_name"),
+			ToolUseID: mapval.String(data, "tool_use_id"),
+			SessionID: mapval.String(data, "session_id"),
+			ToolName:  mapval.String(data, "tool_name"),
 			StartTime: snapshotToTime(data, "start_time"),
 			EndTime:   snapshotToTimePtr(data, "end_time"),
 		}
-		if input := getString(data, "tool_input"); input != "" {
+		if input := mapval.String(data, "tool_input"); input != "" {
 			tool.ToolInput = json.RawMessage(input)
 		}
-		if resp := getString(data, "tool_response"); resp != "" {
+		if resp := mapval.String(data, "tool_response"); resp != "" {
 			tool.ToolResponse = json.RawMessage(resp)
 		}
 		if v, ok := data["success"]; ok && v != nil {
-			b := getBool(data, "success")
+			b := mapval.Bool(data, "success")
 			tool.Success = &b
 		}
 		result = append(result, tool)
@@ -455,14 +456,14 @@ func (s *ObservatoryStore) GetSessionMetricsSummary(ctx context.Context, session
 			return nil, err
 		}
 		data := doc.Data()
-		summary.TokensIn += getInt64(data, "tokens_in")
-		summary.TokensOut += getInt64(data, "tokens_out")
-		summary.CacheReadTokens += getInt64(data, "cache_read_tokens")
-		summary.CacheCreationTokens += getInt64(data, "cache_creation_tokens")
-		summary.TotalCostUSD += getFloat64(data, "cost_usd")
-		summary.DurationMs += getInt64(data, "duration_ms")
+		summary.TokensIn += mapval.Int64(data, "tokens_in")
+		summary.TokensOut += mapval.Int64(data, "tokens_out")
+		summary.CacheReadTokens += mapval.Int64(data, "cache_read_tokens")
+		summary.CacheCreationTokens += mapval.Int64(data, "cache_creation_tokens")
+		summary.TotalCostUSD += mapval.Float(data, "cost_usd")
+		summary.DurationMs += mapval.Int64(data, "duration_ms")
 		summary.SpanCount++
-		if getString(data, "status") == "error" {
+		if mapval.String(data, "status") == "error" {
 			summary.ErrorCount++
 		}
 	}
@@ -485,16 +486,16 @@ func (s *ObservatoryStore) GetSession(ctx context.Context, sessionID string) (*o
 	}
 	data := doc.Data()
 	return &obs.Session{
-		SessionID:     getString(data, "session_id"),
-		Workspace:     getString(data, "workspace"),
-		ClaudeVersion: getString(data, "claude_version"),
-		Source:        getString(data, "source"),
+		SessionID:     mapval.String(data, "session_id"),
+		Workspace:     mapval.String(data, "workspace"),
+		ClaudeVersion: mapval.String(data, "claude_version"),
+		Source:        mapval.String(data, "source"),
 		StartedAt:     snapshotToTime(data, "started_at"),
 		EndedAt:       snapshotToTimePtr(data, "ended_at"),
-		TaskID:        getString(data, "task_id"),
-		ChainID:       getString(data, "chain_id"),
-		StageID:       getString(data, "stage_id"),
-		MessageID:     getString(data, "message_id"),
+		TaskID:        mapval.String(data, "task_id"),
+		ChainID:       mapval.String(data, "chain_id"),
+		StageID:       mapval.String(data, "stage_id"),
+		MessageID:     mapval.String(data, "message_id"),
 	}, nil
 }
 
@@ -516,20 +517,20 @@ func (s *ObservatoryStore) GetSessionTools(ctx context.Context, sessionID string
 		}
 		data := doc.Data()
 		tool := obs.SessionTool{
-			ToolUseID: getString(data, "tool_use_id"),
-			SessionID: getString(data, "session_id"),
-			ToolName:  getString(data, "tool_name"),
+			ToolUseID: mapval.String(data, "tool_use_id"),
+			SessionID: mapval.String(data, "session_id"),
+			ToolName:  mapval.String(data, "tool_name"),
 			StartTime: snapshotToTime(data, "start_time"),
 			EndTime:   snapshotToTimePtr(data, "end_time"),
 		}
-		if input := getString(data, "tool_input"); input != "" {
+		if input := mapval.String(data, "tool_input"); input != "" {
 			tool.ToolInput = json.RawMessage(input)
 		}
-		if resp := getString(data, "tool_response"); resp != "" {
+		if resp := mapval.String(data, "tool_response"); resp != "" {
 			tool.ToolResponse = json.RawMessage(resp)
 		}
 		if v, ok := data["success"]; ok && v != nil {
-			b := getBool(data, "success")
+			b := mapval.Bool(data, "success")
 			tool.Success = &b
 		}
 		result = append(result, tool)
@@ -571,25 +572,25 @@ func obsMetricToMap(m *obs.Metric) map[string]interface{} {
 
 func mapToObsMetric(data map[string]interface{}) *obs.Metric {
 	m := &obs.Metric{
-		Name:          getString(data, "name"),
-		Type:          getString(data, "metric_type"),
-		SessionID:     getString(data, "session_id"),
-		Workspace:     getString(data, "workspace"),
-		Provider:      getString(data, "provider"),
-		LabelType:     getString(data, "label_type"),
-		LabelTool:     getString(data, "label_tool"),
-		LabelDecision: getString(data, "label_decision"),
-		LabelLanguage: getString(data, "label_language"),
-		LabelModel:    getString(data, "label_model"),
-		ValueInt:      getInt64(data, "value_int"),
-		ValueFloat:    getFloat64(data, "value_float"),
+		Name:          mapval.String(data, "name"),
+		Type:          mapval.String(data, "metric_type"),
+		SessionID:     mapval.String(data, "session_id"),
+		Workspace:     mapval.String(data, "workspace"),
+		Provider:      mapval.String(data, "provider"),
+		LabelType:     mapval.String(data, "label_type"),
+		LabelTool:     mapval.String(data, "label_tool"),
+		LabelDecision: mapval.String(data, "label_decision"),
+		LabelLanguage: mapval.String(data, "label_language"),
+		LabelModel:    mapval.String(data, "label_model"),
+		ValueInt:      mapval.Int64(data, "value_int"),
+		ValueFloat:    mapval.Float(data, "value_float"),
 		Timestamp:     snapshotToTime(data, "timestamp"),
 		CreatedAt:     snapshotToTime(data, "created_at"),
 	}
-	if labelsStr := getString(data, "labels"); labelsStr != "" {
+	if labelsStr := mapval.String(data, "labels"); labelsStr != "" {
 		_ = json.Unmarshal([]byte(labelsStr), &m.Labels)
 	}
-	if raStr := getString(data, "resource_attributes"); raStr != "" {
+	if raStr := mapval.String(data, "resource_attributes"); raStr != "" {
 		_ = json.Unmarshal([]byte(raStr), &m.ResourceAttributes)
 	}
 	return m

@@ -8,6 +8,7 @@ import (
 	"cloud.google.com/go/firestore"
 	"google.golang.org/api/iterator"
 
+	"github.com/sunholo-data/ailang/internal/mapval"
 	obs "github.com/sunholo-data/ailang/internal/observatory"
 )
 
@@ -107,7 +108,7 @@ func (s *ObservatoryStore) hasLiveStage(ctx context.Context, chainID string) (bo
 			return false, fmt.Errorf("checking live stages for chain %s: %w", chainID, err)
 		}
 		data := doc.Data()
-		status := getString(data, "status")
+		status := mapval.String(data, "status")
 		if status != string(obs.StageStatusPending) && status != string(obs.StageStatusRunning) {
 			continue
 		}
@@ -145,7 +146,7 @@ func (s *ObservatoryStore) AbandonChain(ctx context.Context, chainID, reason str
 		if err != nil {
 			return fmt.Errorf("reading chain %s: %w", chainID, err)
 		}
-		if getString(doc.Data(), "status") != string(obs.ChainStatusActive) {
+		if mapval.String(doc.Data(), "status") != string(obs.ChainStatusActive) {
 			// Someone reached a real verdict first. Leave it.
 			return nil
 		}

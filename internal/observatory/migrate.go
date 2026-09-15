@@ -16,7 +16,7 @@ var schemaFS embed.FS
 // constant rather than a literal, so adding a migration does not require
 // editing unrelated test expectations — that churn is what made the v18 bump
 // look like a regression.
-const CurrentSchemaVersion = 20
+const CurrentSchemaVersion = 21
 
 // Migrate runs database migrations to create or update the observatory schema.
 // It is idempotent - safe to call multiple times.
@@ -535,6 +535,16 @@ func MigrateWithVersion(db *sql.DB) (int, error) {
 	// "metered" (M-QUOTA-RATIONING-ROUTING M2).
 	if currentVersion < 20 {
 		currentVersion, err = migrateV20(db, currentVersion)
+		if err != nil {
+			return currentVersion, err
+		}
+	}
+
+	// Migration v21: cache_read_tokens/cache_creation_tokens on chat_messages
+	// and chain_stages, so an imported chain can STORE what the importer
+	// decodes (M-V1-SIMPLIFY-S4 M3B).
+	if currentVersion < 21 {
+		currentVersion, err = migrateV21(db, currentVersion)
 		if err != nil {
 			return currentVersion, err
 		}

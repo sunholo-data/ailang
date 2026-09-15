@@ -51,9 +51,9 @@ type MotokoImportResult struct {
 	TokensOut    int
 	PeakInput    int
 	// Cache tokens, summed over thinking events — decoded by the executor's
-	// SessionEvent, which the importer now shares (its own decoder had no
-	// cache fields, so imported chains lost them). chat_messages has no
-	// column for them yet; they are reported, not stored.
+	// SessionEvent, which the importer shares (its own decoder had no cache
+	// fields, so imported chains lost them). Stored per assistant turn on
+	// chat_messages and summed on the stage (schema v21, S4 M3B).
 	CacheReadTokens     int
 	CacheCreationTokens int
 }
@@ -193,10 +193,12 @@ func (s *Store) ImportMotokoSession(ctx context.Context, logPath string) (*Motok
 	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO chain_stages
 		(id, chain_id, stage_number, agent_id, provider, session_id, status, started_at,
-		 completed_at, error_message, cost, tokens_in, tokens_out, turns, tool_calls, duration_ms)
-		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+		 completed_at, error_message, cost, tokens_in, tokens_out, cache_read_tokens, cache_creation_tokens,
+		 turns, tool_calls, duration_ms)
+		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 		stageID, chainID, 1, "motoko-agent", "ollama", sessID, res.Status, started, started,
-		res.Error, cost, res.TokensIn, res.TokensOut, res.Steps, res.ToolCalls, durationMs); err != nil {
+		res.Error, cost, res.TokensIn, res.TokensOut, res.CacheReadTokens, res.CacheCreationTokens,
+		res.Steps, res.ToolCalls, durationMs); err != nil {
 		return nil, fmt.Errorf("insert stage: %w", err)
 	}
 
@@ -250,10 +252,12 @@ func (s *Store) ImportMotokoSession(ctx context.Context, logPath string) (*Motok
 		if _, err := tx.ExecContext(ctx, `
 			INSERT INTO chat_messages
 			(id, session_id, turn_number, role, content_text, content_thinking, content_json,
-			 tokens_in, tokens_out, model, timestamp)
-			VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+			 tokens_in, tokens_out, cache_read_tokens, cache_creation_tokens, model, timestamp)
+			VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 			uuid.New().String(), sessID, turn, "assistant", summaryText, text, string(blocksJSON),
-			deref(t.InputTokens), deref(t.OutputTokens), modelOr(t.Model, model), started); err != nil {
+			deref(t.InputTokens), deref(t.OutputTokens),
+			deref(t.CacheReadInputTokens), deref(t.CacheCreationInputTokens),
+			modelOr(t.Model, model), started); err != nil {
 			return nil, fmt.Errorf("insert chat (assistant): %w", err)
 		}
 

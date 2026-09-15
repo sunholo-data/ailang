@@ -43,8 +43,9 @@ func (a *TaskAnalyzer) Analyze(task *Task) *AnalyzedTask {
 	// so fingerprints written before the switch live in a different space.
 	// FindDuplicateTask matches by exact equality inside DedupWindow (24h), so
 	// a pre-switch row can fail to suppress a post-switch duplicate for at most
-	// that window; it can never false-match. Re-indexing the stored column
-	// needs the M3-owned stores (store_sqlite.go, firestore) — Sprint 4.
+	// that window; it can never false-match. The SQLite store re-indexes rows
+	// inside the window at open (store_sqlite_schema.go, S4 M3B); the
+	// Firestore store documents why it does not (coordinator_transitions.go).
 	analyzed.Fingerprint = uint64(simhash.Hash(task.Content))
 
 	// Check for duplicates

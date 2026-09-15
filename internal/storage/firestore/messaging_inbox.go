@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/sunholo-data/ailang/internal/mapval"
 	"github.com/sunholo-data/ailang/internal/messaging"
 )
 
@@ -263,7 +264,7 @@ func (s *MessagingStore) InboxMessageExistsByTitle(inbox string, title string) (
 	if err != nil {
 		return "", err
 	}
-	return getString(doc.Data(), "id"), nil
+	return mapval.String(doc.Data(), "id"), nil
 }
 
 func (s *MessagingStore) UpdateInboxMessageGitHub(messageID string, issueNumber int, repo string) error {
@@ -326,7 +327,7 @@ func (s *MessagingStore) CountInboxMessagesByStatus(inbox string) (map[string]in
 		if err != nil {
 			return nil, err
 		}
-		st := getString(doc.Data(), "status")
+		st := mapval.String(doc.Data(), "status")
 		if st != "" {
 			counts[st]++
 		}
@@ -355,8 +356,8 @@ func (s *MessagingStore) GetMessageFlowEdges() ([]messaging.MessageFlowEdge, err
 			return nil, err
 		}
 		data := doc.Data()
-		from := getString(data, "from_agent")
-		to := getString(data, "to_inbox")
+		from := mapval.String(data, "from_agent")
+		to := mapval.String(data, "to_inbox")
 		if from == "" || to == "" {
 			continue
 		}
@@ -401,8 +402,8 @@ func (s *MessagingStore) GetActiveAgents() ([]messaging.ActiveAgent, error) {
 			return nil, err
 		}
 		data := doc.Data()
-		from := getString(data, "from_agent")
-		to := getString(data, "to_inbox")
+		from := mapval.String(data, "from_agent")
+		to := mapval.String(data, "to_inbox")
 
 		if from != "" {
 			if a, ok := agents[from]; ok {

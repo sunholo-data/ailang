@@ -9,6 +9,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/sunholo-data/ailang/internal/mapval"
 	obs "github.com/sunholo-data/ailang/internal/observatory"
 )
 
@@ -147,15 +148,15 @@ func (s *ObservatoryStore) GetAgentStats(ctx context.Context, agentID string) (*
 		}
 		data := doc.Data()
 		stats.ExecutionCount++
-		stats.TotalDurationMs += getInt64(data, "duration_ms")
-		stats.TotalTokensIn += getInt64(data, "tokens_in")
-		stats.TotalTokensOut += getInt64(data, "tokens_out")
-		stats.TotalCost += getFloat64(data, "cost_usd")
-		stats.TotalToolCalls += getInt(data, "tool_calls")
-		if getString(data, "status") == "completed" {
+		stats.TotalDurationMs += mapval.Int64(data, "duration_ms")
+		stats.TotalTokensIn += mapval.Int64(data, "tokens_in")
+		stats.TotalTokensOut += mapval.Int64(data, "tokens_out")
+		stats.TotalCost += mapval.Float(data, "cost_usd")
+		stats.TotalToolCalls += mapval.Int(data, "tool_calls")
+		if mapval.String(data, "status") == "completed" {
 			completed++
 		}
-		if p := getString(data, "provider"); p != "" && stats.Provider == "" {
+		if p := mapval.String(data, "provider"); p != "" && stats.Provider == "" {
 			stats.Provider = obs.Provider(p)
 		}
 	}
@@ -195,25 +196,25 @@ func obsTaskToMap(t *obs.Task) map[string]interface{} {
 
 func mapToObsTask(data map[string]interface{}) *obs.Task {
 	return &obs.Task{
-		ID:              getString(data, "id"),
-		WorkspaceID:     getString(data, "workspace_id"),
-		ParentTaskID:    getString(data, "parent_task_id"),
-		Title:           getString(data, "title"),
-		Description:     getString(data, "description"),
-		SourceType:      obs.TaskSourceType(getString(data, "source_type")),
-		SourceRef:       getString(data, "source_ref"),
-		Status:          obs.TaskStatus(getString(data, "status")),
-		Priority:        getString(data, "priority"),
+		ID:              mapval.String(data, "id"),
+		WorkspaceID:     mapval.String(data, "workspace_id"),
+		ParentTaskID:    mapval.String(data, "parent_task_id"),
+		Title:           mapval.String(data, "title"),
+		Description:     mapval.String(data, "description"),
+		SourceType:      obs.TaskSourceType(mapval.String(data, "source_type")),
+		SourceRef:       mapval.String(data, "source_ref"),
+		Status:          obs.TaskStatus(mapval.String(data, "status")),
+		Priority:        mapval.String(data, "priority"),
 		CreatedAt:       snapshotToTime(data, "created_at"),
 		StartedAt:       snapshotToTimePtr(data, "started_at"),
 		CompletedAt:     snapshotToTimePtr(data, "completed_at"),
-		TotalDurationMs: getInt64(data, "total_duration_ms"),
-		TotalTokensIn:   getInt64(data, "total_tokens_in"),
-		TotalTokensOut:  getInt64(data, "total_tokens_out"),
-		TotalCostUSD:    getFloat64(data, "total_cost_usd"),
-		AgentCount:      getInt(data, "agent_count"),
-		SpanCount:       getInt(data, "span_count"),
-		ErrorCount:      getInt(data, "error_count"),
+		TotalDurationMs: mapval.Int64(data, "total_duration_ms"),
+		TotalTokensIn:   mapval.Int64(data, "total_tokens_in"),
+		TotalTokensOut:  mapval.Int64(data, "total_tokens_out"),
+		TotalCostUSD:    mapval.Float(data, "total_cost_usd"),
+		AgentCount:      mapval.Int(data, "agent_count"),
+		SpanCount:       mapval.Int(data, "span_count"),
+		ErrorCount:      mapval.Int(data, "error_count"),
 	}
 }
 
@@ -239,20 +240,20 @@ func agentAssignmentToMap(a *obs.AgentAssignment) map[string]interface{} {
 
 func mapToAgentAssignment(data map[string]interface{}) *obs.AgentAssignment {
 	return &obs.AgentAssignment{
-		ID:                 getString(data, "id"),
-		TaskID:             getString(data, "task_id"),
-		AgentID:            getString(data, "agent_id"),
-		Provider:           obs.Provider(getString(data, "provider")),
-		Status:             obs.AgentAssignmentStatus(getString(data, "status")),
+		ID:                 mapval.String(data, "id"),
+		TaskID:             mapval.String(data, "task_id"),
+		AgentID:            mapval.String(data, "agent_id"),
+		Provider:           obs.Provider(mapval.String(data, "provider")),
+		Status:             obs.AgentAssignmentStatus(mapval.String(data, "status")),
 		AssignedAt:         snapshotToTime(data, "assigned_at"),
 		StartedAt:          snapshotToTimePtr(data, "started_at"),
 		CompletedAt:        snapshotToTimePtr(data, "completed_at"),
-		ParentAssignmentID: getString(data, "parent_assignment_id"),
-		DurationMs:         getInt64(data, "duration_ms"),
-		TokensIn:           getInt64(data, "tokens_in"),
-		TokensOut:          getInt64(data, "tokens_out"),
-		CostUSD:            getFloat64(data, "cost_usd"),
-		ToolCalls:          getInt(data, "tool_calls"),
-		Turns:              getInt(data, "turns"),
+		ParentAssignmentID: mapval.String(data, "parent_assignment_id"),
+		DurationMs:         mapval.Int64(data, "duration_ms"),
+		TokensIn:           mapval.Int64(data, "tokens_in"),
+		TokensOut:          mapval.Int64(data, "tokens_out"),
+		CostUSD:            mapval.Float(data, "cost_usd"),
+		ToolCalls:          mapval.Int(data, "tool_calls"),
+		Turns:              mapval.Int(data, "turns"),
 	}
 }
