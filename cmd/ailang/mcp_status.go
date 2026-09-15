@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/mcp_client"
 	"github.com/sunholo-data/ailang/internal/prompt"
 	versionpkg "github.com/sunholo-data/ailang/internal/version"
@@ -71,7 +72,7 @@ func runMCPStatus(rawArgs []string) {
 
 	report := mcpStatusReport{
 		CLIVersion:  versionpkg.Version,
-		MCPEndpoint: os.Getenv("AILANG_MCP_URL"),
+		MCPEndpoint: config.MCPURL(),
 		EmbeddedSHA: prompt.EmbeddedSHA256(),
 	}
 	if report.MCPEndpoint == "" {
@@ -80,7 +81,7 @@ func runMCPStatus(rawArgs []string) {
 
 	res, err := prompt.LoadPromptFresh(context.Background(), prompt.FreshOptions{
 		Source: prompt.SourceMCP,
-		MCPURL: os.Getenv("AILANG_MCP_URL"),
+		MCPURL: config.MCPURL(),
 	}, versionpkg.Version)
 
 	switch {

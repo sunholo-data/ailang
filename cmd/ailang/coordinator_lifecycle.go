@@ -138,7 +138,7 @@ func coordinatorStart(args []string) error {
 		budget := feedbackgate.NewBudget(fsstore.NewFeedbackGateBudgetStore(fsClient))
 
 		var provider ai.Provider
-		if key := os.Getenv("ANTHROPIC_API_KEY"); key != "" {
+		if key := config.AnthropicAPIKey(); key != "" {
 			// The classifier model is a per-request field (ai.Request.Model =
 			// cfg.ClassifierModel), so a bare client is correct — do NOT thread a
 			// model into the client here. The metered key is passed explicitly:
@@ -160,13 +160,10 @@ func coordinatorStart(args []string) error {
 
 	// M-CLOUD-DISPATCH: Create Cloud Run Jobs dispatcher in cloud mode.
 	// Created here (not in coordinator package) to avoid circular imports.
-	if os.Getenv("COORDINATOR_MODE") == "cloud" {
+	if coordinator.IsCloudMode() {
 		projectID, projErr := config.CloudProject(ctx)
 		region, regionErr := config.Region()
-		prefix := os.Getenv("AILANG_TOPIC_PREFIX")
-		if prefix == "" {
-			prefix = pubsub.DefaultTopicPrefix
-		}
+		prefix := pubsub.TopicPrefixFromEnv()
 		var dispatcher *cloudrun.Dispatcher
 		dispErr := errors.Join(projErr, regionErr)
 		if dispErr == nil {
@@ -431,10 +428,10 @@ func printCoordinatorStatusOutput(status *coordinator.Status) {
 // without an HTTP listener, which means tag-routed `POST /api/messages` is
 // unreachable. M-COORD-TAG-ROUTING-LASTMILE.
 func discoverCoordinatorHTTPPort() string {
-	if p := os.Getenv("AILANG_COORD_HTTP_PORT"); p != "" {
+	if p := config.CoordHTTPPort(); p != "" {
 		return p
 	}
-	if p := os.Getenv("PORT"); p != "" {
+	if p := config.Port(); p != "" {
 		return p
 	}
 	home, err := os.UserHomeDir()

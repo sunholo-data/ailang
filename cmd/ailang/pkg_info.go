@@ -5,24 +5,19 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strings"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // DefaultValidatorURL is the default AILANG registry validator (Cloud Run service).
-const DefaultValidatorURL = "https://registry.ailang.sunholo.com"
+const DefaultValidatorURL = config.DefaultRegistryValidatorURL
 
 // registryValidatorURL returns the registry validator URL.
 // Checks AILANG_REGISTRY_VALIDATOR first, then AILANG_REGISTRY_API (deprecated alias), then default.
 func registryValidatorURL() string {
-	if url := os.Getenv("AILANG_REGISTRY_VALIDATOR"); url != "" {
-		return strings.TrimRight(url, "/")
-	}
-	if url := os.Getenv("AILANG_REGISTRY_API"); url != "" {
-		return strings.TrimRight(url, "/")
-	}
-	return DefaultValidatorURL
+	return config.RegistryValidatorURL()
 }
 
 func registryAPIGet(path string) ([]byte, error) {

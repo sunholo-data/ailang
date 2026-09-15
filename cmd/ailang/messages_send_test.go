@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/messaging"
 	"github.com/sunholo-data/ailang/internal/testutil"
 )
@@ -52,6 +53,11 @@ func TestSplitAndTrim(t *testing.T) {
 // "comma-separated form `--requires 'agent:motoko,ollama:gemma4-26b-ailang'`
 // accepts and stores them as a 2-element slice".
 func TestSendViaHTTP_PostsCorrectShape(t *testing.T) {
+	// The operator's shell may carry a real key, and a rig has the rendered
+	// coordinator plist discoverCoordinatorAPIKey falls back to; this test is
+	// about the unauthenticated shape, so clear both for the duration.
+	t.Setenv(config.EnvCoordinatorAPIKey, "")
+	t.Setenv("HOME", t.TempDir())
 	var gotBody map[string]interface{}
 	var gotAuth string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -112,7 +118,8 @@ func TestSendViaHTTP_PostsCorrectShape(t *testing.T) {
 	// (the daemon's middleware accepts open requests when COORDINATOR_API_KEY
 	// is unset, matching the local-mode default).
 	if gotAuth != "" {
-		t.Errorf("Authorization header = %q, want empty (no COORDINATOR_API_KEY in test env)", gotAuth)
+		// Never print the header: on a failure it would be a credential.
+		t.Errorf("Authorization header was set (%d bytes), want empty with COORDINATOR_API_KEY cleared", len(gotAuth))
 	}
 }
 

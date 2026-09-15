@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // discoverCoordinatorAPIKey returns the bearer token the local daemon
@@ -12,7 +14,7 @@ import (
 // the same environment, and the daemon fails closed without a key
 // (M-V1-SIMPLIFY-S3 M5). Returns "" when neither declares one.
 func discoverCoordinatorAPIKey() string {
-	if key := os.Getenv("COORDINATOR_API_KEY"); key != "" {
+	if key := config.CoordinatorAPIKey(); key != "" {
 		return key
 	}
 	home, err := os.UserHomeDir()

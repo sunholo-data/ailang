@@ -33,10 +33,8 @@ import (
 // "sunholo/daneel_*"). Reads are not gated here at all — the bucket is public.
 
 const (
-	keyPrefix         = "ailr_"
-	keysCollectionEnv = "FIRESTORE_KEYS_COLLECTION"
-	keysCollection    = "ailang_registry_keys"
-	superuserOwner    = "superuser"
+	keyPrefix      = "ailr_"
+	superuserOwner = "superuser"
 )
 
 // principal is the resolved identity behind an X-API-Key header.

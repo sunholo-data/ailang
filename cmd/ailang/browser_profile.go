@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/browser/auth"
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // browserProfileEnv resolves the on-disk locations the profile commands use.
@@ -24,7 +25,7 @@ type browserProfileEnv struct {
 }
 
 func browserProfileRoot() (string, error) {
-	if override := os.Getenv("AILANG_BROWSER_PROFILE_DIR"); override != "" {
+	if override := config.BrowserProfileDir(); override != "" {
 		return override, nil
 	}
 	home, err := os.UserHomeDir()
@@ -502,7 +503,7 @@ func artifactSummary(policy auth.AuthProfilePolicy) string {
 }
 
 func operatorPrincipal() string {
-	if user := os.Getenv("USER"); user != "" {
+	if user := config.User(); user != "" {
 		return "operator:" + user
 	}
 	return "operator"

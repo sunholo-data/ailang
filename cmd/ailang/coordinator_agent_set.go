@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/coordinator"
 	"github.com/sunholo-data/ailang/internal/gitexec"
 )
@@ -49,7 +50,7 @@ type agentSetOpts struct {
 }
 
 func coordinatorAgentSet(args []string) error {
-	opts := agentSetOpts{repoConfig: os.Getenv("AILANG_AGENT_CHECK_REPO_CONFIG")}
+	opts := agentSetOpts{repoConfig: config.AgentCheckRepoConfig()}
 	var positional []string
 	for i := 0; i < len(args); i++ {
 		switch args[i] {

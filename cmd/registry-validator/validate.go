@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/pkg"
 	"github.com/sunholo-data/ailang/internal/strutil"
 )
@@ -190,10 +191,7 @@ func rewritePathDepsToRegistry(dir string, manifest *pkg.PackageManifest) error 
 
 // lookupLatestVersion fetches the registry index and finds the latest version of a package.
 func lookupLatestVersion(pkgName string) string {
-	registryURL := os.Getenv("AILANG_REGISTRY")
-	if registryURL == "" {
-		registryURL = "https://storage.googleapis.com/ailang-registry"
-	}
+	registryURL := config.RegistryURL()
 	indexURL := registryURL + "/index.json"
 
 	resp, err := http.Get(indexURL)

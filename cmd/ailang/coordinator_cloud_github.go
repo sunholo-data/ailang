@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/coordinator"
 	"github.com/sunholo-data/ailang/internal/executor"
 	"github.com/sunholo-data/ailang/internal/gitexec"
@@ -39,7 +40,7 @@ func openCascadePullRequest(ctx context.Context, workDir, branchName, taskID, ag
 
 	// Trim whitespace — Secret Manager values sometimes have trailing newlines
 	// which cause net/http to reject the Authorization header outright.
-	token := strings.TrimSpace(os.Getenv("GITHUB_TOKEN"))
+	token := config.GitHubToken()
 	if token == "" {
 		fmt.Fprintln(os.Stderr, "execute-job: pr create skipped: GITHUB_TOKEN not set")
 		return nil
@@ -54,8 +55,8 @@ func openCascadePullRequest(ctx context.Context, workDir, branchName, taskID, ag
 
 	// Detect cascade vs generic agent task from env (set by dispatcher when
 	// the inbound message had source=cascade + root_package attribute).
-	rootPackage := os.Getenv("AILANG_CASCADE_ROOT_PACKAGE")
-	directive := os.Getenv("AILANG_DIRECTIVE")
+	rootPackage := config.CascadeRootPackage()
+	directive := config.Directive()
 
 	// The title carries WHAT the change is; the task id moves into the body,
 	// where a lookup key belongs. Still a pure function of the directive — the
@@ -112,7 +113,7 @@ func openCascadePullRequest(ctx context.Context, workDir, branchName, taskID, ag
 // never merges. There is no polling loop of ours to get wrong, and no path where
 // we merge something protection would have refused.
 func maybeEnableAutoMerge(ctx context.Context, token, owner, repo string, prNum int, workDir, baseBranch string) {
-	if os.Getenv("AILANG_AUTO_MERGE") != "1" {
+	if !config.AutoMerge() {
 		return
 	}
 
@@ -184,7 +185,7 @@ func branchIsAutoMergeable(ctx context.Context, workDir, baseBranch string, patt
 // Newline-separated: a pattern may contain a comma, and a separator that can
 // appear in the data is how a scope guard silently widens.
 func artifactPatternsFromEnv() []string {
-	raw := strings.TrimSpace(os.Getenv("AILANG_ARTIFACT_PATTERNS"))
+	raw := config.ArtifactPatterns()
 	if raw == "" {
 		return nil
 	}
@@ -540,7 +541,7 @@ func writeTaskArtifacts(taskID string, result *executor.Result) string {
 	// gcsfuse uses legacy staged writes for incrementally-appended files, which may not flush
 	// before the container exits. Re-writing via os.WriteFile guarantees the data reaches GCS.
 	if result.SessionID != "" {
-		claudeConfigDir := os.Getenv("CLAUDE_CONFIG_DIR")
+		claudeConfigDir := config.ClaudeConfigDir()
 		if claudeConfigDir == "" {
 			claudeConfigDir = filepath.Join("/artifacts", "tasks", taskID, "claude")
 		}

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/elaborate"
 	"github.com/sunholo-data/ailang/internal/pipeline"
 	otelplatform "github.com/sunholo-data/ailang/internal/platform/otel"
@@ -50,7 +51,7 @@ func checkFile(filename string, strictSyntax bool, relaxModules bool, timeout st
 
 	// Inherit parent task from environment if set
 	// This enables automatic hierarchy linking when ailang exec spawns ailang check
-	parentTaskID := os.Getenv("AILANG_PARENT_TASK_ID")
+	parentTaskID := config.ParentTaskID()
 
 	// If no parent task, use generic root marker for analytics
 	// This ensures all checks appear in Observatory hierarchy views
@@ -141,13 +142,7 @@ func checkFile(filename string, strictSyntax bool, relaxModules bool, timeout st
 	}
 
 	// Check AILANG_RELAX_MODULES environment variable
-	relaxModulesEffective := relaxModules
-	if envVal := os.Getenv("AILANG_RELAX_MODULES"); envVal != "" {
-		switch strings.ToLower(envVal) {
-		case "1", "true", "yes":
-			relaxModulesEffective = true
-		}
-	}
+	relaxModulesEffective := relaxModules || config.RelaxModules()
 
 	// Use unified pipeline in dry-run mode (no evaluation)
 	cfg := pipeline.Config{
@@ -593,13 +588,7 @@ func checkDirectoryWithContext(ctx context.Context, dir string, strictSyntax boo
 	}
 
 	// Check AILANG_RELAX_MODULES environment variable
-	relaxModulesEffective := relaxModules
-	if envVal := os.Getenv("AILANG_RELAX_MODULES"); envVal != "" {
-		switch strings.ToLower(envVal) {
-		case "1", "true", "yes":
-			relaxModulesEffective = true
-		}
-	}
+	relaxModulesEffective := relaxModules || config.RelaxModules()
 
 	// Check each file
 	for _, file := range files {

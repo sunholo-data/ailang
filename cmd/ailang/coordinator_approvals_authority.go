@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // Who may resolve an approval unattended.
@@ -76,7 +77,7 @@ type approvalAuthority struct {
 
 // authorityModels reads the allowlist, defaulting to fable/astra/opus.
 func authorityModels() []string {
-	raw := strings.TrimSpace(os.Getenv("AILANG_APPROVAL_AUTHORITY_MODELS"))
+	raw := config.ApprovalAuthorityModels()
 	if raw == "" {
 		return defaultAuthorityModels
 	}
@@ -123,10 +124,10 @@ func resolveApprovalAuthority() approvalAuthority {
 	}
 
 	facts := deciderFacts{
-		MissionControlActive: os.Getenv("MISSION_CONTROL_ACTIVE") == "1",
-		ControllerID:         strings.TrimSpace(os.Getenv("CONTROLLER_ID")),
-		MissionRole:          strings.TrimSpace(os.Getenv("MISSION_ROLE")),
-		AttendedGrant:        os.Getenv("AILANG_APPROVAL_CONTROLLER") == "1",
+		MissionControlActive: config.MissionControlActive(),
+		ControllerID:         config.ControllerID(),
+		MissionRole:          config.MissionRole(),
+		AttendedGrant:        config.ApprovalController(),
 	}
 
 	granted, identity, reason, err := callDecide(facts, authorityModels())
@@ -169,16 +170,16 @@ func authorityGrantHint(granted bool) string {
 // trail. Best effort, and honest about it: an unnamed session says so rather
 // than borrowing a label it has not earned.
 func identityLabel() string {
-	if id := strings.TrimSpace(os.Getenv("CONTROLLER_ID")); id != "" {
+	if id := config.ControllerID(); id != "" {
 		return "controller " + id
 	}
-	if os.Getenv("CLAUDECODE") == "1" {
-		if s := strings.TrimSpace(os.Getenv("CLAUDE_CODE_SESSION_ID")); s != "" {
+	if config.InClaudeCode() {
+		if s := config.ClaudeCodeSessionID(); s != "" {
 			return "attended claude-code session " + s
 		}
 		return "attended claude-code session"
 	}
-	if u := strings.TrimSpace(os.Getenv("USER")); u != "" {
+	if u := config.User(); u != "" {
 		return u
 	}
 	return "unidentified session"

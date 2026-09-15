@@ -266,7 +266,7 @@ func resolveInboxRegistry(flagPath string) (*coordinator.AgentRegistry, string, 
 		}
 		return reg, flagPath, nil
 	}
-	if p := os.Getenv(config.EnvConfigFile); p != "" {
+	if p := config.Raw(config.EnvConfigFile); p != "" {
 		reg, err := coordinator.LoadAgentRegistryFrom(p)
 		if err != nil {
 			return nil, "", fmt.Errorf("cannot load $AILANG_CONFIG %s: %w", p, err)

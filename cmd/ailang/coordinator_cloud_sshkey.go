@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/gitexec"
 
 	secretmanager "cloud.google.com/go/secretmanager/apiv1"
@@ -49,13 +50,13 @@ const (
 	// man-in-the-middle window for no benefit.
 	githubEd25519HostKey = "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl"
 
-	sshKeySecretEnv = "AILANG_SSH_KEY_SECRET" // Secret Manager secret NAME, never the key itself
-	sshHostAliasEnv = "AILANG_SSH_HOST_ALIAS"
+	sshKeySecretEnv = config.EnvSSHKeySecret // Secret Manager secret NAME, never the key itself
+	sshHostAliasEnv = config.EnvSSHHostAlias
 )
 
 // sshDeployKeyRequested reports whether this task is configured for one.
 func sshDeployKeyRequested() bool {
-	return strings.TrimSpace(os.Getenv(sshKeySecretEnv)) != ""
+	return config.SSHKeySecret() != ""
 }
 
 // configureSSHDeployKey installs the agent's deploy key and returns the host
@@ -79,11 +80,8 @@ func configureSSHDeployKey(ctx context.Context, project string) (string, error) 
 			"install openssh-client in docker/Dockerfile.agent-base (git Recommends it, and the images build with --no-install-recommends)")
 	}
 
-	secretName := strings.TrimSpace(os.Getenv(sshKeySecretEnv))
-	alias := strings.TrimSpace(os.Getenv(sshHostAliasEnv))
-	if alias == "" {
-		alias = "agent-repo"
-	}
+	secretName := config.SSHKeySecret()
+	alias := config.SSHHostAlias()
 
 	key, err := fetchSecret(ctx, project, secretName)
 	if err != nil {

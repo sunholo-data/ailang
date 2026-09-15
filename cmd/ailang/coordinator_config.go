@@ -178,7 +178,7 @@ func isPreconditionFailure(err error) bool {
 // it falls through to the deprecated prod default (D3: a warning now, an
 // error in v1.0.0 — and today under AILANG_STRICT_CONFIG=1).
 func configLocation(ctx context.Context) (bucket, object string, err error) {
-	bucket = os.Getenv("AILANG_CONFIG_BUCKET")
+	bucket = config.ConfigBucket()
 	if bucket == "" {
 		project, perr := config.CloudProject(ctx)
 		if errors.Is(perr, config.ErrNoCloudProject) {
@@ -189,10 +189,7 @@ func configLocation(ctx context.Context) (bucket, object string, err error) {
 		}
 		bucket = project + "-ailang-config"
 	}
-	object = os.Getenv("AILANG_CONFIG_OBJECT")
-	if object == "" {
-		object = "config.yaml"
-	}
+	object = config.ConfigObject()
 	return bucket, object, nil
 }
 

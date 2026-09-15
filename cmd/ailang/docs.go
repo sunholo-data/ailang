@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // moduleDoc represents documentation for a stdlib module
@@ -117,7 +119,7 @@ func findStdlibDir() (string, error) {
 	// 2. ./std (current directory)
 	// 3. ../std (parent directory)
 
-	if envPath := os.Getenv("AILANG_STDLIB_PATH"); envPath != "" {
+	if envPath := config.StdlibPath(); envPath != "" {
 		if isStdlibDir(envPath) {
 			return envPath, nil
 		}

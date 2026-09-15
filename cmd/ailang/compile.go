@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/config"
 	gen "github.com/sunholo-data/ailang/internal/gen/golang"
 	"github.com/sunholo-data/ailang/internal/pipeline"
 )
@@ -63,13 +64,7 @@ func compileCommand() {
 	}
 
 	// Check AILANG_RELAX_MODULES environment variable
-	relaxModulesEffective := *relaxModulesFlag
-	if envVal := os.Getenv("AILANG_RELAX_MODULES"); envVal != "" {
-		switch strings.ToLower(envVal) {
-		case "1", "true", "yes":
-			relaxModulesEffective = true
-		}
-	}
+	relaxModulesEffective := *relaxModulesFlag || config.RelaxModules()
 
 	// M-CODEGEN-VALUE-TYPES: Validate value threshold
 	valueThreshold := *valueThresholdFlag

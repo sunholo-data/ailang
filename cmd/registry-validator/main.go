@@ -35,12 +35,12 @@ import (
 const cacheTTL = 5 * time.Minute
 
 func main() {
-	port := os.Getenv("PORT")
+	port := config.Port()
 	if port == "" {
 		port = "8080"
 	}
 
-	bucket := os.Getenv("REGISTRY_BUCKET")
+	bucket := config.RegistryBucket()
 	if bucket == "" {
 		log.Fatal("REGISTRY_BUCKET environment variable is required")
 	}
@@ -56,17 +56,14 @@ func main() {
 	v := &validator{
 		bucket:     bucketHandle,
 		bucketName: bucket,
-		apiKey:     os.Getenv("REGISTRY_API_KEY"),
+		apiKey:     config.RegistryServiceAPIKey(),
 		cache:      newRegistryCache(bucketHandle, cacheTTL),
 	}
 
 	// Scoped keys (M-PKG-MULTI-NAMESPACE-AUTH). Without FIRESTORE_DATABASE the
 	// validator runs superuser-only and says so on every scoped-key request.
-	if db := os.Getenv("FIRESTORE_DATABASE"); db != "" {
-		col := os.Getenv(keysCollectionEnv)
-		if col == "" {
-			col = keysCollection
-		}
+	if db := config.FirestoreDatabase(); db != "" {
+		col := config.FirestoreKeysCollection()
 		project, err := config.CloudProject(ctx)
 		if err != nil {
 			log.Fatalf("Scoped keys need a cloud project: %v", err)

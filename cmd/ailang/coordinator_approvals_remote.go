@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/coordinator"
 )
 
@@ -232,7 +232,7 @@ func coordinatorResolveRemote(args []string, action string) error {
 		who = resolveApprovalAuthority().Identity
 	}
 	if who == "" {
-		who = os.Getenv("USER")
+		who = config.User()
 	}
 	if who == "" {
 		who = "cli-user"

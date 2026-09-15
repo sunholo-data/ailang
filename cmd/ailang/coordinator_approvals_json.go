@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/coordinator"
 )
 
@@ -55,7 +56,7 @@ const (
 // session (attended, unattended loop, package agent), not of the cloud
 // coordinator's config — the same registry serves every caller.
 func resolveApprovalPolicy() approvalPolicy {
-	switch strings.ToLower(strings.TrimSpace(os.Getenv("AILANG_APPROVAL_POLICY"))) {
+	switch config.ApprovalPolicy() {
 	case string(approvalPolicyEvaluated):
 		return approvalPolicyEvaluated
 	case string(approvalPolicyAlways):

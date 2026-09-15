@@ -22,12 +22,15 @@ const DefaultRegistryURL = "https://storage.googleapis.com/ailang-registry"
 // DefaultRegistryValidatorURL is the public registry validator service.
 const DefaultRegistryValidatorURL = "https://registry.ailang.sunholo.com"
 
+// DefaultRegistryObject is the object `models publish` writes.
+const DefaultRegistryObject = "registry.yml"
+
 var registryVars = []Var{
 	{EnvRegistry, DefaultRegistryURL, AreaRegistry, "Base URL of the package registry index the pkg commands read."},
 	{EnvRegistryAPIKey, "", AreaRegistry, "API key sent as X-API-Key to the validator for publish, unpublish and key management."},
 	{EnvRegistryValidator, DefaultRegistryValidatorURL, AreaRegistry, "Registry validator base URL (trailing slash trimmed)."},
 	{EnvRegistryAPI, "", AreaRegistry, "Deprecated alias of AILANG_REGISTRY_VALIDATOR, read after it."},
-	{EnvRegistryObject, "registry.yml", AreaRegistry, "Object name `models publish` writes the model registry to."},
+	{EnvRegistryObject, DefaultRegistryObject, AreaRegistry, "Object name `models publish` writes the model registry to."},
 	{EnvRegistryBucket, "", AreaRegistry, "GCS bucket the registry validator serves; required, the service refuses to start without it."},
 	{EnvRegistryServiceAPIKey, "", AreaRegistry, "Superuser API key the registry validator accepts."},
 	{EnvFirestoreDatabase, "", AreaRegistry, "Firestore database holding scoped registry keys; unset runs the validator superuser-only."},
