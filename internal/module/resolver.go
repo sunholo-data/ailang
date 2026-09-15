@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/repo"
 )
 
 // Resolver handles module path resolution with platform-specific normalization
@@ -259,38 +261,12 @@ func (r *Resolver) ValidateModuleName(declaredName, filePath string) error {
 
 // Helper functions
 
-// findProjectRoot finds the project root directory
+// findProjectRoot finds the project root directory: the nearest ancestor of
+// the working directory holding go.mod, .git, ailang.yaml or .ailang, else
+// the working directory itself.
 func findProjectRoot() string {
-	// Look for markers like go.mod, .git, ailang.yaml
-	markers := []string{"go.mod", ".git", "ailang.yaml", ".ailang"}
-
-	// Start from current directory
-	dir, err := os.Getwd()
-	if err != nil {
-		return "."
-	}
-
-	for {
-		// Check for markers
-		for _, marker := range markers {
-			path := filepath.Join(dir, marker)
-			if _, err := os.Stat(path); err == nil {
-				return dir
-			}
-		}
-
-		// Move up
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			// Reached root
-			break
-		}
-		dir = parent
-	}
-
-	// Default to current directory
-	pwd, _ := os.Getwd()
-	return pwd
+	root, _ := repo.FindRoot("go.mod", ".git", "ailang.yaml", ".ailang")
+	return root
 }
 
 // findStdlibPath finds the standard library path

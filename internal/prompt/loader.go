@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/repo"
 )
 
 // Kind selects one prompt series. Every series is a versions.json manifest plus
@@ -313,37 +315,12 @@ func (l *Loader) rootDir() string {
 	return findProjectRoot()
 }
 
-// findProjectRoot finds the project root by looking for marker files
+// findProjectRoot finds the project root: the nearest ancestor of the working
+// directory holding go.mod, .git or a prompts/ directory, else the working
+// directory itself.
 func findProjectRoot() string {
-	// Look for markers like go.mod, .git
-	markers := []string{"go.mod", ".git", "prompts"}
-
-	// Start from current directory
-	dir, err := os.Getwd()
-	if err != nil {
-		return "."
-	}
-
-	for {
-		// Check for markers
-		for _, marker := range markers {
-			path := filepath.Join(dir, marker)
-			if _, err := os.Stat(path); err == nil {
-				return dir
-			}
-		}
-
-		// Move up
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			// Reached root
-			break
-		}
-		dir = parent
-	}
-
-	// Default to current directory
-	return "."
+	root, _ := repo.FindRoot("go.mod", ".git", "prompts")
+	return root
 }
 
 // SHA256Hex is the manifest hash function: lowercase hex sha256 of the bytes.
