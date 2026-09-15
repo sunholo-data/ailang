@@ -52,6 +52,8 @@ func (c *ModelsConfig) Validate() error {
 		}
 	}
 
+	problems = append(problems, c.validateAliases()...)
+
 	// Roles must name models the registry actually has. A chain pointing at a
 	// deleted row is exactly the publish this validator exists to stop: it
 	// resolves to nothing at the moment an agent needs a model.
