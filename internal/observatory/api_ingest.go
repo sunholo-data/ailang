@@ -3,6 +3,7 @@ package observatory
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/httpjson"
 	"net/http"
 )
 
@@ -11,19 +12,19 @@ import (
 func (a *API) handleIngestClaude(w http.ResponseWriter, r *http.Request) {
 	var metrics ClaudeMetrics
 	if err := json.NewDecoder(r.Body).Decode(&metrics); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
+		httpjson.Error(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
 		return
 	}
 
 	normalizer := NewProviderNormalizer()
 	span, err := normalizer.NormalizeClaudeMetrics(&metrics)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "normalization failed: "+err.Error())
+		httpjson.Error(w, http.StatusBadRequest, "normalization failed: "+err.Error())
 		return
 	}
 
 	if err := a.backend.CreateSpan(r.Context(), span); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		httpjson.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -35,7 +36,7 @@ func (a *API) handleIngestClaude(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	writeJSON(w, http.StatusCreated, map[string]string{
+	httpjson.Write(w, http.StatusCreated, map[string]string{
 		"span_id":  span.ID,
 		"trace_id": span.TraceID,
 	})
@@ -45,13 +46,13 @@ func (a *API) handleIngestOTEL(w http.ResponseWriter, r *http.Request) {
 	// Parse OTEL spans (could be single or array)
 	body, err := json.Marshal(r.Body)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "failed to read body")
+		httpjson.Error(w, http.StatusBadRequest, "failed to read body")
 		return
 	}
 
 	spans, err := ParseGeminiTraceJSON(body)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid OTEL JSON: "+err.Error())
+		httpjson.Error(w, http.StatusBadRequest, "invalid OTEL JSON: "+err.Error())
 		return
 	}
 
@@ -64,14 +65,14 @@ func (a *API) handleIngestOTEL(w http.ResponseWriter, r *http.Request) {
 	normalizer := NewProviderNormalizer()
 	normalized, err := normalizer.NormalizeGeminiTrace(spans, taskID)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "normalization failed: "+err.Error())
+		httpjson.Error(w, http.StatusBadRequest, "normalization failed: "+err.Error())
 		return
 	}
 
 	var spanIDs []string
 	for _, span := range normalized {
 		if err := a.backend.CreateSpan(r.Context(), span); err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			httpjson.Error(w, http.StatusInternalServerError, err.Error())
 			return
 		}
 		spanIDs = append(spanIDs, span.ID)
@@ -84,7 +85,7 @@ func (a *API) handleIngestOTEL(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	writeJSON(w, http.StatusCreated, map[string]any{
+	httpjson.Write(w, http.StatusCreated, map[string]any{
 		"span_ids": spanIDs,
 		"count":    len(spanIDs),
 	})

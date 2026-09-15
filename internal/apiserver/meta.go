@@ -1,6 +1,7 @@
 package apiserver
 
 import (
+	"github.com/sunholo-data/ailang/internal/httpjson"
 	"net/http"
 	"strings"
 )
@@ -39,7 +40,7 @@ type DroppedModuleHealth struct {
 // GET /api/_meta/modules
 func (s *Server) handleListModules(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" {
-		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "GET only"})
+		httpjson.Write(w, http.StatusMethodNotAllowed, map[string]string{"error": "GET only"})
 		return
 	}
 
@@ -50,7 +51,7 @@ func (s *Server) handleListModules(w http.ResponseWriter, r *http.Request) {
 	}
 	s.mu.RUnlock()
 
-	writeJSON(w, http.StatusOK, ModulesListResponse{
+	httpjson.Write(w, http.StatusOK, ModulesListResponse{
 		Modules: modules,
 		Count:   len(modules),
 	})
@@ -60,7 +61,7 @@ func (s *Server) handleListModules(w http.ResponseWriter, r *http.Request) {
 // GET /api/_meta/modules/{modulePath}
 func (s *Server) handleModuleDetail(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" {
-		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "GET only"})
+		httpjson.Write(w, http.StatusMethodNotAllowed, map[string]string{"error": "GET only"})
 		return
 	}
 
@@ -73,13 +74,13 @@ func (s *Server) handleModuleDetail(w http.ResponseWriter, r *http.Request) {
 	s.mu.RUnlock()
 
 	if !ok {
-		writeJSON(w, http.StatusNotFound, map[string]string{
+		httpjson.Write(w, http.StatusNotFound, map[string]string{
 			"error": "module not found: " + path,
 		})
 		return
 	}
 
-	writeJSON(w, http.StatusOK, modInfo)
+	httpjson.Write(w, http.StatusOK, modInfo)
 }
 
 // handleHealth returns server health status.
@@ -131,5 +132,5 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	writeJSON(w, http.StatusOK, resp)
+	httpjson.Write(w, http.StatusOK, resp)
 }

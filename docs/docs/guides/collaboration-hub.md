@@ -134,7 +134,7 @@ flowchart TB
     subgraph Server["ailang serve (:1957)"]
         HTTP["HTTP Server"]
         WS["WebSocket /ws"]
-        REST["REST API<br/>/api/threads, /api/messages"]
+        REST["REST API<br/>/api/threads, /api/thread-messages"]
         CoordAPI["Coordinator API<br/>/api/coordinator/events"]
     end
 
@@ -416,11 +416,12 @@ curl http://localhost:1957/api/threads/{thread_id}
 ### Messages
 
 ```bash
-# Get messages for thread
-curl http://localhost:1957/api/messages?thread_id={thread_id}
+# Get messages for thread (NOT /api/messages — that path is the coordinator
+# daemon's inbox-message REST API on port 8765, a different body and auth)
+curl http://localhost:1957/api/thread-messages?thread_id={thread_id}
 
 # Send message
-curl -X POST http://localhost:1957/api/messages \
+curl -X POST http://localhost:1957/api/thread-messages \
   -H "Content-Type: application/json" \
   -d '{
     "thread_id": "...",

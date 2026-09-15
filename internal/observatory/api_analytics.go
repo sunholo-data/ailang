@@ -2,6 +2,7 @@ package observatory
 
 import (
 	"context"
+	"github.com/sunholo-data/ailang/internal/httpjson"
 	"net/http"
 	"strconv"
 	"time"
@@ -16,29 +17,29 @@ import (
 func (a *API) handleGetMetricsSummary(w http.ResponseWriter, r *http.Request) {
 	summary, err := a.backend.GetMetricsSummary(r.Context())
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		httpjson.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, summary)
+	httpjson.Write(w, http.StatusOK, summary)
 }
 
 func (a *API) handleGetProviderComparison(w http.ResponseWriter, r *http.Request) {
 	comparison, err := a.backend.GetProviderComparison(r.Context())
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		httpjson.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, comparison)
+	httpjson.Write(w, http.StatusOK, comparison)
 }
 
 func (a *API) handleGetTaskTimeline(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	timeline, err := a.backend.GetTaskTimeline(r.Context(), id)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		httpjson.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, timeline)
+	httpjson.Write(w, http.StatusOK, timeline)
 }
 
 // ===== Hierarchy Handler (M-TASK-HIERARCHY) =====
@@ -211,13 +212,13 @@ func (a *API) handleGetTaskHierarchy(w http.ResponseWriter, r *http.Request) {
 					if r.URL.Query().Get("include_chat") == "true" {
 						a.enrichHierarchySpansWithChat(r.Context(), ccHierarchy)
 					}
-					writeJSON(w, http.StatusOK, ccHierarchy)
+					httpjson.Write(w, http.StatusOK, ccHierarchy)
 					return
 				}
 			}
-			writeError(w, http.StatusNotFound, "task not found: "+id)
+			httpjson.Error(w, http.StatusNotFound, "task not found: "+id)
 		} else {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			httpjson.Error(w, http.StatusInternalServerError, err.Error())
 		}
 		return
 	}
@@ -229,5 +230,5 @@ func (a *API) handleGetTaskHierarchy(w http.ResponseWriter, r *http.Request) {
 		a.enrichHierarchySpansWithChat(r.Context(), hierarchy)
 	}
 
-	writeJSON(w, http.StatusOK, hierarchy)
+	httpjson.Write(w, http.StatusOK, hierarchy)
 }

@@ -8,13 +8,14 @@ import (
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/apiserver/schema"
+	"github.com/sunholo-data/ailang/internal/httpjson"
 )
 
 // handleOpenAPISpec generates and serves an OpenAPI 3.1 spec from loaded modules.
 // GET /api/_meta/openapi.json
 func (s *Server) handleOpenAPISpec(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" {
-		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "GET only"})
+		httpjson.Write(w, http.StatusMethodNotAllowed, map[string]string{"error": "GET only"})
 		return
 	}
 
@@ -30,7 +31,7 @@ func (s *Server) handleOpenAPISpec(w http.ResponseWriter, r *http.Request) {
 // GET /api/_meta/docs
 func (s *Server) handleSwaggerUI(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" {
-		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "GET only"})
+		httpjson.Write(w, http.StatusMethodNotAllowed, map[string]string{"error": "GET only"})
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -41,7 +42,7 @@ func (s *Server) handleSwaggerUI(w http.ResponseWriter, r *http.Request) {
 // GET /api/_meta/redoc
 func (s *Server) handleReDoc(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" {
-		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "GET only"})
+		httpjson.Write(w, http.StatusMethodNotAllowed, map[string]string{"error": "GET only"})
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")

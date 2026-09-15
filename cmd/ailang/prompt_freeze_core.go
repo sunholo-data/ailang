@@ -95,14 +95,14 @@ func loadOrderedRegistry(path string) (*orderedRegistry, error) {
 func writeOrderedRegistry(path string, r *orderedRegistry) error {
 	var b bytes.Buffer
 	b.WriteString("{\n  \"schema_version\": ")
-	writeJSON(&b, r.SchemaVersion)
+	appendJSONString(&b, r.SchemaVersion)
 	b.WriteString(",\n  \"versions\": {")
 	for i, k := range r.VersionKeys {
 		if i > 0 {
 			b.WriteByte(',')
 		}
 		b.WriteString("\n    ")
-		writeJSON(&b, k)
+		appendJSONString(&b, k)
 		b.WriteString(": ")
 		entryBytes, err := marshalEntryPreserving(r.RawEntries[k], r.Versions[k])
 		if err != nil {
@@ -116,7 +116,7 @@ func writeOrderedRegistry(path string, r *orderedRegistry) error {
 		}
 	}
 	b.WriteString("\n  },\n  \"active\": ")
-	writeJSON(&b, r.Active)
+	appendJSONString(&b, r.Active)
 	b.WriteString(",\n  \"notes\": ")
 	n, _ := json.MarshalIndent(r.Notes, "", "  ")
 	lines := strings.Split(string(n), "\n")
@@ -173,7 +173,7 @@ func appendIndented(data []byte, prefix string) []byte {
 	return []byte(b.String())
 }
 
-func writeJSON(b *bytes.Buffer, v string) { x, _ := json.Marshal(v); b.Write(x) }
+func appendJSONString(b *bytes.Buffer, v string) { x, _ := json.Marshal(v); b.Write(x) }
 func marshalEntry(e *registryEntry) ([]byte, error) {
 	type ordered struct {
 		File        string                     `json:"file"`

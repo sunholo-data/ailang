@@ -2,6 +2,7 @@ package observatory
 
 import (
 	"encoding/json"
+	"github.com/sunholo-data/ailang/internal/httpjson"
 	"net/http"
 	"strconv"
 )
@@ -28,23 +29,23 @@ func (a *API) handleListMessages(w http.ResponseWriter, r *http.Request) {
 
 	messages, err := a.backend.ListMessages(r.Context(), opts)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		httpjson.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, messages)
+	httpjson.Write(w, http.StatusOK, messages)
 }
 
 func (a *API) handleCreateMessage(w http.ResponseWriter, r *http.Request) {
 	var message Message
 	if err := json.NewDecoder(r.Body).Decode(&message); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
+		httpjson.Error(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
 		return
 	}
 	if err := a.backend.CreateMessage(r.Context(), &message); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		httpjson.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusCreated, message)
+	httpjson.Write(w, http.StatusCreated, message)
 }
 
 func (a *API) handleGetMessage(w http.ResponseWriter, r *http.Request) {
@@ -52,34 +53,34 @@ func (a *API) handleGetMessage(w http.ResponseWriter, r *http.Request) {
 	message, err := a.backend.GetMessage(r.Context(), id)
 	if err != nil {
 		if isNotFoundError(err) {
-			writeError(w, http.StatusNotFound, "message not found: "+id)
+			httpjson.Error(w, http.StatusNotFound, "message not found: "+id)
 		} else {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			httpjson.Error(w, http.StatusInternalServerError, err.Error())
 		}
 		return
 	}
-	writeJSON(w, http.StatusOK, message)
+	httpjson.Write(w, http.StatusOK, message)
 }
 
 func (a *API) handleUpdateMessage(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	var message Message
 	if err := json.NewDecoder(r.Body).Decode(&message); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
+		httpjson.Error(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
 		return
 	}
 	message.ID = id
 	if err := a.backend.UpdateMessage(r.Context(), &message); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		httpjson.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, message)
+	httpjson.Write(w, http.StatusOK, message)
 }
 
 func (a *API) handleDeleteMessage(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if err := a.backend.DeleteMessage(r.Context(), id); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		httpjson.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -88,7 +89,7 @@ func (a *API) handleDeleteMessage(w http.ResponseWriter, r *http.Request) {
 func (a *API) handleMarkMessageRead(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if err := a.backend.MarkMessageRead(r.Context(), id); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		httpjson.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -97,7 +98,7 @@ func (a *API) handleMarkMessageRead(w http.ResponseWriter, r *http.Request) {
 func (a *API) handleMarkMessageArchived(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if err := a.backend.MarkMessageArchived(r.Context(), id); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		httpjson.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

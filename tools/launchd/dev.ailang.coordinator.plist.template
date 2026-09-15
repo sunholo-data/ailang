@@ -101,6 +101,12 @@
              `install_coordinator.sh --port N`. -->
         <key>PORT</key>
         <string>@HTTP_PORT@</string>
+        <!-- M-V1-SIMPLIFY-S3 M5: the HTTP API fails CLOSED without a bearer
+             token (an unset key used to mean "open"). install_coordinator.sh
+             keeps an existing key across re-installs or generates one;
+             `ailang messages send --requires` reads it from this file. -->
+        <key>COORDINATOR_API_KEY</key>
+        <string>@COORDINATOR_API_KEY@</string>
         <!-- Repo coordinate for cloud dispatch. deriveRepoURL
              (daemon_tasks_exec.go:14) prefers the agent's `workspace` when it
              looks like a GitHub org/repo, and falls back to this env var when

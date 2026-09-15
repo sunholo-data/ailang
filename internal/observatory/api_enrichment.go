@@ -3,6 +3,7 @@ package observatory
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/httpjson"
 	"net/http"
 	"sort"
 	"strconv"
@@ -66,7 +67,7 @@ func (a *API) handleGetEnrichedSpans(w http.ResponseWriter, r *http.Request) {
 		spans, err = a.backend.ListSpans(r.Context(), opts)
 	}
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		httpjson.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -77,7 +78,7 @@ func (a *API) handleGetEnrichedSpans(w http.ResponseWriter, r *http.Request) {
 
 	if !isSQLite {
 		// No enrichment available, return spans as-is
-		writeJSON(w, http.StatusOK, map[string]any{"spans": spans, "enriched": false, "hierarchical": false})
+		httpjson.Write(w, http.StatusOK, map[string]any{"spans": spans, "enriched": false, "hierarchical": false})
 		return
 	}
 
@@ -133,7 +134,7 @@ func (a *API) handleGetEnrichedSpans(w http.ResponseWriter, r *http.Request) {
 	// Return hierarchical format if requested
 	if hierarchical {
 		hierarchicalSpans := buildHierarchicalSpans(spans, displayNames)
-		writeJSON(w, http.StatusOK, map[string]any{
+		httpjson.Write(w, http.StatusOK, map[string]any{
 			"spans":        hierarchicalSpans,
 			"enriched":     true,
 			"hierarchical": true,
@@ -151,7 +152,7 @@ func (a *API) handleGetEnrichedSpans(w http.ResponseWriter, r *http.Request) {
 		enrichedSpans = append(enrichedSpans, enriched)
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{"spans": enrichedSpans, "enriched": true, "hierarchical": false})
+	httpjson.Write(w, http.StatusOK, map[string]any{"spans": enrichedSpans, "enriched": true, "hierarchical": false})
 }
 
 // ===== Display Name Extraction Helpers =====

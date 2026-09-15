@@ -1,6 +1,7 @@
 package observatory
 
 import (
+	"github.com/sunholo-data/ailang/internal/httpjson"
 	"net/http"
 	"strconv"
 	"time"
@@ -43,10 +44,10 @@ func (a *API) handleListTraces(w http.ResponseWriter, r *http.Request) {
 
 	traces, err := a.backend.ListTraces(r.Context(), opts)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		httpjson.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, traces)
+	httpjson.Write(w, http.StatusOK, traces)
 }
 
 func (a *API) handleGetTrace(w http.ResponseWriter, r *http.Request) {
@@ -54,11 +55,11 @@ func (a *API) handleGetTrace(w http.ResponseWriter, r *http.Request) {
 	trace, err := a.backend.GetTrace(r.Context(), id)
 	if err != nil {
 		if isNotFoundError(err) {
-			writeError(w, http.StatusNotFound, "trace not found: "+id)
+			httpjson.Error(w, http.StatusNotFound, "trace not found: "+id)
 		} else {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			httpjson.Error(w, http.StatusInternalServerError, err.Error())
 		}
 		return
 	}
-	writeJSON(w, http.StatusOK, trace)
+	httpjson.Write(w, http.StatusOK, trace)
 }

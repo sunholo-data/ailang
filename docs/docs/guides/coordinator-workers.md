@@ -165,14 +165,14 @@ If you've installed the daemon before v0.23.0, the plist won't have `PORT` set a
 | Route | Auth | What |
 |---|---|---|
 | `GET /health` | open | Liveness probe, returns `{"status":"ok"}` |
-| `POST /api/messages` | Bearer when `COORDINATOR_API_KEY` set; open otherwise | Submit a message; accepts `requires: [...]` for tag-routing |
+| `POST /api/messages` | Bearer (`COORDINATOR_API_KEY`) | Submit a message; accepts `requires: [...]` for tag-routing |
 | `GET /status` | Bearer | Daemon status JSON (mirror of `ailang coordinator status --json`) |
 | `GET /pending` | Bearer | Tasks awaiting approval |
 | `GET /chains/active` | Bearer | Currently-running chains |
 | `POST /pubsub/push` | (cloud mode only) | Pub/Sub push receiver |
 | `POST /github/webhook` | (cloud mode only) | GitHub webhook receiver |
 
-The Bearer auth middleware is permissive on local-mode installs (no `COORDINATOR_API_KEY` env var) and strict on cloud deployments (Cloud Run secret-bound). Don't expose port 8765 publicly without setting `COORDINATOR_API_KEY`.
+The Bearer auth middleware **fails closed**: with `COORDINATOR_API_KEY` unset every request to a Bearer route is rejected with `401` (until M-V1-SIMPLIFY-S3 M5, 2026-09-15, unset meant open — a deploy that lost its secret binding silently exposed the API). Cloud deployments bind it from Secret Manager; local installs get one from `make coord-install`, which keeps an existing key across re-installs, and `ailang messages send --requires` reads it from the rendered plist when the shell has no `COORDINATOR_API_KEY`. The comparison is constant-time.
 
 ### Example 3: Health visibility — the lesson from 2026-05-22
 
