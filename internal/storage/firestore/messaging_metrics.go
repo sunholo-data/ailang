@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/sunholo-data/ailang/internal/mapval"
 	"github.com/sunholo-data/ailang/internal/messaging"
 )
 
@@ -63,9 +64,9 @@ func (s *MessagingStore) aggregateMetrics(ctx context.Context, q firestore.Query
 		}
 		data := doc.Data()
 		agg.TotalRuns++
-		agg.TotalTokens += getInt(data, "input_tokens") + getInt(data, "output_tokens")
-		agg.TotalCost += float64(getInt(data, "cost_cents")) / 100.0
-		agg.TotalDuration += getInt(data, "duration_ms")
+		agg.TotalTokens += mapval.Int(data, "input_tokens") + mapval.Int(data, "output_tokens")
+		agg.TotalCost += float64(mapval.Int(data, "cost_cents")) / 100.0
+		agg.TotalDuration += mapval.Int(data, "duration_ms")
 	}
 
 	if agg.TotalRuns > 0 {
@@ -124,10 +125,10 @@ func (s *MessagingStore) GetAggregatedExecutionStats() (*messaging.ExecutionStat
 		}
 		data := doc.Data()
 		stats.TotalExecutions++
-		stats.TotalDurationMS += int64(getInt(data, "duration_ms"))
-		stats.TotalCost += float64(getInt(data, "cost_cents")) / 100.0
-		stats.TotalInputTokens += getInt(data, "input_tokens")
-		stats.TotalOutputTokens += getInt(data, "output_tokens")
+		stats.TotalDurationMS += int64(mapval.Int(data, "duration_ms"))
+		stats.TotalCost += float64(mapval.Int(data, "cost_cents")) / 100.0
+		stats.TotalInputTokens += mapval.Int(data, "input_tokens")
+		stats.TotalOutputTokens += mapval.Int(data, "output_tokens")
 	}
 	// Note: Firestore doesn't store success/failure status in metrics;
 	// this would need correlation with task records.
@@ -153,10 +154,10 @@ func (s *MessagingStore) GetExecutionStatsByThread(threadID string) (*messaging.
 		}
 		data := doc.Data()
 		stats.TotalExecutions++
-		stats.TotalDurationMS += int64(getInt(data, "duration_ms"))
-		stats.TotalCost += float64(getInt(data, "cost_cents")) / 100.0
-		stats.TotalInputTokens += getInt(data, "input_tokens")
-		stats.TotalOutputTokens += getInt(data, "output_tokens")
+		stats.TotalDurationMS += int64(mapval.Int(data, "duration_ms"))
+		stats.TotalCost += float64(mapval.Int(data, "cost_cents")) / 100.0
+		stats.TotalInputTokens += mapval.Int(data, "input_tokens")
+		stats.TotalOutputTokens += mapval.Int(data, "output_tokens")
 	}
 	stats.SuccessfulExecutions = stats.TotalExecutions
 	return stats, nil
@@ -182,15 +183,15 @@ func (s *MessagingStore) GetHierarchy() (*messaging.HierarchyResponse, error) {
 		}
 		data := doc.Data()
 		totalAgents++
-		agentStatus := getString(data, "status")
+		agentStatus := mapval.String(data, "status")
 		if agentStatus == "active" {
 			activeAgents++
 		}
 
 		agentNodes = append(agentNodes, messaging.HierarchyNode{
 			Type:   "agent",
-			ID:     getString(data, "agent_id"),
-			Label:  getString(data, "label"),
+			ID:     mapval.String(data, "agent_id"),
+			Label:  mapval.String(data, "label"),
 			Status: agentStatus,
 		})
 	}
@@ -223,7 +224,7 @@ func (s *MessagingStore) GetAgentStats(agentID string) (*messaging.AgentStats, e
 	data := doc.Data()
 	return &messaging.AgentStats{
 		AgentID: agentID,
-		Status:  getString(data, "status"),
+		Status:  mapval.String(data, "status"),
 	}, nil
 }
 

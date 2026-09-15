@@ -9,6 +9,7 @@ import (
 	"cloud.google.com/go/firestore"
 	"google.golang.org/api/iterator"
 
+	"github.com/sunholo-data/ailang/internal/mapval"
 	obs "github.com/sunholo-data/ailang/internal/observatory"
 )
 
@@ -37,22 +38,22 @@ func chainToMap(c *obs.ExecutionChain) map[string]interface{} {
 
 func mapToChain(data map[string]interface{}) *obs.ExecutionChain {
 	return &obs.ExecutionChain{
-		ID:                getString(data, "id"),
-		SourceType:        obs.ChainSourceType(getString(data, "source_type")),
-		SourceRef:         getString(data, "source_ref"),
-		GitHubRepo:        getString(data, "github_repo"),
-		GitHubIssueNumber: getInt(data, "github_issue_number"),
-		Status:            obs.ChainStatus(getString(data, "status")),
-		CurrentStage:      getInt(data, "current_stage"),
-		WorkspaceID:       getString(data, "workspace_id"),
-		WorkspacePath:     getString(data, "workspace_path"),
+		ID:                mapval.String(data, "id"),
+		SourceType:        obs.ChainSourceType(mapval.String(data, "source_type")),
+		SourceRef:         mapval.String(data, "source_ref"),
+		GitHubRepo:        mapval.String(data, "github_repo"),
+		GitHubIssueNumber: mapval.Int(data, "github_issue_number"),
+		Status:            obs.ChainStatus(mapval.String(data, "status")),
+		CurrentStage:      mapval.Int(data, "current_stage"),
+		WorkspaceID:       mapval.String(data, "workspace_id"),
+		WorkspacePath:     mapval.String(data, "workspace_path"),
 		CreatedAt:         snapshotToTime(data, "created_at"),
 		UpdatedAt:         snapshotToTimePtr(data, "updated_at"),
 		CompletedAt:       snapshotToTimePtr(data, "completed_at"),
-		TotalCost:         getFloat64(data, "total_cost"),
-		TotalTokens:       getInt(data, "total_tokens"),
-		TotalTurns:        getInt(data, "total_turns"),
-		StagesCompleted:   getInt(data, "stages_completed"),
+		TotalCost:         mapval.Float(data, "total_cost"),
+		TotalTokens:       mapval.Int(data, "total_tokens"),
+		TotalTurns:        mapval.Int(data, "total_turns"),
+		StagesCompleted:   mapval.Int(data, "stages_completed"),
 	}
 }
 
@@ -94,33 +95,33 @@ func stageToMap(st *obs.ChainStage) map[string]interface{} {
 
 func mapToStage(data map[string]interface{}) *obs.ChainStage {
 	st := &obs.ChainStage{
-		ID:             getString(data, "id"),
-		ChainID:        getString(data, "chain_id"),
-		StageNumber:    getInt(data, "stage_number"),
-		AgentID:        getString(data, "agent_id"),
-		Provider:       obs.Provider(getString(data, "provider")),
-		MessageID:      getString(data, "message_id"),
-		TaskID:         getString(data, "task_id"),
-		SessionID:      getString(data, "session_id"),
-		Status:         obs.ChainStageStatus(getString(data, "status")),
-		ApprovalStatus: obs.ApprovalStatus(getString(data, "approval_status")),
-		ApprovalType:   obs.ApprovalType(getString(data, "approval_type")),
-		HandoffTo:      getString(data, "handoff_to"),
-		Iteration:      getInt(data, "iteration"),
-		HumanFeedback:  getString(data, "human_feedback"),
+		ID:             mapval.String(data, "id"),
+		ChainID:        mapval.String(data, "chain_id"),
+		StageNumber:    mapval.Int(data, "stage_number"),
+		AgentID:        mapval.String(data, "agent_id"),
+		Provider:       obs.Provider(mapval.String(data, "provider")),
+		MessageID:      mapval.String(data, "message_id"),
+		TaskID:         mapval.String(data, "task_id"),
+		SessionID:      mapval.String(data, "session_id"),
+		Status:         obs.ChainStageStatus(mapval.String(data, "status")),
+		ApprovalStatus: obs.ApprovalStatus(mapval.String(data, "approval_status")),
+		ApprovalType:   obs.ApprovalType(mapval.String(data, "approval_type")),
+		HandoffTo:      mapval.String(data, "handoff_to"),
+		Iteration:      mapval.Int(data, "iteration"),
+		HumanFeedback:  mapval.String(data, "human_feedback"),
 		StartedAt:      snapshotToTimePtr(data, "started_at"),
 		CompletedAt:    snapshotToTimePtr(data, "completed_at"),
-		Cost:           getFloat64(data, "cost"),
-		TokensIn:       getInt(data, "tokens_in"),
-		TokensOut:      getInt(data, "tokens_out"),
-		QuotaTokens:    getInt64(data, "quota_tokens"),
-		Turns:          getInt(data, "turns"),
-		ToolCalls:      getInt(data, "tool_calls"),
-		DurationMs:     getInt64(data, "duration_ms"),
-		ErrorMessage:   getString(data, "error_message"),
-		ErrorCount:     getInt(data, "error_count"),
+		Cost:           mapval.Float(data, "cost"),
+		TokensIn:       mapval.Int(data, "tokens_in"),
+		TokensOut:      mapval.Int(data, "tokens_out"),
+		QuotaTokens:    mapval.Int64(data, "quota_tokens"),
+		Turns:          mapval.Int(data, "turns"),
+		ToolCalls:      mapval.Int(data, "tool_calls"),
+		DurationMs:     mapval.Int64(data, "duration_ms"),
+		ErrorMessage:   mapval.String(data, "error_message"),
+		ErrorCount:     mapval.Int(data, "error_count"),
 	}
-	if evalStr := getString(data, "eval_assessment"); evalStr != "" {
+	if evalStr := mapval.String(data, "eval_assessment"); evalStr != "" {
 		var ea obs.EvalAssessment
 		if err := json.Unmarshal([]byte(evalStr), &ea); err == nil {
 			st.EvalAssessment = &ea
@@ -131,17 +132,17 @@ func mapToStage(data map[string]interface{}) *obs.ChainStage {
 
 func mapToChatMessage(data map[string]interface{}) *obs.ChatMessage {
 	return &obs.ChatMessage{
-		ID:          getString(data, "id"),
-		SessionID:   getString(data, "session_id"),
-		TurnNumber:  getInt(data, "turn_number"),
-		Role:        getString(data, "role"),
-		ContentJSON: getString(data, "content_json"),
-		TokensIn:    getInt(data, "tokens_in"),
-		TokensOut:   getInt(data, "tokens_out"),
-		Model:       getString(data, "model"),
+		ID:          mapval.String(data, "id"),
+		SessionID:   mapval.String(data, "session_id"),
+		TurnNumber:  mapval.Int(data, "turn_number"),
+		Role:        mapval.String(data, "role"),
+		ContentJSON: mapval.String(data, "content_json"),
+		TokensIn:    mapval.Int(data, "tokens_in"),
+		TokensOut:   mapval.Int(data, "tokens_out"),
+		Model:       mapval.String(data, "model"),
 		Timestamp:   snapshotToTime(data, "timestamp"),
-		TaskID:      getString(data, "task_id"),
-		ChainID:     getString(data, "chain_id"),
+		TaskID:      mapval.String(data, "task_id"),
+		ChainID:     mapval.String(data, "chain_id"),
 	}
 }
 
@@ -179,7 +180,7 @@ func (s *ObservatoryStore) chainIDsForAgent(ctx context.Context, agentID string)
 		if err != nil {
 			return nil, err
 		}
-		chainIDsWithAgent[getString(doc.Data(), "chain_id")] = true
+		chainIDsWithAgent[mapval.String(doc.Data(), "chain_id")] = true
 	}
 
 	return chainIDsWithAgent, nil
@@ -260,7 +261,7 @@ func (s *ObservatoryStore) CountChatMessages(ctx context.Context, q obs.ChatMess
 			return total, withTaskID, iterErr
 		}
 		total++
-		if getString(doc.Data(), "task_id") != "" {
+		if mapval.String(doc.Data(), "task_id") != "" {
 			withTaskID++
 		}
 	}

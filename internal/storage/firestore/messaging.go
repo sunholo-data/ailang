@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/sunholo-data/ailang/internal/mapval"
 	"github.com/sunholo-data/ailang/internal/messaging"
 )
 
@@ -283,7 +284,7 @@ func (s *MessagingStore) GetDistinctWorkspaces() ([]string, error) {
 			return nil, err
 		}
 		count++
-		if ws := getString(doc.Data(), "workspace"); ws != "" {
+		if ws := mapval.String(doc.Data(), "workspace"); ws != "" {
 			seen[ws] = true
 		}
 	}
@@ -325,10 +326,10 @@ func (s *MessagingStore) GetThreadAggregateStats() (*messaging.ThreadAggregateSt
 		}
 		data := doc.Data()
 		stats.TotalThreads++
-		if st := getString(data, "status"); st != "" {
+		if st := mapval.String(data, "status"); st != "" {
 			stats.ByStatus[st]++
 		}
-		if ws := getString(data, "workspace"); ws != "" {
+		if ws := mapval.String(data, "workspace"); ws != "" {
 			stats.ByWorkspace[ws]++
 		}
 	}

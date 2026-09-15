@@ -7,6 +7,7 @@ import (
 	"cloud.google.com/go/firestore"
 	"google.golang.org/api/iterator"
 
+	"github.com/sunholo-data/ailang/internal/mapval"
 	obs "github.com/sunholo-data/ailang/internal/observatory"
 )
 
@@ -66,7 +67,7 @@ func (s *ObservatoryStore) ListChains(ctx context.Context, opts obs.ChainListOpt
 		}
 		data := doc.Data()
 		if agentChains != nil {
-			if !agentChains[getString(data, "id")] {
+			if !agentChains[mapval.String(data, "id")] {
 				continue
 			}
 			matched++
@@ -75,17 +76,17 @@ func (s *ObservatoryStore) ListChains(ctx context.Context, opts obs.ChainListOpt
 			}
 		}
 		result = append(result, &obs.ChainSummary{
-			ID:                getString(data, "id"),
-			SourceType:        getString(data, "source_type"),
-			SourceRef:         getString(data, "source_ref"),
-			GitHubRepo:        getString(data, "github_repo"),
-			GitHubIssueNumber: getInt(data, "github_issue_number"),
-			Status:            obs.ChainStatus(getString(data, "status")),
-			CurrentStage:      getInt(data, "current_stage"),
-			TotalCost:         getFloat64(data, "total_cost"),
-			TotalTokens:       getInt(data, "total_tokens"),
-			TotalTurns:        getInt(data, "total_turns"),
-			StagesCompleted:   getInt(data, "stages_completed"),
+			ID:                mapval.String(data, "id"),
+			SourceType:        mapval.String(data, "source_type"),
+			SourceRef:         mapval.String(data, "source_ref"),
+			GitHubRepo:        mapval.String(data, "github_repo"),
+			GitHubIssueNumber: mapval.Int(data, "github_issue_number"),
+			Status:            obs.ChainStatus(mapval.String(data, "status")),
+			CurrentStage:      mapval.Int(data, "current_stage"),
+			TotalCost:         mapval.Float(data, "total_cost"),
+			TotalTokens:       mapval.Int(data, "total_tokens"),
+			TotalTurns:        mapval.Int(data, "total_turns"),
+			StagesCompleted:   mapval.Int(data, "stages_completed"),
 			CreatedAt:         snapshotToTime(data, "created_at"),
 			CompletedAt:       snapshotToTimePtr(data, "completed_at"),
 		})

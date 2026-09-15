@@ -7,6 +7,7 @@ import (
 	"cloud.google.com/go/firestore"
 
 	"github.com/sunholo-data/ailang/internal/coordinator"
+	"github.com/sunholo-data/ailang/internal/mapval"
 )
 
 // CompareAndSetTaskStatus sets a task's status only if it currently holds one of
@@ -38,7 +39,7 @@ func (s *CoordinatorStore) CompareAndSetTaskStatus(ctx context.Context, id strin
 		if err != nil {
 			return fmt.Errorf("reading task %s: %w", id, err)
 		}
-		current := getString(doc.Data(), "status")
+		current := mapval.String(doc.Data(), "status")
 		if !allowed[current] {
 			// Not an error: the record advanced past what this finalisation was
 			// told about, so the effect is superseded.

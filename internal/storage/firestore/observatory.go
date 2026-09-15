@@ -9,6 +9,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/sunholo-data/ailang/internal/mapval"
 	obs "github.com/sunholo-data/ailang/internal/observatory"
 )
 
@@ -146,9 +147,9 @@ func (s *ObservatoryStore) GetWorkspaceStats(ctx context.Context, id string) (*o
 		}
 		data := doc.Data()
 		stats.TaskCount++
-		stats.TotalCost += getFloat64(data, "total_cost_usd")
-		stats.TotalTokens += getInt64(data, "total_tokens_in") + getInt64(data, "total_tokens_out")
-		if getString(data, "status") == "completed" {
+		stats.TotalCost += mapval.Float(data, "total_cost_usd")
+		stats.TotalTokens += mapval.Int64(data, "total_tokens_in") + mapval.Int64(data, "total_tokens_out")
+		if mapval.String(data, "status") == "completed" {
 			// Track for success rate
 		}
 	}
@@ -164,7 +165,7 @@ func (s *ObservatoryStore) GetWorkspaceStats(ctx context.Context, id string) (*o
 		if err != nil {
 			break
 		}
-		agents[getString(doc.Data(), "agent_id")] = true
+		agents[mapval.String(doc.Data(), "agent_id")] = true
 	}
 	stats.UniqueAgents = len(agents)
 
@@ -186,10 +187,10 @@ func workspaceToMap(w *obs.Workspace) map[string]interface{} {
 
 func mapToWorkspace(data map[string]interface{}) *obs.Workspace {
 	return &obs.Workspace{
-		ID:        getString(data, "id"),
-		Name:      getString(data, "name"),
-		Path:      getString(data, "path"),
-		GitRemote: getString(data, "git_remote"),
+		ID:        mapval.String(data, "id"),
+		Name:      mapval.String(data, "name"),
+		Path:      mapval.String(data, "path"),
+		GitRemote: mapval.String(data, "git_remote"),
 		CreatedAt: snapshotToTime(data, "created_at"),
 		UpdatedAt: snapshotToTime(data, "updated_at"),
 	}
