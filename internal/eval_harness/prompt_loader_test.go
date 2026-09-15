@@ -44,16 +44,17 @@ func TestNewPromptLoader(t *testing.T) {
 		t.Fatalf("Failed to create loader: %v", err)
 	}
 
-	if loader.registry.SchemaVersion != "1.0" {
-		t.Errorf("Expected schema version 1.0, got %s", loader.registry.SchemaVersion)
+	if got := loader.GetActiveVersionID(); got != "test-v1" {
+		t.Errorf("Expected active version test-v1, got %s", got)
 	}
 
-	if loader.registry.Active != "test-v1" {
-		t.Errorf("Expected active version test-v1, got %s", loader.registry.Active)
+	if n := len(loader.ListVersions()); n != 1 {
+		t.Errorf("Expected 1 version, got %d", n)
 	}
 
-	if len(loader.registry.Versions) != 1 {
-		t.Errorf("Expected 1 version, got %d", len(loader.registry.Versions))
+	// A missing registry fails at construction, not on first load.
+	if _, err := NewPromptLoader(filepath.Join(tmpDir, "nope.json")); err == nil {
+		t.Error("expected an error for a missing registry file")
 	}
 }
 
@@ -242,8 +243,8 @@ func TestLoadPrompt_NotFound(t *testing.T) {
 		t.Fatal("Expected error for non-existent version, got nil")
 	}
 
-	if !contains(err.Error(), "not found") {
-		t.Errorf("Expected 'not found' error, got: %v", err)
+	if !contains(err.Error(), "not a known prompt version") {
+		t.Errorf("Expected 'not a known prompt version' error, got: %v", err)
 	}
 }
 

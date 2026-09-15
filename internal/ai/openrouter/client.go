@@ -34,6 +34,16 @@ const (
 //     OPENROUTER_CATEGORIES
 //  3. Built-in defaults
 func setAttributionHeaders(r *http.Request, attr *ai.Attribution) {
+	for k, vs := range attributionHeaders(attr) {
+		for _, v := range vs {
+			r.Header.Set(k, v)
+		}
+	}
+}
+
+// attributionHeaders builds the OpenRouter attribution headers (see
+// setAttributionHeaders) in http.Header form for ai.DoJSON callers.
+func attributionHeaders(attr *ai.Attribution) http.Header {
 	referer := defaultHTTPReferer
 	title := defaultXTitle
 	categories := defaultCategories
@@ -62,10 +72,19 @@ func setAttributionHeaders(r *http.Request, attr *ai.Attribution) {
 		}
 	}
 
-	r.Header.Set("HTTP-Referer", referer)
-	r.Header.Set("X-OpenRouter-Title", title) // Canonical (v0.16.0+)
-	r.Header.Set("X-Title", title)            // Backwards compat
-	r.Header.Set("X-OpenRouter-Categories", categories)
+	return http.Header{
+		"HTTP-Referer":            []string{referer},
+		"X-OpenRouter-Title":      []string{title}, // Canonical (v0.16.0+)
+		"X-Title":                 []string{title}, // Backwards compat
+		"X-OpenRouter-Categories": []string{categories},
+	}
+}
+
+// requestHeaders is the bearer auth plus attribution every OpenRouter call carries.
+func (c *Client) requestHeaders(attr *ai.Attribution) http.Header {
+	h := attributionHeaders(attr)
+	h.Set("Authorization", "Bearer "+c.apiKey)
+	return h
 }
 
 // Client implements ai.Provider for OpenRouter's unified Chat Completions API.

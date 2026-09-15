@@ -5,13 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"github.com/sunholo-data/ailang/internal/modelreg"
-	"os"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ai"
-	"github.com/sunholo-data/ailang/internal/ai/gemini"
-	"github.com/sunholo-data/ailang/internal/ai/ollama"
-	"github.com/sunholo-data/ailang/internal/ai/openai"
+	"github.com/sunholo-data/ailang/internal/ai/factory"
 	"github.com/sunholo-data/ailang/internal/eval_harness"
 )
 
@@ -107,49 +104,23 @@ func ResolveCaller(modelID string) (JSONCaller, *eval_harness.ModelConfig, error
 		return nil, nil, fmt.Errorf("model %q not in models.yml: %w", modelID, ErrUnknownModel)
 	}
 
-	var provider ai.Provider
+	// Three vendors are admitted so the quorum's priors stay independent:
+	// openai, google (Vertex ADC — the model's gcp_project is handed to the
+	// factory EXPLICITLY, which makes that lane the only one tried; GEMINI_API_KEY,
+	// absent on the rig, is never consulted), and ollama (the local daemon
+	// proxies `-cloud` models to ollama.com on the device key from `ollama
+	// signin`; there is no API key to check — M-OLLAMA-CLOUD-PROVIDER). Each
+	// lane refuses loudly when its credential is missing rather than letting a
+	// reviewer silently vanish: an absent reviewer degrades the quorum to N-1,
+	// which must be a reported fact, not an accident.
 	switch ai.ProviderFromString(mc.Provider) {
-	case ai.ProviderOpenAI:
-		apiKey := os.Getenv("OPENAI_API_KEY")
-		if apiKey == "" {
-			return nil, nil, fmt.Errorf("reviewer %q needs OPENAI_API_KEY (openai provider) — not set", modelID)
-		}
-		provider = openai.NewClient(apiKey)
-
-	case ai.ProviderGoogle:
-		// Vertex ADC path — the design doc's flagged-but-mitigated route. The
-		// model's gcp_project is handed to the client EXPLICITLY; the ADC token
-		// path (internal/auth/gcp) never reads a project from the environment,
-		// so the process-global os.Setenv("GOOGLE_CLOUD_PROJECT") that used to
-		// sit here was a leak with no reader (M-V1-SIMPLIFY-S2 M4). We do NOT
-		// read GEMINI_API_KEY (absent on the rig) — that is the whole point.
-		client, gerr := gemini.NewVertexAIClient(mc.GCPProject)
-		if gerr != nil {
-			return nil, nil, fmt.Errorf("reviewer %q needs Vertex ADC (gemini provider, gcp_project=%q) — %w", modelID, mc.GCPProject, gerr)
-		}
-		provider = client
-
-	case ai.ProviderOllama:
-		// Ollama Cloud reviewer (M-OLLAMA-CLOUD-PROVIDER). A third vendor for the
-		// quorum: gpt5-6-sol is OpenAI and gemini-3-1-pro is Google, so a
-		// `-cloud`-suffixed ollama model adds an independent prior without
-		// touching the local GPU — the daemon proxies it to ollama.com.
-		//
-		// There is NO API key to check here: inference rides the DEVICE key
-		// registered by `ollama signin`, and OLLAMA_API_KEY is only for
-		// ollama.com's own /api/usage, which the local daemon does not proxy.
-		// Same Principle-2 posture as the other lanes — refuse loudly if the
-		// daemon is unreachable rather than letting a reviewer silently vanish
-		// (an absent reviewer degrades the quorum to N-1, which must be a
-		// reported fact, not an accident).
-		client, oerr := ollama.NewClient()
-		if oerr != nil {
-			return nil, nil, fmt.Errorf("reviewer %q needs a reachable ollama daemon (ollama provider) — %w", modelID, oerr)
-		}
-		provider = client
-
+	case ai.ProviderOpenAI, ai.ProviderGoogle, ai.ProviderOllama:
 	default:
 		return nil, nil, fmt.Errorf("reviewer %q provider %q unsupported for quorum (want openai, google, or ollama)", modelID, mc.Provider)
+	}
+	provider, err := factory.NewProvider(mc.Provider, factory.WithGCPProject(mc.GCPProject))
+	if err != nil {
+		return nil, nil, fmt.Errorf("reviewer %q (%s provider) — %w", modelID, mc.Provider, err)
 	}
 
 	maxTokens, err := reviewerMaxTokens(mc)

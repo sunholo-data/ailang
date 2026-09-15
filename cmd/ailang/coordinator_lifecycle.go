@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/ai"
-	"github.com/sunholo-data/ailang/internal/ai/anthropic"
+	"github.com/sunholo-data/ailang/internal/ai/factory"
 	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/coordinator"
 	"github.com/sunholo-data/ailang/internal/dispatch/cloudrun"
@@ -141,8 +141,12 @@ func coordinatorStart(args []string) error {
 		if key := os.Getenv("ANTHROPIC_API_KEY"); key != "" {
 			// The classifier model is a per-request field (ai.Request.Model =
 			// cfg.ClassifierModel), so a bare client is correct — do NOT thread a
-			// model into the client here.
-			provider = anthropic.NewClient(key)
+			// model into the client here. The metered key is passed explicitly:
+			// the gate stays closed on OAuth-only machines by design.
+			provider, err = factory.NewProvider("anthropic", factory.WithAPIKey(key))
+			if err != nil {
+				return fmt.Errorf("feedback-gate classifier: %w", err)
+			}
 		} else {
 			fmt.Printf("  %s ANTHROPIC_API_KEY not set: feedback-gate classifier fail-closed "+
 				"(heuristic-flagged submissions filed, never dispatched)\n", yellow("⚠"))

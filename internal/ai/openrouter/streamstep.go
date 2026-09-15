@@ -52,13 +52,13 @@ func (c *Client) StreamStep(ctx context.Context, req *ai.Request, onChunk func(a
 	// ReasoningNone to the shared builder and splice the reasoning fragment below.
 	reasoning, rErr := ai.ResolveReasoning(req, "openrouter", req.Model)
 	if rErr != nil {
-		recordStepError(span, asAIError(rErr))
+		ai.RecordSpanError(span, rErr)
 		return nil, rErr
 	}
 
 	chatReq, aiErr := openai.BuildChatStepRequest(req, ai.ReasoningDecision{})
 	if aiErr != nil {
-		recordStepError(span, aiErr)
+		ai.RecordSpanError(span, aiErr)
 		return nil, aiErr
 	}
 	chatReq.Stream = true
@@ -70,7 +70,7 @@ func (c *Client) StreamStep(ctx context.Context, req *ai.Request, onChunk func(a
 	if cacheErr := applyCacheHintsForRoute(chatReq, req.Model, req.CacheBreakpoints); cacheErr != nil {
 		e := ai.NewAIError(ai.CodeInternal,
 			fmt.Sprintf("openrouter: failed to apply cache hints: %v", cacheErr), false)
-		recordStepError(span, e)
+		ai.RecordSpanError(span, e)
 		return nil, e
 	}
 
@@ -86,7 +86,7 @@ func (c *Client) StreamStep(ctx context.Context, req *ai.Request, onChunk func(a
 	if rerr != nil {
 		e := ai.NewAIError(ai.CodeSchemaValidation,
 			fmt.Sprintf("openrouter: invalid routing policy: %v", rerr), false)
-		recordStepError(span, e)
+		ai.RecordSpanError(span, e)
 		return nil, e
 	}
 	if pf != nil {
@@ -94,7 +94,7 @@ func (c *Client) StreamStep(ctx context.Context, req *ai.Request, onChunk func(a
 		if marshalErr != nil {
 			e := ai.NewAIError(ai.CodeInternal,
 				fmt.Sprintf("openrouter: failed to marshal provider field: %v", marshalErr), false)
-			recordStepError(span, e)
+			ai.RecordSpanError(span, e)
 			return nil, e
 		}
 		extras = append(extras, append([]byte(`"provider":`), pfBytes...))
@@ -103,7 +103,7 @@ func (c *Client) StreamStep(ctx context.Context, req *ai.Request, onChunk func(a
 	if rfErr != nil {
 		e := ai.NewAIError(ai.CodeInternal,
 			fmt.Sprintf("openrouter: failed to marshal reasoning field: %v", rfErr), false)
-		recordStepError(span, e)
+		ai.RecordSpanError(span, e)
 		return nil, e
 	}
 	extras = append(extras, reasoningFrags...)
@@ -115,7 +115,7 @@ func (c *Client) StreamStep(ctx context.Context, req *ai.Request, onChunk func(a
 	if cErr != nil {
 		e := ai.NewAIError(ai.CodeSchemaValidation,
 			fmt.Sprintf("openrouter: invalid correlation: %v", cErr), false)
-		recordStepError(span, e)
+		ai.RecordSpanError(span, e)
 		return nil, e
 	}
 	extras = append(extras, corrFrags...)
@@ -124,14 +124,14 @@ func (c *Client) StreamStep(ctx context.Context, req *ai.Request, onChunk func(a
 	if marshalErr != nil {
 		e := ai.NewAIError(ai.CodeInternal,
 			fmt.Sprintf("openrouter: failed to marshal stream request: %v", marshalErr), false)
-		recordStepError(span, e)
+		ai.RecordSpanError(span, e)
 		return nil, e
 	}
 
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/chat/completions", bytes.NewReader(body))
 	if err != nil {
 		e := ai.ClassifyError(err)
-		recordStepError(span, e)
+		ai.RecordSpanError(span, e)
 		return nil, e
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
@@ -142,7 +142,7 @@ func (c *Client) StreamStep(ctx context.Context, req *ai.Request, onChunk func(a
 	httpResp, err := c.httpClient.Do(httpReq)
 	if err != nil {
 		e := ai.ClassifyError(err)
-		recordStepError(span, e)
+		ai.RecordSpanError(span, e)
 		return nil, e
 	}
 	defer func() { _ = httpResp.Body.Close() }()
@@ -152,13 +152,13 @@ func (c *Client) StreamStep(ctx context.Context, req *ai.Request, onChunk func(a
 	if httpResp.StatusCode < 200 || httpResp.StatusCode >= 300 {
 		respBody, _ := io.ReadAll(httpResp.Body)
 		e := openai.ClassifyChatHTTPErrorFor("openrouter", httpResp.StatusCode, respBody)
-		recordStepError(span, e)
+		ai.RecordSpanError(span, e)
 		return nil, e
 	}
 
 	out, parseErr := openai.ParseChatStepSSEStream(httpResp.Body, req.Model, onChunk)
 	if parseErr != nil {
-		recordStepError(span, parseErr)
+		ai.RecordSpanError(span, parseErr)
 		return nil, parseErr
 	}
 

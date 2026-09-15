@@ -2,10 +2,12 @@ package coordinator
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/ai"
 	"github.com/sunholo-data/ailang/internal/executor"
 )
 
@@ -226,46 +228,14 @@ func (te *TaskExecutor) ListProviders() []string {
 	return names
 }
 
-// isRetryable checks if an error should trigger a retry
+// isRetryable checks if an executor result's error should trigger a retry.
+// Our own execution timeouts are never retried — the agent was given its full
+// configured timeout (v0.8.1); everything else is ai.ShouldRetry, the one
+// classifier (M-V1-SIMPLIFY-S3 M4): rate limits, network and server errors
+// retry, quota exhaustion and unrecognised errors do not.
 func isRetryable(errMsg string) bool {
-	if errMsg == "" {
+	if errMsg == "" || strings.HasPrefix(errMsg, "timeout after") {
 		return false
 	}
-
-	// Our own execution timeouts should NOT be retried —
-	// the agent was given its full configured timeout (v0.8.1)
-	if strings.HasPrefix(errMsg, "timeout after") {
-		return false
-	}
-
-	// Rate limiting
-	if contains(errMsg, "rate limit", "429", "too many requests") {
-		return true
-	}
-
-	// Temporary network errors
-	if contains(errMsg, "timeout", "connection", "network") {
-		return true
-	}
-
-	// Server errors
-	if contains(errMsg, "500", "502", "503", "504", "internal server error") {
-		return true
-	}
-
-	return false
-}
-
-// contains checks if s contains any of the substrings
-func contains(s string, substrs ...string) bool {
-	for _, sub := range substrs {
-		if len(s) >= len(sub) {
-			for i := 0; i <= len(s)-len(sub); i++ {
-				if s[i:i+len(sub)] == sub {
-					return true
-				}
-			}
-		}
-	}
-	return false
+	return ai.ShouldRetry(errors.New(errMsg))
 }

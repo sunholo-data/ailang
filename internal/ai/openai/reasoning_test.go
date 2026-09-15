@@ -48,7 +48,7 @@ func TestOpenAI_Responses_Golden_PreservesImplicitMedium(t *testing.T) {
 // Chat body carries NO reasoning_effort key (byte-identical; omitempty).
 func TestOpenAI_Chat_Golden_NoReasoningField(t *testing.T) {
 	var body string
-	resp := chatResponse{Choices: []chatChoice{{Message: chatMessage{Content: "ok"}, FinishReason: "stop"}}}
+	resp := ChatResponse{Choices: []ChatChoice{{Message: ChatMessage{Content: "ok"}, FinishReason: "stop"}}}
 	srv := captureBody(t, &body, resp)
 	defer srv.Close()
 

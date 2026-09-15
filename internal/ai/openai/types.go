@@ -5,14 +5,14 @@ package openai
 import "encoding/json"
 
 // chatRequest represents the request body for Chat Completions API.
-type chatRequest struct {
+type ChatRequest struct {
 	Model               string              `json:"model"`
-	Messages            []chatMessage       `json:"messages"`
+	Messages            []ChatMessage       `json:"messages"`
 	MaxTokens           int                 `json:"max_tokens,omitempty"`
 	MaxCompletionTokens int                 `json:"max_completion_tokens,omitempty"` // GPT-5.1+ use this
 	Temperature         float64             `json:"temperature,omitempty"`
 	Seed                *int64              `json:"seed,omitempty"`
-	ResponseFormat      *chatResponseFormat `json:"response_format,omitempty"` // Structured output
+	ResponseFormat      *ChatResponseFormat `json:"response_format,omitempty"` // Structured output
 	// ReasoningEffort is OpenAI Chat's native top-level reasoning dial
 	// (M-AI-REASONING-EFFORT, v0.31.0). omitempty keeps the wire body
 	// byte-identical to pre-v0.31.0 when no reasoning control is requested.
@@ -20,43 +20,43 @@ type chatRequest struct {
 }
 
 // chatResponseFormat configures structured output for Chat Completions API.
-type chatResponseFormat struct {
+type ChatResponseFormat struct {
 	Type       string          `json:"type"`                  // "json_schema" or "json_object"
-	JSONSchema *chatJSONSchema `json:"json_schema,omitempty"` // Schema definition
+	JSONSchema *ChatJSONSchema `json:"json_schema,omitempty"` // Schema definition
 }
 
 // chatJSONSchema defines the JSON schema for structured output.
-type chatJSONSchema struct {
+type ChatJSONSchema struct {
 	Name   string          `json:"name"`
 	Schema json.RawMessage `json:"schema"`
 	Strict bool            `json:"strict"`
 }
 
 // chatMessage represents a message in the Chat Completions API.
-type chatMessage struct {
+type ChatMessage struct {
 	Role    string `json:"role"`
 	Content string `json:"content"`
 }
 
 // chatResponse represents the response from Chat Completions API.
-type chatResponse struct {
+type ChatResponse struct {
 	ID      string       `json:"id"`
 	Object  string       `json:"object"`
 	Created int64        `json:"created"`
 	Model   string       `json:"model"`
-	Choices []chatChoice `json:"choices"`
-	Usage   chatUsage    `json:"usage"`
+	Choices []ChatChoice `json:"choices"`
+	Usage   ChatUsage    `json:"usage"`
 }
 
 // chatChoice represents a completion choice.
-type chatChoice struct {
+type ChatChoice struct {
 	Index        int         `json:"index"`
-	Message      chatMessage `json:"message"`
+	Message      ChatMessage `json:"message"`
 	FinishReason string      `json:"finish_reason"`
 }
 
 // chatUsage represents token usage in the response.
-type chatUsage struct {
+type ChatUsage struct {
 	PromptTokens            int `json:"prompt_tokens"`
 	CompletionTokens        int `json:"completion_tokens"`
 	TotalTokens             int `json:"total_tokens"`
@@ -71,15 +71,6 @@ type chatUsage struct {
 	PromptTokensDetails struct {
 		CachedTokens int `json:"cached_tokens"`
 	} `json:"prompt_tokens_details,omitempty"`
-}
-
-// errorResponse represents an error response from the API.
-type errorResponse struct {
-	Error struct {
-		Message string `json:"message"`
-		Type    string `json:"type"`
-		Code    string `json:"code"`
-	} `json:"error"`
 }
 
 // APIType indicates which OpenAI API to use.
