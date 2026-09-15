@@ -8,6 +8,8 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/sdk/resource"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // Version is set at build time via ldflags.
@@ -26,7 +28,7 @@ func NewResource(serviceName string) (*resource.Resource, error) {
 	attrs := []attribute.KeyValue{
 		semconv.ServiceName(serviceName),
 		semconv.ServiceVersion(Version),
-		semconv.DeploymentEnvironment(getEnv("OTEL_ENVIRONMENT", "development")),
+		semconv.DeploymentEnvironment(config.OTELEnvironment()),
 		semconv.ProcessRuntimeName("go"),
 		semconv.ProcessRuntimeVersion(runtime.Version()),
 		attribute.String("process.cwd", cwd), // Working directory for debugging
@@ -36,7 +38,7 @@ func NewResource(serviceName string) (*resource.Resource, error) {
 	// This enables task hierarchy linking when AILANG runs inside a coordinator task.
 	// Format: key1=value1,key2=value2
 	// Example: ailang.task_id=task-123,ailang.assignment_id=aa_456
-	if envAttrs := os.Getenv("OTEL_RESOURCE_ATTRIBUTES"); envAttrs != "" {
+	if envAttrs := config.OTELResourceAttributes(); envAttrs != "" {
 		for _, pair := range strings.Split(envAttrs, ",") {
 			parts := strings.SplitN(pair, "=", 2)
 			if len(parts) == 2 {
@@ -52,12 +54,4 @@ func NewResource(serviceName string) (*resource.Resource, error) {
 	// Create resource without merging with Default() to avoid schema URL conflicts
 	// between different semconv versions in dependencies.
 	return resource.NewWithAttributes(semconv.SchemaURL, attrs...), nil
-}
-
-// getEnv returns the value of an environment variable or a default value.
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
 }

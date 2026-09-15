@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // Codex reads its credential from a FILE, so an env var alone is no credential
@@ -60,7 +62,7 @@ func EnsureAPIKeyAuth() (bool, error) {
 		return false, fmt.Errorf("stat codex auth.json: %w", statErr)
 	}
 
-	key := os.Getenv("OPENAI_API_KEY")
+	key := config.OpenAIAPIKey()
 	if key == "" {
 		// Nothing to write. Left to HealthCheck/the run to fail loudly, rather
 		// than inventing a credential here.

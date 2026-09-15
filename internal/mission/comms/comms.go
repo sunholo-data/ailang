@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/statedir"
 	"github.com/sunholo-data/ailang/internal/strutil"
 )
@@ -78,7 +79,7 @@ func ResolveMission(name string) (Mission, error) {
 
 	// The driver honours MISSION_GH_ISSUE as an override; the port must too, or a
 	// cutover cannot be rehearsed against a scratch issue.
-	if v := strings.TrimSpace(os.Getenv("MISSION_GH_ISSUE")); v != "" {
+	if v := config.MissionGHIssue(); v != "" {
 		n, err := strconv.Atoi(v)
 		if err != nil {
 			return Mission{}, fmt.Errorf("MISSION_GH_ISSUE=%q is not a number: %w", v, err)

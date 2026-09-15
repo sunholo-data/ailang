@@ -48,13 +48,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"time"
 
 	run "cloud.google.com/go/run/apiv2"
 	"cloud.google.com/go/run/apiv2/runpb"
 	"google.golang.org/api/idtoken"
 	"google.golang.org/api/iterator"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 const (
@@ -130,10 +131,11 @@ func decideSweep(h *residentHealth, probeErr error, thresholdS int) (action, rea
 // canStartAgain reports whether this service could bring a stopped instance
 // back. The interlock: without it, sweeping is a one-way door.
 func canStartAgain() error {
-	if os.Getenv("RESIDENT_LIFECYCLE_PROJECT") == "" || os.Getenv("RESIDENT_LIFECYCLE_REGION") == "" {
+	rl := config.ResidentLifecycleConfig()
+	if rl.Project == "" || rl.Region == "" {
 		return fmt.Errorf("resident lifecycle project/region not configured")
 	}
-	if os.Getenv("RESIDENT_LIFECYCLE_AUDIENCE") == "" || os.Getenv("RESIDENT_LIFECYCLE_ALLOWED_CALLERS") == "" {
+	if rl.Audience == "" || rl.AllowedCallers == "" {
 		return fmt.Errorf("resident lifecycle start route is not reachable by any caller")
 	}
 	return nil
@@ -206,8 +208,8 @@ func (d *Daemon) handleSweepInstances(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	project := os.Getenv("RESIDENT_LIFECYCLE_PROJECT")
-	region := os.Getenv("RESIDENT_LIFECYCLE_REGION")
+	rl := config.ResidentLifecycleConfig()
+	project, region := rl.Project, rl.Region
 	if project == "" || region == "" {
 		http.Error(w, "resident lifecycle project/region not configured", http.StatusServiceUnavailable)
 		return

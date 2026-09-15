@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/executor"
 	"github.com/sunholo-data/ailang/internal/proctree"
 	"github.com/sunholo-data/ailang/internal/telemetry"
@@ -141,13 +142,13 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	// "apikey" mode: ANTHROPIC_API_KEY is already in env (set by cloud dispatcher).
 	// Claude Code reads it natively — no credentials file needed.
 	// Default (OAuth) mode: write credentials file from CLAUDE_CODE_OAUTH_TOKEN.
-	authMode := os.Getenv("AILANG_AUTH_MODE")
+	authMode := config.AuthMode()
 	if authMode == "apikey" {
 		// Decrypt KMS-encrypted API key if present (ENC: prefix).
 		if err := decryptAPIKeyIfNeeded(ctx); err != nil {
 			return nil, fmt.Errorf("claude-auth: %w", err)
 		}
-		if os.Getenv("ANTHROPIC_API_KEY") == "" {
+		if config.AnthropicAPIKey() == "" {
 			return nil, fmt.Errorf("AILANG_AUTH_MODE=apikey but ANTHROPIC_API_KEY not set")
 		}
 		fmt.Fprintf(os.Stderr, "claude-auth: using ANTHROPIC_API_KEY (pay-per-token mode)\n")

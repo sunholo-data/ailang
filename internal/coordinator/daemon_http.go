@@ -6,11 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/httpjson"
 	"github.com/sunholo-data/ailang/internal/messaging"
 	"github.com/sunholo-data/ailang/internal/observatory"
@@ -18,7 +18,7 @@ import (
 )
 
 // apiKeyEnv names the bearer token the coordinator's HTTP API requires.
-const apiKeyEnv = "COORDINATOR_API_KEY"
+const apiKeyEnv = config.EnvCoordinatorAPIKey
 
 // requireAPIKey returns middleware that checks for a valid Bearer token and
 // FAILS CLOSED: with COORDINATOR_API_KEY unset every request is rejected.
@@ -33,7 +33,7 @@ const apiKeyEnv = "COORDINATOR_API_KEY"
 // from the rendered plist, so the loopback daemon keeps working.
 func (d *Daemon) requireAPIKey(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		key := os.Getenv(apiKeyEnv)
+		key := config.CoordinatorAPIKey()
 		if key == "" {
 			httpjson.Error(w, http.StatusUnauthorized,
 				apiKeyEnv+" is not set on the coordinator; this endpoint is closed until it is")
@@ -55,7 +55,7 @@ func (d *Daemon) requireAPIKey(next http.HandlerFunc) http.HandlerFunc {
 func (d *Daemon) startHealthServer(port string) {
 	mux := http.NewServeMux()
 
-	if os.Getenv(apiKeyEnv) == "" {
+	if config.CoordinatorAPIKey() == "" {
 		d.logger.Printf("SECURITY: %s is unset — /status, /chains/*, /pending and /api/messages will reject every request until it is set (fail-closed since M-V1-SIMPLIFY-S3 M5; `make coord-install` writes one)", apiKeyEnv)
 	}
 
@@ -81,7 +81,7 @@ func (d *Daemon) startHealthServer(port string) {
 
 	// M-CLOUD-PUSH: Pub/Sub push endpoints for cloud mode.
 	// Pub/Sub delivers messages via HTTP POST instead of pull subscriptions.
-	if os.Getenv("COORDINATOR_MODE") == CoordinatorModeCloud {
+	if IsCloudMode() {
 		mux.HandleFunc("/pubsub/push", d.handlePushMessage)
 		mux.HandleFunc("/pubsub/completions", d.handlePushCompletion)
 		d.logger.Println("Pub/Sub push endpoints registered: /pubsub/push, /pubsub/completions")
@@ -94,7 +94,7 @@ func (d *Daemon) startHealthServer(port string) {
 		// misconfigured deploy 404s instead of advertising an endpoint whose whole
 		// chain ends in task dispatch. Loud, because a silently-absent webhook and a
 		// silently-unauthenticated one look identical from outside.
-		if os.Getenv("GITHUB_WEBHOOK_SECRET") == "" {
+		if config.GitHubWebhookSecret() == "" {
 			d.logger.Println("SECURITY: GitHub webhook endpoint NOT registered — GITHUB_WEBHOOK_SECRET is unset")
 		} else {
 			mux.HandleFunc("/github/webhook", d.handleGitHubWebhook)
@@ -108,10 +108,10 @@ func (d *Daemon) startHealthServer(port string) {
 	// Override with COORDINATOR_BIND_ADDR when the local daemon genuinely must be
 	// reachable off-host.
 	host := "127.0.0.1"
-	if os.Getenv("COORDINATOR_MODE") == CoordinatorModeCloud {
+	if IsCloudMode() {
 		host = "0.0.0.0"
 	}
-	if override := os.Getenv("COORDINATOR_BIND_ADDR"); override != "" {
+	if override := config.CoordinatorBindAddr(); override != "" {
 		host = override
 	}
 	addr := fmt.Sprintf("%s:%s", host, port)

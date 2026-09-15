@@ -8,12 +8,12 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"os/exec"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/docsearch"
 	"github.com/sunholo-data/ailang/internal/gitutil"
 )
@@ -32,7 +32,7 @@ type Backend struct {
 
 // NewBackend resolves a token and the current repository.
 func NewBackend(ctx context.Context) (*Backend, error) {
-	token := strings.TrimSpace(os.Getenv("GITHUB_TOKEN"))
+	token := config.GitHubToken()
 	if token == "" {
 		cmd := exec.CommandContext(ctx, "gh", "auth", "token")
 		if out, err := cmd.Output(); err == nil {

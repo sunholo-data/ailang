@@ -4,12 +4,13 @@ import (
 	"context"
 	"io"
 	"net/http"
-	"os"
 	"regexp"
 	"strings"
 	"sync"
 
 	"cloud.google.com/go/storage"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // M-EVAL-DATA-HOSTING-DECOUPLE: serve the benchmark JSONs from a private GCS bucket
@@ -28,10 +29,7 @@ var (
 )
 
 func benchBucketName() string {
-	if b := os.Getenv("BENCHMARKS_BUCKET"); b != "" {
-		return b
-	}
-	return "ailang-multivac-dev-benchmarks"
+	return config.BenchmarksBucket()
 }
 
 func benchClient(ctx context.Context) (*storage.Client, error) {

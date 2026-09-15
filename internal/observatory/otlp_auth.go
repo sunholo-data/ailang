@@ -3,8 +3,9 @@ package observatory
 import (
 	"crypto/subtle"
 	"net/http"
-	"os"
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // The OTLP ingest endpoints accept writes into the observatory database. In
@@ -27,7 +28,7 @@ const (
 	// credential. Defaulting to "enforce" would break both the moment this
 	// deploys. Enabling it requires setting this variable AND adding the
 	// matching header on every producer — both sides, or ingest stops.
-	OTLPIngestTokenEnv = "AILANG_OTLP_INGEST_TOKEN"
+	OTLPIngestTokenEnv = config.EnvOTLPIngestToken
 
 	// OTLPIngestTokenHeader is the primary header carrying the shared secret.
 	OTLPIngestTokenHeader = "X-AILANG-Ingest-Token"
@@ -36,7 +37,7 @@ const (
 // otlpIngestToken returns the configured shared secret, or "" when ingest auth
 // is disabled.
 func otlpIngestToken() string {
-	return strings.TrimSpace(os.Getenv(OTLPIngestTokenEnv))
+	return config.OTLPIngestToken()
 }
 
 // presentedIngestToken extracts the caller's credential.

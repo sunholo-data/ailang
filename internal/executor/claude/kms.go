@@ -9,6 +9,8 @@ import (
 
 	kms "cloud.google.com/go/kms/apiv1"
 	kmspb "cloud.google.com/go/kms/apiv1/kmspb"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // kmsEncryptPrefix marks a value as KMS-encrypted.
@@ -21,12 +23,12 @@ const kmsEncryptPrefix = "ENC:"
 // M-CLOUD-DUAL-AUTH: Agent SA has roles/cloudkms.cryptoKeyDecrypter
 // (decrypt only — cannot forge encrypted keys).
 func decryptAPIKeyIfNeeded(ctx context.Context) error {
-	encrypted := os.Getenv("ANTHROPIC_API_KEY")
+	encrypted := config.AnthropicAPIKey()
 	if encrypted == "" || !strings.HasPrefix(encrypted, kmsEncryptPrefix) {
 		return nil // Not encrypted or not set — passthrough
 	}
 
-	kmsKeyName := os.Getenv("AILANG_KMS_KEY")
+	kmsKeyName := config.KMSKey()
 	if kmsKeyName == "" {
 		return fmt.Errorf("ANTHROPIC_API_KEY is KMS-encrypted but AILANG_KMS_KEY not set")
 	}

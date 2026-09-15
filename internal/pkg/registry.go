@@ -8,10 +8,12 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // DefaultRegistryURL is the default AILANG package registry.
-const DefaultRegistryURL = "https://storage.googleapis.com/ailang-registry"
+const DefaultRegistryURL = config.DefaultRegistryURL
 
 // RegistryClient fetches packages and metadata from the AILANG registry.
 type RegistryClient struct {
@@ -23,10 +25,7 @@ type RegistryClient struct {
 
 // NewRegistryClient creates a client using AILANG_REGISTRY env var or default URL.
 func NewRegistryClient() *RegistryClient {
-	baseURL := os.Getenv("AILANG_REGISTRY")
-	if baseURL == "" {
-		baseURL = DefaultRegistryURL
-	}
+	baseURL := config.RegistryURL()
 	return &RegistryClient{
 		BaseURL:    strings.TrimRight(baseURL, "/"),
 		httpClient: &http.Client{Timeout: 30 * time.Second},

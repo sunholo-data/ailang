@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/coordinator"
 	"github.com/sunholo-data/ailang/internal/httpjson"
 )
@@ -190,7 +190,7 @@ func (s *Server) publishSecretApprovalRequested(ctx context.Context, rec *coordi
 	if s.approvalPublisher == nil || s.secretTokenSigner == nil {
 		return
 	}
-	baseURL := os.Getenv("AILANG_APPROVAL_BASE_URL")
+	baseURL := config.ApprovalBaseURL()
 	if baseURL == "" {
 		log.Printf("secret approval: AILANG_APPROVAL_BASE_URL unset — skipping push for %s", rec.ID)
 		return

@@ -22,9 +22,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"os/exec"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // anthropicUsageURL is the endpoint behind the UI's usage display.
@@ -73,7 +74,7 @@ func (o AnthropicQuotaObservation) Blocked() bool {
 //
 // AILANG_ANTHROPIC_RATION=0 opts out for one process. It is an escape hatch for an attended
 // operator, not a fleet setting; unset means rationed.
-func AnthropicRationEnabled() bool { return os.Getenv("AILANG_ANTHROPIC_RATION") != "0" }
+func AnthropicRationEnabled() bool { return config.AnthropicRation() }
 
 // anthropicOAuthToken returns the subscription OAuth token, or "".
 //
@@ -90,7 +91,7 @@ func anthropicOAuthToken(ctx context.Context) string {
 	// OLLAMA_API_KEY="" gives the Ollama reader, and without it a test — or an operator
 	// trying to observe the unauthenticated path — silently gets the login keychain and a
 	// verdict that depends on the real account's live quota.
-	if t, ok := os.LookupEnv("CLAUDE_CODE_OAUTH_TOKEN"); ok {
+	if t, ok := config.ClaudeCodeOAuthToken(); ok {
 		return t
 	}
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)

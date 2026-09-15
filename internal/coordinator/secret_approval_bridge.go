@@ -4,10 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"sync"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/notify"
 )
 
@@ -84,8 +84,8 @@ func (d *Daemon) handlePushApproval(ctx context.Context, msgID string, data []by
 		return nil
 	}
 
-	serverURL := os.Getenv("AILANG_NTFY_SERVER_URL")
-	topic := os.Getenv("AILANG_NTFY_TOPIC")
+	ntfy := config.NtfyConfig()
+	serverURL, topic := ntfy.ServerURL, ntfy.Topic
 	if serverURL == "" || topic == "" {
 		d.logger.Printf("Push approval %s: ntfy not configured (AILANG_NTFY_SERVER_URL/TOPIC) — skipping push", approvalID)
 		return nil
@@ -98,7 +98,7 @@ func (d *Daemon) handlePushApproval(ctx context.Context, msgID string, data []by
 		return nil
 	}
 
-	ch := notify.NewNtfyChannel(serverURL, topic, os.Getenv("AILANG_NTFY_AUTH_TOKEN"))
+	ch := notify.NewNtfyChannel(serverURL, topic, ntfy.AuthToken)
 	if err := ch.Send(ctx, n); err != nil {
 		// Forward failed: forget the message ID so Pub/Sub's retry re-pushes.
 		if msgID != "" {

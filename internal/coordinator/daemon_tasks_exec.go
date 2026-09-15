@@ -2,9 +2,9 @@ package coordinator
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 )
 
@@ -18,7 +18,7 @@ func deriveRepoURL(workspace string) string {
 		return fmt.Sprintf("https://github.com/%s.git", workspace)
 	}
 	// Fall back to env var for backwards compatibility
-	return os.Getenv("AILANG_REPO_URL")
+	return config.RepoURL()
 }
 
 // coordinatorTracer returns the tracer for coordinator instrumentation.

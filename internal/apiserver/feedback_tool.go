@@ -4,38 +4,19 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
-	"strconv"
 
 	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/feedback"
 )
 
-// Defaults for the per-IP feedback rate limiter (see M-MCP-EDGE-THROTTLE).
-// Override via AILANG_RATELIMIT_RPM / AILANG_RATELIMIT_BURST. RPM=0 disables.
-const (
-	defaultFeedbackRPM   = 5
-	defaultFeedbackBurst = 3
-)
+// The per-IP feedback rate limiter (see M-MCP-EDGE-THROTTLE) is configured
+// by AILANG_RATELIMIT_RPM / AILANG_RATELIMIT_BURST; the defaults live in
+// internal/config's Registry. RPM=0 disables.
+func feedbackRateLimitRPM() int { return config.RateLimitRPM() }
 
-func feedbackRateLimitRPM() int {
-	if v := os.Getenv("AILANG_RATELIMIT_RPM"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
-			return n
-		}
-	}
-	return defaultFeedbackRPM
-}
-
-func feedbackRateLimitBurst() int {
-	if v := os.Getenv("AILANG_RATELIMIT_BURST"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
-			return n
-		}
-	}
-	return defaultFeedbackBurst
-}
+func feedbackRateLimitBurst() int { return config.RateLimitBurst() }
 
 // registerFeedbackTool registers the Go-side submit_feedback MCP tool.
 //

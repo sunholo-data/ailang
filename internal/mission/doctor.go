@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/statedir"
 	"github.com/sunholo-data/ailang/internal/strutil"
 )
@@ -34,7 +35,7 @@ type Paths struct {
 // that case, so every state path is relative and the first write fails
 // loudly instead of landing beside the binary.
 func DefaultPaths() Paths {
-	home := os.Getenv("HOME")
+	home := config.Home()
 	p := Paths{
 		Home:           home,
 		ReviewedEnvDir: filepath.Join(home, "dev", "sunholo-data", "ailang", "tools", "launchd", "mission-env"),

@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // StagedSuffix is appended to every path this package writes in Phase 1.
@@ -248,7 +250,7 @@ func RenderPlist(m *Mission) ([]byte, error) {
 	b.WriteString("\t</array>\n")
 
 	b.WriteString("\t<key>EnvironmentVariables</key>\n\t<dict>\n")
-	b.WriteString("\t\t<key>HOME</key>\n\t\t<string>" + xmlEscape(os.Getenv("HOME")) + "</string>\n")
+	b.WriteString("\t\t<key>HOME</key>\n\t\t<string>" + xmlEscape(config.Home()) + "</string>\n")
 	b.WriteString("\t\t<key>MISSION_PROFILE</key>\n\t\t<string>" + xmlEscape(m.Name) + "</string>\n")
 	// MISSION_WORKDIR MUST BE SET IN THE PLIST, not left to the env file.
 	//

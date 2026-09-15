@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 
@@ -17,6 +16,8 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // ExporterState describes registration, deliberately not remote delivery health.
@@ -61,7 +62,7 @@ func initTelemetry(ctx context.Context, serviceName string, cfg initConfig) (shu
 	}
 	if cfg.otlp {
 		status.OTLPTraces, status.OTLPMetrics = ExporterDegraded, ExporterDegraded
-		for _, key := range []string{"OTEL_EXPORTER_OTLP_ENDPOINT", "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT"} {
+		for _, key := range []string{config.EnvOTLPEndpoint, config.EnvOTLPTracesEndpoint, config.EnvOTLPMetricsEndpoint} {
 			if err := validateEndpoint(key); err != nil {
 				return nil, status, err
 			}
@@ -149,7 +150,7 @@ func initTelemetry(ctx context.Context, serviceName string, cfg initConfig) (shu
 // Validate URLs before the SDK can log an invalid setting and use its default.
 // Diagnostics intentionally name the setting, not credentials in a supplied URL.
 func validateEndpoint(key string) error {
-	value := os.Getenv(key)
+	value := config.Raw(key)
 	if value == "" {
 		return nil
 	}

@@ -16,8 +16,8 @@ package observatory
 import (
 	"log"
 	"os"
-	"strconv"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/sqliteopen"
 )
 
@@ -33,10 +33,8 @@ const DefaultWALCheckpointThresholdMB = 1024
 // honoring the env override. Falls back to DefaultWALCheckpointThresholdMB
 // if the env var is unset, malformed, or non-positive.
 func walCheckpointThresholdMB() int64 {
-	if v := os.Getenv("AILANG_OBSERVATORY_WAL_CHECKPOINT_MB"); v != "" {
-		if n, err := strconv.ParseInt(v, 10, 64); err == nil && n > 0 {
-			return n
-		}
+	if n := config.WALCheckpointMB(); n > 0 {
+		return n
 	}
 	return DefaultWALCheckpointThresholdMB
 }

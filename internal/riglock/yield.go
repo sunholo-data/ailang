@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // Cooperative yield (M-RIG-LOCK-YIELD).
@@ -40,7 +42,7 @@ import (
 const (
 	// EnvHandoffFile overrides the handoff marker path (mirrors rig-lock.sh
 	// RIG_HANDOFF_FILE). Defaults to rig.handoff beside the lock directory.
-	EnvHandoffFile = "RIG_HANDOFF_FILE"
+	EnvHandoffFile = config.EnvRigHandoffFile
 
 	// DefaultYieldWindow bounds how long a handoff stays in force. Sized for
 	// the case it exists to serve — Daneel's intake classification is ~40s of
@@ -67,7 +69,7 @@ type Yield struct {
 }
 
 func handoffPath() string {
-	if p := os.Getenv(EnvHandoffFile); p != "" {
+	if p := config.RigHandoffFile(); p != "" {
 		return p
 	}
 	return filepath.Join(filepath.Dir(lockDir()), "rig.handoff")
