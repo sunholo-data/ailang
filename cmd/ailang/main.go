@@ -9,8 +9,6 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
-	"github.com/sunholo-data/ailang/internal/agentprompt"
-	"github.com/sunholo-data/ailang/internal/devtoolsprompt"
 	"github.com/sunholo-data/ailang/internal/loader"
 	"github.com/sunholo-data/ailang/internal/observatory"
 	"github.com/sunholo-data/ailang/internal/pipeline"
@@ -47,11 +45,10 @@ func main() {
 	// Platform backends behind the core's registration seams (platform_init.go).
 	registerPlatform()
 
-	// Set embedded filesystem for prompts (bundled in binary)
-	// This allows `ailang prompt` and `ailang devtools-prompt` to work from anywhere
+	// Set embedded filesystem for prompts (bundled in binary) — one FS carries
+	// every kind, so `ailang prompt`, `agent-prompt` and `devtools-prompt`
+	// all work from anywhere.
 	prompt.SetEmbeddedFS(embeddedPrompts)
-	devtoolsprompt.SetEmbeddedFS(embeddedPrompts)
-	agentprompt.SetEmbeddedFS(embeddedPrompts)
 
 	var (
 		versionFlag             = flag.Bool("version", false, "Print version information")

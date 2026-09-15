@@ -16,8 +16,9 @@ import (
 // Kind selects one prompt series. Every series is a versions.json manifest plus
 // the files it names, all under prompts/: the syntax prompt sits at prompts/
 // itself, the others in a subdirectory named after the kind. One loader serves
-// all of them (M-V1-SIMPLIFY-S3 M4) — agentprompt and devtoolsprompt used to be
-// byte-for-byte copies of this file differing only in the literal.
+// all of them (M-V1-SIMPLIFY-S3 M4) — internal/agentprompt and
+// internal/devtoolsprompt used to be byte-for-byte copies of this file
+// differing only in the literal; they were deleted in S4 M3B.
 type Kind string
 
 const (
