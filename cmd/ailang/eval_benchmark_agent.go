@@ -379,7 +379,7 @@ func runSingleBenchmarkAgent(ctx context.Context, benchSpan trace.Span, spec *ev
 	// excluded — a thrashing run's 2M tokens would skew the baseline up
 	// and disable the very abort it's meant to inform. Best-effort: DB
 	// errors don't affect the result reported to the caller.
-	if metrics.CompileOk && metrics.RuntimeOk && metrics.StdoutOk &&
+	if metrics.Passed() &&
 		evalChain != nil && evalChain.Store != nil && metrics.TotalTokens > 0 {
 		if upErr := observatory.UpdatePassedTrial(ctx, evalChain.Store.DB(), model, spec.ID, metrics.TotalTokens); upErr != nil {
 			// Non-fatal — log and continue.

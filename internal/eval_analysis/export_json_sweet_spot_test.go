@@ -2,6 +2,7 @@ package eval_analysis
 
 import (
 	"encoding/json"
+	"github.com/sunholo-data/ailang/internal/eval_harness"
 	"testing"
 )
 
@@ -124,10 +125,32 @@ func TestBuildSweetSpot_PopulatesDollarsPerPassAndFrontier(t *testing.T) {
 	// - "fast"   passes at $0.10 / 10s   → DollarsPerPass=0.10
 	// Both are Pareto-optimal because each beats the other on one axis.
 	results := []*BenchmarkResult{
-		{ID: "b1", Model: "cheap", StdoutOk: true, CostUSD: 0.02,
-			SuccessAtMs: 50000, DurationMs: 50000, ErrorCategory: "none"},
-		{ID: "b1", Model: "fast", StdoutOk: true, CostUSD: 0.10,
-			SuccessAtMs: 10000, DurationMs: 10000, ErrorCategory: "none"},
+		{
+			RunMetrics: eval_harness.RunMetrics{
+				ID:            "b1",
+				Model:         "cheap",
+				CompileOk:     true,
+				RuntimeOk:     true,
+				StdoutOk:      true,
+				CostUSD:       0.02,
+				SuccessAtMs:   50000,
+				DurationMs:    50000,
+				ErrorCategory: "none",
+			},
+		},
+		{
+			RunMetrics: eval_harness.RunMetrics{
+				ID:            "b1",
+				Model:         "fast",
+				CompileOk:     true,
+				RuntimeOk:     true,
+				StdoutOk:      true,
+				CostUSD:       0.10,
+				SuccessAtMs:   10000,
+				DurationMs:    10000,
+				ErrorCategory: "none",
+			},
+		},
 	}
 	report := BuildSweetSpot(results, SweetSpotOpts{})
 	if len(report.Rows) != 2 {
@@ -156,10 +179,32 @@ func TestBuildSweetSpot_PopulatesDollarsPerPassAndFrontier(t *testing.T) {
 // a model strictly worse on BOTH axes is excluded from the frontier.
 func TestBuildSweetSpot_DominatedModelNotOnFrontier(t *testing.T) {
 	results := []*BenchmarkResult{
-		{ID: "b1", Model: "good", StdoutOk: true, CostUSD: 0.01,
-			SuccessAtMs: 10000, DurationMs: 10000, ErrorCategory: "none"},
-		{ID: "b1", Model: "bad", StdoutOk: true, CostUSD: 0.10,
-			SuccessAtMs: 100000, DurationMs: 100000, ErrorCategory: "none"},
+		{
+			RunMetrics: eval_harness.RunMetrics{
+				ID:            "b1",
+				Model:         "good",
+				CompileOk:     true,
+				RuntimeOk:     true,
+				StdoutOk:      true,
+				CostUSD:       0.01,
+				SuccessAtMs:   10000,
+				DurationMs:    10000,
+				ErrorCategory: "none",
+			},
+		},
+		{
+			RunMetrics: eval_harness.RunMetrics{
+				ID:            "b1",
+				Model:         "bad",
+				CompileOk:     true,
+				RuntimeOk:     true,
+				StdoutOk:      true,
+				CostUSD:       0.10,
+				SuccessAtMs:   100000,
+				DurationMs:    100000,
+				ErrorCategory: "none",
+			},
+		},
 	}
 	report := BuildSweetSpot(results, SweetSpotOpts{})
 	byModel := map[string]SweetSpotRow{}
@@ -178,12 +223,43 @@ func TestBuildSweetSpot_DominatedModelNotOnFrontier(t *testing.T) {
 // counts all finish_reason values across a model's runs.
 func TestBuildSweetSpot_FinishReasonsTallied(t *testing.T) {
 	results := []*BenchmarkResult{
-		{ID: "b1", Model: "m", StdoutOk: true, CostUSD: 0.01,
-			SuccessAtMs: 10000, FinishReason: "stop", ErrorCategory: "none"},
-		{ID: "b2", Model: "m", StdoutOk: false, CostUSD: 0.01,
-			FinishReason: "cost_exhausted", ErrorCategory: "cost_killed"},
-		{ID: "b3", Model: "m", StdoutOk: false, CostUSD: 0,
-			FinishReason: "", ErrorCategory: "api_error"},
+		{
+			RunMetrics: eval_harness.RunMetrics{
+				ID:            "b1",
+				Model:         "m",
+				CompileOk:     true,
+				RuntimeOk:     true,
+				StdoutOk:      true,
+				CostUSD:       0.01,
+				SuccessAtMs:   10000,
+				FinishReason:  "stop",
+				ErrorCategory: "none",
+			},
+		},
+		{
+			RunMetrics: eval_harness.RunMetrics{
+				ID:            "b2",
+				Model:         "m",
+				CompileOk:     true,
+				RuntimeOk:     true,
+				StdoutOk:      false,
+				CostUSD:       0.01,
+				FinishReason:  "cost_exhausted",
+				ErrorCategory: "cost_killed",
+			},
+		},
+		{
+			RunMetrics: eval_harness.RunMetrics{
+				ID:            "b3",
+				Model:         "m",
+				CompileOk:     true,
+				RuntimeOk:     true,
+				StdoutOk:      false,
+				CostUSD:       0,
+				FinishReason:  "",
+				ErrorCategory: "api_error",
+			},
+		},
 	}
 	report := BuildSweetSpot(results, SweetSpotOpts{})
 	if len(report.Rows) != 1 {

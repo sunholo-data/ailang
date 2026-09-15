@@ -259,7 +259,7 @@ func fitLang(results []*eval_analysis.BenchmarkResult, lang string, anchored boo
 		if r.Lang != lang {
 			continue
 		}
-		ok := r.CompileOk && r.RuntimeOk && r.StdoutOk
+		ok := r.Passed()
 		trials = append(trials, eval_harness.Trial{Model: r.Model, Bench: r.ID, Pass: ok})
 		v := pass[r.ID]
 		v[1]++

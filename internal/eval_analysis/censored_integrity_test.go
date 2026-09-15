@@ -15,10 +15,30 @@ func counterbalancedPair(t *testing.T, index int, onTokens, offTokens int) (on, 
 	t.Helper()
 	id := "bench-" + string(rune('a'+index))
 	base := time.Date(2026, 8, 20, 10, 0, 0, 0, time.UTC).Add(time.Duration(index*4) * time.Second)
-	on = &BenchmarkResult{ID: id, Lang: "ailang", Model: "fixture", Trial: 1,
-		CompileOk: true, RuntimeOk: true, StdoutOk: true, TotalTokens: onTokens}
-	off = &BenchmarkResult{ID: id, Lang: "ailang", Model: "fixture", Trial: 1,
-		CompileOk: true, RuntimeOk: true, StdoutOk: true, TotalTokens: offTokens}
+	on = &BenchmarkResult{
+		RunMetrics: eval_harness.RunMetrics{
+			ID:          id,
+			Lang:        "ailang",
+			Model:       "fixture",
+			Trial:       1,
+			CompileOk:   true,
+			RuntimeOk:   true,
+			StdoutOk:    true,
+			TotalTokens: onTokens,
+		},
+	}
+	off = &BenchmarkResult{
+		RunMetrics: eval_harness.RunMetrics{
+			ID:          id,
+			Lang:        "ailang",
+			Model:       "fixture",
+			Trial:       1,
+			CompileOk:   true,
+			RuntimeOk:   true,
+			StdoutOk:    true,
+			TotalTokens: offTokens,
+		},
+	}
 	if index%2 == 0 {
 		on.Timestamp, off.Timestamp = base, base.Add(time.Second)
 	} else {
@@ -106,8 +126,19 @@ func TestD2OrderRefusalRepeatedBenchmarkIsUnreachable(t *testing.T) {
 		return time.Date(2026, 8, 20, 10, 0, 0, 0, time.UTC).Add(time.Duration(sec) * time.Second)
 	}
 	row := func(id string, sec int) *BenchmarkResult {
-		return &BenchmarkResult{ID: id, Lang: "ailang", Model: "fixture", Trial: 1,
-			CompileOk: true, RuntimeOk: true, StdoutOk: true, TotalTokens: 1000, Timestamp: at(sec)}
+		return &BenchmarkResult{
+			RunMetrics: eval_harness.RunMetrics{
+				ID:          id,
+				Lang:        "ailang",
+				Model:       "fixture",
+				Trial:       1,
+				CompileOk:   true,
+				RuntimeOk:   true,
+				StdoutOk:    true,
+				TotalTokens: 1000,
+				Timestamp:   at(sec),
+			},
+		}
 	}
 
 	cases := []struct {
@@ -158,7 +189,7 @@ func TestD2QuarantineRateBoundary(t *testing.T) {
 	arm := func(total, invalid int) []*BenchmarkResult {
 		rows := make([]*BenchmarkResult, 0, total)
 		for i := 0; i < total; i++ {
-			r := &BenchmarkResult{ID: "b", Lang: "ailang", Model: "fixture", Trial: i}
+			r := &BenchmarkResult{RunMetrics: eval_harness.RunMetrics{ID: "b", Lang: "ailang", Model: "fixture", Trial: i}}
 			if i < invalid {
 				r.Validity = &eval_harness.Validity{Valid: false, Reason: "treatment_unproven"}
 			}

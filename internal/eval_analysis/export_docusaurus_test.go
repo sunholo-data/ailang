@@ -2,6 +2,7 @@ package eval_analysis
 
 import (
 	"encoding/json"
+	"github.com/sunholo-data/ailang/internal/eval_harness"
 	"os"
 	"path/filepath"
 	"testing"
@@ -38,9 +39,9 @@ func TestHistoryPreservation(t *testing.T) {
 	}
 
 	results := []*BenchmarkResult{
-		{StdoutOk: true},
-		{StdoutOk: true},
-		{StdoutOk: false},
+		{RunMetrics: eval_harness.RunMetrics{CompileOk: true, RuntimeOk: true, StdoutOk: true}},
+		{RunMetrics: eval_harness.RunMetrics{CompileOk: true, RuntimeOk: true, StdoutOk: true}},
+		{RunMetrics: eval_harness.RunMetrics{CompileOk: true, RuntimeOk: true, StdoutOk: false}},
 	}
 
 	// Export (should preserve history)
@@ -103,10 +104,10 @@ func TestDuplicateVersionUpdate(t *testing.T) {
 
 	results := make([]*BenchmarkResult, 120)
 	for i := 0; i < 72; i++ { // 72/120 = 60%
-		results[i] = &BenchmarkResult{StdoutOk: true}
+		results[i] = &BenchmarkResult{RunMetrics: eval_harness.RunMetrics{CompileOk: true, RuntimeOk: true, StdoutOk: true}}
 	}
 	for i := 72; i < 120; i++ {
-		results[i] = &BenchmarkResult{StdoutOk: false}
+		results[i] = &BenchmarkResult{RunMetrics: eval_harness.RunMetrics{CompileOk: true, RuntimeOk: true, StdoutOk: false}}
 	}
 
 	_, err := ExportBenchmarkJSON(matrix, nil, results, tmpFile)

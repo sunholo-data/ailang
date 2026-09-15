@@ -114,8 +114,8 @@ type RotationSummary struct {
 
 // bestOfNExact applies the reference-free exact selector to a (benchmark,model) tuple's trials:
 // rank runs(2) > typechecks(1) > neither(0), pick the best (ties keep first), and report whether the
-// picked trial passed (stdout_ok). Mirrors `ailang select-best` and tools/eval_best_of_n.py. Also
-// returns anyPass = the ceiling (>=1 trial passed).
+// picked trial PASSED (RunMetrics.Passed — D2). Mirrors `ailang select-best` and
+// tools/eval_best_of_n.py. Also returns anyPass = the ceiling (>=1 trial passed).
 func bestOfNExact(trials []*RunMetrics) (selectedPass bool, anyPass bool) {
 	best, bestScore := -1, -1
 	for i, m := range trials {
@@ -128,57 +128,42 @@ func bestOfNExact(trials []*RunMetrics) (selectedPass bool, anyPass bool) {
 		if score > bestScore {
 			bestScore, best = score, i
 		}
-		if m.StdoutOk {
+		if m.Passed() {
 			anyPass = true
 		}
 	}
-	if best >= 0 && trials[best].StdoutOk {
+	if best >= 0 && trials[best].Passed() {
 		selectedPass = true
 	}
 	return selectedPass, anyPass
 }
 
-// SummarizeRotation walks outputDir/{standard,agent}/[<condition>/]*.json,
-// loads each RunMetrics, groups by (benchmark_id, model, lang, condition),
-// and writes a summary.json at outputDir/summary.json.
+// SummarizeRotation walks outputDir/[<mode>/[<condition>/]]*.json through the
+// one row loader (LoadRows), groups every row by (benchmark_id, model, lang,
+// condition), and writes a summary.json at outputDir/summary.json.
 //
-// Returns the computed summary so callers can inspect it without re-reading
-// the file. Returns an error only on I/O failure; malformed individual
-// result files are skipped with a stderr warning (eval-suite already logs
-// per-file errors at write time, so duplicating here is noise).
+// Every file is a trial here — no per-slot dedup — and invalid rows are loaded
+// too, because this aggregator is the one that quarantines them OUT LOUD
+// (InvalidExcluded / InvalidReasons) rather than silently. Returns the computed
+// summary so callers can inspect it without re-reading the file. Returns an
+// error only on I/O failure; malformed individual result files are skipped
+// (eval-suite already logs per-file errors at write time, so duplicating here
+// is noise).
 func SummarizeRotation(outputDir string) (*RotationSummary, error) {
-	// Walk both standard/ and agent/ subdirectories (and any condition nesting).
-	pattern := filepath.Join(outputDir, "**", "*.json")
-	files, err := filepath.Glob(pattern)
+	// Ensure outputDir exists (caller may have given us a not-yet-created path
+	// during testing) — LoadRows treats a missing dir as an error, and an empty
+	// rotation must still produce an (empty) summary.
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		return nil, fmt.Errorf("create output dir: %w", err)
+	}
+	rows, _, err := LoadRows([]string{outputDir}, LoadOptions{
+		IncludeInvalid: true,
+		KeepDuplicates: true,
+		SuiteLayout:    true,
+	})
 	if err != nil {
-		return nil, fmt.Errorf("glob result files: %w", err)
+		return nil, fmt.Errorf("load result files: %w", err)
 	}
-	// fallback for filesystems where Go's ** matching is shallow
-	if len(files) == 0 {
-		standard, _ := filepath.Glob(filepath.Join(outputDir, "standard", "*.json"))
-		agent, _ := filepath.Glob(filepath.Join(outputDir, "agent", "*.json"))
-		files = append(standard, agent...)
-		// Also handle condition-nested dirs (one level deeper)
-		for _, mode := range []string{"standard", "agent"} {
-			condDirs, _ := filepath.Glob(filepath.Join(outputDir, mode, "*"))
-			for _, cd := range condDirs {
-				if info, err := os.Stat(cd); err == nil && info.IsDir() {
-					condFiles, _ := filepath.Glob(filepath.Join(cd, "*.json"))
-					files = append(files, condFiles...)
-				}
-			}
-		}
-	}
-
-	// Exclude summary.json itself if it already exists at the root.
-	filtered := files[:0]
-	for _, f := range files {
-		if filepath.Base(f) == "summary.json" {
-			continue
-		}
-		filtered = append(filtered, f)
-	}
-	files = filtered
 
 	// Group by (benchmark, model, lang, condition).
 	type groupKey struct {
@@ -198,15 +183,8 @@ func SummarizeRotation(outputDir string) (*RotationSummary, error) {
 	totalFiles := 0
 	maxTrialSeen := 1
 
-	for _, path := range files {
-		data, err := os.ReadFile(path)
-		if err != nil {
-			continue
-		}
-		var m RunMetrics
-		if err := json.Unmarshal(data, &m); err != nil {
-			continue
-		}
+	for i := range rows {
+		m := rows[i]
 		totalFiles++
 		key := groupKey{
 			Benchmark: m.ID,
@@ -288,7 +266,7 @@ func SummarizeRotation(outputDir string) (*RotationSummary, error) {
 		passed := 0
 		unaccounted := 0
 		for _, m := range g.Trials {
-			isPass := m.CompileOk && m.RuntimeOk && m.StdoutOk
+			isPass := m.Passed()
 			if isPass {
 				passed++
 			}
@@ -406,11 +384,6 @@ func SummarizeRotation(outputDir string) (*RotationSummary, error) {
 	data, err := json.MarshalIndent(rs, "", "  ")
 	if err != nil {
 		return rs, fmt.Errorf("marshal summary: %w", err)
-	}
-	// Ensure outputDir exists (caller may have given us a not-yet-created path
-	// during testing).
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
-		return rs, fmt.Errorf("create output dir: %w", err)
 	}
 	if err := os.WriteFile(summaryPath, data, 0644); err != nil {
 		return rs, fmt.Errorf("write summary.json: %w", err)

@@ -33,8 +33,8 @@ func Compare(baseline, new []*BenchmarkResult, baselineLabel, newLabel string) (
 		}
 
 		// Compare status
-		baselineSuccess := baselineResult.StdoutOk
-		newSuccess := newResult.StdoutOk
+		baselineSuccess := baselineResult.Passed()
+		newSuccess := newResult.Passed()
 
 		if !baselineSuccess && newSuccess {
 			// Fixed!
@@ -176,7 +176,7 @@ func buildResultMap(results []*BenchmarkResult) map[string]*BenchmarkResult {
 func countSuccesses(results []*BenchmarkResult) int {
 	count := 0
 	for _, r := range results {
-		if r.StdoutOk {
+		if r.Passed() {
 			count++
 		}
 	}

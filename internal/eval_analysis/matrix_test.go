@@ -3,6 +3,8 @@ package eval_analysis
 import (
 	"testing"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/eval_harness"
 )
 
 func TestGenerateMatrix(t *testing.T) {
@@ -20,15 +22,19 @@ func TestGenerateMatrix(t *testing.T) {
 			name: "single result",
 			results: []*BenchmarkResult{
 				{
-					ID:             "test1",
-					Lang:           "ailang",
-					Model:          "claude-sonnet-4-5",
-					StdoutOk:       true,
-					FirstAttemptOk: true,
-					TotalTokens:    100,
-					CostUSD:        0.001,
-					DurationMs:     500,
-					Timestamp:      time.Now(),
+					RunMetrics: eval_harness.RunMetrics{
+						ID:             "test1",
+						Lang:           "ailang",
+						Model:          "claude-sonnet-4-5",
+						CompileOk:      true,
+						RuntimeOk:      true,
+						StdoutOk:       true,
+						FirstAttemptOk: true,
+						TotalTokens:    100,
+						CostUSD:        0.001,
+						DurationMs:     500,
+						Timestamp:      time.Now(),
+					},
 				},
 			},
 			wantErr: false,
@@ -37,14 +43,19 @@ func TestGenerateMatrix(t *testing.T) {
 			name: "division by zero safety - no repairs",
 			results: []*BenchmarkResult{
 				{
-					ID:             "test1",
-					Lang:           "ailang",
-					Model:          "claude-sonnet-4-5",
-					StdoutOk:       false,
-					FirstAttemptOk: false,
-					RepairUsed:     false, // No repairs attempted
-					TotalTokens:    50,
-					Timestamp:      time.Now(),
+					RunMetrics: eval_harness.RunMetrics{
+						ID:             "test1",
+						Lang:           "ailang",
+						Model:          "claude-sonnet-4-5",
+						CompileOk:      true,
+						RuntimeOk:      true,
+						StdoutOk:       false,
+						FirstAttemptOk: false,
+						RepairUsed:     false,
+						// No repairs attempted
+						TotalTokens: 50,
+						Timestamp:   time.Now(),
+					},
 				},
 			},
 			wantErr: false,
@@ -53,35 +64,47 @@ func TestGenerateMatrix(t *testing.T) {
 			name: "multiple models and benchmarks",
 			results: []*BenchmarkResult{
 				{
-					ID:             "fizzbuzz",
-					Lang:           "ailang",
-					Model:          "claude-sonnet-4-5",
-					StdoutOk:       true,
-					FirstAttemptOk: true,
-					TotalTokens:    100,
-					Timestamp:      time.Now(),
+					RunMetrics: eval_harness.RunMetrics{
+						ID:             "fizzbuzz",
+						Lang:           "ailang",
+						Model:          "claude-sonnet-4-5",
+						CompileOk:      true,
+						RuntimeOk:      true,
+						StdoutOk:       true,
+						FirstAttemptOk: true,
+						TotalTokens:    100,
+						Timestamp:      time.Now(),
+					},
 				},
 				{
-					ID:             "fizzbuzz",
-					Lang:           "ailang",
-					Model:          "gpt5",
-					StdoutOk:       false,
-					FirstAttemptOk: false,
-					RepairUsed:     true,
-					RepairOk:       true,
-					TotalTokens:    150,
-					Timestamp:      time.Now(),
+					RunMetrics: eval_harness.RunMetrics{
+						ID:             "fizzbuzz",
+						Lang:           "ailang",
+						Model:          "gpt5",
+						CompileOk:      true,
+						RuntimeOk:      true,
+						StdoutOk:       false,
+						FirstAttemptOk: false,
+						RepairUsed:     true,
+						RepairOk:       true,
+						TotalTokens:    150,
+						Timestamp:      time.Now(),
+					},
 				},
 				{
-					ID:             "factorial",
-					Lang:           "ailang",
-					Model:          "claude-sonnet-4-5",
-					StdoutOk:       true,
-					FirstAttemptOk: false,
-					RepairUsed:     true,
-					RepairOk:       true,
-					TotalTokens:    80,
-					Timestamp:      time.Now(),
+					RunMetrics: eval_harness.RunMetrics{
+						ID:             "factorial",
+						Lang:           "ailang",
+						Model:          "claude-sonnet-4-5",
+						CompileOk:      true,
+						RuntimeOk:      true,
+						StdoutOk:       true,
+						FirstAttemptOk: false,
+						RepairUsed:     true,
+						RepairOk:       true,
+						TotalTokens:    80,
+						Timestamp:      time.Now(),
+					},
 				},
 			},
 			wantErr: false,
@@ -152,30 +175,42 @@ func TestSafeDivZero(t *testing.T) {
 func TestCalculateAggregates(t *testing.T) {
 	results := []*BenchmarkResult{
 		{
-			FirstAttemptOk: true,
-			StdoutOk:       true,
-			RepairUsed:     false,
-			TotalTokens:    100,
-			CostUSD:        0.001,
-			DurationMs:     100,
+			RunMetrics: eval_harness.RunMetrics{
+				FirstAttemptOk: true,
+				CompileOk:      true,
+				RuntimeOk:      true,
+				StdoutOk:       true,
+				RepairUsed:     false,
+				TotalTokens:    100,
+				CostUSD:        0.001,
+				DurationMs:     100,
+			},
 		},
 		{
-			FirstAttemptOk: false,
-			StdoutOk:       true,
-			RepairUsed:     true,
-			RepairOk:       true,
-			TotalTokens:    150,
-			CostUSD:        0.002,
-			DurationMs:     200,
+			RunMetrics: eval_harness.RunMetrics{
+				FirstAttemptOk: false,
+				CompileOk:      true,
+				RuntimeOk:      true,
+				StdoutOk:       true,
+				RepairUsed:     true,
+				RepairOk:       true,
+				TotalTokens:    150,
+				CostUSD:        0.002,
+				DurationMs:     200,
+			},
 		},
 		{
-			FirstAttemptOk: false,
-			StdoutOk:       false,
-			RepairUsed:     true,
-			RepairOk:       false,
-			TotalTokens:    80,
-			CostUSD:        0.001,
-			DurationMs:     150,
+			RunMetrics: eval_harness.RunMetrics{
+				FirstAttemptOk: false,
+				CompileOk:      true,
+				RuntimeOk:      true,
+				StdoutOk:       false,
+				RepairUsed:     true,
+				RepairOk:       false,
+				TotalTokens:    80,
+				CostUSD:        0.001,
+				DurationMs:     150,
+			},
 		},
 	}
 
@@ -213,22 +248,34 @@ func TestCalculateAggregates(t *testing.T) {
 func TestGroupByModel(t *testing.T) {
 	results := []*BenchmarkResult{
 		{
-			ID:        "test1",
-			Model:     "claude",
-			StdoutOk:  true,
-			Timestamp: time.Now(),
+			RunMetrics: eval_harness.RunMetrics{
+				ID:        "test1",
+				Model:     "claude",
+				CompileOk: true,
+				RuntimeOk: true,
+				StdoutOk:  true,
+				Timestamp: time.Now(),
+			},
 		},
 		{
-			ID:        "test2",
-			Model:     "claude",
-			StdoutOk:  false,
-			Timestamp: time.Now(),
+			RunMetrics: eval_harness.RunMetrics{
+				ID:        "test2",
+				Model:     "claude",
+				CompileOk: true,
+				RuntimeOk: true,
+				StdoutOk:  false,
+				Timestamp: time.Now(),
+			},
 		},
 		{
-			ID:        "test1",
-			Model:     "gpt5",
-			StdoutOk:  true,
-			Timestamp: time.Now(),
+			RunMetrics: eval_harness.RunMetrics{
+				ID:        "test1",
+				Model:     "gpt5",
+				CompileOk: true,
+				RuntimeOk: true,
+				StdoutOk:  true,
+				Timestamp: time.Now(),
+			},
 		},
 	}
 
@@ -250,23 +297,40 @@ func TestGroupByModel(t *testing.T) {
 func TestGroupByErrorCode(t *testing.T) {
 	results := []*BenchmarkResult{
 		{
-			StdoutOk: false,
-			ErrCode:  "PAR_001",
-			RepairOk: true,
+			RunMetrics: eval_harness.RunMetrics{
+				CompileOk: true,
+				RuntimeOk: true,
+				StdoutOk:  false,
+				ErrCode:   "PAR_001",
+				RepairOk:  true,
+			},
 		},
 		{
-			StdoutOk: false,
-			ErrCode:  "PAR_001",
-			RepairOk: false,
+			RunMetrics: eval_harness.RunMetrics{
+				CompileOk: true,
+				RuntimeOk: true,
+				StdoutOk:  false,
+				ErrCode:   "PAR_001",
+				RepairOk:  false,
+			},
 		},
 		{
-			StdoutOk: false,
-			ErrCode:  "TC_REC_001",
-			RepairOk: true,
+			RunMetrics: eval_harness.RunMetrics{
+				CompileOk: true,
+				RuntimeOk: true,
+				StdoutOk:  false,
+				ErrCode:   "TC_REC_001",
+				RepairOk:  true,
+			},
 		},
 		{
-			StdoutOk: true, // Success, should be ignored
-			ErrCode:  "NONE",
+			RunMetrics: eval_harness.RunMetrics{
+				CompileOk: true,
+				RuntimeOk: true,
+				StdoutOk:  true,
+				// Success, should be ignored
+				ErrCode: "NONE",
+			},
 		},
 	}
 

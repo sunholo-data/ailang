@@ -231,7 +231,7 @@ func printByHarnessSection(results []*eval_analysis.BenchmarkResult) {
 			data[key][exec] = &cell{}
 		}
 		data[key][exec].total++
-		if r.StdoutOk && r.CompileOk && r.RuntimeOk {
+		if r.Passed() {
 			data[key][exec].pass++
 		}
 	}
@@ -355,7 +355,7 @@ func printGroupedByFamilySection(results []*eval_analysis.BenchmarkResult) {
 			data[fam][exec][r.ID] = c
 		}
 		c.total++
-		if r.StdoutOk {
+		if r.Passed() {
 			c.pass++
 		}
 		c.cost += r.CostUSD

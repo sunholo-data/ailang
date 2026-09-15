@@ -10,8 +10,18 @@ import (
 	"github.com/sunholo-data/ailang/internal/executor"
 )
 
+// writeRow banks one row under dir. A result row MUST carry id, lang and
+// model — LoadRows rejects anything without them as a non-row (manifest,
+// summary, truncated write) — so the fixture fills in an identity from name
+// when the caller left it out.
 func writeRow(t *testing.T, dir, name string, m RunMetrics) {
 	t.Helper()
+	if m.ID == "" {
+		m.ID = "bench_" + name
+	}
+	if m.Lang == "" {
+		m.Lang = "ailang"
+	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}

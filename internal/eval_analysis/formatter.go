@@ -84,7 +84,7 @@ func FormatComparison(report *ComparisonReport, useColor bool) string {
 		for _, r := range report.NewBenchmarks {
 			status := "passing"
 			statusColor := colorGreen
-			if !r.StdoutOk {
+			if !r.Passed() {
 				status = "failing"
 				statusColor = colorRed
 			}

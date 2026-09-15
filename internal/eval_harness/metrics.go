@@ -266,6 +266,24 @@ const (
 	ErrorCategoryReasoningStall = "reasoning_stall"
 )
 
+// Passed reports whether this row is a benchmark PASS: the code compiled, ran
+// to completion, AND its stdout matched. This is THE pass predicate (ruling
+// D2, Mark 2026-09-15); every rate, leaderboard, ELO fit and A/B join reads it.
+//
+// It is not the same as StdoutOk. Agent mode gates stdout_ok on runtime_ok
+// (agent_validation.go), but standard mode grades stdout independently
+// (repair.go runSingleAttempt), so a program that printed the expected output
+// and then crashed — or a compile failure on a benchmark whose expected stdout
+// is empty — banks stdout_ok=true with runtime_ok=false. Measured over every
+// baseline dir on 2026-09-15 (TestD2DiscordantCount): the two formulas
+// disagree on a small number of rows, and only StdoutOk-alone readers were ever
+// counting them as passes. Read StdoutOk directly only where the question is
+// genuinely "did the output match" (a diagnostic that reports the three flags
+// side by side), and say so at the read.
+func (m *RunMetrics) Passed() bool {
+	return m.CompileOk && m.RuntimeOk && m.StdoutOk
+}
+
 // CategorizeError determines the error category based on execution results
 func CategorizeError(compileOk, runtimeOk, stdoutOk bool) string {
 	switch {

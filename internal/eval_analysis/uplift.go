@@ -105,7 +105,7 @@ func aggUpliftPass(results []*BenchmarkResult) map[upliftKey][2]int {
 		k := upliftKey{r.Model, r.Lang, r.ID}
 		v := m[k]
 		v[1]++
-		if r.CompileOk && r.RuntimeOk && r.StdoutOk {
+		if r.Passed() {
 			v[0]++
 		}
 		m[k] = v

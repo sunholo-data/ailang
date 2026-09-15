@@ -1,19 +1,27 @@
 package eval_analysis
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/sunholo-data/ailang/internal/eval_harness"
+)
 
 // mkResult is a tiny constructor so the tables below stay readable.
 func mkResult(id, lang, model, errCat string, stdoutOk, firstOk, refused bool, tokens int, cost float64) *BenchmarkResult {
 	return &BenchmarkResult{
-		ID:              id,
-		Lang:            lang,
-		Model:           model,
-		ErrorCategory:   errCat,
-		StdoutOk:        stdoutOk,
-		FirstAttemptOk:  firstOk,
+		RunMetrics: eval_harness.RunMetrics{
+			ID:             id,
+			Lang:           lang,
+			Model:          model,
+			ErrorCategory:  errCat,
+			CompileOk:      true,
+			RuntimeOk:      true,
+			StdoutOk:       stdoutOk,
+			FirstAttemptOk: firstOk,
+			OutputTokens:   tokens,
+			CostUSD:        cost,
+		},
 		RefusalDetected: refused,
-		OutputTokens:    tokens,
-		CostUSD:         cost,
 	}
 }
 

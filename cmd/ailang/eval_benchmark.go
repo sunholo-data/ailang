@@ -329,7 +329,7 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 			RuntimeOk:      metrics.RuntimeOk,
 			StdoutOk:       metrics.StdoutOk,
 			ErrorCategory:  string(metrics.ErrorCategory),
-			FirstAttemptOk: metrics.StdoutOk,
+			FirstAttemptOk: metrics.FirstAttemptOk,
 			RepairUsed:     metrics.RepairUsed,
 			RepairOk:       metrics.RepairOk,
 			// Contract verification (M-COST-PER-SUCCESS-KPI M1): standard-mode
@@ -351,7 +351,7 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 			metrics.InputTokens, metrics.OutputTokens, 0, 0, metrics.DurationMs, metrics.CostProvenance)
 
 		stageStatus := observatory.StageStatusCompleted
-		if !metrics.StdoutOk {
+		if !metrics.Passed() {
 			stageStatus = observatory.StageStatusFailed
 		}
 		_ = evalChain.Store.UpdateStageStatus(ctx, stageID, stageStatus)
@@ -359,7 +359,7 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 
 	// Record benchmark metrics on span
 	benchSpan.SetAttributes(
-		attribute.Bool("benchmark.success", metrics.StdoutOk),
+		attribute.Bool("benchmark.success", metrics.Passed()),
 		attribute.Bool("benchmark.compile_ok", metrics.CompileOk),
 		attribute.Bool("benchmark.runtime_ok", metrics.RuntimeOk),
 		attribute.Int64("benchmark.duration_ms", metrics.DurationMs),
@@ -380,14 +380,14 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 	}
 
 	// Add error summary for failed benchmarks
-	if !metrics.StdoutOk && metrics.Stderr != "" {
+	if !metrics.Passed() && metrics.Stderr != "" {
 		benchSpan.SetAttributes(
 			attribute.String("error.summary", telemetry.Truncate(metrics.Stderr, 200)),
 		)
 	}
 
 	// Return error with failure details if benchmark failed
-	if !metrics.StdoutOk {
+	if !metrics.Passed() {
 		if !metrics.CompileOk {
 			benchSpan.SetStatus(codes.Error, "compilation failed")
 			return false, fmt.Errorf("compilation failed (%s)", metrics.ErrorCategory)

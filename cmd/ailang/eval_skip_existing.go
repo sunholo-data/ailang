@@ -1,8 +1,6 @@
 package main
 
 import (
-	"encoding/json"
-	"os"
 	"path/filepath"
 
 	"github.com/sunholo-data/ailang/internal/eval_harness"
@@ -29,23 +27,24 @@ import (
 // forever, or a hard benchmark becomes an infinite loop. Only rows that
 // measured nothing are re-attempted.
 func hasValidBankedResult(patterns []string) bool {
+	var files []string
 	for _, pattern := range patterns {
 		matches, _ := filepath.Glob(pattern)
-		for _, m := range matches {
-			data, err := os.ReadFile(m)
-			if err != nil {
-				// Unreadable is not a reason to re-run forever.
-				return true
-			}
-			var row eval_harness.RunMetrics
-			if err := json.Unmarshal(data, &row); err != nil {
-				// Corrupt row: conservative reading is "leave it alone".
-				return true
-			}
-			if row.IsValid() {
-				return true
-			}
-		}
+		files = append(files, matches...)
 	}
-	return false
+	if len(files) == 0 {
+		return false
+	}
+	// The one row loader (LoadRows/LoadRowFiles). Validity filter ON: rows
+	// that survive are measurements. KeepDuplicates because the question is
+	// "does ANY file in this slot hold a measurement" — the per-slot
+	// newest-wins collapse would let a crashed re-run hide an earlier valid
+	// row. Unreadable or corrupt files land in ParseErrors, and the
+	// conservative reading of those is "leave it alone" — a slot that cannot
+	// be decoded must not be re-run forever.
+	rows, stats, err := eval_harness.LoadRowFiles(files, eval_harness.LoadOptions{KeepDuplicates: true})
+	if err != nil || len(stats.ParseErrors) > 0 {
+		return true
+	}
+	return len(rows) > 0
 }

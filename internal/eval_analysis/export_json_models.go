@@ -52,7 +52,7 @@ func buildModelsJS(
 		}
 		ls := modelAgentLangStats[r.Model][r.Lang]
 		ls.runs++
-		if r.StdoutOk {
+		if r.Passed() {
 			ls.success++
 		}
 		if ShouldExcludeFromCapability(r.ErrorCategory) {
@@ -72,7 +72,7 @@ func buildModelsJS(
 			modelAgentStats[r.Model] = s
 		}
 		s.runs++
-		if r.StdoutOk {
+		if r.Passed() {
 			s.success++
 		}
 		if ShouldExcludeFromCapability(r.ErrorCategory) {

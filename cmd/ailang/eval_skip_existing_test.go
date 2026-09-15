@@ -9,8 +9,17 @@ import (
 	"github.com/sunholo-data/ailang/internal/eval_harness"
 )
 
+// writeRow banks one row. A result row MUST carry id, lang and model — the one
+// loader rejects anything without them as a non-row — so the fixture supplies
+// an identity where the case only cares about validity.
 func writeRow(t *testing.T, dir, name string, m eval_harness.RunMetrics) string {
 	t.Helper()
+	if m.Lang == "" {
+		m.Lang = "ailang"
+	}
+	if m.Model == "" {
+		m.Model = "fixture-model"
+	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -49,7 +58,7 @@ func TestHasValidBankedResult(t *testing.T) {
 		},
 		{
 			name: "a valid row counts as banked",
-			rows: []eval_harness.RunMetrics{{ID: "b", StdoutOk: true}},
+			rows: []eval_harness.RunMetrics{{ID: "b", CompileOk: true, RuntimeOk: true, StdoutOk: true}},
 			want: true,
 		},
 		{
@@ -64,14 +73,14 @@ func TestHasValidBankedResult(t *testing.T) {
 			// A genuine model failure IS a measurement and must not be retried
 			// forever — that would turn a hard benchmark into an infinite loop.
 			name: "a failing but VALID row counts as banked",
-			rows: []eval_harness.RunMetrics{{ID: "b", StdoutOk: false}},
+			rows: []eval_harness.RunMetrics{{ID: "b", CompileOk: true, RuntimeOk: true, StdoutOk: false}},
 			want: true,
 		},
 		{
 			name: "one valid among invalids counts",
 			rows: []eval_harness.RunMetrics{
 				{ID: "b", Validity: eval_harness.MarkInvalid(eval_harness.ReasonCanaryFailed)},
-				{ID: "b", StdoutOk: true},
+				{ID: "b", CompileOk: true, RuntimeOk: true, StdoutOk: true},
 			},
 			want: true,
 		},

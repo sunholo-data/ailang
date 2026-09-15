@@ -6,6 +6,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/eval_harness"
 	"github.com/sunholo-data/ailang/internal/observatory"
 )
 
@@ -100,7 +101,7 @@ func LoadBaselineFromChain(chainID string) (*Baseline, error) {
 	// Calculate stats
 	baseline.TotalBenchmarks = len(results)
 	for _, r := range results {
-		if r.StdoutOk {
+		if r.Passed() {
 			baseline.SuccessCount++
 		} else {
 			baseline.FailCount++
@@ -143,34 +144,34 @@ func stageToResult(stage *observatory.ChainStage) *BenchmarkResult {
 	}
 
 	return &BenchmarkResult{
-		ID:             a.BenchmarkID,
-		Lang:           a.Language,
-		Model:          a.Model,
-		Executor:       a.Executor,
-		Seed:           a.Seed,
-		CompileOk:      a.CompileOk,
-		RuntimeOk:      a.RuntimeOk,
-		StdoutOk:       a.StdoutOk,
-		ErrorCategory:  a.ErrorCategory,
-		FirstAttemptOk: a.FirstAttemptOk,
-		RepairUsed:     a.RepairUsed,
-		RepairOk:       a.RepairOk,
-		ErrCode:        a.ErrCode,
-		PromptVersion:  a.PromptVersion,
-		Code:           a.Code,
-		Stderr:         a.Stderr,
-		Timestamp:      timestamp,
-
-		// Metrics from chain stage (denormalized)
-		CostUSD:      stage.Cost,
-		InputTokens:  stage.TokensIn,
-		OutputTokens: stage.TokensOut,
-		TotalTokens:  stage.TokensIn + stage.TokensOut,
-		DurationMs:   stage.DurationMs,
-
-		// Agent metrics
-		EvalMode:       a.EvalMode,
-		AgentTurns:     stage.Turns,
-		AgentToolCalls: stage.ToolCalls,
+		RunMetrics: eval_harness.RunMetrics{
+			ID:             a.BenchmarkID,
+			Lang:           a.Language,
+			Model:          a.Model,
+			Executor:       a.Executor,
+			Seed:           a.Seed,
+			CompileOk:      a.CompileOk,
+			RuntimeOk:      a.RuntimeOk,
+			StdoutOk:       a.StdoutOk,
+			ErrorCategory:  a.ErrorCategory,
+			FirstAttemptOk: a.FirstAttemptOk,
+			RepairUsed:     a.RepairUsed,
+			RepairOk:       a.RepairOk,
+			ErrCode:        a.ErrCode,
+			PromptVersion:  a.PromptVersion,
+			Code:           a.Code,
+			Stderr:         a.Stderr,
+			Timestamp:      timestamp,
+			// Metrics from chain stage (denormalized)
+			CostUSD:      stage.Cost,
+			InputTokens:  stage.TokensIn,
+			OutputTokens: stage.TokensOut,
+			TotalTokens:  stage.TokensIn + stage.TokensOut,
+			DurationMs:   stage.DurationMs,
+			// Agent metrics
+			EvalMode:       a.EvalMode,
+			AgentTurns:     stage.Turns,
+			AgentToolCalls: stage.ToolCalls,
+		},
 	}
 }

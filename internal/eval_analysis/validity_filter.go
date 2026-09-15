@@ -1,20 +1,7 @@
 package eval_analysis
 
-// IsValid reports whether this row should count toward aggregates.
-//
-// A NIL Validity means VALID: every row banked before v0.31.0 lacks the field,
-// and treating absent as invalid would erase all of that history.
-func (r *BenchmarkResult) IsValid() bool {
-	return r.Validity == nil || r.Validity.Valid
-}
-
-// InvalidReason returns why this row is invalid, or "" if it is valid.
-func (r *BenchmarkResult) InvalidReason() string {
-	if r.IsValid() {
-		return ""
-	}
-	return r.Validity.Reason
-}
+// IsValid and InvalidReason are promoted from the embedded eval_harness.RunMetrics
+// (a NIL Validity means VALID — see eval_harness/validity.go for why).
 
 // FilterValidResults drops rows that are not measurements.
 //

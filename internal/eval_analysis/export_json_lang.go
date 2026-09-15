@@ -119,7 +119,7 @@ func buildLangStandardStats(
 
 		// Final metrics (including repair attempts) — use ALL runs.
 		stats.finalRuns++
-		if r.StdoutOk {
+		if r.Passed() {
 			stats.finalSuccess++
 		}
 		if isApiErr {
@@ -131,7 +131,7 @@ func buildLangStandardStats(
 		// Repair metrics.
 		if r.RepairUsed {
 			stats.repairAttempts++
-			if r.StdoutOk {
+			if r.Passed() {
 				stats.repairSuccess++
 			}
 		}
@@ -159,7 +159,7 @@ func buildLangStandardStats(
 			}
 
 			comp.finalRuns++
-			if r.StdoutOk {
+			if r.Passed() {
 				comp.finalSuccess++
 			}
 			if isApiErr {
@@ -202,7 +202,7 @@ func buildLangStandardStats(
 				pec.zeroShotCost += r.CostUSD
 			}
 			pec.finalRuns++
-			if r.StdoutOk {
+			if r.Passed() {
 				pec.finalSuccess++
 			}
 			if isApiErr {
@@ -228,7 +228,7 @@ func buildLangAgentStats(agentResults []*BenchmarkResult) map[string]langAgentSt
 		if ShouldExcludeFromCapability(r.ErrorCategory) {
 			stats.apiErrors++
 		}
-		if r.StdoutOk {
+		if r.Passed() {
 			stats.success++
 			stats.successTurns += r.AgentTurns
 			stats.successCount++

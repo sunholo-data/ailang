@@ -90,7 +90,7 @@ func fitLeaderboard(results []*BenchmarkResult, anchored bool) map[string]interf
 	pass := map[string][2]int{}                  // benchmark -> [passed, total]
 	modelBenches := map[string]map[string]bool{} // model -> distinct benchmark ids
 	for _, r := range results {
-		ok := r.CompileOk && r.RuntimeOk && r.StdoutOk
+		ok := r.Passed()
 		trials = append(trials, eval_harness.Trial{Model: r.Model, Bench: r.ID, Pass: ok})
 		v := pass[r.ID]
 		v[1]++

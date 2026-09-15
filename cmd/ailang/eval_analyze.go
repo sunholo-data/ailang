@@ -59,6 +59,11 @@ func runEvalAnalyze() {
 	fmt.Printf("  Total Runs: %d\n", analysis.TotalRuns)
 	fmt.Printf("  Failures: %d\n", analysis.FailureCount)
 	fmt.Printf("  Success Rate: %.1f%%\n", analysis.SuccessRate)
+	if analysis.InvalidExcluded > 0 {
+		// Harness crashes (api_error → validity backstop) are not model
+		// failures; say how many were left out rather than shrinking silently.
+		fmt.Printf("  Excluded (not measurements): %d\n", analysis.InvalidExcluded)
+	}
 	fmt.Printf("  Issues Found: %d\n", len(analysis.Issues))
 	fmt.Println()
 
@@ -289,6 +294,9 @@ func generateSummaryReport(analysis *eval_analyzer.AnalysisResult, docs []string
 	buf.WriteString(fmt.Sprintf("- **Total Runs**: %d\n", analysis.TotalRuns))
 	buf.WriteString(fmt.Sprintf("- **Failures**: %d\n", analysis.FailureCount))
 	buf.WriteString(fmt.Sprintf("- **Success Rate**: %.1f%%\n", analysis.SuccessRate))
+	if analysis.InvalidExcluded > 0 {
+		buf.WriteString(fmt.Sprintf("- **Excluded (not measurements)**: %d\n", analysis.InvalidExcluded))
+	}
 	buf.WriteString(fmt.Sprintf("- **Issues Identified**: %d\n\n", len(analysis.Issues)))
 
 	buf.WriteString("## Issues by Impact\n\n")

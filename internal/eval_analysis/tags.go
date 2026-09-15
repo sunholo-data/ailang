@@ -110,7 +110,7 @@ func GroupByTags(results []*BenchmarkResult, tags map[string][]string) *TagRepor
 			}
 			c := byTag[tag][r.Lang]
 			c.total++
-			if r.StdoutOk {
+			if r.Passed() {
 				c.pass++
 			}
 		}
@@ -165,7 +165,7 @@ func DetectAILANGOnlyWins(results []*BenchmarkResult) *AILANGWinsReport {
 			s.refused = true
 			continue
 		}
-		if r.StdoutOk {
+		if r.Passed() {
 			s.langPass[r.Lang] = true
 		} else if _, seen := s.langPass[r.Lang]; !seen {
 			s.langPass[r.Lang] = false
@@ -247,7 +247,7 @@ func DetectSaturation(baselines []*Baseline, minBaselines int) []*SaturatedBench
 				cells[k] = &struct{ pass, total int }{}
 			}
 			cells[k].total++
-			if r.StdoutOk {
+			if r.Passed() {
 				cells[k].pass++
 			}
 		}
