@@ -127,7 +127,7 @@ None of this is file size: no file exceeds the 800-line gate. The complexity is 
 
 **Ruled by Mark, 2026-09-15 (second round, from the Sprint 3 leftovers):**
 
-- [x] **D8 — mission dispatch prod pin: keep it, make it explicit.** `internal/mission/dispatch/run.go` keeps filing every stage to the prod message plane regardless of the parent environment; the literal becomes a named constant (`mission.message_plane_project`) with a comment saying it is deliberate. No behaviour change. (Applied in S4 close-out.)
+- [x] **D8 — mission dispatch prod pin: keep it, make it explicit.** `internal/mission/dispatch/run.go` keeps filing every stage to the prod message plane regardless of the parent environment; the literal becomes a named constant (`config.MissionMessagePlaneProject`, a fixed value that is deliberately NOT a registered Var, so no environment variable can move it) with a comment saying it is deliberate. No behaviour change. (Applied in S4 close-out, M4.)
 - [x] **D9 — pass flags unified, bank-forward.** Standard mode gates `stdout_ok` on `runtime_ok` from the next run, as agent mode already does. Nothing re-banked; the D2 read-side predicate already makes published rates identical, so this only makes stored flags consistent. A dated note joins the D2 annotation. (Applied in S4 close-out.)
 
 ## Solution Design

@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/executor"
 	"github.com/sunholo-data/ailang/internal/modelreg"
 )
@@ -106,7 +107,7 @@ func TestDispatchPreflightFallbackAndReceipt(t *testing.T) {
 	if f["pi"].task.Model != "openrouter/minimax/model" || f["pi"].task.Directive != r.Instructions || f["pi"].task.MaxTokensPerBench != r.MaxTokens {
 		t.Fatalf("request not delivered: %+v", f["pi"].task)
 	}
-	if f["pi"].task.ExtraEnv["AILANG_STORAGE_MESSAGING"] != "gcp" || f["pi"].task.ExtraEnv["AILANG_MESSAGES_PROJECT"] != "ailang-multivac" {
+	if f["pi"].task.ExtraEnv[config.EnvStorageMessaging] != "gcp" || f["pi"].task.ExtraEnv[config.EnvMessagesProject] != config.MissionMessagePlaneProject {
 		t.Fatal("canonical message bindings missing")
 	}
 	if len(*events) < 4 || (*events)[len(*events)-1].Kind != "finished" {
@@ -403,7 +404,7 @@ func TestTaskFor_EveryStageIsMarkedFrozenForHooks(t *testing.T) {
 // map, and dropping one while adding the other is the obvious regression.
 func TestTaskFor_StageKeepsCanonicalMessageStore(t *testing.T) {
 	env := taskFor(Request{Role: "evaluator"}, testCandidate()).ExtraEnv
-	if env["AILANG_STORAGE_MESSAGING"] != "gcp" || env["AILANG_MESSAGES_PROJECT"] != "ailang-multivac" {
+	if env[config.EnvStorageMessaging] != "gcp" || env[config.EnvMessagesProject] != config.MissionMessagePlaneProject {
 		t.Fatalf("canonical store pinning lost: %v", env)
 	}
 }

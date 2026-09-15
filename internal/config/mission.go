@@ -17,6 +17,18 @@ const (
 	EnvUser                 = "USER"
 )
 
+// MissionMessagePlaneProject is the Firestore project every mission stage
+// execution files its messages to, regardless of the parent environment.
+// It is a fixed value, deliberately NOT a Var and NOT overridable by any
+// variable: the point of the pin is that a dev shell (AILANG_STORAGE=local,
+// a scratch AILANG_MESSAGES_PROJECT) cannot re-route a stage's
+// cross-mission messages away from the canonical inbox. Ruling D8 of
+// design_docs/planned/m-v1-simplification-program.md (2026-09-15): keep the
+// pin, make it explicit — it is the one production literal D3 does not
+// retire. internal/mission/dispatch sets AILANG_STORAGE_MESSAGING=gcp and
+// AILANG_MESSAGES_PROJECT to this on every stage.
+const MissionMessagePlaneProject = "ailang-multivac"
+
 var missionVars = []Var{
 	{EnvMissionGHIssue, "", AreaMission, "GitHub issue number that overrides the mission's directive channel, so a cutover can be rehearsed against a scratch issue."},
 	{EnvMissionControlActive, "0", AreaMission, "1 marks the process as running inside a mission-control iteration."},

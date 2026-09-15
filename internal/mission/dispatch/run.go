@@ -236,7 +236,11 @@ func taskFor(r Request, c Candidate) *executor.Task {
 		// cache-writing stage (M-V1-SIMPLIFY-S4 M1).
 		Pricing: executor.CostModelFromPricing(m.Provider, c.Model, m.Pricing),
 		ExtraEnv: map[string]string{
-			"AILANG_STORAGE_MESSAGING": "gcp", "AILANG_MESSAGES_PROJECT": "ailang-multivac",
+			// Every stage files to the prod message plane whatever the parent
+			// shell says — deliberate, ruling D8 (M-V1-SIMPLIFY-S4 M4): the pin
+			// is what stops a dev environment re-routing cross-mission messages.
+			// The value is a fixed constant, not a Var, so no variable can move it.
+			config.EnvStorageMessaging: "gcp", config.EnvMessagesProject: config.MissionMessagePlaneProject,
 			// Marks this process as FROZEN STAGE EXECUTION so the repo's Claude Code hooks
 			// inject nothing into it. Applies to EVERY role, unlike the AGENTS.md isolation
 			// above: repo conventions are arguably an author's business, but prompt-matched
