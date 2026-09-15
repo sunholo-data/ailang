@@ -21,7 +21,7 @@
 #
 # ACTIVE_PATTERN (env, default "qwen3-6") selects which models --reset clears.
 set -uo pipefail
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/.." || exit 1
 VERSION="${1:?usage: os-release-snapshot.sh <ailang-version> [--reset]}"
 RESET=0; [ "${2:-}" = "--reset" ] && RESET=1
 ACTIVE_PATTERN="${ACTIVE_PATTERN:-qwen3-6}"
@@ -68,6 +68,10 @@ entry = {
     "trials": latest.get("trials"),
     "languages": latest.get("languages"),
     "rows": latest.get("rows", []),
+    # Dated caveats carried INSIDE latest.json (OSDataNote, cmd/ailang/eval_publish.go)
+    # so a boundary such as D2 (pass = compile && runtime && stdout) survives into
+    # the longitudinal series next to the numbers it qualifies.
+    "notes": latest.get("notes", []),
 }
 hist = []
 if os.path.exists(hist_p):
