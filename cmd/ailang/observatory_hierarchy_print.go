@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/strutil"
 )
 
 // printUnifiedHierarchy prints the hierarchy as a tree
@@ -21,7 +23,7 @@ func printUnifiedHierarchy(h *UnifiedHierarchy) {
 
 		fmt.Printf("\n⬢ Task: %s%s%s\n", h.Task.ID, agentInfo, statusBadge)
 		if h.Task.Title != "" && h.Task.Title != h.Task.ID {
-			fmt.Printf("  Title: %s\n", truncateString(h.Task.Title, 70))
+			fmt.Printf("  Title: %s\n", strutil.Truncate(h.Task.Title, 70))
 		}
 		if h.Task.ParentTaskID != "" {
 			fmt.Printf("  Parent: %s\n", h.Task.ParentTaskID)
@@ -145,7 +147,7 @@ func printTurnGroupedHierarchy(h *UnifiedHierarchy) {
 		statusBadge := fmt.Sprintf(" [%s]", h.Task.Status)
 		fmt.Printf("\n⬢ Task: %s%s%s\n", h.Task.ID, agentInfo, statusBadge)
 		if h.Task.Title != "" && h.Task.Title != h.Task.ID {
-			fmt.Printf("  Title: %s\n", truncateString(h.Task.Title, 70))
+			fmt.Printf("  Title: %s\n", strutil.Truncate(h.Task.Title, 70))
 		}
 	}
 

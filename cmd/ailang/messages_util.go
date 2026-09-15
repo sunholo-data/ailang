@@ -14,7 +14,6 @@ import (
 	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/messaging"
 	"github.com/sunholo-data/ailang/internal/pubsub"
-	"github.com/sunholo-data/ailang/internal/strutil"
 	"golang.org/x/term"
 )
 
@@ -471,9 +470,3 @@ func formatAge(t time.Time) string {
 	}
 	return t.Format("Jan 2")
 }
-
-// truncateString delegates to strutil.Truncate. The Sprint 3 note said only
-// exec.go still called it; a grep at M-V1-SIMPLIFY-S4 M3A found five more
-// callers (messages_send, observatory_sync_chat, observatory_hierarchy_print
-// ×2, trace_local) outside the eval lane — fold them and delete this.
-func truncateString(s string, maxLen int) string { return strutil.Truncate(s, maxLen) }
