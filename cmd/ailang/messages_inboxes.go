@@ -140,7 +140,7 @@ func buildInboxRows(registry *coordinator.AgentRegistry, unread, recent map[stri
 		if agent := registry.GetAgentForInbox(inbox); agent != nil {
 			row.Agent = agent.ID
 			row.Model = agent.Model
-			row.Detail = fmt.Sprintf("creates a task for %s", agent.ID)
+			row.Detail = dispatchDetail(agent)
 		} else if row.Pattern {
 			row.Detail = "wildcard — any matching name dispatches"
 		}
@@ -158,7 +158,13 @@ func buildInboxRows(registry *coordinator.AgentRegistry, unread, recent map[stri
 		case registry.GetAgentForInbox(inbox) != nil:
 			agent := registry.GetAgentForInbox(inbox)
 			row.Effect, row.Agent, row.Model = effectDispatches, agent.ID, agent.Model
-			row.Detail = fmt.Sprintf("creates a task for %s", agent.ID)
+			// The REPO, not just the agent id. An agent name is not a
+			// destination: `design-doc-creator` sounds generic and works only on
+			// sunholo-data/ailang, while `daneel-design` — the one that reads
+			// repo-specific — serves sunholo-data/daneel. A sender with AILANG
+			// feedback had no way to tell from this listing which of the two was
+			// theirs, and the obvious-sounding name (`ailang-core`) bounces.
+			row.Detail = dispatchDetail(agent)
 		case registry.IsTriageOnly(inbox):
 			row.Effect = effectTriage
 			row.Detail = "filed for a human, on purpose"
@@ -284,6 +290,36 @@ func resolveInboxRegistry(flagPath string) (*coordinator.AgentRegistry, string, 
 		return nil, "", fmt.Errorf("cannot load the agent registry: %w", err)
 	}
 	return reg, "~/.ailang/config.yaml (this machine)", nil
+}
+
+// dispatchDetail is the one description of what sending here does.
+//
+// There were two, in the two branches that build this listing, and they drifted
+// the moment one gained the repository — which is the fault this whole session
+// kept finding. One function, both callers.
+func dispatchDetail(a *coordinator.AgentConfig) string {
+	if repo := agentRepoLabel(a); repo != "" {
+		return fmt.Sprintf("creates a task for %s on %s", a.ID, repo)
+	}
+	return fmt.Sprintf("creates a task for %s", a.ID)
+}
+
+// agentRepoLabel is the repository an agent's work lands in.
+//
+// ResolveRepo first, because `repo` is the explicit declaration; Workspace is
+// the older field that doubles as a path on a local coordinator, so it is only
+// useful here when it looks like owner/name.
+func agentRepoLabel(a *coordinator.AgentConfig) string {
+	if a == nil {
+		return ""
+	}
+	if r := a.ResolveRepo(); r != "" {
+		return r
+	}
+	if w := a.Workspace; strings.Count(w, "/") == 1 && !strings.HasPrefix(w, "/") {
+		return w
+	}
+	return ""
 }
 
 // loadCloudInboxRegistry reads the coordinator's own config out of GCS.

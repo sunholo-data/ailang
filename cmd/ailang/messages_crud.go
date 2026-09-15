@@ -381,6 +381,7 @@ func runMessagesForward(args []string) {
 	fs := flag.NewFlagSet("messages forward", flag.ExitOnError)
 	toInbox := fs.String("to", "", "Target inbox (required)")
 	reason := fs.String("reason", "", "Reason for forwarding (logged)")
+	force := fs.Bool("force", false, "Forward even to an inbox no agent serves (e.g. a deliberate probe)")
 
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
@@ -403,6 +404,13 @@ func runMessagesForward(args []string) {
 		fmt.Fprintf(os.Stderr, "%s: message ID required\n", red("Error"))
 		os.Exit(1)
 	}
+
+	// Forwarding is REDIRECTING: its whole purpose is to put a misfiled message
+	// where it belongs, so a typo here lands it somewhere else that does
+	// nothing — the fault it was invoked to repair. `send` has refused unknown
+	// inboxes since 2026-09-14; this did not, and it is the command most likely
+	// to be pointed at a half-remembered name.
+	guardSendInbox(*toInbox, *force)
 
 	store, err := openStore()
 	if err != nil {
