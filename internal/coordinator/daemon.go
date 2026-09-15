@@ -16,6 +16,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/messaging"
 	"github.com/sunholo-data/ailang/internal/observatory"
 	"github.com/sunholo-data/ailang/internal/pubsub"
+	"github.com/sunholo-data/ailang/internal/statedir"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	traceAttribute "go.opentelemetry.io/otel/attribute"
 )
@@ -31,11 +32,21 @@ type Config struct {
 	DevMode              bool          // Skip stale detector + approval watcher, increase poll interval
 }
 
-// DefaultConfig returns sensible defaults
+// DefaultConfig returns sensible defaults. StateDir comes from statedir.Dir()
+// so AILANG_STATE_DIR is honoured; when neither it nor HOME resolves the
+// state paths are left EMPTY and NewDaemon refuses to start, rather than
+// creating a relative .ailang/state beside the process.
 func DefaultConfig() *Config {
 	homeDir, _ := os.UserHomeDir()
-	stateDir := filepath.Join(homeDir, ".ailang", "state")
 	logsDir := filepath.Join(homeDir, ".ailang", "logs")
+	stateDir, err := statedir.Dir()
+	if err != nil {
+		return &Config{
+			PollInterval: 30 * time.Second,
+			MaxWorktrees: 3,
+			LogFile:      filepath.Join(logsDir, "coordinator.log"),
+		}
+	}
 
 	return &Config{
 		PollInterval: 30 * time.Second,
@@ -211,6 +222,9 @@ func (d *Daemon) SetFeedbackGateDeps(cooldown feedbackgate.CooldownStore, classi
 func NewDaemon(config *Config) (*Daemon, error) {
 	if config == nil {
 		config = DefaultConfig()
+	}
+	if config.StateDir == "" {
+		return nil, fmt.Errorf("coordinator: no state directory: set %s (or HOME)", statedir.EnvVar)
 	}
 
 	// Ensure directories exist

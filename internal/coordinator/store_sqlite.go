@@ -11,6 +11,8 @@ import (
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
+
+	"github.com/sunholo-data/ailang/internal/statedir"
 )
 
 // SQLiteStore implements Store using SQLite
@@ -21,8 +23,11 @@ type SQLiteStore struct {
 // NewSQLiteStore creates a new SQLite store
 func NewSQLiteStore(dbPath string) (*SQLiteStore, error) {
 	if dbPath == "" {
-		homeDir, _ := os.UserHomeDir()
-		dbPath = filepath.Join(homeDir, ".ailang", "state", "coordinator.db")
+		p, err := statedir.Path("coordinator.db")
+		if err != nil {
+			return nil, err
+		}
+		dbPath = p
 	}
 
 	// Ensure directory exists

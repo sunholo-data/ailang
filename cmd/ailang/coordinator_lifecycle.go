@@ -97,9 +97,11 @@ func coordinatorStart(args []string) error {
 	// visible to a separate `workers list` CLI process on the same host.
 	// Cross-host visibility (Firestore-backed) is the v0.25 roadmap item —
 	// drops into the same HeartbeatStore interface without changing this wiring.
-	daemon.SetHeartbeatStore(coordinator.NewFileHeartbeatStore(
-		coordinator.DefaultHeartbeatPath(cfg.StateDir),
-	))
+	hbPath, err := coordinator.DefaultHeartbeatPath(cfg.StateDir)
+	if err != nil {
+		return err
+	}
+	daemon.SetHeartbeatStore(coordinator.NewFileHeartbeatStore(hbPath))
 
 	// Pre-set cloud backends if configured (AILANG_STORAGE=gcp|hybrid)
 	storageMode := storage.GetMode()

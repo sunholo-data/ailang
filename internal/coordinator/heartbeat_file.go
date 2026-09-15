@@ -9,6 +9,8 @@ import (
 	"sort"
 	"sync"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/statedir"
 )
 
 // FileHeartbeatStore persists worker heartbeats to a single JSON file on
@@ -119,11 +121,15 @@ func (s *FileHeartbeatStore) writeLocked(entries map[string]WorkerHeartbeat) err
 }
 
 // DefaultHeartbeatPath returns the recommended path for the on-host
-// heartbeat file. It lives under the user's AILANG state directory.
-func DefaultHeartbeatPath(stateDir string) string {
+// heartbeat file. It lives under the user's AILANG state directory, which is
+// statedir.Dir() when stateDir is empty.
+func DefaultHeartbeatPath(stateDir string) (string, error) {
 	if stateDir == "" {
-		home, _ := os.UserHomeDir()
-		stateDir = filepath.Join(home, ".ailang", "state")
+		d, err := statedir.Dir()
+		if err != nil {
+			return "", err
+		}
+		stateDir = d
 	}
-	return filepath.Join(stateDir, "worker_heartbeats.json")
+	return filepath.Join(stateDir, "worker_heartbeats.json"), nil
 }
