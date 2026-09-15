@@ -109,7 +109,7 @@ scope to, and so contributors and AI agents know which subsystem they are in.
 |---|---|
 | **core** (the compiler + runtime) | `internal/{parser,types,eval,core,elaborate,effects,builtins,lexer,ast,pipeline,runtime,link,iface}` |
 | **dashboard / apps** (services + UI) | `internal/{server,coordinator,observatory,messaging}` (+ `ui/`) |
-| **tools** | `internal/{eval_harness,eval_analysis,ai}` |
+| **tools** | `internal/{eval_harness,eval_analysis}` (`internal/ai` is core: the AI effect is a language feature — measured 2026-09-15) |
 | **bridge / sdk** | `internal/embed` (+ `internal/runtime`, `internal/schema`) |
 
 ### Enforced import directions
@@ -126,6 +126,7 @@ touch the parser, type checker, or elaborator directly.
 
 | Direction | Allowed? | Enforced by |
 |---|---|---|
+| language roots → platform packages / heavy third-party roots | **No** — the generated section below lists both sets and the violations still open | `TestLanguageCoreIsALeaf` (`internal/diag/closure_test.go`, real `go list -deps` closure, shrink-only violations list) |
 | `modelreg` → `executor` | **No** — `modelreg` is a leaf | `TestModelregIsALeaf` (+ the compiler, once `executor` imports it) |
 | `executor` → `modelreg` | Yes — that is the point | (by construction) |
 | apps → core | **No** — only via `internal/embed` | `scripts/check_boundaries.sh` |
@@ -153,6 +154,80 @@ rather than incidental string mentions. Two rules are enforced:
 bridge is forced to name `eval.Value`. That is the bridge's value type, not a
 behavioral dependency on the evaluator. If `embed` ever re-exports its own
 `Value` alias, `eval` should be added back to the deny-list.
+
+<!-- BEGIN GENERATED: language closure (scripts/gen_architecture_closure.sh) -->
+### Language closure (generated 2026-09-15 @ 4c6ebcee9)
+
+What `ailang run / check / fmt / prompt / repl` link, measured with `go list -deps`
+over the language roots. **41** of the internal packages are in the closure; the
+full binary links **112**. The gate is `internal/diag/closure_test.go`; the numbers
+are banked by `make simplicity-metrics`. Regenerate this section with
+`scripts/gen_architecture_closure.sh` (CI runs it with `--check`).
+
+**Language roots** (`tools/simplicity_metrics.sh` LANGUAGE_ROOTS):
+`internal/pipeline` `internal/eval` `internal/effects` `internal/builtins` `internal/format` `internal/repl` `internal/prompt` `internal/loader` `internal/link` `internal/lsp` `internal/vm` `internal/gen/golang` `internal/smt` 
+
+**In the closure** (41 packages):
+
+- `internal/ai`
+- `internal/ast`
+- `internal/builtins`
+- `internal/bytecode`
+- `internal/core`
+- `internal/dtree`
+- `internal/effects`
+- `internal/elaborate`
+- `internal/embedprefix`
+- `internal/errors`
+- `internal/eval`
+- `internal/format`
+- `internal/gen/block`
+- `internal/gen/golang`
+- `internal/iface`
+- `internal/importhint`
+- `internal/lexer`
+- `internal/link`
+- `internal/linked`
+- `internal/loader`
+- `internal/lsp`
+- `internal/mcp_client`
+- `internal/parser`
+- `internal/pipeline`
+- `internal/pkg`
+- `internal/planning`
+- `internal/prompt`
+- `internal/repl`
+- `internal/replay`
+- `internal/runtime`
+- `internal/schema`
+- `internal/secrets`
+- `internal/smt`
+- `internal/telemetry`
+- `internal/test`
+- `internal/trace`
+- `internal/typedast`
+- `internal/types`
+- `internal/types/traverse`
+- `internal/version`
+- `internal/vm`
+
+**Must never be reached from the roots** — platform packages:
+`internal/platform` `internal/coordinator` `internal/observatory` `internal/storage` `internal/executor` `internal/eval_harness` `internal/messaging` 
+
+— and third-party roots:
+`github.com/mattn/go-sqlite3` `go.opentelemetry.io/otel/sdk` `go.opentelemetry.io/otel/exporters` `github.com/GoogleCloudPlatform/opentelemetry-operations-go` `google.golang.org/grpc` `github.com/gorilla/websocket` `cloud.google.com/go/firestore` `cloud.google.com/go/pubsub` `cloud.google.com/go/storage` `cloud.google.com/go/trace` 
+
+**Known violations still listed** (7; the list can only shrink — the test fails
+if an entry appears that is not listed, or a listed entry is no longer reached):
+
+- `go.opentelemetry.io/otel/sdk`
+- `go.opentelemetry.io/otel/exporters`
+- `github.com/GoogleCloudPlatform/opentelemetry-operations-go`
+- `google.golang.org/grpc`
+- `cloud.google.com/go/trace`
+- `github.com/mattn/go-sqlite3`
+- `github.com/gorilla/websocket`
+<!-- END GENERATED: language closure -->
 
 ## Capability-effect system
 

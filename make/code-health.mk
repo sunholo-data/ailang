@@ -2,7 +2,7 @@
 # CODE HEALTH & ORGANIZATION TARGETS
 # =============================================================================
 
-.PHONY: check-file-sizes report-file-sizes codebase-health largest-files check-pi-wire-budget check-prompt-freeze check-referenced-paths simplicity-metrics simplicity-metrics-fast simplicity-audit simplicity-audit-fast
+.PHONY: check-file-sizes report-file-sizes codebase-health largest-files check-pi-wire-budget check-prompt-freeze check-referenced-paths check-architecture-closure gen-architecture-closure simplicity-metrics simplicity-metrics-fast simplicity-audit simplicity-audit-fast
 .PHONY: fmt fmt-check fmt-check-ail shellcheck-autopush vet lint install-lint
 
 check-referenced-paths: ## Check that referenced tools/scripts paths exist and are tracked
@@ -304,3 +304,9 @@ simplicity-audit: ## Weekly: re-measure, diff vs last banked snapshot, exit 2 on
 
 simplicity-audit-fast: ## Same, without the timed test-core run
 	@/bin/bash .claude/skills/simplicity-audit/scripts/audit.sh --fast
+
+check-architecture-closure: ## Check ARCHITECTURE.md's generated language-closure section is current (CI gate)
+	@/bin/bash scripts/gen_architecture_closure.sh --check
+
+gen-architecture-closure: ## Regenerate ARCHITECTURE.md's language-closure section from go list -deps
+	@/bin/bash scripts/gen_architecture_closure.sh
