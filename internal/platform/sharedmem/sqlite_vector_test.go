@@ -11,34 +11,36 @@ import (
 
 // --- Embedding / Vector tests (M-BRAIN-VECTORS M1) ---
 
-func TestCosineSimilarityF32(t *testing.T) {
-	tests := []struct {
-		name string
-		a, b []float32
-		want float64
-		tol  float64
-	}{
-		{"identical", []float32{1, 0, 0}, []float32{1, 0, 0}, 1.0, 1e-9},
-		{"opposite", []float32{1, 0, 0}, []float32{-1, 0, 0}, -1.0, 1e-9},
-		{"orthogonal", []float32{1, 0, 0}, []float32{0, 1, 0}, 0.0, 1e-9},
-		{"similar", []float32{1, 1, 0}, []float32{1, 0, 0}, 0.7071, 0.001},
-		{"empty_a", nil, []float32{1, 0, 0}, 0.0, 1e-9},
-		{"empty_b", []float32{1, 0, 0}, nil, 0.0, 1e-9},
-		{"zero_vec", []float32{0, 0, 0}, []float32{1, 1, 1}, 0.0, 1e-9},
-		{"dim_mismatch", []float32{1, 0}, []float32{1, 0, 0}, 1.0, 1e-9}, // uses shorter
+// The cache scores embeddings with simhash.Cosine (M-V1-SIMPLIFY-S4 M3B). The
+// private float32 copy it replaced compared the SHORTER prefix of two vectors
+// of different length, so a 2-dim embedding from one model scored 1.0 against
+// a 3-dim one from another — a silent search corruption, not a feature. The
+// leaf scores a dimension mismatch 0 ("no direction to compare"); this test
+// pins that through the public search API so the cache cannot drift back.
+func TestSearchByEmbedding_DimensionMismatchScoresZero(t *testing.T) {
+	dir := t.TempDir()
+	cache, err := NewSQLiteSharedCache(filepath.Join(dir, "dims.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cache.Close()
+
+	if err := cache.PutVector("three", "test", []float32{1, 0, 0}, "model-a", []byte("p")); err != nil {
+		t.Fatal(err)
+	}
+	if err := cache.PutVector("two", "test", []float32{1, 0}, "model-b", []byte("p")); err != nil {
+		t.Fatal(err)
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := cosineSimilarityF32(tt.a, tt.b)
-			diff := got - tt.want
-			if diff < 0 {
-				diff = -diff
-			}
-			if diff > tt.tol {
-				t.Errorf("cosineSimilarityF32(%v, %v) = %f, want %f (±%f)", tt.a, tt.b, got, tt.want, tt.tol)
-			}
-		})
+	results := cache.SearchByEmbedding([]float32{1, 0, 0}, "test", 10)
+	if len(results) != 2 {
+		t.Fatalf("expected both frames returned, got %d", len(results))
+	}
+	if results[0].Frame.Key != "three" || results[0].Score < 0.999 {
+		t.Errorf("same-dimension frame should rank first with score 1, got %s score=%f", results[0].Frame.Key, results[0].Score)
+	}
+	if results[1].Frame.Key != "two" || results[1].Score != 0 {
+		t.Errorf("mismatched-dimension frame must score 0 (was 1.0 under the prefix cosine), got %s score=%f", results[1].Frame.Key, results[1].Score)
 	}
 }
 

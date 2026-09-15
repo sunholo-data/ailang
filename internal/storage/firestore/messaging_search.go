@@ -3,7 +3,6 @@ package firestore
 import (
 	"context"
 	"fmt"
-	"math/bits"
 	"sort"
 	"time"
 
@@ -11,6 +10,7 @@ import (
 	"google.golang.org/api/iterator"
 
 	"github.com/sunholo-data/ailang/internal/messaging"
+	"github.com/sunholo-data/ailang/internal/simhash"
 )
 
 // --- Search & Deduplication ---
@@ -58,7 +58,7 @@ func (s *MessagingStore) SemanticSearch(opts messaging.SearchOptions) ([]messagi
 		}
 		m := mapToInbox(doc.Data())
 
-		score := simhashSimilarity(queryHash, messageSimhash(m))
+		score := simhash.Similarity(queryHash, messageSimhash(m))
 		if score >= threshold {
 			hits = append(hits, messaging.SearchHit{
 				Message:   *m,
@@ -110,7 +110,7 @@ func (s *MessagingStore) FindSimilar(msgID string, threshold float64, limit int)
 			continue
 		}
 
-		score := simhashSimilarity(messageSimhash(msg), messageSimhash(m))
+		score := simhash.Similarity(messageSimhash(msg), messageSimhash(m))
 		if score >= threshold {
 			hits = append(hits, messaging.SearchHit{
 				Message:   *m,
@@ -172,7 +172,7 @@ func (s *MessagingStore) FindDuplicates(inbox string, threshold float64) ([]mess
 			if used[j] {
 				continue
 			}
-			score := simhashSimilarity(messageSimhash(msgs[i]), messageSimhash(msgs[j]))
+			score := simhash.Similarity(messageSimhash(msgs[i]), messageSimhash(msgs[j]))
 			if score >= threshold {
 				group.Duplicates = append(group.Duplicates, *msgs[j])
 				if score < group.MinScore {
@@ -267,13 +267,6 @@ func messageSimhash(m *messaging.InboxMessage) int64 {
 		return *m.Simhash
 	}
 	return messaging.ComputeSimhash(m.Title, m.Payload)
-}
-
-// simhashSimilarity computes similarity between two SimHash values (0.0-1.0).
-func simhashSimilarity(a, b int64) float64 {
-	xor := uint64(a ^ b)
-	distance := bits.OnesCount64(xor)
-	return 1.0 - float64(distance)/64.0
 }
 
 func timeNowMillis() int64 {

@@ -12,12 +12,12 @@ import (
 	"bytes"
 	"database/sql"
 	"fmt"
-	"math"
 	"sort"
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/effects"
 	"github.com/sunholo-data/ailang/internal/embedprefix"
+	"github.com/sunholo-data/ailang/internal/simhash"
 	"github.com/sunholo-data/ailang/internal/sqliteopen"
 )
 
@@ -379,8 +379,7 @@ func (c *SQLiteSharedCache) SearchBySimHash(namespace string, queryHash int64, l
 		if f == nil {
 			continue
 		}
-		dist := hammingDistance64(queryHash, f.SimHash)
-		score := 1.0 - float64(dist)/64.0
+		score := simhash.Similarity(queryHash, f.SimHash)
 		results = append(results, effects.BrainSearchResult{Frame: *f, Score: score})
 	}
 
@@ -571,7 +570,9 @@ func (c *SQLiteSharedCache) SearchByEmbedding(queryEmbedding []float32, namespac
 		if f == nil || len(f.Embedding) == 0 {
 			continue
 		}
-		score := cosineSimilarityF32(queryEmbedding, f.Embedding)
+		// Cosine scores a dimension mismatch (an embedding from another model)
+		// as 0, never a prefix comparison: there is no direction to compare.
+		score := simhash.Cosine(queryEmbedding, f.Embedding)
 		results = append(results, effects.BrainSearchResult{Frame: *f, Score: score})
 	}
 
@@ -698,39 +699,4 @@ func scanBrainFrame(rows *sql.Rows) *effects.BrainFrame {
 		f.Embedding = effects.DecodeEmbedding(embBlob)
 	}
 	return &f
-}
-
-// cosineSimilarityF32 computes the cosine similarity between two float32 vectors.
-// Returns 0.0 if either vector is zero-length or has zero magnitude.
-func cosineSimilarityF32(a, b []float32) float64 {
-	if len(a) == 0 || len(b) == 0 {
-		return 0.0
-	}
-	// Use shorter length (handles dimension mismatch gracefully)
-	n := len(a)
-	if len(b) < n {
-		n = len(b)
-	}
-	var dot, magA, magB float64
-	for i := 0; i < n; i++ {
-		ai, bi := float64(a[i]), float64(b[i])
-		dot += ai * bi
-		magA += ai * ai
-		magB += bi * bi
-	}
-	if magA == 0 || magB == 0 {
-		return 0.0
-	}
-	return dot / (math.Sqrt(magA) * math.Sqrt(magB))
-}
-
-// hammingDistance64 computes the hamming distance between two 64-bit integers.
-func hammingDistance64(a, b int64) int {
-	xor := uint64(a ^ b)
-	count := 0
-	for xor != 0 {
-		count++
-		xor &= xor - 1 // Clear lowest set bit
-	}
-	return count
 }
