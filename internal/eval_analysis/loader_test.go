@@ -2,6 +2,7 @@ package eval_analysis
 
 import (
 	"encoding/json"
+	"github.com/sunholo-data/ailang/internal/eval_harness"
 	"os"
 	"path/filepath"
 	"testing"
@@ -26,13 +27,17 @@ func writeResultFile(t *testing.T, dir, name string, r *BenchmarkResult) {
 
 func newResult(id, lang, model string, ts time.Time) *BenchmarkResult {
 	return &BenchmarkResult{
-		ID:        id,
-		Lang:      lang,
-		Model:     model,
-		Seed:      1,
-		StdoutOk:  true,
-		EvalMode:  "agent",
-		Timestamp: ts,
+		RunMetrics: eval_harness.RunMetrics{
+			ID:        id,
+			Lang:      lang,
+			Model:     model,
+			Seed:      1,
+			CompileOk: true,
+			RuntimeOk: true,
+			StdoutOk:  true,
+			EvalMode:  "agent",
+			Timestamp: ts,
+		},
 	}
 }
 

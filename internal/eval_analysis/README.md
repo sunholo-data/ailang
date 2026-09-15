@@ -10,7 +10,7 @@ This package was reorganized in November 2025 to comply with the 800-line file s
 
 - **comparison.go** (195 lines) - Baseline comparison and regression detection
 - **matrix.go** (242 lines) - Performance matrix generation and aggregation
-- **loader.go** (279 lines) - Benchmark result loading and filtering
+- **loader.go** - Analysis-side adapter over `eval_harness.LoadRows` (the ONE row loader: walk, decode, dedup, validity filter) — wraps rows in `BenchmarkResult` and adds the read-side refusal annotation. Pass/fail is `RunMetrics.Passed()` (D2), never `StdoutOk` alone
 - **validate.go** (221 lines) - Result validation and health checks
 - **formatter.go** (325 lines) - Human-readable output formatting
 

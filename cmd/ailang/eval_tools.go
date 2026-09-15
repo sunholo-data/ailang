@@ -248,7 +248,7 @@ func runEvalSummary() {
 	lineCount := len(results)
 	successCount := 0
 	for _, r := range results {
-		if r.StdoutOk {
+		if r.Passed() {
 			successCount++
 		}
 	}

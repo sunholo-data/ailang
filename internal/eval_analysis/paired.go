@@ -84,11 +84,10 @@ type McNemarResult struct {
 	Note string `json:"note,omitempty"`
 }
 
-// passed reports whether a row counts as a success, using the same three-way
-// definition the rest of the pipeline uses.
-func passed(r *BenchmarkResult) bool {
-	return r.CompileOk && r.RuntimeOk && r.StdoutOk
-}
+// A row counts as a success iff RunMetrics.Passed() — the ONE pass predicate
+// (D2). This file once carried its own copy claiming to be "the same three-way
+// definition the rest of the pipeline uses"; it was not — ~86 sites read
+// StdoutOk alone — which is why the predicate is now a method, not a comment.
 
 type pairKey struct {
 	ID    string
@@ -113,7 +112,7 @@ func PairArms(on, off []*BenchmarkResult) *PairedResult {
 
 	for _, o := range on {
 		res.OnTotal++
-		onPassed := passed(o)
+		onPassed := o.Passed()
 		if onPassed {
 			res.OnPass++
 		}
@@ -126,7 +125,7 @@ func PairArms(on, off []*BenchmarkResult) *PairedResult {
 		}
 		matchedOff[k] = true
 
-		offPassed := passed(counterpart)
+		offPassed := counterpart.Passed()
 		res.Pairs = append(res.Pairs, Pair{
 			ID: o.ID, Lang: o.Lang, Trial: o.Trial,
 			OnPass: onPassed, OffPass: offPassed,
@@ -143,7 +142,7 @@ func PairArms(on, off []*BenchmarkResult) *PairedResult {
 	// Aggregate the OFF arm independently, and count its orphans too.
 	for _, r := range off {
 		res.OffTotal++
-		if passed(r) {
+		if r.Passed() {
 			res.OffPass++
 		}
 		if !matchedOff[pairKey{r.ID, r.Lang, r.Trial}] {

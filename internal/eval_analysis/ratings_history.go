@@ -21,7 +21,7 @@ func attachRatingsToHistoryEntry(entry *HistoryEntry, standard []*BenchmarkResul
 		trials = append(trials, eval_harness.Trial{
 			Model: r.Model,
 			Bench: r.ID,
-			Pass:  r.CompileOk && r.RuntimeOk && r.StdoutOk,
+			Pass:  r.Passed(),
 		})
 	}
 	modelELO, _ := eval_harness.FitFromTrialsAnchored(trials, eval_harness.AnchorPanelV1, nil)

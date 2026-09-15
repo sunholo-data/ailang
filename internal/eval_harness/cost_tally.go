@@ -1,10 +1,7 @@
 package eval_harness
 
 import (
-	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 
@@ -49,23 +46,23 @@ type modelTally struct {
 }
 
 // TallyCosts walks a finished suite's banked result files and aggregates cost by
-// provenance. Malformed files are skipped — a cost report must never be the
-// thing that fails a completed run.
+// provenance. Rows come from the one loader (LoadRows): EVERY file is kept —
+// a re-run that was paid for is still spend, so no per-slot dedup — and invalid
+// rows are kept too, because a crashed run's tokens were still billed.
+// Malformed files are skipped (LoadStats.ParseErrors) — a cost report must
+// never be the thing that fails a completed run.
 func TallyCosts(outputDir string) (*CostTally, error) {
-	files, err := resultFilesIn(outputDir)
+	rows, _, err := LoadRows([]string{outputDir}, LoadOptions{
+		IncludeInvalid: true,
+		KeepDuplicates: true,
+		SuiteLayout:    true,
+	})
 	if err != nil {
 		return nil, err
 	}
 	t := &CostTally{ByMode: map[string]int{}, perModel: map[string]*modelTally{}}
-	for _, f := range files {
-		data, err := os.ReadFile(f)
-		if err != nil {
-			continue
-		}
-		var m RunMetrics
-		if err := json.Unmarshal(data, &m); err != nil {
-			continue
-		}
+	for i := range rows {
+		m := &rows[i]
 		t.TotalRuns++
 		mode := m.EvalMode
 		if mode == "" {
@@ -149,31 +146,4 @@ func provenanceLabel(p string) string {
 	default:
 		return "unknown"
 	}
-}
-
-// resultFilesIn returns every banked result JSON under outputDir, skipping the
-// summary files the suite writes alongside them. Mirrors SummarizeRotation's
-// walk so the two never disagree about what counts as a result.
-func resultFilesIn(outputDir string) ([]string, error) {
-	var files []string
-	for _, mode := range []string{"standard", "agent"} {
-		direct, _ := filepath.Glob(filepath.Join(outputDir, mode, "*.json"))
-		files = append(files, direct...)
-		condDirs, _ := filepath.Glob(filepath.Join(outputDir, mode, "*"))
-		for _, cd := range condDirs {
-			if info, err := os.Stat(cd); err == nil && info.IsDir() {
-				condFiles, _ := filepath.Glob(filepath.Join(cd, "*.json"))
-				files = append(files, condFiles...)
-			}
-		}
-	}
-	out := files[:0]
-	for _, f := range files {
-		base := filepath.Base(f)
-		if base == "summary.json" || base == "baseline.json" {
-			continue
-		}
-		out = append(out, f)
-	}
-	return out, nil
 }

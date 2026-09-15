@@ -4,6 +4,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/eval_harness"
 )
 
 // TestExportSplit_AgentOnlyModelsExcludedFromStandard pins the standard/agent
@@ -15,8 +17,16 @@ func TestExportSplit_AgentOnlyModelsExcludedFromStandard(t *testing.T) {
 	now := time.Now()
 	mk := func(model, mode string) *BenchmarkResult {
 		return &BenchmarkResult{
-			ID: "fizzbuzz", Lang: "ailang", Model: model, EvalMode: mode,
-			CompileOk: true, RuntimeOk: true, StdoutOk: true, Timestamp: now,
+			RunMetrics: eval_harness.RunMetrics{
+				ID:        "fizzbuzz",
+				Lang:      "ailang",
+				Model:     model,
+				EvalMode:  mode,
+				CompileOk: true,
+				RuntimeOk: true,
+				StdoutOk:  true,
+				Timestamp: now,
+			},
 		}
 	}
 	results := []*BenchmarkResult{

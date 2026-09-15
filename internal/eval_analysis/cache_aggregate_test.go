@@ -2,6 +2,7 @@ package eval_analysis
 
 import (
 	"encoding/json"
+	"github.com/sunholo-data/ailang/internal/eval_harness"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,9 +16,9 @@ func TestCalculateAggregates_CacheHitRate(t *testing.T) {
 	// Anthropic reports these as THREE separate buckets — r.InputTokens is the
 	// uncached remainder only, NOT the total.
 	results := []*BenchmarkResult{
-		{InputTokens: 500, CacheReadInputTokens: 0, CacheCreationInputTokens: 16000, TotalTokens: 16800},
-		{InputTokens: 500, CacheReadInputTokens: 16000, CacheCreationInputTokens: 0, TotalTokens: 16800},
-		{InputTokens: 500, CacheReadInputTokens: 16000, CacheCreationInputTokens: 0, TotalTokens: 16800},
+		{RunMetrics: eval_harness.RunMetrics{InputTokens: 500, CacheReadInputTokens: 0, CacheCreationInputTokens: 16000, TotalTokens: 16800}},
+		{RunMetrics: eval_harness.RunMetrics{InputTokens: 500, CacheReadInputTokens: 16000, CacheCreationInputTokens: 0, TotalTokens: 16800}},
+		{RunMetrics: eval_harness.RunMetrics{InputTokens: 500, CacheReadInputTokens: 16000, CacheCreationInputTokens: 0, TotalTokens: 16800}},
 	}
 
 	agg := calculateAggregates(results)
@@ -43,8 +44,8 @@ func TestCalculateAggregates_CacheHitRate(t *testing.T) {
 // Pre-v0.31.0 baselines carry no cache fields; the rate must be 0, not NaN.
 func TestCalculateAggregates_LegacyResultsNoNaN(t *testing.T) {
 	results := []*BenchmarkResult{
-		{InputTokens: 16000, TotalTokens: 16500},
-		{InputTokens: 16000, TotalTokens: 16500},
+		{RunMetrics: eval_harness.RunMetrics{InputTokens: 16000, TotalTokens: 16500}},
+		{RunMetrics: eval_harness.RunMetrics{InputTokens: 16000, TotalTokens: 16500}},
 	}
 	agg := calculateAggregates(results)
 	if agg.CacheHitRate != 0 {

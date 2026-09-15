@@ -2,6 +2,7 @@ package eval_analysis
 
 import (
 	"encoding/json"
+	"github.com/sunholo-data/ailang/internal/eval_harness"
 	"strings"
 	"testing"
 )
@@ -9,14 +10,18 @@ import (
 // fixture builds a synthetic result with sensible defaults.
 func sweetSpotResult(id, model, executor, errCat string, ok bool, costUSD float64, ttsMs int64) *BenchmarkResult {
 	return &BenchmarkResult{
-		ID:            id,
-		Model:         model,
-		Executor:      executor,
-		ErrorCategory: errCat,
-		StdoutOk:      ok,
-		CostUSD:       costUSD,
-		SuccessAtMs:   ttsMs,
-		DurationMs:    ttsMs,
+		RunMetrics: eval_harness.RunMetrics{
+			ID:            id,
+			Model:         model,
+			Executor:      executor,
+			ErrorCategory: errCat,
+			CompileOk:     true,
+			RuntimeOk:     true,
+			StdoutOk:      ok,
+			CostUSD:       costUSD,
+			SuccessAtMs:   ttsMs,
+			DurationMs:    ttsMs,
+		},
 	}
 }
 
@@ -156,11 +161,15 @@ func TestBuildSweetSpot_Empty(t *testing.T) {
 func TestBuildSweetSpot_DurationFallback(t *testing.T) {
 	// SuccessAtMs == 0 (executor didn't track it) should fall back to DurationMs.
 	r := &BenchmarkResult{
-		ID:          "b",
-		Model:       "m",
-		StdoutOk:    true,
-		DurationMs:  45_000,
-		SuccessAtMs: 0,
+		RunMetrics: eval_harness.RunMetrics{
+			ID:          "b",
+			Model:       "m",
+			CompileOk:   true,
+			RuntimeOk:   true,
+			StdoutOk:    true,
+			DurationMs:  45_000,
+			SuccessAtMs: 0,
+		},
 	}
 	r.ErrorCategory = "none"
 	report := BuildSweetSpot([]*BenchmarkResult{r}, SweetSpotOpts{})

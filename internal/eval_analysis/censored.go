@@ -81,7 +81,7 @@ func AnalyzeCensoredPairs(on, off []*BenchmarkResult) CensoredPairResult {
 		if !ok {
 			continue
 		}
-		onPass, offPass := passed(onRow), passed(offRow)
+		onPass, offPass := onRow.Passed(), offRow.Passed()
 		switch {
 		case onPass && !offPass:
 			result.OnWins++

@@ -1,10 +1,7 @@
 package eval_analyzer
 
 import (
-	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 
@@ -30,6 +27,11 @@ type AnalysisResult struct {
 	TotalRuns    int           `json:"total_runs"`
 	FailureCount int           `json:"failure_count"`
 	SuccessRate  float64       `json:"success_rate"`
+	// InvalidExcluded is the number of banked rows that were NOT analysed
+	// because they are not measurements (harness crash, dead subject, wrong
+	// config — eval_harness.Validity). Before M-V1-SIMPLIFY-S3 M1 these were
+	// counted as model failures.
+	InvalidExcluded int `json:"invalid_excluded,omitempty"`
 }
 
 // Analyzer aggregates eval results and identifies patterns
@@ -37,6 +39,10 @@ type Analyzer struct {
 	resultsDir   string
 	minFrequency int
 	categories   map[string]bool
+	// invalidExcluded counts rows the loader dropped because they are not
+	// measurements (validity.go). Reported on AnalysisResult so a shrunken
+	// sample is stated, never silent.
+	invalidExcluded int
 }
 
 // NewAnalyzer creates a new eval results analyzer
@@ -70,7 +76,7 @@ func (a *Analyzer) Analyze() (*AnalysisResult, error) {
 	var successes []*eval_harness.RunMetrics
 
 	for _, m := range metrics {
-		if !m.CompileOk || !m.RuntimeOk || !m.StdoutOk {
+		if !m.Passed() {
 			failures = append(failures, m)
 		} else {
 			successes = append(successes, m)
@@ -99,36 +105,33 @@ func (a *Analyzer) Analyze() (*AnalysisResult, error) {
 	}
 
 	return &AnalysisResult{
-		Issues:       issues,
-		TotalRuns:    len(metrics),
-		FailureCount: len(failures),
-		SuccessRate:  successRate,
+		Issues:          issues,
+		TotalRuns:       len(metrics),
+		FailureCount:    len(failures),
+		SuccessRate:     successRate,
+		InvalidExcluded: a.invalidExcluded,
 	}, nil
 }
 
-// loadAllMetrics loads all JSON metrics from the results directory
+// loadAllMetrics loads every banked row under the results directory through
+// the ONE row loader, eval_harness.LoadRows (M-V1-SIMPLIFY-S3 M1).
+//
+// Until then this package had its own decoder: a flat *.json glob with no
+// validity filter, so every harness crash banked as api_error was analysed as
+// a model failure and surfaced as an "issue" — and rows the suite wrote under
+// standard/ or agent/ were never seen at all. Now invalid rows are excluded
+// (the default), the tree is walked, and re-runs collapse to the newest row
+// per slot, the same as every published rate.
 func (a *Analyzer) loadAllMetrics() ([]*eval_harness.RunMetrics, error) {
-	var metrics []*eval_harness.RunMetrics
-
-	files, err := filepath.Glob(filepath.Join(a.resultsDir, "*.json"))
+	rows, stats, err := eval_harness.LoadRows([]string{a.resultsDir}, eval_harness.LoadOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to glob results: %w", err)
+		return nil, err
 	}
-
-	for _, file := range files {
-		data, err := os.ReadFile(file)
-		if err != nil {
-			continue // Skip unreadable files
-		}
-
-		var m eval_harness.RunMetrics
-		if err := json.Unmarshal(data, &m); err != nil {
-			continue // Skip malformed JSON
-		}
-
-		metrics = append(metrics, &m)
+	a.invalidExcluded = stats.Invalid
+	metrics := make([]*eval_harness.RunMetrics, 0, len(rows))
+	for i := range rows {
+		metrics = append(metrics, &rows[i])
 	}
-
 	return metrics, nil
 }
 

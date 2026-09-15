@@ -9,103 +9,25 @@ import (
 	"github.com/sunholo-data/ailang/internal/eval_harness"
 )
 
-// BenchmarkResult represents the result of a single benchmark execution
-// This mirrors the JSON structure from internal/eval_harness/metrics.go
+// BenchmarkResult is one banked eval row as the analysis side reads it: the
+// harness's RunMetrics (the write side, internal/eval_harness/metrics.go —
+// embedded, so the two can no longer drift) plus read-side annotations that
+// the harness never writes.
+//
+// Until M-V1-SIMPLIFY-S3 M1 this was a second ~40-field copy of RunMetrics
+// with byte-identical JSON tags that had silently fallen behind:
+// reason_tokens, llm_wall_ms, ttft_ms, compaction_*, verify_*,
+// resolved_profile, agent_tool_histogram and the finish-budget fields existed
+// only on the write side, so every analysis read them as zero. Embedding is
+// the fix that cannot regress: a field added to RunMetrics is on
+// BenchmarkResult the moment it is banked.
 type BenchmarkResult struct {
-	ID           string `json:"id"`
-	Lang         string `json:"lang"`
-	Model        string `json:"model"`
-	Executor     string `json:"executor,omitempty"` // Executor used: "claude", "gemini", etc. (agent mode)
-	Seed         int64  `json:"seed"`
-	InputTokens  int    `json:"input_tokens"`
-	OutputTokens int    `json:"output_tokens"`
-	TotalTokens  int    `json:"total_tokens"`
-	// Prompt-cache activity as banked by the harness (M-ANTHROPIC-CACHE-HIT-RATE).
-	// Absent in pre-v0.31.0 baselines, where both read as 0.
-	CacheReadInputTokens     int     `json:"cache_read_input_tokens,omitempty"`
-	CacheCreationInputTokens int     `json:"cache_creation_input_tokens,omitempty"`
-	CostUSD                  float64 `json:"cost_usd"`
-	// CostProvenance says whether CostUSD was actually billed: "metered",
-	// "list-price-equivalent" (subscription lane — real arithmetic, zero spend),
-	// "free-local", or "unknown". Absent in baselines banked before 2026-07-30,
-	// where it reads "" — unmeasured, NOT metered.
-	CostProvenance string `json:"cost_provenance,omitempty"`
-	CompileOk      bool   `json:"compile_ok"`
-	RuntimeOk      bool   `json:"runtime_ok"`
-	StdoutOk       bool   `json:"stdout_ok"`
-	DurationMs     int64  `json:"duration_ms"`
-	CompileMs      int64  `json:"compile_ms"`
-	ExecuteMs      int64  `json:"execute_ms"`
-	ErrorCategory  string `json:"error_category"`
+	eval_harness.RunMetrics
 
-	// Validity marks whether this row is a MEASUREMENT at all (vs a failure to
-	// measure: dead subject, harness error, wrong config). NIL means valid —
-	// pre-v0.31.0 rows have no such field. See eval_harness/validity.go.
-	Validity *eval_harness.Validity `json:"validity,omitempty"`
-
-	Stdout    string    `json:"stdout,omitempty"`
-	Stderr    string    `json:"stderr,omitempty"`
-	Timestamp time.Time `json:"timestamp"`
-	Code      string    `json:"code,omitempty"`
-
-	// Self-repair metrics (M-EVAL-LOOP)
-	FirstAttemptOk  bool   `json:"first_attempt_ok"`
-	RepairUsed      bool   `json:"repair_used"`
-	RepairOk        bool   `json:"repair_ok"`
-	ErrCode         string `json:"err_code,omitempty"`
-	RepairTokensIn  int    `json:"repair_tokens_in,omitempty"`
-	RepairTokensOut int    `json:"repair_tokens_out,omitempty"`
-
-	// Prompt versioning
-	PromptVersion string `json:"prompt_version,omitempty"`
-
-	// Agent evaluation metrics (M-EVAL-AGENT)
-	EvalMode string `json:"eval_mode,omitempty"` // "standard" or "agent"
-
-	// Trial is the 1-based repetition index within a multi-trial run. It is
-	// REQUIRED for paired A/B analysis: both trials of a benchmark share
-	// (id, lang, seed), so a join that omits Trial would pair trial 1 of one
-	// arm against trial 2 of the other and quietly report noise as signal.
-	Trial int `json:"trial,omitempty"`
-
-	// MicroRAGState records which A/B arm produced this row ("on"/"off").
-	MicroRAGState string `json:"microrag_state,omitempty"`
-	// FmtHookState and FmtHookEvents mirror the harness' banked treatment
-	// evidence so read-side analyzers can enforce treatment integrity.
-	FmtHookState  string                      `json:"fmt_hook_state,omitempty"`
-	FmtHookEvents []eval_harness.FmtHookEvent `json:"fmt_hook_events,omitempty"`
-
-	Condition       string `json:"condition,omitempty"`        // Experimental condition: "baseline", "agent_prompt", etc.
-	AgentTurns      int    `json:"agent_turns,omitempty"`      // Number of conversation turns
-	AgentToolCalls  int    `json:"agent_tool_calls,omitempty"` // Tool invocations (validates agentic behavior)
-	AgentTranscript string `json:"agent_transcript,omitempty"` // Full session log
-
-	// Reproducibility
-	BinaryHash string   `json:"binary_hash,omitempty"`
-	StdlibHash string   `json:"stdlib_hash,omitempty"`
-	Caps       []string `json:"caps,omitempty"`
-
-	// Cross-harness comparison (M-EVAL-CROSS-HARNESS)
-	// Logical model family for grouping paired harness results.
-	// e.g. "claude-sonnet-4-6" shared by "claude" and "opencode" executors.
-	ModelFamily string `json:"model_family,omitempty"`
-
-	// Refusal detection (M-EVAL-SUITE-PREP M4): populated at load time
-	// by DetectRefusal() scanning stdout+stderr. Not written by eval_harness,
+	// RefusalDetected (M-EVAL-SUITE-PREP M4) is populated at load time by
+	// DetectRefusal() scanning code+stderr+stdout. Not written by the harness —
 	// purely a read-side annotation so historical results inherit it.
 	RefusalDetected bool `json:"refusal_detected,omitempty"`
-
-	// Cost-and-speed budget metrics (M-EVAL-COST-AND-SPEED-BUDGETS, v0.15.1).
-	// Zero values mean "not measured" — preserves byte-identical replay of
-	// pre-v0.15.1 baselines (additive schema only).
-	CostKilledAt   float64 `json:"cost_killed_at,omitempty"`   // > 0 if execution stopped because cost budget exceeded
-	FirstAttemptMs int64   `json:"first_attempt_ms,omitempty"` // ms from task start to first solution submission
-	SuccessAtMs    int64   `json:"success_at_ms,omitempty"`    // ms from task start to first passing solution (-1 = never)
-	TokensPerSec   float64 `json:"tokens_per_sec,omitempty"`   // OutputTokens / generation_seconds
-
-	// FinishReason (M-EVAL-SWEET-SPOT, v0.19.0) — executor stop signal.
-	// Read from per-result JSONs when present; empty for legacy data.
-	FinishReason string `json:"finish_reason,omitempty"`
 }
 
 // Baseline represents a stored baseline with metadata

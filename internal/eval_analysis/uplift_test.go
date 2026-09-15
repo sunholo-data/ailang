@@ -1,12 +1,22 @@
 package eval_analysis
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/sunholo-data/ailang/internal/eval_harness"
+)
 
 // res is a tiny constructor for a trial result (pass = all three ok).
 func res(model, lang, id string, pass bool) *BenchmarkResult {
 	return &BenchmarkResult{
-		ID: id, Lang: lang, Model: model,
-		CompileOk: pass, RuntimeOk: pass, StdoutOk: pass,
+		RunMetrics: eval_harness.RunMetrics{
+			ID:        id,
+			Lang:      lang,
+			Model:     model,
+			CompileOk: pass,
+			RuntimeOk: pass,
+			StdoutOk:  pass,
+		},
 	}
 }
 

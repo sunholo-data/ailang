@@ -67,7 +67,7 @@ func buildExecutorAggregates(agentResults []*BenchmarkResult) (
 		}
 		es := perExec[executor]
 		es.runs++
-		if r.StdoutOk {
+		if r.Passed() {
 			es.success++
 		}
 		es.totalTurns += r.AgentTurns
@@ -82,7 +82,7 @@ func buildExecutorAggregates(agentResults []*BenchmarkResult) (
 		}
 		ms := perExecModel[executor][r.Model]
 		ms.runs++
-		if r.StdoutOk {
+		if r.Passed() {
 			ms.success++
 		}
 		ms.totalTurns += r.AgentTurns
@@ -103,7 +103,7 @@ func buildExecutorAggregates(agentResults []*BenchmarkResult) (
 		if ShouldExcludeFromCapability(r.ErrorCategory) {
 			ls.apiErrors++
 		}
-		if r.StdoutOk {
+		if r.Passed() {
 			ls.success++
 			ls.successTurns += r.AgentTurns
 			ls.successCount++
@@ -249,7 +249,7 @@ func buildHarnessAggregates(agentResults []*BenchmarkResult, benchmarkTier map[s
 		}
 		h.models[r.Model] = struct{}{}
 		h.runs++
-		if r.StdoutOk {
+		if r.Passed() {
 			h.success++
 		}
 		h.totalCost += r.CostUSD
@@ -267,7 +267,7 @@ func buildHarnessAggregates(agentResults []*BenchmarkResult, benchmarkTier map[s
 		if ShouldExcludeFromCapability(r.ErrorCategory) {
 			ls.apiErrors++
 		}
-		if r.StdoutOk {
+		if r.Passed() {
 			ls.success++
 		}
 
@@ -288,7 +288,7 @@ func buildHarnessAggregates(agentResults []*BenchmarkResult, benchmarkTier map[s
 			if ShouldExcludeFromCapability(r.ErrorCategory) {
 				tls.apiErrors++
 			}
-			if r.StdoutOk {
+			if r.Passed() {
 				tls.success++
 			}
 		}

@@ -3,6 +3,8 @@ package eval_analysis
 import (
 	"strings"
 	"testing"
+
+	"github.com/sunholo-data/ailang/internal/eval_harness"
 )
 
 // TestRefusalPatternsAtLeastFour is the M4 acceptance guard: the sprint
@@ -63,12 +65,12 @@ func TestGroupByTags(t *testing.T) {
 		"refuser":  {"algorithmic"},
 	}
 	results := []*BenchmarkResult{
-		{ID: "fizzbuzz", Lang: "ailang", StdoutOk: true},
-		{ID: "fizzbuzz", Lang: "python", StdoutOk: true},
-		{ID: "fib", Lang: "ailang", StdoutOk: true},
-		{ID: "fib", Lang: "python", StdoutOk: false},
-		{ID: "refuser", Lang: "ailang", StdoutOk: false, RefusalDetected: true},
-		{ID: "refuser", Lang: "python", StdoutOk: false, RefusalDetected: true},
+		{RunMetrics: eval_harness.RunMetrics{ID: "fizzbuzz", Lang: "ailang", CompileOk: true, RuntimeOk: true, StdoutOk: true}},
+		{RunMetrics: eval_harness.RunMetrics{ID: "fizzbuzz", Lang: "python", CompileOk: true, RuntimeOk: true, StdoutOk: true}},
+		{RunMetrics: eval_harness.RunMetrics{ID: "fib", Lang: "ailang", CompileOk: true, RuntimeOk: true, StdoutOk: true}},
+		{RunMetrics: eval_harness.RunMetrics{ID: "fib", Lang: "python", CompileOk: true, RuntimeOk: true, StdoutOk: false}},
+		{RunMetrics: eval_harness.RunMetrics{ID: "refuser", Lang: "ailang", CompileOk: true, RuntimeOk: true, StdoutOk: false}, RefusalDetected: true},
+		{RunMetrics: eval_harness.RunMetrics{ID: "refuser", Lang: "python", CompileOk: true, RuntimeOk: true, StdoutOk: false}, RefusalDetected: true},
 	}
 
 	report := GroupByTags(results, tags)
@@ -112,21 +114,21 @@ func TestGroupByTags(t *testing.T) {
 func TestDetectAILANGOnlyWins(t *testing.T) {
 	results := []*BenchmarkResult{
 		// fizzbuzz: AILANG wins on 3 models, Python fails -> pattern.
-		{ID: "fizzbuzz", Lang: "ailang", Model: "gpt5", StdoutOk: true},
-		{ID: "fizzbuzz", Lang: "python", Model: "gpt5", StdoutOk: false},
-		{ID: "fizzbuzz", Lang: "ailang", Model: "claude", StdoutOk: true},
-		{ID: "fizzbuzz", Lang: "python", Model: "claude", StdoutOk: false},
-		{ID: "fizzbuzz", Lang: "ailang", Model: "gemini", StdoutOk: true},
-		{ID: "fizzbuzz", Lang: "python", Model: "gemini", StdoutOk: false},
+		{RunMetrics: eval_harness.RunMetrics{ID: "fizzbuzz", Lang: "ailang", Model: "gpt5", CompileOk: true, RuntimeOk: true, StdoutOk: true}},
+		{RunMetrics: eval_harness.RunMetrics{ID: "fizzbuzz", Lang: "python", Model: "gpt5", CompileOk: true, RuntimeOk: true, StdoutOk: false}},
+		{RunMetrics: eval_harness.RunMetrics{ID: "fizzbuzz", Lang: "ailang", Model: "claude", CompileOk: true, RuntimeOk: true, StdoutOk: true}},
+		{RunMetrics: eval_harness.RunMetrics{ID: "fizzbuzz", Lang: "python", Model: "claude", CompileOk: true, RuntimeOk: true, StdoutOk: false}},
+		{RunMetrics: eval_harness.RunMetrics{ID: "fizzbuzz", Lang: "ailang", Model: "gemini", CompileOk: true, RuntimeOk: true, StdoutOk: true}},
+		{RunMetrics: eval_harness.RunMetrics{ID: "fizzbuzz", Lang: "python", Model: "gemini", CompileOk: true, RuntimeOk: true, StdoutOk: false}},
 		// adt_option: AILANG wins on only 1 model -> not a pattern.
-		{ID: "adt_option", Lang: "ailang", Model: "gpt5", StdoutOk: true},
-		{ID: "adt_option", Lang: "python", Model: "gpt5", StdoutOk: false},
+		{RunMetrics: eval_harness.RunMetrics{ID: "adt_option", Lang: "ailang", Model: "gpt5", CompileOk: true, RuntimeOk: true, StdoutOk: true}},
+		{RunMetrics: eval_harness.RunMetrics{ID: "adt_option", Lang: "python", Model: "gpt5", CompileOk: true, RuntimeOk: true, StdoutOk: false}},
 		// balanced: both pass -> no win.
-		{ID: "balanced", Lang: "ailang", Model: "gpt5", StdoutOk: true},
-		{ID: "balanced", Lang: "python", Model: "gpt5", StdoutOk: true},
+		{RunMetrics: eval_harness.RunMetrics{ID: "balanced", Lang: "ailang", Model: "gpt5", CompileOk: true, RuntimeOk: true, StdoutOk: true}},
+		{RunMetrics: eval_harness.RunMetrics{ID: "balanced", Lang: "python", Model: "gpt5", CompileOk: true, RuntimeOk: true, StdoutOk: true}},
 		// refuser: AILANG pass, Python refuse -> excluded.
-		{ID: "refuser", Lang: "ailang", Model: "gpt5", StdoutOk: true},
-		{ID: "refuser", Lang: "python", Model: "gpt5", StdoutOk: false, RefusalDetected: true},
+		{RunMetrics: eval_harness.RunMetrics{ID: "refuser", Lang: "ailang", Model: "gpt5", CompileOk: true, RuntimeOk: true, StdoutOk: true}},
+		{RunMetrics: eval_harness.RunMetrics{ID: "refuser", Lang: "python", Model: "gpt5", CompileOk: true, RuntimeOk: true, StdoutOk: false}, RefusalDetected: true},
 	}
 
 	report := DetectAILANGOnlyWins(results)
@@ -157,19 +159,19 @@ func TestDetectSaturation(t *testing.T) {
 	b1 := &Baseline{
 		Version: "v1",
 		Results: []*BenchmarkResult{
-			{ID: "fizzbuzz", Lang: "ailang", Model: "gpt5", StdoutOk: true},
-			{ID: "fizzbuzz", Lang: "python", Model: "gpt5", StdoutOk: true},
-			{ID: "fib", Lang: "ailang", Model: "gpt5", StdoutOk: false},
-			{ID: "fib", Lang: "python", Model: "gpt5", StdoutOk: true},
+			{RunMetrics: eval_harness.RunMetrics{ID: "fizzbuzz", Lang: "ailang", Model: "gpt5", CompileOk: true, RuntimeOk: true, StdoutOk: true}},
+			{RunMetrics: eval_harness.RunMetrics{ID: "fizzbuzz", Lang: "python", Model: "gpt5", CompileOk: true, RuntimeOk: true, StdoutOk: true}},
+			{RunMetrics: eval_harness.RunMetrics{ID: "fib", Lang: "ailang", Model: "gpt5", CompileOk: true, RuntimeOk: true, StdoutOk: false}},
+			{RunMetrics: eval_harness.RunMetrics{ID: "fib", Lang: "python", Model: "gpt5", CompileOk: true, RuntimeOk: true, StdoutOk: true}},
 		},
 	}
 	b2 := &Baseline{
 		Version: "v2",
 		Results: []*BenchmarkResult{
-			{ID: "fizzbuzz", Lang: "ailang", Model: "gpt5", StdoutOk: true},
-			{ID: "fizzbuzz", Lang: "python", Model: "gpt5", StdoutOk: true},
-			{ID: "fib", Lang: "ailang", Model: "gpt5", StdoutOk: true},
-			{ID: "fib", Lang: "python", Model: "gpt5", StdoutOk: true},
+			{RunMetrics: eval_harness.RunMetrics{ID: "fizzbuzz", Lang: "ailang", Model: "gpt5", CompileOk: true, RuntimeOk: true, StdoutOk: true}},
+			{RunMetrics: eval_harness.RunMetrics{ID: "fizzbuzz", Lang: "python", Model: "gpt5", CompileOk: true, RuntimeOk: true, StdoutOk: true}},
+			{RunMetrics: eval_harness.RunMetrics{ID: "fib", Lang: "ailang", Model: "gpt5", CompileOk: true, RuntimeOk: true, StdoutOk: true}},
+			{RunMetrics: eval_harness.RunMetrics{ID: "fib", Lang: "python", Model: "gpt5", CompileOk: true, RuntimeOk: true, StdoutOk: true}},
 		},
 	}
 
@@ -191,7 +193,7 @@ func TestDetectSaturationSkipsPythonOnlyBaseline(t *testing.T) {
 	b := &Baseline{
 		Version: "legacy",
 		Results: []*BenchmarkResult{
-			{ID: "fizzbuzz", Lang: "python", Model: "gpt5", StdoutOk: true},
+			{RunMetrics: eval_harness.RunMetrics{ID: "fizzbuzz", Lang: "python", Model: "gpt5", CompileOk: true, RuntimeOk: true, StdoutOk: true}},
 		},
 	}
 	if got := DetectSaturation([]*Baseline{b}, 1); got != nil {

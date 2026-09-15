@@ -28,9 +28,9 @@ func writeResult(t *testing.T, dir, name string, r BenchmarkResult) {
 // written in a hurry would silently include the garbage again.
 func TestLoadResults_ExcludesInvalidByDefault(t *testing.T) {
 	dir := t.TempDir()
-	writeResult(t, dir, "legacy", BenchmarkResult{ID: "legacy", Lang: "ailang", Model: "m", StdoutOk: true})
-	writeResult(t, dir, "good", BenchmarkResult{ID: "good", Lang: "ailang", Model: "m", StdoutOk: true, Validity: eval_harness.MarkValid()})
-	writeResult(t, dir, "dead", BenchmarkResult{ID: "dead", Lang: "ailang", Model: "m", Validity: eval_harness.MarkInvalid(eval_harness.ReasonCanaryFailed)})
+	writeResult(t, dir, "legacy", BenchmarkResult{RunMetrics: eval_harness.RunMetrics{ID: "legacy", Lang: "ailang", Model: "m", CompileOk: true, RuntimeOk: true, StdoutOk: true}})
+	writeResult(t, dir, "good", BenchmarkResult{RunMetrics: eval_harness.RunMetrics{ID: "good", Lang: "ailang", Model: "m", CompileOk: true, RuntimeOk: true, StdoutOk: true, Validity: eval_harness.MarkValid()}})
+	writeResult(t, dir, "dead", BenchmarkResult{RunMetrics: eval_harness.RunMetrics{ID: "dead", Lang: "ailang", Model: "m", Validity: eval_harness.MarkInvalid(eval_harness.ReasonCanaryFailed)}})
 
 	results, err := LoadResults(dir)
 	if err != nil {
@@ -56,8 +56,8 @@ func TestLoadResults_ExcludesInvalidByDefault(t *testing.T) {
 // reachable for anyone investigating the bug itself.
 func TestLoadResultsIncludingInvalid_OptsBackIn(t *testing.T) {
 	dir := t.TempDir()
-	writeResult(t, dir, "good", BenchmarkResult{ID: "good", Lang: "ailang", Model: "m", StdoutOk: true})
-	writeResult(t, dir, "dead", BenchmarkResult{ID: "dead", Lang: "ailang", Model: "m", Validity: eval_harness.MarkInvalid(eval_harness.ReasonZeroPassAll)})
+	writeResult(t, dir, "good", BenchmarkResult{RunMetrics: eval_harness.RunMetrics{ID: "good", Lang: "ailang", Model: "m", CompileOk: true, RuntimeOk: true, StdoutOk: true}})
+	writeResult(t, dir, "dead", BenchmarkResult{RunMetrics: eval_harness.RunMetrics{ID: "dead", Lang: "ailang", Model: "m", Validity: eval_harness.MarkInvalid(eval_harness.ReasonZeroPassAll)}})
 
 	results, err := LoadResultsIncludingInvalid(dir)
 	if err != nil {
@@ -80,9 +80,16 @@ func TestLoadResultsIncludingInvalid_OptsBackIn(t *testing.T) {
 // deleted) and CountInvalid keeps it inspectable under exactly the banked reason.
 func TestFilterValidResults_DropsModeIncompatibleSkipRow(t *testing.T) {
 	results := []*BenchmarkResult{
-		{ID: "good", Lang: "ailang", Model: "m", StdoutOk: true},
-		{ID: "markdown_reimplement", Lang: "ailang", Model: "m", ErrorCategory: "skipped_mode_incompatible",
-			Validity: eval_harness.MarkInvalid(eval_harness.ReasonModeIncompatible)},
+		{RunMetrics: eval_harness.RunMetrics{ID: "good", Lang: "ailang", Model: "m", CompileOk: true, RuntimeOk: true, StdoutOk: true}},
+		{
+			RunMetrics: eval_harness.RunMetrics{
+				ID:            "markdown_reimplement",
+				Lang:          "ailang",
+				Model:         "m",
+				ErrorCategory: "skipped_mode_incompatible",
+				Validity:      eval_harness.MarkInvalid(eval_harness.ReasonModeIncompatible),
+			},
+		},
 	}
 
 	filtered := FilterValidResults(results)
@@ -102,7 +109,7 @@ func TestFilterValidResults_DropsModeIncompatibleSkipRow(t *testing.T) {
 func TestLoadResults_LegacyRowsSurvive(t *testing.T) {
 	dir := t.TempDir()
 	for _, id := range []string{"a", "b", "c"} {
-		writeResult(t, dir, id, BenchmarkResult{ID: id, Lang: "ailang", Model: "m", StdoutOk: true})
+		writeResult(t, dir, id, BenchmarkResult{RunMetrics: eval_harness.RunMetrics{ID: id, Lang: "ailang", Model: "m", CompileOk: true, RuntimeOk: true, StdoutOk: true}})
 	}
 
 	results, err := LoadResults(dir)
@@ -122,8 +129,8 @@ func TestLoadResults_LegacyRowsSurvive(t *testing.T) {
 // computed from HALF the data. This is the guard against re-breaking it.
 func TestDedup_PreservesTrials(t *testing.T) {
 	dir := t.TempDir()
-	writeResult(t, dir, "t1", BenchmarkResult{ID: "bench", Lang: "ailang", Model: "m", Seed: 42, Trial: 1, StdoutOk: true})
-	writeResult(t, dir, "t2", BenchmarkResult{ID: "bench", Lang: "ailang", Model: "m", Seed: 42, Trial: 2, StdoutOk: true})
+	writeResult(t, dir, "t1", BenchmarkResult{RunMetrics: eval_harness.RunMetrics{ID: "bench", Lang: "ailang", Model: "m", Seed: 42, Trial: 1, CompileOk: true, RuntimeOk: true, StdoutOk: true}})
+	writeResult(t, dir, "t2", BenchmarkResult{RunMetrics: eval_harness.RunMetrics{ID: "bench", Lang: "ailang", Model: "m", Seed: 42, Trial: 2, CompileOk: true, RuntimeOk: true, StdoutOk: true}})
 
 	results, err := LoadResults(dir)
 	if err != nil {
@@ -141,8 +148,8 @@ func TestDedup_StillCollapsesGenuineReruns(t *testing.T) {
 	dir := t.TempDir()
 	older := time.Now().Add(-time.Hour)
 	newer := time.Now()
-	writeResult(t, dir, "old", BenchmarkResult{ID: "bench", Lang: "ailang", Model: "m", Seed: 42, Trial: 1, Timestamp: older})
-	writeResult(t, dir, "new", BenchmarkResult{ID: "bench", Lang: "ailang", Model: "m", Seed: 42, Trial: 1, StdoutOk: true, CompileOk: true, RuntimeOk: true, Timestamp: newer})
+	writeResult(t, dir, "old", BenchmarkResult{RunMetrics: eval_harness.RunMetrics{ID: "bench", Lang: "ailang", Model: "m", Seed: 42, Trial: 1, Timestamp: older}})
+	writeResult(t, dir, "new", BenchmarkResult{RunMetrics: eval_harness.RunMetrics{ID: "bench", Lang: "ailang", Model: "m", Seed: 42, Trial: 1, StdoutOk: true, CompileOk: true, RuntimeOk: true, Timestamp: newer}})
 
 	results, err := LoadResults(dir)
 	if err != nil {
@@ -160,8 +167,8 @@ func TestDedup_StillCollapsesGenuineReruns(t *testing.T) {
 // board, so its dedup behaviour must be byte-identical to before.
 func TestDedup_LegacyRowsUnaffected(t *testing.T) {
 	dir := t.TempDir()
-	writeResult(t, dir, "a", BenchmarkResult{ID: "bench", Lang: "ailang", Model: "m", Seed: 42, Timestamp: time.Now().Add(-time.Hour)})
-	writeResult(t, dir, "b", BenchmarkResult{ID: "bench", Lang: "ailang", Model: "m", Seed: 42, Timestamp: time.Now()})
+	writeResult(t, dir, "a", BenchmarkResult{RunMetrics: eval_harness.RunMetrics{ID: "bench", Lang: "ailang", Model: "m", Seed: 42, Timestamp: time.Now().Add(-time.Hour)}})
+	writeResult(t, dir, "b", BenchmarkResult{RunMetrics: eval_harness.RunMetrics{ID: "bench", Lang: "ailang", Model: "m", Seed: 42, Timestamp: time.Now()}})
 
 	results, err := LoadResults(dir)
 	if err != nil {

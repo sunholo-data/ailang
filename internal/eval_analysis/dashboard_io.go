@@ -60,7 +60,7 @@ func mergeHistory(dashboard *DashboardJSON, newEntry HistoryEntry) {
 func buildHistoryEntryFromMatrix(matrix *PerformanceMatrix, results []*BenchmarkResult) HistoryEntry {
 	successCount := 0
 	for _, r := range results {
-		if r.StdoutOk {
+		if r.Passed() {
 			successCount++
 		}
 	}

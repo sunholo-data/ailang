@@ -3,14 +3,16 @@ package eval_analysis
 import (
 	"math"
 	"testing"
+
+	"github.com/sunholo-data/ailang/internal/eval_harness"
 )
 
 func pass(id string, trial int) *BenchmarkResult {
-	return &BenchmarkResult{ID: id, Lang: "ailang", Trial: trial, CompileOk: true, RuntimeOk: true, StdoutOk: true}
+	return &BenchmarkResult{RunMetrics: eval_harness.RunMetrics{ID: id, Lang: "ailang", Trial: trial, CompileOk: true, RuntimeOk: true, StdoutOk: true}}
 }
 
 func fail(id string, trial int) *BenchmarkResult {
-	return &BenchmarkResult{ID: id, Lang: "ailang", Trial: trial}
+	return &BenchmarkResult{RunMetrics: eval_harness.RunMetrics{ID: id, Lang: "ailang", Trial: trial}}
 }
 
 // TestPairArms_JoinsOnBenchmarkLangTrial: trial MUST be part of the key. Both

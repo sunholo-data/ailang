@@ -193,7 +193,15 @@ func fixtureArms(fixture censoredFixture) ([]*BenchmarkResult, []*BenchmarkResul
 
 func fixtureRow(index int, pass bool, tokens int) *BenchmarkResult {
 	return &BenchmarkResult{
-		ID: "bench-" + string(rune('a'+index)), Lang: "ailang", Model: "fixture", Trial: 1,
-		CompileOk: pass, RuntimeOk: pass, StdoutOk: pass, TotalTokens: tokens,
+		RunMetrics: eval_harness.RunMetrics{
+			ID:          "bench-" + string(rune('a'+index)),
+			Lang:        "ailang",
+			Model:       "fixture",
+			Trial:       1,
+			CompileOk:   pass,
+			RuntimeOk:   pass,
+			StdoutOk:    pass,
+			TotalTokens: tokens,
+		},
 	}
 }

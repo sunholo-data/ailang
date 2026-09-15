@@ -169,7 +169,9 @@ func evalChainsViewCommand() {
 		}
 
 		icon := red("✗")
-		if a.StdoutOk {
+		// EvalAssessment is the observatory's copy of the row; the pass
+		// predicate is the same three-way conjunction as RunMetrics.Passed (D2).
+		if a.CompileOk && a.RuntimeOk && a.StdoutOk {
 			icon = green("✓")
 			passCount++
 		}
@@ -332,7 +334,7 @@ func evalChainsStatsCommand() {
 		}
 
 		pass := 0
-		if a.StdoutOk {
+		if a.CompileOk && a.RuntimeOk && a.StdoutOk { // RunMetrics.Passed (D2) on the observatory copy
 			pass = 1
 		}
 

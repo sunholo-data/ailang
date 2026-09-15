@@ -280,7 +280,42 @@ func buildOSLeaderboardJSON(releaseTag, ailangVersion string, current map[string
 		"trials":         maxTrials,
 		"languages":      langs,
 		"rows":           rows,
+		"notes":          osDataNotes,
 	}, "", "  ")
+}
+
+// OSDataNote is a dated, machine-readable caveat carried INSIDE the published
+// OS leaderboard JSON, so a reader of the numbers sees the boundary next to the
+// numbers. Until M-V1-SIMPLIFY-S3 M1 the only precedent (the v0.30.0 cost-data
+// invalidation) lived in a gitignored CAVEATS.md beside the bank dir — invisible
+// to every published consumer. The snapshot script (tools/os-release-snapshot.sh)
+// copies selected keys into os/history.json; carry `notes` through there too so
+// the boundary survives into the longitudinal series.
+type OSDataNote struct {
+	// Date the ruling or boundary took effect (YYYY-MM-DD).
+	Date string `json:"date"`
+	// Ref names the decision (mission ruling id, sprint milestone) so the full
+	// record can be found.
+	Ref string `json:"ref"`
+	// Text is the one-paragraph caveat a dashboard may render verbatim.
+	Text string `json:"text"`
+}
+
+// osDataNotes is every caveat currently in force on the OS leaderboard data.
+// Append, never edit: a note is a dated boundary in a longitudinal series.
+var osDataNotes = []OSDataNote{
+	{
+		Date: "2026-09-15",
+		Ref:  "M-V1-SIMPLIFY-S3 M1 / ruling D2",
+		Text: "Pass = compile_ok && runtime_ok && stdout_ok (RunMetrics.Passed) everywhere from this " +
+			"date. The OS rotation summary (SummarizeRotation) always used this conjunction, so OS " +
+			"leaderboard/history rows are unaffected; cloud-baseline views (eval-report matrix, tags, " +
+			"sweet-spot, comparison, ELO) had read stdout_ok alone. Measured over every baseline dir " +
+			"(26,758 valid rows): 31 rows disagree, 30 of them on the retired print_missing_effect " +
+			"benchmark (empty expected stdout graded a compile/runtime failure as stdout_ok); overall " +
+			"delta -0.12pp, worst version v0.4.1 at -0.90pp, v0.30.0 and v0.32.0 unchanged. Nothing " +
+			"was re-banked. Full per-version table: TestD2DiscordantCount in internal/eval_analysis.",
+	},
 }
 
 // readAilangVersion returns the AILANG language version under test, read from

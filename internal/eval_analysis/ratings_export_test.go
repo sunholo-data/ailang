@@ -1,6 +1,10 @@
 package eval_analysis
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/sunholo-data/ailang/internal/eval_harness"
+)
 
 // TestRatingsForMode_ByLang constructs trials across two languages where one
 // model is strong on AILANG but weak on Python (and vice versa), then asserts
@@ -8,7 +12,7 @@ import "testing"
 // model ELOs — i.e. the fits are not blended across languages.
 func TestRatingsForMode_ByLang(t *testing.T) {
 	pass := func(id, lang, model string, ok bool) *BenchmarkResult {
-		return &BenchmarkResult{ID: id, Lang: lang, Model: model, CompileOk: ok, RuntimeOk: ok, StdoutOk: ok}
+		return &BenchmarkResult{RunMetrics: eval_harness.RunMetrics{ID: id, Lang: lang, Model: model, CompileOk: ok, RuntimeOk: ok, StdoutOk: ok}}
 	}
 
 	var results []*BenchmarkResult
@@ -88,7 +92,7 @@ func TestRatingsForMode_ByLang(t *testing.T) {
 // over 3.
 func TestRatingsForMode_Coverage(t *testing.T) {
 	mk := func(id, model string, ok bool) *BenchmarkResult {
-		return &BenchmarkResult{ID: id, Lang: "ailang", Model: model, CompileOk: ok, RuntimeOk: ok, StdoutOk: ok}
+		return &BenchmarkResult{RunMetrics: eval_harness.RunMetrics{ID: id, Lang: "ailang", Model: model, CompileOk: ok, RuntimeOk: ok, StdoutOk: ok}}
 	}
 	var results []*BenchmarkResult
 	// full: runs b1,b2,b3 ; sparse: runs only b1

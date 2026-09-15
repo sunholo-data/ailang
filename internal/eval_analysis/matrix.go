@@ -64,7 +64,7 @@ func calculateAggregates(results []*BenchmarkResult) Aggregates {
 		if r.FirstAttemptOk {
 			firstAttemptSuccess++
 		}
-		if r.StdoutOk {
+		if r.Passed() {
 			finalSuccess++
 		}
 		if r.RepairUsed {
@@ -151,7 +151,7 @@ func groupByModelWithBaselines(results []*BenchmarkResult, modelBaselines map[st
 
 		for benchID, r := range benchResults {
 			stats.Benchmarks[benchID] = &BenchmarkRun{
-				Success:        r.StdoutOk,
+				Success:        r.Passed(),
 				FirstAttemptOk: r.FirstAttemptOk,
 				RepairUsed:     r.RepairUsed,
 				Tokens:         r.TotalTokens,
@@ -183,7 +183,7 @@ func groupByBenchmark(results []*BenchmarkResult) map[string]*BenchmarkStats {
 		langs := make(map[string]bool)
 
 		for _, r := range results {
-			if r.StdoutOk {
+			if r.Passed() {
 				successCount++
 			}
 			// Use OutputTokens instead of TotalTokens to exclude input prompt
@@ -214,7 +214,7 @@ func groupByErrorCode(results []*BenchmarkResult) []*ErrorCodeStats {
 	// Only consider failures with error codes
 	errorResults := make(map[string][]*BenchmarkResult)
 	for _, r := range results {
-		if r.ErrCode != "" && !r.StdoutOk {
+		if r.ErrCode != "" && !r.Passed() {
 			errorResults[r.ErrCode] = append(errorResults[r.ErrCode], r)
 		}
 	}
@@ -259,7 +259,7 @@ func groupByLanguage(results []*BenchmarkResult) map[string]*LanguageStats {
 		totalOutputTokens := 0
 
 		for _, r := range results {
-			if r.StdoutOk {
+			if r.Passed() {
 				successCount++
 			}
 			// Use OutputTokens instead of TotalTokens to exclude input prompt
@@ -302,7 +302,7 @@ func groupByPromptVersion(results []*BenchmarkResult) map[string]*PromptStats {
 			if r.FirstAttemptOk {
 				firstAttemptSuccess++
 			}
-			if r.StdoutOk {
+			if r.Passed() {
 				finalSuccess++
 			}
 			totalTokens += r.TotalTokens
