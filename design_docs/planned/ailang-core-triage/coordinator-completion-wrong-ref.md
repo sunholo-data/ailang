@@ -2,7 +2,11 @@
 
 - **Date**: 2026-09-15
 - **Class**: bug
-- **Recommend**: direct-fix
+- **Recommend**: design-doc
+- **Label corrected 2026-09-15**: the row was written as `direct-fix` while estimating ~15–30 lines,
+  which rubric row 6 (`DIRECT_FIX_MAX_LINES = 2`) makes `design-doc`. The estimate below is the
+  agent's own and is unchanged; only the verdict it contradicted was corrected. This is now enforced
+  by `TestTriageRowsInTreeObeyTheRubric`, so a row cannot land contradicting its own numbers again.
 - **Searched**: `branch_name`, `auto_merge`, `changed_files`, `coordinator/task-`, `design-doc-creator`, `pull request`, `pre-flight` across `design_docs/` and `docs/`; also read `design_docs/planned/m-coordinator-execution-trust.md` (the nearest coverage: it rules on branch containment and the `AILANG_PUSH_BRANCH` direct-push path, V24, but never on *which ref the executor pushes vs reports*). **Also found:** this exact report is already logged as row 7 of `design_docs/planned/ailang-core-backlog.md` (same two task IDs, 2026-09-15, `direct-fix`) — a parallel triage run got there first; treat this file as the corroborating record, not a new finding.
 - **Estimate**: ~15–30 lines in the coordinator executor's pre-flight/PR step (`coordinator_cloud.go` area + the dispatch path that creates `coordinator/task-*` at base); plus a small auto_merge docs-only landing path.
 
