@@ -1,4 +1,4 @@
-package main
+package smt
 
 import (
 	"testing"
@@ -54,7 +54,7 @@ func TestCollectMonomorphicTypeNames(t *testing.T) {
 			&ast.TypeDecl{Name: "Box", TypeParams: []string{"a"}},
 		},
 	}
-	got := collectMonomorphicTypeNames([]*ast.File{file, nil})
+	got := CollectMonomorphicTypeNames([]*ast.File{file, nil})
 	if !got["Region"] || !got["Grade"] {
 		t.Fatalf("expected monomorphic types Region, Grade in %v", got)
 	}

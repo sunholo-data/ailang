@@ -1,11 +1,10 @@
-package main
+package smt
 
 import (
 	"fmt"
 	"strings"
 	"testing"
 
-	"github.com/sunholo-data/ailang/internal/smt"
 	"github.com/sunholo-data/ailang/internal/types"
 )
 
@@ -50,7 +49,7 @@ func TestFilterRecordAliasesForFunction_OnlyDirectlyUsed(t *testing.T) {
 
 	// Function: simpleCell(text: string) -> TableCell
 	// Uses only TableCell. Should NOT pull in DocMetadata or ParsedDocument.
-	params := []smt.FunctionParam{{Name: "text", Type: &types.TCon{Name: "string"}}}
+	params := []FunctionParam{{Name: "text", Type: &types.TCon{Name: "string"}}}
 	returnSort := "TableCell"
 
 	got := filterRecordAliasesForFunction(params, returnSort, nil, allAliases, nil)
@@ -94,7 +93,7 @@ func TestFilterRecordAliasesForFunction_TransitiveClosure(t *testing.T) {
 	}
 
 	// Function returns ParsedDocument
-	params := []smt.FunctionParam{}
+	params := []FunctionParam{}
 	returnSort := "ParsedDocument"
 
 	got := filterRecordAliasesForFunction(params, returnSort, nil, allAliases, nil)
@@ -120,13 +119,13 @@ func TestFilterRecordAliasesForFunction_EmptyInput(t *testing.T) {
 }
 
 func TestFilterSMTInputs_WalksRecordAliasIntoADT(t *testing.T) {
-	params := []smt.FunctionParam{{Name: "p", Type: &types.TCon{Name: "Proposal"}}}
+	params := []FunctionParam{{Name: "p", Type: &types.TCon{Name: "Proposal"}}}
 	aliases := map[string]*types.TRecord{"Proposal": {Fields: map[string]types.Type{
 		"evidence": &types.TList{Element: &types.TCon{Name: "Evidence"}},
 	}}}
-	adts := map[string][]smt.ADTVariant{"Evidence": {{Name: "CompilerOutput"}}}
+	adts := map[string][]ADTVariant{"Evidence": {{Name: "CompilerOutput"}}}
 
-	gotADTs, gotAliases, _ := filterSMTInputsForFunction(params, "", nil, adts, aliases, nil)
+	gotADTs, gotAliases, _ := FilterSMTInputsForFunction(params, "", nil, adts, aliases, nil)
 	if _, ok := gotADTs["Evidence"]; !ok {
 		t.Fatalf("Evidence missing from ADT closure: %v", gotADTs)
 	}
@@ -136,7 +135,7 @@ func TestFilterSMTInputs_WalksRecordAliasIntoADT(t *testing.T) {
 }
 
 func TestUnresolvedTypeVerifyResult_IsNeutral(t *testing.T) {
-	got := unresolvedTypeVerifyResult("f", fmt.Errorf("%w: sort Missing", smt.ErrUnresolvableTypes))
+	got := UnresolvedTypeVerifyResult("f", fmt.Errorf("%w: sort Missing", ErrUnresolvableTypes))
 	text := strings.ToLower(got.Reason + " " + got.Rejections[0].Message + " " + got.Rejections[0].Hint)
 	if strings.Contains(text, "cross-module") || !strings.Contains(text, "missing") {
 		t.Fatalf("non-neutral or non-contextual result: %+v", got)
