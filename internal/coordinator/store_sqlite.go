@@ -218,7 +218,10 @@ func (s *SQLiteStore) migrate() error {
 	if err := s.migrateMissionAttempts(); err != nil {
 		return err
 	}
-	return s.migrateMissionWorkItems()
+	if err := s.migrateMissionWorkItems(); err != nil {
+		return err
+	}
+	return s.migrateData(time.Now())
 }
 
 // CreateTask creates a new task
