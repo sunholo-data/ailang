@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/runner"
 	"io"
 	"os"
 	"os/exec"
@@ -370,7 +371,7 @@ func printHelp() {
 	fmt.Printf("  %s <cmd>        Access control management\n", cyan("access-control"))
 	fmt.Println()
 	fmt.Println("Run Command Flags (must come BEFORE filename):")
-	fmt.Printf("  --caps <list>        Enable capabilities (comma-separated: %s; or 'auto' to infer from the entrypoint)\n", CapsList)
+	fmt.Printf("  --caps <list>        Enable capabilities (comma-separated: %s; or 'auto' to infer from the entrypoint)\n", runner.CapsList)
 	fmt.Println("  --process-allowlist <list>   Process effect: only these binaries may be exec'd (path-pinned at startup); cmd:sub narrows to a subcommand chain (git:status,gh:pr:list)")
 	fmt.Println("  --net-timeout <duration>     Net effect: per-request timeout (default 30s; e.g. 5m for a slow local model)")
 	fmt.Println("  --ai <model>         Enable AI effect with model (e.g., gemini-2-5-flash, anthropic/claude-sonnet-4.5 (OpenRouter))")

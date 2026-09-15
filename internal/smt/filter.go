@@ -1,6 +1,6 @@
-package main
+package smt
 
-// verify_filter.go — per-function demand-driven filtering for SMT verification.
+// filter.go — per-function demand-driven filtering for SMT verification.
 //
 // When `ailang verify` runs against a multi-module file, the naive emission of
 // ALL ADT types, record aliases, and inline-record declarations causes cascade
@@ -10,25 +10,27 @@ package main
 // The helpers in this file compute, per-function, the minimum set of sorts a
 // function's contracts and body actually need — from its parameters, return
 // type, and body expressions — and filter the type-declaration inputs to that
-// set before encoding. Extracted from verify.go in the M-SMT-CROSS-MODULE-TYPES
-// follow-up (v0.14.3) to keep verify.go under the 800-line organisation budget.
+// set before encoding. Extracted from cmd/ailang/verify.go in the
+// M-SMT-CROSS-MODULE-TYPES follow-up (v0.14.3); moved into this package by
+// M-V1-SIMPLIFY-S2 M3.
 
 import (
 	"fmt"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/core"
-	"github.com/sunholo-data/ailang/internal/smt"
 	"github.com/sunholo-data/ailang/internal/types"
 )
 
-func unresolvedTypeVerifyResult(funcName string, err error) verifyResult {
-	return verifyResult{
+// UnresolvedTypeVerifyResult is the neutral "skipped" result for a function whose
+// SMT declaration closure could not resolve a required sort.
+func UnresolvedTypeVerifyResult(funcName string, err error) VerifyResult {
+	return VerifyResult{
 		Function: funcName,
 		Status:   "skipped",
 		Reason:   fmt.Sprintf("SMT declaration closure could not resolve a required sort (%v)", err),
-		Rejections: []smt.SMTRejectionReason{{
-			Code:    smt.RejectUnencodable,
+		Rejections: []SMTRejectionReason{{
+			Code:    RejectUnencodable,
 			Message: err.Error(),
 			Hint:    "The function uses a type shape whose required SMT sorts cannot be declared",
 		}},
@@ -45,17 +47,17 @@ func unresolvedTypeVerifyResult(funcName string, err error) verifyResult {
 // that aliases referenced only via inline-record fields (e.g., TableCell
 // referenced from Record_headers_rows) are retained.
 func buildNeededSortSet(
-	params []smt.FunctionParam,
+	params []FunctionParam,
 	returnSort string,
 	body core.CoreExpr,
-	adtTypes map[string][]smt.ADTVariant,
+	adtTypes map[string][]ADTVariant,
 	aliases map[string]*types.TRecord,
 	extraDecls []string,
 ) map[string]bool {
 	// Index extra decls by their sort name for O(1) lookup during the walk.
 	declBySort := make(map[string]string, len(extraDecls))
 	for _, decl := range extraDecls {
-		if name := smt.ExtractSortNameFromDecl(decl); name != "" {
+		if name := ExtractSortNameFromDecl(decl); name != "" {
 			declBySort[name] = decl
 		}
 	}
@@ -115,7 +117,7 @@ func buildNeededSortSet(
 // match a known ADT name or record-alias name. Used to widen the needed-sort
 // set when an inline record (kept by the per-function filter) references types
 // declared elsewhere.
-func extractReferencedSorts(decl string, adtTypes map[string][]smt.ADTVariant, aliases map[string]*types.TRecord) map[string]bool {
+func extractReferencedSorts(decl string, adtTypes map[string][]ADTVariant, aliases map[string]*types.TRecord) map[string]bool {
 	out := make(map[string]bool)
 	for name := range adtTypes {
 		if strings.Contains(decl, name) {
@@ -141,14 +143,14 @@ func extractReferencedSorts(decl string, adtTypes map[string][]smt.ADTVariant, a
 //
 // The transitive closure walks alias field types to find further aliases that
 // must be retained. ADT types referenced from alias fields are NOT pulled in
-// here — filterSMTInputsForFunction owns the combined alias+ADT closure and is
+// here — FilterSMTInputsForFunction owns the combined alias+ADT closure and is
 // the single entry point that BOTH `verify` and `ai-check` call.
 func filterRecordAliasesForFunction(
-	params []smt.FunctionParam,
+	params []FunctionParam,
 	returnSort string,
 	body core.CoreExpr,
 	allAliases map[string]*types.TRecord,
-	adtTypes map[string][]smt.ADTVariant,
+	adtTypes map[string][]ADTVariant,
 ) map[string]*types.TRecord {
 	if len(allAliases) == 0 {
 		return allAliases
@@ -224,7 +226,7 @@ func filterExtraDeclarationsForFunction(allDecls []string, needed map[string]boo
 	}
 	out := make([]string, 0, len(allDecls))
 	for _, decl := range allDecls {
-		sortName := smt.ExtractSortNameFromDecl(decl)
+		sortName := ExtractSortNameFromDecl(decl)
 		if sortName == "" {
 			// Unknown declaration shape — keep it to be safe.
 			out = append(out, decl)
@@ -237,19 +239,19 @@ func filterExtraDeclarationsForFunction(allDecls []string, needed map[string]boo
 	return out
 }
 
-// filterSMTInputsForFunction applies the same demand closure for every CLI
+// FilterSMTInputsForFunction applies the same demand closure for every CLI
 // verification driver. The full maps must remain visible while computing the
 // closure; filtering an input before the walk can hide a transitive dependency.
-func filterSMTInputsForFunction(
-	params []smt.FunctionParam,
+func FilterSMTInputsForFunction(
+	params []FunctionParam,
 	returnSort string,
 	body core.CoreExpr,
-	allADTTypes map[string][]smt.ADTVariant,
+	allADTTypes map[string][]ADTVariant,
 	allAliases map[string]*types.TRecord,
 	allExtraDecls []string,
-) (map[string][]smt.ADTVariant, map[string]*types.TRecord, []string) {
+) (map[string][]ADTVariant, map[string]*types.TRecord, []string) {
 	needed := buildNeededSortSet(params, returnSort, body, allADTTypes, allAliases, allExtraDecls)
-	adts := make(map[string][]smt.ADTVariant)
+	adts := make(map[string][]ADTVariant)
 	for name, variants := range allADTTypes {
 		if needed[name] {
 			adts[name] = variants
@@ -265,7 +267,7 @@ func filterSMTInputsForFunction(
 }
 
 // collectSortSeeds gathers non-primitive sort names from function params, return type, and body.
-func collectSortSeeds(params []smt.FunctionParam, returnSort string, body core.CoreExpr) map[string]bool {
+func collectSortSeeds(params []FunctionParam, returnSort string, body core.CoreExpr) map[string]bool {
 	seeds := make(map[string]bool)
 
 	// From parameter types

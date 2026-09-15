@@ -32,12 +32,12 @@ type aiCheckSection struct {
 
 // aiVerifySection is the contract verification portion of ai-check output
 type aiVerifySection struct {
-	Available      bool           `json:"available"`
-	Verified       int            `json:"verified"`
-	Counterexample int            `json:"counterexample"`
-	Skipped        int            `json:"skipped"`
-	Errors         int            `json:"errors"`
-	Results        []verifyResult `json:"results"`
+	Available      bool               `json:"available"`
+	Verified       int                `json:"verified"`
+	Counterexample int                `json:"counterexample"`
+	Skipped        int                `json:"skipped"`
+	Errors         int                `json:"errors"`
+	Results        []smt.VerifyResult `json:"results"`
 }
 
 // aiCheckCommand implements the `ailang ai-check` CLI command.
@@ -83,7 +83,7 @@ func aiCheckCommand() {
 				ErrorCount: 1,
 				Errors:     []checkJSONError{{Code: "IO_ERROR", Message: fmt.Sprintf("cannot read file: %v", err), File: filename}},
 			},
-			Verify: aiVerifySection{Available: false, Results: []verifyResult{}},
+			Verify: aiVerifySection{Available: false, Results: []smt.VerifyResult{}},
 		})
 		os.Exit(1)
 	}
@@ -134,7 +134,7 @@ func aiCheckCommand() {
 	// Build verify section
 	verifySection := aiVerifySection{
 		Available: false,
-		Results:   []verifyResult{},
+		Results:   []smt.VerifyResult{},
 	}
 
 	// Only attempt verification if check passed and Z3 is available
@@ -189,17 +189,17 @@ func aiCheckExitCode(check aiCheckSection, verify aiVerifySection) int {
 func runVerification(coreProg *core.Program, surfaceAST *ast.File, modules map[string]*loader.LoadedModule, timeout time.Duration, recursiveDepth int) aiVerifySection {
 	section := aiVerifySection{
 		Available: true,
-		Results:   []verifyResult{},
+		Results:   []smt.VerifyResult{},
 	}
 
 	// Extract ADT types, record type aliases, and inline record types.
-	adtResult := extractADTTypesWithRecords(surfaceAST)
+	adtResult := smt.ExtractADTTypesWithRecords(surfaceAST)
 	adtTypes := adtResult.ADTTypes
 	adtRecordDecls := adtResult.RecordDecls
 	recordAliases := adtResult.RecordAliases
 	for _, mod := range modules {
 		if mod.File != nil {
-			modResult := extractADTTypesWithRecords(mod.File)
+			modResult := smt.ExtractADTTypesWithRecords(mod.File)
 			for name, variants := range modResult.ADTTypes {
 				if _, exists := adtTypes[name]; !exists {
 					adtTypes[name] = variants
@@ -240,14 +240,14 @@ func runVerification(coreProg *core.Program, surfaceAST *ast.File, modules map[s
 	for funcName, fd := range surfaceFuncs {
 		var params []smt.FunctionParam
 		for _, p := range fd.Params {
-			paramType := convertASTTypeToType(p.Type)
+			paramType := smt.ConvertASTTypeToType(p.Type)
 			if paramType != nil {
 				params = append(params, smt.FunctionParam{Name: p.Name, Type: paramType})
 			}
 		}
 		allSurfaceParams[funcName] = params
 		if fd.ReturnType != nil {
-			allSurfaceReturnSorts[funcName] = astTypeToSMTSort(fd.ReturnType)
+			allSurfaceReturnSorts[funcName] = smt.ASTTypeToSMTSort(fd.ReturnType)
 		}
 	}
 
@@ -282,7 +282,7 @@ func runVerification(coreProg *core.Program, surfaceAST *ast.File, modules map[s
 			}
 		}
 	}
-	declarableADTs := collectMonomorphicTypeNames(allTypeFiles)
+	declarableADTs := smt.CollectMonomorphicTypeNames(allTypeFiles)
 
 	// Process each function with contracts
 	for funcName, meta := range coreProg.Meta {
@@ -290,9 +290,9 @@ func runVerification(coreProg *core.Program, surfaceAST *ast.File, modules map[s
 			continue
 		}
 
-		body := findFunctionBody(coreProg, funcName)
+		body := smt.FindFunctionBody(coreProg, funcName)
 		if body == nil {
-			section.Results = append(section.Results, verifyResult{
+			section.Results = append(section.Results, smt.VerifyResult{
 				Function: funcName, Status: "skipped",
 				Reason: "function body not found in Core AST",
 			})
@@ -308,7 +308,7 @@ func runVerification(coreProg *core.Program, surfaceAST *ast.File, modules map[s
 			}
 		}
 		if !hasEnsures {
-			section.Results = append(section.Results, verifyResult{
+			section.Results = append(section.Results, smt.VerifyResult{
 				Function: funcName, Status: "skipped",
 				Reason: "no ensures clause (nothing to verify)",
 			})
@@ -319,7 +319,7 @@ func runVerification(coreProg *core.Program, surfaceAST *ast.File, modules map[s
 		encodable, rejections := smt.IsSMTEncodable(funcName, meta, body)
 		// Callee-sort gate: skip cleanly if a cross-function callee has an unencodable
 		// signature type (e.g. Option[float]) rather than crashing Z3.
-		if callee, badType := firstUnencodableCalleeType(funcName, body, coreProg, importedPrograms, calleeASTFuncs, declarableADTs); callee != "" {
+		if callee, badType := smt.FirstUnencodableCalleeType(funcName, body, coreProg, importedPrograms, calleeASTFuncs, declarableADTs); callee != "" {
 			rejections = append(rejections, smt.SMTRejectionReason{
 				Code:    smt.RejectUnencodable,
 				Message: fmt.Sprintf("Function %q calls %q whose signature uses an unencodable type %q", funcName, callee, badType),
@@ -342,7 +342,7 @@ func runVerification(coreProg *core.Program, surfaceAST *ast.File, modules map[s
 			for i, r := range rejections {
 				reasons[i] = r.Message
 			}
-			section.Results = append(section.Results, verifyResult{
+			section.Results = append(section.Results, smt.VerifyResult{
 				Function: funcName, Status: "skipped",
 				Reason: strings.Join(reasons, "; "), Rejections: rejections,
 			})
@@ -350,31 +350,31 @@ func runVerification(coreProg *core.Program, surfaceAST *ast.File, modules map[s
 			continue
 		}
 
-		params, innerBody := unwrapLambdaParams(funcName, surfaceFuncs, body)
+		params, innerBody := smt.UnwrapLambdaParams(funcName, surfaceFuncs, body)
 
 		returnSort := ""
 		funcEncOpts := encOpts
 		if fd, ok := surfaceFuncs[funcName]; ok && fd.ReturnType != nil {
-			returnSort = astTypeToSMTSort(fd.ReturnType)
-			funcEncOpts.ReturnType = convertASTTypeToType(fd.ReturnType)
+			returnSort = smt.ASTTypeToSMTSort(fd.ReturnType)
+			funcEncOpts.ReturnType = smt.ConvertASTTypeToType(fd.ReturnType)
 		}
 		funcEncOpts.Body = innerBody
 		funcEncOpts.Contracts = meta.Contracts
 		funcEncOpts.RecursiveDepth = recursiveDepth
 
 		funcADTTypes, funcAliases, funcExtraDecls :=
-			filterSMTInputsForFunction(params, returnSort, innerBody, adtTypes, recordAliases, adtRecordDecls)
+			smt.FilterSMTInputsForFunction(params, returnSort, innerBody, adtTypes, recordAliases, adtRecordDecls)
 		funcEncOpts.RecordTypeAliases = funcAliases
 		funcEncOpts.ExtraDeclarations = funcExtraDecls
 
 		encResult, err := smt.EncodeFunction(funcName, params, innerBody, returnSort, meta, funcADTTypes, funcEncOpts)
 		if err != nil {
 			if errors.Is(err, smt.ErrUnresolvableTypes) {
-				section.Results = append(section.Results, unresolvedTypeVerifyResult(funcName, err))
+				section.Results = append(section.Results, smt.UnresolvedTypeVerifyResult(funcName, err))
 				section.Skipped++
 				continue
 			}
-			section.Results = append(section.Results, verifyResult{
+			section.Results = append(section.Results, smt.VerifyResult{
 				Function: funcName, Status: "error",
 				Reason: fmt.Sprintf("encoding error: %v", err),
 			})
@@ -384,7 +384,7 @@ func runVerification(coreProg *core.Program, surfaceAST *ast.File, modules map[s
 
 		solveResult, err := smt.Solve(encResult.SMTLib, solverCfg)
 		if err != nil {
-			section.Results = append(section.Results, verifyResult{
+			section.Results = append(section.Results, smt.VerifyResult{
 				Function: funcName, Status: "error",
 				Reason: fmt.Sprintf("solver error: %v", err),
 			})
@@ -392,7 +392,7 @@ func runVerification(coreProg *core.Program, surfaceAST *ast.File, modules map[s
 			continue
 		}
 
-		vr := verifyResult{
+		vr := smt.VerifyResult{
 			Function: funcName,
 			Duration: solveResult.Duration,
 		}

@@ -1,4 +1,4 @@
-package main
+package runner
 
 import (
 	"bytes"
@@ -10,7 +10,7 @@ import (
 // per-line terminal renders appear in real time.
 func TestLineBufferedWriter(t *testing.T) {
 	var sink bytes.Buffer
-	lw := newLineBufferedWriter(&sink)
+	lw := NewLineBufferedWriter(&sink)
 
 	// Partial line (no newline) stays buffered — nothing on screen yet.
 	if _, err := lw.Write([]byte("Loading 42%")); err != nil {

@@ -1,4 +1,4 @@
-package main
+package runner
 
 import (
 	"reflect"
@@ -24,7 +24,7 @@ func TestResolveAutoCaps(t *testing.T) {
 	}, false)
 
 	want := []string{"FS", "IO"}
-	if got := resolveAutoCaps(moduleIface, "main"); !reflect.DeepEqual(got, want) {
-		t.Fatalf("resolveAutoCaps() = %v, want %v", got, want)
+	if got := ResolveAutoCaps(moduleIface, "main"); !reflect.DeepEqual(got, want) {
+		t.Fatalf("ResolveAutoCaps() = %v, want %v", got, want)
 	}
 }

@@ -1,4 +1,4 @@
-package main
+package runner
 
 import (
 	"encoding/json"
@@ -8,8 +8,9 @@ import (
 	ailangErrors "github.com/sunholo-data/ailang/internal/errors"
 )
 
-// handleStructuredError outputs structured JSON error reports
-func handleStructuredError(err error, compact bool) {
+// HandleStructuredError prints a compile/runtime error as a structured JSON
+// report (`ailang run --json`).
+func HandleStructuredError(err error, compact bool) {
 	// Try to extract a structured Report using errors.AsReport
 	if rep, ok := ailangErrors.AsReport(err); ok {
 		outputJSON(rep, compact)
