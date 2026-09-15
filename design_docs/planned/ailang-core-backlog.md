@@ -1,0 +1,5 @@
+# AILANG Core Backlog (triage rows)
+
+| Date | Title | Class | Recommend | Why |
+|---|---|---|---|---|
+| 2026-09-15 | String interpolation inside `ensures` clauses fails to encode (`$builtin.show` unsupported), though identical interpolation in a function body verifies | bug | direct-fix | The fix is mechanical parity, not a design decision: the report (fb_913ee851c83c0d8c, reproduced on v0.37.2-17-g3415fb2c1-dirty) names the exact defect — the contract/ensures encoder rejects `${x}` desugared to `$builtin.show([lid])` (`internal/smt/codegen_apps.go`, `internal/smt/encodable.go`) while the body encoder already encodes it as concatenation, so aligning the ensures-clause encoder reuses an existing, verified path; no existing doc covers it (searched `ensures` × `interpol` across `design_docs/`; `m-contract-verification-coverage.md` is about skip-class metrics, not encoder coverage). Daneel workaround (interpolating outside the contract) leaves the add-clause unproven, so this blocks real verification use. |
