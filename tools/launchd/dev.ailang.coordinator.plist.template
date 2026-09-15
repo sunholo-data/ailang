@@ -94,6 +94,14 @@
              Should match the gcloud config: `gcloud config get-value project`. -->
         <key>AILANG_CLOUD_PROJECT</key>
         <string>@AILANG_CLOUD_PROJECT@</string>
+        <!-- M-V1-SIMPLIFY-S3: the rig coordinator lives on the SHARED plane
+             (Firestore coordinator + messaging + observatory) with LOCAL
+             execution (worktrees on this host, no COORDINATOR_MODE). This line
+             had been added to the installed plist by hand and was lost on
+             re-install on 2026-09-15, which silently moved the daemon onto
+             the local SQLite plane. It lives in the template now. -->
+        <key>AILANG_STORAGE</key>
+        <string>gcp</string>
         <!-- M-COORD-TAG-ROUTING-LASTMILE (v0.23.0): PORT activates the
              daemon's HTTP listener at http://127.0.0.1:$PORT. Without it,
              /api/messages and /health are unreachable and tag-routed sends
