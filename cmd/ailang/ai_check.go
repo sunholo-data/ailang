@@ -2,16 +2,12 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"os"
 	"strings"
 	"time"
 
-	"github.com/sunholo-data/ailang/internal/ast"
-	"github.com/sunholo-data/ailang/internal/core"
-	"github.com/sunholo-data/ailang/internal/loader"
 	"github.com/sunholo-data/ailang/internal/pipeline"
 	"github.com/sunholo-data/ailang/internal/smt"
 )
@@ -145,7 +141,8 @@ func aiCheckCommand() {
 		surfaceAST := result.Artifacts.AST
 
 		if coreProg != nil && coreProg.Meta != nil && surfaceAST != nil {
-			verifySection = runVerification(coreProg, surfaceAST, result.Modules, *timeoutFlag, *recursiveDepthFlag)
+			report := smt.Verify(coreProg, surfaceAST, verifyModulesFromPipeline(result), aiCheckVerifyOptions(*timeoutFlag, *recursiveDepthFlag))
+			verifySection = aiVerifySectionFromReport(report)
 		}
 	}
 
@@ -184,243 +181,48 @@ func aiCheckExitCode(check aiCheckSection, verify aiVerifySection) int {
 	return 0
 }
 
-// runVerification runs contract verification on compiled artifacts.
-// Extracted from verifyCommand() for reuse by ai-check.
-func runVerification(coreProg *core.Program, surfaceAST *ast.File, modules map[string]*loader.LoadedModule, timeout time.Duration, recursiveDepth int) aiVerifySection {
+// aiCheckVerifyOptions is how ai-check drives the ONE verification loop
+// (smt.Verify — the same loop `ailang verify` runs). Until M-V1-SIMPLIFY-S4
+// M3A ai-check carried a private copy that had drifted in three measured
+// ways: it passed no ImportedPrograms (so every cross-module callee was an
+// "unknown constant" Z3 error — cross_module_functions.ail: verify 3 verified
+// / ai-check 3 errors), it ignored a per-function @verify(depth: N) override
+// (fibonacci bounded_depth 2 instead of 5), and it counted an unsupported
+// construct as an error where verify skips it. The first two are now shared.
+// The third is kept as a deliberate ai-check difference behind
+// UnsupportedConstructIsError: the exit-code contract pinned in
+// ai_check_exit_test.go has always surfaced it as a verifier error (exit 1),
+// and the eval harness banks verify_errors from it — changing that is a
+// bank-forward ruling, not a refactor.
+func aiCheckVerifyOptions(timeout time.Duration, recursiveDepth int) smt.VerifyOptions {
+	return smt.VerifyOptions{
+		Timeout:                     timeout,
+		RecursiveDepth:              recursiveDepth,
+		UnsupportedConstructIsError: true,
+	}
+}
+
+// aiVerifySectionFromReport projects a VerifyReport onto ai-check's JSON.
+// "uncontracted" rows (exported functions with no contract, which verify
+// lists for denominator honesty) are left out: ai-check's results have only
+// ever carried contract-bearing functions, its consumers (the eval harness,
+// agent convergence loops) read the four counters, and adding a fifth status
+// value to a machine contract is a change to announce, not to slip in.
+func aiVerifySectionFromReport(report *smt.VerifyReport) aiVerifySection {
 	section := aiVerifySection{
-		Available: true,
-		Results:   []smt.VerifyResult{},
+		Available:      true,
+		Verified:       report.Verified,
+		Counterexample: report.Counterexample,
+		Skipped:        report.Skipped,
+		Errors:         report.Errors,
+		Results:        make([]smt.VerifyResult, 0, len(report.Results)),
 	}
-
-	// Extract ADT types, record type aliases, and inline record types.
-	adtResult := smt.ExtractADTTypesWithRecords(surfaceAST)
-	adtTypes := adtResult.ADTTypes
-	adtRecordDecls := adtResult.RecordDecls
-	recordAliases := adtResult.RecordAliases
-	for _, mod := range modules {
-		if mod.File != nil {
-			modResult := smt.ExtractADTTypesWithRecords(mod.File)
-			for name, variants := range modResult.ADTTypes {
-				if _, exists := adtTypes[name]; !exists {
-					adtTypes[name] = variants
-				}
-			}
-			adtRecordDecls = append(adtRecordDecls, modResult.RecordDecls...)
-			for name, rec := range modResult.RecordAliases {
-				if _, exists := recordAliases[name]; !exists {
-					recordAliases[name] = rec
-				}
-			}
-		}
-	}
-
-	// Build Surface AST function lookup
-	surfaceFuncs := make(map[string]*ast.FuncDecl)
-	for _, f := range surfaceAST.Funcs {
-		surfaceFuncs[f.Name] = f
-	}
-
-	// Solver configuration
-	solverCfg := smt.SolverConfig{
-		Timeout: timeout,
-	}
-
-	// Fixup: functions with ! {} (empty effects) are semantically pure
-	for funcName, meta := range coreProg.Meta {
-		if fd, ok := surfaceFuncs[funcName]; ok {
-			if fd.Effects != nil && len(fd.Effects) == 0 && !meta.IsPure {
-				meta.IsPure = true
-			}
-		}
-	}
-
-	// Build surface params and return sorts for all functions
-	allSurfaceParams := make(map[string][]smt.FunctionParam)
-	allSurfaceReturnSorts := make(map[string]string)
-	for funcName, fd := range surfaceFuncs {
-		var params []smt.FunctionParam
-		for _, p := range fd.Params {
-			paramType := smt.ConvertASTTypeToType(p.Type)
-			if paramType != nil {
-				params = append(params, smt.FunctionParam{Name: p.Name, Type: paramType})
-			}
-		}
-		allSurfaceParams[funcName] = params
-		if fd.ReturnType != nil {
-			allSurfaceReturnSorts[funcName] = smt.ASTTypeToSMTSort(fd.ReturnType)
-		}
-	}
-
-	encOpts := smt.EncodeFunctionOpts{
-		Program:            coreProg,
-		SurfaceParams:      allSurfaceParams,
-		SurfaceReturnSorts: allSurfaceReturnSorts,
-		ExtraDeclarations:  adtRecordDecls,
-		RecordTypeAliases:  recordAliases,
-	}
-
-	// Callee-sort gate inputs (M-SMT-CALLEE-SORT-GATE): reject a caller whose
-	// cross-function callee has an unencodable signature type (e.g. Option[float])
-	// instead of leaking an undeclared sort into Z3. Mirrors verifyCommand.
-	calleeASTFuncs := make(map[string]*ast.FuncDecl)
-	for name, fd := range surfaceFuncs {
-		calleeASTFuncs[name] = fd
-	}
-	importedPrograms := make(map[string]*core.Program)
-	allTypeFiles := []*ast.File{surfaceAST}
-	for modPath, mod := range modules {
-		if mod.Core != nil {
-			importedPrograms[modPath] = mod.Core
-		}
-		if mod.File == nil {
+	for _, r := range report.Results {
+		if r.Status == "uncontracted" {
 			continue
 		}
-		allTypeFiles = append(allTypeFiles, mod.File)
-		for _, fd := range mod.File.Funcs {
-			if _, exists := calleeASTFuncs[fd.Name]; !exists {
-				calleeASTFuncs[fd.Name] = fd
-			}
-		}
+		section.Results = append(section.Results, r)
 	}
-	declarableADTs := smt.CollectMonomorphicTypeNames(allTypeFiles)
-
-	// Process each function with contracts
-	for funcName, meta := range coreProg.Meta {
-		if len(meta.Contracts) == 0 {
-			continue
-		}
-
-		body := smt.FindFunctionBody(coreProg, funcName)
-		if body == nil {
-			section.Results = append(section.Results, smt.VerifyResult{
-				Function: funcName, Status: "skipped",
-				Reason: "function body not found in Core AST",
-			})
-			section.Skipped++
-			continue
-		}
-
-		hasEnsures := false
-		for _, c := range meta.Contracts {
-			if c.Kind == core.EnsuresKind {
-				hasEnsures = true
-				break
-			}
-		}
-		if !hasEnsures {
-			section.Results = append(section.Results, smt.VerifyResult{
-				Function: funcName, Status: "skipped",
-				Reason: "no ensures clause (nothing to verify)",
-			})
-			section.Skipped++
-			continue
-		}
-
-		encodable, rejections := smt.IsSMTEncodable(funcName, meta, body)
-		// Callee-sort gate: skip cleanly if a cross-function callee has an unencodable
-		// signature type (e.g. Option[float]) rather than crashing Z3.
-		if callee, badType := smt.FirstUnencodableCalleeType(funcName, body, coreProg, importedPrograms, calleeASTFuncs, declarableADTs); callee != "" {
-			rejections = append(rejections, smt.SMTRejectionReason{
-				Code:    smt.RejectUnencodable,
-				Message: fmt.Sprintf("Function %q calls %q whose signature uses an unencodable type %q", funcName, callee, badType),
-				Hint:    "Cross-function verification cannot encode parametric ADTs (Option/Result) or type variables in a callee signature. Callees returning records/enum ADTs are also not yet inlinable and will skip. Rewrite the callee to return a primitive, or inline its logic into the caller.",
-			})
-			encodable = false
-		}
-		if !encodable && recursiveDepth > 0 {
-			var filtered []smt.SMTRejectionReason
-			for _, r := range rejections {
-				if r.Code != smt.RejectRecursive {
-					filtered = append(filtered, r)
-				}
-			}
-			rejections = filtered
-			encodable = len(rejections) == 0
-		}
-		if !encodable {
-			reasons := make([]string, len(rejections))
-			for i, r := range rejections {
-				reasons[i] = r.Message
-			}
-			section.Results = append(section.Results, smt.VerifyResult{
-				Function: funcName, Status: "skipped",
-				Reason: strings.Join(reasons, "; "), Rejections: rejections,
-			})
-			section.Skipped++
-			continue
-		}
-
-		params, innerBody := smt.UnwrapLambdaParams(funcName, surfaceFuncs, body)
-
-		returnSort := ""
-		funcEncOpts := encOpts
-		if fd, ok := surfaceFuncs[funcName]; ok && fd.ReturnType != nil {
-			returnSort = smt.ASTTypeToSMTSort(fd.ReturnType)
-			funcEncOpts.ReturnType = smt.ConvertASTTypeToType(fd.ReturnType)
-		}
-		funcEncOpts.Body = innerBody
-		funcEncOpts.Contracts = meta.Contracts
-		funcEncOpts.RecursiveDepth = recursiveDepth
-
-		funcADTTypes, funcAliases, funcExtraDecls :=
-			smt.FilterSMTInputsForFunction(params, returnSort, innerBody, adtTypes, recordAliases, adtRecordDecls)
-		funcEncOpts.RecordTypeAliases = funcAliases
-		funcEncOpts.ExtraDeclarations = funcExtraDecls
-
-		encResult, err := smt.EncodeFunction(funcName, params, innerBody, returnSort, meta, funcADTTypes, funcEncOpts)
-		if err != nil {
-			if errors.Is(err, smt.ErrUnresolvableTypes) {
-				section.Results = append(section.Results, smt.UnresolvedTypeVerifyResult(funcName, err))
-				section.Skipped++
-				continue
-			}
-			section.Results = append(section.Results, smt.VerifyResult{
-				Function: funcName, Status: "error",
-				Reason: fmt.Sprintf("encoding error: %v", err),
-			})
-			section.Errors++
-			continue
-		}
-
-		solveResult, err := smt.Solve(encResult.SMTLib, solverCfg)
-		if err != nil {
-			section.Results = append(section.Results, smt.VerifyResult{
-				Function: funcName, Status: "error",
-				Reason: fmt.Sprintf("solver error: %v", err),
-			})
-			section.Errors++
-			continue
-		}
-
-		vr := smt.VerifyResult{
-			Function: funcName,
-			Duration: solveResult.Duration,
-		}
-		if recursiveDepth > 0 && smt.IsRecursiveFunc(innerBody, funcName) {
-			vr.BoundedDepth = recursiveDepth
-		}
-
-		switch solveResult.Status {
-		case smt.StatusVerified:
-			vr.Status = "verified"
-			section.Verified++
-		case smt.StatusCounterexample:
-			vr.Status = "counterexample"
-			vr.Model = solveResult.Model
-			section.Counterexample++
-		case smt.StatusUnknown:
-			vr.Status = "unknown"
-			vr.Reason = solveResult.Error
-			section.Errors++
-		case smt.StatusError:
-			vr.Status = "error"
-			vr.Reason = solveResult.Error
-			section.Errors++
-		}
-
-		section.Results = append(section.Results, vr)
-	}
-
 	return section
 }
 

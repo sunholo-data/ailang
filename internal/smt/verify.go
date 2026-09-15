@@ -46,6 +46,15 @@ type VerifyOptions struct {
 	RecursiveDepth int
 	// Verbose attaches the generated SMT-LIB to each solved result.
 	Verbose bool
+	// UnsupportedConstructIsError reports a function whose body uses a
+	// construct outside the decidable fragment (ErrUnsupportedConstruct, e.g.
+	// a match on list patterns) as Status "error" — counted in Errors — instead
+	// of the honest "skipped" (#757) that `ailang verify` reports. `ai-check`
+	// sets it: its exit-code contract (cmd/ailang/ai_check_exit_test.go) has
+	// always surfaced that case as a verifier error, and changing what the
+	// eval harness banks as verify_errors is a ruling, not a refactor
+	// (M-V1-SIMPLIFY-S4 M3A). Both modes name the construct in the reason.
+	UnsupportedConstructIsError bool
 }
 
 // VerifyReport is the outcome of Verify over one program.
@@ -334,8 +343,10 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 			}
 			// #757: an unsupported Core construct (e.g. match on list patterns)
 			// is an honest capability boundary of the decidable fragment — skip
-			// with the reason, never a hard ERROR leaking Go type names.
-			if errors.Is(err, ErrUnsupportedConstruct) {
+			// with the reason, never a hard ERROR leaking Go type names. Unless
+			// the caller opted into the error lane (ai-check's contract), in
+			// which case it falls through to the generic encoding error below.
+			if errors.Is(err, ErrUnsupportedConstruct) && !opts.UnsupportedConstructIsError {
 				report.Results = append(report.Results, VerifyResult{
 					Function: funcName,
 					Status:   "skipped",
