@@ -1,8 +1,6 @@
 package observatory
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 )
 
@@ -12,40 +10,19 @@ const meteredModel = "claude-sonnet-4-5"
 // zeroRateModel is a local (ollama) model with input_per_1k: 0.0 / output_per_1k: 0.0.
 const zeroRateModel = "motoko-local-qwen3-5-35b-a3b-mxfp8"
 
-// ensurePricingLoaded points the pricing loader at the repo models.yml. The
-// observatory pricing loader searches relative paths; from the package test cwd
-// (internal/observatory) the models.yml lives at ../modelreg/models.yml, which
-// is NOT one of the default search paths, so we chdir to the repo root for the test.
+// ensurePricingLoaded loads the model registry the observatory prices with.
+//
+// Until M-V1-SIMPLIFY-S3 M2 this walked up from cwd looking for
+// internal/eval_harness/models.yml — a path that stopped existing when the
+// registry moved to internal/modelreg — and t.Skip'd when it found nothing, so
+// every test below had been silently skipping. The registry is embedded now
+// and loads from any cwd; not loading is a failure, not a skip.
 func ensurePricingLoaded(t *testing.T) {
 	t.Helper()
 	ResetPricingConfig()
-
-	// Walk up from cwd to find the repo root (dir containing internal/modelreg/models.yml).
-	dir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("getwd: %v", err)
+	if GetPricingConfig() == nil {
+		t.Fatal("the embedded model registry must load from any cwd")
 	}
-	for i := 0; i < 6; i++ {
-		if _, statErr := os.Stat(filepath.Join(dir, "internal", "eval_harness", "models.yml")); statErr == nil {
-			cfg := GetPricingConfig()
-			if cfg == nil {
-				// Not loaded from default paths; load explicitly by chdir.
-				old, _ := os.Getwd()
-				if chErr := os.Chdir(dir); chErr != nil {
-					t.Fatalf("chdir repo root: %v", chErr)
-				}
-				t.Cleanup(func() { _ = os.Chdir(old) })
-				ResetPricingConfig()
-				cfg = GetPricingConfig()
-			}
-			if cfg == nil {
-				t.Skip("pricing config could not be loaded; skipping cost classifier test")
-			}
-			return
-		}
-		dir = filepath.Dir(dir)
-	}
-	t.Skip("could not locate internal/modelreg/models.yml; skipping")
 }
 
 func TestResolveCostFromTokens_DistinguishesUnresolvableFromZeroRate(t *testing.T) {

@@ -2,305 +2,162 @@
 package observatory
 
 import (
+	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
-	"strings"
 	"sync"
 
-	"github.com/sunholo-data/ailang/internal/eval_harness"
+	"github.com/sunholo-data/ailang/internal/modelreg"
 )
 
-// pricingConfig holds the loaded pricing configuration from models.yml.
-// It's loaded once at startup and cached for performance.
-var (
-	pricingConfig     *eval_harness.ModelsConfig
-	pricingConfigOnce sync.Once
-)
+// M-V1-SIMPLIFY-S3 M2 (2026-09-15): the observatory prices tokens through
+// internal/modelreg and nothing else.
+//
+// What this replaced (git log -S normalizeModelName -- internal/observatory):
+// a second sync.Once loader that searched for models.yml by cwd and ~/go/src
+// — ignoring AILANG_MODELS_PATH, the published registry and the embedded
+// floor, so an installed binary printed "$0.00" whenever its cwd was wrong; a
+// private ~20-entry alias map; and cache pricing hardcoded at 10% (read) /
+// 125% (write) of input for EVERY provider, which is Anthropic's schedule and
+// nobody else's. The generic OTLP path also never tried api_name, so every
+// prod OpenRouter span ("z-ai/glm-5.3-flash", "moonshotai/kimi-k3") was stored
+// at cost_usd=null. All of that is now Resolve + CostForName on the registry.
 
-// initPricing loads the models.yml pricing configuration.
-// Called automatically on first use of CalculateCostFromTokens.
-func initPricing() {
-	pricingConfigOnce.Do(func() {
-		// Search paths for models.yml
-		searchPaths := []string{
-			"internal/modelreg/models.yml",
-			"../internal/modelreg/models.yml",
-			"../../internal/modelreg/models.yml",
+// ErrUnpriced is returned by PriceTokens when the registry has no row for the
+// model. It wraps modelreg.ErrUnknownModel. A caller that stores a dollar
+// figure MUST branch on it: "unpriced" is a different fact from "$0", and the
+// chain rollup already has a display for it (CostStatusUnknown → unknown_stages
+// + the incomplete-data warning in `ailang chains stats`).
+var ErrUnpriced = modelreg.ErrUnknownModel
+
+// registry returns the loaded model registry, initialising it on first use
+// through the ONE precedence chain (explicit path → published → embedded).
+func registry() (*modelreg.ModelsConfig, error) {
+	if modelreg.GlobalModelsConfig == nil {
+		if err := modelreg.InitModelsConfig(); err != nil {
+			return nil, err
 		}
-
-		// Also try from home directory for installed binaries
-		if home, err := os.UserHomeDir(); err == nil {
-			// Check go/src path for development
-			searchPaths = append(searchPaths, filepath.Join(home, "go/src/github.com/sunholo-data/ailang/internal/modelreg/models.yml"))
-		}
-
-		// Try cwd-based paths first
-		if cwd, err := os.Getwd(); err == nil {
-			for _, rel := range []string{
-				"internal/modelreg/models.yml",
-				"../internal/modelreg/models.yml",
-				"../../internal/modelreg/models.yml",
-			} {
-				searchPaths = append(searchPaths, filepath.Join(cwd, rel))
-			}
-		}
-
-		for _, path := range searchPaths {
-			config, err := eval_harness.LoadModelsConfig(path)
-			if err == nil {
-				pricingConfig = config
-				// Diagnostic goes to stderr so it never corrupts --json stdout.
-				fmt.Fprintf(os.Stderr, "observatory: loaded pricing config from %s (%d models)\n", path, len(config.Models))
-				return
-			}
-		}
-
-		fmt.Fprintf(os.Stderr, "observatory: WARNING: pricing config not loaded (models.yml not found), costs will show $0.00\n")
-	})
+	}
+	return modelreg.GlobalModelsConfig, nil
 }
 
-// CalculateCostFromTokens calculates cost from model name and token counts.
-// Returns 0.0 if:
-//   - Pricing config not loaded
-//   - Model not found in config
-//   - Tokens are zero
-//
-// This follows the "no silent fallbacks" principle - return 0 rather than guess.
-func CalculateCostFromTokens(model string, tokensIn, tokensOut int64) float64 {
-	if tokensIn == 0 && tokensOut == 0 {
-		return 0.0
+// PriceTokens prices a call by any name the registry can resolve (friendly key,
+// api_name, declared alias, dated/dotted variant). Cache reads and writes are
+// billed at the model's OWN declared rates (full input rate when undeclared —
+// the registry's overstate-visibly stance). Returns ErrUnpriced (wrapped) for
+// an unknown model and a registry-load error if no registry can be found.
+func PriceTokens(model string, tokensIn, tokensOut, cacheRead, cacheWrite int64) (float64, error) {
+	cfg, err := registry()
+	if err != nil {
+		return 0, err
 	}
-
-	initPricing()
-
-	if pricingConfig == nil {
-		return 0.0
-	}
-
-	// Try exact match first
-	cost, err := pricingConfig.CalculateCostForModel(model, int(tokensIn), int(tokensOut))
-	if err == nil {
-		return cost
-	}
-
-	// Try normalized model name (strip date suffixes, etc.)
-	normalizedModel := normalizeModelName(model)
-	if normalizedModel != model {
-		cost, err = pricingConfig.CalculateCostForModel(normalizedModel, int(tokensIn), int(tokensOut))
-		if err == nil {
-			return cost
-		}
-	}
-
-	// Model not found - return 0 (no silent fallbacks per CLAUDE.md)
-	return 0.0
+	return cfg.CostForName(model, int(tokensIn), int(tokensOut), int(cacheRead), int(cacheWrite))
 }
 
-// ResolveCostFromTokens is like CalculateCostFromTokens but distinguishes an
-// UNRESOLVABLE model from a model that resolves to a $0 rate. This distinction is
-// load-bearing for the cost-attribution classifier (M-MISSION-COST-CHAINS): a
-// token-bearing stage whose model cannot be resolved must surface as `unknown`
-// (never a fabricated metered $0), while a model that legitimately resolves to a
-// free/$0 rate rolls up to $0 WITHOUT being faked as metered spend.
+// ResolveCostFromTokens distinguishes an UNRESOLVABLE model from one that
+// resolves to a $0 rate. Load-bearing for the cost-attribution classifier
+// (M-MISSION-COST-CHAINS): a token-bearing stage whose model cannot be
+// resolved surfaces as `unknown`, never as fabricated metered $0, while a
+// model that legitimately resolves to a free rate rolls up to $0.
 //
-// Returns (cost, resolved):
-//   - resolved=false  → model could not be found in the pricing registry (or the
-//     registry is not loaded). Caller MUST treat this as `unknown`, not $0.
-//   - resolved=true   → the model was found; cost is tokens×rate (may legitimately
-//     be $0 for a free/local model).
-//
-// Zero tokens with an empty model returns (0, false): there is nothing to resolve.
+// Returns (cost, resolved): resolved=false → the caller MUST treat the row as
+// unknown. An empty model returns (0, false): there is nothing to resolve.
 func ResolveCostFromTokens(model string, tokensIn, tokensOut int64) (float64, bool) {
+	return ResolveCostFromTokensWithCache(model, tokensIn, tokensOut, 0, 0)
+}
+
+// ResolveCostFromTokensWithCache is ResolveCostFromTokens for callers that know
+// the cache split. Same contract.
+func ResolveCostFromTokensWithCache(model string, tokensIn, tokensOut, cacheRead, cacheWrite int64) (float64, bool) {
 	if model == "" {
-		return 0.0, false
+		return 0, false
 	}
-
-	initPricing()
-	if pricingConfig == nil {
-		return 0.0, false
+	cost, err := PriceTokens(model, tokensIn, tokensOut, cacheRead, cacheWrite)
+	if err != nil {
+		return 0, false
 	}
+	return cost, true
+}
 
-	// Try exact match first.
-	if cost, err := pricingConfig.CalculateCostForModel(model, int(tokensIn), int(tokensOut)); err == nil {
-		return cost, true
+// unpricedSeen rate-limits the stderr line below to once per model name per
+// process, so a busy receiver does not log every span.
+var unpricedSeen sync.Map
+
+// CalculateCostFromTokens is the float-only entry point the OTLP receiver
+// still calls for spans that carry tokens but no cost. It cannot return an
+// error to its caller, so an unpriced model is made LOUD instead of silent: a
+// stderr line naming the model (once per model per process) and $0 stored —
+// the receiver is the place to stamp the span with an unpriced marker, which is
+// a one-line follow-up outside this file's ownership (see the M2 report).
+// Zero tokens price to $0 without a lookup.
+func CalculateCostFromTokens(model string, tokensIn, tokensOut int64) float64 {
+	return CalculateCostFromTokensWithCache(model, tokensIn, tokensOut, 0, 0)
+}
+
+// CalculateCostFromTokensWithCache is CalculateCostFromTokens with the cache
+// split. Cache rates come from the model's registry row — NOT a fixed 10%/125%
+// of input, which was only ever correct for Anthropic.
+func CalculateCostFromTokensWithCache(model string, tokensIn, tokensOut, cacheRead, cacheWrite int64) float64 {
+	if tokensIn == 0 && tokensOut == 0 && cacheRead == 0 && cacheWrite == 0 {
+		return 0
 	}
-
-	// Try normalized model name (strip date suffixes, map API names, etc.).
-	normalizedModel := normalizeModelName(model)
-	if normalizedModel != model {
-		if cost, err := pricingConfig.CalculateCostForModel(normalizedModel, int(tokensIn), int(tokensOut)); err == nil {
-			return cost, true
+	cost, err := PriceTokens(model, tokensIn, tokensOut, cacheRead, cacheWrite)
+	if err != nil {
+		if _, dup := unpricedSeen.LoadOrStore(model, struct{}{}); !dup {
+			// Diagnostic goes to stderr so it never corrupts --json stdout.
+			if errors.Is(err, ErrUnpriced) {
+				fmt.Fprintf(os.Stderr, "observatory: UNPRICED model %q — not in the model registry (%s); recording cost_usd=0. Add the row or an alias to models.yml.\n",
+					model, modelreg.LoadedSource.Kind)
+			} else {
+				fmt.Fprintf(os.Stderr, "observatory: cannot price %q: %v\n", model, err)
+			}
 		}
+		return 0
 	}
-
-	// Model not found in the registry — unresolvable. No fabricated rate.
-	return 0.0, false
+	return cost
 }
 
-// normalizeModelName normalizes model names to match models.yml keys.
-// Examples:
-//   - "claude-sonnet-4-5-20250929" -> "claude-sonnet-4-5"
-//   - "claude-sonnet-4-6" -> "claude-sonnet-4-6"
-//   - "gpt-5" -> "gpt5"
-//   - "gemini-2.5-pro" -> "gemini-2-5-pro"
-func normalizeModelName(model string) string {
-	if model == "" {
-		return ""
-	}
-
-	// Strip date suffixes (YYYYMMDD format)
-	// Pattern: -YYYYMMDD at end
-	if len(model) > 9 {
-		suffix := model[len(model)-9:]
-		if suffix[0] == '-' && isAllDigits(suffix[1:]) {
-			model = model[:len(model)-9]
-		}
-	}
-
-	// Map common API names to friendly names
-	modelMappings := map[string]string{
-		// OpenAI
-		"gpt-5":               "gpt5",
-		"gpt-5-mini":          "gpt5-mini",
-		"gpt-5.1":             "gpt5-1",
-		"gpt-5.1-chat-latest": "gpt5-1-instant",
-		"gpt-5.2":             "gpt5-2",
-		"gpt-5.2-chat-latest": "gpt5-2-instant",
-
-		// Claude - also handle versioned names
-		"claude-sonnet-4-6":          "claude-sonnet-4-6",
-		"claude-sonnet-4-5":          "claude-sonnet-4-5",
-		"claude-haiku-4-5":           "claude-haiku-4-5",
-		"claude-opus-4-5":            "claude-opus-4-5",
-		"claude-opus-4-6":            "claude-opus-4-6",
-		"claude-sonnet-4-5-20250929": "claude-sonnet-4-5",
-		"claude-haiku-4-5-20251001":  "claude-haiku-4-5",
-		"claude-opus-4-5-20251101":   "claude-opus-4-5",
-
-		// Gemini
-		"gemini-2.5-pro":         "gemini-2-5-pro",
-		"gemini-2.5-flash":       "gemini-2-5-flash",
-		"gemini-3-flash-preview": "gemini-3-flash",
-		"gemini-3-pro-preview":   "gemini-3-pro",
-	}
-
-	if mapped, ok := modelMappings[model]; ok {
-		return mapped
-	}
-
-	// Try replacing dots with dashes for Gemini-style versions
-	normalized := strings.ReplaceAll(model, ".", "-")
-	if normalized != model {
-		if _, ok := modelMappings[normalized]; ok {
-			return modelMappings[normalized]
-		}
-	}
-
-	return model
-}
-
-// isAllDigits returns true if the string contains only ASCII digits.
-func isAllDigits(s string) bool {
-	for _, c := range s {
-		if c < '0' || c > '9' {
-			return false
-		}
-	}
-	return len(s) > 0
-}
-
-// GetPricingConfig returns the loaded pricing configuration.
-// Returns nil if not loaded. Used for testing.
-func GetPricingConfig() *eval_harness.ModelsConfig {
-	initPricing()
-	return pricingConfig
-}
-
-// ResetPricingConfig resets the pricing config for testing.
-// NOT for production use.
-func ResetPricingConfig() {
-	pricingConfigOnce = sync.Once{}
-	pricingConfig = nil
-}
-
-// CalculateCostFromTokensWithCache calculates cost including cache token pricing.
-// Cache read tokens are charged at 10% of input price (90% discount).
-// Cache creation tokens are charged at 125% of input price (25% premium).
-// Returns 0.0 if model not found or tokens are all zero.
-func CalculateCostFromTokensWithCache(model string, tokensIn, tokensOut, cacheRead, cacheCreation int64) float64 {
-	if tokensIn == 0 && tokensOut == 0 && cacheRead == 0 && cacheCreation == 0 {
-		return 0.0
-	}
-
-	initPricing()
-
-	if pricingConfig == nil {
-		return 0.0
-	}
-
-	// Find model config
-	normalizedModel := normalizeModelName(model)
-	var inputPer1K, outputPer1K float64
-
-	// Try to find model in config
-	for modelID, m := range pricingConfig.Models {
-		if modelID == model || modelID == normalizedModel || m.APIName == model {
-			inputPer1K = m.Pricing.InputPer1K
-			outputPer1K = m.Pricing.OutputPer1K
-			break
-		}
-	}
-
-	// If model not found, return 0 (no silent fallbacks)
-	if inputPer1K == 0 && outputPer1K == 0 {
-		return 0.0
-	}
-
-	// Calculate costs
-	inputCost := float64(tokensIn) / 1000.0 * inputPer1K
-	outputCost := float64(tokensOut) / 1000.0 * outputPer1K
-
-	// Cache read at 10% of input price (90% discount per Anthropic pricing)
-	cacheReadCost := float64(cacheRead) / 1000.0 * inputPer1K * 0.1
-
-	// Cache creation at 125% of input price (25% premium per Anthropic pricing)
-	cacheCreationCost := float64(cacheCreation) / 1000.0 * inputPer1K * 1.25
-
-	return inputCost + outputCost + cacheReadCost + cacheCreationCost
-}
-
-// CalculateCacheSavings calculates how much was saved by using cache reads.
-// Returns the difference between what full-price input would have cost and cache read cost.
-// Cache reads are 90% cheaper than regular input tokens.
+// CalculateCacheSavings is what the cache reads WOULD have cost as fresh input
+// minus what they cost at the model's declared cache-read rate. A model with no
+// declared read rate bills reads at the input rate, so its savings are $0 —
+// honest, where the old 90% flat figure was a claim about every provider.
+// Unresolvable or empty model → $0 (nothing to attribute).
 func CalculateCacheSavings(model string, cacheRead int64) float64 {
-	if cacheRead == 0 {
-		return 0.0
+	if cacheRead == 0 || model == "" {
+		return 0
 	}
-
-	initPricing()
-
-	if pricingConfig == nil {
-		return 0.0
+	cfg, err := registry()
+	if err != nil {
+		return 0
 	}
-
-	// Find model config
-	normalizedModel := normalizeModelName(model)
-	var inputPer1K float64
-
-	for modelID, m := range pricingConfig.Models {
-		if modelID == model || modelID == normalizedModel || m.APIName == model {
-			inputPer1K = m.Pricing.InputPer1K
-			break
-		}
+	_, m, err := cfg.Resolve(model)
+	if err != nil {
+		return 0
 	}
-
-	if inputPer1K == 0 {
-		return 0.0
+	readRate := m.Pricing.CacheReadPer1K
+	if readRate == 0 {
+		return 0
 	}
+	saved := float64(cacheRead) / 1000.0 * (m.Pricing.InputPer1K - readRate)
+	if saved < 0 {
+		return 0
+	}
+	return saved
+}
 
-	// Full price would be: cacheRead * inputPer1K / 1000
-	// Cache price is: cacheRead * inputPer1K * 0.1 / 1000
-	// Savings is: cacheRead * inputPer1K * 0.9 / 1000
-	return float64(cacheRead) / 1000.0 * inputPer1K * 0.9
+// GetPricingConfig returns the registry the observatory prices with — the one
+// global in modelreg. Kept for tests that assert pricing is available.
+func GetPricingConfig() *modelreg.ModelsConfig {
+	cfg, err := registry()
+	if err != nil {
+		return nil
+	}
+	return cfg
+}
+
+// ResetPricingConfig forces the next lookup to re-run registry precedence.
+// Test support only; production never resets.
+func ResetPricingConfig() {
+	modelreg.GlobalModelsConfig = nil
+	unpricedSeen = sync.Map{}
 }
