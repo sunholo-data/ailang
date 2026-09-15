@@ -37,6 +37,9 @@ func NewSQLiteBackend(db *sql.DB) (*SQLiteBackend, error) {
 
 // NewSQLiteBackendFromPath creates a SQLite backend from a file path.
 func NewSQLiteBackendFromPath(path string) (*SQLiteBackend, error) {
+	if path == "" {
+		return nil, errNoDatabasePath
+	}
 	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL&_busy_timeout=5000")
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
