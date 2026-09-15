@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/executor"
-	"github.com/sunholo-data/ailang/internal/executor/proctree"
+	"github.com/sunholo-data/ailang/internal/proctree"
 )
 
 // installPlugins registers marketplaces and installs third-party plugins.

@@ -15,10 +15,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sunholo-data/ailang/internal/executor/proctree"
 	"github.com/sunholo-data/ailang/internal/gitexec"
 	"github.com/sunholo-data/ailang/internal/gitutil"
 	"github.com/sunholo-data/ailang/internal/mission/dispatch"
+	"github.com/sunholo-data/ailang/internal/proctree"
 )
 
 type ArtifactEvidence struct {

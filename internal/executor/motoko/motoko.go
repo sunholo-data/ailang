@@ -48,6 +48,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sunholo-data/ailang/internal/executor"
+	"github.com/sunholo-data/ailang/internal/proctree"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -313,13 +314,7 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	// (a too-short bound silently killed long agent runs mid-step). Always surface it on stderr.
 	fmt.Fprintf(os.Stderr, "[motoko] run wall-clock bound: %s (task.Timeout=%s)\n", runTimeout, task.Timeout)
 	cmd := exec.CommandContext(runCtx, e.motokoPath, "--headless", directive)
-	setProcessGroup(cmd) // own process group so the env-server child dies with it
-	cmd.Cancel = func() error {
-		if cmd.Process != nil {
-			_ = killProcessGroup(cmd.Process.Pid)
-		}
-		return nil
-	}
+	proctree.Configure(cmd)          // own process group so the env-server child dies with it
 	cmd.WaitDelay = 10 * time.Second // let the group-kill land before Wait returns
 	if task.Workspace != "" {
 		cmd.Dir = task.Workspace
