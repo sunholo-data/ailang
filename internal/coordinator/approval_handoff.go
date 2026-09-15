@@ -61,18 +61,107 @@ func approvalHandoffTargets(agent *AgentConfig) []string {
 	return out
 }
 
-// sendAgentHandoffMessage delivers one handoff into the target agent's INBOX.
+// handoff is the ONE description of a handoff, for every producer.
+//
+// Two senders used to build the envelope: the daemon's auto-approve path
+// (sendHandoffMessage) wrote the inbox row and then a "thread trail" message
+// whose JSON metadata named the source and target agents and the executor
+// session; the approval path (this file) wrote the inbox row and published
+// the Pub/Sub notification. The bodies differed too — the daemon quoted the
+// executor's raw output, the approval path named the artifact — and both
+// produced MessageType "handoff", so nothing downstream could tell which one
+// it was reading (M-V1-SIMPLIFY-S1 M4 finding; unified in S4 M3B).
+//
+// The thread trail is gone. It was written with an EMPTY thread id, which the
+// SQLite store rejects ("thread not found: ") — so on the rig it had logged a
+// warning and recorded nothing on every auto handoff since 775028c1e, and on
+// Firestore it wrote an orphan no thread view lists. Its metadata keys
+// (handoff_source, source_agent, target_agent, session_id) had no reader in
+// internal/, cmd/ or ui/. The envelope is the inbox row, and only that.
+//
+// Every consumer, and the field it reads:
+//
+//   - daemon_tasks_polling builds the next task from the row: ID (task id),
+//     Title, Payload (content), ParentTaskID (hierarchy + DedupScope), ChainID
+//     (chain join).
+//   - server/handlers_inbox exposes CorrelationID as the event's task_id, which
+//     is how the control-plane UI links a handoff to its task.
+//   - the messaging store's CHECK constraint accepts MessageType only from the
+//     InboxType* list, which is why it is the constant and not a literal.
+type handoff struct {
+	Source, Target *AgentConfig
+	Task           *TaskRecord
+	Artifacts      []string // what the previous stage produced (resolveHandoffArtifacts)
+	IssueNumber    int      // GitHub issue, 0 when there is none
+}
+
+// inboxMessage is the delivery row — the one thing that starts the next stage.
+func (h handoff) inboxMessage() *messaging.InboxMessage {
+	return &messaging.InboxMessage{
+		FromAgent:     "coordinator",
+		ToInbox:       h.Target.Inbox,
+		MessageType:   messaging.InboxTypeHandoff,
+		Title:         handoffTitle(h.Task.Title),
+		Payload:       handoffContent(h.Source, h.Task, h.IssueNumber, h.Artifacts),
+		CorrelationID: h.Task.ID,
+		ParentTaskID:  h.Task.ID,
+		ChainID:       h.Task.ChainID,
+		Status:        messaging.InboxStatusUnread,
+	}
+}
+
+// handoffSender delivers a handoff. The store and the notification transport
+// are the only things that differ between producers: the daemon notifies
+// through its own publisher and treats "no publisher" as a local plane, the
+// approval path builds a notifier from the messaging config and reports a
+// missing one as errHandoffNotDispatched.
+type handoffSender struct {
+	msgStore messaging.MessageStore
+	notify   func(*messaging.InboxMessage) error
+}
+
+// send stores the inbox row, then notifies.
 //
 // It must be an InboxMessage, not a thread message. `CreateMessage` writes to the
 // thread-message collection, which dispatch never polls — so OnAgentApproved's
 // handoffs were being written somewhere nothing reads, and the CLI reported
 // "dispatched" for a message that could never become a task (measured
 // 2026-09-07 on task-4082add5: approval said dispatched, no inbox message
-// existed, no task appeared). The daemon's own deliverHandoffToInbox always used
-// InsertInboxMessage; there were two mechanisms and only one worked.
+// existed, no task appeared). Found first on 2026-08-26 by the
+// M-PIPELINE-RECONCILIATION e2e test: on the Firestore backend CreateMessage
+// writes ONLY the thread-messages collection while the poller consumes
+// ListInboxMessages, so a gcp-storage coordinator's handoff was "sent", logged
+// as auto-approved, and landed in a collection nothing polls.
 //
-// Shared by OnAgentApproved and the approval path so the two cannot diverge
-// again — which is exactly how one of them ended up on the wrong collection.
+// The row alone does not start work on a cloud plane. The cloud coordinator
+// dispatches from a Pub/Sub notification: storing the message and skipping
+// notify leaves a handoff that is visible in the inbox, correct in every field,
+// and never picked up (measured on task-f8ecc37c, 2026-09-07). A notify failure
+// does NOT fail the handoff — the row is durable and a sweep can still find it
+// — but it is returned, never swallowed.
+func (s handoffSender) send(h handoff) error {
+	if s.msgStore == nil {
+		return fmt.Errorf("no message store: a handoff cannot be delivered")
+	}
+	if h.Target == nil || h.Target.Inbox == "" {
+		return fmt.Errorf("target agent %q has no inbox to deliver to", targetAgentID(h.Target))
+	}
+	if h.Source == nil || h.Task == nil {
+		return fmt.Errorf("handoff to %s has no source agent or task", h.Target.ID)
+	}
+
+	msg := h.inboxMessage()
+	if err := s.msgStore.InsertInboxMessage(msg); err != nil {
+		return err
+	}
+	if s.notify == nil {
+		return nil
+	}
+	return s.notify(msg)
+}
+
+// sendAgentHandoffMessage is the approval path's entry: OnAgentApproved and
+// dispatchApprovalHandoffs. Notification goes through notifyInboxMessage.
 func sendAgentHandoffMessage(
 	msgStore messaging.MessageStore,
 	sourceAgent, targetAgent *AgentConfig,
@@ -80,41 +169,13 @@ func sendAgentHandoffMessage(
 	artifacts []string,
 	issueNumber int,
 ) error {
-	if msgStore == nil {
-		return fmt.Errorf("no message store: a handoff cannot be delivered")
-	}
-	if targetAgent == nil || targetAgent.Inbox == "" {
-		return fmt.Errorf("target agent %q has no inbox to deliver to", targetAgentID(targetAgent))
-	}
-
-	content := handoffContent(sourceAgent, task, issueNumber, artifacts)
-
-	msg := &messaging.InboxMessage{
-		FromAgent:     "coordinator",
-		ToInbox:       targetAgent.Inbox,
-		MessageType:   "handoff",
-		Title:         handoffTitle(task.Title),
-		Payload:       content,
-		CorrelationID: task.ID,
-		ParentTaskID:  task.ID,
-		ChainID:       task.ChainID,
-		Status:        messaging.InboxStatusUnread,
-	}
-	if err := msgStore.InsertInboxMessage(msg); err != nil {
-		return err
-	}
-
-	// The row alone does not start work. The cloud coordinator dispatches from a
-	// Pub/Sub notification — the daemon's own deliverHandoffToInbox says so:
-	// "cross-machine chains hear handoffs only via Pub/Sub". Storing the message
-	// and skipping this leaves a handoff that is visible in the inbox, correct in
-	// every field, and never picked up (measured on task-f8ecc37c, 2026-09-07:
-	// inbox row present within seconds, no task for minutes).
-	//
-	// A notify failure does NOT fail the handoff — the row is durable and a sweep
-	// can still find it — but it must be VISIBLE, so it is returned as a typed
-	// warning rather than swallowed.
-	return notifyInboxMessage(msg)
+	return handoffSender{msgStore: msgStore, notify: notifyInboxMessage}.send(handoff{
+		Source:      sourceAgent,
+		Target:      targetAgent,
+		Task:        task,
+		Artifacts:   artifacts,
+		IssueNumber: issueNumber,
+	})
 }
 
 // handoffContent is what the next agent actually reads.
