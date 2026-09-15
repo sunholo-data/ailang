@@ -19,7 +19,7 @@ func chainsFindCommand() {
 	taskID := fs.String("task-id", "", "Find chain by coordinator task ID")
 	github := fs.String("github", "", "Find chain by GitHub issue (repo#number)")
 	jsonOutput := fs.Bool("json", false, "Output as JSON")
-	remote := fs.String("remote", "", "Read from this observatory storage mode (gcp). Default: $AILANG_CHAINS_READ")
+	remote := fs.String("remote", "", "Read from this observatory storage mode (gcp). Default: the plane's observatory store ($AILANG_STORAGE_OBSERVATORY, else $AILANG_STORAGE)")
 	fs.Parse(flag.Args()[2:])
 
 	// Validate exactly one lookup key

@@ -149,10 +149,27 @@ log "GitHub import handled by coordinator (github_sync enabled)"
 # feedback nobody had seen. A quiet banner is the single most effective way to make
 # a full inbox look empty, so pin it explicitly rather than inheriting.
 #
-# Overridable: set AILANG_MESSAGES_STORE/_PROJECT before the hook to point elsewhere
-# (e.g. =local to inspect this machine's private inbox).
-export AILANG_MESSAGES_STORE="${AILANG_MESSAGES_STORE:-gcp}"
+# Overridable: set AILANG_STORAGE_MESSAGING/_PROJECT before the hook to point elsewhere
+# (e.g. =local to inspect this machine's private inbox). AILANG_STORAGE_MESSAGING is
+# the per-store override of the ONE plane switch AILANG_STORAGE (M-V1-SIMPLIFY-S3 M3).
+export AILANG_STORAGE_MESSAGING="${AILANG_STORAGE_MESSAGING:-gcp}"
 export AILANG_MESSAGES_PROJECT="${AILANG_MESSAGES_PROJECT:-ailang-multivac}"
+
+# The retired selectors are HARD ERRORS in a current binary. Inherited from a
+# ~/.zshenv that predates M3 they would make every query below fail — and the
+# `|| echo "[]"` fallbacks would render that as an EMPTY inbox, the exact failure
+# this hook exists to prevent. Unset them for the hook's own queries and say so
+# in the banner; the shell that exports them still has to be fixed.
+RETIRED_STORE_VARS=""
+for _v in AILANG_MESSAGES_STORE AILANG_COORDINATOR_REMOTE AILANG_CHAINS_READ AILANG_CHAINS_CLOUD; do
+    if [ -n "$(printenv "$_v" 2>/dev/null)" ]; then
+        RETIRED_STORE_VARS="${RETIRED_STORE_VARS:+$RETIRED_STORE_VARS }$_v"
+        unset "$_v"
+    fi
+done
+if [ -n "$RETIRED_STORE_VARS" ]; then
+    log "WARNING: retired selector(s) exported in this shell: $RETIRED_STORE_VARS — use AILANG_STORAGE_MESSAGING / _COORDINATOR / _OBSERVATORY"
+fi
 
 # Cap the startup injection at 5 most-recent unread messages; full backlog
 # is still visible via `ailang messages list --unread`.
@@ -160,15 +177,19 @@ INBOX_DUMP_LIMIT="${AILANG_INBOX_DUMP_LIMIT:-5}"
 ALL_MESSAGES_JSON=$(ailang messages list --unread --json 2>/dev/null || echo "[]")
 UNREAD_COUNT=$(echo "$ALL_MESSAGES_JSON" | jq 'length' 2>/dev/null || echo "0")
 
-# A binary older than v0.34.0 ignores AILANG_MESSAGES_STORE silently — it reads local
-# SQLite and exits 0, so the count above would be wrong with no error anywhere. Probe
-# with an INVALID value: a current binary refuses it, an old one lists normally.
+# A binary that predates the plane switch (M-V1-SIMPLIFY-S3 M3, after v0.38.8) ignores
+# AILANG_STORAGE_MESSAGING silently — it reads local SQLite and exits 0, so the count
+# above would be wrong with no error anywhere. Probe with an INVALID value: a current
+# binary refuses it, an old one lists normally.
 STORE_LABEL="canonical (prod)"
-if AILANG_MESSAGES_STORE=__invalid__ ailang messages list --unread --json >/dev/null 2>&1; then
+if AILANG_STORAGE_MESSAGING=__invalid__ ailang messages list --unread --json >/dev/null 2>&1; then
     # An invalid store value SUCCEEDED, so this binary is not reading the variable
     # at all — the count above came from local SQLite regardless of what we exported.
-    STORE_LABEL="LOCAL ONLY — binary predates v0.34.0, run 'make quick-install'"
-    log "WARNING: ailang binary ignores AILANG_MESSAGES_STORE; inbox count is local-only"
+    STORE_LABEL="LOCAL ONLY — binary predates the AILANG_STORAGE_MESSAGING switch, run 'make quick-install'"
+    log "WARNING: ailang binary ignores AILANG_STORAGE_MESSAGING; inbox count is local-only"
+fi
+if [ -n "$RETIRED_STORE_VARS" ]; then
+    STORE_LABEL="$STORE_LABEL — WARNING: this shell exports retired $RETIRED_STORE_VARS; replace with AILANG_STORAGE_MESSAGING=gcp"
 fi
 MESSAGES_JSON=$(echo "$ALL_MESSAGES_JSON" | jq ".[:${INBOX_DUMP_LIMIT}]" 2>/dev/null || echo "[]")
 

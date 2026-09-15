@@ -39,7 +39,7 @@ if [ -n "${MC_ATTEMPT_FILE:-}" ]; then
   n=$(( 10#$n + 1 ))
   printf '%s\n' "$n" > "$MC_ATTEMPT_FILE"
 fi
-printf 'store=<%s> proj=<%s>\n' "${AILANG_MESSAGES_STORE:-}" "${AILANG_MESSAGES_PROJECT:-}"
+printf 'store=<%s> proj=<%s>\n' "${AILANG_STORAGE_MESSAGING:-}" "${AILANG_MESSAGES_PROJECT:-}"
 exit "${AILANG_RC:-0}"
 STUB
 chmod +x "$LAB/bin/ailang"
@@ -60,11 +60,11 @@ export PATH="$LAB/bin${PATH:+:$PATH}"
 
 # HERMETICITY (evaluator B2): `_mc_bounded` runs `( exec "$@" )`, and a subshell inherits
 # whatever the CALLING shell exported — independent of any `env VAR=val` prefix. CLAUDE.md
-# tells every machine doing AILANG work to export AILANG_MESSAGES_STORE/PROJECT at session
+# tells every machine doing AILANG work to export AILANG_STORAGE_MESSAGING/PROJECT at session
 # start, so in the documented operating environment the store/project guard below would stay
 # green with the production `env` prefix DELETED. Measured: mutation green 37/0 with the vars
 # ambient, red 36/1 without. Unset them here so the prefix is the only possible source.
-unset AILANG_MESSAGES_STORE AILANG_MESSAGES_PROJECT
+unset AILANG_STORAGE_MESSAGING AILANG_MESSAGES_PROJECT
 
 awk '/^_mc_notify\(\) \{/,/^\}/' "$DRV"                        > "$LAB/notify.sh"
 awk '/^# --- DRIVER PIN DECISION START ---/,/^# --- DRIVER PIN DECISION END ---/' "$DRV" > "$LAB/pin_decision.sh"
@@ -648,7 +648,7 @@ run_bounded 15 "$_ss_outf" env MC_TRACE_FILE="$_ss_trace" STUB_HANG_AILANG=1 \
   /bin/bash -c '
     set -uo pipefail
     . "$MC_BND"
-    _mc_bounded 2 env AILANG_MESSAGES_STORE=gcp AILANG_MESSAGES_PROJECT=ailang-multivac \
+    _mc_bounded 2 env AILANG_STORAGE_MESSAGING=gcp AILANG_MESSAGES_PROJECT=ailang-multivac \
       ailang messages send controlplane "hang" --from mission-control
     echo "HANG_RC:$?"
   '

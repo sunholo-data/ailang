@@ -2,11 +2,8 @@ package coordinator
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
-
-	"gopkg.in/yaml.v3"
 )
 
 // Workspace configuration: which path belongs to which workspace, and how that
@@ -29,34 +26,19 @@ type WorkspaceMapping struct {
 	Workspace string `yaml:"workspace" json:"workspace"` // Workspace ID (e.g., "sunholo-data/ailang")
 }
 
-// LoadWorkspacesConfig loads workspace configuration from ~/.ailang/config.yaml.
-// Returns a default configuration if no config is set.
+// LoadWorkspacesConfig loads the workspaces section of the config file
+// (AILANG_CONFIG, else ~/.ailang/config.yaml). Returns the default mappings
+// when there is no file or no section.
 func LoadWorkspacesConfig() *WorkspacesConfig {
-	configPath := defaultConfigPath()
-	if configPath == "" {
+	ws := &WorkspacesConfig{}
+	present, err := loadSection("workspaces", ws)
+	if err != nil || !present {
 		return DefaultWorkspacesConfig()
 	}
-
-	data, err := os.ReadFile(configPath)
-	if err != nil {
-		return DefaultWorkspacesConfig()
+	if ws.DefaultWorkspace == "" {
+		ws.DefaultWorkspace = "public"
 	}
-
-	var config ConfigFile
-	if err := yaml.Unmarshal(data, &config); err != nil {
-		return DefaultWorkspacesConfig()
-	}
-
-	if config.Workspaces == nil {
-		return DefaultWorkspacesConfig()
-	}
-
-	// Apply defaults
-	if config.Workspaces.DefaultWorkspace == "" {
-		config.Workspaces.DefaultWorkspace = "public"
-	}
-
-	return config.Workspaces
+	return ws
 }
 
 // DefaultWorkspacesConfig returns minimal default workspace mappings.

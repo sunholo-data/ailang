@@ -29,10 +29,13 @@ func shouldRecoverStaleTasksOnStartup(mode string) bool {
 	return mode != CoordinatorModeCloud
 }
 
-// CoordinatorMode determines how the coordinator receives messages and broadcasts events.
+// CoordinatorMode determines how the coordinator receives messages, broadcasts
+// events and runs work. The values are config's; COORDINATOR_MODE is read and
+// validated against the storage plane there (config.CoordinatorMode), and
+// this package asks IsCloudMode.
 const (
-	CoordinatorModeLocal = "local" // Default: SQLite polling + HTTP broadcaster
-	CoordinatorModeCloud = "cloud" // Pub/Sub subscriptions + Pub/Sub broadcaster
+	CoordinatorModeLocal = config.CoordinatorModeLocal // Default: SQLite polling + HTTP broadcaster + worktrees on this host
+	CoordinatorModeCloud = config.CoordinatorModeCloud // Pub/Sub push + Pub/Sub broadcaster + Cloud Run Jobs
 )
 
 // stageToAgentID maps task stages to agent IDs for config lookup.
@@ -84,9 +87,12 @@ func (d *Daemon) initTaskProcessing() error {
 	// carried the context never existed. On the shared plane the publisher is
 	// REQUIRED; failing to build it fails init (and, per M1, the daemon).
 	// Pure-local single-machine setups keep no publisher and are unaffected.
-	// (AILANG_STORAGE read directly: internal/storage imports this package, so
-	// the mode helper would be an import cycle. gcp|hybrid = shared plane.)
-	if sm := os.Getenv("AILANG_STORAGE"); (sm == "gcp" || sm == "hybrid") && d.pubsubClient == nil {
+	// gcp|hybrid = the shared plane, resolved by the one plane switch.
+	plane, err := config.StoragePlane()
+	if err != nil {
+		return err
+	}
+	if plane.Shared() && d.pubsubClient == nil {
 		if err := d.initPubSub(d.ctx); err != nil {
 			return fmt.Errorf("shared-plane coordinator needs a Pub/Sub publisher (approvals would be silent): %w", err)
 		}
@@ -150,7 +156,10 @@ func (d *Daemon) initTaskProcessing() error {
 	d.inboxAdapters = make(map[string]*InboxMessageAdapter)
 	d.worktreeManagers = make(map[string]*WorktreeManager)
 
-	mode := os.Getenv("COORDINATOR_MODE")
+	mode, _, err := config.CoordinatorMode()
+	if err != nil {
+		return err
+	}
 	if mode == CoordinatorModeCloud {
 		// Cloud mode requires pre-set message store (Firestore via SetStores).
 		if d.msgStore == nil {
@@ -354,7 +363,7 @@ func (d *Daemon) initTaskProcessing() error {
 	// mode ... Local mode uses RecoverStaleTasks at startup instead") — nothing
 	// enforced it. In cloud mode the stale-task detector owns this, and it ages
 	// tasks from their own timeout rather than from the daemon's lifetime.
-	if d.taskStore != nil && shouldRecoverStaleTasksOnStartup(os.Getenv("COORDINATOR_MODE")) {
+	if d.taskStore != nil && shouldRecoverStaleTasksOnStartup(mode) {
 		staleThreshold := 5 * time.Minute // Tasks idle for >5 min are considered stale
 		recovered, err := d.taskStore.RecoverStaleTasks(d.ctx, staleThreshold)
 		if err != nil {
@@ -389,21 +398,14 @@ func (d *Daemon) initHTTPBroadcaster() error {
 	return nil
 }
 
-// initEventBroadcaster initializes the event broadcaster based on COORDINATOR_MODE.
-// In cloud mode, events are published to Pub/Sub. In local mode (default),
-// events are sent to the Collaboration Hub server via HTTP.
+// initEventBroadcaster initializes the event broadcaster for the coordinator
+// mode. In cloud mode, events are published to Pub/Sub. In local mode
+// (default), events are sent to the Collaboration Hub server via HTTP.
 func (d *Daemon) initEventBroadcaster() error {
-	mode := os.Getenv("COORDINATOR_MODE")
-	if mode == "" {
-		mode = CoordinatorModeLocal
-	}
-
-	switch mode {
-	case CoordinatorModeCloud:
+	if IsCloudMode() {
 		return d.initPubSubBroadcaster()
-	default:
-		return d.initHTTPBroadcaster()
 	}
+	return d.initHTTPBroadcaster()
 }
 
 // initPubSub initializes the Pub/Sub client, publisher, and subscriber.

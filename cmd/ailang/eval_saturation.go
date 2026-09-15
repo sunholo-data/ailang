@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"flag"
 	"fmt"
 	"os"
@@ -11,8 +10,7 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/eval_harness"
 	"github.com/sunholo-data/ailang/internal/observatory"
-
-	_ "github.com/mattn/go-sqlite3"
+	"github.com/sunholo-data/ailang/internal/sqliteopen"
 )
 
 // runEvalTrendSaturation implements `ailang eval-trend tier-saturation`: a
@@ -31,7 +29,7 @@ func runEvalTrendSaturation() {
 	if path == "" {
 		path = defaultObservatoryDB()
 	}
-	db, err := sql.Open("sqlite3", path)
+	db, err := sqliteopen.Open(path, sqliteopen.Options{ReadOnly: true})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "open ratings db %s: %v\n", path, err)
 		os.Exit(1)

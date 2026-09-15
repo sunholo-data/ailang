@@ -1,22 +1,51 @@
 package coordinator
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
-	"io"
-	"os"
-	"strings"
-
-	"gopkg.in/yaml.v3"
 
 	"github.com/sunholo-data/ailang/internal/config"
 )
 
-// defaultConfigPath returns the AILANG config file path: AILANG_CONFIG (for
-// Cloud Run), else ~/.ailang/config.yaml — resolved by config.FilePath.
-func defaultConfigPath() string {
-	return config.FilePath()
+// The coordinator's sections of ~/.ailang/config.yaml are read through the
+// ONE loader in internal/config (M-V1-SIMPLIFY-S3 M3): one parse per process,
+// AILANG_CONFIG honoured everywhere, and a broken file is an error from
+// every reader rather than a default from some of them.
+
+// loadSection decodes one top-level section of the config file into out.
+// It returns (false, nil) when there is no config file or no such section,
+// so the caller applies its defaults; a file that exists but does not parse,
+// or a section that does not fit, is an error.
+func loadSection(key string, out any) (bool, error) {
+	f, err := config.Load()
+	if err != nil {
+		if errors.Is(err, config.ErrConfigNotFound) {
+			return false, nil
+		}
+		return false, fmt.Errorf("failed to read config file: %w", err)
+	}
+	present, err := f.Section(key, out)
+	if err != nil {
+		return present, fmt.Errorf("failed to parse config file: %w", err)
+	}
+	return present, nil
+}
+
+// loadSectionFrom is loadSection for an explicit path (tests and
+// `coordinator agent check --repo-config`).
+func loadSectionFrom(path, key string, out any) (bool, error) {
+	f, err := config.LoadFrom(path)
+	if err != nil {
+		if errors.Is(err, config.ErrConfigNotFound) {
+			return false, nil
+		}
+		return false, fmt.Errorf("failed to read config file: %w", err)
+	}
+	present, err := f.Section(key, out)
+	if err != nil {
+		return present, fmt.Errorf("failed to parse config file: %w", err)
+	}
+	return present, nil
 }
 
 // CoordinatorConfig is the coordinator section of the global config file.
@@ -125,13 +154,9 @@ func (c *GitHubSyncConfig) GetRepos(defaultRepo string) []RepoSyncConfig {
 	}
 }
 
-// ConfigFile represents the full ~/.ailang/config.yaml structure.
-type ConfigFile struct {
-	Coordinator *CoordinatorConfig `yaml:"coordinator"`
-	Budgets     *BudgetsConfig     `yaml:"budgets"`
-	Firebase    *FirebaseConfig    `yaml:"firebase"`
-	Workspaces  *WorkspacesConfig  `yaml:"workspaces"`
-}
+// The coordinator's sections of the config file are `coordinator:`,
+// `budgets:`, `firebase:` and `workspaces:`; each loader below decodes its
+// own through config.Load, so there is no whole-file struct here any more.
 
 // FirebaseConfig contains Firebase authentication settings.
 type FirebaseConfig struct {
@@ -184,37 +209,35 @@ func DefaultBudgetsConfig() *BudgetsConfig {
 	}
 }
 
-// LoadBudgetsConfig loads budget configuration from ~/.ailang/config.yaml.
-// Respects AILANG_CONFIG env var for Cloud Run deployments.
+// LoadBudgetsConfig loads the budgets section of the config file
+// (AILANG_CONFIG, else ~/.ailang/config.yaml). No file or no section means
+// the defaults.
 func LoadBudgetsConfig() (*BudgetsConfig, error) {
-	configPath := defaultConfigPath()
-	if configPath == "" {
+	budgets := &BudgetsConfig{}
+	present, err := loadSection("budgets", budgets)
+	if err != nil {
+		return nil, err
+	}
+	if !present {
 		return DefaultBudgetsConfig(), nil
 	}
-	return LoadBudgetsConfigFrom(configPath)
+	return applyBudgetDefaults(budgets), nil
 }
 
-// LoadBudgetsConfigFrom loads budget configuration from a specific path
+// LoadBudgetsConfigFrom is LoadBudgetsConfig for an explicit path.
 func LoadBudgetsConfigFrom(configPath string) (*BudgetsConfig, error) {
-	data, err := os.ReadFile(configPath)
+	budgets := &BudgetsConfig{}
+	present, err := loadSectionFrom(configPath, "budgets", budgets)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return DefaultBudgetsConfig(), nil
-		}
-		return nil, fmt.Errorf("failed to read config file: %w", err)
+		return nil, err
 	}
-
-	var config ConfigFile
-	if err := yaml.Unmarshal(data, &config); err != nil {
-		return nil, fmt.Errorf("failed to parse config file: %w", err)
-	}
-
-	if config.Budgets == nil {
+	if !present {
 		return DefaultBudgetsConfig(), nil
 	}
+	return applyBudgetDefaults(budgets), nil
+}
 
-	// Apply defaults
-	budgets := config.Budgets
+func applyBudgetDefaults(budgets *BudgetsConfig) *BudgetsConfig {
 	if budgets.Global == nil {
 		budgets.Global = DefaultBudgetsConfig().Global
 	} else {
@@ -232,29 +255,20 @@ func LoadBudgetsConfigFrom(configPath string) (*BudgetsConfig, error) {
 			budgets.Global.WarningThreshold = 0.8
 		}
 	}
-
-	return budgets, nil
+	return budgets
 }
 
-// LoadFirebaseConfig loads Firebase configuration from ~/.ailang/config.yaml.
-// Returns nil if no Firebase config is set (Firebase auth will be disabled).
+// LoadFirebaseConfig loads the firebase section of the config file. Returns
+// nil when there is no file or no section (Firebase auth disabled). A file
+// that does not parse is also nil here — the callers are UI defaults — but
+// the coordinator daemon has already refused to start on it.
 func LoadFirebaseConfig() *FirebaseConfig {
-	configPath := defaultConfigPath()
-	if configPath == "" {
+	fb := &FirebaseConfig{}
+	present, err := loadSection("firebase", fb)
+	if err != nil || !present {
 		return nil
 	}
-
-	data, err := os.ReadFile(configPath)
-	if err != nil {
-		return nil // No config file
-	}
-
-	var config ConfigFile
-	if err := yaml.Unmarshal(data, &config); err != nil {
-		return nil // Invalid config
-	}
-
-	return config.Firebase
+	return fb
 }
 
 // DefaultCoordinatorConfig returns a minimal default configuration.
@@ -280,40 +294,38 @@ func DefaultCoordinatorConfig() *CoordinatorConfig {
 	}
 }
 
-// LoadCoordinatorConfig loads the coordinator configuration from ~/.ailang/config.yaml.
-// If the file doesn't exist, returns a default configuration.
-// If the file exists but has no coordinator section, returns a default configuration.
+// LoadCoordinatorConfig loads the coordinator section of the config file
+// (AILANG_CONFIG, else ~/.ailang/config.yaml). No file or no coordinator
+// section returns the default configuration; a file that does not parse is
+// an error.
 func LoadCoordinatorConfig() (*CoordinatorConfig, error) {
-	configPath := defaultConfigPath()
-	if configPath == "" {
+	cfg := &CoordinatorConfig{}
+	present, err := loadSection("coordinator", cfg)
+	if err != nil {
+		return nil, err
+	}
+	if !present {
 		return DefaultCoordinatorConfig(), nil
 	}
-	return LoadCoordinatorConfigFrom(configPath)
+	return applyCoordinatorDefaults(cfg), nil
 }
 
-// LoadCoordinatorConfigFrom loads the coordinator configuration from a specific path.
+// LoadCoordinatorConfigFrom is LoadCoordinatorConfig for an explicit path.
 func LoadCoordinatorConfigFrom(configPath string) (*CoordinatorConfig, error) {
-	data, err := os.ReadFile(configPath)
+	cfg := &CoordinatorConfig{}
+	present, err := loadSectionFrom(configPath, "coordinator", cfg)
 	if err != nil {
-		if os.IsNotExist(err) {
-			// Config file doesn't exist, use defaults
-			return DefaultCoordinatorConfig(), nil
-		}
-		return nil, fmt.Errorf("failed to read config file: %w", err)
+		return nil, err
 	}
-
-	var config ConfigFile
-	if err := yaml.Unmarshal(data, &config); err != nil {
-		return nil, fmt.Errorf("failed to parse config file: %w", err)
-	}
-
-	if config.Coordinator == nil {
-		// No coordinator section, use defaults
+	if !present {
 		return DefaultCoordinatorConfig(), nil
 	}
+	return applyCoordinatorDefaults(cfg), nil
+}
 
-	// Validate and apply defaults
-	cfg := config.Coordinator
+// applyCoordinatorDefaults validates and fills the defaults of a loaded
+// coordinator section.
+func applyCoordinatorDefaults(cfg *CoordinatorConfig) *CoordinatorConfig {
 	if cfg.DefaultProvider == "" {
 		cfg.DefaultProvider = "claude"
 	}
@@ -358,7 +370,7 @@ func LoadCoordinatorConfigFrom(configPath string) (*CoordinatorConfig, error) {
 		}
 	}
 
-	return cfg, nil
+	return cfg
 }
 
 // LoadAgentRegistry loads agents from config and returns a populated registry.
@@ -503,49 +515,17 @@ coordinator:
 // inert, and the entry read as if it were configured.
 //
 // Returns the offending key paths rather than an error, because the caller
-// wants to report all of them, not stop at the first.
+// wants to report all of them, not stop at the first. Only AGENT keys are
+// reported: the decode target models `coordinator:` alone, so every sibling
+// top-level block (github:, pubsub:) would report as unknown and be a false
+// positive — and a checker that cries wolf gets ignored.
 func UnknownConfigKeys(data []byte) ([]string, error) {
-	dec := yaml.NewDecoder(bytes.NewReader(data))
-	dec.KnownFields(true)
-
+	f, err := config.Parse(data)
+	if err != nil {
+		return nil, err
+	}
 	var cfg struct {
 		Coordinator CoordinatorConfig `yaml:"coordinator"`
 	}
-	var keys []string
-	for {
-		err := dec.Decode(&cfg)
-		if err == nil {
-			continue
-		}
-		if errors.Is(err, io.EOF) {
-			break
-		}
-		// yaml.v3 reports every unknown field in one TypeError.
-		var te *yaml.TypeError
-		if errors.As(err, &te) {
-			for _, e := range te.Errors {
-				// Only AGENT keys. The decode target models `coordinator:` alone,
-				// so every sibling top-level block (github:, pubsub:) reports as
-				// unknown and is a false positive — and a checker that cries wolf
-				// gets ignored, which is the same as not having one.
-				if !strings.Contains(e, "in type coordinator.AgentConfig") {
-					continue
-				}
-				// "line 1266: field push_branch not found in type
-				// coordinator.AgentConfig" -> "line 1266: push_branch"
-				msg := e
-				if i := strings.Index(msg, "field "); i >= 0 {
-					if j := strings.Index(msg[i:], " not found"); j >= 0 {
-						msg = msg[:i] + msg[i+len("field "):i+j]
-					}
-				}
-				keys = append(keys, strings.TrimSpace(msg))
-			}
-			break
-		}
-		// A genuine parse error is the caller's problem to report, not a
-		// list of unknown keys.
-		return nil, err
-	}
-	return keys, nil
+	return f.UnknownKeys(&cfg, "coordinator.AgentConfig")
 }

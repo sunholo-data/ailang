@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"os"
 	"sync"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/messaging"
 	"github.com/sunholo-data/ailang/internal/observatory"
 )
@@ -275,7 +275,18 @@ func (d *StaleTaskDetector) postFailureNotification(ctx context.Context, task *T
 	}
 }
 
-// IsCloudMode returns true if running in cloud mode.
+// validateCoordinatorMode is NewDaemon's start-up gate: COORDINATOR_MODE
+// must resolve and agree with the storage plane.
+func validateCoordinatorMode() error {
+	_, _, err := config.CoordinatorMode()
+	return err
+}
+
+// IsCloudMode reports whether the daemon runs in cloud mode — COORDINATOR_MODE
+// resolved and validated against the storage plane by internal/config, the
+// one reader of that variable. A mode that does not resolve is not cloud;
+// NewDaemon has already refused to start on it.
 func IsCloudMode() bool {
-	return os.Getenv("COORDINATOR_MODE") == CoordinatorModeCloud
+	mode, _, err := config.CoordinatorMode()
+	return err == nil && mode == CoordinatorModeCloud
 }

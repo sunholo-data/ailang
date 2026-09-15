@@ -77,7 +77,7 @@ test(
 				fakePi,
 				`#!/usr/bin/env bash
 set -u
-printf '%s\\n' "\${AILANG_MESSAGES_STORE-__UNSET__}" "\${AILANG_MESSAGES_PROJECT-__UNSET__}" "\${AILANG_STORAGE-__UNSET__}" > child-env.txt
+printf '%s\\n' "\${AILANG_STORAGE_MESSAGING-__UNSET__}" "\${AILANG_MESSAGES_PROJECT-__UNSET__}" "\${AILANG_STORAGE-__UNSET__}" > child-env.txt
 printf '%s\\n' '{"type":"agent_end"}'
 `,
 			);
@@ -96,7 +96,7 @@ printf '%s\\n' '{"type":"agent_end"}'
 				{
 					name: "hostile caller",
 					caller: {
-						AILANG_MESSAGES_STORE: "local",
+						AILANG_STORAGE_MESSAGING: "local",
 						AILANG_MESSAGES_PROJECT: "wrong-project",
 						AILANG_STORAGE: "local",
 					},
@@ -116,7 +116,7 @@ printf '%s\\n' '{"type":"agent_end"}'
 					PATH: `${binDir}:${process.env.PATH ?? ""}`,
 					MISSION_PI_POLL_SECONDS: "1",
 				};
-				delete env.AILANG_MESSAGES_STORE;
+				delete env.AILANG_STORAGE_MESSAGING;
 				delete env.AILANG_MESSAGES_PROJECT;
 				delete env.AILANG_STORAGE;
 				Object.assign(env, arm.caller);
@@ -195,8 +195,8 @@ test("evaluator handshake: exact bounded inbox command is admitted by the armed 
 	assert.equal(bashAllowed(args.command), true);
 	assert.equal(shouldBlock("bash", args.command, false), null);
 	for (const prefixed of [
-		`env AILANG_MESSAGES_STORE=gcp ${args.command}`,
-		`AILANG_MESSAGES_STORE=gcp ${args.command}`,
+		`env AILANG_STORAGE_MESSAGING=gcp ${args.command}`,
+		`AILANG_STORAGE_MESSAGING=gcp ${args.command}`,
 	]) {
 		assert.equal(bashAllowed(prefixed), false, `must reject prefix: ${prefixed}`);
 		assert.equal(shouldBlock("bash", prefixed, false), BLOCK_REASON);
@@ -254,7 +254,7 @@ test("evaluator handshake: extracted local calls satisfy the predicate but faile
 test("evaluator handshake: launcher authority and failure semantics are explicit", () => {
 	const { section, preamble } = extractEvaluatorHandshake();
 	assert.match(section, /scripts\/mission_pi_run\.sh/);
-	assert.match(section, /AILANG_MESSAGES_STORE=gcp/);
+	assert.match(section, /AILANG_STORAGE_MESSAGING=gcp/);
 	assert.match(section, /AILANG_MESSAGES_PROJECT=ailang-multivac/);
 	assert.match(section, /leaves\s+`AILANG_STORAGE` unchanged/);
 	assert.match(section, /not full mission inbox triage/);

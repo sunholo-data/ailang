@@ -11,6 +11,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/daemon"
 	"github.com/sunholo-data/ailang/internal/messaging"
 	"github.com/sunholo-data/ailang/internal/notify"
@@ -125,15 +126,18 @@ func daemonRun(args []string) error {
 	}
 	defer func() { _ = psClient.Close() }()
 
-	// GCP storage unless told otherwise, so we read the cloud-side
-	// InboxMessage docs (not local SQLite), in the --env's project. Plumbed
-	// explicitly: this used to os.Setenv AILANG_STORAGE and
-	// AILANG_CLOUD_PROJECT for the whole process.
-	storeMode := storage.Mode(os.Getenv("AILANG_STORAGE"))
-	if storeMode == "" {
-		storeMode = storage.ModeGCP
+	// The cloud-side InboxMessage docs (not local SQLite), in the --env's
+	// project, unless the plane says otherwise: this daemon's default is gcp
+	// when nothing set AILANG_STORAGE. Plumbed explicitly — this used to
+	// os.Setenv AILANG_STORAGE and AILANG_CLOUD_PROJECT for the whole process.
+	sel, err := config.StoragePlane()
+	if err != nil {
+		return err
 	}
-	backends, err := storage.NewBackendsForModeProject(ctx, storeMode, project)
+	if sel.PlaneSource == config.SourceDefault && sel.Messaging.Source == config.SourceDefault {
+		sel = config.StorageForPlane(config.PlaneGCP)
+	}
+	backends, err := storage.NewBackendsForSelection(ctx, sel, project)
 	if err != nil {
 		return fmt.Errorf("storage backends: %w", err)
 	}

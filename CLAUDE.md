@@ -15,13 +15,17 @@ living roadmap (benchmark ladder · extension catalog · AILANG-fix backlog) liv
 unread for weeks that way. Every machine doing AILANG work exports:
 
 ```bash
-export AILANG_MESSAGES_STORE=gcp
+export AILANG_STORAGE_MESSAGING=gcp
 export AILANG_MESSAGES_PROJECT=ailang-multivac
 ```
 
-These are scoped to messaging only (`ailang storage status` must still say `Mode: local`).
-**Never export `AILANG_STORAGE` for this** — it moves coordinator and observatory to Firestore
-too ([backend.go:83](internal/storage/backend.go#L83)).
+`AILANG_STORAGE_MESSAGING` is the per-store override of the ONE plane switch `AILANG_STORAGE`
+(M-V1-SIMPLIFY-S3 M3): it moves messaging alone, so `ailang storage status` must show
+`messaging gcp (AILANG_STORAGE_MESSAGING)` with coordinator and observatory still `local`.
+**Never export `AILANG_STORAGE=gcp` for this** — that moves all three stores. The retired
+`AILANG_MESSAGES_STORE` (and `AILANG_COORDINATOR_REMOTE`, `AILANG_CHAINS_READ`,
+`AILANG_CHAINS_CLOUD`) is a hard error naming its replacement — fix the export, do not
+work around it.
 
 Then `ailang messages list --unread` spans all inboxes, and a non-local listing names its store
 in the header — **no `store: gcp (...)` header means you are reading local**, usually a stale

@@ -23,7 +23,7 @@ func TestActualPiAdapterDispatch(t *testing.T) {
 	script := `#!/bin/sh
 if [ "$1" = "--version" ]; then echo fixture; exit 0; fi
 printf '%s\n' "$@" > args.txt
-test "$AILANG_MESSAGES_STORE" = gcp || exit 22
+test "$AILANG_STORAGE_MESSAGING" = gcp || exit 22
 test "$AILANG_MESSAGES_PROJECT" = ailang-multivac || exit 23
 cat <<'EVENTS'
 {"type":"session","id":"fixture-session"}

@@ -32,7 +32,7 @@ func testPost(source string) *observatory.IterationPost {
 // TestOpenPostTargets_NoCloudIsUnchanged: with no remote named, the command has
 // exactly one target and behaves as it did before dual-write existed.
 func TestOpenPostTargets_NoCloudIsUnchanged(t *testing.T) {
-	t.Setenv("AILANG_CHAINS_CLOUD", "")
+	clearObservatoryPlaneEnv(t)
 	spool := filepath.Join(t.TempDir(), "spool.jsonl")
 
 	targets := openPostTargets(context.Background(), spool, "")

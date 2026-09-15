@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/sqliteopen"
 	"github.com/sunholo-data/ailang/internal/statedir"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 )
@@ -62,8 +63,9 @@ func DatabaseExists(dbPath string) bool {
 		return false
 	}
 
-	// Verify it's a valid SQLite database with our schema
-	db, err := sql.Open("sqlite3", dbPath)
+	// Verify it's a valid SQLite database with our schema. Read-only: an
+	// existence check must not create the file it is asking about.
+	db, err := sqliteopen.Open(dbPath, sqliteopen.Options{ReadOnly: true})
 	if err != nil {
 		return false
 	}

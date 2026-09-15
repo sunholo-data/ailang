@@ -11,7 +11,6 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/coordinator"
-	"gopkg.in/yaml.v3"
 )
 
 // M-MESSAGE-PLANE-FAIL-LOUD M4: compare-and-swap for the shared coordinator
@@ -54,14 +53,18 @@ func (e *staleGenerationError) Error() string {
 // every coordinator on its next cold start, so publishing one is strictly worse
 // than refusing the edit.
 func validateCoordinatorConfigBytes(data []byte) error {
-	var file struct {
-		Coordinator coordinator.CoordinatorConfig `yaml:"coordinator"`
+	// The candidate is parsed by the one config loader (config.Parse — a
+	// document held in memory, not the process's own file).
+	f, err := config.Parse(data)
+	if err != nil {
+		return fmt.Errorf("config is not valid YAML: %w", err)
 	}
-	if err := yaml.Unmarshal(data, &file); err != nil {
+	var cc coordinator.CoordinatorConfig
+	if _, err := f.Section("coordinator", &cc); err != nil {
 		return fmt.Errorf("config is not valid YAML: %w", err)
 	}
 
-	agents := file.Coordinator.Agents
+	agents := cc.Agents
 	if len(agents) == 0 {
 		return errors.New("config declares no agents: refusing to publish a config that would leave every inbox unserved")
 	}

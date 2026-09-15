@@ -65,8 +65,7 @@ func GrantCapabilities(effCtx *effects.EffContext, caps string) error {
 	// M-SECRET-REMOTE-APPROVAL-WIRING: in cloud mode, gate secret() behind a
 	// networked human approval. No-op (un-gated) for local runs. Covers every
 	// run path, since they all configure capabilities through here.
-	attachCloudSecretApprover(effCtx)
-	return nil
+	return attachCloudSecretApprover(effCtx)
 }
 
 // closestCapability suggests a documented capability for a misspelt one: a

@@ -27,7 +27,7 @@ func chainsTreeCommand() {
 	errorsOnly := fs.Bool("errors", false, "Only show failed or stuck stages (human-readable)")
 	handoffsOnly := fs.Bool("handoffs", false, "Show handoff summary only (compact view)")
 	lastTurnOnly := fs.Bool("last-turn", false, "Show only the final turn per stage")
-	remote := fs.String("remote", "", "Read from this observatory storage mode (gcp). Default: $AILANG_CHAINS_READ")
+	remote := fs.String("remote", "", "Read from this observatory storage mode (gcp). Default: the plane's observatory store ($AILANG_STORAGE_OBSERVATORY, else $AILANG_STORAGE)")
 	fs.Parse(flag.Args()[2:])
 
 	// Direct session query mode

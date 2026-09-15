@@ -57,7 +57,7 @@ func chainsStatsCommand() {
 	strict := fs.Bool("strict", false, "Exit non-zero if any stage has unattributable (unknown) cost")
 	costPerVerifiedSuccess := fs.Bool("cost-per-verified-success", false, "Compute the frozen-cohort cost-per-verified-success KPI (M-COST-PER-SUCCESS-KPI)")
 	baseline := fs.String("baseline", "", "Frozen cohort baseline id/source_ref prefix for --cost-per-verified-success (e.g. 'v1.0')")
-	remote := fs.String("remote", "", "Read from this observatory storage mode (gcp). Default: $AILANG_CHAINS_READ")
+	remote := fs.String("remote", "", "Read from this observatory storage mode (gcp). Default: the plane's observatory store ($AILANG_STORAGE_OBSERVATORY, else $AILANG_STORAGE)")
 	fs.Parse(flag.Args()[2:])
 
 	// M-COST-PER-SUCCESS-KPI: the headline KPI is its own strict surface. It

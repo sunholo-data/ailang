@@ -3,10 +3,8 @@ package messaging
 import (
 	"database/sql"
 	"fmt"
-	"os"
-	"path/filepath"
 
-	_ "github.com/mattn/go-sqlite3"
+	"github.com/sunholo-data/ailang/internal/sqliteopen"
 )
 
 // Schema defines the SQLite database schema for the collaboration hub.
@@ -18,32 +16,16 @@ const schemaVersion = "1.6.0" // v1.6.0: Removed unused approvals/attachments ta
 // InitDB creates and initializes a new SQLite database with the collaboration hub schema.
 // Returns the database connection and any error encountered.
 //
-// The database is configured with:
-// - WAL mode for write concurrency
-// - NORMAL synchronous mode for performance
-// - 5 second busy timeout for lock contention
+// The database is opened with the sqliteopen recipe (WAL, NORMAL
+// synchronous, 5s busy timeout, foreign keys, one writer).
 func InitDB(dbPath string) (*sql.DB, error) {
-	// Ensure the database directory exists
-	dbDir := filepath.Dir(dbPath)
-	if err := os.MkdirAll(dbDir, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create database directory %s: %w", dbDir, err)
-	}
-
-	db, err := sql.Open("sqlite3", dbPath)
+	// WAL, NORMAL synchronous, 5s busy timeout, foreign keys, one-connection
+	// pool and directory creation are the one recipe in internal/sqliteopen,
+	// applied on every pooled connection. The 64MB cache is this store's own
+	// tuning (M-COLLAB-HUB).
+	db, err := sqliteopen.Open(dbPath, sqliteopen.Options{CacheSizeKB: 64000})
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
-	}
-
-	// SQLite is single-writer; limit to 1 connection to serialize writes at
-	// the Go pool level instead of contending on the SQLite file lock.
-	db.SetMaxOpenConns(1)
-	db.SetMaxIdleConns(1)
-	db.SetConnMaxLifetime(0)
-
-	// Configure database for concurrent access
-	if err := configureDB(db); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("failed to configure database: %w", err)
 	}
 
 	// Create schema
@@ -53,26 +35,6 @@ func InitDB(dbPath string) (*sql.DB, error) {
 	}
 
 	return db, nil
-}
-
-// configureDB sets SQLite pragmas for performance and concurrency
-func configureDB(db *sql.DB) error {
-	pragmas := []string{
-		"PRAGMA journal_mode=WAL",   // Write-Ahead Logging for concurrency
-		"PRAGMA synchronous=NORMAL", // Balance safety and performance
-		"PRAGMA busy_timeout=5000",  // 5 second timeout for locks
-		"PRAGMA foreign_keys=ON",    // Enforce foreign key constraints
-		"PRAGMA temp_store=MEMORY",  // Store temp tables in memory
-		"PRAGMA cache_size=-64000",  // 64MB cache (negative = KB)
-	}
-
-	for _, pragma := range pragmas {
-		if _, err := db.Exec(pragma); err != nil {
-			return fmt.Errorf("failed to execute %s: %w", pragma, err)
-		}
-	}
-
-	return nil
 }
 
 // createSchema creates all tables and indices

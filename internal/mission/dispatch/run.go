@@ -232,7 +232,7 @@ func taskFor(r Request, c Candidate) *executor.Task {
 			m.Pricing.CacheReadPer1K, m.Pricing.CacheWritePer1K),
 		Pricing: &executor.CostModel{InputTokenCost: m.Pricing.InputPer1K, OutputTokenCost: m.Pricing.OutputPer1K, CacheReadCost: m.Pricing.CacheReadPer1K},
 		ExtraEnv: map[string]string{
-			"AILANG_MESSAGES_STORE": "gcp", "AILANG_MESSAGES_PROJECT": "ailang-multivac",
+			"AILANG_STORAGE_MESSAGING": "gcp", "AILANG_MESSAGES_PROJECT": "ailang-multivac",
 			// Marks this process as FROZEN STAGE EXECUTION so the repo's Claude Code hooks
 			// inject nothing into it. Applies to EVERY role, unlike the AGENTS.md isolation
 			// above: repo conventions are arguably an author's business, but prompt-matched

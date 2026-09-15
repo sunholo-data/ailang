@@ -72,7 +72,7 @@ Time: 2025-12-10T14:30:55Z
 
 | Store | Selected by | Who sees it |
 |---|---|---|
-| **Canonical cloud** (prod Firestore, `ailang-multivac`) | `AILANG_MESSAGES_STORE=gcp` + `AILANG_MESSAGES_PROJECT=ailang-multivac` | every machine |
+| **Canonical cloud** (prod Firestore, `ailang-multivac`) | `AILANG_STORAGE_MESSAGING=gcp` + `AILANG_MESSAGES_PROJECT=ailang-multivac` | every machine |
 | Local SQLite (`~/.ailang/state/collaboration.db`) | default | only this machine |
 
 Public feedback, package feedback, coordinator completions and other machines' agent
@@ -83,16 +83,16 @@ SQLite and will not show any of it — measured 2026-08-26, the session banner r
 Any listing against a non-local store prints its store in the header:
 
 ```
-  store: gcp (Firestore, project ailang-multivac)
+  store: gcp (Firestore, project ailang-multivac, via AILANG_STORAGE_MESSAGING)
 ```
 
 **No `store:` line means you are reading local only.** Two causes: the vars are not set,
-or the binary predates v0.34.0 and ignores them silently. Control for the second —
+or the binary predates the plane switch (M-V1-SIMPLIFY-S3 M3) and ignores them silently. Control for the second —
 an invalid value must be REFUSED:
 
 ```bash
-AILANG_MESSAGES_STORE=not-a-real-store ailang messages list --unread
-# current binary: errors "unknown message store mode"
+AILANG_STORAGE_MESSAGING=not-a-real-store ailang messages list --unread
+# current binary: errors "invalid storage selection: AILANG_STORAGE_MESSAGING=..."
 # old binary:     lists normally  -> your counts are local-only
 ```
 

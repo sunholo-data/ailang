@@ -135,9 +135,12 @@ func Get(ctx context.Context) (*Publisher, error) {
 }
 
 func newPublisher(ctx context.Context) (*Publisher, error) {
-	storage := os.Getenv("AILANG_STORAGE")
-	if storage != "gcp" {
-		return nil, fmt.Errorf("feedback publisher requires AILANG_STORAGE=gcp (got %q); local SQLite mode is not supported for the public feedback channel", storage)
+	plane, err := config.StoragePlane()
+	if err != nil {
+		return nil, fmt.Errorf("feedback publisher: %w", err)
+	}
+	if plane.Messaging.Mode != config.StoreGCP {
+		return nil, fmt.Errorf("feedback publisher requires the messaging store in Firestore (AILANG_STORAGE=gcp or AILANG_STORAGE_MESSAGING=gcp; got %s via %s); local SQLite is not supported for the public feedback channel", plane.Messaging.Mode, plane.Messaging.Source)
 	}
 	projectID, err := config.CloudProject(ctx)
 	if err != nil {

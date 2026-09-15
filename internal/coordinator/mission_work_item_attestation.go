@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/sqliteopen"
 )
 
 // MissionStopAttestation records an operator assertion, not inferred process death.
@@ -93,14 +95,8 @@ func OpenMissionExistingWriteStore(path string) (*SQLiteStore, error) {
 	if !filepath.IsAbs(path) {
 		return nil, fmt.Errorf("runtime database path must be absolute")
 	}
-	db, err := sql.Open("sqlite3", sqliteFileURI(path, "mode=rw&_busy_timeout=5000"))
+	db, err := sqliteopen.Open(path, sqliteopen.Options{MustExist: true, NoForeignKeys: coordinatorDBOptions.NoForeignKeys})
 	if err != nil {
-		return nil, err
-	}
-	db.SetMaxOpenConns(1)
-	db.SetMaxIdleConns(1)
-	if err = db.Ping(); err != nil {
-		_ = db.Close()
 		return nil, err
 	}
 	return &SQLiteStore{db: db}, nil

@@ -172,7 +172,7 @@ func chainsViewCommand() {
 	includeSpans := fs.Bool("spans", false, "Include span summaries for each stage (no attributes)")
 	fullSpans := fs.Bool("full", false, "Include full span data with attributes (heavy)")
 	jsonOutput := fs.Bool("json", false, "Output as JSON")
-	remote := fs.String("remote", "", "Read from this observatory storage mode (gcp). Default: $AILANG_CHAINS_READ")
+	remote := fs.String("remote", "", "Read from this observatory storage mode (gcp). Default: the plane's observatory store ($AILANG_STORAGE_OBSERVATORY, else $AILANG_STORAGE)")
 	fs.Parse(flag.Args()[2:])
 
 	if fs.NArg() < 1 {
@@ -332,7 +332,7 @@ func printStageSessionDetails(backend observatory.Backend, ctx context.Context, 
 // chainsActiveCommand is a convenience alias for list --status active
 func chainsActiveCommand() {
 	fs := flag.NewFlagSet("chains active", flag.ExitOnError)
-	remote := fs.String("remote", "", "Read from this observatory storage mode (gcp). Default: $AILANG_CHAINS_READ")
+	remote := fs.String("remote", "", "Read from this observatory storage mode (gcp). Default: the plane's observatory store ($AILANG_STORAGE_OBSERVATORY, else $AILANG_STORAGE)")
 	fs.Parse(flag.Args()[2:])
 	backend, closeBackend, err := openChainsReadBackend(context.Background(), *remote)
 	if err != nil {
@@ -491,7 +491,7 @@ func printEvalAssessment(a *observatory.EvalAssessment) {
 func chainsJourneyCommand() {
 	fs := flag.NewFlagSet("chains journey", flag.ExitOnError)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	remote := fs.String("remote", "", "Read from this observatory storage mode (gcp). Default: $AILANG_CHAINS_READ")
+	remote := fs.String("remote", "", "Read from this observatory storage mode (gcp). Default: the plane's observatory store ($AILANG_STORAGE_OBSERVATORY, else $AILANG_STORAGE)")
 	fs.Parse(flag.Args()[2:])
 
 	chainIDPrefix := fs.Arg(0)

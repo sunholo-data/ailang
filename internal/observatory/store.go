@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	_ "github.com/mattn/go-sqlite3"
+	"github.com/sunholo-data/ailang/internal/sqliteopen"
 )
 
 // chainLink caches the chain_id/stage_id mapping for a task_id.
@@ -50,13 +50,21 @@ func OpenDefaultStore() (*Store, error) {
 	return OpenStore(DefaultDatabasePath())
 }
 
-// OpenStore opens the observatory database at the given path,
-// runs migrations, and returns a ready-to-use Store.
+// OpenStore opens the observatory database at the given path, runs
+// migrations, and returns a ready-to-use Store. It is the ONE opener for
+// observatory.db (NewSQLiteBackendFromPath wraps it).
+//
+// Pool and pragmas (M-V1-SIMPLIFY-S3 M3): one open connection and foreign
+// keys ON — the settings NewSQLiteBackendFromPath had, not the default pool
+// and no-FK this path had. One connection because the observatory is the
+// busiest writer in the process (every span) and SQLite serialises writers
+// anyway; foreign keys because session_tools declares ON DELETE CASCADE and
+// an opener that ignored it would leave orphans a later reader trips over.
 func OpenStore(dbPath string) (*Store, error) {
 	if dbPath == "" {
 		return nil, errNoDatabasePath
 	}
-	db, err := sql.Open("sqlite3", dbPath+"?_journal_mode=WAL&_busy_timeout=5000")
+	db, err := sqliteopen.Open(dbPath, sqliteopen.Options{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to open observatory database: %w", err)
 	}

@@ -4,12 +4,41 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
+	"os"
+	"sync"
 	"time"
 
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/sunholo-data/ailang/internal/observatory"
+	"github.com/sunholo-data/ailang/internal/sqliteopen"
 	"github.com/sunholo-data/ailang/internal/statedir"
 )
+
+// coordinatorDBWarned remembers which coordinator.db paths have already been
+// reported unopenable, so a chain with twenty stages warns once, not twenty
+// times. The helpers below are best-effort enrichers with fallbacks — but a
+// best-effort read that fails must SAY so, or an empty tree is indistinguishable
+// from a chain that ran nothing (M-V1-SIMPLIFY-S3 M3: these used a bare
+// sql.Open and returned nil on every error).
+var coordinatorDBWarned sync.Map
+
+// openCoordinatorDBReadOnly opens coordinator.db for the chains views, or
+// returns nil after warning once. Read-only, so a machine with no coordinator
+// does not grow an empty coordinator.db by looking at a chain.
+func openCoordinatorDBReadOnly() *sql.DB {
+	dbPath, err := statedir.Path("coordinator.db")
+	if err == nil {
+		var db *sql.DB
+		db, err = sqliteopen.Open(dbPath, sqliteopen.Options{ReadOnly: true})
+		if err == nil {
+			return db
+		}
+	}
+	if _, already := coordinatorDBWarned.LoadOrStore(dbPath, struct{}{}); !already {
+		fmt.Fprintf(os.Stderr, "chains: coordinator.db unavailable, task events and session ranges omitted: %v\n", err)
+	}
+	return nil
+}
 
 // taskEvent represents an event from coordinator task_events table (basic)
 type taskEvent struct {
@@ -73,13 +102,8 @@ type toolResultBlock struct {
 
 // getTaskEvents queries coordinator.db for basic task events (for tree display)
 func getTaskEvents(taskID string) []taskEvent {
-	dbPath, err := statedir.Path("coordinator.db")
-	if err != nil {
-		return nil
-	}
-
-	db, err := sql.Open("sqlite3", dbPath)
-	if err != nil {
+	db := openCoordinatorDBReadOnly()
+	if db == nil {
 		return nil
 	}
 	defer db.Close()
@@ -108,20 +132,15 @@ func getTaskEvents(taskID string) []taskEvent {
 
 // getSessionInfoFromTask looks up session_id and time range from coordinator.db tasks table
 func getSessionInfoFromTask(taskID string) *taskSessionInfo {
-	dbPath, err := statedir.Path("coordinator.db")
-	if err != nil {
-		return nil
-	}
-
-	db, err := sql.Open("sqlite3", dbPath)
-	if err != nil {
+	db := openCoordinatorDBReadOnly()
+	if db == nil {
 		return nil
 	}
 	defer db.Close()
 
 	var sessionID sql.NullString
 	var startedAt, completedAt sql.NullTime
-	err = db.QueryRow(`
+	err := db.QueryRow(`
 		SELECT session_id, started_at, completed_at
 		FROM tasks WHERE id = ?
 	`, taskID).Scan(&sessionID, &startedAt, &completedAt)

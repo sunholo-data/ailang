@@ -5,15 +5,16 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
-	_ "github.com/mattn/go-sqlite3"
-
+	"github.com/sunholo-data/ailang/internal/sqliteopen"
 	"github.com/sunholo-data/ailang/internal/statedir"
 )
+
+// coordinatorDBOptions is how every opener of coordinator.db opens it —
+// see NewSQLiteStore for why foreign keys are off.
+var coordinatorDBOptions = sqliteopen.Options{NoForeignKeys: true}
 
 // SQLiteStore implements Store using SQLite
 type SQLiteStore struct {
@@ -30,21 +31,17 @@ func NewSQLiteStore(dbPath string) (*SQLiteStore, error) {
 		dbPath = p
 	}
 
-	// Ensure directory exists
-	if err := os.MkdirAll(filepath.Dir(dbPath), 0755); err != nil {
-		return nil, fmt.Errorf("failed to create database directory: %w", err)
-	}
-
-	db, err := sql.Open("sqlite3", dbPath+"?_journal_mode=WAL&_busy_timeout=5000")
+	// WAL, busy timeout, single-writer pool and directory creation are the
+	// one recipe in internal/sqliteopen. Foreign keys stay OFF for this file:
+	// the schema declares approval_requests.task_id and task_events.task_id
+	// REFERENCES tasks(id), but this store has never enforced them and rows
+	// that violate them exist (approvals are filed for task ids the store
+	// does not hold — TestStoreBackedApprovalCheckpoint does exactly that).
+	// Turning enforcement on is a data migration, not an opener setting.
+	db, err := sqliteopen.Open(dbPath, coordinatorDBOptions)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
-
-	// SQLite is single-writer; limit to 1 connection to serialize writes at
-	// the Go pool level instead of contending on the SQLite file lock.
-	db.SetMaxOpenConns(1)
-	db.SetMaxIdleConns(1)
-	db.SetConnMaxLifetime(0)
 
 	store := &SQLiteStore{db: db}
 	if err := store.migrate(); err != nil {
