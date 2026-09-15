@@ -49,8 +49,12 @@ func WithEndpoint(endpoint string) ClientOption {
 	}
 }
 
-// NewClient creates a new Ollama client.
-// It reads OLLAMA_HOST from environment, defaulting to http://localhost:11434.
+// NewClient creates a new Ollama client. The endpoint is decided HERE and
+// nowhere else (M-V1-SIMPLIFY-S3 M4 removed a second copy of the default from
+// cmd/ailang/exec.go): OLLAMA_HOST when set — it wins even over WithEndpoint,
+// because the launchd plists and the rig's launchctl domain global set it to
+// route every process to the same capped server — else defaultEndpoint,
+// http://127.0.0.1:11434 (IPv4-pinned, see the constant's comment).
 func NewClient(opts ...ClientOption) (*Client, error) {
 	c := &Client{
 		endpoint: defaultEndpoint,

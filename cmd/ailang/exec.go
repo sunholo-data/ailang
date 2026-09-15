@@ -14,11 +14,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sunholo-data/ailang/internal/ai"
-	"github.com/sunholo-data/ailang/internal/ai/anthropic"
-	"github.com/sunholo-data/ailang/internal/ai/gemini"
-	"github.com/sunholo-data/ailang/internal/ai/ollama"
-	"github.com/sunholo-data/ailang/internal/ai/openai"
-	"github.com/sunholo-data/ailang/internal/ai/openrouter"
+	"github.com/sunholo-data/ailang/internal/ai/factory"
 	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/coordinator"
 	"github.com/sunholo-data/ailang/internal/executor"
@@ -437,77 +433,13 @@ func executeCLI(ctx context.Context, provider, directive, workspace, model, syst
 
 // executeAPI uses the API provider directly (no file editing)
 func executeAPI(ctx context.Context, provider, directive, model, systemPrompt string, timeout time.Duration, streamJSON bool, routing *ai.AIRoutingPolicy) (*executor.Result, error) {
-	// Create API client based on provider
-	var client ai.Provider
-	var err error
-
-	switch provider {
-	case "openai":
-		apiKey := os.Getenv("OPENAI_API_KEY")
-		customBaseURL := strings.TrimSpace(os.Getenv("OPENAI_BASE_URL"))
-		if apiKey == "" && customBaseURL == "" {
-			return nil, fmt.Errorf("OPENAI_API_KEY environment variable required (or set OPENAI_BASE_URL for a custom unauthenticated endpoint)")
-		}
-		var clientOpts []openai.ClientOption
-		if customBaseURL != "" {
-			clientOpts = append(clientOpts, openai.WithBaseURL(customBaseURL))
-		}
-		client = openai.NewClient(apiKey, clientOpts...)
-	case "anthropic":
-		apiKey := os.Getenv("ANTHROPIC_API_KEY")
-		if apiKey == "" {
-			return nil, fmt.Errorf("ANTHROPIC_API_KEY environment variable required")
-		}
-		client = anthropic.NewClient(apiKey)
-	case "gemini":
-		apiKey := os.Getenv("GEMINI_API_KEY")
-		if apiKey == "" {
-			return nil, fmt.Errorf("GEMINI_API_KEY environment variable required")
-		}
-		client = gemini.NewClient(apiKey)
-	case "ollama":
-		endpoint := os.Getenv("OLLAMA_HOST")
-		if endpoint == "" {
-			// IPv4-pinned: see defaultEndpoint in internal/ai/ollama/client.go —
-			// "localhost" can reach an uncapped Ollama.app server over ::1.
-			endpoint = "http://127.0.0.1:11434"
-		}
-		var ollamaErr error
-		client, ollamaErr = ollama.NewClient(ollama.WithEndpoint(endpoint))
-		if ollamaErr != nil {
-			return nil, fmt.Errorf("failed to create ollama client: %w", ollamaErr)
-		}
-	case "openrouter":
-		apiKey := os.Getenv("OPENROUTER_API_KEY")
-		if apiKey == "" {
-			return nil, fmt.Errorf("OPENROUTER_API_KEY environment variable required")
-		}
-		client = openrouter.NewClient(apiKey)
-	case "lyceum":
-		// M-LYCEUM-PROVIDER: EU-hosted OpenAI-compatible route — same openai
-		// transport, Lyceum endpoint (ai.LyceumBaseURL honours LYCEUM_BASE_URL).
-		apiKey := os.Getenv("LYCEUM_API_KEY")
-		if apiKey == "" {
-			return nil, fmt.Errorf("LYCEUM_API_KEY environment variable required")
-		}
-		client = openai.NewClient(apiKey, openai.WithBaseURL(ai.LyceumBaseURL()))
-	case "zai":
-		// M-ZAI-WINDOW-ROUTING Phase 1: z.ai first-party PAYG route — same
-		// openai transport, z.ai endpoint (ai.ZAIBaseURL honours ZAI_BASE_URL).
-		apiKey := os.Getenv("ZAI_API_KEY")
-		if apiKey == "" {
-			return nil, fmt.Errorf("ZAI_API_KEY environment variable required")
-		}
-		client = openai.NewClient(apiKey, openai.WithBaseURL(ai.ZAIBaseURL()))
-	default:
-		// M-AI-PROVIDER-CONFIG: consult the config-driven provider registry.
-		// Built-ins are checked above first (D4 — built-ins win on collision).
-		// Auth, endpoint, request shape all live in the package's [[ai_provider]] block.
-		if cd := LookupConfigDrivenProvider(provider); cd != nil {
-			client = cd
-		} else {
-			return nil, fmt.Errorf("API mode not supported for provider %s (use CLI mode, or install a package declaring an [[ai_provider]] with name = %q)", provider, provider)
-		}
+	// One factory resolves credential, endpoint and lane for every provider
+	// (M-V1-SIMPLIFY-S3 M4). Built-ins win over a same-named [[ai_provider]]
+	// block (M-AI-PROVIDER-CONFIG D4); the block's auth, endpoint and request
+	// shape live in the package manifest.
+	client, err := factory.NewProvider(provider, factory.WithConfigDriven(LookupConfigDrivenProvider))
+	if err != nil {
+		return nil, fmt.Errorf("API mode for provider %s: %w (use CLI mode, or install a package declaring an [[ai_provider]] with name = %q)", provider, err, provider)
 	}
 
 	// Build request

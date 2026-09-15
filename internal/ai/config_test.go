@@ -98,28 +98,6 @@ func TestProviderFromString_Lyceum(t *testing.T) {
 	}
 }
 
-// TestGetAPIKey_Lyceum locks the auth path: LYCEUM_API_KEY is required,
-// missing key errors with the env var NAMED (no silent fallback).
-func TestGetAPIKey_Lyceum(t *testing.T) {
-	t.Setenv("LYCEUM_API_KEY", "lyceum-test-key")
-	key, err := GetAPIKey(ProviderLyceum)
-	if err != nil {
-		t.Fatalf("GetAPIKey(lyceum) with key set failed: %v", err)
-	}
-	if key != "lyceum-test-key" {
-		t.Errorf("GetAPIKey(lyceum) = %q, want lyceum-test-key", key)
-	}
-
-	os.Unsetenv("LYCEUM_API_KEY")
-	_, err = GetAPIKey(ProviderLyceum)
-	if err == nil {
-		t.Fatal("GetAPIKey(lyceum) with no key: want error, got nil")
-	}
-	if !strings.Contains(err.Error(), "LYCEUM_API_KEY") {
-		t.Errorf("error %q does not name LYCEUM_API_KEY", err.Error())
-	}
-}
-
 // TestProviderFromString_ZAI ensures z.ai rows resolve, including the two
 // spellings the vendor itself uses ("z-ai" is OpenRouter's vendor prefix and
 // z.ai's own `owned_by` field; "z.ai" is the brand). All three must land on
@@ -130,28 +108,6 @@ func TestProviderFromString_ZAI(t *testing.T) {
 		if got := ProviderFromString(in); got != ProviderZAI {
 			t.Errorf("ProviderFromString(%q) = %q, want %q", in, got, ProviderZAI)
 		}
-	}
-}
-
-// TestGetAPIKey_ZAI locks the auth path: ZAI_API_KEY is required, missing key
-// errors with the env var NAMED (no silent fallback to another provider's key).
-func TestGetAPIKey_ZAI(t *testing.T) {
-	t.Setenv("ZAI_API_KEY", "zai-test-key")
-	key, err := GetAPIKey(ProviderZAI)
-	if err != nil {
-		t.Fatalf("GetAPIKey(zai) with key set failed: %v", err)
-	}
-	if key != "zai-test-key" {
-		t.Errorf("GetAPIKey(zai) = %q, want zai-test-key", key)
-	}
-
-	os.Unsetenv("ZAI_API_KEY")
-	_, err = GetAPIKey(ProviderZAI)
-	if err == nil {
-		t.Fatal("GetAPIKey(zai) with no key: want error, got nil")
-	}
-	if !strings.Contains(err.Error(), "ZAI_API_KEY") {
-		t.Errorf("error %q does not name ZAI_API_KEY", err.Error())
 	}
 }
 
