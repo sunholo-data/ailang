@@ -17,6 +17,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/effects"
 	"github.com/sunholo-data/ailang/internal/eval"
 	"github.com/sunholo-data/ailang/internal/pipeline"
+	otelplatform "github.com/sunholo-data/ailang/internal/platform/otel"
 	"github.com/sunholo-data/ailang/internal/runtime"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	ailtrace "github.com/sunholo-data/ailang/internal/trace"
@@ -76,7 +77,7 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 
 	// Initialize telemetry (traces exported if GOOGLE_CLOUD_PROJECT or OTEL_EXPORTER_OTLP_ENDPOINT set)
 	ctx := context.Background()
-	shutdownTelemetry, err := telemetry.Init(ctx, "ailang-run")
+	shutdownTelemetry, err := otelplatform.Init(ctx, "ailang-run")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: telemetry init failed: %v\n", err)
 	} else {

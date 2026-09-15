@@ -13,6 +13,7 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/elaborate"
 	"github.com/sunholo-data/ailang/internal/pipeline"
+	otelplatform "github.com/sunholo-data/ailang/internal/platform/otel"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -30,7 +31,7 @@ var checkTracer = otel.Tracer("ailang.check")
 func checkFile(filename string, strictSyntax bool, relaxModules bool, timeout string, debugCompile bool, jsonFlag bool, quietFlag bool) {
 	// Initialize telemetry (traces exported if GOOGLE_CLOUD_PROJECT or OTEL_EXPORTER_OTLP_ENDPOINT set)
 	ctx := context.Background()
-	shutdownTelemetry, err := telemetry.Init(ctx, "ailang-check")
+	shutdownTelemetry, err := otelplatform.Init(ctx, "ailang-check")
 	if err != nil {
 		// Non-fatal: continue without telemetry
 	} else {

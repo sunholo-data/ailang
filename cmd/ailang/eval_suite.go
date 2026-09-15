@@ -16,6 +16,7 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/eval_harness"
 	"github.com/sunholo-data/ailang/internal/messaging"
+	otelplatform "github.com/sunholo-data/ailang/internal/platform/otel"
 	"github.com/sunholo-data/ailang/internal/riglock"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"github.com/sunholo-data/ailang/internal/version"
@@ -57,7 +58,7 @@ func runEvalSuite() {
 	if taskID == "" {
 		taskID = fmt.Sprintf("eval-%d", time.Now().UnixNano())
 		assignmentID = fmt.Sprintf("aa_%d", time.Now().UnixNano())
-		// Set in environment so it gets picked up by telemetry.NewResource()
+		// Set in environment so it gets picked up by otelplatform.NewResource()
 		// Both task_id and assignment_id are needed for full hierarchy visibility
 		existingAttrs := os.Getenv("OTEL_RESOURCE_ATTRIBUTES")
 		newAttrs := fmt.Sprintf("ailang.task_id=%s,ailang.assignment_id=%s", taskID, assignmentID)
@@ -69,7 +70,7 @@ func runEvalSuite() {
 	}
 
 	// Initialize telemetry (traces exported if GOOGLE_CLOUD_PROJECT or OTEL_EXPORTER_OTLP_ENDPOINT set)
-	shutdownTelemetry, err := telemetry.Init(ctx, "ailang-eval")
+	shutdownTelemetry, err := otelplatform.Init(ctx, "ailang-eval")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: telemetry init failed: %v\n", err)
 	} else {

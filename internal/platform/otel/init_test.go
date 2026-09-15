@@ -1,4 +1,4 @@
-package telemetry
+package otelplatform
 
 import (
 	"context"
@@ -37,32 +37,6 @@ func TestInitOTLP_WithEndpoint(t *testing.T) {
 	// since we don't have an actual OTLP collector running
 	_ = shutdown(ctx)
 	// We just verify that InitOTLP succeeded - connection errors on shutdown are OK
-}
-
-func TestIsEnabled(t *testing.T) {
-	tests := []struct {
-		name     string
-		endpoint string
-		want     bool
-	}{
-		{"no endpoint", "", false},
-		{"with endpoint", "http://localhost:4318", true},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if tt.endpoint != "" {
-				os.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", tt.endpoint)
-				defer os.Unsetenv("OTEL_EXPORTER_OTLP_ENDPOINT")
-			} else {
-				os.Unsetenv("OTEL_EXPORTER_OTLP_ENDPOINT")
-			}
-
-			if got := IsEnabled(); got != tt.want {
-				t.Errorf("IsEnabled() = %v, want %v", got, tt.want)
-			}
-		})
-	}
 }
 
 func TestNewResource(t *testing.T) {

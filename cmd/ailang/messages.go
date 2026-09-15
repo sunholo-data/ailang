@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/messaging"
+	otelplatform "github.com/sunholo-data/ailang/internal/platform/otel"
 	"github.com/sunholo-data/ailang/internal/storage"
 	fsstore "github.com/sunholo-data/ailang/internal/storage/firestore"
-	"github.com/sunholo-data/ailang/internal/telemetry"
 )
 
 // humanDuration supports human-friendly duration parsing including "d" for days.
@@ -50,7 +50,7 @@ func (d *humanDuration) Set(s string) error {
 func messagesCommand() {
 	// Initialize telemetry (traces exported if GOOGLE_CLOUD_PROJECT or OTEL_EXPORTER_OTLP_ENDPOINT set)
 	ctx := context.Background()
-	shutdownTelemetry, err := telemetry.Init(ctx, "ailang-messages")
+	shutdownTelemetry, err := otelplatform.Init(ctx, "ailang-messages")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: telemetry init failed: %v\n", err)
 	} else {

@@ -23,6 +23,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/executor"
 	_ "github.com/sunholo-data/ailang/internal/executor/claude"
 	_ "github.com/sunholo-data/ailang/internal/executor/managed_agents"
+	otelplatform "github.com/sunholo-data/ailang/internal/platform/otel"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -153,7 +154,7 @@ func runExec() {
 
 	// Initialize telemetry
 	ctx := context.Background()
-	shutdownTelemetry, err := telemetry.Init(ctx, "ailang-exec")
+	shutdownTelemetry, err := otelplatform.Init(ctx, "ailang-exec")
 	if err != nil {
 		// Non-fatal - continue without telemetry
 		if !*quiet {
