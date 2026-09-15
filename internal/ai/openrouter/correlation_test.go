@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/ai"
+	"github.com/sunholo-data/ailang/internal/ai/openai"
 )
 
 // M-OPENROUTER-BROADCAST-INGEST M3.
@@ -17,11 +18,11 @@ import (
 // everything.
 
 func TestCorrelation_NilIsWireIdentical_ChatRequest(t *testing.T) {
-	base := chatRequest{
+	base := chatRequest{ChatRequest: openai.ChatRequest{
 		Model:     "anthropic/claude-sonnet-4.5",
 		Messages:  []chatMessage{{Role: "user", Content: "hi"}},
 		MaxTokens: 4096,
-	}
+	}}
 
 	before, err := json.Marshal(base)
 	if err != nil {
@@ -49,7 +50,7 @@ func TestCorrelation_NilIsWireIdentical_ChatRequest(t *testing.T) {
 // which is what a caller that constructs a Correlation and fills nothing in
 // produces.
 func TestCorrelation_EmptyStructIsWireIdentical(t *testing.T) {
-	base := chatRequest{Model: "m", Messages: []chatMessage{{Role: "user", Content: "hi"}}}
+	base := chatRequest{ChatRequest: openai.ChatRequest{Model: "m", Messages: []chatMessage{{Role: "user", Content: "hi"}}}}
 	before, _ := json.Marshal(base)
 
 	withEmpty := base
@@ -90,7 +91,7 @@ func TestCorrelationExtras_EmptyProducesNoFragments(t *testing.T) {
 // TestCorrelation_PopulatedFieldsReachTheWire verifies the positive case by
 // unmarshalling the ACTUAL bytes rather than inspecting the struct.
 func TestCorrelation_PopulatedFieldsReachTheWire(t *testing.T) {
-	req := chatRequest{Model: "m", Messages: []chatMessage{{Role: "user", Content: "hi"}}}
+	req := chatRequest{ChatRequest: openai.ChatRequest{Model: "m", Messages: []chatMessage{{Role: "user", Content: "hi"}}}}
 	err := applyCorrelation(&req, &ai.Correlation{
 		SessionID: "b1df1f0e-3cfe-4783-8712-9c5f73fe5a50",
 		Trace:     map[string]any{"trace_name": "eval:fizzbuzz", "benchmark": "fizzbuzz"},
@@ -176,7 +177,7 @@ func TestCorrelation_OverCapRejected(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := chatRequest{Model: "m"}
+			req := chatRequest{ChatRequest: openai.ChatRequest{Model: "m"}}
 			if err := applyCorrelation(&req, tt.c); err == nil {
 				t.Error("applyCorrelation accepted an over-cap value, want a typed error")
 			}
@@ -194,7 +195,7 @@ func TestCorrelation_OverCapRejected(t *testing.T) {
 // TestCorrelation_AtCapAccepted is the boundary control, so the cap test above
 // cannot pass by rejecting everything.
 func TestCorrelation_AtCapAccepted(t *testing.T) {
-	req := chatRequest{Model: "m"}
+	req := chatRequest{ChatRequest: openai.ChatRequest{Model: "m"}}
 	err := applyCorrelation(&req, &ai.Correlation{
 		User:      strings.Repeat("u", ai.MaxUserLen),
 		SessionID: strings.Repeat("s", ai.MaxSessionIDLen),

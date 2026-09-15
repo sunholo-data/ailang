@@ -1,12 +1,8 @@
 package openai
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
-	"io"
-	"net/http"
-	"time"
 
 	"github.com/sunholo-data/ailang/internal/ai"
 )
@@ -14,22 +10,22 @@ import (
 // generateChat uses the Chat Completions API (/v1/chat/completions).
 func (c *Client) generateChat(ctx context.Context, req *ai.Request, reasoning ai.ReasoningDecision) (*ai.Response, error) {
 	// Build messages
-	var messages []chatMessage
+	var messages []ChatMessage
 
 	if req.SystemPrompt != "" {
-		messages = append(messages, chatMessage{
+		messages = append(messages, ChatMessage{
 			Role:    "system",
 			Content: req.SystemPrompt,
 		})
 	}
 
-	messages = append(messages, chatMessage{
+	messages = append(messages, ChatMessage{
 		Role:    "user",
 		Content: req.FullUserPrompt(),
 	})
 
 	// Build request
-	apiReq := chatRequest{
+	apiReq := ChatRequest{
 		Model:    req.Model,
 		Messages: messages,
 	}
@@ -68,66 +64,39 @@ func (c *Client) generateChat(ctx context.Context, req *ai.Request, reasoning ai
 	if req.ResponseFormat == "json" {
 		if req.ResponseSchema != "" {
 			schema := ensureStrictSchemaCompliance(json.RawMessage(req.ResponseSchema))
-			apiReq.ResponseFormat = &chatResponseFormat{
+			apiReq.ResponseFormat = &ChatResponseFormat{
 				Type: "json_schema",
-				JSONSchema: &chatJSONSchema{
+				JSONSchema: &ChatJSONSchema{
 					Name:   "response",
 					Schema: schema,
 					Strict: true,
 				},
 			}
 		} else {
-			apiReq.ResponseFormat = &chatResponseFormat{
+			apiReq.ResponseFormat = &ChatResponseFormat{
 				Type: "json_object",
 			}
 		}
 	}
 
-	// Marshal request
 	jsonBody, err := json.Marshal(apiReq)
 	if err != nil {
 		return nil, ai.NewProviderError("openai", 0, "failed to marshal request", err)
 	}
 
-	// Create HTTP request
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/chat/completions", bytes.NewReader(jsonBody))
+	// Wall time covers request-send → body fully read: the per-call latency
+	// datum for route A/Bs (M-LYCEUM-PROVIDER M3). Non-streaming, so TTFT is
+	// unobservable client-side and stays 0 (unmeasured, not instant).
+	var result ChatResponse
+	res, err := ai.DoJSON(ctx, ai.JSONCall{
+		Provider: "openai",
+		Client:   c.httpClient,
+		URL:      c.baseURL + "/chat/completions",
+		Headers:  c.authHeader(),
+		Body:     jsonBody,
+	}, &result)
 	if err != nil {
-		return nil, ai.NewProviderError("openai", 0, "failed to create request", err)
-	}
-
-	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
-
-	// Execute request. Wall time covers request-send → body fully read: the
-	// per-call latency datum for route A/Bs (M-LYCEUM-PROVIDER M3). This
-	// transport is non-streaming, so TTFT is unobservable client-side — the
-	// whole body arrives at once — and stays 0 (unmeasured, not instant).
-	start := time.Now()
-	resp, err := c.httpClient.Do(httpReq)
-	if err != nil {
-		return nil, &ai.ProviderError{Provider: "openai", Message: "request failed", Err: err, WallMS: time.Since(start).Milliseconds()}
-	}
-	defer resp.Body.Close()
-
-	// Read response
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, &ai.ProviderError{Provider: "openai", StatusCode: resp.StatusCode, Message: "failed to read response", Err: err, WallMS: time.Since(start).Milliseconds()}
-	}
-
-	// Handle errors
-	if resp.StatusCode != http.StatusOK {
-		var errResp errorResponse
-		if json.Unmarshal(body, &errResp) == nil && errResp.Error.Message != "" {
-			return nil, &ai.ProviderError{Provider: "openai", StatusCode: resp.StatusCode, Message: errResp.Error.Message, WallMS: time.Since(start).Milliseconds()}
-		}
-		return nil, &ai.ProviderError{Provider: "openai", StatusCode: resp.StatusCode, Message: string(body), WallMS: time.Since(start).Milliseconds()}
-	}
-
-	// Parse successful response
-	var result chatResponse
-	if err := json.Unmarshal(body, &result); err != nil {
-		return nil, ai.NewProviderError("openai", 0, "failed to parse response", err)
+		return nil, err
 	}
 
 	if len(result.Choices) == 0 {
@@ -153,6 +122,6 @@ func (c *Client) generateChat(ctx context.Context, req *ai.Request, reasoning ai
 		ReasonTokens:         reasoningTokens,
 		FinishReason:         MapChatFinishReason(result.Choices[0].FinishReason),
 		Model:                result.Model,
-		WallMS:               time.Since(start).Milliseconds(),
+		WallMS:               res.WallMS,
 	}, nil
 }

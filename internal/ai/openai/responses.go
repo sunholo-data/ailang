@@ -1,13 +1,9 @@
 package openai
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
-	"io"
-	"net/http"
 	"strings"
-	"time"
 
 	"github.com/sunholo-data/ailang/internal/ai"
 )
@@ -77,49 +73,22 @@ func (c *Client) generateResponses(ctx context.Context, req *ai.Request, reasoni
 		}
 	}
 
-	// Marshal request
 	jsonBody, err := json.Marshal(apiReq)
 	if err != nil {
 		return nil, ai.NewProviderError("openai", 0, "failed to marshal request", err)
 	}
 
-	// Create HTTP request to /v1/responses endpoint
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/responses", bytes.NewReader(jsonBody))
-	if err != nil {
-		return nil, ai.NewProviderError("openai", 0, "failed to create request", err)
-	}
-
-	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
-
-	// Execute request. Same wall-time + non-streaming-TTFT semantics as
-	// generateChat (M-LYCEUM-PROVIDER M3).
-	start := time.Now()
-	resp, err := c.httpClient.Do(httpReq)
-	if err != nil {
-		return nil, &ai.ProviderError{Provider: "openai", Message: "request failed", Err: err, WallMS: time.Since(start).Milliseconds()}
-	}
-	defer resp.Body.Close()
-
-	// Read response
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, &ai.ProviderError{Provider: "openai", StatusCode: resp.StatusCode, Message: "failed to read response", Err: err, WallMS: time.Since(start).Milliseconds()}
-	}
-
-	// Handle errors
-	if resp.StatusCode != http.StatusOK {
-		var errResp errorResponse
-		if json.Unmarshal(body, &errResp) == nil && errResp.Error.Message != "" {
-			return nil, &ai.ProviderError{Provider: "openai", StatusCode: resp.StatusCode, Message: errResp.Error.Message, WallMS: time.Since(start).Milliseconds()}
-		}
-		return nil, &ai.ProviderError{Provider: "openai", StatusCode: resp.StatusCode, Message: string(body), WallMS: time.Since(start).Milliseconds()}
-	}
-
-	// Parse successful response
+	// Same wall-time + non-streaming-TTFT semantics as generateChat.
 	var result responsesResponse
-	if err := json.Unmarshal(body, &result); err != nil {
-		return nil, ai.NewProviderError("openai", 0, "failed to parse response", err)
+	res, err := ai.DoJSON(ctx, ai.JSONCall{
+		Provider: "openai",
+		Client:   c.httpClient,
+		URL:      c.baseURL + "/responses",
+		Headers:  c.authHeader(),
+		Body:     jsonBody,
+	}, &result)
+	if err != nil {
+		return nil, err
 	}
 
 	// Extract text from polymorphic output items
@@ -158,6 +127,6 @@ func (c *Client) generateResponses(ctx context.Context, req *ai.Request, reasoni
 		TotalTokens:          result.Usage.TotalTokens,
 		ReasonTokens:         reasoningTokens,
 		Model:                result.Model,
-		WallMS:               time.Since(start).Milliseconds(),
+		WallMS:               res.WallMS,
 	}, nil
 }

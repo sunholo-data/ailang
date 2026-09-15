@@ -28,7 +28,7 @@ func TestClient_Generate_ChatCompletions(t *testing.T) {
 		}
 
 		// Verify request body
-		var reqBody chatRequest
+		var reqBody ChatRequest
 		if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
 			t.Fatalf("Failed to decode request body: %v", err)
 		}
@@ -50,21 +50,21 @@ func TestClient_Generate_ChatCompletions(t *testing.T) {
 		}
 
 		// Return response
-		resp := chatResponse{
+		resp := ChatResponse{
 			ID:     "chatcmpl-123",
 			Object: "chat.completion",
 			Model:  "gpt-4-turbo-20240901",
-			Choices: []chatChoice{
+			Choices: []ChatChoice{
 				{
 					Index: 0,
-					Message: chatMessage{
+					Message: ChatMessage{
 						Role:    "assistant",
 						Content: "Hello! How can I help you today?",
 					},
 					FinishReason: "stop",
 				},
 			},
-			Usage: chatUsage{
+			Usage: ChatUsage{
 				PromptTokens:     20,
 				CompletionTokens: 15,
 				TotalTokens:      35,
@@ -106,7 +106,7 @@ func TestClient_Generate_ChatCompletions_WithReasoningTokens(t *testing.T) {
 	// Test Chat Completions reasoning tokens with explicit API type override
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Verify max_completion_tokens is used for GPT-5.1
-		var reqBody chatRequest
+		var reqBody ChatRequest
 		json.NewDecoder(r.Body).Decode(&reqBody)
 		if reqBody.MaxCompletionTokens != 4096 {
 			t.Errorf("MaxCompletionTokens = %d, want 4096", reqBody.MaxCompletionTokens)
@@ -115,12 +115,12 @@ func TestClient_Generate_ChatCompletions_WithReasoningTokens(t *testing.T) {
 			t.Errorf("MaxTokens = %d, want 0 (should use MaxCompletionTokens)", reqBody.MaxTokens)
 		}
 
-		resp := chatResponse{
+		resp := ChatResponse{
 			Model: "gpt-5.1",
-			Choices: []chatChoice{
-				{Message: chatMessage{Content: "Thinking..."}},
+			Choices: []ChatChoice{
+				{Message: ChatMessage{Content: "Thinking..."}},
 			},
-			Usage: chatUsage{
+			Usage: ChatUsage{
 				PromptTokens:     10,
 				CompletionTokens: 100,
 				TotalTokens:      110,
@@ -216,8 +216,8 @@ func TestClient_Generate_ChatCompletions_Error(t *testing.T) {
 
 func TestClient_Generate_ChatCompletions_NoChoices(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		resp := chatResponse{
-			Choices: []chatChoice{},
+		resp := ChatResponse{
+			Choices: []ChatChoice{},
 		}
 		json.NewEncoder(w).Encode(resp)
 	}))
@@ -361,12 +361,12 @@ func TestClient_Generate_ChatCompletions_WithSeed(t *testing.T) {
 	var receivedSeed *int64
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var reqBody chatRequest
+		var reqBody ChatRequest
 		json.NewDecoder(r.Body).Decode(&reqBody)
 		receivedSeed = reqBody.Seed
 
-		resp := chatResponse{
-			Choices: []chatChoice{{Message: chatMessage{Content: "ok"}}},
+		resp := ChatResponse{
+			Choices: []ChatChoice{{Message: ChatMessage{Content: "ok"}}},
 		}
 		json.NewEncoder(w).Encode(resp)
 	}))
@@ -389,13 +389,13 @@ func TestClient_Generate_ChatCompletions_DefaultMaxTokens(t *testing.T) {
 	var receivedMaxTokens int
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var reqBody chatRequest
+		var reqBody ChatRequest
 		json.NewDecoder(r.Body).Decode(&reqBody)
 		// GPT-4 uses MaxTokens
 		receivedMaxTokens = reqBody.MaxTokens
 
-		resp := chatResponse{
-			Choices: []chatChoice{{Message: chatMessage{Content: "ok"}}},
+		resp := ChatResponse{
+			Choices: []ChatChoice{{Message: ChatMessage{Content: "ok"}}},
 		}
 		json.NewEncoder(w).Encode(resp)
 	}))

@@ -1,12 +1,10 @@
 package gemini
 
 import (
-	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 
@@ -70,51 +68,24 @@ func (c *Client) generateContent(ctx context.Context, req *ai.Request) (*ai.Resp
 		return nil, err
 	}
 
-	// Marshal request
 	jsonBody, err := json.Marshal(apiReq)
 	if err != nil {
 		return nil, ai.NewProviderError("gemini", 0, "failed to marshal request", err)
 	}
-
-	// Create HTTP request
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(jsonBody))
+	headers, err := c.authHeaders()
 	if err != nil {
-		return nil, ai.NewProviderError("gemini", 0, "failed to create request", err)
-	}
-
-	httpReq.Header.Set("Content-Type", "application/json")
-
-	// Add authentication
-	if err := c.addAuth(httpReq); err != nil {
 		return nil, err
 	}
 
-	// Execute request
-	resp, err := c.httpClient.Do(httpReq)
-	if err != nil {
-		return nil, ai.NewProviderError("gemini", 0, "request failed", err)
-	}
-	defer resp.Body.Close()
-
-	// Read response
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, ai.NewProviderError("gemini", resp.StatusCode, "failed to read response", err)
-	}
-
-	// Handle errors
-	if resp.StatusCode != http.StatusOK {
-		var errResp errorResponse
-		if json.Unmarshal(body, &errResp) == nil && errResp.Error.Message != "" {
-			return nil, ai.NewProviderError("gemini", resp.StatusCode, errResp.Error.Message, nil)
-		}
-		return nil, ai.NewProviderError("gemini", resp.StatusCode, string(body), nil)
-	}
-
-	// Parse successful response
 	var result generateResponse
-	if err := json.Unmarshal(body, &result); err != nil {
-		return nil, ai.NewProviderError("gemini", 0, "failed to parse response", err)
+	if _, err := ai.DoJSON(ctx, ai.JSONCall{
+		Provider: "gemini",
+		Client:   c.httpClient,
+		URL:      url,
+		Headers:  headers,
+		Body:     jsonBody,
+	}, &result); err != nil {
+		return nil, err
 	}
 
 	if len(result.Candidates) == 0 || len(result.Candidates[0].Content.Parts) == 0 {
@@ -302,21 +273,33 @@ func (c *Client) buildStreamURL(model string) (string, error) {
 
 // addAuth adds authentication headers to the request.
 func (c *Client) addAuth(req *http.Request) error {
+	h, err := c.authHeaders()
+	if err != nil {
+		return err
+	}
+	for k, vs := range h {
+		for _, v := range vs {
+			req.Header.Set(k, v)
+		}
+	}
+	return nil
+}
+
+// authHeaders returns the headers the configured auth type needs: none for
+// an API key (it rides in the URL), a bearer token for ADC.
+func (c *Client) authHeaders() (http.Header, error) {
 	switch c.authType {
 	case AuthAPIKey:
-		// API key is in URL query param, no header needed
-		return nil
+		return nil, nil
 
 	case AuthADC:
-		// Get access token from gcloud ADC
 		token, err := getAccessToken()
 		if err != nil {
-			return ai.NewProviderError("gemini", 0, "failed to get access token (run 'gcloud auth application-default login')", err)
+			return nil, ai.NewProviderError("gemini", 0, "failed to get access token (run 'gcloud auth application-default login')", err)
 		}
-		req.Header.Set("Authorization", "Bearer "+token)
-		return nil
+		return http.Header{"Authorization": []string{"Bearer " + token}}, nil
 
 	default:
-		return ai.NewProviderError("gemini", 0, "unknown auth type", nil)
+		return nil, ai.NewProviderError("gemini", 0, "unknown auth type", nil)
 	}
 }

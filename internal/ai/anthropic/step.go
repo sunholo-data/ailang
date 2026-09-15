@@ -1,31 +1,17 @@
 package anthropic
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ai"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
-
-// asAIError extracts the *ai.AIError from a resolver error for span recording.
-// ai.ResolveReasoning always returns a *ai.AIError on failure.
-func asAIError(err error) *ai.AIError {
-	var e *ai.AIError
-	if errors.As(err, &e) {
-		return e
-	}
-	return ai.NewAIError(ai.CodeInternal, err.Error(), false)
-}
 
 // Step is the multi-turn / tool-aware completion entry point introduced by
 // M-AI-TOOL-LOOP (v0.17.0). It translates req.Messages + req.Tools into
@@ -63,65 +49,39 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 	// M-AI-REASONING-EFFORT: resolve reasoning controls BEFORE building/marshaling.
 	reasoning, rErr := ai.ResolveReasoning(req, "anthropic", req.Model)
 	if rErr != nil {
-		recordSpanError(span, asAIError(rErr))
+		ai.RecordSpanError(span, rErr)
 		return nil, rErr
 	}
 
 	apiReq, aiErr := buildStepRequest(req, reasoning)
 	if aiErr != nil {
-		recordSpanError(span, aiErr)
+		ai.RecordSpanError(span, aiErr)
 		return nil, aiErr
 	}
 
 	jsonBody, err := json.Marshal(apiReq)
 	if err != nil {
 		e := ai.NewAIError(ai.CodeInternal, fmt.Sprintf("anthropic: failed to marshal request: %v", err), false)
-		recordSpanError(span, e)
+		ai.RecordSpanError(span, e)
 		return nil, e
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/messages", bytes.NewReader(jsonBody))
-	if err != nil {
-		e := ai.ClassifyError(err)
-		recordSpanError(span, e)
-		return nil, e
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-	c.applyAuthHeaders(httpReq.Header)
-
-	resp, err := c.httpClient.Do(httpReq)
-	if err != nil {
-		e := ai.ClassifyError(err)
-		recordSpanError(span, e)
-		return nil, e
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	span.SetAttributes(attribute.Int("http.status_code", resp.StatusCode))
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		e := ai.ClassifyError(err)
-		recordSpanError(span, e)
-		return nil, e
-	}
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		bodyStr := string(body)
-		// Try to hoist the inner error.message for a cleaner AIError.Message.
-		var errEnv errorResponse
-		if json.Unmarshal(body, &errEnv) == nil && errEnv.Error.Message != "" {
-			bodyStr = errEnv.Error.Message
-		}
-		e := ai.ClassifyHTTPError("anthropic", resp.StatusCode, bodyStr)
-		recordSpanError(span, e)
-		return nil, e
-	}
-
+	headers := http.Header{}
+	c.applyAuthHeaders(headers)
 	var result messagesResponse
-	if err := json.Unmarshal(body, &result); err != nil {
-		e := ai.NewAIError(ai.CodeProtocolError, fmt.Sprintf("anthropic: failed to parse response: %v", err), false)
-		recordSpanError(span, e)
+	res, err := ai.DoJSON(ctx, ai.JSONCall{
+		Provider: "anthropic",
+		Client:   c.httpClient,
+		URL:      c.baseURL + "/messages",
+		Headers:  headers,
+		Body:     jsonBody,
+	}, &result)
+	if res != nil {
+		span.SetAttributes(attribute.Int("http.status_code", res.StatusCode))
+	}
+	if err != nil {
+		e := ai.ClassifyError(err)
+		ai.RecordSpanError(span, e)
 		return nil, e
 	}
 
@@ -457,19 +417,4 @@ func mapStopReason(reason string) string {
 	default:
 		return "error"
 	}
-}
-
-// recordSpanError annotates the span with the AIError's code/message and
-// marks it as a failure. Centralized so all error paths produce the same
-// telemetry shape.
-func recordSpanError(span trace.Span, e *ai.AIError) {
-	if e == nil {
-		return
-	}
-	span.SetAttributes(
-		attribute.String("error.code", e.Code),
-		attribute.String("error.message", telemetry.Truncate(e.Message, 200)),
-		attribute.Bool("error.retryable", e.Retryable),
-	)
-	span.SetStatus(codes.Error, e.Code)
 }

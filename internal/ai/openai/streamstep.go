@@ -62,13 +62,13 @@ func (c *Client) StreamStep(ctx context.Context, req *ai.Request, onChunk func(a
 	// M-AI-REASONING-EFFORT: resolve reasoning controls BEFORE building/marshaling.
 	reasoning, rErr := ai.ResolveReasoning(req, "openai", req.Model)
 	if rErr != nil {
-		recordStepError(span, asAIError(rErr))
+		ai.RecordSpanError(span, rErr)
 		return nil, rErr
 	}
 
 	apiReq, aiErr := BuildChatStepRequest(req, reasoning)
 	if aiErr != nil {
-		recordStepError(span, aiErr)
+		ai.RecordSpanError(span, aiErr)
 		return nil, aiErr
 	}
 	apiReq.Stream = true
@@ -77,14 +77,14 @@ func (c *Client) StreamStep(ctx context.Context, req *ai.Request, onChunk func(a
 	jsonBody, err := json.Marshal(apiReq)
 	if err != nil {
 		e := ai.NewAIError(ai.CodeInternal, fmt.Sprintf("openai: failed to marshal stream request: %v", err), false)
-		recordStepError(span, e)
+		ai.RecordSpanError(span, e)
 		return nil, e
 	}
 
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/chat/completions", bytes.NewReader(jsonBody))
 	if err != nil {
 		e := ai.ClassifyError(err)
-		recordStepError(span, e)
+		ai.RecordSpanError(span, e)
 		return nil, e
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
@@ -94,7 +94,7 @@ func (c *Client) StreamStep(ctx context.Context, req *ai.Request, onChunk func(a
 	httpResp, err := c.httpClient.Do(httpReq)
 	if err != nil {
 		e := ai.ClassifyError(err)
-		recordStepError(span, e)
+		ai.RecordSpanError(span, e)
 		return nil, e
 	}
 	defer func() { _ = httpResp.Body.Close() }()
@@ -104,13 +104,13 @@ func (c *Client) StreamStep(ctx context.Context, req *ai.Request, onChunk func(a
 	if httpResp.StatusCode < 200 || httpResp.StatusCode >= 300 {
 		body, _ := io.ReadAll(httpResp.Body)
 		e := ClassifyChatHTTPErrorFor("openai", httpResp.StatusCode, body)
-		recordStepError(span, e)
+		ai.RecordSpanError(span, e)
 		return nil, e
 	}
 
 	out, parseErr := ParseChatStepSSEStream(httpResp.Body, req.Model, onChunk)
 	if parseErr != nil {
-		recordStepError(span, parseErr)
+		ai.RecordSpanError(span, parseErr)
 		return nil, parseErr
 	}
 

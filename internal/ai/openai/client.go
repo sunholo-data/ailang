@@ -153,6 +153,11 @@ func (c *Client) detectAPIType(model string) APIType {
 }
 
 // Name implements ai.Provider.
+// authHeader is the bearer header every OpenAI-compatible endpoint takes.
+func (c *Client) authHeader() http.Header {
+	return http.Header{"Authorization": []string{"Bearer " + c.apiKey}}
+}
+
 func (c *Client) Name() string {
 	return "openai"
 }

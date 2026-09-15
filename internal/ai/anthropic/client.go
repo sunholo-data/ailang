@@ -2,11 +2,9 @@
 package anthropic
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 
 	"github.com/sunholo-data/ailang/internal/ai"
@@ -187,15 +185,6 @@ type contentBlock struct {
 	Input json.RawMessage `json:"input,omitempty"` // tool_use input (the structured output)
 }
 
-// errorResponse represents an error response from the API.
-type errorResponse struct {
-	Type  string `json:"type"`
-	Error struct {
-		Type    string `json:"type"`
-		Message string `json:"message"`
-	} `json:"error"`
-}
-
 // Generate implements ai.Provider.
 func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, error) {
 	if req.Routing != nil && (req.Routing.HasRouting() || req.Routing.PriceCapSet()) {
@@ -301,86 +290,27 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 	// Marshal request
 	jsonBody, err := json.Marshal(apiReq)
 	if err != nil {
-		span.SetAttributes(
-			attribute.String("error.message", telemetry.Truncate(err.Error(), 200)),
-			attribute.String("error.category", telemetry.CategorizeError(err)),
-		)
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to marshal request")
-		return nil, ai.NewProviderError("anthropic", 0, "failed to marshal request", err)
+		e := ai.NewProviderError("anthropic", 0, "failed to marshal request", err)
+		ai.RecordSpanError(span, e)
+		return nil, e
 	}
 
-	// Create HTTP request
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/messages", bytes.NewReader(jsonBody))
-	if err != nil {
-		span.SetAttributes(
-			attribute.String("error.message", telemetry.Truncate(err.Error(), 200)),
-			attribute.String("error.category", telemetry.CategorizeError(err)),
-		)
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to create request")
-		return nil, ai.NewProviderError("anthropic", 0, "failed to create request", err)
-	}
-
-	httpReq.Header.Set("Content-Type", "application/json")
-	c.applyAuthHeaders(httpReq.Header)
-
-	// Execute request
-	resp, err := c.httpClient.Do(httpReq)
-	if err != nil {
-		span.SetAttributes(
-			attribute.String("error.message", telemetry.Truncate(err.Error(), 200)),
-			attribute.String("error.category", telemetry.CategorizeError(err)),
-		)
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "request failed")
-		return nil, ai.NewProviderError("anthropic", 0, "request failed", err)
-	}
-	defer resp.Body.Close()
-
-	span.SetAttributes(attribute.Int("http.status_code", resp.StatusCode))
-
-	// Read response
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		span.SetAttributes(
-			attribute.String("error.message", telemetry.Truncate(err.Error(), 200)),
-			attribute.String("error.category", telemetry.CategorizeError(err)),
-		)
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to read response")
-		return nil, ai.NewProviderError("anthropic", resp.StatusCode, "failed to read response", err)
-	}
-
-	// Handle errors
-	if resp.StatusCode != 200 {
-		var errResp errorResponse
-		if json.Unmarshal(body, &errResp) == nil && errResp.Error.Message != "" {
-			span.SetAttributes(
-				attribute.String("error.message", telemetry.Truncate(errResp.Error.Message, 200)),
-				attribute.String("error.category", "api_error"),
-			)
-			span.SetStatus(codes.Error, errResp.Error.Message)
-			return nil, ai.NewProviderError("anthropic", resp.StatusCode, errResp.Error.Message, nil)
-		}
-		span.SetAttributes(
-			attribute.String("error.message", telemetry.Truncate(string(body), 200)),
-			attribute.String("error.category", "api_error"),
-		)
-		span.SetStatus(codes.Error, string(body))
-		return nil, ai.NewProviderError("anthropic", resp.StatusCode, string(body), nil)
-	}
-
-	// Parse successful response
+	headers := http.Header{}
+	c.applyAuthHeaders(headers)
 	var result messagesResponse
-	if err := json.Unmarshal(body, &result); err != nil {
-		span.SetAttributes(
-			attribute.String("error.message", telemetry.Truncate(err.Error(), 200)),
-			attribute.String("error.category", telemetry.CategorizeError(err)),
-		)
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to parse response")
-		return nil, ai.NewProviderError("anthropic", 0, "failed to parse response", err)
+	res, err := ai.DoJSON(ctx, ai.JSONCall{
+		Provider: "anthropic",
+		Client:   c.httpClient,
+		URL:      c.baseURL + "/messages",
+		Headers:  headers,
+		Body:     jsonBody,
+	}, &result)
+	if res != nil {
+		span.SetAttributes(attribute.Int("http.status_code", res.StatusCode))
+	}
+	if err != nil {
+		ai.RecordSpanError(span, err)
+		return nil, err
 	}
 
 	// Extract text from content blocks

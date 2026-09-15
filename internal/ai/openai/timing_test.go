@@ -19,16 +19,16 @@ func TestClient_Generate_ChatCompletions_Timing(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(20 * time.Millisecond) // measurable but fast
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(chatResponse{
+		json.NewEncoder(w).Encode(ChatResponse{
 			ID:     "chatcmpl-timing",
 			Object: "chat.completion",
 			Model:  "test-model",
-			Choices: []chatChoice{{
+			Choices: []ChatChoice{{
 				Index:        0,
 				FinishReason: "stop",
-				Message:      chatMessage{Role: "assistant", Content: "ok"},
+				Message:      ChatMessage{Role: "assistant", Content: "ok"},
 			}},
-			Usage: chatUsage{PromptTokens: 5, CompletionTokens: 2, TotalTokens: 7},
+			Usage: ChatUsage{PromptTokens: 5, CompletionTokens: 2, TotalTokens: 7},
 		})
 	}))
 	defer server.Close()
