@@ -116,7 +116,7 @@ type ApplyResult struct {
 func missionBusy(p Paths, m *Mission) (bool, int) {
 	// The v1 mission's pidfile keeps its historical name, like its launchd label.
 	base := "mission-" + m.launchdSuffix() + ".pid"
-	pidPath := p.Home + "/.ailang/state/" + base
+	pidPath := p.State(base)
 	data, err := os.ReadFile(pidPath) //nolint:gosec // derived from the registry
 	if err != nil {
 		return false, 0

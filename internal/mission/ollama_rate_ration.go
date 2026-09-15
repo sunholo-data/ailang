@@ -55,7 +55,7 @@ type ollamaObservation struct {
 
 // OllamaObservationsPath is where gauge readings are banked.
 func OllamaObservationsPath(p Paths) string {
-	return filepath.Join(p.Home, ".ailang", "state", "ollama-quota-observations.jsonl")
+	return p.State("ollama-quota-observations.jsonl")
 }
 
 // recordOllamaObservation appends a reading and prunes expired ones.
