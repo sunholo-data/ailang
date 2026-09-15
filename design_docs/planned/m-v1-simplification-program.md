@@ -1,6 +1,6 @@
 # M-V1-SIMPLIFICATION-PROGRAM: One of Each — Simplify the Codebase for v1.0.0
 
-**Status**: Planned
+**Status**: In progress — Sprint 1 (Phase 0 + 1.1–1.2 + weekly audit) landed 2026-09-14; Design Freeze ruled 2026-09-15
 **Target**: v1.0.0
 **Priority**: P0
 **Estimated**: 6 phases, ~7 weeks elapsed (≈ 22 agent-days of sprint work; phases 0–3 are the release gate, phases 4–5 are the polish)
@@ -105,7 +105,7 @@ None of this is file size: no file exceeds the 800-line gate. The complexity is 
 
 | Decision | Why High Impact | Chosen By | Deadline | Change Cost |
 |----------|-----------------|-----------|----------|-------------|
-| D1. Binary shape: one `ailang` with `ops`/`dev` groups (hidden) **vs** two binaries (`ailang` + `ailang-ops`) | 286 ops references to `ailang messages`, 107 to `ailang coordinator` live in launchd drivers, mission-control.sh and skills. A rename without aliases breaks every loop. | human | design | high |
+| D1. Binary shape: one `ailang` with `ops`/`dev` groups (hidden) **vs** two binaries (`ailang` + `ailang-ops`) | 286 ops references to `ailang messages`, 107 to `ailang coordinator` live in launchd drivers, mission-control.sh and skills; five build paths ship the binary (go install, release matrix, Cloud Build buildpack, agent Docker base, CI) and the agent containers run `ailang execute-job`. A rename without aliases, or a split that misses one build path, breaks a loop. | human | design | high |
 | D2. Canonical pass predicate: `CompileOk && RuntimeOk && StdoutOk` (8 sites) **vs** `StdoutOk` (~45 sites) | Changes published pass rates for the runtime-fail/stdout-match slice; touches banked-data semantics (quorum trigger 3). | human | design | high |
 | D3. Prod defaults become hard errors (`"ailang-multivac"`, `europe-west1`, repo `sunholo-data/ailang`, provider `claude`, model `haiku`, workspace `default`) | Every fleet plist and Cloud Run env that relied on the default fails loudly on first run after the change. That is the point, but it must be scheduled, not discovered. | human | design | med |
 | D4. `internal/eval` → `internal/interp` rename and `eval_analysis`+`eval_analyzer` merge | Import-system rename; the Sept-2025 disaster class. Mechanical with gofmt -r, but must run `make test-imports` + `make verify-examples` between steps. | human | design | med |
@@ -115,15 +115,15 @@ None of this is file size: no file exceeds the 800-line gate. The complexity is 
 
 ### Design Freeze
 
-Before Phase 1 starts, these must be resolved (recommendations in brackets):
+**Ruled by Mark, 2026-09-15** (attended; recommendations accepted except D1, which is sharpened):
 
-- [ ] D1 binary shape [recommend: **one binary for v1.0.0**, dispatch table with `Group` + `Hidden`, old top-level names kept as aliases through v1.0.x; physical `ailang-ops` split is Future Work once the closure test proves the seam]
-- [ ] D2 pass predicate [recommend: `CompileOk && RuntimeOk && StdoutOk`, re-bank nothing, annotate the OS history with the boundary date like the v0.30.0 cost annotation]
-- [ ] D3 prod-default removal date [recommend: land behind a one-release deprecation warning in v0.39, hard error in v1.0.0]
-- [ ] D4 rename scope [recommend: do `eval`→`interp` and the `eval_analy*` merge; leave `link`/`linked`, `server`→`hub` for Future Work]
-- [ ] D5 skill tree mechanism [recommend: generated copy + `make check-skill-tree` CI diff, because the cloud container clone is the consumer]
-- [ ] D6 tracked-artefact policy [recommend: untrack `eval_results/` and sprint JSON; commit only `.ailang/state/sprints/index.json` if the executor gate needs a pointer]
-- [ ] D7 removal list ratified by the owner
+- [x] **D1 — two binaries, but split only when it is certain not to disrupt.** Sequence: Phase 3 ships ONE binary with a dispatch table, `ops`/`dev` groups and every old name aliased (v0.39.x). The physical split into `cmd/ailang` + `cmd/ailang-ops` is Phase 3b and lands before v1.0.0 **only if all of its preconditions hold** (listed under Phase 3b); otherwise v1.0.0 ships one binary and the split moves to v1.1. Either way no caller changes: `ailang <ops-command>` keeps working by delegating to `ailang-ops`.
+- [x] D2 — canonical pass predicate is `CompileOk && RuntimeOk && StdoutOk`; re-bank nothing; annotate the OS history boundary date.
+- [x] D3 — prod defaults become a deprecation warning in v0.39 and a hard error in v1.0.0.
+- [x] D4 — rename `internal/eval` → `internal/interp`, merge `eval_analysis` + `eval_analyzer`; `link`/`linked` and `server`→`hub` stay Future Work.
+- [x] D5 — `.agents/skills` becomes a generated copy with a CI diff gate (not a symlink; the cloud container clone is the consumer).
+- [x] D6 — untrack sprint JSON per the recommendation. **`eval_results/baselines/` stays tracked**: Sprint 1 found it is deliberately re-included in `.gitignore` and read by the docs BenchmarkDashboard and `eval-weekly.yml`; moving those readers to the bucket is a separate item before any untracking.
+- [x] D7 — the removal list stands as written; each removal PR cites the audit's last-commit date and reference counts.
 
 ## Solution Design
 
@@ -212,6 +212,23 @@ Goal: an agent can read `ailang --help` in one screen and every command answers 
 5. Removals per D7, each PR citing the audit's last-commit date and reference counts.
 6. Generated `docs/docs/reference/cli.md` from the dispatch table (there is no CLI reference page today; `guides/cli.md` is an 11-line orphan). Fix the three docs-cited commands the binary rejects (`eval-chains`, `daemon`, `disk`).
 7. Alias sweep: rename callers in Makefile, `make/*.mk`, `tools/`, `tools/launchd/*.sh`, `.claude/skills/**`, `.github/workflows`, docs — in a **separate** PR after the aliases are live, verified by `make test-launchd-drivers` and a grep that the old spellings are gone.
+
+#### Phase 3b — Physical split, gated (before v1.0.0 only if every precondition holds)
+
+Goal: `cmd/ailang` links the language closure only; `cmd/ailang-ops` carries the platform. **Zero caller disruption** is the design constraint, not a hope:
+
+- `ailang` keeps accepting every ops command and alias. Its `ops` group is a thin delegator: it execs `ailang-ops` found **beside its own executable** first, then on `PATH`, forwarding args, env, stdin/stdout/stderr and the exit code. If neither is found it fails with one line naming the install step. So `ailang messages list` in a launchd plist, a skill or a script behaves identically before and after.
+- Every build path ships both binaries in the same change: `make install` / `quick-install` (both `go install`s + both symlinks), `.github/workflows/build.yml` release matrix (both per OS), `cloudbuild-*.yaml` (the buildpack's single `GOOGLE_BUILDABLE` becomes a Dockerfile that builds both, or the coordinator image builds `ailang-ops` only and `ailang` is not needed there — decide by reading what the Cloud Run service actually invokes), `docker/Dockerfile.agent-base` (the containers run `ailang execute-job`, an ops command, so they need `ailang-ops`), CI's `go install ./cmd/ailang` steps.
+- `checkStaleBinary` and the version/commit stamp apply to both; `ailang version` reports the ops binary's version too when it is present, so a mismatched pair is visible.
+
+**Preconditions, all required** (the closure test is the instrument for the first two):
+1. `internal/diag/closure_expected_violations.txt` is empty — the language binary is genuinely small; splitting earlier ships a second 100 MB binary and proves nothing.
+2. Phase 3's aliases have shipped in a tagged release and one attended iteration of each mission loop has run on that release.
+3. All five build paths build and install both binaries in CI; the release workflow's artifact list shows both for every OS.
+4. One dev Cloud Run deploy and one agent-container job (`execute-job`) have run on the split images.
+5. `make simplicity-metrics` shows `binary_internal_packages` for `cmd/ailang` at or below the closure count.
+
+If any precondition is not met at the v1.0.0 cut, v1.0.0 ships one binary with groups and the split is the first v1.1 item. That is the ruling: two binaries, only when certain.
 
 #### Phase 4 — Navigation layer (weeks 5–6, ~3 days)
 
@@ -353,7 +370,7 @@ error: AILANG_MESSAGES_STORE was removed in v1.0.0; use AILANG_STORAGE_MESSAGING
 
 - **Language or stdlib changes** — nothing in this program touches syntax, types, effects semantics or `std/`. Those are the v1_0_0 planned docs (effect modes, bytecode parity) and run in their own lane.
 - **The motoko core** — PROGRAM.md's frozen core is untouched; the four deferred L-sized consolidations were deferred precisely because they sit on the extension seam.
-- **Physical binary split** (`ailang-ops`) — Future Work; v1.0.0 ships one binary with groups (D1 recommendation).
+- **An unconditional binary split** — Phase 3b lands only behind its preconditions (D1 ruling); v1.0.0 never ships a split that any build path or caller would notice.
 - **`slog` migration, single-impl interface removal, approval-model merge, vector-store merge** — Future Work.
 - **Docs-site content rewrite** — only the cluster merges in Phase 5; the guides' substance is out of scope.
 
@@ -365,6 +382,7 @@ error: AILANG_MESSAGES_STORE was removed in v1.0.0; use AILANG_STORAGE_MESSAGING
 | 1–2 | 1 | Closure test with shrinking list; hot path clean; registration seams; compiler logic out of cmd | Closure ≤ 36 pkgs |
 | 2–4 | 2 | Leaves (`config`, `statedir`, `sqliteopen`); 12 clusters closed; plane switch; fallbacks fail loud; forbidigo | `os.Getenv` outside config = 0 |
 | 4–5 | 3 | Dispatch table; groups + aliases; chains fold; 4 flag families; generated CLI ref; alias sweep | `--help` 100%; loops run one iteration |
+| 6–7 | 3b | Physical `ailang` + `ailang-ops` split with delegation, all five build paths | every Phase 3b precondition, else deferred to v1.1 |
 | 5–6 | 4 | doc.go × 124; D4 renames; one skill tree; instruction diet; design_docs triage | Surface ≤ 25 KB |
 | 7 | 5 | Metrics diff in changelog; docs cluster merges; PROGRAM.md §8 | v1.0.0 tag |
 
@@ -432,7 +450,6 @@ Every load-bearing claim, with the command that produced it (all on dev @ 7c56fd
 
 ## Future Work
 
-- Physical `cmd/ailang-ops` binary once the closure test is green and the aliases have had one release.
 - `executor.Supervise(cmd, opts)` with per-harness event decoders (four supervisor loops → one).
 - Approval model merge (`ApprovalRequest` / `ApprovalRequestRecord` / `messaging.Approval` / observatory stage approvals).
 - `slog` + `telemetry` as the only two logging mechanisms; `%w` on every wrap.
