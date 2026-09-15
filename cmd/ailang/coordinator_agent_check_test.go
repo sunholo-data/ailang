@@ -138,22 +138,23 @@ coordinator:
 // someone to commit a duplicate skill into a repo that does not need one.
 func TestSkillVerdict_ResolvesFromWorkspaceOrSharedPlugin(t *testing.T) {
 	tests := []struct {
-		name           string
-		wsCode, plCode int
-		want           checkState
-		why            string
+		name                   string
+		agCode, wsCode, plCode int
+		want                   checkState
+		why                    string
 	}{
-		{"in the workspace repo", 200, 0, statePass, "design-doc-creator in sunholo-data/ailang"},
-		{"only in the shared plugin", 404, 200, statePass, "design-doc-creator-daneel: no .claude/ in sunholo-data/daneel"},
-		{"in neither", 404, 404, stateFail, "a genuine miss — nothing to run"},
+		{"in .agents/skills (where a cloud run looks)", 200, 0, 0, statePass, "the tree AGENTS.md names"},
+		{"only in .claude/skills", 404, 200, 0, statePass, "a local session finds it; a cloud run does not"},
+		{"only in the shared plugin", 404, 404, 200, statePass, "design-doc-creator-daneel: no skills tree in sunholo-data/daneel"},
+		{"in none of the three", 404, 404, 404, stateFail, "a genuine miss — nothing to run"},
 		// The one that matters. A private repo answers 403, and GitHub answers
-		// 404 for repos you may not see, so only a definite no from BOTH is a no.
-		{"workspace forbidden, plugin absent", 403, 404, stateUnknown, "could not look is not the same as not there"},
-		{"github 500", 500, 500, stateUnknown, "a broken instrument reports nothing, not a pass"},
+		// 404 for repos you may not see, so only a definite no from ALL is a no.
+		{"forbidden, then absent", 403, 403, 404, stateUnknown, "could not look is not the same as not there"},
+		{"github 500", 500, 500, 500, stateUnknown, "a broken instrument reports nothing, not a pass"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := skillVerdict("design-doc-creator", "sunholo-data/daneel", tt.wsCode, tt.plCode)
+			got := skillVerdict("design-doc-creator", "sunholo-data/daneel", tt.agCode, tt.wsCode, tt.plCode)
 			if got.State != tt.want {
 				t.Errorf("state = %v, want %v (%s) — %s", got.State, tt.want, tt.why, got.Detail)
 			}

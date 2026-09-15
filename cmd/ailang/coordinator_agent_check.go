@@ -414,15 +414,32 @@ func checkSkill(ctx context.Context, a *coordinator.AgentConfig) agentCheck {
 		return c
 	}
 
+	// BOTH trees, because the repo has two and they are not the same.
+	//
+	// AGENTS.md line 19 tells agents "Skills live in `.agents/skills/`", and
+	// that is what the cloud executor reads. `.claude/skills/` is what a local
+	// Claude session reads. Measured 2026-09-15: 33 of 38 skills DIFFER between
+	// them, 6 exist only under .claude/, and nothing syncs them — they have
+	// diverged in both directions, so neither is simply stale.
+	//
+	// Checking only .claude/ meant this reported "skill present" for a file the
+	// cloud agent cannot see, and would have reported a miss for one that only
+	// exists where the agent actually looks. A check that answers about the
+	// wrong path is worse than none.
+	agentsPath := ".agents/skills/" + a.Invoke.Name + "/SKILL.md"
 	workspacePath := ".claude/skills/" + a.Invoke.Name + "/SKILL.md"
 	pluginPath := "skills/" + a.Invoke.Name + "/SKILL.md"
 
-	_, wsCode, _ := githubGET(ctx, "/repos/"+repo+"/contents/"+workspacePath)
+	_, agCode, _ := githubGET(ctx, "/repos/"+repo+"/contents/"+agentsPath)
+	wsCode := 0
+	if agCode != 200 {
+		_, wsCode, _ = githubGET(ctx, "/repos/"+repo+"/contents/"+workspacePath)
+	}
 	plCode := 0
-	if wsCode != 200 {
+	if agCode != 200 && wsCode != 200 {
 		_, plCode, _ = githubGET(ctx, "/repos/"+sharedSkillsPlugin+"/contents/"+pluginPath)
 	}
-	return skillVerdict(a.Invoke.Name, repo, wsCode, plCode)
+	return skillVerdict(a.Invoke.Name, repo, agCode, wsCode, plCode)
 }
 
 // skillVerdict is the decision, split from the fetching so it can be tested.
@@ -431,15 +448,21 @@ func checkSkill(ctx context.Context, a *coordinator.AgentConfig) agentCheck {
 // miss, and anything else — a 403 on a private repo, a 5xx, a rate limit — is
 // UNKNOWN. Reading "I could not look" as "it is not there" is the failure mode
 // this whole command was written against.
-func skillVerdict(skill, repo string, wsCode, plCode int) agentCheck {
+func skillVerdict(skill, repo string, agCode, wsCode, plCode int) agentCheck {
 	c := agentCheck{Name: "skill present"}
+	agentsPath := ".agents/skills/" + skill + "/SKILL.md"
 	workspacePath := ".claude/skills/" + skill + "/SKILL.md"
 	pluginPath := "skills/" + skill + "/SKILL.md"
 
 	switch {
+	case agCode == 200:
+		c.State = statePass
+		c.Detail = agentsPath + " exists in " + repo + " (the tree the cloud executor reads)"
 	case wsCode == 200:
 		c.State = statePass
-		c.Detail = workspacePath + " exists in " + repo
+		// Named, because it is the path the AGENT does not read. A local session
+		// will find this skill and a cloud run will not.
+		c.Detail = workspacePath + " exists in " + repo + " — but NOT .agents/skills/, which is where a cloud run looks"
 	case plCode == 200:
 		c.State = statePass
 		c.Detail = pluginPath + " exists in the shared plugin " + sharedSkillsPlugin + " (pre-cloned into every executor image)"
