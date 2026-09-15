@@ -1,0 +1,5 @@
+# AILANG Core Backlog (triage rows)
+
+| Date | Title | Class | Recommend | Why |
+|---|---|---|---|---|
+| 2026-09-15 | serve-api silently co-binds a port already held (e.g. coordinator's 8765), splitting requests between listeners | bug | direct-fix | serve-api (`cmd/ailang/serve_api.go`) never probes the port while a helper `isPortInUse` already exists (`cmd/ailang/server.go`); `internal/server/server.go:649` (`http.ListenAndServe`) binds with Go's default SO_REUSEADDR, which on macOS permits the second bind and yields the reported alternating 200/404 — add a pre-bind refusal that names the holder. Secondary: sunholo/oauth AGENT.md (external repo) should stop using 8765 as the example loopback redirect since it collides with the coordinator default. Searched design_docs/ for SO_REUSEPORT/serve-api/REUSEPORT/8765 — no existing coverage. |
