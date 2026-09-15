@@ -213,6 +213,9 @@ jobs:
     - name: Check architecture boundaries
       run: make check-boundaries
 
+    - name: Check ARCHITECTURE.md language-closure section is current
+      run: make check-architecture-closure
+
     - name: Check referenced paths
       run: make check-referenced-paths
 

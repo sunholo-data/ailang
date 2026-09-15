@@ -1,6 +1,10 @@
 package telemetry
 
-import "os"
+import (
+	"os"
+
+	"github.com/sunholo-data/ailang/internal/config"
+)
 
 // The four functions here report CONFIGURATION INTENT — which export
 // destinations the environment asks for — not registration or delivery. They
@@ -15,12 +19,9 @@ func IsEnabled() bool { return os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT") != "" }
 func IsGoogleCloudEnabled() bool { return GoogleCloudProject() != "" }
 
 // GoogleCloudProject honors telemetry-specific project configuration first.
-func GoogleCloudProject() string {
-	if p := os.Getenv("OTLP_GOOGLE_CLOUD_PROJECT"); p != "" {
-		return p
-	}
-	return os.Getenv("GOOGLE_CLOUD_PROJECT")
-}
+// Env-only on purpose (see config.TraceProjectFromEnv): a non-empty value is
+// what enables Cloud Trace export.
+func GoogleCloudProject() string { return config.TraceProjectFromEnv() }
 
 // IsDualExportEnabled reports whether both destinations are configured.
 func IsDualExportEnabled() bool { return IsGoogleCloudEnabled() && IsEnabled() }

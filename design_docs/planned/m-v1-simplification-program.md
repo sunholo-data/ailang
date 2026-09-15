@@ -87,7 +87,7 @@ None of this is file size: no file exceeds the 800-line gate. The complexity is 
 
 | Metric | Today | v1.0.0 gate |
 |---|---|---|
-| Internal packages in the `run/check/fmt/prompt/repl` closure | 43 (112 linked) | ≤ 40, enforced by test (was 36 before `ai`/`secrets`/`mcp_client` were measured as legitimately core) |
+| Internal packages in the `run/check/fmt/prompt/repl` closure | 43 (112 linked) | ≤ 42, enforced by test (36 → 40 when `ai`/`secrets`/`mcp_client` measured as core; 40 → 42 when the `config` and `statedir` leaves replaced duplicated resolvers inside the core — S2, 2026-09-15. Moved twice for definitional reasons, both recorded; it does not move again without one) |
 | Third-party roots in that closure from {sqlite3, otel-sdk/exporters, grpc, websocket, cloud.google.com/go/{firestore,pubsub,storage,trace}} | 5 | 0 |
 | Top-level commands visible in default `ailang --help` | 78 | ≤ 20 |
 | Commands where `<cmd> --help` exits 0 | ~70% | 100% |

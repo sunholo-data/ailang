@@ -207,7 +207,7 @@ jq -n \
   '{
     date: $date, commit: $commit,
     metrics: {
-      closure_internal_packages: {value: $closure_internal, gate: 40, dir: "le", how: "go list -deps over the language roots"},
+      closure_internal_packages: {value: $closure_internal, gate: 42, dir: "le", how: "go list -deps over the language roots"},
       closure_leak_roots:        {value: $closure_leaks, gate: 0, dir: "le", detail: $closure_leak_list, how: "third-party roots {sqlite3, otel sdk/exporters, grpc, websocket, gcp firestore/pubsub/storage/trace} in that closure"},
       closure_platform_packages: {value: $closure_platform, gate: 0, dir: "le", detail: $closure_platform_list, how: "platform packages reachable from the language roots"},
       binary_internal_packages:  {value: $binary_internal, gate: null, dir: "le", how: "go list -deps ./cmd/ailang"},

@@ -156,11 +156,11 @@ behavioral dependency on the evaluator. If `embed` ever re-exports its own
 `Value` alias, `eval` should be added back to the deny-list.
 
 <!-- BEGIN GENERATED: language closure (scripts/gen_architecture_closure.sh) -->
-### Language closure (generated 2026-09-15 @ 4c6ebcee9)
+### Language closure (generated 2026-09-15 @ 227ca1f82)
 
 What `ailang run / check / fmt / prompt / repl` link, measured with `go list -deps`
 over the language roots. **41** of the internal packages are in the closure; the
-full binary links **112**. The gate is `internal/diag/closure_test.go`; the numbers
+full binary links **119**. The gate is `internal/diag/closure_test.go`; the numbers
 are banked by `make simplicity-metrics`. Regenerate this section with
 `scripts/gen_architecture_closure.sh` (CI runs it with `--check`).
 
@@ -173,11 +173,11 @@ are banked by `make simplicity-metrics`. Regenerate this section with
 - `internal/ast`
 - `internal/builtins`
 - `internal/bytecode`
+- `internal/config`
 - `internal/core`
 - `internal/dtree`
 - `internal/effects`
 - `internal/elaborate`
-- `internal/embedprefix`
 - `internal/errors`
 - `internal/eval`
 - `internal/format`
@@ -217,16 +217,10 @@ are banked by `make simplicity-metrics`. Regenerate this section with
 — and third-party roots:
 `github.com/mattn/go-sqlite3` `go.opentelemetry.io/otel/sdk` `go.opentelemetry.io/otel/exporters` `github.com/GoogleCloudPlatform/opentelemetry-operations-go` `google.golang.org/grpc` `github.com/gorilla/websocket` `cloud.google.com/go/firestore` `cloud.google.com/go/pubsub` `cloud.google.com/go/storage` `cloud.google.com/go/trace` 
 
-**Known violations still listed** (7; the list can only shrink — the test fails
+**Known violations still listed** (0; the list can only shrink — the test fails
 if an entry appears that is not listed, or a listed entry is no longer reached):
 
-- `go.opentelemetry.io/otel/sdk`
-- `go.opentelemetry.io/otel/exporters`
-- `github.com/GoogleCloudPlatform/opentelemetry-operations-go`
-- `google.golang.org/grpc`
-- `cloud.google.com/go/trace`
-- `github.com/mattn/go-sqlite3`
-- `github.com/gorilla/websocket`
+- none — the language core is a leaf of the platform
 <!-- END GENERATED: language closure -->
 
 ## Capability-effect system

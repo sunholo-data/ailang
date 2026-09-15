@@ -180,3 +180,20 @@ func resetMetadataForTest() {
 	metadata.done = false
 	metadata.project = ""
 }
+
+// EnvTraceProject is the telemetry-specific override for the Cloud Trace
+// export project. Setting it (or EnvGoogleCloudProject) is what ENABLES Cloud
+// Trace export, so this is a switch as much as a value.
+const EnvTraceProject = "OTLP_GOOGLE_CLOUD_PROJECT"
+
+// TraceProjectFromEnv returns the project Cloud Trace export should target, or
+// "" when export is not enabled. It reads the environment ONLY — deliberately
+// not CloudProject's yaml/metadata fallbacks, because falling through would
+// switch trace export on for every process on a GCE box or every machine whose
+// ~/.ailang/config.yaml names a project. Enabling export is an explicit act.
+func TraceProjectFromEnv() string {
+	if p := os.Getenv(EnvTraceProject); p != "" {
+		return p
+	}
+	return os.Getenv(EnvGoogleCloudProject)
+}

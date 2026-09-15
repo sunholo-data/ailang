@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-V1-SIMPLIFY-S2",
-  "status": "not_started",
+  "status": "completed",
   "created": "2026-09-15T05:35:15Z",
   "design_doc": "design_docs/planned/m-v1-simplification-program.md",
   "sprint_plan": "design_docs/planned/m-v1-simplification-s2-sprint-plan.md",
@@ -24,10 +24,10 @@
         "no-op without registration, exports with platform/otel",
         "5 violations entries removed"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-15T06:20:22Z",
+      "completed": "2026-09-15T06:20:22Z",
+      "notes": "55f583e02 (merged bd01d8b9d). internal/platform/otel (package otelplatform). Deviation: IsEnabled/IsGoogleCloudEnabled/GoogleCloudProject/IsDualExportEnabled stayed in telemetry (env-only intent). Five violations cleared; grpc/cloud trace had no other carrier."
     },
     {
       "id": "M2_EFFECTS_SEAMS",
@@ -40,10 +40,10 @@
         "typed ErrBackendNotRegistered tested",
         "2 violations entries removed"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-15T06:20:22Z",
+      "completed": "2026-09-15T06:20:22Z",
+      "notes": "f935a018a+0672c192e (merged 3999da608). BrainCache interface returned from the opener (statically checked); CacheOption became a data struct; streamws package name. ailang cache put/show/promote/search/list/stats byte-identical. sqlite + websocket cleared; list EMPTY after merge."
     },
     {
       "id": "M3_CMD_LOGIC_OUT",
@@ -57,10 +57,10 @@
         "make verify-examples byte-identical; ai_check_exit_test green",
         "doc.go in new packages"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-15T06:20:22Z",
+      "completed": "2026-09-15T06:20:22Z",
+      "notes": "8bd64968c/b3525afbf/ccddbd829/b7d101522 (merged, no conflicts). verify.go 692->155, check_package.go 651->200, main_run_exec.go 663->172, run_helpers.go removed. 223-file corpus: 0 DIFF on run/check/verify after equalising ldflags. Finding: ai-check keeps its own verification loop (3 measured divergences) — unifying changes its exit contract; left as a Phase 2 item."
     },
     {
       "id": "M4_CONFIG_STATEDIR_LEAVES",
@@ -73,10 +73,10 @@
         "AILANG_STATE_DIR honoured by coordinator status and chains list",
         "deprecation warns once; strict mode errors; tested"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-15T06:20:22Z",
+      "completed": "2026-09-15T06:20:22Z",
+      "notes": "10 commits (merged 227ca1f82). CloudProject/CloudProjectSource/Region/DeprecatedDefault (error-returning, once-per-process warning, AILANG_STRICT_CONFIG). statedir.Dir/Path/UnderHome/Project. Two os.Setenv leaks replaced by NewBackendsForModeProject; quorum Setenv deleted (no reader). getenv_outside_config 388->342. Behaviour changes: GCP_PROJECT alias dropped; notifier precedence env>yaml; chains post --cloud local|hybrid rejected. FLAGGED FOR MARK: internal/mission/dispatch/run.go:235 pins stage executions to the prod message plane by literal — converting it is a loop-behaviour ruling."
     },
     {
       "id": "M5_CLOSEOUT",
@@ -94,10 +94,10 @@
         "closure_leak_roots 7->0 in audit",
         "make test + gates green"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-15T06:20:22Z",
+      "completed": "2026-09-15T06:20:22Z",
+      "notes": "Violations list empty; ARCHITECTURE section generated + CI-gated (00d6c8a48); last project read (telemetry) routed via env-only config.TraceProjectFromEnv; closure gate 40->42 with reason; audit regressions named in changelog (instruction surface +302 B, tracked files)."
     }
   ]
 }
