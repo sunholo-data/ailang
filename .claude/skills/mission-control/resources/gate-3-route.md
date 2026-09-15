@@ -447,7 +447,7 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
 ### PI EVALUATOR SESSION HANDSHAKE
 
 Every pi evaluator attempt MUST use `scripts/mission_pi_run.sh`, whose child invocation supplies
-`AILANG_MESSAGES_STORE=gcp` and `AILANG_MESSAGES_PROJECT=ailang-multivac` and leaves
+`AILANG_STORAGE_MESSAGING=gcp` and `AILANG_MESSAGES_PROJECT=ailang-multivac` and leaves
 `AILANG_STORAGE` unchanged. The delivered directive begins with the exact preamble below; do not
 prepend controller triage or other startup prose. The bounded one-row listing is local protocol
 evidence, not full mission inbox triage, and protocol acknowledgement is not inbox-message
@@ -804,7 +804,7 @@ iteration flushes. It exits 0 even on telemetry failure — a broken tracker mus
 loop. Review the fleet's spend later with `ailang chains stats --by-mission` (M3).
 
 **DUAL-WRITE to a remote observatory** (M-MISSION-LOOP-UNIFIED-TELEMETRY M3): a node that sets
-`AILANG_CHAINS_CLOUD=gcp` (or passes `--cloud gcp`) writes the iteration to its local store AND to
+`AILANG_STORAGE_OBSERVATORY=gcp` (or passes `--cloud gcp`) writes the iteration to its local store AND to
 the remote one, under the SAME chain and stage ids, so spans carrying those ids join either copy.
 Nothing about it is specific to this machine — the node is a parameter, and with the variable unset
 behaviour is exactly what it was. It does NOT touch `AILANG_STORAGE`, so this node's coordinator

@@ -37,15 +37,16 @@ and a plist comment once advised matching that.
 Branch → project mapping is enforced by Cloud Build triggers. Deploys are branch-based:
 push to `dev`/`test`/`prod` and the matching project is built and rolled.
 
-## Three backends, two switches — the thing that confuses everyone
+## Three backends, one switch — the thing that confuses everyone
 
-`ailang storage status` reports `Mode: local` **even when your inbox is on the cloud
-store.** That is correct and not a contradiction: they are different switches.
+`ailang storage status` prints **one line per store** — mode, the variable it came from,
+and the path or project — because a single "Mode:" line once hid that your inbox was on
+the cloud store while the plane said local (M-V1-SIMPLIFY-S3 M3).
 
 ```mermaid
 flowchart TB
   subgraph SW["Environment variables"]
-    S1["AILANG_MESSAGES_STORE<br/>+ AILANG_MESSAGES_PROJECT"]
+    S1["AILANG_STORAGE_MESSAGING<br/>+ AILANG_MESSAGES_PROJECT"]
     S2["AILANG_STORAGE<br/>+ AILANG_CLOUD_PROJECT"]
   end
 
@@ -55,8 +56,8 @@ flowchart TB
     O["<b>Observatory</b><br/>spans, chains, eval baselines"]
   end
 
-  S1 -->|moves ONLY this| M
-  S2 -->|moves ALL THREE| M
+  S1 -->|overrides ONLY this| M
+  S2 -->|the plane: ALL THREE| M
   S2 --> C
   S2 --> O
 
@@ -66,27 +67,42 @@ flowchart TB
 
 | Switch | Scope | Safe to export globally? |
 |---|---|---|
-| `AILANG_MESSAGES_STORE` | messaging only | **Yes** — this is why it exists |
-| `AILANG_STORAGE` | coordinator + messaging + observatory | **No** — it also moves eval banking and `ailang chains` |
+| `AILANG_STORAGE=local\|gcp\|hybrid` | the plane: coordinator + messaging + observatory | **No** — it also moves eval banking and `ailang chains` |
+| `AILANG_STORAGE_MESSAGING=local\|gcp` | messaging only (per-store override) | **Yes** — this is why it exists |
+| `AILANG_STORAGE_COORDINATOR=local\|gcp` | coordinator only | only for `ailang coordinator …` CLI work on the shared plane |
+| `AILANG_STORAGE_OBSERVATORY=local\|gcp` | observatory only | only for `ailang chains --remote`-style reads and mission dual-writes |
+
+All four are read in ONE place, `config.StoragePlane()`, and every backend constructor
+and every command goes through it. The retired scoped selectors `AILANG_MESSAGES_STORE`,
+`AILANG_COORDINATOR_REMOTE`, `AILANG_CHAINS_READ` and `AILANG_CHAINS_CLOUD` are **hard
+errors** naming their replacement for one release: a value that is now ignored must not
+look honoured.
 
 `AILANG_MESSAGES_PROJECT` overrides `AILANG_CLOUD_PROJECT` for messaging alone. It is
 required in practice because `AILANG_CLOUD_PROJECT` is commonly pinned per-machine to a
 `-dev` project, and a bare `AILANG_STORAGE=gcp` would then silently read a stale
-graveyard. Note `GOOGLE_CLOUD_PROJECT` is **ignored** by all of this.
+graveyard. Note `GOOGLE_CLOUD_PROJECT` is honoured by `config.CloudProject` as the second
+source, after `AILANG_CLOUD_PROJECT`.
 
-### Which code path reads which switch
+### Every code path reads the same switch
 
-This is the subtlety that bites: **the CLI and the daemons do not read the same switch.**
+Before M3 the CLI read the scoped selector and the daemons read `AILANG_STORAGE` only, so
+exporting the scoped one changed what *you* read but never moved a daemon. Now the
+per-store override applies to **every** reader:
 
 | Consumer | Reads | Consequence |
 |---|---|---|
-| `ailang messages …` (CLI) | `openStore` → `AILANG_MESSAGES_STORE` | scoped selector applies |
-| notify daemon (`ailang daemon run`) | `storage.NewBackends` → `AILANG_STORAGE` | scoped selector does **not** apply |
-| coordinator (`ailang coordinator start`) | `storage.NewBackends` → `AILANG_STORAGE` | scoped selector does **not** apply |
+| `ailang messages …` (CLI) | `config.StoragePlane().Messaging` | override applies |
+| notify daemon (`ailang daemon run`) | `storage.NewBackendsForSelection` (defaults to gcp when nothing is set) | override applies |
+| coordinator (`ailang coordinator start`) | `storage.NewBackends` | override applies — so do NOT put `AILANG_STORAGE_MESSAGING=gcp` in a coordinator plist unless you mean it |
 | Cloud Run coordinator | `AILANG_STORAGE=gcp` in its service env | all three in prod Firestore |
 
-So setting `AILANG_MESSAGES_STORE` changes what **you** read. It does not move a local
-daemon onto the shared inbox.
+launchd jobs do not inherit a login shell's exports, so a shell-level
+`AILANG_STORAGE_MESSAGING=gcp` still reaches only what you run from that shell.
+
+`COORDINATOR_MODE` is separate: it is the coordinator's *execution* mode (Cloud Run Jobs
+vs worktrees on this host), read once in `config.CoordinatorMode()` and validated against
+the plane — `cloud` with a SQLite coordinator or messaging store refuses to start.
 
 ## The nodes
 
@@ -199,7 +215,7 @@ exact match, then longest matching prefix, then no dispatch. See
 **Everything operational is prod.** `ailang-multivac-dev` and `-test` exist to stage
 infrastructure changes and nothing else. `aitana-multivac-dev` appears nowhere.
 
-The laptop deliberately keeps `AILANG_MESSAGES_STORE` rather than `AILANG_STORAGE`: it
+The laptop deliberately keeps `AILANG_STORAGE_MESSAGING` rather than `AILANG_STORAGE`: it
 takes no jobs, and moving it wholesale would orphan 144 MB of `coordinator.db` and 73 MB
 of `observatory.db` as the default view for nothing gained. Shared inbox, local
 workbench. One line to flip if fleet-wide `chains`/`coordinator list` is ever wanted
@@ -275,12 +291,12 @@ tagged, alive, and silently claiming nothing.
    Inspect bodies via `--json` when you don't intend to ack.
 5. **`ack --all` sweeps outbound cross-mission messages too.** When sent messages are in flight,
    ack per message id; after any `ack --all`, verify the recipient inbox and `unack` as needed.
-6. **A binary predating `6759ea4fa` IGNORES `AILANG_MESSAGES_STORE` silently** — it reads local
+6. **A binary predating M-V1-SIMPLIFY-S3 M3 IGNORES `AILANG_STORAGE_MESSAGING` silently** — it reads local
    SQLite and exits 0, making the whole protocol vacuous. `~/go/bin/ailang` drifts by design
    (installing mid-run would disturb concurrent agents), so assume it is stale. One-command
    control — an INVALID value must be refused:
-   `AILANG_MESSAGES_STORE=not-a-real-store ailang messages list --unread` must error
-   `unknown message store mode`; a normal listing means you are reading local. Build a fresh
+   `AILANG_STORAGE_MESSAGING=not-a-real-store ailang messages list --unread` must error
+   `invalid storage selection`; a normal listing means you are reading local. Build a fresh
    binary to a scratch dir and prepend it to PATH rather than `make quick-install`. (Confirmed
    on the Studio 2026-08-26: its v0.33.2 binary made both exports inert and kept reading local
    SQLite — the missing `store:` header was the only visible tell.)
@@ -290,13 +306,13 @@ tagged, alive, and silently claiming nothing.
 An **attended node** (reads the shared inbox, takes no work):
 
 ```bash
-export AILANG_MESSAGES_STORE=gcp
+export AILANG_STORAGE_MESSAGING=gcp
 export AILANG_MESSAGES_PROJECT=ailang-multivac
 
 ailang messages list --unread          # everything needing attention, all inboxes
-ailang storage status                  # must still say Mode: local
+ailang storage status                  # messaging gcp (AILANG_STORAGE_MESSAGING); coordinator and observatory local
 
-AILANG_MESSAGES_STORE=local ailang messages list --unread   # this machine's private inbox
+AILANG_STORAGE_MESSAGING=local ailang messages list --unread   # this machine's private inbox
 ```
 
 A **job-taking node** (joins the execution plane; needs worker_tags to gate what it

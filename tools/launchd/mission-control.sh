@@ -166,7 +166,7 @@ _mc_drain_notices() {
       log "notice spool: deferred ${deferred} row(s), aggregate budget ${DRAIN_BUDGET}s exhausted"
       return 0
     fi
-    if _mc_bounded "$NOTIFY_TIMEOUT" env AILANG_MESSAGES_STORE=gcp AILANG_MESSAGES_PROJECT="${AILANG_MESSAGES_PROJECT:-ailang-multivac}" \
+    if _mc_bounded "$NOTIFY_TIMEOUT" env AILANG_STORAGE_MESSAGING=gcp AILANG_MESSAGES_PROJECT="${AILANG_MESSAGES_PROJECT:-ailang-multivac}" \
        ailang messages send controlplane "[spooled $ts] $body" --title "$title" --from "$MSG_FROM"; then
       sent=$((sent + 1))
     else
@@ -201,7 +201,7 @@ _mc_notify() {
     # (`( exec "$@" )`), so `env` carries the two store vars down to the child with the same
     # per-command scoping (never exported; AILANG_STORAGE untouched) while a `VAR=x` prefix
     # would make exec treat VAR=x as the command name.
-    _mc_bounded "$NOTIFY_TIMEOUT" env AILANG_MESSAGES_STORE=gcp AILANG_MESSAGES_PROJECT="${AILANG_MESSAGES_PROJECT:-ailang-multivac}" \
+    _mc_bounded "$NOTIFY_TIMEOUT" env AILANG_STORAGE_MESSAGING=gcp AILANG_MESSAGES_PROJECT="${AILANG_MESSAGES_PROJECT:-ailang-multivac}" \
       ailang messages send controlplane "$body" --title "$title" --from "$MSG_FROM"; _rc=$?; _out="$MC_BOUNDED_OUT"
     # G5 ARM B: a TIMED-OUT command produced no output, so MC_BOUNDED_OUT is empty and the
     # failure WARNING would degrade to `FAILED ... after 3 attempts:` with nothing after it —

@@ -1051,7 +1051,7 @@ The coordinator can run on **Google Cloud Run** for 24/7 operation without a dev
 
 | Variable | Purpose | Default |
 |----------|---------|---------|
-| `COORDINATOR_MODE` | Set to `cloud` to enable cloud mode | `local` |
+| `COORDINATOR_MODE` | Set to `cloud` to enable cloud mode. Validated against the storage plane at start-up: `cloud` requires the coordinator AND messaging stores in Firestore (`AILANG_STORAGE=gcp`), else the daemon refuses to start naming what to set. Unset is `local` on ANY plane — the rig runs a local-execution daemon on `AILANG_STORAGE=gcp` | `local` |
 | `AILANG_CLOUD_PROJECT` | GCP project ID for Pub/Sub, Firestore, Cloud Run Jobs | (required) |
 | `AILANG_CLOUD_REGION` | GCP region for Cloud Run Jobs | `europe-west1` |
 | `AILANG_TOPIC_PREFIX` | Pub/Sub topic prefix and job name prefix | `ailang` |

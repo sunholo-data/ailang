@@ -55,7 +55,7 @@ run_ailang_json() {
   label=$1
   shift
   output_file=$(mktemp "${TMPDIR:-/tmp}/docs-router.XXXXXX") || die "cannot create temporary output for $label"
-  if ! AILANG_MESSAGES_STORE=gcp AILANG_MESSAGES_PROJECT=ailang-multivac \
+  if ! AILANG_STORAGE_MESSAGING=gcp AILANG_MESSAGES_PROJECT=ailang-multivac \
     bounded_exec "$AILANG_CMD" "$@" >"$output_file" 2>"${output_file}.err"; then
     error_text=$(tr '\n' ' ' <"${output_file}.err")
     rm -f "$output_file" "${output_file}.err"
@@ -111,7 +111,7 @@ forward_item() {
   message_id=$2
   reason=$3
   key_seen "$source_key" && return 1
-  if ! AILANG_MESSAGES_STORE=gcp AILANG_MESSAGES_PROJECT=ailang-multivac \
+  if ! AILANG_STORAGE_MESSAGING=gcp AILANG_MESSAGES_PROJECT=ailang-multivac \
     bounded_exec "$AILANG_CMD" messages forward --to docs-mission --reason "$reason" "$message_id" \
     >/dev/null 2>"${TMPDIR:-/tmp}/docs-router-forward.err"; then
     error_text=$(tr '\n' ' ' <"${TMPDIR:-/tmp}/docs-router-forward.err")
