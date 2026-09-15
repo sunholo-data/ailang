@@ -257,7 +257,15 @@ func (r *RepairRunner) runSingleAttempt(ctx context.Context, prompt string) (*at
 
 	// Grade via the centralized router (handles default / quine / prefix_line).
 	// Quine grading needs the submitted source; other modes ignore it.
-	stdoutOk := GradeStdout(r.spec, runResult.Stdout, genResult.Code)
+	//
+	// Gated on runtime_ok, as every agent-mode lane already was (ruling D9,
+	// M-V1-SIMPLIFY-S4 M4, bank-forward from 2026-09-15): a run that crashed
+	// after printing the expected bytes — or whose expected stdout is empty —
+	// banks stdout_ok=false from now on. Nothing is re-banked; the read-side
+	// Passed predicate (D2) already conjoined the three flags, so published
+	// rates do not move — this makes the STORED flag mean the same thing in
+	// both modes. TestD9StandardModeStdoutOkGatedOnRuntime pins it.
+	stdoutOk := runResult.RuntimeOk && GradeStdout(r.spec, runResult.Stdout, genResult.Code)
 
 	return &attemptResult{
 		Code:                genResult.Code,

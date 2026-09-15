@@ -316,6 +316,18 @@ var osDataNotes = []OSDataNote{
 			"delta -0.12pp, worst version v0.4.1 at -0.90pp, v0.30.0 and v0.32.0 unchanged. Nothing " +
 			"was re-banked. Full per-version table: TestD2DiscordantCount in internal/eval_analysis.",
 	},
+	{
+		Date: "2026-09-15",
+		Ref:  "M-V1-SIMPLIFY-S4 M4 / ruling D9",
+		Text: "Write side unified, bank-forward: from this date standard mode gates stdout_ok on " +
+			"runtime_ok exactly as every agent-mode lane already did, so a run that crashed after " +
+			"printing the expected bytes (or whose expected stdout is empty) banks stdout_ok=false " +
+			"instead of true. Rows banked before this date keep their stored flags; nothing was " +
+			"re-banked. Published rates are unaffected because the D2 read-side predicate above " +
+			"already required all three flags — this only makes the STORED stdout_ok mean the same " +
+			"thing in both modes. Pinned by TestD9StandardModeStdoutOkGatedOnRuntime in " +
+			"internal/eval_harness.",
+	},
 }
 
 // readAilangVersion returns the AILANG language version under test, read from
