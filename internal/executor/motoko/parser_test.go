@@ -256,9 +256,9 @@ func TestParseSessionLine_RejectsNonJSON(t *testing.T) {
 		[]byte("not json at all"),
 	}
 	for _, line := range cases {
-		_, _, err := parseSessionLine(line)
+		_, _, err := ParseSessionLine(line)
 		if err == nil {
-			t.Errorf("parseSessionLine(%q) = no error, want error", string(line))
+			t.Errorf("ParseSessionLine(%q) = no error, want error", string(line))
 		}
 	}
 }

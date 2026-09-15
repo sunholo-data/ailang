@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"net/http"
@@ -91,16 +92,45 @@ func getString(m map[string]interface{}, key string) string {
 	return ""
 }
 
+// getInt reads a numeric field however the map came to hold it: float64
+// from encoding/json, int64 from a Firestore document or a json.Number
+// from a decoder with UseNumber. It used to accept float64 only, so every
+// other representation read as 0 (M-V1-SIMPLIFY-S3 M5).
 func getInt(m map[string]interface{}, key string) int {
-	if v, ok := m[key].(float64); ok {
+	switch v := m[key].(type) {
+	case int:
+		return v
+	case int32:
 		return int(v)
+	case int64:
+		return int(v)
+	case float64:
+		return int(v)
+	case json.Number:
+		if i, err := v.Int64(); err == nil {
+			return int(i)
+		}
+		if f, err := v.Float64(); err == nil {
+			return int(f)
+		}
 	}
 	return 0
 }
 
 func getFloat(m map[string]interface{}, key string) float64 {
-	if v, ok := m[key].(float64); ok {
+	switch v := m[key].(type) {
+	case float64:
 		return v
+	case float32:
+		return float64(v)
+	case int:
+		return float64(v)
+	case int64:
+		return float64(v)
+	case json.Number:
+		if f, err := v.Float64(); err == nil {
+			return f
+		}
 	}
 	return 0
 }
