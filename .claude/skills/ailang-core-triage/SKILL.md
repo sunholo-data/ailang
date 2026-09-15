@@ -69,6 +69,17 @@ need a design doc to re-derive it.
    in Why and name the terms you searched, so the next reader can tell a real
    gap from a bad query.
 
+## Citing a line number
+
+When you quote a file:line from an existing design doc, say so — and check the
+line still holds. Measured on this skill's first run: it cited
+`resolver.go:127` because the design doc says `resolver.go:127`, and the call
+has since moved to `internal/pkg/resolver.go:136`. The citation was faithful to
+its source and sent a reader to the wrong line.
+
+Prefer `<file> (`<the symbol>`)` over a bare line number, or write
+"doc says :127, now :136".
+
 ## If you cannot proceed
 
 If the report has no discernible subject, or the repo is missing something you
