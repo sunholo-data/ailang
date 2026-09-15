@@ -10,8 +10,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"gopkg.in/yaml.v3"
 )
 
 // Environment variables this package owns. Nothing else reads them.
@@ -94,26 +92,20 @@ func FilePath() string {
 	return filepath.Join(home, ".ailang", "config.yaml")
 }
 
-// projectFromConfigFile reads ONLY pubsub.project_id from the config file. A
+// projectFromConfigFile reads pubsub.project_id through the one loader. A
 // missing or unreadable file, or one without the key, is simply "not set".
 func projectFromConfigFile() string {
-	path := FilePath()
-	if path == "" {
-		return ""
-	}
-	data, err := os.ReadFile(path) //nolint:gosec // the user's own config path
+	f, err := Load()
 	if err != nil {
 		return ""
 	}
-	var doc struct {
-		PubSub struct {
-			ProjectID string `yaml:"project_id"`
-		} `yaml:"pubsub"`
+	var ps struct {
+		ProjectID string `yaml:"project_id"`
 	}
-	if err := yaml.Unmarshal(data, &doc); err != nil {
+	if _, err := f.Section("pubsub", &ps); err != nil {
 		return ""
 	}
-	return strings.TrimSpace(doc.PubSub.ProjectID)
+	return strings.TrimSpace(ps.ProjectID)
 }
 
 // metadataBaseURL is the GCE metadata server; tests point it at an httptest

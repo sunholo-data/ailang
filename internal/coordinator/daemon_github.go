@@ -1,14 +1,14 @@
 package coordinator
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/messaging"
-	"gopkg.in/yaml.v3"
 )
 
 // runGitHubSync runs periodic GitHub issue import in the background.
@@ -17,8 +17,17 @@ import (
 func (d *Daemon) runGitHubSync() {
 	cfg := d.coordConfig.GitHubSync
 
-	// Get default repo from global github config
-	defaultRepo := d.getDefaultRepo()
+	// The legacy single-repo form syncs github.default_repo; the multi-repo
+	// form names its repos and needs no default.
+	defaultRepo := ""
+	if len(cfg.Repos) == 0 {
+		repo, err := d.getDefaultRepo()
+		if err != nil {
+			d.logger.Printf("GitHub sync disabled: github_sync names no repos and %v", err)
+			return
+		}
+		defaultRepo = repo
+	}
 
 	// Get repos to sync (handles backwards compatibility)
 	repos := cfg.GetRepos(defaultRepo)
@@ -115,29 +124,21 @@ func (d *Daemon) syncRepoIssues(repo RepoSyncConfig) {
 	}
 }
 
-// getDefaultRepo returns the default GitHub repo from the global github config.
-func (d *Daemon) getDefaultRepo() string {
-	// Load from full config file to get github.default_repo
-	homeDir, _ := os.UserHomeDir()
-	configPath := filepath.Join(homeDir, ".ailang", "config.yaml")
-	data, err := os.ReadFile(configPath)
+// getDefaultRepo returns github.default_repo from the config file, through
+// the one loader (so AILANG_CONFIG is honoured here too). It used to read a
+// hard-coded home path and turn EVERY failure — no file, unparseable file,
+// key absent — into "sunholo-data/ailang", so a coordinator with a broken
+// config synced the wrong repository and reported success. Now: no
+// configured default is an error the callers log and act on.
+func (d *Daemon) getDefaultRepo() (string, error) {
+	cfg, err := messaging.LoadGitHubConfig()
 	if err != nil {
-		return "sunholo-data/ailang" // Fallback default
+		return "", fmt.Errorf("github.default_repo: %w", err)
 	}
-
-	// Parse just to get github.default_repo
-	var fullConfig struct {
-		GitHub struct {
-			DefaultRepo string `yaml:"default_repo"`
-		} `yaml:"github"`
+	if cfg == nil || cfg.DefaultRepo == "" {
+		return "", fmt.Errorf("github.default_repo is not set in %s", config.FilePath())
 	}
-	if err := yaml.Unmarshal(data, &fullConfig); err != nil {
-		return "sunholo-data/ailang"
-	}
-	if fullConfig.GitHub.DefaultRepo != "" {
-		return fullConfig.GitHub.DefaultRepo
-	}
-	return "sunholo-data/ailang"
+	return cfg.DefaultRepo, nil
 }
 
 // runLabelResync periodically re-checks GitHub labels and updates message routing.
@@ -208,10 +209,17 @@ func (d *Daemon) resyncLabels() {
 			continue
 		}
 
-		// Determine repo for this message
+		// Determine repo for this message. Old messages carry no repo; they
+		// belong to the configured default, and without one there is nothing
+		// to resync them against.
 		repo := msg.GitHubRepo
 		if repo == "" {
-			repo = d.getDefaultRepo() // Fallback for old messages
+			defaultRepo, err := d.getDefaultRepo()
+			if err != nil {
+				d.logger.Printf("Label resync: message %s has no repo and %v; skipping", msg.ID, err)
+				continue
+			}
+			repo = defaultRepo
 		}
 
 		// Fetch current labels from GitHub

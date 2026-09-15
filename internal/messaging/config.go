@@ -1,13 +1,14 @@
 package messaging
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
-	"gopkg.in/yaml.v3"
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // GitHubConfig holds configuration for GitHub integration
@@ -160,37 +161,37 @@ type Config struct {
 	PubSub     *PubSubConfig         `yaml:"pubsub"`
 }
 
-// GetConfigPath returns the path to the AILANG config file
+// GetConfigPath returns the path of the AILANG config file: AILANG_CONFIG
+// when set, else ~/.ailang/config.yaml (config.FilePath). This package used
+// to spell the home path itself and so ignored AILANG_CONFIG while the
+// coordinator honoured it — two loaders, two answers.
 func GetConfigPath() string {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return ""
-	}
-	return filepath.Join(homeDir, ".ailang", "config.yaml")
+	return config.FilePath()
 }
 
-// LoadConfig loads configuration from ~/.ailang/config.yaml
-// Returns nil if the config file doesn't exist (not an error)
+// LoadConfig loads the messaging sections (github, embeddings, pubsub) of
+// the config file through the one loader in internal/config. Returns nil,
+// nil when there is no config file (not an error); a file that does not
+// parse is an error.
 func LoadConfig() (*Config, error) {
-	configPath := GetConfigPath()
-	if configPath == "" {
-		return nil, nil
-	}
-
-	data, err := os.ReadFile(configPath)
+	f, err := config.Load()
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil // Config file doesn't exist, not an error
+		if errors.Is(err, config.ErrConfigNotFound) {
+			return nil, nil
 		}
 		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
-
-	var config Config
-	if err := yaml.Unmarshal(data, &config); err != nil {
-		return nil, fmt.Errorf("failed to parse config file: %w", err)
+	var cfg Config
+	for key, out := range map[string]any{
+		"github":     &cfg.GitHub,
+		"embeddings": &cfg.Embeddings,
+		"pubsub":     &cfg.PubSub,
+	} {
+		if _, err := f.Section(key, out); err != nil {
+			return nil, fmt.Errorf("failed to parse config file: %w", err)
+		}
 	}
-
-	return &config, nil
+	return &cfg, nil
 }
 
 // LoadGitHubConfig loads just the GitHub configuration
