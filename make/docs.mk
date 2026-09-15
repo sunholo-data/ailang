@@ -3,11 +3,11 @@
 # =============================================================================
 
 .PHONY: docs docs-install docs-serve docs-build docs-preview docs-clean docs-restart
-.PHONY: sync-prompts sync-versions generate-llms-txt
+.PHONY: sync-prompts sync-versions generate-llms-txt docs-env
 .PHONY: doctor doc
 
 # Documentation generation
-docs: sync-prompts sync-versions generate-llms-txt ## Generate all documentation
+docs: sync-prompts sync-versions generate-llms-txt docs-env ## Generate all documentation
 	@echo "$(GREEN)$(CHECKMARK) All documentation generated$(RESET)"
 
 sync-prompts: ## Sync prompts/ to docs/docs/prompts/ (Docusaurus)
@@ -20,6 +20,9 @@ sync-versions: ## Sync version constants
 
 generate-llms-txt: ## Generate llms.txt
 	@./tools/generate-llms-txt.sh
+
+docs-env: ## Generate docs/docs/reference/env-vars.md from internal/config's Registry
+	@go run ./tools/gen-env-docs docs/docs/reference/env-vars.md
 
 # Docusaurus website
 docs-install: ## Install Docusaurus dependencies
