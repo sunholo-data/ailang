@@ -671,6 +671,8 @@ models:
     pricing:
       input_per_1k: 0.003  # $3 per million = $0.003 per 1K (standard rate)
       output_per_1k: 0.015 # $15 per million = $0.015 per 1K (standard rate)
+      cache_read_per_1k: 0.0003   # 0.1x input — Anthropic prompt-cache read rate
+      cache_write_per_1k: 0.00375  # 1.25x input — Anthropic 5-minute cache write rate
     notes: |
       Anthropic's Sonnet-tier flagship (June 2026) — near-Opus quality on coding and
       agentic work at Sonnet cost; the biggest gains over Sonnet 4.6 are coding/agentic.
@@ -699,6 +701,8 @@ models:
     pricing:
       input_per_1k: 0.003  # $3 per million = $0.003 per 1K
       output_per_1k: 0.015 # $15 per million = $0.015 per 1K
+      cache_read_per_1k: 0.0003   # 0.1x input — Anthropic prompt-cache read rate
+      cache_write_per_1k: 0.00375  # 1.25x input — Anthropic 5-minute cache write rate
     budgets:
       # WORK GATE (2026-07-31, Mark): one shared 3.0M blended-token ceiling across
       # agent_suite, so every model gets the same number of iterations. A dollar cap
@@ -741,6 +745,8 @@ models:
     pricing:
       input_per_1k: 0.003  # $3 per million = $0.003 per 1K
       output_per_1k: 0.015 # $15 per million = $0.015 per 1K
+      cache_read_per_1k: 0.0003   # 0.1x input — Anthropic prompt-cache read rate
+      cache_write_per_1k: 0.00375  # 1.25x input — Anthropic 5-minute cache write rate
     notes: |
       Superseded by Claude Sonnet 4.6 (Feb 2026).
       Agent eval support: ✅ Fully supported via Claude Code CLI.
@@ -759,6 +765,8 @@ models:
     pricing:
       input_per_1k: 0.001   # $1.00 per million = $0.001 per 1K
       output_per_1k: 0.005  # $5.00 per million = $0.005 per 1K
+      cache_read_per_1k: 0.0001   # 0.1x input — Anthropic prompt-cache read rate
+      cache_write_per_1k: 0.00125  # 1.25x input — Anthropic 5-minute cache write rate
     # M-EVAL-COST-AND-SPEED-BUDGETS (v0.15.1 retro): cheap-model agent budget.
     # Default formula = $0.224 — close to ceiling but multi-turn loops blow
     # past it. Explicit $0.30 kept haiku-class agents from being killed
@@ -794,6 +802,8 @@ models:
     pricing:
       input_per_1k: 0.005   # $5.00 per million = $0.005 per 1K
       output_per_1k: 0.025  # $25.00 per million = $0.025 per 1K
+      cache_read_per_1k: 0.0005   # 0.1x input — Anthropic prompt-cache read rate
+      cache_write_per_1k: 0.00625  # 1.25x input — Anthropic 5-minute cache write rate
     notes: |
       Anthropic's most intelligent model, state-of-the-art for coding.
       80.9% SWE-bench score - reclaims coding crown.
@@ -815,6 +825,8 @@ models:
     pricing:
       input_per_1k: 0.005   # $5.00 per million = $0.005 per 1K
       output_per_1k: 0.025  # $25.00 per million = $0.025 per 1K
+      cache_read_per_1k: 0.0005   # 0.1x input — Anthropic prompt-cache read rate
+      cache_write_per_1k: 0.00625  # 1.25x input — Anthropic 5-minute cache write rate
     notes: |
       Anthropic's most capable model (Feb 6, 2026).
       1M token context window (long context: $10/$37.50 per 1M for >200K input).
@@ -838,6 +850,8 @@ models:
     pricing:
       input_per_1k: 0.010   # $10 per million = $0.010 per 1K
       output_per_1k: 0.050  # $50 per million = $0.050 per 1K
+      cache_read_per_1k: 0.001   # 0.1x input — Anthropic prompt-cache read rate
+      cache_write_per_1k: 0.0125  # 1.25x input — Anthropic 5-minute cache write rate
     notes: |
       Anthropic's most capable widely released model (June 9, 2026).
       Built on Mythos technology — Mythos-class capabilities made publicly available.
@@ -878,6 +892,8 @@ models:
     pricing:
       input_per_1k: 0.010   # $10 per million = $0.010 per 1K — UNCHANGED from Fable 5
       output_per_1k: 0.050  # $50 per million = $0.050 per 1K — UNCHANGED from Fable 5
+      cache_read_per_1k: 0.001   # 0.1x input — Anthropic prompt-cache read rate
+      cache_write_per_1k: 0.0125  # 1.25x input — Anthropic 5-minute cache write rate
     notes: |
       Anthropic's most capable widely released model (September 1, 2026).
       Supersedes Claude Fable 5 at IDENTICAL pricing ($10/$50 per 1M) — vendor-stated
@@ -956,6 +972,8 @@ models:
     pricing:
       input_per_1k: 0.005   # $5.00 per million (identical to Opus 4.8/4.7)
       output_per_1k: 0.025  # $25.00 per million (identical to Opus 4.8/4.7)
+      cache_read_per_1k: 0.0005   # 0.1x input — Anthropic prompt-cache read rate
+      cache_write_per_1k: 0.00625  # 1.25x input — Anthropic 5-minute cache write rate
     notes: |
       Anthropic's Opus-tier flagship (July 2026). Drop-in at Opus 4.8 pricing
       ($5/$25 per 1M) with the same feature set: 1M context (default AND maximum),
@@ -1019,6 +1037,8 @@ models:
     pricing:
       input_per_1k: 0.005   # $5.00 per million (same as 4.7)
       output_per_1k: 0.025  # $25.00 per million (same as 4.7)
+      cache_read_per_1k: 0.0005   # 0.1x input — Anthropic prompt-cache read rate
+      cache_write_per_1k: 0.00625  # 1.25x input — Anthropic 5-minute cache write rate
     notes: |
       Anthropic's latest Opus flagship (June 2026).
       OR id: anthropic/claude-opus-4.8 (uses dot in OR, dash in direct API).
@@ -1039,6 +1059,8 @@ models:
     pricing:
       input_per_1k: 0.005   # $5.00 per million = $0.005 per 1K (unchanged from 4.6)
       output_per_1k: 0.025  # $25.00 per million = $0.025 per 1K (unchanged from 4.6)
+      cache_read_per_1k: 0.0005   # 0.1x input — Anthropic prompt-cache read rate
+      cache_write_per_1k: 0.00625  # 1.25x input — Anthropic 5-minute cache write rate
     notes: |
       Anthropic's flagship Opus model (April 16, 2026).
       Narrowly retook lead for most powerful generally available LLM.
@@ -1661,6 +1683,8 @@ models:
     pricing:
       input_per_1k: 0.001    # $1.00 per 1M — CORRECTED 2026-08-13 (was 0.00025, Haiku 3.5 rates)
       output_per_1k: 0.005   # $5.00 per 1M — must match the canonical claude-haiku-4-5 row (same api_name)
+      cache_read_per_1k: 0.0001   # 0.1x input — Anthropic prompt-cache read rate
+      cache_write_per_1k: 0.00125  # 1.25x input — Anthropic 5-minute cache write rate
     # M-EVAL-COST-AND-SPEED-BUDGETS (v0.15.1 retro): cheap-model agent budget.
     # Default formula = $0.056 — too tight. opencode harness compounds the
     # issue with internal Haiku compaction calls. Explicit $0.30.
@@ -1699,6 +1723,8 @@ models:
     pricing:
       input_per_1k: 0.003   # $3 per million
       output_per_1k: 0.015  # $15 per million
+      cache_read_per_1k: 0.0003   # 0.1x input — Anthropic prompt-cache read rate
+      cache_write_per_1k: 0.00375  # 1.25x input — Anthropic 5-minute cache write rate
     notes: |
       Claude Sonnet 4.6 evaluated via the opencode CLI harness.
       Cross-harness comparison pair for claude-sonnet-4-6 (Claude Code CLI).
@@ -1754,6 +1780,8 @@ models:
     pricing:
       input_per_1k: 0.001    # $1.00 per 1M — CORRECTED 2026-08-13 (was 0.00025, Haiku 3.5 rates)
       output_per_1k: 0.005   # $5.00 per 1M — must match the canonical claude-haiku-4-5 row (same api_name)
+      cache_read_per_1k: 0.0001   # 0.1x input — Anthropic prompt-cache read rate
+      cache_write_per_1k: 0.00125  # 1.25x input — Anthropic 5-minute cache write rate
     notes: |
       Claude Haiku 4.5 evaluated via the pi minimal harness.
       Pi is a deliberately minimal Claude Agent SDK-based CLI (no MCP, no sub-agents,
@@ -1783,6 +1811,8 @@ models:
     pricing:
       input_per_1k: 0.003   # $3 per million
       output_per_1k: 0.015  # $15 per million
+      cache_read_per_1k: 0.0003   # 0.1x input — Anthropic prompt-cache read rate
+      cache_write_per_1k: 0.00375  # 1.25x input — Anthropic 5-minute cache write rate
     notes: |
       Claude Sonnet 4.6 evaluated via the pi minimal harness.
       Cross-harness comparison member for the claude-sonnet-4-6 family.
@@ -1852,6 +1882,8 @@ models:
     pricing:
       input_per_1k: 0.001    # $1.00 per 1M — CORRECTED 2026-08-13 (was 0.00025, Haiku 3.5 rates)
       output_per_1k: 0.005   # $5.00 per 1M — must match the canonical claude-haiku-4-5 row (same api_name)
+      cache_read_per_1k: 0.0001   # 0.1x input — Anthropic prompt-cache read rate
+      cache_write_per_1k: 0.00125  # 1.25x input — Anthropic 5-minute cache write rate
     notes: |
       Claude Haiku 4.5 evaluated via the motoko_agent harness — the FIRST
       AILANG-native agent in the eval suite. Routes via OpenRouter so this
@@ -1902,6 +1934,8 @@ models:
     pricing:
       input_per_1k: 0.003
       output_per_1k: 0.015
+      cache_read_per_1k: 0.0003   # 0.1x input — Anthropic prompt-cache read rate
+      cache_write_per_1k: 0.00375  # 1.25x input — Anthropic 5-minute cache write rate
     notes: |
       Claude Sonnet 4.6 via motoko. Establishes the harness-on-frontier
       ceiling — pair against vanilla claude-sonnet-4-6 to measure

@@ -173,10 +173,11 @@ func runReviewerWith(caller JSONCaller, mc *eval_harness.ModelConfig, out *Revie
 	return out
 }
 
-// estimateCost computes USD cost from token counts and the model's
-// models.yml pricing. Used both for the pre-flight cap and post-flight
-// accounting so the two use identical arithmetic.
+// estimateCost computes USD cost from token counts and the model's registry
+// pricing through modelreg.Pricing.Cost — the one formula (M-V1-SIMPLIFY-S3
+// M2; this used to be a private input+output product). Used both for the
+// pre-flight cap and post-flight accounting so the two cannot drift. The
+// reviewer call reports no cache split, so cache tokens are 0 here.
 func estimateCost(mc *eval_harness.ModelConfig, inputTokens, outputTokens int) float64 {
-	return float64(inputTokens)/1000.0*mc.Pricing.InputPer1K +
-		float64(outputTokens)/1000.0*mc.Pricing.OutputPer1K
+	return mc.Pricing.Cost(inputTokens, outputTokens, 0, 0)
 }

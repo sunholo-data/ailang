@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sunholo-data/ailang/internal/executor"
+	"github.com/sunholo-data/ailang/internal/modelreg"
 )
 
 // TestClaudeExecutorNew tests executor initialization with various configs
@@ -222,25 +223,57 @@ func TestClaudeCapabilities(t *testing.T) {
 	}
 }
 
-// TestClaudeCostModel verifies cost calculation setup
+// TestClaudeCostModel: the rate card comes from the registry row of the
+// configured model, not a hard-coded Haiku table (M-V1-SIMPLIFY-S3 M2).
 func TestClaudeCostModel(t *testing.T) {
-	exec, _ := New(testConfig())
+	cfg := testConfig()
+	cfg.ClaudeModel = "claude-haiku-4-5-20251001" // an api_name; resolves to claude-haiku-4-5
+	exec, _ := New(cfg)
 	costModel := exec.CostModel()
 
 	if costModel == nil {
 		t.Fatal("CostModel() returned nil")
 	}
-
+	if costModel.Unpriced {
+		t.Fatalf("a registry api_name must price; got Unpriced for %q", cfg.ClaudeModel)
+	}
 	if costModel.ProviderName != "anthropic" {
 		t.Errorf("expected provider 'anthropic', got %q", costModel.ProviderName)
 	}
-
-	// Cost model should have reasonable pricing
-	if costModel.InputTokenCost <= 0 {
-		t.Error("input token cost should be positive")
+	if costModel.Model != "claude-haiku-4-5" {
+		t.Errorf("expected registry key claude-haiku-4-5, got %q", costModel.Model)
 	}
-	if costModel.OutputTokenCost <= 0 {
-		t.Error("output token cost should be positive")
+	if err := modelreg.InitModelsConfig(); err != nil {
+		t.Fatal(err)
+	}
+	row := modelreg.GlobalModelsConfig.Models["claude-haiku-4-5"].Pricing
+	if costModel.InputTokenCost != row.InputPer1K || costModel.OutputTokenCost != row.OutputPer1K ||
+		costModel.CacheReadCost != row.CacheReadPer1K || costModel.CacheWriteCost != row.CacheWritePer1K {
+		t.Errorf("rate card %+v does not match the registry row %+v", costModel, row)
+	}
+}
+
+// A CLI short name ("haiku") is not a key, api_name or alias; it resolves
+// through the registry's LAST tier, agent_model_name, and only because every
+// row carrying that wire name agrees on price (modelreg.ErrAmbiguousModel
+// otherwise). A name no tier matches yields an EXPLICIT unpriced card, never
+// another model's rates.
+func TestClaudeCostModel_ShortNameResolvesViaWireName_UnknownIsUnpriced(t *testing.T) {
+	exec, _ := New(testConfig()) // ClaudeModel = "haiku"
+	cm := exec.CostModel()
+	if cm == nil || cm.Unpriced || cm.Model != "claude-haiku-4-5" {
+		t.Fatalf("expected haiku to resolve through agent_model_name to claude-haiku-4-5, got %+v", cm)
+	}
+
+	cfg := testConfig()
+	cfg.ClaudeModel = "claude-no-such-model-9"
+	exec, _ = New(cfg)
+	cm = exec.CostModel()
+	if cm == nil || !cm.Unpriced {
+		t.Fatalf("expected an Unpriced card for an unknown model, got %+v", cm)
+	}
+	if cm.InputTokenCost != 0 || cm.CalculateCost(executor.TokenUsage{InputTokens: 1000}) != 0 {
+		t.Errorf("an unpriced card must carry no rates; got %+v", cm)
 	}
 }
 

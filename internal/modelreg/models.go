@@ -15,26 +15,27 @@ var embeddedModelsYAML []byte
 
 // ModelConfig represents a single model configuration
 type ModelConfig struct {
-	APIName                  string  `yaml:"api_name"`
-	Provider                 string  `yaml:"provider"`
-	ModelVendor              string  `yaml:"model_vendor,omitempty"` // Origin vendor, distinct from a hosting transport such as Ollama.
-	Description              string  `yaml:"description"`
-	EnvVar                   string  `yaml:"env_var"`
-	AgentCLI                 *string `yaml:"agent_cli"`            // CLI command for agent eval (e.g., "claude", "openai", "gemini"), nil if not supported
-	AgentModelName           *string `yaml:"agent_model_name"`     // Model name to pass to agent CLI (e.g., "haiku", "sonnet")
-	MaxOutputTokens          int     `yaml:"max_output_tokens"`    // Max output tokens (0 = handler default 4096)
-	DefaultThinking          string  `yaml:"default_thinking"`     // Thinking state when the harness sends NO thinking control (M-EVAL-TOKEN-HEADROOM). One of: "on" (thinks by default), "off" (needs an explicit ask), "always_on" (cannot be disabled — explicit disable is an API error), "none" (no thinking capability), "unknown" (NOT verified). Required on every entry: this is the column whose absence let GLM-5.2's truncated thinking read as a capability regression for a month. A row marked "unknown" must NOT have its token counts read as efficiency data
-	ReasoningMaxTokens       int     `yaml:"reasoning_max_tokens"` // Cap on hidden thinking tokens (0 = provider default / uncapped). OpenRouter only; best-effort — third-party upstreams may ignore it (observed: glm-5.2 via Baidu/StreamLake)
-	ReasoningEffort          string  `yaml:"reasoning_effort"`     // Vendor effort dial ("low"|"medium"|"high"; empty = vendor default). OpenRouter reasoning.effort — the DOCUMENTED control for effort-capable models (e.g. kimi-k3 Low/Standard/High/Max). Reasoning bills as output; record explicitly for eval reproducibility when deviating from default
-	TTFTTimeoutSeconds       int     `yaml:"ttft_timeout"`         // Prefill budget in seconds (0 = executor default 30s)
-	GenerationTimeoutSeconds int     `yaml:"generation_timeout"`   // Per-token idle budget after first event (0 = executor default 3m)
-	ModelFamily              string  `yaml:"model_family"`         // Logical model family for cross-harness grouping (e.g., "claude-sonnet-4-6"); empty = no grouping
-	GCPProject               string  `yaml:"gcp_project"`          // Override GOOGLE_CLOUD_PROJECT for this model's evals (e.g. "ailang-dev")
-	GCPLocation              string  `yaml:"gcp_location"`         // Override GOOGLE_CLOUD_LOCATION (e.g. "us-central1")
-	MotokoProfile            string  `yaml:"motoko_profile"`       // Override MOTOKO_CONFIG profile (default: "dogfood"); used when agent_cli is "motoko"
-	Pricing                  Pricing `yaml:"pricing"`
-	Budgets                  Budgets `yaml:"budgets"` // M-EVAL-COST-AND-SPEED-BUDGETS (v0.16.0): cost-aware budget overrides
-	Notes                    string  `yaml:"notes"`
+	APIName                  string   `yaml:"api_name"`
+	Provider                 string   `yaml:"provider"`
+	Aliases                  []string `yaml:"aliases,omitempty"`      // Other wire names that mean THIS row (OpenRouter slugs, CLI short names, dated snapshots). Resolve() consults them after key and api_name; Validate() rejects collisions. M-V1-SIMPLIFY-S3 M2: replaced the observatory's private alias map
+	ModelVendor              string   `yaml:"model_vendor,omitempty"` // Origin vendor, distinct from a hosting transport such as Ollama.
+	Description              string   `yaml:"description"`
+	EnvVar                   string   `yaml:"env_var"`
+	AgentCLI                 *string  `yaml:"agent_cli"`            // CLI command for agent eval (e.g., "claude", "openai", "gemini"), nil if not supported
+	AgentModelName           *string  `yaml:"agent_model_name"`     // Model name to pass to agent CLI (e.g., "haiku", "sonnet")
+	MaxOutputTokens          int      `yaml:"max_output_tokens"`    // Max output tokens (0 = handler default 4096)
+	DefaultThinking          string   `yaml:"default_thinking"`     // Thinking state when the harness sends NO thinking control (M-EVAL-TOKEN-HEADROOM). One of: "on" (thinks by default), "off" (needs an explicit ask), "always_on" (cannot be disabled — explicit disable is an API error), "none" (no thinking capability), "unknown" (NOT verified). Required on every entry: this is the column whose absence let GLM-5.2's truncated thinking read as a capability regression for a month. A row marked "unknown" must NOT have its token counts read as efficiency data
+	ReasoningMaxTokens       int      `yaml:"reasoning_max_tokens"` // Cap on hidden thinking tokens (0 = provider default / uncapped). OpenRouter only; best-effort — third-party upstreams may ignore it (observed: glm-5.2 via Baidu/StreamLake)
+	ReasoningEffort          string   `yaml:"reasoning_effort"`     // Vendor effort dial ("low"|"medium"|"high"; empty = vendor default). OpenRouter reasoning.effort — the DOCUMENTED control for effort-capable models (e.g. kimi-k3 Low/Standard/High/Max). Reasoning bills as output; record explicitly for eval reproducibility when deviating from default
+	TTFTTimeoutSeconds       int      `yaml:"ttft_timeout"`         // Prefill budget in seconds (0 = executor default 30s)
+	GenerationTimeoutSeconds int      `yaml:"generation_timeout"`   // Per-token idle budget after first event (0 = executor default 3m)
+	ModelFamily              string   `yaml:"model_family"`         // Logical model family for cross-harness grouping (e.g., "claude-sonnet-4-6"); empty = no grouping
+	GCPProject               string   `yaml:"gcp_project"`          // Override GOOGLE_CLOUD_PROJECT for this model's evals (e.g. "ailang-dev")
+	GCPLocation              string   `yaml:"gcp_location"`         // Override GOOGLE_CLOUD_LOCATION (e.g. "us-central1")
+	MotokoProfile            string   `yaml:"motoko_profile"`       // Override MOTOKO_CONFIG profile (default: "dogfood"); used when agent_cli is "motoko"
+	Pricing                  Pricing  `yaml:"pricing"`
+	Budgets                  Budgets  `yaml:"budgets"` // M-EVAL-COST-AND-SPEED-BUDGETS (v0.16.0): cost-aware budget overrides
+	Notes                    string   `yaml:"notes"`
 }
 
 // Pricing represents model pricing information
@@ -61,9 +62,10 @@ type Pricing struct {
 	//
 	// Zero means "no write rate declared" and the helpers then bill writes at the FULL
 	// input rate, the same stance as CacheReadPer1K above and for the same reason.
-	// Note this UNDERSTATES Anthropic, which bills cache writes at 1.25x input — the
-	// undeclared default deliberately does not guess a per-provider multiplier, so
-	// declare the real rate where it is known rather than relying on the default.
+	// The undeclared default deliberately does not guess a per-provider multiplier
+	// (Anthropic bills writes at 1.25x input and reads at 0.1x; its rows declare
+	// both since M-V1-SIMPLIFY-S3 M2), so declare the real rate where it is known
+	// rather than relying on the default.
 	CacheWritePer1K float64 `yaml:"cache_write_per_1k"`
 
 	// Expires is the last date (INCLUSIVE, "YYYY-MM-DD") on which the rates
@@ -365,24 +367,33 @@ func (c *ModelsConfig) CalculateCostForModelWithCache(name string, inputTokens, 
 		return 0.0, err
 	}
 
-	cacheRate := model.Pricing.CacheReadPer1K
+	return model.Pricing.Cost(inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens), nil
+}
+
+// Cost is THE token-pricing formula. Every dollar figure derived from token
+// counts — registry lookups here, executor.CostModel, the observatory, the
+// quorum estimate — goes through this one method (M-V1-SIMPLIFY-S3 M2), so
+// two paths cannot disagree about what the same tokens cost.
+//
+// inputTokens is FRESH input, disjoint from cacheReadTokens. An undeclared
+// cache rate (0) bills that class at the FULL input rate: overstating is
+// visible in a budget, whereas $0 hides both the spend and a broken cache.
+// Writes were absent from this arithmetic entirely until 2026-09-14 — the
+// parameter did not exist, so every cached prompt was created for free.
+func (p Pricing) Cost(inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens int) float64 {
+	cacheRate := p.CacheReadPer1K
 	if cacheRate == 0 {
-		cacheRate = model.Pricing.InputPer1K
+		cacheRate = p.InputPer1K
 	}
-
-	// Writes were previously absent from this calculation entirely, not defaulted —
-	// the parameter did not exist, so every cached prompt was created for free.
-	writeRate := model.Pricing.CacheWritePer1K
+	writeRate := p.CacheWritePer1K
 	if writeRate == 0 {
-		writeRate = model.Pricing.InputPer1K
+		writeRate = p.InputPer1K
 	}
-
-	inputCost := float64(inputTokens) / 1000.0 * model.Pricing.InputPer1K
+	inputCost := float64(inputTokens) / 1000.0 * p.InputPer1K
 	cacheCost := float64(cacheReadTokens) / 1000.0 * cacheRate
 	writeCost := float64(cacheWriteTokens) / 1000.0 * writeRate
-	outputCost := float64(outputTokens) / 1000.0 * model.Pricing.OutputPer1K
-
-	return inputCost + cacheCost + writeCost + outputCost, nil
+	outputCost := float64(outputTokens) / 1000.0 * p.OutputPer1K
+	return inputCost + cacheCost + writeCost + outputCost
 }
 
 // SupportsAgentEval returns true if the model supports agent-based evaluation
