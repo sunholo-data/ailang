@@ -7,6 +7,8 @@ import (
 	"os"
 	"os/exec"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/proctree"
 )
 
 // DefaultVerifyTimeout is the per-function Z3 timeout for contract verification.
@@ -59,7 +61,7 @@ func RunAICheck(ailangPath, filePath string, timeout time.Duration) (*AICheckRes
 	// M-EVAL-MEM-GUARD: ai-check runs the type checker + Z3 over MODEL source,
 	// so guard it like the execution lanes — own process group (kills any
 	// solver children with it) and the memory watchdog.
-	SetProcessGroup(cmd)
+	proctree.SetGroup(cmd)
 	maxRSS, err := evalMaxRSS()
 	if err != nil {
 		return nil, "", err
