@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-V1-SIMPLIFY-S3",
-  "status": "not_started",
+  "status": "completed",
   "created": "2026-09-15T10:12:09Z",
   "design_doc": "design_docs/planned/m-v1-simplification-program.md",
   "sprint_plan": "design_docs/planned/m-v1-simplification-s3-sprint-plan.md",
@@ -25,10 +25,10 @@
         "boundary annotation dated",
         "eval tests green"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-15T11:12:02Z",
+      "completed": "2026-09-15T11:12:02Z",
+      "notes": "0fbbcb9d2. D2 measured: 31/26,758 discordant rows (−0.12pp over history; 30 in retired print_missing_effect); OS pipeline already used the conjunction; notes[] added to eval-publish output. 5 loaders → LoadRows; BenchmarkResult embeds RunMetrics."
     },
     {
       "id": "M2_PRICING_MODELREG",
@@ -40,10 +40,10 @@
         "cost delta by provider reported",
         "tests green"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-15T11:12:02Z",
+      "completed": "2026-09-15T11:12:02Z",
+      "notes": "c3ab92757..d8a7fa8ce. FINDING: 100% of prod OpenRouter spans (09-01..13) had cost_usd=null — generic path never tried api_name. MinimumCharge deleted (only a test pinned it); ErrUnpriced → CostStatusUnknown. Non-Anthropic cache was under-billed by the 10%/125% hardcode."
     },
     {
       "id": "M3_PLANE_SWITCH_SQLITEOPEN_CONFIGYAML",
@@ -57,10 +57,10 @@
         "3 loaders -> 1",
         "every repo file setting old names updated"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-15T11:12:02Z",
+      "completed": "2026-09-15T11:12:02Z",
+      "notes": "0fba88a82..7883d3d7e. DEVIATION: COORDINATOR_MODE validated against the plane, not derived (the rig runs AILANG_STORAGE=gcp with local execution). Retired names hard-error; storage status per store; sqliteopen (observatory.db: pool 1 + FKs on; coordinator.db FKs stay off — data migration); config.Load one loader. Prod terraform sets both vars (verified). Blast radius measured and fixed in close-out (deferred approver)."
     },
     {
       "id": "M4_AI_FACTORY_PROMPT_LOADER",
@@ -73,10 +73,10 @@
         "4 prompt loaders -> 1",
         "check-prompt-freeze green"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-15T11:12:02Z",
+      "completed": "2026-09-15T11:12:02Z",
+      "notes": "4cc34241d..3da415336. ai/factory.New (not ai.NewProviderFor — cycle); ollama default 127.0.0.1:11434 via OLLAMA_HOST; 429 from configdriven now CodeRateLimit (was never classified); prompt Kind loader, 126-file byte-identical output. NewClient×8 etc. are legitimate per-provider constructors."
     },
     {
       "id": "M5_HTTP_PROCTREE_SIMHASH_HELPERS",
@@ -89,10 +89,10 @@
         "writeJSON 7->1",
         "hash-space migration handled or proven unchanged"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-15T11:12:02Z",
+      "completed": "2026-09-15T11:12:02Z",
+      "notes": "79da32b60..48318e987. internal/{proctree,simhash,httpjson,strutil} leaves; simhash survivor = builtins FNV-1a, 8 golden vectors bit-identical, no re-index except coordinator tasks.fingerprint (24h dedup gap, S4); daemon_http auth fail-CLOSED + constant-time (TestRequireAPIKey_FailsClosed); observatory ws hub had zero producers, deleted; /api/thread-messages."
     },
     {
       "id": "M6_CLOSEOUT",
@@ -111,10 +111,10 @@
         "make test + gates green",
         "S4 backlog written"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-15T11:12:02Z",
+      "completed": "2026-09-15T11:12:02Z",
+      "notes": "Close-out: deferred-approver fix for retired-selector blast radius; metric split leaf/non-leaf; codex_test split at the 800 gate; factory_test HOME via testutil. Full suite green; all gates green. OPERATOR: install_coordinator.sh before next rig coordinator restart (plist has no COORDINATOR_API_KEY; auto-mode refused the plist edit)."
     }
   ]
 }

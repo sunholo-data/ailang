@@ -3,6 +3,7 @@ package factory
 import (
 	"context"
 	"errors"
+	"github.com/sunholo-data/ailang/internal/testutil"
 	"strings"
 	"testing"
 
@@ -27,8 +28,8 @@ func isolate(t *testing.T) {
 	} {
 		t.Setenv(v, "")
 	}
-	t.Setenv("HOME", t.TempDir()) // no ~/.claude/.credentials.json, no ~/.ailang/config.yaml
-	t.Setenv("PATH", t.TempDir()) // no gcloud
+	testutil.SetHomeDir(t, t.TempDir()) // no ~/.claude/.credentials.json, no ~/.ailang/config.yaml
+	t.Setenv("PATH", t.TempDir())       // no gcloud
 }
 
 func TestNew_OpenAICompatibleLanes(t *testing.T) {

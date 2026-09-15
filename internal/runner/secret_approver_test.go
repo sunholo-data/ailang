@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -48,15 +49,25 @@ func TestAttachCloudSecretApprover_HybridIsShared(t *testing.T) {
 	}
 }
 
-// A malformed plane must not fail open: a retired selector is an error, not
-// "not cloud".
-func TestAttachCloudSecretApprover_UnresolvablePlaneIsAnError(t *testing.T) {
+// A malformed plane must not fail open: a retired selector denies every
+// secret() with the resolution error. But it must not fail CLOSED for
+// programs that never call secret(): attach succeeds, the denial is deferred
+// into the approver (a shell still exporting the old selector broke
+// `ailang run hello.ail` before this — measured 2026-09-15).
+func TestAttachCloudSecretApprover_UnresolvablePlaneDeniesSecretsOnly(t *testing.T) {
 	clearPlaneEnv(t)
 	t.Setenv("AILANG_MESSAGES_STORE", "gcp")
 	t.Setenv("AILANG_COORDINATOR_URL", "https://coord.example")
 	ctx := effects.NewEffContext(nil)
-	if err := attachCloudSecretApprover(ctx); !errors.Is(err, config.ErrRemovedEnv) {
-		t.Fatalf("err = %v, want config.ErrRemovedEnv", err)
+	if err := attachCloudSecretApprover(ctx); err != nil {
+		t.Fatalf("attach must not fail a run that may never call secret(): %v", err)
+	}
+	if ctx.Secret == nil || ctx.Secret.Approver == nil {
+		t.Fatal("expected a deferred-denial approver to be installed")
+	}
+	err := ctx.Secret.Approver.Approve(context.Background(), "op://v/i/f", "test")
+	if !errors.Is(err, config.ErrRemovedEnv) {
+		t.Fatalf("Approve err = %v, want config.ErrRemovedEnv", err)
 	}
 }
 

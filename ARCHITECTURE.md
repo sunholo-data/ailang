@@ -156,11 +156,11 @@ behavioral dependency on the evaluator. If `embed` ever re-exports its own
 `Value` alias, `eval` should be added back to the deny-list.
 
 <!-- BEGIN GENERATED: language closure (scripts/gen_architecture_closure.sh) -->
-### Language closure (generated 2026-09-15 @ a4b9903e2)
+### Language closure (generated 2026-09-15 @ bfec36414)
 
 What `ailang run / check / fmt / prompt / repl` link, measured with `go list -deps`
 over the language roots. **44** of the internal packages are in the closure; the
-full binary links **122**. The gate is `internal/diag/closure_test.go`; the numbers
+full binary links **124**. The gate is `internal/diag/closure_test.go`; the numbers
 are banked by `make simplicity-metrics`. Regenerate this section with
 `scripts/gen_architecture_closure.sh` (CI runs it with `--check`).
 

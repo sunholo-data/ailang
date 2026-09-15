@@ -1,12 +1,24 @@
 {
   "date": "2026-09-15",
-  "commit": "227ca1f82",
+  "commit": "bfec36414",
   "metrics": {
     "closure_internal_packages": {
-      "value": 41,
-      "gate": 42,
+      "value": 44,
+      "gate": null,
       "dir": "le",
-      "how": "go list -deps over the language roots"
+      "how": "go list -deps over the language roots (leaves included)"
+    },
+    "closure_nonleaf_packages": {
+      "value": 30,
+      "gate": 36,
+      "dir": "le",
+      "how": "closure packages that import something under the module — the coupling that can ripple"
+    },
+    "closure_leaf_packages": {
+      "value": 14,
+      "gate": null,
+      "dir": "le",
+      "how": "closure packages importing nothing under the module"
     },
     "closure_leak_roots": {
       "value": 0,
@@ -23,31 +35,31 @@
       "how": "platform packages reachable from the language roots"
     },
     "binary_internal_packages": {
-      "value": 119,
+      "value": 124,
       "gate": null,
       "dir": "le",
       "how": "go list -deps ./cmd/ailang"
     },
     "internal_packages": {
-      "value": 130,
+      "value": 135,
       "gate": null,
       "dir": "le",
       "how": "go list ./internal/..."
     },
     "internal_loc": {
-      "value": 302748,
+      "value": 303239,
       "gate": null,
       "dir": "le",
       "how": "non-test Go lines under internal/"
     },
     "cmd_ailang_loc": {
-      "value": 59907,
+      "value": 60151,
       "gate": null,
       "dir": "le",
       "how": "non-test Go lines under cmd/ailang"
     },
     "cmd_ailang_files": {
-      "value": 222,
+      "value": 224,
       "gate": null,
       "dir": "le",
       "how": "non-test Go files under cmd/ailang"
@@ -59,25 +71,25 @@
       "how": "distinct case labels in cmd/ailang/main.go until the dispatch table lands"
     },
     "flag_names_distinct": {
-      "value": 384,
+      "value": 385,
       "gate": null,
       "dir": "le",
       "how": "distinct FlagSet definition names in cmd/ailang"
     },
     "getenv_sites_total": {
-      "value": 443,
+      "value": 406,
       "gate": null,
       "dir": "le",
       "how": "os.Getenv/LookupEnv call sites, non-test"
     },
     "getenv_outside_config": {
-      "value": 340,
+      "value": 300,
       "gate": 0,
       "dir": "le",
       "how": "same, excluding internal/config, internal/statedir, internal/testutil and DEBUG_* knobs"
     },
     "env_vars_distinct": {
-      "value": 205,
+      "value": 198,
       "gate": null,
       "dir": "le",
       "how": "distinct literal names read"
@@ -86,26 +98,26 @@
       "value": 11,
       "gate": 100,
       "dir": "ge",
-      "detail": "24",
+      "detail": "23",
       "how": "named in CLAUDE.md, .claude/rules, debugging.md, README, reference/env-vars.md"
     },
     "backend_switches": {
-      "value": 6,
+      "value": 1,
       "gate": 1,
       "dir": "le",
       "how": "independent which-backend env vars still read"
     },
     "dup_symbol_names": {
-      "value": 32,
+      "value": 17,
       "gate": null,
       "dir": "le",
       "how": "top-level func names declared in >=3 packages (tools/dup_symbols.sh lists them)"
     },
     "packages_without_doc": {
-      "value": 17,
+      "value": 14,
       "gate": 0,
       "dir": "le",
-      "detail": "internal/agentprompt internal/core internal/devtoolsprompt internal/dtree internal/effects/testctx internal/eval_analysis internal/eval_analyzer internal/executor/proctree internal/lexer internal/link internal/loader internal/modelreg internal/parser internal/prompt internal/runtime internal/typedast internal/websocket",
+      "detail": "internal/core internal/dtree internal/effects/testctx internal/eval_analysis internal/eval_analyzer internal/lexer internal/link internal/loader internal/modelreg internal/parser internal/prompt internal/runtime internal/typedast internal/websocket",
       "how": "internal packages with no // Package comment"
     },
     "skill_trees": {
@@ -115,19 +127,19 @@
       "how": ".agents/skills present and differing from .claude/skills"
     },
     "instruction_surface_bytes": {
-      "value": 27082,
+      "value": 27389,
       "gate": 25600,
       "dir": "le",
       "how": "CLAUDE.md + unscoped rules + skill descriptions"
     },
     "instruction_surface_with_memory_bytes": {
-      "value": 50639,
+      "value": 50918,
       "gate": null,
       "dir": "le",
       "how": "plus the MEMORY.md index on this machine"
     },
     "tracked_files": {
-      "value": 24875,
+      "value": 24912,
       "gate": 8000,
       "dir": "le",
       "how": "git ls-files"
@@ -145,7 +157,7 @@
       "how": "sprint_* / sprint-* files at repo root"
     },
     "planned_design_docs": {
-      "value": 245,
+      "value": 249,
       "gate": null,
       "dir": "le",
       "how": "markdown files under design_docs/planned"

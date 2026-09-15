@@ -111,20 +111,6 @@ func TestEvalRemoteReadIsRefused(t *testing.T) {
 	}
 }
 
-func TestEvalRemoteReadEnvWarnsAndProceeds(t *testing.T) {
-	t.Setenv("AILANG_CHAINS_READ", "gcp")
-	var warning bytes.Buffer
-	if err := guardEvalRemoteRead("eval-paired", nil, &warning); err != nil {
-		t.Fatalf("environment arm returned error: %v", err)
-	}
-	got := warning.String()
-	for _, token := range []string{"eval-paired", "AILANG_CHAINS_READ", "D-15", "#698 part 1"} {
-		if !strings.Contains(got, token) {
-			t.Errorf("warning %q does not contain %q", got, token)
-		}
-	}
-}
-
 func TestOpenChainsReadBackend_DefaultsToLocal(t *testing.T) {
 	hermeticLocalObservatory(t)
 	clearObservatoryPlaneEnv(t)

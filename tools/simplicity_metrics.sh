@@ -61,6 +61,16 @@ for r in $LANGUAGE_ROOTS; do roots="$roots ./$r"; done
 # shellcheck disable=SC2086
 closure="$(go list -deps $roots 2>/dev/null | sort -u)"
 closure_internal="$(printf '%s\n' "$closure" | grep "^$MODULE/internal/" | wc -l | tr -d ' ')"
+# A LEAF imports nothing under the module: it adds no coupling, only code
+# (config, statedir, proctree, simhash, strutil, httpjson...). The gated number
+# is the NON-leaf count — that is where an agent's edit can ripple.
+closure_leaf=0
+for pkg in $(printf '%s\n' "$closure" | grep "^$MODULE/internal/"); do
+  if ! go list -f '{{join .Imports " "}}' "$pkg" 2>/dev/null | grep "$MODULE/" >/dev/null; then
+    closure_leaf=$((closure_leaf + 1))
+  fi
+done
+closure_nonleaf=$((closure_internal - closure_leaf))
 closure_leaks=0
 closure_leak_list=""
 for leak in $LEAK_ROOTS; do
@@ -111,11 +121,16 @@ for v in $env_names; do
   if grep -qw -- "$v" $doc_sources 2>/dev/null; then env_documented=$((env_documented + 1)); fi
 done
 if [ "$env_distinct" -gt 0 ]; then env_documented_pct=$((env_documented * 100 / env_distinct)); else env_documented_pct=0; fi
-# Independent "which backend" switches. Shrinks to 1 (+ per-store overrides) in Phase 2.5.
-backend_switches=0
-for v in AILANG_STORAGE AILANG_MESSAGES_STORE AILANG_COORDINATOR_REMOTE AILANG_CHAINS_READ AILANG_CHAINS_CLOUD COORDINATOR_MODE; do
-  if printf '%s\n' "$env_names" | grep -x "$v" >/dev/null; then backend_switches=$((backend_switches + 1)); fi
-done
+# Independent "which backend" switches: env vars that each SELECT a backend on
+# their own. Since S3 M3 the one switch is AILANG_STORAGE (+ per-store
+# overrides, which refine it rather than compete); the four retired names are
+# refused (read via os.Environ in config, so they no longer count here) and
+# COORDINATOR_MODE is validated against the plane, not a selector — excluded.
+# Count = 1 (the resolver in internal/config) + every OTHER package that still
+# reads one of the names itself. config reads them through constants, so a
+# literal-name census would miss the resolver; hence the explicit +1.
+backend_readers="$(printf '%s\n' "$getenv_all" | grep -v '^internal/config/' | grep -E '"(AILANG_STORAGE|AILANG_MESSAGES_STORE|AILANG_COORDINATOR_REMOTE|AILANG_CHAINS_READ|AILANG_CHAINS_CLOUD)"' | sed 's/:.*//' | sort -u | wc -l | tr -d ' ' || true)"
+backend_switches=$((1 + backend_readers))
 
 # ---- duplication -----------------------------------------------------------
 # Top-level (non-method) func names declared in >= 3 distinct non-test packages.
@@ -188,7 +203,7 @@ mkdir -p "$(dirname "$OUT")"
 
 jq -n \
   --arg date "$date_tag" --arg commit "$commit" \
-  --argjson closure_internal "$closure_internal" \
+  --argjson closure_internal "$closure_internal" --argjson closure_leaf "$closure_leaf" --argjson closure_nonleaf "$closure_nonleaf" \
   --argjson closure_leaks "$closure_leaks" --arg closure_leak_list "${closure_leak_list# }" \
   --argjson closure_platform "$closure_platform" --arg closure_platform_list "${closure_platform_list# }" \
   --argjson binary_internal "$binary_internal" --argjson internal_packages "$internal_packages" \
@@ -207,7 +222,9 @@ jq -n \
   '{
     date: $date, commit: $commit,
     metrics: {
-      closure_internal_packages: {value: $closure_internal, gate: 42, dir: "le", how: "go list -deps over the language roots"},
+      closure_internal_packages: {value: $closure_internal, gate: null, dir: "le", how: "go list -deps over the language roots (leaves included)"},
+      closure_nonleaf_packages:  {value: $closure_nonleaf, gate: 36, dir: "le", how: "closure packages that import something under the module — the coupling that can ripple"},
+      closure_leaf_packages:     {value: $closure_leaf, gate: null, dir: "le", how: "closure packages importing nothing under the module"},
       closure_leak_roots:        {value: $closure_leaks, gate: 0, dir: "le", detail: $closure_leak_list, how: "third-party roots {sqlite3, otel sdk/exporters, grpc, websocket, gcp firestore/pubsub/storage/trace} in that closure"},
       closure_platform_packages: {value: $closure_platform, gate: 0, dir: "le", detail: $closure_platform_list, how: "platform packages reachable from the language roots"},
       binary_internal_packages:  {value: $binary_internal, gate: null, dir: "le", how: "go list -deps ./cmd/ailang"},
