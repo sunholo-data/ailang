@@ -19,6 +19,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/ai/ollama"
 	"github.com/sunholo-data/ailang/internal/ai/openai"
 	"github.com/sunholo-data/ailang/internal/ai/openrouter"
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/coordinator"
 	"github.com/sunholo-data/ailang/internal/executor"
 	_ "github.com/sunholo-data/ailang/internal/executor/claude"
@@ -362,15 +363,13 @@ func isEgressCapable(execName string) bool {
 	return false
 }
 
-// resolveGCPProjectEnv returns the GCP project for exec tasks, using the same
-// precedence as the coordinator (daemon_tasks_init.go): AILANG_CLOUD_PROJECT
-// first, then GOOGLE_CLOUD_PROJECT. Empty when neither is set — the executor
-// fails loud downstream (no silent default project).
-func resolveGCPProjectEnv() string {
-	if p := os.Getenv("AILANG_CLOUD_PROJECT"); p != "" {
-		return p
-	}
-	return os.Getenv("GOOGLE_CLOUD_PROJECT")
+// execGCPProject is the project for exec tasks: config.CloudProject, or
+// empty when nothing resolves — the project is optional for most executors,
+// and the ones that need it (gemini, managed agents) fail loud downstream
+// rather than silently defaulting.
+func execGCPProject(ctx context.Context) string {
+	p, _ := config.CloudProject(ctx)
+	return p
 }
 
 // executeCLI uses the agentic executor (Claude Code CLI, Vertex Managed Agents, ...)
@@ -406,7 +405,7 @@ func executeCLI(ctx context.Context, provider, directive, workspace, model, syst
 		Workspace:      workspace,
 		Timeout:        timeout,
 		Model:          model,
-		GCPProject:     resolveGCPProjectEnv(),
+		GCPProject:     execGCPProject(ctx),
 		GCPLocation:    os.Getenv("GOOGLE_CLOUD_LOCATION"), // empty → executor default ("global")
 		RequiresEgress: requiresEgress,
 	}

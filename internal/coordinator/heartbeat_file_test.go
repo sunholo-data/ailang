@@ -126,12 +126,17 @@ func TestDefaultHeartbeatPath(t *testing.T) {
 	// Expected path is platform-aware: DefaultHeartbeatPath uses filepath.Join,
 	// which yields OS-specific separators (e.g. \tmp\state\... on Windows).
 	want := filepath.Join("/tmp/state", "worker_heartbeats.json")
-	if got := DefaultHeartbeatPath("/tmp/state"); got != want {
-		t.Errorf("DefaultHeartbeatPath = %q, want %q", got, want)
+	if got, err := DefaultHeartbeatPath("/tmp/state"); err != nil || got != want {
+		t.Errorf("DefaultHeartbeatPath = %q, %v, want %q", got, err, want)
 	}
-	// Empty stateDir falls back to ~/.ailang/state — just verify suffix.
-	got := DefaultHeartbeatPath("")
-	if filepath.Base(got) != "worker_heartbeats.json" {
-		t.Errorf("DefaultHeartbeatPath('') basename = %q, want worker_heartbeats.json", filepath.Base(got))
+	// Empty stateDir resolves through statedir.Dir(), which honours AILANG_STATE_DIR.
+	dir := t.TempDir()
+	t.Setenv("AILANG_STATE_DIR", dir)
+	got, err := DefaultHeartbeatPath("")
+	if err != nil {
+		t.Fatalf("DefaultHeartbeatPath(''): %v", err)
+	}
+	if got != filepath.Join(dir, "worker_heartbeats.json") {
+		t.Errorf("DefaultHeartbeatPath('') = %q, want it under AILANG_STATE_DIR %q", got, dir)
 	}
 }

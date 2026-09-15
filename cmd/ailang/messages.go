@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/messaging"
 	otelplatform "github.com/sunholo-data/ailang/internal/platform/otel"
 	"github.com/sunholo-data/ailang/internal/storage"
@@ -141,7 +142,9 @@ func messagesTarget() (storage.Mode, string) {
 	}
 	project := os.Getenv("AILANG_MESSAGES_PROJECT")
 	if project == "" {
-		project = os.Getenv("AILANG_CLOUD_PROJECT")
+		// The messaging pin wins; otherwise the one cloud-project resolver.
+		// An unresolvable project is "" here and openStore names what to set.
+		project, _ = config.CloudProject(context.Background())
 	}
 	switch storage.Mode(mode) {
 	case storage.ModeGCP, storage.ModeHybrid:

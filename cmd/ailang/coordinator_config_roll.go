@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -9,6 +10,7 @@ import (
 
 	run "cloud.google.com/go/run/apiv2"
 	"cloud.google.com/go/run/apiv2/runpb"
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // Writing the config is not deploying it.
@@ -55,20 +57,32 @@ const configReloadLabel = "ailang-config-reload"
 // Only ailang-coordinator mounts the config bucket (verified against every
 // service in the region, 2026-09-10). Overridable so a differently-named
 // deployment does not need a code change.
-func coordinatorService() (project, region, service string) {
-	project = os.Getenv("AILANG_CLOUD_PROJECT")
-	if project == "" {
-		project = "ailang-multivac"
+//
+// Project and region come from the one resolver; with nothing resolvable they
+// fall through to the deprecated prod defaults (D3: a warning now, an error in
+// v1.0.0 — and today under AILANG_STRICT_CONFIG=1).
+func coordinatorService(ctx context.Context) (project, region, service string, err error) {
+	project, err = config.CloudProject(ctx)
+	if errors.Is(err, config.ErrNoCloudProject) {
+		project, err = config.DeprecatedDefault("AILANG_CLOUD_PROJECT", "ailang-multivac")
 	}
-	region = os.Getenv("AILANG_CLOUD_REGION")
-	if region == "" {
-		region = "europe-west1"
+	if err != nil {
+		return "", "", "", err
 	}
-	service = os.Getenv("AILANG_COORDINATOR_SERVICE")
-	if service == "" {
-		service = "ailang-coordinator"
+	region, err = config.Region()
+	if err != nil {
+		return "", "", "", err
 	}
-	return project, region, service
+	return project, region, coordinatorServiceName(), nil
+}
+
+// coordinatorServiceName is the service half of coordinatorService, for the
+// callers that only name it in output.
+func coordinatorServiceName() string {
+	if s := os.Getenv("AILANG_COORDINATOR_SERVICE"); s != "" {
+		return s
+	}
+	return "ailang-coordinator"
 }
 
 // rollCoordinatorForConfig forces a new revision so the coordinator re-reads the
@@ -76,7 +90,10 @@ func coordinatorService() (project, region, service string) {
 //
 // Returns the new revision name on success.
 func rollCoordinatorForConfig(ctx context.Context) (string, error) {
-	project, region, service := coordinatorService()
+	project, region, service, err := coordinatorService(ctx)
+	if err != nil {
+		return "", err
+	}
 	full := fmt.Sprintf("projects/%s/locations/%s/services/%s", project, region, service)
 
 	ctx, cancel := context.WithTimeout(ctx, rollTimeout)
@@ -122,7 +139,7 @@ func rollCoordinatorForConfig(ctx context.Context) (string, error) {
 // Callers must let a false result reach the exit code. The whole point is that
 // "written" and "live" stop being the same statement.
 func reportConfigRoll(ctx context.Context, skip bool) bool {
-	_, _, service := coordinatorService()
+	service := coordinatorServiceName()
 
 	if skip {
 		fmt.Println()
@@ -135,14 +152,15 @@ func reportConfigRoll(ctx context.Context, skip bool) bool {
 	fmt.Printf("\nrolling %s so it re-reads the config…\n", service)
 	revision, err := rollCoordinatorForConfig(ctx)
 	if err != nil {
-		project, region, svc := coordinatorService()
 		fmt.Println()
 		fmt.Println(red("✗"), "the config WAS written, but", service, "was NOT rolled:", err)
 		fmt.Println("  The file is updated and durable — do not re-write it. The running")
 		fmt.Println("  service is still using the config it loaded at startup.")
 		fmt.Printf("  Roll it with: %s\n", cyan("ailang coordinator config roll"))
-		fmt.Printf("  or:           gcloud run services update %s --project %s --region %s \\\n", svc, project, region)
-		fmt.Printf("                  --update-labels=%s=$(date +%%s)\n", configReloadLabel)
+		if project, region, svc, serr := coordinatorService(ctx); serr == nil {
+			fmt.Printf("  or:           gcloud run services update %s --project %s --region %s \\\n", svc, project, region)
+			fmt.Printf("                  --update-labels=%s=$(date +%%s)\n", configReloadLabel)
+		}
 		return false
 	}
 
@@ -156,8 +174,7 @@ func reportConfigRoll(ctx context.Context, skip bool) bool {
 // coordinatorConfigRoll implements `ailang coordinator config roll` — the manual
 // path, for recovering a write whose roll failed.
 func coordinatorConfigRoll(ctx context.Context) error {
-	_, _, service := coordinatorService()
-	fmt.Printf("rolling %s…\n", service)
+	fmt.Printf("rolling %s…\n", coordinatorServiceName())
 	revision, err := rollCoordinatorForConfig(ctx)
 	if err != nil {
 		return err

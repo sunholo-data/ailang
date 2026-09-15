@@ -126,8 +126,8 @@ func TestOpenChainsReadBackend_DefaultsToLocal(t *testing.T) {
 }
 
 func TestOpenChainsReadBackend_RemoteRoutesThroughStorageMode(t *testing.T) {
+	noCloudIdentity(t)
 	t.Setenv("AILANG_CHAINS_READ", "")
-	t.Setenv("AILANG_CLOUD_PROJECT", "")
 	_, _, err := openChainsReadBackend(context.Background(), "gcp")
 	if err == nil || !strings.Contains(err.Error(), "AILANG_CLOUD_PROJECT") {
 		t.Fatalf("error = %v, want error containing AILANG_CLOUD_PROJECT", err)
@@ -136,8 +136,8 @@ func TestOpenChainsReadBackend_RemoteRoutesThroughStorageMode(t *testing.T) {
 
 func TestOpenChainsReadBackend_EnvIsTheFallbackNotTheOverride(t *testing.T) {
 	t.Run("env selects remote", func(t *testing.T) {
+		noCloudIdentity(t)
 		t.Setenv("AILANG_CHAINS_READ", "gcp")
-		t.Setenv("AILANG_CLOUD_PROJECT", "")
 		_, _, err := openChainsReadBackend(context.Background(), "")
 		if err == nil || !strings.Contains(err.Error(), "AILANG_CLOUD_PROJECT") {
 			t.Fatalf("error = %v, want remote routing error", err)

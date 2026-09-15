@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/ai"
 	"github.com/sunholo-data/ailang/internal/ai/anthropic"
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/coordinator"
 	"github.com/sunholo-data/ailang/internal/dispatch/cloudrun"
 	"github.com/sunholo-data/ailang/internal/feedbackgate"
@@ -97,9 +99,11 @@ func coordinatorStart(args []string) error {
 	// visible to a separate `workers list` CLI process on the same host.
 	// Cross-host visibility (Firestore-backed) is the v0.25 roadmap item —
 	// drops into the same HeartbeatStore interface without changing this wiring.
-	daemon.SetHeartbeatStore(coordinator.NewFileHeartbeatStore(
-		coordinator.DefaultHeartbeatPath(cfg.StateDir),
-	))
+	hbPath, err := coordinator.DefaultHeartbeatPath(cfg.StateDir)
+	if err != nil {
+		return err
+	}
+	daemon.SetHeartbeatStore(coordinator.NewFileHeartbeatStore(hbPath))
 
 	// Pre-set cloud backends if configured (AILANG_STORAGE=gcp|hybrid)
 	storageMode := storage.GetMode()
@@ -153,16 +157,17 @@ func coordinatorStart(args []string) error {
 	// M-CLOUD-DISPATCH: Create Cloud Run Jobs dispatcher in cloud mode.
 	// Created here (not in coordinator package) to avoid circular imports.
 	if os.Getenv("COORDINATOR_MODE") == "cloud" {
-		projectID := os.Getenv("AILANG_CLOUD_PROJECT")
-		region := os.Getenv("AILANG_CLOUD_REGION")
-		if region == "" {
-			region = "europe-west1"
-		}
+		projectID, projErr := config.CloudProject(ctx)
+		region, regionErr := config.Region()
 		prefix := os.Getenv("AILANG_TOPIC_PREFIX")
 		if prefix == "" {
 			prefix = pubsub.DefaultTopicPrefix
 		}
-		dispatcher, dispErr := cloudrun.NewDispatcher(ctx, projectID, region, prefix)
+		var dispatcher *cloudrun.Dispatcher
+		dispErr := errors.Join(projErr, regionErr)
+		if dispErr == nil {
+			dispatcher, dispErr = cloudrun.NewDispatcher(ctx, projectID, region, prefix)
+		}
 		if dispErr != nil {
 			fmt.Printf("  %s Cloud Run Jobs dispatcher: %v\n", yellow("⚠"), dispErr)
 		} else {

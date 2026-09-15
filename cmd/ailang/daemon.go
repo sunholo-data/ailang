@@ -125,14 +125,15 @@ func daemonRun(args []string) error {
 	}
 	defer func() { _ = psClient.Close() }()
 
-	// Force GCP storage so we read the cloud-side InboxMessage docs (not local SQLite).
-	if os.Getenv("AILANG_STORAGE") == "" {
-		_ = os.Setenv("AILANG_STORAGE", "gcp")
+	// GCP storage unless told otherwise, so we read the cloud-side
+	// InboxMessage docs (not local SQLite), in the --env's project. Plumbed
+	// explicitly: this used to os.Setenv AILANG_STORAGE and
+	// AILANG_CLOUD_PROJECT for the whole process.
+	storeMode := storage.Mode(os.Getenv("AILANG_STORAGE"))
+	if storeMode == "" {
+		storeMode = storage.ModeGCP
 	}
-	if os.Getenv("AILANG_CLOUD_PROJECT") == "" {
-		_ = os.Setenv("AILANG_CLOUD_PROJECT", project)
-	}
-	backends, err := storage.NewBackends(ctx)
+	backends, err := storage.NewBackendsForModeProject(ctx, storeMode, project)
 	if err != nil {
 		return fmt.Errorf("storage backends: %w", err)
 	}

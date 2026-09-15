@@ -1,6 +1,11 @@
 package main
 
-import "testing"
+import (
+	"errors"
+	"testing"
+
+	"github.com/sunholo-data/ailang/internal/config"
+)
 
 func TestNoRollRequested_StripsTheFlagAndLeavesTheRest(t *testing.T) {
 	// The flag is removed before the existing positional/flag parsing runs, so a
@@ -44,20 +49,35 @@ func TestCoordinatorService_DefaultsToTheServiceThatMountsTheConfig(t *testing.T
 	// ailang-coordinator is the only one mounting the config bucket. Rolling the
 	// wrong service would report success and change nothing, which is the same
 	// silent no-op the roll exists to eliminate.
-	for _, v := range []string{"AILANG_CLOUD_PROJECT", "AILANG_CLOUD_REGION", "AILANG_COORDINATOR_SERVICE"} {
-		t.Setenv(v, "")
+	//
+	// The project and region defaults are DEPRECATED (D3): still honoured, but
+	// through config.DeprecatedDefault, which warns once and refuses under
+	// AILANG_STRICT_CONFIG=1.
+	noCloudIdentity(t)
+	project, region, service, err := coordinatorService(t.Context())
+	if err != nil {
+		t.Fatalf("coordinatorService: %v", err)
 	}
-	project, region, service := coordinatorService()
 	if project != "ailang-multivac" || region != "europe-west1" || service != "ailang-coordinator" {
 		t.Errorf("defaults = %s/%s/%s, want ailang-multivac/europe-west1/ailang-coordinator", project, region, service)
+	}
+
+	t.Setenv("AILANG_STRICT_CONFIG", "1")
+	_, _, _, err = coordinatorService(t.Context())
+	if !errors.Is(err, config.ErrDeprecatedDefault) {
+		t.Fatalf("strict: err = %v, want config.ErrDeprecatedDefault (the v1.0.0 behaviour)", err)
 	}
 }
 
 func TestCoordinatorService_IsOverridable(t *testing.T) {
+	noCloudIdentity(t)
 	t.Setenv("AILANG_CLOUD_PROJECT", "other-project")
 	t.Setenv("AILANG_CLOUD_REGION", "us-central1")
 	t.Setenv("AILANG_COORDINATOR_SERVICE", "other-coordinator")
-	project, region, service := coordinatorService()
+	project, region, service, err := coordinatorService(t.Context())
+	if err != nil {
+		t.Fatalf("coordinatorService: %v", err)
+	}
 	if project != "other-project" || region != "us-central1" || service != "other-coordinator" {
 		t.Errorf("overrides ignored: got %s/%s/%s", project, region, service)
 	}

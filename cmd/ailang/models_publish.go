@@ -33,21 +33,27 @@ import (
 const registryObjectDefault = "registry.yml"
 
 // registryLocation mirrors configLocation, but for the registry object.
-func registryLocation() (bucket, object string) {
-	bucket, _ = configLocation()
+func registryLocation(ctx context.Context) (bucket, object string, err error) {
+	bucket, _, err = configLocation(ctx)
+	if err != nil {
+		return "", "", err
+	}
 	object = os.Getenv("AILANG_REGISTRY_OBJECT")
 	if object == "" {
 		object = registryObjectDefault
 	}
-	return bucket, object
+	return bucket, object, nil
 }
 
 func newGCSRegistryStore(ctx context.Context) (*gcsConfigStore, error) {
+	bucket, object, err := registryLocation(ctx)
+	if err != nil {
+		return nil, err
+	}
 	client, err := storage.NewClient(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("create GCS client: %w", err)
 	}
-	bucket, object := registryLocation()
 	return &gcsConfigStore{ctx: ctx, client: client, bucket: bucket, object: object}, nil
 }
 
@@ -97,7 +103,11 @@ func modelsPublish(args []string) error {
 		return fmt.Errorf("refusing to publish: %w", err)
 	}
 
-	bucket, object := registryLocation()
+	ctx := context.Background()
+	bucket, object, err := registryLocation(ctx)
+	if err != nil {
+		return err
+	}
 	fmt.Printf("registry:  %s (%d models, %d roles)\n", path, len(cfg.Models), len(cfg.Roles))
 	fmt.Printf("target:    gs://%s/%s\n", bucket, object)
 
@@ -106,7 +116,6 @@ func modelsPublish(args []string) error {
 		return nil
 	}
 
-	ctx := context.Background()
 	store, err := newGCSRegistryStore(ctx)
 	if err != nil {
 		return err

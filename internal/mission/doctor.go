@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/statedir"
 )
 
 // Paths locates the two artifact trees. Injected rather than read from the
@@ -14,19 +16,41 @@ import (
 // alternative is a detector nobody can test except on the rig it is meant to check.
 type Paths struct {
 	Home string
+	// StateDir is the per-user state tree (pid files, quota ledgers, ollama
+	// observations). DefaultPaths fills it from statedir.Dir(), which honours
+	// AILANG_STATE_DIR; a fixture that sets only Home gets the default tree
+	// beneath it. Read it through State, never directly.
+	StateDir string
 	// ReviewedEnvDir holds the VERSIONED copies of the env files
 	// (tools/launchd/mission-env/ in the shared repo). Empty disables the
 	// installed-vs-reviewed check.
 	ReviewedEnvDir string
 }
 
-// DefaultPaths uses the real $HOME and the shared repo's mission-env directory.
+// DefaultPaths uses the real $HOME, statedir.Dir() and the shared repo's
+// mission-env directory. An unresolvable state directory is left empty, and
+// State then yields the default tree beneath Home — which is also empty in
+// that case, so every state path is relative and the first write fails
+// loudly instead of landing beside the binary.
 func DefaultPaths() Paths {
 	home := os.Getenv("HOME")
-	return Paths{
+	p := Paths{
 		Home:           home,
 		ReviewedEnvDir: filepath.Join(home, "dev", "sunholo-data", "ailang", "tools", "launchd", "mission-env"),
 	}
+	if d, err := statedir.Dir(); err == nil {
+		p.StateDir = d
+	}
+	return p
+}
+
+// State joins elem beneath the per-user state directory.
+func (p Paths) State(elem ...string) string {
+	dir := p.StateDir
+	if dir == "" {
+		dir = statedir.UnderHome(p.Home)
+	}
+	return filepath.Join(append([]string{dir}, elem...)...)
 }
 
 // ReviewedEnvPath is the versioned, code-reviewed copy of a mission's env file.

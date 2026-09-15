@@ -332,12 +332,12 @@ func (l *Ledger) String(now time.Time) string {
 
 // LedgerPath is the fleet-wide consolidated ledger. One file, because one bucket.
 func LedgerPath(p Paths) string {
-	return filepath.Join(p.Home, ".ailang", "state", "quota-ledger.json")
+	return p.State("quota-ledger.json")
 }
 
 // journalPath is the append-only spend journal.
 func journalPath(p Paths) string {
-	return filepath.Join(p.Home, ".ailang", "state", "quota-ledger-journal.tsv")
+	return p.State("quota-ledger-journal.tsv")
 }
 
 // journalRotatedGlob matches segments a consolidation has claimed but not yet deleted.

@@ -13,19 +13,23 @@ import (
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/approvaltoken"
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/coordinator"
+	"github.com/sunholo-data/ailang/internal/messaging"
+	"github.com/sunholo-data/ailang/internal/observatory"
 	otelplatform "github.com/sunholo-data/ailang/internal/platform/otel"
 	"github.com/sunholo-data/ailang/internal/pubsub"
 	"github.com/sunholo-data/ailang/internal/server"
+	"github.com/sunholo-data/ailang/internal/statedir"
 	"github.com/sunholo-data/ailang/internal/storage"
 )
 
 func serverCommand(args []string) error {
 	// Default values
 	port := "1957"
-	bindAddr := "localhost" // Safe default for local development
-	dbPath := filepath.Join(os.Getenv("HOME"), ".ailang", "state", "collaboration.db")
-	firebaseProject := "" // Firebase project ID for authentication
+	bindAddr := "localhost"                      // Safe default for local development
+	dbPath := messaging.GetDefaultDatabasePath() // "" when no state dir resolves; --db overrides
+	firebaseProject := ""                        // Firebase project ID for authentication
 
 	// Check PORT env var (Cloud Run convention) — overridden by --port flag
 	if envPort := os.Getenv("PORT"); envPort != "" {
@@ -104,6 +108,9 @@ func serverCommand(args []string) error {
 	}
 
 	// Ensure database directory exists
+	if dbPath == "" {
+		return fmt.Errorf("no collaboration database path: set %s (or HOME), or pass --db", statedir.EnvVar)
+	}
 	dbDir := filepath.Dir(dbPath)
 	if err := os.MkdirAll(dbDir, 0755); err != nil {
 		return fmt.Errorf("failed to create database directory: %w", err)
@@ -185,12 +192,14 @@ func serverCommand(args []string) error {
 
 		// Create Pub/Sub subscriber for real-time event streaming.
 		// Dashboard pulls from ailang-events-dashboard and broadcasts via WebSocket.
-		project := os.Getenv("AILANG_CLOUD_PROJECT")
+		project, projErr := config.CloudProject(ctx)
 		topicPrefix := os.Getenv("AILANG_TOPIC_PREFIX")
 		if topicPrefix == "" {
 			topicPrefix = pubsub.DefaultTopicPrefix
 		}
-		if project != "" {
+		if projErr != nil {
+			log.Printf("Warning: no Pub/Sub event streaming: %v", projErr)
+		} else {
 			psClient, psErr := pubsub.NewClient(ctx, project, topicPrefix)
 			if psErr != nil {
 				log.Printf("Warning: Failed to create Pub/Sub client for event streaming: %v", psErr)
@@ -216,7 +225,7 @@ func serverCommand(args []string) error {
 		log.Printf("Storage mode: %s", storageMode)
 	} else {
 		// Local mode: use SQLite paths (existing behavior)
-		obsDbPath := filepath.Join(os.Getenv("HOME"), ".ailang", "state", "observatory.db")
+		obsDbPath := observatory.DefaultDatabasePath()
 		serverOpts = append(serverOpts, server.WithObservatoryDB(obsDbPath))
 		log.Printf("Storage mode: local")
 		log.Printf("Observatory DB: %s", obsDbPath)
@@ -237,8 +246,8 @@ func serverCommand(args []string) error {
 		srv.SetCoordinatorStore(&coordStoreAdapter{store: backends.Coordinator})
 		srv.SetCoordinatorStoreRaw(backends.Coordinator)
 	} else {
-		// Local mode: open SQLite coordinator store
-		coordDbPath := filepath.Join(os.Getenv("HOME"), ".ailang", "state", "coordinator.db")
+		// Local mode: open SQLite coordinator store under the state dir
+		coordDbPath, _ := statedir.Path("coordinator.db") // "" → NewSQLiteStore reports the resolution error
 		coordStore, err := coordinator.NewSQLiteStore(coordDbPath)
 		if err != nil {
 			log.Printf("Warning: Could not connect to coordinator store: %v", err)

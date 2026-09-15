@@ -8,14 +8,15 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/sunholo-data/ailang/internal/mission/activation"
 	"github.com/sunholo-data/ailang/internal/mission/iteration"
+	"github.com/sunholo-data/ailang/internal/statedir"
 )
 
 func readMissionActivation(operationID string) (activation.Record, error) {
-	home, err := os.UserHomeDir()
+	dir, err := statedir.Path("mission-activations")
 	if err != nil {
 		return activation.Record{}, err
 	}
-	manager := activation.Manager{Dir: filepath.Join(home, ".ailang", "state", "mission-activations")}
+	manager := activation.Manager{Dir: dir}
 	return manager.Inspect(operationID)
 }
 

@@ -22,6 +22,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/statedir"
 )
 
 const (
@@ -81,11 +83,13 @@ func lockDir() string {
 	if st, err := os.Stat(shared); err == nil && st.IsDir() {
 		return filepath.Join(shared, "rig.lock.d")
 	}
-	home, err := os.UserHomeDir()
-	if err != nil || home == "" {
-		home = os.TempDir()
+	dir, err := statedir.Path("rig.lock.d")
+	if err != nil {
+		// The lock is a coordination aid, not data: without a resolvable
+		// state tree it lives in the OS temp dir, as before.
+		return filepath.Join(os.TempDir(), ".ailang-rig.lock.d")
 	}
-	return filepath.Join(home, ".ailang", "state", "rig.lock.d")
+	return dir
 }
 
 func staleWindow() time.Duration {

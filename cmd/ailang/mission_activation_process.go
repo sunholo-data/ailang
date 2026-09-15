@@ -108,7 +108,7 @@ func readActivationProcess(dir, id string) (p activationProcess, err error) {
 }
 func activationStopVerifier(dir string, d missionActivationDeps, attended bool) activation.Verify {
 	return func(ctx context.Context, r activation.Record) error {
-		if err := d.LegacyIdle(ctx, d.Home); err != nil {
+		if err := d.LegacyIdle(ctx, d.state()); err != nil {
 			return err
 		}
 		p, err := readActivationProcess(dir, r.OperationID)

@@ -7,6 +7,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
+	"github.com/sunholo-data/ailang/internal/statedir"
 	"github.com/sunholo-data/ailang/internal/storage"
 	"github.com/sunholo-data/ailang/internal/storage/migrate"
 )
@@ -193,17 +195,32 @@ func storageStatus() error {
 	fmt.Printf("  Mode: %s\n", mode)
 	fmt.Printf("  Env:  AILANG_STORAGE=%s\n", os.Getenv("AILANG_STORAGE"))
 
+	// Say where the answer came from: a project that resolved through the
+	// config file or the metadata server is the same fact as an env var, but
+	// the operator needs to know which one to change.
+	describeProject := func() string {
+		p, src, err := config.CloudProjectSource(context.Background())
+		if err != nil {
+			return fmt.Sprintf("(unresolved: %v)", err)
+		}
+		return fmt.Sprintf("%s (via %s)", p, src)
+	}
+
 	switch mode {
 	case storage.ModeLocal:
 		fmt.Println()
-		fmt.Println("  Using local SQLite databases in ~/.ailang/state/")
+		if dir, err := statedir.Dir(); err == nil {
+			fmt.Printf("  Using local SQLite databases in %s\n", dir)
+		} else {
+			fmt.Printf("  Local SQLite databases: %v\n", err)
+		}
 	case storage.ModeGCP:
 		fmt.Println()
-		fmt.Printf("  GCP Project: %s\n", os.Getenv("AILANG_CLOUD_PROJECT"))
+		fmt.Printf("  GCP Project: %s\n", describeProject())
 		fmt.Println("  All databases stored in Firestore")
 	case storage.ModeHybrid:
 		fmt.Println()
-		fmt.Printf("  GCP Project: %s\n", os.Getenv("AILANG_CLOUD_PROJECT"))
+		fmt.Printf("  GCP Project: %s\n", describeProject())
 		fmt.Println("  Coordinator/Messaging: local SQLite")
 		fmt.Println("  Observatory: GCP Firestore")
 	}

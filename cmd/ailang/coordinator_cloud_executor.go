@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/coordinator"
 	"github.com/sunholo-data/ailang/internal/executor"
 	"github.com/sunholo-data/ailang/internal/pubsub"
@@ -76,10 +77,7 @@ func runExecutor(ctx context.Context, workDir, provider, directive, taskID, plug
 	// Create PubSubBroadcaster for live progress streaming (M-CLOUD-PROGRESS-TRACKING).
 	// Reuses the same GCP project/prefix env vars as the completion publisher.
 	var broadcaster *coordinator.PubSubBroadcaster
-	evtProjectID := os.Getenv("AILANG_CLOUD_PROJECT")
-	if evtProjectID == "" {
-		evtProjectID = os.Getenv("GOOGLE_CLOUD_PROJECT")
-	}
+	evtProjectID, _ := config.CloudProject(ctx) // "" (no broadcaster) when unresolvable; the job already failed loud on it above
 	evtPrefix := os.Getenv("AILANG_TOPIC_PREFIX")
 	if evtPrefix == "" {
 		evtPrefix = pubsub.DefaultTopicPrefix

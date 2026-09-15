@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/executor"
 	"github.com/sunholo-data/ailang/internal/observatory"
 	"github.com/sunholo-data/ailang/internal/pubsub"
@@ -408,12 +409,9 @@ func (d *Daemon) initEventBroadcaster() error {
 // initPubSub initializes the Pub/Sub client, publisher, and subscriber.
 // Called when COORDINATOR_MODE=cloud.
 func (d *Daemon) initPubSub(ctx context.Context) error {
-	projectID := os.Getenv("AILANG_CLOUD_PROJECT")
-	if projectID == "" {
-		projectID = os.Getenv("GOOGLE_CLOUD_PROJECT")
-	}
-	if projectID == "" {
-		return fmt.Errorf("AILANG_CLOUD_PROJECT or GOOGLE_CLOUD_PROJECT must be set for cloud mode")
+	projectID, err := config.CloudProject(ctx)
+	if err != nil {
+		return fmt.Errorf("cloud mode: %w", err)
 	}
 
 	prefix := os.Getenv("AILANG_TOPIC_PREFIX")

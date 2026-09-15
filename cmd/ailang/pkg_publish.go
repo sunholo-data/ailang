@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/messaging"
 	"github.com/sunholo-data/ailang/internal/pkg"
 	"github.com/sunholo-data/ailang/internal/pubsub"
@@ -589,23 +590,20 @@ func exportsRemoved(oldExports, newExports []string) bool {
 
 // newCascadePublisher constructs a Pub/Sub publisher targeting the cascade
 // topic. Returns nil (with no error logged) when running outside cloud mode
-// or when AILANG_CLOUD_PROJECT is unset — the legacy inbox path still fires
-// in those cases. This keeps `ailang publish` working unchanged for local
+// or when no cloud project resolves — the legacy inbox path still fires in
+// those cases. This keeps `ailang publish` working unchanged for local
 // laptop use.
 func newCascadePublisher() *pubsub.Publisher {
-	projectID := os.Getenv("AILANG_CLOUD_PROJECT")
-	if projectID == "" {
-		projectID = os.Getenv("GOOGLE_CLOUD_PROJECT")
-	}
-	if projectID == "" {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	projectID, err := config.CloudProject(ctx)
+	if err != nil {
 		return nil
 	}
 	prefix := os.Getenv("AILANG_TOPIC_PREFIX")
 	if prefix == "" {
 		prefix = pubsub.DefaultTopicPrefix
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
 	client, err := pubsub.NewClient(ctx, projectID, prefix)
 	if err != nil {
 		fmt.Printf("%s Cascade publisher init failed: %v (continuing without cascade topic)\n", yellow("⚠"), err)

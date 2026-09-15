@@ -99,7 +99,7 @@ getenv_all="$(grep -rnE 'os\.(Getenv|LookupEnv)\(' --include='*.go' internal cmd
 getenv_sites_total="$(printf '%s\n' "$getenv_all" | grep -c . || true)"
 # internal/testutil is test infrastructure (AILANG_LIVE_NET, AILANG_TEST_FAST_LOOP):
 # its switches are opt-ins for the test lane, not configuration of the binary.
-getenv_outside_config="$(printf '%s\n' "$getenv_all" | grep -v '^internal/config/' | grep -v '^internal/testutil/' | grep -vE '(Getenv|LookupEnv)\("DEBUG_' | grep -c . || true)"
+getenv_outside_config="$(printf '%s\n' "$getenv_all" | grep -v '^internal/config/' | grep -v '^internal/statedir/' | grep -v '^internal/testutil/' | grep -vE '(Getenv|LookupEnv)\("DEBUG_' | grep -c . || true)"
 env_names="$(printf '%s\n' "$getenv_all" | grep -oE '(Getenv|LookupEnv)\("[A-Z][A-Z0-9_]*"' | grep -oE '"[^"]+"' | tr -d '"' | sort -u)"
 env_distinct="$(printf '%s\n' "$env_names" | grep -c . || true)"
 doc_sources="CLAUDE.md README.md docs/docs/guides/debugging.md"
@@ -218,7 +218,7 @@ jq -n \
       commands_top_level:        {value: $commands_top_level, gate: 20, dir: "le", how: "distinct case labels in cmd/ailang/main.go until the dispatch table lands"},
       flag_names_distinct:       {value: $flag_names, gate: null, dir: "le", how: "distinct FlagSet definition names in cmd/ailang"},
       getenv_sites_total:        {value: $getenv_sites_total, gate: null, dir: "le", how: "os.Getenv/LookupEnv call sites, non-test"},
-      getenv_outside_config:     {value: $getenv_outside_config, gate: 0, dir: "le", how: "same, excluding internal/config, internal/testutil and DEBUG_* knobs"},
+      getenv_outside_config:     {value: $getenv_outside_config, gate: 0, dir: "le", how: "same, excluding internal/config, internal/statedir, internal/testutil and DEBUG_* knobs"},
       env_vars_distinct:         {value: $env_distinct, gate: null, dir: "le", how: "distinct literal names read"},
       env_vars_documented_pct:   {value: $env_documented_pct, gate: 100, dir: "ge", detail: ($env_documented|tostring), how: "named in CLAUDE.md, .claude/rules, debugging.md, README, reference/env-vars.md"},
       backend_switches:          {value: $backend_switches, gate: 1, dir: "le", how: "independent which-backend env vars still read"},

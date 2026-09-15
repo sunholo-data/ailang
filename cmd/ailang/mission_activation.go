@@ -16,16 +16,32 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/mission/activation"
 	"github.com/sunholo-data/ailang/internal/mission/iteration"
+	"github.com/sunholo-data/ailang/internal/statedir"
 )
 
 type missionActivationDeps struct {
-	Home           string
+	Home string
+	// StateDir is the per-user state tree. A real run fills it from
+	// statedir.Dir() (honouring AILANG_STATE_DIR); a fixture that sets only
+	// Home gets the default tree beneath it. Read it through state().
+	StateDir string
+	// LegacyIdle verifies the legacy launchd Docs driver is idle; the string
+	// is the state directory holding its pid file.
 	LegacyIdle     func(context.Context, string) error
 	SessionStopped func(context.Context, int) error
 	ProcessAlive   func(int) (bool, error)
 	RunChild       func(context.Context, string, *activationProcess, io.Writer) error
 }
 type activationOptions struct{ verb, name, operation, work, binding string }
+
+// state joins elem beneath the per-user state directory.
+func (d missionActivationDeps) state(elem ...string) string {
+	dir := d.StateDir
+	if dir == "" {
+		dir = statedir.UnderHome(d.Home)
+	}
+	return filepath.Join(append([]string{dir}, elem...)...)
+}
 
 var activationID = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$`)
 
@@ -84,8 +100,15 @@ func runMissionActivation(ctx context.Context, args []string, out io.Writer, d m
 		if err != nil {
 			return err
 		}
+		// A real run: the state tree honours AILANG_STATE_DIR.
+		if d.StateDir == "" {
+			d.StateDir, err = statedir.Dir()
+			if err != nil {
+				return err
+			}
+		}
 	}
-	dir := filepath.Join(d.Home, ".ailang", "state", "mission-activations")
+	dir := d.state("mission-activations")
 	m := activation.Manager{Dir: dir}
 	if o.verb == "child" {
 		return runActivationChild(ctx, dir, o.operation, out)
@@ -174,8 +197,8 @@ func runMissionActivation(ctx context.Context, args []string, out io.Writer, d m
 	if err = createActivationProcess(dir, p); err != nil {
 		return err
 	}
-	q := activation.Request{OperationID: o.operation, MissionID: "docs", WorkItemID: spec.WorkItemID, MarkerPath: filepath.Join(d.Home, ".ailang", "state", "mission-docs.disabled"), BindingPath: filepath.Join(d.Home, ".config", "ailang", "mission-runtime.toml"), Binding: binding}
-	_, err = m.Activate(ctx, q, func(ctx context.Context, _ activation.Record) error { return d.LegacyIdle(ctx, d.Home) })
+	q := activation.Request{OperationID: o.operation, MissionID: "docs", WorkItemID: spec.WorkItemID, MarkerPath: d.state("mission-docs.disabled"), BindingPath: filepath.Join(d.Home, ".config", "ailang", "mission-runtime.toml"), Binding: binding}
+	_, err = m.Activate(ctx, q, func(ctx context.Context, _ activation.Record) error { return d.LegacyIdle(ctx, d.state()) })
 	if err == nil {
 		run := d.RunChild
 		if run == nil {

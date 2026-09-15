@@ -9,11 +9,11 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ai"
+	"github.com/sunholo-data/ailang/internal/statedir"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -29,11 +29,11 @@ func aiHTTPLogPath() string {
 	if p := strings.TrimSpace(os.Getenv("AILANG_AI_HTTP_LOG")); p != "" {
 		return p
 	}
-	home, err := os.UserHomeDir()
+	sentinel, err := statedir.Path("ai-http-log")
 	if err != nil {
 		return ""
 	}
-	data, err := os.ReadFile(filepath.Join(home, ".ailang", "state", "ai-http-log"))
+	data, err := os.ReadFile(sentinel) //nolint:gosec // a fixed name under the state dir
 	if err != nil {
 		return ""
 	}

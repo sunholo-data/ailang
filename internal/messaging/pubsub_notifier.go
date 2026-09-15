@@ -3,8 +3,8 @@ package messaging
 import (
 	"context"
 	"fmt"
-	"os"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/pubsub"
 )
 
@@ -22,15 +22,14 @@ func NewPubSubNotifier(cfg *PubSubConfig) (*PubSubNotifier, error) {
 		return nil, nil
 	}
 
+	ctx := context.Background()
 	projectID := cfg.ProjectID
 	if projectID == "" {
-		projectID = os.Getenv("AILANG_CLOUD_PROJECT")
-	}
-	if projectID == "" {
-		projectID = os.Getenv("GOOGLE_CLOUD_PROJECT")
-	}
-	if projectID == "" {
-		return nil, fmt.Errorf("pubsub enabled but no project_id set (config or AILANG_CLOUD_PROJECT env)")
+		p, err := config.CloudProject(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("pubsub enabled but no project_id set: %w", err)
+		}
+		projectID = p
 	}
 
 	prefix := cfg.TopicPrefix
@@ -38,7 +37,6 @@ func NewPubSubNotifier(cfg *PubSubConfig) (*PubSubNotifier, error) {
 		prefix = pubsub.DefaultTopicPrefix
 	}
 
-	ctx := context.Background()
 	client, err := pubsub.NewClient(ctx, projectID, prefix)
 	if err != nil {
 		return nil, fmt.Errorf("create pubsub client: %w", err)

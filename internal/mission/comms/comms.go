@@ -12,10 +12,11 @@ package comms
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/sunholo-data/ailang/internal/statedir"
 )
 
 // MaxReportChars caps a single iteration report.
@@ -49,19 +50,6 @@ type Mission struct {
 	Name  string
 	Repo  string
 	Issue int
-}
-
-// stateDir mirrors the driver's resolution so the two cannot disagree about where
-// mission state lives.
-func stateDir() string {
-	if d := os.Getenv("AILANG_STATE_DIR"); d != "" {
-		return d
-	}
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return ".ailang/state"
-	}
-	return filepath.Join(home, ".ailang", "state")
 }
 
 // ResolveMission resolves a mission name to its repo and live bookkeeping issue.
@@ -102,7 +90,12 @@ func ResolveMission(name string) (Mission, error) {
 	// once read the fleet-shared bare `mission-gh-issue`, which holds a CLOSED
 	// thread (745) while `mission-v1-gh-issue` holds the live one. Reading the
 	// bare file would post every v1 report into a dead thread, silently.
-	path := filepath.Join(stateDir(), "mission-"+name+"-gh-issue")
+	// statedir mirrors the driver's resolution ($AILANG_STATE_DIR, else
+	// ~/.ailang/state) so the two cannot disagree about where mission state lives.
+	path, err := statedir.Path("mission-" + name + "-gh-issue")
+	if err != nil {
+		return Mission{}, fmt.Errorf("no issue for mission %q: %w", name, err)
+	}
 	raw, err := os.ReadFile(path) //nolint:gosec // path is built from a known mission name
 	if err != nil {
 		return Mission{}, fmt.Errorf("no issue for mission %q: %s unreadable: %w", name, path, err)

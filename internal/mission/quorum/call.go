@@ -7,7 +7,6 @@ import (
 	"github.com/sunholo-data/ailang/internal/modelreg"
 	"os"
 	"strings"
-	"sync"
 
 	"github.com/sunholo-data/ailang/internal/ai"
 	"github.com/sunholo-data/ailang/internal/ai/gemini"
@@ -20,14 +19,6 @@ import (
 // in models.yml. Callers use errors.Is to report a semantically correct
 // absence reason ("unknown-model") rather than lumping it under "auth".
 var ErrUnknownModel = errors.New("model not in models.yml")
-
-// googleEnvMu serializes the process-global os.Setenv of GOOGLE_CLOUD_PROJECT
-// below. RunQuorum resolves reviewers in PARALLEL, so two Google reviewers with
-// different gcp_project values could otherwise race on this shared env var (a
-// latent data race + a wrong-project mutation). The mutation is process-global
-// because the Vertex ADC client reads GOOGLE_CLOUD_PROJECT from the environment;
-// we serialize rather than restructure that contract.
-var googleEnvMu sync.Mutex
 
 // JSONCaller is the minimal provider surface the reviewer needs: a single
 // structured-JSON call plus token/cost details for budget accounting. Both
@@ -126,21 +117,12 @@ func ResolveCaller(modelID string) (JSONCaller, *eval_harness.ModelConfig, error
 		provider = openai.NewClient(apiKey)
 
 	case ai.ProviderGoogle:
-		// Vertex ADC path — the design doc's flagged-but-mitigated route.
-		// Export the model's gcp_project so NewVertexAIClient/ADC resolves the
-		// right project on a rig where GOOGLE_CLOUD_PROJECT is unset. We do
-		// NOT read GEMINI_API_KEY (absent on the rig) — that is the whole point.
-		if mc.GCPProject != "" {
-			// Set for this process so the ADC client picks up the project.
-			// Serialized: RunQuorum fans out reviewers in parallel and this env
-			// var is process-global (see googleEnvMu). Re-check inside the lock
-			// so we only mutate when still unset.
-			googleEnvMu.Lock()
-			if os.Getenv("GOOGLE_CLOUD_PROJECT") == "" {
-				_ = os.Setenv("GOOGLE_CLOUD_PROJECT", mc.GCPProject)
-			}
-			googleEnvMu.Unlock()
-		}
+		// Vertex ADC path — the design doc's flagged-but-mitigated route. The
+		// model's gcp_project is handed to the client EXPLICITLY; the ADC token
+		// path (internal/auth/gcp) never reads a project from the environment,
+		// so the process-global os.Setenv("GOOGLE_CLOUD_PROJECT") that used to
+		// sit here was a leak with no reader (M-V1-SIMPLIFY-S2 M4). We do NOT
+		// read GEMINI_API_KEY (absent on the rig) — that is the whole point.
 		client, gerr := gemini.NewVertexAIClient(mc.GCPProject)
 		if gerr != nil {
 			return nil, nil, fmt.Errorf("reviewer %q needs Vertex ADC (gemini provider, gcp_project=%q) — %w", modelID, mc.GCPProject, gerr)

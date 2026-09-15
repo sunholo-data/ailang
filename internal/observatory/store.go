@@ -53,6 +53,9 @@ func OpenDefaultStore() (*Store, error) {
 // OpenStore opens the observatory database at the given path,
 // runs migrations, and returns a ready-to-use Store.
 func OpenStore(dbPath string) (*Store, error) {
+	if dbPath == "" {
+		return nil, errNoDatabasePath
+	}
 	db, err := sql.Open("sqlite3", dbPath+"?_journal_mode=WAL&_busy_timeout=5000")
 	if err != nil {
 		return nil, fmt.Errorf("failed to open observatory database: %w", err)

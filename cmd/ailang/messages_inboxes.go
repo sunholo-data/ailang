@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/coordinator"
 	"github.com/sunholo-data/ailang/internal/messaging"
 	"github.com/sunholo-data/ailang/internal/storage"
@@ -265,7 +266,7 @@ func resolveInboxRegistry(flagPath string) (*coordinator.AgentRegistry, string, 
 		}
 		return reg, flagPath, nil
 	}
-	if p := os.Getenv("AILANG_CONFIG"); p != "" {
+	if p := os.Getenv(config.EnvConfigFile); p != "" {
 		reg, err := coordinator.LoadAgentRegistryFrom(p)
 		if err != nil {
 			return nil, "", fmt.Errorf("cannot load $AILANG_CONFIG %s: %w", p, err)
@@ -349,6 +350,5 @@ func loadCloudInboxRegistry() (*coordinator.AgentRegistry, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
-	bucket, object := configLocation()
-	return reg, fmt.Sprintf("gs://%s/%s (the plane's own registry)", bucket, object), nil
+	return reg, fmt.Sprintf("gs://%s/%s (the plane's own registry)", store.bucket, store.object), nil
 }

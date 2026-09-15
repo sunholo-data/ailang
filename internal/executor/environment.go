@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 )
 
@@ -162,13 +163,15 @@ func BuildEnvironment(opts EnvironmentOptions) []string {
 	}
 
 	// For GCP export, set the project.
-	// Priority: EnvironmentOptions override > OTLP_GOOGLE_CLOUD_PROJECT > GOOGLE_CLOUD_PROJECT
+	// Priority: EnvironmentOptions override > OTLP_GOOGLE_CLOUD_PROJECT >
+	// config.CloudProject (the one resolver; no project is fine here, the
+	// exporter then stays unconfigured).
 	project := opts.GCPProject
 	if project == "" {
 		project = os.Getenv("OTLP_GOOGLE_CLOUD_PROJECT")
 	}
 	if project == "" {
-		project = os.Getenv("GOOGLE_CLOUD_PROJECT")
+		project, _ = config.CloudProject(context.Background())
 	}
 	if project != "" {
 		env = UpdateEnvVar(env, "GOOGLE_CLOUD_PROJECT", project)

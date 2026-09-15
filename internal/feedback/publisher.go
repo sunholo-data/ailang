@@ -13,7 +13,6 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"os"
 	"regexp"
@@ -21,6 +20,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/messaging"
 	"github.com/sunholo-data/ailang/internal/pubsub"
 	"github.com/sunholo-data/ailang/internal/storage/firestore"
@@ -139,12 +139,12 @@ func newPublisher(ctx context.Context) (*Publisher, error) {
 	if storage != "gcp" {
 		return nil, fmt.Errorf("feedback publisher requires AILANG_STORAGE=gcp (got %q); local SQLite mode is not supported for the public feedback channel", storage)
 	}
-	projectID := os.Getenv("AILANG_CLOUD_PROJECT")
-	if projectID == "" {
-		return nil, errors.New("AILANG_CLOUD_PROJECT must be set for feedback publisher")
+	projectID, err := config.CloudProject(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("feedback publisher: %w", err)
 	}
 
-	fsClient, err := firestore.NewClient(ctx)
+	fsClient, err := firestore.NewClientForProject(ctx, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("firestore client: %w", err)
 	}

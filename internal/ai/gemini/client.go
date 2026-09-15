@@ -2,15 +2,14 @@ package gemini
 
 import (
 	"context"
-	"io"
 	"net/http"
 	"os"
 	"os/exec"
 	"strings"
-	"time"
 
 	"github.com/sunholo-data/ailang/internal/ai"
 	gcpauth "github.com/sunholo-data/ailang/internal/auth/gcp"
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -155,12 +154,6 @@ func (c *Client) NewHandler(model string, opts ...ai.HandlerOption) *ai.Handler 
 	return ai.NewHandler(c, model, opts...)
 }
 
-// metadataClient is a short-timeout HTTP client for the GCE/Cloud Run metadata server.
-// Used only by getGCPProject below — the ADC token path moved to
-// internal/auth/gcp as part of M-MANAGED-AGENTS (v0.22.0) so both this
-// package and the new managed_agents executor share one implementation.
-var metadataClient = &http.Client{Timeout: 2 * time.Second}
-
 // getAccessToken retrieves an ADC access token for Vertex AI. Delegates to
 // the shared internal/auth/gcp helper (metadata-first, gcloud fallback) so
 // the executor side has a single source of truth. The wrap with ai.NewProviderError
@@ -173,26 +166,17 @@ func getAccessToken() (string, error) {
 	return token, nil
 }
 
-// getGCPProject gets the current GCP project ID.
-// Tries: (1) GOOGLE_CLOUD_PROJECT env var, (2) GCP_PROJECT env var,
-// (3) GCE/Cloud Run metadata server, (4) gcloud CLI fallback.
+// getGCPProject gets the current GCP project ID: config.CloudProject (env,
+// config file, metadata server — one precedence for the whole binary), then
+// the gcloud CLI as a local-dev fallback. The CLI step stays here, not in the
+// resolver: a Vertex call from a laptop is the one place "whatever gcloud is
+// pointed at" is what the developer means, and the store selectors must never
+// inherit it.
 func getGCPProject() (string, error) {
-	// 1. GOOGLE_CLOUD_PROJECT env var (set by Cloud Run, GKE, App Engine)
-	if project := os.Getenv("GOOGLE_CLOUD_PROJECT"); project != "" {
+	if project, err := config.CloudProject(context.Background()); err == nil {
 		return project, nil
 	}
 
-	// 2. GCP_PROJECT env var (alternate convention)
-	if project := os.Getenv("GCP_PROJECT"); project != "" {
-		return project, nil
-	}
-
-	// 3. Metadata server (Cloud Run, GKE, GCE)
-	if project, err := getProjectFromMetadata(); err == nil && project != "" {
-		return project, nil
-	}
-
-	// 4. Fall back to gcloud CLI (local dev)
 	cmd := exec.Command("gcloud", "config", "get-value", "project")
 	output, err := cmd.Output()
 	if err != nil {
@@ -206,26 +190,4 @@ func getGCPProject() (string, error) {
 	}
 
 	return project, nil
-}
-
-// getProjectFromMetadata fetches the project ID from the GCE/Cloud Run metadata server.
-func getProjectFromMetadata() (string, error) {
-	req, err := http.NewRequest("GET",
-		"http://metadata.google.internal/computeMetadata/v1/project/project-id", nil)
-	if err != nil {
-		return "", err
-	}
-	req.Header.Set("Metadata-Flavor", "Google")
-
-	resp, err := metadataClient.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(string(body)), nil
 }

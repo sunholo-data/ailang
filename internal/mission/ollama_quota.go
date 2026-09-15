@@ -10,7 +10,6 @@ import (
 	"math"
 	"net/http"
 	"os"
-	"path/filepath"
 	"time"
 )
 
@@ -79,7 +78,7 @@ func observeOllamaQuota(paths Paths, key string, now time.Time, client *http.Cli
 	// when reset metadata is absent, and it can only ever be built from history we kept.
 	history := recordOllamaObservation(paths, o, now)
 
-	metadataPath := filepath.Join(paths.Home, ".ailang", "state", "ollama-quota-limits.json")
+	metadataPath := paths.State("ollama-quota-limits.json")
 	info, statErr := os.Lstat(metadataPath)
 	if statErr == nil && (!info.Mode().IsRegular() || info.Size() > 16<<10) {
 		o.Reason = "Ollama quota metadata must be a regular file no larger than 16 KiB"

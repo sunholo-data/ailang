@@ -4,8 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"os"
-	"path/filepath"
 	"sort"
 
 	"github.com/sunholo-data/ailang/internal/eval_harness"
@@ -14,14 +12,10 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-// defaultObservatoryDB resolves ~/.ailang/state/observatory.db (where the ELO
-// rating tables live). Returns "" if the home dir can't be determined.
+// defaultObservatoryDB resolves observatory.db under the state directory
+// (where the ELO rating tables live). Returns "" if no state dir resolves.
 func defaultObservatoryDB() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return ""
-	}
-	return filepath.Join(home, ".ailang", "state", "observatory.db")
+	return observatory.DefaultDatabasePath()
 }
 
 // selectBenchmarksByConfidence returns up to max benchmarks worth re-running for

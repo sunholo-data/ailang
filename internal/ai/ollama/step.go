@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -15,6 +14,7 @@ import (
 	ollamaapi "github.com/ollama/ollama/api"
 	"github.com/sunholo-data/ailang/internal/ai"
 	"github.com/sunholo-data/ailang/internal/ai/openai"
+	"github.com/sunholo-data/ailang/internal/statedir"
 )
 
 // defaultOllamaV1TimeoutSec bounds a single /v1 tool-calling HTTP call. Generous
@@ -158,11 +158,11 @@ func ollamaLogRequestPath() string {
 	if p := os.Getenv("AILANG_OLLAMA_LOG_REQUESTS"); p != "" {
 		return p
 	}
-	home, err := os.UserHomeDir()
-	if err != nil || home == "" {
+	sentinel, err := statedir.Path("ollama-log-requests")
+	if err != nil {
 		return ""
 	}
-	b, err := os.ReadFile(filepath.Join(home, ".ailang", "state", "ollama-log-requests"))
+	b, err := os.ReadFile(sentinel) //nolint:gosec // a fixed name under the state dir
 	if err != nil {
 		return ""
 	}
