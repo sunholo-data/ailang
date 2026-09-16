@@ -2871,14 +2871,36 @@
         "stdout": "standard : YStiL2M/\nURL-safe : YStiL2M_\npadded   : SGVsbG8=\nunpadded : SGVsbG8\nroundtrip: Subject: Caf\u00e9 \u2014 \u00fcn\u00efcode\nmismatch : <not valid base64url>\n",
         "exit_code": 0
       }
+    },
+    {
+      "path": "runnable/fs_walk_glob.ail",
+      "status": "working",
+      "tags": [
+        "stdlib",
+        "std/fs",
+        "filesystem",
+        "walk",
+        "glob",
+        "effects"
+      ],
+      "description": "std/fs walk (recursive sorted file listing) and glob (suffix filter) over a small /tmp tree",
+      "modules": [
+        "std/fs",
+        "std/io",
+        "std/list"
+      ],
+      "expected": {
+        "stdout": "walk: 5 files\n  /tmp/ailang_walk_glob/README.md\n  /tmp/ailang_walk_glob/src/main.ail\n  /tmp/ailang_walk_glob/src/nested/deep.ail\n  /tmp/ailang_walk_glob/src/notes.txt\n  /tmp/ailang_walk_glob/src/util.ail\nglob .ail: 3 files\n  /tmp/ailang_walk_glob/src/main.ail\n  /tmp/ailang_walk_glob/src/nested/deep.ail\n  /tmp/ailang_walk_glob/src/util.ail\nglob .md: 1 file\n",
+        "exit_code": 0
+      }
     }
   ],
   "statistics": {
-    "total": 202,
-    "working": 194,
+    "total": 203,
+    "working": 195,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9603960396039604,
+    "coverage": 0.9605911330049262,
     "experimental": 0
   },
   "milestones": {
