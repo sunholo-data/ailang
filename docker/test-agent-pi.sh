@@ -67,7 +67,7 @@ have "pi failed on the MODEL, not earlier" 'grep -q "not found" "$OUT/err.txt"'
 echo "=== 6. ailang_run is present and default-deny (M-AGENT-AILANG-ONLY-EXECUTION) ==="
 have "ailang-exec.ts installed"           '[ -f "$EXT/ailang-exec.ts" ]'
 PROFILE_ARGS="$(ailang pi tool-profile ailang_only 2>/dev/null || true)"
-have "ailang pi tool-profile ailang_only: allowlist, no bash" 'case "$PROFILE_ARGS" in *"--no-builtin-tools --tools read,edit,write,ailang_check,ailang_run,builtins_search,examples_search") true;; *) false;; esac'
+have "ailang pi tool-profile ailang_only: allowlist, no bash" 'case "$PROFILE_ARGS" in *"--no-builtin-tools --tools read,edit,write,ailang_check,ailang_run,builtins_search,examples_search,ailang_cli") true;; *) false;; esac'
 have "  ...carries its extensions with discovery off"         'case "$PROFILE_ARGS" in "--no-extensions -e "*ailang-exec.ts*|"--no-extensions -e "*ailang-lsp-lite.ts*) true;; *) false;; esac'
 have "  ...and the carried files exist"                       'for f in $PROFILE_ARGS; do case "$f" in *.ts) [ -f "$f" ] || exit 1;; esac; done'
 # Model-free: the extension's gate is a pure function of the environment.
@@ -84,6 +84,20 @@ have "no policy env -> refusal names AILANG_AGENT_POLICY" 'grep -q "AILANG_AGENT
 have "policy inside its own sandbox -> refused (D4)"      'grep -q "rewrite the policy" <<<"$G_INSIDE"'
 have "policy outside the sandbox -> granted"              'grep -q "\"refusal\":null" <<<"$G_OUTSIDE"'
 have "ailang run --policy exists"                         'grep -q -- "-policy string" <<<"$RUN_HELP"'
+
+echo "=== 7. Z3 is in the image and ai-check uses it ==="
+# ai-check degrades to verify.available=false when z3 is absent — a pass
+# that proves nothing. Assert the binary AND that ai-check reports it.
+Z3V="$(z3 --version 2>&1 || true)"
+have "z3 binary present" 'grep -q "Z3 version" <<<"$Z3V"'
+printf 'module probe\nexport func main() -> () ! {} = ()\n' > "$WS/probe.ail"
+AICHECK="$(cd "$WS" && ailang ai-check probe.ail 2>/dev/null || true)"
+have "ai-check reports verify.available=true" 'grep -Eq "\"available\": *true" <<<"$AICHECK"'
+
+echo "=== 8. ailang_cli: allowlisted CLI, execution stays gated ==="
+CLI_JS='import("'"$EXT"'/ailang-exec.ts").then(m => { const r = [["iface","std/fs"],["run","x.ail"],["messages","send"],["fmt","../../etc/x"]].map(a => m.cliDecision(a, null, "'"$WS"'").ok); console.log(JSON.stringify(r)); })'
+CLI_DEC="$(node --experimental-strip-types -e "$CLI_JS" 2>/dev/null || true)"
+have "iface allowed; run, messages, sandbox-escape refused" '[ "$CLI_DEC" = "[true,false,false,false]" ]'
 
 echo
 echo "passed: $pass  failed: $fail"

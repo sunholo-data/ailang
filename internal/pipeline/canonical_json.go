@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/sunholo-data/ailang/std"
 )
 
 // BuildCanonicalJSON compiles a module without evaluating it and returns its
@@ -23,7 +25,20 @@ func BuildCanonicalJSON(ctx context.Context, packageDir, modulePath string) ([]b
 
 	content, err := os.ReadFile(filename)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read file %q: %w", filename, err)
+		// `ailang iface std/fs` from a checkout with no std/ on disk (every
+		// package repo the ailang_only lane works in): serve the embedded
+		// stdlib, the same fallback the loader takes, so the interface an
+		// agent reads is the one the binary will link. Only std/ falls back —
+		// a missing user module is still a missing file.
+		emb, embErr := embeddedStdSource(modulePath)
+		if embErr != nil {
+			return nil, fmt.Errorf("cannot read file %q: %w", filename, err)
+		}
+		// Keep the std/<name>.ail filename: the loader resolves that entry
+		// through the same embedded fallback, so the canonical path stays
+		// `std/<name>` rather than a synthetic prefix it cannot find.
+		content = emb
+		filename = strings.TrimSuffix(modulePath, ".ail") + ".ail"
 	}
 	cfg := Config{DryLink: true}
 	if packageDir != "" {
@@ -64,4 +79,14 @@ func BuildCanonicalJSON(ctx context.Context, packageDir, modulePath string) ([]b
 		return nil, fmt.Errorf("serialize interface: %w", err)
 	}
 	return jsonBytes, nil
+}
+
+// embeddedStdSource returns the embedded source for a `std/<name>` module
+// path (with or without .ail); any other path is not served.
+func embeddedStdSource(modulePath string) ([]byte, error) {
+	rest, ok := strings.CutPrefix(strings.TrimSuffix(modulePath, ".ail"), "std/")
+	if !ok || rest == "" || strings.Contains(rest, "/") {
+		return nil, errors.New("not a std module")
+	}
+	return std.FS.ReadFile(rest + ".ail")
 }

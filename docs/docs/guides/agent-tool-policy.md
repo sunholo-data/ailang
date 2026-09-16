@@ -16,7 +16,7 @@ no shell. This page is the operator's view; the design is
 |---|---|---|
 | **Gate** | `ailang run --policy <agent-policy.toml> prog.ail` — typecheck → entry → the program's declared effect row must be a subset of `allowed_caps`; caps, `net_allow` and `fs_sandbox` come **from the policy**; `--caps`, `--no-budgets`, `--allow-env` are refused; denial prints the decision JSON and exits 2 without running | `cmd/ailang/run_policy.go` |
 | **Tool** | `ailang_run({path, args_json?})` — a pi tool that calls the gate with `$AILANG_AGENT_POLICY`; returns `{admitted, exit_code, decision, policy_digest, stdout, stderr}`; with no policy attached it **refuses with a named reason** (default-deny) | `.pi/extensions/ailang-exec.ts`, shipped by `ailang pi install` |
-| **Profile** | `tool_policy: ailang_only` ⇒ `--no-builtin-tools --tools read,edit,write,ailang_check,ailang_run,builtins_search,examples_search` (`ailang pi tool-profile ailang_only` prints it; `pi.go` and the resident read the same string) | registry field / `RESIDENT_TOOLS` / `eval-suite --tool-policy` |
+| **Profile** | `tool_policy: ailang_only` ⇒ `--no-builtin-tools --tools read,edit,write,ailang_check,ailang_run,builtins_search,examples_search,ailang_cli` (`ailang pi tool-profile ailang_only` prints it; `pi.go` and the resident read the same string) | registry field / `RESIDENT_TOOLS` / `eval-suite --tool-policy` |
 
 ## Writing a policy
 
@@ -26,8 +26,21 @@ fs_sandbox    = "/workspace"              # must NOT contain the policy file's o
 process_allow = ["git:pull", "git:status"] # Process narrowed to subcommands (git:* = any)
 # net_allow     = ["api.example.com"]      # required when "Net" is allowed; https only unless
 # net_allow_http = true                    #   net_allow_http = true
+# cli_allow     = ["iface", "docs:search"]  # ailang_cli subcommands; absent = the read-only default set
 entry         = "main"
 ```
+
+`cli_allow` is read by the `ailang_cli` tool, not by `ailang run`: it is the rest of the `ailang`
+CLI an agent may call, in `process_allow` syntax (`docs:search` admits `docs search` only). Absent
+means the documented default set — `check ai-check iface fmt docs:search examples builtins
+pkg-docs tree prompt agent-prompt devtools-prompt policy-check axioms version`, every one
+read-only or writing only the sandbox file it is given — and an empty list refuses everything.
+`run`, `test`, `exec`, `repl`, `replay`, `watch`, `select-best` execute programs and are refused
+even when listed: execution only goes through `ailang_run`'s gate. Path arguments must stay inside
+`fs_sandbox`. The 94-subcommand audit that produced the default set is in the v0.39 changelog
+entry; anything that reaches the message plane, the registry, a provider, the coordinator, or
+spends is out by construction. Z3 ships in every agent image so `ai-check` verifies contracts
+rather than silently reporting `verify.available=false`.
 
 The fine-grained caps are enforced by AILANG's own handlers (`--process-allowlist`,
 `--net-allow-domains`), fed from the policy — a program admitted with `Process` and

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { composeEnvelope, fsSandboxOf, gateFromEnv, insideSandbox, lanePrompt, parsePolicyLine, policySummary, teachingPrompt } from "./ailang-exec.ts";
+import { CLI_DEFAULT_ALLOW, CLI_GATE_ONLY, cliDecision, composeEnvelope, fsSandboxOf, gateFromEnv, insideSandbox, lanePrompt, parsePolicyLine, policySummary, teachingPrompt } from "./ailang-exec.ts";
 
 test("gateFromEnv: unset env is default-deny with a readable reason", () => {
 	const g = gateFromEnv({});
@@ -97,4 +97,64 @@ test("teachingPrompt: reads the active prompt via the binary, empty (not a throw
 	process.env.AILANG_LANE_TEACHING = "0";
 	assert.equal(teachingPrompt(() => "x"), "");
 	delete process.env.AILANG_LANE_TEACHING;
+});
+
+// ---- ailang_cli: the allowlisted rest of the CLI ---------------------------
+
+test("cliDecision: default set admits the read-only surface and refuses the rest", () => {
+	assert.equal(cliDecision(["iface", "std/fs"], null, null).ok, true);
+	assert.equal(cliDecision(["docs", "search", "walk"], null, null).ok, true);
+	assert.equal(cliDecision(["ai-check", "report.ail"], null, "/w").ok, true);
+	// docs is admitted only as `docs search` — another docs subcommand is not
+	assert.match(cliDecision(["docs", "serve"], null, null).reason ?? "", /not in the policy/);
+	for (const cmd of ["messages", "coordinator", "install", "publish", "eval-suite", "brain", "pi", "mission"]) {
+		const d = cliDecision([cmd, "x"], null, null);
+		assert.equal(d.ok, false, cmd);
+		assert.match(d.reason ?? "", /not in the policy's cli_allow/);
+	}
+});
+
+test("cliDecision: run/test/exec are refused even when the operator lists them", () => {
+	for (const cmd of CLI_GATE_ONLY) {
+		const d = cliDecision([cmd, "x.ail"], [cmd, "iface"], "/w");
+		assert.equal(d.ok, false, cmd);
+		assert.match(d.reason ?? "", /ailang_run/);
+	}
+	assert.ok(!CLI_DEFAULT_ALLOW.some((e) => CLI_GATE_ONLY.includes(e.split(":")[0])), "default set never names a gate-only command");
+});
+
+test("cliDecision: an explicit cli_allow replaces the default — empty list refuses everything", () => {
+	assert.equal(cliDecision(["iface", "std/fs"], [], null).ok, false);
+	assert.equal(cliDecision(["fmt", "a.ail"], ["fmt"], null).ok, true);
+	assert.equal(cliDecision(["iface", "std/fs"], ["fmt"], null).ok, false);
+	// cmd:sub narrows: `docs:search` admits `docs search`, not `docs`
+	assert.equal(cliDecision(["docs", "search", "q"], ["docs:search"], null).ok, true);
+	assert.equal(cliDecision(["docs"], ["docs:search"], null).ok, false);
+});
+
+test("cliDecision: path arguments must stay inside the sandbox", () => {
+	assert.equal(cliDecision(["fmt", "src/a.ail"], null, "/w").ok, true);
+	assert.equal(cliDecision(["fmt", "/w/src/a.ail"], null, "/w").ok, true);
+	assert.match(cliDecision(["fmt", "../../etc/passwd"], null, "/w").reason ?? "", /outside the FS sandbox/);
+	assert.match(cliDecision(["fmt", "/etc/x.ail"], null, "/w").reason ?? "", /outside the FS sandbox/);
+	// flags and bare words (module names, queries) are not paths
+	assert.equal(cliDecision(["iface", "--json", "std/fs"], null, "/w").ok, true);
+	assert.equal(cliDecision(["docs", "search", "how to walk"], null, "/w").ok, true);
+	assert.equal(cliDecision([], null, "/w").ok, false);
+});
+
+test("policySummary: cli_allow absent is null (default set), present is the list, empty is []", () => {
+	assert.equal(policySummary('allowed_caps = ["IO"]\n').cli, null);
+	assert.deepEqual(policySummary('cli_allow = ["iface", "docs:search"]\n').cli, ["iface", "docs:search"]);
+	assert.deepEqual(policySummary('cli_allow = []\n').cli, []);
+});
+
+test("lanePrompt: names ailang_cli, the package-ceiling rule, and the allowed subcommands", () => {
+	const toml = 'allowed_caps = ["IO", "FS"]\nfs_sandbox = "/w"\ncli_allow = ["iface", "fmt"]\n';
+	const p = lanePrompt({ policyPath: "/p/policy.toml", refusal: null }, () => toml);
+	assert.match(p, /ailang_cli/);
+	assert.match(p, /effect ceiling violation in package/);
+	assert.match(p, /ailang_cli may run only these subcommands: iface, fmt/);
+	const q = lanePrompt({ policyPath: "/p/policy.toml", refusal: null }, () => 'allowed_caps = ["IO"]\n');
+	assert.match(q, /ailang_cli may run only these subcommands: check, ai-check, iface/);
 });

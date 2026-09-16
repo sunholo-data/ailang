@@ -40,8 +40,17 @@ type Policy struct {
 	// Process allowlist in `ailang run --process-allowlist` syntax: `git`,
 	// `git:pull`, `gh:pr:list`, `git:*` — a binary narrowed to its subcommands.
 	// Both are meaningful only with the matching cap in AllowedCaps.
-	NetAllowHTTP   bool           `toml:"net_allow_http"`
-	ProcessAllow   []string       `toml:"process_allow"`
+	NetAllowHTTP bool     `toml:"net_allow_http"`
+	ProcessAllow []string `toml:"process_allow"`
+	// CLIAllow is the `ailang` subcommand allowlist for an agent whose only
+	// route to the binary is the ailang_cli tool (the ailang_only lane): `iface`,
+	// `docs:search` — a subcommand narrowed to its own subcommand, the
+	// process_allow syntax. It is read by the pi extension, not by `ailang run`
+	// (which admits programs, not commands); it lives here so one policy file
+	// states everything the agent may do. Absent means the tool's documented
+	// read-only default set; `run`/`test`/`exec`/`repl` are refused whatever
+	// the list says — execution only ever goes through the gate.
+	CLIAllow       []string       `toml:"cli_allow"`
 	Budgets        map[string]int `toml:"budgets"`
 	TimeoutMs      int            `toml:"timeout_ms"`
 	MaxSourceBytes int            `toml:"max_source_bytes"`

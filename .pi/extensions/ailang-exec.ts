@@ -5,7 +5,7 @@
  * an .ail file to `ailang run --policy $AILANG_AGENT_POLICY`. The policy — not
  * the agent — decides caps, the Net allowlist and the FS sandbox; the gate
  * refuses every flag that could widen them (cmd/ailang/run_policy.go). Pair
- * with `--no-builtin-tools --tools read,edit,write,ailang_check,ailang_run,builtins_search,examples_search`
+ * with `--no-builtin-tools --tools read,edit,write,ailang_check,ailang_run,builtins_search,examples_search,ailang_cli`
  * (`ailang pi tool-profile ailang_only`) and `bash` is gone, so the gate is a
  * boundary rather than a convenience. `ailang_check` lives in ailang-lsp-lite.
  *
@@ -75,13 +75,65 @@ export function gateFromEnv(
 }
 
 /** Minimal TOML read of the fields the prompt names. */
-export function policySummary(policyToml: string): { caps: string[]; sandbox: string | null; net: string[]; process: string[] } {
-	const list = (key: string): string[] => {
+export function policySummary(policyToml: string): { caps: string[]; sandbox: string | null; net: string[]; process: string[]; cli: string[] | null } {
+	const list = (key: string): string[] | null => {
 		const m = new RegExp(`^\\s*${key}\\s*=\\s*\\[([^\\]]*)\\]`, "m").exec(policyToml);
-		if (!m) return [];
+		if (!m) return null;
 		return m[1].split(",").map((x) => x.trim().replace(/^"|"$/g, "")).filter(Boolean);
 	};
-	return { caps: list("allowed_caps"), sandbox: fsSandboxOf(policyToml), net: list("net_allow"), process: list("process_allow") };
+	return {
+		caps: list("allowed_caps") ?? [],
+		sandbox: fsSandboxOf(policyToml),
+		net: list("net_allow") ?? [],
+		process: list("process_allow") ?? [],
+		// null = key absent → the tool's documented default set; [] = the operator
+		// listed nothing → every subcommand is refused.
+		cli: list("cli_allow"),
+	};
+}
+
+/**
+ * The `ailang` subcommands an ailang_only agent may invoke when the policy
+ * carries no `cli_allow`: read-only, or writing only the file they are given
+ * inside the sandbox (fmt). Audited 2026-09-16 against all 94 top-level
+ * subcommands: everything that reaches the message plane, the registry, a
+ * provider, the coordinator, or spends (messages, coordinator, mission,
+ * install/publish, eval-*, brain/cache, …) is out; `run`/`test`/`exec`/`repl`/
+ * `replay`/`watch`/`select-best` execute programs and are refused even when
+ * listed — execution only goes through ailang_run's gate.
+ */
+export const CLI_DEFAULT_ALLOW: readonly string[] = [
+	"check", "ai-check", "iface", "fmt", "docs:search", "examples", "builtins",
+	"pkg-docs", "tree", "prompt", "agent-prompt", "devtools-prompt", "policy-check", "axioms", "version",
+];
+export const CLI_GATE_ONLY: readonly string[] = ["run", "test", "exec", "repl", "replay", "watch", "select-best"];
+
+export interface CliDecision { ok: boolean; reason?: string; }
+
+/**
+ * Pure: may `ailang argv...` run under this policy? Allowlist entries are
+ * `cmd` or `cmd:sub` (process_allow syntax). Any argv token that names a path
+ * must stay inside the sandbox — `fmt ../../etc/x` is a write outside it.
+ */
+export function cliDecision(argv: readonly string[], allow: readonly string[] | null, sandbox: string | null): CliDecision {
+	if (argv.length === 0) return { ok: false, reason: "argv is empty" };
+	const [cmd, sub] = argv;
+	if (CLI_GATE_ONLY.includes(cmd)) {
+		return { ok: false, reason: `\`ailang ${cmd}\` executes programs; the only execution route is the ailang_run tool (policy-gated)` };
+	}
+	const list = allow ?? CLI_DEFAULT_ALLOW;
+	const permitted = list.some((e) => e === cmd || (sub !== undefined && e === `${cmd}:${sub}`));
+	if (!permitted) {
+		return { ok: false, reason: `\`ailang ${cmd}${sub ? " " + sub : ""}\` is not in the policy's cli_allow (${list.join(", ") || "empty"})` };
+	}
+	if (sandbox) {
+		for (const tok of argv.slice(1)) {
+			if (tok.startsWith("-")) continue;
+			if (!(tok.startsWith("/") || tok.includes("/") || tok.startsWith(".") || tok.endsWith(".ail"))) continue;
+			if (!insideSandbox(sandbox, resolve(sandbox, tok))) return { ok: false, reason: `path ${tok} is outside the FS sandbox ${sandbox}` };
+		}
+	}
+	return { ok: true };
 }
 
 /**
@@ -94,7 +146,8 @@ export function policySummary(policyToml: string): { caps: string[]; sandbox: st
 export function lanePrompt(gate: PolicyGate, read: (p: string) => string = (p) => readFileSync(p, "utf8")): string {
 	const lines = [
 		"## Execution lane: ailang_only",
-		"You have NO shell. Your tools are read, edit, write, ailang_check, ailang_run, builtins_search and examples_search — nothing else. Use builtins_search({query}) to discover std functions (listDir, readFile, split, …) instead of guessing. Use examples_search({query}) to find a working example before writing a construct you are unsure of.",
+		"You have NO shell. Your tools are read, edit, write, ailang_check, ailang_run, builtins_search, examples_search and ailang_cli — nothing else. Use builtins_search({query}) to discover std functions (listDir, readFile, split, …) instead of guessing. Use examples_search({query}) to find a working example before writing a construct you are unsure of. Use ailang_cli({argv: [\"iface\", \"std/fs\"]}) for exact signatures of a module's exports before calling them.",
+		"Package ceilings: a directory with an ailang.toml is a PACKAGE, and its `[effects] max` ceiling applies to EVERY module inside it — a probe program that reads files or runs git will be rejected there (`effect ceiling violation in package …`) no matter what the policy allows. Write scratch/probe programs OUTSIDE any package directory (e.g. at the sandbox root); only the package's own code goes inside it.",
 		"The ONLY way to execute anything is `ailang_run` on an AILANG (.ail) file you have written. Do not ask for bash, do not describe commands you would run, do not stop after reading: write the program, `ailang_check` it, then `ailang_run` it.",
 		"Module naming: a file named report.ail must start with `module report` (the bare file name — no directory prefix, no hyphens).",
 		"Paths: AILANG resolves every relative path in a program (readFile, listDir, exec's working directory) against the FS SANDBOX ROOT below, not against the file's location. Write paths relative to that root (or absolute paths inside it).",
@@ -104,7 +157,7 @@ export function lanePrompt(gate: PolicyGate, read: (p: string) => string = (p) =
 		lines.push(`Execution is NOT granted in this deployment (${gate.refusal ?? "no policy"}). You can still write and type-check programs; say plainly that you cannot run them.`);
 		return lines.join("\n");
 	}
-	let sum = { caps: [] as string[], sandbox: null as string | null, net: [] as string[], process: [] as string[] };
+	let sum = { caps: [] as string[], sandbox: null as string | null, net: [] as string[], process: [] as string[], cli: null as string[] | null };
 	try { sum = policySummary(read(gate.policyPath)); } catch { /* the tool will refuse; the prompt stays generic */ }
 	lines.push(`Policy: allowed effects = {${sum.caps.join(", ") || "none — every program is denied"}}.`);
 	if (sum.sandbox) lines.push(`FS is confined to ${sum.sandbox}: relative paths resolve from there, subprocesses run from there, and paths outside it are rejected at run time.`);
@@ -112,6 +165,7 @@ export function lanePrompt(gate: PolicyGate, read: (p: string) => string = (p) =
 	else lines.push("There is no network access. Do not attempt HTTP.");
 	if (sum.caps.includes("Process")) lines.push(`Process is allowed only for: ${sum.process.join(", ") || "(no commands listed — every process call is refused)"} (cmd:sub narrows to a subcommand).`);
 	else lines.push("There is no process/subprocess access.");
+	lines.push(`ailang_cli may run only these subcommands: ${(sum.cli ?? CLI_DEFAULT_ALLOW).join(", ") || "(none)"} — never run/test (use ailang_run).`);
 	lines.push("A denial names `missing_from_policy`: narrow the program's effects instead of retrying the same thing. Programs are ordinary AILANG modules with `export func main() -> () ! {…}`; use std/fs, std/io, std/string for what you would have done with shell tools.");
 	return lines.join("\n");
 }
@@ -236,6 +290,41 @@ export default async function (pi: ExtensionAPI) {
 			const r = await pi.exec("ailang", args, { timeout: 120_000, cwd: dirname(abs) });
 			const env = composeEnvelope(r.code ?? -1, r.stdout ?? "", r.stderr ?? "");
 			return { content: [{ type: "text", text: JSON.stringify(env) }], details: env };
+		},
+	});
+
+	// The rest of the ailang CLI, allowlisted by the same policy file. The
+	// model reaches the binary ONLY through this tool: argv is an array (no
+	// shell), the cwd is the sandbox root, paths must stay inside it, and the
+	// program-executing subcommands are refused whatever the list says.
+	const policyToml = gate.policyPath ? (() => { try { return readFileSync(gate.policyPath as string, "utf8"); } catch { return ""; } })() : "";
+	const cliSum = policySummary(policyToml);
+	pi.registerTool({
+		name: "ailang_cli",
+		label: "AILANG CLI (policy-allowlisted)",
+		description:
+			"Run an allowlisted `ailang <subcommand>` — iface (exact export signatures), fmt, ai-check (type-check + Z3 verification), " +
+			"docs search, examples, builtins, pkg-docs, tree, prompt, policy-check. NOT run/test: execution only goes through ailang_run. " +
+			"argv is passed as an array with no shell; paths must stay inside the FS sandbox. Returns {ok, exit_code, stdout, stderr}.",
+		parameters: Type.Object({
+			argv: Type.Array(Type.String(), { description: 'Subcommand and its arguments, e.g. ["iface", "std/fs"] or ["ai-check", "report.ail"]' }),
+		}),
+		async execute(_id, params, _signal, _onUpdate, ctx) {
+			void ctx;
+			if (gate.refusal) {
+				const text = JSON.stringify({ ok: false, refused: gate.refusal });
+				return { content: [{ type: "text", text }], details: { ok: false, refused: gate.refusal } };
+			}
+			const d = cliDecision(params.argv, cliSum.cli, cliSum.sandbox);
+			if (!d.ok) {
+				const text = JSON.stringify({ ok: false, refused: d.reason });
+				return { content: [{ type: "text", text }], details: { ok: false, refused: d.reason } };
+			}
+			const cwd = cliSum.sandbox ?? process.cwd();
+			const r = await pi.exec("ailang", params.argv, { timeout: 60_000, cwd });
+			const cap = (t: string) => (t.length > 64_000 ? t.slice(0, 64_000) + "\n…[truncated]" : t);
+			const out = { ok: (r.code ?? -1) === 0, exit_code: r.code ?? -1, stdout: cap(r.stdout ?? ""), stderr: cap(r.stderr ?? "") };
+			return { content: [{ type: "text", text: JSON.stringify(out) }], details: out };
 		},
 	});
 }

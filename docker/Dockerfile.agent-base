@@ -34,12 +34,17 @@ FROM debian:bookworm-slim
 # deploy-key path (configureSSHDeployKey) — the only way an agent pushes to a
 # repo the fleet token cannot write. Every executor image derives from this one,
 # so this is the single place it belongs.
+# z3: `ailang ai-check` verifies contracts with it and reports
+# `verify.available=false` WITHOUT failing when it is missing — the
+# ailang_only lane type-checked only, silently, until 2026-09-16.
+# docker/test-agent-pi.sh asserts the binary and that ai-check sees it.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     git \
     openssh-client \
     curl \
     gnupg \
+    z3 \
     && rm -rf /var/lib/apt/lists/*
 
 # Node.js 22 (required by all AI CLI tools: claude, gemini, codex, opencode, pi)

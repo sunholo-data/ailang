@@ -19,7 +19,7 @@ func TestProfileTools(t *testing.T) {
 			t.Fatal("ailang_only must not include Bash")
 		}
 	}
-	if !reflect.DeepEqual(got, []string{"Read", "Edit", "Write", "AilangCheck", "AilangRun", "BuiltinsSearch", "ExamplesSearch"}) {
+	if !reflect.DeepEqual(got, []string{"Read", "Edit", "Write", "AilangCheck", "AilangRun", "BuiltinsSearch", "ExamplesSearch", "AilangCLI"}) {
 		t.Fatalf("ailang_only = %v", got)
 	}
 	if _, err := ProfileTools("Read,Nope"); err == nil || !strings.Contains(err.Error(), `"Nope"`) {
