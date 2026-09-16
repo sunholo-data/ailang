@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"time"
 )
 
 // HealthCheck verifies the pi binary exists on PATH and responds to --version.
@@ -15,7 +16,11 @@ func (e *PiExecutor) HealthCheck(ctx context.Context) error {
 			return fmt.Errorf("pi CLI not found: %w (install with: npm i -g %s@%s)", err, ExpectedPackage, ExpectedVersion)
 		}
 	}
-	v, err := e.probe.Raw(ctx)
+	// A deliberate check, so a loaded machine gets a generous bound (the
+	// post-run stamp keeps the tight executor.VersionProbeTimeout).
+	probeCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	defer cancel()
+	v, err := e.probe.Raw(probeCtx)
 	if err != nil {
 		return err
 	}

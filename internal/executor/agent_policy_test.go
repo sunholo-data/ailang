@@ -1,11 +1,13 @@
 package executor
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestMaterializeAgentPolicy_ReadOnlyOutsideWorkspace(t *testing.T) {
@@ -38,5 +40,29 @@ func TestMaterializeAgentPolicy_ReadOnlyOutsideWorkspace(t *testing.T) {
 	}
 	if got, _ := MaterializeAgentPolicy("", ws); got != "" {
 		t.Fatalf("no content must mean no path (default-deny), got %q", got)
+	}
+}
+
+func TestVersionProbe_BoundedOnAHangingBinary(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("posix shell fake")
+	}
+	dir := t.TempDir()
+	bin := filepath.Join(dir, "hang")
+	if err := os.WriteFile(bin, []byte("#!/bin/sh\nsleep 60 &\nwait\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	p := &VersionProbe{CLI: "x", Path: bin}
+	start := time.Now()
+	if got := p.Identity(context.Background()); got != "" {
+		t.Fatalf("hanging binary must be unmeasured, got %q", got)
+	}
+	if el := time.Since(start); el > VersionProbeTimeout+2*time.Second {
+		t.Fatalf("probe took %v; must be bounded by %v", el, VersionProbeTimeout)
+	}
+	start = time.Now()
+	_ = p.Identity(context.Background())
+	if el := time.Since(start); el > time.Second {
+		t.Fatalf("second Identity() re-probed (%v); a failed probe must be remembered", el)
 	}
 }
