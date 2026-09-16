@@ -69,6 +69,23 @@ export interface BuiltinEntry {
 	[k: string]: unknown;
 }
 
+/**
+ * Pure: the inventory from `ailang builtins list --json`, whichever shape the
+ * binary emits. It is `{count, builtins: [...]}` today; the extension was
+ * written against a bare array and every builtins_search call on the
+ * ailang_only lane answered "entries.filter is not a function" (measured
+ * 2026-09-16 on the first six Jobs tasks). Both shapes are accepted; anything
+ * else is an error the caller can read, never an empty inventory.
+ */
+export function parseBuiltinsInventory(stdout: string): BuiltinEntry[] {
+	const parsed = JSON.parse(stdout) as unknown;
+	if (Array.isArray(parsed)) return parsed as BuiltinEntry[];
+	if (parsed && typeof parsed === "object" && Array.isArray((parsed as { builtins?: unknown }).builtins)) {
+		return (parsed as { builtins: BuiltinEntry[] }).builtins;
+	}
+	throw new Error("builtins inventory is neither an array nor {builtins: [...]}");
+}
+
 /** Pure: filter inventory by query/module, capped for context economy. */
 export function filterBuiltins(
 	entries: BuiltinEntry[],
@@ -128,7 +145,7 @@ export default async function (pi: ExtensionAPI) {
 			const r = await pi.exec("ailang", ["builtins", "list", "--json"], { timeout: 15_000 });
 			let entries: BuiltinEntry[] = [];
 			try {
-				entries = JSON.parse(r.stdout ?? "") as BuiltinEntry[];
+				entries = parseBuiltinsInventory(r.stdout ?? "");
 			} catch (e) {
 				return {
 					content: [{ type: "text", text: `builtins inventory unparseable (${String(e)}); ailang exit ${r.code}` }],
