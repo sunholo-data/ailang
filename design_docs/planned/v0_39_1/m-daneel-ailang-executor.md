@@ -1,6 +1,6 @@
 # M-DANEEL-AILANG-EXECUTOR — Daneel gets its own executor on the `ailang_only` lane
 
-**Status**: Planned
+**Status**: Planned — design freeze ratified 2026-09-16 (D1–D4), ready for sprint planning
 **Target**: v0.39.1 (the one AILANG-core item, M1) + fleet/deployment config (registry entry, policy file, task template — no image rebuild) + Daneel-repo changes (capability rung, template, teaching)
 **Priority**: P1 — Daneel's host has no lane to lend a capability's question to an agent with "more free reign" (web search, Gemini, multi-step research); today that freedom would have to be granted to the *host itself*, which is exactly the boundary the Host record exists to avoid
 **Estimated**: ~3 days (M1 core fix ~0.5d, M2 lane config + template ~1d, M3 Daneel-side capability ~0.5d, M4 end-to-end probe + docs ~1d)
@@ -92,10 +92,10 @@
 
 Before implementation begins, these must be ruled by Mark (triggers 1 and 4 fire — freeze items + external systems):
 
-- [ ] **D1** — return path: `summary` primary + transcript artifact for overflow; committed artifact and wrapper-sent message rejected for v1
-- [ ] **D2** — caps/domains: `[IO, FS, Clock, Net, AI]`, no Process/Env in v1; `net_allow` enumerated from Daneel's host; `cli_allow = default + lock`; scratch-dir confinement for answer packages
-- [ ] **D3** — `glm-5.3-flash` for v1, per-rung stronger model deferred
-- [ ] **D4** — host-dispatch only in v1; malformed Request → `BLOCKED`
+- [x] **D1** — **ratified by Mark (attended, 2026-09-16)**: `summary` primary + transcript artifact for overflow; committed artifact and wrapper-sent message rejected for v1
+- [x] **D2** — **ratified by Mark (attended, 2026-09-16) WITH ONE CHANGE**: `allowed_caps = [IO, FS, Clock, Net, AI, Process]` — Process narrowed to `process_allow = ["git:status", "git:diff", "git:log"]` (the same read-only set as the package lane) so a question can inspect the daneel repo's history; still no Env. `net_allow` enumerated from Daneel's host; `cli_allow = default + lock`; scratch-dir confinement for answer packages
+- [x] **D3** — **ratified by Mark (attended, 2026-09-16)**: `glm-5.3-flash` for v1, per-rung stronger model deferred
+- [x] **D4** — **ratified by Mark (attended, 2026-09-16)**: host-dispatch only in v1; malformed Request → `BLOCKED`
 
 ---
 
