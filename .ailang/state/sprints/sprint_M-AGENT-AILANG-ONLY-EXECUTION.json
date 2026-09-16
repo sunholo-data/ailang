@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-AGENT-AILANG-ONLY-EXECUTION",
-  "status": "in_progress",
+  "status": "completed",
   "created": "2026-09-16T07:09:22Z",
   "design_doc": "design_docs/planned/v0_35_0/m-agent-ailang-only-execution.md",
   "sprint_plan": "design_docs/planned/v0_35_0/m-agent-ailang-only-execution-sprint-plan.md",
@@ -101,10 +101,11 @@
         "eval-suite --tool-policy ailang_only banks tool_policy on pi rows",
         "boundary note in runbook/charter/memory before the first banked row; comparator via eval-paired committed"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-16T08:43:31Z",
+      "completed": "2026-09-16T08:43:31Z",
+      "notes": "Resident: resident-run deleted, ailang_only default, policy via AILANG_AGENT_POLICY_TOML read-only outside sandbox, boot keeps the execution pair, /health reports profile+policy; test-image.sh 130/0 in Cloud Build. resident-instance.sh --policy-file + boundary checks in verify (multivac f7e2689). Dev resident UPDATED with the policy but the Preview instances API returns 'internal error' on start for the untouched control too \u2014 live verify PENDING on Google. Profile carries its extensions (--no-extensions -e) after the rig showed an eval workspace had no execution route. Eval lane: --tool-policy/--policy-file; A/B on OpenRouter minimax-m3: bash 5/5 vs ailang_only 4/5, one model-stop miss, no gate refusals, McNemar n/a at n=5; report in docs/sprint-retros/. Rig 27B comparator deferred (GPU contention, lock not exclusive).",
+      "actual_loc": 420
     }
   ]
 }
