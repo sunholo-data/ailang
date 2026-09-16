@@ -32,6 +32,11 @@ type runPolicyWidening struct {
 	caps      string
 	noBudgets bool
 	allowEnv  string
+	// --ai / --ai-stub choose the model an AI-cap program talks to. Under
+	// --policy that is the operator's decision (ai_provider) — the lending
+	// boundary — so both are widening flags (M-DANEEL-AILANG-EXECUTOR M1).
+	aiModel string
+	aiStub  bool
 }
 
 // runPolicyResolved is what the policy DECIDES for the run.
@@ -42,6 +47,11 @@ type runPolicyResolved struct {
 	processAllow string
 	sandbox      string
 	digest       string
+	// aiModel/aiStub feed setupAIHandler exactly where --ai/--ai-stub did:
+	// ai_provider = "stub" is the offline test route, anything else is the
+	// model name --ai would have carried.
+	aiModel string
+	aiStub  bool
 }
 
 // applyRunPolicy loads the policy, refuses widening flags, validates the
@@ -61,6 +71,10 @@ func applyRunPolicy(policyPath, filename string, w runPolicyWidening) runPolicyR
 		refuse("--no-budgets is not allowed with --policy")
 	case w.allowEnv != "":
 		refuse("--allow-env is not allowed with --policy — environment access is not a policy field")
+	case w.aiModel != "":
+		refuse("--ai is not allowed with --policy — the model comes from the policy's ai_provider")
+	case w.aiStub:
+		refuse("--ai-stub is not allowed with --policy — set ai_provider = \"stub\" in the policy instead")
 	}
 
 	pol, err := policy.Load(policyPath)
@@ -99,6 +113,12 @@ func applyRunPolicy(policyPath, filename string, w runPolicyWidening) runPolicyR
 	if len(pol.NetAllow) > 0 && !hasCap(pol, "Net") {
 		refuse("net_allow is set but Net is not in allowed_caps")
 	}
+	if hasCap(pol, "AI") && pol.AIProvider == "" {
+		refuse("policy admits AI but sets no ai_provider — name the model (or \"stub\") or drop AI")
+	}
+	if pol.AIProvider != "" && !hasCap(pol, "AI") {
+		refuse("ai_provider is set but AI is not in allowed_caps")
+	}
 
 	out, code := admitProgram(pol, policyPath, filename)
 	if code != 0 {
@@ -113,6 +133,10 @@ func applyRunPolicy(policyPath, filename string, w runPolicyWidening) runPolicyR
 		processAllow: strings.Join(pol.ProcessAllow, ","),
 		sandbox:      pol.FSSandbox,
 		digest:       executor.PolicyDigest(policyPath),
+		aiStub:       pol.AIProvider == "stub",
+	}
+	if pol.AIProvider != "" && pol.AIProvider != "stub" {
+		resolved.aiModel = pol.AIProvider
 	}
 	if resolved.sandbox != "" {
 		// The effects context reads the sandbox from the environment
@@ -131,6 +155,7 @@ func applyRunPolicy(policyPath, filename string, w runPolicyWidening) runPolicyR
 		"fs_sandbox":    resolved.sandbox,
 		"net_allow":     pol.NetAllow,
 		"process_allow": pol.ProcessAllow,
+		"ai_provider":   pol.AIProvider,
 		"decision":      out.Decision,
 	})
 	fmt.Fprintf(os.Stderr, "policy: %s\n", line)

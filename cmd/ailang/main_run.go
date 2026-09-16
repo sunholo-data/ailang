@@ -216,8 +216,10 @@ func runCommand() {
 	// file. Resolved here into the existing flag values rather than threaded
 	// as another runFile parameter.
 	if *policyFlag != "" {
-		resolved := applyRunPolicy(*policyFlag, filename, runPolicyWidening{caps: *capsFlag, noBudgets: *noBudgetsFlag, allowEnv: *allowEnvFlag})
+		resolved := applyRunPolicy(*policyFlag, filename, runPolicyWidening{caps: *capsFlag, noBudgets: *noBudgetsFlag, allowEnv: *allowEnvFlag, aiModel: *aiModelFlag, aiStub: *aiStubFlag})
 		*capsFlag = resolved.caps
+		*aiModelFlag = resolved.aiModel
+		*aiStubFlag = resolved.aiStub
 		if resolved.netDomains != "" {
 			*netAllowDomainsFlag = resolved.netDomains
 		}

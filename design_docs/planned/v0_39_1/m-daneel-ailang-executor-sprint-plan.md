@@ -33,7 +33,7 @@ The dependency chain is strict:
 
 `M1 ai_provider binding → M2 std/web → M3 release → M4 multivac agent/policy/template → M5 Daneel host dispatch + ext/search → M6 end-to-end closeout`
 
-### M1: Bind `ai_provider` from policy
+### M1: Bind `ai_provider` from policy ✅ (2026-09-16)
 
 **Goal:** Make the policy's model pin enforceable before any fleet configuration depends on it.  
 **Estimated:** 120 LOC implementation + 180 LOC tests/docs = 300 LOC  
@@ -48,10 +48,10 @@ The dependency chain is strict:
 
 **Tasks and acceptance criteria:**
 
-- [ ] Resolve `pol.AIProvider` into the same handler setup used by `--ai`; preserve `ai_provider = "stub"` as an offline test route.
-- [ ] Refuse `--ai` with `--policy`, AI authority without `ai_provider`, and `ai_provider` without the `AI` cap, with stable named reasons and exit code 1.
-- [ ] Prove a policy-admitted AI program runs against the stub without a `--ai` flag.
-- [ ] Run focused Go tests, `make test-core`, `make lint`, and `make check-boundaries`.
+- [x] Resolve `pol.AIProvider` into the same handler setup used by `--ai`; preserve `ai_provider = "stub"` as an offline test route.
+- [x] Refuse `--ai` with `--policy`, AI authority without `ai_provider`, and `ai_provider` without the `AI` cap, with stable named reasons and exit code 1.
+- [x] Prove a policy-admitted AI program runs against the stub without a `--ai` flag.
+- [x] Run focused Go tests, `make test-core`, `make lint`, and `make check-boundaries`.
 
 **Risk:** Flag precedence could accidentally widen authority. **Mitigation:** all cross-product cases are table-driven and the policy remains the single source under `--policy`.
 

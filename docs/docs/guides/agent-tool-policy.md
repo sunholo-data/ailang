@@ -27,8 +27,14 @@ process_allow = ["git:pull", "git:status"] # Process narrowed to subcommands (gi
 # net_allow     = ["api.example.com"]      # required when "Net" is allowed; https only unless
 # net_allow_http = true                    #   net_allow_http = true
 # cli_allow     = ["iface", "docs:search"]  # ailang_cli subcommands; absent = the read-only default set
+# ai_provider   = "gemini-2-5-flash"         # required when "AI" is allowed: the model the program talks to
 entry         = "main"
 ```
+
+`ai_provider` is the model an `AI`-cap program calls — the lending boundary for the AI effect. It is
+required when `AI` is in `allowed_caps` and refused without it; `"stub"` is the offline test route.
+Under `--policy`, `--ai` and `--ai-stub` are widening flags and are refused by name, like `--caps`.
+The admission line records `ai_provider` beside the caps.
 
 `cli_allow` is read by the `ailang_cli` tool, not by `ailang run`: it is the rest of the `ailang`
 CLI an agent may call, in `process_allow` syntax (`docs:search` admits `docs search` only). Absent
