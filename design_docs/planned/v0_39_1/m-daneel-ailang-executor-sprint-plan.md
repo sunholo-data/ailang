@@ -95,7 +95,7 @@ The exact AILANG type syntax must be taken from `ailang prompt` during execution
 
 **Risk:** A generic HTTP handler may tempt callers to smuggle arbitrary domains. **Mitigation:** endpoints are fixed in Go; `webFetch(url)` fetches through Ollama's `/api/web_fetch`, not directly from the supplied URL.
 
-### M3: Release the binary contract
+### M3: Release the binary contract ✅ (2026-09-16)
 
 **Goal:** Publish the AILANG version containing M1 and M2 before any multivac config uses their fields or symbols.  
 **Estimated:** 40 LOC release notes/metadata  
@@ -105,11 +105,11 @@ The exact AILANG type syntax must be taken from `ailang prompt` during execution
 
 **Acceptance criteria:**
 
-- [ ] Release notes name `ai_provider` enforcement, `std/web`, `{Net}`-only authority, and the secret non-exposure boundary.
-- [ ] Published binary reports the new version and `ailang iface std/web` exposes both exact signatures.
-- [ ] Container/image used by multivac resolves that version before M4 begins; unknown policy fields or missing modules are a hard stop.
+- [x] Release notes name `ai_provider` enforcement, `std/web`, `{Net}`-only authority, and the secret non-exposure boundary.
+- [x] Published binary reports the new version and `ailang iface std/web` exposes both exact signatures.
+- [x] Container/image used by multivac resolves that version before M4 begins; unknown policy fields or missing modules are a hard stop.
 
-### M4: Multivac agent, policy, template, and secret binding
+### M4: Multivac agent, policy, template, and secret binding ✅ (2026-09-16)
 
 **Goal:** Deploy `daneel-executor` with the corrected model route and key delivery. This is the M-registry milestone and is owned in the `ailang-multivac` repository.  
 **Estimated:** 140 LOC config/template + 180 LOC Terraform/tests = 320 LOC  
@@ -125,16 +125,16 @@ The exact AILANG type syntax must be taken from `ailang prompt` during execution
 
 **Tasks and acceptance criteria:**
 
-- [ ] Register `daneel-executor` as `ailang_only`, `acknowledge_only: true`, with the Daneel workspace/template and released AILANG image.
-- [ ] Pin executor inference to `z-ai/glm-5.3-flash` on OpenRouter. Assert the rendered pi command/config does not use `ollama/...:cloud`.
-- [ ] Preserve the ratified policy caps needed by the executor, narrowed `process_allow = ["git:status", "git:diff", "git:log"]`, exclude `Env` and `Msg`, and add exactly `ollama.com` to `net_allow` for search.
-- [ ] Bind the existing Secret Manager value for `OLLAMA_API_KEY` into the pi Cloud Run Job environment. Verify Terraform plan/rendered Job contains the secret reference and env name, not secret material.
-- [ ] Run a container probe proving `std/web.webSearch` succeeds with `{Net}` and no `{Env}`, while raw `Env` use, an unlisted domain, and disallowed process commands are refused.
-- [ ] Assert banked `policy_digest` is non-empty and clean answer tasks complete rather than becoming `no_changes`.
+- [x] Register `daneel-executor` as `ailang_only`, `acknowledge_only: true`, with the Daneel workspace/template and released AILANG image.
+- [x] Pin executor inference to `z-ai/glm-5.3-flash` on OpenRouter. Assert the rendered pi command/config does not use `ollama/...:cloud`.
+- [x] Preserve the ratified policy caps needed by the executor, narrowed `process_allow = ["git:status", "git:diff", "git:log"]`, exclude `Env` and `Msg`, and add exactly `ollama.com` to `net_allow` for search.
+- [x] Bind the existing Secret Manager value for `OLLAMA_API_KEY` into the pi Cloud Run Job environment. Verify Terraform plan/rendered Job contains the secret reference and env name, not secret material.
+- [x] Run a container probe proving `std/web.webSearch` succeeds with `{Net}` and no `{Env}`, while raw `Env` use, an unlisted domain, and disallowed process commands are refused.
+- [x] Assert banked `policy_digest` is non-empty and clean answer tasks complete rather than becoming `no_changes`.
 
 **Risk:** Terraform may bind secrets only to coordinator services, not ephemeral pi Jobs. **Mitigation:** inspect the rendered Job spec and execute one real Job positive control; configuration inspection alone is insufficient.
 
-### M5: Daneel host dispatch and `ext/search`
+### M5: Daneel host dispatch and `ext/search` ✅ (2026-09-16)
 
 **Goal:** Give Daneel its first policy-bounded search package and consume executor completions safely.  
 **Estimated:** 220 LOC implementation + 260 LOC tests/smokes = 480 LOC  
@@ -150,12 +150,12 @@ The exact AILANG type syntax must be taken from `ailang prompt` during execution
 
 **Tasks and acceptance criteria:**
 
-- [ ] Create `ext/search` as a path-dependent package wrapping `std/web`; its exported authority row is exactly `[Net]`, never `[Env]` or `[AI]`.
-- [ ] Type-check and run recorded smokes for search and fetch, including structured error propagation.
-- [ ] Host validates the typed Request before dispatch, targets only `daneel-executor`, correlates the completion, consumes the bounded `summary`/`ANSWER:` contract, and maps malformed requests or executor `BLOCKED:` results to structured blocked outcomes.
-- [ ] Search package cannot select a model, provide a key, widen domains, or invoke raw host dispatch directly.
+- [x] Create `ext/search` as a path-dependent package wrapping `std/web`; its exported authority row is exactly `[Net]`, never `[Env]` or `[AI]`.
+- [x] Type-check and run recorded smokes for search and fetch, including structured error propagation.
+- [x] Host validates the typed Request before dispatch, targets only `daneel-executor`, correlates the completion, consumes the bounded `summary`/`ANSWER:` contract, and maps malformed requests or executor `BLOCKED:` results to structured blocked outcomes.
+- [x] Search package cannot select a model, provide a key, widen domains, or invoke raw host dispatch directly.
 
-### M6: End-to-end boundary proof and closeout
+### M6: End-to-end boundary proof and closeout ✅ (2026-09-16)
 
 **Goal:** Prove the entire lending path in production and record falsifiable evidence.  
 **Estimated:** 110 LOC tests/docs/report  
@@ -163,11 +163,11 @@ The exact AILANG type syntax must be taken from `ailang prompt` during execution
 
 **Acceptance criteria:**
 
-- [ ] One live Daneel request dispatches to `daneel-executor`, produces at least one real Ollama search result, and returns a correlated structured answer to Daneel.
-- [ ] Banked evidence records OpenRouter `z-ai/glm-5.3-flash` as the executor model, a non-empty policy digest, completed status, and no secret in transcript/summary/artifacts.
-- [ ] Negative controls prove `{Env}`, an unlisted network host, and a forbidden process subcommand fail under named policy categories.
-- [ ] The live `std/web` positive control passes when explicitly enabled with the key; recorded fixtures remain the deterministic CI gate.
-- [ ] Update AILANG, multivac, and Daneel docs/changelogs; record exact release/image, Terraform plan/apply evidence, Job execution, task/correlation IDs, and the three search result URLs in an implementation report without recording credentials.
+- [x] One live Daneel request dispatches to `daneel-executor`, produces at least one real Ollama search result, and returns a correlated structured answer to Daneel.
+- [x] Banked evidence records OpenRouter `z-ai/glm-5.3-flash` as the executor model, a non-empty policy digest, completed status, and no secret in transcript/summary/artifacts.
+- [x] Negative controls prove `{Env}`, an unlisted network host, and a forbidden process subcommand fail under named policy categories.
+- [x] The live `std/web` positive control passes when explicitly enabled with the key; recorded fixtures remain the deterministic CI gate.
+- [x] Update AILANG, multivac, and Daneel docs/changelogs; record exact release/image, Terraform plan/apply evidence, Job execution, task/correlation IDs, and the three search result URLs in an implementation report without recording credentials.
 
 ## Day-by-Day Plan
 

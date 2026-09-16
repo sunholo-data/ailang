@@ -1,7 +1,7 @@
 {
   "sprint_id": "M-DANEEL-AILANG-EXECUTOR",
   "title": "Daneel ailang_only executor with secret-safe Ollama web search",
-  "status": "in_progress",
+  "status": "completed",
   "design_doc": "design_docs/planned/v0_39_1/m-daneel-ailang-executor.md",
   "sprint_plan": "design_docs/planned/v0_39_1/m-daneel-ailang-executor-sprint-plan.md",
   "created": "2026-09-16",
@@ -87,10 +87,10 @@
         "Multivac image resolves the released version before registry configuration proceeds.",
         "Release notes document the Net-only and secret-lending boundaries."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-16T20:13:56Z",
+      "completed": "2026-09-16T20:13:56Z",
+      "notes": "v0.39.2 built to TEST but NOT promoted: the pi executor never set Result.Transcript, so every completion summary (D1's return path) was empty \u2014 fixed (5560feca2), released as v0.39.3 (7494064c1\u2192\u2026), promote build 1e6a63ed SUCCESS; prod MCP/dashboard/agent-pi digest verified."
     },
     {
       "id": "M4_MULTIVAC_REGISTRY",
@@ -105,10 +105,10 @@
         "Terraform plan and rendered Cloud Run Job contain a Secret Manager-backed OLLAMA_API_KEY env reference but no key material.",
         "Container Job proves std/web works with Net and no Env; unlisted host, Env, and forbidden process controls fail."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-16T20:13:56Z",
+      "completed": "2026-09-16T20:13:56Z",
+      "notes": "ailang-multivac: secret ailang-*-ollama-api-key (part A 6c9f3ba, populated in dev/test/prod), pi Job binding + daneel-executor agent/policy/template (part B a279577), merge_branch main (16e11db, first dev run failed cloning 'dev'), template answer-first (6a54b96). Prod registry serves the agent; coordinator 00132."
     },
     {
       "id": "M5_DANEEL_DISPATCH_SEARCH",
@@ -123,10 +123,10 @@
         "Host validates Request, dispatches only to daneel-executor, correlates completion, and maps BLOCKED or malformed input structurally.",
         "Package cannot choose a model, supply a secret, widen domains, or acquire Env/AI/Process authority."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-16T20:13:56Z",
+      "completed": "2026-09-16T20:13:56Z",
+      "notes": "sunholo-data/daneel PR #59 merged (b05a063): ext/search (claim proven, 8-check smoke), `daneel ask` verb + daneel_poll.ask leaf with manifest/authority rows, intake dispatch routing to daneel-executor, finishAnswer (acted/declined/failed, cap-gated, judged once), docs + history; ci.sh guard ok, smoke 85/0, test-work ask route mutation-tested."
     },
     {
       "id": "M6_E2E_CLOSEOUT",
@@ -141,10 +141,10 @@
         "Env, unlisted-domain, and forbidden-process negative controls fail under named policy categories.",
         "AILANG, multivac, and Daneel docs/changelogs plus a credential-free implementation report are complete."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-16T20:13:56Z",
+      "completed": "2026-09-16T20:13:56Z",
+      "notes": "dev rehearsal task-8088d1ed: correct sourced answer, 11 turns, $0.0135, 0 bash, 2/2 admitted. PROD: task-58ff1f74 correct sourced answer (v0.39.3 2026-09-16T19:45:01Z) $0.0125; task-f0fd2adc Env \u2192 policy_violation missing_from_policy [Env]; task-e838893b direct httpRequest example.org \u2192 DisallowedHost(example.org). Key absent from every summary/transcript. Summaries carried the answers (Transcript fix proven)."
     }
   ]
 }
