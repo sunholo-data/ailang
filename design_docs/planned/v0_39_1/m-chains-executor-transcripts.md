@@ -84,9 +84,9 @@ Repository tooling (executor/observatory plane), not language surface. Scores on
 
 Before implementation begins, these must be resolved:
 
-- [ ] D1 — Mark picks the M3 transport (recommendation: (a), see Solution Design; verify job SA Firestore grant first)
-- [ ] D2 — Mark approves (or rejects) the `reason_tokens` column; if rejected, D2 falls back to content_json metadata and the doc is updated
-- [ ] D5 — Mark approves deferring importer migration to a follow-up
+- [x] D1 — **(a)** ratified by Mark (attended, 2026-09-16): the job writes `obs_chat_messages` directly; O1 (job SA Firestore grant, terraform in ailang-multivac) is the first task of M3
+- [x] D2 — **new `reason_tokens` column** (migrate_v22) ratified by Mark (attended, 2026-09-16)
+- [x] D5 — **REJECTED as a deferral**: Mark (attended, 2026-09-16) rules the two existing chat writers (`importer_motoko.go`, `claudehistory/importer.go`) migrate onto `Backend.PutChatMessages` **in this sprint** — one writer, not three. Add ~half a day to the timeline; the importers' `content_json` shapes are the M2 test fixtures
 
 ## Solution Design
 
