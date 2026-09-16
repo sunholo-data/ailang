@@ -61,10 +61,10 @@
         "50 MB multipart upload: handler HeapAlloc delta < 60 MB",
         "AILANG_FS_MAX_BYTES registered in internal/config"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-16T20:09:12.285317+00:00",
+      "completed": "2026-09-16T20:09:12.285317+00:00",
+      "notes": "EffEnv.FSMaxBytes + readCapped (stat early-exit, post-read len check, E_FS_FILE_TOO_LARGE); --fs-max-bytes + AILANG_FS_MAX_BYTES (registry); serve-api cap = upload cap; config.ParseByteSize shared by --max-memory; multipart MaxBytesReader + 4MB threshold + io.Copy to temp file (48 MB upload: 16 MB alloc vs 126 MB); zip readEntry pre-sized."
     },
     {
       "id": "M4_PROCESS_CONTROLS_DOWNSTREAM",

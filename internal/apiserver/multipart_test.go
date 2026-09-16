@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -16,7 +17,7 @@ func TestWriteTempFile(t *testing.T) {
 	data := []byte("hello world")
 
 	t.Run("preserves original filename", func(t *testing.T) {
-		path, err := writeTempFile(data, "report.docx")
+		path, err := writeTempFile(bytes.NewReader(data), "report.docx")
 		if err != nil {
 			t.Fatalf("writeTempFile: %v", err)
 		}
@@ -35,7 +36,7 @@ func TestWriteTempFile(t *testing.T) {
 	})
 
 	t.Run("no filename fallback", func(t *testing.T) {
-		path, err := writeTempFile(data, "")
+		path, err := writeTempFile(bytes.NewReader(data), "")
 		if err != nil {
 			t.Fatalf("writeTempFile: %v", err)
 		}
@@ -58,7 +59,7 @@ func TestWriteTempFile(t *testing.T) {
 			".",
 		}
 		for _, name := range cases {
-			path, err := writeTempFile(data, name)
+			path, err := writeTempFile(bytes.NewReader(data), name)
 			if err != nil {
 				t.Fatalf("writeTempFile(%q): %v", name, err)
 			}
@@ -431,4 +432,74 @@ func TestParseMultipartArgsWithNames_NamedOrdering(t *testing.T) {
 	if args[2] != "key123" {
 		t.Errorf("args[2] (apiKey) = %v, want %q", args[2], "key123")
 	}
+}
+
+// M-V1-MEMORY-FOOTPRINT M3 (D-F): a file part bound to a STRING param goes to
+// its temp file by io.Copy, never through a []byte. The handler's heap must
+// not grow by the upload size; before this, ParseMultipartForm(maxUpload)
+// buffered the whole body in RAM, readMultipartFile copied it again, and
+// writeTempFile wrote that copy — three resident copies of a 50 MB upload.
+func TestMultipartStringParamStreamsToTempFile(t *testing.T) {
+	// net/http itself allocates about 4x the in-memory threshold while it
+	// decides a part is too big for RAM (bytes.Buffer growth to threshold+1),
+	// so the bound is "well under one copy of the upload", not zero.
+	const size = 48 << 20
+	payload := bytes.Repeat([]byte("u"), size)
+	req := makeMultipartRequestUnparsed(t, map[string][]byte{"filepath": payload}, nil)
+
+	runtime.GC()
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+
+	if err := req.ParseMultipartForm(multipartMemoryThreshold); err != nil {
+		t.Fatal(err)
+	}
+	args, cleanup, err := parseMultipartArgsWithNames(req, 64<<20, []string{"filepath"}, []string{"string"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
+	runtime.ReadMemStats(&after)
+
+	path := args[0].(string)
+	st, err := os.Stat(path)
+	if err != nil || st.Size() != size {
+		t.Fatalf("temp file: %v size %d", err, st.Size())
+	}
+	grew := int64(after.TotalAlloc - before.TotalAlloc)
+	t.Logf("%d MB upload: allocated %d MB while parsing", size>>20, grew>>20)
+	if grew > size/2 {
+		t.Fatalf("parsing a %d MB string-param upload allocated %d MB; want well under one copy (streamed to disk)", size>>20, grew>>20)
+	}
+}
+
+// makeMultipartRequestUnparsed builds the request but leaves ParseMultipartForm
+// to the caller, so the test controls the in-memory threshold.
+func makeMultipartRequestUnparsed(t *testing.T, files map[string][]byte, fields map[string]string) *http.Request {
+	t.Helper()
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+	for name, content := range files {
+		fw, err := w.CreateFormFile(name, name+".bin")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := fw.Write(content); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for k, v := range fields {
+		if err := w.WriteField(k, v); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	req, err := http.NewRequest("POST", "/test", &buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	return req
 }

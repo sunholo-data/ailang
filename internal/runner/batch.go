@@ -48,6 +48,9 @@ func ExecuteBatchItem(ctx context.Context, result pipeline.Result, input string,
 		return err
 	}
 	SetupStreamHandler(effCtx, opts.Stream.AllowHTTP, opts.Stream.AllowDomains, opts.Stream.AllowLocalhost)
+	if err := SetupFSLimit(effCtx, opts.FSMaxBytes); err != nil {
+		return err
+	}
 	if err := SetupProcessHandler(effCtx, opts.Process.Timeout, opts.Process.Allowlist, opts.Process.MaxOutput); err != nil {
 		return fmt.Errorf("process handler setup: %w", err)
 	}

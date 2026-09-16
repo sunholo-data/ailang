@@ -212,6 +212,13 @@ func New(basePath string, cfg Config) *Server {
 	if maxUpload == 0 {
 		maxUpload = DefaultMaxUploadSize
 	}
+	// Every FS read a served handler makes is bounded by the upload cap
+	// (M-V1-MEMORY-FOOTPRINT M3, D-C): the temp files the server itself
+	// writes are under it by construction, and nothing larger should be read
+	// on behalf of one request.
+	if storedEffCtx != nil && storedEffCtx.Env.FSMaxBytes == 0 {
+		storedEffCtx.Env.FSMaxBytes = maxUpload
+	}
 	return &Server{
 		engine:             eng,
 		modules:            make(map[string]*ModuleInfo),

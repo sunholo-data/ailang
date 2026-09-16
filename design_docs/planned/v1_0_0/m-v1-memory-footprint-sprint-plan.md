@@ -75,7 +75,7 @@ retained bytes within 1.5× of `eventSize` sum; `string<secret>` canary still 0 
 - Fixture `memprobe_debuglog.ail`: 1,000,000 `Debug.log` lines at `--log-level ERROR`; RSS within
   10 MB of the empty-program floor.
 
-### M3 — Input copies (~250 LOC, 1 day)
+### M3 — Input copies (~250 LOC, 1 day) ✅ 2026-09-16
 
 - `EffEnv.FSMaxBytes int64` (0 = unbounded). New `readCapped(path, cap)` in `fs_limits.go`:
   stat early-exit, `os.Open` + `io.ReadAll(io.LimitReader(f, cap+1))` into a buffer pre-sized to

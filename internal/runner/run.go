@@ -65,10 +65,13 @@ type Options struct {
 	StrictBytecode    bool
 
 	// Effects
-	Env             EnvFlags
-	Net             NetOptions
-	Stream          StreamOptions
-	Process         ProcessOptions
+	Env     EnvFlags
+	Net     NetOptions
+	Stream  StreamOptions
+	Process ProcessOptions
+	// FSMaxBytes is the --fs-max-bytes text ("" = AILANG_FS_MAX_BYTES, else
+	// unbounded); resolved by SetupFSLimit (M-V1-MEMORY-FOOTPRINT M3).
+	FSMaxBytes      string
 	DebugEffect     bool
 	DebugLogLevel   int
 	NoBudgets       bool
@@ -430,6 +433,10 @@ func runSingle(ctx context.Context, result pipeline.Result, opts Options, progra
 		return 1
 	}
 	SetupStreamHandler(effCtx, opts.Stream.AllowHTTP, opts.Stream.AllowDomains, opts.Stream.AllowLocalhost) // Stream for WebSocket connections (M-STREAM-BIDI)
+	if err := SetupFSLimit(effCtx, opts.FSMaxBytes); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		return 1
+	}
 	if err := SetupProcessHandler(effCtx, opts.Process.Timeout, opts.Process.Allowlist, opts.Process.MaxOutput); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 		return 1

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 )
@@ -18,6 +19,7 @@ const (
 	EnvLang              = "LANG"
 	EnvFSSandbox         = "AILANG_FS_SANDBOX"
 	EnvFSSandboxDebug    = "AILANG_FS_SANDBOX_DEBUG"
+	EnvFSMaxBytes        = "AILANG_FS_MAX_BYTES"
 	EnvRedactEnv         = "AILANG_REDACT_ENV"
 	EnvMetrics           = "AILANG_METRICS"
 	EnvMetricsDebug      = "AILANG_METRICS_DEBUG"
@@ -40,6 +42,7 @@ var compilerVars = []Var{
 	{EnvLang, "C", AreaCompiler, "Locale the effect runtime reports."},
 	{EnvFSSandbox, "", AreaCompiler, "Directory the FS effect is confined to; empty means no sandbox."},
 	{EnvFSSandboxDebug, "0", AreaCompiler, "1 logs every sandbox rejection to stderr."},
+	{EnvFSMaxBytes, "", AreaCompiler, "Cap on every FS read (a byte count or K/M/G/T-suffixed size); unset or 0 is unbounded, --fs-max-bytes overrides it, and a malformed value is an error. serve-api uses its upload cap instead."},
 	{EnvRedactEnv, "on", AreaCompiler, "off disables redaction of sensitive environment values in traces and errors."},
 	{EnvMetrics, "0", AreaCompiler, "1 collects pipeline phase timings and memory for each compile."},
 	{EnvMetricsDebug, "0", AreaCompiler, "1 prints the raw phase-timing map to stderr."},
@@ -95,6 +98,20 @@ func Locale() string { return getOr(EnvLang) }
 
 // FSSandbox returns AILANG_FS_SANDBOX, "" when no sandbox is set.
 func FSSandbox() string { return get(EnvFSSandbox) }
+
+// FSMaxBytes returns the AILANG_FS_MAX_BYTES cap in bytes and whether it was
+// set; a malformed value is an error (a safety cap never falls back).
+func FSMaxBytes() (int64, bool, error) {
+	raw := strings.TrimSpace(get(EnvFSMaxBytes))
+	if raw == "" {
+		return 0, false, nil
+	}
+	n, err := ParseByteSize(raw)
+	if err != nil {
+		return 0, true, fmt.Errorf("%s: %w", EnvFSMaxBytes, err)
+	}
+	return n, true, nil
+}
 
 // FSSandboxDebug reports AILANG_FS_SANDBOX_DEBUG=1.
 func FSSandboxDebug() bool { return getOr(EnvFSSandboxDebug) == "1" }

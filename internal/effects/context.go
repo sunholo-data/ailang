@@ -144,6 +144,9 @@ type EffEnv struct {
 	TZ      string // TZ for deterministic time operations
 	Locale  string // LANG for deterministic string operations
 	Sandbox string // Root directory for FS operations (empty = no sandbox)
+	// FSMaxBytes caps every FS read; 0 = unbounded (the CLI default).
+	// serve-api sets it to its upload cap (M-V1-MEMORY-FOOTPRINT M3, D-C).
+	FSMaxBytes int64
 }
 
 // ClockContext provides monotonic time for Clock effect
