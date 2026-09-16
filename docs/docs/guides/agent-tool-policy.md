@@ -31,6 +31,13 @@ process_allow = ["git:pull", "git:status"] # Process narrowed to subcommands (gi
 entry         = "main"
 ```
 
+**Web search for programs — `std/web`.** `webSearch(query, max)` and `webFetch(url)` are `{Net}`
+effects backed by a fixed endpoint on `ollama.com`; the runtime reads `OLLAMA_API_KEY` itself, so the
+program never holds a key and cannot name a host. A lane that should search grants `Net` and lists
+`ollama.com` in `net_allow` — nothing else. Without `Net` the program is denied at admission
+(`missing_from_policy: ["Net"]`); with `Net` but without the host it gets `DisallowedHost(ollama.com)`.
+`webFetch` fetches *through* the backend, never from the supplied URL directly.
+
 `ai_provider` is the model an `AI`-cap program calls — the lending boundary for the AI effect. It is
 required when `AI` is in `allowed_caps` and refused without it; `"stub"` is the offline test route.
 Under `--policy`, `--ai` and `--ai-stub` are widening flags and are refused by name, like `--caps`.

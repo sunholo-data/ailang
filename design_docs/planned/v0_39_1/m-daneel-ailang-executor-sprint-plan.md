@@ -55,7 +55,7 @@ The dependency chain is strict:
 
 **Risk:** Flag precedence could accidentally widen authority. **Mitigation:** all cross-product cases are table-driven and the policy remains the single source under `--policy`.
 
-### M2: Add secret-safe `std/web`
+### M2: Add secret-safe `std/web` ✅ (2026-09-16)
 
 **Goal:** Add the smallest typed web-search API whose only program-visible effect is `{Net}`.  
 **Estimated:** 300 LOC implementation + 420 LOC tests/fixtures/examples = 720 LOC  
@@ -85,13 +85,13 @@ The exact AILANG type syntax must be taken from `ailang prompt` during execution
 
 **Tasks and acceptance criteria:**
 
-- [ ] Handler POSTs the documented JSON payloads to fixed HTTPS endpoints on `ollama.com`, sets authentication from `OLLAMA_API_KEY`, parses typed response records, and returns existing `NetError` variants on missing key, invalid input, non-2xx, transport, malformed JSON, and response-limit failures.
-- [ ] `OLLAMA_API_KEY` is read only in Go. It never appears in function arguments, AILANG values, traces, errors, fixture output, or example output; add a sentinel-secret non-leak assertion.
-- [ ] Both builtins declare effect `Net` only. A program with `{Net}` and no `{Env}` type-checks and runs against the recorded transport fixture; removing `Net` fails admission/type checking.
-- [ ] `max` has a documented positive upper bound and invalid values fail before the request. Response/body limits reuse or tighten existing Net limits.
-- [ ] Recorded-fixture tests cover search, fetch, malformed payload, non-2xx, missing key, and secret redaction deterministically.
-- [ ] A live positive-control test is opt-in and skipped unless `OLLAMA_API_KEY` and an explicit live-test flag are present; it asserts status-equivalent success, at least one result, and never blocks the normal suite.
-- [ ] Freeze stdlib interfaces/goldens, type-check and run the example, then run `make test`, `make lint`, and `make check-boundaries`.
+- [x] Handler POSTs the documented JSON payloads to fixed HTTPS endpoints on `ollama.com`, sets authentication from `OLLAMA_API_KEY`, parses typed response records, and returns existing `NetError` variants on missing key, invalid input, non-2xx, transport, malformed JSON, and response-limit failures.
+- [x] `OLLAMA_API_KEY` is read only in Go. It never appears in function arguments, AILANG values, traces, errors, fixture output, or example output; add a sentinel-secret non-leak assertion.
+- [x] Both builtins declare effect `Net` only. A program with `{Net}` and no `{Env}` type-checks and runs against the recorded transport fixture; removing `Net` fails admission/type checking.
+- [x] `max` has a documented positive upper bound and invalid values fail before the request. Response/body limits reuse or tighten existing Net limits.
+- [x] Recorded-fixture tests cover search, fetch, malformed payload, non-2xx, missing key, and secret redaction deterministically.
+- [x] A live positive-control test is opt-in and skipped unless `OLLAMA_API_KEY` and an explicit live-test flag are present; it asserts status-equivalent success, at least one result, and never blocks the normal suite.
+- [x] Freeze stdlib interfaces/goldens, type-check and run the example, then run `make test`, `make lint`, and `make check-boundaries`.
 
 **Risk:** A generic HTTP handler may tempt callers to smuggle arbitrary domains. **Mitigation:** endpoints are fixed in Go; `webFetch(url)` fetches through Ollama's `/api/web_fetch`, not directly from the supplied URL.
 

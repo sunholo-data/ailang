@@ -70,10 +70,10 @@
         "Opt-in live control passes when OLLAMA_API_KEY and the explicit live flag are set and is skipped otherwise.",
         "Runnable example, frozen interfaces/goldens, full tests, lint, and boundary checks pass."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-16T18:19:01Z",
+      "completed": "2026-09-16T18:19:01Z",
+      "notes": "std/web webSearch/webFetch over Ollama behind a webBackend seam; {Net} only, key read in Go (OLLAMA_API_KEY); goes through buildSecureRequest so net_allow applies. 7 fixture tests + sentinel non-leak (2 mutants caught) + opt-in live control; example (verify-skipped, Go type-check test); stdlib golden + builtin golden frozen. Verified live under --policy with [IO, Net] and no Env."
     },
     {
       "id": "M3_RELEASE",
