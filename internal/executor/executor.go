@@ -58,7 +58,11 @@ type Task struct {
 	Timeout      time.Duration // Hard ceiling execution timeout
 	IdleTimeout  time.Duration // Kill if no events for this long after first event (0 = use default 3m)
 	TTFTTimeout  time.Duration // Kill if no output before first event (prefill budget; 0 = use default 30s)
-	AllowedTools []string      // Tools the agent can use
+	AllowedTools []string      // Tools the agent can use (canonical names; nil = CLI default, empty = none)
+	// PolicyPath is the AILANG program policy (agent-policy.toml) an
+	// `ailang_only` run is gated by; forwarded to the pi tool as
+	// AILANG_AGENT_POLICY and its digest banked on the Result.
+	PolicyPath string
 
 	// IsolateFromAmbientContext asks the harness NOT to auto-discover and load the
 	// repository's standing agent-instruction files (AGENTS.md, CLAUDE.md and friends).
@@ -264,6 +268,16 @@ type Result struct {
 	// because nothing recorded this.
 	ExecutorVersion string
 
+	// ToolPolicy is the EFFECTIVE tool list the executor passed to its CLI,
+	// or [ToolPolicyCLIDefault] when the caller left Task.AllowedTools nil and
+	// the CLI's own defaults applied. An empty non-nil list means "no tools"
+	// (--no-tools). nil means unmeasured. PolicyDigest is the sha256 of the
+	// AILANG program policy file the run was gated by (Task.PolicyPath), empty
+	// when none. M-AGENT-AILANG-ONLY-EXECUTION M1: banked BEFORE any policy
+	// changes so the boundary is visible in the data.
+	ToolPolicy   []string
+	PolicyDigest string
+
 	// Session info
 	SessionID  string // Provider's session identifier
 	Transcript string // Full conversation log
@@ -343,6 +357,11 @@ const (
 	// number is worse than no number. M-PI-HARNESS-UPGRADE D4.
 	FinishWireDrift = "wire_drift"
 )
+
+// ToolPolicyCLIDefault is the Result.ToolPolicy sentinel for "the caller did
+// not restrict tools and the CLI's own default set applied". Distinct from an
+// empty list (no tools) and from nil (unmeasured).
+const ToolPolicyCLIDefault = "<cli default>"
 
 // TokenUsage captures token metrics
 type TokenUsage struct {

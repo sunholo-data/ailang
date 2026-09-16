@@ -138,6 +138,10 @@ type AgentBenchmarkResult struct {
 	// ExecutorVersion is what the harness CLI reported for --version
 	// ("pi@0.85.1"). Absent => unmeasured. See executor.Result.ExecutorVersion.
 	ExecutorVersion string `json:"executor_version,omitempty"`
+	// ToolPolicy / PolicyDigest: the effective tool list and program-policy
+	// digest the run had. Absent => unmeasured. See executor.Result.
+	ToolPolicy   []string `json:"tool_policy,omitempty"`
+	PolicyDigest string   `json:"policy_digest,omitempty"`
 
 	// SessionJSONLPath is the executor's own session log — the only record of
 	// what the agent was actually TOLD. The banked agent_transcript holds tool

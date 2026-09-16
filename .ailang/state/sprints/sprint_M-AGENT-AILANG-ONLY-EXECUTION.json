@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-AGENT-AILANG-ONLY-EXECUTION",
-  "status": "not_started",
+  "status": "in_progress",
   "created": "2026-09-16T07:09:22Z",
   "design_doc": "design_docs/planned/v0_35_0/m-agent-ailang-only-execution.md",
   "sprint_plan": "design_docs/planned/v0_35_0/m-agent-ailang-only-execution-sprint-plan.md",
@@ -21,10 +21,11 @@
         "explicit list banks verbatim; empty digest omitted",
         "fields plumbed with omitempty and doc comments"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-16T07:11:34Z",
+      "completed": "2026-09-16T07:11:34Z",
+      "notes": "Result.ToolPolicy (sentinel <cli default> for nil, verbatim otherwise) + Result.PolicyDigest (sha256 of Task.PolicyPath) stamped in PiExecutor's wrapper; plumbed to RunMetrics.tool_policy/policy_digest omitempty. Task.PolicyPath added.",
+      "actual_loc": 90
     },
     {
       "id": "M2",

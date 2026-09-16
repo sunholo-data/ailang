@@ -105,6 +105,10 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 		// Stamped on EVERY result shape (clean, error, timeout, cancel) so a
 		// banked failure says which harness failed. Empty when unprobeable.
 		res.ExecutorVersion = e.Version(ctx)
+		// The EFFECTIVE tool policy (M-AGENT-AILANG-ONLY-EXECUTION M1): what
+		// buildPiArgs passed, or the sentinel when pi's defaults applied.
+		res.ToolPolicy = effectiveToolPolicy(task)
+		res.PolicyDigest = executor.PolicyDigest(task.PolicyPath)
 	}
 	return res, err
 }

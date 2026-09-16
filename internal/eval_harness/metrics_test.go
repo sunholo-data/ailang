@@ -211,3 +211,16 @@ func TestRunMetrics_ExecutorVersionAbsentMeansUnmeasured(t *testing.T) {
 		t.Fatalf("ExecutorVersion not banked: %s", data)
 	}
 }
+
+// M-AGENT-AILANG-ONLY-EXECUTION M1: tool_policy / policy_digest are omitempty;
+// absent means unmeasured (the row predates the field), never "full".
+func TestRunMetrics_ToolPolicyAbsentMeansUnmeasured(t *testing.T) {
+	data, _ := json.Marshal(&RunMetrics{ID: "x", Lang: "ailang", Model: "m", Executor: "pi"})
+	if strings.Contains(string(data), "tool_policy") || strings.Contains(string(data), "policy_digest") {
+		t.Fatalf("absent policy must be OMITTED, got %s", data)
+	}
+	data, _ = json.Marshal(&RunMetrics{ID: "x", Lang: "ailang", Model: "m", Executor: "pi", ToolPolicy: []string{"read", "ailang_run"}, PolicyDigest: "abc"})
+	if !strings.Contains(string(data), `"tool_policy":["read","ailang_run"]`) || !strings.Contains(string(data), `"policy_digest":"abc"`) {
+		t.Fatalf("policy not banked: %s", data)
+	}
+}

@@ -92,6 +92,16 @@ type RunMetrics struct {
 	// did. Compare across rows only when both carry the field.
 	ExecutorVersion string `json:"executor_version,omitempty"`
 
+	// ToolPolicy is the EFFECTIVE tool list the harness CLI ran with (or the
+	// executor.ToolPolicyCLIDefault sentinel when its defaults applied), and
+	// PolicyDigest the sha256 of the AILANG program policy an `ailang_only`
+	// run was gated by. ABSENT MEANS UNMEASURED — every row banked before
+	// M-AGENT-AILANG-ONLY-EXECUTION M1 lacks both, and reading absent as
+	// "full" would make the ailang_only lane boundary invisible. Compare
+	// tool-policy-sensitive rows only when both carry the field.
+	ToolPolicy   []string `json:"tool_policy,omitempty"`
+	PolicyDigest string   `json:"policy_digest,omitempty"`
+
 	// Validity marks whether this row is a MEASUREMENT at all, as opposed to a
 	// failure to measure (dead subject, harness error, wrong config). NIL means
 	// valid — every row banked before v0.31.0 lacks the field, and treating

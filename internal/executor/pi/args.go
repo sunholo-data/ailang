@@ -67,6 +67,18 @@ func buildPiArgs(model string, task *executor.Task, directive string) ([]string,
 	return args, nil
 }
 
+// effectiveToolPolicy is what a run's tool policy WAS, for banking: nil
+// AllowedTools means pi's own defaults applied (sentinel); an explicit list —
+// including an explicitly empty one — is banked verbatim.
+func effectiveToolPolicy(task *executor.Task) []string {
+	if task.AllowedTools == nil {
+		return []string{executor.ToolPolicyCLIDefault}
+	}
+	out := make([]string, len(task.AllowedTools))
+	copy(out, task.AllowedTools)
+	return out
+}
+
 // validPiThinkingLevels is pi's --thinking vocabulary (cli/args.js
 // VALID_THINKING_LEVELS). Wider than the registry's off/low/medium/high, so a
 // models.yml value is always accepted; the extra two are pi-only.
