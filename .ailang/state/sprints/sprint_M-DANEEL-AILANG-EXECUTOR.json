@@ -1,0 +1,131 @@
+{
+  "sprint_id": "M-DANEEL-AILANG-EXECUTOR",
+  "title": "Daneel ailang_only executor with secret-safe Ollama web search",
+  "status": "planned",
+  "design_doc": "design_docs/planned/v0_39_1/m-daneel-ailang-executor.md",
+  "sprint_plan": "design_docs/planned/v0_39_1/m-daneel-ailang-executor-sprint-plan.md",
+  "created": "2026-09-16",
+  "correction_of": "inbox_1789578898046_187f9fb3",
+  "github_issues": [1240],
+  "ordering": [
+    "M1_AI_PROVIDER_BINDING",
+    "M2_STD_WEB",
+    "M3_RELEASE",
+    "M4_MULTIVAC_REGISTRY",
+    "M5_DANEEL_DISPATCH_SEARCH",
+    "M6_E2E_CLOSEOUT"
+  ],
+  "constraints": {
+    "search_provider": "Ollama web search API",
+    "search_host": "ollama.com",
+    "executor_model": "z-ai/glm-5.3-flash",
+    "executor_model_provider": "openrouter",
+    "forbidden_executor_route": "ollama/...:cloud",
+    "program_visible_search_effects": ["Net"],
+    "program_must_not_receive": ["OLLAMA_API_KEY"],
+    "final_policy_excludes": ["Env", "Msg"],
+    "release_before_multivac": true
+  },
+  "velocity": {
+    "target_loc_per_day": 493,
+    "estimated_total_loc": 1970,
+    "estimated_days": 4,
+    "basis": "Seam-based estimate with integration buffer; seven-day git history contains only the v0.39.1 release commit."
+  },
+  "features": [
+    {
+      "id": "M1_AI_PROVIDER_BINDING",
+      "description": "Bind policy ai_provider through the existing AI handler setup and reject every flag/cap cross-set that could widen or leave authority ambiguous.",
+      "estimated_loc": 300,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Policy with AI plus ai_provider=stub runs an AI-cap program without --ai.",
+        "--ai with --policy, AI without ai_provider, and ai_provider without AI all fail with stable named reasons.",
+        "Focused tests, make test-core, lint, and boundary checks pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_STD_WEB",
+      "description": "Add typed std/web webSearch and webFetch operations backed by fixed Ollama endpoints; the Go handler reads OLLAMA_API_KEY and exposes effect Net only.",
+      "estimated_loc": 720,
+      "dependencies": ["M1_AI_PROVIDER_BINDING"],
+      "acceptance_criteria": [
+        "webSearch returns list records with title, url, content; webFetch returns title, content, links; both use existing NetError and effect Net only.",
+        "Recorded fixture tests cover success and failures, and assert sentinel key material cannot reach outputs, errors, traces, or fixtures.",
+        "Opt-in live control passes when OLLAMA_API_KEY and the explicit live flag are set and is skipped otherwise.",
+        "Runnable example, frozen interfaces/goldens, full tests, lint, and boundary checks pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_RELEASE",
+      "description": "Release the AILANG binary and stdlib contract containing ai_provider enforcement and std/web before fleet config consumes them.",
+      "estimated_loc": 40,
+      "dependencies": ["M2_STD_WEB"],
+      "acceptance_criteria": [
+        "Published binary reports the new version and ailang iface std/web exposes both signatures.",
+        "Multivac image resolves the released version before registry configuration proceeds.",
+        "Release notes document the Net-only and secret-lending boundaries."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_MULTIVAC_REGISTRY",
+      "description": "In ailang-multivac, add the daneel-executor registry entry, policy and template; bind the existing OLLAMA_API_KEY secret into pi Jobs and verify the rendered Job and a live probe.",
+      "estimated_loc": 320,
+      "dependencies": ["M3_RELEASE"],
+      "acceptance_criteria": [
+        "Registry pins z-ai/glm-5.3-flash on OpenRouter, uses ailang_only, and sets acknowledge_only=true.",
+        "Policy adds ollama.com, excludes Env and Msg, and retains narrowed git status/diff/log process authority.",
+        "Terraform plan and rendered Cloud Run Job contain a Secret Manager-backed OLLAMA_API_KEY env reference but no key material.",
+        "Container Job proves std/web works with Net and no Env; unlisted host, Env, and forbidden process controls fail."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M5_DANEEL_DISPATCH_SEARCH",
+      "description": "In Daneel, add typed host dispatch/completion consumption and ext/search wrapping std/web with an Authority row exactly over Net.",
+      "estimated_loc": 480,
+      "dependencies": ["M4_MULTIVAC_REGISTRY"],
+      "acceptance_criteria": [
+        "ext/search package type-checks and its Authority row is exactly [Net].",
+        "Recorded search/fetch smokes pass and preserve structured NetError failures.",
+        "Host validates Request, dispatches only to daneel-executor, correlates completion, and maps BLOCKED or malformed input structurally.",
+        "Package cannot choose a model, supply a secret, widen domains, or acquire Env/AI/Process authority."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M6_E2E_CLOSEOUT",
+      "description": "Run the production round trip and negative boundary controls, then record cross-repository release, deployment, task, policy and non-leak evidence.",
+      "estimated_loc": 110,
+      "dependencies": ["M5_DANEEL_DISPATCH_SEARCH"],
+      "acceptance_criteria": [
+        "A live Daneel request returns at least one real Ollama search result through a correlated completed task.",
+        "Banked evidence identifies GLM on OpenRouter and a non-empty policy digest, with no OLLAMA_API_KEY material in transcripts, summaries, or artifacts.",
+        "Env, unlisted-domain, and forbidden-process negative controls fail under named policy categories.",
+        "AILANG, multivac, and Daneel docs/changelogs plus a credential-free implementation report are complete."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
