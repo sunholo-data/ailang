@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-PI-HARNESS-UPGRADE",
-  "status": "in_progress",
+  "status": "completed",
   "created": "2026-09-16T06:12:51Z",
   "design_doc": "design_docs/planned/v0_35_0/m-pi-harness-upgrade.md",
   "sprint_plan": "design_docs/planned/v0_35_0/m-pi-harness-upgrade-sprint-plan.md",
@@ -80,10 +80,10 @@
         "Container tests: positive extension probe + negative workspace-sentinel, neither allowFailure",
         "Read-back of pushed config shows 0.85.1 for agent-pi, agent-pi-go, agent-eval, agent-eval-go, resident-pi (dev + prod)"
       ],
-      "passes": null,
+      "passes": true,
       "started": "2026-09-16T06:44:27Z",
-      "completed": null,
-      "notes": "Dockerfiles pinned+asserted; Node pinned by assertion (arch-specific deb suffix rules out apt =version); seam test Go<->Dockerfiles; docker/test-agent-pi.sh + hard-failing test-agent-pi Cloud Build step (model-free D7 sentinel pair, validated on rig 12/12); sandbox import renamed; quota_report execution probe green on 0.85.1. PENDING until Cloud Build runs: build assertions + registry read-back (no docker on the rig).",
+      "completed": "2026-09-16T06:58:49Z",
+      "notes": "Dockerfiles pinned+asserted; Node pinned by assertion (arch-specific deb suffix rules out apt =version); seam test Go<->Dockerfiles; docker/test-agent-pi.sh + hard-failing test-agent-pi Cloud Build step (model-free D7 sentinel pair, validated on rig 12/12); sandbox import renamed; quota_report execution probe green on 0.85.1. Cloud Build 4a6ac6f6 (dev) SUCCESS: agent-base Node pin asserted, build-agent-pi pin asserted, test-agent-pi 12/12 in the real container, test-resident-pi green (same-package reinstall, no EEXIST). Registry read-back: all 5 dev images PI_PACKAGE=@earendil-works PI_VERSION=0.85.1 NODE_VERSION=22.23.2, 0 abandoned layers. PROD still 0.73.1/0.84.4 \u2014 moves on the next release tag + promote (release action, attended).",
       "actual_loc": 190
     },
     {
@@ -98,10 +98,11 @@
         "Comparator set chosen with pre-boundary rows on both planes and stated in the plan",
         "eval-paired report committed; pre-boundary rows annotated, none re-banked"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-16T06:58:49Z",
+      "completed": "2026-09-16T06:58:49Z",
+      "notes": "Boundary recorded in runbook (table + four-place pin + upgrade/rollback), charter (Rig integration), memory, BEFORE any 0.85.1 row banks (executor_version field landed first). Rig 08-31 step sized after the fact from os-rolling/v0.34.0 (same AILANG version + model): 26 shared benchmarks, 0 worse; eval-paired: control 91.9% above headroom ceiling, 0 discordant pairs -> unresolvable, not a claimed gain. No cloud pi EVAL lane exists (cloud pi = coordinator jobs), so the cloud comparator is N/A; first cloud rows will carry executor_version. check-pi-wire-budget INCONCLUSIVE x3: prod observatory's newest LLM Generation span is 05:40Z, OpenRouter runs since did not ingest \u2014 an ingest outage outside this sprint.",
+      "actual_loc": 60
     }
   ]
 }
