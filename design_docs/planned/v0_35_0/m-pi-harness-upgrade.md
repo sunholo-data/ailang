@@ -102,11 +102,11 @@ Not from the changelog — from **two live captures of the same prompt**, same m
 
 ## Goals
 
-**Primary Goal:** Put both planes on one pinned, non-abandoned pi (`@earendil-works/pi-coding-agent@0.84.4`) without a single benchmark comparison silently spanning the boundary.
+**Primary Goal:** Put both planes on one pinned, non-abandoned pi (`@earendil-works/pi-coding-agent@0.85.1`) without a single benchmark comparison silently spanning the boundary.
 
 **Success Metrics:**
 
-1. Every prod and dev image's *pushed config* (read back from the registry, not inferred from a green build) shows `@earendil-works/pi-coding-agent@0.84.4`.
+1. Every prod and dev image's *pushed config* (read back from the registry, not inferred from a green build) shows `@earendil-works/pi-coding-agent@0.85.1`.
 2. Every agent-mode banked row carries `executor_version` — and a row without one is distinguishable from a row that had none to report.
 3. The pi parser reports a non-zero unknown-event count in the banked row instead of skipping silently; a run whose assistant `message_end` carries no usage fails loudly rather than banking a zero cost.
 4. `reason_tokens > 0` appears on at least one pi-lane row with a reasoning model, and `output_tokens + reason_tokens` equals pi's `usage.output` exactly (no double count).
@@ -119,7 +119,7 @@ Not from the changelog — from **two live captures of the same prompt**, same m
 
 | Decision | Why High Impact | Chosen By | Deadline | Change Cost |
 |----------|-----------------|-----------|----------|-------------|
-| **D1** — Cut over both planes to 0.84.4, rather than pinning cloud at 0.73.1 indefinitely or dual-running | Determines whether the program's central local-vs-cloud comparison is single-harness. Reverting later means re-baselining twice | human | design | high |
+| **D1** — Cut over both planes to **0.85.1** (ratified Mark 2026-09-16 — "the newest"; was 0.84.4 when reviewed), rather than pinning cloud at 0.73.1 indefinitely or dual-running | Determines whether the program's central local-vs-cloud comparison is single-harness. Reverting later means re-baselining twice | human | design | high |
 | **D2** — Historical rows are **annotated, never re-banked**; a fixed comparator set is re-run post-upgrade to size the shift | Any other choice either destroys history or spends a full baseline. Follows the v0.30.0 precedent | human | design | high |
 | **D3** — Add `executor_version` (+ package identity) to `RunMetrics`, `omitempty`, absent ⇒ *unmeasured*, never *"the current one"* | Banked-data schema. Get the absent-vs-zero semantics wrong and every historical row silently claims a version it never ran | human | design | high |
 | **D4** — Strictness policy: which drift is **fatal** (abort the run) vs **recorded** (banked counter) | Too strict and a harmless new event type kills a nightly; too loose and we rebuild the silent-skip we are removing | agent, within the rule below | design | med |
@@ -134,7 +134,7 @@ Not from the changelog — from **two live captures of the same prompt**, same m
 
 Before implementation begins, these must be resolved:
 
-- [ ] **D1** — cut over both planes to 0.84.4 (vs. staying pinned at 0.73.1)
+- [x] **D1** — cut over both planes to **0.85.1** — **RATIFIED Mark 2026-09-16.** The measured-drift rows (V7–V18, V28) were taken on 0.84.4; 0.85.0/0.85.1 changelogs show TUI, SDK session and provider-stream fixes, no NDJSON schema entries — but that is a changelog citation, so M3.0 below re-captures the differential on 0.85.1 before any image moves
 - [ ] **D2** — annotate-and-re-baseline-a-comparator-set, not a full re-bank and not a history rewrite
 - [ ] **D3** — `executor_version` lands in the banked schema this sprint, with absent ⇒ unmeasured
 - [ ] **D7** — containers do **not** trust the workspace root; the suite ships in the image-owned global dir and a negative test proves workspace extensions stay inert
@@ -164,7 +164,7 @@ The pi CLI is an external, independently-versioned system boundary with **four i
 - **Version assertion** — a compiled-in expected `(package, version)` for pi, checked at executor construction against `pi --version`, whose output is currently thrown away.
 - **Strict-ish event parser** — same switch, plus an unknown-type counter and a fail-loud path for missing usage.
 - **Banked provenance** — `executor_version` on `RunMetrics`, populated from the assertion.
-- **Image pin** — `@earendil-works/pi-coding-agent@0.84.4` with a build-time assertion that the installed version equals the pin.
+- **Image pin** — `@earendil-works/pi-coding-agent@0.85.1` with a build-time assertion that the installed version equals the pin.
 
 ### Implementation Plan
 
@@ -184,12 +184,13 @@ The pi CLI is an external, independently-versioned system boundary with **four i
 7. Fix the dead `"Write"`/`"Edit"` comparison at [pi.go:293](../../../internal/executor/pi/pi.go#L293): pi's builtin tools are lowercase (`read`, `bash`, `edit`, `write`) in **both** versions (V11), so `first_attempt_ms` on the pi lane has always fallen through to first-text. Pre-existing, in the blast radius, one line.
 
 **M3: Wire the new signals** (~3 hours)
+0. **Re-capture the differential on 0.85.1** (the V7 method: same fizzbuzz + tool-use directives, both versions, diff the event/field sets). Every row V7–V18 and V28 was measured on 0.84.4; a row that changes at 0.85.1 is a new work item, not a footnote. The rig already runs 0.85.1, so the capture costs one model call per directive.
 1. `usage.reasoning` → `Result.ReasonTokens`, with `OutputTokens = output − reasoning` (D5). Assert the identity in a test.
 2. `rawStopReason` → `ProviderData`, and consult it in `normalizePiFinishReason` only when `stopReason` is unrecognised.
-3. Fixtures. **The current pair is pi 0.70.2** (V21) — there is no 0.73.1 pair to "keep", and an earlier draft of this doc said otherwise. Record **both** afresh: a 0.73.1 pair (the version the cloud actually runs during the overlap) under `testdata/v0_73_1/`, and a 0.84.4 pair under `testdata/v0_84_4/`. Both captures already exist from the V7 differential and can seed them. Delete the 0.70.2 pair once the 0.73.1 pair replaces it — it pins a version no plane has run for months (D6).
+3. Fixtures. **The current pair is pi 0.70.2** (V21) — there is no 0.73.1 pair to "keep", and an earlier draft of this doc said otherwise. Record **both** afresh: a 0.73.1 pair (the version the cloud actually runs during the overlap) under `testdata/v0_73_1/`, and a 0.85.1 pair under `testdata/v0_85_1/`. Both captures already exist from the V7 differential and can seed them. Delete the 0.70.2 pair once the 0.73.1 pair replaces it — it pins a version no plane has run for months (D6).
 
 **M4: Move the images** (~4 hours)
-1. `docker/Dockerfile.agent-pi` and `Dockerfile.agent-eval`: `PI_PACKAGE=@earendil-works/pi-coding-agent`, `PI_VERSION=0.84.4`, plus the `npm uninstall -g @mariozechner/pi-coding-agent || true` that `docker/resident/Dockerfile:51` already does — and for the reason it documents: both packages publish a `pi` bin and npm refuses to clobber another package's link (`EEXIST`), which is how the resident's first attempt failed.
+1. `docker/Dockerfile.agent-pi` and `Dockerfile.agent-eval`: `PI_PACKAGE=@earendil-works/pi-coding-agent`, `PI_VERSION=0.85.1`, plus the `npm uninstall -g @mariozechner/pi-coding-agent || true` that `docker/resident/Dockerfile:51` already does — and for the reason it documents: both packages publish a `pi` bin and npm refuses to clobber another package's link (`EEXIST`), which is how the resident's first attempt failed.
 1b. **`resident-pi` needs no Dockerfile change but is in scope for verification** (V30). Its Dockerfile already pins `@earendil-works@0.84.4` and asserts on the **capability** (`--session-id`), not the version string; prod simply has not rebuilt since. Two consequences to check, not assume: once `agent-pi` installs earendil, the resident's `npm uninstall @mariozechner` becomes a no-op and its install becomes a same-package reinstall — that must not reintroduce `EEXIST`; and its capability assertion must still pass on the new base. Both prod and dev `resident-pi` appear in the read-back criteria below.
 2. **Assert the pin in the build**: `pi --version | grep -qx "$PI_VERSION"` — a build that installs the wrong version must fail, not warn. The resident's pin failed on `npm error EEXIST` and shipped the old pi under a green build on 2026-09-02 — written down in [cloudbuild-dev.yaml:232-240](../../../cloudbuild-dev.yaml#L232) because it already misled someone; the same trap is live here.
 3. **Node is the second unpinned install in the same Dockerfile, and this sprint closes it too** (D8). `setup_22.x` resolves to whatever 22.x is current at build time, so a fresh build can in principle drop below pi's 22.19.0 floor and break pi at *runtime* under a green build — the exact failure shape this doc treats as a measured risk. Deliverable, concrete: pin the nodesource package to an explicit 22.x, and assert it at build time so a wrong version fails the build rather than shipping:
@@ -208,9 +209,9 @@ The pi CLI is an external, independently-versioned system boundary with **four i
 ### Files to Modify/Create
 
 **New files:**
-- `internal/executor/pi/testdata/v0_84_4/fizzbuzz.ndjson` — re-recorded fixture (~40 lines)
-- `internal/executor/pi/testdata/v0_84_4/tool_use.ndjson` — re-recorded fixture (~40 lines)
-- `internal/executor/pi/testdata/v0_84_4/reasoning.ndjson` — fixture with non-zero `usage.reasoning`, for the disjointness assertion (~40 lines)
+- `internal/executor/pi/testdata/v0_85_1/fizzbuzz.ndjson` — re-recorded fixture (~40 lines)
+- `internal/executor/pi/testdata/v0_85_1/tool_use.ndjson` — re-recorded fixture (~40 lines)
+- `internal/executor/pi/testdata/v0_85_1/reasoning.ndjson` — fixture with non-zero `usage.reasoning`, for the disjointness assertion (~40 lines)
 
 **Modified files:**
 - `internal/executor/pi/pi.go` — version capture + assertion, unknown-event counter, fatal-missing-usage, reasoning subtraction, `rawStopReason`, `max` level, lowercase tool names (~+120/−15)
@@ -238,7 +239,7 @@ The pi CLI is an external, independently-versioned system boundary with **four i
 
 **After:**
 ```json
-{ "model": "...", "executor": "pi", "executor_version": "@earendil-works/pi-coding-agent@0.84.4",
+{ "model": "...", "executor": "pi", "executor_version": "@earendil-works/pi-coding-agent@0.85.1",
   "prompt_version": "v0.3.0-hints",
   "output_tokens": 1204, "reason_tokens": 636, "cost_usd": 0.021,
   "provider_data": { "pi_unknown_events": {"queue_update": 2}, "pi_auto_retries": 0 } }
@@ -256,7 +257,7 @@ result: success, 0 tools, transcript intact
 **After:**
 ```
 ERROR pi: assistant message_end carried no usage (harness drift?)
-      expected @earendil-works/pi-coding-agent@0.84.4, running @earendil-works/pi-coding-agent@0.85.0
+      expected @earendil-works/pi-coding-agent@0.85.1, running @earendil-works/pi-coding-agent@0.86.0
       unknown events seen: tool_result_end×7
 ```
 
@@ -301,7 +302,7 @@ Not strictly required (no `internal/parser|types|codegen` files), written anyway
 ## Testing Strategy
 
 **Unit tests:**
-- Dual-version fixture replay (0.73.1 and 0.84.4) producing identical `Result` metrics for the fields both versions carry
+- Dual-version fixture replay (0.73.1 and 0.85.1) producing identical `Result` metrics for the fields both versions carry
 - Reasoning disjointness: `OutputTokens + ReasonTokens == usage.output`
 - Version-assertion mismatch produces an error naming both versions
 - Assistant `message_end` without `usage` → run fails with the distinct category, not a zero
@@ -326,7 +327,7 @@ Not strictly required (no `internal/parser|types|codegen` files), written anyway
 
 ## Non-Goals
 
-- **Chasing pi latest.** We pin 0.84.4, the version the rig has been running and the extension suite is written against. Later versions are a future runbook-driven upgrade.
+- **Chasing pi latest.** We pin 0.85.1 — the version the rig runs today (V10 of the child doc) — and stop there. Later versions are a future runbook-driven upgrade.
 - **Migrating opencode, codex, gemini, or claude.** Same good idea, separate change — the runbook is explicit that upgrades are one tool per session.
 - **Re-running the full benchmark ladder.** D2 chooses a comparator set precisely to avoid this.
 - **Rewriting the parser to be schema-generic.** The four fields we read are stable across eleven minors; a generic parser would trade a measured risk for an unmeasured one.

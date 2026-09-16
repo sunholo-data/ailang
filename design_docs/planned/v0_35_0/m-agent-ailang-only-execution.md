@@ -320,10 +320,10 @@ Realistic: 4 days assumes the parent has landed and the container extension prob
 | V7 | A Go admission gate exists and no policy-gated *run* exists | `ailang policy-check --help` → `-policy`; `ls internal/policy/` → `check.go policy.go`; `grep -n policy cmd/ailang/exec.go` → only routing policy | **Confirmed** both halves — negative existence for the run path |
 | V8 | `resident-run`'s caps list has drifted from the runtime's | `KNOWN_CAPS` = 10 (`resident-run:27`); `ailang run --help -caps` = 15 (`SharedMem, SharedIndex, Trace, DOM, Msg, Cog` missing) | **Confirmed** |
 | V9 | `AILANG_FS_SANDBOX` is a registered, live control | `internal/config/compiler.go:19`; `ailang sandbox-check` exists | **Confirmed** |
-| V10 | pi versions and the rig | `npm view … time`: 0.84.4 (08-28), 0.85.0 (09-04), 0.85.1 (09-05); rig `pi --version` = 0.85.1 | **Confirmed** — parent pins 0.84.4, rig is past it |
+| V10 | pi versions and the rig | `npm view … time`: 0.84.4 (08-28), 0.85.0 (09-04), 0.85.1 (09-05); rig `pi --version` = 0.85.1 | **Confirmed** — parent re-pinned to 0.85.1 on 2026-09-16 |
 | V11 | Existing rig containment contains `bash` rather than removing it | `tools/pi-extensions/README.md` table: `bash` → sandbox (Seatbelt); `write`/`edit` → `worktree-fence.ts` | **Confirmed** |
 | V12 | The eval pi lane runs with pi defaults | V3 + `agent_runner.go:67` is the Claude runner's list, not passed to `executor.Task` for pi | **Confirmed** |
-| V13 | Aitana's estate does not invoke `resident-run` by name | grep of the aitana/platform repo | **PENDING** — do before M5.1 |
+| V13 | Aitana's estate does not invoke `resident-run` by name | `grep -rln "resident-run\|PROGRAM_ALLOWLIST\|RESIDENT_TOOLS" ~/dev/aitana-labs ~/dev/sunholo-data/multivac-aitana` → one file, `platform/backend/adk/a2ui_resident_render.py:68`, an unrelated Python constant `RESIDENT_TOOLS = ("ask_assistant",)` | **Confirmed** — name collision only; A2A is the contract, as M-RESIDENT D2 says |
 | V14 | `policy.Check` lacks transitive import-effect closure | `grep -in "import\|transitive\|closure" internal/policy/check.go` → only the Go `import (` block; no module-import walk | **Confirmed** — negative existence; M2.2 is real work |
 
 ---
@@ -332,7 +332,7 @@ Realistic: 4 days assumes the parent has landed and the container extension prob
 
 **Triggers fired: 3 of 4** — (1) design-freeze items D1–D6; (2) overrides shared machinery — `Task.AllowedTools` semantics change for every executor (D7) and `resident-run` is deleted; (3) banked-data schema (`tool_policy`, `policy_digest`) and a new eval lane. Trigger 4 (external systems) is inherited from the parent (pi's flag semantics), already reviewed there.
 
-**Not yet run.** Before round 0: close V13 (one grep of the aitana repo), and settle the parent's version pin so V6 is a container measurement rather than a changelog citation. Reviewers as the parent used: `gpt5-6-sol`, `gemini-3-1-pro`, `oc-glm-5-2`.
+**Not yet run.** V13 closed and the parent pinned at 0.85.1 (2026-09-16); V6 becomes a container measurement in the parent's M4 probe. Reviewers as the parent used: `gpt5-6-sol`, `gemini-3-1-pro`, `oc-glm-5-2`.
 
 ---
 
