@@ -21,11 +21,41 @@ and **applied only in attended sessions**, one tool at a time, per this runbook.
 ## pi (`@earendil-works/pi-coding-agent`, npm global)
 
 The package **moved** from `@mariozechner/pi-coding-agent` (ends at 0.73.1) to
-`@earendil-works/pi-coding-agent` (0.84.x+). Upgraded 0.73.1 → 0.84.4 on 2026-08-31.
+`@earendil-works/pi-coding-agent` (0.84.x+).
 
-- Upgrade: `npm i -g @earendil-works/pi-coding-agent@<version>`
-- Rollback to pre-move: `npm rm -g @earendil-works/pi-coding-agent && npm i -g @mariozechner/pi-coding-agent@0.73.1`
-- Post-checks (all four, measured 2026-08-31):
+**The pin is `0.85.1`, in THREE places that a test holds equal** (M-PI-HARNESS-UPGRADE):
+`internal/executor/pi` `ExpectedVersion` (HealthCheck refuses a mismatch — every eval and
+mission dispatch runs it), and `ARG PI_VERSION` in `docker/Dockerfile.agent-pi`,
+`Dockerfile.agent-eval`, `docker/resident/Dockerfile` (the build asserts `pi --version`);
+`TestDockerfilesPinExpectedPiVersion` fails if they diverge. **An upgrade is therefore a
+code change, not an `npm i`**: bump all four together, re-capture the differential
+fixtures (`internal/executor/pi/testdata/v<version>/`, method: design doc M3.0 — the same
+two directives on both versions, diff the event/field sets), and only then move the rig.
+
+**Harness boundaries (eval rows must not pool across):**
+
+| Plane | Boundary | From → to | Rows carry `executor_version`? |
+|---|---|---|---|
+| rig | 2026-08-31 | 0.73.1 → 0.84.4 | no (field landed 2026-09-16) |
+| rig | ~2026-09-05 | 0.84.4 → 0.85.1 | no |
+| cloud (`agent-pi`, `agent-eval`, `resident-pi`) | 2026-09-16 | 0.73.1 → 0.85.1 | yes, from the first build after `5ef7a2b24` |
+
+The 0.73.1 → 0.84.4 rig boundary was sized after the fact from existing `os-rolling/v0.34.0`
+rows (same AILANG version, same model `pi-qwen3-8-27b`, 77 vs 241 rows, 26 shared benchmarks):
+**no benchmark got worse**; aggregate 91.9% → 99.1% but zero discordant pairs and the control
+arm above the 90% headroom ceiling, so `eval-paired` reports it as unresolvable rather than as
+a gain. The 0.84.4 → 0.85.1 step showed **no wire change** on any field the parser reads (V33)
+and is not separately measurable on the rig (it coincides with AILANG releases).
+
+- Upgrade: bump the four pins, re-capture fixtures, `go test ./internal/executor/pi/`, push (the
+  dev build asserts the pin and runs `docker/test-agent-pi.sh`), then `npm i -g
+  @earendil-works/pi-coding-agent@<version>` on the rig. Record the new boundary row above.
+- Rollback: reverse the same four pins; `npm i -g @earendil-works/pi-coding-agent@0.85.1`.
+  Rollback to the pre-move package is no longer supported — the parser now reads
+  `usage.reasoning` and `rawStopReason` and refuses a `message_end` without usage.
+- Post-checks (all four, re-measured 2026-09-16 on 0.85.1 — `quota_report` executed from a
+  clean `ailang pi install` with no trust file; the rig's OWN global dir was found holding 3 of
+  13 extensions, `ailang pi status` says `MISSING`, unresolved):
   1. Driver probe shape: `pi --mode json --no-session --no-tools --model
      ollama/glm-5.3-flash:cloud -p 'reply with exactly: ok'` → rc=0.
   2. Extension **execution** — NOT `pi list` (settings packages only) and NOT substring
