@@ -89,7 +89,7 @@ retained bytes within 1.5× of `eventSize` sum; `string<secret>` canary still 0 
   the `[]byte` path (bytes-typed params) keeps `ReadAll` (that copy IS the value). Handler test:
   50 MB upload, `HeapAlloc` delta < 60 MB.
 
-### M4 — Process controls + downstream (~150 LOC, 0.5 day)
+### M4 — Process controls + downstream (~150 LOC, 0.5 day) ✅ 2026-09-16 (downstream asks sent after commit; IDs in the design doc)
 
 - `--max-memory cgroup` literal and `AILANG_MEMLIMIT=cgroup` (registry): Linux cgroup v2
   `memory.max` (v1 `memory.limit_in_bytes`) × 0.9; `max`/unreadable → no limit, logged. Applied

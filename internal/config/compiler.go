@@ -29,6 +29,8 @@ const (
 	EnvNoVersionWarnings = "AILANG_NO_VERSION_WARNINGS"
 	EnvQuietWarnings     = "AILANG_QUIET_WARNINGS"
 	EnvGOGC              = "GOGC"
+	EnvMemLimit          = "AILANG_MEMLIMIT"
+	EnvGOMEMLIMIT        = "GOMEMLIMIT"
 )
 
 var compilerVars = []Var{
@@ -52,6 +54,8 @@ var compilerVars = []Var{
 	{EnvNoVersionWarnings, "", AreaCompiler, "Set to anything to suppress the stdlib version-mismatch warning."},
 	{EnvQuietWarnings, "", AreaCompiler, "Set by the CLI in JSON and quiet modes to suppress the stdlib version warning."},
 	{EnvGOGC, "", AreaCompiler, "Go's GC percent; when unset the run and exec commands raise it to 500 for a faster compile."},
+	{EnvGOMEMLIMIT, "", AreaCompiler, "Go's own soft memory limit, applied by the Go runtime itself; ailang only reports it (doctor memory). Prefer AILANG_MEMLIMIT, which also understands cgroup."},
+	{EnvMemLimit, "", AreaCompiler, "Go soft memory limit for run and serve-api: a size (256MB, 1GB) or the literal cgroup (the container's cgroup limit x 0.9); unset applies none, --max-memory overrides it, and a malformed value is an error. Best-effort GC tuning, not a hard bound."},
 }
 
 // NoPrelude reports AILANG_NO_PRELUDE=1.
@@ -140,6 +144,15 @@ func DumpSMT() bool { return get(EnvDumpSMT) != "" }
 func StdlibVersionWarningsSuppressed() bool {
 	return get(EnvNoVersionWarnings) != "" || get(EnvQuietWarnings) != ""
 }
+
+// MemLimit returns the raw AILANG_MEMLIMIT text; cmd/ailang resolves it.
+func MemLimit() string { return get(EnvMemLimit) }
+
+// GOMEMLIMIT returns Go's own GOMEMLIMIT text, "" when unset.
+func GOMEMLIMIT() string { return get(EnvGOMEMLIMIT) }
+
+// GOGC returns the raw GOGC text, "" when unset.
+func GOGC() string { return get(EnvGOGC) }
 
 // GOGCSet reports whether the operator set GOGC, in which case the CLI
 // leaves the GC percent alone.

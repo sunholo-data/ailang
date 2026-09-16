@@ -108,7 +108,7 @@ func runCommand() {
 	traceTierFlag := fs.String("trace-tier", "", "Tracing tier (off|standard|deep). Overrides AILANG_TRACE env var.")
 
 	// Memory limit flag (M-EVAL-BOUNDED-PIPELINE)
-	maxMemoryFlag := fs.String("max-memory", "", "Memory limit (e.g., 256MB, 1GB). Triggers aggressive GC near limit.")
+	maxMemoryFlag := fs.String("max-memory", "", "Go soft memory limit: a size (256MB, 1GB) or 'cgroup' (the container limit x 0.9). Unset = AILANG_MEMLIMIT, else none.")
 	fsMaxBytesFlag := fs.String("fs-max-bytes", "", "Cap on every FS read (e.g. 10MB); unset = AILANG_FS_MAX_BYTES, else unbounded. Oversize reads fail with E_FS_FILE_TOO_LARGE.")
 
 	// CPU/memory profiling
@@ -195,12 +195,10 @@ func runCommand() {
 	}
 
 	// Apply memory limit early (process-wide setting)
-	if *maxMemoryFlag != "" {
-		if err := applyMemoryLimit(*maxMemoryFlag); err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
-			fmt.Println("Examples: 256MB, 512MB, 1GB, 2GB")
-			os.Exit(1)
-		}
+	if _, err := applyResolvedMemoryLimit(*maxMemoryFlag, *quietFlag || *jsonFlag); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		fmt.Println("Examples: 256MB, 512MB, 1GB, 2GB, cgroup")
+		os.Exit(1)
 	}
 
 	// Check for filename argument
