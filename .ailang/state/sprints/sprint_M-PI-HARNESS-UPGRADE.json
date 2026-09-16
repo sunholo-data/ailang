@@ -81,9 +81,10 @@
         "Read-back of pushed config shows 0.85.1 for agent-pi, agent-pi-go, agent-eval, agent-eval-go, resident-pi (dev + prod)"
       ],
       "passes": null,
-      "started": null,
+      "started": "2026-09-16T06:44:27Z",
       "completed": null,
-      "notes": null
+      "notes": "Dockerfiles pinned+asserted; Node pinned by assertion (arch-specific deb suffix rules out apt =version); seam test Go<->Dockerfiles; docker/test-agent-pi.sh + hard-failing test-agent-pi Cloud Build step (model-free D7 sentinel pair, validated on rig 12/12); sandbox import renamed; quota_report execution probe green on 0.85.1. PENDING until Cloud Build runs: build assertions + registry read-back (no docker on the rig).",
+      "actual_loc": 190
     },
     {
       "id": "M5",

@@ -45,14 +45,15 @@ import { spawn } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { SandboxManager, type SandboxRuntimeConfig } from "@anthropic-ai/sandbox-runtime";
-// ADAPTED FOR pi 0.73.1 (@mariozechner/pi-coding-agent), 2026-08-11.
-// Upstream targets the renamed @earendil-works package. Two deltas, both forced:
-//   - package rename
-//   - CONFIG_DIR_NAME is NOT root-exported by 0.73.1 (only "." and "./hooks" are
-//     exported), so it is inlined below. Value read out of the installed
-//     dist/config.js: `pkg.piConfig?.configDir || ".pi"`.
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { type BashOperations, createBashTool, getAgentDir } from "@mariozechner/pi-coding-agent";
+// Imports VALUES (createBashTool, getAgentDir), so the package name must be the
+// one actually installed — type imports erase, value imports do not. Renamed to
+// @earendil-works in M-PI-HARNESS-UPGRADE M4 (the fleet pin is 0.85.1); it had
+// been adapted to the abandoned @mariozechner name on 2026-08-11 and was the one
+// real runtime break the upgrade's drift audit found (design doc V15).
+// CONFIG_DIR_NAME stays inlined: value read out of dist/config.js,
+// `pkg.piConfig?.configDir || ".pi"`.
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { type BashOperations, createBashTool, getAgentDir } from "@earendil-works/pi-coding-agent";
 
 const CONFIG_DIR_NAME = ".pi";
 
