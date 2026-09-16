@@ -58,7 +58,7 @@ Mutation: revert the `ops.go` site and assert the effect fixture's ratio test fa
 retained bytes within 1.5× of `eventSize` sum; `string<secret>` canary still 0 verbatim copies;
 `TestValueTruncationKeepsEveryEvent`, `TestRetentionCapKeepsTheTail`, `TestTierGovernsWhatIsRecorded` green.
 
-### M2 — Unbounded accumulators (~300 LOC, 1 day)
+### M2 — Unbounded accumulators (~300 LOC, 1 day) ✅ 2026-09-16
 
 - `DebugContext` gains `sink func(LogEntry)` and `minLevel int` via `SetSink(sink, minLevel)`.
   `Log` filters structured lines below `minLevel` on arrival; with a sink set it writes through

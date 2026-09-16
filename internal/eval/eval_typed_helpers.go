@@ -87,7 +87,7 @@ func (e *TypedEvaluator) recordTrace(app *typedast.TypedApp, fn Value, args []Va
 		Timestamp:   e.getTimestamp(),
 	}
 
-	e.trace.Entries = append(e.trace.Entries, entry)
+	e.trace.add(entry)
 }
 
 // getTimestamp returns current timestamp (virtual or real)

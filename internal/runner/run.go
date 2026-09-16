@@ -456,9 +456,13 @@ func runSingle(ctx context.Context, result pipeline.Result, opts Options, progra
 			return 1
 		}
 	}
-	if opts.DebugEffect {
-		effCtx.Debug = effects.NewDebugContext()
-	}
+	// Debug.log streams to stderr on arrival under --log-level
+	// (M-V1-MEMORY-FOOTPRINT M2, D-E): a logging loop no longer retains every
+	// line until the run ends, and a below-threshold line is dropped before it
+	// is stored. The final FlushDebugOutput stays as the no-sink fallback.
+	effCtx.Debug = effects.NewDebugContext()
+	effects.DebugSink{MinLevel: opts.DebugLogLevel}.Attach(effCtx.Debug) // W nil: current os.Stderr
+	_ = opts.DebugEffect                                                 // the context now always exists; the flag is kept for CLI compatibility
 
 	// M-VERIFY-CONTRACTS: Enable contract verification if requested
 	if opts.VerifyContracts {

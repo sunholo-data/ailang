@@ -195,6 +195,19 @@ func New(basePath string, cfg Config) *Server {
 			storedEffCtx = effCtx
 		}
 	}
+	// Debug.log streams to stderr as it arrives (M-V1-MEMORY-FOOTPRINT M2,
+	// D-E). Each request's Clone gets a Fresh context on the same sink, so
+	// concurrent requests neither share a buffer nor retain one.
+	if storedEffCtx != nil {
+		if storedEffCtx.Debug == nil {
+			storedEffCtx.Debug = effects.NewDebugContext()
+		}
+		effects.DebugSink{
+			Logf:       func(format string, args ...any) { log.Printf("[Debug] "+format, args...) },
+			MinLevel:   cfg.LogLevel,
+			Structured: true,
+		}.Attach(storedEffCtx.Debug) // W nil: the current os.Stderr at each write
+	}
 	maxUpload := cfg.MaxUploadSize
 	if maxUpload == 0 {
 		maxUpload = DefaultMaxUploadSize
@@ -305,11 +318,12 @@ func (s *Server) DroppedModules() []DroppedModule {
 	return out
 }
 
-// flushDebugOutput collects Debug ghost effect logs and prints them to stderr
-// via the shared effects.DebugSink, then resets the context for the next
-// request. Structured (JSON-object) lines and failed checks are written
-// verbatim as JSON so Cloud Logging lifts their severity; unstructured lines
-// keep the timestamped "[Debug] " decoration (M-DEBUG-SINK-STRUCTURED-LINES).
+// flushDebugOutput drains anything a Debug context still holds. With the sink
+// attached in New (M-V1-MEMORY-FOOTPRINT M2) lines stream on arrival and this
+// finds nothing; it remains for an effect context handed in without one.
+// Structured (JSON-object) lines and failed checks are written verbatim as
+// JSON so Cloud Logging lifts their severity; unstructured lines keep the
+// timestamped "[Debug] " decoration (M-DEBUG-SINK-STRUCTURED-LINES).
 func (s *Server) flushDebugOutput() {
 	if s.effCtx == nil {
 		return

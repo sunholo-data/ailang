@@ -660,6 +660,12 @@ func (ctx *EffContext) GetIOReader() *bufio.Reader {
 func (ctx *EffContext) Clone() interface{} {
 	clone := *ctx // shallow copy of config + shared references
 	clone.randMode = nil
+	// Debug output is per request: a shared accumulator interleaved every
+	// concurrent request's lines and was flushed by whichever finished first
+	// (M-V1-MEMORY-FOOTPRINT F6). The clone inherits the sink, not the buffer.
+	if ctx.Debug != nil {
+		clone.Debug = ctx.Debug.Fresh()
+	}
 	return &clone
 }
 

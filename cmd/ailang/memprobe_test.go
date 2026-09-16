@@ -53,6 +53,9 @@ func memprobeSetup(t *testing.T) (bin, dir string) {
 	dir = t.TempDir()
 	entries, _ := os.ReadDir(src)
 	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".ail") {
+			continue // `ailang check` leaves a .ailang/ state dir behind
+		}
 		b, err := os.ReadFile(filepath.Join(src, e.Name()))
 		if err != nil {
 			t.Fatal(err)
@@ -97,5 +100,38 @@ func TestMemprobeStandardTierEffectResultsAreBounded(t *testing.T) {
 	t.Logf("effect_result: untraced %d MB, standard+emit %d MB, ratio %.2f", untraced>>20, traced>>20, ratio)
 	if ratio > 1.10 {
 		t.Fatalf("standard-tier trace peak %.2fx untraced; want <= 1.10 (effect results must not be rendered in full)", ratio)
+	}
+}
+
+// Debug.log used to retain every line for the whole run and apply --log-level
+// only at the final flush (M-V1-MEMORY-FOOTPRINT F6). 200k structured DEBUG
+// lines below an ERROR threshold must now cost nothing: they are dropped on
+// arrival. The comparison is against the same program logging 1 line.
+func TestMemprobeDebugLogDoesNotAccumulate(t *testing.T) {
+	bin, dir := memprobeSetup(t)
+	src, err := os.ReadFile(filepath.Join(dir, "debuglog.ail"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	one := strings.Replace(string(src), "outer(400)", "outer(1)", 1)
+	if err := os.WriteFile(filepath.Join(dir, "debuglog_one.ail"), []byte(strings.Replace(one, "module debuglog", "module debuglog_one", 1)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// GOGC=100 so the comparison measures RETENTION, not how much garbage the
+	// CLI's default GOGC=500 lets pile up before a cycle (measured: 200k
+	// lines old binary +64 MB retained; new +12 MB of transient garbage).
+	env := []string{"AILANG_RELAX_MODULES=1", "AILANG_NO_TRACE=1", "GOGC=100"}
+	floor, _ := peakRSS(t, dir, env, bin, "run", "--entry", "main", "--caps", "IO,Debug", "--log-level", "error", "debuglog_one.ail")
+	many, out := peakRSS(t, dir, env, bin, "run", "--entry", "main", "--caps", "IO,Debug", "--log-level", "error", "debuglog.ail")
+	if !strings.Contains(out, "done") {
+		t.Fatalf("run did not finish: %s", out)
+	}
+	if strings.Contains(out, "tick") {
+		t.Fatalf("DEBUG lines leaked past --log-level error")
+	}
+	delta := (many - floor) >> 20
+	t.Logf("debuglog: 1 line %d MB, 200k lines %d MB, delta %d MB", floor>>20, many>>20, delta)
+	if delta > 30 {
+		t.Fatalf("200k filtered Debug.log lines grew RSS by %d MB; want <= 30 (lines must be dropped on arrival, not retained; the old binary measured +64)", delta)
 	}
 }

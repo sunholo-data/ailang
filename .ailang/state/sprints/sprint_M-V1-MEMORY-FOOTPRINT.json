@@ -45,10 +45,10 @@
         "hosts with no sink get identical Collect() output",
         "typed trace ring caps at DefaultMaxTypedTraceEntries with Dropped counter"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-16T19:55:39.997868+00:00",
+      "completed": "2026-09-16T19:55:39.997868+00:00",
+      "notes": "DebugSink.Attach + DebugContext sink/minLevel/Fresh; Clone gives per-request context; runner/batch/apiserver attach (W nil = current stderr); Severity single decode; typed trace ring 10k. Measured 200k lines +64->+11 MB, 2M lines 1.8GB->180MB. memprobe + apiserver concurrency tests."
     },
     {
       "id": "M3_INPUT_COPIES",
