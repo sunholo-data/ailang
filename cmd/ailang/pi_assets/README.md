@@ -88,6 +88,7 @@ human-owned release operations.
 | `unowned-dirty.ts` | Warns (never blocks) when a git add/stash/checkout may sweep dirty files this session didn't write — authority is `git status --porcelain` itself |
 | `builtin-sprint.ts` | `/builtin-finish`: golden refresh + **stdlib freeze** + verify + doctor + inventory count |
 | `provider-quota.ts` | `quota_report` tool + `/quota`: OpenRouter budget (CRITICAL ≥95%, WARN ≥80%), ollama status, current session lane — key never exposed |
+| `ailang-exec.ts` | `ailang_run({path, args_json?})` — the ONE execution route for an `ailang_only` agent: `ailang run --policy $AILANG_AGENT_POLICY <path>`; returns `{admitted, exit_code, decision, policy_digest, stdout, stderr}`. Default-deny: with `AILANG_AGENT_POLICY` unset (or the policy inside its own `fs_sandbox`, D4) the tool registers but REFUSES with a named reason. Pair with `ailang pi tool-profile ailang_only` (`--no-builtin-tools --tools read,edit,write,ailang_check,ailang_run`) so there is no `bash` to go around it (M-AGENT-AILANG-ONLY-EXECUTION) |
 | `ailang-lsp-lite.ts` | `ailang_check(path)` → structured {code,message,file,line,col,hint}; `builtins_search({query,module})` → filtered real inventory |
 | `prepush-gate.ts` | Blocks `git push` when gofmt, lint, or the repository file-size gate fails |
 | `ail-fmt-autolint.ts` | After a successful write/edit of a `.ail` file, runs `ailang fmt --write` so saved AILANG is canonically formatted (motoko-measured fmt arm) |

@@ -47,9 +47,11 @@ func ProfileTools(profile string) ([]string, error) { return executor.ProfileToo
 //
 //	nil            → nothing (pi defaults)
 //	[]             → --no-tools
-//	[A, B]         → --no-builtin-tools --tools a,b   (extension tools stay
-//	                 enabled by --no-builtin-tools; --tools then allowlists
-//	                 across builtin + extension + custom, pi ≥0.70 #3592)
+//	[A, B]         → [--no-extensions -e …] --no-builtin-tools --tools a,b
+//	                 (extension tools stay enabled by --no-builtin-tools;
+//	                 --tools then allowlists across builtin + extension +
+//	                 custom, pi ≥0.70 #3592; the -e flags appear only when
+//	                 the list names AilangRun/AilangCheck — profile_assets.go)
 //
 // Errors on a canonical name pi has no counterpart for.
 func ToolArgs(allowed []string) ([]string, error) {
@@ -67,7 +69,14 @@ func ToolArgs(allowed []string) ([]string, error) {
 		}
 		names = append(names, p)
 	}
-	return []string{"--no-builtin-tools", "--tools", strings.Join(names, ",")}, nil
+	// A list that names extension tools CARRIES them (profile_assets.go), so
+	// the lane does not depend on what the machine's global dir happens to hold.
+	ext, err := extensionArgs(allowed)
+	if err != nil {
+		return nil, err
+	}
+	args := append([]string{}, ext...)
+	return append(args, "--no-builtin-tools", "--tools", strings.Join(names, ",")), nil
 }
 
 // ProfileArgs is the ONE string for a profile's pi flags — printed by
