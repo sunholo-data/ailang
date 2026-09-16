@@ -2,7 +2,6 @@ package pi
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/sunholo-data/ailang/internal/executor"
 )
@@ -15,7 +14,7 @@ import (
 //	-p                 non-interactive (process prompt and exit)
 //	--model <prov/id>  model selection via provider-prefix shorthand
 //	--no-session       ephemeral run (avoids ~/.pi/sessions/ pollution)
-//	--no-tools         when AllowedTools is empty; otherwise --tools <list>
+//	--no-tools | --no-builtin-tools --tools <mapped>   from AllowedTools (toolnames.go)
 //	--thinking <lvl>   only when the registry declares reasoning_effort
 //
 // The directive is the trailing positional argument.
@@ -54,14 +53,12 @@ func buildPiArgs(model string, task *executor.Task, directive string) ([]string,
 	// Both flags or neither — see isolationArgs.
 	args = append(args, isolationArgs(task)...)
 
-	switch {
-	case task.AllowedTools == nil:
-		// nil = caller does not specify; let pi's defaults apply.
-	case len(task.AllowedTools) == 0:
-		args = append(args, "--no-tools")
-	default:
-		args = append(args, "--tools", strings.Join(task.AllowedTools, ","))
+	// Canonical → pi names, erroring on an unmapped one (toolnames.go, D7).
+	toolArgs, err := ToolArgs(task.AllowedTools)
+	if err != nil {
+		return nil, err
 	}
+	args = append(args, toolArgs...)
 
 	args = append(args, directive)
 	return args, nil

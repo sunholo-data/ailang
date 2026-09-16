@@ -29,6 +29,7 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
+	piexec "github.com/sunholo-data/ailang/internal/executor/pi"
 )
 
 //go:embed all:pi_assets
@@ -389,6 +390,19 @@ func piCommand() {
 		piUninstallCommand()
 	case "status":
 		piStatusCommand()
+	case "tool-profile":
+		// The ONE expansion of a tool_policy profile into pi flags, so
+		// docker/resident/lib/pi.mjs and shells read what pi.go uses.
+		if len(os.Args) < 4 {
+			fmt.Fprintln(os.Stderr, "usage: ailang pi tool-profile <full|ailang_only|Canonical,List>")
+			os.Exit(1)
+		}
+		args, err := piexec.ProfileArgs(os.Args[3])
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Println(args)
 	default:
 		fmt.Fprintf(os.Stderr, "unknown 'ailang pi' subcommand %q\n", os.Args[2])
 		piUsage()
@@ -406,4 +420,5 @@ func piUsage() {
 	fmt.Println("  install    Materialize the embedded extensions (idempotent, version-stamped)")
 	fmt.Println("  uninstall  Remove ailang-managed files (user files untouched)")
 	fmt.Println("  status     Per-file freshness vs this binary")
+	fmt.Println("  tool-profile <name>  Print the pi flags for a tool_policy profile (full | ailang_only | explicit list)")
 }

@@ -63,10 +63,11 @@
         "rig: bash-free run produces tool_execution_start ailang_run with admitted:true",
         "docker/test-agent-pi.sh gains the tool checks"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-16T07:20:53Z",
+      "completed": "2026-09-16T07:20:53Z",
+      "notes": "ailang-exec.ts (ailang_run; ailang_check already in ailang-lsp-lite) with default-deny gate + D4 check, 9 pure tests; synced to pi_assets; toolnames.go (profiles + D7 mapping, wired into buildPiArgs \u2014 brought forward from M4); ailang pi tool-profile; test-agent-pi.sh section 6 model-free (18/18 on rig). LIVE on rig 0.85.1: bash-free run write->ailang_check->ailang_run admitted exit 0; Net program denied policy_violation missing=[Net]; env unset -> named refusal.",
+      "actual_loc": 330
     },
     {
       "id": "M4",

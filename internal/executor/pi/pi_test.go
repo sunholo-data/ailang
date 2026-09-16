@@ -165,8 +165,12 @@ func TestBuildPiArgs_NoTools(t *testing.T) {
 }
 
 func TestBuildPiArgs_AllowedTools(t *testing.T) {
+	// AllowedTools is CANONICAL (Read/Write/…); pi gets the mapped lowercase
+	// names behind --no-builtin-tools --tools (D7, toolnames.go). Passing pi's
+	// own spellings through was the old contract and is gone: pi ignores
+	// unknown names silently, so a wrong-cased list ran with zero tools.
 	args, err := buildPiArgs("anthropic/claude-haiku-4-5",
-		&executor.Task{AllowedTools: []string{"read", "grep"}},
+		&executor.Task{AllowedTools: []string{"Read", "Edit"}},
 		"summarize")
 	if err != nil {
 		t.Fatalf("buildPiArgs: %v", err)
@@ -175,8 +179,11 @@ func TestBuildPiArgs_AllowedTools(t *testing.T) {
 	if idx < 0 || idx+1 >= len(args) {
 		t.Fatalf("expected --tools <list> in args, got %v", args)
 	}
-	if args[idx+1] != "read,grep" {
-		t.Errorf("--tools value = %q, want \"read,grep\"", args[idx+1])
+	if args[idx+1] != "read,edit" {
+		t.Errorf("--tools value = %q, want \"read,edit\"", args[idx+1])
+	}
+	if !contains(args, "--no-builtin-tools") {
+		t.Errorf("an explicit allowlist must also drop pi's builtin defaults, got %v", args)
 	}
 }
 

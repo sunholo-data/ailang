@@ -64,6 +64,24 @@ have "workspace sentinel did NOT run"  '[ ! -f "$OUT/workspace.marker" ]'
 have "no trust.json was needed"        '[ ! -f "$HOME/.pi/agent/trust.json" ]'
 have "pi failed on the MODEL, not earlier" 'grep -q "not found" "$OUT/err.txt"'
 
+echo "=== 6. ailang_run is present and default-deny (M-AGENT-AILANG-ONLY-EXECUTION) ==="
+have "ailang-exec.ts installed"           '[ -f "$EXT/ailang-exec.ts" ]'
+have "ailang pi tool-profile ailang_only" '[ "$(ailang pi tool-profile ailang_only)" = "--no-builtin-tools --tools read,edit,write,ailang_check,ailang_run" ]'
+# Model-free: the extension's gate is a pure function of the environment.
+# (capture-then-grep, never `cmd | grep -q` — see the pipefail note above)
+GATE_JS='import("'"$EXT"'/ailang-exec.ts").then(m => { const g = m.gateFromEnv(process.env); console.log(JSON.stringify(g)); })'
+POL="$(mktemp -d)"
+G_UNSET="$(env -u AILANG_AGENT_POLICY node --experimental-strip-types -e "$GATE_JS" 2>/dev/null || true)"
+printf 'allowed_caps = ["IO"]\nfs_sandbox = "%s"\nentry = "main"\n' "$POL" > "$POL/policy.toml"
+G_INSIDE="$(AILANG_AGENT_POLICY="$POL/policy.toml" node --experimental-strip-types -e "$GATE_JS" 2>/dev/null || true)"
+printf 'allowed_caps = ["IO"]\nfs_sandbox = "%s"\nentry = "main"\n' "$WS" > "$POL/policy.toml"
+G_OUTSIDE="$(AILANG_AGENT_POLICY="$POL/policy.toml" node --experimental-strip-types -e "$GATE_JS" 2>/dev/null || true)"
+RUN_HELP="$(ailang run --help 2>&1 || true)"
+have "no policy env -> refusal names AILANG_AGENT_POLICY" 'grep -q "AILANG_AGENT_POLICY is unset" <<<"$G_UNSET"'
+have "policy inside its own sandbox -> refused (D4)"      'grep -q "rewrite the policy" <<<"$G_INSIDE"'
+have "policy outside the sandbox -> granted"              'grep -q "\"refusal\":null" <<<"$G_OUTSIDE"'
+have "ailang run --policy exists"                         'grep -q -- "-policy string" <<<"$RUN_HELP"'
+
 echo
 echo "passed: $pass  failed: $fail"
 [ "$fail" -eq 0 ]
