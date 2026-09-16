@@ -1,0 +1,89 @@
+{
+  "sprint_id": "M-V1-MEMORY-FOOTPRINT",
+  "status": "not_started",
+  "created": "2026-09-16T19:13:56Z",
+  "design_doc": "design_docs/planned/v1_0_0/m-v1-memory-footprint.md",
+  "sprint_plan": "design_docs/planned/v1_0_0/m-v1-memory-footprint-sprint-plan.md",
+  "github_issues": [
+    617,
+    676
+  ],
+  "velocity": {
+    "target_loc_per_day": 300,
+    "estimated_total_loc": 1200,
+    "estimated_days": 4.5
+  },
+  "features": [
+    {
+      "id": "M1_BOUNDED_RENDER_HONEST_RETENTION",
+      "description": "eval.ShowBounded early-terminating renderer used at every trace render site (effects/ops.go, eval_operations.go x2, boundedShow); Collector.ValueBudget; idempotent truncate/redact markers; honest eventSize; DefaultMaxRetainedBytes 32 MB; record-update capacity hint",
+      "estimated_loc": 500,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "ShowBounded(v,n) == truncateValue(v.String(),n) for every container type at budgets 0/1/16/1024/unlimited",
+        "deep-trace cons probe peak RSS <= 1.25x untraced (memprobe_test, skipped under -short)",
+        "standard-tier effect probe with --emit-trace <= 1.05x untraced",
+        "eventSize >= unsafe.Sizeof floor; markers idempotent through record()",
+        "existing retention/tier tests green; secret canary 0 verbatim copies",
+        "mutation: reverting ops.go site fails the effect fixture"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_UNBOUNDED_ACCUMULATORS",
+      "description": "DebugContext sink + arrival-time level filter (Collect preserved for hosts); per-request DebugContext in serve-api; typed-evaluator trace ring",
+      "estimated_loc": 300,
+      "dependencies": [
+        "M1_BOUNDED_RENDER_HONEST_RETENTION"
+      ],
+      "acceptance_criteria": [
+        "1,000,000 Debug.log lines at --log-level ERROR: RSS within 10 MB of floor",
+        "two overlapping serve-api requests never see each other's Debug lines",
+        "hosts with no sink get identical Collect() output",
+        "typed trace ring caps at DefaultMaxTypedTraceEntries with Dropped counter"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_INPUT_COPIES",
+      "description": "EffEnv.FSMaxBytes with stat early-exit + post-read len>cap check -> E_FS_FILE_TOO_LARGE; --fs-max-bytes; serve-api sets cap to upload size; zip readEntry pre-sized; multipart MaxBytesReader + 4MB threshold + io.Copy to temp file",
+      "estimated_loc": 250,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "readFile above cap returns E_FS_FILE_TOO_LARGE; a file that grows past cap between stat and read is rejected, never truncated",
+        "CLI default unbounded; serve-api cap == upload cap",
+        "50 MB multipart upload: handler HeapAlloc delta < 60 MB",
+        "AILANG_FS_MAX_BYTES registered in internal/config"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_PROCESS_CONTROLS_DOWNSTREAM",
+      "description": "--max-memory cgroup / AILANG_MEMLIMIT=cgroup (opt-in, x0.9, max/unreadable -> none, logged); doctor line; debugging.md Memory section; changelog; downstream asks D1-D3 to ailang-parse",
+      "estimated_loc": 150,
+      "dependencies": [
+        "M3_INPUT_COPIES"
+      ],
+      "acceptance_criteria": [
+        "--max-memory cgroup applies SetMemoryLimit from memory.max; without the flag nothing applied",
+        "ailang doctor prints the resolved limit and its source",
+        "debugging.md Memory section lists every control",
+        "D1-D3 message IDs recorded in the design doc",
+        "make ci + make simplicity-audit green"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}

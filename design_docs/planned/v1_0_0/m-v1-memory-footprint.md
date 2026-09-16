@@ -1,6 +1,6 @@
 # M-V1-MEMORY-FOOTPRINT: Memory efficiency audit and fixes for v1.0.0
 
-**Status**: Planned — `needs-human-review` (audit COMPLETE 2026-09-16; quorum BLOCKED twice, every objection accepted and applied; the re-quorum-once guardrail is spent, so D-B..D-E and the round-2 fixes go to Mark for ratification — see [Quorum log](#quorum-log))
+**Status**: Planned — RATIFIED by Mark 2026-09-16 (attended: the four freeze items and the round-2 fixes were presented, ruling "great — sprint plan and execute"). Audit COMPLETE; quorum BLOCKED twice with every objection applied — see [Quorum log](#quorum-log). Sprint plan: `m-v1-memory-footprint-sprint-plan.md`.
 **Target**: v1.0.0
 **Priority**: P1 — a 1 GiB container OOMs on an 8.7 MB workbook; "logging on" multiplies peak RSS 5–20×
 **Estimated**: 4–5 days across three milestones in this repo, plus three downstream asks to ailang-parse
@@ -152,10 +152,10 @@ the program's own live data, and containers must run under a memory limit the Go
 
 Before implementation begins, these must be resolved:
 
-- [ ] D-B — retention default (32 MB proposed; the eval-harness deep-trace consumers must confirm they read the exporter stream, not the retained tail)
-- [ ] D-C — FS cap default (unbounded CLI / capped serve-api proposed)
-- [ ] D-D — cgroup-derived limit as opt-in `--max-memory cgroup` (proposed after round 2); Mark also decides whether `ailang-parse` and `docparse` Dockerfiles pass it
-- [ ] D-E — Debug.log streaming in CLI and serve-api (Collect preserved for hosts)
+- [x] D-B — retention default 32 MB (Mark 2026-09-16; exporters read the observer stream, which is unaffected)
+- [x] D-C — FS cap: unbounded CLI, serve-api sets it to its upload cap (Mark 2026-09-16)
+- [x] D-D — opt-in `--max-memory cgroup` (Mark 2026-09-16); the downstream Dockerfile lines go out as part of the D1–D3 messages
+- [x] D-E — Debug.log streams at log time in CLI and serve-api; Collect semantics preserved for hosts (Mark 2026-09-16)
 
 ## Solution Design
 
