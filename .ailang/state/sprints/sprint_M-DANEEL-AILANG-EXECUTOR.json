@@ -1,0 +1,133 @@
+{
+  "sprint_id": "M-DANEEL-AILANG-EXECUTOR",
+  "title": "Daneel AILANG executor with Gemini Google Search grounding",
+  "status": "planned",
+  "design_doc": "design_docs/planned/v0_39_1/m-daneel-ailang-executor.md",
+  "sprint_plan": "design_docs/planned/v0_39_1/m-daneel-ailang-executor-sprint-plan.md",
+  "github_issues": [1240],
+  "created_at": "2026-09-16",
+  "binding_decisions": [
+    "D1 summary tail plus transcript artifact",
+    "D2 caps IO FS Clock Net AI Process; git status/diff/log only; no Env; host-enumerated net; default CLI plus lock",
+    "D3 glm-5.3-flash executor model",
+    "D4 host dispatch only; malformed Request becomes BLOCKED"
+  ],
+  "velocity": {
+    "target_loc_per_day": 330,
+    "estimated_total_loc": 1650,
+    "estimated_days": 5,
+    "basis": "Shallow checkout prevented historical LOC/day calculation; design estimate extended for grounded search and release gate"
+  },
+  "features": [
+    {
+      "id": "M1_POLICY_AI_PROVIDER",
+      "description": "Bind Policy.AIProvider in run --policy and refuse every widening or inconsistent configuration",
+      "estimated_loc": 270,
+      "estimated_hours": 4,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "AI plus ai_provider=stub runs without --ai",
+        "--ai plus --policy is refused with a named error",
+        "AI without ai_provider and ai_provider without AI are refused",
+        "A per-call model cannot escape the policy-bound provider",
+        "Policy diagnostic records provider and digest"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_GEMINI_GROUNDED_SEARCH",
+      "description": "Add std/ai grounded search returning answer text and normalized sources through Gemini native google_search",
+      "estimated_loc": 600,
+      "estimated_hours": 12,
+      "dependencies": ["M1_POLICY_AI_PROVIDER"],
+      "acceptance_criteria": [
+        "Gemini request contains tools with native google_search block",
+        "Recorded sanitized fixture returns answer text and non-empty sources",
+        "Non-Gemini providers return typed CapabilityNotSupported",
+        "Ordinary call, callJson, and step wire requests remain unchanged",
+        "Runnable AILANG example checks and stdlib interface artifacts are frozen"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_BINARY_RELEASE_GATE",
+      "description": "Release M1 and M2 and verify the exact binary before multivac emits new configuration keys",
+      "estimated_loc": 40,
+      "estimated_hours": 4,
+      "dependencies": ["M2_GEMINI_GROUNDED_SEARCH"],
+      "acceptance_criteria": [
+        "Release CI and AILANG quality gates pass",
+        "Released binary reports expected version and recognizes every planned policy key",
+        "Smoke policy produces a non-empty digest without silent unknown-key loss",
+        "No multivac configuration is deployed before this gate passes"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_MULTIVAC_AGENT_POLICY_TEMPLATE",
+      "description": "Deploy the daneel-executor registry entry, ratified policy, and workspace task template through the fixed push trigger",
+      "estimated_loc": 260,
+      "estimated_hours": 8,
+      "dependencies": ["M3_BINARY_RELEASE_GATE"],
+      "acceptance_criteria": [
+        "net_allow is enumerated from Daneel host source and recorded",
+        "Effective caps include Process with only git status/diff/log and exclude Env",
+        "Full default cli_allow plus lock is effective",
+        "Executor model is glm-5.3-flash and grounded AILANG handler resolves to Gemini",
+        "Template deploys on push after trigger fix 57099e2 without image rebuild",
+        "Scratch path dependency lock and policy admission work in the real container"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M5_DANEEL_DISPATCH_SEARCH",
+      "description": "Implement Daneel host dispatch/completion consumption and ext/search with Authority caps AI and Net",
+      "estimated_loc": 390,
+      "estimated_hours": 8,
+      "dependencies": ["M4_MULTIVAC_AGENT_POLICY_TEMPLATE"],
+      "acceptance_criteria": [
+        "ailang prompt is consulted before editing AILANG files",
+        "ext/search Authority is exactly [AI, Net]",
+        "Capability dispatches a typed Request to only daneel-executor",
+        "Completion consumer parses ANSWER and mails success or structured blocked/failed reason",
+        "Malformed Request yields BLOCKED and absent ANSWER is never success",
+        "Package smokes and completion parser tests pass"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M6_END_TO_END_BOUNDARIES",
+      "description": "Prove the live Gemini-grounded first use, authority boundaries, no-rebuild behavior, and implementation record",
+      "estimated_loc": 90,
+      "estimated_hours": 4,
+      "dependencies": ["M5_DANEEL_DISPATCH_SEARCH"],
+      "acceptance_criteria": [
+        "Host-dispatched Google Search grounding returns answer text and sources through summary",
+        "Malformed Request is BLOCKED; Env, git push, arbitrary Process, and unlisted domains are refused",
+        "git status, git diff, and git log are admitted",
+        "Second task sees pushed template or ext change without image rebuild",
+        "Evidence records policy digest, model, sources, tokens, cost, release version, and exact net hosts",
+        "Stale no-Process statements in the design doc are corrected"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
