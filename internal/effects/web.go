@@ -218,4 +218,3 @@ func webPost(ctx *EffContext, b webBackend, op, url string, payload []byte) ([]b
 func makeResultOk(v eval.Value) eval.Value {
 	return &eval.TaggedValue{ModulePath: "std/result", TypeName: "Result", CtorName: "Ok", Fields: []eval.Value{v}}
 }
-
