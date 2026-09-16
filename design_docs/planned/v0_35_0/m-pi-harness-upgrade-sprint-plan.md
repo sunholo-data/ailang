@@ -28,7 +28,7 @@ Ordered so the instrument lands before the change it measures.
 4. Other executors: capture where the CLI reports a version cheaply (claude/codex/opencode `--version`); one line each, optional per the design doc's Deferred Decisions — do pi first, others if the pattern is uniform.
 **Accept**: a Result banked with no version reports absent (field omitted), not `""`; `TestHealthCheck_WithFakeBinary` proves the captured string equals the fake's output.
 
-### M2 — Fail loud on the drift that matters (~5h, ~140 LOC)
+### M2 — Fail loud on the drift that matters (~5h, ~140 LOC) ✅ 2026-09-16 (incl. M3.0 differential — V33)
 **Files**: `internal/executor/pi/pi.go`, `pi_test.go`, `health.go`, `scripts/mission_pi_run.sh`
 1. Expected-version assertion: `pi.ExpectedPackage = "@earendil-works/pi-coding-agent"`, `pi.ExpectedVersion = "0.85.1"`; `HealthCheck` errors naming both when they differ. Fix the install hint (still names `@mariozechner`).
 2. Unknown-event counter → `ProviderData["pi_unknown_events"] = {type: count}`.

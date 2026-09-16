@@ -40,7 +40,7 @@ func buildPiArgs(model string, task *executor.Task, directive string) ([]string,
 	// usage dump that reads like a harness bug.
 	if task.ReasoningEffort != "" {
 		if !validPiThinkingLevels[task.ReasoningEffort] {
-			return nil, fmt.Errorf("pi: invalid reasoning_effort %q (want one of off, minimal, low, medium, high, xhigh)", task.ReasoningEffort)
+			return nil, fmt.Errorf("pi: invalid reasoning_effort %q (want one of off, minimal, low, medium, high, xhigh, max)", task.ReasoningEffort)
 		}
 		args = append(args, "--thinking", task.ReasoningEffort)
 	}
@@ -72,5 +72,5 @@ func buildPiArgs(model string, task *executor.Task, directive string) ([]string,
 // models.yml value is always accepted; the extra two are pi-only.
 var validPiThinkingLevels = map[string]bool{
 	"off": true, "minimal": true, "low": true,
-	"medium": true, "high": true, "xhigh": true,
+	"medium": true, "high": true, "xhigh": true, "max": true,
 }

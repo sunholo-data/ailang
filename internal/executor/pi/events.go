@@ -73,8 +73,42 @@ type piEvent struct {
 	Result     *piToolResult   `json:"result,omitempty"`
 	IsError    bool            `json:"isError,omitempty"`
 
+	// auto_retry_start / auto_retry_end (pi >= 0.84)
+	Attempt     int  `json:"attempt,omitempty"`
+	MaxAttempts int  `json:"maxAttempts,omitempty"`
+	Success     bool `json:"success,omitempty"`
+
 	// Raw preserves full event for ProviderData (schema-drift tolerance).
 	Raw map[string]any `json:"-"`
+}
+
+// piRetries tallies pi's internal auto-retry loop (0.84+): bounded upstream by
+// maxRetries (default 3), announced on the wire as maxAttempts. A run that
+// reaches maxAttempts and then fails is a NAMED outcome, not a slow success.
+type piRetries struct {
+	Count       int
+	MaxAttempts int
+	Exhausted   bool
+}
+
+func (r *piRetries) observeStart(attempt, maxAttempts int) {
+	r.Count++
+	if maxAttempts > r.MaxAttempts {
+		r.MaxAttempts = maxAttempts
+	}
+}
+
+func (r *piRetries) observeEnd(attempt int, success bool) {
+	if !success && r.MaxAttempts > 0 && attempt >= r.MaxAttempts {
+		r.Exhausted = true
+	}
+}
+
+func (r *piRetries) providerData() map[string]any {
+	if r.Count == 0 {
+		return nil
+	}
+	return map[string]any{"count": r.Count, "max_attempts": r.MaxAttempts, "exhausted": r.Exhausted}
 }
 
 // parsePiEvent parses a single NDJSON line.
@@ -155,12 +189,25 @@ func normalizePiFinishReason(raw string) string {
 	}
 }
 
-// piProviderData wraps raw events as Result.ProviderData.
-func piProviderData(events []map[string]any) map[string]any {
-	if len(events) == 0 {
+// piProviderData wraps raw events as Result.ProviderData, plus the M2 drift
+// signals: pi_unknown_events {type: count}, pi_unparsed_lines and pi_retries, each only when
+// non-empty so a clean stream banks neither.
+func piProviderData(events []map[string]any, unknown map[string]int, unparsed int, retries *piRetries) map[string]any {
+	pd := map[string]any{}
+	if len(events) > 0 {
+		pd["pi_events"] = events
+	}
+	if len(unknown) > 0 {
+		pd["pi_unknown_events"] = unknown
+	}
+	if unparsed > 0 {
+		pd["pi_unparsed_lines"] = unparsed
+	}
+	if r := retries.providerData(); r != nil {
+		pd["pi_retries"] = r
+	}
+	if len(pd) == 0 {
 		return nil
 	}
-	return map[string]any{
-		"pi_events": events,
-	}
+	return pd
 }

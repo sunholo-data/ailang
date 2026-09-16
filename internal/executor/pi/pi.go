@@ -226,6 +226,15 @@ func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, 
 	var firstStreamEventAt time.Time
 	var costKilled bool
 
+	// M-PI-HARNESS-UPGRADE M2 (D4): drift is recorded or fatal, never silent.
+	// An unrecognised event TYPE is upstream adding a feature — counted and
+	// banked. A MISSING FIELD a banked metric depends on is our record being
+	// wrong — fatal, with the run named as wire_drift.
+	unknownEvents := map[string]int{}
+	unparsedLines := 0
+	var retries piRetries
+	var wireDriftErr string
+
 	go func() {
 		// executor.LineReader: a Scanner token cap turns one long line into a
 		// failed task. Rationale in internal/executor/linescan.go.
@@ -253,6 +262,10 @@ func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, 
 
 			ev, err := parsePiEvent(line)
 			if err != nil {
+				// Non-JSON preamble (a provider warning, a deprecation notice) is
+				// tolerated but COUNTED — banked as pi_unparsed_lines so a stream
+				// that is half noise is visible in the row, not just quietly thin.
+				unparsedLines++
 				continue
 			}
 
@@ -296,6 +309,18 @@ func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, 
 					}
 				}
 
+			case "agent_start", "message_start", "agent_settled":
+				// Known, no per-event work. agent_settled is the real "done"
+				// signal since 0.84; agent_end may carry willRetry=true.
+
+			case "auto_retry_start":
+				// pi retries a failed provider call internally (0.84+). Without
+				// this, wall-clock and cost inflate with no visible cause.
+				retries.observeStart(ev.Attempt, ev.MaxAttempts)
+
+			case "auto_retry_end":
+				retries.observeEnd(ev.Attempt, ev.Success)
+
 			case "tool_execution_start":
 				toolCallCount++
 				if ev.ToolName != "" {
@@ -309,8 +334,11 @@ func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, 
 					argsStr = "{}"
 				}
 				handler.OnToolUse(ev.ToolName, argsStr)
-				// M-EVAL-COST-AND-SPEED-BUDGETS: first Write/Edit = first solution attempt.
-				if firstAttemptMs < 0 && (ev.ToolName == "Write" || ev.ToolName == "Edit") {
+				// M-EVAL-COST-AND-SPEED-BUDGETS: first write/edit = first solution
+				// attempt. pi's builtin tools are LOWERCASE in every version; the
+				// capitalised comparison this replaced never matched, so this
+				// metric fell through to first-text on every pi run before M2.
+				if firstAttemptMs < 0 && (ev.ToolName == "write" || ev.ToolName == "edit") {
 					firstAttemptMs = time.Since(startTime).Milliseconds()
 				}
 
@@ -321,6 +349,11 @@ func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, 
 			case "message_end":
 				if ev.Message != nil && ev.Message.StopReason != "" {
 					lastStopReason = ev.Message.StopReason
+				}
+				// D4: an assistant message_end WITHOUT usage means the cost record
+				// for this run is wrong. Bank nothing silently — name it and fail.
+				if ev.Message != nil && ev.Message.Role == "assistant" && ev.Message.Usage == nil && wireDriftErr == "" {
+					wireDriftErr = "pi: message_end without usage on an assistant message — the banked token/cost record would be wrong (wire_drift; pinned " + ExpectedPackage + "@" + ExpectedVersion + ")"
 				}
 				// Per-turn deltas for assistant messages — sum into totals.
 				if ev.Message != nil && ev.Message.Role == "assistant" && ev.Message.Usage != nil {
@@ -368,6 +401,9 @@ func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, 
 			case "agent_end":
 				// Terminal — process will exit imminently. No per-event work
 				// needed; aggregation already done via message_end events.
+
+			default:
+				unknownEvents[ev.Type]++
 			}
 		}
 
@@ -426,7 +462,7 @@ func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, 
 					ToolCallCount:            toolCallCount,
 					ToolCalls:                toolCalls,
 					SessionID:                sessionID,
-					ProviderData:             piProviderData(rawEvents),
+					ProviderData:             piProviderData(rawEvents, unknownEvents, unparsedLines, &retries),
 					CostKilledAt:             task.Budget.KilledAt(),
 					FirstAttemptMs:           firstAttemptMs,
 					SuccessAtMs:              -1,
@@ -441,6 +477,13 @@ func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, 
 			finishReason := executor.FinishStop
 			if lastStopReason != "" {
 				finishReason = normalizePiFinishReason(lastStopReason)
+			}
+			errMsg := ""
+			if wireDriftErr != "" {
+				// D4: the model may have finished; the RECORD cannot be trusted.
+				success = false
+				finishReason = executor.FinishWireDrift
+				errMsg = wireDriftErr
 			}
 			if costKilled {
 				success = false
@@ -457,6 +500,7 @@ func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, 
 				FinishReason:             finishReason,
 				ThrashKilledAt:           thrashKilledAt,
 				Output:                   output,
+				Error:                    errMsg,
 				DurationMS:               int(duration.Milliseconds()),
 				InputTokens:              inputTokens,
 				OutputTokens:             outputTokens,
@@ -468,7 +512,7 @@ func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, 
 				ToolCallCount:            toolCallCount,
 				ToolCalls:                toolCalls,
 				SessionID:                sessionID,
-				ProviderData:             piProviderData(rawEvents),
+				ProviderData:             piProviderData(rawEvents, unknownEvents, unparsedLines, &retries),
 				CostKilledAt:             task.Budget.KilledAt(),
 				FirstAttemptMs:           firstAttemptMs,
 				SuccessAtMs:              -1,

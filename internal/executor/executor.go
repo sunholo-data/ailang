@@ -337,6 +337,11 @@ const (
 	// FinishError means the run terminated abnormally (non-zero exit, crash,
 	// cancellation).
 	FinishError = "error"
+	// FinishWireDrift means the harness CLI's wire format lacked a field a
+	// banked metric depends on (e.g. an assistant message_end with no usage).
+	// The run may have completed; its RECORD is untrustworthy, and a wrong
+	// number is worse than no number. M-PI-HARNESS-UPGRADE D4.
+	FinishWireDrift = "wire_drift"
 )
 
 // TokenUsage captures token metrics

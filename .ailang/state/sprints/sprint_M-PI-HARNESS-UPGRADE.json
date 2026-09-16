@@ -41,10 +41,11 @@
         "auto_retry_* banked as pi_retries {count,max_attempts,exhausted}",
         "first_attempt_ms fires on lowercase write/edit"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-16T06:33:09Z",
+      "completed": "2026-09-16T06:33:09Z",
+      "notes": "Version assertion in HealthCheck; pi_unknown_events + pi_unparsed_lines + pi_retries in ProviderData; missing-usage => FinishWireDrift/error_category wire_drift; max thinking level; lowercase write/edit; mission_pi_run.sh snapshot -> rolling window (awk truncate/refill proven). M3.0 differential done early: 0.85.1 == 0.84.4 table on every row (V33); D5 verified on real usage. check-pi-wire-budget INCONCLUSIVE (observatory ingest lag, probe ok) \u2014 re-run at M5.",
+      "actual_loc": 260
     },
     {
       "id": "M3",

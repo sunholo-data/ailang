@@ -636,13 +636,20 @@ func TestLiveRun_Pi(t *testing.T) {
 // executor without a real pi binary.
 func writeFakePi(t *testing.T, dir string, events []string) string {
 	t.Helper()
+	return writeFakePiVersion(t, dir, ExpectedVersion, events)
+}
+
+// writeFakePiVersion is writeFakePi with an explicit --version reply, for the
+// version-assertion tests (M-PI-HARNESS-UPGRADE M2).
+func writeFakePiVersion(t *testing.T, dir, version string, events []string) string {
+	t.Helper()
 	script := filepath.Join(dir, "pi")
 	var body strings.Builder
 	body.WriteString("#!/bin/sh\n")
 	body.WriteString(`
 case "$1" in
   --version)
-    echo "0.70.2"
+    echo "` + version + `"
     exit 0 ;;
 esac
 `)

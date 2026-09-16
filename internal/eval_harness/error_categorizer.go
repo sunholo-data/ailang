@@ -58,6 +58,8 @@ func CategorizeAgentError(err error, finishReason string) string {
 		return ErrorCategoryTimeout
 	case "thrash_aborted":
 		return ErrorCategoryThrashAborted // M-EVAL-OS-LONGITUDINAL Phase 1
+	case "wire_drift":
+		return ErrorCategoryWireDrift // M-PI-HARNESS-UPGRADE D4: the record is wrong, not the model
 	}
 
 	// Fallback: detect by error-message substring when finish_reason wasn't

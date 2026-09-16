@@ -15,8 +15,19 @@ func (e *PiExecutor) HealthCheck(ctx context.Context) error {
 			return fmt.Errorf("pi CLI not found: %w (install with: npm i -g %s@%s)", err, ExpectedPackage, ExpectedVersion)
 		}
 	}
-	_, err := e.probe.Raw(ctx)
-	return err
+	v, err := e.probe.Raw(ctx)
+	if err != nil {
+		return err
+	}
+	// M2: a mismatch is an ERROR naming both versions, not a warning. The
+	// parser and the extension suite are written against ExpectedVersion; a
+	// different pi keeps producing NDJSON that mostly parses, which is exactly
+	// the silent-drift shape this sprint exists to remove.
+	if v != ExpectedVersion {
+		return fmt.Errorf("pi version mismatch: expected %s@%s, running pi@%s (repin ExpectedVersion in internal/executor/pi after re-verifying the wire, or install the pinned version: npm i -g %s@%s)",
+			ExpectedPackage, ExpectedVersion, v, ExpectedPackage, ExpectedVersion)
+	}
+	return nil
 }
 
 // Version returns the harness identity as "pi@<version>", where <version> is

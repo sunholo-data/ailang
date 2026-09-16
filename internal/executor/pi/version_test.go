@@ -26,10 +26,10 @@ func TestVersion_CapturedFromBinary(t *testing.T) {
 	if err := e.HealthCheck(ctx); err != nil {
 		t.Fatalf("HealthCheck: %v", err)
 	}
-	// The fake prints "0.70.2"; the identity is <cli>@<observed version> — what
-	// the binary REPORTS, never what the build believed it installed.
-	if got := e.Version(ctx); got != "pi@0.70.2" {
-		t.Fatalf("Version() = %q, want %q", got, "pi@0.70.2")
+	// The identity is <cli>@<observed version> — what the binary REPORTS, never
+	// what the build believed it installed.
+	if got := e.Version(ctx); got != "pi@"+ExpectedVersion {
+		t.Fatalf("Version() = %q, want %q", got, "pi@"+ExpectedVersion)
 	}
 }
 
@@ -53,7 +53,7 @@ func TestExecuteStreaming_StampsExecutorVersion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ExecuteStreaming: %v", err)
 	}
-	if res.ExecutorVersion != "pi@0.70.2" {
-		t.Fatalf("Result.ExecutorVersion = %q, want pi@0.70.2", res.ExecutorVersion)
+	if res.ExecutorVersion != "pi@"+ExpectedVersion {
+		t.Fatalf("Result.ExecutorVersion = %q, want pi@%s", res.ExecutorVersion, ExpectedVersion)
 	}
 }

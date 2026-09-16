@@ -272,6 +272,13 @@ const (
 	// third-party upstreams do NOT enforce it (probed 2026-07-19, recorded on the
 	// or-glm-5-2 entry in models.yml). Output headroom is the only enforced lever.
 	ErrorCategoryReasoningStall = "reasoning_stall"
+
+	// ErrorCategoryWireDrift: the executor CLI's NDJSON lacked a field a banked
+	// metric depends on (executor.FinishWireDrift). The MODEL may have finished
+	// fine; the harness could not record it truthfully. Distinct from api_error
+	// (cause unknown) because the cause is known and is ours: a harness upgrade
+	// moved the wire. M-PI-HARNESS-UPGRADE D4.
+	ErrorCategoryWireDrift = "wire_drift"
 )
 
 // Passed reports whether this row is a benchmark PASS: the code compiled, ran
