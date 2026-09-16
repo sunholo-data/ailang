@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { composeEnvelope, fsSandboxOf, gateFromEnv, insideSandbox, lanePrompt, parsePolicyLine, policySummary } from "./ailang-exec.ts";
+import { composeEnvelope, fsSandboxOf, gateFromEnv, insideSandbox, lanePrompt, parsePolicyLine, policySummary, teachingPrompt } from "./ailang-exec.ts";
 
 test("gateFromEnv: unset env is default-deny with a readable reason", () => {
 	const g = gateFromEnv({});
@@ -89,4 +89,12 @@ test("lanePrompt: no policy says execution is not granted, still allows writing"
 	const text = lanePrompt(gateFromEnv({}));
 	assert.match(text, /NOT granted/);
 	assert.match(text, /write and type-check/);
+});
+
+test("teachingPrompt: reads the active prompt via the binary, empty (not a throw) when it fails", () => {
+	assert.equal(teachingPrompt(() => "# AILANG\nstuff\n"), "# AILANG\nstuff");
+	assert.equal(teachingPrompt(() => { throw new Error("no ailang"); }), "");
+	process.env.AILANG_LANE_TEACHING = "0";
+	assert.equal(teachingPrompt(() => "x"), "");
+	delete process.env.AILANG_LANE_TEACHING;
 });

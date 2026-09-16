@@ -17,7 +17,8 @@
  */
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { readFileSync } from "node:fs";
-import { dirname, resolve, sep } from "node:path";
+import { execFileSync } from "node:child_process";
+import { basename, dirname, resolve, sep } from "node:path";
 
 export const POLICY_ENV = "AILANG_AGENT_POLICY";
 
@@ -95,6 +96,7 @@ export function lanePrompt(gate: PolicyGate, read: (p: string) => string = (p) =
 		"## Execution lane: ailang_only",
 		"You have NO shell. Your tools are read, edit, write, ailang_check, ailang_run and builtins_search — nothing else. Use builtins_search({query}) to discover std functions (listDir, readFile, split, …) instead of guessing.",
 		"The ONLY way to execute anything is `ailang_run` on an AILANG (.ail) file you have written. Do not ask for bash, do not describe commands you would run, do not stop after reading: write the program, `ailang_check` it, then `ailang_run` it.",
+		"Module naming: a file named report.ail must start with `module report` (the bare file name — no directory prefix, no hyphens). ailang_run executes in the file's own directory, so file paths inside the program are relative to that directory.",
 		"Every effect a program uses must be declared in its entry function's effect row (`! {IO, FS}`); the typechecker enforces this through imports, and the gate admits the program only if the declared row is a subset of the policy below.",
 	];
 	if (gate.refusal || !gate.policyPath) {
@@ -111,6 +113,26 @@ export function lanePrompt(gate: PolicyGate, read: (p: string) => string = (p) =
 	else lines.push("There is no process/subprocess access.");
 	lines.push("A denial names `missing_from_policy`: narrow the program's effects instead of retrying the same thing. Programs are ordinary AILANG modules with `export func main() -> () ! {…}`; use std/fs, std/io, std/string for what you would have done with shell tools.");
 	return lines.join("\n");
+}
+
+/**
+ * The canonical AILANG teaching prompt (`ailang prompt`, the ACTIVE version —
+ * never a written-down copy), for the system role. An ailang_only agent has to
+ * write AILANG and nothing else, and on the coordinator/Jobs path nothing else
+ * teaches it: the eval harness folds this same prompt into every run, but a
+ * registry task carries only the repo's AGENTS.md. Measured 2026-09-16: without
+ * it a model rewrote a valid file into `import std/fs { listDir }`. ~23k tokens,
+ * provider-cached; empty string when `ailang prompt` fails (the tool still
+ * works, the model just guesses — the load log says so).
+ */
+export function teachingPrompt(run: (cmd: string, args: string[]) => string = (c, a) => execFileSync(c, a, { encoding: "utf8", maxBuffer: 4 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"] })): string {
+	if ((process.env.AILANG_LANE_TEACHING ?? "1") === "0") return "";
+	try {
+		return run("ailang", ["prompt"]).trim();
+	} catch (e) {
+		console.error(`ailang-exec: teaching prompt unavailable (${(e as Error).message}); the model will not be taught AILANG syntax`);
+		return "";
+	}
 }
 
 /** The `policy: {...}` admission line `ailang run --policy` prints on stderr. */
@@ -173,8 +195,12 @@ export default async function (pi: ExtensionAPI) {
 	// default pi model. The teaching prompt's shell recipes stay; this section
 	// says they do not apply here.
 	const lane = lanePrompt(gate);
+	// The teaching prompt goes in the SYSTEM role only (it is large); the lane
+	// section goes both ways because some routes drop the system role.
+	const teaching = gate.refusal ? "" : teachingPrompt();
+	const teachingSection = teaching ? `\n\n## AILANG language reference (canonical teaching prompt)\n\n${teaching}` : "";
 	pi.on("before_agent_start", async (ev) => ({
-		systemPrompt: `${ev.systemPrompt}\n\n${lane}`,
+		systemPrompt: `${ev.systemPrompt}\n\n${lane}${teachingSection}`,
 		message: { customType: "ailang-lane", content: lane, display: false },
 	}));
 
@@ -197,10 +223,16 @@ export default async function (pi: ExtensionAPI) {
 				const text = JSON.stringify({ admitted: false, refused: gate.refusal });
 				return { content: [{ type: "text", text }], details: { admitted: false, refused: gate.refusal } };
 			}
+			// Run IN the file's directory with the bare filename. ailang's module
+			// rule (MOD010) wants `module x` for x.ail relative to the cwd; an
+			// absolute path makes the canonical path the whole absolute prefix,
+			// and the first six Jobs tasks (2026-09-16) burned turns cycling
+			// through `module tmp/ailang-only/x`, `module x`, `module workspace/…`.
+			const abs = resolve(params.path);
 			const args = ["run", "--policy", gate.policyPath as string];
 			if (params.args_json) args.push("--args-json", params.args_json);
-			args.push(params.path);
-			const r = await pi.exec("ailang", args, { timeout: 120_000 });
+			args.push(basename(abs));
+			const r = await pi.exec("ailang", args, { timeout: 120_000, cwd: dirname(abs) });
 			const env = composeEnvelope(r.code ?? -1, r.stdout ?? "", r.stderr ?? "");
 			return { content: [{ type: "text", text: JSON.stringify(env) }], details: env };
 		},
