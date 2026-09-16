@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-V1-MEMORY-FOOTPRINT",
-  "status": "not_started",
+  "status": "in_progress",
   "created": "2026-09-16T19:13:56Z",
   "design_doc": "design_docs/planned/v1_0_0/m-v1-memory-footprint.md",
   "sprint_plan": "design_docs/planned/v1_0_0/m-v1-memory-footprint-sprint-plan.md",
@@ -27,10 +27,10 @@
         "existing retention/tier tests green; secret canary 0 verbatim copies",
         "mutation: reverting ops.go site fails the effect fixture"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-16T19:40:27.755001+00:00",
+      "completed": "2026-09-16T19:40:27.755001+00:00",
+      "notes": "ShowBounded + RenderedLen (eval/show_bounded.go); RenderTraceValue on EffContext + TraceRecorder; 5 render sites switched; idempotent markers; honest eventSize; 32 MB default; record-update hint. Measured deep 2759->814 MB on cons-9000 (1.06x); standard effect 1.14x->1.00x. memprobe_test pins ratios; mutation of ops.go fails at 1.39x."
     },
     {
       "id": "M2_UNBOUNDED_ACCUMULATORS",

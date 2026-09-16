@@ -690,6 +690,26 @@ func (ctx *EffContext) RecordsFunctionCalls() bool {
 	return ctx.Trace != nil && ctx.Trace.Enabled() && ctx.Trace.RecordsFunctionCalls()
 }
 
+// RenderTraceValue renders a value for the trace under the collector's value
+// policy: bounded to the per-value budget, or a byte-count descriptor in
+// redacted mode. The whole value is never materialised (M-V1-MEMORY-FOOTPRINT
+// M1) — this is the render every trace site must use in place of v.String().
+// With no collector it renders unbounded, which callers never reach because
+// they gate on HasTraceCollector first.
+func (ctx *EffContext) RenderTraceValue(v eval.Value) string {
+	if v == nil {
+		return ""
+	}
+	if ctx.Trace == nil {
+		return v.String()
+	}
+	budget, redacted := ctx.Trace.ValueBudget()
+	if redacted {
+		return trace.RedactedDescriptor(eval.RenderedLen(v))
+	}
+	return eval.ShowBounded(v, budget)
+}
+
 // RecordFunctionEnter delegates to trace collector if present.
 func (ctx *EffContext) RecordFunctionEnter(name string, args []string) {
 	if ctx.Trace != nil && ctx.Trace.Enabled() {

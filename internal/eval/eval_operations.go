@@ -124,7 +124,7 @@ func (e *CoreEvaluator) evalCoreApp(app *core.App) (retVal Value, err error) {
 		if recorder, ok := e.effContext.(TraceRecorder); ok && recorder.HasTraceCollector() && recorder.RecordsFunctionCalls() {
 			argStrs := make([]string, len(args))
 			for i, a := range args {
-				argStrs[i] = a.String()
+				argStrs[i] = recorder.RenderTraceValue(a)
 			}
 			recorder.RecordFunctionEnter(funcName, argStrs)
 		}
@@ -216,11 +216,7 @@ func (e *CoreEvaluator) evalCoreApp(app *core.App) (retVal Value, err error) {
 		// Tier-gated before rendering, for the same reason as the enter site above:
 		// result.String() on a returned accumulator is the other half of the O(n^2).
 		if recorder, ok := e.effContext.(TraceRecorder); ok && recorder.HasTraceCollector() && recorder.RecordsFunctionCalls() {
-			resultStr := ""
-			if result != nil {
-				resultStr = result.String()
-			}
-			recorder.RecordFunctionExit(funcName, resultStr)
+			recorder.RecordFunctionExit(funcName, recorder.RenderTraceValue(result))
 		}
 
 		// M-BUDGET-SCOPING-BUG: budget scope exit (frame pop + @min check) is

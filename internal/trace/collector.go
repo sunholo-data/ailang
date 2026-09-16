@@ -98,6 +98,19 @@ func (c *Collector) RecordsFunctionCalls() bool {
 	return c.tier >= TierDeep
 }
 
+// ValueBudget tells a render site how to render a value BEFORE recording it:
+// redacted means "record only the byte count" (see RedactedDescriptor), else
+// maxBytes is the per-value budget for eval.ShowBounded (<= 0 = unbounded).
+//
+// This exists because bounding inside the collector fixes retention but not
+// peak: by the time boundValues ran, the site had already materialised the
+// whole value. record() still applies boundValues as a backstop for sites
+// that pass raw strings; both markers are idempotent so a pre-bounded value
+// passes through unchanged (M-V1-MEMORY-FOOTPRINT M1).
+func (c *Collector) ValueBudget() (maxBytes int, redacted bool) {
+	return c.maxValueBytes, c.valueMode == ValuesRedacted
+}
+
 // generateID returns a random hex string of the given byte length (2*n hex chars).
 func generateID(n int) string {
 	b := make([]byte, n)
