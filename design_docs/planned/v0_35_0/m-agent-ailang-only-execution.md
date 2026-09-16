@@ -161,7 +161,7 @@ ailang run --policy P
 
 **M2: One gate** (~1 day)
 1. `ailang run --policy`: wire `internal/policy.Check` ahead of execution; derive caps/sandbox/budgets from the policy; `--json` emits the `program-result` shape. Refuse `--policy` combined with `--caps` (the agent must not be able to widen).
-2. Close the spike's listed gap: transitive import-effect closure in `Check`, with a test where the entry row is clean and an imported module declares `Net`.
+2. ~~Close the spike's listed gap: transitive import-effect closure~~ **Not needed (V14 refuted)** — pin the property with a test: entry row clean, imported module declares `Net` → `typecheck_failed` through `run --policy`.
 3. Verify the `error_kind` enum is exhaustive against `ailang run -caps`'s 15 capabilities — the V8 drift must not recur inside the Go side either; derive the list from one table.
 4. Map `error_kind` → executor `error_category` (new named categories; none reuse `api_error`).
 
@@ -324,7 +324,7 @@ Realistic: 4 days assumes the parent has landed and the container extension prob
 | V11 | Existing rig containment contains `bash` rather than removing it | `tools/pi-extensions/README.md` table: `bash` → sandbox (Seatbelt); `write`/`edit` → `worktree-fence.ts` | **Confirmed** |
 | V12 | The eval pi lane runs with pi defaults | V3 + `agent_runner.go:67` is the Claude runner's list, not passed to `executor.Task` for pi | **Confirmed** |
 | V13 | Aitana's estate does not invoke `resident-run` by name | `grep -rln "resident-run\|PROGRAM_ALLOWLIST\|RESIDENT_TOOLS" ~/dev/aitana-labs ~/dev/sunholo-data/multivac-aitana` → one file, `platform/backend/adk/a2ui_resident_render.py:68`, an unrelated Python constant `RESIDENT_TOOLS = ("ask_assistant",)` | **Confirmed** — name collision only; A2A is the contract, as M-RESIDENT D2 says |
-| V14 | `policy.Check` lacks transitive import-effect closure | `grep -in "import\|transitive\|closure" internal/policy/check.go` → only the Go `import (` block; no module-import walk | **Confirmed** — negative existence; M2.2 is real work |
+| V14 | `policy.Check` lacks transitive import-effect closure | grep shows no import walk in `check.go` — but the walk is unnecessary: a clean-row `main` calling an imported `! {Net}` function is rejected by the **typechecker** (`ailang check` rc=1 "Missing effects: Net"; `policy-check` → `typecheck_failed`, measured 2026-09-16 with a two-module fixture) | **REFUTED as work** — transitive effects are enforced by construction; M2 pins the property with a test instead of adding a walk |
 
 ---
 
@@ -355,6 +355,7 @@ Realistic: 4 days assumes the parent has landed and the container extension prob
 ## Future Work
 
 - M-AGENT-SAFE-RUNNER M3: submission over the message bus, so the gate runs in a different process from the agent
+- **Policy `[budgets]` enforcement at run time** — budgets are source-annotation-driven today (`internal/effects/budget_frame.go`); `run --policy` refuses a policy that declares them rather than silently not enforcing
 - Equivalent profiles for opencode/codex once their tool vocabularies are measured
 - A `question` profile (`read` + `ailang_check` only) for the coordinator's question-kind tasks, replacing the ad-hoc list
 - Per-user policy files on the resident once D11 isolation lands

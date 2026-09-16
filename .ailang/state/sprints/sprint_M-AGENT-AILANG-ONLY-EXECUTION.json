@@ -1,0 +1,106 @@
+{
+  "sprint_id": "M-AGENT-AILANG-ONLY-EXECUTION",
+  "status": "not_started",
+  "created": "2026-09-16T07:09:22Z",
+  "design_doc": "design_docs/planned/v0_35_0/m-agent-ailang-only-execution.md",
+  "sprint_plan": "design_docs/planned/v0_35_0/m-agent-ailang-only-execution-sprint-plan.md",
+  "github_issues": [],
+  "velocity": {
+    "target_loc_per_day": 180,
+    "estimated_total_loc": 740,
+    "estimated_days": 4
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Bank the effective tool policy and policy digest on every agent-mode row (Result -> AgentBenchmarkResult -> RunMetrics), absent => unmeasured",
+      "estimated_loc": 70,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "nil AllowedTools banks the sentinel [\"<pi default>\"], not []",
+        "explicit list banks verbatim; empty digest omitted",
+        "fields plumbed with omitempty and doc comments"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "ailang run --policy: admission via the shared policy-check path, caps/net/sandbox derived from the policy, refuses --caps/--no-budgets/[budgets], --json program-result shape, error_kind -> error_category",
+      "estimated_loc": 180,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "lying entry (clean row, imported Net) -> typecheck_failed through run --policy",
+        "allowed_caps=[] refuses a !{IO} program with policy_violation and no execution",
+        "--policy + --caps exits 1 naming the conflict; a policy with [budgets] is refused",
+        "admitted !{IO} program runs; stdout in the JSON result",
+        "caps table shared with runner.CapsList (drift test)",
+        "policy_violation error_category verified unallocated"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "pi extension ailang-exec.ts (ailang_run, ailang_check) in the embedded suite; default-deny with a named refusal; ailang pi tool-profile; container probe",
+      "estimated_loc": 150,
+      "dependencies": [
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "extension in .pi/extensions and cmd/ailang/pi_assets (make verify-pi-assets clean)",
+        "no AILANG_AGENT_POLICY -> ailang_run refuses with a named reason",
+        "policy whose fs_sandbox contains the policy dir -> refused at load (D4)",
+        "ailang pi tool-profile ailang_only prints the flag expansion",
+        "rig: bash-free run produces tool_execution_start ailang_run with admitted:true",
+        "docker/test-agent-pi.sh gains the tool checks"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4",
+      "description": "Registry tool_policy field resolved into Task.AllowedTools; D7 canonical->pi tool-name mapping that errors on unmapped names; coordinator agents shows declared vs effective; question-kind list made pi-valid",
+      "estimated_loc": 140,
+      "dependencies": [
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "ailang_only expands to --no-builtin-tools --tools read,edit,write,ailang_check,ailang_run and never emits bash",
+        "unmapped canonical name errors naming it (Grep/Glob/WebFetch/WebSearch on pi)",
+        "question-kind tasks resolve to a pi-valid list",
+        "ailang coordinator agents <id> shows tool_policy declared vs effective, default full"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M5",
+      "description": "Resident cutover (delete resident-run; pi.mjs default ailang_only; test-image.sh; resident-instance.sh --policy-file; redeploy + verify), eval-suite --tool-policy lane, boundary note, comparator",
+      "estimated_loc": 200,
+      "dependencies": [
+        "M4"
+      ],
+      "acceptance_criteria": [
+        "resident-run and allowlist.example.json deleted; test-image.sh section 4 targets ailang run --policy",
+        "resident-pi-ailang redeployed with a policy; verify: bash refused, admitted .ail runs",
+        "eval-suite --tool-policy ailang_only banks tool_policy on pi rows",
+        "boundary note in runbook/charter/memory before the first banked row; comparator via eval-paired committed"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
