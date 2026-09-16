@@ -372,6 +372,7 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 			failed.NumTurns = result.NumTurns
 			failed.ToolCallCount = result.ToolCallCount
 			failed.Error = result.Error
+			withProvenance(failed, result)
 		}
 		return failed, fmt.Errorf("execution failed: %w", err)
 	}
@@ -436,16 +437,19 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 
 	// diagnosticsOnly carries the session log out ALONGSIDE an error return so
 	// the caller can still bank the transcript of a run that produced no usable
-	// measurement. Every other field is deliberately zero: this value is NOT a
-	// result and must never be counted as one.
+	// measurement. Every MEASUREMENT field is deliberately zero: this value is
+	// NOT a result and must never be counted as one. PROVENANCE is kept —
+	// which harness version and tool lane the failure happened on is exactly
+	// what a diagnostic row is for (the 2026-09-16 A/B banked its first
+	// failure with executor_version and tool_policy both null).
 	diagnosticsOnly := func() *AgentBenchmarkResult {
-		return &AgentBenchmarkResult{
+		return withProvenance(&AgentBenchmarkResult{
 			BenchmarkID:      spec.ID,
 			Executor:         executorName,
 			SessionID:        result.SessionID,
 			SessionJSONLPath: sessionJSONLPath,
 			Browser:          browserManifest,
-		}
+		}, result)
 	}
 
 	// Check for executor-level failure (crash, timeout, non-zero exit).
@@ -788,4 +792,20 @@ func tokenUsageFromResult(result *executor.Result) TokenUsage {
 		CacheReadInputTokens:     result.CacheReadInputTokens,
 		CacheCreationInputTokens: result.CacheCreationInputTokens,
 	}
+}
+
+// withProvenance copies the fields that say WHICH harness and lane a run
+// happened on — executor version, effective tool policy, policy digest — onto
+// a row. Provenance is not a measurement, so it belongs on failed and
+// diagnostic rows too: a failure that cannot be attributed to a harness
+// version or a tool lane is the un-annotated boundary this repo keeps paying
+// for. Safe on a nil result.
+func withProvenance(row *AgentBenchmarkResult, res *executor.Result) *AgentBenchmarkResult {
+	if res == nil {
+		return row
+	}
+	row.ExecutorVersion = res.ExecutorVersion
+	row.ToolPolicy = res.ToolPolicy
+	row.PolicyDigest = res.PolicyDigest
+	return row
 }
