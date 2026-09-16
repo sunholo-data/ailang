@@ -1,6 +1,6 @@
 # M-V1-MEMORY-FOOTPRINT: Memory efficiency audit and fixes for v1.0.0
 
-**Status**: Planned — RATIFIED by Mark 2026-09-16 (attended: the four freeze items and the round-2 fixes were presented, ruling "great — sprint plan and execute"). Audit COMPLETE; quorum BLOCKED twice with every objection applied — see [Quorum log](#quorum-log). Sprint plan: `m-v1-memory-footprint-sprint-plan.md`.
+**Status**: IMPLEMENTED
 **Target**: v1.0.0
 **Priority**: P1 — a 1 GiB container OOMs on an 8.7 MB workbook; "logging on" multiplies peak RSS 5–20×
 **Estimated**: 4–5 days across three milestones in this repo, plus three downstream asks to ailang-parse
@@ -231,7 +231,7 @@ docs.
 
 **Downstream asks (sent as `ailang messages send` to the ailang-parse inbox, not implemented here)**
 - D1: `markdown_writer.ail:46,273` `foldl` string accumulators → `join("", map(...))` (`std/string.join` verified V4). Removes the O(n²) and the deep-trace multiplier at once.
-- D2: `xlsx_parser.ail:470-484` accumulator recursion + route worksheets through `scanFoldStep` so no sheet XML string is materialised; drop the `sanitizeXml` copy.
+- D2: `xlsx_parser.ail:470-484` — parse each sheet inside a function the loop **calls** (`foldlE`/`mapE`), not a tail-recursive rewrite (V23: AILANG recursion retains every frame's bindings until it unwinds, so tail form frees nothing); route worksheets through `scanFoldStep`; drop the `sanitizeXml` copy.
 - D3: images to temp files with a path in the block; base64 on demand; per-document image-bytes cap.
 - Both Dockerfiles: add `--max-memory` (or rely on M4's cgroup detection once released).
 
@@ -342,7 +342,7 @@ readFile("big.xml")
 - [ ] Mutation tests: reverting `ops.go` fails the effect fixture; reverting `eventSize` fails the retention ratio test
 - [ ] `make test-core`, `make ci`, `make simplicity-audit` green (two new env vars registered in `internal/config`)
 - [ ] Documentation updated (`debugging.md` Memory section; changelog)
-- [ ] Downstream asks D1–D3 sent with message IDs recorded here
+- [x] Downstream asks D1–D3 sent 2026-09-16 to `pkg:sunholo/ailang_parse` (canonical store): D1 `inbox_1789590140354_20306541`, D2 `inbox_1789590142122_e881c3aa`, D3 `inbox_1789590143755_f84d120c`
 
 ## Testing Strategy
 
@@ -414,6 +414,7 @@ readFile("big.xml")
 | V20 | F10: `_zip_readEntry` reads with `io.ReadAll` (doubling growth, no pre-size) then `string(data)` | read `internal/builtins/zip.go:559-579` (`io.ReadAll(limited)` at :573) and `:199-200` (`string(data)`) | confirmed; `f.UncompressedSize64` is checked at :561 but never used to size the buffer |
 | V21 | F16: closures capture the whole `Environment`; each child env allocates a map and carries a `sync.RWMutex` | read `internal/eval/eval_expressions.go:178-185` (`Env: env`), `env.go:10-14` (struct: `mu sync.RWMutex; values map[string]Value; parent *Environment`), `env.go:24-30` (`NewChildEnvironment`: `make(map[string]Value)`, no hint) | confirmed; no free-variable analysis exists (`grep -rn "freeVars\|FreeVars" internal/eval` → empty) |
 | V22 | F17: `MapValue.Insert` copies the whole map but pre-sizes; record update copies without a hint | read `internal/eval/value.go:213-221` (`make(map[string]*MapEntry, len(m.Entries)+1)`), `eval_expressions.go:411` (`make(map[string]Value)`) | confirmed; F17 wording corrected (Insert does hint) |
+| V23 | **Found during M1 (2026-09-16):** a recursive loop keeps every frame's `let`/`match` bindings live until the whole recursion unwinds (no TCO), so per-item data accumulates even in "tail" form | 40 × `readFileResult` of a 20 MB file: hand-written recursive loop 870 MB peak (`--max-memory 64MB` no effect: live); the same via `foldlE(step, …)` with the read inside `step` 212 MB | confirmed; corrects downstream ask D2 (tail-recursion would not help) and is written into `debugging.md#memory` |
 
 **Quorum triggers:** trigger 1 fires (four design-freeze items) and trigger 2 fires (D-B overrides
 the shared trace retention default). Both rounds run; see the log below.
@@ -458,6 +459,40 @@ ratification of D-B..D-E plus the three round-2 fixes rather than grinding a thi
 - Persistent map for `MapValue`/records (F17).
 - Reducing Go stack per AILANG frame (fewer `defer`s per call; measured ≈ 6–7 KB/frame) — or TCO, which M-LIST-CONS-QUADRATIC's successor may bring.
 - Extend the RSS watchdog pattern to `serve-api` per request.
+
+## Implementation Report (2026-09-16)
+
+All four milestones landed on `dev` the same day, attended, in four commits
+(`ca61a685d` M1, `2491ab45e` M2, `8c079b659` M3, `1eca5d4bd` M4). Every measurement below is
+`/usr/bin/time -l` peak RSS on the rig; every ratio is pinned by a test that runs in `make test`.
+
+| Goal | Before | After | Pinned by |
+|---|---|---|---|
+| Deep trace of cons recursion (depth 9,000) vs untraced | 2,759 MB vs 769 (3.6×) | 814 MB (1.06×) | `TestMemprobeDeepTraceIsBoundedOnConsRecursion` ≤ 1.25 |
+| Standard tier + `--emit-trace`, 40 × `readFileResult` of 20 MB | 1.14× untraced | 1.00× | `TestMemprobeStandardTierEffectResultsAreBounded` ≤ 1.10 (mutation of `ops.go`: 1.39×) |
+| 200k `Debug.log` lines at `--log-level error` (GOGC=100) | +64 MB retained | +11 MB transient | `TestMemprobeDebugLogDoesNotAccumulate` ≤ 30 |
+| 2M `Debug.log` lines | 1.8 GB | 180 MB | (manual) |
+| 48 MB multipart upload to a string param | 126 MB allocated | 16 MB, flat | `TestMultipartStringParamStreamsToTempFile` (mutation: 126 MB) |
+| serve-api concurrent `Debug.log` | shared buffer | per-request | `TestServeAPI_ConcurrentRequestsKeepTheirOwnDebugLines` |
+| `--max-memory cgroup` | — | opt-in, ×0.9, none on `max`/missing | `TestResolveMemoryLimitPrecedence` + cgroup file tests |
+
+**Deviations from the plan.** (1) The memprobe tests gate on `testutil.SkipInFastLoop`, not
+`testing.Short` — gatelint R1 forbids the latter as inert in CI. (2) `Severity` is now a single
+`json.Decoder` pass; the sink resolves `os.Stderr` at write time so a host that swaps stderr
+after start-up is honoured. (3) `applyMemoryLimit` was deleted (superseded by
+`applyResolvedMemoryLimit`; its only test covered the parser, which stays). (4) The typed-trace
+ring evicts half at the cap (amortised O(1)) rather than one per append.
+
+**Found on the way (V23).** AILANG recursion keeps every frame's bindings live until the whole
+recursion unwinds, so a "tail-recursive" per-item loop does not free per-item data. The fix is
+structural in the program — do the per-item work in a function the loop calls (`foldlE`,
+`mapE`) — and it corrected downstream ask D2. It is now in `debugging.md#memory`.
+
+**Not done here, by design.** F1 (cons cells / TCO) stays with M-LIST-CONS-QUADRATIC; F13 (a
+string builder value) and F16 (closure capture, per-call mutex) are Future Work; `MEM001` is
+M-MEM-BUDGET-RUNTIME. The `simplicity-audit` `tracked_files` gate is red today (+141) from the
+day's releases by other sessions; this sprint's share is 15 files, all tests, fixtures and two
+source files.
 
 ---
 

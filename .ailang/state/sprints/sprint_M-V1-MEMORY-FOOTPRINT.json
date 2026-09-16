@@ -2,8 +2,8 @@
   "sprint_id": "M-V1-MEMORY-FOOTPRINT",
   "status": "completed",
   "created": "2026-09-16T19:13:56Z",
-  "design_doc": "design_docs/planned/v1_0_0/m-v1-memory-footprint.md",
-  "sprint_plan": "design_docs/planned/v1_0_0/m-v1-memory-footprint-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v1_0_0/m-v1-memory-footprint.md",
+  "sprint_plan": "design_docs/implemented/v1_0_0/m-v1-memory-footprint-sprint-plan.md",
   "github_issues": [
     617,
     676
@@ -85,5 +85,6 @@
       "completed": "2026-09-16T20:20:58.564641+00:00",
       "notes": "resolveMemoryLimit: --max-memory <size|cgroup> / AILANG_MEMLIMIT, opt-in, x0.9, max/sentinel/missing = none (logged); applied in run + serve-api; doctor memory; debugging.md Memory section; help + env page. Downstream asks D1-D3: see design doc. simplicity-audit: tracked_files +141 is repo-wide today (releases v0.39.2/3 by other sessions), getenv/env-doc gates green."
     }
-  ]
+  ],
+  "completed": "2026-09-16T20:22:40Z"
 }
