@@ -1,6 +1,6 @@
 # M-V1-MEMORY-FOOTPRINT: Memory efficiency audit and fixes for v1.0.0
 
-**Status**: Planned (audit COMPLETE 2026-09-16; fixes unstarted)
+**Status**: Planned — `needs-human-review` (audit COMPLETE 2026-09-16; quorum BLOCKED twice, every objection accepted and applied; the re-quorum-once guardrail is spent, so D-B..D-E and the round-2 fixes go to Mark for ratification — see [Quorum log](#quorum-log))
 **Target**: v1.0.0
 **Priority**: P1 — a 1 GiB container OOMs on an 8.7 MB workbook; "logging on" multiplies peak RSS 5–20×
 **Estimated**: 4–5 days across three milestones in this repo, plus three downstream asks to ailang-parse
@@ -20,7 +20,7 @@ installed `ailang v0.39.2-dirty`; measurements are peak RSS from `/usr/bin/time 
 | A1: Determinism | 0 | No evaluation-order or value change. Caps produce typed errors at deterministic byte counts; the cgroup-derived GC limit is a host-boundary control like `--timeout` (A12), not a semantic. |
 | A2: Replayability | 0 | Trace events keep their schema; values were already truncated to 1 KB after rendering, so a bounded renderer yields byte-identical retained events. |
 | A3: Effect Legibility | 0 | No new effects. `FS.readFile` gains a size cap on the existing effect. |
-| A4: Explicit Authority | +1 | Resource caps become explicit, caller-set (`--fs-max-bytes`, `--max-memory`), consistent with `Net.MaxBytes`. |
+| A4: Explicit Authority | 0 | `--fs-max-bytes` and `--max-memory` are explicit, caller-set caps consistent with `Net.MaxBytes` (+). D-D as first drafted inferred a limit from the cgroup with only an opt-out — environment-detected, not caller-set (−); D-D is therefore recast as **opt-in** (`--max-memory cgroup` / `AILANG_MEMLIMIT=cgroup`), and the human freeze item decides whether the containers we own pass it. Net 0 until that ruling. |
 | A5: Bounded Verification | 0 | No type-system change. |
 | A6: Safe Concurrency | +1 | serve-api stops sharing one `DebugContext` across concurrent requests. |
 | A7: Machines First | +1 | A run that dies by OS OOM leaves no structured error; capped reads and streamed logs give agents a coded failure and a complete log tail. |
@@ -30,7 +30,7 @@ installed `ailang v0.39.2-dirty`; measurements are peak RSS from `/usr/bin/time 
 | A11: Structured Failure | +1 | `E_FS_BODY_TOO_LARGE`-style typed error replaces host death for oversize reads. |
 | A12: System Boundary | 0 | The memory limit is documented as a host-boundary control. |
 
-**Net Score: +6** → **Decision: Move forward**
+**Net Score: +5** → **Decision: Move forward**
 
 ### Hard Violation Check
 
@@ -135,7 +135,7 @@ the program's own live data, and containers must run under a memory limit the Go
 - Standard tier with `--emit-trace`: peak within **1.05×** of untraced (today: unmeasured regression on effect-heavy programs; the function-call path already meets this).
 - `Debug.log` of 1,000,000 lines at `--log-level ERROR`: peak RSS flat (today: linear).
 - A 50 MB multipart upload to serve-api: at most **one** in-memory copy of the body at any time (today: three).
-- `ailang run` inside a cgroup with `memory.max` set: `debug.SetMemoryLimit` is applied without any flag.
+- `ailang run --max-memory cgroup` inside a cgroup with `memory.max` set: `debug.SetMemoryLimit` is applied from it; the default stays unlimited.
 
 ## High-Impact Decisions
 
@@ -144,7 +144,7 @@ the program's own live data, and containers must run under a memory limit the Go
 | D-A: Bound the *renderer*, not the record site — add `eval.ShowBounded(v, maxBytes)` (early-terminating writer) and make every trace render site use it | Fixes F2, F4, F5 in one mechanism and keeps `standard`-tier effect events (which `scorer`/`comparator` consume) byte-identical; gating effect events off at `standard` would change the trace artifact | agent | design | med |
 | D-B: `DefaultMaxRetainedBytes` 256 MB → **32 MB** with honest `eventSize` | Changes the size of every `--emit-trace` artifact's in-memory tail; observers still see the complete stream, so exporters are unaffected, but anyone reading the retained tail after a long deep run sees less of it | **human** | design | low |
 | D-C: `FS.readFile` cap — **default unbounded in the CLI** (no behaviour change), `--fs-max-bytes` flag, and serve-api sets it to its upload cap | A default cap would break existing programs silently; an unset cap leaves the server unprotected | **human** | design | low |
-| D-D: Apply a cgroup-derived memory limit automatically on Linux when `--max-memory`/`GOMEMLIMIT` are unset (90 % of `memory.max`) | Turns OS OOM-kill into GC pressure in every container without touching downstream Dockerfiles; opt-out `AILANG_NO_CGROUP_MEMLIMIT=1` | **human** | design | low |
+| D-D: `--max-memory cgroup` (and `AILANG_MEMLIMIT=cgroup`) derives the limit from Linux `memory.max` × 0.9 — **opt-in**, default unchanged (no limit) | Round-2 quorum (oc-glm-5-2) showed an opt-out default contradicts A4 ("caller-set"); opt-in keeps authority explicit at the cost of two downstream Dockerfile lines. This is best-effort GC tuning, **not** a request-failure mechanism (see M4) | **human** | design | low |
 | D-E: `Debug.log` streams to the sink at log time when a sink is attached; `Collect()` semantics preserved for embedding hosts (game engine, WASM) | CLI users see log lines interleaved with program output instead of after it; `--log-level` moves to arrival time | **human** | design | med |
 | D-F: Multipart — `ParseMultipartForm(4 MB)` + `http.MaxBytesReader` for the real cap; parts `io.Copy`'d to the temp file | Removes two of three copies; the on-disk temp file becomes the only full copy | agent | design | low |
 
@@ -154,7 +154,7 @@ Before implementation begins, these must be resolved:
 
 - [ ] D-B — retention default (32 MB proposed; the eval-harness deep-trace consumers must confirm they read the exporter stream, not the retained tail)
 - [ ] D-C — FS cap default (unbounded CLI / capped serve-api proposed)
-- [ ] D-D — automatic cgroup limit (opt-out proposed)
+- [ ] D-D — cgroup-derived limit as opt-in `--max-memory cgroup` (proposed after round 2); Mark also decides whether `ailang-parse` and `docparse` Dockerfiles pass it
 - [ ] D-E — Debug.log streaming in CLI and serve-api (Collect preserved for hosts)
 
 ## Solution Design
@@ -192,15 +192,27 @@ docs.
 **M3 — input copies (`internal/effects/fs.go`, `internal/builtins/zip.go`, `internal/apiserver/routes_dispatch.go`)**
 - `EffContext.FS.MaxBytes int64` (0 = unbounded, per D-C); `readFile`/`readFileE`/`readBytes`
   stat first and return `E_FS_FILE_TOO_LARGE` with the size and the cap. Read via `os.Open` +
-  `io.ReadAll(io.LimitReader(f, cap+1))` into a pre-sized buffer; `string()` conversion kept
-  (Go strings are immutable; the alternative is `unsafe`, rejected).
+  `io.ReadAll(io.LimitReader(f, cap+1))` into a pre-sized buffer, **then check
+  `len(data) > cap` and return `E_FS_FILE_TOO_LARGE`** — the stat is an early exit, not the
+  guard: pseudo-files report size 0 and a file can grow between stat and read, and returning
+  a silently truncated string would be the "no silent fallbacks" violation the round-2 quorum
+  named. Same post-read check as `_zip_readEntry` already does at `zip.go:576`. `string()`
+  conversion kept (Go strings are immutable; the alternative is `unsafe`, rejected).
 - `_zip_readEntry`: `bytes.Buffer` grown to `UncompressedSize64` before `io.Copy`.
 - Multipart per D-F.
 
 **M4 — process controls (`cmd/ailang/memory_limit.go`, `main_run_exec.go`, `serve_api.go`)**
-- `resolveMemoryLimit()`: `--max-memory` > `GOMEMLIMIT` (Go reads it itself; we only log) >
-  Linux cgroup v2 `/sys/fs/cgroup/memory.max` (v1 `memory.limit_in_bytes`) × 0.9 > none.
-  Applied in both `run` and `serve-api`.
+- `resolveMemoryLimit()`: `--max-memory <size>` as today; new literal `--max-memory cgroup`
+  (or `AILANG_MEMLIMIT=cgroup`, registered in `internal/config`) reads Linux cgroup v2
+  `/sys/fs/cgroup/memory.max` (v1 `memory.limit_in_bytes`) × 0.9; `max`/unreadable → no limit,
+  logged. An explicit `GOMEMLIMIT` is left to Go and only logged. Nothing is applied unless asked
+  (D-D, opt-in). Applied in both `run` and `serve-api`.
+- **What the limit is and is not.** `SetMemoryLimit` is best-effort GC tuning: it makes the
+  collector work harder as total runtime memory approaches the limit and can be exceeded by
+  reachable data (V17: 772 MB live under a 64 MB limit). It is **not** a hard bound, not a
+  request-cancellation mechanism and not an isolation boundary; FS/upload caps bound only their
+  own inputs, not decompressed data, accumulators or concurrent requests. Structured failure for
+  runtime memory exhaustion (`MEM001`) remains M-MEM-BUDGET-RUNTIME's scope.
 - **GOGC and the limit interact as documented by Go, not as "the limit wins"** (V17): the GC
   trigger is the *smaller* of the GOGC-derived heap target and the limit-derived target, and the
   limit is soft. Below the limit GOGC=500 still lets the heap grow 6× live before a cycle; near
@@ -210,7 +222,9 @@ docs.
   25 % speed-up was measured; (b) `serve-api` keeps Go's default GOGC=100 — it already does (V10)
   — because a long-lived process at concurrency 80 that sits at min(6× live, limit) has no
   headroom for non-heap memory (goroutine stacks, the SQLite cache, cgo); (c) the cgroup fraction
-  is 0.9 so a true overrun is killed by the kernel instead of thrashing at the soft limit.
+  is 0.9 so that a true overrun reaches the kernel OOM killer after bounded GC pressure rather
+  than thrashing indefinitely at the soft limit — the kernel still kills the instance in that
+  case; this milestone reduces how often that happens, it does not make it impossible.
 - `ailang doctor` prints the resolved limit and its source.
 - Docs: `docs/docs/guides/debugging.md` gains a "Memory" section listing every control and the
   `/usr/bin/time -l` probe protocol.
@@ -313,7 +327,7 @@ readFile("big.xml")
 
 **Before:** `docker run -m 1g ailang serve-api …` — Go sizes its heap to the host, GOGC=500 lets it grow 6×, the cgroup OOM-kills the instance at ~72 s (measured in docparse).
 
-**After:** start-up logs `memory limit: 966 MB (cgroup memory.max × 0.9)`; the runtime collects hard near the limit and an oversize request fails with an error instead of taking the instance down.
+**After** (with `--max-memory cgroup` in the Dockerfile): start-up logs `memory limit: 966 MB (cgroup memory.max × 0.9)`; the runtime collects hard as total memory nears the limit instead of growing 6× live first, so garbage-heavy requests that OOM'd today complete. A request whose *live* data exceeds the limit still dies by cgroup OOM — M1–M3 lower that live data (no full renders, no triple upload copies, capped reads); a typed per-request failure is M-MEM-BUDGET-RUNTIME.
 
 ## Success Criteria
 
@@ -323,7 +337,7 @@ readFile("big.xml")
 - [ ] 1,000,000 `Debug.log` lines at `--log-level ERROR`: RSS flat within 10 MB of the empty-program floor
 - [ ] Two concurrent serve-api requests with `Debug.log` never see each other's lines
 - [ ] 50 MB multipart upload: handler `HeapAlloc` delta < 60 MB (one copy) — today three copies
-- [ ] `ailang run` under a cgroup limit applies `SetMemoryLimit` with no flag; `ailang doctor` reports it
+- [ ] `ailang run --max-memory cgroup` under a cgroup limit applies `SetMemoryLimit`; without the flag nothing is applied; `ailang doctor` reports the resolved limit and its source
 - [ ] `string<secret>` canary still 0 verbatim copies at `standard`
 - [ ] Mutation tests: reverting `ops.go` fails the effect fixture; reverting `eventSize` fails the retention ratio test
 - [ ] `make test-core`, `make ci`, `make simplicity-audit` green (two new env vars registered in `internal/config`)
@@ -402,7 +416,25 @@ readFile("big.xml")
 | V22 | F17: `MapValue.Insert` copies the whole map but pre-sizes; record update copies without a hint | read `internal/eval/value.go:213-221` (`make(map[string]*MapEntry, len(m.Entries)+1)`), `eval_expressions.go:411` (`make(map[string]Value)`) | confirmed; F17 wording corrected (Insert does hint) |
 
 **Quorum triggers:** trigger 1 fires (four design-freeze items) and trigger 2 fires (D-B overrides
-the shared trace retention default). Run `ailang design-quorum` before sprint planning.
+the shared trace retention default). Both rounds run; see the log below.
+
+## Quorum log
+
+Artifacts: `.ailang/state/mission-quorum/m-v1-memory-footprint-2026-09-16T19-03-39Z.json` (round 1) and the
+`m-v1-memory-footprint-2026-09-16T19-06-27Z.json` (round 2). Controller (this session) passed both rounds; every reviewer
+objection was accepted and applied — none was argued.
+
+| Round | Reviewer | Verdict | Objection (abridged) | Applied as |
+|---|---|---|---|---|
+| 1 | gpt6-astra | absent (budget cap $0.10 < est. $0.14) | — | round 2 run at $0.30 |
+| 1 | gemini-3-1-pro | reject | F4, F7, F10, F16, F17 cited with line numbers but no Verification Log rows | V18–V22 |
+| 1 | oc-glm-5-2 | reject | "the runtime collects at the limit regardless of GOGC" is wrong: trigger = min(GOGC target, limit target); limit is soft; unverified | V17 (Go docs + gctrace), M4 rewritten, non-goal reworded |
+| 2 | gpt6-astra | reject | M4(c) and Example 3 promised request-level structured failure that a soft limit cannot provide | M4 "what the limit is and is not"; Example 3 rewritten; `MEM001` stays with M-MEM-BUDGET-RUNTIME |
+| 2 | gemini-3-1-pro | reject | FS cap had no post-read check → silent truncation on pseudo-files or growing files | M3 mandates `len(data) > cap` → `E_FS_FILE_TOO_LARGE` |
+| 2 | oc-glm-5-2 | reject | D-D opt-out contradicts A4 "+1 caller-set" | D-D recast as opt-in `--max-memory cgroup`; A4 rescored 0; net +5 |
+
+The re-quorum-once guardrail is spent. Per the design-doc-creator skill this parks the doc for a human
+ratification of D-B..D-E plus the three round-2 fixes rather than grinding a third round.
 
 ## Related Documents
 
