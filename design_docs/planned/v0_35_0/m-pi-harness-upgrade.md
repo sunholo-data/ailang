@@ -439,6 +439,7 @@ curl -sL -H "Authorization: Bearer $TOK" \
 - [m-resident-agent-instances](../m-resident-agent-instances.md) — **parent decision (D10)**. It pinned 0.73.1 and deferred this migration; this doc executes it. The resident moved alone because it *needs* `--session-id`; the job executor did not
 - [m-dx-session-protocol-gate](m-dx-session-protocol-gate.md) — the session gate rides on the extension API this upgrade moves
 - [m-eval-validity-discipline](../m-eval-validity-discipline.md) — the boundary-annotation discipline D2 follows
+- [m-agent-ailang-only-execution](m-agent-ailang-only-execution.md) — **child / hard-depends on this doc**: ships a pi tool (`ailang_run`) in the embedded suite and a registry `tool_policy`, so `bash` can be removed and AILANG becomes the only execution route. Needs the extension probe green in a container first. Note (2026-09-16): Mark asked for the *newest* pi — the rig is on 0.85.1, this doc pins 0.84.4; resolve at D1
 
 ## References
 
