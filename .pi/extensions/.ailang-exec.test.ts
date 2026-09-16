@@ -154,6 +154,7 @@ test("lanePrompt: names ailang_cli, the package-ceiling rule, and the allowed su
 	const p = lanePrompt({ policyPath: "/p/policy.toml", refusal: null }, () => toml);
 	assert.match(p, /ailang_cli/);
 	assert.match(p, /effect ceiling violation in package/);
+	assert.match(p, /NEVER edit a package's `\[effects\] max`/);
 	assert.match(p, /ailang_cli may run only these subcommands: iface, fmt/);
 	const q = lanePrompt({ policyPath: "/p/policy.toml", refusal: null }, () => 'allowed_caps = ["IO"]\n');
 	assert.match(q, /ailang_cli may run only these subcommands: check, ai-check, iface/);
