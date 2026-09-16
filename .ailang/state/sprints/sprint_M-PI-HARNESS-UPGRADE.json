@@ -1,0 +1,106 @@
+{
+  "sprint_id": "M-PI-HARNESS-UPGRADE",
+  "status": "not_started",
+  "created": "2026-09-16T06:12:51Z",
+  "design_doc": "design_docs/planned/v0_35_0/m-pi-harness-upgrade.md",
+  "sprint_plan": "design_docs/planned/v0_35_0/m-pi-harness-upgrade-sprint-plan.md",
+  "github_issues": [
+    1198,
+    1199
+  ],
+  "velocity": {
+    "target_loc_per_day": 150,
+    "estimated_total_loc": 450,
+    "estimated_days": 3
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Bank the harness version: Result.ExecutorVersion captured from `pi --version`, plumbed to RunMetrics.executor_version (absent => unmeasured)",
+      "estimated_loc": 90,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Result with no version banks the field omitted, never empty-string-as-current",
+        "TestHealthCheck_WithFakeBinary proves captured string equals the fake binary's output",
+        "executor_version appears on RunMetrics via AgentBenchmarkResult with omitempty and a doc comment"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Fail loud on the drift that matters: expected-version assertion, unknown-event counter, fatal missing-usage, retry events banked, `max` thinking level, mission_pi_run.sh snapshot, lowercase tool names",
+      "estimated_loc": 140,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Version mismatch errors naming both expected and running strings; install hint names @earendil-works",
+        "Replay with an unknown event type banks ProviderData.pi_unknown_events",
+        "Replay with a usage-less assistant message_end fails with a named error, not zero cost",
+        "auto_retry_* banked as pi_retries {count,max_attempts,exhausted}",
+        "first_attempt_ms fires on lowercase write/edit"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Re-capture the 0.85.1 differential; wire usage.reasoning (disjoint from output) and rawStopReason; record 0.73.1 + 0.85.1 fixture pairs, retire the 0.70.2 pair",
+      "estimated_loc": 120,
+      "dependencies": [
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "0.85.1 differential captured on the rig and diffed against the doc's 0.84.4 table; any delta logged in the Verification Log",
+        "reason_tokens > 0 on the reasoning fixture and output_tokens + reason_tokens == usage.output",
+        "testdata/v0_73_1 and testdata/v0_85_1 replay green; 0.70.2 fixtures deleted",
+        "rawStopReason banked in ProviderData"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4",
+      "description": "Move the images to @earendil-works@0.85.1 with build-time version + Node-floor assertions, no workspace trust, negative sentinel test; verify by reading pushed image config",
+      "estimated_loc": 60,
+      "dependencies": [
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "Dockerfile.agent-pi and agent-eval pin 0.85.1 with uninstall-before-install and `pi --version | grep -qx` assertion",
+        "agent-base pins Node 22.x and asserts >= 22.19.0",
+        "resident Dockerfile at 0.85.1; same-package reinstall does not EEXIST; --session-id assertion passes",
+        "Container tests: positive extension probe + negative workspace-sentinel, neither allowFailure",
+        "Read-back of pushed config shows 0.85.1 for agent-pi, agent-pi-go, agent-eval, agent-eval-go, resident-pi (dev + prod)"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M5",
+      "description": "Boundary bookkeeping before the first post-upgrade bank; comparator set via eval-paired; annotate pre-boundary rows",
+      "estimated_loc": 40,
+      "dependencies": [
+        "M4"
+      ],
+      "acceptance_criteria": [
+        "Charter, runbook, memory and eval caveats record the boundary before any 0.85.1 row banks",
+        "Comparator set chosen with pre-boundary rows on both planes and stated in the plan",
+        "eval-paired report committed; pre-boundary rows annotated, none re-banked"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
