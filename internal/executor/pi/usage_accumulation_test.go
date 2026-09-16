@@ -13,27 +13,32 @@ import (
 // The pi row of the per-harness accumulation table (executor/tokens_processed.go), pinned
 // against a recorded stream instead of trusted.
 //
-// tool_use.ndjson is four turns whose per-turn usage carries a real cacheWrite bucket:
+// v0_85_1/tool_use.ndjson is three assistant turns. The live capture (ollama) reports
+// zero cacheWrite, so the per-turn cache buckets are PATCHED in (patchAssistantUsage)
+// with the values the retired 0.70.2 Claude capture carried, keeping the ratio that
+// makes these tests matter:
 //
 //	turn   input  cacheWrite  output   cumulative TokensProcessed
-//	2         10        4555     128                        4693
-//	4         13        4709      84                        9499
+//	1        812        4555      83                        5450
+//	2        903           0      12                        6365
+//	3        920        4709       3                       11997
 //
-// The run's whole input+output is 235. Everything else — 9,264 tokens, 97.5% of the work —
-// is cache creation. That ratio is the reason these tests exist: under the old
-// `inputTokens + outputTokens` guard this entire run weighed 235, so no cap below 235
-// could distinguish it from a trivial one, and the 3,000-token cap below could never fire.
+// The run's whole input+output is 2,733. Cache creation is 9,264 — 77% of the work.
+// Under the old `inputTokens + outputTokens` guard this run weighed 2,733, so the
+// 3,000-token cap below could never fire.
 //
 // TestPiTokenBudgetIsEnforced already covers the kill MECHANISM using fizzbuzz.ndjson;
 // that fixture reports zero cache, so it cannot see this. These two tests cover the
 // QUANTITY the mechanism is given.
 
 const (
-	piFixtureInput         = 23
+	piFixtureInput         = 2635
 	piFixtureCacheCreation = 9264
-	piFixtureOutput        = 212
+	piFixtureOutput        = 98
 	piFixtureProcessed     = piFixtureInput + piFixtureCacheCreation + piFixtureOutput
 )
+
+var piCachePatches = []assistantUsagePatch{{CacheWrite: 4555}, {CacheWrite: 0}, {CacheWrite: 4709}}
 
 // TestPiSumsPerTurnUsageIncludingCacheWrites asserts pi SUMS its per-turn deltas, and that
 // newly written cache lands in the canonical total.
@@ -41,7 +46,7 @@ func TestPiSumsPerTurnUsageIncludingCacheWrites(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip(skipWindows)
 	}
-	result := runPiFixtureWithCap(t, "tool_use.ndjson", 0)
+	result := runPiFixtureWithCap(t, "v0_85_1/tool_use.ndjson", 0)
 
 	if !result.Success {
 		t.Fatalf("uncapped run failed: %q", result.Error)
@@ -62,14 +67,14 @@ func TestPiSumsPerTurnUsageIncludingCacheWrites(t *testing.T) {
 }
 
 // TestPiCapCountsCacheCreation fires a cap that is reachable ONLY through cache creation.
-// 3,000 is an order of magnitude above the run's entire input+output (235) and well below
-// its real 9,499, so this passing means the guard is measuring work rather than chat.
+// 3,000 is above the run's entire input+output (2,733) and well below its real 11,997,
+// so this passing means the guard is measuring work rather than chat.
 func TestPiCapCountsCacheCreation(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip(skipWindows)
 	}
 	const cap = 3000
-	result := runPiFixtureWithCap(t, "tool_use.ndjson", cap)
+	result := runPiFixtureWithCap(t, "v0_85_1/tool_use.ndjson", cap)
 
 	if result.Success {
 		t.Fatal("run succeeded despite exceeding its token cap")
@@ -90,7 +95,7 @@ func TestPiCapCountsCacheCreation(t *testing.T) {
 func runPiFixtureWithCap(t *testing.T, fixture string, maxTokens int) *executor.Result {
 	t.Helper()
 	dir := t.TempDir()
-	writeFakePi(t, dir, loadFixtureLines(t, fixture))
+	writeFakePi(t, dir, patchAssistantUsage(t, loadFixtureLines(t, fixture), piCachePatches))
 	e, err := New(&executor.Config{
 		PiPath:  filepath.Join(dir, "pi"),
 		PiModel: "anthropic/claude-haiku-4-5",

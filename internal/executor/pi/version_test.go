@@ -45,7 +45,7 @@ func TestExecuteStreaming_StampsExecutorVersion(t *testing.T) {
 		t.Skip(skipWindows)
 	}
 	dir := t.TempDir()
-	_ = writeFakePi(t, dir, loadFixtureLines(t, "fizzbuzz.ndjson"))
+	_ = writeFakePi(t, dir, loadFixtureLines(t, "v0_85_1/fizzbuzz.ndjson"))
 	e, _ := New(&executor.Config{PiPath: filepath.Join(dir, "pi"), PiModel: "anthropic/claude-haiku-4-5", TimeoutSeconds: 10})
 	res, err := e.ExecuteStreaming(context.Background(), &executor.Task{
 		ID: "v", Directive: "x", Workspace: dir, Timeout: 10 * time.Second,

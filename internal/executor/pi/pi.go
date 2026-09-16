@@ -1,12 +1,12 @@
 // Package pi provides an Executor implementation for the pi CLI
-// (npm: @mariozechner/pi-coding-agent), a deliberately minimal
+// (npm: @earendil-works/pi-coding-agent, formerly @mariozechner), a deliberately minimal
 // Claude Agent SDK-based coding harness with broad multi-provider reach.
 //
 // pi emits NDJSON via `pi --mode json` — a different schema from Claude,
 // Gemini, Codex, and opencode. See README.md and testdata/ for full
 // schema documentation with fixture-backed examples.
 //
-// Key parser facts (pi 0.70.x):
+// Key parser facts (pi 0.85.x; see events.go and README.md for the 0.73→0.85 drift):
 //   - Top-level events: session, agent_start, turn_start, message_start,
 //     message_update, message_end, tool_execution_start, tool_execution_end,
 //     turn_end, agent_end. agent_end is the unambiguous terminal event.
@@ -207,7 +207,7 @@ func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, 
 	var toolCallCount int
 	toolCalls := map[string]int{} // per-tool-name histogram (alongside toolCallCount)
 	// pi emits per-turn deltas in message_end (role=assistant); sum across turns.
-	var inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens int
+	var inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, reasonTokens int
 	var thrashKilledAt int
 	var totalCostUSD float64
 	var sessionID string
@@ -217,6 +217,7 @@ func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, 
 	// message_update events carry cumulative partial state, so they are
 	// deliberately excluded — only settled events are authoritative.
 	var lastStopReason string
+	var lastRawStopReason string // provider's own value (0.84+); "" on older wires
 
 	// M-EVAL-COST-AND-SPEED-BUDGETS: speed + cost-kill instrumentation.
 	// pi emits per-turn token deltas in message_end (role=assistant), so the
@@ -349,6 +350,7 @@ func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, 
 			case "message_end":
 				if ev.Message != nil && ev.Message.StopReason != "" {
 					lastStopReason = ev.Message.StopReason
+					lastRawStopReason = ev.Message.RawStopReason
 				}
 				// D4: an assistant message_end WITHOUT usage means the cost record
 				// for this run is wrong. Bank nothing silently — name it and fail.
@@ -359,7 +361,10 @@ func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, 
 				if ev.Message != nil && ev.Message.Role == "assistant" && ev.Message.Usage != nil {
 					u := ev.Message.Usage
 					inputTokens += u.Input
-					outputTokens += u.Output
+					// D5: reasoning is inside output on the wire; the Result
+					// contract wants them disjoint.
+					outputTokens += u.Output - u.Reasoning
+					reasonTokens += u.Reasoning
 					cacheReadTokens += u.CacheRead
 					cacheWriteTokens += u.CacheWrite
 					totalCostUSD += u.Cost.Total
@@ -383,6 +388,7 @@ func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, 
 			case "turn_end":
 				if ev.Message != nil && ev.Message.StopReason != "" {
 					lastStopReason = ev.Message.StopReason
+					lastRawStopReason = ev.Message.RawStopReason
 				}
 				if turnSpan != nil {
 					if ev.Message != nil && ev.Message.Usage != nil {
@@ -454,6 +460,7 @@ func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, 
 					DurationMS:               int(duration.Milliseconds()),
 					InputTokens:              inputTokens,
 					OutputTokens:             outputTokens,
+					ReasonTokens:             reasonTokens,
 					CacheReadInputTokens:     cacheReadTokens,
 					CacheCreationInputTokens: cacheWriteTokens,
 					CostUSD:                  totalCostUSD,
@@ -462,7 +469,7 @@ func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, 
 					ToolCallCount:            toolCallCount,
 					ToolCalls:                toolCalls,
 					SessionID:                sessionID,
-					ProviderData:             piProviderData(rawEvents, unknownEvents, unparsedLines, &retries),
+					ProviderData:             piProviderData(rawEvents, unknownEvents, unparsedLines, &retries, lastRawStopReason),
 					CostKilledAt:             task.Budget.KilledAt(),
 					FirstAttemptMs:           firstAttemptMs,
 					SuccessAtMs:              -1,
@@ -476,7 +483,7 @@ func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, 
 			// Default to "stop" when pi reported none at all.
 			finishReason := executor.FinishStop
 			if lastStopReason != "" {
-				finishReason = normalizePiFinishReason(lastStopReason)
+				finishReason = normalizePiFinishReasonWithRaw(lastStopReason, lastRawStopReason)
 			}
 			errMsg := ""
 			if wireDriftErr != "" {
@@ -504,6 +511,7 @@ func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, 
 				DurationMS:               int(duration.Milliseconds()),
 				InputTokens:              inputTokens,
 				OutputTokens:             outputTokens,
+				ReasonTokens:             reasonTokens,
 				CacheReadInputTokens:     cacheReadTokens,
 				CacheCreationInputTokens: cacheWriteTokens,
 				CostUSD:                  totalCostUSD,
@@ -512,7 +520,7 @@ func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, 
 				ToolCallCount:            toolCallCount,
 				ToolCalls:                toolCalls,
 				SessionID:                sessionID,
-				ProviderData:             piProviderData(rawEvents, unknownEvents, unparsedLines, &retries),
+				ProviderData:             piProviderData(rawEvents, unknownEvents, unparsedLines, &retries, lastRawStopReason),
 				CostKilledAt:             task.Budget.KilledAt(),
 				FirstAttemptMs:           firstAttemptMs,
 				SuccessAtMs:              -1,

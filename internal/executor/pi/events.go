@@ -20,11 +20,18 @@ type piUsageCost struct {
 }
 
 // piUsage mirrors message_end.message.usage.
+//
+// Reasoning (pi >= 0.84) is a SUBSET of Output on the wire — verified on a
+// live 0.85.1 capture: totalTokens == input+output+cacheRead+cacheWrite with
+// reasoning NOT added (V33). executor.Result.ReasonTokens is contractually
+// disjoint from OutputTokens, so the executor banks output − reasoning (D5).
+// Absent on 0.73.1 (zero) — "not reported", never negative.
 type piUsage struct {
 	Input       int         `json:"input"`
 	Output      int         `json:"output"`
 	CacheRead   int         `json:"cacheRead"`
 	CacheWrite  int         `json:"cacheWrite"`
+	Reasoning   int         `json:"reasoning"`
 	TotalTokens int         `json:"totalTokens"`
 	Cost        piUsageCost `json:"cost"`
 }
@@ -37,8 +44,12 @@ type piMessage struct {
 	// Observed values: "stop", "toolUse" (fixtures, pi 0.70.2). A tool-calling
 	// turn ends "toolUse" and the run's FINAL turn ends "stop", so only the
 	// last value seen is meaningful as a run-level finish reason.
-	StopReason string   `json:"stopReason,omitempty"`
-	Usage      *piUsage `json:"usage,omitempty"`
+	StopReason string `json:"stopReason,omitempty"`
+	// RawStopReason (pi >= 0.84) is the PROVIDER's own value ("tool_calls",
+	// "stop", "length"…) before pi normalised it. Banked verbatim; consulted
+	// for the finish reason only when StopReason is one pi.go does not know.
+	RawStopReason string   `json:"rawStopReason,omitempty"`
+	Usage         *piUsage `json:"usage,omitempty"`
 }
 
 // piAssistantMessageEvent captures the inner discriminator for message_update.
@@ -173,29 +184,53 @@ func piCancelFinishReason(err error) string {
 // know, so pass-through cannot misclassify a run). Re-check this mapping when
 // bumping the pinned pi version.
 func normalizePiFinishReason(raw string) string {
+	if v, known := piFinishReason(raw); known {
+		return v
+	}
+	return raw
+}
+
+// normalizePiFinishReasonWithRaw is normalizePiFinishReason with the
+// provider's rawStopReason as a fallback vote: pi's stopReason stays
+// authoritative when recognised; when it is not, the raw value gets one try
+// before the unknown string passes through verbatim.
+func normalizePiFinishReasonWithRaw(stop, raw string) string {
+	if v, known := piFinishReason(stop); known {
+		return v
+	}
+	if v, known := piFinishReason(raw); known {
+		return v
+	}
+	return stop
+}
+
+func piFinishReason(raw string) (string, bool) {
 	switch raw {
 	case "stop", "endTurn", "end_turn":
-		return executor.FinishStop
-	case "toolUse", "tool_use", "toolCalls":
-		return executor.FinishToolCalls
+		return executor.FinishStop, true
+	case "toolUse", "tool_use", "toolCalls", "tool_calls":
+		return executor.FinishToolCalls, true
 	case "maxTokens", "max_tokens", "length":
-		return executor.FinishLength
-	case "refusal", "safety", "contentFilter":
-		return executor.FinishContentFilter
+		return executor.FinishLength, true
+	case "refusal", "safety", "contentFilter", "content_filter":
+		return executor.FinishContentFilter, true
 	case "aborted", "error":
-		return executor.FinishError
+		return executor.FinishError, true
 	default:
-		return raw
+		return "", false
 	}
 }
 
 // piProviderData wraps raw events as Result.ProviderData, plus the M2 drift
 // signals: pi_unknown_events {type: count}, pi_unparsed_lines and pi_retries, each only when
 // non-empty so a clean stream banks neither.
-func piProviderData(events []map[string]any, unknown map[string]int, unparsed int, retries *piRetries) map[string]any {
+func piProviderData(events []map[string]any, unknown map[string]int, unparsed int, retries *piRetries, rawStop string) map[string]any {
 	pd := map[string]any{}
 	if len(events) > 0 {
 		pd["pi_events"] = events
+	}
+	if rawStop != "" {
+		pd["pi_raw_stop_reason"] = rawStop
 	}
 	if len(unknown) > 0 {
 		pd["pi_unknown_events"] = unknown

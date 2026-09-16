@@ -60,10 +60,11 @@
         "testdata/v0_73_1 and testdata/v0_85_1 replay green; 0.70.2 fixtures deleted",
         "rawStopReason banked in ProviderData"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-16T06:38:53Z",
+      "completed": "2026-09-16T06:38:53Z",
+      "notes": "usage.reasoning subtracted from output (mutation-tested); rawStopReason banked + fallback vote; v0_73_1 pair captured from a scratch install of the abandoned package (global pi untouched), v0_85_1 pair + reasoning fixture; 0.70.2 pair deleted; tests re-pointed with patchAssistantUsage for cacheWrite/cost; dual-version replay test. README + package doc updated.",
+      "actual_loc": 330
     },
     {
       "id": "M4",

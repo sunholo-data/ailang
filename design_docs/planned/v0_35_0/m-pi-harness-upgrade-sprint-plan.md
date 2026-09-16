@@ -39,7 +39,7 @@ Ordered so the instrument lands before the change it measures.
 7. Lowercase tool names at `pi.go:294` (`write`/`edit`).
 **Accept**: replay fixture with an injected unknown event type banks `pi_unknown_events`; replay fixture with a usage-less assistant `message_end` fails with the named error; version mismatch test errors naming both strings.
 
-### M3 — Wire the new signals + fixtures (~4h, ~120 LOC + fixtures)
+### M3 — Wire the new signals + fixtures (~4h, ~120 LOC + fixtures) ✅ 2026-09-16
 **Files**: `internal/executor/pi/pi.go`, `pi_test.go`, `testdata/v0_73_1/*.ndjson`, `testdata/v0_85_1/*.ndjson`
 0. **Re-capture the differential on 0.85.1** (V7 method, on the rig): fizzbuzz + tool-use directives; diff event types and field sets against the doc's 0.84.4 table. Any new row = new work item logged in the design doc's Verification Log before continuing.
 1. `usage.reasoning` → `Result.ReasonTokens`, `OutputTokens = output − reasoning` (D5); assert the identity in a test.
