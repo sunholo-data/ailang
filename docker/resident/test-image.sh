@@ -127,7 +127,7 @@ out=$(cd /tmp/sbx && ailang run --policy /tmp/pol/io.toml prog.ail 2>/tmp/pol/er
 have "admitted IO program runs"                       '[ "$rc" = "0" ] && grep -q "ran-under-policy" <<<"$out"'
 have "  ...admission line carries the policy digest"  'grep -q "policy_digest" /tmp/pol/err'
 have "RESIDENT_TOOLS defaults to ailang_only"         '[ "${RESIDENT_TOOLS:-}" = "ailang_only" ]'
-have "ailang pi tool-profile ailang_only has no bash" '[ "$(ailang pi tool-profile ailang_only)" = "--no-builtin-tools --tools read,edit,write,ailang_check,ailang_run" ]'
+have "ailang pi tool-profile ailang_only has no bash" 'case "$(ailang pi tool-profile ailang_only)" in "--no-extensions -e "*"--no-builtin-tools --tools read,edit,write,ailang_check,ailang_run") true;; *) false;; esac'
 # boot (section 3 above) moved the suite aside and kept the execution pair:
 have "boot kept ailang-exec.ts"                       '[ -f /home/ailang/.pi/agent/extensions/ailang-exec.ts ]'
 have "boot kept ailang-lsp-lite.ts"                   '[ -f /home/ailang/.pi/agent/extensions/ailang-lsp-lite.ts ]'
