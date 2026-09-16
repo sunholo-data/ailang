@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -29,6 +30,11 @@ func TestMaterializeAgentPolicy_ReadOnlyOutsideWorkspace(t *testing.T) {
 	// Re-materialising (a second task in the same container) must succeed.
 	if _, err := MaterializeAgentPolicy("allowed_caps = []\n", ws); err != nil {
 		t.Fatalf("re-materialise: %v", err)
+	}
+	if p2, err := MaterializeAgentPolicy("fs_sandbox = \"${WORKSPACE}\"\n", ws); err != nil {
+		t.Fatal(err)
+	} else if b, _ := os.ReadFile(p2); !strings.Contains(string(b), "fs_sandbox = \""+ws+"\"") {
+		t.Fatalf("${WORKSPACE} not expanded: %s", b)
 	}
 	if got, _ := MaterializeAgentPolicy("", ws); got != "" {
 		t.Fatalf("no content must mean no path (default-deny), got %q", got)
