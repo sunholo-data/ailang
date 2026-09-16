@@ -1,6 +1,6 @@
 # M-DANEEL-AILANG-EXECUTOR — Daneel gets its own executor on the `ailang_only` lane
 
-**Status**: Planned — design freeze ratified 2026-09-16 (D1–D4), ready for sprint planning
+**Status**: IMPLEMENTED
 **Target**: v0.39.1 (the one AILANG-core item, M1) + fleet/deployment config (registry entry, policy file, task template — no image rebuild) + Daneel-repo changes (capability rung, template, teaching)
 **Priority**: P1 — Daneel's host has no lane to lend a capability's question to an agent with "more free reign" (web search, Gemini, multi-step research); today that freedom would have to be granted to the *host itself*, which is exactly the boundary the Host record exists to avoid
 **Estimated**: ~3 days (M1 core fix ~0.5d, M2 lane config + template ~1d, M3 Daneel-side capability ~0.5d, M4 end-to-end probe + docs ~1d)

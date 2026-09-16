@@ -2,8 +2,8 @@
   "sprint_id": "M-DANEEL-AILANG-EXECUTOR",
   "title": "Daneel ailang_only executor with secret-safe Ollama web search",
   "status": "completed",
-  "design_doc": "design_docs/planned/v0_39_1/m-daneel-ailang-executor.md",
-  "sprint_plan": "design_docs/planned/v0_39_1/m-daneel-ailang-executor-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_39_3/m-daneel-ailang-executor.md",
+  "sprint_plan": "design_docs/implemented/v0_39_3/m-daneel-ailang-executor-sprint-plan.md",
   "created": "2026-09-16",
   "correction_of": "inbox_1789578898046_187f9fb3",
   "github_issues": [
@@ -90,7 +90,7 @@
       "passes": true,
       "started": "2026-09-16T20:13:56Z",
       "completed": "2026-09-16T20:13:56Z",
-      "notes": "v0.39.2 built to TEST but NOT promoted: the pi executor never set Result.Transcript, so every completion summary (D1's return path) was empty \u2014 fixed (5560feca2), released as v0.39.3 (7494064c1\u2192\u2026), promote build 1e6a63ed SUCCESS; prod MCP/dashboard/agent-pi digest verified."
+      "notes": "v0.39.2 built to TEST but NOT promoted: the pi executor never set Result.Transcript, so every completion summary (D1's return path) was empty — fixed (5560feca2), released as v0.39.3 (7494064c1→…), promote build 1e6a63ed SUCCESS; prod MCP/dashboard/agent-pi digest verified."
     },
     {
       "id": "M4_MULTIVAC_REGISTRY",
@@ -144,7 +144,8 @@
       "passes": true,
       "started": "2026-09-16T20:13:56Z",
       "completed": "2026-09-16T20:13:56Z",
-      "notes": "dev rehearsal task-8088d1ed: correct sourced answer, 11 turns, $0.0135, 0 bash, 2/2 admitted. PROD: task-58ff1f74 correct sourced answer (v0.39.3 2026-09-16T19:45:01Z) $0.0125; task-f0fd2adc Env \u2192 policy_violation missing_from_policy [Env]; task-e838893b direct httpRequest example.org \u2192 DisallowedHost(example.org). Key absent from every summary/transcript. Summaries carried the answers (Transcript fix proven)."
+      "notes": "dev rehearsal task-8088d1ed: correct sourced answer, 11 turns, $0.0135, 0 bash, 2/2 admitted. PROD: task-58ff1f74 correct sourced answer (v0.39.3 2026-09-16T19:45:01Z) $0.0125; task-f0fd2adc Env → policy_violation missing_from_policy [Env]; task-e838893b direct httpRequest example.org → DisallowedHost(example.org). Key absent from every summary/transcript. Summaries carried the answers (Transcript fix proven)."
     }
-  ]
+  ],
+  "completed": "2026-09-16T20:14:45Z"
 }
