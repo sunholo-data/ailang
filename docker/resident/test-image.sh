@@ -109,31 +109,31 @@ have "  ...and boot said so"                  'grep -q "provider key substituted
 have "  ...& in the key survives verbatim"    'grep -q "specials&chars" /home/ailang/.pi/agent/models.json'
 pkill -f "server.mjs" 2>/dev/null; pkill -f "herdr server" 2>/dev/null; sleep 2
 
-echo "=== 4. program allowlist (Decision 6) ==="
-# Default-deny: no manifest means nothing runs. An agent that can reason but not
-# act is degraded; one that runs anything because a file was missing is an
-# incident.
-out=$(PROGRAM_ALLOWLIST_FILE=/nonexistent resident-run anything 2>&1); rc=$?
-have "no manifest -> denies (default-deny)"   '[ "$rc" = "2" ]'
-have "  ...and says why"                      'echo "$out" | grep -q "Default-deny"'
-
-cat > /tmp/allow.json <<'JSON'
-{"programs":{"ok":{"path":"/tmp/ok.ail","caps":["IO"]},"badcap":{"path":"/tmp/ok.ail","caps":["IO","Nope"]},"needsfs":{"path":"/tmp/ok.ail","caps":["FS"]}}}
-JSON
-out=$(PROGRAM_ALLOWLIST_FILE=/tmp/allow.json resident-run not-listed 2>&1); rc=$?
-have "unlisted program refused"               '[ "$rc" = "2" ]'
-have "  ...and lists what IS allowed"         'echo "$out" | grep -q "Allowed: ok"'
-
-out=$(PROGRAM_ALLOWLIST_FILE=/tmp/allow.json resident-run badcap 2>&1)
-have "unknown capability refused, not dropped" 'echo "$out" | grep -q "unknown capabilities: Nope"'
-
-out=$(PROGRAM_ALLOWLIST_FILE=/tmp/allow.json env -u AILANG_FS_SANDBOX resident-run needsfs 2>&1)
-have "FS entry refused when sandbox unset"    'echo "$out" | grep -q "NO sandbox"'
-
-echo "" > /tmp/ok.ail
-out=$(PROGRAM_ALLOWLIST_FILE=/tmp/allow.json AILANG_FS_SANDBOX=/workspace resident-run ok 2>&1)
-have "allowed program passes ONLY its caps"   'echo "$out" | grep -q -- "--caps IO /tmp/ok.ail"'
-have "  ...and does not grant the union"      '! echo "$out" | grep -qE -- "--caps [A-Za-z,]*FS"'
+echo "=== 4. program policy gate — ailang run --policy (D1/D4/D6) ==="
+# resident-run (a JS reimplementation of admission) is GONE. The ONE gate is
+# `ailang run --policy`, reached through the ailang_run tool; the resident
+# defaults to the ailang_only profile so there is no bash to go around it.
+mkdir -p /tmp/pol /tmp/sbx
+printf 'allowed_caps = []\nfs_sandbox = "/tmp/sbx"\nentry = "main"\n' > /tmp/pol/deny.toml
+printf 'allowed_caps = ["IO"]\nfs_sandbox = "/tmp/sbx"\nentry = "main"\n' > /tmp/pol/io.toml
+printf 'module prog\nexport func main() -> () ! {IO} = println("ran-under-policy")\n' > /tmp/sbx/prog.ail
+out=$(cd /tmp/sbx && ailang run --policy /tmp/pol/deny.toml prog.ail 2>/dev/null); rc=$?
+have "empty allowed_caps denies an IO program (default-deny)" '[ "$rc" = "2" ]'
+have "  ...with a structured policy_violation"        'grep -q "policy_violation" <<<"$out"'
+have "  ...and the program did NOT run"               '! grep -q "ran-under-policy" <<<"$out"'
+out=$(cd /tmp/sbx && ailang run --policy /tmp/pol/io.toml --caps Net prog.ail 2>&1 >/dev/null); rc=$?
+have "--caps alongside --policy is refused by name"  '[ "$rc" = "1" ] && grep -q -- "--caps" <<<"$out"'
+out=$(cd /tmp/sbx && ailang run --policy /tmp/pol/io.toml prog.ail 2>/tmp/pol/err); rc=$?
+have "admitted IO program runs"                       '[ "$rc" = "0" ] && grep -q "ran-under-policy" <<<"$out"'
+have "  ...admission line carries the policy digest"  'grep -q "policy_digest" /tmp/pol/err'
+have "RESIDENT_TOOLS defaults to ailang_only"         '[ "${RESIDENT_TOOLS:-}" = "ailang_only" ]'
+have "ailang pi tool-profile ailang_only has no bash" '[ "$(ailang pi tool-profile ailang_only)" = "--no-builtin-tools --tools read,edit,write,ailang_check,ailang_run" ]'
+# boot (section 3 above) moved the suite aside and kept the execution pair:
+have "boot kept ailang-exec.ts"                       '[ -f /home/ailang/.pi/agent/extensions/ailang-exec.ts ]'
+have "boot kept ailang-lsp-lite.ts"                   '[ -f /home/ailang/.pi/agent/extensions/ailang-lsp-lite.ts ]'
+have "boot moved the session gate aside"              '[ ! -f /home/ailang/.pi/agent/extensions/session-protocol-gate.ts ]'
+have "no policy env -> boot says execution is NOT granted" 'grep -q "program policy: NONE" /tmp/boot.log'
+have "resident-run is gone"                           '! command -v resident-run >/dev/null 2>&1'
 
 echo "=== 5. public-ingress authorisation (Preview edge does not enforce invoker) ==="
 have "/livez is public and reveals nothing"     '[ "$(curl -s localhost:8080/livez)" = "ok" ]'

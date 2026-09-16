@@ -55,7 +55,6 @@ RUN npm uninstall -g @mariozechner/pi-coding-agent 2>/dev/null || true; \
 
 COPY boot.sh /usr/local/bin/boot.sh
 COPY server.mjs /usr/local/bin/server.mjs
-COPY resident-run /usr/local/bin/resident-run
 COPY lib/ /usr/local/bin/lib/
 # The acceptance suite ships INSIDE the image so it can be run against the
 # artefact that will actually be deployed, in CI or by hand later, rather than
@@ -66,7 +65,7 @@ COPY test-observatory.mjs /usr/local/bin/test-observatory.mjs
 COPY test-a2a-persistence.mjs /usr/local/bin/test-a2a-persistence.mjs
 COPY test-pi-staging.mjs /usr/local/bin/test-pi-staging.mjs
 COPY test-agent-events.mjs /usr/local/bin/test-agent-events.mjs
-RUN chmod 0755 /usr/local/bin/boot.sh /usr/local/bin/server.mjs /usr/local/bin/resident-run /usr/local/bin/test-image.sh
+RUN chmod 0755 /usr/local/bin/boot.sh /usr/local/bin/server.mjs /usr/local/bin/test-image.sh
 
 USER ailang
 
@@ -79,7 +78,7 @@ ENV HERDR_SOCKET_PATH=/home/ailang/.herdr/herdr.sock \
     AGENT_HOME=/agent-home \
     AILANG_FS_SANDBOX=/workspace \
     PI_HOME=/home/ailang/.pi \
-    PROGRAM_ALLOWLIST_FILE=/etc/resident/allowlist.json
+    RESIDENT_TOOLS=ailang_only
 
 EXPOSE 8080
 ENTRYPOINT ["/usr/local/bin/boot.sh"]
