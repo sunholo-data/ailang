@@ -67,7 +67,7 @@ have "pi failed on the MODEL, not earlier" 'grep -q "not found" "$OUT/err.txt"'
 echo "=== 6. ailang_run is present and default-deny (M-AGENT-AILANG-ONLY-EXECUTION) ==="
 have "ailang-exec.ts installed"           '[ -f "$EXT/ailang-exec.ts" ]'
 PROFILE_ARGS="$(ailang pi tool-profile ailang_only 2>/dev/null || true)"
-have "ailang pi tool-profile ailang_only: allowlist, no bash" 'case "$PROFILE_ARGS" in *"--no-builtin-tools --tools read,edit,write,ailang_check,ailang_run,builtins_search") true;; *) false;; esac'
+have "ailang pi tool-profile ailang_only: allowlist, no bash" 'case "$PROFILE_ARGS" in *"--no-builtin-tools --tools read,edit,write,ailang_check,ailang_run,builtins_search,examples_search") true;; *) false;; esac'
 have "  ...carries its extensions with discovery off"         'case "$PROFILE_ARGS" in "--no-extensions -e "*ailang-exec.ts*|"--no-extensions -e "*ailang-lsp-lite.ts*) true;; *) false;; esac'
 have "  ...and the carried files exist"                       'for f in $PROFILE_ARGS; do case "$f" in *.ts) [ -f "$f" ] || exit 1;; esac; done'
 # Model-free: the extension's gate is a pure function of the environment.

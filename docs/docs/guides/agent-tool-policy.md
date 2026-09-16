@@ -16,7 +16,7 @@ no shell. This page is the operator's view; the design is
 |---|---|---|
 | **Gate** | `ailang run --policy <agent-policy.toml> prog.ail` — typecheck → entry → the program's declared effect row must be a subset of `allowed_caps`; caps, `net_allow` and `fs_sandbox` come **from the policy**; `--caps`, `--no-budgets`, `--allow-env` are refused; denial prints the decision JSON and exits 2 without running | `cmd/ailang/run_policy.go` |
 | **Tool** | `ailang_run({path, args_json?})` — a pi tool that calls the gate with `$AILANG_AGENT_POLICY`; returns `{admitted, exit_code, decision, policy_digest, stdout, stderr}`; with no policy attached it **refuses with a named reason** (default-deny) | `.pi/extensions/ailang-exec.ts`, shipped by `ailang pi install` |
-| **Profile** | `tool_policy: ailang_only` ⇒ `--no-builtin-tools --tools read,edit,write,ailang_check,ailang_run,builtins_search` (`ailang pi tool-profile ailang_only` prints it; `pi.go` and the resident read the same string) | registry field / `RESIDENT_TOOLS` / `eval-suite --tool-policy` |
+| **Profile** | `tool_policy: ailang_only` ⇒ `--no-builtin-tools --tools read,edit,write,ailang_check,ailang_run,builtins_search,examples_search` (`ailang pi tool-profile ailang_only` prints it; `pi.go` and the resident read the same string) | registry field / `RESIDENT_TOOLS` / `eval-suite --tool-policy` |
 
 ## Writing a policy
 

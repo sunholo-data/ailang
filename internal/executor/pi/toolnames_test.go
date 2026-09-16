@@ -20,10 +20,10 @@ func TestToolArgs_ProfileAILANGOnlyHasNoBash(t *testing.T) {
 	}
 	// The profile CARRIES its extensions: discovery off, the pair passed by
 	// path, then the allowlist. Paths are per-process, so match the shape.
-	if !strings.HasPrefix(args, "--no-extensions -e ") || !strings.Contains(args, "ailang-exec.ts") || !strings.Contains(args, "ailang-lsp-lite.ts") {
-		t.Fatalf("ailang_only must carry ailang-exec.ts and ailang-lsp-lite.ts via -e with discovery off, got %q", args)
+	if !strings.HasPrefix(args, "--no-extensions -e ") || !strings.Contains(args, "ailang-exec.ts") || !strings.Contains(args, "ailang-lsp-lite.ts") || !strings.Contains(args, "examples-search.ts") {
+		t.Fatalf("ailang_only must carry ailang-exec.ts, ailang-lsp-lite.ts and examples-search.ts via -e with discovery off, got %q", args)
 	}
-	if !strings.HasSuffix(args, " --no-builtin-tools --tools read,edit,write,ailang_check,ailang_run,builtins_search") {
+	if !strings.HasSuffix(args, " --no-builtin-tools --tools read,edit,write,ailang_check,ailang_run,builtins_search,examples_search") {
 		t.Fatalf("ailang_only = %q, want the builtin-free allowlist last", args)
 	}
 	for _, f := range strings.Fields(args) {

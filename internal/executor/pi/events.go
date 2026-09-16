@@ -85,9 +85,11 @@ type piEvent struct {
 	IsError    bool            `json:"isError,omitempty"`
 
 	// auto_retry_start / auto_retry_end (pi >= 0.84)
-	Attempt     int  `json:"attempt,omitempty"`
-	MaxAttempts int  `json:"maxAttempts,omitempty"`
-	Success     bool `json:"success,omitempty"`
+	Attempt      int    `json:"attempt,omitempty"`
+	MaxAttempts  int    `json:"maxAttempts,omitempty"`
+	Success      bool   `json:"success,omitempty"`
+	ErrorMessage string `json:"errorMessage,omitempty"`
+	FinalError   string `json:"finalError,omitempty"`
 
 	// Raw preserves full event for ProviderData (schema-drift tolerance).
 	Raw map[string]any `json:"-"`
@@ -100,18 +102,25 @@ type piRetries struct {
 	Count       int
 	MaxAttempts int
 	Exhausted   bool
+	LastError   string // the provider's own words — the only place they survive
 }
 
-func (r *piRetries) observeStart(attempt, maxAttempts int) {
+func (r *piRetries) observeStart(attempt, maxAttempts int, errMsg string) {
 	r.Count++
 	if maxAttempts > r.MaxAttempts {
 		r.MaxAttempts = maxAttempts
 	}
+	if errMsg != "" {
+		r.LastError = errMsg
+	}
 }
 
-func (r *piRetries) observeEnd(attempt int, success bool) {
+func (r *piRetries) observeEnd(attempt int, success bool, finalErr string) {
 	if !success && r.MaxAttempts > 0 && attempt >= r.MaxAttempts {
 		r.Exhausted = true
+	}
+	if finalErr != "" {
+		r.LastError = finalErr
 	}
 }
 
@@ -119,7 +128,7 @@ func (r *piRetries) providerData() map[string]any {
 	if r.Count == 0 {
 		return nil
 	}
-	return map[string]any{"count": r.Count, "max_attempts": r.MaxAttempts, "exhausted": r.Exhausted}
+	return map[string]any{"count": r.Count, "max_attempts": r.MaxAttempts, "exhausted": r.Exhausted, "last_error": r.LastError}
 }
 
 // parsePiEvent parses a single NDJSON line.

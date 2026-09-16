@@ -5,7 +5,7 @@
  * an .ail file to `ailang run --policy $AILANG_AGENT_POLICY`. The policy — not
  * the agent — decides caps, the Net allowlist and the FS sandbox; the gate
  * refuses every flag that could widen them (cmd/ailang/run_policy.go). Pair
- * with `--no-builtin-tools --tools read,edit,write,ailang_check,ailang_run,builtins_search`
+ * with `--no-builtin-tools --tools read,edit,write,ailang_check,ailang_run,builtins_search,examples_search`
  * (`ailang pi tool-profile ailang_only`) and `bash` is gone, so the gate is a
  * boundary rather than a convenience. `ailang_check` lives in ailang-lsp-lite.
  *
@@ -94,7 +94,7 @@ export function policySummary(policyToml: string): { caps: string[]; sandbox: st
 export function lanePrompt(gate: PolicyGate, read: (p: string) => string = (p) => readFileSync(p, "utf8")): string {
 	const lines = [
 		"## Execution lane: ailang_only",
-		"You have NO shell. Your tools are read, edit, write, ailang_check, ailang_run and builtins_search — nothing else. Use builtins_search({query}) to discover std functions (listDir, readFile, split, …) instead of guessing.",
+		"You have NO shell. Your tools are read, edit, write, ailang_check, ailang_run, builtins_search and examples_search — nothing else. Use builtins_search({query}) to discover std functions (listDir, readFile, split, …) instead of guessing. Use examples_search({query}) to find a working example before writing a construct you are unsure of.",
 		"The ONLY way to execute anything is `ailang_run` on an AILANG (.ail) file you have written. Do not ask for bash, do not describe commands you would run, do not stop after reading: write the program, `ailang_check` it, then `ailang_run` it.",
 		"Module naming: a file named report.ail must start with `module report` (the bare file name — no directory prefix, no hyphens).",
 		"Paths: AILANG resolves every relative path in a program (readFile, listDir, exec's working directory) against the FS SANDBOX ROOT below, not against the file's location. Write paths relative to that root (or absolute paths inside it).",
