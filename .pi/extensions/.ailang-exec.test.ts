@@ -114,7 +114,12 @@ test("cliDecision: default set admits the read-only surface and refuses the rest
 	}
 });
 
-test("cliDecision: run/test/exec are refused even when the operator lists them", () => {
+test("cliDecision: test is allowed — the runner evaluates pure code only", () => {
+	assert.equal(cliDecision(["test", "--package", "."], null, "/w").ok, true);
+	assert.equal(cliDecision(["test", "hello_test.ail"], null, "/w").ok, true);
+});
+
+test("cliDecision: run/exec/repl are refused even when the operator lists them", () => {
 	for (const cmd of CLI_GATE_ONLY) {
 		const d = cliDecision([cmd, "x.ail"], [cmd, "iface"], "/w");
 		assert.equal(d.ok, false, cmd);

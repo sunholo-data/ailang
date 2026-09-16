@@ -32,10 +32,11 @@ entry         = "main"
 
 `cli_allow` is read by the `ailang_cli` tool, not by `ailang run`: it is the rest of the `ailang`
 CLI an agent may call, in `process_allow` syntax (`docs:search` admits `docs search` only). Absent
-means the documented default set — `check ai-check iface fmt docs:search examples builtins
+means the documented default set — `check ai-check iface fmt test docs:search examples builtins
 pkg-docs tree prompt agent-prompt devtools-prompt policy-check axioms version`, every one
-read-only or writing only the sandbox file it is given — and an empty list refuses everything.
-`run`, `test`, `exec`, `repl`, `replay`, `watch`, `select-best` execute programs and are refused
+read-only, pure (`test`: the runner refuses effectful dependencies and has no `--caps`), or writing only
+the sandbox file it is given — and an empty list refuses everything.
+`run`, `exec`, `repl`, `replay`, `watch`, `select-best` execute programs and are refused
 even when listed: execution only goes through `ailang_run`'s gate. Path arguments must stay inside
 `fs_sandbox`. The 94-subcommand audit that produced the default set is in the v0.39 changelog
 entry; anything that reaches the message plane, the registry, a provider, the coordinator, or

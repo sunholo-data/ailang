@@ -103,10 +103,15 @@ export function policySummary(policyToml: string): { caps: string[]; sandbox: st
  * listed — execution only goes through ailang_run's gate.
  */
 export const CLI_DEFAULT_ALLOW: readonly string[] = [
-	"check", "ai-check", "iface", "fmt", "docs:search", "examples", "builtins",
+	"check", "ai-check", "iface", "fmt", "test", "docs:search", "examples", "builtins",
 	"pkg-docs", "tree", "prompt", "agent-prompt", "devtools-prompt", "policy-check", "axioms", "version",
 ];
-export const CLI_GATE_ONLY: readonly string[] = ["run", "test", "exec", "repl", "replay", "watch", "select-best"];
+// `test` is NOT gate-only: the test runner evaluates PURE code only
+// (internal/testing/pure_cluster.go refuses a test whose dependency has effects;
+// there is no --caps flag), so it cannot reach FS/Net/Process whatever the
+// policy says — and `ailang test --package .` was the first thing a package
+// agent asked for (ailang-packages#64).
+export const CLI_GATE_ONLY: readonly string[] = ["run", "exec", "repl", "replay", "watch", "select-best"];
 
 export interface CliDecision { ok: boolean; reason?: string; }
 
@@ -165,7 +170,7 @@ export function lanePrompt(gate: PolicyGate, read: (p: string) => string = (p) =
 	else lines.push("There is no network access. Do not attempt HTTP.");
 	if (sum.caps.includes("Process")) lines.push(`Process is allowed only for: ${sum.process.join(", ") || "(no commands listed — every process call is refused)"} (cmd:sub narrows to a subcommand).`);
 	else lines.push("There is no process/subprocess access.");
-	lines.push(`ailang_cli may run only these subcommands: ${(sum.cli ?? CLI_DEFAULT_ALLOW).join(", ") || "(none)"} — never run/test (use ailang_run).`);
+	lines.push(`ailang_cli may run only these subcommands: ${(sum.cli ?? CLI_DEFAULT_ALLOW).join(", ") || "(none)"} — never run (use ailang_run); test evaluates pure tests only.`);
 	lines.push("A denial names `missing_from_policy`: narrow the program's effects instead of retrying the same thing. Programs are ordinary AILANG modules with `export func main() -> () ! {…}`; use std/fs, std/io, std/string for what you would have done with shell tools.");
 	return lines.join("\n");
 }
@@ -304,7 +309,7 @@ export default async function (pi: ExtensionAPI) {
 		label: "AILANG CLI (policy-allowlisted)",
 		description:
 			"Run an allowlisted `ailang <subcommand>` — iface (exact export signatures), fmt, ai-check (type-check + Z3 verification), " +
-			"docs search, examples, builtins, pkg-docs, tree, prompt, policy-check. NOT run/test: execution only goes through ailang_run. " +
+			"test (pure tests only; --package for a package), docs search, examples, builtins, pkg-docs, tree, prompt, policy-check. NOT run: execution only goes through ailang_run. " +
 			"argv is passed as an array with no shell; paths must stay inside the FS sandbox. Returns {ok, exit_code, stdout, stderr}.",
 		parameters: Type.Object({
 			argv: Type.Array(Type.String(), { description: 'Subcommand and its arguments, e.g. ["iface", "std/fs"] or ["ai-check", "report.ail"]' }),
