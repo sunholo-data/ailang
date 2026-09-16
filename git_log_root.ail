@@ -1,0 +1,16 @@
+module git_log_root
+
+import std/process (exec)
+import std/bytes (toString)
+
+export func main() -> () ! {IO, Process} {
+  match exec("git", ["log", "-n", "2", "--pretty=format:%H %an"]) {
+    Ok(out) => {
+      println("STDOUT: [${toString(out.stdout)}]");
+      println("STDERR: [${toString(out.stderr)}]");
+      println("EXIT: ${show(out.exitCode)}");
+      println("resolvedPath: ${out.resolvedPath}")
+    },
+    Err(e) => println("ERR")
+  }
+}
