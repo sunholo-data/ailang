@@ -4,10 +4,7 @@
   "created": "2026-09-16T06:12:51Z",
   "design_doc": "design_docs/planned/v0_35_0/m-pi-harness-upgrade.md",
   "sprint_plan": "design_docs/planned/v0_35_0/m-pi-harness-upgrade-sprint-plan.md",
-  "github_issues": [
-    1198,
-    1199
-  ],
+  "github_issues": [],
   "velocity": {
     "target_loc_per_day": 150,
     "estimated_total_loc": 450,
