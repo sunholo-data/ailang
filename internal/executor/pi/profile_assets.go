@@ -8,9 +8,10 @@ import (
 	"sync"
 )
 
-// The execution pair an `ailang_only` profile depends on, embedded so the
-// profile CARRIES its extensions: `ailang_run` (ailang-exec.ts) and
-// `ailang_check` (ailang-lsp-lite.ts). Source of truth is .pi/extensions/;
+// The extensions an `ailang_only` profile depends on, embedded so the
+// profile CARRIES them: `ailang_run` (ailang-exec.ts), `ailang_check` +
+// `builtins_search` (ailang-lsp-lite.ts) and `examples_search`
+// (examples-search.ts). Source of truth is .pi/extensions/;
 // `make pi-assets` syncs, `make verify-pi-assets` gates drift.
 //
 // Why carried rather than discovered (M-AGENT-AILANG-ONLY-EXECUTION M5,
@@ -31,6 +32,7 @@ var profileExtensionFiles = map[string]string{
 	"AilangRun":      "ailang-exec.ts",
 	"AilangCheck":    "ailang-lsp-lite.ts",
 	"BuiltinsSearch": "ailang-lsp-lite.ts",
+	"ExamplesSearch": "examples-search.ts",
 }
 
 var (

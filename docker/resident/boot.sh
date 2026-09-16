@@ -255,10 +255,10 @@ fi
 # Off by default, opt back in with RESIDENT_PI_EXTENSIONS=1 when a resident is
 # genuinely doing ailang repo work and can satisfy the protocol.
 #
-# EXCEPT the execution pair (M-AGENT-AILANG-ONLY-EXECUTION M5): ailang-exec.ts
-# (`ailang_run`, the ONE way an ailang_only resident executes anything) and
-# ailang-lsp-lite.ts (`ailang_check`). Neither registers a gate or a prompt
-# hook; both are self-contained. They are kept in a fresh extensions dir so the
+# EXCEPT the ailang_only set (M-AGENT-AILANG-ONLY-EXECUTION M5): ailang-exec.ts
+# (`ailang_run`, the ONE way an ailang_only resident executes anything),
+# ailang-lsp-lite.ts (`ailang_check`, `builtins_search`) and examples-search.ts
+# (`examples_search`). None registers a gate or a prompt hook; all are self-contained. They are kept in a fresh extensions dir so the
 # session gate and the rest stay aside.
 EXT_DIR="$PI_HOME/agent/extensions"
 if [ "${RESIDENT_PI_EXTENSIONS:-0}" = "1" ]; then
@@ -268,7 +268,7 @@ elif [ -d "$EXT_DIR" ]; then
   mv "$EXT_DIR" "$EXT_DIR.disabled" 2>/dev/null || true
   mkdir -p "$EXT_DIR"
   kept=""
-  for f in ailang-exec.ts ailang-lsp-lite.ts; do
+  for f in ailang-exec.ts ailang-lsp-lite.ts examples-search.ts; do
     if [ -f "$EXT_DIR.disabled/$f" ]; then cp "$EXT_DIR.disabled/$f" "$EXT_DIR/$f"; kept="$kept $f"; fi
   done
   log "pi extensions: disabled (moved aside; set RESIDENT_PI_EXTENSIONS=1 to keep); kept execution pair:${kept:- NONE}"
