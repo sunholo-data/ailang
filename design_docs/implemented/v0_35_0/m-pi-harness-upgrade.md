@@ -1,6 +1,6 @@
 # M-PI-HARNESS-UPGRADE — move the fleet off abandoned pi 0.73.1, and make the boundary visible in the data
 
-**Status**: Planned
+**Status**: Implemented
 **Target**: v0.35.0
 **Priority**: P1 — no outage today, but every day the split widens the un-annotated stretch of the benchmark record
 **Estimated**: ~3 days (2 days build, 1 day re-baseline + boundary bookkeeping)
