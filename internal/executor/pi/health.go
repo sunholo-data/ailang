@@ -3,23 +3,25 @@ package pi
 import (
 	"context"
 	"fmt"
-	"github.com/sunholo-data/ailang/internal/proctree"
 	"os"
 	"os/exec"
 )
 
-// HealthCheck verifies the pi binary exists on PATH and responds.
+// HealthCheck verifies the pi binary exists on PATH and responds to --version.
+// The version it reports is captured (see Version), not discarded.
 func (e *PiExecutor) HealthCheck(ctx context.Context) error {
-	piPath := e.piPath
-	if _, err := exec.LookPath(piPath); err != nil {
-		if _, statErr := os.Stat(piPath); statErr != nil {
-			return fmt.Errorf("pi CLI not found: %w (install with: npm i -g @mariozechner/pi-coding-agent)", err)
+	if _, err := exec.LookPath(e.piPath); err != nil {
+		if _, statErr := os.Stat(e.piPath); statErr != nil {
+			return fmt.Errorf("pi CLI not found: %w (install with: npm i -g %s@%s)", err, ExpectedPackage, ExpectedVersion)
 		}
 	}
-	checkCmd := exec.CommandContext(ctx, piPath, "--version")
-	proctree.Configure(checkCmd)
-	if err := checkCmd.Run(); err != nil {
-		return fmt.Errorf("pi --version failed: %w", err)
-	}
-	return nil
+	_, err := e.probe.Raw(ctx)
+	return err
+}
+
+// Version returns the harness identity as "pi@<version>", where <version> is
+// what the binary printed for --version. Empty when the probe fails: absent
+// means UNMEASURED, never a guess.
+func (e *PiExecutor) Version(ctx context.Context) string {
+	return e.probe.Identity(ctx)
 }

@@ -135,6 +135,9 @@ type AgentBenchmarkResult struct {
 	// subject reports it actually LOADED. Treatment-integrity evidence for any
 	// experiment whose treatment IS an extension.
 	ResolvedExtensions string `json:"resolved_extensions,omitempty"`
+	// ExecutorVersion is what the harness CLI reported for --version
+	// ("pi@0.85.1"). Absent => unmeasured. See executor.Result.ExecutorVersion.
+	ExecutorVersion string `json:"executor_version,omitempty"`
 
 	// SessionJSONLPath is the executor's own session log — the only record of
 	// what the agent was actually TOLD. The banked agent_transcript holds tool

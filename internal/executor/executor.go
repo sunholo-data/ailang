@@ -255,6 +255,15 @@ type Result struct {
 	// failed are indistinguishable without it (v0.30.0 baseline CAVEATS.md).
 	ReasonTokens int
 
+	// ExecutorVersion is the harness identity the CLI itself REPORTED, as
+	// "<cli>@<version>" (e.g. "pi@0.85.1"). It is what `--version` printed, never
+	// what the build believed it installed. Empty means UNMEASURED — the
+	// executor could not probe, or predates this field — and must never be read
+	// as "the current one". M-PI-HARNESS-UPGRADE M1: three un-annotated ollama
+	// boundaries and a rig/cloud pi split were invisible in the banked corpus
+	// because nothing recorded this.
+	ExecutorVersion string
+
 	// Session info
 	SessionID  string // Provider's session identifier
 	Transcript string // Full conversation log

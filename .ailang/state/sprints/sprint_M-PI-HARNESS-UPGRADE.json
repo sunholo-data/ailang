@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-PI-HARNESS-UPGRADE",
-  "status": "not_started",
+  "status": "in_progress",
   "created": "2026-09-16T06:12:51Z",
   "design_doc": "design_docs/planned/v0_35_0/m-pi-harness-upgrade.md",
   "sprint_plan": "design_docs/planned/v0_35_0/m-pi-harness-upgrade-sprint-plan.md",
@@ -21,10 +21,11 @@
         "TestHealthCheck_WithFakeBinary proves captured string equals the fake binary's output",
         "executor_version appears on RunMetrics via AgentBenchmarkResult with omitempty and a doc comment"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-16T06:17:05Z",
+      "completed": "2026-09-16T06:17:05Z",
+      "notes": "Result.ExecutorVersion + shared executor.VersionProbe; pi HealthCheck captures --version; plumbed through AgentBenchmarkResult to RunMetrics.executor_version (omitempty, absent=>unmeasured). Identity banked as <cli>@<observed> (pi@0.85.1), not <package>@<version>: the package is a build belief, the version is what the binary reports. Other executors deferred (VersionProbe makes it 2 lines + stamping each). pi.go split into pi.go/args.go/events.go at the 800-line gate.",
+      "actual_loc": 180
     },
     {
       "id": "M2",

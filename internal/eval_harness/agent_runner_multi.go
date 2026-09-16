@@ -505,6 +505,7 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 		BenchmarkID:        spec.ID,
 		ResolvedProfile:    resolvedProfile,
 		ResolvedExtensions: resolvedExtensions,
+		ExecutorVersion:    result.ExecutorVersion,
 		SessionJSONLPath:   sessionJSONLPath,
 		Executor:           executorName,
 		Success:            success,

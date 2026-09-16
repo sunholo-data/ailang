@@ -84,6 +84,14 @@ type RunMetrics struct {
 	ResolvedProfile    string `json:"resolved_profile,omitempty"`
 	ResolvedExtensions string `json:"resolved_extensions,omitempty"`
 
+	// ExecutorVersion is the harness identity the CLI REPORTED ("pi@0.85.1"),
+	// captured from its own --version at run time. ABSENT MEANS UNMEASURED —
+	// every row banked before M-PI-HARNESS-UPGRADE M1 lacks it, and reading
+	// absent as "the current one" would let a harness boundary (0.73.1 → 0.85.1
+	// on 2026-09) vanish from the record exactly as the three ollama boundaries
+	// did. Compare across rows only when both carry the field.
+	ExecutorVersion string `json:"executor_version,omitempty"`
+
 	// Validity marks whether this row is a MEASUREMENT at all, as opposed to a
 	// failure to measure (dead subject, harness error, wrong config). NIL means
 	// valid — every row banked before v0.31.0 lacks the field, and treating

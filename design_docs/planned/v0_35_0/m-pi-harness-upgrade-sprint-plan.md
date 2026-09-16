@@ -20,7 +20,7 @@ Both planes on `@earendil-works/pi-coding-agent@0.85.1`, with the harness versio
 
 Ordered so the instrument lands before the change it measures.
 
-### M1 — Bank the harness version (~3h, ~90 LOC)
+### M1 — Bank the harness version (~3h, ~90 LOC) ✅ 2026-09-16
 **Files**: `internal/executor/executor.go`, `internal/executor/pi/pi.go`, `internal/executor/pi/health.go`, `internal/eval_harness/agent_runner.go`, `internal/eval_harness/agent_runner_multi.go`, `cmd/ailang/eval_benchmark_agent.go`, `internal/eval_harness/metrics.go`, tests
 1. `Result.ExecutorVersion string` — the identity string the CLI reports (`<package>@<semver>` for pi).
 2. `PiExecutor` captures `pi --version` stdout once (lazy, cached on the struct) and stamps every `Result`. `HealthCheck` keeps its existing contract and reuses the capture.
