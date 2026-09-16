@@ -44,6 +44,16 @@ type AgentBenchmarkConfig struct {
 	// executor.Task.MaxTokensPerBench. Set via the -max-tokens-per-bench CLI
 	// flag in cmd/ailang/eval_suite.go.
 	MaxTokensPerBench int
+
+	// ToolPolicy / PolicyPath (M-AGENT-AILANG-ONLY-EXECUTION M5, D5): the
+	// `ailang_only` eval LANE. ToolPolicy is a profile or canonical list
+	// (executor.ProfileTools); empty = the executor's own defaults, i.e. the
+	// lane every row before this field was banked on. PolicyPath is the program
+	// policy the lane's `ailang_run` is gated by, forwarded as
+	// AILANG_AGENT_POLICY. Both are banked on the row (tool_policy,
+	// policy_digest), so this lane never pools with the bash lane silently.
+	ToolPolicy string
+	PolicyPath string
 }
 
 // DefaultAgentConfig returns sensible defaults.

@@ -232,6 +232,24 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 		Metadata:               buildChainMetadata(config.ChainID, config.StageID),
 		MaxTokensPerBench:      config.MaxTokensPerBench,        // M-EVAL-OS-LONGITUDINAL Phase 1
 		MaxOutputTokens:        modelMaxOutputTokens(modelName), // M-OLLAMA-PER-MODEL-MAX-TOKENS
+		PolicyPath:             config.PolicyPath,
+	}
+
+	// The ailang_only lane (M-AGENT-AILANG-ONLY-EXECUTION D5): a tool policy
+	// is a harness boundary, so it is explicit, banked, and never a silent
+	// default. An unknown profile fails the run before any model is called.
+	if config.ToolPolicy != "" {
+		tools, err := executor.ProfileTools(config.ToolPolicy)
+		if err != nil {
+			return nil, fmt.Errorf("tool-policy: %w", err)
+		}
+		task.AllowedTools = tools
+	}
+	if config.PolicyPath != "" {
+		if task.ExtraEnv == nil {
+			task.ExtraEnv = make(map[string]string)
+		}
+		task.ExtraEnv["AILANG_AGENT_POLICY"] = config.PolicyPath
 	}
 
 	// Export benchmark agent_env to the executor subprocess (M-EVAL-REIMPLEMENT-BENCH).

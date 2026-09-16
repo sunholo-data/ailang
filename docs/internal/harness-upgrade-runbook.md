@@ -39,6 +39,7 @@ two directives on both versions, diff the event/field sets), and only then move 
 | rig | 2026-08-31 | 0.73.1 → 0.84.4 | no (field landed 2026-09-16) |
 | rig | ~2026-09-05 | 0.84.4 → 0.85.1 | no |
 | cloud (`agent-pi`, `agent-eval`, `resident-pi`) | 2026-09-16 | 0.73.1 → 0.85.1 | yes, from the first build after `5ef7a2b24` |
+| **tool policy** (every plane) | 2026-09-16 | bash lane → `ailang_only` lane **opt-in**; rows bank `tool_policy` / `policy_digest` from `aaef58683` | absent = the bash lane, unmeasured — never pool the two (`docs/docs/guides/agent-tool-policy.md`) |
 
 The 0.73.1 → 0.84.4 rig boundary was sized after the fact from existing `os-rolling/v0.34.0`
 rows (same AILANG version, same model `pi-qwen3-8-27b`, 77 vs 241 rows, 26 shared benchmarks):

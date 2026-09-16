@@ -415,8 +415,11 @@ invokes.
 would have made them visible did not exist until 2026-09-16): rig pi 0.73.1 → 0.84.4 on
 **2026-08-31**; rig 0.84.4 → 0.85.1 ~**2026-09-05**; cloud `agent-pi`/`agent-eval`/`resident-pi`
 0.73.1 → 0.85.1 on **2026-09-16** (M-PI-HARNESS-UPGRADE, `5ef7a2b24`). From that commit every
-agent-mode row banks `executor_version`; absent means unmeasured. Full table and the
-after-the-fact sizing of the 08-31 step: `docs/internal/harness-upgrade-runbook.md`.
+agent-mode row banks `executor_version`; absent means unmeasured. **Tool-policy lane, 2026-09-16**
+(M-AGENT-AILANG-ONLY-EXECUTION, `aaef58683`): rows bank `tool_policy`/`policy_digest`; the
+`ailang_only` lane (no bash, `ailang run --policy` behind `ailang_run`) is opt-in and must never
+pool with the bash lane. Full table and the after-the-fact sizing of the 08-31 step:
+`docs/internal/harness-upgrade-runbook.md`.
 
 ## Guardrails (the loop may not…)
 
