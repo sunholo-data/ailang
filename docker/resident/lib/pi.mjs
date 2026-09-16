@@ -160,7 +160,7 @@ export function runPi({ model, prompt, thinking, tools, cwd, onEvent, sessionId,
   // TOOL POLICY — the profile (see toolPolicy above), or a per-run explicit
   // list. Default ailang_only: no bash, so `ailang run --policy` behind
   // ailang_run is a boundary and not a convenience.
-  const toolPolicy = Array.isArray(tools) ? tools : toolPolicy();
+  const effectiveTools = Array.isArray(tools) ? tools : toolPolicy();
   if (Array.isArray(tools)) {
     args.push(...(tools.length === 0 ? ["--no-tools"] : ["--tools", tools.join(",")]));
   } else {
@@ -182,7 +182,7 @@ export function runPi({ model, prompt, thinking, tools, cwd, onEvent, sessionId,
       cwd: cwd || process.env.WORKSPACE_DIR || "/workspace",
       stdio: ["ignore", "pipe", "pipe"],
     });
-    console.log(`pi | spawn model=${model} session=${persistent ? sessionId : "(stateless)"} tools=[${toolPolicy.join(",") || "none"}] cwd=${cwd || process.env.WORKSPACE_DIR || "/workspace"}`);
+    console.log(`pi | spawn model=${model} session=${persistent ? sessionId : "(stateless)"} tools=[${effectiveTools.join(",") || "none"}] cwd=${cwd || process.env.WORKSPACE_DIR || "/workspace"}`);
     const state = { text: "", events: 0, toolCalls: [], usage: null, stopReason: null, stderr: "" };
     let buf = "";
 

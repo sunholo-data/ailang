@@ -267,27 +267,37 @@ a2a.messageSend({ message: { role: "user", kind: "message", messageId: "m1",
   .catch((e) => console.log("THREW: " + e.message));')
 have "a sole registered model is used when none is requested" 'echo "$out" | grep -q "MODEL=openrouter/z-ai/glm-5.3-flash"'
 
-echo "=== 6d. tool policy (D8) ==="
-# pi enables read/bash/edit/write by default and said so nowhere. The point of
-# these assertions is that the set is EXPLICIT: what an agent can do must be
-# readable from the command line and from /health, not inferred from pi's docs.
+echo "=== 6d. tool policy (D8 → M-AGENT-AILANG-ONLY-EXECUTION D6) ==="
+# RESIDENT_TOOLS is a PROFILE. The image default is ailang_only: pi's builtins
+# are dropped and exactly read/edit/write + the AILANG gate are allowed — no
+# bash, so `ailang run --policy` behind ailang_run is a boundary. What an agent
+# can do must be readable from the command line and from /health.
 STUB=$(mktemp -d)
 printf '#!/bin/sh\necho "$@" > /tmp/pi-argv.txt\n' > "$STUB/pi"; chmod +x "$STUB/pi"
 PATH="$STUB:$PATH" timeout 30 node --input-type=module -e '
 import { runPi } from "/usr/local/bin/lib/pi.mjs";
 runPi({ model: "m", prompt: "hi", ttftMs: 5000 }).catch(() => {});' >/dev/null 2>&1
-have "the tool set is always passed explicitly" 'grep -q -- "--tools" /tmp/pi-argv.txt'
+ARGV="$(cat /tmp/pi-argv.txt 2>/dev/null || true)"
+have "default profile drops pi's builtins"        'grep -q -- "--no-builtin-tools" <<<"$ARGV"'
+have "  ...and allows exactly the ailang_only set" 'grep -q -- "--tools read,edit,write,ailang_check,ailang_run" <<<"$ARGV"'
+have "  ...so bash is absent"                      '! grep -q "bash" <<<"$ARGV"'
 
 RESIDENT_TOOLS="read" PATH="$STUB:$PATH" timeout 30 node --input-type=module -e '
 import { runPi } from "/usr/local/bin/lib/pi.mjs";
 runPi({ model: "m", prompt: "hi", ttftMs: 5000 }).catch(() => {});' >/dev/null 2>&1
-have "RESIDENT_TOOLS narrows the policy"     'grep -q -- "--tools read" /tmp/pi-argv.txt'
-have "  ...and bash is then absent"          '! grep -q -- "bash" /tmp/pi-argv.txt'
+ARGV="$(cat /tmp/pi-argv.txt 2>/dev/null || true)"
+have "an explicit RESIDENT_TOOLS list narrows"     'grep -q -- "--tools read" <<<"$ARGV"'
+
+RESIDENT_TOOLS="full" PATH="$STUB:$PATH" timeout 30 node --input-type=module -e '
+import { runPi } from "/usr/local/bin/lib/pi.mjs";
+runPi({ model: "m", prompt: "hi", ttftMs: 5000 }).catch(() => {});' >/dev/null 2>&1
+ARGV="$(cat /tmp/pi-argv.txt 2>/dev/null || true)"
+have "profile full passes no tool flags (pi defaults, opt-in only)" '! grep -q -- "--tools\|--no-tools" <<<"$ARGV"'
 
 PATH="$STUB:$PATH" timeout 30 node --input-type=module -e '
 import { runPi } from "/usr/local/bin/lib/pi.mjs";
 runPi({ model: "m", prompt: "hi", tools: [], ttftMs: 5000 }).catch(() => {});' >/dev/null 2>&1
-have "an empty policy disables tools entirely" 'grep -q -- "--no-tools" /tmp/pi-argv.txt'
+have "an empty per-run list disables tools entirely" 'grep -q -- "--no-tools" /tmp/pi-argv.txt'
 rm -rf "$STUB" /tmp/pi-argv.txt
 
 echo "=== 6e. concurrency ceiling ==="
