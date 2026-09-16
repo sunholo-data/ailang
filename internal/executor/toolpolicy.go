@@ -26,22 +26,24 @@ var CanonicalTools = map[string]bool{
 	"Read": true, "Write": true, "Edit": true, "Bash": true,
 	"Grep": true, "Glob": true, "WebFetch": true, "WebSearch": true,
 	"AilangCheck": true, "AilangRun": true,
-	"QuotaReport": true, "BuiltinsSearch": true, "MicroragSearch": true,
+	"QuotaReport": true, "BuiltinsSearch": true, "MicroragSearch": true, "ExamplesSearch": true,
 }
 
 // ProfileTools expands a tool_policy value into canonical names.
 //
 //	"" / "full"    → nil   (the CLI's own defaults apply)
-//	"ailang_only"  → Read, Edit, Write, AilangCheck, AilangRun, BuiltinsSearch — no Bash
+//	"ailang_only"  → Read, Edit, Write, AilangCheck, AilangRun, BuiltinsSearch, ExamplesSearch — no Bash
 //	                 (BuiltinsSearch is read-only API discovery: without it the
-//	                 model reaches for `ailang docs` in a shell it does not have)
+//	                 model reaches for `ailang docs` in a shell it does not have;
+//	                 ExamplesSearch is read-only example discovery: without it the
+//	                 model can only `read` an example whose path it already knows)
 //	"A,B,C"        → that list, each name validated
 func ProfileTools(profile string) ([]string, error) {
 	switch strings.TrimSpace(profile) {
 	case "", ToolProfileFull:
 		return nil, nil
 	case ToolProfileAILANGOnly:
-		return []string{"Read", "Edit", "Write", "AilangCheck", "AilangRun", "BuiltinsSearch"}, nil
+		return []string{"Read", "Edit", "Write", "AilangCheck", "AilangRun", "BuiltinsSearch", "ExamplesSearch"}, nil
 	}
 	var out []string
 	for _, t := range strings.Split(profile, ",") {

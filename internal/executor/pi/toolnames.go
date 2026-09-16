@@ -38,6 +38,7 @@ var canonicalToPi = map[string]string{
 	"QuotaReport":    "quota_report",
 	"BuiltinsSearch": "builtins_search",
 	"MicroragSearch": "microrag_search",
+	"ExamplesSearch": "examples_search",
 }
 
 // ProfileTools is executor.ProfileTools — canonical names, executor-neutral.
