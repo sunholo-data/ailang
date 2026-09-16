@@ -115,7 +115,7 @@ Severity **A** = superlinear or unbounded; **B** = linear but avoidable; **C** =
 | F14 | docparse xlsx: worksheets read whole (shared strings already stream), `sanitizeXml` second copy, `parseSheetsWithNames` non-tail so all sheets live at once, images base64-retained for the document lifetime | `xlsx_parser.ail:470-484,501`; `docx_parser.ail:825-832` | A | **Downstream asks D2, D3** |
 | F15 | Strict `take(n, flatMap(...))` never bounds peak (#617); fused `_list_takeMap`/`_list_takeFlatMap` exist | `internal/builtins/list_bounded.go` | A | Non-goal here; prompt/stdlib guidance |
 | F16 | Closures capture the whole `Environment` chain; a fresh `map` + `sync.RWMutex` per call; 4–5 `defer`s per call | `eval_expressions.go:178-185`; `env.go:25-30`; `eval_operations.go:60,143-153` | B | Future Work (measure first) |
-| F17 | `MapValue.Insert`/record update copy the whole map; record path has no capacity hint | `value.go:213-242`; `eval_expressions.go:417-427` | B | Future Work; capacity hint is a trivial M1 add-on |
+| F17 | `MapValue.Insert` and record update each copy the whole map (O(n) per update, O(n²) to build incrementally). `Insert` pre-sizes (`make(..., len+1)`); record update does not (`make(map[string]Value)` with no hint, so it rehashes while copying) | `value.go:213-221`; `eval_expressions.go:411-425` | B | Future Work; the record-update capacity hint is a trivial M1 add-on |
 | F18 | `LoadedModule` retains source text + surface AST + Core + Iface + CoreTI per module for the run | `internal/loader/loader.go:47-58` | B | Non-goal (intentional; error rendering + cache key) |
 
 **Already in place and kept:** trace per-value cap 1 KB and retention eviction with a
@@ -178,7 +178,7 @@ docs.
   `ShowBounded(a, budget)`. `boundValues` stays as the retention-side guard (belt and braces).
 - `eventSize` charges `unsafe.Sizeof(TraceEvent{})` + the payload struct + 16 B per string +
   string bytes. `DefaultMaxRetainedBytes` per D-B.
-- Record update: `make(map[string]Value, len(rec.Fields))` at `eval_expressions.go:417-427` (F17 hint).
+- Record update: `make(map[string]Value, len(baseRecord.Fields)+len(update.Updates))` at `eval_expressions.go:411` (F17 hint; `MapValue.Insert` already does this).
 
 **M2 — unbounded accumulators (`internal/effects/debug.go`, `debug_sink.go`, `apiserver/server.go`, `eval_typed_helpers.go`)**
 - `DebugContext` gains an optional `sink func(LogEntry)` and `minLevel`; `Log` filters by level
@@ -200,8 +200,17 @@ docs.
 **M4 — process controls (`cmd/ailang/memory_limit.go`, `main_run_exec.go`, `serve_api.go`)**
 - `resolveMemoryLimit()`: `--max-memory` > `GOMEMLIMIT` (Go reads it itself; we only log) >
   Linux cgroup v2 `/sys/fs/cgroup/memory.max` (v1 `memory.limit_in_bytes`) × 0.9 > none.
-  Applied in both `run` and `serve-api`. GOGC=500 is kept: with a limit set, the runtime
-  collects at the limit regardless of GOGC, which is the intended interaction.
+  Applied in both `run` and `serve-api`.
+- **GOGC and the limit interact as documented by Go, not as "the limit wins"** (V17): the GC
+  trigger is the *smaller* of the GOGC-derived heap target and the limit-derived target, and the
+  limit is soft. Below the limit GOGC=500 still lets the heap grow 6× live before a cycle; near
+  the limit the runtime collects continuously and Go caps GC at ~50 % of CPU rather than
+  guaranteeing the limit (measured: `--max-memory 64MB` on 772 MB live → 11 s CPU, no reduction).
+  Consequences adopted: (a) GOGC=500 stays for the short-lived `run`/`exec` CLI path, where the
+  25 % speed-up was measured; (b) `serve-api` keeps Go's default GOGC=100 — it already does (V10)
+  — because a long-lived process at concurrency 80 that sits at min(6× live, limit) has no
+  headroom for non-heap memory (goroutine stacks, the SQLite cache, cgo); (c) the cgroup fraction
+  is 0.9 so a true overrun is killed by the kernel instead of thrashing at the soft limit.
 - `ailang doctor` prints the resolved limit and its source.
 - Docs: `docs/docs/guides/debugging.md` gains a "Memory" section listing every control and the
   `/usr/bin/time -l` probe protocol.
@@ -344,7 +353,7 @@ readFile("big.xml")
 - **Lazy evaluation or generators** for `take(n, flatMap(...))` (F15, #617) — language semantics; the fused bounded combinators and prompt guidance stand.
 - **Dropping the surface AST after elaboration** (F18) — intentional retention.
 - **A `MEM001` logical memory budget** — M-MEM-BUDGET-RUNTIME owns it; this doc lowers usage, that doc bounds it.
-- **Changing GOGC=500** — kept; with a memory limit set it is harmless and buys the measured 25 % speed-up.
+- **Changing GOGC=500 for the CLI** — kept for `run`/`exec` (short-lived; 25 % measured speed-up, ~24 MB at the floor). It is *not* harmless under a limit (V17); that is why `serve-api` does not set it.
 
 ## Timeline
 
@@ -385,6 +394,12 @@ readFile("big.xml")
 | V14 | Measurements | probes `stack.ail`, `acc.ail` (`build(n, acc) = if n == 0 then acc else build(n-1, n :: acc)`), `/usr/bin/time -l`, installed `ailang v0.39.2-dirty` | table above |
 | V15 | Trace collector only constructed with `--emit-trace` or telemetry enabled | `runner/run.go:490-495` | confirmed — CLI runs without either pay nothing |
 | V16 | M-TRACE-TIER-NOT-ENFORCED M2 landed despite the doc header saying outstanding | `git show e4c42a7bf` | landed; doc status stale |
+| V17 | GOGC vs memory limit: trigger = min(GOGC target, limit target); limit is soft | Go docs `runtime/debug.SetMemoryLimit` ("GOGC still determines the trigger point when below the limit"; "soft limit … the runtime will not exceed ~50 % GC CPU"); measured `GODEBUG=gctrace=1` on a garbage-heavy probe (200k-string list mapped 40×): GOGC=100 → 7 cycles; GOGC=500 → 1 cycle; GOGC=500 + `GOMEMLIMIT=120MiB` → 7 cycles (total runtime memory ≈ 107 MB RSS approached the limit, so the limit-derived trigger took over); `--max-memory 64MB` on 772 MB live → 931 MB peak, 11.2 s user CPU | confirmed; M4 text rewritten accordingly |
+| V18 | F4: `ListValue.String()` serialises every element into one builder; same shape for record/map/ADT | read `internal/eval/value.go:89-100` (`for _, elem := range l.Elements { b.WriteString(elem.String()) }`) | confirmed; no depth/size bound |
+| V19 | F7: typed-evaluator trace has no cap | read `internal/eval/eval_typed_helpers.go:90` (`e.trace.Entries = append(e.trace.Entries, entry)`); `eval_typed.go:22,50,74` (`Entries []TraceEntry`) | confirmed; unbounded append, no eviction |
+| V20 | F10: `_zip_readEntry` reads with `io.ReadAll` (doubling growth, no pre-size) then `string(data)` | read `internal/builtins/zip.go:559-579` (`io.ReadAll(limited)` at :573) and `:199-200` (`string(data)`) | confirmed; `f.UncompressedSize64` is checked at :561 but never used to size the buffer |
+| V21 | F16: closures capture the whole `Environment`; each child env allocates a map and carries a `sync.RWMutex` | read `internal/eval/eval_expressions.go:178-185` (`Env: env`), `env.go:10-14` (struct: `mu sync.RWMutex; values map[string]Value; parent *Environment`), `env.go:24-30` (`NewChildEnvironment`: `make(map[string]Value)`, no hint) | confirmed; no free-variable analysis exists (`grep -rn "freeVars\|FreeVars" internal/eval` → empty) |
+| V22 | F17: `MapValue.Insert` copies the whole map but pre-sizes; record update copies without a hint | read `internal/eval/value.go:213-221` (`make(map[string]*MapEntry, len(m.Entries)+1)`), `eval_expressions.go:411` (`make(map[string]Value)`) | confirmed; F17 wording corrected (Insert does hint) |
 
 **Quorum triggers:** trigger 1 fires (four design-freeze items) and trigger 2 fires (D-B overrides
 the shared trace retention default). Run `ailang design-quorum` before sprint planning.
