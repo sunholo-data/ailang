@@ -97,14 +97,14 @@ Meanwhile the Go admission gate this story needs **already exists and is used by
 
 ### Design Freeze
 
-Before implementation begins, these must be resolved:
+**D1–D6 RATIFIED by Mark, 2026-09-16.** D6 addendum: M5.3 runs the core tier under `--tool-policy ailang_only` as the comparator, so thesis data accrues from day one without changing any agent's default. Executes after the parent lands.
 
-- [ ] **D1** — `ailang run --policy` is the one gate; `resident-run` is deleted, not kept "for compatibility"
-- [ ] **D2** — the pi tool ships in the embedded `pi_assets` suite (so `ailang pi install` in every Dockerfile delivers it), not as a resident-only file
-- [ ] **D3** — `tool_policy` is a registry field on `AgentConfig`, with `ailang coordinator agents <id>` showing declared vs effective
-- [ ] **D4** — policy files are mounted/injected config, default-deny, and the pi tool refuses a policy whose `fs_sandbox` contains the policy file
-- [ ] **D5** — `ailang_only` evals bank under a new lane field, and the first such run is preceded by a boundary note in the charter and runbook
-- [ ] **D6** — fleet default `full`; resident default `ailang_only`
+- [x] **D1** — `ailang run --policy` is the one gate; `resident-run` is deleted, not kept "for compatibility"
+- [x] **D2** — the pi tool ships in the embedded `pi_assets` suite (so `ailang pi install` in every Dockerfile delivers it), not as a resident-only file
+- [x] **D3** — `tool_policy` is a registry field on `AgentConfig`, with `ailang coordinator agents <id>` showing declared vs effective
+- [x] **D4** — policy files are mounted/injected config, default-deny, and the pi tool refuses a policy whose `fs_sandbox` contains the policy file
+- [x] **D5** — `ailang_only` evals bank under a new lane field, and the first such run is preceded by a boundary note in the charter and runbook
+- [x] **D6** — fleet default `full`; resident default `ailang_only`
 - [ ] **Parent freeze** — M-PI-HARNESS-UPGRADE D1 (cut both planes over) is ratified. **Mark, 2026-09-16: "update the fleet to use the newest pi version"** — which is the substance of D1, but the parent pins **0.84.4** and the rig has since moved to **0.85.1** (V10). Decide the pin there before this sprint starts; this doc's extension is tested against whichever version the parent lands.
 
 ---

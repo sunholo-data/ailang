@@ -132,13 +132,13 @@ Not from the changelog — from **two live captures of the same prompt**, same m
 
 ### Design Freeze
 
-Before implementation begins, these must be resolved:
+**All items RATIFIED by Mark, 2026-09-16 (attended session).** Order of execution: this doc fully, then [m-agent-ailang-only-execution](m-agent-ailang-only-execution.md).
 
 - [x] **D1** — cut over both planes to **0.85.1** — **RATIFIED Mark 2026-09-16.** The measured-drift rows (V7–V18, V28) were taken on 0.84.4; 0.85.0/0.85.1 changelogs show TUI, SDK session and provider-stream fixes, no NDJSON schema entries — but that is a changelog citation, so M3.0 below re-captures the differential on 0.85.1 before any image moves
-- [ ] **D2** — annotate-and-re-baseline-a-comparator-set, not a full re-bank and not a history rewrite
-- [ ] **D3** — `executor_version` lands in the banked schema this sprint, with absent ⇒ unmeasured
-- [ ] **D7** — containers do **not** trust the workspace root; the suite ships in the image-owned global dir and a negative test proves workspace extensions stay inert
-- [ ] **D8** — the image's Node version is **pinned and asserted** at build time against pi's 22.19.0 floor; a floating `setup_22.x` is not acceptable in a sprint whose whole thesis is that unpinned installs are the defect
+- [x] **D2** — annotate-and-re-baseline-a-comparator-set, not a full re-bank and not a history rewrite
+- [x] **D3** — `executor_version` lands in the banked schema this sprint, with absent ⇒ unmeasured
+- [x] **D7** — containers do **not** trust the workspace root; the suite ships in the image-owned global dir and a negative test proves workspace extensions stay inert
+- [x] **D8** — the image's Node version is **pinned and asserted** at build time against pi's 22.19.0 floor; a floating `setup_22.x` is not acceptable in a sprint whose whole thesis is that unpinned installs are the defect
 
 ---
 
