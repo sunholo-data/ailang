@@ -1,0 +1,114 @@
+{
+  "sprint_id": "M-COORD-MULTI-HOST-WORKERS",
+  "status": "completed",
+  "created": "2026-05-25T12:18:02Z",
+  "design_doc": "design_docs/planned/v0_24_0/m-coord-multi-host-workers.md",
+  "sprint_plan": "design_docs/planned/v0_24_0/m-coord-multi-host-workers-sprint-plan.md",
+  "github_issues": [],
+  "velocity": {
+    "target_loc_per_day": 350,
+    "estimated_total_loc": 1420,
+    "estimated_days": 4
+  },
+  "features": [
+    {
+      "id": "M1_WORKER_IDENTITY_TAGS_IN_AGENTC",
+      "description": "Worker identity + tags in AgentConfig",
+      "estimated_loc": 150,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "`AgentConfig` accepts new fields; empty defaults = match-all + hostname (backwards compat)",
+        "`agent_config_test.go` exercises new fields including defaults",
+        "`TagMatch` unit tests cover: exact match, glob match, subset, empty, malformed input",
+        "All existing coordinator tests still pass"
+      ],
+      "passes": true,
+      "started": "2026-05-25T12:19:00Z",
+      "completed": "2026-05-25T12:25:00Z",
+      "notes": "WorkerTags + WorkerHostID added to AgentConfig (backwards-compat: empty = match-all + hostname). New tag_matcher.go with set-inclusion + prefix-glob (ollama:* etc) semantics. 26 unit tests (TagMatches=17, TagMatchesGlob=7, ResolveHostID=2). Plus 2 AgentConfig YAML round-trip tests covering defaults and explicit values."
+    },
+    {
+      "id": "M2_PUB_SUB_SUBSCRIPTION_TAG_FILTE",
+      "description": "Pub/Sub subscription tag-filter",
+      "estimated_loc": 250,
+      "dependencies": [
+        "M1_WORKER_IDENTITY_TAGS_IN_AGENTC"
+      ],
+      "acceptance_criteria": [
+        "PubSubInboxAdapter constructor takes host_id + tags",
+        "Messages without `requires` attribute behave exactly as today (match all)",
+        "Messages with `requires` are ack'd only on tag subset match",
+        "Non-matching messages get NACK, observable in Pub/Sub metrics",
+        "Integration test with Firestore emulator: 2 mock workers, single tag-routed task, exactly one claims",
+        "No regression in existing Pub/Sub message flow"
+      ],
+      "passes": true,
+      "started": "2026-05-25T12:35:00Z",
+      "completed": "2026-05-25T12:50:00Z",
+      "notes": "SetWorkerTags() opt-in setter (preserves 3 existing callers untouched). HandleNotification rejects tag-mismatched messages with non-nil error BEFORE Firestore fetch (efficiency: panicOnGetStore in tests enforces this). MessageAttributes.Requires field + ToMap/FromMap encoding. POST /api/messages accepts requires array → propagates to Pub/Sub. 10 new adapter tests + 10 new pubsub ToMap/FromMap tests + extended round-trip test."
+    },
+    {
+      "id": "M3_HEARTBEAT_UNIFIED_WORKERS_CLI",
+      "description": "Heartbeat + unified `workers` CLI",
+      "estimated_loc": 400,
+      "dependencies": [
+        "M1_WORKER_IDENTITY_TAGS_IN_AGENTC"
+      ],
+      "acceptance_criteria": [
+        "Heartbeat goroutine starts/stops cleanly with the daemon",
+        "`worker_heartbeats` collection has the right schema",
+        "`workers list` shows BOTH bare-metal hosts (live) AND Cloud Run history (last 7d default)",
+        "`workers list --json` parses cleanly",
+        "`workers ping` returns round-trip latency for a live host",
+        "`workers ping <non-existent-host>` exits non-zero with clear error"
+      ],
+      "passes": true,
+      "started": "2026-05-25T12:55:00Z",
+      "completed": "2026-05-25T13:15:00Z",
+      "notes": "WorkerHeartbeat struct + HeartbeatStore interface (in-memory now, Firestore later via same interface). HeartbeatWriter goroutine: 60s default, immediate first write, clean shutdown. SetHeartbeatStore/SetHeartbeatInterval setters on Daemon (opt-in). Unified `workers list` CLI shows bare-metal heartbeats + Cloud Run history aggregated by AgentID. 7 new tests + manual smoke verified (--help, --json, empty-state-dir all work)."
+    },
+    {
+      "id": "M4_LAUNCHD_PERSISTENCE_STUDIO_ONB",
+      "description": "launchd persistence + Studio onboarding",
+      "estimated_loc": 250,
+      "dependencies": [
+        "M1_WORKER_IDENTITY_TAGS_IN_AGENTC",
+        "M3_HEARTBEAT_UNIFIED_WORKERS_CLI"
+      ],
+      "acceptance_criteria": [
+        "Plist template renders with correct paths via the install script",
+        "`install_daemon.sh --tags \"ollama:gemma4-26b-ailang\" --dry-run` shows planned changes without applying",
+        "After install, `launchctl list | grep ailang` shows the daemon",
+        "`sudo reboot` on the Studio → daemon respawns within 60s",
+        "Re-running `install_daemon.sh` on an already-onboarded host is a no-op (idempotent)",
+        "On uninstall (`install_daemon.sh --uninstall`), daemon is fully removed"
+      ],
+      "passes": true,
+      "started": "2026-05-25T13:18:00Z",
+      "completed": "2026-05-25T13:30:00Z",
+      "notes": "launchd plist template + idempotent installer (--tags/--host-id/--dry-run/--uninstall/--help). Robust gcloud detection across 6 known install paths. make/coord.mk wraps with coord-install/coord-install-dry/coord-uninstall/coord-status targets. Idempotency via cmp -s on rendered plist. Backs up existing plist to .bak. Does NOT auto-edit user config; prints YAML block to add instead."
+    },
+    {
+      "id": "M5_DOCUMENTATION_END_TO_END_ACCEP",
+      "description": "Documentation + end-to-end acceptance",
+      "estimated_loc": 250,
+      "dependencies": [
+        "M1_WORKER_IDENTITY_TAGS_IN_AGENTC",
+        "M4_LAUNCHD_PERSISTENCE_STUDIO_ONB"
+      ],
+      "acceptance_criteria": [
+        "docs/docs/guides/coordinator-workers.md exists with all 3 examples (Studio onboarding, tag-routed task, health visibility)",
+        "CHANGELOG.md v0.24.0 entry added",
+        ".claude/rules/coordinator.md reflects new worker patterns",
+        ".claude/skills/local-ollama-eval runbook updated with worker onboarding section",
+        "End-to-end: from a real client, a tag-routed message reaches a real worker (or documented blocker)",
+        "make lint clean across all changes",
+        "make check-file-sizes clean (no file >800 lines)"
+      ],
+      "passes": true,
+      "started": "2026-05-25T13:32:00Z",
+      "completed": "2026-05-25T13:48:00Z",
+      "notes": "Concept guide at docs/docs/guides/coordinator-workers.md (~210 lines, 3 worked examples). CHANGELOG cumulative entry for whole sprint. .claude/rules/coordinator.md adds Multi-Host Workers section. local-ollama-eval runbook gets onboarding section at top. Sprint COMPLETE — handing off to sprint-evaluator."
+    }
+  ]
+}

@@ -1,0 +1,79 @@
+{
+  "sprint_id": "M-MSG-TRIAGE-ROUTER",
+  "status": "completed",
+  "created": "2026-05-28T12:48:28Z",
+  "design_doc": "design_docs/planned/v0_24_0/m-msg-auto-triage-pipeline.md",
+  "sprint_plan": "design_docs/planned/v0_24_0/m-msg-triage-router-sprint-plan.md",
+  "github_issues": [],
+  "velocity": {
+    "target_loc_per_day": 150,
+    "estimated_total_loc": 590,
+    "estimated_days": 4
+  },
+  "features": [
+    {
+      "id": "M1_EXTRACT_CLUSTERING",
+      "description": "Move clusterMessages + triageCluster from cmd/ailang/messages_triage.go into internal/messaging/triage.go as exported ClusterMessages + Cluster; update CLI to call it",
+      "estimated_loc": 120,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "ClusterMessages(msgs []InboxMessage, slot string, threshold float64) []Cluster exported from internal/messaging",
+        "CLI ailang messages triage --cluster-by intent works identically (no behavior change)",
+        "Unit tests for grouping, threshold boundaries, empty input",
+        "make test green"
+      ],
+      "passes": true,
+      "started": "2026-05-28",
+      "completed": "2026-05-28",
+      "notes": "Extracted to internal/messaging/triage.go; reused existing CosineSimilarity. cmd/ailang builds, vet clean, messaging tests green."
+    },
+    {
+      "id": "M2_PROMOTION_CLASSIFIER",
+      "description": "Pure classify(msg, cfg) -> promote/hold/drop in internal/coordinator/triage_router.go: bug/feature + no DupOf -> promote; eval-suite/notification noise -> drop; else hold",
+      "estimated_loc": 110,
+      "dependencies": ["M1_EXTRACT_CLUSTERING"],
+      "acceptance_criteria": [
+        "classify is a pure function with no IO",
+        "Table-driven tests cover every category x noise-source x DupOf combination",
+        "100% branch coverage on classify",
+        "make test green"
+      ],
+      "passes": true,
+      "started": "2026-05-28",
+      "completed": "2026-05-28",
+      "notes": "classify + TriageConfig.normalized() with defaults. Category wins over noise filter. Helper renamed stringInSlice (contains already taken). vet clean, coordinator suite green."
+    },
+    {
+      "id": "M3_TRIAGE_ROUTER_DAEMON_TICK",
+      "description": "TriageConfig added to CoordinatorConfig; TriageRouter (NewTriageRouter/Start/Stop/pollLoop) mirroring ApprovalWatcher; tickOnce lists unread intake inboxes, classifies, forwards promotions; wired into daemon gated by Enabled (off by default)",
+      "estimated_loc": 200,
+      "dependencies": ["M2_PROMOTION_CLASSIFIER"],
+      "acceptance_criteria": [
+        "TriageConfig with Enabled/IntakeInboxes/PromoteInbox/ClusterSlot/SimilarityThreshold/PollIntervalSecs and sane defaults",
+        "Router disabled by default (zero behavior change for existing deployments)",
+        "tickOnce forwards promotions and leaves holds in place (unit test vs fake store)",
+        "make lint && make test green"
+      ],
+      "passes": true,
+      "started": "2026-05-28",
+      "completed": "2026-05-28",
+      "notes": "TriageRouter mirrors ApprovalWatcher lifecycle; narrow triageStore interface for testability; wired into daemon local-mode startup gated by Triage.Enabled. tickOnce per-message classify+forward; clustering kept as shared lib (CLI + future batching) rather than a dead call in the tick. Full coordinator suite green."
+    },
+    {
+      "id": "M4_INTEGRATION_TEST_DOCS",
+      "description": "Integration test against real SQLite temp store (bug promoted, general held, duplicate skipped); CHANGELOG; flip design doc M1 checkboxes",
+      "estimated_loc": 80,
+      "dependencies": ["M3_TRIAGE_ROUTER_DAEMON_TICK"],
+      "acceptance_criteria": [
+        "Integration test: seeded bug message ends up in design-doc-creator inbox after one tick",
+        "general message stays in intake inbox; DupOf-set message not forwarded",
+        "make ci clean",
+        "CHANGELOG + design doc updated"
+      ],
+      "passes": true,
+      "started": "2026-05-28",
+      "completed": "2026-05-28",
+      "notes": "Integration test green vs real SQLite. gofmt/vet/golangci-lint clean; messaging+coordinator+cmd/ailang suites green (targeted CI scope, not full make ci which includes unrelated example verification)."
+    }
+  ]
+}

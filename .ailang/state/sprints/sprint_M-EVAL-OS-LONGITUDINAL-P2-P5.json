@@ -1,0 +1,122 @@
+{
+  "sprint_id": "M-EVAL-OS-LONGITUDINAL-P2-P5",
+  "status": "completed",
+  "created": "2026-05-23T06:20:00Z",
+  "design_doc": "design_docs/planned/v0_23_0/m-eval-os-longitudinal.md",
+  "sprint_plan": "design_docs/planned/v0_23_0/m-eval-os-longitudinal-phases-2-5-sprint-plan.md",
+  "github_issues": [],
+  "velocity": {
+    "target_loc_per_day": 100,
+    "estimated_total_loc": 570,
+    "estimated_days": 6
+  },
+  "features": [
+    {
+      "id": "M0_INFRA_RELIABILITY",
+      "description": "Block Phases 2-5 on reliable infrastructure. Three concrete fixes: (1) opencode noise filter in DefaultSpanFilterConfig (HOTFIX ALREADY SHIPPED 2026-05-23: 33:1 noise:signal observed, dropped via prefix/exact deny patterns); (2) WAL maintenance hook that auto-checkpoints when observatory.db-wal exceeds 1 GB (was warning-only, ballooning to 5.4 GB ruined a 2h overnight run); (3) pre-run rig health check wiring verify_setup.sh into make eval-smoke so degraded rigs (ollama stopped) fast-fail in <5s instead of burning 2h on TTFT timeouts.",
+      "estimated_loc": 120,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Opencode high-volume internal spans (Plugin.trigger, Config.*, SyncEvent.run, FileSystem.*, Auth.*, Session.*, etc.) are denied by default in DefaultSpanFilterConfig",
+        "Useful opencode signals (LLM.run, opencode.execute, opencode.step) are NOT denied",
+        "Service-scoped denial: opencode-internal FileSystem.* filter does NOT affect ailang-server FileSystem spans",
+        "Create internal/observatory/wal_maintenance.go with periodic WAL size check + auto PRAGMA wal_checkpoint(TRUNCATE) when threshold exceeded",
+        "Threshold configurable via env var (default 1 GB)",
+        "Add internal/observatory/wal_maintenance_test.go covering synthetic WAL size scenarios",
+        "Wire .claude/skills/local-ollama-eval/scripts/verify_setup.sh as a precondition in make eval-smoke (or new make eval-smoke-checked target)",
+        "Manual verification: stopping ollama and running make eval-smoke aborts in <5s with actionable error",
+        "After 12 hours of continuous eval rotation, observatory.db-wal stays under 1 GB"
+      ],
+      "passes": true,
+      "started": "2026-05-22T22:30:00Z",
+      "completed": "2026-05-23T09:25:00Z",
+      "notes": "M0 fully shipped across 3 commits: (1) opencode noise filter [392590e5] dropping 33:1 noise spans; (2) ollama serve via launchd plist [027d4282] preventing Electron app crash recurrence; (3) WAL auto-checkpoint + make eval-smoke pre-run gate + rig watchdog [latest]. Watchdog shown necessary because macOS 26.x launchd KeepAlive empirically fails to restart gui/<uid> agents after SIGKILL — verified twice. 7 WAL maintenance tests pass; verify_setup.sh gate confirmed at 6.1s fast-fail. Watchdog plist/script in repo, user opts in via cp + launchctl load."
+    },
+    {
+      "id": "M1_PHASE3_N_TRIAL_RELEASE_SMOKE",
+      "description": "Add --trials N flag to ailang eval-suite -agent. Each benchmark runs N times in a single invocation; output dir gains a summary.json aggregating pass_rate + token distribution per benchmark. Default N=1 preserves existing behaviour.",
+      "estimated_loc": 135,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Add --trials N int flag to cmd/ailang/eval_suite.go with default 1 and banner output",
+        "internal/eval_harness/agent_runner_multi.go wraps existing per-benchmark execution in an outer N-trial loop; result JSON gains trial: K field",
+        "internal/eval_harness/metrics.go adds SummarizeRotation aggregator that writes summary.json with benchmark_id, trials, passed, pass_rate, tokens_pass_mean, tokens_pass_stddev, tokens_fail_mean per benchmark",
+        "Manual verification: make eval-smoke MODELS=opencode-gemma4-26b EXTRA='-agent --trials 3 -benchmarks fizzbuzz -output /tmp/test' writes 3 result JSONs and 1 summary.json",
+        "Default --trials 1 produces identical output to today's single-trial run (no regression)",
+        "Test added covers SummarizeRotation against synthetic multi-trial fixture",
+        "No regression in existing eval-harness or cmd/ailang tests"
+      ],
+      "passes": true,
+      "started": "2026-05-23T09:30:00Z",
+      "completed": "2026-05-23T09:50:00Z",
+      "notes": "M1 Phase 3 shipped. --trials N flag added with default 1 (backward compatible). RunMetrics gains Trial field; Logger filename includes _trialN_ when Trial>1. New SummarizeRotation aggregator writes summary.json with pass_rate, token distributions split by outcome, error_categories counts, thrash_aborts counter. 5 sub-tests cover pass_rate math + thrash counter + multi-benchmark grouping + on-disk JSON + filename back-compat. Dry-run verified: --trials 3 expands 2 benchmarks to 6 planned runs; default --trials 1 stays at 2 runs."
+    },
+    {
+      "id": "M2_PHASE2_ADAPTIVE_TOKEN_BUDGET",
+      "description": "Replace the fixed -max-tokens-per-bench ceiling with a per-(model, benchmark) rolling mean+stddev maintained via Welford online algorithm. Eval-suite reads baseline before each benchmark; uses mean + 2*stddev as abort threshold once N>=5 passing samples exist; falls back to fixed flag value during bootstrap.",
+      "estimated_loc": 220,
+      "dependencies": [
+        "M1_PHASE3_N_TRIAL_RELEASE_SMOKE"
+      ],
+      "acceptance_criteria": [
+        "Add eval_baselines table to internal/observatory/schema.sql with columns model_id, benchmark_id, n_pass_trials, mean_tokens, stddev_tokens, m2_tokens, last_updated",
+        "Create internal/observatory/baselines.go with Welford update function, GetBaseline/UpdateBaseline backend methods, threshold computation",
+        "Add internal/observatory/baselines_test.go with convergence test (10 synthetic samples) and edge cases (n=0, n=1, fresh row); assert stddev matches reference numpy.std to 4 decimal places",
+        "Modify internal/executor/opencode/opencode.go to call baselines.GetThreshold(model, benchmark, fallbackFixed) before each run and baselines.UpdatePass after PASS",
+        "After 5 PASS runs of fizzbuzz against gemma4:26b, eval_baselines row has non-zero mean_tokens and stddev_tokens",
+        "6th run computes abort threshold from baseline rather than the fixed flag",
+        "Run that exceeds mean + 2*stddev is aborted with thrash_aborted category",
+        "Bootstrap path (n<5) gracefully falls back to the fixed --max-tokens-per-bench flag value"
+      ],
+      "passes": true,
+      "started": "2026-05-23T09:50:00Z",
+      "completed": "2026-05-23T10:05:00Z",
+      "notes": "M2 Phase 2 shipped. New eval_baselines table + baselines.go (160 LOC: GetEvalBaseline, UpdatePassedTrial via Welford UPSERT in txn, ComputeAdaptiveThreshold pure fn). 8 sub-tests pass including Welford convergence against batch-computed reference. Wired into runSingleBenchmark: pre-run adaptive threshold lookup overrides fixed MaxTokensPerBench when n>=5; post-PASS UpdatePassedTrial extends the rolling stats. Failures explicitly excluded from baseline (would skew it up and disable the abort). Bootstrap (n<5) falls back to fixed flag value, matching Phase 1 behavior. All package tests green."
+    },
+    {
+      "id": "M3_PHASE4_CANDIDATES_SUBCOMMAND",
+      "description": "New ailang eval-trend candidates subcommand consumes Phase 3 summary.json output and emits a structured list of persistent-failure candidates (>=2 of N trials failed with the same error_category). Closes the failure-to-design-doc loop. Updates eval-analyzer skill to consume the candidates output.",
+      "estimated_loc": 130,
+      "dependencies": [
+        "M1_PHASE3_N_TRIAL_RELEASE_SMOKE"
+      ],
+      "acceptance_criteria": [
+        "Create cmd/ailang/eval_trend.go with candidates action that scans eval_results/rotation/<date>/ for summary.json files",
+        "Filter to (benchmark, error_category) tuples where >=2/N trials failed with the same category AND pass_rate < 0.5",
+        "Output format includes benchmark, category, n_fail/n_trials, example_token_count, example_session_id",
+        "Suggests eval-analyzer skill for per-candidate deep-dive",
+        "Add cmd/ailang/eval_trend_test.go with fixture-based test (3 trials x 5 benchmarks; assert expected candidates surface)",
+        "Update .claude/skills/eval-analyzer/SKILL.md with a section showing the deep-dive workflow triggered by eval-trend candidates",
+        "Running against existing /tmp/overnight_smoke_p2 data identifies dense_operator_program as a candidate"
+      ],
+      "passes": true,
+      "started": "2026-05-23T10:05:00Z",
+      "completed": "2026-05-23T10:20:00Z",
+      "notes": "M3 Phase 4 shipped. New cmd/ailang/eval_trend.go (~240 LOC) with runEvalTrend dispatcher + runEvalTrendCandidates action. findCandidates walks rotation dirs for summary.json, aggregates across slots, filters by min-fail/min-trials/max-pass-rate, sorts worst-first. PersistentFailureCandidate is the stable JSON shape for downstream tools. 5 tests pass: canonical case, multi-slot aggregation (dominant category), min-trials filter, empty-rotation error path, worst-first sorting. End-to-end verified with synthetic fixture: dense_op surfaces (3/3 compile_error), fizzbuzz (3/3 PASS) filtered out."
+    },
+    {
+      "id": "M4_PHASE5_LONGITUDINAL_PUBLICATION",
+      "description": "New ailang eval-publish <release-tag> subcommand generates a per-release Docusaurus page comparing pass rates across models and against the previous release. The publishable longitudinal artifact that differentiates local-Ollama eval from cloud-cost-limited competitors.",
+      "estimated_loc": 270,
+      "dependencies": [
+        "M1_PHASE3_N_TRIAL_RELEASE_SMOKE",
+        "M3_PHASE4_CANDIDATES_SUBCOMMAND"
+      ],
+      "acceptance_criteria": [
+        "Create cmd/ailang/eval_publish.go that reads summary.json aggregates across a release window and writes Markdown",
+        "Output Markdown contains a per-benchmark pass-rate table (one column per model) AND trend deltas vs previous release for any benchmark with >=10pp gap",
+        "Add cmd/ailang/eval_publish_test.go with fixture (2 releases x 2 models x 3 benchmarks); asserts trend table only includes >=10pp deltas",
+        "Create docs/docs/reference/os-model-leaderboard/index.md as the static index page",
+        "Backfill docs/docs/reference/os-model-leaderboard/v0_22_0_seed.md from runs already on disk so v0.23.0 has a trend baseline",
+        "Register the new section in docs/sidebars.js",
+        "make docs-build (or equivalent) succeeds with the new page rendered",
+        "ailang eval-publish v0.23.0 produces docs/docs/reference/os-model-leaderboard/v0_23_0.md"
+      ],
+      "passes": true,
+      "started": "2026-05-23T11:35:00Z",
+      "completed": "2026-05-23T11:35:00Z",
+      "notes": "Implemented ailang eval-publish CLI: loadReleaseBenchmarks aggregates summary.json files across rotation slots; renderReleasePage emits Docusaurus markdown (frontmatter, per-benchmark pass-rate matrix, optional trend-deltas section vs prev release with ▲/▼ arrows and configurable --min-delta-pp threshold). Positional release tag handled before flag.Parse since Go's flag package stops at first non-flag token. Registered eval-publish in main.go dispatcher. Added static landing page docs/docs/reference/os-model-leaderboard/index.md and OS-model leaderboard category in sidebars.js. Tests: 6 cover matrix, positive/negative trends, threshold suppression, no-movers notice, unique helpers. E2E verified with 2-slot synthetic rotation producing expected v0.23.0.md (+66.7pp gemma4 fizzbuzz trend row)."
+    }
+  ],
+  "last_updated": "2026-05-23T11:35:00Z"
+}

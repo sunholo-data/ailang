@@ -1,0 +1,78 @@
+{
+  "sprint_id": "M-DOCPARSE-RESILIENCE-FIXES",
+  "status": "completed",
+  "created": "2026-05-28T09:13:06Z",
+  "completed": "2026-05-28T11:35:00Z",
+  "design_doc": "design_docs/implemented/v0_23_0/m-ai-call-json-simple-result.md",
+  "sprint_plan": "design_docs/implemented/v0_23_0/m-docparse-resilience-fixes-sprint-plan.md",
+  "github_issues": [
+    2,
+    243,
+    258
+  ],
+  "velocity": {
+    "target_loc_per_day": 200,
+    "estimated_total_loc": 165,
+    "estimated_days": 1
+  },
+  "features": [
+    {
+      "id": "M1_CALL_JSON_SIMPLE_RESULT",
+      "description": "Add std/ai.callJsonSimpleResult \u2014 Result-returning variant of callJsonSimple. Builtin _ai_call_json_simple_result mirrors _ai_call_json_result (NumArgs:1, reuse makeAICallResultType), stdlib wrapper, example, prompt update, golden regen.",
+      "estimated_loc": 90,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "callJsonSimpleResult('...') returns Ok(jsonString) on success, byte-identical to callJsonSimple",
+        "Simulated provider 5xx returns Err(AIError{retryable:true}), no host crash",
+        "AIError.retryable classification matches callResult's for same codes (shared mapper)",
+        "New builtin in internal/pipeline/testdata/builtin_types.golden with sig (string) -> Result[string, AIError] ! {AI}",
+        "go test ./internal/builtins/ -run <new> -count=20 deterministic",
+        "examples/runnable/ai_call_json_simple_result.ail runs under ailang run --caps AI",
+        "callJsonSimpleResult added to active teaching prompt AI-effect Result-variant list"
+      ],
+      "passes": true,
+      "started": "2026-05-28T09:22:52.023411Z",
+      "completed": "2026-05-28T09:22:52.023411Z",
+      "notes": "Shipped 3-layer (effects op + builtin + stdlib export). 4 tests pass -count=20. Golden regen (1 addition). Example verified both Ok+Err paths live. Prompt mention DEFERRED (v0.16.1 hash-locked for eval reproducibility). Commit 64f441cd."
+    },
+    {
+      "id": "M2_MCP_OMIT_PARAM_REJECTION",
+      "description": "Fix internal/apiserver/mcp.go::makeToolHandler omit-blind arg binding (args[i]=argMap[name] -> nil -> Unit crash). Presence-check declared params, return structured 'missing required parameter(s)' before engine call. Type-agnostic. Audit routes.go callFunction @route path for same bug.",
+      "estimated_loc": 60,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "tools/call omitting apiKey returns 'missing required parameter(s): apiKey, requestId' isError=true, no _str_len crash",
+        "All-params-present call still succeeds (regression)",
+        "Legacy positional {'args':[...]} form still works (regression)",
+        "Type-agnostic: omitted int param returns same structured error (not string special-case)",
+        "Explicit JSON null for a param also rejected (not bound to Unit)",
+        "go test ./internal/apiserver/ -run <new> -count=20 deterministic (error msg in paramNames order)",
+        "routes.go @route path audit outcome documented (fixed-too OR confirmed-safe)",
+        "docs/docs/guides/serve-api.md documents the omitted-param behavior"
+      ],
+      "passes": true,
+      "started": "2026-05-28T09:29:13Z",
+      "completed": "2026-05-28T09:29:13Z",
+      "notes": "Fixed mcp.go::makeToolHandler: presence-check declared params (absent key OR explicit null), return structured 'missing required parameter(s): <names>' in declaration order BEFORE engine call. Type-agnostic (string+int proven). 6 new tests in mcp_param_binding_test.go pass -count=20 (4 reject cases + 2 regression: all-present + legacy positional, both invoke real engine returning 'Hello, World!'). @route AUDIT: confirmed-safe, NOT same bug — parseNamedArgs/parseArgsWithNamesEx zero-pad omitted typed params via zeroValueForType (''/0/false/[]/{}), never nil→Unit for known types. That's the deliberate v0.21.0 m-serveapi-get-query-shadow design (lets handler self-validate). Added TestRouteParamOmission_ZeroPadsNotNil regression guard. serve-api.md documents both behaviors + why they diverge."
+    },
+    {
+      "id": "M3_CHANGELOG_AND_FINALIZE",
+      "description": "Single CHANGELOG entry covering M1+M2 (reference docparse msg IDs), reply to both source messages, move both design docs + plan to implemented/v0_23_0/.",
+      "estimated_loc": 15,
+      "dependencies": [
+        "M1_CALL_JSON_SIMPLE_RESULT",
+        "M2_MCP_OMIT_PARAM_REJECTION"
+      ],
+      "acceptance_criteria": [
+        "changelogs/v0.10-current.md has combined entry covering both fixes + msg IDs",
+        "make test + make lint clean",
+        "Both design docs + sprint plan moved planned/v0_23_0 -> implemented/v0_23_0",
+        "Replies sent to source messages 623811a0 + b08617cb"
+      ],
+      "passes": true,
+      "started": "2026-05-28T11:35:00Z",
+      "completed": "2026-05-28T11:35:00Z",
+      "notes": "Combined CHANGELOG entry added to changelogs/v0.10-current.md [Unreleased] (M1+M2, source msg IDs 623811a0/b08617cb). make test + make lint clean (4 pre-existing 'unused' lint items in internal/executor/managed_agents/ from v0.22.0, not this sprint; wrapper exits no-bugs). Both design docs (status->Implemented) + sprint plan (status->Completed) moved planned/v0_23_0 -> implemented/v0_23_0 via git mv. Resolution replies sent to docparse inbox: msg_20260528_113219_4a4b3234 (M1) + msg_20260528_113311_8744cc7f (M2)."
+    }
+  ]
+}

@@ -1,0 +1,72 @@
+{
+  "sprint_id": "M-MOTOKO-AILANG-RECONCILE",
+  "status": "completed",
+  "created": "2026-05-26T07:52:37Z",
+  "design_doc": "design_docs/planned/v0_24_0/m-motoko-ailang-reconcile.md",
+  "sprint_plan": "design_docs/planned/v0_24_0/m-motoko-ailang-reconcile-sprint-plan.md",
+  "github_issues": [],
+  "velocity": {
+    "target_loc_per_day": 80,
+    "estimated_total_loc": 155,
+    "estimated_days": 1
+  },
+  "features": [
+    {
+      "id": "M1_AI_COMPAT_MIGRATION",
+      "description": "Migrate ai_compat.callStreamResult to std/ai.stepWithStream in both motoko_agent and ailang-packages",
+      "estimated_loc": 100,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "~/dev/arniwesth/motoko_agent/src/core/ai_compat.ail updated; ailang check passes",
+        "~/dev/sunholo-data/ailang-packages/packages/motoko-ext-ai-compat/ai_compat.ail updated (mirrors motoko_agent)",
+        "ailang check on src/core/agent_loop_v2.ail passes (consumer 1)",
+        "ailang check on src/core/tool_dispatch_adapter.ail passes (consumer 2)",
+        "scripts/smoke_callstream.ail still type-checks",
+        "AIStreamResult return shape unchanged (no breaking change to callers)"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-05-26T00:30:00Z",
+      "notes": "Migrated src/core/ai_compat.ail in motoko_agent (commit 2f5069f) + mirror in ailang-packages (commit 62a9a38). Keeps callStreamResult signature + AIStreamResult shape stable. step takes typed [Message] with all 4 fields (role, content, tool_calls=[], tool_call_id=\"\"). Effect row narrowed to {AI,IO}. Consumer-side ailang check on agent_loop_v2.ail GATED by registry publish (M4)."
+    },
+    {
+      "id": "M2_MOTOKO_AGENT_AILANG_TOML_BUMPS",
+      "description": "Bump 12 extension version pins in motoko_agent/ailang.toml; ailang lock deferred until M3 publish",
+      "estimated_loc": 25,
+      "dependencies": [
+        "M1_AI_COMPAT_MIGRATION"
+      ],
+      "acceptance_criteria": [
+        "ailang.toml [dependencies] block updated with all 12 version bumps",
+        "[extensions] packages list updated to match",
+        "ailang.toml.bak preserved for rollback",
+        "Committed + pushed to fork on a feature branch (not main)"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-05-26T00:40:00Z",
+      "notes": "Bumped 12 motoko_ext_* version pins in motoko_agent/ailang.toml (commit 19c5db3 on feature/ailang-v0.21-migration). Includes the NEW versions ai_compat 0.2.0 + compose 0.2.3 that M3 will publish. ailang.lock NOT regenerated — gated on publish."
+    },
+    {
+      "id": "M3_AILANG_PACKAGES_VERSION_BUMPS",
+      "description": "Bump motoko-ext-ai-compat to 0.2.0 and motoko-ext-compose to 0.2.3 in ailang-packages",
+      "estimated_loc": 30,
+      "dependencies": [
+        "M1_AI_COMPAT_MIGRATION"
+      ],
+      "acceptance_criteria": [
+        "motoko-ext-ai-compat/ailang.toml: version = 0.2.0",
+        "motoko-ext-ai-compat/ailang.toml: ailang version constraint reviewed",
+        "motoko-ext-compose/ailang.toml: version = 0.2.3",
+        "ailang publish --dry-run on motoko-ext-ai-compat shows the new version",
+        "ailang publish --dry-run on motoko-ext-compose shows the new version",
+        "Committed + pushed to ailang-packages remote",
+        "Sprint summary lists explicit ailang publish commands for the user to run"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-05-26T00:50:00Z",
+      "notes": "motoko-ext-ai-compat 0.1.0->0.2.0 (new ai_compat.ail + widened effects ceiling) + motoko-ext-compose 0.2.2->0.2.3 (version bump only; path-dep already resolves new ai_compat) (commit 62a9a38 on feature/ai-compat-v0.21-migration). Both packages pass ailang publish --dry-run. Actual publish DEFERRED to user."
+    }
+  ]
+}

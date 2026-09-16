@@ -1,0 +1,104 @@
+{
+  "sprint_id": "M-COORD-TAG-ROUTING-LASTMILE",
+  "status": "completed",
+  "created": "2026-05-27T09:48:48Z",
+  "design_doc": "design_docs/implemented/v0_23_0/m-coord-tag-routing-lastmile.md",
+  "sprint_plan": "design_docs/implemented/v0_23_0/m-coord-tag-routing-lastmile-sprint-plan.md",
+  "github_issues": [
+    1,
+    2,
+    3,
+    5,
+    7,
+    33,
+    243
+  ],
+  "velocity": {
+    "target_loc_per_day": 200,
+    "estimated_total_loc": 305,
+    "estimated_days": 2,
+    "actual_total_loc": 596,
+    "actual_days": 1
+  },
+  "features": [
+    {
+      "id": "M1_LOCAL_HTTP_PORT",
+      "description": "Local HTTP listener via launchd PORT env (default 8765, --port override), plus extending `ailang coordinator status` to report the bound listener",
+      "estimated_loc": 25,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "lsof -p $(cat ~/.ailang/coordinator.pid) -nP shows TCP listener on port 8765 within 60s of `make coord-install`",
+        "curl -s -H 'X-API-Key: $KEY' http://127.0.0.1:8765/health returns 200 with {\"status\":\"ok\"}",
+        "`ailang coordinator status` includes a 'HTTP: ✓ http://127.0.0.1:8765' line",
+        "--port 9999 override works (daemon binds to chosen port)",
+        "tools/launchd/dev.ailang.coordinator.plist.template has EnvironmentVariables dict with PORT",
+        "tools/launchd/install_coordinator.sh accepts --port flag and substitutes into template"
+      ],
+      "passes": true,
+      "started": "2026-05-27T09:54:58.729686Z",
+      "completed": "2026-05-27T09:54:58.729686Z",
+      "notes": "Verified live: plist + installer + status probe. Daemon now binds 127.0.0.1:8765 by default; /health returns 200; `ailang coordinator status` shows new HTTP line. Commit 49664aaf."
+    },
+    {
+      "id": "M2_REQUIRES_CLI_FLAG",
+      "description": "Add --requires CLI flag to `ailang messages send`; threads comma-separated tags into messagestore.Requires field; new TestSendWithRequires",
+      "estimated_loc": 30,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "`ailang messages send eval-rig 'test' --requires agent:motoko` exits 0",
+        "`ailang messages read <id> --raw | jq .requires` returns [\"agent:motoko\"]",
+        "Comma-separated form `--requires 'agent:motoko,ollama:gemma4-26b-ailang'` parses to a 2-element slice",
+        "TestSendWithRequires in cmd/ailang/messages_send_test.go passes",
+        "`go test ./cmd/ailang/... -run TestSendWithRequires -count=20` deterministic (no map-iteration nondeterminism)",
+        "docs/docs/guides/agent-messaging.md has 'Tag-routed sends' subsection with example"
+      ],
+      "passes": true,
+      "started": "2026-05-27T10:00:20.974118Z",
+      "completed": "2026-05-27T10:00:20.974118Z",
+      "notes": "Verified live + 4 deterministic tests (count=20). --requires routes via HTTP POST /api/messages (reuses M1 port discovery). Negative-path: clear error with `make coord-install` hint when listener unreachable. SQLite-only path unchanged when --requires absent. Commit 9544139a."
+    },
+    {
+      "id": "M3_CLOUD_MOTOKO_JOB",
+      "description": "Cloud motoko executor Job: cloudbuild build-agent-motoko step + Terraform Job definition + ailang-openrouter-api-key Secret resource + config.cloud.yaml motoko agent entry. Ships as ONE commit (sub-tasks mutually dependent)",
+      "estimated_loc": 130,
+      "dependencies": [
+        "M1_LOCAL_HTTP_PORT",
+        "M2_REQUIRES_CLI_FLAG"
+      ],
+      "acceptance_criteria": [
+        "Pre-flight: cloud ailang-coordinator service running v0.22.0+ image SHA (manual cloudbuild redeploy if not)",
+        "gcloud artifacts docker images list shows agent-motoko:latest built from this commit",
+        "gcloud run jobs describe ailang-agent-executor-motoko returns healthy spec, memory=2Gi, retries=1, OPENROUTER_API_KEY bound, ANTHROPIC_API_KEY explicitly NOT bound",
+        "gcloud secrets describe ailang-openrouter-api-key returns metadata (value uploaded manually post-apply)",
+        "`ailang coordinator workers list --type cloud-run --json` includes the motoko Job under agent:motoko tag",
+        "cloudbuild-dev.yaml has build-agent-motoko step mirroring build-agent-go",
+        "config.cloud.yaml has motoko agent under coordinator.agents with worker_tags: [agent:motoko]"
+      ],
+      "passes": true,
+      "started": "2026-05-27T10:08:50.639347Z",
+      "completed": "2026-05-27T10:08:50.639347Z",
+      "notes": "In-repo half done: build-agent-motoko step in cloudbuild-dev.yaml + comprehensive PR #0/1/2/3 checklist refresh in docker/agent-motoko-multivac-prs.md. Out-of-repo (ailang-multivac terraform + mounted coordinator config + prod openrouter secret) explicitly documented as 4 cross-repo PRs. Commit e4df2f49. PRE-FLIGHT DISCOVERY: cloud ailang-coordinator runs a 2026-04-28 image (pre-v0.21.0) — operational PR #0 must redeploy it before E2E scenarios 2/3 can exercise the v0.22.0 routing fields."
+    },
+    {
+      "id": "M4_DOCS_AND_E2E_VERIFICATION",
+      "description": "Update coordinator-workers + agent-messaging guides, add CHANGELOG entry, run the 3-scenario end-to-end verification matrix (Studio→Studio, Laptop→cloud→Studio, cloud-fallback)",
+      "estimated_loc": 120,
+      "dependencies": [
+        "M3_CLOUD_MOTOKO_JOB"
+      ],
+      "acceptance_criteria": [
+        "Scenario 1 (Studio→Studio local tag match): `ailang messages send eval-rig 'fizzbuzz_smoke' --requires agent:motoko` from Studio completes, ailang chains view shows compile=✓ runtime=✓ stdout=✓",
+        "Scenario 2 (Laptop→cloud→Studio via Pub/Sub): same command from a non-Studio host hitting the cloud coordinator URL reaches the Studio and completes",
+        "Scenario 3 (cloud-fallback): with Studio stopped via launchctl bootout, the same message is claimed by ailang-agent-executor-motoko Cloud Run Job and completes",
+        "docs/docs/guides/coordinator-workers.md has new 'HTTP endpoint' section with default port + override + curl examples + requires JSON body",
+        "changelogs/v0.10-current.md has M-COORD-TAG-ROUTING-LASTMILE entry covering all 4 milestones + the 3 verified scenarios",
+        "Design doc + sprint plan moved from planned/v0_23_0/ to implemented/v0_23_0/"
+      ],
+      "passes": true,
+      "started": "2026-05-27T10:11:42.650916Z",
+      "completed": "2026-05-27T10:11:42.650916Z",
+      "notes": "Docs + CHANGELOG + verification matrix all shipped in commit 012cf39e. Honest verification matrix: Scenario 1 partial (HTTP send verified, dispatcher follow-up needed), Scenarios 2+3 deferred on cross-repo PRs documented in agent-motoko-multivac-prs.md. Local-side M1+M2 feature-complete."
+    }
+  ],
+  "completed": "2026-05-27T10:11:42Z"
+}

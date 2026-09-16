@@ -1,0 +1,50 @@
+{
+  "sprint_id": "M-EVAL-OS-LONGITUDINAL",
+  "design_doc": "design_docs/planned/m-eval-os-longitudinal.md",
+  "branch": "feat/os-longitudinal",
+  "velocity": {
+    "estimated_total_loc": 250,
+    "estimated_days": 1
+  },
+  "features": [
+    {
+      "id": "M1_VERSION_TAG",
+      "description": "eval-publish stamps std/VERSION as ailang_version in os/latest.json + unit test",
+      "estimated_loc": 50,
+      "passes": true,
+      "started": "2026-06-16",
+      "completed": "2026-06-16",
+      "acceptance_criteria": [
+        "ailang_version field == std/VERSION",
+        "unit test asserts embedded version"
+      ]
+    },
+    {
+      "id": "M2_RELEASE_SNAPSHOT",
+      "description": "os-release-snapshot.sh: append to os/history.json, clear active-model rolling files, re-publish; post-release SKILL step",
+      "estimated_loc": 70,
+      "passes": true,
+      "started": null,
+      "completed": "2026-06-16",
+      "acceptance_criteria": [
+        "history.json gets per-version entry deduped",
+        "active models cleared, retired kept",
+        "SKILL.md documents step"
+      ]
+    },
+    {
+      "id": "M3_TREND_VIEW",
+      "description": "BenchmarkExplorer renders version-trend chart from os/history.json; graceful with 0/1 versions",
+      "estimated_loc": 130,
+      "passes": true,
+      "started": null,
+      "completed": "2026-06-16",
+      "acceptance_criteria": [
+        "trend chart from history.json",
+        "graceful empty/single",
+        "build succeeds"
+      ],
+      "notes": "component written+wired+matches working patterns; full docs build blocked by pre-existing why-ailang sidebar error (not M3); CI/prod build validates"
+    }
+  ]
+}

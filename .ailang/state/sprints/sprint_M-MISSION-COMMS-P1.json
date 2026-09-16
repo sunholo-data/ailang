@@ -1,0 +1,82 @@
+{
+  "sprint_id": "M-MISSION-COMMS-P1",
+  "status": "not_started",
+  "created": "2026-09-03T22:23:39Z",
+  "design_doc": "design_docs/planned/v0_36_0/m-mission-comms-into-the-binary.md",
+  "sprint_plan": "design_docs/planned/v0_36_0/m-mission-comms-into-the-binary-sprint-plan.md",
+  "github_issues": [
+    1041
+  ],
+  "velocity": {
+    "target_loc_per_day": 405,
+    "estimated_total_loc": 810,
+    "estimated_days": 2
+  },
+  "features": [
+    {
+      "id": "M1_BOUND_GITHUBCLIENT_EXEC",
+      "description": "Add per-call deadlines to GitHubClient's gh shell-outs via exec.CommandContext, closing quorum objection P-1 (V18: defaultExecCommand uses exec.Command with no context, so a hung gh wedges the caller). Typed timeout error, 30s default matching the driver's existing _mc_bounded 30.",
+      "estimated_loc": 150,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "A stub exceeding the deadline returns a typed, identifiable timeout error and returns promptly",
+        "Default deadline is 30s and is overridable via GitHubConfig",
+        "All existing internal/messaging tests still pass (no happy-path behaviour change)",
+        "MUTATION: reverting to unbounded exec.Command turns the timeout test RED"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-09-04",
+      "notes": "landed in 761b81371; PR #1041"
+    },
+    {
+      "id": "M2_MISSION_COMMS_PACKAGE",
+      "description": "New internal/mission/comms: a Client wrapping messaging.GitHubClient with mission identity (name/repo/issue), plus RenderReport producing the <=400-char iteration report. Deterministic truncation, never over cap, never silently dropped.",
+      "estimated_loc": 380,
+      "dependencies": [
+        "M1_BOUND_GITHUBCLIENT_EXEC"
+      ],
+      "acceptance_criteria": [
+        "RenderReport output is <=400 chars for every fixture including a deliberately over-long one",
+        "Deterministic: same input yields byte-identical output",
+        "All four mission identities (v1, world, docs, motoko) resolve to the correct repo and issue",
+        "MUTATION: raising the cap to 4000 turns the cap assertion RED",
+        "MUTATION: making truncation depend on map iteration order turns the determinism assertion RED"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-09-04",
+      "notes": "landed in 086995d5b; PR #1041"
+    },
+    {
+      "id": "M3_AILANG_MISSION_REPORT_SUBCOMMAND",
+      "description": "cmd/ailang/mission_comms.go implementing 'ailang mission report --mission <name> --body-file <path> [--dry-run]', registered in main.go beside messages/chains/design-quorum. --dry-run performs zero network calls, which is what makes the later shell cutover safe to rehearse.",
+      "estimated_loc": 280,
+      "dependencies": [
+        "M2_MISSION_COMMS_PACKAGE"
+      ],
+      "acceptance_criteria": [
+        "--dry-run performs zero network calls, asserted with a stub that fails the test if invoked",
+        "An unknown mission name is a clear error, never a silent default",
+        "'ailang mission --help' lists the subcommand",
+        "A post that cannot be delivered exits non-zero carrying M1's typed error",
+        "MUTATION: making --dry-run fall through to the real post turns the zero-network assertion RED"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-09-04",
+      "notes": "landed in ae56c72ff; PR #1041"
+    }
+  ],
+  "constraints": {
+    "no_shell_edits": "This sprint must not modify any file under tools/launchd/ or scripts/. Four mission loops are live and three run pinned driver copies that re-sync from origin/dev at every fire (v1 every 90 min), so a driver change reaches production within 90 minutes unreviewed.",
+    "worktree_required": "Execute in a git worktree, never the main checkout: a v1 iteration runs every 90 min with bypassPermissions over the shared tree.",
+    "land_via_pr": "Land via PR, not a direct push to dev.",
+    "out_of_scope_pending_ratification": [
+      "HD-1 decision->issue projection",
+      "HD-2 telemetry re-route",
+      "HD-4 Projects board",
+      "the six gh-issue-comment call-site cutover"
+    ]
+  }
+}
