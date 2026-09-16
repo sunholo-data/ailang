@@ -13,6 +13,7 @@ import (
 
 var expectedPiExtensions = []string{
 	"ail-fmt-autolint.ts",
+	"ailang-exec.ts",
 	"ailang-lsp-lite.ts",
 	"binary-freshness.ts",
 	"builtin-sprint.ts",

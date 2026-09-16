@@ -14,9 +14,21 @@ import (
 // under the user's home, never under the workspace — the policy's own
 // fs_sandbox must not contain it (D4), and pi's write tool, which writes as
 // this user, cannot open it for writing. M-AGENT-AILANG-ONLY-EXECUTION.
+//
+// `${WORKSPACE}` in the TOML is replaced by the workspace path: a Job's clone
+// lives at a per-task directory the policy author cannot know, and AILANG's FS
+// and Process effects resolve relative paths against the SANDBOX ROOT, not the
+// program's cwd — a sandbox one level above the clone made `git log` run in
+// /workspace and fail with "not a git repository" (456 turns, 2026-09-16).
 func MaterializeAgentPolicy(toml, workspace string) (string, error) {
 	if strings.TrimSpace(toml) == "" {
 		return "", nil
+	}
+	if workspace != "" {
+		abs, err := filepath.Abs(workspace)
+		if err == nil {
+			toml = strings.ReplaceAll(toml, "${WORKSPACE}", abs)
+		}
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {

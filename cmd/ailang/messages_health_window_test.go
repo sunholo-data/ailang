@@ -17,8 +17,8 @@ func TestParseHealthWindow(t *testing.T) {
 		{"90m", 90 * time.Minute, false},
 		{"7d", 7 * 24 * time.Hour, false},
 		{"0.5d", 12 * time.Hour, false},
-		{"0", 0, false},     // judge everything
-		{"all", 0, false},   // same, spelled the way people say it
+		{"0", 0, false},   // judge everything
+		{"all", 0, false}, // same, spelled the way people say it
 		{"yesterday", 0, true},
 		{"-3h", 0, true},
 	} {
