@@ -84,18 +84,21 @@ build-tagged, and `make build` does not include them).
 `## [Unreleased]` heading** below the S4 content instead of going under the existing one.
 Merged into the single heading at line 5.
 
-**Decision needed: commit it.** It is finished work sitting in a shared checkout.
+**RESOLVED 2026-09-16: committed as `f63310890`** (Mark's call), with the changelog fix.
 
 ### Also in the tree, deliberately not touched
 
 - `.ailang/state/simplicity/2026-09-15.json` — commit ref and instruction-surface bytes moved.
 - `docs/static/benchmarks/os/{history,latest}.json` — modified before this session began;
   unrelated to any of the above.
-- **52 untracked sprint JSONs** under `.ailang/state/sprints/`. All predate the 09-14
-  gitignore fix (22 May – 11 Sep); 91 others are tracked. They were ignored wholesale until
-  `670b03aa4` un-ignored the directory, so they now surface as untracked noise in every
-  `git status`. Commit them as history or leave them — but decide, because otherwise every
-  future session re-reads 52 lines of `??` looking for its own work.
+- **52 sprint JSONs — RESOLVED 2026-09-16, committed as `e85303bd9`.** They predated the
+  09-14 gitignore fix (22 May – 11 Sep) while 91 siblings were tracked, so they surfaced as
+  untracked noise in every `git status`. **Ignoring them was the tempting fix and the wrong
+  one:** any rule broad enough to hide them also hides the NEXT sprint's file, which
+  re-breaks the sprint-planner → sprint-executor handoff that `670b03aa4` had just fixed
+  (the executor refuses to start when its JSON is not committed, and `git add` was skipping
+  it in silence). Tracking is the convention; these were the exception. Scanned for
+  secret-shaped values before adding — none.
 
 ## 4. Live state
 
@@ -145,9 +148,11 @@ true; `models.yml` and now `internal/config` are read by more packages than seem
 
 ## 7. Suggested next steps, in order
 
-1. **Commit the `messages health` work.** Finished and green; it only needs a decision.
+1. ~~Commit the `messages health` work.~~ **DONE** (`f63310890`), along with the 52 sprint
+   JSONs (`e85303bd9`). The working tree is clean apart from a simplicity snapshot, the
+   benchmark JSONs that predate this session, and three untracked design docs.
 2. **Ledger row 4 — one role table.** Three incidents, cheapest real win, no provider spend
-   (which matters while codex is rationed).
+   (which matters while codex is rationed). **This is the top open item.**
 3. **Re-freeze `budget-accounting`'s A1** with attended authority, then dispatch to close M4
    criterion 2. Use the backstop cap convention, not a derived budget — and remember a kill
    point is a lower bound, not a requirement.
