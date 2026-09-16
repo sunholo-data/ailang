@@ -321,10 +321,14 @@ func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, 
 			case "auto_retry_start":
 				// pi retries a failed provider call internally (0.84+). Without
 				// this, wall-clock and cost inflate with no visible cause.
-				retries.observeStart(ev.Attempt, ev.MaxAttempts)
+				retries.observeStart(ev.Attempt, ev.MaxAttempts, ev.ErrorMessage)
+				// Surface it live: a run that retries in silence looks healthy
+				// for exactly as long as the retries take (2026-09-16: two Jobs
+				// runs banked as clean no_changes after 4×0-token attempts).
+				handler.OnText(fmt.Sprintf("\n[pi auto-retry %d/%d: %s]\n", ev.Attempt, ev.MaxAttempts, ev.ErrorMessage))
 
 			case "auto_retry_end":
-				retries.observeEnd(ev.Attempt, ev.Success)
+				retries.observeEnd(ev.Attempt, ev.Success, ev.FinalError)
 
 			case "tool_execution_start":
 				toolCallCount++
@@ -495,6 +499,14 @@ func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, 
 				success = false
 				finishReason = executor.FinishWireDrift
 				errMsg = wireDriftErr
+			}
+			// A run that produced NOTHING after the provider was retried is a
+			// provider failure, not a completed task: name it, carrying the
+			// provider's last words, instead of banking a clean empty result.
+			if retries.Count > 0 && outputTokens == 0 && toolCallCount == 0 && output == "" {
+				success = false
+				finishReason = executor.FinishError
+				errMsg = fmt.Sprintf("pi: provider returned nothing after %d auto-retr%s (last error: %s)", retries.Count, map[bool]string{true: "y", false: "ies"}[retries.Count == 1], retries.LastError)
 			}
 			if costKilled {
 				success = false

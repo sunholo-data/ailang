@@ -110,6 +110,28 @@ func TestExecuteStreaming_RetriesBanked(t *testing.T) {
 	}
 }
 
+func TestExecuteStreaming_NothingAfterRetriesIsAFailure(t *testing.T) {
+	// Two Jobs runs on 2026-09-16 banked as clean no_changes after four
+	// 0-token attempts; the provider's words never left the container.
+	events := []string{
+		`{"type":"session","id":"s1"}`,
+		`{"type":"auto_retry_start","attempt":1,"maxAttempts":3,"delayMs":1,"errorMessage":"429 rate limited"}`,
+		`{"type":"auto_retry_end","success":false,"attempt":1,"finalError":"429 rate limited"}`,
+		`{"type":"agent_end","messages":[],"willRetry":false}`,
+	}
+	res := runFake(t, events)
+	if res.Success {
+		t.Fatal("no output after a provider retry must not bank as success")
+	}
+	if !strings.Contains(res.Error, "provider returned nothing") || !strings.Contains(res.Error, "429 rate limited") {
+		t.Fatalf("Error must name the provider's last words, got %q", res.Error)
+	}
+	r, _ := res.ProviderData["pi_retries"].(map[string]any)
+	if r["last_error"] != "429 rate limited" {
+		t.Fatalf("pi_retries.last_error = %v", r["last_error"])
+	}
+}
+
 func TestExecuteStreaming_RetriesExhaustedIsNamed(t *testing.T) {
 	events := loadFixtureLines(t, "v0_85_1/fizzbuzz.ndjson")
 	events = append(events[:2], append([]string{
