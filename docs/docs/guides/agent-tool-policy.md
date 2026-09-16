@@ -21,21 +21,30 @@ no shell. This page is the operator's view; the design is
 ## Writing a policy
 
 ```toml
-allowed_caps = ["IO", "FS"]   # the WHOLE authority a submitted program can have
-fs_sandbox   = "/workspace"   # must NOT contain the policy file's own directory (D4)
-entry        = "main"
-# net_allow = ["api.example.com"]   # only meaningful with "Net" in allowed_caps
+allowed_caps  = ["IO", "FS", "Process"]   # the WHOLE authority a submitted program can have
+fs_sandbox    = "/workspace"              # must NOT contain the policy file's own directory (D4)
+process_allow = ["git:pull", "git:status"] # Process narrowed to subcommands (git:* = any)
+# net_allow     = ["api.example.com"]      # required when "Net" is allowed; https only unless
+# net_allow_http = true                    #   net_allow_http = true
+entry         = "main"
 ```
 
-Rules the gate enforces on the file itself: every cap must be a real effect; `FS` needs an
-`fs_sandbox`; `[budgets]` are **refused** (nothing enforces them at run time yet — remove
-them or use source annotations). Keep the list short: it is the boundary.
+The fine-grained caps are enforced by AILANG's own handlers (`--process-allowlist`,
+`--net-allow-domains`), fed from the policy — a program admitted with `Process` and
+`process_allow = ["git:status"]` gets `Ok` from `exec("git", ["status"])` and
+`Err(NotAllowed(git push))` from `exec("git", ["push"])` (measured). Rules the gate enforces on
+the file itself: every cap must be a real effect; `FS` needs an `fs_sandbox`; `Process` needs a
+`process_allow`; `Net` needs a `net_allow`; `[budgets]` are **refused** (nothing enforces them at
+run time yet). Keep the lists short: they are the boundary.
 
 ## Delivering it
 
-- **Coordinator agents**: `tool_policy: ailang_only` and `policy_path: /etc/…/agent-policy.toml`
-  on the agent in the registry; `ailang coordinator agents <id>` shows both declared and
-  effective. The path is forwarded as `AILANG_AGENT_POLICY`.
+- **Coordinator agents**: `tool_policy: ailang_only` and `policy_path: <file on the coordinator
+  host>` on the agent in the registry; `ailang coordinator agents <id>` shows both declared and
+  effective. Locally the path is forwarded as `AILANG_AGENT_POLICY`; for Cloud Run Jobs the
+  coordinator reads the file and forwards its **content** as `AILANG_AGENT_POLICY_TOML`, which
+  `execute-job` materialises read-only under `~/.ailang/agent-policy/` (outside the workspace).
+  A missing `policy_path` file fails the dispatch loudly rather than sending a refusing agent.
 - **Resident instances**: `resident-instance.sh create|update … --policy-file agent-policy.toml`.
   The file travels as `AILANG_AGENT_POLICY_TOML` and `boot.sh` materialises it **read-only
   outside the sandbox** (`~/.resident/policy/`); with no `bash` there is no `chmod` to undo
@@ -49,6 +58,14 @@ Every agent-mode row banks `tool_policy` (the effective list, or `<cli default>`
 have neither. Compare `ailang_only` rows only with each other, or against bash-lane rows as an
 explicit A/B (`ailang eval-paired`), never pooled. A denied program banks as
 `error_category: policy_violation`; `decision.missing_from_policy` names the effect.
+
+## What the model is told
+
+`ailang-exec.ts` injects a lane section — no shell, the five tools, the policy's allowed effects,
+the sandbox root, the Net hosts and Process commands, and "narrow the program on a denial" — as
+**both** a system-prompt section and a conversation message. Both, because the
+`ollama/glm-5.3-flash:cloud` route discards the system role entirely (measured 2026-09-16;
+deepseek via ollama and OpenRouter honour it).
 
 ## What it does not do
 

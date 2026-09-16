@@ -284,6 +284,18 @@ func (d *Dispatcher) Dispatch(ctx context.Context, params coordinator.DispatchPa
 			})
 		}
 	}
+	// M-AGENT-AILANG-ONLY-EXECUTION: the tool lane, and the program policy by
+	// CONTENT (the Job cannot read the coordinator's disk). full = no override.
+	if params.ToolPolicy != "" && params.ToolPolicy != "full" {
+		envOverrides = append(envOverrides, &runpb.EnvVar{
+			Name: "AILANG_TOOL_POLICY", Values: &runpb.EnvVar_Value{Value: params.ToolPolicy},
+		})
+	}
+	if params.PolicyTOML != "" {
+		envOverrides = append(envOverrides, &runpb.EnvVar{
+			Name: "AILANG_AGENT_POLICY_TOML", Values: &runpb.EnvVar_Value{Value: params.PolicyTOML},
+		})
+	}
 	if params.SSHKeySecret != "" {
 		envOverrides = append(envOverrides, &runpb.EnvVar{
 			Name: "AILANG_SSH_KEY_SECRET", Values: &runpb.EnvVar_Value{Value: params.SSHKeySecret},

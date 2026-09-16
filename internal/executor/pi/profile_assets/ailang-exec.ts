@@ -73,6 +73,46 @@ export function gateFromEnv(
 	return { policyPath, refusal: null };
 }
 
+/** Minimal TOML read of the fields the prompt names. */
+export function policySummary(policyToml: string): { caps: string[]; sandbox: string | null; net: string[]; process: string[] } {
+	const list = (key: string): string[] => {
+		const m = new RegExp(`^\\s*${key}\\s*=\\s*\\[([^\\]]*)\\]`, "m").exec(policyToml);
+		if (!m) return [];
+		return m[1].split(",").map((x) => x.trim().replace(/^"|"$/g, "")).filter(Boolean);
+	};
+	return { caps: list("allowed_caps"), sandbox: fsSandboxOf(policyToml), net: list("net_allow"), process: list("process_allow") };
+}
+
+/**
+ * Pure: the system-prompt section that tells the model what it IS. Without
+ * this the model has only the tool descriptions and a teaching prompt whose
+ * recipes say `ailang check` / `ailang run` in a shell — which it does not
+ * have. Measured 2026-09-16: one of five ailang_only runs read a file and
+ * stopped without ever calling ailang_run.
+ */
+export function lanePrompt(gate: PolicyGate, read: (p: string) => string = (p) => readFileSync(p, "utf8")): string {
+	const lines = [
+		"## Execution lane: ailang_only",
+		"You have NO shell. Your tools are read, edit, write, ailang_check and ailang_run — nothing else.",
+		"The ONLY way to execute anything is `ailang_run` on an AILANG (.ail) file you have written. Do not ask for bash, do not describe commands you would run, do not stop after reading: write the program, `ailang_check` it, then `ailang_run` it.",
+		"Every effect a program uses must be declared in its entry function's effect row (`! {IO, FS}`); the typechecker enforces this through imports, and the gate admits the program only if the declared row is a subset of the policy below.",
+	];
+	if (gate.refusal || !gate.policyPath) {
+		lines.push(`Execution is NOT granted in this deployment (${gate.refusal ?? "no policy"}). You can still write and type-check programs; say plainly that you cannot run them.`);
+		return lines.join("\n");
+	}
+	let sum = { caps: [] as string[], sandbox: null as string | null, net: [] as string[], process: [] as string[] };
+	try { sum = policySummary(read(gate.policyPath)); } catch { /* the tool will refuse; the prompt stays generic */ }
+	lines.push(`Policy: allowed effects = {${sum.caps.join(", ") || "none — every program is denied"}}.`);
+	if (sum.sandbox) lines.push(`FS is confined to ${sum.sandbox}: read and write only inside it; paths outside are rejected at run time.`);
+	if (sum.caps.includes("Net")) lines.push(`Net is allowed only to: ${sum.net.join(", ") || "(no hosts listed)"}.`);
+	else lines.push("There is no network access. Do not attempt HTTP.");
+	if (sum.caps.includes("Process")) lines.push(`Process is allowed only for: ${sum.process.join(", ") || "(no commands listed — every process call is refused)"} (cmd:sub narrows to a subcommand).`);
+	else lines.push("There is no process/subprocess access.");
+	lines.push("A denial names `missing_from_policy`: narrow the program's effects instead of retrying the same thing. Programs are ordinary AILANG modules with `export func main() -> () ! {…}`; use std/fs, std/io, std/string for what you would have done with shell tools.");
+	return lines.join("\n");
+}
+
 /** The `policy: {...}` admission line `ailang run --policy` prints on stderr. */
 export function parsePolicyLine(stderr: string): Record<string, unknown> | null {
 	const m = /^policy: (\{.*\})\s*$/m.exec(stderr);
@@ -124,6 +164,19 @@ export function composeEnvelope(code: number, stdout: string, stderr: string): R
 export default async function (pi: ExtensionAPI) {
 	const { Type } = await import("typebox");
 	const gate = gateFromEnv(process.env);
+
+	// Tell the model what it is (pure text from the policy; nothing secret).
+	// Delivered BOTH as a system-prompt section and as a conversation message:
+	// measured 2026-09-16, the `ollama/glm-5.3-flash:cloud` route discards the
+	// system role entirely (deepseek via ollama and OpenRouter glm honour it),
+	// so a system-prompt-only injection would silently vanish on the rig's
+	// default pi model. The teaching prompt's shell recipes stay; this section
+	// says they do not apply here.
+	const lane = lanePrompt(gate);
+	pi.on("before_agent_start", async (ev) => ({
+		systemPrompt: `${ev.systemPrompt}\n\n${lane}`,
+		message: { customType: "ailang-lane", content: lane, display: false },
+	}));
 
 	pi.registerTool({
 		name: "ailang_run",

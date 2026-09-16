@@ -89,6 +89,12 @@ type DispatchParams struct {
 	SSHKeySecret string
 	SSHHostAlias string
 
+	// ToolPolicy / PolicyTOML: the agent's tool lane and the CONTENT of its
+	// program policy (M-AGENT-AILANG-ONLY-EXECUTION). Content, not a path: a
+	// Job cannot read the coordinator's disk. Registry metadata.
+	ToolPolicy string
+	PolicyTOML string
+
 	// M-PKG-CASCADE-DETERMINISTIC-FIRST: cascade envelope fields, propagated
 	// from TaskRecord so the Cloud Run Job wrapper can decide deterministic-
 	// bump vs AI-escalation without re-fetching the task. Empty/false for

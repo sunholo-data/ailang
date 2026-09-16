@@ -29,6 +29,12 @@ const (
 	EnvGitAuthorName      = "AILANG_GIT_AUTHOR_NAME"
 	EnvGitAuthorEmail     = "AILANG_GIT_AUTHOR_EMAIL"
 	EnvSSHKeySecret       = "AILANG_SSH_KEY_SECRET"
+	// M-AGENT-AILANG-ONLY-EXECUTION: the tool-policy lane and its program
+	// policy, delivered to a Cloud Run Job by CONTENT (the container cannot see
+	// the coordinator's filesystem). execute-job materialises the TOML read-only
+	// outside the workspace and exports AILANG_AGENT_POLICY for the pi tool.
+	EnvToolPolicy      = "AILANG_TOOL_POLICY"
+	EnvAgentPolicyTOML = "AILANG_AGENT_POLICY_TOML"
 	EnvSSHHostAlias       = "AILANG_SSH_HOST_ALIAS"
 )
 
@@ -61,7 +67,15 @@ var jobVars = []Var{
 	{EnvGitAuthorEmail, "", AreaJob, "git user.email for the job's commits; see AILANG_GIT_AUTHOR_NAME."},
 	{EnvSSHKeySecret, "", AreaJob, "Secret Manager secret NAME holding a deploy key (never the key itself); set means the job installs it."},
 	{EnvSSHHostAlias, "agent-repo", AreaJob, "SSH host alias the deploy key is installed under."},
+	{EnvToolPolicy, "", AreaJob, "Tool-policy profile for the executor (full | ailang_only | canonical list); unset = the CLI's own defaults. Banked as tool_policy on the row."},
+	{EnvAgentPolicyTOML, "", AreaJob, "Program policy (agent-policy.toml CONTENT) an ailang_only job's ailang_run is gated by; materialised read-only by execute-job. Unset = ailang_run refuses (default-deny)."},
 }
+
+// ToolPolicy returns AILANG_TOOL_POLICY, "" when unset.
+func ToolPolicy() string { return strings.TrimSpace(get(EnvToolPolicy)) }
+
+// AgentPolicyTOML returns AILANG_AGENT_POLICY_TOML verbatim, "" when unset.
+func AgentPolicyTOML() string { return get(EnvAgentPolicyTOML) }
 
 // AgentID returns AILANG_AGENT_ID, "" when unset.
 func AgentID() string { return get(EnvAgentID) }

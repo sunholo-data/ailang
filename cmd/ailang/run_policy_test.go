@@ -150,6 +150,38 @@ func TestRunPolicy_RefusesUnenforceableBudgets(t *testing.T) {
 	}
 }
 
+func TestRunPolicy_FineGrainedCapsNarrowOrRefuse(t *testing.T) {
+	bin := buildAilang(t)
+	dir := t.TempDir()
+	// Process without process_allow: refused by name.
+	pol := writePolicyFixture(t, dir, `"IO", "Process"`)
+	f := writeAil(t, dir, "prog.ail", ioProgram)
+	_, stderr, code := runAilangBin(t, bin, "run", "--policy", pol, f)
+	if code != 1 || !strings.Contains(stderr, "process_allow") {
+		t.Fatalf("Process with no process_allow must be refused: exit %d\n%s", code, stderr)
+	}
+	// process_allow narrows: the admission line carries it, and the run's
+	// Process effect handler receives it as --process-allowlist (the program
+	// here uses IO only, so admission and the flag plumbing are what is tested).
+	if err := os.WriteFile(pol, []byte("allowed_caps = [\"IO\", \"Process\"]\nprocess_allow = [\"git:pull\", \"git:status\"]\nentry = \"main\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	stdout, stderr, code := runAilangBin(t, bin, "run", "--policy", pol, f)
+	if code != 0 || !strings.Contains(stdout, "admitted-and-ran") {
+		t.Fatalf("exit %d\n%s%s", code, stdout, stderr)
+	}
+	if !strings.Contains(stderr, `"process_allow":["git:pull","git:status"]`) {
+		t.Fatalf("admission line must name the process allowlist: %s", stderr)
+	}
+	// Net without net_allow: refused.
+	if err := os.WriteFile(pol, []byte("allowed_caps = [\"IO\", \"Net\"]\nentry = \"main\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, stderr, code := runAilangBin(t, bin, "run", "--policy", pol, f); code != 1 || !strings.Contains(stderr, "net_allow") {
+		t.Fatalf("Net with no net_allow must be refused: exit %d\n%s", code, stderr)
+	}
+}
+
 func TestRunPolicy_UnknownCapInPolicyIsLoud(t *testing.T) {
 	bin := buildAilang(t)
 	dir := t.TempDir()

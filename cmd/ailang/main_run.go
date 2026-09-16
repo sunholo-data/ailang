@@ -221,6 +221,10 @@ func runCommand() {
 		if resolved.netDomains != "" {
 			*netAllowDomainsFlag = resolved.netDomains
 		}
+		*netAllowHTTPFlag = resolved.netAllowHTTP
+		if resolved.processAllow != "" {
+			*processAllowlistFlag = resolved.processAllow
+		}
 	}
 
 	// M-BYTECODE-VM Phase 2D M3: bytecode VM execution is now spliced into

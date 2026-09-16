@@ -36,10 +36,12 @@ type runPolicyWidening struct {
 
 // runPolicyResolved is what the policy DECIDES for the run.
 type runPolicyResolved struct {
-	caps       string
-	netDomains string
-	sandbox    string
-	digest     string
+	caps         string
+	netDomains   string
+	netAllowHTTP bool
+	processAllow string
+	sandbox      string
+	digest       string
 }
 
 // applyRunPolicy loads the policy, refuses widening flags, validates the
@@ -83,6 +85,20 @@ func applyRunPolicy(policyPath, filename string, w runPolicyWidening) runPolicyR
 	if hasCap(pol, "FS") && pol.FSSandbox == "" {
 		refuse("policy admits FS but sets no fs_sandbox — refusing to run FS unsandboxed")
 	}
+	// Fine-grained caps: a coarse grant with no narrowing is the dangerous
+	// default, so each is refused unless the policy names what it allows.
+	if hasCap(pol, "Process") && len(pol.ProcessAllow) == 0 {
+		refuse("policy admits Process but sets no process_allow — name the commands (e.g. [\"git:pull\", \"git:status\"]) or drop Process")
+	}
+	if hasCap(pol, "Net") && len(pol.NetAllow) == 0 {
+		refuse("policy admits Net but sets no net_allow — name the hosts or drop Net")
+	}
+	if len(pol.ProcessAllow) > 0 && !hasCap(pol, "Process") {
+		refuse("process_allow is set but Process is not in allowed_caps")
+	}
+	if len(pol.NetAllow) > 0 && !hasCap(pol, "Net") {
+		refuse("net_allow is set but Net is not in allowed_caps")
+	}
 
 	out, code := admitProgram(pol, policyPath, filename)
 	if code != 0 {
@@ -91,10 +107,12 @@ func applyRunPolicy(policyPath, filename string, w runPolicyWidening) runPolicyR
 	}
 
 	resolved := runPolicyResolved{
-		caps:       strings.Join(pol.AllowedCaps, ","),
-		netDomains: strings.Join(pol.NetAllow, ","),
-		sandbox:    pol.FSSandbox,
-		digest:     executor.PolicyDigest(policyPath),
+		caps:         strings.Join(pol.AllowedCaps, ","),
+		netDomains:   strings.Join(pol.NetAllow, ","),
+		netAllowHTTP: pol.NetAllowHTTP,
+		processAllow: strings.Join(pol.ProcessAllow, ","),
+		sandbox:      pol.FSSandbox,
+		digest:       executor.PolicyDigest(policyPath),
 	}
 	if resolved.sandbox != "" {
 		// The effects context reads the sandbox from the environment
@@ -112,6 +130,7 @@ func applyRunPolicy(policyPath, filename string, w runPolicyWidening) runPolicyR
 		"caps":          pol.AllowedCaps,
 		"fs_sandbox":    resolved.sandbox,
 		"net_allow":     pol.NetAllow,
+		"process_allow": pol.ProcessAllow,
 		"decision":      out.Decision,
 	})
 	fmt.Fprintf(os.Stderr, "policy: %s\n", line)

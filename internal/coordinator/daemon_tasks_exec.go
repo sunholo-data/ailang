@@ -2,6 +2,7 @@ package coordinator
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/config"
@@ -259,6 +260,18 @@ func (d *Daemon) dispatchTasksCloud() error {
 				params.ArtifactPatterns = agent.ArtifactPatterns
 				params.SSHKeySecret = agent.SSHKeySecret
 				params.SSHHostAlias = agent.SSHHostAlias
+				params.ToolPolicy = agent.GetEffectiveToolPolicy()
+				if agent.PolicyPath != "" {
+					toml, rerr := os.ReadFile(agent.PolicyPath)
+					if rerr != nil {
+						// Loud, and skip THIS dispatch: an ailang_only agent sent
+						// without its policy would run with ailang_run refusing
+						// everything and read as a model failure.
+						d.logger.Printf("ERROR: task %s not dispatched: agent %s policy_path %s: %v", task.ID, agent.ID, agent.PolicyPath, rerr)
+						continue
+					}
+					params.PolicyTOML = string(toml)
+				}
 				if agent.GitIdentity != nil {
 					params.GitAuthorName = agent.GitIdentity.Name
 					params.GitAuthorEmail = agent.GitIdentity.Email
