@@ -228,3 +228,10 @@ func TestCategorizeAgentError_ThrashAborted(t *testing.T) {
 		})
 	}
 }
+
+func TestCategorizeAgentError_PolicyViolation(t *testing.T) {
+	got := CategorizeAgentError(errors.New(`ailang_run: {"ok":false,"error_kind":"policy_violation"}`), "")
+	if got != ErrorCategoryPolicyViolation {
+		t.Fatalf("got %q, want %q", got, ErrorCategoryPolicyViolation)
+	}
+}

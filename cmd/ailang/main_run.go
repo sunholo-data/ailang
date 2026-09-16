@@ -33,6 +33,7 @@ func runCommand() {
 	noPrintFlag := fs.Bool("no-print", false, "Suppress output (exit code only)")
 	batchFlag := fs.Bool("batch", false, "Batch mode: compile once, run entrypoint per input (remaining args are inputs)")
 	capsFlag := fs.String("caps", "", "Enable capabilities (comma-separated: "+runner.CapsList+"; or 'auto' to infer from the entrypoint)")
+	policyFlag := fs.String("policy", "", "Gate the run by an operator program policy (agent-policy.toml): caps, net allowlist and FS sandbox come from the file; --caps/--no-budgets/--allow-env are refused; denial prints the decision JSON and exits 2 without running")
 	maxRecursionDepthFlag := fs.Int("max-recursion-depth", 10000, "Maximum recursion depth (default: 10000)")
 
 	// Stdlib resolution flags
@@ -210,6 +211,17 @@ func runCommand() {
 	}
 
 	filename := fs.Arg(0)
+
+	// M-AGENT-AILANG-ONLY-EXECUTION M2: with --policy the authority is the
+	// file. Resolved here into the existing flag values rather than threaded
+	// as another runFile parameter.
+	if *policyFlag != "" {
+		resolved := applyRunPolicy(*policyFlag, filename, runPolicyWidening{caps: *capsFlag, noBudgets: *noBudgetsFlag, allowEnv: *allowEnvFlag})
+		*capsFlag = resolved.caps
+		if resolved.netDomains != "" {
+			*netAllowDomainsFlag = resolved.netDomains
+		}
+	}
 
 	// M-BYTECODE-VM Phase 2D M3: bytecode VM execution is now spliced into
 	// the regular runFile path so the VM and evaluator share the same module

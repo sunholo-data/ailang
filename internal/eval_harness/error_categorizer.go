@@ -105,6 +105,12 @@ func CategorizeAgentError(err error, finishReason string) string {
 		return ErrorCategoryNonAgentic
 	}
 
+	// The ailang_only lane's gate refused the program (M-AGENT-AILANG-ONLY-
+	// EXECUTION): the agent asked for an effect its policy does not grant.
+	if containsAny(msg, "policy_violation") {
+		return ErrorCategoryPolicyViolation
+	}
+
 	// API-level model refusal (Anthropic stop_reason "refusal"): a model
 	// behavior, not an infrastructure failure. Kept out of api_error so
 	// capability scoring can see "declined to answer" distinctly. First

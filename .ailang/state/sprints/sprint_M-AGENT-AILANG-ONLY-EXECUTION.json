@@ -42,10 +42,11 @@
         "caps table shared with runner.CapsList (drift test)",
         "policy_violation error_category verified unallocated"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-16T07:15:19Z",
+      "completed": "2026-09-16T07:15:19Z",
+      "notes": "run --policy: admitProgram extracted from policy-check (one path); caps/net_allow/fs_sandbox derived; --caps/--no-budgets/--allow-env refused by name; [budgets] refused (unenforceable); unknown caps refused against effects.Registry; FS without fs_sandbox refused; denial -> decision JSON stdout exit 2, admission -> one 'policy:' JSON line on stderr with policy_digest. Lying-entry test pins transitive effects (V14 refuted). error_category policy_violation added. 6 e2e tests via the built binary.",
+      "actual_loc": 260
     },
     {
       "id": "M3",

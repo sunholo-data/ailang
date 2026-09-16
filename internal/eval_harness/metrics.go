@@ -289,6 +289,13 @@ const (
 	// (cause unknown) because the cause is known and is ours: a harness upgrade
 	// moved the wire. M-PI-HARNESS-UPGRADE D4.
 	ErrorCategoryWireDrift = "wire_drift"
+
+	// ErrorCategoryPolicyViolation: the agent submitted a program whose declared
+	// effect row exceeds its operator policy (`ailang run --policy`,
+	// policy.KindPolicyViolation). A MODEL behaviour on the ailang_only lane —
+	// it reached for authority it was not granted — never api_error.
+	// M-AGENT-AILANG-ONLY-EXECUTION M2.
+	ErrorCategoryPolicyViolation = "policy_violation"
 )
 
 // Passed reports whether this row is a benchmark PASS: the code compiled, ran
