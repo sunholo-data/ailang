@@ -96,7 +96,8 @@ export function lanePrompt(gate: PolicyGate, read: (p: string) => string = (p) =
 		"## Execution lane: ailang_only",
 		"You have NO shell. Your tools are read, edit, write, ailang_check, ailang_run and builtins_search — nothing else. Use builtins_search({query}) to discover std functions (listDir, readFile, split, …) instead of guessing.",
 		"The ONLY way to execute anything is `ailang_run` on an AILANG (.ail) file you have written. Do not ask for bash, do not describe commands you would run, do not stop after reading: write the program, `ailang_check` it, then `ailang_run` it.",
-		"Module naming: a file named report.ail must start with `module report` (the bare file name — no directory prefix, no hyphens). ailang_run executes in the file's own directory, so file paths inside the program are relative to that directory.",
+		"Module naming: a file named report.ail must start with `module report` (the bare file name — no directory prefix, no hyphens).",
+		"Paths: AILANG resolves every relative path in a program (readFile, listDir, exec's working directory) against the FS SANDBOX ROOT below, not against the file's location. Write paths relative to that root (or absolute paths inside it).",
 		"Every effect a program uses must be declared in its entry function's effect row (`! {IO, FS}`); the typechecker enforces this through imports, and the gate admits the program only if the declared row is a subset of the policy below.",
 	];
 	if (gate.refusal || !gate.policyPath) {
@@ -106,7 +107,7 @@ export function lanePrompt(gate: PolicyGate, read: (p: string) => string = (p) =
 	let sum = { caps: [] as string[], sandbox: null as string | null, net: [] as string[], process: [] as string[] };
 	try { sum = policySummary(read(gate.policyPath)); } catch { /* the tool will refuse; the prompt stays generic */ }
 	lines.push(`Policy: allowed effects = {${sum.caps.join(", ") || "none — every program is denied"}}.`);
-	if (sum.sandbox) lines.push(`FS is confined to ${sum.sandbox}: read and write only inside it; paths outside are rejected at run time.`);
+	if (sum.sandbox) lines.push(`FS is confined to ${sum.sandbox}: relative paths resolve from there, subprocesses run from there, and paths outside it are rejected at run time.`);
 	if (sum.caps.includes("Net")) lines.push(`Net is allowed only to: ${sum.net.join(", ") || "(no hosts listed)"}.`);
 	else lines.push("There is no network access. Do not attempt HTTP.");
 	if (sum.caps.includes("Process")) lines.push(`Process is allowed only for: ${sum.process.join(", ") || "(no commands listed — every process call is refused)"} (cmd:sub narrows to a subcommand).`);
