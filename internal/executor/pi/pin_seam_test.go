@@ -1,6 +1,7 @@
 package pi
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -28,6 +29,9 @@ func TestDockerfilesPinExpectedPiVersion(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", rel, err)
 		}
+		// A Windows checkout with autocrlf carries \r before \n; `$` in the
+		// multiline regex then never matches (test-windows, 2026-09-16).
+		b = bytes.ReplaceAll(b, []byte("\r\n"), []byte("\n"))
 		pkg := pkgRe.FindSubmatch(b)
 		ver := verRe.FindSubmatch(b)
 		if pkg == nil || ver == nil {

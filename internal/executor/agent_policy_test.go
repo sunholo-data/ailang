@@ -2,6 +2,7 @@ package executor
 
 import (
 	"context"
+	"github.com/sunholo-data/ailang/internal/testutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -15,7 +16,7 @@ func TestMaterializeAgentPolicy_ReadOnlyOutsideWorkspace(t *testing.T) {
 		t.Skip("posix permission bits")
 	}
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	testutil.SetHomeDir(t, home)
 	// The 0555 dir is the property under test; give TempDir's cleanup its bits back.
 	t.Cleanup(func() { _ = os.Chmod(filepath.Join(home, ".ailang", "agent-policy"), 0o755) })
 	ws := filepath.Join(home, "work")
