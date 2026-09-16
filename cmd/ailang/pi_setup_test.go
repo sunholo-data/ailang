@@ -17,6 +17,7 @@ var expectedPiExtensions = []string{
 	"ailang-lsp-lite.ts",
 	"binary-freshness.ts",
 	"builtin-sprint.ts",
+	"examples-search.ts",
 	"microrag-context.ts",
 	"prepush-gate.ts",
 	"provider-quota.ts",

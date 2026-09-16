@@ -6,6 +6,8 @@
 -- Requires: FS capability (--caps FS)
 
 module std/fs
+import std/list (sortBy, filter)
+import std/string (compare, endsWith)
 
 -- Effect marker
 -- export effect FS  -- Will be added when effect declarations are supported
@@ -161,3 +163,42 @@ export func removeDirResult(path: string) -> Result[(), string] ! {FS} = _fs_rem
 -- @sandbox Respects AILANG_FS_SANDBOX — BOTH paths must stay inside the sandbox
 export func renameFileResult(oldPath: string, newPath: string) -> Result[(), string] ! {FS} =
   _fs_renameResult(oldPath, newPath)
+
+-- ============================================================================
+-- Recursive traversal (M-STD-FS-WALK, since v0.39.0)
+-- ============================================================================
+-- Composed from listDir/isDir/isFile — no Go builtin. Before this, every
+-- shell-less agent task hand-rolled the same walker (docs/sprint-retros,
+-- 2026-09-16); walk/glob make "find every .ail under a tree" a one-liner.
+
+-- walk: every regular FILE under root, recursively, sorted (std/string compare).
+-- Paths are "${root}/${name}" joins relative to how root was given — walk("src")
+-- yields "src/a/b.ail", walk("/abs/src") yields "/abs/src/a/b.ail". Directories
+-- themselves are not listed; entries that are neither a regular file nor a
+-- directory (symlinks, sockets) are skipped. Panics if root is not a directory.
+-- @example walk("examples/runnable")  -- ["examples/runnable/a.ail", ...]
+-- @requires FS capability
+-- @sandbox Respects AILANG_FS_SANDBOX
+export func walk(root: string) -> [string] ! {FS} = sortBy(compare, walkDir(root))
+
+-- glob: walk(root) filtered to paths ending in suffix. Suffix matching only
+-- (".ail", "_test.go", "/README.md") — this is NOT fnmatch; "*.ail" matches nothing.
+-- @example glob("examples", ".ail")
+-- @requires FS capability
+-- @sandbox Respects AILANG_FS_SANDBOX
+export func glob(root: string, suffix: string) -> [string] ! {FS} = filter(\p. endsWith(p, suffix), walk(root))
+
+-- walkDir: unsorted file paths under one directory (listDir order, depth-first)
+func walkDir(dir: string) -> [string] ! {FS} = walkEntries(dir, listDir(dir))
+
+-- walkEntries: fold the entries of dir into walkEntry results
+func walkEntries(dir: string, names: [string]) -> [string] ! {FS} {
+  match names {
+    [] => [],
+    [name, ...rest] => walkEntry("${dir}/${name}") ++ walkEntries(dir, rest)
+  }
+}
+
+-- walkEntry: a directory recurses, a regular file is one result, anything else is dropped
+func walkEntry(path: string) -> [string] ! {FS} =
+  if isDir(path) then walkDir(path) else if isFile(path) then [path] else []
