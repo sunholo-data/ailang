@@ -132,9 +132,31 @@ func (p *ExecutorProvider) Execute(ctx context.Context, task *AnalyzedTask, opts
 		}
 	}
 
-	// For questions, use read-only tools (no file modifications)
+	// Tool policy (M-AGENT-AILANG-ONLY-EXECUTION M4). Two inputs compose:
+	// the task KIND (a question is read-only) and the agent's declared
+	// tool_policy. A run gets what both allow. Names are canonical; pi maps
+	// them and ERRORS on one it cannot (D7) — before this, the question list
+	// below reached pi verbatim and pi silently ran with zero tools.
 	if task.Task.Kind == "question" {
-		execTask.AllowedTools = []string{"Read", "Grep", "Glob", "WebFetch", "WebSearch"}
+		execTask.AllowedTools = questionTools(p.executorName)
+	}
+	if opts.AgentConfig != nil {
+		if profile, err := executor.ProfileTools(opts.AgentConfig.GetEffectiveToolPolicy()); err != nil {
+			return nil, fmt.Errorf("agent %s: %w", opts.AgentConfig.ID, err)
+		} else if profile != nil {
+			if execTask.AllowedTools != nil {
+				execTask.AllowedTools = executor.IntersectTools(execTask.AllowedTools, profile)
+			} else {
+				execTask.AllowedTools = profile
+			}
+		}
+		if opts.AgentConfig.PolicyPath != "" {
+			execTask.PolicyPath = opts.AgentConfig.PolicyPath
+			if execTask.ExtraEnv == nil {
+				execTask.ExtraEnv = make(map[string]string)
+			}
+			execTask.ExtraEnv["AILANG_AGENT_POLICY"] = opts.AgentConfig.PolicyPath
+		}
 	}
 
 	// Execute using the CLI executor — use streaming if handler provided
@@ -189,4 +211,15 @@ func convertPluginsConfig(pc *PluginsConfig) *executor.PluginsConfig {
 // (see meta_prompt.go:BuildSystemPrompt) to avoid burying skill invocations.
 func buildDirective(task *AnalyzedTask) string {
 	return task.Task.Content
+}
+
+// questionTools is the read-only tool set for a question-kind task, per
+// executor vocabulary: Claude has Grep/Glob/Web*, pi has none of them (it
+// would have run toolless — design doc V4); on pi a question gets Read plus
+// the type-checker so it can still reason about AILANG code.
+func questionTools(executorName string) []string {
+	if executorName == "pi" {
+		return []string{"Read", "AilangCheck"}
+	}
+	return []string{"Read", "Grep", "Glob", "WebFetch", "WebSearch"}
 }

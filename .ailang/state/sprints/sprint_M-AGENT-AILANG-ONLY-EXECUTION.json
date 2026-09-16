@@ -82,10 +82,11 @@
         "question-kind tasks resolve to a pi-valid list",
         "ailang coordinator agents <id> shows tool_policy declared vs effective, default full"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-16T07:24:39Z",
+      "completed": "2026-09-16T07:24:39Z",
+      "notes": "AgentConfig.tool_policy + policy_path (default full, D6); executor.ProfileTools/IntersectTools executor-neutral; provider_executor resolves kind (question) x profile by intersection, forwards AILANG_AGENT_POLICY + Task.PolicyPath; questionTools per executor (pi: Read+AilangCheck \u2014 the Claude list ran toolless on pi); coordinator agents shows tool_policy declared/effective; agent_registry.go split at the 800 gate.",
+      "actual_loc": 230
     },
     {
       "id": "M5",

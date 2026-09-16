@@ -18,11 +18,10 @@ import (
 // path (design doc V4). Mapping is therefore done HERE, and an unmapped name is
 // an error naming it, not a silent no-tool run (D7).
 
-// ToolProfileAILANGOnly / ToolProfileFull are the registry values for
-// AgentConfig.tool_policy.
+// Profile names are executor-neutral: executor.ToolProfileFull / AILANGOnly.
 const (
-	ToolProfileFull       = "full"
-	ToolProfileAILANGOnly = "ailang_only"
+	ToolProfileFull       = executor.ToolProfileFull
+	ToolProfileAILANGOnly = executor.ToolProfileAILANGOnly
 )
 
 // canonicalToPi maps executor-canonical tool names to pi's registered names.
@@ -41,30 +40,8 @@ var canonicalToPi = map[string]string{
 	"MicroragSearch": "microrag_search",
 }
 
-// ProfileTools expands a registry tool_policy value into CANONICAL tool names.
-// "full" (or "") → nil, meaning the CLI's own defaults apply; "ailang_only" →
-// the read/edit/write + AILANG-gate set with NO Bash; anything else is a
-// comma-separated explicit canonical list.
-func ProfileTools(profile string) ([]string, error) {
-	switch strings.TrimSpace(profile) {
-	case "", ToolProfileFull:
-		return nil, nil
-	case ToolProfileAILANGOnly:
-		return []string{"Read", "Edit", "Write", "AilangCheck", "AilangRun"}, nil
-	}
-	var out []string
-	for _, t := range strings.Split(profile, ",") {
-		t = strings.TrimSpace(t)
-		if t == "" {
-			continue
-		}
-		if _, ok := canonicalToPi[t]; !ok {
-			return nil, fmt.Errorf("pi: tool_policy names unknown tool %q (known: %s)", t, knownCanonical())
-		}
-		out = append(out, t)
-	}
-	return out, nil
-}
+// ProfileTools is executor.ProfileTools — canonical names, executor-neutral.
+func ProfileTools(profile string) ([]string, error) { return executor.ProfileTools(profile) }
 
 // ToolArgs is the pi argv fragment for a canonical AllowedTools list:
 //
@@ -116,6 +93,3 @@ func knownCanonical() string {
 	sort.Strings(names)
 	return strings.Join(names, ",")
 }
-
-// ensure the sentinel stays the executor's, not a local re-spelling.
-var _ = executor.ToolPolicyCLIDefault

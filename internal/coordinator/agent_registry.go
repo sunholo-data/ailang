@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
 	"sync"
-	"time"
 )
 
 // InvokeConfig specifies how an agent should be invoked.
@@ -150,10 +150,19 @@ type AgentConfig struct {
 	// EvaluatesParent marks an agent whose completions carry an
 	// EVALUATION_VERDICT: line to be attached to the PARENT task's pending
 	// approval (M2). Set on sprint-evaluator only.
-	EvaluatesParent    bool   `yaml:"evaluates_parent" json:"evaluates_parent,omitempty"`
-	AutoMerge          bool   `yaml:"auto_merge" json:"auto_merge"`                     // Automatically merge approved work
-	SkipApproval       bool   `yaml:"skip_approval" json:"skip_approval"`               // Skip approval workflow entirely (for script agents)
-	Provider           string `yaml:"provider" json:"provider"`                         // "claude" or "gemini"
+	EvaluatesParent bool   `yaml:"evaluates_parent" json:"evaluates_parent,omitempty"`
+	AutoMerge       bool   `yaml:"auto_merge" json:"auto_merge"`       // Automatically merge approved work
+	SkipApproval    bool   `yaml:"skip_approval" json:"skip_approval"` // Skip approval workflow entirely (for script agents)
+	Provider        string `yaml:"provider" json:"provider"`           // "claude" or "gemini"
+	// ToolPolicy: what this agent may DO — "full" (the CLI's defaults; the
+	// coordinator's default, D6), "ailang_only" (read/edit/write + the
+	// AILANG gate, no shell), or an explicit canonical list. Resolved into
+	// Task.AllowedTools; pi refuses a name it cannot map (D7). PolicyPath is
+	// the operator program policy an ailang_only agent's `ailang_run` is
+	// gated by (deployment config, forwarded as AILANG_AGENT_POLICY).
+	// M-AGENT-AILANG-ONLY-EXECUTION M4.
+	ToolPolicy         string `yaml:"tool_policy" json:"tool_policy,omitempty"`
+	PolicyPath         string `yaml:"policy_path" json:"policy_path,omitempty"`
 	MergeBranch        string `yaml:"merge_branch" json:"merge_branch"`                 // Target branch for merges (e.g., "dev", "main")
 	MaxConcurrentTasks int    `yaml:"max_concurrent_tasks" json:"max_concurrent_tasks"` // 0 = unlimited
 	SessionContinuity  bool   `yaml:"session_continuity" json:"session_continuity"`     // Use --resume for Claude Code / --conversation-id for Gemini
@@ -659,75 +668,6 @@ func DefaultApprovalConfig(agentID string) *ApprovalConfig {
 	default:
 		return nil
 	}
-}
-
-// GetEffectiveInvokeConfig returns the agent's invoke config, or defaults for known agents.
-// Returns nil for unknown agents without explicit config.
-//
-// Note: Deprecation warnings for using defaults should be logged by the caller,
-// as they have logger access. Check if result differs from explicit config.
-func (a *AgentConfig) GetEffectiveInvokeConfig() *InvokeConfig {
-	if a.Invoke != nil {
-		return a.Invoke
-	}
-	return DefaultInvokeConfig(a.ID)
-}
-
-// GetEffectiveOutputMarkers returns the agent's output markers, or defaults for known agents.
-func (a *AgentConfig) GetEffectiveOutputMarkers() []string {
-	if len(a.OutputMarkers) > 0 {
-		return a.OutputMarkers
-	}
-	return DefaultOutputMarkers(a.ID)
-}
-
-// GitIdentity is the git author for an agent's commits.
-type GitIdentity struct {
-	Name  string `yaml:"name" json:"name"`
-	Email string `yaml:"email" json:"email"`
-}
-
-// GetEffectiveArtifactPatterns returns the agent's artifact patterns, or defaults
-// for known agents. Use it to DISCOVER what changed — never to BOUND what may.
-//
-// The default for an agent not in DefaultArtifactPatterns is `**/*`, and that is
-// correct here: discovery should report every file the agent touched, and a
-// narrower default would silently omit real changes from the evidence.
-//
-// It is wrong for any safety decision, because the widest possible pattern is
-// the opposite of a bound. Measured 2026-09-11: the auto-merge scope guard read
-// this method, so an agent with auto_merge and no declared patterns got `**/*`
-// and the scope half of the guard bounded nothing. Safety decisions read the
-// DECLARED field (a.ArtifactPatterns) and treat empty as refuse —
-// daemon_tasks_exec.go does this deliberately and says so at the call site.
-func (a *AgentConfig) GetEffectiveArtifactPatterns() []string {
-	if len(a.ArtifactPatterns) > 0 {
-		return a.ArtifactPatterns
-	}
-	return DefaultArtifactPatterns(a.ID)
-}
-
-// GetEffectiveTimeout returns the agent's configured hard ceiling timeout, or the default (60m).
-// This is the maximum wall-clock time regardless of activity. Safe to call on nil receiver.
-func (a *AgentConfig) GetEffectiveTimeout() time.Duration {
-	if a != nil && a.Timeout != "" {
-		if d, err := time.ParseDuration(a.Timeout); err == nil && d > 0 {
-			return d
-		}
-	}
-	return 60 * time.Minute
-}
-
-// GetEffectiveIdleTimeout returns the agent's configured idle timeout, or the default (3m).
-// The agent is killed if no streaming events are produced for this duration.
-// Safe to call on nil receiver.
-func (a *AgentConfig) GetEffectiveIdleTimeout() time.Duration {
-	if a != nil && a.IdleTimeout != "" {
-		if d, err := time.ParseDuration(a.IdleTimeout); err == nil && d > 0 {
-			return d
-		}
-	}
-	return 3 * time.Minute
 }
 
 // GetEffectiveApprovalConfig returns the agent's approval config, or defaults for known agents.

@@ -97,6 +97,8 @@ func printAgentDetail(a *coordinator.AgentConfig, source string) {
 		{"workspace", a.Workspace},
 		{"merge_branch", a.MergeBranch},
 		{"provider", a.Provider},
+		{"tool_policy", a.ToolPolicy},
+		{"policy_path", a.PolicyPath},
 		{"executor_variant", a.ExecutorVariant},
 		{"role", a.Role},
 		{"model", a.Model},
@@ -126,6 +128,7 @@ func printAgentDetail(a *coordinator.AgentConfig, source string) {
 	fmt.Println("\nEFFECTIVE (defaults filled in — this is what runs)")
 	fmt.Printf("  %-20s %s%s\n", "timeout", a.GetEffectiveTimeout(), defaulted(a.Timeout == ""))
 	fmt.Printf("  %-20s %s%s\n", "idle_timeout", a.GetEffectiveIdleTimeout(), defaulted(a.IdleTimeout == ""))
+	fmt.Printf("  %-20s %s%s\n", "tool_policy", a.GetEffectiveToolPolicy(), defaulted(a.ToolPolicy == ""))
 
 	if inv := a.GetEffectiveInvokeConfig(); inv != nil {
 		fmt.Printf("  %-20s type=%s name=%s%s\n", "invoke", inv.Type, inv.Name, defaulted(a.Invoke == nil))
