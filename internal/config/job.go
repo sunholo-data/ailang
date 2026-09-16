@@ -35,7 +35,7 @@ const (
 	// outside the workspace and exports AILANG_AGENT_POLICY for the pi tool.
 	EnvToolPolicy      = "AILANG_TOOL_POLICY"
 	EnvAgentPolicyTOML = "AILANG_AGENT_POLICY_TOML"
-	EnvSSHHostAlias       = "AILANG_SSH_HOST_ALIAS"
+	EnvSSHHostAlias    = "AILANG_SSH_HOST_ALIAS"
 )
 
 // DefaultJobBranch is the branch a job clones when AILANG_BRANCH is unset.

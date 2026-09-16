@@ -32,14 +32,16 @@ var CanonicalTools = map[string]bool{
 // ProfileTools expands a tool_policy value into canonical names.
 //
 //	"" / "full"    → nil   (the CLI's own defaults apply)
-//	"ailang_only"  → Read, Edit, Write, AilangCheck, AilangRun — no Bash
+//	"ailang_only"  → Read, Edit, Write, AilangCheck, AilangRun, BuiltinsSearch — no Bash
+//	                 (BuiltinsSearch is read-only API discovery: without it the
+//	                 model reaches for `ailang docs` in a shell it does not have)
 //	"A,B,C"        → that list, each name validated
 func ProfileTools(profile string) ([]string, error) {
 	switch strings.TrimSpace(profile) {
 	case "", ToolProfileFull:
 		return nil, nil
 	case ToolProfileAILANGOnly:
-		return []string{"Read", "Edit", "Write", "AilangCheck", "AilangRun"}, nil
+		return []string{"Read", "Edit", "Write", "AilangCheck", "AilangRun", "BuiltinsSearch"}, nil
 	}
 	var out []string
 	for _, t := range strings.Split(profile, ",") {

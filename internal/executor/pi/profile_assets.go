@@ -28,8 +28,9 @@ var profileAssets embed.FS
 // ProfileExtensionFiles are the extensions a tool list needs, by canonical
 // tool name. A list that names none of these gets no -e flags.
 var profileExtensionFiles = map[string]string{
-	"AilangRun":   "ailang-exec.ts",
-	"AilangCheck": "ailang-lsp-lite.ts",
+	"AilangRun":      "ailang-exec.ts",
+	"AilangCheck":    "ailang-lsp-lite.ts",
+	"BuiltinsSearch": "ailang-lsp-lite.ts",
 }
 
 var (
@@ -47,7 +48,15 @@ func materializeProfileAssets() (string, error) {
 			materializeErr = err
 			return
 		}
+		// Two canonical tools can live in one file (ailang_check and
+		// builtins_search are both ailang-lsp-lite.ts); write each file once —
+		// the second write would hit the 0444 bits of the first.
+		unique := map[string]bool{}
 		for _, name := range profileExtensionFiles {
+			if unique[name] {
+				continue
+			}
+			unique[name] = true
 			b, err := profileAssets.ReadFile("profile_assets/" + name)
 			if err != nil {
 				materializeErr = fmt.Errorf("embedded %s: %w", name, err)

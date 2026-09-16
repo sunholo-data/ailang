@@ -33,9 +33,9 @@ import (
 //   - AIProvider: "stub" or a model name; controls the AI effect handler.
 //   - Entry: name of the exported function to invoke.
 type Policy struct {
-	AllowedCaps    []string       `toml:"allowed_caps"`
-	FSSandbox      string         `toml:"fs_sandbox"`
-	NetAllow       []string       `toml:"net_allow"`
+	AllowedCaps []string `toml:"allowed_caps"`
+	FSSandbox   string   `toml:"fs_sandbox"`
+	NetAllow    []string `toml:"net_allow"`
 	// NetAllowHTTP permits http:// (default https only). ProcessAllow is the
 	// Process allowlist in `ailang run --process-allowlist` syntax: `git`,
 	// `git:pull`, `gh:pr:list`, `git:*` — a binary narrowed to its subcommands.

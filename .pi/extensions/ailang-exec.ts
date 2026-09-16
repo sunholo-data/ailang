@@ -5,7 +5,7 @@
  * an .ail file to `ailang run --policy $AILANG_AGENT_POLICY`. The policy — not
  * the agent — decides caps, the Net allowlist and the FS sandbox; the gate
  * refuses every flag that could widen them (cmd/ailang/run_policy.go). Pair
- * with `--no-builtin-tools --tools read,edit,write,ailang_check,ailang_run`
+ * with `--no-builtin-tools --tools read,edit,write,ailang_check,ailang_run,builtins_search`
  * (`ailang pi tool-profile ailang_only`) and `bash` is gone, so the gate is a
  * boundary rather than a convenience. `ailang_check` lives in ailang-lsp-lite.
  *
@@ -93,7 +93,7 @@ export function policySummary(policyToml: string): { caps: string[]; sandbox: st
 export function lanePrompt(gate: PolicyGate, read: (p: string) => string = (p) => readFileSync(p, "utf8")): string {
 	const lines = [
 		"## Execution lane: ailang_only",
-		"You have NO shell. Your tools are read, edit, write, ailang_check and ailang_run — nothing else.",
+		"You have NO shell. Your tools are read, edit, write, ailang_check, ailang_run and builtins_search — nothing else. Use builtins_search({query}) to discover std functions (listDir, readFile, split, …) instead of guessing.",
 		"The ONLY way to execute anything is `ailang_run` on an AILANG (.ail) file you have written. Do not ask for bash, do not describe commands you would run, do not stop after reading: write the program, `ailang_check` it, then `ailang_run` it.",
 		"Every effect a program uses must be declared in its entry function's effect row (`! {IO, FS}`); the typechecker enforces this through imports, and the gate admits the program only if the declared row is a subset of the policy below.",
 	];
