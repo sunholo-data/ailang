@@ -98,7 +98,7 @@ Ordered so the instrument lands before the change it measures.
 **Residuals, stated:**
 - **Prod images** (`agent-pi` 0.73.1, `agent-eval` 0.73.1, `resident-pi` 0.84.4) move on the next release tag + promote — the design's success metric 1 is met for dev only until then.
 - `make check-pi-wire-budget` INCONCLUSIVE ×3 — not this lane: the prod observatory's newest `LLM Generation` span is 05:40Z and four OpenRouter runs since never ingested (Broadcast → observatory ingest outage).
-- The rig's own `~/.pi/agent/extensions` holds 3 of 13 embedded extensions (`ailang pi status` → 12 MISSING). Found, not fixed.
+- ~~The rig's own `~/.pi/agent/extensions` holds 3 of 13 embedded extensions~~ — **by design**: the rig loads the suite from the repo's `.pi/extensions/` (global copies would collide, `pi_extension_collision.go`); verified live (`quota_report` executed from the checkout). `ailang pi status` now reports this as `WORKSPACE`.
 - The rig's installed `ailang` binary predates M1–M3 (`⚠ Binary may be stale`); `make quick-install` when the shared tree is clean, so rig rows start banking `executor_version` and the version assertion goes live there.
 - codex/opencode `--version` capture — two lines + result stamping each via `executor.VersionProbe`; deferred per the design doc.
 - No cloud pi **eval** lane exists (cloud pi = coordinator jobs), so D2's cross-plane comparator is N/A; the rig boundary was sized from existing rows instead.

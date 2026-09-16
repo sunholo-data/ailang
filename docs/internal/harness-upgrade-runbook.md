@@ -54,8 +54,9 @@ and is not separately measurable on the rig (it coincides with AILANG releases).
   Rollback to the pre-move package is no longer supported — the parser now reads
   `usage.reasoning` and `rawStopReason` and refuses a `message_end` without usage.
 - Post-checks (all four, re-measured 2026-09-16 on 0.85.1 — `quota_report` executed from a
-  clean `ailang pi install` with no trust file; the rig's OWN global dir was found holding 3 of
-  13 extensions, `ailang pi status` says `MISSING`, unresolved):
+  clean `ailang pi install` with no trust file, AND from the rig's checkout where the suite loads
+  from the repo's own `.pi/extensions/` — the rig's global dir deliberately lacks the suite, see
+  `pi_extension_collision.go`; `ailang pi status` reports that as `WORKSPACE`):
   1. Driver probe shape: `pi --mode json --no-session --no-tools --model
      ollama/glm-5.3-flash:cloud -p 'reply with exactly: ok'` → rc=0.
   2. Extension **execution** — NOT `pi list` (settings packages only) and NOT substring

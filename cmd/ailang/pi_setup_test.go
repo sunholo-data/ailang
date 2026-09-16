@@ -218,7 +218,7 @@ func TestPiStatusReportsManagedStates(t *testing.T) {
 	}
 
 	stdout.Reset()
-	if err := statusPiExtensions(home, &stdout); err != nil {
+	if err := statusPiExtensions(home, "", &stdout); err != nil {
 		t.Fatalf("status: %v", err)
 	}
 	output := stdout.String()
@@ -231,6 +231,48 @@ func TestPiStatusReportsManagedStates(t *testing.T) {
 		if !strings.Contains(output, want) {
 			t.Errorf("status missing %q:\n%s", want, output)
 		}
+	}
+}
+
+// A workspace that ships its own copy of the suite (the AILANG repo, every
+// worktree of it) MUST NOT also have the global copy: pi refuses to start on
+// the duplicate tool registration (cmd/ailang/pi_extension_collision.go).
+// So on such a machine the global copies are deliberately absent, and status
+// reporting them as MISSING sent an agent to "fix" the rig on 2026-09-16.
+// Identical workspace copy => WORKSPACE, not MISSING.
+func TestPiStatusReportsWorkspaceProvidedSuite(t *testing.T) {
+	home := t.TempDir()
+	ws := t.TempDir()
+	embedded, _, err := piEmbeddedFiles()
+	if err != nil {
+		t.Fatal(err)
+	}
+	wsExt := filepath.Join(ws, ".pi", "extensions")
+	if err := os.MkdirAll(wsExt, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	same := "provider-quota.ts"
+	stale := "binary-freshness.ts"
+	if err := os.WriteFile(filepath.Join(wsExt, same), embedded[same], 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(wsExt, stale), []byte("older copy\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var stdout bytes.Buffer
+	if err := statusPiExtensions(home, ws, &stdout); err != nil {
+		t.Fatalf("status: %v", err)
+	}
+	output := stdout.String()
+	if !strings.Contains(output, "WORKSPACE  "+same) {
+		t.Errorf("identical workspace copy must report WORKSPACE, not MISSING:\n%s", output)
+	}
+	if !strings.Contains(output, "MISSING    "+stale) || !strings.Contains(output, "workspace copy differs") {
+		t.Errorf("a differing workspace copy is still MISSING, and must say the copy differs:\n%s", output)
+	}
+	if !strings.Contains(output, "MISSING    ailang-lsp-lite.ts") {
+		t.Errorf("a file the workspace does not ship stays MISSING:\n%s", output)
 	}
 }
 
@@ -311,7 +353,7 @@ func TestPiIdenticalUnmanagedAssetRemainsUnmanaged(t *testing.T) {
 	}
 
 	stdout.Reset()
-	if err := statusPiExtensions(home, &stdout); err != nil {
+	if err := statusPiExtensions(home, "", &stdout); err != nil {
 		t.Fatalf("status: %v", err)
 	}
 	if !strings.Contains(stdout.String(), "UNMANAGED  "+name) {
