@@ -1,6 +1,6 @@
 # M-AGENT-AILANG-ONLY-EXECUTION — AILANG as the agent's only route to acting, fleet-wide
 
-**Status**: Planned
+**Status**: Implemented
 **Target**: v0.39.0 — filed beside its parent in `v0_35_0/`; both slipped past v0.38.9 and retarget together
 **Priority**: P1 — the claim "the agent can only act through AILANG" is made in three places today and is true in none of them
 **Estimated**: ~4 days (1 day gate, 1.5 days pi tool + policy plumbing, 1 day fleet + resident cutover, 0.5 day eval lane + bookkeeping)
