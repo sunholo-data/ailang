@@ -90,6 +90,10 @@ type Daemon struct {
 	startedAt time.Time
 	tasksRun  int
 
+	// lastPackageAgentRefresh throttles the registry-index re-read that
+	// derives inbox agents for newly published packages (M-PKG-QUALITY-LADDER M6).
+	lastPackageAgentRefresh time.Time
+
 	// approvalDedup suppresses duplicate Pub/Sub push deliveries of secret
 	// approvals (at-least-once). Lazily initialised on first push.
 	approvalDedup     *approvalDedup
@@ -535,6 +539,7 @@ func (d *Daemon) Run() error {
 			return nil
 		case <-ticker.C:
 			d.logger.Println("Checking for new tasks...")
+			d.refreshPackageAgents() // new packages get an inbox without a config roll
 			if d.msgAdapter != nil {
 				if err := d.pollAndProcessTasks(); err != nil {
 					d.logger.Printf("Error processing tasks: %v", err)

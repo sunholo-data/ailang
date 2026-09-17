@@ -13,8 +13,20 @@ func qualityManifest(stability string, effects []string) *PackageManifest {
 	m.Package.Edition = "1"
 	m.Stability.Level = stability
 	m.Effects.Max = effects
-	m.Metadata = map[string]interface{}{"ai_summary": "x"}
+	m.Metadata = map[string]interface{}{"ai_summary": "x", "repository": "https://github.com/test/q/tree/main/packages/q"}
 	return m
+}
+
+// M6: a package whose repository cannot be parsed cannot get a derived inbox agent.
+func TestBuildQualityReport_RepositoryBadge(t *testing.T) {
+	m := qualityManifest("experimental", []string{})
+	if r := BuildQualityReport(m, ModeServer, cleanInputs(), false); hasCode(r.Badges, "PUB021") {
+		t.Errorf("GitHub tree URL must not badge: %v", r.Badges)
+	}
+	delete(m.Metadata, "repository")
+	if r := BuildQualityReport(m, ModeServer, cleanInputs(), false); !hasCode(r.Badges, "PUB021") {
+		t.Errorf("missing repository must badge PUB021: %v", r.Badges)
+	}
 }
 
 func cleanInputs() QualityInputs {

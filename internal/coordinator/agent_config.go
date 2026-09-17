@@ -417,6 +417,9 @@ func buildRegistryFromConfig(cfg *CoordinatorConfig) (*AgentRegistry, error) {
 		}
 	}
 	registry.SetTriageOnlyInboxes(cfg.TriageOnlyInboxes)
+	// M-PKG-QUALITY-LADDER M6: the CLI readouts (`messages inboxes`, health,
+	// the send guard) see the same derived package agents the daemon serves.
+	registry.MaterializePackageAgentsFromRegistry(nil)
 	return registry, nil
 }
 
