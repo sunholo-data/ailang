@@ -343,6 +343,7 @@ readFile("big.xml")
 - [ ] `make test-core`, `make ci`, `make simplicity-audit` green (two new env vars registered in `internal/config`)
 - [ ] Documentation updated (`debugging.md` Memory section; changelog)
 - [x] Downstream asks D1–D3 sent 2026-09-16 to `pkg:sunholo/ailang_parse` (canonical store): D1 `inbox_1789590140354_20306541`, D2 `inbox_1789590142122_e881c3aa`, D3 `inbox_1789590143755_f84d120c`
+- [x] 2026-09-17 follow-ups: the ailang_parse agent executed D1–D3 the same night → PRs sunholo-data/ailang-parse #44, #45, #46 (open, awaiting Mark's approval; D3 notes image goldens need regenerating). D4 (Dockerfile pin bump + `--max-memory cgroup`) filed to the `docparse` inbox with `--force` — no agent serves that repo, sessions there read it. #617 closed as shipped (M1–M4 landed 2026-08-12, never closed). #676 re-measured: 2,594 MB → 409 MB at n=6,400; re-scoped to M-LIST-CONS-QUADRATIC. `std/list` docs corrected (header claimed O(1) prepend; `concat` now carries its loop cost).
 
 ## Testing Strategy
 
