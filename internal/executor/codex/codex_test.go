@@ -3,6 +3,7 @@ package codex
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	osexec "os/exec"
@@ -16,6 +17,7 @@ import (
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/executor"
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 func TestNewCodexExecutor(t *testing.T) {
@@ -724,6 +726,23 @@ func TestExecuteStreaming_UnpricedModelBanksUnknownProvenance(t *testing.T) {
 		t.Helper()
 		tmpDir := t.TempDir()
 		fake := writeFakeCodex(t, tmpDir, string(fixture))
+		// authLane reads ~/.codex/auth.json from the real OS home directory;
+		// left ambient, the control's provenance depends on whether the
+		// machine running the test happens to have codex logged in (true on
+		// a dev box, false on a bare CI runner — the failure this pins down).
+		home := t.TempDir()
+		testutil.SetHomeDir(t, home)
+		authDir := filepath.Join(home, ".codex")
+		if err := os.MkdirAll(authDir, 0o755); err != nil {
+			t.Fatalf("mkdir .codex: %v", err)
+		}
+		authJSON, err := json.Marshal(map[string]string{"auth_mode": "apikey"})
+		if err != nil {
+			t.Fatalf("marshal auth.json: %v", err)
+		}
+		if err := os.WriteFile(filepath.Join(authDir, "auth.json"), authJSON, 0o600); err != nil {
+			t.Fatalf("write auth.json: %v", err)
+		}
 		ex, err := New(&executor.Config{CodexPath: fake, CodexModel: model, TimeoutSeconds: 30})
 		if err != nil {
 			t.Fatalf("New(%s): %v", model, err)

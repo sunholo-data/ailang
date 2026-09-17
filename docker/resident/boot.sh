@@ -254,12 +254,50 @@ fi
 #     interactive way — it branches on ctx.hasUI and asks for a human keypress.
 # Off by default, opt back in with RESIDENT_PI_EXTENSIONS=1 when a resident is
 # genuinely doing ailang repo work and can satisfy the protocol.
+#
+# EXCEPT the ailang_only set (M-AGENT-AILANG-ONLY-EXECUTION M5): ailang-exec.ts
+# (`ailang_run`, the ONE way an ailang_only resident executes anything),
+# ailang-lsp-lite.ts (`ailang_check`, `builtins_search`) and examples-search.ts
+# (`examples_search`). None registers a gate or a prompt hook; all are self-contained. They are kept in a fresh extensions dir so the
+# session gate and the rest stay aside.
 EXT_DIR="$PI_HOME/agent/extensions"
 if [ "${RESIDENT_PI_EXTENSIONS:-0}" = "1" ]; then
   log "pi extensions: ENABLED (RESIDENT_PI_EXTENSIONS=1)"
 elif [ -d "$EXT_DIR" ]; then
+  rm -rf "$EXT_DIR.disabled"
   mv "$EXT_DIR" "$EXT_DIR.disabled" 2>/dev/null || true
-  log "pi extensions: disabled (moved aside; set RESIDENT_PI_EXTENSIONS=1 to keep)"
+  mkdir -p "$EXT_DIR"
+  kept=""
+  for f in ailang-exec.ts ailang-lsp-lite.ts examples-search.ts; do
+    if [ -f "$EXT_DIR.disabled/$f" ]; then cp "$EXT_DIR.disabled/$f" "$EXT_DIR/$f"; kept="$kept $f"; fi
+  done
+  log "pi extensions: disabled (moved aside; set RESIDENT_PI_EXTENSIONS=1 to keep); kept execution pair:${kept:- NONE}"
+  [ -f "$EXT_DIR/ailang-exec.ts" ] || log "WARN ailang-exec.ts missing from the image's suite — ailang_run will not exist and an ailang_only resident cannot execute anything"
+fi
+
+# ─── 5a. program policy (M-AGENT-AILANG-ONLY-EXECUTION D4) ───────────────────
+# The operator's agent-policy.toml arrives as AILANG_AGENT_POLICY_TOML (env,
+# like MODELS_JSON — deployment config, never image content) and is
+# materialised OUTSIDE the FS sandbox, read-only. pi's `write` tool writes as
+# this user through fs, so a 0444 file in a 0555 directory is refused, and
+# with no `bash` there is no chmod to undo it. ailang-exec.ts refuses at load
+# if the policy sits inside its own fs_sandbox (the D4 seam from the other
+# side). Unset: `ailang_run` refuses with a named reason — default-deny, the
+# same stance PROGRAM_ALLOWLIST_FILE took before it.
+POLICY_DIR="${TASK_STATE_DIR:-/home/ailang/.resident}/policy"
+if [ -n "${AILANG_AGENT_POLICY_TOML:-}" ]; then
+  mkdir -p "$POLICY_DIR"; chmod 0755 "$POLICY_DIR"
+  rm -f "$POLICY_DIR/agent-policy.toml"
+  printf '%s\n' "$AILANG_AGENT_POLICY_TOML" > "$POLICY_DIR/agent-policy.toml"
+  chmod 0444 "$POLICY_DIR/agent-policy.toml"; chmod 0555 "$POLICY_DIR"
+  export AILANG_AGENT_POLICY="$POLICY_DIR/agent-policy.toml"
+  case "$AILANG_AGENT_POLICY" in
+    "$AILANG_FS_SANDBOX"/*|"$AILANG_FS_SANDBOX") die "program policy $AILANG_AGENT_POLICY lies inside AILANG_FS_SANDBOX=$AILANG_FS_SANDBOX — a program could rewrite it (D4). Refusing to start." ;;
+  esac
+  log "program policy: $AILANG_AGENT_POLICY (read-only; caps=$(sed -n 's/^allowed_caps *= *//p' "$AILANG_AGENT_POLICY" | head -1))"
+else
+  unset AILANG_AGENT_POLICY
+  log "program policy: NONE — ailang_run refuses (default-deny); set AILANG_AGENT_POLICY_TOML to grant execution"
 fi
 
 # ─── 5b. prove pi runs headless ──────────────────────────────────────────────

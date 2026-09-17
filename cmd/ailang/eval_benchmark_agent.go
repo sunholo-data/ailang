@@ -331,6 +331,9 @@ func runSingleBenchmarkAgent(ctx context.Context, benchSpan trace.Span, spec *ev
 		// Fmt-hook A/B (M-EVAL-FMT-WEAKMODEL-AB): resolved arm + hook reality,
 		// banked for the config-diff review and M3's treatment-delivery metric.
 		ResolvedProfile:    result.ResolvedProfile,
+		ExecutorVersion:    result.ExecutorVersion,
+		ToolPolicy:         result.ToolPolicy,
+		PolicyDigest:       result.PolicyDigest,
 		ResolvedExtensions: result.ResolvedExtensions,
 		FmtHookState:       result.FmtHook,
 		FmtHookEvents:      result.FmtHookEvents,

@@ -1,0 +1,9 @@
+{
+  "title": "AI-First Programming Language | AILANG Documentation",
+  "content": "AI-First Programming Language | AILANG Documentation\n\n# The AI-First Programming Language\n\nAILANG makes AI-generated code cheaper to debug, replay, and fix. Explicit effects constrain what code can do. Structured traces make errors easy to localize.\n\nhello.ail\n\n```\n-- hello.ail\nmodule examples/hello\n\nexport func main() -> () ! {IO} =\n  print(\"Hello, AILANG!\")\n```\n\n## How AILANG works\n\nHumans specify intent. Agents write `.ail`. AILANG constrains, runs, and explains.\n\n### Agent writes .ail\n\nPlug AILANG into Claude Code, Codex, or any agent that follows the teaching prompt.\n\n### AILANG checks\n\nT",
+  "links": [
+    "/docs/references/axioms",
+    "/docs/guides/agent-mcp",
+    "https://www.sunholo.com/ailang-demos/contracts-ai.html"
+  ]
+}

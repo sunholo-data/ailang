@@ -1,0 +1,84 @@
+{
+  "sprint_id": "M-BUDGET-SCOPING-BUG",
+  "design_doc": "design_docs/planned/v0_29_0/m-budget-scoping-bug.md",
+  "plan_path": "design_docs/planned/v0_29_0/m-budget-scoping-bug-sprint-plan.md",
+  "created": "2026-07-24",
+  "mission_iteration": 98,
+  "github_issues": [],
+  "status": "planned",
+  "velocity": {
+    "target_loc_per_day": 300,
+    "estimated_total_loc": 600,
+    "estimated_days": 2
+  },
+  "risk_level": "medium-high",
+  "edit_sites": {
+    "budget.go:231": "CheckAndConsume — load-bearing charge interceptor, REPLACED with bubbling frame charge",
+    "budget.go:259": "ChargeSemanticOnly — cumulative caller-charge, RETIRED",
+    "budget.go:287": "Reset — REPLACED by frame push/pop, delete with TestBudgetContext_Reset",
+    "budget.go:301": "Merge (limits summed) — REPLACED for scoping, delete if no prod caller (only test callers)",
+    "budget.go:400": "BudgetReport.EnterFunction — report-only, NOT the enforcement hook (decoy)",
+    "context.go:347": "WithBudget Budget field — enforcement state, frame push happens near here",
+    "context.go:348": "shared BudgetReport — STAYS SHARED (observability)",
+    "context.go:378": "WithBudgetLimits — actual scope-entry seam (push frame)",
+    "context.go:408": "PopScopeAndChargeCaller — cumulative pop mechanism, REPLACED by PopFrame",
+    "eval/eval_evaluator.go:299": "CallFunction WithBudgetLimits call-site (push)",
+    "eval/eval_evaluator.go:338": "CallFunction scope exit (pop) — NOT defer-guarded (unwind risk)",
+    "eval/eval_operations.go:139": "application-path WithBudgetLimits call-site (push)",
+    "eval/eval_operations.go:213": "application-path scope exit (pop) — NOT defer-guarded (unwind risk)"
+  },
+  "features": [
+    {
+      "id": "M1_FRAMES_LIMIT",
+      "description": "Per-invocation budget frame stack + bubbling charge rule + deterministic pre-op @limit (innermost-first violator, check-then-atomic-increment-all). Rewrite CheckAndConsume (budget.go:231); hook push at WithBudgetLimits and both evaluator sites; retire cumulative ChargeSemanticOnly; error reports tripped frame's own counts.",
+      "estimated_loc": 280,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Repro (cell 1) passes: unannotated main's IO does not charge limited's @limit=3 frame",
+        "Cell 2: annotated caller @limit=2 trips on annotated callee's bubbled op, names caller",
+        "Cell 3: delegation to unannotated callee cannot launder effects (caller frame trips)",
+        "Cell 4: recursion pushes independent frames, bubbling composes to trip outermost; single invocation succeeds",
+        "Cell 8: op violating both caller and callee frames names the innermost violator; no frame incremented; op not performed",
+        "@limit checked pre-op against every active frame without mutation; increment-all-or-none atomicity"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": "Frame push/pop hooks WithBudgetLimits + the two evaluator sites, NOT BudgetReport.EnterFunction (report-only decoy). Shared helper avoids call-site drift."
+    },
+    {
+      "id": "M2_MIN_EXIT_ATTRIBUTION",
+      "description": "@min checked at frame-pop on NORMAL exit only (own frame's bubbled semantic count), suppressed on error/exceptional exit so callee error propagates unmasked. Error attribution: callee-frame trip names callee, caller-frame trip names caller; failing op not performed.",
+      "estimated_loc": 120,
+      "dependencies": ["M1_FRAMES_LIMIT"],
+      "acceptance_criteria": [
+        "Cell 5: @min=3 with 2 ops fails at pop with BudgetMinUnmetError; variant 3 ops succeeds; variant 1 own + unannotated callee 2 succeeds",
+        "Cell 6: callee raises during @min=3 body -> callee error propagates, @min suppressed (surfaced error is callee's, not BudgetMinUnmetError)",
+        "Cell 7a: callee @limit=1 doing 2 -> error names callee; Cell 7b: caller frame trip -> error names caller; both: failing op not performed",
+        "CheckMinimum switched from physical count to the frame's bubbled semantic used count"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": "Suppression-on-error is itself a pinned matrix cell (6). Min-check runs in the defer pop only when body err == nil."
+    },
+    {
+      "id": "M3_TEST_MIGRATION_DEMO_DOCS",
+      "description": "Migrate budget_test.go to frame semantics (delete Merge/Reset/PopScopeAndChargeCaller cumulative tests + their machinery; rewrite TestBudgetExhaustedError to tripped-frame counts); add 8 matrix-cell regression tests + frame-leak/error-unwind test; un-skip effect_budget_demo in verify_examples.sh; rewrite effects.md Capability Budgets; CHANGELOG.",
+      "estimated_loc": 200,
+      "dependencies": ["M1_FRAMES_LIMIT", "M2_MIN_EXIT_ATTRIBUTION"],
+      "acceptance_criteria": [
+        "One regression test per matrix cell (8), each asserting outcome AND error attribution",
+        "TestBudgetFrame_ErrorUnwind_NoStaleFrame: callee error unwinds annotated frame, sibling annotated call succeeds (proves defer pop)",
+        "No stale cumulative 'physical: N' assertions; Merge-summing and Reset tests deleted with their machinery",
+        "examples/effect_budget_demo.ail runs to completion under --caps IO and removed from verify-examples run-skip list",
+        "docs/docs/reference/effects.md describes hierarchical scoping precisely; CHANGELOG updated",
+        "make test + make verify-examples + make check-boundaries green"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": "Prefer end-to-end .ail-source run tests for the matrix cells so the two evaluator wiring sites are exercised, plus unit tests on the frame stack."
+    }
+  ]
+}

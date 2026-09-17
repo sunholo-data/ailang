@@ -18,7 +18,7 @@ func TestPiTokenBudgetIsEnforced(t *testing.T) {
 	for _, limit := range []int{1, 100000} {
 		t.Run(strconv.Itoa(limit), func(t *testing.T) {
 			dir := t.TempDir()
-			writeFakePi(t, dir, loadFixtureLines(t, "fizzbuzz.ndjson"))
+			writeFakePi(t, dir, loadFixtureLines(t, "v0_85_1/fizzbuzz.ndjson"))
 			e, err := New(&executor.Config{PiPath: filepath.Join(dir, "pi"), PiModel: "anthropic/claude-haiku-4-5"})
 			if err != nil {
 				t.Fatal(err)

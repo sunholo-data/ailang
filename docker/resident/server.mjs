@@ -70,10 +70,13 @@ async function health() {
     // whose conversation silently resets looks identical to one that works
     // until someone asks it a second question, and "did it remember" is not a
     // thing an operator should have to test by hand to find out.
-    // What the agent can actually DO, reported rather than implied. While
-    // `bash` is in this list the AILANG program allowlist is a convenience and
-    // not a containment boundary — the container and the only-dir mount are.
+    // What the agent can actually DO, reported rather than implied. Under the
+    // default ailang_only profile there is no bash, so `ailang run --policy`
+    // behind ailang_run is the boundary; program_policy says whether execution
+    // is granted at all (M-AGENT-AILANG-ONLY-EXECUTION).
     tools: pi.toolPolicy(),
+    tool_profile: pi.toolProfile(),
+    program_policy: process.env.AILANG_AGENT_POLICY ? "granted" : "none (ailang_run refuses)",
     // Load, so an operator can see whether the ceiling is being reached before
     // a user reports "it refused me". Instances do not autoscale, so this is
     // the whole capacity there is.

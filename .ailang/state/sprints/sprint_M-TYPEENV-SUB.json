@@ -1,0 +1,96 @@
+{
+  "sprint_id": "M-TYPEENV-SUB",
+  "status": "completed",
+  "created": "2026-07-10T10:20:27Z",
+  "completed": "2026-07-10T10:37:12Z",
+  "design_doc": "design_docs/planned/v0_29_0/m-typeenv-sub-fix.md",
+  "sprint_plan": "design_docs/planned/v0_29_0/m-typeenv-sub-sprint-plan.md",
+  "github_issues": [],
+  "executor_notes": "PREMISE STALE — the P0 bug is ALREADY FIXED in the tree; the planned high-risk repair was deliberately NOT implemented. Per the controller's 'RE-VERIFY the ImportedADTChain failure mechanism before M2; if the mechanism differs, adapt to observed reality' directive, all 3 parked tests were un-skipped and OBSERVED to PASS on the pristine worktree (HEAD 800f0ec90) with NO code changes. The design-doc bug (imported-ADT return type erased to a type var -> silent acceptance) no longer reproduces: `decode(jo([]))`, `needsString(jo([]))`, and local `wrap()->Result used as string` all now emit the correct compile-time type error, verified via the built binary AND deterministically at -count=20. The full interface serialise->deserialise roundtrip (an EXPORTED Result-returning func misused as string in a THIRD downstream module) is also caught. The hole was closed by two fixes that POSTDATE the design doc, both ancestors of HEAD: M-TVAR-COLLISION-FIX (e67e24cb1, persistent inferFreshCounter) and M-TYPE-LIST-SOUND round 4 (9fbcb9173, baseEnvFreeVars generalization-withholding). The doc's literal root cause (InferWithConstraints never applies the solve sub to updatedEnv, typechecker_core.go:492) technically still holds, but the generalization site no longer emits the offending forall-a scheme, so there is no observable soundness loss to repair. Implementing the planned alpha-rename-on-every-scheme-insertion + post-solve repair (both in the high-risk shared internal/types infra the plan itself rates 'High risk-per-LOC') would add pure downside risk to fix a nonexistent bug -> violates scope discipline, the North Star (minimal frozen core), and AUDIT-BEFORE-PATCHING. DELIVERED INSTEAD: un-skipped the 3 tests (permanent regression guards) + added TestTypeSafety_CrossModule_ExportedADTRoundtrip (guards the interface-builder path the 3 originals miss) + full gates green. RECOMMENDATION to controller: mark the M-TYPEENV-SUB backlog item RESOLVED (fixed by adjacent list-soundness/tvar-collision work, now regression-guarded); the defensive alpha-rename/Meta-Quant-split machinery, if still wanted, is a SEPARATE robustness decision — not this P0 fix.",
+  "velocity": {
+    "target_loc_per_day": 60,
+    "estimated_total_loc": 180,
+    "actual_loc": 72,
+    "estimated_days": 3
+  },
+  "features": [
+    {
+      "id": "M1_ALPHA_RENAME_SCHEMES_ON_ENV_IN",
+      "description": "Alpha-rename schemes on env insertion",
+      "estimated_loc": 65,
+      "actual_loc": 0,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "`AlphaRenameScheme` is a no-op for monomorphic schemes (unit test asserts identical output)",
+        "Renamed vars are globally unique and provably disjoint from `α/ε/ρ/τ%d` and `a%d` (unit test)",
+        "`TestEmbeddedStdlibLoading` passes — `std/embedding.dot`/`dot_helper` keep `float` types (not corrupted to `int`)",
+        "`make test` green (alpha-rename alone introduces no regression)",
+        "`make lint` clean"
+      ],
+      "passes": false,
+      "started": "2026-07-10T10:22:00Z",
+      "completed": "2026-07-10T10:37:12Z",
+      "notes": "DELIBERATELY NOT IMPLEMENTED. AlphaRenameScheme's sole purpose was to make M2's post-solve env substitution capture-safe. With the bug already fixed (see executor_notes) M2 needs no substitution, so alpha-rename has no consumer. Adding it would rewrite every scheme insertion in the language (ExtendScheme/BindScheme) — the plan's own 'High risk' shared-infra path — with allocation cost and multiple documented casualty modes (dot_helper->int, record_patterns, adt_list_fields, json_array_extraction) to protect against a bug that no longer exists. AlphaRenameScheme (criteria 1-2) does not exist -> not met. Ambient criteria met trivially by the no-change baseline: TestEmbeddedStdlibLoading green, make test green (exit 0, no FAIL), make lint clean (0 issues)."
+    },
+    {
+      "id": "M2_TARGETED_POST_SOLVE_CURRENT_BI",
+      "description": "Targeted post-solve current-binding repair (ADAPTED: bug already fixed — un-skip tests + regression guard)",
+      "estimated_loc": 45,
+      "actual_loc": 72,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "`TestTypeSafety_DecodeJsonNotString` un-skipped and passing (`decode(jo([]))` is a type error mentioning string/Json)",
+        "`TestTypeSafety_CrossModule_JsonToString` un-skipped and passing (`needsString(jo([]))` rejected across modules)",
+        "`TestTypeSafety_WithinModule_ImportedADTChain` un-skipped and passing (`wrap() -> Result` used as `string` rejected)",
+        "The 4 previously-passing type-safety tests remain green (`_StringNotJson`, `_StringNotJson_Positive`, `_CrossModule_StringParam`, `_WithinModule_ImportedADTChain_Positive`)",
+        "Filtered sub excludes effect (`ε`) and row (`ρ`) vars — open-record/effect-row schemes unchanged",
+        "`make test` green"
+      ],
+      "passes": true,
+      "started": "2026-07-10T10:22:00Z",
+      "completed": "2026-07-10T10:37:12Z",
+      "notes": "Acceptance criteria met EMPIRICALLY WITHOUT the planned repair code — the bug is pre-fixed. Removed the 3 t.Skip('M-TYPEENV-SUB not yet implemented') lines (internal/pipeline/type_safety_test.go:152,225,353); all 3 now pass. The 4 sibling tests stay green. Added TestTypeSafety_CrossModule_ExportedADTRoundtrip (+69 net LOC): an EXPORTED Result-returning func consumed & misused as string in a separate downstream module — the strongest interface-builder guard, not covered by the 3 originals. Full type-safety suite: 8/8 PASS, deterministic at -count=20. MECHANISM DIFFERENCE vs design doc: doc claims the within-module error comes from the env carrying an escaping metavar; observed reality is a clean unification error at the return-type annotation ('cannot unify Result[int, string] with string') because generalization no longer over-quantifies (M-TYPE-LIST-SOUND round 4 baseEnvFreeVars withholding). The 'filtered sub excludes ε/ρ' criterion is N/A (no sub added — nothing to filter)."
+    },
+    {
+      "id": "M3_INTERFACE_BUILDER_AUDIT_INVARI",
+      "description": "Interface-builder audit, invariant assertion, full regression",
+      "estimated_loc": 50,
+      "actual_loc": 0,
+      "dependencies": [
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "Interface builder produces concrete ADT return-type schemes (not `∀a. … -> a`) for imported-ADT-returning functions; verified by the now-passing M2 tests",
+        "`assertNoEscapingMetaVars` present and firing in test builds; no assertion trips across `make test`",
+        "`make verify-examples` green (whole corpus; do not rely on the doc's stale \"152 files\" count — treat the target as source of truth)",
+        "`TestCrossPackageTypeAliasUnification` and `TestTransitiveTypeAliasPropagation` green (M-TYPE-ALIAS not regressed)",
+        "M-TYPE-LIST-SOUND generalization tests green (the `baseEnvFreeVars` change is not disturbed)"
+      ],
+      "passes": true,
+      "started": "2026-07-10T10:22:00Z",
+      "completed": "2026-07-10T10:37:12Z",
+      "notes": "Interface-builder audit DONE and its invariant PROVEN by test: TestTypeSafety_CrossModule_ExportedADTRoundtrip + the built-binary producer/consumer repro both confirm iface/builder.go emits a CONCRETE Result[int,string] return scheme (not forall-a. -> a); a downstream misuse-as-string is rejected. No code change needed there (b.generalizeType already consumes the env scheme repaired-in-effect by list-soundness). `assertNoEscapingMetaVars` NOT added: it is blocked on the Meta-vs-Quant type-var representation split, which the design doc itself lists as an explicit NON-GOAL for this version; in the current plain-string representation a heuristic 'any α%d in Type not in TypeVars' would false-positive on legitimately-quantified polymorphic schemes. The now-passing regression tests provide the equivalent guard for the known cases. Regression gates all green: make verify-examples exit=0 (182 pass / 5 pre-existing expected-fails [effectful_list, effectful_list_t7_chain_combinators, mcp_tools, stream_multi_source, stream_process_source] / 5 skipped — a _test.go-only change cannot affect binary example runs); TestCrossPackageTypeAliasUnification + TestTransitiveTypeAliasPropagation green; full M-TYPE-LIST-SOUND suite (TestListElementSoundness_* incl. WrapperListLiteral, CompoundField, ConstructorPatternBind + _NoOvertighten variants) green."
+    },
+    {
+      "id": "M4_CLEANUP_CHANGELOG_DOC_RECONCIL",
+      "description": "Cleanup, CHANGELOG, doc reconciliation",
+      "estimated_loc": 20,
+      "actual_loc": 22,
+      "dependencies": [
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "No stray debug prints in changed files",
+        "CHANGELOG.md updated under the correct version, grouped by category",
+        "`make test` green",
+        "`make lint` clean"
+      ],
+      "passes": true,
+      "started": "2026-07-10T10:22:00Z",
+      "completed": "2026-07-10T10:37:12Z",
+      "notes": "CHANGELOG entry added under changelogs/v0.18-current.md [Unreleased] ### Fixed — documents the finding honestly (hole pre-closed by e67e24cb1 + 9fbcb9173; planned repair not implemented; tests un-skipped + roundtrip guard added; fixing-commit provenance recorded). No debug prints (only a test file + changelog touched). make test exit=0 (no FAIL/panic), make lint 0 issues. Design-doc move to implemented/ intentionally left to the controller per directive."
+    }
+  ]
+}

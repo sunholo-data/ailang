@@ -1,0 +1,97 @@
+{
+  "sprint_id": "M-Z3-HARD-TIMEOUT",
+  "status": "completed",
+  "created": "2026-07-28T20:21:26Z",
+  "design_doc": "",
+  "design_doc_note": "Deliberately none. Mission precedent iteration 112 (#497 / m-docs-gate-not-required): the issue itself carries problem statement, evidence, calibrated impact and a fix + test strategy. Planned directly from #510.",
+  "sprint_plan": "design_docs/planned/v0_31_0/m-z3-hard-timeout-sprint-plan.md",
+  "github_issues": [
+    510
+  ],
+  "velocity": {
+    "target_loc_per_day": 550,
+    "estimated_total_loc": 330,
+    "estimated_days": 0.6
+  },
+  "features": [
+    {
+      "id": "M1_SOLVE_HARD_BOUND",
+      "description": "Hard wall-clock bound on smt.Solve: exec.CommandContext with deadline max(config.Timeout, effective -T: secs) + 2s grace; own process group (Setpgid) with cmd.Cancel killing the GROUP (-pid SIGKILL, nil on ESRCH); cmd.WaitDelay so a grandchild holding the inherited pipe cannot wedge Wait; explicit context.DeadlineExceeded branch placed BEFORE the unsat/sat/unknown prefix checks, returning the existing StatusUnknown + Error 'solver timeout'. New build-tagged process_unix.go / process_windows.go LOCAL to internal/smt (NOT an import of eval_harness - that would invert the harness/core layering). Regression test uses a fake solver that ignores -T: and sleeps 30s, injected via the already-honoured SolverConfig.Z3Path.",
+      "estimated_loc": 220,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "TestSolve_HardTimeout_FakeSolverIgnoringT returns in <10s against a fake that sleeps 30s, with Status == StatusUnknown and Error == \"solver timeout\" (exact string)",
+        "The fake's background grandchild pid is confirmed dead within 2s of Solve returning, via a BOUNDED syscall.Kill(pid,0) -> ESRCH poll (<=2s, 50ms interval) - no unbounded loop; Standing rule 6 applies to our own tests",
+        "NON-VACUITY PROOF: the red-first transcript (--- FAIL, elapsed ~30s, taken BEFORE solver.go is touched) is recorded verbatim in the commit body and in this JSON's notes. Do NOT use git stash / git checkout to produce it (CLAUDE.md Principle 0)",
+        "grep -c \"t.Skip\" internal/smt/solver_timeout_test.go == 0; the test needs no z3 and passes with AILANG_Z3_PATH=/nonexistent",
+        "No cooperative-path regression: with real z3, a 100-pigeon/99-hole instance at --timeout 1s still returns StatusUnknown/'solver timeout' in ~1.1s (Z3's own -T: fires, not ours). If z3 is absent, say so OUT LOUD rather than silently skipping this check",
+        "go test ./internal/smt/... green; existing TestSolve_*_Z3 and TestSolve_Z3NotFound unchanged and passing",
+        "cmd/ailang/verify.go and cmd/ailang/ai_check.go NOT modified - git diff --stat shows only internal/smt/"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_Z3VERSION_HARD_BOUND",
+      "description": "Close the SECOND unbounded exec site, which the issue does not mention: Z3Version() at internal/smt/solver.go:271 (exec.Command(z3Path, \"--version\").Output()), on the header path of every human-mode ailang verify via cmd/ailang/verify_print.go:23. Route it through the same CommandContext + process-group + WaitDelay path with a fixed versionProbeTimeout = 5s const (no config plumbing, no signature change). Retain \"\"-on-failure and comment why that is a permitted UI default rather than a Principle 2 violation (display path, not a verification surface).",
+      "estimated_loc": 70,
+      "dependencies": [
+        "M1_SOLVE_HARD_BOUND"
+      ],
+      "acceptance_criteria": [
+        "TestZ3Version_HardTimeout returns \"\" in <8s against a fake --version that sleeps 30s, injected via t.Setenv(\"AILANG_Z3_PATH\", fake) since FindZ3 checks that env var first (solver.go:71-77)",
+        "Its grandchild is confirmed dead via the same bounded ESRCH poll as M1",
+        "Existing TestZ3Version (real z3, Z3Available()-gated) still passes unchanged",
+        "AUDIT CLOSES: grep -rn \"exec\\.Command(\" internal/smt/ returns zero non-Context call sites",
+        "Zero t.Skip in the new test"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_DOCS_AND_FOLLOWUP",
+      "description": "CHANGELOG [Unreleased] -> Fixed entry naming both call sites, the bound formula and the preserved StatusUnknown/'solver timeout' shape (Fixes #510); one sentence in the --timeout help text at cmd/ailang/verify.go:42 and cmd/ailang/ai_check.go:65 noting the hard backstop is per-function timeout + 2s grace, so the documented per-function semantics stay true; file the TOTAL-RUN BUDGET follow-up issue cross-linked to #510 carrying its four open design questions verbatim. COMPRESSIBLE if time-boxed: fold into M2's commit and file the issue by hand.",
+      "estimated_loc": 40,
+      "dependencies": [
+        "M2_Z3VERSION_HARD_BOUND"
+      ],
+      "acceptance_criteria": [
+        "Changelog entry present under [Unreleased] -> Fixed and mentions #510",
+        "Both --timeout help strings updated; ailang verify --help and ailang ai-check --help render correctly",
+        "Follow-up issue for the total-run budget exists, is linked from #510, and states plainly that it is NOT fixed by this sprint",
+        "make test green and make lint clean (.golangci.yml enables only govet/ineffassign/staticcheck/unused/misspell - gosec is NOT enabled, so no G204 exemption is needed)",
+        "make check-boundaries green (internal/smt is in neither CORE_PKGS nor DASHBOARD_PKGS, so no rule should fire)"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "scope_decisions": {
+    "z3version_in_scope": "IN SCOPE (M2). Same defect class, same file, same binary, and it is on the header path of every human-mode verify. It is the only other exec.Command in internal/smt (verified: grep returns exactly two sites). Cost ~20 LOC once M1's helper exists. Leaving it would mean the audit found a second instance and knowingly shipped it - the exact anti-pattern CLAUDE.md Principle 3 names.",
+    "total_run_budget": "OUT OF SCOPE - M3 files a follow-up issue. A real residual (N calls = N bounds, not one run bound), but --timeout is DOCUMENTED as per-function in two commands; a total budget changes documented CLI semantics and needs decisions this sprint has no mandate for (new flag vs overload the existing one? partial-results JSON shape when the budget expires mid-run? does ai-check's consumer contract change?). Doing it quietly here would be the silent expansion the brief warns against.",
+    "shared_procgroup_package": "OUT - note only. Extracting internal/procgroup and refactoring eval_harness onto it is correct DRY but edits the guard currently protecting banked eval runs, for zero functional gain. Principle 3 asks us not to miss other instances of the BUG (M2 covers that); it is not a mandate to refactor a working guard in another layer.",
+    "subsecond_timeout_truncation": "OUT - noted in the plan. int(config.Timeout.Seconds()) floors --timeout 900ms to -T:5. Pre-existing and orthogonal; the max(...) bound means it causes no regression here."
+  },
+  "premise_verification": {
+    "verified_at_head": "53d3ac727",
+    "confirmed": [
+      "solver.go:147-148 is exec.Command + CombinedOutput; no context/CommandContext/Process.Kill/process group anywhere in the file (it does not even import context or syscall)",
+      "Only bound is the cooperative -T: built at solver.go:137-143, floored to 5 when int(Timeout.Seconds()) < 1",
+      "smt.Solve call sites are exactly two, both in a per-function loop: cmd/ailang/verify.go:427 and cmd/ailang/ai_check.go:370; neither wraps it in a timeout",
+      "--timeout documented per-function at verify.go:25/:42 and ai_check.go:48/:65, default 5s",
+      "REPRODUCED INDEPENDENTLY: a 100-pigeon/99-hole instance (500,052 SMT-LIB lines) under z3 -smt2 -T:1 printed 'timeout' and exited after 1.085s (issue said 1.159s). -T: works in the normal case => this is a BACKSTOP gap, not an everyday hang",
+      "Eval harness IS protected: eval_harness/verify.go:47 RunAICheck calls SetProcessGroup then waitWithGuards(cmd, timeout*3+10s, maxRSS); waitWithGuards (memlimit.go:104) kills the whole process group on timeout and drains Wait after the kill",
+      "Agent prompt DOES teach ai-check as the convergence signal: convergence-workflow.md:72-73 and agent_prompt.go:463/543/560/593/612"
+    ],
+    "refuted": [],
+    "added_by_planner": "SECOND unbounded site not mentioned in the issue: internal/smt/solver.go:271, Z3Version() -> exec.Command(z3Path, \"--version\").Output(). Called from cmd/ailang/verify_print.go:23 on every human-mode verify. grep -rn 'exec\\.Command' internal/smt/ returns exactly these two sites."
+  },
+  "completed": "2026-07-28",
+  "outcome": "LANDED \u2014 PR #514 -> squash 9253ec8a8, dev CI green. M1+M2 complete; M3 completed by the controller filing #513 (executor had no sandbox network egress). Evaluator sonnet PASS 90/100 round 1, zero blocking."
+}

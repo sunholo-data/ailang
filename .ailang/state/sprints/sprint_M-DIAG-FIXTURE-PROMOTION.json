@@ -1,0 +1,102 @@
+{
+  "sprint_id": "M-DIAG-FIXTURE-PROMOTION",
+  "status": "planned",
+  "created": "2026-07-10T00:00:00Z",
+  "design_doc": "design_docs/planned/v0_29_0/m-diagnostic-coverage.md",
+  "sprint_plan": "design_docs/planned/v0_29_0/m-diagnostic-coverage.md",
+  "metadata": {
+    "planner-model": "claude-opus-4-8",
+    "scope": "Promote the promote-to-covered footgun rows to `covered` by adding CI fixtures (M1-M3 of m-diagnostic-coverage already shipped 2026-07-09: ff58a3259, e59197554). NON-SCOPE: prompt-line deletion, rig A/B, haiku re-run, new diagnostics.",
+    "estimated_effort": "0.5-1 day",
+    "premises_verified_live": true,
+    "verification_binary": "/tmp/ailang-plan (go build -o /tmp/ailang-plan ./cmd/ailang; make build avoided due to in-progress merge conflict in changelogs/v0.18-current.md)",
+    "verification_date": "2026-07-10",
+    "read_only_main_checkout": true,
+    "concurrent_merge_warning": "A concurrent agent has an in-progress merge; changelogs/v0.18-current.md is CONFLICTED (UU). The executor MUST NOT run git merge/checkout/stash and MUST NOT touch changelogs/v0.18-current.md while conflicted. The in-scope CHANGELOG entry targets that exact file (it is the current changelog per CHANGELOG.md), so M3 is BLOCKED until the merge resolves."
+  },
+  "velocity": {
+    "target_loc_per_day": 120,
+    "estimated_total_loc": 130,
+    "estimated_days": 1
+  },
+  "discrepancies_found": [
+    {
+      "row": "%/Fractional wrong-numeric-type",
+      "finding": "NOT FIXTURABLE this sprint. The table's trigger `3.5 % 2.0` type-checks clean (floats satisfy the operator). No .ail snippet reproduces the claimed `No instance for Fractional[int] ... intToFloat` diagnostic through `bin/ailang check`: `/` and `%` on int operands resolve as int arithmetic (no Fractional constraint forced), and the nearest mismatch (`func f(a:int,b:int)->float{a/b}`) yields a PLAIN `cannot unify int vs float` unification error, NOT the Fractional hint. The Fractional hint (internal/types/instances.go:87) fires only via the internal InstanceEnv.Lookup path, which is exercised by a unit test (instances_test.go:229) but is UNREACHABLE from a pipeline-level .ail snippet. Per planner instructions, this row STAYS `inventoried` and no diagnostic-writing is done. It is EXCLUDED from the fixture set.",
+      "action": "Keep row status `inventoried`; correct the trigger snippet cell (3.5 % 2.0 does NOT trigger any diagnostic) and the 'current diagnostic' cell (note it is not pipeline-reachable) in footguns.md."
+    },
+    {
+      "row": "stdlib func used without import",
+      "finding": "FIXTURABLE but needs test setup the existing fixtures lack. Through the fixture harness (`pipeline.Run` with in-memory Source, no Filename -> single path), the bare message is `type error: undefined variable: map at :2:31` WITHOUT the hint, for TWO reasons: (1) `types.ImportSuggester` is nil in package `diag` (it is wired only in cmd/ailang init()), and (2) `stdlibindex.Modules(\"map\")` returns nil in-test because stdlibindex scans `./std` relative to the test CWD (internal/diag), finding no stdlib. VERIFIED FIX: set `os.Setenv(\"AILANG_STDLIB_PATH\", \"../../std\")` AND `types.ImportSuggester = stdlibindex.Modules` (e.g. in a TestMain), after which the full hint appears: `type error: undefined variable: map at :2:31 — \\`map\\` is exported by std/list, std/option, std/result; add the matching import`. Note the exporter list is std/list, std/option, std/result (3 modules), so the fix substring must be a stable subset like `exported by std/list` or `add the matching import` (NOT pin the full comma list).",
+      "action": "Add TestMain (or in-fixture setup) to footgun_fixtures_test.go setting AILANG_STDLIB_PATH + ImportSuggester before running fixtures."
+    },
+    {
+      "row": "#327 interim hint (follow-up flag, NOT scope)",
+      "finding": "The real #327 fix shipped in commit 01fb8676a (M2_RECORD_UPDATE_FIX: local functions resolve in record-update fields). internal/types/local_resolution_hint_test.go STILL PASSES because it is unit-level (drives inferVar directly via SetModuleFuncNames), independent of whether the original cross-module repro is now fixed. The hint (localResolutionHint / import_hint.go:43-51) is LIKELY dead code now that the resolver fix landed — its own comment says it 'becomes dead code and is removed the moment the resolver fix ships.' Confirming deadness requires reproducing the original repro (out of scope). CANDIDATE FOLLOW-UP, not this sprint.",
+      "action": "Note as follow-up in footguns.md and/or a message; DO NOT retire the hint or its test in this sprint."
+    }
+  ],
+  "features": [
+    {
+      "id": "M1_FIXTURE_FOUR_PROMOTABLE_ROWS",
+      "description": "Add 4 CI fixtures to internal/diag/footgun_fixtures_test.go promoting the fixturable promote-to-covered rows to `covered`: (1) reserved keyword as name PAR_RESERVED_KEYWORD, (2) hyphen in module path PAR_HYPHEN_IN_MODULE, (3) `;` in expression-body func PAR017, (4) stdlib func used without import (ImportSuggester hint). Row 5 (%/Fractional) is EXCLUDED per discrepancy — not pipeline-reachable. Follow the existing table-driven footgunFixture pattern (name/code/fix/src/status).",
+      "estimated_loc": 90,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "footgunFixtures gains exactly 4 rows with status \"covered\" using VERBATIM-VERIFIED substrings:",
+        "  reserved_keyword: code \"PAR_RESERVED_KEYWORD\", fix \"'exists' is reserved for existential types\", src `let exists = 1 in exists` in export func main",
+        "  hyphen_in_module: code \"PAR_HYPHEN_IN_MODULE\", fix \"Use underscores instead\", src `module benchmark/my-solution` + trivial main",
+        "  semicolon_in_expr_func: code \"PAR017\", fix \"only valid inside\" (or \"';' is only valid inside `{ ... }` block bodies\"), src `export func f() -> int = let x = 1; x`",
+        "  stdlib_import_hint: code \"undefined variable: map\", fix \"exported by std/list\" (do NOT pin the full comma list std/list, std/option, std/result), src `map(\\x. x, [1,2,3])` with no import",
+        "For the stdlib_import_hint fixture ONLY: add a TestMain (or per-fixture setup) to footgun_fixtures_test.go that sets os.Setenv(\"AILANG_STDLIB_PATH\", \"../../std\") and types.ImportSuggester = stdlibindex.Modules BEFORE the fixture runs (otherwise the hint is empty and the test is red)",
+        "The %/Fractional row is NOT added as a fixture (documented as inventoried; see discrepancies)",
+        "go test ./internal/diag/ -count=1 passes (all fixtures + TestFootgunConflictSurface green)",
+        "The pre-existing 3 fixtures (plusplus_strings, import_placement, import_placement_rule_stated) still pass unchanged",
+        "make lint passes on internal/diag/"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": "Verified substrings live via /tmp/ailang-plan and probe tests. reserved/hyphen/semi produce PARSE errors (no stdlib/wiring setup needed); stdlib produces a TYPE error requiring AILANG_STDLIB_PATH + ImportSuggester. The fixture harness uses in-memory pipeline.Run (single path, no Filename) — do NOT set Filename (module path needs on-disk files and yields LDR001)."
+    },
+    {
+      "id": "M2_UPDATE_FOOTGUNS_MD",
+      "description": "Update internal/diag/footguns.md: flip the 4 fixtured rows from `inventoried` to `covered`, add their fixture cells (footgun_fixtures_test.go:<name>), update the Count line, and correct any 'current diagnostic'/'trigger snippet' cells where live verification showed drift (notably the %/Fractional row's trigger `3.5 % 2.0` triggers NOTHING). Keep %/Fractional as `inventoried` with a note that its diagnostic is not pipeline-reachable. Add a follow-up note that the #327 hint is a dead-code retirement candidate (01fb8676a shipped).",
+      "estimated_loc": 30,
+      "dependencies": ["M1_FIXTURE_FOUR_PROMOTABLE_ROWS"],
+      "acceptance_criteria": [
+        "reserved keyword, hyphen, `;`-in-expr-func, stdlib-import rows show status `covered` with their fixture path filled in (fixture column was `(future)`)",
+        "%/Fractional row REMAINS `inventoried`; its trigger-snippet cell corrected (3.5 % 2.0 type-checks clean) and its current-diagnostic cell annotated as not reproducible via `ailang check` on an .ail snippet (only via internal Lookup unit test)",
+        "Count line updated: was '14 rows ... 3 CI-fixtured ... 5 rows ... promote-to-covered candidates'; now 7 CI-fixtured (1 covered + 2 shipped-this-sprint + 4 promoted; import_placement has two fixtures so fixture COUNT differs from row count — state both clearly), and the promote-candidate count drops from 5 to 1 (only %/Fractional remains, and it is blocked)",
+        "A one-line follow-up note added: '#327 interim hint (import_hint.go:43) is a dead-code retirement candidate now that the real fix 01fb8676a shipped — tracked separately, not this sprint.'",
+        "Verification section note preserved/updated to reflect the new live-verification date"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": "Documentation-only. The Count arithmetic: fixture ROWS in footgunFixtures = 3 existing + 4 new = 7; import_placement contributes 2 fixtures so 'fixtures' vs 'covered footguns' differ — state both to avoid the ambiguity the current count line already has."
+    },
+    {
+      "id": "M3_CHANGELOG_ENTRY",
+      "description": "Add a CHANGELOG entry for the fixture promotion under the current version in changelogs/v0.18-current.md. BLOCKED until the concurrent merge conflict on that file resolves — see metadata warning. The executor must verify the file is un-conflicted (git status shows no UU) before editing, and must NOT run git merge/checkout/stash.",
+      "estimated_loc": 10,
+      "dependencies": ["M1_FIXTURE_FOUR_PROMOTABLE_ROWS", "M2_UPDATE_FOOTGUNS_MD"],
+      "acceptance_criteria": [
+        "changelogs/v0.18-current.md is confirmed un-conflicted (no UU in git status) BEFORE any edit",
+        "A CHANGELOG entry describes: 4 footgun diagnostics promoted to `covered` (reserved-keyword, hyphen-in-module, `;`-in-expr-func, stdlib-import-hint) with CI fixtures; %/Fractional held at `inventoried` (not pipeline-reachable)",
+        "Entry references m-diagnostic-coverage (R1.1) and internal/diag/footgun_fixtures_test.go",
+        "If the file is still conflicted at execution time, this milestone is deferred (marked blocked, not failed) and the executor reports it rather than touching the conflicted file"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": "Hard gate: changelogs/v0.18-current.md is CURRENTLY conflicted (UU) from a concurrent agent's merge. Per CLAUDE.md principle 0 and the planner constraints, do NOT resolve/merge/touch it while conflicted."
+    }
+  ],
+  "risk_level": "low",
+  "risks": [
+    "CHANGELOG file (changelogs/v0.18-current.md) is under an active merge conflict from a concurrent agent — M3 is gated on that resolving; the sprint can complete M1+M2 independently and defer M3.",
+    "The stdlib_import_hint fixture depends on stdlibindex resolving ../../std relative to the test CWD and on setting types.ImportSuggester — if the executor forgets either setup step the fixture is silently red with a bare `undefined variable: map`. This is the single most likely execution mistake; called out explicitly in M1 acceptance criteria.",
+    "Do not add the %/Fractional row as a fixture (it will be permanently red) — the temptation is to assert what the table CLAIMS the diagnostic says, but that message is not pipeline-reachable."
+  ]
+}

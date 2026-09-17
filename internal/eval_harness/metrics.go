@@ -84,6 +84,24 @@ type RunMetrics struct {
 	ResolvedProfile    string `json:"resolved_profile,omitempty"`
 	ResolvedExtensions string `json:"resolved_extensions,omitempty"`
 
+	// ExecutorVersion is the harness identity the CLI REPORTED ("pi@0.85.1"),
+	// captured from its own --version at run time. ABSENT MEANS UNMEASURED —
+	// every row banked before M-PI-HARNESS-UPGRADE M1 lacks it, and reading
+	// absent as "the current one" would let a harness boundary (0.73.1 → 0.85.1
+	// on 2026-09) vanish from the record exactly as the three ollama boundaries
+	// did. Compare across rows only when both carry the field.
+	ExecutorVersion string `json:"executor_version,omitempty"`
+
+	// ToolPolicy is the EFFECTIVE tool list the harness CLI ran with (or the
+	// executor.ToolPolicyCLIDefault sentinel when its defaults applied), and
+	// PolicyDigest the sha256 of the AILANG program policy an `ailang_only`
+	// run was gated by. ABSENT MEANS UNMEASURED — every row banked before
+	// M-AGENT-AILANG-ONLY-EXECUTION M1 lacks both, and reading absent as
+	// "full" would make the ailang_only lane boundary invisible. Compare
+	// tool-policy-sensitive rows only when both carry the field.
+	ToolPolicy   []string `json:"tool_policy,omitempty"`
+	PolicyDigest string   `json:"policy_digest,omitempty"`
+
 	// Validity marks whether this row is a MEASUREMENT at all, as opposed to a
 	// failure to measure (dead subject, harness error, wrong config). NIL means
 	// valid — every row banked before v0.31.0 lacks the field, and treating
@@ -264,6 +282,20 @@ const (
 	// third-party upstreams do NOT enforce it (probed 2026-07-19, recorded on the
 	// or-glm-5-2 entry in models.yml). Output headroom is the only enforced lever.
 	ErrorCategoryReasoningStall = "reasoning_stall"
+
+	// ErrorCategoryWireDrift: the executor CLI's NDJSON lacked a field a banked
+	// metric depends on (executor.FinishWireDrift). The MODEL may have finished
+	// fine; the harness could not record it truthfully. Distinct from api_error
+	// (cause unknown) because the cause is known and is ours: a harness upgrade
+	// moved the wire. M-PI-HARNESS-UPGRADE D4.
+	ErrorCategoryWireDrift = "wire_drift"
+
+	// ErrorCategoryPolicyViolation: the agent submitted a program whose declared
+	// effect row exceeds its operator policy (`ailang run --policy`,
+	// policy.KindPolicyViolation). A MODEL behaviour on the ailang_only lane —
+	// it reached for authority it was not granted — never api_error.
+	// M-AGENT-AILANG-ONLY-EXECUTION M2.
+	ErrorCategoryPolicyViolation = "policy_violation"
 )
 
 // Passed reports whether this row is a benchmark PASS: the code compiled, ran

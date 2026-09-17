@@ -1,0 +1,178 @@
+{
+  "sprint_id": "M-MODEL-REGISTRY-SINGLE-SOURCE",
+  "status": "completed_except_parked_m8",
+  "created": "2026-08-27T11:22:48Z",
+  "design_doc": "design_docs/planned/v0_35_0/m-model-registry-single-source.md",
+  "sprint_plan": "design_docs/planned/v0_35_0/m-model-registry-single-source-sprint-plan.md",
+  "github_issues": [],
+  "velocity": {
+    "target_loc_per_day": 180,
+    "estimated_total_loc": 1155,
+    "estimated_days": 7
+  },
+  "features": [
+    {
+      "id": "M1_MODELREG_LEAF_EXTRACTION",
+      "description": "Extract internal/eval_harness/models.go into a new leaf package internal/modelreg (D4(a)); move the IsOllamaCloudRoute string grammar down with it so executor->modelreg, never the reverse; type aliases keep 66 call sites in 17 files unchanged.",
+      "estimated_loc": 250,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "go list -deps ./internal/modelreg contains no internal/executor (hard gate)",
+        "go build ./... and make test clean with zero call-site edits outside the two packages",
+        "make check-file-sizes green",
+        "executor.IsOllamaCloudRoute behavior unchanged; existing tests unmodified and passing"
+      ],
+      "passes": true,
+      "started": "2026-08-27T14:05:00Z",
+      "completed": "2026-08-27T14:35:00Z",
+      "notes": "DONE, commit e77c16e44 on sprint/m-model-registry-m1. 56 files, +342/-163. Leaf gate proven: modelreg deps = gopkg.in/yaml.v3 + itself only. TWO PLAN CORRECTIONS: (1) the guard test passed VACUOUSLY first (control asserted 'a dep starts with the module path', but go list -deps always lists the package itself) - control now requires yaml.v3, confirmed RED->GREEN; (2) GlobalModelsConfig could NOT be aliased - mutable package var, a second declaration would be a stale pointer copy, so its ~40 sites in 13 files were rewritten to modelreg.GlobalModelsConfig. The ~66 type/func sites WERE alias-covered as planned. Also repathed 40 literal 'internal/eval_harness/models.yml' refs + 9 test loads. Verified: build+vet clean, make test 0 failures, check-file-sizes green, gofmt clean, Windows scan done.",
+      "actual_loc": 342
+    },
+    {
+      "id": "M2_GCSFUSE_MOUNT_SPIKE",
+      "description": "SPIKE (can reopen D1): prove an agent job can read a gcsfuse-mounted registry. The coordinator mounts its config this way; no agent job does today. Runs in parallel with M1 on day 1.",
+      "estimated_loc": 5,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "One agent job starts with a registry mounted and logs the path it read",
+        "Published sentinel field round-trips: job reports it back",
+        "If the mount does not work: STOP, reopen D1 (option (a) has no delivery mechanism without it)"
+      ],
+      "passes": true,
+      "started": "2026-08-27T14:05:00Z",
+      "completed": "2026-08-27T14:05:00Z",
+      "notes": "RESOLVED - doc premise refuted in our favour. Live spec of deployed job ailang-agent-executor-opencode carries volumes[].csi.driver = gcsfuse.run.googleapis.com on bucket ailang-multivac-ailang-artifacts, mounted at /artifacts. Agent jobs ALREADY gcsfuse-mount; 16 such blocks in cloud_run_jobs.tf. M4's delta is a second read-only volume on the config/registry bucket, not a new mechanism. D1(a) STANDS - no reopen. DRIFT FOUND: agent_executor_motoko is in terraform (cloud_run_jobs.tf:1521) but NOT deployed (gcloud lists 15 jobs, no motoko) - M5 must establish where motoko executes rather than assuming a cloud job.",
+      "actual_loc": 0
+    },
+    {
+      "id": "M3_ROLES_BLOCK_AND_RESOLVEROLE",
+      "description": "roles: block beside models:, plus ResolveRole(role, lane) returning the ordered chain with each entry's agent_model_name and executor_variant. Chains transcribed from config.cloud.yaml:60-64 so content is unchanged (Non-Goal).",
+      "estimated_loc": 150,
+      "dependencies": [
+        "M1_MODELREG_LEAF_EXTRACTION"
+      ],
+      "acceptance_criteria": [
+        "ResolveRole returns the ordered chain for designer/planner/executor/evaluator/package",
+        "--lane cloud never returns an ollama entry; --lane local may",
+        "A missing role returns a typed error naming the roles that do exist",
+        "Chains transcribed from config.cloud.yaml resolve to byte-identical model strings"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-08-27T15:10:00Z",
+      "notes": "DONE, commit 56238f435. Chains name FRIENDLY NAMES, not wire strings - required, not stylistic: live model_routing entries map back many-to-one (deepseek string = both the motoko and opencode twin) and are not derived uniformly (gpt-5.6-sol comes from api_name, the codex row has no agent_model_name). Reuses GetExecutorForModel rather than writing a second wire-string rule. All 4 chains byte-identical to config.cloud.yaml:61-64; NEGATIVE CONTROL run. NOT transcribed: the doc's `package:` role and fable-5 designer fallback - neither exists live, adding them would invent policy under a Non-Goal.",
+      "actual_loc": 280
+    },
+    {
+      "id": "M4_PRECEDENCE_PROVENANCE_PUBLISH",
+      "description": "D1(a): InitModelsConfig precedence AILANG_MODELS_PATH -> published registry -> embedded, inverting today's embed-first order; logs which source won and its version at startup. Publish via repo-canonical ailang-multivac/config with CAS + schema validation.",
+      "estimated_loc": 250,
+      "dependencies": [
+        "M1_MODELREG_LEAF_EXTRACTION",
+        "M2_GCSFUSE_MOUNT_SPIKE"
+      ],
+      "acceptance_criteria": [
+        "Precedence verified by test at all three levels incl. fall-through when a higher one is absent or unparseable",
+        "An unparseable published registry falls back to embed AND says so loudly in the log",
+        "Startup emits source + version; the line is greppable and asserted by a test",
+        "Schema validation rejects malformed PRICING, not just malformed roles (accepted D1(a) cost)"
+      ],
+      "passes": true,
+      "started": "2026-08-27T15:10:00Z",
+      "completed": "2026-08-27T15:40:00Z",
+      "notes": "GO SIDE DONE, commit 25041fb08 - precedence inverted (explicit -> published -> embedded floor), Source.Degraded so a rejected published registry is never silent, provenance line emitted from ONE place in the loader (not the 6 call sites), version = content digest, Validate() covering PRICING per the accepted D1(a) cost. 10 tests; negative control confirms the embed-first defect is detected. D5 RATIFIED (Mark): publish from the ailang repo via writeConfigCAS as a TERRAFORM-UNDECLARED object (registry.yml). Implemented in cmd/ailang/models_publish.go + models_cmd.go, commit 013da782b. writeRegistryCAS does NOT reuse writeConfigCAS (that validates coordinator-config invariants a registry lacks). Publish validates the EXACT BYTES it will write. Verified: `models publish --dry-run` -> 137 models, 4 roles, validated, nothing written.",
+      "actual_loc": 430
+    },
+    {
+      "id": "M5_FIXTURE_AND_MOTOKO_PIN",
+      "description": "D2(a) precondition, GATES M6. Fixture: all 34 cloud agents resolve post-migration exactly as their pins specify (33 explicitly pinned, so this also proves the M7 model_routing deletion is inert). Pin motoko to GLM-5.3-Flash (Mark 2026-08-27), replacing the accidental factory.go Anthropic default. Requires registering a motoko-or-glm-5-3-flash agent twin: the existing or-glm-5-3-flash (models.yml:3999) is STANDARD-MODE ONLY (no agent_cli, no agent_model_name); motoko resolves via agent_model_name = openrouter/z-ai/glm-5.3-flash.",
+      "estimated_loc": 120,
+      "dependencies": [
+        "M3_ROLES_BLOCK_AND_RESOLVEROLE"
+      ],
+      "acceptance_criteria": [
+        "Fixture covers all 34 agents; pre/post resolution identical for the 33 pinned ones",
+        "motoko-or-glm-5-3-flash registered: api_name z-ai/glm-5.3-flash, agent_cli motoko, agent_model_name openrouter/z-ai/glm-5.3-flash, max_output_tokens 65536 (always-thinking, per the GLM-5.2 truncation lesson)",
+        "AGENT-MODE smoke tier on motoko-or-glm-5-3-flash PASSES before the pin goes live - every existing GLM-5.3-Flash result (smoke/core/frontier 2026-08-27) is STANDARD mode and does not transfer; ~$0.06 at $0.075/$0.25 per 1M. A failure routes back to Mark, not a silent revert",
+        "motoko resolves to it, recorded in config.cloud.yaml with a comment naming the decision and date",
+        "Test fails loudly if a new agent is added with neither pin nor role"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-08-27T15:45:00Z",
+      "notes": "COMPLETE, commit bc775da9b. Agent-mode gate PASSED 23/23 (compile+runtime+stdout, zero errors, chain e01fa9aa), cleaner than the model's standard-mode smoke (22/23). Cost $0.26 not the ~$0.06 estimated \u2014 agent mode bills ~2 calls/benchmark at ~300k input tokens. motoko pinned to openrouter/z-ai/glm-5.3-flash (multivac commit 816c28f, NOT PUSHED - pushing redeploys the fleet config, needs Mark). Zero of 34 agents now fall through to a default, so D2(a)'s precondition is met and M6 is unblocked. BEFORE/AFTER proves the port-8080 defect: 22 failures under --parallel 10, ZERO across 23 sequential runs on an exclusive host. Rotation held to protocol (hold file before bootout) and RELEASED after.",
+      "actual_loc": 150
+    },
+    {
+      "id": "M6_DELETE_TEN_DEFAULTS_AND_GUARD",
+      "description": "D2(a): remove ALL TEN provider literals - factory.go:65-71 (upstream, fills cfg.*Model) plus the five per-executor defaults. Removing only the downstream five is a no-op (V10). Unresolved model => typed error naming the agent and known roles.",
+      "estimated_loc": 130,
+      "dependencies": [
+        "M5_FIXTURE_AND_MOTOKO_PIN"
+      ],
+      "acceptance_criteria": [
+        "All ten literals gone; factory.go no longer names a model",
+        "Guard test fails if any provider literal is reintroduced anywhere under internal/executor/ INCLUDING factory.go - proven by temporarily reintroducing one",
+        "~10 executor.DefaultConfig() test call-sites rewritten to pin explicitly (rewritten, not kept compatible)",
+        "An unpinned, unroled agent fails at construction with a message naming known roles"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-08-27T16:40:00Z",
+      "notes": "COMPLETE, commit 9bb55847f. All 10 literals gone (5 in factory.go DefaultConfig + 5 per-executor). DESIGN ERROR MADE AND CORRECTED: the first cut failed at CONSTRUCTION - all tests green, guard passed, but WRONG. NewExecutorProvider builds an executor from the global factory BEFORE it knows the task; the model arrives later as Task.Model. That broke the production path and TestExecutorRegistration_AutoDiscovery caught it for all 5 harnesses. requireModel now runs first in Execute/ExecuteStreaming where both model sources are known. Consequence: M6 does NOT depend on M7 - the coupling noted earlier was an artefact of the wrong design. Path defaults survive, model defaults do not. Guard covers factory.go, verified twice by reintroducing a literal. opencode_test.go split at the 800-line gate. Full suite 0 failures.",
+      "actual_loc": 520
+    },
+    {
+      "id": "M7_MODELS_ROLE_CLI_AND_ROUTING_DELETE",
+      "description": "ailang models role <role> [--lane] (modelled on the existing coordinatorRouting shape); coordinator resolves agent role: through the registry (its FIRST registry dependency - V7); model_routing deleted from cloud config, superseding M-PIPELINE-RECONCILIATION M5. Per-agent model: pins survive as deliberate overrides.",
+      "estimated_loc": 170,
+      "dependencies": [
+        "M3_ROLES_BLOCK_AND_RESOLVEROLE",
+        "M4_PRECEDENCE_PROVENANCE_PUBLISH"
+      ],
+      "acceptance_criteria": [
+        "ailang models role executor returns identical output on rig and cloud",
+        "Coordinator resolution equals the M5 fixture for all 34 agents after model_routing is gone",
+        "internal/coordinator/model_routing.go and its config key removed; no dangling references",
+        "go build ./... clean - no import cycle (M1 gate re-asserted at the coordinator)"
+      ],
+      "passes": true,
+      "started": "2026-08-27T15:30:00Z",
+      "completed": "2026-08-27T17:35:00Z",
+      "notes": "COMPLETE, commit b556a9694 (+ multivac 0e945fb, NOT promoted). ResolveModel(agent) resolves via internal/modelreg; ModelRouting type + config key deleted. Coordinator's FIRST registry dependency (V7 risk), safe because M1 made modelreg a leaf. FIXTURE WAS WEAK: first version exercised ZERO role resolutions (all 34 agents pinned, pins win), so it now drops the pin from each role-bearing agent - 4 verified against the deleted table, negative control run. `coordinator routing` retired but FORWARDS to `models role`. Checked against Mark's suggested test case: pkg-sunholo-ailang-parse and design-doc-creator resolve byte-identically before and after, so M7 is inert for them and is NOT the fix for the pkg:ailang-parse failures.",
+      "actual_loc": 310
+    },
+    {
+      "id": "M8_MISSION_DRIVER_ADOPTION",
+      "description": "D3(a), ATTENDED WINDOW ONLY: mission-control.sh resolves roles via ailang models role with env pins still overriding. bash 3.2.57, zero CI coverage, three live loops, ~290 iterations.",
+      "estimated_loc": 80,
+      "dependencies": [
+        "M7_MODELS_ROLE_CLI_AND_ROUTING_DELETE"
+      ],
+      "acceptance_criteria": [
+        "MISSION_DRY_RUN shows the same resolved models as today for every role",
+        "Simulated stale binary (subcommand absent => non-zero) falls back to env pins, loop still runs - ~/go/bin/ailang drifts BY DESIGN",
+        "MISSION_PLANNER_MODEL=opus still overrides - rollback ergonomic survives",
+        "One full attended iteration completes green before the loops are left unattended"
+      ],
+      "passes": false,
+      "started": null,
+      "completed": null,
+      "notes": "PARKED (Mark 2026-08-27: 'if it ain't broken won't fix'). The milestone's premise was wrong: scoped as 'read a value from a CLI', but the driver has a multi-tier multi-provider scheme with ratified rationale. TWO silent-degradation traps found before touching it: (1) the registry yields `claude:fable`, but the driver pins `claude:claude-fable-5` because the Agent tool only accepts sonnet|opus|haiku - a bare `fable` silently falls back to OPUS (F1, iteration 31); (2) per-role fallbacks ALREADY exist and are richer - two-deep, on `pi` (sees the uncommitted worktree), leading with an ollama-cloud flat-rate tier, plus a PLANNER_ANTHROPIC_FALLBACK the registry cannot express. Needs its own design doc."
+    }
+  ],
+  "design_decisions": {
+    "D1": "(a) precedence inversion with provenance - Mark 2026-08-27",
+    "D2": "(a) fail loudly - Mark 2026-08-27; condition: M5 fixture lands before M6",
+    "D3": "(a) driver resolves via registry, env pins override - Mark 2026-08-27; conditions: degrade to env pins on non-zero exit, attended window",
+    "D4": "(a) leaf package internal/modelreg - Claude 2026-08-27 (technically forced by V9)",
+    "M5_motoko_model": "GLM-5.3-Flash - Mark 2026-08-27. Implies a motoko-or-glm-5-3-flash agent twin (existing entry is standard-mode only) and a first agent-mode validation run.",
+    "D5": "(a) publish models.yml from the ailang repo via writeConfigCAS as a TERRAFORM-UNDECLARED bucket object - Mark 2026-08-27. Source of truth stays where the file lives; terraform keeps owning config.cloud.yaml only. Consequence: the published registry is the one config-bucket artifact terraform cannot recreate - the embedded floor covers an outage, but re-publishing is manual. Runbook line needed when M4b lands."
+  },
+  "blockers": [
+    "FLEET DEFECT (filed): motoko fixed port 8080 - inbox_1787836090384_981003ac",
+    "FLEET DEFECT (not filed): idle_timeout 3m on 31 of 33 cloud agents, all running always-thinking models. Killed the design-doc-creator triage task at exactly 3m0.0005s mid-generation; the 20m task budget is unreachable because the 3m silence budget fires first. Likely a major cause of the pkg:ailang-parse tasks completing shallow or failing.",
+    "pkg:ailang-parse task-9d538100 failed on `chdir .../packages/ailang-parse: no such file or directory` - the `workspace` field overload (GitHub coordinate vs local path).",
+    "multivac 0e945fb (model_routing deletion) committed but NOT promoted to dev/test/prod."
+  ]
+}

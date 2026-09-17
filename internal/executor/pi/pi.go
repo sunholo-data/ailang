@@ -1,12 +1,12 @@
 // Package pi provides an Executor implementation for the pi CLI
-// (npm: @mariozechner/pi-coding-agent), a deliberately minimal
+// (npm: @earendil-works/pi-coding-agent, formerly @mariozechner), a deliberately minimal
 // Claude Agent SDK-based coding harness with broad multi-provider reach.
 //
 // pi emits NDJSON via `pi --mode json` — a different schema from Claude,
 // Gemini, Codex, and opencode. See README.md and testdata/ for full
 // schema documentation with fixture-backed examples.
 //
-// Key parser facts (pi 0.70.x):
+// Key parser facts (pi 0.85.x; see events.go and README.md for the 0.73→0.85 drift):
 //   - Top-level events: session, agent_start, turn_start, message_start,
 //     message_update, message_end, tool_execution_start, tool_execution_end,
 //     turn_end, agent_end. agent_end is the unambiguous terminal event.
@@ -23,8 +23,6 @@ package pi
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -49,7 +47,17 @@ type PiExecutor struct {
 	piPath         string
 	model          string
 	timeoutSeconds int
+
+	// Cached `pi --version` (health.go). Probed lazily, once.
+	probe executor.VersionProbe
 }
+
+// ExpectedPackage / ExpectedVersion name the pi this executor was written
+// against. M2 asserts the running binary matches; M1 only records it.
+const (
+	ExpectedPackage = "@earendil-works/pi-coding-agent"
+	ExpectedVersion = "0.85.1"
+)
 
 // New creates a new PiExecutor.
 func New(cfg *executor.Config) (*PiExecutor, error) {
@@ -69,6 +77,7 @@ func New(cfg *executor.Config) (*PiExecutor, error) {
 		piPath:         piPath,
 		model:          model,
 		timeoutSeconds: cfg.TimeoutSeconds,
+		probe:          executor.VersionProbe{CLI: "pi", Path: piPath},
 	}, nil
 }
 
@@ -91,6 +100,20 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 	if err := e.requireModel(task); err != nil {
 		return nil, err
 	}
+	res, err := e.executeStreaming(ctx, task, handler)
+	if res != nil {
+		// Stamped on EVERY result shape (clean, error, timeout, cancel) so a
+		// banked failure says which harness failed. Empty when unprobeable.
+		res.ExecutorVersion = e.Version(ctx)
+		// The EFFECTIVE tool policy (M-AGENT-AILANG-ONLY-EXECUTION M1): what
+		// buildPiArgs passed, or the sentinel when pi's defaults applied.
+		res.ToolPolicy = effectiveToolPolicy(task)
+		res.PolicyDigest = executor.PolicyDigest(task.PolicyPath)
+	}
+	return res, err
+}
+
+func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, handler executor.EventHandler) (*executor.Result, error) {
 	ctx, span := telemetry.StartSpan(ctx, piTracer, "pi.execute",
 		trace.WithAttributes(
 			attribute.String("executor.name", "pi"),
@@ -188,7 +211,7 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 	var toolCallCount int
 	toolCalls := map[string]int{} // per-tool-name histogram (alongside toolCallCount)
 	// pi emits per-turn deltas in message_end (role=assistant); sum across turns.
-	var inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens int
+	var inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, reasonTokens int
 	var thrashKilledAt int
 	var totalCostUSD float64
 	var sessionID string
@@ -198,6 +221,7 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 	// message_update events carry cumulative partial state, so they are
 	// deliberately excluded — only settled events are authoritative.
 	var lastStopReason string
+	var lastRawStopReason string // provider's own value (0.84+); "" on older wires
 
 	// M-EVAL-COST-AND-SPEED-BUDGETS: speed + cost-kill instrumentation.
 	// pi emits per-turn token deltas in message_end (role=assistant), so the
@@ -206,6 +230,15 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 	var firstAttemptMs int64 = -1
 	var firstStreamEventAt time.Time
 	var costKilled bool
+
+	// M-PI-HARNESS-UPGRADE M2 (D4): drift is recorded or fatal, never silent.
+	// An unrecognised event TYPE is upstream adding a feature — counted and
+	// banked. A MISSING FIELD a banked metric depends on is our record being
+	// wrong — fatal, with the run named as wire_drift.
+	unknownEvents := map[string]int{}
+	unparsedLines := 0
+	var retries piRetries
+	var wireDriftErr string
 
 	go func() {
 		// executor.LineReader: a Scanner token cap turns one long line into a
@@ -234,6 +267,10 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 
 			ev, err := parsePiEvent(line)
 			if err != nil {
+				// Non-JSON preamble (a provider warning, a deprecation notice) is
+				// tolerated but COUNTED — banked as pi_unparsed_lines so a stream
+				// that is half noise is visible in the row, not just quietly thin.
+				unparsedLines++
 				continue
 			}
 
@@ -277,6 +314,22 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 					}
 				}
 
+			case "agent_start", "message_start", "agent_settled":
+				// Known, no per-event work. agent_settled is the real "done"
+				// signal since 0.84; agent_end may carry willRetry=true.
+
+			case "auto_retry_start":
+				// pi retries a failed provider call internally (0.84+). Without
+				// this, wall-clock and cost inflate with no visible cause.
+				retries.observeStart(ev.Attempt, ev.MaxAttempts, ev.ErrorMessage)
+				// Surface it live: a run that retries in silence looks healthy
+				// for exactly as long as the retries take (2026-09-16: two Jobs
+				// runs banked as clean no_changes after 4×0-token attempts).
+				handler.OnText(fmt.Sprintf("\n[pi auto-retry %d/%d: %s]\n", ev.Attempt, ev.MaxAttempts, ev.ErrorMessage))
+
+			case "auto_retry_end":
+				retries.observeEnd(ev.Attempt, ev.Success, ev.FinalError)
+
 			case "tool_execution_start":
 				toolCallCount++
 				if ev.ToolName != "" {
@@ -290,8 +343,11 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 					argsStr = "{}"
 				}
 				handler.OnToolUse(ev.ToolName, argsStr)
-				// M-EVAL-COST-AND-SPEED-BUDGETS: first Write/Edit = first solution attempt.
-				if firstAttemptMs < 0 && (ev.ToolName == "Write" || ev.ToolName == "Edit") {
+				// M-EVAL-COST-AND-SPEED-BUDGETS: first write/edit = first solution
+				// attempt. pi's builtin tools are LOWERCASE in every version; the
+				// capitalised comparison this replaced never matched, so this
+				// metric fell through to first-text on every pi run before M2.
+				if firstAttemptMs < 0 && (ev.ToolName == "write" || ev.ToolName == "edit") {
 					firstAttemptMs = time.Since(startTime).Milliseconds()
 				}
 
@@ -302,12 +358,21 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 			case "message_end":
 				if ev.Message != nil && ev.Message.StopReason != "" {
 					lastStopReason = ev.Message.StopReason
+					lastRawStopReason = ev.Message.RawStopReason
+				}
+				// D4: an assistant message_end WITHOUT usage means the cost record
+				// for this run is wrong. Bank nothing silently — name it and fail.
+				if ev.Message != nil && ev.Message.Role == "assistant" && ev.Message.Usage == nil && wireDriftErr == "" {
+					wireDriftErr = "pi: message_end without usage on an assistant message — the banked token/cost record would be wrong (wire_drift; pinned " + ExpectedPackage + "@" + ExpectedVersion + ")"
 				}
 				// Per-turn deltas for assistant messages — sum into totals.
 				if ev.Message != nil && ev.Message.Role == "assistant" && ev.Message.Usage != nil {
 					u := ev.Message.Usage
 					inputTokens += u.Input
-					outputTokens += u.Output
+					// D5: reasoning is inside output on the wire; the Result
+					// contract wants them disjoint.
+					outputTokens += u.Output - u.Reasoning
+					reasonTokens += u.Reasoning
 					cacheReadTokens += u.CacheRead
 					cacheWriteTokens += u.CacheWrite
 					totalCostUSD += u.Cost.Total
@@ -331,6 +396,7 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 			case "turn_end":
 				if ev.Message != nil && ev.Message.StopReason != "" {
 					lastStopReason = ev.Message.StopReason
+					lastRawStopReason = ev.Message.RawStopReason
 				}
 				if turnSpan != nil {
 					if ev.Message != nil && ev.Message.Usage != nil {
@@ -349,6 +415,9 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 			case "agent_end":
 				// Terminal — process will exit imminently. No per-event work
 				// needed; aggregation already done via message_end events.
+
+			default:
+				unknownEvents[ev.Type]++
 			}
 		}
 
@@ -399,6 +468,7 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 					DurationMS:               int(duration.Milliseconds()),
 					InputTokens:              inputTokens,
 					OutputTokens:             outputTokens,
+					ReasonTokens:             reasonTokens,
 					CacheReadInputTokens:     cacheReadTokens,
 					CacheCreationInputTokens: cacheWriteTokens,
 					CostUSD:                  totalCostUSD,
@@ -407,7 +477,7 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 					ToolCallCount:            toolCallCount,
 					ToolCalls:                toolCalls,
 					SessionID:                sessionID,
-					ProviderData:             piProviderData(rawEvents),
+					ProviderData:             piProviderData(rawEvents, unknownEvents, unparsedLines, &retries, lastRawStopReason),
 					CostKilledAt:             task.Budget.KilledAt(),
 					FirstAttemptMs:           firstAttemptMs,
 					SuccessAtMs:              -1,
@@ -421,7 +491,22 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 			// Default to "stop" when pi reported none at all.
 			finishReason := executor.FinishStop
 			if lastStopReason != "" {
-				finishReason = normalizePiFinishReason(lastStopReason)
+				finishReason = normalizePiFinishReasonWithRaw(lastStopReason, lastRawStopReason)
+			}
+			errMsg := ""
+			if wireDriftErr != "" {
+				// D4: the model may have finished; the RECORD cannot be trusted.
+				success = false
+				finishReason = executor.FinishWireDrift
+				errMsg = wireDriftErr
+			}
+			// A run that produced NOTHING after the provider was retried is a
+			// provider failure, not a completed task: name it, carrying the
+			// provider's last words, instead of banking a clean empty result.
+			if retries.Count > 0 && outputTokens == 0 && toolCallCount == 0 && output == "" {
+				success = false
+				finishReason = executor.FinishError
+				errMsg = fmt.Sprintf("pi: provider returned nothing after %d auto-retr%s (last error: %s)", retries.Count, map[bool]string{true: "y", false: "ies"}[retries.Count == 1], retries.LastError)
 			}
 			if costKilled {
 				success = false
@@ -438,9 +523,12 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 				FinishReason:             finishReason,
 				ThrashKilledAt:           thrashKilledAt,
 				Output:                   output,
+				Transcript:               output, // the completion's summary is the transcript tail (D1)
+				Error:                    errMsg,
 				DurationMS:               int(duration.Milliseconds()),
 				InputTokens:              inputTokens,
 				OutputTokens:             outputTokens,
+				ReasonTokens:             reasonTokens,
 				CacheReadInputTokens:     cacheReadTokens,
 				CacheCreationInputTokens: cacheWriteTokens,
 				CostUSD:                  totalCostUSD,
@@ -449,7 +537,7 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 				ToolCallCount:            toolCallCount,
 				ToolCalls:                toolCalls,
 				SessionID:                sessionID,
-				ProviderData:             piProviderData(rawEvents),
+				ProviderData:             piProviderData(rawEvents, unknownEvents, unparsedLines, &retries, lastRawStopReason),
 				CostKilledAt:             task.Budget.KilledAt(),
 				FirstAttemptMs:           firstAttemptMs,
 				SuccessAtMs:              -1,
@@ -562,229 +650,6 @@ func (e *PiExecutor) requireModel(task *executor.Task) error {
 		return executor.ErrUnresolvedModel("pi", "PiModel")
 	}
 	return nil
-}
-
-// buildPiArgs assembles the pi CLI argument vector.
-//
-// Flags used:
-//
-//	--mode json        NDJSON event stream
-//	-p                 non-interactive (process prompt and exit)
-//	--model <prov/id>  model selection via provider-prefix shorthand
-//	--no-session       ephemeral run (avoids ~/.pi/sessions/ pollution)
-//	--no-tools         when AllowedTools is empty; otherwise --tools <list>
-//	--thinking <lvl>   only when the registry declares reasoning_effort
-//
-// The directive is the trailing positional argument.
-//
-// NOT expressible here: the per-request output budget. pi has no max-tokens
-// flag — it reads maxTokens from ~/.pi/agent/models.json and falls back to
-// 16384 for any model that omits it (model-registry.js). task.MaxOutputTokens
-// therefore CANNOT be forwarded from this side; the registry's declared budget
-// reaches the wire only if the pi config carries the same number. Canonical
-// copy: tools/pi-extensions/models.mission.json, drift-tested against
-// models.yml by TestPiModelsConfigMatchesRegistry.
-func buildPiArgs(model string, task *executor.Task, directive string) ([]string, error) {
-	args := []string{
-		"--mode", "json",
-		"--model", model,
-		"--no-session",
-		"-p",
-	}
-
-	// Empty = send no dial at all; provider default thinking. Validated here
-	// rather than passed through, because pi rejects an unknown level with a
-	// usage dump that reads like a harness bug.
-	if task.ReasoningEffort != "" {
-		if !validPiThinkingLevels[task.ReasoningEffort] {
-			return nil, fmt.Errorf("pi: invalid reasoning_effort %q (want one of off, minimal, low, medium, high, xhigh)", task.ReasoningEffort)
-		}
-		args = append(args, "--thinking", task.ReasoningEffort)
-	}
-
-	// AGENTS.md / CLAUDE.md discovery is ON by default in pi. A frozen mission stage must
-	// not inherit whatever those files happen to say today.
-	if task.IsolateFromAmbientContext {
-		args = append(args, "--no-context-files")
-	}
-
-	// Both flags or neither — see isolationArgs.
-	args = append(args, isolationArgs(task)...)
-
-	switch {
-	case task.AllowedTools == nil:
-		// nil = caller does not specify; let pi's defaults apply.
-	case len(task.AllowedTools) == 0:
-		args = append(args, "--no-tools")
-	default:
-		args = append(args, "--tools", strings.Join(task.AllowedTools, ","))
-	}
-
-	args = append(args, directive)
-	return args, nil
-}
-
-// validPiThinkingLevels is pi's --thinking vocabulary (cli/args.js
-// VALID_THINKING_LEVELS). Wider than the registry's off/low/medium/high, so a
-// models.yml value is always accepted; the extra two are pi-only.
-var validPiThinkingLevels = map[string]bool{
-	"off": true, "minimal": true, "low": true,
-	"medium": true, "high": true, "xhigh": true,
-}
-
-// piUsageCost mirrors message_end.message.usage.cost.
-type piUsageCost struct {
-	Input      float64 `json:"input"`
-	Output     float64 `json:"output"`
-	CacheRead  float64 `json:"cacheRead"`
-	CacheWrite float64 `json:"cacheWrite"`
-	Total      float64 `json:"total"`
-}
-
-// piUsage mirrors message_end.message.usage.
-type piUsage struct {
-	Input       int         `json:"input"`
-	Output      int         `json:"output"`
-	CacheRead   int         `json:"cacheRead"`
-	CacheWrite  int         `json:"cacheWrite"`
-	TotalTokens int         `json:"totalTokens"`
-	Cost        piUsageCost `json:"cost"`
-}
-
-// piMessage captures the per-message envelope.
-type piMessage struct {
-	Role string `json:"role"`
-	// StopReason is pi's per-message stop signal, present on message_start /
-	// message_end / turn_end (and mirrored on assistantMessageEvent.partial).
-	// Observed values: "stop", "toolUse" (fixtures, pi 0.70.2). A tool-calling
-	// turn ends "toolUse" and the run's FINAL turn ends "stop", so only the
-	// last value seen is meaningful as a run-level finish reason.
-	StopReason string   `json:"stopReason,omitempty"`
-	Usage      *piUsage `json:"usage,omitempty"`
-}
-
-// piAssistantMessageEvent captures the inner discriminator for message_update.
-type piAssistantMessageEvent struct {
-	Type         string `json:"type"`
-	ContentIndex int    `json:"contentIndex,omitempty"`
-	Delta        string `json:"delta,omitempty"`
-	Content      string `json:"content,omitempty"`
-}
-
-// piToolResult captures the tool_execution_end result envelope.
-type piToolResult struct {
-	Content []struct {
-		Type string `json:"type"`
-		Text string `json:"text"`
-	} `json:"content"`
-}
-
-// piEvent is the top-level NDJSON event wrapper.
-type piEvent struct {
-	Type                  string                   `json:"type"`
-	Message               *piMessage               `json:"message,omitempty"`
-	AssistantMessageEvent *piAssistantMessageEvent `json:"assistantMessageEvent,omitempty"`
-
-	// session event
-	SessionID string `json:"id,omitempty"`
-
-	// tool_execution_start / tool_execution_end
-	ToolCallID string          `json:"toolCallId,omitempty"`
-	ToolName   string          `json:"toolName,omitempty"`
-	Args       json.RawMessage `json:"args,omitempty"`
-	Result     *piToolResult   `json:"result,omitempty"`
-	IsError    bool            `json:"isError,omitempty"`
-
-	// Raw preserves full event for ProviderData (schema-drift tolerance).
-	Raw map[string]any `json:"-"`
-}
-
-// parsePiEvent parses a single NDJSON line.
-// Returns error for non-JSON lines or parse failures; callers skip them.
-func parsePiEvent(line []byte) (*piEvent, error) {
-	trimmed := strings.TrimSpace(string(line))
-	if trimmed == "" {
-		return nil, fmt.Errorf("empty line")
-	}
-	if trimmed[0] != '{' {
-		return nil, fmt.Errorf("non-JSON line")
-	}
-	var ev piEvent
-	if err := json.Unmarshal(line, &ev); err != nil {
-		return nil, fmt.Errorf("json: %w", err)
-	}
-	var raw map[string]any
-	if err := json.Unmarshal(line, &raw); err == nil {
-		ev.Raw = raw
-	}
-	return &ev, nil
-}
-
-// flattenPiToolResult joins all text content blocks from a tool_execution_end.
-func flattenPiToolResult(r *piToolResult) string {
-	if r == nil {
-		return ""
-	}
-	if len(r.Content) == 0 {
-		return ""
-	}
-	if len(r.Content) == 1 {
-		return r.Content[0].Text
-	}
-	var b strings.Builder
-	for i, c := range r.Content {
-		if i > 0 {
-			b.WriteByte('\n')
-		}
-		b.WriteString(c.Text)
-	}
-	return b.String()
-}
-
-// piCancelFinishReason distinguishes a deadline-driven context cancellation
-// (a timeout by another name) from a caller-driven one (an abort).
-func piCancelFinishReason(err error) string {
-	if errors.Is(err, context.DeadlineExceeded) {
-		return executor.FinishTimeout
-	}
-	return executor.FinishError
-}
-
-// normalizePiFinishReason maps pi's camelCase stopReason vocabulary onto the
-// canonical executor.Finish* values.
-//
-// Pi is pre-1.0 (0.70.x) and its stop-reason vocabulary is NOT documented
-// upstream; "stop" and "toolUse" are the only values observed in captured
-// fixtures. Rather than guess at the rest, unrecognized values are passed
-// through verbatim so they surface in the banked JSON instead of being
-// silently coerced to "stop" (CategorizeAgentError ignores values it doesn't
-// know, so pass-through cannot misclassify a run). Re-check this mapping when
-// bumping the pinned pi version.
-func normalizePiFinishReason(raw string) string {
-	switch raw {
-	case "stop", "endTurn", "end_turn":
-		return executor.FinishStop
-	case "toolUse", "tool_use", "toolCalls":
-		return executor.FinishToolCalls
-	case "maxTokens", "max_tokens", "length":
-		return executor.FinishLength
-	case "refusal", "safety", "contentFilter":
-		return executor.FinishContentFilter
-	case "aborted", "error":
-		return executor.FinishError
-	default:
-		return raw
-	}
-}
-
-// piProviderData wraps raw events as Result.ProviderData.
-func piProviderData(events []map[string]any) map[string]any {
-	if len(events) == 0 {
-		return nil
-	}
-	return map[string]any{
-		"pi_events": events,
-	}
 }
 
 // Register registers the pi executor with the global factory.

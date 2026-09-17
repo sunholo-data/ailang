@@ -176,6 +176,7 @@ var skippedExamples = map[string]string{
 	"examples/runnable/secrets/gated_secret.ail":                 "M-SECRET-EFFECT: needs the Secret capability + 1Password op CLI + a human approval to run; type-checks clean (asserted in TestSecretExamples_IFC)",
 	"examples/runnable/secrets/leak_attempt.ail":                 "M-SECRET-EFFECT: intentionally FAILS `ailang check` to demo IFC leak prevention (asserted in TestSecretExamples_IFC)",
 	"examples/runnable/secrets/secret_demo.ail":                  "M-SECRET-EFFECT: runnable demo — needs the Secret capability + 1Password op CLI to run; type-checks clean (asserted in TestSecretExamples_IFC)",
+	"examples/runnable/web_search.ail":                           "M-DANEEL-AILANG-EXECUTOR M2: std/web needs OLLAMA_API_KEY + the network; type-checks clean (asserted in TestWebSearchExample_TypeChecks)",
 	// The four #386 effect-row examples (effectful_list, effectful_list_t7,
 	// stream_multi_source, stream_process_source) were un-quarantined by
 	// M-EFFECT-ROW-SHOW-INTERP: effect rows are now preserved across nested pure

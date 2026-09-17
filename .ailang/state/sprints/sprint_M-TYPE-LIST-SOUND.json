@@ -1,0 +1,13 @@
+{
+  "sprint_id": "M-TYPE-LIST-SOUND",
+  "design_doc": "design_docs/planned/v0_24_0/m-type-list-element-soundness.md",
+  "sprint_plan": "design_docs/planned/v0_24_0/m-type-list-element-soundness-sprint-plan.md",
+  "created": "2026-06-08",
+  "github_issues": [],
+  "velocity": { "target_loc_per_day": 120, "estimated_total_loc": 240, "estimated_days": 2 },
+  "features": [
+    { "id": "M1_LOCALIZE", "description": "Failing pipeline tests bisecting the hole + must-accept guardrails", "estimated_loc": 80, "dependencies": [], "acceptance_criteria": ["2+ tests fail on current code", "locus pinned"], "passes": true, "started": "2026-06-08", "completed": "2026-06-08", "notes": "DONE. internal/pipeline/list_element_soundness_test.go: MustReject reproduces the hole at compile-time (skipped to keep CI green until M2); MustAccept (empty/numeric-default/nested/typed) passes as guardrails. Locus: pipeline uses CoreTypeChecker; unifyLists recurses fine, so the leak is Core-checker class-constraint resolution not re-checking Num after the list-element tyvar binds to a concrete non-numeric type. List[Json] variant: AsList is lowercase-only (helpers.go:120)." },
+    { "id": "M2_FIX", "description": "Minimal fix: list-element constraint propagation and/or List[T]<->[T] normalization; AILANG-level error", "estimated_loc": 80, "dependencies": ["M1_LOCALIZE"], "acceptance_criteria": ["M1 tests pass", "3 design-doc repros reject at compile time"], "passes": null, "started": null, "completed": null, "notes": null },
+    { "id": "M3_LOCKDOWN", "description": "Must-accept + must-reject fixtures; make verify-examples; full test run; CHANGELOG", "estimated_loc": 80, "dependencies": ["M2_FIX"], "acceptance_criteria": ["empty-list/numeric-default/nested still compile", "verify-examples green", "types+elaborate+cmd tests green"], "passes": null, "started": null, "completed": null, "notes": null }
+  ]
+}

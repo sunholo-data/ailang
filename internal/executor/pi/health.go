@@ -3,23 +3,41 @@ package pi
 import (
 	"context"
 	"fmt"
-	"github.com/sunholo-data/ailang/internal/proctree"
 	"os"
 	"os/exec"
+	"time"
 )
 
-// HealthCheck verifies the pi binary exists on PATH and responds.
+// HealthCheck verifies the pi binary exists on PATH and responds to --version.
+// The version it reports is captured (see Version), not discarded.
 func (e *PiExecutor) HealthCheck(ctx context.Context) error {
-	piPath := e.piPath
-	if _, err := exec.LookPath(piPath); err != nil {
-		if _, statErr := os.Stat(piPath); statErr != nil {
-			return fmt.Errorf("pi CLI not found: %w (install with: npm i -g @mariozechner/pi-coding-agent)", err)
+	if _, err := exec.LookPath(e.piPath); err != nil {
+		if _, statErr := os.Stat(e.piPath); statErr != nil {
+			return fmt.Errorf("pi CLI not found: %w (install with: npm i -g %s@%s)", err, ExpectedPackage, ExpectedVersion)
 		}
 	}
-	checkCmd := exec.CommandContext(ctx, piPath, "--version")
-	proctree.Configure(checkCmd)
-	if err := checkCmd.Run(); err != nil {
-		return fmt.Errorf("pi --version failed: %w", err)
+	// A deliberate check, so a loaded machine gets a generous bound (the
+	// post-run stamp keeps the tight executor.VersionProbeTimeout).
+	probeCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	defer cancel()
+	v, err := e.probe.Raw(probeCtx)
+	if err != nil {
+		return err
+	}
+	// M2: a mismatch is an ERROR naming both versions, not a warning. The
+	// parser and the extension suite are written against ExpectedVersion; a
+	// different pi keeps producing NDJSON that mostly parses, which is exactly
+	// the silent-drift shape this sprint exists to remove.
+	if v != ExpectedVersion {
+		return fmt.Errorf("pi version mismatch: expected %s@%s, running pi@%s (repin ExpectedVersion in internal/executor/pi after re-verifying the wire, or install the pinned version: npm i -g %s@%s)",
+			ExpectedPackage, ExpectedVersion, v, ExpectedPackage, ExpectedVersion)
 	}
 	return nil
+}
+
+// Version returns the harness identity as "pi@<version>", where <version> is
+// what the binary printed for --version. Empty when the probe fails: absent
+// means UNMEASURED, never a guess.
+func (e *PiExecutor) Version(ctx context.Context) string {
+	return e.probe.Identity(ctx)
 }

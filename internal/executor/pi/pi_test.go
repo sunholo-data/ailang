@@ -165,8 +165,12 @@ func TestBuildPiArgs_NoTools(t *testing.T) {
 }
 
 func TestBuildPiArgs_AllowedTools(t *testing.T) {
+	// AllowedTools is CANONICAL (Read/Write/…); pi gets the mapped lowercase
+	// names behind --no-builtin-tools --tools (D7, toolnames.go). Passing pi's
+	// own spellings through was the old contract and is gone: pi ignores
+	// unknown names silently, so a wrong-cased list ran with zero tools.
 	args, err := buildPiArgs("anthropic/claude-haiku-4-5",
-		&executor.Task{AllowedTools: []string{"read", "grep"}},
+		&executor.Task{AllowedTools: []string{"Read", "Edit"}},
 		"summarize")
 	if err != nil {
 		t.Fatalf("buildPiArgs: %v", err)
@@ -175,8 +179,11 @@ func TestBuildPiArgs_AllowedTools(t *testing.T) {
 	if idx < 0 || idx+1 >= len(args) {
 		t.Fatalf("expected --tools <list> in args, got %v", args)
 	}
-	if args[idx+1] != "read,grep" {
-		t.Errorf("--tools value = %q, want \"read,grep\"", args[idx+1])
+	if args[idx+1] != "read,edit" {
+		t.Errorf("--tools value = %q, want \"read,edit\"", args[idx+1])
+	}
+	if !contains(args, "--no-builtin-tools") {
+		t.Errorf("an explicit allowlist must also drop pi's builtin defaults, got %v", args)
 	}
 }
 
@@ -304,7 +311,11 @@ func TestExecuteStreaming_FizzbuzzFixture(t *testing.T) {
 		t.Skip(skipWindows)
 	}
 	dir := t.TempDir()
-	events := loadFixtureLines(t, "fizzbuzz.ndjson")
+	// v0_85_1/fizzbuzz: one assistant turn, usage {input:801, output:92},
+	// cost 0 on the wire (ollama) — patched to a known total so the cost
+	// path is exercised, not just zero-summed.
+	events := patchAssistantUsage(t, loadFixtureLines(t, "v0_85_1/fizzbuzz.ndjson"),
+		[]assistantUsagePatch{{CostTotal: 0.001505}})
 	_ = writeFakePi(t, dir, events)
 
 	cfg := &executor.Config{
@@ -340,15 +351,23 @@ func TestExecuteStreaming_FizzbuzzFixture(t *testing.T) {
 		t.Fatal("nil result")
 	}
 
-	// Per-turn message_end usage for assistant: 480 input, 205 output.
-	if result.InputTokens != 480 {
-		t.Errorf("InputTokens = %d, want 480", result.InputTokens)
+	// Per-turn message_end usage for assistant: 801 input, 92 output,
+	// reasoning 0 (ollama reports none) — so the D5 subtraction is a no-op here.
+	// The completion's summary is completionSummary(Result.Transcript): a pi
+	// run that leaves Transcript empty answers nothing on the message plane
+	// (M-DANEEL-AILANG-EXECUTOR D1 — measured 2026-09-16, every pi completion
+	// had summary "").
+	if result.Transcript == "" || result.Transcript != result.Output {
+		t.Errorf("Transcript must carry the assistant text (= Output); got %q vs Output %q", result.Transcript, result.Output)
 	}
-	if result.OutputTokens != 205 {
-		t.Errorf("OutputTokens = %d, want 205", result.OutputTokens)
+	if result.InputTokens != 801 {
+		t.Errorf("InputTokens = %d, want 801", result.InputTokens)
+	}
+	if result.OutputTokens != 92 || result.ReasonTokens != 0 {
+		t.Errorf("OutputTokens/ReasonTokens = %d/%d, want 92/0", result.OutputTokens, result.ReasonTokens)
 	}
 
-	// Cost: 0.001505 (single turn, taken from message_end.usage.cost.total).
+	// Cost: 0.001505 (single turn, patched into message_end.usage.cost.total).
 	const wantCost = 0.001505
 	const epsilon = 1e-7
 	if diff := result.CostUSD - wantCost; diff > epsilon || diff < -epsilon {
@@ -398,7 +417,10 @@ func TestExecuteStreaming_ToolUseFixture(t *testing.T) {
 		t.Skip(skipWindows)
 	}
 	dir := t.TempDir()
-	events := loadFixtureLines(t, "tool_use.ndjson")
+	// v0_85_1/tool_use: three assistant turns {812/83, 903/12, 920/3}, two
+	// tool executions (write, read). Costs patched to known totals.
+	events := patchAssistantUsage(t, loadFixtureLines(t, "v0_85_1/tool_use.ndjson"),
+		[]assistantUsagePatch{{CostTotal: 0.00634375}, {CostTotal: 0.00631925}, {CostTotal: 0.0001}})
 	_ = writeFakePi(t, dir, events)
 
 	cfg := &executor.Config{
@@ -428,35 +450,35 @@ func TestExecuteStreaming_ToolUseFixture(t *testing.T) {
 		t.Fatalf("ExecuteStreaming: %v", err)
 	}
 
-	// Per-turn deltas summed across two turns: 10+13=23 input, 128+84=212 output.
-	if result.InputTokens != 23 {
-		t.Errorf("InputTokens = %d, want 23", result.InputTokens)
+	// Per-turn deltas summed across three turns: 812+903+920=2635 input, 83+12+3=98 output.
+	if result.InputTokens != 2635 {
+		t.Errorf("InputTokens = %d, want 2635", result.InputTokens)
 	}
-	if result.OutputTokens != 212 {
-		t.Errorf("OutputTokens = %d, want 212", result.OutputTokens)
+	if result.OutputTokens != 98 {
+		t.Errorf("OutputTokens = %d, want 98", result.OutputTokens)
 	}
 
-	// Cost: 0.006343750000000001 + 0.006319250000000001 ≈ 0.012663
-	const wantCost = 0.012663
+	// Cost: 0.00634375 + 0.00631925 + 0.0001 = 0.012763
+	const wantCost = 0.012763
 	const epsilon = 1e-5
 	if diff := result.CostUSD - wantCost; diff > epsilon || diff < -epsilon {
 		t.Errorf("CostUSD = %.8f, want %.8f", result.CostUSD, wantCost)
 	}
 
-	// Two turns (two turn_start events).
-	if result.NumTurns != 2 {
-		t.Errorf("NumTurns = %d, want 2", result.NumTurns)
+	// Three turns (three turn_start events).
+	if result.NumTurns != 3 {
+		t.Errorf("NumTurns = %d, want 3", result.NumTurns)
 	}
 
-	// One tool execution.
-	if result.ToolCallCount != 1 {
-		t.Errorf("ToolCallCount = %d, want 1", result.ToolCallCount)
+	// Two tool executions: write, then read.
+	if result.ToolCallCount != 2 {
+		t.Errorf("ToolCallCount = %d, want 2", result.ToolCallCount)
 	}
-	if len(toolCalls) != 1 || toolCalls[0] != "write" {
-		t.Errorf("toolCalls = %v, want [write]", toolCalls)
+	if len(toolCalls) != 2 || toolCalls[0] != "write" || toolCalls[1] != "read" {
+		t.Errorf("toolCalls = %v, want [write read]", toolCalls)
 	}
-	if len(toolResults) != 1 || toolResults[0] != "write" {
-		t.Errorf("toolResults = %v, want [write]", toolResults)
+	if len(toolResults) != 2 || toolResults[0] != "write" || toolResults[1] != "read" {
+		t.Errorf("toolResults = %v, want [write read]", toolResults)
 	}
 }
 
@@ -470,7 +492,7 @@ func TestExecuteStreaming_NonJSONPreambleTolerated(t *testing.T) {
 			"warning: this is a non-json preamble",
 			"info: connecting to provider",
 		},
-		loadFixtureLines(t, "fizzbuzz.ndjson")...,
+		loadFixtureLines(t, "v0_85_1/fizzbuzz.ndjson")...,
 	)
 	_ = writeFakePi(t, dir, events)
 
@@ -636,13 +658,20 @@ func TestLiveRun_Pi(t *testing.T) {
 // executor without a real pi binary.
 func writeFakePi(t *testing.T, dir string, events []string) string {
 	t.Helper()
+	return writeFakePiVersion(t, dir, ExpectedVersion, events)
+}
+
+// writeFakePiVersion is writeFakePi with an explicit --version reply, for the
+// version-assertion tests (M-PI-HARNESS-UPGRADE M2).
+func writeFakePiVersion(t *testing.T, dir, version string, events []string) string {
+	t.Helper()
 	script := filepath.Join(dir, "pi")
 	var body strings.Builder
 	body.WriteString("#!/bin/sh\n")
 	body.WriteString(`
 case "$1" in
   --version)
-    echo "0.70.2"
+    echo "` + version + `"
     exit 0 ;;
 esac
 `)

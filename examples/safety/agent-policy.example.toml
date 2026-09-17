@@ -1,4 +1,10 @@
 # Example policy for the M-AGENT-SAFE-RUNNER pattern.
+#
+# Gate a run with it:   ailang run --policy agent-policy.toml prog.ail
+# (caps, net_allow and fs_sandbox come from THIS file; --caps/--no-budgets/
+# --allow-env are refused; denial prints the decision JSON and exits 2.)
+# NOTE: `run --policy` refuses a policy with [budgets] until run-time budget
+# enforcement exists — budgets are enforced from source annotations today.
 # Operator-authored; pinned at deploy time. The submitted .ail program's
 # entry-function effect row must be a subset of `allowed_caps`.
 

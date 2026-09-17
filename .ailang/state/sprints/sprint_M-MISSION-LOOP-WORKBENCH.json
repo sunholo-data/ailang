@@ -1,0 +1,188 @@
+{
+  "sprint_id": "M-MISSION-LOOP-WORKBENCH",
+  "status": "not_started",
+  "created": "2026-09-05T20:38:29Z",
+  "design_doc": "design_docs/planned/v0_36_0/m-mission-loop-workbench.md",
+  "sprint_plan": "design_docs/planned/v0_36_0/m-mission-loop-workbench-sprint-plan.md",
+  "github_issues": [
+    1010
+  ],
+  "velocity": {
+    "target_loc_per_day": 600,
+    "estimated_total_loc": 2580,
+    "estimated_days": 3.5
+  },
+  "features": [
+    {
+      "id": "M1_REGISTRY_SCHEMA_LOADER",
+      "description": "internal/mission: TOML registry schema + loader + validation, one file per mission in missions/ (HD-1a). No [roles] block \u2014 the loader must REJECT one.",
+      "estimated_loc": 380,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Loads a valid entry and round-trips every field",
+        "Rejects a [roles] key, naming M-MODEL-REGISTRY-SINGLE-SOURCE as the owner, so the scope cut cannot silently regress",
+        "Rejects unknown schedule mode, absent workdir, and a boot_offset colliding with another registered mission",
+        "Load() over the real missions/ dir is deterministic and order-independent",
+        "Every validation error names the file and the field"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-09-05",
+      "notes": "90.2% coverage. Mutation-tested: 3 mutants killed. Caught and fixed a vacuous sort assertion (asserted on Names(), which sorts internally)."
+    },
+    {
+      "id": "M2_RENDERER_WITH_ROLE_PASSTHROUGH",
+      "description": "Render env + plist to *.staged only. Role/model lines carried through VERBATIM from the live env (ratified; M8 parked). Includes the atomic-write helper V15 found absent. Plist rendering is new code, not an extension of the daemon template (V17).",
+      "estimated_loc": 450,
+      "dependencies": [
+        "M1_REGISTRY_SCHEMA_LOADER"
+      ],
+      "acceptance_criteria": [
+        "GOLDEN: rendering each of the four current missions is byte-identical to what is installed today, except the schedule block",
+        "A live env role line unknown to the registry still renders unchanged",
+        "keepalive renders KeepAlive+ThrottleInterval; interval renders StartInterval; never both",
+        "Rendered plists pass plutil -lint",
+        "Every rendered PATH contains /usr/sbin, enforcing the V8 regression at render time",
+        "Writes only *.staged \u2014 a test asserts no non-staged path is opened for write"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-09-05",
+      "notes": "Golden: docs/motoko/world byte-identical to installed. v1 is the implicit mission (comments-only env, driver defaults) and is asserted, not skipped. 5 mutants killed. 85.7% coverage."
+    },
+    {
+      "id": "M3_DOCTOR_THE_GATE",
+      "description": "ailang mission doctor + list: registry-vs-installed drift, driver resolution, pin status, PATH reachability of sysctl. Replaces the hand-maintained comment table at mission-control.sh:752. THIS IS THE SPRINT GATE.",
+      "estimated_loc": 500,
+      "dependencies": [
+        "M1_REGISTRY_SCHEMA_LOADER",
+        "M2_RENDERER_WITH_ROLE_PASSTHROUGH"
+      ],
+      "acceptance_criteria": [
+        "GATE: reproduces V4 (docs 4-line / world 65-line env drift) on the live rig",
+        "GATE: reproduces V5 (repo copy routes to codex, installed routes to opus fail-closed)",
+        "GATE: reproduces V8 (v1/docs plist PATH omits /usr/sbin, disabling the boot stagger)",
+        "Reports world as a fork with no pin; v1/docs/motoko as pin-backed",
+        "Read-only: a test asserts no write to ~/.config or ~/Library/LaunchAgents",
+        "Exit codes 0 clean / 1 drift / 2 registry error"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-09-05",
+      "notes": "GATE MET on the live rig: V4/V5 (docs names MISSION_PLANNER_ALLOWLIST), V8 (v1+docs), world no-pin+fork. Running the gate exposed that registry-vs-installed cannot see V5; added installed-vs-reviewed. 7 mutants killed, 87.3% coverage."
+    },
+    {
+      "id": "M4_CLI_FIXTURES_CI",
+      "description": "cmd/ailang/mission.go following messages_send.go conventions; four registry entries authored FROM INSTALLED STATE (not the repo copies, which are what drifted); make test-mission-registry wired into CI.",
+      "estimated_loc": 200,
+      "dependencies": [
+        "M3_DOCTOR_THE_GATE"
+      ],
+      "acceptance_criteria": [
+        "ailang mission list and doctor work end-to-end against the real fleet",
+        "Four registry entries exist and load",
+        "New make target runs in CI and the orphan-suite check still passes",
+        "make test and make test-launchd-drivers both green"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-09-05",
+      "notes": "list/doctor/install work end-to-end. 4 entries from installed state, carrying the rationale the plists cannot. make test + test-launchd-drivers + test-mission-registry all exit 0."
+    },
+    {
+      "id": "M5_APPLY_WITH_BOUNDED_RELOAD",
+      "description": "ailang mission apply: HD-3(c) refuse first adoption without --adopt, HD-4(b) refuse on a live pidfile (--force escape hatch), promote both staged files by atomic rename, then a launchd reload where EVERY wait is bounded.",
+      "estimated_loc": 450,
+      "dependencies": [
+        "M4_CLI_FIXTURES_CI"
+      ],
+      "acceptance_criteria": [
+        "Refuses while the mission holds a live pidfile; --force overrides (HD-4b)",
+        "Refuses a first adoption without --adopt, printing what would change (HD-3c)",
+        "Promotes both artifacts by atomic rename, or neither",
+        "bootout 10s / bootstrap 10s / verify 15s, each a typed timeout error; worst case bounded at 35s",
+        "A failed bootstrap retains the staged copies for a re-apply",
+        "launchctl is injected, so the bounded-wait logic is tested without booting out a live job"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-09-05",
+      "notes": "11 mutants, 1 survived (promotion order untested) and was fixed. Bounded 35s worst case. launchctl injected."
+    },
+    {
+      "id": "M6_ADOPT_THE_FLEET",
+      "description": "Reconcile the remaining divergences deliberately under HD-3(c) and bring all four missions under generated artifacts. Includes fixing V8 for real (the v1/docs plist PATH) rather than relying on the driver-side mitigation.",
+      "estimated_loc": 120,
+      "dependencies": [
+        "M5_APPLY_WITH_BOUNDED_RELOAD"
+      ],
+      "acceptance_criteria": [
+        "Every mission's installed plist carries the generated marker",
+        "ailang mission doctor exits 0 on the live fleet",
+        "V8 is fixed at source: no installed plist sets a PATH lacking /usr/sbin",
+        "No mission is reloaded while mid-iteration",
+        "The pre-adoption artifacts are backed up and the backup path is reported"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-09-05",
+      "notes": "All 4 adopted. Diffing before apply caught 2 fleet-damaging bugs (launchd log collision, pin clobber); using the tool caught a 3rd (--no-reload refused on busy). V8 fixed at source on all 4 plists. Doctor now reports only world fork/no-pin (Phase 3)."
+    },
+    {
+      "id": "M7_DELETE_THE_HAND_MAINTAINED_TABLE",
+      "description": "Delete the reach truth-table comment at mission-control.sh:752 and the _mc_boot_offset case arm, now that both are computed from the registry. Adding a surface without removing one is the failure mode the design names.",
+      "estimated_loc": 80,
+      "dependencies": [
+        "M6_ADOPT_THE_FLEET"
+      ],
+      "acceptance_criteria": [
+        "The comment table is gone and replaced by a pointer to `ailang mission list`",
+        "Boot offsets come from the registry, with the case arm removed or reduced to a fallback",
+        "make test-launchd-drivers still exit 0",
+        "A test asserts the table cannot silently return"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-09-05",
+      "notes": "Table deleted, replaced by a pointer to the computed one. Two guards, both proven non-vacuous. Boot offsets stay in bash but the registry is authoritative and divergence is caught."
+    },
+    {
+      "id": "M8_DOCTOR_CHECKS_THE_LOADED_JOB",
+      "description": "Close the blind spot Phase 2 created: doctor compares the registry against the installed FILE, not against launchd's LOADED job, so v1 passes clean while running pre-adoption config. Add a loaded-vs-file check via launchctl print.",
+      "estimated_loc": 260,
+      "dependencies": [
+        "M7_DELETE_THE_HAND_MAINTAINED_TABLE"
+      ],
+      "acceptance_criteria": [
+        "Reports when launchd's loaded config disagrees with the installed plist",
+        "Reproduces it on v1 RIGHT NOW (promoted with --no-reload, so loaded is pre-adoption)",
+        "Names the disagreeing key, not just 'differs'",
+        "Does not fire on the three missions whose loaded config matches",
+        "launchctl is injected so the check is testable without a live domain",
+        "Stays read-only"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-09-06",
+      "notes": "Caught v1 loaded-stale on the live fleet; 3 matching missions not flagged. 6 mutants, 1 survived (severity unasserted) and fixed."
+    },
+    {
+      "id": "M9_RENDER_FROM_THE_REVIEWED_COPY",
+      "description": "Render passthrough from tools/launchd/mission-env/<name>.env (the reviewed copy) rather than from the installed one, so reviewed-vs-installed drift becomes impossible after an apply and the repo copy regains its meaning as the thing you edit.",
+      "estimated_loc": 140,
+      "dependencies": [
+        "M8_DOCTOR_CHECKS_THE_LOADED_JOB"
+      ],
+      "acceptance_criteria": [
+        "Passthrough is read from the reviewed copy when one exists, else the installed one",
+        "After an apply, installed == reviewed by construction; doctor cannot report env-source-drift",
+        "Editing the reviewed copy and running install/apply deploys the edit \u2014 the V5 workflow, fixed",
+        "Golden tests still prove byte-identity for the current fleet"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-09-06",
+      "notes": "Proven E2E on the live fleet with a probe line. 3 mutants killed."
+    }
+  ]
+}

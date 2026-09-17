@@ -1,0 +1,57 @@
+{
+  "pairs": [
+    {
+      "id": "api_call_json",
+      "lang": "ailang",
+      "trial": 1,
+      "on_pass": true,
+      "off_pass": true
+    },
+    {
+      "id": "fold_reduce",
+      "lang": "ailang",
+      "trial": 1,
+      "on_pass": true,
+      "off_pass": true
+    },
+    {
+      "id": "state_machine_vending",
+      "lang": "ailang",
+      "trial": 1,
+      "on_pass": true,
+      "off_pass": true
+    },
+    {
+      "id": "fizzbuzz",
+      "lang": "ailang",
+      "trial": 1,
+      "on_pass": true,
+      "off_pass": true
+    },
+    {
+      "id": "cli_args",
+      "lang": "ailang",
+      "trial": 1,
+      "on_pass": false,
+      "off_pass": true
+    }
+  ],
+  "on_pass": 4,
+  "on_total": 5,
+  "off_pass": 5,
+  "off_total": 5,
+  "delta_pp": -19.999999999999996,
+  "only_on_passed": 0,
+  "only_off_passed": 1,
+  "unpaired": 0,
+  "mcnemar": {
+    "reportable": false,
+    "note": "only 1 discordant pair(s) (b=0, c=1); below the floor of 10, so no p-value is reported — the evidence base is too small for the number to mean anything"
+  },
+  "headroom": {
+    "warn": true,
+    "rate": 1,
+    "ceiling": 0.9,
+    "message": "control arm is at 100.0% (5/5), at or above the 90% ceiling: there is too little headroom for this comparison to resolve a small effect. A null result here means 'the benchmark set was already passed', not 'the treatment does nothing'. Pick a subject where the failure mode actually occurs — this is the mistake that made the haiku fmt A/B (both arms ~96%) uninformative."
+  }
+}

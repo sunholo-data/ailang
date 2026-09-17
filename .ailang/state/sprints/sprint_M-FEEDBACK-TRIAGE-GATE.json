@@ -1,0 +1,156 @@
+{
+  "sprint_id": "M-FEEDBACK-TRIAGE-GATE",
+  "status": "completed",
+  "created": "2026-07-10T00:00:00Z",
+  "planned_by": "claude-opus-4-8",
+  "design_doc": "design_docs/planned/v0_29_0/m-feedback-triage-gate.md",
+  "sprint_plan": "design_docs/planned/v0_29_0/sprint-m-feedback-triage-gate.md",
+  "github_issues": [],
+  "velocity": {
+    "target_loc_per_day": 150,
+    "estimated_total_loc": 780,
+    "estimated_days": 2
+  },
+  "disambiguation": {
+    "note": "NAMING COLLISION HAZARD. M-MSG-TRIAGE-ROUTER already shipped internal/coordinator/triage_router.go with config key coordinator.triage, type coordinator.Decision (Hold/Promote/Drop), TriageConfig, and classify(). That is a DIFFERENT feature (local intake-inbox promotion). This sprint MUST use non-colliding names.",
+    "new_package": "internal/feedbackgate",
+    "new_config_key": "coordinator.feedback_gate",
+    "new_config_type": "FeedbackGateConfig",
+    "new_verdict_type": "feedbackgate.Verdict (Dispatch/File/Reject) \u2014 NOT coordinator.Decision",
+    "new_entrypoint": "feedbackgate.Decide(ctx, Input, Config) (Verdict, error)",
+    "new_env_vars": [
+      "AILANG_FEEDBACK_GATE_MODE (off|file-only|full)",
+      "AILANG_FEEDBACK_GATE_DRY_RUN"
+    ],
+    "audit_inbox": "feedback-gate-audit"
+  },
+  "doc_vs_reality": [
+    "Decide operates on coordinator.Message (cloud path), NOT messaging.Message. Use a feedbackgate.Input struct populated by the coordinator to avoid an import cycle.",
+    "coordinator.Message fields: Type=category, Content=body, From=sender, Inbox=routing target, Source=topic. No Contact and no IP field on the wire.",
+    "auto: is a prefix on the category attribute (publisher.go), not an auto_dispatch bool. Rule reads the auto: prefix off msg.Type.",
+    "internal/ai has native JSON mode: Request.ResponseFormat=\"json\" + JSONSchema. Classifier injects an ai.Provider; tests use a fake (no live API).",
+    "M5 terraform (security.tf 80% alert) lives in sibling repo ailang-multivac \u2014 OUT OF SCOPE; documented follow-up handoff.",
+    "Dashboard Triage panel + --show-triage CLI flag are UI scope creep \u2014 cut to follow-up; audit data still lands in feedback-gate-audit.",
+    "IP-hash cooldown keying dropped (IP never reaches this layer; consumed at the MCP edge). Cooldown keys on From+category+bodyHash+parsed contact: line."
+  ],
+  "adopted_decisions": [
+    "reject marks status=rejected + TTL(14d), does NOT delete the Firestore doc (Open Q1).",
+    "Haiku classifier skipped for internal agent-* senders (Open Q2).",
+    "Dry-run via AILANG_FEEDBACK_GATE_DRY_RUN=1: run gate, log would-be verdict, always dispatch (Open Q3).",
+    "Operator kill-switch AILANG_FEEDBACK_GATE_MODE=off|file-only|full; env overrides config.",
+    "Classifier fails CLOSED: any parse/schema/error path -> file, never dispatch."
+  ],
+  "features": [
+    {
+      "id": "M1_DETERMINISTIC_RULES",
+      "description": "New package internal/feedbackgate with coordinator-free Input struct, Verdict type, and Decide entry point. Pure deterministic rules (auto: prefix, body size, spam regex, sender allowlist, inbox check, category check). Zero LLM, zero IO.",
+      "estimated_loc": 150,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "internal/feedbackgate compiles with NO import of internal/coordinator",
+        "Decide is pure at M1 (cooldown/classifier nil-injected, no-op)",
+        "Each rule has a passing + failing table test; go test ./internal/feedbackgate/... green with no credentials",
+        "Verdict/Config/FeedbackGateConfig names grep-verified distinct from coordinator.Decision/TriageConfig"
+      ],
+      "passes": true,
+      "started": "2026-07-10T12:00:00Z",
+      "completed": "2026-07-10T12:10:00Z",
+      "notes": "Commit 46dcef0bf. internal/feedbackgate created: coordinator-free Input, Verdict(dispatch/file/reject), FeedbackGateConfig, Decide. Pure rules table-tested pass+fail per rule. DEVIATION: Go RE2 caps bounded repeats at 1000 -> base64 spam uses {200,} regex + len-check vs 1024 (unbounded {1024,} panics). go test green, golangci-lint clean, no coordinator.Decision/TriageConfig reuse (grep-verified)."
+    },
+    {
+      "id": "M2_COOLDOWN_TABLE",
+      "description": "Per-contact sliding cooldown behind a narrow CooldownStore interface with an in-memory fake (pattern: triage_router_test.go fakeTriageStore). Key = From+category+bodyHash+parsed contact: line (no IP). Limit 3/contact/hour, 10/day -> file with reason=contact_cooldown. TTL 7d on the Firestore-backed impl.",
+      "estimated_loc": 120,
+      "dependencies": [
+        "M1_DETERMINISTIC_RULES"
+      ],
+      "acceptance_criteria": [
+        "Cooldown tested entirely against an in-memory fake store (no GCP)",
+        "Sliding-window boundary tests: 3rd/hour dispatches 4th files; 10th/day dispatches 11th files; window expiry re-allows",
+        "Decide composes M1 rules THEN cooldown (cooldown only consulted when M1 says dispatch)"
+      ],
+      "passes": true,
+      "started": "2026-07-10T12:10:00Z",
+      "completed": "2026-07-10T12:30:00Z",
+      "notes": "Commit 89ef6f894. cooldown_test.go vs in-memory fake CooldownStore (real sliding-window math): key stability/contact-awareness, hour boundary (3 ok/4th files), day boundary (10 ok/11th files), window expiry re-allows, Decide composition (rule-filed msgs never touch store; consulted once on clean dispatch). Green, lint clean."
+    },
+    {
+      "id": "M3_HAIKU_CLASSIFIER",
+      "description": "Last-resort Haiku JSON classifier via internal/ai (injected ai.Provider; fake in tests). Uses Request.ResponseFormat=json + JSONSchema. Skipped for agent-* senders. Decision matrix -> reject/file/dispatch. Fails closed on any parse/schema error (-> file). Prompt checked in at prompts/feedback_gate_classifier.md with a content-hash version field.",
+      "estimated_loc": 180,
+      "dependencies": [
+        "M2_COOLDOWN_TABLE"
+      ],
+      "acceptance_criteria": [
+        "Classifier takes an ai.Provider; all tests use a fake, zero network",
+        "Matrix fully table-tested incl. malformed-JSON -> file (fail-closed)",
+        "agent-* sender path asserts the provider is never called (counting fake)",
+        "prompts/feedback_gate_classifier.md exists with a version/hash field"
+      ],
+      "passes": true,
+      "started": "2026-07-10T12:10:00Z",
+      "completed": "2026-07-10T12:30:00Z",
+      "notes": "Commit adb3e1fe5. Classifier via injected ai.Provider + native JSON mode. agent-* bypass + file-only mode assert 0 provider calls; full matrix incl malformed-JSON/provider-error/nil-provider all fail-closed to file. Prompt go:embed'd (package-local mirror of prompts/feedback_gate_classifier.md) with version marker + PromptHash. Green, lint clean, zero network."
+    },
+    {
+      "id": "M4_COORDINATOR_WIRING",
+      "description": "Wire the gate into pollAndProcessTasksCloud (cloud path only) between message loop and CreateTask. Build feedbackgate.Input from coordinator.Message. Branch dispatch/file/reject; emit feedback-gate-audit messages; markFeedbackRejected sets status=rejected (TTL, no delete). Nil-safe + opt-in (enabled=false default). Respect MODE + DRY_RUN env. Gate error -> fail closed (no CreateTask).",
+      "estimated_loc": 150,
+      "dependencies": [
+        "M3_HAIKU_CLASSIFIER",
+        "M5_BUDGET_CAP"
+      ],
+      "acceptance_criteria": [
+        "Gate disabled by default; existing coordinator tests unchanged and green",
+        "Unit test: dispatch->CreateTask called; file/reject->CreateTask NOT called + audit emitted",
+        "Gate error -> fail closed (no CreateTask), audit emitted",
+        "make lint && go test ./internal/coordinator/... ./internal/feedbackgate/... green, no credentials"
+      ],
+      "passes": true,
+      "started": "2026-07-10T12:30:00Z",
+      "completed": "2026-07-10T13:00:00Z",
+      "notes": "Commit 66cd5de87. Wired gate into pollAndProcessTasksCloud via gateFeedbackMessage + feedbackGateDecider interface (import-cycle-free). coordinator.feedback_gate config block distinct from coordinator.triage. Opt-in/nil-safe/Mode=off passthrough; env MODE+DRY_RUN override; fail-closed on gate error; audit to feedback-gate-audit for every non-dispatch; reject non-destructive. DEVIATION: no store set-status=rejected mutator -> reject acks via MarkInboxMessageRead, rejected status lives in audit payload. Fake decider+fake messaging.MessageStore tests all green; existing coordinator suite (12s) untouched+green; lint clean."
+    },
+    {
+      "id": "M5_BUDGET_CAP",
+      "description": "Daily classifier budget cap (default $5/day, coordinator.feedback_gate.daily_budget_usd). On exceed, classifier short-circuits to file (never dispatch). Daily counter via the CooldownStore-style interface, faked in tests. Terraform 80% alert (sibling repo) is OUT OF SCOPE \u2014 follow-up handoff.",
+      "estimated_loc": 60,
+      "dependencies": [
+        "M3_HAIKU_CLASSIFIER"
+      ],
+      "acceptance_criteria": [
+        "Budget check tested against fake store: under budget classifier runs; at/over forces file",
+        "Default $5/day; overridable via coordinator.feedback_gate.daily_budget_usd",
+        "No sibling-repo (ailang-multivac) files touched"
+      ],
+      "passes": true,
+      "started": "2026-07-10T12:30:00Z",
+      "completed": "2026-07-10T13:00:00Z",
+      "notes": "Commit 41140fba7. budget_test.go: Budget translates daily_budget_usd->allowed call count (~$0.0002/call) via faked BudgetStore; under/at/over boundary (seeded near cap), nil-Budget/nil-store permissive, over-budget forces file (classifier_budget_exceeded) AND skips provider, default $5 overridable. Green. No sibling-repo files touched (terraform 80% alert = out-of-scope handoff)."
+    },
+    {
+      "id": "M6_TESTS_AND_FLOOD_SIM",
+      "description": "In-repo integration test: 100 synthetic Inputs through the assembled gate (in-memory cooldown + fake classifier) asserting <=3/contact dispatch, 100% audited, no silent drops. Offline scripts/security/feedback_flood_drill.sh (no cloud creds, no live Anthropic/Sonnet, no Ollama) printing a verdict histogram + simulated spend line. CHANGELOG + design doc checkboxes + naming-collision note.",
+      "estimated_loc": 120,
+      "dependencies": [
+        "M4_COORDINATOR_WIRING"
+      ],
+      "acceptance_criteria": [
+        "go test ./internal/feedbackgate/... passes with no credentials",
+        "Flood-sim script runs offline and prints a verdict histogram + spend line",
+        "CHANGELOG updated; design doc M-checkboxes flipped; naming-disambiguation note recorded"
+      ],
+      "passes": true,
+      "started": "2026-07-10T13:00:00Z",
+      "completed": "2026-07-10T13:20:00Z",
+      "notes": "Commit def5b9042. integration_test.go: 100 synthetic Inputs through assembled gate (rules+in-mem cooldown+fake classifier) -> exactly 3/contact dispatch, 85 filed(cooldown), 100% reasoned, no silent drops; spam(rules)+injection(classifier) both reject. flood_drill.go/_test.go + scripts/security/feedback_flood_drill.sh: OFFLINE sim (no cloud/API/Ollama), 200 msgs/5 contacts -> 15 dispatched $0.45 vs $6.00 baseline. CHANGELOG Unreleased updated WITH naming-disambiguation note. Design doc -> Implemented. go test green, lint clean."
+    }
+  ],
+  "out_of_scope_followups": [
+    "Terraform 80%-budget alert in ailang-multivac/terraform/security.tf (sibling repo)",
+    "Dashboard feedback-gate panel + ailang messages list --show-triage flag (UI)",
+    "Real cloud flood drill (1,000 msgs, live spend) \u2014 ops task; M6 ships offline sim only",
+    "Auth for submit_feedback, Sonnet prompt-injection hardening, ML abuse detection (per design doc)"
+  ],
+  "completed": "2026-07-10T13:20:00Z"
+}

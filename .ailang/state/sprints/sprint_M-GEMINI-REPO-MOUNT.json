@@ -1,0 +1,113 @@
+{
+  "sprint_id": "M-GEMINI-REPO-MOUNT",
+  "status": "planned",
+  "design_doc": "design_docs/planned/v0_30_0/m-gemini-repo-mount.md",
+  "design_doc_scope": "Phase 2 — Clone-over-egress capability ONLY (lines 269-556). SUPERSEDED mount design and Phase-1/1b spike records are historical and NOT in scope.",
+  "sprint_plan": "design_docs/planned/v0_30_0/m-gemini-repo-mount-sprint-plan.md",
+  "created": "2026-07-18T00:00:00Z",
+  "planner_model": "claude-opus-4-8",
+  "target_version": "v0.30.0",
+  "lane": "extension (executor-contract widening + executor/eval-harness plumbing); NO AILANG language surface, NO parser/lexer/type-system/motoko-core change; frozen-core boundary holds",
+  "execution_environment": "isolated git worktree branched from origin/dev (NEVER the shared main working tree); opus sprint-executor; each milestone is one commit; PR into dev; CI + docs build must be green",
+  "github_issues": [
+    399
+  ],
+  "risk_level": "low-medium",
+  "velocity": {
+    "target_loc_per_day": 150,
+    "estimated_total_loc": 145,
+    "estimated_days": 1.5
+  },
+  "invariants": [
+    "RequiresEgress==false default request stays byte-identical to today ({\"type\":\"remote\"})",
+    "Typed gate: RequiresEgress on a non-CapNetworkEgress executor => loud shared pre-dispatch error before any network I/O (programmatic AND CLI callers)",
+    "Clone flags on non-managed_agents or with --api-only => loud CLI error, never ignored",
+    "Clone-review with no valid clone evidence => VerificationDegraded with reason; never silently downgraded to prompt-packed, never a clean pass on absent evidence",
+    "Deadline expiry => VerificationDegraded with reason; never a silent retry, never a clean pass",
+    "All line:number references in the design doc are advisory; locate symbols by name, not line number",
+    "Keep the clone preamble in ONE shared builder so M2 (CLI) and M3 (bridge) do not drift"
+  ],
+  "features": [
+    {
+      "id": "M1_TYPED_EGRESS_CAPABILITY_GATE",
+      "description": "Task.RequiresEgress bool field + CapNetworkEgress capability constant + shared ValidateTaskCapabilities helper in internal/executor/executor.go; buildEnvironment(task) replaces the envRaw hardcode in internal/executor/managed_agents/managed_agents.go and managed_agents advertises CapNetworkEgress; golden tests assert BOTH JSON shapes and loud non-capability rejection. No live call.",
+      "estimated_loc": 45,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "RequiresEgress==false => environment payload byte-identical {\"type\":\"remote\"} (golden test, no live call)",
+        "RequiresEgress==true => exactly {\"type\":\"remote\",\"network\":{\"allowlist\":[{\"domain\":\"*\"}]}} (golden test, no live call)",
+        "RequiresEgress set on an executor that does NOT advertise CapNetworkEgress => loud shared pre-dispatch error before any network I/O (unit test with a fake non-capability executor; no Execute/ExecuteStreaming call is made)",
+        "ValidateTaskCapabilities with RequiresEgress==false is a no-op (nil error) on any executor",
+        "managed_agents Capabilities() includes CapNetworkEgress; package still reads NO Metadata keys"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_CLI_FLAGS",
+      "description": "Register --clone-repo <url> and --clone-sha <sha> in cmd/ailang/exec.go runExec flag block; on success set task.RequiresEgress=true in executeCLI, call ValidateTaskCapabilities before dispatch, and prepend the canonical clone preamble to the directive; loud non-zero exit for non-managed_agents resolution or --api-only, and for --clone-sha without --clone-repo; help text; parsing tests.",
+      "estimated_loc": 40,
+      "dependencies": [
+        "M1_TYPED_EGRESS_CAPABILITY_GATE"
+      ],
+      "acceptance_criteria": [
+        "ailang exec claude --clone-repo ... (any non-managed_agents resolution) => non-zero exit with a clear error (unit test)",
+        "ailang exec gemini --api-only --clone-repo ... => non-zero exit with a clear error (unit test)",
+        "--clone-sha without --clone-repo => error",
+        "ailang exec gemini --clone-repo ... --clone-sha ... => parses, sets RequiresEgress=true, builds the preamble",
+        "ailang exec help updated for the two new flags"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_EVAL_HARNESS_CLONE_REVIEW",
+      "description": "Extend EvalOptions with optional CloneRepoURL + CloneSHA in internal/eval_harness/gemini_evaluator_bridge.go; when set, RunGeminiEvaluator builds the clone-review directive (HEAD: git clone --depth 1; arbitrary SHA: shallow fetch-by-SHA git fetch --depth 1 origin <sha>) instead of packing the full diff; conditional echo-of-rev-parse-HEAD evidence check (pinned => must equal CloneSHA; HEAD => valid non-empty 40-hex, recorded as reviewed revision); deadline-exceeded => VerificationDegraded; unchanged BuildDiffBundle fallback when unset. Verdict return reuses existing text-output parsing (managed_agents_bridge.go unchanged); caller ctx threading unchanged.",
+      "estimated_loc": 55,
+      "dependencies": [
+        "M1_TYPED_EGRESS_CAPABILITY_GATE"
+      ],
+      "acceptance_criteria": [
+        "Clone options unset => BuildDiffBundle fallback path unchanged (regression test)",
+        "CloneSHA set and mismatched rev-parse HEAD echo => VerificationDegraded==true with non-empty DegradedReason (fake runner)",
+        "HEAD review (CloneSHA empty) with a valid non-empty 40-hex rev-parse HEAD echo => VerificationDegraded==false, echoed SHA recorded as the reviewed revision (positive test — HEAD reviews must pass cleanly)",
+        "Either mode with missing/empty/invalid rev-parse HEAD echo => VerificationDegraded==true with non-empty DegradedReason (fake runner)",
+        "Fake runner returning a context.DeadlineExceeded-class error => VerificationDegraded==true with non-empty DegradedReason (never a retry, never a clean pass)",
+        "Caller ctx honored: the env-builder + clone-review path creates no fresh background context; caller ctx reaches sendInteraction via existing WithTimeout propagation and eval-bridge threading (assertion/unit test)"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_LIVE_E2E_AND_DOCS",
+      "description": "Extend the existing managed_agents_live_test.go probe harness (A-R) with an AILANG_LIVE_MANAGED_AGENTS_MOUNT=1-gated (CI-skipped) end-to-end clone->check->verdict run exercising the fetch-by-SHA path to confirm provider support for git fetch --depth 1 <sha>; missing ADC is a SKIP (never a pass). Update ailang exec help + docs guide for --clone-repo/--clone-sha; record the E2E evidence in the design doc.",
+      "estimated_loc": 5,
+      "dependencies": [
+        "M1_TYPED_EGRESS_CAPABILITY_GATE",
+        "M2_CLI_FLAGS",
+        "M3_EVAL_HARNESS_CLONE_REVIEW"
+      ],
+      "acceptance_criteria": [
+        "Live-gated E2E (AILANG_LIVE_MANAGED_AGENTS_MOUNT=1, skipped in default CI; missing ADC is a SKIP, never a pass): sandbox clones the public repo, runs the directive, returns a parsed verdict",
+        "fetch-by-SHA provider support confirmed live (or surfaced loudly as a design-doc follow-up if the provider rejects git fetch --depth 1 <sha>; NO silent fallback to full clone)",
+        "All tests passing; ailang exec help + docs updated",
+        "E2E evidence recorded in design_docs/planned/v0_30_0/m-gemini-repo-mount.md; M4 reported as code+docs done with live run SKIPPED-no-ADC or CONFIRMED-evidence-recorded (never 'passing' on a SKIP alone)"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "blocks_surfaced": [
+    "M4 live E2E needs ADC + Vertex spend; if ADC absent in the executor worktree, M4 E2E SKIPs and live confirmation is a hand-off to Mark (do NOT mark M4 passing on a SKIP alone).",
+    "fetch-by-SHA (arbitrary-SHA path) is INCORPORATED from the iteration-52 re-quorum, not VERIFIED-LIVE; only --depth 1 HEAD clone was probe-proven (Probe R). M4 E2E is where this single unverified premise gets live confirmation. Low risk (shallow-by-construction).",
+    "Preamble single-source: M2 (CLI) and M3 (bridge) both build the clone preamble — keep it in one helper so they cannot drift (planner note, not a doc requirement)."
+  ]
+}

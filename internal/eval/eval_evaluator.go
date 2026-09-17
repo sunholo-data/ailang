@@ -112,6 +112,10 @@ type TraceRecorder interface {
 	// active tracing tier. Callers must consult it before rendering arguments;
 	// the rendering, not the recording, is the expensive part.
 	RecordsFunctionCalls() bool
+	// RenderTraceValue renders a value under the collector's value policy
+	// (bounded, or a byte-count descriptor when redacted) without ever
+	// materialising the whole value. Sites use it in place of v.String().
+	RenderTraceValue(v Value) string
 	RecordFunctionEnter(name string, args []string)
 	RecordFunctionExit(name string, result string)
 }

@@ -32,7 +32,7 @@ git pull                    # in the ailang repo — that's the whole install
 
 First session per machine prompts once to trust the project; after that every
 session arms the gate and gets the tools (`ailang_check`, `builtins_search`,
-`freshness_report`, `quota_report`). Verify with `pi -p --no-session "call quota_report"`.
+`examples_search`, `freshness_report`, `quota_report`). Verify with `pi -p --no-session "call quota_report"`.
 
 **⚠ Headless sessions never see that prompt and are silently project-resource-less
 until trust is saved** (measured 2026-08-31 on pi 0.84.4; pi ≤0.73 had no gate at all).
@@ -88,7 +88,9 @@ human-owned release operations.
 | `unowned-dirty.ts` | Warns (never blocks) when a git add/stash/checkout may sweep dirty files this session didn't write — authority is `git status --porcelain` itself |
 | `builtin-sprint.ts` | `/builtin-finish`: golden refresh + **stdlib freeze** + verify + doctor + inventory count |
 | `provider-quota.ts` | `quota_report` tool + `/quota`: OpenRouter budget (CRITICAL ≥95%, WARN ≥80%), ollama status, current session lane — key never exposed |
+| `ailang-exec.ts` | `ailang_run({path, args_json?})` — the ONE execution route for an `ailang_only` agent: `ailang run --policy $AILANG_AGENT_POLICY <path>`; returns `{admitted, exit_code, decision, policy_digest, stdout, stderr}`. Default-deny: with `AILANG_AGENT_POLICY` unset (or the policy inside its own `fs_sandbox`, D4) the tool registers but REFUSES with a named reason. Pair with `ailang pi tool-profile ailang_only` (`--no-builtin-tools --tools read,edit,write,ailang_check,ailang_run,builtins_search,examples_search`) so there is no `bash` to go around it (M-AGENT-AILANG-ONLY-EXECUTION) |
 | `ailang-lsp-lite.ts` | `ailang_check(path)` → structured {code,message,file,line,col,hint}; `builtins_search({query,module})` → filtered real inventory |
+| `examples-search.ts` | `examples_search({query, limit?})` → `{count, matches:[{path, first_match_line, snippet, effects}]}` over `examples/**/*.ail` (case-insensitive substring; `runnable/` first; `archive/`, `bugs/`, `expected_fail/` excluded; absolute paths so `read` works from any cwd). Resolves `examples/` by walking up from cwd to a dir holding both `examples/` and `std/`; outside a checkout returns `{count:0, error}` — never throws. The `ailang_only` lane's example discovery: without it the model can only `read` an example whose path it already knows |
 | `prepush-gate.ts` | Blocks `git push` when gofmt, lint, or the repository file-size gate fails |
 | `ail-fmt-autolint.ts` | After a successful write/edit of a `.ail` file, runs `ailang fmt --write` so saved AILANG is canonically formatted (motoko-measured fmt arm) |
 | `quality-monitor.ts` | Bounded-excerpt rewrite of >16KB tool results (head+tail + narrowing directive); blocks the 3rd identical consecutive tool call with a directive; detects empty/zero-content turns and steers once (capped); opt-in thinking-budget fallback (`PI_QUALITY_THINKING_FALLBACK=1`). Kill switch `PI_QUALITY_MONITOR=0` (M-DX-QUALITY-MONITOR) |

@@ -1,0 +1,81 @@
+{
+  "sprint_id": "M-XMOD-ALIAS-POLY",
+  "title": "Parameterized type-alias substitution",
+  "design_doc": "design_docs/implemented/v0_30_0/m-xmod-alias-poly.md",
+  "sprint_plan": "design_docs/implemented/v0_30_0/m-xmod-alias-poly-sprint-plan.md",
+  "target_version": "v0.30.0",
+  "status": "completed",
+  "risk_level": "medium",
+  "github_issues": [],
+  "created": "2026-07-14",
+  "velocity": {
+    "target_loc_per_day": 235,
+    "estimated_total_loc": 470,
+    "estimated_days": 2
+  },
+  "features": [
+    {
+      "id": "M1_CARRY_PARAMS",
+      "description": "Carry (params, body) through elaborate + iface + type-checker alias env. Add aliasParams map[string][]string alongside the existing TypeAliases map[string]types.Type in the elaborator, iface.Iface, CoreTypeChecker, and Unifier. Populate params from decl.TypeParams at the three RegisterTypeAlias call sites (file_funcs.go:201,216,225) and the three iface AddTypeAlias sites (builder.go:386,400,443). Thread into NewUnifierWithAliases at typechecker_core.go:418.",
+      "estimated_loc": 160,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Elaborator stores [\"a\"] for type Box[a] = {items:[a]} and empty/absent for nullary alias type Row = Json",
+        "iface round-trips AliasParams: an imported parameterized alias arrives with its param list intact",
+        "Params threaded into CoreTypeChecker.aliasParams and the Unifier alias env (construction at typechecker_core.go:418)",
+        "make build green; no behavioural change yet (M1 is plumbing, applied aliases still error)"
+      ],
+      "passes": true,
+      "started": "2026-07-14",
+      "completed": "2026-07-14",
+      "notes": "DONE. Sibling map AliasParams map[string][]string added at every layer: elaborator (RegisterTypeAliasParams/GetTypeAliasParams + populate at file_funcs.go RecordType+TypeAlias sites from decl.TypeParams), iface.Iface (AliasParams field, AddTypeAliasParams/GetTypeAliasParams, NewIface init, builder.go RecordType+TypeAlias sites), CoreTypeChecker (aliasParams field + RegisterTypeAliasParams/GetAliasParams), Unifier (aliasParams field + NewUnifierWithAliasesAndParams; NewUnifierWithAliases delegates with nil). Threaded through pipeline_single.go, pipeline_module_compile.go (local+imported), moduleImports.ImportedAliasParams populated at all 3 ImportedTypeAliases sites, cache_store.go JSON round-trips alias_params. Build green (internal/... + cmd/ailang; wasm main-undeclared error is pre-existing/unrelated). No behavior change yet — Box[int] still errors, as expected for M1."
+    },
+    {
+      "id": "M2_EXPAND_APPLIED_ALIAS",
+      "description": "Add *TApp branch to expandAlias (unification_core.go:88-127) that instantiates an applied alias by Body.Substitute(param->arg), keyed STRICTLY on aliasEnv membership, then continues the existing fixpoint loop. Add coded arity diagnostic TC_ALIAS_ARITY_001 styled on TC_ARITY_001 (errors.go:344-375): coded prefix + inline Suggestion, directional.",
+      "estimated_loc": 150,
+      "dependencies": ["M1_CARRY_PARAMS"],
+      "acceptance_criteria": [
+        "Box[int] (record), Ident[int] (bare param), Pair[int,string] (tuple), Fn[int,int] (function body), and nested Box[Box[int]] all type-check single-module",
+        "Box[int,string] (arity 2 on a 1-param alias) fails with TC_ALIAS_ARITY_001 and a directional hint; nullary-applied alias also arity-errors",
+        "Golden test asserts the arity error is coded and directional, mirroring arity_diagnostic_test.go",
+        "Substitution uses the Type.Substitute(map[string]Type) method (TVar2.Substitute keys by name), NOT ApplySubstitution"
+      ],
+      "passes": true,
+      "started": "2026-07-14",
+      "completed": "2026-07-14",
+      "notes": "DONE. expandAlias gained a *TApp branch at the TOP of the fixpoint loop: decomposeApp -> require head is *TCon in aliasEnv (strict membership keeps ADTs nominal) -> arity-check len(args) vs aliasParams -> subs{param:arg} -> body.Substitute(subs) -> continue loop. seen guard extended to key on the TApp head name (type A[x]=A[x] terminates). Arity error latched on new u.aliasArityErr field and surfaced in Unify right after the two expandAlias calls (expandAlias returns Type at 4 call sites, so can't return err directly); field cleared after read so a later good unify isn't poisoned. Added aliasArityMismatchMsg + TC_ALIAS_ARITY_001 in errors.go, styled on TC_ARITY_001 (coded prefix + inline Suggestion, directional: too-many/too-few/nullary-applied). Probes: Box[int], Ident[int], Pair[int,string], Fn[int,int], Box[Box[int]] ALL type-check; Box[int,string] -> TC_ALIAS_ARITY_001; Option/Result/Tree stay nominal. Tests: internal/types/alias_poly_test.go (13 unit tests incl ADT-nominality + arity) + internal/pipeline/alias_poly_test.go (12 E2E incl cross-module M4 + PR#380 open-record lock). All green."
+    },
+    {
+      "id": "M3_NONREGRESSION_CACHEKEY_EXAMPLES",
+      "description": "Lock non-regressions (Option/Result/user Tree[a] stay nominal, open-record-over-alias still unifies per PR #380), extend digest test to a parameterized alias (must stay digest-neutral), bump cacheKeyVersion v2->v3 (on-disk Iface gained AliasParams), add examples/type_alias_poly.ail, CHANGELOG, move design doc to implemented/v0_30_0.",
+      "estimated_loc": 120,
+      "dependencies": ["M2_EXPAND_APPLIED_ALIAS"],
+      "acceptance_criteria": [
+        "Non-regression tests green: Option[int], Result[int,string], user type Tree[a] + match stay nominal (expansion does NOT fire)",
+        "Open-record / field-access over a parameterized-alias record body still unifies (PR #380 ordering lock)",
+        "xmod_alias_digest_test extended to prove a parameterized alias is digest-neutral (no dependent cascade)",
+        "cacheKeyVersion bumped to v3 with a comment citing this milestone",
+        "examples/type_alias_poly.ail runs and make verify-examples green; make test green"
+      ],
+      "passes": true,
+      "started": "2026-07-14",
+      "completed": "2026-07-14",
+      "notes": "DONE. cacheKeyVersion bumped v2->v3 (cache_key.go, with comment citing this milestone). xmod_alias_digest_test.go extended with TestXModAliasPoly_DigestIgnoresParameterizedAlias (Box[a] body + AliasParams -> digest unchanged = no cascade). cache_store_test.go round-trip extended: Box alias + AliasParams{Box:[a]} survive JSON marshal/unmarshal. Non-regression locked in alias_poly_test.go (unit: Option/Result/Tree stay nominal, int !unify Tree[int]) + pipeline alias_poly_test.go (E2E: Option[int] imported works, user Tree[a]+match works, int !unify Tree[int], open-record-over-alias per PR#380). examples/type_alias_poly.ail added (record+bare-param+tuple aliases at concrete instantiation, runnable main w/ field access + match): type-checks + runs (prints 10 / 42 / 7 = seven). make verify-examples (runnable gate) green except 5 PRE-EXISTING failures (effectful_list, effectful_list_t7_chain_combinators, mcp_tools, stream_multi_source, stream_process_source) — confirmed identical on base commit 3a5201f82, unrelated effect-row/Option bugs. Top-level example gate (tools/verify_examples.sh, where type_alias_poly.ail lives) PASSED. CHANGELOG entry added to changelogs/v0.18-current.md. Design doc + sprint plan moved to design_docs/implemented/v0_30_0/ with IMPLEMENTED status + Implementation notes section."
+    },
+    {
+      "id": "M4_CROSS_MODULE_E2E",
+      "description": "Optional (fold into M3 if time). Two-module fixture: module shapes exports type Box[a] = {items:[a]}; module main imports and uses Box[int]. Proves M1 iface AliasParams threading composes with M-XMOD-ALIAS cross-module path.",
+      "estimated_loc": 40,
+      "dependencies": ["M1_CARRY_PARAMS", "M2_EXPAND_APPLIED_ALIAS"],
+      "acceptance_criteria": [
+        "Cross-module Box[int] type-checks (imported parameterized alias substitutes correctly)",
+        "Cross-module arity mismatch still emits TC_ALIAS_ARITY_001"
+      ],
+      "passes": true,
+      "started": "2026-07-14",
+      "completed": "2026-07-14",
+      "notes": "DONE (folded into M3 as the plan allowed). Cross-module tests in internal/pipeline/alias_poly_test.go: TestAliasPolyE2E_CrossModuleRecord (module shapes/box exports type Box[a]={items:[a]}; main imports Box and uses Box[int] -> type-checks) and TestAliasPolyE2E_CrossModuleArityMismatch (imported Box[int,string] -> TC_ALIAS_ARITY_001). Proves iface.AliasParams threading + ImportedAliasParams compose with the M-XMOD-ALIAS cross-module path. Both green."
+    }
+  ]
+}

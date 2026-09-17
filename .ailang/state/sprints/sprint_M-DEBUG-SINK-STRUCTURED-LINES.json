@@ -1,0 +1,71 @@
+{
+  "sprint_id": "M-DEBUG-SINK-STRUCTURED-LINES",
+  "status": "completed",
+  "created": "2026-09-11T14:52:52Z",
+  "design_doc": "design_docs/implemented/v0_37_3/m-debug-sink-structured-lines.md",
+  "sprint_plan": "design_docs/implemented/v0_37_3/m-debug-sink-structured-lines-sprint-plan.md",
+  "github_issues": [],
+  "velocity": {
+    "target_loc_per_day": 400,
+    "estimated_total_loc": 410,
+    "estimated_days": 1,
+    "actual_total_loc": 420
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Shared effects.DebugSink (IsStructuredLine, Severity, SeverityLevel, Flush) with exact-bytes table tests",
+      "estimated_loc": 270,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Structured line written verbatim to W, no label, no timestamp",
+        "Unstructured line decorated via Logf with label prefix, byte-identical to today",
+        "{-prefixed invalid JSON is decorated, never dropped",
+        "MinLevel filter applies to structured lines; Structured:true assertion failure is one json.Valid ERROR line",
+        "go test ./internal/effects/ green, lint clean"
+      ],
+      "passes": true,
+      "started": "2026-09-11T15:05:02Z",
+      "completed": "2026-09-11T15:05:02Z",
+      "notes": "internal/effects/debug_sink.go (+debug_sink_test.go): DebugSink{W,Logf,MinLevel,Label,Structured}, IsStructuredLine, Severity, SeverityLevel, Flush. Exact-bytes table incl. no-severity passthrough (preserves old filter semantics). Commit eb8674487."
+    },
+    {
+      "id": "M2",
+      "description": "Rewire run_helpers.go, server.go, serve_api.go onto the sink; delete duplicate severity helpers; serve-api always constructs effCtx (D5)",
+      "estimated_loc": 20,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "grep for extractServerSeverity/serverSeverityLevel/extractSeverity/severityLevel is empty",
+        "Fixture via serve-api --caps FS,Env: two json.Valid ERROR lines, no timestamp prefix",
+        "Fixture via serve-api with no --caps: same two lines emitted",
+        "Fixture via run --batch: JSON verbatim without [label]; unstructured ASSERT line still labelled",
+        "go build ./... && go vet ./... clean"
+      ],
+      "passes": true,
+      "started": "2026-09-11T15:05:02Z",
+      "completed": "2026-09-11T15:05:02Z",
+      "notes": "run_helpers.go / server.go / serve_api.go on the sink; duplicate parsers deleted (grep empty); serve-api always builds effCtx (D5). Fixture verified on real binary: serve-api --caps, serve-api no-caps, run --batch, run. CLI log-level block extracted to run_debug_output.go for the 800-line gate. Commit ec4497df7."
+    },
+    {
+      "id": "M3",
+      "description": "Retarget batch test, add apiserver + no-caps regression tests, mutation check, serve-api guide section, CHANGELOG, move design doc to implemented",
+      "estimated_loc": 120,
+      "dependencies": [
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "Both mutation checks (revert server.go only; revert D5 only) fail as predicted then pass restored",
+        "make test, make verify-examples, make lint green",
+        "docs/docs/guides/serve-api.md structured-logging section + CHANGELOG Fixed entry",
+        "Design doc moved to implemented/v0_37_3 with implementation report"
+      ],
+      "passes": true,
+      "started": "2026-09-11T15:05:02Z",
+      "completed": "2026-09-11T15:05:02Z",
+      "notes": "Batch test retargeted (whole-line JSON assert); internal/apiserver/debug_sink_test.go (captured stderr, 2 bare ERROR JSON lines + [Debug] plain, log-level none); cmd/ailang/serve_api_debug_sink_test.go (spawned no-caps serve-api). Both mutation checks failed as predicted. Guide section + changelog. Pre-existing unrelated red: internal/cihygiene TestWiredGatesAreCanonical from 868b55898. Commit ec4497df7."
+    }
+  ],
+  "completed": "2026-09-11T15:05:02Z"
+}

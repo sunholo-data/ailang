@@ -111,14 +111,17 @@ func Call(ctx *EffContext, effectName, opName string, args []eval.Value) (eval.V
 
 	// Step 5: Record trace event (M-TRACE-EXPORT)
 	if err == nil && ctx.Trace != nil && ctx.Trace.Enabled() {
+		// Rendered through the collector's value policy, never a.String():
+		// an effect carrying a 45 MB sheet string or a block tree used to be
+		// materialised in full here, at EVERY tier, and then cut to 1 KB
+		// (M-V1-MEMORY-FOOTPRINT F2). The function-call site in
+		// eval_operations.go had this fix since M-TRACE-TIER-NOT-ENFORCED; the
+		// effect site did not.
 		argStrs := make([]string, len(args))
 		for i, a := range args {
-			argStrs[i] = a.String()
+			argStrs[i] = ctx.RenderTraceValue(a)
 		}
-		resultStr := ""
-		if result != nil {
-			resultStr = result.String()
-		}
+		resultStr := ctx.RenderTraceValue(result)
 		// M-SECRET-EFFECT: a resolved secret value must never enter the trace.
 		// The arguments (the op:// reference) are safe; the result is the value.
 		if effectName == "Secret" {
