@@ -54,7 +54,7 @@ func TestMaterializePackageAgents_DerivesFromIndex(t *testing.T) {
 	}
 
 	added := reg.MaterializePackageAgents(sampleIndex())
-	if len(added) != 3 || added[0] != "pkg-sunholo-daneel-ext-help" || added[1] != "pkg-sunholo-gcp-auth" || added[2] != "pkg-sunholo-logging" {
+	if len(added) != 2 || added[0] != "pkg-sunholo-daneel-ext-help" || added[1] != "pkg-sunholo-gcp-auth" {
 		t.Fatalf("added = %v", added)
 	}
 
@@ -72,10 +72,14 @@ func TestMaterializePackageAgents_DerivesFromIndex(t *testing.T) {
 	if got := reg.GetAgentForInbox("pkg:sunholo/email"); got == nil || got.Label != "hand" {
 		t.Errorf("hand-written agent must win: %+v", got)
 	}
-	// No repository: the package EXISTS, so it gets its own agent on the
-	// template's workspace (and PUB021 on publish) — never left unserved.
-	if got := reg.GetAgentForInbox("pkg:sunholo/logging"); got == nil || got.ID != "pkg-sunholo-logging" || got.Workspace != "sunholo-data/ailang-packages" || got.Subdirectory != "" {
-		t.Errorf("repository-less package should get a derived agent on the template workspace: %+v", got)
+	// No repository: the repo cannot be guessed from the name, so the inbox
+	// stays visibly unserved (PUB021 on publish) rather than dispatching to
+	// a clone that finds nothing.
+	if got := reg.GetAgentForInbox("pkg:sunholo/logging"); got != nil {
+		t.Errorf("repository-less package must not get a guessed agent: %+v", got)
+	}
+	if !strings.Contains(PackageInboxStatus(pkg.IndexEntry{Name: "sunholo/logging"}), "no [metadata] repository") {
+		t.Error("inbox status must say why no agent was derived")
 	}
 	// A package that is NOT in the registry is a sender typo: the template
 	// must not swallow it into a task on the wrong repo (the config's
@@ -130,10 +134,9 @@ func TestBuildRegistryFromConfig_TemplateIsNotAnAgent(t *testing.T) {
 	}
 }
 
-func TestDerivePackageAgent_NonGitHubKeepsTemplateWorkspace(t *testing.T) {
-	a, ok := DerivePackageAgent(pkgTemplate(), pkg.IndexEntry{Name: "v/n", Repository: "https://gitlab.com/v/n"})
-	if !ok || a.Workspace != "sunholo-data/ailang-packages" || a.Inbox != "pkg:v/n" || !strings.Contains(a.Label, "repository unknown") {
-		t.Errorf("non-GitHub repository must derive on the template workspace and say so: %+v", a)
+func TestDerivePackageAgent_RefusesUnparseableRepository(t *testing.T) {
+	if _, ok := DerivePackageAgent(pkgTemplate(), pkg.IndexEntry{Name: "v/n", Repository: "https://gitlab.com/v/n"}); ok {
+		t.Error("non-GitHub repository must not derive a guessed agent")
 	}
 	if _, ok := DerivePackageAgent(nil, pkg.IndexEntry{Name: "v/n", Repository: "https://github.com/v/n"}); ok {
 		t.Error("nil template must not derive")

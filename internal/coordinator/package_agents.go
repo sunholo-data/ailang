@@ -47,25 +47,26 @@ func (r *AgentRegistry) PackageAgentTemplate() *AgentConfig {
 }
 
 // DerivePackageAgent builds the per-package agent from the template and the
-// package's index entry. A package whose metadata.repository is not a GitHub
-// tree URL still gets an agent — on the template's own workspace, the same
-// guess a hand-written entry would have made — because the package EXISTS
-// and its inbox must dispatch; `pkg quality` flags it (PUB021). ok=false only
-// without a template or a name.
+// package's index entry. ok=false when metadata.repository is not a GitHub
+// tree URL: the repo is NOT a function of the package name (sunholo/email
+// lives in email-parse, sunholo/ailang_parse is a repo root, sunholo/duckdb is
+// packages/duckdb in the monorepo), so a guessed workspace clones the right
+// repo and finds nothing — the failure that sent every pkg-sunholo-ailang-parse
+// dispatch nowhere. Such a package stays visibly unserved in `messages
+// inboxes` (with the reason) and its publisher sees PUB021 until
+// [metadata] repository is set.
 func DerivePackageAgent(template *AgentConfig, entry pkg.IndexEntry) (*AgentConfig, bool) {
 	if template == nil || entry.Name == "" {
+		return nil, false
+	}
+	ref, ok := pkg.ParseRepositoryURL(entry.Repository)
+	if !ok {
 		return nil, false
 	}
 	derived := *template // shallow copy; slices below are re-allocated
 	derived.ID = pkg.PackageAgentID(entry.Name)
 	derived.Inbox = messaging.FormatPackageInbox(entry.Name) // registry spelling: underscores, never the repo dir's hyphens
 	derived.Capabilities = append([]string(nil), template.Capabilities...)
-	derived.ArtifactPatterns = append([]string(nil), template.ArtifactPatterns...)
-	ref, ok := pkg.ParseRepositoryURL(entry.Repository)
-	if !ok {
-		derived.Label = "Package: " + entry.Name + " (derived from registry; repository unknown — template workspace)"
-		return &derived, true
-	}
 	derived.Label = "Package: " + entry.Name + " (derived from registry)"
 	derived.Workspace = ref.Workspace
 	if ref.Branch != "" {
@@ -94,9 +95,6 @@ func templateUsable(t *AgentConfig) error {
 	probe.Inbox = messaging.FormatPackageInbox("probe/probe")
 	if lane := probe.GetEffectiveToolPolicy(); lane != executor.ToolProfileFull && strings.TrimSpace(t.PolicyPath) == "" {
 		return fmt.Errorf("package_agent_template runs the %s lane but declares no policy_path — derived agents could execute nothing; add policy_path (e.g. /etc/ailang-config/policies/pkg-ailang-only.toml)", lane)
-	}
-	if strings.TrimSpace(t.Workspace) == "" {
-		return fmt.Errorf("package_agent_template declares no workspace — a package without a parseable repository would have nowhere to run")
 	}
 	return nil
 }
@@ -189,7 +187,7 @@ func PackageInboxStatus(entry pkg.IndexEntry) string {
 		return fmt.Sprintf("derived from registry (%s)", entry.Repository)
 	}
 	if entry.Repository == "" {
-		return "no metadata.repository — derived on the package_agent_template's default workspace"
+		return "no [metadata] repository in ailang.toml — no agent can be derived (the repo is not a function of the name); republish with a GitHub tree URL"
 	}
-	return fmt.Sprintf("metadata.repository %q is not a GitHub tree URL — derived on the package_agent_template's default workspace", entry.Repository)
+	return fmt.Sprintf("[metadata] repository %q is not a GitHub tree URL — no agent can be derived; republish with https://github.com/<owner>/<repo>/tree/<branch>[/<subdir>]", entry.Repository)
 }

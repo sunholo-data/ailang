@@ -111,9 +111,10 @@ How the four look-ups are answered: **not from the name — from `metadata.repos
 GitHub tree URL every publish banks (`sunholo/email` → `sunholo-data/email-parse` +
 `packages/email`; `sunholo/ailang_parse` → repo root, `**/*`; `sunholo/duckdb` → the monorepo +
 `packages/duckdb`). `merge_branch` follows the URL's `/tree/<branch>`. A package without a
-parseable URL still gets an agent (on the template workspace) and `ailang pkg quality` flags it
-(`PUB021`); a `pkg:` inbox for a package **not in the registry** is served by nothing, so the
-deliberate typo list keeps bouncing. Inbox spelling is `FormatPackageInbox(registry name)` —
+parseable URL gets **no** agent — the repo is not guessable from the name, and a guessed clone
+finds nothing — so its inbox stays visibly unserved with the reason, and `ailang pkg quality`
+flags it (`PUB021`) until `[metadata] repository` is set; a `pkg:` inbox for a package **not in
+the registry** is served by nothing either, so the deliberate typo list keeps bouncing. Inbox spelling is `FormatPackageInbox(registry name)` —
 underscores.
 
 The `policy_path` trap is refused structurally: a template on a non-`full` lane with no
