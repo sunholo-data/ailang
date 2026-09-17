@@ -96,6 +96,8 @@ func messagesCommand() {
 		runMessagesSend(args)
 	case "read":
 		runMessagesRead(args)
+	case "renotify":
+		runMessagesRenotify(args)
 	case "forward", "fwd":
 		runMessagesForward(args)
 	case "watch":
