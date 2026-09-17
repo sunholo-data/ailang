@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -14,8 +15,13 @@ import (
 )
 
 func workspacesCommand(args []string) error {
+	// No subcommand is a usage error, not a success — see modelsCommand for
+	// why the three ops groups that returned 0 here now exit 1.
 	if len(args) == 0 {
-		return workspacesHelp()
+		if err := workspacesHelp(); err != nil {
+			return err
+		}
+		os.Exit(1)
 	}
 
 	switch args[0] {

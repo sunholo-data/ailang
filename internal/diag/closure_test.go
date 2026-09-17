@@ -17,7 +17,9 @@ import (
 // LEAF of the platform. Today it is not: `effects` reaches `ai`, `secrets`,
 // sqlite and websocket; `pipeline` and `repl` reach `telemetry` and through it
 // otel + grpc; `prompt` reaches `mcp_client`; `builtins` links the ollama SDK.
-// So `ailang fmt` links 112 of 124 internal packages and a 100 MB binary.
+// So `ailang fmt` links 112 of 123 internal packages and a 100 MB binary.
+// (124 until M-V1-SIMPLIFY-S5 M4 deleted internal/storage/migrate; the live
+// numbers are the generated section of ARCHITECTURE.md, not this comment.)
 //
 // ARCHITECTURE.md draws the boundary but scripts/check_boundaries.sh polices
 // it with a grep over direct imports of 13 x 4 packages, so it cannot see any
