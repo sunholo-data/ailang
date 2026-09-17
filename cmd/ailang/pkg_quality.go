@@ -138,8 +138,24 @@ func measurePackageQuality(dir string, opts qualityMeasureOptions) (*pkg.Package
 
 	if opts.RunAttested {
 		in.Attested = runAttestedChecks(absDir, manifest)
+	} else {
+		// --no-run: still DISCOVER tests and the smoke file so the report says
+		// "not run" rather than "none" — a badge that lies is worse than none.
+		in.Attested = discoverAttestedChecks(absDir)
 	}
 	return manifest, in, nil
+}
+
+// discoverAttestedChecks counts test files and the smoke file without
+// executing anything (the --no-run / server-side view).
+func discoverAttestedChecks(absDir string) *pkg.AttestedBlock {
+	testFiles, _ := filepath.Glob(filepath.Join(absDir, "*_test.ail"))
+	tests := &pkg.TestsSection{Files: len(testFiles), Notes: "not run (--no-run)"}
+	smoke := &pkg.SmokeSection{}
+	if st, err := os.Stat(filepath.Join(absDir, pkg.SmokeFile)); err == nil && !st.IsDir() {
+		smoke.Present = true
+	}
+	return &pkg.AttestedBlock{Tests: tests, Smoke: smoke}
 }
 
 // runAttestedChecks executes the package's tests and _smoke.ail on THIS

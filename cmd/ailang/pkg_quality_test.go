@@ -56,8 +56,9 @@ func TestPkgQuality_JSONReportOnFlatFixture(t *testing.T) {
 	if len(r.Gates) != 0 {
 		t.Errorf("unexpected gates: %v", r.Gates)
 	}
-	if r.Tests != nil {
-		t.Errorf("--no-run must not attest tests: %+v", r.Tests)
+	// --no-run discovers but never executes: no pass/fail counts, an explicit note.
+	if r.Tests == nil || r.Tests.Passed+r.Tests.Failed != 0 || !strings.Contains(r.Tests.Notes, "not run") {
+		t.Errorf("--no-run must discover without executing: %+v", r.Tests)
 	}
 }
 

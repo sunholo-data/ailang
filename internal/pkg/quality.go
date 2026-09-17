@@ -249,6 +249,12 @@ func BuildQualityReport(m *PackageManifest, mode QualityMode, in QualityInputs, 
 		if in.Verify.Counterexample > 0 {
 			r.gate("PUB006", fmt.Sprintf("%d contract(s) refuted by Z3", in.Verify.Counterexample))
 		}
+		if in.Verify.Skipped > 0 {
+			// A contract Z3 cannot encode (records, strings, list builtins,
+			// deep recursion) is a runtime assertion, not a proof. Say so —
+			// an author reading "12 contracts" would otherwise count 12 proofs.
+			r.badge("PUB016", "info", fmt.Sprintf("%d contract(s) skipped by Z3 (unencodable types or builtins) — not proved; `ailang verify --package .` lists the reason per function", in.Verify.Skipped))
+		}
 		if in.Verify.Uncontracted > 0 {
 			r.finding("PUB011", hard && m.Stability.Level == "frozen", "warn",
 				fmt.Sprintf("%d exported function(s) carry no contract", in.Verify.Uncontracted))
@@ -319,9 +325,12 @@ func BuildQualityReport(m *PackageManifest, mode QualityMode, in QualityInputs, 
 			}
 		}
 	}
-	if r.Tests == nil || r.Tests.Files+r.Tests.Passed+r.Tests.Failed == 0 {
+	switch {
+	case r.Tests == nil || r.Tests.Files+r.Tests.Passed+r.Tests.Failed == 0:
 		// Publisher-local gate at stable/frozen; always a badge on the server.
 		r.finding("PUB012", hard && mode == ModePublisher, "info", "no tests discovered (*_test.ail or inline test blocks)")
+	case r.Tests.Passed+r.Tests.Failed == 0:
+		r.badge("PUB012", "info", fmt.Sprintf("%d test file(s) present but not run (%s)", r.Tests.Files, orNotRun(r.Tests.Notes)))
 	}
 	if r.Smoke == nil || !r.Smoke.Present {
 		// M-EXT-PORTABILITY-GATE (v0.19.0): extension packages MUST ship a
@@ -388,6 +397,13 @@ func firstLine(s string) string {
 	s = strings.TrimSpace(s)
 	if i := strings.IndexByte(s, '\n'); i >= 0 {
 		return s[:i]
+	}
+	return s
+}
+
+func orNotRun(s string) string {
+	if s == "" {
+		return "not run"
 	}
 	return s
 }
