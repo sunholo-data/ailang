@@ -152,8 +152,10 @@ func DefaultBinDir() (string, error) {
 }
 
 // ShimPath is the file a bin installs to; Windows shims are .cmd files.
-func ShimPath(binDir, name string) string {
-	if runtime.GOOS == "windows" {
+func ShimPath(binDir, name string) string { return shimPath(runtime.GOOS, binDir, name) }
+
+func shimPath(goos, binDir, name string) string {
+	if goos == "windows" {
 		return filepath.Join(binDir, name+".cmd")
 	}
 	return filepath.Join(binDir, name)
@@ -186,15 +188,25 @@ func WriteShim(binDir, ailangBin, pkgDir string, manifest *PackageManifest, name
 		return "", fmt.Errorf("creating bin dir %s: %w", binDir, err)
 	}
 	path := ShimPath(binDir, name)
+	body := shimBody(runtime.GOOS, ailangBin, absPkgDir, file, manifest, name, spec)
+	if err := os.WriteFile(path, []byte(body), 0o755); err != nil {
+		return "", fmt.Errorf("writing shim %s: %w", path, err)
+	}
+	return path, nil
+}
+
+// shimBody renders the shim for goos: POSIX sh, or a .cmd batch file on
+// Windows. Both carry the same header lines ("# k: v" / "rem k: v") so
+// ReadShim parses either.
+func shimBody(goos, ailangBin, absPkgDir, file string, manifest *PackageManifest, name string, spec BinSpec) string {
 	header := fmt.Sprintf("%s%s@%s %s", ShimHeaderPrefix, manifest.Package.Name, manifest.Package.Version, name)
 	regen := fmt.Sprintf("# regenerate: ailang install %s@%s", manifest.Package.Name, manifest.Package.Version)
 	runArgs := []string{"run", "--quiet", "--package-dir", absPkgDir, "--entry", spec.EffectiveEntry(), "--caps", spec.EffectiveCaps()}
 	runArgs = append(runArgs, spec.RunFlags...)
 	runArgs = append(runArgs, file, "--")
 
-	var body string
-	if runtime.GOOS == "windows" {
-		var sb strings.Builder
+	var sb strings.Builder
+	if goos == "windows" {
 		sb.WriteString("@echo off\r\n")
 		sb.WriteString("rem " + strings.TrimPrefix(header, "# ") + "\r\n")
 		sb.WriteString("rem ailang: " + ailangBin + "\r\n")
@@ -205,25 +217,19 @@ func WriteShim(binDir, ailangBin, pkgDir string, manifest *PackageManifest, name
 			sb.WriteString(fmt.Sprintf(" \"%s\"", a))
 		}
 		sb.WriteString(" %*\r\n")
-		body = sb.String()
-	} else {
-		var sb strings.Builder
-		sb.WriteString("#!/bin/sh\n")
-		sb.WriteString(header + "\n")
-		sb.WriteString("# ailang: " + ailangBin + "\n")
-		sb.WriteString("# package-dir: " + absPkgDir + "\n")
-		sb.WriteString(regen + "\n")
-		sb.WriteString("exec " + shellQuote(ailangBin))
-		for _, a := range runArgs {
-			sb.WriteString(" " + shellQuote(a))
-		}
-		sb.WriteString(" \"$@\"\n")
-		body = sb.String()
+		return sb.String()
 	}
-	if err := os.WriteFile(path, []byte(body), 0o755); err != nil {
-		return "", fmt.Errorf("writing shim %s: %w", path, err)
+	sb.WriteString("#!/bin/sh\n")
+	sb.WriteString(header + "\n")
+	sb.WriteString("# ailang: " + ailangBin + "\n")
+	sb.WriteString("# package-dir: " + absPkgDir + "\n")
+	sb.WriteString(regen + "\n")
+	sb.WriteString("exec " + shellQuote(ailangBin))
+	for _, a := range runArgs {
+		sb.WriteString(" " + shellQuote(a))
 	}
-	return path, nil
+	sb.WriteString(" \"$@\"\n")
+	return sb.String()
 }
 
 // shellQuote single-quotes s for POSIX sh; "--" and plain words stay readable.

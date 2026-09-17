@@ -1,6 +1,7 @@
 package pkg
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -224,5 +225,87 @@ func TestShellQuote(t *testing.T) {
 		if got := shellQuote(in); got != want {
 			t.Errorf("shellQuote(%q) = %s, want %s", in, got, want)
 		}
+	}
+}
+
+func TestShimBody_WindowsAndPosixParseAlike(t *testing.T) {
+	dir := writeBinFixture(t, "[bin]\ngreet = { module = \"cli\", run_flags = [\"--seed\", \"1\"] }\n")
+	m, _ := LoadManifest(dir)
+	file := filepath.Join(dir, "cli.ail")
+
+	win := shimBody("windows", `C:\tools\ailang.exe`, dir, file, m, "greet", m.Bin["greet"])
+	if !strings.HasPrefix(win, "@echo off\r\n") || !strings.Contains(win, "rem ailang-bin: test/greeter@0.1.0 greet\r\n") || !strings.HasSuffix(win, " %*\r\n") {
+		t.Errorf("windows shim:\n%s", win)
+	}
+	for _, want := range []string{`"--package-dir" "` + dir + `"`, `"--caps" "auto"`, `"--seed" "1" "` + file + `" "--"`} {
+		if !strings.Contains(win, want) {
+			t.Errorf("windows shim missing %s:\n%s", want, win)
+		}
+	}
+	posix := shimBody("darwin", "/usr/local/bin/ailang", dir, file, m, "greet", m.Bin["greet"])
+	if !strings.HasPrefix(posix, "#!/bin/sh\n") || !strings.HasSuffix(posix, ` "$@"`+"\n") {
+		t.Errorf("posix shim:\n%s", posix)
+	}
+
+	// Both bodies parse back to the same Shim through the same reader.
+	binDir := t.TempDir()
+	for goos, body := range map[string]string{"windows": win, "linux": posix} {
+		path := shimPath(goos, binDir, "greet")
+		if goos == "windows" && !strings.HasSuffix(path, ".cmd") {
+			t.Errorf("windows shim path must end in .cmd: %s", path)
+		}
+		os.WriteFile(path, []byte(body), 0o755)
+		s, err := ReadShim(path)
+		if err != nil || s == nil || s.Name != "greet" || s.Package != "test/greeter" || s.Version != "0.1.0" || s.PkgDir != dir {
+			t.Errorf("%s shim did not parse back: %+v %v", goos, s, err)
+		}
+	}
+}
+
+func TestEnsureLock_ResolvesPathDependencies(t *testing.T) {
+	root := t.TempDir()
+	dep := filepath.Join(root, "dep")
+	os.MkdirAll(dep, 0o755)
+	os.WriteFile(filepath.Join(dep, ManifestFile), []byte("[package]\nname = \"test/dep\"\nversion = \"0.2.0\"\nedition = \"1\"\n[exports]\nmodules = [\"test/dep/core\"]\n"), 0o644)
+	os.WriteFile(filepath.Join(dep, "core.ail"), []byte("module test/dep/core\nexport pure func one() -> int = 1\n"), 0o644)
+
+	app := filepath.Join(root, "app")
+	os.MkdirAll(app, 0o755)
+	os.WriteFile(filepath.Join(app, ManifestFile), []byte("[package]\nname = \"test/app\"\nversion = \"0.1.0\"\nedition = \"1\"\n[dependencies]\n\"test/dep\" = { path = \"../dep\" }\n[bin]\napp = \"cli\"\n"), 0o644)
+	os.WriteFile(filepath.Join(app, "cli.ail"), []byte("module test/app/cli\nexport func main() -> () ! {IO} = ()\n"), 0o644)
+
+	n, wrote, err := EnsureLock(app, "test", "v0.0.0")
+	if err != nil || !wrote || n != 1 {
+		t.Fatalf("EnsureLock: n=%d wrote=%v err=%v", n, wrote, err)
+	}
+	lf, err := LoadLockFile(app)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if lf.AILANGVersion != "v0.0.0" || lf.Generator != "test" || len(lf.Packages) != 1 || lf.Packages[0].Name != "test/dep" || lf.Packages[0].Source != "path" {
+		t.Errorf("lock: %+v", lf)
+	}
+
+	// A manifest that cannot resolve fails loudly and writes nothing.
+	os.WriteFile(filepath.Join(app, ManifestFile), []byte("[package]\nname = \"test/app\"\nversion = \"0.1.0\"\nedition = \"1\"\n[dependencies]\n\"test/missing\" = { path = \"../nowhere\" }\n"), 0o644)
+	os.Remove(filepath.Join(app, LockFileName))
+	if _, _, err := EnsureLock(app, "test", "v0.0.0"); err == nil {
+		t.Fatal("an unresolvable dependency must fail EnsureLock")
+	}
+	if _, err := os.Stat(filepath.Join(app, LockFileName)); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("no lock may be written on failure: %v", err)
+	}
+	if _, _, err := EnsureLock(filepath.Join(root, "absent"), "test", "v0.0.0"); err == nil {
+		t.Fatal("a directory without a manifest must fail EnsureLock")
+	}
+}
+
+func TestDefaultBinDir(t *testing.T) {
+	dir, err := DefaultBinDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if filepath.Base(dir) != "bin" || filepath.Base(filepath.Dir(dir)) != ".ailang" {
+		t.Errorf("DefaultBinDir = %s, want <home>/.ailang/bin", dir)
 	}
 }
