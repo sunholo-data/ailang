@@ -138,8 +138,8 @@ func fsReadFile(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 		path = resolved
 	}
 
-	// Read file
-	content, err := os.ReadFile(path)
+	// Read file, under the FS cap when one is set
+	content, err := readCapped(path, ctx.Env.FSMaxBytes)
 	if err != nil {
 		return nil, fmt.Errorf("readFile: %w", err)
 	}
@@ -248,8 +248,8 @@ func fsReadFileBytes(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 		path = resolved
 	}
 
-	// Read file
-	content, err := os.ReadFile(path)
+	// Read file, under the FS cap when one is set
+	content, err := readCapped(path, ctx.Env.FSMaxBytes)
 	if err != nil {
 		return fsMakeErr(fmt.Sprintf("cannot read file: %v", err)), nil
 	}
@@ -319,7 +319,7 @@ func fsReadFileResult(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 		path = resolved
 	}
 
-	content, err := os.ReadFile(path)
+	content, err := readCapped(path, ctx.Env.FSMaxBytes)
 	if err != nil {
 		return fsMakeErr(fmt.Sprintf("cannot read file: %v", err)), nil
 	}

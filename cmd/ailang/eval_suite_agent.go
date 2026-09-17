@@ -26,6 +26,8 @@ type agentSuiteConfigParams struct {
 	requestsPerSecond  int
 	timeoutSeconds     int
 	maxTokensPerBench  int
+	toolPolicy         string
+	policyFile         string
 	verify             bool
 	verifyTimeout      time.Duration
 	browserProvider    string
@@ -73,6 +75,8 @@ func buildAgentSuiteConfig(agent bool, p agentSuiteConfigParams) *eval_harness.A
 
 	return &eval_harness.AgentBenchmarkConfig{
 		MaxTokensPerBench:  p.maxTokensPerBench,
+		ToolPolicy:         p.toolPolicy,
+		PolicyPath:         p.policyFile,
 		RequestsPerSecond:  p.requestsPerSecond,
 		TimeoutSeconds:     p.timeoutSeconds,
 		WorkspaceDir:       filepath.Join(os.TempDir(), "ailang_eval"),

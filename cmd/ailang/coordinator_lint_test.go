@@ -194,3 +194,43 @@ func TestLintRegistry_NearDuplicateInboxes(t *testing.T) {
 		t.Fatalf("want inbox-not-near-duplicate, got %d: %s", len(got), findingRules(got))
 	}
 }
+
+// A restricted lane with no policy: the agent can read and write but never
+// execute, because ailang_run default-denies without one.
+//
+// The rule reads the EFFECTIVE policy on purpose — since 2026-09-17 a `pkg:`
+// inbox defaults to ailang_only, so the dangerous case is an agent with NO
+// tool_policy line at all.
+func TestLintLanePolicy(t *testing.T) {
+	findings := lintRegistry([]*coordinator.AgentConfig{
+		// Declared lane, no policy: broken.
+		{ID: "declared-no-policy", Inbox: "solo", ToolPolicy: "ailang_only"},
+		// Defaulted lane (package inbox), no policy: broken, and the message
+		// must say the policy was DEFAULTED or the operator looks for a line
+		// that is not in the file.
+		{ID: "pkg-defaulted", Inbox: "pkg:sunholo/new_thing"},
+		// Both halves present: fine.
+		{ID: "pkg-ok", Inbox: "pkg:sunholo/auth", ToolPolicy: "ailang_only", PolicyPath: "/etc/p.toml"},
+		// Full lane needs no policy.
+		{ID: "shell", Inbox: "sprint-executor"},
+		// A package agent that opted out explicitly is a shell agent.
+		{ID: "pkg-opted-out", Inbox: "pkg:sunholo/legacy", ToolPolicy: "full"},
+	})
+	got := map[string]string{}
+	for _, f := range findings {
+		if f.Rule == "lane-has-policy" {
+			got[f.Agent] = f.Msg
+		}
+	}
+	if len(got) != 2 {
+		t.Fatalf("flagged %v, want exactly declared-no-policy and pkg-defaulted", got)
+	}
+	if _, ok := got["declared-no-policy"]; !ok {
+		t.Error("a declared lane with no policy was not flagged")
+	}
+	if msg, ok := got["pkg-defaulted"]; !ok {
+		t.Error("a package agent that DEFAULTED onto the lane with no policy was not flagged")
+	} else if !strings.Contains(msg, "defaulted") {
+		t.Errorf("the finding must say the lane was defaulted, not declared: %q", msg)
+	}
+}

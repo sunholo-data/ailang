@@ -142,14 +142,35 @@ Re-check this mapping when bumping the pinned pi version.
 
 ## Schema Drift Notes
 
-Pi is pre-1.0 (v0.70.x). The schema captured here is from 0.70.2.
-The parser tolerates unknown fields and unknown `type` values (logs and skips).
-Re-capture fixtures and re-run tests when bumping the pinned version.
+Pinned: `@earendil-works/pi-coding-agent@0.85.1` (`ExpectedPackage`/`ExpectedVersion`
+in pi.go). `HealthCheck` asserts the running `pi --version` against the pin and errors
+naming both. The upstream package moved from the abandoned `@mariozechner` name at
+0.73.1; the fleet cut over in M-PI-HARNESS-UPGRADE (design doc carries the measured
+0.73.1 → 0.84.4 → 0.85.1 drift table).
+
+Drift is recorded or fatal, never silent (D4):
+- unknown event `type` → counted into `ProviderData.pi_unknown_events`
+- non-JSON lines → `ProviderData.pi_unparsed_lines`
+- an assistant `message_end` with no `usage` → the run fails as `wire_drift`
+- `auto_retry_*` → `ProviderData.pi_retries {count, max_attempts, exhausted}`
+- `usage.reasoning` (0.84+) is a subset of `usage.output` on the wire; the executor banks
+  `OutputTokens = output − reasoning`, `ReasonTokens = reasoning`
+- `rawStopReason` (0.84+) → `ProviderData.pi_raw_stop_reason`; consulted for the finish
+  reason only when `stopReason` is unrecognised
 
 ## Fixtures
 
-- `testdata/fizzbuzz.ndjson` — 20 events, no tool use, `--no-tools`, claude-haiku-4-5
-- `testdata/tool_use.ndjson` — 37 events, file-create tool call, claude-haiku-4-5
+One pair per wire version the fleet has actually run, captured live on the rig
+2026-09-16 with the same directives (`ollama/glm-5.3-flash:cloud`):
+
+- `testdata/v0_73_1/fizzbuzz.ndjson` — 38 events, no tools; cumulative `message_update` (~1.2 KB each)
+- `testdata/v0_73_1/tool_use.ndjson` — 51 events, write + read tool calls, 3 turns
+- `testdata/v0_85_1/fizzbuzz.ndjson` — 33 events, no tools; delta `message_update` (~280 B), `agent_settled`
+- `testdata/v0_85_1/tool_use.ndjson` — 56 events, write + read, `rawStopReason`
+- `testdata/v0_85_1/reasoning.ndjson` — `openrouter/z-ai/glm-5.3-flash --thinking medium`; `usage.reasoning` = 8 of `output` = 41
+
+Tests that prove summation patch non-zero `cacheWrite`/`cost` into the pinned fixture
+(`patchAssistantUsage` in fixtures_test.go) rather than trusting a hand-written stream.
 
 ## Cost Model
 

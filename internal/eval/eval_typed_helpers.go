@@ -87,7 +87,7 @@ func (e *TypedEvaluator) recordTrace(app *typedast.TypedApp, fn Value, args []Va
 		Timestamp:   e.getTimestamp(),
 	}
 
-	e.trace.Entries = append(e.trace.Entries, entry)
+	e.trace.add(entry)
 }
 
 // getTimestamp returns current timestamp (virtual or real)
@@ -112,11 +112,13 @@ func boundedShow(v Value, maxDepth, maxWidth int) string {
 	// collector's per-value policy (trace.DefaultMaxValueBytes), with an explicit
 	// marker so an elided value is distinguishable from a short one. maxDepth is
 	// applied by showValue's own depth limiting.
-	s := showValue(v, 0)
-	if maxWidth > 0 && len(s) > maxWidth {
-		return fmt.Sprintf("%s…(+%d bytes elided)", s[:maxWidth], len(s)-maxWidth)
-	}
-	return s
+	//
+	// Rendered with ShowBounded so the value is never materialised past the
+	// budget (M-V1-MEMORY-FOOTPRINT M1). String() semantics replace the
+	// showValue quoting this path used before; the training-data consumer of
+	// this trace reads the same shape the exported trace carries.
+	_ = maxDepth
+	return ShowBounded(v, maxWidth)
 }
 
 // capRequirer is implemented by effect contexts that gate effects on granted

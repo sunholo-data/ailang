@@ -1,0 +1,30 @@
+{
+  "sprint_id": "M-EMBED-PREFIX",
+  "design_doc": "design_docs/planned/m-embed-task-prefix.md",
+  "plan": "design_docs/planned/m-embed-task-prefix-sprint-plan.md",
+  "branch": "feat/embed-task-prefix",
+  "github_issues": [],
+  "velocity": {
+    "estimated_total_loc": 200,
+    "estimated_days": 0.5
+  },
+  "features": [
+    {
+      "id": "M1_EMBED_TASK_PREFIX",
+      "description": "Model+role-aware embedding task prefixes (EmbeddingGemma/nomic) wired into uRAG document-embed and query-embed paths; messaging envelopes untouched",
+      "estimated_loc": 200,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "ApplyTaskPrefix pure helper + EmbedWithRole wrapper, unit-tested for embeddinggemma+nomic x {document,query,code-query} + unknown no-op",
+        "Document embed (sharedmem_sqlite BrainStore) uses Document role; query embed (microrag engine + cache search) uses Query role",
+        "make brain-index-syntax-reset -> cache stats 100% embeddings; retrieval probe 'roman numeral' returns number/math content",
+        "messaging envelope/search tests unchanged and green",
+        "microRAG A/B re-run on prefixed corpus, delta recorded"
+      ],
+      "passes": true,
+      "started": "2026-06-16",
+      "completed": "2026-06-16",
+      "notes": "code+tests done, merged d24d41ee; retrieval improved on pipeline/json probes; embedder choice (nomic vs gemma) deferred to A/B"
+    }
+  ]
+}

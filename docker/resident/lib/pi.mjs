@@ -19,16 +19,42 @@
 import { spawn } from "node:child_process";
 import { readFileSync, existsSync, mkdirSync, readdirSync,
          openSync, writeSync, fsyncSync, closeSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 
 // Capabilities are probed by boot.sh and read per run, because the server
 // process was started before that probe ran and cannot have inherited it.
 // Re-read rather than cache: a boot that finishes after the first call should
 // still upgrade later calls from stateless to persistent.
 const CAP_FILE = `${process.env.TASK_STATE_DIR || "/home/ailang/.resident"}/capabilities.json`;
-export function toolPolicy() {
-  return (process.env.RESIDENT_TOOLS ?? "read,edit,write,bash")
-    .split(",").map((t) => t.trim()).filter(Boolean);
+// TOOL POLICY (M-AGENT-AILANG-ONLY-EXECUTION M5, D6). RESIDENT_TOOLS is a
+// PROFILE — "ailang_only" (the default: read/edit/write + the AILANG gate, no
+// shell), "full" (pi's own defaults), or an explicit comma list of pi tool
+// names. The profile's flags come from `ailang pi tool-profile`, the ONE
+// expansion internal/executor/pi uses, so the resident cannot drift from the
+// fleet on what "ailang_only" means.
+const PROFILE = (process.env.RESIDENT_TOOLS ?? "ailang_only").trim();
+let profileArgsCache = null;
+function profileArgs() {
+  if (profileArgsCache) return profileArgsCache;
+  if (PROFILE === "full") return (profileArgsCache = []);
+  if (PROFILE === "ailang_only") {
+    const out = execFileSync("ailang", ["pi", "tool-profile", "ailang_only"], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+    if (!out.includes("--no-builtin-tools")) throw new Error(`ailang pi tool-profile ailang_only returned ${JSON.stringify(out)}`);
+    return (profileArgsCache = out.split(/\s+/));
+  }
+  const list = PROFILE.split(",").map((t) => t.trim()).filter(Boolean);
+  return (profileArgsCache = list.length === 0 ? ["--no-tools"] : ["--tools", list.join(",")]);
 }
+
+/** The effective tool NAMES, for /health and the spawn log. */
+export function toolPolicy() {
+  const args = profileArgs();
+  const i = args.indexOf("--tools");
+  if (i >= 0) return args[i + 1].split(",");
+  if (args.includes("--no-tools")) return [];
+  return ["read", "bash", "edit", "write"]; // pi's defaults (profile full)
+}
+export function toolProfile() { return PROFILE; }
 
 export function capabilities() {
   try { return JSON.parse(readFileSync(CAP_FILE, "utf8")); }
@@ -131,24 +157,15 @@ export function runPi({ model, prompt, thinking, tools, cwd, onEvent, sessionId,
     args.splice(4, 0, "--no-session");
   }
   if (thinking) args.push("--thinking", thinking);
-  // TOOL POLICY — always explicit, never pi's implicit default.
-  //
-  // pi ships read, bash, edit and write enabled. Leaving that implicit had two
-  // costs. It is invisible: nothing in /health or the logs said what the agent
-  // could do. And it quietly undercuts Decision 6 — the AILANG program
-  // allowlist governs what `resident-run` will execute, and pi's `bash` tool
-  // does not go anywhere near it. While bash is enabled the allowlist is a
-  // convenience, NOT a containment boundary; the container and the gcsfuse
-  // only-dir mount are what actually bound this agent.
-  //
-  // So the set is stated, reported, and narrowable per deployment via
-  // RESIDENT_TOOLS (or per run). The default matches what pi already did, so
-  // this buys observability and a control surface without changing behaviour.
-  const toolPolicy = Array.isArray(tools)
-    ? tools
-    : (process.env.RESIDENT_TOOLS ?? "read,edit,write,bash")
-        .split(",").map((t) => t.trim()).filter(Boolean);
-  args.push(...(toolPolicy.length === 0 ? ["--no-tools"] : ["--tools", toolPolicy.join(",")]));
+  // TOOL POLICY — the profile (see toolPolicy above), or a per-run explicit
+  // list. Default ailang_only: no bash, so `ailang run --policy` behind
+  // ailang_run is a boundary and not a convenience.
+  const effectiveTools = Array.isArray(tools) ? tools : toolPolicy();
+  if (Array.isArray(tools)) {
+    args.push(...(tools.length === 0 ? ["--no-tools"] : ["--tools", tools.join(",")]));
+  } else {
+    args.push(...profileArgs());
+  }
   args.push(prompt);
 
   return new Promise((resolve, reject) => {
@@ -165,7 +182,7 @@ export function runPi({ model, prompt, thinking, tools, cwd, onEvent, sessionId,
       cwd: cwd || process.env.WORKSPACE_DIR || "/workspace",
       stdio: ["ignore", "pipe", "pipe"],
     });
-    console.log(`pi | spawn model=${model} session=${persistent ? sessionId : "(stateless)"} tools=[${toolPolicy.join(",") || "none"}] cwd=${cwd || process.env.WORKSPACE_DIR || "/workspace"}`);
+    console.log(`pi | spawn model=${model} session=${persistent ? sessionId : "(stateless)"} tools=[${effectiveTools.join(",") || "none"}] cwd=${cwd || process.env.WORKSPACE_DIR || "/workspace"}`);
     const state = { text: "", events: 0, toolCalls: [], usage: null, stopReason: null, stderr: "" };
     let buf = "";
 

@@ -1,0 +1,122 @@
+{
+  "sprint_id": "M-REMOTE-BROWSER-SESSIONS",
+  "created": "2026-08-23T20:39:56Z",
+  "estimated_duration_days": 7,
+  "correlation_id": "sprint_M-REMOTE-BROWSER-SESSIONS",
+  "design_doc": "design_docs/implemented/v0_33_3/m-remote-browser-session-providers.md",
+  "markdown_plan": "design_docs/implemented/v0_33_3/m-remote-browser-session-providers-sprint-plan.md",
+  "github_issues": [],
+  "features": [
+    {
+      "id": "M-REMOTE-BROWSER-SESSIONS.1",
+      "description": "Provider contract and safety boundary",
+      "estimated_loc": 650,
+      "actual_loc": 644,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Provider interface supports create, connection, inspect, export, and idempotent stop",
+        "Public manifests and recursive diagnostics never serialize connection or profile secrets",
+        "Fake provider tests cover success and every stable failure category",
+        "Cleanup preserves primary failures and reports cleanup failures separately"
+      ],
+      "passes": false,
+      "started": "2026-08-23T20:40:00Z",
+      "completed": "2026-08-23T23:00:00Z",
+      "notes": "Core contract passes; evaluator found behavioral injection coverage is not exhaustive for every declared stable failure category."
+    },
+    {
+      "id": "M-REMOTE-BROWSER-SESSIONS.2",
+      "description": "Local Playwright and Chromium provider",
+      "estimated_loc": 500,
+      "actual_loc": 356,
+      "dependencies": [
+        "M-REMOTE-BROWSER-SESSIONS.1"
+      ],
+      "acceptance_criteria": [
+        "Local sessions use unique state and artifact directories with pinned package metadata",
+        "Generated Playwright MCP configuration is exact-tested and fails loudly when prerequisites are absent",
+        "Concurrent isolation and cleanup paths are covered by hermetic tests",
+        "Opt-in live and capacity smoke commands are available without becoming CI dependencies"
+      ],
+      "passes": false,
+      "started": "2026-08-23T21:00:00Z",
+      "completed": "2026-08-23T23:00:00Z",
+      "notes": "Pinned provider and process cleanup pass; real two-browser cookie/local-storage isolation and 50-session deployment evidence remain pending."
+    },
+    {
+      "id": "M-REMOTE-BROWSER-SESSIONS.3",
+      "description": "Codex MCP vertical slice and lifecycle wiring",
+      "estimated_loc": 350,
+      "actual_loc": 264,
+      "dependencies": [
+        "M-REMOTE-BROWSER-SESSIONS.1",
+        "M-REMOTE-BROWSER-SESSIONS.2"
+      ],
+      "acceptance_criteria": [
+        "Codex accepts per-task stdio MCP servers while non-browser arguments remain unchanged",
+        "Remote endpoint values travel only through child environment variables, never argv or prompts",
+        "Browser lifecycle cleanup runs on success, error, cancellation, and timeout",
+        "Browser manifests and artifacts preserve existing chain and stage identity"
+      ],
+      "passes": true,
+      "started": "2026-08-23T21:30:00Z",
+      "completed": "2026-08-23T23:00:00Z",
+      "notes": "Codex per-task MCP config, secret env forwarding, non-browser regression tests, capability validation, and process-tree ownership implemented."
+    },
+    {
+      "id": "M-REMOTE-BROWSER-SESSIONS.4",
+      "description": "Browserbase remote provider",
+      "estimated_loc": 500,
+      "actual_loc": 548,
+      "dependencies": [
+        "M-REMOTE-BROWSER-SESSIONS.1",
+        "M-REMOTE-BROWSER-SESSIONS.3"
+      ],
+      "acceptance_criteria": [
+        "Browserbase create, connect, inspect, export, stop, and audit use an injectable bounded HTTP client",
+        "Stub tests cover auth, quota, malformed response, timeout, export, cleanup, and idempotent stop paths",
+        "Credentials and CDP material remain process-local and are absent from serialized session data",
+        "Live smoke and 20-session soak are explicit credential-gated deployment checks"
+      ],
+      "passes": true,
+      "started": "2026-08-23T22:00:00Z",
+      "completed": "2026-08-23T23:00:00Z",
+      "notes": "Browserbase REST/CDP adapter, stub lifecycle/error tests, idempotent stop, audit, and explicit live-test gate implemented. Live/Cloud Run soak not run because credentials are absent."
+    },
+    {
+      "id": "M-REMOTE-BROWSER-SESSIONS.5",
+      "description": "Eval integration, fixture, documentation, and repository gates",
+      "estimated_loc": 450,
+      "actual_loc": 623,
+      "dependencies": [
+        "M-REMOTE-BROWSER-SESSIONS.1",
+        "M-REMOTE-BROWSER-SESSIONS.2",
+        "M-REMOTE-BROWSER-SESSIONS.3",
+        "M-REMOTE-BROWSER-SESSIONS.4"
+      ],
+      "acceptance_criteria": [
+        "Eval configuration selects local-playwright or browserbase without changing non-browser behavior",
+        "Results bank browser identity, termination, usage, artifacts, nullable cost, and neutral versus managed classification",
+        "Hermetic fixture and operator guide cover local and remote setup, cleanup, recovery, and capacity measurement",
+        "Repository test, lint, format, boundary, and file-size gates pass while unrelated worktree changes remain untouched"
+      ],
+      "passes": false,
+      "started": "2026-08-23T18:00:00Z",
+      "completed": "2026-08-23T23:00:00Z",
+      "notes": "Eval/CLI/docs/gates pass; fixture grader does not yet prove a Playwright-specific tool invocation, and live capacity/comparison gates remain pending."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 350,
+    "actual_loc_per_day": 1218,
+    "target_milestones_per_week": 5,
+    "actual_milestones_per_week": 5,
+    "estimated_total_loc": 2450,
+    "actual_total_loc": 2435,
+    "estimated_days": 7,
+    "actual_days": 2
+  },
+  "last_session": "2026-08-23T23:00:00Z",
+  "last_checkpoint": "independent evaluation PASS 80/100; core implementation complete with explicit production activation gates",
+  "status": "completed"
+}

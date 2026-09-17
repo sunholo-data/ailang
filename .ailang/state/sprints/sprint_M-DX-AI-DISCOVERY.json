@@ -1,0 +1,298 @@
+{
+  "sprint_id": "M-DX-AI-DISCOVERY",
+  "title": "One-Shot Stdlib Discovery for AI Agents \u2014 --all-functions, unknown-module recovery, docs prelude",
+  "design_doc": "design_docs/planned/v0_29_0/m-dx-ai-discovery.md",
+  "sprint_plan": "design_docs/planned/v0_29_0/m-dx-ai-discovery-sprint-plan.md",
+  "mission_iteration": 30,
+  "target_version": "v0.30.0",
+  "base_version_at_plan": "v0.29.2",
+  "priority": "P2",
+  "risk_level": "low",
+  "github_issues": [],
+  "created": "2026-07-14",
+  "created_at_head": "648a919beeca76ec56b658e744c15178585d9765",
+  "origin_dev_at_plan": "648a919beeca76ec56b658e744c15178585d9765",
+  "doc_head_note": "Design doc was re-scoped/quorumed at HEAD 39d671a52. Actual HEAD at plan time is 648a919be (4 intervening commits: dashboard-data + CI-only). git diff 39d671a52..HEAD over ALL M-relevant files (cmd/ailang/docs.go, internal/loader/stdlib_resolver.go, internal/loader/prelude_imports.go, internal/importhint/, internal/stdlibindex/, cmd/ailang/diagnostics_wiring.go, internal/pipeline/prelude.go) = EMPTY. Every doc citation + live probe re-verified at 648a919be.",
+  "executor_constraints": {
+    "worktree": "Work in an isolated git worktree branched from origin/dev. NEVER the shared main tree. Commit promptly (a sibling agent shares the working tree).",
+    "forbidden_paths": [
+      "internal/types/",
+      "internal/parser/ (READ-ONLY reuse only \u2014 parse stdlib files to render signatures; ZERO grammar/AST changes)",
+      "internal/effects/"
+    ],
+    "forbidden_rationale": "This is the CLI/docs lane. No type-system, grammar, AST, or effect changes. internal/parser is used only via its public New(lexer)/Parse() API and the ast package's existing Type.String()/FormatEffects renderers.",
+    "no_cachekey_bump": "Do NOT bump cacheKeyVersion \u2014 no compilation semantics or artifact change.",
+    "no_docs_search_change": "cmd/ailang/docs_search.go and the `ailang docs search` (design-doc SimHash) path must remain byte-identical. Regression-guard it.",
+    "no_dead_code_deletion": "internal/module/resolver.go:145 and internal/module/loader.go:276 are DEAD siblings (package internal/module has ZERO importers, V11). Do NOT touch, do NOT delete (coding-standards forbids blind unused-code deletion).",
+    "no_gpu_ollama": "No GPU/ollama/benchmark steps. Success is behavioral + test-locked, not a benchmark delta.",
+    "bounded_waits": "Every wait must be bounded (no unbounded `until COND; do sleep; done`)."
+  },
+  "velocity": {
+    "target_loc_per_day": 250,
+    "estimated_total_loc": 420,
+    "estimated_days": 1,
+    "basis": "Recent single-milestone mission sprints (M-PRELUDE-OPTION-RESULT #382, M-XMOD-ALIAS-POLY #381) each landed same-day. This is 3 small, well-isolated CLI/error-path milestones + docs, all reusing existing renderers/engines. \u22641.5 days with buffer; 1 day realistic."
+  },
+  "premise_verification": {
+    "status": "ALL LOAD-BEARING PREMISES VERIFIED at HEAD 648a919be (2026-07-14). TWO discrepancies found vs the doc \u2014 both REFINE (do not break) the plan. See discrepancies[].",
+    "checks": [
+      "V1 (--all-functions undefined): `ailang docs --all-functions` \u2192 `flag provided but not defined: -all-functions`. CONFIRMED.",
+      "V5 (surface size): `grep -c '^export func |^export pure func ' std/*.ail` \u2192 413 exports; `ls std/*.ail | wc -l` \u2192 44 modules. CONFIRMED.",
+      "V16 (effect-row truncation): `ailang docs std/clock` renders `now() -> int ! ` \u2014 effect row `{Clock}` DROPPED. Root cause: exportSigRe at docs.go:191 stops at `[^{=]+`. CONFIRMED, real defect, in M1 scope.",
+      "M1 AST premise: ast.FuncDecl (internal/ast/ast_decl.go:45) carries Name, TypeParams []string, Params []*Param, ReturnType Type, Effects []EffectAnnotation, IsExport, IsPure. All ast.Type variants have String() (ast_type.go). ast.FormatEffects (ast.go:126) renders `! {A, B}` exactly. Parser.Parse() (parser.go:136) \u2192 *ast.Program; Program.File.Funcs []*FuncDecl populated by parser_file.go:73. CONFIRMED \u2014 signature rendering from AST is fully viable, no new renderer needed.",
+      "V15 (parser completeness): doc's full sweep = 413/413 export names present in per-module docs output; parseModuleFile complete on current corpus incl generics. Trusted (not re-swept here; M1's exact-set test re-verifies it in Go).",
+      "docs.go anchors: flag set docs.go:44-47; search dispatch docs.go:34; discoverModules docs.go:142; parseModuleFile docs.go:170; findStdlibDir docs.go:85; showModuleDocs docs.go:274; formatExportSignature docs.go:421; --list listModules docs.go:123. ALL CONFIRMED.",
+      "V3 (docs prelude): `ailang docs prelude` \u2192 `Error: module 'std/prelude' not found`. CONFIRMED (falls through to showModuleDocs file-lookup at docs.go:74-78).",
+      "V4 (unknown module, live path): `ailang check` on `import std/time (now)` \u2192 `stdlib module not found: std/time` + `searched:` list + `tip:`, NO suggestion/list. CONFIRMED.",
+      "M3 live-path trace: loader.go:165 ResolveStdlib fails \u2192 embedded fallback (std.FS) fails \u2192 loader.go:181 returns the RAW errWithSearchTrace error (stdlib_resolver.go:325, WriteString of `stdlib module not found` at :327). This is the ONLY live stdlib not-found path. CONFIRMED.",
+      "V11 (dead siblings): `go list -deps ./cmd/ailang | grep -c internal/module$` \u2192 0. internal/module/resolver.go:145 + internal/module/loader.go:276 are unreachable from CLI. CONFIRMED.",
+      "V17 refinement \u2014 suggestion engine: internal/importhint (levenshtein at :103, closestExport = prefix + Levenshtein \u22642 at :65) is the reusable engine, fed by internal/stdlibindex via cmd/ailang/diagnostics_wiring.go:11-20 (Locator=stdlibindex.Modules, SymbolsOf=stdlibindex.SymbolsOf). importhint.levenshtein is UNEXPORTED but same-package \u2014 the new module-name variant lives in importhint and reuses it directly. CONFIRMED.",
+      "stdlibindex module-list accessor: NOT present. index.go has Modules(symbol) and SymbolsOf(module) but NO AllModules(). M3 must ADD a small AllModules() (or ModuleList()) exposing the built idx module set. Trivial. CONFIRMED gap, in-scope.",
+      "M4 sources: EntryPreludeModules() exported at prelude_imports.go:39; preludeModuleSymbols map at prelude_imports.go:16 (option: Option/Some/None; result: Result/Ok/Err) \u2014 needs a trivial exported accessor (e.g. PreludeModuleSymbols() or EntryPreludeSymbols(mod)). pipeline.InjectPrelude (prelude.go:35) injects EXACTLY ONE binding, `println : string -> () ! {IO}`, via env.ExtendScheme(\"println\", ...) \u2014 NO enumerator exists; M4 must add one. `show` is builtin-only (importhint.autoImportedBuiltins confirms `show` is the only bare-callable builtin). CONFIRMED.",
+      "cmd/ailang already links internal/parser (debug.go/test.go: parser.New/Parse), internal/loader (run_helpers.go/main.go), internal/pipeline. No new dependency EDGE for any milestone. CONFIRMED.",
+      "V6/V7/V12/V13 (prelude behavior): entry `println(show(42))`, `Some(1)`/`None`, `Ok(7)`/`Err(e)` all run import-free; a LIBRARY module using `Some(1)` fails `undefined variable: Some` (entry-only). Trusted from doc; M4 fixtures re-assert V13."
+    ]
+  },
+  "discrepancies": [
+    {
+      "id": "D1",
+      "severity": "informational",
+      "title": "V11 audit missed a LIVE second not-found path in internal/loader (LDR001 + suggestSimilar)",
+      "finding": "The doc's systemic audit (V11) only checked the DEAD internal/module siblings. There is a SECOND live not-found path in the SAME package M3 edits: internal/loader/loader.go:202 and :251 call newLDR001 (loader_errors.go:52) with ml.suggestSimilar(path) (loader_errors.go:92) \u2014 a structured LDR001 error that ALREADY carries a `similar[]` suggestion. Verified via grep + caller trace.",
+      "why_scope_still_holds": "LDR001/suggestSimilar fires ONLY for non-stdlib (project/package/self) imports \u2014 the code branches on `strings.HasPrefix(canonPath, \"std/\")` at loader.go before the stdlib resolver. The `std/time \u2192 std/clock` trap is exclusively the stdlib branch (errWithSearchTrace), which is M3's exact target and has NO suggestion today. LDR001 is a different case with its own (heuristic) suggestion. So M3's single-site scope is CORRECT; the doc's V11 phrasing (\u201cONE suggestion engine\u201d / \u201clive path is exactly one\u201d) is imprecise but its conclusion (edit only errWithSearchTrace) is right.",
+      "action": "Executor: record this in the PR body's systemic-audit note (there are TWO live not-found paths; M3 owns the stdlib one; LDR001/suggestSimilar for local modules is intentionally out of scope and already has a suggestion). Do NOT expand scope to unify them \u2014 that is a separate follow-up if ever desired."
+    },
+    {
+      "id": "D2",
+      "severity": "informational",
+      "title": "Two named accessors the doc calls \u2018trivial/if-absent\u2019 are genuinely ABSENT and must be added",
+      "finding": "(a) internal/stdlibindex has NO all-modules accessor (only Modules(symbol) and SymbolsOf(module)); M3 must add AllModules()/ModuleList(). (b) internal/loader.preludeModuleSymbols has no exported accessor; M4 must add one. (c) pipeline.InjectPrelude has no surface enumerator; M4 must add one (it hardcodes the single `println` binding).",
+      "why_scope_still_holds": "The doc explicitly anticipated each (\u2018expose the module list if not already exported\u2019, \u2018needs a trivial exported accessor\u2019, \u2018a small exported enumerator\u2019). These are small additive exports (~5\u201315 LOC each), already folded into the LOC estimate. Flagged so the executor treats them as required work, not optional.",
+      "action": "Add: stdlibindex.AllModules() []string (sorted, from built idx); loader.EntryPreludeSymbols(modPath string) []string (or PreludeModuleSymbols() map copy); a pipeline prelude-surface enumerator (name+scheme.String()) that the reverse drift test walks."
+    }
+  ],
+  "features": [
+    {
+      "id": "M1_ALL_FUNCTIONS_FILTER",
+      "phase": 1,
+      "description": "`ailang docs --all-functions [filter]`: one deterministic, grep-able line per stdlib export (module.func: sig ! effects -- description), signatures rendered from the AST (fixing the V16 effect-row truncation in per-module docs too). Optional positional case-insensitive filter over the full rendered line.",
+      "estimated_loc": 220,
+      "estimated_hours": 4,
+      "dependencies": [],
+      "blocks": [],
+      "implementation": {
+        "flag": "Add `allFunctionsFlag := docsFlags.Bool(\"all-functions\", false, ...)` to the flag set at cmd/ailang/docs.go:44-47. Handle it AFTER findStdlibDir (docs.go:60) and BEFORE the --list branch. The trailing positional (docsFlags.Arg(0)) is the optional case-insensitive filter.",
+        "signature_rendering": "New shared helper: for each std/*.ail, parse with lexer.New + parser.New + Parse() (same API as debug.go:183-185 / test.go:97-98), walk prog.File.Funcs, keep IsExport==true. Render `name[T1,T2](p1type, p2type) -> rettype ! {Eff}` from FuncDecl fields: TypeParams (bracketed if non-empty), Params[].Type.String(), ReturnType.String(), ast.FormatEffects(Effects). This REPLACES the exportSigRe regex path for signatures in BOTH --all-functions AND showModuleDocs (docs.go:306 formatExportSignature). The `-- description` prose still comes from the doc-comment scan (AST carries no comments) \u2014 keep parseModuleFile's DocLine collection for prose only.",
+        "output_line": "`std/clock.now: () -> int ! {Clock} -- Returns epoch time...`. Modules sorted (discoverModules already sorts, docs.go:163); exports in FILE order (FuncDecl order as parsed).",
+        "prelude_pseudo_module": "Prepend `prelude.` entries sourced from the M4 renderer (println/show + implicit option/result note). Reuse M4's shared prelude-surface accessor so there is ONE prelude source of truth. If M4 lands first, import its helper; if M1 lands first, the executor may stub prelude entries and wire them when M4 lands (same PR).",
+        "filter": "If a positional filter arg is present, keep only lines whose lowercased FULL rendered line (module path + name + signature + description) contains the lowercased filter. Case-insensitive substring, no regex.",
+        "failure_mode": "A std/*.ail that does not parse \u2192 print the file name to stderr and exit non-zero (stdlib always parsing is CI's contract). NEVER drop or partial-render a row silently.",
+        "path_resolution": "Reuse findStdlibDir (docs.go:85) \u2014 no new path machinery."
+      },
+      "files": [
+        "cmd/ailang/docs.go (flag, --all-functions branch, AST signature helper, formatExportSignature replacement for per-module docs)",
+        "cmd/ailang/docs_test.go OR cmd/ailang/docs_all_functions_test.go (new tests)"
+      ],
+      "acceptance_criteria": [
+        "`ailang docs --all-functions` emits one line per export for all 44 modules (413 exports + prelude entries), deterministic order (modules sorted, exports file-order)",
+        "Effect rows render IN FULL: `std/clock.now: () -> int ! {Clock}` (not `! `), in BOTH --all-functions AND `ailang docs std/clock` (V16 regression fixed)",
+        "`ailang docs --all-functions timestamp` returns only the std/clock time lines (now/nowMillis-class), nothing unrelated; `--all-functions foldl` returns the fold family",
+        "A deliberately unparseable stdlib file (temp fixture) makes the command exit non-zero and name the file \u2014 no silent drop (self-test)",
+        "NO changes under internal/types/, internal/parser/ (grammar/AST), internal/effects/"
+      ],
+      "test_requirements": [
+        "EXACT name-set test (NOT a count floor): an independent Go scan of std/*.ail for export names asserts the --all-functions name set EQUALS it BOTH directions (missing OR extra fails)",
+        "Every emitted line carries a non-empty signature that is NOT `[signature unparsed]`/empty",
+        "Corpus-wide signature-fidelity: for every export, the emitted signature EQUALS an independent in-test AST re-parse rendering",
+        "Tricky-form goldens: generics `name[a,b](...)`, effect rows `! {Clock}`/multi-effect, `pure func`, zero-return, multi-line params",
+        "V16 golden: `ailang docs std/clock` now shows `now() -> int ! {Clock}`",
+        "Filter test: `--all-functions timestamp` includes std/clock.now, excludes unrelated modules"
+      ],
+      "passes": true,
+      "started": "2026-07-14",
+      "completed": "2026-07-14",
+      "notes": "Inherited partial work (docs.go, docs_signatures.go, docs_all_functions.go) verdict=KEEP: compiled, vetted clean, matched plan; showModuleDocs AST-render fixes V16. Added full test suite (exact name-set both directions, corpus-wide AST fidelity, tricky-form goldens, V16 golden, filter, unparseable-file loud-failure). DEVIATION (declared): V16 golden asserts '! {Clock}' presence rather than the plan's literal 'now() -> int' \u2014 the AST faithfully renders now's unit param as now(()); AST fidelity is the source of truth per plan. Commit 79c65a7d6."
+    },
+    {
+      "id": "M3_UNKNOWN_MODULE_RECOVERY",
+      "phase": 2,
+      "description": "Unknown-stdlib-module errors become recoverable: append `did you mean: std/clock?` + the valid module list to errWithSearchTrace. Curated alias table FIRST (time\u2192clock, ...) then Levenshtein \u22642, REUSING internal/importhint's levenshtein + internal/stdlibindex's module list, injected via diagnostics_wiring.go.",
+      "estimated_loc": 90,
+      "estimated_hours": 3,
+      "dependencies": [],
+      "blocks": [],
+      "implementation": {
+        "engine_reuse": "Add a module-name suggestion variant in internal/importhint (same package as levenshtein at :103 \u2014 reuse it directly, no re-implementation). Curated alias table lives in importhint next to autoImportedBuiltins (its existing curated-data precedent): {time:clock, date:datetime, dates:datetime, http:net, url:net, regexp:regex, strings:string, lists:list, os:process, ...}. Order: alias-table hit ALWAYS outranks distance; among equal Levenshtein distances the lexicographically-smallest module wins; module list sorted lexicographically first. Exactly ONE `did you mean` line ever.",
+        "module_list_source": "Add stdlibindex.AllModules() []string (sorted) exposing the built idx module set (D2). Inject into importhint via diagnostics_wiring.go (one line, same convention as Locator/SymbolsOf). importhint stays a leaf package (no fs-scan dep).",
+        "wiring": "cmd/ailang/diagnostics_wiring.go init(): set importhint.ModuleLocator = stdlibindex.AllModules (or equivalent). The loader error path calls the importhint variant.",
+        "error_append": "In errWithSearchTrace (stdlib_resolver.go:325): after the existing `stdlib module not found` + searched + tip block, append `  did you mean: std/<X>?` (only if a suggestion exists) and `  available: std/a, std/b, ... (N modules)`. The loader package calls importhint (already imported by loader_errors.go:11).",
+        "no_silent_degradation": "If the injected module list is nil/empty (no stdlib root resolved / glob failed): print `  available: (module list unavailable \u2014 no stdlib root resolved; see 'searched' below)`. Alias-table suggestions (static data) still print. The formatter never throws, never silently skips.",
+        "determinism": "Given the same inputs, byte-identical output. Alias table is static; distance ties broken lexicographically."
+      },
+      "files": [
+        "internal/importhint/importhint.go (module-name suggestion variant + alias table + injectable ModuleLocator)",
+        "internal/importhint/importhint_test.go (unit tests for the variant)",
+        "internal/stdlibindex/index.go (AllModules() accessor)",
+        "internal/stdlibindex/index_test.go",
+        "cmd/ailang/diagnostics_wiring.go (one injection line)",
+        "internal/loader/stdlib_resolver.go (errWithSearchTrace append)",
+        "internal/loader/stdlib_resolver_test.go (golden)"
+      ],
+      "acceptance_criteria": [
+        "`ailang check` on `import std/time (now)` prints `did you mean: std/clock?` (alias-table catch \u2014 time\u2192clock is edit-distance 5, ONLY the alias table catches it) + the sorted module list with count",
+        "A near-miss typo (e.g. `std/lst` \u2192 `std/list`) is caught by the Levenshtein \u22642 pass",
+        "Module list unavailable \u2192 explicit `(module list unavailable \u2026)` note, never silent; alias suggestions still print",
+        "Exactly one `did you mean` line; deterministic (ties lexicographic; alias outranks distance)",
+        "NO second edit-distance implementation (reuses importhint.levenshtein); NO new package; NO new diagnostic convention",
+        "internal/module dead siblings UNTOUCHED"
+      ],
+      "test_requirements": [
+        "importhint unit: alias-table hit (time\u2192clock), distance hit (lst\u2192list), no-match (returns \u201c\u201d), tie-break lexicographic, alias-outranks-distance",
+        "stdlib_resolver golden: full errWithSearchTrace text for std/time incl did-you-mean + available list",
+        "module-list-unavailable path prints the explicit note (inject nil ModuleLocator)",
+        "Regression: a genuinely-unknown module with no close match prints NO misleading did-you-mean line"
+      ],
+      "passes": true,
+      "started": "2026-07-14",
+      "completed": "2026-07-14",
+      "notes": "NOT inherited \u2014 implemented fresh. importhint.ModuleSuggestion (alias table FIRST then Levenshtein<=2 reusing importhint.levenshtein), stdlibindex.AllModules, diagnostics_wiring injection, errWithSearchTrace append with explicit module-list-unavailable note. DEVIATION (declared): dropped planned aliases math->float and json->encoding/json because std/math and std/json are REAL modules (would never hit not-found; targets were wrong). Full unit+golden tests. Commit 4a1346e24."
+    },
+    {
+      "id": "M4_DOCS_PRELUDE",
+      "phase": 3,
+      "description": "`ailang docs prelude` RENDERED from live mechanisms (loader prelude accessors + pipeline.InjectPrelude enumeration + `show` probe-guarded), with a bidirectional drift test. `docs --list` gains a footer line pointing at it.",
+      "estimated_loc": 80,
+      "estimated_hours": 3,
+      "dependencies": [],
+      "blocks": [],
+      "implementation": {
+        "special_case": "In docsCommand, BEFORE the file-lookup at docs.go:74-78 (showModuleDocs), special-case moduleName == \"prelude\" \u2192 renderPreludeDocs(). Otherwise `ailang docs prelude` still hits the `module 'std/prelude' not found` error.",
+        "source_1_implicit_imports": "Iterate loader.EntryPreludeModules() (prelude_imports.go:39, exported) and the new loader.EntryPreludeSymbols(mod) accessor (D2, over preludeModuleSymbols at :16). A module/symbol added to the implicit prelude appears in the docs page AUTOMATICALLY \u2014 no copy.",
+        "source_2_injected_bindings": "Add a small exported enumerator over pipeline.InjectPrelude's surface (currently just `println : string -> () ! {IO}`). Build a TypeEnv, call InjectPrelude, enumerate the added names + scheme.String(). Render from that \u2014 no hardcoded `println` string in docs.go.",
+        "source_3_show": "`show` is builtin-only (not in either mechanism). ONE explicit entry, guarded by a forward compile-probe fixture (an entry .ail using show() compiles import-free).",
+        "list_footer": "listModules (docs.go:123): add one footer line, e.g. `Use 'ailang docs prelude' for functions available without import (entry modules).`"
+      },
+      "files": [
+        "cmd/ailang/docs.go (prelude special-case + renderPreludeDocs + --list footer)",
+        "internal/loader/prelude_imports.go (EntryPreludeSymbols accessor)",
+        "internal/pipeline/prelude.go (surface enumerator for InjectPrelude)",
+        "cmd/ailang/docs_prelude_test.go (bidirectional drift test)",
+        "testdata fixtures for forward compile-probes (entry .ail using println/show/Some/Ok import-free; library .ail rejecting Some)"
+      ],
+      "acceptance_criteria": [
+        "`ailang docs prelude` renders: println (from InjectPrelude), show (builtin), implicit std/option + std/result (from loader accessors) with the entry-only + lowest-precedence + silent-shadowing scope notes",
+        "Page is RENDERED from live mechanisms \u2014 no duplicated table; adding OR removing a prelude name/signature via the mechanisms changes the page automatically",
+        "`ailang docs --list` shows the new footer line pointing at `ailang docs prelude`",
+        "Scope semantics backed by fixtures: entry-only (library module rejects Some \u2014 V13), silent local-type shadowing (link/verify the iter-27 test; add if missing)"
+      ],
+      "test_requirements": [
+        "Bidirectional drift: FORWARD \u2014 every rendered name compiles import-free in an entry fixture; REVERSE \u2014 the enumerated live surface (loader accessors + InjectPrelude env names+scheme.String()) EQUALS the rendered set exactly. An added AND a removed binding both fail make test",
+        "V13 fixture: a library module (no main) using Some(1) fails `undefined variable: Some`",
+        "Local `type Option` shadowing regression fixture exists and is linked (add if absent)",
+        "`show` forward compile-probe fixture"
+      ],
+      "passes": true,
+      "started": "2026-07-14",
+      "completed": "2026-07-14",
+      "notes": "Inherited partial work (docs_prelude.go, pipeline/prelude.go PreludeSurface enumerator, loader/prelude_imports.go EntryPreludeSymbols) verdict=KEEP: compiled, vetted, matched plan. Added bidirectional drift test (reverse: rendered==live surface; forward: println/show/Some import-free compile-probe), implicit-modules-from-loader, PreludeSurface delta, render + --list footer tests. V13 (library rejects Some) + local-type shadowing remain covered in internal/pipeline/prelude_option_result_test.go (referenced, not duplicated). Commit f53426c32."
+    },
+    {
+      "id": "M5_DOCS_AND_CHANGELOG",
+      "phase": 4,
+      "description": "CHANGELOG entry + a short docs/docs/guides AI-discovery note. Regression-guard `ailang docs search`.",
+      "estimated_loc": 30,
+      "estimated_hours": 1,
+      "dependencies": [
+        "M1_ALL_FUNCTIONS_FILTER",
+        "M3_UNKNOWN_MODULE_RECOVERY",
+        "M4_DOCS_PRELUDE"
+      ],
+      "blocks": [],
+      "implementation": {
+        "changelog": "Add an entry (current changelog file: changelogs/v0.18-current.md \u2014 confirm the active file) covering --all-functions[filter], unknown-module recovery, and docs prelude. Semantic versioning, grouped.",
+        "guide": "A short note under docs/docs/guides/ (e.g. an AI-discovery / stdlib-discovery section) documenting the three new surfaces. Import any example blocks from examples/ per coding-standards (no inline embedding of runnable code that could drift).",
+        "docs_search_guard": "Add/confirm a regression test asserting `ailang docs search <query>` behavior is byte-identical (still SimHash over design docs, untouched by M1's positional filter). The dispatch at docs.go:34 (args[0]==\"search\") runs BEFORE flag parsing \u2014 verify M1's flag/positional handling does not intercept it."
+      },
+      "files": [
+        "changelogs/v0.18-current.md (or the active changelog file)",
+        "docs/docs/guides/<ai-discovery note>.md",
+        "cmd/ailang/docs_test.go (docs search byte-identical regression guard)"
+      ],
+      "acceptance_criteria": [
+        "CHANGELOG updated (semantic versioning, grouped) covering all three milestones",
+        "docs/docs/guides note added; any code shown imported from examples/ (not inline-embedded)",
+        "`ailang docs search \"timestamp\"` regression-guarded byte-identical (still design-doc SimHash, not stdlib)",
+        "make test green; zero test deletions"
+      ],
+      "test_requirements": [
+        "docs search regression test present and green",
+        "CHANGELOG entry present and accurate"
+      ],
+      "passes": true,
+      "started": "2026-07-14",
+      "completed": "2026-07-14",
+      "notes": "CHANGELOG (v0.18-current) entry, new guide docs/docs/guides/ai-stdlib-discovery.md, docs-search byte-identical regression guard (asserts search stays design-doc SimHash, never intercepted by --all-functions filter). Commit cd7510a89."
+    }
+  ],
+  "phase_sequencing": {
+    "constraint": "M1, M3, M4 are INDEPENDENT (may land in any order or parallel). M5 last. M1 and M4 share the prelude renderer \u2014 whichever lands second wires M1's prelude.* entries to M4's accessor (same PR).",
+    "hard_rules": [
+      "M5 (docs/changelog) after M1+M3+M4",
+      "docs search byte-identical guard (M5) must be green \u2014 M1's positional filter must not intercept the `search` subcommand (dispatched at docs.go:34 before flag parse)",
+      "internal/types/, internal/parser/ (grammar/AST), internal/effects/ untouched throughout",
+      "internal/module dead siblings not touched"
+    ]
+  },
+  "success_criteria_rollup": [
+    "ailang docs --all-functions \u2192 413 exports + prelude, one line each, deterministic; EXACT name-set equality vs independent scan (no count floors); unparseable file \u2192 loud non-zero",
+    "Effect rows render in full (! {Clock}) in --all-functions AND per-module docs (V16 fixed)",
+    "Corpus-wide signature-fidelity test (AST re-parse) + tricky-form goldens",
+    "ailang docs --all-functions timestamp filters to std/clock lines only",
+    "ailang check on import std/time \u2192 did you mean: std/clock? + module list (golden); module-list-unavailable \u2192 explicit note",
+    "M3 reuses importhint.levenshtein + stdlibindex module list via diagnostics_wiring.go injection; no parallel engine",
+    "ailang docs prelude rendered from live mechanisms; bidirectional drift test (added OR removed binding fails make test); --list footer",
+    "ailang docs search byte-identical (regression guard)",
+    "make test green; zero test deletions; no cacheKeyVersion bump"
+  ],
+  "risks": [
+    {
+      "risk": "M1 positional filter accidentally intercepts the `search` subcommand or breaks --list/module-view arg handling",
+      "mitigation": "search is dispatched at docs.go:34 (args[0]==\"search\") BEFORE flag parsing \u2014 leave that untouched. The filter reads docsFlags.Arg(0) only inside the --all-functions branch. M5 adds a byte-identical docs-search regression guard.",
+      "severity": "medium"
+    },
+    {
+      "risk": "AST signature rendering diverges from the author's source form (e.g. tuple vs paren, generic bracket placement) and confuses agents",
+      "mitigation": "ast.Type.String() + ast.FormatEffects are the SAME renderers the compiler/errors already use; tricky-form goldens (generics/effects/pure/multi-line) lock the output. Fidelity test re-parses independently.",
+      "severity": "low"
+    },
+    {
+      "risk": "time\u2192clock (edit-distance 5) not caught if the alias table is forgotten",
+      "mitigation": "Alias table is the PRIMARY mechanism and always outranks distance; its presence is an explicit acceptance criterion + unit test (the highest-value trap).",
+      "severity": "medium"
+    },
+    {
+      "risk": "M4 reverse drift test is brittle to unrelated TypeEnv seeding (enumerates too much)",
+      "mitigation": "Enumerate the DELTA of InjectPrelude (names added by the call), not the whole env \u2014 build an empty/base env, snapshot, call InjectPrelude, diff. Loader accessors are exact lists.",
+      "severity": "low"
+    },
+    {
+      "risk": "The three small ABSENT accessors (D2) tempt broader refactors",
+      "mitigation": "Each is a minimal additive export (stdlibindex.AllModules, loader.EntryPreludeSymbols, pipeline prelude enumerator). Keep them thin; no restructuring of the underlying data.",
+      "severity": "low"
+    },
+    {
+      "risk": "Executor tempted to unify the two live not-found paths (D1) or fix LDR001/suggestSimilar heuristic",
+      "mitigation": "OUT of scope. M3 owns only the stdlib errWithSearchTrace path. LDR001 (local modules) already has a suggestion and is a separate follow-up. Recorded in PR systemic-audit note.",
+      "severity": "low"
+    }
+  ],
+  "handoff": {
+    "worktree_required": true,
+    "branch_from": "origin/dev",
+    "estimated_duration": "1 day (~11 hours across 4 code milestones + docs); \u22641.5 days with buffer",
+    "total_loc_estimate": 420,
+    "risk_level": "low"
+  },
+  "status": "completed",
+  "executor_notes": "RESUMED sprint whose previous executor died mid-flight (uncommitted partial M1+M4 code, no tests, no commits, M3 absent). All inherited files verdict=KEEP (compiled + vetted + matched plan). Completed at worktree /Users/voightkampff/dev/sunholo-data/ailang-wt-dx-ai-discovery on branch sprint/m-dx-ai-discovery based on 648a919be. go test ./... = 104 pkg ok / 0 FAIL. Forbidden zones (internal/types, internal/effects, internal/parser grammar/AST, internal/module siblings, docs_search.go, cacheKeyVersion) all untouched. Sprint JSON is gitignored so it does not ride the branch; state updated here in the main checkout."
+}

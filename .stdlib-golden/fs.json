@@ -35,6 +35,14 @@
       "pure": true
     },
     {
+      "name": "glob",
+      "type": "(string,string)-\u003elist[string]!{FS}",
+      "effects": [
+        "FS"
+      ],
+      "pure": true
+    },
+    {
       "name": "isDir",
       "type": "(string)-\u003ebool!{FS}",
       "effects": [
@@ -149,6 +157,14 @@
     {
       "name": "renameFileResult",
       "type": "(string,string)-\u003eResult[(),string]!{FS}",
+      "effects": [
+        "FS"
+      ],
+      "pure": true
+    },
+    {
+      "name": "walk",
+      "type": "(string)-\u003e[string]!{FS}",
       "effects": [
         "FS"
       ],

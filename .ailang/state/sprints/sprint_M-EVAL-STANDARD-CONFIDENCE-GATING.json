@@ -1,0 +1,90 @@
+{
+  "sprint_id": "M-EVAL-STANDARD-CONFIDENCE-GATING",
+  "status": "completed",
+  "created": "2026-08-03T13:31:21Z",
+  "design_doc": "design_docs/planned/m-eval-standard-confidence-gating.md",
+  "sprint_plan": "design_docs/planned/m-eval-standard-confidence-gating-sprint-plan.md",
+  "github_issues": [],
+  "velocity": {
+    "target_loc_per_day": 115,
+    "estimated_total_loc": 460,
+    "estimated_days": 4
+  },
+  "features": [
+    {
+      "id": "M1_GATING_WIRING_IN_RUN_EVAL_BASE",
+      "description": "Gating wiring in run_eval_baseline.sh",
+      "estimated_loc": 90,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "`--confidence-gate` off (default): script behavior is byte-identical to today, confirmed by diffing dry-run output before/after this milestone on an unrelated benchmark set",
+        "`--confidence-gate` on, DB seeded: gated `core,stretch` benchmark list is a strict, sorted subset of the full tier's list; `frontier`'s resolved list is byte-identical between gated and non-gated runs",
+        "`--confidence-gate` on, DB has zero standard rows (today's actual live state, a real fixture): script falls open to full `core,stretch,frontier`, logs `confidence-gate: standard ratings unavailable — falling back to full tier`, does not error",
+        "A synthetic \"new model\" (present in `extended_suite`, absent from `model_ratings`) always resolves to the full tier regardless of gating state",
+        "shellcheck clean"
+      ],
+      "passes": true,
+      "started": "2026-08-03T13:44:52Z",
+      "completed": "2026-08-03T13:44:52Z",
+      "notes": "Verified live against real state: extended_suite_models() parsed all 18 models from models.yml; bootstrapped observatory.db standard ratings from eval_results/baselines/v0.30.0 (17 models, 56 benchmarks); confidence_gated_core_stretch() correctly resolved 21/40 core+stretch benchmarks as non-saturated (fixed a real bug: dry-run Benchmarks: line is comma-SPACE separated, unstripped leading space broke comm -12 down to 1 match); new-model split correctly flagged claude-opus-5/gemini-3-6-flash/gemini-3-5-flash-lite as new (added to extended_suite after the DB was seeded) vs 15 rated; fail-open path verified pre-bootstrap (probe exits 1, caught cleanly); shellcheck clean; bash -n clean."
+    },
+    {
+      "id": "M2_COST_ESTIMATOR_DRY_RUN_WIRING",
+      "description": "Cost estimator + --dry-run wiring",
+      "estimated_loc": 170,
+      "dependencies": [
+        "M1_GATING_WIRING_IN_RUN_EVAL_BASE"
+      ],
+      "acceptance_criteria": [
+        "`--dry-run` output includes a `$` total line",
+        "Benchmarks with no historical data are labelled \"no history — rough estimate\" in the breakdown, not silently folded into the total without a marker",
+        "Unit test: fixture-derived estimate matches hand-computed expected value exactly",
+        "`go build ./...` clean, existing `--dry-run` tests (`eval_suite_cohort_test.go`) still pass unmodified"
+      ],
+      "passes": true,
+      "started": "2026-08-03T13:51:20Z",
+      "completed": "2026-08-03T13:51:20Z",
+      "notes": "Placed in cmd/ailang/eval_cost_estimate.go (not internal/eval_harness/ as the design doc sketched) because eval_analysis already imports eval_harness for the ELO fit — the reverse import would cycle; design doc explicitly deferred this placement choice. estimateRunCostUSDWithMeans is a pure function (no filesystem/global access) for testability, with a thin estimateRunCostUSD wrapper for live use. 3 unit tests pass (hand-computed fixture, nil-means, nil-config). Live-tested: --full --tier core --dry-run against real models.yml/baseline data produced $17.38 for 18 models x 19 core benchmarks x 2 langs (90/342 pairs flagged no-history), a sane order of magnitude vs the real v0.30.0 full-tier cost of $98.33 for all 56 benchmarks. go build/vet clean, golangci-lint 0 issues package-wide, gofmt clean, existing eval_suite_cohort_test.go CLI tests (including live --dry-run invocations) pass unmodified."
+    },
+    {
+      "id": "M3_AGGREGATE_BUDGET_USD_CAP",
+      "description": "Aggregate --budget-usd cap",
+      "estimated_loc": 140,
+      "dependencies": [
+        "M2_COST_ESTIMATOR_DRY_RUN_WIRING"
+      ],
+      "acceptance_criteria": [
+        "Unset `--budget-usd`: behavior byte-identical to today (no regression for non-release use)",
+        "Set and breached: scheduling of new trials stops before exceeding the cap by more than one in-flight batch; already-banked results are retained, not discarded",
+        "`baseline.json` carries `budget_stopped: true` only when the cap actually fired",
+        "Unit test passes with a stubbed cost stream",
+        "`run_eval_baseline.sh --full` passes `--budget-usd 150` by default; overridable via a new script flag"
+      ],
+      "passes": true,
+      "started": "2026-08-03T14:05:58Z",
+      "completed": "2026-08-03T14:05:58Z",
+      "notes": "runSingleBenchmark gained an onCost callback (invoked at both its logger.Log(metrics) success points — agent and standard branches — not at any of its 22 early-return statements, since a trial that never reaches metrics has no cost to report and touching all 22 return sites would have been high-risk for a 700-line function with a single caller). Budget threshold logic extracted into a standalone budgetTracker type (eval_budget.go) so it is unit-testable without running real benchmarks: 4 new tests including a stubbed 5-call cost stream crossing a $1 cap (trips exactly once at call 4, keeps counting to $1.50, Exceeded()=true) and a 50-goroutine concurrent-Add race test (passes under -race). --budget-usd flag added to eval-suite (0/unset=no cap, preserving today's behavior); on breach, in-flight trials finish, no new trial schedules, a budget_stopped.json sentinel is written. tools/eval_baseline.sh gained BUDGET_USD passthrough (same pattern as M1's BENCHMARKS). run_eval_baseline.sh: --budget-usd flag (default $150 for --full runs only, dev mode uncapped unless set explicitly, per Design Freeze); confidence-gated sequence checks budget_stopped() between each of its up-to-3 calls and stops the sequence early on a hit; baseline.json gets budget_stopped:true + budget_stopped_detail merged via jq after Step 1 (tested against a real fixture, not just read). Full cmd/ailang test suite (not just the new tests) re-run and passes with zero regressions. go build/vet clean, golangci-lint 0 issues, gofmt clean, shellcheck clean on both shell files."
+    },
+    {
+      "id": "M4_SKILL_MD_REWRITE_CHANGELOG_LIV",
+      "description": "SKILL.md rewrite + CHANGELOG + live comparison (docs + verification, no new LOC budget)",
+      "estimated_loc": 60,
+      "dependencies": [
+        "M1_GATING_WIRING_IN_RUN_EVAL_BASE",
+        "M2_COST_ESTIMATOR_DRY_RUN_WIRING",
+        "M3_AGGREGATE_BUDGET_USD_CAP"
+      ],
+      "acceptance_criteria": [
+        "`SKILL.md`'s cost table reflects the real, computed workflow — no hand-guessed numbers remain",
+        "CHANGELOG entry present",
+        "Side-by-side `--dry-run` comparison (gated vs full) recorded and reported",
+        "Documentation updated",
+        "Examples added (N/A — this is tooling, not a language feature; skip per design doc's Non-Goals)"
+      ],
+      "passes": true,
+      "started": "2026-08-03T14:11:31Z",
+      "completed": "2026-08-03T14:11:31Z",
+      "notes": "SKILL.md Cost & time section replaced with real banked figures (v0.30.0 $113.40, v0.29.2 $135.22 combined, both cross-checked against actual cost_usd fields this session) + a pointer to the new real --dry-run estimate instead of hand-guessed prose; documented --confidence-gate (frontier-exempt, new-model-full-tier rule, fail-open) and --budget-usd ($150 default). Same stale hardcoded cost text also lived in run_eval_baseline.sh own echo output (a second copy the SKILL.md fix would otherwise have contradicted) -- cleaned that up too, pointing to --dry-run instead. CHANGELOG entry added under ## [Unreleased] / ### Added in changelogs/v0.18-current.md. Live comparison: run_eval_baseline.sh has no --dry-run mode of its own (only eval-suite does), so executed the precise equivalent -- ailang eval-suite --dry-run invoked with the exact model/benchmark splits run_confidence_gated_standard() computes. Result: full-tier estimate $49.57 vs gated total $35.28 (new-models-full $8.27 + rated-gated-core-stretch $15.71 + rated-frontier-full $11.30) = $14.29 / ~29% projected savings on confidence-gated standard eval. Caveat recorded plainly in the design doc: ~50% of priced pairs used the flat default (observatory.db bootstrapped from v0.30.0 predates 3 of the 18 current models), so this is a directional projection, not the live-release spend comparison the Success Criteria still requires before defaulting the flag on. Final consolidated check: bash -n + shellcheck clean on both shell files; go build clean on every package touched this sprint (cmd/ailang, internal/eval_harness, internal/eval_analysis, tools) -- confirmed the initial go build ./... nonzero exit was pre-existing/unrelated (internal/stdlib, a test-only package never touched this sprint, independently reproduces exit 1 on a clean untouched build); go vet clean; gofmt clean."
+    }
+  ]
+}

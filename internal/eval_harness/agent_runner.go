@@ -44,6 +44,16 @@ type AgentBenchmarkConfig struct {
 	// executor.Task.MaxTokensPerBench. Set via the -max-tokens-per-bench CLI
 	// flag in cmd/ailang/eval_suite.go.
 	MaxTokensPerBench int
+
+	// ToolPolicy / PolicyPath (M-AGENT-AILANG-ONLY-EXECUTION M5, D5): the
+	// `ailang_only` eval LANE. ToolPolicy is a profile or canonical list
+	// (executor.ProfileTools); empty = the executor's own defaults, i.e. the
+	// lane every row before this field was banked on. PolicyPath is the program
+	// policy the lane's `ailang_run` is gated by, forwarded as
+	// AILANG_AGENT_POLICY. Both are banked on the row (tool_policy,
+	// policy_digest), so this lane never pools with the bash lane silently.
+	ToolPolicy string
+	PolicyPath string
 }
 
 // DefaultAgentConfig returns sensible defaults.
@@ -135,6 +145,13 @@ type AgentBenchmarkResult struct {
 	// subject reports it actually LOADED. Treatment-integrity evidence for any
 	// experiment whose treatment IS an extension.
 	ResolvedExtensions string `json:"resolved_extensions,omitempty"`
+	// ExecutorVersion is what the harness CLI reported for --version
+	// ("pi@0.85.1"). Absent => unmeasured. See executor.Result.ExecutorVersion.
+	ExecutorVersion string `json:"executor_version,omitempty"`
+	// ToolPolicy / PolicyDigest: the effective tool list and program-policy
+	// digest the run had. Absent => unmeasured. See executor.Result.
+	ToolPolicy   []string `json:"tool_policy,omitempty"`
+	PolicyDigest string   `json:"policy_digest,omitempty"`
 
 	// SessionJSONLPath is the executor's own session log — the only record of
 	// what the agent was actually TOLD. The banked agent_transcript holds tool

@@ -21,6 +21,28 @@ type TypedEvaluator struct {
 type TraceCollector struct {
 	Entries []TraceEntry
 	Enabled bool
+	// Dropped counts entries evicted by the retention cap; the tail is kept.
+	Dropped int
+}
+
+// DefaultMaxTypedTraceEntries bounds Entries. It appended for the life of the
+// run before (M-V1-MEMORY-FOOTPRINT F7); values were already 1 KB each, so
+// the cap is on count.
+const DefaultMaxTypedTraceEntries = 10000
+
+// add appends an entry, evicting the oldest half when the cap is reached so
+// eviction is amortised O(1) rather than a shift per call.
+func (c *TraceCollector) add(e TraceEntry) {
+	if len(c.Entries) >= DefaultMaxTypedTraceEntries {
+		drop := len(c.Entries) / 2
+		c.Dropped += drop
+		kept := copy(c.Entries, c.Entries[drop:])
+		for i := kept; i < len(c.Entries); i++ {
+			c.Entries[i] = TraceEntry{}
+		}
+		c.Entries = c.Entries[:kept]
+	}
+	c.Entries = append(c.Entries, e)
 }
 
 // TraceEntry represents a single trace entry

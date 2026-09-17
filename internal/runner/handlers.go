@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/effects"
 )
 
@@ -119,6 +120,26 @@ type StreamOptions struct {
 	AllowHTTP      bool
 	AllowDomains   string
 	AllowLocalhost bool
+}
+
+// SetupFSLimit resolves the FS read cap: the --fs-max-bytes flag text, else
+// AILANG_FS_MAX_BYTES, else unbounded (D-C). A malformed value is an error —
+// a safety cap never falls back (M-V1-MEMORY-FOOTPRINT M3).
+func SetupFSLimit(effCtx *effects.EffContext, flag string) error {
+	if flag != "" {
+		n, err := config.ParseByteSize(flag)
+		if err != nil {
+			return fmt.Errorf("--fs-max-bytes: %w", err)
+		}
+		effCtx.Env.FSMaxBytes = n
+		return nil
+	}
+	n, _, err := config.FSMaxBytes()
+	if err != nil {
+		return err
+	}
+	effCtx.Env.FSMaxBytes = n
+	return nil
 }
 
 // ProcessOptions are the `--process-*` flags.

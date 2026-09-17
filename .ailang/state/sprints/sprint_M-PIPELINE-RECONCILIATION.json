@@ -1,0 +1,133 @@
+{
+  "sprint_id": "M-PIPELINE-RECONCILIATION",
+  "status": "completed",
+  "created": "2026-08-26T15:52:25Z",
+  "design_doc": "design_docs/planned/v0_35_0/m-pipeline-reconciliation.md",
+  "sprint_plan": "design_docs/planned/v0_35_0/m-pipeline-reconciliation-sprint-plan.md",
+  "github_issues": [
+    19
+  ],
+  "velocity": {
+    "target_loc_per_day": 260,
+    "estimated_total_loc": 1220,
+    "estimated_days": 4
+  },
+  "features": [
+    {
+      "id": "M1_VERDICT_TYPE_AND_APPROVAL_FIELD",
+      "description": "Closed EvaluationVerdict type (PASS/FAIL/UNAVAILABLE) + Evaluation field on ApprovalRequestRecord across SQLite and Firestore stores, with UpdateApprovalEvaluationByTask",
+      "estimated_loc": 220,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Parse/format round-trips; unparsable input yields UNAVAILABLE, never an error or empty",
+        "Guarded ALTER TABLE migration; existing approval tests green",
+        "Firestore map round-trip carries the field",
+        "UpdateApprovalEvaluationByTask updates the pending approval for a task"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-08-26",
+      "notes": null
+    },
+    {
+      "id": "M2_PER_EDGE_AUTOAPPROVE_AND_ATTACH",
+      "description": "AutoApproveHandoffTo per-edge list; EvaluatesParent agents attach verdicts to the parent task's approval on completion AND on failure (UNAVAILABLE); FAIL/UNAVAILABLE block automatic progression only",
+      "estimated_loc": 250,
+      "dependencies": [
+        "M1_VERDICT_TYPE_AND_APPROVAL_FIELD"
+      ],
+      "acceptance_criteria": [
+        "Per-edge auto-approve fires only for listed targets while the bool stays false",
+        "Verdict attached on evaluator success; UNAVAILABLE attached on evaluator failure",
+        "FAIL/UNAVAILABLE block auto_merge + auto-approved downstream handoffs; human gate untouched",
+        "Unparsable evaluator output becomes UNAVAILABLE(unparsable)"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-08-26",
+      "notes": null
+    },
+    {
+      "id": "M3_LANE_B_EVALUATOR_STAGE",
+      "description": "Cloud config gains the sprint-evaluator agent (read-only, skip_approval, evaluates_parent) and the executor edge; plugin PR syncs the skill",
+      "estimated_loc": 30,
+      "dependencies": [
+        "M2_PER_EDGE_AUTOAPPROVE_AND_ATTACH"
+      ],
+      "acceptance_criteria": [
+        "Config validates and is CAS-written",
+        "ailang_bootstrap PR open with the skill"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-08-26",
+      "notes": null
+    },
+    {
+      "id": "M4_CHAIN_AS_DATA",
+      "description": "pipelines: stage list + per-project bindings expanded by the registry; stapledon/twilight clones deleted after an expansion-equivalence fixture proves parity",
+      "estimated_loc": 250,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Expansion of a binding config \u2261 today's clone config (fixture)",
+        "Live config loses the 6 dormant entries",
+        "39-agent execution-lane fixture still green"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-08-26",
+      "notes": null
+    },
+    {
+      "id": "M5_SHARED_MODEL_ROUTING",
+      "description": "model_routing role\u2192chain table in CAS config; Lane B resolves empty model: via it; coordinator routing CLI for Lane A; static pins deleted (driver wiring deferred \u2014 loops live)",
+      "estimated_loc": 200,
+      "dependencies": [
+        "M4_CHAIN_AS_DATA"
+      ],
+      "acceptance_criteria": [
+        "Resolution unit tests incl. missing-role fallback behavior (loud, not silent)",
+        "Static opus pins removed from live config",
+        "CLI prints a role's chain"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-08-26",
+      "notes": null
+    },
+    {
+      "id": "M6_DECISION_LEDGER_SPINE",
+      "description": "coordinator pending unions store approvals with approvals-inbox messages; mission-control Gate 3 posts awaiting_approval stages to the approvals inbox",
+      "estimated_loc": 120,
+      "dependencies": [
+        "M2_PER_EDGE_AUTOAPPROVE_AND_ATTACH"
+      ],
+      "acceptance_criteria": [
+        "pending lists both classes with provenance",
+        "mission-control SKILL.md edit committed"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-08-26",
+      "notes": null
+    },
+    {
+      "id": "M7_CROSS_LANE_APPROVAL_RECONCILIATION",
+      "description": "A dashboard (cloud) approval of a local-lane task flips the record but strands the task: the merge half needs the machine that owns the worktree. Rig-side sweep: on each poll, find approvals status=approved for MY local-lane agents whose task is still pending_approval, and run the local finalize (merge worktree, complete task, cleanup). Live fixture: task-6051f916, approved by Mark via dashboard 2026-08-26, stranded pending_approval.",
+      "estimated_loc": 150,
+      "dependencies": [
+        "M2_PER_EDGE_AUTOAPPROVE_AND_ATTACH"
+      ],
+      "acceptance_criteria": [
+        "Sweep finds approved-but-stranded tasks for this coordinator's agents only",
+        "Local finalize runs: task leaves pending_approval, worktree cleaned",
+        "task-6051f916 (the live stranded probe) is recovered by the sweep",
+        "A cloud-lane task is never touched by the sweep"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-08-26",
+      "notes": "Live fixture recovered: 18:10:44, merged-noop to dev, worktree cleaned, attribution dashboard-user preserved"
+    }
+  ]
+}

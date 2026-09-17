@@ -1,6 +1,6 @@
 cmd/ailang/chains_diff.go 4
 cmd/ailang/coordinator_browse.go 11
-cmd/ailang/coordinator_cloud.go 12
+cmd/ailang/coordinator_cloud.go 10
 cmd/ailang/coordinator_cloud_cascade.go 2
 cmd/ailang/coordinator_cloud_github.go 1
 cmd/ailang/coordinator_inspect.go 4

@@ -3,11 +3,15 @@ package apiserver
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/effects"
@@ -129,5 +133,56 @@ func TestServeAPI_LogLevelFiltersStructuredLines(t *testing.T) {
 	}
 	if !strings.Contains(out, `"source":"Debug.check"`) {
 		t.Errorf("failed check must surface regardless of log level:\n%s", out)
+	}
+}
+
+// TestServeAPI_ConcurrentRequestsKeepTheirOwnDebugLines pins M-V1-MEMORY-FOOTPRINT
+// M2: every request logs into its own Debug context (EffContext.Clone gives a
+// Fresh one on the shared sink), so eight overlapping requests each land all
+// fifty of their lines. With one shared accumulator, whichever request
+// finished first flushed and Reset the buffer under the others.
+func TestServeAPI_ConcurrentRequestsKeepTheirOwnDebugLines(t *testing.T) {
+	root, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("AILANG_STDLIB_PATH", root)
+	srv := New(root, Config{EffCtx: effects.NewEffContext(nil)})
+	t.Cleanup(func() { _ = srv.Close() })
+	const module = "internal/embed/testdata/debug_concurrent"
+	if err := srv.LoadModules([]string{filepath.Join(root, module+".ail")}); err != nil {
+		t.Fatalf("LoadModules: %v", err)
+	}
+
+	const workers = 8
+	out := captureStderr(t, func() {
+		var wg sync.WaitGroup
+		for w := 0; w < workers; w++ {
+			wg.Add(1)
+			go func(tag string) {
+				defer wg.Done()
+				req := httptest.NewRequest(http.MethodPost, "/api/"+module+"/main", strings.NewReader(`{"args":["`+tag+`"]}`))
+				req.Header.Set("Content-Type", "application/json")
+				rec := httptest.NewRecorder()
+				srv.callFunction(rec, req, module, "main")
+				if rec.Code != 200 {
+					t.Errorf("%s: status %d: %s", tag, rec.Code, rec.Body.String())
+				}
+			}(fmt.Sprintf("req%d", w))
+		}
+		wg.Wait()
+	})
+
+	for w := 0; w < workers; w++ {
+		tag := fmt.Sprintf("req%d", w)
+		for i := 0; i < 50; i++ {
+			want := fmt.Sprintf("%s:%d\n", tag, i)
+			if n := strings.Count(out, want); n != 1 {
+				t.Errorf("%q appeared %d times, want exactly 1", strings.TrimSpace(want), n)
+			}
+		}
+	}
+	if srv.effCtx.Debug == nil || len(srv.effCtx.Debug.Collect().Logs) != 0 {
+		t.Errorf("server-level Debug context retained lines; requests must not log into it")
 	}
 }

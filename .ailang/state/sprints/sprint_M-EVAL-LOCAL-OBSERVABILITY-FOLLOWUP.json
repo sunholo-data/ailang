@@ -1,0 +1,56 @@
+{
+  "sprint_id": "M-EVAL-LOCAL-OBSERVABILITY-FOLLOWUP",
+  "status": "completed",
+  "created": "2026-05-22T21:55:00Z",
+  "design_doc": "design_docs/implemented/v0_22_0/m-eval-local-observability-followup.md",
+  "sprint_plan": "design_docs/implemented/v0_22_0/m-eval-local-observability-followup-sprint-plan.md",
+  "github_issues": [],
+  "velocity": {
+    "target_loc_per_day": 60,
+    "estimated_total_loc": 60,
+    "estimated_days": 1
+  },
+  "features": [
+    {
+      "id": "M1_PLUMB_CHAIN_STAGE_METADATA",
+      "description": "Thread chain_id and stage_id from eval_benchmark.go through MultiExecutorConfig into executor.Task.Metadata, so BuildResourceAttributes picks them up and OTEL_RESOURCE_ATTRIBUTES carries them to the opencode subprocess. The OTLP receiver already extracts ailang.chain_id/stage_id from resource attrs and stores on spans, so this single plumbing change closes the gap that left ailang chains live with '(no spans yet)' for active chains.",
+      "estimated_loc": 40,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Add ChainID and StageID fields to MultiExecutorConfig struct in internal/eval_harness/agent_runner_multi.go",
+        "Build executor.Task with Metadata{chain_id, stage_id} populated only when non-empty",
+        "cmd/ailang/eval_benchmark.go sets multiConfig.ChainID = evalChain.ChainID and multiConfig.StageID = stageID before calling RunAgentBenchmarkWithExecutor (guarded by non-nil chain + non-empty stageID)",
+        "New regression test TestRunAgentBenchmark_PopulatesChainStageMetadata uses a stub executor that captures Task.Metadata and asserts chain_id and stage_id flow through",
+        "go build ./... clean",
+        "go test ./internal/eval_harness/ ./cmd/ailang/ ./internal/observatory/ all green (no regression)"
+      ],
+      "passes": true,
+      "started": "2026-05-22T21:55:00Z",
+      "completed": "2026-05-22T22:05:00Z",
+      "notes": "Plumbed chain_id+stage_id from eval_benchmark.go through MultiExecutorConfig (new fields) into executor.Task.Metadata via buildChainMetadata helper. 4 sub-tests pass (TestBuildChainMetadata_PopulatesBothWhenSet + TestBuildChainMetadata_OmitsEmpty 3 cases). No regression in eval_harness, observatory, cmd/ailang."
+    },
+    {
+      "id": "M2_VERIFY_END_TO_END_AND_CHANGELOG",
+      "description": "Manual verification that the plumbing actually closes the gap: a fresh smoke-mode eval run with OTLP enabled writes spans with non-NULL chain_id/stage_id, ailang chains live shows live per-stage progress instead of '(no spans yet)', and the CHANGELOG entry is added under v0.22.0 alongside M-EVAL-LOCAL-OBSERVABILITY.",
+      "estimated_loc": 20,
+      "dependencies": [
+        "M1_PLUMB_CHAIN_STAGE_METADATA"
+      ],
+      "acceptance_criteria": [
+        "Rebuild ailang via make quick-install with the M1 change applied",
+        "Restart ailang server to pick up the new binary",
+        "Run a single fizzbuzz benchmark with OTLP_EXPORTER_OTLP_ENDPOINT=http://localhost:1957 and -agent",
+        "Query: SELECT COUNT(*) FROM spans WHERE chain_id IS NOT NULL — returns > 0",
+        "Query: SELECT DISTINCT chain_id, stage_id FROM spans WHERE stage_id IS NOT NULL — shows the test chain and its stage",
+        "ailang chains live <test-chain-id> --once shows real 'X s ago' last-span values (not '(no spans yet)')",
+        "Add CHANGELOG entry under the existing M-EVAL-LOCAL-OBSERVABILITY block in changelogs/v0.10-current.md noting the followup landed",
+        "Move design doc + sprint plan from planned/v0_22_0/ to implemented/v0_22_0/ via finalize_sprint.sh"
+      ],
+      "passes": true,
+      "started": "2026-05-22T22:05:00Z",
+      "completed": "2026-05-22T22:20:00Z",
+      "notes": "End-to-end verified with fizzbuzz benchmark: 286 spans with non-NULL chain_id+stage_id linking back to chain 6a82fab9-... and stage e984daaf-... Also discovered + fixed SQL bug: MAX(TIMESTAMP) returns raw string, scan into sql.NullString and parse manually. ailang chains live now shows real Last-span ages (3m37s ago) instead of (no spans yet). CHANGELOG entry updated."
+    }
+  ],
+  "completed": "2026-05-22T19:32:44Z"
+}

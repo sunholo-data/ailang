@@ -201,6 +201,12 @@ unregistered models, naming the fallback and listing what is registered.
 
 ### D8 — The tool policy is pi's, and `bash` is outside Decision 6
 
+> **Superseded 2026-09-16 by [M-AGENT-AILANG-ONLY-EXECUTION](v0_35_0/m-agent-ailang-only-execution.md).**
+> `resident-run` is deleted; the one gate is `ailang run --policy`, reached through the `ailang_run`
+> pi tool; `RESIDENT_TOOLS` defaults to the `ailang_only` profile (no `bash`), so the allowlist
+> below is now a boundary rather than a convenience. The policy arrives as `AILANG_AGENT_POLICY_TOML`
+> and is materialised read-only outside the sandbox (D4). The text below is kept as history.
+
 pi ships `read`, `bash`, `edit` and `write` enabled, and the resident passed no
 `--tools` restriction, so all four were live and **nothing said so**. Two
 consequences, one cosmetic and one not.
