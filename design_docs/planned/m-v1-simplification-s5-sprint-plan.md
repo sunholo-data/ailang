@@ -94,7 +94,7 @@ server budget workspaces design-review design-quorum mcp`. `eval` becomes a grou
 - [ ] a table-driven test enumerates every pre-S5 spelling from a **checked-in fixture list** and asserts non-"unknown command"; the fixture is generated from `bin/ailang-before`, not hand-typed
 - [ ] `ailang --help` fits one screen: ≤ 20 visible entries, hidden groups discoverable via `ailang dev --help` / `ailang ops --help`
 - [ ] `ai_check_exit_test.go` passes unchanged (its exit contract and the DP7 gate depend on it)
-- [ ] `make test-launchd-drivers` green (bash 3.2: pin-root + routing + notices + hook stdout)
+- [ ] `make test-launchd-drivers` green — **run it on a quiet box, and capture make's own exit code**, not a pipeline's (see the trap below)
 - [ ] snapshot diff: alias paths byte-identical to `ailang-before` on stdout; help text is the only intended change
 
 ### M3 — Fold `trace` + `observatory` + `dashboard` + `eval-chains` into `chains` (−~5,000 LOC)
@@ -204,6 +204,27 @@ commit → push → memory.
   one this sprint can satisfy is "aliases shipped in a tagged release".
 - Phase 4's four gates (`packages_without_doc`, `skill_trees`, `instruction_surface_bytes`,
   `tracked_files`) and the six other flag families.
+
+## Two traps measured in THIS sprint, before a line of code was written
+
+**`make test-launchd-drivers` fails under concurrent compilation, and the failure looks like a real
+regression.** Measured 2026-09-17: run while a worktree agent was building the tree (load avg 5.85),
+the suite died at `bound derivation responds to a slowed stimulus: helper rc=199`
+(`tools/eval/test_motoko_connection_probe.sh:1022`). `rc=199` is `run_bounded` hitting its 10s cap.
+Re-run alone on the same box: **59/59 arms pass, exit 0**, `fork rate 590/s drift=none`. The arm
+measures whether a deliberately slowed stimulus yields a measurably lower fork rate, so CPU
+contention is indistinguishable from the thing it measures. The suite is otherwise load-robust by
+design (a sibling arm is documented as "0 failures in 8 local runs, quiet and under 8x CPU
+contention") — this one arm is not. **Never run this target while an agent is compiling**, and do
+not chase it as a regression before running the quiet control. Note also that it sits second-to-last
+in the target, so when it dies the four bash-3.2 `-n` syntax checks after it never run at all.
+
+**A piped `make` reports the pipe's exit code, and the harness believes it.** `make <gate> 2>&1 |
+tail -25` reported success while `make: *** Error 1` sat in the scrolled output; the background-task
+notification said "exit code 0" because that was `tail`'s. Same family as the `grep -q`/`pipefail`
+trap below, but it bites the *gates*, which is worse — a gate that reports green when it failed is
+the one thing a gate may not do. Run gate commands unpiped, or capture `$?` from `make` itself
+before anything else touches the stream.
 
 ## Traps carried forward (each cost real time — see the handover)
 
