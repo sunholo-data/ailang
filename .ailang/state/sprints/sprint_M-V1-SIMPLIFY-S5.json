@@ -85,10 +85,11 @@
         "docs citing removed commands updated in the same commit (`check-referenced-paths` green)",
         "`make lint` green \u2014 no orphaned helpers left behind (and none deleted on \"unused\" alone)"
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
       "completed": null,
-      "notes": null
+      "notes": "One removal shipped (storage migrate|verify + internal/storage/migrate, 342 LOC), seven declined with evidence. KEY FINDING, verified independently: deleting access-control would have broken PRODUCTION AUTH \u2014 the CLI is the sole writer of Collection('access_control') doc 'email:<email>:<ws>' that internal/server/auth/firestore.go GetUserRoleByEmail reads from AuthMiddleware; no doc => Role='Guest'. The 5 library writers have 0 non-test callers. git grep returns 0 only because a HUMAN operator invokes it. Reference counting cannot see coupling through a data key \u2014 this is the general lesson. models/workspaces/storage bare now exit 1. Binary closure 124->123 re-banked; language closure unchanged at 45.",
+      "merged_commit": "2f2d22d1c"
     },
     {
       "id": "M5_FOUR_FLAG_FAMILIES",
