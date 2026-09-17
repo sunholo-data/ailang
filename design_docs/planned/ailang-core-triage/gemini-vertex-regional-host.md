@@ -4,7 +4,7 @@
 - **Class**: bug
 - **Recommend**: direct-fix
 - **Searched**: `aiplatform`, `GOOGLE_CLOUD_LOCATION`, `vertex|regional|europe-west|data residency` across design_docs/. Nearest coverage is `implemented/v0_30_0/m-gemini-exec-project-plumbing.md`, which only plumbs the env var through and explicitly pins location to `"global"` (`internal/executor/managed_agents/client.go`, `defaultLocation`). No planned or implemented doc rules on regional host enforcement — this is a genuine gap.
-- **Estimate**: ~2 lines in `internal/ai/gemini/generate.go` (both `buildURL` and `buildStreamURL` AuthADC branches: when `c.location != "" && c.location != "global"`, use `https://{location}-aiplatform.googleapis.com/v1` instead of the global `vertexAIBaseURL`; the constant lives in `internal/ai/gemini/client.go`)
+- **Estimate**: ~2 lines in `internal/ai/gemini/generate.go` (both `buildURL` and `buildStreamURL` AuthADC branches: when `c.location != "" && c.location != "global"`, use `https://{location}-aiplatform.googleapis.com/v1` instead of the global `vertexAIBaseURL`; the `vertexAIBaseURL` constant is declared beside the client, not edited)
 
 The Vertex global host (`aiplatform.googleapis.com`) accepts any location path segment and
 answers without routing to that region — measured 11 Sept with ADC on aitana-multivac-dev:
