@@ -81,6 +81,9 @@ func TestGroups_HiddenRowsAreDeliberate(t *testing.T) {
 		// from the other direction, so removing one here is not enough to
 		// unhide it silently.
 		"dashboard", "eval-chains", "observatory", "trace",
+		// M-PKG-BIN-ENTRYPOINTS: `ailang bin` is the spelling the shims' own
+		// regenerate hints and the package docs use; canonical is `pkg bin`.
+		"bin",
 	}
 	var got []string
 	for i := range allCommands {
