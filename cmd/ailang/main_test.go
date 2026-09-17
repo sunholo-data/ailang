@@ -45,9 +45,12 @@ func TestCLI_Help(t *testing.T) {
 		t.Errorf("Expected exit code 0, got %d", exitCode)
 	}
 
+	// The command sections are generated from the dispatch table since
+	// M-V1-SIMPLIFY-S5 M1; "Commands:" was the old hand-written header.
 	expectedSections := []string{
 		"Usage:",
-		"Commands:",
+		"Language commands:",
+		"Platform commands:",
 		"run",
 		"repl",
 		"check",
