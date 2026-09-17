@@ -208,3 +208,112 @@ func TestInstallRegistry_WritesLockAndShims(t *testing.T) {
 		t.Errorf("--no-bin must not create a bin dir: %v", err)
 	}
 }
+
+// TestBinCommand_ListAndUninstall drives `ailang bin` end to end through the
+// command function: `install --path` writes the shims, `bin list` reads them
+// back (flags accepted after the subcommand), `bin uninstall` removes exactly
+// one and refuses a name that is not installed.
+func TestBinCommand_ListAndUninstall(t *testing.T) {
+	pkgDir := filepath.Join(t.TempDir(), "greeter")
+	writeGreeterPackage(t, pkgDir)
+	binDir := filepath.Join(t.TempDir(), "bin")
+
+	out := captureStdout(t, func() {
+		if err := pkgInstallCommand([]string{"--path", pkgDir, "--bin-dir", binDir}); err != nil {
+			t.Errorf("install --path: %v", err)
+		}
+	})
+	if !strings.Contains(out, "bin: greet →") || !strings.Contains(out, "bin: greet-args →") {
+		t.Fatalf("install --path output:\n%s", out)
+	}
+	if err := pkgInstallCommand([]string{"--path", pkgDir, "some/name"}); err == nil {
+		t.Error("--path with a vendor/name argument must be refused")
+	}
+	if err := pkgInstallCommand([]string{"--path", t.TempDir()}); err == nil {
+		t.Error("--path on a directory without ailang.toml must be refused")
+	}
+	noBin := filepath.Join(t.TempDir(), "lib")
+	os.MkdirAll(noBin, 0o755)
+	os.WriteFile(filepath.Join(noBin, pkg.ManifestFile), []byte("[package]\nname = \"test/lib\"\nversion = \"0.1.0\"\nedition = \"1\"\n"), 0o644)
+	if err := pkgInstallCommand([]string{"--path", noBin}); err == nil || !strings.Contains(err.Error(), "no [bin]") {
+		t.Errorf("--path on a package without [bin] must say so, got %v", err)
+	}
+
+	out = captureStdout(t, func() {
+		if err := binCommand([]string{"list", "--bin-dir", binDir}); err != nil {
+			t.Errorf("bin list: %v", err)
+		}
+	})
+	for _, want := range []string{"greet ", "greet-args", "test/greeter@0.1.0", "not on your PATH"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("bin list missing %q:\n%s", want, out)
+		}
+	}
+
+	out = captureStdout(t, func() {
+		if err := binCommand([]string{"uninstall", "greet-args", "--bin-dir", binDir}); err != nil {
+			t.Errorf("bin uninstall: %v", err)
+		}
+	})
+	if !strings.Contains(out, "Removed") {
+		t.Errorf("uninstall output:\n%s", out)
+	}
+	if err := binCommand([]string{"--bin-dir", binDir, "uninstall", "greet-args"}); err == nil {
+		t.Error("uninstalling twice must fail")
+	}
+	if err := binCommand([]string{"--bin-dir", binDir, "uninstall"}); err == nil {
+		t.Error("uninstall without a name must fail")
+	}
+	if err := binCommand([]string{"--bin-dir", binDir, "frobnicate"}); err == nil {
+		t.Error("unknown subcommand must fail")
+	}
+	shims, _ := pkg.ListShims(binDir)
+	if len(shims) != 1 || shims[0].Name != "greet" {
+		t.Errorf("after uninstall: %+v", shims)
+	}
+
+	out = captureStdout(t, func() {
+		if err := binCommand([]string{"list", "--bin-dir", filepath.Join(binDir, "absent")}); err != nil {
+			t.Errorf("bin list on an empty dir: %v", err)
+		}
+	})
+	if !strings.Contains(out, "No ailang bins installed") {
+		t.Errorf("empty list output:\n%s", out)
+	}
+	out = captureStdout(t, func() { _ = binCommand([]string{"--help"}) })
+	if !strings.Contains(out, "Usage: ailang bin list") {
+		t.Errorf("help output:\n%s", out)
+	}
+}
+
+// TestReportPathStatus covers the three PATH outcomes: absent, the shim
+// itself, and shadowed by an earlier entry.
+func TestReportPathStatus(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("PATH lookup semantics differ on Windows")
+	}
+	binDir := t.TempDir()
+	shim := filepath.Join(binDir, "greet")
+	os.WriteFile(shim, []byte("#!/bin/sh\n"), 0o755)
+
+	var out bytes.Buffer
+	t.Setenv("PATH", t.TempDir())
+	if reportPathStatus(&out, "greet", shim) {
+		t.Error("absent from PATH must report false")
+	}
+
+	t.Setenv("PATH", binDir)
+	out.Reset()
+	if !reportPathStatus(&out, "greet", shim) || out.Len() != 0 {
+		t.Errorf("the shim itself must be found silently, got %q", out.String())
+	}
+
+	earlier := t.TempDir()
+	os.WriteFile(filepath.Join(earlier, "greet"), []byte("#!/bin/sh\n"), 0o755)
+	t.Setenv("PATH", earlier+string(os.PathListSeparator)+binDir)
+	out.Reset()
+	shadow, _ := filepath.EvalSymlinks(filepath.Join(earlier, "greet")) // macOS: /var → /private/var
+	if !reportPathStatus(&out, "greet", shim) || !strings.Contains(out.String(), "resolves to "+shadow) {
+		t.Errorf("a shadowing entry must be named, got %q", out.String())
+	}
+}
