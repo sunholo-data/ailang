@@ -26,10 +26,11 @@
         "language commands open no observatory DB and run no git probe \u2014 proven by a counting fake, with the test failing if the probe is re-added",
         "`make test-core` green; `go test ./cmd/ailang/... -count=1` green"
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
       "completed": null,
-      "notes": null
+      "notes": "Merged ea58ad23c. main.go 674->127. Verified in the main checkout: build, vet, go test ./cmd/ailang/... (136s), make lint (0), test-core, 10 gates, verify-examples, test-imports \u2014 all exit 0. NEGATIVE CONTROL: the new HelpExitsZero gate run against a pre-merge binary built in a separate worktree fails on exactly 22 routes and exactly the named ones, and passes against the merged tree. Audit predicted 8 groups rejecting --help; real number 22 (ailang watch --help started watching a file named '--help'). KNOWN FALSE GREEN: commands_top_level now reads 0 because the metric greps `case \"` in main.go and none remain \u2014 true count unchanged at 78 commands / 83 routes; M6 rewires it.",
+      "merged_commit": "ea58ad23c"
     },
     {
       "id": "M2_GROUPS_AND_ALIASES_D1",
