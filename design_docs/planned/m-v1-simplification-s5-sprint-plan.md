@@ -46,12 +46,17 @@ M1 (alone) ──▶ M2 (alone) ──┬──▶ M3  cmd/ailang/{trace,observa
                                       └──▶ M5  flag families ──▶ M6  docs/ + simplicity_metrics.sh
 ```
 
-**M5 moved behind M3/M4 (changed 2026-09-18, during execution).** The original plan ran M5 in
-parallel with them under a rule that M5 owns "only flag registration lines". That rule does not
-survive contact: M5's flag families live *inside* files M3 folds and M4 deletes — `eval_trend.go`,
-`eval_sweet_spot.go`, `eval_chains.go`, `trace*.go`, `dashboard*.go` all carry `--format`/`--json`
-sites. Editing a flag in a file another agent is deleting is a guaranteed conflict at best and a
-resurrected file at worst. M5 runs after both land, over whatever files remain.
+**M5 moved behind M3 (changed 2026-09-18, during execution; premise corrected after M4 reported).**
+The original plan ran M5 in parallel under a rule that M5 owns "only flag registration lines". The
+rule does not survive contact — but the first justification written here was wrong and is corrected:
+it named `eval_sweet_spot.go`, **which does not exist** (`runEvalSweetSpot` is at
+`cmd/ailang/eval_tools.go:480`, a shared file), and claimed M4 deletes `eval_trend.go`, **which M4
+kept**. That was a file asserted into existence from this plan's own prose.
+
+The real overlap is M3's, and it is measured: the files M3 folds carry **20 output-format flag
+definitions** — `observatory*.go` 7 (across 14 files), `dashboard*.go` 8 (across 4), `eval_chains.go`
+4, `trace.go` 1. Editing a flag in a file another agent is folding conflicts at best and resurrects
+the file at worst. **M5 waits on M3 only; M4 never blocked it.**
 
 M5 and M3/M4 can collide on `eval_*.go`: M5 owns **only** flag *registration* lines and the shared
 helper; M3/M4 own whole-file deletions. Any agent that needs a file it does not own stops and
