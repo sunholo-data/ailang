@@ -2627,3 +2627,11 @@ orphans), then `m-approval-poll-production-defaults-unexercised` / `m-ratelimit-
 (small, judge-measured) and `m-gate0-self-crash-notice-read` [world-DEMAND]. Watch: the next fire's
 driver log should carry `driver pin age: 0 below warning threshold 25` beside the drift line — the
 first live reading of the instrument this iteration shipped.
+
+#### Design-quorum review — `design_docs/planned/v0_39_4/m-daneel-executor-long-answers.md` (2026-09-17T05:32:56Z)
+
+- **Synthesis: PROCEED** (total $0.0000, 0 in / 0 out tok)
+- `gpt6-astra` → **ABSENT** (auth) — degraded to N-1, not a silent pass
+- `gemini-3-1-pro` → **ABSENT** (unreachable) — degraded to N-1, not a silent pass
+- `oc-glm-5-2` → **ABSENT** (unreachable) — degraded to N-1, not a silent pass
+- controller (in-session, not an API call) → **pass** — Controller in-session verdict: the design's load-bearing premises are verified here first-party (V1-V7: 1200-byte tail capture, writeTaskArtifacts writes only 3 files so .ailang-scratch is NOT reachable, stageForCommit exclusion, artifact_gcs_path field, and the mutilated task-e0f06d06 completion read from the prod store). D1's wrapper-copy mechanism is the only core change and is one bounded, deterministic file copy. The Daneel-repo premises (V8/V9) are honestly marked INHERITED with re-verification milestones. Freeze items D1-D3 remain for Mark, as in the parent doc.
