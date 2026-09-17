@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/loader"
+	"github.com/sunholo-data/ailang/internal/pkg"
 )
 
 // runModuleWithContext runs the pipeline for a module with dependencies
@@ -255,6 +256,17 @@ func validateModulePath(mod *loader.LoadedModule, modID string, cfg *Config) err
 		}
 	}
 
+	// Package mode (M-PKG-QUALITY-LADDER M1 follow-up): inside a package the
+	// MANIFEST says where a module lives, so a flat tarball's settle.ail that
+	// declares `module vendor/name/settle` is correct, not a relaxed mismatch.
+	// Resolve the declared path through the same resolver the loader uses; a
+	// hit means no warning — otherwise check --package, verify --package and
+	// pkg quality print one "relaxed" warning per file for a layout that is by
+	// design (measured on sunholo/deontic: 9 warnings above a clean report).
+	if cfg.PackageDir != "" && declaredModuleMatchesPackageLayout(cfg.PackageDir, mod.File.Module.Path, modID) {
+		return nil
+	}
+
 	// Check if relaxation applies
 	isTempPath := loader.IsTempPath(modID)
 	shouldRelax := cfg.RelaxModules || isTempPath
@@ -270,4 +282,26 @@ func validateModulePath(mod *loader.LoadedModule, modID string, cfg *Config) err
 	// Strict mode: lead with actionable fix, no search trace noise
 	return fmt.Errorf("Error MOD010: module '%s' doesn't match file path '%s'.\n  Fix: use --relax-modules flag or set AILANG_RELAX_MODULES=1\n  Alt: rename module declaration to: module %s\n  Alt: move file to: %s.ail",
 		mod.File.Module.Path, canonicalID, canonicalID, mod.File.Module.Path)
+}
+
+// declaredModuleMatchesPackageLayout reports whether the module declared in
+// the file at modID is where the package manifest in packageDir expects that
+// declared path to live (flat root, src/, module_prefix dir or canonical).
+func declaredModuleMatchesPackageLayout(packageDir, declaredPath, modID string) bool {
+	manifest, err := pkg.LoadManifest(packageDir)
+	if err != nil {
+		return false
+	}
+	resolved := pkg.ResolveModuleToFile(packageDir, manifest.Package.Name, declaredPath)
+	if resolved == "" {
+		return false
+	}
+	want, got := strings.TrimSuffix(resolved, ".ail"), strings.TrimSuffix(modID, ".ail")
+	if abs, err := filepath.Abs(want); err == nil {
+		want = abs
+	}
+	if abs, err := filepath.Abs(got); err == nil {
+		got = abs
+	}
+	return filepath.Clean(want) == filepath.Clean(got)
 }

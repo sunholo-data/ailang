@@ -114,7 +114,8 @@ func CheckPackageFiles(absDir string, manifest *pkg.PackageManifest, sourceFiles
 		cfg := pipeline.Config{
 			DryLink:          true,
 			StrictSyntaxMode: opts.StrictSyntax,
-			RelaxModules:     true, // Package mode: MOD010 relaxed (manifest validates module names)
+			RelaxModules:     true,   // Package mode: MOD010 relaxed (manifest validates module names)
+			PackageDir:       absDir, // and the manifest-sanctioned layout is not even a relaxed mismatch
 			DebugCompile:     opts.DebugCompile,
 		}
 		src := pipeline.Source{
