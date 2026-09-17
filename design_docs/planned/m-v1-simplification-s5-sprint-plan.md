@@ -131,9 +131,33 @@ drift in the report and leave the rebuild to whoever owns the UI build.
 
 ### M4 — D7 removals, the non-chains set
 
-`access-control` (0 refs in code, 19 in docs/skills, last commit 2026-04-21), `eval-trend`,
-`eval-censored-pairs`, `eval-sweet-spot`, `watch`, `axioms`, `policy-check`, `budget` CLI,
-`models source|publish`, `storage` (a one-time migration). Each its own commit with dates and counts.
+**Re-derive the evidence; the audit's dates are stale.** D7 (program doc line 114) is a
+*deleted vs hidden* decision per command, and Phase 3 item 2 already assigns `axioms` and
+`policy-check` to the hidden `dev` group — so those two are **hidden, not deleted**, despite the
+flat "D7 removals" phrasing in the handover.
+
+Measured 2026-09-17 (`git grep` over tracked files; exec = `Makefile make/ tools/ scripts/ .github/`):
+
+| command | file | last **substantive** commit | LOC | exec | skills | docs |
+|---|---|---|---|---|---|---|
+| `access-control` | `access_control.go` | **2026-02-09** | 302 | 0 | 0 | 0 |
+| `eval-trend` | `eval_trend.go` | 2026-06-12 | 285 | 0 | 0 | 0 |
+| `axioms` | `axioms.go` | 2026-03-26 | 306 | 0 | 2 | 0 |
+| `budget` | `budget.go` | 2026-09-08 | 608 | 0 | 0 | 0 |
+| `storage` | `storage.go` | 2026-09-15 (S4 plane switch) | 296 | 0 | 0 | 2 |
+| `policy-check` | `policy_check.go` | **2026-09-16 — LIVE** | 126 | 0 | 0 | 0 |
+| `eval-censored-pairs` · `eval-sweet-spot` · `watch` | no dedicated file | — | — | 0 | 1 | 7 |
+
+Two corrections that matter:
+
+- **`access-control`'s "2026-04-21"** in the audit is commit `de4aa7ba8`, the module-path rename — a
+  mechanical sweep, not a change to the command. Its 2026-09-15 touch is S4's env-var migration, also
+  mechanical. The real last substantive commit is **2026-02-09**. Every date in the audit taken after
+  S1–S4 is suspect this way: `git log` the file and skip the sweeps.
+- **`policy-check` must NOT be deleted.** Commit `6236deb24` (2026-09-16) extracted `admitProgram`
+  from it to share with the new `ailang run --policy`, and `policyCheckOutput`'s JSON field names are
+  **part of the runner contract** (M-AGENT-SAFE-RUNNER; renaming them needs a message-schema bump).
+  It goes to the hidden `dev` group per Phase 3 item 2. `axioms` likewise — hidden, not deleted.
 
 - [ ] every removal commit body carries: last-commit date, live-caller count, `git log -S` output
 - [ ] any command whose count is non-zero in `tools/`, `make/`, `.claude/skills/**`, `.github/` is **not** removed this sprint — it is reported for the caller sweep instead
