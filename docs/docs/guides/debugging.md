@@ -552,6 +552,40 @@ hand-edited. Runs from one machine class are not comparable to another —
 the JSON records `cpu`, `os`, `arch`, and `go` so a different machine's
 measurements never overwrite a baseline silently.
 
+## Memory
+
+Every control on the runtime's memory, what it bounds, and what it does not (M-V1-MEMORY-FOOTPRINT,
+v1.0.0). `ailang doctor memory` prints what a run on this host would resolve.
+
+| Control | Bounds | Default | Notes |
+|---------|--------|---------|-------|
+| `--max-memory <size\|cgroup>` / `AILANG_MEMLIMIT` | Go's **soft** memory limit (`debug.SetMemoryLimit`) | none | `cgroup` reads the container's `memory.max` (v1: `memory.limit_in_bytes`) × 0.9 on Linux; opt-in, never inferred. Best-effort GC tuning: the collector works harder as total memory nears it. It is **not** a hard bound, a per-request bound or a request-failure mechanism — reachable data can exceed it and the kernel OOM killer still ends the process. |
+| `GOGC` | GC trigger (heap growth before a cycle) | Go's 100; `run`/`exec` raise it to 500 when unset | 500 buys ~25 % on short CLI runs at ~24 MB extra floor and up to 6× live heap of garbage before a cycle. `serve-api` keeps 100. The trigger is min(GOGC target, limit target), so a limit does not override GOGC below it. |
+| `--fs-max-bytes <size>` / `AILANG_FS_MAX_BYTES` | Every FS read | unbounded (CLI); the upload cap (serve-api) | Oversize is `E_FS_FILE_TOO_LARGE` with the size and the cap; the check is on what was read, so a growing file is rejected, never truncated. |
+| Net body cap | Each HTTP response body | 5 MB | `E_NET_BODY_TOO_LARGE`. Fully buffered, not streamed. |
+| serve-api upload cap (`--max-upload`) | Request body | 50 MB | Enforced on the body; a string-param file part streams to its temp file (one copy on disk, none in RAM). |
+| Trace value cap / retention | Each rendered trace value; retained events | 1 KB; 32 MB | Values are rendered **bounded** at the site (`eval.ShowBounded`), so the whole value never exists. Exporters read the observer stream and see everything. |
+| `--max-recursion-depth` | AILANG call depth | 10,000 | Each frame costs ≈ 6–7 KB of Go stack and **keeps every binding of that frame alive until the recursion unwinds** — see below. |
+| `AILANG_EVAL_MAX_RSS` | Process-group RSS of generated code | 8G | Eval harness only. |
+
+**What a memory limit cannot fix.** Live data. Two shapes dominate:
+
+- **Build-by-prepend** (`n :: acc` recursion): every frame holds its own copy of the accumulator,
+  so live memory is O(n²). Depth 9,000 measured 772 MB on the rig; `--max-memory 64MB` spent 11 s
+  in GC and changed nothing. The structural fix is M-LIST-CONS-QUADRATIC; until then build with
+  `foldl`/`map`, which run iteratively in Go.
+- **Per-item work inside a recursive loop**: there is no tail-call optimisation in the tree-walking
+  evaluator, so a `let s = readFile(...)` in each frame of a recursive loop stays reachable until
+  the whole loop returns — 40 reads of a 20 MB file peaked at 870 MB. Put the per-item work in a
+  function the loop *calls* (`foldlE(step, ...)`, `mapE`): the binding dies with the callee's frame.
+  Same program, 212 MB.
+
+**Measuring.** Peak RSS is the number: `/usr/bin/time -l ailang run …` (macOS, bytes) or
+`/usr/bin/time -v` (Linux, KB). Compare against the same program with the suspect feature off;
+a ratio is robust to the ~50 MB process floor. `GODEBUG=gctrace=1` shows whether a high peak
+is garbage (many cycles, low live) or live data (few cycles, high live). `cmd/ailang/memprobe_test.go`
+pins three ratios and runs in `make test`.
+
 ## CLI Debug Flags
 
 In addition to environment variables, AILANG CLI provides debug flags:

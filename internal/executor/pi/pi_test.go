@@ -353,6 +353,13 @@ func TestExecuteStreaming_FizzbuzzFixture(t *testing.T) {
 
 	// Per-turn message_end usage for assistant: 801 input, 92 output,
 	// reasoning 0 (ollama reports none) — so the D5 subtraction is a no-op here.
+	// The completion's summary is completionSummary(Result.Transcript): a pi
+	// run that leaves Transcript empty answers nothing on the message plane
+	// (M-DANEEL-AILANG-EXECUTOR D1 — measured 2026-09-16, every pi completion
+	// had summary "").
+	if result.Transcript == "" || result.Transcript != result.Output {
+		t.Errorf("Transcript must carry the assistant text (= Output); got %q vs Output %q", result.Transcript, result.Output)
+	}
 	if result.InputTokens != 801 {
 		t.Errorf("InputTokens = %d, want 801", result.InputTokens)
 	}

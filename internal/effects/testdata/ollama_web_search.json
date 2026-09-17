@@ -1,0 +1,14 @@
+{
+  "results": [
+    {
+      "title": "AI-First Programming Language | AILANG Documentation",
+      "url": "https://ailang.sunholo.com/",
+      "content": "AI-First Programming Language | AILANG Documentation\n\n# The AI-First Programming Language\n\nAILANG makes AI-generated code cheaper to debug, replay, and fix. Explicit effects constrain what code can do. Structured traces make errors easy to localize.\n\nhello.ail\n\n```\n-- hello.ail\nmodule examples/hello\n\nexport func main() -> () ! {IO} =\n  print(\"Hello, AILANG!\")\n```\n\n## How AILANG works\n\nHumans speci"
+    },
+    {
+      "title": "Introduction | AILANG Documentation",
+      "url": "https://ailang.sunholo.com/docs",
+      "content": "Introduction | AILANG Documentation\n\nOn this page\n\nWelcome to the official documentation for AILANG, a deterministic, effect-typed programming language designed as a safe target for AI-generated programs.\n\nAILANG v0.33.1 ships a stable core — language, effects, modules, codegen — with APIs that may still evolve in pre-1.0 minor releases. The Stability Promise defines which syntax, stdlib, and CLI "
+    }
+  ]
+}

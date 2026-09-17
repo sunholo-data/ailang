@@ -1,0 +1,23 @@
+module debuglog
+
+-- M-V1-MEMORY-FOOTPRINT fixture: a logging loop. Every line used to be
+-- retained until the run ended and only then filtered by --log-level; now it
+-- streams (or is dropped) on arrival, so RSS stays flat. Nested so the
+-- recursion depth stays under the 10,000 cap (inner returns before outer
+-- continues).
+import std/debug as Debug
+
+func inner(i: int) -> int ! {Debug} =
+  if i == 0 then 0 else
+    let _ = Debug.log("{\"severity\":\"DEBUG\",\"message\":\"tick ${show(i)} with some padding to make the line realistic\"}") in
+    inner(i - 1)
+
+func outer(n: int) -> int ! {Debug} =
+  if n == 0 then 0 else
+    let _ = inner(500) in
+    outer(n - 1)
+
+export func main() -> int ! {IO, Debug} =
+  let n = outer(400) in
+  let _ = println("done") in
+  n

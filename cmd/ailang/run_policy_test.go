@@ -192,3 +192,79 @@ func TestRunPolicy_UnknownCapInPolicyIsLoud(t *testing.T) {
 		t.Fatalf("an unknown capability in the policy must be refused by name: exit %d\n%s", code, stderr)
 	}
 }
+
+// M-DANEEL-AILANG-EXECUTOR M1: the policy pins the AI provider. Under --policy
+// the model an AI-cap program talks to is the operator's decision — the
+// lending boundary — so --ai/--ai-stub are widening flags, an AI grant without
+// ai_provider is refused, and ai_provider without the AI cap is refused.
+func writePolicyWithAI(t *testing.T, dir, caps, aiProvider string) string {
+	t.Helper()
+	p := writePolicyFixture(t, dir, caps)
+	if aiProvider != "" {
+		b, _ := os.ReadFile(p)
+		if err := os.WriteFile(p, append(b, []byte("ai_provider = \""+aiProvider+"\"\n")...), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return p
+}
+
+const aiProgram = `module prog
+import std/ai (call)
+export func main() -> () ! {IO, AI} = println(call("say hi"))
+`
+
+func TestRunPolicy_AIProvider_RefusesAIFlagsUnderPolicy(t *testing.T) {
+	bin := buildAilang(t)
+	dir := t.TempDir()
+	pol := writePolicyWithAI(t, dir, `"IO", "AI"`, "stub")
+	f := writeAil(t, dir, "prog.ail", aiProgram)
+	for _, extra := range [][]string{{"--ai", "gpt5-mini"}, {"--ai-stub"}} {
+		args := append([]string{"run", "--policy", pol}, extra...)
+		args = append(args, f)
+		stdout, stderr, code := runAilangBin(t, bin, args...)
+		if code != 1 {
+			t.Errorf("%v: exit %d, want 1 (refused)\n%s%s", extra, code, stdout, stderr)
+		}
+		if !strings.Contains(stderr, extra[0]) || !strings.Contains(stderr, "ai_provider") {
+			t.Errorf("%v: refusal must name the flag and ai_provider: %s", extra, stderr)
+		}
+	}
+}
+
+func TestRunPolicy_AIProvider_CapAndProviderMustAgree(t *testing.T) {
+	bin := buildAilang(t)
+	for _, tc := range []struct{ name, caps, provider, want string }{
+		{"AI cap without ai_provider", `"IO", "AI"`, "", "ai_provider"},
+		{"ai_provider without AI cap", `"IO"`, "stub", "AI is not in allowed_caps"},
+	} {
+		dir := t.TempDir()
+		pol := writePolicyWithAI(t, dir, tc.caps, tc.provider)
+		f := writeAil(t, dir, "prog.ail", ioProgram)
+		stdout, stderr, code := runAilangBin(t, bin, "run", "--policy", pol, f)
+		if code != 1 {
+			t.Errorf("%s: exit %d, want 1\n%s%s", tc.name, code, stdout, stderr)
+		}
+		if !strings.Contains(stderr, tc.want) {
+			t.Errorf("%s: refusal must say %q: %s", tc.name, tc.want, stderr)
+		}
+		if strings.Contains(stdout, "admitted-and-ran") {
+			t.Errorf("%s: program ran despite the refusal", tc.name)
+		}
+	}
+}
+
+func TestRunPolicy_AIProvider_StubRunsWithoutAIFlag(t *testing.T) {
+	bin := buildAilang(t)
+	dir := t.TempDir()
+	pol := writePolicyWithAI(t, dir, `"IO", "AI"`, "stub")
+	f := writeAil(t, dir, "prog.ail", aiProgram)
+	stdout, stderr, code := runAilangBin(t, bin, "run", "--policy", pol, f)
+	if code != 0 {
+		t.Fatalf("stub-admitted AI program: exit %d\n%s%s", code, stdout, stderr)
+	}
+	// the admission line records the pinned provider
+	if !strings.Contains(stderr, `"ai_provider":"stub"`) {
+		t.Errorf("admission line must carry ai_provider: %s", stderr)
+	}
+}

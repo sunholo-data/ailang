@@ -108,7 +108,8 @@ func runCommand() {
 	traceTierFlag := fs.String("trace-tier", "", "Tracing tier (off|standard|deep). Overrides AILANG_TRACE env var.")
 
 	// Memory limit flag (M-EVAL-BOUNDED-PIPELINE)
-	maxMemoryFlag := fs.String("max-memory", "", "Memory limit (e.g., 256MB, 1GB). Triggers aggressive GC near limit.")
+	maxMemoryFlag := fs.String("max-memory", "", "Go soft memory limit: a size (256MB, 1GB) or 'cgroup' (the container limit x 0.9). Unset = AILANG_MEMLIMIT, else none.")
+	fsMaxBytesFlag := fs.String("fs-max-bytes", "", "Cap on every FS read (e.g. 10MB); unset = AILANG_FS_MAX_BYTES, else unbounded. Oversize reads fail with E_FS_FILE_TOO_LARGE.")
 
 	// CPU/memory profiling
 	cpuprofileFlag := fs.String("cpuprofile", "", "Write CPU profile to file (Go pprof format)")
@@ -194,12 +195,10 @@ func runCommand() {
 	}
 
 	// Apply memory limit early (process-wide setting)
-	if *maxMemoryFlag != "" {
-		if err := applyMemoryLimit(*maxMemoryFlag); err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
-			fmt.Println("Examples: 256MB, 512MB, 1GB, 2GB")
-			os.Exit(1)
-		}
+	if _, err := applyResolvedMemoryLimit(*maxMemoryFlag, *quietFlag || *jsonFlag); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		fmt.Println("Examples: 256MB, 512MB, 1GB, 2GB, cgroup")
+		os.Exit(1)
 	}
 
 	// Check for filename argument
@@ -216,8 +215,10 @@ func runCommand() {
 	// file. Resolved here into the existing flag values rather than threaded
 	// as another runFile parameter.
 	if *policyFlag != "" {
-		resolved := applyRunPolicy(*policyFlag, filename, runPolicyWidening{caps: *capsFlag, noBudgets: *noBudgetsFlag, allowEnv: *allowEnvFlag})
+		resolved := applyRunPolicy(*policyFlag, filename, runPolicyWidening{caps: *capsFlag, noBudgets: *noBudgetsFlag, allowEnv: *allowEnvFlag, aiModel: *aiModelFlag, aiStub: *aiStubFlag})
 		*capsFlag = resolved.caps
+		*aiModelFlag = resolved.aiModel
+		*aiStubFlag = resolved.aiStub
 		if resolved.netDomains != "" {
 			*netAllowDomainsFlag = resolved.netDomains
 		}
@@ -245,5 +246,5 @@ func runCommand() {
 		}
 	}
 
-	runFile(filename, programArgs, *traceFlag, *seedFlag, *virtualTime, *jsonFlag, *compactFlag, *quietFlag, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag, *noMonoFlag, *debugCompileFlag, *strictSyntaxFlagRun, *entryFlag, *argsJSONFlag, *printFlag, *noPrintFlag, *batchFlag, *capsFlag, *maxRecursionDepthFlag, *stdlibPathFlag, *traceLoaderFlag, *strictVersionFlag, *allowEnvFlag, *allowEnvFileFlag, *envFlag, *envSnapshotFlag, *writeEnvSnapshotFlag, *aiStubFlag, *aiModelFlag, routingValues, *debugFlag, *relaxModulesFlag, *debugTypesFlag, *debugTypesNodeFlag, *noBudgetsFlag, *budgetReportFlag, *verifyContractsFlag, *emitTraceFlag, *traceTierFlag, *netAllowHTTPFlag, *netAllowDomainsFlag, *netAllowLocalhostFlag, *netAllowMetadataFlag, *netTimeoutFlag, *streamAllowHTTPFlag, *streamAllowDomainsFlag, *streamAllowLocalhostFlag, *processTimeoutFlag, *processAllowlistFlag, *processMaxOutputFlag, *releaseFlag, *bytecodeFlag, *strictBytecodeFlag, *orRefererFlag, *orTitleFlag, *orCategoriesFlag)
+	runFile(filename, programArgs, *traceFlag, *seedFlag, *virtualTime, *jsonFlag, *compactFlag, *quietFlag, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag, *noMonoFlag, *debugCompileFlag, *strictSyntaxFlagRun, *entryFlag, *argsJSONFlag, *printFlag, *noPrintFlag, *batchFlag, *capsFlag, *maxRecursionDepthFlag, *stdlibPathFlag, *traceLoaderFlag, *strictVersionFlag, *allowEnvFlag, *allowEnvFileFlag, *envFlag, *envSnapshotFlag, *writeEnvSnapshotFlag, *aiStubFlag, *aiModelFlag, routingValues, *debugFlag, *relaxModulesFlag, *debugTypesFlag, *debugTypesNodeFlag, *noBudgetsFlag, *budgetReportFlag, *verifyContractsFlag, *emitTraceFlag, *traceTierFlag, *netAllowHTTPFlag, *netAllowDomainsFlag, *netAllowLocalhostFlag, *netAllowMetadataFlag, *netTimeoutFlag, *streamAllowHTTPFlag, *streamAllowDomainsFlag, *streamAllowLocalhostFlag, *processTimeoutFlag, *processAllowlistFlag, *processMaxOutputFlag, *releaseFlag, *bytecodeFlag, *strictBytecodeFlag, *orRefererFlag, *orTitleFlag, *orCategoriesFlag, *fsMaxBytesFlag)
 }

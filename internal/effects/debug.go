@@ -25,6 +25,16 @@ type DebugContext struct {
 	logs       []LogEntry
 	assertions []AssertionResult
 	timestamp  int64 // Logical time (host-defined meaning)
+
+	// sink, when set, receives every log line and failed check AS IT ARRIVES
+	// and nothing is retained (M-V1-MEMORY-FOOTPRINT M2, D-E). Before this
+	// every Debug.log line of a run was held until the final flush — a logging
+	// loop grew without bound — and --log-level was applied at flush time, so a
+	// below-threshold DEBUG line was formatted, retained and then discarded.
+	// Hosts that never attach a sink (game engines, WASM, generated Go) keep
+	// the collect-then-flush contract exactly.
+	sink     *DebugSink
+	minLevel int
 }
 
 // LogEntry represents a single log message
@@ -76,11 +86,28 @@ func (d *DebugContext) SetTimestamp(t int64) {
 // This is called by the Debug.log effect operation.
 // Location is auto-injected by the compiler.
 func (d *DebugContext) Log(msg, location string) {
-	d.logs = append(d.logs, LogEntry{
+	entry := LogEntry{
 		Message:   msg,
 		Location:  location,
 		Timestamp: d.timestamp,
-	})
+	}
+	if d.sink != nil {
+		if passesLevel(msg, d.minLevel) {
+			d.sink.writeLine(entry)
+		}
+		return
+	}
+	d.logs = append(d.logs, entry)
+}
+
+// passesLevel applies the --log-level threshold: only a structured line that
+// states a severity can fall below it; everything else always passes.
+func passesLevel(msg string, minLevel int) bool {
+	if minLevel <= 0 {
+		return true
+	}
+	sev := Severity(msg)
+	return sev == "" || SeverityLevel(sev) >= minLevel
 }
 
 // Check records an assertion result (formerly Assert)
@@ -90,11 +117,29 @@ func (d *DebugContext) Log(msg, location string) {
 // Assertions are collected, not thrown - the program continues.
 // Note: Named "Check" because "assert" is a reserved keyword in AILANG.
 func (d *DebugContext) Check(cond bool, msg, location string) {
-	d.assertions = append(d.assertions, AssertionResult{
+	res := AssertionResult{
 		Passed:   cond,
 		Message:  msg,
 		Location: location,
-	})
+	}
+	if d.sink != nil {
+		if !cond {
+			d.sink.writeAssertion(res)
+		}
+		return
+	}
+	d.assertions = append(d.assertions, res)
+}
+
+// Fresh returns an empty context that writes to the same sink at the same
+// level, with the same logical timestamp. EffContext.Clone uses it so each
+// serve-api request logs into its own context instead of the server's.
+func (d *DebugContext) Fresh() *DebugContext {
+	f := NewDebugContext()
+	f.timestamp = d.timestamp
+	f.sink = d.sink
+	f.minLevel = d.minLevel
+	return f
 }
 
 // Collect returns all accumulated debug data (HOST-ONLY)

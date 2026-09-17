@@ -408,8 +408,10 @@ func (e *CoreEvaluator) evalCoreRecordUpdate(update *core.RecordUpdate) (Value, 
 		return nil, fmt.Errorf("cannot update non-record value: %T", baseVal)
 	}
 
-	// Create new record with all fields from base
-	newFields := make(map[string]Value)
+	// Create new record with all fields from base. Sized up front: the copy is
+	// O(fields) regardless, but an unsized map rehashes while it grows
+	// (M-V1-MEMORY-FOOTPRINT F17). MapValue.Insert already does this.
+	newFields := make(map[string]Value, len(baseRecord.Fields)+len(update.Updates))
 	for name, val := range baseRecord.Fields {
 		newFields[name] = val
 	}
