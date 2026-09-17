@@ -36,13 +36,29 @@ type aiVerifySection struct {
 	Results        []smt.VerifyResult `json:"results"`
 }
 
+// The verification defaults of the unified check+verify report. They are named
+// because TWO flag sets now offer them — `ai-check`'s below and `check
+// --verify`'s in commands_language.go — and a report that answered differently
+// depending on which spelling reached it would be the same drift the S4 M3A
+// fold closed.
+const (
+	aiCheckDefaultTimeout        = 5 * time.Second
+	aiCheckDefaultRecursiveDepth = 2
+)
+
 // aiCheckCommand implements the `ailang ai-check` CLI command.
 // It runs type checking + contract verification in a single invocation
 // with unified JSON output designed for AI/machine consumption.
+//
+// S5 M2 absorbed this into `ailang check --verify` and kept `ai-check` as an
+// alias of `check` (D1: the eval harness, the agent convergence loops and the
+// DP7 done-gate all call it). This function is the LEGACY spelling's entry
+// point — its own flag set, unchanged, so the bytes it prints and the status
+// it exits with are the ones ai_check_exit_test.go pins.
 func aiCheckCommand() {
 	fs := flag.NewFlagSet("ai-check", flag.ExitOnError)
-	timeoutFlag := fs.Duration("timeout", 5*time.Second, "Per-function Z3 timeout (hard backstop adds 2s grace)")
-	recursiveDepthFlag := fs.Int("verify-recursive-depth", 2, "Bounded recursion unrolling depth (1-10, 0 to disable)")
+	timeoutFlag := fs.Duration("timeout", aiCheckDefaultTimeout, "Per-function Z3 timeout (hard backstop adds 2s grace)")
+	recursiveDepthFlag := fs.Int("verify-recursive-depth", aiCheckDefaultRecursiveDepth, "Bounded recursion unrolling depth (1-10, 0 to disable)")
 	relaxModulesFlag := fs.Bool("relax-modules", false, "Relax MOD010 validation (allow module path mismatches with warning)")
 
 	if err := fs.Parse(os.Args[2:]); err != nil {
@@ -64,8 +80,24 @@ func aiCheckCommand() {
 		os.Exit(1)
 	}
 
-	filename := fs.Arg(0)
+	runAICheckReport(fs.Arg(0), *timeoutFlag, *recursiveDepthFlag, *relaxModulesFlag)
+}
 
+// runAICheckReport is the unified check+verify report: type-check and contract
+// verification in ONE pipeline run, emitted as JSON, with the exit status
+// aiCheckExitCode decides.
+//
+// It is reached by two spellings and exists exactly once. `ailang ai-check` is
+// the original one and keeps its own flag set above; `ailang check --verify`
+// is the absorbed one (S5 M2, Phase 3 item 2). Extracting it was the point of
+// the absorption: a second copy of this function is how ai-check drifted from
+// `verify` in three measured ways before M-V1-SIMPLIFY-S4 M3A folded the
+// verification loops together, and adding a second entry point without
+// extracting it would have re-created exactly that.
+//
+// It never returns: every lane ends in os.Exit or falls off the end after the
+// JSON is printed.
+func runAICheckReport(filename string, timeout time.Duration, recursiveDepth int, relaxModules bool) {
 	// Suppress warnings so they don't pollute JSON output
 	os.Setenv("AILANG_QUIET_WARNINGS", "1")
 
@@ -85,7 +117,7 @@ func aiCheckCommand() {
 	}
 
 	// The flag and AILANG_RELAX_MODULES are OR-ed.
-	relaxModulesEffective := *relaxModulesFlag || config.RelaxModules()
+	relaxModulesEffective := relaxModules || config.RelaxModules()
 
 	// Run pipeline ONCE (both check and verify use the same compilation result)
 	cfg := pipeline.Config{
@@ -135,7 +167,7 @@ func aiCheckCommand() {
 		surfaceAST := result.Artifacts.AST
 
 		if coreProg != nil && coreProg.Meta != nil && surfaceAST != nil {
-			report := smt.Verify(coreProg, surfaceAST, verifyModulesFromPipeline(result), aiCheckVerifyOptions(*timeoutFlag, *recursiveDepthFlag))
+			report := smt.Verify(coreProg, surfaceAST, verifyModulesFromPipeline(result), aiCheckVerifyOptions(timeout, recursiveDepth))
 			verifySection = aiVerifySectionFromReport(report)
 		}
 	}

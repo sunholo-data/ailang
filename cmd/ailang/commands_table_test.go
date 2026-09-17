@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"sort"
 	"strings"
 	"testing"
@@ -19,18 +18,76 @@ var preS5LanguageCommands = []string{
 	"init", "select-best", "ast-edit", "replay", "export-training",
 }
 
-func TestTable_LanguageGroupMatchesPreS5List(t *testing.T) {
+// s5AddedLanguageRoutes are the language routes that did not exist before S5,
+// so preS5LanguageCommands cannot contain them. Each is listed with its reason,
+// because adding a route here is how a command would quietly stop running the
+// startup probes.
+var s5AddedLanguageRoutes = []string{
+	// M2: `ailang help [command]`. Printing help must not stat the
+	// observatory DB or shell out to git, exactly as `version` must not.
+	"help",
+	// M2: the alias spelling of `internal-dump-iface`, named by the Phase 3
+	// item-2 dev list. Same row, same contract.
+	"dump-iface",
+}
+
+// TestTable_LanguageRoutesMatchPreS5List compares ROUTES, not names, because
+// S5 M2 made `ai-check` an alias of `check` rather than a row of its own. The
+// contract is about what runs at startup for a given spelling, and a spelling
+// is a route — so comparing names would have silently dropped `ai-check` from
+// the very list that exists to stop it being reclassified.
+func TestTable_LanguageRoutesMatchPreS5List(t *testing.T) {
 	var got []string
-	for _, c := range allCommands {
-		if c.Group == groupLanguage {
-			got = append(got, c.Name)
+	for i := range allCommands {
+		c := &allCommands[i]
+		if !c.Language {
+			continue
 		}
+		got = append(got, c.Name)
+		got = append(got, c.Aliases...)
 	}
 	sort.Strings(got)
+
 	want := append([]string(nil), preS5LanguageCommands...)
+	want = append(want, s5AddedLanguageRoutes...)
 	sort.Strings(want)
+
 	if strings.Join(got, ",") != strings.Join(want, ",") {
-		t.Fatalf("language group drifted from the pre-S5 isLanguageCommand list\n got: %v\nwant: %v", got, want)
+		t.Fatalf("language routes drifted from the pre-S5 isLanguageCommand list\n got: %v\nwant: %v", got, want)
+	}
+}
+
+// TestTable_GroupAndLanguageAreIndependent pins the separation S5 M2 made:
+// where a command is FILED (Group) and whether it is quiet at startup
+// (Language) are different questions. M1 had them on one field, which is why
+// filing `disasm` under `dev` would otherwise have turned its probes on.
+func TestTable_GroupAndLanguageAreIndependent(t *testing.T) {
+	var langInDev, langVisible int
+	for i := range allCommands {
+		c := &allCommands[i]
+		if !c.Language {
+			continue
+		}
+		switch c.Group {
+		case groupDev:
+			langInDev++
+		case "":
+			langVisible++
+		}
+	}
+	// Both populations must be non-empty, or the two fields are still
+	// effectively one and this test proves nothing.
+	if langInDev == 0 {
+		t.Error("no language command is filed under dev — Group and Language have collapsed back into one field")
+	}
+	if langVisible == 0 {
+		t.Error("no language command is visible at the top level")
+	}
+	for i := range allCommands {
+		c := &allCommands[i]
+		if c.Language && c.Group == groupOps {
+			t.Errorf("%s is a language command filed under ops", c.Name)
+		}
 	}
 }
 
@@ -45,9 +102,6 @@ func TestTable_RowsAreWellFormed(t *testing.T) {
 		}
 		if strings.TrimSpace(c.Summary) == "" {
 			t.Errorf("%s: empty Summary — it is what `ailang --help` prints", c.Name)
-		}
-		if c.Group != "" && c.Group != groupLanguage {
-			t.Errorf("%s: unexpected Group %q — M1 only carries the language/platform split", c.Name, c.Group)
 		}
 	}
 }
@@ -128,7 +182,7 @@ func TestProbes_LanguageCommandsRunNone(t *testing.T) {
 		c := &allCommands[i]
 		for _, route := range append([]string{c.Name}, c.Aliases...) {
 			obs, stale := count([]string{route})
-			if c.Group == groupLanguage {
+			if c.Language {
 				if obs != 0 || stale != 0 {
 					t.Errorf("language command %q ran probes: observatory=%d stale=%d, want 0/0", route, obs, stale)
 				}
@@ -169,24 +223,8 @@ func TestSuggestCommand(t *testing.T) {
 	}
 }
 
-// TestRenderCommandList_ListsEveryVisibleRoute is the guard the hand-written
-// help failed: 15 commands the switch accepted never appeared in `ailang
-// --help`. Generated help cannot drift, and this proves it for every row.
-func TestRenderCommandList_ListsEveryVisibleRoute(t *testing.T) {
-	var buf bytes.Buffer
-	renderCommandList(&buf)
-	out := buf.String()
-	for _, c := range allCommands {
-		if c.Hidden {
-			continue
-		}
-		if !strings.Contains(out, c.Name) {
-			t.Errorf("command %q missing from the generated help", c.Name)
-		}
-		for _, a := range c.Aliases {
-			if !strings.Contains(out, a) {
-				t.Errorf("alias %q of %q missing from the generated help", a, c.Name)
-			}
-		}
-	}
-}
+// The generated-help coverage test that lived here moved to
+// commands_groups_test.go (TestGroups_HelpListsEveryVisibleMember) when S5 M2
+// introduced groups: "every non-hidden row appears in `ailang --help`" stopped
+// being true and stopped being the goal. The replacement checks the top level
+// AND each group's own help, which is the property that now matters.

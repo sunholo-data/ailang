@@ -50,8 +50,19 @@ type cliResult struct {
 // writes none. Anything that outlives the bound is killed and reported.
 func runCLIIsolated(t *testing.T, bin string, args ...string) cliResult {
 	t.Helper()
-	home := t.TempDir()
-	work := t.TempDir()
+	return runCLIIn(t, bin, t.TempDir(), t.TempDir(), args...)
+}
+
+// runCLIIn is runCLIIsolated with the HOME and working directory supplied by
+// the caller, so two invocations can be compared byte for byte.
+//
+// Two commands need it: `ailang budget` and `ailang lock` print their working
+// directory, so a fresh t.TempDir() per run makes the SAME route differ from
+// itself (.../002 versus .../004). That is a property of the instrument, not
+// of the routes, and the pair test in commands_groups_test.go would otherwise
+// report it as a real difference.
+func runCLIIn(t *testing.T, bin, home, work string, args ...string) cliResult {
+	t.Helper()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()

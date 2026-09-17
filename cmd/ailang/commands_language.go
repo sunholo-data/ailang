@@ -19,166 +19,205 @@ import (
 func languageCommands() []Command {
 	return []Command{
 		{
-			Name:    "version",
-			Group:   groupLanguage,
-			Summary: "Show version, commit hash and build time",
+			Name:     "version",
+			Language: true,
+			Summary:  "Show version, commit hash and build time",
 			Run: func([]string) error {
 				printVersion()
 				return nil
 			},
 		},
 		{
-			Name:    "run",
-			Group:   groupLanguage,
-			Summary: "Run an AILANG program",
-			Run:     noArgs(runCommand),
+			// NEW in S5 M2, and named in the Phase 3 item-2 visible list.
+			// `ailang help X` is `ailang X --help`, routed through the same
+			// fallback table, so the two cannot answer differently.
+			//
+			// Language, like `version`, because printing help must not stat
+			// the observatory DB or shell out to git (S1 M6).
+			Name:     "help",
+			Language: true,
+			Summary:  "Show help for ailang, a group or a command",
+			Run:      helpCommand,
 		},
 		{
-			Name:    "repl",
-			Group:   groupLanguage,
-			Summary: "Start the interactive REPL",
+			Name:     "run",
+			Language: true,
+			Summary:  "Run an AILANG program",
+			Run:      noArgs(runCommand),
+		},
+		{
+			Name:     "repl",
+			Language: true,
+			Summary:  "Start the interactive REPL",
 			Run: func([]string) error {
 				runREPL(globals.learn, globals.trace, globals.strictSyntax)
 				return nil
 			},
 		},
 		{
-			Name:    "test",
-			Group:   groupLanguage,
-			Summary: "Run tests (--package for package mode)",
-			Run:     runTestCommand,
+			Name:     "test",
+			Language: true,
+			Summary:  "Run tests (--package for package mode)",
+			Run:      runTestCommand,
 		},
 		{
-			Name:    "watch",
-			Group:   groupLanguage,
-			Summary: "Watch a file for changes and re-run it",
-			Run:     runWatchCommand,
+			Name:     "watch",
+			Group:    groupDev,
+			Language: true,
+			Summary:  "Watch a file for changes and re-run it",
+			Run:      runWatchCommand,
 		},
 		{
-			Name:    "check",
-			Group:   groupLanguage,
-			Summary: "Type-check a file or directory without running it",
-			Run:     runCheckCommand,
+			Name: "check",
+			// `ai-check` is an ALIAS of `check` since S5 M2: the unified
+			// check+verify JSON report is `ailang check --verify`. The old
+			// spelling is kept because the eval harness, every agent
+			// convergence loop and the DP7 done-gate call it (D1), and it
+			// still reaches the legacy flag set — same bytes, same exit
+			// code, same ai_check_exit_test.go contract.
+			Aliases:  []string{"ai-check"},
+			Language: true,
+			Summary:  "Type-check a file or directory (--verify adds contract verification)",
+			Run: func(args []string) error {
+				if invokedAs == "ai-check" {
+					aiCheckCommand()
+					return nil
+				}
+				return runCheckCommand(args)
+			},
 		},
 		{
-			Name:    "fmt",
-			Group:   groupLanguage,
-			Summary: "Format AILANG source (stdout / --write / --check)",
+			Name:     "fmt",
+			Language: true,
+			Summary:  "Format AILANG source (stdout / --write / --check)",
 			Run: func(args []string) error {
 				runFmtCommand(args)
 				return nil
 			},
 		},
 		{
-			Name:    "ai-check",
-			Group:   groupLanguage,
-			Summary: "Unified check+verify JSON output (for AI agents)",
-			Run:     noArgs(aiCheckCommand),
+			Name:     "iface",
+			Language: true,
+			Summary:  "Print the normalized JSON interface of a module",
+			Run:      runIfaceCommand,
 		},
 		{
-			Name:    "iface",
-			Group:   groupLanguage,
-			Summary: "Print the normalized JSON interface of a module",
-			Run:     runIfaceCommand,
-		},
-		{
-			Name:    "internal-dump-iface",
-			Group:   groupLanguage,
+			Name: "internal-dump-iface",
+			// `dump-iface` is the group-list spelling Phase 3 item 2 names;
+			// `internal-dump-iface` is what internal/pkg/iface_subprocess.go
+			// execs, so it stays the canonical one.
+			Aliases:  []string{"dump-iface"},
+			Group:    groupDev,
+			Language: true,
+			// Hidden everywhere, including `ailang dev --help`: it is an
+			// internal subprocess entry point, and it was deliberately absent
+			// from the pre-S5 hand-written help. M1 generated help exposed it
+			// by accident.
+			Hidden:  true,
 			Summary: "Dump a package's canonical interface JSON (internal)",
 			Run:     runDumpIfaceCommand,
 		},
 		{
-			Name:    "verify",
-			Group:   groupLanguage,
-			Summary: "Verify contracts and proof obligations",
-			Run:     noArgs(verifyCommand),
+			Name:     "verify",
+			Language: true,
+			Summary:  "Verify contracts and proof obligations",
+			Run:      noArgs(verifyCommand),
 		},
 		{
-			Name:    "compile",
-			Group:   groupLanguage,
-			Summary: "Compile AILANG to Go (emit-go)",
-			Run:     noArgs(compileCommand),
+			Name:     "compile",
+			Group:    groupDev,
+			Language: true,
+			Summary:  "Compile AILANG to Go (emit-go)",
+			Run:      noArgs(compileCommand),
 		},
 		{
-			Name:    "disasm",
-			Group:   groupLanguage,
-			Summary: "Disassemble compiled AILANG",
-			Run:     noArgs(disasmCommand),
+			Name:     "disasm",
+			Group:    groupDev,
+			Language: true,
+			Summary:  "Disassemble compiled AILANG",
+			Run:      noArgs(disasmCommand),
 		},
 		{
-			Name:    "debug",
-			Group:   groupLanguage,
-			Summary: "Debug AST and type information",
-			Run:     noArgs(runDebug),
+			Name:     "debug",
+			Group:    groupDev,
+			Language: true,
+			Summary:  "Debug AST and type information",
+			Run:      noArgs(runDebug),
 		},
 		{
-			Name:    "prompt",
-			Group:   groupLanguage,
-			Summary: "Display the AILANG teaching prompt (for AI code generation)",
-			Run:     noArgs(runPrompt),
+			Name:     "prompt",
+			Language: true,
+			Summary:  "Display the AILANG teaching prompt (for AI code generation)",
+			Run:      noArgs(runPrompt),
 		},
 		{
-			Name:    "devtools-prompt",
-			Group:   groupLanguage,
-			Summary: "Display the AILANG dev tools reference (for AI agents)",
-			Run:     noArgs(runDevtoolsPrompt),
+			Name:     "devtools-prompt",
+			Group:    groupDev,
+			Language: true,
+			Summary:  "Display the AILANG dev tools reference (for AI agents)",
+			Run:      noArgs(runDevtoolsPrompt),
 		},
 		{
-			Name:    "docs",
-			Group:   groupLanguage,
-			Summary: "Show stdlib module documentation (--list to enumerate)",
-			Run:     noArgs(docsCommand),
+			Name:     "docs",
+			Language: true,
+			Summary:  "Show stdlib module documentation (--list to enumerate)",
+			Run:      noArgs(docsCommand),
 		},
 		{
-			Name:    "builtins",
-			Group:   groupLanguage,
-			Summary: "Inspect the builtin registry",
-			Run:     noArgs(runBuiltins),
+			Name:     "builtins",
+			Group:    groupDev,
+			Language: true,
+			Summary:  "Inspect the builtin registry",
+			Run:      noArgs(runBuiltins),
 		},
 		{
-			Name:    "examples",
-			Group:   groupLanguage,
-			Summary: "Search and explore working code examples",
+			Name:     "examples",
+			Language: true,
+			Summary:  "Search and explore working code examples",
 			Run: func(args []string) error {
 				examplesCommand(args)
 				return nil
 			},
 		},
 		{
-			Name:    "lsp",
-			Group:   groupLanguage,
-			Summary: "Language Server Protocol server (for AI agents and IDEs)",
-			Run:     lspCommand,
+			Name:     "lsp",
+			Language: true,
+			Summary:  "Language Server Protocol server (for AI agents and IDEs)",
+			Run:      lspCommand,
 		},
 		{
-			Name:    "init",
-			Group:   groupLanguage,
-			Summary: "Scaffold a new AILANG package or web app",
-			Run:     initCommand,
+			Name:     "init",
+			Language: true,
+			Summary:  "Scaffold a new AILANG package or web app",
+			Run:      initCommand,
 		},
 		{
-			Name:    "select-best",
-			Group:   groupLanguage,
-			Summary: "Pick the best candidate from generated variants",
-			Run:     noArgs(runSelectBest),
+			Name:     "select-best",
+			Group:    groupDev,
+			Language: true,
+			Summary:  "Pick the best candidate from generated variants",
+			Run:      noArgs(runSelectBest),
 		},
 		{
-			Name:    "ast-edit",
-			Group:   groupLanguage,
-			Summary: "Structural edit of an AILANG declaration",
-			Run:     noArgs(runAstEdit),
+			Name:     "ast-edit",
+			Group:    groupDev,
+			Language: true,
+			Summary:  "Structural edit of an AILANG declaration",
+			Run:      noArgs(runAstEdit),
 		},
 		{
-			Name:    "replay",
-			Group:   groupLanguage,
-			Summary: "Replay and verify against a recorded trace",
-			Run:     noArgs(replayCommand),
+			Name:     "replay",
+			Group:    groupDev,
+			Language: true,
+			Summary:  "Replay and verify against a recorded trace",
+			Run:      noArgs(replayCommand),
 		},
 		{
-			Name:    "export-training",
-			Group:   groupLanguage,
-			Summary: "Export traces as AI training data",
-			Run:     noArgs(exportTraining),
+			Name:     "export-training",
+			Group:    groupDev,
+			Language: true,
+			Summary:  "Export traces as AI training data",
+			Run:      noArgs(exportTraining),
 		},
 	}
 }
@@ -301,6 +340,23 @@ func runCheckCommand(args []string) error {
 	quietCheck := checkFS.Bool("quiet", false, "Suppress progress lines, only output errors")
 	packageCheck := checkFS.Bool("package", false, "Check entire package (reads ailang.toml for module discovery)")
 
+	// --verify is the `ai-check` absorption (S5 M2, Phase 3 item 2). The two
+	// verification flags are spelled --verify-timeout and
+	// --verify-recursive-depth rather than reusing --timeout, because `check`
+	// ALREADY has a --timeout and it means something else entirely: a
+	// compilation deadline, as a string, that dumps a stack. Two meanings on
+	// one flag name is the flag-family defect M5 exists to fix, not one to add.
+	// No backquotes in this usage string: the flag package reads backquoted
+	// text as the argument NAME, so "the `ailang ai-check` report" rendered as
+	// "-verify ailang ai-check" in `ailang check --help`. Measured in the M2
+	// snapshot diff.
+	verifyCheck := checkFS.Bool("verify", false,
+		"Also verify contracts with Z3 and emit the unified check+verify JSON (same report as 'ailang ai-check')")
+	verifyTimeoutCheck := checkFS.Duration("verify-timeout", aiCheckDefaultTimeout,
+		"With --verify: per-function Z3 timeout (hard backstop adds 2s grace)")
+	verifyDepthCheck := checkFS.Int("verify-recursive-depth", aiCheckDefaultRecursiveDepth,
+		"With --verify: bounded recursion unrolling depth (1-10, 0 to disable)")
+
 	_ = checkFS.Parse(args)
 
 	// Resolve output format (M-AILANG-SEMANTIC-CONTEXT R1). --json is the
@@ -309,6 +365,21 @@ func runCheckCommand(args []string) error {
 	// token-lean one-line rendering for AI agent loops.
 	checkAgentFormat = (*formatCheck == "agent")
 	machineFormat := *jsonCheck || *formatCheck == "json" || *formatCheck == "agent"
+
+	// --verify: the unified check+verify report, which `ailang ai-check` also
+	// prints. It has exactly one rendering — JSON — so --format selects
+	// nothing here; `--format agent` is accepted because that is the spelling
+	// Phase 3 item 2 names, and it yields the same bytes. runAICheckReport
+	// never returns.
+	if *verifyCheck {
+		if checkFS.NArg() < 1 {
+			fmt.Fprintf(os.Stderr, "%s: missing file argument\n", red("Error"))
+			fmt.Println("Usage: ailang check --verify [options] <file.ail>")
+			os.Exit(1)
+		}
+		runAICheckReport(checkFS.Arg(0), *verifyTimeoutCheck, *verifyDepthCheck, *relaxModulesCheck)
+		return nil
+	}
 
 	// --package mode: check a package directory using ailang.toml
 	if *packageCheck {

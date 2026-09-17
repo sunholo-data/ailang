@@ -11,8 +11,55 @@ import (
 // reason the top level is: the hand-written usage block it replaces listed nine
 // verbs while the switch accepted ten — `pkg cascade` had been undocumented
 // since it landed (M-PKG-AUTONOMOUS-CASCADE-SAFE M4).
+//
+// S5 M2 added the eight verbs that only had a BARE top-level spelling before:
+// `docs`, `add`, `lock`, `tree`, `install`, `search`, `publish`, `unpublish`.
+// `ailang pkg add` did not work until this milestone; `ailang add` did. Both do
+// now, from this one definition — pkgLegacyCommands() generates the bare rows
+// from the entries here via pkgLegacyTopLevel, so the two routes cannot drift
+// apart the way the help and the switch did.
 func pkgSubcommands() []Command {
 	return []Command{
+		{
+			Name:    "docs",
+			Summary: "Display a package's AGENT.md (AI usage guide)",
+			Run:     pkgDocsCommand,
+		},
+		{
+			Name:    "add",
+			Summary: "Add a dependency (--path, --git or --registry)",
+			Run:     pkgAddCommand,
+		},
+		{
+			Name:    "lock",
+			Summary: "Resolve dependencies and write the lockfile",
+			Run:     pkgLockCommand,
+		},
+		{
+			Name:    "tree",
+			Summary: "Show the dependency tree",
+			Run:     pkgTreeCommand,
+		},
+		{
+			Name:    "install",
+			Summary: "Install a package (omit the version for latest)",
+			Run:     pkgInstallCommand,
+		},
+		{
+			Name:    "search",
+			Summary: "Search the registry by keyword or tag",
+			Run:     pkgSearchCommand,
+		},
+		{
+			Name:    "publish",
+			Summary: "Publish the current package to the registry",
+			Run:     pkgPublishCommand,
+		},
+		{
+			Name:    "unpublish",
+			Summary: "Remove a package version from the registry",
+			Run:     pkgUnpublishCommand,
+		},
 		{
 			Name:    "quality",
 			Summary: "Quality report: compile, contracts, identity, effects, tests ([--json] [<dir>])",

@@ -30,6 +30,77 @@
 
 set -u
 
+# --spellings MODE (S5 M2)
+#
+#   tools/cli_surface_snapshot.sh --spellings <binary> <outfile>
+#
+# Enumerates every ROUTE the given binary accepts — each top-level command name,
+# each of its aliases, and each `pkg <verb>` — one per line, sorted, and writes
+# them as the checked-in fixture cmd/ailang/testdata/pre_s5_spellings.txt.
+#
+# The list is READ OUT OF THE BINARY (its own generated --help), never hand
+# typed. That distinction is the whole point of D1: every spelling that works
+# today must still work, and the ones that break a fleet caller are exactly the
+# ones a human forgets — `msg`, `brain`, `microrag`, `urag`, `serve`,
+# `serve-api`, `internal-dump-iface` and the seven bare pkg verbs.
+#
+# Control, run when this mode was written (2026-09-17): the routes parsed out of
+# bin/ailang-before's --help were diffed against the COMMANDS list below, which
+# M1 measured independently against the pre-S5 switch in main.go. The two agree
+# exactly — 83 routes, zero diff. Two instruments, one answer.
+#
+# This block sits ABOVE the positional parsing on purpose: "--spellings" is not
+# an executable, so the `-x "$BIN"` guard below would reject it first.
+spellings_mode() {
+  _bin="$1"
+  _out="$2"
+  {
+    echo "# Every top-level route bin/ailang-before (the pre-M2 binary) accepts."
+    echo "# GENERATED — do not hand-edit:"
+    echo "#   tools/cli_surface_snapshot.sh --spellings bin/ailang-before \\"
+    echo "#     cmd/ailang/testdata/pre_s5_spellings.txt"
+    echo "# D1 (design_docs/planned/m-v1-simplification-program.md): every one of"
+    echo "# these must keep resolving. cmd/ailang/commands_spellings_test.go asserts it."
+  } >"$_out"
+
+  {
+    NO_COLOR=1 "$_bin" --help 2>/dev/null | awk '
+      /^Language commands:$/ || /^Platform commands:$/ { insec = 1; next }
+      /^[A-Za-z].*:$/ { insec = 0 }
+      insec && /^  [a-z]/ {
+        line = $0
+        sub(/^  /, "", line)
+        # The name, and its "(alias, alias)" group when present, are separated
+        # from the summary by the help padding: two or more spaces. A summary
+        # may itself contain parentheses, so anchor on that padding, not on "(".
+        if (match(line, /  +/)) head = substr(line, 1, RSTART - 1); else head = line
+        gsub(/[(),]/, " ", head)
+        n = split(head, t, / +/)
+        for (i = 1; i <= n; i++) if (t[i] != "") print t[i]
+      }
+    '
+    NO_COLOR=1 "$_bin" pkg --help 2>/dev/null | awk '
+      /^Commands:$/ { insec = 1; next }
+      /^[A-Za-z].*:$/ { insec = 0 }
+      insec && /^  [a-z]/ { print "pkg " $1 }
+    '
+  } | sort >>"$_out"
+}
+
+if [ "${1:-}" = "--spellings" ]; then
+  shift
+  if [ $# -ne 2 ]; then
+    echo "usage: $0 --spellings <binary> <outfile>" >&2
+    exit 2
+  fi
+  if [ ! -x "$1" ]; then
+    echo "$0: no executable at $1" >&2
+    exit 2
+  fi
+  spellings_mode "$1" "$2"
+  exit 0
+fi
+
 BIN="${1:-}"
 OUT="${2:-}"
 

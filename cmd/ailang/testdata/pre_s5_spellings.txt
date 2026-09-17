@@ -1,0 +1,99 @@
+# Every top-level route bin/ailang-before (the pre-M2 binary) accepts.
+# GENERATED — do not hand-edit:
+#   tools/cli_surface_snapshot.sh --spellings bin/ailang-before \
+#     cmd/ailang/testdata/pre_s5_spellings.txt
+# D1 (design_docs/planned/m-v1-simplification-program.md): every one of
+# these must keep resolving. cmd/ailang/commands_spellings_test.go asserts it.
+access-control
+add
+agent-prompt
+ai-check
+ast-edit
+axioms
+brain
+browser-profile
+budget
+builtins
+cache
+chains
+check
+compile
+coordinator
+daemon
+dashboard
+debug
+design-quorum
+design-review
+devtools-prompt
+disasm
+docs
+doctor
+editor
+eval
+eval-analyze
+eval-censored-pairs
+eval-chains
+eval-compare
+eval-elo
+eval-matrix
+eval-paired
+eval-publish
+eval-report
+eval-suite
+eval-summary
+eval-sweet-spot
+eval-trend
+examples
+exec
+export-training
+fmt
+generate-extension-registry
+iface
+init
+install
+internal-dump-iface
+lock
+lsp
+mcp
+messages
+micro-rag
+microrag
+mission
+models
+msg
+observatory
+pi
+pkg
+pkg affected-by
+pkg cascade
+pkg history
+pkg info
+pkg key
+pkg notify-upgrade
+pkg provenance
+pkg quality
+pkg stats
+pkg versions
+pkg-docs
+policy-check
+prompt
+publish
+repl
+replay
+run
+sandbox-check
+search
+select-best
+serve
+serve-api
+server
+storage
+test
+trace
+tree
+unpublish
+urag
+verify
+version
+watch
+workspaces
