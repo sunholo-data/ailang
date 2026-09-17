@@ -25,24 +25,59 @@ import (
 type Command struct {
 	Name    string
 	Aliases []string
-	// Group is "" for a platform command and groupLanguage for a language
-	// one. In M1 that is the whole of its meaning: it carries the
-	// language-vs-platform split that isLanguageCommand() held before, and
-	// every command is still visible at the top level. S5 M2 turns it into
-	// the real grouping attribute (dev/ops/eval) — do not add group names
-	// here before then.
-	Group   string
+
+	// Group is where the command is FILED: "" puts it in the visible top
+	// level, groupDev / groupOps / groupEval put it in that group. S5 M2
+	// made this the real grouping attribute; M1 had overloaded it with the
+	// language-vs-platform split, which is a different question with a
+	// different consumer (see Language below) and now has its own field.
+	//
+	// Filing a command in a group does NOT move its spelling. D1 is the
+	// binding constraint of this sprint: 593 fleet references to `ailang
+	// messages`, 332 to `ailang coordinator`, 216 to `ailang chains` live in
+	// launchd drivers, make targets, skills and workflows, and not one of
+	// them may have to change. So every grouped command keeps its top-level
+	// route AND gains `ailang <group> <name>`; the group only decides which
+	// help list it appears in.
+	Group string
+
+	// Language marks the commands a user or agent runs to work WITH AILANG,
+	// as opposed to operating the fleet. They must stay quiet and
+	// dependency-free at startup: no observatory DB stat, no git probe
+	// (M-V1-SIMPLIFY-S1 M6). This is a CONTRACT, not a presentation choice —
+	// which is why it is no longer spelled as a Group value. A language
+	// command can be filed anywhere (`disasm` is a dev command and a
+	// language command); the two facts are independent.
+	// commands_table_test.go pins the membership against the pre-S5
+	// isLanguageCommand switch, route by route.
+	Language bool
+
+	// Hidden removes the row from EVERY help list, including its own group's.
+	// It is for routes that exist only so a caller keeps working:
+	// `internal-dump-iface` (which internal/pkg/iface_subprocess.go execs)
+	// and the bare pkg verbs that `ailang pkg <verb>` supersedes.
 	Hidden  bool
 	Summary string
 	Run     func(args []string) error
 }
 
-// groupLanguage marks the commands a user or agent runs to work WITH AILANG,
-// as opposed to operating the fleet. They must stay quiet and dependency-free
-// at startup: no observatory DB stat, no git probe (M-V1-SIMPLIFY-S1 M6). The
-// membership list is a contract — commands_language.go holds it, and
-// commands_language_test.go pins it against the pre-S5 isLanguageCommand.
-const groupLanguage = "lang"
+// The groups. A group is a hidden drawer, not a rename: `ailang ops messages`
+// and `ailang messages` are the same route, and `ailang <group> --help` is how
+// a name that is no longer in the one-screen top level stays discoverable.
+const (
+	groupDev  = "dev"
+	groupOps  = "ops"
+	groupEval = "eval"
+	// groupPkg files the bare pkg verbs (`ailang add`, `ailang publish`, ...)
+	// that `ailang pkg <verb>` now supersedes. Its rows are all Hidden: the
+	// canonical listing is printPkgHelp, generated from pkgSubcommands().
+	groupPkg = "pkg"
+)
+
+// dispatchGroups are the groups that get an `ailang <group> ...` entry point
+// and a generated `ailang <group> --help`. groupPkg is absent because `pkg`
+// predates the group machinery and keeps its own handler and help.
+var dispatchGroups = []string{groupDev, groupOps, groupEval}
 
 // globalFlags carries the values of the global flags main parses, for the few
 // commands whose behaviour depends on them. main assigns it once after
@@ -79,38 +114,77 @@ var (
 // been). args is the positional tail: an empty one, or a language command,
 // gets neither probe.
 func platformStartup(args []string) (runStaleProbe func()) {
-	if len(args) == 0 || isLanguageCommand(args[0]) {
+	if len(args) == 0 || invocationIsLanguage(args) {
 		return func() {}
 	}
 	probeObservatoryHealth()
 	return probeStaleBinary
 }
 
-// allCommands is assembled once, from the three per-group files.
-var allCommands = func() []Command {
-	var out []Command
-	out = append(out, languageCommands()...)
-	out = append(out, evalCommands()...)
-	out = append(out, platformCommands()...)
-	return out
-}()
+// invocationIsLanguage reports whether this argv reaches a language command,
+// following ONE group hop.
+//
+// The hop matters because S5 M2 gave every language command a second spelling.
+// `ailang builtins` and `ailang dev builtins` run the same code, so they must
+// make the same startup decision — and without the hop the second one stats
+// the observatory DB and shells out to git, because it sees the word "dev".
+// Measured: `ailang dev builtins` emitted two Observatory lines that `ailang
+// builtins` did not.
+//
+// One hop only. Groups do not nest, and an unknown name stays platform, which
+// keeps a typo probing exactly as it did before the table.
+func invocationIsLanguage(args []string) bool {
+	if len(args) == 0 {
+		return false
+	}
+	if isLanguageCommand(args[0]) {
+		return true
+	}
+	if isGroupName(args[0]) && len(args) > 1 {
+		if c := lookupGroupMember(args[0], args[1]); c != nil {
+			return c.Language
+		}
+	}
+	return false
+}
 
-// commandIndex maps every name AND alias to its row. Built once; a duplicate
-// name is a programming error and panics at startup rather than silently
-// shadowing a route.
-var commandIndex = func() map[string]*Command {
-	idx := make(map[string]*Command, len(allCommands)*2)
+// allCommands is the whole table, assembled once from the per-area files plus
+// the two generated sets: the group entry points (`dev` and `ops` — `eval` is
+// a real command too, so evalCommands owns its row) and the legacy bare pkg
+// verbs.
+//
+// commandIndex maps every name AND alias to its row. A duplicate route is a
+// programming error and panics at startup rather than silently shadowing one.
+var (
+	allCommands  []Command
+	commandIndex map[string]*Command
+)
+
+// Both are built in init() rather than in their own initialiser expressions,
+// and that is load-bearing, not style. S5 M2 gave the table group entry points
+// whose Run closures call lookupGroupMember, which reads allCommands — a
+// reference cycle Go rejects at compile time ("initialization cycle for
+// allCommands"). init() bodies run after every package variable is
+// initialised and are not part of that dependency graph, so the cycle is
+// broken without making either symbol a function and rewriting every use.
+func init() {
+	allCommands = append(allCommands, languageCommands()...)
+	allCommands = append(allCommands, evalCommands()...)
+	allCommands = append(allCommands, platformCommands()...)
+	allCommands = append(allCommands, groupEntryCommands()...)
+	allCommands = append(allCommands, pkgLegacyCommands()...)
+
+	commandIndex = make(map[string]*Command, len(allCommands)*2)
 	for i := range allCommands {
 		c := &allCommands[i]
 		for _, n := range append([]string{c.Name}, c.Aliases...) {
-			if _, dup := idx[n]; dup {
+			if _, dup := commandIndex[n]; dup {
 				panic("ailang: duplicate command route " + n)
 			}
-			idx[n] = c
+			commandIndex[n] = c
 		}
 	}
-	return idx
-}()
+}
 
 // helpFallbackCommands are the commands whose own argument parsing REJECTS
 // --help: each treats it as a subcommand, a filename or an unknown flag and
@@ -156,8 +230,18 @@ func lookupCommand(name string) (*Command, bool) {
 // they did before the table.
 func isLanguageCommand(cmd string) bool {
 	c, ok := lookupCommand(cmd)
-	return ok && c.Group == groupLanguage
+	return ok && c.Language
 }
+
+// invokedAs is the spelling the user actually typed, before alias resolution.
+// dispatchCommand sets it once; runAsTopLevel resets it for a group route.
+//
+// Exactly one command needs it. S5 M2 absorbed `ai-check` into
+// `check --verify`, keeping `ai-check` as an ALIAS of `check` — so the two
+// routes share a row and the row's Run has to tell them apart. Reading the
+// invoked name from the dispatcher is better than reading os.Args[1], which is
+// a global flag rather than the command name whenever one precedes it.
+var invokedAs string
 
 // wantsHelp reports whether the argument tail is a bare help request.
 func wantsHelp(args []string) bool {
@@ -172,6 +256,7 @@ func dispatchCommand(name string, args []string) {
 		unknownCommand(name)
 		return // unreachable: unknownCommand exits
 	}
+	invokedAs = name
 	if wantsHelp(args) && helpFallbackCommands[c.Name] {
 		printCommandHelp(os.Stdout, c)
 		return
@@ -258,40 +343,52 @@ func printCommandHelp(w io.Writer, c *Command) {
 		cyan("ailang "+c.Name), cyan("ailang --help"))
 }
 
-// renderCommandList writes the generated command sections of `ailang --help`.
-// Hidden rows are omitted; within a section the order is alphabetical, because
-// the table has no hand-maintained ordering to preserve.
-func renderCommandList(w io.Writer) {
-	sections := []struct {
-		title string
-		group string
-	}{
-		{"Language commands:", groupLanguage},
-		{"Platform commands:", ""},
-	}
-	for _, s := range sections {
-		var rows []*Command
-		for i := range allCommands {
-			c := &allCommands[i]
-			if c.Hidden || c.Group != s.group {
-				continue
-			}
-			rows = append(rows, c)
-		}
-		if len(rows) == 0 {
+// visibleTopLevel returns the rows `ailang --help` lists: filed in no group and
+// not hidden, ordered by name.
+//
+// The count is the gate Phase 3 exists to close — `commands_top_level` 89 -> at
+// most 20 — and commands_groups_test.go asserts both the number and the exact
+// membership, so a command cannot drift back into the top level unnoticed.
+func visibleTopLevel() []*Command {
+	var rows []*Command
+	for i := range allCommands {
+		c := &allCommands[i]
+		if c.Hidden || c.Group != "" {
 			continue
 		}
-		sort.Slice(rows, func(i, j int) bool { return rows[i].Name < rows[j].Name })
-		fmt.Fprintln(w, s.title)
-		for _, c := range rows {
-			name := c.Name
-			if len(c.Aliases) > 0 {
-				name += " (" + strings.Join(c.Aliases, ", ") + ")"
-			}
-			fmt.Fprintf(w, "  %s%s%s\n", cyan(name), helpPad(name, 30), c.Summary)
-		}
-		fmt.Fprintln(w)
+		rows = append(rows, c)
 	}
+	sort.Slice(rows, func(i, j int) bool { return rows[i].Name < rows[j].Name })
+	return rows
+}
+
+// renderCommandList writes the generated command section of `ailang --help`,
+// plus the footer that makes the hidden groups discoverable.
+//
+// Before S5 this list was hand-written and had drifted: 15 commands the switch
+// accepted never appeared in it. M1 generated it from the table; M2 shrank it
+// to the visible top level and put the rest behind `ailang dev --help` and
+// `ailang ops --help`. Nothing was removed — every grouped command still
+// answers to its own name, which is D1.
+func renderCommandList(w io.Writer) {
+	fmt.Fprintln(w, "Commands:")
+	for _, c := range visibleTopLevel() {
+		name := c.Name
+		if len(c.Aliases) > 0 {
+			name += " (" + strings.Join(c.Aliases, ", ") + ")"
+		}
+		fmt.Fprintf(w, "  %s%s%s\n", cyan(name), helpPad(name, 30), c.Summary)
+	}
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, "More commands (grouped; each also keeps its own top-level name):")
+	for _, g := range dispatchGroups {
+		if g == groupEval {
+			continue // eval is in the visible list above
+		}
+		label := "ailang " + g + " --help"
+		fmt.Fprintf(w, "  %s%s%s\n", cyan(label), helpPad(label, 30), groupSummaries[g])
+	}
+	fmt.Fprintln(w)
 }
 
 // helpPad returns the spaces that take s to width, with a single space minimum

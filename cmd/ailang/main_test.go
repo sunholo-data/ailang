@@ -45,12 +45,21 @@ func TestCLI_Help(t *testing.T) {
 		t.Errorf("Expected exit code 0, got %d", exitCode)
 	}
 
-	// The command sections are generated from the dispatch table since
-	// M-V1-SIMPLIFY-S5 M1; "Commands:" was the old hand-written header.
+	// The command list is generated from the dispatch table since
+	// M-V1-SIMPLIFY-S5 M1. M2 then replaced M1's "Language commands:" /
+	// "Platform commands:" split with one "Commands:" list of the visible top
+	// level plus a footer pointing at the hidden groups — the two splits
+	// answered different questions (what a command IS versus where it is
+	// filed), and only the second one belongs in help.
+	//
+	// The exact membership of that list is asserted in
+	// commands_groups_test.go (TestGroups_VisibleTopLevelIsTheSpecifiedSet);
+	// this is the end-to-end check that the binary prints it at all.
 	expectedSections := []string{
 		"Usage:",
-		"Language commands:",
-		"Platform commands:",
+		"Commands:",
+		"ailang dev --help",
+		"ailang ops --help",
 		"run",
 		"repl",
 		"check",
