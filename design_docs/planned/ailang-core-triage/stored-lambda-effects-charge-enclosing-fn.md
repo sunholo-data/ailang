@@ -61,3 +61,11 @@ fixing in the same pass.
 **Prior coverage:** none found for the stored-lambda attribution itself
 (searches listed above); the nearest rows are the let-shadowing triage row and
 the #386 show-interp fix that this bug's fix must not regress.
+
+**Second field report (2026-09-17, attended):** `sunholo/motoko_ext_a2a 0.2.2` fails
+`check --package` on the current binary for exactly this — `make_hooks(cfg) -> ExtensionHooks`
+builds three effectful hook lambdas and stores them in the record; the checker charges
+`Net, Rand` to `make_hooks`. Two package-inbox agent attempts (`task-18896425`, `task-f8fc9985`)
+could not "fix" it, correctly: the motoko ABI expects `register_with_config -> ExtensionHooks ! {}`,
+so adding the effects to `make_hooks` would be wrong. Every `motoko_ext_*` package that stores
+effectful hooks will hit this on republish; the package side is blocked on this row.
