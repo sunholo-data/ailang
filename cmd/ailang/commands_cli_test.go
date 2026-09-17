@@ -200,9 +200,9 @@ func TestCLI_DaemonWithNoArgsDoesNotStart(t *testing.T) {
 // source tree newer than the binary makes the stale-binary probe warn — and
 // then counted: a platform command emits both, a language command neither.
 func TestCLI_StartupProbesAreObservable(t *testing.T) {
-	if testing.Short() {
-		t.Skip("creates a 2.1 GB sparse file")
-	}
+	// No -short gate (gatelint R1: testing.Short is inert in CI). The 2.1 GB
+	// file is sparse — no blocks are allocated — and a filesystem that cannot
+	// make one skips below with the reason.
 	bin := cliTestBin(t)
 
 	home := t.TempDir()
