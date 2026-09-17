@@ -28,12 +28,16 @@ func runDoctor() {
 	case "managed_agents", "managed-agents":
 		runDoctorManagedAgents()
 		return
+	case "memory":
+		runDoctorMemory()
+		return
 	default:
 		fmt.Println("Usage: ailang doctor <subcommand>")
 		fmt.Println()
 		fmt.Println("Available subcommands:")
 		fmt.Println("  builtins         Validate the builtin function registry")
 		fmt.Println("  managed_agents   Check ADC for the Vertex AI Managed Agents API")
+		fmt.Println("  memory           Show the memory controls a run would resolve (limit, source, GOGC)")
 		os.Exit(1)
 	}
 

@@ -1,0 +1,112 @@
+{
+  "sprint_id": "M-EVAL-MEASUREMENT-CONTRACT",
+  "status": "completed",
+  "created": "2026-07-28T13:02:23Z",
+  "design_doc": "design_docs/implemented/v0_31_0/m-eval-measurement-contract.md",
+  "sprint_plan": "design_docs/implemented/v0_31_0/m-eval-measurement-contract-sprint-plan.md",
+  "github_issues": [
+    386
+  ],
+  "velocity": {
+    "target_loc_per_day": 327,
+    "estimated_total_loc": 1130,
+    "estimated_days": 3.5,
+    "actual_total_loc": 1514
+  },
+  "features": [
+    {
+      "id": "M1_CANARY_GATE",
+      "description": "Per-model canary gate: extend Executor with CanaryCheck (default no-op), implement motoko canary, hook into the EXISTING per-model agent filter at cmd/ailang/eval_suite.go:~408 (NOT next to HealthCheck, which runs per benchmark). Dead subject is skipped, banks zero rows.",
+      "estimated_loc": 305,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "A deliberately-broken motoko is skipped in <60s with reason canary_failed and ZERO result JSON files written for it",
+        "A healthy motoko passes and the suite proceeds normally",
+        "claude/codex/managed_agents unaffected via default no-op; their existing tests pass untouched",
+        "Canary runs exactly once per model per suite, asserted by a call-counter in the test",
+        "--no-canary escape hatch works"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-07-28T15:33:57",
+      "notes": "Implemented via Go OPTIONAL-INTERFACE (executor.CanaryChecker) rather than adding CanaryCheck to the Executor interface: six executors implement Executor, and the optional pattern delivers the design's 'default no-op' with ZERO changes to the other five. Hooked into the per-model agent filter in cmd/ailang/eval_suite.go per sprint-plan C1 (NOT next to HealthCheck, which runs per benchmark). 9 tests. DEVIATION: the 'deliberately-broken motoko worktree' integration test from the plan was replaced with a hermetic registered-fake test through the real factory+resolver path — the worktree version needs mk-ast+bun+ollama, which CI lacks.",
+      "actual_loc": 311
+    },
+    {
+      "id": "M2_VALIDITY_FLAG",
+      "description": "Universal Validity{Valid,Reason} on every banked result; eval_analysis excludes invalid by default with --include-invalid opt-in; quarantine the 2026-07-20 microrag_ab.jsonl row IN PLACE (never delete).",
+      "estimated_loc": 195,
+      "dependencies": [
+        "M1_CANARY_GATE"
+      ],
+      "acceptance_criteria": [
+        "Validity survives write->read round-trip with and without a reason",
+        "Aggregate over a fixture with one invalid row excludes it by default, includes it under --include-invalid",
+        "2026-07-20 row carries validity.valid=false reason=zero_pass_all; microRAG trend then reads -3.1/-4.8/+13.1",
+        "BACK-COMPAT: rows with NO validity field are treated as valid (absent != invalid) — dedicated test"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-07-28T19:36:15",
+      "notes": "Validity is a POINTER (*Validity) not a value — a plain struct would decode absent as {Valid:false}, silently marking every pre-v0.31.0 row invalid and erasing all history. nil == valid, guarded by dedicated tests at BOTH the struct and loader level. LoadResults/LoadResultsFromDirs now filter by default; LoadResultsIncludingInvalid / LoadResultsFromDirsIncludingInvalid opt back in. 2026-07-20 row quarantined in place with a quarantine_note recording the root cause; microRAG trend now reads -3.1/-4.8/+13.1. 9 tests.",
+      "actual_loc": 298
+    },
+    {
+      "id": "M3_PAIRED_MCNEMAR",
+      "description": "internal/eval_analysis/paired.go: join arms on (benchmark,lang,trial_index); McNemar over discordant pairs (exact binomial when b+c<25, else chi-sq with continuity correction); extend *_ab.jsonl with a pairs array; emit from nightly-eval.sh.",
+      "estimated_loc": 370,
+      "dependencies": [
+        "M2_VALIDITY_FLAG"
+      ],
+      "acceptance_criteria": [
+        "Replaying the banked 2026-07-27 microRAG data reproduces the historical aggregate delta_pp=+13.1 EXACTLY",
+        "McNemar matches hand-computed values on >=3 fixtures including the b+c=0 degenerate case",
+        "NO p-value reported when b+c<10; output states the evidence base is too small (enforced by test)",
+        "Aggregate delta still emitted — additive change, nothing removed",
+        "Unmatched benchmarks surfaced as an explicit unpaired count, never silently dropped"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-07-29T10:27:36",
+      "notes": "Regression anchored to REAL banked 07-27 data (168 rows distilled to testdata/): reproduces the historical delta_pp=+13.1 EXACTLY, and yields b=18 c=7, chi2=4.0, p=0.0455 — a real statistic the aggregate comparison could not produce. FOUND A PRE-EXISTING BUG: the loader's dedup key omits Trial, so a --trials 2 run silently loses half its rows (84 files -> 42) AND the surviving trial can differ between arms, wrecking the join (first replay gave delta=9.5, pairs=19, unpaired=46). Added LoadArmForPairing (no-dedup + validity-filtered) rather than changing the global dedup key, which would move every existing dashboard number — flagged for Mark as a separate decision. New `ailang eval-paired` subcommand so nightly-eval.sh banks pairs without reimplementing the join in bash (shell arithmetic is what caused the 2026-07-20 artefact). 11 tests.",
+      "actual_loc": 520
+    },
+    {
+      "id": "M4_RESOLVED_CONFIG",
+      "description": "Capture motoko's step-0 runtime_config_resolved (currently consumed by system_prompt_guard.go then discarded) into the result row; assert against the models.yml motoko_profile claim; mismatch => validity invalid(config_mismatch).",
+      "estimated_loc": 175,
+      "dependencies": [
+        "M2_VALIDITY_FLAG"
+      ],
+      "acceptance_criteria": [
+        "A row run with motoko_profile: cloud records resolved_profile=cloud and the 4 cloud extensions",
+        "A deliberate mismatch (claim cloud, run ollama) yields config_mismatch and is excluded from aggregates",
+        "Executors that don't broadcast a resolved config are unaffected (absent => no assertion, not a failure)"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-07-29T10:42:13",
+      "notes": "SCOPE DISCOVERY: the design assumed runtime_config_resolved already carried the profile/extensions. It did NOT — only model, step_budget, 7 env flags and system_md. So M4 needed a CROSS-REPO change: motoko now broadcasts the resolved profile (mk-ast f7bbe8d, pushed to fork). Profile only; extensions/verification would need real plumbing (cfg is not in scope at the emit site) and the profile alone catches the motivating bug. Harness side: parser -> ProviderData[resolved_profile] -> AgentBenchmarkResult.ResolvedProfile -> AssertResolvedProfile at bank time -> validity invalid(config_mismatch). Permissive both ways: absent claim or absent resolution never fails, so non-broadcasting executors are unaffected. Added Validity.Detail so a quarantined row names both sides. 10 tests.",
+      "actual_loc": 210
+    },
+    {
+      "id": "M5_HEADROOM_RULE",
+      "description": "DROPPABLE (P2). Warn at A/B setup when the control arm's historical pass rate exceeds a configurable ceiling (default 90%), since a small effect cannot be resolved there. Documented in the eval guide.",
+      "estimated_loc": 85,
+      "dependencies": [
+        "M3_PAIRED_MCNEMAR"
+      ],
+      "acceptance_criteria": [
+        "An A/B whose control has >=90% historical rate emits a loud warning naming the ceiling problem",
+        "The haiku-fmt configuration (both arms ~96%) triggers it",
+        "Warning only — never blocks a run"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-07-29T11:26:52",
+      "notes": "CheckHeadroom + Headroom surfaced on PairedResult and warned loudly on stderr by eval-paired (stdout stays clean JSON for banking). Ceiling 90%, advisory only — never blocks, because a regression guard on a saturated arm is legitimate. Verified against the real haiku fmt config (29/30 = 96.7% -> warns) and the real microRAG control (54/84 = 64.3% -> silent). Also warns on unpaired rows. Docs: docs/docs/guides/evaluation/measurement-contract.md. 4 tests.",
+      "actual_loc": 175
+    }
+  ],
+  "completed": "2026-07-29T09:27:21Z"
+}

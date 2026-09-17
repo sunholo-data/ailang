@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	piexec "github.com/sunholo-data/ailang/internal/executor/pi"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -325,17 +326,22 @@ func TestTaskFor_EvaluatorCannotMutate(t *testing.T) {
 	for _, tool := range task.AllowedTools {
 		got[tool] = true
 	}
-	for _, banned := range []string{"edit", "write"} {
+	// Canonical names (D7): executors map them; pi errors on one it cannot.
+	for _, banned := range []string{"Edit", "Write", "edit", "write"} {
 		if got[banned] {
 			t.Errorf("evaluator may hold %q", banned)
 		}
 	}
-	// bash must remain: the contract requires the bound verification commands to run.
-	if !got["bash"] {
-		t.Error("evaluator lost bash — it cannot run its bound validator")
+	// Bash must remain: the contract requires the bound verification commands to run.
+	if !got["Bash"] {
+		t.Error("evaluator lost Bash — it cannot run its bound validator")
 	}
-	if !got["read"] {
-		t.Error("evaluator lost read")
+	if !got["Read"] {
+		t.Error("evaluator lost Read")
+	}
+	// And the list must be something pi can actually honour end to end.
+	if _, err := piexec.ToolArgs(task.AllowedTools); err != nil {
+		t.Errorf("evaluator tool list is not mappable on pi: %v", err)
 	}
 }
 

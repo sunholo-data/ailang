@@ -8,11 +8,12 @@ package main
 // messages that are filed, routable, and undelivered.
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
-	"sort"
 	"strings"
+	"time"
 
 	"github.com/sunholo-data/ailang/internal/coordinator"
 	"github.com/sunholo-data/ailang/internal/messaging"
@@ -57,14 +58,27 @@ func runMessagesHealth(args []string) {
 	fs := flag.NewFlagSet("messages health", flag.ExitOnError)
 	registryPath := fs.String("registry", "", "Agent config to judge routing against (default: ~/.ailang/config.yaml)")
 	strict := fs.Bool("strict", false, "Exit non-zero when the verdict is not HEALTHY (for CI / the morning report)")
+	since := fs.String("since", "24h", "Window the verdict judges: 24h, 7d, 90m, or 0 for all time")
+	asJSON := fs.Bool("json", false, "Emit the summary as JSON (for hooks and agents)")
 	if err := fs.Parse(args); err != nil {
 		return
 	}
+	window, werr := parseHealthWindow(*since)
+	if werr != nil {
+		fmt.Fprintf(os.Stderr, "%s %v\n", red("Error"), werr)
+		os.Exit(2)
+	}
 
 	mode, project := messagesTarget()
-	fmt.Println()
-	fmt.Println(bold("Message plane health"))
-	fmt.Println()
+	// --json is the machine path: nothing but the document goes to stdout, so a
+	// hook can read it without stripping a banner.
+	out := os.Stdout
+	if *asJSON {
+		out = os.Stderr
+	}
+	fmt.Fprintln(out)
+	fmt.Fprintln(out, bold("Message plane health")+dim("   window: "+humanWindow(window)))
+	fmt.Fprintln(out)
 
 	if desc := describeMessageStore(); desc != "" {
 		// Name the PLANE, not just the project. `ailang-multivac` and
@@ -72,12 +86,12 @@ func runMessagesHealth(args []string) {
 		// planes; reading one and concluding about the other is easy and
 		// expensive (M-COORDINATOR-EXECUTION-TRUST M4).
 		if plane := planeLabel(project); plane != "" {
-			fmt.Printf("  %s  %s\n", desc, bold("["+strings.ToUpper(plane)+" PLANE]"))
+			fmt.Fprintf(out, "  %s  %s\n", desc, bold("["+strings.ToUpper(plane)+" PLANE]"))
 		} else {
-			fmt.Printf("  %s\n", desc) // describeMessageStore renders its own "store: " prefix
+			fmt.Fprintf(out, "  %s\n", desc) // describeMessageStore renders its own "store: " prefix
 		}
 	} else {
-		fmt.Printf("  store:    local SQLite (%s)\n", messaging.GetDefaultDatabasePath())
+		fmt.Fprintf(out, "  store:    local SQLite (%s)\n", messaging.GetDefaultDatabasePath())
 	}
 
 	// Which registry are we judging against? This is load-bearing and easy to
@@ -103,7 +117,7 @@ func runMessagesHealth(args []string) {
 		fmt.Fprintf(os.Stderr, "  Routing cannot be judged without it. Refusing to guess.\n")
 		os.Exit(1)
 	}
-	fmt.Printf("  registry: %s (%d agents)\n", src, len(registry.ListAgents()))
+	fmt.Fprintf(out, "  registry: %s (%d agents)\n", src, len(registry.ListAgents()))
 
 	store, err := openStore()
 	if err != nil {
@@ -118,46 +132,153 @@ func runMessagesHealth(args []string) {
 		os.Exit(1)
 	}
 
-	counts := map[inboxBucket]int{}
-	byInbox := map[inboxBucket]map[string]int{
-		bucketRoutable: {}, bucketTriage: {}, bucketUnroutable: {}, bucketResult: {},
-	}
+	now := time.Now()
+	hm := make([]healthMsg, 0, len(msgs))
 	for _, m := range msgs {
-		b := classifyInbox(registry, m.ToInbox, m.MessageType)
-		counts[b]++
-		byInbox[b][m.ToInbox]++
+		hm = append(hm, healthMsg{
+			Inbox:  m.ToInbox,
+			Type:   m.MessageType,
+			Age:    now.Sub(m.CreatedAt),
+			Bucket: classifyInbox(registry, m.ToInbox, m.MessageType),
+		})
 	}
-
-	fmt.Println()
-	fmt.Printf("  Unread total:                 %d\n", len(msgs))
-	fmt.Printf("  ├─ routable (agent exists):   %s\n", emphasizeIfNonZero(counts[bucketRoutable]))
-	fmt.Printf("  ├─ agent output (not work):   %d\n", counts[bucketResult])
-	fmt.Printf("  ├─ human-triage (by design):  %d\n", counts[bucketTriage])
-	fmt.Printf("  └─ no agent, not declared:    %s\n", emphasizeIfNonZero(counts[bucketUnroutable]))
-
-	printInboxBreakdown("routable but undelivered", byInbox[bucketRoutable])
-	printInboxBreakdown("config gap (no agent, not declared triage)", byInbox[bucketUnroutable])
+	summary := summarizeHealth(hm, window)
+	arrivals := countArrivals(store, registry, window, now)
 
 	// Send path: can THIS machine announce a message at all?
-	fmt.Println()
-	notifyOK := reportSendPath(mode, project)
+	sendOK, sendLine := describeSendPath(mode, project)
+	healthy := summary.LiveFaults() == 0 && sendOK
 
-	fmt.Println()
-	healthy := counts[bucketRoutable] == 0 && counts[bucketUnroutable] == 0 && notifyOK
-	switch {
-	case healthy:
-		fmt.Printf("  %s messages that should have been dispatched: 0\n", green("HEALTHY"))
-	case counts[bucketRoutable] > 0:
-		fmt.Printf("  %s %d message(s) filed, routable, and never dispatched.\n",
-			red("DEGRADED"), counts[bucketRoutable])
-		fmt.Printf("           In a healthy plane this is always 0 — push delivers everything.\n")
-	default:
-		fmt.Printf("  %s see the flagged rows above.\n", yellow("DEGRADED"))
+	if *asJSON {
+		if err := printHealthJSON(summary, arrivals, healthy, sendLine, src); err != nil {
+			fmt.Fprintf(os.Stderr, "%s %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+		if *strict && !healthy {
+			os.Exit(1)
+		}
+		return
 	}
-	fmt.Println()
+
+	renderHealth(out, summary, arrivals, window, sendLine, healthy)
 
 	if *strict && !healthy {
 		os.Exit(1)
+	}
+}
+
+// renderHealth prints the summary: the window first, because "is it working
+// NOW" is the question, and the standing backlog second, because it is context.
+func renderHealth(out *os.File, s *healthSummary, a arrivalStats, window time.Duration, sendLine string, healthy bool) {
+	fmt.Fprintln(out)
+	if window > 0 {
+		fmt.Fprintf(out, "  %s\n", bold("In the "+humanWindow(window)+":"))
+		switch {
+		case a.Err != nil:
+			fmt.Fprintf(out, "    arrived               %s  %s\n", yellow("unknown"), dim(briefError(a.Err.Error())))
+		default:
+			fmt.Fprintf(out, "    arrived               %d   ·  work %d  ·  agent output %d\n", a.Total, a.Work, a.Output)
+		}
+		fmt.Fprintf(out, "    undelivered           %s  %s\n",
+			emphasizeIfNonZero(s.Routable.New), dim("work that arrived and is still not picked up"))
+		fmt.Fprintf(out, "    unroutable            %s  %s\n",
+			emphasizeIfNonZero(s.Unroutable.New), dim("sent to an inbox no agent serves"))
+		if a.Err == nil {
+			fmt.Fprintf(out, "    bounces               %s  %s\n",
+				emphasizeIfNonZero(a.Bounced), dim("UNDELIVERED notices the coordinator filed"))
+		}
+		fmt.Fprintln(out)
+	}
+
+	fmt.Fprintf(out, "  %s %d\n", bold("Unread, all time:"), s.Unread)
+	fmt.Fprintf(out, "  ├─ routable (agent exists):   %s\n", bucketLine(s.Routable, window))
+	fmt.Fprintf(out, "  ├─ agent output (not work):   %d\n", s.Result.Total)
+	fmt.Fprintf(out, "  ├─ human-triage (by design):  %d\n", s.Triage.Total)
+	fmt.Fprintf(out, "  └─ no agent, not declared:    %s\n", bucketLine(s.Unroutable, window))
+
+	printHealthRows(out, "routable but undelivered", s.Routable, window)
+	printHealthRows(out, "config gap (no agent, not declared triage)", s.Unroutable, window)
+
+	fmt.Fprintln(out)
+	fmt.Fprintf(out, "  %s\n", sendLine)
+	fmt.Fprintln(out)
+
+	switch {
+	case healthy && window == 0:
+		fmt.Fprintf(out, "  %s no routable message on this plane is undispatched, at any age.\n", green("HEALTHY"))
+	case healthy:
+		fmt.Fprintf(out, "  %s nothing that arrived in the %s is undispatched.\n",
+			green("HEALTHY"), humanWindow(window))
+	case s.Routable.New > 0 && window == 0:
+		fmt.Fprintf(out, "  %s %d message(s) are routable and were never dispatched, at any age.\n",
+			red("DEGRADED"), s.Routable.New)
+		fmt.Fprintf(out, "           In a healthy plane this is 0 — push delivers everything.\n")
+	case s.Routable.New > 0:
+		fmt.Fprintf(out, "  %s %d message(s) arrived in the %s, are routable, and were never dispatched.\n",
+			red("DEGRADED"), s.Routable.New, humanWindow(window))
+		fmt.Fprintf(out, "           In a healthy plane this is 0 — push delivers everything.\n")
+	default:
+		fmt.Fprintf(out, "  %s see the flagged rows above.\n", yellow("DEGRADED"))
+	}
+
+	// The backlog is real and is NOT the verdict. Saying so, with the commands
+	// that act on it, is what stops a nine-day-old handoff reading as today's
+	// outage — and what stops the banner being ignored when it finally is one.
+	if b := s.Backlog(); b > 0 && window > 0 {
+		fmt.Fprintf(out, "  %s %d older item(s) predate this window — standing backlog, not a live fault:\n",
+			yellow("BACKLOG"), b)
+		fmt.Fprintf(out, "      ailang messages health --since 0        judge the whole plane\n")
+		fmt.Fprintf(out, "      ailang messages list --unread --json    the ids and bodies\n")
+		fmt.Fprintf(out, "      ailang messages forward <id> <inbox>    re-route and dispatch one\n")
+	}
+
+	// This command sees the message plane and NOTHING downstream of it. A plane
+	// can be perfectly healthy while every task it dispatched sits unapproved or
+	// every PR is blocked — which is exactly the state on 2026-09-16, and it took
+	// six commands to find. Name the other three so the next reader runs them.
+	fmt.Fprintf(out, "\n  %s the coordinator half is not in this view:\n", dim("next:"))
+	fmt.Fprintf(out, "      %s   decisions waiting on you\n", dim("ailang coordinator approvals --remote gcp"))
+	fmt.Fprintf(out, "      %s        PRs the decisions left behind\n", dim("ailang coordinator prs --remote gcp"))
+	fmt.Fprintf(out, "      %s   did the four-stage chain advance\n", dim("ailang coordinator pipeline --remote gcp"))
+	fmt.Fprintln(out)
+}
+
+// bucketLine renders a bucket total with its new/backlog split.
+func bucketLine(st *bucketStat, window time.Duration) string {
+	if window == 0 || st.Total == 0 {
+		return emphasizeIfNonZero(st.Total)
+	}
+	head := fmt.Sprintf("%d", st.Total)
+	if st.New > 0 {
+		head = red(fmt.Sprintf("%d", st.Total))
+	}
+	oldest := time.Duration(0)
+	for _, r := range st.Rows {
+		if r.Oldest > oldest {
+			oldest = r.Oldest
+		}
+	}
+	return fmt.Sprintf("%-4s %s", head,
+		dim(fmt.Sprintf("new %d · backlog %d (oldest %s)", st.New, st.Backlog, humanAge(oldest))))
+}
+
+// printHealthRows names what to act on, newest-first, with each row's age.
+func printHealthRows(out *os.File, label string, st *bucketStat, window time.Duration) {
+	if st.Total == 0 {
+		return
+	}
+	fmt.Fprintf(out, "\n  %s:\n", label)
+	for _, r := range st.Rows {
+		age := dim(fmt.Sprintf("oldest %s", humanAge(r.Oldest)))
+		switch {
+		case window == 0:
+			// No window: nothing is "backlog" relative to anything.
+			fmt.Fprintf(out, "    %4d  %-28s %s\n", r.Total, r.Inbox, age)
+		case r.New > 0:
+			fmt.Fprintf(out, "    %4d  %-28s %-8s %s\n", r.Total, r.Inbox, red(fmt.Sprintf("%d new", r.New)), age)
+		default:
+			fmt.Fprintf(out, "    %4d  %-28s %-8s %s\n", r.Total, r.Inbox, dim("backlog"), age)
+		}
 	}
 }
 
@@ -184,23 +305,21 @@ func classifyInbox(registry *coordinator.AgentRegistry, inbox, msgType string) i
 	return bucketUnroutable
 }
 
-// reportSendPath reports whether a send from this machine would be announced.
-// Returns false when a cloud store would receive a message nothing is told about.
-func reportSendPath(mode storage.Mode, project string) bool {
+// describeSendPath reports whether a send from this machine would be announced,
+// and the line that says so. Returning the line rather than printing it is what
+// lets --json carry the same finding as the text view.
+func describeSendPath(mode storage.Mode, project string) (bool, string) {
 	cfg, err := messaging.LoadConfig()
 	if err != nil {
-		fmt.Printf("  send path: %s messaging config unreadable: %v\n", red("UNKNOWN"), err)
-		return false
+		return false, fmt.Sprintf("send path: %s messaging config unreadable: %v", red("UNKNOWN"), err)
 	}
 	enabled := cfg != nil && cfg.PubSub != nil && cfg.PubSub.Enabled
 	if mode != storage.ModeGCP {
-		fmt.Printf("  send path: local store — the daemon polls it directly, no notification needed\n")
-		return true
+		return true, "send path: local store — the daemon polls it directly, no notification needed"
 	}
 	if !enabled {
-		fmt.Printf("  send path: %s pubsub disabled — a send from here would be FILED, NOT DISPATCHED\n", red("BROKEN"))
-		fmt.Printf("             add a pubsub block to %s\n", messaging.GetConfigPath())
-		return false
+		return false, fmt.Sprintf("send path: %s pubsub disabled — a send from here would be FILED, NOT DISPATCHED\n             add a pubsub block to %s",
+			red("BROKEN"), messaging.GetConfigPath())
 	}
 	p := cfg.PubSub.ProjectID
 	if p == "" {
@@ -216,40 +335,99 @@ func reportSendPath(mode storage.Mode, project string) bool {
 	// Both facts were already on this screen, one line apart, and reading them
 	// as a pair is exactly what a health check is for.
 	if p != project {
-		fmt.Printf("  send path: %s pubsub publishes to %q but this store is %q\n", red("SPLIT"), p, project)
-		fmt.Printf("             A notification sent to the wrong project reaches a coordinator that\n")
-		fmt.Printf("             cannot see the message. Set pubsub.project_id to %q in %s,\n", project, messaging.GetConfigPath())
-		fmt.Printf("             or unset it so it follows the store.\n")
-		return false
+		return false, fmt.Sprintf("send path: %s pubsub publishes to %q but this store is %q\n"+
+			"             A notification sent to the wrong project reaches a coordinator that\n"+
+			"             cannot see the message. Set pubsub.project_id to %q in %s, or unset it.",
+			red("SPLIT"), p, project, project, messaging.GetConfigPath())
 	}
-	fmt.Printf("  send path: %s pubsub enabled (project %s)\n", green("ok"), p)
-	return true
+	return true, fmt.Sprintf("send path: %s pubsub enabled (project %s)", green("ok"), p)
 }
 
-// printInboxBreakdown lists the offending inboxes, largest first, so the output
-// names what to act on rather than only how much is wrong.
-func printInboxBreakdown(label string, m map[string]int) {
-	if len(m) == 0 {
-		return
+// arrivalStats is what actually came in during the window — the throughput half
+// of the question. A plane with zero undelivered messages and zero arrivals is
+// not healthy, it is idle, and the old output could not tell those apart.
+type arrivalStats struct {
+	Total   int   `json:"total"`
+	Work    int   `json:"work"`
+	Output  int   `json:"agent_output"`
+	Bounced int   `json:"bounced"`
+	Err     error `json:"-"`
+}
+
+// countArrivals counts everything created inside the window, read or unread.
+//
+// StartDate has DAY granularity in the store, so it over-fetches and the exact
+// cut is applied here. Over-fetching is the safe direction: the alternative is a
+// window that silently drops the first hours of the day.
+//
+// Collapsed is deliberately NOT set, and the duplicates are dropped in memory
+// instead. Asking Firestore for dup_of AND created_at together needs a
+// composite index that does not exist, and the whole throughput line then reads
+// "unknown" — a health command that requires new infrastructure to answer its
+// own question is not one. Same rows either way.
+func countArrivals(store messaging.MessageStore, registry *coordinator.AgentRegistry, window time.Duration, now time.Time) arrivalStats {
+	var a arrivalStats
+	if window == 0 {
+		return a // all-time: the unread buckets already say everything
 	}
-	type row struct {
-		inbox string
-		n     int
-	}
-	rows := make([]row, 0, len(m))
-	for k, v := range m {
-		rows = append(rows, row{k, v})
-	}
-	sort.Slice(rows, func(i, j int) bool {
-		if rows[i].n != rows[j].n {
-			return rows[i].n > rows[j].n
-		}
-		return rows[i].inbox < rows[j].inbox
+	cut := now.Add(-window)
+	msgs, err := store.ListInboxMessages(messaging.InboxListOptions{
+		IncludeRead: true,
+		StartDate:   cut.Format("2006-01-02"),
 	})
-	fmt.Printf("\n  %s:\n", label)
-	for _, r := range rows {
-		fmt.Printf("    %4d  %s\n", r.n, r.inbox)
+	if err != nil {
+		a.Err = err
+		return a
 	}
+	for _, m := range msgs {
+		if m.CreatedAt.Before(cut) || m.DupOf != "" {
+			continue
+		}
+		a.Total++
+		if m.MessageType == bounceMessageType {
+			a.Bounced++
+		}
+		if isResultMessageType(m.MessageType) {
+			a.Output++
+		} else {
+			a.Work++
+		}
+	}
+	return a
+}
+
+// healthDoc is the --json shape. Flat on purpose: a hook reads
+// `.live_faults` and `.healthy` and needs nothing else.
+type healthDoc struct {
+	Healthy     bool         `json:"healthy"`
+	WindowHours float64      `json:"window_hours"`
+	LiveFaults  int          `json:"live_faults"`
+	Backlog     int          `json:"backlog"`
+	Registry    string       `json:"registry"`
+	SendPath    string       `json:"send_path"`
+	Arrived     arrivalStats `json:"arrived"`
+	Unread      int          `json:"unread_total"`
+	Routable    *bucketStat  `json:"routable"`
+	Unroutable  *bucketStat  `json:"unroutable"`
+	AgentOutput *bucketStat  `json:"agent_output"`
+	HumanTriage *bucketStat  `json:"human_triage"`
+}
+
+func printHealthJSON(s *healthSummary, a arrivalStats, healthy bool, sendLine, registrySrc string) error {
+	doc := healthDoc{
+		Healthy: healthy, WindowHours: s.WindowHours,
+		LiveFaults: s.LiveFaults(), Backlog: s.Backlog(),
+		Registry: registrySrc, SendPath: stripANSI(sendLine),
+		Arrived: a, Unread: s.Unread,
+		Routable: s.Routable, Unroutable: s.Unroutable,
+		AgentOutput: s.Result, HumanTriage: s.Triage,
+	}
+	b, err := json.MarshalIndent(doc, "", "  ")
+	if err != nil {
+		return err
+	}
+	fmt.Println(string(b))
+	return nil
 }
 
 func emphasizeIfNonZero(n int) string {

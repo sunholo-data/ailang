@@ -1,0 +1,161 @@
+{
+  "sprint_id": "M-EVAL-FRONTIER-TIER",
+  "status": "planned",
+  "branch": "sprint/m-eval-frontier-tier",
+  "worktree": "/Users/voightkampff/dev/sunholo-data/ailang-worktrees/m-eval-frontier-tier",
+  "created": "2026-07-11T00:00:00Z",
+  "design_doc": "design_docs/planned/v0_29_0/m-eval-frontier-tier.md",
+  "sprint_plan": "design_docs/planned/v0_29_0/m-eval-frontier-tier.md",
+  "github_issues": [
+    329
+  ],
+  "planner_model": "claude-opus-4-8",
+  "planner_model_attestation": "Planned by claude-opus-4-8 (Opus-class, exact model id claude-opus-4-8). All design-doc premises re-verified live against working tree at v0.28.0-149-g45bbbf8f9; discrepancies recorded in premise_discrepancies below.",
+  "execution_environment": "isolated git worktree branched from origin/dev (NEVER the shared main working tree); PR into dev. HARD CONSTRAINTS: no ollama/GPU, no API-billed model runs. All validation is code + unit tests + banked re-graded data only.",
+  "local_gates": [
+    "make test",
+    "make lint",
+    "make fmt"
+  ],
+  "remote_gates_awareness": [
+    "fmt-check (must run make fmt before pushing)",
+    "check-file-sizes (no touched Go/md file may exceed 800 lines)",
+    "docs build (if CURATION.md / evaluation docs change, verify docs still build)"
+  ],
+  "scope_note": "Headless-executable subset of M-EVAL-FRONTIER-TIER ONLY. Frontier-FAILURE validation (each new benchmark must fail >=1 frontier model in standard mode) is API-billed and is an EXPLICIT PARKED out-of-scope item (see parked_out_of_scope), NOT a milestone.",
+  "premise_discrepancies": [
+    "spec_test.go:248 TestValidTiers_EnumMembers hardcodes want={smoke,core,stretch,vision,experimental} AND asserts len(ValidTiers)==len(want). Adding 'frontier' BREAKS this test too. The design doc's reality-check only flagged the tier-COUNT assertions at spec_test.go:342-344, not this enum-membership test. BOTH must be updated. (verified: spec_test.go:248-257)",
+    "Stale tier-count numbers in design doc: the doc's reality-check says the 8 benchmarks moved stretch '14 -> 22'. That is superseded — spec_test.go now asserts stretch=30 +/-3 (range 27-33) after later 2026-07-09/07-08 waves (quine, emit_exact_bytes_varied, gauntlet_10, legal_obligation_engine, +4 constrained-construction). Re-tiering 8 stretch->frontier drops stretch by 8 (30->22), which FALLS BELOW the asserted lower bound 27. The stretch count assertion (spec_test.go:357-359) MUST be re-centered to ~22, and a new frontier count assertion added, in the same commit. (verified: spec_test.go:357-359, current tier grep)",
+    "ELO 'high provisional rating' is NOT implemented generically. ratings.go uses a single flat DefaultInitialRating=1500.0 for EVERY unseen benchmark regardless of tier (verified: ratings.go:16,48-53). There is no tier-biased provisional rating; frontier benchmarks enter at 1500 like all others and converge via pass/fail. Scope item 3 ('verify + a test is enough') is satisfiable, but the doc's phrasing 'enter with a HIGH provisional ELO' is aspirational, not literal. Plan treats item 3 as: verify unseen benchmarks are handled generically (they are) + add a regression test asserting a never-before-seen bench id enters at DefaultInitialRating and updates on pass/fail. Do NOT invent tier-biased seeding (out of scope, no data to calibrate).",
+    "CURATION.md has NO '4-dimension >=95% demote rule'. The '>=95% on ALL FOUR std/agent x AILANG/Python dimensions' phrasing exists ONLY in the design doc, not in benchmarks/CURATION.md. CURATION.md §5 Demotion actually says: core->stretch requires '<30% AILANG pass for two baselines AND the benchmark is accurate'. §4 IsSaturated flags '100% across every model x language'. So the doc's demote rule and CURATION.md's demote rule DISAGREE. Resolution in this sprint: (a) apply the CONSERVATIVE reading — a benchmark is a demotion candidate only if saturated (100%/near-100%) on ALL FOUR dimensions with data present; (b) codify this 4-dimension rule INTO CURATION.md §5 as an explicit new 'saturation demotion' row (the doc mandates using it, so make CURATION.md the real source of truth); (c) document every per-benchmark decision. Never demote on a dimension that has no data (matches doc's 'do not demote on incomplete evidence').",
+    "Agent-mode data is NOT sparse for the demotion audit. The task framing ('agent-mode data is sparse') refers to the TOP-LEVEL eval_results/agent/ dir (motoko/ollama scratch). But the BANKED baseline eval_results/baselines/v0.25.0/agent/ has 444 files = 6 models (claude-sonnet-4-6, gpt5-4-mini, opencode-or-{deepseek-v4-flash, deepseek-v4-pro, glm-5-1, minimax-m3}) x both langs, covering all 15 demotion-list benchmarks (12 files each, ailang+python). The 4-dimension audit IS feasible from banked data. Caveat: agent uses a DIFFERENT, smaller model set (6, incl. local/opencode) than standard (11 cloud). Record that a 100%-agent verdict rests on 6 models, not 11 — weaker evidence, but present. (verified: ls counts + per-benchmark grep)",
+    "The re-grade precondition is DONE. Both dependencies shipped v0.26.0 (confirmed by design-doc reality-check; not independently re-run here, but v0.25.0 baseline dir exists with summary.json trials). Design against the banked v0.25.0 re-graded scores; do NOT re-run any eval.",
+    "decision_block_capture structural fix is a SYSTEMIC change, not localized. CompareOutput(expected, actual) takes no spec, and is called at 7 sites (agent_runner.go:517, agent_runner_multi.go:486/542/566/632, repair.go:213 + StdoutOk plumbing). A true structural CHOICE grader needs a new Grading mode threaded through all of them + the spec.go:180 grading enum + tests, with NO eval run available to validate behavior beyond unit tests. Plan makes structural grading the PREFERRED attempt boxed to a localized new grading mode, with a committed, lower-risk FALLBACK: re-tier decision_block_capture to 'experimental' (diagnostic probe, excluded from scored tiers) with a documented rationale. Either satisfies the doc's guardrail ('grade structurally, OR retire/re-tier').",
+    "The --tier help string (cmd/ailang/eval_suite.go:103) hardcodes 'smoke|core|stretch|vision' (omits experimental too). Cosmetic — must add 'frontier'. Tier FILTERING itself is centralized via ValidTiers->parseTierList (eval_helpers.go:69-88), so --tier frontier works automatically once ValidTiers gains the value. (verified)",
+    "CURATION.md §1 tier table has smoke/core/stretch/vision rows only — no frontier row and no experimental row. Add a frontier row per scope item 1. (verified: full read of CURATION.md)"
+  ],
+  "parked_out_of_scope": [
+    {
+      "item": "Frontier-FAILURE validation",
+      "reason": "Each of the 8 (and any future) frontier benchmarks must be validated to fail >=1 frontier model in STANDARD mode; if all frontier models pass it belongs in stretch. This requires fresh frontier-model API runs (zero banked data for the 8 new benchmarks anywhere in eval_results/ — verified, they are stretch and nightly runs smoke+core only). API-billed => violates the headless billing guard (same class as iteration-4's parked haiku re-run).",
+      "disposition": "PARKED for a human / next paid rotation. The sprint re-tiers the 8 to frontier on the AUTHOR's per-benchmark plausible-wrong verification (2026-07-08 update), and records that frontier-failure confirmation is pending. If a re-tiered benchmark later turns out to be trivially passed by all frontier models, it demotes back to stretch — tracked as a follow-up, not a blocker."
+    },
+    {
+      "item": "Authoring the remaining 4-4 sketched benchmarks",
+      "reason": "cps_transform, register_allocator_linear, typeclass_dispatch_chain, effect_txn_rollback contract-variant are unauthored (per 2026-07-08 update). Authoring + reference-verification is a benchmark-manager task that also needs frontier-failure validation to place them.",
+      "disposition": "Out of scope for this headless sprint (target is 8-12; the 8 authored are enough to stand up the tier). Follow-up."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 150,
+    "estimated_total_loc": 520,
+    "estimated_days": 2.5,
+    "note": "LOC is mostly Go test updates, YAML tier edits, CURATION.md/docs prose, and one audit report. Low code-risk, moderate care-required (test-count assertions, systemic grading path). 20% buffer included."
+  },
+  "features": [
+    {
+      "id": "M1_FRONTIER_TIER_MACHINERY",
+      "description": "Add 'frontier' to ValidTiers and update ALL tier plumbing + assertions so the tier is a first-class citizen. Because tier filtering is centralized (ValidTiers -> parseTierList), --tier frontier works once ValidTiers has the value; the work is enum + tests + help + CURATION.md table.",
+      "estimated_loc": 90,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "internal/eval_harness/spec.go: 'frontier' added to ValidTiers (ordering: after stretch, before vision, per difficulty ladder); Tier field doc-comment updated to list frontier",
+        "spec_test.go:248 TestValidTiers_EnumMembers: want map gains 'frontier' so len check + membership check pass (THIS TEST BREAKS OTHERWISE — see premise_discrepancies)",
+        "spec_test.go tier-distribution check: stretch center re-centered from 30 to ~22 (after M2 moves 8 out), and a frontier count assertion added (frontier=8 +/- small tolerance); comment block updated to reference M-EVAL-FRONTIER-TIER re-tiering. NOTE: this assertion is only green AFTER M2 re-tiers the 8 — M1 and M2 land in the same commit or M1's test edit anticipates M2's YAML edits (executor decides; they are coupled)",
+        "cmd/ailang/eval_suite.go:103 --tier help string includes 'frontier'",
+        "benchmarks/CURATION.md §1 tier table gains a 'frontier' row (Purpose: 'Frontier-defeating. A frontier model fails >=1.'; Expected pass rate: '0-40%, frontier fails some'; Run cost '~minutes'); note in §5 that frontier benchmarks that ALL frontier models pass demote to stretch",
+        "make test green (eval_harness package especially); make fmt clean; make lint clean",
+        "grep confirms no other hardcoded 'smoke|core|stretch|vision' enum copy was missed (docs/evaluation guide checked; update if it enumerates the tier set)"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_RETIER_8_TO_FRONTIER",
+      "description": "Re-tier the 8 authored benchmarks from stretch to frontier per the design doc's 2026-07-08 authoring-update instruction ('when the frontier tier value lands, re-tier these').",
+      "estimated_loc": 40,
+      "dependencies": [
+        "M1_FRONTIER_TIER_MACHINERY"
+      ],
+      "acceptance_criteria": [
+        "tier: frontier set in all 8 YAMLs: ssa_constant_fold, bytecode_vm_trace, lfu_cache_trace, parse_prec_climb, effect_txn_rollback, glob_match_spec, dep_resolver_backtrack, stream_lcg_topk (grep confirms exactly these 8 carry tier: frontier)",
+        "LoadSpec accepts them (no validation error) — verified by make test (spec_test.go loads every benchmark)",
+        "benchmarks/events.yml gains a taxonomy event for v0.29.0 ('frontier tier introduced; 8 benchmarks re-tiered stretch->frontier', affects_tiers: [stretch, frontier])",
+        "Each re-tiered YAML notes in a comment that frontier-FAILURE validation is pending (parked) so the provenance is auditable"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_ELO_FRONTIER_VERIFY_AND_TEST",
+      "description": "Verify frontier benchmarks integrate with the ELO engine generically and lock it with a regression test. Do NOT add tier-biased provisional seeding (not implemented, no data to calibrate — see premise_discrepancies).",
+      "estimated_loc": 60,
+      "dependencies": [
+        "M2_RETIER_8_TO_FRONTIER"
+      ],
+      "acceptance_criteria": [
+        "internal/eval_harness/ratings_test.go: new test asserts a never-before-seen benchmark id (e.g. a frontier id) enters FitFromTrials at DefaultInitialRating (1500) and its derived difficulty rises on FAIL / falls on PASS (mirrors the model-vs-bench zero-sum update)",
+        "Confirm (in the test or an eval_analysis-level check) that FitFromTrials/ratings_export includes frontier-tier benchmarks with no special-casing — a frontier PASS/FAIL updates the same as any tier",
+        "A short note added to the design doc (or ratings.go comment) recording that provisional ratings are FLAT 1500 across tiers, so 'high provisional ELO' is emergent-from-difficulty, not seeded",
+        "make test green"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_FIX_DECISION_BLOCK_CAPTURE",
+      "description": "Remove the free-text exact-match anti-pattern in decision_block_capture. PREFER a structural grader for the CHOICE line; if that cannot be a cleanly-localized change, FALL BACK to re-tiering it to experimental (diagnostic probe) with a documented rationale. Also audit the rest of stretch/frontier for the same anti-pattern.",
+      "estimated_loc": 130,
+      "dependencies": [
+        "M1_FRONTIER_TIER_MACHINERY"
+      ],
+      "acceptance_criteria": [
+        "PRIMARY ATTEMPT: add a structural grading mode (e.g. grading: 'prefix_line' or a spec-driven check) that grades line 1 by exact/normalized match AND requires a subsequent line matching /^CHOICE: .+/ (non-empty rationale), NOT the verbatim example sentence. If added: extend spec.go grading enum (spec.go:180), thread through the grading path used by CompareOutput's callers, add unit tests for pass (any non-empty CHOICE) and fail (missing CHOICE / wrong number). Update the benchmark YAML to use the new mode and relax expected_stdout accordingly",
+        "FALLBACK (if structural grading is not cleanly localizable within this sprint's risk budget — 7 CompareOutput call sites, no eval run to validate end-to-end): re-tier decision_block_capture to tier: experimental with an explicit YAML comment + a note in CURATION.md that free-text exact-match is retired from scored tiers; record WHY in sprint notes. Either path satisfies the doc guardrail",
+        "Anti-pattern audit: grep/inspect all stretch + frontier benchmarks for expected_stdout containing free-text justification/prose graded by exact match; record findings (list clean vs suspect) in the sprint notes or the audit report from M5. If another benchmark shares the anti-pattern, apply the same fix or flag it as a follow-up",
+        "make test green; if a new grading mode was added, spec.go grading-enum test updated",
+        "Whichever path: decision_block_capture no longer scores capability by verbatim-copying a prompt example"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M5_DEMOTION_AUDIT",
+      "description": "Apply a 4-dimension (standard/agent x AILANG/Python) saturation demotion audit to the 12 saturated core + 3 saturated stretch benchmarks, using ONLY banked re-graded v0.25.0 data. Codify the 4-dimension rule into CURATION.md (it does not exist there today — see premise_discrepancies). Demote only where all dimensions WITH DATA are saturated; never demote on absent-dimension evidence.",
+      "estimated_loc": 100,
+      "dependencies": [
+        "M1_FRONTIER_TIER_MACHINERY"
+      ],
+      "acceptance_criteria": [
+        "benchmarks/CURATION.md §5 gains an explicit 'saturation demotion' rule: a core benchmark demotes to stretch only if it is at/near 100% AILANG pass on ALL FOUR present dimensions (standard-AILANG, standard-Python, agent-AILANG, agent-Python) in the banked baseline; if a dimension has NO data it is recorded and NOT used to justify demotion (do not demote on incomplete evidence). This reconciles the design doc's stated rule with CURATION.md",
+        "Audit report written (design_docs/planned/v0_29_0/m-eval-frontier-tier-demotion-audit.md or a section appended to the design doc): a table with one row per candidate (12 core + 3 stretch), columns std-ailang / std-python / agent-ailang / agent-python pass rates from eval_results/baselines/v0.25.0 (standard = 11 models; agent = 6 models — note the smaller agent panel explicitly), and a DECISION (demote / keep / insufficient-data) with one-line rationale each",
+        "Only benchmarks meeting the 4-dimension rule are demoted; each demotion edits the YAML (core->stretch, or the 3 stretch retagged 'keep-for-coverage' via a comment/tag, per doc) and is reflected in the audit table",
+        "If tier counts shift, spec_test.go tier-distribution assertions re-centered accordingly (coordinate with M1) and made green",
+        "benchmarks/events.yml gains a benchmark taxonomy/remove event for any demotions in v0.29.0",
+        "Honesty check: any benchmark whose 100% verdict rests on the 6-model agent panel (not 11) is flagged as weaker-evidence in the audit; where standard and agent disagree, KEEP (do not demote) and record it",
+        "make test green"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "risk_level": "medium",
+  "risks": [
+    "Coupled test assertions: M1 (enum + count) and M2 (re-tier 8) and M5 (demotions) all move spec_test.go tier counts. If not landed together the distribution check flip-flops red. Executor should treat the spec_test.go tier-count block as ONE edit finalized after M2+M5 tier moves are known, or land M1+M2 in a single commit and adjust again after M5.",
+    "M4 structural grader touches the systemic grading path (7 CompareOutput call sites) with NO eval run available to validate end-to-end — unit tests only. Mitigation: the committed fallback (re-tier to experimental) is low-risk and guardrail-compliant; do not over-invest in the grader if it balloons.",
+    "M5 rests on a 6-model agent panel vs 11-model standard panel; a '100% saturated' verdict is weaker in agent mode. Mitigation: conservative rule (keep on disagreement / insufficient data), everything documented per-benchmark.",
+    "Frontier-failure validation is PARKED (API-billed). A re-tiered benchmark could later prove trivially-passed by all frontier models and need demotion back to stretch. Mitigation: recorded as a follow-up; author's plausible-wrong verification (2026-07-08) is the interim justification.",
+    "check-file-sizes (<=800 lines): CURATION.md is ~300 lines and grows; spec_test.go and ratings edits are small — low risk but verify touched files stay <=800.",
+    "docs build: editing CURATION.md alone does not enter the docs site, but if the evaluation guide (docs/docs/guides/evaluation/) enumerates tiers it must gain frontier and still build."
+  ]
+}

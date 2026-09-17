@@ -269,6 +269,8 @@ _trace_event : (string, string) -> () ! {Trace}
 _trace_span_end : string -> () ! {Trace}
 _trace_span_start : string -> () ! {Trace}
 _uuid4 : () -> string ! {Rand}
+_web_fetch : string -> Result[{content: string, links: list[string], title: string}, NetError] ! {Net}
+_web_search : (string, int) -> Result[list[{content: string, title: string, url: string}], NetError] ! {Net}
 _xmlComment : string -> XmlNode
 _xmlElement : (string, list[{name: string, value: string}], list[XmlNode]) -> XmlNode
 _xmlText : string -> XmlNode

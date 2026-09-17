@@ -1,0 +1,123 @@
+{
+  "sprint_id": "M-PROMPT-FOOTGUNS",
+  "title": "Route prompt-teaching footguns to compiler diagnostics (Part A + Part B only)",
+  "design_doc": "design_docs/planned/v0_30_0/m-prompt-footguns-to-diagnostics.md",
+  "sprint_plan": "design_docs/planned/v0_30_0/m-prompt-footguns-sprint-plan.md",
+  "target_version": "v0.30.0",
+  "priority": "P1",
+  "risk_level": "low",
+  "created": "2026-07-18",
+  "verified_against": "v0.29.2-393-ga69194e43",
+  "github_issues": [399],
+  "scope_note": "Mark-ratified 2026-07-18: PRIMARY (Part A) + ghost-close (Part B) + verification/docs ONLY. Part C / Phase 3 (primitive-field-access TC_PRIMITIVE_FIELD_ACCESS_001) is DROPPED and SEVERED to an extension-lane backlog doc (m-diag-primitive-field-suggestions.md). Do NOT implement the unifier change or the TC code this sprint.",
+  "velocity": {
+    "target_loc_per_day": 180,
+    "estimated_total_loc": 250,
+    "estimated_days": 1.25
+  },
+  "features": [
+    {
+      "id": "M1_PART_A_MODULE_DIAGNOSTICS",
+      "description": "PRIMARY: coded, directional parse diagnostics for duplicate/misplaced module declarations. Wire the dormant MOD002 (duplicate module) and add a new PAR_MODULE_PLACEMENT (misplaced/non-first module) at the parser declaration-dispatch site. Apply gemini's error-recovery fix: the recovery path (reportMisplacedModule) MUST NOT set seenModule/firstModulePos/firstModulePath — only ParseFile's valid leading-module consumption sets them, so a module-less file with two late modules emits PAR_MODULE_PLACEMENT twice (never a false MOD002 for the second). Kills the opaque PAR_NO_PREFIX_PARSE + PAR_UNEXPECTED_TOKEN cascade for a decl-level module token.",
+      "estimated_loc": 180,
+      "estimated_days": 1.0,
+      "dependencies": [],
+      "file_anchors": {
+        "internal/parser/parser.go": "Add Parser struct fields seenModule bool / firstModulePos / firstModulePath (+3 LOC)",
+        "internal/parser/parser_file.go:48-51": "Leading-module branch in ParseFile — the ONLY place that SETS seenModule/firstModulePos/firstModulePath; calls existing parseModuleDecl() helper at :49",
+        "internal/parser/parser_file.go:89": "Existing standalone parseModuleDecl() helper (reused for consume-and-continue; no extraction needed)",
+        "internal/parser/parser_file.go:372-395": "reportMisplacedImport / PAR_IMPORT_PLACEMENT precedent to mirror (NewSuggestionError + errCountBefore consume-and-truncate at :391-395)",
+        "internal/parser/parser_decl.go:209": "parseTopLevelDecl switch — add `case lexer.MODULE: return p.reportMisplacedModule()`",
+        "internal/parser/parser_decl.go:328": "case lexer.IMPORT precedent (was :336 in doc; shifted at HEAD)",
+        "internal/errors/codes.go:67-68": "MOD002 definition (dormant — zero emission sites)",
+        "internal/errors/codes.go:267": "MOD002 registry entry",
+        "internal/errors/codes.go:93": "MOD011 stale comment `multiple module declarations per file` — fix in passing (actual: cross-file collision; was :93 in doc, still :93 at HEAD)",
+        "internal/lexer/token.go": "module is a hard keyword (MODULE token) — zero false-positive surface"
+      },
+      "acceptance_criteria": [
+        "New reportMisplacedModule() in parser_file.go emits errors.MOD002 (duplicate) via NewSuggestionError when seenModule is already true, else emits PAR_MODULE_PLACEMENT (misplaced-but-first-seen)",
+        "`case lexer.MODULE:` added to parseTopLevelDecl in parser_decl.go beside the IMPORT case",
+        "Recovery path does NOT mutate seenModule/firstModulePos/firstModulePath (state-isolation rule)",
+        "Two-module repro file (/tmp/twomod.ail shape): exactly one MOD002 stating the one-module-per-file rule + naming both module paths + first-decl position; ZERO PAR_NO_PREFIX_PARSE / PAR_UNEXPECTED_TOKEN for the module token",
+        "Misplaced (non-first, single) module repro: exactly one PAR_MODULE_PLACEMENT, same shape, no cascade",
+        "Module-less file with THREE late modules produces exactly TWO placement errors (one per offending decl); module-less file with TWO late modules produces PAR_MODULE_PLACEMENT for BOTH (second is NEVER MOD002)",
+        "Leading (valid, first) module file unaffected — parses clean",
+        "MOD011 comment at codes.go:93 corrected to reflect cross-file collision (behavior untouched)",
+        "New golden test internal/parser/module_placement_test.go (styled on import_placement_test.go): duplicate->MOD002+no-cascade; misplaced->PAR_MODULE_PLACEMENT; 3-modules->2-errors; two-late-modules state-isolation (both PAR_MODULE_PLACEMENT); leading-only unaffected; malformed duplicate (module a-b) asserts one placement error",
+        "Footgun contract row added to internal/diag/footgun_fixtures_test.go (MOD014 pattern)",
+        "`make test-imports` + parser suite green"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_PART_B_GHOST_CLOSE_GUARD",
+      "description": "GHOST-CLOSE: close m-prompt-split-list-operations as a ghost (the embedded prompt v0.16.2 already teaches split->map->join). Add a runnable, CI-gated example examples/runnable/split_map_join.ail as a durable regression guard so a future prompt-diet pass can't silently delete the pipeline teaching. Verified-compiling program at HEAD (join(delim,list) and map(f,list) arg orders live-verified).",
+      "estimated_loc": 30,
+      "estimated_days": 0.25,
+      "dependencies": [],
+      "file_anchors": {
+        "examples/runnable/split_map_join.ail": "NEW ~15 LOC — the verified-compiling program from doc Part B (split + map + join + mapSlicesJoin)",
+        "examples/runnable/string_split.ail": "EXISTING — uses split+chars+recursion only, no map/join, so new example is NOT redundant",
+        "examples/manifest.json:2619": "statistics block (total: 187) — MUST bump total + add manifest entry (classic verify-examples-red cause is forgetting the hand-maintained statistics block)",
+        "make/examples.mk:18-28": "make verify-examples runs examples/runnable + validate_manifest.go --ci",
+        ".github/workflows/ci.yml:205-209": "CI gate (non-zero on red example or manifest drift)"
+      },
+      "acceptance_criteria": [
+        "examples/runnable/split_map_join.ail created; exercises BOTH the explicit split->map->join pipeline AND the fused mapSlicesJoin form",
+        "`ailang check examples/runnable/split_map_join.ail` -> No errors found",
+        "examples/manifest.json entry added AND statistics block (total) incremented to keep validate_manifest --ci green",
+        "`make verify-examples` green locally including split_map_join.ail",
+        "Prompt-deletion candidates (embedded prompt lines ~704/715/1071-1085) RECORDED (in CHANGELOG/notes) as gated diet-pass candidates — NOT deleted (prompt line count stays 2535)"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_VERIFICATION_DOCS_BACKLOG",
+      "description": "Verification, docs, and severance of Part C to backlog. Regenerate dist/error_codes.json (MOD002 now has a live emitter; new PAR_MODULE_PLACEMENT registered), update CHANGELOG, file the extension-lane backlog stub for the DROPPED Part C, and confirm the controller archives the 3 superseded docs on landing.",
+      "estimated_loc": 40,
+      "estimated_days": 0.5,
+      "dependencies": ["M1_PART_A_MODULE_DIAGNOSTICS", "M2_PART_B_GHOST_CLOSE_GUARD"],
+      "file_anchors": {
+        "dist/error_codes.json": "Regenerate via tools/gen-error-codes — MOD002 gains live emitter; PAR_MODULE_PLACEMENT registered",
+        "CHANGELOG.md": "v0.30.0 entry (diagnostics category): MOD002 wired, PAR_MODULE_PLACEMENT added, split_map_join guard, prompt-deletion candidates recorded",
+        "design_docs/planned/v0_30_0/m-diag-primitive-field-suggestions.md": "NEW ~40-line extension-lane backlog stub for the SEVERED Part C (symbol->call-form enrichment OUTSIDE internal/types; candidate routes recorded per doc Frozen-Core Routing section)",
+        "design_docs/planned/v0_29_0/m-prompt-split-list-operations.md": "Ghost-closed (controller archives on landing)",
+        "design_docs/planned/v0_29_0/m-prompt-single-file-module.md": "Superseded (controller archives on landing)",
+        "design_docs/planned/v0_29_0/m-prompt-log-file-analyzer-string-ops.md": "Superseded (controller archives on landing)"
+      },
+      "acceptance_criteria": [
+        "`make ci` green locally",
+        "`ailang check` on both module repro files shows the new MOD002 / PAR_MODULE_PLACEMENT diagnostics",
+        "dist/error_codes.json regenerated; MOD002 shows as emitted; PAR_MODULE_PLACEMENT present",
+        "CHANGELOG.md v0.30.0 entry added",
+        "m-diag-primitive-field-suggestions.md backlog stub filed capturing the SEVERED Part C (records both candidate enrichment routes; no code change)",
+        "Doc header/plan explicitly notes Part C / Phase 3 was severed to backlog, NOT executed",
+        "make check-file-sizes passes (new files within targets)"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "dropped_scope": {
+    "part_c_phase_3": {
+      "description": "SECONDARY primitive-field-access diagnostic (TC_PRIMITIVE_FIELD_ACCESS_001 in the unifier at unification_core.go:346 + unification_records.go:405-407 mirror). DROPPED per Mark's 2026-07-18 ratification.",
+      "disposition": "Severed to extension-lane backlog doc m-diag-primitive-field-suggestions.md. Do NOT plan or implement. The generic-only unifier branch, the TC code, and internal/types/primitive_field_access.go are all OUT of this sprint."
+    }
+  },
+  "non_goals": [
+    "Any prompt additions or deletions (prompt stays 2535 lines; deletion candidates recorded, not removed)",
+    "Multi-module-per-file support",
+    "Dot-notation method-call syntax",
+    "Any stdlib symbol catalog / import advice inside internal/types (frozen-core)",
+    "Part C / Phase 3 primitive-field-access diagnostic (severed to backlog)",
+    "Touching MOD011 cross-file collision behavior (comment fix only)"
+  ]
+}

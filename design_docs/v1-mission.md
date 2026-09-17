@@ -410,6 +410,17 @@ Hygiene: a sprint must not *accidentally* reach the GPU (the port-8080-zombie cl
 step touch the GPU?" is an explicit routing question in the skill, not an accident of what a test
 invokes.
 
+**Harness boundaries — eval rows must not pool across these** (the three local-model boundaries
+07-21..08-03 / 08-13 / 08-17 are in memory; the pi ones are recorded here because the field that
+would have made them visible did not exist until 2026-09-16): rig pi 0.73.1 → 0.84.4 on
+**2026-08-31**; rig 0.84.4 → 0.85.1 ~**2026-09-05**; cloud `agent-pi`/`agent-eval`/`resident-pi`
+0.73.1 → 0.85.1 on **2026-09-16** (M-PI-HARNESS-UPGRADE, `5ef7a2b24`). From that commit every
+agent-mode row banks `executor_version`; absent means unmeasured. **Tool-policy lane, 2026-09-16**
+(M-AGENT-AILANG-ONLY-EXECUTION, `aaef58683`): rows bank `tool_policy`/`policy_digest`; the
+`ailang_only` lane (no bash, `ailang run --policy` behind `ailang_run`) is opt-in and must never
+pool with the bash lane. Full table and the after-the-fact sizing of the 08-31 step:
+`docs/internal/harness-upgrade-runbook.md`.
+
 ## Guardrails (the loop may not…)
 
 - **No releases** by the loop — but a rolling release cadence (Mark, 2026-07-12): the loop lands

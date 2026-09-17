@@ -34,18 +34,35 @@ FROM debian:bookworm-slim
 # deploy-key path (configureSSHDeployKey) — the only way an agent pushes to a
 # repo the fleet token cannot write. Every executor image derives from this one,
 # so this is the single place it belongs.
+# z3: `ailang ai-check` verifies contracts with it and reports
+# `verify.available=false` WITHOUT failing when it is missing — the
+# ailang_only lane type-checked only, silently, until 2026-09-16.
+# docker/test-agent-pi.sh asserts the binary and that ai-check sees it.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     git \
     openssh-client \
     curl \
     gnupg \
+    z3 \
     && rm -rf /var/lib/apt/lists/*
 
-# Node.js 22 (required by all AI CLI tools: claude, gemini, codex, opencode)
+# Node.js 22 (required by all AI CLI tools: claude, gemini, codex, opencode, pi)
+#
+# PINNED BY ASSERTION (M-PI-HARNESS-UPGRADE D8). setup_22.x installs whatever 22.x
+# nodesource serves today; pi >= 0.75 needs >= 22.19.0, and an unpinned install is
+# exactly the defect that sprint exists to remove. The nodesource deb version suffix
+# differs per arch (-1nodesource1 on amd64, -ns6.x on arm64), so an apt `=version`
+# pin is arch-specific; instead the build FAILS unless the installed node is exactly
+# NODE_VERSION. When nodesource bumps, bump this deliberately — a green build must
+# mean the image is what it says.
+ARG NODE_VERSION=22.23.2
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y nodejs \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && test "$(node --version)" = "v${NODE_VERSION}" \
+       || { echo "node $(node --version) != pinned v${NODE_VERSION} — bump NODE_VERSION deliberately" >&2; exit 1; } \
+    && node -e 'const [a,b]=process.versions.node.split(".").map(Number); if(a<22||(a===22&&b<19)) { console.error(`node ${process.versions.node} < 22.19.0 (pi floor)`); process.exit(1); }'
 
 # ailang binary
 COPY --from=builder /ailang /usr/local/bin/ailang

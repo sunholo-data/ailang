@@ -39,6 +39,18 @@ func TestMain(m *testing.M) {
 		fmt.Fprintf(os.Stderr, "build test ailang: %v\n%s", buildErr, output)
 		os.Exit(1)
 	}
+	// Windows Defender (and equivalent real-time AV on GitHub's windows-latest
+	// runners) scans a freshly written .exe on its first execution, adding
+	// highly variable latency that has nothing to do with the binary's own
+	// work — measured eating into BuildModuleIface's 10s PerModule budget and
+	// sporadically timing out the first iface subprocess test to run
+	// (TestInterfaceHashV2_SensitiveToAddedExport, 2026-09-16). Pay that cost
+	// once here, before any test's timeout clock starts, instead of loosening
+	// the production default every subtest below shares.
+	if output, err := exec.Command(ifaceTestBinary, "--version").CombinedOutput(); err != nil {
+		fmt.Fprintf(os.Stderr, "warm up test ailang binary: %v\n%s", err, output)
+		os.Exit(1)
+	}
 	resolveIfaceBinary = func() (string, error) { return ifaceTestBinary, nil }
 	os.Exit(m.Run())
 }

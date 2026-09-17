@@ -59,24 +59,35 @@ func policyCheckCommand() {
 		os.Exit(1)
 	}
 
+	out, code := admitProgram(pol, *policyPath, filename)
+	emitJSON(out)
+	os.Exit(code)
+}
+
+// admitProgram is the ONE admission path (M-AGENT-AILANG-ONLY-EXECUTION D1):
+// size cap → typecheck (DryLink; imports resolve, so a lying entry that calls
+// an imported effectful function fails HERE, before the policy is consulted)
+// → entry export → static cap-subset check. Returns the stable JSON shape and
+// the exit code the caller should use: 0 admitted, 2 denied, 1 internal.
+// Shared by `policy-check` and `run --policy` so the two can never disagree
+// about the same program.
+func admitProgram(pol *policy.Policy, policyPath, filename string) (policyCheckOutput, int) {
+	deny := func(kind policy.ErrorKind, msg string, extra func(*policyCheckOutput)) (policyCheckOutput, int) {
+		out := policyCheckOutput{File: filename, Policy: policyPath, Decision: policy.Decision{OK: false, ErrorKind: kind, Message: msg}}
+		if extra != nil {
+			extra(&out)
+		}
+		return out, 2
+	}
+
 	source, err := os.ReadFile(filename)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "cannot read source: %v\n", err)
-		os.Exit(1)
+		return policyCheckOutput{File: filename, Policy: policyPath, Decision: policy.Decision{OK: false, ErrorKind: "read_failed", Message: err.Error()}}, 1
 	}
 
 	if pol.MaxSourceBytes > 0 && len(source) > pol.MaxSourceBytes {
-		emitJSON(policyCheckOutput{
-			File:           filename,
-			Policy:         *policyPath,
-			SourceTooLarge: true,
-			Decision: policy.Decision{
-				OK:        false,
-				ErrorKind: "source_too_large",
-				Message:   fmt.Sprintf("source size %d exceeds max_source_bytes=%d", len(source), pol.MaxSourceBytes),
-			},
-		})
-		os.Exit(2)
+		return deny("source_too_large", fmt.Sprintf("source size %d exceeds max_source_bytes=%d", len(source), pol.MaxSourceBytes),
+			func(o *policyCheckOutput) { o.SourceTooLarge = true })
 	}
 
 	// Suppress non-JSON warnings — the policy gate must speak only JSON.
@@ -87,71 +98,25 @@ func policyCheckCommand() {
 
 	result, perr := pipeline.Run(cfg, src)
 	if perr != nil {
-		emitJSON(policyCheckOutput{
-			File:   filename,
-			Policy: *policyPath,
-			Decision: policy.Decision{
-				OK:        false,
-				ErrorKind: "typecheck_failed",
-				Message:   perr.Error(),
-			},
-		})
-		os.Exit(2)
-	}
-	if len(result.Errors) > 0 {
-		emitJSON(policyCheckOutput{
-			File:   filename,
-			Policy: *policyPath,
-			Decision: policy.Decision{
-				OK:        false,
-				ErrorKind: "typecheck_failed",
-				Message:   result.Errors[0].Error(),
-			},
-		})
-		os.Exit(2)
+		return deny("typecheck_failed", perr.Error(), nil)
 	}
 
 	if result.Interface == nil {
-		emitJSON(policyCheckOutput{
-			File:   filename,
-			Policy: *policyPath,
-			Decision: policy.Decision{
-				OK:        false,
-				ErrorKind: "missing_entry",
-				Message:   "no module interface produced — is the file a module?",
-			},
-		})
-		os.Exit(2)
+		return deny("missing_entry", "no module interface produced — is the file a module?", nil)
 	}
 
 	item, ok := result.Interface.GetExport(pol.Entry)
 	if !ok {
-		emitJSON(policyCheckOutput{
-			File:   filename,
-			Policy: *policyPath,
-			Module: result.Interface.Module,
-			Decision: policy.Decision{
-				OK:        false,
-				ErrorKind: policy.KindMissingEntry,
-				Message:   fmt.Sprintf("entry %q not exported by module %q", pol.Entry, result.Interface.Module),
-				Function:  pol.Entry,
-			},
-		})
-		os.Exit(2)
+		return deny(policy.KindMissingEntry, fmt.Sprintf("entry %q not exported by module %q", pol.Entry, result.Interface.Module),
+			func(o *policyCheckOutput) { o.Module = result.Interface.Module; o.Decision.Function = pol.Entry })
 	}
 
 	decision := policy.CheckScheme(pol, pol.Entry, item.Type)
-
-	out := policyCheckOutput{
-		File:     filename,
-		Policy:   *policyPath,
-		Module:   result.Interface.Module,
-		Decision: decision,
-	}
-	emitJSON(out)
+	out := policyCheckOutput{File: filename, Policy: policyPath, Module: result.Interface.Module, Decision: decision}
 	if !decision.OK {
-		os.Exit(2)
+		return out, 2
 	}
+	return out, 0
 }
 
 func emitJSON(v any) {

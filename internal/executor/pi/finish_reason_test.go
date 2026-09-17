@@ -70,7 +70,7 @@ func runPiFixture(t *testing.T, fixture string) *executor.Result {
 }
 
 func TestExecuteStreaming_FinishReasonFromStopReason(t *testing.T) {
-	if got := runPiFixture(t, "fizzbuzz.ndjson").FinishReason; got != executor.FinishStop {
+	if got := runPiFixture(t, "v0_85_1/fizzbuzz.ndjson").FinishReason; got != executor.FinishStop {
 		t.Errorf("FinishReason = %q, want %q", got, executor.FinishStop)
 	}
 }
@@ -80,7 +80,7 @@ func TestExecuteStreaming_FinishReasonFromStopReason(t *testing.T) {
 // value (not the first, and not any streaming message_update partial) is what
 // keeps a normal tool-using run from banking as "tool_calls".
 func TestExecuteStreaming_FinishReasonIgnoresIntermediateToolUse(t *testing.T) {
-	if got := runPiFixture(t, "tool_use.ndjson").FinishReason; got != executor.FinishStop {
+	if got := runPiFixture(t, "v0_85_1/tool_use.ndjson").FinishReason; got != executor.FinishStop {
 		t.Errorf("FinishReason = %q, want %q (intermediate toolUse must not win)", got, executor.FinishStop)
 	}
 }
