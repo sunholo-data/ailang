@@ -171,7 +171,7 @@ func TestInstallRegistry_WritesLockAndShims(t *testing.T) {
 	defer server.Close()
 
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	testutil.SetHomeDir(t, home)
 	t.Setenv("AILANG_REGISTRY", server.URL)
 	binDir := filepath.Join(home, "shims")
 
