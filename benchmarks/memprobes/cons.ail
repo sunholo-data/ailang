@@ -1,0 +1,17 @@
+module cons
+
+-- perf-sweep probe (also cmd/ailang/testdata/memprobe/cons.ail, the CI fixture).
+
+-- M-V1-MEMORY-FOOTPRINT fixture: a build-by-prepend recursion. Every frame
+-- holds its own copy of the accumulator, so the LIVE data is O(n^2) and any
+-- per-call render of the accumulator multiplies the peak. Depth 6000 keeps
+-- the untraced run around 350 MB on the rig.
+pure func build(n: int, acc: [int]) -> [int] {
+  if n == 0 then acc else build(n - 1, n :: acc)
+}
+
+export func main() -> int ! {IO} {
+  let xs = build(6000, []);
+  println("done");
+  0
+}
