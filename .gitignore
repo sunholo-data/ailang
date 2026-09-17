@@ -109,6 +109,9 @@ __pycache__/
 # diffs against the last banked one, so they must travel with the repo.
 !/.ailang/state/simplicity/
 !/.ailang/state/simplicity/*.json
+# ...and the perf-sweep snapshots (M-V1-MEMORY-FOOTPRINT): same reason, monthly.
+!/.ailang/state/perf/
+!/.ailang/state/perf/*.json
 /ui/node_modules
 internal/executor/opencode/plugins/node_modules
 internal/executor/opencode/plugins/coverage
