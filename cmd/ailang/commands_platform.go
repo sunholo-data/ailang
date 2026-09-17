@@ -114,29 +114,45 @@ func platformCommands() []Command {
 			Summary: "Design axiom compliance scorecard",
 			Run:     noArgs(axiomsCommand),
 		},
+		// The three folded rows below, and `eval-chains` in commands_eval.go,
+		// are M-V1-SIMPLIFY-S5 M3's aliases. Hidden, because the canonical
+		// spelling is now `ailang chains <namespace> ...` and help should stop
+		// advertising a name that goes away after one release — but still
+		// present, and still resolving, because D1 binds: the trace-debugger
+		// skill alone holds 58 references to `ailang trace ...`, and
+		// `observatory backfill` and `dashboard spans` are called from
+		// tools/ and .claude/skills/.
+		//
+		// Their Run routes through `chains` (runFoldedLegacy) instead of
+		// calling the command directly, so the alias and the canonical
+		// spelling are the same code path rather than two that can drift.
+		// The argv round trip is exact; commands_folded_test.go byte-diffs it.
 		{
 			Name:    "trace",
 			Group:   groupOps,
+			Hidden:  true,
 			Summary: "Distributed trace management",
-			Run:     noArgs(traceCommand),
+			Run:     runFoldedLegacy("trace"),
 		},
 		{
 			Name:    "observatory",
 			Group:   groupOps,
+			Hidden:  true,
 			Summary: "Observatory analytics",
-			Run:     noArgs(observatoryCommand),
+			Run:     runFoldedLegacy("observatory"),
 		},
 		{
 			Name:    "chains",
 			Group:   groupOps,
-			Summary: "View execution chains (task -> session -> chat linkage)",
+			Summary: "Execution chains, traces, observatory and dashboard queries",
 			Run:     noArgs(chainsCommand),
 		},
 		{
 			Name:    "dashboard",
 			Group:   groupOps,
+			Hidden:  true,
 			Summary: "Dashboard operations for task visualization",
-			Run:     noArgs(dashboardCommand),
+			Run:     runFoldedLegacy("dashboard"),
 		},
 		{
 			Name:    "budget",

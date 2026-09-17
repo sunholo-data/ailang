@@ -32,30 +32,40 @@ export interface ExecHierarchyPopoverProps {
 // ============================================================================
 
 /**
- * Generate CLI command for a span
+ * Generate CLI command for a span.
+ *
+ * The spelling is `ailang chains trace|dashboard ...` since M-V1-SIMPLIFY-S5
+ * M3 folded `trace` and `dashboard` into `chains`. The bare `ailang trace` /
+ * `ailang dashboard` forms still work for one release, but a copy-paste hint
+ * has to print the spelling that survives it, or the dashboard becomes the
+ * thing that teaches people a retired command.
+ *
+ * Keep this in step with getCliCommandDisplay below AND with the JSX text in
+ * ChatHistory.tsx, where the displayed string and the clipboard string are
+ * written out twice and can drift apart.
  */
 function getCliCommand(span: Span | undefined): string {
   if (!span) return '';
 
   // For spans with trace_id, show trace view command
   if ((span as any).trace_id) {
-    return `ailang trace view ${(span as any).trace_id}`;
+    return `ailang chains trace view ${(span as any).trace_id}`;
   }
 
   // For spans with task_id attribute, show filtered spans
   const taskId = span.attributes?.['task.id'] || span.attributes?.['task_id'] || span.attributes?.['ailang.task_id'];
   if (taskId) {
-    return `ailang dashboard spans --task-id ${taskId} --enriched --json`;
+    return `ailang chains dashboard spans --task-id ${taskId} --enriched --json`;
   }
 
   // For spans with session.id, show session tools
   const sessionId = span.attributes?.['session.id'];
   if (sessionId) {
-    return `ailang dashboard tools ${sessionId} --json`;
+    return `ailang chains dashboard tools ${sessionId} --json`;
   }
 
   // Fallback: generic dashboard spans query
-  return `ailang dashboard spans --enriched --limit 10 --json`;
+  return `ailang chains dashboard spans --enriched --limit 10 --json`;
 }
 
 /**
@@ -65,20 +75,20 @@ function getCliCommandDisplay(span: Span | undefined): string {
   if (!span) return '';
 
   if ((span as any).trace_id) {
-    return `ailang trace view ${(span as any).trace_id}`;
+    return `ailang chains trace view ${(span as any).trace_id}`;
   }
 
   const taskId = span.attributes?.['task.id'] || span.attributes?.['task_id'] || span.attributes?.['ailang.task_id'];
   if (taskId) {
-    return `ailang dashboard spans --task-id ${taskId.substring(0, 8)}...`;
+    return `ailang chains dashboard spans --task-id ${taskId.substring(0, 8)}...`;
   }
 
   const sessionId = span.attributes?.['session.id'];
   if (sessionId) {
-    return `ailang dashboard tools ${sessionId.substring(0, 8)}...`;
+    return `ailang chains dashboard tools ${sessionId.substring(0, 8)}...`;
   }
 
-  return `ailang dashboard spans --enriched --limit 10`;
+  return `ailang chains dashboard spans --enriched --limit 10`;
 }
 
 /**

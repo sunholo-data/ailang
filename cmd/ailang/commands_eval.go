@@ -112,10 +112,15 @@ func evalCommands() []Command {
 			Run:     noArgs(runEvalPublish),
 		},
 		{
+			// Folded into `chains` by M-V1-SIMPLIFY-S5 M3: the canonical
+			// spelling is `ailang chains eval <subcommand>`. Hidden and
+			// routed through chains, like the other three folded rows in
+			// commands_platform.go; still resolving, because D1 binds.
 			Name:    "eval-chains",
 			Group:   groupEval,
+			Hidden:  true,
 			Summary: "Link eval runs to their execution chains",
-			Run:     noArgs(evalChainsCommand),
+			Run:     runFoldedLegacy("eval"),
 		},
 	}
 }

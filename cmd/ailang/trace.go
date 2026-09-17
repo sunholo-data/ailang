@@ -17,22 +17,19 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+// traceCommand is `ailang trace <subcommand>`.
+//
+// M-V1-SIMPLIFY-S5 M3 folded it into `chains`: the canonical spelling is
+// `ailang chains trace <subcommand>` and this one survives as an alias for one
+// release (D1). Both spellings route through this function — the trace-debugger
+// skill alone holds 37 references to `ailang trace list`, 12 to `trace view`
+// and 9 to `trace status`, and not one of them changes.
 func traceCommand() {
 	if flag.NArg() < 2 {
-		fmt.Println("Usage: ailang trace <subcommand> [options]")
-		fmt.Println()
-		fmt.Println("Subcommands:")
-		fmt.Println("  list       List recent traces (GCP)")
-		fmt.Println("  view       View details of a specific trace (GCP)")
-		fmt.Println("  status     Show telemetry configuration status")
-		fmt.Println("  hierarchy  Show span hierarchy from local database")
-		fmt.Println()
-		fmt.Println("Examples:")
-		fmt.Println("  ailang trace list --limit 10")
-		fmt.Println("  ailang trace view <trace-id>")
-		fmt.Println("  ailang trace status")
-		fmt.Println("  ailang trace hierarchy --limit 5")
-		return
+		printTraceHelp()
+		// Exit 1, not 0: naming no subcommand did nothing. See the note in
+		// observatoryCommand — M1 measured five groups exiting 0 here.
+		os.Exit(1)
 	}
 
 	subcommand := flag.Arg(1)
@@ -49,6 +46,24 @@ func traceCommand() {
 		fmt.Fprintf(os.Stderr, "Unknown trace subcommand: %s\n", subcommand)
 		os.Exit(1)
 	}
+}
+
+func printTraceHelp() {
+	fmt.Println("Usage: ailang chains trace <subcommand> [options]")
+	fmt.Println()
+	fmt.Println("Subcommands:")
+	fmt.Println("  list       List recent traces (GCP)")
+	fmt.Println("  view       View details of a specific trace (GCP)")
+	fmt.Println("  status     Show telemetry configuration status")
+	fmt.Println("  hierarchy  Show span hierarchy from local database")
+	fmt.Println()
+	fmt.Println("Examples:")
+	fmt.Println("  ailang chains trace list --limit 10")
+	fmt.Println("  ailang chains trace view <trace-id>")
+	fmt.Println("  ailang chains trace status")
+	fmt.Println("  ailang chains trace hierarchy --limit 5")
+	fmt.Println()
+	fmt.Println("`ailang trace <subcommand>` remains an alias for one release.")
 }
 
 func traceStatusCommand() {

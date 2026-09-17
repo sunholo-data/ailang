@@ -1,7 +1,7 @@
 /**
  * CliCommandHint - Shows the equivalent CLI command for the current data view
  *
- * Displays a copyable `ailang dashboard` command that users can run to
+ * Displays a copyable `ailang chains dashboard` command that users can run to
  * verify the same data shown in the UI.
  */
 import React, { useState, useCallback } from 'react';
@@ -37,7 +37,11 @@ function buildCliCommand(
   taskId?: string,
   traceId?: string
 ): string {
-  const parts: string[] = ['ailang', 'dashboard', commandType];
+  // `ailang chains dashboard <type>` since M-V1-SIMPLIFY-S5 M3 folded the
+  // dashboard CLI into `chains`. The bare `ailang dashboard <type>` spelling
+  // still works for one release, but a copy-paste hint must print the spelling
+  // that will still be there next release, not the one being retired.
+  const parts: string[] = ['ailang', 'chains', 'dashboard', commandType];
 
   // Add filters
   if (filters) {

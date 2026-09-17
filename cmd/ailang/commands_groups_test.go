@@ -72,6 +72,15 @@ func TestGroups_HiddenRowsAreDeliberate(t *testing.T) {
 		// routed, because D1 says so; not listed, because there is now one
 		// canonical spelling.
 		"add", "install", "lock", "pkg-docs", "publish", "search", "tree", "unpublish",
+		// M-V1-SIMPLIFY-S5 M3: folded into `chains`, whose namespaces
+		// (`ailang chains trace|observatory|dashboard|eval`) are now the
+		// canonical spelling. Each stays routed for one release — the
+		// trace-debugger skill alone holds 58 references to `ailang trace ...`
+		// — and stops being listed, which is what "deprecated for one release"
+		// means in help. commands_folded_test.go asserts the same four rows
+		// from the other direction, so removing one here is not enough to
+		// unhide it silently.
+		"dashboard", "eval-chains", "observatory", "trace",
 	}
 	var got []string
 	for i := range allCommands {

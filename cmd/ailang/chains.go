@@ -15,54 +15,36 @@ import (
 )
 
 func chainsCommand() {
+	// `ailang chains --help` answers here rather than from the dispatch
+	// table's generic block, because since the M3 fold `chains` is the entry
+	// point for four namespaces and the generic block cannot name them.
+	// (`chains` is therefore NOT in helpFallbackCommands.)
+	if flag.NArg() >= 2 && wantsHelp(flag.Args()[1:]) {
+		printChainsHelp()
+		return
+	}
 	if flag.NArg() < 2 {
 		// No subcommand - show interactive mode if terminal, else show help
 		if isTerminal() {
 			runChainsInteractive()
 			return
 		}
-		fmt.Println("Usage: ailang chains <subcommand> [options]")
-		fmt.Println()
-		fmt.Println("Subcommands:")
-		fmt.Println("  list      List execution chains")
-		fmt.Println("  active    List currently active chains")
-		fmt.Println("  live      Single-page refreshing view of an in-flight chain (M-EVAL-LOCAL-OBSERVABILITY)")
-		fmt.Println("  view      View a chain with all stages")
-		fmt.Println("  tree      ASCII tree view of chain hierarchy")
-		fmt.Println("  stats     Cost and token aggregation")
-		fmt.Println("  diagnose  Quick health report for a specific chain")
-		fmt.Println("  diff      Show git diff across all stages in a chain")
-		fmt.Println("  find      Find chain by message ID, task ID, or GitHub issue")
-		fmt.Println("  chat      View turn-by-turn conversation for a chain stage")
-		fmt.Println("  journey   Show execution journey narrative for a chain")
-		fmt.Println("  health    System-wide data capture validation")
-		fmt.Println()
-		fmt.Println("Examples:")
-		fmt.Println("  ailang chains list                  # List all chains")
-		fmt.Println("  ailang chains list --remote gcp --limit 20 --offset 20 # Next cloud page")
-		fmt.Println("  ailang chains active                # Currently running chains")
-		fmt.Println("  ailang chains view <chain-id>       # View chain details")
-		fmt.Println("  ailang chains view --spans <id>     # View with span summaries (no attributes)")
-		fmt.Println("  ailang chains view --full <id>      # View with full span data (heavy)")
-		fmt.Println("  ailang chains tree <chain-id>       # View as tree")
-		fmt.Println("  ailang chains stats --hours 168     # Last week's cost summary")
-		fmt.Println("  ailang chains stats --by-mission    # Per-mission metered total vs budget + quota buckets")
-		fmt.Println("  ailang chains post-iteration        # Post a mission iteration chain (JSON on stdin)")
-		fmt.Println("  ailang chains diagnose <chain-id>   # Quick issue check")
-		fmt.Println("  ailang chains diff <chain-id>        # Git diff across all stages")
-		fmt.Println("  ailang chains diff <chain-id> --stat # Diffstat summary")
-		fmt.Println("  ailang chains find --github repo#42  # Find chain by GitHub issue")
-		fmt.Println("  ailang chains chat <id> --stage 3    # View stage conversation")
-		fmt.Println("  ailang chains chat <id> --compact    # One-line turn summaries")
-		fmt.Println("  ailang chains health                # System-wide validation")
-		fmt.Println("  ailang chains reconcile             # Close chains that can never progress (dry run by default)")
-		fmt.Println("  ailang chains import-motoko <id>     # Import a motoko run log into chains")
-		fmt.Println()
-		fmt.Println("Run 'ailang chains' in a terminal for interactive mode.")
+		printChainsHelp()
 		os.Exit(1)
 	}
 
 	subcommand := flag.Arg(1)
+
+	// The fold first: `chains trace|observatory|dashboard|eval` reach the four
+	// commands M-V1-SIMPLIFY-S5 M3 folded in here. None of these words is a
+	// chains subcommand, so the namespaces add routes without shadowing one —
+	// which is why they are namespaces and not a flattening of four subcommand
+	// sets that collide on list/view/stats/hierarchy/health.
+	if ns := lookupFoldedNamespace(subcommand); ns != nil {
+		runFoldedNamespace(ns, flag.Args()[2:])
+		return
+	}
+
 	switch subcommand {
 	case "list":
 		chainsListCommand()
@@ -98,6 +80,51 @@ func chainsCommand() {
 		fmt.Printf("Unknown subcommand: %s\n", subcommand)
 		os.Exit(1)
 	}
+}
+
+// printChainsHelp is the one help block `chains` has: `--help` prints it and
+// exits 0, a bare non-terminal `ailang chains` prints it and exits 1.
+func printChainsHelp() {
+	fmt.Println("Usage: ailang chains <subcommand> [options]")
+	fmt.Println()
+	fmt.Println("Subcommands:")
+	fmt.Println("  list      List execution chains")
+	fmt.Println("  active    List currently active chains")
+	fmt.Println("  live      Single-page refreshing view of an in-flight chain (M-EVAL-LOCAL-OBSERVABILITY)")
+	fmt.Println("  view      View a chain with all stages")
+	fmt.Println("  tree      ASCII tree view of chain hierarchy")
+	fmt.Println("  stats     Cost and token aggregation")
+	fmt.Println("  diagnose  Quick health report for a specific chain")
+	fmt.Println("  diff      Show git diff across all stages in a chain")
+	fmt.Println("  find      Find chain by message ID, task ID, or GitHub issue")
+	fmt.Println("  chat      View turn-by-turn conversation for a chain stage")
+	fmt.Println("  journey   Show execution journey narrative for a chain")
+	fmt.Println("  health    System-wide data capture validation")
+	fmt.Println()
+	fmt.Println("Examples:")
+	fmt.Println("  ailang chains list                  # List all chains")
+	fmt.Println("  ailang chains list --remote gcp --limit 20 --offset 20 # Next cloud page")
+	fmt.Println("  ailang chains active                # Currently running chains")
+	fmt.Println("  ailang chains view <chain-id>       # View chain details")
+	fmt.Println("  ailang chains view --spans <id>     # View with span summaries (no attributes)")
+	fmt.Println("  ailang chains view --full <id>      # View with full span data (heavy)")
+	fmt.Println("  ailang chains tree <chain-id>       # View as tree")
+	fmt.Println("  ailang chains stats --hours 168     # Last week's cost summary")
+	fmt.Println("  ailang chains stats --by-mission    # Per-mission metered total vs budget + quota buckets")
+	fmt.Println("  ailang chains post-iteration        # Post a mission iteration chain (JSON on stdin)")
+	fmt.Println("  ailang chains diagnose <chain-id>   # Quick issue check")
+	fmt.Println("  ailang chains diff <chain-id>        # Git diff across all stages")
+	fmt.Println("  ailang chains diff <chain-id> --stat # Diffstat summary")
+	fmt.Println("  ailang chains find --github repo#42  # Find chain by GitHub issue")
+	fmt.Println("  ailang chains chat <id> --stage 3    # View stage conversation")
+	fmt.Println("  ailang chains chat <id> --compact    # One-line turn summaries")
+	fmt.Println("  ailang chains health                # System-wide validation")
+	fmt.Println("  ailang chains reconcile             # Close chains that can never progress (dry run by default)")
+	fmt.Println("  ailang chains import-motoko <id>     # Import a motoko run log into chains")
+	fmt.Println()
+	printFoldedNamespaces(os.Stdout)
+	fmt.Println()
+	fmt.Println("Run 'ailang chains' in a terminal for interactive mode.")
 }
 
 func chainsListCommand() {
