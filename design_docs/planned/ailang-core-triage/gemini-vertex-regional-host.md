@@ -2,7 +2,7 @@
 
 - **Date**: 2026-09-15
 - **Class**: bug
-- **Recommend**: direct-fix
+- **Recommend**: design-doc
 - **Searched**: `aiplatform`, `GOOGLE_CLOUD_LOCATION`, `vertex|regional|europe-west|data residency` across design_docs/. Nearest coverage is `implemented/v0_30_0/m-gemini-exec-project-plumbing.md`, which only plumbs the env var through and explicitly pins location to `"global"` (`internal/executor/managed_agents/client.go`, `defaultLocation`). No planned or implemented doc rules on regional host enforcement — this is a genuine gap.
 - **Estimate**: ~2 lines in `internal/ai/gemini/generate.go` (both `buildURL` and `buildStreamURL` AuthADC branches: when `c.location != "" && c.location != "global"`, use `https://{location}-aiplatform.googleapis.com/v1` instead of the global `vertexAIBaseURL`; the `vertexAIBaseURL` constant is declared beside the client, not edited)
 
@@ -17,4 +17,4 @@ requirement) is currently forced to bypass the AI effect and call the regional h
 domain-allowlisting; the interpreter cannot pin regions until the client does. Reporter located
 the change; it is a one-line base-URL swap in the AuthADC branch (streaming variant included),
 with no semantics decision — regional host is exactly what Vertex documents for non-global
-locations. Fits direct-fix thresholds (≤2 lines, 1 file).
+locations. The edit itself is small (≤2 lines), but the Estimate names two files — `generate.go` carries the change and `client.go` holds the base-URL constant — which rubric row 5 puts over `DIRECT_FIX_MAX_FILES`, so this lands as design-doc.
