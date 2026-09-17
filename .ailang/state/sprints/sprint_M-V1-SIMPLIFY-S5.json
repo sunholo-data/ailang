@@ -47,10 +47,11 @@
         "`make test-launchd-drivers` green (bash 3.2: pin-root + routing + notices + hook stdout)",
         "snapshot diff: alias paths byte-identical to `ailang-before` on stdout; help text is the only intended change"
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
       "completed": null,
-      "notes": null
+      "notes": "Visible top level 89->17. D1 verified independently: 93/93 pre-S5 spellings resolve (fixture cmd/ailang/testdata/pre_s5_spellings.txt, generated from the pre-M2 binary); group routes byte-identical to top-level incl. exit code; language-via-group quiet in 50/50 trials with a platform-via-group positive control. ai_check_exit_test.go diff empty. All gates + test-launchd-drivers rc=0 unpiped. Caught by byte-diff only: the binary has TWO argument sources (44 os.Args[2:] sites vs a flag.Args() family) \u2014 both exit 0 reading the wrong arg; runAsName now resets both. commands_top_level STILL VACUOUS (reads 0); real=17; M6 rewires.",
+      "merged_commit": "19dd95e96"
     },
     {
       "id": "M3_FOLD_TRACE_OBSERVATORY_DASHBOA",
