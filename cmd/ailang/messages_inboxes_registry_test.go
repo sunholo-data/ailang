@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/coordinator"
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 // $AILANG_CONFIG names the ailang config, which is not necessarily a registry.
@@ -35,12 +36,14 @@ func TestLoadAgentRegistryFromDeclared_PubsubOnlyConfigDeclaresNothing(t *testin
 		t.Fatal("a config with no coordinator section was reported as declaring agents")
 	}
 	// The dangerous part, and the reason "declared" has to be a separate fact:
-	// the registry handed back is NOT empty. It is AILANG's built-in default
-	// fleet, which reads exactly like a real deployment.
-	if len(reg.ListAgents()) == 0 {
-		t.Log("note: the built-in default fleet is empty on this build; the guard still holds")
-	} else if reg.GetAgentByID("sprint-planner") == nil {
-		t.Logf("built-in defaults changed shape: %d agents", len(reg.ListAgents()))
+	// what comes back is NOT an empty registry. It is AILANG's built-in default
+	// — measured 2026-09-17 as exactly one agent, `coordinator` — which reads
+	// like a real deployment to anything that prints it as "the registry".
+	if n := len(reg.ListAgents()); n != 1 {
+		t.Errorf("built-in default registry has %d agents, expected 1; if the defaults changed, re-read what a caller would now be shown", n)
+	}
+	if reg.GetAgentForInbox("coordinator") == nil {
+		t.Error("the built-in default no longer serves the `coordinator` inbox — the fixture's premise moved")
 	}
 
 	// A file that really does declare agents still wins, or the fix would take
@@ -50,7 +53,7 @@ func TestLoadAgentRegistryFromDeclared_PubsubOnlyConfigDeclaresNothing(t *testin
   agents:
     - id: pkg-sunholo-auth
       inbox: "pkg:sunholo/auth"
-      workspace: sunholo-data/ailang-packages
+      workspace: sunholo-data/example-repo
 `), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -69,6 +72,11 @@ func TestLoadAgentRegistryFromDeclared_PubsubOnlyConfigDeclaresNothing(t *testin
 // `--registry cloud` is a plane, not a path: a caller that knows it means the
 // shared plane must not have to arrange for an env var to be absent to say so.
 func TestResolveInboxRegistry_CloudIsNotTreatedAsAPath(t *testing.T) {
+	// This one genuinely reaches GCS, so it belongs behind the repo's
+	// live-network opt-in rather than passing by luck on a runner with no
+	// credentials (the error path would satisfy the assertion either way).
+	testutil.RequiresLiveNetwork(t)
+
 	_, label, err := resolveInboxRegistry("cloud")
 	if err != nil {
 		// Offline or unauthorised is fine — what must NOT happen is git-style
