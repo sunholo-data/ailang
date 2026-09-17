@@ -18,9 +18,17 @@ import (
 	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
-// M-V1-MEMORY-FOOTPRINT M1: tracing must cost a bounded amount on top of the
-// program's own live data. These run the built binary and compare the child's
-// peak RSS traced vs untraced. Skipped under -short (they build the CLI) and
+// M-V1-MEMORY-FOOTPRINT M1/M2: tracing and logging must cost a bounded amount
+// on top of the program's own live data. These run the built binary and compare
+// the child's peak RSS between two arms.
+//
+// Both arms run with GOGC=100. Under the CLI's default GOGC=500 the peak is
+// mostly garbage headroom and where the cycles land — the effect-result
+// fixture that used to live here read 0.96x on the rig and 1.37x on the ubuntu
+// runner for the same binary. That check is now an allocation count in
+// internal/effects (TestEffectTraceRenderDoesNotMaterialiseLargeResults);
+// what remains here is LIVE-data dominated (cons) or level-filtered (debuglog),
+// which GOGC=100 makes stable. Skipped under -short (they build the CLI) and
 // on Windows (no rusage).
 //
 // Measured before the fix (2026-09-16, cons depth 9000): untraced 772 MB,
@@ -72,37 +80,17 @@ func memprobeSetup(t *testing.T) (bin, dir string) {
 
 func TestMemprobeDeepTraceIsBoundedOnConsRecursion(t *testing.T) {
 	bin, dir := memprobeSetup(t)
-	base := []string{"AILANG_RELAX_MODULES=1", "AILANG_NO_TRACE=1"}
+	base := []string{"AILANG_RELAX_MODULES=1", "AILANG_NO_TRACE=1", "GOGC=100"}
 	untraced, out := peakRSS(t, dir, base, bin, "run", "--entry", "main", "--caps", "IO", "cons.ail")
 	if !strings.Contains(out, "done") {
 		t.Fatalf("untraced run did not finish: %s", out)
 	}
-	deep, _ := peakRSS(t, dir, []string{"AILANG_RELAX_MODULES=1", "AILANG_TRACE=deep"},
+	deep, _ := peakRSS(t, dir, []string{"AILANG_RELAX_MODULES=1", "AILANG_TRACE=deep", "GOGC=100"},
 		bin, "run", "--entry", "main", "--caps", "IO", "--emit-trace", "jsonl", "cons.ail")
 	ratio := float64(deep) / float64(untraced)
 	t.Logf("cons: untraced %d MB, deep %d MB, ratio %.2f", untraced>>20, deep>>20, ratio)
 	if ratio > 1.25 {
 		t.Fatalf("deep trace peak %.2fx untraced; want <= 1.25 (rendering must be bounded, not materialise-then-truncate)", ratio)
-	}
-}
-
-func TestMemprobeStandardTierEffectResultsAreBounded(t *testing.T) {
-	bin, dir := memprobeSetup(t)
-	big := strings.Repeat("q", 20<<20)
-	if err := os.WriteFile(filepath.Join(dir, "big.txt"), []byte(big), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	untraced, out := peakRSS(t, dir, []string{"AILANG_RELAX_MODULES=1", "AILANG_NO_TRACE=1"},
-		bin, "run", "--entry", "main", "--caps", "IO,FS", "effect_result.ail")
-	if !strings.Contains(out, "n=") {
-		t.Fatalf("untraced run did not finish: %s", out)
-	}
-	traced, _ := peakRSS(t, dir, []string{"AILANG_RELAX_MODULES=1"},
-		bin, "run", "--entry", "main", "--caps", "IO,FS", "--emit-trace", "jsonl", "effect_result.ail")
-	ratio := float64(traced) / float64(untraced)
-	t.Logf("effect_result: untraced %d MB, standard+emit %d MB, ratio %.2f", untraced>>20, traced>>20, ratio)
-	if ratio > 1.10 {
-		t.Fatalf("standard-tier trace peak %.2fx untraced; want <= 1.10 (effect results must not be rendered in full)", ratio)
 	}
 }
 
