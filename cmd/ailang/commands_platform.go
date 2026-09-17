@@ -173,7 +173,7 @@ func platformCommands() []Command {
 		{
 			Name:    "storage",
 			Group:   groupOps,
-			Summary: "Storage plane status and migration",
+			Summary: "Storage plane status (which backend each store resolved to)",
 			Run:     storageCommand,
 		},
 		{
