@@ -160,13 +160,21 @@ func agentDetail(a *coordinator.AgentConfig) map[string]any {
 		// — the question a stalled pipeline actually poses.
 		"trigger_on_complete": a.TriggerOnComplete, "auto_approve_handoffs": a.AutoApproveHandoffs,
 		"auto_approve_handoff_to": a.AutoApproveHandoffTo,
+		// tool_policy and policy_path are in BOTH halves for the same reason as
+		// artifact_patterns: a `pkg:` inbox now defaults to the ailang_only lane,
+		// so "declared empty" and "runs with a shell" stopped being the same
+		// statement. The text view printed both from the start; --json carried
+		// neither, so a fleet audit done by machine could not see the lane at all
+		// (measured 2026-09-17, auditing exactly this rollout).
 		"declared": map[string]any{
 			"timeout": a.Timeout, "idle_timeout": a.IdleTimeout,
 			"output_markers": a.OutputMarkers, "artifact_patterns": a.ArtifactPatterns,
+			"tool_policy": a.ToolPolicy, "policy_path": a.PolicyPath,
 		},
 		"effective": map[string]any{
 			"timeout": a.GetEffectiveTimeout().String(), "idle_timeout": a.GetEffectiveIdleTimeout().String(),
 			"output_markers": a.GetEffectiveOutputMarkers(), "artifact_patterns": a.GetEffectiveArtifactPatterns(),
+			"tool_policy": a.GetEffectiveToolPolicy(), "policy_path": a.PolicyPath,
 		},
 	}
 	return m
