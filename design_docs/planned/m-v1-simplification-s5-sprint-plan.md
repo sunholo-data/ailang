@@ -13,20 +13,22 @@ gate table is either closed (six gates) or Phase 4's. The work is a dispatch tab
 and the constraint that makes it non-trivial is D1: **every current top-level spelling keeps
 working**, because the fleet calls them from launchd drivers, make targets, skills and workflows.
 
-Re-measured at HEAD (`grep -rhoE "ailang <cmd>( |\"|$)"` over `Makefile make tools .claude .github
-scripts docs/docs internal cmd`, excluding design_docs/changelogs/state):
+Re-measured at HEAD with `git grep` over **tracked** files in `Makefile make/ tools/ scripts/
+.github/ .claude/skills/ .claude/rules/ docs/docs/ internal/ cmd/`:
 
-| command | live-caller refs | command | live-caller refs |
-|---|---|---|---|
-| `messages` | 1,463 | `observatory` | 143 |
-| `coordinator` | 769 | `eval-report` | 133 |
-| `chains` | 510 | `eval-matrix` | 123 |
-| `eval-suite` | 427 | `dashboard` | 86 |
-| `trace` | 179 | `eval-chains` | 74 |
+| command | refs | command | refs | command | refs |
+|---|---|---|---|---|---|
+| `messages` | 593 | `chains` | 216 | `trace` | 66 |
+| `coordinator` | 332 | `eval-suite` | 182 | `observatory` | 63 |
+| `eval-matrix` | 47 | `eval-report` | 45 | `eval-chains` | 37 |
+| `dashboard` | 32 | `eval-sweet-spot` | 15 | `budget` / `storage` | 13 / 13 |
+| `eval-trend` | 9 | `access-control` / `axioms` | 8 / 8 | `watch` / `policy-check` | 3 / 3 |
 
-These are higher than the counts in the Phase 3 audit (which excluded `.claude/skills`); the
-conclusion is the same and stronger. **Aliases ship before any caller is renamed, and the caller
-sweep is not in this sprint.**
+**Measure with `git grep`, not `grep -r`.** A plain `grep -r` from the repo root walks
+`.claude/worktrees/pkg-quality-ladder-s1/`, whose checked-in `ui/dist/assets/index-*.js` bundle is
+minified JavaScript containing `ailang dashboard`/`ailang trace` string literals. That inflated the
+first cut of this table by roughly 2.5x (`messages` read 1,463 instead of 593). The conclusion is
+unchanged and D1 still binds; the numbers above are the corrected ones.
 
 **Duration:** 5 days
 **Risk Level:** High for M1 (every command's entry point moves at once) and M3 (~5,000 LOC deleted);
@@ -101,6 +103,25 @@ server budget workspaces design-review design-quorum mcp`. `eval` becomes a grou
 delete the rest under D7 with `git log -S` evidence in each commit body. **Before deleting anything**,
 confirm the web dashboard reaches these code paths through `server` HTTP and not through the CLI —
 if it does not, the milestone stops and reports.
+
+
+**The precondition is already checked — here is the answer, so do not re-derive it.** `internal/server`
+contains **no** `exec.Command` to the `ailang` binary (the only subprocess calls are `osascript`,
+`zenity`, `kdialog`, `powershell`, `ps` and `pgrep`, in `handlers_util.go` and `monitor.go`). The web
+dashboard reaches chain, span and observatory data through the HTTP handlers in
+`internal/server/handlers_chains.go`, `handlers_statistics.go` and
+`handlers_controlplane_heatmap.go`, which read the stores as a library. **Folding and deleting the
+CLI paths does not break the dashboard.**
+
+**But the UI prints these commands as copy-paste hints**, and deleting them would make the dashboard
+display commands the binary rejects — the same defect class Phase 3 item 6 fixes in the docs. These
+files are part of M3's ownership and must be updated in the same PR:
+`ui/src/features/controlplane/components/CliCommandHint.tsx`,
+`.../ExecHierarchy/ExecHierarchyPopover.tsx` (5 hint strings: `ailang dashboard spans|tools`,
+`ailang trace view`), `.../ExecHierarchy/ChatHistory.tsx:1027,1032` (`ailang trace view`).
+`ChainExplorer.tsx` and `StageDetail.tsx` already emit `ailang chains …` and need no change.
+Do **not** rebuild `ui/dist` or `internal/server/dist` — those bundles are built artifacts; note the
+drift in the report and leave the rebuild to whoever owns the UI build.
 
 - [ ] evidence recorded first: for each deleted subcommand, last-commit date + reference count + the `git log -S` line, in the commit body (coding standard: never delete on "unused" alone)
 - [ ] web dashboard verified to call `server` HTTP, with the handler cited, before any deletion
