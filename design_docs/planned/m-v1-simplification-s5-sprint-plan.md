@@ -42,10 +42,16 @@ parallel, and their file sets are disjoint by construction:
 
 ```
 M1 (alone) ──▶ M2 (alone) ──┬──▶ M3  cmd/ailang/{trace,observatory,dashboard,chains}*.go, eval_chains.go
-                            ├──▶ M4  the other D7 command files
-                            ├──▶ M5  flag families (eval_*.go flag defs + shared flag helper)
-                            └──▶ M6  docs/ + tools/simplicity_metrics.sh  (lands last)
+                            └──▶ M4  the other D7 command files
+                                      └──▶ M5  flag families ──▶ M6  docs/ + simplicity_metrics.sh
 ```
+
+**M5 moved behind M3/M4 (changed 2026-09-18, during execution).** The original plan ran M5 in
+parallel with them under a rule that M5 owns "only flag registration lines". That rule does not
+survive contact: M5's flag families live *inside* files M3 folds and M4 deletes — `eval_trend.go`,
+`eval_sweet_spot.go`, `eval_chains.go`, `trace*.go`, `dashboard*.go` all carry `--format`/`--json`
+sites. Editing a flag in a file another agent is deleting is a guaranteed conflict at best and a
+resurrected file at worst. M5 runs after both land, over whatever files remain.
 
 M5 and M3/M4 can collide on `eval_*.go`: M5 owns **only** flag *registration* lines and the shared
 helper; M3/M4 own whole-file deletions. Any agent that needs a file it does not own stops and
