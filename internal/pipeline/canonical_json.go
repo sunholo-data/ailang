@@ -93,6 +93,15 @@ func BuildCanonicalJSON(ctx context.Context, packageDir, modulePath string) ([]b
 	if result.Interface == nil {
 		return nil, errors.New("no interface generated for module")
 	}
+	// In package mode the interface's identity is the module the file
+	// DECLARES, never the path it was found at: a flat tarball on the
+	// validator, a monorepo checkout on a laptop and a registry cache all hold
+	// the same `module sunholo/firestore/client`, and the v2 hash folds this
+	// field in. Measured 2026-09-17: the same package hashed three different
+	// ways across those layouts and every publish tripped the PUB005 skew guard.
+	if inPackage && result.Artifacts.AST != nil && result.Artifacts.AST.Module != nil && result.Artifacts.AST.Module.Path != "" {
+		result.Interface.Module = result.Artifacts.AST.Module.Path
+	}
 
 	jsonBytes, err := result.Interface.ToNormalizedJSON()
 	if err != nil {

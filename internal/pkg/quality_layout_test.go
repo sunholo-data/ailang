@@ -2,6 +2,7 @@ package pkg
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -79,5 +80,37 @@ func TestResolveModuleToFile_Layouts(t *testing.T) {
 	writeFile(t, filepath.Join(canon, "test", "canon", "main.ail"), "module test/canon/main\n")
 	if got := ResolveModuleToFile(canon, "test/canon", "test/canon/main"); got != filepath.Join(canon, "test", "canon", "main.ail") {
 		t.Errorf("canonical: got %q", got)
+	}
+}
+
+// The v2 identity must not depend on WHERE the package sits: the same source
+// in a flat tarball dir and in a canonical <pkgdir>/<vendor>/<name>/ checkout
+// must hash identically, or every publish trips the PUB005 skew guard
+// (measured 2026-09-17 on sunholo/firestore: three layouts, three hashes).
+// Kills: dropping the Interface.Module = declared-path line in BuildCanonicalJSON.
+func TestInterfaceHashV2_IndependentOfLayout(t *testing.T) {
+	flat := qualityFixture(t, "flat_self_import")
+	m, err := LoadManifest(flat)
+	if err != nil {
+		t.Fatal(err)
+	}
+	flatHash, flatSigs, err := InterfaceHashV2(context.Background(), flat, m, DefaultPublishLimits())
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Same files, canonical layout, different absolute location.
+	canon := t.TempDir()
+	for _, f := range []string{"types.ail", "settle.ail"} {
+		src, _ := os.ReadFile(filepath.Join(flat, f))
+		writeFile(t, filepath.Join(canon, "test", "flatself", f), string(src))
+	}
+	toml, _ := os.ReadFile(filepath.Join(flat, "ailang.toml"))
+	writeFile(t, filepath.Join(canon, "ailang.toml"), string(toml))
+	canonHash, canonSigs, err := InterfaceHashV2(context.Background(), canon, m, DefaultPublishLimits())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if flatHash != canonHash {
+		t.Fatalf("v2 hash depends on layout:\nflat  %s\ncanon %s\nsigs equal: %v", flatHash, canonHash, strings.Join(flatSigs, "|") == strings.Join(canonSigs, "|"))
 	}
 }
