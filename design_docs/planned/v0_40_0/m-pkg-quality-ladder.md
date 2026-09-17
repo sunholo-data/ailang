@@ -10,7 +10,7 @@
 - Package messaging graph (M-PKG-MSG, shipped v0.9.9), autonomy router (M-PKG-CASCADE-DETERMINISTIC-FIRST, v0.16.0), `ApprovalCheckpoint` (v0.6.4) — reused, not replaced.
 **Source**: Attended research session 2026-09-17 (Mark): "improve the ailang package pipeline — more checks for higher-quality packages, a required change description per version, auto-approve security patches vs human review for signature/effect changes, tighter effects (Net → one domain), more Z3, pure-core/effectful-shell style, hook approvals into `ailang messages`, and revisit semver vs hashes."
 **Lane** (PROGRAM.md): AILANG fix / tooling — registry validator, `cmd/ailang` package commands, messaging, coordinator routing. **No core language change**; the motoko core is untouched.
-**Quorum**: triggers **1** (design-freeze items D1–D5 need a human ruling) and **3** (adds fields to the banked `metadata.json` / `index.json` schema) fired. **Two rounds run 2026-09-17** (`gpt6-astra`, `gemini-3-1-pro`, `oc-glm-5-2`; $0.20 + $0.23; artifacts in `.ailang/state/mission-quorum/m-pkg-quality-ladder-2026-09-17T*.json`), both **blocked**, every objection accepted and applied: round 1 — `ack` is not approval (V28), no server-side execution of untrusted tests/smoke (server/attested split, V29), blast radius unmeasured for 34/53 (re-measured, V8 b/c); round 2 — v1 routing must not persist during shadow (D6 rewritten: routing is v2/`U` from M2, only the refusal gate shadows; M9 ordered after M6/M7), three unlogged premises (V30–V32). The re-quorum-once guardrail is exhausted; the doc goes to Mark for ratification with these applied rather than a third round.
+**Quorum**: triggers **1** (design-freeze items D1–D5 need a human ruling) and **3** (adds fields to the banked `metadata.json` / `index.json` schema) fired. **Two rounds run 2026-09-17** (`gpt6-astra`, `gemini-3-1-pro`, `oc-glm-5-2`; $0.20 + $0.23; artifacts in `.ailang/state/mission-quorum/m-pkg-quality-ladder-2026-09-17T*.json`), both **blocked**, every objection accepted and applied: round 1 — `ack` is not approval (V28), no server-side execution of untrusted tests/smoke (server/attested split, V29), blast radius unmeasured for 34/53 (re-measured, V8 b/c); round 2 — v1 routing must not persist during shadow (D6 rewritten: routing is v2/`U` from M2, only the refusal gate shadows; M9 ordered after M6/M7), three unlogged premises (V30–V32). The re-quorum-once guardrail is exhausted; the doc went to Mark with these applied rather than a third round, and **Mark ratified D1–D7 in the same attended session (2026-09-17)**.
 
 ## Axiom Compliance
 
@@ -93,11 +93,11 @@ The publish pipeline has the right shape — client checks → validator → has
 
 Before sprint-executor starts (Sprint 1 needs only D6/D7; D1–D3 before Sprint 2; D4–D5 before Sprint 3):
 
-- [ ] D1 ratified (bump ≥ class; 0.x rule)
-- [ ] D2 ratified (CHANGELOG section + `[release] kind`)
-- [ ] D3 ratified (gate/badge table below)
-- [ ] D4 ratified (privilege rank order)
-- [ ] D5 ratified (`[effects.scopes]` declared-not-proved)
+- [x] D1 ratified (bump ≥ class; 0.x rule) — **Mark, attended 2026-09-17**
+- [x] D2 ratified (CHANGELOG section + `[release] kind`) — Mark, 2026-09-17
+- [x] D3 ratified (gate/badge table below) — Mark, 2026-09-17
+- [x] D4 ratified (privilege rank order) — Mark, 2026-09-17
+- [x] D5 ratified (`[effects.scopes]` declared-not-proved) — Mark, 2026-09-17
 - [x] D6 agent-resolved: shadow mode, N=20
 - [x] D7 agent-resolved: `PUBnnn`
 
