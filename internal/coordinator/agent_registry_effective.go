@@ -13,14 +13,42 @@ import (
 // effective side by side for exactly the reason these exist — an absent field
 // is not an unset one.
 
-// GetEffectiveToolPolicy is the tool_policy that RUNS: the declared value, or
-// executor.ToolProfileFull when none is declared (D6 — the fleet default stays
-// full; only a deployment that opts in narrows).
+// GetEffectiveToolPolicy is the tool_policy that RUNS: the declared value, or a
+// default that depends on what kind of agent it is.
+//
+// D6 set the fleet default to full — "only a deployment that opts in narrows".
+// Mark reversed that for PACKAGE inboxes on 2026-09-17 ("lets move to ailang
+// only executors for all the ailang package inboxes at least, they will have it
+// by default"), so an agent serving a `pkg:` inbox defaults to ailang_only and
+// everything else still defaults to full.
+//
+// The direction matters: this default REMOVES authority. A wrong "full" default
+// hands a shell to an agent nobody decided to give one to; a wrong "ailang_only"
+// default costs a task that refuses and says why. The second is the recoverable
+// error, which is the only reason a default is acceptable here at all —
+// artifact_patterns defaulting to `**/*` is the same mechanism pointed the wrong
+// way, and it bounds nothing.
+//
+// A package agent that genuinely needs a shell declares `tool_policy: full`
+// explicitly, and `coordinator agents <id>` prints declared beside effective so
+// the difference is visible rather than inferred.
 func (a *AgentConfig) GetEffectiveToolPolicy() string {
-	if strings.TrimSpace(a.ToolPolicy) == "" {
-		return executor.ToolProfileFull
+	if declared := strings.TrimSpace(a.ToolPolicy); declared != "" {
+		return declared
 	}
-	return strings.TrimSpace(a.ToolPolicy)
+	if IsPackageInbox(a.Inbox) {
+		return executor.ToolProfileAILANGOnly
+	}
+	return executor.ToolProfileFull
+}
+
+// IsPackageInbox reports whether an inbox belongs to the package ecosystem.
+//
+// `pkg:sunholo/auth`, and the family patterns like `pkg:sunholo/motoko_ext_*`.
+// One predicate rather than a prefix test at each call site, because the lane
+// default now hangs off it.
+func IsPackageInbox(inbox string) bool {
+	return strings.HasPrefix(strings.TrimSpace(inbox), "pkg:")
 }
 
 // GetEffectiveInvokeConfig returns the agent's invoke config, or defaults for known agents.

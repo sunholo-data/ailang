@@ -26,6 +26,7 @@ import (
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/coordinator"
+	"github.com/sunholo-data/ailang/internal/executor"
 )
 
 type lintFinding struct {
@@ -84,6 +85,7 @@ var lintRuleNames = []string{
 	"automerge-is-bounded",
 	"deploy-key-coherent",
 	"inbox-not-near-duplicate",
+	"lane-has-policy",
 }
 
 // lintRegistry is pure over the agent list so every rule is testable without a
@@ -97,10 +99,41 @@ func lintRegistry(agents []*coordinator.AgentConfig) []lintFinding {
 	for _, a := range agents {
 		out = append(out, lintEdges(a, byID)...)
 		out = append(out, lintCoherence(a)...)
+		out = append(out, lintLanePolicy(a)...)
 	}
 	out = append(out, lintCycles(agents, byID)...)
 	out = append(out, lintNearDuplicateInboxes(agents)...)
 	return out
+}
+
+// lintLanePolicy: an agent on a restricted lane needs the policy that gives it
+// back the authority to execute anything.
+//
+// `tool_policy: ailang_only` takes the shell away; `policy_path` is what lets
+// the agent run AILANG programs instead. With the first and not the second,
+// ailang_run default-denies and the agent can only read and write files — it
+// looks configured, dispatches fine, and burns its turns finding out.
+//
+// It matters more since 2026-09-17: a `pkg:` inbox now DEFAULTS to the lane, so
+// a package agent added with no tool_policy line at all inherits the
+// restriction. This rule reads the EFFECTIVE policy for that reason.
+func lintLanePolicy(a *coordinator.AgentConfig) []lintFinding {
+	if a.GetEffectiveToolPolicy() == executor.ToolProfileFull {
+		return nil
+	}
+	if strings.TrimSpace(a.PolicyPath) != "" {
+		return nil
+	}
+	declared := "declared"
+	if strings.TrimSpace(a.ToolPolicy) == "" {
+		declared = "defaulted (package inbox)"
+	}
+	return []lintFinding{{
+		Agent: a.ID, Rule: "lane-has-policy",
+		Msg: fmt.Sprintf("tool_policy %q (%s) with no policy_path: ailang_run refuses every program, so this agent can read and write but never execute",
+			a.GetEffectiveToolPolicy(), declared),
+		Fix: "add policy_path (the package lane uses /etc/ailang-config/policies/pkg-ailang-only.toml), or set tool_policy: full if it really needs a shell",
+	}}
 }
 
 // lintEdges: an edge must point somewhere, and must be releasable by something.

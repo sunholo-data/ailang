@@ -270,3 +270,90 @@ type gitError struct {
 func (e *gitError) Error() string {
 	return e.err.Error() + ": " + string(e.output)
 }
+
+// The approval card must describe the branch, and the branch never carries
+// scratch: the wrapper's commit excludes ScratchDirName by pathspec while
+// getChangedFiles reports untracked files too.
+//
+// Measured 2026-09-17, task-e0d87876: the card listed six files — two real ones
+// and four `.ailang-scratch/*.ail` probes — against a PR carrying exactly the
+// two. DecidePR then refuses that merge on evidence that was wrong.
+func TestDropScratchPaths(t *testing.T) {
+	in := []string{
+		"Dockerfile",
+		".ailang-scratch/gitstatus.ail",
+		".github/workflows/ci.yml",
+		"pkg/a/.ailang-scratch/probe.ail",
+		// A real file whose NAME merely contains the marker must survive: this
+		// is a segment test, not a substring test.
+		"docs/notes.ailang-scratch.md",
+	}
+	got := dropScratchPaths(in)
+	want := []string{"Dockerfile", ".github/workflows/ci.yml", "docs/notes.ailang-scratch.md"}
+	if len(got) != len(want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("got[%d] = %q, want %q", i, got[i], want[i])
+		}
+	}
+	if isScratchPath("scratch/probe.ail") {
+		t.Error("only .ailang-scratch is excluded; a repo's own scratch/ dir is the agent's problem, not a silent drop")
+	}
+}
+
+// The same rule through the real path: an untracked scratch probe in a git
+// worktree must not reach the changed-file list.
+//
+// Asserting on dropScratchPaths alone is not enough — deleting the call from
+// DiscoverChangedFiles leaves that test green, which is how the card and the
+// branch came apart in the first place.
+func TestDiscoverChangedFiles_ExcludesUntrackedScratch(t *testing.T) {
+	dir := t.TempDir()
+	for _, args := range [][]string{
+		{"init"}, {"config", "user.email", "t@example.com"}, {"config", "user.name", "T"},
+	} {
+		if err := runGit(dir, args...); err != nil {
+			t.Fatalf("git %v: %v", args, err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(dir, ".gitkeep"), []byte(""), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := runGit(dir, "add", "."); err != nil {
+		t.Fatal(err)
+	}
+	if err := runGit(dir, "commit", "-m", "init"); err != nil {
+		t.Fatal(err)
+	}
+
+	// What the agent leaves behind: one real edit, one scratch probe, both
+	// untracked — exactly the shape of task-e0d87876.
+	if err := os.WriteFile(filepath.Join(dir, "Dockerfile"), []byte("FROM scratch\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, ScratchDirName), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, ScratchDirName, "probe.ail"), []byte("module p\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	files, err := NewArtifactDiscovery(dir, nil).DiscoverChangedFiles()
+	if err != nil {
+		t.Fatalf("discover: %v", err)
+	}
+	var sawDockerfile bool
+	for _, f := range files {
+		if isScratchPath(f) {
+			t.Errorf("%q reached the changed-file list — the wrapper's commit excludes it, so the approval card would name a file the branch cannot carry", f)
+		}
+		if f == "Dockerfile" {
+			sawDockerfile = true
+		}
+	}
+	if !sawDockerfile {
+		t.Errorf("the real change is missing from %v — the filter must drop scratch, not the work", files)
+	}
+}

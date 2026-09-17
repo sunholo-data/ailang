@@ -1,0 +1,67 @@
+{
+  "sprint_id": "M-SMT-DATETIME",
+  "status": "not_started",
+  "created": "2026-09-14T14:45:00Z",
+  "design_doc": "",
+  "sprint_plan": "design_docs/planned/v0_38_6/m-smt-datetime-sprint-plan.md",
+  "planning_input": "inbox_1789394686844_585753b0",
+  "github_issues": [],
+  "velocity": {
+    "target_loc_per_day": 210,
+    "estimated_total_loc": 420,
+    "estimated_days": 2
+  },
+  "features": [
+    {
+      "id": "M1_SEMANTICS_RED_TESTS",
+      "description": "Freeze datetime SMT semantics, classify the builtin surface, and add red-first parity tests",
+      "estimated_loc": 90,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Tests fail for the intended missing datetime capability before implementation.",
+        "Each accepted formula has positive, negative, and boundary parity cases.",
+        "Every `_dt_*` builtin has an explicit encode/defer classification.",
+        "The zero-argument issue is linked separately or shown to be fixed incidentally."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_DATETIME_ENCODER",
+      "description": "Implement one shared typed mapping and exact SMT encoder for addDays, startOfDay, and weekday",
+      "estimated_loc": 210,
+      "dependencies": ["M1_SEMANTICS_RED_TESTS"],
+      "acceptance_criteria": [
+        "All three functions emit frozen formulas for direct and curried Core shapes.",
+        "Fragment checker and encoder agree on mapped and unmapped operations.",
+        "Negative timestamps produce runtime-equivalent results.",
+        "Unsupported datetime functions remain named skips.",
+        "No unconstrained fallback is emitted.",
+        "The focused SMT test suite passes."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_E2E_PROOFS_DOCS",
+      "description": "Add Daneel's window proof, runnable contract example, real-Z3 controls, and documentation",
+      "estimated_loc": 120,
+      "dependencies": ["M2_DATETIME_ENCODER"],
+      "acceptance_criteria": [
+        "The addDays-based 90-day window verifies with real Z3.",
+        "The example type-checks, runs, and asserts verify counts.",
+        "startOfDay and weekday verify over the symbolic negative domain.",
+        "addMonths remains a named skip.",
+        "Focused and full validation commands pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
