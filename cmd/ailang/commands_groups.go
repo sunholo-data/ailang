@@ -271,6 +271,7 @@ var pkgLegacyTopLevel = map[string]string{
 	"lock":      "lock",
 	"tree":      "tree",
 	"install":   "install",
+	"bin":       "bin", // M-PKG-BIN-ENTRYPOINTS: new with the verb, not legacy — same one-definition rule
 	"search":    "search",
 	"publish":   "publish",
 	"unpublish": "unpublish",

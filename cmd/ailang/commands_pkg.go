@@ -42,8 +42,16 @@ func pkgSubcommands() []Command {
 		},
 		{
 			Name:    "install",
-			Summary: "Install a package (omit the version for latest)",
+			Summary: "Install a package (omit the version for latest); [bin] commands go on PATH",
 			Run:     pkgInstallCommand,
+		},
+		{
+			// M-PKG-BIN-ENTRYPOINTS: the shims `install` wrote. Also bare
+			// `ailang bin`, the spelling the package docs and the shims'
+			// own regenerate hints use (pkgLegacyTopLevel).
+			Name:    "bin",
+			Summary: "List or uninstall the [bin] command shims (list, uninstall <name>)",
+			Run:     binCommand,
 		},
 		{
 			Name:    "search",
