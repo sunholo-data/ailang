@@ -1,0 +1,9 @@
+module test/refuted/math
+
+-- The contract is FALSE for x = 0: a Z3 counterexample, on purpose
+-- (M-PKG-QUALITY-LADDER PUB006 fixture).
+export pure func inc(x: int) -> int
+  ensures { result > 1 }
+{
+  x + 1
+}

@@ -45,6 +45,77 @@ That's the whole flow. The rest of this guide explains the prerequisites and got
 
 ---
 
+## What `publish` checks — the quality report (v0.40.0)
+
+`ailang publish` (and `--dry-run`) runs the same quality report the registry validator runs
+on upload, and refuses on the same `PUBnnn` codes **before** a tarball is built. You can run
+it on its own:
+
+```bash
+ailang pkg quality .            # human summary
+ailang pkg quality --json .     # schema ailang.package-quality/v1
+ailang pkg quality --strict .   # warn-level badges become gates (exit 2)
+ailang pkg quality --no-run .   # skip executing tests and _smoke.ail
+```
+
+Every section carries a **provenance**:
+
+| Provenance | Sections | Who computes it | Can it block a publish? |
+|---|---|---|---|
+| `server` | compile · contracts (Z3) · interface identity · effects · release · docs · style | you locally **and** the validator, identically | yes — these are the registry's gates |
+| `attested` | tests · `_smoke.ail` | **only your machine** (the validator never executes package code) | locally yes; at the registry never — it is banked with `attested_by` = your key owner and shown as a badge |
+
+Gates vs badges depend on `[stability] level`: at `experimental` only compile failures,
+refuted contracts (`PUB006`), release-description problems and identity skew block; at
+`stable`/`frozen` the badges (uncontracted exports, tests, effect ceiling) become gates too.
+
+### Every version describes itself
+
+Two things are required from v0.41.0 (badges in v0.40.0):
+
+```toml
+# ailang.toml
+[release]
+kind = "fix"     # security | fix | feature | breaking
+```
+
+```markdown
+# CHANGELOG.md
+## 0.8.2
+- token refresh no longer logs the refresh token on failure
+```
+
+`ailang init package` scaffolds both. The section for the version being published must
+exist and be non-empty (`PUB001`); the kind must be declared (`PUB002`). `CHANGELOG.md`
+ships in the tarball; `ailang pkg versions <name>` prints the kind and notes per version.
+The kind is your *claim* — a later release of the ladder checks it against the measured
+change class, so `security` is the label that is verified hardest.
+
+### Contracts are now counted
+
+The validator verifies `requires`/`ensures` contracts package-wide (`ailang verify
+--package .`) and banks `contracts_verified/contracts_total` in `metadata.json` and
+`contracts_total` in the index. A refuted contract is a gate everywhere.
+
+### Interface identity (v2)
+
+Alongside the manifest-level `interface_hash`, the validator now banks a
+signature-sensitive `interface_hash_v2` and the exported `interface_signatures`. If your
+`ailang` computes a different v2 hash than the validator's, the publish is refused with
+`PUB005` naming both — upgrade the publisher. A package whose v2 identity cannot be built
+gets a badge today (shadow mode); `GET /api/stats` reports `v2_clean_streak`.
+
+### The package inbox
+
+Every published package has an agent inbox, `pkg:<vendor>/<name>`, derived from
+`[metadata] repository` — a GitHub tree URL such as
+`https://github.com/sunholo-data/ailang-packages/tree/main/packages/gcp-auth`. Without a
+parseable URL **no agent is derived** — the repository is not a function of the package name —
+and `PUB021` warns until you add it. A `pkg:` inbox for a package that is not in the registry is
+served by nothing either — a typo stays visible. See the autonomous-package-updates guide.
+
+---
+
 ## Prerequisites
 
 ### 1. An API key

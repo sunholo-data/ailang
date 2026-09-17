@@ -96,3 +96,28 @@ and spend model budget on whatever arrives. Decide whether provisioning is
 automatic on publish, or generated-and-proposed (a PR against
 `config.cloud.yaml`) for an operator to merge. The second is what the current
 approval posture implies.
+
+## Decision + implementation (M-PKG-QUALITY-LADDER S1 M6, PR #1255, 2026-09-17)
+
+**Automatic existence, human-gated landing.** Provisioning is a *runtime derivation*, not a
+config mutation: `coordinator.package_agent_template` (a section, not an agent — it serves no
+inbox) is cloned per package in the registry index at load and every 10 minutes
+(`internal/coordinator/package_agents.go`). Derived agents inherit the template's
+`auto_merge: false` / `skip_approval: false`, so nothing lands without a human — the posture
+this doc says the second option implies — while a newly published package can be sent work
+immediately. Hand-written `agents:` entries always win.
+
+How the four look-ups are answered: **not from the name — from `metadata.repository`**, the
+GitHub tree URL every publish banks (`sunholo/email` → `sunholo-data/email-parse` +
+`packages/email`; `sunholo/ailang_parse` → repo root, `**/*`; `sunholo/duckdb` → the monorepo +
+`packages/duckdb`). `merge_branch` follows the URL's `/tree/<branch>`. A package without a
+parseable URL gets **no** agent — the repo is not guessable from the name, and a guessed clone
+finds nothing — so its inbox stays visibly unserved with the reason, and `ailang pkg quality`
+flags it (`PUB021`) until `[metadata] repository` is set; a `pkg:` inbox for a package **not in
+the registry** is served by nothing either, so the deliberate typo list keeps bouncing. Inbox spelling is `FormatPackageInbox(registry name)` —
+underscores.
+
+The `policy_path` trap is refused structurally: a template on a non-`full` lane with no
+`policy_path` derives nothing and logs why (`templateUsable`). Verification remains
+`coordinator lint` + `agent-check --repo-config` on the template and `messages inboxes`
+reading `DISPATCHES … (derived from registry)`.

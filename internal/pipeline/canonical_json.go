@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/sunholo-data/ailang/internal/pkg"
 	"github.com/sunholo-data/ailang/std"
 )
 
@@ -19,7 +20,23 @@ func BuildCanonicalJSON(ctx context.Context, packageDir, modulePath string) ([]b
 	if !strings.HasSuffix(filename, ".ail") {
 		filename += ".ail"
 	}
-	if !filepath.IsAbs(filename) {
+	// Inside a package, the manifest decides where a module lives (flat
+	// tarball root, src/, module_prefix dir, or a canonical checkout) —
+	// M-PKG-QUALITY-LADDER M1 routes the lookup through the same resolver the
+	// self-package loader and `check --package` use. Falls back to the plain
+	// join when there is no manifest or the module is not found, so a missing
+	// user module still reports the path it was expected at.
+	inPackage := false
+	resolved := ""
+	if packageDir != "" {
+		if manifest, mErr := pkg.LoadManifest(packageDir); mErr == nil {
+			inPackage = true
+			resolved = pkg.ResolveModuleToFile(packageDir, manifest.Package.Name, strings.TrimSuffix(modulePath, ".ail"))
+		}
+	}
+	if resolved != "" {
+		filename = resolved // already rooted at packageDir by the resolver
+	} else if !filepath.IsAbs(filename) {
 		filename = filepath.Join(packageDir, filename)
 	}
 
@@ -40,7 +57,10 @@ func BuildCanonicalJSON(ctx context.Context, packageDir, modulePath string) ([]b
 		content = emb
 		filename = strings.TrimSuffix(modulePath, ".ail") + ".ail"
 	}
-	cfg := Config{DryLink: true}
+	// Package mode relaxes MOD010 exactly as `check --package` does: a flat
+	// tarball's settle.ail legitimately declares `module vendor/name/settle`,
+	// and the manifest — not the path — is what validates module names.
+	cfg := Config{DryLink: true, RelaxModules: inPackage}
 	if packageDir != "" {
 		cfg.PackageDir = packageDir
 	}

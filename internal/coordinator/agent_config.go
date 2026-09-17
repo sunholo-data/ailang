@@ -62,6 +62,15 @@ type CoordinatorConfig struct {
 	// here is what makes "unrouted" mean INTENDED rather than FORGOTTEN.
 	TriageOnlyInboxes []string `yaml:"triage_only_inboxes" json:"triage_only_inboxes,omitempty"`
 
+	// PackageAgentTemplate, when declared, is cloned into a per-package agent
+	// for every package in the registry index that no `agents:` entry names
+	// (M-PKG-QUALITY-LADDER M6). It is NOT an agent and serves no inbox
+	// itself — a `pkg:` inbox for a package that is not in the registry stays
+	// a visible typo, exactly as the typos-bounce control intends. Its `id`
+	// and `inbox` are ignored; workspace/lane/policy/template fields are the
+	// defaults each derived agent starts from.
+	PackageAgentTemplate *AgentConfig `yaml:"package_agent_template" json:"package_agent_template,omitempty"`
+
 	// Pipelines declare a stage chain once and bind it per project
 	// (M-PIPELINE-RECONCILIATION M4, D2). ExpandPipelines materializes bindings
 	// into AgentConfigs at load time; expanded agents behave identically to
@@ -417,6 +426,10 @@ func buildRegistryFromConfig(cfg *CoordinatorConfig) (*AgentRegistry, error) {
 		}
 	}
 	registry.SetTriageOnlyInboxes(cfg.TriageOnlyInboxes)
+	// M-PKG-QUALITY-LADDER M6: the CLI readouts (`messages inboxes`, health,
+	// the send guard) see the same derived package agents the daemon serves.
+	registry.SetPackageAgentTemplate(cfg.PackageAgentTemplate)
+	registry.MaterializePackageAgentsFromRegistry(nil)
 	return registry, nil
 }
 

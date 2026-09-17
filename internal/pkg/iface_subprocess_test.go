@@ -144,8 +144,8 @@ func TestBuildModuleIface_Cancellation(t *testing.T) {
 
 func TestBuildModuleIface_PerModuleDeadline(t *testing.T) {
 	defaults := DefaultPublishLimits()
-	if defaults.Overall != 60*time.Second || defaults.PerModule != 10*time.Second || defaults.MaxExportedModules != 64 {
-		t.Fatalf("DefaultPublishLimits = %+v, want overall=60s per-module=10s max-exports=64", defaults)
+	if defaults.Overall != 60*time.Second || defaults.PerModule != 10*time.Second || defaults.MaxExportedModules != 128 {
+		t.Fatalf("DefaultPublishLimits = %+v, want overall=60s per-module=10s max-exports=128", defaults)
 	}
 	dir := writeIfaceFixture(t, "test/pkg/main", validIfaceModule)
 	withIfaceHelper(t, "block", nil)
