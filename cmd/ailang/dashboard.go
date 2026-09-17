@@ -30,35 +30,18 @@ func getDashboardURL(flagValue string) string {
 	return defaultDashboardURL
 }
 
+// dashboardCommand is `ailang dashboard <subcommand>` — a CLI client for the
+// dashboard server's HTTP API, not the web UI. (The web UI reads the same data
+// through internal/server's own handlers; it never shells out to this binary.)
+//
+// M-V1-SIMPLIFY-S5 M3 folded it into `chains`: the canonical spelling is
+// `ailang chains dashboard <subcommand>` and this one survives as an alias for
+// one release (D1).
 func dashboardCommand() {
 	if flag.NArg() < 2 {
-		fmt.Println("Usage: ailang dashboard <subcommand> [options]")
-		fmt.Println()
-		fmt.Println("Subcommands:")
-		fmt.Println("  spans      Query observatory spans with filters")
-		fmt.Println("  inbox      Query unified inbox (messages + claude code events)")
-		fmt.Println("  traces     Query trace summaries")
-		fmt.Println("  hierarchy  Show exec task hierarchy (message → exec → turn → tool)")
-		fmt.Println("  sessions   List Claude Code sessions with workspace info")
-		fmt.Println("  tools      Show tool usage for a session (file paths, patterns)")
-		fmt.Println("  stats      Query aggregation statistics")
-		fmt.Println("  health     Check server health")
-		fmt.Println()
-		fmt.Println("Examples:")
-		fmt.Println("  ailang dashboard spans --provider gemini")
-		fmt.Println("  ailang dashboard spans --workspace /path/to/repo")
-		fmt.Println("  ailang dashboard inbox --model gemini-2.5-flash")
-		fmt.Println("  ailang dashboard inbox --status unread")
-		fmt.Println("  ailang dashboard traces --trace-id abc123")
-		fmt.Println("  ailang dashboard hierarchy --limit 10")
-		fmt.Println("  ailang dashboard sessions --limit 10")
-		fmt.Println("  ailang dashboard tools <session-id> --summary")
-		fmt.Println("  ailang dashboard stats --start 2026-01-01")
-		fmt.Println("  ailang dashboard health")
-		fmt.Println()
-		fmt.Println("Environment:")
-		fmt.Println("  AILANG_DASHBOARD_URL  Server URL (default: http://localhost:1957)")
-		return
+		printDashboardHelp()
+		// Exit 1, not 0 — see the note in observatoryCommand.
+		os.Exit(1)
 	}
 
 	subcommand := flag.Arg(1)
@@ -83,6 +66,37 @@ func dashboardCommand() {
 		fmt.Fprintf(os.Stderr, "Unknown dashboard subcommand: %s\n", subcommand)
 		os.Exit(1)
 	}
+}
+
+func printDashboardHelp() {
+	fmt.Println("Usage: ailang chains dashboard <subcommand> [options]")
+	fmt.Println()
+	fmt.Println("Subcommands:")
+	fmt.Println("  spans      Query observatory spans with filters")
+	fmt.Println("  inbox      Query unified inbox (messages + claude code events)")
+	fmt.Println("  traces     Query trace summaries")
+	fmt.Println("  hierarchy  Show exec task hierarchy (message → exec → turn → tool)")
+	fmt.Println("  sessions   List Claude Code sessions with workspace info")
+	fmt.Println("  tools      Show tool usage for a session (file paths, patterns)")
+	fmt.Println("  stats      Query aggregation statistics")
+	fmt.Println("  health     Check server health")
+	fmt.Println()
+	fmt.Println("Examples:")
+	fmt.Println("  ailang chains dashboard spans --provider gemini")
+	fmt.Println("  ailang chains dashboard spans --workspace /path/to/repo")
+	fmt.Println("  ailang chains dashboard inbox --model gemini-2.5-flash")
+	fmt.Println("  ailang chains dashboard inbox --status unread")
+	fmt.Println("  ailang chains dashboard traces --trace-id abc123")
+	fmt.Println("  ailang chains dashboard hierarchy --limit 10")
+	fmt.Println("  ailang chains dashboard sessions --limit 10")
+	fmt.Println("  ailang chains dashboard tools <session-id> --summary")
+	fmt.Println("  ailang chains dashboard stats --start 2026-01-01")
+	fmt.Println("  ailang chains dashboard health")
+	fmt.Println()
+	fmt.Println("Environment:")
+	fmt.Println("  AILANG_DASHBOARD_URL  Server URL (default: http://localhost:1957)")
+	fmt.Println()
+	fmt.Println("`ailang dashboard <subcommand>` remains an alias for one release.")
 }
 
 // Helper functions for dashboard commands

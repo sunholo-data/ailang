@@ -13,21 +13,13 @@ import (
 
 // evalChainsCommand handles the "eval-chains" subcommand.
 // A convenience wrapper for chain queries filtered to eval_suite source type.
+//
+// M-V1-SIMPLIFY-S5 M3 folded it into `chains`: the canonical spelling is
+// `ailang chains eval <subcommand>` and `eval-chains` survives as an alias for
+// one release (D1).
 func evalChainsCommand() {
 	if flag.NArg() < 2 {
-		fmt.Println("Usage: ailang eval-chains <subcommand> [options]")
-		fmt.Println()
-		fmt.Println("Subcommands:")
-		fmt.Println("  list               List recent eval chains")
-		fmt.Println("  view <chain-id>    View chain with eval assessments")
-		fmt.Println("  failures <chain-id> Show only failing stages")
-		fmt.Println("  stats <chain-id>   Pass rate by model/language/benchmark")
-		fmt.Println()
-		fmt.Println("Examples:")
-		fmt.Println("  ailang eval-chains list")
-		fmt.Println("  ailang eval-chains view e9c7501d")
-		fmt.Println("  ailang eval-chains failures e9c7501d")
-		fmt.Println("  ailang eval-chains stats e9c7501d")
+		printEvalChainsHelp()
 		os.Exit(1)
 	}
 
@@ -45,6 +37,24 @@ func evalChainsCommand() {
 		fmt.Printf("Unknown eval-chains subcommand: %s\n", subcommand)
 		os.Exit(1)
 	}
+}
+
+func printEvalChainsHelp() {
+	fmt.Println("Usage: ailang chains eval <subcommand> [options]")
+	fmt.Println()
+	fmt.Println("Subcommands:")
+	fmt.Println("  list               List recent eval chains")
+	fmt.Println("  view <chain-id>    View chain with eval assessments")
+	fmt.Println("  failures <chain-id> Show only failing stages")
+	fmt.Println("  stats <chain-id>   Pass rate by model/language/benchmark")
+	fmt.Println()
+	fmt.Println("Examples:")
+	fmt.Println("  ailang chains eval list")
+	fmt.Println("  ailang chains eval view e9c7501d")
+	fmt.Println("  ailang chains eval failures e9c7501d")
+	fmt.Println("  ailang chains eval stats e9c7501d")
+	fmt.Println()
+	fmt.Println("`ailang eval-chains <subcommand>` remains an alias for one release.")
 }
 
 func evalChainsListCommand() {

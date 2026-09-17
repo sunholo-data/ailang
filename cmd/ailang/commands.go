@@ -195,13 +195,14 @@ func init() {
 // itself (usually through flag.ExitOnError, which exits 0 on flag.ErrHelp) and
 // keeps its own, richer help text.
 //
-// `daemon` and `pkg` are deliberately absent: each answers --help inside its
-// own closure, because the same help block also has to serve its no-argument
-// path (and, for pkg, list the verbs the group accepts).
+// `daemon`, `pkg` and `chains` are deliberately absent: each answers --help
+// inside its own closure, because the same help block also has to serve its
+// no-argument path (and, for pkg, list the verbs the group accepts; for
+// chains, the four namespaces M-V1-SIMPLIFY-S5 M3 folded in, which the
+// table's generic block cannot name).
 var helpFallbackCommands = map[string]bool{
 	"ast-edit":            true,
 	"builtins":            true,
-	"chains":              true,
 	"dashboard":           true,
 	"doctor":              true,
 	"eval-chains":         true,

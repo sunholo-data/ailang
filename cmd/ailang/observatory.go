@@ -4,125 +4,63 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strings"
 )
 
-// normalizeWorkspacePath converts raw workspace paths to clean, aggregated names.
-// - Eval workspaces (.Eval_workspace) -> "Eval"
-// - Task worktrees (Worktrees/) -> "Tasks"
-// - Regular workspaces -> project name (last meaningful directory)
-func normalizeWorkspacePath(path string) string {
-	if path == "" || path == "unknown" {
-		return "unknown"
-	}
-
-	// Check for eval workspace
-	if strings.Contains(path, ".Eval_workspace") || strings.Contains(path, ".eval_workspace") {
-		return "Eval"
-	}
-
-	// Check for coordinator task worktree (case-insensitive)
-	lowerPath := strings.ToLower(path)
-	if strings.Contains(lowerPath, "/worktrees/") || strings.Contains(lowerPath, "/.ailang/state/worktrees/") {
-		return "Tasks"
-	}
-
-	// Extract project name from regular workspace path
-	parts := strings.Split(path, "/")
-	for i := len(parts) - 1; i >= 0; i-- {
-		part := parts[i]
-		if part == "" {
-			continue
-		}
-		// Skip hidden directories
-		if strings.HasPrefix(part, ".") {
-			continue
-		}
-		// Skip common non-project directories
-		switch part {
-		case "Users", "home", "var", "tmp", "temp", "Worktrees":
-			continue
-		}
-		// Skip numeric-looking temp dirs (timestamps)
-		if len(part) > 10 && part[0] >= '0' && part[0] <= '9' {
-			continue
-		}
-		// Found a good project name
-		return part
-	}
-
-	// Fallback to last segment
-	if len(parts) > 0 {
-		return parts[len(parts)-1]
-	}
-	return path
-}
-
+// observatoryCommand is `ailang observatory <subcommand>`.
+//
+// M-V1-SIMPLIFY-S5 M3 folded it into `chains`: the canonical spelling is now
+// `ailang chains observatory <subcommand>` and this one survives as an alias
+// for one release (D1 — the fleet's scripts and skills keep working).
+// chainsCommand routes both spellings through this same function, so they
+// cannot diverge.
+//
+// Eight subcommands were deleted here under D7 (seed, heatmap, evolution,
+// usage, tokens, outliers, metrics, hierarchy). Each had ZERO references in
+// Makefile/make/tools/scripts/.github/.claude/skills/.agents/skills and a last
+// substantive commit in January 2026; the evidence is in the removal commit.
+// The four that survive all have live callers.
 func observatoryCommand() {
 	if flag.NArg() < 2 {
-		fmt.Println("Usage: ailang observatory <subcommand> [options]")
-		fmt.Println()
-		fmt.Println("Subcommands:")
-		fmt.Println("  hierarchy   View unified task/message/span hierarchy (auto-detects ID type)")
-		fmt.Println("  metrics     View session/workspace metrics (LOC, commits, cache savings)")
-		fmt.Println("  sync-chat   Import Claude Code conversation history to database")
-		fmt.Println("  seed        Generate test data for dashboard development")
-		fmt.Println("  backfill    Link existing spans to tasks by time correlation")
-		fmt.Println("  repair-ids  Repair OTLP/JSON-corrupted trace/span ids in the CLOUD observatory (dry-run by default)")
-		fmt.Println("  cleanup     Delete old/noise spans based on retention policy")
-		fmt.Println("  heatmap     Get activity heatmap data (daily aggregates)")
-		fmt.Println("  evolution   Get task evolution data (cumulative metrics over time)")
-		fmt.Println("  usage       Get usage time series data (bucketed by hour/day/week)")
-		fmt.Println("  tokens      Get token distribution histogram")
-		fmt.Println("  outliers    Detect statistical outliers in spans within a task")
-		fmt.Println()
-		fmt.Println("Examples:")
-		fmt.Println("  ailang observatory hierarchy task-29404032  # View task hierarchy")
-		fmt.Println("  ailang observatory hierarchy 0ebf5e64bb...  # View by trace ID")
-		fmt.Println("  ailang observatory metrics --session <id>   # Session metrics summary")
-		fmt.Println("  ailang observatory metrics --list           # List all OTLP metrics")
-		fmt.Println("  ailang observatory seed                     # Default: realistic workload")
-		fmt.Println("  ailang observatory seed --minimal           # Quick: 1 workspace, 2 tasks")
-		fmt.Println("  ailang observatory cleanup --dry-run        # Preview what would be deleted")
-		fmt.Println("  ailang observatory cleanup --vacuum         # Delete and reclaim disk space")
-		fmt.Println("  ailang observatory heatmap --days 30 --format ascii")
-		fmt.Println("  ailang observatory evolution --metric cost --limit 5")
-		fmt.Println("  ailang observatory usage --interval day --split-by provider")
-		fmt.Println("  ailang observatory tokens --format ascii")
-		fmt.Println("  ailang observatory outliers --task TASK_ID --threshold 2.0")
-		fmt.Println("  ailang observatory sync-chat                # Import all Claude Code history")
-		fmt.Println("  ailang observatory sync-chat --status       # Show import status")
-		return
+		printObservatoryHelp()
+		// Exit 1, not 0. A group asked for no subcommand did nothing, and
+		// M-V1-SIMPLIFY-S5 M1 measured five groups exiting 0 for it while
+		// `chains`, `budget`, `pkg` and `daemon` exited 1. M3 normalises the
+		// ones in its own file set; `models`, `workspaces` and `budget`
+		// belong to other milestones.
+		os.Exit(1)
 	}
 
 	subcommand := flag.Arg(1)
 	switch subcommand {
-	case "hierarchy":
-		observatoryHierarchyCommand()
-	case "metrics":
-		observatoryMetricsCommand()
 	case "sync-chat":
 		observatorySyncChatCommand()
-	case "seed":
-		observatorySeedCommand()
 	case "repair-ids":
 		observatoryRepairIDsCommand()
 	case "backfill":
 		observatoryBackfillCommand()
 	case "cleanup":
 		observatoryCleanupCommand()
-	case "heatmap":
-		observatoryHeatmapCommand()
-	case "evolution":
-		observatoryEvolutionCommand()
-	case "usage":
-		observatoryUsageCommand()
-	case "tokens":
-		observatoryTokensCommand()
-	case "outliers":
-		observatoryOutliersCommand()
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown observatory subcommand: %s\n", subcommand)
 		os.Exit(1)
 	}
+}
+
+func printObservatoryHelp() {
+	fmt.Println("Usage: ailang chains observatory <subcommand> [options]")
+	fmt.Println()
+	fmt.Println("Subcommands:")
+	fmt.Println("  sync-chat   Import Claude Code conversation history to database")
+	fmt.Println("  backfill    Link existing spans to tasks by time correlation")
+	fmt.Println("  repair-ids  Repair OTLP/JSON-corrupted trace/span ids in the CLOUD observatory (dry-run by default)")
+	fmt.Println("  cleanup     Delete old/noise spans based on retention policy")
+	fmt.Println()
+	fmt.Println("Examples:")
+	fmt.Println("  ailang chains observatory backfill          # Link spans to tasks")
+	fmt.Println("  ailang chains observatory cleanup --dry-run # Preview what would be deleted")
+	fmt.Println("  ailang chains observatory cleanup --vacuum  # Delete and reclaim disk space")
+	fmt.Println("  ailang chains observatory sync-chat         # Import all Claude Code history")
+	fmt.Println("  ailang chains observatory sync-chat --status # Show import status")
+	fmt.Println()
+	fmt.Println("`ailang observatory <subcommand>` remains an alias for one release.")
 }

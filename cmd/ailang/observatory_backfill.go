@@ -481,5 +481,3 @@ func extractTaskIDFromCwd(cwd string) string {
 	}
 	return ""
 }
-
-// observatorySeedCommand generates test data for the observatory dashboard.
