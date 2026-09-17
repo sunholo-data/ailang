@@ -1,0 +1,22 @@
+module effect_result
+
+-- perf-sweep probe: an effect whose RESULT is a large tagged value
+-- (Ok(<file contents>)), 20 reads of a 20 MB file through a foldlE step so
+-- each read dies with its frame. Measures the effect-trace render path and
+-- the FS read double-copy. big.txt is written by the sweep.
+import std/fs (readFileResult)
+import std/string (length)
+import std/list (foldlE)
+
+func step(acc: int, i: int) -> int ! {FS} {
+  match readFileResult("big.txt") {
+    Ok(s) => acc + length(s),
+    Err(_) => acc
+  }
+}
+
+export func main() -> int ! {IO, FS} {
+  let n = foldlE(step, 0, [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]);
+  println("n=${show(n)}");
+  n
+}
