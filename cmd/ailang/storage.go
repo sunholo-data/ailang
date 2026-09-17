@@ -29,9 +29,12 @@ import (
 // store. Moving a store between planes is what AILANG_STORAGE and its
 // per-store overrides do now; nothing copies records any more.
 func storageCommand(args []string) error {
+	// No subcommand is a usage error, not a success. See bareGroupExitsOne in
+	// commands_groups_test.go: `chains`, `pkg`, `daemon`, `dev` and `ops`
+	// already exited 1 for this shape; storage, models and workspaces exited 0.
 	if len(args) == 0 {
 		printStorageHelp()
-		return nil
+		os.Exit(1)
 	}
 
 	switch args[0] {

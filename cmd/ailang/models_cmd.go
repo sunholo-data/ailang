@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/sunholo-data/ailang/internal/modelreg"
 )
@@ -13,9 +14,14 @@ import (
 // hardcoded executor defaults).
 
 func modelsCommand(args []string) error {
+	// No subcommand is a usage error, not a success. Every other group of this
+	// shape (`chains`, `pkg`, `daemon`, `dev`, `ops`) already exited 1;
+	// `models`, `workspaces` and `storage` exited 0, so a script that forgot
+	// the subcommand and checked $? was told it had worked. Asking for help
+	// (`--help`, `-h`, `help`) still exits 0 — that is the distinction.
 	if len(args) == 0 {
 		printModelsHelp()
-		return nil
+		os.Exit(1)
 	}
 	switch args[0] {
 	case "role":
