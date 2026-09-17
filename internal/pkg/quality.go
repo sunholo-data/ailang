@@ -61,6 +61,13 @@ type QualityInputs struct {
 
 	HasAgentDoc bool
 
+	// ChangelogNotes / HasChangelogSection come from ChangelogSection(dir, version).
+	ChangelogNotes      string
+	HasChangelogSection bool
+	// ReleaseGatesHard: PUB001/PUB002 block (true from ReleaseGateHardFrom,
+	// see ReleaseGatesHard); false = grace window, badges only.
+	ReleaseGatesHard bool
+
 	// Attested is nil when the publisher did not run tests/smoke (or the
 	// upload carried none).
 	Attested *AttestedBlock
@@ -264,8 +271,16 @@ func BuildQualityReport(m *PackageManifest, mode QualityMode, in QualityInputs, 
 		r.finding("PUB010", hard, "warn", "no [effects] ceiling declared — an absent ceiling is UNLIMITED; declare max = [] for a pure package")
 	}
 
-	// release (server) — populated by M4.
-	r.Release = ReleaseSection{Source: SourceServer}
+	// release (server) — design D2. Grace: badges below ReleaseGateHardFrom.
+	r.Release = ReleaseSection{Source: SourceServer, Kind: m.Release.Kind, ChangelogSection: in.HasChangelogSection, Notes: in.ChangelogNotes}
+	if !in.HasChangelogSection {
+		r.finding("PUB001", in.ReleaseGatesHard, "warn",
+			fmt.Sprintf("%s has no non-empty `## %s` section — describe what this version changes", ChangelogFile, m.Package.Version))
+	}
+	if m.Release.Kind == "" {
+		r.finding("PUB002", in.ReleaseGatesHard, "warn",
+			"[release] kind is not declared — one of "+strings.Join(ReleaseKinds, "|"))
+	}
 
 	// docs
 	_, hasSummary := m.Metadata["ai_summary"]

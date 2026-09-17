@@ -312,18 +312,22 @@ func (v *validator) handlePublish(w http.ResponseWriter, r *http.Request) {
 	// above, in ModeServer: tests/smoke are whatever the upload attested,
 	// stamped with the key owner, and never a gate here. Server-sourced
 	// gates (compile, refuted contracts, stable/frozen ceiling rules) refuse.
-	report := pkg.BuildQualityReport(manifest, pkg.ModeServer, pkg.QualityInputs{
-		CompileOK:       true,
-		CompileFiles:    len(manifest.Exports.Modules),
-		Verify:          verifyReport,
-		VerifyErr:       validation.ContractsError,
-		InterfaceHashV1: interfaceHash,
-		InterfaceHashV2: v2Hash,
-		Signatures:      v2Sigs,
-		InterfaceV2Err:  errString(v2Err),
-		HasAgentDoc:     strutil.FileExists(filepath.Join(tempDir, "AGENT.md")),
-		Attested:        decodeAttested(r.FormValue(pkg.AttestedFormField), publishedBy),
-	}, false)
+	qualityInputs := pkg.QualityInputs{
+		CompileOK:        true,
+		CompileFiles:     len(manifest.Exports.Modules),
+		Verify:           verifyReport,
+		VerifyErr:        validation.ContractsError,
+		InterfaceHashV1:  interfaceHash,
+		InterfaceHashV2:  v2Hash,
+		Signatures:       v2Sigs,
+		InterfaceV2Err:   errString(v2Err),
+		HasAgentDoc:      strutil.FileExists(filepath.Join(tempDir, "AGENT.md")),
+		Attested:         decodeAttested(r.FormValue(pkg.AttestedFormField), publishedBy),
+		ReleaseGatesHard: pkg.ReleaseGatesHard(getAilangVersion()),
+	}
+	changelogNotes, hasChangelog := pkg.ChangelogSection(tempDir, version)
+	qualityInputs.ChangelogNotes, qualityInputs.HasChangelogSection = changelogNotes, hasChangelog
+	report := pkg.BuildQualityReport(manifest, pkg.ModeServer, qualityInputs, false)
 	if report.HasGates() {
 		var lines []string
 		for _, g := range report.Gates {
@@ -498,6 +502,7 @@ func (v *validator) tryUpdateIndex(ctx context.Context, manifest *pkg.PackageMan
 			}
 			index.Packages[i].ContractsVerified = meta.Validation.ContractsVerified
 			index.Packages[i].ContractsTotal = meta.Validation.ContractsTotal
+			index.Packages[i].ReleaseKind = manifest.Release.Kind
 			index.Packages[i].Dependencies = depNames
 			index.Packages[i].LastUpdated = meta.PublishedAt
 			index.Packages[i].UpdatedBy = meta.PublishedBy
@@ -529,6 +534,7 @@ func (v *validator) tryUpdateIndex(ctx context.Context, manifest *pkg.PackageMan
 			Exports:           manifest.Exports.Modules,
 			ContractsVerified: meta.Validation.ContractsVerified,
 			ContractsTotal:    meta.Validation.ContractsTotal,
+			ReleaseKind:       manifest.Release.Kind,
 			HasAgentDoc:       meta.Manifest.HasAgentDoc,
 			Dependencies:      depNames,
 			LastUpdated:       meta.PublishedAt,

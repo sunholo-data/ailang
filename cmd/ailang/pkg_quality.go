@@ -133,6 +133,8 @@ func measurePackageQuality(dir string, opts qualityMeasureOptions) (*pkg.Package
 	if st, sErr := os.Stat(filepath.Join(absDir, "AGENT.md")); sErr == nil && !st.IsDir() {
 		in.HasAgentDoc = true
 	}
+	in.ChangelogNotes, in.HasChangelogSection = pkg.ChangelogSection(absDir, manifest.Package.Version)
+	in.ReleaseGatesHard = pkg.ReleaseGatesHard(Version)
 
 	if opts.RunAttested {
 		in.Attested = runAttestedChecks(absDir, manifest)

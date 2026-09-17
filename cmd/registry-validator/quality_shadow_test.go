@@ -96,6 +96,10 @@ func TestPublish_BanksContractsAndV2Identity(t *testing.T) {
 	if streak, fails := v.v2Outcomes(); streak != 1 || fails != 0 {
 		t.Errorf("v2 streak/fails = %d/%d, want 1/0", streak, fails)
 	}
+	// M4: the tarball's CHANGELOG.md section and [release] kind are banked.
+	if meta.Quality == nil || meta.Quality.Release.Kind != "feature" || !meta.Quality.Release.ChangelogSection || !strings.Contains(meta.Quality.Release.Notes, "Initial fixture release") {
+		t.Errorf("release not banked from the tarball: %+v", meta.Quality)
+	}
 }
 
 // Version skew: a publisher whose binary computes a different v2 identity is

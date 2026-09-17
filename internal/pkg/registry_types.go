@@ -19,6 +19,7 @@ type IndexEntry struct {
 	Exports           []string `json:"exports"`
 	ContractsVerified int      `json:"contracts_verified"`
 	ContractsTotal    int      `json:"contracts_total,omitempty"` // M-PKG-QUALITY-LADDER
+	ReleaseKind       string   `json:"release_kind,omitempty"`    // M-PKG-QUALITY-LADDER M4: latest version's [release] kind
 	HasAgentDoc       bool     `json:"has_agent_doc"`
 	Dependencies      []string `json:"dependencies,omitempty"`   // Package names this depends on (M-PKG-AUTONOMOUS-UPDATES)
 	LastUpdated       string   `json:"last_updated,omitempty"`   // When latest version was published

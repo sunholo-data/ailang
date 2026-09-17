@@ -12,3 +12,6 @@ max = []
 
 [stability]
 level = "experimental"
+
+[release]
+kind = "feature"
