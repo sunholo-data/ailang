@@ -1,0 +1,5 @@
+module test/flatself/types
+
+export type Money = { cents: int }
+
+export pure func mkMoney(cents: int) -> Money = { cents: cents }

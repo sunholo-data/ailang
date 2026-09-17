@@ -1,0 +1,17 @@
+[package]
+name = "test/flatself"
+version = "0.1.0"
+edition = "1"
+description = "Flat-layout package with an intra-package import and Z3 contracts (M-PKG-QUALITY-LADDER fixture)"
+
+[exports]
+modules = ["test/flatself/types", "test/flatself/settle"]
+
+[effects]
+max = []
+
+[stability]
+level = "experimental"
+
+[release]
+kind = "feature"

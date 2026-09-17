@@ -192,14 +192,17 @@ func (f *finalizer) notifyApproval(ctx context.Context, description string) {
 	if f.deps.MsgStore == nil {
 		return
 	}
-	inbox := f.in.Task.AgentID
-	if f.deps.AgentRegistry != nil {
-		if resolved, ok := f.deps.AgentRegistry.InboxForAgent(f.in.Task.AgentID); ok {
-			inbox = resolved
-		}
-	}
+	inbox, redirectedFrom := ApprovalNoticeInbox(f.deps.AgentRegistry, f.in.Task.AgentID)
 	if inbox == "" {
 		return
+	}
+	if redirectedFrom != "" {
+		// Say it on the card, not just in a log: the operator needs to know the
+		// agent this task belongs to no longer has a reader, or the next such
+		// approval looks like it came from nowhere.
+		description = fmt.Sprintf(
+			"%s\n\n---\nNOTE: this notice was addressed to %q, which no agent serves and which is not declared human-triage, so it was redirected here. The approval itself is in the queue either way (`ailang coordinator approvals`).",
+			description, redirectedFrom)
 	}
 
 	msg := &messaging.InboxMessage{
@@ -216,6 +219,51 @@ func (f *finalizer) notifyApproval(ctx context.Context, description string) {
 	if _, err := f.deps.MsgStore.PutMessageIfAbsent(ctx, msg); err != nil {
 		f.deps.logf("finalize %s: approval created but its notification failed (the queue will show it, nobody will be told): %v", f.in.Task.ID, err)
 	}
+}
+
+// HumanApprovalInbox is the plane's declared inbox for approval decisions. It
+// is triage-only (no agent serves it) and it is one of the inboxes routed to
+// Discord by humanTriageInbox, so a notice filed here reaches a person.
+const HumanApprovalInbox = "approvals"
+
+// ApprovalNoticeInbox decides where a "your decision is needed" notice goes,
+// and names the inbox it was redirected FROM when the obvious target has no
+// reader.
+//
+// The obvious target is the agent's own inbox, and that is right while the agent
+// exists. It stops being right the moment the agent does not: the notice is then
+// filed to a string nobody watches, the approval sits in the queue unannounced,
+// and the only signal is its age.
+//
+// Measured 2026-09-17 on task-c063b6d2: its agent `daneel-design-ailang` was
+// deleted in the 12 Sept revert, so the notice went to that dead inbox and the
+// approval waited SEVEN DAYS for a design doc that had already been merged by
+// PR #1138. Nobody was told, because there was nobody to tell.
+//
+// "No reader" is checked, not assumed: an inbox with no agent AND no
+// human-triage declaration. A declared triage inbox is read by a person on
+// purpose and must be left alone.
+func ApprovalNoticeInbox(reg *AgentRegistry, agentID string) (inbox, redirectedFrom string) {
+	if reg == nil {
+		// No registry to judge with. The human inbox is the safe direction: a
+		// notice a person did not need costs a glance, one they never saw cost a
+		// week.
+		if agentID == "" {
+			return HumanApprovalInbox, ""
+		}
+		return HumanApprovalInbox, agentID
+	}
+	target := agentID
+	if resolved, ok := reg.InboxForAgent(agentID); ok {
+		target = resolved
+	}
+	if target == "" {
+		return HumanApprovalInbox, ""
+	}
+	if reg.GetAgentForInbox(target) != nil || reg.IsTriageOnly(target) {
+		return target, ""
+	}
+	return HumanApprovalInbox, target
 }
 
 // applyHandoff dispatches the auto-approved edges.

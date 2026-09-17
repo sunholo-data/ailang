@@ -123,8 +123,19 @@ func DiscoverPackageSources(dir string) (*PackageSources, error) {
 	return result, nil
 }
 
-// resolveModuleToFile finds the .ail file for a given module path within a package.
-// Returns empty string if not found.
+// ResolveModuleToFile finds the .ail file for a module path within a package.
+// It is THE module→file mapping for packages: the self-package loader,
+// `check --package`, `verify --package` and the V2 interface builder all go
+// through it, so the four can never disagree about where a module lives
+// (M-PKG-QUALITY-LADDER M1 — before this, the V2 builder assumed a canonical
+// <pkgdir>/<module>.ail checkout and built 0/53 published flat packages).
+//
+// Candidates, in order: src/<rel>.ail, <rel>.ail (flat tarball layout),
+// <modulePath>.ail (canonical checkout layout). Returns "" if none exists.
+func ResolveModuleToFile(pkgDir, pkgName, modulePath string) string {
+	return resolveModuleToFile(pkgDir, pkgName, modulePath)
+}
+
 func resolveModuleToFile(pkgDir, pkgName, modulePath string) string {
 	// Strip package name prefix to get the relative module name
 	// "sunholo/billing_store/core" -> "core"
@@ -143,10 +154,12 @@ func resolveModuleToFile(pkgDir, pkgName, modulePath string) string {
 	// Convert module path to file path: "store/core" -> "store/core.ail"
 	fileName := relModule + ".ail"
 
-	// Search candidates: src/ first, then root
+	// Search candidates: src/ first, then root, then the canonical checkout
+	// layout (<pkgdir>/<vendor>/<name>/<module>.ail) that a source repo uses.
 	candidates := []string{
 		filepath.Join(pkgDir, "src", fileName),
 		filepath.Join(pkgDir, fileName),
+		filepath.Join(pkgDir, filepath.FromSlash(modulePath)+".ail"),
 	}
 
 	for _, c := range candidates {
