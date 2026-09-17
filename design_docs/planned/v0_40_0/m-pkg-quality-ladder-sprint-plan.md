@@ -5,6 +5,7 @@
 **Target**: v0.40.0
 **Duration**: 3 days (~20 h) · **Risk**: medium (two registry-facing seams; one schema extension)
 **Executor**: attended session 2026-09-17, worktree-isolated, PR to `dev`
+**Status**: ✅ M1–M6 complete 2026-09-17 (M6 added mid-sprint by Mark: package inbox agents)
 
 Sprints 2 ("route", M6–M9) and 3 ("tighten", M10–M12) are outlined at the end and are re-planned
 against Sprint 1's measured outcome (the D6 shadow count), not now.
@@ -41,9 +42,9 @@ Tasks:
 4. Fixtures under `internal/pkg/testdata/quality/`: `flat_self_import/` (deontic shape: root files, `pkg/<self>/types` import, 2 contracts), `prefixed/` (module_prefix shape). Tests: `InterfaceHashV2` builds both (signature set non-empty, deterministic across two runs); `verify --package` on `flat_self_import` reports `verified=2`.
 
 Acceptance:
-- [ ] `ailang internal-dump-iface . sunholo/deontic/settle` succeeds on the real flat deontic 0.3.0 tarball layout (manual check recorded in the PR).
-- [ ] `ailang verify --package` on the fixture: `verified ≥ 2`, exit 0; the per-module JSON shape is pinned by a test.
-- [ ] Mutation arm: revert the `RelaxModules` line in `BuildCanonicalJSON` → fixture test fails.
+- [x] `ailang internal-dump-iface . sunholo/deontic/settle` succeeds on the real flat deontic 0.3.0 tarball layout (7 signatures; `verify --package` 7/7 — recorded 2026-09-17).
+- [x] `ailang verify --package` on the fixture: `verified ≥ 2`, exit 0; the per-module JSON shape is pinned by a test.
+- [x] Mutation arm: revert the `RelaxModules` line in `BuildCanonicalJSON` → fixture test fails.
 
 ### M2 — Validator wiring, shadow (4 h, ~200 LOC + ~150 test)
 
@@ -55,9 +56,9 @@ Tasks:
 5. Seam test: `handlePublish` in validation-only mode on the `flat_self_import` fixture tarball returns metadata with `contracts_verified=2, contracts_total=2` and a non-empty `interface_hash_v2`; mutation arm: swap the decoder back to `[]struct{Status}` → test fails.
 
 Acceptance:
-- [ ] Validator banks real contract counts and v2 identity; the shadow log line exists.
-- [ ] Skew guard test (publisher hash ≠ validator hash → 400 with both).
-- [ ] v1 metadata fixture still decodes.
+- [x] Validator banks real contract counts and v2 identity; the shadow log line exists.
+- [x] Skew guard test (publisher hash ≠ validator hash → 400 with both).
+- [x] v1 metadata fixture still decodes.
 
 ### M3 — `ailang pkg quality [--json] [--strict] <dir>` (5 h, ~350 LOC + ~250 test)
 
@@ -68,9 +69,9 @@ Tasks:
 4. ailang-packages follow-up PR (separate repo): replace the phantom text in `AGENTS.md`, `.agents/skills/ailang-packages/SKILL.md`, `README.md` with the real flags.
 
 Acceptance:
-- [ ] `ailang pkg quality --json` on the fixture validates against the schema in the design; `server` fields identical whether computed in Publisher or Server mode (seam test).
-- [ ] `--strict` turns PUB011 into a gate on a fixture with an uncontracted export.
-- [ ] `publish --dry-run` exits 2 on PUB001 when `CHANGELOG.md` is absent (after M4).
+- [x] `ailang pkg quality --json` on the fixture validates against the schema in the design; `server` fields identical whether computed in Publisher or Server mode (seam test).
+- [x] `--strict` turns PUB011 into a gate on a fixture with an uncontracted export.
+- [x] `publish --dry-run` exits 2 on PUB001 when `CHANGELOG.md` is absent (after M4).
 
 ### M4 — `[release]` + `CHANGELOG.md` gate (3 h, ~180 LOC + ~120 test)
 
@@ -82,11 +83,22 @@ Tasks:
 5. Tarball inclusion: `CreateTarball` must ship `CHANGELOG.md` (check `shouldStageFile`/tarball allowlist — verify, do not assume).
 
 Acceptance:
-- [ ] Fixture without CHANGELOG → PUB001 badge on v0.40.0 binary; test with the hard-from constant lowered → gate.
-- [ ] `metadata.json` carries `release.kind` and notes; `pkg info` shows them.
-- [ ] `init package` output passes `pkg quality` with zero gates.
+- [x] Fixture without CHANGELOG → PUB001 badge on v0.40.0 binary; test with the hard-from constant lowered → gate.
+- [x] `metadata.json` carries `release.kind` and notes; `pkg info` shows them.
+- [x] `init package` output passes `pkg quality` with zero gates.
 
-### M5 — Shadow instrumentation + docs (3 h, ~80 LOC + docs)
+### M6 — Every published package gets an agent inbox (added by Mark mid-sprint, 3 h, ~200 LOC + ~120 test) ✅
+
+Measured: 29 hand-written `pkg-*` agents + one `pkg:sunholo/motoko_ext_*` family pattern serve 41/53 packages; **12 packages have no inbox** — a message to them is accepted and never dispatched (the `sunholo/email` incident of 2026-09-07). Every hand-written entry differs only in id/label/inbox/workspace/subdirectory/artifact_patterns, all derivable from `metadata.repository`.
+
+Tasks: `pkg.ParseRepositoryURL` + `PackageAgentID`; `AgentRegistry.MaterializePackageAgents(index)` clones the `pkg:*` template per index package lacking an exact agent (hand-written wins, idempotent); daemon init + 10-min refresh; `buildRegistryFromConfig` materializes for the CLI readouts; `PUB021` badge when the URL is unparseable. **Follow-up outside this repo:** add the `pkg:*` template agent to `ailang-multivac/config/config.cloud.yaml` (id `pkg-registry-template`, workspace `sunholo-data/ailang-packages`, the standard `ailang_only` pi lane).
+
+Acceptance:
+- [x] Derived agent carries inbox/workspace/subdirectory/merge_branch from the URL; template fields (provider, policy) carried; slices not shared.
+- [x] Hand-written entry wins; second materialize adds nothing; a family pattern is not mistaken for the template.
+- [x] Non-GitHub / blob URLs derive nothing.
+
+### M5 — Shadow instrumentation + docs (3 h, ~80 LOC + docs) ✅
 
 Tasks:
 1. Validator: one structured log line per publish `quality: pkg=… v2=ok|fail contracts=v/t tier=N gates=[…]`; `/api/stats` gains `v2_clean_streak` (count of consecutive publishes with `v2=ok`) so D6's N=20 is readable without log access.
@@ -94,8 +106,8 @@ Tasks:
 3. `make simplicity-audit` — one new command, two manifest sections, zero new env vars.
 
 Acceptance:
-- [ ] `/api/stats` exposes `v2_clean_streak`; unit test on the counter.
-- [ ] Docs updated; `make ci` green.
+- [x] `/api/stats` exposes `v2_clean_streak`; unit test on the counter.
+- [x] Docs updated; `make ci` green.
 
 ## Day plan
 

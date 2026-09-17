@@ -235,15 +235,23 @@ The AILANG package registry is hosted on GCP at `https://storage.googleapis.com/
 
 ```bash
 cd my-package/
+ailang pkg quality .        # The report publish and the validator both run (v0.40.0)
+ailang publish --dry-run    # Same report + tarball preview; exits non-zero on any PUB gate
 ailang publish              # Upload to registry (requires AILANG_REGISTRY_API_KEY)
-ailang publish --dry-run    # Preview without uploading
 ```
 
-The validator service automatically:
-- Compiles your package (`ailang check`)
+`publish` runs the quality report first and refuses on the same `PUBnnn` codes the
+validator would return. The validator then recomputes the `server` sections itself:
+- Compiles your package (`ailang check --package`)
 - Verifies effect ceilings match `[effects].max`
-- Runs contract verification (`ailang verify`, best-effort)
+- Verifies contracts package-wide (`ailang verify --package`) and banks the counts
+- Builds the signature-sensitive interface identity (v2) and refuses publisher/validator skew
+- Requires a `## <version>` section in `CHANGELOG.md` and a `[release] kind` (gates from v0.41.0)
 - Computes content + interface + tarball hashes
+
+Tests and `_smoke.ail` run only on your machine and travel as an *attested* block the
+registry displays but never gates on. Details: the
+[package publishing guide](package-publishing.md#what-publish-checks--the-quality-report-v0400).
 - Rejects duplicate versions (immutable once published)
 
 ### Searching

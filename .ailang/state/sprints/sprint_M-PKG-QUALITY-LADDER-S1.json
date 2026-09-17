@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-PKG-QUALITY-LADDER-S1",
-  "status": "not_started",
+  "status": "completed",
   "created": "2026-09-17T17:50:31Z",
   "design_doc": "design_docs/planned/v0_40_0/m-pkg-quality-ladder.md",
   "sprint_plan": "design_docs/planned/v0_40_0/m-pkg-quality-ladder-sprint-plan.md",
@@ -9,7 +9,7 @@
   ],
   "velocity": {
     "target_loc_per_day": 600,
-    "estimated_total_loc": 1750,
+    "estimated_total_loc": 2050,
     "estimated_days": 3
   },
   "features": [
@@ -24,10 +24,10 @@
         "mutation arm: revert RelaxModules in BuildCanonicalJSON -> test fails",
         "single-file ailang verify unchanged"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-17T18:38:51Z",
+      "completed": "2026-09-17T18:38:51Z",
+      "notes": "06f9bbd92 \u2014 ResolveModuleToFile exported + canonical candidate; BuildCanonicalJSON via resolver with RelaxModules; verify --package with shared PackageVerifyReport. Real deontic 0.3.0 tarball: 7/7 verified. Mutation arm (RelaxModules) fails."
     },
     {
       "id": "M2_VALIDATOR_SHADOW",
@@ -42,10 +42,10 @@
         "skew guard: publisher v2 != validator v2 -> 400 PUB005 with both values",
         "v1 metadata fixture still decodes; MaxExportedModules raised to 128"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-17T18:38:51Z",
+      "completed": "2026-09-17T18:38:51Z",
+      "notes": "f94f82857 \u2014 verify --package decoded (contracts_error on run failure); v2 banked in shadow with streak; PUB005 skew guard; schema v2 omitempty, v1 fixture decodes; MaxExportedModules 128. Decoder mutation arm fails."
     },
     {
       "id": "M3_PKG_QUALITY",
@@ -61,10 +61,10 @@
         "publish --dry-run exits 2 on any gate",
         "pkg subcommand listed in help"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-17T18:38:51Z",
+      "completed": "2026-09-17T18:38:51Z",
+      "notes": "0bb8e7339 \u2014 pkg.BuildQualityReport, server/attested provenance, PUB table by stability, --strict; pkg quality CLI; publish + dry-run refuse on gates; validator banks metadata.quality and stamps attested_by; refuted fixture (PUB006)."
     },
     {
       "id": "M4_RELEASE_CHANGELOG",
@@ -79,10 +79,10 @@
         "init package output passes pkg quality with zero gates",
         "CreateTarball includes CHANGELOG.md (verified by test)"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-17T18:38:51Z",
+      "completed": "2026-09-17T18:38:51Z",
+      "notes": "4488c0b5e \u2014 [release] kind, ChangelogSection (3 heading forms, 2KB cap), PUB001/PUB002 badges <0.41.0 gates from it, tarball ships CHANGELOG.md, init scaffolds both, pkg versions prints kind+notes, index release_kind."
     },
     {
       "id": "M5_SHADOW_DOCS",
@@ -97,10 +97,29 @@
         "docs updated and CHANGELOG entry added",
         "make ci green; simplicity audit no regression"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-17T18:38:51Z",
+      "completed": "2026-09-17T18:38:51Z",
+      "notes": "quality log line + /api/stats v2_clean_streak/v2_failures/packages_with_contracts (test); package-publishing + packages guides; changelog entry."
+    },
+    {
+      "id": "M6_PACKAGE_INBOX_AGENTS",
+      "description": "Every published package gets an agent inbox: pkg:* template agent + per-package agents derived from the registry index (metadata.repository) at load / every 10 min / in CLI readouts; PUB021 when the URL cannot be parsed. Added mid-sprint by Mark 2026-09-17.",
+      "estimated_loc": 300,
+      "dependencies": [
+        "M3_PKG_QUALITY"
+      ],
+      "acceptance_criteria": [
+        "derived agent has inbox/workspace/subdirectory/merge_branch from the repository URL",
+        "hand-written entries win; idempotent; no template = no-op",
+        "daemon refreshes every 10 min; CLI registry loads see derived agents",
+        "PUB021 badge when repository is not a GitHub tree URL",
+        "follow-up: pkg:* template in ailang-multivac config.cloud.yaml"
+      ],
+      "passes": true,
+      "started": "2026-09-17T18:38:51Z",
+      "completed": "2026-09-17T18:38:51Z",
+      "notes": "8fcd6d94f \u2014 package_agents.go + ParseRepositoryURL/PackageAgentID; tests for derivation, precedence, idempotence, non-GitHub refusal. Multivac config entry is a follow-up PR."
     }
   ]
 }
