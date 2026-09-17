@@ -179,7 +179,7 @@ func ResolveDependencies(manifest *PackageManifest, rootDir string) ([]ResolvedP
 						ContentHash:   hash,
 						InterfaceHash: InterfaceHash(depManifest),
 						Source:        "path",
-						Path:          depDir,
+						Path:          portablePathDep(rootDir, depDir),
 						Effects:       depManifest.Effects.Max,
 						Exports:       depManifest.Exports.Modules,
 					})
@@ -390,4 +390,22 @@ func printSubTree(sb *strings.Builder, m *PackageManifest, dir string, indent st
 			sb.WriteString(fmt.Sprintf("%s%s@%s\n", prefix, name, dep.Version))
 		}
 	}
+}
+
+// portablePathDep stores a path dependency RELATIVE to the lock file's
+// directory so a committed ailang.lock works on every machine. The loader
+// joins a relative Path with its root (loader.go packageDir), and
+// ValidateContentHashes resolves against the lock's directory. Absolute is
+// kept only when no relative form exists (another volume on Windows).
+//
+// Before this, 43 committed locks in ailang-packages carried
+// /Users/<someone>/… paths and every other machine's `check --package`
+// failed with "package directory not found" (core backlog 2026-09-15; the
+// Daneel eparse outage).
+func portablePathDep(rootDir, depDir string) string {
+	rel, err := filepath.Rel(rootDir, depDir)
+	if err != nil {
+		return depDir
+	}
+	return filepath.ToSlash(rel)
 }

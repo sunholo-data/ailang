@@ -150,13 +150,23 @@ func (lf *LockFile) FindPackage(name string) (*LockedPackage, bool) {
 // and verifies they match the lock file. Returns an error if any dependency
 // has changed since the lock file was generated.
 func (lf *LockFile) ValidateContentHashes() error {
+	return lf.ValidateContentHashesFrom("")
+}
+
+// ValidateContentHashesFrom is ValidateContentHashes with relative path
+// dependencies resolved against rootDir (the lock file's directory).
+func (lf *LockFile) ValidateContentHashesFrom(rootDir string) error {
 	for _, p := range lf.Packages {
 		if p.Source != "path" || p.Path == "" {
 			continue
 		}
-		currentHash, err := ContentHash(p.Path)
+		dir := filepath.FromSlash(p.Path)
+		if !filepath.IsAbs(dir) && rootDir != "" {
+			dir = filepath.Join(rootDir, dir)
+		}
+		currentHash, err := ContentHash(dir)
 		if err != nil {
-			return fmt.Errorf("failed to hash dependency %s at %s: %w", p.Name, p.Path, err)
+			return fmt.Errorf("failed to hash dependency %s at %s: %w", p.Name, dir, err)
 		}
 		if currentHash != p.ContentHash {
 			return fmt.Errorf("dependency %s content changed (locked: %s, current: %s)\nRun 'ailang lock' to update", p.Name, p.ContentHash[:24]+"...", currentHash[:24]+"...")

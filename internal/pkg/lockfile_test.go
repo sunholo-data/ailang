@@ -230,3 +230,43 @@ func TestLockFile_ValidateContentHashes_SkipsRegistry(t *testing.T) {
 		t.Errorf("should skip registry deps: %v", err)
 	}
 }
+
+// A committed ailang.lock must work on another machine: path dependencies are
+// stored relative to the lock's directory, and content-hash validation and the
+// loader resolve them against it. Kills: reverting portablePathDep to the
+// absolute depDir (the lock then names this test's temp dir).
+func TestLockFile_PathDepsAreRelativeAndPortable(t *testing.T) {
+	root := t.TempDir()
+	depDir := filepath.Join(root, "libs", "util")
+	writeFile(t, filepath.Join(depDir, "ailang.toml"), "[package]\nname = \"test/util\"\nversion = \"0.1.0\"\nedition = \"1\"\n[exports]\nmodules = [\"test/util/core\"]\n")
+	writeFile(t, filepath.Join(depDir, "core.ail"), "module test/util/core\nexport pure func one() -> int = 1\n")
+	appDir := filepath.Join(root, "app")
+	writeFile(t, filepath.Join(appDir, "ailang.toml"), "[package]\nname = \"test/app\"\nversion = \"0.1.0\"\nedition = \"1\"\n[exports]\nmodules = [\"test/app/main\"]\n[dependencies]\n\"test/util\" = { path = \"../libs/util\" }\n")
+	m, err := LoadManifest(appDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resolved, err := ResolveDependencies(m, appDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(resolved) != 1 || resolved[0].Path != "../libs/util" {
+		t.Fatalf("locked path = %q, want ../libs/util (relative to the lock)", resolved[0].Path)
+	}
+	lf := NewLockFile([]LockedPackage{LockedPackage(resolved[0])}, "test")
+	if err := lf.ValidateContentHashesFrom(appDir); err != nil {
+		t.Errorf("relative path must validate against the lock dir: %v", err)
+	}
+	// Simulate "another machine": move the whole tree and re-validate.
+	moved := t.TempDir()
+	if err := os.Rename(root, filepath.Join(moved, "checkout")); err != nil {
+		t.Skipf("rename across temp dirs: %v", err)
+	}
+	if err := lf.ValidateContentHashesFrom(filepath.Join(moved, "checkout", "app")); err != nil {
+		t.Errorf("moved checkout must still validate: %v", err)
+	}
+	loader := NewPackageLoader(lf, filepath.Join(moved, "checkout", "app"))
+	if dir, err := loader.packageDir(&lf.Packages[0]); err != nil || !strings.HasSuffix(filepath.ToSlash(dir), "checkout/libs/util") {
+		t.Errorf("loader must resolve the relative path against its root: %q %v", dir, err)
+	}
+}
