@@ -1,0 +1,106 @@
+{
+  "sprint_id": "M-PKG-QUALITY-LADDER-S1",
+  "status": "not_started",
+  "created": "2026-09-17T17:50:31Z",
+  "design_doc": "design_docs/planned/v0_40_0/m-pkg-quality-ladder.md",
+  "sprint_plan": "design_docs/planned/v0_40_0/m-pkg-quality-ladder-sprint-plan.md",
+  "github_issues": [
+    800
+  ],
+  "velocity": {
+    "target_loc_per_day": 600,
+    "estimated_total_loc": 1750,
+    "estimated_days": 3
+  },
+  "features": [
+    {
+      "id": "M1_MODULE_RESOLUTION",
+      "description": "One package-aware module resolution: export pkg.ResolveModuleToFile, BuildCanonicalJSON resolves via manifest + RelaxModules, new `ailang verify --package` with per-module JSON",
+      "estimated_loc": 420,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "internal-dump-iface succeeds on the real flat deontic layout",
+        "verify --package on flat_self_import fixture reports verified>=2, JSON shape pinned",
+        "mutation arm: revert RelaxModules in BuildCanonicalJSON -> test fails",
+        "single-file ailang verify unchanged"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_VALIDATOR_SHADOW",
+      "description": "Validator runs verify --package, banks real contract counts, computes InterfaceHashV2 in shadow with skew guard; metadata schema v2 (omitempty), index contracts_total",
+      "estimated_loc": 350,
+      "dependencies": [
+        "M1_MODULE_RESOLUTION"
+      ],
+      "acceptance_criteria": [
+        "validation-only handlePublish on fixture tarball banks contracts_verified=2/total=2 and interface_hash_v2",
+        "decoder mutation arm ([]struct{Status}) fails",
+        "skew guard: publisher v2 != validator v2 -> 400 PUB005 with both values",
+        "v1 metadata fixture still decodes; MaxExportedModules raised to 128"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_PKG_QUALITY",
+      "description": "`ailang pkg quality [--json] [--strict] <dir>` = pkg.QualityReport(Mode Publisher|Server) with server/attested provenance; publish --dry-run and publish use it; PUB table + stability split",
+      "estimated_loc": 600,
+      "dependencies": [
+        "M1_MODULE_RESOLUTION",
+        "M2_VALIDATOR_SHADOW"
+      ],
+      "acceptance_criteria": [
+        "--json validates against the design schema; server fields identical in Publisher and Server mode (seam test)",
+        "--strict turns PUB011 into a gate on an uncontracted-export fixture",
+        "publish --dry-run exits 2 on any gate",
+        "pkg subcommand listed in help"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_RELEASE_CHANGELOG",
+      "description": "[release] kind + CHANGELOG.md `## <version>` section: ReleaseConfig, ChangelogSection, PUB001/PUB002 as badges in v0.40.0 (hard from v0.41.0), banked in metadata + index, pkg info, init package scaffold, tarball ships CHANGELOG.md",
+      "estimated_loc": 300,
+      "dependencies": [
+        "M3_PKG_QUALITY"
+      ],
+      "acceptance_criteria": [
+        "fixture without CHANGELOG -> PUB001 badge; with hard-from lowered -> gate",
+        "metadata.json carries release.kind + notes; index release_kind; pkg info prints them",
+        "init package output passes pkg quality with zero gates",
+        "CreateTarball includes CHANGELOG.md (verified by test)"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M5_SHADOW_DOCS",
+      "description": "Validator structured quality log line + /api/stats v2_clean_streak; docs (packages guide, package-authoring, CHANGELOG v0.40.0); simplicity audit",
+      "estimated_loc": 80,
+      "dependencies": [
+        "M2_VALIDATOR_SHADOW",
+        "M4_RELEASE_CHANGELOG"
+      ],
+      "acceptance_criteria": [
+        "/api/stats exposes v2_clean_streak with a unit test",
+        "docs updated and CHANGELOG entry added",
+        "make ci green; simplicity audit no regression"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
