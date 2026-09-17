@@ -1,0 +1,22 @@
+module string_build
+
+-- perf-sweep probe: the idiomatic-but-quadratic string accumulator
+-- ("${acc}${piece}" in a fold) over 20,000 pieces, versus the linear
+-- join/map form on the same input. The sweep records BOTH so the ratio
+-- shows whether the runtime has gained a builder or fused the pattern.
+import std/list (map, foldl)
+import std/string (join, length)
+
+pure func piece(i: int) -> string = "line ${show(i)}\n"
+pure func acc(a: string, p: string) -> string = "${a}${p}"
+
+export func main() -> int ! {IO} {
+  let pieces = map(piece, build(20000, []));
+  let fast = join("", pieces);
+  let slow = foldl(acc, "", pieces);
+  println("fast=${show(length(fast))} slow=${show(length(slow))}");
+  0
+}
+
+pure func build(n: int, xs: [int]) -> [int] =
+  if n == 0 then xs else build(n - 1, n :: xs)
