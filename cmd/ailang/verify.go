@@ -22,10 +22,22 @@ func verifyCommand() {
 	timeoutFlag := fs.Duration("timeout", 5*time.Second, "Per-function Z3 timeout (hard backstop adds 2s grace)")
 	recursiveDepthFlag := fs.Int("verify-recursive-depth", 2, "Bounded recursion unrolling depth (1-10, 0 to disable)")
 	relaxModulesFlag := fs.Bool("relax-modules", false, "Relax MOD010 validation (allow module path mismatches with warning)")
+	packageFlag := fs.String("package", "", "Verify every exported module of the package at this directory (M-PKG-QUALITY-LADDER)")
+	wallCapFlag := fs.Duration("wall-cap", 0, "With --package: whole-package time cap (0 = unbounded)")
 
 	if err := fs.Parse(os.Args[2:]); err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
 		os.Exit(1)
+	}
+
+	if *packageFlag != "" {
+		verifyPackageCommand(*packageFlag, verifyPackageOptions{
+			Timeout:        *timeoutFlag,
+			RecursiveDepth: *recursiveDepthFlag,
+			Verbose:        *verboseFlag,
+			WallCap:        *wallCapFlag,
+		}, *jsonFlag, *strictFlag)
+		return
 	}
 
 	if fs.NArg() < 1 {
@@ -38,6 +50,8 @@ func verifyCommand() {
 		fmt.Println("  --strict          Exit with error if any function cannot be verified")
 		fmt.Println("  --timeout         Per-function Z3 timeout; hard backstop adds 2s grace (default: 5s)")
 		fmt.Println("  --relax-modules   Relax MOD010 validation (allow module path mismatches)")
+		fmt.Println("  --package <dir>   Verify every exported module of a package (flat or canonical layout)")
+		fmt.Println("  --wall-cap        With --package: whole-package time cap (default: unbounded)")
 		fmt.Println()
 		fmt.Println("Verifies requires/ensures contracts using Z3 SMT solver.")
 		fmt.Println("Returns exit code 0 if all verifiable contracts are proven.")
@@ -146,4 +160,31 @@ func verifyModulesFromPipeline(result pipeline.Result) map[string]smt.VerifyModu
 		mods[path] = smt.VerifyModule{File: mod.File, Core: mod.Core}
 	}
 	return mods
+}
+
+// verifyPackageCommand is the --package arm: Z3 check, verify, print, exit.
+func verifyPackageCommand(dir string, opts verifyPackageOptions, jsonOut, strict bool) {
+	if !smt.Z3Available() {
+		fmt.Fprintf(os.Stderr, "%s Z3 solver not found\n", red("Error:"))
+		os.Exit(1)
+	}
+	if jsonOut {
+		os.Setenv("AILANG_QUIET_WARNINGS", "1")
+	}
+	report, err := verifyPackage(dir, opts)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+	if jsonOut {
+		printPackageVerifyJSON(report)
+	} else {
+		printPackageVerifyHuman(report)
+	}
+	if report.Counterexample > 0 || report.Errors > 0 {
+		os.Exit(1)
+	}
+	if strict && report.Skipped > 0 {
+		os.Exit(1)
+	}
 }

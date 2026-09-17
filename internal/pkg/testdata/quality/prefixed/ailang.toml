@@ -1,0 +1,12 @@
+[package]
+name = "test/prefixed_pkg"
+version = "0.1.0"
+edition = "1"
+module_prefix = "pfx"
+description = "module_prefix package whose files live under the prefix directory (M-PKG-QUALITY-LADDER fixture)"
+
+[exports]
+modules = ["pfx/core"]
+
+[effects]
+max = []
