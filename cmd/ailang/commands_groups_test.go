@@ -196,9 +196,9 @@ func TestGroups_TopLevelHelpIsOneScreen(t *testing.T) {
 // timestamp in the observatory retention log would make every pair "differ"
 // (it did, on this harness's first run).
 func TestGroups_GroupRouteIsByteIdenticalToTheTopLevelSpelling(t *testing.T) {
-	if testing.Short() {
-		t.Skip("builds and runs the binary ~80 times")
-	}
+	// No -short gate (gatelint R1: testing.Short is inert in CI). The binary
+	// is built once per package and each run is a --help, so the ~80
+	// invocations cost seconds, not the build.
 	bin := cliTestBin(t)
 
 	pairs := []struct {
