@@ -1,11 +1,11 @@
 # Sprint Plan: M-PKG-QUALITY-LADDER — Sprint 1 "measure" (M1–M5)
 
-**Design doc**: [m-pkg-quality-ladder.md](m-pkg-quality-ladder.md) (D1–D7 ratified by Mark, attended 2026-09-17)
+**Design doc**: [m-pkg-quality-ladder.md](../../planned/v0_40_0/m-pkg-quality-ladder.md) (Sprints 2–3 still planned) (D1–D7 ratified by Mark, attended 2026-09-17)
 **Sprint ID**: M-PKG-QUALITY-LADDER-S1
 **Target**: v0.40.0
 **Duration**: 3 days (~20 h) · **Risk**: medium (two registry-facing seams; one schema extension)
 **Executor**: attended session 2026-09-17, worktree-isolated, PR to `dev`
-**Status**: ✅ M1–M6 complete 2026-09-17 (M6 added mid-sprint by Mark: package inbox agents)
+**Status**: ✅ IMPLEMENTED in v0.40.0 — M1–M6 complete 2026-09-17 (PR #1255, squash a9ba6931c; follow-ups 239c7b844, 44bec6576, 93da9b7d3, d7bdad2fb, fa5d79221) (M6 added mid-sprint by Mark: package inbox agents)
 
 Sprints 2 ("route", M6–M9) and 3 ("tighten", M10–M12) are outlined at the end and are re-planned
 against Sprint 1's measured outcome (the D6 shadow count), not now.

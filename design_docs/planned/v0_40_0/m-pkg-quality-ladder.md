@@ -1,6 +1,6 @@
 # M-PKG-QUALITY-LADDER: Package Quality Gates, an Intent × Measured-Class Approval Ladder, and Staged Effect Tightening
 
-**Status**: Planned
+**Status**: Sprint 1 IMPLEMENTED (v0.40.0, PR #1255 + follow-ups — [sprint plan](../../implemented/v0_40_0/m-pkg-quality-ladder-sprint-plan.md)); Sprints 2–3 planned, gated on the D6 shadow count
 **Target**: v0.40.0 (Sprint 1), v0.40.x (Sprint 2), v0.41.0 (Sprint 3)
 **Priority**: P1 — High. The registry's two strongest quality signals (Z3 contracts, interface identity) are currently measuring nothing, and the autonomous cascade has been dormant for four months. Nothing is *blocked*, which is exactly why it has gone unnoticed.
 **Estimated**: 3 sprints, ~9 days total (Sprint 1: 3 days · Sprint 2: 3 days · Sprint 3: 3 days). Each sprint is independently shippable.
