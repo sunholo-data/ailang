@@ -2,7 +2,7 @@
 # CODE HEALTH & ORGANIZATION TARGETS
 # =============================================================================
 
-.PHONY: check-file-sizes report-file-sizes codebase-health largest-files check-pi-wire-budget check-prompt-freeze check-referenced-paths check-architecture-closure gen-architecture-closure simplicity-metrics simplicity-metrics-fast simplicity-audit simplicity-audit-fast
+.PHONY: check-file-sizes report-file-sizes codebase-health largest-files check-pi-wire-budget check-prompt-freeze check-referenced-paths check-architecture-closure gen-architecture-closure simplicity-metrics simplicity-metrics-fast simplicity-audit simplicity-audit-fast perf-sweep perf-sweep-quick perf-sweep-control
 .PHONY: fmt fmt-check fmt-check-ail shellcheck-autopush vet lint install-lint
 
 check-referenced-paths: ## Check that referenced tools/scripts paths exist and are tracked
@@ -310,3 +310,12 @@ check-architecture-closure: ## Check ARCHITECTURE.md's generated language-closur
 
 gen-architecture-closure: ## Regenerate ARCHITECTURE.md's language-closure section from go list -deps
 	@/bin/bash scripts/gen_architecture_closure.sh
+
+perf-sweep: ## Monthly: runtime latency + peak-RSS + alloc/op, diff vs last banked snapshot, exit 2 on regression (perf-sweep skill)
+	@/bin/bash .claude/skills/perf-sweep/scripts/sweep.sh
+
+perf-sweep-quick: ## Same, 3 workload runs and count=1 benches (~2 min)
+	@/bin/bash .claude/skills/perf-sweep/scripts/sweep.sh --quick
+
+perf-sweep-control: ## Positive control: the sweep must report WORSE and exit 2 on a planted regression
+	@/bin/bash .claude/skills/perf-sweep/scripts/sweep.sh --quick --control
