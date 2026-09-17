@@ -7,68 +7,98 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/executor"
 	"github.com/sunholo-data/ailang/internal/messaging"
 	"github.com/sunholo-data/ailang/internal/pkg"
 )
 
 // M-PKG-QUALITY-LADDER M6 — every published package gets an agent inbox.
 //
-// The plane config declares ONE template agent whose inbox is exactly
-// `pkg:*` (the catch-all pattern the registry already supports). At load and
-// on refresh, the registry index is read and, for every package that has a
-// parseable metadata.repository and no exact `pkg:<name>` agent of its own, a
-// per-package agent is derived from the template: id pkg-<vendor>-<name>,
-// inbox pkg:<name>, workspace / merge_branch / subdirectory /
-// artifact_patterns from the repository URL. Hand-written entries always win
-// (Register refuses a duplicate inbox), so nothing already configured moves.
+// The plane config declares ONE `package_agent_template` section (not an
+// agent: it serves no inbox, so a `pkg:` inbox for a package that is not in
+// the registry stays a visible typo). At load and on refresh, the registry
+// index is read and, for every package with no exact `pkg:<name>` agent of
+// its own, a per-package agent is derived from the template: id
+// pkg-<vendor>-<name>, inbox pkg:<name>, workspace / merge_branch /
+// subdirectory / artifact_patterns from metadata.repository. Hand-written
+// entries always win (Register refuses a duplicate inbox), so nothing already
+// configured moves.
 //
 // Measured 2026-09-17: 53 packages, 29 hand-written pkg agents + one
 // motoko_ext_* family pattern, 12 packages with no inbox at all — messages to
 // them were accepted and never dispatched.
 
-// PackageAgentTemplateInbox is the inbox pattern that marks the template.
-const PackageAgentTemplateInbox = "pkg:*"
-
 // packageAgentRefresh bounds how often a daemon re-reads the index.
 const packageAgentRefresh = 10 * time.Minute
 
-// PackageAgentTemplate returns the `pkg:*` template agent, or nil when the
-// config declares none (then no derivation happens — the feature is opt-in
-// by declaring the template).
+// SetPackageAgentTemplate installs the `package_agent_template` section.
+// nil disables derivation (the feature is opt-in by declaring the section).
+func (r *AgentRegistry) SetPackageAgentTemplate(t *AgentConfig) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.packageTemplate = t
+}
+
+// PackageAgentTemplate returns the installed template, or nil.
 func (r *AgentRegistry) PackageAgentTemplate() *AgentConfig {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	for _, w := range r.wildcards {
-		if w.prefix == strings.TrimSuffix(PackageAgentTemplateInbox, "*") {
-			return w.agent
-		}
-	}
-	return nil
+	return r.packageTemplate
 }
 
 // DerivePackageAgent builds the per-package agent from the template and the
-// package's index entry. ok=false when the entry has no usable repository.
+// package's index entry. A package whose metadata.repository is not a GitHub
+// tree URL still gets an agent — on the template's own workspace, the same
+// guess a hand-written entry would have made — because the package EXISTS
+// and its inbox must dispatch; `pkg quality` flags it (PUB021). ok=false only
+// without a template or a name.
 func DerivePackageAgent(template *AgentConfig, entry pkg.IndexEntry) (*AgentConfig, bool) {
-	ref, ok := pkg.ParseRepositoryURL(entry.Repository)
-	if !ok || template == nil {
+	if template == nil || entry.Name == "" {
 		return nil, false
 	}
 	derived := *template // shallow copy; slices below are re-allocated
 	derived.ID = pkg.PackageAgentID(entry.Name)
+	derived.Inbox = messaging.FormatPackageInbox(entry.Name) // registry spelling: underscores, never the repo dir's hyphens
+	derived.Capabilities = append([]string(nil), template.Capabilities...)
+	derived.ArtifactPatterns = append([]string(nil), template.ArtifactPatterns...)
+	ref, ok := pkg.ParseRepositoryURL(entry.Repository)
+	if !ok {
+		derived.Label = "Package: " + entry.Name + " (derived from registry; repository unknown — template workspace)"
+		return &derived, true
+	}
 	derived.Label = "Package: " + entry.Name + " (derived from registry)"
-	derived.Inbox = messaging.FormatPackageInbox(entry.Name)
 	derived.Workspace = ref.Workspace
 	if ref.Branch != "" {
 		derived.MergeBranch = ref.Branch
 	}
 	derived.Subdirectory = ref.Subdirectory
+	// artifact_patterns are what the merge guard reads; unset means `**/*`,
+	// which bounds nothing. Monorepo package → its subdirectory; the repo IS
+	// the package → `**/*` is the honest bound, stated rather than defaulted.
 	if ref.Subdirectory != "" {
 		derived.ArtifactPatterns = []string{ref.Subdirectory + "/**/*"}
 	} else {
-		derived.ArtifactPatterns = append([]string(nil), template.ArtifactPatterns...)
+		derived.ArtifactPatterns = []string{"**/*"}
 	}
-	derived.Capabilities = append([]string(nil), template.Capabilities...)
 	return &derived, true
+}
+
+// templateUsable refuses a template that would derive agents dispatch cannot
+// run: a `pkg:` inbox defaults to the ailang_only lane, and that lane executes
+// nothing without a policy_path (dispatch fails closed since 2026-09-17). A
+// generator that forgets policy_path produces an agent that can read and
+// write files and run nothing — measured by the message-plane session; see
+// design_docs/planned/HANDOVER-package-agent-autoprovision.md.
+func templateUsable(t *AgentConfig) error {
+	probe := *t
+	probe.Inbox = messaging.FormatPackageInbox("probe/probe")
+	if lane := probe.GetEffectiveToolPolicy(); lane != executor.ToolProfileFull && strings.TrimSpace(t.PolicyPath) == "" {
+		return fmt.Errorf("package_agent_template runs the %s lane but declares no policy_path — derived agents could execute nothing; add policy_path (e.g. /etc/ailang-config/policies/pkg-ailang-only.toml)", lane)
+	}
+	if strings.TrimSpace(t.Workspace) == "" {
+		return fmt.Errorf("package_agent_template declares no workspace — a package without a parseable repository would have nowhere to run")
+	}
+	return nil
 }
 
 // MaterializePackageAgents registers a derived agent for every index package
@@ -77,6 +107,10 @@ func DerivePackageAgent(template *AgentConfig, entry pkg.IndexEntry) (*AgentConf
 func (r *AgentRegistry) MaterializePackageAgents(index *pkg.RegistryIndex) []string {
 	template := r.PackageAgentTemplate()
 	if template == nil || index == nil {
+		return nil
+	}
+	if err := templateUsable(template); err != nil {
+		log.Printf("package agents: %v — deriving nothing", err)
 		return nil
 	}
 	var added []string
@@ -110,9 +144,10 @@ func (r *AgentRegistry) hasExactInbox(inbox string) bool {
 }
 
 // MaterializePackageAgentsFromRegistry fetches the live index and materializes.
-// Best-effort by design: an unreachable registry leaves the `pkg:*` template
-// serving new packages with ITS workspace (the packages monorepo), which is
-// the same guess a hand-written entry would have made — and it is logged.
+// Best-effort by design: an unreachable registry means no derivation this
+// round — a package inbox stays unserved (visible in `messages inboxes`)
+// rather than dispatching on a guess — and it is logged; the daemon retries
+// on its next refresh.
 func (r *AgentRegistry) MaterializePackageAgentsFromRegistry(logf func(string, ...interface{})) []string {
 	if r.PackageAgentTemplate() == nil {
 		return nil
@@ -122,7 +157,7 @@ func (r *AgentRegistry) MaterializePackageAgentsFromRegistry(logf func(string, .
 	}
 	index, err := pkg.NewRegistryClient().FetchIndex()
 	if err != nil {
-		logf("package agents: registry index unavailable (%v) — new packages fall back to the pkg:* template's workspace", err)
+		logf("package agents: registry index unavailable (%v) — no package agents derived this round", err)
 		return nil
 	}
 	added := r.MaterializePackageAgents(index)
@@ -154,7 +189,7 @@ func PackageInboxStatus(entry pkg.IndexEntry) string {
 		return fmt.Sprintf("derived from registry (%s)", entry.Repository)
 	}
 	if entry.Repository == "" {
-		return "no metadata.repository — served by the pkg:* template's default workspace"
+		return "no metadata.repository — derived on the package_agent_template's default workspace"
 	}
-	return fmt.Sprintf("metadata.repository %q is not a GitHub tree URL — served by the pkg:* template's default workspace", entry.Repository)
+	return fmt.Sprintf("metadata.repository %q is not a GitHub tree URL — derived on the package_agent_template's default workspace", entry.Repository)
 }

@@ -1,6 +1,7 @@
 package coordinator
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/pkg"
@@ -8,10 +9,27 @@ import (
 
 func pkgTemplate() *AgentConfig {
 	return &AgentConfig{
-		ID: "pkg-registry-template", Label: "Package template", Inbox: PackageAgentTemplateInbox,
+		Label:     "Package template",
 		Workspace: "sunholo-data/ailang-packages", MergeBranch: "main",
 		Capabilities: []string{"code", "test"}, ArtifactPatterns: []string{"packages/**/*"},
-		Provider: "pi", ToolPolicy: "ailang_only",
+		Provider: "pi", ToolPolicy: "ailang_only", PolicyPath: "/etc/ailang-config/policies/pkg-ailang-only.toml",
+	}
+}
+
+// A template on the ailang_only lane without a policy_path would derive agents
+// that can execute nothing (dispatch refuses them): derive nothing, loudly.
+func TestMaterializePackageAgents_RefusesLaneWithoutPolicy(t *testing.T) {
+	reg := NewAgentRegistry()
+	tmpl := pkgTemplate()
+	tmpl.PolicyPath = ""
+	tmpl.ToolPolicy = "" // defaults to ailang_only for a pkg: inbox
+	reg.SetPackageAgentTemplate(tmpl)
+	if added := reg.MaterializePackageAgents(sampleIndex()); len(added) != 0 {
+		t.Fatalf("derived %v from a template with no policy_path", added)
+	}
+	tmpl.ToolPolicy = "full" // a shell lane needs no policy file
+	if added := reg.MaterializePackageAgents(sampleIndex()); len(added) == 0 {
+		t.Fatal("full-lane template without policy_path should derive")
 	}
 }
 
@@ -28,9 +46,7 @@ func sampleIndex() *pkg.RegistryIndex {
 // agent whose inbox, workspace and subdirectory follow its repository URL.
 func TestMaterializePackageAgents_DerivesFromIndex(t *testing.T) {
 	reg := NewAgentRegistry()
-	if err := reg.Register(pkgTemplate()); err != nil {
-		t.Fatal(err)
-	}
+	reg.SetPackageAgentTemplate(pkgTemplate())
 	// Hand-written entry for sunholo/email must win over derivation.
 	hand := &AgentConfig{ID: "pkg-sunholo-email", Inbox: "pkg:sunholo/email", Workspace: "sunholo-data/email-parse", Subdirectory: "packages/email", Label: "hand"}
 	if err := reg.Register(hand); err != nil {
@@ -38,7 +54,7 @@ func TestMaterializePackageAgents_DerivesFromIndex(t *testing.T) {
 	}
 
 	added := reg.MaterializePackageAgents(sampleIndex())
-	if len(added) != 2 || added[0] != "pkg-sunholo-daneel-ext-help" || added[1] != "pkg-sunholo-gcp-auth" {
+	if len(added) != 3 || added[0] != "pkg-sunholo-daneel-ext-help" || added[1] != "pkg-sunholo-gcp-auth" || added[2] != "pkg-sunholo-logging" {
 		t.Fatalf("added = %v", added)
 	}
 
@@ -46,15 +62,26 @@ func TestMaterializePackageAgents_DerivesFromIndex(t *testing.T) {
 	if a == nil || a.ID != "pkg-sunholo-daneel-ext-help" || a.Workspace != "sunholo-data/daneel" || a.Subdirectory != "ext/help" || a.MergeBranch != "main" {
 		t.Errorf("derived daneel agent = %+v", a)
 	}
-	if a.Provider != "pi" || a.ToolPolicy != "ailang_only" || len(a.ArtifactPatterns) != 1 || a.ArtifactPatterns[0] != "ext/help/**/*" {
+	if a.Provider != "pi" || a.ToolPolicy != "ailang_only" || a.PolicyPath == "" || len(a.ArtifactPatterns) != 1 || a.ArtifactPatterns[0] != "ext/help/**/*" {
 		t.Errorf("template fields not carried: %+v", a)
+	}
+	// Repo-is-the-package: `**/*` stated explicitly, not left to default.
+	if root, ok := DerivePackageAgent(pkgTemplate(), pkg.IndexEntry{Name: "sunholo/ailang_parse", Repository: "https://github.com/sunholo-data/ailang-parse"}); !ok || root.Subdirectory != "" || len(root.ArtifactPatterns) != 1 || root.ArtifactPatterns[0] != "**/*" || root.MergeBranch != "main" {
+		t.Errorf("root-package derivation = %+v", root)
 	}
 	if got := reg.GetAgentForInbox("pkg:sunholo/email"); got == nil || got.Label != "hand" {
 		t.Errorf("hand-written agent must win: %+v", got)
 	}
-	// No repository: falls through to the template pattern, not a wrong repo.
-	if got := reg.GetAgentForInbox("pkg:sunholo/logging"); got == nil || got.ID != "pkg-registry-template" {
-		t.Errorf("repository-less package should be served by the template: %+v", got)
+	// No repository: the package EXISTS, so it gets its own agent on the
+	// template's workspace (and PUB021 on publish) — never left unserved.
+	if got := reg.GetAgentForInbox("pkg:sunholo/logging"); got == nil || got.ID != "pkg-sunholo-logging" || got.Workspace != "sunholo-data/ailang-packages" || got.Subdirectory != "" {
+		t.Errorf("repository-less package should get a derived agent on the template workspace: %+v", got)
+	}
+	// A package that is NOT in the registry is a sender typo: the template
+	// must not swallow it into a task on the wrong repo (the config's
+	// deliberate "typos bounce" control).
+	if got := reg.GetAgentForInbox("pkg:sunholo/emial"); got != nil {
+		t.Errorf("typo inbox must stay unserved, got %+v", got)
 	}
 	// Idempotent.
 	if again := reg.MaterializePackageAgents(sampleIndex()); len(again) != 0 {
@@ -71,18 +98,47 @@ func TestMaterializePackageAgents_NoTemplateIsNoop(t *testing.T) {
 	reg := NewAgentRegistry()
 	_ = reg.Register(&AgentConfig{ID: "x", Inbox: "pkg:sunholo/motoko_ext_*", Workspace: "w"}) // a family pattern is not the template
 	if added := reg.MaterializePackageAgents(sampleIndex()); len(added) != 0 {
-		t.Fatalf("no pkg:* template but derived %v", added)
+		t.Fatalf("no template but derived %v", added)
 	}
 	if reg.PackageAgentTemplate() != nil {
-		t.Error("a family pattern must not be mistaken for the pkg:* template")
+		t.Error("a family pattern must not be mistaken for the template")
 	}
 }
 
-func TestDerivePackageAgent_RefusesNonGitHub(t *testing.T) {
-	if _, ok := DerivePackageAgent(pkgTemplate(), pkg.IndexEntry{Name: "v/n", Repository: "https://gitlab.com/v/n"}); ok {
-		t.Error("non-GitHub repository must not derive an agent")
+// The template is a config SECTION, not an agent: loading a config that
+// declares it must not register an agent or serve any inbox by itself.
+func TestBuildRegistryFromConfig_TemplateIsNotAnAgent(t *testing.T) {
+	cfg := &CoordinatorConfig{
+		Agents:               []*AgentConfig{{ID: "a", Inbox: "sprint-executor", Workspace: "w"}},
+		PackageAgentTemplate: pkgTemplate(),
+	}
+	// Point the registry client at nothing reachable so materialization is a
+	// logged no-op rather than a network call in a unit test.
+	t.Setenv("AILANG_REGISTRY", "http://127.0.0.1:9/nope")
+	reg, err := buildRegistryFromConfig(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reg.Count() != 1 {
+		t.Errorf("template must not be registered as an agent: %d agents", reg.Count())
+	}
+	if reg.GetAgentForInbox("pkg:sunholo/typo") != nil {
+		t.Error("an undeclared pkg: inbox must stay unserved (typos bounce)")
+	}
+	if reg.PackageAgentTemplate() == nil {
+		t.Error("template not installed on the registry")
+	}
+}
+
+func TestDerivePackageAgent_NonGitHubKeepsTemplateWorkspace(t *testing.T) {
+	a, ok := DerivePackageAgent(pkgTemplate(), pkg.IndexEntry{Name: "v/n", Repository: "https://gitlab.com/v/n"})
+	if !ok || a.Workspace != "sunholo-data/ailang-packages" || a.Inbox != "pkg:v/n" || !strings.Contains(a.Label, "repository unknown") {
+		t.Errorf("non-GitHub repository must derive on the template workspace and say so: %+v", a)
 	}
 	if _, ok := DerivePackageAgent(nil, pkg.IndexEntry{Name: "v/n", Repository: "https://github.com/v/n"}); ok {
 		t.Error("nil template must not derive")
+	}
+	if _, ok := DerivePackageAgent(pkgTemplate(), pkg.IndexEntry{}); ok {
+		t.Error("nameless entry must not derive")
 	}
 }

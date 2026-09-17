@@ -299,6 +299,10 @@ type AgentRegistry struct {
 	// deliberate: anonymous input is not handed to something that acts on it,
 	// and Discord is the routing (verified delivering the same day).
 	triageOnly map[string]bool
+
+	// packageTemplate is the `package_agent_template` config section
+	// (M-PKG-QUALITY-LADDER M6); nil = no derivation.
+	packageTemplate *AgentConfig
 }
 
 // wildcardEntry is one trailing-`*` inbox pattern and the agent serving it.

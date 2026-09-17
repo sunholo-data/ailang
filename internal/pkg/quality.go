@@ -289,7 +289,7 @@ func BuildQualityReport(m *PackageManifest, mode QualityMode, in QualityInputs, 
 		r.badge("PUB020", "info", "no AGENT.md — agents get no usage guidance for this package")
 	}
 	// M6: the package's inbox agent is DERIVED from metadata.repository; without
-	// a GitHub tree URL the inbox is served by the pkg:* template's default
+	// a GitHub tree URL the derived agent uses the package_agent_template's default
 	// workspace, which may be the wrong repo.
 	repoURL, _ := m.Metadata["repository"].(string)
 	if _, ok := ParseRepositoryURL(repoURL); !ok {

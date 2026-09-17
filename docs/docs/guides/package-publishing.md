@@ -110,8 +110,9 @@ gets a badge today (shadow mode); `GET /api/stats` reports `v2_clean_streak`.
 Every published package has an agent inbox, `pkg:<vendor>/<name>`, derived from
 `[metadata] repository` — a GitHub tree URL such as
 `https://github.com/sunholo-data/ailang-packages/tree/main/packages/gcp-auth`. Without a
-parseable URL the inbox is served by the fleet's `pkg:*` template with its default workspace
-(`PUB021` warns). See the autonomous-package-updates guide.
+parseable URL the derived agent uses the fleet's `package_agent_template` default workspace
+(`PUB021` warns). A `pkg:` inbox for a package that is not in the registry is served by nothing —
+a typo stays visible. See the autonomous-package-updates guide.
 
 ---
 

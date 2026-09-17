@@ -104,7 +104,7 @@
     },
     {
       "id": "M6_PACKAGE_INBOX_AGENTS",
-      "description": "Every published package gets an agent inbox: pkg:* template agent + per-package agents derived from the registry index (metadata.repository) at load / every 10 min / in CLI readouts; PUB021 when the URL cannot be parsed. Added mid-sprint by Mark 2026-09-17.",
+      "description": "Every published package gets an agent inbox: package_agent_template section + per-package agents derived from the registry index (metadata.repository) at load / every 10 min / in CLI readouts; PUB021 when the URL cannot be parsed. Added mid-sprint by Mark 2026-09-17.",
       "estimated_loc": 300,
       "dependencies": [
         "M3_PKG_QUALITY"
@@ -114,7 +114,7 @@
         "hand-written entries win; idempotent; no template = no-op",
         "daemon refreshes every 10 min; CLI registry loads see derived agents",
         "PUB021 badge when repository is not a GitHub tree URL",
-        "follow-up: pkg:* template in ailang-multivac config.cloud.yaml"
+        "follow-up: package_agent_template section in ailang-multivac config.cloud.yaml"
       ],
       "passes": true,
       "started": "2026-09-17T18:38:51Z",

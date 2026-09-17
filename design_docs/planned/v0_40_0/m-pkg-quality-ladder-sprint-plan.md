@@ -91,7 +91,7 @@ Acceptance:
 
 Measured: 29 hand-written `pkg-*` agents + one `pkg:sunholo/motoko_ext_*` family pattern serve 41/53 packages; **12 packages have no inbox** — a message to them is accepted and never dispatched (the `sunholo/email` incident of 2026-09-07). Every hand-written entry differs only in id/label/inbox/workspace/subdirectory/artifact_patterns, all derivable from `metadata.repository`.
 
-Tasks: `pkg.ParseRepositoryURL` + `PackageAgentID`; `AgentRegistry.MaterializePackageAgents(index)` clones the `pkg:*` template per index package lacking an exact agent (hand-written wins, idempotent); daemon init + 10-min refresh; `buildRegistryFromConfig` materializes for the CLI readouts; `PUB021` badge when the URL is unparseable. **Follow-up outside this repo:** add the `pkg:*` template agent to `ailang-multivac/config/config.cloud.yaml` (id `pkg-registry-template`, workspace `sunholo-data/ailang-packages`, the standard `ailang_only` pi lane).
+Tasks: `pkg.ParseRepositoryURL` + `PackageAgentID`; `AgentRegistry.MaterializePackageAgents(index)` clones the `package_agent_template` config section (not an agent: it serves no inbox, so typo inboxes still bounce) per index package lacking an exact agent (hand-written wins, idempotent); daemon init + 10-min refresh; `buildRegistryFromConfig` materializes for the CLI readouts; `PUB021` badge when the URL is unparseable. **Follow-up outside this repo:** add the `package_agent_template:` section to `ailang-multivac/config/config.cloud.yaml` (workspace `sunholo-data/ailang-packages`, the standard `ailang_only` pi lane).
 
 Acceptance:
 - [x] Derived agent carries inbox/workspace/subdirectory/merge_branch from the URL; template fields (provider, policy) carried; slices not shared.
