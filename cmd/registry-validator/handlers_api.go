@@ -37,6 +37,13 @@ type EcosystemStats struct {
 	TopDependedOn        []DependentCount `json:"top_depended_on"`
 	PurePackages         int              `json:"pure_packages"`
 	AgentVsHuman         AgentHumanCount  `json:"agent_vs_human"`
+	// M-PKG-QUALITY-LADDER M5 — the D6 shadow-mode readout, per validator
+	// instance: consecutive publishes whose signature identity (v2) built
+	// cleanly, and total v2 failures since start. N=20 clean flips PUB005 to a gate.
+	V2CleanStreak int `json:"v2_clean_streak"`
+	V2Failures    int `json:"v2_failures"`
+	// PackagesWithContracts counts index entries with contracts_total > 0.
+	PackagesWithContracts int `json:"packages_with_contracts"`
 }
 
 // DependentCount tracks how many packages depend on a given package.
@@ -162,6 +169,9 @@ func (v *validator) handleAPIStats(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, http.StatusInternalServerError, "Failed to compute stats: %v", err)
 		return
 	}
+	out := *stats // the cached struct is shared; the streak is live per instance
+	out.V2CleanStreak, out.V2Failures = v.v2Outcomes()
+	stats = &out
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "public, max-age=120")

@@ -64,21 +64,22 @@ func pkgInfoCommand(args []string) error {
 
 	var detail struct {
 		Index struct {
-			Name       string   `json:"name"`
-			Latest     string   `json:"latest"`
-			Versions   []string `json:"versions"`
-			AISummary  string   `json:"ai_summary"`
-			Tags       []string `json:"tags"`
-			Effects    []string `json:"effects"`
-			Stability  string   `json:"stability"`
-			Exports    []string `json:"exports"`
-			HasAgent   bool     `json:"has_agent_doc"`
-			Deps       []string `json:"dependencies"`
-			LastUpdate string   `json:"last_updated"`
-			UpdatedBy  string   `json:"updated_by"`
-			Repository string   `json:"repository"`
-			Homepage   string   `json:"homepage"`
-			LicenseURL string   `json:"license_url"`
+			Name        string   `json:"name"`
+			Latest      string   `json:"latest"`
+			Versions    []string `json:"versions"`
+			AISummary   string   `json:"ai_summary"`
+			Tags        []string `json:"tags"`
+			Effects     []string `json:"effects"`
+			Stability   string   `json:"stability"`
+			Exports     []string `json:"exports"`
+			HasAgent    bool     `json:"has_agent_doc"`
+			Deps        []string `json:"dependencies"`
+			LastUpdate  string   `json:"last_updated"`
+			UpdatedBy   string   `json:"updated_by"`
+			Repository  string   `json:"repository"`
+			Homepage    string   `json:"homepage"`
+			LicenseURL  string   `json:"license_url"`
+			ReleaseKind string   `json:"release_kind"`
 		} `json:"index"`
 		Versions []struct {
 			Version  string `json:"version"`
@@ -122,6 +123,9 @@ func pkgInfoCommand(args []string) error {
 		fmt.Printf("  Tags:       %s\n", strings.Join(idx.Tags, ", "))
 	}
 	fmt.Printf("  AGENT.md:   %v\n", idx.HasAgent)
+	if idx.ReleaseKind != "" {
+		fmt.Printf("  Release:    %s\n", idx.ReleaseKind)
+	}
 	if idx.Repository != "" {
 		fmt.Printf("  Repository: %s\n", idx.Repository)
 	}
@@ -226,6 +230,13 @@ func pkgVersionsCommand(args []string) error {
 					ContractsVerified int  `json:"contracts_verified"`
 					ContractsTotal    int  `json:"contracts_total"`
 				} `json:"validation"`
+				// M-PKG-QUALITY-LADDER M4: what the version changed.
+				Quality *struct {
+					Release struct {
+						Kind  string `json:"kind"`
+						Notes string `json:"notes"`
+					} `json:"release"`
+				} `json:"quality,omitempty"`
 			} `json:"metadata,omitempty"`
 		} `json:"versions"`
 	}
@@ -268,6 +279,14 @@ func pkgVersionsCommand(args []string) error {
 			}
 			fmt.Printf("  Validation: %s compiles  %s effects  %d/%d contracts\n",
 				compileIcon, effectIcon, m.Validation.ContractsVerified, m.Validation.ContractsTotal)
+			if m.Quality != nil && (m.Quality.Release.Kind != "" || m.Quality.Release.Notes != "") {
+				fmt.Printf("  Release:    %s\n", orDash(m.Quality.Release.Kind))
+				for _, line := range strings.Split(strings.TrimSpace(m.Quality.Release.Notes), "\n") {
+					if line != "" {
+						fmt.Printf("              %s\n", line)
+					}
+				}
+			}
 
 			// Hashes
 			fmt.Printf("  Content:    %s\n", truncHash(m.ContentHash))

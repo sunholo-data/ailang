@@ -1,0 +1,21 @@
+module test/flatself/settle
+
+import ./types (Money, mkMoney)
+
+-- Cap a non-negative amount at a non-negative ceiling.
+export pure func capAt(amount: int, cap: int) -> int
+  requires { amount >= 0 && cap >= 0 }
+  ensures { result <= cap && result >= 0 }
+{
+  if amount < cap then amount else cap
+}
+
+-- Full periods in daysLate (floor division).
+export pure func floorPeriods(daysLate: int, period: int) -> int
+  requires { daysLate >= 0 && period > 0 }
+  ensures { result >= 0 && result * period <= daysLate }
+{
+  daysLate / period
+}
+
+export pure func asMoney(cents: int) -> Money = mkMoney(cents)

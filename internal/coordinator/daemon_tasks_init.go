@@ -118,6 +118,10 @@ func (d *Daemon) initTaskProcessing() error {
 			d.logger.Printf("Warning: Failed to register pipeline agent %q: %v", agent.ID, regErr)
 		}
 	}
+	// M-PKG-QUALITY-LADDER M6: derive a per-package agent for every published
+	// package the config does not name, from `package_agent_template` (if any).
+	d.agentRegistry.SetPackageAgentTemplate(coordConfig.PackageAgentTemplate)
+	d.refreshPackageAgents()
 	if len(expandedAgents) > 0 {
 		d.logger.Printf("Pipeline expansion: %d agent(s) from %d pipeline(s)", len(expandedAgents), len(coordConfig.Pipelines))
 	}

@@ -56,7 +56,7 @@ func isResultMessageType(t string) bool { return resultMessageTypes[t] }
 
 func runMessagesHealth(args []string) {
 	fs := flag.NewFlagSet("messages health", flag.ExitOnError)
-	registryPath := fs.String("registry", "", "Agent config to judge routing against (default: ~/.ailang/config.yaml)")
+	registryPath := fs.String("registry", "", "Agent config to judge routing against: a path, or `cloud` for the plane's own registry (default: $AILANG_CONFIG if it declares agents, else the plane's, else ~/.ailang/config.yaml)")
 	strict := fs.Bool("strict", false, "Exit non-zero when the verdict is not HEALTHY (for CI / the morning report)")
 	since := fs.String("since", "24h", "Window the verdict judges: 24h, 7d, 90m, or 0 for all time")
 	asJSON := fs.Bool("json", false, "Emit the summary as JSON (for hooks and agents)")

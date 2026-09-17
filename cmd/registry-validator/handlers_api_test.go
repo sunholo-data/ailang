@@ -394,3 +394,33 @@ func TestCacheInvalidate(t *testing.T) {
 		t.Error("expected packages to be empty after invalidation")
 	}
 }
+
+// M-PKG-QUALITY-LADDER M5: /api/stats carries the D6 shadow readout live from
+// the instance, not from the cached index snapshot.
+func TestAPIStats_CarriesV2Streak(t *testing.T) {
+	v := &validator{cache: newRegistryCache(nil, time.Minute)}
+	v.cache.stats = &EcosystemStats{TotalPackages: 1}
+	v.cache.index = &pkg.RegistryIndex{}
+	v.cache.indexAt = time.Now()
+	v.recordV2Outcome(true)
+	v.recordV2Outcome(true)
+	v.recordV2Outcome(false)
+	v.recordV2Outcome(true)
+
+	req := httptest.NewRequest("GET", "/api/stats", nil)
+	w := httptest.NewRecorder()
+	v.handleAPIStats(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("code = %d: %s", w.Code, w.Body.String())
+	}
+	var got EcosystemStats
+	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.V2CleanStreak != 1 || got.V2Failures != 1 {
+		t.Errorf("streak/failures = %d/%d, want 1/1 (a failure resets the streak)", got.V2CleanStreak, got.V2Failures)
+	}
+	if v.cache.stats.V2CleanStreak != 0 {
+		t.Error("handler must not write the live streak into the shared cached struct")
+	}
+}
