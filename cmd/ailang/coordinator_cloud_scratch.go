@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/sunholo-data/ailang/internal/coordinator"
 	"github.com/sunholo-data/ailang/internal/gitexec"
 )
 
@@ -17,7 +18,10 @@ import (
 // probes inside an otherwise correct PR. artifact_patterns cannot do this —
 // the wrapper reads them only to decide auto-mergeability, never to bound the
 // commit (branchIsAutoMergeable) — so the exclusion is a pathspec here.
-const ScratchDir = ".ailang-scratch"
+// It is coordinator.ScratchDirName so the commit pathspec and the changed-file
+// list cannot drift: artifact discovery drops the same directory, which is what
+// keeps the approval card describing the branch.
+const ScratchDir = coordinator.ScratchDirName
 
 // stageForCommit stages every change under workDir except ScratchDir and
 // reports whether anything is actually staged. A tree whose only changes are

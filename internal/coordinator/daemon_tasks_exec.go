@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/config"
+	"github.com/sunholo-data/ailang/internal/executor"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 )
 
@@ -271,6 +272,20 @@ func (d *Daemon) dispatchTasksCloud() error {
 						continue
 					}
 					params.PolicyTOML = string(toml)
+				}
+				// Same refusal when the policy was never CONFIGURED. An unreadable
+				// path already fails closed; an absent one used to dispatch a job
+				// whose ailang_run denies every program by default — the model then
+				// spends its turns discovering it cannot execute anything, and the
+				// run banks as a model failure.
+				//
+				// This is load-bearing now that a `pkg:` inbox DEFAULTS to the lane
+				// (GetEffectiveToolPolicy): a package agent added without a
+				// policy_path would inherit the restriction and not the authority.
+				if params.ToolPolicy != executor.ToolProfileFull && params.PolicyTOML == "" {
+					d.logger.Printf("ERROR: task %s not dispatched: agent %s runs the %q lane with no policy_path, so ailang_run would refuse every program. Add policy_path (the package lane uses /etc/ailang-config/policies/pkg-ailang-only.toml), or declare tool_policy: full if this agent really needs a shell.",
+						task.ID, agent.ID, params.ToolPolicy)
+					continue
 				}
 				if agent.GitIdentity != nil {
 					params.GitAuthorName = agent.GitIdentity.Name
