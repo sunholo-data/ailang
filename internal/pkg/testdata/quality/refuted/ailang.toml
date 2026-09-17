@@ -1,0 +1,10 @@
+[package]
+name = "test/refuted"
+version = "0.1.0"
+edition = "1"
+
+[exports]
+modules = ["test/refuted/math"]
+
+[effects]
+max = []

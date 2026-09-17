@@ -28,7 +28,7 @@ func DefaultPublishLimits() PublishLimits {
 	return PublishLimits{
 		Overall:            60 * time.Second,
 		PerModule:          10 * time.Second,
-		MaxExportedModules: 64,
+		MaxExportedModules: 128, // sunholo/ailang_parse exports 56 (M-PKG-QUALITY-LADDER raised from 64)
 	}
 }
 

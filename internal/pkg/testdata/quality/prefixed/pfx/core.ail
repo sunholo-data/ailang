@@ -1,0 +1,7 @@
+module pfx/core
+
+export pure func double(x: int) -> int
+  ensures { result == x * 2 }
+{
+  x * 2
+}

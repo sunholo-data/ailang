@@ -62,6 +62,7 @@ func CreateTarball(packageDir string) ([]byte, error) {
 		case rel == ManifestFile,
 			strings.HasSuffix(rel, ".ail"),
 			rel == "AGENT.md",
+			rel == ChangelogFile, // M-PKG-QUALITY-LADDER M4
 			strings.HasPrefix(relForward, AssetsDir+"/"):
 			files = append(files, relForward)
 		}

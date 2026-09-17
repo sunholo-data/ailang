@@ -1,0 +1,81 @@
+{
+  "sprint_id": "M-SECONDARY-MODEL-FALLBACK",
+  "status": "pending",
+  "created": "2026-09-17T00:00:00Z",
+  "design_doc": "design_docs/planned/m-secondary-model-fallback.md",
+  "sprint_plan": "design_docs/planned/m-secondary-model-fallback-sprint-plan.md",
+  "github_issues": [],
+  "velocity": {
+    "target_loc_per_day": 367,
+    "estimated_total_loc": 1100,
+    "estimated_days": 3
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Add explicit fallback_models chain schema, bounded policy constants, exact failure classification, and fail-closed startup validation for registry identity, harness, duplicates, length, and price ratio",
+      "estimated_loc": 300,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "model A plus fallback_models B resolves exactly [A,B], while pinned agents without tails remain [A] and do not inherit role chains",
+        "unresolvable, cross-harness, duplicate, over-length, pin-repeating, and greater-than-3x-price tails prevent startup with actionable errors",
+        "exact September idle and killed errors classify transport while hard timeout, git, auth, and scope failures remain terminal"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Transport the validated chain to Cloud Run and implement a fresh-worktree, single-owner execution loop that walks at most once only for transport failures",
+      "estimated_loc": 380,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "a deterministic 503 on A followed by success on B invokes exactly two models inside one execution without incrementing task AttemptCount",
+        "git, auth, scope, hard-timeout, and unknown failures invoke only the pinned model",
+        "the loop enforces MaxInContainerWalks=1, failed partial work is absent from the next attempt, and stale-task detector behavior is unchanged"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Add per-attempt completion provenance, cumulative cost accounting, serving-model attribution, completion-handler banking, inbox visibility, and structured walk logs",
+      "estimated_loc": 300,
+      "dependencies": [
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "all completion paths carry deterministic ModelUsed and ChainLinkIndex attribution",
+        "a walked completion exposes both attempts with model, link, failure class, bounded error, duration, and cost while total cost includes both runs",
+        "banked results and inbox notifications name the terminal model, and walked failures narrate both links and the first classification"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4",
+      "description": "Add fleet-safe compatibility coverage and operator documentation, run deterministic outage scenarios and repository-wide verification without configuring live-agent fallbacks",
+      "estimated_loc": 120,
+      "dependencies": [
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "documentation states fallback is opt-in, bounded, cost-changing, same-harness only, and observable in completion attempt history",
+        "the shipped registry gains no fallback declarations and agents without the field retain unchanged behavior",
+        "deterministic walk and terminal scenarios pass along with make test, make lint, and make check-boundaries"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}

@@ -28,6 +28,7 @@ type PackageManifest struct {
 	Extensions   ExtensionRegistryConfig `toml:"extensions"`  // M-AILANG-EXT-REGISTRY-GEN (v0.17.1)
 	Assets       AssetConfig             `toml:"assets"`      // M-EXT-PORTABILITY-GATE (v0.19.0)
 	Smoke        SmokeConfig             `toml:"smoke"`       // M-EXT-PORTABILITY-GATE follow-up (v0.19.1)
+	Release      ReleaseConfig           `toml:"release"`     // M-PKG-QUALITY-LADDER M4 (design D2)
 }
 
 // SmokeConfig holds the optional [smoke] section in ailang.toml.
@@ -321,6 +322,11 @@ func (m *PackageManifest) Validate() error {
 		}
 	}
 
+	// M-PKG-QUALITY-LADDER M4: [release].kind is optional (grace) but never garbage.
+	if err := ValidateReleaseKind(m.Release.Kind); err != nil {
+		return err
+	}
+
 	// Validate stability level if set
 	if m.Stability.Level != "" {
 		switch m.Stability.Level {
@@ -464,9 +470,24 @@ max = []
 
 [stability]
 level = %q
+
+[release]
+kind = "feature"   # security | fix | feature | breaking — what THIS version changes
 `, name, ailangLine, moduleBase+"/core", stability)
 
-	return os.WriteFile(path, []byte(content), 0644)
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		return err
+	}
+	// M-PKG-QUALITY-LADDER M4: every release describes itself; scaffold the
+	// section the publish gate (PUB001) looks for.
+	changelogPath := filepath.Join(dir, ChangelogFile)
+	if _, err := os.Stat(changelogPath); os.IsNotExist(err) {
+		changelog := fmt.Sprintf("# Changelog — %s\n\n## 0.1.0\n\n- Initial release.\n", name)
+		if err := os.WriteFile(changelogPath, []byte(changelog), 0644); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // FindManifest walks up from dir looking for ailang.toml.
