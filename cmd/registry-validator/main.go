@@ -24,6 +24,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"cloud.google.com/go/storage"
@@ -101,6 +102,33 @@ type validator struct {
 	apiKey     string   // superuser key; if set, every write requires a key
 	keys       keyStore // scoped keys; nil → superuser only
 	cache      *registryCache
+
+	// v2Streak counts consecutive publishes whose signature identity built
+	// cleanly — the D6 shadow-mode readout (M-PKG-QUALITY-LADDER). Per
+	// instance and in memory: it is a readout, not a ledger; the durable
+	// record is interface_v2_error on each metadata.json.
+	v2Mu     sync.Mutex
+	v2Streak int
+	v2Fails  int
+}
+
+// recordV2Outcome updates the shadow-mode streak after a publish attempt.
+func (v *validator) recordV2Outcome(ok bool) {
+	v.v2Mu.Lock()
+	defer v.v2Mu.Unlock()
+	if ok {
+		v.v2Streak++
+	} else {
+		v.v2Streak = 0
+		v.v2Fails++
+	}
+}
+
+// v2Outcomes returns (clean streak, total failures) since this instance started.
+func (v *validator) v2Outcomes() (int, int) {
+	v.v2Mu.Lock()
+	defer v.v2Mu.Unlock()
+	return v.v2Streak, v.v2Fails
 }
 
 // validatorBuildVersion is set at build time via -ldflags.
@@ -237,41 +265,65 @@ func (v *validator) handlePublish(w http.ResponseWriter, r *http.Request) {
 
 	// Step 7: Effect ceiling check (done as part of ailang check)
 
-	// Step 8: Contract verification (best-effort)
-	contractsVerified, contractsTotal, contractsSkipped := runAilangVerify(tempDir)
-
 	if !compileOk {
 		jsonError(w, http.StatusBadRequest, "Compilation failed:\n%s", compileErr)
 		return
 	}
 
-	// Step 9: Compute hashes
+	// Step 8: Contract verification — package-level, decoded from the shared
+	// report; a failed RUN is banked as contracts_error, never as zero.
+	validation := pkg.ValidationResult{Compiles: true, EffectsValid: true, AILANGVersion: getAilangVersion()}
+	if report, verr := runAilangVerify(tempDir); verr != nil {
+		validation.ContractsError = verr.Error()
+		log.Printf("verify --package failed for %s@%s: %v", name, version, verr)
+	} else {
+		validation.ContractsVerified = report.Verified
+		validation.ContractsTotal = report.Total
+		validation.ContractsSkipped = report.Skipped + report.Errors
+		validation.ContractsCounterexample = report.Counterexample
+	}
+
+	// Step 9: Compute hashes. The v2 (signature-sensitive) identity runs in
+	// SHADOW (design D6): it is banked and logged on every publish so the
+	// refusal population is measured, but a failure to build it is not yet a
+	// refusal. The one thing that IS refused is publisher/validator skew —
+	// two binaries disagreeing about a package's identity.
 	contentHash, _ := pkg.ContentHash(tempDir)
 	interfaceHash := pkg.InterfaceHash(manifest)
 	tarballHash := pkg.TarballHash(tarballData)
+	v2Hash, v2Sigs, v2Err := pkg.InterfaceHashV2(ctx, tempDir, manifest, pkg.DefaultPublishLimits())
+	if v2Err != nil {
+		log.Printf("quality: pkg=%s@%s v2=fail reason=%q", name, version, v2Err.Error())
+	} else {
+		log.Printf("quality: pkg=%s@%s v2=ok signatures=%d contracts=%d/%d", name, version, len(v2Sigs), validation.ContractsVerified, validation.ContractsTotal)
+		if claimed := r.Header.Get("X-Interface-Hash-V2"); claimed != "" && claimed != v2Hash {
+			jsonError(w, http.StatusBadRequest,
+				"PUB005 interface identity skew: publisher computed %s, validator computed %s.\n"+
+					"The two ailang binaries disagree about this package's exported signatures — "+
+					"upgrade the publisher to the validator's version (%s) and retry.",
+				claimed, v2Hash, strings.SplitN(getAilangVersion(), "\n", 2)[0])
+			return
+		}
+	}
+	v.recordV2Outcome(v2Err == nil)
 
 	// Step 10: Generate metadata.json
-	ailangVersion := getAilangVersion()
 	hasAgentDoc := strutil.FileExists(filepath.Join(tempDir, "AGENT.md"))
 
 	meta := pkg.PackageMetadata{
-		Schema:      "ailang.package-metadata/v1",
-		Name:        name,
-		Version:     version,
-		PublishedAt: time.Now().UTC().Format(time.RFC3339),
-		PublishedBy: publishedBy,
-		ContentHash: contentHash,
-		InterfHash:  interfaceHash,
-		TarballHash: tarballHash,
-		TarballSize: int64(len(tarballData)),
-		Validation: pkg.ValidationResult{
-			Compiles:          compileOk,
-			EffectsValid:      compileOk, // effect ceiling checked during compile
-			ContractsVerified: contractsVerified,
-			ContractsTotal:    contractsTotal,
-			ContractsSkipped:  contractsSkipped,
-			AILANGVersion:     ailangVersion,
-		},
+		Schema:              pkg.PackageMetadataSchemaV2,
+		Name:                name,
+		Version:             version,
+		PublishedAt:         time.Now().UTC().Format(time.RFC3339),
+		PublishedBy:         publishedBy,
+		ContentHash:         contentHash,
+		InterfHash:          interfaceHash,
+		TarballHash:         tarballHash,
+		TarballSize:         int64(len(tarballData)),
+		Validation:          validation,
+		InterfaceHashV2:     v2Hash,
+		InterfaceSignatures: v2Sigs,
+		InterfaceV2Error:    errString(v2Err),
 		Manifest: pkg.MetadataManifest{
 			Edition:     manifest.Package.Edition,
 			EffectsMax:  manifest.Effects.Max,
@@ -328,7 +380,7 @@ func (v *validator) handlePublish(w http.ResponseWriter, r *http.Request) {
 		log.Printf("No GCS bucket configured — validation-only mode (no upload)")
 	}
 
-	log.Printf("Published %s@%s (%d bytes, %d/%d contracts verified)", name, version, len(tarballData), contractsVerified, contractsTotal)
+	log.Printf("Published %s@%s (%d bytes, %d/%d contracts verified)", name, version, len(tarballData), validation.ContractsVerified, validation.ContractsTotal)
 
 	// Invalidate API cache so fresh data is served immediately
 	if v.cache != nil {
@@ -418,6 +470,7 @@ func (v *validator) tryUpdateIndex(ctx context.Context, manifest *pkg.PackageMan
 				index.Packages[i].Versions = append(index.Packages[i].Versions, manifest.Package.Version)
 			}
 			index.Packages[i].ContractsVerified = meta.Validation.ContractsVerified
+			index.Packages[i].ContractsTotal = meta.Validation.ContractsTotal
 			index.Packages[i].Dependencies = depNames
 			index.Packages[i].LastUpdated = meta.PublishedAt
 			index.Packages[i].UpdatedBy = meta.PublishedBy
@@ -448,6 +501,7 @@ func (v *validator) tryUpdateIndex(ctx context.Context, manifest *pkg.PackageMan
 			Stability:         manifest.Stability.Level,
 			Exports:           manifest.Exports.Modules,
 			ContractsVerified: meta.Validation.ContractsVerified,
+			ContractsTotal:    meta.Validation.ContractsTotal,
 			HasAgentDoc:       meta.Manifest.HasAgentDoc,
 			Dependencies:      depNames,
 			LastUpdated:       meta.PublishedAt,
@@ -480,4 +534,12 @@ func (v *validator) tryUpdateIndex(ctx context.Context, manifest *pkg.PackageMan
 		return fmt.Errorf("write index.json: %w", err)
 	}
 	return writer.Close()
+}
+
+// errString is the omitempty-friendly spelling of an optional error.
+func errString(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.Error()
 }

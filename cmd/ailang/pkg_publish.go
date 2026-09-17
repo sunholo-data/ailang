@@ -107,10 +107,20 @@ func pkgPublishCommand(args []string) error {
 	tarballHash := pkg.TarballHash(tarballData)
 	contentHash, _ := pkg.ContentHash(cwd)
 	interfaceHash := pkg.InterfaceHash(manifest)
+	// M-PKG-QUALITY-LADDER M2: the signature-sensitive identity, computed
+	// here AND by the validator; the validator refuses (PUB005) if the two
+	// disagree. A local build failure is reported, not hidden — in shadow
+	// mode (D6) the validator records the same failure rather than refusing.
+	v2Hash, v2Sigs, v2Err := pkg.InterfaceHashV2(context.Background(), cwd, manifest, pkg.DefaultPublishLimits())
 
 	fmt.Printf("  Tarball: %d bytes (%s)\n", len(tarballData), tarballHash[:24]+"...")
 	fmt.Printf("  Content hash: %s\n", contentHash[:24]+"...")
 	fmt.Printf("  Interface hash: %s\n", interfaceHash[:24]+"...")
+	if v2Err != nil {
+		fmt.Printf("  %s Interface identity (v2) not built: %v\n", yellow("⚠"), v2Err)
+	} else {
+		fmt.Printf("  Interface identity (v2): %s (%d signatures)\n", strings.TrimPrefix(v2Hash, "sha256:ifacev2:")[:24]+"...", len(v2Sigs))
+	}
 	fmt.Printf("  Exports: %v\n", manifest.Exports.Modules)
 	fmt.Printf("  Effects: %v\n", manifest.Effects.Max)
 
@@ -124,7 +134,7 @@ func pkgPublishCommand(args []string) error {
 
 	fmt.Printf("  Uploading to %s...\n", validatorURL)
 
-	if err := uploadTarball(validatorURL+"/publish", tarballData, *allowDottedToolNames); err != nil {
+	if err := uploadTarball(validatorURL+"/publish", tarballData, *allowDottedToolNames, v2Hash); err != nil {
 		return err
 	}
 
@@ -245,7 +255,7 @@ func rewritePathDepsForPublish(dir string, manifest *pkg.PackageManifest) (bool,
 	return rewritten, nil
 }
 
-func uploadTarball(url string, tarballData []byte, allowDottedToolNames bool) error {
+func uploadTarball(url string, tarballData []byte, allowDottedToolNames bool, interfaceHashV2 string) error {
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
 
@@ -277,6 +287,11 @@ func uploadTarball(url string, tarballData []byte, allowDottedToolNames bool) er
 	// Bedrock-incompatible names (e.g. dotted aliases like "ctx.execute").
 	if allowDottedToolNames {
 		req.Header.Set("X-Allow-Dotted-Tool-Names", "true")
+	}
+	// M-PKG-QUALITY-LADDER M2: version-skew guard input (empty when the
+	// local build failed — the validator then has nothing to compare).
+	if interfaceHashV2 != "" {
+		req.Header.Set("X-Interface-Hash-V2", interfaceHashV2)
 	}
 
 	resp, err := client.Do(req)

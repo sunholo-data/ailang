@@ -18,6 +18,7 @@ type IndexEntry struct {
 	Stability         string   `json:"stability"`
 	Exports           []string `json:"exports"`
 	ContractsVerified int      `json:"contracts_verified"`
+	ContractsTotal    int      `json:"contracts_total,omitempty"` // M-PKG-QUALITY-LADDER
 	HasAgentDoc       bool     `json:"has_agent_doc"`
 	Dependencies      []string `json:"dependencies,omitempty"`   // Package names this depends on (M-PKG-AUTONOMOUS-UPDATES)
 	LastUpdated       string   `json:"last_updated,omitempty"`   // When latest version was published
@@ -42,7 +43,22 @@ type PackageMetadata struct {
 	Validation  ValidationResult `json:"validation"`
 	Manifest    MetadataManifest `json:"manifest"`
 	Provenance  *ProvenanceInfo  `json:"provenance,omitempty"` // M-PKG-AUTONOMOUS-UPDATES
+
+	// M-PKG-QUALITY-LADDER (schema v2). All omitempty so v1 readers and v1
+	// records interoperate: a v1 record simply has no signature identity.
+	InterfaceHashV2     string   `json:"interface_hash_v2,omitempty"`
+	InterfaceSignatures []string `json:"interface_signatures,omitempty"`
+	// InterfaceV2Error records WHY the signature identity could not be built
+	// (shadow mode, D6): a refusal reason today, a PUB005 gate later.
+	InterfaceV2Error string `json:"interface_v2_error,omitempty"`
 }
+
+// PackageMetadataSchemaV1 is the pre-ladder metadata schema tag; V2 adds the
+// signature identity fields. Readers accept both.
+const (
+	PackageMetadataSchemaV1 = "ailang.package-metadata/v1"
+	PackageMetadataSchemaV2 = "ailang.package-metadata/v2"
+)
 
 // ValidationResult records what the validator checked.
 type ValidationResult struct {
@@ -52,6 +68,12 @@ type ValidationResult struct {
 	ContractsTotal    int    `json:"contracts_total"`
 	ContractsSkipped  int    `json:"contracts_skipped"`
 	AILANGVersion     string `json:"ailang_version"`
+	// ContractsError is set when the package-level verify run itself failed
+	// (binary missing, decode drift, timeout) — the counts above are then 0
+	// because nothing ran, not because nothing is contracted. Never silent.
+	ContractsError string `json:"contracts_error,omitempty"`
+	// ContractsCounterexample counts contracts Z3 REFUTED (v2).
+	ContractsCounterexample int `json:"contracts_counterexample,omitempty"`
 }
 
 // FindDependents returns the names of all packages in the index that
