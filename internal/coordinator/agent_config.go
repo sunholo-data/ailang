@@ -312,15 +312,29 @@ func LoadCoordinatorConfig() (*CoordinatorConfig, error) {
 
 // LoadCoordinatorConfigFrom is LoadCoordinatorConfig for an explicit path.
 func LoadCoordinatorConfigFrom(configPath string) (*CoordinatorConfig, error) {
+	cfg, _, err := loadCoordinatorConfigDeclared(configPath)
+	return cfg, err
+}
+
+// loadCoordinatorConfigDeclared also reports whether the FILE declared a
+// `coordinator:` section, which is the difference between "these are the
+// deployment's agents" and "these are AILANG's built-in defaults".
+//
+// The distinction is invisible in the returned config: a file with no
+// coordinator section yields DefaultCoordinatorConfig(), which builds a registry
+// holding exactly one agent (`coordinator`, measured 2026-09-17). A caller that
+// shows that as "the registry" is presenting a built-in stub as a deployment.
+// See LoadAgentRegistryFromDeclared.
+func loadCoordinatorConfigDeclared(configPath string) (*CoordinatorConfig, bool, error) {
 	cfg := &CoordinatorConfig{}
 	present, err := loadSectionFrom(configPath, "coordinator", cfg)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	if !present {
-		return DefaultCoordinatorConfig(), nil
+		return DefaultCoordinatorConfig(), false, nil
 	}
-	return applyCoordinatorDefaults(cfg), nil
+	return applyCoordinatorDefaults(cfg), true, nil
 }
 
 // applyCoordinatorDefaults validates and fills the defaults of a loaded
@@ -408,11 +422,33 @@ func buildRegistryFromConfig(cfg *CoordinatorConfig) (*AgentRegistry, error) {
 
 // LoadAgentRegistryFrom loads agents from a specific config path.
 func LoadAgentRegistryFrom(configPath string) (*AgentRegistry, error) {
-	cfg, err := LoadCoordinatorConfigFrom(configPath)
+	reg, _, err := LoadAgentRegistryFromDeclared(configPath)
+	return reg, err
+}
+
+// LoadAgentRegistryFromDeclared loads agents from a config path AND reports
+// whether that file actually declared any.
+//
+// A file with no `coordinator:` section does not produce an empty registry — it
+// produces AILANG's built-in default, a registry of one agent (`coordinator`).
+// Handing that back unlabelled turns a config-shape mistake into a confident
+// wrong answer about which agents exist: every other inbox reads as unserved.
+//
+// Measured 2026-09-17 (daneel v0.2.5 → v0.2.11): Daneel's send path sets
+// $AILANG_CONFIG to a pubsub-only file, because a send publishes its
+// notification only when the sender's config has a pubsub section. Every
+// command that resolves a registry from that variable — inboxes, health, prs,
+// approvals, the send guard, pipeline, lint, agents — then answered from the
+// default fleet while labelling it as the plane's registry. Daneel's own guard
+// ("refuse unless the registry is the shared plane's") caught it and deferred
+// two of Mark's design requests for seven hours; nothing else would have.
+func LoadAgentRegistryFromDeclared(configPath string) (*AgentRegistry, bool, error) {
+	cfg, declared, err := loadCoordinatorConfigDeclared(configPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load coordinator config from %q: %w", configPath, err)
+		return nil, false, fmt.Errorf("failed to load coordinator config from %q: %w", configPath, err)
 	}
-	return buildRegistryFromConfig(cfg)
+	reg, err := buildRegistryFromConfig(cfg)
+	return reg, declared, err
 }
 
 // SampleAgentConfig returns a sample configuration string for documentation.
