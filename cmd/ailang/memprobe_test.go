@@ -48,9 +48,6 @@ func peakRSS(t *testing.T, dir string, env []string, args ...string) (int64, str
 
 func memprobeSetup(t *testing.T) (bin, dir string) {
 	testutil.SkipInFastLoop(t, "memprobe builds the binary and runs two ~300 MB fixtures (~10s)")
-	if runtime.GOOS == "windows" {
-		t.Skip("rusage-based; no Windows support")
-	}
 	bin = buildAilang(t)
 	src, err := filepath.Abs(filepath.Join("testdata", "memprobe"))
 	if err != nil {
