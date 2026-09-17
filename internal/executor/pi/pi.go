@@ -523,6 +523,7 @@ func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, 
 				FinishReason:             finishReason,
 				ThrashKilledAt:           thrashKilledAt,
 				Output:                   output,
+				Transcript:               output, // the completion's summary is the transcript tail (D1)
 				Error:                    errMsg,
 				DurationMS:               int(duration.Milliseconds()),
 				InputTokens:              inputTokens,

@@ -1,0 +1,38 @@
+module std/web
+
+-- std/web — web search and page fetch as a program capability whose ONLY
+-- effect is {Net}. The API key (OLLAMA_API_KEY) is read by the runtime in Go:
+-- a program never holds it, and cannot name a host — requests go to a FIXED
+-- backend endpoint on ollama.com, which the policy's net_allow must list.
+-- webFetch(url) fetches THROUGH the backend, never from url directly.
+--
+-- Errors reuse std/net's NetError: Transport (missing key, non-2xx, malformed
+-- response, connection), DisallowedHost (ollama.com not in net_allow),
+-- BodyTooLarge. Invalid input (empty query, max outside 1..10) is a runtime
+-- error before any request is made.
+--
+-- Example:
+--   import std/web (webSearch)
+--   match webSearch("AILANG programming language", 3) {
+--     Ok(rs) => ... rs : list[{title: string, url: string, content: string}]
+--     Err(e) => ... e : NetError
+--   }
+
+import std/result (Result)
+import std/net (NetError)
+
+-- One search hit.
+export type SearchResult = {title: string, url: string, content: string}
+
+-- One fetched page: readable text plus the links found on it.
+export type FetchResult = {title: string, content: string, links: list[string]}
+
+-- Search the web; max is 1..10.
+export func webSearch(query: string, max: int) -> Result[list[SearchResult], NetError] ! {Net} {
+  _web_search(query, max)
+}
+
+-- Fetch a page as text through the backend.
+export func webFetch(url: string) -> Result[FetchResult, NetError] ! {Net} {
+  _web_fetch(url)
+}

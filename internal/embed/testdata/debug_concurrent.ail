@@ -1,0 +1,17 @@
+-- debug_concurrent.ail: fixture for M-V1-MEMORY-FOOTPRINT M2 — a served
+-- handler that logs 50 lines carrying the caller's tag. Concurrent requests
+-- must each see all 50 of their own lines on stderr: before per-request Debug
+-- contexts, every request logged into ONE shared buffer that whichever request
+-- finished first flushed and reset.
+
+module internal/embed/testdata/debug_concurrent
+import std/debug as Debug
+
+func logN(tag: string, i: int) -> () =
+  if i == 50 then () else
+    let _ = Debug.log("${tag}:${show(i)}") in
+    logN(tag, i + 1)
+
+export func main(tag: string) -> string =
+  let _ = logN(tag, 0) in
+  "ok"

@@ -27,15 +27,29 @@ process_allow = ["git:pull", "git:status"] # Process narrowed to subcommands (gi
 # net_allow     = ["api.example.com"]      # required when "Net" is allowed; https only unless
 # net_allow_http = true                    #   net_allow_http = true
 # cli_allow     = ["iface", "docs:search"]  # ailang_cli subcommands; absent = the read-only default set
+# ai_provider   = "gemini-2-5-flash"         # required when "AI" is allowed: the model the program talks to
 entry         = "main"
 ```
 
+**Web search for programs — `std/web`.** `webSearch(query, max)` and `webFetch(url)` are `{Net}`
+effects backed by a fixed endpoint on `ollama.com`; the runtime reads `OLLAMA_API_KEY` itself, so the
+program never holds a key and cannot name a host. A lane that should search grants `Net` and lists
+`ollama.com` in `net_allow` — nothing else. Without `Net` the program is denied at admission
+(`missing_from_policy: ["Net"]`); with `Net` but without the host it gets `DisallowedHost(ollama.com)`.
+`webFetch` fetches *through* the backend, never from the supplied URL directly.
+
+`ai_provider` is the model an `AI`-cap program calls — the lending boundary for the AI effect. It is
+required when `AI` is in `allowed_caps` and refused without it; `"stub"` is the offline test route.
+Under `--policy`, `--ai` and `--ai-stub` are widening flags and are refused by name, like `--caps`.
+The admission line records `ai_provider` beside the caps.
+
 `cli_allow` is read by the `ailang_cli` tool, not by `ailang run`: it is the rest of the `ailang`
 CLI an agent may call, in `process_allow` syntax (`docs:search` admits `docs search` only). Absent
-means the documented default set — `check ai-check iface fmt docs:search examples builtins
+means the documented default set — `check ai-check iface fmt test docs:search examples builtins
 pkg-docs tree prompt agent-prompt devtools-prompt policy-check axioms version`, every one
-read-only or writing only the sandbox file it is given — and an empty list refuses everything.
-`run`, `test`, `exec`, `repl`, `replay`, `watch`, `select-best` execute programs and are refused
+read-only, pure (`test`: the runner refuses effectful dependencies and has no `--caps`), or writing only
+the sandbox file it is given — and an empty list refuses everything.
+`run`, `exec`, `repl`, `replay`, `watch`, `select-best` execute programs and are refused
 even when listed: execution only goes through `ailang_run`'s gate. Path arguments must stay inside
 `fs_sandbox`. The 94-subcommand audit that produced the default set is in the v0.39 changelog
 entry; anything that reaches the message plane, the registry, a provider, the coordinator, or

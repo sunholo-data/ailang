@@ -53,6 +53,20 @@ func (ad *ArtifactDiscovery) DiscoverChangedFiles() ([]string, error) {
 		return nil, err
 	}
 
+	// Scratch never counts as a changed file. The wrapper's commit excludes
+	// ScratchDir by pathspec (cmd/ailang/coordinator_cloud_scratch.go), but
+	// getChangedFiles reports staged + unstaged + UNTRACKED, so probe programs
+	// the branch will never carry were still landing on the approval card.
+	//
+	// Measured 2026-09-17 on task-e0d87876 (the first pkg-sunholo-docparse run):
+	// the card listed six files — Dockerfile, ci.yml and four
+	// `.ailang-scratch/*.ail` probes — while PR #188 carried exactly the two
+	// real ones. The card/branch check in DecidePR then refuses that merge,
+	// correctly, on evidence that was wrong. One concept — "what did this task
+	// change" — had two implementations, and only the commit side knew about
+	// scratch.
+	changedFiles = dropScratchPaths(changedFiles)
+
 	// Filter by patterns
 	if len(ad.Patterns) == 0 {
 		return changedFiles, nil
@@ -66,6 +80,35 @@ func (ad *ArtifactDiscovery) DiscoverChangedFiles() ([]string, error) {
 	}
 
 	return matched, nil
+}
+
+// ScratchDirName is the one directory an agent may use for probe programs that
+// the wrapper never commits. Declared here, next to artifact discovery, because
+// both the commit pathspec and the changed-file list have to agree on it.
+const ScratchDirName = ".ailang-scratch"
+
+// dropScratchPaths removes anything inside a scratch directory, at any depth.
+func dropScratchPaths(files []string) []string {
+	out := files[:0:0]
+	for _, f := range files {
+		if isScratchPath(f) {
+			continue
+		}
+		out = append(out, f)
+	}
+	return out
+}
+
+// isScratchPath reports whether a path has a scratch directory as one of its
+// segments. Segment-wise, not a prefix match: `notes.ailang-scratch.md` is a
+// real file and must survive.
+func isScratchPath(file string) bool {
+	for _, seg := range strings.Split(filepath.ToSlash(file), "/") {
+		if seg == ScratchDirName {
+			return true
+		}
+	}
+	return false
 }
 
 // getChangedFiles returns all files that have changed in the worktree.

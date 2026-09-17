@@ -65,10 +65,13 @@ type Options struct {
 	StrictBytecode    bool
 
 	// Effects
-	Env             EnvFlags
-	Net             NetOptions
-	Stream          StreamOptions
-	Process         ProcessOptions
+	Env     EnvFlags
+	Net     NetOptions
+	Stream  StreamOptions
+	Process ProcessOptions
+	// FSMaxBytes is the --fs-max-bytes text ("" = AILANG_FS_MAX_BYTES, else
+	// unbounded); resolved by SetupFSLimit (M-V1-MEMORY-FOOTPRINT M3).
+	FSMaxBytes      string
 	DebugEffect     bool
 	DebugLogLevel   int
 	NoBudgets       bool
@@ -430,6 +433,10 @@ func runSingle(ctx context.Context, result pipeline.Result, opts Options, progra
 		return 1
 	}
 	SetupStreamHandler(effCtx, opts.Stream.AllowHTTP, opts.Stream.AllowDomains, opts.Stream.AllowLocalhost) // Stream for WebSocket connections (M-STREAM-BIDI)
+	if err := SetupFSLimit(effCtx, opts.FSMaxBytes); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		return 1
+	}
 	if err := SetupProcessHandler(effCtx, opts.Process.Timeout, opts.Process.Allowlist, opts.Process.MaxOutput); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 		return 1
@@ -456,9 +463,13 @@ func runSingle(ctx context.Context, result pipeline.Result, opts Options, progra
 			return 1
 		}
 	}
-	if opts.DebugEffect {
-		effCtx.Debug = effects.NewDebugContext()
-	}
+	// Debug.log streams to stderr on arrival under --log-level
+	// (M-V1-MEMORY-FOOTPRINT M2, D-E): a logging loop no longer retains every
+	// line until the run ends, and a below-threshold line is dropped before it
+	// is stored. The final FlushDebugOutput stays as the no-sink fallback.
+	effCtx.Debug = effects.NewDebugContext()
+	effects.DebugSink{MinLevel: opts.DebugLogLevel}.Attach(effCtx.Debug) // W nil: current os.Stderr
+	_ = opts.DebugEffect                                                 // the context now always exists; the flag is kept for CLI compatibility
 
 	// M-VERIFY-CONTRACTS: Enable contract verification if requested
 	if opts.VerifyContracts {

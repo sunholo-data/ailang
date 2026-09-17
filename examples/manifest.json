@@ -2893,14 +2893,33 @@
         "stdout": "walk: 5 files\n  /tmp/ailang_walk_glob/README.md\n  /tmp/ailang_walk_glob/src/main.ail\n  /tmp/ailang_walk_glob/src/nested/deep.ail\n  /tmp/ailang_walk_glob/src/notes.txt\n  /tmp/ailang_walk_glob/src/util.ail\nglob .ail: 3 files\n  /tmp/ailang_walk_glob/src/main.ail\n  /tmp/ailang_walk_glob/src/nested/deep.ail\n  /tmp/ailang_walk_glob/src/util.ail\nglob .md: 1 file\n",
         "exit_code": 0
       }
+    },
+    {
+      "path": "runnable/web_search.ail",
+      "status": "working",
+      "tags": [
+        "stdlib",
+        "std/web",
+        "web",
+        "search",
+        "network",
+        "effects"
+      ],
+      "description": "std/web webSearch and webFetch with {Net} only \u2014 the API key stays in the runtime; skipped by verify-examples (needs OLLAMA_API_KEY + network), type-check asserted in Go",
+      "modules": [
+        "std/web",
+        "std/io",
+        "std/list",
+        "std/string"
+      ]
     }
   ],
   "statistics": {
-    "total": 203,
-    "working": 195,
+    "total": 204,
+    "working": 196,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9605911330049262,
+    "coverage": 0.9607843137254902,
     "experimental": 0
   },
   "milestones": {

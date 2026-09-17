@@ -144,6 +144,9 @@ type EffEnv struct {
 	TZ      string // TZ for deterministic time operations
 	Locale  string // LANG for deterministic string operations
 	Sandbox string // Root directory for FS operations (empty = no sandbox)
+	// FSMaxBytes caps every FS read; 0 = unbounded (the CLI default).
+	// serve-api sets it to its upload cap (M-V1-MEMORY-FOOTPRINT M3, D-C).
+	FSMaxBytes int64
 }
 
 // ClockContext provides monotonic time for Clock effect
@@ -660,6 +663,12 @@ func (ctx *EffContext) GetIOReader() *bufio.Reader {
 func (ctx *EffContext) Clone() interface{} {
 	clone := *ctx // shallow copy of config + shared references
 	clone.randMode = nil
+	// Debug output is per request: a shared accumulator interleaved every
+	// concurrent request's lines and was flushed by whichever finished first
+	// (M-V1-MEMORY-FOOTPRINT F6). The clone inherits the sink, not the buffer.
+	if ctx.Debug != nil {
+		clone.Debug = ctx.Debug.Fresh()
+	}
 	return &clone
 }
 
@@ -688,6 +697,26 @@ func (ctx *EffContext) HasTraceCollector() bool {
 // too late.
 func (ctx *EffContext) RecordsFunctionCalls() bool {
 	return ctx.Trace != nil && ctx.Trace.Enabled() && ctx.Trace.RecordsFunctionCalls()
+}
+
+// RenderTraceValue renders a value for the trace under the collector's value
+// policy: bounded to the per-value budget, or a byte-count descriptor in
+// redacted mode. The whole value is never materialised (M-V1-MEMORY-FOOTPRINT
+// M1) — this is the render every trace site must use in place of v.String().
+// With no collector it renders unbounded, which callers never reach because
+// they gate on HasTraceCollector first.
+func (ctx *EffContext) RenderTraceValue(v eval.Value) string {
+	if v == nil {
+		return ""
+	}
+	if ctx.Trace == nil {
+		return v.String()
+	}
+	budget, redacted := ctx.Trace.ValueBudget()
+	if redacted {
+		return trace.RedactedDescriptor(eval.RenderedLen(v))
+	}
+	return eval.ShowBounded(v, budget)
 }
 
 // RecordFunctionEnter delegates to trace collector if present.

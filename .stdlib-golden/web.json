@@ -1,0 +1,32 @@
+{
+  "module": "std/web",
+  "types": [
+    {
+      "name": "FetchResult",
+      "alias": "{content: string, links: list[string], title: string}"
+    },
+    {
+      "name": "SearchResult",
+      "alias": "{content: string, title: string, url: string}"
+    }
+  ],
+  "funcs": [
+    {
+      "name": "webFetch",
+      "type": "(string)-\u003eResult[\u003c*types.TRecord2\u003e,NetError]!{Net}",
+      "effects": [
+        "Net"
+      ],
+      "pure": true
+    },
+    {
+      "name": "webSearch",
+      "type": "(string,int)-\u003eResult[list[\u003c*types.TRecord2\u003e],NetError]!{Net}",
+      "effects": [
+        "Net"
+      ],
+      "pure": true
+    }
+  ],
+  "schema": "ailang.iface/v1"
+}

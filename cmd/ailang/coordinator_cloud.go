@@ -536,20 +536,13 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 		}
 	}
 
-	// Step 4: Check if there are uncommitted changes to stage+commit
-	statusCmd := exec.CommandContext(ctx, "git", "-C", workDir, "status", "--porcelain")
-	statusOutput, err := statusCmd.Output()
+	// Step 4/5a: stage whatever changed — except the agent's scratch dir
+	// (coordinator_cloud_scratch.go) — and commit only if something is staged.
+	staged, err := stageForCommit(ctx, workDir)
 	if err != nil {
-		return branchName, execResult, gitEvidence{}, fmt.Errorf("git status failed: %w", err)
+		return branchName, execResult, gitEvidence{}, err
 	}
-
-	if len(strings.TrimSpace(string(statusOutput))) > 0 {
-		// Step 5a: Stage, commit uncommitted changes
-		addCmd := exec.CommandContext(ctx, "git", "-C", workDir, "add", "-A")
-		if err := addCmd.Run(); err != nil {
-			return branchName, execResult, gitEvidence{}, fmt.Errorf("git add failed: %w", err)
-		}
-
+	if staged {
 		// M-HARNESS-COMMIT-CONTRACT: Use structured commit message when site metadata available.
 		// Co-author resolves to the actual model the executor invoked (AILANG_MODEL env var,
 		// set by the dispatcher from the agent config). Falls back to "AILANG cascade wrapper"
