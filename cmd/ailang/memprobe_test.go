@@ -1,3 +1,9 @@
+//go:build !windows
+
+// syscall.Rusage.Maxrss exists on Unix only; the Windows CI runner cannot
+// compile this file (measured 2026-09-17: test-windows red on every dev push
+// since 2491ab45e). The probe measures a Unix RSS; there is nothing to port.
+
 package main
 
 import (
