@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -91,11 +92,21 @@ func pkgPublishCommand(args []string) error {
 		return fmt.Errorf("asset validation failed: %w", err)
 	}
 
-	// M-EXT-PORTABILITY-GATE (v0.19.0): run pre-publish smoke test in a temp
-	// dir so packages whose tools crash in an empty workdir are rejected at
-	// publish time rather than discovered by consumers at runtime.
-	if err := runPrePublishSmoke(cwd, manifest); err != nil {
+	// M-PKG-QUALITY-LADDER M3: the same quality report the validator will
+	// compute — compile, Z3 contracts, signature identity (v2) — plus the
+	// attested checks only this machine runs: tests and the
+	// M-EXT-PORTABILITY-GATE _smoke.ail (v0.19.0), which stays a hard local
+	// gate (PUB015 / PUB014 for extension packages). Any gate refuses here,
+	// before a tarball is built, with the same PUB code the validator would
+	// have returned.
+	_, inputs, err := measurePackageQuality(cwd, qualityMeasureOptions{RunAttested: true, Z3Timeout: 5 * time.Second})
+	if err != nil {
 		return err
+	}
+	report := pkg.BuildQualityReport(manifest, pkg.ModePublisher, inputs, false)
+	printQualityHuman(report)
+	if report.HasGates() {
+		return fmt.Errorf("publish blocked by %d quality gate(s) — see PUB codes above (ailang pkg quality --json . for the report)", len(report.Gates))
 	}
 
 	// Create tarball (uses the rewritten ailang.toml with registry deps)
@@ -106,21 +117,15 @@ func pkgPublishCommand(args []string) error {
 
 	tarballHash := pkg.TarballHash(tarballData)
 	contentHash, _ := pkg.ContentHash(cwd)
-	interfaceHash := pkg.InterfaceHash(manifest)
-	// M-PKG-QUALITY-LADDER M2: the signature-sensitive identity, computed
-	// here AND by the validator; the validator refuses (PUB005) if the two
-	// disagree. A local build failure is reported, not hidden — in shadow
-	// mode (D6) the validator records the same failure rather than refusing.
-	v2Hash, v2Sigs, v2Err := pkg.InterfaceHashV2(context.Background(), cwd, manifest, pkg.DefaultPublishLimits())
+	interfaceHash := inputs.InterfaceHashV1
+	// The validator recomputes the v2 identity and refuses (PUB005) if the
+	// two binaries disagree; in shadow mode (D6) a local build failure is a
+	// badge on both sides, not a refusal.
+	v2Hash := inputs.InterfaceHashV2
 
-	fmt.Printf("  Tarball: %d bytes (%s)\n", len(tarballData), tarballHash[:24]+"...")
+	fmt.Printf("\n  Tarball: %d bytes (%s)\n", len(tarballData), tarballHash[:24]+"...")
 	fmt.Printf("  Content hash: %s\n", contentHash[:24]+"...")
 	fmt.Printf("  Interface hash: %s\n", interfaceHash[:24]+"...")
-	if v2Err != nil {
-		fmt.Printf("  %s Interface identity (v2) not built: %v\n", yellow("⚠"), v2Err)
-	} else {
-		fmt.Printf("  Interface identity (v2): %s (%d signatures)\n", strings.TrimPrefix(v2Hash, "sha256:ifacev2:")[:24]+"...", len(v2Sigs))
-	}
 	fmt.Printf("  Exports: %v\n", manifest.Exports.Modules)
 	fmt.Printf("  Effects: %v\n", manifest.Effects.Max)
 
@@ -134,7 +139,7 @@ func pkgPublishCommand(args []string) error {
 
 	fmt.Printf("  Uploading to %s...\n", validatorURL)
 
-	if err := uploadTarball(validatorURL+"/publish", tarballData, *allowDottedToolNames, v2Hash); err != nil {
+	if err := uploadTarball(validatorURL+"/publish", tarballData, *allowDottedToolNames, v2Hash, inputs.Attested); err != nil {
 		return err
 	}
 
@@ -143,50 +148,6 @@ func pkgPublishCommand(args []string) error {
 	// Auto-emit package coordination messages (M-PKG-MSG)
 	emitPublishMessages(manifest, cwd, contentHash, interfaceHash)
 
-	return nil
-}
-
-// runPrePublishSmoke executes the package's _smoke.ail in a temp directory
-// (M-EXT-PORTABILITY-GATE, v0.19.0). On crash it blocks publish with a clear
-// error; on absence it warns (or hard-fails for [extension] packages).
-func runPrePublishSmoke(packageDir string, manifest *pkg.PackageManifest) error {
-	smokePath := filepath.Join(packageDir, pkg.SmokeFile)
-	smokePresent := false
-	if info, err := os.Stat(smokePath); err == nil && !info.IsDir() {
-		smokePresent = true
-	}
-
-	if !smokePresent {
-		if pkg.HasExtensionBlock(manifest) {
-			return fmt.Errorf("publish blocked: package declares [extension] but has no %s (required for extension packages)", pkg.SmokeFile)
-		}
-		fmt.Printf("%s no %s — publishing without smoke gate (recommended for v1.0+)\n", yellow("⚠"), pkg.SmokeFile)
-		return nil
-	}
-
-	bin, err := os.Executable()
-	if err != nil {
-		return fmt.Errorf("cannot locate ailang binary for smoke run: %w", err)
-	}
-
-	timeout := pkg.DefaultSmokeTimeout
-	if manifest != nil && manifest.Smoke.TimeoutSeconds > 0 {
-		timeout = time.Duration(manifest.Smoke.TimeoutSeconds) * time.Second
-	}
-	fmt.Printf("  Running %s in temp workdir (timeout %s)...\n", pkg.SmokeFile, timeout)
-
-	res, err := pkg.RunSmokeInTempDir(packageDir, bin, timeout)
-	if err != nil {
-		return fmt.Errorf("smoke runner failed: %w", err)
-	}
-	if !res.Passed {
-		fmt.Printf("\n--- %s output ---\n%s\n--- end output ---\n\n", pkg.SmokeFile, res.Output)
-		if res.TimedOut {
-			return fmt.Errorf("publish blocked: %s timed out after %s", pkg.SmokeFile, res.Duration.Truncate(time.Millisecond))
-		}
-		return fmt.Errorf("publish blocked: %s failed with exit code %d (see output above)", pkg.SmokeFile, res.ExitCode)
-	}
-	fmt.Printf("%s %s passed (%.2fs)\n", green("✓"), pkg.SmokeFile, res.Duration.Seconds())
 	return nil
 }
 
@@ -255,7 +216,7 @@ func rewritePathDepsForPublish(dir string, manifest *pkg.PackageManifest) (bool,
 	return rewritten, nil
 }
 
-func uploadTarball(url string, tarballData []byte, allowDottedToolNames bool, interfaceHashV2 string) error {
+func uploadTarball(url string, tarballData []byte, allowDottedToolNames bool, interfaceHashV2 string, attested *pkg.AttestedBlock) error {
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
 
@@ -265,6 +226,13 @@ func uploadTarball(url string, tarballData []byte, allowDottedToolNames bool, in
 	}
 	if _, err := part.Write(tarballData); err != nil {
 		return fmt.Errorf("failed to write tarball to form: %w", err)
+	}
+	// M-PKG-QUALITY-LADDER M3: what THIS machine executed (tests, smoke).
+	// The validator banks it stamped with the key owner and never gates on it.
+	if attested != nil {
+		if data, jErr := json.Marshal(attested); jErr == nil {
+			_ = writer.WriteField(pkg.AttestedFormField, string(data))
+		}
 	}
 	if err := writer.Close(); err != nil {
 		return err

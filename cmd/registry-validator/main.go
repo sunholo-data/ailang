@@ -273,14 +273,15 @@ func (v *validator) handlePublish(w http.ResponseWriter, r *http.Request) {
 	// Step 8: Contract verification — package-level, decoded from the shared
 	// report; a failed RUN is banked as contracts_error, never as zero.
 	validation := pkg.ValidationResult{Compiles: true, EffectsValid: true, AILANGVersion: getAilangVersion()}
-	if report, verr := runAilangVerify(tempDir); verr != nil {
+	verifyReport, verr := runAilangVerify(tempDir)
+	if verr != nil {
 		validation.ContractsError = verr.Error()
 		log.Printf("verify --package failed for %s@%s: %v", name, version, verr)
 	} else {
-		validation.ContractsVerified = report.Verified
-		validation.ContractsTotal = report.Total
-		validation.ContractsSkipped = report.Skipped + report.Errors
-		validation.ContractsCounterexample = report.Counterexample
+		validation.ContractsVerified = verifyReport.Verified
+		validation.ContractsTotal = verifyReport.Total
+		validation.ContractsSkipped = verifyReport.Skipped + verifyReport.Errors
+		validation.ContractsCounterexample = verifyReport.Counterexample
 	}
 
 	// Step 9: Compute hashes. The v2 (signature-sensitive) identity runs in
@@ -307,6 +308,31 @@ func (v *validator) handlePublish(w http.ResponseWriter, r *http.Request) {
 	}
 	v.recordV2Outcome(v2Err == nil)
 
+	// Step 9.5: the quality report (M3) — assembled from the measurements
+	// above, in ModeServer: tests/smoke are whatever the upload attested,
+	// stamped with the key owner, and never a gate here. Server-sourced
+	// gates (compile, refuted contracts, stable/frozen ceiling rules) refuse.
+	report := pkg.BuildQualityReport(manifest, pkg.ModeServer, pkg.QualityInputs{
+		CompileOK:       true,
+		CompileFiles:    len(manifest.Exports.Modules),
+		Verify:          verifyReport,
+		VerifyErr:       validation.ContractsError,
+		InterfaceHashV1: interfaceHash,
+		InterfaceHashV2: v2Hash,
+		Signatures:      v2Sigs,
+		InterfaceV2Err:  errString(v2Err),
+		HasAgentDoc:     strutil.FileExists(filepath.Join(tempDir, "AGENT.md")),
+		Attested:        decodeAttested(r.FormValue(pkg.AttestedFormField), publishedBy),
+	}, false)
+	if report.HasGates() {
+		var lines []string
+		for _, g := range report.Gates {
+			lines = append(lines, g.Code+" "+g.Msg)
+		}
+		jsonError(w, http.StatusBadRequest, "publish refused by %d quality gate(s):\n%s\nRun `ailang pkg quality --json .` locally for the full report.", len(report.Gates), strings.Join(lines, "\n"))
+		return
+	}
+
 	// Step 10: Generate metadata.json
 	hasAgentDoc := strutil.FileExists(filepath.Join(tempDir, "AGENT.md"))
 
@@ -324,6 +350,7 @@ func (v *validator) handlePublish(w http.ResponseWriter, r *http.Request) {
 		InterfaceHashV2:     v2Hash,
 		InterfaceSignatures: v2Sigs,
 		InterfaceV2Error:    errString(v2Err),
+		Quality:             report,
 		Manifest: pkg.MetadataManifest{
 			Edition:     manifest.Package.Edition,
 			EffectsMax:  manifest.Effects.Max,
@@ -542,4 +569,21 @@ func errString(err error) string {
 		return ""
 	}
 	return err.Error()
+}
+
+// decodeAttested parses the publisher's attested block and stamps it with the
+// authenticated key owner — the client cannot know who it is, and a client
+// that claims one is ignored. Malformed input is dropped, not refused: the
+// block never gates, so a bad one costs the publisher a badge, not a publish.
+func decodeAttested(raw, owner string) *pkg.AttestedBlock {
+	if strings.TrimSpace(raw) == "" {
+		return nil
+	}
+	var block pkg.AttestedBlock
+	if err := json.Unmarshal([]byte(raw), &block); err != nil {
+		log.Printf("attested block ignored: %v", err)
+		return nil
+	}
+	block.AttestedBy = owner
+	return &block
 }

@@ -51,6 +51,9 @@ type PackageMetadata struct {
 	// InterfaceV2Error records WHY the signature identity could not be built
 	// (shadow mode, D6): a refusal reason today, a PUB005 gate later.
 	InterfaceV2Error string `json:"interface_v2_error,omitempty"`
+	// Quality is the server-assembled quality report (M3): server-sourced
+	// sections recomputed here, attested sections as the publisher sent them.
+	Quality *QualityReport `json:"quality,omitempty"`
 }
 
 // PackageMetadataSchemaV1 is the pre-ladder metadata schema tag; V2 adds the

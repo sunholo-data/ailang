@@ -133,3 +133,76 @@ func TestPackageMetadata_V1RecordStillDecodes(t *testing.T) {
 		t.Errorf("v1 record gained phantom v2 fields: %+v", meta)
 	}
 }
+
+// M3 — server-side gates and the attested block.
+
+func postFixtureWithAttested(t *testing.T, v *validator, fixture, attestedJSON string, headers map[string]string) *httptest.ResponseRecorder {
+	t.Helper()
+	dir := filepath.Join("..", "..", "internal", "pkg", "testdata", "quality", fixture)
+	tarball, err := pkg.CreateTarball(dir)
+	if err != nil {
+		t.Fatalf("CreateTarball: %v", err)
+	}
+	var buf bytes.Buffer
+	writer := multipart.NewWriter(&buf)
+	part, _ := writer.CreateFormFile("package", "package.tar.gz")
+	_, _ = part.Write(tarball)
+	if attestedJSON != "" {
+		_ = writer.WriteField(pkg.AttestedFormField, attestedJSON)
+	}
+	_ = writer.Close()
+	req := httptest.NewRequest("POST", "/publish", &buf)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	for k, val := range headers {
+		req.Header.Set(k, val)
+	}
+	w := httptest.NewRecorder()
+	v.handlePublish(w, req)
+	return w
+}
+
+// A refuted contract is a server-sourced gate: refused with PUB006.
+func TestPublish_RefusesRefutedContract(t *testing.T) {
+	if !smt.Z3Available() {
+		t.Skip("z3 not available (Windows CI has no z3)")
+	}
+	buildWorktreeAilangOnPath(t)
+	w := postFixtureWithAttested(t, &validator{}, "refuted", "", nil)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("code = %d, want 400: %s", w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), "PUB006") {
+		t.Errorf("expected PUB006:\n%s", w.Body.String())
+	}
+}
+
+// The attested block is banked as sent, stamped with the publisher identity
+// the VALIDATOR knows, and a failing attested test never gates.
+func TestPublish_BanksAttestedBlockStampedByServer(t *testing.T) {
+	if !smt.Z3Available() {
+		t.Skip("z3 not available (Windows CI has no z3)")
+	}
+	buildWorktreeAilangOnPath(t)
+	attested := `{"attested_by":"liar","tests":{"files":1,"passed":0,"failed":3},"smoke":{"present":true,"passed":false}}`
+	w := postFixtureWithAttested(t, &validator{}, "flat_self_import", attested, map[string]string{"X-Publisher-Identity": "daneel"})
+	if w.Code != http.StatusOK {
+		t.Fatalf("attested failures must not refuse (RCE boundary): %d %s", w.Code, w.Body.String())
+	}
+	var meta pkg.PackageMetadata
+	if err := json.Unmarshal(w.Body.Bytes(), &meta); err != nil {
+		t.Fatal(err)
+	}
+	q := meta.Quality
+	if q == nil || q.Tests == nil || q.Smoke == nil {
+		t.Fatalf("quality/attested not banked: %+v", meta.Quality)
+	}
+	if q.Tests.AttestedBy != "daneel" || q.Tests.Source != pkg.SourceAttested || q.Tests.Failed != 3 {
+		t.Errorf("tests = %+v (client-claimed attested_by must be overwritten)", q.Tests)
+	}
+	if q.Mode != "server" || q.Contracts.Verified != 2 {
+		t.Errorf("server report = mode %q contracts %+v", q.Mode, q.Contracts)
+	}
+	for _, g := range q.Gates {
+		t.Errorf("unexpected server gate from attested data: %+v", g)
+	}
+}
