@@ -69,6 +69,23 @@ export interface BuiltinEntry {
 	[k: string]: unknown;
 }
 
+/**
+ * Pure: the inventory from `ailang builtins list --json`, whichever shape the
+ * binary emits. It is `{count, builtins: [...]}` today; the extension was
+ * written against a bare array and every builtins_search call on the
+ * ailang_only lane answered "entries.filter is not a function" (measured
+ * 2026-09-16 on the first six Jobs tasks). Both shapes are accepted; anything
+ * else is an error the caller can read, never an empty inventory.
+ */
+export function parseBuiltinsInventory(stdout: string): BuiltinEntry[] {
+	const parsed = JSON.parse(stdout) as unknown;
+	if (Array.isArray(parsed)) return parsed as BuiltinEntry[];
+	if (parsed && typeof parsed === "object" && Array.isArray((parsed as { builtins?: unknown }).builtins)) {
+		return (parsed as { builtins: BuiltinEntry[] }).builtins;
+	}
+	throw new Error("builtins inventory is neither an array nor {builtins: [...]}");
+}
+
 /** Pure: filter inventory by query/module, capped for context economy. */
 export function filterBuiltins(
 	entries: BuiltinEntry[],
@@ -100,10 +117,14 @@ export default async function (pi: ExtensionAPI) {
 			path: Type.String({ description: "Path to the .ail file" }),
 		}),
 		async execute(_id, params, _signal, _onUpdate, ctx) {
-			// Pass the path through as given — relative paths keep ailang's module-path
-			// resolution happy (absolute paths trip a MOD010 path-quirk; e2e 2026-08-28).
+			// Run IN the file's directory with the bare filename, the same way
+			// ailang_run does: `module x` for x.ail is then canonical wherever the
+			// file lives (absolute paths trip MOD010; e2e 2026-08-28, and the
+			// ailang_only Jobs batch 2026-09-16).
 			void ctx;
-			const r = await pi.exec("ailang", ["check", params.path], { timeout: 30_000 });
+			const { basename, dirname, resolve } = await import("node:path");
+			const abs = resolve(params.path);
+			const r = await pi.exec("ailang", ["check", basename(abs)], { timeout: 30_000, cwd: dirname(abs) });
 			const output = `${r.stderr ?? ""}\n${r.stdout ?? ""}`;
 			const diagnostics = parseCheckOutput(output);
 			return {
@@ -128,7 +149,7 @@ export default async function (pi: ExtensionAPI) {
 			const r = await pi.exec("ailang", ["builtins", "list", "--json"], { timeout: 15_000 });
 			let entries: BuiltinEntry[] = [];
 			try {
-				entries = JSON.parse(r.stdout ?? "") as BuiltinEntry[];
+				entries = parseBuiltinsInventory(r.stdout ?? "");
 			} catch (e) {
 				return {
 					content: [{ type: "text", text: `builtins inventory unparseable (${String(e)}); ailang exit ${r.code}` }],

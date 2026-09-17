@@ -151,7 +151,12 @@ func TestMemoryDatabaseIsNotAFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	if _, err := os.Stat(":memory:"); !os.IsNotExist(err) {
+	// err == nil is the only outcome that proves a leftover file: Windows
+	// rejects a bare colon outside drive-letter position as an invalid path
+	// (ERROR_INVALID_NAME), which os.IsNotExist does not recognise as ENOENT,
+	// so asserting the specific error kind false-failed on windows-latest CI
+	// even though the driver never touched the filesystem there.
+	if _, err := os.Stat(":memory:"); err == nil {
 		t.Fatal("a file named :memory: was created in the working directory")
 	}
 	if got := pragmas(t, db); got["foreign_keys"] != "1" {

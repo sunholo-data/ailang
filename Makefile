@@ -371,9 +371,13 @@ pi-assets:
 	@for f in .pi/extensions/*.ts .pi/extensions/README.md; do \
 		[ -f "$$f" ] && cp "$$f" cmd/ailang/pi_assets/ || true; \
 	done
-	@echo "pi_assets synced from .pi/extensions"
+	@mkdir -p internal/executor/pi/profile_assets
+	@cp .pi/extensions/ailang-exec.ts .pi/extensions/ailang-lsp-lite.ts .pi/extensions/examples-search.ts internal/executor/pi/profile_assets/
+	@echo "pi_assets synced from .pi/extensions (+ the ailang_only extensions into internal/executor/pi/profile_assets)"
 
 ## verify-pi-assets: drift-check embedded pi assets against .pi/extensions (M-DX-PI-HARNESS Distribution v2)
 verify-pi-assets:
 	@diff -rq -x '.*' .pi/extensions cmd/ailang/pi_assets 2>/dev/null || \
 		{ echo "DRIFT: cmd/ailang/pi_assets is stale vs .pi/extensions — run 'make pi-assets'"; exit 1; }
+	@for f in ailang-exec.ts ailang-lsp-lite.ts examples-search.ts; do cmp -s .pi/extensions/$$f internal/executor/pi/profile_assets/$$f || \
+		{ echo "DRIFT: internal/executor/pi/profile_assets/$$f is stale vs .pi/extensions — run 'make pi-assets'"; exit 1; }; done

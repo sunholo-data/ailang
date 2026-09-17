@@ -1,0 +1,126 @@
+{
+  "sprint_id": "M-PLANNER-CODEX-LANE",
+  "status": "completed",
+  "created": "2026-07-31T00:00:00Z",
+  "branch": "sprint/m-planner-codex-lane-iter136",
+  "worktree": "/Users/voightkampff/dev/sunholo-data/.wt-iter136",
+  "base_commit": "e980c72d5",
+  "design_doc": "design_docs/planned/v1_0_0/m-planner-codex-lane.md",
+  "sprint_plan": "design_docs/planned/v1_0_0/m-planner-codex-lane-sprint-plan.md",
+  "github_issues": [],
+  "planner_model": "claude-opus-5",
+  "mission_iteration": 136,
+  "execution_environment": "PARKED: do not start before the 2026-08-03 07:00 re-arm (dev.ailang.mission-rearm.plist). MISSION INFRA sprint - zero Go, zero AILANG. Do NOT run `make test`. tools/launchd/ has NO CI coverage (no workflow reference, no shellcheck, no bash -n gate, no test file - verified with a positive control that DID find tools/ in 2 workflows): A GREEN CI TELLS YOU NOTHING HERE. The acceptance criteria are the only gate. SHELL IS BASH 3.2.57 - /bin/bash is the only bash on this rig (/opt/homebrew/bin/bash and /usr/local/bin/bash are both absent). NO `declare -A`, NO ${var,,}. Both reproduced as hard failures. Work in an isolated worktree branched from local HEAD; the codex sandbox DENIES `git commit` in a linked worktree, so the CONTROLLER finalizes every commit in the main checkout. NEVER write tools/launchd/mission-control.sh directly in the main checkout - author in the worktree, pass `bash -n` + a namespaced dry-run there, then let the controller copy and re-verify. CRITICAL: every `MISSION_DRY_RUN=1` check MUST add `MISSION_NAME=acheck` - the driver's overlap guard (line 334) fires BEFORE the dry-run exit (line 351), so from inside a live mission iteration the plain command exits rc=0 printing NO roles line (verified: 'previous iteration still running (pid 99870) - yield'). Also pin MISSION_EXECUTOR_MODEL=opus on those checks so they cost zero codex probes. Under MISSION_NAME=acheck the driver log is /tmp/ailang-mission-acheck.log, NOT /tmp/ailang-mission-control.log. NOTE: .ailang/ is gitignored but every sibling sprint JSON is TRACKED - commit this file with `git add -f .ailang/state/sprints/sprint_M-PLANNER-CODEX-LANE.json`.",
+  "metadata": {
+    "scope": "Route MISSION_PLANNER_MODEL through the hardened PROVIDER=codex spawn recipe so the mission sprint-planner rides the ChatGPT-subscription quota bucket and opus stays controller-only (Mark quota-offload #1, directive 2026-07-30). Four parts: (1) NEW tools/launchd/derive-planner-lane.sh - a pure-text, Bash-3.2, fail-closed derivation that reads a doc's **Planner-Lane** header and cross-checks every declared Files-to-Modify path against an infra allowlist; (2) the driver's executor-only codex probe/fallback block (mission-control.sh:295-308) becomes role-generic over PLANNER+EXECUTOR with per-model probe dedupe, plus 2 lines that make the D6 rollback actually deliverable; (3) the mission-control skill gains the derivation step and a planner sub-bullet parameterizing the executor codex recipe; (4) the line-280 default flip, LAST, gated on the rehearsal being green.",
+    "non_scope": "No change to the evaluator (sonnet, generator!=judge intact) or the designer rotation. No change to the sprint-planner skill or its scripts (they run as-is under the sandbox; the interactive `read -p` at create_sprint_json.sh:88 is GUARDED by `< /dev/null`, not edited). Not fixing the metered-ledger 'cost UNKNOWN' honesty defect. No new providers or wire protocols. Do NOT weaken the D2 allowlist to admit ~ or absolute paths - controller ruling iteration 125: Files-to-Modify declares repo-relative SOURCE paths only; sync/deploy copies belong in a landing checklist.",
+    "doc_defects_corrected_by_this_plan": [
+      "AC1/AC2/AC7 unrunnable as written (overlap guard precedes the dry-run exit) -> add MISSION_NAME=acheck; plan section 0.1",
+      "D6 rollback via ~/.config/ailang/mission-v1.env is a NO-OP for V1 (source is gated on $MISSION_PROFILE, which the V1 plist does not set; the file does not exist) -> M2 adds 2 lines + new AC9; plan section 0.2",
+      "AC4's `git status --porcelain` can never pass (main checkout is chronically dirty with rig-generated benchmark JSON) -> scope it to the two artifact paths; plan section 0.3",
+      "The D2 allowlist STILL fail-closes the design doc after the controller's ruling, because prose inside the Files section backticks `internal/parser/...` -> pin the extractor to first-backtick-per-top-level-bullet + fixture (j); plan section 0.4",
+      "Files-section heading has 8 spellings across planned docs and 62/102 docs have none -> heading regex + honest engagement-rate statement + fixture (k); plan section 0.5",
+      "The doc's 'Ailang World blast radius = zero until synced' is FALSE: ailang-world has no repo-local mission-control skill, so it loads the GLOBAL ~/.claude copy that M3 edits -> plan section 0.7"
+    ],
+    "point_of_no_return": "M2. It edits tools/launchd/mission-control.sh, the launchd driver fired every 5400s. Revert for M2 is a CODE REVERT (`git checkout <sha> -- tools/launchd/mission-control.sh`), NOT an env var - the doc's 'rollback = one env var' covers M4's line-280 flip ONLY, and only because M2 first builds the delivery mechanism D6 wrongly assumed already existed."
+  },
+  "velocity": {
+    "target_loc_per_day": 310,
+    "estimated_total_loc": 307,
+    "estimated_days": 1.0,
+    "basis": "~90 LOC derivation script + ~90 LOC across 11 fixture docs + ~42 LOC driver net + ~60 lines skill markdown + ~25 lines doc/template corrections. Recent comparable infra sprints: m-nightly-sustained-failure-label 415 LOC / 0.9d, m-nightly-run-validity-gate 635 LOC / 1.1d, both landed in their box. LOC is NOT the cost here - verification discipline on a CI-uncovered, loop-critical file is. Budget ~8h with 4 codex runs (30-min bounded) plus controller finalization."
+  },
+  "features": [
+    {
+      "id": "M1_DERIVE_PLANNER_LANE_SCRIPT_FIXTURES_AND_DOC_CORRECTION",
+      "description": "NEW tools/launchd/derive-planner-lane.sh (~90 LOC, Bash 3.2, pure text, NO network and NO codex invocation) implementing the D2 stage-2 contract in strict order: step 0 env-pin ($MISSION_PLANNER_MODEL not starting with 'codex:' -> `opus fail-closed:env-pin`); step 1 no-doc; step 2 **Planner-Lane** header field (missing/invalid -> fail closed, NEVER to codex); step 3 opus-required; step 4 allowlist cross-check of every declared Files-to-Modify path; step 5 `codex declared:codex-ok`. Exactly one line on stdout, always exit 0. BINDING extractor contract (plan section 0.4, corrects the doc): one declared path per top-level '- ' bullet = the FIRST backticked token of that bullet; later backticks and continuation lines are prose. BINDING heading contract (plan section 0.5): match ^#{2,4}[[:space:]]+Files\\b case-insensitively, range terminated by the next heading or ^---$. Allowlist prefixes: tools/launchd/ , .claude/skills/mission-control/SKILL.md , .claude/skills/design-doc-creator/ (widened from the single SKILL.md because the template body actually lives in resources/design_doc_structure.md - record the widening in the commit). Plus 11 fixtures in tools/launchd/testdata/planner-lane/ and the **Planner-Lane** template line. FINALLY: correct the design doc's own Files-to-Modify per the iteration-125 controller ruling - delete the two ~/absolute sync-copy bullets into a new '### Landing Checklist' section, and de-backtick the internal/parser prose. ZERO RUNTIME EFFECT: nothing invokes the script until M3.",
+      "estimated_loc": 190,
+      "estimated_hours": 3.0,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "AC7b: `/bin/bash -c '/bin/bash --version | head -1; MISSION_PLANNER_MODEL=codex:gpt-5.6-sol /bin/bash tools/launchd/derive-planner-lane.sh tools/launchd/testdata/planner-lane/c-clean-infra.md'` shows BOTH `version 3.2` AND `codex declared:codex-ok`, rc=0. The version print in the SAME invocation is the point - it kills the false green where a 4.x shell is credited as 3.2 proof.",
+        "AC8 fixtures, with MISSION_EXECUTOR_MODEL=opus and MISSION_PLANNER_MODEL=codex:gpt-5.6-sol pinned: (a) unlisted language path -> `opus fail-closed:path-not-in-codex-allowlist`; (b) field-missing -> `opus fail-closed:planner-lane-field-missing`; (f) future internal/ path -> path-not-in-codex-allowlist; (g) mixed infra+language -> path-not-in-codex-allowlist; (h) malformed section -> path-not-in-codex-allowlist; (i) duplicate sections -> path-not-in-codex-allowlist; (j) NEW prose-first bullet -> `opus fail-closed:unparsable-path-entry`; (l) NEW invalid field value -> `opus fail-closed:planner-lane-field-invalid`; (m) NEW opus-required -> `opus declared:opus-required`.",
+        "AC8c KNOWN-POSITIVE CONTROL (load-bearing, not optional): fixture (c) clean-infra -> `codex declared:codex-ok`, AND fixture (k) NEW alternate heading spelling ('## Files to Modify') -> `codex declared:codex-ok`. An all-opus fixture sweep proves nothing - it is a claim, not a fact, unless the instrument is shown able to say codex at all.",
+        "AC8-env NEW: with MISSION_PLANNER_MODEL=opus, fixture (c) -> `opus fail-closed:env-pin`. Proves the exported env ALWAYS wins over a codex-ok doc (the rev-3 gemini R2 fix).",
+        "AC8d: `grep -cE 'codex (exec|sandbox)' tools/launchd/derive-planner-lane.sh` -> 0, with known-positive control `grep -cE 'codex (exec|sandbox)' tools/launchd/mission-control.sh` -> 4 (measured at plan time) in the SAME command.",
+        "AC-D0 NEW (plan section 0.4): the script run against the CORRECTED m-planner-codex-lane.md with the planner pinned returns `codex declared:codex-ok`. The doc no longer fail-closes itself. Kills: 'the ruling was applied to the prose but the parser still chokes.'",
+        "SWEEP: print the derivation for all 40 planned docs that have a Files heading. Expected: nearly all `planner-lane-field-missing`. ANY `codex declared:codex-ok` on a doc touching internal/ is a HARD STOP.",
+        "`/bin/bash -n tools/launchd/derive-planner-lane.sh` rc=0."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null,
+      "status": "completed"
+    },
+    {
+      "id": "M2_DRIVER_ROLE_GENERIC_PROBE_LOOP_AND_REAL_ROLLBACK_PLUMBING",
+      "description": "*** POINT OF NO RETURN *** Replace tools/launchd/mission-control.sh:295-308 (the executor-only codex `case` block) with the design doc's D3 role-generic loop over PLANNER+EXECUTOR, VERBATIM - it was extracted into a stub harness during planning and passes `bash -n` under /bin/bash 3.2 and behaves in all four cases (both-default; planner-bad-model; both-bad-same-model dedupe fires ONE probe and falls BOTH roles back; non-codex: value passes through untouched). Do not 'improve' it. Preserved invariants: --model on the probe (#486), fallback on ANY rc!=0, bounded via _mc_bounded/$PROBE_TIMEOUT, fallback target opus, the log line NAMES the role, probe dedupe by model. PLUS the 2-line D6 rollback source after MISSION_NAME resolution (~line 49) - see plan section 0.2: the documented rollback file is never read for V1 today because the source at lines 47-48 is gated on $MISSION_PROFILE and the V1 plist sets only PATH and HOME. DO NOT touch line 280 - the default flip is M4.",
+      "estimated_loc": 42,
+      "estimated_hours": 1.5,
+      "dependencies": [
+        "M1_DERIVE_PLANNER_LANE_SCRIPT_FIXTURES_AND_DOC_CORRECTION"
+      ],
+      "acceptance_criteria": [
+        "ORDERING GATE (mandatory, in the worktree, before the file leaves it): (a) `/bin/bash -n tools/launchd/mission-control.sh` rc=0; (b) `MISSION_DRY_RUN=1 MISSION_NAME=acheck MISSION_EXECUTOR_MODEL=opus /bin/bash tools/launchd/mission-control.sh` prints a roles line, rc=0, zero probes. Only then does the controller copy to the main checkout and re-run (a) and (b) THERE. If the main-checkout dry-run prints no roles line, `git checkout` the file back immediately and stop the sprint.",
+        "AC1 (corrected per plan section 0.1): `MISSION_DRY_RUN=1 MISSION_NAME=acheck MISSION_EXECUTOR_MODEL=opus MISSION_PLANNER_MODEL=codex:gpt-5.6-sol /bin/bash tools/launchd/mission-control.sh` -> roles line contains `planner=codex:gpt-5.6-sol`. Kills: 'the export never happened'.",
+        "AC2 (corrected): `MISSION_DRY_RUN=1 MISSION_NAME=acheck MISSION_EXECUTOR_MODEL=opus MISSION_PLANNER_MODEL=codex:no-such-model /bin/bash tools/launchd/mission-control.sh` -> stdout / /tmp/ailang-mission-acheck.log contains `codex planner lane -> falling back to opus` AND the roles line prints `planner=opus`. Costs exactly ONE real codex probe. The probe MUST fail BECAUSE it carries --model; if it returns rc=0 the #486 regression has returned.",
+        "AC7 (corrected, pre-flip, zero probes): `/bin/bash -c '/bin/bash --version | head -1; MISSION_DRY_RUN=1 MISSION_NAME=acheck MISSION_EXECUTOR_MODEL=opus /bin/bash tools/launchd/mission-control.sh'` shows BOTH `version 3.2` AND the roles line, rc=0.",
+        "AC9 NEW (plan section 0.2 - the rollback is EXERCISED, not asserted): create ~/.config/ailang/mission-acheck.env holding `MISSION_PLANNER_MODEL=\"${MISSION_PLANNER_MODEL:-opus}\"`; the acheck dry-run then shows `planner=opus` sourced FROM THE FILE; delete the file, re-run, confirm the value CHANGES BACK (a one-sided test is a claim, not a fact). Then create the real ~/.config/ailang/mission-v1.env with that line COMMENTED OUT, ready to uncomment as the D6 rollback. Remove the acheck fixture file.",
+        "The driver `git diff` is EXACTLY the probe-block replacement plus the 2 rollback lines. No line-280 change, no reformatting, no drive-by edits.",
+        "Idempotence check before any World sync: `MISSION_PROFILE=world MISSION_DRY_RUN=1 /bin/bash <world driver copy>` still resolves correctly with the file sourced twice."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null,
+      "status": "completed"
+    },
+    {
+      "id": "M3_MISSION_CONTROL_SKILL_PLANNER_RECIPE_AND_COPY_SYNC",
+      "description": "Three edits to .claude/skills/mission-control/SKILL.md: (1) roles table line 451 - Sprint-planner default becomes codex:gpt-5.6-sol, cell states 'effective lane = derive-planner-lane.sh output, verbatim; fail-closed to opus', superseding the stale 'down-tier A/B = M3' note; (2) NEW step 1b - the derivation runs FIRST, before any planner probe or spawn, and its one-line output IS the effective lane; `opus ...` spawns the opus Agent path with NO codex probe for the planner role, and the reason token goes verbatim in the evidence row; script missing on disk -> fail closed to opus, LOUDLY; (3) a planner sub-bullet in the PROVIDER=codex section that PARAMETERIZES the executor recipe rather than forking it - four deltas only (ephemeral detached worktree via `git worktree add --detach <path> HEAD` NOT -b from origin/dev; per-iteration directive file with the identical >=200B / exit-64 assertion and `< /dev/null` on probe AND run - doubly load-bearing here because create_sprint_json.sh:88 has an interactive `read -p` that would BLOCK a backgrounded run; keep --add-dir GOCACHE/GOMODCACHE with the 'in-sandbox gate verdicts are NOT evidence' caveat verbatim; the six post-run controller steps ending in a Co-Authored-By: codex commit). Then sync to ~/.claude/skills/mission-control/SKILL.md in the same commit window. RUNTIME EFFECT REACHES THE AILANG WORLD MISSION IMMEDIATELY - see plan section 0.7: ailang-world has NO repo-local mission-control skill, so it loads the global ~/.claude copy.",
+      "estimated_loc": 60,
+      "estimated_hours": 1.5,
+      "dependencies": [
+        "M2_DRIVER_ROLE_GENERIC_PROBE_LOOP_AND_REAL_ROLLBACK_PLUMBING"
+      ],
+      "acceptance_criteria": [
+        "`diff -q .claude/skills/mission-control/SKILL.md ~/.claude/skills/mission-control/SKILL.md` is SILENT after the edit (both were 70544 bytes and identical at plan time).",
+        "AC8e: fixture (a) run through the skill's Gate-3 planner step -> the spawned planner is the opus Agent path and the evidence row records the up-route token verbatim.",
+        "NO duplicated guard text: the phrases `exit 64`, `< /dev/null` and `run_in_background` appear in the planner sub-bullet only as REFERENCES to the executor recipe, so a future guard fix lands once.",
+        "The worktree instruction says `--detach ... HEAD` and NOT `-b origin/dev` (a just-committed-unpushed design doc would otherwise be invisible to the planner), and states the precondition `git status --porcelain -- <design-doc>` must be empty before spawning.",
+        "DECISION RECORDED on the third copy: .agents/skills/mission-control/SKILL.md is a git-TRACKED third copy (44067 bytes, dated Jul 24) that has ALREADY drifted from the .claude copy. Either sync it or write one line declaring .agents/ out of scope and stale-by-design. Silence is not acceptable. Do NOT add .agents/ to the D2 allowlist as a side effect. (.agents/skills/sprint-planner/scripts/create_sprint_json.sh is byte-identical to the .claude one - verified - so the planner's own scripts are unaffected either way.)",
+        "The commit message states the World exposure explicitly (plan section 0.7): World reaches the new skill at its next fire with no driver sync; it degrades safely to opus via step 0 env-pin and the missing-script rule, but expect fail-closed tokens in World's evidence rows."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null,
+      "status": "completed"
+    },
+    {
+      "id": "M4_AC3A_REHEARSAL_DEFAULT_FLIP_WORLD_DECISION_AND_LANDING",
+      "description": "(1) AC3a REHEARSAL - run the full D4 planner recipe against the CORRECTED m-planner-codex-lane.md (which AC-D0 proved now derives codex declared:codex-ok), throwaway sprint id rehearsal-iter<N>, in /tmp/planner-wt-iter<N>; copy-back and commit SKIPPED by design, artifacts inspected in the worktree then discarded with it, main checkout untouched. Fall back to fixture c-clean-infra.md only if AC-D0 fails, and say which in the landing report. (2) THE FLIP, the sprint's FINAL commit: mission-control.sh:280 becomes `export MISSION_PLANNER_MODEL=\"${MISSION_PLANNER_MODEL:-codex:gpt-5.6-sol}\"` with a comment citing the design doc and the D2 derivation. (3) WORLD-SYNC DECISION, mandatory, one of two, recorded in the landing commit - RECOMMENDED: cp the driver to ailang-world (restoring `diff -q` identity, which is itself the drift detector) AND add `MISSION_PLANNER_MODEL=\"${MISSION_PLANNER_MODEL:-opus}\"` to ~/.config/ailang/mission-world.env (World DOES source it - MISSION_PROFILE=world is set in its plist - and it currently pins no role models), keeping World's planner on opus and simultaneously demonstrating the D6 mechanism; OR decline and send a cross-mission message to world-coordinator, recording the message ID. World is kill-switched until the 08-03 re-arm, so this is verifiable at zero live risk. (4) Landing checklist. (5) Move the design doc to design_docs/implemented/v1_0_0/ and record the plan-section-0.5 engagement reality (62 of 102 planned docs have no Files section; exactly 1 doc carries the Planner-Lane field today, so the lane engages only on newly authored infra docs).",
+      "estimated_loc": 15,
+      "estimated_hours": 2.0,
+      "dependencies": [
+        "M3_MISSION_CONTROL_SKILL_PLANNER_RECIPE_AND_COPY_SYNC"
+      ],
+      "acceptance_criteria": [
+        "AC3a: derivation returns `codex declared:codex-ok`; codex runs in the detached worktree; IN THE WORKTREE `jq -e .` validates the JSON, `features | length >= 1`, ZERO occurrences of `MILESTONE_ID` and ZERO of `auto-parse failed` (create_sprint_json.sh writes exactly that placeholder at :160-172 and exits 0 - the built-in vacuous-pass generator), the plan file names the input design doc, and the `-o` final message is a plan summary, NOT 'What would you like me to work on?'.",
+        "AC4 (corrected per plan section 0.3): `git worktree list | grep -c planner-wt-` -> 0, AND `git status --porcelain -- design_docs/planned .ailang/state/sprints` shows only the intended artifacts. Do NOT assert a globally clean `git status` - the main checkout is chronically dirty with rig-generated benchmark JSON (6 modified files at plan time) and 13 unrelated worktrees exist.",
+        "AC5: invoking the planner wrapper with the directive file ABSENT exits 64 without spawning codex (grep the wrapper log for the FATAL line).",
+        "AC1 post-flip: the acheck dry-run WITHOUT the MISSION_PLANNER_MODEL pin still shows `planner=codex:gpt-5.6-sol`. Budget for one real probe - the dry-run exit is after the probe block.",
+        "AC6: the iteration's routing-evidence row records the derivation output VERBATIM, e.g. `planner=codex:gpt-5.6-sol (declared:codex-ok)` or `planner=opus (fail-closed:planner-lane-field-missing)`. Kills the exported-env vs actual-spawn divergence.",
+        "World-sync decision recorded in the landing commit (sync + mission-world.env opus pin verified by `MISSION_PROFILE=world MISSION_DRY_RUN=1` showing planner=opus, OR a cross-mission message ID).",
+        "Landing report states, in plain words, that D6's 'rollback = one env var' covers the M4 flip ONLY - M2's driver edit reverts by `git checkout <sha> -- tools/launchd/mission-control.sh`, and the env-var rollback only works at all because M2 built the delivery mechanism the doc assumed already existed."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null,
+      "status": "completed"
+    }
+  ],
+  "completed": "2026-08-04"
+}

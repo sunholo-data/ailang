@@ -29,6 +29,7 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
+	piexec "github.com/sunholo-data/ailang/internal/executor/pi"
 )
 
 //go:embed all:pi_assets
@@ -257,7 +258,16 @@ func uninstallPiExtensions(home string, stdout io.Writer) error {
 	return nil
 }
 
-func statusPiExtensions(home string, stdout io.Writer) error {
+// statusPiExtensions reports each embedded asset's state in the global dir.
+//
+// workspace is the directory pi would run in (the caller's cwd). A workspace
+// that ships its own copy of the suite — the AILANG repo and every worktree of
+// it — MUST NOT also carry the global copy: pi refuses to start on the
+// duplicate tool registration (pi_extension_collision.go), which is why the
+// rig's global dir deliberately lacks the suite. An identical workspace copy is
+// therefore reported as WORKSPACE, not MISSING; a differing one stays MISSING
+// and says so, because then neither copy is the current suite.
+func statusPiExtensions(home, workspace string, stdout io.Writer) error {
 	managed := readPiManaged(home)
 	embedded, names, err := piEmbeddedFiles()
 	if err != nil {
@@ -268,11 +278,19 @@ func statusPiExtensions(home string, stdout io.Writer) error {
 	for _, name := range names {
 		want := sha256Hex(embedded[name])
 		target := filepath.Join(piExtensionsDir(home), name)
+		wsHash, _, wsErr := "", 0, error(nil)
+		if workspace != "" {
+			wsHash, _, wsErr = diskHash(filepath.Join(workspace, ".pi", "extensions", name))
+		}
 		diskHash, _, diskErr := diskHash(target)
 		_ = diskHash
 		_ = diskErr
 		mf, wasManaged := managed[name]
 		switch {
+		case diskErr != nil && wsErr == nil && wsHash == want:
+			fmt.Fprintf(stdout, "  %s WORKSPACE  %s (no global copy; %s/.pi/extensions ships it — a global copy would collide)\n", green("✓"), name, workspace)
+		case diskErr != nil && wsErr == nil:
+			fmt.Fprintf(stdout, "  %s MISSING    %s (workspace copy differs from this binary's — run `make pi-assets` there or reinstall)\n", color.New(color.FgRed).Sprint("✗"), name)
 		case diskErr != nil:
 			fmt.Fprintf(stdout, "  %s MISSING    %s\n", color.New(color.FgRed).Sprint("✗"), name)
 		case !wasManaged:
@@ -334,7 +352,8 @@ func piUninstallCommand() {
 func piStatusCommand() {
 	home, err := os.UserHomeDir()
 	if err == nil {
-		err = statusPiExtensions(home, os.Stdout)
+		cwd, _ := os.Getwd()
+		err = statusPiExtensions(home, cwd, os.Stdout)
 	}
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -371,6 +390,19 @@ func piCommand() {
 		piUninstallCommand()
 	case "status":
 		piStatusCommand()
+	case "tool-profile":
+		// The ONE expansion of a tool_policy profile into pi flags, so
+		// docker/resident/lib/pi.mjs and shells read what pi.go uses.
+		if len(os.Args) < 4 {
+			fmt.Fprintln(os.Stderr, "usage: ailang pi tool-profile <full|ailang_only|Canonical,List>")
+			os.Exit(1)
+		}
+		args, err := piexec.ProfileArgs(os.Args[3])
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Println(args)
 	default:
 		fmt.Fprintf(os.Stderr, "unknown 'ailang pi' subcommand %q\n", os.Args[2])
 		piUsage()
@@ -388,4 +420,5 @@ func piUsage() {
 	fmt.Println("  install    Materialize the embedded extensions (idempotent, version-stamped)")
 	fmt.Println("  uninstall  Remove ailang-managed files (user files untouched)")
 	fmt.Println("  status     Per-file freshness vs this binary")
+	fmt.Println("  tool-profile <name>  Print the pi flags for a tool_policy profile (full | ailang_only | explicit list)")
 }

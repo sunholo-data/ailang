@@ -1,0 +1,102 @@
+{
+  "sprint_id": "M-OPENROUTER-BROADCAST-INGEST",
+  "status": "completed",
+  "created": "2026-08-13T00:00:00Z",
+  "design_doc": "design_docs/implemented/v0_33_1/m-openrouter-broadcast-ingest.md",
+  "sprint_plan": "design_docs/implemented/v0_33_1/m-openrouter-broadcast-ingest-sprint-plan.md",
+  "github_issues": [],
+  "design_freeze": {
+    "malformed_id_policy": "REJECT with typed HTTP 400. Resolved by Mark 2026-08-13. Trace IDs are the join key, so this is data integrity and CLAUDE.md Principle 2 gives it no fallback.",
+    "auth_rollout": "Shared-secret header, landed DISABLED. AILANG_OTLP_INGEST_TOKEN unset = auth off, so deploying cannot break live Broadcast ingest. Mark enables it by setting the Cloud Run env var AND adding the matching custom header on the OpenRouter destination - both sides or ingest stops. The agent cannot perform the OpenRouter-dashboard half.",
+    "corrupted_rows": "BACKFILL. Corruption is lossless and reversible (V12); 38 rows affected (V13).",
+    "all_resolved": true
+  },
+  "live_state_warning": "OpenRouter Broadcast is LIVE against https://dashboard.ailang.sunholo.com/v1/traces as of 2026-08-13. Real third-party data is arriving during this sprint. Measured: 38/38 spans carry a 48-char trace_id instead of 32, i.e. OpenRouter sends OTLP/JSON and every ID is currently corrupted. Do not disable Broadcast; the backfill is idempotent and covers whatever arrives before M1 lands.",
+  "velocity": {
+    "target_loc_per_day": 400,
+    "estimated_total_loc": 470,
+    "estimated_days": 1.5
+  },
+  "features": [
+    {
+      "id": "M1_OTLP_JSON_ID_CODEC",
+      "description": "Fix the OTLP/JSON trace/span ID decode defect at all three receiver sites, TEST-FIRST. internal/observatory/otlp_receiver.go:166 decodes with protojson.Unmarshal, which follows the proto3 JSON mapping and treats `bytes` fields as base64; the OTLP/JSON spec overrides this and encodes traceId/spanId as HEX. Every JSON ingest therefore base64-decodes a hex string, storing 24 bytes instead of 16, and still returns HTTP 200 {\"partialSuccess\":{}}. Add a normalizeOTLPJSONIDs pre-decode pass that rewrites traceId/spanId string fields from hex to the base64 protojson expects, keeping protojson as the single decoder so the spec deviation is confined to one function. Apply at otlp_receiver.go:166 (traces), otlp_receiver.go:233 (logs), and the metrics equivalent in otlp_receiver_metrics.go. Malformed IDs are REJECTED with a typed error and HTTP 400 per Design Freeze - no silent repair, no best-effort store. The protobuf path (otlp_receiver.go:161) is already correct and must not regress. ALSO in this milestone (code only, DISABLED by default): the shared-secret auth middleware on the three OTLP routes, gated on AILANG_OTLP_INGEST_TOKEN, using constantTimeEqual; unset env = auth off so the deploy cannot break live ingest.",
+      "estimated_loc": 180,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "NON-VACUITY PROOF: the red-first transcript (--- FAIL showing a 48-char stored trace_id) is captured BEFORE internal/observatory/otlp_receiver.go is modified, and recorded verbatim in the commit body and this JSON's notes. Do NOT use git stash or git checkout to produce it (CLAUDE.md Principle 0)",
+        "An httptest POST of an OTLP/JSON body with traceId=\"5b8aa5a2d2c872e8321cf37308d69df2\" through handleTraces stores exactly those 16 bytes; the test asserts the stored hex is 32 chars, not 24 or 48",
+        "A payload with traceId=\"not-hex\" returns HTTP 400 with a typed error AND writes no row - asserted by a span count taken before and after, not by the status code alone",
+        "JSON and protobuf ingest of the same logical payload produce IDENTICAL stored trace_id and span_id. This is the cross-encoding invariant the bug violated",
+        "Codec unit tests cover: valid 16-byte trace ID, valid 8-byte span ID, wrong length, non-hex characters, empty string, and a value that is BOTH valid hex AND valid base64 (pins the precedence rule)",
+        "The protobuf path is provably unchanged: existing convertSpan tests green, plus a protobuf round-trip test asserting the same 16 bytes",
+        "Auth middleware tests: AILANG_OTLP_INGEST_TOKEN set + no header -> 401; set + wrong header -> 401; set + correct header -> 200; UNSET + no header -> 200 (the local-dev and current-prod path, which must keep working)",
+        "Auth is scoped to /v1/traces, /v1/logs, /v1/metrics ONLY - the dashboard UI and /api/observatory/* reads are untouched, asserted by a request to /api/observatory/spans succeeding with no header while the token is set",
+        "grep -c \"t.Skip\" internal/observatory/otlp_receiver_test.go == 0",
+        "go test ./internal/observatory/... green; make lint clean"
+      ],
+      "passes": true,
+      "started": "2026-08-13T00:00:00Z",
+      "completed": "2026-08-13T00:00:00Z",
+      "notes": "Landed 93e5dbae9. Red transcript captured before touching the receiver and recorded in the commit body; the failing value (e5bf1a6b96b677673cef67bcdf6d5c7f7ef7d3c77af5d7f6) is byte-identical to what production returned for the same input, so the local reproduction is exact. Normalization applied at all three JSON sites plus their content-type-sniffing fallbacks (traces/logs/metrics). Malformed IDs rejected with 400, asserted by span-count-before/after rather than status code alone. Auth middleware landed DISABLED (AILANG_OTLP_INGEST_TOKEN unset = open) and scoped inside RegisterRoutes so it cannot widen to the read APIs. 13 new tests on a decode path that previously had zero coverage. make lint clean, make check-file-sizes green."
+    },
+    {
+      "id": "M2_BACKFILL_MIGRATION",
+      "description": "Repair the existing corrupted rows via a new internal/observatory/migrate_v18.go (v18 verified unallocated 2026-08-13; migrate_v16.go and migrate_v17.go are the current max). For every row whose trace_id is 48 hex chars, set trace_id = base64encode(unhexlify(trace_id)); same for span_id. The transform is lossless because base64 decoding is injective at fixed length - verified against live prod rows, e.g. 6bb6b86b6d3ad37e1bd9fe1f6b5736ebd6b9f766f8e1a6bd recovers to a7a4a206034b2f4fa1c269a592b44aa9. Guard strictly on length so the migration is idempotent and cannot touch already-correct 32-char rows.",
+      "estimated_loc": 90,
+      "dependencies": [
+        "M1_OTLP_JSON_ID_CODEC"
+      ],
+      "acceptance_criteria": [
+        "A row seeded with a known corrupted ID recovers the EXACT original hex - asserted against the measured live pair (6bb6b86b6d3ad37e1bd9fe1f6b5736ebd6b9f766f8e1a6bd -> a7a4a206034b2f4fa1c269a592b44aa9)",
+        "IDEMPOTENCE: running the migration twice produces a byte-identical DB, asserted by a checksum of the spans table, not by inspection",
+        "Rows with already-correct 32-char IDs are provably untouched: the count of modified rows equals the count of 48-char rows, asserted explicitly",
+        "The migration reports the number of rows repaired; a run against a DB with zero corrupted rows is a no-op that says so rather than failing",
+        "Span COUNT is unchanged before and after - this is a repair, never a delete",
+        "go test ./internal/observatory/... green"
+      ],
+      "passes": true,
+      "started": "2026-08-13T00:00:00Z",
+      "completed": "2026-08-13T00:00:00Z",
+      "notes": "Landed 281a8ebb2. Anchored to the production pair 6bb6b86b...a6bd -> a7a4a206034b2f4fa1c269a592b44aa9. Covers id/trace_id/parent_span_id. A test found a REAL defect: repairing a span id can collide with an existing row (same span ingested under both encodings), which violated the PK and rolled back the whole transaction; now skipped and reported loudly rather than deleted. Idempotence asserted by sha256 of the spans table; never-delete by row count. Also added CurrentSchemaVersion so a migration bump stops reddening unrelated tests. 7 new tests. | POST-DEPLOY CORRECTION 2026-08-13: this migration CANNOT repair the deployed environments. Both ailang-dashboard (prod) and ailang-dev-dashboard run AILANG_STORAGE=gcp, which selects fsstore.NewObservatoryStore (Firestore); MigrateWithVersion is only reachable from the two SQLite paths (observatory/store.go:61, backend_sqlite.go:32) and Firestore has no migration hook. The design doc assumed SQLite and never verified it - the V13 row counted prod rows but not which backend held them. The repair FUNCTION is correct and tested; it needs a Firestore-side runner. migrate_v18 still correctly repairs local/rig SQLite observatories."
+    },
+    {
+      "id": "M3_OPENROUTER_CORRELATION_FIELDS",
+      "description": "Add the three OpenRouter Broadcast correlation fields - user (<=128 chars), session_id (<=256 chars), and trace (arbitrary key-value object) - so broadcast spans can be joined to eval runs. Add User/SessionID/Trace to chatRequest (internal/ai/openrouter/types.go:16-31) with omitempty, and the same to ai.Request (internal/ai/provider.go:32). Wire ALL THREE OpenRouter request-build sites: chat.go:44 (struct literal), step.go:187 (REUSE the existing marshalStepBodyWithExtras splice helper at step.go:186 - do not add a second body-extension mechanism), and streamstep.go:118. Populate from internal/eval_harness/ai_provider.go:81 using the chain ID as session_id. Enforce the length caps at construction, failing loudly with a typed error rather than silently truncating (CLAUDE.md Principle 2). Fully independent of M1/M2.",
+      "estimated_loc": 140,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "GOLDEN-BODY TEST: an ai.Request with NO correlation fields set marshals BYTE-IDENTICAL to the current output, asserted separately at all THREE build sites (chat.go, step.go, streamstep.go). Every OpenRouter call in the project flows through these, so this is the regression that matters most",
+        "With fields set, the marshalled body carries session_id and a trace object containing trace_name; verified by unmarshalling the actual bytes, not by inspecting the struct",
+        "An over-cap session_id (257 chars) returns a typed error BEFORE network dispatch and is never silently truncated; same for an over-cap user (129 chars)",
+        "step.go routes through the existing marshalStepBodyWithExtras helper - asserted by the absence of any new splice/merge function in the diff",
+        "go test ./internal/ai/... green; make lint clean"
+      ],
+      "passes": true,
+      "started": "2026-08-13T00:00:00Z",
+      "completed": "2026-08-13T00:00:00Z",
+      "notes": "Landed d33a84747. ai.Correlation on ai.Request; all three build sites wired via two shared helpers (applyCorrelation for the chatRequest struct, correlationExtras for the splice sites) reusing the EXISTING marshalStepBodyWithExtras rather than adding a second mechanism. Golden-body byte-identity asserted separately for both shapes across nil/empty-struct/empty-trace-map. Over-cap rejected before dispatch with an at-cap control alongside. Wired end-to-end at eval_benchmark.go rather than left for a future caller (setAttribution has sat //nolint:unused awaiting one). 7 new tests asserting marshalled bytes, not struct state."
+    },
+    {
+      "id": "M4_LIVE_VERIFICATION",
+      "description": "Prove the fix against the real third-party producer rather than only against fixtures, then retire the now-stale defect documentation. Deploy, read the next arriving OpenRouter broadcast span, and assert a 32-char trace ID. Run the backfill against prod's 38 rows and spot-check a recovered ID. Remove the KNOWN DEFECT section from .claude/rules/cloud-endpoints.md (committed 8773c8976) since it will no longer be true, and update CHANGELOG.md per the coding-standards rule.",
+      "estimated_loc": 60,
+      "dependencies": [
+        "M1_OTLP_JSON_ID_CODEC",
+        "M2_BACKFILL_MIGRATION"
+      ],
+      "acceptance_criteria": [
+        "A LIVE broadcast span arriving after deploy has a 32-char trace_id, read back via GET /api/observatory/spans. This is end-to-end evidence against a real third-party producer",
+        "Prod span count is identical before and after the backfill",
+        ".claude/rules/cloud-endpoints.md no longer documents a defect that is fixed; the probe recipe with its 404 control is RETAINED (still useful)",
+        "CHANGELOG.md updated under the active changelog file",
+        "If the live check cannot be run (deploy not yet out), say so OUT LOUD and mark M4 not-yet rather than passing it on fixture evidence alone"
+      ],
+      "passes": true,
+      "started": "2026-08-13T00:00:00Z",
+      "completed": "2026-08-13T00:00:00Z",
+      "notes": "COMPLETE. Deployed to prod via the v0.33.1 gated release (build 64cdac2a, smoke gate passed, revision ailang-dashboard-00032-qm2, MCP 0.33.0 -> 0.33.1). Live verification against the REAL third-party producer, not fixtures: an OpenRouter Broadcast trace from a probe call landed with a 32-char trace_id and 16-char span/parent ids, and its openrouter.trace.id matched the or-id the API returned (gen-1786616400-wMoLlYLubJH4UoXr3ksk) byte-for-byte. Malformed ids return HTTP 400 with the typed error. M3 correlation ALSO verified end-to-end in prod: session.id, user.id, trace.name, trace.metadata.benchmark and trace.metadata.tier all survived the round trip. Backfill done via a NEW Firestore-side command (ailang observatory repair-ids) because migrate_v18 could never reach prod: 193 spans before and after, distribution 48x190/32x3 -> 32x193, production anchor recovered exactly, second run a clean no-op."
+    }
+  ],
+  "completed": "2026-08-13T12:26:36Z"
+}

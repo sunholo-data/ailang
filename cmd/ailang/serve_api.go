@@ -34,7 +34,7 @@ func serveAPICommand(args []string) error {
 	routesOnlyFlag := fs.Bool("routes-only", false, "Only expose @route-annotated functions as HTTP endpoints")
 	noFeedbackToolFlag := fs.Bool("no-feedback-tool", false, "Suppress the built-in submit_feedback MCP tool (exact tool surface)")
 	helpFlag := fs.Bool("help", false, "Show help for serve-api command")
-	maxMemoryFlag := fs.String("max-memory", "", "Memory limit (e.g., 256MB, 1GB). Triggers aggressive GC near limit.")
+	maxMemoryFlag := fs.String("max-memory", "", "Go soft memory limit: a size (256MB, 1GB) or 'cgroup' (the container limit x 0.9). Unset = AILANG_MEMLIMIT, else none.")
 	logLevelFlag := fs.String("log-level", "", "Minimum log level for Debug output (debug, info, warn, error, none)")
 
 	if err := fs.Parse(args); err != nil {
@@ -52,10 +52,8 @@ func serveAPICommand(args []string) error {
 	}
 
 	// Apply memory limit early (process-wide setting)
-	if *maxMemoryFlag != "" {
-		if err := applyMemoryLimit(*maxMemoryFlag); err != nil {
-			return fmt.Errorf("invalid --max-memory: %w", err)
-		}
+	if _, err := applyResolvedMemoryLimit(*maxMemoryFlag, false); err != nil {
+		return fmt.Errorf("invalid --max-memory: %w", err)
 	}
 
 	if fs.NArg() < 1 {

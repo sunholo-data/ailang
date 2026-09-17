@@ -1,0 +1,187 @@
+{
+  "sprint_id": "M-NET-EFFECT-PROXY-BOUNDARY",
+  "status": "not_started",
+  "created": "2026-08-06T21:44:36Z",
+  "planned_at_head": "945f36727",
+  "design_doc": "design_docs/planned/v0_33_1/m-net-effect-proxy-boundary.md",
+  "sprint_plan": "design_docs/planned/v0_33_1/m-net-effect-proxy-boundary-sprint-plan.md",
+  "github_issues": [],
+  "github_issues_note": "INTENTIONALLY EMPTY. The scaffold auto-linked #612, which was REMOVED: #612 is the go/packages AST analyzer follow-up filed under human ruling D-6 = Option A and is EXPLICITLY OUT OF SCOPE for this sprint. A 'Fixes #612' in a final commit would wrongly auto-close a follow-up this sprint does not implement. Reference #612 only in the M4 source-comment link (refs, never Fixes).",
+  "risk_level": "medium-high",
+  "planner_lane": "opus-required",
+  "velocity": {
+    "target_loc_per_day": 417,
+    "estimated_total_loc": 1250,
+    "estimated_days": 3,
+    "basis": "M-CI-FLAKE-SYSTEMIC-FIX milestones in the same subsystem: c440a1628=361, 368f940cf=201, 13c570063=359, 4b47f8b0a=87, c9e1a4f98=242 lines changed. Observed band 200-360 lines/milestone, with single-milestone feature landings up to ~1350 (34951811d). This sprint at ~313/milestone sits inside the observed band. Doc 3-day/4-milestone shape KEPT UNCHANGED - no measured reason to change."
+  },
+  "baseline_findings": {
+    "go_build_all": "rc=1 AT BASE on unmodified dev. cmd/wasm (//go:build js && wasm) and gen/main have no native main. STRUCTURAL - EXCLUDED as an acceptance gate. Verified first-party at 945f36727, confirming the controller's inherited claim.",
+    "scoped_build_substitute": "go build ./internal/effects/... ./internal/executor/... ./internal/testutil/... = rc=0 at base. ADOPTED in place of go build ./...",
+    "vacuously_green_gates": "The M1 and M2 named-test -run commands ALL return rc=0 with 0 '=== RUN' lines and '[no tests to run]' at base. Exit code alone would pass after a complete revert that deletes the tests. Every named-test AC therefore requires a '=== RUN' count assertion.",
+    "already_green_at_base": [
+      "go vet ./internal/effects ./internal/executor/managed_agents ./internal/testutil (rc=0)",
+      "make check-boundaries (rc=0, 'OK: no architecture boundary violations.')",
+      "go test -count=1 ./internal/effects ./internal/executor/managed_agents unpoisoned (rc=0)",
+      "HTTP_PROXY/HTTPS_PROXY=http://127.0.0.1:9 go test -count=1 ./internal/effects ./internal/executor/managed_agents (rc=0) - the M3 AC2 bare package command PROVES NOTHING alone",
+      "env -u AILANG_LIVE_NET go test -run 'TestNetHttpPost/httpPost_to_httpbin.org|TestNetBodySizeLimit/small_response_under_limit' (rc=0, both --- SKIP) - M3 AC3, supporting evidence only per the doc"
+    ],
+    "correctly_red_at_base": "grep -rn 'effects_nil_proxy_remains_open' internal/testutil docs design_docs/implemented/v0_33_1/m-ci-flake-systemic-fix.md = 4 hits (must reach 0). Anti-vacuity control grep -rn 'loopback_bypasses_lane_poison' internal/testutil = 2 hits, FIRES.",
+    "sandbox_posture": "This planning workspace was NOT socket-restricted - all socket-bearing baselines ran informative and green, CONTRADICTING doc row V13. The sandbox rule still stands for the executor; section 2.3 of the plan records the informative output so a denial is distinguishable from a failure.",
+    "v2_v3_reproduced": "7 production http.Transport{ literals across 4 files at net.go:96,212,587 / stream_ndjson.go:80 / stream_sse.go:70,329 / managed_agents/client.go:141. Production ProxyFromEnvironment = 0, test-inclusive control = 3. Both match V2/V3 exactly at 945f36727."
+  },
+  "planner_corrections": [
+    "REFUTES THE CONTROLLER: the AC10(d) tripwire CANNOT flip RED from this change. testEffectsProxyResidual (internal/testutil/egress_posture_test.go:66-85) builds its OWN &http.Transport{} and imports NOTHING from internal/effects (imports: net, net/http, net/http/httptest, net/url, os, strings, testing, time; control: net/http appears 2x so the search is live). No production change can alter its outcome. M4 is a DELIBERATE DELETION gated by grep-to-zero + control, which is what the design doc actually specifies ('helper-only residual logic', line 283). The doc is right; the briefing's framing is wrong.",
+    "Inherited defect in a LANDED artifact: design_docs/implemented/v0_33_1/m-ci-flake-systemic-fix-sprint-plan.md:460 describes an AC10(d) falsification drill ('set the effects transport proxy ... the residual half turns red') that is NOT EXECUTABLE, for the same reason. Handled as a one-line superseded-by note in M4 task 7, NOT by widening any AC.",
+    "CONFIRMS THE CONTROLLER: go build ./... is rc=1 at base. Verified. Excluded from all gates.",
+    "AC-M4.2's grep scope covers 4 of 13 repo-wide hits; 2 more live in m-ci-flake-systemic-fix-sprint-plan.md:446,466. ASSESSED AS CORRECT AS WRITTEN, not a bug - implemented sprint plans and mission logs are historical records; only forward-looking guidance must be retired. Doc scope adopted unchanged; hole documented so it is not mistaken for an oversight.",
+    "Doc found INTERNALLY CONSISTENT on every point checked: 7 sites = 6 effects + 1 MA; M2's four paths = 3 stream + 1 MA; timeline 1+0.5+0.75+0.75 = 3.0 days; 12 ACs all owned by exactly one milestone. No rule-vii escalation needed."
+  ],
+  "hard_constraints": {
+    "out_of_scope_do_not_implement": "The go/packages AST/type analyzer. Human ruling D-6 = Option A (Mark, attended 2026-08-06). Filed as #612. Implementing it here reverses a human decision.",
+    "import_cycle_guard": "internal/effects/net_test.go is 'package effects' and imports internal/testutil (net_test.go:11). Therefore internal/testutil MUST NOT import internal/effects - import cycle, will not compile. The positive boundary assertions replacing the retired tripwire MUST live in internal/effects/*_test.go and internal/executor/managed_agents/*_test.go, exactly where the doc places them.",
+    "poisoned_run_env": "AILANG_LIVE_NET must be UNSET for the M3 poisoned run. internal/testutil/gate.go:47-58 returns LiveNetworkFatal when a proxy variable points at 127.0.0.1:9 in the live lane, and RequiresLiveNetwork then t.Fatalf's. Poisoned + live is a configuration error, not a code failure.",
+    "sandbox_rule": "Any 'bind: operation not permitted', proxy 'operation not permitted', or outbound denial is UNINFORMATIVE UNDER SANDBOX. Never report as pass or fail. Socket-bearing ACs: M1.1, M1.2, M2.1, M2.2, M3.1, M3.2. Do not rewrite tests to work around sandbox policy.",
+    "commit_policy": "One bisectable commit per milestone; the relevant test package must pass at every milestone boundary. The controller commits - the planner creates no branches, worktrees or commits."
+  },
+  "features": [
+    {
+      "id": "M1_PROXY_AWARE_NET_TRANSPORT",
+      "description": "Add a package-private request-aware RoundTripper in internal/effects with SEPARATE direct and proxy transport paths (never mutating one shared transport). Per request, http.ProxyFromEnvironment(req) decides: no-proxy => resolveAndValidateIP exactly once then dial that IP with no re-resolution; proxy-selected => ordinary proxy dialing with ZERO local target resolution, and the proxy address never entering the target-IP substitution closure. Route all three Net constructors (net.go:96,212,587) through it. Remove the three preflight resolveAndValidateIP calls (net.go:85,201,565) and the redirect-validator call (:317); validateRedirect keeps count/protocol checks and the caller's cross-origin Authorization stripping but no longer resolves. Preserve public error categories via a typed internal validation error unwrapped through *url.Error - the two makeResultErr(\"Transport\", ...) sites to update are net.go:567 (moved preflight) and net.go:631 (post-client.Do, url.Error-wrapped).",
+      "estimated_loc": 580,
+      "dependencies": [],
+      "closes_doc_acceptance_criteria": [
+        "M1 AC1",
+        "M1 AC2",
+        "M1 AC3",
+        "M1 AC4"
+      ],
+      "design_doc_lines": "249-256",
+      "acceptance_criteria": [
+        "AC-M1.1 (doc M1 AC1): `go test -count=1 ./internal/effects -run 'TestNetProxyBoundary|TestNetProxyDirectPin|TestNetProxyNoProxy|TestNetProxyRedirectControls' -v` passes outside the sandbox. BASE AT 945f36727: rc=0, '=== RUN' count = 0, '[no tests to run]' - VACUOUSLY GREEN. Pass requires ALL THREE: rc=0 AND '=== RUN' count >= 4 AND a '--- PASS' line per named test. Tests must use a target whose DNS answer/dial endpoint differs from the fake proxy and assert the OBSERVED dial/CONNECT destination. SILENT-REVERT CHECK: reverting production routing makes the fake proxy observe no request, or makes the old pinning closure dial the target - either reds; deleting the tests drops '=== RUN' to 0 and reds.",
+        "AC-M1.2 (doc M1 AC2): a direct/NO_PROXY subtest asserts the accepted connection reaches the INJECTED VALIDATED IP, not the request hostname's alternate endpoint. BASE: no such test exists; new by construction. SILENT-REVERT CHECK: replacing both paths with ordinary proxy/default dialing fails the endpoint assertion; removing NO_PROXY handling routes the request to the fake proxy and reds.",
+        "AC-M1.3 (doc M1 AC3): capability denial, initial-domain rejection, redirect-protocol rejection, and redirect-count rejection each run WITH A PROXY SELECTED, and the injected resolver counter stays EXACTLY 0 for proxy-selected initial AND redirect requests. SILENT-REVERT CHECK: restoring preflight/redirect resolution increments the counter and reds; deleting proxy support makes the proxy-positive arm fail and reds.",
+        "AC-M1.4 (doc M1 AC4): direct-route DNS/IP rejection tests assert EXACTLY 1 resolver call, EXACTLY 0 dial calls, and the existing legacy E_NET_DNS_FAILED / E_NET_IP_BLOCKED or structured Err(Transport, ...) category as applicable. Category source of truth (V20, re-verified at 945f36727): E_NET_IP_BLOCKED at net_security.go:27,34,46,51,56; E_NET_DNS_FAILED at :90,94. SILENT-REVERT CHECK: double resolution fails the call count; ordinary dialing fails the zero-dial assertion; losing url.Error unwrapping fails the exact-category assertion.",
+        "MILESTONE BOUNDARY (all rc=0 at base, must remain rc=0): `go build ./internal/effects/... ./internal/executor/... ./internal/testutil/...`; `go test -count=1 ./internal/effects`; `go vet ./internal/effects`."
+      ],
+      "files": [
+        "internal/effects/net.go",
+        "internal/effects/ (new package-private request-aware roundtripper file)",
+        "internal/effects/*_test.go"
+      ],
+      "risks": [
+        "Pin closure rewrites the PROXY address (doc's top risk) - mitigated by separate per-mode transports plus AC-M1.1's observed-dial-endpoint assertion",
+        "Transport caching bleeds a pin across requests - cache keys MUST include every security-relevant route/target property; add an explicit cross-request no-bleed test. Simplest safe answer: do not cache in M1.",
+        "Error-category drift - AC-M1.4 pins both mappings at the two enumerated call sites"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_STREAM_AND_MANAGED_AGENTS_CONSTRUCTORS",
+      "description": "Add Proxy: http.ProxyFromEnvironment to the four remaining production transports - stream_sse.go:70 (SSE GET), stream_sse.go:329 (SSE POST), stream_ndjson.go:80 (NDJSON POST), managed_agents/client.go:141 (Vertex SSE). Change NO timeout field: preserve connect, TLS-handshake, response-header, idle-connection and overall-stream bounds exactly (doc V6); Managed Agents in particular keeps ZERO global request timeout. Add constructor-level fake-proxy tests for all four paths that invoke the PRODUCTION constructors, never a standalone http.Transport literal (doc D-5).",
+      "estimated_loc": 210,
+      "dependencies": [
+        "M1_PROXY_AWARE_NET_TRANSPORT"
+      ],
+      "closes_doc_acceptance_criteria": [
+        "M2 AC1",
+        "M2 AC2"
+      ],
+      "design_doc_lines": "266-267",
+      "acceptance_criteria": [
+        "AC-M2.1 (doc M2 AC1): `go test -count=1 ./internal/effects -run 'TestStream(SSE|NDJSON).*ProxyBoundary' -v` passes outside the sandbox. BASE AT 945f36727: rc=0, '=== RUN' count = 0, '[no tests to run]' - VACUOUSLY GREEN. Pass requires rc=0 AND '=== RUN' count >= 3 AND the fake proxy observing all three of GET, SSE POST, and NDJSON POST. SILENT-REVERT CHECK: a reverted constructor bypasses the fake proxy and fails its observation assertion; deleting the tests fails the '=== RUN' count.",
+        "AC-M2.2 (doc M2 AC2): `go test -count=1 ./internal/executor/managed_agents -run TestDefaultHTTPClientProxyBoundary -v` passes and proves defaultHTTPClient() selects the fake proxy WHILE RETAINING zero global request timeout and its existing header/idle timeouts. BASE AT 945f36727: rc=0, '[no tests to run]' - VACUOUSLY GREEN. Pass requires rc=0 AND >=1 '=== RUN TestDefaultHTTPClientProxyBoundary' AND its '--- PASS'. The doc states explicitly that a generic package pass is INSUFFICIENT. SILENT-REVERT CHECK: reverting the Proxy field makes selection/observation fail; adding a global timeout fails the retention assertion.",
+        "MILESTONE BOUNDARY (rc=0 at base, must remain rc=0): `go build ./internal/effects/... ./internal/executor/...`; `go test -count=1 ./internal/effects ./internal/executor/managed_agents`."
+      ],
+      "files": [
+        "internal/effects/stream_sse.go",
+        "internal/effects/stream_ndjson.go",
+        "internal/executor/managed_agents/client.go",
+        "internal/effects/*_test.go",
+        "internal/executor/managed_agents/managed_agents_test.go"
+      ],
+      "risks": [
+        "A timeout field silently altered while adding Proxy - AC-M2.2 asserts timeout retention; the reviewer diff should be a one-line field add per site",
+        "Managed Agents test reaching for public egress - fake proxy + stub only; existing live probes stay opt-in (doc V10)"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_STREAMING_BEHAVIOR_AND_POISONED_LANE",
+      "description": "Implement the D-4 local forward-proxy experiment covering BOTH HTTP absolute-form AND HTTPS CONNECT (test CA or an intentionally minimal tunnel): flush at least two events with a measured inter-event synchronization and assert event 1 is observable BEFORE event 2 is released, so a proxy that buffers until EOF must fail. Hold a stream open across a keep-alive interval and verify cancellation/idle-timeout cleanup. Run all local-server transport suites under the poisoned environment outside the sandbox. Confirm both live public Net subtests remain skipped when AILANG_LIVE_NET is unset.",
+      "estimated_loc": 280,
+      "dependencies": [
+        "M1_PROXY_AWARE_NET_TRANSPORT",
+        "M2_STREAM_AND_MANAGED_AGENTS_CONSTRUCTORS"
+      ],
+      "closes_doc_acceptance_criteria": [
+        "M3 AC1",
+        "M3 AC2",
+        "M3 AC3"
+      ],
+      "design_doc_lines": "277-279",
+      "acceptance_criteria": [
+        "AC-M3.1 (doc M3 AC1): the streaming fake-proxy test observes EVENT 1 BEFORE PERMITTING EVENT 2, then closes cleanly after cancellation/idle timeout. BASE: no such test exists; new by construction. SILENT-REVERT CHECK: direct routing produces ZERO proxy observations; a buffering proxy produces no early event; broken cleanup exceeds the test deadline.",
+        "AC-M3.2 (doc M3 AC2): `HTTP_PROXY=http://127.0.0.1:9 HTTPS_PROXY=http://127.0.0.1:9 go test -count=1 ./internal/effects ./internal/executor/managed_agents` passes outside the sandbox. BASE AT 945f36727: rc=0 (ok effects 13.590s, ok managed_agents 0.250s) - ALREADY GREEN AT BASE, so the bare package command proves NOTHING alone. Pass additionally requires running with -v and showing '=== RUN'/'--- PASS' lines for the named M1 and M2 proxy-boundary tests AND the local httptest tests, plus the M4 source audit. AILANG_LIVE_NET MUST BE UNSET (gate.go:47-58 makes poisoned+live a LiveNetworkFatal t.Fatalf). SILENT-REVERT CHECK: explicitly insufficient alone - the base measurement proves a revert can leave the bare package command green; the named-test lines and AC-M4.1 carry the falsifiability.",
+        "AC-M3.3 (doc M3 AC3): `env -u AILANG_LIVE_NET go test -count=1 -v ./internal/effects -run 'TestNetHttpPost/httpPost_to_httpbin.org|TestNetBodySizeLimit/small_response_under_limit'` reports both named subtests as SKIP. BASE AT 945f36727: rc=0, both report '--- SKIP' - ALREADY GREEN AT BASE. This is a NON-REGRESSION check; the doc labels it supporting evidence only and says it cannot satisfy M1/M2 by itself. Do NOT add NO_PROXY=* or unset proxy variables to make default tests green (doc D-5).",
+        "MILESTONE BOUNDARY (rc=0 at base, must remain rc=0): `go test -count=1 ./internal/effects ./internal/executor/managed_agents` unpoisoned AND poisoned."
+      ],
+      "files": [
+        "internal/effects/*_test.go (streaming forward-proxy experiment + fixtures)"
+      ],
+      "risks": [
+        "CONNECT-proxy fixture complexity is the doc's stated 2-4 day swing driver - a minimal tunnel is an accepted alternative to a test CA (doc D-4 permits either); timebox and escalate rather than expanding scope",
+        "Go caches proxy configuration process-wide - never mutate/unset poison after a proxy use in-process (doc V11); use subprocess tests where environment identity matters"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_RETIRE_RESIDUAL_AUDIT_AND_DOCS",
+      "description": "Delete effects_nil_proxy_remains_open (egress_posture_test.go:20) and testEffectsProxyResidual (:66-85) plus any helper that becomes residual-only, RETAINING poison_sentinel_denies_HTTP_egress, loopback_bypasses_lane_poison, raw_TCP_remains_open, requireLiveEgressPosture, laneIsPoisoned and assertPoisonProxyError. Build the nil-Proxy source audit with a checked-in POSITIVE FIXTURE (internal/testutil/gatelint already has Scan(root string) []Violation plus testdata/fixtures/{cmd,internal,runtime,std,tests}/ including a production-scope runtime/production.go.fixture). Remove the Option-A residual/Non-Goals text from m-ci-flake-systemic-fix.md:394 and replace with a historical note linking this item. Replace the seven-transport residual paragraph at development-workflow.md:322-332 with the new proxy behavior, NO_PROXY direct-pin behavior, and the proxy-mode pinning limitation. Add the v0.33.1 changelog entry (the '## [v0.33.1] - 2026-08-06' section already exists in changelogs/v0.18-current.md) and update docs/docs/reference/effects.md. Link #612 from the M4 gate's source comment (refs, NEVER Fixes). Supplementary non-blocking: annotate m-ci-flake-systemic-fix-sprint-plan.md:446,466 with one superseded-by note - do NOT widen AC-M4.2's grep scope.",
+      "estimated_loc": 180,
+      "dependencies": [
+        "M1_PROXY_AWARE_NET_TRANSPORT",
+        "M2_STREAM_AND_MANAGED_AGENTS_CONSTRUCTORS",
+        "M3_STREAMING_BEHAVIOR_AND_POISONED_LANE"
+      ],
+      "closes_doc_acceptance_criteria": [
+        "M4 AC1",
+        "M4 AC2",
+        "M4 AC3"
+      ],
+      "design_doc_lines": "303-311",
+      "acceptance_criteria": [
+        "AC-M4.1 (doc M4 AC1): a repository audit test/command reports ZERO production http.Transport literals with a nil Proxy in the audited first-party scope AND proves the detector on a CHECKED-IN POSITIVE FIXTURE. BASE AT 945f36727: 7 nil-Proxy literals across 4 files (net.go:96,212,587; stream_ndjson.go:80; stream_sse.go:70,329; managed_agents/client.go:141); production ProxyFromEnvironment = 0 with a firing test-inclusive control of 3. SILENT-REVERT CHECK: reverting ANY ONE of the seven sites adds a finding and reds; deleting or blinding the scanner makes the positive fixture fail and reds. This gate carries M3's falsifiability. SCOPE: textual/source gate by human ruling D-6 = Option A; the go/packages AST analyzer is #612 and is OUT OF SCOPE.",
+        "AC-M4.2 (doc M4 AC2): `grep -rn 'effects_nil_proxy_remains_open' internal/testutil docs design_docs/implemented/v0_33_1/m-ci-flake-systemic-fix.md` yields ZERO hits, while `grep -rn 'loopback_bypasses_lane_poison' internal/testutil` yields a known-positive control. BASE AT 945f36727: first = 4 hits (egress_posture_test.go:20,67; development-workflow.md:330; m-ci-flake-systemic-fix.md:394) - CORRECTLY RED AT BASE; second = 2 hits (egress_posture_test.go:18,38) - CONTROL FIRES AT BASE. SILENT-REVERT CHECK: restoring the tripwire creates a hit and reds; the control prevents an empty/mistyped search from passing silently.",
+        "AC-M4.3 (doc M4 AC3): `go vet ./internal/effects ./internal/executor/managed_agents ./internal/testutil` and `make check-boundaries` pass. BASE AT 945f36727: BOTH rc=0 - ALREADY GREEN AT BASE. The doc states these would still pass after a behavioral revert and are EXPLICITLY NON-SUFFICIENT; they are regression tripwires only and must be combined with the M1-M4 behavioral/source-audit gates. make check-boundaries IS load-bearing for one thing: it must stay green while the new mechanism lives inside internal/effects and Managed Agents gets its own local field.",
+        "MILESTONE BOUNDARY (all rc=0 at base, must remain rc=0): `go build ./internal/effects/... ./internal/executor/... ./internal/testutil/...`; `go test -count=1 ./internal/effects ./internal/executor/managed_agents ./internal/testutil`; `go vet` (3 pkgs); `make check-boundaries`."
+      ],
+      "files": [
+        "internal/testutil/egress_posture_test.go",
+        "internal/testutil/gatelint/ (scan.go + testdata fixture) OR an audit beside the affected package",
+        "design_docs/implemented/v0_33_1/m-ci-flake-systemic-fix.md",
+        "design_docs/implemented/v0_33_1/m-ci-flake-systemic-fix-sprint-plan.md",
+        "docs/docs/guides/development-workflow.md",
+        "docs/docs/reference/effects.md",
+        "changelogs/v0.18-current.md"
+      ],
+      "risks": [
+        "The AC10(d) tripwire will NOT be observed going red - it is self-contained and imports nothing from internal/effects. This is a DELIBERATE DELETION, not an observed red. No AC depends on observing it.",
+        "Widening AC-M4.2's grep to the implemented sprint plan would falsify a historical record - explicitly rejected; the doc's scope wins."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}

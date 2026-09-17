@@ -1,0 +1,352 @@
+{
+  "sprint_id": "M-QUORUM-AGENTIC-VERIFY",
+  "title": "Quorum reviewers that VERIFY and HONE (agentic, repo-armed) — two-tier escalation over the frozen text quorum",
+  "design_doc": "design_docs/planned/v0_30_0/m-mission-quorum-agentic-verify.md",
+  "mission_iteration": 35,
+  "target_version": "v0.30.x",
+  "base_version_at_plan": "v0.29.2",
+  "priority": "P1",
+  "risk_level": "medium",
+  "github_issues": [],
+  "created": "2026-07-16",
+  "created_at_head": "d2c4a1a8be28b05dcac72e69fd0c6267121923a6",
+  "origin_dev_at_plan": "d2c4a1a8be28b05dcac72e69fd0c6267121923a6",
+  "executor_constraints": {
+    "worktree": "Work in an isolated git worktree branched from origin/dev. NEVER the shared main tree. Commit promptly (concurrent-agent safety).",
+    "frozen_contract": "The shipped verdict contract is FROZEN: do NOT change ReviewResult's three required fields (verdict, strongest_objection, catch), ValidateReviewResult (reject-by-default), reviewSchema's required[], the N-1 degradation, or artifact recording. proposed_fix is PURELY ADDITIVE and OPTIONAL and NOT validated (Mark decision option (a), 2026-07-16).",
+    "reuse_not_rebuild": "REUSE the existing executor layer (internal/coordinator/provider_executor.go): read-only tool mode (AllowedTools, provider_executor.go:122-124), Execute(ctx) cancellation, opts.Timeout/IdleTimeout, result.Cost=execResult.CostUSD, opts.Workspace worktree. Do NOT build new executor plumbing. The new agentic backend rides behind the EXISTING JSONCaller seam (call.go:35).",
+    "no_gpu_ollama": "No GPU/ollama steps anywhere. Reviewers are frontier API/agentic models only.",
+    "bounded_waits": "Every wait/agentic run must be bounded (hard turn + time cap; no unbounded until-loops). A cap breach fails to N-1 degradation, never blocks the loop.",
+    "no_merge_authority": "Reviewers verify and object only. They get zero write access to the shared tree and do NOT gate merges by themselves — the controller still synthesizes verdicts (quorum.go synthesize()).",
+    "sequencing": "M0 (network probe) is a HARD GATE and MUST run and be evaluated FIRST. Its result decides whether the gemini/managed_agents reviewer verifies-in-sandbox (clone path) or falls back to prompt-packed excerpts / text tier. M2 (escalation trigger) can proceed independently of M0's result. M3 (agentic backend) depends on M1; the gemini sub-path within M3/M4 depends on M0's outcome. M5 last."
+  },
+  "velocity": {
+    "target_loc_per_day": 250,
+    "estimated_total_loc": 740,
+    "estimated_days": 3,
+    "basis": "Design estimates ~2-3d phase-gated (escalation tier ~1d; full agentic-reviewer backend ~2d). Recent mission sprints (M-DX-EXAMPLES-COVERAGE 5 milestones ~15h/2d; M-PRELUDE-OPTION-RESULT, M-XMOD-ALIAS-POLY single-milestone same-day) support ~250 LOC/day. This sprint is mostly wiring over an existing, verified executor + quorum frame, not new subsystems, but the M0 probe is an external-network unknown — hence phase-gating rather than a flat 3-day commit."
+  },
+  "premise_verification": {
+    "status": "ALL CITED SEAMS VERIFIED at HEAD d2c4a1a8b (2026-07-16). Two minor label-drift notes; no phantom seams; no blocking discrepancy.",
+    "checks": [
+      "JSONCaller seam: internal/mission/quorum/call.go:35 defines `JSONCaller` with `CallJSON(systemPrompt, userPrompt, schema string) (string, *ai.Response, error)`. CONFIRMED — this is the additive seam for the agentic backend.",
+      "Text-in/JSON-out call: run.go:120 `caller.CallJSON(systemPrompt, prompt, reviewSchema)`. CONFIRMED (design cited run.go:120).",
+      "Frozen verdict contract: reviewer.go ReviewResult has exactly {verdict, strongest_objection, catch}; reviewSchema required=[verdict,strongest_objection,catch]; ValidateReviewResult rejects empty objection/catch and non-{pass,reject} verdict (reject-by-default). CONFIRMED FROZEN.",
+      "N-1 degradation + named absence: run.go RunReviewer returns ReviewerOutcome with Present=false + AbsentReason ({unreachable,budget,auth,unknown-model,invalid}); quorum.go synthesize() never turns an absent reviewer into a silent pass, and presentCount==0 => blocked. CONFIRMED.",
+      "Budget cap already threaded: run.go DefaultMaxCostUSD=0.10, pre-flight estimateCost refusal (ReasonBudget, zero spend) + post-flight token-count cost. The design's 'extends the existing MaxCostUSD' = this per-reviewer cap. CONFIRMED (note: the field the quorum threads is DefaultMaxCostUSD/maxCostUSD, not literally a symbol named MaxCostUSD; the coordinator ExecuteOptions has no MaxCostUSD field — cost is observed post-hoc via result.Cost, so the Tier-2 cap must be enforced by the caller against result.Cost, same pattern as run.go's post-flight check).",
+      "Read-only tool mode: provider_executor.go:122-124 sets AllowedTools=[Read,Grep,Glob,WebFetch,WebSearch] when task.Task.Kind==\"question\". CONFIRMED — exact read-only reviewer capability.",
+      "Cancellation/timeout/cost/worktree: Execute(ctx context.Context,...) threaded to p.exec.Execute(ctx,...) (provider_executor.go:59,133); opts.Timeout/IdleTimeout (provider.go:55-56 -> execTask.Timeout/IdleTimeout provider_executor.go:89-90); result.Cost=execResult.CostUSD + Input/OutputTokens (provider_executor.go:146-149); worktree=opts.Workspace->execTask.Workspace (provider.go:58, provider_executor.go:88). CONFIRMED — reuse-don't-rebuild HOLDS.",
+      "codex + managed_agents backends registered: provider_executor.go:11-12 blank-import codex + managed_agents executors; NewExecutorProvider(name) resolves via GlobalFactory. CONFIRMED.",
+      "managed_agents remote-sandbox premise: coordinator.md documents executor.CapRemoteSandbox for managed_agents (Vertex AI Managed Agents, no shared FS, starts empty) + managed_agents_bridge.go for solution-file bridging. CONFIRMED — this is WHY M0 (outbound-network probe) is required before assuming clone-in-sandbox works.",
+      "Live quorum precondition: .ailang/state/mission-quorum/ artifacts exist (design Verification Log confirms iter 28-30). Precondition SATISFIED — not re-checked here (out of scope)."
+    ],
+    "label_drift_notes": [
+      "Design Verification Log says worktree = `WorkingDir` (agent_registry.go:37). In the coordinator the field is opts.Workspace -> execTask.Workspace (provider.go:58, provider_executor.go:88). Same concept, label drift only — not a phantom seam.",
+      "Design refers to 'the existing MaxCostUSD the quorum already threads'. The quorum's cap symbol is DefaultMaxCostUSD/maxCostUSD (run.go); coordinator.ExecuteOptions exposes NO MaxCostUSD field, so the Tier-2 per-review cap must be enforced controller-side against result.Cost (post-hoc), mirroring run.go's existing pre/post pattern. Recorded so M3 does not chase a non-existent options field."
+    ]
+  },
+  "features": [
+    {
+      "id": "M0_MANAGED_SANDBOX_NETWORK_PROBE",
+      "phase": 0,
+      "description": "GATE. One cheap managed_agents (Gemini, Vertex Managed Agents) interaction that attempts, inside the Google-hosted sandbox: `git clone --depth 1` of the PUBLIC repo at a pinned review SHA, fetch of the linux `ailang` release binary (curl), and `ailang --version`. Capture and report whether outbound network (git/curl) is PERMITTED in the sandbox. The RESULT is a decision point for the whole sprint: PERMITTED => gemini reviewer verifies-in-sandbox (clone path, M3/M4 gemini sub-path enabled); BLOCKED => gemini falls back to prompt-packed excerpts (weaker, must be flagged as unverified) or stays a Tier-1 text-only reviewer. NEVER silently pretend it verified.",
+      "estimated_loc": 90,
+      "estimated_hours": 3,
+      "gate": "HARD. Run FIRST. Record result in the sprint notes + design doc Verification Log BEFORE M3's gemini sub-path is attempted.",
+      "dependencies": [],
+      "blocks": [
+        "M4_GEMINI_SANDBOX_CLONE_PATH"
+      ],
+      "implementation": {
+        "approach": "Reuse the existing managed_agents executor via coordinator.NewExecutorProvider(\"managed_agents\") with a Kind==\"question\" (read-only) task whose directive is the probe script. Do NOT build new plumbing. Bounded: hard time cap (e.g. opts.Timeout ~5m) + single interaction.",
+        "probe_directive": "Instruct the agent to run: git clone --depth 1 <pinned-SHA public repo>; curl -fsSL <linux ailang release binary URL> -o ailang && chmod +x ailang; ./ailang --version; then report exact success/failure of each step and any network error text verbatim.",
+        "output": "A short structured report (network_permitted: bool, git_clone: ok|blocked|error, curl_fetch: ok|blocked|error, ailang_version: string|none, raw_errors: text). Persist under .ailang/state/mission-quorum/ or the sprint notes as decision evidence.",
+        "no_silent_fallback": "If the probe itself cannot run (auth/quota/executor error), that is an EXPLICIT inconclusive result, not a 'blocked' and not a 'permitted' — report it as inconclusive and default gemini to Tier-1 text until re-probed (Principle 2)."
+      },
+      "files": [
+        "internal/mission/quorum/sandbox_probe.go (new: the probe runner over managed_agents)",
+        "internal/mission/quorum/sandbox_probe_test.go (new: stubbed executor asserts probe parses permitted/blocked/inconclusive)"
+      ],
+      "acceptance_criteria": [
+        "A single managed_agents interaction runs the clone+curl+version probe with a bounded time cap and produces a structured PERMITTED | BLOCKED | INCONCLUSIVE result",
+        "The result names each step (git clone, curl fetch, ailang --version) with verbatim error text on failure",
+        "Result is persisted as decision evidence (artifact or sprint note) and the design doc Verification Log gains a row: 'managed sandbox outbound network' => <result>",
+        "On INCONCLUSIVE or BLOCKED, gemini defaults to Tier-1 text (no silent pretend-verified); this default is asserted by a test",
+        "No new executor plumbing added — probe rides NewExecutorProvider(\"managed_agents\") + Kind==\"question\" read-only mode",
+        "STOP POINT: sprint pauses here for the controller/human to read M0's result and decide whether to continue to M4's gemini clone sub-path this iteration"
+      ],
+      "test_requirements": [
+        "Unit: stubbed executor returning a permitted transcript => probe reports PERMITTED; blocked transcript => BLOCKED; executor error => INCONCLUSIVE",
+        "The bounded time cap is enforced (probe cannot hang the loop)"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M1_AGENTIC_CALLER_SEAM",
+      "phase": 1,
+      "description": "Introduce an agentic reviewer backend behind the EXISTING JSONCaller interface (call.go:35). A new caller type wraps coordinator.NewExecutorProvider(name) (codex=OpenAI, claude, managed_agents=Gemini), runs a read-only (Kind==\"question\") agentic review over a repo worktree, and returns the SAME {verdict, strongest_objection, catch} JSON. The agentic call is instructed to actually verify each premise (run `ailang check`, grep, read) and cite the check it ran in `catch`. No change to ReviewResult, ValidateReviewResult, reviewSchema, or synthesize.",
+      "estimated_loc": 200,
+      "estimated_hours": 6,
+      "dependencies": [],
+      "blocks": [
+        "M3_TIER2_ESCALATED_VERIFY",
+        "M4_GEMINI_SANDBOX_CLONE_PATH"
+      ],
+      "implementation": {
+        "seam": "Implement a new type (e.g. agenticCaller) satisfying JSONCaller.CallJSON. Internally it builds a coordinator AnalyzedTask with Kind==\"question\" (=> read-only AllowedTools), sets opts.Workspace to a read-only worktree, opts.Timeout + IdleTimeout for the bounded cap, calls provider.Execute(ctx,...), then extracts the JSON verdict from result.Output (same stripCodeFences/ParseReviewResult path the text tier uses). Cost = result.Cost.",
+        "prompt": "System prompt = the SHIPPED reviewer.systemPrompt (3 hard gates, reject-by-default) PLUS an instruction to verify premise-gate-1 claims against the code with the read-only tools and cite the exact check in `catch`. The additive proposed_fix instruction is a PROMPT-level ask (M2 wording), NOT a schema/validation change.",
+        "read_only": "Rely on Kind==\"question\" (provider_executor.go:122-124) for tool restriction; ADDITIONALLY the worktree is read-only per the constraint. Verify no write tool is granted.",
+        "cost_cap": "Enforce the per-review cap controller-side against result.Cost after the run (mirror run.go post-flight); a run over cap yields Present=false + AbsentReason=budget (reuse ReasonBudget), degrading to N-1, never blocking."
+      },
+      "files": [
+        "internal/mission/quorum/agentic_caller.go (new)",
+        "internal/mission/quorum/agentic_caller_test.go (new: stubbed executor provider => valid verdict parsed; over-cap => budget absence; malformed output => invalid absence)"
+      ],
+      "acceptance_criteria": [
+        "A new caller satisfies the EXISTING JSONCaller interface (call.go:35) — no interface change; the text handlerCaller is untouched",
+        "The agentic caller runs a Kind==\"question\" read-only agentic review over a worktree and returns a ReviewResult that passes the UNCHANGED ValidateReviewResult",
+        "ReviewResult, ValidateReviewResult, reviewSchema, and synthesize are byte-for-byte unchanged (verdict contract FROZEN)",
+        "The reviewer prompt instructs premise verification via read-only tools (ailang check / grep / read) and asks the objection to cite the check run in `catch`",
+        "Per-review cost cap enforced against result.Cost; over-cap => Present=false, AbsentReason=budget (N-1 degradation, loop never blocked)",
+        "Bounded: opts.Timeout + IdleTimeout set; a hung agentic run is killed and recorded as unreachable, never a silent pass",
+        "No writes to the shared tree — read-only worktree + Kind==\"question\" tool set asserted in a test"
+      ],
+      "test_requirements": [
+        "Stubbed executor.Provider returns a well-formed verdict transcript => parsed ReviewResult passes validation",
+        "Stubbed over-cap result.Cost => outcome Present=false AbsentReason=budget",
+        "Stubbed malformed/non-JSON output => AbsentReason=invalid (reuses ParseReviewResult path)",
+        "Assert the task built has Kind==\"question\" (read-only tools) and a non-empty Workspace"
+      ],
+      "passes": true,
+      "started": "2026-07-16",
+      "completed": "2026-07-16",
+      "notes": "agenticCaller (agentic_caller.go) satisfies the EXISTING JSONCaller seam (compile-time assert TestAgenticCaller_SatisfiesJSONCaller). RunAgenticReviewer mirrors RunReviewer's N-1 contract: over-cap=>budget, executor error/kill=>unreachable, malformed=>invalid. Cost cap enforced against OBSERVED cost (post-flight). NewCoordinatorAgenticRunner (agentic_provider.go) reuses provider_executor.go Kind==question read-only tools + Timeout/IdleTimeout + Execute(ctx) + result.Cost + Workspace — no new plumbing. ReviewResult/ValidateReviewResult/reviewSchema.required/synthesize byte-unchanged. Commit 4fa18aed7."
+    },
+    {
+      "id": "M2_ESCALATION_TRIGGER",
+      "phase": 2,
+      "description": "Two-tier escalation logic (~the '1d escalation tier'). Tier 1 = the shipped text quorum, ALWAYS runs, unchanged. Tier 2 = agentic verification, triggered ONLY when: (a) any Tier-1 reviewer's objection is PREMISE-class (a disputed factual codebase claim), OR (b) the doc self-declares high-stakes (touches shared infra / a Conflict Surface), OR (c) Tier-1 is split (pass/reject disagreement). Escalation targets the specific contested premise, not the whole doc. Also add the additive OPTIONAL proposed_fix field to the ReviewResult JSON (unvalidated, prompt-encouraged) per Mark option (a).",
+      "estimated_loc": 170,
+      "estimated_hours": 5,
+      "dependencies": [],
+      "blocks": [
+        "M3_TIER2_ESCALATED_VERIFY"
+      ],
+      "implementation": {
+        "trigger": "A pure function ShouldEscalate(quorumResult, docSelfDeclaredHighStakes bool) (escalate bool, contestedPremise string). Premise-class detection: classify a Tier-1 objection as premise-class when it disputes a factual codebase claim (heuristic on the objection text + a doc self-declaration marker); split = mixed pass/reject among present reviewers (already computable from synthesize()); high-stakes = a doc front-matter / Conflict-Surface self-declaration flag.",
+        "proposed_fix_field": "Add `proposed_fix string `json:\"proposed_fix,omitempty\"`` to ReviewResult (ADDITIVE, OPTIONAL). Do NOT add it to reviewSchema.required and do NOT reference it in ValidateReviewResult. Add it to reviewSchema.properties only. Reviewers are PROMPTED to include a concrete fix on every reject; a fix-less reject is recorded as reviewer friction (a note), NEVER a validation error.",
+        "self_declaration": "Support a doc self-declaring high-stakes (e.g. a 'Conflict surface' section presence / an explicit stakes marker) as an escalation input; parse from the doc body already available to BuildPrompt."
+      },
+      "files": [
+        "internal/mission/quorum/escalate.go (new: ShouldEscalate + premise-class classifier)",
+        "internal/mission/quorum/escalate_test.go (new: table tests for premise/high-stakes/split triggers + non-triggers)",
+        "internal/mission/quorum/reviewer.go (add optional proposed_fix field + properties-only schema entry + prompt wording)"
+      ],
+      "acceptance_criteria": [
+        "ShouldEscalate returns true iff (premise-class objection) OR (doc self-declared high-stakes) OR (Tier-1 split), and returns the contested premise for a premise-class trigger",
+        "Tier 1 always runs unchanged; escalation NEVER runs on a clean unanimous non-high-stakes pass (cost-smart default), asserted by a non-trigger test",
+        "proposed_fix is added as an ADDITIVE OPTIONAL field: present in reviewSchema.properties, ABSENT from reviewSchema.required, and NOT referenced by ValidateReviewResult (contract frozen — a verdict omitting it still validates byte-identically)",
+        "A fix-less reject validates fine and is recorded as reviewer friction, not an error (proves option (a))",
+        "The reviewer prompt encourages a concrete proposed_fix on every reject",
+        "ShouldEscalate is a pure, unit-tested function (no I/O)"
+      ],
+      "test_requirements": [
+        "Table tests: premise-class objection => escalate; high-stakes doc => escalate; split quorum => escalate; clean unanimous pass, non-high-stakes => NO escalate",
+        "ValidateReviewResult still passes for a verdict WITHOUT proposed_fix and WITH proposed_fix (both) — optionality proven",
+        "A reject with empty proposed_fix is NOT a validation error"
+      ],
+      "passes": true,
+      "started": "2026-07-16",
+      "completed": "2026-07-16",
+      "notes": "ShouldEscalate (escalate.go) is a pure function: escalates on premise-class objection (heuristic classifier) OR high-stakes doc OR split; clean unanimous non-high-stakes pass does NOT escalate. Returns the contested premise for premise-class. DocSelfDeclaresHighStakes parses the doc body (no I/O). proposed_fix added ADDITIVE+OPTIONAL: in reviewSchema.properties, ABSENT from required[], NOT referenced by ValidateReviewResult (option (a)). Tests prove a fix-less reject validates byte-identically. Reviewer prompt encourages a concrete fix on reject. Commit 6ef782efa."
+    },
+    {
+      "id": "M3_TIER2_ESCALATED_VERIFY",
+      "phase": 3,
+      "description": "Wire the escalation into the quorum run path: when ShouldEscalate fires, run the M1 agentic caller against the contested premise (codex + claude reviewers via local read-only worktree). The escalated agent verifies the specific premise and its objection can be 'premise X is FALSE — I ran ailang check on the cited repro and it passed, contradicting the doc.' Record Tier-2 outcomes in the SAME artifact/markdown, distinctly labeled. Controller still synthesizes; reviewers have no merge authority.",
+      "estimated_loc": 130,
+      "estimated_hours": 4,
+      "dependencies": [
+        "M1_AGENTIC_CALLER_SEAM",
+        "M2_ESCALATION_TRIGGER"
+      ],
+      "blocks": [],
+      "implementation": {
+        "wiring": "In the quorum orchestration (a Tier-2 pass after RunQuorum): if ShouldEscalate, for each agentic-capable reviewer (codex=OpenAI, claude — local read-only worktree), build the agentic caller (M1) with a focused directive on the contested premise + the same reject-by-default rubric, run bounded, and fold the Tier-2 ReviewerOutcome(s) into the artifact. Reuse RunQuorum's parallel + N-1 machinery; do NOT rebuild synthesize — an escalated reject blocks exactly like a Tier-1 reject.",
+        "worktree": "Each agentic reviewer gets its OWN read-only worktree (concurrent-agent safety). Provision a worktree of origin/dev at the pinned review SHA; enforce read-only.",
+        "artifact": "Extend the artifact/markdown to show a Tier-2 section (reviewer, verdict, the cited check, cost) distinctly from Tier-1 — additive to QuorumResult (e.g. a Tier2 []*ReviewerOutcome or a tier label on the outcome), preserving the existing shape for Phase E consumers.",
+        "gemini_deferred": "The gemini/managed_agents Tier-2 sub-path is M4 and depends on M0's result; M3 ships with codex+claude local-worktree Tier-2 so it is useful regardless of M0."
+      },
+      "files": [
+        "internal/mission/quorum/tier2.go (new: escalated-verify orchestration)",
+        "internal/mission/quorum/tier2_test.go (new: stubbed agentic caller => escalated reject blocks; no-escalate => Tier-2 skipped)",
+        "internal/mission/quorum/artifact.go (additive Tier-2 rendering)",
+        "internal/mission/quorum/quorum.go (fold Tier-2 outcomes into synthesis if not already covered by reusing synthesize)"
+      ],
+      "acceptance_criteria": [
+        "When ShouldEscalate fires, Tier-2 agentic reviewers (codex + claude, local read-only worktree) run against the contested premise and their outcomes join the artifact",
+        "An escalated reject blocks the synthesis exactly like a Tier-1 reject (controller synthesizes; reviewer has NO independent merge authority)",
+        "When ShouldEscalate does NOT fire, no Tier-2 run occurs (cost-smart default), asserted by a test",
+        "Each Tier-2 reviewer uses its OWN read-only worktree; no writes to the shared tree",
+        "Tier-2 outcomes are recorded distinctly (tier label) in the artifact + markdown; existing Tier-1 artifact shape preserved for Phase E",
+        "Tier-2 respects the per-review cost cap + bounded turn/time cap; a breach => N-1 degradation, loop never blocked",
+        "An escalated objection can cite the concrete check it ran (e.g. 'ran ailang check on cited repro; it passed, contradicting the doc')"
+      ],
+      "test_requirements": [
+        "Stubbed agentic caller returning an escalated reject => synthesis blocked",
+        "No-escalate quorum => Tier-2 orchestration is skipped (no agentic call made)",
+        "Two concurrent Tier-2 reviewers => two distinct worktrees (no shared-tree write)",
+        "Over-cap Tier-2 reviewer => Present=false budget absence, synthesis still composes"
+      ],
+      "passes": true,
+      "started": "2026-07-16",
+      "completed": "2026-07-16",
+      "notes": "RunTier2 (tier2.go) runs codex+claude agentic reviewers in parallel over their OWN read-only worktrees, focused on the contested premise, ONLY when ShouldEscalate fires (no agentic call on a clean pass — asserted). RunQuorumWithEscalation (quorum.go) orchestrates Tier-1 -> decision -> Tier-2. Escalated reject blocks synthesis exactly like a Tier-1 reject (SynthesizeWithTier2, [tier2]-prefixed objection); controller still synthesizes, no reviewer merge authority. Over-cap Tier-2 reviewer => named budget absence, synthesis still composes. Tier-2 recorded distinctly: additive Tier field on ReviewerOutcome + Tier2 field on QuorumResult (both omitempty => shipped Tier-1 shape preserved) + labeled markdown section. gemini/managed_agents Tier-2 sub-path is M4 (deferred). Commit pending in this iteration."
+    },
+    {
+      "id": "M4_GEMINI_SANDBOX_CLONE_PATH",
+      "phase": 3,
+      "description": "CONDITIONAL ON M0. If M0 reported outbound network PERMITTED: enable the gemini/managed_agents Tier-2 reviewer via clone-in-sandbox (git clone --depth 1 at the pinned SHA + fetch linux ailang binary + ailang check), returning the same verdict JSON. If M0 reported BLOCKED or INCONCLUSIVE: gemini falls back to prompt-packed excerpts (reviewer sees only what we send — weaker, EXPLICITLY flagged as unverified in the outcome) or stays a Tier-1 text reviewer. Never silently pretend it verified.",
+      "estimated_loc": 110,
+      "estimated_hours": 3,
+      "dependencies": [
+        "M0_MANAGED_SANDBOX_NETWORK_PROBE",
+        "M1_AGENTIC_CALLER_SEAM"
+      ],
+      "blocks": [],
+      "conditional": "SKIP-OR-FALLBACK per M0. If M0=PERMITTED => implement clone path. If M0=BLOCKED/INCONCLUSIVE => implement the flagged prompt-packed fallback ONLY (no clone) and mark gemini reviews as verification-degraded.",
+      "implementation": {
+        "clone_path": "managed_agents directive (Kind==\"question\") clones the PUBLIC repo at the pinned review SHA, fetches the linux ailang release binary, runs ailang check on the cited premise, returns the verdict JSON. Read-only holds by construction (writes stay in Google's sandbox).",
+        "fallback": "Prompt-pack the specific cited files/excerpts into the directive; the reviewer verdict outcome carries an explicit verification_degraded marker (a note field / AbsentReason-adjacent flag) so downstream never treats it as sandbox-verified.",
+        "no_pretend": "Whichever path, the outcome must state whether it actually ran ailang check in-sandbox or only reasoned over packed excerpts (Principle 2)."
+      },
+      "files": [
+        "internal/mission/quorum/gemini_sandbox.go (new: clone path OR flagged fallback per M0)",
+        "internal/mission/quorum/gemini_sandbox_test.go (new)"
+      ],
+      "acceptance_criteria": [
+        "Branch on M0's recorded result is explicit in code/config (PERMITTED => clone path; BLOCKED/INCONCLUSIVE => flagged fallback)",
+        "If clone path: gemini managed_agents reviewer clones at pinned SHA, fetches the linux binary, runs ailang check, returns a valid verdict; read-only by construction",
+        "If fallback: gemini review is prompt-packed and the outcome is EXPLICITLY marked verification-degraded (never presented as sandbox-verified)",
+        "Never silently pretends verification occurred — the outcome states clone-verified vs excerpt-only (Principle 2)",
+        "Verdict JSON still passes the UNCHANGED ValidateReviewResult"
+      ],
+      "test_requirements": [
+        "Stubbed managed_agents transcript (clone+check success) => clone-verified outcome",
+        "Fallback path => outcome carries verification_degraded marker",
+        "Config/branch selection follows the recorded M0 result"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M5_DOCS_CHANGELOG_ARTIFACT_LIVE_FIRE",
+      "phase": 4,
+      "description": "Finalize: CHANGELOG entry, move the design doc planned->implemented, add the code-cited Verification-Log rows (closes the iteration-34 objection #1 documentation debt), and a single bounded live-fire of the two-tier flow on a real doc to confirm Tier-1 always runs and Tier-2 escalates only when triggered, recording the artifact.",
+      "estimated_loc": 40,
+      "estimated_hours": 2,
+      "dependencies": [
+        "M2_ESCALATION_TRIGGER",
+        "M3_TIER2_ESCALATED_VERIFY"
+      ],
+      "blocks": [],
+      "implementation": {
+        "changelog": "CHANGELOG (changelogs/v0.18-current.md or current file): grouped entry covering the agentic reviewer backend + two-tier escalation + additive optional proposed_fix.",
+        "design_doc": "Add the code-cited Verification-Log rows the iteration-34 controller identified (Execute(ctx) cancellation; opts.Timeout/IdleTimeout; result.Cost=execResult.CostUSD; AllowedTools read-only mode provider_executor.go:122-124; Workspace worktree) + the M0 network-probe result row. Move doc to design_docs/implemented/v0_30/ per docs policy.",
+        "live_fire": "One bounded live run of the full flow on a real design doc; capture the artifact under .ailang/state/mission-quorum/ showing Tier-1 + (if triggered) Tier-2 sections."
+      },
+      "files": [
+        "changelogs/v0.18-current.md",
+        "design_docs/planned/v0_30_0/m-mission-quorum-agentic-verify.md (Verification-Log rows, then move)",
+        "design_docs/implemented/v0_30/ (moved doc)"
+      ],
+      "acceptance_criteria": [
+        "CHANGELOG updated (semantic versioning, grouped) covering the backend + escalation + additive proposed_fix",
+        "Design doc Verification Log gains the code-cited executor-reuse rows + the M0 probe-result row; doc moved planned->implemented",
+        "One bounded live-fire produces an artifact showing Tier-1 always ran and Tier-2 escalated only if triggered",
+        "make test + make lint green for internal/mission/quorum"
+      ],
+      "test_requirements": [
+        "CHANGELOG entry present and accurate",
+        "Live-fire artifact captured and inspected"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "phase_sequencing": {
+    "constraint": "M0 (GATE, first) -> M1 -> {M2 parallel-ok} -> M3 -> M4 (conditional on M0) -> M5",
+    "hard_rules": [
+      "M0 (managed-sandbox network probe) MUST run and be evaluated FIRST; its PERMITTED/BLOCKED/INCONCLUSIVE result is a decision point and a STOP POINT for whether to continue to M4's gemini clone sub-path this iteration",
+      "The shipped verdict contract stays FROZEN: ReviewResult's 3 required fields, ValidateReviewResult, reviewSchema.required, N-1 degradation, and artifact recording are unchanged. proposed_fix is additive-optional, unvalidated (Mark option (a))",
+      "Reuse-don't-rebuild: the agentic backend rides the EXISTING JSONCaller seam (call.go:35) + the EXISTING executor layer (provider_executor.go read-only Kind==question tools, Execute(ctx), Timeout/IdleTimeout, result.Cost, Workspace). No new executor plumbing",
+      "Read-only worktree per reviewer; per-review cost cap (breach => N-1 budget absence); bounded turn/time cap; reviewers have NO merge authority (controller synthesizes)",
+      "M3 ships codex+claude local-worktree Tier-2 independent of M0; only M4's gemini sandbox sub-path is M0-gated",
+      "Recommendation: PHASE-GATE at M0. Execute M0 (and M1/M2 in parallel, since they don't depend on M0's result), then PAUSE for the controller/human to read M0's result before committing to M4's gemini clone path"
+    ]
+  },
+  "success_criteria_rollup": [
+    "M0 network probe returns a structured PERMITTED|BLOCKED|INCONCLUSIVE with per-step evidence; recorded as decision evidence + Verification-Log row",
+    "Agentic reviewer backend rides the existing JSONCaller seam; verdict contract FROZEN (ReviewResult/ValidateReviewResult/reviewSchema.required unchanged)",
+    "proposed_fix is additive-optional and unvalidated; a fix-less reject validates + is recorded as friction (option (a) proven)",
+    "Two-tier escalation: Tier-1 always runs; Tier-2 escalates ONLY on premise-class objection OR high-stakes doc OR split; no escalation on a clean unanimous pass",
+    "Tier-2 agentic reviewers verify the contested premise (cite ailang check) over read-only worktrees; escalated reject blocks like a Tier-1 reject",
+    "Guardrails: read-only worktree per reviewer, per-review cost cap (breach=>N-1), bounded turn/time cap, no reviewer merge authority",
+    "gemini sandbox path enabled (clone) OR flagged-degraded fallback per M0 — never silently pretends verification",
+    "CHANGELOG + Verification-Log rows + doc moved to implemented; one bounded live-fire artifact captured; make test + make lint green"
+  ],
+  "risks": [
+    {
+      "risk": "M0: managed sandbox BLOCKS outbound network => gemini cannot verify-in-sandbox",
+      "mitigation": "By design: fall back to flagged prompt-packed excerpts or Tier-1 text-only for gemini; M3 codex+claude Tier-2 is unaffected and still delivers the core capability. M0 is a STOP POINT, not a blocker for the sprint's value.",
+      "severity": "medium"
+    },
+    {
+      "risk": "Scope creep into changing the frozen verdict contract while adding proposed_fix",
+      "mitigation": "Hard rule: proposed_fix in reviewSchema.properties ONLY, absent from required, NOT referenced in ValidateReviewResult. A test asserts a proposed_fix-less verdict still validates byte-identically.",
+      "severity": "high"
+    },
+    {
+      "risk": "Rebuilding executor plumbing instead of reusing provider_executor.go",
+      "mitigation": "Hard rule + verified seams: ride NewExecutorProvider + Kind==question read-only tools + Execute(ctx)/Timeout/IdleTimeout/result.Cost/Workspace. The agentic caller is a thin JSONCaller adapter, not new infra.",
+      "severity": "high"
+    },
+    {
+      "risk": "Agentic reviewer writes to the shared worktree (concurrent-agent corruption)",
+      "mitigation": "Read-only worktree per reviewer + Kind==question read-only AllowedTools; test asserts task Kind==question and no write tool granted.",
+      "severity": "high"
+    },
+    {
+      "risk": "Unbounded agentic run wedges the mission loop",
+      "mitigation": "Hard turn + time cap (opts.Timeout/IdleTimeout); a hung run is killed and recorded as unreachable => N-1 degradation, never a silent pass. Bounded-wait discipline.",
+      "severity": "high"
+    },
+    {
+      "risk": "Tier-2 cost runs away (dollar-billed vs Tier-1 cents)",
+      "mitigation": "Per-review cost cap enforced against result.Cost (post-flight, mirroring run.go); over-cap => budget absence, N-1 degradation. Escalation is cost-smart: Tier-2 fires only when a premise is actually contested.",
+      "severity": "medium"
+    },
+    {
+      "risk": "Premise-class objection classifier mis-fires (over- or under-escalates)",
+      "mitigation": "ShouldEscalate is a pure, table-tested function; err toward escalation on high-stakes/split (safe: adds a verification pass), and record every escalation decision in the artifact for audit.",
+      "severity": "medium"
+    }
+  ],
+  "handoff": {
+    "worktree_required": true,
+    "branch_from": "origin/dev",
+    "estimated_duration": "2-3 days (~23 hours across 6 milestones), phase-gated at M0",
+    "total_loc_estimate": 740,
+    "risk_level": "medium",
+    "recommendation": "PHASE-GATE THIS ITERATION AT M0. Execute M0 first (with M1 + M2 in parallel, since they are independent of M0's result), then PAUSE for the controller/human to read M0's PERMITTED|BLOCKED|INCONCLUSIVE result before committing to M4's gemini clone sub-path. M3 (codex+claude local-worktree Tier-2) delivers the core 'verify, not just reason' capability regardless of M0 and can proceed. Do NOT attempt all 6 milestones blind in one pass: M0's external-network outcome legitimately changes M4's shape, and the design is explicitly phase-gated for this reason."
+  },
+  "status": "in_progress",
+  "scope_note_2026_07_16": "Iteration 35 implemented the provider-independent CORE only: M1 (agentic caller behind the JSONCaller seam), M2 (escalation trigger + additive-optional proposed_fix), M3 (codex+claude local-worktree Tier-2). PARKED this iteration: M0 (managed-sandbox network probe) and M4 (gemini clone-in-sandbox, depends on M0) are BLOCKED by a real gap — `ailang exec gemini` / the managed_agents lane never plumbs Task.GCPProject outside the eval harness (cmd/ailang/exec.go builds the Task with no GCPProject; executor default project is \"\"). M5 (docs move + single bounded live-fire) deferred to the controller's Gate-4 after eval+CI. All M1-M3 acceptance is code + unit tests + build, provider-independent (no live billed reviewer calls). All internal/mission/quorum tests green (go test -count=5), go vet + golangci-lint clean, files <230 LOC each."
+}

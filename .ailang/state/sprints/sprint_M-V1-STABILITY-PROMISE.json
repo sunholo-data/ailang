@@ -1,0 +1,106 @@
+{
+  "sprint_id": "M-V1-STABILITY-PROMISE",
+  "status": "completed",
+  "branch": "sprint/m-v1-stability-promise",
+  "worktree": "/Users/voightkampff/dev/sunholo-data/ailang-worktrees/m-v1-stability-promise",
+  "commits": {
+    "M1": "d28da7ba97fce420e9099917b91a93f5da92a2ee",
+    "M2": "12473d76c86d36d239a2cdfdcf102a3cd568196d",
+    "M3": "7077493442df2f9f2033b149f2a7394c9cb3b711",
+    "stdlib_index_fix": "a2a067ae343c6bac5bcf9f914ddf19d8e357c322"
+  },
+  "gates": {
+    "make_test": "rc=0 overall; one flaky timing test (TestRunCommand_PipedStdoutFlushesPerLine) failed under full-suite parallel load, passes in isolation; zero Go files changed",
+    "docs_build": "npm run build rc=0 (SUCCESS) after local registry sync; blocked only by pre-existing env issues (stale package sidebar + std/secret index drift, latter fixed in a2a067a)",
+    "final_sweep": "source-scoped grep returns only docs/docs/roadmap/index.md:50"
+  },
+  "created": "2026-07-10T21:53:18Z",
+  "design_doc": "design_docs/planned/v1_0_0/m-v1-stability-promise.md",
+  "sprint_plan": "design_docs/planned/v1_0_0/m-v1-stability-promise-sprint-plan.md",
+  "github_issues": [
+    329
+  ],
+  "planner_model": "claude-opus-4-8",
+  "execution_environment": "isolated git worktree branched from origin/dev (never the shared main working tree); PR into dev; docs CI must be green",
+  "ratification": "pending (Mark, at release) \u2014 promise wording + tier assignments are a release-gate line-item, NOT an execution blocker",
+  "velocity": {
+    "target_loc_per_day": 150,
+    "estimated_total_loc": 450,
+    "estimated_days": 2.5
+  },
+  "features": [
+    {
+      "id": "M1_STABILITY_PROMISE_PAGE",
+      "description": "New docs/docs/reference/stability.md defining Stable/Experimental/Internal tiers, 1.x compatibility semantics, and enumerated stdlib + CLI tier tables; linked from README, docs/docs/intro.mdx, and docs/sidebars.js.",
+      "estimated_loc": 250,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "docs/docs/reference/stability.md renders in the docs build",
+        "Every module in `ls std/*.ail` (42) plus std/ai/streaming.ail appears in exactly one tier (NOT the doc's stale count of 39)",
+        "Every top-level CLI command/family appears in exactly one tier",
+        "Stable syntax stated by reference to the canonical prompt/reference version (not re-enumerated)",
+        "Header carries `RATIFICATION: pending (Mark, at release)` stamp",
+        "Linked from README.md, docs/docs/intro.mdx, and docs/sidebars.js"
+      ],
+      "passes": true,
+      "started": "2026-07-10T22:00:00Z",
+      "completed": "2026-07-10T22:10:00Z",
+      "notes": "DONE (commit d28da7ba9). Created docs/docs/reference/stability.md with 3 tiers, 1.x semantics, stdlib table (42 modules + std/ai/streaming, each exactly once, verified programmatically), CLI tier table by command/family, syntax-by-reference to embedded prompt v0.16.2, RATIFICATION stamp. Linked from README, docs/docs/intro.mdx, docs/sidebars.js. Proposed markers on net/crypto/jwt/xml/zip/process/watch/serve-api."
+    },
+    {
+      "id": "M2_LIMITATIONS_ACCURACY_PASS",
+      "description": "Re-verify every LIMITATIONS entry live at HEAD; rewrite to entry template (Status/Verified-at/repro+output/Workaround); move fixed entries to a dated Resolved section with pointers; delete 3 in-file stale version promises. Applies to BOTH docs/LIMITATIONS.md AND the diverged website copy docs/docs/reference/limitations.md.",
+      "estimated_loc": 150,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "0 entries describe fixed behavior as broken; 0 in-file past-version promises remain",
+        "Every remaining entry has repro + ailang transcript + verified-at date at HEAD (transcripts in PR)",
+        "The 2 pre-verified fixed entries (poly-arith lambdas -> 5.85; match-in-HOF -> [zero, ok, ok]) are in Resolved",
+        "Both docs/LIMITATIONS.md and docs/docs/reference/limitations.md are accurate and mutually consistent; canonical choice recorded in PR"
+      ],
+      "passes": true,
+      "started": "2026-07-10T22:10:00Z",
+      "completed": "2026-07-10T22:35:00Z",
+      "notes": "DONE (commit 12473d76c). Live-verified every entry at v0.28.0-141-g379990ad5 (2026-07-10); transcripts in .sprint-verification/limitations-transcripts.md on the branch. Deferred #4 resolved: website copy docs/docs/reference/limitations.md is canonical; root docs/LIMITATIONS.md reduced to pointer+summary. Moved to Resolved: poly-arith (5.85), match-in-HOF ([zero,ok,ok]), block exprs, string-interp, pattern-guards. Open entries carry Verified-at dates. Preserved #if-else-branches-require-explicit-braces anchor (referenced by internal/elaborate/expr_control.go CLI error). 0 in-file past-version promises remain in either file."
+    },
+    {
+      "id": "M3_PROMISE_SWEEP_CHANGELOG",
+      "description": "Fix the 4 inventoried stale website version-promises (retract-with-pointer); re-run the sweep grep to only the roadmap page; add CHANGELOG entry.",
+      "estimated_loc": 50,
+      "dependencies": [
+        "M2_LIMITATIONS_ACCURACY_PASS"
+      ],
+      "acceptance_criteria": [
+        "benchmarking.md, module_execution.mdx, ai-api-integration.mdx, why-ailang.mdx promises fixed",
+        "Sweep grep `grep -rniE \"(planned for|coming in|will be (added|refined|fixed|implemented)|deferred to) (in )?v0\\.[0-9]\" docs/ README.md` returns only docs/docs/roadmap/index.md (output in PR)",
+        "CHANGELOG.md entry present"
+      ],
+      "passes": true,
+      "started": "2026-07-10T22:35:00Z",
+      "completed": "2026-07-10T22:50:00Z",
+      "notes": "DONE (commit 7077493). Fixed all 4 website promises (benchmarking.md M-EVAL2 -> ailang eval-suite; module_execution.mdx -> --caps live; ai-api-integration.mdx -> import std/json, verified exports encode/decode; why-ailang.mdx -> benchmark dashboard). CHANGELOG entry added under [Unreleased] in changelogs/v0.18-current.md. FINAL sweep (source-scoped) returns ONLY docs/docs/roadmap/index.md:50 'Planned for v0.29.0'. Also fixed pre-existing check-stdlib-index drift (std/secret missing) in commit a2a067a to unblock the docs build."
+    },
+    {
+      "id": "S1_CHECK_DOC_PROMISES_GUARD",
+      "description": "OPTIONAL STRETCH (Deferred Decision): make check-doc-promises grep gate + CI wiring. Include ONLY if <=30 lines with zero false-positives on the roadmap page; else leave a follow-up note. Must NOT gate M1-M3.",
+      "estimated_loc": 30,
+      "dependencies": [
+        "M3_PROMISE_SWEEP_CHANGELOG"
+      ],
+      "acceptance_criteria": [
+        "OPTIONAL: make check-doc-promises added and green, with the roadmap page allowlisted",
+        "If skipped: a one-line follow-up note recorded in the stability page or CHANGELOG"
+      ],
+      "passes": false,
+      "started": null,
+      "completed": null,
+      "notes": "SKIPPED (optional stretch). Recorded as a follow-up line on the stability page (Follow-ups section: 'A make check-doc-promises CI guard ...') per the plan's guidance to leave a note rather than block. S2 also skipped. Core M1-M3 landed comfortably; deferring the guard keeps the sprint docs-only and avoids Makefile/CI-fixture risk."
+    }
+  ],
+  "evaluation": {
+    "result": "pass",
+    "score": 96,
+    "round": 1,
+    "report": ".ailang/state/evaluations/eval_M-V1-STABILITY-PROMISE_round_1.json"
+  }
+}

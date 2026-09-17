@@ -73,6 +73,25 @@ func runExecutor(ctx context.Context, workDir, provider, directive, taskID, plug
 	if pluginDir != "" {
 		task.PluginDirs = []string{pluginDir}
 	}
+	// M-AGENT-AILANG-ONLY-EXECUTION: the tool lane and its program policy,
+	// delivered by the dispatcher as env (content, not a path). Same shape as
+	// the resident's boot.sh: materialised read-only OUTSIDE the workspace, so
+	// pi's write tool cannot rewrite it and — with no bash — nothing can chmod
+	// it back (D4). An unknown profile fails the job before any model call.
+	if profile := config.ToolPolicy(); profile != "" {
+		tools, perr := executor.ProfileTools(profile)
+		if perr != nil {
+			return nil, fmt.Errorf("execute-job: %w", perr)
+		}
+		task.AllowedTools = tools
+	}
+	if policyPath, perr := executor.MaterializeAgentPolicy(config.AgentPolicyTOML(), workDir); perr != nil {
+		return nil, fmt.Errorf("execute-job: %w", perr)
+	} else if policyPath != "" {
+		task.PolicyPath = policyPath
+		task.ExtraEnv["AILANG_AGENT_POLICY"] = policyPath
+		fmt.Printf("execute-job: program policy materialised at %s (read-only)\n", policyPath)
+	}
 
 	// Create PubSubBroadcaster for live progress streaming (M-CLOUD-PROGRESS-TRACKING).
 	// Reuses the same GCP project/prefix env vars as the completion publisher.

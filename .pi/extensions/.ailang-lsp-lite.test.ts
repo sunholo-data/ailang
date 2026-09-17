@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseCheckOutput, filterBuiltins } from "./ailang-lsp-lite.ts";
+import { parseBuiltinsInventory, parseCheckOutput, filterBuiltins } from "./ailang-lsp-lite.ts";
 
 test("parseCheckOutput: TC error with span + builtinHint passthrough", () => {
 	const out = "→ Effect checking...\nError: type error in typo (decl 0): undefined variable: _fs_renam at typo.ail:6:3 — '_fs_renam' follows the builtin naming convention; run `ailang builtins list` for the real inventory\n";
@@ -40,4 +40,13 @@ test("filterBuiltins: query, module, cap; empty query returns all", () => {
 	assert.equal(filterBuiltins(inv, undefined, undefined).length, 3);
 	// cap applies only to queried searches
 	assert.equal(filterBuiltins(inv, "s", undefined).length <= 10, true);
+});
+
+test("parseBuiltinsInventory accepts the binary's {count, builtins} envelope and a bare array", () => {
+	const wrapped = parseBuiltinsInventory('{"count":1,"builtins":[{"name":"listDir","module":"std/fs","signature":"listDir: string -> [string] ! {FS}"}]}');
+	assert.equal(wrapped.length, 1);
+	assert.equal(wrapped[0].name, "listDir");
+	const bare = parseBuiltinsInventory('[{"name":"x","module":"m","signature":"s"}]');
+	assert.equal(bare[0].name, "x");
+	assert.throws(() => parseBuiltinsInventory('{"nope":1}'));
 });

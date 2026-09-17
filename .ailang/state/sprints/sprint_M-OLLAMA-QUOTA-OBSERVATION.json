@@ -1,0 +1,22 @@
+{
+  "sprint_id": "M-OLLAMA-QUOTA-OBSERVATION",
+  "status": "completed",
+  "features": [
+    {
+      "id": "M1",
+      "description": "Bounded usage reader and verified metadata admission",
+      "passes": true
+    },
+    {
+      "id": "M2",
+      "description": "Cloud-only controller and role gates, including overrides",
+      "passes": true
+    },
+    {
+      "id": "M3",
+      "description": "Independent review, full verification and reversible deployment",
+      "passes": true
+    }
+  ],
+  "configuration_pending": "Verified account limits/reset times and same-account identity; cloud remains blocked unknown until supplied."
+}

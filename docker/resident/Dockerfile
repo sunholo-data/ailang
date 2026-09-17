@@ -27,19 +27,18 @@ RUN curl -fsSL "$HERDR_URL" -o /usr/local/bin/herdr \
 
 # pi, PINNED, and from the package that is still maintained.
 #
-# The base image runs `npm install -g @mariozechner/pi-coding-agent` unpinned,
-# which floats AND is the wrong name: that package stopped at 0.73.1 and
-# development moved to @earendil-works/pi-coding-agent (0.84.4 at time of
-# writing). The practical consequence was found by boot's own probe on
-# 2026-09-03 — 0.73.1 has no `--session-id`, so the resident could not hold a
-# conversation at all, which is the entire premise of the design.
+# HISTORY: the base image once ran the abandoned @mariozechner package at
+# 0.73.1, which has no `--session-id` — so the resident could not hold a
+# conversation at all (found by boot's own probe 2026-09-03) and moved alone
+# to @earendil-works. Since M-PI-HARNESS-UPGRADE M4 (2026-09-16) the base
+# (agent-pi) is on the same package and version, so this install is a
+# same-package no-op reinstall that must NOT reintroduce EEXIST — asserted
+# below on the capability, as before, and on the version.
 #
-# Pinned here rather than in the base so the Cloud Run job executor, which is
-# happy on 0.73.1 and whose NDJSON parser is written against it, is not moved
-# by a change made for the resident. Bump deliberately; boot re-probes what it
-# actually got and degrades visibly if a version lacks the flag.
+# Keep the pin here anyway: it is the resident's contract, and the seam test
+# in internal/executor/pi holds this ARG to the same value as the base.
 ARG PI_PACKAGE=@earendil-works/pi-coding-agent
-ARG PI_VERSION=0.84.4
+ARG PI_VERSION=0.85.1
 #
 # The old package must be REMOVED first. Both publish a `pi` bin, and npm
 # refuses to clobber another package's link — `npm error EEXIST: file already
@@ -50,13 +49,12 @@ ARG PI_VERSION=0.84.4
 # should fail if a future bump loses `--session-id` even at a higher number.
 RUN npm uninstall -g @mariozechner/pi-coding-agent 2>/dev/null || true; \
     npm install -g "${PI_PACKAGE}@${PI_VERSION}" \
-    && pi --version </dev/null \
+    && pi --version </dev/null | grep -qx "${PI_VERSION}" \
     && pi --help </dev/null | grep -q -- "--session-id" \
     && echo "pi $(pi --version </dev/null) supports --session-id"
 
 COPY boot.sh /usr/local/bin/boot.sh
 COPY server.mjs /usr/local/bin/server.mjs
-COPY resident-run /usr/local/bin/resident-run
 COPY lib/ /usr/local/bin/lib/
 # The acceptance suite ships INSIDE the image so it can be run against the
 # artefact that will actually be deployed, in CI or by hand later, rather than
@@ -67,7 +65,7 @@ COPY test-observatory.mjs /usr/local/bin/test-observatory.mjs
 COPY test-a2a-persistence.mjs /usr/local/bin/test-a2a-persistence.mjs
 COPY test-pi-staging.mjs /usr/local/bin/test-pi-staging.mjs
 COPY test-agent-events.mjs /usr/local/bin/test-agent-events.mjs
-RUN chmod 0755 /usr/local/bin/boot.sh /usr/local/bin/server.mjs /usr/local/bin/resident-run /usr/local/bin/test-image.sh
+RUN chmod 0755 /usr/local/bin/boot.sh /usr/local/bin/server.mjs /usr/local/bin/test-image.sh
 
 USER ailang
 
@@ -80,7 +78,7 @@ ENV HERDR_SOCKET_PATH=/home/ailang/.herdr/herdr.sock \
     AGENT_HOME=/agent-home \
     AILANG_FS_SANDBOX=/workspace \
     PI_HOME=/home/ailang/.pi \
-    PROGRAM_ALLOWLIST_FILE=/etc/resident/allowlist.json
+    RESIDENT_TOOLS=ailang_only
 
 EXPOSE 8080
 ENTRYPOINT ["/usr/local/bin/boot.sh"]

@@ -40,12 +40,9 @@ func recordModedRandTrace(ctx *effects.EffContext, builtinName string, args []ev
 	}
 	argStrs := make([]string, len(args))
 	for i, a := range args {
-		argStrs[i] = a.String()
+		argStrs[i] = ctx.RenderTraceValue(a)
 	}
-	resultStr := ""
-	if result != nil {
-		resultStr = result.String()
-	}
+	resultStr := ctx.RenderTraceValue(result)
 	ctx.RecordModedEffect("Rand", op, argStrs, resultStr, mode, contract)
 }
 

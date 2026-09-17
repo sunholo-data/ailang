@@ -56,7 +56,12 @@ func (s *Server) callFunction(w http.ResponseWriter, r *http.Request, modulePath
 		if maxSize == 0 {
 			maxSize = 50 << 20 // 50MB default
 		}
-		if err := r.ParseMultipartForm(maxSize); err != nil {
+		// The upload cap is enforced on the BODY (MaxBytesReader); the
+		// ParseMultipartForm argument is only how much of it stays in RAM
+		// before net/http spills parts to disk. Passing the cap there held a
+		// 50 MB upload entirely in memory (M-V1-MEMORY-FOOTPRINT F9).
+		r.Body = http.MaxBytesReader(w, r.Body, maxSize)
+		if err := r.ParseMultipartForm(multipartMemoryThreshold); err != nil {
 			httpjson.Write(w, http.StatusRequestEntityTooLarge, FunctionCallResponse{
 				Module: modulePath,
 				Func:   funcName,
@@ -407,7 +412,41 @@ func parseMultipartArgs(r *http.Request, maxSize int64) ([]interface{}, error) {
 // Creates a unique temp directory and writes the file with its original name,
 // so filepath.Base(path) returns the real filename (e.g. "report.docx").
 // Caller is responsible for cleanup (remove the parent directory).
-func writeTempFile(data []byte, originalFilename string) (string, error) {
+// multipartMemoryThreshold is how much of a multipart body net/http keeps in
+// RAM before spilling parts to disk. The upload cap is a separate, larger
+// number enforced by http.MaxBytesReader on the body.
+const multipartMemoryThreshold = 4 << 20
+
+// multipartFileArg turns one uploaded part into the handler's argument. A
+// string param receives a temp-file PATH, written by streaming the part
+// (io.Copy) — the part is never held as a []byte. A bytes param receives the
+// bytes, which are the value itself and the one copy that must exist.
+// Returns the temp path when one was written so the caller can clean it up.
+func multipartFileArg(fh *multipart.FileHeader, maxSize int64, paramType string) (arg interface{}, tmpPath string, err error) {
+	if paramType == "string" {
+		f, err := fh.Open()
+		if err != nil {
+			return nil, "", fmt.Errorf("failed to open uploaded file %q: %w", fh.Filename, err)
+		}
+		defer f.Close()
+		tmpPath, err := writeTempFile(io.LimitReader(f, maxSize), fh.Filename)
+		if err != nil {
+			return nil, "", fmt.Errorf("failed to write temp file: %w", err)
+		}
+		return tmpPath, tmpPath, nil
+	}
+	data, err := readMultipartFile(fh, maxSize)
+	if err != nil {
+		return nil, "", err
+	}
+	return &eval.BytesValue{
+		Value:    data,
+		Filename: fh.Filename,
+		MimeType: fh.Header.Get("Content-Type"),
+	}, "", nil
+}
+
+func writeTempFile(src io.Reader, originalFilename string) (string, error) {
 	dir, err := os.MkdirTemp("", "ailang-upload-*")
 	if err != nil {
 		return "", err
@@ -422,7 +461,17 @@ func writeTempFile(data []byte, originalFilename string) (string, error) {
 		name = "upload"
 	}
 	path := filepath.Join(dir, name)
-	if err := os.WriteFile(path, data, 0600); err != nil {
+	out, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+	if err != nil {
+		os.RemoveAll(dir)
+		return "", err
+	}
+	if _, err := io.Copy(out, src); err != nil {
+		out.Close()
+		os.RemoveAll(dir)
+		return "", err
+	}
+	if err := out.Close(); err != nil {
 		os.RemoveAll(dir)
 		return "", err
 	}
@@ -454,28 +503,16 @@ func parseMultipartArgsWithNames(r *http.Request, maxSize int64, paramNames []st
 		// Check file fields first
 		if fileHeaders, ok := r.MultipartForm.File[name]; ok && len(fileHeaders) > 0 {
 			fh := fileHeaders[0]
-			data, err := readMultipartFile(fh, maxSize)
+			matchedFiles[name] = true
+			arg, tmpPath, err := multipartFileArg(fh, maxSize, paramType)
 			if err != nil {
 				removeTempFiles(tempFiles)
 				return nil, nil, err
 			}
-			matchedFiles[name] = true
-
-			if paramType == "string" {
-				tmpPath, err := writeTempFile(data, fh.Filename)
-				if err != nil {
-					removeTempFiles(tempFiles)
-					return nil, nil, fmt.Errorf("failed to write temp file: %w", err)
-				}
+			if tmpPath != "" {
 				tempFiles = append(tempFiles, tmpPath)
-				args[i] = tmpPath
-			} else {
-				args[i] = &eval.BytesValue{
-					Value:    data,
-					Filename: fh.Filename,
-					MimeType: fh.Header.Get("Content-Type"),
-				}
 			}
+			args[i] = arg
 			continue
 		}
 
@@ -516,28 +553,16 @@ func parseMultipartArgsWithNames(r *http.Request, maxSize int64, paramNames []st
 			if paramType == "string" || paramType == "bytes" || paramType == "" {
 				uf := unmatchedFiles[fileIdx]
 				log.Printf("  WARNING: multipart field %q does not match param %q — assigning by position (use -F '%s=@file' for exact match)", uf.fieldName, paramNames[i], paramNames[i])
-				data, err := readMultipartFile(uf.header, maxSize)
+				fileIdx++
+				arg, tmpPath, err := multipartFileArg(uf.header, maxSize, paramType)
 				if err != nil {
 					removeTempFiles(tempFiles)
 					return nil, nil, err
 				}
-				fileIdx++
-
-				if paramType == "string" {
-					tmpPath, err := writeTempFile(data, uf.header.Filename)
-					if err != nil {
-						removeTempFiles(tempFiles)
-						return nil, nil, fmt.Errorf("failed to write temp file: %w", err)
-					}
+				if tmpPath != "" {
 					tempFiles = append(tempFiles, tmpPath)
-					args[i] = tmpPath
-				} else {
-					args[i] = &eval.BytesValue{
-						Value:    data,
-						Filename: uf.header.Filename,
-						MimeType: uf.header.Header.Get("Content-Type"),
-					}
 				}
+				args[i] = arg
 			}
 		}
 	}

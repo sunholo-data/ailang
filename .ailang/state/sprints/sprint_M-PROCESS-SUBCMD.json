@@ -1,0 +1,72 @@
+{
+  "sprint_id": "M-PROCESS-SUBCMD",
+  "status": "completed",
+  "created": "2026-09-11T09:52:16Z",
+  "design_doc": "design_docs/implemented/v0_38_0/m-process-subcmd-allowlist.md",
+  "sprint_plan": "design_docs/implemented/v0_38_0/m-process-subcmd-allowlist-sprint-plan.md",
+  "github_issues": [
+    1137
+  ],
+  "velocity": {
+    "target_loc_per_day": 700,
+    "estimated_total_loc": 680,
+    "estimated_days": 1
+  },
+  "features": [
+    {
+      "id": "M1_PARSE_SUBCMD_ENTRIES",
+      "description": "ResolveAllowlist parses cmd:sub[:sub] entries into ProcessContext.Subcommands (cmd → allowed arg-prefix chains); git:* ≡ bare; bare wins over cmd:sub; empty segment is a startup error",
+      "estimated_loc": 230,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Table test: git:status, gh:pr:list+gh:pr:view, git+git:status (bare wins), git:*, /usr/bin/git:status, echo,date all parse to the documented structure",
+        "git: and git::status fail at startup naming the offending entry (no silent allow)",
+        "Existing TestProcessContext_ResolveAllowlist and _AbsolutePath unchanged and green",
+        "go vet and gofmt -l clean"
+      ],
+      "passes": true,
+      "started": "2026-09-11T10:07:05Z",
+      "completed": "2026-09-11T10:07:05Z",
+      "notes": "24f43760f — splitSubcommandEntry + ProcessContext.Subcommands; 8-case table + 4 malformed entries; wasm vet clean"
+    },
+    {
+      "id": "M2_ONE_AUTHORIZER_THREE_PATHS",
+      "description": "(*ProcessContext).Authorize(cmd,args) decides allow/deny + resolved path; exec, spawnProcess and asyncExecProcess all call it so a subcommand allowlist cannot be bypassed via another std/process entry point",
+      "estimated_loc": 250,
+      "dependencies": [
+        "M1_PARSE_SUBCMD_ENTRIES"
+      ],
+      "acceptance_criteria": [
+        "grep -n 'pc.Allowlist[' internal/effects/*.go (non-test) hits exactly one site: Authorize",
+        "TestProcessAuthorize_AllThreePathsAgree green: each of exec/spawnProcess/asyncExecProcess refuses the non-allowlisted subcommand and names it (git push)",
+        "git:status allows [status] and [status,--short]; refuses [push], [push,--force], [], [-C,/x,status]; gh:pr:list allows [pr,list], refuses [pr,merge] and [pr]",
+        "go test ./internal/effects/... green; bare-entry error text unchanged (NotAllowed(/bin/echo))"
+      ],
+      "passes": true,
+      "started": "2026-09-11T10:07:05Z",
+      "completed": "2026-09-11T10:07:05Z",
+      "notes": "5369744f8 — process_authorize.go; exec/spawnProcess/asyncExecProcess all call Authorize; AllThreePathsAgree proves the bypass is closed; denial detail = tried words minus trailing flags"
+    },
+    {
+      "id": "M3_CLI_DOCS_EXAMPLE_CLOSEOUT",
+      "description": "Flag help names the cmd:sub syntax; e2e test drives the built binary with --process-allowlist echo:hello; example + manifest; reference/effects.md rule; CHANGELOG; design doc → implemented/v0_38_0; #1137 closed, Daneel messaged and the three inbox messages acked by id",
+      "estimated_loc": 200,
+      "dependencies": [
+        "M2_ONE_AUTHORIZER_THREE_PATHS"
+      ],
+      "acceptance_criteria": [
+        "ailang run --help | grep process-allowlist shows cmd:sub syntax (and ailang --help line matches)",
+        "cmd/ailang e2e test against the built binary: echo hello → Ok, echo bye → Err(NotAllowed(echo bye))",
+        "make verify-examples green with examples/runnable/process_subcmd_allowlist.ail in the manifest",
+        "docs/docs/reference/effects.md Process flag table documents prefix-match, -C fail-closed, flags-after-subcommand caveat; 'unbuilt' wording removed",
+        "Design doc moved to design_docs/implemented/v0_38_0/ with links updated; CHANGELOG Unreleased entry present",
+        "Final commit says Fixes #1137; Daneel messaged with the verified command line under the messaging env prefix; inbox_1789049068346_981d871c, inbox_1789049189112_68ccbe3a, inbox_1789049365811_6809da5e acked individually (never ack --all)"
+      ],
+      "passes": true,
+      "started": "2026-09-11T10:07:05Z",
+      "completed": "2026-09-11T10:07:05Z",
+      "notes": "flag help (run + top-level), e2e test on built binary (echo:hello + malformed entry), example + manifest (verify-examples green), effects.md rules, CHANGELOG, design doc → implemented/v0_38_0. make test red ONLY on pre-existing cihygiene TestWiredGatesAreCanonical (868b55898)."
+    }
+  ],
+  "completed": "2026-09-11T10:07:05Z"
+}

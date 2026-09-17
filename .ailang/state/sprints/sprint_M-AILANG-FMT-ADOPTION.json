@@ -1,0 +1,91 @@
+{
+  "sprint_id": "M-AILANG-FMT-ADOPTION",
+  "title": "ailang fmt Adoption — Discoverability + Opt-in Harness Hooks",
+  "design_doc": "design_docs/planned/v0_30_0/m-ailang-fmt-adoption.md",
+  "plan_doc": "design_docs/planned/v0_30_0/m-ailang-fmt-adoption-sprint-plan.md",
+  "target_version": "v0.30.0",
+  "created": "2026-07-19",
+  "created_by": "sprint-planner",
+  "github_issues": [399],
+  "risk_level": "low",
+  "conflict_surface": "low — prompts/docs/build-glue/hooks only; NO parser/lexer/AST/types/codegen/eval/effects/runtime changes",
+  "velocity": {
+    "target_loc_per_day": 120,
+    "estimated_total_loc": 130,
+    "estimated_days": 1.25
+  },
+  "premise_flags": [
+    {
+      "id": "PREMISE-1-gate-satisfied",
+      "status": "RESOLVED",
+      "note": "Phase-2 execution gate is now SATISFIED. M-AILANG-FMT-PHASE2 landed iter-63 (PR #414, squash 3815ba617). The doc's '⛔ Execution Gate', '⛔ Quorum Block', and Rev-3 hard-gate sections are now HISTORICAL. Doc is cleared to plan. M1's gate-check task is retained as a live sanity tripwire, not a blocker."
+    },
+    {
+      "id": "PREMISE-3-exit-code-contract",
+      "status": "VERIFIED-MATCHES",
+      "note": "CRITICAL check requested in the planning directive. The shipped binary's exit-code contract MATCHES the doc's hook-contract assumption EXACTLY. Verified live in cmd/ailang/fmt.go header (lines 24-37) and by execution: 0=success/canonical, 1=--check drift, 2=operational error (usage/read/print/round-trip/envelope/write; comment-refusal for inline-interior lands here too), 3=input parse error. Live test: non-parsing file `let x = = =` -> exit 3; canonical --check on examples/ai_modes.ail -> exit 1 (drift). The hook's silent-vs-surface distinction (exit 3 silent, all else surface) is therefore sound as written. NO premise conflict. See also phase-2 impl doc lines 168-169."
+    },
+    {
+      "id": "PREMISE-2-sigkill-escalation",
+      "status": "APPROVED-NO-REQUORUM",
+      "note": "Mark approved the SIGTERM->grace->SIGKILL escalation (doc lines 54-56). Quorum is CLOSED by Mark decision. The doc's shipped hook script (lines 282-291) currently sends only `kill` then unbounded `wait` — this is the exact defect that must be fixed. Sprint MUST land the escalation `kill \"$PID\"; sleep 1; kill -9 \"$PID\" 2>/dev/null; wait \"$PID\"`. Precedent verified live: .claude/skills/mission-control/SKILL.md:254 uses `kill; sleep 2; kill -9`."
+    }
+  ],
+  "features": [
+    {
+      "id": "M1_GATE_AND_TEACHING_PROMPT",
+      "description": "Confirm Phase-2 gate reality (now historical/satisfied), then create prompts/v0.16.3.md (v0.16.2 content + ~6-line Formatting section), register it with hash in prompts/versions.json, and flip \"active\" to v0.16.3. Activation is the final step and requires a rebuilt binary (prompts are embedded).",
+      "estimated_loc": 40,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Gate tripwire green: `ailang fmt --help` no longer documents the Phase-1 comment-refusal limitation; a deliberately non-parsing temp file exits 3; a commented-but-parseable file no longer exits 2 solely for containing comments (Phase-2 lossless preservation confirmed). NOTE: this is now a sanity check, not a blocker — Phase 2 landed in iter-63.",
+        "prompts/v0.16.3.md exists = byte-identical copy of v0.16.2.md PLUS a Formatting section (command usage only, NO AILANG code snippet so no `ailang check` surface).",
+        "prompts/versions.json gains a v0.16.3 entry with correct file + hash + description; NO existing entry (v0.16.0/0.16.1/0.16.2) is edited in place.",
+        "\"active\" flipped to v0.16.3 in prompts/versions.json.",
+        "After `make quick-install`: `ailang prompt | grep -i fmt` returns the teaching line.",
+        "Append-only proof: `ailang prompt --version v0.16.2 | grep -i fmt` still returns empty (old prompt served byte-identical)."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": "Draft teaching line in design doc lines 171-177. Human may tune wording at review (Design Freeze open item). Registry hash must be regenerated — check how versions.json hashes are computed (see internal/prompt/loader.go)."
+    },
+    {
+      "id": "M2_DOCS_AND_CLI_AUDIT",
+      "description": "Audit CLI help post-Phase-2 (expect already good), then add the Adoption section to docs/docs/reference/formatter.md (contract table + clauses 1-5 + make target + copy-paste Claude Code hook config + motoko cross-repo contract) and cross-link from the development-workflow guide.",
+      "estimated_loc": 65,
+      "dependencies": ["M1_GATE_AND_TEACHING_PROMPT"],
+      "acceptance_criteria": [
+        "`ailang --help` and `ailang fmt --help` reviewed; any drift (e.g. lingering Phase-1 limitation text) fixed — but Phase 2's M3 already owns the limitation-paragraph removal, so this is verify-not-duplicate.",
+        "docs/docs/reference/formatter.md gains an Adoption section containing: the exit-code contract table (0/1/2/3 with hook interpretation), the five contract clauses (idempotence, meaning-preservation, atomicity, non-blocking+non-silent, never-format-non-parsing), the `make fmt-check` description, the copy-paste Claude Code PostToolUse hook config, and the Motoko per-edit cross-repo contract text.",
+        "docs/docs/guides/development-workflow.md cross-links to the formatter Adoption section.",
+        "Docs build is not broken (Docusaurus): no bad relative links, page renders."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": "formatter.md exists today (5829 bytes). Additive edits only. Motoko contract is TEXT ONLY — no cross-repo commit from this sprint (High-Impact Decision row + Non-Goal)."
+    },
+    {
+      "id": "M3_OPTIN_HOOKS",
+      "description": "Add the `make fmt-check` target (drift over examples/ + stdlib/, exit 1 on drift, informational baseline only — no mass reformat). Add scripts/hooks/format_ail.sh (non-blocking, non-silent, bounded PostToolUse hook) with the APPROVED SIGTERM->grace->SIGKILL escalation, and register it opt-in in .claude/settings.json. Run `make test` as a regression tripwire.",
+      "estimated_loc": 55,
+      "dependencies": ["M1_GATE_AND_TEACHING_PROMPT"],
+      "acceptance_criteria": [
+        "Makefile gains a standalone `fmt-check` target running `ailang fmt --check` over examples/**/*.ail + stdlib/**/*.ail; exits 1 and lists drifted paths on drift, 0 when canonical. `make ci` is byte-identical before/after (target NOT wired into ci).",
+        "`make fmt-check` run once and the drift count recorded as an informational baseline in the implementation report (mass reformat is explicitly out of scope).",
+        "scripts/hooks/format_ail.sh created following format_go.sh's matcher + always-exit-0 + additionalContext-surfacing mechanism, but NEVER discarding fmt stderr (no `2>/dev/null` on the `ailang fmt` invocation — only `2>&1` into the capture file).",
+        "APPROVED FIX LANDED: the bounded-timeout guard escalates SIGTERM->grace->SIGKILL before wait — `kill \"$PID\"; sleep 1; kill -9 \"$PID\" 2>/dev/null; wait \"$PID\"` (per Mark decision, quorum closed). The doc's shipped script snippet (kill-then-unbounded-wait) is the pre-fix version and MUST NOT be copied verbatim.",
+        "Silence audit: the shipped hook's `ailang fmt` invocation has NO `2>/dev/null`; jq presence is probed up front (`command -v jq`) and the first jq call carries no stderr suppression; the silent branch is pinned to exactly exit 3.",
+        ".claude/settings.json registers the hook under hooks.PostToolUse with matcher Edit|Write, alongside the existing Go entry; the Go hook still fires unchanged.",
+        "Manual tests pass: (a) edit a valid .ail file -> formatted, turn not blocked; (b) non-parsing .ail -> exit 3 silent defer, file untouched, turn not blocked; (c) unreadable/chmod file -> exit 2 advisory context surfaced, turn not blocked; (d) stub `ailang` that sleeps past the 10s deadline -> fmt SIGKILLed after grace, file byte-identical, timeout advisory surfaced, turn not blocked (proves the escalation reaps a SIGTERM-ignoring process).",
+        "Idempotence spot-check: running the hook twice on the same file — second run is a no-op.",
+        "`make test` green (regression tripwire — nothing in internal/ changed)."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": "M3 is the milestone that carries PREMISE-2 (the Mark-approved SIGKILL escalation). Test (d) is the specific regression that the escalation fixes — a SIGTERM-ignoring stub must still be reaped and the turn must complete."
+    }
+  ]
+}

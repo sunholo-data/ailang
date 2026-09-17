@@ -58,6 +58,8 @@ func CategorizeAgentError(err error, finishReason string) string {
 		return ErrorCategoryTimeout
 	case "thrash_aborted":
 		return ErrorCategoryThrashAborted // M-EVAL-OS-LONGITUDINAL Phase 1
+	case "wire_drift":
+		return ErrorCategoryWireDrift // M-PI-HARNESS-UPGRADE D4: the record is wrong, not the model
 	}
 
 	// Fallback: detect by error-message substring when finish_reason wasn't
@@ -101,6 +103,12 @@ func CategorizeAgentError(err error, finishReason string) string {
 	// after step_exhausted and max_steps (M-RIG-RELIABILITY M2).
 	if containsAny(msg, "non-agentic result") {
 		return ErrorCategoryNonAgentic
+	}
+
+	// The ailang_only lane's gate refused the program (M-AGENT-AILANG-ONLY-
+	// EXECUTION): the agent asked for an effect its policy does not grant.
+	if containsAny(msg, "policy_violation") {
+		return ErrorCategoryPolicyViolation
 	}
 
 	// API-level model refusal (Anthropic stop_reason "refusal"): a model

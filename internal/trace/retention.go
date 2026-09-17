@@ -1,6 +1,11 @@
 package trace
 
-import "fmt"
+import (
+	"fmt"
+	"strconv"
+	"strings"
+	"unsafe"
+)
 
 // Retention policy for the in-memory collector (M-TRACE-TIER-NOT-ENFORCED M2).
 //
@@ -29,7 +34,17 @@ const (
 	DefaultMaxValueBytes = 1024
 
 	// DefaultMaxRetainedBytes bounds the total retained in memory.
-	DefaultMaxRetainedBytes = 256 << 20 // 256 MB
+	//
+	// 32 MB (M-V1-MEMORY-FOOTPRINT D-B, ratified 2026-09-16). It was 256 MB
+	// while eventSize charged only string bytes; the real heap for that was
+	// 1-2 GB. eventSize is honest now, so the cap means what it says, and
+	// exporters read the observer stream — which retention never touches — so
+	// nothing that writes a trace to disk sees less.
+	DefaultMaxRetainedBytes = 32 << 20 // 32 MB
+
+	// stringHeaderBytes is what one string costs beyond its contents: the
+	// pointer+len header held by whichever struct or slice references it.
+	stringHeaderBytes = int(unsafe.Sizeof(""))
 
 	// evictionLowWater is the fraction of the cap eviction drains down to.
 	// Evicting one event per new event would be O(n) per insert; batching keeps
@@ -75,10 +90,29 @@ func (c *Collector) SetValueMode(m ValueMode) { c.valueMode = m }
 // response, a body that grew between retries, a token of an unexpected size are
 // all visible without a single byte of payload.
 func redactValue(s string) string {
-	if s == "" {
-		return ""
+	if s == "" || isRedactedDescriptor(s) {
+		return s
 	}
-	return fmt.Sprintf("<redacted:%d bytes>", len(s))
+	return RedactedDescriptor(len(s))
+}
+
+// RedactedDescriptor is the string a redacted value is recorded as. Exposed so
+// a render site can produce it from a byte count (eval.RenderedLen) without
+// ever rendering the payload.
+func RedactedDescriptor(n int) string {
+	return fmt.Sprintf("<redacted:%d bytes>", n)
+}
+
+// isRedactedDescriptor recognises a value already recorded as a descriptor so
+// redactValue is idempotent: a site that pre-redacted must not have its
+// descriptor redacted again into "<redacted:19 bytes>".
+func isRedactedDescriptor(s string) bool {
+	const pre, suf = "<redacted:", " bytes>"
+	if !strings.HasPrefix(s, pre) || !strings.HasSuffix(s, suf) {
+		return false
+	}
+	_, err := strconv.Atoi(s[len(pre) : len(s)-len(suf)])
+	return err == nil
 }
 
 // SetLimits overrides the retention bounds. A value <= 0 disables that bound.
@@ -95,10 +129,25 @@ func (c *Collector) DroppedEvents() int { return c.dropped }
 // truncateValue bounds one rendered value, marking the elision explicitly so a
 // reader can tell a truncated value from a short one.
 func truncateValue(s string, max int) string {
-	if max <= 0 || len(s) <= max {
+	if max <= 0 || len(s) <= max || isBoundedAt(s, max) {
 		return s
 	}
 	return fmt.Sprintf("%s…(+%d bytes elided)", s[:max], len(s)-max)
+}
+
+// isBoundedAt reports whether s is already the output of bounding at exactly
+// max bytes — a max-byte prefix followed by the elision marker. The check is
+// anchored at offset max, so the marker text appearing anywhere else in a
+// value is ordinary content. This is what makes truncateValue idempotent for
+// values a render site bounded with eval.ShowBounded before recording them.
+func isBoundedAt(s string, max int) bool {
+	const pre, suf = "…(+", " bytes elided)"
+	tail := s[max:]
+	if !strings.HasPrefix(tail, pre) || !strings.HasSuffix(tail, suf) {
+		return false
+	}
+	_, err := strconv.Atoi(tail[len(pre) : len(tail)-len(suf)])
+	return err == nil
 }
 
 // boundValues applies maxValueBytes to every rendered value on an event.
@@ -124,21 +173,51 @@ func (c *Collector) boundValues(evt *TraceEvent) {
 	}
 }
 
-// eventSize approximates an event's retained cost. Only the variable-length
-// parts are counted; the fixed header is a constant per event.
+// eventSize is an event's retained heap cost: the TraceEvent struct itself,
+// the payload struct it points at, one header per string field and per args
+// element, and the string contents. The previous version charged 128 bytes plus
+// contents and nothing else, which under-counted by 4x or more on ordinary
+// events — so the 256 MB cap it enforced admitted 1-2 GB of real heap
+// (M-V1-MEMORY-FOOTPRINT F3). The ID/timestamp strings on the event are
+// counted through the header rule like any other.
 func eventSize(evt TraceEvent) int {
-	n := 128 // fixed-ish header: ids, timestamps, depth, event name
+	n := int(unsafe.Sizeof(evt))
+	n += strBytes(evt.Version) + strBytes(evt.TraceID) + strBytes(evt.SpanID) + strBytes(evt.ParentSpanID)
 	if evt.Function != nil {
-		n += len(evt.Function.Name) + len(evt.Function.Result)
-		for _, a := range evt.Function.Args {
-			n += len(a)
-		}
+		n += int(unsafe.Sizeof(*evt.Function))
+		n += strBytes(evt.Function.Name) + strBytes(evt.Function.Result) + strsBytes(evt.Function.Args)
 	}
 	if evt.Effect != nil {
-		n += len(evt.Effect.EffectName) + len(evt.Effect.OpName) + len(evt.Effect.Result)
-		for _, a := range evt.Effect.Args {
-			n += len(a)
-		}
+		n += int(unsafe.Sizeof(*evt.Effect))
+		n += strBytes(evt.Effect.EffectName) + strBytes(evt.Effect.OpName) + strBytes(evt.Effect.Result) + strsBytes(evt.Effect.Args)
+	}
+	if evt.Module != nil {
+		n += int(unsafe.Sizeof(*evt.Module))
+	}
+	if evt.Contract != nil {
+		n += int(unsafe.Sizeof(*evt.Contract))
+	}
+	if evt.Budget != nil {
+		n += int(unsafe.Sizeof(*evt.Budget))
+	}
+	if evt.Error != nil {
+		n += int(unsafe.Sizeof(*evt.Error))
+	}
+	if evt.Truncation != nil {
+		n += int(unsafe.Sizeof(*evt.Truncation))
+	}
+	return n
+}
+
+// strBytes is a string's content plus the header that references it. Version
+// and the like are short constants, but charging them uniformly keeps the
+// accounting rule simple enough to trust.
+func strBytes(s string) int { return len(s) + stringHeaderBytes }
+
+func strsBytes(ss []string) int {
+	n := 0
+	for _, s := range ss {
+		n += strBytes(s)
 	}
 	return n
 }

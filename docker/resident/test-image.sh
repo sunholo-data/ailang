@@ -109,31 +109,32 @@ have "  ...and boot said so"                  'grep -q "provider key substituted
 have "  ...& in the key survives verbatim"    'grep -q "specials&chars" /home/ailang/.pi/agent/models.json'
 pkill -f "server.mjs" 2>/dev/null; pkill -f "herdr server" 2>/dev/null; sleep 2
 
-echo "=== 4. program allowlist (Decision 6) ==="
-# Default-deny: no manifest means nothing runs. An agent that can reason but not
-# act is degraded; one that runs anything because a file was missing is an
-# incident.
-out=$(PROGRAM_ALLOWLIST_FILE=/nonexistent resident-run anything 2>&1); rc=$?
-have "no manifest -> denies (default-deny)"   '[ "$rc" = "2" ]'
-have "  ...and says why"                      'echo "$out" | grep -q "Default-deny"'
-
-cat > /tmp/allow.json <<'JSON'
-{"programs":{"ok":{"path":"/tmp/ok.ail","caps":["IO"]},"badcap":{"path":"/tmp/ok.ail","caps":["IO","Nope"]},"needsfs":{"path":"/tmp/ok.ail","caps":["FS"]}}}
-JSON
-out=$(PROGRAM_ALLOWLIST_FILE=/tmp/allow.json resident-run not-listed 2>&1); rc=$?
-have "unlisted program refused"               '[ "$rc" = "2" ]'
-have "  ...and lists what IS allowed"         'echo "$out" | grep -q "Allowed: ok"'
-
-out=$(PROGRAM_ALLOWLIST_FILE=/tmp/allow.json resident-run badcap 2>&1)
-have "unknown capability refused, not dropped" 'echo "$out" | grep -q "unknown capabilities: Nope"'
-
-out=$(PROGRAM_ALLOWLIST_FILE=/tmp/allow.json env -u AILANG_FS_SANDBOX resident-run needsfs 2>&1)
-have "FS entry refused when sandbox unset"    'echo "$out" | grep -q "NO sandbox"'
-
-echo "" > /tmp/ok.ail
-out=$(PROGRAM_ALLOWLIST_FILE=/tmp/allow.json AILANG_FS_SANDBOX=/workspace resident-run ok 2>&1)
-have "allowed program passes ONLY its caps"   'echo "$out" | grep -q -- "--caps IO /tmp/ok.ail"'
-have "  ...and does not grant the union"      '! echo "$out" | grep -qE -- "--caps [A-Za-z,]*FS"'
+echo "=== 4. program policy gate — ailang run --policy (D1/D4/D6) ==="
+# resident-run (a JS reimplementation of admission) is GONE. The ONE gate is
+# `ailang run --policy`, reached through the ailang_run tool; the resident
+# defaults to the ailang_only profile so there is no bash to go around it.
+mkdir -p /tmp/pol /tmp/sbx
+printf 'allowed_caps = []\nfs_sandbox = "/tmp/sbx"\nentry = "main"\n' > /tmp/pol/deny.toml
+printf 'allowed_caps = ["IO"]\nfs_sandbox = "/tmp/sbx"\nentry = "main"\n' > /tmp/pol/io.toml
+printf 'module prog\nexport func main() -> () ! {IO} = println("ran-under-policy")\n' > /tmp/sbx/prog.ail
+out=$(cd /tmp/sbx && ailang run --policy /tmp/pol/deny.toml prog.ail 2>/dev/null); rc=$?
+have "empty allowed_caps denies an IO program (default-deny)" '[ "$rc" = "2" ]'
+have "  ...with a structured policy_violation"        'grep -q "policy_violation" <<<"$out"'
+have "  ...and the program did NOT run"               '! grep -q "ran-under-policy" <<<"$out"'
+out=$(cd /tmp/sbx && ailang run --policy /tmp/pol/io.toml --caps Net prog.ail 2>&1 >/dev/null); rc=$?
+have "--caps alongside --policy is refused by name"  '[ "$rc" = "1" ] && grep -q -- "--caps" <<<"$out"'
+out=$(cd /tmp/sbx && ailang run --policy /tmp/pol/io.toml prog.ail 2>/tmp/pol/err); rc=$?
+have "admitted IO program runs"                       '[ "$rc" = "0" ] && grep -q "ran-under-policy" <<<"$out"'
+have "  ...admission line carries the policy digest"  'grep -q "policy_digest" /tmp/pol/err'
+have "RESIDENT_TOOLS defaults to ailang_only"         '[ "${RESIDENT_TOOLS:-}" = "ailang_only" ]'
+have "ailang pi tool-profile ailang_only has no bash" 'case "$(ailang pi tool-profile ailang_only)" in "--no-extensions -e "*"--no-builtin-tools --tools read,edit,write,ailang_check,ailang_run,builtins_search,examples_search,ailang_cli") true;; *) false;; esac'
+# boot (section 3 above) moved the suite aside and kept the execution pair:
+have "boot kept ailang-exec.ts"                       '[ -f /home/ailang/.pi/agent/extensions/ailang-exec.ts ]'
+have "boot kept ailang-lsp-lite.ts"                   '[ -f /home/ailang/.pi/agent/extensions/ailang-lsp-lite.ts ]'
+have "boot kept examples-search.ts"                   '[ -f /home/ailang/.pi/agent/extensions/examples-search.ts ]'
+have "boot moved the session gate aside"              '[ ! -f /home/ailang/.pi/agent/extensions/session-protocol-gate.ts ]'
+have "no policy env -> boot says execution is NOT granted" 'grep -q "program policy: NONE" /tmp/boot.log'
+have "resident-run is gone"                           '! command -v resident-run >/dev/null 2>&1'
 
 echo "=== 5. public-ingress authorisation (Preview edge does not enforce invoker) ==="
 have "/livez is public and reveals nothing"     '[ "$(curl -s localhost:8080/livez)" = "ok" ]'
@@ -267,27 +268,37 @@ a2a.messageSend({ message: { role: "user", kind: "message", messageId: "m1",
   .catch((e) => console.log("THREW: " + e.message));')
 have "a sole registered model is used when none is requested" 'echo "$out" | grep -q "MODEL=openrouter/z-ai/glm-5.3-flash"'
 
-echo "=== 6d. tool policy (D8) ==="
-# pi enables read/bash/edit/write by default and said so nowhere. The point of
-# these assertions is that the set is EXPLICIT: what an agent can do must be
-# readable from the command line and from /health, not inferred from pi's docs.
+echo "=== 6d. tool policy (D8 → M-AGENT-AILANG-ONLY-EXECUTION D6) ==="
+# RESIDENT_TOOLS is a PROFILE. The image default is ailang_only: pi's builtins
+# are dropped and exactly read/edit/write + the AILANG gate are allowed — no
+# bash, so `ailang run --policy` behind ailang_run is a boundary. What an agent
+# can do must be readable from the command line and from /health.
 STUB=$(mktemp -d)
 printf '#!/bin/sh\necho "$@" > /tmp/pi-argv.txt\n' > "$STUB/pi"; chmod +x "$STUB/pi"
 PATH="$STUB:$PATH" timeout 30 node --input-type=module -e '
 import { runPi } from "/usr/local/bin/lib/pi.mjs";
 runPi({ model: "m", prompt: "hi", ttftMs: 5000 }).catch(() => {});' >/dev/null 2>&1
-have "the tool set is always passed explicitly" 'grep -q -- "--tools" /tmp/pi-argv.txt'
+ARGV="$(cat /tmp/pi-argv.txt 2>/dev/null || true)"
+have "default profile drops pi's builtins"        'grep -q -- "--no-builtin-tools" <<<"$ARGV"'
+have "  ...and allows exactly the ailang_only set" 'grep -q -- "--tools read,edit,write,ailang_check,ailang_run,builtins_search,examples_search,ailang_cli" <<<"$ARGV"'
+have "  ...so bash is absent"                      '! grep -q "bash" <<<"$ARGV"'
 
 RESIDENT_TOOLS="read" PATH="$STUB:$PATH" timeout 30 node --input-type=module -e '
 import { runPi } from "/usr/local/bin/lib/pi.mjs";
 runPi({ model: "m", prompt: "hi", ttftMs: 5000 }).catch(() => {});' >/dev/null 2>&1
-have "RESIDENT_TOOLS narrows the policy"     'grep -q -- "--tools read" /tmp/pi-argv.txt'
-have "  ...and bash is then absent"          '! grep -q -- "bash" /tmp/pi-argv.txt'
+ARGV="$(cat /tmp/pi-argv.txt 2>/dev/null || true)"
+have "an explicit RESIDENT_TOOLS list narrows"     'grep -q -- "--tools read" <<<"$ARGV"'
+
+RESIDENT_TOOLS="full" PATH="$STUB:$PATH" timeout 30 node --input-type=module -e '
+import { runPi } from "/usr/local/bin/lib/pi.mjs";
+runPi({ model: "m", prompt: "hi", ttftMs: 5000 }).catch(() => {});' >/dev/null 2>&1
+ARGV="$(cat /tmp/pi-argv.txt 2>/dev/null || true)"
+have "profile full passes no tool flags (pi defaults, opt-in only)" '! grep -q -- "--tools\|--no-tools" <<<"$ARGV"'
 
 PATH="$STUB:$PATH" timeout 30 node --input-type=module -e '
 import { runPi } from "/usr/local/bin/lib/pi.mjs";
 runPi({ model: "m", prompt: "hi", tools: [], ttftMs: 5000 }).catch(() => {});' >/dev/null 2>&1
-have "an empty policy disables tools entirely" 'grep -q -- "--no-tools" /tmp/pi-argv.txt'
+have "an empty per-run list disables tools entirely" 'grep -q -- "--no-tools" /tmp/pi-argv.txt'
 rm -rf "$STUB" /tmp/pi-argv.txt
 
 echo "=== 6e. concurrency ceiling ==="

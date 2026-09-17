@@ -1,0 +1,67 @@
+{
+  "sprint_id": "M-EVAL-ELO-PERSIST",
+  "status": "completed",
+  "created": "2026-06-12T17:22:05Z",
+  "design_doc": "design_docs/planned/v0_24_0/m-eval-rating-efficiency.md",
+  "sprint_plan": "design_docs/planned/v0_24_0/m-eval-elo-persist-sprint-plan.md",
+  "github_issues": [],
+  "velocity": {
+    "target_loc_per_day": 200,
+    "estimated_total_loc": 850,
+    "estimated_days": 4
+  },
+  "features": [
+    {
+      "id": "M1_RATINGS_PACKAGE_BACKFILL_220_L",
+      "description": "\u2014 `ratings` package + backfill (\u2248220 LOC + tests)",
+      "estimated_loc": 0,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Acceptance criteria not parsed - fill manually"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": null,
+      "notes": "ratings.go + tests; tools/eval-elo refactored to use it; output identical"
+    },
+    {
+      "id": "M2_OBSERVATORY_RATINGS_STORE_V16_",
+      "description": "\u2014 observatory `ratings` store + v16 migration (\u2248260 LOC + tests)",
+      "estimated_loc": 0,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Acceptance criteria not parsed - fill manually"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": null,
+      "notes": "mode-separated (standard/agent) ratings: mode in PK, store+tool fit/persist each mode independently; round-trip + coexistence tests"
+    },
+    {
+      "id": "M3_EVAL_SUITE_BENCHMARKS_BY_CONFI",
+      "description": "\u2014 `eval-suite --benchmarks-by-confidence` (\u2248200 LOC + tests)",
+      "estimated_loc": 0,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Acceptance criteria not parsed - fill manually"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": null,
+      "notes": "eval-suite --benchmarks-by-confidence: rating-based selection, Trivial excluded, ranked by distance to median; unit+dry-run verified"
+    },
+    {
+      "id": "M4_SATURATION_REPORT_LATEST_JSON_",
+      "description": "\u2014 saturation report + `latest.json` ELO emit (\u2248170 LOC)",
+      "estimated_loc": 0,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Acceptance criteria not parsed - fill manually"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": null,
+      "notes": "tier-saturation report DONE (per-mode); latest.json emit moved to dashboard-redesign sprint"
+    }
+  ]
+}

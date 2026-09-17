@@ -402,10 +402,31 @@ steps:
           .
     waitFor: ['build-agent-eval']
 
-  # Resident agent image (v6.40.0 Class B) — herdr, the A2A server and the program
-  # allowlist layered onto agent-pi, which is now built HERE, so BASE is the image
-  # this very build just pushed. Context is docker/resident (the Dockerfile COPYs
-  # server.mjs, lib/ and resident-run from beside itself).
+  # agent-pi acceptance (M-PI-HARNESS-UPGRADE M4): pin, Node floor, embedded suite,
+  # and the D7 pair — the image-owned global extension dir EXECUTES with no trust
+  # file, a workspace-planted extension does NOT. Model-free, so it needs no
+  # secret and is deliberately NOT allowFailure: a green build must mean the pi
+  # image is what it says, which the resident's EEXIST incident showed it did not.
+  - id: test-agent-pi
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        AR=${_REGION}-docker.pkg.dev/$_TARGET_PROJECT/ailang
+        # The pin is read from the Dockerfile, not repeated here — two copies of
+        # a version is one seam too many (internal/executor/pi holds the other).
+        PI_VERSION=$(sed -n 's/^ARG PI_VERSION=//p' /workspace/docker/Dockerfile.agent-pi)
+        docker run --rm -e PI_VERSION="$$PI_VERSION" \
+          -v /workspace/docker/test-agent-pi.sh:/tmp/test-agent-pi.sh:ro \
+          --entrypoint bash "$$AR/agent-pi:latest" /tmp/test-agent-pi.sh
+    waitFor: ['build-agent-pi']
+
+  # Resident agent image (v6.40.0 Class B) — herdr and the A2A server layered onto
+  # agent-pi, which is now built HERE, so BASE is the image this very build just
+  # pushed. Context is docker/resident (the Dockerfile COPYs server.mjs and lib/
+  # from beside itself). Program execution is gated by `ailang run --policy`
+  # through the ailang_run tool (M-AGENT-AILANG-ONLY-EXECUTION); resident-run is gone.
   #
   # allowFailure, written down because it misled someone on 2026-09-03: a failed
   # step here still reports the BUILD as SUCCESS. The resident's pi pin once failed

@@ -1,0 +1,28 @@
+module web_search
+
+-- std/web: search the web and fetch a page with {Net} only.
+-- The API key (OLLAMA_API_KEY) is read by the runtime; the program never
+-- sees it. Under `ailang run --policy`, the policy must grant Net and list
+-- ollama.com in net_allow — the requests go to a fixed backend endpoint.
+--
+-- Run:  OLLAMA_API_KEY=… ailang run --caps IO,Net --entry main web_search.ail
+-- (skipped by verify-examples: needs a key and the network)
+
+import std/web (webSearch, webFetch)
+import std/io (println)
+import std/list (map, length, take)
+import std/string (join)
+
+export func main() -> () ! {IO, Net} = {
+  match webSearch("AILANG programming language", 3) {
+    Ok(results) => {
+      println("results: ${show(length(results))}");
+      println(join("\n", map(\r. "- ${r.title} <${r.url}>", results)))
+    },
+    Err(e) => println("search failed: ${show(e)}")
+  };
+  match webFetch("https://ailang.sunholo.com/") {
+    Ok(page) => println("fetched: ${page.title} (${show(length(page.links))} links)"),
+    Err(e) => println("fetch failed: ${show(e)}")
+  }
+}

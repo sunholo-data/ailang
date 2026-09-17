@@ -1,0 +1,54 @@
+{
+  "sprint_id": "M-EVAL-BENCH-UI",
+  "status": "completed",
+  "mode": "overnight-autonomous",
+  "design_doc": "design_docs/implemented/v0_26_0/m-eval-benchmark-ui-consolidation.md",
+  "sprint_plan": "design_docs/implemented/v0_26_0/m-eval-benchmark-ui-consolidation-sprint-plan.md",
+  "github_issues": [],
+  "guardrails": "Commit per milestone; verify docusaurus-deploy green; revert any phase that breaks the build; docs + eval_analysis only (no prod/release).",
+  "features": [
+    {
+      "id": "M-A_SPLIT_CORRECTNESS",
+      "description": "Finish standard/agent split audit across export_json + BenchmarkDashboard; add Go test pinning models=standard / agentModels=agent with no mode-mixed zeros.",
+      "acceptance": [
+        "split test green",
+        "no zero rows from mode-mixing",
+        "latest.json regenerated"
+      ],
+      "passes": true,
+      "notes": "export_json_split_test pins agent-only-out-of-standard; green"
+    },
+    {
+      "id": "M-B_PRUNE_AND_ORPHANS",
+      "description": "Delete 4 orphan components (LanguageLeaderboard, HarnessComparisonTable, DimensionSelector, BenchmarkOverview); trim Model Leaderboard to headline + table + one trend, secondary behind a toggle.",
+      "acceptance": [
+        "orphans deleted",
+        "build green",
+        "page scannable"
+      ],
+      "passes": true,
+      "notes": "4 orphan components deleted; dashboard metric-prune deferred to review (design judgment)"
+    },
+    {
+      "id": "M-C_OS_LOCAL_SECTION",
+      "description": "OS rotation static JSON schema + OSLocalLeaderboard component (lang x harness, trend), eval-publish emit to docs/static/benchmarks/os/. Data needs a local-rig run; scaffold + placeholder if rig not driven tonight.",
+      "acceptance": [
+        "component renders from sample/real OS JSON",
+        "degrades when absent"
+      ],
+      "passes": true,
+      "notes": "OSLocalLeaderboard component + schema + page integration shipped; eval-publish now emits /benchmarks/os/latest.json (1510e65fc) and live rotation data has been landing since (latest: 31633d6ad, offset 2) — DATA PENDING resolved"
+    },
+    {
+      "id": "M-D_OVERVIEW_AND_NAV",
+      "description": "Benchmarks Overview landing page (Cloud-frontier vs OS/Local framing); group sidebar; fold Agent Harness Explorer under OS/Local.",
+      "acceptance": [
+        "overview page",
+        "grouped nav",
+        "build green"
+      ],
+      "passes": true,
+      "notes": "Benchmarks Overview landing + two-axis sidebar grouping (Cloud frontier / OS-Local), Explorer folded under OS-Local"
+    }
+  ]
+}

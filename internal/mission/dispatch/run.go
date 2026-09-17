@@ -189,7 +189,12 @@ func (r *Runner) preflight(ctx context.Context, c Candidate) (executor.Executor,
 // grep/find/ls are OFF by default in pi and are added here deliberately: they strictly
 // increase what an evaluator can read, so this allowlist cannot break an evaluator that
 // worked before, while removing every tool that can write.
-var evaluatorTools = []string{"read", "bash", "grep", "find", "ls"}
+// CANONICAL names (executor.CanonicalTools), mapped per executor — pi errors on
+// a name it cannot map (D7, internal/executor/pi/toolnames.go). The previous
+// list was pi's own spellings plus grep/find/ls, which are NOT tools on any
+// executor: pi silently dropped them and the evaluator ran with read+bash,
+// and Claude's case-sensitive --allowedTools never matched "read" at all.
+var evaluatorTools = []string{"Read", "Bash"}
 
 func taskFor(r Request, c Candidate) *executor.Task {
 	m := c.config

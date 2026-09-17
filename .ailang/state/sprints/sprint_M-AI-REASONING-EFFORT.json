@@ -1,0 +1,181 @@
+{
+  "sprint_id": "M-AI-REASONING-EFFORT",
+  "title": "Cross-provider request-side reasoning control",
+  "design_doc": "design_docs/planned/v0_29_0/m-ai-reasoning-effort.md",
+  "target_version": "v0.31.0",
+  "status": "planned",
+  "created": "2026-07-22",
+  "planner_head": "v0.30.0-116-ge6d5f85c9",
+  "github_issues": [399],
+  "risk_level": "medium",
+  "lane": "extension (internal/ai provider-layer; Minimal-Frozen-Core respected; no compiler/eval-core touch)",
+  "premise_notes": [
+    "DRIFT (material): openrouter/types.go:38-41 reasoningField ALREADY has BOTH MaxTokens AND Effort; openrouter/chat.go:64-68 ALREADY reads Options[\"reasoning_effort\"] with silent 'Effort-wins' precedence (no validation). The doc's 'OpenRouter supports only reasoning.max_tokens' premise (Problem table + Verification Log) is STALE. Consequence: M5 REPLACES this untyped Effort-wins logic with the shared resolver, not just extends it.",
+    "CONFIRMED: provider.go:46-47 MaxTokens 0=default comment matches.",
+    "CONFIRMED: openai/responses.go:46-53 reasoning_effort default 'medium' matches.",
+    "CONFIRMED: openai/types.go Responses nested reasoning/effort (88-94, 117-120); chatRequest (7-16) has NO reasoning field.",
+    "CONFIRMED: gemini/types.go:80-89 generationConfig has NO thinkingConfig.",
+    "CONFIRMED: anthropic/client.go messagesRequest (71-80) has no thinking block; MaxTokens=4096 defaulting at 161-164 (doc said 160-168, within range); anthropic-version header at 227, no thinking beta header.",
+    "CONFIRMED: openrouter/types.go:26-31 Reasoning block populated from Options[reasoning_max_tokens].",
+    "INVENTORY: AIError machinery lives at internal/ai/errors.go (AIError{Code,Message,Retryable}; NewAIError; CodeSchemaValidation='SchemaValidation' non-retryable via IsRetryable). Proven schema-reject pattern: ai.NewAIError(ai.CodeSchemaValidation, msg, false) at openrouter/step.go:73, chat.go:76.",
+    "INVENTORY: request paths = Generate + Step + StreamStep on each of openai/anthropic/openrouter/gemini (ollama is a 5th built-in but out of scope). 12 in-scope paths total across the 4 providers.",
+    "INVENTORY: NO reasoning/thinking capability table exists. Closest precedent = ModelNoVision gate (configdriven/step.go:26) + CapabilityNotSupported routing gates (openai/step.go:93, gemini/step.go:35). New table built fresh, following the vision-gate pattern.",
+    "INVENTORY: ProviderRegistry (registry.go) is for CONFIG-DRIVEN providers only; the 4 targets are hardcoded built-ins, so the resolver hooks into built-in client request constructors, NOT the registry."
+  ],
+  "velocity": {
+    "target_loc_per_day": 250,
+    "estimated_total_loc": 1870,
+    "estimated_days": 4,
+    "estimated_hours": 13.5,
+    "notes": "Test LOC is ~55% of total here (table-driven golden + unit matrices dominate). Live-smoke (doc's 1.5h) is PARKED as a metered follow-up, removed from sprint total."
+  },
+  "parked_followups": [
+    "NEEDS-LIVE-SMOKE (metered, do NOT block sprint): Gemini older-model thinkingConfig no-op; Anthropic thinking header/model IDs + strict max_tokens>budget boundary; OpenAI Chat native reasoning_effort model allowlist; OpenRouter effort + exact-off upstream pass-through. Capability-table entries may ONLY be added post-verification; until then UNKNOWN models reject explicit controls (fail-loud). Follow-up milestone M7 (out of this sprint).",
+    "std/ai surface helper callWithReasoning(prompt, effort) — Out-of-Scope Follow-Up.",
+    "eval-harness requested-effort baseline column — Out-of-Scope Follow-Up."
+  ],
+  "features": [
+    {
+      "id": "M0_CODE_AUDIT_AND_RESOLVER_HOOK",
+      "description": "MANDATORY code-audit / machinery inventory BEFORE any resolver is designed (Mark 2026-07-22 fork-a; folds gpt5-6-sol's re-quorum objection). Inventory the existing AI-package machinery the shared resolver overlaps: (1) AIError wrapping + retryability/schema codes (where AIError is defined; how non-retryable SchemaValidation is set); (2) EVERY Generate/Step/StreamStep request constructor across openai/gemini/anthropic/openrouter (12 paths); (3) existing option parsers (Options[reasoning_effort], Options[reasoning_max_tokens], Options[thinking_budget_tokens], Options[seed]); (4) any model-capability registries/tables that already exist. State an explicit reuse-vs-replace decision and the ONE concrete extension point where the shared resolver hooks in. Produce Verification Log rows (file:line evidence) for each inventoried piece. This milestone is design+one acceptance test only — no resolver logic yet.",
+      "estimated_loc": 120,
+      "estimated_hours": 1.5,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Verification Log table (in the sprint's audit note / doc appendix) has a file:line row for: AIError definition (internal/ai/errors.go:52-71), CodeSchemaValidation non-retryable (errors.go:33,95), NewAIError schema-reject usage (openrouter/step.go:73, openrouter/chat.go:76), every Generate/Step/StreamStep constructor for all 4 providers (12 file:line rows), each existing option parser (openai/responses.go:46-53, openrouter/chat.go:59-68, plus any thinking_budget_tokens reader), and the capability-precedent (configdriven/step.go:26 ModelNoVision, openai/step.go:93 / gemini/step.go:35 CapabilityNotSupported).",
+        "Explicit REUSE-vs-REPLACE decision recorded: REUSE AIError+NewAIError+CodeSchemaValidation (the 5 sentinels are constructed via NewAIError(CodeSchemaValidation,...,false), not a new error type). REPLACE the untyped openrouter/chat.go Effort-wins logic (lines 64-68) with a resolver call. NEW capability table (no existing one) following the ModelNoVision gate shape. Confirm the resolver is a NEW internal/ai package-level function (e.g. ResolveReasoning) — NOT a registry entry, since targets are hardcoded built-ins.",
+        "Concrete extension point stated: each of the 12 request constructors calls the ONE shared resolver immediately after req validation and BEFORE JSON marshal / http.NewRequest / MaxTokens defaulting (critical for anthropic client.go:161-164 which must NOT run before validation).",
+        "ACCEPTANCE TEST (network-free) exists proving EVERY request path invokes the ONE shared resolver: a table-driven test enumerating {openai,gemini,anthropic,openrouter} x {Generate,Step,StreamStep} that feeds an invalid reasoning control (e.g. ReasoningEffort='bogus') and asserts each path returns ErrInvalidReasoningEffort BEFORE any HTTP dispatch (httptest server records zero hits, or dispatch is stubbed). No path may bypass validation.",
+        "Premise-drift report captured in the sprint audit note (esp. the OpenRouter Effort-field-already-exists drift)."
+      ],
+      "acceptance_criteria_ids": ["M0-audit", "AC2-partial"],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M1_SHARED_FIELD_ERRORS_RESOLVER_CAPTABLE",
+      "description": "Add Request.ReasoningEffort string to internal/ai/provider.go (documented: '', off, low, medium, high). Add the 5 typed sentinel errors (ErrInvalidReasoningEffort, ErrUnsupportedReasoningEffort, ErrConflictingReasoningConfig, ErrInvalidThinkingBudget, ErrReasoningBudgetExceedsMaxTokens) as package-level errors wrapped via NewAIError(CodeSchemaValidation, msg, false) (REUSE per M0). Build the ONE shared resolver (ResolveReasoning) implementing: independent validation of all 4 inputs; deterministic precedence (typed effort vs reasoning_effort; thinking_budget_tokens Gemini/Anthropic-only with strict Go int type + provider ranges; reasoning_max_tokens deprecated OpenRouter-only step 4); conflict rules (identical=ok, differ=conflict, both numeric-budget names=always conflict, effort+reasoning_max_tokens on OpenRouter=conflict). Build the fresh provider/model capability table (empty of live-unverified models; UNKNOWN=reject). Resolver returns a normalized decision struct (per-provider mapped budget/effort/off) consumed by M2-M5. NO provider wiring yet.",
+      "estimated_loc": 420,
+      "estimated_hours": 2.5,
+      "dependencies": ["M0_CODE_AUDIT_AND_RESOLVER_HOOK"],
+      "acceptance_criteria": [
+        "AC1: Request.ReasoningEffort string documented with exactly 5 valid values.",
+        "AC4: invalid effort strings + non-string Options[reasoning_effort] -> ErrInvalidReasoningEffort.",
+        "AC5: invalid thinking_budget_tokens Go types (float/json.Number/string/uint) + out-of-range -> ErrInvalidThinkingBudget; unsupported provider presence -> reject (not ignore).",
+        "AC6: precedence deterministic — identical typed/legacy accepted; differing -> ErrConflictingReasoningConfig; numeric budget must equal simultaneously-supplied effort mapping else conflict.",
+        "AC7 (resolver half): reasoning_max_tokens is int>=1, OpenRouter-only; non-OpenRouter presence -> ErrUnsupportedReasoningEffort; +effort on OpenRouter -> ErrConflictingReasoningConfig; +thinking_budget_tokens ALWAYS conflict (checked before per-provider rules).",
+        "Capability table: UNKNOWN model + non-empty control -> ErrUnsupportedReasoningEffort. No live-unverified entries added.",
+        "All 5 sentinels wrap to a non-retryable AIError (errors.As -> AIError, Code=SchemaValidation, Retryable=false).",
+        "Table-driven unit tests for the resolver in isolation (no provider clients): all 5 effort values, invalid values, invalid option types/ranges, every 4-input precedence combination, MaxTokens==0 / budget==MaxTokens / budget==MaxTokens-1 boundary logic, B==0/off with MaxTokens unset accepted."
+      ],
+      "acceptance_criteria_ids": ["AC1", "AC4", "AC5", "AC6", "AC7"],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_GEMINI_WIRING",
+      "description": "Add thinkingConfig {thinkingBudget int} to gemini generationConfig. Wire the resolver into Generate/Step/StreamStep BEFORE marshal. Emit thinkingBudget 0/1024/4096/16384 per mapping, only for capability-registered models. Enforce Gemini Conflict Surface: B>0 requires explicit MaxTokens>B else ErrReasoningBudgetExceedsMaxTokens; B==0/off emits thinkingBudget:0 and does NOT require MaxTokens (docparse contract). Golden test: unset reasoning => byte-identical body to today.",
+      "estimated_loc": 240,
+      "estimated_hours": 2.0,
+      "dependencies": ["M1_SHARED_FIELD_ERRORS_RESOLVER_CAPTABLE"],
+      "acceptance_criteria": [
+        "AC8: Gemini emits thinkingBudget 0/1024/4096/16384 only for capability-registered models; unknown -> typed error (no server-no-op reliance).",
+        "AC10: B>0 requires explicit MaxTokens>B; MaxTokens==0 or budget>=MaxTokens -> ErrReasoningBudgetExceedsMaxTokens before dispatch; B==0/off emits thinkingBudget:0 with no MaxTokens requirement.",
+        "AC14 (Gemini): ReasoningEffort=='' and no legacy option -> golden byte-identical request body across Generate/Step/StreamStep.",
+        "Table-driven Gemini tests incl. B==0 with MaxTokens unset (accepted), budget==MaxTokens (reject), budget==MaxTokens-1 (accept)."
+      ],
+      "acceptance_criteria_ids": ["AC8", "AC10", "AC14-gemini"],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_OPENAI_RESPONSES_AND_CHAT",
+      "description": "Responses: preserve unset body EXACTLY (retains implicit reasoning.effort:'medium' when no control supplied), route the legacy Options[reasoning_effort] through the resolver, emit resolved nested reasoning.effort; reject unregistered models + invalid values. Reject 'off' (no verified exact-off OpenAI semantic) -> ErrUnsupportedReasoningEffort (NOT mapped to 'minimal'). Chat: add the distinct native top-level reasoning_effort payload field to chatRequest, gate by capability table (unregistered -> reject). thinking_budget_tokens presence on either -> ErrUnsupportedReasoningEffort. Wire resolver into all 3 paths. Golden tests for unset bodies.",
+      "estimated_loc": 300,
+      "estimated_hours": 2.0,
+      "dependencies": ["M1_SHARED_FIELD_ERRORS_RESOLVER_CAPTABLE"],
+      "acceptance_criteria": [
+        "AC3: OpenAI 'off' -> ErrUnsupportedReasoningEffort (never 'minimal'/omit).",
+        "AC12: Responses emits nested reasoning.effort; Chat emits its separately-verified native field; both reject unregistered models + invalid values before dispatch.",
+        "AC14 (OpenAI Responses+Chat): unset => byte-identical bodies across Generate/Step/StreamStep (Responses keeps implicit medium; Chat omits reasoning).",
+        "thinking_budget_tokens / reasoning_max_tokens presence on OpenAI -> ErrUnsupportedReasoningEffort (not ignored).",
+        "Table-driven OpenAI tests for all 5 values, invalid values, unregistered models."
+      ],
+      "acceptance_criteria_ids": ["AC3", "AC12", "AC14-openai"],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_ANTHROPIC_WIRING",
+      "description": "Add thinking block {type:'enabled',budget_tokens:int} to messagesRequest + required thinking beta header/model gating. Wire resolver into Generate/Step/StreamStep. CRITICAL: reasoning validation MUST run BEFORE the MaxTokens=4096 defaulting (client.go:161-164) and MUST NOT use the substituted value. Enabled thinking (B>=1024) requires explicit MaxTokens>B else ErrReasoningBudgetExceedsMaxTokens; off/B==0 omits thinking and needs no MaxTokens. Anthropic budgets: 0 (disable) or >=1024; 1..1023 -> ErrInvalidThinkingBudget. Capability-gate opt-in-thinking models; mandatory-thinking models reject 'off'. Golden test for unset body.",
+      "estimated_loc": 300,
+      "estimated_hours": 2.5,
+      "dependencies": ["M1_SHARED_FIELD_ERRORS_RESOLVER_CAPTABLE"],
+      "acceptance_criteria": [
+        "AC9: Anthropic emits enabled thinking only for capability-registered models with mapped 1024/4096/16384; exact-off omits thinking only where opt-in verified.",
+        "AC11: enabled-thinking requires explicit MaxTokens>budget; MaxTokens==0 or budget>=MaxTokens -> ErrReasoningBudgetExceedsMaxTokens before dispatch AND before the 4096 defaulting.",
+        "AC5 (Anthropic range): budget 1..1023 -> ErrInvalidThinkingBudget; 0 accepted for disable; >=1024 for enabled.",
+        "AC14 (Anthropic): unset => byte-identical body across Generate/Step/StreamStep.",
+        "Test proves validation precedes the MaxTokens=4096 substitution (explicit reasoning request with MaxTokens=0 still rejected)."
+      ],
+      "acceptance_criteria_ids": ["AC9", "AC11", "AC5-anthropic", "AC14-anthropic"],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M5_OPENROUTER_REPLACE_AND_EXTEND",
+      "description": "REPLACE the existing untyped Effort-wins logic (chat.go:64-68) with the shared resolver. reasoningField already has MaxTokens+Effort (drift note). Emit normalized reasoning:{effort} only for capability-registered model/routing combos; exact 'off' -> reasoning:{effort:'none'} only for verified models else reject. reasoning_max_tokens alone preserves today's reasoning:{max_tokens:N} body EXACTLY. Enforce OpenRouter conflict rules from resolver (effort+reasoning_max_tokens conflict; both numeric-budget names conflict). Wire resolver into Generate/Step/StreamStep. Golden test: unset AND reasoning_max_tokens-alone bodies byte-identical to today.",
+      "estimated_loc": 260,
+      "estimated_hours": 1.5,
+      "dependencies": ["M1_SHARED_FIELD_ERRORS_RESOLVER_CAPTABLE"],
+      "acceptance_criteria": [
+        "AC13: OpenRouter emits normalized effort only for capability-registered model/routing combos; exact 'off' rejected unless live-verified (parked -> reject for now).",
+        "AC7 (OpenRouter half): reasoning_max_tokens alone preserves today's reasoning.max_tokens body EXACTLY; +effort -> ErrConflictingReasoningConfig; +thinking_budget_tokens -> conflict.",
+        "AC14 (OpenRouter): unset => byte-identical; reasoning_max_tokens-alone => byte-identical to pre-change body.",
+        "The pre-change silent 'Effort-wins' path (chat.go:64-68) is REMOVED and replaced by the resolver (no untyped bypass remains).",
+        "Table-driven OpenRouter tests for reasoning_max_tokens presence + all conflict combinations."
+      ],
+      "acceptance_criteria_ids": ["AC13", "AC7-openrouter", "AC14-openrouter"],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M6_FULL_MATRIX_TESTS_CHANGELOG_DOCS_NOTIFY",
+      "description": "Consolidate the AC15 full table-driven matrix (all 5 effort values x invalid values x invalid option types/ranges x every precedence combination of all 4 inputs x reasoning_max_tokens on every provider x unsupported models x MaxTokens boundaries x Gemini/Anthropic B==0-MaxTokens-unset). Verify the AC14 all-provider all-path byte-identical golden suite is complete. Run make check-boundaries (confirm no internal/ boundary violation). Add CHANGELOG v0.31.0 entry (AC16). Notify ailang-parse/docparse via ailang messages (AC17).",
+      "estimated_loc": 230,
+      "estimated_hours": 1.5,
+      "dependencies": ["M2_GEMINI_WIRING", "M3_OPENAI_RESPONSES_AND_CHAT", "M4_ANTHROPIC_WIRING", "M5_OPENROUTER_REPLACE_AND_EXTEND"],
+      "acceptance_criteria": [
+        "AC2: validation runs before marshal + before network dispatch on Generate/Step/StreamStep for all 4 providers (the M0 all-path test, now green end-to-end).",
+        "AC15: the full table-driven matrix passes (all combinations enumerated in the doc).",
+        "AC14: golden byte-identical bodies proven for EVERY provider AND every request path with all controls unset.",
+        "AC16: CHANGELOG v0.31.0 entry added.",
+        "AC17: ailang-parse/docparse notified via ailang messages.",
+        "make check-boundaries green; make test + make lint green; no internal/ai boundary violation (additive provider-layer change)."
+      ],
+      "acceptance_criteria_ids": ["AC2", "AC14", "AC15", "AC16", "AC17"],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "acceptance_criteria_coverage": {
+    "AC1": "M1", "AC2": "M0+M6", "AC3": "M3", "AC4": "M1", "AC5": "M1+M4",
+    "AC6": "M1", "AC7": "M1+M5", "AC8": "M2", "AC9": "M4", "AC10": "M2",
+    "AC11": "M4", "AC12": "M3", "AC13": "M5", "AC14": "M2+M3+M4+M5+M6",
+    "AC15": "M6", "AC16": "M6", "AC17": "M6"
+  }
+}

@@ -1,0 +1,117 @@
+{
+  "sprint_id": "M-MODULE-LET-FUNC-RESOLUTION",
+  "design_doc": "design_docs/planned/v1_0_0/m-module-let-func-resolution.md",
+  "sprint_plan": "design_docs/planned/v1_0_0/m-module-let-func-resolution-sprint-plan.md",
+  "github_issues": [
+    366,
+    367
+  ],
+  "created": "2026-07-13",
+  "target_version": "v1.0.0",
+  "execution": {
+    "isolated_worktree": true,
+    "commits_owned_by": "mission-controller",
+    "gpu_required": false,
+    "notes": "Executor runs in an isolated git worktree; does NOT assume the main tree. The eval replay is an OFFLINE .ail replay through the local ailang binary \u2014 no model, no GPU."
+  },
+  "velocity": {
+    "target_loc_per_day": 157,
+    "estimated_total_loc": 470,
+    "estimated_days": 3
+  },
+  "plan_stage_findings": {
+    "verified_at_head": "v0.29.2-115-g20e0fe4f1 (2026-07-13)",
+    "confirmed": [
+      "internal/elaborate/scc.go:111 BuildCallGraph is funcs-only",
+      "internal/elaborate/file.go: wrapInLets def 340-359, re-elab loops 279-302 and 316-332",
+      "internal/types/import_hint.go:50 lying '#327' hint; test local_resolution_hint_test.go asserts at :37,:40,:43,:61,:74"
+    ],
+    "discrepancies": [
+      "Design doc names the #327 40-cell matrix as internal/types/record_update_positions_test.go \u2014 that file does NOT exist. Actual path: internal/pipeline/record_update_positions_test.go. Executor MUST use the pipeline package (affects regression-fixtures list AND Risk row #4).",
+      "Doc line refs drifted slightly: collectModuleLets def is file.go:75 (130 is the call site); wrapInLets def spans 340-359 (doc said 351 = the core.Let emit line)."
+    ],
+    "proposed_duplicate_name_error_code": "MOD007",
+    "error_code_rationale": "MOD007-MOD009 are documented 'reserved for future use' in internal/errors/codes.go:82; MOD004='Duplicate export' is the adjacent module-namespace neighbor. MOD014 is already in use inline (pipeline_module.go:696) though absent from the const block. Register MOD007 in const block + registry map (codes.go:263+), add footgun fixture per MOD014 precedent. Human may veto in review.",
+    "spike_surface": "Runtime evaluator binding a top-level core.Let with a non-lambda module constant (e.g. `let four = double(2)`) + typechecker_core.go CheckCoreProgram strict forward-env threading. pipeline_module_compile.go:472,480 special-case Value.(*core.Lambda) but guard with ok (non-lambda safely skipped for param extraction)."
+  },
+  "features": [
+    {
+      "id": "M0_SPIKE_GATE",
+      "description": "GO/NO-GO spike: prove compile/eval/type-check layer accepts a top-level core.Let with a NON-LAMBDA module constant value BEFORE deleting wrapInLets. Fallback trigger.",
+      "estimated_loc": 30,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Spike result recorded (GO or NO-GO) with exact passing/failing evidence",
+        "GO -> proceed to M1 (unified SCC); NO-GO -> switch to fallback (keep wrapInLets + pre-pass env extension), record in notes + CHANGELOG",
+        "Chosen path written into this sprint JSON notes"
+      ],
+      "passes": true,
+      "started": "2026-07-13",
+      "completed": "2026-07-13",
+      "notes": "DECISION: GO. Evidence (worktree binary v0.29.2-130-g116ebcb49): (1) TYPE-CHECK \u2014 `let four = 2 + 2` module-level type-checks (No errors found); InferWithConstraints (typechecker_core.go:414) threads updatedEnv strictly forward across decls, so a let emitted AFTER a func sees that func in env. (2) EVAL \u2014 same file `ailang run --entry main` yields 4; runtime extractBindings (runtime.go:341) evaluates ANY core.Let value via evaluator.Eval(e.Value) and Sets e.Name into the module env for subsequent decls \u2014 no lambda assumption. (3) PARAM-EXTRACT \u2014 extractFuncParams (pipeline_module_compile.go:472) guards Value.(*core.Lambda) with ok, safely skipping non-lambda lets. Only missing piece is elaborator ordering (funcs-only call graph + wrapInLets wraps let-values OUTSIDE func bindings). => proceed to M1 unified SCC (no fallback)."
+    },
+    {
+      "id": "M1_UNIFY_SCC_DELETE_WRAPINLETS",
+      "description": "Extend BuildCallGraph to accept module lets as nodes (let->func, func->let, let->let edges via findReferences); emit lets as first-class core.Let/core.LetRec in topo order. Delete wrapInLets + both re-elaboration loops. Route non-func statements through the same ordering.",
+      "estimated_loc": 180,
+      "dependencies": [
+        "M0_SPIKE_GATE"
+      ],
+      "acceptance_criteria": [
+        "Matrix repros v3/v4/v8 (and v7 if letrec supported) compile green; v1/v2/v5/v6 stay green",
+        "wrapInLets and both re-elaboration loops deleted; grep -rn wrapInLets internal/ -> 0",
+        "go test ./internal/elaborate/... ./internal/pipeline/... -count=1 green",
+        "Regression fixtures compile: fnv1a.ail (func->let), array_basic.ail (let->imported func), deriving_eq.ail (lets+ADT ctors), list_sum.ail (let...in expr untouched)",
+        "DEBUG_STRICT exhaustiveness panic preserved in findReferences traversal",
+        "DeclMeta/contract handling (func-keyed) does not collide with let decl names"
+      ],
+      "passes": true,
+      "started": "2026-07-13",
+      "completed": "2026-07-13",
+      "notes": "DONE. BuildCallGraph now takes module lets as first-class nodes (scc.go); file.go emits each SCC in topo order as core.Let (non-recursive) or core.LetRec (self/mutual-recursive), interleaving funcs and lets. wrapInLets + both re-elab loops DELETED (grep wrapInLets internal/ -> 0). isSelfRecursive generalized to funcs OR lets. Non-func statements emitted after all decls (forward env, no wrapping). VERIFIED on worktree binary: v3 (let->func lambda, func first) check+run -> 16; v8 (let=immediate call) -> 4; v4 (func AFTER) green; v1 let->let, v2 func->let green; regression fixtures fnv1a/array_basic/deriving_eq/list_sum all green. go test ./internal/elaborate/... ./internal/pipeline/... ./internal/runtime/... ./internal/types/... green incl #327 40-cell RecordUpdate matrix. verify-examples baseline UNCHANGED (185 pass / 5 pre-existing #341 / 5 skip). check-file-sizes + gofmt + vet clean. NOTE: v7 letrec self-ref still emits false 'undefined variable' (letrec collected as ast.LetRec, not by collectModuleLets which only handles ast.Let) -> deferred to M2 letrec decision."
+    },
+    {
+      "id": "M2_SEMANTICS_PINNING",
+      "description": "Duplicate module-scope name (let-vs-func, let-vs-let) -> MOD007 compile error with both positions. letrec module-level: core.LetRec support if <=0.5d, else honest diagnostic + follow-up issue.",
+      "estimated_loc": 70,
+      "dependencies": [
+        "M1_UNIFY_SCC_DELETE_WRAPINLETS"
+      ],
+      "acceptance_criteria": [
+        "Duplicate-name (v10 shape) -> MOD007 with both positions, test-pinned (or documented downgrade-to-warning if verify-examples/packages reveal existing shadowing reliance)",
+        "MOD007 registered in internal/errors/codes.go const block + registry map; footgun fixture added per MOD014 precedent",
+        "letrec self-ref (v7 shape): compiles via LetRec OR emits honest diagnostic (cite #366, func workaround) -- NEVER a silent false 'undefined variable'; test-pinned",
+        "make verify-examples + examples/ + ailang-packages grepped for shadowing reliance BEFORE enabling dup-name as hard error"
+      ],
+      "passes": true,
+      "started": "2026-07-13",
+      "completed": "2026-07-13",
+      "notes": "DONE. DUP-NAME DECISION: HARD ERROR (MOD007). Grep of examples/**+stdlib/** for module-level (col-0) let/func or let/let name collisions found ZERO real cases \u2014 the only hits (records.ail/record_patterns.ail 'person') are `let\u2026in` EXPRESSION forms in MODULE-LESS files, not module-let decls, so no shadowing reliance exists. MOD007 registered in codes.go const block + registry map + codes_test.go completeness list; checkDuplicateModuleBindings in file.go reports let-vs-func AND let-vs-let with BOTH positions + rename fix. Footgun fixture TestFootgunFixture_MOD007_DuplicateModuleBinding added (module-pipeline, per MOD014 precedent). Verified: v10 (let+func 'dup') and v10b (let+let 'dup') both -> MOD007 with positions. LETREC DECISION: SUPPORTED via core.LetRec (~15 LOC, well under 0.5d). collectModuleLets now also collects bodyless *ast.LetRec; the self-reference makes it a self-recursive SCC singleton emitted as core.LetRec. VERIFIED: v7b `letrec countdown = \\n. if n<=0 then 0 else countdown(n-1)` compiles AND runs -> 0; v7 non-lambda `letrec loop = loop + 1` compiles and gives an HONEST runtime RT_REC_001 'recursive value used before initialization' \u2014 NOT a false 'undefined variable'. Both design-acceptable outcomes. verify-examples baseline unchanged (185/5/5)."
+    },
+    {
+      "id": "M3_DIAGNOSTICS_FIXTURES_DOCS",
+      "description": "Hint truth pass (stop citing closed #327; cite #366 + 'declare it as a func' workaround, or delete if unreachable). Behavior-matrix test (v1-v10, non-vacuous). New runnable example. CHANGELOG + footguns + MOD007 errors reference. Offline eval replay.",
+      "estimated_loc": 190,
+      "dependencies": [
+        "M2_SEMANTICS_PINNING"
+      ],
+      "acceptance_criteria": [
+        "grep -rn 'known bug #327' internal/ -> 0 hits",
+        "internal/elaborate/module_let_resolution_test.go asserts all v1-v10 shapes per Design Freeze; NON-VACUOUS (repros v3/v4/v8 fail at pre-fix HEAD, pass post-fix)",
+        "examples/module_let_helpers.ail (~20 LOC, let->func) present and passing",
+        "make verify-examples baseline unchanged (185 pass / 5 pre-existing #341) + 1 new example pass",
+        "local_resolution_hint_test.go updated/removed (assertions at :37,:40,:43,:61,:74); if localResolutionHint deleted, dead moduleFuncNames plumbing grepped and retired only if unused elsewhere",
+        "CHANGELOG (widening let->func compiles; narrowing dup-name MOD007) + internal/diag/footguns.md #327 row -> retired/#366 + MOD007 errors reference",
+        "Offline .ail replay of cleaned 2026-07-13 higher_order_functions top-level-let solution through local ailang binary type-checks (NO model, NO GPU)",
+        "go test ./internal/... -count=1 green"
+      ],
+      "passes": true,
+      "started": "2026-07-13",
+      "completed": "2026-07-13",
+      "notes": "DONE. Hint truth pass: localResolutionHint KEPT as residual net but no longer cites closed #327 nor no-op 'bind it with let first' \u2014 now cites LIVE #366 + verified 'declare it as a func' workaround. moduleFuncNames plumbing kept (still wired at pipeline_module_compile.go:195; the hint is the sole consumer, retained as cheap insurance for the next family member). local_resolution_hint_test.go rewritten (TestLocalResolutionHintFamily): asserts #366 present, #327 absent, func-workaround present, let-workaround absent; all 3 subtests pass. grep -rn 'known bug #327' internal/ -> 0. Behavior-matrix internal/elaborate/module_let_resolution_test.go (external pkg elaborate_test, drives pipeline.Run ModeCheck over temp files): v1-v10+v10b all pass. NON-VACUITY on base binary 116ebcb49: v3/v8 -> 'undefined variable: double'; v10 -> confusing 'No instance for Num[()->int]' silent-shadow error; post-fix v3->16, v8->4, v10->clean MOD007. New example examples/runnable/module_let_helpers.ail (moved to runnable/ so the 185-baseline tool counts it) type-checks + runs -> 25; verify-examples now 186 pass / 5 pre-existing #341 / 5 skip. OFFLINE REPLAY: cleaned higher_order_functions top-level-let solution (top-level let sub4/double/sub4_then_double calling module funcs, minus model's multiply-undefined+_-placeholder mistakes) type-checks AND runs -> 'Result: 14' on worktree binary (no model, no GPU). Docs: CHANGELOG (v0.18-current.md widening+narrowing), footguns.md (#327 row retired-trigger/residual + MOD007 row, count 18->19, follow-up note updated), docs/docs/reference/errors/mod007.md + index.md link. go test ./internal/... green with CI=true (only failure without CI is the pre-existing network-flaky TestNetHttpPost hitting httpbin.org 503, which self-skips in CI). lint 0 issues, gofmt clean, check-file-sizes clean."
+    }
+  ],
+  "status": "completed",
+  "final_status": "all_milestones_pass",
+  "completed_date": "2026-07-13"
+}

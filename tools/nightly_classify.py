@@ -24,6 +24,13 @@ RUN_UNMEASURED_CATEGORIES = INFRA_CATEGORIES | {
     "quota_exhausted",
     "rate_limit",
     "cost_killed",
+    # M-PI-HARNESS-UPGRADE D4: the executor's wire moved under us (an event
+    # shape the parser no longer recognises, a turn with no usage block). The
+    # model may have solved the task; the harness could not record it
+    # truthfully. metrics.go: "the record is wrong, not the model" — so it is
+    # run-unmeasured, never a model outcome, and never api_error (whose cause
+    # is unknown; this one is known and is ours).
+    "wire_drift",
 }
 MODEL_OUTCOME_CATEGORIES = {
     "compile_error", "runtime_error", "logic_error", "verify_error",
@@ -48,6 +55,13 @@ MODEL_OUTCOME_CATEGORIES = {
     # check the declared budget actually reaching the wire BEFORE reading it as
     # a capability signal (scripts/check_pi_wire_budget.sh).
     "reasoning_stall",
+    # M-AGENT-AILANG-ONLY-EXECUTION: the agent submitted a program whose
+    # declared effect row exceeds its operator policy (`ailang run --policy`
+    # refused it). It reached for authority it was not granted — a MODEL
+    # behaviour on the ailang_only lane, by the same precedent as refused and
+    # constraint_violation. The gate worked; forgiving it would hide exactly
+    # the signal the lane exists to measure.
+    "policy_violation",
 }
 PAGING_CLASSES = {"regression", "sustained-failure"}
 DATE_RE = re.compile(r"nightly_eval_(\d{8})_rag_on")

@@ -22,7 +22,7 @@ func TestParseMemorySize(t *testing.T) {
 		{"", 0, true},
 		{"abc", 0, true},
 		{"MB", 0, true},
-		{"-1GB", -1073741824, false}, // negative is valid parse; applyMemoryLimit rejects it
+		{"-1GB", 0, true}, // negative is rejected by the shared parser (config.ParseByteSize)
 	}
 
 	for _, tt := range tests {

@@ -2,6 +2,7 @@ package dispatch
 
 import (
 	"context"
+	piexec "github.com/sunholo-data/ailang/internal/executor/pi"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -21,7 +22,7 @@ func TestActualPiAdapterDispatch(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "pi")
 	script := `#!/bin/sh
-if [ "$1" = "--version" ]; then echo fixture; exit 0; fi
+if [ "$1" = "--version" ]; then echo ` + piexec.ExpectedVersion + `; exit 0; fi
 printf '%s\n' "$@" > args.txt
 test "$AILANG_STORAGE_MESSAGING" = gcp || exit 22
 test "$AILANG_MESSAGES_PROJECT" = ailang-multivac || exit 23
