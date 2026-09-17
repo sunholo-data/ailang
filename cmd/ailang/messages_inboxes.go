@@ -69,7 +69,7 @@ type inboxesOutput struct {
 
 func messagesInboxesCommand(args []string) error {
 	fs := flag.NewFlagSet("messages inboxes", flag.ExitOnError)
-	registryPath := fs.String("registry", "", "config to judge against (default: this machine's ~/.ailang/config.yaml)")
+	registryPath := fs.String("registry", "", "config to judge against: a path, or `cloud` for the plane's own registry (default: $AILANG_CONFIG if it declares agents, else the plane's, else this machine's)")
 	asJSON := fs.Bool("json", false, "emit as JSON")
 	all := fs.Bool("all", false, "include registered inboxes with no recent traffic")
 	days := fs.Int("days", 14, "window for the traffic counts")
@@ -259,19 +259,67 @@ func printInboxRows(out inboxesOutput) {
 // The returned label names the source, because a verdict from the wrong registry
 // is indistinguishable from a verdict from the right one.
 func resolveInboxRegistry(flagPath string) (*coordinator.AgentRegistry, string, error) {
+	// `--registry cloud`: name the plane explicitly, whatever the environment
+	// says. Daneel asked for this spelling by name — a caller that KNOWS it
+	// means the shared plane should not have to arrange for an env var to be
+	// absent to say so.
+	if strings.TrimSpace(flagPath) == "cloud" {
+		reg, label, err := loadCloudInboxRegistry()
+		if err != nil {
+			return nil, "", fmt.Errorf("--registry cloud: cannot read the plane's registry: %w", err)
+		}
+		return reg, label, nil
+	}
 	if flagPath != "" {
-		reg, err := coordinator.LoadAgentRegistryFrom(flagPath)
+		reg, declared, err := coordinator.LoadAgentRegistryFromDeclared(flagPath)
 		if err != nil {
 			return nil, "", fmt.Errorf("cannot load the agent registry %s: %w", flagPath, err)
 		}
+		if !declared {
+			// An explicit path that declares nothing is a user error, and the
+			// registry handed back would be AILANG's built-in default fleet.
+			return nil, "", fmt.Errorf("%s has no `coordinator:` section, so it declares no agents — reading it as a registry would answer from AILANG's built-in default (one agent, `coordinator`), not from any real deployment.\n  Point --registry at a config with a coordinator section, or use --registry cloud for the plane's own", flagPath)
+		}
 		return reg, flagPath, nil
 	}
+	// $AILANG_CONFIG names the ailang config, which is NOT necessarily a
+	// registry. A file with a `pubsub:` block and no `coordinator:` section is a
+	// perfectly good send config and declares no agents at all — and this branch
+	// used to accept it, hand back an empty registry, and label it as the
+	// authority.
+	//
+	// Measured by Daneel 2026-09-17 (v0.2.5 → v0.2.11): the daneel user has no
+	// ~/.ailang/config.yaml, so every `messages send` sets $AILANG_CONFIG to a
+	// pubsub-only file to get the notification published. The dispatch programs
+	// then ran `messages inboxes --all --json` in the same process and got
+	// `"registry": ".../ailang-messaging.yaml ($AILANG_CONFIG)"`. Their own guard
+	// — "refuse unless the registry is the shared plane's" — correctly refused
+	// every dispatch, and two of Mark's morning design requests sat deferred for
+	// seven hours.
+	//
+	// The report called that an empty registry; it is one agent, `coordinator`,
+	// from AILANG's built-in default (measured here, not assumed). Same effect,
+	// and worse without Daneel's guard: `messages health` would call every other
+	// inbox a config gap, and the send guard would judge routing against a fleet
+	// that does not exist.
+	//
+	// Eight commands share this resolver (health, inboxes, prs, approvals, the
+	// send guard, pipeline, lint, agents), so the empty answer was not confined
+	// to one report: with such a config set, `messages health` calls every inbox
+	// a config gap.
+	//
+	// So: a config that declares no agents is not a registry. Say it once on
+	// stderr and keep resolving, exactly as if the variable were unset.
 	if p := config.Raw(config.EnvConfigFile); p != "" {
-		reg, err := coordinator.LoadAgentRegistryFrom(p)
+		reg, declared, err := coordinator.LoadAgentRegistryFromDeclared(p)
 		if err != nil {
 			return nil, "", fmt.Errorf("cannot load $AILANG_CONFIG %s: %w", p, err)
 		}
-		return reg, p + " ($AILANG_CONFIG)", nil
+		if declared {
+			return reg, p + " ($AILANG_CONFIG)", nil
+		}
+		fmt.Fprintf(os.Stderr, "%s $AILANG_CONFIG (%s) has no `coordinator:` section, so it declares no agents — resolving the plane's own registry instead of AILANG's built-in defaults.\n",
+			yellow("!"), p)
 	}
 
 	// Reading a remote store: fetch the registry that plane actually dispatches

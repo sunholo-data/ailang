@@ -251,7 +251,7 @@ func coordinatorResolveRemote(args []string, action string) error {
 	// eval-rig tasks stranded since 2026-08-26, which is how long this has been
 	// silently true. Refusing here is the difference between a bug and a lie.
 	agentRegistry, regErr := coordinator.LoadAgentRegistry()
-	if err := checkRegistryCanDispatch(ctx, bundle, agentRegistry, regErr, taskID); err != nil {
+	if err := checkRegistryCanDispatch(ctx, bundle, agentRegistry, regErr, taskID, action); err != nil {
 		return err
 	}
 

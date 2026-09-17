@@ -19,13 +19,30 @@ import (
 // the handoff are not one atomic unit; once the record says "approved" the task
 // cannot be re-approved (ProcessApprovalRequest rejects a non-pending approval),
 // so a warning would leave the operator holding a task that can never hand off.
+//
+// REJECTION IS EXEMPT, and the exemption matters. A rejection fires no handoffs
+// — nothing downstream is dispatched, so there is no topology to lose. Applying
+// this check to both actions made the one case that needs rejecting the one case
+// that could not be: measured 2026-09-17 on task-c063b6d2, whose agent
+// (`daneel-design-ailang`) was deleted in the 12 Sept revert. Its approval had
+// been pending seven days for work already merged by PR #1138, and the refusal's
+// own advice — point $AILANG_CONFIG at the plane's config — could not help,
+// because the agent exists in no registry anywhere. The error even read
+// "refusing to approve" for a reject, which is the tell that the action was
+// never considered.
 func checkRegistryCanDispatch(
 	ctx context.Context,
 	bundle *coordinatorStoreBundle,
 	registry *coordinator.AgentRegistry,
 	regErr error,
 	taskID string,
+	action string,
 ) error {
+	// A rejection dispatches nothing, so an unresolvable agent cannot cost
+	// anything. Refusing here strands the task instead of protecting it.
+	if action == "reject" {
+		return nil
+	}
 	task, err := bundle.Store.GetTask(ctx, taskID)
 	if err != nil {
 		return fmt.Errorf("failed to read task %s before approving: %w", taskID, err)
