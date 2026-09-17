@@ -1,0 +1,175 @@
+{
+  "schema": 1,
+  "date": "2026-09-17",
+  "commit": "efdeb1cb9-dirty",
+  "ailang_version": "AILANG dev",
+  "hardware": {
+    "cpu": "Apple M4 Max",
+    "os": "Darwin",
+    "arch": "arm64",
+    "go": "go1.26.6"
+  },
+  "config": {
+    "runs": 3,
+    "bench_count": 1,
+    "gogc": 100,
+    "trace": "off",
+    "control": false
+  },
+  "metrics": {
+    "lat_cold_hello_p95_ms": {
+      "value": 38,
+      "unit": "ms",
+      "dir": "le",
+      "tol": 0.15,
+      "how": "tools/bench_workloads.sh --runs 3 (AILANG_NO_TRACE=1, first run discarded), p95 ms; target from benchmarks/budget_ledger.md; ledger target 600ms"
+    },
+    "lat_warm_eval_p95_ms": {
+      "value": 601,
+      "unit": "ms",
+      "dir": "le",
+      "tol": 0.15,
+      "how": "tools/bench_workloads.sh --runs 3 (AILANG_NO_TRACE=1, first run discarded), p95 ms; target from benchmarks/budget_ledger.md; ledger target 1300ms"
+    },
+    "lat_typecheck_heavy_p95_ms": {
+      "value": 38,
+      "unit": "ms",
+      "dir": "le",
+      "tol": 0.15,
+      "how": "tools/bench_workloads.sh --runs 3 (AILANG_NO_TRACE=1, first run discarded), p95 ms; target from benchmarks/budget_ledger.md; ledger target 600ms"
+    },
+    "lat_effect_roundtrip_p95_ms": {
+      "value": 39,
+      "unit": "ms",
+      "dir": "le",
+      "tol": 0.15,
+      "how": "tools/bench_workloads.sh --runs 3 (AILANG_NO_TRACE=1, first run discarded), p95 ms; target from benchmarks/budget_ledger.md; ledger target 750ms"
+    },
+    "lat_list_small_p95_ms": {
+      "value": 44,
+      "unit": "ms",
+      "dir": "le",
+      "tol": 0.15,
+      "how": "tools/bench_workloads.sh --runs 3 (AILANG_NO_TRACE=1, first run discarded), p95 ms; target from benchmarks/budget_ledger.md; ledger target 600ms"
+    },
+    "lat_list_large_p95_ms": {
+      "value": 100,
+      "unit": "ms",
+      "dir": "le",
+      "tol": 0.15,
+      "how": "tools/bench_workloads.sh --runs 3 (AILANG_NO_TRACE=1, first run discarded), p95 ms; target from benchmarks/budget_ledger.md; ledger target 900ms"
+    },
+    "rss_floor_mb": {
+      "value": 47,
+      "unit": "MB",
+      "dir": "le",
+      "tol": 0.10,
+      "how": "peak RSS of println hello, GOGC=100 AILANG_NO_TRACE=1"
+    },
+    "rss_cons_6000_mb": {
+      "value": 360,
+      "unit": "MB",
+      "dir": "le",
+      "tol": 0.10,
+      "how": "benchmarks/memprobes/cons.ail depth 6000: n :: acc recursion, every frame holds a copy (LIVE data; M-LIST-CONS-QUADRATIC)"
+    },
+    "rss_cons_deep_trace_ratio": {
+      "value": 1.09,
+      "unit": "x",
+      "dir": "le",
+      "tol": 0.10,
+      "how": "cons.ail at AILANG_TRACE=deep --emit-trace jsonl / untraced; render must be bounded (M-V1-MEMORY-FOOTPRINT M1)"
+    },
+    "rss_effect_result_mb": {
+      "value": 110,
+      "unit": "MB",
+      "dir": "le",
+      "tol": 0.15,
+      "how": "benchmarks/memprobes/effect_result.ail: 20 x readFileResult of 20 MB via foldlE step (FS double copy + effect-trace render)"
+    },
+    "rss_debuglog_200k_mb": {
+      "value": 64,
+      "unit": "MB",
+      "dir": "le",
+      "tol": 0.15,
+      "how": "benchmarks/memprobes/debuglog.ail: 200k structured DEBUG lines under --log-level error (must stream/drop on arrival)"
+    },
+    "rss_string_build_20k_mb": {
+      "value": 884,
+      "unit": "MB",
+      "dir": "le",
+      "tol": 0.15,
+      "how": "benchmarks/memprobes/string_build.ail: fold string accumulator over 20k pieces + join (quadratic idiom; a builder/fusion would flatten it)"
+    },
+    "eval_listmapfilter_ns_op": {
+      "value": 58019476,
+      "unit": "ns/op",
+      "dir": "le",
+      "tol": 0.20,
+      "how": "go test ./internal/eval -bench BenchmarkEval_ListMapFilter -benchmem -count 1, min ns/op"
+    },
+    "eval_listmapfilter_b_op": {
+      "value": 252684537,
+      "unit": "B/op",
+      "dir": "le",
+      "tol": 0.05,
+      "how": "same run, min B/op (deterministic: a copy shows here, not in RSS)"
+    },
+    "eval_patternmatch_ns_op": {
+      "value": 95839132,
+      "unit": "ns/op",
+      "dir": "le",
+      "tol": 0.20,
+      "how": "go test ./internal/eval -bench BenchmarkEval_PatternMatch -benchmem -count 1, min ns/op"
+    },
+    "eval_patternmatch_b_op": {
+      "value": 116768838,
+      "unit": "B/op",
+      "dir": "le",
+      "tol": 0.05,
+      "how": "same run, min B/op (deterministic: a copy shows here, not in RSS)"
+    },
+    "eval_stringpipeline_ns_op": {
+      "value": 6932536,
+      "unit": "ns/op",
+      "dir": "le",
+      "tol": 0.20,
+      "how": "go test ./internal/eval -bench BenchmarkEval_StringPipeline -benchmem -count 1, min ns/op"
+    },
+    "eval_stringpipeline_b_op": {
+      "value": 9854024,
+      "unit": "B/op",
+      "dir": "le",
+      "tol": 0.05,
+      "how": "same run, min B/op (deterministic: a copy shows here, not in RSS)"
+    },
+    "eval_mapinsert5k_b_op": {
+      "value": 581251816,
+      "unit": "B/op",
+      "dir": "le",
+      "tol": 0.05,
+      "how": "go test ./internal/eval -bench BenchmarkMapInsert5K: 5,000 MapValue.Insert, copy-on-write (RSS of the same loop swung +34% run to run; B/op is the instrument)"
+    },
+    "builtin_listmap50k_b_op": {
+      "value": 2002851,
+      "unit": "B/op",
+      "dir": "le",
+      "tol": 0.05,
+      "how": "go test ./internal/builtins -bench BenchmarkListMap50K -benchmem -count 1, min B/op"
+    },
+    "builtin_listfoldl50k_b_op": {
+      "value": 2000017,
+      "unit": "B/op",
+      "dir": "le",
+      "tol": 0.05,
+      "how": "go test ./internal/builtins -bench BenchmarkListFoldl50K -benchmem -count 1, min B/op"
+    },
+    "builtin_parseelements_1k_b_op": {
+      "value": 1167956,
+      "unit": "B/op",
+      "dir": "le",
+      "tol": 0.05,
+      "how": "go test ./internal/builtins -bench BenchmarkParseElements_1K -benchmem -count 1, min B/op"
+    }
+  }
+}
