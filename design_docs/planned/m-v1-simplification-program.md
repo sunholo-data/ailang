@@ -221,6 +221,8 @@ Deferred to Future Work (L-sized, and two sit exactly where motoko extensions pl
 > `f8fcaed7c` (chains fold, −2,249 LOC), M4 `2f2d22d1c` (1 D7 removal, 7 evidenced declines),
 > M5 `342d031b6` (`--json` canonical), M6 `da1174b4c` (generated `docs/docs/reference/cli.md`).
 > Sprint plan: [m-v1-simplification-s5-sprint-plan.md](m-v1-simplification-s5-sprint-plan.md).
+> **Follow-ups: [FOLLOWUPS-m-v1-simplification-s5.md](FOLLOWUPS-m-v1-simplification-s5.md)** — 14
+> items with evidence and named homes, including the three that block other work.
 >
 > **Item 7 (the caller sweep) is NOT done** — it is a separate PR, gated on aliases shipping in
 > a tagged release plus one attended iteration of each mission loop. v0.40.0 shipped without
