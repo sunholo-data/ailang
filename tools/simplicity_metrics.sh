@@ -97,10 +97,39 @@ cmd_loc="$(loc_of cmd/ailang)"
 cmd_files="$(find cmd/ailang -name '*.go' ! -name '*_test.go' | wc -l | tr -d ' ')"
 
 # ---- CLI surface -----------------------------------------------------------
-# Until Phase 3 lands a dispatch table, the top-level command count is the
-# distinct quoted labels on `case` lines of main.go's command switch. Aliases
-# count once each (they are separate routes an agent can take).
-commands_top_level="$(grep -oE 'case "[a-z0-9-]+"' cmd/ailang/main.go | sort -u | wc -l | tr -d ' ')"
+# The top-level command count is what an agent SEES at the top level: the rows
+# the dispatch table renders into `ailang --help`. That is the quantity the
+# <=20 gate names ("an agent can read ailang --help in one screen"), so it is
+# the quantity measured — hidden rows in `dev`/`ops` do not count, and neither
+# do aliases folded onto a visible row.
+#
+# It used to count `case "..."` labels in cmd/ailang/main.go. M-V1-SIMPLIFY-S5
+# M1 replaced that switch with the table, leaving main.go with ZERO case labels
+# — so the metric read 0 and the <=20 gate passed vacuously. Worse, under
+# `set -euo pipefail` the empty grep exited 1 and killed this whole script:
+# `make simplicity-metrics` and `make simplicity-audit` produced no output at
+# all. A metric that cannot see its subject does not fail loudly; it reports
+# green, or it takes the instrument down with it.
+#
+# The binary is the source of truth, so build it if there is no current one.
+if [ ! -x bin/ailang ] || [ -n "$(find cmd/ailang internal -name '*.go' -newer bin/ailang -print -quit 2>/dev/null)" ]; then
+  go build -o bin/ailang ./cmd/ailang >/dev/null 2>&1 || true
+fi
+if [ -x bin/ailang ]; then
+  # Command rows in the generated `Commands:` block: two leading spaces, a name,
+  # then its summary. Group footers and blank lines do not match.
+  commands_top_level="$(bin/ailang --help 2>/dev/null \
+    | sed -n '/^Commands:/,/^$/p' \
+    | grep -cE '^  [a-z][a-z0-9-]*( \(|  )' || true)"
+else
+  echo "simplicity_metrics: cannot build bin/ailang — commands_top_level unmeasurable" >&2
+  exit 1
+fi
+if [ -z "$commands_top_level" ] || [ "$commands_top_level" = "0" ]; then
+  echo "simplicity_metrics: commands_top_level measured 0 — the help format changed and this" >&2
+  echo "  metric can no longer see its subject. Fix the parser; do not let it report green." >&2
+  exit 1
+fi
 # Flag names across all FlagSet definitions (distinct).
 flag_names="$(grep -rhoE '\.(String|Int|Bool|Duration|Float64|Int64|Var|StringVar|IntVar|BoolVar|DurationVar)\("[a-zA-Z0-9_-]+"' cmd/ailang --include='*.go' 2>/dev/null | grep -oE '"[^"]+"' | sort -u | wc -l | tr -d ' ')"
 
@@ -237,7 +266,7 @@ jq -n \
       internal_loc:              {value: $internal_loc, gate: null, dir: "le", how: "non-test Go lines under internal/"},
       cmd_ailang_loc:            {value: $cmd_loc, gate: null, dir: "le", how: "non-test Go lines under cmd/ailang"},
       cmd_ailang_files:          {value: $cmd_files, gate: null, dir: "le", how: "non-test Go files under cmd/ailang"},
-      commands_top_level:        {value: $commands_top_level, gate: 20, dir: "le", how: "distinct case labels in cmd/ailang/main.go until the dispatch table lands"},
+      commands_top_level:        {value: $commands_top_level, gate: 20, dir: "le", how: "visible command rows in the dispatch table, as rendered into ailang --help (hidden dev/ops rows and folded aliases excluded)"},
       flag_names_distinct:       {value: $flag_names, gate: null, dir: "le", how: "distinct FlagSet definition names in cmd/ailang"},
       getenv_sites_total:        {value: $getenv_sites_total, gate: null, dir: "le", how: "os.Getenv/LookupEnv call sites, non-test"},
       getenv_outside_config:     {value: $getenv_outside_config, gate: 0, dir: "le", how: "same, excluding internal/config, internal/statedir, internal/testutil and DEBUG_* knobs"},
