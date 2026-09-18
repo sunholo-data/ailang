@@ -152,7 +152,7 @@ caller keeps working; new code should use the canonical spelling.
 | Route | Use instead | What it does |
 |---|---|---|
 | `ailang add` | `ailang pkg add` | Add a dependency (--path, --git or --registry) |
-| `ailang bin` | `ailang pkg bin` | List or uninstall the [bin] command shims (list, uninstall <name>) |
+| `ailang bin` | `ailang pkg bin` | List or uninstall the [bin] command shims (list, uninstall \<name\>) |
 | `ailang dashboard` | `ailang chains dashboard` | Dashboard operations for task visualization |
 | `ailang eval-chains` | `ailang chains eval` | Link eval runs to their execution chains |
 | `ailang install` | `ailang pkg install` | Install a package (omit the version for latest); [bin] commands go on PATH |

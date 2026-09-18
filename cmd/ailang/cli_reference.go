@@ -293,12 +293,26 @@ func writeLanguageCommandLine(b *bytes.Buffer) {
 }
 
 // writeCLITable renders one markdown table. A summary may contain a pipe
-// (none does today), so escape it rather than produce a broken table.
+// (none does today), so escape it rather than produce a broken table. The
+// page is MDX, where a bare `<name>` is a JSX tag: the `bin` summary's
+// "uninstall <name>" broke the docs build for three deploys (da1174b4c..)
+// before the renderer learned to escape it.
 func writeCLITable(b *bytes.Buffer, head1, head2 string, rows []cliReferenceRow) {
 	fmt.Fprintf(b, "| %s | %s | What it does |\n|---|---|---|\n", head1, head2)
 	for _, r := range rows {
-		fmt.Fprintf(b, "| %s | %s | %s |\n", escapePipes(r.spelling), escapePipes(r.alsoKnown), escapePipes(r.summary))
+		fmt.Fprintf(b, "| %s | %s | %s |\n", escapePipes(r.spelling), escapePipes(r.alsoKnown), escapeSummary(r.summary))
 	}
 }
 
 func escapePipes(s string) string { return strings.ReplaceAll(s, "|", `\|`) }
+
+// escapeSummary makes prose safe inside an MDX table cell: a pipe ends the
+// cell, and an angle bracket outside a code span opens JSX. The spelling
+// columns are code spans, where MDX leaves `<...>` alone, so only the
+// summary gets this.
+func escapeSummary(s string) string {
+	s = escapePipes(s)
+	s = strings.ReplaceAll(s, "<", `\<`)
+	s = strings.ReplaceAll(s, ">", `\>`)
+	return s
+}
