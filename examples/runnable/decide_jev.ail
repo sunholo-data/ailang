@@ -12,73 +12,67 @@ import std/list (map)
 import std/option (Option, Some, None)
 import std/result (Result, Ok, Err)
 
--- A typed question. Names mirror TypeSafe's three primitives.
-export type Question =
-  | Noul(string)                                   -- yes/no -> probability
-  | Choice(string, [{ key: string, desc: string }]) -- categorical
-  | Score(string, [string])                        -- ordinal levels
+-- A typed question. Names mirror TypeSafe's three primitives:
+--   Noul   yes/no -> probability
+--   Choice categorical
+--   Score  ordinal levels
+export type Question = Noul(string) | Choice(string, [{ key: string, desc: string }]) | Score(string, [string])
 
 -- A typed answer. Distributions are always carried, never discarded.
-export type Answer =
-  | NoulA(float)
-  | ChoiceA({ choice: string, confidence: float, probabilities: [{ key: string, p: float }] })
-  | ScoreA({ score: float, confidence: float, probabilities: [{ key: string, p: float }] })
+export type Answer = NoulA(float) | ChoiceA({ choice: string, confidence: float, probabilities: [{ key: string, p: float }] }) | ScoreA({ score: float, confidence: float, probabilities: [{ key: string, p: float }] })
 
-func questionJson(q: Question) -> Json =
-  match q {
-    Noul(instr) => jo([kv("type", js("noul")), kv("instructions", js(instr))]),
-    Choice(instr, opts) => jo([kv("type", js("choice")), kv("instructions", js(instr)),
-                               kv("criteria", jo(map(\o. kv(o.key, js(o.desc)), opts)))]),
-    Score(instr, levels) => jo([kv("type", js("score")), kv("instructions", js(instr)),
-                                kv("criteria", ja(map(\l. js(l), levels)))])
-  }
+func questionJson(q: Question) -> Json = match q {
+  Noul(instr) => jo([kv("type", js("noul")), kv("instructions", js(instr))]),
+  Choice(instr, opts) => jo([kv("type", js("choice")), kv("instructions", js(instr)), kv("criteria", jo(map(\o. kv(o.key, js(o.desc)), opts)))]),
+  Score(instr, levels) => jo([kv("type", js("score")), kv("instructions", js(instr)), kv("criteria", ja(map(\l. js(l), levels)))])
+}
 
 func requestBody(model: string, state: Json, questions: [{ name: string, q: Question }]) -> string =
-  encode(jo([kv("model", js(model)), kv("state", state),
-             kv("questions", jo(map(\nq. kv(nq.name, questionJson(nq.q)), questions)))]))
+  encode(jo([kv("model", js(model)), kv("state", state), kv("questions", jo(map(\nq. kv(nq.name, questionJson(nq.q)), questions)))]))
 
-func dist(j: Json) -> [{ key: string, p: float }] =
-  match getObject(j, "probabilities") {
-    Some(ps) => match asObject(ps) {
-      Some(kvs) => map(\e. { key: e.key, p: match asNumber(e.value) { Some(x) => x, None => 0.0 } }, kvs),
-      None => []
-    },
+func dist(j: Json) -> [{ key: string, p: float }] = match getObject(j, "probabilities") {
+  Some(ps) => match asObject(ps) {
+    Some(kvs) => map(\e. { key: e.key, p: match asNumber(e.value) {
+      Some(x) => x,
+      None => 0.0
+    } }, kvs),
     None => []
-  }
+  },
+  None => []
+}
 
-func num(j: Json, k: string) -> float =
-  match getNumber(j, k) { Some(x) => x, None => 0.0 }
+func num(j: Json, k: string) -> float = match getNumber(j, k) {
+  Some(x) => x,
+  None => 0.0
+}
 
-func answerOf(j: Json) -> Result[Answer, string] =
-  match getString(j, "type") {
-    Some("noul") => Ok(NoulA(num(j, "noul"))),
-    Some("choice") => Ok(ChoiceA({ choice: match getString(j, "choice") { Some(c) => c, None => "" },
-                                   confidence: num(j, "confidence"), probabilities: dist(j) })),
-    Some("score") => Ok(ScoreA({ score: num(j, "score"), confidence: num(j, "confidence"), probabilities: dist(j) })),
-    Some(other) => Err("unknown answer type ${other}"),
-    None => Err("answer has no type")
-  }
+func answerOf(j: Json) -> Result[Answer, string] = match getString(j, "type") {
+  Some("noul") => Ok(NoulA(num(j, "noul"))),
+  Some("choice") => Ok(ChoiceA({ choice: match getString(j, "choice") {
+    Some(c) => c,
+    None => ""
+  }, confidence: num(j, "confidence"), probabilities: dist(j) })),
+  Some("score") => Ok(ScoreA({ score: num(j, "score"), confidence: num(j, "confidence"), probabilities: dist(j) })),
+  Some(other) => Err("unknown answer type ${other}"),
+  None => Err("answer has no type")
+}
 
 -- decide: one round trip. Every question sees the same state; answers come
 -- back keyed by the question name.
-export func decide(model: string, state: Json, questions: [{ name: string, q: Question }])
-  -> Result[[{ name: string, answer: Answer }], string] ! {Net, Env} =
+export func decide(model: string, state: Json, questions: [{ name: string, q: Question }]) -> Result[[{ name: string, answer: Answer }], string] ! {Net, Env} =
   match getEnv("OPENROUTER_API_KEY") {
     Err(_) => Err("OPENROUTER_API_KEY not set"),
     Ok(key) => {
-      let headers = [{ name: "Authorization", value: "Bearer ${key}" },
-                     { name: "Content-Type", value: "application/json" },
-                     { name: "X-Title", value: "ailang-jev-spike" }];
+      let headers = [{ name: "Authorization", value: "Bearer ${key}" }, { name: "Content-Type", value: "application/json" }, { name: "X-Title", value: "ailang-jev-spike" }]
       match httpRequest("POST", "https://openrouter.ai/api/alpha/decisions", headers, requestBody(model, state, questions)) {
         Err(e) => Err("net: ${show(e)}"),
-        Ok(resp) => if not resp.ok then Err("http ${show(resp.status)}: ${resp.body}") else
-          match decode(resp.body) {
-            Err(e) => Err("json: ${e}"),
-            Ok(body) => match getObject(body, "answers") {
-              None => Err("no answers in response"),
-              Some(answers) => collect(questions, answers)
-            }
+        Ok(resp) => if not resp.ok then Err("http ${show(resp.status)}: ${resp.body}") else match decode(resp.body) {
+          Err(e) => Err("json: ${e}"),
+          Ok(body) => match getObject(body, "answers") {
+            None => Err("no answers in response"),
+            Some(answers) => collect(questions, answers)
           }
+        }
       }
     }
   }
@@ -99,33 +93,23 @@ func collect(questions: [{ name: string, q: Question }], answers: Json) -> Resul
     }
   }
 
-func showAnswer(a: Answer) -> string =
-  match a {
-    NoulA(p) => "noul p=${show(p)}",
-    ChoiceA(c) => "choice=${c.choice} conf=${show(c.confidence)} dist=${show(c.probabilities)}",
-    ScoreA(s) => "score=${show(s.score)} conf=${show(s.confidence)} dist=${show(s.probabilities)}"
-  }
+func showAnswer(a: Answer) -> string = match a {
+  NoulA(p) => "noul p=${show(p)}",
+  ChoiceA(c) => "choice=${c.choice} conf=${show(c.confidence)} dist=${show(c.probabilities)}",
+  ScoreA(s) => "score=${show(s.score)} conf=${show(s.confidence)} dist=${show(s.probabilities)}"
+}
 
-func printAll(xs: [{ name: string, answer: Answer }]) -> () ! {IO} =
-  match xs {
-    [] => (),
-    [x, ...rest] => { println("${x.name}: ${showAnswer(x.answer)}"); printAll(rest) }
+func printAll(xs: [{ name: string, answer: Answer }]) -> () ! {IO} = match xs {
+  [] => (),
+  [x, ...rest] => {
+    println("${x.name}: ${showAnswer(x.answer)}")
+    printAll(rest)
   }
+}
 
 export func main() -> () ! {Net, Env, IO} = {
-  let state = jo([
-    kv("compiler_error", js("No instance for Num[string] in scope. Arithmetic operators need numbers, but this is a string. Use ++ to concatenate strings.")),
-    kv("offending_line", js("\"Config valid: \" + show(valid)")),
-    kv("frequency", js("402/1769 compile failures across 42 models"))]);
-  let questions = [
-    { name: "lane", q: Choice("Which self-specializing-harness lane should this friction be routed to?", [
-        { key: "ailang_fix", desc: "Change AILANG: stdlib, error text, defaulting, or the teaching prompt" },
-        { key: "motoko_extension", desc: "A harness extension, e.g. an auto-fix hook rewriting + to ++ on string operands" },
-        { key: "core_floor_fix", desc: "A defect in the frozen motoko core that must be fixed and re-frozen" },
-        { key: "model_capability", desc: "The model genuinely lacks the ability; nothing in the harness or language helps" }]) },
-    { name: "auto_fixable", q: Noul("A deterministic rewrite rule could fix this error class without an LLM in the loop.") },
-    { name: "severity", q: Score("How much this error class is worth fixing for the program", [
-        "Cosmetic; ignore", "Nice to have", "Worth a sprint milestone", "Top-of-backlog; blocks the pass-rate goal"]) }];
+  let state = jo([kv("compiler_error", js("No instance for Num[string] in scope. Arithmetic operators need numbers, but this is a string. Use ++ to concatenate strings.")), kv("offending_line", js("\"Config valid: \" + show(valid)")), kv("frequency", js("402/1769 compile failures across 42 models"))])
+  let questions = [{ name: "lane", q: Choice("Which self-specializing-harness lane should this friction be routed to?", [{ key: "ailang_fix", desc: "Change AILANG: stdlib, error text, defaulting, or the teaching prompt" }, { key: "motoko_extension", desc: "A harness extension, e.g. an auto-fix hook rewriting + to ++ on string operands" }, { key: "core_floor_fix", desc: "A defect in the frozen motoko core that must be fixed and re-frozen" }, { key: "model_capability", desc: "The model genuinely lacks the ability; nothing in the harness or language helps" }]) }, { name: "auto_fixable", q: Noul("A deterministic rewrite rule could fix this error class without an LLM in the loop.") }, { name: "severity", q: Score("How much this error class is worth fixing for the program", ["Cosmetic; ignore", "Nice to have", "Worth a sprint milestone", "Top-of-backlog; blocks the pass-rate goal"]) }]
   match decide("typesafe/jev-1.13", state, questions) {
     Err(e) => println("ERROR: ${e}"),
     Ok(answers) => printAll(answers)
