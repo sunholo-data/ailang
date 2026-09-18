@@ -84,6 +84,12 @@ func TestModels_CloudHeadroomEqualised(t *testing.T) {
 		// unreachable — and with a single route there is no provider order to
 		// pin that would raise it.
 		"or-hy4-preview": 64000,
+		// TypeSafe Jev is a text->decisions model (M-AI-DECIDE-SYSTEM-ONE M2):
+		// it never generates a completion, so output headroom is meaningless.
+		// 28800 is the value /endpoints reports (2026-09-17 endpoint); the row
+		// exists only so the observatory can price Broadcast spans, and it is
+		// in no suite list (TestModels_TypeSafeJevIsPricedButNotInAnySuite).
+		"or-typesafe-jev-1-13": 28800,
 
 		// HARNESS ceiling, not a provider one — and the only one here proven by
 		// reading the actual request rather than a vendor doc. pi-ai's

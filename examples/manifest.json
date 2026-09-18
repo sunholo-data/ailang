@@ -237,6 +237,25 @@
       ]
     },
     {
+      "path": "runnable/decide_jev.ail",
+      "status": "working",
+      "tags": [
+        "ai",
+        "net",
+        "misc"
+      ],
+      "description": "Typed decisions from a System One model (TypeSafe Jev via OpenRouter /api/alpha/decisions) in pure AILANG \u2014 the M-AI-DECIDE-SYSTEM-ONE Phase-0 spike; without OPENROUTER_API_KEY it reports the missing key and exits 0",
+      "modules": [
+        "std/env",
+        "std/io",
+        "std/json",
+        "std/list",
+        "std/net",
+        "std/option",
+        "std/result"
+      ]
+    },
+    {
       "path": "cli_args_demo.ail",
       "status": "working",
       "tags": [
@@ -2915,11 +2934,11 @@
     }
   ],
   "statistics": {
-    "total": 204,
-    "working": 196,
+    "total": 205,
+    "working": 197,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9607843137254902,
+    "coverage": 0.9609756097560975,
     "experimental": 0
   },
   "milestones": {

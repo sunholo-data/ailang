@@ -5107,6 +5107,27 @@ models:
       Phase 2 (subscription lane) and Phase 3 (time-window routing) are NOT in
       this row — no window multipliers are modelled here, and this row must
       never bank cost_provenance other than `metered`.
+  # ── Decision model (NOT a chat model) ──────────────────────────────────
+  # TypeSafe Jev: a System One "text->decisions" model on OpenRouter, called
+  # via POST /api/alpha/decisions (state + typed questions -> typed answers
+  # with distributions). It cannot answer a chat prompt, so it is deliberately
+  # in NO suite list and carries no agent_* fields. The row exists so the
+  # observatory prices its Broadcast spans (they read `unpriced` before this).
+  # The dated wire name "typesafe/jev-1.13-20260917" reaches Resolve, which
+  # normalises the QUERY to "typesafe/jev-1-13"; the alias catches that form.
+  # Consumer: pkg sunholo/decisions. Design: m-ai-decide-system-one.md (M2).
+  or-typesafe-jev-1-13:
+    api_name: "typesafe/jev-1.13"
+    aliases: ["typesafe/jev-1-13"]
+    provider: "openrouter"
+    default_thinking: "none"
+    description: "TypeSafe Jev 1.13 (System One decision model, text->decisions) via OpenRouter — NOT a chat model; do not add to any suite"
+    env_var: "OPENROUTER_API_KEY"
+    max_output_tokens: 28800
+    pricing:
+      input_per_1k: 0.000042   # $0.042 per 1M (OpenRouter, 2026-09-17 endpoint)
+      output_per_1k: 0.0       # output is free ("too cheap to meter"); input is NOT — this is not a free model
+
 
 # Default model for benchmarks
 default: "claude-sonnet-4-6"
