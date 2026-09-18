@@ -169,7 +169,26 @@ ai_summary = "Firestore CRUD for billing records"
 
 [stability]
 level = "experimental"          # experimental | stable | frozen
+
+[bin]                           # optional: commands `ailang install` shims onto PATH (~/.ailang/bin)
+billing = "cli"                 # module sunholo/billing_store/cli, entry main, caps auto
+# billing = { module = "cli", entry = "main", caps = "IO,Env", run_flags = ["--process-timeout", "5m"] }
 ```
+
+### Shipping a command (`[bin]`, v0.40.1)
+
+Never write a `scripts/` or `bin/` launcher that `cd`s into a checkout and `ailang run`s a
+file — that is exactly what `[bin]` replaces. Declare the module; `ailang install` writes the
+package's lock beside its cached manifest and a shim that runs it from any cwd.
+
+```bash
+ailang install --path .          # developer loop: shim THIS checkout, no publish
+ailang bin list                  # (= ailang pkg bin list) installed shims with package@version
+ailang bin uninstall billing
+```
+
+The entry reads its arguments with `std/env` `getArgs()`; `ailang publish` refuses a bin
+whose module is missing or whose entry is not exported.
 
 ### Lock File Portability
 

@@ -2331,6 +2331,29 @@ ailang publish                              # Upload to registry (immutable — 
 
 Include an `AGENT.md` in your package root for AI agent consumers — it's served via `ailang pkg-docs` and indexed in registry search results.
 
+### Shipping a command (`[bin]`)
+
+A package can ship a CLI, not just modules. Declare it in `ailang.toml`; `ailang install`
+then puts a shim on PATH (`~/.ailang/bin`) that runs the module with the package as program
+root — no clone, no wrapper script, no hand-written runtime directory.
+
+```toml
+[bin]
+eparse   = "cli"                                   # module <pkg>/cli, entry main, caps auto (inferred)
+docparse = { module = "docparse/main", caps = "IO,FS,Env,AI", run_flags = ["--max-recursion-depth", "50000"] }
+```
+
+```bash
+ailang install sunholo/email            # library + `eparse` on PATH
+ailang install --path packages/email    # developer loop: shim this checkout without publishing
+ailang bin list                         # installed shims, with package@version
+```
+
+The command reads its arguments with `getArgs()` from `std/env` (`--caps Env`); flag-like
+arguments reach it untouched. `ailang publish` refuses a `[bin]` whose module is missing or
+whose entry is not exported. Do NOT write a `scripts/` launcher that `cd`s into a checkout and
+`ailang run`s a file — that is what `[bin]` replaces.
+
 **Available packages**: `sunholo/gcp-auth` (OAuth2), `sunholo/auth` (API keys), `sunholo/http-helpers` (request builders), `sunholo/logging` (JSON logs), `sunholo/config` (env loading), `sunholo/testing-utils` (assertions).
 
 ## Module Import Rules

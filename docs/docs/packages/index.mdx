@@ -33,11 +33,26 @@ ailang install sunholo/auth@0.2.0
 ailang install sunholo/firestore@0.1.0
 ```
 
+A package that declares `[bin]` commands also lands them on your PATH (`~/.ailang/bin`):
+
+```bash
+ailang install sunholo/email     # library + the `eparse` command
+ailang bin list                  # what is installed, from which package@version
+```
+
 ## Publishing Packages
 
 ```bash
 ailang init package --name vendor/name
 ailang publish
+```
+
+To ship a command with your package, add a `[bin]` table to `ailang.toml` — see
+[Commands (`[bin]`)](/docs/guides/packages#commands-bin) in the guide:
+
+```toml
+[bin]
+mytool = "cli"    # module vendor/name/cli exports main
 ```
 
 See the [Packages Guide](/docs/guides/packages) for full documentation.
