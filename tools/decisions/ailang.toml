@@ -1,0 +1,12 @@
+[package]
+name = "sunholo/ailang_tools_decisions"
+version = "0.1.0"
+edition = "1"
+ailang = ">=0.40.0"
+description = "Shadow lane-router measurement for M-AI-DECIDE-SYSTEM-ONE (not published; a repo tool)"
+
+[dependencies]
+"sunholo/decisions" = "0.1.1"
+
+[effects]
+max = ["FS", "Net", "Env", "IO", "Clock"]

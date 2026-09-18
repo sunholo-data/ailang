@@ -66,6 +66,7 @@ crash, never overflow"; everything smart is above it.
 | compaction-strategy (`on_pre_step`) | long-context tasks: smart elision, keep-current-file, semantic UPDATE-merge, AI-summary | **planned (first)** — core floor done (M-COMPACT-CALIBRATED), strategy is the extension |
 | context-orientation | tasks with many files: filepath headers, iface enrichment surfacing | candidate |
 | dialect-coach | AILANG authoring: pre-check / auto-fix common dialect slips before the model's check | candidate |
+| decision-gate (`sunholo/decisions`, TypeSafe Jev) | typed, calibrated decisions at loop choice points: friction→lane routing, done-gate second opinion, `api_error` sub-classification | **measured, not acting** — shadow pilot 2026-09-18: 14/20 vs declared lane, = a cheap LLM at 1/30 the latency; 4 misses are label defects (docs routed AILANG-substrate work as "extension"). See [m-ai-decide-system-one-shadow-report.md](planned/m-ai-decide-system-one-shadow-report.md) |
 
 ### 5c. AILANG fix backlog (shrinking)
 - **Shipped:** PAR999 panic guard (M1), IMP010 auto-import/wrong-module hints (M2), iface record-fields,

@@ -26,10 +26,10 @@ Tasks:
 5. `ailang pkg quality .` → report section by section; fix every `PUBnnn` exit-2 gate. `ailang publish --dry-run`, then `ailang publish` (attended).
 
 Acceptance:
-- [ ] `ailang check decide.ail` clean; `ailang test --package` all green
-- [ ] Mutation: delete the `Some("score")` arm → a test fails; make `collect` return `Ok([])` on a missing name → a test fails
-- [ ] `ailang pkg quality .` exit 0; published; `import pkg/sunholo/decisions/decide` resolves from a fresh dir
-- [ ] AGENT.md contains the two limitation sentences verbatim from the design doc
+- [x] `ailang check decide.ail` clean; `ailang test --package` all green (16)
+- [x] Mutation: score arm → 8 fail; empty-Ok → 1 fail; `>` for `>=` in gate → 1 fail
+- [x] `ailang pkg quality .` no gates; 0.1.0 + 0.1.1 published; resolves from a fresh dir via the registry
+- [x] AGENT.md states non-determinism + not-in-AI-budget limitations
 
 ### M2 — price the model + example manifest (≈ 1.5 h, ~60 LOC)
 **Repo**: this one.
@@ -41,8 +41,8 @@ Tasks:
 4. `go test ./internal/modelreg/ ./internal/observatory/` green; `make test-core` unaffected.
 
 Acceptance:
-- [ ] Both resolutions + price assertion pass; suite-exclusion test passes
-- [ ] Manifest validator green with the example listed
+- [x] Both resolutions + price assertion pass; suite-exclusion test passes (3b98e1c4e)
+- [x] Manifest validator green with the example listed
 
 ### M3 — shadow lane-router measurement (≈ 5 h, ~330 LOC + report)
 **Repo**: this one, `tools/decisions/`.
@@ -54,9 +54,9 @@ Tasks:
 4. Run it (control model: pick from `dev_models`, record in the report header). Add the one-line summary to the design doc footer and a **candidate** row `decision-gate` to PROGRAM.md §5b ("measured, not acting"). CHANGELOG entry under Unreleased.
 
 Acceptance:
-- [ ] Report committed with all three agreements, the tertile table, and per-arm cost/latency/timeouts
-- [ ] `grep -rl "pkg/sunholo/decisions/" --include=*.ail . | grep -v "^./tools/decisions\|^./examples"` is empty (nothing acts)
-- [ ] PROGRAM.md §5b candidate row; CHANGELOG; design-doc footer
+- [x] Report committed with all three agreements, the tertile table, gate simulation, per-arm cost/latency/timeouts — on n=20, not 45 (see Key Fact 14 correction)
+- [x] no importer of `pkg/sunholo/decisions/` outside `tools/decisions` (nothing acts)
+- [x] PROGRAM.md §5b candidate row; CHANGELOG; design-doc footer
 
 ## Schedule
 

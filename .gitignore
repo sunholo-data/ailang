@@ -109,6 +109,11 @@ __pycache__/
 # diffs against the last banked one, so they must travel with the repo.
 !/.ailang/state/simplicity/
 !/.ailang/state/simplicity/*.json
+# ...and the decision-shadow rows (M-AI-DECIDE-SYSTEM-ONE D6): every decision
+# call banks its full distribution + provenance; the shadow report is a pure
+# aggregation of these, so they must travel with it.
+!/.ailang/state/decisions/
+!/.ailang/state/decisions/*.jsonl
 # ...and the perf-sweep snapshots (M-V1-MEMORY-FOOTPRINT): same reason, monthly.
 !/.ailang/state/perf/
 !/.ailang/state/perf/*.json
