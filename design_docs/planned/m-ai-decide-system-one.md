@@ -242,7 +242,7 @@ export func questionsToJsonSchema(questions: [{ name: string, q: Question }]) ->
 - `tools/decisions/lane_shadow.ail` — shadow runner incl. `LlmAnswer`, `parseLlmAnswers`, `chatBody` (~260 LOC), M3
 - `tools/decisions/lane_shadow_report.sh` — aggregation (~60 LOC), M3
 - `examples/runnable/decide_jev.ail` — **already banked** (the Phase-0 spike, `ailang check` clean; with no key it prints `ERROR: OPENROUTER_API_KEY not set` and exits 0). M1 adds its `examples/manifest.json` entry (`go run ./scripts/validate_manifest.go --ci` passes with it unlisted, but the entry is the house rule). `examples/manifest.json:227` lists `claude_haiku_call.ail` as `status: "working"` with no network exclusion — it passes verify because it handles every failure and exits 0. `decide_jev.ail` follows the same contract: missing `OPENROUTER_API_KEY` → prints `MissingKey` and exits 0 (already the spike's behaviour)
-- `docs/docs/packages/sunholo/decisions.md` — package page (~60 lines), linking to the vendor docs and stating the limitations
+- ~~`docs/docs/packages/sunholo/decisions.md`~~ — **not needed** (found in the audit): package pages are generated from the registry by `docs/scripts/sync-registry.sh` at every docs deploy
 - `CHANGELOG.md` — entry under Unreleased
 - `design_docs/PROGRAM.md` — §5b candidate row (1 line), after M3
 
@@ -419,7 +419,7 @@ Triggers that fired: **#1** (D5 is a freeze item for Mark) and **#4** (Key Facts
 
 ## Where we are (2026-09-18, end of Phase 1)
 
-Phase 1 shipped: `sunholo/decisions` 0.1.1 published (ailang-packages `1ad2f60`), pricing row + tests, the shadow runner and its report. **Shadow result (n=20):** Jev 14/20 vs declared lane; glm-5.3-flash control 12/17 with 3 timeouts; the oracles agreed 15/17; Jev ~33× faster and ~11× cheaper. Four of Jev's six misses are docs where both oracles disagree with the label at ≥ 0.86 — our docs routed AILANG-substrate work as "extension". **Phase 2 gate: premise licensed, acting consumer NOT yet** — first fix the label set / sharpen PROGRAM §4's "extension" wording, re-run, then choose. Full reading: [m-ai-decide-system-one-shadow-report.md](m-ai-decide-system-one-shadow-report.md).
+Phase 1 shipped: `sunholo/decisions` 0.1.1 published (ailang-packages `1ad2f60`), pricing row + tests, the shadow runner and its report. **Shadow result (n=20):** Jev 14/20 vs declared lane; glm-5.3-flash control 12/17 with 3 timeouts; the oracles agreed 15/17; Jev ~33× faster and ~11× cheaper. Four of Jev's six misses are docs where both oracles disagree with the label at ≥ 0.86 — our docs routed AILANG-substrate work as "extension". **Phase 2 gate: premise licensed, acting consumer NOT yet** — first fix the label set / sharpen PROGRAM §4's "extension" wording, re-run, then choose. Full reading: [m-ai-decide-system-one-shadow-report.md](m-ai-decide-system-one-shadow-report.md). **Consumer audit** (where we decide via AI calls today, and which sites are drop-ins): [m-ai-decide-system-one-audit.md](m-ai-decide-system-one-audit.md) — feedback gate first, eparse triage second.
 
 ---
 *Spike, measurements and this doc: 2026-09-18, attended session. Phase 1 executed the same day.*
