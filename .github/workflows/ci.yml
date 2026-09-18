@@ -321,6 +321,16 @@ jobs:
     - name: Check frozen prompt immutability and mirror agreement
       run: make check-prompt-freeze
 
+    # M-V1-SIMPLIFY-S5 M3/M6: the devtools prompt may only teach routes the
+    # binary accepts, and the generated CLI reference must match the dispatch
+    # table. Both are gate-shaped make targets; cihygiene's
+    # TestGateTargetsAreWiredIntoAWorkflow fails when one exists but is not run here.
+    - name: Check the devtools prompt teaches only real commands
+      run: make check-prompt-commands
+
+    - name: Check the CLI reference matches the dispatch table
+      run: make check-cli-docs
+
     - name: Check coverage gate (M-P2)
       run: make test-coverage-gate
 
