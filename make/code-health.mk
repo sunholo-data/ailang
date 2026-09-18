@@ -2,7 +2,7 @@
 # CODE HEALTH & ORGANIZATION TARGETS
 # =============================================================================
 
-.PHONY: check-file-sizes report-file-sizes codebase-health largest-files check-pi-wire-budget check-prompt-freeze check-referenced-paths check-architecture-closure gen-architecture-closure simplicity-metrics simplicity-metrics-fast simplicity-audit simplicity-audit-fast perf-sweep perf-sweep-quick perf-sweep-control
+.PHONY: check-file-sizes report-file-sizes codebase-health largest-files check-pi-wire-budget check-prompt-freeze check-prompt-commands check-referenced-paths check-architecture-closure gen-architecture-closure simplicity-metrics simplicity-metrics-fast simplicity-audit simplicity-audit-fast perf-sweep perf-sweep-quick perf-sweep-control
 .PHONY: fmt fmt-check fmt-check-ail shellcheck-autopush vet lint install-lint
 
 check-referenced-paths: ## Check that referenced tools/scripts paths exist and are tracked
@@ -232,6 +232,15 @@ test-check-context-docs: ## Run the context-doc gate's own self-test (bash 3.2)
 
 check-prompt-freeze: ## Check prompt registry integrity (all entries) + frozen immutability (CI gate)
 	@go run ./cmd/ailang prompt freeze --check
+
+# The freeze gate above pins each prompt's SHA256 — it proves the FILE has not
+# changed, and is structurally blind to the BINARY changing underneath it.
+# M-V1-SIMPLIFY-S5 M3 deleted eight `observatory` subcommands and freeze stayed
+# green while `ailang devtools-prompt` went on teaching all eight. This gate
+# pins the prompt's TRUTH: every route it teaches must be one the binary takes.
+check-prompt-commands: ## Every command the devtools prompt teaches must exist in the binary
+	@go build -o bin/ailang ./cmd/ailang
+	@/bin/bash tools/check_prompt_commands.sh bin/ailang
 
 check-pi-wire-budget: ## Assert the output budget pi ACTUALLY sends (real API call; NOT a CI gate)
 	@# Deliberately outside `make ci`: it costs a fraction of a cent, needs
