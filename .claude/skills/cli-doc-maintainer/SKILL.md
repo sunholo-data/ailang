@@ -1,6 +1,6 @@
 ---
 name: cli-doc-maintainer
-description: Keep the AILANG CLI surface and its documentation true to the dispatch table. Use when adding or renaming a command, adding a flag or an environment variable, auditing CLI docs, fixing a doc that cites a command the binary rejects, or wondering why `ailang --help` and a page disagree.
+description: Keep the AILANG CLI and its docs true to the dispatch table. Use when adding or renaming a command, adding a flag or env var, auditing CLI docs, fixing a doc that cites a command the binary rejects, or when `ailang --help` and a page disagree.
 ---
 
 # CLI Documentation Maintainer

@@ -1,6 +1,6 @@
 {
   "date": "2026-09-18",
-  "commit": "49299c187",
+  "commit": "254ee4c82",
   "metrics": {
     "closure_internal_packages": {
       "value": 45,
@@ -53,7 +53,7 @@
       "how": "non-test Go lines under internal/"
     },
     "cmd_ailang_loc": {
-      "value": 60819,
+      "value": 60825,
       "gate": null,
       "dir": "le",
       "how": "non-test Go lines under cmd/ailang"
@@ -140,25 +140,25 @@
       "how": ".agents/skills present and differing from .claude/skills"
     },
     "instruction_surface_bytes": {
-      "value": 28046,
+      "value": 28033,
       "gate": 25600,
       "dir": "le",
       "how": "CLAUDE.md + unscoped rules + skill descriptions"
     },
     "instruction_surface_with_memory_bytes": {
-      "value": 28046,
+      "value": 28033,
       "gate": null,
       "dir": "le",
       "how": "plus the MEMORY.md index on this machine"
     },
     "tracked_files": {
-      "value": 25189,
+      "value": 25188,
       "gate": 8000,
       "dir": "le",
       "how": "git ls-files"
     },
     "root_entries": {
-      "value": 66,
+      "value": 68,
       "gate": null,
       "dir": "le",
       "how": "entries at repo root incl. untracked"
