@@ -29,7 +29,14 @@
 set -u
 
 BIN="${1:-bin/ailang}"
-PROMPTS="cmd/ailang/prompts/devtools"
+# The SOURCE OF TRUTH, not cmd/ailang/prompts/devtools — that is a generated
+# mirror. `make prepare-embed` (make/build.mk) does `rm -rf cmd/ailang/prompts;
+# cp -r prompts cmd/ailang/prompts` whenever the two differ, so a fix applied
+# only to the mirror is silently reverted by the next build. That happened to
+# the first version of this very fix: the gate passed on a clean checkout and
+# went red again after `make lint`. Reading the source means a mirror-only fix
+# can never look green.
+PROMPTS="prompts/devtools"
 
 if [ ! -x "$BIN" ]; then
   echo "check-prompt-commands: no binary at $BIN — run 'make build' first" >&2
