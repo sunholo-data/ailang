@@ -37,7 +37,10 @@ func TestCLIReferenceMatchesTable(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read %s: %v\nRun 'make docs-cli' to generate it.", cliReferencePath, err)
 	}
-	if string(got) == string(want) {
+	// Compare content, not line endings: `* text=auto` checks the page out
+	// with CRLF on Windows, where this gate reported line 1 (`---`) as
+	// differing from itself (dev red at 89a984dd6, test-windows only).
+	if normalizeLineEndings(string(got)) == normalizeLineEndings(string(want)) {
 		return
 	}
 	t.Errorf("%s is stale: the dispatch table and the page disagree.\n"+
@@ -81,4 +84,10 @@ func TestCLIReferenceCoversEveryRoute(t *testing.T) {
 			}
 		}
 	}
+}
+
+// normalizeLineEndings folds CRLF to LF so a checkout under `text=auto` on
+// Windows compares equal to the LF text the renderer produces.
+func normalizeLineEndings(s string) string {
+	return strings.ReplaceAll(s, "\r\n", "\n")
 }
