@@ -213,7 +213,27 @@ Goal: close the verified-duplicate list, cheapest and most integrity-critical fi
 
 Deferred to Future Work (L-sized, and two sit exactly where motoko extensions plug in): `executor.Supervise` unifying the four supervisor loops; the two `effects` vector stores; approval-model merge (`ApprovalRequest`/`Record`/`messaging.Approval`); `slog` migration; single-implementation interface removal.
 
-#### Phase 3 — CLI surface (weeks 4–5, ~5 days)
+#### Phase 3 — CLI surface (weeks 4–5, ~5 days) — **DONE 2026-09-18 (Sprint S5)**
+
+> **Closed.** `commands_top_level` **89 → 17** (gate ≤ 20), measured from the binary's own
+> generated help, not asserted. Six milestones merged to dev: M1 `ea58ad23c` (dispatch table,
+> `main.go` 674→127), M2 `19dd95e96` (groups + aliases, D1 verified 93/93 spellings), M3
+> `f8fcaed7c` (chains fold, −2,249 LOC), M4 `2f2d22d1c` (1 D7 removal, 7 evidenced declines),
+> M5 `342d031b6` (`--json` canonical), M6 `da1174b4c` (generated `docs/docs/reference/cli.md`).
+> Sprint plan: [m-v1-simplification-s5-sprint-plan.md](m-v1-simplification-s5-sprint-plan.md).
+>
+> **Item 7 (the caller sweep) is NOT done** — it is a separate PR, gated on aliases shipping in
+> a tagged release plus one attended iteration of each mission loop. v0.40.0 shipped without
+> them, so the earliest is v0.41.0.
+>
+> Two items in this phase turned out to be wrong and were corrected by measurement rather than
+> executed: D7's removal list (see Phase 3b's note and M4's commit body — `access-control` is
+> the sole writer of a key a live auth path reads) and item 6's dead-docs list (`trace
+> hierarchy`, `dashboard health|stats`, `eval-chains` and `daemon` are all alive).
+>
+> New gates this phase: `make check-prompt-commands`, `make check-cli-docs`, `help_exit0_rate`
+> (100 over 69 routes), `output_format_spellings` (ratchet, 4 → 1 after the sweep).
+
 
 Goal: an agent can read `ailang --help` in one screen and every command answers `--help`.
 
@@ -226,6 +246,11 @@ Goal: an agent can read `ailang --help` in one screen and every command answers 
 7. Alias sweep: rename callers in Makefile, `make/*.mk`, `tools/`, `tools/launchd/*.sh`, `.claude/skills/**`, `.github/workflows`, docs — in a **separate** PR after the aliases are live, verified by `make test-launchd-drivers` and a grep that the old spellings are gone.
 
 #### Phase 3b — Physical split, gated (before v1.0.0 only if every precondition holds)
+
+> **Status 2026-09-18: v1.0.0 SHIPS ONE BINARY.** Precondition 2 (aliases shipped in a
+> tagged release + one loop iteration on it) cannot be met before the v1.0.0 cut — v0.40.0
+> was tagged mid-sprint, before the aliases landed. Per D1's own ruling, the split becomes
+> v1.1's first item.
 
 Goal: `cmd/ailang` links the language closure only; `cmd/ailang-ops` carries the platform. **Zero caller disruption** is the design constraint, not a hope:
 
