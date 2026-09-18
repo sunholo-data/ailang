@@ -98,6 +98,12 @@ func runEvalSuite() {
 	// Parse eval-suite subcommand flags
 	fs := flag.NewFlagSet("eval-suite", flag.ExitOnError)
 	models := fs.String("models", "", "Comma-separated list of models (default: dev models)")
+	// --model is the canonical singular spelling of the model-selection family
+	// (M-V1-SIMPLIFY-S5 M5); `exec` and `cache embed` already spell it that way.
+	// --models keeps working for its fleet callers and takes the same value —
+	// renaming those call sites is the caller sweep, explicitly out of this
+	// sprint. No deprecation line: it would fire on every nightly rotation.
+	aliasStringFlag(fs, models, "model", "Alias of --models (canonical singular spelling; still accepts a comma-separated list)")
 	fullSuite := fs.Bool("full", false, "Run full benchmark suite with all models from extended_suite (gpt5-2-codex, claude-opus-4-6, claude-sonnet-4-6, gemini-3-pro, gemini-2-5-pro)")
 	benchmarks := fs.String("benchmarks", "", "Comma-separated list of benchmarks (empty = auto-discover from benchmarks/)")
 	tier := fs.String("tier", "", "Comma-separated list of tiers to include (smoke|core|stretch|frontier|vision). Empty = all tiers. Applied after benchmark discovery.")

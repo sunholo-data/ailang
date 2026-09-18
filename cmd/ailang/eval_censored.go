@@ -46,7 +46,7 @@ func evalCensoredPairs(onDir, offDir string) (eval_analysis.CensoredPairResult, 
 
 func runEvalCensoredPairs() {
 	fs := flag.NewFlagSet("eval-censored-pairs", flag.ExitOnError)
-	pretty := fs.Bool("pretty", false, "Indent the JSON output")
+	indent := registerJSONOnlyOutputFlags(fs)
 	if err := fs.Parse(os.Args[2:]); err != nil {
 		os.Exit(1)
 	}
@@ -65,7 +65,7 @@ func runEvalCensoredPairs() {
 	}
 
 	enc := json.NewEncoder(os.Stdout)
-	if *pretty {
+	if indent() {
 		enc.SetIndent("", "  ")
 	}
 	if err := enc.Encode(result); err != nil {
