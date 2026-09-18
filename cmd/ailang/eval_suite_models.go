@@ -2,8 +2,11 @@ package main
 
 import (
 	"fmt"
-	"github.com/sunholo-data/ailang/internal/modelreg"
 	"os"
+	"strings"
+
+	"github.com/sunholo-data/ailang/internal/eval_harness"
+	"github.com/sunholo-data/ailang/internal/modelreg"
 )
 
 // resolveEvalModelList determines the model list for an eval-suite run from the
@@ -36,6 +39,22 @@ func resolveEvalModelList(models string, fullSuite, agent bool) []string {
 			modelList = []string{"gpt5-mini", "claude-haiku-4-5", "gemini-2-5-flash"}
 		}
 	}
+	// SAFETY: every selected model must EXIST in the registry. Nothing downstream
+	// checks this, so an unknown name is not an error — it is 1 benchmark x 2
+	// languages of instant failures per entry, banked and reported as a result.
+	//
+	// Measured 2026-09-17 23:55: a run reached the plane as
+	// `models: ["--help"]` and published "Eval Suite partial: 0/180 passed
+	// (0.0%)" after 53 MILLISECONDS. That notification is indistinguishable from
+	// a real measurement of a catastrophically bad model, which is the actual
+	// harm — a 0% that nobody can tell from a finding. Go's flag package is how
+	// it got there: `--models` takes a value, so `--models --help` binds the
+	// FLAG as the VALUE and help never prints.
+	//
+	// Fail loudly instead (CLAUDE.md #2): a model list is required config, and a
+	// wrong one changes what the numbers mean.
+	validateEvalModelsExist(modelList)
+
 	// SAFETY: block standard (direct-API) mode only for models that are GENUINELY
 	// agent-only — i.e. have an agent_cli AND no cloud standard path (provider is
 	// local/CLI-bound, e.g. ollama). Without this guard those degrade silently to
@@ -64,6 +83,67 @@ func resolveEvalModelList(models string, fullSuite, agent bool) []string {
 		}
 	}
 	return modelList
+}
+
+// unknownEvalModels returns the entries of modelList that cfg does not carry,
+// in the order given. The decision half of validateEvalModelsExist, split out
+// because the other half calls os.Exit and cannot be tested in-process.
+//
+// A nil cfg yields nothing: models.yml failed to load, resolveEvalModelList has
+// already fallen back to hardcoded lists, and every name would look unknown.
+func unknownEvalModels(modelList []string, cfg *eval_harness.ModelsConfig) []string {
+	if cfg == nil {
+		return nil
+	}
+	var unknown []string
+	for _, m := range modelList {
+		if _, err := cfg.GetModel(m); err != nil {
+			unknown = append(unknown, m)
+		}
+	}
+	return unknown
+}
+
+// validateEvalModelsExist refuses a run whose model list names anything the
+// registry does not carry. Exits 1 on the first bad list rather than returning
+// an error, matching the agent-only guard immediately below it — both are
+// misconfiguration caught before any trial is dispatched or any row is banked.
+//
+// Skipped entirely when models.yml did not load: resolveEvalModelList has
+// already fallen back to hardcoded lists in that case, and validating those
+// against a nil registry would refuse every run.
+func validateEvalModelsExist(modelList []string) {
+	unknown := unknownEvalModels(modelList, modelreg.GlobalModelsConfig)
+	if len(unknown) == 0 {
+		return
+	}
+
+	fmt.Fprintf(os.Stderr, "Error: model(s) not in the registry:\n")
+	for _, m := range unknown {
+		fmt.Fprintf(os.Stderr, "  - %q\n", m)
+	}
+
+	// Name the footgun when we can see it. An operator who typed
+	// `--models --help` is not helped by "not in the registry" alone: the
+	// value they meant to pass is missing and the flag they meant to read was
+	// eaten, and neither is visible from the message without this.
+	for _, m := range unknown {
+		if strings.HasPrefix(m, "-") {
+			fmt.Fprintf(os.Stderr,
+				"\n%q starts with a dash: it looks like a FLAG that was consumed as the VALUE of\n"+
+					"--models. Go's flag package binds the next argument unconditionally, so\n"+
+					"`--models --help` sets models to \"--help\" and never prints help.\n"+
+					"Check for a missing value or an empty shell variable before --models.\n", m)
+			break
+		}
+	}
+
+	fmt.Fprintf(os.Stderr, "\nSelected models must be registry keys from internal/modelreg/models.yml\n")
+	fmt.Fprintf(os.Stderr, "(friendly names such as gpt5-mini, not provider ids). Which registry is\n")
+	fmt.Fprintf(os.Stderr, "in use: ailang models source\n")
+	fmt.Fprintf(os.Stderr, "\nRefusing to run: an unknown model produces instant per-trial failures that\n")
+	fmt.Fprintf(os.Stderr, "bank and report as a 0%% result, which is indistinguishable from a finding.\n")
+	os.Exit(1)
 }
 
 // clampConcurrencyForSerializedLanes forces --parallel 1 when any selected agent
