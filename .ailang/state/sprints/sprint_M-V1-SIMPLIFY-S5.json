@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-V1-SIMPLIFY-S5",
-  "status": "not_started",
+  "status": "complete",
   "created": "2026-09-17T20:38:21Z",
   "design_doc": "design_docs/planned/m-v1-simplification-program.md",
   "sprint_plan": "design_docs/planned/m-v1-simplification-s5-sprint-plan.md",
@@ -127,10 +127,11 @@
         "new metric `help_exit0_rate` = share of commands+groups where `--help` exits 0, gate 100",
         "`make simplicity-audit` shows `commands_top_level` \u2264 20 and no other gate regressed (exit 2 = stop and name it in the changelog)"
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
       "completed": null,
-      "notes": null
+      "notes": "docs/docs/reference/cli.md GENERATED from the table + TestCLIReferenceMatchesTable (renders fresh, compares to disk; a git diff --exit-code arm was written and REMOVED because it measures tree-cleanliness, not table-vs-page). help_exit0_rate=100/69 routes with a <20 blindness guard. output_format_spellings=4 gate 4 (ratchet). THE DEAD-DOC LIST WAS WRONG: trace hierarchy / dashboard health / dashboard stats / eval-chains / daemon all ALIVE (verified exit 0); only prompt-freeze (a make target) and `ailang models list` (never existed) were dead. Orchestrator's flag_names_distinct suggestion was inverted and refuted. 3 cli-doc-maintainer scripts RETIRED as actively wrong. Snapshot diff EMPTY.",
+      "merged_commit": "da1174b4c"
     }
   ],
   "gate": {
@@ -138,5 +139,14 @@
     "from": 89,
     "to": 20,
     "source": "tools/simplicity_metrics.sh"
+  },
+  "completed": "2026-09-18",
+  "gate_result": {
+    "metric": "commands_top_level",
+    "from": 89,
+    "to": 17,
+    "target": 20,
+    "status": "CLOSED and measured",
+    "note": "metric rewired in 83dc683f0 \u2014 it previously counted case labels in a main.go that has none, reading 0 and killing the whole metrics script under set -euo pipefail"
   }
 }
