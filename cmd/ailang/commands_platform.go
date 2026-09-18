@@ -163,7 +163,7 @@ func platformCommands() []Command {
 		{
 			Name:    "models",
 			Group:   groupOps,
-			Summary: "Model registry: list, show, pricing",
+			Summary: "Model registry: role, source, publish",
 			Run:     modelsCommand,
 		},
 		{

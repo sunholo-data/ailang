@@ -10,7 +10,7 @@
         "production",
         "latest"
       ],
-      "notes": "Comprehensive dev tools reference. Complements ailang prompt (syntax) with full toolchain documentation. Organized by workflow. Covers all 38 CLI commands, all run flags, AI provider auth, WASM API, coordinator lifecycle, observatory analytics. ~610 lines, ~2960 words."
+      "notes": "Comprehensive dev tools reference. Complements ailang prompt (syntax) with full toolchain documentation. Organized by workflow. Covers all 38 CLI commands, all run flags, AI provider auth, WASM API, coordinator lifecycle, observatory analytics (8 subcommands removed in S5 M3). ~610 lines, ~2960 words."
     },
     "v0.8.0-compact": {
       "file": "prompts/devtools/v0.8.0-compact.md",

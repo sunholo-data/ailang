@@ -130,8 +130,96 @@ if [ -z "$commands_top_level" ] || [ "$commands_top_level" = "0" ]; then
   echo "  metric can no longer see its subject. Fix the parser; do not let it report green." >&2
   exit 1
 fi
-# Flag names across all FlagSet definitions (distinct).
-flag_names="$(grep -rhoE '\.(String|Int|Bool|Duration|Float64|Int64|Var|StringVar|IntVar|BoolVar|DurationVar)\("[a-zA-Z0-9_-]+"' cmd/ailang --include='*.go' 2>/dev/null | grep -oE '"[^"]+"' | sort -u | wc -l | tr -d ' ')"
+# ---- help reachability -----------------------------------------------------
+# The share of routes whose `--help` exits 0. Phase 3's goal sentence is "an
+# agent can read `ailang --help` in one screen AND every command answers
+# `--help`"; commands_top_level measures the first half, this the second.
+# Before S5 M1, eight groups rejected --help outright.
+#
+# SAFETY, and it is not optional. The first version of tools/check_prompt_commands.sh
+# probed with a token it had captured from text, and two faults compounded:
+# `[a-z0-9-]+` matches a FLAG (`-` is literal inside a bracket expression), so
+# `ailang test --format json` yielded the opener `ailang test --format`; and
+# `ailang test --format --help` does not print help, it RUNS THE TEST SUITE.
+# Several `ailang test` processes ground for half an hour. So every token here
+# is READ OUT OF THE BINARY'S OWN GENERATED HELP and then validated against
+# ^[a-z][a-z0-9-]*$ before it reaches argv. Nothing else is ever passed.
+help_routes_of() {  # $@: the group path, empty for the top level
+  NO_COLOR=1 bin/ailang "$@" --help 2>/dev/null \
+    | sed -n '/^Commands:/,/^$/p' \
+    | grep -E '^  [a-z][a-z0-9-]*( |$)' \
+    | awk '{print $1}'
+}
+
+help_token_ok() {  # a bare command name, and nothing else, may reach argv
+  case "$1" in
+    [a-z]*) ;;
+    *) return 1 ;;
+  esac
+  case "$1" in
+    *[!a-z0-9-]*) return 1 ;;
+  esac
+  return 0
+}
+
+help_total=0
+help_ok=0
+help_failed=""
+probe_help() {
+  for tok in "$@"; do
+    help_token_ok "$tok" || { echo "simplicity_metrics: refusing to probe non-name token '$tok'" >&2; return; }
+  done
+  help_total=$((help_total + 1))
+  if NO_COLOR=1 bin/ailang "$@" --help </dev/null >/dev/null 2>&1; then
+    help_ok=$((help_ok + 1))
+  else
+    help_failed="$help_failed $*"
+  fi
+}
+
+for c in $(help_routes_of); do probe_help "$c"; done
+for g in $(printf '%s\n' dev ops eval); do
+  probe_help "$g"
+  for s in $(help_routes_of "$g"); do probe_help "$g" "$s"; done
+done
+# An enumerator that sees nothing reports 100% and passes vacuously — the exact
+# failure commands_top_level had. The visible top level alone is 17 rows, so a
+# total below 20 means the help format moved and this metric went blind.
+if [ "$help_total" -lt 20 ]; then
+  echo "simplicity_metrics: help_exit0_rate enumerated only $help_total routes — the help format" >&2
+  echo "  changed and this metric can no longer see its subject. Fix the parser; do not report green." >&2
+  exit 1
+fi
+help_exit0_rate=$((help_ok * 100 / help_total))
+
+# Flag names across all FlagSet definitions (distinct), CLI sources only.
+#
+# This is a CENSUS, not a convergence measure, and the difference cost S5 M5 a
+# milestone criterion. The sprint plan asked for this number to DROP when the
+# output-format family converged; it read 384 -> 384, and it could not have
+# done anything else: D1 keeps every superseded spelling registered until the
+# caller sweep, so a release that converges a family ADDS the canonical name
+# and removes nothing.
+#
+# The obvious repair — "exclude the spellings registered via aliasStringFlag" —
+# was measured in M6 and rejected: it moves the number by ZERO (the one
+# aliasStringFlag call registers "model", which six other sites register too),
+# and where it did bite it would exclude the CANONICAL spelling, because the
+# helper is what registers the new canonical name beside the old one. Watch
+# output_format_spellings below for the family question instead.
+#
+# _test.go is excluded because a flag registered by a test harness is not CLI
+# surface. Measured while writing this: `-update-cli-reference` in
+# cli_reference_test.go is the only name the old census counted that no CLI
+# invocation can pass, and it alone moved the number 384 -> 385.
+flag_names="$(grep -rhoE '\.(String|Int|Bool|Duration|Float64|Int64|Var|StringVar|IntVar|BoolVar|DurationVar)\("[a-zA-Z0-9_-]+"' cmd/ailang --include='*.go' --exclude='*_test.go' 2>/dev/null | grep -oE '"[^"]+"' | sort -u | wc -l | tr -d ' ')"
+# Distinct spellings that answer ONE question — "what format is the output" —
+# over the family cmd/ailang/output_flags.go records: --json, --format,
+# --pretty, --stream-json. This is the number the M5 criterion was reaching for
+# and the census cannot show. It is a RATCHET at today's 4: a fifth spelling
+# fails the gate, and the number falls to 1 when the caller sweep lets the
+# superseded spellings be removed.
+output_format_spellings="$(grep -rhoE '\.(String|Bool|StringVar|BoolVar)\("(json|format|pretty|stream-json)"' cmd/ailang --include='*.go' --exclude='*_test.go' 2>/dev/null | grep -oE '"(json|format|pretty|stream-json)"' | sort -u | wc -l | tr -d ' ')"
 
 # ---- configuration routes --------------------------------------------------
 # A call, not a string literal: a line where an unclosed `"` precedes the call
@@ -243,6 +331,8 @@ jq -n \
   --argjson binary_internal "$binary_internal" --argjson internal_packages "$internal_packages" \
   --argjson internal_loc "$internal_loc" --argjson cmd_loc "$cmd_loc" --argjson cmd_files "$cmd_files" \
   --argjson commands_top_level "$commands_top_level" --argjson flag_names "$flag_names" \
+  --argjson output_format_spellings "$output_format_spellings" \
+  --argjson help_exit0_rate "$help_exit0_rate" --argjson help_total "$help_total" --arg help_failed "${help_failed# }" \
   --argjson getenv_sites_total "$getenv_sites_total" --argjson getenv_outside_config "$getenv_outside_config" \
   --argjson env_distinct "$env_distinct" --argjson env_documented "$env_documented" --argjson env_documented_pct "$env_documented_pct" \
   --argjson backend_switches "$backend_switches" \
@@ -267,7 +357,9 @@ jq -n \
       cmd_ailang_loc:            {value: $cmd_loc, gate: null, dir: "le", how: "non-test Go lines under cmd/ailang"},
       cmd_ailang_files:          {value: $cmd_files, gate: null, dir: "le", how: "non-test Go files under cmd/ailang"},
       commands_top_level:        {value: $commands_top_level, gate: 20, dir: "le", how: "visible command rows in the dispatch table, as rendered into ailang --help (hidden dev/ops rows and folded aliases excluded)"},
-      flag_names_distinct:       {value: $flag_names, gate: null, dir: "le", how: "distinct FlagSet definition names in cmd/ailang"},
+      help_exit0_rate:           {value: $help_exit0_rate, gate: 100, dir: "ge", detail: (($help_total|tostring) + " routes probed" + (if $help_failed == "" then "" else "; failing:" + $help_failed end)), how: "share of visible commands, groups and group members whose `--help` exits 0 — bare names read out of the generated help of the binary itself, validated against ^[a-z][a-z0-9-]*$, then probed"},
+      flag_names_distinct:       {value: $flag_names, gate: null, dir: "le", how: "distinct FlagSet definition names in cmd/ailang non-test sources — a CENSUS; D1 keeps superseded spellings registered, so a convergence release cannot lower it (see output_format_spellings)"},
+      output_format_spellings:   {value: $output_format_spellings, gate: 4, dir: "le", how: "distinct spellings of the ONE output-format question registered in cmd/ailang (json, format, pretty, stream-json — the family cmd/ailang/output_flags.go records); a ratchet, falls to 1 after the caller sweep"},
       getenv_sites_total:        {value: $getenv_sites_total, gate: null, dir: "le", how: "os.Getenv/LookupEnv call sites, non-test"},
       getenv_outside_config:     {value: $getenv_outside_config, gate: 0, dir: "le", how: "same, excluding internal/config, internal/statedir, internal/testutil and DEBUG_* knobs"},
       env_vars_distinct:         {value: $env_distinct, gate: null, dir: "le", how: "distinct literal names read"},

@@ -116,6 +116,7 @@ const sidebars = {
       label: 'Reference',
       collapsed: false,
       items: [
+        'reference/cli',
         {
           type: 'category',
           label: 'Language',

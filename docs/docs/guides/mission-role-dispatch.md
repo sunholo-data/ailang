@@ -19,7 +19,9 @@ jq --arg workspace "$PWD" --arg revision "$(git rev-parse HEAD)" \
 ailang mission role-run --request /tmp/mission-request.json --dry-run
 ```
 
-Use friendly model keys available in `ailang models list`. Update `author_models`
+Use friendly model keys from the registry — `ailang models role <role>` prints the ordered
+fallback chain for a role with each entry's harness and wire model, and `ailang models source`
+says which registry this binary is using. Update `author_models`
 to identify every model that authored the material being evaluated. The example
 uses an OpenAI author and a DeepSeek evaluator through Pi/OpenRouter.
 Dry-run resolves the ordered candidates, origin vendors, harnesses, wire models,
