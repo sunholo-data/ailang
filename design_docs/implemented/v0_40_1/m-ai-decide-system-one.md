@@ -1,6 +1,6 @@
 # M-AI-DECIDE-SYSTEM-ONE: Typed Decisions as an AILANG Primitive (TypeSafe Jev via OpenRouter)
 
-**Status**: Planned
+**Status**: Implemented (Phase 1, v0.40.1 — evaluated 2026-09-18, score 86/100; Phase 2 gated on the label-set fixes named in the shadow report)
 **Created**: 2026-09-18
 **Target**: v0.40.1 (Phase 1: package + pricing row + shadow measurement; no core change) · Phase 2 gated on Phase 1 data
 **Priority**: P1 — a 400 ms / $0.00003 typed-decision primitive for the places the harness currently spends a frontier-LLM turn or a substring heuristic
