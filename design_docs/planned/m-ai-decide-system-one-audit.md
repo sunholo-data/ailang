@@ -2,7 +2,7 @@
 
 **Asked by**: Mark, after M-AI-DECIDE-SYSTEM-ONE Phase 1 — "where do we make structured data decisions via AI calls now, in packages or ailang or workflows; can the package drop in and replace them?"
 **Method**: grep for structured-output requests (`ResponseSchema`/`ResponseFormat: "json"`/`json_schema`/`callJson*`) and for code that parses a model's JSON/fenced verdict, across the ailang repo (Go + `.ail`), `ailang-packages`, `email-parse`, `daneel`, and the skills. Each site was read, not just matched.
-**Companion**: [m-ai-decide-system-one.md](m-ai-decide-system-one.md) · [shadow report](m-ai-decide-system-one-shadow-report.md) · package `sunholo/decisions` 0.1.2 (`ailang pkg-docs sunholo/decisions`).
+**Companion**: [m-ai-decide-system-one.md](../implemented/v0_40_1/m-ai-decide-system-one.md) · [shadow report](../implemented/v0_40_1/m-ai-decide-system-one-shadow-report.md) · package `sunholo/decisions` 0.1.2 (`ailang pkg-docs sunholo/decisions`).
 
 ## The rule for reading this table
 
