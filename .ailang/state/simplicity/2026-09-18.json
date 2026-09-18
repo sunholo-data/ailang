@@ -1,6 +1,6 @@
 {
   "date": "2026-09-18",
-  "commit": "0be655631",
+  "commit": "49299c187",
   "metrics": {
     "closure_internal_packages": {
       "value": 45,
@@ -53,13 +53,13 @@
       "how": "non-test Go lines under internal/"
     },
     "cmd_ailang_loc": {
-      "value": 60412,
+      "value": 60819,
       "gate": null,
       "dir": "le",
       "how": "non-test Go lines under cmd/ailang"
     },
     "cmd_ailang_files": {
-      "value": 231,
+      "value": 233,
       "gate": null,
       "dir": "le",
       "how": "non-test Go files under cmd/ailang"
@@ -70,11 +70,24 @@
       "dir": "le",
       "how": "visible command rows in the dispatch table, as rendered into ailang --help (hidden dev/ops rows and folded aliases excluded)"
     },
+    "help_exit0_rate": {
+      "value": 100,
+      "gate": 100,
+      "dir": "ge",
+      "detail": "69 routes probed",
+      "how": "share of visible commands, groups and group members whose `--help` exits 0 — bare names read out of the generated help of the binary itself, validated against ^[a-z][a-z0-9-]*$, then probed"
+    },
     "flag_names_distinct": {
       "value": 384,
       "gate": null,
       "dir": "le",
-      "how": "distinct FlagSet definition names in cmd/ailang"
+      "how": "distinct FlagSet definition names in cmd/ailang non-test sources — a CENSUS; D1 keeps superseded spellings registered, so a convergence release cannot lower it (see output_format_spellings)"
+    },
+    "output_format_spellings": {
+      "value": 4,
+      "gate": 4,
+      "dir": "le",
+      "how": "distinct spellings of the ONE output-format question registered in cmd/ailang (json, format, pretty, stream-json — the family cmd/ailang/output_flags.go records); a ratchet, falls to 1 after the caller sweep"
     },
     "getenv_sites_total": {
       "value": 110,
@@ -133,19 +146,19 @@
       "how": "CLAUDE.md + unscoped rules + skill descriptions"
     },
     "instruction_surface_with_memory_bytes": {
-      "value": 55374,
+      "value": 28046,
       "gate": null,
       "dir": "le",
       "how": "plus the MEMORY.md index on this machine"
     },
     "tracked_files": {
-      "value": 25184,
+      "value": 25189,
       "gate": 8000,
       "dir": "le",
       "how": "git ls-files"
     },
     "root_entries": {
-      "value": 77,
+      "value": 66,
       "gate": null,
       "dir": "le",
       "how": "entries at repo root incl. untracked"
@@ -157,7 +170,7 @@
       "how": "sprint_* / sprint-* files at repo root"
     },
     "planned_design_docs": {
-      "value": 308,
+      "value": 283,
       "gate": null,
       "dir": "le",
       "how": "markdown files under design_docs/planned"

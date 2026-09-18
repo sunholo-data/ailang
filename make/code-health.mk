@@ -2,7 +2,7 @@
 # CODE HEALTH & ORGANIZATION TARGETS
 # =============================================================================
 
-.PHONY: check-file-sizes report-file-sizes codebase-health largest-files check-pi-wire-budget check-prompt-freeze check-prompt-commands check-referenced-paths check-architecture-closure gen-architecture-closure simplicity-metrics simplicity-metrics-fast simplicity-audit simplicity-audit-fast perf-sweep perf-sweep-quick perf-sweep-control
+.PHONY: check-file-sizes report-file-sizes codebase-health largest-files check-pi-wire-budget check-prompt-freeze check-prompt-commands check-referenced-paths check-architecture-closure gen-architecture-closure simplicity-metrics simplicity-metrics-fast simplicity-audit simplicity-audit-fast perf-sweep perf-sweep-quick perf-sweep-control docs-cli check-cli-docs
 .PHONY: fmt fmt-check fmt-check-ail shellcheck-autopush vet lint install-lint
 
 check-referenced-paths: ## Check that referenced tools/scripts paths exist and are tracked
@@ -241,6 +241,35 @@ check-prompt-freeze: ## Check prompt registry integrity (all entries) + frozen i
 check-prompt-commands: ## Every command the devtools prompt teaches must exist in the binary
 	@go build -o bin/ailang ./cmd/ailang
 	@/bin/bash tools/check_prompt_commands.sh bin/ailang
+
+# The CLI reference page is rendered from the dispatch table in
+# cmd/ailang/commands.go — the only place a command name is written down.
+# The renderer and the gate both live in cmd/ailang because the table is
+# `package main` and no other package can read it; `-update-cli-reference`
+# (not `-update`, which internal/parser/testutil.go already registers on
+# flag.CommandLine) turns the gate into the generator.
+docs-cli: ## Regenerate docs/docs/reference/cli.md from the CLI dispatch table
+	@go test ./cmd/ailang -run TestCLIReferenceMatchesTable -count=1 -update-cli-reference
+	@echo "$(GREEN)$(CHECKMARK) docs/docs/reference/cli.md regenerated$(RESET)"
+
+# The gate renders FRESH from the table and compares against the page ON DISK.
+# That direction is the point: a gate pointed at the generated artifact measures
+# the build, not the intent — which is how this sprint's prompt-truth fix passed
+# on a clean checkout and went red after the next build.
+#
+# There is deliberately NO `git diff --exit-code` arm. It was written and
+# removed the same hour: it compares the working tree against the INDEX, so it
+# measures "is the tree clean", not "does the page match the table", and it reds
+# on the correct workflow — edit a Summary, `make docs-cli`, run the gate before
+# committing. In CI the tree is committed, so the on-disk page IS the checked-in
+# page and the Go test is the same comparison without the false positive.
+#
+# TestCLIReferenceCoversEveryRoute is the second arm: the byte-compare alone
+# still passes if the renderer drops a whole section, because the page would
+# drop it too. That one asserts against the TABLE.
+check-cli-docs: ## Every command in the dispatch table appears, correctly, in docs/docs/reference/cli.md
+	@go test ./cmd/ailang -run 'TestCLIReference' -count=1
+	@echo "$(GREEN)$(CHECKMARK) CLI reference matches the dispatch table$(RESET)"
 
 check-pi-wire-budget: ## Assert the output budget pi ACTUALLY sends (real API call; NOT a CI gate)
 	@# Deliberately outside `make ci`: it costs a fraction of a cent, needs
