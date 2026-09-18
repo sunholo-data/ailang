@@ -67,10 +67,11 @@
         "`ailang chains --help` lists the folded subcommands; the eight zero-reference `observatory` subcommands are gone",
         "`go test ./cmd/ailang/... ./internal/observatory/... -count=1` green; chains tests (`chains_list_options`, `chains_live`, `chains_read_backend`, `chains_stats_cvs`) unchanged and passing"
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
       "completed": null,
-      "notes": null
+      "notes": "-2,249 net LOC in cmd/ailang (not the ~5,000 estimated; stopped where the evidence stopped). Fold uses NAMESPACES not flattening \u2014 trace/observatory/dashboard/eval-chains collide with chains and each other on list/view/stats/hierarchy/health, so flattening would have stolen 5 existing chains subcommands. No route removed; 93-route D1 fixture unchanged. 8 observatory subs deleted, each verified 0 refs with git log -S; backfill/repair-ids/cleanup/sync-chat and all 4 trace subs KEPT (live callers). trace/observatory/dashboard bare now exit 1. INSTRUMENT FINDING: pair-equality is blind to a fault the twins share \u2014 a dispatcher mutation broke `trace status` AND `chains trace status` identically while the 31-pair harness still read 31/31; the same mutant moved 762 lines of the before/after diff. Before/after is the real instrument. FOLLOW-UP SHIPPED (20f29dfd6): the fold left ailang devtools-prompt teaching 8 dead commands while check-prompt-freeze stayed green (it pins bytes, not truth) \u2014 fixed, hashes re-banked, new gate `make check-prompt-commands`. A later gatelint pass by another agent dropped 6 inert -short gates M3 had added.",
+      "merged_commit": "f8fcaed7c"
     },
     {
       "id": "M4_D7_REMOVALS_THE_NON_CHAINS_SET",
