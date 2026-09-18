@@ -74,9 +74,6 @@ func TestFolded_TableRowsAreAliasesThatRouteThroughChains(t *testing.T) {
 // printFoldedNamespaces call from printChainsHelp, and this fails naming the
 // namespace that vanished.
 func TestFolded_ChainsHelpListsTheFoldedNamespaces(t *testing.T) {
-	if testing.Short() {
-		t.Skip("runs the binary")
-	}
 	bin := cliTestBin(t)
 	res := runCLIIn(t, bin, t.TempDir(), t.TempDir(), "chains", "--help")
 	if res.timedOut {
@@ -124,9 +121,6 @@ var deletedObservatorySubcommands = []string{
 // Mutation: add `case "heatmap": chainsHealthCommand()` to observatoryCommand
 // and this fails naming heatmap.
 func TestFolded_DeletedObservatorySubcommandsAreGone(t *testing.T) {
-	if testing.Short() {
-		t.Skip("runs the binary 16 times")
-	}
 	bin := cliTestBin(t)
 	home, work := t.TempDir(), t.TempDir()
 
@@ -173,9 +167,6 @@ func TestFolded_DeletedObservatorySubcommandsAreGone(t *testing.T) {
 // Mutation: change the chains namespace dispatch to pass flag.Args()[1:] and
 // this fails on every row, because each prints "Unknown ... subcommand".
 func TestFolded_AnchorTheRouteToRealOutput(t *testing.T) {
-	if testing.Short() {
-		t.Skip("runs the binary several times")
-	}
 	bin := cliTestBin(t)
 	home, work := t.TempDir(), t.TempDir()
 
@@ -210,9 +201,6 @@ func TestFolded_AnchorTheRouteToRealOutput(t *testing.T) {
 // meaningful alongside TestFolded_AnchorTheRouteToRealOutput above — read the
 // file comment before trusting a green run of this test alone.
 func TestFolded_AliasIsByteIdenticalToTheCanonicalSpelling(t *testing.T) {
-	if testing.Short() {
-		t.Skip("runs the binary ~30 times")
-	}
 	bin := cliTestBin(t)
 
 	pairs := []struct {
@@ -290,9 +278,6 @@ func TestFolded_AliasIsByteIdenticalToTheCanonicalSpelling(t *testing.T) {
 // M3 normalises the four it owns. `models`, `workspaces` and `budget` belong
 // to M4/M6 and are deliberately NOT asserted here.
 func TestFolded_BareNamespaceExitsOne(t *testing.T) {
-	if testing.Short() {
-		t.Skip("runs the binary several times")
-	}
 	bin := cliTestBin(t)
 	home, work := t.TempDir(), t.TempDir()
 

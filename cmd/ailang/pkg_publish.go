@@ -92,6 +92,13 @@ func pkgPublishCommand(args []string) error {
 		return fmt.Errorf("asset validation failed: %w", err)
 	}
 
+	// M-PKG-BIN-ENTRYPOINTS (v0.40.0): every [bin] command must resolve to a
+	// file that exports its entry, or `ailang install` would shim a command
+	// that fails at first use.
+	if err := pkg.VerifyBinEntrypoints(cwd, manifest); err != nil {
+		return fmt.Errorf("[bin] validation failed: %w", err)
+	}
+
 	// M-PKG-QUALITY-LADDER M3: the same quality report the validator will
 	// compute — compile, Z3 contracts, signature identity (v2) — plus the
 	// attested checks only this machine runs: tests and the

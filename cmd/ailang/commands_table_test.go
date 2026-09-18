@@ -209,7 +209,8 @@ func TestSuggestCommand(t *testing.T) {
 		in   string
 		want string
 	}{
-		{"chian", "chains"},
+		{"chian", "chains"}, // a transposition (1) + insert (1) = 2; Levenshtein would tie it with "bin" and "check" at 3
+		{"bim", "bin"},
 		{"mesages", "messages"},
 		{"evl-suite", "eval-suite"},
 		{"cheque", "check"},  // 3 edits, still worth offering

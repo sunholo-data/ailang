@@ -29,6 +29,77 @@ type PackageManifest struct {
 	Assets       AssetConfig             `toml:"assets"`      // M-EXT-PORTABILITY-GATE (v0.19.0)
 	Smoke        SmokeConfig             `toml:"smoke"`       // M-EXT-PORTABILITY-GATE follow-up (v0.19.1)
 	Release      ReleaseConfig           `toml:"release"`     // M-PKG-QUALITY-LADDER M4 (design D2)
+	Bin          map[string]BinSpec      `toml:"bin"`         // M-PKG-BIN-ENTRYPOINTS (v0.40.0); see internal/pkg/bin.go
+}
+
+// BinSpec is one entry of the optional [bin] table: a command that
+// `ailang install` shims onto PATH (M-PKG-BIN-ENTRYPOINTS, v0.40.0).
+//
+// Two forms, mirroring Dependency:
+//
+//	[bin]
+//	eparse   = "cli"                                    # module sunholo/email/cli, entry main, caps auto
+//	docparse = { module = "docparse/main", entry = "main", caps = "IO,FS,Env,AI",
+//	             run_flags = ["--max-recursion-depth", "50000"] }
+//
+// Module is resolved with ResolveModuleToFile, exactly as the loader resolves
+// an import, so both "cli" and "sunholo/email/cli" name the same file. Entry
+// defaults to "main". Caps defaults to "auto" (inferred from the entrypoint's
+// declared effects). RunFlags are passed to `ailang run` verbatim, before the
+// file; the flags the shim owns (--caps, --entry, --package-dir, --quiet) are
+// rejected at manifest load.
+type BinSpec struct {
+	Module   string   `toml:"module"`
+	Entry    string   `toml:"entry,omitempty"`
+	Caps     string   `toml:"caps,omitempty"`
+	RunFlags []string `toml:"run_flags,omitempty"`
+}
+
+// UnmarshalTOML accepts `name = "module"` or `name = { module = ..., ... }`.
+func (b *BinSpec) UnmarshalTOML(data interface{}) error {
+	switch v := data.(type) {
+	case string:
+		b.Module = v
+		return nil
+	case map[string]interface{}:
+		if m, ok := v["module"].(string); ok {
+			b.Module = m
+		}
+		if e, ok := v["entry"].(string); ok {
+			b.Entry = e
+		}
+		if c, ok := v["caps"].(string); ok {
+			b.Caps = c
+		}
+		if rf, ok := v["run_flags"].([]interface{}); ok {
+			for _, f := range rf {
+				fs, ok := f.(string)
+				if !ok {
+					return fmt.Errorf("[bin] run_flags entries must be strings, got %T", f)
+				}
+				b.RunFlags = append(b.RunFlags, fs)
+			}
+		}
+		return nil
+	default:
+		return fmt.Errorf("[bin] entry must be a module string or table, got %T", data)
+	}
+}
+
+// EffectiveEntry returns the entrypoint function name, defaulting to "main".
+func (b BinSpec) EffectiveEntry() string {
+	if b.Entry == "" {
+		return "main"
+	}
+	return b.Entry
+}
+
+// EffectiveCaps returns the --caps value for the shim, defaulting to "auto".
+func (b BinSpec) EffectiveCaps() string {
+	if b.Caps == "" {
+		return "auto"
+	}
+	return b.Caps
 }
 
 // SmokeConfig holds the optional [smoke] section in ailang.toml.
@@ -357,6 +428,27 @@ func (m *PackageManifest) Validate() error {
 		clean := filepath.Clean(asset)
 		if strings.HasPrefix(clean, "..") || strings.Contains(clean, "../") {
 			return fmt.Errorf("[assets].files entry %q must not escape assets/", asset)
+		}
+	}
+
+	// Validate [bin] block (M-PKG-BIN-ENTRYPOINTS, v0.40.0). The name becomes a
+	// file on PATH, so it is restricted to what every shell and filesystem
+	// accepts unquoted; the shim owns four run flags and refuses to have them
+	// overridden from run_flags, where a duplicate would silently win or lose
+	// depending on flag-package order.
+	for name, spec := range m.Bin {
+		if err := ValidateBinName(name); err != nil {
+			return err
+		}
+		if strings.TrimSpace(spec.Module) == "" {
+			return fmt.Errorf("[bin].%s: module is required (e.g. %s = \"cli\")", name, name)
+		}
+		for _, f := range spec.RunFlags {
+			flagName := strings.SplitN(f, "=", 2)[0]
+			switch flagName {
+			case "--caps", "-caps", "--entry", "-entry", "--package-dir", "-package-dir", "--quiet", "-quiet":
+				return fmt.Errorf("[bin].%s: run_flags may not set %s — the shim owns it (declare caps/entry as fields instead)", name, flagName)
+			}
 		}
 	}
 

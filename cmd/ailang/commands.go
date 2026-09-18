@@ -299,8 +299,13 @@ func suggestCommand(name string) string {
 	return ""
 }
 
-// editDistance is the Levenshtein distance between a and b, over bytes.
+// editDistance is the optimal-string-alignment distance between a and b, over
+// bytes: Levenshtein plus an adjacent transposition at cost 1. Swapped letters
+// are the commonest typo, and pure Levenshtein charges them 2, which is what
+// let "chian" (a swap away from "chain") tie with "bin" and "check" at 3 the
+// day `bin` joined the table.
 func editDistance(a, b string) int {
+	prev2 := make([]int, len(b)+1)
 	prev := make([]int, len(b)+1)
 	cur := make([]int, len(b)+1)
 	for j := 0; j <= len(b); j++ {
@@ -314,8 +319,11 @@ func editDistance(a, b string) int {
 				cost = 0
 			}
 			cur[j] = min3(cur[j-1]+1, prev[j]+1, prev[j-1]+cost)
+			if i > 1 && j > 1 && a[i-1] == b[j-2] && a[i-2] == b[j-1] && prev2[j-2]+1 < cur[j] {
+				cur[j] = prev2[j-2] + 1
+			}
 		}
-		prev, cur = cur, prev
+		prev2, prev, cur = prev, cur, prev2
 	}
 	return prev[len(b)]
 }

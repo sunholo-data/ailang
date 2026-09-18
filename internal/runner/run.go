@@ -44,6 +44,7 @@ type Options struct {
 	DebugCompile        bool
 	StrictSyntax        bool
 	RelaxModules        bool
+	PackageDir          string // explicit package root (ailang.toml/ailang.lock); "" = search upward from the file
 	DebugTypes          bool
 	DebugTypesNode      uint64
 	Release             bool
@@ -209,6 +210,7 @@ func Run(ctx context.Context, opts Options) int {
 		NoCache:                 config.NoCache(),
 		StrictSyntaxMode:        opts.StrictSyntax,
 		RelaxModules:            relaxModulesEffective,
+		PackageDir:              opts.PackageDir,
 		GlobalResolver:          builtinResolver,     // Provide builtin access for type checking
 		DebugTypes:              opts.DebugTypes,     // M-DX11: Enable type inference debug output
 		DebugTypesNode:          opts.DebugTypesNode, // M-DX11: Filter to specific node ID
@@ -249,10 +251,15 @@ func Run(ctx context.Context, opts Options) int {
 			autoCaps := ResolveAutoCaps(result.Interface, entry)
 			caps = strings.Join(autoCaps, ",")
 			opts.Caps = caps
-			if len(autoCaps) == 0 {
-				fmt.Fprintln(os.Stderr, "auto-granted capabilities: none")
-			} else {
-				fmt.Fprintf(os.Stderr, "auto-granted capabilities: %s\n", caps)
+			// Progress, not program output: an installed [bin] shim runs
+			// --quiet --caps auto on every invocation and its stderr must
+			// stay the program's (M-PKG-BIN-ENTRYPOINTS).
+			if !opts.Quiet {
+				if len(autoCaps) == 0 {
+					fmt.Fprintln(os.Stderr, "auto-granted capabilities: none")
+				} else {
+					fmt.Fprintf(os.Stderr, "auto-granted capabilities: %s\n", caps)
+				}
 			}
 		}
 
