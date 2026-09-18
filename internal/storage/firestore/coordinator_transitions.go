@@ -12,9 +12,29 @@ import (
 
 // --- Task State Transitions ---
 
+// MarkTaskQueued claims a task for dispatch: pending -> queued, atomically, so
+// that exactly one of N concurrent dispatchers wins. Losers get
+// coordinator.ErrTaskNotClaimable and skip the task.
+//
+// A transaction rather than a precondition: Firestore preconditions test
+// existence and update time, not a FIELD VALUE, so "update only if status is
+// still pending" cannot be expressed as one. Read-then-write inside a
+// transaction is the supported form, and Firestore retries it on contention —
+// which is precisely the case this exists for.
 func (s *CoordinatorStore) MarkTaskQueued(ctx context.Context, id string) error {
-	_, err := s.client.Doc(collTasks, id).Update(ctx, []firestore.Update{
-		{Path: "status", Value: string(coordinator.TaskStatusQueued)},
+	doc := s.client.Doc(collTasks, id)
+	err := s.client.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
+		snap, err := tx.Get(doc)
+		if err != nil {
+			return err
+		}
+		status, _ := snap.Data()["status"].(string)
+		if status != string(coordinator.TaskStatusPending) {
+			return coordinator.ErrTaskNotClaimable
+		}
+		return tx.Update(doc, []firestore.Update{
+			{Path: "status", Value: string(coordinator.TaskStatusQueued)},
+		})
 	})
 	if err == nil {
 		s.invalidateStatsCache()

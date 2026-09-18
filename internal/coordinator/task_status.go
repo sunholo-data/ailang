@@ -1,6 +1,10 @@
 package coordinator
 
-import "github.com/sunholo-data/ailang/internal/observatory"
+import (
+	"errors"
+
+	"github.com/sunholo-data/ailang/internal/observatory"
+)
 
 // M-COORDINATOR-EXECUTION-TRUST M2 — a no-op is an outcome, not a silence.
 //
@@ -128,3 +132,13 @@ func ClassifyCompletionStatus(changedFiles []string, branchPushed bool, expectCh
 	}
 	return TaskStatusNoChanges
 }
+
+// ErrTaskNotClaimable is returned by MarkTaskQueued when the task was not in
+// pending status, i.e. some other dispatcher already claimed it (or it has
+// since moved on). It is a NORMAL outcome under concurrency, not a fault: the
+// caller skips the task and the winner dispatches it exactly once.
+//
+// Distinguishable from a store failure on purpose. A dispatcher that cannot
+// tell "someone else has this" from "the database is broken" either dispatches
+// twice or stops dispatching, and both were reachable before this existed.
+var ErrTaskNotClaimable = errors.New("task not claimable: not in pending status")

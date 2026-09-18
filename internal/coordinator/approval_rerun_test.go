@@ -166,7 +166,7 @@ func TestFinalize_RerunAfterRejectionReopensTheApproval(t *testing.T) {
 
 	// Run 2 -> RE-DISPATCHED (which is what clears the ledger) and this time it
 	// produced DIFFERENT work.
-	if err := store.MarkTaskQueued(ctx, task.ID); err != nil {
+	if err := requeueForRerun(t, store, ctx, task.ID); err != nil {
 		t.Fatalf("requeue: %v", err)
 	}
 	if _, err := FinalizeTaskCompletion(ctx, deps, in, fakeDiff{files: []string{"a.md", "b.md"}, stat: "2 files changed"}); err != nil {
@@ -187,7 +187,7 @@ func TestFinalize_RerunAfterRejectionReopensTheApproval(t *testing.T) {
 	if err := store.ResolveApprovalRequestByTask(ctx, task.ID, "rejected", "mark"); err != nil {
 		t.Fatalf("reject again: %v", err)
 	}
-	if err := store.MarkTaskQueued(ctx, task.ID); err != nil {
+	if err := requeueForRerun(t, store, ctx, task.ID); err != nil {
 		t.Fatalf("requeue: %v", err)
 	}
 	if _, err := FinalizeTaskCompletion(ctx, deps, in, fakeDiff{files: []string{"a.md", "b.md"}, stat: "2 files changed"}); err != nil {
@@ -293,7 +293,7 @@ func TestFinalize_RerunWhilePendingRefreshesTheCard(t *testing.T) {
 		t.Fatalf("finalize 1: %v", err)
 	}
 	// Re-dispatched, no decision taken in between.
-	if err := store.MarkTaskQueued(ctx, task.ID); err != nil {
+	if err := requeueForRerun(t, store, ctx, task.ID); err != nil {
 		t.Fatalf("requeue: %v", err)
 	}
 	// Run 2: a DIFFERENT file, which is what the branch now carries.
@@ -317,7 +317,7 @@ func TestFinalize_RerunWhilePendingRefreshesTheCard(t *testing.T) {
 
 	// A REPLAY of run 2 must leave the card exactly as it is.
 	before := got.ContextJSON
-	if err := store.MarkTaskQueued(ctx, task.ID); err != nil {
+	if err := requeueForRerun(t, store, ctx, task.ID); err != nil {
 		t.Fatalf("requeue: %v", err)
 	}
 	if _, err := FinalizeTaskCompletion(ctx, deps, in, fakeDiff{files: []string{"triage/row.md"}, stat: "1 file changed, 11 insertions"}); err != nil {
@@ -327,4 +327,16 @@ func TestFinalize_RerunWhilePendingRefreshesTheCard(t *testing.T) {
 	if got.ContextJSON != before {
 		t.Errorf("a replay rewrote the card: %s", got.ContextJSON)
 	}
+}
+
+// requeueForRerun puts a task back through the dispatch path the way production
+// does: ResetTaskToPending, then the CLAIM. MarkTaskQueued alone used to stand
+// in for this, which worked only because the claim could not refuse — it now
+// rejects anything that is not pending, which is the whole point of it.
+func requeueForRerun(t *testing.T, store *SQLiteStore, ctx context.Context, taskID string) error {
+	t.Helper()
+	if err := store.ResetTaskToPending(ctx, taskID); err != nil {
+		return err
+	}
+	return store.MarkTaskQueued(ctx, taskID)
 }

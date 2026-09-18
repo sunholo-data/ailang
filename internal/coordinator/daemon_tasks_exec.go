@@ -1,6 +1,7 @@
 package coordinator
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -115,9 +116,20 @@ func (d *Daemon) dispatchTasksCloud() error {
 	}
 
 	for _, task := range tasks {
-		// Mark as queued before publishing
+		// CLAIM the task. This is the only thing standing between a task and
+		// two Cloud Run executions of it: the listing above is not exclusive, so
+		// concurrent dispatchers (two instances, or two ticks over a slow list)
+		// see the same pending task and all reach here.
 		if err := d.taskStore.MarkTaskQueued(d.ctx, task.ID); err != nil {
-			d.logger.Printf("Failed to mark task %s as queued: %v", task.ID, err)
+			if errors.Is(err, ErrTaskNotClaimable) {
+				// Normal under concurrency: another dispatcher owns it. Logged
+				// because "we raced and lost" is a fact worth seeing in the log
+				// when duplicate work is being investigated — silence here is
+				// what made the 2026-09-17 triple dispatch hard to attribute.
+				d.logger.Printf("Dispatch: task %s already claimed by another dispatcher, skipping", task.ID)
+			} else {
+				d.logger.Printf("Failed to mark task %s as queued: %v", task.ID, err)
+			}
 			continue
 		}
 

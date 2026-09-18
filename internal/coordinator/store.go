@@ -210,6 +210,15 @@ type Store interface {
 	GetTaskStats(ctx context.Context) (*TaskStats, error)
 
 	// Task state transitions
+	//
+	// MarkTaskQueued CLAIMS a task for dispatch: it moves pending -> queued and
+	// returns ErrTaskNotClaimable if the task is in any other status, so exactly
+	// one caller can win. dispatchTasksCloud has always treated it as a claim
+	// (it skips the task when this errors) but neither store could refuse —
+	// both wrote the status unconditionally, so every concurrent caller "won".
+	// Measured on the prod plane 2026-09-17 20:06: one task, one creation, and
+	// THREE `Cloud dispatch` lines inside 500ms, each producing its own Cloud Run
+	// execution, its own commit and its own completion.
 	MarkTaskQueued(ctx context.Context, id string) error
 	MarkTaskRunning(ctx context.Context, id, provider, worktreeID string) error
 	MarkTaskPendingApproval(ctx context.Context, id, worktreePath, worktreeBranch, baseBranch, baseCommit string, result *ExecuteResult) error // Work done, awaiting human review
