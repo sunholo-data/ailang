@@ -226,7 +226,12 @@ func languageCommands() []Command {
 // main.go's switch. args is the tail after "test".
 func runTestCommand(args []string) error {
 	testFlags := flag.NewFlagSet("test", flag.ExitOnError)
-	formatFlag := testFlags.String("format", "human", "Output format: human or json")
+	// Output format (M-V1-SIMPLIFY-S5 M5): --json is the canonical spelling of
+	// the family; --format human|json is the legacy one and keeps working.
+	// See output_flags.go for why no deprecation line is printed here — the
+	// frozen teaching prompts still teach `--format json`.
+	jsonFlag := registerJSONFlag(testFlags, "Machine-readable JSON output (canonical spelling of --format json)")
+	formatFlag := testFlags.String("format", "human", "Output format: human or json (legacy spelling of --json)")
 	noColorFlag := testFlags.Bool("no-color", false, "Disable colored output")
 	packageFlag := testFlags.Bool("package", false, "Run tests in package mode (discovers *_test.ail via ailang.toml)")
 	allowSkipsFlag := testFlags.Bool("allow-skips", false, "Exit 0 even when all tests are skipped (default: skipped-only suites exit 1)")
@@ -296,12 +301,24 @@ func runTestCommand(args []string) error {
 		cfg.ReplayTarget = replayTargetArg(path)
 	}
 
+	format := resolveTestFormat(*jsonFlag, *formatFlag)
 	if *packageFlag {
-		runPackageTests(path, *formatFlag, !*noColorFlag, *allowSkipsFlag, cfg)
+		runPackageTests(path, format, !*noColorFlag, *allowSkipsFlag, cfg)
 	} else {
-		runTestsV2(path, *formatFlag, !*noColorFlag, *allowSkipsFlag, cfg)
+		runTestsV2(path, format, !*noColorFlag, *allowSkipsFlag, cfg)
 	}
 	return nil
+}
+
+// resolveTestFormat collapses `ailang test`'s two output-format spellings onto
+// one value. --json is the canonical family spelling and wins when passed; the
+// legacy --format is otherwise honoured verbatim, so `--format json` and a bare
+// `ailang test` both emit exactly the bytes they emitted before S5 M5.
+func resolveTestFormat(jsonFlag bool, formatFlag string) string {
+	if jsonFlag {
+		return "json"
+	}
+	return formatFlag
 }
 
 // replayTargetArg renders a CLI argument tail that reproduces a test run,
@@ -336,6 +353,11 @@ func runCheckCommand(args []string) error {
 	timeoutCheck := checkFS.String("timeout", "", "Compilation timeout (e.g., 30s, 2m). Dumps stack on timeout.")
 	debugCompileCheck := checkFS.Bool("debug-compile", false, "Show compilation phase timing breakdown")
 	jsonCheck := checkFS.Bool("json", false, "Output errors in JSON format (for AI/machine consumption)")
+	// --format is kept on `check` (S5 M5): `agent` is a third rendering, not a
+	// boolean, and `check --verify --format agent` is the spelling M2 made
+	// `ai-check` an alias of — pinned by ai_check_exit_test.go and the DP7
+	// done-gate. --json stays the canonical alias of --format json. See
+	// output_flags.go.
 	formatCheck := checkFS.String("format", "human", "Output format: human, json, or agent (compact one-line diagnostics for AI agent context)")
 	quietCheck := checkFS.Bool("quiet", false, "Suppress progress lines, only output errors")
 	packageCheck := checkFS.Bool("package", false, "Check entire package (reads ailang.toml for module discovery)")

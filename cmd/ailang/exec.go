@@ -82,7 +82,10 @@ func runExec() {
 	cloneRepo := fs.String("clone-repo", "", "Egress-enabled sandbox clones this public git URL, checks out the target revision, and reviews in-sandbox (gemini/managed_agents only)")
 	cloneSHA := fs.String("clone-sha", "", "Target 40-hex commit SHA for --clone-repo (default: shallow HEAD clone). Requires --clone-repo")
 
-	// Output flags
+	// Output flags. --stream-json is NOT folded into --json (S5 M5): the two
+	// names mean different things here — an NDJSON event stream during the run
+	// (default ON) versus one JSON object at the end — and --json is already
+	// taken below with the second meaning. See output_flags.go.
 	streamJSON := fs.Bool("stream-json", true, "Output NDJSON streaming events")
 	quiet := fs.Bool("quiet", false, "Suppress streaming output, only show final result")
 	jsonOutput := fs.Bool("json", false, "Output result as single JSON object (for programmatic use)")
