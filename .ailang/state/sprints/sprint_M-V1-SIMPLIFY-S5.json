@@ -105,10 +105,11 @@
         "`--dry-run` audited at every site: any site where the default was already \"don't act\" is listed in the report, not silently flipped",
         "snapshot diff shows no stdout change for any existing invocation"
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
       "completed": null,
-      "notes": null
+      "notes": "--json canonical; test --format json, eval-paired/eval-censored --pretty, eval-suite --models all gain the canonical spelling with the old one working. DECLINED with reasons: check --format (agent is a third rendering, not a boolean; ai-check/DP7 contract), exec --stream-json (exec ALREADY has --json meaning something else \u2014 one object at the end vs an NDJSON stream during; two questions not two spellings), and ALL deprecation warnings (15 FROZEN prompts teach `test --format json` and pkg_quality.go execs it \u2014 warning = the ailang fmt defect; --models has ~180 call sites = de-facto caller sweep, out of scope). --dry-run: 14 sites not 13, 'default acts' already held everywhere, nothing flipped; audit is now an AST test with a scanner control. flag_names_distinct 384->384 and UNMEETABLE this release by construction (D1 keeps old spellings registered) \u2014 M5 said so rather than gaming it; M6 should count canonical names.",
+      "merged_commit": "342d031b6"
     },
     {
       "id": "M6_GENERATED_CLI_REFERENCE_METRIC",
