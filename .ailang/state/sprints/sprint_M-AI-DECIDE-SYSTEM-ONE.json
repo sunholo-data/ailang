@@ -1,0 +1,73 @@
+{
+  "sprint_id": "M-AI-DECIDE-SYSTEM-ONE",
+  "status": "not_started",
+  "created": "2026-09-18T12:45:07Z",
+  "design_doc": "design_docs/planned/m-ai-decide-system-one.md",
+  "sprint_plan": "design_docs/planned/m-ai-decide-system-one-sprint-plan.md",
+  "github_issues": [
+    1,
+    4
+  ],
+  "velocity": {
+    "target_loc_per_day": 400,
+    "estimated_total_loc": 720,
+    "estimated_days": 2
+  },
+  "features": [
+    {
+      "id": "M1",
+      "name": "sunholo/decisions package",
+      "description": "Pure-AILANG package over std/net+std/json+std/env: Question/Answer/DecideError/Decision/Gate ADTs, pure buildRequest/parseAnswers/questionsToJsonSchema/answer/gate/expectedScore, effectful decide ! {Net, Env}; fixture tests, _smoke, AGENT.md, pkg quality, publish.",
+      "estimated_loc": 330,
+      "estimated_hours": 4,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "ailang check clean and ailang test --package green in packages/decisions",
+        "Mutation: deleting the score arm fails a test; empty-Ok on missing name fails a test",
+        "ailang pkg quality . exit 0 and package published; import pkg/sunholo/decisions/decide resolves",
+        "AGENT.md states non-determinism and not-in-AI-budget limitations verbatim; gate is three-way; no default thresholds"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "name": "Price the model + example manifest",
+      "description": "models.yml row or-typesafe-jev-1-13 with api_name typesafe/jev-1.13 and alias typesafe/jev-1-13 (resolver normalises only the query); resolve+price tests; suite-exclusion test; manifest entry for examples/runnable/decide_jev.ail.",
+      "estimated_loc": 60,
+      "estimated_hours": 1.5,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Resolve(typesafe/jev-1.13-20260917) and Resolve(typesafe/jev-1.13) hit the row; PriceTokens(424,73)=1.7808e-05",
+        "Test proves the key is in no suite list and carries no agent_* fields",
+        "go run ./scripts/validate_manifest.go --ci green with decide_jev listed",
+        "go test ./internal/modelreg/ ./internal/observatory/ green"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "name": "Shadow lane-router measurement",
+      "description": "tools/decisions: routed_docs.sh (45 docs -> declared lane JSONL), lane_shadow.ail (arm A decide; arm B chat-completions json_schema on the same Net transport with own LlmAnswer type; D6 rows), lane_shadow_report.sh (agreements, confidence tertiles, cost/latency/timeouts); run it; report + PROGRAM.md candidate row + CHANGELOG.",
+      "estimated_loc": 330,
+      "estimated_hours": 5,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "design_docs/planned/m-ai-decide-system-one-shadow-report.md committed with Jev/label, LLM/label, Jev/LLM agreement, tertile table, per-arm cost/latency/timeouts",
+        "No importer of pkg/sunholo/decisions/ outside tools/decisions and examples (nothing acts)",
+        "PROGRAM.md section 5b candidate row decision-gate; CHANGELOG Unreleased entry; design-doc footer summary"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
