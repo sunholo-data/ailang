@@ -1,7 +1,7 @@
 # M-PKG-BIN-ENTRYPOINTS: `[bin]` — install a CLI from an AILANG package
 
-**Status**: Implemented on dev (2026-09-17, same day) — moves to implemented/ at the v0.40.0 release
-**Target**: v0.40.0
+**Status**: Implemented
+**Target**: v0.40.1 (designed against v0.40.0; the release cut underneath the PR)
 **Priority**: P0
 **Estimated**: 1.5 days
 **Dependencies**: None (builds on M-PKG-PACKAGE-SYSTEM v0.9.5, the ailang#671 package-search fix, `--caps auto`)
@@ -385,4 +385,62 @@ All rows checked on 2026-09-17 against HEAD `62bf3993b` (AILANG v0.39.5-19).
 ---
 
 **Document created**: 2026-09-17
-**Last updated**: 2026-09-17
+**Last updated**: 2026-09-18
+
+## Implementation Report
+
+**Shipped on dev 2026-09-18:** PR #1256 (`1adc48285`, six commits incl. three rebases over
+M-V1-SIMPLIFY-S5 M1–M4), then `68bb6d6e7` (field fix) and `b1e1099c3` (prompt + docs).
+
+### What was built
+
+Exactly the design, with two deviations forced by dev moving underneath:
+
+- `bin` is a **`pkg` verb** (`ailang pkg bin list|uninstall`) with the bare `ailang bin` spelling
+  generated from the same row (`pkgLegacyTopLevel`) — S5 M2 turned the registry verbs into one table
+  while the PR was open. The design's `case "bin"` in `main.go` no longer exists as a shape.
+- `editDistance` for did-you-mean became optimal-string-alignment: adding a three-letter route
+  tied `chian` between `chains`, `bin` and `check` at 3 under plain Levenshtein.
+
+### Field fix (email-parse, 2026-09-18, same day)
+
+The shim passed MOD010 **only from `/`**: `CanonicalModuleID` strips the leading `/` of the absolute
+entry path and `declaredModuleMatchesPackageLayout` then `filepath.Abs`'d the stripped id at the
+caller's cwd. Two test gaps let it through — the manual E2E had been run from `cd /`, and the Go E2E's
+package sat in `t.TempDir()` where the temp-path relaxation carried it silently. Fixed by comparing
+`ast.File.Path` (what the loader read) with the reattached-slash form as fallback; pinned by
+`TestDeclaredModuleMatchesPackageLayout_AbsoluteEntryFromAnyCwd` (mutation-checked) and an
+empty-stderr assertion in `TestInstallPath_ShimRunsFromAnyCwd`. Verified end to end by the
+reporter (email-parse) against `packages/email` from `/private/tmp`, `$HOME` and the repo.
+
+### Code locations
+
+- `internal/pkg/bin.go` (+320) / `bin_test.go` (+330): name validation, `ResolveBinFile`,
+  `VerifyBinEntrypoints`, `EnsureLock`, `WriteShim`/`shimBody`/`shimPath` (goos-parameterised),
+  `ReadShim`/`ListShims`/`RemoveShim`
+- `internal/pkg/manifest.go` (+90): `BinSpec`, string/table `UnmarshalTOML`, `Validate()` rules
+- `cmd/ailang/pkg_bin.go` (+230) / `pkg_bin_test.go` (+320): `install --path`, `installBinsTo`,
+  `reportPathStatus`, `binCommand`; fake-registry install test; shim executed from another cwd
+- `cmd/ailang/pkg_install.go`, `pkg_publish.go`, `commands_pkg.go`, `commands_groups.go`,
+  `main_run.go`, `main_run_exec.go`, `repl.go`, `commands.go` (edit distance)
+- `internal/runner/run.go`: `Options.PackageDir`; `--quiet` gates the auto-caps line
+- `internal/pipeline/pipeline_module.go` (+30) / `package_layout_test.go` (+70): the field fix
+- Docs: `docs/docs/guides/packages.md` §Commands, `docs/docs/packages/index.mdx`,
+  `prompts/v0.16.6.md` §Shipping a command, `.claude/skills/ailang-packages/{SKILL.md,resources/manifest_reference.md}`
+
+### Success criteria — all met
+
+Every box in §Success Criteria is ticked; the two field-found gaps became the two tests above.
+
+### Known limitations
+
+- Windows `.cmd` shim is rendered and parsed in tests but has not been executed on a Windows runner.
+- Sonar's new-coverage gate counts `internal/` only; `cmd/ailang/pkg_bin.go` coverage is real
+  (~85%) but invisible to it.
+- `ailang install` writes a cache-resident lock only for `[bin]` packages (deferred decision kept).
+
+### Not done here (by design)
+
+- eparse / docparse adding `[bin]` to their manifests and publishing — their repos.
+- `tar.Header.Mode` for executable `assets/` (docparse V7).
+- A release: consumers on released binaries (Daneel's account installs from tags) need v0.40.1.
