@@ -263,7 +263,7 @@ func validateModulePath(mod *loader.LoadedModule, modID string, cfg *Config) err
 	// hit means no warning — otherwise check --package, verify --package and
 	// pkg quality print one "relaxed" warning per file for a layout that is by
 	// design (measured on sunholo/deontic: 9 warnings above a clean report).
-	if cfg.PackageDir != "" && declaredModuleMatchesPackageLayout(cfg.PackageDir, mod.File.Module.Path, modID) {
+	if cfg.PackageDir != "" && declaredModuleMatchesPackageLayout(cfg.PackageDir, mod.File.Module.Path, modID, mod.File.Path) {
 		return nil
 	}
 
@@ -287,7 +287,15 @@ func validateModulePath(mod *loader.LoadedModule, modID string, cfg *Config) err
 // declaredModuleMatchesPackageLayout reports whether the module declared in
 // the file at modID is where the package manifest in packageDir expects that
 // declared path to live (flat root, src/, module_prefix dir or canonical).
-func declaredModuleMatchesPackageLayout(packageDir, declaredPath, modID string) bool {
+//
+// filePath is the file the loader actually read (ast.File.Path), when known.
+// It is the reliable side of the comparison: modID is the CANONICAL id, and
+// CanonicalModuleID strips the leading "/" of an absolute entry path, so an
+// installed [bin] shim's `/Users/x/.ailang/cache/.../cli.ail` arrives here as
+// `Users/x/.ailang/cache/.../cli` and filepath.Abs would then root it at the
+// caller's cwd — the shim worked only from `/` (email-parse, 2026-09-18).
+// The slash is reattached as a fallback for callers that have no file path.
+func declaredModuleMatchesPackageLayout(packageDir, declaredPath, modID, filePath string) bool {
 	manifest, err := pkg.LoadManifest(packageDir)
 	if err != nil {
 		return false
@@ -296,12 +304,29 @@ func declaredModuleMatchesPackageLayout(packageDir, declaredPath, modID string) 
 	if resolved == "" {
 		return false
 	}
-	want, got := strings.TrimSuffix(resolved, ".ail"), strings.TrimSuffix(modID, ".ail")
-	if abs, err := filepath.Abs(want); err == nil {
-		want = abs
+	want := canonicalFilePath(resolved)
+	got := strings.TrimSuffix(modID, ".ail") + ".ail"
+	candidates := []string{got, "/" + got}
+	if filePath != "" {
+		candidates = append([]string{filePath}, candidates...)
 	}
-	if abs, err := filepath.Abs(got); err == nil {
-		got = abs
+	for _, c := range candidates {
+		if canonicalFilePath(c) == want {
+			return true
+		}
 	}
-	return filepath.Clean(want) == filepath.Clean(got)
+	return false
+}
+
+// canonicalFilePath makes p absolute and, where the file exists,
+// symlink-resolved, so two spellings of one file compare equal (macOS keeps
+// /var/folders behind /private/var/folders).
+func canonicalFilePath(p string) string {
+	if abs, err := filepath.Abs(p); err == nil {
+		p = abs
+	}
+	if real, err := filepath.EvalSymlinks(p); err == nil {
+		p = real
+	}
+	return filepath.Clean(p)
 }

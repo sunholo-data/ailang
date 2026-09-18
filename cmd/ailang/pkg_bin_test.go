@@ -84,13 +84,20 @@ func TestInstallPath_ShimRunsFromAnyCwd(t *testing.T) {
 
 	// The shim runs from an unrelated cwd, receives positional args verbatim
 	// (including ones that look like flags), and keeps stderr clean.
+	//
+	// stderr must be EMPTY, not merely free of runner progress. The package
+	// lives under t.TempDir(), where MOD010 auto-relaxes with a
+	// "WARNING MOD010 (temp-path)" line — so a layout check that fails
+	// silently here shows up as that warning, and an assertion that only
+	// excluded "auto-granted" let the 2026-09-18 cwd bug through (the shim
+	// worked from "/" and nowhere else; email-parse found it).
 	elsewhere := t.TempDir()
 	stdout, stderr, code := testutil.RunBounded(t, elsewhere, 60*time.Second, filepath.Join(binDir, "greet"), "--flag", "two words")
 	if code != 0 || strings.TrimSpace(stdout) != "hello, bin n=2" {
 		t.Fatalf("greet: exit %d stdout %q stderr %q", code, stdout, stderr)
 	}
-	if strings.Contains(stderr, "auto-granted") || strings.Contains(stderr, "Type checking") {
-		t.Errorf("shim stderr must not carry runner progress: %q", stderr)
+	if strings.TrimSpace(stderr) != "" {
+		t.Errorf("shim stderr must be empty (a MOD010 warning here means the package-layout check failed and only the temp-path relaxation saved the run): %q", stderr)
 	}
 	stdout, stderr, code = testutil.RunBounded(t, elsewhere, 60*time.Second, filepath.Join(binDir, "greet-args"), "a", "--b=c")
 	if code != 0 || strings.TrimSpace(stdout) != "[a, --b=c]" {
