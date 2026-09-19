@@ -77,6 +77,22 @@ type FeedbackGateConfig struct {
 	// Classifier is the injected last-resort JSON classifier (M3). Nil =>
 	// classifier stage skipped.
 	Classifier *Classifier `yaml:"-" json:"-"`
+
+	// ShadowMode runs a System One decision model (sunholo/decisions) beside
+	// the classifier and records both in the audit row: off | openrouter |
+	// direct. Empty defaults to off. Enabling it sends the submission body to
+	// TypeSafe — the data-boundary ruling is the operator's, made by enabling.
+	// Env AILANG_FEEDBACK_GATE_SHADOW overrides.
+	ShadowMode string `yaml:"shadow" json:"shadow,omitempty"`
+
+	// ShadowFallbackModel is the OpenRouter chat model the shadow degrades to
+	// when the System One call fails (sunholo/decisions decideOrFallbackVia).
+	// Empty = no fallback (the failure is recorded as such).
+	ShadowFallbackModel string `yaml:"shadow_fallback_model" json:"shadow_fallback_model,omitempty"`
+
+	// Shadow is the injected runner (M-AI-DECIDE-SYSTEM-ONE). Nil => no shadow
+	// regardless of ShadowMode.
+	Shadow ShadowRunner `yaml:"-" json:"-"`
 }
 
 // normalized returns a copy of the config with empty/zero fields filled with

@@ -31,6 +31,12 @@ A site is a **drop-in** only if every field its consumer *branches on* is a cate
 - **For Go callers: not directly.** Route 1 is `internal/embed` (the repo's policy-in-AILANG pattern); route 2 is Phase 2 (`std/ai.decide` + `DecisionProvider`, which also brings budget/trace accounting). AGENT.md says: do not hand-roll the HTTP call in Go meanwhile — that is a second implementation of one seam.
 - **What no doc can settle: the data boundary.** Every site above sends content to a vendor under some ruling (Anthropic for feedback, Gemini for email, Vertex for Daneel). Switching a site to TypeSafe-via-OpenRouter extends that ruling; AGENT.md now says so in one line.
 
+## Status (2026-09-19)
+
+- **#1 feedback gate — shadow IMPLEMENTED, off by default** (`internal/feedbackgate/shadow.go`, `shadow/feedback_shadow.ail`, coordinator wiring + audit row). Enable with `coordinator.feedback_gate.shadow: openrouter|direct` or `AILANG_FEEDBACK_GATE_SHADOW=…` on the daemon; that is the ruling. Compare arms with the `feedback-gate-audit` inbox rows (`shadow.agrees`, `shadow.would_action`). The plane's triage of #1262 (approval queue) found the mapping deltas this implementation follows: injection → reject, `none` files before genuine, category must MATCH the declared category, real enums.
+- **#2 eparse triage** — proposal dispatched (#1263), not implemented; needs the IFC/Declassify check and the vendor ruling first.
+- **#3 Daneel** — question dispatched (#1264); the plane's answer is in the approval queue.
+
 ## Recommended order
 
 1. **Feedback gate shadow** (#1): run `sunholo/decisions` beside Haiku on live traffic via an embed shim, log both into the existing audit table, compare on the next 200 messages. Real traffic, an audit path already built, and the field mapping is exact.

@@ -163,16 +163,19 @@ func applyClassifier(ctx context.Context, in Input, cfg FeedbackGateConfig) (Ver
 	if err != nil {
 		// Provider error is NOT a gate-level error we propagate — a flaky
 		// classifier must not open the gate. Fail closed to file.
-		return Verdict{Action: ActionFile, Reason: ReasonClassifierError}, nil
+		return runShadow(ctx, in, cfg, Verdict{Action: ActionFile, Reason: ReasonClassifierError}), nil
 	}
 
 	var result classifierResult
 	if perr := json.Unmarshal([]byte(strings.TrimSpace(resp.Text)), &result); perr != nil {
 		// Malformed JSON → fail closed.
-		return Verdict{Action: ActionFile, Reason: ReasonClassifierParseFailed}, nil
+		return runShadow(ctx, in, cfg, Verdict{Action: ActionFile, Reason: ReasonClassifierParseFailed}), nil
 	}
 
-	return classifierVerdict(in, result), nil
+	// The System One shadow runs on exactly the messages the classifier saw
+	// (same pre-filter, same budget gate), so the two arms are compared on the
+	// same population. It cannot change the verdict (shadow.go).
+	return runShadow(ctx, in, cfg, classifierVerdict(in, result)), nil
 }
 
 // classifierVerdict maps a parsed classifier result to a Verdict per the M3

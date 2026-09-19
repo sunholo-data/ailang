@@ -14,6 +14,7 @@ const (
 	EnvBackstopSweep           = "AILANG_BACKSTOP_SWEEP"
 	EnvFeedbackGateMode        = "AILANG_FEEDBACK_GATE_MODE"
 	EnvFeedbackGateDryRun      = "AILANG_FEEDBACK_GATE_DRY_RUN"
+	EnvFeedbackGateShadow      = "AILANG_FEEDBACK_GATE_SHADOW"
 	EnvResidentProject         = "RESIDENT_LIFECYCLE_PROJECT"
 	EnvResidentRegion          = "RESIDENT_LIFECYCLE_REGION"
 	EnvResidentAudience        = "RESIDENT_LIFECYCLE_AUDIENCE"
@@ -48,6 +49,7 @@ var coordinatorVars = []Var{
 	{EnvBackstopSweep, "report", AreaCoordinator, "Backstop sweep mode: dispatch runs stranded work, off disables the sweep, report (and any other value) only reports."},
 	{EnvFeedbackGateMode, "", AreaCoordinator, "Overrides the feedback gate's configured mode (operator kill-switch)."},
 	{EnvFeedbackGateDryRun, "", AreaCoordinator, "1, true, yes or on forces the feedback gate into dry-run."},
+	{EnvFeedbackGateShadow, "", AreaCoordinator, "off | openrouter | direct: runs a System One decision model (sunholo/decisions, TypeSafe Jev) beside the feedback-gate classifier and records both verdicts in the audit row; never changes the action. Enabling it sends the submission body to TypeSafe — the operator's data-boundary ruling. Overrides coordinator.feedback_gate.shadow."},
 	{EnvResidentProject, "", AreaCoordinator, "Project of the resident Cloud Run instances the lifecycle routes start and stop."},
 	{EnvResidentRegion, "", AreaCoordinator, "Region of the resident instances."},
 	{EnvResidentAudience, "", AreaCoordinator, "ID-token audience the lifecycle routes verify; unset means nobody may call them."},
@@ -102,6 +104,12 @@ func FeedbackGateMode() string { return strings.TrimSpace(get(EnvFeedbackGateMod
 // FeedbackGateDryRun returns AILANG_FEEDBACK_GATE_DRY_RUN verbatim; the
 // coordinator applies its truthiness rule.
 func FeedbackGateDryRun() string { return get(EnvFeedbackGateDryRun) }
+
+// FeedbackGateShadow returns AILANG_FEEDBACK_GATE_SHADOW lower-cased and
+// trimmed, "" when unset.
+func FeedbackGateShadow() string {
+	return strings.ToLower(strings.TrimSpace(get(EnvFeedbackGateShadow)))
+}
 
 // ResidentLifecycle is the resident-instance lifecycle configuration.
 type ResidentLifecycle struct {
