@@ -72,6 +72,26 @@ run time yet). Keep the lists short: they are the boundary.
   coordinator reads the file and forwards its **content** as `AILANG_AGENT_POLICY_TOML`, which
   `execute-job` materialises read-only under `~/.ailang/agent-policy/` (outside the workspace).
   A missing `policy_path` file fails the dispatch loudly rather than sending a refusing agent.
+- **A local pi session (developing a package on your own disk)**: nothing attaches a policy for
+  you, so `ailang_run` and `ailang_cli` refuse with `AILANG_AGENT_POLICY is unset` — that is the
+  gate working, not a missing feature (measured 2026-09-19: a local session on `packages/decisions`
+  reported `version`, `tree` and `messages` "refused" and a stale binary; the cloud run of the same
+  package the same morning had 0 refusals). Attach one explicitly, and keep the binary current:
+
+  ```bash
+  make quick-install                                   # the lane extension shells out to `ailang` on PATH
+  cat > /tmp/dev-policy.toml <<'EOF'
+  allowed_caps  = ["IO", "FS", "Process"]
+  fs_sandbox    = "/path/to/your/checkout"             # must NOT contain /tmp/dev-policy.toml (D4)
+  process_allow = ["git:status", "git:diff", "git:log"]
+  entry         = "main"
+  EOF
+  AILANG_AGENT_POLICY=/tmp/dev-policy.toml pi $(ailang pi tool-profile ailang_only)
+  ```
+
+  `messages`, `publish`, `install` stay refused on the lane by design: an executor never touches
+  the plane or the registry itself — a message reaches it in the task body, and publishing is the
+  wrapper's or a human's step. `ailang pkg quality` does not exist in any binary.
 - **Resident instances**: `resident-instance.sh create|update … --policy-file agent-policy.toml`.
   The file travels as `AILANG_AGENT_POLICY_TOML` and `boot.sh` materialises it **read-only
   outside the sandbox** (`~/.resident/policy/`); with no `bash` there is no `chmod` to undo
