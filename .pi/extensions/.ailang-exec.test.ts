@@ -165,3 +165,59 @@ test("lanePrompt: names ailang_cli, the package-ceiling rule, and the allowed su
 	const q = lanePrompt({ policyPath: "/p/policy.toml", refusal: null }, () => 'allowed_caps = ["IO"]\n');
 	assert.match(q, /ailang_cli may run only these subcommands: check, ai-check, iface/);
 });
+
+// ---- the lane prompt is injected ONLY when a policy is attached ----------
+// A plain `pi` on the rig loads this same suite and HAS a shell; telling it
+// otherwise made a local session refuse work it could do (2026-09-19).
+
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { register } from "./ailang-exec.ts";
+const fakeType = { Object: (p: unknown) => p, String: () => "s", Array: () => "a", Optional: (x: unknown) => x };
+
+function fakePi() {
+	const hooks: Record<string, unknown[]> = {};
+	const tools: string[] = [];
+	return {
+		api: {
+			on: (name: string, fn: unknown) => { (hooks[name] ??= []).push(fn); },
+			registerTool: (t: { name: string }) => { tools.push(t.name); },
+			exec: async () => ({ code: 0, stdout: "", stderr: "" }),
+		},
+		hooks, tools,
+	};
+}
+
+test("no policy: tools register, no prompt hook, so a shell-bearing session is not told it has none", async () => {
+	const saved = process.env.AILANG_AGENT_POLICY;
+	delete process.env.AILANG_AGENT_POLICY;
+	try {
+		const f = fakePi();
+		await register(f.api as never, fakeType, process.env);
+		assert.deepEqual(f.tools.sort(), ["ailang_cli", "ailang_run"]);
+		assert.equal(f.hooks["before_agent_start"], undefined);
+	} finally {
+		if (saved !== undefined) process.env.AILANG_AGENT_POLICY = saved;
+	}
+});
+
+test("with a policy: the prompt hook is registered and names the lane", async () => {
+	const dir = mkdtempSync(join(tmpdir(), "lane-"));
+	const pol = join(dir, "policy.toml");
+	writeFileSync(pol, `allowed_caps = ["IO"]\nfs_sandbox = "${join(dir, "ws")}"\nentry = "main"\n`);
+	const saved = process.env.AILANG_AGENT_POLICY;
+	process.env.AILANG_AGENT_POLICY = pol;
+	process.env.AILANG_LANE_TEACHING = "0";
+	try {
+		const f = fakePi();
+		await register(f.api as never, fakeType, process.env);
+		const hook = f.hooks["before_agent_start"]?.[0] as (ev: { systemPrompt: string }) => Promise<{ systemPrompt: string }>;
+		assert.ok(hook, "hook must be registered when a policy is attached");
+		const out = await hook({ systemPrompt: "base" });
+		assert.match(out.systemPrompt, /Execution lane: ailang_only/);
+	} finally {
+		if (saved !== undefined) process.env.AILANG_AGENT_POLICY = saved; else delete process.env.AILANG_AGENT_POLICY;
+		delete process.env.AILANG_LANE_TEACHING;
+	}
+});

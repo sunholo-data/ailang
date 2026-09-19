@@ -159,6 +159,8 @@ export function lanePrompt(gate: PolicyGate, read: (p: string) => string = (p) =
 		"Every effect a program uses must be declared in its entry function's effect row (`! {IO, FS}`); the typechecker enforces this through imports, and the gate admits the program only if the declared row is a subset of the policy below.",
 	];
 	if (gate.refusal || !gate.policyPath) {
+		// Kept for a caller that asks for the text without a policy (tests, status
+		// views); the extension itself no longer injects anything in this state.
 		lines.push(`Execution is NOT granted in this deployment (${gate.refusal ?? "no policy"}). You can still write and type-check programs; say plainly that you cannot run them.`);
 		return lines.join("\n");
 	}
@@ -243,9 +245,13 @@ export function composeEnvelope(code: number, stdout: string, stderr: string): R
 	return { admitted: false, exit_code: code, decision, policy_digest: "", stdout: decision ? "" : stdout, stderr };
 }
 
-export default async function (pi: ExtensionAPI) {
-	const { Type } = await import("typebox");
-	const gate = gateFromEnv(process.env);
+/**
+ * `register` is the extension body with its two dependencies injected so the
+ * registration path is testable without pi or typebox: `Type` builds the tool
+ * parameter schemas, `env` is the process environment.
+ */
+export async function register(pi: ExtensionAPI, Type: TypeLike, env: Record<string, string | undefined> = process.env) {
+	const gate = gateFromEnv(env);
 
 	// Tell the model what it is (pure text from the policy; nothing secret).
 	// Delivered BOTH as a system-prompt section and as a conversation message:
@@ -254,15 +260,24 @@ export default async function (pi: ExtensionAPI) {
 	// so a system-prompt-only injection would silently vanish on the rig's
 	// default pi model. The teaching prompt's shell recipes stay; this section
 	// says they do not apply here.
-	const lane = lanePrompt(gate);
-	// The teaching prompt goes in the SYSTEM role only (it is large); the lane
-	// section goes both ways because some routes drop the system role.
-	const teaching = gate.refusal ? "" : teachingPrompt();
-	const teachingSection = teaching ? `\n\n## AILANG language reference (canonical teaching prompt)\n\n${teaching}` : "";
-	pi.on("before_agent_start", async (ev) => ({
-		systemPrompt: `${ev.systemPrompt}\n\n${lane}${teachingSection}`,
-		message: { customType: "ailang-lane", content: lane, display: false },
-	}));
+	// The lane exists ONLY when a policy is attached. This suite is installed
+	// globally on the rig too, where a plain `pi` has bash and every builtin
+	// tool: injecting "You have NO shell" there talked sessions out of a shell
+	// they had (measured 2026-09-19 — a local session on packages/decisions
+	// reported every command "refused" and asked the operator to run its
+	// runbook by hand). No policy → no prompt; the two tools still register
+	// and refuse with the reason, so a stray call is loud, not silent.
+	if (!gate.refusal) {
+		const lane = lanePrompt(gate);
+		// The teaching prompt goes in the SYSTEM role only (it is large); the lane
+		// section goes both ways because some routes drop the system role.
+		const teaching = teachingPrompt();
+		const teachingSection = teaching ? `\n\n## AILANG language reference (canonical teaching prompt)\n\n${teaching}` : "";
+		pi.on("before_agent_start", async (ev) => ({
+			systemPrompt: `${ev.systemPrompt}\n\n${lane}${teachingSection}`,
+			message: { customType: "ailang-lane", content: lane, display: false },
+		}));
+	}
 
 	pi.registerTool({
 		name: "ailang_run",
@@ -332,4 +347,18 @@ export default async function (pi: ExtensionAPI) {
 			return { content: [{ type: "text", text: JSON.stringify(out) }], details: out };
 		},
 	});
+}
+
+
+// The minimal shape of typebox's Type this file uses; keeps tests free of the package.
+type TypeLike = {
+	Object: (props: Record<string, unknown>) => unknown;
+	String: (opts?: Record<string, unknown>) => unknown;
+	Array: (item: unknown, opts?: Record<string, unknown>) => unknown;
+	Optional: (schema: unknown) => unknown;
+};
+
+export default async function (pi: ExtensionAPI) {
+	const { Type } = await import("typebox");
+	return register(pi, Type as unknown as TypeLike);
 }
