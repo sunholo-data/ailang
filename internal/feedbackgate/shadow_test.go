@@ -129,6 +129,20 @@ func TestShadowRidesBesideHaikuWithoutChangingTheVerdict(t *testing.T) {
 		}
 	})
 
+	t.Run("nil provider (prod coordinator: no Anthropic key) still runs the shadow and fails closed", func(t *testing.T) {
+		sh := &fakeShadow{res: shadowRes(0.9, 0.01, "bug", "high")}
+		cfg := FeedbackGateConfig{ShadowMode: ShadowOpenRouter}.normalized()
+		cfg.Classifier = NewClassifier(nil, DefaultPrompt(), nil)
+		cfg.Shadow = sh
+		v, err := applyClassifier(context.Background(), flaggedInput(), cfg)
+		if err != nil || v.Action != ActionFile || v.Reason != ReasonClassifierError {
+			t.Fatalf("nil provider must file/classifier_error: err=%v v=%+v", err, v)
+		}
+		if v.Shadow == nil || sh.calls != 1 || v.Shadow.WouldAction != ActionDispatch || v.Shadow.Agrees {
+			t.Fatalf("shadow did not run beside the nil-provider path: calls=%d shadow=%+v", sh.calls, v.Shadow)
+		}
+	})
+
 	t.Run("off by default: no runner call, no Shadow on the verdict", func(t *testing.T) {
 		prov := &countingProvider{text: haikuDispatch}
 		sh := &fakeShadow{res: shadowRes(0.9, 0.01, "bug", "high")}

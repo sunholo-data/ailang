@@ -139,9 +139,12 @@ func applyClassifier(ctx context.Context, in Input, cfg FeedbackGateConfig) (Ver
 		}
 	}
 
-	// A nil provider means we cannot classify — fail closed.
+	// A nil provider means we cannot classify — fail closed. The System One
+	// shadow still runs: this is the prod coordinator's configuration (no
+	// Anthropic key on the service), and it is precisely where the shadow's
+	// would-do rows are wanted.
 	if cl.provider == nil {
-		return Verdict{Action: ActionFile, Reason: ReasonClassifierError}, nil
+		return runShadow(ctx, in, cfg, Verdict{Action: ActionFile, Reason: ReasonClassifierError}), nil
 	}
 
 	// No prompt-cache breakpoint here, deliberately (M-ANTHROPIC-CACHE-HIT-RATE
