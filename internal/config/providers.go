@@ -12,6 +12,7 @@ const (
 	EnvClaudeCodeOAuthToken = "CLAUDE_CODE_OAUTH_TOKEN"
 	EnvOpenAIAPIKey         = "OPENAI_API_KEY"
 	EnvOpenRouterAPIKey     = "OPENROUTER_API_KEY"
+	EnvTypeSafeAPIKey       = "TYPESAFE_API_KEY"
 	EnvOllamaAPIKey         = "OLLAMA_API_KEY"
 	EnvGeminiAPIKey         = "GEMINI_API_KEY"
 	EnvGoogleAPIKey         = "GOOGLE_API_KEY"
@@ -24,6 +25,7 @@ var providerVars = []Var{
 	{EnvClaudeCodeOAuthToken, "", AreaProviders, "Claude Code subscription token: a JSON credential blob in cloud containers, which the in-process client resolves third; the claude executor writes it to the credentials file, and the mission loop's Anthropic quota reader uses it (an empty-but-set value deliberately bypasses the keychain)."},
 	{EnvOpenAIAPIKey, "", AreaProviders, "OpenAI API key; the codex executor bootstraps auth.json from it when the file is missing."},
 	{EnvOpenRouterAPIKey, "", AreaProviders, "OpenRouter API key; required by motoko smoke runs and the OpenRouter quota observer."},
+	{EnvTypeSafeAPIKey, "", AreaProviders, "TypeSafe direct API key (System One decision model, Jev): read by the sunholo/decisions package's TypeSafeDirect transport via std/env; the OpenRouter transport uses OPENROUTER_API_KEY instead. No Go code reads it — the row exists so the variable is documented and gated like every other provider key."},
 	{EnvOllamaAPIKey, "", AreaProviders, "Ollama Cloud API key; the mission admission policy observes quota with it."},
 	{EnvGeminiAPIKey, "", AreaProviders, "Gemini API key the factory falls back to when GOOGLE_API_KEY is unset, Vertex ADC is unavailable and no key was given."},
 	{EnvGoogleAPIKey, "", AreaProviders, "Google API key: the Gemini provider's credential variable and the Gemini embedder's key."},
@@ -57,6 +59,9 @@ func OpenAIAPIKey() string { return get(EnvOpenAIAPIKey) }
 
 // OpenRouterAPIKey returns OPENROUTER_API_KEY, "" when unset.
 func OpenRouterAPIKey() string { return get(EnvOpenRouterAPIKey) }
+
+// TypeSafeAPIKey returns TYPESAFE_API_KEY, "" when unset.
+func TypeSafeAPIKey() string { return get(EnvTypeSafeAPIKey) }
 
 // OllamaAPIKey returns OLLAMA_API_KEY, "" when unset.
 func OllamaAPIKey() string { return get(EnvOllamaAPIKey) }
