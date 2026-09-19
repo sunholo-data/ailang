@@ -122,10 +122,18 @@ func feedbackGateShadowRunner(cfg feedbackgate.FeedbackGateConfig, logger *log.L
 		logger.Printf("[feedback-gate] shadow: cannot resolve own binary (%v) — shadow stage OFF", err)
 		return nil
 	}
+	// Prefer a source checkout (attended runs, tests); otherwise materialise
+	// the embedded program — the prod coordinator image carries the binary
+	// only (docker/Dockerfile.agent-base), which is where the classifier runs.
 	dir, err := filepath.Abs(feedbackGateShadowDir)
 	if err != nil || !fileExists(filepath.Join(dir, "feedback_shadow.ail")) {
-		logger.Printf("[feedback-gate] shadow: program not found at %s — shadow stage OFF (run the daemon from the repo root)", dir)
-		return nil
+		mdir, merr := feedbackgate.MaterializeShadowProgram(feedbackgate.DefaultShadowProgramDir())
+		if merr != nil {
+			logger.Printf("[feedback-gate] shadow: no source checkout at %s and materialising the embedded program failed (%v) — shadow stage OFF", dir, merr)
+			return nil
+		}
+		logger.Printf("[feedback-gate] shadow: program materialised from the binary at %s", mdir)
+		dir = mdir
 	}
 	return feedbackgate.NewSubprocessShadow(bin, dir, mode, cfg.ShadowFallbackModel)
 }

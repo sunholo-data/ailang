@@ -35,16 +35,23 @@ func TestFeedbackGateShadowRunnerConstruction(t *testing.T) {
 		}
 	})
 
-	t.Run("missing program directory is logged and off", func(t *testing.T) {
+	t.Run("no source checkout: the embedded program is materialised and the runner points at it", func(t *testing.T) {
 		old := feedbackGateShadowDir
 		feedbackGateShadowDir = filepath.Join(t.TempDir(), "nope")
 		defer func() { feedbackGateShadowDir = old }()
 		logBuf.Reset()
-		if r := feedbackGateShadowRunner(feedbackgate.FeedbackGateConfig{ShadowMode: "openrouter"}, logger); r != nil {
-			t.Fatal("built a runner with no program on disk")
+		r := feedbackGateShadowRunner(feedbackgate.FeedbackGateConfig{ShadowMode: "openrouter"}, logger)
+		sp, ok := r.(*feedbackgate.SubprocessShadow)
+		if !ok || sp == nil {
+			t.Fatalf("runner = %T, want *SubprocessShadow from the embedded program", r)
 		}
-		if !strings.Contains(logBuf.String(), "program not found") {
-			t.Fatalf("no loud log for missing program: %q", logBuf.String())
+		for _, f := range []string{"feedback_shadow.ail", "ailang.toml", "ailang.lock"} {
+			if _, err := os.Stat(filepath.Join(sp.Dir, f)); err != nil {
+				t.Fatalf("materialised program missing %s in %s", f, sp.Dir)
+			}
+		}
+		if !strings.Contains(logBuf.String(), "materialised from the binary") {
+			t.Fatalf("no log for materialisation: %q", logBuf.String())
 		}
 	})
 
