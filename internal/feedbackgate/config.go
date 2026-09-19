@@ -85,6 +85,13 @@ type FeedbackGateConfig struct {
 	// Env AILANG_FEEDBACK_GATE_SHADOW overrides.
 	ShadowMode string `yaml:"shadow" json:"shadow,omitempty"`
 
+	// ShadowAll runs the shadow on EVERY non-agent message that reaches the
+	// classifier stage, not only the heuristic-flagged ones the Haiku
+	// classifier is limited to for cost. The shadow is ~$0.00003 a call and
+	// never acts, so this is how it sees enough traffic to be compared at all
+	// (pkg:* public feedback is rarely auto:-flagged). Default false.
+	ShadowAll bool `yaml:"shadow_all" json:"shadow_all,omitempty"`
+
 	// ShadowFallbackModel is the OpenRouter chat model the shadow degrades to
 	// when the System One call fails (sunholo/decisions decideOrFallbackVia).
 	// Empty = no fallback (the failure is recorded as such).

@@ -155,6 +155,32 @@ func TestShadowRidesBesideHaikuWithoutChangingTheVerdict(t *testing.T) {
 		}
 	})
 
+	t.Run("unflagged public message: shadow only with ShadowAll, Haiku never", func(t *testing.T) {
+		in := baseInput()
+		in.Category = "bug" // no auto: prefix, small body → shouldClassify is false (the common pkg:* case)
+		in.From = "mcp-public"
+		if shouldClassify(in) {
+			t.Fatal("fixture must be unflagged")
+		}
+		for _, all := range []bool{false, true} {
+			prov := &countingProvider{text: haikuDispatch}
+			sh := &fakeShadow{res: shadowRes(0.9, 0.01, "bug", "high")}
+			cfg := FeedbackGateConfig{ShadowMode: ShadowOpenRouter, ShadowAll: all}.normalized()
+			cfg.Classifier = NewClassifier(prov, DefaultPrompt(), nil)
+			cfg.Shadow = sh
+			v, _ := applyClassifier(context.Background(), in, cfg)
+			if v.Action != ActionDispatch || prov.calls != 0 {
+				t.Fatalf("all=%v: unflagged must pass without Haiku: %+v calls=%d", all, v, prov.calls)
+			}
+			if all && (sh.calls != 1 || v.Shadow == nil || !v.Shadow.Agrees) {
+				t.Fatalf("ShadowAll: shadow did not run: calls=%d shadow=%+v", sh.calls, v.Shadow)
+			}
+			if !all && (sh.calls != 0 || v.Shadow != nil) {
+				t.Fatalf("without ShadowAll the unflagged message must not be shadowed: calls=%d", sh.calls)
+			}
+		}
+	})
+
 	t.Run("agent senders and unflagged messages never reach the shadow either", func(t *testing.T) {
 		prov := &countingProvider{text: haikuDispatch}
 		sh := &fakeShadow{res: shadowRes(0.9, 0.01, "bug", "high")}
