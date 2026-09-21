@@ -22,6 +22,10 @@ type ProcessContext struct {
 	// entry `git:status,gh:pr:list` yields {"git": [["status"]], "gh": [["pr","list"]]}.
 	// A command absent from this map may run with any arguments (M-PROCESS-SUBCMD).
 	Subcommands map[string][][]string
+	// Confined (restricted policy mode, M-EXECUTOR-POLICY-HARDENING M6): only
+	// entries with a confined schema run, through the hardened invocation
+	// process_confined.go builds; exec only — spawn/async are refused.
+	Confined bool
 
 	// Managed process fields are platform-specific (see process_context_managed.go)
 	managedState

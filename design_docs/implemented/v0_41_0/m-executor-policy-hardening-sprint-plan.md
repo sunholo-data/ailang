@@ -307,6 +307,23 @@ verification log appended to the design doc. `make test` green after the intenti
 (`_stream_async_exec_process` row). The three-policy migration is documented, NOT applied (prod
 config plane).
 
+### Milestone 6: Confined git — Process in restricted mode ✅ (2026-09-21, added after M5 at Mark's request)
+
+**Goal:** the executors keep read-only git inside the clone without `trusted_host`.
+**Delivered:** `process_confined.go` (schemas for `git:status/diff/log`, argv built, hardened env
+and `-c` overrides, exec-only), `EffEnv.ProtectGitDir` (`.git/` read-only to every mutating FS op)
+and the same rule in `policy-tool`; `policy.Resolve` admits Process in restricted mode only for
+confined entries and refuses others by name. Red-first: the planted `core.fsmonitor` command RAN
+under plain exec, `--no-index /etc/passwd` returned Ok.
+
+**Acceptance Criteria:**
+- [x] Planted repo config (fsmonitor/external/pager/hooksPath) executes nothing under status/diff/log
+- [x] 13 outside-reaching invocations `NotAllowed` before any process; nothing written outside
+- [x] status/diff/log positive control; caller `GIT_*` does not reach the child
+- [x] `.git/` read-only through every mutating FS op and the tools; `.gitignore` writable
+- [x] `Resolve`: `git:status/diff/log` admitted in restricted mode; `git:push`, `git:*`, `sh` refused by name
+- [x] E2E with the deployed policy shape; mutation-tested with confinement off
+
 ## Success Metrics
 
 - Every counterexample from the audit (F1, F2, N1) is a permanent, red-on-baseline test.

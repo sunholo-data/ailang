@@ -33,12 +33,13 @@ const (
 )
 
 // RestrictedEffects are the labels restricted mode may admit — each has an
-// adapter with containment tests (FS: M1; Net/Stream: M2). Anything else
-// registered in the effect registry is refused until an explicit
-// constrained adapter exists, so a future registry addition defaults to
-// unsupported (AC7).
+// adapter with containment tests (FS: M1; Net/Stream: M2; Process: M6, and
+// only for process_allow entries with a confined schema — see
+// effects.ConfinedProcessEntry). Anything else registered in the effect
+// registry is refused until an explicit constrained adapter exists, so a
+// future registry addition defaults to unsupported (AC7).
 var RestrictedEffects = map[string]bool{
-	"IO": true, "FS": true, "Net": true, "Clock": true, "Rand": true, "Stream": true,
+	"IO": true, "FS": true, "Net": true, "Clock": true, "Rand": true, "Stream": true, "Process": true,
 }
 
 // Proposed restricted-mode defaults (D5). Overridable per policy field.
@@ -202,6 +203,14 @@ func Resolve(p *Policy, digest string) (*Resolved, error) {
 	for _, entry := range p.ProcessAllow {
 		if entry == "" || strings.HasPrefix(entry, ":") || strings.HasSuffix(entry, ":") || strings.Contains(entry, "::") {
 			return nil, fmt.Errorf("process_allow entry %q is malformed (want cmd, cmd:sub or cmd:*)", entry)
+		}
+		// Restricted mode confines Process to the entries that have a
+		// hardened schema (read-only git today, M6). A prefix match on a
+		// subcommand is not a boundary: the repo config and the flags reach
+		// outside the clone.
+		if mode == ModeRestricted && !effects.ConfinedProcessEntry(entry) {
+			return nil, fmt.Errorf("process_allow entry %q has no confined adapter — restricted mode admits Process only for %s; set security_mode = %q to keep it as an operator-approved host integration, or drop it",
+				entry, strings.Join(effects.ConfinedProcessEntries(), ", "), ModeTrustedHost)
 		}
 	}
 	if has("AI") && p.AIProvider == "" {

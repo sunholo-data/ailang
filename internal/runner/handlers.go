@@ -275,8 +275,17 @@ func ApplyPolicy(effCtx *effects.EffContext, res *policy.Resolved) {
 	if res == nil {
 		return
 	}
-	if res.Restricted() && effCtx.Net != nil {
-		effCtx.Net.RefuseProxy = true
+	if res.Restricted() {
+		if effCtx.Net != nil {
+			effCtx.Net.RefuseProxy = true
+		}
+		// M6: Process runs through the confined adapter (read-only git with
+		// a hardened invocation), and `.git/` is read-only to the program so
+		// the repo config the adapter trusts stays the launcher's.
+		if effCtx.Process != nil {
+			effCtx.Process.Confined = true
+		}
+		effCtx.Env.ProtectGitDir = true
 	}
 	if res.MaxFSTransferBytes > 0 {
 		if effCtx.Env.FSMaxBytes == 0 || res.MaxFSTransferBytes < effCtx.Env.FSMaxBytes {

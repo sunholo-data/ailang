@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/sunholo-data/ailang/internal/fileguard"
@@ -134,6 +136,22 @@ func fsRejectProbe(ctx *EffContext, op, path string, err error) {
 	}
 }
 
+// fsCheckMutation refuses a mutating operation on a path with a `.git`
+// component when the sandbox protects the repository metadata
+// (M-EXECUTOR-POLICY-HARDENING M6). Reads are unaffected; `.gitignore` and
+// `.gitattributes` are ordinary files.
+func (ctx *EffContext) fsCheckMutation(path string) error {
+	if ctx == nil || !ctx.Env.ProtectGitDir {
+		return nil
+	}
+	for _, seg := range strings.Split(filepath.ToSlash(filepath.Clean(path)), "/") {
+		if seg == ".git" {
+			return fmt.Errorf("E_FS_PROTECTED: %s is under .git, which is read-only in restricted mode", path)
+		}
+	}
+	return nil
+}
+
 // fsCheckTransfer applies the per-transfer cap (Env.FSMaxBytes, from
 // --fs-max-bytes or the policy's max_fs_transfer_bytes) to a write the way
 // readCapped applies it to a read: refused before any byte reaches the file.
@@ -191,6 +209,9 @@ func (ctx *EffContext) FSOpen(path string) (*os.File, error) {
 
 // FSCreate opens path for truncating write (0644) through the backend.
 func (ctx *EffContext) FSCreate(path string) (*os.File, error) {
+	if err := ctx.fsCheckMutation(path); err != nil {
+		return nil, err
+	}
 	b, err := ctx.fsBackendFor()
 	if err != nil {
 		return nil, err
@@ -201,6 +222,9 @@ func (ctx *EffContext) FSCreate(path string) (*os.File, error) {
 // FSWriteFile writes data to path (0644) through the backend, under the
 // transfer cap.
 func (ctx *EffContext) FSWriteFile(path string, data []byte) error {
+	if err := ctx.fsCheckMutation(path); err != nil {
+		return err
+	}
 	if err := ctx.fsCheckTransfer(path, len(data)); err != nil {
 		return err
 	}
@@ -213,6 +237,9 @@ func (ctx *EffContext) FSWriteFile(path string, data []byte) error {
 
 // FSMkdirAll creates path and its parents through the backend.
 func (ctx *EffContext) FSMkdirAll(path string) error {
+	if err := ctx.fsCheckMutation(path); err != nil {
+		return err
+	}
 	b, err := ctx.fsBackendFor()
 	if err != nil {
 		return err
@@ -222,6 +249,9 @@ func (ctx *EffContext) FSMkdirAll(path string) error {
 
 // FSRemove removes a file, empty directory or link entry through the backend.
 func (ctx *EffContext) FSRemove(path string) error {
+	if err := ctx.fsCheckMutation(path); err != nil {
+		return err
+	}
 	b, err := ctx.fsBackendFor()
 	if err != nil {
 		return err

@@ -73,7 +73,9 @@ func TestResolve_RestrictedRefusesUnadaptedEffects(t *testing.T) {
 	for _, cap := range []string{"Process", "Env", "Secret", "AI", "Cog", "DOM", "Msg", "Debug", "Trace"} {
 		p := restricted("IO", cap)
 		if cap == "Process" {
-			p.ProcessAllow = []string{"git:status"}
+			// Process IS admitted for confined entries (M6); an entry with no
+			// confined schema is what restricted mode refuses.
+			p.ProcessAllow = []string{"sh"}
 		}
 		if cap == "AI" {
 			p.AIProvider = "stub"
@@ -230,5 +232,27 @@ func TestResolved_IsImmutableCopy(t *testing.T) {
 	p.AllowedCaps[0] = "Process"
 	if r.NetAllow[0] != "api.example" || r.Effects[0] == "Process" {
 		t.Errorf("Resolved must not alias the Policy's slices: %+v", r)
+	}
+}
+
+// M6: restricted mode admits Process for entries with a confined schema —
+// read-only git — and refuses any other entry by name.
+func TestResolve_RestrictedConfinedProcess(t *testing.T) {
+	p := restricted("IO", "FS", "Process")
+	p.ProcessAllow = []string{"git:status", "git:diff", "git:log"}
+	r, err := Resolve(p, "d")
+	if err != nil {
+		t.Fatalf("confined git entries must resolve in restricted mode: %v", err)
+	}
+	if !r.Admits("Process") || len(r.ProcessAllow) != 3 {
+		t.Fatalf("%+v", r)
+	}
+	for _, bad := range []string{"git:push", "git:*", "git", "gh:pr:list", "sh"} {
+		p := restricted("IO", "Process")
+		p.ProcessAllow = []string{"git:status", bad}
+		_, err := Resolve(p, "d")
+		if err == nil || !strings.Contains(err.Error(), bad) || !strings.Contains(err.Error(), "trusted_host") {
+			t.Errorf("%s: must be refused by name with the migration, got %v", bad, err)
+		}
 	}
 }

@@ -38,8 +38,9 @@ entry         = "main"
 ```
 
 **`security_mode`.** `restricted` (the default, and the only mode the `ailang_only` lane accepts)
-admits only effects with a confined adapter — `IO`, `FS`, `Net`, `Clock`, `Rand`, `Stream` — and
-refuses everything else in the registry with a named migration. It also refuses a configured
+admits only effects with a confined adapter — `IO`, `FS`, `Net`, `Clock`, `Rand`, `Stream`, and
+`Process` **only for `process_allow` entries with a confined schema** (`git:status`, `git:diff`,
+`git:log` — see below) — and refuses everything else in the registry with a named migration. It also refuses a configured
 HTTP proxy (`E_NET_PROXY_REFUSED`: the destination address cannot be pinned behind one) and has
 no localhost/private/metadata grant. `trusted_host` keeps operator-approved host integrations —
 `Process` with `process_allow`, `AI` with `ai_provider`, `Env`, `Secret` — with conspicuous
@@ -49,13 +50,28 @@ worker gets the operator's full environment, current proxy semantics, and a loop
 is refused at dispatch (`executor.CheckLanePolicy`) — the lane's "no shell" claim cannot sit on a
 host-integration grant; such an agent declares `tool_policy: full` instead.
 
-**Migration (2026-09-21).** A policy that admits `Process`, `AI`, `Env` or `Secret` with no
-`security_mode` now fails at startup: `allowed_caps admits Process, which restricted mode has no
-confined adapter for — set security_mode = "trusted_host" … or drop it`. Either drop the grant
-(the lane then has no `git` at all — there is no confined Process adapter yet) or set
-`security_mode = "trusted_host"` **and** `tool_policy: full`. The deployed lane policies that need
-a decision are `pkg-ailang-only.toml`, `ailang-only-executor.toml` (both admit `Process`) and
-`daneel-executor.toml` (`Process`, `AI`, `Net`) in the multivac config repo.
+**Confined git (restricted mode).** `process_allow = ["git:status", "git:diff", "git:log"]`
+keeps working under restricted mode, and it is now a boundary rather than a prefix match. A
+subcommand prefix is not enough for git: the repo's own config can name commands
+(`core.fsmonitor`, `diff.external`, `diff.<driver>.textconv`, `core.pager`, `core.hooksPath`) and
+read-only subcommands carry flags that reach outside the clone (`--no-index`, `--output`, `-c`,
+`--git-dir`, `-C`, `--exec-path`). So under restricted mode `exec("git", …)` runs through a
+confined adapter (`internal/effects/process_confined.go`): the argv is **built** from a
+per-subcommand schema (only the admitted flags; revs must look like revs; pathspecs stay inside the
+clone), the invocation is hardened (git by absolute path, cwd = sandbox root, the caller's `GIT_*`
+stripped, global/system config disabled, `-c core.fsmonitor=false -c core.hooksPath=/dev/null -c
+core.pager=cat -c diff.external=`, `--no-optional-locks`), and **`.git/` is read-only** to the
+program's FS effect and to the lane's tools — the repo config is the launcher's clone config and
+nothing else. Confined mode is `exec`-only (`spawnProcess`/`asyncExecProcess` are refused). Any
+other `process_allow` entry (`git:push`, `git:*`, `sh`, `gh:…`) is refused at startup by name.
+
+**Migration (2026-09-21).** A policy that admits `AI`, `Env`, `Secret`, or `Process` beyond the
+three confined git entries, with no `security_mode`, now fails at startup with a message naming
+the entry and the `trusted_host` migration. Either drop the grant or set
+`security_mode = "trusted_host"` **and** `tool_policy: full` (the lane does not accept
+`trusted_host`). Of the deployed lane policies in the multivac config repo, `pkg-ailang-only.toml`
+and `ailang-only-executor.toml` (`git:status/diff/log`) need **no change**; `daneel-executor.toml`
+admits `AI` and needs the decision.
 
 **Web search for programs — `std/web`.** `webSearch(query, max)` and `webFetch(url)` are `{Net}`
 effects backed by a fixed endpoint on `ollama.com`; the runtime reads `OLLAMA_API_KEY` itself, so the
@@ -87,7 +103,10 @@ a budget for an unadmitted effect is a contradiction. Keep the lists short: they
   goes through one `os.Root` handle — `..`, absolute paths outside, symlinks whose target leaves
   the root (relative or absolute) and a link swapped between check and use all fail inside the
   syscall. Relative symlinks that stay inside keep working; absolute symlinks are refused even when
-  they point back inside. Every read and write is capped by `max_fs_transfer_bytes`.
+  they point back inside. Every read and write is capped by `max_fs_transfer_bytes`. In restricted
+  mode `.git/` is read-only.
+- **Process**: restricted mode runs only confined read-only git (above); `trusted_host` keeps the
+  prefix-matched allowlist with a cwd and no further claim.
 - **Network**: one destination authorizer runs on **every** hop and connection — HTTP, SSE,
   NDJSON and WebSocket — so a redirect to a host outside `net_allow` is refused before any dial,
   the resolved address is validated and pinned, and `Authorization`/`Cookie`/`Proxy-Authorization`

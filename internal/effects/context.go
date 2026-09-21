@@ -156,6 +156,11 @@ type EffEnv struct {
 	// FSMaxBytes caps every FS read; 0 = unbounded (the CLI default).
 	// serve-api sets it to its upload cap (M-V1-MEMORY-FOOTPRINT M3, D-C).
 	FSMaxBytes int64
+	// ProtectGitDir (restricted policy mode, M-EXECUTOR-POLICY-HARDENING M6):
+	// any path with a `.git` component is read-only to every mutating FS
+	// op, so the repo config the confined git adapter trusts stays the
+	// launcher's.
+	ProtectGitDir bool
 }
 
 // ClockContext provides monotonic time for Clock effect

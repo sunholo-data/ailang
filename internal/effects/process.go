@@ -142,11 +142,26 @@ func processExec(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 		return makeProcessResultErr(denial.Ctor, denial.Detail), nil
 	}
 
+	// Step 1b: confinement (restricted mode) — the argv is rebuilt from the
+	// subcommand's schema and the environment hardened; a token the schema
+	// does not admit is a denial before any process exists.
+	var confinedEnvironment []string
+	if pc.Confined {
+		var cdenial *ProcessDenial
+		resolvedPath, cmdArgs, confinedEnvironment, cdenial = pc.confine(cmdName, cmdArgs)
+		if cdenial != nil {
+			return makeProcessResultErr(cdenial.Ctor, cdenial.Detail), nil
+		}
+	}
+
 	// Step 2: Set up command with timeout
 	execCtx, cancel := context.WithTimeout(context.Background(), pc.Timeout)
 	defer cancel()
 
 	cmd := exec.CommandContext(execCtx, resolvedPath, cmdArgs...)
+	if confinedEnvironment != nil {
+		cmd.Env = confinedEnvironment
+	}
 
 	// WaitDelay bounds how long cmd.Run() blocks on the I/O pipes after the process exits or the
 	// context fires. Without it, an orphaned grandchild (e.g. `find /` in a `find / | head` pipeline

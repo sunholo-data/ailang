@@ -3,6 +3,7 @@ package policytool
 import (
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -49,12 +50,27 @@ func (h *Host) read(req Request) Response {
 	return Response{OK: true, Content: string(data)}
 }
 
+// underGitDir reports whether a path has a `.git` component: the repository
+// metadata is read-only to the agent (M6) — the confined git adapter trusts
+// the clone's config, so the tools must not be a way to plant one.
+func underGitDir(path string) bool {
+	for _, seg := range strings.Split(filepath.ToSlash(filepath.Clean(path)), "/") {
+		if seg == ".git" {
+			return true
+		}
+	}
+	return false
+}
+
 func (h *Host) write(req Request) Response {
 	if r := h.needRoot(); r != nil {
 		return *r
 	}
 	if req.Path == "" {
 		return refuse("write: path is required")
+	}
+	if underGitDir(req.Path) {
+		return refuse("write %s: .git/ is read-only to the lane's tools", req.Path)
 	}
 	if int64(len(req.Content)) > h.maxTransfer() {
 		return refuse("write %s: content exceeds the %d-byte transfer cap", req.Path, h.maxTransfer())
@@ -85,6 +101,9 @@ func (h *Host) edit(req Request) Response {
 	}
 	if req.OldText == "" {
 		return refuse("edit %s: old_text is required (use write to create a file)", req.Path)
+	}
+	if underGitDir(req.Path) {
+		return refuse("edit %s: .git/ is read-only to the lane's tools", req.Path)
 	}
 	cur := h.read(Request{Path: req.Path})
 	if !cur.OK {

@@ -20,7 +20,9 @@ func writePolicyFixture(t *testing.T, dir, caps string) string {
 		t.Fatal(err)
 	}
 	p := filepath.Join(dir, "policy.toml")
-	body := "allowed_caps = [" + caps + "]\nfs_sandbox = \"" + filepath.ToSlash(sandbox) + "\"\nentry = \"main\"\n"
+	// 30s: these fixtures test admission and plumbing, not the deadline; the
+	// binary's own startup (observatory health check) can cost >1s locally.
+	body := "allowed_caps = [" + caps + "]\nfs_sandbox = \"" + filepath.ToSlash(sandbox) + "\"\nentry = \"main\"\ntimeout_ms = 30000\n"
 	if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -163,13 +165,17 @@ func TestRunPolicy_BudgetsEnforcedAsOperatorCeiling(t *testing.T) {
 func TestRunPolicy_FineGrainedCapsNarrowOrRefuse(t *testing.T) {
 	bin := buildAilang(t)
 	dir := t.TempDir()
-	// Process is a host integration: restricted mode refuses it BY NAME with
-	// the trusted_host migration (M-EXECUTOR-POLICY-HARDENING D3) …
+	// Restricted mode admits Process only for entries with a confined schema
+	// (read-only git, M6); any other entry is refused BY NAME with the
+	// trusted_host migration (D3).
 	pol := writePolicyFixture(t, dir, `"IO", "Process"`)
+	if err := os.WriteFile(pol, []byte("allowed_caps = [\"IO\", \"Process\"]\nprocess_allow = [\"sh\"]\nentry = \"main\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	f := writeAil(t, dir, "prog.ail", ioProgram)
 	_, stderr, code := runAilangBin(t, bin, "run", "--policy", pol, f)
-	if code != 1 || !strings.Contains(stderr, "Process") || !strings.Contains(stderr, "trusted_host") {
-		t.Fatalf("Process under restricted mode must be refused naming the migration: exit %d\n%s", code, stderr)
+	if code != 1 || !strings.Contains(stderr, `"sh"`) || !strings.Contains(stderr, "trusted_host") {
+		t.Fatalf("an unconfined Process entry under restricted mode must be refused naming the migration: exit %d\n%s", code, stderr)
 	}
 	// … and in trusted_host, Process without process_allow is refused by name.
 	if err := os.WriteFile(pol, []byte("allowed_caps = [\"IO\", \"Process\"]\nsecurity_mode = \"trusted_host\"\nentry = \"main\"\n"), 0o644); err != nil {

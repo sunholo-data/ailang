@@ -137,6 +137,11 @@ func ProcessCloseStdin(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 
 // resolveCommand resolves a command name to an absolute path using ProcessContext.
 func resolveCommand(pc *ProcessContext, cmdName string, args []string) (string, error) {
+	if pc != nil && pc.Confined {
+		// Confined mode is exec-only: a long-lived child with an open stdin
+		// has no hardened shape (M-EXECUTOR-POLICY-HARDENING M6).
+		return "", &ProcessDenial{Ctor: "NotAllowed", Detail: cmdName + " (spawnProcess is not available under confined Process; use exec)"}
+	}
 	resolved, denial := pc.Authorize(cmdName, args)
 	if denial != nil {
 		return "", denial

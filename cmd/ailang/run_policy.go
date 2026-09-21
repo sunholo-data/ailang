@@ -167,11 +167,11 @@ func applyRunPolicy(policyPath, filename string, w runPolicyWidening, control *o
 		netDomains:        strings.Join(res.NetAllow, ","),
 		netAllowHTTP:      res.NetAllowHTTP,
 		netAllowLocalhost: !res.Restricted() && listsLoopback(res.NetAllow),
-		processAllow: strings.Join(res.ProcessAllow, ","),
-		sandbox:      res.Root,
-		entry:        res.Entry,
-		digest:       res.Digest,
-		aiStub:       res.AIProvider == "stub",
+		processAllow:      strings.Join(res.ProcessAllow, ","),
+		sandbox:           res.Root,
+		entry:             res.Entry,
+		digest:            res.Digest,
+		aiStub:            res.AIProvider == "stub",
 	}
 	if res.AIProvider != "" && res.AIProvider != "stub" {
 		resolved.aiModel = res.AIProvider

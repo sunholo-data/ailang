@@ -62,6 +62,9 @@ func StreamAsyncExecProcess(ctx *EffContext, args []eval.Value) (eval.Value, err
 	if err := ctx.RequireCap("Process"); err != nil {
 		return nil, fmt.Errorf("_stream_async_exec_process: %w", err)
 	}
+	if ctx.Process != nil && ctx.Process.Confined {
+		return nil, fmt.Errorf("_stream_async_exec_process: a process source is not available under confined Process (restricted mode is exec-only)")
+	}
 
 	// Resolve command path via the one Process authorizer (allowlist + subcommands + LookPath)
 	resolvedPath, denial := ctx.Process.Authorize(cmdVal.Value, cmdArgs)

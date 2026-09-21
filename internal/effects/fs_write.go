@@ -54,6 +54,9 @@ func fsWriteFile(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 	if err := ctx.fsCheckTransfer(path, len(data)); err != nil {
 		return nil, err
 	}
+	if err := ctx.fsCheckMutation(path); err != nil {
+		return nil, err
+	}
 	b, err := ctx.fsBackendFor()
 	if err != nil {
 		return nil, err
@@ -81,6 +84,9 @@ func fsWriteFileBytes(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 	if err := ctx.fsCheckTransfer(path, len(data)); err != nil {
 		return nil, err
 	}
+	if err := ctx.fsCheckMutation(path); err != nil {
+		return nil, err
+	}
 	b, err := ctx.fsBackendFor()
 	if err != nil {
 		return nil, err
@@ -104,6 +110,9 @@ func fsAppendFile(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 		return nil, err
 	}
 	if err := ctx.fsCheckTransfer(path, len(data)); err != nil {
+		return nil, err
+	}
+	if err := ctx.fsCheckMutation(path); err != nil {
 		return nil, err
 	}
 	b, err := ctx.fsBackendFor()
@@ -137,6 +146,9 @@ func fsAppendFileBytes(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 	if err := ctx.fsCheckTransfer(path, len(data)); err != nil {
 		return nil, err
 	}
+	if err := ctx.fsCheckMutation(path); err != nil {
+		return nil, err
+	}
 	b, err := ctx.fsBackendFor()
 	if err != nil {
 		return nil, err
@@ -160,6 +172,9 @@ func fsWriteFileResult(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 	if err := ctx.fsCheckTransfer(path, len(data)); err != nil {
 		return fsMakeErr(fmt.Sprintf("cannot write file: %v", err)), nil
 	}
+	if err := ctx.fsCheckMutation(path); err != nil {
+		return fsMakeErr(fmt.Sprintf("cannot write file: %v", err)), nil
+	}
 	b, err := ctx.fsBackendFor()
 	if err != nil {
 		return nil, err
@@ -177,6 +192,9 @@ func fsAppendFileResult(ctx *EffContext, args []eval.Value) (eval.Value, error) 
 		return nil, err
 	}
 	if err := ctx.fsCheckTransfer(path, len(data)); err != nil {
+		return fsMakeErr(fmt.Sprintf("cannot append to file: %v", err)), nil
+	}
+	if err := ctx.fsCheckMutation(path); err != nil {
 		return fsMakeErr(fmt.Sprintf("cannot append to file: %v", err)), nil
 	}
 	b, err := ctx.fsBackendFor()

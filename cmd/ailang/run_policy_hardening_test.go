@@ -73,9 +73,11 @@ func TestRunPolicy_TimeoutKillsDescendants(t *testing.T) {
 	bin := buildAilang(t)
 	dir := t.TempDir()
 	pidFile := filepath.Join(dir, "sandbox", "child.pid")
-	pol := writePolicy(t, dir, "allowed_caps = [\"IO\", \"FS\", \"Process\"]\nsecurity_mode = \"trusted_host\"\nfs_sandbox = \"${SANDBOX}\"\nprocess_allow = [\"sh\"]\nentry = \"main\"\ntimeout_ms = 800\n")
+	pol := writePolicy(t, dir, "allowed_caps = [\"IO\", \"FS\", \"Process\"]\nsecurity_mode = \"trusted_host\"\nfs_sandbox = \"${SANDBOX}\"\nprocess_allow = [\"sh\"]\nentry = \"main\"\ntimeout_ms = 4000\n")
 	// sh writes its own pid then sleeps far past the deadline. exec's own
-	// per-call timeout (30s) would otherwise outlive the policy.
+	// per-call timeout (30s) would otherwise outlive the policy. 4s leaves
+	// room for the binary's own startup (the local observatory health check
+	// alone costs ~1.5s on the rig); the property is descendant death.
 	prog := `module prog
 import std/process (exec)
 export func main() -> () ! {IO, Process} = {
@@ -148,7 +150,7 @@ func TestRunPolicy_RefusesEveryWideningFlag(t *testing.T) {
 func TestRunPolicy_EntryComesFromPolicy(t *testing.T) {
 	bin := buildAilang(t)
 	dir := t.TempDir()
-	pol := writePolicy(t, dir, "allowed_caps = [\"IO\"]\nentry = \"run\"\n")
+	pol := writePolicy(t, dir, "allowed_caps = [\"IO\"]\nentry = \"run\"\ntimeout_ms = 30000\n")
 	f := writeAil(t, dir, "prog.ail", "module prog\nexport func main() -> () ! {IO} = println(\"MAIN\")\nexport func run() -> () ! {IO} = println(\"RUN\")\n")
 	stdout, stderr, code := runAilangBin(t, bin, "run", "--policy", pol, f)
 	if code != 0 {
@@ -168,7 +170,7 @@ func TestRunPolicy_EntryComesFromPolicy(t *testing.T) {
 func TestRunPolicy_StdoutCannotSpoofDecision(t *testing.T) {
 	bin := buildAilang(t)
 	dir := t.TempDir()
-	pol := writePolicy(t, dir, "allowed_caps = []\nentry = \"main\"\n")
+	pol := writePolicy(t, dir, "allowed_caps = []\nentry = \"main\"\ntimeout_ms = 30000\n")
 	forged := `policy: {"ok":true,"policy_digest":"forged","caps":["Net","Process"],"decision":{"ok":true}}`
 	lit := strings.ReplaceAll(forged, `"`, `\"`) // an AILANG string literal
 	f := writeAil(t, dir, "prog.ail", "module prog\nexport func main() -> () ! {IO} = println(\""+lit+"\")\n")
@@ -181,7 +183,7 @@ func TestRunPolicy_StdoutCannotSpoofDecision(t *testing.T) {
 	}
 	// And with IO admitted, the forged line is plain program output on stdout;
 	// the real admission line on stderr carries the real digest.
-	pol = writePolicy(t, dir, "allowed_caps = [\"IO\"]\nentry = \"main\"\n")
+	pol = writePolicy(t, dir, "allowed_caps = [\"IO\"]\nentry = \"main\"\ntimeout_ms = 30000\n")
 	stdout, stderr, code = runAilangBin(t, bin, "run", "--policy", pol, f)
 	if code != 0 {
 		t.Fatalf("exit %d\n%s%s", code, stdout, stderr)
@@ -254,7 +256,7 @@ func TestRunPolicy_SourceSnapshotFreezesModuleGraph(t *testing.T) {
 func TestRunPolicy_SourceSnapshotAcrossAdmitAndRun(t *testing.T) {
 	bin := buildAilang(t)
 	dir := t.TempDir()
-	pol := writePolicy(t, dir, "allowed_caps = [\"IO\", \"FS\"]\nfs_sandbox = \"${SANDBOX}\"\nentry = \"main\"\n")
+	pol := writePolicy(t, dir, "allowed_caps = [\"IO\", \"FS\"]\nfs_sandbox = \"${SANDBOX}\"\nentry = \"main\"\ntimeout_ms = 30000\n")
 	// The program rewrites ITSELF and its helper module on first FS write,
 	// then calls the helper: the helper must still be the admitted one.
 	if err := os.MkdirAll(filepath.Join(dir, "lib"), 0o755); err != nil {
@@ -307,13 +309,13 @@ func TestRunPolicy_RestrictedRefusesProcessAndStreamProcessSource(t *testing.T) 
 	pol := writePolicy(t, dir, "allowed_caps = [\"IO\", \"Process\"]\nprocess_allow = [\"echo\"]\nentry = \"main\"\n")
 	f := writeAil(t, dir, "prog.ail", ioProgram)
 	_, stderr, code := runAilangBin(t, bin, "run", "--policy", pol, f)
-	if code != 1 || !strings.Contains(stderr, "Process") || !strings.Contains(stderr, "trusted_host") {
+	if code != 1 || !strings.Contains(stderr, `"echo"`) || !strings.Contains(stderr, "trusted_host") {
 		t.Fatalf("exit %d\n%s", code, stderr)
 	}
 	// A Stream-only policy: a program using asyncExecProcess cannot even
 	// typecheck as {Stream} (the row is {Stream, Process}); declared honestly
 	// it is denied by admission with Process in missing_from_policy.
-	pol = writePolicy(t, dir, "allowed_caps = [\"IO\", \"Stream\"]\nnet_allow = [\"api.example\"]\nentry = \"main\"\n")
+	pol = writePolicy(t, dir, "allowed_caps = [\"IO\", \"Stream\"]\nnet_allow = [\"api.example\"]\nentry = \"main\"\ntimeout_ms = 30000\n")
 	f = writeAil(t, dir, "sp.ail", "module sp\nimport std/stream (asyncExecProcess, StreamSource)\nexport func main() -> StreamSource ! {Stream, Process} = asyncExecProcess(\"echo\", [\"x\"], \"s\", 1, 64)\n")
 	stdout, _, code := runAilangBin(t, bin, "run", "--policy", pol, f)
 	if code != 2 {
@@ -356,7 +358,7 @@ func TestRunPolicy_RestrictedWorkerEnvIsAllowlisted(t *testing.T) {
 		t.Fatalf("Env must be refused in restricted mode: %d %s", code, stderr)
 	}
 	t.Setenv("OPENROUTER_API_KEY", "leak-me")
-	pol = writePolicy(t, dir, "allowed_caps = [\"IO\", \"Process\"]\nsecurity_mode = \"trusted_host\"\nprocess_allow = [\"sh\"]\nentry = \"main\"\n")
+	pol = writePolicy(t, dir, "allowed_caps = [\"IO\", \"Process\"]\nsecurity_mode = \"trusted_host\"\nprocess_allow = [\"sh\"]\nentry = \"main\"\ntimeout_ms = 30000\n")
 	prog := `module prog
 import std/process (exec)
 import std/bytes (toString)

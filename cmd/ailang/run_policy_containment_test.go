@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -85,7 +86,7 @@ func TestRunPolicyE2E_FSTraversalAndSymlinkDenied(t *testing.T) {
 				tc.read = filepath.Join(c.dir, "marker.txt")
 				tc.write = filepath.Join(c.dir, "leak.txt")
 			}
-			pol := c.policy(t, "allowed_caps = [\"IO\", \"FS\"]\nfs_sandbox = \"${SANDBOX}\"\nentry = \"main\"\n")
+			pol := c.policy(t, "allowed_caps = [\"IO\", \"FS\"]\nfs_sandbox = \"${SANDBOX}\"\nentry = \"main\"\ntimeout_ms = 30000\n")
 			src := strings.ReplaceAll(strings.ReplaceAll(fsProbe, "WPATH", `"`+tc.write+`"`), "PATH", `"`+tc.read+`"`)
 			writeAil(t, c.sandbox, "prog.ail", src)
 			stdout, stderr, code := testutil.RunBounded(t, c.sandbox, 60*time.Second, bin, "run", "--policy", pol, "prog.ail")
@@ -115,7 +116,7 @@ func TestRunPolicyE2E_FSInsideRootWorks(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(c.sandbox, "data.txt"), []byte("inside"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	pol := c.policy(t, "allowed_caps = [\"IO\", \"FS\"]\nfs_sandbox = \"${SANDBOX}\"\nentry = \"main\"\n")
+	pol := c.policy(t, "allowed_caps = [\"IO\", \"FS\"]\nfs_sandbox = \"${SANDBOX}\"\nentry = \"main\"\ntimeout_ms = 30000\n")
 	src := strings.ReplaceAll(strings.ReplaceAll(fsProbe, "WPATH", `"out.txt"`), "PATH", `"data.txt"`)
 	writeAil(t, c.sandbox, "prog.ail", src)
 	stdout, stderr, code := testutil.RunBounded(t, c.sandbox, 60*time.Second, bin, "run", "--policy", pol, "prog.ail")
@@ -147,7 +148,7 @@ func TestRunPolicyE2E_RedirectToNonAllowlistedHostDenied(t *testing.T) {
 	defer srv.Close()
 	_, port, _ = net.SplitHostPort(srv.Listener.Addr().String())
 
-	pol := c.policy(t, "allowed_caps = [\"IO\", \"Net\"]\nsecurity_mode = \"trusted_host\"\nnet_allow = [\"127.0.0.1\"]\nnet_allow_http = true\nentry = \"main\"\n")
+	pol := c.policy(t, "allowed_caps = [\"IO\", \"Net\"]\nsecurity_mode = \"trusted_host\"\nnet_allow = [\"127.0.0.1\"]\nnet_allow_http = true\nentry = \"main\"\ntimeout_ms = 30000\n")
 	prog := `module prog
 import std/net (httpRequest)
 export func fetch(u: string) -> string ! {Net} = match httpRequest("GET", u, [], "") {
@@ -185,7 +186,7 @@ func TestRunPolicyE2E_RestrictedHasNoLoopbackGrant(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { hits.Add(1) }))
 	defer srv.Close()
 	_, port, _ := net.SplitHostPort(srv.Listener.Addr().String())
-	pol := c.policy(t, "allowed_caps = [\"IO\", \"Net\"]\nnet_allow = [\"127.0.0.1\"]\nnet_allow_http = true\nentry = \"main\"\n")
+	pol := c.policy(t, "allowed_caps = [\"IO\", \"Net\"]\nnet_allow = [\"127.0.0.1\"]\nnet_allow_http = true\nentry = \"main\"\ntimeout_ms = 30000\n")
 	prog := `module prog
 import std/net (httpRequest)
 export func main() -> () ! {IO, Net} = match httpRequest("GET", "http://127.0.0.1:` + port + `/x", [], "") {
@@ -211,4 +212,82 @@ func programLines(stdout string) []string {
 		out = append(out, l)
 	}
 	return out
+}
+
+// M6 end to end, with the deployed lane policy's exact shape
+// (allowed_caps IO/FS/Process, process_allow git:status/diff/log, restricted):
+// read-only git works inside the clone; a planted repo config does not
+// execute; an outside-reaching flag is NotAllowed; the program cannot write
+// .git/.
+func TestRunPolicyE2E_ConfinedGitInRestrictedMode(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not installed")
+	}
+	bin := buildAilang(t)
+	c := newContainmentE2E(t)
+	run := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = c.sandbox
+		cmd.Env = append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t", "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	run("init", "-q", "-b", "main")
+	if err := os.WriteFile(filepath.Join(c.sandbox, "a.txt"), []byte("one\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	run("add", "a.txt")
+	run("commit", "-q", "-m", "first")
+	pwned := filepath.Join(c.dir, "pwned")
+	cfg := filepath.Join(c.sandbox, ".git", "config")
+	b, _ := os.ReadFile(cfg)
+	if err := os.WriteFile(cfg, append(b, []byte("[core]\n\tfsmonitor = \"touch "+pwned+"\"\n")...), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	pol := c.policy(t, "allowed_caps = [\"IO\", \"FS\", \"Process\"]\nfs_sandbox = \"${SANDBOX}\"\nprocess_allow = [\"git:status\", \"git:diff\", \"git:log\"]\nentry = \"main\"\ntimeout_ms = 30000\n")
+	prog := `module prog
+import std/process (exec)
+import std/bytes (toString)
+import std/fs (writeFileResult)
+export func git(args: [string]) -> string ! {Process} = match exec("git", args) {
+  Ok(r) => "OK:${toString(r.stdout)}",
+  Err(e) => "ERR:${show(e)}"
+}
+export func main() -> () ! {IO, FS, Process} = {
+  println(git(["log", "--oneline", "-n", "1"]));
+  println(git(["status", "--porcelain"]));
+  println(git(["diff", "--no-index", "/etc/passwd", "/dev/null"]));
+  println(git(["push"]));
+  match writeFileResult(".git/config", "[core]\n") {
+    Ok(_) => println("WROTE-GIT-CONFIG"),
+    Err(e) => println("PROTECTED:${e}")
+  }
+}
+`
+	writeAil(t, c.sandbox, "prog.ail", prog)
+	stdout, stderr, code := testutil.RunBounded(t, c.sandbox, 60*time.Second, bin, "run", "--policy", pol, "prog.ail")
+	if code != 0 {
+		t.Fatalf("exit %d\n%s%s", code, stdout, stderr)
+	}
+	// status prints several lines; assert by marker, not by position.
+	if !strings.Contains(stdout, "OK:") || !strings.Contains(stdout, "first") {
+		t.Errorf("git log must work: %q", stdout)
+	}
+	if !strings.Contains(stdout, "?? prog.ail") {
+		t.Errorf("git status must work (the program file is untracked): %q", stdout)
+	}
+	if strings.Count(stdout, "ERR:NotAllowed") != 2 || !strings.Contains(stdout, "--no-index") || !strings.Contains(stdout, "git push") {
+		t.Errorf("--no-index and push must both be NotAllowed: %q", stdout)
+	}
+	if !strings.Contains(stdout, "PROTECTED:") || strings.Contains(stdout, "WROTE-GIT-CONFIG") {
+		t.Errorf(".git/config must be read-only to the program: %q", stdout)
+	}
+	if _, err := os.Stat(pwned); err == nil {
+		t.Fatal("CONFINEMENT FAILURE: the planted core.fsmonitor command ran")
+	}
+	if !strings.Contains(stderr, `"process_allow":["git:status","git:diff","git:log"]`) {
+		t.Errorf("admission line must carry the grant: %s", stderr)
+	}
 }

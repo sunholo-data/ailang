@@ -259,3 +259,31 @@ func TestPolicyTool_NoFSPolicyRefusesFileOps(t *testing.T) {
 		t.Fatalf("%+v", r)
 	}
 }
+
+// M6: the repository metadata is read-only to the lane's tools.
+func TestPolicyTool_DotGitIsReadOnly(t *testing.T) {
+	f := newFixture(t, "")
+	if err := os.MkdirAll(filepath.Join(f.sandbox, ".git", "hooks"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(f.sandbox, ".git", "config"), []byte("[core]\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range []string{".git/config", ".git/hooks/pre-commit", "sub/../.git/config", filepath.Join(f.sandbox, ".git", "config")} {
+		if r := f.host.Dispatch(Request{Op: "write", Path: p, Content: "[core]\n\tfsmonitor = evil\n"}); r.OK || !strings.Contains(r.Refused, ".git") {
+			t.Errorf("write %s: %+v", p, r)
+		}
+		if r := f.host.Dispatch(Request{Op: "edit", Path: p, OldText: "[core]", NewText: "[core]\n\tfsmonitor = evil"}); r.OK || !strings.Contains(r.Refused, ".git") {
+			t.Errorf("edit %s: %+v", p, r)
+		}
+	}
+	if r := f.host.Dispatch(Request{Op: "read", Path: ".git/config"}); !r.OK {
+		t.Errorf("reading .git is fine: %+v", r)
+	}
+	if r := f.host.Dispatch(Request{Op: "write", Path: ".gitignore", Content: "x\n"}); !r.OK {
+		t.Errorf(".gitignore is an ordinary file: %+v", r)
+	}
+	if b, _ := os.ReadFile(filepath.Join(f.sandbox, ".git", "config")); string(b) != "[core]\n" {
+		t.Fatal(".git/config changed")
+	}
+}

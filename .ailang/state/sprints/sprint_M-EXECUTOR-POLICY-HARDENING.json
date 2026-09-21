@@ -105,9 +105,30 @@
       "started": "2026-09-21T11:13:13Z",
       "completed": "2026-09-21T11:26:02Z",
       "notes": "run_policy_containment_test.go (F1/F2/N1 e2e); sandbox-check onto fileguard (was a lexical copy that reported ../x ALLOW); docs (agent-tool-policy guide rewrite, LIMITATIONS residuals matrix, debugging guide, example policy, cli.md); verification log in the design doc; golden builtin_types updated for the intentional {Stream,Process} row. Gates: make test, lint, check-boundaries, verify-pi-assets, check-file-sizes, verify-examples all green. Migration of 3 multivac policies documented, not applied."
+    },
+    {
+      "id": "M6_CONFINED_GIT",
+      "description": "Confined Process adapter: restricted mode admits Process only for git:status/diff/log; argv built from per-subcommand schemas; hardened invocation (gitexec path, sandbox cwd, GIT_* stripped, config disabled, fsmonitor/hooks/pager/external forced off, --no-optional-locks); exec-only; .git/ read-only to FS ops and policy-tool. Added after M5 at Mark's request so the executors keep git without trusted_host.",
+      "estimated_loc": 600,
+      "dependencies": [
+        "M5_E2E_PROOF_MIGRATION_DOCS"
+      ],
+      "acceptance_criteria": [
+        "planted core.fsmonitor/diff.external/core.pager execute nothing under status/diff/log",
+        "outside-reaching flags (--no-index, --output, -c, --git-dir, -C, --exec-path, pathspec ..) are NotAllowed before any process",
+        "status/diff/log positive control with hostile GIT_* in the caller env",
+        "spawnProcess/asyncExecProcess refused under confinement",
+        ".git/ read-only through every mutating FS op and the tools; .gitignore writable",
+        "Resolve admits git:status/diff/log in restricted mode and refuses other entries by name with the trusted_host migration",
+        "e2e with the deployed policy shape; mutation-tested with confinement off"
+      ],
+      "passes": true,
+      "started": "2026-09-21T12:00:16Z",
+      "completed": "2026-09-21T12:00:16Z",
+      "notes": "Red-first: with Confined=false the fsmonitor command ran and --no-index/--output returned Ok. Two of the three deployed lane policies need no change now; daneel-executor (AI) still needs a decision."
     }
   ],
   "github_issues_note": "create_sprint_json.sh keyword-matched #1259/#1261-#1264 (std/ai deadline, ailang test env, decisions); none concern executor policy — cleared by the planner",
   "completed": "2026-09-21T11:26:02Z",
-  "outcome": "LANDED on dev in 5 milestone commits + finalize. Every AC1-AC12 row has a named artifact; every counterexample was red-first. Extra findings closed: archive builtins F1/F2, Process.Authorize(nil) bypass via Stream, prelude println budget, sandbox-check lie. OPEN: operator decision on the 3 deployed ailang_only policies that admit Process/AI (refused at dispatch once shipped)."
+  "outcome": "LANDED on dev in 5 milestone commits + finalize. Every AC1-AC12 row has a named artifact; every counterexample was red-first. Extra findings closed: archive builtins F1/F2, Process.Authorize(nil) bypass via Stream, prelude println budget, sandbox-check lie. OPEN: operator decision on the 3 deployed ailang_only policies that admit Process/AI (refused at dispatch once shipped). M6 (confined git) added after close: pkg-ailang-only and ailang-only-executor need no migration; daneel-executor (AI) still does."
 }
