@@ -3,6 +3,7 @@ package effects
 import (
 	"bufio"
 	"context"
+	"crypto/tls"
 	"io"
 	"net"
 	"net/http"
@@ -207,6 +208,13 @@ type NetContext struct {
 	AllowMetadata  bool          // Allow cloud metadata server at 169.254.169.254 (default: false)
 	AllowedDomains []string      // Domain allowlist (empty = all allowed)
 	UserAgent      string        // User-Agent header
+	// RefuseProxy (restricted policy mode, M-EXECUTOR-POLICY-HARDENING): a
+	// proxy selected for a request is a named refusal, never a direct
+	// fallback — the destination address cannot be pinned behind a proxy.
+	RefuseProxy bool
+	// SensitiveHeaders are stripped on a cross-origin redirect in addition
+	// to Authorization, Cookie and Proxy-Authorization (operator-designated).
+	SensitiveHeaders []string
 
 	// The following hooks are unexported and nil in production. They let
 	// package-internal tests inject resolver/dial/proxy-selection behavior so
@@ -218,6 +226,9 @@ type NetContext struct {
 	lookupIP      func(hostname string) ([]net.IP, error)
 	dialContext   func(ctx context.Context, network, addr string) (net.Conn, error)
 	proxySelector func(req *http.Request) (*url.URL, error)
+	// tlsClientConfig lets a test trust an httptest TLS certificate; nil in
+	// production (system roots, ServerName from the URL).
+	tlsClientConfig *tls.Config
 }
 
 // NewNetContext creates a new net context with secure defaults

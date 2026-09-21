@@ -1,10 +1,11 @@
 package effects
 
 import (
+	"context"
+	"crypto/tls"
 	"fmt"
 	"net"
 	"net/url"
-	"strings"
 	"sync"
 	"time"
 )
@@ -50,6 +51,13 @@ type StreamContext struct {
 	// Event source management (M-ASYNC-IO)
 	sources      map[int]EventSource
 	nextSourceID int
+
+	// Test hooks, nil in production — the same seam NetContext has, so the
+	// shared destination authorizer (net_authorize.go) is falsifiable for
+	// Stream transports with an injected resolver/dialer.
+	lookupIP        func(hostname string) ([]net.IP, error)
+	dialContext     func(ctx context.Context, network, addr string) (net.Conn, error)
+	tlsClientConfig *tls.Config
 }
 
 // NewStreamContext creates a new stream context with secure defaults
@@ -71,52 +79,21 @@ func NewStreamContext() *StreamContext {
 	}
 }
 
-// ValidateURL checks a URL against the stream security policy.
+// ValidateURL checks a URL against the stream security policy — the shared
+// destination authorizer (net_authorize.go), which the SSE/NDJSON transports
+// re-run on every redirect hop and the WebSocket dialer pins on.
 // Returns nil if the URL passes all checks.
 func (sc *StreamContext) ValidateURL(rawURL string) error {
 	u, err := url.Parse(rawURL)
 	if err != nil {
 		return fmt.Errorf("E_STREAM_INVALID_URL: %w", err)
 	}
+	return sc.policy().authorizeURL(u)
+}
 
-	// Protocol check
-	switch u.Scheme {
-	case "wss", "https":
-		// Always allowed
-	case "ws", "http":
-		if !sc.AllowHTTP {
-			return fmt.Errorf("E_STREAM_PROTOCOL_ERROR: insecure protocol %q not allowed (use wss:// or set --stream-allow-http)", u.Scheme)
-		}
-	default:
-		return fmt.Errorf("E_STREAM_PROTOCOL_ERROR: unsupported protocol %q (expected wss:// or ws://)", u.Scheme)
-	}
-
-	hostname := u.Hostname()
-	if hostname == "" {
-		return fmt.Errorf("E_STREAM_INVALID_URL: missing hostname")
-	}
-
-	// Domain allowlist check
-	if len(sc.AllowedDomains) > 0 {
-		if !isStreamAllowedDomain(hostname, sc.AllowedDomains) {
-			return fmt.Errorf("E_STREAM_DISALLOWED_HOST: domain not in allowlist: %s", hostname)
-		}
-	}
-
-	// Localhost check
-	if !sc.AllowLocalhost && isLocalhost(hostname) {
-		return fmt.Errorf("E_STREAM_DISALLOWED_HOST: localhost connections not allowed")
-	}
-
-	// Private IP check
-	if sc.BlockPrivateIPs {
-		ip := net.ParseIP(hostname)
-		if ip != nil && isPrivateIP(ip) {
-			return fmt.Errorf("E_STREAM_DISALLOWED_HOST: private IP addresses not allowed: %s", hostname)
-		}
-	}
-
-	return nil
+// policy is the destination policy for this context.
+func (sc *StreamContext) policy() destinationPolicy {
+	return streamPolicy(&EffContext{Stream: sc})
 }
 
 // AcquireConnection registers a new connection and returns its ID.
@@ -169,59 +146,4 @@ func (sc *StreamContext) CloseAll() {
 	for _, c := range conns {
 		c.Close()
 	}
-}
-
-// isStreamAllowedDomain checks if a hostname matches the allowlist.
-func isStreamAllowedDomain(hostname string, allowed []string) bool {
-	hostname = strings.ToLower(hostname)
-	for _, d := range allowed {
-		d = strings.ToLower(d)
-		if d == hostname {
-			return true
-		}
-		// Wildcard prefix match: *.example.com matches sub.example.com
-		if strings.HasPrefix(d, "*.") {
-			suffix := d[1:] // ".example.com"
-			if strings.HasSuffix(hostname, suffix) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-// isLocalhost checks if a hostname resolves to a loopback address.
-func isLocalhost(hostname string) bool {
-	hostname = strings.ToLower(hostname)
-	if hostname == "localhost" || hostname == "127.0.0.1" || hostname == "::1" {
-		return true
-	}
-	if strings.HasPrefix(hostname, "127.") {
-		return true
-	}
-	return false
-}
-
-// isPrivateIP checks if an IP is in RFC1918 or link-local ranges.
-func isPrivateIP(ip net.IP) bool {
-	privateRanges := []struct {
-		network string
-	}{
-		{"10.0.0.0/8"},
-		{"172.16.0.0/12"},
-		{"192.168.0.0/16"},
-		{"169.254.0.0/16"}, // Link-local IPv4
-		{"fc00::/7"},       // IPv6 unique local
-		{"fe80::/10"},      // IPv6 link-local
-	}
-	for _, r := range privateRanges {
-		_, cidr, err := net.ParseCIDR(r.network)
-		if err != nil {
-			continue
-		}
-		if cidr.Contains(ip) {
-			return true
-		}
-	}
-	return false
 }

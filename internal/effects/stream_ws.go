@@ -3,6 +3,7 @@ package effects
 import (
 	"errors"
 	"fmt"
+	"net/url"
 
 	"github.com/sunholo-data/ailang/internal/eval"
 )
@@ -70,6 +71,18 @@ func StreamConnect(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 		}
 	}
 
+	// Authorize + resolve + validate the destination ONCE here and hand the
+	// transport a dialer pinned to that address: the platform package never
+	// resolves the name itself (M-EXECUTOR-POLICY-HARDENING M2).
+	wsURL, err := url.Parse(urlVal.Value)
+	if err != nil {
+		return makeStreamErr("ConnectionFailed", fmt.Sprintf("E_STREAM_INVALID_URL: %v", err)), nil
+	}
+	dial, err := streamPolicy(ctx).pinnedDialer(wsURL)
+	if err != nil {
+		return makeStreamErr("ConnectionFailed", err.Error()), nil
+	}
+
 	// Dial through the registered transport. No registration is a harness
 	// error (the binary forgot platform_init), not a program-visible result.
 	transport, err := openStreamTransport(urlVal.Value, StreamDialConfig{
@@ -78,6 +91,7 @@ func StreamConnect(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 		Subprotocols:     subprotocols,
 		HandshakeTimeout: ctx.Stream.ConnectTimeout,
 		MaxFrameSize:     ctx.Stream.MaxFrameSize,
+		DialContext:      dial,
 	})
 	if err != nil {
 		if errors.Is(err, ErrBackendNotRegistered) {

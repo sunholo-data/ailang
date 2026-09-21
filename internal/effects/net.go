@@ -63,35 +63,29 @@ func netHTTPGet(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 		return nil, fmt.Errorf("E_NET_TYPE_ERROR: httpGet: expected String, got %T", args[0])
 	}
 
-	// Step 1: Parse and validate URL
+	// Step 1: Parse and authorize the URL (scheme, host, allowlist, literal
+	// IP) — the same authorizer runs again inside the RoundTripper on every
+	// hop, so a redirect cannot reach what the first request could not.
+	pol := netPolicy(ctx)
 	u, err := url.Parse(urlStr.Value)
 	if err != nil {
 		return nil, fmt.Errorf("E_NET_INVALID_URL: %w", err)
 	}
-
-	// Step 2: Protocol validation
-	if err := validateProtocol(u.Scheme, ctx); err != nil {
+	if err := pol.authorizeURLLexical(u); err != nil {
 		return nil, err
 	}
 
-	// Step 3: Domain allowlist check (fail fast before DNS)
-	if !isAllowedDomain(u.Hostname(), ctx.Net.AllowedDomains) {
-		return nil, fmt.Errorf("E_NET_DOMAIN_BLOCKED: domain not in allowlist: %s", u.Hostname())
-	}
-
-	// Step 4: Build HTTP client with security config. Route selection (direct
+	// Step 2: Build HTTP client with security config. Route selection (direct
 	// IP-pinned vs proxied) and target resolution+validation happen inside the
 	// request-aware RoundTripper, once per round trip (see net_proxy.go).
 	client := &http.Client{
-		Timeout: ctx.Net.Timeout,
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return validateRedirect(req, via, ctx)
-		},
-		Transport: &netProxyRoundTripper{ctx: ctx},
+		Timeout:       ctx.Net.Timeout,
+		CheckRedirect: pol.checkRedirect(u.Host),
+		Transport:     newNetRoundTripper(ctx),
 	}
 
-	// Step 5: Make request with proper headers
-	req, err := http.NewRequest("GET", urlStr.Value, nil)
+	// Step 3: Make request with proper headers
+	req, err := http.NewRequestWithContext(requestContext(ctx), "GET", urlStr.Value, nil)
 	if err != nil {
 		return nil, fmt.Errorf("E_NET_REQUEST_FAILED: %w", err)
 	}
@@ -164,34 +158,27 @@ func netHTTPPost(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 		return nil, fmt.Errorf("E_NET_TYPE_ERROR: httpPost: expected String for body, got %T", args[1])
 	}
 
-	// Step 1: Parse and validate URL
+	// Step 1: Parse and authorize the URL; re-authorized per hop in the
+	// RoundTripper (net_proxy.go).
+	pol := netPolicy(ctx)
 	u, err := url.Parse(urlStr.Value)
 	if err != nil {
 		return nil, fmt.Errorf("E_NET_INVALID_URL: %w", err)
 	}
-
-	// Step 2: Protocol validation
-	if err := validateProtocol(u.Scheme, ctx); err != nil {
+	if err := pol.authorizeURLLexical(u); err != nil {
 		return nil, err
 	}
 
-	// Step 3: Domain allowlist check
-	if !isAllowedDomain(u.Hostname(), ctx.Net.AllowedDomains) {
-		return nil, fmt.Errorf("E_NET_DOMAIN_BLOCKED: domain not in allowlist: %s", u.Hostname())
-	}
-
-	// Step 4: Build HTTP client with security config (see net_proxy.go for
+	// Step 2: Build HTTP client with security config (see net_proxy.go for
 	// direct/proxy routing and once-per-round-trip target resolution).
 	client := &http.Client{
-		Timeout: ctx.Net.Timeout,
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return validateRedirect(req, via, ctx)
-		},
-		Transport: &netProxyRoundTripper{ctx: ctx},
+		Timeout:       ctx.Net.Timeout,
+		CheckRedirect: pol.checkRedirect(u.Host),
+		Transport:     newNetRoundTripper(ctx),
 	}
 
-	// Step 5: Make POST request
-	req, err := http.NewRequest("POST", urlStr.Value, strings.NewReader(bodyStr.Value))
+	// Step 3: Make POST request
+	req, err := http.NewRequestWithContext(requestContext(ctx), "POST", urlStr.Value, strings.NewReader(bodyStr.Value))
 	if err != nil {
 		return nil, fmt.Errorf("E_NET_REQUEST_FAILED: %w", err)
 	}
@@ -224,125 +211,6 @@ func netHTTPPost(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 	}
 
 	return &eval.StringValue{Value: string(body)}, nil
-}
-
-// validateProtocol checks if the URL scheme is allowed
-//
-// Security policy:
-//   - https:// always allowed
-//   - http:// allowed only if ctx.Net.AllowHTTP is true
-//   - file://, ftp://, data://, gopher://, custom schemes blocked
-//
-// Parameters:
-//   - scheme: The URL scheme (e.g., "https", "http", "file")
-//   - ctx: Effect context (for AllowHTTP flag)
-//
-// Returns:
-//   - nil if protocol is allowed
-//   - Error with E_NET_PROTOCOL_BLOCKED if protocol is blocked
-func validateProtocol(scheme string, ctx *EffContext) error {
-	switch scheme {
-	case "https":
-		return nil // Always allowed
-	case "http":
-		if !ctx.Net.AllowHTTP {
-			return fmt.Errorf("E_NET_PROTOCOL_BLOCKED: http:// blocked (use --net-allow-http to enable)")
-		}
-		return nil
-	case "file", "ftp", "data", "gopher", "":
-		return fmt.Errorf("E_NET_PROTOCOL_BLOCKED: unsupported protocol: %s", scheme)
-	default:
-		return fmt.Errorf("E_NET_PROTOCOL_BLOCKED: unknown protocol: %s", scheme)
-	}
-}
-
-// validateRedirect validates each redirect in the chain
-//
-// Security checks:
-//   - Enforce max redirect limit (default: 5)
-//   - Validate protocol for each redirect destination
-//   - Re-validate IP for redirect target (prevent DNS rebinding via redirect)
-//
-// Parameters:
-//   - req: The redirect request
-//   - via: Previous requests in redirect chain
-//   - ctx: Effect context
-//
-// Returns:
-//   - nil if redirect is allowed
-//   - Error if too many redirects or redirect destination is blocked
-func validateRedirect(req *http.Request, via []*http.Request, ctx *EffContext) error {
-	// Enforce max redirects
-	if len(via) >= ctx.Net.MaxRedirects {
-		return fmt.Errorf("E_NET_TOO_MANY_REDIRECTS: exceeded max redirects (%d)", ctx.Net.MaxRedirects)
-	}
-
-	// Validate redirect destination protocol
-	if err := validateProtocol(req.URL.Scheme, ctx); err != nil {
-		return err
-	}
-
-	// NB: redirect target resolution + IP validation is deliberately NOT done
-	// here. It happens per round trip inside the request-aware RoundTripper
-	// (net_proxy.go): proxied redirects resolve nothing; direct redirects
-	// resolve+validate the new target exactly once before dialing it.
-	return nil
-}
-
-// isAllowedDomain checks if a hostname is in the domain allowlist
-//
-// Security policy:
-//   - If allowlist is empty, all domains are allowed
-//   - If allowlist is set, only listed domains (or wildcard matches) are allowed
-//   - Supports wildcard: *.example.com matches foo.example.com
-//
-// Parameters:
-//   - hostname: The hostname to check
-//   - allowed: The domain allowlist
-//
-// Returns:
-//   - true if domain is allowed, false otherwise
-func isAllowedDomain(hostname string, allowed []string) bool {
-	if len(allowed) == 0 {
-		return true // No allowlist = all domains OK
-	}
-
-	// Normalize hostname (lowercase, strip trailing dot)
-	hostname = strings.ToLower(strings.TrimSuffix(hostname, "."))
-
-	for _, pattern := range allowed {
-		if matchDomain(hostname, strings.ToLower(pattern)) {
-			return true
-		}
-	}
-	return false
-}
-
-// matchDomain checks if a hostname matches a domain pattern
-//
-// Supports:
-//   - Exact match: hostname == pattern
-//   - Wildcard match: *.example.com matches foo.example.com
-//
-// Parameters:
-//   - hostname: The hostname to check
-//   - pattern: The domain pattern (may include wildcard)
-//
-// Returns:
-//   - true if hostname matches pattern
-func matchDomain(hostname, pattern string) bool {
-	// Exact match
-	if hostname == pattern {
-		return true
-	}
-
-	// Wildcard match: *.example.com
-	if strings.HasPrefix(pattern, "*.") {
-		suffix := pattern[1:] // ".example.com"
-		return strings.HasSuffix(hostname, suffix)
-	}
-
-	return false
 }
 
 // NetHTTPRequest implements Net.httpRequest(method, url, headers, body) -> Result[HttpResponse, NetError]
@@ -516,26 +384,25 @@ func buildSecureRequest(
 		return nil, nil, makeResultErr("InvalidMethod", fmt.Sprintf("unsupported HTTP method: %s (supported: GET, POST, PUT, PATCH, DELETE, HEAD)", method))
 	}
 
-	// Parse and validate URL
+	// Parse and authorize the URL. The allowlist refusal keeps its own Result
+	// variant (DisallowedHost); every other refusal is Transport.
+	pol := netPolicy(ctx)
 	u, err := url.Parse(urlStr)
 	if err != nil {
 		return nil, nil, makeResultErr("Transport", fmt.Sprintf("invalid URL: %v", err))
 	}
-
-	// Protocol validation
-	if err := validateProtocol(u.Scheme, ctx); err != nil {
+	if err := pol.authorizeURLLexical(u); err != nil {
+		if strings.HasPrefix(err.Error(), "E_NET_DOMAIN_BLOCKED") {
+			return nil, nil, makeResultErr("DisallowedHost", u.Hostname())
+		}
 		return nil, nil, makeResultErr("Transport", err.Error())
-	}
-
-	// Domain allowlist check
-	if !isAllowedDomain(u.Hostname(), ctx.Net.AllowedDomains) {
-		return nil, nil, makeResultErr("DisallowedHost", u.Hostname())
 	}
 
 	// NB: DNS resolution + IP validation is NOT done here as preflight. It
 	// happens exactly once per direct round trip inside the request-aware
-	// RoundTripper before dialing (see net_proxy.go). Proxied round trips
-	// perform no local target resolution at all.
+	// RoundTripper before dialing (see net_proxy.go), which also re-runs the
+	// authorizer on every redirect hop. Proxied round trips perform no local
+	// target resolution at all.
 
 	// Parse and validate headers
 	userHeaders, err := parseHeaders(headersList)
@@ -545,21 +412,17 @@ func buildSecureRequest(
 
 	// Build HTTP client with security config (direct/proxy routing lives in the
 	// request-aware RoundTripper, net_proxy.go).
-	originalHost := u.Host // Save for cross-origin detection
+	// checkRedirect re-authorizes every hop and strips the sensitive headers
+	// (Authorization, Cookie, Proxy-Authorization + operator-designated) when
+	// the origin changes.
 	client := &http.Client{
-		Timeout: ctx.Net.Timeout,
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			// Strip Authorization if crossing origins
-			if req.URL.Host != originalHost {
-				req.Header.Del("Authorization")
-			}
-			return validateRedirect(req, via, ctx)
-		},
-		Transport: &netProxyRoundTripper{ctx: ctx},
+		Timeout:       ctx.Net.Timeout,
+		CheckRedirect: pol.checkRedirect(u.Host),
+		Transport:     newNetRoundTripper(ctx),
 	}
 
 	// Build request
-	req, err := http.NewRequest(method, urlStr, body)
+	req, err := http.NewRequestWithContext(requestContext(ctx), method, urlStr, body)
 	if err != nil {
 		return nil, nil, makeResultErr("Transport", fmt.Sprintf("request creation failed: %v", err))
 	}

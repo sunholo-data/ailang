@@ -1,7 +1,9 @@
 package streamws
 
 import (
+	"context"
 	"errors"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -41,12 +43,18 @@ func echoServer(t *testing.T, closeAfter int) *httptest.Server {
 	}))
 }
 
+// plainDialer stands in for the core's pinned dialer in transport tests.
+func plainDialer(ctx context.Context, network, addr string) (net.Conn, error) {
+	return (&net.Dialer{}).DialContext(ctx, network, addr)
+}
+
 func dial(t *testing.T, srv *httptest.Server) effects.StreamTransport {
 	t.Helper()
 	tr, err := Open(effects.StreamDialConfig{
 		URL:              "ws" + strings.TrimPrefix(srv.URL, "http"),
 		HandshakeTimeout: 2 * time.Second,
 		MaxFrameSize:     1 << 16,
+		DialContext:      plainDialer,
 	})
 	if err != nil {
 		t.Fatalf("Open: %v", err)
@@ -127,6 +135,7 @@ func TestOpen_HandshakeFailureCarriesHTTPStatus(t *testing.T) {
 		URL:              "ws" + strings.TrimPrefix(srv.URL, "http"),
 		HandshakeTimeout: 2 * time.Second,
 		MaxFrameSize:     1 << 16,
+		DialContext:      plainDialer,
 	})
 	if err == nil {
 		t.Fatal("expected handshake failure")
@@ -161,4 +170,46 @@ func TestRegister_InstallsWSTransport(t *testing.T) {
 		t.Fatalf("expected Ok(StreamConn), got %v", result)
 	}
 	_, _ = effects.StreamClose(ctx, []eval.Value{tagged.Fields[0]})
+}
+
+// M-EXECUTOR-POLICY-HARDENING M2: the transport opens its socket ONLY through
+// the dialer the core hands it — never by resolving cfg.URL itself — and a
+// missing dialer is a harness error, not a fallback to the name.
+func TestOpen_DialsOnlyThroughSuppliedDialer(t *testing.T) {
+	srv := echoServer(t, 0)
+	defer srv.Close()
+	var dials []string
+	pinned := func(ctx context.Context, network, addr string) (net.Conn, error) {
+		dials = append(dials, addr)
+		// The core would pin to the validated IP; here we prove the transport
+		// connects wherever THIS dialer says, ignoring the URL's host:port.
+		return (&net.Dialer{}).DialContext(ctx, network, strings.TrimPrefix(srv.URL, "http://"))
+	}
+	tr, err := Open(effects.StreamDialConfig{
+		// A host that does not resolve: reachable ONLY through the dialer.
+		URL:              "ws://pinned.invalid:1/",
+		HandshakeTimeout: 2 * time.Second,
+		MaxFrameSize:     1 << 16,
+		DialContext:      pinned,
+	})
+	if err != nil {
+		t.Fatalf("Open through the supplied dialer: %v", err)
+	}
+	defer tr.Close()
+	if len(dials) != 1 || dials[0] != "pinned.invalid:1" {
+		t.Fatalf("dialer calls = %v, want exactly one for pinned.invalid:1", dials)
+	}
+	if err := tr.Send(effects.StreamFrame{Kind: effects.StreamFrameText, Data: []byte("hi")}); err != nil {
+		t.Fatal(err)
+	}
+	if f, err := tr.Recv(); err != nil || string(f.Data) != "hi" {
+		t.Fatalf("echo = %q, %v", f.Data, err)
+	}
+}
+
+func TestOpen_NoDialerIsRefused(t *testing.T) {
+	_, err := Open(effects.StreamDialConfig{URL: "ws://127.0.0.1:1/", HandshakeTimeout: time.Second})
+	if !errors.Is(err, ErrNoDialer) {
+		t.Fatalf("want ErrNoDialer, got %v", err)
+	}
 }

@@ -114,7 +114,7 @@ against the old files (15 rows red).
 - Root lifetime with `Clone` under serve-api concurrency — Mitigation: the handle is a pointer to a
   refcount-free "opened once, closed by owner" holder; `Clone` shares it and never closes.
 
-### Milestone 2: One network destination authorizer, redirects, and Stream transports
+### Milestone 2: One network destination authorizer, redirects, and Stream transports ✅ (2026-09-21)
 
 **Goal:** A single `netAuthorizer` decides scheme + hostname + allowlist + resolved-IP for **every**
 round trip and connection: HTTP GET/POST/request/requestBytes, SSE GET/POST, NDJSON POST, WebSocket.
@@ -152,13 +152,13 @@ round trip and connection: HTTP GET/POST/request/requestBytes, SSE GET/POST, NDJ
    error when a proxy would be used.
 
 **Acceptance Criteria:**
-- [ ] Redirect containment tests fail on baseline (record transcript), pass after — for httpGet,
+- [x] Redirect containment tests fail on baseline (record transcript), pass after — for httpGet,
       httpRequest, sseConnect, ndjsonPost
-- [ ] Table test over allowed/denied host, redirect to denied, resolved private IP, IPv4/IPv6/mapped
+- [x] Table test over allowed/denied host, redirect to denied, resolved private IP, IPv4/IPv6/mapped
       IPv4 (`::ffff:10.0.0.1`), cancellation via `GoCtx`, and TLS SNI = original hostname (tls
       `httptest.NewTLSServer` + pinned dial) for every entrypoint
-- [ ] Proxy tests in `net_proxy_test.go` unchanged and green; `RefuseProxy` test proves no direct fallback
-- [ ] `go test -race ./internal/effects ./internal/platform/streamws` green
+- [x] Proxy tests in `net_proxy_test.go` unchanged and green; `RefuseProxy` test proves no direct fallback
+- [x] `go test -race ./internal/effects ./internal/platform/streamws` green
 
 **Risks:**
 - gorilla `Dialer` with a custom `NetDialContext` and TLS — Mitigation: keep `TLSClientConfig.ServerName`

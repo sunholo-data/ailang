@@ -43,10 +43,10 @@
         "RefuseProxy test: a configured proxy under restricted mode yields a named error and zero dials",
         "All existing net_proxy_test.go / net_test.go / stream_*_test.go contracts green; go test -race ./internal/effects ./internal/platform/streamws green"
       ],
-      "passes": null,
+      "passes": true,
       "started": "2026-09-21T10:04:34Z",
-      "completed": null,
-      "notes": null
+      "completed": "2026-09-21T10:19:12Z",
+      "notes": "net_authorize.go destinationPolicy from NetContext/StreamContext; one isAllowedDomain/validateIP; netProxyRoundTripper authorizes every hop before any dial; checkRedirect strips Authorization/Cookie/Proxy-Authorization + SensitiveHeaders cross-origin; SSE/NDJSON via streamHTTPClient (connect-phase timeouts, no whole-response timeout); StreamDialConfig.DialContext pinned dialer, streamws refuses without it; GoCtx cancellation honoured; NetContext.RefuseProxy. Red-first: 7 entrypoints reached /final on baseline + cancelled ctx dialed. Full effects/streamws/runner/builtins/cmd suites green, -race green, lint + boundaries green."
     },
     {
       "id": "M3_TYPED_POLICY_MODE_SUPERVISOR",
@@ -65,7 +65,7 @@
         "Existing TestRunPolicy_* green; make test-core, make lint green"
       ],
       "passes": null,
-      "started": null,
+      "started": "2026-09-21T10:19:12Z",
       "completed": null,
       "notes": null
     },

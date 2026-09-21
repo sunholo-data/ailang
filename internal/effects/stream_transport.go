@@ -1,8 +1,11 @@
 package effects
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"net"
+	"net/http"
 	"net/url"
 	"sync"
 	"time"
@@ -51,6 +54,14 @@ type StreamDialConfig struct {
 	Subprotocols     []string
 	HandshakeTimeout time.Duration
 	MaxFrameSize     int64 // inbound read limit per frame
+
+	// DialContext is the ONLY way the transport may open a socket
+	// (M-EXECUTOR-POLICY-HARDENING M2, D2). The core has already authorized
+	// URL and resolved + validated its address; this dialer connects to that
+	// pinned address whatever host:port the transport passes, so the
+	// platform package cannot re-resolve the name on its own. A transport
+	// that ignores it is a boundary violation, not a fallback.
+	DialContext func(ctx context.Context, network, addr string) (net.Conn, error)
 }
 
 // StreamTransport is a bidirectional message transport opened by a registered
@@ -116,4 +127,24 @@ func openStreamTransport(rawURL string, cfg StreamDialConfig) (StreamTransport, 
 		return nil, fmt.Errorf("stream transport %q for %s://: %w", name, u.Scheme, ErrBackendNotRegistered)
 	}
 	return open(cfg)
+}
+
+// streamHTTPClient is the http.Client every Stream HTTP transport (SSE GET/
+// POST, NDJSON POST) uses: the shared round tripper authorizes and pins each
+// hop, checkRedirect re-authorizes redirects and strips sensitive headers
+// across origins, and there is NO whole-response timeout — the connect
+// phase is bounded inside the transport, the body is long-lived by design.
+func streamHTTPClient(ctx *EffContext, rawURL string) (*http.Client, error) {
+	pol := streamPolicy(ctx)
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return nil, fmt.Errorf("E_STREAM_INVALID_URL: %w", err)
+	}
+	if err := pol.authorizeURLLexical(u); err != nil {
+		return nil, err
+	}
+	return &http.Client{
+		Transport:     newStreamRoundTripper(ctx),
+		CheckRedirect: pol.checkRedirect(u.Host),
+	}, nil
 }

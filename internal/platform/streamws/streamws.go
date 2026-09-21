@@ -21,14 +21,28 @@ func Register() {
 	effects.RegisterStreamTransport("ws", Open)
 }
 
-// Open dials a websocket per cfg. On a failed handshake the error carries the
-// HTTP status when the server sent one.
+// ErrNoDialer is returned when the core handed no DialContext: this transport
+// never resolves a hostname on its own (M-EXECUTOR-POLICY-HARDENING M2), so a
+// missing dialer is a harness error, not a reason to dial the name.
+var ErrNoDialer = errors.New("streamws: StreamDialConfig.DialContext is nil — the core must supply the pinned dialer")
+
+// Open dials a websocket per cfg through cfg.DialContext ONLY — the address
+// the core authorized and pinned. The URL's hostname still drives the TLS
+// ServerName and the Host header (gorilla derives both from the URL), so
+// certificate verification is against the name, not the pinned IP. Proxy is
+// nil: Stream transports never used one. On a failed handshake the error
+// carries the HTTP status when the server sent one.
 func Open(cfg effects.StreamDialConfig) (effects.StreamTransport, error) {
+	if cfg.DialContext == nil {
+		return nil, ErrNoDialer
+	}
 	dialer := websocket.Dialer{
 		HandshakeTimeout: cfg.HandshakeTimeout,
 		Subprotocols:     cfg.Subprotocols,
 		ReadBufferSize:   1024,
 		WriteBufferSize:  1024,
+		NetDialContext:   cfg.DialContext,
+		Proxy:            nil,
 	}
 	conn, resp, err := dialer.Dial(cfg.URL, cfg.Headers)
 	if err != nil {
