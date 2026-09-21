@@ -300,6 +300,7 @@ func TestFSSandbox_Mkdir(t *testing.T) {
 
 	ctx := NewEffContext([]string{})
 	ctx.Env.Sandbox = sandbox
+	t.Cleanup(func() { _ = ctx.CloseFSRoot() }) // the root handle pins the dir on Windows
 	ctx.Grant(NewCapability("FS"))
 
 	args := []eval.Value{&eval.StringValue{Value: "newdir"}}
@@ -330,6 +331,7 @@ func TestFSSandbox_IsDir(t *testing.T) {
 
 	ctx := NewEffContext([]string{})
 	ctx.Env.Sandbox = sandbox
+	t.Cleanup(func() { _ = ctx.CloseFSRoot() }) // the root handle pins the dir on Windows
 	ctx.Grant(NewCapability("FS"))
 
 	args := []eval.Value{&eval.StringValue{Value: "subdir"}}

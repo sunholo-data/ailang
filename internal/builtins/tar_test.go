@@ -516,6 +516,7 @@ func TestTarListEntries_SandboxRespected(t *testing.T) {
 	// Caller passes only "s.tar" but sandbox prepends dir.
 	ctx := effects.NewEffContext([]string{"FS"})
 	ctx.Env.Sandbox = dir
+	t.Cleanup(func() { _ = ctx.CloseFSRoot() }) // the root handle pins the dir on Windows
 	res, err := tarListEntriesImpl(ctx, []eval.Value{&eval.StringValue{Value: "s.tar"}})
 	if err != nil {
 		t.Fatalf("impl error: %v", err)

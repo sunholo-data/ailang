@@ -113,6 +113,7 @@ func TestFSReadFileBytes_Sandbox(t *testing.T) {
 
 	ctx := makeTestCtx(t)
 	ctx.Env.Sandbox = dir
+	t.Cleanup(func() { _ = ctx.CloseFSRoot() }) // the root handle pins the dir on Windows
 
 	// Use relative path — sandbox should resolve it
 	args := []eval.Value{&eval.StringValue{Value: "data.bin"}}

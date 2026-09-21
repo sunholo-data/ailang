@@ -7,7 +7,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"syscall"
 	"testing"
 	"time"
 
@@ -21,6 +20,7 @@ import (
 // writePolicy writes a policy file with the given body plus a sandbox.
 func writePolicy(t *testing.T, dir, body string) string {
 	t.Helper()
+	skipWithoutRestrictedMode(t)
 	sandbox := filepath.Join(dir, "sandbox")
 	if err := os.MkdirAll(sandbox, 0o755); err != nil {
 		t.Fatal(err)
@@ -73,15 +73,16 @@ func TestRunPolicy_TimeoutKillsDescendants(t *testing.T) {
 	bin := buildAilang(t)
 	dir := t.TempDir()
 	pidFile := filepath.Join(dir, "sandbox", "child.pid")
-	pol := writePolicy(t, dir, "allowed_caps = [\"IO\", \"FS\", \"Process\"]\nsecurity_mode = \"trusted_host\"\nfs_sandbox = \"${SANDBOX}\"\nprocess_allow = [\"sh\"]\nentry = \"main\"\ntimeout_ms = 4000\n")
-	// sh writes its own pid then sleeps far past the deadline. exec's own
-	// per-call timeout (30s) would otherwise outlive the policy. 4s leaves
-	// room for the binary's own startup (the local observatory health check
-	// alone costs ~1.5s on the rig); the property is descendant death.
+	pol := writePolicy(t, dir, "allowed_caps = [\"IO\", \"FS\", \"Process\"]\nsecurity_mode = \"trusted_host\"\nfs_sandbox = \"${SANDBOX}\"\nprocess_allow = [\"sh\"]\nentry = \"main\"\ntimeout_ms = 15000\nmax_output_bytes = 0\n")
+	// sh writes its own pid then sleeps far past the deadline; exec's own
+	// per-call timeout (30s) is raised below so the POLICY is what fires.
+	// 15s leaves room for the binary's startup under a parallel `make test`
+	// (measured: 4s was not enough on a loaded rig); the property under test
+	// is descendant death, not the exact deadline.
 	prog := `module prog
 import std/process (exec)
 export func main() -> () ! {IO, Process} = {
-  match exec("sh", ["-c", "echo $$ > child.pid; sleep 30"]) {
+  match exec("sh", ["-c", "echo $$ > child.pid; sleep 120"]) {
     Ok(_) => println("done"),
     Err(_) => println("err")
   }
@@ -103,12 +104,12 @@ export func main() -> () ! {IO, Process} = {
 	// Bounded ESRCH poll: the grandchild must be gone within 2s of return.
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
-		if err := syscall.Kill(pid, 0); err == syscall.ESRCH {
+		if processGone(pid) {
 			return
 		}
 		time.Sleep(50 * time.Millisecond)
 	}
-	_ = syscall.Kill(pid, syscall.SIGKILL)
+	killProcess(pid)
 	t.Fatalf("grandchild %d survived the supervisor's group kill", pid)
 }
 

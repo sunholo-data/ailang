@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -13,8 +14,20 @@ import (
 // sandbox come from the policy, and the flags an agent could use to widen
 // them are refused outright.
 
+// skipWithoutRestrictedMode: `run --policy` refuses restricted mode on
+// Windows and GOOS=js by design (D6: no descendant-termination claim, no
+// os.Root confinement guarantee), so every fixture-driven policy test is a
+// Linux/macOS test.
+func skipWithoutRestrictedMode(t *testing.T) {
+	t.Helper()
+	if !restrictedModeSupported() {
+		t.Skipf("restricted policy mode is refused on %s (D6)", runtime.GOOS)
+	}
+}
+
 func writePolicyFixture(t *testing.T, dir, caps string) string {
 	t.Helper()
+	skipWithoutRestrictedMode(t)
 	sandbox := filepath.Join(dir, "sandbox")
 	if err := os.MkdirAll(sandbox, 0o755); err != nil {
 		t.Fatal(err)

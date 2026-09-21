@@ -38,17 +38,19 @@ func captureSandboxRejectLog(t *testing.T, f func()) string {
 	return buf.String()
 }
 
-func sandboxCtx(sandbox string) *EffContext {
+func sandboxCtx(t *testing.T, sandbox string) *EffContext {
+	t.Helper()
 	ctx := NewEffContext([]string{})
 	ctx.Grant(NewCapability("FS"))
 	ctx.Env.Sandbox = sandbox
+	t.Cleanup(func() { _ = ctx.CloseFSRoot() }) // the root handle pins the dir on Windows
 	return ctx
 }
 
 // TestSandboxReject_Exists verifies exists() logs to stderr when path escapes sandbox.
 func TestSandboxReject_Exists(t *testing.T) {
 	sandbox := t.TempDir()
-	ctx := sandboxCtx(sandbox)
+	ctx := sandboxCtx(t, sandbox)
 	escapingPath := "/etc/passwd"
 
 	log := captureSandboxRejectLog(t, func() {
@@ -81,7 +83,7 @@ func TestSandboxReject_Exists(t *testing.T) {
 // TestSandboxReject_IsDir verifies isDir() logs to stderr when path escapes sandbox.
 func TestSandboxReject_IsDir(t *testing.T) {
 	sandbox := t.TempDir()
-	ctx := sandboxCtx(sandbox)
+	ctx := sandboxCtx(t, sandbox)
 	escapingPath := "/tmp/some-other-dir"
 
 	log := captureSandboxRejectLog(t, func() {
@@ -103,7 +105,7 @@ func TestSandboxReject_IsDir(t *testing.T) {
 // TestSandboxReject_IsFile verifies isFile() logs to stderr when path escapes sandbox.
 func TestSandboxReject_IsFile(t *testing.T) {
 	sandbox := t.TempDir()
-	ctx := sandboxCtx(sandbox)
+	ctx := sandboxCtx(t, sandbox)
 	escapingPath := "/etc/hosts"
 
 	log := captureSandboxRejectLog(t, func() {
@@ -128,7 +130,7 @@ func TestSandboxReject_NoLogWhenDebugUnset(t *testing.T) {
 	os.Unsetenv("AILANG_FS_SANDBOX_DEBUG")
 
 	sandbox := t.TempDir()
-	ctx := sandboxCtx(sandbox)
+	ctx := sandboxCtx(t, sandbox)
 
 	old := os.Stderr
 	r, w, err := os.Pipe()
@@ -153,7 +155,7 @@ func TestSandboxReject_NoLogWhenDebugUnset(t *testing.T) {
 // TestSandboxReject_WithinSandboxNoLog verifies no log for paths inside the sandbox.
 func TestSandboxReject_WithinSandboxNoLog(t *testing.T) {
 	sandbox := t.TempDir()
-	ctx := sandboxCtx(sandbox)
+	ctx := sandboxCtx(t, sandbox)
 
 	t.Setenv("AILANG_FS_SANDBOX_DEBUG", "1")
 
@@ -184,7 +186,7 @@ func TestSandboxReject_TraceEventDeepTier(t *testing.T) {
 	t.Setenv("AILANG_TRACE", "deep")
 
 	sandbox := t.TempDir()
-	ctx := sandboxCtx(sandbox)
+	ctx := sandboxCtx(t, sandbox)
 	ctx.Trace = trace.NewCollector()
 
 	args := []eval.Value{&eval.StringValue{Value: "/etc/passwd"}}
@@ -209,7 +211,7 @@ func TestSandboxReject_NoTraceEventStandardTier(t *testing.T) {
 	t.Setenv("AILANG_TRACE", "standard")
 
 	sandbox := t.TempDir()
-	ctx := sandboxCtx(sandbox)
+	ctx := sandboxCtx(t, sandbox)
 	ctx.Trace = trace.NewCollector()
 
 	args := []eval.Value{&eval.StringValue{Value: "/etc/passwd"}}
