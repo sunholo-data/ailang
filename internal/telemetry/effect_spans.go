@@ -5,9 +5,11 @@ import (
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/sunholo-data/ailang/internal/effects"
 	"github.com/sunholo-data/ailang/internal/eval"
+	ailtrace "github.com/sunholo-data/ailang/internal/trace"
 )
 
 // NewEffectSpanWrapper returns a SpanWrapperFunc that wraps each effect
@@ -21,18 +23,51 @@ import (
 //  4. Executes the effect operation
 //  5. Sets post-call status and per-effect result attributes
 //  6. Ends the span
+//
+// The tier comes from the process environment (AILANG_TRACE), the same
+// source the run path resolves before a --trace flag; a CLI --trace=deep
+// therefore does not reach this wrapper, and AILANG_TRACE=deep is the switch.
 func NewEffectSpanWrapper() effects.SpanWrapperFunc {
 	if !IsEnabled() && !IsGoogleCloudEnabled() {
 		return nil
 	}
-	tracer := Tracer("ailang-effects")
+	tier, err := ailtrace.TierFromEnv()
+	if err != nil {
+		tier = ailtrace.TierStandard
+	}
+	return newEffectSpanWrapper(Tracer("ailang-effects"), tier)
+}
 
+// consoleEffectSpan reports whether an effect op is console chatter that a
+// standard-tier span records nothing about: no enrichment, zero duration, one
+// span per call. One coordinator-run program wrote 2,044 effect.Debug.log spans
+// into the prod observatory in a single trace on 2026-09-21 (85% of the newest
+// spans), and the local DB carried 3,818 effect.IO.println rows; each of these
+// is also doubled by the trace stream's eval.effect.* span. Deep tier keeps
+// them, since that is the profiling / training-data opt-in.
+func consoleEffectSpan(effectName, opName string) bool {
+	switch effectName {
+	case "Debug":
+		return true
+	case "IO":
+		switch opName {
+		case "print", "println", "eprint", "eprintln", "flush":
+			return true
+		}
+	}
+	return false
+}
+
+func newEffectSpanWrapper(tracer trace.Tracer, tier ailtrace.Tier) effects.SpanWrapperFunc {
 	return func(
 		goCtx context.Context,
 		effectName, opName string,
 		args []eval.Value,
 		fn func() (eval.Value, error),
 	) (eval.Value, error) {
+		if tier != ailtrace.TierDeep && consoleEffectSpan(effectName, opName) {
+			return fn()
+		}
 		spanName := "effect." + effectName + "." + opName
 		_, span := StartSpan(goCtx, tracer, spanName)
 		defer span.End()
