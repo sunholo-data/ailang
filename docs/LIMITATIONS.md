@@ -54,6 +54,24 @@ if x > maxX then [] else {
 Single-expression branches don't need braces. See the
 [canonical page](docs/docs/reference/limitations.md) for the full entry.
 
+## Execution policy residuals {#execution-policy-residuals}
+
+What `ailang run --policy` in **restricted** mode does and does not guarantee, after
+M-EXECUTOR-POLICY-HARDENING (v0.41.0). The confined-execution claim covers the mediated effects
+(`IO`, `FS`, `Net`, `Clock`, `Rand`, `Stream`) and the `ailang_only` lane's tools. Everything below
+is outside it and is stated rather than papered over.
+
+| Residual | Kind | What to do about it |
+|---|---|---|
+| **Hard links, device nodes, `/proc`, bind mounts seeded into the sandbox** | Root-relative APIs do not sever them (`os.Root` contract) | The launcher provisions a private per-task directory and never seeds it with these; a host that can change mount topology is outside the attacker model. |
+| **CPU and memory** | No portable effect-level bound; Go's soft memory target is not a hard limit | Run the worker in a container/cgroup; `AILANG_EVAL_MAX_RSS` on the eval rig. A configured hard limit the platform cannot enforce fails startup rather than pretending. |
+| **`trusted_host` mode** | An explicit host-integration grant with no confinement claim: full environment, proxy semantics, `Process`/`AI`/`Env`/`Secret` | Provenance only: `security_mode` is banked. Not accepted by the `ailang_only` lane. |
+| **HTTP proxy in restricted mode** | Refused (`E_NET_PROXY_REFUSED`): a destination cannot be pinned behind a proxy | A constrained proxy protocol is future work; use `trusted_host` knowingly or unset the proxy. |
+| **Loopback / private / metadata destinations in restricted mode** | Refused with no override — local Ollama development is outside restricted mode | Address-scoped grants are future work; `trusted_host` honours a loopback entry in `net_allow`. |
+| **CLI ops of `ailang_cli` run as a separate unconfined process** | The path is validated inside the root at request time (and must not be a symlink); an in-root symlink swapped afterwards is a window the check cannot vouch for | Keep CLI grants short (`cli_allow`); the ops are read-only or write only the file they are given. |
+| **Windows and `GOOS=js`** | No descendant termination claim / documented `os.Root` TOCTOU | Restricted mode refuses at startup with a named reason; `trusted_host` runs with those weaker guarantees. |
+| **Allowed endpoints are not vetted** | Public-only denial does not make data sent to an allowlisted host safe | `net_allow` is the operator's judgement. |
+
 ## Resolved (were documented as broken; re-verified working at v0.33.1)
 
 - **Polymorphic arithmetic lambdas** — `let add = \x. \y. x + y in add(3.14)(2.71)` → `5.85`

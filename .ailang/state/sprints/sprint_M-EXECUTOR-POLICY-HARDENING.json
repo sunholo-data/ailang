@@ -1,9 +1,9 @@
 {
   "sprint_id": "M-EXECUTOR-POLICY-HARDENING",
-  "status": "in_progress",
+  "status": "completed",
   "created": "2026-09-21T09:43:02Z",
-  "design_doc": "design_docs/planned/m-executor-policy-hardening.md",
-  "sprint_plan": "design_docs/planned/v0_41_0/m-executor-policy-hardening-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_41_0/m-executor-policy-hardening.md",
+  "sprint_plan": "design_docs/implemented/v0_41_0/m-executor-policy-hardening-sprint-plan.md",
   "github_issues": [],
   "velocity": {
     "target_loc_per_day": 600,
@@ -101,11 +101,13 @@
         "CHANGELOG, docs/LIMITATIONS.md, agent-policy guide and example policies updated; design doc in design_docs/implemented/v0_41_0/",
         "make test, make lint, make check-boundaries, make verify-pi-assets, make verify-examples all green (output recorded in notes)"
       ],
-      "passes": null,
+      "passes": true,
       "started": "2026-09-21T11:13:13Z",
-      "completed": null,
-      "notes": null
+      "completed": "2026-09-21T11:26:02Z",
+      "notes": "run_policy_containment_test.go (F1/F2/N1 e2e); sandbox-check onto fileguard (was a lexical copy that reported ../x ALLOW); docs (agent-tool-policy guide rewrite, LIMITATIONS residuals matrix, debugging guide, example policy, cli.md); verification log in the design doc; golden builtin_types updated for the intentional {Stream,Process} row. Gates: make test, lint, check-boundaries, verify-pi-assets, check-file-sizes, verify-examples all green. Migration of 3 multivac policies documented, not applied."
     }
   ],
-  "github_issues_note": "create_sprint_json.sh keyword-matched #1259/#1261-#1264 (std/ai deadline, ailang test env, decisions); none concern executor policy — cleared by the planner"
+  "github_issues_note": "create_sprint_json.sh keyword-matched #1259/#1261-#1264 (std/ai deadline, ailang test env, decisions); none concern executor policy — cleared by the planner",
+  "completed": "2026-09-21T11:26:02Z",
+  "outcome": "LANDED on dev in 5 milestone commits + finalize. Every AC1-AC12 row has a named artifact; every counterexample was red-first. Extra findings closed: archive builtins F1/F2, Process.Authorize(nil) bypass via Stream, prelude println budget, sandbox-check lie. OPEN: operator decision on the 3 deployed ailang_only policies that admit Process/AI (refused at dispatch once shipped)."
 }

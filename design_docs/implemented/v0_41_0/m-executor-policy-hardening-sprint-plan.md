@@ -7,7 +7,7 @@ filesystem operations (`os.Root`), one network destination authorizer applied on
 stream connection, an immutable typed policy with `security_mode`, an enforced `timeout_ms` and
 operator budgets, and Go-mediated agent tools that cannot reach around the gate.
 
-**Design doc:** [m-executor-policy-hardening.md](../m-executor-policy-hardening.md)
+**Design doc:** [m-executor-policy-hardening.md](m-executor-policy-hardening.md)
 **Duration:** 5 milestones, planned as ~8–10 working days of agent time (design doc says 15–22
 engineering days; recent velocity is far above one engineer, see below)
 **Dependencies:** none external — Go 1.26.6 already in `go.mod`, `os.Root` has every method M1 needs
@@ -272,7 +272,7 @@ trusted_host honours an explicit loopback entry in `net_allow` (the e2e Net test
 - pi tool registration shape for read/edit differs from native — Mitigation: keep parameter names
   identical (`path`, `content`, `oldText`, `newText`) so the model's habits transfer.
 
-### Milestone 5: End-to-end proof, migration, docs
+### Milestone 5: End-to-end proof, migration, docs ✅ (2026-09-21)
 
 **Goal:** The restricted-worker claim is made only after the integrated suite passes; operators have
 a migration path for Process-capable `ailang_only` agents.
@@ -296,10 +296,16 @@ a migration path for Process-capable `ailang_only` agents.
    targeted `-race`, `make verify-examples`.
 
 **Acceptance Criteria:**
-- [ ] All AC1–AC12 rows in the design doc have a named test or doc artifact
-- [ ] Four conflict fixtures (`effects_fs_io`, `fs_walk_glob`, `process_subcmd_allowlist`,
+- [x] All AC1–AC12 rows in the design doc have a named test or doc artifact
+- [x] Four conflict fixtures (`effects_fs_io`, `fs_walk_glob`, `process_subcmd_allowlist`,
       `net_only_admitted`) still `ailang check` clean and run under trusted mode
-- [ ] Design doc moved to `design_docs/implemented/v0_41_0/` with a verification log
+- [x] Design doc moved to `design_docs/implemented/v0_41_0/` with a verification log
+
+**Done:** e2e containment suite; `ailang sandbox-check` moved onto the real root handle (it was a
+lexical copy of the old resolver); guide/LIMITATIONS/debugging/example policy/CLI reference updated;
+verification log appended to the design doc. `make test` green after the intentional golden update
+(`_stream_async_exec_process` row). The three-policy migration is documented, NOT applied (prod
+config plane).
 
 ## Success Metrics
 

@@ -890,7 +890,7 @@ make doc PKG=<package>    # Show package documentation
 
 ## Sandbox Debugging (`AILANG_FS_SANDBOX`)
 
-When `AILANG_FS_SANDBOX` is set, all FS operations are restricted to a root directory. `exists`, `isDir`, and `isFile` silently return `false` for out-of-sandbox paths (correct public contract — they don't throw). This can cause programs with fallback logic to silently degrade to defaults with no error or warning.
+When `AILANG_FS_SANDBOX` is set, all FS operations go through one `os.Root` handle on that directory (v0.41.0, M-EXECUTOR-POLICY-HARDENING): `..` past the root, absolute paths outside it, and symlinks whose target leaves it — relative or absolute — are refused inside the syscall. `exists`, `isDir`, and `isFile` silently return `false` for such paths (correct public contract — they don't throw). This can cause programs with fallback logic to silently degrade to defaults with no error or warning. Relative symlinks that stay inside the root still resolve; an absolute symlink is refused even when it points back inside.
 
 ### Symptom
 
@@ -928,7 +928,10 @@ ailang sandbox-check <path>   # ALLOW/REJECT + resolved path, exits 0/1
 ```
 
 Exit 0 = ALLOW (path is within sandbox or sandbox not configured).  
-Exit 1 = REJECT (path escapes sandbox).
+Exit 1 = REJECT (path escapes sandbox — by traversal, by an absolute path outside it, or through a symlink).
+
+The verdict comes from the same root handle the runtime uses, so what `sandbox-check` says is what
+`readFile` will do; it is not a lexical imitation of the resolver.
 
 No `AILANG_FS_SANDBOX` set → prints "no sandbox configured", exits 0.
 

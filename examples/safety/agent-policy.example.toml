@@ -1,38 +1,50 @@
-# Example policy for the M-AGENT-SAFE-RUNNER pattern.
+# Example policy for the ailang_only lane (M-AGENT-SAFE-RUNNER / M-EXECUTOR-POLICY-HARDENING).
 #
 # Gate a run with it:   ailang run --policy agent-policy.toml prog.ail
-# (caps, net_allow and fs_sandbox come from THIS file; --caps/--no-budgets/
-# --allow-env are refused; denial prints the decision JSON and exits 2.)
-# NOTE: `run --policy` refuses a policy with [budgets] until run-time budget
-# enforcement exists — budgets are enforced from source annotations today.
+# The run is SUPERVISED: caps, net_allow, fs_sandbox, entry and every limit come
+# from THIS file; every widening flag (--caps, --entry, --env*, --net-*, …) is
+# refused by name; denial prints the decision JSON and exits 2; a timeout or
+# output cap exits 3 with a `policy-result:` envelope on stderr.
 # Operator-authored; pinned at deploy time. The submitted .ail program's
 # entry-function effect row must be a subset of `allowed_caps`.
+
+# "restricted" (the default when absent): only IO, FS, Net, Clock, Rand and
+# Stream can be admitted; proxies and loopback/private destinations are refused;
+# the worker's environment is an allowlist. "trusted_host": operator-approved
+# host integrations (Process, AI, Env, Secret) with no confinement claim — not
+# accepted by an ailang_only agent.
+security_mode = "restricted"
 
 # Capabilities the program is permitted to declare. Empty list = deny-all.
 allowed_caps = ["Net"]
 
-# Filesystem root exported as AILANG_FS_SANDBOX at run time.
-# The static gate does not enforce this; the runtime FS effect handler does.
+# Filesystem root. Every FS operation goes through one os.Root handle: `..`,
+# outside absolute paths and symlinks that leave the root fail inside the
+# syscall. Must NOT contain this file's own directory.
 fs_sandbox = "/tmp/agent-work"
 
-# Hostname allowlist for the Net effect handler.
+# Hostname allowlist, checked on EVERY hop (redirects included) and every
+# connection (HTTP, SSE, NDJSON, WebSocket). https only unless net_allow_http.
 net_allow = ["api.example.com"]
 
-# Hard timeout in milliseconds.
+# Wall clock for the WHOLE invocation, enforced by the supervisor (positive, <= 24h).
 timeout_ms = 5000
 
-# Reject submissions larger than this many bytes before typechecking.
+# Reject submissions larger than this before typechecking (restricted default 1 MiB).
 max_source_bytes = 65536
 
-# AI provider mode: "stub" (deterministic) or a model name.
-ai_provider = "stub"
+# Other ceilings (restricted defaults: 16 MiB module graph, 8 MiB combined
+# stdout+stderr, 8 MiB per FS read or write):
+# max_module_graph_bytes = 16777216
+# max_output_bytes       = 8388608
+# max_fs_transfer_bytes  = 8388608
 
-# Exported function the runner will invoke.
+# Exported function the runner will invoke (--entry is refused under --policy).
 entry = "main"
 
-# Per-effect operation budgets (runtime enforced).
+# Operator ceilings for the whole run, enforced at run time: an explicit 0 is
+# zero operations, an absent effect is unlimited, and a source @limit can only
+# tighten. A budget for an effect not in allowed_caps is refused.
 # NOTE: Tables MUST come last in TOML — anything below is folded into them.
 [budgets]
 Net = 100
-FS = 0
-IO = 50
