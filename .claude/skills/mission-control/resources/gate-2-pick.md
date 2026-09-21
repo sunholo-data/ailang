@@ -1,36 +1,43 @@
 ## Gate 2 — PICK + REALITY-CHECK
 
-### ADMISSIBILITY — is this item allowed to be THIS iteration's work?
+### ADMISSIBILITY — harness work is NOT loop work
 
-**Harness work is admissible ONLY when it BLOCKS the rung you would otherwise do.**
-Mark, attended 2026-09-21. Apply this BEFORE the pick, to every candidate.
+**Harness work happens in ATTENDED SESSIONS ONLY. It is outside this loop's authority.**
+Mark, attended 2026-09-21 (tightened the same day from an earlier "only when it blocks" draft,
+which still left the loop deciding — and the deciding is the part that fails).
 
-**"It is a real defect" is not sufficient.** Measured the same day: an attended session went
-looking for harness defects, found six genuine ones without trying hard, fixed them all — and
+This is the Daneel rung model applied to the fleet: **no capability without its authority row**,
+and **down is a normal move**. The loop's authority row covers work on its mission's own clauses.
+Repairing the harness it runs on is not in that row, so the correct response to a harness defect
+is **escalation, not a fix** — and escalation is a SUCCESSFUL iteration outcome, not a failure.
+
+**Why the earlier, softer rule was not enough.** "Admissible when it blocks the rung" still asked
+the loop to judge whether something blocks it, and a harness defect always argues well: it is
+real, it is in the way, and fixing it feels like progress. Measured 2026-09-21: an attended
+session went looking for harness defects, found six genuine ones in a day without trying hard, and
 **never ran out**. A harness of ~6,000 lines of shell, five executors and four missions will
-always yield findable defects, and every one of them will be justifiable. That is how 55% of
-iterations 309–348 came to be tagged `[HARNESS]` while the compiler and stdlib got 16 lines in
-two weeks. The loop was not malfunctioning. It was doing what it was permitted to do — and so
-was the attended session that later diagnosed it, which is the point: **local correctness does
-not aggregate.** Six correct decisions summed to a fleet repairing itself instead of working.
+always yield them. That is how 55% of iterations 309–348 came to be tagged `[HARNESS]` while the
+compiler and stdlib got 16 lines in two weeks — the loop was not malfunctioning, it was doing what
+it was permitted to do. The cap has to sit OUTSIDE the judgement it constrains.
 
-The test:
+**What to do when a harness defect blocks you:**
 
-| Question | Verdict |
-|---|---|
-| Would the next real rung **fail**, or return a result you could not attribute, if this went unfixed *this iteration*? | Admissible. Tag `[HARNESS]`, proceed |
-| Is it real, but merely annoying, untidy, or "while we are here"? | **Not this iteration's work.** File it as a maintenance queue row and pick the rung |
+1. **Stop working it.** Do not fix, do not work around, do not "just quickly".
+2. **File the row** in your mission's queue, tagged `[HARNESS]`, with what you measured.
+3. **Say it is blocking** in the Gate-5 digest under its own heading, naming what it blocks.
+4. **Pick the next admissible item.** If nothing is admissible, **end the iteration with the
+   escalation as the outcome.** A loop that stops and says *"I am blocked by X"* is worth far more
+   than one that silently spends its iteration on X — the first is visible to a human, the second
+   is the failure mode this rule exists to end.
+5. If the defect is in the SHARED harness (`sunholo-data/ailang`: the driver, the skill,
+   `scripts/`), route it upstream as an issue. Missions other than v1 cannot edit it anyway, so
+   working it locally produces proposals, not fixes.
 
-**ONE MAINTENANCE SWEEP PER WEEK**, as needed, is the pressure valve — a single iteration that
-drains accumulated maintenance rows, tagged `[HARNESS][SWEEP]`. It is a ceiling, not a quota: a
-week with no blocking defect and nothing worth draining does not need one. Do not manufacture a
-sweep to fill it.
+**Maintenance is an ATTENDED session**, roughly weekly as needed — never a loop iteration. It is a
+ceiling, not a quota: a quiet week does not need one manufactured.
 
-**Why a rule rather than judgement:** the cap has to sit outside the judgement it constrains,
-because the judgement is exactly what fails. Every harness pick felt like progress at the time.
-The `[HARNESS]` tag is the instrument — Gate 5 counts it, and a rising share over a rolling
-window is the signal to stop and ask a human, not to work harder.
-
+**The one carve-out**: bookkeeping the gates themselves mandate (Gate 4's log/index/dashboard
+writes) is not "harness work" — it is the iteration's own record-keeping.
 
 **⚠ BEFORE PICKING, GREP THE ITERATION INDEX. This is how the loop avoids redoing work.**
 
