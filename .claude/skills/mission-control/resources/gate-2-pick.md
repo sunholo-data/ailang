@@ -1,5 +1,37 @@
 ## Gate 2 — PICK + REALITY-CHECK
 
+### ADMISSIBILITY — is this item allowed to be THIS iteration's work?
+
+**Harness work is admissible ONLY when it BLOCKS the rung you would otherwise do.**
+Mark, attended 2026-09-21. Apply this BEFORE the pick, to every candidate.
+
+**"It is a real defect" is not sufficient.** Measured the same day: an attended session went
+looking for harness defects, found six genuine ones without trying hard, fixed them all — and
+**never ran out**. A harness of ~6,000 lines of shell, five executors and four missions will
+always yield findable defects, and every one of them will be justifiable. That is how 55% of
+iterations 309–348 came to be tagged `[HARNESS]` while the compiler and stdlib got 16 lines in
+two weeks. The loop was not malfunctioning. It was doing what it was permitted to do — and so
+was the attended session that later diagnosed it, which is the point: **local correctness does
+not aggregate.** Six correct decisions summed to a fleet repairing itself instead of working.
+
+The test:
+
+| Question | Verdict |
+|---|---|
+| Would the next real rung **fail**, or return a result you could not attribute, if this went unfixed *this iteration*? | Admissible. Tag `[HARNESS]`, proceed |
+| Is it real, but merely annoying, untidy, or "while we are here"? | **Not this iteration's work.** File it as a maintenance queue row and pick the rung |
+
+**ONE MAINTENANCE SWEEP PER WEEK**, as needed, is the pressure valve — a single iteration that
+drains accumulated maintenance rows, tagged `[HARNESS][SWEEP]`. It is a ceiling, not a quota: a
+week with no blocking defect and nothing worth draining does not need one. Do not manufacture a
+sweep to fill it.
+
+**Why a rule rather than judgement:** the cap has to sit outside the judgement it constrains,
+because the judgement is exactly what fails. Every harness pick felt like progress at the time.
+The `[HARNESS]` tag is the instrument — Gate 5 counts it, and a rising share over a rolling
+window is the signal to stop and ask a human, not to work harder.
+
+
 **⚠ BEFORE PICKING, GREP THE ITERATION INDEX. This is how the loop avoids redoing work.**
 
 ```bash
