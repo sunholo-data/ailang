@@ -217,7 +217,7 @@ the planner lane is a document-parsing policy, not a table lookup.
 
 ### Implementation Plan
 
-**Phase 0 — data only, independently landable (no resolver change).**
+**Phase 0 — data only, independently landable (no resolver change). ✅ LANDED 2026-09-21.**
 Add the pi×ollama-cloud rows the driver's fallbacks name (`ollama/kimi-k3:cloud`,
 `ollama/deepseek-v4-flash:0731-cloud`), so the registry can *express* the flat-rate tier. Assert
 they resolve on both lanes and are not treated as local GPU. Nothing reads them yet — this phase
@@ -330,7 +330,7 @@ changes in phases 0–2.
 
 ## Success Criteria
 
-- [ ] Phase 0: the two pi×ollama-cloud rows resolve on both lanes, are not local-GPU, and change no existing role chain
+- [x] **Phase 0 LANDED 2026-09-21**: `pi-cloud-kimi-k3` and `pi-cloud-deepseek-v4-flash` added; `TestPiCloudRows_ExpressTheDriversFlatRateTier` pins agent_model_name, pi harness, non-GPU classification and INERTNESS. Mutation-proven three ways (local agent_model_name → 2 assertions red; local api_name too → UsesLocalGPU reds; row placed in a chain → the inertness assertion reds)
 - [ ] `TestCloudAgents_RegistryMatchesTheDeletedRoutingTable` stays green at every phase
 - [ ] Differential test: policy function and `derive-planner-lane.sh` agree on every enumerated case
 - [ ] `MISSION_DRY_RUN` byte-identical for 4 roles × 4 missions
@@ -462,9 +462,15 @@ Every load-bearing claim, with the command that produced it. All 2026-09-21 agai
 | V13 | Three incidents, one class | `git log` + `git show` | `7423434b4`, `e9e8ce32e`, `5f67aa532` |
 | V14 | M8's park text and reason | read `m-model-registry-single-source-sprint-plan.md:445-470` | parked 2026-08-27, Mark, "if it ain't broken won't fix" |
 
-**Not verified, and named as such:** whether the two new pi×ollama-cloud rows price correctly
-against a metered run (no such run exists yet — Phase 0 must derive the rate from one, as
-`pi-or-minimax-m3` did, or declare none rather than guess).
+**Not verified, and named as such:** whether the two pi×ollama-cloud rows price correctly against
+a metered run. No such run exists. Phase 0 resolved this the way the registry's own convention
+requires rather than by guessing: each row TRANSCRIBES the pricing of the `motoko-cloud-*` row
+that shares its `api_name` slug, because a pricing-consistency gate compares every row for a
+slug. A first draft imputed $0.20/$0.80 per 1M for deepseek from the OpenRouter twin and was
+wrong twice over — wrong numbers (the real figures are $0.065/$0.18) and the wrong twin, since
+the slug is shared with the motoko-cloud row, not the OpenRouter one. Neither row declares a
+cache rate: the documented fallback is loud, a guessed number would be quietly wrong. Both
+remain PROVISIONAL until a metered pi run on these routes exists.
 
 ## Future Work
 

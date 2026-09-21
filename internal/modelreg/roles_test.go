@@ -288,3 +288,80 @@ func TestResolveRole_ExecutorHasAnAdmissibleNonCodexRung(t *testing.T) {
 		}
 	}
 }
+
+// TestPiCloudRows_ExpressTheDriversFlatRateTier is M-ONE-ROLE-TABLE Phase 0.
+//
+// The mission driver leads the designer and planner fallback chains with an OLLAMA
+// CLOUD route before the metered OpenRouter one (mission-control.sh:1106 and :1215),
+// and until 2026-09-21 the registry could not express that rung at all: its 4
+// pi×ollama rows were every one a LOCAL-GPU qwen3.x, and its ollama-cloud rows were
+// all on the motoko harness.
+//
+// M-MODEL-REGISTRY-SINGLE-SOURCE M8's park note filed this as a capability gap. It was
+// a missing row: IsOllamaCloudRoute and UsesLocalGPU already classify a `:cloud` /
+// `-cloud` row as non-GPU. This test pins the three properties that claim rests on.
+//
+// These rows are INERT by design — no role chain names them. The last assertion is the
+// one that keeps Phase 0 honest: adding vocabulary must not move any routing.
+func TestPiCloudRows_ExpressTheDriversFlatRateTier(t *testing.T) {
+	if err := InitModelsConfig(); err != nil {
+		t.Fatalf("InitModelsConfig: %v", err)
+	}
+	c := GlobalModelsConfig
+
+	// The driver strings these rows exist to express, verbatim from mission-control.sh.
+	want := map[string]string{
+		"pi-cloud-kimi-k3":           "ollama/kimi-k3:cloud",
+		"pi-cloud-deepseek-v4-flash": "ollama/deepseek-v4-flash:0731-cloud",
+	}
+	for name, agentModel := range want {
+		m, err := c.GetModel(name)
+		if err != nil {
+			t.Errorf("GetModel(%q): %v", name, err)
+			continue
+		}
+		if m.AgentModelName == nil || *m.AgentModelName != agentModel {
+			got := "<nil>"
+			if m.AgentModelName != nil {
+				got = *m.AgentModelName
+			}
+			t.Errorf("%s: agent_model_name = %q, want %q — this row exists ONLY to express "+
+				"the driver's rung, so the string has to match it exactly", name, got, agentModel)
+		}
+		if m.AgentCLI == nil || *m.AgentCLI != "pi" {
+			t.Errorf("%s: agent_cli must be pi — a motoko-harness row already exists for "+
+				"these weights and is not what the driver runs", name)
+		}
+		// The property the park note called a capability gap: a cloud row is NOT
+		// GPU-bound, so it survives the LaneCloud filter and never takes the rig lock.
+		if c.UsesLocalGPU(name) {
+			t.Errorf("%s: UsesLocalGPU = true — an ollama CLOUD route shares nothing with "+
+				"the rig; serializing it behind the GPU lock buys nothing and costs wall-clock",
+				name)
+		}
+		if !IsOllamaCloudRoute(*m.AgentModelName) {
+			t.Errorf("%s: IsOllamaCloudRoute(%q) = false — the `:cloud`/`-cloud` grammar is what "+
+				"keeps this off the rig lock", name, *m.AgentModelName)
+		}
+	}
+
+	// Phase 0 is INERT: vocabulary only, no routing change. If a later phase puts these
+	// into a chain that is a dated departure and this assertion is what makes it
+	// deliberate rather than accidental.
+	for _, role := range []string{"designer", "planner", "executor", "evaluator"} {
+		for _, lane := range []Lane{LaneLocal, LaneCloud} {
+			chain, err := GlobalModelsConfig.ResolveRole(role, lane)
+			if err != nil {
+				t.Errorf("ResolveRole(%q, %s): %v", role, lane, err)
+				continue
+			}
+			for _, e := range chain {
+				if _, isNew := want[e.FriendlyName]; isNew {
+					t.Errorf("role %q lane %s now routes through %q — Phase 0 adds vocabulary and "+
+						"changes NO routing. Putting a pi-cloud row into a chain is a separate, "+
+						"dated departure (precedent: 7423434b4)", role, lane, e.FriendlyName)
+				}
+			}
+		}
+	}
+}
