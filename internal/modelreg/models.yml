@@ -3702,6 +3702,48 @@ models:
       this row the only pi OpenRouter entries were deepseek-v4-flash variants, so there was
       no way to express the driver's first evaluator rung as a registry friendly name.
 
+  pi-or-kimi-k3:
+    api_name: "moonshotai/kimi-k3"
+    provider: "openrouter"
+    default_thinking: "on"   # INHERITED from the opencode sibling for the same model, not
+                             # re-measured on pi; do not read this row's token counts as
+                             # efficiency data.
+    description: "Kimi K3 via pi minimal harness — binary mission-path designer + planner lanes"
+    env_var: "OPENROUTER_API_KEY"
+    agent_cli: "pi"
+    agent_model_name: "openrouter/moonshotai/kimi-k3"
+    model_family: "kimi"
+    max_output_tokens: 32000  # PI_WIRE_CLAMP min(declared, 32000) — the opencode sibling
+                              # declares 65536, but pi has no max-tokens flag and reads
+                              # maxTokens from ~/.pi/agent/models.json, so a larger number
+                              # here would not reach the wire. Same reasoning as
+                              # pi-or-minimax-m3.
+    pricing:
+      input_per_1k: 0.003    # $3.00 per 1M
+      output_per_1k: 0.015   # $15.00 per 1M
+      # Model facts (id, context, pricing) are TRANSCRIBED from opencode-or-kimi-k3, the
+      # sibling row for the same OpenRouter model. cache_read_per_1k is deliberately NOT
+      # declared: pi-or-minimax-m3's rate was DERIVED from a metered run, and no metered pi
+      # run on kimi-k3 exists yet. Declaring a guessed rate would be worse than the
+      # documented fallback, which is loud rather than wrong-and-quiet.
+    budgets:
+      max_cost_usd: 1.00      # matches the opencode sibling for the SAME model, not
+                              # pi-or-minimax-m3's 0.30 — kimi-k3 is frontier-priced
+                              # ($3/$15 per MTok) and the planner is a long role.
+      hard_timeout_secs: 3600
+    notes: |
+      The pi sibling of opencode-or-kimi-k3 — same OpenRouter model, skill-capable harness.
+      Serves the DESIGNER and PLANNER rows, the same defect and the same fix as
+      pi-or-minimax-m3 did for the evaluator: before this row the registry could express
+      kimi-k3 only as an opencode entry, so the binary mission path resolved a designer and
+      a planner that cannot load design-doc-creator or sprint-planner.
+
+      For planner it also expresses the driver's own fallback
+      (`pi:ollama/kimi-k3:cloud,pi:openrouter/moonshotai/kimi-k3`, mission-control.sh:1215),
+      so the two tables agree on that lane rather than merely both being defensible.
+
+      Smoke gate: PENDING on pi, inherited from the opencode sibling's own pending gate.
+
   pi-or-deepseek-v4-flash-bare:
     api_name: "deepseek/deepseek-v4-flash-0731"
     provider: "openrouter"
@@ -5198,8 +5240,43 @@ default: "claude-sonnet-4-6"
 # only. Said plainly because the table this replaced carried a comment claiming
 # Lane A read it, which a grep showed was never true.
 roles:
-  designer:  [opencode-or-kimi-k3]
-  planner:   [gpt5-6-sol, opencode-or-kimi-k3]
+  # designer and planner gain a pi rung (2026-09-21) — the SAME defect and the same fix as
+  # executor and evaluator below, found by asking the property rather than waiting for the
+  # third incident. EVERY RUNG MUST LOAD SKILLS (2026-09-08, attended): the roles are driven
+  # by .agents/skills/{design-doc-creator,sprint-planner}, and a harness that cannot load a
+  # skill receives the NAME of the procedure and none of its content. Only pi carries the
+  # workspace-trust extension that makes skill loading work (internal/executor/pi/isolation.go);
+  # opencode has no such capability, and the comment block above the executor row records that
+  # codex is skill-less too.
+  #
+  # Measured 2026-09-21 with codex over ration: designer resolved to [opencode] alone and
+  # planner to [codex, opencode], so BOTH roles had no skill-capable route on the binary path —
+  # designer had none at all, at any time, ration or not.
+  #
+  # THE DEFECT IS THE HARNESS, NOT THE MODEL, so the fix changes only the harness: each role
+  # keeps the model its chain already named and moves it from opencode to pi. designer stays on
+  # kimi-k3, planner keeps codex at the head and gains kimi-k3 on pi. Nothing here re-decides
+  # WHICH model runs a role — that is M-MODEL-REGISTRY-SINGLE-SOURCE M8's parked work, and its
+  # park note is why the shell's designer head (`claude:claude-fable-5-1`) is NOT transcribed:
+  # the registry yields `claude:fable`, which the Agent tool's sonnet|opus|haiku enum would
+  # silently downgrade to opus. Giving these roles a skill-capable rung does not need that work
+  # and does not wait for it.
+  #
+  # Keeping the model identical also keeps the CLOUD side inert: coordinator's ResolveModelChain
+  # reads these rows on LaneCloud, and TestCloudAgents_RegistryMatchesTheDeletedRoutingTable
+  # asserts the resolved MODEL still matches config.cloud.yaml's deleted routing table. Same
+  # shape as the evaluator fix, which moved minimax-m3 from opencode to pi and stayed inert there
+  # for exactly this reason.
+  #
+  # Corroboration that pi is the right harness for planner specifically: the shell driver
+  # independently resolves `pi:ollama/kimi-k3:cloud,pi:openrouter/moonshotai/kimi-k3`
+  # (mission-control.sh:1215) — the same model on the same harness, ratified separately.
+  #
+  # opencode stays as the LAST rung rather than being deleted — same precedent as the executor
+  # and evaluator rows: it is the route these roles actually ran, so it stays reachable for
+  # comparison.
+  designer:  [pi-or-kimi-k3, opencode-or-kimi-k3]
+  planner:   [gpt5-6-sol, pi-or-kimi-k3, opencode-or-kimi-k3]
   # executor gains a pi rung (2026-09-14), same defect and same fix as evaluator above.
   # Measured: with codex over ration, `mission iterate` reported "no available candidate" —
   # gpt5-6-sol blocked on quota, and opencode-or-deepseek-v4-flash refused with "executor

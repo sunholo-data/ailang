@@ -2,51 +2,126 @@ package modelreg
 
 import "testing"
 
-// M-MODEL-REGISTRY-SINGLE-SOURCE M3.
+// M-MODEL-REGISTRY-SINGLE-SOURCE M3 left a transcription guard here
+// (TestResolveRole_TranscribesLiveChainsByteIdentically) asserting that every role chain was
+// byte-identical to config.cloud.yaml's deleted model_routing table, because "changing which
+// models a role runs" was an explicit Non-Goal of that sprint.
 //
-// The chains are TRANSCRIBED from config.cloud.yaml's model_routing (the table
-// M7 deleted). Changing which models a role runs is an explicit Non-Goal, so the
-// test that matters is byte-identity with what the coordinator resolved before.
+// It was DELETED 2026-09-21, when the last two roles left it. All four have since been
+// deliberately repointed — executor and evaluator on 2026-09-14, designer and planner on
+// 2026-09-21 — each because the transcribed chain dispatched to a harness that cannot load the
+// role's skill. A transcription guard whose map is empty asserts nothing; keeping it would have
+// been a vacuous green. What replaces it is stronger: one PROPERTY every role must satisfy
+// (below), plus a per-role assertion pinning each deliberate departure with its reason.
+
+// TestResolveRole_EveryRoleHasASkillCapableRung is the unified guard for a defect class that
+// has now been found four times, once per role, always as an incident and never as a property:
 //
-// A subscription-first reordering was drafted during M8 and reverted with it —
-// see the note above `roles:` in models.yml. This assertion is what caught that
-// the draft had made M7 non-inert on the role path.
-func TestResolveRole_TranscribesLiveChainsByteIdentically(t *testing.T) {
+//   - evaluator, 2026-09-14 (7423434b4): dispatched to opencode while the shell ran pi. That is
+//     how M-MISSION-ITERATION-RELIABILITY M4's canary failed 3/3 with no verdict.
+//   - executor, 2026-09-14 (e9e8ce32e): [codex, opencode] — with codex over ration, "no
+//     available candidate".
+//   - designer + planner, 2026-09-21 (this commit): [opencode] and [codex, opencode]. Found by
+//     asking the property instead of waiting for the third incident.
+//
+// The rule is ratified: EVERY RUNG MUST LOAD SKILLS (2026-09-08, attended,
+// tools/launchd/mission-control.sh:1266). Each mission role IS a skill — design-doc-creator,
+// sprint-planner, sprint-executor, sprint-evaluator — so a harness that cannot load one receives
+// the NAME of the procedure and none of its content: it is asked to apply a rubric it never sees
+// and run scripts it is never told exist. That failure is silent. The stage explores, burns its
+// budget and returns without the artifact, which reads as a model failure rather than a routing
+// one.
+//
+// skillLess is deliberately a DENY list of the two harnesses measured unable to load skills,
+// not an allow list of the one that can: a new harness added to a chain should have to be proven
+// skill-less to be excluded, rather than silently failing a check it was never named in. Today
+// only pi carries the workspace-trust extension (internal/executor/pi/isolation.go); the comment
+// block at mission-control.sh:1273 records that the old pi->pi->codex chain was "EVERY rung
+// skill-less", which is the measurement behind codex's entry here.
+func TestResolveRole_EveryRoleHasASkillCapableRung(t *testing.T) {
 	if err := InitModelsConfig(); err != nil {
 		t.Fatalf("InitModelsConfig: %v", err)
 	}
-	c := GlobalModelsConfig
-
-	// Verbatim from ailang-multivac/config/config.cloud.yaml:61-64 as measured
-	// 2026-08-27 — the strings the coordinator handed an executor.
-	//
-	// Neither `evaluator` nor `executor` is in this map any more. It was deliberately repointed on
-	// 2026-09-14 (attended, Mark) and both are asserted separately below, because a
-	// transcription guard cannot also be the record of an intentional departure —
-	// leaving it here would have meant either a silent edit to the "verbatim"
-	// baseline or deleting the guard for the other three roles. The other three
-	// remaining two are pure transcriptions and are still held byte-identical.
-	want := map[string][]string{
-		"designer": {"openrouter/moonshotai/kimi-k3"},
-		"planner":  {"gpt-5.6-sol", "openrouter/moonshotai/kimi-k3"},
+	skillLess := map[string]string{
+		"opencode": "no workspace-trust extension; the fix that lets pi load a skill was never ported",
+		"codex":    "measured skill-less at mission-control.sh:1273 (the pi->pi->codex chain was EVERY rung skill-less)",
 	}
-
-	for role, wantChain := range want {
-		got, err := c.ResolveRole(role, LaneCloud)
-		if err != nil {
-			t.Errorf("ResolveRole(%q): %v", role, err)
-			continue
-		}
-		if len(got) != len(wantChain) {
-			t.Errorf("role %q: chain length %d, want %d (%v)", role, len(got), len(wantChain), got)
-			continue
-		}
-		for i, w := range wantChain {
-			if got[i].ModelName != w {
-				t.Errorf("role %q entry %d: ModelName = %q, want %q", role, i, got[i].ModelName, w)
+	for _, role := range []string{"designer", "planner", "executor", "evaluator"} {
+		for _, lane := range []Lane{LaneLocal, LaneCloud} {
+			got, err := GlobalModelsConfig.ResolveRole(role, lane)
+			if err != nil {
+				t.Errorf("ResolveRole(%q, %s): %v", role, lane, err)
+				continue
 			}
-			if got[i].Executor == "" {
-				t.Errorf("role %q entry %d (%s): empty Executor", role, i, got[i].FriendlyName)
+			if len(got) == 0 {
+				t.Errorf("role %q lane %s: empty chain", role, lane)
+				continue
+			}
+			capable := make([]string, 0, len(got))
+			rungs := make([]string, 0, len(got))
+			for _, e := range got {
+				rungs = append(rungs, e.FriendlyName+"/"+e.Executor)
+				if e.Executor == "" {
+					t.Errorf("role %q lane %s: rung %q has empty Executor", role, lane, e.FriendlyName)
+					continue
+				}
+				if _, bad := skillLess[e.Executor]; !bad {
+					capable = append(capable, e.Executor)
+				}
+			}
+			if len(capable) == 0 {
+				t.Errorf("role %q lane %s: NO skill-capable rung in %v — every rung is a harness "+
+					"that cannot load this role's skill, so the stage runs without its method and "+
+					"fails silently", role, lane, rungs)
+			}
+		}
+	}
+}
+
+// TestResolveRole_DesignerAndPlannerAreDeliberatelyPiBacked pins the 2026-09-21 departure, the
+// same way the evaluator and executor assertions below pin theirs. The property test above says
+// only that SOME skill-capable rung exists; this says WHICH, and that it is the one the shell
+// driver already ratified rather than a third routing opinion invented here.
+//
+// Each role keeps the MODEL its chain already named and moves it from opencode to pi, because
+// the defect is the harness. That also keeps the cloud side inert: ResolveModelChain reads these
+// rows on LaneCloud and TestCloudAgents_RegistryMatchesTheDeletedRoutingTable asserts the
+// resolved model still matches config.cloud.yaml's deleted table, which it does because the
+// model did not move. Corroboration for planner: the shell independently resolves the same model
+// on the same harness (mission-control.sh:1215). The shell's designer HEAD
+// (claude:claude-fable-5-1) is NOT transcribed — see the note above `roles:` in models.yml for
+// why that one needs M8's parked mission-form work.
+func TestResolveRole_DesignerAndPlannerAreDeliberatelyPiBacked(t *testing.T) {
+	if err := InitModelsConfig(); err != nil {
+		t.Fatalf("InitModelsConfig: %v", err)
+	}
+	want := map[string][]struct{ friendly, executor string }{
+		"designer": {
+			{"pi-or-kimi-k3", "pi"},
+			{"opencode-or-kimi-k3", "opencode"},
+		},
+		"planner": {
+			{"gpt5-6-sol", "codex"},
+			{"pi-or-kimi-k3", "pi"},
+			{"opencode-or-kimi-k3", "opencode"},
+		},
+	}
+	for role, wantChain := range want {
+		for _, lane := range []Lane{LaneLocal, LaneCloud} {
+			got, err := GlobalModelsConfig.ResolveRole(role, lane)
+			if err != nil {
+				t.Errorf("ResolveRole(%q, %s): %v", role, lane, err)
+				continue
+			}
+			if len(got) != len(wantChain) {
+				t.Errorf("role %q lane %s: chain length %d, want %d (%v)", role, lane, len(got), len(wantChain), got)
+				continue
+			}
+			for i, w := range wantChain {
+				if got[i].FriendlyName != w.friendly || got[i].Executor != w.executor {
+					t.Errorf("role %q lane %s entry %d: got %s/%s, want %s/%s", role, lane, i,
+						got[i].FriendlyName, got[i].Executor, w.friendly, w.executor)
+				}
 			}
 		}
 	}
