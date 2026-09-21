@@ -287,3 +287,22 @@ func TestPolicyTool_DotGitIsReadOnly(t *testing.T) {
 		t.Fatal(".git/config changed")
 	}
 }
+
+// M7: fs_deny_write protects the artifact's supply chain through the tools.
+func TestPolicyTool_FSDenyWrite(t *testing.T) {
+	f := newFixture(t, "fs_deny_write = [\".github/**\", \"Makefile\", \"*.yml\"]\n")
+	if err := os.MkdirAll(filepath.Join(f.sandbox, ".github", "workflows"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range []string{".github/workflows/ci.yml", ".github/x", "Makefile", "sub/../Makefile", "deploy.yml", filepath.Join(f.sandbox, "Makefile")} {
+		if r := f.host.Dispatch(Request{Op: "write", Path: p, Content: "x"}); r.OK || !strings.Contains(r.Refused, "fs_deny_write") {
+			t.Errorf("write %s: %+v", p, r)
+		}
+	}
+	if r := f.host.Dispatch(Request{Op: "write", Path: "sub/notes.md", Content: "x"}); !r.OK {
+		t.Errorf("ordinary write: %+v", r)
+	}
+	if _, err := os.Stat(filepath.Join(f.sandbox, "Makefile")); err == nil {
+		t.Fatal("Makefile was created")
+	}
+}

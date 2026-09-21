@@ -126,9 +126,28 @@
       "started": "2026-09-21T12:00:16Z",
       "completed": "2026-09-21T12:00:16Z",
       "notes": "Red-first: with Confined=false the fsmonitor command ran and --no-index/--output returned Ok. Two of the three deployed lane policies need no change now; daneel-executor (AI) still needs a decision."
+    },
+    {
+      "id": "M7_LAST_REACHES",
+      "description": "From the audit of what the agent inside pi can still reach: ailang_run/run --policy entry file must be inside fs_sandbox; AI admitted in restricted mode iff ai_provider pinned AND [budgets] AI set, worker env carries only that provider credentials; fs_deny_write patterns enforced by FS ops and policy-tool.",
+      "estimated_loc": 450,
+      "dependencies": [
+        "M6_CONFINED_GIT"
+      ],
+      "acceptance_criteria": [
+        "entry outside fs_sandbox refused by name; inside runs",
+        "restricted AI with stub + AI=2 runs, AI=1 denies the second call, no budget refused by name",
+        "only the pinned provider credential vars reach a restricted worker",
+        "fs_deny_write refuses writes/appends/removes/renames/mkdir under the patterns from FS ops and tools; reads and ordinary files unaffected",
+        "docs + changelog"
+      ],
+      "passes": true,
+      "started": "2026-09-21T12:26:12Z",
+      "completed": "2026-09-21T12:26:12Z",
+      "notes": "design-quorum stays gated by cli_allow (daneel-design only); docs search and ai-check/z3 stay in the default set (Mark). daneel-executor.toml now needs only [budgets] AI."
     }
   ],
   "github_issues_note": "create_sprint_json.sh keyword-matched #1259/#1261-#1264 (std/ai deadline, ailang test env, decisions); none concern executor policy — cleared by the planner",
   "completed": "2026-09-21T11:26:02Z",
-  "outcome": "LANDED on dev in 5 milestone commits + finalize. Every AC1-AC12 row has a named artifact; every counterexample was red-first. Extra findings closed: archive builtins F1/F2, Process.Authorize(nil) bypass via Stream, prelude println budget, sandbox-check lie. OPEN: operator decision on the 3 deployed ailang_only policies that admit Process/AI (refused at dispatch once shipped). M6 (confined git) added after close: pkg-ailang-only and ailang-only-executor need no migration; daneel-executor (AI) still does."
+  "outcome": "LANDED on dev in 5 milestone commits + finalize. Every AC1-AC12 row has a named artifact; every counterexample was red-first. Extra findings closed: archive builtins F1/F2, Process.Authorize(nil) bypass via Stream, prelude println budget, sandbox-check lie. OPEN: operator decision on the 3 deployed ailang_only policies that admit Process/AI (refused at dispatch once shipped). M6 (confined git) added after close: pkg-ailang-only and ailang-only-executor need no migration; daneel-executor (AI) still does. M7: entry-in-sandbox, restricted AI with budget, fs_deny_write; daneel-executor needs only [budgets] AI."
 }

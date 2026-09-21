@@ -224,7 +224,7 @@ func runCommand() {
 		if *policyWorkerFlag == 0 {
 			// PARENT: supervise a worker and exit with its verdict. Nothing
 			// executes in this process (M-EXECUTOR-POLICY-HARDENING M3).
-			os.Exit(supervisePolicyRun(*policyFlag, widening, os.Args[2:]))
+			os.Exit(supervisePolicyRun(*policyFlag, filename, widening, os.Args[2:]))
 		}
 		control := os.NewFile(uintptr(*policyWorkerFlag), "policy-control")
 		resolved := applyRunPolicy(*policyFlag, filename, widening, control)

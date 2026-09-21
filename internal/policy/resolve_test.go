@@ -70,15 +70,14 @@ func TestResolve_DefaultsAreRestricted(t *testing.T) {
 func TestResolve_RestrictedRefusesUnadaptedEffects(t *testing.T) {
 	// Every registry label outside RestrictedEffects — the registry, not a
 	// hand list, is what a future addition would extend.
-	for _, cap := range []string{"Process", "Env", "Secret", "AI", "Cog", "DOM", "Msg", "Debug", "Trace"} {
+	// AI (M7) and confined Process (M6) are admitted with their conditions;
+	// the labels below have no adapter at all.
+	for _, cap := range []string{"Process", "Env", "Secret", "Cog", "DOM", "Msg", "Debug", "Trace"} {
 		p := restricted("IO", cap)
 		if cap == "Process" {
 			// Process IS admitted for confined entries (M6); an entry with no
 			// confined schema is what restricted mode refuses.
 			p.ProcessAllow = []string{"sh"}
-		}
-		if cap == "AI" {
-			p.AIProvider = "stub"
 		}
 		_, err := Resolve(p, "d")
 		if err == nil {
@@ -254,5 +253,56 @@ func TestResolve_RestrictedConfinedProcess(t *testing.T) {
 		if err == nil || !strings.Contains(err.Error(), bad) || !strings.Contains(err.Error(), "trusted_host") {
 			t.Errorf("%s: must be refused by name with the migration, got %v", bad, err)
 		}
+	}
+}
+
+// M7: AI in restricted mode — pinned provider AND an explicit AI budget.
+func TestResolve_RestrictedAIRequiresProviderAndBudget(t *testing.T) {
+	p := restricted("IO", "AI")
+	p.AIProvider = "stub"
+	if _, err := Resolve(p, "d"); err == nil || !strings.Contains(err.Error(), "budgets") || !strings.Contains(err.Error(), "AI") {
+		t.Fatalf("restricted AI without [budgets] AI must be refused naming it, got %v", err)
+	}
+	p.Budgets = map[string]int{"AI": 25}
+	r, err := Resolve(p, "d")
+	if err != nil {
+		t.Fatalf("restricted AI with a pinned provider and a budget must resolve: %v", err)
+	}
+	if !r.Admits("AI") || r.AIProvider != "stub" || r.Budgets["AI"] != 25 {
+		t.Fatalf("%+v", r)
+	}
+	p.Budgets = map[string]int{"AI": 0}
+	if _, err := Resolve(p, "d"); err != nil {
+		t.Fatalf("an explicit AI = 0 is a valid (zero-call) ceiling: %v", err)
+	}
+	p.Budgets = map[string]int{"AI": 5}
+	p.AIProvider = ""
+	if _, err := Resolve(p, "d"); err == nil || !strings.Contains(err.Error(), "ai_provider") {
+		t.Fatalf("AI without ai_provider: %v", err)
+	}
+}
+
+// M7: fs_deny_write patterns are validated and carried.
+func TestResolve_FSDenyWrite(t *testing.T) {
+	p := restricted("IO", "FS")
+	p.FSDenyWrite = []string{".github/**", "Makefile", "*.yml", ".pi/**"}
+	r, err := Resolve(p, "d")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(r.DenyWrite) != 4 {
+		t.Fatalf("%+v", r.DenyWrite)
+	}
+	for _, bad := range []string{"/etc/x", "../x", "a/../b", ""} {
+		p.FSDenyWrite = []string{bad}
+		if _, err := Resolve(p, "d"); err == nil || !strings.Contains(err.Error(), "fs_deny_write") {
+			t.Errorf("%q: must be refused by name, got %v", bad, err)
+		}
+	}
+	p.FSDenyWrite = []string{"x"}
+	p.AllowedCaps = []string{"IO"}
+	p.FSSandbox = ""
+	if _, err := Resolve(p, "d"); err == nil || !strings.Contains(err.Error(), "fs_deny_write") {
+		t.Fatalf("fs_deny_write without FS is a contradiction: %v", err)
 	}
 }

@@ -65,6 +65,13 @@ type Policy struct {
 	MaxModuleGraphBytes int `toml:"max_module_graph_bytes"`
 	MaxOutputBytes      int `toml:"max_output_bytes"`
 	MaxFSTransferBytes  int `toml:"max_fs_transfer_bytes"`
+	// FSDenyWrite (M-EXECUTOR-POLICY-HARDENING M7): paths inside fs_sandbox
+	// that stay read-only to the program and the lane's tools — the
+	// artifact's own supply chain (".github/**", ".pi/**", "Makefile",
+	// "*.yml"). Patterns are relative to the sandbox root: a glob for one
+	// path, or "<dir>/**" for a subtree. ".git/**" is always implied in
+	// restricted mode.
+	FSDenyWrite []string `toml:"fs_deny_write"`
 }
 
 // DefaultPolicy returns a deny-all policy. This is what an empty file decodes

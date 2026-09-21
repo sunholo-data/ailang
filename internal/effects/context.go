@@ -161,6 +161,10 @@ type EffEnv struct {
 	// op, so the repo config the confined git adapter trusts stays the
 	// launcher's.
 	ProtectGitDir bool
+	// DenyWrite (M7): operator-protected patterns inside the sandbox,
+	// relative to its root — a glob for one path or "<dir>/**" for a
+	// subtree. Mutating FS ops on a matching path fail E_FS_PROTECTED.
+	DenyWrite []string
 }
 
 // ClockContext provides monotonic time for Clock effect

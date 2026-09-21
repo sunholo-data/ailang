@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
@@ -104,10 +105,14 @@ func refusePolicy(format string, a ...any) {
 	os.Exit(1)
 }
 
-// resolveRunPolicy loads the policy ONCE, refuses widening flags, and applies
-// the platform rule. Shared by the parent (supervisor) and the worker: both
-// see the same argv, so both refuse the same things.
-func resolveRunPolicy(policyPath string, w runPolicyWidening) (*policy.Resolved, []byte) {
+// resolveRunPolicyFor loads the policy ONCE, refuses widening flags, applies
+// the platform rule and the entry-file rule (M7): with an fs_sandbox, the
+// program file — and so the module root the imports resolve from — must lie
+// inside it (the lane's ailang_run used to accept any path, which let an
+// agent execute, and thereby read, .ail sources anywhere on the host under
+// the policy). Shared by the parent (supervisor) and the worker: both see
+// the same argv, so both refuse the same things.
+func resolveRunPolicyFor(policyPath, filename string, w runPolicyWidening) (*policy.Resolved, []byte) {
 	for _, f := range refusedWithPolicy {
 		if w.set[f.name] {
 			refusePolicy("--%s is not allowed with --policy — %s", f.name, f.why)
@@ -120,7 +125,36 @@ func resolveRunPolicy(policyPath string, w runPolicyWidening) (*policy.Resolved,
 	if res.Restricted() && !restrictedModeSupported() {
 		refusePolicy("restricted mode is not supported on %s/%s (confined filesystem roots and descendant termination are unverified here); this policy needs a Linux or macOS worker, or security_mode = %q with its weaker guarantees", runtime.GOOS, runtime.GOARCH, policy.ModeTrustedHost)
 	}
+	if filename != "" && res.Root != "" {
+		if !entryInsideSandbox(res.Root, filename) {
+			refusePolicy("program %s is outside fs_sandbox %s — under a policy the entry file and its module root must be inside the sandbox", filename, res.Root)
+		}
+	}
 	return res, raw
+}
+
+// entryInsideSandbox reports whether filename resolves (symlinks included)
+// to a path under root.
+func entryInsideSandbox(root, filename string) bool {
+	abs, err := filepath.Abs(filename)
+	if err != nil {
+		return false
+	}
+	if real, err := filepath.EvalSymlinks(abs); err == nil {
+		abs = real
+	}
+	rootAbs, err := filepath.Abs(root)
+	if err != nil {
+		return false
+	}
+	if real, err := filepath.EvalSymlinks(rootAbs); err == nil {
+		rootAbs = real
+	}
+	rel, err := filepath.Rel(rootAbs, abs)
+	if err != nil {
+		return false
+	}
+	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && !filepath.IsAbs(rel)
 }
 
 // restrictedModeSupported: os.Root confines through directory descriptors
@@ -138,7 +172,7 @@ func restrictedModeSupported() bool {
 // runtime to the policy, and report the decision on the control channel.
 // It exits the process on refusal (1) or denial (2).
 func applyRunPolicy(policyPath, filename string, w runPolicyWidening, control *os.File) runPolicyResolved {
-	res, _ := resolveRunPolicy(policyPath, w)
+	res, _ := resolveRunPolicyFor(policyPath, filename, w)
 
 	// Freeze source reads from here on: the bytes admitted are the bytes
 	// executed, under the policy's per-file and module-graph caps (AC6).

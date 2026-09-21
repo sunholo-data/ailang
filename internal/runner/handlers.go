@@ -287,6 +287,9 @@ func ApplyPolicy(effCtx *effects.EffContext, res *policy.Resolved) {
 		}
 		effCtx.Env.ProtectGitDir = true
 	}
+	if len(res.DenyWrite) > 0 {
+		effCtx.Env.DenyWrite = append([]string{}, res.DenyWrite...)
+	}
 	if res.MaxFSTransferBytes > 0 {
 		if effCtx.Env.FSMaxBytes == 0 || res.MaxFSTransferBytes < effCtx.Env.FSMaxBytes {
 			effCtx.Env.FSMaxBytes = res.MaxFSTransferBytes

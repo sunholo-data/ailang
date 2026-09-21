@@ -12,6 +12,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/sunholo-data/ailang/internal/ai"
 	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/policy"
 	"github.com/sunholo-data/ailang/internal/proctree"
@@ -47,8 +48,8 @@ var workerEnvAllow = []string{
 
 // supervisePolicyRun runs the worker and returns the exit code the parent
 // should use.
-func supervisePolicyRun(policyPath string, w runPolicyWidening, argsAfterRun []string) int {
-	res, _ := resolveRunPolicy(policyPath, w)
+func supervisePolicyRun(policyPath, filename string, w runPolicyWidening, argsAfterRun []string) int {
+	res, _ := resolveRunPolicyFor(policyPath, filename, w)
 
 	exe, err := os.Executable()
 	if err != nil {
@@ -186,16 +187,44 @@ func stageFor(admitted bool) string {
 
 // workerEnv is the worker's environment: the full parent environment for
 // trusted_host (operator-approved host integrations need their
-// credentials), the allowlist for restricted.
+// credentials), the allowlist for restricted — plus, when the policy admits
+// AI, the credential variables of the ONE pinned provider (M7). On Cloud
+// Run the Google provider needs none of them (ADC via the metadata server);
+// locally it is the provider's key. Nothing else's key ever reaches the
+// worker.
 func workerEnv(res *policy.Resolved) []string {
 	if !res.Restricted() {
 		return os.Environ()
 	}
-	out := make([]string, 0, len(workerEnvAllow))
-	for _, name := range workerEnvAllow {
+	names := append([]string{}, workerEnvAllow...)
+	if res.Admits("AI") {
+		names = append(names, providerCredentialVars(res.AIProvider)...)
+	}
+	out := make([]string, 0, len(names))
+	for _, name := range names {
 		if config.RawSet(name) {
 			out = append(out, name+"="+config.Raw(name))
 		}
 	}
 	return out
+}
+
+// providerCredentialVars names the environment variables the pinned AI
+// provider reads. "stub" needs none.
+func providerCredentialVars(aiProvider string) []string {
+	if aiProvider == "" || aiProvider == "stub" {
+		return nil
+	}
+	provider := ai.GuessProvider(aiProvider)
+	var vars []string
+	if v := ai.EnvVarForProvider(provider); v != "" {
+		vars = append(vars, v)
+	}
+	switch provider {
+	case ai.ProviderGoogle:
+		vars = append(vars, config.EnvGeminiAPIKey, "GOOGLE_APPLICATION_CREDENTIALS", "GOOGLE_CLOUD_PROJECT", "GOOGLE_CLOUD_LOCATION", "GOOGLE_GENAI_USE_VERTEXAI")
+	case ai.ProviderOllama:
+		vars = append(vars, "OLLAMA_HOST", "OLLAMA_API_KEY")
+	}
+	return vars
 }

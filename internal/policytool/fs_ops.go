@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/effects"
 )
 
 // The file operations. Each goes through the sandbox root handle; the
@@ -62,6 +64,19 @@ func underGitDir(path string) bool {
 	return false
 }
 
+// denyWrite applies the policy's fs_deny_write to a tool path (relative to
+// the sandbox root; an absolute in-root path loses the prefix).
+func (h *Host) denyWrite(p string) string {
+	if len(h.res.DenyWrite) == 0 || h.root == nil {
+		return ""
+	}
+	rel, err := h.root.Rel(p)
+	if err != nil {
+		return "" // an escaping path is refused by the root handle anyway
+	}
+	return effects.MatchDenyWrite(h.res.DenyWrite, rel)
+}
+
 func (h *Host) write(req Request) Response {
 	if r := h.needRoot(); r != nil {
 		return *r
@@ -71,6 +86,9 @@ func (h *Host) write(req Request) Response {
 	}
 	if underGitDir(req.Path) {
 		return refuse("write %s: .git/ is read-only to the lane's tools", req.Path)
+	}
+	if pat := h.denyWrite(req.Path); pat != "" {
+		return refuse("write %s: matches fs_deny_write %q — read-only under this policy", req.Path, pat)
 	}
 	if int64(len(req.Content)) > h.maxTransfer() {
 		return refuse("write %s: content exceeds the %d-byte transfer cap", req.Path, h.maxTransfer())
@@ -104,6 +122,9 @@ func (h *Host) edit(req Request) Response {
 	}
 	if underGitDir(req.Path) {
 		return refuse("edit %s: .git/ is read-only to the lane's tools", req.Path)
+	}
+	if pat := h.denyWrite(req.Path); pat != "" {
+		return refuse("edit %s: matches fs_deny_write %q — read-only under this policy", req.Path, pat)
 	}
 	cur := h.read(Request{Path: req.Path})
 	if !cur.OK {

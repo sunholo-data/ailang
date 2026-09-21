@@ -87,8 +87,8 @@ export func main() -> () ! {IO, Process} = {
   }
 }
 `
-	f := writeAil(t, dir, "prog.ail", prog)
-	_, stderr, code := runAilangBin(t, bin, "run", "--policy", pol, f)
+	writeAil(t, filepath.Join(dir, "sandbox"), "prog.ail", prog) // inside fs_sandbox (M7)
+	_, stderr, code := testutil.RunBounded(t, filepath.Join(dir, "sandbox"), 60*time.Second, bin, "run", "--policy", pol, "prog.ail")
 	if code != 3 || !strings.Contains(stderr, `"reason":"timeout"`) {
 		t.Fatalf("exit %d\n%s", code, stderr)
 	}
@@ -257,12 +257,13 @@ func TestRunPolicy_SourceSnapshotAcrossAdmitAndRun(t *testing.T) {
 	bin := buildAilang(t)
 	dir := t.TempDir()
 	pol := writePolicy(t, dir, "allowed_caps = [\"IO\", \"FS\"]\nfs_sandbox = \"${SANDBOX}\"\nentry = \"main\"\ntimeout_ms = 30000\n")
-	// The program rewrites ITSELF and its helper module on first FS write,
-	// then calls the helper: the helper must still be the admitted one.
-	if err := os.MkdirAll(filepath.Join(dir, "lib"), 0o755); err != nil {
+	// Program and helper live INSIDE the sandbox (M7 rule); the helper is
+	// rewritten during execution and must still be the admitted one.
+	sb := filepath.Join(dir, "sandbox")
+	if err := os.MkdirAll(filepath.Join(sb, "lib"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	helperPath := writeAil(t, filepath.Join(dir, "lib"), "h.ail", "module lib/h\nexport func tag() -> string = \"ADMITTED\"\n")
+	helperPath := writeAil(t, filepath.Join(sb, "lib"), "h.ail", "module lib/h\nexport func tag() -> string = \"ADMITTED\"\n")
 	prog := `module prog
 import std/fs (writeFile)
 import lib/h as H
@@ -271,7 +272,7 @@ export func main() -> () ! {IO, FS} = {
   println(H.tag())
 }
 `
-	f := writeAil(t, dir, "prog.ail", prog)
+	f := writeAil(t, sb, "prog.ail", prog)
 	// Race the rewrite against the run: overwrite the helper as soon as the
 	// sandbox marker appears (i.e. after admission, during execution).
 	done := make(chan struct{})
@@ -286,9 +287,9 @@ export func main() -> () ! {IO, FS} = {
 			time.Sleep(2 * time.Millisecond)
 		}
 	}()
-	// Module paths resolve against the cwd: run from the fixture directory.
+	// Module paths resolve against the cwd: run from the sandbox.
 	_ = f
-	stdout, stderr, code := testutil.RunBounded(t, dir, 60*time.Second, bin, "run", "--policy", pol, "prog.ail")
+	stdout, stderr, code := testutil.RunBounded(t, sb, 60*time.Second, bin, "run", "--policy", pol, "prog.ail")
 	<-done
 	if code != 0 {
 		t.Fatalf("exit %d\n%s%s", code, stdout, stderr)
@@ -368,5 +369,120 @@ export func main() -> () ! {IO, Process} = match exec("sh", ["-c", "echo KEY=$OP
 	stdout, _, _ := runAilangBin(t, bin, "run", "--policy", pol, f)
 	if !strings.Contains(stdout, "KEY=leak-me") {
 		t.Fatalf("trusted_host passes the operator's environment through: %q", stdout)
+	}
+}
+
+// M7: with an fs_sandbox, the program file must be inside it — an agent
+// could otherwise execute (and read) any .ail on the host under the policy.
+func TestRunPolicy_EntryOutsideSandboxRefused(t *testing.T) {
+	bin := buildAilang(t)
+	dir := t.TempDir()
+	pol := writePolicy(t, dir, "allowed_caps = [\"IO\", \"FS\"]\nfs_sandbox = \"${SANDBOX}\"\nentry = \"main\"\ntimeout_ms = 30000\n")
+	outside := writeAil(t, dir, "elsewhere.ail", ioProgram) // dir, not dir/sandbox
+	stdout, stderr, code := runAilangBin(t, bin, "run", "--policy", pol, outside)
+	if code != 1 || !strings.Contains(stderr, "outside fs_sandbox") || strings.Contains(stdout, "admitted-and-ran") {
+		t.Fatalf("exit %d\n%s%s", code, stdout, stderr)
+	}
+	inside := writeAil(t, filepath.Join(dir, "sandbox"), "prog.ail", ioProgram)
+	stdout, stderr, code = testutil.RunBounded(t, filepath.Join(dir, "sandbox"), 60*time.Second, bin, "run", "--policy", pol, "prog.ail")
+	if code != 0 || !strings.Contains(stdout, "admitted-and-ran") {
+		t.Fatalf("inside must run: exit %d\n%s%s", code, stdout, stderr)
+	}
+	_ = inside
+}
+
+// M7: AI runs in restricted mode with a pinned provider and a budget; the
+// budget is the ceiling.
+func TestRunPolicy_RestrictedAIWithBudget(t *testing.T) {
+	bin := buildAilang(t)
+	dir := t.TempDir()
+	prog := "module prog\nimport std/ai (call)\nexport func main() -> () ! {IO, AI} = { println(call(\"one\")); println(call(\"two\")) }\n"
+	f := writeAil(t, dir, "prog.ail", prog)
+	pol := writePolicy(t, dir, "allowed_caps = [\"IO\", \"AI\"]\nai_provider = \"stub\"\nentry = \"main\"\ntimeout_ms = 30000\n[budgets]\nAI = 2\n")
+	stdout, stderr, code := runAilangBin(t, bin, "run", "--policy", pol, f)
+	if code != 0 {
+		t.Fatalf("restricted AI with provider + budget must run: exit %d\n%s%s", code, stdout, stderr)
+	}
+	if !strings.Contains(stderr, `"security_mode":"restricted"`) || !strings.Contains(stderr, `"ai_provider":"stub"`) || !strings.Contains(stderr, `"budgets":{"AI":2}`) {
+		t.Fatalf("admission line must bank mode, provider and budget: %s", stderr)
+	}
+	pol = writePolicy(t, dir, "allowed_caps = [\"IO\", \"AI\"]\nai_provider = \"stub\"\nentry = \"main\"\ntimeout_ms = 30000\n[budgets]\nAI = 1\n")
+	stdout, stderr, code = runAilangBin(t, bin, "run", "--policy", pol, f)
+	if code == 0 || !strings.Contains(stderr, "E_BUDGET_OPERATOR") || !strings.Contains(stderr, "'AI'") {
+		t.Fatalf("the second call must exceed AI = 1: exit %d\n%s%s", code, stdout, stderr)
+	}
+	pol = writePolicy(t, dir, "allowed_caps = [\"IO\", \"AI\"]\nai_provider = \"stub\"\nentry = \"main\"\n")
+	_, stderr, code = runAilangBin(t, bin, "run", "--policy", pol, f)
+	if code != 1 || !strings.Contains(stderr, "[budgets] AI") {
+		t.Fatalf("restricted AI without a budget must be refused by name: exit %d\n%s", code, stderr)
+	}
+}
+
+// M7: fs_deny_write, end to end.
+func TestRunPolicy_FSDenyWriteE2E(t *testing.T) {
+	bin := buildAilang(t)
+	dir := t.TempDir()
+	sandbox := filepath.Join(dir, "sandbox")
+	pol := writePolicy(t, dir, "allowed_caps = [\"IO\", \"FS\"]\nfs_sandbox = \"${SANDBOX}\"\nfs_deny_write = [\".github/**\", \"Makefile\"]\nentry = \"main\"\ntimeout_ms = 30000\n")
+	if err := os.MkdirAll(filepath.Join(sandbox, ".github", "workflows"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	prog := `module prog
+import std/fs (writeFileResult)
+export func try(p: string) -> () ! {IO, FS} = match writeFileResult(p, "x") {
+  Ok(_) => println("WROTE:${p}"),
+  Err(e) => println("PROTECTED:${p}")
+}
+export func main() -> () ! {IO, FS} = { try(".github/workflows/ci.yml"); try("Makefile"); try("src.ail.txt") }
+`
+	writeAil(t, sandbox, "prog.ail", prog)
+	stdout, stderr, code := testutil.RunBounded(t, sandbox, 60*time.Second, bin, "run", "--policy", pol, "prog.ail")
+	if code != 0 {
+		t.Fatalf("exit %d\n%s%s", code, stdout, stderr)
+	}
+	if !strings.Contains(stdout, "PROTECTED:.github/workflows/ci.yml") || !strings.Contains(stdout, "PROTECTED:Makefile") || !strings.Contains(stdout, "WROTE:src.ail.txt") {
+		t.Fatalf("%q", stdout)
+	}
+	if _, err := os.Stat(filepath.Join(sandbox, "Makefile")); err == nil {
+		t.Fatal("Makefile was written")
+	}
+}
+
+// M7: only the pinned provider's credentials reach a restricted worker.
+func TestWorkerEnv_ProviderScopedCredentials(t *testing.T) {
+	t.Setenv("OPENROUTER_API_KEY", "or-secret")
+	t.Setenv("GOOGLE_API_KEY", "g-secret")
+	t.Setenv("GEMINI_API_KEY", "gem-secret")
+	t.Setenv("ANTHROPIC_API_KEY", "a-secret")
+	has := func(env []string, name string) bool {
+		for _, kv := range env {
+			if strings.HasPrefix(kv, name+"=") {
+				return true
+			}
+		}
+		return false
+	}
+	noAI := &policy.Resolved{Mode: policy.ModeRestricted, Effects: []string{"IO"}}
+	env := workerEnv(noAI)
+	for _, k := range []string{"OPENROUTER_API_KEY", "GOOGLE_API_KEY", "GEMINI_API_KEY", "ANTHROPIC_API_KEY"} {
+		if has(env, k) {
+			t.Errorf("no-AI worker must not see %s", k)
+		}
+	}
+	gem := &policy.Resolved{Mode: policy.ModeRestricted, Effects: []string{"AI", "IO"}, AIProvider: "gemini-3-5-flash-lite"}
+	env = workerEnv(gem)
+	if !has(env, "GOOGLE_API_KEY") || !has(env, "GEMINI_API_KEY") {
+		t.Errorf("gemini worker must see the Google credentials: %v", env)
+	}
+	if has(env, "OPENROUTER_API_KEY") || has(env, "ANTHROPIC_API_KEY") {
+		t.Errorf("gemini worker must not see other providers' keys")
+	}
+	stub := &policy.Resolved{Mode: policy.ModeRestricted, Effects: []string{"AI", "IO"}, AIProvider: "stub"}
+	if env := workerEnv(stub); has(env, "GOOGLE_API_KEY") || has(env, "OPENROUTER_API_KEY") {
+		t.Errorf("stub needs no credentials")
+	}
+	trusted := &policy.Resolved{Mode: policy.ModeTrustedHost, Effects: []string{"IO"}}
+	if env := workerEnv(trusted); !has(env, "OPENROUTER_API_KEY") {
+		t.Errorf("trusted_host gets the operator's full environment")
 	}
 }

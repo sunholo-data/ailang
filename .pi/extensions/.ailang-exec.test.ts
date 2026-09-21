@@ -216,3 +216,23 @@ test("with a policy the endpoint refuses: tools register but refuse with the end
 	assert.match(String(out.details.refused), /Process/);
 	assert.equal(r.calls.length, 1, "only the summary was asked; a refused gate never forwards a call");
 });
+
+test("ailang_run: a program outside the sandbox is refused before anything runs", async () => {
+	const dir = mkdtempSync(join(tmpdir(), "lane-"));
+	const pol = join(dir, "policy.toml");
+	writeFileSync(pol, "allowed_caps = [\"IO\", \"FS\"]\n");
+	process.env.AILANG_LANE_TEACHING = "0";
+	try {
+		const f = fakePi();
+		let execs = 0;
+		f.api.exec = async () => { execs++; return { code: 0, stdout: "", stderr: "" }; };
+		const r = recordingRunner((req) => (req.op === "summary" ? { ok: true, summary: summary({ fs_sandbox: join(dir, "ws") }) } : { ok: true }));
+		await register(f.api as never, fakeType, { AILANG_AGENT_POLICY: pol }, r.runner);
+		const out = await f.tools["ailang_run"].execute("id", { path: join(dir, "elsewhere", "x.ail") });
+		assert.equal(out.details.admitted, false);
+		assert.match(String(out.details.refused), /outside the FS sandbox/);
+		assert.equal(execs, 0, "nothing was executed");
+	} finally {
+		delete process.env.AILANG_LANE_TEACHING;
+	}
+});

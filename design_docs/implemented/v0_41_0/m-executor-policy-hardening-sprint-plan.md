@@ -324,6 +324,13 @@ under plain exec, `--no-index /etc/passwd` returned Ok.
 - [x] `Resolve`: `git:status/diff/log` admitted in restricted mode; `git:push`, `git:*`, `sh` refused by name
 - [x] E2E with the deployed policy shape; mutation-tested with confinement off
 
+### Milestone 7: The last three reaches ✅ (2026-09-21, from Mark's audit question)
+
+- [x] `run --policy` refuses an entry file outside `fs_sandbox`; `ailang_run` refuses before exec
+- [x] `AI` admitted in restricted mode iff `ai_provider` pinned and `[budgets] AI` set; worker env carries only that provider's credentials
+- [x] `fs_deny_write` enforced by every mutating FS op and by `policy-tool` write/edit
+- [x] Docs: guide, LIMITATIONS (AI client + artifact persistence residuals), changelog
+
 ## Success Metrics
 
 - Every counterexample from the audit (F1, F2, N1) is a permanent, red-on-baseline test.

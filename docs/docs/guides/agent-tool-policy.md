@@ -31,16 +31,21 @@ fs_sandbox    = "/workspace"              # must NOT contain the policy file's o
 timeout_ms    = 5000                      # the WHOLE invocation, enforced by the supervisor (positive, ≤ 24h)
 # max_source_bytes / max_module_graph_bytes / max_output_bytes / max_fs_transfer_bytes
 #                                          # restricted defaults: 1 MiB / 16 MiB / 8 MiB / 8 MiB
+# fs_deny_write = [".github/**", ".pi/**", "Makefile", "*.yml"]
+#                                          # read-only INSIDE the sandbox: the artifact's own supply chain
+# ai_provider   = "gemini-3-5-flash-lite"  # restricted mode admits AI with a pinned provider AND [budgets] AI
 entry         = "main"
 
 # [budgets]                               # operator ceilings for the whole run: 0 = zero operations,
 # FS = 100                                # absent = unlimited; a source @limit can only tighten
+# AI = 50                                 # REQUIRED when AI is admitted in restricted mode
 ```
 
 **`security_mode`.** `restricted` (the default, and the only mode the `ailang_only` lane accepts)
-admits only effects with a confined adapter — `IO`, `FS`, `Net`, `Clock`, `Rand`, `Stream`, and
+admits only effects with a confined adapter — `IO`, `FS`, `Net`, `Clock`, `Rand`, `Stream`,
 `Process` **only for `process_allow` entries with a confined schema** (`git:status`, `git:diff`,
-`git:log` — see below) — and refuses everything else in the registry with a named migration. It also refuses a configured
+`git:log` — see below), and `AI` **only with a pinned `ai_provider` and an explicit `[budgets] AI`
+ceiling** — and refuses everything else in the registry with a named migration. It also refuses a configured
 HTTP proxy (`E_NET_PROXY_REFUSED`: the destination address cannot be pinned behind one) and has
 no localhost/private/metadata grant. `trusted_host` keeps operator-approved host integrations —
 `Process` with `process_allow`, `AI` with `ai_provider`, `Env`, `Secret` — with conspicuous
@@ -65,13 +70,33 @@ program's FS effect and to the lane's tools — the repo config is the launcher'
 nothing else. Confined mode is `exec`-only (`spawnProcess`/`asyncExecProcess` are refused). Any
 other `process_allow` entry (`git:push`, `git:*`, `sh`, `gh:…`) is refused at startup by name.
 
-**Migration (2026-09-21).** A policy that admits `AI`, `Env`, `Secret`, or `Process` beyond the
-three confined git entries, with no `security_mode`, now fails at startup with a message naming
-the entry and the `trusted_host` migration. Either drop the grant or set
-`security_mode = "trusted_host"` **and** `tool_policy: full` (the lane does not accept
-`trusted_host`). Of the deployed lane policies in the multivac config repo, `pkg-ailang-only.toml`
-and `ailang-only-executor.toml` (`git:status/diff/log`) need **no change**; `daneel-executor.toml`
-admits `AI` and needs the decision.
+**AI in restricted mode.** The AI effect's destination is the operator's (`ai_provider` pins the
+registry entry; `--ai`/`--routing-*` are refused) and the program cannot read the credential (no
+`Env`); what a program *can* do is spend. So restricted mode admits `AI` when `ai_provider` is
+set **and** `[budgets] AI = N` states the ceiling (`AI = 0` permits none). The restricted worker
+receives only the pinned provider's credential variables (`GOOGLE_API_KEY`/`GEMINI_API_KEY`/ADC
+for Google, `OPENROUTER_API_KEY` for OpenRouter, …) — never another provider's key; on Cloud Run
+the Google provider needs none (ADC). Residual, documented: the AI client is not the Net
+authorizer (the host is not program-controlled).
+
+**`fs_deny_write`.** Paths inside the sandbox the program and the lane's tools may read but not
+write — the artifact's own supply chain, which would otherwise run with CI's or the next
+session's authority once committed: `".github/**"`, `".pi/**"`, `"Makefile"`, `"*.yml"`. A
+pattern is a glob for one path (matched against the whole relative path and its base name) or
+`<dir>/**` for a subtree. `.git/**` is always implied in restricted mode. Refusals are
+`E_FS_PROTECTED` from every mutating FS op and a named refusal from `ailang_write`/`ailang_edit`.
+
+**The program file must be inside `fs_sandbox`.** `ailang run --policy` refuses an entry file
+outside the sandbox (the module root the imports resolve from would otherwise be anywhere on the
+host); `ailang_run` says so before shelling out.
+
+**Migration (2026-09-21).** A policy that admits `Env`, `Secret`, `Process` beyond the three
+confined git entries, or `AI` without a `[budgets] AI` ceiling, with no `security_mode`, now
+fails at startup with a message naming the entry and the `trusted_host` migration. Either fix the
+grant or set `security_mode = "trusted_host"` **and** `tool_policy: full` (the lane does not
+accept `trusted_host`). Of the deployed lane policies in the multivac config repo,
+`pkg-ailang-only.toml` and `ailang-only-executor.toml` need **no change**; `daneel-executor.toml`
+needs `[budgets] AI = <n>` added.
 
 **Web search for programs — `std/web`.** `webSearch(query, max)` and `webFetch(url)` are `{Net}`
 effects backed by a fixed endpoint on `ollama.com`; the runtime reads `OLLAMA_API_KEY` itself, so the

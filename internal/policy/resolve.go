@@ -40,6 +40,10 @@ const (
 // future registry addition defaults to unsupported (AC7).
 var RestrictedEffects = map[string]bool{
 	"IO": true, "FS": true, "Net": true, "Clock": true, "Rand": true, "Stream": true, "Process": true,
+	// AI (M7): admitted with a pinned ai_provider AND an explicit [budgets]
+	// AI ceiling — the effect's endpoint is the operator's, its cost is the
+	// program's; see Resolve.
+	"AI": true,
 }
 
 // Proposed restricted-mode defaults (D5). Overridable per policy field.
@@ -76,6 +80,8 @@ type Resolved struct {
 	MaxModuleGraphBytes int64
 	MaxOutputBytes      int64
 	MaxFSTransferBytes  int64
+	// DenyWrite: read-only patterns inside the root (fs_deny_write).
+	DenyWrite []string
 }
 
 // Restricted reports whether the run is in restricted mode.
@@ -219,6 +225,24 @@ func Resolve(p *Policy, digest string) (*Resolved, error) {
 	if p.AIProvider != "" && !has("AI") {
 		return nil, fmt.Errorf("ai_provider is set but AI is not in allowed_caps")
 	}
+	if has("AI") && mode == ModeRestricted {
+		// The AI effect's destination is the operator's (ai_provider pins the
+		// registry entry; routing flags are refused) and the program cannot
+		// read the credential; what it CAN do is spend. Restricted mode
+		// therefore requires the ceiling to be stated (M7).
+		if _, ok := p.Budgets["AI"]; !ok {
+			return nil, fmt.Errorf("policy admits AI in restricted mode but sets no [budgets] AI ceiling — state the maximum number of AI calls (AI = 0 permits none)")
+		}
+	}
+	for _, pat := range p.FSDenyWrite {
+		clean := strings.TrimSpace(pat)
+		if clean == "" || strings.HasPrefix(clean, "/") || strings.HasPrefix(clean, "\\") || clean == ".." || strings.HasPrefix(clean, "../") || strings.Contains(clean, "/../") || strings.HasSuffix(clean, "/..") {
+			return nil, fmt.Errorf("fs_deny_write pattern %q must be relative to fs_sandbox with no traversal", pat)
+		}
+		if !has("FS") {
+			return nil, fmt.Errorf("fs_deny_write is set but FS is not in allowed_caps")
+		}
+	}
 
 	// Limits: timeout_ms is positive and bounded (D5); byte caps non-negative.
 	if p.TimeoutMs <= 0 {
@@ -274,6 +298,9 @@ func Resolve(p *Policy, digest string) (*Resolved, error) {
 	}
 	if p.CLIAllow != nil {
 		r.CLIAllow = append([]string{}, p.CLIAllow...)
+	}
+	for _, pat := range p.FSDenyWrite {
+		r.DenyWrite = append(r.DenyWrite, strings.TrimSpace(pat))
 	}
 	if mode == ModeRestricted {
 		if r.MaxSourceBytes == 0 {
