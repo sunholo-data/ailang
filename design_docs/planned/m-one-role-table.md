@@ -141,15 +141,17 @@ the park note's other three, it does not close by adding rows.
 
 | ID | Decision | Recommendation | Chosen by | Change cost |
 |---|---|---|---|---|
-| **D1** | Where does per-task routing policy live? | **(a) An AILANG program.** Precedent is ratified and live: `internal/dashboard_transforms/budget_checker.ail` is the ONE implementation of the budget rule, called from Go via `engine.CallPreserveFloats` (`cmd/ailang/budget.go:197`), with the silent Go fallback deliberately removed. Routing is the same shape — a pure decision over declared inputs — and the north star says policy belongs in AILANG with Go as the shell. **The capability is now measured, not assumed (V16):** a probe doing prefix matching, allowlist membership, fail-closed quantification and nested branching is `ailang check`-clean. **(b)** Go-only in `internal/modelreg`. **(c)** Leave it in bash. | Mark (architectural; this is the un-park) | Medium |
+| **D1** | Where does per-task routing policy live? | **CHOSEN: (a) an AILANG program** (Mark, attended 2026-09-21). Placement is D5. **(a) An AILANG program.** Precedent is ratified and live: `internal/dashboard_transforms/budget_checker.ail` is the ONE implementation of the budget rule, called from Go via `engine.CallPreserveFloats` (`cmd/ailang/budget.go:197`), with the silent Go fallback deliberately removed. Routing is the same shape — a pure decision over declared inputs — and the north star says policy belongs in AILANG with Go as the shell. **The capability is now measured, not assumed (V16):** a probe doing prefix matching, allowlist membership, fail-closed quantification and nested branching is `ailang check`-clean. **(b)** Go-only in `internal/modelreg`. **(c)** Leave it in bash. | Mark (architectural; this is the un-park) | Medium |
 | **D2** | Does the shell read the binary, or does the binary become the driver? | **(a) The shell reads the binary** (M8's original scope) and keeps scheduling. Ledger row 17 (scheduling) is an explicit non-goal of the whole migration, and row 2's opt-in is a separate decision. **(b)** Move the iteration into `mission iterate` — that is ledger row 2, not this doc. | Mark | High |
 | **D3** | What is the fallback when the binary lacks the subcommand? | **Split, because DATA and POLICY degrade differently — see §3.** DATA (which models serve a role) falls back to today's env pins, unconditionally, with a loud log line; that is M8's ratified condition and it stays. POLICY (the path allowlist) must fall back **fail-closed to opus**, NOT to env pins: env pins do not encode the document-path refusal, so an env-pin fallback would let a stale binary route a compiler doc to the cheap planner. Never fail-closed to "no lane": that wedges four live loops | Ratified 2026-08-27 for DATA; the POLICY half is new here | Low |
+| **D5** | Where does the AILANG policy LIVE — stdlib, a published package, or a local module? | **A local module, `internal/mission/policy/`.** Not stdlib: `std/` is the language's standard library, facilities any AILANG program might want, and fleet routing policy would be the only mission-operations module in it, carried by every AILANG user. (Note: no simplicity gate actually forbids this — the audit's gates are Go-package closure, commands, env vars and instruction surface, not stdlib `.ail` surface. The argument is category, not enforcement.) **Not a package**, and this is the decisive one: a published package versions INDEPENDENTLY of the binary that calls it, and the registry is immutable. A policy that can drift from its caller re-creates the exact defect this doc exists to end, in the time dimension instead of the file dimension — and it adds a registry/cache dependency to every mission fire. **Local module** versions in lockstep with the binary and the driver pin, which is the property policy needs, and it has two working precedents (`budget_checker.ail`, `approval_authority.ail`) plus a solved deployment story (V18) | Mark chose AILANG for D1 (attended 2026-09-21); the placement follows from the resolution mechanics in V17 | Low |
 | **D4** | Does the registry gain the ollama-cloud pi rows? | **Yes — data, landed first and independently.** It is a row, not a capability, and it is verifiable in isolation before any resolver moves | Agent-resolvable | Low |
 
 ### Design Freeze
 
 - [ ] **Approve un-parking M8** (Mark). It was parked with "if it ain't broken won't fix"; §0 shows three of the four stated blockers are gone and §Problem shows it broke three times in eight days. This doc does not assume the park is lifted.
-- [ ] **Approve D1** — policy in AILANG vs Go vs bash. Everything downstream depends on it.
+- [x] **D1 APPROVED — policy in AILANG** (Mark, attended 2026-09-21). D5 records the placement that follows.
+- [ ] **Confirm D5** if desired — it follows from V17/V18 and is agent-resolvable, listed here only because it was asked directly.
 - [ ] **Approve D2** — confirm the shell stays the scheduler for this doc.
 - [ ] D3 and D4 are agent-resolvable and need no freeze.
 
@@ -275,13 +277,14 @@ fallback preserves the refusal, which is its own evidence and is out of scope he
 - `internal/modelreg/models.yml` — +2 pi×ollama-cloud rows (~60 lines with the required pricing/clamp provenance comments). Phase 0.
 - `internal/modelreg/roles_test.go` — assert the new rows resolve on both lanes and are not local-GPU. Phase 0.
 - `design_docs/planned/m_one_role_table_probe.ail` — the D1 capability probe, `ailang check`-clean with no flags; keep it beside the doc as the evidence for V16. Underscores, not hyphens: a module declaration cannot contain a hyphen.
-- `internal/mission/policy/role_lane.ail` — NEW, the policy function. The probe is its skeleton. Path follows `internal/dashboard_transforms/*.ail` convention; final location is agent-resolvable. Phase 1.
+- `internal/mission/policy/role_lane.ail` — NEW, the policy function, a LOCAL MODULE (D5). The probe is its skeleton. Follows the `internal/dashboard_transforms/*.ail` convention. Phase 1.
 - `internal/mission/policy/role_lane_test.go` — table test + differential test against the shell. Phase 1.
 - `cmd/ailang/mission_role_resolve.go` — NEW, the command. Phase 2.
 - `internal/mission/iteration/runtime.go` — migrate `ResolveRole` call at `:68` to the resolver. Phase 3b.
 - `internal/mission/iteration/runtime_stage.go` — same, `:83`. Phase 3b.
 - `internal/mission/iteration/retry_review.go` — same, `:260`. Phase 3b.
 - `tools/launchd/resolve-role-spawn.sh` — delegate, with the stale-binary fallback branch. Phase 3.
+- `tools/launchd/mission-control.sh` — export `AILANG_PROJECT_ROOT=$PIN_ROOT`. **Mandatory, not optional**: three of four missions run with cwd set to their own work repo, a SIBLING of the ailang checkout, so the ancestor search cannot reach the module (V17). Phase 3.
 - `tools/launchd/derive-planner-lane.sh` — **retained** as the degraded-mode implementation; loses authority in phase 3, is not deleted by this doc (see Phase 4).
 - `tools/launchd/test_mission_routing.sh` — extend; this file is the only existing coverage of the shell path.
 - `cmd/ailang/models_cmd.go` — fix the false comment at `:79` in phase 3, when it becomes true.
@@ -353,7 +356,7 @@ confirming both implementations move together.
 ## Deferred Decisions
 
 Agent latitude, no freeze needed:
-- Exact path/module name for the `.ail` policy program.
+- Exact module NAME within `internal/mission/policy/` — the directory is settled by D5, the leaf is not. Underscores only: a module declaration cannot contain a hyphen (V16).
 - Whether phase 2's command is `mission role-resolve` or an extension of `models role`.
 - Whether the reason token becomes a typed enum or stays a string at the shell boundary.
 
@@ -373,6 +376,7 @@ Agent latitude, no freeze needed:
 | bash 3.2.57, zero CI coverage | Phases 0–2 touch no shell at all. Phase 3 is one delegation with a fallback, verified by the existing `test_mission_routing.sh` plus dry-run byte-identity |
 | The policy port silently differs from the shell | Differential test is the gate, not a unit test |
 | Phase 0 disturbs the cloud plane | Phase 0 adds rows without changing any chain; the cloud transcription guard is the tripwire and it already demonstrated it reds (2026-09-21) |
+| `AILANG_PROJECT_ROOT` unset or wrong, so the policy cannot load | Resolution failure is RETURNED, never silent (`root.go` refuses a root that lacks the module), and D3's POLICY half fails closed to opus. The failure mode is a conservative lane plus a loud error — never a silently widened one |
 | This doc's own premises decay | §Verification Log dates every claim and names the command. Re-run before sprint planning — that is the lesson §0 records |
 
 ## Related Documents
@@ -451,6 +455,9 @@ Every load-bearing claim, with the command that produced it. All 2026-09-21 agai
 | V16 | **AILANG can express the policy shape** (D1's load-bearing premise) | wrote `design_docs/planned/m_one_role_table_probe.ail` and ran **plain `ailang check`, no flags** | **✓ No errors found.** Exercises `startsWith` prefix matching, `any` over an allowlist, fail-closed over a path list, nested conditionals and a record result. Added after `oc-glm-5-2` blocked round 0 for asserting AILANG capability by analogy to `budget_checker.ail` (scalar arithmetic) without checking. **Real constraint found: `std/list` exports `any` but NOT `all`** — universal quantification is written `length(filter(not p, xs)) == 0`. The first probe failed with `IMP010: symbol 'all' not exported`, which is precisely the assertion-without-checking this gate exists to catch.
 
 **Measurement condition, after `oc-glm-5-2` blocked round 1 for not justifying it:** the first run used `AILANG_RELAX_MODULES=1` only because the probe sat in a scratch dir, so its `module` declaration could not match its path. Re-run at a repo path whose declaration matches, **plain `ailang check` passes with no flags** — so the relaxation was an artifact of where the file lived, not a condition production depends on. Production's `internal/mission/policy/role_lane.ail` will likewise match its own path and need no flag. Two further constraints surfaced only by insisting on the unrelaxed run: `MOD010` requires the module declaration to equal the file path, and **hyphens are illegal in a module declaration** (legal in directory names) — the probe had to be renamed `m_one_role_table_probe.ail`. The module surface used (`std/string.startsWith`, `std/list.{any,filter,length}`) is ordinary stdlib, identical to what `budget_checker.ail` imports through the same embed engine |
+| V17 | **A local module does NOT resolve from the mission driver's cwd** — the constraint that decides D5 | read `internal/embed/root.go:39-64`; read `WorkingDirectory` from each mission plist | `ProjectRoot` resolves by `AILANG_PROJECT_ROOT`, else cwd **and its ancestors**. v1's cwd is the ailang repo (would resolve); **world's cwd is `ailang-world`, a SIBLING** — upward search reaches `~/dev/sunholo-data`, `~/dev`, `~`, `/` and never the ailang checkout, so resolution **fails**. Therefore `AILANG_PROJECT_ROOT` is mandatory, not optional. Setting it to the driver pin root is correct rather than a workaround: every pin root is a full ailang checkout (verified for v1 and world), so the policy version is tied to the pinned driver version — which is the provenance the pin exists to provide |
+| V18 | **The no-.ail deployment case is already solved this way** | read `docker/Dockerfile.dashboard:47-52` | The image "shipped the binary and no `.ail` files at all", fixed by `COPY internal/dashboard_transforms`, `COPY std`, `ENV AILANG_PROJECT_ROOT=/app`. So the local-module pattern already has a working answer for containers, should the policy ever need to run in one |
+| V19 | **std resolves from an arbitrary cwd** (so the stdlib option is mechanically viable, and is rejected on category not capability) | ran `ailang check` on a probe in a scratch dir importing `std/string` and `std/list` | clean — `std/*.ail` is `//go:embed`-ed (`std/embed.go`) |
 | V12 | The cloud transcription guard reds on a head-model change | observed live 2026-09-21 while developing `5f67aa532` | redded on `design-doc-creator`, went green when the model was kept and only the harness moved |
 | V13 | Three incidents, one class | `git log` + `git show` | `7423434b4`, `e9e8ce32e`, `5f67aa532` |
 | V14 | M8's park text and reason | read `m-model-registry-single-source-sprint-plan.md:445-470` | parked 2026-08-27, Mark, "if it ain't broken won't fix" |
