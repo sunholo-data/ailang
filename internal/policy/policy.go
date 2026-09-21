@@ -16,8 +16,6 @@ package policy
 import (
 	"fmt"
 	"os"
-
-	"github.com/BurntSushi/toml"
 )
 
 // Policy is the operator-pinned execution policy for AI-authored programs.
@@ -56,6 +54,17 @@ type Policy struct {
 	MaxSourceBytes int            `toml:"max_source_bytes"`
 	AIProvider     string         `toml:"ai_provider"`
 	Entry          string         `toml:"entry"`
+
+	// SecurityMode is "restricted" (absent = restricted) or "trusted_host"
+	// (M-EXECUTOR-POLICY-HARDENING D3). Restricted admits only effects with
+	// a confined adapter and refuses proxies and host integrations; see
+	// Resolve for the rules and the migration message.
+	SecurityMode string `toml:"security_mode"`
+	// Byte ceilings (D5). 0 = the restricted default in restricted mode,
+	// unbounded in trusted_host.
+	MaxModuleGraphBytes int `toml:"max_module_graph_bytes"`
+	MaxOutputBytes      int `toml:"max_output_bytes"`
+	MaxFSTransferBytes  int `toml:"max_fs_transfer_bytes"`
 }
 
 // DefaultPolicy returns a deny-all policy. This is what an empty file decodes
@@ -82,27 +91,7 @@ func Load(path string) (*Policy, error) {
 	if err != nil {
 		return nil, fmt.Errorf("policy: cannot read %s: %w", path, err)
 	}
-
-	p := DefaultPolicy()
-	meta, err := toml.Decode(string(data), p)
-	if err != nil {
-		return nil, fmt.Errorf("policy: %s: %w", path, err)
-	}
-
-	if undecoded := meta.Undecoded(); len(undecoded) > 0 {
-		// Convert MetaData keys to strings for the error
-		names := make([]string, 0, len(undecoded))
-		for _, key := range undecoded {
-			names = append(names, key.String())
-		}
-		return nil, fmt.Errorf("policy: %s: unknown fields: %v", path, names)
-	}
-
-	if p.Entry == "" {
-		p.Entry = "main"
-	}
-
-	return p, nil
+	return decode(path, data)
 }
 
 // AllowedSet returns the AllowedCaps slice as a set for O(1) membership tests.

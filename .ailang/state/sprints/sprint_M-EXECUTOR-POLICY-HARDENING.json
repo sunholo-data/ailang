@@ -64,10 +64,10 @@
         "Mutating the .ail file between admission and execution does not change what runs (test writes a second program over the file from a goroutine after the policy line appears, or the worker is fed the captured bytes) — decisions come only from the control pipe, a program printing a fake 'policy: {...}' line on stdout is not believed",
         "Existing TestRunPolicy_* green; make test-core, make lint green"
       ],
-      "passes": null,
+      "passes": true,
       "started": "2026-09-21T10:19:12Z",
-      "completed": null,
-      "notes": null
+      "completed": "2026-09-21T10:48:08Z",
+      "notes": "policy.Resolve/LoadResolved/security_mode (restricted default; RestrictedEffects=IO,FS,Net,Clock,Rand,Stream; D5 defaults); Check tail-before-empty fix (mutation-tested); supervised run --policy (parent+worker, control pipe fd3, proctree group kill, output cap, restricted env allowlist, envelope exit 3); 26 widening flags refused by name; entry pinned; loader source snapshot (AC6, mutation-tested in-process); executor.CheckLanePolicy at both dispatch paths. Extra: Process.Authorize(nil) bypass via Stream.asyncExecProcess (red-first, row now {Stream,Process}); prelude println budget charge. 3 deployed lane policies admit Process -> M5 migration, prod config untouched."
     },
     {
       "id": "M4_OPERATOR_BUDGETS_MEDIATED_TOOLS",
@@ -84,7 +84,7 @@
         "A policy declaring [budgets] no longer refuses at run_policy; the banked policy: line lists the enforced budgets"
       ],
       "passes": null,
-      "started": null,
+      "started": "2026-09-21T10:48:08Z",
       "completed": null,
       "notes": null
     },

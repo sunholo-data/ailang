@@ -138,9 +138,16 @@ func TestProcessAuthorize_BareEntriesUnchanged(t *testing.T) {
 	if _, d := pc.Authorize("nonexistent_xyz", nil); d == nil || d.Ctor != "NotFound" || d.Detail != "nonexistent_xyz" {
 		t.Errorf("nonexistent_xyz: %+v, want NotFound", d)
 	}
+	// A nil context (Process never granted) is a DENIAL, not a PATH lookup —
+	// the old LookPath fallthrough let asyncExecProcess spawn with only the
+	// Stream cap (M-EXECUTOR-POLICY-HARDENING M3, AC7). The no-allowlist
+	// LookPath path belongs to a granted-but-unrestricted context only.
 	var nilPC *ProcessContext
-	if p, d := nilPC.Authorize("echo", nil); d != nil || p == "" {
-		t.Errorf("nil context should LookPath: path=%q denial=%+v", p, d)
+	if p, d := nilPC.Authorize("echo", nil); d == nil || d.Ctor != "NotAllowed" || p != "" {
+		t.Errorf("nil context must deny: path=%q denial=%+v", p, d)
+	}
+	if p, d := NewProcessContext().Authorize("echo", nil); d != nil || p == "" {
+		t.Errorf("granted context without an allowlist should LookPath: path=%q denial=%+v", p, d)
 	}
 }
 

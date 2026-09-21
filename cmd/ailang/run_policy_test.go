@@ -136,34 +136,53 @@ func TestRunPolicy_RefusesWideningFlags(t *testing.T) {
 	}
 }
 
-func TestRunPolicy_RefusesUnenforceableBudgets(t *testing.T) {
+// M-EXECUTOR-POLICY-HARDENING M4: [budgets] are the operator ceiling and ARE
+// enforced (they used to be refused as unenforceable). An explicit IO = 0
+// denies the very first println before its side effect; the admission line
+// banks the budgets.
+func TestRunPolicy_BudgetsEnforcedAsOperatorCeiling(t *testing.T) {
 	bin := buildAilang(t)
 	dir := t.TempDir()
 	pol := writePolicyFixture(t, dir, `"IO"`)
-	if err := os.WriteFile(pol, []byte("allowed_caps = [\"IO\"]\nentry = \"main\"\n[budgets]\nIO = 5\n"), 0o644); err != nil {
+	if err := os.WriteFile(pol, []byte("allowed_caps = [\"IO\"]\nentry = \"main\"\n[budgets]\nIO = 0\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	f := writeAil(t, dir, "prog.ail", ioProgram)
-	_, stderr, code := runAilangBin(t, bin, "run", "--policy", pol, f)
-	if code != 1 || !strings.Contains(stderr, "budgets") {
-		t.Fatalf("a policy with [budgets] must be refused (no run-time hook enforces them yet): exit %d\n%s", code, stderr)
+	stdout, stderr, code := runAilangBin(t, bin, "run", "--policy", pol, f)
+	if code == 0 || strings.Contains(stdout, "admitted-and-ran") {
+		t.Fatalf("IO = 0 must deny the first println: exit %d\nstdout: %s\nstderr: %s", code, stdout, stderr)
+	}
+	if !strings.Contains(stderr, "E_BUDGET_OPERATOR") {
+		t.Fatalf("denial must be the operator-budget error: %s", stderr)
+	}
+	if !strings.Contains(stderr, `"budgets":{"IO":0}`) {
+		t.Fatalf("admission line must bank the budgets: %s", stderr)
 	}
 }
 
 func TestRunPolicy_FineGrainedCapsNarrowOrRefuse(t *testing.T) {
 	bin := buildAilang(t)
 	dir := t.TempDir()
-	// Process without process_allow: refused by name.
+	// Process is a host integration: restricted mode refuses it BY NAME with
+	// the trusted_host migration (M-EXECUTOR-POLICY-HARDENING D3) …
 	pol := writePolicyFixture(t, dir, `"IO", "Process"`)
 	f := writeAil(t, dir, "prog.ail", ioProgram)
 	_, stderr, code := runAilangBin(t, bin, "run", "--policy", pol, f)
+	if code != 1 || !strings.Contains(stderr, "Process") || !strings.Contains(stderr, "trusted_host") {
+		t.Fatalf("Process under restricted mode must be refused naming the migration: exit %d\n%s", code, stderr)
+	}
+	// … and in trusted_host, Process without process_allow is refused by name.
+	if err := os.WriteFile(pol, []byte("allowed_caps = [\"IO\", \"Process\"]\nsecurity_mode = \"trusted_host\"\nentry = \"main\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, stderr, code = runAilangBin(t, bin, "run", "--policy", pol, f)
 	if code != 1 || !strings.Contains(stderr, "process_allow") {
 		t.Fatalf("Process with no process_allow must be refused: exit %d\n%s", code, stderr)
 	}
 	// process_allow narrows: the admission line carries it, and the run's
 	// Process effect handler receives it as --process-allowlist (the program
 	// here uses IO only, so admission and the flag plumbing are what is tested).
-	if err := os.WriteFile(pol, []byte("allowed_caps = [\"IO\", \"Process\"]\nprocess_allow = [\"git:pull\", \"git:status\"]\nentry = \"main\"\n"), 0o644); err != nil {
+	if err := os.WriteFile(pol, []byte("allowed_caps = [\"IO\", \"Process\"]\nsecurity_mode = \"trusted_host\"\nprocess_allow = [\"git:pull\", \"git:status\"]\nentry = \"main\"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	stdout, stderr, code := runAilangBin(t, bin, "run", "--policy", pol, f)
@@ -200,11 +219,15 @@ func TestRunPolicy_UnknownCapInPolicyIsLoud(t *testing.T) {
 func writePolicyWithAI(t *testing.T, dir, caps, aiProvider string) string {
 	t.Helper()
 	p := writePolicyFixture(t, dir, caps)
+	// AI is a host integration: only trusted_host admits it (D3), so these
+	// fixtures test the provider rules in that mode.
+	extra := "security_mode = \"trusted_host\"\n"
 	if aiProvider != "" {
-		b, _ := os.ReadFile(p)
-		if err := os.WriteFile(p, append(b, []byte("ai_provider = \""+aiProvider+"\"\n")...), 0o644); err != nil {
-			t.Fatal(err)
-		}
+		extra += "ai_provider = \"" + aiProvider + "\"\n"
+	}
+	b, _ := os.ReadFile(p)
+	if err := os.WriteFile(p, append(b, []byte(extra)...), 0o644); err != nil {
+		t.Fatal(err)
 	}
 	return p
 }

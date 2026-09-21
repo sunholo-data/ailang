@@ -3,6 +3,7 @@ package coordinator
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/executor"
@@ -151,6 +152,15 @@ func (p *ExecutorProvider) Execute(ctx context.Context, task *AnalyzedTask, opts
 			}
 		}
 		if opts.AgentConfig.PolicyPath != "" {
+			// The lane's boundary claim needs a restricted policy underneath
+			// it (M-EXECUTOR-POLICY-HARDENING D3).
+			toml, rerr := os.ReadFile(opts.AgentConfig.PolicyPath)
+			if rerr != nil {
+				return nil, fmt.Errorf("agent %s: policy_path %s: %w", opts.AgentConfig.ID, opts.AgentConfig.PolicyPath, rerr)
+			}
+			if lerr := executor.CheckLanePolicy(opts.AgentConfig.GetEffectiveToolPolicy(), toml); lerr != nil {
+				return nil, fmt.Errorf("agent %s: %w", opts.AgentConfig.ID, lerr)
+			}
 			execTask.PolicyPath = opts.AgentConfig.PolicyPath
 			if execTask.ExtraEnv == nil {
 				execTask.ExtraEnv = make(map[string]string)

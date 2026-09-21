@@ -9,6 +9,7 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/effects"
+	"github.com/sunholo-data/ailang/internal/policy"
 )
 
 // EnvFlags contains all environment-related command-line flags.
@@ -258,4 +259,31 @@ func FlushDebugOutput(effCtx *effects.EffContext, minLevel int, label string) {
 		return
 	}
 	effects.DebugSink{W: os.Stderr, MinLevel: minLevel, Label: label}.Flush(effCtx.Debug)
+}
+
+// ApplyPolicy binds an effect context to a resolved operator policy
+// (M-EXECUTOR-POLICY-HARDENING M3). It runs AFTER the flag-driven handler
+// setup and can only tighten what that produced:
+//
+//   - restricted mode refuses a configured proxy (Net.RefuseProxy) rather
+//     than claiming destination-IP enforcement behind one;
+//   - max_fs_transfer_bytes caps every FS read and write;
+//   - the operator budgets (M4) become the shared ceiling.
+//
+// nil is a no-op: every non-policy run passes through unchanged.
+func ApplyPolicy(effCtx *effects.EffContext, res *policy.Resolved) {
+	if res == nil {
+		return
+	}
+	if res.Restricted() && effCtx.Net != nil {
+		effCtx.Net.RefuseProxy = true
+	}
+	if res.MaxFSTransferBytes > 0 {
+		if effCtx.Env.FSMaxBytes == 0 || res.MaxFSTransferBytes < effCtx.Env.FSMaxBytes {
+			effCtx.Env.FSMaxBytes = res.MaxFSTransferBytes
+		}
+	}
+	if len(res.Budgets) > 0 {
+		effCtx.SetOperatorBudget(effects.NewOperatorBudget(res.Budgets))
+	}
 }

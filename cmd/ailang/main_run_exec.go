@@ -167,6 +167,7 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 		ORReferer:    orReferer,
 		ORTitle:      orTitle,
 		ORCategories: orCategories,
+		Policy:       activeRunPolicy,
 	}
 
 	if code := runner.Run(ctx, opts); code != 0 {

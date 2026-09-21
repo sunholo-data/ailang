@@ -51,6 +51,9 @@ func fsWriteFile(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := ctx.fsCheckTransfer(path, len(data)); err != nil {
+		return nil, err
+	}
 	b, err := ctx.fsBackendFor()
 	if err != nil {
 		return nil, err
@@ -75,6 +78,9 @@ func fsWriteFileBytes(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := ctx.fsCheckTransfer(path, len(data)); err != nil {
+		return nil, err
+	}
 	b, err := ctx.fsBackendFor()
 	if err != nil {
 		return nil, err
@@ -95,6 +101,9 @@ func fsWriteFileBytes(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 func fsAppendFile(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 	path, data, err := fsWriteArgs("appendFile", args)
 	if err != nil {
+		return nil, err
+	}
+	if err := ctx.fsCheckTransfer(path, len(data)); err != nil {
 		return nil, err
 	}
 	b, err := ctx.fsBackendFor()
@@ -125,6 +134,9 @@ func fsAppendFileBytes(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := ctx.fsCheckTransfer(path, len(data)); err != nil {
+		return nil, err
+	}
 	b, err := ctx.fsBackendFor()
 	if err != nil {
 		return nil, err
@@ -145,6 +157,9 @@ func fsWriteFileResult(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := ctx.fsCheckTransfer(path, len(data)); err != nil {
+		return fsMakeErr(fmt.Sprintf("cannot write file: %v", err)), nil
+	}
 	b, err := ctx.fsBackendFor()
 	if err != nil {
 		return nil, err
@@ -160,6 +175,9 @@ func fsAppendFileResult(ctx *EffContext, args []eval.Value) (eval.Value, error) 
 	path, data, err := fsWriteArgs("appendFileResult", args)
 	if err != nil {
 		return nil, err
+	}
+	if err := ctx.fsCheckTransfer(path, len(data)); err != nil {
+		return fsMakeErr(fmt.Sprintf("cannot append to file: %v", err)), nil
 	}
 	b, err := ctx.fsBackendFor()
 	if err != nil {

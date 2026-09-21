@@ -134,6 +134,16 @@ func fsRejectProbe(ctx *EffContext, op, path string, err error) {
 	}
 }
 
+// fsCheckTransfer applies the per-transfer cap (Env.FSMaxBytes, from
+// --fs-max-bytes or the policy's max_fs_transfer_bytes) to a write the way
+// readCapped applies it to a read: refused before any byte reaches the file.
+func (ctx *EffContext) fsCheckTransfer(path string, n int) error {
+	if ctx == nil || ctx.Env.FSMaxBytes <= 0 || int64(n) <= ctx.Env.FSMaxBytes {
+		return nil
+	}
+	return fmt.Errorf("E_FS_WRITE_TOO_LARGE: %s would receive %d bytes, cap %d (raise --fs-max-bytes or write it in parts)", path, n, ctx.Env.FSMaxBytes)
+}
+
 // writeAll opens path for truncating write through the backend and writes
 // data with 0644 — os.WriteFile's exact semantics, through the root.
 func fsWriteAll(b fsBackend, path string, data []byte) error {
@@ -188,8 +198,12 @@ func (ctx *EffContext) FSCreate(path string) (*os.File, error) {
 	return b.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 }
 
-// FSWriteFile writes data to path (0644) through the backend.
+// FSWriteFile writes data to path (0644) through the backend, under the
+// transfer cap.
 func (ctx *EffContext) FSWriteFile(path string, data []byte) error {
+	if err := ctx.fsCheckTransfer(path, len(data)); err != nil {
+		return err
+	}
 	b, err := ctx.fsBackendFor()
 	if err != nil {
 		return err

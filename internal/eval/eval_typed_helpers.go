@@ -128,6 +128,16 @@ type capRequirer interface {
 	RequireCap(name string) error
 }
 
+// capBudgetRequirer is capRequirer plus the budget charge (effects.EffContext
+// implements it). The prelude println is a real IO operation and must be
+// charged like `import std/io (println)` is — against the per-invocation
+// frame AND the operator ceiling (M-EXECUTOR-POLICY-HARDENING M4). Gating on
+// the capability alone left [budgets] IO = 0 admitting an unbounded number of
+// bare printlns.
+type capBudgetRequirer interface {
+	RequireCapWithBudget(name, position string) error
+}
+
 // requireCap enforces a capability for a PRELUDE builtin that performs a real
 // effect.
 //
@@ -147,6 +157,9 @@ type capRequirer interface {
 func requireCap(e *CoreEvaluator, name string) error {
 	if e == nil {
 		return nil
+	}
+	if rb, ok := e.effContext.(capBudgetRequirer); ok {
+		return rb.RequireCapWithBudget(name, "")
 	}
 	r, ok := e.effContext.(capRequirer)
 	if !ok {

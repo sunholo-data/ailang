@@ -55,6 +55,7 @@ func ExecuteBatchItem(ctx context.Context, result pipeline.Result, input string,
 	if err := SetupProcessHandler(effCtx, opts.Process.Timeout, opts.Process.Allowlist, opts.Process.MaxOutput); err != nil {
 		return fmt.Errorf("process handler setup: %w", err)
 	}
+	ApplyPolicy(effCtx, opts.Policy)
 	if opts.AIHandler != nil {
 		if err := opts.AIHandler(effCtx, routingPolicy, attr); err != nil {
 			return fmt.Errorf("AI handler setup: %w", err)

@@ -92,6 +92,9 @@ type EffContext struct {
 	// Env.Sandbox, opened once and shared by every derived context (pointer
 	// copied by WithBudget/Clone); the owner closes it via CloseFSRoot.
 	fsRoot *fsRootHolder
+	// M-EXECUTOR-POLICY-HARDENING M4: the run's operator budget — one shared
+	// ceiling, independent of the per-invocation frames; nil = none.
+	operatorBudget *OperatorBudget
 }
 
 // BeginBudgetChargeScope marks the start of a single logical effect op that has
@@ -390,6 +393,13 @@ func (ctx *EffContext) RequireCapWithBudget(name, position string) error {
 		return nil
 	}
 
+	// M-EXECUTOR-POLICY-HARDENING M4: the operator ceiling is charged first,
+	// once per logical op, whatever --no-budgets or the frames say. A denial
+	// here happens BEFORE the operation and its side effect.
+	if err := ctx.operatorBudget.Charge(name, position); err != nil {
+		return err
+	}
+
 	// M-BUDGET-SCOPING-BUG: enforcement lives in the per-invocation frame stack.
 	// The LIMIT check is applied against every active frame via the bubbling
 	// charge rule. Physical usage stays tracked on ctx.Budget for --emit-trace
@@ -466,17 +476,18 @@ func (ctx *EffContext) WithBudget(budget *BudgetContext) *EffContext {
 		EnvSnapshot:    ctx.EnvSnapshot,
 		EnvAllowlist:   ctx.EnvAllowlist,
 		Args:           ctx.Args,
-		Trace:          ctx.Trace,       // Preserve trace collector across budget scopes (M-TRACE-EXPORT)
-		IOWriter:       ctx.IOWriter,    // Preserve IO writer across budget scopes
-		IOReader:       ctx.IOReader,    // Preserve IO reader across budget scopes
-		stdinReader:    ctx.stdinReader, // Share persistent buffered reader across scopes
-		FnCaller:       ctx.FnCaller,    // Preserve function caller across budget scopes (M-STREAM-BIDI)
-		FnCallerN:      ctx.FnCallerN,   // Preserve multi-arg function caller across budget scopes (M-ITERATIVE-LIST)
-		GoCtx:          ctx.GoCtx,       // Preserve OTEL trace context across budget scopes
-		SpanWrapper:    ctx.SpanWrapper, // Preserve OTEL span wrapper across budget scopes
-		randMode:       ctx.randMode,    // M-EFFECT-REPLAY-CONTRACTS: SHARE Rand-mode state across budget scopes (same execution)
-		seedSet:        ctx.seedSet,     // M-EFFECT-REPLAY-CONTRACTS: preserve AILANG_SEED presence
-		fsRoot:         ctx.fsRoot,      // M-EXECUTOR-POLICY-HARDENING M1: SHARE the sandbox root (owner closes)
+		Trace:          ctx.Trace,          // Preserve trace collector across budget scopes (M-TRACE-EXPORT)
+		IOWriter:       ctx.IOWriter,       // Preserve IO writer across budget scopes
+		IOReader:       ctx.IOReader,       // Preserve IO reader across budget scopes
+		stdinReader:    ctx.stdinReader,    // Share persistent buffered reader across scopes
+		FnCaller:       ctx.FnCaller,       // Preserve function caller across budget scopes (M-STREAM-BIDI)
+		FnCallerN:      ctx.FnCallerN,      // Preserve multi-arg function caller across budget scopes (M-ITERATIVE-LIST)
+		GoCtx:          ctx.GoCtx,          // Preserve OTEL trace context across budget scopes
+		SpanWrapper:    ctx.SpanWrapper,    // Preserve OTEL span wrapper across budget scopes
+		randMode:       ctx.randMode,       // M-EFFECT-REPLAY-CONTRACTS: SHARE Rand-mode state across budget scopes (same execution)
+		seedSet:        ctx.seedSet,        // M-EFFECT-REPLAY-CONTRACTS: preserve AILANG_SEED presence
+		fsRoot:         ctx.fsRoot,         // M-EXECUTOR-POLICY-HARDENING M1: SHARE the sandbox root (owner closes)
+		operatorBudget: ctx.operatorBudget, // M-EXECUTOR-POLICY-HARDENING M4: SHARE the run ceiling
 	}
 }
 

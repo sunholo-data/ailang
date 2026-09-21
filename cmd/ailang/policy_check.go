@@ -2,10 +2,12 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
 
+	"github.com/sunholo-data/ailang/internal/loader"
 	"github.com/sunholo-data/ailang/internal/pipeline"
 	"github.com/sunholo-data/ailang/internal/policy"
 )
@@ -53,7 +55,7 @@ func policyCheckCommand() {
 
 	filename := fs.Arg(0)
 
-	pol, err := policy.Load(*policyPath)
+	pol, _, err := policy.LoadResolved(*policyPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "policy load error: %v\n", err)
 		os.Exit(1)
@@ -71,7 +73,7 @@ func policyCheckCommand() {
 // the exit code the caller should use: 0 admitted, 2 denied, 1 internal.
 // Shared by `policy-check` and `run --policy` so the two can never disagree
 // about the same program.
-func admitProgram(pol *policy.Policy, policyPath, filename string) (policyCheckOutput, int) {
+func admitProgram(pol *policy.Resolved, policyPath, filename string) (policyCheckOutput, int) {
 	deny := func(kind policy.ErrorKind, msg string, extra func(*policyCheckOutput)) (policyCheckOutput, int) {
 		out := policyCheckOutput{File: filename, Policy: policyPath, Decision: policy.Decision{OK: false, ErrorKind: kind, Message: msg}}
 		if extra != nil {
@@ -80,12 +82,18 @@ func admitProgram(pol *policy.Policy, policyPath, filename string) (policyCheckO
 		return out, 2
 	}
 
-	source, err := os.ReadFile(filename)
+	// Through the source snapshot when the worker enabled one: the bytes
+	// admitted here are the bytes the runtime executes (AC6), and the
+	// snapshot itself refuses an oversized file before retaining it.
+	source, err := loader.ReadSourceFile(filename)
 	if err != nil {
+		if errors.Is(err, loader.ErrSourceTooLarge) {
+			return deny("source_too_large", err.Error(), func(o *policyCheckOutput) { o.SourceTooLarge = true })
+		}
 		return policyCheckOutput{File: filename, Policy: policyPath, Decision: policy.Decision{OK: false, ErrorKind: "read_failed", Message: err.Error()}}, 1
 	}
 
-	if pol.MaxSourceBytes > 0 && len(source) > pol.MaxSourceBytes {
+	if pol.MaxSourceBytes > 0 && int64(len(source)) > pol.MaxSourceBytes {
 		return deny("source_too_large", fmt.Sprintf("source size %d exceeds max_source_bytes=%d", len(source), pol.MaxSourceBytes),
 			func(o *policyCheckOutput) { o.SourceTooLarge = true })
 	}
@@ -111,7 +119,7 @@ func admitProgram(pol *policy.Policy, policyPath, filename string) (policyCheckO
 			func(o *policyCheckOutput) { o.Module = result.Interface.Module; o.Decision.Function = pol.Entry })
 	}
 
-	decision := policy.CheckScheme(pol, pol.Entry, item.Type)
+	decision := policy.CheckScheme(pol.AsPolicy(), pol.Entry, item.Type)
 	out := policyCheckOutput{File: filename, Policy: policyPath, Module: result.Interface.Module, Decision: decision}
 	if !decision.OK {
 		return out, 2

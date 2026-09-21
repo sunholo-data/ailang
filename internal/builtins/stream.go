@@ -755,5 +755,5 @@ func makeStreamAsyncExecProcessType() types.Type {
 		T.Int(),            // chunkSize
 	).Returns(
 		T.Con("StreamSource"),
-	).Effects("Stream")
+	).Effects("Stream", "Process")
 }

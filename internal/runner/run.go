@@ -14,7 +14,9 @@ import (
 	"github.com/sunholo-data/ailang/internal/effects"
 	"github.com/sunholo-data/ailang/internal/eval"
 	"github.com/sunholo-data/ailang/internal/iface"
+	"github.com/sunholo-data/ailang/internal/loader"
 	"github.com/sunholo-data/ailang/internal/pipeline"
+	"github.com/sunholo-data/ailang/internal/policy"
 	"github.com/sunholo-data/ailang/internal/runtime"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	ailtrace "github.com/sunholo-data/ailang/internal/trace"
@@ -94,6 +96,12 @@ type Options struct {
 	ORReferer    string
 	ORTitle      string
 	ORCategories string
+
+	// Policy is the resolved operator policy of a `run --policy` worker
+	// (M-EXECUTOR-POLICY-HARDENING M3); nil for every other run. Applied
+	// after the handler setup so it can only tighten: proxy refusal in
+	// restricted mode, the FS transfer cap, the operator budgets.
+	Policy *policy.Resolved
 }
 
 // Run compiles and executes one AILANG file per opts and returns the process
@@ -119,8 +127,10 @@ func Run(ctx context.Context, opts Options) int {
 	_ = opts.TraceLoader
 	_ = opts.StrictVersion
 
-	// Read the file
-	content, err := os.ReadFile(filename)
+	// Read the file — through the source snapshot when a policy run enabled
+	// one, so the bytes admitted are the bytes executed (M-EXECUTOR-POLICY-
+	// HARDENING M3, AC6).
+	content, err := loader.ReadSourceFile(filename)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: cannot read file '%s': %v\n", red("Error"), filename, err)
 		return 1
@@ -451,6 +461,7 @@ func runSingle(ctx context.Context, result pipeline.Result, opts Options, progra
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 		return 1
 	}
+	ApplyPolicy(effCtx, opts.Policy)
 
 	// M-AI-EFFECT-MODES M2: build the routing policy now that typecheck
 	// has produced the entry function's effect row. The declared AI

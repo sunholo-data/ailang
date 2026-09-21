@@ -20,13 +20,22 @@ type ProcessDenial struct {
 // exec, spawnProcess and asyncExecProcess all call it (M-PROCESS-SUBCMD). It
 // returns the path-pinned binary to run, or a denial.
 //
-// Order: no context / no allowlist → PATH lookup; command not listed →
+// Order: no context → NotAllowed (the cap was never granted); no allowlist →
+// PATH lookup; command not listed →
 // NotAllowed(cmd); listed but unresolved at startup → NotFound(cmd); a
 // subcommand chain is required and none is a prefix of args → NotAllowed
 // ("cmd arg…"). Matching is positional from args[0], so `git -C x status` is
 // refused under `git:status` — fail closed rather than parse option grammars.
 func (pc *ProcessContext) Authorize(cmdName string, args []string) (string, *ProcessDenial) {
-	if pc == nil || !pc.HasAllowlist {
+	if pc == nil {
+		// No ProcessContext means the Process capability was never granted
+		// (SetupProcessHandler only builds one for a granted cap). This used
+		// to fall through to a PATH lookup, which let a caller holding only
+		// the Stream cap spawn arbitrary commands through asyncExecProcess
+		// (M-EXECUTOR-POLICY-HARDENING M3, AC7).
+		return "", &ProcessDenial{Ctor: "NotAllowed", Detail: cmdName + " (Process capability not granted)"}
+	}
+	if !pc.HasAllowlist {
 		resolved, err := exec.LookPath(cmdName)
 		if err != nil {
 			return "", &ProcessDenial{Ctor: "NotFound", Detail: cmdName}

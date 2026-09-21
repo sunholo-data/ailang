@@ -164,7 +164,7 @@ round trip and connection: HTTP GET/POST/request/requestBytes, SSE GET/POST, NDJ
 - gorilla `Dialer` with a custom `NetDialContext` and TLS — Mitigation: keep `TLSClientConfig.ServerName`
   = original host; test against `httptest.NewTLSServer` with the test cert.
 
-### Milestone 3: Immutable typed policy, `security_mode`, entrypoint pin, enforced `timeout_ms`, bounded supervisor
+### Milestone 3: Immutable typed policy, `security_mode`, entrypoint pin, enforced `timeout_ms`, bounded supervisor ✅ (2026-09-21)
 
 **Goal:** Operator authority is decoded once into an immutable `policy.Resolved`, every widening
 argv route is refused, restricted mode admits only the effects with tested adapters, and wall-time
@@ -201,14 +201,21 @@ is enforced by a parent supervisor around a child worker.
    policy-derived `AILANG_FS_SANDBOX`; nothing else.
 
 **Acceptance Criteria:**
-- [ ] `TestRunPolicy_TimeoutMsEnforced`: a program that loops forever with `timeout_ms = 200` exits
+- [x] `TestRunPolicy_TimeoutMsEnforced`: a program that loops forever with `timeout_ms = 200` exits
       within 2s with the envelope naming `timeout`; the grandchild fixture (Process cap in
       trusted_host mode, `sleep 30`) is dead after
-- [ ] `TestRunPolicy_RefusesWideningFlags` covers every flag above by name
-- [ ] `TestCheck_OpenEmptyRowDenied` (policy) — fails on baseline
-- [ ] `TestResolve_RestrictedRefusesProcess`, `…TrustedHostKeepsProcess`, `…AilangOnlyRejectsTrustedHost`
-- [ ] Existing `TestRunPolicy_*` (33s suite) green
-- [ ] Every restricted-refusal is a startup refusal with a named reason; no permissive fallback
+- [x] `TestRunPolicy_RefusesWideningFlags` covers every flag above by name
+- [x] `TestCheck_OpenEmptyRowDenied` (policy) — fails on baseline
+- [x] `TestResolve_RestrictedRefusesProcess`, `…TrustedHostKeepsProcess`, `…AilangOnlyRejectsTrustedHost`
+- [x] Existing `TestRunPolicy_*` (33s suite) green
+- [x] Every restricted-refusal is a startup refusal with a named reason; no permissive fallback
+
+**Done — extra findings closed on the way:** `Process.Authorize(nil)` allowed everything (Stream-only
+programs spawned commands via `asyncExecProcess`; row now `{Stream, Process}` + runtime cap check);
+prelude `println` charged no budget. **Migration flagged:** three deployed `ailang_only` policies
+(`pkg-ailang-only`, `ailang-only-executor`, `daneel-executor` in ailang-multivac) admit Process/AI
+and will be refused at dispatch by `CheckLanePolicy` once this ships — M5 inventories them; the
+prod config plane was NOT touched.
 
 **Risks:**
 - Re-exec changes the CLI's process shape for `--policy` runs — Mitigation: only `--policy` takes the

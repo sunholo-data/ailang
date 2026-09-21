@@ -33,7 +33,8 @@ func runCommand() {
 	noPrintFlag := fs.Bool("no-print", false, "Suppress output (exit code only)")
 	batchFlag := fs.Bool("batch", false, "Batch mode: compile once, run entrypoint per input (remaining args are inputs)")
 	capsFlag := fs.String("caps", "", "Enable capabilities (comma-separated: "+runner.CapsList+"; or 'auto' to infer from the entrypoint)")
-	policyFlag := fs.String("policy", "", "Gate the run by an operator program policy (agent-policy.toml): caps, net allowlist and FS sandbox come from the file; --caps/--no-budgets/--allow-env are refused; denial prints the decision JSON and exits 2 without running")
+	policyFlag := fs.String("policy", "", "Gate the run by an operator program policy (agent-policy.toml): caps, net allowlist, FS sandbox, entry and limits come from the file; every widening flag is refused by name; denial prints the decision JSON and exits 2 without running; the run is supervised (timeout_ms, output cap)")
+	policyWorkerFlag := fs.Int("policy-worker", 0, "internal: the control-pipe fd handed to the worker by a supervising `run --policy`; never pass by hand")
 	maxRecursionDepthFlag := fs.Int("max-recursion-depth", 10000, "Maximum recursion depth (default: 10000)")
 
 	// Stdlib resolution flags
@@ -216,14 +217,27 @@ func runCommand() {
 	// file. Resolved here into the existing flag values rather than threaded
 	// as another runFile parameter.
 	if *policyFlag != "" {
-		resolved := applyRunPolicy(*policyFlag, filename, runPolicyWidening{caps: *capsFlag, noBudgets: *noBudgetsFlag, allowEnv: *allowEnvFlag, aiModel: *aiModelFlag, aiStub: *aiStubFlag})
+		// Every flag the caller set explicitly, by name: the refusal list is
+		// checked against what was PASSED, not against values.
+		widening := runPolicyWidening{set: map[string]bool{}}
+		fs.Visit(func(f *flag.Flag) { widening.set[f.Name] = true })
+		if *policyWorkerFlag == 0 {
+			// PARENT: supervise a worker and exit with its verdict. Nothing
+			// executes in this process (M-EXECUTOR-POLICY-HARDENING M3).
+			os.Exit(supervisePolicyRun(*policyFlag, widening, os.Args[2:]))
+		}
+		control := os.NewFile(uintptr(*policyWorkerFlag), "policy-control")
+		resolved := applyRunPolicy(*policyFlag, filename, widening, control)
 		*capsFlag = resolved.caps
 		*aiModelFlag = resolved.aiModel
 		*aiStubFlag = resolved.aiStub
+		*entryFlag = resolved.entry
 		if resolved.netDomains != "" {
 			*netAllowDomainsFlag = resolved.netDomains
+			*streamAllowDomainsFlag = resolved.netDomains
 		}
 		*netAllowHTTPFlag = resolved.netAllowHTTP
+		*streamAllowHTTPFlag = resolved.netAllowHTTP
 		if resolved.processAllow != "" {
 			*processAllowlistFlag = resolved.processAllow
 		}

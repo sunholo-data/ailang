@@ -299,6 +299,13 @@ func (d *Daemon) dispatchTasksCloud() error {
 						task.ID, agent.ID, params.ToolPolicy)
 					continue
 				}
+				// The lane's boundary claim needs a restricted policy underneath
+				// it (M-EXECUTOR-POLICY-HARDENING D3); a policy that does not
+				// resolve is refused here, before a job is paid for.
+				if lerr := executor.CheckLanePolicy(params.ToolPolicy, []byte(params.PolicyTOML)); lerr != nil {
+					d.logger.Printf("ERROR: task %s not dispatched: agent %s: %v", task.ID, agent.ID, lerr)
+					continue
+				}
 				if agent.GitIdentity != nil {
 					params.GitAuthorName = agent.GitIdentity.Name
 					params.GitAuthorEmail = agent.GitIdentity.Email

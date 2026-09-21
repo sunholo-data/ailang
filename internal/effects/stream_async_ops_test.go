@@ -161,8 +161,12 @@ func TestStreamAsyncExecProcess_EchoCommand(t *testing.T) {
 	sc := NewStreamContext()
 	defer sc.CloseAll()
 
+	// asyncExecProcess is a Process operation: grant the cap and a context
+	// (M-EXECUTOR-POLICY-HARDENING M3, AC7).
 	ctx := &EffContext{
-		Stream: sc,
+		Caps:    map[string]Capability{"Stream": NewCapability("Stream"), "Process": NewCapability("Process")},
+		Stream:  sc,
+		Process: NewProcessContext(),
 	}
 
 	args := []eval.Value{
@@ -241,7 +245,9 @@ func TestStreamAsyncExecProcess_CommandNotFound(t *testing.T) {
 	defer sc.CloseAll()
 
 	ctx := &EffContext{
-		Stream: sc,
+		Caps:    map[string]Capability{"Stream": NewCapability("Stream"), "Process": NewCapability("Process")},
+		Stream:  sc,
+		Process: NewProcessContext(),
 	}
 
 	args := []eval.Value{

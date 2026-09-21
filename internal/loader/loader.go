@@ -2,6 +2,7 @@ package loader
 
 import (
 	"bytes"
+	stderrors "errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -271,11 +272,16 @@ func (ml *ModuleLoader) Load(path string) (*LoadedModule, error) {
 		fullPath = projPath
 	}
 
-	// Read file (skip if content already loaded from embedded stdlib)
+	// Read file (skip if content already loaded from embedded stdlib). Through
+	// the source snapshot when one is enabled (M-EXECUTOR-POLICY-HARDENING M3):
+	// admission and execution then see the same bytes for the same path.
 	if content == nil {
 		var err error
-		content, err = os.ReadFile(fullPath)
+		content, err = ReadSourceFile(fullPath)
 		if err != nil {
+			if stderrors.Is(err, ErrSourceTooLarge) {
+				return nil, err
+			}
 			// Collect similar module suggestions
 			similar := ml.suggestSimilar(path)
 			report := newLDR001(canonicalID, searchTrace, similar, nil)

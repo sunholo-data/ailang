@@ -56,6 +56,13 @@ func StreamAsyncExecProcess(ctx *EffContext, args []eval.Value) (eval.Value, err
 		return nil, fmt.Errorf("E_STREAM_NO_CONTEXT: Stream effect not configured (missing --caps Stream)")
 	}
 
+	// A process source is a Process operation: the Stream label alone must
+	// not authorize it (M-EXECUTOR-POLICY-HARDENING M3, AC7). The builtin's
+	// effect row says {Stream, Process}; this is the runtime half.
+	if err := ctx.RequireCap("Process"); err != nil {
+		return nil, fmt.Errorf("_stream_async_exec_process: %w", err)
+	}
+
 	// Resolve command path via the one Process authorizer (allowlist + subcommands + LookPath)
 	resolvedPath, denial := ctx.Process.Authorize(cmdVal.Value, cmdArgs)
 	if denial != nil {

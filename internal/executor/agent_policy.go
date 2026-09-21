@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/policy"
 )
 
 // MaterializeAgentPolicy writes a program policy delivered by CONTENT
@@ -55,4 +57,32 @@ func MaterializeAgentPolicy(toml, workspace string) (string, error) {
 		return "", fmt.Errorf("agent policy: %w", err)
 	}
 	return path, nil
+}
+
+// CheckLanePolicy is the rule that keeps the ailang_only lane honest
+// (M-EXECUTOR-POLICY-HARDENING D3): an agent whose ONLY route to execution is
+// the policy gate must run a RESTRICTED policy. A trusted_host policy behind
+// the lane would carry the lane's "no shell" claim with a host-integration
+// grant (Process, AI, Env…) underneath it. The full profile is free to use
+// either mode — it has a shell anyway and makes no confinement claim.
+//
+// policyTOML is the policy CONTENT (what the dispatcher ships); an empty
+// content with a non-full profile is already refused upstream. Errors name
+// the agent's migration: change tool_policy to full, or the policy's mode.
+func CheckLanePolicy(toolPolicy string, policyTOML []byte) error {
+	if strings.TrimSpace(toolPolicy) == "" || strings.TrimSpace(toolPolicy) == ToolProfileFull || len(policyTOML) == 0 {
+		return nil
+	}
+	pol, err := policy.Decode(policyTOML)
+	if err != nil {
+		return fmt.Errorf("tool_policy %q: %w", toolPolicy, err)
+	}
+	res, err := policy.Resolve(pol, policy.DigestBytes(policyTOML))
+	if err != nil {
+		return fmt.Errorf("tool_policy %q: %w", toolPolicy, err)
+	}
+	if !res.Restricted() {
+		return fmt.Errorf("tool_policy %q requires a restricted policy, but the policy sets security_mode = %q — the lane's execution boundary would be claimed over a host-integration grant; declare tool_policy: full for this agent, or drop security_mode/host effects from the policy", toolPolicy, res.Mode)
+	}
+	return nil
 }
