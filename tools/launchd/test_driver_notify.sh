@@ -815,6 +815,37 @@ check "direct send reaches child with store=gcp" "$_ge_t" "store=<gcp> proj=<ail
 _wiring=$(awk '/^# --- DRIVER PIN DECISION END ---/,0' "$DRV" | grep -c '^_mc_drain_notices$')
 [ "$_wiring" -eq 1 ] && ok "wiring: exactly one preflight drain call" || bad "wiring: exactly one preflight drain call" "got $_wiring"
 
+# (8) guard (green/red): the preflight drain is BELOW the kill switch.
+#
+# It sat 263 lines above it until 2026-09-21, so every paused mission kept attempting
+# Firestore sends on every fire — the same "a pause that still spends is not a pause"
+# defect the kill-switch block's own comment records for the role probes. A line-order
+# assertion is the right shape here: the drain is reached by falling through, so no
+# behavioural arm distinguishes "ran before the pause" from "ran after" without actually
+# firing a disabled mission.
+_kill_line=$(grep -n '^if \[ -f "\$KILL_SWITCH" \]; then$' "$DRV" | head -1 | cut -d: -f1)
+_drain_line=$(grep -n '^_mc_drain_notices$' "$DRV" | head -1 | cut -d: -f1)
+if [ -n "$_kill_line" ] && [ -n "$_drain_line" ] && [ "$_drain_line" -gt "$_kill_line" ]; then
+  ok "wiring: preflight drain runs BELOW the kill switch (a paused mission sends nothing)"
+else
+  bad "wiring: preflight drain runs BELOW the kill switch (a paused mission sends nothing)" \
+      "kill switch at line ${_kill_line:-none}, drain at line ${_drain_line:-none}"
+fi
+
+# (9) guard (green/red): a failed drain send LOGS ITS CAUSE, not just a count.
+#
+# _mc_bounded captures the child's stdout+stderr in MC_BOUNDED_OUT and the keep-branch
+# used to discard it. Measured 2026-09-21: v1 had been logging "3 notice(s) still
+# undeliverable" on every fire since 2026-09-07 with the reason sitting unread in that
+# variable, so fourteen days of retries produced no diagnosis at all.
+_keep_branch=$(awk '/^_mc_drain_notices\(\)/,/^}/' "$DRV")
+if printf '%s' "$_keep_branch" | grep -q 'send FAILED rc=' && \
+   printf '%s' "$_keep_branch" | grep -q 'MC_BOUNDED_OUT'; then
+  ok "drain: a failed send logs rc and the captured cause"
+else
+  bad "drain: a failed send logs rc and the captured cause" "keep-branch does not log MC_BOUNDED_OUT"
+fi
+
 echo ""
 echo "==== $PASS passed, $FAIL failed ===="
 [ "$FAIL" -eq 0 ]

@@ -147,7 +147,7 @@ log() { echo "[$(date '+%F %H:%M:%S')] $*" | tee -a "$LOG"; }
 # A notice that still cannot be sent is KEPT, not dropped, so an outage costs a delay
 # rather than the record.
 _mc_drain_notices() {
-  local spool tmp line ts title body sent=0 kept=0 deferred=0 drain_start remaining lineno=0 total=0 DRAIN_BUDGET
+  local spool tmp line ts title body sent=0 kept=0 deferred=0 drain_start remaining lineno=0 total=0 DRAIN_BUDGET rc=0
   spool="$STATE_DIR/mission-${MISSION_NAME}-notice-spool.tsv"
   [ -s "$spool" ] || return 0
   tmp="${spool}.draining.$$"
@@ -170,8 +170,18 @@ _mc_drain_notices() {
        ailang messages send controlplane "[spooled $ts] $body" --title "$title" --from "$MSG_FROM"; then
       sent=$((sent + 1))
     else
+      rc=$?
       printf '%s\t%s\t%s\n' "$ts" "$title" "$body" >> "$spool"
       kept=$((kept + 1))
+      # SAY WHY. _mc_bounded already captures the command's stdout+stderr in
+      # MC_BOUNDED_OUT, and this branch used to throw it away and log a COUNT.
+      # Measured 2026-09-21: three v1 rows, four world rows and one motoko row had
+      # been reporting "still undeliverable" on every fire since 2026-09-07 —
+      # fourteen days, ~16 fires a day — with the cause sitting in a variable nobody
+      # printed. A retry loop that cannot say why it is retrying is not an
+      # instrument, and "kept for the next fire" reads as patience rather than as a
+      # stuck queue. rc=124 is the bounded-timeout code, 125 a mktemp failure.
+      log "notice spool: send FAILED rc=${rc} for [$ts] ${title} — $(printf '%s' "${MC_BOUNDED_OUT:-<no output captured>}" | tr '\n\t' '  ' | cut -c1-300)"
     fi
   done < "$tmp"
   rm -f "$tmp"
@@ -1076,12 +1086,6 @@ fi
 # --- DRIVER PIN AGE DECISION END ---
 # --- DRIVER PIN DECISION END ---
 
-# Deliver anything a previous fire could not. Placed after the pin decision so a
-# drained notice is reported by the same driver the rest of this fire runs.
-if [ -z "${AILANG_MISSION_WORK_ITEM:-}" ]; then
-_mc_drain_notices
-fi
-
 # designer default is the claude-CLI lane (claude:<full-id>), NOT the bare "fable" alias: the
 # Agent tool pins only sonnet|opus|haiku (F1, iteration 31), so under an opus-first controller a
 # bare "fable" would silently fall back to opus. claude:claude-fable-5-1 = a REAL bounded Fable run.
@@ -1344,6 +1348,21 @@ _cx_failed=":"   # models whose probe failed
 # A pause that still spends is not a pause.
 if [ -f "$KILL_SWITCH" ]; then
   log "kill switch present ($KILL_SWITCH) — skip"; exit 0
+fi
+
+# Deliver anything a previous fire could not. Placed after the pin decision so a drained
+# notice is reported by the same driver the rest of this fire runs, and BELOW the kill
+# switch for the same reason the probes are: this drain makes up to one bounded network
+# send per spooled row (aggregate budget MISSION_DRAIN_BUDGET, default 90s).
+#
+# It sat 263 lines ABOVE the kill switch until 2026-09-21, so all four paused missions
+# were still attempting Firestore sends on every fire — the same "a pause that still
+# spends is not a pause" defect this block's own comment records for the probes, in the
+# one place that survived the fix. Measured: the v1 spool logged "3 notice(s) still
+# undeliverable" at 09:09, 10:38, 12:10, 13:40, 15:09 and 16:44 on 2026-09-21, every one
+# of them on a mission that was disabled and exited two lines later.
+if [ -z "${AILANG_MISSION_WORK_ITEM:-}" ]; then
+_mc_drain_notices
 fi
 
 # ROLE FALLBACK CHAINS (2026-08-26). MISSION_<ROLE>_FALLBACK may now be a
