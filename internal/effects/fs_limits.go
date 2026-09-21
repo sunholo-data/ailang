@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"os"
 )
 
 // FS read size cap (M-V1-MEMORY-FOOTPRINT M3, D-C).
@@ -28,16 +27,17 @@ func errFSTooLarge(path string, size, capBytes int64) error {
 	return fmt.Errorf("E_FS_FILE_TOO_LARGE: %s exceeds the %d-byte cap (raise --fs-max-bytes or read it in parts)", path, capBytes)
 }
 
-// readCapped reads path under capBytes (<= 0 = unbounded, plain os.ReadFile).
-func readCapped(path string, capBytes int64) ([]byte, error) {
-	if capBytes <= 0 {
-		return os.ReadFile(path)
-	}
-	f, err := os.Open(path)
+// readCapped reads path under capBytes (<= 0 = unbounded) through the
+// backend b — the confined root when a sandbox is set, the host otherwise.
+func readCapped(b fsBackend, path string, capBytes int64) ([]byte, error) {
+	f, err := b.Open(path)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
+	if capBytes <= 0 {
+		return io.ReadAll(f)
+	}
 	var statSize int64
 	if st, err := f.Stat(); err == nil {
 		statSize = st.Size()

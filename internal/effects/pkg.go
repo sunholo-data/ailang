@@ -44,6 +44,14 @@ func pkgAssetPath(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 	pkgName := pkgArg.Value
 	relPath := relArg.Value
 
+	// Package assets live in the user's registry cache, outside any FS
+	// sandbox. A sandboxed program could not open the returned path anyway
+	// (the root handle refuses it), so say so here instead of handing out
+	// a host path it cannot use (M-EXECUTOR-POLICY-HARDENING M1).
+	if ctx.fsSandboxed() {
+		return fsMakeErr(fmt.Sprintf("package assets are outside the FS sandbox %s: %s", ctx.Env.Sandbox, pkgName)), nil
+	}
+
 	parts := strings.SplitN(pkgName, "/", 3)
 	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
 		return fsMakeErr(fmt.Sprintf("invalid package name: %q (want vendor/name)", pkgName)), nil

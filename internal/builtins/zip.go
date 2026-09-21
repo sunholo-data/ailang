@@ -6,8 +6,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/effects"
@@ -100,16 +98,11 @@ func zipListEntriesImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value,
 		return nil, fmt.Errorf("_zip_listEntries: expected String, got %T", args[0])
 	}
 
-	path := pathVal.Value
-	if ctx.Env.Sandbox != "" {
-		path = filepath.Join(ctx.Env.Sandbox, path)
-	}
-
-	r, err := zip.OpenReader(path)
+	r, closeZip, err := openZipReader(ctx, pathVal.Value)
 	if err != nil {
 		return zipMakeErr(fmt.Sprintf("cannot open ZIP: %v", err)), nil
 	}
-	defer r.Close()
+	defer closeZip()
 
 	if len(r.File) > zipMaxEntries {
 		return zipMakeErr(fmt.Sprintf("too many entries: %d (max %d)", len(r.File), zipMaxEntries)), nil
@@ -181,16 +174,11 @@ func zipReadEntryImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, e
 		return zipMakeErr(fmt.Sprintf("path traversal rejected: %s", entryName)), nil
 	}
 
-	path := pathVal.Value
-	if ctx.Env.Sandbox != "" {
-		path = filepath.Join(ctx.Env.Sandbox, path)
-	}
-
-	r, err := zip.OpenReader(path)
+	r, closeZip, err := openZipReader(ctx, pathVal.Value)
 	if err != nil {
 		return zipMakeErr(fmt.Sprintf("cannot open ZIP: %v", err)), nil
 	}
-	defer r.Close()
+	defer closeZip()
 
 	for _, f := range r.File {
 		if f.Name == entryName {
@@ -263,16 +251,11 @@ func zipReadEntryBytesImpl(ctx *effects.EffContext, args []eval.Value) (eval.Val
 		return zipMakeErr(fmt.Sprintf("path traversal rejected: %s", entryName)), nil
 	}
 
-	path := pathVal.Value
-	if ctx.Env.Sandbox != "" {
-		path = filepath.Join(ctx.Env.Sandbox, path)
-	}
-
-	r, err := zip.OpenReader(path)
+	r, closeZip, err := openZipReader(ctx, pathVal.Value)
 	if err != nil {
 		return zipMakeErr(fmt.Sprintf("cannot open ZIP: %v", err)), nil
 	}
-	defer r.Close()
+	defer closeZip()
 
 	for _, f := range r.File {
 		if f.Name == entryName {
@@ -351,11 +334,7 @@ func zipCreateArchiveImpl(ctx *effects.EffContext, args []eval.Value) (eval.Valu
 	}
 
 	path := pathVal.Value
-	if ctx.Env.Sandbox != "" {
-		path = filepath.Join(ctx.Env.Sandbox, path)
-	}
-
-	f, err := os.Create(path)
+	f, err := ctx.FSCreate(path)
 	if err != nil {
 		return zipMakeErr(fmt.Sprintf("cannot create file: %v", err)), nil
 	}
@@ -373,7 +352,7 @@ func zipCreateArchiveImpl(ctx *effects.EffContext, args []eval.Value) (eval.Valu
 
 	if writeErr != nil {
 		// Clean up on error
-		os.Remove(path)
+		_ = ctx.FSRemove(path)
 		return zipMakeErr(writeErr.Error()), nil
 	}
 
@@ -443,11 +422,7 @@ func zipCreateArchiveWithBytesImpl(ctx *effects.EffContext, args []eval.Value) (
 	}
 
 	path := pathVal.Value
-	if ctx.Env.Sandbox != "" {
-		path = filepath.Join(ctx.Env.Sandbox, path)
-	}
-
-	f, err := os.Create(path)
+	f, err := ctx.FSCreate(path)
 	if err != nil {
 		return zipMakeErr(fmt.Sprintf("cannot create file: %v", err)), nil
 	}
@@ -463,11 +438,32 @@ func zipCreateArchiveWithBytesImpl(ctx *effects.EffContext, args []eval.Value) (
 	}
 
 	if writeErr != nil {
-		os.Remove(path)
+		_ = ctx.FSRemove(path)
 		return zipMakeErr(writeErr.Error()), nil
 	}
 
 	return zipMakeOk(&eval.UnitValue{}), nil
+}
+
+// openZipReader opens the archive through the context's filesystem backend
+// (the confined root when sandboxed — M-EXECUTOR-POLICY-HARDENING M1) and
+// returns the reader plus a close func for the underlying file.
+func openZipReader(ctx *effects.EffContext, path string) (*zip.Reader, func(), error) {
+	f, err := ctx.FSOpen(path)
+	if err != nil {
+		return nil, nil, err
+	}
+	st, err := f.Stat()
+	if err != nil {
+		f.Close()
+		return nil, nil, err
+	}
+	r, err := zip.NewReader(f, st.Size())
+	if err != nil {
+		f.Close()
+		return nil, nil, err
+	}
+	return r, func() { _ = f.Close() }, nil
 }
 
 // ============================================================================

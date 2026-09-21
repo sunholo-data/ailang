@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-EXECUTOR-POLICY-HARDENING",
-  "status": "not_started",
+  "status": "in_progress",
   "created": "2026-09-21T09:43:02Z",
   "design_doc": "design_docs/planned/m-executor-policy-hardening.md",
   "sprint_plan": "design_docs/planned/v0_41_0/m-executor-policy-hardening-sprint-plan.md",
@@ -25,10 +25,10 @@
         "Concurrent symlink-swap test under -race never reads/modifies the outside sentinel; CloseFSRoot is idempotent and a descriptor-count check shows no leak",
         "TestFSSandbox_AbsolutePathWithinSandbox, TestSandboxReject_*, TestFS_RemoveDirResult_EmptyOnly unchanged and green; make test-core, make lint, make check-boundaries green"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-21T09:44:36Z",
+      "completed": "2026-09-21T10:04:34Z",
+      "notes": "fileguard leaf package over os.Root; EffContext shared root holder (WithBudget/Clone share, owner CloseFSRoot in runner/batch); all 23 FS ops + pkgAssetPath on the backend seam; archive builtins (zip/gzip/tar/zip_xml) routed through EffContext.FS*. Red-first: 118 containment rows + swap race failed on baseline; archive test mutation-tested (15 rows red on old files). effects/builtins/fileguard/runner/embed/cmd/ailang/server suites green; make lint + check-boundaries green."
     },
     {
       "id": "M2_NET_DESTINATION_AUTHORIZER",
@@ -44,7 +44,7 @@
         "All existing net_proxy_test.go / net_test.go / stream_*_test.go contracts green; go test -race ./internal/effects ./internal/platform/streamws green"
       ],
       "passes": null,
-      "started": null,
+      "started": "2026-09-21T10:04:34Z",
       "completed": null,
       "notes": null
     },

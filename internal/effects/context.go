@@ -86,6 +86,11 @@ type EffContext struct {
 	// SpanWrapper wraps each effect operation with an OTEL span (nil = no tracing).
 	GoCtx       context.Context
 	SpanWrapper SpanWrapperFunc
+
+	// M-EXECUTOR-POLICY-HARDENING M1: the ONE confined filesystem root for
+	// Env.Sandbox, opened once and shared by every derived context (pointer
+	// copied by WithBudget/Clone); the owner closes it via CloseFSRoot.
+	fsRoot *fsRootHolder
 }
 
 // BeginBudgetChargeScope marks the start of a single logical effect op that has
@@ -272,6 +277,7 @@ func NewEffContext(args []string) *EffContext {
 		EnvAllowlist: nil, // nil = allow all (no restrictions by default)
 		Args:         args,
 		BudgetFrames: NewBudgetFrameStack(), // M-BUDGET-SCOPING-BUG: per-execution frame stack
+		fsRoot:       &fsRootHolder{},       // M-EXECUTOR-POLICY-HARDENING M1: shared sandbox root
 	}
 	// Debug is a ghost effect — always available, no explicit --caps needed
 	ctx.Grant(NewCapability("Debug"))
@@ -459,6 +465,7 @@ func (ctx *EffContext) WithBudget(budget *BudgetContext) *EffContext {
 		SpanWrapper:    ctx.SpanWrapper, // Preserve OTEL span wrapper across budget scopes
 		randMode:       ctx.randMode,    // M-EFFECT-REPLAY-CONTRACTS: SHARE Rand-mode state across budget scopes (same execution)
 		seedSet:        ctx.seedSet,     // M-EFFECT-REPLAY-CONTRACTS: preserve AILANG_SEED presence
+		fsRoot:         ctx.fsRoot,      // M-EXECUTOR-POLICY-HARDENING M1: SHARE the sandbox root (owner closes)
 	}
 }
 

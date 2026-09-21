@@ -56,7 +56,7 @@ All five phases are unstarted. Nothing in the design doc is implemented; V8 conf
 
 ## Proposed Milestones
 
-### Milestone 1: Root-anchored filesystem (`internal/fileguard`) + permanent F1/F2 denial tests
+### Milestone 1: Root-anchored filesystem (`internal/fileguard`) + permanent F1/F2 denial tests ✅ (2026-09-21)
 
 **Goal:** Every sandboxed FS operation goes through an `os.Root` handle; relative traversal, outside
 symlinks (absolute or relative), and race-window link swaps cannot reach outside the sandbox.
@@ -95,13 +95,18 @@ symlinks (absolute or relative), and race-window link swaps cannot reach outside
    sandbox is set on that platform instead of falling back.
 
 **Acceptance Criteria:**
-- [ ] `TestFSContainment_Traversal` and `TestFSContainment_Symlink` fail on baseline, pass after
-- [ ] Every registered FS op has a containment test (table-driven over the registry names — a new
+- [x] `TestFSContainment_Traversal` and `TestFSContainment_Symlink` fail on baseline, pass after
+- [x] Every registered FS op has a containment test (table-driven over the registry names — a new
       op with no row fails the test)
-- [ ] `TestFSSandbox_AbsolutePathWithinSandbox`, `TestFSRenameFile_*`, `TestFS_RemoveDirResult_EmptyOnly`,
+- [x] `TestFSSandbox_AbsolutePathWithinSandbox`, `TestFSRenameFile_*`, `TestFS_RemoveDirResult_EmptyOnly`,
       `TestSandboxReject_*` unchanged and green
-- [ ] `go test -race ./internal/effects -run 'FSContainment|FSSandbox|Rename|RemoveDir'` green
-- [ ] `make test-core`, `make lint`, `make check-boundaries` green
+- [x] `go test -race ./internal/effects -run 'FSContainment|FSSandbox|Rename|RemoveDir'` green
+- [x] `make test-core`, `make lint`, `make check-boundaries` green
+
+**Done:** also found and fixed the same join-then-`os.*` pattern in the archive builtins
+(`std/zip`, `std/gzip`, `std/tar`, `zip_xml`) — routed through `EffContext.FS*`; `pkgAssetPath`
+returns `Err` under a sandbox. `internal/builtins/archive_containment_test.go` mutation-tested
+against the old files (15 rows red).
 
 **Risks:**
 - Programs relying on absolute symlinks inside the sandbox break — Mitigation: documented in the

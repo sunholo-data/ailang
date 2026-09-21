@@ -4,13 +4,17 @@ import (
 	"encoding/base64"
 	"fmt"
 	"os"
-	"path/filepath"
-	"strings"
 
 	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/eval"
 	"github.com/sunholo-data/ailang/internal/trace"
 )
+
+// FS effect — every operation is anchored to the context's filesystem
+// backend (fs_root.go): the confined os.Root handle when AILANG_FS_SANDBOX /
+// the policy's fs_sandbox is set, the host filesystem otherwise. Paths are
+// passed to the backend as the program spelled them; the root handle, not a
+// string check, decides containment (M-EXECUTOR-POLICY-HARDENING M1).
 
 // logSandboxReject emits diagnostics when an FS operation silently returns false
 // because the requested path escapes the sandbox (exists/isDir/isFile contract).
@@ -32,37 +36,6 @@ func logSandboxReject(ctx *EffContext, op, attemptedPath, result string) {
 				result)
 		}
 	}
-}
-
-// resolveSandboxPath resolves a path against the sandbox root.
-//
-// Relative paths are joined with the sandbox (existing behaviour).
-// Absolute paths that fall within the sandbox are returned as-is — this
-// allows programs to use absolute paths for files they already know live
-// inside the sandbox (e.g. config files resolved from an absolute workdir).
-// Absolute paths that escape the sandbox are rejected with an error.
-//
-// "Absolute" here means absolute on *any* mainstream host, not just the
-// current one. A .ail program saying fs.exists("/etc/passwd") must trigger
-// the sandbox reject path consistently on Linux, macOS, and Windows — the
-// security model can't depend on what filepath.IsAbs says about the same
-// string on different hosts. Without this, on Windows the leading-slash
-// path would be treated as relative, joined into the sandbox, and silently
-// resolve to a missing file with no diagnostic.
-//
-// Before this fix, filepath.Join(sandbox, "/abs/path") produced
-// "/sandbox/abs/path" (a doubled path that never exists on disk), causing
-// all FS operations with absolute sandbox-relative paths to fail silently.
-func resolveSandboxPath(sandbox, path string) (string, error) {
-	if !isAbsoluteCrossPlatform(path) {
-		return filepath.Join(sandbox, path), nil
-	}
-	clean := filepath.Clean(path)
-	sandboxClean := filepath.Clean(sandbox)
-	if clean != sandboxClean && !strings.HasPrefix(clean, sandboxClean+string(filepath.Separator)) {
-		return "", fmt.Errorf("path %q escapes sandbox %q", path, sandbox)
-	}
-	return clean, nil
 }
 
 // init registers FS effect operations
@@ -96,69 +69,54 @@ func init() {
 	RegisterOp("FS", "removeDirResult", fsRemoveDirResult)
 }
 
+// fsPathArg unpacks args[i] as the String path argument of op.
+func fsPathArg(op string, args []eval.Value, i, want int) (string, error) {
+	if len(args) != want {
+		return "", fmt.Errorf("%s: expected %d argument%s, got %d", op, want, plural(want), len(args))
+	}
+	v, ok := args[i].(*eval.StringValue)
+	if !ok {
+		return "", fmt.Errorf("%s: expected String, got %T", op, args[i])
+	}
+	return v.Value, nil
+}
+
+func plural(n int) string {
+	if n == 1 {
+		return ""
+	}
+	return "s"
+}
+
 // fsReadFile implements FS.readFile(path: String) -> String
 //
-// Reads the entire contents of a file and returns it as a string.
-// If AILANG_FS_SANDBOX is set, the path is restricted to the sandbox directory.
-//
-// Parameters:
-//   - ctx: Effect context (with optional Sandbox configuration)
-//   - args: [StringValue] - the file path
-//
-// Returns:
-//   - StringValue with file contents
-//   - Error if file doesn't exist, permission denied, or wrong arguments
+// Reads the entire contents of a file and returns it as a string. With a
+// sandbox the read goes through the confined root: `readFile("data.txt")`
+// reads "<sandbox>/data.txt", and any path that leaves the root fails.
 //
 // Example AILANG code:
 //
 //	let config = readFile("config.yaml")
-//
-// With sandbox:
-//
-//	AILANG_FS_SANDBOX=/tmp ailang run app.ail --caps FS
-//	-- readFile("data.txt") reads "/tmp/data.txt"
 func fsReadFile(ctx *EffContext, args []eval.Value) (eval.Value, error) {
-	if len(args) != 1 {
-		return nil, fmt.Errorf("readFile: expected 1 argument, got %d", len(args))
+	path, err := fsPathArg("readFile", args, 0, 1)
+	if err != nil {
+		return nil, err
 	}
-
-	pathVal, ok := args[0].(*eval.StringValue)
-	if !ok {
-		return nil, fmt.Errorf("readFile: expected String, got %T", args[0])
+	b, err := ctx.fsBackendFor()
+	if err != nil {
+		return nil, err
 	}
-
-	path := pathVal.Value
-
-	// Apply sandbox if configured
-	if ctx.Env.Sandbox != "" {
-		resolved, sandboxErr := resolveSandboxPath(ctx.Env.Sandbox, path)
-		if sandboxErr != nil {
-			return nil, sandboxErr
-		}
-		path = resolved
-	}
-
-	// Read file, under the FS cap when one is set
-	content, err := readCapped(path, ctx.Env.FSMaxBytes)
+	content, err := readCapped(b, path, ctx.Env.FSMaxBytes)
 	if err != nil {
 		return nil, fmt.Errorf("readFile: %w", err)
 	}
-
 	return &eval.StringValue{Value: string(content)}, nil
 }
 
 // fsExists implements FS.exists(path: String) -> Bool
 //
-// Checks if a file or directory exists at the given path.
-// If AILANG_FS_SANDBOX is set, the path is restricted to the sandbox directory.
-//
-// Parameters:
-//   - ctx: Effect context (with optional Sandbox configuration)
-//   - args: [StringValue] - the file path
-//
-// Returns:
-//   - BoolValue true if file/directory exists, false otherwise
-//   - Error if wrong arguments
+// Checks if a file or directory exists. A path the sandbox refuses is
+// reported as non-existent (false), with the optional reject diagnostics.
 //
 // Example AILANG code:
 //
@@ -167,32 +125,19 @@ func fsReadFile(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 //	else
 //	    "default config"
 func fsExists(ctx *EffContext, args []eval.Value) (eval.Value, error) {
-	if len(args) != 1 {
-		return nil, fmt.Errorf("exists: expected 1 argument, got %d", len(args))
+	path, err := fsPathArg("exists", args, 0, 1)
+	if err != nil {
+		return nil, err
 	}
-
-	pathVal, ok := args[0].(*eval.StringValue)
-	if !ok {
-		return nil, fmt.Errorf("exists: expected String, got %T", args[0])
+	b, err := ctx.fsBackendFor()
+	if err != nil {
+		return nil, err
 	}
-
-	path := pathVal.Value
-
-	// Apply sandbox — paths outside sandbox are treated as non-existent.
-	if ctx.Env.Sandbox != "" {
-		resolved, sandboxErr := resolveSandboxPath(ctx.Env.Sandbox, path)
-		if sandboxErr != nil {
-			logSandboxReject(ctx, "exists", path, "false")
-			return &eval.BoolValue{Value: false}, nil
-		}
-		path = resolved
+	if _, err := b.Stat(path); err != nil {
+		fsRejectProbe(ctx, "exists", path, err)
+		return &eval.BoolValue{Value: false}, nil
 	}
-
-	// Check existence
-	_, err := os.Stat(path)
-	exists := err == nil
-
-	return &eval.BoolValue{Value: exists}, nil
+	return &eval.BoolValue{Value: true}, nil
 }
 
 // Result helpers for Ok/Err return values
@@ -218,82 +163,47 @@ func fsMakeErr(msg string) eval.Value {
 // fsReadFileBytes implements FS.readFileBytes(path: String) -> Result[string, string]
 //
 // Reads the entire contents of a file and returns it as a base64-encoded string.
-// If AILANG_FS_SANDBOX is set, the path is restricted to the sandbox directory.
-//
-// Parameters:
-//   - ctx: Effect context (with optional Sandbox configuration)
-//   - args: [StringValue] - the file path
 //
 // Returns:
 //   - Ok(base64-encoded string) on success
-//   - Err(error message) if file doesn't exist, permission denied, etc.
+//   - Err(error message) if file doesn't exist, permission denied, escapes the sandbox, etc.
 func fsReadFileBytes(ctx *EffContext, args []eval.Value) (eval.Value, error) {
-	if len(args) != 1 {
-		return nil, fmt.Errorf("readFileBytes: expected 1 argument, got %d", len(args))
+	path, err := fsPathArg("readFileBytes", args, 0, 1)
+	if err != nil {
+		return nil, err
 	}
-
-	pathVal, ok := args[0].(*eval.StringValue)
-	if !ok {
-		return nil, fmt.Errorf("readFileBytes: expected String, got %T", args[0])
+	b, err := ctx.fsBackendFor()
+	if err != nil {
+		return nil, err
 	}
-
-	path := pathVal.Value
-
-	// Apply sandbox if configured
-	if ctx.Env.Sandbox != "" {
-		resolved, sandboxErr := resolveSandboxPath(ctx.Env.Sandbox, path)
-		if sandboxErr != nil {
-			return nil, sandboxErr
-		}
-		path = resolved
-	}
-
-	// Read file, under the FS cap when one is set
-	content, err := readCapped(path, ctx.Env.FSMaxBytes)
+	content, err := readCapped(b, path, ctx.Env.FSMaxBytes)
 	if err != nil {
 		return fsMakeErr(fmt.Sprintf("cannot read file: %v", err)), nil
 	}
-
-	// Encode as base64
 	encoded := base64.StdEncoding.EncodeToString(content)
 	return fsMakeOk(&eval.StringValue{Value: encoded}), nil
 }
 
 // fsListDir implements FS.listDir(path: String) -> [String]
 // M-DOCPARSE-DX M3: Returns sorted list of entry names in a directory.
-// If AILANG_FS_SANDBOX is set, the path is restricted to the sandbox directory.
 func fsListDir(ctx *EffContext, args []eval.Value) (eval.Value, error) {
-	if len(args) != 1 {
-		return nil, fmt.Errorf("listDir: expected 1 argument, got %d", len(args))
+	path, err := fsPathArg("listDir", args, 0, 1)
+	if err != nil {
+		return nil, err
 	}
-
-	pathVal, ok := args[0].(*eval.StringValue)
-	if !ok {
-		return nil, fmt.Errorf("listDir: expected String, got %T", args[0])
+	b, err := ctx.fsBackendFor()
+	if err != nil {
+		return nil, err
 	}
-
-	path := pathVal.Value
-
-	// Apply sandbox if configured
-	if ctx.Env.Sandbox != "" {
-		resolved, sandboxErr := resolveSandboxPath(ctx.Env.Sandbox, path)
-		if sandboxErr != nil {
-			return nil, sandboxErr
-		}
-		path = resolved
-	}
-
-	entries, err := os.ReadDir(path)
+	entries, err := b.ReadDir(path)
 	if err != nil {
 		return nil, fmt.Errorf("listDir: %w", err)
 	}
-
-	// os.ReadDir returns entries sorted by name
+	// Both backends return entries sorted by name.
 	result := make([]eval.Value, 0, len(entries))
 	for _, entry := range entries {
 		result = append(result, &eval.StringValue{Value: entry.Name()})
 	}
-
 	return &eval.ListValue{Elements: result}, nil
 }
 
@@ -302,24 +212,15 @@ func fsListDir(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 // M-AILANG-FS-RESULT (v0.16.0): wraps syscall failures as Err(message) instead
 // of returning a Go error, so agent runtimes can recover without crashing.
 func fsReadFileResult(ctx *EffContext, args []eval.Value) (eval.Value, error) {
-	if len(args) != 1 {
-		return nil, fmt.Errorf("readFileResult: expected 1 argument, got %d", len(args))
+	path, err := fsPathArg("readFileResult", args, 0, 1)
+	if err != nil {
+		return nil, err
 	}
-	pathVal, ok := args[0].(*eval.StringValue)
-	if !ok {
-		return nil, fmt.Errorf("readFileResult: expected String, got %T", args[0])
+	b, err := ctx.fsBackendFor()
+	if err != nil {
+		return nil, err
 	}
-
-	path := pathVal.Value
-	if ctx.Env.Sandbox != "" {
-		resolved, sandboxErr := resolveSandboxPath(ctx.Env.Sandbox, path)
-		if sandboxErr != nil {
-			return nil, sandboxErr
-		}
-		path = resolved
-	}
-
-	content, err := readCapped(path, ctx.Env.FSMaxBytes)
+	content, err := readCapped(b, path, ctx.Env.FSMaxBytes)
 	if err != nil {
 		return fsMakeErr(fmt.Sprintf("cannot read file: %v", err)), nil
 	}

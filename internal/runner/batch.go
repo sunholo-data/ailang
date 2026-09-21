@@ -26,6 +26,7 @@ func ExecuteBatchItem(ctx context.Context, result pipeline.Result, input string,
 
 	// Each input gets its own args: the input path is the sole program argument
 	effCtx := effects.NewEffContext([]string{input})
+	defer effCtx.CloseFSRoot() // per-input owner of the sandbox root (M-EXECUTOR-POLICY-HARDENING M1)
 	effCtx.Debug = effects.NewDebugContext()
 	effects.DebugSink{MinLevel: opts.DebugLogLevel, Label: input}.Attach(effCtx.Debug) // W nil: current os.Stderr
 	defer func() {

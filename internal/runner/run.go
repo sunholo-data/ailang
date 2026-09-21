@@ -385,6 +385,9 @@ func runSingle(ctx context.Context, result pipeline.Result, opts Options, progra
 
 	// Set up effect context with capability grants
 	effCtx := effects.NewEffContext(programArgs)
+	// This runner OWNS the sandbox root handle (M-EXECUTOR-POLICY-HARDENING
+	// M1): derived contexts share it, only the owner closes it, once.
+	defer effCtx.CloseFSRoot()
 	if err := GrantCapabilities(effCtx, caps); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 		return 1

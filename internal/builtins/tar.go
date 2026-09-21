@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -63,10 +62,16 @@ func tarMakeErr(msg string) eval.Value {
 // Shared helpers
 // ============================================================================
 
-// resolveTarPath applies the sandbox prefix if one is configured.
-func resolveTarPath(ctx *effects.EffContext, path string) string {
+// displayPath is the host path a written entry is REPORTED as: under the
+// sandbox prefix when one is set (the shape callers always saw), absolute
+// otherwise. It is never used to open anything — every open/mkdir/write goes
+// through ctx.FS* and the confined root (M-EXECUTOR-POLICY-HARDENING M1).
+func displayPath(ctx *effects.EffContext, path string) string {
 	if ctx.Env.Sandbox != "" {
 		return filepath.Join(ctx.Env.Sandbox, path)
+	}
+	if abs, err := filepath.Abs(path); err == nil {
+		return abs
 	}
 	return path
 }
@@ -117,8 +122,8 @@ func readTarEntry(tr *tar.Reader, declaredSize int64) ([]byte, error) {
 
 // openTarReader opens a file and returns a *tar.Reader along with a close func.
 // If gzipped is true, wraps the file in a gzip.Reader first.
-func openTarReader(path string, gzipped bool) (*tar.Reader, func(), error) {
-	f, err := os.Open(path)
+func openTarReader(ctx *effects.EffContext, path string, gzipped bool) (*tar.Reader, func(), error) {
+	f, err := ctx.FSOpen(path)
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot open: %v", err)
 	}
@@ -205,8 +210,7 @@ func tarListEntriesImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value,
 		return nil, fmt.Errorf("_tar_listEntries: expected String, got %T", args[0])
 	}
 
-	path := resolveTarPath(ctx, pathVal.Value)
-	tr, closer, err := openTarReader(path, false)
+	tr, closer, err := openTarReader(ctx, pathVal.Value, false)
 	if err != nil {
 		return tarMakeErr(err.Error()), nil
 	}
@@ -333,8 +337,7 @@ func tarReadEntryGeneric(ctx *effects.EffContext, args []eval.Value, fromGzip, a
 		return tarMakeErr(fmt.Sprintf("path traversal rejected: %s", entryName)), nil
 	}
 
-	path := resolveTarPath(ctx, pathVal.Value)
-	tr, closer, err := openTarReader(path, fromGzip)
+	tr, closer, err := openTarReader(ctx, pathVal.Value, fromGzip)
 	if err != nil {
 		return tarMakeErr(err.Error()), nil
 	}
@@ -421,19 +424,12 @@ func tarExtractAllImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, 
 		return nil, fmt.Errorf("_tar_extractAll: expected String for destDir, got %T", args[1])
 	}
 
-	path := resolveTarPath(ctx, pathVal.Value)
-	destDir := resolveTarPath(ctx, destVal.Value)
-
-	// Resolve destDir to an absolute clean form so symlink-escape checks are reliable.
-	absDest, err := filepath.Abs(destDir)
-	if err != nil {
-		return tarMakeErr(fmt.Sprintf("cannot resolve destDir: %v", err)), nil
-	}
-	if err := os.MkdirAll(absDest, 0o755); err != nil {
+	destDir := filepath.Clean(destVal.Value)
+	if err := ctx.FSMkdirAll(destDir); err != nil {
 		return tarMakeErr(fmt.Sprintf("cannot create destDir: %v", err)), nil
 	}
 
-	tr, closer, err := openTarReader(path, false)
+	tr, closer, err := openTarReader(ctx, pathVal.Value, false)
 	if err != nil {
 		return tarMakeErr(err.Error()), nil
 	}
@@ -460,20 +456,21 @@ func tarExtractAllImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, 
 			return tarMakeErr(fmt.Sprintf("path traversal rejected: %s", hdr.Name)), nil
 		}
 
-		// 2. Compute target path and verify it stays under absDest
-		target := filepath.Join(absDest, filepath.FromSlash(hdr.Name))
-		rel, err := filepath.Rel(absDest, target)
+		// 2. Compute target path and verify it stays under destDir lexically;
+		//    the backend (the root handle when sandboxed) is the final check.
+		target := filepath.Join(destDir, filepath.FromSlash(hdr.Name))
+		rel, err := filepath.Rel(destDir, target)
 		if err != nil || strings.HasPrefix(rel, "..") || rel == ".." {
 			return tarMakeErr(fmt.Sprintf("path escapes destDir: %s", hdr.Name)), nil
 		}
 
 		switch hdr.Typeflag {
 		case tar.TypeDir:
-			if err := os.MkdirAll(target, 0o755); err != nil {
+			if err := ctx.FSMkdirAll(target); err != nil {
 				return tarMakeErr(fmt.Sprintf("mkdir %s: %v", hdr.Name, err)), nil
 			}
 		case tar.TypeReg, tar.TypeRegA:
-			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+			if err := ctx.FSMkdirAll(filepath.Dir(target)); err != nil {
 				return tarMakeErr(fmt.Sprintf("mkdir parent %s: %v", hdr.Name, err)), nil
 			}
 			data, err := readTarEntry(tr, hdr.Size)
@@ -481,10 +478,10 @@ func tarExtractAllImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, 
 				return tarMakeErr(fmt.Sprintf("entry %s: %v", hdr.Name, err)), nil
 			}
 			// Use 0o644 regardless of archive mode for predictable sandbox behaviour.
-			if err := os.WriteFile(target, data, 0o644); err != nil {
+			if err := ctx.FSWriteFile(target, data); err != nil {
 				return tarMakeErr(fmt.Sprintf("write %s: %v", hdr.Name, err)), nil
 			}
-			writtenPaths = append(writtenPaths, &eval.StringValue{Value: target})
+			writtenPaths = append(writtenPaths, &eval.StringValue{Value: displayPath(ctx, target)})
 		case tar.TypeSymlink:
 			// Symlinks are rejected outright — even if the link target is local now,
 			// resolving it later during FS access could escape. Safer to refuse.
