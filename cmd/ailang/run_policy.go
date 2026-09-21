@@ -81,10 +81,14 @@ type runPolicyResolved struct {
 	caps         string
 	netDomains   string
 	netAllowHTTP bool
-	processAllow string
-	sandbox      string
-	entry        string
-	digest       string
+	// netAllowLocalhost: trusted_host only — an operator who lists a loopback
+	// name/literal in net_allow has granted it explicitly. Restricted mode
+	// has no such grant (design §3).
+	netAllowLocalhost bool
+	processAllow      string
+	sandbox           string
+	entry             string
+	digest            string
 	// aiModel/aiStub feed setupAIHandler exactly where --ai/--ai-stub did.
 	aiModel string
 	aiStub  bool
@@ -158,10 +162,11 @@ func applyRunPolicy(policyPath, filename string, w runPolicyWidening, control *o
 	}
 
 	resolved := runPolicyResolved{
-		policy:       res,
-		caps:         strings.Join(res.Effects, ","),
-		netDomains:   strings.Join(res.NetAllow, ","),
-		netAllowHTTP: res.NetAllowHTTP,
+		policy:            res,
+		caps:              strings.Join(res.Effects, ","),
+		netDomains:        strings.Join(res.NetAllow, ","),
+		netAllowHTTP:      res.NetAllowHTTP,
+		netAllowLocalhost: !res.Restricted() && listsLoopback(res.NetAllow),
 		processAllow: strings.Join(res.ProcessAllow, ","),
 		sandbox:      res.Root,
 		entry:        res.Entry,
@@ -256,4 +261,16 @@ func limitEnvelope(res *policy.Resolved, stage, reason, message string) string {
 		"security_mode": res.Mode,
 	})
 	return string(b)
+}
+
+// listsLoopback reports whether an allowlist names the loopback host by
+// name or literal — the explicit grant trusted_host honours.
+func listsLoopback(allow []string) bool {
+	for _, h := range allow {
+		switch strings.ToLower(strings.TrimSuffix(h, ".")) {
+		case "localhost", "127.0.0.1", "::1", "[::1]":
+			return true
+		}
+	}
+	return false
 }

@@ -27,12 +27,18 @@ var CanonicalTools = map[string]bool{
 	"Grep": true, "Glob": true, "WebFetch": true, "WebSearch": true,
 	"AilangCheck": true, "AilangRun": true,
 	"QuotaReport": true, "BuiltinsSearch": true, "MicroragSearch": true, "ExamplesSearch": true, "AilangCLI": true,
+	// The sandboxed file tools of the ailang_only lane (M-EXECUTOR-POLICY-
+	// HARDENING M4): served by `ailang policy-tool` from the resolved policy,
+	// root-anchored in Go — never pi's native read/write/edit, which see the
+	// whole host filesystem.
+	"AilangRead": true, "AilangWrite": true, "AilangEdit": true,
 }
 
 // ProfileTools expands a tool_policy value into canonical names.
 //
 //	"" / "full"    → nil   (the CLI's own defaults apply)
-//	"ailang_only"  → Read, Edit, Write, AilangCheck, AilangRun, BuiltinsSearch, ExamplesSearch, AilangCLI — no Bash
+//	"ailang_only"  → AilangRead, AilangEdit, AilangWrite, AilangCheck, AilangRun, BuiltinsSearch, ExamplesSearch, AilangCLI — no Bash,
+//	                 and no native Read/Edit/Write: the file tools are the policy's (M-EXECUTOR-POLICY-HARDENING M4)
 //	                 (BuiltinsSearch is read-only API discovery: without it the
 //	                 model reaches for `ailang docs` in a shell it does not have;
 //	                 ExamplesSearch is read-only example discovery: without it the
@@ -45,7 +51,7 @@ func ProfileTools(profile string) ([]string, error) {
 	case "", ToolProfileFull:
 		return nil, nil
 	case ToolProfileAILANGOnly:
-		return []string{"Read", "Edit", "Write", "AilangCheck", "AilangRun", "BuiltinsSearch", "ExamplesSearch", "AilangCLI"}, nil
+		return []string{"AilangRead", "AilangEdit", "AilangWrite", "AilangCheck", "AilangRun", "BuiltinsSearch", "ExamplesSearch", "AilangCLI"}, nil
 	}
 	var out []string
 	for _, t := range strings.Split(profile, ",") {

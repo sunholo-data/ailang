@@ -23,8 +23,9 @@ func TestAgentConfig_ToolPolicyDefaultsToFull(t *testing.T) {
 
 func TestQuestionTools_PerExecutor(t *testing.T) {
 	// pi has no Grep/Glob/WebFetch/WebSearch: the Claude list would have run
-	// with zero tools, silently (V4). pi gets Read + the type-checker.
-	if got := questionTools("pi"); !reflect.DeepEqual(got, []string{"Read", "AilangCheck"}) {
+	// with zero tools, silently (V4). pi gets a file read (native for the
+	// full profile, sandboxed for the ailang_only lane) + the type-checker.
+	if got := questionTools("pi"); !reflect.DeepEqual(got, []string{"Read", "AilangRead", "AilangCheck"}) {
 		t.Fatalf("pi question tools = %v", got)
 	}
 	if got := questionTools("claude"); !reflect.DeepEqual(got, []string{"Read", "Grep", "Glob", "WebFetch", "WebSearch"}) {

@@ -83,10 +83,10 @@
         "Extension unit tests (.pi) pass with the Go-produced summary; make verify-pi-assets green",
         "A policy declaring [budgets] no longer refuses at run_policy; the banked policy: line lists the enforced budgets"
       ],
-      "passes": null,
+      "passes": true,
       "started": "2026-09-21T10:48:08Z",
-      "completed": null,
-      "notes": null
+      "completed": "2026-09-21T11:13:13Z",
+      "notes": "OperatorBudget (charged once per logical op at the canonical scope; shared across WithBudget/Clone; --no-budgets inert; -race exact). internal/policytool typed dispatch table + `ailang policy-tool` (stdin JSON; policy from --policy/AILANG_AGENT_POLICY; library never execs itself — a first draft re-ran the test binary recursively, caught and fixed). ailang-exec.ts: Go summary, typed requests, ailang_read/write/edit, ailang_cli {op,...}; ailang_check via endpoint under a policy; 13 extension suites green. Profile ailang_only = AilangRead/Edit/Write/...; pi --tools has no native read/write/edit. CLI reference regenerated. E2E containment suite (F1/F2/N1 through run --policy) green."
     },
     {
       "id": "M5_E2E_PROOF_MIGRATION_DOCS",
@@ -102,7 +102,7 @@
         "make test, make lint, make check-boundaries, make verify-pi-assets, make verify-examples all green (output recorded in notes)"
       ],
       "passes": null,
-      "started": null,
+      "started": "2026-09-21T11:13:13Z",
       "completed": null,
       "notes": null
     }

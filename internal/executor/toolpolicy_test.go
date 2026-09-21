@@ -19,8 +19,17 @@ func TestProfileTools(t *testing.T) {
 			t.Fatal("ailang_only must not include Bash")
 		}
 	}
-	if !reflect.DeepEqual(got, []string{"Read", "Edit", "Write", "AilangCheck", "AilangRun", "BuiltinsSearch", "ExamplesSearch", "AilangCLI"}) {
+	// M-EXECUTOR-POLICY-HARDENING M4: the file tools are the policy's
+	// sandboxed ones, never pi's native Read/Edit/Write.
+	if !reflect.DeepEqual(got, []string{"AilangRead", "AilangEdit", "AilangWrite", "AilangCheck", "AilangRun", "BuiltinsSearch", "ExamplesSearch", "AilangCLI"}) {
 		t.Fatalf("ailang_only = %v", got)
+	}
+	for _, native := range []string{"Read", "Edit", "Write"} {
+		for _, tool := range got {
+			if tool == native {
+				t.Fatalf("ailang_only must not include native %s", native)
+			}
+		}
 	}
 	if _, err := ProfileTools("Read,Nope"); err == nil || !strings.Contains(err.Error(), `"Nope"`) {
 		t.Fatalf("unknown name must error by name, got %v", err)

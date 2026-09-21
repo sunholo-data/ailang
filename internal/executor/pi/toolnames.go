@@ -40,6 +40,9 @@ var canonicalToPi = map[string]string{
 	"MicroragSearch": "microrag_search",
 	"ExamplesSearch": "examples_search",
 	"AilangCLI":      "ailang_cli",
+	"AilangRead":     "ailang_read",
+	"AilangWrite":    "ailang_write",
+	"AilangEdit":     "ailang_edit",
 }
 
 // ProfileTools is executor.ProfileTools — canonical names, executor-neutral.

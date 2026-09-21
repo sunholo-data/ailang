@@ -238,6 +238,8 @@ func runCommand() {
 		}
 		*netAllowHTTPFlag = resolved.netAllowHTTP
 		*streamAllowHTTPFlag = resolved.netAllowHTTP
+		*netAllowLocalhostFlag = resolved.netAllowLocalhost
+		*streamAllowLocalhostFlag = resolved.netAllowLocalhost
 		if resolved.processAllow != "" {
 			*processAllowlistFlag = resolved.processAllow
 		}

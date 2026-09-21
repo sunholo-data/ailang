@@ -221,7 +221,7 @@ prod config plane was NOT touched.
 - Re-exec changes the CLI's process shape for `--policy` runs — Mitigation: only `--policy` takes the
   supervised path; everything else is untouched.
 
-### Milestone 4: Operator budgets and Go-mediated agent tools
+### Milestone 4: Operator budgets and Go-mediated agent tools ✅ (2026-09-21)
 
 **Goal:** `[budgets]` in the policy become an enforced shared ceiling independent of source frames;
 the `ailang_only` lane's file/CLI tools are served by the Go binary from the resolved policy, not by
@@ -255,11 +255,18 @@ pi's native tools or regex/heuristic argv filtering.
    refusal. `internal/executor/pi` tests assert the exact registered tool list for `ailang_only`.
 
 **Acceptance Criteria:**
-- [ ] `TestOperatorBudget_ExactlyN` across nested calls, imports and `WithBudget` scopes; source
+- [x] `TestOperatorBudget_ExactlyN` across nested calls, imports and `WithBudget` scopes; source
       `@limit` cannot raise it; `-race` green on an async Stream charge test
-- [ ] `TestPolicyTool_*` deny outside marker / policy / extension paths and path-bearing options
-- [ ] `TestToolArgs_AilangOnlyProfile` proves the registered surface has no native read/write/edit
-- [ ] `make verify-pi-assets` green; extension unit tests (`npm test` in `.pi/`) green
+- [x] `TestPolicyTool_*` deny outside marker / policy / extension paths and path-bearing options
+- [x] `TestToolArgs_AilangOnlyProfile` proves the registered surface has no native read/write/edit
+- [x] `make verify-pi-assets` green; extension unit tests (`npm test` in `.pi/`) green
+
+**Done:** `internal/policytool` + `ailang policy-tool` (typed schemas per CLI op, root-anchored
+read/write/edit, never execs itself); `ailang-exec.ts` rewritten around the Go summary and typed
+requests (`ailang_read/write/edit`, `ailang_cli {op,…}`), `ailang_check` routed through the
+endpoint under a policy; profile = `AilangRead, AilangEdit, AilangWrite, …` with the native
+`read,write,edit` asserted absent; `AILANG_AGENT_POLICY` registered in `internal/config`. Also:
+trusted_host honours an explicit loopback entry in `net_allow` (the e2e Net test needs it).
 
 **Risks:**
 - pi tool registration shape for read/edit differs from native — Mitigation: keep parameter names

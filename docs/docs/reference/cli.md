@@ -96,6 +96,7 @@ Reachable as `ailang dev <command>` and, unchanged, as `ailang <command>`.
 | `ailang dev micro-rag` | `ailang micro-rag`, `ailang microrag`, `ailang urag` | Micro-RAG index and retrieval operations |
 | `ailang dev pi` | `ailang pi` | Manage pi extensions (install, uninstall, status) |
 | `ailang dev policy-check` | `ailang policy-check` | Evaluate a policy program against its cases |
+| `ailang dev policy-tool` | `ailang policy-tool` | Typed tool endpoint of the ailang_only lane: one JSON request on stdin, one response on stdout |
 | `ailang dev replay` | `ailang replay` | Replay and verify against a recorded trace |
 | `ailang dev sandbox-check` | `ailang sandbox-check` | Diagnose FS sandbox path resolution (AILANG_FS_SANDBOX) |
 | `ailang dev select-best` | `ailang select-best` | Pick the best candidate from generated variants |

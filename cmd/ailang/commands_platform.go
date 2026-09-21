@@ -234,6 +234,12 @@ func platformCommands() []Command {
 			Run:     noArgs(policyCheckCommand),
 		},
 		{
+			Name:    "policy-tool",
+			Group:   groupDev,
+			Summary: "Typed tool endpoint of the ailang_only lane: one JSON request on stdin, one response on stdout",
+			Run:     noArgs(policyToolCommand),
+		},
+		{
 			Name:    "sandbox-check",
 			Group:   groupDev,
 			Summary: "Diagnose FS sandbox path resolution (AILANG_FS_SANDBOX)",

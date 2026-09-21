@@ -1,23 +1,29 @@
 /**
- * ailang-exec — M-AGENT-AILANG-ONLY-EXECUTION M3
+ * ailang-exec — M-AGENT-AILANG-ONLY-EXECUTION M3 / M-EXECUTOR-POLICY-HARDENING M4
  *
- * The ONE way an `ailang_only` agent executes a program: `ailang_run` submits
- * an .ail file to `ailang run --policy $AILANG_AGENT_POLICY`. The policy — not
- * the agent — decides caps, the Net allowlist and the FS sandbox; the gate
- * refuses every flag that could widen them (cmd/ailang/run_policy.go). Pair
- * with `--no-builtin-tools --tools read,edit,write,ailang_check,ailang_run,builtins_search,examples_search,ailang_cli`
- * (`ailang pi tool-profile ailang_only`) and `bash` is gone, so the gate is a
- * boundary rather than a convenience. `ailang_check` lives in ailang-lsp-lite.
+ * The ONE way an `ailang_only` agent touches the world:
  *
- * DEFAULT-DENY (D4). With no AILANG_AGENT_POLICY the tool still registers, but
- * REFUSES with a named reason — a missing tool is something a model reaches
+ *   ailang_run                 submits an .ail file to `ailang run --policy $AILANG_AGENT_POLICY`
+ *   ailang_read / write / edit file access through `ailang policy-tool` — root-anchored in Go
+ *   ailang_cli                 the allowlisted rest of the CLI, as TYPED requests (op + fields),
+ *                              also through `ailang policy-tool`
+ *
+ * The policy — not the agent — decides caps, the Net allowlist, the FS sandbox
+ * and the CLI surface. Nothing here parses the policy: the summary the model
+ * is shown, and every yes/no about a path or a subcommand, comes from the Go
+ * endpoint (`policy-tool`), so the tool wrapper and the runtime can never
+ * disagree about what a field means. This extension composes requests and
+ * relays responses; it never composes an argv for the CLI itself.
+ *
+ * DEFAULT-DENY (D4). With no AILANG_AGENT_POLICY the tools still register,
+ * but REFUSE with a named reason — a missing tool is something a model reaches
  * around; a refusal it can read is not. A policy whose fs_sandbox contains
  * the policy file's own directory is refused the same way: an agent that can
  * edit its policy has no policy.
  */
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { readFileSync } from "node:fs";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { basename, dirname, resolve, sep } from "node:path";
 
 export const POLICY_ENV = "AILANG_AGENT_POLICY";
@@ -28,10 +34,75 @@ export interface PolicyGate {
 	refusal: string | null;
 }
 
-/** Minimal TOML read of `fs_sandbox = "..."` — the one field the load check needs. */
-export function fsSandboxOf(policyToml: string): string | null {
-	const m = /^\s*fs_sandbox\s*=\s*"([^"]*)"/m.exec(policyToml);
-	return m ? m[1] : null;
+/** The Go-produced summary of the resolved policy (`policy-tool` op=summary). */
+export interface PolicySummary {
+	security_mode: string;
+	policy_digest: string;
+	fs_sandbox: string;
+	caps: string[];
+	net_allow: string[];
+	process_allow: string[];
+	cli: string[];
+	ops: string[];
+	timeout_ms: number;
+}
+
+/** One typed request to `ailang policy-tool`. Mirrors internal/policytool.Request. */
+export interface ToolRequest {
+	op: string;
+	path?: string;
+	content?: string;
+	old_text?: string;
+	new_text?: string;
+	module?: string;
+	query?: string;
+	package?: string;
+	flags?: Record<string, string>;
+}
+
+/** The endpoint's one response shape. Mirrors internal/policytool.Response. */
+export interface ToolResponse {
+	ok: boolean;
+	refused?: string;
+	content?: string;
+	argv?: string[];
+	exit_code?: number;
+	stdout?: string;
+	stderr?: string;
+	summary?: PolicySummary;
+}
+
+/** Runs one request against the endpoint. Injected so the composition is testable without a binary. */
+export type ToolRunner = (policyPath: string, req: ToolRequest) => Promise<ToolResponse>;
+
+/**
+ * The production runner: `ailang policy-tool --policy <p>` with the request
+ * on stdin and the response on stdout. The policy path is the launcher's
+ * (from the gate), never a request field.
+ */
+export function defaultToolRunner(timeoutMs = 130_000): ToolRunner {
+	return (policyPath, req) =>
+		new Promise((resolveP) => {
+			const child = spawn("ailang", ["policy-tool", "--policy", policyPath], { stdio: ["pipe", "pipe", "pipe"] });
+			let out = "";
+			let err = "";
+			const timer = setTimeout(() => child.kill("SIGKILL"), timeoutMs);
+			child.stdout.on("data", (d) => (out += String(d)));
+			child.stderr.on("data", (d) => (err += String(d)));
+			child.on("error", (e) => {
+				clearTimeout(timer);
+				resolveP({ ok: false, refused: `policy-tool could not start: ${e.message}` });
+			});
+			child.on("close", (code) => {
+				clearTimeout(timer);
+				try {
+					resolveP(JSON.parse(out) as ToolResponse);
+				} catch {
+					resolveP({ ok: false, refused: `policy-tool produced no response (exit ${code}): ${err.trim().slice(0, 2000)}` });
+				}
+			});
+			child.stdin.end(JSON.stringify(req));
+		});
 }
 
 /** Pure: is `dir` equal to or inside `sandbox`? (both resolved) */
@@ -45,7 +116,7 @@ export function insideSandbox(sandbox: string, dir: string): boolean {
  * Pure given a reader: decide whether this deployment may execute at all.
  * - unset env            → refusal (not granted)
  * - unreadable policy    → refusal (names the path)
- * - sandbox ⊇ policy dir → refusal (D4: the agent could rewrite its own policy)
+ * The D4 sandbox check needs the RESOLVED policy and lives in gateWithSummary.
  */
 export function gateFromEnv(
 	env: Record<string, string | undefined>,
@@ -58,87 +129,32 @@ export function gateFromEnv(
 			refusal: `program execution is not granted in this deployment (${POLICY_ENV} is unset) — write the .ail file and ask the operator to attach a policy`,
 		};
 	}
-	let toml: string;
 	try {
-		toml = read(policyPath);
+		read(policyPath);
 	} catch (e) {
 		return { policyPath, refusal: `policy ${policyPath} is not readable (${(e as Error).message}) — execution refused` };
-	}
-	const sandbox = fsSandboxOf(toml);
-	if (sandbox && insideSandbox(sandbox, dirname(policyPath))) {
-		return {
-			policyPath,
-			refusal: `policy ${policyPath} lies inside its own fs_sandbox (${sandbox}) — a program could rewrite the policy, execution refused (D4)`,
-		};
 	}
 	return { policyPath, refusal: null };
 }
 
-/** Minimal TOML read of the fields the prompt names. */
-export function policySummary(policyToml: string): { caps: string[]; sandbox: string | null; net: string[]; process: string[]; cli: string[] | null } {
-	const list = (key: string): string[] | null => {
-		const m = new RegExp(`^\\s*${key}\\s*=\\s*\\[([^\\]]*)\\]`, "m").exec(policyToml);
-		if (!m) return null;
-		return m[1].split(",").map((x) => x.trim().replace(/^"|"$/g, "")).filter(Boolean);
-	};
-	return {
-		caps: list("allowed_caps") ?? [],
-		sandbox: fsSandboxOf(policyToml),
-		net: list("net_allow") ?? [],
-		process: list("process_allow") ?? [],
-		// null = key absent → the tool's documented default set; [] = the operator
-		// listed nothing → every subcommand is refused.
-		cli: list("cli_allow"),
-	};
-}
-
 /**
- * The `ailang` subcommands an ailang_only agent may invoke when the policy
- * carries no `cli_allow`: read-only, or writing only the file they are given
- * inside the sandbox (fmt). Audited 2026-09-16 against all 94 top-level
- * subcommands: everything that reaches the message plane, the registry, a
- * provider, the coordinator, or spends (messages, coordinator, mission,
- * install/publish, eval-*, brain/cache, …) is out; `run`/`test`/`exec`/`repl`/
- * `replay`/`watch`/`select-best` execute programs and are refused even when
- * listed — execution only goes through ailang_run's gate.
+ * Pure: apply the endpoint's verdict to the gate. A policy the endpoint
+ * refuses to resolve is a refusal; a sandbox that contains the policy's own
+ * directory is a refusal (D4: the agent could rewrite its policy).
  */
-export const CLI_DEFAULT_ALLOW: readonly string[] = [
-	"check", "ai-check", "iface", "fmt", "test", "docs:search", "examples", "builtins",
-	"pkg-docs", "tree", "prompt", "agent-prompt", "devtools-prompt", "policy-check", "axioms", "version",
-];
-// `test` is NOT gate-only: the test runner evaluates PURE code only
-// (internal/testing/pure_cluster.go refuses a test whose dependency has effects;
-// there is no --caps flag), so it cannot reach FS/Net/Process whatever the
-// policy says — and `ailang test --package .` was the first thing a package
-// agent asked for (ailang-packages#64).
-export const CLI_GATE_ONLY: readonly string[] = ["run", "exec", "repl", "replay", "watch", "select-best"];
-
-export interface CliDecision { ok: boolean; reason?: string; }
-
-/**
- * Pure: may `ailang argv...` run under this policy? Allowlist entries are
- * `cmd` or `cmd:sub` (process_allow syntax). Any argv token that names a path
- * must stay inside the sandbox — `fmt ../../etc/x` is a write outside it.
- */
-export function cliDecision(argv: readonly string[], allow: readonly string[] | null, sandbox: string | null): CliDecision {
-	if (argv.length === 0) return { ok: false, reason: "argv is empty" };
-	const [cmd, sub] = argv;
-	if (CLI_GATE_ONLY.includes(cmd)) {
-		return { ok: false, reason: `\`ailang ${cmd}\` executes programs; the only execution route is the ailang_run tool (policy-gated)` };
+export function gateWithSummary(gate: PolicyGate, resp: ToolResponse): { gate: PolicyGate; summary: PolicySummary | null } {
+	if (gate.refusal || !gate.policyPath) return { gate, summary: null };
+	if (!resp.ok || !resp.summary) {
+		return { gate: { policyPath: gate.policyPath, refusal: `policy ${gate.policyPath} does not resolve: ${resp.refused ?? "no summary"} — execution refused` }, summary: null };
 	}
-	const list = allow ?? CLI_DEFAULT_ALLOW;
-	const permitted = list.some((e) => e === cmd || (sub !== undefined && e === `${cmd}:${sub}`));
-	if (!permitted) {
-		return { ok: false, reason: `\`ailang ${cmd}${sub ? " " + sub : ""}\` is not in the policy's cli_allow (${list.join(", ") || "empty"})` };
+	const s = resp.summary;
+	if (s.fs_sandbox && insideSandbox(s.fs_sandbox, dirname(gate.policyPath))) {
+		return {
+			gate: { policyPath: gate.policyPath, refusal: `policy ${gate.policyPath} lies inside its own fs_sandbox (${s.fs_sandbox}) — a program could rewrite the policy, execution refused (D4)` },
+			summary: null,
+		};
 	}
-	if (sandbox) {
-		for (const tok of argv.slice(1)) {
-			if (tok.startsWith("-")) continue;
-			if (!(tok.startsWith("/") || tok.includes("/") || tok.startsWith(".") || tok.endsWith(".ail"))) continue;
-			if (!insideSandbox(sandbox, resolve(sandbox, tok))) return { ok: false, reason: `path ${tok} is outside the FS sandbox ${sandbox}` };
-		}
-	}
-	return { ok: true };
+	return { gate, summary: s };
 }
 
 /**
@@ -148,31 +164,28 @@ export function cliDecision(argv: readonly string[], allow: readonly string[] | 
  * have. Measured 2026-09-16: one of five ailang_only runs read a file and
  * stopped without ever calling ailang_run.
  */
-export function lanePrompt(gate: PolicyGate, read: (p: string) => string = (p) => readFileSync(p, "utf8")): string {
+export function lanePrompt(gate: PolicyGate, summary: PolicySummary | null): string {
 	const lines = [
 		"## Execution lane: ailang_only",
-		"You have NO shell. Your tools are read, edit, write, ailang_check, ailang_run, builtins_search, examples_search and ailang_cli — nothing else. Use builtins_search({query}) to discover std functions (listDir, readFile, split, …) instead of guessing. Use examples_search({query}) to find a working example before writing a construct you are unsure of. Use ailang_cli({argv: [\"iface\", \"std/fs\"]}) for exact signatures of a module's exports before calling them.",
+		"You have NO shell. Your tools are ailang_read, ailang_edit, ailang_write, ailang_check, ailang_run, builtins_search, examples_search and ailang_cli — nothing else. Use builtins_search({query}) to discover std functions (listDir, readFile, split, …) instead of guessing. Use examples_search({query}) to find a working example before writing a construct you are unsure of. Use ailang_cli({op: \"iface\", module: \"std/fs\"}) for exact signatures of a module's exports before calling them.",
 		"Package ceilings: a directory with an ailang.toml is a PACKAGE, and its `[effects] max` ceiling applies to EVERY module inside it — a probe program that reads files or runs git will be rejected there (`effect ceiling violation in package …`) no matter what the policy allows. Write scratch/probe programs in `.ailang-scratch/` at the sandbox root — never inside a package directory, and never anywhere else: that one directory is excluded from the commit, and you have no delete tool, so a probe left elsewhere ships in the PR. Only the package's own code goes inside the package. NEVER edit a package's `[effects] max` to make a probe or your own program pass — the ceiling is the package's public contract, and widening it is the change under review, not a workaround.",
 		"The ONLY way to execute anything is `ailang_run` on an AILANG (.ail) file you have written. Do not ask for bash, do not describe commands you would run, do not stop after reading: write the program, `ailang_check` it, then `ailang_run` it.",
 		"Module naming: a file named report.ail must start with `module report` (the bare file name — no directory prefix, no hyphens).",
-		"Paths: AILANG resolves every relative path in a program (readFile, listDir, exec's working directory) against the FS SANDBOX ROOT below, not against the file's location. Write paths relative to that root (or absolute paths inside it).",
+		"Paths: every path you give a tool, and every relative path in a program (readFile, listDir), resolves against the FS SANDBOX ROOT below. Paths outside it — including symlinks that lead outside — are refused by the runtime and by the tools.",
 		"Every effect a program uses must be declared in its entry function's effect row (`! {IO, FS}`); the typechecker enforces this through imports, and the gate admits the program only if the declared row is a subset of the policy below.",
 	];
-	if (gate.refusal || !gate.policyPath) {
-		// Kept for a caller that asks for the text without a policy (tests, status
-		// views); the extension itself no longer injects anything in this state.
+	if (gate.refusal || !gate.policyPath || !summary) {
 		lines.push(`Execution is NOT granted in this deployment (${gate.refusal ?? "no policy"}). You can still write and type-check programs; say plainly that you cannot run them.`);
 		return lines.join("\n");
 	}
-	let sum = { caps: [] as string[], sandbox: null as string | null, net: [] as string[], process: [] as string[], cli: null as string[] | null };
-	try { sum = policySummary(read(gate.policyPath)); } catch { /* the tool will refuse; the prompt stays generic */ }
-	lines.push(`Policy: allowed effects = {${sum.caps.join(", ") || "none — every program is denied"}}.`);
-	if (sum.sandbox) lines.push(`FS is confined to ${sum.sandbox}: relative paths resolve from there, subprocesses run from there, and paths outside it are rejected at run time.`);
-	if (sum.caps.includes("Net")) lines.push(`Net is allowed only to: ${sum.net.join(", ") || "(no hosts listed)"}.`);
+	lines.push(`Policy (${summary.security_mode}): allowed effects = {${summary.caps.join(", ") || "none — every program is denied"}}.`);
+	if (summary.fs_sandbox) lines.push(`FS is confined to ${summary.fs_sandbox}: relative paths resolve from there, and paths outside it are refused.`);
+	if (summary.caps.includes("Net") || summary.caps.includes("Stream")) lines.push(`Net is allowed only to: ${summary.net_allow.join(", ") || "(no hosts listed)"}. Redirects to other hosts are refused.`);
 	else lines.push("There is no network access. Do not attempt HTTP.");
-	if (sum.caps.includes("Process")) lines.push(`Process is allowed only for: ${sum.process.join(", ") || "(no commands listed — every process call is refused)"} (cmd:sub narrows to a subcommand).`);
+	if (summary.caps.includes("Process")) lines.push(`Process is allowed only for: ${summary.process_allow.join(", ") || "(no commands listed — every process call is refused)"} (cmd:sub narrows to a subcommand).`);
 	else lines.push("There is no process/subprocess access.");
-	lines.push(`ailang_cli may run only these subcommands: ${(sum.cli ?? CLI_DEFAULT_ALLOW).join(", ") || "(none)"} — never run (use ailang_run); test evaluates pure tests only.`);
+	lines.push(`ailang_cli ops available under this policy: ${summary.cli.join(", ") || "(none)"} — never run (use ailang_run); test evaluates pure tests only.`);
+	lines.push(`Each run is bounded: timeout ${summary.timeout_ms} ms for the whole invocation.`);
 	lines.push("A denial names `missing_from_policy`: narrow the program's effects instead of retrying the same thing. Programs are ordinary AILANG modules with `export func main() -> () ! {…}`; use std/fs, std/io, std/string for what you would have done with shell tools.");
 	return lines.join("\n");
 }
@@ -208,31 +221,48 @@ export function parsePolicyLine(stderr: string): Record<string, unknown> | null 
 	}
 }
 
+/** The `policy-result: {...}` limit envelope the supervisor prints on a timeout or output cap. */
+export function parseResultLine(stderr: string): Record<string, unknown> | null {
+	const m = /^policy-result: (\{.*\})\s*$/m.exec(stderr);
+	if (!m) return null;
+	try {
+		return JSON.parse(m[1]) as Record<string, unknown>;
+	} catch {
+		return null;
+	}
+}
+
 export interface RunEnvelope {
 	admitted: boolean;
 	exit_code: number;
 	decision: unknown;
 	policy_digest: string;
+	/** Set when the supervisor stopped the run: {reason: "timeout" | "output_limit" | …}. */
+	limit?: Record<string, unknown> | null;
 	stdout: string;
 	stderr: string;
 }
 
 /**
  * Pure: compose the tool result from a finished `ailang run --policy`.
- * Denial (exit 2, decision JSON on stdout) and admission (policy line on stderr)
- * are the gate's two documented shapes; anything else is reported as-is with
+ * Denial (exit 2, decision JSON on stdout), admission (policy line on stderr)
+ * and a supervisor limit (exit 3, policy-result line on stderr) are the
+ * gate's documented shapes; anything else is reported as-is with
  * admitted=false so the model never mistakes a crash for a refusal.
  */
 export function composeEnvelope(code: number, stdout: string, stderr: string): RunEnvelope {
 	const admission = parsePolicyLine(stderr);
+	const limit = parseResultLine(stderr);
+	const cleanErr = stderr.replace(/^policy: \{.*\}\s*$/m, "").replace(/^policy-result: \{.*\}\s*$/m, "").trim();
 	if (admission && admission.ok === true) {
 		return {
 			admitted: true,
 			exit_code: code,
 			decision: admission.decision ?? null,
 			policy_digest: String(admission.policy_digest ?? ""),
+			limit,
 			stdout,
-			stderr: stderr.replace(/^policy: \{.*\}\s*$/m, "").trim(),
+			stderr: cleanErr,
 		};
 	}
 	let decision: unknown = null;
@@ -242,35 +272,51 @@ export function composeEnvelope(code: number, stdout: string, stderr: string): R
 	} catch {
 		decision = null;
 	}
-	return { admitted: false, exit_code: code, decision, policy_digest: "", stdout: decision ? "" : stdout, stderr };
+	return { admitted: false, exit_code: code, decision, policy_digest: "", limit, stdout: decision ? "" : stdout, stderr: cleanErr || stderr };
 }
 
 /**
- * `register` is the extension body with its two dependencies injected so the
- * registration path is testable without pi or typebox: `Type` builds the tool
- * parameter schemas, `env` is the process environment.
+ * Pure: the typed request an ailang_cli call turns into. The tool's
+ * parameters ARE the request fields; nothing is parsed out of a string.
  */
-export async function register(pi: ExtensionAPI, Type: TypeLike, env: Record<string, string | undefined> = process.env) {
-	const gate = gateFromEnv(env);
+export function cliRequest(params: { op: string; path?: string; module?: string; query?: string; package?: string; flags?: Record<string, string> }): ToolRequest {
+	const req: ToolRequest = { op: params.op };
+	if (params.path) req.path = params.path;
+	if (params.module) req.module = params.module;
+	if (params.query) req.query = params.query;
+	if (params.package) req.package = params.package;
+	if (params.flags && Object.keys(params.flags).length > 0) req.flags = params.flags;
+	return req;
+}
 
-	// Tell the model what it is (pure text from the policy; nothing secret).
-	// Delivered BOTH as a system-prompt section and as a conversation message:
-	// measured 2026-09-16, the `ollama/glm-5.3-flash:cloud` route discards the
-	// system role entirely (deepseek via ollama and OpenRouter glm honour it),
-	// so a system-prompt-only injection would silently vanish on the rig's
-	// default pi model. The teaching prompt's shell recipes stay; this section
-	// says they do not apply here.
-	// The lane exists ONLY when a policy is attached. This suite is installed
-	// globally on the rig too, where a plain `pi` has bash and every builtin
-	// tool: injecting "You have NO shell" there talked sessions out of a shell
-	// they had (measured 2026-09-19 — a local session on packages/decisions
-	// reported every command "refused" and asked the operator to run its
-	// runbook by hand). No policy → no prompt; the two tools still register
-	// and refuse with the reason, so a stray call is loud, not silent.
-	if (!gate.refusal) {
-		const lane = lanePrompt(gate);
-		// The teaching prompt goes in the SYSTEM role only (it is large); the lane
-		// section goes both ways because some routes drop the system role.
+/** Text + details for a tool result. */
+function result(payload: unknown) {
+	return { content: [{ type: "text" as const, text: JSON.stringify(payload) }], details: payload as Record<string, unknown> };
+}
+
+/**
+ * `register` is the extension body with its dependencies injected so the
+ * registration path is testable without pi or typebox: `Type` builds the tool
+ * parameter schemas, `env` is the process environment, `runner` talks to the
+ * endpoint.
+ */
+export async function register(pi: ExtensionAPI, Type: TypeLike, env: Record<string, string | undefined> = process.env, runner: ToolRunner = defaultToolRunner()) {
+	let gate = gateFromEnv(env);
+	let summary: PolicySummary | null = null;
+	if (!gate.refusal && gate.policyPath) {
+		const verdict = gateWithSummary(gate, await runner(gate.policyPath, { op: "summary" }));
+		gate = verdict.gate;
+		summary = verdict.summary;
+	}
+
+	// Tell the model what it is. Delivered BOTH as a system-prompt section
+	// and as a conversation message: measured 2026-09-16, the
+	// `ollama/glm-5.3-flash:cloud` route discards the system role entirely.
+	// The lane exists ONLY when a policy is attached (measured 2026-09-19: on
+	// a plain `pi` with bash, "You have NO shell" talked sessions out of a
+	// shell they had).
+	if (!gate.refusal && summary) {
+		const lane = lanePrompt(gate, summary);
 		const teaching = teachingPrompt();
 		const teachingSection = teaching ? `\n\n## AILANG language reference (canonical teaching prompt)\n\n${teaching}` : "";
 		pi.on("before_agent_start", async (ev) => ({
@@ -279,13 +325,17 @@ export async function register(pi: ExtensionAPI, Type: TypeLike, env: Record<str
 		}));
 	}
 
+	const refusedResult = () => result({ ok: false, admitted: false, refused: gate.refusal });
+	const call = async (req: ToolRequest) => result(await runner(gate.policyPath as string, req));
+
 	pi.registerTool({
 		name: "ailang_run",
 		label: "AILANG Run (policy-gated)",
 		description:
 			"Execute an AILANG program under the operator's policy: `ailang run --policy <policy> <path>`. " +
 			"The program's declared effect row must be a subset of the policy's allowed_caps; FS stays inside " +
-			"the policy's sandbox. Returns {admitted, exit_code, decision, policy_digest, stdout, stderr}. " +
+			"the policy's sandbox; the whole invocation is bounded by the policy's timeout. Returns " +
+			"{admitted, exit_code, decision, policy_digest, limit, stdout, stderr}. " +
 			"Denied programs never execute — read `decision.missing_from_policy` and narrow the program's effects. " +
 			"This is the ONLY way to run code; there is no shell.",
 		parameters: Type.Object({
@@ -294,67 +344,91 @@ export async function register(pi: ExtensionAPI, Type: TypeLike, env: Record<str
 		}),
 		async execute(_id, params, _signal, _onUpdate, ctx) {
 			void ctx;
-			if (gate.refusal) {
-				const text = JSON.stringify({ admitted: false, refused: gate.refusal });
-				return { content: [{ type: "text", text }], details: { admitted: false, refused: gate.refusal } };
-			}
+			if (gate.refusal) return refusedResult();
 			// Run IN the file's directory with the bare filename. ailang's module
-			// rule (MOD010) wants `module x` for x.ail relative to the cwd; an
-			// absolute path makes the canonical path the whole absolute prefix,
-			// and the first six Jobs tasks (2026-09-16) burned turns cycling
-			// through `module tmp/ailang-only/x`, `module x`, `module workspace/…`.
+			// rule (MOD010) wants `module x` for x.ail relative to the cwd.
 			const abs = resolve(params.path);
 			const args = ["run", "--policy", gate.policyPath as string];
 			if (params.args_json) args.push("--args-json", params.args_json);
 			args.push(basename(abs));
-			const r = await pi.exec("ailang", args, { timeout: 120_000, cwd: dirname(abs) });
-			const env = composeEnvelope(r.code ?? -1, r.stdout ?? "", r.stderr ?? "");
-			return { content: [{ type: "text", text: JSON.stringify(env) }], details: env };
+			const r = await pi.exec("ailang", args, { timeout: 130_000, cwd: dirname(abs) });
+			return result(composeEnvelope(r.code ?? -1, r.stdout ?? "", r.stderr ?? ""));
 		},
 	});
 
-	// The rest of the ailang CLI, allowlisted by the same policy file. The
-	// model reaches the binary ONLY through this tool: argv is an array (no
-	// shell), the cwd is the sandbox root, paths must stay inside it, and the
-	// program-executing subcommands are refused whatever the list says.
-	const policyToml = gate.policyPath ? (() => { try { return readFileSync(gate.policyPath as string, "utf8"); } catch { return ""; } })() : "";
-	const cliSum = policySummary(policyToml);
+	pi.registerTool({
+		name: "ailang_read",
+		label: "Read (sandboxed)",
+		description: "Read a file inside the policy's FS sandbox. Paths resolve from the sandbox root; anything outside it, including symlinks that lead outside, is refused. Returns {ok, content} or {ok:false, refused}.",
+		parameters: Type.Object({ path: Type.String({ description: "File path, relative to the sandbox root (or absolute inside it)" }) }),
+		async execute(_id, params) {
+			if (gate.refusal) return refusedResult();
+			return call({ op: "read", path: params.path });
+		},
+	});
+
+	pi.registerTool({
+		name: "ailang_write",
+		label: "Write (sandboxed)",
+		description: "Create or overwrite a file inside the policy's FS sandbox. Refused outside it. Returns {ok} or {ok:false, refused}.",
+		parameters: Type.Object({
+			path: Type.String({ description: "File path, relative to the sandbox root" }),
+			content: Type.String({ description: "The complete new file content" }),
+		}),
+		async execute(_id, params) {
+			if (gate.refusal) return refusedResult();
+			return call({ op: "write", path: params.path, content: params.content });
+		},
+	});
+
+	pi.registerTool({
+		name: "ailang_edit",
+		label: "Edit (sandboxed)",
+		description: "Replace old_text with new_text in a file inside the sandbox; old_text must occur exactly once (include enough context). Returns {ok} or {ok:false, refused}.",
+		parameters: Type.Object({
+			path: Type.String({ description: "File path, relative to the sandbox root" }),
+			old_text: Type.String({ description: "Exact text to replace (must occur exactly once)" }),
+			new_text: Type.String({ description: "Replacement text" }),
+		}),
+		async execute(_id, params) {
+			if (gate.refusal) return refusedResult();
+			return call({ op: "edit", path: params.path, old_text: params.old_text, new_text: params.new_text });
+		},
+	});
+
+	// The rest of the ailang CLI, as typed requests. The model never composes
+	// an argv: it names an op and its fields; Go validates each field against
+	// the op's schema and builds the argv inside the sandbox.
+	const ops = summary?.cli ?? [];
 	pi.registerTool({
 		name: "ailang_cli",
 		label: "AILANG CLI (policy-allowlisted)",
 		description:
-			"Run an allowlisted `ailang <subcommand>` — iface (exact export signatures), fmt, ai-check (type-check + Z3 verification), " +
-			"test (pure tests only; --package for a package), docs search, examples, builtins, pkg-docs, tree, prompt, policy-check. NOT run: execution only goes through ailang_run. " +
-			"argv is passed as an array with no shell; paths must stay inside the FS sandbox. Returns {ok, exit_code, stdout, stderr}.",
+			`Run an allowlisted ailang operation as a typed request. ops under this policy: ${ops.join(", ") || "(none)"}. ` +
+			"Field by op — check/ai_check/fmt/tree/policy_check: {path}; iface/pkg_docs: {module}; docs_search/examples_search: {query}; " +
+			"examples_show/builtins_show: {module: <name>}; test: {path?, package?}; flags: {\"json\": \"\", \"limit\": \"5\"} only where the op admits them. " +
+			"NOT run: execution only goes through ailang_run. Returns {ok, argv, exit_code, stdout, stderr} or {ok:false, refused}.",
 		parameters: Type.Object({
-			argv: Type.Array(Type.String(), { description: 'Subcommand and its arguments, e.g. ["iface", "std/fs"] or ["ai-check", "report.ail"]' }),
+			op: Type.String({ description: 'The operation, e.g. "check", "iface", "docs_search", "test"' }),
+			path: Type.Optional(Type.String({ description: "In-sandbox file path (check, ai_check, fmt, tree, policy_check, test)" })),
+			module: Type.Optional(Type.String({ description: 'Module path or name (iface: "std/fs"; examples_show/builtins_show: a name)' })),
+			query: Type.Optional(Type.String({ description: "Search text (docs_search, examples_search)" })),
+			package: Type.Optional(Type.String({ description: "Package directory for test (in-sandbox)" })),
+			flags: Type.Optional(Type.Record(Type.String(), Type.String(), { description: 'Admitted flags by name; boolean flags take "" (e.g. {"json": ""})' })),
 		}),
-		async execute(_id, params, _signal, _onUpdate, ctx) {
-			void ctx;
-			if (gate.refusal) {
-				const text = JSON.stringify({ ok: false, refused: gate.refusal });
-				return { content: [{ type: "text", text }], details: { ok: false, refused: gate.refusal } };
-			}
-			const d = cliDecision(params.argv, cliSum.cli, cliSum.sandbox);
-			if (!d.ok) {
-				const text = JSON.stringify({ ok: false, refused: d.reason });
-				return { content: [{ type: "text", text }], details: { ok: false, refused: d.reason } };
-			}
-			const cwd = cliSum.sandbox ?? process.cwd();
-			const r = await pi.exec("ailang", params.argv, { timeout: 60_000, cwd });
-			const cap = (t: string) => (t.length > 64_000 ? t.slice(0, 64_000) + "\n…[truncated]" : t);
-			const out = { ok: (r.code ?? -1) === 0, exit_code: r.code ?? -1, stdout: cap(r.stdout ?? ""), stderr: cap(r.stderr ?? "") };
-			return { content: [{ type: "text", text: JSON.stringify(out) }], details: out };
+		async execute(_id, params) {
+			if (gate.refusal) return refusedResult();
+			return call(cliRequest(params));
 		},
 	});
 }
-
 
 // The minimal shape of typebox's Type this file uses; keeps tests free of the package.
 type TypeLike = {
 	Object: (props: Record<string, unknown>) => unknown;
 	String: (opts?: Record<string, unknown>) => unknown;
 	Array: (item: unknown, opts?: Record<string, unknown>) => unknown;
+	Record: (key: unknown, value: unknown, opts?: Record<string, unknown>) => unknown;
 	Optional: (schema: unknown) => unknown;
 };
 

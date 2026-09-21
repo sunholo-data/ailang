@@ -30,6 +30,10 @@ var profileAssets embed.FS
 // tool name. A list that names none of these gets no -e flags.
 var profileExtensionFiles = map[string]string{
 	"AilangRun":      "ailang-exec.ts",
+	"AilangCLI":      "ailang-exec.ts",
+	"AilangRead":     "ailang-exec.ts",
+	"AilangWrite":    "ailang-exec.ts",
+	"AilangEdit":     "ailang-exec.ts",
 	"AilangCheck":    "ailang-lsp-lite.ts",
 	"BuiltinsSearch": "ailang-lsp-lite.ts",
 	"ExamplesSearch": "examples-search.ts",

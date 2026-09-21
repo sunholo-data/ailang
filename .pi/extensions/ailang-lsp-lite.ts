@@ -5,6 +5,7 @@
  * CLI under the Subprocess Contract (timeouts, caps, structured failures).
  */
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { spawn } from "node:child_process";
 
 export interface Diagnostic {
 	code: string; // IMP010 | TCxxx | MODxxx | EFF_* | E_* | PARxxx | UNKNOWN
@@ -104,6 +105,24 @@ export function filterBuiltins(
 	return q ? hits.slice(0, cap) : hits; // unfiltered inventory is the caller's explicit choice
 }
 
+/** `ailang policy-tool` op=check: the path is validated in Go against the sandbox root. */
+export function policyToolCheck(policyPath: string, path: string): Promise<{ ok: boolean; refused?: string; stdout?: string; stderr?: string }> {
+	return new Promise((resolveP) => {
+		const child = spawn("ailang", ["policy-tool", "--policy", policyPath], { stdio: ["pipe", "pipe", "pipe"] });
+		let out = "";
+		let err = "";
+		const timer = setTimeout(() => child.kill("SIGKILL"), 40_000);
+		child.stdout.on("data", (d) => (out += String(d)));
+		child.stderr.on("data", (d) => (err += String(d)));
+		child.on("error", (e) => { clearTimeout(timer); resolveP({ ok: false, refused: `policy-tool could not start: ${e.message}` }); });
+		child.on("close", (code) => {
+			clearTimeout(timer);
+			try { resolveP(JSON.parse(out)); } catch { resolveP({ ok: false, refused: `policy-tool produced no response (exit ${code}): ${err.trim().slice(0, 2000)}` }); }
+		});
+		child.stdin.end(JSON.stringify({ op: "check", path }));
+	});
+}
+
 export default async function (pi: ExtensionAPI) {
 	const { Type } = await import("typebox");
 
@@ -117,11 +136,26 @@ export default async function (pi: ExtensionAPI) {
 			path: Type.String({ description: "Path to the .ail file" }),
 		}),
 		async execute(_id, params, _signal, _onUpdate, ctx) {
+			void ctx;
+			// Under an attached policy (the ailang_only lane) the check goes
+			// through `ailang policy-tool`, which validates the path against the
+			// sandbox root in Go and builds the argv itself — this extension
+			// never hands an unchecked path to the CLI (M-EXECUTOR-POLICY-
+			// HARDENING M4). Without a policy (a plain local pi session) the
+			// direct check is unchanged.
+			const policyPath = process.env.AILANG_AGENT_POLICY?.trim();
+			if (policyPath) {
+				const r = await policyToolCheck(policyPath, params.path);
+				if (!r.ok && r.refused) {
+					return { content: [{ type: "text", text: JSON.stringify({ ok: false, refused: r.refused, diagnostics: [] }) }], details: { ok: false, refused: r.refused, diagnostics: [] } };
+				}
+				const diagnostics = parseCheckOutput(`${r.stderr ?? ""}\n${r.stdout ?? ""}`);
+				return { content: [{ type: "text", text: JSON.stringify({ ok: r.ok, diagnostics }) }], details: { ok: r.ok, diagnostics } };
+			}
 			// Run IN the file's directory with the bare filename, the same way
 			// ailang_run does: `module x` for x.ail is then canonical wherever the
 			// file lives (absolute paths trip MOD010; e2e 2026-08-28, and the
 			// ailang_only Jobs batch 2026-09-16).
-			void ctx;
 			const { basename, dirname, resolve } = await import("node:path");
 			const abs = resolve(params.path);
 			const r = await pi.exec("ailang", ["check", basename(abs)], { timeout: 30_000, cwd: dirname(abs) });

@@ -229,7 +229,10 @@ func buildDirective(task *AnalyzedTask) string {
 // the type-checker so it can still reason about AILANG code.
 func questionTools(executorName string) []string {
 	if executorName == "pi" {
-		return []string{"Read", "AilangCheck"}
+		// Both file-read shapes: the native one for the full profile, the
+		// sandboxed one for the ailang_only lane; the profile intersection
+		// keeps whichever the agent may have.
+		return []string{"Read", "AilangRead", "AilangCheck"}
 	}
 	return []string{"Read", "Grep", "Glob", "WebFetch", "WebSearch"}
 }

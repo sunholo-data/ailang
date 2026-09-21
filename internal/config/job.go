@@ -35,7 +35,11 @@ const (
 	// outside the workspace and exports AILANG_AGENT_POLICY for the pi tool.
 	EnvToolPolicy      = "AILANG_TOOL_POLICY"
 	EnvAgentPolicyTOML = "AILANG_AGENT_POLICY_TOML"
-	EnvSSHHostAlias    = "AILANG_SSH_HOST_ALIAS"
+	// EnvAgentPolicy is the materialised policy PATH the pi tools and
+	// `ailang policy-tool` read (M-EXECUTOR-POLICY-HARDENING M4): set by the
+	// launcher (execute-job / the coordinator), never by the model.
+	EnvAgentPolicy  = "AILANG_AGENT_POLICY"
+	EnvSSHHostAlias = "AILANG_SSH_HOST_ALIAS"
 )
 
 // DefaultJobBranch is the branch a job clones when AILANG_BRANCH is unset.
@@ -69,6 +73,7 @@ var jobVars = []Var{
 	{EnvSSHHostAlias, "agent-repo", AreaJob, "SSH host alias the deploy key is installed under."},
 	{EnvToolPolicy, "", AreaJob, "Tool-policy profile for the executor (full | ailang_only | canonical list); unset = the CLI's own defaults. Banked as tool_policy on the row."},
 	{EnvAgentPolicyTOML, "", AreaJob, "Program policy (agent-policy.toml CONTENT) an ailang_only job's ailang_run is gated by; materialised read-only by execute-job. Unset = ailang_run refuses (default-deny)."},
+	{EnvAgentPolicy, "", AreaJob, "Materialised program-policy PATH the ailang_only lane's tools (ailang_run, ailang_cli, ailang_read/write/edit via `ailang policy-tool`) are gated by; exported by the launcher, never set by the model. Unset = the tools refuse (default-deny)."},
 }
 
 // ToolPolicy returns AILANG_TOOL_POLICY, "" when unset.
@@ -76,6 +81,9 @@ func ToolPolicy() string { return strings.TrimSpace(get(EnvToolPolicy)) }
 
 // AgentPolicyTOML returns AILANG_AGENT_POLICY_TOML verbatim, "" when unset.
 func AgentPolicyTOML() string { return get(EnvAgentPolicyTOML) }
+
+// AgentPolicy returns the materialised policy path (AILANG_AGENT_POLICY), "" when unset.
+func AgentPolicy() string { return strings.TrimSpace(get(EnvAgentPolicy)) }
 
 // AgentID returns AILANG_AGENT_ID, "" when unset.
 func AgentID() string { return get(EnvAgentID) }

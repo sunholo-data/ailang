@@ -1,6 +1,21 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { CLI_DEFAULT_ALLOW, CLI_GATE_ONLY, cliDecision, composeEnvelope, fsSandboxOf, gateFromEnv, insideSandbox, lanePrompt, parsePolicyLine, policySummary, teachingPrompt } from "./ailang-exec.ts";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import {
+	cliRequest, composeEnvelope, gateFromEnv, gateWithSummary, insideSandbox, lanePrompt, parsePolicyLine,
+	parseResultLine, register, teachingPrompt,
+	type PolicySummary, type ToolRequest, type ToolResponse, type ToolRunner,
+} from "./ailang-exec.ts";
+
+// M-EXECUTOR-POLICY-HARDENING M4: the extension composes typed requests and
+// relays the Go endpoint's answers; it parses no TOML and composes no argv.
+
+const summary = (over: Partial<PolicySummary> = {}): PolicySummary => ({
+	security_mode: "restricted", policy_digest: "d1", fs_sandbox: "/w", caps: ["IO", "FS"], net_allow: [], process_allow: [],
+	cli: ["check", "iface", "docs_search"], ops: ["read", "write", "edit", "check", "iface", "docs_search"], timeout_ms: 5000, ...over,
+});
 
 test("gateFromEnv: unset env is default-deny with a readable reason", () => {
 	const g = gateFromEnv({});
@@ -16,30 +31,39 @@ test("gateFromEnv: unreadable policy refuses by path", () => {
 	assert.match(g.refusal ?? "", /\/etc\/resident\/policy\.toml/);
 });
 
-test("gateFromEnv: D4 — policy inside its own sandbox is refused", () => {
-	const g = gateFromEnv({ AILANG_AGENT_POLICY: "/workspace/policy.toml" }, () => 'fs_sandbox = "/workspace"\nallowed_caps = ["IO"]\n');
-	assert.match(g.refusal ?? "", /rewrite the policy/);
+test("gateWithSummary: D4 — policy inside its own sandbox is refused, from the Go summary", () => {
+	const g = gateFromEnv({ AILANG_AGENT_POLICY: "/workspace/policy.toml" }, () => "x");
+	const v = gateWithSummary(g, { ok: true, summary: summary({ fs_sandbox: "/workspace" }) });
+	assert.match(v.gate.refusal ?? "", /rewrite the policy/);
+	assert.equal(v.summary, null);
 });
 
-test("gateFromEnv: policy outside the sandbox is granted", () => {
-	const g = gateFromEnv({ AILANG_AGENT_POLICY: "/etc/resident/policy.toml" }, () => 'fs_sandbox = "/workspace"\n');
-	assert.equal(g.refusal, null);
-	assert.equal(g.policyPath, "/etc/resident/policy.toml");
+test("gateWithSummary: a policy the endpoint refuses to resolve is a refusal naming the reason", () => {
+	const g = gateFromEnv({ AILANG_AGENT_POLICY: "/etc/p.toml" }, () => "x");
+	const v = gateWithSummary(g, { ok: false, refused: "allowed_caps admits Process, which restricted mode…" });
+	assert.match(v.gate.refusal ?? "", /does not resolve/);
+	assert.match(v.gate.refusal ?? "", /Process/);
 });
 
-test("fsSandboxOf / insideSandbox", () => {
-	assert.equal(fsSandboxOf('entry = "main"\nfs_sandbox = "/w/s"\n'), "/w/s");
-	assert.equal(fsSandboxOf("entry = \"main\"\n"), null);
+test("gateWithSummary: policy outside the sandbox is granted with its summary", () => {
+	const g = gateFromEnv({ AILANG_AGENT_POLICY: "/etc/resident/policy.toml" }, () => "x");
+	const v = gateWithSummary(g, { ok: true, summary: summary() });
+	assert.equal(v.gate.refusal, null);
+	assert.equal(v.summary?.fs_sandbox, "/w");
+});
+
+test("insideSandbox", () => {
 	assert.equal(insideSandbox("/w/s", "/w/s/policy"), true);
 	assert.equal(insideSandbox("/w/s", "/w/s"), true);
 	assert.equal(insideSandbox("/w/s", "/w/sandbox2"), false); // prefix, not path, must not match
 });
 
-test("parsePolicyLine picks the admission line out of stderr", () => {
+test("parsePolicyLine / parseResultLine pick their lines out of stderr", () => {
 	const l = parsePolicyLine('warning: x\npolicy: {"ok":true,"policy_digest":"abc","decision":{"ok":true}}\n');
 	assert.equal(l?.ok, true);
 	assert.equal(l?.policy_digest, "abc");
 	assert.equal(parsePolicyLine("nothing here"), null);
+	assert.equal(parseResultLine('policy-result: {"version":1,"reason":"timeout"}\n')?.reason, "timeout");
 });
 
 test("composeEnvelope: admission keeps program stdout, strips the policy line", () => {
@@ -47,6 +71,15 @@ test("composeEnvelope: admission keeps program stdout, strips the policy line", 
 	assert.equal(e.admitted, true);
 	assert.equal(e.stdout, "hello\n");
 	assert.equal(e.policy_digest, "d1");
+	assert.equal(e.stderr, "");
+	assert.equal(e.limit, null);
+});
+
+test("composeEnvelope: a supervisor limit is carried beside the admission", () => {
+	const e = composeEnvelope(3, "partial\n", 'policy: {"ok":true,"policy_digest":"d1","decision":{"ok":true}}\npolicy-result: {"version":1,"stage":"execute","reason":"timeout"}\n');
+	assert.equal(e.admitted, true);
+	assert.equal(e.exit_code, 3);
+	assert.equal(e.limit?.reason, "timeout");
 	assert.equal(e.stderr, "");
 });
 
@@ -63,30 +96,27 @@ test("composeEnvelope: a crash is not a refusal", () => {
 	assert.match(e.stderr, /--caps/);
 });
 
-test("policySummary reads caps, sandbox and net_allow", () => {
-	const p = policySummary('allowed_caps = ["IO", "FS"]\nfs_sandbox = "/w"\nnet_allow = ["api.example.com"]\nentry = "main"\n');
-	assert.deepEqual(p.caps, ["IO", "FS"]);
-	assert.equal(p.sandbox, "/w");
-	assert.deepEqual(p.net, ["api.example.com"]);
-	assert.deepEqual(policySummary('process_allow = ["git:pull", "git:status"]\n').process, ["git:pull", "git:status"]);
-});
-
-test("lanePrompt: Process narrowed to its allowlist", () => {
-	const text = lanePrompt({ policyPath: "/p", refusal: null }, () => 'allowed_caps = ["IO", "Process"]\nprocess_allow = ["git:pull"]\n');
-	assert.match(text, /Process is allowed only for: git:pull/);
-});
-
-test("lanePrompt: granted policy names tools, caps, sandbox and the no-network rule", () => {
-	const text = lanePrompt({ policyPath: "/etc/p.toml", refusal: null }, () => 'allowed_caps = ["IO", "FS"]\nfs_sandbox = "/w"\n');
+test("lanePrompt: granted policy names the sandboxed tools, caps, sandbox, ops and the no-network rule", () => {
+	const text = lanePrompt({ policyPath: "/etc/p.toml", refusal: null }, summary());
 	assert.match(text, /NO shell/);
+	assert.match(text, /ailang_read, ailang_edit, ailang_write/);
 	assert.match(text, /ailang_run/);
 	assert.match(text, /allowed effects = \{IO, FS\}/);
 	assert.match(text, /confined to \/w/);
 	assert.match(text, /no network access/);
+	assert.match(text, /ops available under this policy: check, iface, docs_search/);
+	assert.match(text, /effect ceiling violation in package/);
+	assert.match(text, /timeout 5000 ms/);
+});
+
+test("lanePrompt: Process narrowed to its allowlist; Net names its hosts", () => {
+	const text = lanePrompt({ policyPath: "/p", refusal: null }, summary({ caps: ["IO", "Process", "Net"], process_allow: ["git:pull"], net_allow: ["api.example"] }));
+	assert.match(text, /Process is allowed only for: git:pull/);
+	assert.match(text, /Net is allowed only to: api\.example/);
 });
 
 test("lanePrompt: no policy says execution is not granted, still allows writing", () => {
-	const text = lanePrompt(gateFromEnv({}));
+	const text = lanePrompt(gateFromEnv({}), null);
 	assert.match(text, /NOT granted/);
 	assert.match(text, /write and type-check/);
 });
@@ -99,125 +129,90 @@ test("teachingPrompt: reads the active prompt via the binary, empty (not a throw
 	delete process.env.AILANG_LANE_TEACHING;
 });
 
-// ---- ailang_cli: the allowlisted rest of the CLI ---------------------------
-
-test("cliDecision: default set admits the read-only surface and refuses the rest", () => {
-	assert.equal(cliDecision(["iface", "std/fs"], null, null).ok, true);
-	assert.equal(cliDecision(["docs", "search", "walk"], null, null).ok, true);
-	assert.equal(cliDecision(["ai-check", "report.ail"], null, "/w").ok, true);
-	// docs is admitted only as `docs search` — another docs subcommand is not
-	assert.match(cliDecision(["docs", "serve"], null, null).reason ?? "", /not in the policy/);
-	for (const cmd of ["messages", "coordinator", "install", "publish", "eval-suite", "brain", "pi", "mission"]) {
-		const d = cliDecision([cmd, "x"], null, null);
-		assert.equal(d.ok, false, cmd);
-		assert.match(d.reason ?? "", /not in the policy's cli_allow/);
-	}
+test("cliRequest: the tool's fields ARE the request; nothing is parsed out of a string", () => {
+	assert.deepEqual(cliRequest({ op: "check", path: "a.ail" }), { op: "check", path: "a.ail" });
+	assert.deepEqual(cliRequest({ op: "docs_search", query: "--limit 1 walk", flags: { limit: "3" } }), { op: "docs_search", query: "--limit 1 walk", flags: { limit: "3" } });
+	assert.deepEqual(cliRequest({ op: "test", package: "." , flags: {} }), { op: "test", package: "." });
 });
 
-test("cliDecision: test is allowed — the runner evaluates pure code only", () => {
-	assert.equal(cliDecision(["test", "--package", "."], null, "/w").ok, true);
-	assert.equal(cliDecision(["test", "hello_test.ail"], null, "/w").ok, true);
-});
+// ---- register(): the exact tool surface, and every call goes through the runner ----
 
-test("cliDecision: run/exec/repl are refused even when the operator lists them", () => {
-	for (const cmd of CLI_GATE_ONLY) {
-		const d = cliDecision([cmd, "x.ail"], [cmd, "iface"], "/w");
-		assert.equal(d.ok, false, cmd);
-		assert.match(d.reason ?? "", /ailang_run/);
-	}
-	assert.ok(!CLI_DEFAULT_ALLOW.some((e) => CLI_GATE_ONLY.includes(e.split(":")[0])), "default set never names a gate-only command");
-});
-
-test("cliDecision: an explicit cli_allow replaces the default — empty list refuses everything", () => {
-	assert.equal(cliDecision(["iface", "std/fs"], [], null).ok, false);
-	assert.equal(cliDecision(["fmt", "a.ail"], ["fmt"], null).ok, true);
-	assert.equal(cliDecision(["iface", "std/fs"], ["fmt"], null).ok, false);
-	// cmd:sub narrows: `docs:search` admits `docs search`, not `docs`
-	assert.equal(cliDecision(["docs", "search", "q"], ["docs:search"], null).ok, true);
-	assert.equal(cliDecision(["docs"], ["docs:search"], null).ok, false);
-});
-
-test("cliDecision: path arguments must stay inside the sandbox", () => {
-	assert.equal(cliDecision(["fmt", "src/a.ail"], null, "/w").ok, true);
-	assert.equal(cliDecision(["fmt", "/w/src/a.ail"], null, "/w").ok, true);
-	assert.match(cliDecision(["fmt", "../../etc/passwd"], null, "/w").reason ?? "", /outside the FS sandbox/);
-	assert.match(cliDecision(["fmt", "/etc/x.ail"], null, "/w").reason ?? "", /outside the FS sandbox/);
-	// flags and bare words (module names, queries) are not paths
-	assert.equal(cliDecision(["iface", "--json", "std/fs"], null, "/w").ok, true);
-	assert.equal(cliDecision(["docs", "search", "how to walk"], null, "/w").ok, true);
-	assert.equal(cliDecision([], null, "/w").ok, false);
-});
-
-test("policySummary: cli_allow absent is null (default set), present is the list, empty is []", () => {
-	assert.equal(policySummary('allowed_caps = ["IO"]\n').cli, null);
-	assert.deepEqual(policySummary('cli_allow = ["iface", "docs:search"]\n').cli, ["iface", "docs:search"]);
-	assert.deepEqual(policySummary('cli_allow = []\n').cli, []);
-});
-
-test("lanePrompt: names ailang_cli, the package-ceiling rule, and the allowed subcommands", () => {
-	const toml = 'allowed_caps = ["IO", "FS"]\nfs_sandbox = "/w"\ncli_allow = ["iface", "fmt"]\n';
-	const p = lanePrompt({ policyPath: "/p/policy.toml", refusal: null }, () => toml);
-	assert.match(p, /ailang_cli/);
-	assert.match(p, /effect ceiling violation in package/);
-	assert.match(p, /`\.ailang-scratch\/` at the sandbox root/);
-	assert.match(p, /NEVER edit a package's `\[effects\] max`/);
-	assert.match(p, /ailang_cli may run only these subcommands: iface, fmt/);
-	const q = lanePrompt({ policyPath: "/p/policy.toml", refusal: null }, () => 'allowed_caps = ["IO"]\n');
-	assert.match(q, /ailang_cli may run only these subcommands: check, ai-check, iface/);
-});
-
-// ---- the lane prompt is injected ONLY when a policy is attached ----------
-// A plain `pi` on the rig loads this same suite and HAS a shell; telling it
-// otherwise made a local session refuse work it could do (2026-09-19).
-
-import { mkdtempSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { register } from "./ailang-exec.ts";
-const fakeType = { Object: (p: unknown) => p, String: () => "s", Array: () => "a", Optional: (x: unknown) => x };
+const fakeType = { Object: (p: unknown) => p, String: () => "s", Array: () => "a", Record: () => "r", Optional: (x: unknown) => x };
 
 function fakePi() {
 	const hooks: Record<string, unknown[]> = {};
-	const tools: string[] = [];
+	const tools: Record<string, { execute: (...a: unknown[]) => Promise<{ details: Record<string, unknown> }> }> = {};
 	return {
 		api: {
 			on: (name: string, fn: unknown) => { (hooks[name] ??= []).push(fn); },
-			registerTool: (t: { name: string }) => { tools.push(t.name); },
+			registerTool: (t: { name: string; execute: (...a: unknown[]) => Promise<{ details: Record<string, unknown> }> }) => { tools[t.name] = t; },
 			exec: async () => ({ code: 0, stdout: "", stderr: "" }),
 		},
 		hooks, tools,
 	};
 }
 
-test("no policy: tools register, no prompt hook, so a shell-bearing session is not told it has none", async () => {
-	const saved = process.env.AILANG_AGENT_POLICY;
-	delete process.env.AILANG_AGENT_POLICY;
-	try {
-		const f = fakePi();
-		await register(f.api as never, fakeType, process.env);
-		assert.deepEqual(f.tools.sort(), ["ailang_cli", "ailang_run"]);
-		assert.equal(f.hooks["before_agent_start"], undefined);
-	} finally {
-		if (saved !== undefined) process.env.AILANG_AGENT_POLICY = saved;
-	}
+function recordingRunner(reply: (req: ToolRequest) => ToolResponse): { runner: ToolRunner; calls: { policyPath: string; req: ToolRequest }[] } {
+	const calls: { policyPath: string; req: ToolRequest }[] = [];
+	return {
+		calls,
+		runner: async (policyPath, req) => { calls.push({ policyPath, req }); return reply(req); },
+	};
+}
+
+test("no policy: tools register, refuse by reason, no prompt hook, runner never called", async () => {
+	const f = fakePi();
+	const r = recordingRunner(() => ({ ok: true }));
+	await register(f.api as never, fakeType, {}, r.runner);
+	assert.deepEqual(Object.keys(f.tools).sort(), ["ailang_cli", "ailang_edit", "ailang_read", "ailang_run", "ailang_write"]);
+	assert.equal(f.hooks["before_agent_start"], undefined);
+	const out = await f.tools["ailang_read"].execute("id", { path: "x" });
+	assert.equal(out.details.ok, false);
+	assert.match(String(out.details.refused), /not granted/);
+	assert.equal(r.calls.length, 0);
 });
 
-test("with a policy: the prompt hook is registered and names the lane", async () => {
+test("with a policy: the summary comes from the endpoint, the hook names the lane, and every tool call is a typed request carrying the LAUNCHER's policy path", async () => {
 	const dir = mkdtempSync(join(tmpdir(), "lane-"));
 	const pol = join(dir, "policy.toml");
-	writeFileSync(pol, `allowed_caps = ["IO"]\nfs_sandbox = "${join(dir, "ws")}"\nentry = "main"\n`);
-	const saved = process.env.AILANG_AGENT_POLICY;
-	process.env.AILANG_AGENT_POLICY = pol;
+	writeFileSync(pol, "allowed_caps = [\"IO\"]\n");
 	process.env.AILANG_LANE_TEACHING = "0";
 	try {
 		const f = fakePi();
-		await register(f.api as never, fakeType, process.env);
+		const r = recordingRunner((req) => (req.op === "summary" ? { ok: true, summary: summary({ fs_sandbox: join(dir, "ws") }) } : { ok: true, content: "data" }));
+		await register(f.api as never, fakeType, { AILANG_AGENT_POLICY: pol }, r.runner);
+		assert.equal(r.calls[0].req.op, "summary");
+		assert.equal(r.calls[0].policyPath, pol);
 		const hook = f.hooks["before_agent_start"]?.[0] as (ev: { systemPrompt: string }) => Promise<{ systemPrompt: string }>;
 		assert.ok(hook, "hook must be registered when a policy is attached");
-		const out = await hook({ systemPrompt: "base" });
-		assert.match(out.systemPrompt, /Execution lane: ailang_only/);
+		assert.match((await hook({ systemPrompt: "base" })).systemPrompt, /Execution lane: ailang_only/);
+
+		await f.tools["ailang_read"].execute("id", { path: "a.txt" });
+		await f.tools["ailang_write"].execute("id", { path: "b.txt", content: "hi" });
+		await f.tools["ailang_edit"].execute("id", { path: "b.txt", old_text: "hi", new_text: "ho" });
+		await f.tools["ailang_cli"].execute("id", { op: "iface", module: "std/fs" });
+		const reqs = r.calls.slice(1).map((c) => c.req);
+		assert.deepEqual(reqs, [
+			{ op: "read", path: "a.txt" },
+			{ op: "write", path: "b.txt", content: "hi" },
+			{ op: "edit", path: "b.txt", old_text: "hi", new_text: "ho" },
+			{ op: "iface", module: "std/fs" },
+		]);
+		for (const c of r.calls) assert.equal(c.policyPath, pol, "the policy path is the launcher's, on every call");
 	} finally {
-		if (saved !== undefined) process.env.AILANG_AGENT_POLICY = saved; else delete process.env.AILANG_AGENT_POLICY;
 		delete process.env.AILANG_LANE_TEACHING;
 	}
+});
+
+test("with a policy the endpoint refuses: tools register but refuse with the endpoint's reason", async () => {
+	const dir = mkdtempSync(join(tmpdir(), "lane-"));
+	const pol = join(dir, "policy.toml");
+	writeFileSync(pol, "allowed_caps = [\"IO\", \"Process\"]\n");
+	const f = fakePi();
+	const r = recordingRunner(() => ({ ok: false, refused: "allowed_caps admits Process, which restricted mode has no confined adapter for" }));
+	await register(f.api as never, fakeType, { AILANG_AGENT_POLICY: pol }, r.runner);
+	assert.equal(f.hooks["before_agent_start"], undefined);
+	const out = await f.tools["ailang_cli"].execute("id", { op: "check", path: "x.ail" });
+	assert.match(String(out.details.refused), /Process/);
+	assert.equal(r.calls.length, 1, "only the summary was asked; a refused gate never forwards a call");
 });

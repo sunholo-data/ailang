@@ -23,8 +23,15 @@ func TestToolArgs_ProfileAILANGOnlyHasNoBash(t *testing.T) {
 	if !strings.HasPrefix(args, "--no-extensions -e ") || !strings.Contains(args, "ailang-exec.ts") || !strings.Contains(args, "ailang-lsp-lite.ts") || !strings.Contains(args, "examples-search.ts") {
 		t.Fatalf("ailang_only must carry ailang-exec.ts, ailang-lsp-lite.ts and examples-search.ts via -e with discovery off, got %q", args)
 	}
-	if !strings.HasSuffix(args, " --no-builtin-tools --tools read,edit,write,ailang_check,ailang_run,builtins_search,examples_search,ailang_cli") {
+	// AC5 (M-EXECUTOR-POLICY-HARDENING M4): the exact registered surface has
+	// the policy's sandboxed file tools and NOT pi's native read/write/edit.
+	if !strings.HasSuffix(args, " --no-builtin-tools --tools ailang_read,ailang_edit,ailang_write,ailang_check,ailang_run,builtins_search,examples_search,ailang_cli") {
 		t.Fatalf("ailang_only = %q, want the builtin-free allowlist last", args)
+	}
+	for _, native := range []string{" read,", ",read,", ",write,", ",edit,", " read ", ",write ", ",edit "} {
+		if strings.Contains(args, native) {
+			t.Fatalf("ailang_only must not carry pi's native %q: %q", strings.Trim(native, " ,"), args)
+		}
 	}
 	for _, f := range strings.Fields(args) {
 		if strings.HasSuffix(f, ".ts") {
