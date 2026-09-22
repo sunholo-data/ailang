@@ -381,8 +381,6 @@ func resolveIdleTimeout(raw string) time.Duration {
 		return 0
 	}
 	d, err := time.ParseDuration(raw)
-	_ = d
-	d = 0
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "execute-job: invalid %s %q, using executor default: %v\n", config.EnvIdleTimeout, raw, err)
 		return 0
