@@ -40,7 +40,7 @@
 
 ## Milestones
 
-### M0 — Evidence harness (0.5h, ~120 LOC .ail)
+### ✅ M0 — Evidence harness (0.5h, ~120 LOC .ail)
 - `examples/eq_containers.ail`: every V12–V19 positive, each with an unequal control, printing
   `label=bool`.
 - `examples/eq_containers_negative/`: element lacks Eq (function list), anonymous record, a
@@ -48,7 +48,7 @@
   a residual).
 - Record the pre-change output (all positives fail at check).
 
-### M1 — Synthesis + marker + depth cap (1.5h, ~200 LOC Go + tests)
+### ✅ M1 — Synthesis + marker + depth cap (1.5h, ~200 LOC Go + tests)
 - `instances.go`: `Lookup` → `lookupDepth(class, typ, depth)`. `Eq` synthesis for list,
   `Option`, `Result`, tuples and nominal records (`TypeName` → derived instance). Synthesized
   instances are flagged `Structural`. Depth > 8 → `*EqSynthDepthError` (`E_EQ_SYNTH_DEPTH`).
@@ -59,20 +59,20 @@
 - Tests: synthesis table, element-missing names the element, depth cap (mutation: remove the
   increment and the test fails).
 
-### M2 — Deriving field check (R-D5) (0.5h, ~80 LOC)
+### ✅ M2 — Deriving field check (R-D5) (0.5h, ~80 LOC)
 - The elaborator records the field types of each derived type. A pipeline helper (deduplicating
   the two copies in `pipeline_single.go` / `pipeline_module_compile.go`) registers them all,
   then checks every field: anonymous record fields are checked field-wise, the rest go through
   `Lookup`. On failure it errors, naming the type, the field and the missing instance.
 - Gate: a function field fails loudly. Every existing example with `deriving (Eq)` still passes.
 
-### M3 — Close the residual leak (R-D7) (1h, ~80 LOC)
+### ✅ M3 — Close the residual leak (R-D7) (1h, ~80 LOC)
 - `reduceEqConstraint` at the top-level partition. `None == None` and `Ok(1) == Ok(2)` still
   work. `Eq[α -> β]` and residual `Eq[Tree[α]]` are rejected.
 - Gate: `make test-core`, then `make verify-examples-toplevel` (leak-dependent programs surface
   here).
 
-### M4 — Seams, hints, docs (1h)
+### ⚠️ M4 — Seams, hints, docs (all but the offline re-grade) (1h)
 - VM parity tests: record field order and NaN field (evaluator vs `--bytecode`). They assert
   agreement or the documented difference, and any divergence is filed.
 - `eqInstanceHint` and `TestEqInstanceHintIsActionable` are updated deliberately.
@@ -82,3 +82,11 @@
 
 ## Acceptance
 The design doc's *Re-land success criteria*, verbatim.
+
+## Outcome (2026-09-23)
+
+Implemented in `6d096fe98`. Independent evaluation, round 1: **PASS 88/100**
+(`.ailang/state/evaluations/eval_M-EQ-DERIVE-CONTAINERS_round_1.json`). Its high-severity
+finding, a soundness hole via `[x] == [y]` in generic functions, was fixed before the design doc
+moved (see the design doc's implementation notes). The offline `mlfq_scheduler_hidden` re-grade
+remains undone: the data isn't on this machine.

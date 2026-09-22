@@ -24,6 +24,11 @@ func sameList[a](xs: [a], ys: [a]) -> bool {
   xs == ys
 }
 
+-- Wrapping generic values in a list keeps the caller's Eq obligation.
+func sameWrapped[a](x: a, y: a) -> bool {
+  [x] == [y]
+}
+
 func check(label: string, got: bool, want: bool) -> () ! {IO} {
   let mark = if got == want then "ok" else "WRONG" in _io_println("${mark} ${label}=${show(got)}")
 }
@@ -41,6 +46,8 @@ export func main() -> () ! {IO} {
   let _ = check("list_not_empty", xs != [], true) in
   let _ = check("list_generic_eq", sameList(["a"], ["a"]), true) in
   let _ = check("list_generic_ne", sameList([1], [2]), false) in
+  let _ = check("list_wrapped_eq", sameWrapped(3, 3), true) in
+  let _ = check("list_wrapped_ne", sameWrapped("a", "b"), false) in
   -- Option (V14, V15)
   let _ = check("opt_eq", o == Some(1), true) in
   let _ = check("opt_ne", o == Some(2), false) in

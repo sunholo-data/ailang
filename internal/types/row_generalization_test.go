@@ -50,7 +50,7 @@ func TestGeneralizeWithConstraints_RowVars_386(t *testing.T) {
 	// Top-level declaration: currentEnv == baseEnv, so nothing is withheld and the
 	// free row var `e` (which is not owned by any enclosing binder) must generalize.
 	baseEnv := NewTypeEnv()
-	scheme := tc.generalizeWithConstraints(typ, EmptyEffectRow(), nil, baseEnv, baseEnv.FreeTypeVars())
+	scheme := tc.generalizeWithConstraints(typ, EmptyEffectRow(), nil, baseEnv, baseEnv.FreeTypeVars(), baseEnv)
 
 	found := false
 	for _, rv := range scheme.RowVars {

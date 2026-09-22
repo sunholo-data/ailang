@@ -168,3 +168,18 @@ func TestConstraintIsGroundIsScopedToEq(t *testing.T) {
 		t.Error("Eq[[β]] must be non-ground so it is reduced, not rejected")
 	}
 }
+
+// TestReduceEqConstraintsDepthCap: the non-ground reduction is capped like
+// synthesis. Removing the depth increment in reduceEq makes this fail
+// (sprint evaluator finding 3: no test covered it).
+func TestReduceEqConstraintsDepthCap(t *testing.T) {
+	env := LoadBuiltinInstances()
+	var deep Type = &TVar2{Name: "α1", Kind: Star}
+	for i := 0; i < eqSynthDepthCap+1; i++ {
+		deep = &TList{Element: deep}
+	}
+	_, err := env.ReduceEqConstraints([]ClassConstraint{{Class: "Eq", Type: deep, Path: []string{"here"}}})
+	if err == nil || !strings.Contains(err.Error(), "E_EQ_SYNTH_DEPTH") {
+		t.Fatalf("depth %d residual Eq: want E_EQ_SYNTH_DEPTH, got %v", eqSynthDepthCap+1, err)
+	}
+}

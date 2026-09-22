@@ -91,6 +91,28 @@ func (env *TypeEnv) FreeTypeVars() map[string]bool {
 	return free
 }
 
+// FreeTypeVarsAbove returns the vars free in the bindings of the frames
+// between env (inclusive) and base (exclusive): the bindings a declaration
+// pushed on top of its base env. It returns an empty set when base is nil or
+// not an ancestor of env, so callers only ever withhold MORE, never less.
+func (env *TypeEnv) FreeTypeVarsAbove(base *TypeEnv) map[string]bool {
+	free := make(map[string]bool)
+	if base == nil {
+		return free
+	}
+	frames := []*TypeEnv{}
+	for e := env; e != base; e = e.parent {
+		if e == nil {
+			return make(map[string]bool) // base is not an ancestor
+		}
+		frames = append(frames, e)
+	}
+	for _, f := range frames {
+		(&TypeEnv{bindings: f.bindings}).collectFreeTypeVars(free)
+	}
+	return free
+}
+
 func (env *TypeEnv) collectFreeTypeVars(free map[string]bool) {
 	for _, binding := range env.bindings {
 		switch b := binding.(type) {

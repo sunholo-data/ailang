@@ -1,9 +1,9 @@
 {
   "sprint_id": "M-EQ-DERIVE-CONTAINERS",
-  "status": "implemented",
+  "status": "completed",
   "created": "2026-09-22",
-  "design_doc": "design_docs/planned/v0_35_0/m-eq-derive-containers.md",
-  "sprint_plan": "design_docs/planned/v0_35_0/m-eq-derive-containers-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_41_2/m-eq-derive-containers.md",
+  "sprint_plan": "design_docs/implemented/v0_41_2/m-eq-derive-containers-sprint-plan.md",
   "github_issues": [
     960,
     963
@@ -25,7 +25,8 @@
       ],
       "passes": true,
       "started": "2026-09-22",
-      "completed": "2026-09-22"
+      "completed": "2026-09-22",
+      "notes": "examples/eq_containers.ail (now 28 evaluated checks with unequal controls) + 6 negative fixtures; baseline recorded: all positives failed at check."
     },
     {
       "id": "M1",
@@ -41,7 +42,8 @@
       ],
       "passes": true,
       "started": "2026-09-22",
-      "completed": "2026-09-22"
+      "completed": "2026-09-22",
+      "notes": "Lookup synthesis for list/Option/Result/tuple + nominal records (TRecord.TypeName); DerivedStructuralEquality marker; E_EQ_SYNTH_DEPTH cap mutation-tested."
     },
     {
       "id": "M2",
@@ -56,7 +58,8 @@
       ],
       "passes": true,
       "started": "2026-09-22",
-      "completed": "2026-09-22"
+      "completed": "2026-09-22",
+      "notes": "pipeline/derived_eq.go: uniform field check naming the field; de-duplicated registration from two pipeline paths."
     },
     {
       "id": "M3",
@@ -72,7 +75,8 @@
       ],
       "passes": true,
       "started": "2026-09-22",
-      "completed": "2026-09-22"
+      "completed": "2026-09-22",
+      "notes": "ReduceEqConstraints at top-level partition; Eq-only deep groundness (constraintIsGround). Round-1 eval found [x]==[y] in generic funcs leaked via ANF-temp over-generalization (name collision with leaked base-env vars); fixed with FreeTypeVarsAbove withhold + runtime rejectFunctionEquality guard."
     },
     {
       "id": "M4",
@@ -93,5 +97,12 @@
       "completed": null,
       "notes": "All M4 items done EXCEPT the offline re-grade: banked mlfq_scheduler_hidden rows not found on this machine."
     }
-  ]
+  ],
+  "evaluation": {
+    "round": 1,
+    "score": 88,
+    "result": "pass",
+    "report": ".ailang/state/evaluations/eval_M-EQ-DERIVE-CONTAINERS_round_1.json",
+    "follow_up": "round-1 soundness finding fixed 2026-09-23 (generalization withhold by env frame)"
+  }
 }

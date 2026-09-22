@@ -25,8 +25,8 @@ func TestEqContainersExample(t *testing.T) {
 	if strings.Contains(stdout, "WRONG") {
 		t.Errorf("a comparison evaluated to the wrong boolean:\n%s", stdout)
 	}
-	if n := strings.Count(stdout, "\nok "); n < 26 {
-		t.Errorf("want 26 evaluated comparisons, got %d:\n%s", n, stdout)
+	if n := strings.Count(stdout, "\nok "); n < 28 {
+		t.Errorf("want 28 evaluated comparisons, got %d:\n%s", n, stdout)
 	}
 }
 

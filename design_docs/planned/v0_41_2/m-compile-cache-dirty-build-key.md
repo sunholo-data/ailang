@@ -169,7 +169,7 @@ path reads.
 **Planned (check for overlap):**
 - [design_docs/planned/ailang-core-triage/compile-cache-path-dep-invalidation.md](../ailang-core-triage/compile-cache-path-dep-invalidation.md) (0.49): distinct key component (dependency interfaces)
 - [design_docs/planned/v0_36_0/m-cache-module-id-encoding.md](../v0_36_0/m-cache-module-id-encoding.md) (0.45): distinct (entry naming)
-- [design_docs/planned/v0_35_0/m-eq-derive-containers.md](../v0_35_0/m-eq-derive-containers.md): the sprint where this bit
+- [design_docs/implemented/v0_41_2/m-eq-derive-containers.md](../../implemented/v0_41_2/m-eq-derive-containers.md): the sprint where this bit
 
 ---
 

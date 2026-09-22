@@ -28,6 +28,11 @@ func makeADTEqualityFn(typeName string, isEq bool) func([]Value) (Value, error) 
 
 		// Compare structurally
 		equal := taggedValuesEqual(a, b)
+		if !equal {
+			if err := rejectFunctionEquality(a, b); err != nil {
+				return nil, err
+			}
+		}
 
 		if isEq {
 			return &BoolValue{Value: equal}, nil
@@ -46,6 +51,11 @@ func makeStructuralEqualityFn(isEq bool) func([]Value) (Value, error) {
 			return nil, fmt.Errorf("structural Eq expects 2 arguments, got %d", len(args))
 		}
 		equal := valuesStructurallyEqual(args[0], args[1])
+		if !equal {
+			if err := rejectFunctionEquality(args[0], args[1]); err != nil {
+				return nil, err
+			}
+		}
 		return &BoolValue{Value: equal == isEq}, nil
 	}
 }
@@ -151,4 +161,53 @@ func valuesStructurallyEqual(a, b Value) bool {
 		// Unknown types are not equal
 		return false
 	}
+}
+
+// rejectFunctionEquality fails loudly when == reached a function value. The
+// comparator's default answers false for kinds it cannot compare, which for a
+// closure would be a silent wrong answer: the type checker must reject Eq on
+// functions, so reaching one here is a soundness bug upstream, not a result.
+// Only called when the comparison came out unequal, since that default can
+// only ever produce false.
+func rejectFunctionEquality(a, b Value) error {
+	if containsFunctionValue(a) || containsFunctionValue(b) {
+		return fmt.Errorf("internal error: == reached a function value (%s vs %s); "+
+			"functions have no Eq and the type checker should have rejected this comparison", a.Type(), b.Type())
+	}
+	return nil
+}
+
+// containsFunctionValue reports whether v is, or structurally contains, a
+// function. Cycle-safety: walks value trees built by evaluation, which are
+// finite; closures are not entered.
+func containsFunctionValue(v Value) bool {
+	switch x := v.(type) {
+	case *FunctionValue, *BuiltinFunction, *ConstructorClosure:
+		return true
+	case *ListValue:
+		for _, e := range x.Elements {
+			if containsFunctionValue(e) {
+				return true
+			}
+		}
+	case *TupleValue:
+		for _, e := range x.Elements {
+			if containsFunctionValue(e) {
+				return true
+			}
+		}
+	case *RecordValue:
+		for _, f := range x.Fields {
+			if containsFunctionValue(f) {
+				return true
+			}
+		}
+	case *TaggedValue:
+		for _, f := range x.Fields {
+			if containsFunctionValue(f) {
+				return true
+			}
+		}
+	}
+	return false
 }

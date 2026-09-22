@@ -188,7 +188,7 @@ quorum is optional. D1 is a values call for Mark rather than a premise a reviewe
 - [design_docs/implemented/v0_28_0/m-deriving-eq-runtime-and-exit-code.md](design_docs/implemented/v0_28_0/m-deriving-eq-runtime-and-exit-code.md) (0.37)
 
 **Planned (check for overlap):**
-- [design_docs/planned/v0_35_0/m-eq-derive-containers.md](../v0_35_0/m-eq-derive-containers.md): the sprint that surfaced this (R-D6 parity tests)
+- [design_docs/implemented/v0_41_2/m-eq-derive-containers.md](../../implemented/v0_41_2/m-eq-derive-containers.md): the sprint that surfaced this (R-D6 parity tests)
 - [design_docs/planned/ailang-core-triage/named-test-float-dict-resolution.md](../ailang-core-triage/named-test-float-dict-resolution.md) (0.40): distinct (Fractional dict in test bodies), same family of "float op resolves differently by position"
 - [design_docs/planned/m-adt-equality-position-independence.md](../m-adt-equality-position-independence.md) (0.38): distinct (ADT Eq in contracts)
 

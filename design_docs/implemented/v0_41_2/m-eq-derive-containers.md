@@ -1,6 +1,6 @@
 # M-EQ-DERIVE-CONTAINERS — make `==` work for records, Options and lists when the parts already have Eq
 
-**Status**: Implemented 2026-09-22 (awaiting sprint evaluation). Was: Planned — **RE-LAND**. First implementation `caa2d53a6` was reverted same-day in
+**Status**: Implemented 2026-09-22; evaluated 2026-09-23 (PASS 88/100, round-1 soundness finding fixed). Was: Planned — **RE-LAND**. First implementation `caa2d53a6` was reverted same-day in
 `cd1c976fb` (2026-08-29); nothing has landed since. Read **Re-land revision (2026-09-22)** first:
 it supersedes the original Solution Design, ABI, Implementation Plan, Files and Success Criteria
 wherever they conflict.
@@ -177,6 +177,18 @@ Where the build departed from the plan, and why:
 - **NaN:** `valuesStructurallyEqual` was IEEE while `Eq[Float]` is lawful, so the evaluator
   disagreed with itself (`nan == nan` true, `[nan] == [nan]` false). It is now lawful, which also
   makes nested NaN agree with the VM.
+- **Round-1 evaluation finding, fixed (2026-09-23).** `func pick[a](x: a, y: a) { [x] == [y] }`
+  let `pick(f, f)` compile and print `false`. ANF lifts `[x]` into a let-bound temporary, and a list
+  literal is a syntactic value, so the temporary was generalized over the function's own `a`. The
+  name-based withhold (`freeVars(env) \ baseEnvFreeVars`, M-TYPE-LIST-SOUND round 3) cannot
+  withhold `a` when the base env already leaks a free `a`, which it does. Each use then got a fresh
+  `α`, and the caller's Eq obligation was lost. Before this sprint, the shallow `isGround`
+  accidentally rejected the resulting `Eq[[α]]`. Generalization now also withholds every variable
+  free in the env frames the declaration pushed (`TypeEnv.FreeTypeVarsAbove`). As a side effect,
+  `pick(3, 3)` now type-checks (it was rejected before). As defense in depth, the structural
+  comparators return an error when they meet a function value instead of answering `false`
+  (`rejectFunctionEquality`). Fixture `examples/eq_containers_negative/generic_list_fn.ail`.
+  Mutation: dropping the frame withhold makes the fixture fail (with the runtime guard's error).
 - **Mutation-tested:** removing the reduction breaks `residual_fn`, removing the field check
   breaks `fn_field`, reverting the NaN rule breaks the nested-NaN parity test, and removing the
   depth increment breaks the depth-cap test.

@@ -489,6 +489,11 @@ func (e *CoreEvaluator) applyBinOp(op string, left, right Value) (Value, error) 
 		// the same structural comparison the derived-Eq dictionary method uses.
 		if op == "==" || op == "!=" {
 			eq := valuesStructurallyEqual(left, right)
+			if !eq {
+				if err := rejectFunctionEquality(left, right); err != nil {
+					return nil, err
+				}
+			}
 			if op == "!=" {
 				eq = !eq
 			}
