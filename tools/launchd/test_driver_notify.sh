@@ -864,6 +864,28 @@ else
       "pi hangs forever on an stdin that never EOFs; got: ${_pi_spawn:-<no pi spawn found>}"
 fi
 
+# (11) guard (green/red): the ration gate distinguishes UNREADABLE from OVER.
+#
+# The driver reported every rc=75 as "over daily ration". On 2026-09-22 Anthropic
+# sat at ~89% free while three World iterations were told the lane was over
+# ration and descended to a hung pi — the gate was right to block an unmeasurable
+# bucket, but the sentence a human reads was false, and "over" clears when the
+# window rolls while "unreadable" never clears without an operator.
+_rr=$(awk '/^_mc_ration_reason\(\)/,/^}/' "$DRV")
+if printf '%s' "$_rr" | grep -q 'UNREADABLE' && printf '%s' "$_rr" | grep -q 'STALE' \
+   && printf '%s' "$_rr" | grep -q 'over daily ration'; then
+  ok "ration gate: unreadable / stale / over are reported as DIFFERENT states"
+else
+  bad "ration gate: unreadable / stale / over are reported as DIFFERENT states" \
+      "_mc_ration_reason does not distinguish all three"
+fi
+if grep -q 'an_why="\$(_mc_ration_reason anthropic)"' "$DRV"; then
+  ok "ration gate: the anthropic lane notice uses the real reason, not a fixed phrase"
+else
+  bad "ration gate: the anthropic lane notice uses the real reason, not a fixed phrase" \
+      "rc=75 is still mapped to a hardcoded string"
+fi
+
 echo ""
 echo "==== $PASS passed, $FAIL failed ===="
 [ "$FAIL" -eq 0 ]

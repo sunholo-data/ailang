@@ -694,6 +694,18 @@ _mc_load_ration() {
   _mc_bounded 15 ailang mission quota --over; _rc=$?
   _raw="$MC_BOUNDED_OUT"
   MC_OVER_RATION=$(printf '%s\n' "$_raw" | awk '/^(codex|ollama|anthropic|openrouter|opencode)$/' | tr '\n' ' ')
+  # Keep the REASONS, not just the verdict. `--over` emits a bare bucket name as the
+  # machine-readable block list and a `quota: <bucket> <state>: …` line as the human
+  # one, and the driver used to read the first and discard the second — so a bucket
+  # blocked because its quota could not be READ was reported to humans, in the GitHub
+  # notice and the log, as "over daily ration".
+  #
+  # Measured 2026-09-22: Anthropic sat at ~89% FREE on the account while three World
+  # iterations in a row were told `anthropic lane unusable (over daily ration)` and
+  # descended codex -> ollama -> openrouter -> a hung pi. The gate was behaving as
+  # designed (`--over` blocks unknown quota by policy); the SENTENCE was false, and it
+  # is the sentence a human acts on.
+  MC_RATION_REASONS=$(printf '%s\n' "$_raw" | awk '/^quota: /{sub(/^quota: /,""); print}')
   if [ "$_rc" -ne 0 ]; then
     # Say so. A silently unrationed fleet looks identical to a rationed one that
     # found nothing over — and that is the exact ambiguity this milestone exists
@@ -706,6 +718,24 @@ _mc_load_ration() {
     log "ration gate: blocked buckets (over ration or unknown quota):$MC_OVER_RATION"
   fi
   return 0
+}
+
+# _mc_ration_reason BUCKET → the human reason that bucket is blocked.
+#
+# Distinguishes the two states the old message conflated, because they have utterly
+# different resume conditions: "over" clears when the window rolls; "unknown" never
+# clears on its own and needs an operator. Falls back to the raw line rather than
+# inventing a phrase.
+_mc_ration_reason() {
+  local b="$1" line
+  line=$(printf '%s\n' "${MC_RATION_REASONS:-}" | grep -m1 "^${b} " 2>/dev/null)
+  case "$line" in
+    "${b} over"*)    printf 'over daily ration' ;;
+    "${b} unknown"*) printf 'quota UNREADABLE (not measured — the lane may be fine; see `ailang mission quota`)' ;;
+    "${b} stale"*)   printf 'quota observation STALE' ;;
+    "")              printf 'blocked by the ration gate (no reason line captured)' ;;
+    *)               printf '%s' "${line#"$b" }" ;;
+  esac
 }
 
 # _mc_rung_bucket ENTRY → canonical bucket, mirroring observatory.CanonicalQuotaBucket.
@@ -1425,7 +1455,7 @@ for role in DESIGNER PLANNER EXECUTOR EVALUATOR; do
       # 75 is the ration gate, not a broken lane. "Friday" and "broken pin" have very
       # different resume conditions, and so does "over our own daily ration".
       if [ "$an_rc" -eq 1 ]; then an_why="quota-limited"
-      elif [ "$an_rc" -eq 75 ]; then an_why="over daily ration"
+      elif [ "$an_rc" -eq 75 ]; then an_why="$(_mc_ration_reason anthropic)"
       else an_why="unusable (rc=$an_rc)"; fi
       log "anthropic model '$an_model' $an_why"
       _an_rcmap="${_an_rcmap}${an_model}=${an_rc};"
