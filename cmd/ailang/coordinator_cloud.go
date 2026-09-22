@@ -226,7 +226,14 @@ func coordinatorExecuteJob(args []string) error {
 		timeoutStr = coordinator.DefaultTaskTimeout.String()
 	}
 
-	fmt.Printf("execute-job: starting task %s (agent=%s, workspace=%s, model=%s, timeout=%s)\n", taskID, agentID, workspace, model, timeoutStr)
+	// idle_timeout is printed because its ABSENCE was invisible for months: the
+	// start line named the wall-clock ceiling only, so a 3m idle kill under a
+	// declared 5m read as the model stalling rather than as config not arriving.
+	idleStr := config.IdleTimeout()
+	if idleStr == "" {
+		idleStr = "executor default"
+	}
+	fmt.Printf("execute-job: starting task %s (agent=%s, workspace=%s, model=%s, timeout=%s, idle_timeout=%s)\n", taskID, agentID, workspace, model, timeoutStr, idleStr)
 
 	// Execute the task
 	branchName, execResult, evidence, execErr := executeCloudTask(ctx, taskID, agentID, repoURL, branch, directive, provider, pluginRepo, model, timeoutStr)
