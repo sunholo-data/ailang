@@ -501,6 +501,82 @@ models:
       QUOTA BURN RATE, which for a flagship is the real constraint; only a full
       agent run reveals that.
 
+  # OpenAI GPT-6 Sol + Luna (API model objects created 2026-09-14; on OpenRouter 2026-09-22).
+  # The GPT-6 generation's mid and small tiers, below gpt-6-astra. Both: 1.05M context
+  # (922K max input), 128K max output, reasoning.effort none/low/medium(DEFAULT)/high/
+  # xhigh/max — unlike astra, "none" exists, so thinking CAN be switched off.
+  # >272K-token prompts bill at 2x input/cache and 1.5x output for the WHOLE request.
+  # Chat Completions supports function calling ONLY at reasoning_effort=none (use the
+  # Responses API otherwise) — irrelevant to standard mode, which sends no tools.
+  # Source: developers.openai.com/api/docs/models/gpt-6-sol, .../gpt-6-luna (fetched 2026-09-22).
+  gpt6-sol:
+    api_name: "gpt-6-sol"
+    provider: "openai"
+    default_thinking: "on"  # probed 2026-09-22: bare request → reasoning_tokens=87 of 161
+                            # completion, finish=stop (adaptive, default effort medium)
+    description: "GPT-6 Sol - GPT-6 generation mid tier (Sep 2026)"
+    env_var: "OPENAI_API_KEY"
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM convention; declared ceiling is 128000
+    pricing:
+      input_per_1k: 0.002     # $2.00 per 1M = $0.002 per 1K
+      output_per_1k: 0.010    # $10.00 per 1M = $0.010 per 1K
+    notes: |
+      GPT-6 Sol — mid tier of the GPT-6 generation. Knowledge cutoff 2026-04-20.
+      $2/$10 per 1M: 1/5 of gpt-6-astra, 2/5 of gpt-5.6-sol ($5/$30), and cheaper
+      than gpt-5.6-terra ($2/$12). Cached input $0.20/M, cache writes $2.50/M.
+      NAME TRAP: gpt6-sol (GPT-6) is NOT gpt5-6-sol (GPT-5.6 flagship). Different
+      generation, different tier position, different price. Read the digit after "gpt".
+      API access VERIFIED 2026-09-22 (chat/completions, max_completion_tokens,
+      finish_reason=stop). Negative control gpt-9-nonexistent-zzz → "does not exist".
+      ⛔ NO agent_cli — CODEX SUBSCRIPTION LANE REJECTS IT (probed 2026-09-22, codex
+      0.154.0, OPENAI_API_KEY stripped): `codex exec --model gpt-6-sol` → 400 "not
+      supported when using Codex with a ChatGPT account" + "Model metadata ... not
+      found" — byte-for-byte the response to the nonexistent-model control. Positive
+      control gpt-6-astra rc=0 on the same lane, so the lane is healthy and this is
+      server-side availability. Re-probe (and add agent_cli: "codex") when ChatGPT
+      codex lists it; astra's row shows the probe shape.
+      OpenRouter also lists openai/gpt-6-sol-pro at the same $2/$10 — absent from
+      OpenAI's own /v1/models, so NOT registered here.
+      PLACEMENT 2026-09-22: `--tier core,frontier` N=1, candidate alone per §5.5
+      → 28/29, anchored standard ELO 2288.7, $1.85. Only failure gauntlet_10
+      (logic_error, finish=stop, 2,483 reasoning tokens) — capability, not truncation.
+      For reference, gpt6-astra's 09-05 anchored placement was 2554.4 at 29/31.
+      Standard smoke tier NOT run (cloud rows don't normally; astra precedent).
+      Suite promotion: PENDING a decision — not in any suite yet.
+      Uses max_completion_tokens instead of max_tokens.
+
+  gpt6-luna:
+    api_name: "gpt-6-luna"
+    provider: "openai"
+    default_thinking: "on"  # probed 2026-09-22: bare request → reasoning_tokens=143 of 221
+                            # completion, finish=stop (adaptive, default effort medium)
+    description: "GPT-6 Luna - GPT-6 generation fast/cheap tier (Sep 2026)"
+    env_var: "OPENAI_API_KEY"
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM convention; declared ceiling is 128000
+    pricing:
+      input_per_1k: 0.0001    # $0.10 per 1M = $0.0001 per 1K
+      output_per_1k: 0.0005   # $0.50 per 1M = $0.0005 per 1K
+    notes: |
+      GPT-6 Luna — small/fast tier of the GPT-6 generation. Knowledge cutoff 2026-05-18.
+      $0.10/$0.50 per 1M: the CHEAPEST OpenAI row in this file — half of the
+      post-cut gpt-5.6-luna ($0.20/$1.20). Cached input $0.01/M, cache writes
+      $0.125/M. Batch/flex 50% off, fast tier 2x.
+      NAME TRAP: gpt6-luna (GPT-6) is NOT gpt5-6-luna (GPT-5.6).
+      API access VERIFIED 2026-09-22 (chat/completions, finish_reason=stop).
+      ⛔ NO agent_cli — codex subscription lane rejects it exactly as it rejects
+      gpt6-sol (see that row for the probe and controls). Re-probe later.
+      Candidate for the gpt5-4-mini dev_models / lang_harness_suite slot IF placement
+      shows it matches mini's quality — that is the question worth answering here.
+      PLACEMENT 2026-09-22: `--tier core,frontier` N=1, candidate alone → 26/29,
+      anchored standard ELO 2008.2, $0.11 for the whole panel. Failures:
+      contract_rle_roundtrip + ssa_constant_fold (compile_error), gauntlet_10
+      (logic_error); all finish=stop with modest reasoning — capability, not truncation.
+      The pre-anchor gpt5-4-mini rating (1790.8, 2026-08-03) is on a DIFFERENT scale;
+      do not rank luna against it. Settling the mini slot needs mini's own anchored
+      placement (candidate alone, ~$0.55), not a shared re-run.
+      Suite promotion: PENDING a decision — not in any suite yet.
+      Uses max_completion_tokens instead of max_tokens.
+
   # OpenAI GPT-5.4 (released March 5, 2026)
   gpt5-4:
     api_name: "gpt-5.4"
@@ -892,7 +968,9 @@ models:
     pricing:
       input_per_1k: 0.010   # $10 per million = $0.010 per 1K — UNCHANGED from Fable 5
       output_per_1k: 0.050  # $50 per million = $0.050 per 1K — UNCHANGED from Fable 5
-      cache_read_per_1k: 0.001   # 0.1x input — Anthropic prompt-cache read rate
+      cache_read_per_1k: 0.00025  # $0.25/M = 0.025x input, NOT the usual 0.1x (pricing page,
+                                  # 2026-09-22). Was 0.001 until then — a 4x overstatement of
+                                  # every cached Fable 5.1 read, pinned in place by a 0.1x test.
       cache_write_per_1k: 0.0125  # 1.25x input — Anthropic 5-minute cache write rate
     notes: |
       Anthropic's most capable widely released model (September 1, 2026).
@@ -948,6 +1026,68 @@ models:
       output_tokens, and the arithmetic reconciles exactly
       ($5.58699 = 14,979 in x $10/M + 108,744 out x $50/M). A re-run would
       populate the split at a cost of ~$5.59 and would not change pass/fail.
+
+  # Anthropic Claude Opus 5.5 (launched 2026-09-22)
+  claude-opus-5-5:
+    api_name: "claude-opus-5-5"
+    provider: "anthropic"
+    default_thinking: "always_on"  # probed 2026-09-22: bare request → content blocks
+      # ["thinking","text"], thinking_tokens=167 of 298 output. And it CANNOT be turned
+      # off: {type:"disabled"} is a 400 at EVERY effort level (Opus 5 allowed it <= high).
+    description: "Claude Opus 5.5 - Opus-line successor to Opus 5 at a lower price (Sep 2026)"
+    env_var: "ANTHROPIC_API_KEY"
+    agent_cli: "claude"
+    agent_model_name: "claude-opus-5-5"  # explicit id, never the "opus" alias (the alias
+      # trap documented on claude-opus-5). Verified 2026-09-22: `claude -p --model
+      # claude-opus-5-5` (CLI 2.1.280, ANTHROPIC_API_KEY stripped = subscription lane)
+      # → rc=0, modelUsage keys ["claude-opus-5-5"]. Negative control claude-opus-9-zzz
+      # → rc=1 "unrecognized_model".
+    model_family: "claude-opus-5-5"
+    max_output_tokens: 64000   # Same reasoning as claude-opus-5: standard mode calls the
+      # NON-streaming Messages API; 128K is the streaming ceiling. Thinking and text share
+      # this cap — a finish=length failure is truncation until proven otherwise (§2a).
+    pricing:
+      input_per_1k: 0.004    # $4.00 per million (Opus 5 was $5)
+      output_per_1k: 0.020   # $20.00 per million (Opus 5 was $25)
+      cache_read_per_1k: 0.0002    # $0.20/M = 0.05x input, NOT the usual 0.1x (pricing page, 2026-09-22)
+      cache_write_per_1k: 0.005    # $5/M = 1.25x input — 5-minute cache write rate
+    notes: |
+      Successor to Claude Opus 5 in the Opus line, 20% CHEAPER ($4/$20 vs $5/$25).
+      Same 1M context, 128K max output, tokenizer and feature set as Opus 5.
+
+      Harness-relevant API deltas vs Opus 5 (read before debugging a failure):
+        • ⚠️ DEFAULT EFFORT IS "medium", not "high" (Opus 5's default). This row sends no
+          effort, so it runs at MEDIUM. A head-to-head with claude-opus-5 therefore
+          compares medium vs high effort, not just 5.5 vs 5. Deliberately left at vendor
+          default (model-manager §2a); if pinning is ever chosen, record it here.
+        • Thinking CANNOT be disabled — {type:"disabled"} and budget_tokens both 400 at
+          every effort. Registered CanDisable:false in internal/ai/reasoning_anthropic.go.
+        • Forced tool_choice (any / tool) → 400. ⚠️ internal/ai/anthropic/client.go
+          implements ResponseFormat=="json" with tool_choice {type:"tool"} — that path
+          will 400 on this model (and on claude-fable-5-1, which has the same rule).
+          Standard eval code-gen does not use it; anything that does must not route here
+          until the client switches to tool_choice auto / output_config.format.
+        • Thinking blocks are tied to model + conversation (preserved thinking); only
+          Fable 5.1 / Mythos 5.1 read them. Irrelevant to single-shot standard mode.
+        • Broader safety classifiers: bio and reasoning_extraction join cyber. A
+          stop_reason "refusal" is NOT an api_error — bank it as such if seen.
+        • Minimum cacheable prefix is NOT in Anthropic's published table as of
+          2026-09-22; cache.go's substring match gives it Opus 5's 512 — unverified.
+      Fast mode ($8/$40) is Claude-API-only and unused by this harness.
+
+      Access verified 2026-09-22 on BOTH lanes: Messages API (stop=end_turn) and the
+      Claude Code CLI subscription lane (see agent_model_name). Listed on OpenRouter
+      as anthropic/claude-opus-5.5 at $4/$20.
+      PLACEMENT 2026-09-22: `--tier core,frontier` N=1, candidate alone per §5.5
+      → 29/29 (every core+frontier benchmark in the 2026-09-22 tier set, incl.
+      gauntlet_10), anchored standard ELO 2871.9, $1.36 for the whole panel — at
+      vendor-default MEDIUM effort. A perfect score has no upper bound in an ELO fit,
+      so 2871.9 is a FLOOR, not a point estimate; N>=3 or a harder tier is what would
+      sharpen it. Above gpt6-astra's anchored 2554.4 — but astra's 31-benchmark panel
+      included docx_reimplement + markdown_reimplement (its only two misses), which
+      are NOT in today's 29-benchmark tier set, so the raw pass counts do not compare;
+      only the anchored ratings do.
+      Suite promotion: PENDING a decision — not in any suite yet.
 
   # Anthropic Claude Opus 5 (released July 2026)
   claude-opus-5:

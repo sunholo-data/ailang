@@ -56,6 +56,9 @@ type AnthropicThinkingStyle struct {
 // is pinned by TestAnthropicThinkingStyle_CoversCapabilityTable.
 var anthropicThinkingStyles = map[string]AnthropicThinkingStyle{
 	// --- Adaptive generation: budget_tokens REMOVED (400) -----------------
+	// Opus 5.5 (2026-09-22) drops Opus 5's disable path: {type:"disabled"} is a
+	// 400 at EVERY effort level, and its default effort is "medium", not "high".
+	"claude-opus-5-5": {Adaptive: true, CanDisable: false},
 	"claude-opus-5":   {Adaptive: true, CanDisable: true},
 	"claude-opus-4-8": {Adaptive: true, CanDisable: true},
 	"claude-opus-4-7": {Adaptive: true, CanDisable: true},
