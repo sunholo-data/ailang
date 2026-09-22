@@ -248,3 +248,31 @@ func TestNoAmbientInstances(t *testing.T) {
 		}
 	}
 }
+
+// TestEqInstanceHintIsActionable pins the Eq hint per kind of type. The old text told
+// every caller to "Import std/prelude", a module that does not exist — and standard-mode
+// evals hand this string to the model's only self-repair attempt.
+func TestEqInstanceHintIsActionable(t *testing.T) {
+	cases := []struct {
+		name string
+		typ  Type
+		want string
+	}{
+		{"list", &TApp{Constructor: &TCon{Name: "list"}, Args: []Type{TInt}}, "Lists have no =="},
+		{"legacy list", &TList{Element: TInt}, "Lists have no =="},
+		{"option", &TApp{Constructor: &TCon{Name: "Option"}, Args: []Type{TInt}}, "pattern-match on its constructors"},
+		{"tuple", &TTuple{Elements: []Type{TInt, TInt}}, "destructure them"},
+		{"user ADT", &TCon{Name: "Color"}, "deriving (Eq)"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			h := actionableInstanceHint("Eq", c.typ)
+			if !strings.Contains(h, c.want) {
+				t.Errorf("Eq hint for %s = %q, want it to contain %q", c.typ, h, c.want)
+			}
+			if strings.Contains(h, "std/prelude") {
+				t.Errorf("Eq hint for %s points at std/prelude, which does not exist: %q", c.typ, h)
+			}
+		})
+	}
+}

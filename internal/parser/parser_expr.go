@@ -39,8 +39,15 @@ func (p *Parser) parseExpression(precedence int) ast.Expr {
 		return nil
 	}
 
-	leftExp := prefix()
+	return p.parseInfixTail(prefix(), precedence)
+}
 
+// parseInfixTail is the Pratt infix loop: it extends an already-parsed left
+// operand with any infix operators that bind tighter than precedence. Split
+// out of parseExpression so a caller that parsed the operand by other means
+// (parseCase's `{...}` arm body) can continue it exactly like any other
+// expression position does.
+func (p *Parser) parseInfixTail(leftExp ast.Expr, precedence int) ast.Expr {
 	for !p.peekTokenIs(lexer.SEMICOLON) && precedence < p.peekPrecedence() {
 		infix := p.infixParseFns[p.peekToken.Type]
 		if infix == nil {
@@ -307,6 +314,18 @@ func (p *Parser) parseCase() *ast.Case {
 		p.traceDelimiterOpen(delimCtxCase)
 		c.Body = p.parseBlockOrExpression()
 		p.traceDelimiterClose(delimCtxCase)
+		// A leading record literal or block can still be the left operand of an
+		// infix operator: `_ => {lo: 1, hi: 2} :: rest`. Returning here used to
+		// end the arm at the `}`, so the `::` was parsed as the NEXT arm's
+		// pattern and failed with PAT_INVALID_CONS — while the same expression
+		// parsed fine as a function body, let RHS or if-branch (found
+		// 2026-09-22: it cost gpt6-astra a frontier benchmark). Continue only
+		// on the SAME line as the closing `}`: commas between arms are
+		// optional, so a next arm starting on a new line (`[] => ...`,
+		// `-1 => ...`) must not be absorbed as an operator.
+		if c.Body != nil && p.peekToken.Line == p.curToken.Line {
+			c.Body = p.parseInfixTail(c.Body, LOWEST)
+		}
 	} else {
 		c.Body = p.parseExpression(LOWEST)
 	}

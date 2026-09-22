@@ -86,11 +86,41 @@ func actionableInstanceHint(class string, typ Type) string {
 	case "Fractional":
 		return fmt.Sprintf("Float division (/) needs floats; %s is not Fractional. Convert ints with intToFloat, e.g. intToFloat(x) / intToFloat(y).", ts)
 	case "Ord":
-		return fmt.Sprintf("Comparisons (<, >, <=, >=) need an Ord instance; %s has none. Import std/prelude, or compare a supported type (int, float, string).", ts)
+		return fmt.Sprintf("Comparisons (<, >, <=, >=) need an Ord instance; %s has none. Compare a supported type instead (int, float, string), e.g. a key field.", ts)
 	case "Eq":
-		return fmt.Sprintf("Equality (==, !=) needs an Eq instance; %s has none. Import std/prelude, or derive/define one.", ts)
+		return eqInstanceHint(typ, ts)
 	}
 	return "Import std/prelude or define instance"
+}
+
+// eqInstanceHint says how to FIX a missing Eq for the kind of type involved.
+//
+// It used to say "Import std/prelude, or derive/define one" for every type. There is
+// no std/prelude module (and namespace imports are unsupported), so that advice could
+// never work — and standard-mode evals feed this text to the model's one self-repair
+// attempt. Measured 2026-09-22: 4 of 6 compile failures on mlfq_scheduler_hidden
+// (opus-5-5, gpt6-sol x2, gpt6-luna) were Eq on a list, and none of the repairs
+// recovered. == is defined on int, float, string and bool, and on user ADTs that
+// declare `deriving (Eq)`; lists, Option/Result, tuples and records have none.
+func eqInstanceHint(typ Type, ts string) string {
+	prefix := fmt.Sprintf("Equality (==, !=) is not defined on %s.", ts)
+	if _, ok := AsList(typ); ok {
+		return prefix + " Lists have no ==: test emptiness with `match xs { [] => ..., _ => ... }` or length(xs) == 0 (import std/list (length)), and compare contents element by element."
+	}
+	switch t := typ.(type) {
+	case *TTuple:
+		return prefix + " Tuples have no ==: destructure them and compare the components."
+	case *TRecord, *TRecordOpen:
+		return prefix + " Records have no ==: compare the fields you care about, e.g. a.id == b.id."
+	case *TApp:
+		if c, ok := t.Constructor.(*TCon); ok && (c.Name == "Option" || c.Name == "Result") {
+			return prefix + fmt.Sprintf(" %s has no ==: pattern-match on its constructors instead.", c.Name)
+		}
+		return prefix + " If this is your own type, declare it with `deriving (Eq)`, e.g. `type T = A | B(int) deriving (Eq)`."
+	case *TCon:
+		return prefix + " If this is your own type, declare it with `deriving (Eq)`, e.g. `type T = A | B(int) deriving (Eq)`."
+	}
+	return prefix + " Compare a supported type instead (int, float, string, bool)."
 }
 
 // DefaultFor returns the default type for a class (for numeric literal defaulting)
