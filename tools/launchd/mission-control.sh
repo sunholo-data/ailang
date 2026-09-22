@@ -1528,32 +1528,43 @@ export MISSION_EVALUATOR_MODEL="${MISSION_EVALUATOR_MODEL:-sonnet}"
 # 14 extensions globally, where they collide with the repo's own .pi/extensions/ — fatally, not
 # as warnings. Same model outside a checkout: 0 errors, replies ok. Inside: 5 errors, no output
 # at all, including workspace-trust.ts itself failing to load.
-# EVALUATOR ORDER REPAIRED 2026-09-22 (Mark, attended). The chain was
-# `sonnet -> minimax@openrouter -> sonnet-4-6 -> opus`, which interleaved buckets
-# (anthropic, openrouter, anthropic, anthropic) and ended on a BARE `opus` alias. Two
-# problems: the interleaving means a healthy-Anthropic run that fails its first judge
-# leaves the bucket and comes back, spending an OpenRouter call it did not need; and a
-# bare alias resolves through the Agent tool's sonnet|opus|haiku enum rather than to a
-# pinned id — the same trap this file documents for the designer's bare "fable".
+# EVALUATOR ORDER: REVERTED 2026-09-22 after I broke it, recorded because the reasoning
+# that produced the break is the reusable part.
 #
-# Now: escalate WITHIN the healthy bucket, then leave it, and name the model explicitly.
+# The chain reads as badly interleaved — anthropic, openrouter, anthropic, anthropic,
+# ending on a BARE alias — and I reordered it to "escalate within the bucket, then leave
+# it", pinning the bare `opus` to claude:claude-opus-5-5 on the way. Three things were
+# wrong with that, and tools/launchd/test_evaluator_skill_lane.sh names the first:
 #
-#   sonnet ($3/$15) -> claude-sonnet-4-6 ($3/$15) -> claude-opus-5-5 ($4/$20)
-#     -> pi:openrouter/minimax/minimax-m3 (metered)
+#   1. THE TAIL MUST BE PRECONDITION-FREE. `claude:*|opus|sonnet|haiku` need nothing from
+#      the machine; a `pi:*` rung needs the global workspace-trust.ts. Moving minimax to
+#      the tail made the LAST RESORT the rung most likely to be unavailable. The test says
+#      so in as many words: "the last resort must not depend on a precondition".
+#   2. LEAVING THE BUCKET LATE IS THE WRONG DEFAULT. Anthropic's limit is account-wide
+#      (see the 2026-08-16 drought above), so the common evaluator failure is bucket-wide,
+#      not model-specific. minimax at rung 1 leaves a dry bucket after ONE failed probe;
+#      my version burned three Anthropic probes first, in exactly the state the fallback
+#      exists to cover.
+#   3. `opus` and `claude:claude-opus-5-5` DISPATCH DIFFERENTLY. resolve-role-spawn.sh
+#      routes a bare alias through the Agent tool and anything matching `*:*` through a
+#      provider-pin recipe. "Pinning the alias for predictability" silently changed the
+#      mechanism.
 #
-# Nothing is removed — the same four judges, reordered, with `opus` made explicit.
+# So the original ordering was deliberate on every count. Restored verbatim.
 #
-# STILL THE WEAKEST ROLE FOR VENDOR SPREAD, and knowingly so: three of four rungs are
-# Anthropic and the fourth is OpenRouter, so a simultaneous anthropic+openrouter dry-out
-# leaves the evaluator with nothing while planner and executor still have two lanes each.
-# The obvious repair is a Google rung — the evaluator emits a VERDICT, not files, so the
-# "gemini cannot author" exclusion that rightly bars it from designer/executor does not
-# apply here, and gemini-3-1-pro is already trusted as a design-quorum reviewer. It is NOT
-# added here because it is not a one-line change: there is no google bucket in the quota
-# ledger and _mc_rung_bucket has no gemini case, so a `gemini:*` rung would fall to the
-# `*)` default and be rationed against ANTHROPIC — blocked in exactly the state it exists
-# to cover. Tracked in design_docs/planned/m-mission-role-elo-and-tier-order.md.
-export MISSION_EVALUATOR_FALLBACK="${MISSION_EVALUATOR_FALLBACK:-claude:claude-sonnet-4-6,claude:claude-opus-5-5,pi:openrouter/minimax/minimax-m3}"
+# TWO STANDING PROPERTIES, both real, neither a defect to fix here:
+#
+#   NO OPENAI RUNG, and that is ENFORCED, not an oversight. The evaluator must load skills
+#   and codex cannot: test_evaluator_skill_lane.sh fails any `codex:*` or `opencode:*` rung
+#   with "has no measured skill support". The admissible space is claude:* and pi:* only.
+#   Adding a codex rung would red that test, not widen the fleet.
+#
+#   TWO ANTHROPIC RUNGS AT THE SAME PRICE (sonnet primary, sonnet-4-6 at rung 2, both
+#   $3/$15). Under an account-wide limit the second adds a probe rather than availability;
+#   it earns its place only on a MODEL-specific failure. Left alone deliberately — removing
+#   a judge is a capability decision, and this one has never been measured either way.
+#   Recorded in design_docs/planned/m-mission-role-elo-and-tier-order.md instead.
+export MISSION_EVALUATOR_FALLBACK="${MISSION_EVALUATOR_FALLBACK:-pi:openrouter/minimax/minimax-m3,claude:claude-sonnet-4-6,opus}"
 
 # Codex-lane pre-flight, ROLE-GENERIC (m-planner-codex-lane): probe once per DISTINCT
 # codex model, fall back per-role on ANY non-zero rc (#486: probe MUST carry --model;

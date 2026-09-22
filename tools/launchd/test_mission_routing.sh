@@ -28,10 +28,10 @@ driver="$ROOT/tools/launchd/mission-control.sh"
 # take a primary. These two arms were briefly flipped to astra earlier the same
 # day and are restored — sol keeps both primaries on months of in-role track
 # record, against astra's single fizzbuzz round-trip and an rc=0 probe.
-grep -q 'MISSION_EXECUTOR_MODEL:-codex:gpt-5.6-sol' "$driver" \
-  && ok "executor primary remains Codex Sol" || bad "executor primary remains Codex Sol" "missing default"
-grep -q 'MISSION_PLANNER_MODEL:-codex:gpt-5.6-sol' "$driver" \
-  && ok "planner primary remains Codex Sol" || bad "planner primary remains Codex Sol" "missing default"
+grep -q 'MISSION_EXECUTOR_MODEL:-codex:gpt-6-sol' "$driver" \
+  && ok "executor primary is Codex Sol (gpt-6-sol since 2026-09-22)" || bad "executor primary is Codex Sol (gpt-6-sol since 2026-09-22)" "missing default"
+grep -q 'MISSION_PLANNER_MODEL:-codex:gpt-6-sol' "$driver" \
+  && ok "planner primary is Codex Sol (gpt-6-sol since 2026-09-22)" || bad "planner primary is Codex Sol (gpt-6-sol since 2026-09-22)" "missing default"
 # The fallback chains must stay `pi:*`-headed. A `codex:*` value here would run
 # UNPROBED — the codex loop hands off to a value that only the *pi* loop probes —
 # which is the "pin running unprobed on World" defect ailang#611 fixed. This is the
@@ -252,15 +252,25 @@ grep -q 'MISSION_DESIGNER_FALLBACK:-codex:gpt-6-astra' "$driver" \
 grep -qE 'MISSION_(MODEL_PREFS|CONTROLLER_FALLBACK):-[^}]*gpt-6-astra' "$driver" \
   && bad "astra is NOT a controller rung" "astra is back in a controller ladder" \
   || ok "astra is NOT a controller rung"
-grep -q 'MISSION_MODEL_PREFS:-claude-opus-5,codex:gpt-5.6-sol,claude-fable-5-1}' "$driver" \
-  && ok "controller ladder is opus-5 -> sol -> fable-5-1 (order RESTORED 2026-09-06)" \
-  || bad "controller ladder is opus-5 -> sol -> fable-5-1 (order RESTORED 2026-09-06)" "wrong ladder"
+# RETIERED 2026-09-22 (Mark, attended): opus-5 -> opus-5-5, gpt-5.6-sol -> gpt-6-sol, and
+# fable-5-1 DROPPED from the controller. It sat last in an ordered preference list at $10/$50,
+# 2.5x the price of the head — a degrade chain whose final rung is its most expensive model.
+# It also bought almost nothing under an account-wide Anthropic limit (see the 08-16 note
+# below), and dropping it restores Mark's 2026-07-16 rule that Fable is for high-cognition
+# ROLES. The ladder is now monotonically cheaper with one bucket per rung.
+grep -q 'MISSION_MODEL_PREFS:-claude-opus-5-5,codex:gpt-6-sol}' "$driver" \
+  && ok "controller ladder is opus-5-5 -> gpt-6-sol (fable dropped 2026-09-22)" \
+  || bad "controller ladder is opus-5-5 -> gpt-6-sol (fable dropped 2026-09-22)" "wrong ladder"
 # The reorder-to-Anthropic-first arm is deliberately NOT reinstated. Anthropic's limit is
 # account-wide, not per-model — the 08-16 drought quota-limited opus-5, opus-4-8 AND fable-5
 # together — so "opus spent but fable healthy" is not a state this account reaches, and the
 # reorder only bought an extra failed probe on every fall-through.
-grep -q 'MISSION_CONTROLLER_FALLBACK:-codex:gpt-5.6-sol,pi:ollama' "$driver" \
-  && ok "controller falls Sol -> pi directly" || bad "controller falls Sol -> pi directly" "missing"
+# The Sol rung moved OUT of the fallback head 2026-09-22: codex:gpt-6-sol is already the
+# prefs tail, and a rung that just failed its probe fails again ~20s later. The fallback now
+# starts where the prefs stop — at the first bucket the prefs did not try.
+grep -q 'MISSION_CONTROLLER_FALLBACK:-pi:ollama' "$driver" \
+  && ok "controller fallback starts at pi (sol de-duplicated 2026-09-22)" \
+  || bad "controller fallback starts at pi (sol de-duplicated 2026-09-22)" "missing"
 # The designer keeps its astra rung — the change is scoped to the controller.
 grep -q 'MISSION_DESIGNER_FALLBACK:-codex:gpt-6-astra' "$driver" \
   && ok "designer keeps its astra rung" || bad "designer keeps its astra rung" "astra was removed from the designer too"
@@ -283,8 +293,11 @@ grep -q 'MISSION_EVALUATOR_FALLBACK:-pi:ollama/\(kimi\|deepseek\)' "$driver" \
 # displaced); the second is that astra sits immediately behind it. Order is the
 # whole point of this change — reversing them would make astra the effective
 # codex controller, which is exactly what Mark declined.
-grep -q 'MISSION_CONTROLLER_FALLBACK:-codex:gpt-5.6-sol' "$driver" \
-  && ok "controller fallback still leads with Codex Sol" || bad "controller fallback still leads with Codex Sol" "sol displaced from the head"
+# INVERTED 2026-09-22: the assertion is now that codex does NOT appear in the fallback at
+# all, because it is in the prefs. A codex rung reappearing here is the duplicate coming back.
+grep -qE 'MISSION_CONTROLLER_FALLBACK:-[^}]*codex:' "$driver" \
+  && bad "controller fallback carries NO codex rung (it lives in prefs)" "codex duplicated across prefs and fallback again" \
+  || ok "controller fallback carries NO codex rung (it lives in prefs)"
 
 "$ROOT/scripts/mission_decisions.sh" --check --file "$ROOT/design_docs/v1-mission.md" >/dev/null \
   && ok "decision ledger validates" || bad "decision ledger validates" "invalid"
@@ -468,15 +481,23 @@ grep -q 'enum in this build lists' "$skill_all" \
 # S3/S4/S5 — astra's placement, and the collision it creates. Rewritten 2026-09-05
 # after Mark corrected the first attempt: astra is an ADDITIONAL fable-class entry
 # to vary between, NOT a replacement for fable's slot.
-grep -q 'now `claude:claude-fable-5-1` → `codex:gpt-6-astra` → `pi:ollama/deepseek-v4-flash:0731-cloud` → repeat' "$skill_all" \
-  && ok "S3 designer rotation is fable -> astra -> deepseek (astra ADDED, fable kept)" \
-  || bad "S3 designer rotation is fable -> astra -> deepseek (astra ADDED, fable kept)" "rotation is not the three-entry list"
+# AMENDED 2026-09-22 (Mark, attended): opus-5-5 REPLACES fable-5-1 in the Anthropic authoring
+# slot — cheaper ($4/$20 vs $10/$50) at the property that put Fable here (thinking that cannot
+# be disabled at all). Astra and deepseek are untouched, so this stays a three-entry rotation
+# across three billing surfaces.
+grep -q 'now `claude:claude-opus-5-5` → `codex:gpt-6-astra` → `pi:ollama/deepseek-v4-flash:0731-cloud` → repeat' "$skill_all" \
+  && ok "S3 designer rotation is opus-5-5 -> astra -> deepseek (three entries, three vendors)" \
+  || bad "S3 designer rotation is opus-5-5 -> astra -> deepseek (three entries, three vendors)" "rotation is not the three-entry list"
 # The driver seed must NOT have moved: astra is a rotation entry, so nothing pins it.
 # This is the arm that dies if someone re-applies the "astra takes the fable slot"
 # version, which looked identical in a role table and was not what was asked for.
-grep -q 'MISSION_DESIGNER_MODEL:-claude:claude-fable-5-1' "$driver" \
-  && ok "S4 designer seed is still fable (astra is an entry, not a pin)" \
-  || bad "S4 designer seed is still fable (astra is an entry, not a pin)" "seed moved off fable"
+# The seed moved to opus-5-5 with the rotation. What this arm still defends is unchanged and
+# is the reason it exists: astra must NOT become the pin. It is a rotation entry to vary
+# between, not a replacement for the Anthropic slot — the version Mark declined in 2026-09-05
+# looked identical in a role table.
+grep -q 'MISSION_DESIGNER_MODEL:-claude:claude-opus-5-5' "$driver" \
+  && ok "S4 designer seed is the Anthropic slot (opus-5-5), not astra" \
+  || bad "S4 designer seed is the Anthropic slot (opus-5-5), not astra" "seed is not opus-5-5"
 # S5: astra sits in the designer rotation AND in the default quorum roster, so on
 # astra's turn the author is one of its own reviewers. That is a real defect with a
 # named workaround, not a footnote — this arm fails if the quorum default gains
