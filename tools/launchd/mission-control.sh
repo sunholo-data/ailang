@@ -1882,7 +1882,23 @@ _mc_run_once() {
     # but the overlap guard's pidfile is not re-derived).
     # Session kept (no --no-session): a controller run's transcript is forensic
     # evidence the observatory can import; only probes suppress sessions.
-    ( cd "$REPO" && pi --model "$MODEL" -p "$PROMPT" ) >>"$LOG" 2>&1 &
+    # < /dev/null IS LOAD-BEARING. pi waits on stdin even with -p, and hangs
+    # FOREVER if stdin never reaches EOF — no output, no network connection, no
+    # children, 0% CPU, main thread parked in uv__io_poll/kevent.
+    #
+    # Measured 2026-09-22 in ailang-world, the same command with a trivial prompt:
+    #   stdin inherited  -> 0 bytes, still alive at 3m, 0.0% CPU
+    #   stdin </dev/null -> "ok", exited cleanly
+    #
+    # It cost World three consecutive iterations overnight (23:33, 03:36, 07:34),
+    # each killed by the stall watchdog at ~50 minutes with the identical
+    # signature `flat prog=… cpu=0`. The watchdog was RIGHT every time; the
+    # controller had genuinely never written a byte.
+    #
+    # The probe above does not hit this because --no-tools takes a different
+    # startup path, which is exactly why a green probe never predicted a hung
+    # controller: the probe and the thing it certifies are not the same program.
+    ( cd "$REPO" && pi --model "$MODEL" -p "$PROMPT" < /dev/null ) >>"$LOG" 2>&1 &
   else
     claude -p "$PROMPT" \
       --model "$MODEL" \

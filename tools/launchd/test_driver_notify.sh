@@ -846,6 +846,24 @@ else
   bad "drain: a failed send logs rc and the captured cause" "keep-branch does not log MC_BOUNDED_OUT"
 fi
 
+# (10) guard (green/red): the pi CONTROLLER spawn closes stdin.
+#
+# pi waits on stdin even with -p and hangs forever if it never reaches EOF —
+# 0% CPU, no output, no network, parked in uv__io_poll. It cost World three
+# consecutive iterations on 2026-09-22 before anyone looked, because the symptom
+# is indistinguishable from "the model is thinking" until the stall watchdog
+# fires 50 minutes later.
+#
+# A line-shape assertion, not a behavioural one: reproducing the hang in a test
+# would mean spending a real model call and waiting for it NOT to answer.
+_pi_spawn=$(grep -n 'pi --model "\$MODEL" -p "\$PROMPT"' "$DRV" | head -1)
+if printf '%s' "$_pi_spawn" | grep -q '< */dev/null'; then
+  ok "wiring: pi controller spawn closes stdin (< /dev/null)"
+else
+  bad "wiring: pi controller spawn closes stdin (< /dev/null)" \
+      "pi hangs forever on an stdin that never EOFs; got: ${_pi_spawn:-<no pi spawn found>}"
+fi
+
 echo ""
 echo "==== $PASS passed, $FAIL failed ===="
 [ "$FAIL" -eq 0 ]
