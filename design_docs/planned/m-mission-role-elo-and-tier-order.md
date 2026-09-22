@@ -90,6 +90,22 @@ It was NOT added during the 2026-09-22 repair because it is not a one-line chang
    is rationed against **anthropic** — blocked in precisely the state it exists to cover.
 3. Gemini is metered, so it needs a spend ration like OpenRouter's, not a percentage gauge.
 
+### M5 — measure whether codex can load a skill (cheap, and it gates M4's alternative)
+
+One probe: run `codex exec` in a workspace containing `.agents/skills/sprint-evaluator/` and
+ask it to state the rubric's threshold. A model that answers "70" read the skill; one that
+describes a generic rubric did not. Run it both with and without the Codex plugin, since the
+README distinguishes them. Add a negative control (a skill name that does not exist) so a
+confident fabrication is distinguishable from a real read — pi's original failure was
+articulate about having no skills, and a fabricated rubric would not be.
+
+If codex CAN load skills, the evaluator's vendor-spread problem is solved without the Google
+work in M4: `codex:gpt-6-sol` is already paid for on the subscription, already a fleet lane,
+and already trusted enough to run planner and executor. If it cannot, the refusal stops being
+an inherited assumption and becomes a measured fact worth citing.
+
+Either way this is ~30 minutes and retires a rule that has been shaping routing for weeks.
+
 ## Verification Log
 
 | # | Claim | How verified | Result |
@@ -102,6 +118,8 @@ It was NOT added during the 2026-09-22 repair because it is not a one-line chang
 | V6 | Controller corpus size and arms | `wc -l` + `uniq -c` over `mission-*-slot-verdicts.log` | 67 rows, 4 missions, 7 controller arms |
 | V7 | Non-controller roles are prose-only | grep of Gate-4 records in `world-mission-log.md` | matches like ``executor `pi:ollama/deepseek-v4-flash:0731-cloud` `` — no verdict field |
 | V8 | kimi-k3 designer failure is real, not folklore | `[[project_designer_rotation_kimi_lane_failed]]` | 1802s / 73 tool calls / 0 files |
+| V10 | **NEGATIVE**: no measurement of codex skill-loading exists anywhere in the repo | grep for codex+skill/AGENTS.md across md/yml/sh/go | only the two reject-by-default rules and an assertion citing a pi measurement; zero codex probes |
+| V11 | Codex has documented routes to skills | `README.md:73-75`, `AGENTS.md:19` | "Codex reads this repository's AGENTS.md automatically"; the plugin "adds the reusable AILANG skills"; skills live in `.agents/skills/` |
 | V9 | Anthropic's limit is account-wide (why extra same-bucket rungs add probes, not availability) | driver comment recording the 2026-08-16 drought | opus-5 / opus-4-8 / fable-5 all quota-limited together, 45 refusals each |
 
 ## Constraints any tier proposal must respect (measured 2026-09-22, the hard way)
@@ -111,9 +129,19 @@ Discovered by proposing a tier order that violated them and watching the suites 
 1. **The evaluator's last rung must be precondition-free.** `claude:*|opus|sonnet|haiku`
    need nothing from the machine; a `pi:*` rung needs the global `workspace-trust.ts`.
    `test_evaluator_skill_lane.sh`: *"the last resort must not depend on a precondition."*
-2. **No `codex:*` or `opencode:*` rung may serve the evaluator** — it must load skills and
-   codex cannot. So OpenAI is structurally excluded from that role; its absence is enforced,
-   not an oversight, and adding one reds the suite rather than widening the fleet.
+2. **`codex:*` and `opencode:*` are refused as evaluator rungs — as UNMEASURED, not as
+   incapable.** I first wrote this up as "codex cannot load skills". That is not what the
+   evidence says, and the difference decides whether the evaluator's vendor spread is fixable.
+   `test_evaluator_skill_lane.sh` rejects them with "has no **measured** skill support", and the
+   measurement recorded beside that rule is about **pi**: on 2026-09-08 pi answered "I don't
+   have any skills available in this session", which turned out to be a DISCOVERY failure
+   (it did not look in `.agents/skills/`), was fixed by the workspace-trust extension, and
+   re-measured as working. Codex's classification was inherited from that same period and
+   never tested — before or since. What we do know points the other way: the README states
+   "Codex reads this repository's `AGENTS.md` automatically" and that the Codex plugin "adds
+   the reusable AILANG skills", while `AGENTS.md:19` names `.agents/skills/` as where skills
+   live. So there are two documented routes and zero measurements. **Treat this as an open
+   question with a cheap experiment behind it, not a constraint** — see M5.
 3. **Leave a dry bucket EARLY, not late.** Anthropic's limit is account-wide, so the common
    failure is bucket-wide. A chain that escalates through three same-bucket rungs before
    switching spends three dead probes in exactly the state the fallback exists for. This
