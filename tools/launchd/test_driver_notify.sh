@@ -40,6 +40,11 @@ if [ -n "${MC_ATTEMPT_FILE:-}" ]; then
   printf '%s\n' "$n" > "$MC_ATTEMPT_FILE"
 fi
 printf 'store=<%s> proj=<%s>\n' "${AILANG_STORAGE_MESSAGING:-}" "${AILANG_MESSAGES_PROJECT:-}"
+# STUB_AILANG_OUT lets an arm reproduce what the REAL CLI writes — notably the
+# duplicate-title rejection, and the ~470-char registry banner it prints BEFORE any
+# error. Both are load-bearing: the driver reads the first to classify a send, and the
+# second is what hid that classification behind a head-truncated diagnostic.
+[ -n "${STUB_AILANG_OUT:-}" ] && printf '%s\n' "$STUB_AILANG_OUT"
 exit "${AILANG_RC:-0}"
 STUB
 chmod +x "$LAB/bin/ailang"
@@ -79,10 +84,20 @@ awk '/^# --- DRIVER PIN STATE PATHS START ---/,/^# --- DRIVER PIN STATE PATHS EN
 # use, so the hang-cutoff and drain arms exercise the production code, not a retype.
 awk '/^_mc_bounded\(\) \{/,/^\}/' "$DRV"                    > "$LAB/bounded.sh"
 awk '/^_mc_drain_notices\(\) \{/,/^\}/' "$DRV"              > "$LAB/drain.sh"
+# The drain and the notifier both classify a send through these, so the arms must load
+# the PRODUCTION copies — a retyped duplicate-matcher would pass while the driver's rots.
+awk '/^_mc_notice_title\(\) \{/,/^\}/' "$DRV"               > "$LAB/notice_helpers.sh"
+awk '/^_mc_notice_suppressed\(\) \{/,/^\}/' "$DRV"         >> "$LAB/notice_helpers.sh"
+# APPEND them to both callers' fixtures rather than making every arm source a third file.
+# An arm that forgets is not a clean failure: an undefined function inside `$(...)` yields
+# the EMPTY STRING, so the send goes out with `--title ''` and the arm fails somewhere far
+# from the cause. Twelve arms did exactly that on the first run of this change.
+cat "$LAB/notice_helpers.sh" >> "$LAB/notify.sh"
+cat "$LAB/notice_helpers.sh" >> "$LAB/drain.sh"
 
 export MC_BND="$LAB/bounded.sh"
 
-for f in notify pin_decision pin_block pin_drift_block pin_age_block lane_block state_paths bounded drain; do
+for f in notify pin_decision pin_block pin_drift_block pin_age_block lane_block state_paths bounded drain notice_helpers; do
   if [ ! -s "$LAB/$f.sh" ]; then echo "FATAL: extraction of $f produced nothing"; exit 1; fi
 done
 echo "extracted: notify=$(wc -l < "$LAB/notify.sh") pin-decision=$(wc -l < "$LAB/pin_decision.sh") pin=$(wc -l < "$LAB/pin_block.sh") pin-drift=$(wc -l < "$LAB/pin_drift_block.sh") pin-age=$(wc -l < "$LAB/pin_age_block.sh") lane=$(wc -l < "$LAB/lane_block.sh") state-paths=$(wc -l < "$LAB/state_paths.sh") bounded=$(wc -l < "$LAB/bounded.sh") drain=$(wc -l < "$LAB/drain.sh") lines"
@@ -770,6 +785,90 @@ case "$_dl_log" in
   *) bad "drain: deferred-drain diagnostic names deferred row count" "$(printf '%s' "$_dl_log"|tr '\n' '|')";;
 esac
 rm -rf "$_dl_spool" "$_dl_tr" "$_dl_att" "$_dl_outf"
+
+# (4c) DUPLICATE-TITLE REJECTION. `ailang messages send` exits 1 when the title already
+# exists in the inbox, and an inbox message is never deleted — so the rejection is
+# TERMINAL. The drain used to read rc=1 as transport failure and keep the row, which
+# retried a provably-unclearable condition on every fire for fifteen days (six world
+# rows, oldest 2026-09-07) while reporting "kept for the next fire".
+# Three facts in one fixture: the row is DROPPED, the log says why, and the title the
+# send carried is stamped with the ROW's date (not today's) so a retry is idempotent.
+_dup_spool=$(mktemp -d); _dup_tr=$(mktemp); _dup_outf=$(mktemp)
+printf '2026-09-07T14:26:28Z\tMission v1: lane degraded\tBody line one\n' > "$_dup_spool/mission-v1-notice-spool.tsv"
+run_bounded 15 "$_dup_outf" env MC_TRACE_FILE="$_dup_tr" AILANG_RC=1 \
+  STUB_AILANG_OUT='⚠: duplicate message exists (ID: inbox_17)' MISSION_NOTIFY_TIMEOUT=5 \
+  /bin/bash -c '
+    set -uo pipefail
+    . "$MC_BND"
+    . "$3"
+    NOTIFY_TIMEOUT="${MISSION_NOTIFY_TIMEOUT:-30}"
+    log() { printf "LOG:%s\n" "$*" >> "$MC_TRACE_FILE"; }
+    MISSION_NAME=v1; MISSION_REPO=sunholo-data/ailang; MSG_FROM=mission-control
+    STATE_DIR="$1"
+    . "$2"
+    _mc_drain_notices
+    echo "DRAIN_RC:$?"
+  ' _ "$_dup_spool" "$LAB/drain.sh" "$LAB/notice_helpers.sh"
+_dup_rc=$?; _dup_out="$(cat "$_dup_outf")"; _dup_log="$(cat "$_dup_tr" 2>/dev/null || true)"
+_dup_rows=0
+[ -f "$_dup_spool/mission-v1-notice-spool.tsv" ] && _dup_rows=$(wc -l < "$_dup_spool/mission-v1-notice-spool.tsv" | tr -d ' ')
+if [ "$_dup_rc" = "124" ]; then
+  bad "drain: a duplicate-title rejection DROPS the row (retry cannot clear it)" "outer watchdog tripped"
+elif [ "$_dup_rows" -eq 0 ]; then
+  ok "drain: a duplicate-title rejection DROPS the row (retry cannot clear it)"
+else
+  bad "drain: a duplicate-title rejection DROPS the row (retry cannot clear it)" "spool still holds $_dup_rows row(s): $(printf '%s' "$_dup_log"|tr '\n' '|')"
+fi
+case "$_dup_log" in
+  *"already recorded for that day; dropped (not a failure)"*) ok "drain: the dropped row is reported as recorded, NOT as a failed send";;
+  *) bad "drain: the dropped row is reported as recorded, NOT as a failed send" "$(printf '%s' "$_dup_log"|tr '\n' '|')";;
+esac
+# The title must carry the SPOOLED row's date. Today's date would mint a new title on
+# every fire, so a genuinely-undeliverable row would accumulate one inbox copy per day.
+case "$_dup_log" in
+  *"--title Mission v1: lane degraded [2026-09-07]"*) ok "drain: the send title is stamped with the ROW's date, so a retry is idempotent";;
+  *) bad "drain: the send title is stamped with the ROW's date, so a retry is idempotent" "$(printf '%s' "$_dup_log"|tr '\n' '|')";;
+esac
+rm -rf "$_dup_spool" "$_dup_tr" "$_dup_outf"
+
+# (4d) A REAL failure must still be KEPT — the drop above is scoped to the one rejection
+# that no retry can clear, not widened into "rc=1 means give up".
+# Same fixture, only the stub's OUTPUT differs: the classifier reads the cause, not the code.
+_rf_spool=$(mktemp -d); _rf_tr=$(mktemp); _rf_outf=$(mktemp)
+printf '2026-09-07T14:26:28Z\tMission v1: lane degraded\tBody line one\n' > "$_rf_spool/mission-v1-notice-spool.tsv"
+# >300 chars of banner BEFORE the error, exactly as the real CLI prints it. This is also
+# the tail-truncation arm: `cut -c1-300` from the head showed nothing but the banner,
+# which is why the duplicate above went unread for fifteen days behind a diagnostic that
+# existed to prevent precisely that blindness.
+_rf_banner="$(printf 'package agents: derived 14 inbox agent(s) from the registry index: %s' "$(printf 'pkg-sunholo-filler-%s, ' 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20)")"
+run_bounded 15 "$_rf_outf" env MC_TRACE_FILE="$_rf_tr" AILANG_RC=1 \
+  STUB_AILANG_OUT="${_rf_banner}
+Error: permission denied on prod Firestore" MISSION_NOTIFY_TIMEOUT=5 \
+  /bin/bash -c '
+    set -uo pipefail
+    . "$MC_BND"
+    . "$3"
+    NOTIFY_TIMEOUT="${MISSION_NOTIFY_TIMEOUT:-30}"
+    log() { printf "LOG:%s\n" "$*" >> "$MC_TRACE_FILE"; }
+    MISSION_NAME=v1; MISSION_REPO=sunholo-data/ailang; MSG_FROM=mission-control
+    STATE_DIR="$1"
+    . "$2"
+    _mc_drain_notices
+    echo "DRAIN_RC:$?"
+  ' _ "$_rf_spool" "$LAB/drain.sh" "$LAB/notice_helpers.sh"
+_rf_rc=$?; _rf_log="$(cat "$_rf_tr" 2>/dev/null || true)"
+_rf_rows=0
+[ -f "$_rf_spool/mission-v1-notice-spool.tsv" ] && _rf_rows=$(wc -l < "$_rf_spool/mission-v1-notice-spool.tsv" | tr -d ' ')
+if [ "$_rf_rows" -eq 1 ]; then
+  ok "drain: a NON-duplicate failure is still kept for the next fire"
+else
+  bad "drain: a NON-duplicate failure is still kept for the next fire" "rows=$_rf_rows rc=$_rf_rc ($(printf '%s' "$_rf_log"|tr '\n' '|'))"
+fi
+case "$_rf_log" in
+  *"permission denied on prod Firestore"*) ok "drain: the failure diagnostic shows the TAIL, past the registry banner";;
+  *) bad "drain: the failure diagnostic shows the TAIL, past the registry banner" "cause truncated away: $(printf '%s' "$_rf_log"|tr '\n' '|')";;
+esac
+rm -rf "$_rf_spool" "$_rf_tr" "$_rf_outf"
 
 # (5) hanging gh comment: ailang healthy, gh hangs -> bounded cutoff, WARNING, exit 0.
 _gh_tr=$(mktemp); _gh_outf=$(mktemp); _gh_sp=$(mktemp -d); _gh_beg=$(date +%s)

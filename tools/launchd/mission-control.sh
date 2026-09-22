@@ -155,6 +155,39 @@ log() { echo "[$(date '+%F %H:%M:%S')] $*" | tee -a "$LOG"; }
 # NOT fail-closed: aborting on a failed post would make GitHub/controlplane availability a hard
 # dependency of every fire. A failed post is LOUD in the driver log instead — the one thing the
 # silent-fallback class never was (Critical Principle 2).
+# _mc_notice_title TITLE ISO8601 → the title stamped with the event's UTC DATE.
+#
+# `ailang messages send` REFUSES a title that already exists in the inbox
+# (cmd/ailang/messages_send.go: InboxMessageExistsByTitle → os.Exit(1)), and an inbox
+# message is never deleted — only read and acked. So a GENERIC recurring title collides
+# FOREVER after its first send, and the rejection is rc=1, indistinguishable to this
+# driver from a transport failure.
+#
+# Measured 2026-09-22: six world rows, the oldest from 2026-09-07, had been retried on
+# every fire for fifteen days against a condition NO retry can clear — three attempts
+# with backoff in _mc_notify, then once more per fire from the spool, ~16 fires a day.
+# The cost was not the wasted sends: every recurring degradation notice after the first
+# was invisible on the message plane for that whole period, while the driver log said
+# "kept for the next fire", which reads as patience rather than as a wedged queue.
+#
+# Stamping the DATE (not the full timestamp) keeps dedupe working AS INTENDED — one
+# notice per class, per mission, per day — instead of one per class for all time. A
+# repeat within the same day is then a DELIBERATE suppression, which is what
+# _mc_notice_suppressed reads it as.
+_mc_notice_title() {
+  printf '%s [%s]' "$1" "$(printf '%s' "$2" | cut -c1-10)"
+}
+
+# _mc_notice_suppressed → 0 when the last send was refused as a same-day duplicate.
+# TERMINAL, and intended: the notice for this class and day is already in the inbox.
+# Retrying is futile by construction, so the caller must count it delivered and must
+# NOT spool it. Matched on the CLI's own wording; --force is deliberately not used,
+# because the suppression is the behaviour we want once the title carries the date.
+_mc_notice_suppressed() {
+  case "${MC_BOUNDED_OUT:-}" in *"duplicate message exists"*) return 0 ;; esac
+  return 1
+}
+
 # _mc_drain_notices — deliver notices spooled by a previous fire.
 #
 # _mc_notify's spool comment has always said "the next fire's preflight drains this",
@@ -185,11 +218,19 @@ _mc_drain_notices() {
       log "notice spool: deferred ${deferred} row(s), aggregate budget ${DRAIN_BUDGET}s exhausted"
       return 0
     fi
-    if _mc_bounded "$NOTIFY_TIMEOUT" env AILANG_STORAGE_MESSAGING=gcp AILANG_MESSAGES_PROJECT="${AILANG_MESSAGES_PROJECT:-ailang-multivac}" \
-       ailang messages send controlplane "[spooled $ts] $body" --title "$title" --from "$MSG_FROM"; then
+    # rc is captured from the send itself, NOT from a later test: _mc_notice_suppressed
+    # runs between the send and the failure branch and would otherwise overwrite $?.
+    _mc_bounded "$NOTIFY_TIMEOUT" env AILANG_STORAGE_MESSAGING=gcp AILANG_MESSAGES_PROJECT="${AILANG_MESSAGES_PROJECT:-ailang-multivac}" \
+       ailang messages send controlplane "[spooled $ts] $body" --title "$(_mc_notice_title "$title" "$ts")" --from "$MSG_FROM"
+    rc=$?
+    if [ "$rc" -eq 0 ]; then
       sent=$((sent + 1))
+    elif _mc_notice_suppressed; then
+      # Already in the inbox for that class and day. Dropping the row is the only exit:
+      # the duplicate cannot be cleared by waiting, so KEEPING it is how the queue wedged.
+      sent=$((sent + 1))
+      log "notice spool: [$ts] ${title} — already recorded for that day; dropped (not a failure)"
     else
-      rc=$?
       printf '%s\t%s\t%s\n' "$ts" "$title" "$body" >> "$spool"
       kept=$((kept + 1))
       # SAY WHY. _mc_bounded already captures the command's stdout+stderr in
@@ -200,7 +241,11 @@ _mc_drain_notices() {
       # printed. A retry loop that cannot say why it is retrying is not an
       # instrument, and "kept for the next fire" reads as patience rather than as a
       # stuck queue. rc=124 is the bounded-timeout code, 125 a mktemp failure.
-      log "notice spool: send FAILED rc=${rc} for [$ts] ${title} — $(printf '%s' "${MC_BOUNDED_OUT:-<no output captured>}" | tr '\n\t' '  ' | cut -c1-300)"
+      # TAIL, not head. `ailang` prints a ~470-char registry banner ("derived 14 inbox
+      # agent(s) from the registry index: ...") BEFORE any error, so `cut -c1-300` showed
+      # nothing but the banner on every failure — which is why the duplicate rejection
+      # above sat unread for fifteen days behind a diagnostic added to prevent exactly that.
+      log "notice spool: send FAILED rc=${rc} for [$ts] ${title} — $(printf '%s' "${MC_BOUNDED_OUT:-<no output captured>}" | tr '\n\t' '  ' | tail -c 300)"
     fi
   done < "$tmp"
   rm -f "$tmp"
@@ -210,7 +255,11 @@ _mc_drain_notices() {
 }
 
 _mc_notify() {
-  local title="$1" body="$2" label="$3" _try rc=1 _rc=1
+  local title="$1" body="$2" label="$3" _try rc=1 _rc=1 _ts
+  # ONE timestamp for the whole call: it stamps the title (via _mc_notice_title) and, if
+  # the send fails, the spool row — so a spooled retry re-derives the SAME title instead
+  # of minting a new one per attempt and filling the inbox with near-duplicates.
+  _ts="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
   # RETRY, briefly. Measured 2026-09-06: the lane-degradation notice for the fire that
   # dropped the whole fleet to pi lanes failed to send — and the same send succeeded by
   # hand minutes later, so it was a blip. The consequence was not a lost log line: it
@@ -231,7 +280,7 @@ _mc_notify() {
     # per-command scoping (never exported; AILANG_STORAGE untouched) while a `VAR=x` prefix
     # would make exec treat VAR=x as the command name.
     _mc_bounded "$NOTIFY_TIMEOUT" env AILANG_STORAGE_MESSAGING=gcp AILANG_MESSAGES_PROJECT="${AILANG_MESSAGES_PROJECT:-ailang-multivac}" \
-      ailang messages send controlplane "$body" --title "$title" --from "$MSG_FROM"; _rc=$?; _out="$MC_BOUNDED_OUT"
+      ailang messages send controlplane "$body" --title "$(_mc_notice_title "$title" "$_ts")" --from "$MSG_FROM"; _rc=$?; _out="$MC_BOUNDED_OUT"
     # G5 ARM B: a TIMED-OUT command produced no output, so MC_BOUNDED_OUT is empty and the
     # failure WARNING would degrade to `FAILED ... after 3 attempts:` with nothing after it —
     # the exact blindness _mc_notify's own comment exists to prevent. Synthesise the reason.
@@ -242,6 +291,14 @@ _mc_notify() {
     [ "$_rc" -eq 124 ] && _out="timed out after ${NOTIFY_TIMEOUT}s (no output)"
     [ "$_rc" -ne 0 ] && [ -z "$_out" ] && _out="no output (rc=$_rc)"
     if [ "$_rc" -eq 0 ]; then rc=0; break; fi
+    # A same-day duplicate is the inbox dedupe doing its job now that the title carries
+    # the date: this class has already been reported today. DELIVERED, not failed —
+    # without this the call would burn three attempts with backoff and then spool a row
+    # the drain could never clear, which is precisely how the queue wedged for fifteen days.
+    if _mc_notice_suppressed; then
+      log "${label} notice already recorded for $(printf '%s' "$_ts" | cut -c1-10) — suppressed by the inbox dedupe, not retried"
+      rc=0; break
+    fi
     [ "$_try" -lt 3 ] && sleep $(( _try * 5 ))
   done
   if [ "$rc" -ne 0 ]; then
@@ -250,7 +307,7 @@ _mc_notify() {
     log "WARNING: ${label} notice FAILED to send via ailang messages after 3 attempts: $(printf '%s' "$_out" | tail -c 300 | tr '\n' ' ')"
     # Spool it. The next fire's preflight drains this, so a notice survives a channel
     # outage instead of existing only in a log nobody is tailing.
-    printf '%s\t%s\t%s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$title" "$(printf '%s' "$body" | tr '\n' ' ')" \
+    printf '%s\t%s\t%s\n' "$_ts" "$title" "$(printf '%s' "$body" | tr '\n' ' ')" \
       >> "$STATE_DIR/mission-${MISSION_NAME}-notice-spool.tsv" 2>/dev/null || true
   fi
   if [ -n "${MISSION_GH_ISSUE:-}" ]; then
