@@ -117,6 +117,25 @@ fi
 # --- DRIVER PIN STATE PATHS END ---
 # -----------------------------------------------------------------------------
 [ -f "$HOME/.config/ailang/secrets.env" ] && . "$HOME/.config/ailang/secrets.env"
+# ANTHROPIC CREDENTIAL PROVENANCE — say which path is in play, once per fire.
+#
+# There are two, and they fail differently. CLAUDE_CODE_OAUTH_TOKEN (from
+# `claude setup-token`, captured by tools/attended/set_claude_oauth_token.sh) is
+# long-lived and is what anthropic_quota.go prefers. The fallback is the
+# `Claude Code-credentials` keychain item, whose access token lives ~8 HOURS and
+# which Claude Code refreshes IN MEMORY without writing back — so it goes stale
+# while the app keeps working.
+#
+# That asymmetry cost three World iterations on 2026-09-22: inference was fine,
+# only the quota READ failed, `--over` blocks an unreadable bucket by policy, and
+# the driver called it "over daily ration" on a subscription at 12% consumed.
+# Nothing in the log said which credential was in use, so the diagnosis started
+# from the wrong end.
+if [ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]; then
+  log "anthropic credential: CLAUDE_CODE_OAUTH_TOKEN (long-lived, from secrets.env)"
+else
+  log "anthropic credential: keychain fallback — NO CLAUDE_CODE_OAUTH_TOKEN set. The keychain access token expires ~8h and Claude Code does not write refreshes back, so quota reads WILL go stale. Fix once: tools/attended/set_claude_oauth_token.sh"
+fi
 
 # BILLING GUARD (2026-07-10): the mission MUST bill the Claude subscription,
 # never API credits. secrets.env exports ANTHROPIC_API_KEY for other tools —

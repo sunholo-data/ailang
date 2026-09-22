@@ -104,6 +104,7 @@ func anthropicOAuthToken(ctx context.Context) string {
 	var cred struct {
 		ClaudeAIOauth struct {
 			AccessToken string `json:"accessToken"`
+			ExpiresAt   int64  `json:"expiresAt"`
 		} `json:"claudeAiOauth"`
 		AccessToken string `json:"accessToken"`
 	}
@@ -111,9 +112,42 @@ func anthropicOAuthToken(ctx context.Context) string {
 		return ""
 	}
 	if cred.ClaudeAIOauth.AccessToken != "" {
+		// Record the stored token's expiry so a STALE credential can be named as
+		// such. Claude Code refreshes its access token in memory and does not write
+		// the fresh one back here, so this blob goes stale while the app keeps
+		// working — which is exactly how the fleet ended up reading a week-old
+		// token, getting HTTP 401, and reporting the bucket as unmeasurable.
+		//
+		// Measured 2026-09-22: expiresAt was 2026-09-15, seven days earlier, while
+		// the neighbouring refreshToken was valid for another fourteen. Anthropic
+		// sat at ~89% free and three World iterations were routed away from it.
+		lastKeychainExpiry = cred.ClaudeAIOauth.ExpiresAt
 		return cred.ClaudeAIOauth.AccessToken
 	}
 	return cred.AccessToken
+}
+
+// lastKeychainExpiry is the expiry (unix millis) of the access token most
+// recently read from the keychain, or 0 when it was unset or the token came from
+// the environment. It exists only to turn a bare HTTP 401 into a sentence an
+// operator can act on; it is never used to decide whether to make the call,
+// because a clock skew must not be able to suppress a reading that would work.
+var lastKeychainExpiry int64
+
+// keychainTokenStaleness returns a human clause when the stored token has
+// expired, and "" otherwise.
+func keychainTokenStaleness(now time.Time) string {
+	if lastKeychainExpiry <= 0 {
+		return ""
+	}
+	exp := time.UnixMilli(lastKeychainExpiry)
+	if !exp.Before(now) {
+		return ""
+	}
+	return fmt.Sprintf(" — the keychain access token EXPIRED %s (%s ago); "+
+		"Claude Code refreshes in memory without writing back, so re-authenticate it "+
+		"(the stored refreshToken is not used by this reader)",
+		exp.UTC().Format("2006-01-02"), now.Sub(exp).Round(time.Hour))
 }
 
 // ObserveAnthropicQuota makes one bounded usage-only call. It never makes an inference call.
@@ -152,7 +186,8 @@ func observeAnthropicQuota(token string, now time.Time, client *http.Client) Ant
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
-		o.Reason = fmt.Sprintf("Anthropic usage endpoint returned HTTP %d", resp.StatusCode)
+		o.Reason = fmt.Sprintf("Anthropic usage endpoint returned HTTP %d%s", resp.StatusCode,
+			keychainTokenStaleness(now))
 		return o
 	}
 	const limit = 1 << 20
