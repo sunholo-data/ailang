@@ -575,7 +575,31 @@ _mc_mem_ok() {
 # fall-through. Restored. Recorded rather than quietly reverted, because the lesson is the
 # reusable part: I changed live routing on an unverified premise, and the verification was
 # sitting in our own mission log.
-PREFS="${MISSION_MODEL_PREFS:-claude-opus-5,codex:gpt-5.6-sol,claude-fable-5-1}"
+# MODEL UPGRADE 2026-09-22 (attended): claude-opus-5 -> claude-opus-5-5, and every
+# codex:gpt-5.6-sol rung -> codex:gpt-6-sol. Both are straight upgrades within the same
+# lane and the same subscription — nothing is displaced and no rung is added or removed.
+#
+#   Opus 5.5 is CHEAPER than Opus 5 at identical capability: $4/$20 per M vs $5/$25, and
+#   cache reads $0.20/M vs $0.50/M (0.05x input, not the usual 0.1x). Same 1M context,
+#   same 128K output ceiling, same tokenizer. Verified on the SUBSCRIPTION lane
+#   (`claude -p --model claude-opus-5-5`, ANTHROPIC_API_KEY stripped) rc=0 with
+#   modelUsage key claude-opus-5-5; negative control claude-opus-9-zzz rc=1
+#   "unrecognized_model". One behaviour change to know: Opus 5.5 thinking CANNOT be
+#   disabled ({type:"disabled"} is a 400 at every effort level, where Opus 5 allowed it
+#   <= high) — harmless here, since only evals restrict thinking.
+#
+#   gpt-6-sol is the GPT-6 generation's mid tier at $2/$10 per M, and it REPLACES a row
+#   whose thinking was never verified: gpt5-6-sol still carries default_thinking
+#   "unknown", while gpt6-sol is probed (reasoning_tokens=87 of 161). REQUIRES
+#   codex-cli >= 0.155.1 — on 0.154.0 `codex exec --model gpt-6-sol` returns 400, which
+#   reads as model unavailability and is not. This rig is on 0.155.1 (checked 2026-09-22);
+#   a box on 0.154.0 sees a dead lane, so the CLI version is a fleet precondition.
+#
+# READ THE DIGIT AFTER "gpt". gpt-5.6-sol and gpt-6-sol are different generations, tiers
+# and prices, and so are gpt-5.6-luna and gpt-6-luna. Every site below was changed
+# individually and asserted by name — a global replace across this file would silently
+# cross-wire the fleet onto the wrong model at the wrong price.
+PREFS="${MISSION_MODEL_PREFS:-claude-opus-5-5,codex:gpt-6-sol,claude-fable-5-1}"
 # CONTROLLER_FALLBACK is an ordered COMMA CHAIN walked left to right (Mark, attended
 # 2026-08-31: "a longer chain of redundancies after codex", explicitly NOT a new default —
 # codex keeps its rung; the pi rungs exist so a simultaneous Anthropic+codex dry-out no
@@ -598,7 +622,7 @@ PREFS="${MISSION_MODEL_PREFS:-claude-opus-5,codex:gpt-5.6-sol,claude-fable-5-1}"
 # This chain is safe to extend with a `codex:*` entry — unlike the per-role
 # chains below — because the controller selector probes EVERY entry it walks
 # (_mc_probe_codex per codex:* rung), rather than handing off to a later loop.
-CONTROLLER_FALLBACK="${MISSION_CONTROLLER_FALLBACK:-codex:gpt-5.6-sol,pi:ollama/glm-5.3:cloud,pi:openrouter/z-ai/glm-5.3}"
+CONTROLLER_FALLBACK="${MISSION_CONTROLLER_FALLBACK:-codex:gpt-6-sol,pi:ollama/glm-5.3:cloud,pi:openrouter/z-ai/glm-5.3}"
 QUOTA_SIG="usage limit|rate.?limit|quota|exceeded|too many requests|weekly limit"
 PROBE_TIMEOUT="${MISSION_PROBE_TIMEOUT:-120}"   # per-probe wall-clock cap, seconds
 NOTIFY_TIMEOUT="${MISSION_NOTIFY_TIMEOUT:-30}"   # per-notify wall-clock cap, seconds (D-60)
@@ -1289,7 +1313,7 @@ export MISSION_METERED_BUDGET_USD="${MISSION_METERED_BUDGET_USD:-5}"
 # earlier edit): astra goes IN THE CHAIN, it does not replace sol. Sol keeps the
 # planner primary it has held since iteration 136 — months of track record in this
 # specific role, against astra's one fizzbuzz round-trip and an rc=0 probe.
-export MISSION_PLANNER_MODEL="${MISSION_PLANNER_MODEL:-codex:gpt-5.6-sol}"
+export MISSION_PLANNER_MODEL="${MISSION_PLANNER_MODEL:-codex:gpt-6-sol}"
 # MISSION_PLANNER_ALLOWLIST (M-DOCS-MISSION, 2026-08-28 docs iteration 1): the per-mission
 # env files (~/.config/ailang/mission-<name>.env) set this WITHOUT `export`, so sourcing
 # them only defines a local shell variable in THIS script's process — it never reached the
@@ -1309,7 +1333,7 @@ export MISSION_PLANNER_ALLOWLIST="${MISSION_PLANNER_ALLOWLIST:-tools/launchd/*|.
 # ASTRA IS NOT THE PRIMARY (Mark, attended 2026-09-05). Sol keeps the executor
 # primary; the ratified chain "codex as default, deepseek the replacement when
 # codex is out, opus last" (Mark 2026-08-06) is restored exactly as it was.
-export MISSION_EXECUTOR_MODEL="${MISSION_EXECUTOR_MODEL:-codex:gpt-5.6-sol}"
+export MISSION_EXECUTOR_MODEL="${MISSION_EXECUTOR_MODEL:-codex:gpt-6-sol}"
 # EXECUTOR FALLBACK CHAIN — ailang#611 (2026-08-11).
 #
 # RATIFIED SEMANTICS (Mark 2026-08-06, restated attended 2026-08-10 and 2026-08-11):
@@ -1365,7 +1389,7 @@ export MISSION_PLANNER_FALLBACK="${MISSION_PLANNER_FALLBACK:-pi:ollama/kimi-k3:c
 # has proved the Anthropic subscription unavailable, use Codex Sol rather than
 # wedging or silently inheriting the failed controller. derive-planner-lane.sh
 # applies this only when MISSION_ANTHROPIC_AVAILABLE=0.
-export MISSION_PLANNER_ANTHROPIC_FALLBACK="${MISSION_PLANNER_ANTHROPIC_FALLBACK:-codex:gpt-5.6-sol}"
+export MISSION_PLANNER_ANTHROPIC_FALLBACK="${MISSION_PLANNER_ANTHROPIC_FALLBACK:-codex:gpt-6-sol}"
 # evaluator default = sonnet (2026-07-16, Mark directive on #399: "default can be gemini (if able
 # to git clone the codebase etc)? otherwise sonnet-5"). gemini managed_agents is NOT viable as the
 # evaluator today — VERIFIED iteration 38: (1) architecturally the request body carries only

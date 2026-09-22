@@ -5463,6 +5463,21 @@ default: "claude-sonnet-4-6"
 # only. Said plainly because the table this replaced carried a comment claiming
 # Lane A read it, which a grep showed was never true.
 roles:
+  # MODEL UPGRADE 2026-09-22 (attended): the planner and executor heads move
+  # gpt5-6-sol -> gpt6-sol. Same lane (codex subscription), same position, better row:
+  # $2/$10 per M, and thinking is PROBED (reasoning_tokens=87 of 161) where gpt5-6-sol
+  # still carries default_thinking "unknown" — so the upgrade also closes a measurement
+  # blind spot on the two roles that do the most tokens.
+  #
+  # REQUIRES codex-cli >= 0.155.1 (0.154.0 400s gpt-6-sol, which reads as unavailability
+  # and is not). The gpt5-6-sol ROW IS KEPT in the catalogue above: it is still the
+  # design-quorum's OpenAI seat and the comparator in the astra benchmark record, and
+  # provenance_test.go uses it as the control that the embedded registry is the real one.
+  #
+  # READ THE DIGIT AFTER "gpt" — gpt5-6-sol and gpt6-sol are different generations and
+  # prices. TestRoles_NeverMixGptGenerations below asserts no role chain names both.
+  # The historical mentions of gpt5-6-sol elsewhere in this file are MEASUREMENTS and
+  # were deliberately left alone; rewriting them would falsify the record.
   # designer and planner gain a pi rung (2026-09-21) — the SAME defect and the same fix as
   # executor and evaluator below, found by asking the property rather than waiting for the
   # third incident. EVERY RUNG MUST LOAD SKILLS (2026-09-08, attended): the roles are driven
@@ -5499,7 +5514,7 @@ roles:
   # and evaluator rows: it is the route these roles actually ran, so it stays reachable for
   # comparison.
   designer:  [pi-or-kimi-k3, opencode-or-kimi-k3]
-  planner:   [gpt5-6-sol, pi-or-kimi-k3, opencode-or-kimi-k3]
+  planner:   [gpt6-sol, pi-or-kimi-k3, opencode-or-kimi-k3]
   # executor gains a pi rung (2026-09-14), same defect and same fix as evaluator above.
   # Measured: with codex over ration, `mission iterate` reported "no available candidate" —
   # gpt5-6-sol blocked on quota, and opencode-or-deepseek-v4-flash refused with "executor
@@ -5511,7 +5526,7 @@ roles:
   # `:floor` was dropped from the mission executor lane on 2026-08-18 — its two cheapest
   # hosts carry negative health status and it returned rc=0 with zero bytes changed twice.
   # opencode stays last, reachable for comparison rather than deleted.
-  executor:  [gpt5-6-sol, pi-or-deepseek-v4-flash-bare, opencode-or-deepseek-v4-flash]
+  executor:  [gpt6-sol, pi-or-deepseek-v4-flash-bare, opencode-or-deepseek-v4-flash]
   # evaluator leads with pi, not opencode (changed 2026-09-14). The binary mission path is
   # the only LaneLocal consumer of this row; the coordinator's retry chain reads it on
   # LaneCloud but short-circuits first for any agent carrying an explicit model

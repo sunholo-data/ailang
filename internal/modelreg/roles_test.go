@@ -1,6 +1,9 @@
 package modelreg
 
-import "testing"
+import (
+	"regexp"
+	"testing"
+)
 
 // M-MODEL-REGISTRY-SINGLE-SOURCE M3 left a transcription guard here
 // (TestResolveRole_TranscribesLiveChainsByteIdentically) asserting that every role chain was
@@ -101,7 +104,7 @@ func TestResolveRole_DesignerAndPlannerAreDeliberatelyPiBacked(t *testing.T) {
 			{"opencode-or-kimi-k3", "opencode"},
 		},
 		"planner": {
-			{"gpt5-6-sol", "codex"},
+			{"gpt6-sol", "codex"},
 			{"pi-or-kimi-k3", "pi"},
 			{"opencode-or-kimi-k3", "opencode"},
 		},
@@ -257,7 +260,7 @@ func TestResolveRole_ExecutorHasAnAdmissibleNonCodexRung(t *testing.T) {
 		t.Fatalf("InitModelsConfig: %v", err)
 	}
 	want := []struct{ friendly, executor string }{
-		{"gpt5-6-sol", "codex"},
+		{"gpt6-sol", "codex"},
 		{"pi-or-deepseek-v4-flash-bare", "pi"},
 		{"opencode-or-deepseek-v4-flash", "opencode"},
 	}
@@ -363,5 +366,46 @@ func TestPiCloudRows_ExpressTheDriversFlatRateTier(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+// TestRoles_NeverMixGptGenerations pins the one mistake the 2026-09-22 upgrade could have
+// made silently. gpt5-6-sol and gpt6-sol are DIFFERENT generations, tiers and prices, and
+// so are gpt5-6-luna and gpt6-luna — the names differ only by where a single digit sits.
+// A global search-and-replace across models.yml or the shell driver would cross-wire a
+// role onto the wrong model at the wrong price, and nothing downstream would complain:
+// both ids resolve, both are codex-lane, both answer rc=0. The bill would say otherwise,
+// a month later.
+//
+// The assertion is deliberately NOT "the heads are gpt6-sol" — the two tables above
+// already pin that, and they need editing at every upgrade. This pins the PROPERTY that
+// survives upgrades: no single role chain may name two GPT generations at once. Nobody
+// configures that on purpose; it is what a careless replace leaves behind.
+func TestRoles_NeverMixGptGenerations(t *testing.T) {
+	if err := InitModelsConfig(); err != nil {
+		t.Fatalf("InitModelsConfig: %v", err)
+	}
+	gen := regexp.MustCompile(`^(?:opencode-|pi-)?gpt(\d+)`)
+	checked := 0
+	for role, chain := range GlobalModelsConfig.Roles {
+		seen := map[string][]string{}
+		for _, friendly := range chain {
+			if m := gen.FindStringSubmatch(friendly); m != nil {
+				seen[m[1]] = append(seen[m[1]], friendly)
+			}
+		}
+		if len(seen) > 0 {
+			checked++
+		}
+		if len(seen) > 1 {
+			t.Errorf("role %q names %d GPT generations in one chain (%v) — almost certainly a "+
+				"cross-wired search-and-replace, not a deliberate mix", role, len(seen), seen)
+		}
+	}
+	// Anti-vacuity: if no role names a GPT model at all, the loop above asserted nothing
+	// and would stay green through any rename. Fail loudly instead of passing emptily.
+	if checked == 0 {
+		t.Fatal("no role chain names a gpt* model — the guard is vacuous; the regex or the " +
+			"role naming changed, so this test is no longer watching anything")
 	}
 }
