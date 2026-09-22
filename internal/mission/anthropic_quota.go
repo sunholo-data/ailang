@@ -85,6 +85,20 @@ func AnthropicRationEnabled() bool { return config.AnthropicRation() }
 // NOTE the asymmetry that makes this work at all: launchd jobs have keychain access, plain
 // shells often do not. That is why this resolves at RUN time in the mission fire rather
 // than being captured into config by a human session.
+//
+// CLAUDE_CODE_OAUTH_TOKEN IS NOT A SUBSTITUTE FOR THE KEYCHAIN HERE, and the env
+// var winning is a hazard rather than a convenience. Measured 2026-09-22: a token
+// from `claude setup-token` authenticates but is FORBIDDEN from the usage
+// endpoint — HTTP 403, not 401 — while the keychain credential read 12.0%/11.4%
+// in the same minute. Because the env var is preferred, storing one in
+// secrets.env does not sit inert: it OVERRIDES a working keychain read with an
+// unreadable bucket, which `mission quota --over` then blocks by policy.
+//
+// The keychain item carries scopes user:file_upload, user:inference,
+// user:mcp_servers, user:profile, user:sessions:claude_code; a setup-token token
+// evidently carries a narrower set. So the env var remains the documented escape
+// hatch for a token that CAN read usage, and is a footgun for one that cannot —
+// verify against the endpoint before storing one, never assume.
 func anthropicOAuthToken(ctx context.Context) string {
 	// LookupEnv, not Getenv: an explicitly EMPTY CLAUDE_CODE_OAUTH_TOKEN means "no
 	// credential" and must not fall through to the keychain. That is the same seam
@@ -156,7 +170,32 @@ func ObserveAnthropicQuota(now time.Time) AnthropicQuotaObservation {
 		Timeout:       5 * time.Second,
 		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 	}
-	return observeAnthropicQuota(anthropicOAuthToken(context.Background()), now, client)
+	o := observeAnthropicQuota(anthropicOAuthToken(context.Background()), now, client)
+	if o.State != "unknown" {
+		return o
+	}
+	// FALL BACK TO THE CLI when the endpoint could not be read.
+	//
+	// Every credential route to the HTTP endpoint has failed in a different way
+	// (see anthropic_usage_cli.go for the measurements), and the consequence was a
+	// week of routing away from the fleet's largest allocation. `claude -p /usage`
+	// carries its own live credential — the same one that makes `claude -p` work for
+	// inference — so it answers when the endpoint cannot.
+	//
+	// Second, not first, only because it is slower: the endpoint returns in ~5s and
+	// the CLI takes tens of seconds, and this runs on every mission fire. When the
+	// endpoint works, nothing changes.
+	windows, err := anthropicCLIUsage(context.Background(), now)
+	if err != nil {
+		o.Reason += fmt.Sprintf("; CLI fallback also failed (%v)", err)
+		return o
+	}
+	o.Windows = windows
+	o.Source = "claude -p /usage"
+	o.State = "ok"
+	o.Reason = "subscription usage read from `claude -p /usage` (the HTTP endpoint was unreadable)"
+	evaluateAnthropicQuota(&o, now)
+	return o
 }
 
 func observeAnthropicQuota(token string, now time.Time, client *http.Client) AnthropicQuotaObservation {

@@ -586,9 +586,33 @@ _mc_probe() {
   # Declared is not walked — the same shape as the role fallback chains that existed for
   # weeks with nothing reading them.
   if _mc_is_over_ration "$m"; then
-    MC_BOUNDED_OUT="Anthropic quota admission blocked (over ration)"
-    log "anthropic:$m quota admission blocked; skipping inference probe"
-    return 75
+    # AN UNREADABLE QUOTA IS NOT AN EXHAUSTED ONE — probe instead of refusing.
+    #
+    # Reading Anthropic subscription usage depends on a credential this fleet does
+    # not control: it lives in a keychain item whose ACL names Claude Code, its
+    # access token expires every ~8h and is refreshed IN MEMORY without write-back,
+    # and a `claude setup-token` token authenticates but is FORBIDDEN from the usage
+    # endpoint (HTTP 403, measured 2026-09-22). There is no configuration that makes
+    # that read reliable, so a gate that REQUIRES it will keep failing.
+    #
+    # The probe on the very next line is the backstop and always was. On a
+    # subscription it costs nothing metered, and it answers the only question the
+    # gate actually needs answered: can this lane serve a request right now. If
+    # Anthropic is genuinely exhausted the probe fails and the fallback proceeds
+    # exactly as before; if it is healthy we keep the fleet's largest allocation.
+    #
+    # Scoped to UNREADABLE and to Anthropic deliberately. A measurably-over bucket
+    # still refuses without probing — spending against a limit we know we passed is
+    # what the ration exists to prevent — and the metered buckets (openrouter) keep
+    # failing closed on unknown, because there the unknown protects money rather
+    # than a subscription we have already paid for.
+    if _mc_ration_unreadable anthropic; then
+      log "anthropic:$m quota is UNREADABLE (not measured) — probing the lane instead of refusing it; an unreadable quota is not an exhausted one"
+    else
+      MC_BOUNDED_OUT="Anthropic quota admission blocked (over ration)"
+      log "anthropic:$m quota admission blocked; skipping inference probe"
+      return 75
+    fi
   fi
   _mc_bounded "$PROBE_TIMEOUT" claude -p 'reply with exactly: ok' --model "$m"; rc=$?
   out="$MC_BOUNDED_OUT"
@@ -754,6 +778,20 @@ _mc_ration_reason() {
     "${b} stale"*)   printf 'quota observation STALE' ;;
     "")              printf 'blocked by the ration gate (no reason line captured)' ;;
     *)               printf '%s' "${line#"$b" }" ;;
+  esac
+}
+
+# _mc_ration_unreadable BUCKET → true when the bucket is blocked because its quota
+# could not be READ, as opposed to measurably exceeding it.
+#
+# The distinction decides whether a probe is worth making. "Over" is a measurement:
+# probing anyway spends against a limit we know we have passed. "Unknown" is the
+# ABSENCE of a measurement, and blocking on it means refusing a lane that may be
+# entirely healthy — which is what happened for a week.
+_mc_ration_unreadable() {
+  case "$(_mc_ration_reason "$1")" in
+    *UNREADABLE*) return 0 ;;
+    *) return 1 ;;
   esac
 }
 
