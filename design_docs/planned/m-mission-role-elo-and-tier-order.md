@@ -104,6 +104,31 @@ It was NOT added during the 2026-09-22 repair because it is not a one-line chang
 | V8 | kimi-k3 designer failure is real, not folklore | `[[project_designer_rotation_kimi_lane_failed]]` | 1802s / 73 tool calls / 0 files |
 | V9 | Anthropic's limit is account-wide (why extra same-bucket rungs add probes, not availability) | driver comment recording the 2026-08-16 drought | opus-5 / opus-4-8 / fable-5 all quota-limited together, 45 refusals each |
 
+## Constraints any tier proposal must respect (measured 2026-09-22, the hard way)
+
+Discovered by proposing a tier order that violated them and watching the suites red:
+
+1. **The evaluator's last rung must be precondition-free.** `claude:*|opus|sonnet|haiku`
+   need nothing from the machine; a `pi:*` rung needs the global `workspace-trust.ts`.
+   `test_evaluator_skill_lane.sh`: *"the last resort must not depend on a precondition."*
+2. **No `codex:*` or `opencode:*` rung may serve the evaluator** — it must load skills and
+   codex cannot. So OpenAI is structurally excluded from that role; its absence is enforced,
+   not an oversight, and adding one reds the suite rather than widening the fleet.
+3. **Leave a dry bucket EARLY, not late.** Anthropic's limit is account-wide, so the common
+   failure is bucket-wide. A chain that escalates through three same-bucket rungs before
+   switching spends three dead probes in exactly the state the fallback exists for. This
+   directly opposes naive cost-monotonicity, and the bucket rule wins.
+4. **A bare alias and a `provider:model` pin dispatch differently** — `resolve-role-spawn.sh`
+   routes bare through the Agent tool and `*:*` through a provider-pin recipe. "Pinning an
+   alias for predictability" is a mechanism change, not a clarification.
+5. **The planner's effective lane comes from `derive-planner-lane.sh`, not its env pin.** It
+   fails closed to opus for any non-vetted lane, which is why Gate-4 records show
+   `planner opus` most often while `MISSION_PLANNER_MODEL` names a codex model. Reading the
+   pin alone gets the planner's vendor coverage wrong.
+
+M3 must encode these as rules the checker enforces, or a rating-ordered chain will violate
+them the same way a judgement-ordered one did.
+
 ## Risks
 
 - **Small-N.** 67 controller rows across 7 arms is thin, and the other roles start near zero
