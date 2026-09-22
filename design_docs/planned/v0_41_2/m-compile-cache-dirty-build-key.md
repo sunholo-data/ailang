@@ -6,7 +6,7 @@
 programs it rejects, and `ailang run` executes them
 **Estimated**: ~2.5h
 **Dependencies**: None
-**Tracking**: GitHub issue (linked on creation)
+**Tracking**: [#1275](https://github.com/sunholo-data/ailang/issues/1275)
 
 ## Problem Statement
 

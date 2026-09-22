@@ -7,7 +7,7 @@ how the compiler lowered it
 **Estimated**: ~3h once D1 is decided
 **Dependencies**: None. Follows M-EQ-DERIVE-CONTAINERS (`6d096fe98`), which pinned one of the
 divergences in `cmd/ailang/eq_parity_test.go`
-**Tracking**: GitHub issue (linked on creation)
+**Tracking**: [#1274](https://github.com/sunholo-data/ailang/issues/1274)
 
 ## Problem Statement
 
