@@ -1,6 +1,6 @@
 # M-EQ-DERIVE-CONTAINERS — make `==` work for records, Options and lists when the parts already have Eq
 
-**Status**: Planned — **RE-LAND**. First implementation `caa2d53a6` was reverted same-day in
+**Status**: Implemented 2026-09-22 (awaiting sprint evaluation). Was: Planned — **RE-LAND**. First implementation `caa2d53a6` was reverted same-day in
 `cd1c976fb` (2026-08-29); nothing has landed since. Read **Re-land revision (2026-09-22)** first:
 it supersedes the original Solution Design, ABI, Implementation Plan, Files and Success Criteria
 wherever they conflict.
@@ -133,20 +133,57 @@ evaluator/VM parity tests; mutation-test each new test (revert its fix, watch it
 
 ### Re-land success criteria
 
-- [ ] Every V12–V19 positive compiles **and evaluates to the correct boolean**. Each has an
-      unequal-value control that prints `false`, via `examples/eq_containers.ail` in CI
-- [ ] Element-lacks-`Eq` (e.g. `[\x. x + 1] == [\x. x + 1]` → `No instance for Eq[[int -> int]]`, verified) still fails at check, naming the element type
-- [ ] Anonymous record `{x: 1} == {x: 1}` still fails (round-2 scoping)
-- [ ] (If R-D7 is in scope) a residual-variable `Eq` constraint is discharged by synthesis or fails loudly; a closure can never reach the runtime comparator; `None == None` still type-checks via synthesis
-- [ ] Depth 9 fails with `E_EQ_SYNTH_DEPTH`; its test fails when the depth increment is removed
-- [ ] Evaluator/VM parity tests for record field order and NaN exist and pass, or assert the documented difference
-- [ ] The Eq hint (`2122705e0`) is updated: lists, Option, tuples and derived records no longer
-      reach it; its remaining text covers only genuinely non-`Eq` types
-- [ ] The teaching prompt states which types support `==` (currently silent), verified with `ailang check`
-- [ ] Re-grade the four banked 2026-09-22 `mlfq_scheduler_hidden` list-`==` failures offline
-      against the new binary (no API spend). Report how many were otherwise-correct programs
-- [ ] `make test`, `make test-core` and `verify-examples-toplevel` green, apart from the
-      pre-existing `examples/ai_modes.ail` effect-check failure
+- [x] Every V12–V19 positive compiles **and evaluates to the correct boolean**. Each has an
+      unequal-value control that prints `false`, via `examples/eq_containers.ail` (26 checks),
+      pinned by `TestEqContainersExample`
+- [x] Element-lacks-`Eq` still fails at check. The hint now names the innermost part
+      (`Equality on [int -> int] needs == on int -> int`)
+- [x] Anonymous record `{x: 1} == {x: 1}` still fails (round-2 scoping)
+- [x] R-D7 (in scope, Mark 2026-09-22): a residual-variable `Eq` is decomposed. `Err(f) == Err(f)`
+      is rejected (it printed `false` before), and `None == None` / `[] == []` still type-check
+- [x] Depth 9 fails with `E_EQ_SYNTH_DEPTH`. `TestEqSynthesisDepthCap` fails when the increment
+      is removed (mutation run)
+- [x] Evaluator/VM parity tests exist (`cmd/ailang/eq_parity_test.go`). Record field order and nested
+      NaN agree. A top-level NaN is asserted as the documented divergence
+- [x] The Eq hint covers only genuinely non-`Eq` types. `TestEqInstanceHintIsActionable` was updated deliberately
+- [x] The teaching prompt (v0.16.6 head, amended in place) states which types support `==`. Every
+      example was checked with `ailang check`/`run`
+- [ ] **NOT DONE:** re-grading the banked `mlfq_scheduler_hidden` failures. The banked rows are
+      not on this machine (searched the repo, `~/dev`, `~/.ailang` and `/tmp`), so the four
+      failures are unaccounted for
+- [x] `make test-core` and `verify-examples-toplevel` are green apart from `examples/ai_modes.ail`.
+      For `make test`, see the implementation notes
+
+### Implementation notes (2026-09-22)
+
+Where the build departed from the plan, and why:
+
+- **R-D3 needed no canonicalization.** A value of a record alias already carries the alias name
+  (`TRecord.TypeName`; probed with a debug `Lookup`). Record `Eq` is therefore "`TypeName` names a
+  derived-Eq type", with no shape registry and no action at a distance. The doubled row
+  (`{ x: int, ...{x: int} }`) is only how the error text prints the type.
+- **V19's cause was the alias, not a field check.** `type R = R({a:int})` registers `R` as an alias
+  for its record (M-STREAM-DX/M4), so a use site sees `TRecord{TypeName:"R"}`. The nominal rule
+  above fixes it. R-D5's field check was new: before it, no field of a derived type was checked.
+  The field check (`pipeline/derived_eq.go`) also removes the duplicated registration block in
+  `pipeline_single.go` / `pipeline_module_compile.go`.
+- **Groundness is scoped to Eq.** `isGround` stops at lists, tuples and functions, so `Eq[[α]]`
+  was "resolved" (and rejected) while `Eq[Option[α]]` was generalized. `constraintIsGround` looks
+  through every structure for `Eq` only. Widening `isGround` for every class instead made
+  `Num[int -> β]` generalize, so `42(1)` crashed at runtime (`internal/repl`
+  TestLoadModuleTypeError caught it). `TestConstraintIsGroundIsScopedToEq` pins the split.
+- **Op lowering:** a list `==` that stays polymorphic (`[] == []`, generic `xs == ys`) used to be
+  lowered to a nonexistent `eq_List` (ELB_OP001). It now defers to the evaluator's structural `==`.
+- **NaN:** `valuesStructurallyEqual` was IEEE while `Eq[Float]` is lawful, so the evaluator
+  disagreed with itself (`nan == nan` true, `[nan] == [nan]` false). It is now lawful, which also
+  makes nested NaN agree with the VM.
+- **Mutation-tested:** removing the reduction breaks `residual_fn`, removing the field check
+  breaks `fn_field`, reverting the NaN rule breaks the nested-NaN parity test, and removing the
+  depth increment breaks the depth-cap test.
+- **Dev hazard (unfixed, filed separately):** the module compile cache is keyed by build commit,
+  so dirty rebuilds on one commit share entries. `ailang check` printed "No errors" from a stale
+  entry during this sprint. Every probe here ran with `AILANG_NO_CACHE=1`. The same hazard is a
+  plausible mechanism for the 08-29 attempt's false "verified live" claims.
 
 ### Conflict Surface — re-land additions
 

@@ -14,6 +14,12 @@ type DerivedADTEquality struct {
 	TypeName string // The ADT type name (e.g., "Color")
 }
 
+// DerivedStructuralEquality is the marker for every Eq instance synthesized
+// from its parts (lists, Option, Result, tuples, derived records). The evaluator
+// compares the two values structurally, whatever their shape.
+// M-EQ-DERIVE-CONTAINERS
+type DerivedStructuralEquality struct{}
+
 // DictionaryRegistry manages type class dictionaries for all instances.
 // Keys are in the format: "namespace::ClassName::TypeNF::method"
 // Example: "prelude::Num::Int::add"
@@ -73,6 +79,10 @@ func (r *DictionaryRegistry) LookupMethod(namespace, className string, typ Type,
 
 // registerBuiltins registers all built-in type class instances
 func (r *DictionaryRegistry) registerBuiltins() {
+	// M-EQ-DERIVE-CONTAINERS: the single dictionary synthesized Eq resolves to
+	r.Register("prelude", "Eq", StructuralEqTypeName, "eq", &DerivedStructuralEquality{})
+	r.Register("prelude", "Eq", StructuralEqTypeName, "neq", &DerivedStructuralEquality{})
+
 	// Num instances for Int
 	r.registerNumInt()
 

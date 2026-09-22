@@ -527,7 +527,10 @@ func (tc *CoreTypeChecker) InferWithConstraints(expr core.CoreExpr, env *TypeEnv
 	typedNode = tc.applySubstitutionToTyped(sub, typedNode)
 
 	// Resolve ground constraints
-	ground, nonGround := tc.partitionConstraints(unsolved)
+	ground, nonGround, err := tc.partitionAndReduce(unsolved)
+	if err != nil {
+		return nil, updatedEnv, nil, nil, err
+	}
 	if err := tc.resolveGroundConstraints(ground, expr); err != nil {
 		return nil, updatedEnv, nil, nil, err
 	}
@@ -665,12 +668,11 @@ func (tc *CoreTypeChecker) CheckCoreExpr(expr core.CoreExpr, env *TypeEnv) (type
 	// Apply the complete substitution (unification + defaulting) to the typed node
 	typedNode = tc.applySubstitutionToTyped(sub, typedNode)
 
-	// The constraints from defaulting should already be properly substituted
-	// Don't double-apply substitution
-	groundConstraints := unsolved
-
-	// Partition into ground and non-ground constraints
-	ground, nonGround := tc.partitionConstraints(groundConstraints)
+	// Partition (constraints from defaulting are already substituted; don't re-apply)
+	ground, nonGround, err := tc.partitionAndReduce(unsolved)
+	if err != nil {
+		return nil, env, err
+	}
 
 	// Resolve ground constraints using instance environment
 	if err := tc.resolveGroundConstraints(ground, expr); err != nil {

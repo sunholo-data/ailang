@@ -3,6 +3,7 @@ package elaborate
 import (
 	"fmt"
 	"os"
+	"sort"
 
 	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/core"
@@ -183,6 +184,11 @@ func (e *Elaborator) elaborateTypeDecl(decl *ast.TypeDecl) (core.CoreExpr, error
 					fieldTypes = append(fieldTypes, nil)
 				}
 			}
+			if hasDerivingEq {
+				for i, ft := range fieldTypes {
+					e.recordDerivedEqField(typeName, fmt.Sprintf("field %d of constructor %s", i+1, ctor.Name), ft)
+				}
+			}
 			// Register constructor with actual field types and type param names
 			e.RegisterConstructorWithFields(typeName, ctor.Name, len(ctor.Fields), false, typeParamCount, decl.TypeParams, fieldTypes)
 		}
@@ -212,6 +218,16 @@ func (e *Elaborator) elaborateTypeDecl(decl *ast.TypeDecl) (core.CoreExpr, error
 		// This allows `type NPC = { pos: Pos, name: string }` to work with record update
 		// When we have `{ npc | pos: ... }`, unification needs to expand NPC to its record type
 		recordType := e.astTypeToInternalType(def)
+		if rec, ok := recordType.(*types.TRecord); ok && hasDerivingEq {
+			names := make([]string, 0, len(rec.Fields))
+			for name := range rec.Fields {
+				names = append(names, name)
+			}
+			sort.Strings(names)
+			for _, name := range names {
+				e.recordDerivedEqField(typeName, "field "+name, rec.Fields[name])
+			}
+		}
 		if recordType != nil {
 			e.RegisterTypeAlias(typeName, recordType)
 			// M-XMOD-ALIAS-POLY: record the alias's type params (e.g. Box[a])
@@ -224,6 +240,9 @@ func (e *Elaborator) elaborateTypeDecl(decl *ast.TypeDecl) (core.CoreExpr, error
 		// M-BUGFIX: Register type alias for expansion during unification
 		// This fixes: `type Coord = {x: int, y: int}` with `IsoTile(tile: Coord)`
 		targetType := e.astTypeToInternalType(def.Target)
+		if hasDerivingEq {
+			e.recordDerivedEqField(typeName, "its definition", targetType)
+		}
 		if targetType != nil {
 			e.RegisterTypeAlias(typeName, targetType)
 			// M-XMOD-ALIAS-POLY: record the alias's type params (e.g. Ident[a],

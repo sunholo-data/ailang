@@ -1,0 +1,9 @@
+-- NEGATIVE: a residual type variable must not hide a function from Eq.
+-- `Err(f) == Err(f)` has type Result[a, int -> int]; the Err payload is a function.
+-- Expected: needs == on int -> int
+module examples/eq_containers_negative/residual_fn
+
+export func main() -> () ! {IO} {
+  let f = \x. x + 1 in
+  _io_println(show(Err(f) == Err(f)))
+}

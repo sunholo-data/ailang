@@ -309,29 +309,10 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 		typeChecker.SetEffectAnnotationsFull(effectAnnotsFull)
 	}
 
-	// M-DX19: Register derived Eq instances for types with `deriving (Eq)`
-	// This allows == to work on user-defined ADT and record types
-	derivedEqTypes := elaborator.GetDerivedEqTypes()
-	for _, typeName := range derivedEqTypes {
-		inst := &types.ClassInstance{
-			ClassName: "Eq",
-			TypeHead:  &types.TCon{Name: typeName},
-			Dict: types.Dict{
-				"eq":  fmt.Sprintf("derived_eq_%s", typeName),
-				"neq": fmt.Sprintf("derived_neq_%s", typeName),
-			},
-		}
-		if err := cfg.InstEnv.Add(inst); err != nil {
-			// Ignore duplicate instance errors (may happen with multiple files)
-			// Just log if debug mode
-			if cfg.DebugCompile {
-				fmt.Fprintf(os.Stderr, "[DEBUG] Could not add derived Eq instance for %s: %v\n", typeName, err)
-			}
-		}
-
-		// M-DX19: Also register in DictionaryRegistry for runtime lookup
-		// This tells the evaluator to use structural TaggedValue comparison
-		cfg.DictReg.RegisterDerivedEq(typeName)
+	// M-DX19 + M-EQ-DERIVE-CONTAINERS: register `deriving (Eq)` instances and
+	// require Eq of every field
+	if err := registerDerivedEq(cfg, elaborator); err != nil {
+		return result, err
 	}
 
 	// For REPL, extract first declaration as expression

@@ -258,10 +258,13 @@ func TestEqInstanceHintIsActionable(t *testing.T) {
 		typ  Type
 		want string
 	}{
-		{"list", &TApp{Constructor: &TCon{Name: "list"}, Args: []Type{TInt}}, "Lists have no =="},
-		{"legacy list", &TList{Element: TInt}, "Lists have no =="},
-		{"option", &TApp{Constructor: &TCon{Name: "Option"}, Args: []Type{TInt}}, "pattern-match on its constructors"},
-		{"tuple", &TTuple{Elements: []Type{TInt, TInt}}, "destructure them"},
+		// M-EQ-DERIVE-CONTAINERS: lists, Option and tuples no longer reach this hint
+		// when their parts have Eq (see instances_eq_synth_test.go); what remains
+		// are the genuinely non-Eq types.
+		{"function", &TFunc2{Params: []Type{TInt}, Return: TInt}, "Functions have no =="},
+		{"anonymous record", &TRecord{Fields: map[string]Type{"x": TInt}}, "deriving (Eq)"},
+		{"option of non-Eq", &TApp{Constructor: &TCon{Name: "Option"}, Args: []Type{TInt}}, "only when its type arguments do"},
+		{"polymorphic ADT", &TApp{Constructor: &TCon{Name: "Tree"}, Args: []Type{TInt}}, "pattern-match"},
 		{"user ADT", &TCon{Name: "Color"}, "deriving (Eq)"},
 	}
 	for _, c := range cases {

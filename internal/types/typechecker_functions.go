@@ -220,7 +220,7 @@ func (tc *CoreTypeChecker) inferLet(ctx *InferenceContext, let *core.Let) (*type
 		// After defaulting, only non-ground constraints should remain for generalization
 		nonGroundConstraints := []ClassConstraint{}
 		for _, c := range defaultedConstraints {
-			if !isGround(c.Type) {
+			if !constraintIsGround(c) {
 				nonGroundConstraints = append(nonGroundConstraints, c)
 			}
 		}
@@ -371,7 +371,7 @@ func (tc *CoreTypeChecker) inferLetRec(ctx *InferenceContext, letrec *core.LetRe
 
 		nonGroundConstraints := []ClassConstraint{}
 		for _, c := range remainingConstraints {
-			if !isGround(c.Type) {
+			if !constraintIsGround(c) {
 				nonGroundConstraints = append(nonGroundConstraints, c)
 			}
 		}
