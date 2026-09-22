@@ -16,7 +16,7 @@
 # GPU-touching sprint steps take it per-step inside the session).
 #
 # MODEL SELECTION (fleet Phase A, 2026-07-14): ordered preference probing.
-# MISSION_MODEL_PREFS (default "claude-opus-5,claude-fable-5-1"
+# MISSION_MODEL_PREFS (default "claude-opus-5-5,codex:gpt-6-sol,claude-fable-5-1"
 # — Opus 5 first since 2026-07-27 (Mark); the 4.8 rung was dropped 2026-08-26 — OPUS-FIRST
 # since 2026-07-16, Mark: Fable is reserved for high-cognition ROLES — design
 # synthesis + evaluation, both bounded pinned sub-agents — never the long
@@ -599,7 +599,34 @@ _mc_mem_ok() {
 # and prices, and so are gpt-5.6-luna and gpt-6-luna. Every site below was changed
 # individually and asserted by name — a global replace across this file would silently
 # cross-wire the fleet onto the wrong model at the wrong price.
-PREFS="${MISSION_MODEL_PREFS:-claude-opus-5-5,codex:gpt-6-sol,claude-fable-5-1}"
+# TIER ORDER REPAIRED 2026-09-22 (Mark, attended). Two defects, both introduced by
+# accretion rather than by any single decision:
+#
+#   (a) claude-fable-5-1 sat LAST in an ordered preference list at $10/$50 per 1M —
+#       2.5x the price of claude-opus-5-5 at the HEAD. A degrade chain whose last rung
+#       is its most expensive model is not degrading. It also bought almost nothing:
+#       this file's own 2026-08-16 measurement records opus/fable/opus-4-8 ALL
+#       quota-limited together, because ANTHROPIC'S LIMIT IS ACCOUNT-WIDE, NOT
+#       PER-MODEL — so "opus spent but fable healthy" is not a state this account
+#       reaches, and the rung mostly cost one extra ~20s probe per fall-through.
+#       Dropped. It also restores Mark's 2026-07-16 rule that Fable is reserved for
+#       high-cognition ROLES (design), which is where it still is: the designer slot
+#       held it until today and astra keeps that class in the rotation.
+#
+#   (b) codex:gpt-6-sol appeared TWICE — here and as CONTROLLER_FALLBACK's first rung.
+#       A rung that just failed its probe fails again a moment later, so the duplicate
+#       was a guaranteed wasted probe on every fall-through. Removed from the fallback,
+#       kept here where it is reached first.
+#
+# The chain is now monotonically cheaper AND one bucket per rung, which is the property
+# that matters when buckets dry out independently:
+#
+#   claude-opus-5-5 ($4/$20, anthropic) -> codex:gpt-6-sol ($2/$10, codex subscription)
+#     -> pi:ollama/glm-5.3:cloud (flat-rate) -> pi:openrouter/z-ai/glm-5.3 (metered)
+#
+# Deliberately NOT added: a second Anthropic rung between opus and sol. Extra rungs in a
+# bucket that is already dry add probes, not availability — which is the (a) defect again.
+PREFS="${MISSION_MODEL_PREFS:-claude-opus-5-5,codex:gpt-6-sol}"
 # CONTROLLER_FALLBACK is an ordered COMMA CHAIN walked left to right (Mark, attended
 # 2026-08-31: "a longer chain of redundancies after codex", explicitly NOT a new default —
 # codex keeps its rung; the pi rungs exist so a simultaneous Anthropic+codex dry-out no
@@ -622,7 +649,7 @@ PREFS="${MISSION_MODEL_PREFS:-claude-opus-5-5,codex:gpt-6-sol,claude-fable-5-1}"
 # This chain is safe to extend with a `codex:*` entry — unlike the per-role
 # chains below — because the controller selector probes EVERY entry it walks
 # (_mc_probe_codex per codex:* rung), rather than handing off to a later loop.
-CONTROLLER_FALLBACK="${MISSION_CONTROLLER_FALLBACK:-codex:gpt-6-sol,pi:ollama/glm-5.3:cloud,pi:openrouter/z-ai/glm-5.3}"
+CONTROLLER_FALLBACK="${MISSION_CONTROLLER_FALLBACK:-pi:ollama/glm-5.3:cloud,pi:openrouter/z-ai/glm-5.3}"
 QUOTA_SIG="usage limit|rate.?limit|quota|exceeded|too many requests|weekly limit"
 PROBE_TIMEOUT="${MISSION_PROBE_TIMEOUT:-120}"   # per-probe wall-clock cap, seconds
 NOTIFY_TIMEOUT="${MISSION_NOTIFY_TIMEOUT:-30}"   # per-notify wall-clock cap, seconds (D-60)
@@ -1254,19 +1281,41 @@ fi
 # --- DRIVER PIN AGE DECISION END ---
 # --- DRIVER PIN DECISION END ---
 
-# designer default is the claude-CLI lane (claude:<full-id>), NOT the bare "fable" alias: the
-# Agent tool pins only sonnet|opus|haiku (F1, iteration 31), so under an opus-first controller a
-# bare "fable" would silently fall back to opus. claude:claude-fable-5-1 = a REAL bounded Fable run.
-# Fable 5 -> 5.1 2026-09-02 (Mark, attended): same price ($10/$50 per 1M), newer generation,
-# vendor gains concentrated in long-horizon agentic work — which is exactly the designer role.
-# designer default is the claude-CLI lane (claude:<full-id>), NOT the bare "fable" alias: the
-# Agent tool pins only sonnet|opus|haiku (F1, iteration 31), so under an opus-first controller a
-# bare "fable" would silently fall back to opus. claude:claude-fable-5-1 = a REAL bounded Fable run.
-# Fable 5 -> 5.1 2026-09-02 (Mark, attended): same price ($10/$50 per 1M), newer generation,
-# vendor gains concentrated in long-horizon agentic work — which is exactly the designer role.
-# This stays the rotation SEED. Astra (2026-09-05) is an ADDITIONAL fable-class ENTRY in the
-# skill's rotation, not a replacement for this slot, so nothing here moves.
-export MISSION_DESIGNER_MODEL="${MISSION_DESIGNER_MODEL:-claude:claude-fable-5-1}"
+# designer default is the claude-CLI lane (claude:<full-id>), NOT a bare alias: the Agent
+# tool pins only sonnet|opus|haiku (F1, iteration 31), so a bare "fable" silently fell back
+# to opus, and a bare "opus" would now resolve to whatever that enum means rather than to
+# this exact id. claude:claude-opus-5-5 = a REAL bounded run of the model named.
+#
+# FABLE 5.1 -> OPUS 5.5 AS THE DESIGNER SEED, 2026-09-22 (Mark, attended). The prior note
+# here recorded Fable 5 -> 5.1 as "same price ($10/$50 per 1M), newer generation". Opus 5.5
+# is the first move in this slot that is cheaper as well as newer:
+#
+#     fable-5-1   $10/M in   $50/M out   cache read $0.25/M
+#     opus-5-5     $4/M in   $20/M out   cache read $0.20/M
+#
+# 2.5x cheaper on both input and output for a high-thinking authoring lane — Opus 5.5's
+# thinking CANNOT be disabled at all ({type:"disabled"} is a 400 at every effort level),
+# which is the property the designer role wants and the reason Fable held this slot.
+#
+# Unchanged by design: the lane is still Anthropic, so the rotation's provider spread is
+# untouched (astra = ChatGPT subscription, deepseek = flat-rate pi), and quorum
+# independence still holds — the reviewers are gpt5-6-sol (OpenAI), gemini-3-1-pro
+# (Google) and oc-glm-5-2 (Z-AI), none of them Anthropic, so the designer is no more a
+# reviewer of its own doc than Fable was.
+#
+# Worth knowing rather than acting on: the CONTROLLER is also claude-opus-5-5 as of today,
+# so one of the rotation's three entries now shares the controller's model. That is not the
+# documented collision — the independence rule is generator != judge (designer vs
+# EVALUATOR) on model AND vendor, and the evaluator is sonnet/minimax — but it does mean a
+# doc authored on astra's or deepseek's turn is the more independent artifact.
+#
+# The "Fable diet" (one bounded authoring run per iteration) was premised on this slot
+# costing $10/$50. At $4/$20 that premise is 2.5x weaker. NOT relaxed here — a spend-policy
+# change is its own attended ruling, not a side effect of a model swap.
+#
+# This stays the rotation SEED. Astra (2026-09-05) is an ADDITIONAL entry in the skill's
+# rotation, not a replacement for this slot, so nothing else here moves.
+export MISSION_DESIGNER_MODEL="${MISSION_DESIGNER_MODEL:-claude:claude-opus-5-5}"
 # DESIGNER FALLBACK (2026-09-05). The seed above is Anthropic, and until now the
 # designer was the one role with NO chain behind it in this driver — the skill's
 # three-entry rotation (fable -> astra -> deepseek) is what actually spans providers,
@@ -1479,7 +1528,32 @@ export MISSION_EVALUATOR_MODEL="${MISSION_EVALUATOR_MODEL:-sonnet}"
 # 14 extensions globally, where they collide with the repo's own .pi/extensions/ — fatally, not
 # as warnings. Same model outside a checkout: 0 errors, replies ok. Inside: 5 errors, no output
 # at all, including workspace-trust.ts itself failing to load.
-export MISSION_EVALUATOR_FALLBACK="${MISSION_EVALUATOR_FALLBACK:-pi:openrouter/minimax/minimax-m3,claude:claude-sonnet-4-6,opus}"
+# EVALUATOR ORDER REPAIRED 2026-09-22 (Mark, attended). The chain was
+# `sonnet -> minimax@openrouter -> sonnet-4-6 -> opus`, which interleaved buckets
+# (anthropic, openrouter, anthropic, anthropic) and ended on a BARE `opus` alias. Two
+# problems: the interleaving means a healthy-Anthropic run that fails its first judge
+# leaves the bucket and comes back, spending an OpenRouter call it did not need; and a
+# bare alias resolves through the Agent tool's sonnet|opus|haiku enum rather than to a
+# pinned id — the same trap this file documents for the designer's bare "fable".
+#
+# Now: escalate WITHIN the healthy bucket, then leave it, and name the model explicitly.
+#
+#   sonnet ($3/$15) -> claude-sonnet-4-6 ($3/$15) -> claude-opus-5-5 ($4/$20)
+#     -> pi:openrouter/minimax/minimax-m3 (metered)
+#
+# Nothing is removed — the same four judges, reordered, with `opus` made explicit.
+#
+# STILL THE WEAKEST ROLE FOR VENDOR SPREAD, and knowingly so: three of four rungs are
+# Anthropic and the fourth is OpenRouter, so a simultaneous anthropic+openrouter dry-out
+# leaves the evaluator with nothing while planner and executor still have two lanes each.
+# The obvious repair is a Google rung — the evaluator emits a VERDICT, not files, so the
+# "gemini cannot author" exclusion that rightly bars it from designer/executor does not
+# apply here, and gemini-3-1-pro is already trusted as a design-quorum reviewer. It is NOT
+# added here because it is not a one-line change: there is no google bucket in the quota
+# ledger and _mc_rung_bucket has no gemini case, so a `gemini:*` rung would fall to the
+# `*)` default and be rationed against ANTHROPIC — blocked in exactly the state it exists
+# to cover. Tracked in design_docs/planned/m-mission-role-elo-and-tier-order.md.
+export MISSION_EVALUATOR_FALLBACK="${MISSION_EVALUATOR_FALLBACK:-claude:claude-sonnet-4-6,claude:claude-opus-5-5,pi:openrouter/minimax/minimax-m3}"
 
 # Codex-lane pre-flight, ROLE-GENERIC (m-planner-codex-lane): probe once per DISTINCT
 # codex model, fall back per-role on ANY non-zero rc (#486: probe MUST carry --model;
