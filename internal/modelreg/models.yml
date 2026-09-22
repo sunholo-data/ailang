@@ -516,6 +516,7 @@ models:
                             # completion, finish=stop (adaptive, default effort medium)
     description: "GPT-6 Sol - GPT-6 generation mid tier (Sep 2026)"
     env_var: "OPENAI_API_KEY"
+    agent_cli: "codex"  # needs codex-cli >= 0.155.1 — see notes
     max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM convention; declared ceiling is 128000
     pricing:
       input_per_1k: 0.002     # $2.00 per 1M = $0.002 per 1K
@@ -528,13 +529,15 @@ models:
       generation, different tier position, different price. Read the digit after "gpt".
       API access VERIFIED 2026-09-22 (chat/completions, max_completion_tokens,
       finish_reason=stop). Negative control gpt-9-nonexistent-zzz → "does not exist".
-      ⛔ NO agent_cli — CODEX SUBSCRIPTION LANE REJECTS IT (probed 2026-09-22, codex
-      0.154.0, OPENAI_API_KEY stripped): `codex exec --model gpt-6-sol` → 400 "not
-      supported when using Codex with a ChatGPT account" + "Model metadata ... not
-      found" — byte-for-byte the response to the nonexistent-model control. Positive
-      control gpt-6-astra rc=0 on the same lane, so the lane is healthy and this is
-      server-side availability. Re-probe (and add agent_cli: "codex") when ChatGPT
-      codex lists it; astra's row shows the probe shape.
+      ✅ CODEX SUBSCRIPTION LANE — REQUIRES codex-cli >= 0.155.1. On 0.154.0 (OPENAI_API_KEY
+      stripped, i.e. the ChatGPT-account lane) `codex exec --model gpt-6-sol` returned 400
+      "not supported when using Codex with a ChatGPT account" + "Model metadata ... not
+      found" — byte-for-byte the nonexistent-model control, which reads as server-side
+      unavailability but WAS NOT: 0.155.1 returns rc=0 for gpt-6-sol and gpt-6-luna, while
+      gpt-9-nonexistent-zzz still 400s (control holds) and gpt-6-astra passes on both.
+      The rig's global codex was upgraded 0.154.0 → 0.155.1 on 2026-09-22. A box on an
+      older codex will fail every agent run of these two rows as api_error — check
+      `codex --version` before reading such a failure as the model.
       OpenRouter also lists openai/gpt-6-sol-pro at the same $2/$10 — absent from
       OpenAI's own /v1/models, so NOT registered here.
       PLACEMENT 2026-09-22: `--tier core,frontier` N=1, candidate alone per §5.5
@@ -552,6 +555,7 @@ models:
                             # completion, finish=stop (adaptive, default effort medium)
     description: "GPT-6 Luna - GPT-6 generation fast/cheap tier (Sep 2026)"
     env_var: "OPENAI_API_KEY"
+    agent_cli: "codex"  # needs codex-cli >= 0.155.1 — see gpt6-sol notes
     max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM convention; declared ceiling is 128000
     pricing:
       input_per_1k: 0.0001    # $0.10 per 1M = $0.0001 per 1K
@@ -563,8 +567,8 @@ models:
       $0.125/M. Batch/flex 50% off, fast tier 2x.
       NAME TRAP: gpt6-luna (GPT-6) is NOT gpt5-6-luna (GPT-5.6).
       API access VERIFIED 2026-09-22 (chat/completions, finish_reason=stop).
-      ⛔ NO agent_cli — codex subscription lane rejects it exactly as it rejects
-      gpt6-sol (see that row for the probe and controls). Re-probe later.
+      ✅ Codex subscription lane verified 2026-09-22 — needs codex-cli >= 0.155.1
+      (0.154.0 400s it). See gpt6-sol for the probe and controls.
       Candidate for the gpt5-4-mini dev_models / lang_harness_suite slot IF placement
       shows it matches mini's quality — that is the question worth answering here.
       PLACEMENT 2026-09-22: `--tier core,frontier` N=1, candidate alone → 26/29,
