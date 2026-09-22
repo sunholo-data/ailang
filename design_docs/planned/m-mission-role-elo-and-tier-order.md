@@ -157,6 +157,15 @@ Discovered by proposing a tier order that violated them and watching the suites 
 M3 must encode these as rules the checker enforces, or a rating-ordered chain will violate
 them the same way a judgement-ordered one did.
 
+**M3 must also run the suite SERIALLY.** `tools/launchd` has no CI, so these sixteen scripts
+only run when someone runs them — and two of them (`test_driver_notify.sh`,
+`test_hook_stdout.sh`) assert on wall-clock: bounded-cutoff arms with ~7s thresholds, and a
+10s background-warmup control. Run in parallel they produce FALSE REDS. Measured 2026-09-22:
+a parallel sweep reported both failing; run serially and unloaded, both are clean (92/0 and
+"containment: OK"). That matters more than it sounds — a sweep that cries wolf is a sweep
+people stop reading, which is how the genuine red sitting in `test_mission_routing.sh` went
+unnoticed in the first place.
+
 ## Risks
 
 - **Small-N.** 67 controller rows across 7 arms is thin, and the other roles start near zero
