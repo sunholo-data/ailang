@@ -1,11 +1,168 @@
 # M-EQ-DERIVE-CONTAINERS — make `==` work for records, Options and lists when the parts already have Eq
 
-**Status**: Planned
-**Target**: v0.35.0
+**Status**: Planned — **RE-LAND**. First implementation `caa2d53a6` was reverted same-day in
+`cd1c976fb` (2026-08-29); nothing has landed since. Read **Re-land revision (2026-09-22)** first:
+it supersedes the original Solution Design, ABI, Implementation Plan, Files and Success Criteria
+wherever they conflict.
+**Target**: next minor (originally v0.35.0; missed — current line is v0.41)
 **Priority**: P1
-**Estimated**: ~6 hours (single sprint, type-system surface)
+**Estimated**: ~4 hours (smaller than the original ~6h — see R-D1)
 **Dependencies**: None (builds on M-DX19's existing `deriving (Eq)` machinery)
-**Tracking**: GitHub issue #960 (filed from the M-DX-PI-HARNESS dogfooding run)
+**Tracking**: GitHub issue #960 (filed from the M-DX-PI-HARNESS dogfooding run); #963 (list `==`)
+
+## Re-land revision (2026-09-22)
+
+### Why this doc is back
+
+The design passed two quorum rounds on 2026-08-29 and was implemented the same day
+(`caa2d53a6`), then reverted within hours (`cd1c976fb`). Post-hoc verification found its
+"probes verified live" claim false. Records never type-checked. Lists crashed at runtime.
+The one working surface, a locally declared Option-like ADT, already worked before it.
+The depth cap was dead code: `if depth > 0 && false`. The failure map is in issue #960's
+comment. It then sat for 24 days. The mission's weekly sweep listed #960 and #963 among
+open issues with zero mentions, but no iteration picked them up.
+
+It resurfaced on 2026-09-22 while calibrating three new hidden-input frontier benchmarks.
+On `mlfq_scheduler_hidden`, **4 of 6 compile failures were `==` on a list**
+(`claude-opus-5-5`, `gpt6-sol` ×2, `gpt6-luna`), e.g. `if st.q0 != [] then …`. The error
+also told every model to "Import std/prelude", a module that does not exist. That hint was
+fixed in `2122705e0`: missing-`Eq` errors now give advice that works for each type. The
+language gap itself is what this doc closes.
+
+**Frequency, measured honestly.** On the existing suite the gap is rare in *final* results:
+banked baselines v0.32.0 and v0.30.0 hold 1 of 877 and 2 of 909 AILANG standard rows with a
+missing-`Eq` error. That is a floor, not a rate. A banked row keeps only the final attempt's
+stderr, so a run that hit the error and repaired it leaves no trace. It bites hardest on
+stateful, collection-heavy programs (queues, sets of states, record snapshots), which the
+old suite under-samples and the new frontier family targets. It is also the #960 DX case:
+every test assertion on a record, Option or list needs a hand-written match helper.
+
+### Verification Log — re-land rows (live, 2026-09-22, dev + `2122705e0`)
+
+| # | Claim | Method | Result |
+|---|-------|--------|--------|
+| V12 | `[1,2] == [1,2]` fails at **check time** (was a runtime crash in the 08-29 matrix) | `ailang check` + `run` | `No instance for Eq[[int]]`, a check-time type error. The #963 crash no longer reproduces as a crash |
+| V13 | `xs == []` on `xs: [int]` fails | probe | `No instance for Eq[list[int]]` |
+| V14 | Built-in `Option[int]` has no Eq: `Some(1) == Some(1)` fails | probe | FAILS. The 08-29 matrix's ✅ Option row was for a *locally declared* Option-like ADT, not `std` Option |
+| V15 | `Option[C]` with `C deriving (Eq)` fails | probe `Some(Red) == Some(Red)` | FAILS (container composition is the blocker, as V5 said) |
+| V16 | Tuples have no Eq, **not in the original scope** | `(1, "a") == (1, "a")` | `No instance for Eq[(int, string)]` |
+| V17 | Record alias with `deriving (Eq)` still fails; the constraint carries a residual row | `type P = {x:int, y:int} deriving (Eq)`; `mk(1) == mk(1)` | `No instance for Eq[{ x: int, y: int, ...{x: int, y: int} }]` (root cause 2 on #960, unchanged) |
+| V18 | **Derived ADTs whose fields are lists, Options or tuples ALREADY compare correctly at runtime** | `B([1,2])==B([1,3])`, `B([1])==B([1,1])`, `O(Some 1)==O(None)`, `O(Some 1)==O(Some 2)`, `T((1,"a"))==T((1,"b"))`, plus positives | All five negatives `false`, positives `true`. Deep structural comparison of `ListValue`/`TupleValue`/nested `TaggedValue` works today |
+| V19 | …but a derived ADT with a **record** field fails at check | `type R = R({a:int}) deriving (Eq)`; `R({a:1}) == R({a:1})` | `No instance for Eq[{ a: int }]`. The deriving check demands `Eq` of record fields but not of list fields: inconsistent field checking |
+| V20 | The runtime comparator exists and is general: `valuesStructurallyEqual` handles Int/Float/String/Bool/Unit/Tagged/List/Tuple/Record recursively; unknown kinds (closures) → `false` | Read `internal/eval/eval_patterns.go:427–495` | Confirmed. The **only** runtime gap is the entry point: `makeADTEqualityFn` (`:385`) rejects any top-level value that is not a `*TaggedValue`. #960's root cause 1 ("needs a value-structural Eq") is already half-built |
+| V21 | **No user-defined `Eq` instances exist** | `parseInstanceDeclaration` (`internal/parser/parser_func.go:534`) is `// TODO … return nil`; zero `instance Eq` in any `.ail` in the repo (`git grep`) | Confirmed. Every Eq is a builtin primitive or a derived structural one, so **structural comparison is exactly the semantics of composed dictionaries**. Child-dict threading (the round-1 "ABI" section) buys nothing today |
+| V22 | A second runtime comparator exists in the bytecode VM and **diverges** | Read `internal/bytecode/value.go:259` `Value.Equal` | Two divergences: VM treats `NaN == NaN` as **true** (dedup semantics); VM compares record fields **positionally** (`a[i].Name == b[i].Name`), relying on canonical field order, while the evaluator compares by name |
+| V23 | The VM is opt-in and hands dictionary-shaped code back to the evaluator | `cmd/ailang/main_run.go:121` `--bytecode` default `false`; `internal/runner/entrypoint.go:139–150` (EvalOnly functions trap to the evaluator in non-strict mode) | Confirmed. Default `ailang run` uses the evaluator's comparator. The VM divergence is a seam to pin, not the main path |
+| V24 | Proposed error code `E_EQ_SYNTH_DEPTH` is unallocated | `git grep -n E_EQ_SYNTH_DEPTH -- internal cmd` | No hits outside this doc: free |
+| V25 | **An `Eq` constraint whose type still contains a free type variable is not checked.** The value reaches the runtime structural comparator | `Ok(1)==Ok(1)` → `true`; `Ok(1)==Ok(2)` → `false`; `None==None` → `true`; `Ok([1])==Ok([1])` → `true`; `Err("a")==Err("b")` → `false`. Pin the type (`r: Result[int,string]`; `r == Ok(1)`) and it is **rejected**: `No instance for Eq[Result[int, string]]`. Yet `[] == []` is rejected (`Eq[[α4]]`) | Confirmed, and inconsistent: whether `==` type-checks depends on whether inference happened to leave a variable. This is how the 08-29 matrix recorded "Option works". It is a soundness gap: any value, including a function, that stays behind a residual variable would reach a comparator that returns `false` for closures instead of being rejected |
+
+### What changed in the design (R-decisions)
+
+**R-D1 — Runtime: generalize the entry point; add no new comparators.** V20 and V21 together
+mean the evaluator needs no `eq_opt`/`eq_list` helpers and no child-dictionary threading.
+Add one marker, `DerivedStructuralEquality`, that the evaluator maps to a function calling
+`valuesStructurallyEqual(a, b)` on **any** two values. Container, tuple and record instances
+synthesized by the type checker all resolve to it. `makeADTEqualityFn` keeps its ADT-only
+contract for existing `DerivedADTEquality` dicts. This deliberately drops the original
+"Container composition ABI" section; revisit it only when user-defined instances land (V21),
+at which point a custom element `Eq` could differ from structural comparison.
+
+**R-D2 — Type checker: synthesize instead of registering shapes.** `InstanceEnv.Lookup`
+synthesizes `Eq[T]` when T is:
+- `list[τ]` / `[τ]` (via `AsList`), `Option[τ]`, or `Result[τ, ε]`, when every parameter
+  resolves `Eq`. `Result` "works" today only by the V25 leak, so it needs synthesis like the others;
+- a tuple, when every component resolves `Eq`;
+- a record, **only** when it is the expansion of an alias declared `deriving (Eq)`, and every
+  field resolves `Eq`.
+
+Recursion goes through `Lookup` itself, so nested shapes compose. Anonymous records stay a
+loud failure, keeping the round-2 scoping decision (no action at a distance).
+
+**R-D3 — Record key canonicalization comes first (#960 root cause 2).** Before any record
+lookup, collapse the residual row `{ x: int, y: int, ...{x: int, y: int} }` to its closed
+field set with sorted labels. Registration and use-site constraints then normalize to one key.
+This also fixes the doubled row in the error text. Gate: the V17 probe must pass *through the
+real type checker* before Phase 2 starts. That is precisely the step the reverted commit
+skipped.
+
+**R-D4 — The depth cap must be real, and tested by mutation.** `synthesizeEq(typ, depth)`
+increments `depth` on every recursive call. Exceeding 8 returns `E_EQ_SYNTH_DEPTH` (V24), with
+the message specified above. Acceptance includes a test that fails if the increment is removed.
+The 08-29 cap was dead code that no test could have caught.
+
+**R-D5 — Fix the deriving field check (V19).** `deriving (Eq)` on an ADT currently demands
+`Eq` for record fields but not list fields. After R-D2 the rule is uniform: a derived ADT is
+`Eq` iff every field type resolves `Eq`. List, Option and tuple fields then pass *because they
+synthesize*, not because they are skipped. Functions stay non-`Eq`: a field of function type
+makes `deriving (Eq)` fail loudly, naming the field.
+
+**R-D6 — Pin the VM seam; don't unify it in this sprint.** V22 is pre-existing and reached
+only through `--bytecode`. Two parity tests go in: records with differently ordered literals,
+and a NaN field. Each asserts evaluator == VM, or asserts the documented difference. If the
+record-order test fails on the VM, canonical record field order becomes a blocking prerequisite
+for any **default** bytecode flip. File it; don't fix it here.
+
+**R-D7 — Close the residual-type-variable leak (V25). ⚠ Design-freeze item: in or out of this
+sprint?** Once synthesis exists, a residual `Eq[F(…α…)]` constraint must either be discharged
+by synthesis (after instantiation) or fail loudly at generalization. It must never silently fall
+through to runtime. Recommendation: **in scope**. Without it, the new rules and the old leak coexist,
+and "does `==` type-check?" keeps depending on inference accidents, the same class of confusion
+that sank the 08-29 verification. Risk: programs that type-check today *only* because of the leak
+will start failing. The leak and the gap together make those rare (1 missing-`Eq` row in 877), but
+the regression set must include a leak-dependent fixture that stays green because synthesis now
+covers it (e.g. `None == None` becomes `Eq[Option[α]]`, which must default or generalize, not die).
+
+### Re-land implementation plan (supersedes the original plan)
+
+**Phase 0 — Evidence harness, before any code (~0.5h).** Check in `examples/eq_containers.ail`
+exercising every positive in V12–V19, and `examples/eq_containers_negative/` (one file each:
+element lacks Eq, a function field, an anonymous record, depth 9). Record current output:
+all positives fail today. This is the probe file whose equality expressions *actually evaluate*;
+the 08-29 probe never did. `make verify-examples-toplevel` runs the positive file in CI.
+
+**Phase 1 — Record canonicalization (R-D3) (~1h).** Row collapse plus key normalization.
+Gate: V17 passes `ailang check` and `run`, printing `true` and then `false` for unequal records.
+
+**Phase 2 — Synthesis + marker (R-D1, R-D2, R-D4) (~1.5h).** `Lookup` synthesis for list,
+Option, Result and tuple, plus derived records; `DerivedStructuralEquality` in the evaluator;
+a real depth cap. Gate: every Phase-0 positive prints the right answer, including the negative
+controls (unequal values → `false`).
+
+**Phase 3 — Deriving uniformity + seam tests (R-D5, R-D6) (~1h).** Uniform field check;
+evaluator/VM parity tests; mutation-test each new test (revert its fix, watch it fail).
+
+### Re-land success criteria
+
+- [ ] Every V12–V19 positive compiles **and evaluates to the correct boolean**. Each has an
+      unequal-value control that prints `false`, via `examples/eq_containers.ail` in CI
+- [ ] Element-lacks-`Eq` (e.g. `[\x. x + 1] == [\x. x + 1]` → `No instance for Eq[[int -> int]]`, verified) still fails at check, naming the element type
+- [ ] Anonymous record `{x: 1} == {x: 1}` still fails (round-2 scoping)
+- [ ] (If R-D7 is in scope) a residual-variable `Eq` constraint is discharged by synthesis or fails loudly; a closure can never reach the runtime comparator; `None == None` still type-checks via synthesis
+- [ ] Depth 9 fails with `E_EQ_SYNTH_DEPTH`; its test fails when the depth increment is removed
+- [ ] Evaluator/VM parity tests for record field order and NaN exist and pass, or assert the documented difference
+- [ ] The Eq hint (`2122705e0`) is updated: lists, Option, tuples and derived records no longer
+      reach it; its remaining text covers only genuinely non-`Eq` types
+- [ ] The teaching prompt states which types support `==` (currently silent), verified with `ailang check`
+- [ ] Re-grade the four banked 2026-09-22 `mlfq_scheduler_hidden` list-`==` failures offline
+      against the new binary (no API spend). Report how many were otherwise-correct programs
+- [ ] `make test`, `make test-core` and `verify-examples-toplevel` green, apart from the
+      pre-existing `examples/ai_modes.ail` effect-check failure
+
+### Conflict Surface — re-land additions
+
+Beyond the original section: (1) `makeADTEqualityFn`'s ADT-only contract must stay intact.
+Existing `DerivedADTEquality` dicts keep their path, and the new marker is a sibling, not a
+widening. (2) The bytecode VM's `Value.Equal` (V22) is a second implementation of the same
+concept, so parity tests are mandatory (R-D6). (3) `2122705e0`'s per-type Eq hint is exercised
+by `TestEqInstanceHintIsActionable`; its list/Option/tuple cases change expectation once
+synthesis succeeds, so update the test deliberately rather than deleting it.
+
+### Quorum
+
+Trigger 1 fires: R-D1 (dropping the child-dict ABI), R-D6 (VM seam deferred) and R-D7
+(leak in or out of scope) are design-freeze items. Run `ailang design-quorum` before planning. It is cents per doc, but it is
+spend, so it needs a human yes (Mark paused eval spend on 2026-09-22).
+
 
 ## Axiom Compliance
 
@@ -100,6 +257,10 @@ Touches `internal/types/` (instances.go, dictionaries.go) and `internal/elaborat
 What else lives there: builtin Eq/Ord/Show rows (primitives), `deriveEqFromOrd` derivation, record-alias expansion (M-FIX-RECORD-UPDATE), `==` lowering to dict calls. Must-still-work fixtures: M-DX19 ADT derives (V1), ail_diag's 6 inline tests, email-parse packages/email primitives equality, the polymorphic-derive rejection (V8). Regression tests: the four probe matrix positives + element-lacks-Eq negatives + cap-exceed. Deliberately changes: nothing — previously-failing equalities remain failing only when a constituent genuinely lacks Eq.
 
 ## Solution Design
+
+> **Original 2026-08-28 design, kept for provenance.** Where it conflicts with *Re-land revision
+> (2026-09-22)* above (notably the container ABI, `eq_opt`/`eq_list` helpers, and shape-keyed record
+> registration), the re-land revision wins.
 
 ### Overview
 
@@ -263,4 +424,4 @@ Single session (~6h), three phases with gates between.
 ---
 
 **Document created**: 2026-08-28
-**Last updated**: 2026-08-28
+**Last updated**: 2026-09-22 (re-land revision after the `cd1c976fb` revert)
