@@ -2,6 +2,8 @@
   "sprint_id": "M-CHAINS-EXECUTOR-TRANSCRIPTS",
   "status": "not_started",
   "created": "2026-09-16T14:40:11Z",
+  "last_reviewed": "2026-09-23T00:00:00Z",
+  "correlation_id": "task-18f17e24",
   "design_doc": "design_docs/planned/v0_39_1/m-chains-executor-transcripts.md",
   "sprint_plan": "design_docs/planned/v0_39_1/m-chains-executor-transcripts-sprint-plan.md",
   "github_issues": [],

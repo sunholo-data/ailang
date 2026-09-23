@@ -4,6 +4,7 @@
 **Sprint ID:** `M-CHAINS-EXECUTOR-TRANSCRIPTS`  
 **Target:** v0.39.1 · P1  
 **Planned at:** `87d50e4c`, 2026-09-16  
+**Revalidated:** `cb6fc0f0` (v0.42.0), 2026-09-23 for coordinator task `task-18f17e24`
 **Duration:** **1.5 engineering days / about 12 hours**  
 **Estimated change:** **~1,050 LOC** (about 440 implementation, 540 tests, 70 migration/docs)  
 **Risk:** Medium-high (new Cloud Run authority and a cross-store schema/write path)
@@ -36,6 +37,9 @@ the checked Design Freeze above is authoritative until then.
   for importer convergence. This plan therefore budgets 12 hours and ~1,050 LOC.
 - Code inspection confirms two raw-SQL non-test writers, no `Backend.PutChatMessages`, no Firestore
   writer, and schema migration v21 as the current tip.
+- Revalidation at v0.42.0 found the same implementation gap: no `TranscriptRecorder`, no
+  `PutChatMessages`, and the two importers remain direct SQL writers. The milestone scope and ordering
+  therefore remain current despite the target version having advanced beyond v0.39.1.
 - The two importers currently preserve `content_text`, `content_thinking`, `request_id`, and
   `stage_id`; the canonical message type/write method must preserve those fields rather than silently
   dropping them.
@@ -207,4 +211,3 @@ Acceptance criteria:
 - O1 and live cloud checks are evidence-bearing, not inferred from unit tests.
 - This plan does **not** authorize implementation. Per repository routing, Mark must approve this plan
   and then explicitly say **“execute sprint”** before `sprint-executor` starts.
-
