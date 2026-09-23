@@ -1,0 +1,87 @@
+{
+  "sprint_id": "M-INLINE-TEST-ROW-ARITY",
+  "status": "planned",
+  "created": "2026-09-23T00:00:00Z",
+  "design_doc": "design_docs/planned/m-inline-test-multiarg-tuple-rows.md",
+  "sprint_plan": "design_docs/planned/m-inline-test-multiarg-tuple-rows-sprint-plan.md",
+  "github_issues": [
+    715
+  ],
+  "velocity": {
+    "target_loc_per_day": 244,
+    "estimated_total_loc": 610,
+    "estimated_days": 2.5
+  },
+  "features": [
+    {
+      "id": "M1_ARITY_COLLECTION_VALIDATION",
+      "description": "Preserve declared function arity on inline test cases and refuse nullary, one-element tuple, and mismatched tuple shapes during collection with positioned diagnostics.",
+      "estimated_loc": 200,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Every collected inline test carries enough declaration information to distinguish unary tuple input from multi-argument input.",
+        "Invalid shape or arity rows are not appended as executable tests.",
+        "Mismatch diagnostics name declared arity, supplied count, function, and source location.",
+        "Named tests and inline properties retain existing behavior."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_ARITY_AWARE_HARNESSES",
+      "description": "Build inline and cluster harness calls from declared arity, return construction errors instead of panicking, and wrap executor failures once.",
+      "estimated_loc": 200,
+      "dependencies": [
+        "M1_ARITY_COLLECTION_VALIDATION"
+      ],
+      "acceptance_criteria": [
+        "Unary tuple input builds App(f, [Tuple(a, b)]).",
+        "N-ary input builds one App with N direct arguments and never curries.",
+        "Inline and cluster harness builders pass the identical-row unary-versus-binary disambiguation tests.",
+        "Malformed internal shapes return errors and executor output has one harness context prefix."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_FLAT_ROW_DIAGNOSTIC",
+      "description": "Refuse flat multi-argument rows with the approved nested-form hint and recover without PAR_INFINITE_LOOP cascades.",
+      "estimated_loc": 130,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "tests [(1, 2, 3)] is refused with a hint to use ((a, b), expected).",
+        "The malformed row emits no PAR_INFINITE_LOOP diagnostic.",
+        "Parser recovery is pinned across multiple rows and following declarations.",
+        "Valid scalar and nested rows retain their AST shapes."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_E2E_CORPUS_JSON",
+      "description": "Verify tuple-valued unary, multi-argument, malformed-row, examples, and JSON behavior through the public test path and full regression suite.",
+      "estimated_loc": 80,
+      "dependencies": [
+        "M1_ARITY_COLLECTION_VALIDATION",
+        "M2_ARITY_AWARE_HARNESSES",
+        "M3_FLAT_ROW_DIAGNOSTIC"
+      ],
+      "acceptance_criteria": [
+        "Direct and nested-match unary tuple rows pass end to end.",
+        "The existing three-argument example remains passing.",
+        "Flat and wrong-arity rows never surface as runtime no pattern matched failures.",
+        "JSON diagnostics are actionable and positioned, and make test/fmt/lint/check-boundaries pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
