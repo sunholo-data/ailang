@@ -1,0 +1,80 @@
+{
+  "sprint_id": "M-CODEX-BILLING-LANE-RESOLUTION",
+  "status": "planned",
+  "created": "2026-09-23T00:00:00Z",
+  "design_doc": "design_docs/planned/m-codex-billing-lane-resolution.md",
+  "sprint_plan": "design_docs/planned/m-codex-billing-lane-resolution-sprint-plan.md",
+  "github_issues": [903],
+  "metadata": {
+    "base_version": "v0.42.0",
+    "estimated_effort": "2 days (about 10 focused hours)",
+    "scope": "Reject guessed codex: AI-effect routing with one typed diagnostic while preserving explicit models.yml OpenAI routing for codex-family API models.",
+    "planner_note": "The design's v0.39.0 target is historical; select the next minor release and current unreleased changelog at execution time.",
+    "implementation_gate": "User must explicitly say execute sprint before sprint-executor starts."
+  },
+  "velocity": {
+    "target_loc_per_day": 110,
+    "estimated_total_loc": 220,
+    "estimated_days": 2,
+    "loc_note": "220 = 90 M1 + 80 M2 + 50 M3. Seven-day history contains only the v0.42.0 release, so the estimate uses inspected surface area plus contingency rather than a misleading recent LOC/day rate."
+  },
+  "features": [
+    {
+      "id": "M1_SHARED_FAIL_LOUD_CONTRACT",
+      "description": "Remove the codex prefix from GuessProvider's OpenAI guesses and add a shared typed model-resolution error/helper that explains the executor-only billing ruling.",
+      "estimated_loc": 90,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "GuessProvider returns empty for codex:gpt-5-codex, mixed-case CODEX:, and bare codex-max",
+        "GuessProvider still returns OpenAI for gpt-5-codex, gpt-*, o1-*, and o3-* positive controls",
+        "The resolution error is discoverable with errors.As, preserves the model, and names executor lane, unavailable ChatGPT OAuth, no silent metered fallback, and explicit-registry migration",
+        "go test ./internal/ai/... -count=1 passes"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_BOTH_CONSUMERS_AND_REGISTRY_CONTROL",
+      "description": "Use the shared typed error in CLI AI-effect and eval-adapter fallback construction, with negative codex: tests and explicit provider:openai registry precedence controls.",
+      "estimated_loc": 80,
+      "dependencies": ["M1_SHARED_FAIL_LOUD_CONTRACT"],
+      "acceptance_criteria": [
+        "CLI AI-effect construction rejects codex: before provider/client construction with the typed diagnostic",
+        "Eval adapter construction rejects codex: with the identical typed diagnostic",
+        "Explicit provider: openai construction for a codex-family API model succeeds without guessing or network calls",
+        "Existing config-driven, OpenRouter, Ollama, Anthropic, Google, and OpenAI routing tests remain green",
+        "go test ./cmd/ailang ./internal/eval_harness ./internal/ai/... -count=1 passes"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_MIGRATION_AND_VERIFICATION",
+      "description": "Re-scan AI-effect codex: usages, add the next-minor migration note, run repository gates, and prove executor auth and mission-control billing guards are untouched.",
+      "estimated_loc": 50,
+      "dependencies": ["M2_BOTH_CONSUMERS_AND_REGISTRY_CONTROL"],
+      "acceptance_criteria": [
+        "No unexplained repository AI-effect codex: usage remains; executor role pins are classified as unaffected",
+        "The current unreleased changelog documents loud failure plus executor-lane and explicit-registry migration choices",
+        "make test, make lint, and make check-boundaries pass or unrelated base failures are reproduced and recorded",
+        "No diff exists under internal/executor/codex or tools/launchd/mission-control.sh",
+        "Final landing commit uses Fixes #903; earlier commits use refs #903"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "risk_level": "medium",
+  "risks": [
+    "Over-broad rejection could block deliberate API use; preserve gpt-* guessing and test explicit registry OpenAI precedence.",
+    "Two fallback consumers could drift; centralize typed error construction and test both.",
+    "Billing-path tests could accidentally require credentials or network; stop at handler/adapter construction with injected test configuration.",
+    "The design release target is stale; select the current unreleased next-minor changelog during execution."
+  ]
+}
