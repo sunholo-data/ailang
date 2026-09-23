@@ -1,0 +1,65 @@
+{
+  "sprint_id": "M-IFC-AUTHORITY-SCOPING",
+  "design_doc": "design_docs/planned/m-ifc-authority-scoping.md",
+  "sprint_plan": "design_docs/planned/v0_42_0/m-ifc-authority-scoping-sprint-plan.md",
+  "created": "2026-09-23",
+  "github_issues": [752],
+  "velocity": {
+    "target_loc_per_day": 100,
+    "estimated_total_loc": 300,
+    "estimated_days": 3,
+    "basis": "Approved design estimate; recent repository history has insufficient implementation LOC data"
+  },
+  "features": [
+    {
+      "id": "M1_SCOPED_EFFECT_SURFACE",
+      "description": "Scoped Declassify schema validation and authority-covering effect subsumption",
+      "estimated_loc": 100,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Declassify[label=email] validates while unknown keys and empty labels fail loudly",
+        "Bare authority covers scoped authority; scoped authority covers only subsets",
+        "Rand and AI parameter invariance remains unchanged",
+        "Targeted effect and subsumption tests are informative and green"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": "Executor must first establish an informative baseline; go and make were unavailable during planning."
+    },
+    {
+      "id": "M2_IFC_SCOPING_AND_CHECK_C",
+      "description": "Exact IFC authority enforcement, caller propagation, and positive parameter-label call checks",
+      "estimated_loc": 160,
+      "dependencies": ["M1_SCOPED_EFFECT_SURFACE"],
+      "acceptance_criteria": [
+        "Email-scoped authority cannot lower secret data",
+        "A scoped declassifier's caller inherits no blanket authority",
+        "Secret-to-email parameter flow raises ParamLabelCoverError while bottom and email pass",
+        "Closure laundering and existing sink checks remain covered",
+        "Targeted IFC tests are informative and green"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_COMPAT_DOCS_GATES",
+      "description": "Backward compatibility, IFC documentation, examples, and repository-wide verification",
+      "estimated_loc": 40,
+      "dependencies": ["M2_IFC_SCOPING_AND_CHECK_C"],
+      "acceptance_criteria": [
+        "Existing secret examples and IFC fixtures preserve behavior",
+        "IFC guide and secrets README document scoped authority and positive-label enforcement",
+        "Cross-module enforcement remains out of scope",
+        "Full tests, lint, boundaries, and file-size gates pass",
+        "Teaching-prompt changes are handed to prompt-manager under a separate gate"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
