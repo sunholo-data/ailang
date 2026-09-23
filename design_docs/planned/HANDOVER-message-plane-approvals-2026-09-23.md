@@ -181,3 +181,20 @@ lines, from `2122705e0` (2026-09-22, not this session's work).
   duplicate/direct-fix rows get rejected (which loses the backlog row), or (b) keep no edge and
   escalate a row by hand with `ailang messages forward <id> design-doc-creator`. Operator's call.
 - **File-size gate green** — `457f7f688` moved lambda/param parsing to `parser_lambda.go`.
+
+### Operator rulings, same day
+
+- **§4 triage → design-doc: forward by hand.** No `trigger_on_complete` on `ailang-core-triage`;
+  escalate a row with `ailang messages forward <id> design-doc-creator`. Closed.
+- **Future merges: resolve AND fire.** Shipped `6540b5f6a` — `daemon_landed_cards.go`, cloud-only,
+  ≤ every 10 min, cards created after 2026-09-23T15:00Z, handoffs ON. Uses REST + `GITHUB_TOKEN`
+  because the buildpack coordinator image has no `gh`. **Reaches prod only with the next coordinator
+  image** (release tag + promote); dev picks it up from the dev build.
+- **Still blocked by the classifier — Mark to run:**
+  - multivac: commit + push the three tfvars (edit is already in the tree, uncommitted; leave
+    `terraform/docparse.tf` out), then promote test/prod.
+  - `ailang coordinator prs --remote gcp --landed --apply` (62 backlog cards, no handoffs fired).
+
+Side finding, not acted on: the cloud webhook path calls `approvalWatcher.handleEvent`, which
+removes labels through `GitHubPoster` → `gh`. With no `gh` in the image, that label cleanup most
+likely fails in the cloud. Same seam as above; worth a look.
