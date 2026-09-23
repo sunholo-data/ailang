@@ -35,6 +35,10 @@ type ApprovalParams struct {
 	SkipMerge         bool // If true, don't merge worktree on approval
 	KeepWorktree      bool // If true, don't clean up worktree after merge
 	RetriggerOnReject bool // If true, send feedback to agent for re-attempt (feedback loop)
+	// SkipHandoffs records the approval WITHOUT dispatching the edges waiting on
+	// it. For a card whose PR already merged and whose downstream is stale or
+	// superseded — see LandedCard. Every other caller leaves it false.
+	SkipHandoffs bool
 
 	// Dependencies (injected by caller)
 	Store         Store                  // Required: coordinator store for task/approval operations
@@ -205,7 +209,13 @@ func processApproval(ctx context.Context, span trace.Span, params *ApprovalParam
 	// durably resolved and cannot be retried, so returning an error here would
 	// report failure for work that succeeded. It is surfaced in the result
 	// instead, which is what callers print.
-	handedOff, hErr := dispatchApprovalHandoffs(ctx, params.AgentRegistry, params.MsgStore, params.Store, task)
+	var handedOff []string
+	var hErr error
+	if params.SkipHandoffs {
+		result.Message += " (handoffs NOT fired)"
+	} else {
+		handedOff, hErr = dispatchApprovalHandoffs(ctx, params.AgentRegistry, params.MsgStore, params.Store, task)
+	}
 	switch {
 	case hErr != nil:
 		span.AddEvent("warning: approval handoff failed", trace.WithAttributes(
@@ -325,7 +335,7 @@ func finalizeApprovedTask(ctx context.Context, span trace.Span, params *Approval
 	result.Message = fmt.Sprintf("Task approved and merged to %s (commit: %s)", mergeBranch, mergeResult.CommitHash)
 
 	// 7. Trigger embedded handoffs if this was a merge_handoff approval
-	if params.MsgStore != nil && params.AgentRegistry != nil {
+	if params.MsgStore != nil && params.AgentRegistry != nil && !params.SkipHandoffs {
 		if handoffTriggered, err := triggerEmbeddedHandoffsFromProcessor(ctx, span, params, task, taskID); err != nil {
 			span.AddEvent("warning: failed to trigger handoffs", trace.WithAttributes(
 				attribute.String("error", err.Error()),
