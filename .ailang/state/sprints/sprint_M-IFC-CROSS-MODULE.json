@@ -1,0 +1,94 @@
+{
+  "sprint_id": "M-IFC-CROSS-MODULE",
+  "status": "not_started",
+  "created": "2026-09-23T15:44:57Z",
+  "design_doc": "design_docs/planned/m-ifc-cross-module-labels.md",
+  "sprint_plan": "design_docs/planned/m-ifc-cross-module-labels-sprint-plan.md",
+  "github_issues": [
+    1132,
+    1134
+  ],
+  "velocity": {
+    "target_loc_per_day": 250,
+    "estimated_total_loc": 1000,
+    "estimated_days": 4
+  },
+  "features": [
+    {
+      "id": "M1_VERSIONED_IFC_INTERFACE_PROJEC",
+      "description": "Versioned IFC Interface Projection",
+      "estimated_loc": 260,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Every exported function has explicit IFC metadata after interface construction.",
+        "JSON and gob/cache round trips preserve every IFC summary field.",
+        "Changing only IFC metadata changes the interface digest and therefore the dependent module cache key.",
+        "A v1 or otherwise summary-less readable interface cannot silently enter compilation as clean metadata.",
+        "Serialization is deterministic and `go test ./internal/iface ./internal/pipeline` passes."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_DEPENDENCY_SIDE_INTRINSIC_SUMM",
+      "description": "Dependency-Side Intrinsic Summary Computation",
+      "estimated_loc": 230,
+      "dependencies": [
+        "M1_VERSIONED_IFC_INTERFACE_PROJEC"
+      ],
+      "acceptance_criteria": [
+        "An unannotated wrapper around `secret()` exports intrinsic label `secret`.",
+        "Transparent forwarding does not invent an intrinsic label from bottom-seeded parameters.",
+        "Explicit return labels and `Declassify` authority are represented distinctly.",
+        "Recursive functions and closure-returning functions terminate and remain conservatively labelled.",
+        "Existing single-module IFC tests pass unchanged."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_IMPORT_RESOLUTION_AND_CALLER_S",
+      "description": "Import Resolution and Caller-Side Enforcement",
+      "estimated_loc": 300,
+      "dependencies": [
+        "M1_VERSIONED_IFC_INTERFACE_PROJEC",
+        "M2_DEPENDENCY_SIDE_INTRINSIC_SUMM"
+      ],
+      "acceptance_criteria": [
+        "The exact #1134 two-module sink repro fails with a diagnostic naming the imported edge and parameter.",
+        "A library-labelled or intrinsically-secret return remains labelled and is rejected by a caller-local sink.",
+        "Clean cross-module calls compile, including selective, module-alias, and qualified import forms.",
+        "Explicit authorised declassification breaks the taint chain; an unauthorised return-label drop still fails.",
+        "Closure-derived arguments retain their label when passed to an imported sink.",
+        "CLI and REPL return the same verdict and error kind for equivalent modules."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_SECURITY_REGRESSION_MATRIX_DOC",
+      "description": "Security Regression Matrix, Docs, and Release Evidence",
+      "estimated_loc": 210,
+      "dependencies": [
+        "M3_IMPORT_RESOLUTION_AND_CALLER_S"
+      ],
+      "acceptance_criteria": [
+        "The checked-in two-module fixture reproduces issue #1134 before the fix and rejects it after the fix.",
+        "Rebuilding a dependency with only an IFC-summary change invalidates the importer cache.",
+        "Prompt/docs/changelog describe cross-module enforcement and authorised declassification.",
+        "`make fmt`, `make test-core`, `make test`, `make lint`, and `make check-boundaries` pass.",
+        "No `TLabelled` reaches CoreTI or codegen, verified by existing boundaries/tests plus a focused regression assertion."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
