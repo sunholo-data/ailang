@@ -383,6 +383,12 @@ func piCommand() {
 		piUsage()
 		os.Exit(1)
 	}
+	// install/uninstall take no arguments and act on the global extension dir,
+	// so `ailang pi uninstall --help` used to uninstall. Help is never an action.
+	if wantsHelp(os.Args[2:]) || wantsHelp(os.Args[3:]) {
+		piUsage()
+		return
+	}
 	switch os.Args[2] {
 	case "install":
 		piInstallCommand()
