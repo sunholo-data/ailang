@@ -1,0 +1,73 @@
+{
+  "sprint_id": "M-QUORUM-SALVAGE",
+  "status": "not_started",
+  "created": "2026-09-23T15:49:58Z",
+  "design_doc": "design_docs/planned/m-quorum-salvage-retry.md",
+  "sprint_plan": "design_docs/planned/m-quorum-salvage-retry-sprint-plan.md",
+  "github_issues": [
+    941
+  ],
+  "velocity": {
+    "target_loc_per_day": 266,
+    "estimated_total_loc": 800,
+    "estimated_days": 3
+  },
+  "features": [
+    {
+      "id": "M1_PARSE_CLASSIFICATION_AND_REPAIR",
+      "description": "Classify parse stages and add conservative mechanical repair",
+      "estimated_loc": 250,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "The #941-shaped raw quote fixture is mechanically repaired and returns the original verdict and text content after normal parsing and validation.",
+        "Already-valid JSON is not rewritten, and ambiguous/truncated JSON remains an error rather than receiving invented structure.",
+        "Valid JSON with a bad verdict or empty required text is classified as `gate_violation` and is never offered to the repair path.",
+        "`go test ./internal/mission/quorum -run 'Test(ParseReviewResult|RepairReviewJSON|ReviewFailureKind)' -count=1` passes with the new tests observed in output."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_TIER1_BOUNDED_SALVAGE",
+      "description": "Wire one-shot salvage into Tier 1 with cumulative accounting",
+      "estimated_loc": 300,
+      "dependencies": [
+        "M1_PARSE_CLASSIFICATION_AND_REPAIR"
+      ],
+      "acceptance_criteria": [
+        "Mechanical recovery makes the reviewer present with `salvaged:true` and `salvage_method:\"repair\"` after one provider call.",
+        "A repair miss followed by valid re-emission makes the reviewer present after exactly two calls, with cumulative tokens/cost and `salvage_method:\"re-ask\"`.",
+        "A second parse failure stops after exactly two calls and records `invalid_kind:\"parse_failure\"`; a gate violation stops after one and records `invalid_kind:\"gate_violation\"`.",
+        "Combined cost above the cap produces `absent_reason:\"budget\"`, retains cumulative audit counters, and exposes no verdict.",
+        "`finish_reason=length` remains a loud invalid/truncation result and does not re-ask.",
+        "`go test ./internal/mission/quorum -run 'TestRunReviewerWith_' -count=1` passes with the new tests observed in output."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_TIER2_PARITY_AND_GUIDANCE",
+      "description": "Give Tier 2 policy parity and publish actionable remedy guidance",
+      "estimated_loc": 250,
+      "dependencies": [
+        "M1_PARSE_CLASSIFICATION_AND_REPAIR",
+        "M2_TIER1_BOUNDED_SALVAGE"
+      ],
+      "acceptance_criteria": [
+        "Tier 2 has the same repair/re-ask bound and metadata as Tier 1, while using cumulative observed cost rather than models.yml-derived cost.",
+        "The second agentic prompt preserves the original document, contested premise, and read-only rubric; only the JSON re-emission instruction is additive.",
+        "Tier-2 gate violations make one call, and repeated parse failures make exactly two calls.",
+        "The design-doc-creator guidance prescribes a raised cap only for `budget`, and explicitly forbids that remedy for both invalid kinds after bounded salvage.",
+        "`gofmt -w` leaves all changed Go files formatted; `go test ./internal/mission/quorum -count=1`, `make test`, `make lint`, and `make check-boundaries` pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
