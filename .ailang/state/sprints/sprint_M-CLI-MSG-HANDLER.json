@@ -1,0 +1,72 @@
+{
+  "sprint_id": "M-CLI-MSG-HANDLER",
+  "status": "planned",
+  "created": "2026-09-23T00:00:00Z",
+  "design_doc": "design_docs/planned/v0_38_6/m-cli-msg-handler.md",
+  "sprint_plan": "design_docs/planned/v0_38_6/m-cli-msg-handler-sprint-plan.md",
+  "github_issues": [
+    1130
+  ],
+  "velocity": {
+    "target_loc_per_day": 220,
+    "estimated_total_loc": 550,
+    "estimated_days": 2.5
+  },
+  "features": [
+    {
+      "id": "M1_STORE_ADAPTER",
+      "description": "Extract dependency-safe shared message-plane resolution/opening and implement the deterministic store-backed MsgHandler adapter.",
+      "estimated_loc": 250,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Runtime and ailang messages resolve identical local, hybrid, and GCP message backends under table-tested environment precedence",
+        "Send maps sender, inbox, payload, ID, and CreatedAt milliseconds correctly",
+        "Recv polls once in oldest-unread order, marks the selected row read, and returns ErrNoMsgAvailable when empty",
+        "Subscribe drains current unread rows in order, marks each read, and returns a safe no-op cancel",
+        "Misconfiguration returns a named error without silently opening a fallback store"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_RUNNER_WIRING",
+      "description": "Install the native Msg context behind granted authority in single and batch runner paths with injectable store setup and exact cleanup.",
+      "estimated_loc": 190,
+      "dependencies": [
+        "M1_STORE_ADAPTER"
+      ],
+      "acceptance_criteria": [
+        "Explicit Msg and auto-inferred Msg both configure the native handler before user code executes",
+        "Runs without Msg neither open a message store nor install a handler and retain capability denial",
+        "Single and batch paths use one setup contract and tests cover both",
+        "Store startup failure is loud and non-zero before user code runs",
+        "Every opened backend is closed exactly once with no batch double-close or leak"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_PARITY_E2E_DOCS",
+      "description": "Finish native REPL/serve parity, add a checked AILANG example and user-facing semantics, and prove the local round trip end to end.",
+      "estimated_loc": 110,
+      "dependencies": [
+        "M2_RUNNER_WIRING"
+      ],
+      "acceptance_criteria": [
+        "A hermetic local-store test sends through ailang run, observes the same row, and receives it through a second run",
+        "Empty receive returns typed no_message without hanging and bad store configuration exits non-zero",
+        "Native REPL and applicable serve paths have tested Msg parity or a documented deliberate exclusion",
+        "A checked examples/msg_roundtrip AILANG program demonstrates the feature after consulting ailang prompt",
+        "ailang messages behavior, WASM Msg, stub Msg, full tests, lint, and architecture boundaries remain green"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
