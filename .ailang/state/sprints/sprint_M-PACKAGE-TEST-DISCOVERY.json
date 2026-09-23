@@ -1,0 +1,79 @@
+{
+  "sprint_id": "M-PACKAGE-TEST-DISCOVERY",
+  "status": "planned",
+  "created": "2026-09-23T00:00:00Z",
+  "branch": "coordinator/task-73bbb704",
+  "design_doc": "design_docs/planned/m-package-test-discovery.md",
+  "sprint_plan": "design_docs/planned/m-package-test-discovery-sprint-plan.md",
+  "github_issues": [959],
+  "metadata": {
+    "scope": "Unify ailang test --package discovery across *_test.ail files and inline-bearing ordinary modules while retaining RunTestsFromFileWithConfig as the execution and seed-identity seam.",
+    "non_scope": "No AILANG syntax or runtime changes; no internal/testing behavior changes; no directory-mode discovery change; no AST cache optimization.",
+    "estimated_effort": "2 working days (about 12 hours)",
+    "risk_level": "medium",
+    "base_version": "v0.42.0",
+    "execution_environment": "Work on the current coordinator branch. Preserve unrelated work. Use temporary package fixtures and the built ailang binary for command-level exit/output assertions.",
+    "gate_commands": "go test ./cmd/ailang -run 'TestPackageTestDiscovery|TestPackageAndFileAggregates'; go test ./cmd/ailang/...; make fmt; make lint; make test"
+  },
+  "velocity": {
+    "target_loc_per_day": 165,
+    "estimated_total_loc": 330,
+    "estimated_days": 2,
+    "basis": "Bottom-up estimate: about 70 production LOC, 210 test/fixture LOC, and 50 help/changelog or adjustment LOC. Seven-day git history contains only the v0.42.0 release commit, so the approved design's two-day estimate is the more reliable baseline."
+  },
+  "features": [
+    {
+      "id": "M1_E2E_FALSE_GREEN_BOUNDARY",
+      "description": "Add built-binary package fixtures that pin inline-only, mixed, empty, parse-error, deterministic-order, and seed-parity behavior before changing discovery.",
+      "estimated_loc": 150,
+      "estimated_hours": 4,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Inline-only package regression test fails on the v0.42.0 baseline because package mode executes zero tests.",
+        "Mixed package JSON asserts dedicated and inline test results occur exactly once in lexical walk order.",
+        "Empty union exits 0 with a warning naming both dedicated files and inline blocks.",
+        "Invalid ordinary module exits 1 and reports a synthetic parse failure.",
+        "The same inline property under --seed 42 reports the same seed in package and direct-file modes."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_ORDERED_UNION_AND_SHARED_AGGREGATION",
+      "description": "Admit dedicated files, inline-bearing ordinary modules, and parse-invalid modules into one walk-ordered run list; execute only through runTestFile; share result merging between package and directory modes.",
+      "estimated_loc": 140,
+      "estimated_hours": 5,
+      "dependencies": ["M1_E2E_FALSE_GREEN_BOUNDARY"],
+      "acceptance_criteria": [
+        "Package mode executes the union in filepath.Walk order without convention-based phases.",
+        "Discovery-time collection never replaces RunTestsFromFileWithConfig execution or seed derivation.",
+        "Parse-invalid ordinary modules cannot be filtered into a false-green empty suite.",
+        "One merge helper covers tests, properties, counters, vacuous skips, and duration in both command modes.",
+        "Focused package discovery, aggregate seed, JSON purity, replay, and allow-skips tests pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_HELP_CHANGELOG_AND_GATES",
+      "description": "Publish the widened package-test contract in CLI help and the changelog, then run focused and repository validation gates.",
+      "estimated_loc": 40,
+      "estimated_hours": 3,
+      "dependencies": ["M2_ORDERED_UNION_AND_SHARED_AGGREGATION"],
+      "acceptance_criteria": [
+        "ailang test --help describes dedicated and inline package discovery via ailang.toml.",
+        "CHANGELOG.md names the intentional behavior change and issue #959.",
+        "go test ./cmd/ailang/... passes.",
+        "make fmt, make lint, and make test pass, with any unrelated inherited failure recorded verbatim."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
