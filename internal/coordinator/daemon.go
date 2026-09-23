@@ -94,6 +94,9 @@ type Daemon struct {
 	// derives inbox agents for newly published packages (M-PKG-QUALITY-LADDER M6).
 	lastPackageAgentRefresh time.Time
 
+	// lastLandedCardSweep throttles the PR -> card sweep (daemon_landed_cards.go).
+	lastLandedCardSweep time.Time
+
 	// approvalDedup suppresses duplicate Pub/Sub push deliveries of secret
 	// approvals (at-least-once). Lazily initialised on first push.
 	approvalDedup     *approvalDedup
@@ -558,6 +561,8 @@ func (d *Daemon) Run() error {
 			// M-PIPELINE-RECONCILIATION M7: finalize approvals resolved on
 			// another machine for tasks whose worktree lives here.
 			d.sweepStrandedApprovals()
+			// Cards whose coordinator PR merged: the merge is the approval.
+			d.sweepLandedCards()
 
 		case <-retentionTicker.C:
 			// M-OBS-RETENTION: Run retention cleanup on observatory + coordinator DBs
