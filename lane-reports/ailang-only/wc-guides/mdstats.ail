@@ -1,0 +1,68 @@
+module mdstats
+
+-- wc + find + sort over docs/docs/guides/*.md  (shell-shaped task 1)
+-- NOTE: this file lives under a hyphenated path (lane-reports/ailang-only/wc-guides),
+-- so `ailang check/run` reports MOD010 (module must equal the full file path and
+-- hyphens are illegal in module paths). Run with
+--   AILANG_RELAX_MODULES=1 ailang run lane-reports/ailang-only/wc-guides/mdstats.ail
+-- or copy it to the repo root first. Executed successfully from the root in this
+-- session (output: tmp/ailang-only/REPORT.md).
+
+import std/fs (walk, readFile, mkdirAll, writeFile)
+import std/io (println)
+import std/string (endsWith, words, splitAny, concat)
+import std/list (filter, sortBy, foldl, mapE, length)
+import std/bytes (fromString, length as byteLength)
+
+type Stat = {path: string, lines: int, words: int, size: int}
+
+-- wc -l semantics: number of newline characters.
+pure func countLines(s: string) -> int =
+  length(splitAny(s, ["\n"])) - 1
+
+-- wc -w semantics: maximal whitespace-separated runs.
+pure func countWords(s: string) -> int =
+  length(words(s))
+
+-- wc -c semantics: byte length of the file's UTF-8 encoding.
+pure func countBytes(s: string) -> int =
+  byteLength(fromString(s))
+
+func statFile(path: string) -> Stat ! {FS} {
+  let content = readFile(path);
+  {path: path,
+   lines: countLines(content),
+   words: countWords(content),
+   size: countBytes(content)}
+}
+
+-- Sort by line count descending.
+pure func linesDesc(a: Stat, b: Stat) -> int = b.lines - a.lines
+
+pure func row(st: Stat) -> string =
+  concat(["| ", st.path, " | ", show(st.lines), " | ", show(st.words), " | ", show(st.size), " |\n"])
+
+pure func render(xs: [Stat], t: Stat) -> string =
+  concat([
+    "| file | lines | words | bytes |\n",
+    "|---|---:|---:|---:|\n",
+    concat(mapE(row, xs)),
+    "| **TOTAL** | ", show(t.lines), " | ", show(t.words), " | ", show(t.size), " |\n"
+  ])
+
+pure func sumStat(a: Stat, b: Stat) -> Stat =
+  {path: "TOTAL",
+   lines: a.lines + b.lines,
+   words: a.words + b.words,
+   size: a.size + b.size}
+
+export func main() -> () ! {IO, FS} {
+  let all = walk("docs/docs/guides");
+  let mds = filter(\p. endsWith(p, ".md"), all);
+  let rows = sortBy(linesDesc, mapE(statFile, mds));
+  let t = foldl(sumStat, {path: "TOTAL", lines: 0, words: 0, size: 0}, rows);
+  let table = render(rows, t);
+  mkdirAll("tmp/ailang-only");
+  writeFile("tmp/ailang-only/REPORT.md", table);
+  println("files: " ++ show(length(rows)))
+}
