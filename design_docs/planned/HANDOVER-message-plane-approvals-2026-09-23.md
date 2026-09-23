@@ -158,3 +158,26 @@ config change; reaches prod only on a prod-branch push.
 
 `make check-file-sizes` is **red on dev**: `internal/parser/parser_expr.go` is 817
 lines, from `2122705e0` (2026-09-22, not this session's work).
+
+---
+
+## Status update — second session, 2026-09-23
+
+- **§2 staleness — tool shipped (`b981e02ff`), NOT yet applied.**
+  `ailang coordinator prs --remote gcp --landed` (dry run) finds **62 of 77** pending cards with a
+  merged `coordinator/<task>` PR (the first count of 56/57 missed the parse/email/decisions repos).
+  `--apply` resolves each as approved by `pr-merge #N (<merger>)` and completes the task,
+  **without** firing handoffs (`ApprovalParams.SkipHandoffs`); `--fire-handoffs` opts in and needs
+  approval authority. Not run on prod: approvals are the operator's. Not yet in the daemon — whether
+  a future merge should also fire its handoff is an open operator decision.
+- **§3 backstop sweep — edit BLOCKED by the permission classifier** (protected-scope IaC). The
+  preconditions were re-verified: serving coordinator revisions are 09-22/09-23 builds (test and
+  prod share digest `sha256:113dd058…`), and `e0b12bf5f` is in `v0.41.0`. The change is unchanged:
+  `backstop_sweep_mode = "dispatch"` + rewrite the comment block, in all three tfvars.
+- **§4 triage → design-doc — do NOT gate on `RECOMMEND:`.** The config states the rule this would
+  break: *"handoff topology comes from this registry and never from model output (design doc V18)"*.
+  There is also no conditional-edge mechanism in `AgentConfig`. The real choice is:
+  (a) unconditional `trigger_on_complete: [design-doc-creator]`, so approve means "design it" and
+  duplicate/direct-fix rows get rejected (which loses the backlog row), or (b) keep no edge and
+  escalate a row by hand with `ailang messages forward <id> design-doc-creator`. Operator's call.
+- **File-size gate green** — `457f7f688` moved lambda/param parsing to `parser_lambda.go`.
