@@ -1,0 +1,82 @@
+{
+  "sprint_id": "M-BUILTIN-CLASSIFICATION-SURFACE",
+  "status": "not_started",
+  "created": "2026-09-23T15:44:44Z",
+  "design_doc": "design_docs/planned/m-builtin-classification-surface.md",
+  "sprint_plan": "design_docs/planned/m-builtin-classification-surface-sprint-plan.md",
+  "github_issues": [901],
+  "velocity": {
+    "target_loc_per_day": 380,
+    "estimated_total_loc": 760,
+    "estimated_days": 2
+  },
+  "features": [
+    {
+      "id": "M0_BASELINE_AUDIT",
+      "description": "Establish green baselines and audit all live builtin registration sets before editing.",
+      "estimated_loc": 0,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Baseline failures, if any, are distinguished from sprint regressions.",
+        "The audit records counts and set differences for all live registration sources.",
+        "No unrelated working-tree change is overwritten or absorbed into the sprint."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M1_CANONICAL_INVENTORY",
+      "description": "Build a canonical, deterministic inventory over registry, spec, and shared prelude metadata with fail-loud validation.",
+      "estimated_loc": 360,
+      "dependencies": ["M0_BASELINE_AUDIT"],
+      "acceptance_criteria": [
+        "Unit tests prove deterministic byte-equivalent ordering across repeated builds.",
+        "Every lightweight registry key, every AllSpecs key, and each prelude descriptor occurs exactly once.",
+        "`show`/`toText` are pure and `println` is effect/IO; `intToFloat` and `floatToInt` are present.",
+        "Negative tests reject missing class, unknown capability, conflicting overlap, malformed stdlib target, and empty inventory.",
+        "A compiling mutation that removes one prelude descriptor or registry entry makes the named totality test fail.",
+        "Both evaluator paths retain focused behavior tests for the three prelude builtins."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_CLI_SURFACE",
+      "description": "Expose the inventory through deterministic JSON and table modes on the public iface command and update help.",
+      "estimated_loc": 230,
+      "dependencies": ["M1_CANONICAL_INVENTORY"],
+      "acceptance_criteria": [
+        "Built-binary tests prove iface --builtins --json includes the full sorted, versioned inventory.",
+        "`ailang iface --builtins` contains the same names and classifications as JSON.",
+        "Invalid flag and argument combinations fail non-zero with no partial stdout inventory.",
+        "Existing module `ailang iface [--compact] <module>` golden behavior remains byte-identical.",
+        "`ailang iface --help` and top-level help advertise both flags consistently."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_DOCS_ACCEPTANCE",
+      "description": "Generate the builtin reference from the canonical inventory and prove the end-to-end classifier contract.",
+      "estimated_loc": 170,
+      "dependencies": ["M1_CANONICAL_INVENTORY", "M2_CLI_SURFACE"],
+      "acceptance_criteria": [
+        "Regeneration is byte-identical and a deliberate edit to the generated reference is detected.",
+        "No authored builtin list exists in the generator, CLI renderer, or docs source; names come from the inventory API.",
+        "The reference page is reachable under `docs/docs/reference/` and describes the JSON contract.",
+        "Consumer acceptance proves the three required classifications and hard failure on unknowns.",
+        "Formatting, focused and full tests, lint, boundaries, and docs drift checks pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
