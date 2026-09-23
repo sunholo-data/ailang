@@ -1,0 +1,93 @@
+{
+  "sprint_id": "M-STD-WEB-SECOND-BACKEND",
+  "status": "not_started",
+  "created": "2026-09-23T15:29:56Z",
+  "design_doc": "design_docs/planned/v0_39_2/m-std-web-second-backend.md",
+  "sprint_plan": "design_docs/planned/v0_39_2/m-std-web-second-backend-sprint-plan.md",
+  "github_issues": [],
+  "velocity": {
+    "target_loc_per_day": 285,
+    "estimated_total_loc": 850,
+    "estimated_days": 3
+  },
+  "features": [
+    {
+      "id": "M1_GEMINI_CONTRACT_FIXTURES",
+      "description": "Verify Gemini contract and bank fixtures",
+      "estimated_loc": 80,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "A sanitized real response fixture proves the request and response field shapes used by search.",
+        "The pinned model and `url_context` verdict are recorded before M3 begins.",
+        "Fixtures contain no API key, authorization header, user-specific data, or transient request ID.",
+        "If grounding is unavailable, execution stops without selector or fallback code being shipped."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_SELECTOR_ADMISSION",
+      "description": "Implement selector, policy admission, and environment resolution",
+      "estimated_loc": 260,
+      "dependencies": [
+        "M1_GEMINI_CONTRACT_FIXTURES"
+      ],
+      "acceptance_criteria": [
+        "Policy matrix covers absent, explicit Ollama, Gemini, unknown, missing `Net`, and missing host.",
+        "A negative test proves `AILANG_WEB_BACKEND=gemini` is ignored when a policy omits the field.",
+        "Non-policy tests prove unset\u2192Ollama, both valid values, and unknown\u2192named refusal.",
+        "Admission output records the resolved backend and preserves existing fields.",
+        "Existing policies without `web_backend` continue to load and resolve to Ollama.",
+        "`make docs-env` leaves generated environment documentation current."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_GEMINI_BACKEND_SECURITY",
+      "description": "Implement Gemini backend and security regressions",
+      "estimated_loc": 420,
+      "dependencies": [
+        "M1_GEMINI_CONTRACT_FIXTURES",
+        "M2_SELECTOR_ADMISSION"
+      ],
+      "acceptance_criteria": [
+        "Fixture tests verify request URL/body/header and exact search-result mapping.",
+        "Dedupe, response order, `max`, malformed JSON, and absent metadata are covered.",
+        "Missing Gemini key names `GEMINI_API_KEY` in a typed error without leaking its value.",
+        "The same secret non-leak test executes its full carrier sweep and positive control for both backends.",
+        "Gemini requests are rejected by the existing allowlist when its fixed host is not granted.",
+        "No code path silently crosses from Gemini to Ollama."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_DOCS_REPOSITORY_GATES",
+      "description": "Documentation, examples, and repository gates",
+      "estimated_loc": 90,
+      "dependencies": [
+        "M2_SELECTOR_ADMISSION",
+        "M3_GEMINI_BACKEND_SECURITY"
+      ],
+      "acceptance_criteria": [
+        "Policy guide contains a valid Ollama and Gemini example and states env isolation under `--policy`.",
+        "`ailang check examples/runnable/web_search.ail` passes and the file's public contract is unchanged.",
+        "Focused `go test ./internal/effects ./internal/policy ./internal/config ./cmd/ailang` passes.",
+        "`make test`, `make lint`, and `make check-boundaries` pass.",
+        "`make simplicity-audit` has no unexplained regression; the intentional env-var route is documented.",
+        "`git diff --check` is clean and generated docs are up to date."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
