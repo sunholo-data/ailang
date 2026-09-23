@@ -1,0 +1,72 @@
+{
+  "sprint_id": "M-GATE0-WATERMARK-CRASH-SAFETY",
+  "title": "Gate-0 Watermark Crash Safety",
+  "status": "planned",
+  "design_doc": "design_docs/planned/m-gate0-watermark-crash-safety.md",
+  "sprint_plan": "design_docs/planned/m-gate0-watermark-crash-safety-sprint-plan.md",
+  "github_issues": [
+    981
+  ],
+  "features": [
+    {
+      "id": "M1_IDENTITY_ATOMIC_STATE",
+      "description": "Add stable comment identity plus backwards-compatible, atomic processed-directive watermark operations to the shared directive script.",
+      "estimated_loc": 320,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Allowlisted directive records include immutable GitHub comment ID and createdAt fields",
+        "Legacy timestamp-only state upgrades successfully and malformed state fails loudly",
+        "Atomic updates cannot partially advance state and duplicate IDs cannot request routing twice",
+        "Processed-ID retention is bounded and existing directive security guards remain green"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_PROCESS_THEN_MARK_REPLAY",
+      "description": "Integrate process-then-mark into the live shared Gate-0 preflight and prove exactly-once replay across crash points and mission profiles.",
+      "estimated_loc": 280,
+      "dependencies": [
+        "M1_IDENTITY_ATOMIC_STATE"
+      ],
+      "acceptance_criteria": [
+        "The shared preflight marks only after durable routing evidence has landed",
+        "Every simulated crash point preserves not-yet-routed directives and prevents double routing",
+        "Timestamp anomalies and issue overlap deduplicate by comment identity",
+        "V1 legacy and namespaced mission profiles pass the same protocol tests"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_REGRESSION_ROLLOUT",
+      "description": "Wire regression tests, mutation-prove the safety guarantees, and document attended rollout verification for all four missions.",
+      "estimated_loc": 80,
+      "dependencies": [
+        "M2_PROCESS_THEN_MARK_REPLAY"
+      ],
+      "acceptance_criteria": [
+        "ID omission, dedupe bypass, and mark-before-route mutations are each killed by a named test",
+        "The new test runs through the established repository test entry point",
+        "Shell syntax, focused tests, applicable lint and format gates, and diff checks pass",
+        "The attended first-live-fire checklist covers all mission profiles and retains issue 981 linkage"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 340,
+    "estimated_total_loc": 680,
+    "estimated_days": 2
+  },
+  "risk_level": "high",
+  "created_at": "2026-09-23",
+  "updated_at": "2026-09-23"
+}
