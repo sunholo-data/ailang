@@ -1,0 +1,90 @@
+{
+  "sprint_id": "M-PARSER-ERROR-CASCADE-SUPPRESSION",
+  "status": "not_started",
+  "created": "2026-09-23T15:30:24Z",
+  "design_doc": "design_docs/planned/m-parser-error-cascade-suppression.md",
+  "sprint_plan": "design_docs/planned/m-parser-error-cascade-suppression-sprint-plan.md",
+  "github_issues": [
+    934
+  ],
+  "velocity": {
+    "target_loc_per_day": 243,
+    "estimated_total_loc": 730,
+    "estimated_days": 3
+  },
+  "features": [
+    {
+      "id": "M1_PIN_CASCADE_AND_HONESTY_BASELI",
+      "description": "Pin cascade and honesty baselines",
+      "estimated_loc": 150,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "All three measured 342/153/29 cascade sources are committed as deterministic fixtures with their baseline totals documented.",
+        "Tests distinguish a same-declaration cascade from errors separated by successfully parsed declarations.",
+        "Independent-error tests assert exact surviving codes and positions, not only a minimum count.",
+        "Existing module/import placement tests remain green before implementation begins."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_IMPLEMENT_SUPPRESSION_POLICY_A",
+      "description": "Implement suppression policy and accounting",
+      "estimated_loc": 250,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Each issue #934 fixture yields at most three emitted diagnostics and exactly one primary.",
+        "Primary selection is deterministic by source position, with the approved coded-over-generic exception covered by tests.",
+        "`PAR_ERROR_BUDGET` announces every independent-error truncation; no parser error is silently dropped.",
+        "Suppression never changes `Fix`, `Suggestions`, `Expected`, near-token, or source context on the selected primary.",
+        "Suppressed-code maps serialize in stable order or are compared structurally so output tests are deterministic."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_ADD_BOUNDED_RECOVERY_AT_PROVEN",
+      "description": "Add bounded recovery at proven-safe points",
+      "estimated_loc": 190,
+      "dependencies": [
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "Parameter, record-field, and match-arm corruption synchronizes without crossing a successfully parsed declaration boundary.",
+        "Two independent malformed declarations still emit both errors after recovery.",
+        "Existing `module_placement_test.go` and `import_placement_test.go` pass unchanged unless an assertion is strengthened with equivalent semantics.",
+        "The selected `parseParams` sync set is documented with fuzz/test evidence."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_WIRE_CLI_JSON_HUMAN_PROMINENCE",
+      "description": "Wire CLI JSON, human prominence, and eval validation",
+      "estimated_loc": 140,
+      "dependencies": [
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "Human and agent stderr show one prominent primary followed by at most two independent diagnostics and one suppression summary.",
+        "`ailang check --json` emits the approved `suppression` shape for cascades and omits it for clean/non-cascade results.",
+        "Eval rows retain compatible `error_category` and `err_code` fields; suppressed code counts are available without multiplying result rows.",
+        "Fuzz/property checks prove `emitted + suppressed + budget-truncated = raw total` and primary-position invariants.",
+        "Focused tests, `make test-core`, `make lint`, and `make check-boundaries` pass.",
+        "Smoke-tier paired on/off results and PAR_* re-baselining notes are recorded in the implementation report."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
