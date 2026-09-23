@@ -1,0 +1,101 @@
+{
+  "sprint_id": "M-RECORD-DEFAULTABLE-FIELDS",
+  "title": "Type-anchored defaultable record fields",
+  "design_doc": "design_docs/planned/v1_1_0/m-record-defaultable-fields.md",
+  "sprint_plan": "design_docs/planned/v1_1_0/m-record-defaultable-fields-sprint-plan.md",
+  "target_version": "v1.1.0",
+  "status": "planned",
+  "risk_level": "high",
+  "github_issues": [905],
+  "created": "2026-09-23",
+  "velocity": {
+    "target_loc_per_day": 240,
+    "estimated_total_loc": 1200,
+    "estimated_days": 5
+  },
+  "features": [
+    {
+      "id": "M1_SYNTAX_AST_VALIDATION",
+      "description": "Add the standalone top-level `default Type.field = expr` declaration, its positioned AST node, parser recovery, and structural anchor validation for named closed non-parameterized record aliases.",
+      "estimated_loc": 210,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Valid default declarations parse and round-trip through AST printing and parser goldens",
+        "Malformed declarations produce stable coded diagnostics without panics or cascades",
+        "Unknown types/fields, duplicate anchors, open aliases, non-record types, and parameterized anchors are rejected",
+        "Existing parser suites remain green"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_REGISTRY_TYPE_EFFECT_CHECK",
+      "description": "Resolve anchors, type/effect-check each default at its declaration site, and lower it to a deterministic hidden module binding without evaluator fallback behavior.",
+      "estimated_loc": 280,
+      "dependencies": ["M1_SYNTAX_AST_VALIDATION"],
+      "acceptance_criteria": [
+        "Defaults are checked against the exact declared field type and closed effect row",
+        "Type mismatch and effect widening fail at the declaration site",
+        "Valid defaults lower to collision-proof deterministic hidden bindings",
+        "No evaluator change is needed to declare a default"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_CONTEXTUAL_COMPLETION_TRACE",
+      "description": "Complete contextually typed closed-record literals with registered defaults during elaboration and record every insertion in a deterministic trace while preserving existing missing-field behavior.",
+      "estimated_loc": 350,
+      "dependencies": ["M2_REGISTRY_TYPE_EFFECT_CHECK"],
+      "acceptance_criteria": [
+        "Override-only literals elaborate to full closed records equivalent to handwritten literals",
+        "Explicit fields win and missing required fields retain the existing diagnostic",
+        "Nested, return, let-annotated, and argument construction sites are covered",
+        "Open rows, subsumption, ADT records, and full literals do not regress",
+        "Trace output deterministically names each inserted anchor and binding"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_XMOD_INTERFACE_CACHE_DIGEST",
+      "description": "Export default metadata and hidden bindings through package interfaces, round-trip them through caches, include semantic default changes in interface digests, and prove cross-module completion with warm/cold cache tests.",
+      "estimated_loc": 260,
+      "dependencies": ["M2_REGISTRY_TYPE_EFFECT_CHECK", "M3_CONTEXTUAL_COMPLETION_TRACE"],
+      "acceptance_criteria": [
+        "Imported ABI defaults complete consumer literals identically with warm and cold caches",
+        "Default metadata and binding types survive interface JSON/cache round trips",
+        "Adding, removing, or changing a default invalidates the interface digest",
+        "Malformed metadata or missing hidden bindings fail loudly",
+        "KRow and RowVar serialization paths have explicit regression coverage"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M5_EXAMPLE_DOCS_REGRESSION",
+      "description": "Ship a runnable override-only record example, update language/versioning documentation, execute record compatibility fixtures, and run repository quality gates.",
+      "estimated_loc": 100,
+      "dependencies": ["M3_CONTEXTUAL_COMPLETION_TRACE", "M4_XMOD_INTERFACE_CACHE_DIGEST"],
+      "acceptance_criteria": [
+        "examples/record_defaultable_fields.ail checks and runs",
+        "The four design-doc record regression fixtures remain green",
+        "Language docs explain syntax, construction-only semantics, restrictions, tracing, and ABI versioning",
+        "make fmt, make test-core, make test, make lint, make check-boundaries, and example verification pass or independently reproduced pre-existing failures are documented",
+        "Motoko scaffolder changes remain an explicit post-release follow-up"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
