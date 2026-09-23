@@ -1,0 +1,87 @@
+{
+  "sprint_id": "M-ADT-EQUALITY-POSITION-INDEPENDENCE",
+  "status": "planned",
+  "created": "2026-09-23",
+  "design_doc": "design_docs/planned/m-adt-equality-position-independence.md",
+  "sprint_plan": "design_docs/planned/v0_42_0/m-adt-equality-position-independence-sprint-plan.md",
+  "github_issues": [
+    713
+  ],
+  "velocity": {
+    "estimated_total_loc": 690,
+    "estimated_days": 3,
+    "target_loc_per_day": 230
+  },
+  "features": [
+    {
+      "id": "M0",
+      "description": "Executable issue-713 baseline and position-matrix seam tests",
+      "dependencies": [],
+      "estimated_loc": 120,
+      "acceptance_criteria": [
+        "The pre-change body-versus-ensures discrepancy is reproduced at HEAD",
+        "Valid primitive contracts remain green while invalid predicates are pinned by red tests",
+        "make test-core is green outside the intentional red tests"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M1",
+      "description": "Deterministic compiler-provided structural Eq for monomorphic ADTs",
+      "dependencies": [
+        "M0"
+      ],
+      "estimated_loc": 230,
+      "acceptance_criteria": [
+        "Monomorphic ADTs support == and != without deriving Eq",
+        "Existing structural dictionary and evaluator machinery is reused",
+        "Pre-registered instances are not overwritten and registration order is deterministic",
+        "Polymorphic ADT behavior is unchanged"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Fatal boolean type checking for requires, ensures, and invariant predicates",
+      "dependencies": [
+        "M1"
+      ],
+      "estimated_loc": 240,
+      "acceptance_criteria": [
+        "Body and contract positions give identical ADT equality verdicts",
+        "Contract constraints are solved and predicate types unify with bool",
+        "Function parameters and result have their declared types in the contract environment",
+        "Contract errors surface before lowering or evaluation with source context"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Executable instance diagnostics, runnable example, docs, and full validation gates",
+      "dependencies": [
+        "M1",
+        "M2"
+      ],
+      "estimated_loc": 100,
+      "acceptance_criteria": [
+        "No scoped diagnostic recommends std/prelude or bare import syntax",
+        "A prompt-validated example demonstrates automatic structural ADT equality",
+        "M-DX19 and M-EQ-DERIVE-CONTAINERS regressions remain green",
+        "make fmt, test-core, test, lint, and check-boundaries pass"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
