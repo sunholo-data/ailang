@@ -259,12 +259,26 @@ func printInboxRows(out inboxesOutput) {
 // The returned label names the source, because a verdict from the wrong registry
 // is indistinguishable from a verdict from the right one.
 func resolveInboxRegistry(flagPath string) (*coordinator.AgentRegistry, string, error) {
+	plane, _ := messagesTarget()
+	return resolveInboxRegistryForPlane(flagPath, plane)
+}
+
+// resolveInboxRegistryForPlane is resolveInboxRegistry with the plane named by
+// the caller rather than read off the MESSAGE store.
+//
+// The approvals path needs this. Its plane comes from `--remote`, not from
+// $AILANG_STORAGE_MESSAGING, and the two disagree constantly: `coordinator
+// approve --remote gcp` on a laptop with no messaging override resolved the
+// plane as local, loaded this machine's registry, and found no cloud agent —
+// so checkRegistryCanDispatch refused. See the fault it caused at that call
+// site.
+func resolveInboxRegistryForPlane(flagPath string, plane storage.Mode) (*coordinator.AgentRegistry, string, error) {
 	// `--registry cloud`: name the plane explicitly, whatever the environment
 	// says. Daneel asked for this spelling by name — a caller that KNOWS it
 	// means the shared plane should not have to arrange for an env var to be
 	// absent to say so.
 	if strings.TrimSpace(flagPath) == "cloud" {
-		reg, label, err := loadCloudInboxRegistry()
+		reg, label, err := loadCloudRegistry()
 		if err != nil {
 			return nil, "", fmt.Errorf("--registry cloud: cannot read the plane's registry: %w", err)
 		}
@@ -325,8 +339,8 @@ func resolveInboxRegistry(flagPath string) (*coordinator.AgentRegistry, string, 
 	// Reading a remote store: fetch the registry that plane actually dispatches
 	// from. Best effort — a laptop without GCS credentials still gets an answer,
 	// clearly labelled as the local one.
-	if mode, _ := messagesTarget(); mode == storage.ModeGCP {
-		if reg, label, err := loadCloudInboxRegistry(); err == nil {
+	if plane == storage.ModeGCP {
+		if reg, label, err := loadCloudRegistry(); err == nil {
 			return reg, label, nil
 		} else if err != nil {
 			fmt.Fprintf(os.Stderr, "%s could not read the cloud registry (%v)\n", yellow("!"), err)
@@ -372,6 +386,13 @@ func agentRepoLabel(a *coordinator.AgentConfig) string {
 }
 
 // loadCloudInboxRegistry reads the coordinator's own config out of GCS.
+// loadCloudRegistry is loadCloudInboxRegistry behind a variable so a test can
+// pin WHICH registry a given plane reads. The wiring is the thing that broke:
+// the approvals path resolved its registry from this machine's config for
+// sixteen days and no test could see it, because every test that mattered
+// would have had to reach GCS.
+var loadCloudRegistry = loadCloudInboxRegistry
+
 func loadCloudInboxRegistry() (*coordinator.AgentRegistry, string, error) {
 	ctx := context.Background()
 	store, err := newGCSConfigStore(ctx)
