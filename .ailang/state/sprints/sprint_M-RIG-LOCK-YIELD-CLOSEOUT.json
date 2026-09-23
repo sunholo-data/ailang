@@ -1,0 +1,52 @@
+{
+  "sprint_id": "M-RIG-LOCK-YIELD-CLOSEOUT",
+  "status": "pending",
+  "created": "2026-09-23T00:00:00Z",
+  "design_doc": "design_docs/implemented/v0_38_0/m-rig-lock-yield.md",
+  "sprint_plan": "design_docs/planned/v0_42_0/m-rig-lock-yield-closeout-sprint-plan.md",
+  "github_issues": [
+    1136
+  ],
+  "velocity": {
+    "target_loc_per_day": 0,
+    "estimated_total_loc": 0,
+    "estimated_days": 0.25
+  },
+  "features": [
+    {
+      "id": "M1_PROTOCOL_VERIFICATION",
+      "description": "Re-run the focused shell, Go, cross-language, and safe-point checks at current HEAD and capture evidence for every cooperative-yield safety property.",
+      "estimated_loc": 0,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "go test ./internal/riglock passes",
+        "bash -n tools/launchd/rig-lock.sh passes",
+        "Shell and Go markers remain mutually readable, including expiry and dead-requester cleanup",
+        "Named-requester exclusion and serial-holder yield/re-acquire tests pass",
+        "The eval checkpoint remains restricted to maxConcurrent == 1 between benchmark dispatches"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_DESIGN_AUDIT_AND_ISSUE_CLOSEOUT",
+      "description": "Map the approved as-built design to code and test evidence, then post the evidence-backed closeout for GitHub issue #1136 without duplicating the shipped implementation.",
+      "estimated_loc": 0,
+      "dependencies": [
+        "M1_PROTOCOL_VERIFICATION"
+      ],
+      "acceptance_criteria": [
+        "Every design acceptance criterion has a code location and passing test reference",
+        "Repository search confirms one shared shell/Go handoff-marker contract",
+        "Issue #1136 receives a closeout naming the implemented design, shipped version, verified HEAD SHA, and test commands",
+        "No code or tests are changed unless a newly discovered regression is separately approved"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
