@@ -1,0 +1,108 @@
+{
+  "sprint_id": "M-STD-WEB-SECOND-BACKEND",
+  "status": "not_started",
+  "created": "2026-09-23T15:34:21Z",
+  "design_doc": "design_docs/planned/v0_39_2/m-std-web-second-backend.md",
+  "sprint_plan": "design_docs/planned/v0_39_2/m-std-web-second-backend-sprint-plan.md",
+  "github_issues": [],
+  "velocity": {
+    "target_loc_per_day": 223,
+    "estimated_total_loc": 670,
+    "estimated_days": 3
+  },
+  "features": [
+    {
+      "id": "M0_EXTERNAL_GEMINI_PROBE",
+      "description": "Verify External Gemini Premises",
+      "estimated_loc": 20,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Search grounding succeeds on a named pinned model and the fixture contains real response structure with no credentials or sensitive query data.",
+        "The `url_context` verdict is recorded and deterministically selects one D7 branch.",
+        "No implementation milestone begins if the primary grounding premise fails."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M1_BACKEND_SELECTION_ADMISSION",
+      "description": "Add Closed Backend Selection and Admission",
+      "estimated_loc": 160,
+      "dependencies": [
+        "M0_EXTERNAL_GEMINI_PROBE"
+      ],
+      "acceptance_criteria": [
+        "Resolution matrix covers absent, explicit Ollama, explicit Gemini, unknown value, environment-only selection, and environment ignored under `--policy`.",
+        "Unknown selectors name the invalid value and valid closed set; no fallback occurs.",
+        "A configured backend without `Net`, or without its required host in `net_allow`, is refused before execution.",
+        "Existing policy fixtures lacking `web_backend` retain Ollama behavior.",
+        "Admission JSON records the resolved backend."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_GEMINI_GROUNDING_BACKEND",
+      "description": "Implement Gemini Grounding Backend",
+      "estimated_loc": 250,
+      "dependencies": [
+        "M0_EXTERNAL_GEMINI_PROBE",
+        "M1_BACKEND_SELECTION_ADMISSION"
+      ],
+      "acceptance_criteria": [
+        "Fixture-backed Gemini search returns the same program-visible record shape as Ollama without changes to `std/web.ail` signatures or effects.",
+        "Gemini credentials are sent only in `x-goog-api-key`, never in a URL.",
+        "Malformed or incomplete provider responses become typed `Transport` errors naming Gemini, not panics or partial silent results.",
+        "Missing Gemini host permission produces typed `DisallowedHost`.",
+        "Fetch follows the recorded D7 branch and never falls back across providers."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_SECRET_NON_LEAK_SECURITY",
+      "description": "Generalize the Lending-Boundary Security Tests",
+      "estimated_loc": 180,
+      "dependencies": [
+        "M2_GEMINI_GROUNDING_BACKEND"
+      ],
+      "acceptance_criteria": [
+        "The same non-leak test executes at least 12 carriers, a positive control, and two mutations for each backend.",
+        "Missing-key errors identify the selected backend's own environment variable.",
+        "Both Bearer and `x-goog-api-key` header paths are asserted by fixture servers.",
+        "Live controls remain opt-in and CI does not require external credentials."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_DOCS_EXAMPLE_FULL_GATES",
+      "description": "Documentation, Example Regression, and Full Gates",
+      "estimated_loc": 60,
+      "dependencies": [
+        "M1_BACKEND_SELECTION_ADMISSION",
+        "M3_SECRET_NON_LEAK_SECURITY"
+      ],
+      "acceptance_criteria": [
+        "Operator docs describe both valid values, Ollama compatibility default, environment behavior, and required host/key.",
+        "Generated env-var documentation matches the config registry.",
+        "`examples/runnable/web_search.ail` remains provider-neutral and passes non-live validation.",
+        "Focused and full tests pass; lint and architecture boundaries are clean.",
+        "Simplicity audit contains no unexplained regression.",
+        "Changelog links the design and records the new operator surface."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
