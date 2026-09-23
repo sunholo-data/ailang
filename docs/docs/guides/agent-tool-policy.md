@@ -146,7 +146,7 @@ a budget for an unadmitted effect is a contradiction. Keep the lists short: they
   stops at `max_output_bytes`; `[budgets]` is an aggregate ceiling independent of source `@limit`s.
 
 Residual trust assumptions the runtime does **not** close are listed in
-[LIMITATIONS](../../LIMITATIONS.md#execution-policy-residuals).
+[LIMITATIONS](https://github.com/sunholo-data/ailang/blob/main/docs/LIMITATIONS.md#execution-policy-residuals).
 
 ## Delivering it
 
