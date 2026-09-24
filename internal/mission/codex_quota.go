@@ -94,6 +94,13 @@ func parseCodexQuota(line []byte, now time.Time) *CodexQuotaObservation {
 }
 
 func (o *CodexQuotaObservation) evaluate(now time.Time) {
+	o.evaluateAt(now, DailyRationFraction)
+}
+
+// evaluateAt is evaluate with an explicit daily fraction, so a provider whose ration was
+// ruled separately (Anthropic, AnthropicDailyRationFraction) shares the one pacing rule
+// without sharing its number.
+func (o *CodexQuotaObservation) evaluateAt(now time.Time, fraction float64) {
 	// The allowance is arithmetic on the window itself, so it is computed for EVERY window
 	// before any early return. It used to be computed after the staleness and expiry checks,
 	// which left AllowancePercent at its zero value on those paths — and the report prints
@@ -118,9 +125,9 @@ func (o *CodexQuotaObservation) evaluate(now time.Time) {
 		if w.WindowMinutes > 24*60 {
 			hasLong = true
 			start := w.ResetsAt.Add(-time.Duration(w.WindowMinutes) * time.Minute)
-			w.AllowancePercent = 100 * DailyRationFraction * now.Sub(start).Hours() / 24
-			if w.AllowancePercent < 100*DailyRationFraction {
-				w.AllowancePercent = 100 * DailyRationFraction
+			w.AllowancePercent = 100 * fraction * now.Sub(start).Hours() / 24
+			if w.AllowancePercent < 100*fraction {
+				w.AllowancePercent = 100 * fraction
 			}
 			if w.AllowancePercent > 100 {
 				w.AllowancePercent = 100

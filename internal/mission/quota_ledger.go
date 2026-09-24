@@ -42,6 +42,14 @@ const (
 // 50% of codex in one go.
 const DailyRationFraction = 0.10
 
+// AnthropicDailyRationFraction is Anthropic's own daily ration (Mark, attended 2026-09-24):
+// 15%/day, raised from the fleet-wide 10%. Mark works about five days a week, so the loops
+// may spend 75% of a weekly bucket across his working days and he keeps the rest. At the
+// old 10% the World loop was pacing-blocked with 64% of the week unspent and fell through
+// to fallback controllers that completed 2 of 7 runs. Codex, Ollama and OpenRouter keep
+// DailyRationFraction.
+const AnthropicDailyRationFraction = 0.15
+
 // windowDuration is how long a window lasts.
 func windowDuration(w Window) time.Duration {
 	if w == WindowShort {
