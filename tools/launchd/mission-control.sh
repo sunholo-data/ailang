@@ -370,14 +370,64 @@ _mc_progress_bytes() {
         fi
       fi
       ;;
+    pi)
+      # `pi -p` BUFFERS to the end exactly like `claude -p`, so the driver log below
+      # never moves while a pi controller works — the comment that used to sit here
+      # said pi streams into it, and that premise let the watchdog kill 5 of 7 pi
+      # World iterations 2026-09-21..24. pi saves a session anyway, appended per
+      # message, under <agent dir>/sessions/--<cwd minus leading /, [/\:] -> ->--/
+      # (pi's own safePath rule; unlike claude's slug, dots are KEPT).
+      local slug="${PWD#/}"; slug=$(printf '%s' "$slug" | tr '/\\:' '---')
+      dir="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/sessions/--${slug}--"
+      if [ -d "$dir" ]; then
+        newest=$(ls -t "$dir"/*.jsonl 2>/dev/null | head -1)
+        if [ -n "$newest" ] && [ -f "$newest" ]; then
+          sz=$(wc -c < "$newest" 2>/dev/null | tr -d ' ')
+          total=$((total + ${sz:-0})); got=1
+        fi
+      fi
+      ;;
   esac
-  # The driver log is a second arm, and the ONLY one for codex/pi — both stream
-  # into it, while `claude -p` buffers to the end, which is exactly why claude
-  # needs the transcript above.
+  # The driver log is a second arm, and the only one for codex, which streams
+  # into it. claude and pi both buffer `-p` output to the end, which is exactly
+  # why they need the transcripts above.
   if [ -n "${LOG:-}" ] && [ -f "$LOG" ]; then
     sz=$(wc -c < "$LOG" 2>/dev/null | tr -d ' ')
     total=$((total + ${sz:-0})); got=1
   fi
+  [ "$got" -eq 1 ] || return 1
+  echo "$total"
+}
+# _mc_tree_write_bytes PIDS → total size of the regular files the tree holds open
+# for WRITING, or non-zero rc when there are none (or no lsof).
+#
+# The controller's own transcript goes flat the moment it blocks on a tool call,
+# and a sprint executor is one long tool call. Measured 2026-09-24: the World
+# controller spent 36 minutes in `mission_pi_run.sh` while the executor it was
+# waiting on streamed 2.6MB into /tmp/pi_exec_iter182_m123.ndjson and finished
+# M1-M3 at 08:43 — 24 minutes AFTER the watchdog killed its parent at 08:19 for
+# "no progress". A child streaming into a file it holds open is progress
+# whatever the provider, and the fd is visible without knowing anything about
+# how the child was launched. Files opened and closed per append (transcripts)
+# are invisible here, which is why this is an extra arm, not a replacement.
+_mc_tree_write_bytes() {
+  local csv files f sz total=0 got=0
+  csv=$(printf '%s\n' $1 | paste -sd, -)
+  [ -n "$csv" ] || return 1
+  command -v lsof >/dev/null 2>&1 || return 1
+  files=$(lsof -nP -a -p "$csv" -F atn 2>/dev/null | awk '
+    /^f/ { a=""; t="" }
+    /^a/ { a=substr($0,2) }
+    /^t/ { t=substr($0,2) }
+    /^n/ { if ((a=="w" || a=="u") && t=="REG") print substr($0,2) }' | sort -u)
+  [ -n "$files" ] || return 1
+  while IFS= read -r f; do
+    [ -f "$f" ] || continue
+    sz=$(wc -c < "$f" 2>/dev/null | tr -d ' ')
+    total=$((total + ${sz:-0})); got=1
+  done <<EOF_FILES
+$files
+EOF_FILES
   [ "$got" -eq 1 ] || return 1
   echo "$total"
 }
@@ -410,6 +460,9 @@ _mc_stalled() {
     _MC_STALL_WHY="no-progress-instrument"
     return 1
   fi
+  # Fold in the tree's open-for-write files (see _mc_tree_write_bytes): a child
+  # streaming its output is progress even while the controller's transcript is flat.
+  local tw; tw=$(_mc_tree_write_bytes "$pids") && prog="${prog}+w${tw}"
   hb=$(wc -c < "${_mc_heartbeat:-${AILANG_STATE_DIR:-$HOME/.ailang/state}/mission-${MISSION_NAME:-none}-heartbeat}" 2>/dev/null | tr -d ' '); hb="${hb:-0}"
 
   # A first sample can prove nothing — seed the baseline and report live.
