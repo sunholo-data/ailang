@@ -942,6 +942,15 @@ _mc_ration_reason() {
   esac
 }
 
+# _mc_reset_hint → the reset credits held in reserve, one line per bucket that reports
+# any, or nothing. `ailang mission quota --over` appends a "; N Codex reset credit(s) in
+# reserve ... attended only: <command>" clause to a blocked bucket's reason, and this lifts
+# it out so the notices a human reads when quota runs dry say what is still in hand.
+# Spending a credit is an ATTENDED decision (Mark, 2026-09-24): the driver only reports it.
+_mc_reset_hint() {
+  printf '%s\n' "${MC_RATION_REASONS:-}" | awk -F'; ' '{for (i = 2; i <= NF; i++) if ($i ~ /reset credit/) print $i}'
+}
+
 # _mc_ration_unreadable BUCKET → true when the bucket is blocked because its quota
 # could not be READ, as opposed to measurably exceeding it.
 #
@@ -1801,7 +1810,7 @@ for role in DESIGNER PLANNER EXECUTOR EVALUATOR; do
       _cx_rc_for=$(printf '%s' "$_cx_rcmap" | tr ';' '\n' | grep "^${cx_model}=" | head -1 | cut -d= -f2)
       [ -n "$_cx_rc_for" ] || _cx_rc_for="unknown"
       _lane_degraded="${_lane_degraded}
-- \`${role_lc}\`: **codex** lane \`${cx_model}\` unusable (probe rc=\`${_cx_rc_for}\`$([ "$_cx_rc_for" = "124" ] && printf ' — TIMEOUT after %ss' "$PROBE_TIMEOUT")) → handed to \`${fb}\`"
+- \`${role_lc}\`: **codex** lane \`${cx_model}\` unusable (probe rc=\`${_cx_rc_for}\`$([ "$_cx_rc_for" = "124" ] && printf ' — TIMEOUT after %ss' "$PROBE_TIMEOUT")$([ "$_cx_rc_for" = "75" ] && printf ' — %s' "$(_mc_ration_reason codex)")) → handed to \`${fb}\`"
       printf -v "$var" '%s' "$fb"; export "$var"
     ;; esac
   ;; esac
@@ -1975,11 +1984,16 @@ if ! select_model; then
     log "refusal already announced this episode ($BLOCKED_FILE) — staying quiet"
   else
     : > "$BLOCKED_FILE"
+    _mc_load_ration
+    _ref_reserve=$(_mc_reset_hint | sed 's/^/- 💳 /')
     ailang messages send controlplane \
-      "mission-control refused to start: no usable controller in Anthropic prefs ($PREFS) or fallback ($CONTROLLER_FALLBACK). Per-model reasons are in the driver log. Zero tokens spent beyond probes. Further refusals in this episode are silent; mission-recovery retries automatically." \
+      "mission-control refused to start: no usable controller in Anthropic prefs ($PREFS) or fallback ($CONTROLLER_FALLBACK). Per-model reasons are in the driver log. Zero tokens spent beyond probes. Further refusals in this episode are silent; mission-recovery retries automatically.${_ref_reserve:+ Held in reserve (attended decision): $(printf '%s' "$_ref_reserve" | tr '\n' ' ')}" \
       --title "Mission iteration blocked: no usable model" --from "$MSG_FROM" 2>/dev/null
     [ -n "${MISSION_GH_ISSUE:-}" ] && gh issue comment "$MISSION_GH_ISSUE" --repo "$MISSION_REPO" \
-      --body "⚠️ Mission iteration did not start: **no usable controller** in Anthropic preferences (\`$PREFS\`) or fallback (\`$CONTROLLER_FALLBACK\`). Per-model detail is in the driver log. \`mission-recovery\` retries automatically; further refusals in this episode are silent to avoid comment spam." 2>/dev/null
+      --body "⚠️ Mission iteration did not start: **no usable controller** in Anthropic preferences (\`$PREFS\`) or fallback (\`$CONTROLLER_FALLBACK\`). Per-model detail is in the driver log. \`mission-recovery\` retries automatically; further refusals in this episode are silent to avoid comment spam.${_ref_reserve:+
+
+**Held in reserve** (an attended decision — the loop never spends these):
+${_ref_reserve}}" 2>/dev/null
   fi
   exit 1
 fi
@@ -2053,8 +2067,12 @@ if [ -n "$_lane_degraded" ]; then
     log "lane degradation unchanged this episode — notice suppressed ($_lane_ep)"
   else
     printf '%s' "$_lane_fp" > "$_lane_ep"
+    _deg_reserve=$(_mc_reset_hint | sed 's/^/- 💳 /')
     _deg_body="**Executor/planner lane degraded on this fire** — recorded before the iteration ran.
-${_lane_degraded}
+${_lane_degraded}${_deg_reserve:+
+
+**Held in reserve** (an attended decision — the loop never spends these):
+${_deg_reserve}}
 
 Controller: \`${MODEL}\` (${MODEL_WHY}). Effective roles now: designer=\`${MISSION_DESIGNER_MODEL}\` planner=\`${MISSION_PLANNER_MODEL}\` executor=\`${MISSION_EXECUTOR_MODEL}\` evaluator=\`${MISSION_EVALUATOR_MODEL}\`.
 Driver log: \`${LOG}\`. If this repeats across fires, the lane is down — check the bucket, and check that this mission's plist carries a PATH that reaches the CLI (the World mission lost five iterations to exactly that). Identical notices are suppressed until the degradation changes or heals."
