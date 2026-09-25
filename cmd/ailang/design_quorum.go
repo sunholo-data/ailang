@@ -128,7 +128,7 @@ USAGE:
 
 FLAGS:
   --reviewers <csv>          reviewer model ids (default gpt6-astra,gemini-3-1-pro,oc-glm-5-2)
-  --max-cost-usd <n>         per-reviewer budget cap in USD (default 0.10)
+  --max-cost-usd <n>         per-reviewer budget cap in USD (default 0.30)
   --artifact-dir <dir>       machine JSON artifact dir (default .ailang/state/mission-quorum)
   --mission-log <path>       append the human markdown block to this mission log
   --controller-verdict <v>   the Claude controller's IN-SESSION verdict (pass|reject) — NOT an API call
