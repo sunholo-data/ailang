@@ -195,9 +195,9 @@ export func main() -> () ! {IO, Net} = match httpRequest("GET", "http://127.0.0.
 }
 `
 	writeAil(t, c.sandbox, "prog.ail", prog)
-	stdout, _, _ := testutil.RunBounded(t, c.sandbox, 60*time.Second, bin, "run", "--policy", pol, "prog.ail")
+	stdout, stderr, code := testutil.RunBounded(t, c.sandbox, 60*time.Second, bin, "run", "--policy", pol, "prog.ail")
 	if !strings.Contains(stdout, "DENIED") || hits.Load() != 0 {
-		t.Fatalf("restricted mode must not reach loopback: %q, hits=%d", stdout, hits.Load())
+		t.Fatalf("restricted mode must not reach loopback: exit %d, hits=%d\nstdout: %q\nstderr: %q", code, hits.Load(), stdout, stderr)
 	}
 }
 
