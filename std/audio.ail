@@ -1,0 +1,71 @@
+-- std/audio - PCM to WAV, and PCM to Ogg Opus, with no effects
+--
+-- Text-to-speech APIs return raw PCM (for Gemini TTS: 16-bit little-endian,
+-- 24 kHz, mono). This module turns that into files a person can play:
+--
+--   wavHeader / wavFromPcm  -> a canonical 44-byte RIFF/WAVE header (+ the PCM)
+--   durationMs              -> clip length in whole milliseconds
+--   encode                  -> Ogg Opus (RFC 7845), about 15x smaller than WAV
+--
+-- Everything here is pure: no Process, no FS. Write the result with
+-- std/fs.writeFileBytes.
+--
+-- encode is deterministic: the same PCM, rate, channel count and codec always
+-- produce the same bytes (the Ogg serial number is derived from the input, not
+-- random). The codec is a fixed-point pure-Go port of libopus (CELT mode), so
+-- the output does not depend on the CPU architecture.
+--
+-- Usage:
+--   import std/audio (wavFromPcm, durationMs, encode, OggOpus)
+--   import std/fs (writeFileBytes)
+--
+--   match encode(pcm, 24000, 1, OggOpus(24000)) {
+--     Ok(ogg) => writeFileBytes("brief.ogg", ogg),
+--     Err(e) => println(e)
+--   }
+
+module std/audio
+import std/bytes (fromInts, concat, length)
+import std/result (Result)
+
+-- Compressed output formats; the payload is the target bitrate in bits/s.
+-- OggOpus(24000) is a good default for speech: about 230 KB for 50 s.
+export type Codec = OggOpus(int)
+
+pure func le16(n: int) -> [int] = [n % 256, n / 256 % 256]
+
+pure func le32(n: int) -> [int] = [n % 256, n / 256 % 256, n / 65536 % 256, n / 16777216 % 256]
+
+-- 44-byte canonical RIFF/WAVE header (format tag 1 = integer PCM) for
+-- dataLen bytes of PCM.
+export pure func wavHeader(dataLen: int, rate: int, channels: int, bitsPerSample: int) -> bytes
+requires { dataLen >= 0 && dataLen <= 4294967259 && rate > 0 && channels > 0 && bitsPerSample > 0 && bitsPerSample % 8 == 0 } {
+  let blockAlign = channels * (bitsPerSample / 8)
+  fromInts([82, 73, 70, 70] ++ le32(36 + dataLen) ++ [87, 65, 86, 69] ++ [102, 109, 116, 32] ++ le32(16) ++ le16(1) ++ le16(channels) ++ le32(rate) ++ le32(rate * blockAlign) ++ le16(blockAlign) ++ le16(bitsPerSample) ++ [100, 97, 116, 97] ++ le32(dataLen))
+}
+
+-- A complete WAV file: wavHeader followed by the PCM unchanged.
+export pure func wavFromPcm(pcm: bytes, rate: int, channels: int, bitsPerSample: int) -> bytes
+requires { rate > 0 && channels > 0 && bitsPerSample > 0 && bitsPerSample % 8 == 0 } {
+  concat(wavHeader(length(pcm), rate, channels, bitsPerSample), pcm)
+}
+
+-- Duration in whole milliseconds (rounded down). Integer on purpose: no float
+-- rounding to argue about. For seconds: intToFloat(ms) / 1000.0.
+export pure func durationMs(pcmLen: int, rate: int, channels: int, bitsPerSample: int) -> int
+requires { pcmLen >= 0 && rate > 0 && channels > 0 && bitsPerSample > 0 && bitsPerSample % 8 == 0 }
+ensures { result >= 0 } {
+  pcmLen * 1000 / (rate * channels * (bitsPerSample / 8))
+}
+
+-- Compress 16-bit little-endian interleaved PCM.
+--   rate:     8000, 12000, 16000, 24000 or 48000 Hz
+--   channels: 1 or 2
+--   OggOpus(bitrate): bitrate in bits/s, 6000..510000
+-- Anything else returns Err naming the field; nothing is clamped or resampled.
+-- The PCM length must be a whole number of samples, and at most 100 MB.
+export pure func encode(pcm: bytes, rate: int, channels: int, codec: Codec) -> Result[bytes, string] {
+  match codec {
+    OggOpus(bitrate) => _audio_encode_ogg_opus(pcm, rate, channels, bitrate)
+  }
+}

@@ -2181,6 +2181,39 @@
       ]
     },
     {
+      "path": "runnable/std_audio_brief.ail",
+      "status": "working",
+      "tags": [
+        "stdlib",
+        "audio",
+        "wav",
+        "opus",
+        "ogg",
+        "bytes",
+        "std/audio"
+      ],
+      "description": "Raw TTS PCM to WAV (pure AILANG) and deterministic Ogg Opus via std/audio.encode",
+      "modules": [
+        "std/audio",
+        "std/bytes",
+        "std/env",
+        "std/fs",
+        "std/io",
+        "std/option",
+        "std/result"
+      ],
+      "run_flags": [
+        "--caps",
+        "IO",
+        "--entry",
+        "main"
+      ],
+      "expected": {
+        "stdout": "pcm bytes: 48000\nwav bytes: 48044\nduration: 1000 ms\nogg magic: OggS\nogg smaller than wav: true\nrejected: audio.encode: rate 44100 Hz is not supported (want 8000, 12000, 16000, 24000 or 48000; resample first)\n",
+        "exit_code": 0
+      }
+    },
+    {
       "path": "runnable/std_deflate_pdf_objstm.ail",
       "status": "working",
       "tags": [

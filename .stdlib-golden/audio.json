@@ -1,0 +1,38 @@
+{
+  "module": "std/audio",
+  "types": [
+    {
+      "name": "Codec",
+      "ctors": [
+        "OggOpus(int)"
+      ]
+    }
+  ],
+  "funcs": [
+    {
+      "name": "durationMs",
+      "type": "(int,int,int,int)-\u003eint",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "encode",
+      "type": "(bytes,int,int,Codec)-\u003eResult[bytes,string]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "wavFromPcm",
+      "type": "(bytes,int,int,int)-\u003ebytes",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "wavHeader",
+      "type": "(int,int,int,int)-\u003ebytes",
+      "effects": [],
+      "pure": true
+    }
+  ],
+  "schema": "ailang.iface/v1"
+}
