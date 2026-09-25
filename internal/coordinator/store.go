@@ -315,7 +315,13 @@ type Store interface {
 	ResolveApprovalRequest(ctx context.Context, id, status, resolvedBy string) error
 	ResolveApprovalRequestByTask(ctx context.Context, taskID, status, resolvedBy string) error
 	UpdateApprovalEvaluationByTask(ctx context.Context, taskID, evaluation string) error // Attach evaluator verdict to a task's PENDING approval (M-PIPELINE-RECONCILIATION M1); errors if none
-	MarkApprovalHandoffsTriggered(ctx context.Context, taskID string) error              // Mark that handoffs were sent
+	// MarkApprovalHandoffsTriggered records that the approval's handoff DECISION is
+	// made — fired, or nothing owed — so boot recovery stops scanning it. Despite
+	// the historical name it is a scan latch, not "sent": its only readers are
+	// the two ListApprovedMergeHandoffsWithoutTrigger queries. Suppression and
+	// expiry set it too, and record themselves in handoffs_suppressed /
+	// handoffs_expired (M-TASK-STATUS-TRUTH V22).
+	MarkApprovalHandoffsTriggered(ctx context.Context, taskID string) error
 	// ResolveApprovalSuppressingHandoffs approves AND records that its handoffs
 	// are withheld, in ONE write: there is no state in which the approval reads
 	// approved and the suppression is absent (M-TASK-STATUS-TRUTH D3).

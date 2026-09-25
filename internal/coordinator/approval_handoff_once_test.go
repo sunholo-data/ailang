@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"path/filepath"
@@ -319,5 +320,35 @@ func TestHandoffOnce_NothingOwedIsRecorded(t *testing.T) {
 	}
 	if len(left) != 0 {
 		t.Errorf("an approval that owes no handoff is still listed after recovery (%d) — re-scanned every boot", len(left))
+	}
+}
+
+// One boot's recovery is bounded: a backlog larger than the batch drains across
+// boots rather than all at once.
+// MU: drop the LIMIT from the SQLite recovery query and the first boot clears
+// everything, failing the "one left" assertion.
+func TestHandoffOnce_RecoveryWorkIsBoundedPerBoot(t *testing.T) {
+	f := newOnceFixture(t, "sprint-planner")
+	ctx := context.Background()
+	old := time.Now().Add(-HandoffRecoveryWindow - time.Hour)
+	for i := 0; i <= HandoffRecoveryBatch; i++ { // batch + 1 stale approvals
+		id := fmt.Sprintf("task-stale-%03d", i)
+		if err := f.store.CreateApprovalRequest(ctx, &ApprovalRequestRecord{
+			ID: ApprovalIDForTask(id), TaskID: id, Type: "merge_handoff", Status: "approved", CreatedAt: old,
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	f.boot(t)
+	left, err := f.store.ListApprovedMergeHandoffsWithoutTrigger(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(left) != 1 {
+		t.Fatalf("%d undecided approvals after one boot, want 1 — a boot must take at most %d", len(left), HandoffRecoveryBatch)
+	}
+	f.boot(t)
+	if left, _ = f.store.ListApprovedMergeHandoffsWithoutTrigger(ctx); len(left) != 0 {
+		t.Errorf("%d still undecided after a second boot — the backlog must drain", len(left))
 	}
 }

@@ -345,7 +345,8 @@ func (s *SQLiteStore) scanApprovalRequestFromRows(rows *sql.Rows) (*ApprovalRequ
 	return req, nil
 }
 
-// MarkApprovalHandoffsTriggered marks that handoffs have been sent for an approval request.
+// MarkApprovalHandoffsTriggered records that the approval's handoff decision is
+// made (a scan latch for boot recovery — see the Store interface).
 // This is used to track whether handoffs were triggered, enabling catch-up on daemon startup.
 func (s *SQLiteStore) MarkApprovalHandoffsTriggered(ctx context.Context, taskID string) error {
 	_, err := s.db.ExecContext(ctx,
@@ -370,8 +371,9 @@ func (s *SQLiteStore) ListApprovedMergeHandoffsWithoutTrigger(ctx context.Contex
 		  AND status = 'approved'
 		  AND (handoffs_triggered IS NULL OR handoffs_triggered = 0)
 		ORDER BY resolved_at ASC
+		LIMIT ?
 	`
-	rows, err := s.db.QueryContext(ctx, query)
+	rows, err := s.db.QueryContext(ctx, query, HandoffRecoveryBatch)
 	if err != nil {
 		return nil, err
 	}

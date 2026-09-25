@@ -53,6 +53,12 @@ var errHandoffSuppressed = errors.New("handoffs for this approval were suppresse
 // handoff decision was never recorded is expired, not fired.
 const HandoffRecoveryWindow = 7 * 24 * time.Hour
 
+// HandoffRecoveryBatch bounds ONE boot's recovery work. Each pass takes at most
+// this many undecided approvals, and every one it takes is decided (fired,
+// nothing owed, or expired), so a backlog drains across boots instead of
+// holding one boot hostage (M-TASK-STATUS-TRUTH D3, quorum round 6).
+const HandoffRecoveryBatch = 100
+
 // approvalHandoffNotify is how the approval-path producers notify. A variable
 // only so tests can count deliveries; production never reassigns it.
 var approvalHandoffNotify = notifyInboxMessage

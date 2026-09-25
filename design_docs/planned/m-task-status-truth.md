@@ -189,9 +189,21 @@ On `ailang-multivac-dev`, after the dev coordinator serves a build containing M1
 
 | V17 | `OnAgentApproved` is unreachable | `grep OnAgentApproved` over `internal/` and `cmd/`: the definition (`task_chain.go:385`) and comments only; no call site. |
 | V18 | Auto edges are disjoint from what an approval owes | `approvalHandoffTargets` excludes `AutoApproveHandoffs` / `AutoApprovesHandoffTo` targets; pinned by `TestApprovalHandoffTargets_ExcludesAutoEdges` and `TestHandoffTargetsPartition` (`approval_handoff_test.go:10,59`). |
-| V19 | The resolve is a compare-and-set on pending | SQLite `resolveApprovalByTask`: `UPDATE … WHERE task_id = ? AND status = 'pending'`, 0 rows → error — a real CAS. Firestore **was not**: `Where("status","==","pending")` then a plain `Update`, so two resolvers could both succeed (quorum round 5, correct). Fixed: the update runs in `RunTransaction` after re-reading `status == pending`, the pattern `MarkTaskQueued` already runs in prod. **Verified by construction and review only** — the repo has no Firestore emulator tests; M4 exercises the path live but cannot force the race. |
+| V19 | The resolve is a compare-and-set on pending | SQLite `resolveApprovalByTask`: `UPDATE … WHERE task_id = ? AND status = 'pending'`, 0 rows → error — a real CAS. Firestore **was not**: `Where("status","==","pending")` then a plain `Update`, so two resolvers could both succeed (quorum round 5, correct). Fixed: the update runs in `RunTransaction` after re-reading `status == pending`, the pattern `MarkTaskQueued` already runs in prod. **Verified live against real Firestore** (`ailang-multivac-dev`, `TestResolveApprovalIsCompareAndSet_Live`, 8 concurrent resolvers, half suppressing): fixed code → exactly 1 winner, 3/3 runs, the document carries the winner's `resolved_by` and suppression. **Control** — same test against the pre-fix query-then-update: 8/8, 7/8, 7/8 resolvers "succeeded". The race was real in the shipped code. |
 | V21 | `CreatedAt` has consumers that need the request time | `task_dedup.go:103-106` (`BlocksDuplicate` scopes by `t.CreatedAt`); `daemon_landed_cards.go:77` (`task.CreatedAt.Before(landedCardSweepSince)`, the 09-23 15:00 cutoff). Rewriting `CreatedAt` to dispatch time would re-open dedup for sweep-recovered work and let the landed-card sweep act on the pre-cutoff backlog. |
-| V20 | Every fix line is guarded | Mutation run 2026-09-25: 11/11 mutations (one per fix line across M1–M3) turn their test red; restored after each. |
+| V20 | Every fix line is guarded | Mutation run 2026-09-25: 13/13 mutations (one per fix line across M1–M3, incl. the batch bound and nothing-owed record) turn their test red; restored after each. Plus the live Firestore CAS control (V19). |
+
+| V22 | `handoffs_triggered` is a scan latch, not a display field | Readers (grep over Go/TS/JS/Py): exactly the two `ListApprovedMergeHandoffsWithoutTrigger` queries (SQLite `store_sqlite_approvals.go:371`, Firestore `coordinator_approvals.go:277`). It is not on `ApprovalRequestRecord`, no CLI/dashboard renders it. So setting it on suppression/expiry cannot be misread as "fired"; the truthful audit is `handoffs_suppressed` / `handoffs_expired`. Interface comment renamed to "decision recorded". |
+| V23 | Nothing un-suppresses | Writers of `handoffs_suppressed`: Firestore sets only `true` (`coordinator_approvals.go:225`); SQLite `resolveApprovalByTask` writes `?` (0 or 1) — but only inside the `WHERE status = 'pending'` CAS, i.e. on an approval that has never been resolved and so never suppressed. After resolution no code path writes it. |
+| V24 | One boot's recovery is bounded | `HandoffRecoveryBatch = 100`: SQLite `LIMIT ?`, Firestore `.Limit(…)`. Every approval taken is decided (fired / nothing owed / expired), so a backlog drains across boots. `TestHandoffOnce_RecoveryWorkIsBoundedPerBoot` (101 stale → 1 left after one boot → 0 after two); mutation (drop LIMIT) caught. |
+
+## Quorum round 6 (2026-09-25, BLOCKED) — responses
+
+| Reviewer | Objection | Response |
+|---|---|---|
+| gpt6-astra | The current boot's recovery work is unbounded | Batch-bounded per boot (V24). |
+| gemini-3-1-pro | Firestore CAS verified only by construction; un-suppression unverified | Now verified live with a control that shows the old code racing (V19); V23. |
+| oc-glm-5-3 | `handoffs_triggered` overloaded without a reader enumeration | V22: two readers, both the recovery scan; comment renamed. |
 
 ## Quorum round 5 (2026-09-25, BLOCKED) — responses
 

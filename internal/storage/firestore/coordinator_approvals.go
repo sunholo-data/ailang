@@ -275,6 +275,7 @@ func (s *CoordinatorStore) ListApprovedMergeHandoffsWithoutTrigger(ctx context.C
 		Where("status", "==", "approved").
 		Where("type", "==", "merge_handoff").
 		Where("handoffs_triggered", "==", false).
+		Limit(coordinator.HandoffRecoveryBatch). // one boot's work is bounded (M-TASK-STATUS-TRUTH D3)
 		Documents(ctx)
 	defer iter.Stop()
 
