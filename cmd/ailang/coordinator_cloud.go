@@ -125,6 +125,15 @@ func coordinatorExecuteJob(args []string) error {
 		if completionSent.Swap(true) {
 			return // Already sent — prevent double-publish.
 		}
+		// The producer half of the status contract (M-TASK-STATUS-TRUTH S2): a
+		// status the coordinator does not understand is dropped there and the
+		// task later reads as a timeout. Refuse here instead, loudly, and still
+		// report a terminal outcome that names the defect.
+		if !coordinator.IsExecutorCompletionStatus(status) {
+			fmt.Fprintf(os.Stderr, "execute-job: refusing to publish unknown completion status %q; publishing failed instead\n", status)
+			errMsg = fmt.Sprintf("executor produced unknown completion status %q (not in coordinator.ExecutorCompletionStatuses): %s", status, errMsg)
+			status = string(coordinator.TaskStatusFailed)
+		}
 		completion := pubsub.TaskCompletion{
 			TaskID:       taskID,
 			AgentID:      agentID,

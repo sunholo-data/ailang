@@ -4,6 +4,7 @@ package coordinator
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -188,8 +189,20 @@ func processApproval(ctx context.Context, span trace.Span, params *ApprovalParam
 		}
 	}
 
-	// 2. Resolve the approval request in database
-	if err := params.Store.ResolveApprovalRequestByTask(ctx, taskID, "approved", params.ApprovedBy); err != nil {
+	// 2. Resolve the approval request in database.
+	//
+	// SkipHandoffs is recorded IN the resolution, not after it: "handoffs NOT
+	// fired" used to be printed and not stored, so the next coordinator boot
+	// found the approval "without triggered handoffs" and fired them — 22 on
+	// 2026-09-23 15:17, 17 of which ran sprint-planner on stale work
+	// (M-TASK-STATUS-TRUTH S4).
+	resolve := func() error {
+		if params.SkipHandoffs {
+			return params.Store.ResolveApprovalSuppressingHandoffs(ctx, taskID, params.ApprovedBy)
+		}
+		return params.Store.ResolveApprovalRequestByTask(ctx, taskID, "approved", params.ApprovedBy)
+	}
+	if err := resolve(); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to resolve approval")
 		return nil, fmt.Errorf("failed to approve task: %w", err)
@@ -215,6 +228,17 @@ func processApproval(ctx context.Context, span trace.Span, params *ApprovalParam
 		result.Message += " (handoffs NOT fired)"
 	} else {
 		handedOff, hErr = dispatchApprovalHandoffs(ctx, params.AgentRegistry, params.MsgStore, params.Store, task)
+		if hErr == nil {
+			// Every owed handoff is written (or none was owed): record the decision
+			// so boot recovery stops scanning this approval. An optimisation only —
+			// correctness no longer rests on it, because every row is written under
+			// its (task, target) identity and a replay collides.
+			if err := params.Store.MarkApprovalHandoffsTriggered(ctx, taskID); err != nil {
+				span.AddEvent("warning: failed to record handoff decision", trace.WithAttributes(
+					attribute.String("error", err.Error()),
+				))
+			}
+		}
 	}
 	switch {
 	case hErr != nil:
@@ -670,6 +694,13 @@ func triggerHandoffsFromApprovalRecord(ctx context.Context, span trace.Span, par
 	}
 
 	if len(handoffContext.HandoffTargets) == 0 {
+		// Nothing owed is a decision too: record it, or this approval is
+		// re-listed on every boot for the rest of the recovery window.
+		if err := params.Store.MarkApprovalHandoffsTriggered(ctx, taskID); err != nil {
+			span.AddEvent("warning: failed to record empty handoff decision", trace.WithAttributes(
+				attribute.String("error", err.Error()),
+			))
+		}
 		return false, nil
 	}
 
@@ -678,53 +709,58 @@ func triggerHandoffsFromApprovalRecord(ctx context.Context, span trace.Span, par
 		attribute.String("handoff.source", handoffContext.SourceAgent),
 	))
 
-	// Build handoff message
-	handoffMessage := fmt.Sprintf("**Handoff from %s (approved)**\n\n"+
-		"Task: %s\n"+
-		"Title: %s\n"+
-		"Original Request: %s\n\n"+
-		"Please continue this work.",
-		handoffContext.SourceAgent, task.ID, task.Title, strutil.Truncate(task.Content, 500))
+	// Every target goes through the ONE approval-path sender: the same row
+	// identity (task, target), the same body, the same suppression check. This
+	// was a third producer with its own wording, a plain insert under a fresh id,
+	// and no notify — so it could not see that the approve path had already sent
+	// the handoff, and sent it again on every boot (M-TASK-STATUS-TRUTH S3).
+	sourceAgent := params.AgentRegistry.GetAgentByID(handoffContext.SourceAgent)
+	if sourceAgent == nil {
+		sourceAgent = params.AgentRegistry.GetAgentByID(task.AgentID)
+	}
+	if sourceAgent == nil {
+		sourceAgent = &AgentConfig{ID: handoffContext.SourceAgent, Label: handoffContext.SourceAgent}
+	}
+	artifacts := resolveHandoffArtifacts(ctx, params.Store, task, sourceAgent)
 
-	// Trigger each handoff
 	triggered := false
+	complete := true
 	for _, targetAgentID := range handoffContext.HandoffTargets {
 		targetAgent := params.AgentRegistry.GetAgentByID(targetAgentID)
 		if targetAgent == nil {
 			span.AddEvent("warning: handoff target not found", trace.WithAttributes(
 				attribute.String("target.agent", targetAgentID),
 			))
+			complete = false
 			continue
 		}
-
-		// Send to target agent's inbox
-		msg := &messaging.InboxMessage{
-			FromAgent:    "coordinator",
-			ToInbox:      targetAgent.Inbox,
-			MessageType:  "handoff",
-			Title:        fmt.Sprintf("Handoff: %s (approved)", task.Title),
-			Payload:      handoffMessage,
-			ParentTaskID: task.ID,      // M-TASK-HIERARCHY: Link to parent task for handoff chains
-			ChainID:      task.ChainID, // M-CHAINS-SIMPLIFY: Link to existing chain
-		}
-
-		if err := params.MsgStore.InsertInboxMessage(msg); err != nil {
+		err := sendAgentHandoffMessage(ctx, params.Store, params.MsgStore, sourceAgent, targetAgent, task, artifacts, task.GithubIssue)
+		switch {
+		case errors.Is(err, errHandoffSuppressed):
+			return false, nil
+		case errors.Is(err, errHandoffNotDispatched):
+			// Written, not notified: the row is durable and the backstop sweep
+			// delivers it. The handoff exists; only the fast path failed.
+			span.AddEvent("warning: handoff written but not notified", trace.WithAttributes(
+				attribute.String("target.agent", targetAgentID),
+				attribute.String("error", err.Error()),
+			))
+			triggered = true
+		case err != nil:
 			span.AddEvent("warning: failed to send handoff", trace.WithAttributes(
 				attribute.String("target.agent", targetAgentID),
 				attribute.String("error", err.Error()),
 			))
-			continue
+			complete = false
+		default:
+			triggered = true
 		}
-
-		span.AddEvent("handoff sent", trace.WithAttributes(
-			attribute.String("target.agent", targetAgentID),
-			attribute.String("target.inbox", targetAgent.Inbox),
-		))
-		triggered = true
 	}
 
-	// Mark handoffs as triggered to prevent re-triggering on daemon restart
-	if triggered {
+	// Record the decision only when every target has its row. A partial pass
+	// leaves the approval for the next boot, which re-writes exactly the missing
+	// targets — the ones already written collide and do nothing.
+	if complete {
 		if err := params.Store.MarkApprovalHandoffsTriggered(ctx, taskID); err != nil {
 			span.AddEvent("warning: failed to mark handoffs as triggered", trace.WithAttributes(
 				attribute.String("error", err.Error()),

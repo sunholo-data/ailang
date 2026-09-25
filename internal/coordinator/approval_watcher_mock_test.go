@@ -240,3 +240,15 @@ func (m *mockStore) RefreshPendingApproval(ctx context.Context, taskID, descript
 }
 
 func (m *mockStore) ReopenTask(ctx context.Context, taskID string) error { return m.err }
+
+func (m *mockStore) ResolveApprovalSuppressingHandoffs(ctx context.Context, taskID, resolvedBy string) error {
+	return nil
+}
+
+func (m *mockStore) ApprovalHandoffsSuppressed(ctx context.Context, taskID string) (bool, error) {
+	return false, nil
+}
+
+func (m *mockStore) MarkApprovalHandoffsExpired(ctx context.Context, taskID string) error {
+	return nil
+}

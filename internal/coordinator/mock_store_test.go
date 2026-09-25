@@ -536,3 +536,15 @@ func (m *MockStore) ReopenTask(ctx context.Context, taskID string) error {
 	}
 	return nil
 }
+
+func (m *MockStore) ResolveApprovalSuppressingHandoffs(ctx context.Context, taskID, resolvedBy string) error {
+	return nil
+}
+
+func (m *MockStore) ApprovalHandoffsSuppressed(ctx context.Context, taskID string) (bool, error) {
+	return false, nil
+}
+
+func (m *MockStore) MarkApprovalHandoffsExpired(ctx context.Context, taskID string) error {
+	return nil
+}
