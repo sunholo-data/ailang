@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/mission"
 	"github.com/sunholo-data/ailang/internal/mission/quorum"
 )
@@ -34,7 +35,7 @@ func runDesignQuorum() {
 	fs := flag.NewFlagSet("design-quorum", flag.ExitOnError)
 	reviewers := fs.String("reviewers", defaultQuorumPool, "comma-separated reviewer POOL (models.yml ids, or "+quorum.ClaudeReviewerID+"); --seats of them review each doc")
 	seats := fs.Int("seats", quorum.DefaultSeats, "independent reviewers per doc, drawn from the pool")
-	author := fs.String("author", os.Getenv("MISSION_DESIGN_AUTHOR"), "model or lane that WROTE the doc (e.g. claude:claude-opus-5-5, codex:gpt-6-astra); its vendor sits out")
+	author := fs.String("author", config.MissionDesignAuthor(), "model or lane that WROTE the doc (e.g. claude:claude-opus-5-5, codex:gpt-6-astra); its vendor sits out")
 	maxCost := fs.Float64("max-cost-usd", quorum.DefaultMaxCostUSD, "per-reviewer budget cap in USD")
 	artifactDir := fs.String("artifact-dir", quorum.ArtifactDir, "directory for the machine JSON artifact")
 	logPath := fs.String("mission-log", "", "optional mission log path to append the markdown block")

@@ -9,6 +9,7 @@ const (
 	EnvControllerID         = "CONTROLLER_ID"
 	EnvMissionRole          = "MISSION_ROLE"
 	EnvMissionMeteredBudget = "MISSION_METERED_BUDGET_USD"
+	EnvMissionDesignAuthor  = "MISSION_DESIGN_AUTHOR"
 	EnvAnthropicRation      = "AILANG_ANTHROPIC_RATION"
 	EnvMissionRegistry      = "AILANG_MISSION_REGISTRY"
 	EnvCodexHome            = "CODEX_HOME"
@@ -35,6 +36,7 @@ var missionVars = []Var{
 	{EnvControllerID, "", AreaMission, "Identity of the mission controller acting in this process; used as the approval identity label."},
 	{EnvMissionRole, "", AreaMission, "Role the mission loop pinned this process to (controller, designer, executor, ...)."},
 	{EnvMissionMeteredBudget, "", AreaMission, "Metered spend budget in USD for the mission's chain statistics; unset means no budget line."},
+	{EnvMissionDesignAuthor, "", AreaMission, "The designer lane that wrote a doc (e.g. codex:gpt-6-astra); design-quorum benches that vendor. Unset assumes a Claude author."},
 	{EnvAnthropicRation, "1", AreaMission, "0 turns off Anthropic subscription rationing for one attended process; unset means rationed."},
 	{EnvMissionRegistry, "", AreaMission, "Absolute directory holding mission definitions, instead of the built-in registry."},
 	{EnvCodexHome, "", AreaMission, "Codex CLI home whose auth and quota files are observed; unset means ~/.codex."},
@@ -51,6 +53,9 @@ func MissionControlActive() bool { return getOr(EnvMissionControlActive) == "1" 
 
 // ControllerID returns the trimmed CONTROLLER_ID, "" when unset.
 func ControllerID() string { return strings.TrimSpace(get(EnvControllerID)) }
+
+// MissionDesignAuthor returns the trimmed MISSION_DESIGN_AUTHOR, "" when unset.
+func MissionDesignAuthor() string { return strings.TrimSpace(get(EnvMissionDesignAuthor)) }
 
 // MissionRole returns the trimmed MISSION_ROLE, "" when unset.
 func MissionRole() string { return strings.TrimSpace(get(EnvMissionRole)) }

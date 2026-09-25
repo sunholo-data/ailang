@@ -125,15 +125,7 @@ func coordinatorExecuteJob(args []string) error {
 		if completionSent.Swap(true) {
 			return // Already sent — prevent double-publish.
 		}
-		// The producer half of the status contract (M-TASK-STATUS-TRUTH S2): a
-		// status the coordinator does not understand is dropped there and the
-		// task later reads as a timeout. Refuse here instead, loudly, and still
-		// report a terminal outcome that names the defect.
-		if !coordinator.IsExecutorCompletionStatus(status) {
-			fmt.Fprintf(os.Stderr, "execute-job: refusing to publish unknown completion status %q; publishing failed instead\n", status)
-			errMsg = fmt.Sprintf("executor produced unknown completion status %q (not in coordinator.ExecutorCompletionStatuses): %s", status, errMsg)
-			status = string(coordinator.TaskStatusFailed)
-		}
+		status, errMsg = contractCompletionStatus(status, errMsg)
 		completion := pubsub.TaskCompletion{
 			TaskID:       taskID,
 			AgentID:      agentID,
@@ -755,32 +747,6 @@ func assertRemoteMatchesHead(ctx context.Context, workDir, branchName string) er
 	}
 	fmt.Printf("execute-job: verified origin/%s is at %s\n", branchName, head)
 	return nil
-}
-
-// pushRefspec sends whatever HEAD is to the named branch.
-//
-// Deliberately not the bare branch name: that pushes the local ref of that name,
-// which is only the agent's work if the agent stayed on the branch the wrapper
-// created. Nothing makes it stay.
-func pushRefspec(branchName string) string {
-	return "HEAD:refs/heads/" + branchName
-}
-
-// branchNeedsPush reports whether the wrapper still has commits to send.
-//
-// It answers ONLY that. It used to be the same test that decided whether to
-// open a PR, which meant an agent that pushed its own branch got no PR at all
-// (task-389b7a51). Pushing and reviewing are separate questions.
-func branchNeedsPush(newBranch bool, logOutput string) bool {
-	return newBranch || len(strings.TrimSpace(logOutput)) > 0
-}
-
-// branchWantsPR reports whether there is a head/base pair to open a PR between.
-//
-// A direct-push agent commits onto the base branch itself; GitHub answers 422
-// for a PR from a branch to itself, and that is not a failure worth logging.
-func branchWantsPR(branchName, baseBranch string) bool {
-	return branchName != "" && branchName != baseBranch
 }
 
 // configureGitAuthor sets the commit author for this task's checkout.
