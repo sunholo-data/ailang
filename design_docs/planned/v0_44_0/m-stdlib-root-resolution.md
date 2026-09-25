@@ -64,7 +64,7 @@ knows about the embedded copy.
 | R3 | `internal/stdlibindex/index.go:33-46`, used for the import suggestions on "undefined variable" (`cmd/ailang/diagnostics_wiring.go:13-23`, `types.ImportSuggester` and `importhint.*`) | `AILANG_STDLIB_PATH` (the first entry that exists), then the literal `"std"`. **No embedded copy** | **Silently empty** | **Verified**: `ailang check` of `println(show(length([1,2])))` inside the repo appends "`length` is exported by std/array, std/bytes, std/list, std/string; add the matching import". From the scratch dir it prints only `undefined variable: length`. This is the same bug as R2, but silent, and it hits every agent that works outside the repo |
 | R4 | `internal/module/loader.go:89-105` and `internal/module/resolver.go:274-303` (they read `AILANG_STDLIB`, `../stdlib` and `./stdlib`) | – | – | **Dead code.** `go list -f '{{.Imports}}' ./...` shows no importer of `internal/module`. Its only live effect is the `AILANG_STDLIB` registry row (`internal/config/paths.go:8,25`), which documents a variable nothing reads |
 | R5 | `internal/embed/embed.go:66-70` sets `AILANG_STDLIB_PATH` to the **project root** (not `<root>/std`). Used by `cmd/ailang/budget.go`, `coordinator_approvals_engine.go` and `internal/server/ailang_bridge.go` | – | – | This is a no-op today, because R1 skips an entry that holds no `<module>.ail`. It would become an error under M1's rule for explicit overrides, so M1 removes it |
-| R6 | `internal/executor/environment.go:80-88` exports `AILANG_STDLIB_PATH=<cwd>/std` **without checking that it exists**. `internal/eval_harness/runner.go:276` and `agent_validation.go:243` pass `--stdlib-path <cwd>/std` | – | – | These are callers that choose a root, not resolvers. The eval harness runs from the repo root, so its path exists. The executor path might not exist, so M1 guards it with a stat before exporting |
+| R6 | `internal/executor/environment.go:80-88` exports `AILANG_STDLIB_PATH=<cwd>/std` **without checking that it exists**. `internal/eval_harness/runner.go:276` and `agent_validation.go:243` pass `--stdlib-path <cwd>/std` | – | – | These are callers that choose a root, not resolvers. Neither checks that the path exists, which is harmless today because R1 skips missing entries. Under M1's rule for explicit overrides, a missing path becomes an error, so M1 guards both sites with a stat on `<dir>/io.ail` |
 | R7 | `internal/lsp/definition.go:212` (go-to-definition into std) uses R1's `ResolveStdlib` and then `os.ReadFile` | – | Silently finds nothing | There is no file URI for an embedded module. **Out of scope** here (see Non-Goals) |
 
 Commands that are *not* affected: `docs search` and `docs embed-warmup`, which index design
@@ -143,7 +143,7 @@ error that names the root. It does not fall back per module.
 - **Dead code and callers (R4 to R6).** Delete `internal/module` (check `make test` and
   `git log` for any intended revival first; see the coding-standards rule on "unused" code).
   Drop the `AILANG_STDLIB` registry row. Remove the `Setenv` in `internal/embed/embed.go`.
-  In the executor, export the variable only if `<dir>/io.ail` exists.
+  In the executor and eval harness, pass the root only if `<dir>/io.ail` exists.
 
 ### Files to modify
 
@@ -163,8 +163,9 @@ This change touches `internal/loader`, the module-root half of the pipeline.
 
 1. **Positions extended.** The stdlib-root precedence, and the FS that std modules are read from.
 2. **Other users of those positions.** Repo-root development (`./std` must still win when no
-   override is set). The eval harness passes `--stdlib-path <repo>/std`, which already equals
-   `./std`, so nothing changes. The cloud executor's workspace `std` goes through the env tier.
+   override is set). The eval harness passes `--stdlib-path <cwd>/std` and runs the child in
+   `<cwd>/.eval_workspace/…`, where there is no `./std`. The flag already decides there today,
+   so nothing changes. The cloud executor's workspace `std` goes through the env tier.
    The version-mismatch warning in `checkStdlibVersion` applies to on-disk roots only, because
    the embedded copy matches by construction.
 3. **Disambiguation.** Explicit beats implicit, and implicit beats embedded. There is one root
@@ -213,7 +214,7 @@ no test depends on the repo checkout being the cwd.
 3. `internal/stdlibindex`: from a temp dir, `Modules("length")` is non-empty.
 4. `internal/loader`: the shadow-`std` precedence test and the one-root-per-run test.
 5. Binary smoke (release lane): after `make build`, `cd "$(mktemp -d)" && ailang docs std/stream`
-   exits 0. Add it next to the existing release smoke checks so a tarball binary is covered.
+   exits 0. Wire it into CI (`.github/workflows/ci.yml`) or the release workflow, whichever already runs the built binary, so a release binary is covered.
 
 ## Non-Goals
 
@@ -241,8 +242,8 @@ There are no hard violations. The net score is +4.
 
 Trigger 2 applies in a narrow sense: the loader's precedence changes (explicit overrides now
 beat `./std`), and other lanes depend on the loader. The one lane that passes an override, the
-eval harness, passes the same directory as `./std`, which is verified at
-`eval_harness/runner.go:276`. Triggers 1, 3 and 4 do not fire: there are no freeze items, no
+eval harness, runs its child in `.eval_workspace/…`, which has no `./std`
+(`eval_harness/runner.go:242,276`). The flag already wins there today. Triggers 1, 3 and 4 do not fire: there are no freeze items, no
 cost or banking surface, and every premise can be checked in-repo. **Recommendation:** skip
 the quorum unless the reviewer disagrees with deliberate change 5(b).
 
