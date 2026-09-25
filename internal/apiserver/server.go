@@ -86,6 +86,7 @@ type Server struct {
 	logLevel       int                 // minimum severity for Debug output
 	routesOnly     bool                // only expose @route-annotated functions
 	noFeedbackTool bool                // suppress the built-in submit_feedback MCP tool
+	ws             *wsState            // WebSocket route sessions (routes_ws.go)
 }
 
 // ModuleInfo holds metadata about a loaded AILANG module.
@@ -148,6 +149,8 @@ type ExportInfo struct {
 	IsNoMCP     bool     `json:"is_no_mcp,omitempty"`    // @nomcp annotation: hide from the MCP tool surface only (HTTP/OpenAPI/A2A unaffected)
 	MCPName     string   `json:"mcp_name,omitempty"`     // @mcp_name annotation: explicit MCP tool name override
 	DocComment  string   `json:"doc_comment,omitempty"`  // doc comment (-- lines) preceding the function
+	IsWS        bool     `json:"is_ws,omitempty"`        // @route("WS", ...): a WebSocket route, off every HTTP/MCP/A2A surface
+	Effects     []string `json:"-"`                      // declared effect row (WS registration check)
 }
 
 // Config holds configuration for the API server.
@@ -169,6 +172,7 @@ type Config struct {
 	LogLevel       int         // minimum severity for Debug output (0=DEBUG, 1=INFO, 2=WARN, 3=ERROR, 4=NONE)
 	RoutesOnly     bool        // only expose @route-annotated functions as HTTP endpoints
 	NoFeedbackTool bool        // suppress the built-in submit_feedback MCP tool; user exports unaffected
+	WS             WSConfig    // @route("WS") session limits (M-SERVEAPI-WS-BRIDGE)
 }
 
 // New creates a new API server.
@@ -245,6 +249,7 @@ func New(basePath string, cfg Config) *Server {
 		logLevel:           cfg.LogLevel,
 		routesOnly:         cfg.RoutesOnly,
 		noFeedbackTool:     cfg.NoFeedbackTool,
+		ws:                 newWSState(cfg.WS),
 	}
 }
 
@@ -512,6 +517,9 @@ func (s *Server) Start() error {
 		return s.StartMCP()
 	}
 
+	if err := s.ValidateWSRoutes(); err != nil {
+		return err
+	}
 	mux := s.buildRoutes()
 
 	// Bind before anything announces a launch: a taken port exits non-zero
@@ -521,6 +529,7 @@ func (s *Server) Start() error {
 		return err
 	}
 	srv := &http.Server{Handler: mux}
+	srv.RegisterOnShutdown(s.closeWSSessions)
 
 	// Start Vite dev server if frontend path specified
 	if s.frontendPath != "" {

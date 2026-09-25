@@ -748,13 +748,16 @@ func (ctx *EffContext) RenderTraceValue(v eval.Value) string {
 		return ""
 	}
 	if ctx.Trace == nil {
-		return v.String()
+		return eval.ShowTraceBounded(v, 0)
 	}
 	budget, redacted := ctx.Trace.ValueBudget()
 	if redacted {
 		return trace.RedactedDescriptor(eval.RenderedLen(v))
 	}
-	return eval.ShowBounded(v, budget)
+	// Credentials are withheld at every tier (M-SERVEAPI-WS-BRIDGE G7):
+	// this is the one renderer effect, builtin and function-call trace
+	// sites share.
+	return eval.ShowTraceBounded(v, budget)
 }
 
 // RecordFunctionEnter delegates to trace collector if present.

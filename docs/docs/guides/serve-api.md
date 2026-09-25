@@ -1221,6 +1221,127 @@ tailscale serve --https=8791 http://127.0.0.1:8791
 
 ---
 
+## WebSocket Routes & the Bridge (v0.44.0+)
+
+`@route("WS", "/path")` makes serve-api accept a WebSocket upgrade and call the handler **once for
+the life of the connection**. The browser leg arrives as an ordinary `std/stream` `StreamConn`, so
+`transmit`, `onEvent` and `disconnect` work on it unchanged. The route needs `--caps Stream`.
+
+```ailang
+import std/stream (connect, disconnect, StreamConn)
+import std/stream/bridge (bridge, BridgeFrame, Verdict, Forward, Drop, UpBin, UpstreamClosed)
+import std/result (Ok, Err)
+
+pure func muteAudio(n: int, f: BridgeFrame) -> (int, Verdict) =
+  match f { UpBin(_) => (n + 1, Drop), _ => (n, Forward) }
+
+@route("WS", "/live")
+export func live(client: StreamConn) -> unit ! {Stream} {
+  match connect("wss://upstream.example/ws", { headers: [] }) {
+    Ok(up) => match bridge(client, up, 0, muteAudio) {
+      (_, UpstreamClosed(_, _)) => disconnect(client),
+      _ => ()
+    },
+    Err(_) => disconnect(client)
+  }
+}
+```
+
+The full example, a speech gate with an offline `foldl` replay, is
+[`examples/serveapi_ws_bridge.ail`](https://github.com/sunholo-data/ailang/blob/dev/examples/serveapi_ws_bridge.ail).
+
+**Handler shape.** `handler(client: StreamConn)`, or `handler(client: StreamConn, req: {path: string,
+query: string, origin: string})`. The effect row must include `Stream`, and every effect it names
+must be granted by `--caps`. `@raw` and `@nowrap` do not apply. serve-api refuses to start when any
+of these is wrong. When the handler returns, serve-api closes the client (1000, or 1011 if the call
+failed) and every connection the session opened.
+
+**Before the upgrade**, serve-api refuses:
+
+| Request | Status |
+|---|---|
+| A plain `GET` with no `Upgrade: websocket` | 426 |
+| `Origin` missing, `null`, or neither same-origin nor in `--cors-origin` | 403 |
+| API key configured (`--api-key-header`/`--api-key-env`) and not presented | 401 |
+| More than `--ws-max-sessions` live sessions (default 4) | 503 |
+
+CORS does not govern WebSockets, so the `Origin` check is what stops another page in the user's
+browser from opening the socket. The `--cors-origin` list is the WS allowlist too. **A WS route on
+a non-loopback `--bind` needs a `--cors-origin` allowlist**, or serve-api will not start; `--cors`
+(every origin) does not count. A browser cannot set headers on `new WebSocket()`, so it presents an
+API key as subprotocols: `new WebSocket(url, ["ailang.v1", "ailang.key." + key])`. The server
+selects `ailang.v1` and never echoes the key. Query-string keys are not accepted.
+
+**Sessions are isolated.** Each connection gets its own `StreamContext`: its own connection IDs,
+its own `MaxConnections` (4 legs by default), and its own `--stream-max-duration` and
+`--stream-idle-timeout`. The defaults are 5 minutes and 60 seconds; a voice session usually needs
+a longer ceiling, such as `--stream-max-duration 30m`. Each direction queues at most
+`--ws-queue-frames` frames (default 64). When the queue is full the reader blocks, and TCP pushes
+back on the sender. The runtime never drops a frame on its own.
+
+### `bridge`: one AILANG verdict per frame
+
+`bridge(client, up, init, step)` relays two connections. `step : (s, BridgeFrame) -> (s, Verdict)`
+runs once per data frame in either direction, in arrival order, and threads its state. The state is
+a value, so the same step replays offline with `foldl` over a recorded frame list.
+
+| `BridgeFrame` | | `Verdict` | Effect |
+|---|---|---|---|
+| `ClientText(string)` | browser → upstream | `Forward` | Go re-sends the **original** bytes |
+| `ClientBin(bytes)` | browser → upstream | `Drop` | nothing is sent |
+| `UpText(string)` | upstream → browser | `ReplaceText(s)` / `ReplaceBin(b)` | the replacement is sent onward |
+| `UpBin(bytes)` | upstream → browser | `CloseBridge(code, reason)` | the client is closed with `code`, and the bridge ends |
+
+`bridge` returns `(state, BridgeEnd)`, one of `ClientClosed(code, reason)`,
+`UpstreamClosed(code, reason)`, `ClosedByVerdict(code, reason)`, `TimedOut(msg)` or
+`StepFailed(msg)`. A step that fails closes the client with 1011. The upstream is always closed
+when `bridge` returns. The client is closed too, except on `UpstreamClosed`, where the handler
+still holds it and may dial a new upstream. Every data frame charges `Stream.recv`, and every frame
+sent charges `Stream.send`. The step's effects join the caller's row, so a logging step shows up in
+the handler's signature.
+
+Because the step runs when a frame is **dequeued**, a barge-in policy can mark `interrupted` and
+`Drop` the model audio already queued behind the interruption. A proxy that sees frames only after
+they are sent cannot do that.
+
+`--ws-decision-log` writes one JSON line per frame to the server log, never with a payload:
+
+```
+[ws-bridge] {"call_id":"ws-3","seq":17,"dir":"up","kind":"bin","bytes":16384,"verdict":"Drop","step_us":31}
+```
+
+### Upstream credentials: `--stream-credential`
+
+Do not put an upstream token in `connect`'s headers: it would be an AILANG value. Bind it to the
+host instead:
+
+```bash
+ailang serve-api --bind 100.101.102.103 --caps Stream \
+  --cors-origin https://studio.tailnet-name.ts.net \
+  --stream-credential us-central1-aiplatform.googleapis.com=gcp-key-file:/secrets/daneel-sa.json \
+  --stream-max-duration 30m ./live/
+```
+
+serve-api adds `Authorization: Bearer …` at dial time, in Go, only for `wss://` to that exact host
+and port (a binding without a port means 443). It never applies the binding to `ws://`, another
+host or another port. The program never sees the token, so it cannot reach a frame, the trace or a
+log through program code. A program that sends its own `Authorization` to a bound host fails with
+`credential binding: Authorization header supplied by program for bound host …`.
+
+| Source | Meaning |
+|---|---|
+| `gcp-key-file:PATH` | A Google credentials file: `service_account`, `impersonated_service_account` or `external_account`. A gcloud user login (`authorized_user`) is refused. |
+| `gcp-metadata` | The GCE/Cloud Run metadata server's service account, named explicitly |
+| `bearer-file:PATH` | A token file that another tool keeps fresh, read on every dial |
+
+There is no implicit Application Default Credentials lookup and no gcloud fallback. Tokens are
+cached and refreshed 5 minutes before expiry. Each source is fetched once at startup, so a broken
+source fails the launch instead of the first call.
+
+Separately from the binding, the trace never records credential values. A header-shaped
+`{name: "Authorization", value: …}` value, a `("Cookie", …)` pair, a credential-named record field
+and any `Bearer …`/`Basic …` string are written as `[REDACTED]` in traces at every tier.
+
 ## Concurrency (v0.9.4+)
 
 `serve-api` handles concurrent requests safely. Each HTTP request gets its own isolated evaluator via `Fork()` — there is no shared mutable state between requests. Go's `net/http` creates a goroutine per request, and AILANG's evaluator is designed to work correctly in this model.

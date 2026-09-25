@@ -67,8 +67,15 @@ type streamEvent struct {
 	sourceName   string // M-ASYNC-IO: source tag for SourceText/SourceBytes events
 }
 
-// Close gracefully shuts down the connection.
+// Close gracefully shuts down the connection (normal closure).
 func (sc *StreamConnection) Close() {
+	sc.CloseWithCode(0, "")
+}
+
+// CloseWithCode shuts the connection down, sending code and reason in the
+// WebSocket close frame (0 = normal closure). SSE ignores the code.
+// Idempotent: only the first close sends a frame.
+func (sc *StreamConnection) CloseWithCode(code int, reason string) {
 	sc.mu.Lock()
 	if sc.status == StreamStatusClosed || sc.status == StreamStatusClosing {
 		sc.mu.Unlock()
@@ -84,7 +91,7 @@ func (sc *StreamConnection) Close() {
 			_ = sc.httpResp.Body.Close()
 		}
 	} else {
-		sc.closeWS()
+		sc.closeWS(code, reason)
 	}
 
 	// Signal read goroutine to stop

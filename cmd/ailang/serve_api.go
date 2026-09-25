@@ -39,6 +39,7 @@ func serveAPICommand(args []string) error {
 	helpFlag := fs.Bool("help", false, "Show help for serve-api command")
 	maxMemoryFlag := fs.String("max-memory", "", "Go soft memory limit: a size (256MB, 1GB) or 'cgroup' (the container limit x 0.9). Unset = AILANG_MEMLIMIT, else none.")
 	logLevelFlag := fs.String("log-level", "", "Minimum log level for Debug output (debug, info, warn, error, none)")
+	ws := registerServeAPIWSFlags(fs)
 
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -135,6 +136,10 @@ func serveAPICommand(args []string) error {
 		}
 	}
 
+	if err := ws.apply(effCtx); err != nil {
+		return err
+	}
+
 	cfg := apiserver.Config{
 		Port:           *portFlag,
 		Bind:           *bindFlag,
@@ -153,6 +158,7 @@ func serveAPICommand(args []string) error {
 		LogLevel:       debugLogLevel,
 		RoutesOnly:     *routesOnlyFlag,
 		NoFeedbackTool: *noFeedbackToolFlag,
+		WS:             ws.config(),
 	}
 
 	srv := apiserver.New(basePath, cfg)
@@ -275,6 +281,7 @@ func printServeAPIHelp() {
 	fmt.Println("  --api-key-env VAR    Environment variable containing the expected API key")
 	fmt.Println("  --routes-only        Only expose @route-annotated functions (skip auto-generated endpoints)")
 	fmt.Println("  --no-feedback-tool   Suppress the built-in submit_feedback MCP tool (exact tool surface)")
+	printServeAPIWSHelp()
 	fmt.Println("  --help               Show this help message")
 	fmt.Println()
 	fmt.Println("Route annotations:")
@@ -288,6 +295,11 @@ func printServeAPIHelp() {
 	fmt.Println("    @route(\"POST\", \"/webhooks/stripe\")")
 	fmt.Println("    export func handle(req: {body: string, headers: Json, method: string}) -> string ! {IO}")
 	fmt.Println("  Headers/query are Json — use getString(req.headers, \"Stripe-Signature\")")
+	fmt.Println()
+	fmt.Println("  Use @route(\"WS\", \"/path\") for a WebSocket route (needs --caps Stream); the handler")
+	fmt.Println("  runs once per connection and gets the browser leg as a StreamConn:")
+	fmt.Println("    @route(\"WS\", \"/live\")")
+	fmt.Println("    export func live(client: StreamConn) -> unit ! {Stream}")
 	fmt.Println()
 	fmt.Println("  Use @noexpose to hide exported functions from HTTP (still importable by other modules):")
 	fmt.Println("    @noexpose")
