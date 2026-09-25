@@ -321,7 +321,12 @@ type Store interface {
 	// the two ListApprovedMergeHandoffsWithoutTrigger queries. Suppression and
 	// expiry set it too, and record themselves in handoffs_suppressed /
 	// handoffs_expired (M-TASK-STATUS-TRUTH V22).
-	MarkApprovalHandoffsTriggered(ctx context.Context, taskID string) error
+	//
+	// workID makes it a compare-and-set on the DECISION it describes: the mark
+	// lands only while the approval still describes that work. An approval can
+	// be reopened for new work (ReopenApprovalForNewWork), and a delayed mark for
+	// the old work must not stamp the new decision as handled (quorum round 8).
+	MarkApprovalHandoffsTriggered(ctx context.Context, taskID, workID string) error
 	// ResolveApprovalSuppressingHandoffs approves AND records that its handoffs
 	// are withheld, in ONE write: there is no state in which the approval reads
 	// approved and the suppression is absent (M-TASK-STATUS-TRUTH D3).
@@ -329,7 +334,7 @@ type Store interface {
 	ApprovalHandoffsSuppressed(ctx context.Context, taskID string) (bool, error) // false when there is no approval
 	// MarkApprovalHandoffsExpired resolves an approval boot recovery will not
 	// fire (older than HandoffRecoveryWindow), so it is fetched at most once.
-	MarkApprovalHandoffsExpired(ctx context.Context, taskID string) error
+	MarkApprovalHandoffsExpired(ctx context.Context, taskID, workID string) error
 	ListApprovedMergeHandoffsWithoutTrigger(ctx context.Context) ([]*ApprovalRequestRecord, error) // Find missed handoffs
 
 	// Cleanup

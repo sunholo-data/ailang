@@ -475,3 +475,74 @@ func TestHandoffOnce_ReopenedApprovalIsRecoverable(t *testing.T) {
 		t.Fatalf("%d handoff rows, want 2 — recovery must deliver the second decision's handoff", len(rows))
 	}
 }
+
+// A delayed "decided" mark for OLD work must not stamp a NEW decision as handled
+// (quorum round 8). Recovery for work A reads the approval, the approval is
+// reopened for work B and resolved, B's resolver dies before sending — then A's
+// mark lands. B must still be recovered.
+// MU: make MarkApprovalHandoffsTriggered ignore workID (SQLite) and B's handoff
+// is never sent — one row instead of two.
+func TestHandoffOnce_StaleMarkDoesNotHideNewDecision(t *testing.T) {
+	f := newOnceFixture(t, "sprint-planner")
+	ctx := context.Background()
+	f.setWork(t, "work-aaaa1111")
+	f.approve(t, false) // A fired (and marked, conditionally, for A)
+
+	cj2, _ := json.Marshal(map[string]interface{}{"handoff_targets": []string{"sprint-planner"}, "source_agent": "design-doc-creator", "work_id": "work-bbbb2222"})
+	if ok, err := f.store.ReopenApprovalForNewWork(ctx, f.task.ID, "run 2", string(cj2)); err != nil || !ok {
+		t.Fatalf("reopen: %v %v", ok, err)
+	}
+	if err := f.store.ResolveApprovalRequestByTask(ctx, f.task.ID, "approved", "test"); err != nil {
+		t.Fatal(err)
+	}
+	// The delayed mark for A lands after B resolved.
+	if err := f.store.MarkApprovalHandoffsTriggered(ctx, f.task.ID, "work-aaaa1111"); err != nil {
+		t.Fatal(err)
+	}
+	f.boot(t)
+
+	if rows := f.rows(t, "sprint-planner"); len(rows) != 2 {
+		t.Fatalf("%d handoff rows, want 2 — a stale mark for work A hid work B's handoff", len(rows))
+	}
+}
+
+// fixedDiff is a strategy whose completion carries a known diff.
+type fixedDiff struct{ files []string }
+
+func (s fixedDiff) Kind() StrategyKind { return StrategyKindCloud }
+func (s fixedDiff) DiffSource(ctx context.Context, task *TaskRecord) (DiffResult, error) {
+	return DiffResult{ChangedFiles: s.files, Stat: fmt.Sprintf("%d files", len(s.files))}, nil
+}
+
+// Auto edges follow the same identity: a re-run with DIFFERENT work owes a new
+// handoff; a redelivery of the same completion does not (quorum round 8).
+// MU: key applyHandoff's row on HandoffMessageID(task, target) and the second
+// run's handoff collides with the first — one row instead of two.
+func TestFinalize_AutoHandoffIsPerWork(t *testing.T) {
+	h := newFinalizeHarness(t, handoffAgent(true))
+	ctx := context.Background()
+	run := func(files ...string) {
+		t.Helper()
+		// A new execution starts with a clean ledger and a live task, as
+		// MarkTaskQueued leaves it.
+		if err := h.store.SetTaskFinalization(ctx, h.task.ID, FinalizationLedger{}); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := h.store.CompareAndSetTaskStatus(ctx, h.task.ID, AllTaskStatuses(), TaskStatusRunning); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := FinalizeTaskCompletion(ctx, h.deps, FinalizeInput{
+			Task: h.task, Outcome: OutcomeCompleted, BranchName: "coordinator/task-matrix",
+			Result: &ExecuteResult{Success: true, SessionID: "s"},
+		}, fixedDiff{files: files}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	run("a.go")
+	run("a.go") // redelivery of the same work
+	run("b.go") // a re-run that produced different work
+
+	if got := len(h.handoffs(t)); got != 2 {
+		t.Fatalf("%d auto handoffs, want 2 (one per distinct work; the redelivery collides)", got)
+	}
+}

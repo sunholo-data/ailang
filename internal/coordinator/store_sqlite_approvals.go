@@ -164,11 +164,16 @@ func (s *SQLiteStore) ApprovalHandoffsSuppressed(ctx context.Context, taskID str
 	return n > 0, err
 }
 
-func (s *SQLiteStore) MarkApprovalHandoffsExpired(ctx context.Context, taskID string) error {
+func (s *SQLiteStore) MarkApprovalHandoffsExpired(ctx context.Context, taskID, workID string) error {
 	_, err := s.db.ExecContext(ctx,
-		"UPDATE approval_requests SET handoffs_triggered = 1, handoffs_expired = 1 WHERE task_id = ?", taskID)
+		"UPDATE approval_requests SET handoffs_triggered = 1, handoffs_expired = 1 WHERE task_id = ? AND status = 'approved' AND "+sqliteApprovalWorkID+" = ?",
+		taskID, workID)
 	return err
 }
+
+// sqliteApprovalWorkID is the approval's current work id in SQL, "" when the
+// context is absent or not JSON — the same reading as workIDFromContext.
+const sqliteApprovalWorkID = "(CASE WHEN json_valid(context_json) THEN COALESCE(json_extract(context_json, '$.work_id'), '') ELSE '' END)"
 
 func (s *SQLiteStore) resolveApprovalByTask(ctx context.Context, taskID, status, resolvedBy string, suppressHandoffs bool) error {
 	now := time.Now()
@@ -348,10 +353,10 @@ func (s *SQLiteStore) scanApprovalRequestFromRows(rows *sql.Rows) (*ApprovalRequ
 // MarkApprovalHandoffsTriggered records that the approval's handoff decision is
 // made (a scan latch for boot recovery — see the Store interface).
 // This is used to track whether handoffs were triggered, enabling catch-up on daemon startup.
-func (s *SQLiteStore) MarkApprovalHandoffsTriggered(ctx context.Context, taskID string) error {
+func (s *SQLiteStore) MarkApprovalHandoffsTriggered(ctx context.Context, taskID, workID string) error {
 	_, err := s.db.ExecContext(ctx,
-		"UPDATE approval_requests SET handoffs_triggered = 1 WHERE task_id = ?",
-		taskID,
+		"UPDATE approval_requests SET handoffs_triggered = 1 WHERE task_id = ? AND status = 'approved' AND "+sqliteApprovalWorkID+" = ?",
+		taskID, workID,
 	)
 	return err
 }

@@ -624,7 +624,7 @@ func (d *Daemon) triggerMissedHandoffs() (int, error) {
 		// genuinely unresolved recent approvals, never a growing backlog
 		// (M-TASK-STATUS-TRUTH D3, quorum round 3).
 		if !approval.CreatedAt.IsZero() && time.Since(approval.CreatedAt) > HandoffRecoveryWindow {
-			if err := d.taskStore.MarkApprovalHandoffsExpired(d.ctx, approval.TaskID); err != nil {
+			if err := d.taskStore.MarkApprovalHandoffsExpired(d.ctx, approval.TaskID, workIDFromContext(approval.ContextJSON)); err != nil {
 				d.logger.Printf("Warning: could not expire stale approval %s: %v", approval.TaskID, err)
 			} else {
 				d.logger.Printf("Expired approval %s: older than the %v recovery window, handoffs not fired", approval.TaskID, HandoffRecoveryWindow)

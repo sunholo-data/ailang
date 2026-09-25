@@ -179,7 +179,7 @@ func (m *mockStore) GetCostByProvider() (map[string]float64, error) {
 func (m *mockStore) ListApprovedMergeHandoffsWithoutTrigger(ctx context.Context) ([]*ApprovalRequestRecord, error) {
 	return nil, nil
 }
-func (m *mockStore) MarkApprovalHandoffsTriggered(ctx context.Context, taskID string) error {
+func (m *mockStore) MarkApprovalHandoffsTriggered(ctx context.Context, taskID, workID string) error {
 	return nil
 }
 func (m *mockStore) UpdateTaskChainInfo(ctx context.Context, id, chainID, stageID string) error {
@@ -249,6 +249,6 @@ func (m *mockStore) ApprovalHandoffsSuppressed(ctx context.Context, taskID strin
 	return false, nil
 }
 
-func (m *mockStore) MarkApprovalHandoffsExpired(ctx context.Context, taskID string) error {
+func (m *mockStore) MarkApprovalHandoffsExpired(ctx context.Context, taskID, workID string) error {
 	return nil
 }

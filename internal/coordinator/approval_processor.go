@@ -229,11 +229,15 @@ func processApproval(ctx context.Context, span trace.Span, params *ApprovalParam
 	} else {
 		handedOff, hErr = dispatchApprovalHandoffs(ctx, params.AgentRegistry, params.MsgStore, params.Store, task)
 		if hErr == nil {
+			decidedWork := ""
+			if apr, err := params.Store.GetApprovalRequestByTaskAnyStatus(ctx, taskID); err == nil && apr != nil {
+				decidedWork = workIDFromContext(apr.ContextJSON)
+			}
 			// Every owed handoff is written (or none was owed): record the decision
 			// so boot recovery stops scanning this approval. An optimisation only —
 			// correctness no longer rests on it, because every row is written under
 			// its (task, target) identity and a replay collides.
-			if err := params.Store.MarkApprovalHandoffsTriggered(ctx, taskID); err != nil {
+			if err := params.Store.MarkApprovalHandoffsTriggered(ctx, taskID, decidedWork); err != nil {
 				span.AddEvent("warning: failed to record handoff decision", trace.WithAttributes(
 					attribute.String("error", err.Error()),
 				))
@@ -696,7 +700,7 @@ func triggerHandoffsFromApprovalRecord(ctx context.Context, span trace.Span, par
 	if len(handoffContext.HandoffTargets) == 0 {
 		// Nothing owed is a decision too: record it, or this approval is
 		// re-listed on every boot for the rest of the recovery window.
-		if err := params.Store.MarkApprovalHandoffsTriggered(ctx, taskID); err != nil {
+		if err := params.Store.MarkApprovalHandoffsTriggered(ctx, taskID, workIDFromContext(approvalReq.ContextJSON)); err != nil {
 			span.AddEvent("warning: failed to record empty handoff decision", trace.WithAttributes(
 				attribute.String("error", err.Error()),
 			))
@@ -768,7 +772,7 @@ func triggerHandoffsFromApprovalRecord(ctx context.Context, span trace.Span, par
 	// leaves the approval for the next boot, which re-writes exactly the missing
 	// targets — the ones already written collide and do nothing.
 	if complete {
-		if err := params.Store.MarkApprovalHandoffsTriggered(ctx, taskID); err != nil {
+		if err := params.Store.MarkApprovalHandoffsTriggered(ctx, taskID, workIDFromContext(approvalReq.ContextJSON)); err != nil {
 			span.AddEvent("warning: failed to mark handoffs as triggered", trace.WithAttributes(
 				attribute.String("error", err.Error()),
 			))

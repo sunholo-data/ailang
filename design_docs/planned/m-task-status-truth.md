@@ -93,10 +93,10 @@ does what)*:
 | Layer | Function | Does | Reached by |
 |---|---|---|---|
 | write | `handoffSender.send` (`approval_handoff.go`) | `PutMessageIfAbsent` under `HandoffMessageID(task, target)`; notify only if it created the row | **every** handoff producer except finalize: via `sendAgentHandoffMessage` (below) and via the daemon auto-edge entry `Daemon.sendHandoffMessage` (`daemon_approval.go:82`) |
-| write | `finalizer.applyHandoff` (`task_finalize_approval.go:312`) | same `PutMessageIfAbsent` + same id (unchanged) | completion path, auto edges |
+| write | `finalizer.applyHandoff` (`task_finalize_approval.go`) | same `PutMessageIfAbsent`, id `HandoffMessageIDForWork(task, target, work)` with the work id computed from the completion's own diff (quorum round 8) | completion path, auto edges |
 | approval-path entry | `sendAgentHandoffMessage` | reads `handoffs_suppressed`; refuses with `errHandoffSuppressed`; else calls `handoffSender.send` | approve (`dispatchApprovalHandoffs`), boot recovery (`triggerHandoffsFromApprovalRecord`), and `TaskChain.OnAgentApproved` — which has **no production caller** (V17) |
 
-So one identity and one write rule cover all producers; the suppression check covers every
+So one identity — `HandoffMessageIDForWork(task, target, work_id)`, degrading to `HandoffMessageID(task, target)` when no work id is known — and one write rule cover all producers; the suppression check covers every
 producer that acts on an approval.
 
 **No check-then-write race on suppression** *(quorum round 4, gpt6-astra)*. A race needs a producer
@@ -197,10 +197,22 @@ On `ailang-multivac-dev`, after the dev coordinator serves a build containing M1
 | V23 | Nothing un-suppresses | Writers of `handoffs_suppressed`: Firestore sets only `true` (`coordinator_approvals.go:225`); SQLite `resolveApprovalByTask` writes `?` (0 or 1) — but only inside the `WHERE status = 'pending'` CAS, i.e. on an approval that has never been resolved and so never suppressed. After resolution no code path writes it. |
 | V24 | One boot's recovery is bounded | `HandoffRecoveryBatch = 100`: SQLite `LIMIT ?`, Firestore `.Limit(…)`. Every approval taken is decided (fired / nothing owed / expired), so a backlog drains across boots. `TestHandoffOnce_RecoveryWorkIsBoundedPerBoot` (101 stale → 1 left after one boot → 0 after two); mutation (drop LIMIT) caught. |
 
-| V25 | One task can owe the same target more than one handoff | `ReopenApprovalForNewWork` (`finalize_if_absent.go:66`, SQLite `store_sqlite_approvals_if_absent.go:52`) re-opens an **approved** decision when a later run produces different work (`work_id`). So the approval-path identity is `ApprovalHandoffMessageID(task, target, work_id)`; the re-open resets `handoffs_triggered/suppressed/expired` in both stores (a new decision), and every resolve writes `handoffs_suppressed` explicitly. Tests: `NewWorkAfterReopenOwesANewHandoff`, `ReopenClearsSuppression`, `ReopenedApprovalIsRecoverable`. |
+| V25 | One task can owe the same target more than one handoff | `ReopenApprovalForNewWork` (`finalize_if_absent.go:66`, SQLite `store_sqlite_approvals_if_absent.go:52`) re-opens an **approved** decision when a later run produces different work (`work_id`). So the approval-path identity is `HandoffMessageIDForWork(task, target, work_id)`; the re-open resets `handoffs_triggered/suppressed/expired` in both stores (a new decision), and every resolve writes `handoffs_suppressed` explicitly. Tests: `NewWorkAfterReopenOwesANewHandoff`, `ReopenClearsSuppression`, `ReopenedApprovalIsRecoverable`. |
 | V26 | Deploy-time legacy duplicates | Rows written by the pre-fix approve path have random `inbox_…` ids the new identity cannot collide with. Recovery checks the target inbox (newest 500) for a legacy-form handoff row for the task written at/after this approval's resolution and treats it as sent. `LegacyRandomIDRowIsNotResent`. |
 | V27 | Batch rate vs. load | Prod approvals are tens per day (09-23 backlog of 77 accumulated over ~14 days). One boot takes 100; prod boots every ≤1.5 h → ≥1,600/day of recovery capacity, and recovery is only the crash path — the approve path sends synchronously. A written-but-unnotified row does not wait for recovery at all: the sweep delivers it on its next 10-min pass (V14). |
 | V28 | Mutation coverage after round 7 | 16/16 single-line mutations caught, plus a combined mutation removing both suppression guards (reopen reset + explicit resolve write), which are individually redundant by design. |
+
+| V29 | Decision marks are compare-and-set on the work they describe | `MarkApprovalHandoffsTriggered/Expired(task, work)`: SQLite `WHERE status='approved' AND json_extract(context_json,'$.work_id') = ?`; Firestore re-reads status + `context_json` inside a transaction. A delayed mark for work A cannot stamp work B. `StaleMarkDoesNotHideNewDecision`; mutation caught. |
+| V30 | Completion-path auto edges are per-work too | `applyHandoff` computes the work id from `strategy.DiffSource` (immutable SHAs → replay-stable). `TestFinalize_AutoHandoffIsPerWork`: run a.go, redeliver a.go, run b.go → 2 rows; mutation caught. |
+| V31 | **Live proof S1 + S2 on `ailang-multivac-dev`** (build `c13557c`) | Seeded `inbox_1790076618356_m4s1` to `ailang-core`, `created_at` 72 h in the past, never notified. 11:37:15 sweep recovered it → 11:42:15 `task-5f31e226` created → 11:42:18 dispatched → **no stale-detector line for it** (old code: failed on first tick, age 72 h ≫ 30 m) → 11:43:25 `status=blocked` received and **applied** (`-> blocked`, not "unknown completion status"). Stored record: `created_at=2026-09-22T11:30:18Z` (message time kept), `queued_at=2026-09-25T11:42:15Z` (claim — proves the new code claimed it), `status=blocked`. |
+| V32 | Mutation coverage after round 8 | 18/18 single-line mutations caught (a harness guard refuses to count a build failure as a catch — it caught one of its own mutations doing exactly that). |
+
+## Quorum round 8 (2026-09-25, BLOCKED) — responses
+
+| Reviewer | Objection | Response |
+|---|---|---|
+| gpt6-astra | A delayed mark for old work can hide a reopened decision | Marks are CAS on (approved, work id) in both stores (V29). |
+| gemini-3-1-pro, oc-glm-5-3 | Completion-path auto edges still keyed (task, target) | Now `HandoffMessageIDForWork` with the completion's own work id (V30). |
 
 ## Quorum round 7 (2026-09-25, BLOCKED) — responses
 

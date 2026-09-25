@@ -49,13 +49,13 @@ var errHandoffNotDispatched = errors.New("handoff stored but not dispatched")
 // failure — a decision to honour, from every producer (M-TASK-STATUS-TRUTH D3).
 var errHandoffSuppressed = errors.New("handoffs for this approval were suppressed by the operator")
 
-// ApprovalHandoffMessageID is the identity of the handoff an APPROVAL owes one
+// HandoffMessageIDForWork is the identity of the handoff an APPROVAL owes one
 // target. One task can be approved more than once — ReopenApprovalForNewWork
 // puts an approved decision back to pending when a later run produces different
 // work — and each distinct piece of work owes its own handoff. The work id
 // (approval context, since 2026-09-15) is what tells a new decision from a
 // replay of the old one. Without a work id it is HandoffMessageID.
-func ApprovalHandoffMessageID(taskID, target, workID string) string {
+func HandoffMessageIDForWork(taskID, target, workID string) string {
 	id := HandoffMessageID(taskID, target)
 	if workID == "" {
 		return id
@@ -255,7 +255,7 @@ func sendAgentHandoffMessage(
 			return errHandoffSuppressed
 		}
 		if apr, err := store.GetApprovalRequestByTaskAnyStatus(ctx, task.ID); err == nil && apr != nil && targetAgent != nil {
-			id = ApprovalHandoffMessageID(task.ID, targetAgent.ID, workIDFromContext(apr.ContextJSON))
+			id = HandoffMessageIDForWork(task.ID, targetAgent.ID, workIDFromContext(apr.ContextJSON))
 		}
 	}
 	return handoffSender{msgStore: msgStore, notify: approvalHandoffNotify}.send(handoff{

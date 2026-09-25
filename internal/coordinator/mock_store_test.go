@@ -413,7 +413,7 @@ func (m *MockStore) ListApprovedMergeHandoffsWithoutTrigger(ctx context.Context)
 	return nil, nil
 }
 
-func (m *MockStore) MarkApprovalHandoffsTriggered(ctx context.Context, taskID string) error {
+func (m *MockStore) MarkApprovalHandoffsTriggered(ctx context.Context, taskID, workID string) error {
 	return nil
 }
 
@@ -545,6 +545,6 @@ func (m *MockStore) ApprovalHandoffsSuppressed(ctx context.Context, taskID strin
 	return false, nil
 }
 
-func (m *MockStore) MarkApprovalHandoffsExpired(ctx context.Context, taskID string) error {
+func (m *MockStore) MarkApprovalHandoffsExpired(ctx context.Context, taskID, workID string) error {
 	return nil
 }

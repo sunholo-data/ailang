@@ -174,7 +174,20 @@ func (s *CoordinatorStore) ApprovalHandoffsSuppressed(ctx context.Context, taskI
 	return true, nil
 }
 
-func (s *CoordinatorStore) MarkApprovalHandoffsExpired(ctx context.Context, taskID string) error {
+func (s *CoordinatorStore) MarkApprovalHandoffsExpired(ctx context.Context, taskID, workID string) error {
+	return s.markApprovalDecision(ctx, taskID, workID, []firestore.Update{
+		{Path: "handoffs_triggered", Value: true},
+		{Path: "handoffs_expired", Value: true},
+	})
+}
+
+// markApprovalDecision writes a handoff-decision mark as a compare-and-set on
+// the decision it describes: inside a transaction, only while the approval is
+// still approved AND still describes workID. An approval can be reopened for
+// new work between a recovery pass reading it and marking it; without this the
+// old work's mark would stamp the new decision as handled and its handoff would
+// never be sent (M-TASK-STATUS-TRUTH D3, quorum round 8).
+func (s *CoordinatorStore) markApprovalDecision(ctx context.Context, taskID, workID string, updates []firestore.Update) error {
 	iter := s.client.Collection(collApprovals).
 		Where("task_id", "==", taskID).
 		Documents(ctx)
@@ -187,10 +200,22 @@ func (s *CoordinatorStore) MarkApprovalHandoffsExpired(ctx context.Context, task
 		if err != nil {
 			return err
 		}
-		if _, err := doc.Ref.Update(ctx, []firestore.Update{
-			{Path: "handoffs_triggered", Value: true},
-			{Path: "handoffs_expired", Value: true},
-		}); err != nil {
+		err = s.client.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
+			snap, err := tx.Get(doc.Ref)
+			if err != nil {
+				return err
+			}
+			data := snap.Data()
+			if st, _ := data["status"].(string); st != "approved" {
+				return nil
+			}
+			cj, _ := data["context_json"].(string)
+			if coordinator.WorkIDFromApprovalContext(cj) != workID {
+				return nil
+			}
+			return tx.Update(doc.Ref, updates)
+		})
+		if err != nil {
 			return err
 		}
 	}
@@ -246,27 +271,10 @@ func (s *CoordinatorStore) resolveApprovalByTask(ctx context.Context, taskID, re
 	return err
 }
 
-func (s *CoordinatorStore) MarkApprovalHandoffsTriggered(ctx context.Context, taskID string) error {
-	// Find approval for task and mark handoffs as triggered
-	iter := s.client.Collection(collApprovals).
-		Where("task_id", "==", taskID).
-		Where("status", "==", "approved").
-		Limit(1).
-		Documents(ctx)
-	defer iter.Stop()
-
-	doc, err := iter.Next()
-	if err == iterator.Done {
-		return nil // No approval to update
-	}
-	if err != nil {
-		return err
-	}
-
-	_, err = doc.Ref.Update(ctx, []firestore.Update{
+func (s *CoordinatorStore) MarkApprovalHandoffsTriggered(ctx context.Context, taskID, workID string) error {
+	return s.markApprovalDecision(ctx, taskID, workID, []firestore.Update{
 		{Path: "handoffs_triggered", Value: true},
 	})
-	return err
 }
 
 func (s *CoordinatorStore) ListApprovedMergeHandoffsWithoutTrigger(ctx context.Context) ([]*coordinator.ApprovalRequestRecord, error) {
