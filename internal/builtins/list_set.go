@@ -111,6 +111,10 @@ func listDedupImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, error)
 	seen := make(map[string]bool, len(list.Elements))
 	result := make([]eval.Value, 0, len(list.Elements))
 	for _, v := range list.Elements {
+		if !keyable(v) { // holds a NaN: equal to nothing, never merged
+			result = append(result, v)
+			continue
+		}
 		key := canonicalKey(v)
 		if !seen[key] {
 			seen[key] = true
@@ -168,11 +172,16 @@ func listIntersectImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, er
 	// M-HASH-COLLECTIONS Phase 1: O(n+m) via canonicalKey + Go map
 	set2 := make(map[string]bool, len(list2.Elements))
 	for _, v := range list2.Elements {
-		set2[canonicalKey(v)] = true
+		if keyable(v) { // a NaN-holding value can never be found
+			set2[canonicalKey(v)] = true
+		}
 	}
 	seen := make(map[string]bool)
 	result := make([]eval.Value, 0)
 	for _, v := range list1.Elements {
+		if !keyable(v) {
+			continue
+		}
 		key := canonicalKey(v)
 		if set2[key] && !seen[key] {
 			seen[key] = true
@@ -224,6 +233,10 @@ func listUnionImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, error)
 	seen := make(map[string]bool, len(list1.Elements)+len(list2.Elements))
 	result := make([]eval.Value, 0, len(list1.Elements)+len(list2.Elements))
 	for _, v := range list1.Elements {
+		if !keyable(v) { // holds a NaN: equal to nothing, never merged
+			result = append(result, v)
+			continue
+		}
 		key := canonicalKey(v)
 		if !seen[key] {
 			seen[key] = true
@@ -231,6 +244,10 @@ func listUnionImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, error)
 		}
 	}
 	for _, v := range list2.Elements {
+		if !keyable(v) { // holds a NaN: equal to nothing, never merged
+			result = append(result, v)
+			continue
+		}
 		key := canonicalKey(v)
 		if !seen[key] {
 			seen[key] = true
@@ -281,11 +298,13 @@ func listDifferenceImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, e
 	// M-HASH-COLLECTIONS Phase 1: O(n+m) via canonicalKey + Go map
 	set2 := make(map[string]bool, len(list2.Elements))
 	for _, v := range list2.Elements {
-		set2[canonicalKey(v)] = true
+		if keyable(v) { // a NaN-holding value can never be found
+			set2[canonicalKey(v)] = true
+		}
 	}
 	result := make([]eval.Value, 0, len(list1.Elements))
 	for _, v := range list1.Elements {
-		if !set2[canonicalKey(v)] {
+		if !keyable(v) || !set2[canonicalKey(v)] {
 			result = append(result, v)
 		}
 	}

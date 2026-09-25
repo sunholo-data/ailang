@@ -76,8 +76,9 @@ func compilerIdentity(commit, fingerprint string, cfg Config) string {
 	return id
 }
 
-// dirtyBuildFingerprint identifies this executable by size and nanosecond
-// mtime: microseconds to read, and it changes on every go build/go install.
+// dirtyBuildFingerprint identifies this executable by size, nanosecond mtime
+// and (on unix) inode: microseconds to read, and it changes on every go
+// build/go install, including same-size rebuilds on coarse-mtime filesystems.
 // A content hash would cost ~0.2s per invocation on a 100 MB binary.
 func dirtyBuildFingerprint() (string, error) {
 	buildFingerprint.once.Do(func() {
@@ -91,7 +92,7 @@ func dirtyBuildFingerprint() (string, error) {
 			buildFingerprint.err = err
 			return
 		}
-		buildFingerprint.value = fmt.Sprintf("%d-%d", fi.Size(), fi.ModTime().UnixNano())
+		buildFingerprint.value = fmt.Sprintf("%d-%d%s", fi.Size(), fi.ModTime().UnixNano(), fileIdentity(fi))
 	})
 	return buildFingerprint.value, buildFingerprint.err
 }

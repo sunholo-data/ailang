@@ -59,7 +59,12 @@ func TestCompileCache_DirtyBuildsDoNotShareVerdicts(t *testing.T) {
 		cmd := exec.CommandContext(ctx, bin, "check", "--debug-compile", "--relax-modules", "m.ail")
 		cmd.Dir = dir
 		cmd.Env = append(os.Environ(), append([]string{"AILANG_NO_CACHE="}, env...)...)
-		out, _ := cmd.CombinedOutput()
+		out, err := cmd.CombinedOutput()
+		// A crash or timeout must not read as "no cache line" (evaluator
+		// finding): the check itself has to succeed.
+		if err != nil || !strings.Contains(string(out), "No errors found") {
+			t.Fatalf("check failed (err=%v):\n%s", err, out)
+		}
 		for _, line := range strings.Split(string(out), "\n") {
 			if strings.HasPrefix(line, "[CACHE] m:") {
 				return strings.TrimSpace(strings.TrimPrefix(line, "[CACHE] m:"))
