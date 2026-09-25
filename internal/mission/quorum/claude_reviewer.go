@@ -1,21 +1,13 @@
 package quorum
 
-// The Anthropic reviewer of last resort.
+// The Anthropic quorum seat: a claude-sonnet-5 text review over `claude -p` on
+// the subscription (keychain OAuth; ANTHROPIC_API_KEY is stripped so it can never
+// fall through to metered billing), with every tool disabled and no settings,
+// hooks or MCP servers loaded — same prompt and schema as the other seats.
 //
-// The quorum's external seats are deliberately off-Anthropic: the mission's author
-// and controller are Claude, and "ideally no model provider marks its own work"
-// (Mark). But a quorum where EVERY external seat is absent — over budget, over a
-// provider ration, out of session quota — has only the controller's in-session
-// vote, which is the author's side. Mark, attended 2026-09-25: Anthropic not
-// reviewing Anthropic work is the rule, "but if all other reviewers are blocked
-// it's ok to relax that a bit."
-//
-// So this seat runs ONLY when no off-Anthropic reviewer produced a verdict. It
-// goes through `claude -p` on the subscription (keychain OAuth; ANTHROPIC_API_KEY
-// is stripped so it can never fall through to metered billing), with every tool
-// disabled and no settings, hooks or MCP servers loaded — a text review, same
-// prompt and schema as the other seats. It is labelled in the artifact
-// (tier "anthropic-fallback") so nobody reads it as an independent vendor.
+// It is an ordinary seat, benched like any other when its vendor wrote the doc
+// (seating.go). The mission's designer is Claude on the rotation's opus turn, so
+// on that turn this seat sits out; on astra's or deepseek's turn it reviews.
 
 import (
 	"context"
@@ -27,66 +19,42 @@ import (
 	"time"
 )
 
-// AnthropicFallbackModel is the Claude model the fallback seat runs. Sonnet, not
-// the opus that designs and controls: same vendor, but at least not the author.
-const AnthropicFallbackModel = "claude-sonnet-5"
+// ClaudeReviewerID is the roster id of the Anthropic seat. It is not a
+// models.yml row: the suffix routes it to RunClaudeSubscriptionReviewer.
+const ClaudeReviewerID = ClaudeReviewerModel + ClaudeReviewerSuffix
 
-// TierAnthropicFallback labels the fallback outcome in the artifact.
-const TierAnthropicFallback = "anthropic-fallback"
+// ClaudeReviewerModel is the model the Anthropic seat runs — sonnet, not the
+// opus that controls and (on its rotation turn) designs.
+const ClaudeReviewerModel = "claude-sonnet-5"
+
+// ClaudeReviewerSuffix marks a roster id that runs through `claude -p`.
+const ClaudeReviewerSuffix = "@claude-p"
 
 // ReasonQuota: the seat's provider bucket is over its mission ration.
 const ReasonQuota = "quota"
 
-// anthropicFallbackTimeout bounds one review. A text verdict takes well under a
+// claudeReviewTimeout bounds one review. A text verdict takes well under a
 // minute; a hung CLI must cost minutes, not the iteration.
-const anthropicFallbackTimeout = 5 * time.Minute
-
-// NeedsAnthropicFallback is true iff no off-Anthropic reviewer produced a verdict.
-// The controller's in-session vote does not count: it is Anthropic too.
-func NeedsAnthropicFallback(q *QuorumResult) bool {
-	if q == nil {
-		return false
-	}
-	for _, o := range q.Reviewers {
-		if o != nil && o.Present {
-			return false
-		}
-	}
-	return true
-}
-
-// ApplyAnthropicFallback runs the fallback seat when every external reviewer is
-// absent, appends its outcome and re-synthesizes. It reports whether it ran.
-// run is RunClaudeSubscriptionReviewer in production, a stub in tests.
-func ApplyAnthropicFallback(q *QuorumResult, run func() *ReviewerOutcome) bool {
-	if !NeedsAnthropicFallback(q) {
-		return false
-	}
-	o := run()
-	o.Tier = TierAnthropicFallback
-	q.Reviewers = append(q.Reviewers, o)
-	q.Synthesis = synthesize(q.Reviewers, q.ControllerInSession)
-	return true
-}
+const claudeReviewTimeout = 5 * time.Minute
 
 // claudeReviewCall runs `claude -p` and returns its --output-format json envelope.
 // A variable so tests never start a real claude process.
 var claudeReviewCall = callClaudeReview
 
 func callClaudeReview(ctx context.Context, model, sysPrompt, userPrompt string) ([]byte, error) {
-	ctx, cancel := context.WithTimeout(ctx, anthropicFallbackTimeout)
+	ctx, cancel := context.WithTimeout(ctx, claudeReviewTimeout)
 	defer cancel()
 	out, err := claudeReviewCmd(ctx, model, sysPrompt, userPrompt).Output()
 	if err != nil {
 		if ctx.Err() != nil {
-			return nil, fmt.Errorf("claude -p: no reply within %s", anthropicFallbackTimeout)
+			return nil, fmt.Errorf("claude -p: no reply within %s", claudeReviewTimeout)
 		}
 		return nil, fmt.Errorf("claude -p: %w", err)
 	}
 	return out, nil
 }
 
-// claudeReviewCmd builds the fallback's `claude -p` command. Split out so a test
+// claudeReviewCmd builds the Anthropic seat's `claude -p` command. Split out so a test
 // can pin the call site itself: no API key (subscription only), no tools, no
 // settings, hooks or MCP servers.
 func claudeReviewCmd(ctx context.Context, model, sysPrompt, userPrompt string) *exec.Cmd {
@@ -114,12 +82,12 @@ func withoutEnv(env []string, name string) []string {
 	return out
 }
 
-// RunClaudeSubscriptionReviewer reviews the doc as the Anthropic fallback seat.
+// RunClaudeSubscriptionReviewer reviews the doc as the Anthropic seat.
 // Like RunReviewer it never returns nil: a failure is a named absence. CostUSD
 // stays 0 — the call is subscription-billed, and the CLI's total_cost_usd is a
 // list-price notional, not a bill. Tokens are recorded from the CLI's own usage.
 func RunClaudeSubscriptionReviewer(model, docPath, docBody string) *ReviewerOutcome {
-	out := &ReviewerOutcome{Model: model + "@claude-p"}
+	out := &ReviewerOutcome{Model: model + ClaudeReviewerSuffix}
 	user := BuildPrompt(docPath, docBody) +
 		"\n\nRespond with ONLY a JSON object matching this schema, no prose, no code fence:\n" + reviewSchema
 	raw, err := claudeReviewCall(context.Background(), model, systemPrompt, user)

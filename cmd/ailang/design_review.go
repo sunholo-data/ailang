@@ -71,6 +71,7 @@ func hoistFlags(args []string) []string {
 	return hoistFlagsWith(args, map[string]bool{
 		"--reviewer": true, "-reviewer": true,
 		"--reviewers": true, "-reviewers": true,
+		"--author": true, "-author": true,
 		"--max-cost-usd": true, "-max-cost-usd": true,
 		"--artifact-dir": true, "-artifact-dir": true,
 		"--mission-log": true, "-mission-log": true,

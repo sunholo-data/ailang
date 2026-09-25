@@ -87,8 +87,8 @@ func MarkdownBlock(q *QuorumResult) string {
 		q.Synthesis.TotalTokensIn, q.Synthesis.TotalTokensOut)
 	for _, o := range q.Reviewers {
 		label := ""
-		if o.Tier == TierAnthropicFallback {
-			label = " (Anthropic fallback — every off-Anthropic seat was absent; same vendor as the author)"
+		if o.Tier == TierAuthorVendor {
+			label = " (SAME VENDOR AS THE AUTHOR — recalled because every independent seat was absent)"
 		}
 		if o.Present {
 			fmt.Fprintf(&b, "- `%s`%s → **%s** ($%.4f, %d/%d tok) — %s\n", o.Model, label, o.Result.Verdict, o.CostUSD, o.TokensIn, o.TokensOut, o.Result.StrongestObjection)

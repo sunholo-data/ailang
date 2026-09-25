@@ -1360,10 +1360,10 @@ fi
 # which is the property the designer role wants and the reason Fable held this slot.
 #
 # Unchanged by design: the lane is still Anthropic, so the rotation's provider spread is
-# untouched (astra = ChatGPT subscription, deepseek = flat-rate pi), and quorum
-# independence still holds — the reviewers are gpt5-6-sol (OpenAI), gemini-3-1-pro
-# (Google) and oc-glm-5-3 (Z-AI), none of them Anthropic, so the designer is no more a
-# reviewer of its own doc than Fable was.
+# untouched (astra = ChatGPT subscription, deepseek = flat-rate pi). Quorum independence
+# is enforced by design-quorum itself since 2026-09-25: the skill passes the designer as
+# --author and that vendor's seat sits out (roster: gpt6-astra, gemini-3-1-pro, oc-glm-5-3,
+# claude-sonnet-5@claude-p), so on this Anthropic turn Claude does not review the doc.
 #
 # Worth knowing rather than acting on: the CONTROLLER is also claude-opus-5-5 as of today,
 # so one of the rotation's three entries now shares the controller's model. That is not the

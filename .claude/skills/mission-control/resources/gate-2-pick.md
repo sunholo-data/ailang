@@ -116,12 +116,14 @@ is non-empty: re-run each absent reviewer alone with a raised cap
 re-run is cents against the $5 iteration ceiling and is the cheapest gate in this loop. If a
 reviewer genuinely cannot be restored, then everywhere the verdict is quoted downstream it reads
 "PROCEED at N−1, `<model>` absent (`<reason>`)" — never a bare "quorum passed".
-**Anthropic fallback seat (Mark, attended 2026-09-25).** When EVERY off-Anthropic reviewer is
-absent, `design-quorum` itself runs one `claude-sonnet-5` review over the subscription and labels it
-`"tier": "anthropic-fallback"`. It counts as a vote, but it is the author's vendor: quote it as
-"PROCEED/BLOCKED on the Anthropic fallback only, `<models>` absent", and still try the re-run rule
-above for the absent external seats first. It is skipped (absent `quota`) when the Anthropic bucket
-is over its ration.
+**The author's vendor sits out (Mark, attended 2026-09-25).** Always pass the designer lane that
+wrote the doc: `ailang design-quorum <doc> --author "<designer lane>" ...` (e.g.
+`claude:claude-opus-5-5`, `codex:gpt-6-astra`). The default roster is one seat per vendor —
+`gpt6-astra`, `gemini-3-1-pro`, `oc-glm-5-3`, `claude-sonnet-5@claude-p` (Anthropic, subscription) —
+and the author's vendor is benched: opus designs → Claude does not review; astra designs → OpenAI is
+not on the quorum. Omitting `--author` assumes a Claude author. A benched seat comes back only when
+every other reviewer is absent, labelled `"tier": "author-vendor-fallback"`; quote such a verdict as
+"on the author's own vendor only, `<models>` absent" and try the re-run rule above first.
 **⚠ BUT THE PATH THIS RULE NAMES IS WRONG, AND THE WRONG PATH FAILS IN THE EXACT DIRECTION THE
 RULE EXISTS TO PREVENT — `jq '.absent_reviewers'` RETURNS `null`, WHICH READS AS "NOBODY WAS
 ABSENT"** (fixed 2026-08-31 V1 iteration 311; instance 1 is iteration 309, instance 2 is iteration

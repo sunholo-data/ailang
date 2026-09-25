@@ -498,19 +498,14 @@ grep -q 'now `claude:claude-opus-5-5` → `codex:gpt-6-astra` → `pi:ollama/dee
 grep -q 'MISSION_DESIGNER_MODEL:-claude:claude-opus-5-5' "$driver" \
   && ok "S4 designer seed is the Anthropic slot (opus-5-5), not astra" \
   || bad "S4 designer seed is the Anthropic slot (opus-5-5), not astra" "seed is not opus-5-5"
-# S5: astra sits in the designer rotation AND in the default quorum roster, so on
-# astra's turn the author is one of its own reviewers. That is a real defect with a
-# named workaround, not a footnote — this arm fails if the quorum default gains
-# astra while the skill stops carrying the substitution instruction, i.e. if the
-# collision ever becomes undocumented.
-if grep -q 'gpt6-astra,gemini-3-1-pro,oc-glm-5-3' cmd/ailang/design_quorum.go; then
-  if grep -q 'ASTRA IS ALSO A QUORUM REVIEWER' "$skill_all"; then
-    ok "S5 astra-in-quorum collision is documented where the designer is chosen"
-  else
-    bad "S5 astra-in-quorum collision is documented where the designer is chosen" "quorum names astra but the rotation row does not warn"
-  fi
+# S5: astra (and opus) sit in the designer rotation AND on the quorum roster. Since
+# 2026-09-25 the quorum benches the author's vendor itself, but only if the loop
+# says who the author was — this arm fails if the skill stops telling the
+# controller to pass --author.
+if grep -q -- '--author "<designer lane>"' "$skill_all"; then
+  ok "S5 skill passes the designer to design-quorum as --author"
 else
-  ok "S5 astra-in-quorum collision is documented where the designer is chosen"
+  bad "S5 skill passes the designer to design-quorum as --author" "no --author instruction — the author's vendor would review its own doc"
 fi
 
 echo ""
