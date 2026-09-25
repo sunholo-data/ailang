@@ -110,9 +110,6 @@ func TestAudioEncode_DifferentInputsGetDifferentSerials(t *testing.T) {
 }
 
 func TestAudioEncode_50sUnder400KB(t *testing.T) {
-	if testing.Short() {
-		t.Skip("50 s encode")
-	}
 	pcm := synthSpeechPCM(24000, 1, 50000)
 	out := mustEncode(t, pcm, 24000, 1, 24000)
 	t.Logf("50 s: %d PCM bytes -> %d Ogg Opus bytes", len(pcm), len(out))
