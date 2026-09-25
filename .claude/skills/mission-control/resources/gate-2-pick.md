@@ -116,6 +116,12 @@ is non-empty: re-run each absent reviewer alone with a raised cap
 re-run is cents against the $5 iteration ceiling and is the cheapest gate in this loop. If a
 reviewer genuinely cannot be restored, then everywhere the verdict is quoted downstream it reads
 "PROCEED at N−1, `<model>` absent (`<reason>`)" — never a bare "quorum passed".
+**Anthropic fallback seat (Mark, attended 2026-09-25).** When EVERY off-Anthropic reviewer is
+absent, `design-quorum` itself runs one `claude-sonnet-5` review over the subscription and labels it
+`"tier": "anthropic-fallback"`. It counts as a vote, but it is the author's vendor: quote it as
+"PROCEED/BLOCKED on the Anthropic fallback only, `<models>` absent", and still try the re-run rule
+above for the absent external seats first. It is skipped (absent `quota`) when the Anthropic bucket
+is over its ration.
 **⚠ BUT THE PATH THIS RULE NAMES IS WRONG, AND THE WRONG PATH FAILS IN THE EXACT DIRECTION THE
 RULE EXISTS TO PREVENT — `jq '.absent_reviewers'` RETURNS `null`, WHICH READS AS "NOBODY WAS
 ABSENT"** (fixed 2026-08-31 V1 iteration 311; instance 1 is iteration 309, instance 2 is iteration

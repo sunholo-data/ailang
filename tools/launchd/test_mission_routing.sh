@@ -503,7 +503,7 @@ grep -q 'MISSION_DESIGNER_MODEL:-claude:claude-opus-5-5' "$driver" \
 # named workaround, not a footnote — this arm fails if the quorum default gains
 # astra while the skill stops carrying the substitution instruction, i.e. if the
 # collision ever becomes undocumented.
-if grep -q 'gpt6-astra,gemini-3-1-pro,oc-glm-5-2' cmd/ailang/design_quorum.go; then
+if grep -q 'gpt6-astra,gemini-3-1-pro,oc-glm-5-3' cmd/ailang/design_quorum.go; then
   if grep -q 'ASTRA IS ALSO A QUORUM REVIEWER' "$skill_all"; then
     ok "S5 astra-in-quorum collision is documented where the designer is chosen"
   else

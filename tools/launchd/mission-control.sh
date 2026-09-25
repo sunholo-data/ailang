@@ -1362,7 +1362,7 @@ fi
 # Unchanged by design: the lane is still Anthropic, so the rotation's provider spread is
 # untouched (astra = ChatGPT subscription, deepseek = flat-rate pi), and quorum
 # independence still holds — the reviewers are gpt5-6-sol (OpenAI), gemini-3-1-pro
-# (Google) and oc-glm-5-2 (Z-AI), none of them Anthropic, so the designer is no more a
+# (Google) and oc-glm-5-3 (Z-AI), none of them Anthropic, so the designer is no more a
 # reviewer of its own doc than Fable was.
 #
 # Worth knowing rather than acting on: the CONTROLLER is also claude-opus-5-5 as of today,

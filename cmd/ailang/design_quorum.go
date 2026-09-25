@@ -8,12 +8,19 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/mission"
 	"github.com/sunholo-data/ailang/internal/mission/quorum"
 )
 
 // runDesignQuorum implements `ailang design-quorum` (M-MISSION-FLEET-AB Phase B2):
 // it composes N off-Anthropic reviewers (default gpt6-astra + gemini-3-1-pro +
-// oc-glm-5-2 — OpenAI, Google and Ollama Cloud, three independent priors)
+// oc-glm-5-3 — OpenAI, Google and Ollama Cloud, three independent priors)
+//
+// Z-AI seat: oc-glm-5-2 -> oc-glm-5-3, Mark attended 2026-09-25 ("update to latest glm").
+//
+// Anthropic fallback seat (Mark, attended 2026-09-25): when EVERY off-Anthropic
+// reviewer is absent, a subscription-billed claude-sonnet-5 reviews instead of
+// leaving the controller's author-side vote alone. See quorum/anthropic_fallback.go.
 //
 // OpenAI seat: gpt5-6-sol -> gpt6-astra, straight swap, Mark attended 2026-09-05.
 // Newer generation on the same vendor seat; the three-independent-priors property
@@ -28,7 +35,7 @@ import (
 // ratified, a doc AUTHORED by astra must be quorumed with the OpenAI seat
 // substituted back to sol:
 //
-//	ailang design-quorum --reviewers gpt5-6-sol,gemini-3-1-pro,oc-glm-5-2 < doc.md
+//	ailang design-quorum --reviewers gpt5-6-sol,gemini-3-1-pro,oc-glm-5-3 < doc.md
 //
 // PROPOSED fix (not ratified, so not implemented here): make the OpenAI seat
 // resolve to whichever OpenAI model did NOT author the doc — astra normally, sol
@@ -40,13 +47,14 @@ import (
 // an API call) and can be folded in via flags.
 func runDesignQuorum() {
 	fs := flag.NewFlagSet("design-quorum", flag.ExitOnError)
-	reviewers := fs.String("reviewers", "gpt6-astra,gemini-3-1-pro,oc-glm-5-2", "comma-separated reviewer model ids from models.yml")
+	reviewers := fs.String("reviewers", "gpt6-astra,gemini-3-1-pro,oc-glm-5-3", "comma-separated reviewer model ids from models.yml")
 	maxCost := fs.Float64("max-cost-usd", quorum.DefaultMaxCostUSD, "per-reviewer budget cap in USD")
 	artifactDir := fs.String("artifact-dir", quorum.ArtifactDir, "directory for the machine JSON artifact")
 	logPath := fs.String("mission-log", "", "optional mission log path to append the markdown block")
 	ctrlVerdict := fs.String("controller-verdict", "", "the Claude controller's IN-SESSION verdict (pass|reject); NOT an API call")
 	ctrlNote := fs.String("controller-note", "", "the controller's in-session note (required if --controller-verdict set)")
 	asJSON := fs.Bool("json", false, "print the full quorum result JSON to stdout")
+	noFallback := fs.Bool("no-anthropic-fallback", false, "never run the Anthropic fallback seat, even when every off-Anthropic reviewer is absent")
 	fs.Usage = func() { fmt.Fprint(os.Stderr, designQuorumHelp) }
 	_ = fs.Parse(hoistFlags(os.Args[2:]))
 
@@ -78,6 +86,9 @@ func runDesignQuorum() {
 
 	isoTS := time.Now().UTC().Format(time.RFC3339)
 	result := quorum.RunQuorum(docPath, docBody, isoTS, models, *maxCost, controller, quorum.RunReviewer)
+	if !*noFallback && quorum.ApplyAnthropicFallback(result, anthropicFallbackReviewer(docPath, docBody)) {
+		fmt.Fprintf(os.Stderr, "design-quorum: every off-Anthropic reviewer was absent — ran the Anthropic fallback seat (%s, subscription)\n", quorum.AnthropicFallbackModel)
+	}
 
 	// Always write the machine artifact (seeds Phase E).
 	artPath, aerr := quorum.WriteJSONArtifact(*artifactDir, result)
@@ -124,11 +135,12 @@ const designQuorumHelp = `ailang design-quorum — N-reviewer quorum verdict on 
 
 USAGE:
   ailang design-quorum <doc.md> [flags]
-  ailang design-quorum --reviewers gpt6-astra,gemini-3-1-pro,oc-glm-5-2 < doc.md
+  ailang design-quorum --reviewers gpt6-astra,gemini-3-1-pro,oc-glm-5-3 < doc.md
 
 FLAGS:
-  --reviewers <csv>          reviewer model ids (default gpt6-astra,gemini-3-1-pro,oc-glm-5-2)
+  --reviewers <csv>          reviewer model ids (default gpt6-astra,gemini-3-1-pro,oc-glm-5-3)
   --max-cost-usd <n>         per-reviewer budget cap in USD (default 0.30)
+  --no-anthropic-fallback    never run the Anthropic fallback seat (see below)
   --artifact-dir <dir>       machine JSON artifact dir (default .ailang/state/mission-quorum)
   --mission-log <path>       append the human markdown block to this mission log
   --controller-verdict <v>   the Claude controller's IN-SESSION verdict (pass|reject) — NOT an API call
@@ -143,9 +155,30 @@ BEHAVIOR:
   silent pass. Always writes a machine JSON artifact; optionally appends a
   mission-log markdown block.
 
+  ANTHROPIC FALLBACK: if EVERY listed reviewer is absent, one claude-sonnet-5
+  review runs via "claude -p" on the subscription (never the API key; tools,
+  settings and MCP off), labelled as a same-vendor fallback in the artifact.
+  Skipped when the Anthropic bucket is over its mission ration.
+
 EXIT CODES:
   0 = proceed   3 = blocked   1/2 = IO or usage error
 
 SEE ALSO:
   ailang design-review — a single reviewer verdict.
 `
+
+// anthropicFallbackReviewer runs the Anthropic fallback seat, unless the Anthropic
+// bucket is over its mission ration — the seat is subscription-billed, and the
+// ration is what keeps attended sessions' headroom.
+func anthropicFallbackReviewer(docPath, docBody string) func() *quorum.ReviewerOutcome {
+	return func() *quorum.ReviewerOutcome {
+		if a := mission.ObserveAnthropicQuota(time.Now()); a.Blocked() {
+			return &quorum.ReviewerOutcome{
+				Model:        quorum.AnthropicFallbackModel + "@claude-p",
+				AbsentReason: quorum.ReasonQuota,
+				Err:          "Anthropic bucket blocked by the mission ration: " + a.Reason,
+			}
+		}
+		return quorum.RunClaudeSubscriptionReviewer(quorum.AnthropicFallbackModel, docPath, docBody)
+	}
+}

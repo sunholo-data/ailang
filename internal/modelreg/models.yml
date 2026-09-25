@@ -2420,6 +2420,26 @@ models:
       routing a designer to a model that is also a reviewer of the same doc, and
       the rotation is fable-5 -> kimi-k3, neither of which is this model.
 
+  oc-glm-5-3:
+    api_name: "glm-5.3:cloud"                          # Ollama Cloud route (M-OLLAMA-CLOUD-PROVIDER)
+    provider: "ollama"
+    default_thinking: "always_on"  # the OpenRouter twin refuses a reasoning disable (or-glm-5-3)
+    description: "GLM-5.3 via Ollama Cloud — DESIGN-QUORUM REVIEWER lane (replaced oc-glm-5-2 2026-09-25)."
+    env_var: ""                                        # device key via `ollama signin`
+    model_family: "glm-5"
+    max_output_tokens: 65536  # always-thinking — same headroom as or-glm-5-3
+    pricing:
+      # PROVISIONAL, same convention as oc-glm-5-2: imputed from the OpenRouter twin
+      # z-ai/glm-5.3 (or-glm-5-3, verified 2026-08-31). Ollama Cloud is flat-rate;
+      # this price feeds only the reviewer cap and the imputed-cost ledger.
+      input_per_1k: 0.0014
+      output_per_1k: 0.0044
+    notes: |
+      Third design-quorum reviewer (Z-AI seat) from 2026-09-25, Mark attended:
+      "update to latest glm". Successor to oc-glm-5-2 in the same seat and for the
+      same reason — a quorum verdict is short, so output headroom does not bind.
+      Not in any designer rotation.
+
   oc-glm-5-3-flash:
     api_name: "glm-5.3-flash:cloud"                   # Ollama Cloud route (M-OLLAMA-CLOUD-PROVIDER); proxy strips :cloud (V21)
     provider: "ollama"
