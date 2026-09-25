@@ -46,7 +46,7 @@ grep -q 'MISSION_PLANNER_FALLBACK:-pi:' "$driver" \
 # Each ollama rung must be BACKED BY ITS OPENROUTER TWIN, so exhausting the
 # Ollama Cloud quota (unpublished denominator, so unpredictable) degrades the
 # ROUTE and not the model. Asserted as a full chain, brace-anchored.
-grep -q 'MISSION_EXECUTOR_FALLBACK:-pi:ollama/deepseek-v4-flash:0731-cloud,pi:openrouter/deepseek/deepseek-v4-flash-0731}' "$driver" \
+grep -q 'MISSION_EXECUTOR_FALLBACK:-pi:ollama/deepseek-v4.1-flash:cloud,pi:openrouter/deepseek/deepseek-v4.1-flash}' "$driver" \
   && ok "executor chain is ollama -> openrouter twin" || bad "executor chain is ollama -> openrouter twin" "missing or unchained"
 # Planner fallback: kimi-k3 sits BETWEEN codex and opus, so opus stays last resort.
 grep -q 'MISSION_PLANNER_FALLBACK:-pi:ollama/kimi-k3:cloud,pi:openrouter/moonshotai/kimi-k3}' "$driver" \

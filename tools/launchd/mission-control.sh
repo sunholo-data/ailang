@@ -1490,8 +1490,11 @@ export MISSION_EXECUTOR_MODEL="${MISSION_EXECUTOR_MODEL:-codex:gpt-6-sol}"
 # default but deepseek to be replacement when codex out of quota", then opus last —
 # are preserved exactly. Same deepseek-v4-flash weights; the flat-rate ollama route
 # replaces the metered OpenRouter one. Measured 0.029 ollama usage-units/M tokens.
-# ROLLBACK: restore pi:openrouter/deepseek/deepseek-v4-flash-0731 here.
-export MISSION_EXECUTOR_FALLBACK="${MISSION_EXECUTOR_FALLBACK:-pi:ollama/deepseek-v4-flash:0731-cloud,pi:openrouter/deepseek/deepseek-v4-flash-0731}"
+# MODEL CHANGE (2026-09-25, Mark attended): deepseek-v4-flash-0731 -> deepseek-v4.1-flash on
+# both rungs. Gate: stretch+frontier 25/29 vs 1/29 on shared benchmarks, core 22/23 vs 21/23,
+# cost per pass ~$0.024 vs ~$0.14 (record: models.yml pi-cloud-deepseek-v4-1-flash).
+# ROLLBACK: pi:ollama/deepseek-v4-flash:0731-cloud,pi:openrouter/deepseek/deepseek-v4-flash-0731
+export MISSION_EXECUTOR_FALLBACK="${MISSION_EXECUTOR_FALLBACK:-pi:ollama/deepseek-v4.1-flash:cloud,pi:openrouter/deepseek/deepseek-v4.1-flash}"
 # kimi-k3 sits between codex and opus rather than degrading straight to opus:
 # strongest open-weight model measured externally (88.3 Terminal-Bench 2.1), and
 # a flat-rate lane is the right thing to try before spending Anthropic quota.

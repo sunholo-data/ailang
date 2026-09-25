@@ -3913,7 +3913,7 @@ models:
     agent_cli: "pi"
     agent_model_name: "ollama/kimi-k3:cloud"
     model_family: "kimi-k3"
-    max_output_tokens: 65536
+    max_output_tokens: 32000  # PI_WIRE_CLAMP (was 65536, never reachable: pi sends min(declared, 32000))
     pricing:
       # TRANSCRIBED from motoko-cloud-kimi-k3, which shares this row's api_name slug
       # (`kimi-k3:cloud`) — the pricing-consistency gate compares every row for a slug,
@@ -3934,6 +3934,52 @@ models:
       same flat-rate route, different harness) and the flat-rate twin of pi-or-kimi-k3.
 
       Not referenced by any role chain — see the Phase 0 note above.
+
+  pi-cloud-deepseek-v4-1-flash:
+    api_name: "deepseek-v4.1-flash:cloud"              # Ollama Cloud (tag resolves, family deepseek_v41, 2026-09-25)
+    provider: "ollama"
+    default_thinking: "unknown"  # NOT VERIFIED on this harness
+    description: "DeepSeek V4.1 Flash via pi on Ollama Cloud — executor fallback rung 1 (flat-rate) from 2026-09-25"
+    env_var: ""
+    agent_cli: "pi"
+    agent_model_name: "ollama/deepseek-v4.1-flash:cloud"
+    model_family: "deepseek-v4-flash"
+    max_output_tokens: 32000  # PI_WIRE_CLAMP — pi sends min(declared, 32000) on every provider
+    pricing:
+      # PROVISIONAL, imputed from the OpenRouter twin (or-deepseek-v4-1-flash). Ollama Cloud
+      # is flat-rate; not 0/0, which maps to the false `free-local` provenance.
+      input_per_1k: 0.0003
+      output_per_1k: 0.0012
+    budgets:
+      max_cost_usd: 1.00
+      hard_timeout_secs: 3600
+    notes: |
+      Replaces pi-cloud-deepseek-v4-flash (0731) in MISSION_EXECUTOR_FALLBACK, Mark attended
+      2026-09-25. Gate (standard mode, or-deepseek-v4-1-flash vs or-deepseek-v4-flash, ailang,
+      2026-09-25): smoke 23/23; core 22/23 vs 21/23; stretch+frontier on the 22 benchmarks both
+      reached (2 trials, wall-clock-capped at 61/124 runs) 25/29 vs 1/29, 20 discordant pairs
+      all in v4.1's favour; cost per pass ~$0.024 vs ~$0.14.
+
+  pi-or-deepseek-v4-1-flash:
+    api_name: "deepseek/deepseek-v4.1-flash"
+    provider: "openrouter"
+    default_thinking: "unknown"  # NOT VERIFIED on this harness
+    description: "DeepSeek V4.1 Flash via pi on OpenRouter — executor fallback rung 2 (metered) from 2026-09-25"
+    env_var: "OPENROUTER_API_KEY"
+    agent_cli: "pi"
+    agent_model_name: "openrouter/deepseek/deepseek-v4.1-flash"  # BARE, like the rung it replaces: the driver
+                                                                 # dropped :floor deliberately (mission-control.sh)
+    model_family: "deepseek-v4"
+    max_output_tokens: 32000  # PI_WIRE_CLAMP
+    pricing:
+      input_per_1k: 0.0003    # $0.30 per 1M (OpenRouter API, read 2026-09-25) — must match or-deepseek-v4-1-flash
+      output_per_1k: 0.0012   # $1.20 per 1M
+    budgets:
+      max_cost_usd: 0.50
+      hard_timeout_secs: 3600
+    notes: |
+      Replaces pi-or-deepseek-v4-flash (0731) in MISSION_EXECUTOR_FALLBACK; gate record on
+      pi-cloud-deepseek-v4-1-flash.
 
   pi-cloud-deepseek-v4-flash:
     api_name: "deepseek-v4-flash:0731-cloud"           # tagged model -> `-cloud` on the TAG
@@ -4191,6 +4237,28 @@ models:
       Repointed 2026-08-03 from the April preview slug (deepseek/deepseek-v4-flash)
       to the official 0731 release — see opencode-or-deepseek-v4-flash's notes for
       the full rationale. Pricing dropped $0.14/$0.28 -> $0.09/$0.18 per 1M.
+
+  or-deepseek-v4-1-flash:
+    api_name: "deepseek/deepseek-v4.1-flash"
+    provider: "openrouter"
+    default_thinking: "unknown"  # NOT VERIFIED — probe before reading token counts as efficiency data
+    description: "DeepSeek V4.1 Flash (2026-09-10) via OpenRouter (standard) — successor candidate to or-deepseek-v4-flash (0731)"
+    env_var: "OPENROUTER_API_KEY"
+    model_family: "deepseek-v4"
+    max_output_tokens: 65536  # same headroom as 0731 (reasoning-stall class); provider ceiling 393216
+    pricing:
+      input_per_1k: 0.0003    # $0.30 per 1M (OpenRouter API, read 2026-09-25)
+      output_per_1k: 0.0012   # $1.20 per 1M (OpenRouter API, read 2026-09-25)
+    budgets:
+      max_cost_usd: 0.30
+      hard_timeout_secs: 600
+    notes: |
+      Registered 2026-09-25 (Mark, attended: "please update the deepseek"). The fleet's
+      deepseek lanes (executor fallback, docs/motoko envs) run v4-flash-0731; Ollama Cloud
+      now lists deepseek-v4.1-flash and the tag resolves (`deepseek-v4.1-flash:cloud`,
+      family deepseek_v41). ~4x 0731's registered input rate and ~7x its output rate on
+      OpenRouter; the Ollama route is flat-rate. Lanes move only after this row passes
+      the smoke gate.
 
   or-deepseek-v4-pro:
     api_name: "deepseek/deepseek-v4-pro-0813"
@@ -5739,7 +5807,8 @@ extended_suite:
   - "or-kimi-k3"        # Kimi K3 (general successor, 1M ctx) — 96% std smoke 2026-07-19 (22/23, only
     # dense_operator_program IMP010 bug), beat K2.7 Code sibling. Frontier-priced $3/$15/M — capability
     # probe, ADDITION not a K2.7-Code replacement (different lineage + 4x cost).
-  - "or-deepseek-v4-flash" # DeepSeek V4 Flash — 75% std, $0.10/1M (cheapest viable; re-gated 2026-06-04)
+  - "or-deepseek-v4-1-flash" # DeepSeek V4.1 Flash — REPLACED or-deepseek-v4-flash (0731) 2026-09-25 (Mark):
+                             # stretch+frontier 25/29 vs 1/29 on shared benchmarks, core 22/23 vs 21/23
   - "or-deepseek-v4-pro"   # DeepSeek V4 Pro — REPOINTED 2026-08-13 to the 0813 GA slug
     # (core N=3 67/69 vs the preview's 65/69, and ~2.7x cheaper). Pre-2026-08-13 rows
     # under this name are the April preview — see the entry's baseline-boundary note.
