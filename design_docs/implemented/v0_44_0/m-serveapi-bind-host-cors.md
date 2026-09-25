@@ -1,13 +1,13 @@
 # M-SERVEAPI-BIND-HOST-CORS: serve-api binds loopback by default, CORS is opt-in and allowlistable
 
-**Status**: Planned
+**Status**: Implemented (2026-09-25; sprint plan [m-serveapi-bind-host-cors-sprint-plan.md](m-serveapi-bind-host-cors-sprint-plan.md))
 **Target**: v0.44.0 (minor, because it flips two defaults)
 **Priority**: P1 (security-ish; it blocks a real deployment, Daneel's tailnet-only page)
 **Estimated**: 1–1.5 days
 **Dependencies**: None
 **Created**: 2026-09-25
 **Requested by**: Daneel (`inbox_1790359271083_90811127-companion`, msg `d00e4a75`, 2026-09-25)
-**Quorum**: triggers 1 (design-freeze items: two default flips plus the flag name) and 2 (overrides serve-api defaults that docparse and the MCP image depend on) both fire. Run `ailang design-quorum` before sprint planning. It was not run while writing this doc.
+**Quorum**: triggers 1 (design-freeze items: two default flips plus the flag name) and 2 (overrides serve-api defaults that docparse and the MCP image depend on) both fire. `ailang design-quorum` was **not run**: Mark ruled on every freeze item directly (see "Decisions" below), which is the input a quorum would have fed.
 
 ## Problem Statement
 
@@ -195,7 +195,21 @@ This doesn't touch the language, so there's no Conflict Surface section (no pars
 
 External premise, not verifiable in-repo: Cloud Run requires the container to listen on `0.0.0.0` and injects `PORT`. The coordinator relies on the same premise (`daemon_http.go:103-106`).
 
-## Open Questions for Mark
+## Decisions (Mark, 2026-09-25)
+
+Every freeze item and open question was resolved with this doc's recommendation.
+
+| # | Ruling |
+|---|--------|
+| F1 / Q1 | The flag is **`--bind`**, matching `ailang server --bind`. No `--host` alias. Daneel's DONE-WHEN check becomes `--bind 127.0.0.1`. |
+| F2 | Default bind is `127.0.0.1`, or `0.0.0.0` when `PORT` is set; `--bind` wins. One getter, `config.DefaultBindHost()`. |
+| F3 / F4 / Q2 | With no CORS flags, CORS is **off**, and there is **no** default same-origin enforcement. The server-side 403 for unlisted origins applies only when `--cors-origin` is set. Default-mode execution of a cross-origin `text/plain` POST stays as it is and is documented in the guide. |
+| Q3 | `ailang server`'s CORS `*` and any-origin WebSocket (audit row 4) are **out of scope**: a documented follow-up (see below). |
+| M3 | Include the ollama-tap loopback one-liner, `Dockerfile.mcp` explicit `--bind 0.0.0.0`, and `web_api_demo/test.sh --cors`. |
+
+**Follow-up (not done here):** audit row 4. `internal/server/server.go` sets `Access-Control-Allow-Origin: *` on every route, and `internal/websocket/server.go` `CheckOrigin` returns `true`. Tightening needs a per-route check of the OTLP/telemetry ingest paths first.
+
+## Open Questions for Mark (resolved; see Decisions above)
 
 1. **F1, the flag name:** `--bind` (consistent with `ailang server`) or `--host` (Daneel's wording, used in his DONE-WHEN)? This doc recommends `--bind`, and Daneel's check becomes `--bind 127.0.0.1`.
 2. **Default-mode execution hole:** with no CORS flags, a cross-origin `text/plain` POST still runs the function (V3). Should the default mode also refuse non-safe requests whose `Origin` doesn't match the request's own origin? That is the right fix, but it depends on what `Host` and `X-Forwarded-Host` `tailscale serve` passes through, which is unmeasured. Recommendation: ship F4 (allowlist-only enforcement) now, and Daneel runs with `--cors-origin https://<his tailnet name>`.

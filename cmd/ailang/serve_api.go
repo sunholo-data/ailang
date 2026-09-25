@@ -17,7 +17,10 @@ import (
 func serveAPICommand(args []string) error {
 	fs := flag.NewFlagSet("serve-api", flag.ExitOnError)
 	portFlag := fs.String("port", "8080", "HTTP server port")
-	corsFlag := fs.Bool("cors", true, "Enable CORS for all origins")
+	bindFlag := fs.String("bind", "", "Host to listen on (default: 127.0.0.1, or 0.0.0.0 when the PORT env var is set)")
+	corsFlag := fs.Bool("cors", false, "Allow cross-origin requests from every origin (Access-Control-Allow-Origin: *)")
+	var corsOrigins multiFlag
+	fs.Var(&corsOrigins, "cors-origin", "Allow cross-origin requests from this exact origin (scheme://host[:port]); repeatable. Unlisted origins get 403 on non-GET requests")
 	frontendFlag := fs.String("frontend", "", "Path to React/Vite project (proxies non-/api/ requests to Vite dev server)")
 	staticFlag := fs.String("static", "", "Path to built frontend files (serve as static files)")
 	watchFlag := fs.Bool("watch", false, "Watch .ail files for changes and hot-reload")
@@ -54,6 +57,10 @@ func serveAPICommand(args []string) error {
 	// Apply memory limit early (process-wide setting)
 	if _, err := applyResolvedMemoryLimit(*maxMemoryFlag, false); err != nil {
 		return fmt.Errorf("invalid --max-memory: %w", err)
+	}
+
+	if err := apiserver.ValidateCORSConfig(*corsFlag, corsOrigins); err != nil {
+		return err
 	}
 
 	if fs.NArg() < 1 {
@@ -130,7 +137,9 @@ func serveAPICommand(args []string) error {
 
 	cfg := apiserver.Config{
 		Port:           *portFlag,
+		Bind:           *bindFlag,
 		CORS:           *corsFlag,
+		CORSOrigins:    corsOrigins,
 		FrontendPath:   *frontendFlag,
 		StaticPath:     *staticFlag,
 		Watch:          *watchFlag,
@@ -247,7 +256,10 @@ func printServeAPIHelp() {
 	fmt.Println()
 	fmt.Println("Options:")
 	fmt.Println("  --port PORT          HTTP server port (default: 8080)")
-	fmt.Println("  --cors               Enable CORS for all origins (default: true)")
+	fmt.Println("  --bind ADDR          Host to listen on (default: 127.0.0.1; 0.0.0.0 when PORT env is set)")
+	fmt.Println("  --cors               Allow cross-origin requests from every origin (default: off)")
+	fmt.Println("  --cors-origin ORIGIN Allow one exact origin, e.g. https://app.example.com (repeatable);")
+	fmt.Println("                       unlisted origins get 403 on POST/PUT/DELETE and preflights")
 	fmt.Println("  --frontend PATH      Path to React/Vite project for dev proxy")
 	fmt.Println("  --static PATH        Path to built frontend files")
 	fmt.Println("  --watch              Watch .ail files for changes and hot-reload")
@@ -287,6 +299,8 @@ func printServeAPIHelp() {
 	fmt.Println("Examples:")
 	fmt.Println("  ailang serve-api api/handlers.ail")
 	fmt.Println("  ailang serve-api ./api/ --port 3000")
+	fmt.Println("  ailang serve-api --bind 0.0.0.0 ./api/                 # reachable from the LAN")
+	fmt.Println("  ailang serve-api --cors-origin https://app.example.com ./api/")
 	fmt.Println("  ailang serve-api ./api/ --frontend ./ui")
 	fmt.Println("  ailang serve-api ./api/ --static ./ui/dist")
 	fmt.Println("  ailang serve-api --watch ./api/")

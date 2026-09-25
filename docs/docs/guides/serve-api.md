@@ -510,7 +510,9 @@ Serve AILANG module exports as REST API endpoints.
 
 Flags:
   --port PORT          HTTP port (default: 8080)
-  --cors               Enable CORS for all origins (default: true)
+  --bind ADDR          Host to listen on (default: 127.0.0.1; 0.0.0.0 when PORT env is set)
+  --cors               Allow cross-origin requests from every origin (default: off)
+  --cors-origin ORIGIN Allow one exact origin, e.g. https://app.example.com (repeatable)
   --frontend PATH      Proxy to Vite dev server at PATH
   --static PATH        Serve static files from PATH
   --watch              Watch .ail files for changes and hot-reload
@@ -543,6 +545,12 @@ ailang serve-api ./api/
 
 # Custom port (flags before paths)
 ailang serve-api --port 3000 ./api/
+
+# Reachable from other machines on the LAN (default is loopback only)
+ailang serve-api --bind 0.0.0.0 ./api/
+
+# Let one browser origin call the API cross-origin
+ailang serve-api --cors-origin https://app.example.com ./api/
 
 # With Vite frontend proxy (development)
 ailang serve-api --frontend ./ui ./api/
@@ -1174,6 +1182,42 @@ ailang serve-api app.ail \
 - Requests without a valid key get 401 Unauthorized
 - Also accepts `Authorization: Bearer <token>` as fallback
 - Meta endpoints (`/api/_health`, `/api/_meta/*`), MCP, and A2A bypass auth
+
+---
+
+## Binding & CORS (v0.44.0+)
+
+serve-api exposes nothing beyond the machine, and grants no cross-origin access, unless you ask for it.
+
+**Bind address.** The default is `127.0.0.1`, so only processes on the same machine can connect. When the `PORT` environment variable is set (Cloud Run injects it), the default becomes `0.0.0.0`, because Cloud Run requires the wildcard. `--bind ADDR` always wins, for example `--bind 0.0.0.0` for the LAN or `--bind ::1` for IPv6 loopback. This is the same rule `ailang server --bind` follows.
+
+serve-api binds the port **before** it prints its startup banner. If the port is taken, it exits non-zero with `listen tcp 127.0.0.1:N: bind: address already in use` and prints no banner.
+
+**CORS** has three modes:
+
+| Mode | Flag | What a browser page on another origin gets |
+|------|------|--------------------------------------------|
+| off (default) | none | No `Access-Control-Allow-*` headers, so the page cannot read any response. |
+| any | `--cors` | `Access-Control-Allow-Origin: *` on every API route, and preflights answered 204. |
+| allowlist | `--cors-origin ORIGIN` (repeatable) | Listed origins get their exact origin echoed back, with `Vary: Origin`. A request from an **unlisted** origin that is not `GET`/`HEAD` (a preflight or a `POST`) gets **403 before the function runs**. |
+
+`--cors` and `--cors-origin` together are a startup error. Each origin must be written exactly the way a browser sends it, `scheme://host[:port]` with no path or trailing slash: `https://daneel.example.ts.net`, `http://localhost:5173`.
+
+Why the allowlist refuses the call and not only the response: CORS stops a page from *reading* the answer, but a `POST` with `Content-Type: text/plain` is a CORS "simple request" that a browser sends without any preflight. Without the 403, a page on any origin could still make the function run. **Off mode does not refuse such calls**, so if a handler spends money or acts on someone's behalf, set `--cors-origin` to the origins that may call it.
+
+Requests with no `Origin` header (curl, server-to-server calls, MCP clients) are never affected. A browser also sends `Origin` on same-origin `POST`s, so in allowlist mode you must list your own page's origin too, including when it is served by `--static` or reached through a proxy such as `tailscale serve`.
+
+`/mcp/` and the `--static`/`--frontend` routes are not CORS-wrapped.
+
+**Tailnet-only example** (the backend listens on loopback, and `tailscale serve` is the only way in):
+
+```bash
+ailang serve-api --bind 127.0.0.1 --port 8791 \
+  --cors-origin https://myhost.tailnet-name.ts.net ./api/
+tailscale serve --https=8791 http://127.0.0.1:8791
+```
+
+**Migrating from v0.43.x:** add `--bind 0.0.0.0` if other devices reached your dev server, and `--cors` (or better, `--cors-origin ...`) if a page on another origin called it. Container images that set `PORT` keep binding `0.0.0.0` with no change.
 
 ---
 
