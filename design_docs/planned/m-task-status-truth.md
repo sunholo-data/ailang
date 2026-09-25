@@ -92,7 +92,7 @@ does what)*:
 
 | Layer | Function | Does | Reached by |
 |---|---|---|---|
-| write | `handoffSender.send` (`approval_handoff.go`) | `PutMessageIfAbsent` under `HandoffMessageID(task, target)`; notify only if it created the row | **every** handoff producer except finalize: via `sendAgentHandoffMessage` (below) and via the daemon auto-edge entry `Daemon.sendHandoffMessage` (`daemon_approval.go:82`) |
+| write | `handoffSender.send` (`approval_handoff.go`) | `PutMessageIfAbsent` under the id its caller sets — `HandoffMessageIDForWork(task, target, work_id)` on the approval path (work id from the approval context), `HandoffMessageID(task, target)` only when no id is given (daemon auto-edge entry); notify only if it created the row | **every** handoff producer except finalize: via `sendAgentHandoffMessage` (below) and via the daemon auto-edge entry `Daemon.sendHandoffMessage` (`daemon_approval.go:82`) |
 | write | `finalizer.applyHandoff` (`task_finalize_approval.go`) | same `PutMessageIfAbsent`, id `HandoffMessageIDForWork(task, target, work)` with the work id computed from the completion's own diff (quorum round 8) | completion path, auto edges |
 | approval-path entry | `sendAgentHandoffMessage` | reads `handoffs_suppressed`; refuses with `errHandoffSuppressed`; else calls `handoffSender.send` | approve (`dispatchApprovalHandoffs`), boot recovery (`triggerHandoffsFromApprovalRecord`), and `TaskChain.OnAgentApproved` — which has **no production caller** (V17) |
 
@@ -157,9 +157,9 @@ On `ailang-multivac-dev`, after the dev coordinator serves a build containing M1
 
 ## Acceptance criteria
 
-- [ ] All three defects reproduced by a failing test before the fix (mutation-checked).
-- [ ] `make test` green for `internal/coordinator`, `internal/storage/firestore`, `cmd/ailang`; lint clean.
-- [ ] M4 steps 1–3 observed on dev with log evidence.
+- [x] All defects reproduced by a failing test before the fix (mutation-checked: 18/18, V32).
+- [x] Tests green for `internal/coordinator`, `internal/storage`, `internal/messaging`, `cmd/ailang`; lint clean for this change (one pre-existing forbidigo error in `cmd/ailang/design_quorum.go`, not from this work).
+- [x] M4 steps 1–3 observed on dev with log evidence (V31, V33).
 - [ ] Prod: after release, 24 h of logs show 0 "unknown completion status", 0 stale kills with
       `age` ≫ timeout within a minute of dispatch, 0 "Triggered missed handoff" for approvals made
       after the deploy.
@@ -206,6 +206,18 @@ On `ailang-multivac-dev`, after the dev coordinator serves a build containing M1
 | V30 | Completion-path auto edges are per-work too | `applyHandoff` computes the work id from `strategy.DiffSource` (immutable SHAs → replay-stable). `TestFinalize_AutoHandoffIsPerWork`: run a.go, redeliver a.go, run b.go → 2 rows; mutation caught. |
 | V31 | **Live proof S1 + S2 on `ailang-multivac-dev`** (build `c13557c`) | Seeded `inbox_1790076618356_m4s1` to `ailang-core`, `created_at` 72 h in the past, never notified. 11:37:15 sweep recovered it → 11:42:15 `task-5f31e226` created → 11:42:18 dispatched → **no stale-detector line for it** (old code: failed on first tick, age 72 h ≫ 30 m) → 11:43:25 `status=blocked` received and **applied** (`-> blocked`, not "unknown completion status"). Stored record: `created_at=2026-09-22T11:30:18Z` (message time kept), `queued_at=2026-09-25T11:42:15Z` (claim — proves the new code claimed it), `status=blocked`. |
 | V32 | Mutation coverage after round 8 | 18/18 single-line mutations caught (a harness guard refuses to count a build failure as a catch — it caught one of its own mutations doing exactly that). |
+
+| V33 | **Live proof S3 + S4 on `ailang-multivac-dev`** (reboot into build `4808a78`) | S3 `task-m4s36339`: approved from the new code at 11:39:01; the notify to the dev topic failed from the laptop, so the approval stayed **unmarked** with one row `task-m4s36339:handoff:sprint-planner` — the crash-after-write case. 11:47:11 revision `02958-cbh` booted: "Found 1 approved merge_handoff approval(s) without triggered handoffs" → recovery re-ran the handoff → **row count stayed 1** (collision, no second row); the sweep delivered that row → 11:52:12 exactly one task `task-dcfdd332` (sprint-planner). S4 `task-m4s46343`: approved with `SkipHandoffs` → `suppressed=true` → after the same reboot **0 rows**. Old behaviour for comparison: prod 09-14/09-16, a second `Handoff:` row per approval at every boot (V3). |
+| V34 | NOT exercised live | Two drains racing on one message: revision `02957` also swept the S3 row at 11:47:15 but retired before its drain ran, so only one drain created a task. Task creation from a message derives a deterministic task id (`msgIDSuffix`), but whether a concurrent second create is refused or overwrites on Firestore was not tested here — pre-existing behaviour, outside this doc, recorded as a follow-up. |
+| V35 | Legacy scan bound | `legacyHandoffSent` reads the newest 500 rows of the target inbox. The at-risk set is only approvals the OLD code resolved and had not yet re-fired — the old recovery re-fired (and marked) every ≤1.5 h — so its handoffs are among the most recent rows. A miss yields at most one duplicate per such approval, once, at deploy; not a steady-state path. Stated as a bounded residual, not claimed as exact. |
+
+## Quorum round 9 (2026-09-25, BLOCKED) — responses
+
+| Reviewer | Objection | Response |
+|---|---|---|
+| gpt6-astra | 500-row legacy scan can miss | Accepted as a bounded one-time deploy residual (V35), not a guarantee. |
+| gemini-3-1-pro | No live S3 V-row | V33 — observed on dev with a real reboot. |
+| oc-glm-5-3 | Structure table contradicts V25 on the approval-path id | Table corrected to the implemented identity. |
 
 ## Quorum round 8 (2026-09-25, BLOCKED) — responses
 
