@@ -352,3 +352,126 @@ func TestHandoffOnce_RecoveryWorkIsBoundedPerBoot(t *testing.T) {
 		t.Errorf("%d still undecided after a second boot — the backlog must drain", len(left))
 	}
 }
+
+func (f *onceFixture) setWork(t *testing.T, workID string) string {
+	t.Helper()
+	cj, _ := json.Marshal(map[string]interface{}{"handoff_targets": []string{"sprint-planner"}, "source_agent": "design-doc-creator", "work_id": workID})
+	if _, err := f.store.db.ExecContext(context.Background(), "UPDATE approval_requests SET context_json = ? WHERE task_id = ?", string(cj), f.task.ID); err != nil {
+		t.Fatal(err)
+	}
+	return string(cj)
+}
+
+// A task approved again for DIFFERENT work owes a new handoff; a replay of the
+// same decision does not (quorum round 7: ReopenApprovalForNewWork re-opens
+// approved decisions, so (task, target) alone is not the identity).
+// MU: return HandoffMessageID without the work id and the second approval's
+// handoff collides with the first — one row instead of two.
+func TestHandoffOnce_NewWorkAfterReopenOwesANewHandoff(t *testing.T) {
+	f := newOnceFixture(t, "sprint-planner")
+	ctx := context.Background()
+	f.setWork(t, "work-aaaa1111")
+	f.approve(t, false)
+
+	cj2, _ := json.Marshal(map[string]interface{}{"handoff_targets": []string{"sprint-planner"}, "source_agent": "design-doc-creator", "work_id": "work-bbbb2222"})
+	reopened, err := f.store.ReopenApprovalForNewWork(ctx, f.task.ID, "run 2", string(cj2))
+	if err != nil || !reopened {
+		t.Fatalf("reopen: %v %v", reopened, err)
+	}
+	if _, err := f.store.CompareAndSetTaskStatus(ctx, f.task.ID, AllTaskStatuses(), TaskStatusPendingApproval); err != nil {
+		t.Fatal(err)
+	}
+	f.approve(t, false)
+	f.boot(t)
+
+	rows := f.rows(t, "sprint-planner")
+	if len(rows) != 2 {
+		t.Fatalf("%d handoff rows after two approvals of different work (+ a boot), want 2", len(rows))
+	}
+	for _, r := range rows {
+		if got := f.notified.count(r.ID); got != 1 {
+			t.Errorf("row %s notified %d times, want 1", r.ID, got)
+		}
+	}
+}
+
+// A suppression belongs to the decision it was made on. Reopening for new work
+// is a new decision, and must not inherit it.
+// MU: drop the handoffs_suppressed reset from ReopenApprovalForNewWork (SQLite)
+// and the second, normal approval is refused.
+func TestHandoffOnce_ReopenClearsSuppression(t *testing.T) {
+	f := newOnceFixture(t, "sprint-planner")
+	ctx := context.Background()
+	f.setWork(t, "work-aaaa1111")
+	f.approve(t, true)
+
+	cj2, _ := json.Marshal(map[string]interface{}{"handoff_targets": []string{"sprint-planner"}, "source_agent": "design-doc-creator", "work_id": "work-bbbb2222"})
+	if ok, err := f.store.ReopenApprovalForNewWork(ctx, f.task.ID, "run 2", string(cj2)); err != nil || !ok {
+		t.Fatalf("reopen: %v %v", ok, err)
+	}
+	if _, err := f.store.CompareAndSetTaskStatus(ctx, f.task.ID, AllTaskStatuses(), TaskStatusPendingApproval); err != nil {
+		t.Fatal(err)
+	}
+	f.approve(t, false)
+
+	rows := f.rows(t, "sprint-planner")
+	if len(rows) != 1 {
+		t.Fatalf("%d handoff rows, want 1 — the earlier suppression leaked into a new decision", len(rows))
+	}
+	if f.notified.count(rows[0].ID) != 1 {
+		t.Error("the new decision's handoff was not delivered")
+	}
+}
+
+// Deploy-time: an approval the OLD approve path handed off under a random id,
+// never recorded, must not be handed off again by the new recovery.
+// MU: make legacyHandoffSent return false and recovery writes a second row.
+func TestHandoffOnce_LegacyRandomIDRowIsNotResent(t *testing.T) {
+	f := newOnceFixture(t, "sprint-planner")
+	ctx := context.Background()
+	if err := f.store.ResolveApprovalRequestByTask(ctx, f.task.ID, "approved", "old-binary"); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.msgs.InsertInboxMessage(&messaging.InboxMessage{
+		ID: fmt.Sprintf("inbox_%d_abcd1234", time.Now().UnixMilli()), FromAgent: "coordinator", ToInbox: "sprint-planner",
+		MessageType: messaging.InboxTypeHandoff, Title: "Handoff: legacy", ParentTaskID: f.task.ID,
+		Status: messaging.InboxStatusUnread, CreatedAt: time.Now(),
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	f.boot(t)
+	if rows := f.rows(t, "sprint-planner"); len(rows) != 1 {
+		t.Fatalf("%d handoff rows after recovery over a legacy-sent approval, want 1", len(rows))
+	}
+	left, _ := f.store.ListApprovedMergeHandoffsWithoutTrigger(ctx)
+	if len(left) != 0 {
+		t.Errorf("recovery did not record the legacy-sent approval as decided (%d left)", len(left))
+	}
+}
+
+// A reopened-then-reapproved decision that crashes before sending must still be
+// recoverable: the previous decision's "triggered" latch must not hide it.
+// MU: drop the handoffs_triggered reset from ReopenApprovalForNewWork (SQLite)
+// and recovery never looks at the new decision — zero rows.
+func TestHandoffOnce_ReopenedApprovalIsRecoverable(t *testing.T) {
+	f := newOnceFixture(t, "sprint-planner")
+	ctx := context.Background()
+	f.setWork(t, "work-aaaa1111")
+	f.approve(t, false) // decision 1: fired and latched
+
+	cj2, _ := json.Marshal(map[string]interface{}{"handoff_targets": []string{"sprint-planner"}, "source_agent": "design-doc-creator", "work_id": "work-bbbb2222"})
+	if ok, err := f.store.ReopenApprovalForNewWork(ctx, f.task.ID, "run 2", string(cj2)); err != nil || !ok {
+		t.Fatalf("reopen: %v %v", ok, err)
+	}
+	// Decision 2 resolves, then the process dies before any handoff is sent.
+	if err := f.store.ResolveApprovalRequestByTask(ctx, f.task.ID, "approved", "test"); err != nil {
+		t.Fatal(err)
+	}
+	f.boot(t)
+
+	rows := f.rows(t, "sprint-planner")
+	if len(rows) != 2 {
+		t.Fatalf("%d handoff rows, want 2 — recovery must deliver the second decision's handoff", len(rows))
+	}
+}

@@ -49,6 +49,23 @@ var errHandoffNotDispatched = errors.New("handoff stored but not dispatched")
 // failure — a decision to honour, from every producer (M-TASK-STATUS-TRUTH D3).
 var errHandoffSuppressed = errors.New("handoffs for this approval were suppressed by the operator")
 
+// ApprovalHandoffMessageID is the identity of the handoff an APPROVAL owes one
+// target. One task can be approved more than once — ReopenApprovalForNewWork
+// puts an approved decision back to pending when a later run produces different
+// work — and each distinct piece of work owes its own handoff. The work id
+// (approval context, since 2026-09-15) is what tells a new decision from a
+// replay of the old one. Without a work id it is HandoffMessageID.
+func ApprovalHandoffMessageID(taskID, target, workID string) string {
+	id := HandoffMessageID(taskID, target)
+	if workID == "" {
+		return id
+	}
+	if len(workID) > 16 {
+		workID = workID[:16]
+	}
+	return id + ":" + workID
+}
+
 // HandoffRecoveryWindow bounds boot recovery: an approval older than this whose
 // handoff decision was never recorded is expired, not fired.
 const HandoffRecoveryWindow = 7 * 24 * time.Hour
@@ -113,6 +130,11 @@ type handoff struct {
 	Task           *TaskRecord
 	Artifacts      []string // what the previous stage produced (resolveHandoffArtifacts)
 	IssueNumber    int      // GitHub issue, 0 when there is none
+	// ID is the row identity. Empty means HandoffMessageID(task, target); the
+	// approval path sets it to include the approval's work id, so a task that is
+	// approved again for DIFFERENT work owes a new handoff while a replay of the
+	// same decision still collides (M-TASK-STATUS-TRUTH D3, quorum round 7).
+	ID string
 }
 
 // inboxMessage is the delivery row — the one thing that starts the next stage.
@@ -188,7 +210,10 @@ func (s handoffSender) send(h handoff) error {
 	}
 
 	msg := h.inboxMessage()
-	msg.ID = HandoffMessageID(h.Task.ID, h.Target.ID)
+	msg.ID = h.ID
+	if msg.ID == "" {
+		msg.ID = HandoffMessageID(h.Task.ID, h.Target.ID)
+	}
 	created, err := s.msgStore.PutMessageIfAbsent(context.Background(), msg)
 	if err != nil {
 		return err
@@ -220,6 +245,7 @@ func sendAgentHandoffMessage(
 	artifacts []string,
 	issueNumber int,
 ) error {
+	var id string
 	if store != nil && task != nil {
 		suppressed, err := store.ApprovalHandoffsSuppressed(ctx, task.ID)
 		if err != nil {
@@ -228,8 +254,12 @@ func sendAgentHandoffMessage(
 		if suppressed {
 			return errHandoffSuppressed
 		}
+		if apr, err := store.GetApprovalRequestByTaskAnyStatus(ctx, task.ID); err == nil && apr != nil && targetAgent != nil {
+			id = ApprovalHandoffMessageID(task.ID, targetAgent.ID, workIDFromContext(apr.ContextJSON))
+		}
 	}
 	return handoffSender{msgStore: msgStore, notify: approvalHandoffNotify}.send(handoff{
+		ID:          id,
 		Source:      sourceAgent,
 		Target:      targetAgent,
 		Task:        task,

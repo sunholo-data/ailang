@@ -734,6 +734,13 @@ func triggerHandoffsFromApprovalRecord(ctx context.Context, span trace.Span, par
 			complete = false
 			continue
 		}
+		if legacyHandoffSent(params.MsgStore, targetAgent.Inbox, task.ID, approvalReq.ResolvedAt) {
+			// Sent by the pre-M-TASK-STATUS-TRUTH approve path under a random id
+			// and never recorded — the one case the (task, target, work) identity
+			// cannot see. Re-sending it is the duplicate this work removes.
+			triggered = true
+			continue
+		}
 		err := sendAgentHandoffMessage(ctx, params.Store, params.MsgStore, sourceAgent, targetAgent, task, artifacts, task.GithubIssue)
 		switch {
 		case errors.Is(err, errHandoffSuppressed):
@@ -769,6 +776,36 @@ func triggerHandoffsFromApprovalRecord(ctx context.Context, span trace.Span, par
 	}
 
 	return triggered, nil
+}
+
+// legacyHandoffScan bounds legacyHandoffSent's read of one inbox.
+const legacyHandoffScan = 500
+
+// legacyHandoffSent reports whether the approve path that predates
+// M-TASK-STATUS-TRUTH already delivered this handoff (quorum round 7).
+//
+// That path wrote handoff rows under a fresh random id (inbox_<ms>_<rand>) and
+// never recorded that it had, so an approval it resolved in the window before
+// this code deployed is still "without triggered handoffs" — and the
+// deterministic id cannot collide with a random one. A row counts only if it
+// has the legacy id form AND was written at or after this approval's
+// resolution: an older handoff for the same task belongs to an earlier decision
+// (ReopenApprovalForNewWork) and must not stand in for this one.
+func legacyHandoffSent(msgStore messaging.MessageStore, inbox, taskID string, resolvedAt *time.Time) bool {
+	if msgStore == nil || resolvedAt == nil {
+		return false
+	}
+	rows, err := msgStore.ListInboxMessages(messaging.InboxListOptions{Inbox: inbox, Limit: legacyHandoffScan})
+	if err != nil {
+		return false // cannot tell; the first-write-wins path still bounds the damage to one legacy duplicate
+	}
+	for _, m := range rows {
+		if m.ParentTaskID == taskID && m.MessageType == messaging.InboxTypeHandoff &&
+			strings.HasPrefix(m.ID, "inbox_") && !m.CreatedAt.Before(resolvedAt.Add(-time.Minute)) {
+			return true
+		}
+	}
+	return false
 }
 
 // worktreeGone reports whether a recorded worktree path no longer resolves.

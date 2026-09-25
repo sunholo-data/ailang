@@ -219,12 +219,12 @@ func (s *CoordinatorStore) resolveApprovalByTask(ctx context.Context, taskID, re
 		{Path: "resolved_by", Value: resolvedBy},
 		{Path: "resolved_at", Value: now},
 	}
+	// Always written, so the resolution alone states the decision — never an
+	// older value left behind by a previous round of the same approval.
+	updates = append(updates, firestore.Update{Path: "handoffs_suppressed", Value: suppressHandoffs})
 	if suppressHandoffs {
 		// Same Update as the resolution: atomic by construction.
-		updates = append(updates,
-			firestore.Update{Path: "handoffs_suppressed", Value: true},
-			firestore.Update{Path: "handoffs_triggered", Value: true},
-		)
+		updates = append(updates, firestore.Update{Path: "handoffs_triggered", Value: true})
 	}
 	// A COMPARE-AND-SET, not query-then-update. The query above only locates the
 	// document; two resolvers can both find it pending. Re-reading the status
