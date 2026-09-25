@@ -2440,6 +2440,26 @@ models:
       same reason — a quorum verdict is short, so output headroom does not bind.
       Not in any designer rotation.
 
+  oc-kimi-k3:
+    api_name: "kimi-k3:cloud"                          # Ollama Cloud route (M-OLLAMA-CLOUD-PROVIDER)
+    provider: "ollama"
+    default_thinking: "on"   # the OpenRouter twin (or-kimi-k3) reasons by default
+    description: "Kimi K3 via Ollama Cloud — DESIGN-QUORUM REVIEWER pool (Moonshot seat, added 2026-09-25)."
+    env_var: ""                                        # device key via `ollama signin`
+    model_family: "kimi-k3"
+    max_output_tokens: 65536  # reasoning headroom, same as or-kimi-k3
+    pricing:
+      # PROVISIONAL, same convention as oc-glm-5-3: imputed from the OpenRouter twin
+      # moonshotai/kimi-k3. Ollama Cloud is flat-rate; this feeds the reviewer cap only.
+      input_per_1k: 0.003
+      output_per_1k: 0.015
+    notes: |
+      Moonshot seat in the design-quorum reviewer POOL (Mark, attended 2026-09-25:
+      "we keep three reviewers but we select from the pool so we can expand it").
+      Best measured open-weight AILANG writer on the v0.32.0 board (or-kimi-k3:
+      84% AILANG, standard ELO 2115). Also a designer-rotation entry; the quorum
+      benches it on its own designer turn.
+
   oc-glm-5-3-flash:
     api_name: "glm-5.3-flash:cloud"                   # Ollama Cloud route (M-OLLAMA-CLOUD-PROVIDER); proxy strips :cloud (V21)
     provider: "ollama"

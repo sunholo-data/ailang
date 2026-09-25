@@ -19,19 +19,21 @@ import (
 // controller's own review is IN-SESSION (not an API call) and can be folded in
 // via flags.
 //
-// Roster (Mark, attended 2026-09-25): one seat per vendor — gpt6-astra (OpenAI),
-// gemini-3-1-pro (Google), oc-glm-5-3 (Z-AI) and claude-sonnet-5@claude-p
-// (Anthropic, subscription). The AUTHOR'S vendor sits out: "if anthropic does the
-// design, it doesn't review; if astra does the design, it's not on the quorum."
-// Benched seats come back, labelled, only when every seated reviewer is absent.
-// See quorum/seating.go. This retires the hand-applied "substitute gpt5-6-sol on
+// Reviewer POOL (Mark, attended 2026-09-25): gpt6-astra (OpenAI), gemini-3-1-pro
+// (Google), oc-glm-5-3 (Z-AI), oc-kimi-k3 (Moonshot) and claude-sonnet-5@claude-p
+// (Anthropic, subscription); three seats per doc, rotated per doc, distinct
+// vendors preferred, absent seats replaced from the pool. The AUTHOR'S vendor
+// sits out: "if anthropic does the design, it doesn't review; if astra does the
+// design, it's not on the quorum." It is recalled, labelled, only when nobody else
+// answers. See quorum/seating.go. This retires the hand-applied "substitute gpt5-6-sol on
 // astra's turn" workaround, which still had OpenAI reviewing OpenAI.
 //
 // History: OpenAI seat gpt5-6-sol -> gpt6-astra (2026-09-05); Z-AI seat
 // oc-glm-5-2 -> oc-glm-5-3 (2026-09-25).
 func runDesignQuorum() {
 	fs := flag.NewFlagSet("design-quorum", flag.ExitOnError)
-	reviewers := fs.String("reviewers", defaultQuorumRoster, "comma-separated reviewer roster (models.yml ids, or "+quorum.ClaudeReviewerID+")")
+	reviewers := fs.String("reviewers", defaultQuorumPool, "comma-separated reviewer POOL (models.yml ids, or "+quorum.ClaudeReviewerID+"); --seats of them review each doc")
+	seats := fs.Int("seats", quorum.DefaultSeats, "independent reviewers per doc, drawn from the pool")
 	author := fs.String("author", os.Getenv("MISSION_DESIGN_AUTHOR"), "model or lane that WROTE the doc (e.g. claude:claude-opus-5-5, codex:gpt-6-astra); its vendor sits out")
 	maxCost := fs.Float64("max-cost-usd", quorum.DefaultMaxCostUSD, "per-reviewer budget cap in USD")
 	artifactDir := fs.String("artifact-dir", quorum.ArtifactDir, "directory for the machine JSON artifact")
@@ -77,14 +79,16 @@ func runDesignQuorum() {
 	} else if quorum.VendorOf(authorID) == "" {
 		fmt.Fprintf(os.Stderr, "design-quorum: author %q is not a recognised vendor — nobody sits out\n", authorID)
 	}
-	seated, benched := quorum.SeatReviewers(models, authorID)
-	fmt.Fprintf(os.Stderr, "design-quorum: author %s — seated %s; sitting out %s\n", authorID, strings.Join(seated, ","), csvOrNone(benched))
+	sel := quorum.SelectReviewers(models, authorID, docPath, *seats)
+	fmt.Fprintf(os.Stderr, "design-quorum: author %s — seated %s; reserve %s; sitting out %s\n",
+		authorID, csvOrNone(sel.Primary), csvOrNone(sel.Reserve), csvOrNone(sel.Benched))
 
 	isoTS := time.Now().UTC().Format(time.RFC3339)
-	runner := quorumSeatRunner
-	result := quorum.RunQuorum(docPath, docBody, isoTS, seated, *maxCost, controller, runner)
-	if quorum.RecallBenched(result, benched, docPath, docBody, *maxCost, runner) {
-		fmt.Fprintf(os.Stderr, "design-quorum: every independent reviewer was absent — recalled the author's vendor (%s), labelled same-vendor\n", strings.Join(benched, ","))
+	result := quorum.RunSeatedQuorum(docPath, docBody, isoTS, sel, *seats, *maxCost, controller, quorumSeatRunner)
+	for _, o := range result.Reviewers {
+		if o.Tier == quorum.TierAuthorVendor {
+			fmt.Fprintf(os.Stderr, "design-quorum: every independent reviewer was absent — recalled the author's vendor (%s), labelled same-vendor\n", o.Model)
+		}
 	}
 
 	// Always write the machine artifact (seeds Phase E).
@@ -135,7 +139,9 @@ USAGE:
   ailang design-quorum --author codex:gpt-6-astra < doc.md
 
 FLAGS:
-  --reviewers <csv>          reviewer roster (default gpt6-astra,gemini-3-1-pro,oc-glm-5-3,claude-sonnet-5@claude-p)
+  --reviewers <csv>          reviewer POOL (default gpt6-astra,gemini-3-1-pro,oc-glm-5-3,
+                             oc-kimi-k3,claude-sonnet-5@claude-p)
+  --seats <n>                reviewers per doc, drawn from the pool (default 3)
   --max-cost-usd <n>         per-reviewer budget cap in USD (default 0.30)
   --author <model>           the doc's author; its vendor sits out (see below)
   --artifact-dir <dir>       machine JSON artifact dir (default .ailang/state/mission-quorum)
@@ -152,9 +158,12 @@ BEHAVIOR:
   silent pass. Always writes a machine JSON artifact; optionally appends a
   mission-log markdown block.
 
+  SEATING: --seats reviewers (default 3) are drawn from the --reviewers pool,
+  rotated per doc (the same doc gets the same seats every round) and preferring
+  distinct vendors; an absent seat is replaced from the rest of the pool.
   AUTHOR'S VENDOR SITS OUT: pass --author (or MISSION_DESIGN_AUTHOR) with the
   model that wrote the doc. Reviewers from that vendor are benched, and come
-  back — labelled same-vendor — only if every other reviewer is absent. With no
+  back — labelled same-vendor — only if nobody else in the pool answers. With no
   author given, a Claude author is assumed. The Anthropic seat
   (claude-sonnet-5@claude-p) runs "claude -p" on the subscription, never the
   API key, with tools, settings and MCP off; it is absent (quota) when the
@@ -167,8 +176,9 @@ SEE ALSO:
   ailang design-review — a single reviewer verdict.
 `
 
-// defaultQuorumRoster is one seat per vendor; the author's vendor sits out.
-const defaultQuorumRoster = "gpt6-astra,gemini-3-1-pro,oc-glm-5-3," + quorum.ClaudeReviewerID
+// defaultQuorumPool is the reviewer pool, one model per vendor. --seats of them
+// review each doc; the author's vendor sits out. Extend the pool here.
+const defaultQuorumPool = "gpt6-astra,gemini-3-1-pro,oc-glm-5-3,oc-kimi-k3," + quorum.ClaudeReviewerID
 
 // quorumSeatRunner runs one seat: the Anthropic seat over the subscription (unless
 // the Anthropic bucket is over its mission ration — the ration is what keeps

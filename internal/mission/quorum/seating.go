@@ -1,25 +1,37 @@
 package quorum
 
-// Who reviews a design doc: every vendor on the roster EXCEPT the author's.
+// Who reviews a design doc.
 //
-// Mark's rule (attended 2026-09-25, restating "ideally no model provider marks its
-// own work"): if Anthropic designs, Anthropic does not review; if astra designs,
-// OpenAI is not on the quorum. The author's vendor is benched, not dropped — when
-// every seated reviewer is absent, the benched seats are called back and labelled,
-// because a same-vendor verdict beats the zero-signal block ("if all other
-// reviewers are blocked it's ok to relax that a bit").
+// Mark's rules (attended 2026-09-25):
+//   - The author's vendor sits out: "if anthropic does the design, it doesn't review;
+//     if astra does the design, it's not on the quorum."
+//   - Reviewers come from a POOL, three per doc: "we keep three reviewers but we
+//     select from the pool so we can expand it further."
+//   - The author's vendor is benched, not dropped: "if all other reviewers are
+//     blocked it's ok to relax that a bit."
 //
-// This replaces the hand-applied astra workaround (substitute gpt5-6-sol on astra's
-// turn), which kept an OpenAI model reviewing an OpenAI doc.
+// Selection is deterministic per doc (keyed on the doc path), so a revised doc's
+// second round is judged by the same seats that blocked the first, while different
+// docs rotate through the pool. Seats prefer distinct vendors. An absent seat is
+// replaced from the rest of the pool before anyone from the author's vendor is
+// recalled.
 
-import "strings"
+import (
+	"hash/fnv"
+	"strings"
+	"sync"
+)
+
+// DefaultSeats is how many independent reviewers a quorum aims for.
+const DefaultSeats = 3
 
 // TierAuthorVendor labels a benched seat that was called back because every
 // independent seat was absent.
 const TierAuthorVendor = "author-vendor-fallback"
 
-// vendorKeys maps a substring of a model or lane id to its vendor. Order matters
-// only where one key is inside another; none are.
+// vendorKeys maps a substring of a model or lane id to its vendor. Harness
+// prefixes that are not vendors ("pi:", "opencode:", "motoko:") match no key, so a
+// lane id resolves by its model part without parsing.
 var vendorKeys = []struct{ key, vendor string }{
 	{"claude", "anthropic"}, {"opus", "anthropic"}, {"sonnet", "anthropic"},
 	{"fable", "anthropic"}, {"haiku", "anthropic"},
@@ -33,11 +45,9 @@ var vendorKeys = []struct{ key, vendor string }{
 }
 
 // VendorOf names the vendor behind a model or lane id ("gpt6-astra",
-// "codex:gpt-6-astra", "claude:claude-opus-5-5", "pi:ollama/deepseek-v4-flash:0731-cloud",
-// "oc-glm-5-3"). "" when unrecognised — the caller must not guess.
+// "codex:gpt-6-astra", "claude:claude-opus-5-5", "pi:ollama/kimi-k3:cloud").
+// "" when unrecognised — the caller must not guess.
 func VendorOf(id string) string {
-	// Harness prefixes that are not vendors ("pi:", "opencode:", "motoko:") match
-	// no key, so a lane id resolves by its model part without parsing.
 	s := strings.ToLower(id)
 	for _, k := range vendorKeys {
 		if strings.Contains(s, k.key) {
@@ -47,41 +57,98 @@ func VendorOf(id string) string {
 	return ""
 }
 
-// SeatReviewers splits the roster into seated reviewers and the author's-vendor
-// seats that sit out. With an unrecognised author vendor nobody is benched.
-func SeatReviewers(roster []string, author string) (seated, benched []string) {
-	av := VendorOf(author)
-	for _, m := range roster {
-		if av != "" && VendorOf(m) == av {
-			benched = append(benched, m)
-		} else {
-			seated = append(seated, m)
-		}
-	}
-	return seated, benched
+// Selection is the per-doc seating plan.
+type Selection struct {
+	Primary []string // seated first
+	Reserve []string // replace absent seats, in order
+	Benched []string // the author's vendor; recalled only if nothing else answers
 }
 
-// anyPresent reports whether at least one reviewer produced a verdict.
-func anyPresent(q *QuorumResult) bool {
+// SelectReviewers seats `seats` reviewers from the pool for one doc. The eligible
+// pool (everyone not of the author's vendor) is rotated by a hash of docKey, then
+// seats are taken preferring vendors not yet seated. With an unrecognised author
+// nobody is benched.
+func SelectReviewers(pool []string, author, docKey string, seats int) Selection {
+	var sel Selection
+	av := VendorOf(author)
+	var eligible []string
+	for _, m := range pool {
+		if av != "" && VendorOf(m) == av {
+			sel.Benched = append(sel.Benched, m)
+		} else {
+			eligible = append(eligible, m)
+		}
+	}
+	if len(eligible) == 0 {
+		return sel
+	}
+	h := fnv.New32a()
+	_, _ = h.Write([]byte(docKey))
+	off := int(h.Sum32() % uint32(len(eligible)))
+	rotated := append(append([]string{}, eligible[off:]...), eligible[:off]...)
+
+	seen := map[string]bool{}
+	var rest []string
+	for _, m := range rotated {
+		v := VendorOf(m)
+		if len(sel.Primary) < seats && (v == "" || !seen[v]) {
+			sel.Primary = append(sel.Primary, m)
+			seen[v] = true
+		} else {
+			rest = append(rest, m)
+		}
+	}
+	for len(sel.Primary) < seats && len(rest) > 0 { // fewer distinct vendors than seats
+		sel.Primary, rest = append(sel.Primary, rest[0]), rest[1:]
+	}
+	sel.Reserve = rest
+	return sel
+}
+
+// RunSeatedQuorum runs the primary seats, replaces absent ones from the reserve
+// until `seats` verdicts are in or the reserve is spent, and recalls the benched
+// author's-vendor seats only if nobody at all answered. Every absent seat stays in
+// the artifact with its reason.
+func RunSeatedQuorum(docPath, docBody, isoTS string, sel Selection, seats int, maxCostUSD float64, controller *ControllerReview, runner func(model, docPath, docBody string, maxCostUSD float64) *ReviewerOutcome) *QuorumResult {
+	q := RunQuorum(docPath, docBody, isoTS, sel.Primary, maxCostUSD, controller, runner)
+	reserve := sel.Reserve
+	for need := seats - presentCount(q); need > 0 && len(reserve) > 0; need = seats - presentCount(q) {
+		if need > len(reserve) {
+			need = len(reserve)
+		}
+		q.Reviewers = append(q.Reviewers, runParallel(reserve[:need], docPath, docBody, maxCostUSD, runner)...)
+		reserve = reserve[need:]
+	}
+	if presentCount(q) == 0 && len(sel.Benched) > 0 {
+		for _, o := range runParallel(sel.Benched, docPath, docBody, maxCostUSD, runner) {
+			o.Tier = TierAuthorVendor
+			q.Reviewers = append(q.Reviewers, o)
+		}
+	}
+	q.Synthesis = synthesize(q.Reviewers, controller)
+	return q
+}
+
+func presentCount(q *QuorumResult) int {
+	n := 0
 	for _, o := range q.Reviewers {
 		if o != nil && o.Present {
-			return true
+			n++
 		}
 	}
-	return false
+	return n
 }
 
-// RecallBenched runs the benched seats when no seated reviewer produced a verdict,
-// labels them, and re-synthesizes. It reports whether it ran them.
-func RecallBenched(q *QuorumResult, benched []string, docPath, docBody string, maxCostUSD float64, runner func(model, docPath, docBody string, maxCostUSD float64) *ReviewerOutcome) bool {
-	if q == nil || len(benched) == 0 || anyPresent(q) {
-		return false
+func runParallel(models []string, docPath, docBody string, maxCostUSD float64, runner func(model, docPath, docBody string, maxCostUSD float64) *ReviewerOutcome) []*ReviewerOutcome {
+	out := make([]*ReviewerOutcome, len(models))
+	var wg sync.WaitGroup
+	for i, m := range models {
+		wg.Add(1)
+		go func(i int, m string) {
+			defer wg.Done()
+			out[i] = runner(m, docPath, docBody, maxCostUSD)
+		}(i, m)
 	}
-	for _, m := range benched {
-		o := runner(m, docPath, docBody, maxCostUSD)
-		o.Tier = TierAuthorVendor
-		q.Reviewers = append(q.Reviewers, o)
-	}
-	q.Synthesis = synthesize(q.Reviewers, q.ControllerInSession)
-	return true
+	wg.Wait()
+	return out
 }

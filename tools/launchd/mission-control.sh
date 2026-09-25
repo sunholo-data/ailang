@@ -1362,8 +1362,9 @@ fi
 # Unchanged by design: the lane is still Anthropic, so the rotation's provider spread is
 # untouched (astra = ChatGPT subscription, deepseek = flat-rate pi). Quorum independence
 # is enforced by design-quorum itself since 2026-09-25: the skill passes the designer as
-# --author and that vendor's seat sits out (roster: gpt6-astra, gemini-3-1-pro, oc-glm-5-3,
-# claude-sonnet-5@claude-p), so on this Anthropic turn Claude does not review the doc.
+# --author, that vendor sits out, and three seats are drawn from the pool (gpt6-astra,
+# gemini-3-1-pro, oc-glm-5-3, oc-kimi-k3, claude-sonnet-5@claude-p), so on this Anthropic turn
+# Claude does not review the doc.
 #
 # Worth knowing rather than acting on: the CONTROLLER is also claude-opus-5-5 as of today,
 # so one of the rotation's three entries now shares the controller's model. That is not the
@@ -1380,13 +1381,15 @@ fi
 export MISSION_DESIGNER_MODEL="${MISSION_DESIGNER_MODEL:-claude:claude-opus-5-5}"
 # DESIGNER FALLBACK (2026-09-05). The seed above is Anthropic, and until now the
 # designer was the one role with NO chain behind it in this driver — the skill's
-# three-entry rotation (fable -> astra -> deepseek) is what actually spans providers,
+# four-entry rotation (opus -> astra -> glm-5.3 -> kimi-k3) is what actually spans providers,
 # and it is owned by the SKILL, not here. This chain therefore covers only the case
 # the rotation cannot: a designer PINNED via MISSION_DESIGNER_MODEL, where a dry
 # Anthropic bucket would otherwise leave the role with nowhere to go. Same rungs as
 # the rotation, in the same order, so a pinned designer degrades the way a rotating
 # one does.
-export MISSION_DESIGNER_FALLBACK="${MISSION_DESIGNER_FALLBACK:-codex:gpt-6-astra,pi:ollama/deepseek-v4-flash:0731-cloud,pi:openrouter/deepseek/deepseek-v4-flash-0731}"
+# 2026-09-25 (Mark, attended): the rotation is opus -> astra -> GLM 5.3 -> Kimi K3 (deepseek-v4-flash
+# retired), so this chain follows it: flat-rate ollama rungs first, OpenRouter metered after.
+export MISSION_DESIGNER_FALLBACK="${MISSION_DESIGNER_FALLBACK:-codex:gpt-6-astra,pi:ollama/glm-5.3:cloud,pi:ollama/kimi-k3:cloud,pi:openrouter/z-ai/glm-5.3,pi:openrouter/moonshotai/kimi-k3}"
 # Per-iteration METERED-spend ceiling (2026-07-18, Mark: "make sure costs don't go crazy"):
 # the sum of all metered-API spend (codex $ + gemini $) within ONE iteration must stay under
 # this. Enforced by the skill's Gate-3 metered ledger; quota-bucket (subscription) spend is

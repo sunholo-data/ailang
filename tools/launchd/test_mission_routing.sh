@@ -485,9 +485,14 @@ grep -q 'enum in this build lists' "$skill_all" \
 # slot — cheaper ($4/$20 vs $10/$50) at the property that put Fable here (thinking that cannot
 # be disabled at all). Astra and deepseek are untouched, so this stays a three-entry rotation
 # across three billing surfaces.
-grep -q 'now `claude:claude-opus-5-5` → `codex:gpt-6-astra` → `pi:ollama/deepseek-v4-flash:0731-cloud` → repeat' "$skill_all" \
-  && ok "S3 designer rotation is opus-5-5 -> astra -> deepseek (three entries, three vendors)" \
-  || bad "S3 designer rotation is opus-5-5 -> astra -> deepseek (three entries, three vendors)" "rotation is not the three-entry list"
+# AMENDED 2026-09-25 (Mark, attended): GLM 5.3 and Kimi K3 replace deepseek-v4-flash, so
+# designers and quorum reviewers share one vendor pool.
+grep -q 'now `claude:claude-opus-5-5` → `codex:gpt-6-astra` → `pi:ollama/glm-5.3:cloud` → `pi:ollama/kimi-k3:cloud` → repeat' "$skill_all" \
+  && ok "S3 designer rotation is opus-5-5 -> astra -> glm-5.3 -> kimi-k3 (four vendors)" \
+  || bad "S3 designer rotation is opus-5-5 -> astra -> glm-5.3 -> kimi-k3 (four vendors)" "rotation is not the four-entry list"
+grep -q 'MISSION_DESIGNER_FALLBACK:-codex:gpt-6-astra,pi:ollama/glm-5.3:cloud,pi:ollama/kimi-k3:cloud,pi:openrouter/z-ai/glm-5.3,pi:openrouter/moonshotai/kimi-k3' tools/launchd/mission-control.sh \
+  && ok "S3b designer fallback chain follows the rotation (astra -> glm-5.3 -> kimi-k3)" \
+  || bad "S3b designer fallback chain follows the rotation (astra -> glm-5.3 -> kimi-k3)" "driver chain still names another model"
 # The driver seed must NOT have moved: astra is a rotation entry, so nothing pins it.
 # This is the arm that dies if someone re-applies the "astra takes the fable slot"
 # version, which looked identical in a role table and was not what was asked for.
