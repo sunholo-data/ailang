@@ -14,9 +14,8 @@ import (
 // effectful main is bridged back to the evaluator under --bytecode and would
 // compare the evaluator with itself.
 //
-// Unifying the two is out of scope for this sprint; each known divergence is
-// asserted as documented, so fixing it makes this test fail and forces the
-// expectation to be updated deliberately.
+// Every row must agree across the two backends. A future divergence should be
+// fixed, not recorded here as an expected difference.
 func TestEqEvaluatorVMParity(t *testing.T) {
 	cases := []struct {
 		name     string
@@ -30,24 +29,33 @@ func TestEqEvaluatorVMParity(t *testing.T) {
 		{"record field order neq", "mkA() == mkC()", "false", "false"},
 		{"list", "[1, 2] == [1, 2]", "true", "true"},
 		{"option", "Some(1) == None", "false", "false"},
-		// Eq[Float] is lawful (NaN == NaN), and structural equality composes it.
-		{"nested NaN", "[0.0 / 0.0] == [0.0 / 0.0]", "true", "true"},
-		// DOCUMENTED DIVERGENCE: the VM's OpEq uses IEEE on a top-level float
-		// (NaN != NaN) while the evaluator's Eq[Float] dictionary is lawful.
-		// A blocker for any default --bytecode flip; do not "fix" by editing
-		// this expectation.
-		{"top-level NaN (divergent)", "(0.0 / 0.0) == (0.0 / 0.0)", "true", "false"},
+		// Float == is IEEE on every path and both backends, bare or nested
+		// (types.FloatEq, M-FLOAT-EQ-ONE-SEMANTICS #1274). Before it, the
+		// evaluator answered nan == nan true via the dictionary but false via
+		// a generic helper, and the VM disagreed with both.
+		{"top-level NaN", "(0.0 / 0.0) == (0.0 / 0.0)", "false", "false"},
+		{"top-level NaN !=", "(0.0 / 0.0) != (0.0 / 0.0)", "true", "true"},
+		{"NaN via generic helper", "eqp(0.0 / 0.0, 0.0 / 0.0)", "false", "false"},
+		{"NaN via lambda", "(\\p. \\q. p == q)(0.0 / 0.0)(0.0 / 0.0)", "false", "false"},
+		{"nested NaN", "[0.0 / 0.0] == [0.0 / 0.0]", "false", "false"},
+		{"NaN in ADT", "Some(0.0 / 0.0) == Some(0.0 / 0.0)", "false", "false"},
+		{"isNaN", "isNaN(0.0 / 0.0)", "true", "true"},
+		{"signed zero", "(0.0 - 0.0) == (0.0 * -1.0)", "true", "true"},
+		{"ordinary float in list", "[1.5] == [1.5]", "true", "true"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			src := filepath.Join(t.TempDir(), "eqparity.ail")
 			prog := fmt.Sprintf(`module test/eqparity
 
+import std/math (isNaN)
+
 type P = {x: int, y: string} deriving (Eq)
 
 func mkA() -> P { {x: 1, y: "a"} }
 func mkB() -> P { {y: "a", x: 1} }
 func mkC() -> P { {y: "b", x: 1} }
+func eqp[a](x: a, y: a) -> bool { x == y }
 
 export func main() -> bool = %s
 `, c.body)

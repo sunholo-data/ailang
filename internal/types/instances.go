@@ -268,12 +268,12 @@ func builtinInstances() []*ClassInstance {
 			},
 		},
 
-		// Eq[Float] - Lawful equivalence relation
+		// Eq[Float] - IEEE 754 (NaN != NaN), see FloatEq
 		{
 			ClassName: "Eq",
 			TypeHead:  TFloat,
 			Dict: Dict{
-				"eq":  "builtin_eq_float_eq", // Lawful: NaN==NaN, -0==+0
+				"eq":  "builtin_eq_float_eq", // IEEE: NaN!=NaN, -0==+0
 				"neq": "builtin_eq_float_neq",
 			},
 		},

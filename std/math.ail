@@ -95,6 +95,15 @@ export pure func PI() -> float = _math_PI()
 export pure func E() -> float = _math_E()
 
 -- ============================================================================
+-- Float Classification
+-- ============================================================================
+
+-- isNaN: true when x is NaN (e.g. 0.0 / 0.0, sqrt(-1.0)).
+-- Float == is IEEE: NaN is unequal to everything, itself included, so this is
+-- the one value for which x != x. Use isNaN rather than == to test for NaN.
+export pure func isNaN(x: float) -> bool = x != x
+
+-- ============================================================================
 -- Bitwise Functions
 -- ============================================================================
 

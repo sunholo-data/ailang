@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/sunholo-data/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // debugEvalApp enables debug output for function application when DEBUG_EVAL_APP=1
@@ -448,9 +449,9 @@ func (e *CoreEvaluator) applyBinOp(op string, left, right Value) (Value, error) 
 			if rFloat, rOk := right.(*FloatValue); rOk {
 				switch op {
 				case "==":
-					return &BoolValue{Value: lFloat.Value == rFloat.Value}, nil
+					return &BoolValue{Value: types.FloatEq(lFloat.Value, rFloat.Value)}, nil
 				case "!=":
-					return &BoolValue{Value: lFloat.Value != rFloat.Value}, nil
+					return &BoolValue{Value: !types.FloatEq(lFloat.Value, rFloat.Value)}, nil
 				case "<":
 					return &BoolValue{Value: lFloat.Value < rFloat.Value}, nil
 				case ">":
@@ -592,9 +593,9 @@ func (e *CoreEvaluator) applyBinOp(op string, left, right Value) (Value, error) 
 					}
 					return &FloatValue{Value: lFloat.Value / rFloat.Value}, nil
 				case "==":
-					return &BoolValue{Value: lFloat.Value == rFloat.Value}, nil
+					return &BoolValue{Value: types.FloatEq(lFloat.Value, rFloat.Value)}, nil
 				case "!=":
-					return &BoolValue{Value: lFloat.Value != rFloat.Value}, nil
+					return &BoolValue{Value: !types.FloatEq(lFloat.Value, rFloat.Value)}, nil
 				case "<":
 					return &BoolValue{Value: lFloat.Value < rFloat.Value}, nil
 				case ">":

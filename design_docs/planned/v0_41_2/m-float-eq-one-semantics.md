@@ -1,6 +1,6 @@
 # M-FLOAT-EQ-ONE-SEMANTICS — one answer to `NaN == NaN`, on every path
 
-**Status**: Planned. Design frozen: **D1 = (A) IEEE**, Mark 2026-09-25.
+**Status**: Implemented 2026-09-25 (D1 = IEEE, Mark). Awaiting evaluation.
 **Target**: v0.41.2
 **Priority**: P1. It is a correctness bug: the same comparison answers differently depending on
 how the compiler lowered it
@@ -47,7 +47,7 @@ generic function is false. The VM disagrees with the evaluator on the top-level 
 | V7 | Tests pinning today's behavior | `grep -rln NaN --include='*_test.go'` → `internal/bytecode/value_test.go:126` (`TestEqual_Float_NaN`: Value.Equal NaN==NaN "for dedup"), `cmd/ailang/eq_parity_test.go` (top-level divergence + nested agreement) | Both change deliberately with this doc |
 | V9 | `-0.0 == +0.0` already agrees; `nan < 1.0` already agrees | `(0.0 - 0.0) == (0.0 * -1.0)` → true on both backends; `(0.0 / 0.0) < 1.0` → false on both | Confirmed (non-goals) |
 | V10 | `internal/types` is importable from both `eval` and `vm` | `go list -deps ./internal/vm` and `./internal/eval` both include `internal/types` | Confirmed, so `types.FloatEq` adds no new edge |
-| V8 | Go codegen float `==` | `grep IsNaN internal/gen/golang/*.go` → only in `show` formatting | **Unmeasured.** Emitted Go `==` is presumably IEEE; confirm in Phase 0 |
+| V8 | Go codegen float `==` | `grep IsNaN internal/gen/golang/*.go` → only in `show` formatting | Resolved 2026-09-25 by reading: `internal/gen/golang/contracts.go` maps `Eq.eq`→`==`, and Go's float `==` is IEEE, so Go codegen already agrees with the ruling. Not run end-to-end |
 
 ## Goals
 
@@ -84,7 +84,7 @@ backends, bare or nested in a container.
 ### Design Freeze
 
 - [x] D1 decided by Mark, 2026-09-25: **(A) IEEE everywhere**. `NaN == NaN` is false and `NaN != NaN` is true, bare or nested. This reverts the lawful structural-NaN choice made in `6d096fe98`
-- [ ] D2/D3 confirmed (agent defaults stand unless objected)
+- [x] D2/D3: agent defaults applied (`std/math.isNaN`; `Value.Equal` keeps dedup semantics, `OpEq` no longer reaches it for composites)
 
 ## Solution Design
 
@@ -161,9 +161,9 @@ quorum is optional. D1 is a values call for Mark rather than a premise a reviewe
 ## Success Criteria
 
 - [x] D1 recorded in this doc
-- [ ] Every problem-table row agrees between the evaluator and the VM, and top-level/nested agree under the rule
-- [ ] `std/math.isNaN` exists and is taught
-- [ ] Mutation: reverting any one of the five paths fails the parity test
+- [x] Every problem-table row agrees between the evaluator and the VM, and top-level and nested cases agree (13-row parity test)
+- [x] `std/math.isNaN` exists (`x != x`, correct under IEEE) and is taught in the prompt row
+- [x] Mutation: reverting the dictionary, the structural comparator or the VM nested recursion each fails the parity test (the builtins and shim were already IEEE; they now route through `FloatEq` too)
 - [ ] `make test-core`, `verify-examples-toplevel` green; CHANGELOG entry names the behavior change
 
 ## Non-Goals
