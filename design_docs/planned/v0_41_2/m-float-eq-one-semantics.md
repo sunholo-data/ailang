@@ -1,6 +1,6 @@
 # M-FLOAT-EQ-ONE-SEMANTICS — one answer to `NaN == NaN`, on every path
 
-**Status**: Planned. **Blocked on design freeze (D1).**
+**Status**: Planned. Design frozen: **D1 = (A) IEEE**, Mark 2026-09-25.
 **Target**: v0.41.2
 **Priority**: P1. It is a correctness bug: the same comparison answers differently depending on
 how the compiler lowered it
@@ -64,7 +64,7 @@ backends, bare or nested in a container.
 
 | Decision | Why High Impact | Chosen By | Deadline | Change Cost |
 |----------|-----------------|-----------|----------|-------------|
-| **D1: IEEE or lawful?** | Observable semantics of every float comparison | **human** | before sprint | med (flip later = same work again) |
+| **D1: IEEE or lawful?** → **IEEE (Mark, 2026-09-25)** | Observable semantics of every float comparison | **human** | decided | med (flip later = same work again) |
 | D2: Add `std/math.isNaN` | Only way to test for NaN under a lawful rule; convenience under IEEE | agent | sprint | low |
 | D3: Keep `Value.Equal`'s NaN==NaN for constant-pool dedup, but stop OpEq reaching it for nested floats | Dedup is a legitimate separate use | agent | sprint | low |
 
@@ -83,7 +83,7 @@ backends, bare or nested in a container.
 
 ### Design Freeze
 
-- [ ] D1 decided by Mark (A recommended)
+- [x] D1 decided by Mark, 2026-09-25: **(A) IEEE everywhere**. `NaN == NaN` is false and `NaN != NaN` is true, bare or nested. This reverts the lawful structural-NaN choice made in `6d096fe98`
 - [ ] D2/D3 confirmed (agent defaults stand unless objected)
 
 ## Solution Design
@@ -160,7 +160,7 @@ quorum is optional. D1 is a values call for Mark rather than a premise a reviewe
 
 ## Success Criteria
 
-- [ ] D1 recorded in this doc
+- [x] D1 recorded in this doc
 - [ ] Every problem-table row agrees between the evaluator and the VM, and top-level/nested agree under the rule
 - [ ] `std/math.isNaN` exists and is taught
 - [ ] Mutation: reverting any one of the five paths fails the parity test
