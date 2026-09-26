@@ -79,6 +79,34 @@ type ExecuteOptions struct {
 
 	// Plugins for per-agent third-party plugin installation (M-CLOUD-PLUGIN-SKILLS, v0.9.1).
 	Plugins *PluginsConfig
+
+	// RetryBaseDelay is the base delay for ExecuteWithRetry's exponential backoff
+	// (M-COORDINATOR-TEST-PARALLELISM). Set explicitly by DefaultExecuteOptions;
+	// there is deliberately no zero-value fallback (FIX 2).
+	RetryBaseDelay time.Duration
+
+	// Wait is the cancellable backoff wait seam used by ExecuteWithRetry
+	// (M-COORDINATOR-TEST-PARALLELISM). It must return ctx.Err() when the
+	// context is cancelled mid-wait so backoff stays cancellable in production
+	// (defaultWait). Set explicitly by DefaultExecuteOptions.
+	Wait func(ctx context.Context, d time.Duration) error
+}
+
+// defaultWait is the production-default backoff wait: it sleeps for d but
+// returns ctx.Err() as soon as the context is cancelled, so a cancelled
+// context is noticed immediately rather than after the full delay. This
+// preserves the pre-injection cancellable semantics of the original
+// `select { case <-time.After(delay): case <-ctx.Done(): }` (M-COORDINATOR-
+// TEST-PARALLELISM, FIX 1).
+func defaultWait(ctx context.Context, d time.Duration) error {
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-t.C:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 // ObservatoryContext holds context for linking traces to coordinator entities.
@@ -98,8 +126,10 @@ type ObservatoryContext struct {
 // DefaultExecuteOptions returns sensible defaults
 func DefaultExecuteOptions() *ExecuteOptions {
 	return &ExecuteOptions{
-		Timeout: 5 * time.Minute,
-		DryRun:  false,
+		Timeout:        5 * time.Minute,
+		DryRun:         false,
+		RetryBaseDelay: time.Second,
+		Wait:           defaultWait,
 	}
 }
 

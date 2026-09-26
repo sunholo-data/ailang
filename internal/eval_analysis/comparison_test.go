@@ -3,6 +3,8 @@ package eval_analysis
 import (
 	"testing"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/eval_harness"
 )
 
 func TestCompare(t *testing.T) {
@@ -16,22 +18,22 @@ func TestCompare(t *testing.T) {
 		{
 			name:     "empty baseline",
 			baseline: []*BenchmarkResult{},
-			new:      []*BenchmarkResult{{ID: "test", Lang: "ailang", Model: "claude"}},
+			new:      []*BenchmarkResult{{RunMetrics: eval_harness.RunMetrics{ID: "test", Lang: "ailang", Model: "claude"}}},
 			wantErr:  true,
 		},
 		{
 			name:     "empty new",
-			baseline: []*BenchmarkResult{{ID: "test", Lang: "ailang", Model: "claude"}},
+			baseline: []*BenchmarkResult{{RunMetrics: eval_harness.RunMetrics{ID: "test", Lang: "ailang", Model: "claude"}}},
 			new:      []*BenchmarkResult{},
 			wantErr:  true,
 		},
 		{
 			name: "fixed benchmark",
 			baseline: []*BenchmarkResult{
-				{ID: "test1", Lang: "ailang", Model: "claude", StdoutOk: false, Timestamp: time.Now()},
+				{RunMetrics: eval_harness.RunMetrics{ID: "test1", Lang: "ailang", Model: "claude", CompileOk: true, RuntimeOk: true, StdoutOk: false, Timestamp: time.Now()}},
 			},
 			new: []*BenchmarkResult{
-				{ID: "test1", Lang: "ailang", Model: "claude", StdoutOk: true, Timestamp: time.Now()},
+				{RunMetrics: eval_harness.RunMetrics{ID: "test1", Lang: "ailang", Model: "claude", CompileOk: true, RuntimeOk: true, StdoutOk: true, Timestamp: time.Now()}},
 			},
 			wantErr: false,
 			checkFn: func(t *testing.T, report *ComparisonReport) {
@@ -49,10 +51,10 @@ func TestCompare(t *testing.T) {
 		{
 			name: "broken benchmark",
 			baseline: []*BenchmarkResult{
-				{ID: "test1", Lang: "ailang", Model: "claude", StdoutOk: true, Timestamp: time.Now()},
+				{RunMetrics: eval_harness.RunMetrics{ID: "test1", Lang: "ailang", Model: "claude", CompileOk: true, RuntimeOk: true, StdoutOk: true, Timestamp: time.Now()}},
 			},
 			new: []*BenchmarkResult{
-				{ID: "test1", Lang: "ailang", Model: "claude", StdoutOk: false, ErrorCategory: "compile_error", Timestamp: time.Now()},
+				{RunMetrics: eval_harness.RunMetrics{ID: "test1", Lang: "ailang", Model: "claude", CompileOk: true, RuntimeOk: true, StdoutOk: false, ErrorCategory: "compile_error", Timestamp: time.Now()}},
 			},
 			wantErr: false,
 			checkFn: func(t *testing.T, report *ComparisonReport) {
@@ -70,10 +72,10 @@ func TestCompare(t *testing.T) {
 		{
 			name: "still passing",
 			baseline: []*BenchmarkResult{
-				{ID: "test1", Lang: "ailang", Model: "claude", StdoutOk: true, Timestamp: time.Now()},
+				{RunMetrics: eval_harness.RunMetrics{ID: "test1", Lang: "ailang", Model: "claude", CompileOk: true, RuntimeOk: true, StdoutOk: true, Timestamp: time.Now()}},
 			},
 			new: []*BenchmarkResult{
-				{ID: "test1", Lang: "ailang", Model: "claude", StdoutOk: true, Timestamp: time.Now()},
+				{RunMetrics: eval_harness.RunMetrics{ID: "test1", Lang: "ailang", Model: "claude", CompileOk: true, RuntimeOk: true, StdoutOk: true, Timestamp: time.Now()}},
 			},
 			wantErr: false,
 			checkFn: func(t *testing.T, report *ComparisonReport) {
@@ -88,10 +90,10 @@ func TestCompare(t *testing.T) {
 		{
 			name: "still failing",
 			baseline: []*BenchmarkResult{
-				{ID: "test1", Lang: "ailang", Model: "claude", StdoutOk: false, ErrorCategory: "compile_error", Timestamp: time.Now()},
+				{RunMetrics: eval_harness.RunMetrics{ID: "test1", Lang: "ailang", Model: "claude", CompileOk: true, RuntimeOk: true, StdoutOk: false, ErrorCategory: "compile_error", Timestamp: time.Now()}},
 			},
 			new: []*BenchmarkResult{
-				{ID: "test1", Lang: "ailang", Model: "claude", StdoutOk: false, ErrorCategory: "compile_error", Timestamp: time.Now()},
+				{RunMetrics: eval_harness.RunMetrics{ID: "test1", Lang: "ailang", Model: "claude", CompileOk: true, RuntimeOk: true, StdoutOk: false, ErrorCategory: "compile_error", Timestamp: time.Now()}},
 			},
 			wantErr: false,
 			checkFn: func(t *testing.T, report *ComparisonReport) {
@@ -103,11 +105,11 @@ func TestCompare(t *testing.T) {
 		{
 			name: "new benchmark added",
 			baseline: []*BenchmarkResult{
-				{ID: "test1", Lang: "ailang", Model: "claude", StdoutOk: true, Timestamp: time.Now()},
+				{RunMetrics: eval_harness.RunMetrics{ID: "test1", Lang: "ailang", Model: "claude", CompileOk: true, RuntimeOk: true, StdoutOk: true, Timestamp: time.Now()}},
 			},
 			new: []*BenchmarkResult{
-				{ID: "test1", Lang: "ailang", Model: "claude", StdoutOk: true, Timestamp: time.Now()},
-				{ID: "test2", Lang: "ailang", Model: "claude", StdoutOk: false, Timestamp: time.Now()},
+				{RunMetrics: eval_harness.RunMetrics{ID: "test1", Lang: "ailang", Model: "claude", CompileOk: true, RuntimeOk: true, StdoutOk: true, Timestamp: time.Now()}},
+				{RunMetrics: eval_harness.RunMetrics{ID: "test2", Lang: "ailang", Model: "claude", CompileOk: true, RuntimeOk: true, StdoutOk: false, Timestamp: time.Now()}},
 			},
 			wantErr: false,
 			checkFn: func(t *testing.T, report *ComparisonReport) {
@@ -119,11 +121,11 @@ func TestCompare(t *testing.T) {
 		{
 			name: "benchmark removed",
 			baseline: []*BenchmarkResult{
-				{ID: "test1", Lang: "ailang", Model: "claude", StdoutOk: true, Timestamp: time.Now()},
-				{ID: "test2", Lang: "ailang", Model: "claude", StdoutOk: true, Timestamp: time.Now()},
+				{RunMetrics: eval_harness.RunMetrics{ID: "test1", Lang: "ailang", Model: "claude", CompileOk: true, RuntimeOk: true, StdoutOk: true, Timestamp: time.Now()}},
+				{RunMetrics: eval_harness.RunMetrics{ID: "test2", Lang: "ailang", Model: "claude", CompileOk: true, RuntimeOk: true, StdoutOk: true, Timestamp: time.Now()}},
 			},
 			new: []*BenchmarkResult{
-				{ID: "test1", Lang: "ailang", Model: "claude", StdoutOk: true, Timestamp: time.Now()},
+				{RunMetrics: eval_harness.RunMetrics{ID: "test1", Lang: "ailang", Model: "claude", CompileOk: true, RuntimeOk: true, StdoutOk: true, Timestamp: time.Now()}},
 			},
 			wantErr: false,
 			checkFn: func(t *testing.T, report *ComparisonReport) {
@@ -135,14 +137,14 @@ func TestCompare(t *testing.T) {
 		{
 			name: "mixed results - multiple models",
 			baseline: []*BenchmarkResult{
-				{ID: "test1", Lang: "ailang", Model: "claude", StdoutOk: false, Timestamp: time.Now()},
-				{ID: "test1", Lang: "ailang", Model: "gpt5", StdoutOk: true, Timestamp: time.Now()},
-				{ID: "test2", Lang: "ailang", Model: "claude", StdoutOk: true, Timestamp: time.Now()},
+				{RunMetrics: eval_harness.RunMetrics{ID: "test1", Lang: "ailang", Model: "claude", CompileOk: true, RuntimeOk: true, StdoutOk: false, Timestamp: time.Now()}},
+				{RunMetrics: eval_harness.RunMetrics{ID: "test1", Lang: "ailang", Model: "gpt5", CompileOk: true, RuntimeOk: true, StdoutOk: true, Timestamp: time.Now()}},
+				{RunMetrics: eval_harness.RunMetrics{ID: "test2", Lang: "ailang", Model: "claude", CompileOk: true, RuntimeOk: true, StdoutOk: true, Timestamp: time.Now()}},
 			},
 			new: []*BenchmarkResult{
-				{ID: "test1", Lang: "ailang", Model: "claude", StdoutOk: true, Timestamp: time.Now()}, // Fixed!
-				{ID: "test1", Lang: "ailang", Model: "gpt5", StdoutOk: false, Timestamp: time.Now()},  // Broken!
-				{ID: "test2", Lang: "ailang", Model: "claude", StdoutOk: true, Timestamp: time.Now()}, // Still passing
+				{RunMetrics: eval_harness.RunMetrics{ID: "test1", Lang: "ailang", Model: "claude", CompileOk: true, RuntimeOk: true, StdoutOk: true, Timestamp: time.Now()}}, // Fixed!
+				{RunMetrics: eval_harness.RunMetrics{ID: "test1", Lang: "ailang", Model: "gpt5", CompileOk: true, RuntimeOk: true, StdoutOk: false, Timestamp: time.Now()}},  // Broken!
+				{RunMetrics: eval_harness.RunMetrics{ID: "test2", Lang: "ailang", Model: "claude", CompileOk: true, RuntimeOk: true, StdoutOk: true, Timestamp: time.Now()}}, // Still passing
 			},
 			wantErr: false,
 			checkFn: func(t *testing.T, report *ComparisonReport) {
@@ -183,8 +185,8 @@ func TestBuildResultMap(t *testing.T) {
 	older := now.Add(-1 * time.Hour)
 
 	results := []*BenchmarkResult{
-		{ID: "test1", Lang: "ailang", Model: "claude", StdoutOk: true, Timestamp: older},
-		{ID: "test1", Lang: "ailang", Model: "claude", StdoutOk: false, Timestamp: now}, // Newer, should win
+		{RunMetrics: eval_harness.RunMetrics{ID: "test1", Lang: "ailang", Model: "claude", CompileOk: true, RuntimeOk: true, StdoutOk: true, Timestamp: older}},
+		{RunMetrics: eval_harness.RunMetrics{ID: "test1", Lang: "ailang", Model: "claude", CompileOk: true, RuntimeOk: true, StdoutOk: false, Timestamp: now}}, // Newer, should win
 	}
 
 	m := buildResultMap(results)
@@ -203,13 +205,13 @@ func TestBuildResultMap(t *testing.T) {
 
 func TestFindRegressions(t *testing.T) {
 	baseline := []*BenchmarkResult{
-		{ID: "test1", Lang: "ailang", Model: "claude", StdoutOk: true, Timestamp: time.Now()},
-		{ID: "test2", Lang: "ailang", Model: "claude", StdoutOk: true, Timestamp: time.Now()},
+		{RunMetrics: eval_harness.RunMetrics{ID: "test1", Lang: "ailang", Model: "claude", CompileOk: true, RuntimeOk: true, StdoutOk: true, Timestamp: time.Now()}},
+		{RunMetrics: eval_harness.RunMetrics{ID: "test2", Lang: "ailang", Model: "claude", CompileOk: true, RuntimeOk: true, StdoutOk: true, Timestamp: time.Now()}},
 	}
 
 	new := []*BenchmarkResult{
-		{ID: "test1", Lang: "ailang", Model: "claude", StdoutOk: false, ErrorCategory: "compile_error", Timestamp: time.Now()}, // Regression!
-		{ID: "test2", Lang: "ailang", Model: "claude", StdoutOk: true, Timestamp: time.Now()},
+		{RunMetrics: eval_harness.RunMetrics{ID: "test1", Lang: "ailang", Model: "claude", CompileOk: true, RuntimeOk: true, StdoutOk: false, ErrorCategory: "compile_error", Timestamp: time.Now()}}, // Regression!
+		{RunMetrics: eval_harness.RunMetrics{ID: "test2", Lang: "ailang", Model: "claude", CompileOk: true, RuntimeOk: true, StdoutOk: true, Timestamp: time.Now()}},
 	}
 
 	regressions, err := FindRegressions(baseline, new)
@@ -228,13 +230,13 @@ func TestFindRegressions(t *testing.T) {
 
 func TestFindImprovements(t *testing.T) {
 	baseline := []*BenchmarkResult{
-		{ID: "test1", Lang: "ailang", Model: "claude", StdoutOk: false, Timestamp: time.Now()},
-		{ID: "test2", Lang: "ailang", Model: "claude", StdoutOk: false, Timestamp: time.Now()},
+		{RunMetrics: eval_harness.RunMetrics{ID: "test1", Lang: "ailang", Model: "claude", CompileOk: true, RuntimeOk: true, StdoutOk: false, Timestamp: time.Now()}},
+		{RunMetrics: eval_harness.RunMetrics{ID: "test2", Lang: "ailang", Model: "claude", CompileOk: true, RuntimeOk: true, StdoutOk: false, Timestamp: time.Now()}},
 	}
 
 	new := []*BenchmarkResult{
-		{ID: "test1", Lang: "ailang", Model: "claude", StdoutOk: true, Timestamp: time.Now()}, // Fixed!
-		{ID: "test2", Lang: "ailang", Model: "claude", StdoutOk: false, Timestamp: time.Now()},
+		{RunMetrics: eval_harness.RunMetrics{ID: "test1", Lang: "ailang", Model: "claude", CompileOk: true, RuntimeOk: true, StdoutOk: true, Timestamp: time.Now()}}, // Fixed!
+		{RunMetrics: eval_harness.RunMetrics{ID: "test2", Lang: "ailang", Model: "claude", CompileOk: true, RuntimeOk: true, StdoutOk: false, Timestamp: time.Now()}},
 	}
 
 	improvements, err := FindImprovements(baseline, new)

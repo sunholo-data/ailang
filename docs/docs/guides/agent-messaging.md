@@ -45,7 +45,7 @@ Messages live in one of two places, and **by default `ailang messages` reads onl
 
 | Store | Selected by | Holds |
 |---|---|---|
-| **Canonical cloud** (prod Firestore, `ailang-multivac`) | `AILANG_MESSAGES_STORE=gcp` + `AILANG_MESSAGES_PROJECT=ailang-multivac` | public + package feedback, coordinator completions, cross-machine agent traffic |
+| **Canonical cloud** (prod Firestore, `ailang-multivac`) | `AILANG_STORAGE_MESSAGING=gcp` + `AILANG_MESSAGES_PROJECT=ailang-multivac` | public + package feedback, coordinator completions, cross-machine agent traffic |
 | **Local SQLite** (per-machine, private) | default | that machine's own agent inbox, sprint state |
 
 - **Local location**: `~/.ailang/state/collaboration.db`
@@ -58,14 +58,30 @@ AILANG work (the voightkampff Studio, cloud sessions, Claude Code managed runs, 
 laptop) should export the canonical store in its shell profile:
 
 ```bash
-export AILANG_MESSAGES_STORE=gcp
+export AILANG_STORAGE_MESSAGING=gcp
 export AILANG_MESSAGES_PROJECT=ailang-multivac
 ```
 
-**These are safe to export.** Unlike `AILANG_STORAGE` they are scoped to messaging and leave the
-coordinator and observatory backends (eval banking, `ailang chains`) on local storage — verify with
-`ailang storage status`, which must still report `Mode: local`. To read this machine's private inbox,
-override for one command: `AILANG_MESSAGES_STORE=local ailang messages list --unread`.
+**These are safe to export.** `AILANG_STORAGE_MESSAGING` is the per-store override of the ONE
+plane switch `AILANG_STORAGE=local|gcp|hybrid` (M-V1-SIMPLIFY-S3 M3; the siblings are
+`AILANG_STORAGE_COORDINATOR` and `AILANG_STORAGE_OBSERVATORY`). It moves messaging alone and
+leaves the coordinator and observatory backends (eval banking, `ailang chains`) on local storage —
+verify with `ailang storage status`, which prints one line per store with its mode, the variable
+it came from, and the path or project:
+
+```
+messaging    gcp    (AILANG_STORAGE_MESSAGING)  project ailang-multivac (AILANG_CLOUD_PROJECT)
+coordinator  local  (default)  ~/.ailang/state/coordinator.db
+observatory  local  (default)  ~/.ailang/state/observatory.db
+```
+
+To read this machine's private inbox, override for one command:
+`AILANG_STORAGE_MESSAGING=local ailang messages list --unread`.
+
+The scoped selector this replaced, `AILANG_MESSAGES_STORE`, is a **hard error** for one release
+(`AILANG_MESSAGES_STORE was removed in v1.0.0 …; set AILANG_STORAGE_MESSAGING=gcp`), as are
+`AILANG_COORDINATOR_REMOTE`, `AILANG_CHAINS_READ` and `AILANG_CHAINS_CLOUD`. A value that is now
+ignored must not look honoured.
 
 Any listing against a non-local store prints `store: gcp (Firestore, project ...)` in its header.
 Read it: an empty inbox and a read against the wrong project are otherwise indistinguishable, and
@@ -111,16 +127,17 @@ Measured 2026-08-25 against prod:
    silently drains the unread queue, so the next session sees an empty inbox and concludes
    nothing arrived. To inspect without acking, read the body out of `--json` instead.
 
-4. **A binary that predates the store selector ignores it SILENTLY.** `AILANG_MESSAGES_STORE`
-   landed in `6759ea4fa`; an older `ailang` on `PATH` does not merely fail to reach the cloud, it
-   accepts the variable, reads local SQLite, and exits 0 — so every trap above is unreachable and
-   the session believes it read the canonical store. The control is one command: a **deliberately
-   invalid** value must be REFUSED.
+4. **A binary that predates the store selector ignores it SILENTLY.** `AILANG_STORAGE_MESSAGING`
+   landed with M-V1-SIMPLIFY-S3 M3 (its predecessor `AILANG_MESSAGES_STORE` in `6759ea4fa`); an
+   older `ailang` on `PATH` does not merely fail to reach the cloud, it accepts the variable, reads
+   local SQLite, and exits 0 — so every trap above is unreachable and the session believes it read
+   the canonical store. The control is one command: a **deliberately invalid** value must be
+   REFUSED.
 
    ```bash
    ailang messages list --unread     # a store this does not name in its header is LOCAL
-   AILANG_MESSAGES_STORE=not-a-real-store ailang messages list --unread
-   # current binary: Error: openStore: unknown message store mode "not-a-real-store"
+   AILANG_STORAGE_MESSAGING=not-a-real-store ailang messages list --unread
+   # current binary: Error: invalid storage selection: AILANG_STORAGE_MESSAGING="not-a-real-store" (valid: local, gcp)
    # stale binary:   prints a normal listing, rc=0  <-- you are reading local, silently
    ```
 
@@ -140,7 +157,7 @@ Measured 2026-08-25 against prod:
 > Terraform, with the query itself:
 >
 > ```bash
-> AILANG_MESSAGES_STORE=gcp AILANG_MESSAGES_PROJECT=ailang-multivac ailang messages list --unread
+> AILANG_STORAGE_MESSAGING=gcp AILANG_MESSAGES_PROJECT=ailang-multivac ailang messages list --unread
 > ```
 >
 > rc=0 means the index is live; `FailedPrecondition` means it is declared and unapplied.
@@ -231,6 +248,29 @@ ailang messages send user "Add async/await syntax" \
 
 # The message is ALWAYS saved locally first
 # GitHub sync is optional and fails gracefully
+```
+
+### Automated Feedback (Advanced)
+
+Set up automatic feedback when your CI/CD detects AILANG issues:
+
+```bash
+#!/bin/bash
+# In your CI pipeline
+
+# Run AILANG tests
+if ! ailang run --caps IO --entry main tests/integration.ail 2>error.log; then
+    # Send failure report
+    ERROR=$(cat error.log | head -50)
+    VERSION=$(ailang --version)
+    OS=$(uname -a)
+
+    ailang messages send user "CI failure: $ERROR. Version: $VERSION, OS: $OS" \
+      --title "CI failure on $(git rev-parse --short HEAD)" \
+      --from "my-project-ci" \
+      --type bug \
+      --github
+fi
 ```
 
 ## CLI Commands
@@ -884,6 +924,5 @@ ailang msg send ...    # Same as: ailang messages send ...
 - [Coordinator Guide](/docs/guides/coordinator) - Message routing and task execution
 - [Semantic Search](/docs/guides/semantic-search) - Deep dive on SimHash and neural embeddings
 - [Semantic Caching vs Vector DBs](/docs/guides/semantic-caching-vs-vectordb) - When to use semantic caching
-- [Cross-Project Messaging](/docs/guides/cross-project-messaging) - Send feedback from your projects
 - [Agent Workflows](/docs/guides/agent-workflows) - Automated agent workflows
 - [State System](/docs/guides/state-system-workflow) - Persistent state management

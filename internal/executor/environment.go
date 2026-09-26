@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 )
 
@@ -149,7 +150,7 @@ func BuildEnvironment(opts EnvironmentOptions) []string {
 
 	// Configure OTEL exporter for trace collection
 	// Priority: parent env > default to local observatory server
-	endpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+	endpoint := config.OTLPEndpoint()
 	if endpoint == "" {
 		// Default to local observatory for unified trace collection
 		endpoint = "http://localhost:1957"
@@ -157,18 +158,20 @@ func BuildEnvironment(opts EnvironmentOptions) []string {
 	env = append(env, fmt.Sprintf("OTEL_EXPORTER_OTLP_ENDPOINT=%s", endpoint))
 
 	// Pass through OTEL protocol if set
-	if protocol := os.Getenv("OTEL_EXPORTER_OTLP_PROTOCOL"); protocol != "" {
+	if protocol := config.OTLPProtocol(); protocol != "" {
 		env = append(env, fmt.Sprintf("OTEL_EXPORTER_OTLP_PROTOCOL=%s", protocol))
 	}
 
 	// For GCP export, set the project.
-	// Priority: EnvironmentOptions override > OTLP_GOOGLE_CLOUD_PROJECT > GOOGLE_CLOUD_PROJECT
+	// Priority: EnvironmentOptions override > OTLP_GOOGLE_CLOUD_PROJECT >
+	// config.CloudProject (the one resolver; no project is fine here, the
+	// exporter then stays unconfigured).
 	project := opts.GCPProject
 	if project == "" {
-		project = os.Getenv("OTLP_GOOGLE_CLOUD_PROJECT")
+		project = config.TraceProjectOverride()
 	}
 	if project == "" {
-		project = os.Getenv("GOOGLE_CLOUD_PROJECT")
+		project, _ = config.CloudProject(context.Background())
 	}
 	if project != "" {
 		env = UpdateEnvVar(env, "GOOGLE_CLOUD_PROJECT", project)
@@ -178,7 +181,7 @@ func BuildEnvironment(opts EnvironmentOptions) []string {
 	// GCP location override (e.g. us-central1, europe-west1)
 	location := opts.GCPLocation
 	if location == "" {
-		location = os.Getenv("GOOGLE_CLOUD_LOCATION")
+		location = config.GoogleCloudLocation()
 	}
 	if location != "" {
 		env = UpdateEnvVar(env, "GOOGLE_CLOUD_LOCATION", location)
@@ -196,7 +199,7 @@ func BuildEnvironment(opts EnvironmentOptions) []string {
 		env = append(env, "GEMINI_TELEMETRY_ENABLED=true")
 
 		// Set telemetry target based on available configuration
-		if target := os.Getenv("GEMINI_TELEMETRY_TARGET"); target != "" {
+		if target := config.GeminiTelemetryTarget(); target != "" {
 			env = append(env, fmt.Sprintf("GEMINI_TELEMETRY_TARGET=%s", target))
 		} else if project != "" {
 			env = append(env, "GEMINI_TELEMETRY_TARGET=gcp")
@@ -213,7 +216,7 @@ func BuildResourceAttributes(task *Task, sessionID string) string {
 	attrs := make(map[string]string)
 
 	// 1. Start with existing environment attributes (preserve user settings)
-	if existing := os.Getenv("OTEL_RESOURCE_ATTRIBUTES"); existing != "" {
+	if existing := config.OTELResourceAttributes(); existing != "" {
 		for _, pair := range strings.Split(existing, ",") {
 			parts := strings.SplitN(pair, "=", 2)
 			if len(parts) == 2 {

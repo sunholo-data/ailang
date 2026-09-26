@@ -72,15 +72,6 @@ func registerRoutingFlags(fs *flag.FlagSet) *routingFlagSet {
 	}
 }
 
-// routingFlagNames returns the bare flag names for normalizeArgsForFlags.
-// Kept in this file so callers don't have to repeat the list.
-func routingFlagNames() []string {
-	return []string{
-		"routing-fallback", "routing-require", "routing-prefer",
-		"routing-max-price", "allow-routing",
-	}
-}
-
 // buildRoutingPolicy assembles an *ai.AIRoutingPolicy from the four routing
 // CLI flags. Returns (nil, nil) when all flags are empty (no policy).
 //

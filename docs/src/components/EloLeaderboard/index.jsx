@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { benchmarkFetch } from '@site/src/lib/benchmarkFetch';
+import { benchmarkFetchWithSource } from '@site/src/lib/benchmarkFetch';
 import { ELO_COVERAGE_FRACTION } from '@site/src/components/BenchmarkDashboard/coverageGate';
 import DataProvenance from '../DataProvenance';
 
@@ -91,10 +91,14 @@ export default function EloLeaderboard() {
   const [error, setError] = useState(null);
   const [mode, setMode] = useState('standard');
   const [lang, setLang] = useState('combined');
+  const [dataSource, setDataSource] = useState(null);
 
   useEffect(() => {
-    benchmarkFetch('latest.json')
-      .then((r) => r.json())
+    benchmarkFetchWithSource('latest.json')
+      .then(({ response, source }) => {
+        setDataSource(source);
+        return response.json();
+      })
       .then(setData)
       .catch((e) => setError(e.message));
   }, []);
@@ -167,7 +171,7 @@ export default function EloLeaderboard() {
 
   return (
     <div>
-      <DataProvenance version={data?.version} timestamp={data?.timestamp} />
+      <DataProvenance version={data?.version} timestamp={data?.timestamp} source={dataSource} />
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
         {modes.map((m) => (
           <button key={m} style={btn(m === activeMode)} onClick={() => setMode(m)}>

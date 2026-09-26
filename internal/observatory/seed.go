@@ -84,7 +84,7 @@ func SeedDatabase(ctx context.Context, backend Backend, cfg SeedConfig) (*SeedRe
 	models := map[Provider][]string{
 		ProviderClaude: {"claude-sonnet-4-6", "claude-haiku-4-5", "claude-opus-4-6"},
 		ProviderGemini: {"gemini-2-5-pro", "gemini-2-5-flash"},
-		ProviderOllama: {"llama3", "codellama"},
+		ProviderOllama: {"motoko-local-qwen3-5-35b-a3b-mxfp8"}, // a real $0 registry row, not an invented name
 	}
 	spanNames := []string{
 		"ailang.exec", "ailang.check", "ailang run: main.ail",
@@ -234,8 +234,12 @@ func SeedDatabase(ctx context.Context, backend Backend, cfg SeedConfig) (*SeedRe
 					tokensIn := int64(rng.Intn(4000) + 100)
 					tokensOut := int64(rng.Intn(2000) + 50)
 
-					// Calculate realistic cost based on model
-					costUSD := calculateSeedCost(model, tokensIn, tokensOut)
+					// Seed rows are priced by the same registry as real rows, so a
+					// seeded dashboard shows the numbers production would.
+					costUSD, err := calculateSeedCost(model, tokensIn, tokensOut)
+					if err != nil {
+						return result, err
+					}
 
 					span := &Span{
 						ID:                spanID,
@@ -375,27 +379,16 @@ func randomEventName(rng *rand.Rand) string {
 	return names[rng.Intn(len(names))]
 }
 
-func calculateSeedCost(model string, tokensIn, tokensOut int64) float64 {
-	// Simplified cost calculation for seed data
-	// Real costs would come from models.yml
-	rates := map[string]struct{ in, out float64 }{
-		"claude-sonnet-4-6": {3.0, 15.0},
-		"claude-sonnet-4-5": {3.0, 15.0},
-		"claude-haiku-4-5":  {0.25, 1.25},
-		"claude-opus-4-6":   {5.0, 25.0},
-		"claude-opus-4":     {15.0, 75.0},
-		"gemini-2-5-pro":    {1.25, 5.0},
-		"gemini-2-5-flash":  {0.075, 0.3},
-		"llama3":            {0.0, 0.0},
-		"codellama":         {0.0, 0.0},
+// calculateSeedCost prices a seed span through the model registry. Until
+// 2026-09-15 this was a private per-million rate map that had drifted from
+// models.yml (it still carried Haiku 3.5's $0.25/$1.25 for claude-haiku-4-5 and
+// gemini-2-5-flash at a quarter of its registry rate). A seed model the registry
+// does not know is an error, not $0: the seed lists above must name real rows
+// or the seeded dashboard is exercising nothing.
+func calculateSeedCost(model string, tokensIn, tokensOut int64) (float64, error) {
+	cost, err := PriceTokens(model, tokensIn, tokensOut, 0, 0)
+	if err != nil {
+		return 0, fmt.Errorf("seed model %q cannot be priced: %w", model, err)
 	}
-
-	rate, ok := rates[model]
-	if !ok {
-		return 0.0
-	}
-
-	inCost := float64(tokensIn) / 1_000_000.0 * rate.in
-	outCost := float64(tokensOut) / 1_000_000.0 * rate.out
-	return inCost + outCost
+	return cost, nil
 }

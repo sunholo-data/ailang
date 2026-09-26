@@ -147,6 +147,27 @@ type Backend interface {
 	GetStage(ctx context.Context, id string) (*ChainStage, error)
 	GetChainStages(ctx context.Context, chainID string, opts ChainReadOptions) ([]*ChainStage, error)
 	UpdateStageStatus(ctx context.Context, stageID string, status ChainStageStatus) error
+
+	// Idempotent finalisation writes (M-COMPLETION-PATH-PARITY M0b).
+	//
+	// Task finalisation is replayed — Pub/Sub push is at-least-once — so it needs
+	// writes that are safe to apply twice. The Update* family above is not: the
+	// metrics accumulate, UpdateStageStatus increments the chain's
+	// stages_completed counter, and UpdateStageError increments error_count.
+	// These absolute-write counterparts exist for that path; the accumulating
+	// ones keep their semantics for importers and evaluators.
+	SetStageStatus(ctx context.Context, stageID string, status ChainStageStatus) error
+	SetStageMetrics(ctx context.Context, stageID string, cost float64, tokensIn, tokensOut, turns, toolCalls int, durationMs int64, costProvenance string) error
+	SetStageError(ctx context.Context, stageID, errorMessage string) error
+	// RecomputeChainAggregates derives a chain's totals and stages_completed from
+	// its stage rows, so the value does not depend on who writes it or how often.
+	RecomputeChainAggregates(ctx context.Context, chainID string) error
+
+	// Chain reconciliation (M-COMPLETION-PATH-PARITY M4). A chain whose stages
+	// have all finished but which is still "active" can never progress; it is
+	// marked abandoned with a reason rather than given a verdict nobody observed.
+	FindStrandedChains(ctx context.Context, minAge time.Duration) ([]StrandedChain, error)
+	AbandonChain(ctx context.Context, chainID, reason string) error
 	UpdateStageSession(ctx context.Context, stageID, sessionID string) error
 	UpdateStageApproval(ctx context.Context, stageID string, status ApprovalStatus, approvalType ApprovalType, feedback string) error
 	// UpdateStageMetrics accumulates a stage's denormalized metrics.
@@ -161,6 +182,12 @@ type Backend interface {
 	// the cost classifier cannot resolve a rate cloud-side (M-MISSION-LOOP-UNIFIED-
 	// TELEMETRY M3).
 	UpdateStageEvalAssessment(ctx context.Context, stageID string, assessment *EvalAssessment) error
+	// UpdateStageQuotaTokens records SUBSCRIPTION token spend, which cannot ride on
+	// UpdateStageMetrics: the cost estimator reads `tokens > 0` as "metered", so a
+	// quota lane's real count in tokens_in/out would be priced as if it were billed
+	// (M-QUOTA-RATIONING-ROUTING M2). On the interface for the same reason as
+	// UpdateStageEvalAssessment — a remote-posted iteration must carry it too.
+	UpdateStageQuotaTokens(ctx context.Context, stageID string, tokens int64) error
 	GetSpansByStageID(ctx context.Context, stageID string) ([]*Span, error)
 	// GetSpanLitesByStageID returns lightweight spans without attributes (M-PERF-OBSERVATORY).
 	GetSpanLitesByStageID(ctx context.Context, stageID string, limit, offset int) (*SpanLitePage, error)

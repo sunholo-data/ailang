@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/eval_harness"
@@ -31,5 +32,36 @@ func TestBuildOSLeaderboardJSON_EmbedsAilangVersion(t *testing.T) {
 	rows, ok := out["rows"].([]interface{})
 	if !ok || len(rows) != 1 {
 		t.Fatalf("rows = %v, want 1 model row", out["rows"])
+	}
+}
+
+// The D2 boundary note (M-V1-SIMPLIFY-S3 M1) must ride inside the published
+// JSON, dated, so the pass-predicate change is visible next to the numbers it
+// qualifies rather than in a gitignored caveats file.
+func TestBuildOSLeaderboardJSON_CarriesDataNotes(t *testing.T) {
+	current := map[string]eval_harness.BenchmarkSummary{
+		"fizzbuzz|opencode-qwen3-6|ailang": {Model: "opencode-qwen3-6", Lang: "ailang", Passed: 2, Trials: 3},
+	}
+	data, err := buildOSLeaderboardJSON("rolling-20260915", "v0.38.8", current)
+	if err != nil {
+		t.Fatalf("buildOSLeaderboardJSON: %v", err)
+	}
+	var out struct {
+		Notes []OSDataNote `json:"notes"`
+	}
+	if err := json.Unmarshal(data, &out); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if len(out.Notes) == 0 {
+		t.Fatal("notes missing from OS leaderboard JSON")
+	}
+	d2 := out.Notes[0]
+	if d2.Date != "2026-09-15" || d2.Ref == "" || d2.Text == "" {
+		t.Errorf("D2 note incomplete: %+v", d2)
+	}
+	for _, want := range []string{"compile_ok && runtime_ok && stdout_ok", "print_missing_effect", "-0.12pp"} {
+		if !strings.Contains(d2.Text, want) {
+			t.Errorf("D2 note text missing %q", want)
+		}
 	}
 }

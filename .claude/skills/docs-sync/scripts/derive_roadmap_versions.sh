@@ -157,6 +157,7 @@ fi
 # ============================================
 # SUMMARY STATISTICS
 # ============================================
+# Scope: these totals count feature design docs while excluding sprint plans, and they intentionally need not match audit_design_docs.sh totals, which include every Markdown file in the lifecycle directories.
 if $JSON_OUTPUT; then
     # Count planned vs implemented
     planned_count=$(find "$PROJECT_ROOT/design_docs/planned" -name "*.md" 2>/dev/null | grep -v sprint | wc -l | tr -d ' ')

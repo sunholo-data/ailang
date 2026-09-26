@@ -9,15 +9,12 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/modelreg"
 	"os"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ai"
-	"github.com/sunholo-data/ailang/internal/ai/anthropic"
-	"github.com/sunholo-data/ailang/internal/ai/gemini"
-	"github.com/sunholo-data/ailang/internal/ai/ollama"
-	"github.com/sunholo-data/ailang/internal/ai/openai"
-	"github.com/sunholo-data/ailang/internal/ai/openrouter"
+	"github.com/sunholo-data/ailang/internal/ai/factory"
 	"github.com/sunholo-data/ailang/internal/effects"
 	"github.com/sunholo-data/ailang/internal/eval_harness"
 )
@@ -76,7 +73,7 @@ func setupAIHandler(effCtx *effects.EffContext, aiStub bool, aiModel string, rou
 	}
 
 	// Look up model in config
-	model, err := eval_harness.GlobalModelsConfig.GetModel(aiModel)
+	model, err := modelreg.GlobalModelsConfig.GetModel(aiModel)
 	if err != nil {
 		// Model not in config - try direct usage with guessed provider
 		return setupAIHandlerDirect(effCtx, aiModel, routingPolicy, attr)
@@ -88,11 +85,8 @@ func setupAIHandler(effCtx *effects.EffContext, aiStub bool, aiModel string, rou
 // setupAIHandlerFromConfig configures the AI effect handler from a resolved
 // models.yml entry. Extracted from setupAIHandler so tests can drive the
 // dispatch path (built-in switch + config-driven registry default) without
-// going through eval_harness.GlobalModelsConfig.
+// going through modelreg.GlobalModelsConfig.
 func setupAIHandlerFromConfig(effCtx *effects.EffContext, model *eval_harness.ModelConfig, aiModel string, routingPolicy *ai.AIRoutingPolicy, attr *ai.Attribution) error {
-	// Get API key from environment (may be empty for Google ADC)
-	apiKey := os.Getenv(model.EnvVar)
-
 	// Build handler options from model config
 	var opts []ai.HandlerOption
 	if model.MaxOutputTokens > 0 {
@@ -105,73 +99,43 @@ func setupAIHandlerFromConfig(effCtx *effects.EffContext, model *eval_harness.Mo
 		opts = append(opts, ai.WithAttribution(attr))
 	}
 
-	// Create handler based on provider using unified ai package
-	var handler effects.AIHandler
-	switch ai.ProviderFromString(model.Provider) {
-	case ai.ProviderAnthropic:
-		if apiKey == "" {
-			return fmt.Errorf("%s environment variable required for model %s", model.EnvVar, aiModel)
+	// One factory resolves the credential (from the model's env_var), the
+	// endpoint and the lane; built-ins win over a same-named [[ai_provider]]
+	// block (M-AI-PROVIDER-CONFIG D4).
+	client, err := factory.New(model.Provider,
+		factory.WithAPIKeyEnv(model.EnvVar),
+		factory.WithConfigDriven(LookupConfigDrivenProvider))
+	if err != nil {
+		if names := ai.GlobalProviderRegistry.Names(); len(names) > 0 {
+			return fmt.Errorf("%w (model %s; config-driven providers: %v)", err, aiModel, names)
 		}
-		client := anthropic.NewClient(apiKey)
-		handler = client.NewHandler(model.APIName, opts...)
-
-	case ai.ProviderOpenAI:
-		customBaseURL := strings.TrimSpace(os.Getenv("OPENAI_BASE_URL"))
-		if apiKey == "" && customBaseURL == "" {
-			return fmt.Errorf("%s environment variable required for model %s (or set OPENAI_BASE_URL for a custom unauthenticated endpoint)", model.EnvVar, aiModel)
-		}
-		var clientOpts []openai.ClientOption
-		if customBaseURL != "" {
-			clientOpts = append(clientOpts, openai.WithBaseURL(customBaseURL))
-		}
-		client := openai.NewClient(apiKey, clientOpts...)
-		handler = client.NewHandler(model.APIName, opts...)
-
-	case ai.ProviderGoogle:
-		// Precedence: ADC first (if available), then GOOGLE_API_KEY.
-		// Many users have GOOGLE_API_KEY set for other tools but prefer ADC
-		// for Vertex AI access. Try ADC silently first; fall back to API key.
-		if client, err := gemini.NewVertexAIClient(""); err == nil {
-			fmt.Fprintf(os.Stderr, "AI: Using Vertex AI (ADC)\n")
-			handler = client.NewHandler(model.APIName, opts...)
-		} else if apiKey != "" {
-			fmt.Fprintf(os.Stderr, "AI: Using Google AI Studio (GOOGLE_API_KEY)\n")
-			client := gemini.NewClient(apiKey)
-			handler = client.NewHandler(model.APIName, opts...)
-		} else {
-			return fmt.Errorf("Gemini auth failed: Application Default Credentials (ADC) not configured, and GOOGLE_API_KEY is not set.\n"+
-				"  Option 1: gcloud auth application-default login  (recommended, for Vertex AI)\n"+
-				"  Option 2: export GOOGLE_API_KEY=<key>  (get one at https://aistudio.google.com/apikey)\n"+
-				"  ADC error: %w", err)
-		}
-
-	case ai.ProviderOllama:
-		// Ollama is local, no API key needed
-		client, err := ollama.NewClient()
-		if err != nil {
-			return fmt.Errorf("failed to create Ollama client: %w", err)
-		}
-		// Check connection before proceeding
-		if err := client.CheckConnection(context.Background()); err != nil {
-			return err
-		}
-		handler = client.NewHandler(model.APIName, opts...)
-
-	default:
-		// M-AI-PROVIDER-CONFIG: consult the config-driven provider registry.
-		// Built-in dispatch above wins on collision (D4).
-		if cd := LookupConfigDrivenProvider(model.Provider); cd != nil {
-			handler = ai.NewHandler(cd, model.APIName, opts...)
-		} else {
-			names := ai.GlobalProviderRegistry.Names()
-			if len(names) > 0 {
-				return fmt.Errorf("unsupported AI provider: %q (built-in: openai, anthropic, gemini, ollama, openrouter; config-driven: %v)", model.Provider, names)
-			}
-			return fmt.Errorf("unsupported AI provider: %s", model.Provider)
-		}
+		return fmt.Errorf("%w (model %s)", err, aiModel)
+	}
+	if err := readyForCalls(client); err != nil {
+		return err
 	}
 
+	handler := ai.NewHandler(client.Provider, model.APIName, opts...)
 	effCtx.AI = effects.NewAIContext(handler).WithModelResolver(makeModelResolver(model.Provider))
+	return nil
+}
+
+// readyForCalls announces the Google lane (so an operator with both ADC and
+// a key knows which one is billing) and probes a local ollama daemon before
+// the first call, so a stopped daemon reads as "Ollama not running", not as a
+// mid-program AI error.
+func readyForCalls(client *factory.Client) error {
+	switch client.Lane {
+	case factory.LaneADC:
+		fmt.Fprintf(os.Stderr, "AI: Using Vertex AI (ADC)\n")
+	case factory.LaneAPIKey:
+		if client.Type == ai.ProviderGoogle {
+			fmt.Fprintf(os.Stderr, "AI: Using Google AI Studio (GOOGLE_API_KEY)\n")
+		}
+	}
+	if probe, ok := client.Provider.(interface{ CheckConnection(context.Context) error }); ok {
+		return probe.CheckConnection(context.Background())
+	}
 	return nil
 }
 
@@ -222,83 +186,30 @@ func setupAIHandlerDirect(effCtx *effects.EffContext, modelName string, routingP
 		opts = append(opts, ai.WithAttribution(attr))
 	}
 
-	var handler effects.AIHandler
-
-	switch provider {
-	case ai.ProviderAnthropic:
-		apiKey := os.Getenv("ANTHROPIC_API_KEY")
-		if apiKey == "" {
-			return fmt.Errorf("ANTHROPIC_API_KEY environment variable required")
-		}
-		client := anthropic.NewClient(apiKey)
-		handler = client.NewHandler(modelName, opts...)
-
-	case ai.ProviderOpenAI:
-		apiKey := os.Getenv("OPENAI_API_KEY")
-		if apiKey == "" {
-			return fmt.Errorf("OPENAI_API_KEY environment variable required")
-		}
-		client := openai.NewClient(apiKey)
-		handler = client.NewHandler(modelName, opts...)
-
-	case ai.ProviderGoogle:
-		// Precedence: ADC first (if available), then GOOGLE_API_KEY.
-		apiKey := os.Getenv("GOOGLE_API_KEY")
-		if client, err := gemini.NewVertexAIClient(""); err == nil {
-			fmt.Fprintf(os.Stderr, "AI: Using Vertex AI (ADC)\n")
-			handler = client.NewHandler(modelName, opts...)
-		} else if apiKey != "" {
-			fmt.Fprintf(os.Stderr, "AI: Using Google AI Studio (GOOGLE_API_KEY)\n")
-			client := gemini.NewClient(apiKey)
-			handler = client.NewHandler(modelName, opts...)
-		} else {
-			return fmt.Errorf("Gemini auth failed: Application Default Credentials (ADC) not configured, and GOOGLE_API_KEY is not set.\n"+
-				"  Option 1: gcloud auth application-default login  (recommended, for Vertex AI)\n"+
-				"  Option 2: export GOOGLE_API_KEY=<key>  (get one at https://aistudio.google.com/apikey)\n"+
-				"  ADC error: %w", err)
-		}
-
-	case ai.ProviderOllama:
-		// Ollama is local, no API key needed
-		client, err := ollama.NewClient()
-		if err != nil {
-			return fmt.Errorf("failed to create Ollama client: %w", err)
-		}
-		// Check connection before proceeding
-		if err := client.CheckConnection(context.Background()); err != nil {
-			return err
-		}
-		// Strip ollama: prefix if present
-		model := strings.TrimPrefix(modelName, "ollama:")
-		handler = client.NewHandler(model, opts...)
-
-	case ai.ProviderOpenRouter:
-		apiKey := os.Getenv("OPENROUTER_API_KEY")
-		if apiKey == "" {
-			return fmt.Errorf("OPENROUTER_API_KEY environment variable required")
-		}
-		client := openrouter.NewClient(apiKey)
-		// Strip optional explicit "openrouter:" prefix; the model name itself
-		// is "vendor/model" (e.g., "anthropic/claude-sonnet-4.5") or
-		// "openrouter/auto" for the auto-router.
-		model := strings.TrimPrefix(modelName, "openrouter:")
-		handler = client.NewHandler(model, opts...)
-
-	default:
+	if provider == "" {
 		// M-AI-PROVIDER-CONFIG: try config-driven provider via "<name>/<model>"
 		// prefix. GuessProvider above already handles known OpenRouter vendor
 		// prefixes; anything else with a "/" might be a config-driven provider.
 		if slash := strings.Index(modelName, "/"); slash > 0 {
-			providerName := modelName[:slash]
-			modelPart := modelName[slash+1:]
-			if cd := LookupConfigDrivenProvider(providerName); cd != nil {
-				handler = ai.NewHandler(cd, modelPart, opts...)
-				break
+			if cd := LookupConfigDrivenProvider(modelName[:slash]); cd != nil {
+				effCtx.AI = effects.NewAIContext(ai.NewHandler(cd, modelName[slash+1:], opts...))
+				return nil
 			}
 		}
 		return fmt.Errorf("cannot determine provider for model %s (use models.yml or prefix with claude-/gpt-/gemini-/ollama: or vendor/model for OpenRouter, or install a package declaring an [[ai_provider]] block)", modelName)
 	}
 
-	effCtx.AI = effects.NewAIContext(handler)
+	client, err := factory.New(string(provider))
+	if err != nil {
+		return err
+	}
+	if err := readyForCalls(client); err != nil {
+		return err
+	}
+	// Strip the routing prefix the guess consumed: "ollama:" for the local
+	// daemon; "openrouter:" for the gateway, whose model names are
+	// "vendor/model" (e.g. "anthropic/claude-sonnet-4.5") or "openrouter/auto".
+	model := strings.TrimPrefix(strings.TrimPrefix(modelName, "ollama:"), "openrouter:")
+	effCtx.AI = effects.NewAIContext(ai.NewHandler(client.Provider, model, opts...))
 	return nil
 }

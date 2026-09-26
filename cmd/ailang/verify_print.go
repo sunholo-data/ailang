@@ -17,7 +17,7 @@ import (
 )
 
 // printVerifyHuman prints human-readable verification results.
-func printVerifyHuman(results []verifyResult, filename string, verified, counterexample, skipped, errCount, uncontracted int, verbose bool) {
+func printVerifyHuman(results []smt.VerifyResult, filename string, verified, counterexample, skipped, errCount, uncontracted int, verbose bool) {
 	total := verified + counterexample + skipped + errCount + uncontracted
 
 	fmt.Printf("\n%s Verifying contracts in %s\n", cyan("→"), filename)
@@ -123,16 +123,16 @@ func printVerifyHuman(results []verifyResult, filename string, verified, counter
 }
 
 // printVerifyJSON outputs verification results as JSON.
-func printVerifyJSON(results []verifyResult, filename string, verified, counterexample, skipped, errCount, uncontracted int) {
+func printVerifyJSON(results []smt.VerifyResult, filename string, verified, counterexample, skipped, errCount, uncontracted int) {
 	output := struct {
-		File           string         `json:"file"`
-		Verified       int            `json:"verified"`
-		Counterexample int            `json:"counterexample"`
-		Skipped        int            `json:"skipped"`
-		Errors         int            `json:"errors"`
-		Uncontracted   int            `json:"uncontracted"`
-		TotalExported  int            `json:"total_exported"`
-		Results        []verifyResult `json:"results"`
+		File           string             `json:"file"`
+		Verified       int                `json:"verified"`
+		Counterexample int                `json:"counterexample"`
+		Skipped        int                `json:"skipped"`
+		Errors         int                `json:"errors"`
+		Uncontracted   int                `json:"uncontracted"`
+		TotalExported  int                `json:"total_exported"`
+		Results        []smt.VerifyResult `json:"results"`
 	}{
 		File:           filename,
 		Verified:       verified,

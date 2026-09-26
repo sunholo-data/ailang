@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -15,6 +14,8 @@ import (
 	ollamaapi "github.com/ollama/ollama/api"
 	"github.com/sunholo-data/ailang/internal/ai"
 	"github.com/sunholo-data/ailang/internal/ai/openai"
+	"github.com/sunholo-data/ailang/internal/config"
+	"github.com/sunholo-data/ailang/internal/statedir"
 )
 
 // defaultOllamaV1TimeoutSec bounds a single /v1 tool-calling HTTP call. Generous
@@ -27,7 +28,7 @@ const defaultOllamaV1TimeoutSec = 300
 // AILANG_OLLAMA_HTTP_TIMEOUT_SEC overrides the default; "0" (or negative) means
 // no timeout (restores the legacy unbounded behaviour for debugging).
 func ollamaV1Timeout() time.Duration {
-	if v := os.Getenv("AILANG_OLLAMA_HTTP_TIMEOUT_SEC"); v != "" {
+	if v := config.OllamaHTTPTimeoutSec(); v != "" {
 		if n, err := strconv.Atoi(v); err == nil {
 			if n <= 0 {
 				return 0
@@ -71,10 +72,8 @@ func resolveOllamaTemperature(reqTemp float64) float64 {
 	if reqTemp > 0 {
 		return reqTemp
 	}
-	if v := os.Getenv("AILANG_OLLAMA_TEMPERATURE"); v != "" {
-		if t, err := strconv.ParseFloat(v, 64); err == nil && t > 0 {
-			return t
-		}
+	if t, ok := config.OllamaTemperature(); ok {
+		return t
 	}
 	return 0
 }
@@ -123,20 +122,11 @@ const defaultOllamaMaxTokens = 16384
 // AILANG_OLLAMA_NUM_CTX pins a value when VRAM demands one — the KV cache scales
 // with it (the rig runs OLLAMA_KV_CACHE_TYPE=q8_0 + flash attention, which is what
 // makes the full context affordable at all).
-func resolveOllamaNumCtx() (int, bool) {
-	if v := os.Getenv("AILANG_OLLAMA_NUM_CTX"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil && n > 0 {
-			return n, true
-		}
-	}
-	return 0, false
-}
+func resolveOllamaNumCtx() (int, bool) { return config.OllamaNumCtx() }
 
 func resolveOllamaMaxTokens(reqMax int) int {
-	if v := os.Getenv("AILANG_OLLAMA_MAX_TOKENS"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil && n > 0 {
-			return n
-		}
+	if n, ok := config.OllamaMaxTokens(); ok {
+		return n
 	}
 	if reqMax >= defaultOllamaMaxTokens {
 		return reqMax
@@ -155,14 +145,14 @@ func resolveOllamaMaxTokens(reqMax int) int {
 // that makes the AI call — but HOME always propagates, so a HOME-relative sentinel
 // reaches them. Empty result = logging off.
 func ollamaLogRequestPath() string {
-	if p := os.Getenv("AILANG_OLLAMA_LOG_REQUESTS"); p != "" {
+	if p := config.OllamaLogRequests(); p != "" {
 		return p
 	}
-	home, err := os.UserHomeDir()
-	if err != nil || home == "" {
+	sentinel, err := statedir.Path("ollama-log-requests")
+	if err != nil {
 		return ""
 	}
-	b, err := os.ReadFile(filepath.Join(home, ".ailang", "state", "ollama-log-requests"))
+	b, err := os.ReadFile(sentinel) //nolint:gosec // a fixed name under the state dir
 	if err != nil {
 		return ""
 	}
@@ -324,7 +314,7 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 	// Ollama via /v1 for exactly this reason. Reuse AILANG's OpenAI provider
 	// pointed at the Ollama host's /v1 (dummy key; Ollama ignores auth). Set
 	// AILANG_OLLAMA_NATIVE_TOOLS=1 to force the legacy native /api/chat tool path.
-	if len(req.Tools) > 0 && os.Getenv("AILANG_OLLAMA_NATIVE_TOOLS") != "1" {
+	if len(req.Tools) > 0 && !config.OllamaNativeTools() {
 		// M-OLLAMA-V1-STREAMING-IDLE-TIMEOUT (ailang#618): opt-in streaming
 		// variant of exactly this call. Default-OFF — with the flag unset the
 		// buffered request built below is byte-identical to today's, which is

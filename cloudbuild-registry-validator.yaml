@@ -1,0 +1,77 @@
+# Registry validator — release-gated deploy (M-PKG-QUALITY-LADDER follow-up, 2026-09-17).
+#
+# Until 2026-09-17 the validator (registry.ailang.sunholo.com, the ONE Cloud Run
+# service every `ailang publish` talks to) rebuilt and redeployed on EVERY push to
+# ailang `dev` from an inline-config trigger (ailang-registry-validator-dev). The
+# day the validator started enforcing gates, a dev push shipped a v2 identity that
+# folded the upload's temp-dir path into the hash, and every publish fleet-wide was
+# refused with PUB005 for ~40 minutes until the next dev push. Mark ratified the
+# same rule the dashboard already has: the validator moves on release tags only.
+#
+# Trigger: ailang-registry-validator-release (terraform-triggers in ailang-multivac),
+# push tag ^v.* on sunholo-data/ailang. Substitutions: _REGION, _TARGET_PROJECT.
+# The image is tagged :${TAG_NAME} AND :latest so a bad release can be rolled back
+# with `gcloud run services update ... --image ...:vX.Y.Z`.
+#
+# Emergency rebuild from a commit (not a tag): `gcloud builds submit --config
+# cloudbuild-registry-validator.yaml --substitutions=_REGION=europe-west1,_TARGET_PROJECT=ailang-registry,TAG_NAME=manual-<sha>`
+# from the deploy project.
+
+substitutions:
+  _REGION: europe-west1
+  _TARGET_PROJECT: ailang-registry
+
+options:
+  defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_HIGHCPU_8
+
+steps:
+  # git describe needs the tags so the binary's /version reports the release,
+  # not "dev" — the skew guard prints this string to publishers.
+  - id: fetch-tags
+    name: gcr.io/cloud-builders/git
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        git fetch --unshallow 2>&1 || git fetch --depth=1000 2>&1 || true
+        git fetch --tags --force 2>&1 || true
+        git describe --tags --always --dirty 2>&1 || true
+    waitFor: ['-']
+
+  - id: build-validator
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - ${_REGION}-docker.pkg.dev/${_TARGET_PROJECT}/ailang-registry/validator:${TAG_NAME}
+      - -t
+      - ${_REGION}-docker.pkg.dev/${_TARGET_PROJECT}/ailang-registry/validator:latest
+      - -f
+      - docker/Dockerfile.registry-validator
+      - .
+    waitFor: [fetch-tags]
+
+  - id: push-validator
+    name: gcr.io/cloud-builders/docker
+    args: [push, --all-tags, "${_REGION}-docker.pkg.dev/${_TARGET_PROJECT}/ailang-registry/validator"]
+    waitFor: [build-validator]
+
+  - id: redeploy-validator
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        echo "Deploying registry validator ${TAG_NAME}..."
+        gcloud run services update ailang-registry-validator \
+          --region ${_REGION} --project ${_TARGET_PROJECT} \
+          --image ${_REGION}-docker.pkg.dev/${_TARGET_PROJECT}/ailang-registry/validator:${TAG_NAME} \
+          --quiet
+        echo "Registry validator deployed at ${TAG_NAME}."
+    waitFor: [push-validator]
+
+images:
+  - ${_REGION}-docker.pkg.dev/${_TARGET_PROJECT}/ailang-registry/validator:${TAG_NAME}
+  - ${_REGION}-docker.pkg.dev/${_TARGET_PROJECT}/ailang-registry/validator:latest

@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/coordinator"
 	"github.com/sunholo-data/ailang/internal/executor"
 	"github.com/sunholo-data/ailang/internal/pubsub"
@@ -23,7 +24,7 @@ import (
 // Instead of shelling out to raw CLI commands, it uses executor.GlobalFactory() to get
 // the registered executor and calls ExecuteStreaming() — giving us stream-JSON parsing,
 // token extraction, OTEL spans, session tracking, and a full executor.Result.
-func runExecutor(ctx context.Context, workDir, provider, directive, taskID, pluginDir, model, timeoutStr string) (*executor.Result, error) {
+func runExecutor(ctx context.Context, workDir, provider, directive, taskID, pluginDir, model, timeoutStr, repoURL string) (*executor.Result, error) {
 	// M-CLOUD-PROGRESS-TRACKING M4: Extract trace context from env (injected by dispatcher).
 	// This links Cloud Run Job spans to the coordinator's dispatch span in Cloud Trace.
 	ctx = telemetry.ExtractTraceContext(ctx)
@@ -32,7 +33,7 @@ func runExecutor(ctx context.Context, workDir, provider, directive, taskID, plug
 		trace.WithAttributes(
 			attribute.String("task.id", taskID),
 			attribute.String("provider", provider),
-			attribute.String("agent.id", os.Getenv("AILANG_AGENT_ID")),
+			attribute.String("agent.id", config.AgentID()),
 		),
 	)
 	defer span.End()
@@ -57,23 +58,49 @@ func runExecutor(ctx context.Context, workDir, provider, directive, taskID, plug
 		Workspace: workDir,
 		Model:     model,   // From AILANG_MODEL env var (agent config) — empty means executor default
 		Timeout:   timeout, // From AILANG_TIMEOUT env var — overrides executor default (5m)
-		Metadata:  make(map[string]string),
+		// From AILANG_IDLE_TIMEOUT. Zero leaves the executor's own 3m default,
+		// which is what EVERY cloud task silently used until 2026-09-22.
+		IdleTimeout: resolveIdleTimeout(config.IdleTimeout()),
+		Metadata:    make(map[string]string),
+		ExtraEnv:    make(map[string]string),
+	}
+	// workspace-trust per-repo injection (M-DX-PI-HARNESS): the container's pi
+	// runs headless against a fresh clone with a fresh HOME, so pi's project-trust
+	// gate would silently drop the repo's .agents/skills/ and .pi/ resources. The
+	// global workspace-trust extension trusts checkouts whose git origin matches
+	// this pattern — the task's own repo, sourced from the job spec (machine-owned
+	// dispatcher config; the repo never supplies its own trust input).
+	if repoURL != "" {
+		task.ExtraEnv["PI_WORKSPACE_TRUST_REMOTES"] = repoURL
 	}
 	if pluginDir != "" {
 		task.PluginDirs = []string{pluginDir}
+	}
+	// M-AGENT-AILANG-ONLY-EXECUTION: the tool lane and its program policy,
+	// delivered by the dispatcher as env (content, not a path). Same shape as
+	// the resident's boot.sh: materialised read-only OUTSIDE the workspace, so
+	// pi's write tool cannot rewrite it and — with no bash — nothing can chmod
+	// it back (D4). An unknown profile fails the job before any model call.
+	if profile := config.ToolPolicy(); profile != "" {
+		tools, perr := executor.ProfileTools(profile)
+		if perr != nil {
+			return nil, fmt.Errorf("execute-job: %w", perr)
+		}
+		task.AllowedTools = tools
+	}
+	if policyPath, perr := executor.MaterializeAgentPolicy(config.AgentPolicyTOML(), workDir); perr != nil {
+		return nil, fmt.Errorf("execute-job: %w", perr)
+	} else if policyPath != "" {
+		task.PolicyPath = policyPath
+		task.ExtraEnv["AILANG_AGENT_POLICY"] = policyPath
+		fmt.Printf("execute-job: program policy materialised at %s (read-only)\n", policyPath)
 	}
 
 	// Create PubSubBroadcaster for live progress streaming (M-CLOUD-PROGRESS-TRACKING).
 	// Reuses the same GCP project/prefix env vars as the completion publisher.
 	var broadcaster *coordinator.PubSubBroadcaster
-	evtProjectID := os.Getenv("AILANG_CLOUD_PROJECT")
-	if evtProjectID == "" {
-		evtProjectID = os.Getenv("GOOGLE_CLOUD_PROJECT")
-	}
-	evtPrefix := os.Getenv("AILANG_TOPIC_PREFIX")
-	if evtPrefix == "" {
-		evtPrefix = pubsub.DefaultTopicPrefix
-	}
+	evtProjectID, _ := config.CloudProject(ctx) // "" (no broadcaster) when unresolvable; the job already failed loud on it above
+	evtPrefix := pubsub.TopicPrefixFromEnv()
 	if evtProjectID != "" {
 		evtClient, evtErr := pubsub.NewClient(ctx, evtProjectID, evtPrefix)
 		if evtErr == nil {
@@ -90,7 +117,7 @@ func runExecutor(ctx context.Context, workDir, provider, directive, taskID, plug
 
 	// M-CLOUD-PROGRESS-TRACKING M3: Parse per-task cost budget from env var.
 	var maxCostUSD float64
-	if maxCostStr := os.Getenv("AILANG_MAX_COST_USD"); maxCostStr != "" {
+	if maxCostStr := config.MaxCostUSD(); maxCostStr != "" {
 		if parsed, parseErr := fmt.Sscanf(maxCostStr, "%f", &maxCostUSD); parsed != 1 || parseErr != nil {
 			fmt.Fprintf(os.Stderr, "execute-job: invalid AILANG_MAX_COST_USD=%q, ignoring\n", maxCostStr)
 			maxCostUSD = 0
@@ -103,7 +130,7 @@ func runExecutor(ctx context.Context, workDir, provider, directive, taskID, plug
 
 	handler := &cloudEventHandler{
 		taskID:      taskID,
-		agentID:     os.Getenv("AILANG_AGENT_ID"),
+		agentID:     config.AgentID(),
 		workspace:   workDir,
 		broadcaster: broadcaster,
 		maxCostUSD:  maxCostUSD,
@@ -340,4 +367,27 @@ func (h *cloudEventHandler) broadcast(event *websocket.TaskStreamEvent) {
 	if h.broadcaster != nil {
 		h.broadcaster.Broadcast(event)
 	}
+}
+
+// resolveIdleTimeout turns AILANG_IDLE_TIMEOUT into a duration for executor.Task.
+//
+// Zero means "use the executor's default", so an unset or unusable value is
+// returned as zero rather than guessed at. A malformed value is announced: it
+// is an operator typo in the agent registry, and swallowing it would reproduce
+// the exact failure this function exists to end — a declared idle_timeout that
+// does not apply, diagnosed as the agent stalling.
+func resolveIdleTimeout(raw string) time.Duration {
+	if raw == "" {
+		return 0
+	}
+	d, err := time.ParseDuration(raw)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "execute-job: invalid %s %q, using executor default: %v\n", config.EnvIdleTimeout, raw, err)
+		return 0
+	}
+	if d <= 0 {
+		fmt.Fprintf(os.Stderr, "execute-job: %s %q is not positive, using executor default\n", config.EnvIdleTimeout, raw)
+		return 0
+	}
+	return d
 }

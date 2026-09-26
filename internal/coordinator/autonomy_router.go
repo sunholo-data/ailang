@@ -53,6 +53,22 @@ func ClassifyChange(env *messaging.PackageMessageEnvelope) ChangeClass {
 		return ChangeClassC
 	}
 
+	// "U" (unknown) is checked here, BEFORE the kind switch, deliberately.
+	//
+	// M5's classifier returns "U" whenever exactly one side of a comparison
+	// carries v2 signature metadata — the unavoidable shape of every package's
+	// first post-migration publish. BOTH EmitUpgradeAvailable and
+	// EmitInterfaceChangeNotice can stamp it, and `breaking` is false for "U"
+	// (it is not a known-breaking change, it is an unmeasurable one), so the
+	// override above does not catch it. A per-kind arm would have to be
+	// repeated in every case that can carry a class, and the first one anybody
+	// forgot would silently AUTO-APPLY an admittedly-unknown change — which is
+	// exactly what happened when only the interface-change arm had it.
+	// Unknown never auto-applies, whatever the kind.
+	if env.Package.ChangeClass == "U" {
+		return ChangeClassC
+	}
+
 	switch env.Kind {
 	case messaging.PkgMsgEffectWidening:
 		return ChangeClassC // Effect ceiling changes always need review

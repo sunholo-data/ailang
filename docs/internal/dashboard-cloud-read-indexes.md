@@ -1,0 +1,142 @@
+# Dashboard cloud read rollout contract
+
+Status: v0.35.3 and all twelve indexes deployed through production, 2026-09-08.
+Query/function smoke checks pass; global task completeness remains unverified.
+Infrastructure source: adjacent `ailang-multivac/terraform/firestore.tf` and
+`terraform/dashboard_read_indexes.tf`.
+This document specifies query requirements; it does not provision indexes.
+
+## Read contract
+
+Chains sort by `created_at DESC, document ID DESC`; SQLite uses `id` as
+its matching tie breaker. `CreatedAfter` is exclusive. Spans and stage span
+pages sort by `start_time ASC, document ID ASC`; span time bounds are inclusive.
+Filters precede paging. Offsets refer to a fixed cohort, not a snapshot under
+concurrent writes. Chain backend default page size is 50; CLI retains 20.
+
+| HTTP `/api/chains` | `ailang chains list` |
+|---|---|
+| `status` | `--status` |
+| `source_type` | `--source` |
+| `agent_id` | `--agent` |
+| `workspace_id` | `--workspace` |
+| `github_repo` | `--repo` |
+| `limit`, `offset` | `--limit`, `--offset` |
+| `since` (integer hours) | `--since` (CLI duration/date syntax) |
+
+Example: `ailang chains list --remote gcp --limit 20 --offset 20 --json`.
+Invalid supplied paging arguments fail before a backend read. Stage chat/spans
+verify that the stage belongs to the chain in the URL. These chain endpoints
+return structured errors: missing record 404, permission 403, authentication
+401, index/precondition 503 (`query_not_ready`), transient storage 503, other
+query failures 500. A 503 requires operational investigation; retries alone
+cannot create an index. Empty successful lists serialize as arrays.
+
+## Index requirements
+
+Each row below is a collection-scope composite index. Directions are explicit;
+Firestore appends the document-name tie breaker in the final ordering direction.
+Confirm the generated index matches the query before rollout.
+
+| Collection | Fields, in index order | Purpose |
+|---|---|---|
+| `obs_spans` | `stage_id ASC`, `start_time ASC` | Stage span pages |
+| `obs_chat_messages` | `task_id ASC`, `timestamp ASC` | Task transcript |
+| `obs_chat_messages` | `session_id ASC`, `timestamp ASC` | Session transcript and time bounds |
+| `obs_chains` | `status ASC`, `created_at DESC` | Status chain pages; existing Terraform index |
+| `obs_chains` | `source_type ASC`, `created_at DESC` | Source chain pages |
+| `obs_chains` | `workspace_id ASC`, `created_at DESC` | Workspace chain pages |
+| `obs_chains` | `github_repo ASC`, `created_at DESC` | Repository chain pages |
+| `obs_spans` | each of `trace_id`, `task_id`, `agent_assignment_id`, `provider`, `model`, `status` ASC separately, followed by `start_time ASC` | Filtered span listing |
+
+Concrete Terraform form for the first missing stage index, using the existing
+infrastructure resource conventions:
+
+```hcl
+resource "google_firestore_index" "obs_spans_stage_id_page" {
+  provider   = google-beta
+  project    = var.project_id
+  database   = google_firestore_database.default.name
+  collection = "obs_spans"
+  fields {
+    field_path = "stage_id"
+    order      = "ASCENDING"
+  }
+  fields {
+    field_path = "start_time"
+    order      = "ASCENDING"
+  }
+}
+```
+
+The transcript indexes use the same resource form with the collection and field
+pairs above. Multiple simultaneous equality filters may use index merging, but
+this table does not certify every combination. Validate the actual production
+filter combinations and range bounds against READY indexes. See the official
+[Firestore index overview](https://firebase.google.com/docs/firestore/query-data/index-overview).
+The existing `parent_span_id ASC, start_time DESC` index does not substitute for
+a stage or ascending span query. The initial audit inspected definitions; the subsequent rollout applied them
+through infrastructure CI (see the rollout report below).
+
+## Verification before declaring production repaired
+
+1. Review Terraform plan in the infrastructure repository; create missing indexes
+   through its normal workflow and wait for READY.
+2. Deploy the capture and read fixes; record exact coordinator/dashboard revisions.
+3. On a fixed time-bounded cohort, compare CLI/API page IDs and filters, including
+   tied timestamps, agent matches beyond page one and empty pages.
+4. For a known linked task, inspect its chain, stage spans and transcript. Verify
+   wrong-chain stage URLs fail and index/permission failures do not look empty.
+5. Check fresh runs end to end, cost normalization, lineage completeness, missing
+   evidence, approval execution and query latency/read count before deleting more
+   evidence views.
+
+## Remaining gaps
+
+- SDK tests use in-memory RPC fixtures with preordered rows. They assert request
+  filters/order/paging and compare fixed-cohort IDs to SQLite; they do not emulate
+  Firestore's query engine or index readiness.
+- Agent filtering can scan many stage and chain documents. Stage span totals still
+  read all matching documents. Offset pages are not scalable cursor pagination.
+- Firestore span workspace filters explicitly fail until a join contract exists.
+- Stage transcript pagination is not implemented. Legacy `/api/observatory/spans`
+  still has permissive parsing and a different error response contract.
+- Cloud chain summary stage counts/agent flow and SQLite agent-filtered aggregates
+  have inherited row-shape parity gaps. ID/page parity does not certify summaries.
+- Capture deployment, normalized costs, aggregate timeout/empty results, historical
+  provenance gaps and approval delivery remain unverified in production.
+
+## Rollout audit, 2026-09-08
+
+- Code build `b1dea44b-dab7-4a5a-a999-5e33bd74ce69` succeeded at `dd0a96ed8`,
+  containing the dashboard repairs. Dev dashboard revision `02424-hc2` serves
+  distinct pages, empty arrays and invalid-since 400 responses. Missing workspace,
+  repository and stage evidence indexes produce explicit 503 responses.
+- Infrastructure commit `f32693c` in `ailang-multivac` adds the 12 missing indexes
+  in `terraform/dashboard_read_indexes.tf`. Read-only plans for dev, test and prod
+  each report 12 additions, zero changes and zero deletions. No branch drift in
+  existing `terraform/` or `config/` was present before promotion.
+- Hosted unfiltered Go tests clear the former local test gate. Separate outstanding checks remain at the audited source SHA: launchd hook positive-control test
+  fails; SonarCloud reports 77.3% new-code coverage (80% required) and security C.
+- Additional CLI audit gap: `openChainsReadBackend` calls `NewGCPBackends`, which
+  starts coordinator cost synchronization. If metadata is missing, this may scan
+  tasks and write cost metadata. Isolate observatory-only backend construction
+  before calling the CLI read path side-effect-free. No live cloud chain-read CLI invocation was
+  made during this audit.
+
+- All 12 dev additions reached READY. Workspace/repository filters (including
+  their combination), stage spans and transcripts changed from 503 to 200;
+  wrong-chain stage access remains 404. The sampled failed stage has zero stored
+  spans; repairing the query does not reconstruct missing historical evidence.
+- Dev serves the simplified UI (720,858-byte main JS, 203,195-byte CSS); production
+  still serves 1,266,342-byte JS and 266,862-byte CSS at this checkpoint.
+- Gate clarification: `cloudbuild-release.yaml` requires the hosted `CI/test` job,
+  then complete image builds and smoke checks. SonarCloud and launchd are separate
+  outstanding findings, not conditions enforced by that image promotion gate.
+  v0.35.3 completed the existing release process; no direct prod rebuild.
+
+Final rollout: all three infrastructure builds and the versioned test/prod image
+promotion succeeded. Production now serves the simplified UI and repaired chain
+reads. Standard/deep standalone function tracing was verified against production,
+including serialized factorial arguments/results. Full evidence and remaining
+acceptance work: [rollout report](dashboard-rollout-2026-09-08.md).

@@ -28,6 +28,78 @@ type PackageManifest struct {
 	Extensions   ExtensionRegistryConfig `toml:"extensions"`  // M-AILANG-EXT-REGISTRY-GEN (v0.17.1)
 	Assets       AssetConfig             `toml:"assets"`      // M-EXT-PORTABILITY-GATE (v0.19.0)
 	Smoke        SmokeConfig             `toml:"smoke"`       // M-EXT-PORTABILITY-GATE follow-up (v0.19.1)
+	Release      ReleaseConfig           `toml:"release"`     // M-PKG-QUALITY-LADDER M4 (design D2)
+	Bin          map[string]BinSpec      `toml:"bin"`         // M-PKG-BIN-ENTRYPOINTS (v0.40.0); see internal/pkg/bin.go
+}
+
+// BinSpec is one entry of the optional [bin] table: a command that
+// `ailang install` shims onto PATH (M-PKG-BIN-ENTRYPOINTS, v0.40.0).
+//
+// Two forms, mirroring Dependency:
+//
+//	[bin]
+//	eparse   = "cli"                                    # module sunholo/email/cli, entry main, caps auto
+//	docparse = { module = "docparse/main", entry = "main", caps = "IO,FS,Env,AI",
+//	             run_flags = ["--max-recursion-depth", "50000"] }
+//
+// Module is resolved with ResolveModuleToFile, exactly as the loader resolves
+// an import, so both "cli" and "sunholo/email/cli" name the same file. Entry
+// defaults to "main". Caps defaults to "auto" (inferred from the entrypoint's
+// declared effects). RunFlags are passed to `ailang run` verbatim, before the
+// file; the flags the shim owns (--caps, --entry, --package-dir, --quiet) are
+// rejected at manifest load.
+type BinSpec struct {
+	Module   string   `toml:"module"`
+	Entry    string   `toml:"entry,omitempty"`
+	Caps     string   `toml:"caps,omitempty"`
+	RunFlags []string `toml:"run_flags,omitempty"`
+}
+
+// UnmarshalTOML accepts `name = "module"` or `name = { module = ..., ... }`.
+func (b *BinSpec) UnmarshalTOML(data interface{}) error {
+	switch v := data.(type) {
+	case string:
+		b.Module = v
+		return nil
+	case map[string]interface{}:
+		if m, ok := v["module"].(string); ok {
+			b.Module = m
+		}
+		if e, ok := v["entry"].(string); ok {
+			b.Entry = e
+		}
+		if c, ok := v["caps"].(string); ok {
+			b.Caps = c
+		}
+		if rf, ok := v["run_flags"].([]interface{}); ok {
+			for _, f := range rf {
+				fs, ok := f.(string)
+				if !ok {
+					return fmt.Errorf("[bin] run_flags entries must be strings, got %T", f)
+				}
+				b.RunFlags = append(b.RunFlags, fs)
+			}
+		}
+		return nil
+	default:
+		return fmt.Errorf("[bin] entry must be a module string or table, got %T", data)
+	}
+}
+
+// EffectiveEntry returns the entrypoint function name, defaulting to "main".
+func (b BinSpec) EffectiveEntry() string {
+	if b.Entry == "" {
+		return "main"
+	}
+	return b.Entry
+}
+
+// EffectiveCaps returns the --caps value for the shim, defaulting to "auto".
+func (b BinSpec) EffectiveCaps() string {
+	if b.Caps == "" {
+		return "auto"
+	}
+	return b.Caps
 }
 
 // SmokeConfig holds the optional [smoke] section in ailang.toml.
@@ -257,7 +329,7 @@ func (m *PackageManifest) Validate() error {
 		return fmt.Errorf("[package].version is required")
 	}
 	if m.Package.Edition == "" {
-		return fmt.Errorf("[package].edition is required")
+		return fmt.Errorf("[package].edition is required (add: edition = \"1\" under [package])")
 	}
 
 	// Validate ailang version constraint format if present (optional field)
@@ -289,6 +361,13 @@ func (m *PackageManifest) Validate() error {
 		matchesPrefix := m.Package.ModulePrefix != "" &&
 			(strings.HasPrefix(mod, m.Package.ModulePrefix+"/") || mod == m.Package.ModulePrefix)
 		if !matchesPkgName && !matchesPrefix {
+			// Hyphens are illegal in module paths (PAR_HYPHEN_IN_MODULE) — a hyphenated
+			// package name can never prefix a valid module. Say so instead of leaving
+			// the author stuck (observed 2026-08-28, sunholo/ail-diag scaffold).
+			if strings.Contains(m.Package.Name, "-") {
+				return fmt.Errorf("exported module %q must start with package name %q, but package names with hyphens cannot prefix module paths (modules use underscores: PAR_HYPHEN_IN_MODULE). Fix: set module_prefix to the underscored name (e.g. %q) and declare modules under it",
+					mod, m.Package.Name, strings.ReplaceAll(m.Package.Name[strings.Index(m.Package.Name, "/")+1:], "-", "_"))
+			}
 			if m.Package.ModulePrefix != "" {
 				return fmt.Errorf("exported module %q must start with package name %q or module_prefix %q",
 					mod, m.Package.Name, m.Package.ModulePrefix)
@@ -312,6 +391,11 @@ func (m *PackageManifest) Validate() error {
 		if dep.Version != "" && (dep.Version == "latest" || strings.ContainsAny(dep.Version, "^~><=")) {
 			return fmt.Errorf("dependency %q has non-exact version %q — ailang.toml requires exact versions (e.g., \"0.1.0\")\n\nUse: ailang install %s@latest\nThis resolves and writes the exact version automatically.", name, dep.Version, name)
 		}
+	}
+
+	// M-PKG-QUALITY-LADDER M4: [release].kind is optional (grace) but never garbage.
+	if err := ValidateReleaseKind(m.Release.Kind); err != nil {
+		return err
 	}
 
 	// Validate stability level if set
@@ -344,6 +428,27 @@ func (m *PackageManifest) Validate() error {
 		clean := filepath.Clean(asset)
 		if strings.HasPrefix(clean, "..") || strings.Contains(clean, "../") {
 			return fmt.Errorf("[assets].files entry %q must not escape assets/", asset)
+		}
+	}
+
+	// Validate [bin] block (M-PKG-BIN-ENTRYPOINTS, v0.40.0). The name becomes a
+	// file on PATH, so it is restricted to what every shell and filesystem
+	// accepts unquoted; the shim owns four run flags and refuses to have them
+	// overridden from run_flags, where a duplicate would silently win or lose
+	// depending on flag-package order.
+	for name, spec := range m.Bin {
+		if err := ValidateBinName(name); err != nil {
+			return err
+		}
+		if strings.TrimSpace(spec.Module) == "" {
+			return fmt.Errorf("[bin].%s: module is required (e.g. %s = \"cli\")", name, name)
+		}
+		for _, f := range spec.RunFlags {
+			flagName := strings.SplitN(f, "=", 2)[0]
+			switch flagName {
+			case "--caps", "-caps", "--entry", "-entry", "--package-dir", "-package-dir", "--quiet", "-quiet":
+				return fmt.Errorf("[bin].%s: run_flags may not set %s — the shim owns it (declare caps/entry as fields instead)", name, flagName)
+			}
 		}
 	}
 
@@ -426,6 +531,18 @@ func InitManifest(dir, name, ailangVersion string) error {
 	// Default stability
 	stability := "experimental"
 
+	// Modules cannot contain hyphens (PAR_HYPHEN_IN_MODULE), so the generated
+	// export module must derive from an underscored name. For hyphenated package
+	// names the validator can never match the raw name — the generated module must
+	// be prefix-relative ("ail_diag/core"), pairing with the module_prefix that
+	// initPackageCommand auto-sets (observed 2026-08-28, sunholo/ail-diag).
+	var moduleBase string
+	if strings.Contains(name, "-") {
+		moduleBase = strings.ReplaceAll(name[strings.Index(name, "/")+1:], "-", "_")
+	} else {
+		moduleBase = name
+	}
+
 	ailangLine := ""
 	constraint := FormatVersionConstraint(ailangVersion)
 	if constraint != "" {
@@ -445,9 +562,24 @@ max = []
 
 [stability]
 level = %q
-`, name, ailangLine, name+"/core", stability)
 
-	return os.WriteFile(path, []byte(content), 0644)
+[release]
+kind = "feature"   # security | fix | feature | breaking — what THIS version changes
+`, name, ailangLine, moduleBase+"/core", stability)
+
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		return err
+	}
+	// M-PKG-QUALITY-LADDER M4: every release describes itself; scaffold the
+	// section the publish gate (PUB001) looks for.
+	changelogPath := filepath.Join(dir, ChangelogFile)
+	if _, err := os.Stat(changelogPath); os.IsNotExist(err) {
+		changelog := fmt.Sprintf("# Changelog — %s\n\n## 0.1.0\n\n- Initial release.\n", name)
+		if err := os.WriteFile(changelogPath, []byte(changelog), 0644); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // FindManifest walks up from dir looking for ailang.toml.

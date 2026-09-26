@@ -122,3 +122,8 @@ Smaller **and** more actionable. This alone likely closes the `Num[string]` resi
 - Source: pi `bash.js:247` (truncation), `agent-loop.js` (no default compaction); motoko `compaction.ail:127`, `tool_dispatch_adapter.ail:85,107`.
 - Prior art (syntactic token reduction): [rtk-ai/rtk](https://github.com/rtk-ai/rtk).
 - AILANG agent primitives: `std/ai` `_ai_step` / `runTools` (`examples/runnable/ai_tool_loop.ail`).
+
+
+## Proposed bounded child — Astra review (2026-09-05)
+
+[Semantic repair packet](../m-semantic-repair-packet.md) scopes a read-only, identity-bound packet from R2–R6 for explicit candidate/baseline module snapshots. It owns packet assembly, completeness and stale-input detection; it does not claim the remaining semantic-diff, causal-slicing or context-engine routes. [Lifecycle eval pilot](../m-lifecycle-eval-pilot.md) measures the packet intervention without treating aggregate success as language preference. Both are proposed, not implementation-approved. Review this scope allocation before planning so the parent and child do not schedule the same work twice.

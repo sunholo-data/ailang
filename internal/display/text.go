@@ -4,6 +4,8 @@ package display
 
 import (
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/strutil"
 )
 
 // WrapText wraps text at the specified width, preserving existing newlines.
@@ -45,18 +47,6 @@ func WrapText(text string, width int) string {
 	return result.String()
 }
 
-// Truncate truncates a string to maxLen characters, adding "..." if truncated.
-// If maxLen is 0 or negative, returns the original string.
-func Truncate(s string, maxLen int) string {
-	if maxLen <= 0 || len(s) <= maxLen {
-		return s
-	}
-	if maxLen <= 3 {
-		return "..."
-	}
-	return s[:maxLen-3] + "..."
-}
-
 // TruncateID truncates an ID string (like UUIDs) to a short form.
 // Default length is 12 characters if not specified.
 func TruncateID(id string, length ...int) string {
@@ -75,14 +65,14 @@ func TruncateID(id string, length ...int) string {
 func TruncateFirstLine(text string, maxLen int) string {
 	lines := strings.Split(text, "\n")
 	firstLine := strings.TrimSpace(lines[0])
-	return Truncate(firstLine, maxLen)
+	return strutil.Truncate(firstLine, maxLen)
 }
 
 // TruncateOutput truncates output text and trims whitespace.
 // Convenience function for tool outputs and results.
 func TruncateOutput(output string, maxLen int) string {
 	output = strings.TrimSpace(output)
-	return Truncate(output, maxLen)
+	return strutil.Truncate(output, maxLen)
 }
 
 // WordWrapIndent wraps text at width and adds a prefix indent to each line.

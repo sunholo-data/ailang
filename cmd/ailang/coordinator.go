@@ -13,6 +13,16 @@ func coordinatorCommand(args []string) error {
 	subcommand := args[0]
 	subargs := args[1:]
 
+	// One seam for the whole family. Nine of these subcommands parse their own
+	// arguments with a `switch` and no default case, so an unknown flag was
+	// skipped in silence — `coordinator list --remote gcp` answered from local
+	// SQLite and reported a task from May as the state of production. Guarding
+	// at the dispatch point means a new subcommand cannot inherit that by
+	// forgetting to add a default case.
+	if err := rejectUnknownCoordinatorFlags(subcommand, subargs); err != nil {
+		return err
+	}
+
 	switch subcommand {
 	case "start":
 		return coordinatorStart(subargs)
@@ -26,6 +36,20 @@ func coordinatorCommand(args []string) error {
 		return coordinatorRouting(subargs)
 	case "pending":
 		return coordinatorPending(subargs)
+	case "agents":
+		return coordinatorAgents(subargs)
+	case "agent-set":
+		return coordinatorAgentSet(subargs)
+	case "prs":
+		return coordinatorPRs(subargs)
+	case "pipeline":
+		return coordinatorPipeline(subargs)
+	case "lint":
+		return coordinatorLint(subargs)
+	case "agent-check":
+		return coordinatorAgentCheck(subargs)
+	case "approvals":
+		return coordinatorApprovalsCommand(subargs)
 	case "list":
 		return coordinatorList(subargs)
 	case "approve":
@@ -68,6 +92,14 @@ func printCoordinatorHelp() {
 	fmt.Println("  stop           Stop the coordinator daemon")
 	fmt.Println("  status         Show coordinator status (summary)")
 	fmt.Println("  watcher-status Show ApprovalWatcher status (GitHub polling)")
+	fmt.Println("  agents         List agents on the LIVE plane (agents <id> for every field;")
+	fmt.Println("                 --registry <path> to judge a config before deploying it)")
+	fmt.Println("  agent-check    Verify one agent is deployed and coherent")
+	fmt.Println("  lint           Validate the WHOLE registry: chain edges, cycles, dead handoffs")
+	fmt.Println("  pipeline       Did the agent chain run, and which stage stopped it?")
+	fmt.Println("  prs            Reconcile the PRs agents left behind (dry run; --apply to act)")
+	fmt.Println("                 --landed: resolve pending cards whose PR already merged [--fire-handoffs]")
+	fmt.Println("  agent-set      Change one field on one agent and deploy it (dev->test->prod)")
 	fmt.Println("  list           List all tasks (with filters)")
 	fmt.Println("  pending        List tasks awaiting approval (interactive)")
 	fmt.Println("  diff           Show changes made by a task (git diff)")

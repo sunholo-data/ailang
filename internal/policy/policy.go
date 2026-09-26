@@ -16,8 +16,6 @@ package policy
 import (
 	"fmt"
 	"os"
-
-	"github.com/BurntSushi/toml"
 )
 
 // Policy is the operator-pinned execution policy for AI-authored programs.
@@ -33,14 +31,47 @@ import (
 //   - AIProvider: "stub" or a model name; controls the AI effect handler.
 //   - Entry: name of the exported function to invoke.
 type Policy struct {
-	AllowedCaps    []string       `toml:"allowed_caps"`
-	FSSandbox      string         `toml:"fs_sandbox"`
-	NetAllow       []string       `toml:"net_allow"`
+	AllowedCaps []string `toml:"allowed_caps"`
+	FSSandbox   string   `toml:"fs_sandbox"`
+	NetAllow    []string `toml:"net_allow"`
+	// NetAllowHTTP permits http:// (default https only). ProcessAllow is the
+	// Process allowlist in `ailang run --process-allowlist` syntax: `git`,
+	// `git:pull`, `gh:pr:list`, `git:*` — a binary narrowed to its subcommands.
+	// Both are meaningful only with the matching cap in AllowedCaps.
+	NetAllowHTTP bool     `toml:"net_allow_http"`
+	ProcessAllow []string `toml:"process_allow"`
+	// CLIAllow is the `ailang` subcommand allowlist for an agent whose only
+	// route to the binary is the ailang_cli tool (the ailang_only lane): `iface`,
+	// `docs:search` — a subcommand narrowed to its own subcommand, the
+	// process_allow syntax. It is read by the pi extension, not by `ailang run`
+	// (which admits programs, not commands); it lives here so one policy file
+	// states everything the agent may do. Absent means the tool's documented
+	// read-only default set; `run`/`test`/`exec`/`repl` are refused whatever
+	// the list says — execution only ever goes through the gate.
+	CLIAllow       []string       `toml:"cli_allow"`
 	Budgets        map[string]int `toml:"budgets"`
 	TimeoutMs      int            `toml:"timeout_ms"`
 	MaxSourceBytes int            `toml:"max_source_bytes"`
 	AIProvider     string         `toml:"ai_provider"`
 	Entry          string         `toml:"entry"`
+
+	// SecurityMode is "restricted" (absent = restricted) or "trusted_host"
+	// (M-EXECUTOR-POLICY-HARDENING D3). Restricted admits only effects with
+	// a confined adapter and refuses proxies and host integrations; see
+	// Resolve for the rules and the migration message.
+	SecurityMode string `toml:"security_mode"`
+	// Byte ceilings (D5). 0 = the restricted default in restricted mode,
+	// unbounded in trusted_host.
+	MaxModuleGraphBytes int `toml:"max_module_graph_bytes"`
+	MaxOutputBytes      int `toml:"max_output_bytes"`
+	MaxFSTransferBytes  int `toml:"max_fs_transfer_bytes"`
+	// FSDenyWrite (M-EXECUTOR-POLICY-HARDENING M7): paths inside fs_sandbox
+	// that stay read-only to the program and the lane's tools — the
+	// artifact's own supply chain (".github/**", ".pi/**", "Makefile",
+	// "*.yml"). Patterns are relative to the sandbox root: a glob for one
+	// path, or "<dir>/**" for a subtree. ".git/**" is always implied in
+	// restricted mode.
+	FSDenyWrite []string `toml:"fs_deny_write"`
 }
 
 // DefaultPolicy returns a deny-all policy. This is what an empty file decodes
@@ -67,27 +98,7 @@ func Load(path string) (*Policy, error) {
 	if err != nil {
 		return nil, fmt.Errorf("policy: cannot read %s: %w", path, err)
 	}
-
-	p := DefaultPolicy()
-	meta, err := toml.Decode(string(data), p)
-	if err != nil {
-		return nil, fmt.Errorf("policy: %s: %w", path, err)
-	}
-
-	if undecoded := meta.Undecoded(); len(undecoded) > 0 {
-		// Convert MetaData keys to strings for the error
-		names := make([]string, 0, len(undecoded))
-		for _, key := range undecoded {
-			names = append(names, key.String())
-		}
-		return nil, fmt.Errorf("policy: %s: unknown fields: %v", path, names)
-	}
-
-	if p.Entry == "" {
-		p.Entry = "main"
-	}
-
-	return p, nil
+	return decode(path, data)
 }
 
 // AllowedSet returns the AllowedCaps slice as a set for O(1) membership tests.

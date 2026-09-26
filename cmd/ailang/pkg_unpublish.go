@@ -10,6 +10,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 func pkgUnpublishCommand(args []string) error {
@@ -72,7 +74,7 @@ func pkgUnpublishCommand(args []string) error {
 	// Call validator
 	validatorURL := registryValidatorURL()
 
-	apiKey := os.Getenv("AILANG_REGISTRY_API_KEY")
+	apiKey := config.RegistryAPIKey()
 	if apiKey == "" {
 		return fmt.Errorf("AILANG_REGISTRY_API_KEY not set\nAPI key is required for unpublish")
 	}

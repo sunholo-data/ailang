@@ -1,6 +1,6 @@
 ---
 name: design-doc-creator
-description: Create AILANG design documents in the correct format and location. Use when user asks to create a design doc, plan a feature, or document a design. Handles both planned/ and implemented/ docs with proper structure.
+description: Create AILANG design documents in the correct format and location. Use when user asks to create a design doc, plan a feature, or document a design. Handles both planned/ and implemented/ docs with proper structure. Also use when asked to run a design doc through quorum or review — `ailang design-quorum` (N off-Anthropic reviewers, optional step) and `ailang design-review` (single reviewer) are documented here.
 ---
 
 # Design Doc Creator
@@ -40,7 +40,7 @@ When you run the create script, it automatically:
 5. Auto-populates the "Related Documents" section
 
 ```bash
-$ .Codex/skills/design-doc-creator/scripts/create_planned_doc.sh m-semantic-caching
+$ .agents/skills/design-doc-creator/scripts/create_planned_doc.sh m-semantic-caching
 
 🔍 Searching for related design docs...
 
@@ -105,15 +105,15 @@ The script automatically detects the current AILANG version from `CHANGELOG.md` 
 **Usage:**
 ```bash
 # See current version and suggested target
-.Codex/skills/design-doc-creator/scripts/create_planned_doc.sh
+.agents/skills/design-doc-creator/scripts/create_planned_doc.sh
 # Output: Current AILANG version: v0.5.6
 #         Suggested next version: v0_5_7
 
 # Create doc in planned/ root (no version)
-.Codex/skills/design-doc-creator/scripts/create_planned_doc.sh m-dx2-better-errors
+.agents/skills/design-doc-creator/scripts/create_planned_doc.sh m-dx2-better-errors
 
 # Create doc in next version folder (recommended)
-.Codex/skills/design-doc-creator/scripts/create_planned_doc.sh reflection-system v0_5_7
+.agents/skills/design-doc-creator/scripts/create_planned_doc.sh reflection-system v0_5_7
 ```
 
 **What it does:**
@@ -132,7 +132,7 @@ Move a design document from planned/ to implemented/ after completion.
 
 **Usage:**
 ```bash
-.Codex/skills/design-doc-creator/scripts/move_to_implemented.sh m-dx1-developer-experience v0_3_10
+.agents/skills/design-doc-creator/scripts/move_to_implemented.sh m-dx1-developer-experience v0_3_10
 ```
 
 **What it does:**
@@ -300,6 +300,16 @@ the Verification Log routinely marks "Confirmed" without actually checking:**
    parked for a human ratification it did not need. Both rows were a 10-second grep away at authoring
    time.
 
+**Case study (2026-08-31, m-mission-elo-routing, quorum rounds 1-2):** TWO false "doesn't
+exist" premises surfaced in one session — (a) "AILANG has no Z3/contract language" (it does:
+`internal/smt/solver.go` shells out to Z3 via `AILANG_Z3_PATH`; `parser_contracts.go` holds the
+`requires`/`ensures` surface), and (b) "no `make check-boundaries` target exists" (it does:
+`make/code-health.mk:161`, included from the root Makefile). Both came from a scope-limited grep
+(Go-library-only / root-Makefile-only) whose result list was then truncated by `head`. **For
+existence questions, ask the authority, not a grep**: make targets via `make -n <target>`, language
+constructs via `ailang check`, CLI surface via `ailang --help` — and when a grep for absence is
+the right tool, grep ALL the included files (`Makefile make/*.mk`), not just the obvious one.
+
 **Case study (2026-07-12, m-module-less-run-fail-loud):** the doc's Verification Log marked two
 things "Confirmed" that a code-check refuted. (a) It proposed error code `MOD011` — already the
 live module-path-collision diagnostic since v0.10.9; the reality-check reassigned it to `MOD014`
@@ -374,10 +384,10 @@ with `--mission-log`, a human markdown block. Gemini reviewers use **Vertex ADC*
 
 ```bash
 # If version is known (most cases)
-.Codex/skills/design-doc-creator/scripts/create_planned_doc.sh feature-name v0_4_0
+.agents/skills/design-doc-creator/scripts/create_planned_doc.sh feature-name v0_4_0
 
 # If version not decided yet
-.Codex/skills/design-doc-creator/scripts/create_planned_doc.sh feature-name
+.agents/skills/design-doc-creator/scripts/create_planned_doc.sh feature-name
 ```
 
 **4. Duplicate / Coverage Gate (MANDATORY — do this before creating the file)**
@@ -473,7 +483,7 @@ git commit -m "Add design doc for feature-name"
 **1. Run Move Script**
 
 ```bash
-.Codex/skills/design-doc-creator/scripts/move_to_implemented.sh feature-name v0_3_14
+.agents/skills/design-doc-creator/scripts/move_to_implemented.sh feature-name v0_3_14
 ```
 
 **2. Add Implementation Report**

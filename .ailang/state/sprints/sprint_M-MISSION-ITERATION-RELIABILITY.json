@@ -1,0 +1,109 @@
+{
+  "sprint_id": "M-MISSION-ITERATION-RELIABILITY",
+  "status": "in_progress",
+  "created": "2026-09-08",
+  "design_doc": "design_docs/planned/m-mission-iteration-reliability.md",
+  "sprint_plan": "design_docs/planned/m-mission-iteration-reliability-sprint-plan.md",
+  "velocity": {
+    "estimated_total_loc": 1850,
+    "estimated_days": 4,
+    "target_loc_per_day": 500
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Focused packet and observed progress",
+      "dependencies": [],
+      "estimated_loc": 550,
+      "acceptance_criteria": [
+        "Packet binds candidate and all required evidence; truncation and missing evidence explicit.",
+        "Packet cannot be overwritten through candidate-controlled paths; digest fixed for replay.",
+        "Record bounded tool/progress counters without storing secrets/tool output in status.",
+        "No new repeated-read termination heuristic or model fallback."
+      ],
+      "passes": true,
+      "started": "2026-09-08",
+      "completed": "2026-09-08",
+      "notes": "Implementation and hermetic checks pass; see reliability verification/checks.md. Independent implementation review recorded separately; M4 live gate remains open."
+    },
+    {
+      "id": "M2",
+      "description": "Evaluator-only preparation and recovery CLI",
+      "dependencies": [],
+      "estimated_loc": 550,
+      "acceptance_criteria": [
+        "Preserve original inputs/acceptances and actual author identity; no author redispatch.",
+        "Reject live/ambiguous parents, missing objects, invalid authority and unsafe destinations.",
+        "Explicit new limits/route; original criteria/scope/checks retained.",
+        "Non-completed status explains next valid action; typed categories preserve reason text.",
+        "Confirmation records operator attestation and refuses stale/wrong/unsupported states."
+      ],
+      "passes": true,
+      "started": "2026-09-08",
+      "completed": "2026-09-08",
+      "notes": "Implementation and hermetic checks pass; see reliability verification/checks.md. Independent implementation review recorded separately; M4 live gate remains open."
+    },
+    {
+      "id": "M3",
+      "description": "Recoverable owned activation",
+      "dependencies": [],
+      "estimated_loc": 700,
+      "acceptance_criteria": [
+        "Completion and terminal failure restore absent/present prior state after verified stop.",
+        "Changed files/foreign markers/unknown child state remain held with actionable reason.",
+        "Death around each mutation is recoverable; concurrent operations refuse ownership.",
+        "Retain runtime DB/evidence; read-only inspection works after binding restoration."
+      ],
+      "passes": true,
+      "started": "2026-09-08",
+      "completed": "2026-09-08",
+      "notes": "Implementation and hermetic checks pass; see reliability verification/checks.md. Independent implementation review recorded separately; M4 live gate remains open."
+    },
+    {
+      "id": "M4",
+      "description": "Integration, review and live adoption",
+      "dependencies": [
+        "M1",
+        "M2",
+        "M3"
+      ],
+      "estimated_loc": 50,
+      "acceptance_criteria": [
+        "Independent review passes with zero unresolved code blockers.",
+        "Existing candidate passes live evaluation and completed replay makes zero provider calls.",
+        "Two additional frozen bounded tasks finish with hard checks and independent review.",
+        "Combined new trial spend <=$5; explicit per-item limits; no automatic budget escalation.",
+        "Cleanup/recovery validated and actual costs, tokens, interventions recorded."
+      ],
+      "passes": false,
+      "started": "2026-09-08",
+      "completed": null,
+      "notes": "Independent implementation review 94/100 and full checks pass. First live reviewer failed token guard; automatic cleanup and zero-dispatch failed replay pass. Two additional frozen tasks withheld at success gate. See live-trial.md."
+    }
+  ],
+  "live_adoption": {
+    "status": "criterion_1_complete",
+    "criterion_1": "COMPLETE \u2014 existing candidate passes live evaluation and completed replay makes zero provider calls",
+    "criterion_2": "OPEN \u2014 two additional frozen bounded tasks; review-packet.json and budget-accounting.json are the tasks",
+    "successor_work_item": "docs-canary-guide-review-4",
+    "authority": "mark-docs-canary-review-4-approved-20260914 (attended, 2026-09-14)",
+    "route": "pi-or-minimax-m3 / pi / openrouter/minimax/minimax-m3",
+    "verdict": "pass \u2014 5/5 criteria, zero blocking findings",
+    "tokens_used": 136478,
+    "tokens_allowed": 150000,
+    "tool_calls": 53,
+    "repeated_calls": 0,
+    "gate_refusals": 0,
+    "new_metered_spend_usd": 0.17616282,
+    "series_spend_usd": 0.4746,
+    "series_cap_usd": 5,
+    "completed_success_replay": "PASS \u2014 zero provider calls (receipts 1->1, attempts 2->2, spend $0.55->$0.55)",
+    "predecessor": "docs-canary-guide-review-3 preserved in terminal failed state; four runs, all killed at the 100,000 cap",
+    "blockers_resolved": [
+      "evaluator lane repointed from opencode to pi (7423434b4) \u2014 the opencode rung is structurally inadmissible on this path",
+      "session-protocol gate isolated for evaluator stages (b06f3c148) \u2014 its --tools allowlist had removed session_protocol_ack, the gate's only disarm",
+      "token cap raised 100,000 -> 150,000 on attended authority; actual requirement measured at 136,478"
+    ],
+    "evidence": "design_docs/verification/mission-iteration-reliability/live-trial.md"
+  }
+}

@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -16,8 +17,11 @@ import (
 // Query params:
 //   - status: filter by status (active, pending_approval, completed, failed)
 //   - source_type: filter by source (github_issue, message, manual)
+//   - workspace_id: filter by workspace
+//   - github_repo: filter by owner/repository
 //   - limit: max results (default 50)
 //   - offset: pagination offset
+//   - since: positive integer hours (omit for all time)
 func (s *Server) handleListChains(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -44,32 +48,43 @@ func (s *Server) handleListChains(w http.ResponseWriter, r *http.Request) {
 	if sourceType := q.Get("source_type"); sourceType != "" {
 		opts.SourceType = sourceType
 	}
-	if limit := q.Get("limit"); limit != "" {
-		if n, err := strconv.Atoi(limit); err == nil && n > 0 {
-			opts.Limit = n
-		}
+	var err error
+	opts.Limit, err = chainPageParameter(q, "limit", 50, 1)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
-	if offset := q.Get("offset"); offset != "" {
-		if n, err := strconv.Atoi(offset); err == nil && n >= 0 {
-			opts.Offset = n
-		}
+	opts.Offset, err = chainPageParameter(q, "offset", 0, 0)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
+	opts.WorkspaceID = q.Get("workspace_id")
+	opts.GitHubRepo = q.Get("github_repo")
 	if agentID := q.Get("agent_id"); agentID != "" {
 		opts.AgentID = agentID
 	}
-	if since := q.Get("since"); since != "" {
-		// Parse as hours
-		if n, err := strconv.Atoi(since); err == nil && n > 0 {
-			t := time.Now().Add(-time.Duration(n) * time.Hour)
-			opts.CreatedAfter = &t
+	if q.Has("since") {
+		hours, err := chainPageParameter(q, "since", 0, 1)
+		// Bound before multiplying so time.Duration cannot wrap into a future cutoff.
+		const maxSinceHours = int64(1<<63-1) / int64(time.Hour)
+		if err != nil || int64(hours) > maxSinceHours {
+			http.Error(w, "since must be a positive integer number of hours within the supported duration range", http.StatusBadRequest)
+			return
 		}
+		t := time.Now().Add(-time.Duration(hours) * time.Hour)
+		opts.CreatedAfter = &t
 	}
 
 	chains, err := s.obsBackend.ListChains(ctx, opts)
 	if err != nil {
 		log.Printf("Failed to list chains: %v", err)
-		http.Error(w, "Failed to list chains", http.StatusInternalServerError)
+		writeChainReadError(w, err)
 		return
+	}
+
+	if chains == nil {
+		chains = []*observatory.ChainSummary{}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -612,41 +627,37 @@ func (s *Server) handleStageSpans(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Parse path: /api/chains/{chainId}/stages/{stageId}/spans
-	path := strings.TrimPrefix(r.URL.Path, "/api/chains/")
-	parts := strings.Split(path, "/stages/")
-	if len(parts) != 2 {
-		http.Error(w, "Invalid path", http.StatusBadRequest)
-		return
-	}
-	stageAndSuffix := strings.TrimSuffix(parts[1], "/spans")
-	stageID := stageAndSuffix
-	if stageID == "" {
-		http.Error(w, "Missing stage ID", http.StatusBadRequest)
-		return
-	}
-
-	ctx := r.Context()
 	q := r.URL.Query()
-
-	limit := 200
-	offset := 0
-	if l := q.Get("limit"); l != "" {
-		if n, err := strconv.Atoi(l); err == nil && n > 0 {
-			limit = n
-		}
+	limit, err := chainPageParameter(q, "limit", 200, 1)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
-	if o := q.Get("offset"); o != "" {
-		if n, err := strconv.Atoi(o); err == nil && n >= 0 {
-			offset = n
-		}
+	offset, err := chainPageParameter(q, "offset", 0, 0)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
+	stage, ok := s.readOwnedStage(w, r, "spans")
+	if !ok {
+		return
+	}
+	stageID := stage.ID
+	ctx := r.Context()
 
 	page, err := s.obsBackend.GetSpanLitesByStageID(ctx, stageID, limit, offset)
 	if err != nil {
 		log.Printf("Failed to get spans for stage %s: %v", stageID, err)
-		http.Error(w, "Failed to get spans", http.StatusInternalServerError)
+		writeChainReadError(w, err)
 		return
+	}
+
+	if page == nil {
+		writeChainReadError(w, fmt.Errorf("backend returned nil span page"))
+		return
+	}
+	if page.Spans == nil {
+		page.Spans = []*observatory.SpanLite{}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -688,11 +699,3 @@ func (s *Server) handleGetSpanDetail(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Failed to encode span: %v", err)
 	}
 }
-
-// handleStageChat returns chat messages for a specific stage.
-// GET /api/chains/{chainId}/stages/{stageId}/chat
-// Query params:
-//   - limit: max messages (default 50)
-//   - offset: pagination offset (default 0)
-//
-// This is Level 4 loading — only called when user clicks the "Chat" tab (M-PERF-OBSERVATORY).

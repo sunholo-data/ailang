@@ -28,9 +28,9 @@ func writeResult(t *testing.T, dir, name string, r BenchmarkResult) {
 // written in a hurry would silently include the garbage again.
 func TestLoadResults_ExcludesInvalidByDefault(t *testing.T) {
 	dir := t.TempDir()
-	writeResult(t, dir, "legacy", BenchmarkResult{ID: "legacy", Lang: "ailang", Model: "m", StdoutOk: true})
-	writeResult(t, dir, "good", BenchmarkResult{ID: "good", Lang: "ailang", Model: "m", StdoutOk: true, Validity: eval_harness.MarkValid()})
-	writeResult(t, dir, "dead", BenchmarkResult{ID: "dead", Lang: "ailang", Model: "m", Validity: eval_harness.MarkInvalid(eval_harness.ReasonCanaryFailed)})
+	writeResult(t, dir, "legacy", BenchmarkResult{RunMetrics: eval_harness.RunMetrics{ID: "legacy", Lang: "ailang", Model: "m", CompileOk: true, RuntimeOk: true, StdoutOk: true}})
+	writeResult(t, dir, "good", BenchmarkResult{RunMetrics: eval_harness.RunMetrics{ID: "good", Lang: "ailang", Model: "m", CompileOk: true, RuntimeOk: true, StdoutOk: true, Validity: eval_harness.MarkValid()}})
+	writeResult(t, dir, "dead", BenchmarkResult{RunMetrics: eval_harness.RunMetrics{ID: "dead", Lang: "ailang", Model: "m", Validity: eval_harness.MarkInvalid(eval_harness.ReasonCanaryFailed)}})
 
 	results, err := LoadResults(dir)
 	if err != nil {
@@ -56,8 +56,8 @@ func TestLoadResults_ExcludesInvalidByDefault(t *testing.T) {
 // reachable for anyone investigating the bug itself.
 func TestLoadResultsIncludingInvalid_OptsBackIn(t *testing.T) {
 	dir := t.TempDir()
-	writeResult(t, dir, "good", BenchmarkResult{ID: "good", Lang: "ailang", Model: "m", StdoutOk: true})
-	writeResult(t, dir, "dead", BenchmarkResult{ID: "dead", Lang: "ailang", Model: "m", Validity: eval_harness.MarkInvalid(eval_harness.ReasonZeroPassAll)})
+	writeResult(t, dir, "good", BenchmarkResult{RunMetrics: eval_harness.RunMetrics{ID: "good", Lang: "ailang", Model: "m", CompileOk: true, RuntimeOk: true, StdoutOk: true}})
+	writeResult(t, dir, "dead", BenchmarkResult{RunMetrics: eval_harness.RunMetrics{ID: "dead", Lang: "ailang", Model: "m", Validity: eval_harness.MarkInvalid(eval_harness.ReasonZeroPassAll)}})
 
 	results, err := LoadResultsIncludingInvalid(dir)
 	if err != nil {
@@ -68,13 +68,48 @@ func TestLoadResultsIncludingInvalid_OptsBackIn(t *testing.T) {
 	}
 }
 
+// TestFilterValidResults_DropsModeIncompatibleSkipRow is the aggregation half
+// of M-EVAL-STANDARD-MODE-INPUT-FILES-GAP: the dispatch-time guard banks a
+// skip row (error_category "skipped_mode_incompatible", Validity invalid with
+// reason "mode_incompatible") whenever a grade_entrypoint benchmark reaches
+// runSingleBenchmark in standard mode. The model was never invoked, so the row
+// is a "we failed to measure the subject" record, not a measurement — it must
+// be dropped by FilterValidResults, and therefore by LoadResults, which is what
+// eval-elo's fitLang, the confidence-gating ratings, and every capability/success-rate
+// statistic load through. The row itself stays on disk (quarantined, never
+// deleted) and CountInvalid keeps it inspectable under exactly the banked reason.
+func TestFilterValidResults_DropsModeIncompatibleSkipRow(t *testing.T) {
+	results := []*BenchmarkResult{
+		{RunMetrics: eval_harness.RunMetrics{ID: "good", Lang: "ailang", Model: "m", CompileOk: true, RuntimeOk: true, StdoutOk: true}},
+		{
+			RunMetrics: eval_harness.RunMetrics{
+				ID:            "markdown_reimplement",
+				Lang:          "ailang",
+				Model:         "m",
+				ErrorCategory: "skipped_mode_incompatible",
+				Validity:      eval_harness.MarkInvalid(eval_harness.ReasonModeIncompatible),
+			},
+		},
+	}
+
+	filtered := FilterValidResults(results)
+	if len(filtered) != 1 || filtered[0].ID != "good" {
+		t.Fatalf("FilterValidResults kept %d row(s), want exactly the 1 valid row — mode_incompatible skip rows are not measurements", len(filtered))
+	}
+
+	counts := CountInvalid(results)
+	if counts[eval_harness.ReasonModeIncompatible] != 1 {
+		t.Errorf("CountInvalid[mode_incompatible] = %d, want 1 — the skip row must stay inspectable under the reason the guard banked", counts[eval_harness.ReasonModeIncompatible])
+	}
+}
+
 // TestLoadResults_LegacyRowsSurvive re-asserts the back-compat guarantee at the
 // LOADER level, not just on the struct: a directory of pre-v0.31.0 results must
 // load completely.
 func TestLoadResults_LegacyRowsSurvive(t *testing.T) {
 	dir := t.TempDir()
 	for _, id := range []string{"a", "b", "c"} {
-		writeResult(t, dir, id, BenchmarkResult{ID: id, Lang: "ailang", Model: "m", StdoutOk: true})
+		writeResult(t, dir, id, BenchmarkResult{RunMetrics: eval_harness.RunMetrics{ID: id, Lang: "ailang", Model: "m", CompileOk: true, RuntimeOk: true, StdoutOk: true}})
 	}
 
 	results, err := LoadResults(dir)
@@ -94,8 +129,8 @@ func TestLoadResults_LegacyRowsSurvive(t *testing.T) {
 // computed from HALF the data. This is the guard against re-breaking it.
 func TestDedup_PreservesTrials(t *testing.T) {
 	dir := t.TempDir()
-	writeResult(t, dir, "t1", BenchmarkResult{ID: "bench", Lang: "ailang", Model: "m", Seed: 42, Trial: 1, StdoutOk: true})
-	writeResult(t, dir, "t2", BenchmarkResult{ID: "bench", Lang: "ailang", Model: "m", Seed: 42, Trial: 2, StdoutOk: true})
+	writeResult(t, dir, "t1", BenchmarkResult{RunMetrics: eval_harness.RunMetrics{ID: "bench", Lang: "ailang", Model: "m", Seed: 42, Trial: 1, CompileOk: true, RuntimeOk: true, StdoutOk: true}})
+	writeResult(t, dir, "t2", BenchmarkResult{RunMetrics: eval_harness.RunMetrics{ID: "bench", Lang: "ailang", Model: "m", Seed: 42, Trial: 2, CompileOk: true, RuntimeOk: true, StdoutOk: true}})
 
 	results, err := LoadResults(dir)
 	if err != nil {
@@ -113,8 +148,8 @@ func TestDedup_StillCollapsesGenuineReruns(t *testing.T) {
 	dir := t.TempDir()
 	older := time.Now().Add(-time.Hour)
 	newer := time.Now()
-	writeResult(t, dir, "old", BenchmarkResult{ID: "bench", Lang: "ailang", Model: "m", Seed: 42, Trial: 1, Timestamp: older})
-	writeResult(t, dir, "new", BenchmarkResult{ID: "bench", Lang: "ailang", Model: "m", Seed: 42, Trial: 1, StdoutOk: true, CompileOk: true, RuntimeOk: true, Timestamp: newer})
+	writeResult(t, dir, "old", BenchmarkResult{RunMetrics: eval_harness.RunMetrics{ID: "bench", Lang: "ailang", Model: "m", Seed: 42, Trial: 1, Timestamp: older}})
+	writeResult(t, dir, "new", BenchmarkResult{RunMetrics: eval_harness.RunMetrics{ID: "bench", Lang: "ailang", Model: "m", Seed: 42, Trial: 1, StdoutOk: true, CompileOk: true, RuntimeOk: true, Timestamp: newer}})
 
 	results, err := LoadResults(dir)
 	if err != nil {
@@ -132,8 +167,8 @@ func TestDedup_StillCollapsesGenuineReruns(t *testing.T) {
 // board, so its dedup behaviour must be byte-identical to before.
 func TestDedup_LegacyRowsUnaffected(t *testing.T) {
 	dir := t.TempDir()
-	writeResult(t, dir, "a", BenchmarkResult{ID: "bench", Lang: "ailang", Model: "m", Seed: 42, Timestamp: time.Now().Add(-time.Hour)})
-	writeResult(t, dir, "b", BenchmarkResult{ID: "bench", Lang: "ailang", Model: "m", Seed: 42, Timestamp: time.Now()})
+	writeResult(t, dir, "a", BenchmarkResult{RunMetrics: eval_harness.RunMetrics{ID: "bench", Lang: "ailang", Model: "m", Seed: 42, Timestamp: time.Now().Add(-time.Hour)}})
+	writeResult(t, dir, "b", BenchmarkResult{RunMetrics: eval_harness.RunMetrics{ID: "bench", Lang: "ailang", Model: "m", Seed: 42, Timestamp: time.Now()}})
 
 	results, err := LoadResults(dir)
 	if err != nil {

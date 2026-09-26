@@ -1,0 +1,65 @@
+{
+  "doc": "design_docs/planned/v0_35_2/m-pi-runner-worktree-assertion-vacuous-on-revision.md",
+  "iso_ts": "2026-09-06T07:18:58Z",
+  "reviewers": [
+    {
+      "model": "gpt6-astra",
+      "cost_usd": 0.08374000000000001,
+      "tokens_in": 6614,
+      "tokens_out": 352,
+      "present": true,
+      "result": {
+        "verdict": "reject",
+        "strongest_objection": "The proposed 'bounded' snapshot has no deadline or resource bound. The before-snapshot runs before pi launch, and the after-snapshot runs after completion, but neither is explicitly covered by a watchdog. Enumerating the entire repository and hashing every eligible file can therefore prevent the runner from launching or returning indefinitely. Following symlinks with shasum also permits reads outside the worktree, including potentially blocking targets. This violates the bounded-waits axiom.",
+        "catch": "Add the missing conflict-surface analysis: verify whether the existing wall-timeout, process-group cleanup, EXIT trap, and verdict consumers can accommodate snapshot subprocesses and rc 15. The current verification log does not establish those integration assumptions, and declaring launch/termination machinery out of scope does not resolve the overlap.",
+        "proposed_fix": "Replace the boundedness claim with an explicit contract: 'Both snapshots execute under a finite configured deadline covering enumeration, reads, hashing, sorting, and comparison. Deadline expiry or resource-limit exhaustion terminates and reaps snapshot subprocesses and returns snapshot_error (15), never an equality verdict. Hash symlink link-text without following its target; reject unsupported filesystem object types explicitly. Integrate temporary-directory cleanup with the existing cleanup mechanism rather than installing an unverified replacement EXIT trap.' Add a conflict-surface table with inspected file/line evidence for watchdog reuse, subprocess cleanup, trap ownership, and rc-15 handling; justify any separate mechanism. Add reproducible tests for snapshot timeout, a symlink to a blocking target, cleanup after failure, and an ordinary successful snapshot as a positive control."
+      },
+      "landed": null
+    },
+    {
+      "model": "gemini-3-1-pro",
+      "cost_usd": 0.017694,
+      "tokens_in": 7179,
+      "tokens_out": 278,
+      "present": true,
+      "result": {
+        "verdict": "reject",
+        "strongest_objection": "The design completely omits the mandatory Conflict Surface analysis (Gate 2) and violates the Bounded Waits axiom (Gate 3). By proposing an unbounded O(N) sequential Bash loop running `shasum -a 256` on every eligible file before and after every execution, it risks massive stalls on large repositories. It builds a bespoke Merkle-tree-lite in Bash without analyzing the overlap or conflict with Git's native, highly optimized content-diffing capabilities (e.g., parsing `git status --porcelain` accurately or using `git diff`).",
+        "catch": "Missing Conflict Surface analysis regarding native Git hashing/diffing machinery, and failure to bound the time complexity of the before/after snapshot loop on large repositories.",
+        "proposed_fix": "Add a 'Conflict Surface' section explicitly evaluating Git's native diff machinery. Instead of a custom O(tree_size) Bash hashing loop, reuse Git by parsing `git diff --name-only` alongside `git ls-files --others --exclude-standard` or parsing the actual change types in `git status --porcelain` to determine if a genuine byte-level delta occurred, ensuring O(changes) time complexity and bounded waits."
+      },
+      "landed": null
+    },
+    {
+      "model": "oc-glm-5-2",
+      "cost_usd": 0.009347620000000001,
+      "tokens_in": 6554,
+      "tokens_out": 414,
+      "present": true,
+      "result": {
+        "verdict": "reject",
+        "strongest_objection": "The doc does not establish that `scripts/mission_pi_run.sh` already has `set -o pipefail` enabled at the script level. The entire fail-closed guarantee for the new `snapshot_error` (rc 15) path — acceptance criterion 7 and risk 'Bash 3.2 portability' — depends on `pipefail` being active during the snapshot pipes. If the script does not currently set `pipefail` (and the verification log never checks for it), then 'requires set -o pipefail' is asserted as a requirement but never verified against the actual script's current `set` options, meaning the non-repo fail-closed case (V9) may not hold in production without an additional change that is not called out as a line-level modification.",
+        "catch": "Verify whether `scripts/mission_pi_run.sh` currently contains `set -o pipefail` (or `set -e -o pipefail`). The doc says `pipefail` is 'present in bash 3.2' (a shell-capability claim) but never confirms it is enabled in the actual script. V9 only proves it in a /tmp prototype, not against the SUT's current shebang/set directives.",
+        "proposed_fix": "Add a verification-log row V11: run `grep -n 'set -o pipefail\\|set -e' scripts/mission_pi_run.sh` and report the observed output. If `pipefail` is absent, add an explicit line-level modification entry to the Algorithm section: 'Enable `set -o pipefail` at script top (currently absent — observed: …)' and note that this is a global behavior change affecting every pipe in the script, with a conflict-surface analysis of whether any existing pipe in the script currently relies on pipefail being off."
+      },
+      "landed": null
+    }
+  ],
+  "controller_in_session": {
+    "verdict": "reject",
+    "note": "Root cause and no-op controls verified. Proposed symmetric-difference record count double-counts edits despite worktree_changed_files name; symlink following introduces external-content false positives and misses retargets; exact lexical artifact paths need physical alias normalization; per-file process census has no measured full-repo time bound; snapshot error precedence and CI coverage need explicit contract. Direction content snapshots is appropriate, revise these concrete specification gaps."
+  },
+  "synthesis": {
+    "verdict": "blocked",
+    "blocking_objections": [
+      "gpt6-astra: The proposed 'bounded' snapshot has no deadline or resource bound. The before-snapshot runs before pi launch, and the after-snapshot runs after completion, but neither is explicitly covered by a watchdog. Enumerating the entire repository and hashing every eligible file can therefore prevent the runner from launching or returning indefinitely. Following symlinks with shasum also permits reads outside the worktree, including potentially blocking targets. This violates the bounded-waits axiom.",
+      "gemini-3-1-pro: The design completely omits the mandatory Conflict Surface analysis (Gate 2) and violates the Bounded Waits axiom (Gate 3). By proposing an unbounded O(N) sequential Bash loop running `shasum -a 256` on every eligible file before and after every execution, it risks massive stalls on large repositories. It builds a bespoke Merkle-tree-lite in Bash without analyzing the overlap or conflict with Git's native, highly optimized content-diffing capabilities (e.g., parsing `git status --porcelain` accurately or using `git diff`).",
+      "oc-glm-5-2: The doc does not establish that `scripts/mission_pi_run.sh` already has `set -o pipefail` enabled at the script level. The entire fail-closed guarantee for the new `snapshot_error` (rc 15) path — acceptance criterion 7 and risk 'Bash 3.2 portability' — depends on `pipefail` being active during the snapshot pipes. If the script does not currently set `pipefail` (and the verification log never checks for it), then 'requires set -o pipefail' is asserted as a requirement but never verified against the actual script's current `set` options, meaning the non-repo fail-closed case (V9) may not hold in production without an additional change that is not called out as a line-level modification.",
+      "controller (in-session): Root cause and no-op controls verified. Proposed symmetric-difference record count double-counts edits despite worktree_changed_files name; symlink following introduces external-content false positives and misses retargets; exact lexical artifact paths need physical alias normalization; per-file process census has no measured full-repo time bound; snapshot error precedence and CI coverage need explicit contract. Direction content snapshots is appropriate, revise these concrete specification gaps."
+    ],
+    "absent_reviewers": [],
+    "total_cost_usd": 0.11078162000000001,
+    "total_tokens_in": 20347,
+    "total_tokens_out": 1044
+  }
+}

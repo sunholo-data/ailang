@@ -1,0 +1,273 @@
+package main
+
+// `ailang mission quota` — the fleet-wide quota ledger (M-QUOTA-RATIONING-ROUTING M2).
+//
+// Routing has always been able to ask "is this lane up?" and never "can it afford to be
+// used?". This is where the second question is answered: consumption per (bucket, window)
+// against a 10%/day ration, fleet-wide because that is what the subscription is.
+
+import (
+	"encoding/json"
+	"flag"
+	"fmt"
+	"os"
+	"path/filepath"
+	"time"
+
+	"github.com/sunholo-data/ailang/internal/config"
+	"github.com/sunholo-data/ailang/internal/mission"
+)
+
+func missionQuota(args []string) error {
+	return missionQuotaWithPaths(args, mission.DefaultPaths(), time.Now().UTC())
+}
+
+func missionQuotaWithPaths(args []string, paths mission.Paths, now time.Time) error {
+	fs := flag.NewFlagSet("mission quota", flag.ContinueOnError)
+	asJSON := fs.Bool("json", false, "Emit the ledger as JSON")
+	bucket := fs.String("bucket", "", "Report only this bucket (codex, anthropic, openrouter, ollama)")
+	consolidate := fs.Bool("consolidate", false, "Compact the journal into the ledger cache before reporting")
+	over := fs.Bool("over", false, "Print buckets unavailable for quota routing, one per line. Codex uses local provider percentages. Ollama uses its OLLAMA_API_KEY usage gauge (95% cutoff), plus a trailing-24h rate ration because the gauge carries no reset. Anthropic uses /api/oauth/usage percentages and resets; AILANG_ANTHROPIC_RATION=0 opts one process out. These block unknown quota; other buckets require proven ledger exceedance.")
+	codexReset := fs.Bool("codex-reset", false, "ATTENDED ONLY: spend one Codex reset credit (resets the account's current windows). Requires --yes; refused inside a mission iteration.")
+	codexCredit := fs.String("credit", "", "With --codex-reset: the credit id to spend (default: the provider picks)")
+	yes := fs.Bool("yes", false, "With --codex-reset: confirm spending the credit")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	codexHome := config.CodexHome()
+	if codexHome == "" {
+		codexHome = filepath.Join(paths.Home, ".codex")
+	}
+	if *codexReset {
+		return missionQuotaCodexReset(codexHome, *codexCredit, *yes, now)
+	}
+
+	var codex *mission.CodexQuotaObservation
+	if *bucket == "" || *bucket == "codex" {
+		observation := mission.ObserveCodexQuota(codexHome, now)
+		codex = &observation
+	}
+
+	var ollama *mission.OllamaQuotaObservation
+	if *bucket == "" || *bucket == "ollama" {
+		observation := mission.ObserveOllamaQuota(paths, config.OllamaAPIKey(), now)
+		ollama = &observation
+	}
+
+	// Anthropic reports its own utilisation and reset, so it is paced by the same rule as
+	// Codex rather than by an inferred token capacity. Rationed by default; an over-ration
+	// controller walks CONTROLLER_FALLBACK to a cheaper rung rather than wedging.
+	var anthropic *mission.AnthropicQuotaObservation
+	if *bucket == "" || *bucket == "anthropic" {
+		observation := mission.ObserveAnthropicQuota(now)
+		anthropic = &observation
+	}
+
+	// The fourth provider, and the one that had NO row in this report at all — not
+	// "unrationed and loud", simply absent, while pi:openrouter/* sat in every role chain.
+	var openrouter *mission.OpenRouterQuotaObservation
+	if *bucket == "" || *bucket == "openrouter" {
+		observation := mission.ObserveOpenRouterQuota(config.OpenRouterAPIKey(), now)
+		openrouter = &observation
+	}
+
+	if *consolidate {
+		ran, err := mission.Consolidate(paths, now)
+		if err != nil {
+			return err
+		}
+		if !ran {
+			// Not an error: the journal is durable and the report below folds it
+			// anyway. Say so rather than let the flag look like it did nothing.
+			fmt.Fprintln(os.Stderr, "quota: another process holds the consolidation lock; reporting from the journal instead")
+		}
+	}
+
+	ledger, err := mission.LoadLedger(paths, now)
+	if err != nil {
+		if *over && emitProviderQuotaBlocks(codex, ollama, anthropic, openrouter) {
+			fmt.Fprintf(os.Stderr, "quota: token ledger unavailable: %v\n", err)
+			return nil
+		}
+		return err
+	}
+	if *bucket != "" {
+		canon := *bucket
+		filtered := ledger.Usage[:0:0]
+		for _, u := range ledger.Usage {
+			if u.Bucket == canon {
+				filtered = append(filtered, u)
+			}
+		}
+		// Buckets paced ENTIRELY by a provider gauge have no token-ledger rows, so an
+		// empty filter result is normal for them and must not be reported as a typo.
+		// openrouter was missing from this list: `--bucket openrouter` errored with
+		// `no bucket "openrouter" in the ledger` even though the -bucket flag help
+		// advertises it and the full report prints its row. Measured 2026-09-14 — the
+		// gauge-only providers are codex, ollama and openrouter; anthropic has ledger
+		// rows and so reaches this check legitimately.
+		gaugeOnly := canon == "codex" || canon == "ollama" || canon == "openrouter"
+		if len(filtered) == 0 && !gaugeOnly {
+			// An empty result is a claim ("nothing spent") that could equally mean
+			// "wrong name". Distinguish them.
+			known := map[string]bool{}
+			for _, u := range ledger.Usage {
+				known[u.Bucket] = true
+			}
+			if !known[canon] {
+				names := make([]string, 0, len(known))
+				for k := range known {
+					names = append(names, k)
+				}
+				if len(names) == 0 {
+					return fmt.Errorf("no spend recorded for any bucket yet")
+				}
+				return fmt.Errorf("no bucket %q in the ledger (have: %v)", canon, names)
+			}
+		}
+		ledger.Usage = filtered
+	}
+
+	// --over is the machine seam for routing. It prints ONLY computed exceedances:
+	// a bucket whose capacity is unknown is NOT listed, because rationing on a
+	// guessed capacity would either idle a healthy fleet or wave through an empty
+	// bucket, and either way be confident about it. Silence therefore means "no
+	// bucket is PROVEN over", never "everything is fine".
+	if *over {
+		printed := map[string]bool{}
+		for _, v := range ledger.Verdicts(now) {
+			// Codex is admitted using provider percentages, never inferred token capacity.
+			if v.Bucket != "codex" && v.Bucket != "ollama" && v.Over() && !printed[v.Bucket] {
+				fmt.Println(v.Bucket)
+				printed[v.Bucket] = true
+			}
+		}
+		emitProviderQuotaBlocks(codex, ollama, anthropic, openrouter)
+		return nil
+	}
+
+	verdicts := ledger.Verdicts(now)
+	filteredVerdicts := verdicts[:0:0]
+	for _, v := range verdicts {
+		if v.Bucket != "codex" && v.Bucket != "ollama" {
+			filteredVerdicts = append(filteredVerdicts, v)
+		}
+	}
+	if *asJSON {
+		out := struct {
+			*mission.Ledger
+			At         time.Time                           `json:"at"`
+			Verdicts   []mission.RationVerdict             `json:"verdicts"`
+			Codex      *mission.CodexQuotaObservation      `json:"codex_provider_usage,omitempty"`
+			Ollama     *mission.OllamaQuotaObservation     `json:"ollama_provider_usage,omitempty"`
+			Anthropic  *mission.AnthropicQuotaObservation  `json:"anthropic_provider_usage,omitempty"`
+			OpenRouter *mission.OpenRouterQuotaObservation `json:"openrouter_provider_usage,omitempty"`
+		}{Ledger: ledger, At: now, Verdicts: filteredVerdicts, Codex: codex, Ollama: ollama, Anthropic: anthropic, OpenRouter: openrouter}
+		body, err := json.MarshalIndent(out, "", "  ")
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(body))
+		return nil
+	}
+
+	display := *ledger
+	display.Usage = nil
+	for _, u := range ledger.Usage {
+		if u.Bucket != "codex" && u.Bucket != "ollama" {
+			display.Usage = append(display.Usage, u)
+		}
+	}
+	fmt.Print(display.String(now))
+	if codex != nil {
+		fmt.Printf("codex provider usage: %s — %s\n", codex.State, codex.Reason)
+		for _, w := range codex.Windows {
+			fmt.Printf("  %dm: %.1f%% used / %.1f%% allowed; resets %s (observed %s)\n", w.WindowMinutes, w.UsedPercent, w.AllowancePercent, w.ResetsAt.Format(time.RFC3339), codex.ObservedAt.Format(time.RFC3339))
+		}
+		if rc := codex.ResetCredits; rc != nil {
+			fmt.Printf("  reset credits in reserve: %d (spend: attended only, `ailang mission quota --codex-reset --yes`)\n", rc.Available)
+			for _, c := range rc.Credits {
+				exp := "no expiry"
+				if !c.ExpiresAt.IsZero() {
+					exp = "expires " + c.ExpiresAt.Format("2006-01-02")
+				}
+				fmt.Printf("    %s  %q  %s\n", c.ID, c.Title, exp)
+			}
+		}
+	}
+	if ollama != nil {
+		fmt.Printf("ollama provider usage: %s — %s\n", ollama.State, ollama.Reason)
+		if ollama.SessionUsage != nil && ollama.WeeklyUsage != nil {
+			fmt.Printf("  fractional gauge: session %.1f%%; weekly %.1f%%\n", 100**ollama.SessionUsage, 100**ollama.WeeklyUsage)
+		}
+	}
+	if anthropic != nil {
+		mode := "REPORT ONLY"
+		if anthropic.Enforced {
+			mode = "ENFORCED"
+		}
+		fmt.Printf("anthropic provider usage: %s [%s] — %s\n", anthropic.State, mode, anthropic.Reason)
+		for _, w := range anthropic.Windows {
+			fmt.Printf("  %dm: %.1f%% used / %.1f%% allowed; resets %s\n",
+				w.WindowMinutes, w.UsedPercent, w.AllowancePercent, w.ResetsAt.Format(time.RFC3339))
+		}
+	}
+	if openrouter != nil {
+		fmt.Printf("openrouter provider usage: %s — %s\n", openrouter.State, openrouter.Reason)
+	}
+	for _, u := range ledger.Usage {
+		if u.Bucket == "codex" || u.Bucket == "ollama" {
+			continue
+		} // Provider percentages govern Codex admission.
+		// Anthropic is paced by provider percentages once /api/oauth/usage answers, so the
+		// token capacity stays 0 by design. Warning "UNRATIONED" there would now contradict
+		// the anthropic line printed above; warn only when no provider window was obtained.
+		pacedByProvider := u.Bucket == "anthropic" && anthropic != nil && len(anthropic.Windows) > 0
+		if u.Capacity <= 0 && !pacedByProvider {
+			// LOUD, per D-2: an unrationed bucket is a bucket nothing is pacing.
+			fmt.Fprintf(os.Stderr, "quota: %s/%s has no known capacity — UNRATIONED until a provider probe supplies one\n", u.Bucket, u.Window)
+		}
+		if u.BoundarySource() == "local" {
+			fmt.Fprintf(os.Stderr, "quota: %s/%s window boundaries are derived locally, not from a provider reset\n", u.Bucket, u.Window)
+		}
+	}
+	return nil
+}
+
+// Preserve provider admission independently of the optional token journal.
+func emitProviderQuotaBlocks(codex *mission.CodexQuotaObservation, ollama *mission.OllamaQuotaObservation, anthropic *mission.AnthropicQuotaObservation, openrouter *mission.OpenRouterQuotaObservation) bool {
+	blocked := false
+	if codex != nil && codex.Blocked() {
+		fmt.Println("codex")
+		fmt.Fprintf(os.Stderr, "quota: codex %s: %s\n", codex.State, codex.Reason)
+		blocked = true
+	}
+	if ollama != nil && ollama.Blocked() {
+		fmt.Println("ollama")
+		fmt.Fprintf(os.Stderr, "quota: ollama %s: %s\n", ollama.State, ollama.Reason)
+		blocked = true
+	}
+	// Blocked() honours the AILANG_ANTHROPIC_RATION=0 escape hatch: under it an over-ration
+	// observation is still REPORTED on stderr but not emitted as a blocked bucket, so the
+	// number never reads as ok just because nothing is acting on it.
+	if anthropic != nil {
+		if anthropic.Blocked() {
+			fmt.Println("anthropic")
+			blocked = true
+		}
+		if anthropic.State != "ok" {
+			fmt.Fprintf(os.Stderr, "quota: anthropic %s: %s\n", anthropic.State, anthropic.Reason)
+		}
+	}
+	if openrouter != nil {
+		if openrouter.Blocked() {
+			fmt.Println("openrouter")
+			blocked = true
+		}
+		if openrouter.State != "ok" {
+			fmt.Fprintf(os.Stderr, "quota: openrouter %s: %s\n", openrouter.State, openrouter.Reason)
+		}
+	}
+	return blocked
+}

@@ -18,11 +18,13 @@ package eval_harness
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/config"
+	"github.com/sunholo-data/ailang/internal/proctree"
 )
 
 const (
@@ -31,7 +33,7 @@ const (
 	// ("8589934592") or an integer with a K/M/G/T suffix ("8G", "512M";
 	// "GB"/"GiB" spellings allowed, all binary multiples). "0" or "off"
 	// disables the watchdog.
-	EnvEvalMaxRSS = "AILANG_EVAL_MAX_RSS"
+	EnvEvalMaxRSS = config.EnvEvalMaxRSS
 
 	// DefaultEvalMaxRSS is the default cap: 8 GiB. Far above what any
 	// legitimate benchmark solution needs, far below host RAM even with
@@ -53,7 +55,7 @@ const (
 // value is unparseable. A bad value is an error, not a silent fallback — a
 // misconfigured safety cap must fail loudly (CLAUDE.md §2).
 func evalMaxRSS() (int64, error) {
-	raw := strings.TrimSpace(os.Getenv(EnvEvalMaxRSS))
+	raw := config.EvalMaxRSS()
 	if raw == "" {
 		return DefaultEvalMaxRSS, nil
 	}
@@ -97,7 +99,7 @@ type guardedWait struct {
 }
 
 // waitWithGuards waits for an already-started cmd (which MUST be in its own
-// process group via SetProcessGroup) while enforcing both the wall-clock
+// process group via proctree.SetGroup) while enforcing both the wall-clock
 // timeout and, when maxRSS > 0, the process-group resident-memory cap. On
 // either breach the entire process group is killed, so wrapper children
 // (uv → python, go run → binary) die with the leader.
@@ -123,7 +125,7 @@ func waitWithGuards(cmd *exec.Cmd, timeout time.Duration, maxRSS int64) guardedW
 			return g
 		case <-timer.C:
 			g.timedOut = true
-			_ = KillProcessGroup(cmd.Process.Pid)
+			_ = proctree.KillGroup(cmd.Process.Pid)
 			// Drain Wait after the kill to avoid racing the goroutine.
 			g.waitErr = <-done
 			return g
@@ -137,7 +139,7 @@ func waitWithGuards(cmd *exec.Cmd, timeout time.Duration, maxRSS int64) guardedW
 			}
 			if rss > maxRSS {
 				g.memKilled = true
-				_ = KillProcessGroup(cmd.Process.Pid)
+				_ = proctree.KillGroup(cmd.Process.Pid)
 				g.waitErr = <-done
 				return g
 			}
@@ -168,7 +170,7 @@ func runGuarded(cmd *exec.Cmd, timeout time.Duration, timeoutMsg string) *RunRes
 		}
 	}
 
-	SetProcessGroup(cmd)
+	proctree.SetGroup(cmd)
 
 	stdout := NewLimitedWriter(MaxOutputSize)
 	stderr := NewLimitedWriter(MaxOutputSize)

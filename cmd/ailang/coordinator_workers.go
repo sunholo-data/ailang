@@ -153,7 +153,11 @@ func loadBareMetalRows(maxAge time.Duration) ([]workerRow, error) {
 	// the daemon writes (~/.ailang/state/worker_heartbeats.json by default).
 	// This gives same-host cross-process visibility. Cross-host visibility
 	// will land via FirestoreHeartbeatStore in v0.25, using the same interface.
-	store := coordinator.NewFileHeartbeatStore(coordinator.DefaultHeartbeatPath(""))
+	hbPath, err := coordinator.DefaultHeartbeatPath("")
+	if err != nil {
+		return nil, err
+	}
+	store := coordinator.NewFileHeartbeatStore(hbPath)
 	hbs, err := store.List(context.Background(), maxAge)
 	if err != nil {
 		return nil, err
@@ -288,7 +292,11 @@ func workersPing(args []string) error {
 	host := args[0]
 	// Resolve via the on-host heartbeat file so users get a useful error if
 	// the host doesn't exist (or hasn't heartbeated recently).
-	store := coordinator.NewFileHeartbeatStore(coordinator.DefaultHeartbeatPath(""))
+	hbPath, err := coordinator.DefaultHeartbeatPath("")
+	if err != nil {
+		return err
+	}
+	store := coordinator.NewFileHeartbeatStore(hbPath)
 	hbs, err := store.List(context.Background(), 5*time.Minute)
 	if err != nil {
 		return fmt.Errorf("failed to query heartbeat store: %w", err)

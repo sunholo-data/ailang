@@ -4,7 +4,6 @@ import (
 	"archive/zip"
 	"encoding/xml"
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/effects"
@@ -97,16 +96,11 @@ func zipXmlScanFoldStepImpl(ctx *effects.EffContext, args []eval.Value) (eval.Va
 		return zipMakeErr(fmt.Sprintf("path traversal rejected: %s", entryName)), nil
 	}
 
-	zipPath := pathVal.Value
-	if ctx.Env.Sandbox != "" {
-		zipPath = filepath.Join(ctx.Env.Sandbox, zipPath)
-	}
-
-	archive, err := zip.OpenReader(zipPath)
+	archive, closeZip, err := openZipReader(ctx, pathVal.Value)
 	if err != nil {
 		return zipMakeErr(fmt.Sprintf("cannot open ZIP: %v", err)), nil
 	}
-	defer archive.Close()
+	defer closeZip()
 
 	var entry *zip.File
 	for _, f := range archive.File {
@@ -212,17 +206,12 @@ func zipXmlScanFoldImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value,
 		return zipMakeErr(fmt.Sprintf("path traversal rejected: %s", entryName)), nil
 	}
 
-	zipPath := pathVal.Value
-	if ctx.Env.Sandbox != "" {
-		zipPath = filepath.Join(ctx.Env.Sandbox, zipPath)
-	}
-
-	// 1. Open ZIP archive
-	archive, err := zip.OpenReader(zipPath)
+	// 1. Open ZIP archive (through the sandbox root when one is set)
+	archive, closeZip, err := openZipReader(ctx, pathVal.Value)
 	if err != nil {
 		return zipMakeErr(fmt.Sprintf("cannot open ZIP: %v", err)), nil
 	}
-	defer archive.Close()
+	defer closeZip()
 
 	// 2. Find entry
 	var entry *zip.File

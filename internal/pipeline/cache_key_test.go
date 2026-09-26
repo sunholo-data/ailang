@@ -86,3 +86,35 @@ func TestModuleCacheKey_NoDeps(t *testing.T) {
 		t.Errorf("nil deps and empty deps produced different keys")
 	}
 }
+
+// A --release compile erases Debug calls, so it must never share a cache key
+// with a normal compile of the same source (measured 2026-09-11: a release
+// run poisoned the cache and every later normal run lost all Debug output).
+func TestCompilerIdentity_ReleaseModeChangesKey(t *testing.T) {
+	src := "module m\nexport func f() -> int = 1\n"
+	normal := ModuleCacheKey(compilerIdentity("abc", "", Config{}), src, nil)
+	release := ModuleCacheKey(compilerIdentity("abc", "", Config{ReleaseMode: true}), src, nil)
+	if normal == release {
+		t.Fatal("release and normal compiles share a cache key")
+	}
+	if compilerIdentity("abc", "", Config{}) != "abc" {
+		t.Errorf("normal mode must leave the commit identity untouched (existing keys stay valid)")
+	}
+}
+
+// TestCompilerIdentity_DirtyFingerprint: two builds of one commit with
+// different fingerprints must not share cache keys (#1275); a clean build
+// (no fingerprint) keeps the bare commit identity and so its hit rate.
+func TestCompilerIdentity_DirtyFingerprint(t *testing.T) {
+	a := compilerIdentity("abc", "100-1", Config{})
+	b := compilerIdentity("abc", "100-2", Config{})
+	if a == b {
+		t.Fatalf("different builds of one commit share identity %q", a)
+	}
+	if got := compilerIdentity("abc", "", Config{}); got != "abc" {
+		t.Errorf("clean identity = %q, want the bare commit", got)
+	}
+	if rel := compilerIdentity("abc", "100-1", Config{ReleaseMode: true}); rel == a {
+		t.Errorf("release mode must still separate the key: %q", rel)
+	}
+}

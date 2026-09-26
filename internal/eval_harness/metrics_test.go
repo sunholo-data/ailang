@@ -191,3 +191,36 @@ func TestMetricsLogger_BackstopsMicroragState(t *testing.T) {
 		t.Errorf("explicit caller value must win; got %q", m2.MicroragState)
 	}
 }
+
+// M-PI-HARNESS-UPGRADE M1: executor_version is omitempty, and the doc comment
+// on the field is the contract — absent means UNMEASURED, never "the current
+// one". A row banked before this field existed must not be readable as having
+// run on whatever pi is installed today.
+func TestRunMetrics_ExecutorVersionAbsentMeansUnmeasured(t *testing.T) {
+	unmeasured := &RunMetrics{ID: "x", Lang: "ailang", Model: "m", Executor: "pi"}
+	data, err := json.Marshal(unmeasured)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "executor_version") {
+		t.Fatalf("empty ExecutorVersion must be OMITTED, got %s", data)
+	}
+	measured := &RunMetrics{ID: "x", Lang: "ailang", Model: "m", Executor: "pi", ExecutorVersion: "pi@0.85.1"}
+	data, _ = json.Marshal(measured)
+	if !strings.Contains(string(data), `"executor_version":"pi@0.85.1"`) {
+		t.Fatalf("ExecutorVersion not banked: %s", data)
+	}
+}
+
+// M-AGENT-AILANG-ONLY-EXECUTION M1: tool_policy / policy_digest are omitempty;
+// absent means unmeasured (the row predates the field), never "full".
+func TestRunMetrics_ToolPolicyAbsentMeansUnmeasured(t *testing.T) {
+	data, _ := json.Marshal(&RunMetrics{ID: "x", Lang: "ailang", Model: "m", Executor: "pi"})
+	if strings.Contains(string(data), "tool_policy") || strings.Contains(string(data), "policy_digest") {
+		t.Fatalf("absent policy must be OMITTED, got %s", data)
+	}
+	data, _ = json.Marshal(&RunMetrics{ID: "x", Lang: "ailang", Model: "m", Executor: "pi", ToolPolicy: []string{"read", "ailang_run"}, PolicyDigest: "abc"})
+	if !strings.Contains(string(data), `"tool_policy":["read","ailang_run"]`) || !strings.Contains(string(data), `"policy_digest":"abc"`) {
+		t.Fatalf("policy not banked: %s", data)
+	}
+}

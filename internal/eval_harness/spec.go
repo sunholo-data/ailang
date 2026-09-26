@@ -50,6 +50,13 @@ type BenchmarkSpec struct {
 	// the agent implements (e.g. the stubbed parser); they keep the agent's version at grade
 	// time while every other input_file is re-seeded to its canonical form (so the probe and
 	// fixed deps can't be tampered with). Unset → legacy single-file solution.ail grading.
+	//
+	// M-EVAL-STANDARD-MODE-INPUT-FILES-GAP: setting grade_entrypoint implies the
+	// benchmark is AGENT-MODE-ONLY. Standard mode never honours it — the standard
+	// prompt never includes input_files content, and execution always runs a fixed
+	// single solution.ail — so such benchmarks are excluded from standard-mode
+	// scheduling and, if forced through anyway, short-circuited at dispatch.
+	// See RequiresAgentWorkspace below.
 	GradeEntrypoint string   `yaml:"grade_entrypoint,omitempty"`
 	SolutionFiles   []string `yaml:"solution_files,omitempty"`
 
@@ -81,6 +88,18 @@ type BenchmarkSpec struct {
 	// line "PREFIX: <non-empty>". The fixed lines still grade exactly; only the
 	// placeholder line is graded structurally. See GradeStdout.
 	Grading string `yaml:"grading,omitempty"`
+}
+
+// RequiresAgentWorkspace reports whether this benchmark can only be graded in
+// agent mode: a grade_entrypoint benchmark grades the agent's preserved
+// multi-file workspace, which standard mode never constructs (its prompt omits
+// input_files content and its execution runs a fixed single solution.ail).
+// Scheduling (standard-mode auto-discovery) and dispatch (runSingleBenchmark's
+// standard-mode path) both test this predicate to keep such benchmarks out of
+// standard mode — see the GradeEntrypoint doc comment above.
+// (M-EVAL-STANDARD-MODE-INPUT-FILES-GAP.)
+func (s *BenchmarkSpec) RequiresAgentWorkspace() bool {
+	return s.GradeEntrypoint != ""
 }
 
 // ValidTiers lists the allowed values for BenchmarkSpec.Tier.

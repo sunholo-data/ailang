@@ -2,9 +2,9 @@ package motoko
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/sunholo-data/ailang/internal/ai"
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // D1 (M-MOTOKO-FMT-REMEASUREMENT-INSTRUMENT, design doc §12.2/§12.4): the
@@ -49,7 +49,7 @@ func requireProviderCredential(model string) error {
 		// Provider needs no credential (example: ollama local). Admit.
 		return nil
 	}
-	if os.Getenv(envVar) == "" {
+	if config.Raw(envVar) == "" {
 		return fmt.Errorf("motoko model %q resolves to provider %q, which requires %s (unset) — refusing run",
 			model, provider.String(), envVar)
 	}

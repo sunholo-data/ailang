@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
+	"github.com/sunholo-data/ailang/internal/modelreg"
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/ai"
@@ -28,15 +28,11 @@ func NewAIAgent(model string, seed int64) (*AIAgent, error) {
 		return nil, fmt.Errorf("failed to resolve model: %w", err)
 	}
 
-	// Get API key for provider
-	apiKey, err := getAPIKeyForProvider(provider, model)
-	if err != nil {
-		return nil, err
-	}
-
-	// Create unified provider adapter. Pass the explicit provider from models.yml
-	// so api_names without provider-identifying prefixes (e.g. "gemma4:26b") route correctly.
-	adapter, err := newProviderAdapter(apiName, apiKey, ai.ProviderFromString(provider))
+	// Create unified provider adapter (credential resolved inside, failing
+	// before any spend). Pass the explicit provider from models.yml so
+	// api_names without provider-identifying prefixes (e.g. "gemma4:26b")
+	// route correctly.
+	adapter, err := newProviderAdapter(apiName, ai.ProviderFromString(provider))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create provider: %w", err)
 	}
@@ -44,8 +40,8 @@ func NewAIAgent(model string, seed int64) (*AIAgent, error) {
 	// Wire max_output_tokens from models.yml. Reasoning models (Gemini 3.x,
 	// GPT-5, Claude 4.x thinking) need this to avoid burning the whole 4K
 	// default budget on hidden thoughts and returning empty content.
-	if GlobalModelsConfig != nil {
-		if cfg, lookupErr := GlobalModelsConfig.GetModel(model); lookupErr == nil {
+	if modelreg.GlobalModelsConfig != nil {
+		if cfg, lookupErr := modelreg.GlobalModelsConfig.GetModel(model); lookupErr == nil {
 			if cfg.MaxOutputTokens > 0 {
 				adapter.setMaxTokens(cfg.MaxOutputTokens)
 			}
@@ -160,6 +156,12 @@ type GenerateResult struct {
 	TotalTokens              int    // Total tokens (for billing; includes reasoning)
 	FinishReason             string // Normalized stop reason ("stop", "length", ...); "" if unreported
 	Model                    string
+
+	// LLM generation latency (M-LYCEUM-PROVIDER M3 route A/B). WallMS is the
+	// client-observed wall time of this generation call; TTFTMS is
+	// time-to-first-token where the transport streams. 0 = unmeasured.
+	WallMS int64
+	TTFTMS int64
 }
 
 // RetryConfig configures retry behavior
@@ -200,45 +202,15 @@ func (a *AIAgent) GenerateWithRetry(ctx context.Context, prompt string, cfg Retr
 	return nil, fmt.Errorf("max retries exceeded: %w", lastErr)
 }
 
-// isRetryableError determines if an error should trigger a retry
+// isRetryableError is the retry predicate: ai.ShouldRetry, the one classifier
+// (M-V1-SIMPLIFY-S3 M4), which refuses quota exhaustion — it ARRIVES AS A 429
+// but an Ollama Cloud session limit does not clear until the 5-hour window
+// rolls, and a weekly limit takes days, so retrying burns the remaining run
+// against a bucket that cannot recover (AC8, M-OLLAMA-CLOUD). The categoriser
+// (error_categorizer.go) banks the row through the same ai.IsQuotaExhausted
+// that ShouldRetry consults, so the two cannot disagree about one error.
 func isRetryableError(err error) bool {
-	if err == nil {
-		return false
-	}
-
-	errStr := err.Error()
-
-	// AC8 (M-OLLAMA-CLOUD). Quota exhaustion must be checked BEFORE the 429
-	// rule below, because it ARRIVES AS A 429 and would otherwise be retried.
-	// An Ollama Cloud session limit does not clear until the 5-hour window
-	// rolls, and a weekly limit takes days — so retrying is not merely
-	// unhelpful, it burns the remaining run against a bucket that cannot
-	// recover. Shares one definition with the error categoriser so the two
-	// cannot disagree about the same error.
-	if isQuotaExhaustion(strings.ToLower(errStr)) {
-		return false
-	}
-
-	// Rate limiting errors — transient, genuinely worth retrying.
-	if strings.Contains(errStr, "rate limit") ||
-		strings.Contains(errStr, "429") {
-		return true
-	}
-
-	// Temporary network errors
-	if strings.Contains(errStr, "timeout") ||
-		strings.Contains(errStr, "connection") {
-		return true
-	}
-
-	// Server errors
-	if strings.Contains(errStr, "500") ||
-		strings.Contains(errStr, "502") ||
-		strings.Contains(errStr, "503") {
-		return true
-	}
-
-	return false
+	return err != nil && ai.ShouldRetry(err)
 }
 
 // MockAIAgent is a mock implementation for testing

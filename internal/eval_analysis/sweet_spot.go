@@ -155,7 +155,7 @@ func BuildSweetSpot(results []*BenchmarkResult, opts SweetSpotOpts) SweetSpotRep
 	bestCostByBench := map[string]float64{}
 	bestTokensByBench := map[string]int{}
 	for _, r := range results {
-		if !r.StdoutOk {
+		if !r.Passed() {
 			continue
 		}
 		// Only count runs with positive cost/tokens — zero values mean the
@@ -178,7 +178,7 @@ func BuildSweetSpot(results []*BenchmarkResult, opts SweetSpotOpts) SweetSpotRep
 		rs := byKey[key{ri.Model, ri.Harness}]
 		var costRatios, tokenRatios []float64
 		for _, r := range rs {
-			if !r.StdoutOk {
+			if !r.Passed() {
 				continue
 			}
 			if r.CostUSD > 0 {
@@ -301,7 +301,7 @@ func buildRow(model, harness string, rs []*BenchmarkResult, opts SweetSpotOpts) 
 			byBench[r.ID] = agg
 		}
 
-		if r.StdoutOk {
+		if r.Passed() {
 			passes++
 			agg.passed = true
 			switch {
@@ -366,7 +366,7 @@ func buildRow(model, harness string, rs []*BenchmarkResult, opts SweetSpotOpts) 
 			refused := false
 			provider := false
 			for _, r := range rs {
-				if r.ID != benchID || r.StdoutOk {
+				if r.ID != benchID || r.Passed() {
 					continue
 				}
 				switch r.ErrorCategory {
@@ -399,7 +399,7 @@ func buildRow(model, harness string, rs []*BenchmarkResult, opts SweetSpotOpts) 
 }
 
 // buildChampions finds the cheapest-to-pass and fastest-to-pass model per
-// benchmark, considering only successful (StdoutOk=true) runs.
+// benchmark, considering only successful (Passed()) runs.
 func buildChampions(results []*BenchmarkResult) []BenchmarkChampion {
 	type candidate struct {
 		model string
@@ -408,7 +408,7 @@ func buildChampions(results []*BenchmarkResult) []BenchmarkChampion {
 	}
 	byBench := map[string][]candidate{}
 	for _, r := range results {
-		if !r.StdoutOk {
+		if !r.Passed() {
 			continue
 		}
 		tts := float64(r.SuccessAtMs)

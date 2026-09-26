@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/executor"
 )
 
@@ -184,6 +185,29 @@ func runAILANGSolution(solutionCode string, spec *BenchmarkSpec) ValidationResul
 	}
 }
 
+// EnvAILANGBin names the ailang binary the grade probe runs. Unset, the probe
+// used to run whatever `ailang` PATH resolved — the stale-binary trap: a
+// developer's `/Users/mark/go/bin/ailang` from last week grading this week's
+// benchmarks, indistinguishable from the build under test.
+const EnvAILANGBin = config.EnvAILANGBin
+
+// resolveAILANGBin returns the binary the grade probe executes. AILANG_BIN
+// wins; otherwise the PATH `ailang` is looked up and its RESOLVED path is
+// served through config.DeprecatedDefault, so the one-per-process warning
+// names the binary actually grading and AILANG_STRICT_CONFIG=1 refuses to
+// grade with an unpinned one (M-V1-SIMPLIFY-S4 M1). No `ailang` on PATH is an
+// error either way.
+func resolveAILANGBin() (string, error) {
+	if bin := config.AILANGBin(); bin != "" {
+		return bin, nil
+	}
+	resolved, err := exec.LookPath("ailang")
+	if err != nil {
+		return "", fmt.Errorf("%s is unset and no `ailang` on PATH: %w", EnvAILANGBin, err)
+	}
+	return config.DeprecatedDefault(EnvAILANGBin, resolved)
+}
+
 // gradeInWorkspace (M-EVAL-RELIABLE-GRADING) grades a multi-file benchmark by running the
 // harness-owned probe (spec.GradeEntrypoint) against the modules the agent implemented in its
 // PRESERVED workspace. Every input_file EXCEPT spec.SolutionFiles is re-seeded to its canonical
@@ -210,9 +234,9 @@ func gradeInWorkspace(spec *BenchmarkSpec, workspace string) ValidationResult {
 	}
 
 	// Run the probe from the agent's workspace, mirroring the legacy runner's flags.
-	ailangBin := os.Getenv("AILANG_BIN")
-	if ailangBin == "" {
-		ailangBin = "ailang" // PATH
+	ailangBin, err := resolveAILANGBin()
+	if err != nil {
+		return ValidationResult{Stderr: fmt.Sprintf("[harness_setup] grade: %v", err)}
 	}
 	cwd, _ := os.Getwd()
 	args := []string{"run", "--entry", "main", "--quiet", "--relax-modules",

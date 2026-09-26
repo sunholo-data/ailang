@@ -5,29 +5,6 @@ import (
 	"time"
 )
 
-func TestTruncate(t *testing.T) {
-	tests := []struct {
-		input  string
-		maxLen int
-		want   string
-	}{
-		{"hello", 10, "hello"},
-		{"hello world", 8, "hello..."},
-		{"hello", 5, "hello"},
-		{"hello", 4, "h..."},
-		{"hello", 3, "..."},
-		{"", 10, ""},
-		{"hello", 0, "hello"},
-	}
-
-	for _, tt := range tests {
-		got := Truncate(tt.input, tt.maxLen)
-		if got != tt.want {
-			t.Errorf("Truncate(%q, %d) = %q, want %q", tt.input, tt.maxLen, got, tt.want)
-		}
-	}
-}
-
 func TestTruncateID(t *testing.T) {
 	tests := []struct {
 		id   string

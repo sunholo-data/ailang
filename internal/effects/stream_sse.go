@@ -2,9 +2,7 @@ package effects
 
 import (
 	"bufio"
-	"context"
 	"fmt"
-	"net"
 	"net/http"
 	"strings"
 
@@ -64,22 +62,17 @@ func StreamSSEConnect(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 		}
 	}
 
-	// HTTP GET with SSE headers
-	// Use a transport-level dial timeout so the connect phase is bounded,
-	// but body streaming can continue indefinitely (managed by event loop timers).
-	transport := &http.Transport{
-		DialContext: (&net.Dialer{
-			Timeout: ctx.Stream.ConnectTimeout,
-		}).DialContext,
-		TLSHandshakeTimeout:   ctx.Stream.ConnectTimeout,
-		ResponseHeaderTimeout: ctx.Stream.ConnectTimeout,
-	}
-	client := &http.Client{
-		Transport: transport,
-		// Timeout: 0 — no overall timeout; body reads are long-lived
+	// HTTP GET with SSE headers, through the shared destination authorizer:
+	// the connect phase (dial + TLS + response headers) is bounded by
+	// ConnectTimeout inside the transport, every redirect hop is
+	// re-authorized before it is dialed, and body streaming continues
+	// indefinitely (managed by event loop timers).
+	client, err := streamHTTPClient(ctx, urlVal.Value)
+	if err != nil {
+		return makeStreamErr("ConnectionFailed", err.Error()), nil
 	}
 
-	req, err := http.NewRequestWithContext(context.Background(), "GET", urlVal.Value, nil)
+	req, err := http.NewRequestWithContext(requestContext(ctx), "GET", urlVal.Value, nil)
 	if err != nil {
 		return makeStreamErr("ConnectionFailed", fmt.Sprintf("SSE request creation failed: %s", err.Error())), nil
 	}
@@ -87,7 +80,7 @@ func StreamSSEConnect(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return makeStreamErr("ConnectionFailed", fmt.Sprintf("SSE connection failed: %s", err.Error())), nil
+		return makeStreamErr("ConnectionFailed", fmt.Sprintf("SSE connection failed: %s", transportMessage(err))), nil
 	}
 
 	// Verify content type
@@ -325,19 +318,14 @@ func StreamSSEPost(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 		}
 	}
 
-	// HTTP POST with body
-	transport := &http.Transport{
-		DialContext: (&net.Dialer{
-			Timeout: ctx.Stream.ConnectTimeout,
-		}).DialContext,
-		TLSHandshakeTimeout:   ctx.Stream.ConnectTimeout,
-		ResponseHeaderTimeout: ctx.Stream.ConnectTimeout,
-	}
-	client := &http.Client{
-		Transport: transport,
+	// HTTP POST with body, through the shared destination authorizer
+	// (per-hop re-authorization; see streamHTTPClient).
+	client, err := streamHTTPClient(ctx, urlVal.Value)
+	if err != nil {
+		return makeStreamErr("ConnectionFailed", err.Error()), nil
 	}
 
-	req, err := http.NewRequestWithContext(context.Background(), "POST", urlVal.Value, strings.NewReader(bodyVal.Value))
+	req, err := http.NewRequestWithContext(requestContext(ctx), "POST", urlVal.Value, strings.NewReader(bodyVal.Value))
 	if err != nil {
 		return makeStreamErr("ConnectionFailed", fmt.Sprintf("SSE POST request creation failed: %s", err.Error())), nil
 	}
@@ -345,7 +333,7 @@ func StreamSSEPost(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return makeStreamErr("ConnectionFailed", fmt.Sprintf("SSE POST connection failed: %s", err.Error())), nil
+		return makeStreamErr("ConnectionFailed", fmt.Sprintf("SSE POST connection failed: %s", transportMessage(err))), nil
 	}
 
 	// Verify content type

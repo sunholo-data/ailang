@@ -1,0 +1,36 @@
+{
+  "ready": true,
+  "missing_approval": null,
+  "evidence": {
+    "provenance_sources": {
+      "designer": "imported_prerequisite; original acceptance digest unavailable",
+      "executor": "local_accepted_stage",
+      "planner": "imported_prerequisite; original acceptance digest unavailable"
+    },
+    "source": {
+      "mission_id": "docs",
+      "work_item_id": "docs-canary-work-item-guide-1"
+    },
+    "source_spec_digest": "7444abc5af9e739b0c9aae4d4a4fa7a36707538fc8514b24dd49c5f8c2e4eeba",
+    "acceptance_digests": {
+      "executor": "3f1cfe497a34a6fa193a5e4194738d6a71dd60d92aa8a6bac03f4b82093d2e38"
+    },
+    "artifacts": [
+      {
+        "commit": "9d5dc15509aadd6f24691790b9349a121c587d2e",
+        "path": "design_docs/planned/m-docs-mission-work-item-guide.md",
+        "sha256": "333be662b988074860fae6ea52b1b111a40742ced443e63c1ecbaca7a1f5225a"
+      },
+      {
+        "commit": "9d5dc15509aadd6f24691790b9349a121c587d2e",
+        "path": "design_docs/planned/m-docs-mission-work-item-guide-sprint-plan.md",
+        "sha256": "94e0836c2777c96428d25471293652ab166b9853cfc168fdfe2ba52120b22d01"
+      },
+      {
+        "commit": "58f9fd4bc2d5003dd9f04760edb8054a4367c114",
+        "path": "docs/docs/guides/mission-iteration.md",
+        "sha256": "70bccdfdaa6a8eecdc895addc3ed779e11eb5a0b480ca16b0afd27dd29dc9f3c"
+      }
+    ]
+  }
+}

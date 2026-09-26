@@ -1,0 +1,90 @@
+{
+  "sprint_id": "M-CHAINS-EXECUTOR-TRANSCRIPTS",
+  "status": "not_started",
+  "created": "2026-09-16T14:40:11Z",
+  "design_doc": "design_docs/planned/v0_39_1/m-chains-executor-transcripts.md",
+  "sprint_plan": "design_docs/planned/v0_39_1/m-chains-executor-transcripts-sprint-plan.md",
+  "github_issues": [],
+  "velocity": {"target_loc_per_day": 700, "estimated_total_loc": 1050, "estimated_days": 1.5},
+  "features": [
+    {
+      "id": "M0_PREFLIGHT",
+      "description": "Establish a Go-enabled, clean, discriminating execution baseline before edits.",
+      "estimated_loc": 0,
+      "estimated_hours": 0.5,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Go is available and relevant package baselines have an informative result.",
+        "Every red-at-base command is recorded exactly and excluded only with user approval.",
+        "No unrelated working-tree changes are overwritten."
+      ],
+      "passes": null, "started": null, "completed": null,
+      "notes": "Planning workspace did not contain go; executor must establish this baseline."
+    },
+    {
+      "id": "M1_TRANSCRIPT_RECORDER",
+      "description": "Implement the executor-local transcript recorder, optional per-turn usage, pi wiring, and mutation-tested caps.",
+      "estimated_loc": 410,
+      "estimated_hours": 3.5,
+      "dependencies": ["M0_PREFLIGHT"],
+      "acceptance_criteria": [
+        "Synthetic five-turn replay proves role order, block order, event forwarding, usage, and defensive snapshots.",
+        "Pi fixtures prove output/reasoning disjointness, zero usage when absent, and non-empty Result.Transcript.",
+        "A 456-turn replay stays bounded and each tool result is at most the 8192-byte cap including marker.",
+        "Changing only maxToolResultBytes from 8192 to 16384 compiles and makes the named cap test fail; restoring 8192 makes it pass.",
+        "Relevant executor/pi tests, formatting, and vet pass."
+      ],
+      "passes": null, "started": null, "completed": null, "notes": null
+    },
+    {
+      "id": "M2_CANONICAL_CHAT_WRITER",
+      "description": "Add migrate_v22 and one lossless Backend.PutChatMessages path used by SQLite, Firestore, motoko, and claudehistory.",
+      "estimated_loc": 390,
+      "estimated_hours": 4,
+      "dependencies": ["M0_PREFLIGHT"],
+      "acceptance_criteria": [
+        "v21-to-v22 and fresh-schema tests round-trip reason_tokens and default old rows to zero.",
+        "SQLite replay is idempotent and task/session reads preserve every rich content, correlation, and usage field.",
+        "Firestore tests prove deterministic IDs, expire_at, full field mapping, and surfaced write errors.",
+        "Motoko and claudehistory fixtures are field-equivalent before and after migration to PutChatMessages.",
+        "No non-test importer contains a direct INSERT INTO chat_messages.",
+        "SQLite and Firestore compile-time assertions satisfy Backend."
+      ],
+      "passes": null, "started": null, "completed": null,
+      "notes": "D5 is binding: migration is in-sprint and must preserve content_text, content_thinking, request_id, and stage_id."
+    },
+    {
+      "id": "M3_RIG_CLOUD_PERSISTENCE",
+      "description": "Persist local and Cloud Run turns, with the verified job-SA Firestore grant as the first and blocking M3 task.",
+      "estimated_loc": 210,
+      "estimated_hours": 3,
+      "dependencies": ["M1_TRANSCRIPT_RECORDER", "M2_CANONICAL_CHAT_WRITER", "O1_JOB_SA_FIRESTORE_GRANT"],
+      "acceptance_criteria": [
+        "O1 evidence names the service account, terraform grant, applied revision, and effective policy result before any M3 cloud-code change.",
+        "Repeated local finalize produces one logical row per deterministic message ID.",
+        "A completed cloud turn is written immediately and remains after later cancellation; write errors are observable.",
+        "Observatory project selection is explicit and has no ambient-project fallback.",
+        "A 30-day TTL policy targets obs_chat_messages.expire_at."
+      ],
+      "passes": null, "started": null, "completed": null,
+      "notes": "D1 is fixed to direct Firestore writes. If O1 cannot be verified/applied, M3 blocks; do not switch transport."
+    },
+    {
+      "id": "M4_ACCEPTANCE_DOCS",
+      "description": "Run local/cloud acceptance, cancellation durability, token accounting, and reconcile stale design-doc scope text.",
+      "estimated_loc": 40,
+      "estimated_hours": 1,
+      "dependencies": ["M3_RIG_CLOUD_PERSISTENCE"],
+      "acceptance_criteria": [
+        "Local and cloud pi runs are readable through chains chat with ordered blocks and non-zero usage.",
+        "A cancelled cloud job retains every turn completed before cancellation.",
+        "Sum of tokens_out plus reason_tokens equals Result.OutputTokens for the acceptance run.",
+        "The design doc no longer defers D5 and consistently records the ratified 1.5-day scope.",
+        "All touched-package tests, vet, formatting, boundaries, and informative build gates pass."
+      ],
+      "passes": null, "started": null, "completed": null, "notes": null
+    }
+  ],
+  "approval_required": true,
+  "execution_instruction": "Mark must approve this plan and explicitly say execute sprint before sprint-executor starts."
+}

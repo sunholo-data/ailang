@@ -1,0 +1,51 @@
+{
+  "sprint_id": "M-MODLESS-FAIL-LOUD",
+  "design_doc": "design_docs/planned/v0_30_0/m-module-less-run-fail-loud.md",
+  "sprint_plan": "design_docs/planned/v0_30_0/m-module-less-run-fail-loud-sprint-plan.md",
+  "target_version": "v0.30.0",
+  "routing": "AILANG fix (internal/pipeline + new MOD014 diagnostic)",
+  "github_issues": [],
+  "velocity": {
+    "target_loc_per_day": 150,
+    "estimated_total_loc": 145,
+    "estimated_days": 0.5
+  },
+  "features": [
+    {
+      "id": "M1_MOD014_DIAGNOSTIC",
+      "description": "Replace validateModulePath early-accept of Module==nil (pipeline_module.go:665) with a loud MOD014 diagnostic when the file has top-level decls (Funcs/Statements/Decls) but no module. CODE MUST BE MOD014, NOT MOD011 (MOD011 is already module-path-collision). Both run and check emit it (one pipeline-level fix).",
+      "estimated_loc": 90,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Module-less file with export func main exits non-zero with a message containing MOD014, 'module', and the suggested canonical path",
+        "Both ailang run AND ailang check emit the diagnostic",
+        "Regression: bare expression 1+1 -> 2 still works (runSingle path, never reaches validateModulePath)",
+        "Regression: a proper module file runs and prints",
+        "Regression: --relax-modules on a temp-path mismatch still relaxes (MOD010 branch untouched); std/* and pkg/* bypasses untouched",
+        "New Go unit test in internal/pipeline covering FAIL case + a regression guard; must fail before the change",
+        "CI footgun-coverage fixture asserting the diagnostic carries the fix"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_REMEDIATE_DOCS",
+      "description": "Remediate examples/runnable/block_demo.ail (add 'module examples/runnable/block_demo'); correct design doc MOD011->MOD014 + move to implemented/v0_30_0/; CHANGELOG + LIMITATIONS resolved-entry.",
+      "estimated_loc": 55,
+      "dependencies": ["M1_MOD014_DIAGNOSTIC"],
+      "acceptance_criteria": [
+        "make verify-examples green (block_demo checks clean with new module line)",
+        "make test green repo-wide (regen any legitimately-changed golden via UPDATE_GOLDEN=1; PipedStdoutFlushesPerLine parallel flaky is not a gate)",
+        "Design doc moved to design_docs/implemented/v0_30_0/, all MOD011->MOD014, status Implemented",
+        "CHANGELOG (changelogs/v0.18-current.md) + LIMITATIONS resolved-entry added",
+        "No other corpus/stdlib/benchmark file regresses (blast radius audited = 1)"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}

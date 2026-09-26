@@ -4,6 +4,7 @@ package golang
 import (
 	"bytes"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/builtins"
@@ -167,7 +168,7 @@ func (g *Generator) writeRegistryHelpers() {
 	for name := range g.registryHelpers {
 		names = append(names, name)
 	}
-	sortStrings(names)
+	sort.Strings(names)
 
 	emitted := make(map[string]bool)
 	for _, name := range names {
@@ -186,15 +187,6 @@ func (g *Generator) writeRegistryHelpers() {
 		g.indent--
 		g.writef("}\n\n")
 		emitted[name] = true
-	}
-}
-
-// sortStrings sorts a string slice in place (simple insertion sort for small slices).
-func sortStrings(s []string) {
-	for i := 1; i < len(s); i++ {
-		for j := i; j > 0 && s[j] < s[j-1]; j-- {
-			s[j], s[j-1] = s[j-1], s[j]
-		}
 	}
 }
 

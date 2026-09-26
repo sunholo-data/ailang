@@ -1,0 +1,124 @@
+{
+  "version": 1,
+  "mission_id": "docs",
+  "work_item_id": "docs-canary-fixture",
+  "repository": "github.com/example/mission-fixture",
+  "base_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "brief": "Improve setup documentation against the approved plan. Fixture commits and hashes must be replaced with objects from the temporary test repository.",
+  "allowed_paths": [
+    "docs/"
+  ],
+  "workflow": "full-v1",
+  "stages": [
+    {
+      "id": "executor",
+      "role": "executor",
+      "instructions": "Follow the frozen approved brief and write stage-result.json.",
+      "required_artifacts": [
+        "docs/setup.md"
+      ],
+      "authority_refs": [
+        {
+          "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "path": "docs/approval.md",
+          "locator": "decision-approved",
+          "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "artifact_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }
+      ],
+      "limits": {
+        "timeout_seconds": 300,
+        "max_tokens": 10000,
+        "max_cost_usd": 1
+      }
+    },
+    {
+      "id": "evaluator",
+      "role": "evaluator",
+      "instructions": "Follow the frozen approved brief and write stage-result.json.",
+      "required_artifacts": [
+        "docs/setup.md"
+      ],
+      "authority_refs": [
+        {
+          "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "path": "docs/approval.md",
+          "locator": "decision-approved",
+          "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "artifact_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }
+      ],
+      "limits": {
+        "timeout_seconds": 300,
+        "max_tokens": 10000,
+        "max_cost_usd": 1
+      }
+    }
+  ],
+  "prerequisites": [
+    {
+      "role": "designer",
+      "artifact": {
+        "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "path": "docs/designer.md",
+        "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "authority_refs": [
+        {
+          "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "path": "docs/approval.md",
+          "locator": "decision-approved",
+          "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "artifact_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }
+      ],
+      "author_models": [
+        "fixture-author"
+      ]
+    },
+    {
+      "role": "planner",
+      "artifact": {
+        "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "path": "docs/planner.md",
+        "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "authority_refs": [
+        {
+          "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "path": "docs/approval.md",
+          "locator": "decision-approved",
+          "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "artifact_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }
+      ],
+      "author_models": [
+        "fixture-author"
+      ]
+    }
+  ],
+  "verification": [
+    {
+      "id": "whitespace",
+      "argv": [
+        "git",
+        "diff",
+        "--check",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ],
+      "cwd": ".",
+      "timeout_seconds": 30
+    }
+  ],
+  "limits": {
+    "timeout_seconds": 600,
+    "max_tokens": 20000,
+    "max_cost_usd": 2
+  },
+  "acceptance_criteria": [
+    {
+      "id": "setup-complete",
+      "text": "Setup instructions cover each approved requirement."
+    }
+  ]
+}

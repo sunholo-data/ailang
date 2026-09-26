@@ -278,8 +278,11 @@ func TestIsLocalhost(t *testing.T) {
 	}
 }
 
+// Stream and Net share ONE allowlist implementation (M-EXECUTOR-POLICY-
+// HARDENING M2): the label-boundary and normalisation rows are the ones a
+// second copy used to drift on.
 func TestIsStreamAllowedDomain(t *testing.T) {
-	allowed := []string{"example.com", "*.test.io"}
+	allowed := []string{"example.com", "*.test.io", "Trailing.Dot."}
 
 	tests := []struct {
 		host string
@@ -287,16 +290,21 @@ func TestIsStreamAllowedDomain(t *testing.T) {
 	}{
 		{"example.com", true},
 		{"Example.Com", true},
+		{"example.com.", true}, // trailing dot normalised on the request side
+		{"trailing.dot", true}, // and on the grant side
 		{"sub.test.io", true},
 		{"deep.sub.test.io", true},
-		{"test.io", false},
+		{"test.io", false},      // the apex is not covered by *.test.io
+		{"evil-test.io", false}, // label boundary
+		{"xtest.io", false},     // label boundary
+		{"test.io.evil.com", false},
 		{"evil.com", false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.host, func(t *testing.T) {
-			if got := isStreamAllowedDomain(tt.host, allowed); got != tt.want {
-				t.Errorf("isStreamAllowedDomain(%q) = %v, want %v", tt.host, got, tt.want)
+			if got := isAllowedDomain(tt.host, allowed); got != tt.want {
+				t.Errorf("isAllowedDomain(%q) = %v, want %v", tt.host, got, tt.want)
 			}
 		})
 	}

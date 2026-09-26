@@ -1,8 +1,9 @@
 package eval_harness
 
 import (
-	"os"
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // MicroragMode is the eval-suite --microrag flag value.
@@ -67,7 +68,7 @@ func (m MicroragMode) ResolvedState() string {
 		return "off"
 	default:
 		// Auto: report what the environment actually said.
-		v := os.Getenv("AILANG_MICRORAG_ENABLED")
+		v := config.MicroRAGEnabled()
 		switch v {
 		case "0", "false", "disabled":
 			return "off"

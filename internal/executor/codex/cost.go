@@ -53,19 +53,18 @@ func (e *CodexExecutor) authLane() executor.AuthLane {
 	return executor.AuthLaneUnknown
 }
 
-// CostModel returns pricing for gpt-5-codex (the default Codex model).
-// Source: https://platform.openai.com/docs/pricing
-// gpt-5-codex: $1.25/$10.00 per 1M tokens = $0.00125/$0.01 per 1K.
+// CostModel returns the registry rate card for the executor's configured
+// model (M-V1-SIMPLIFY-S3 M2: this used to be gpt-5-codex's $1.25/$10 table
+// applied to every codex-run model — `git log -S 'gpt-5-codex: $1.25/$10.00'`).
 //
-// FALLBACK ONLY. The codex CLI runs whatever `--model` it is handed, so this
-// table is correct for exactly one of them. Result.CostUSD is billed via
-// executor.ResolveCostModel, which prefers Task.Pricing (the per-model rates
-// from models.yml). This is reached only when a caller supplies no pricing.
+// FALLBACK ONLY. Result.CostUSD is billed via executor.ResolveCostModel, which
+// prefers Task.Pricing (the per-model rates the harness resolved); this is
+// reached only when a caller supplies none. A model the registry cannot
+// resolve yields an explicit Unpriced card rather than another model's rates.
 func (e *CodexExecutor) CostModel() *executor.CostModel {
-	return &executor.CostModel{
-		ProviderName:    "openai",
-		InputTokenCost:  0.00125,
-		OutputTokenCost: 0.01,
-		CacheReadCost:   0.000125,
+	cm, err := executor.CostModelFor(e.model)
+	if err != nil {
+		return executor.UnpricedCostModel("openai", e.model)
 	}
+	return cm
 }

@@ -11,8 +11,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/elaborate"
 	"github.com/sunholo-data/ailang/internal/pipeline"
+	otelplatform "github.com/sunholo-data/ailang/internal/platform/otel"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -30,7 +32,7 @@ var checkTracer = otel.Tracer("ailang.check")
 func checkFile(filename string, strictSyntax bool, relaxModules bool, timeout string, debugCompile bool, jsonFlag bool, quietFlag bool) {
 	// Initialize telemetry (traces exported if GOOGLE_CLOUD_PROJECT or OTEL_EXPORTER_OTLP_ENDPOINT set)
 	ctx := context.Background()
-	shutdownTelemetry, err := telemetry.Init(ctx, "ailang-check")
+	shutdownTelemetry, err := otelplatform.Init(ctx, "ailang-check")
 	if err != nil {
 		// Non-fatal: continue without telemetry
 	} else {
@@ -49,7 +51,7 @@ func checkFile(filename string, strictSyntax bool, relaxModules bool, timeout st
 
 	// Inherit parent task from environment if set
 	// This enables automatic hierarchy linking when ailang exec spawns ailang check
-	parentTaskID := os.Getenv("AILANG_PARENT_TASK_ID")
+	parentTaskID := config.ParentTaskID()
 
 	// If no parent task, use generic root marker for analytics
 	// This ensures all checks appear in Observatory hierarchy views
@@ -140,13 +142,7 @@ func checkFile(filename string, strictSyntax bool, relaxModules bool, timeout st
 	}
 
 	// Check AILANG_RELAX_MODULES environment variable
-	relaxModulesEffective := relaxModules
-	if envVal := os.Getenv("AILANG_RELAX_MODULES"); envVal != "" {
-		switch strings.ToLower(envVal) {
-		case "1", "true", "yes":
-			relaxModulesEffective = true
-		}
-	}
+	relaxModulesEffective := relaxModules || config.RelaxModules()
 
 	// Use unified pipeline in dry-run mode (no evaluation)
 	cfg := pipeline.Config{
@@ -463,54 +459,21 @@ func printPhaseTimings(timings map[string]int64) {
 	}
 }
 
+// outputInterfacePackageDir is the packageDir `ailang iface` passes to
+// pipeline.BuildCanonicalJSON. It MUST stay empty.
+//
+// An empty packageDir makes packageSearchDir anchor the ailang.toml/ailang.lock
+// search at the ENTRY FILE's directory; a non-empty one wins outright and
+// anchors at that value instead. Passing "." therefore re-introduces ailang#671
+// ("could not resolve its own package imports ... invoke ailang from inside the
+// package") for every `ailang iface` run from outside the package root.
+// Pinned by TestOutputInterface_ResolvesIntraPackageImportsFromRepoRoot.
+const outputInterfacePackageDir = ""
+
 func outputInterface(modulePath string, compact bool) {
-	// Read the file
-	filename := modulePath
-	if !strings.HasSuffix(filename, ".ail") {
-		// Try to resolve as module path
-		filename = strings.ReplaceAll(modulePath, "/", string(filepath.Separator)) + ".ail"
-	}
-
-	content, err := os.ReadFile(filename)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: cannot read file '%s': %v\n", red("Error"), filename, err)
-		os.Exit(1)
-	}
-
-	// Type check and build interface
-	cfg := pipeline.Config{
-		DryLink: true, // Don't evaluate, just check
-	}
-	src := pipeline.Source{
-		Code:     string(content),
-		Filename: filename,
-		IsREPL:   false,
-	}
-
-	result, err := pipeline.Run(cfg, src)
+	jsonBytes, err := pipeline.BuildCanonicalJSON(context.Background(), outputInterfacePackageDir, modulePath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
-		os.Exit(1)
-	}
-
-	// Check for errors
-	if len(result.Errors) > 0 {
-		for _, e := range result.Errors {
-			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), e)
-		}
-		os.Exit(1)
-	}
-
-	// Get the interface
-	if result.Interface == nil {
-		fmt.Fprintf(os.Stderr, "%s: no interface generated for module\n", red("Error"))
-		os.Exit(1)
-	}
-
-	// Output normalized JSON
-	jsonBytes, err := result.Interface.ToNormalizedJSON()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: failed to serialize interface: %v\n", red("Error"), err)
 		os.Exit(1)
 	}
 
@@ -625,13 +588,7 @@ func checkDirectoryWithContext(ctx context.Context, dir string, strictSyntax boo
 	}
 
 	// Check AILANG_RELAX_MODULES environment variable
-	relaxModulesEffective := relaxModules
-	if envVal := os.Getenv("AILANG_RELAX_MODULES"); envVal != "" {
-		switch strings.ToLower(envVal) {
-		case "1", "true", "yes":
-			relaxModulesEffective = true
-		}
-	}
+	relaxModulesEffective := relaxModules || config.RelaxModules()
 
 	// Check each file
 	for _, file := range files {

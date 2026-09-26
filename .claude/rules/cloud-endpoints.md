@@ -19,12 +19,24 @@ here is a route on the internet.
 | Env | Cloud Run service | Project | Public URL |
 |-----|-------------------|---------|-----------|
 | **prod** | `ailang-dashboard` | `ailang-multivac` | `https://dashboard.ailang.sunholo.com` (DNS) · `https://ailang-dashboard-ao6kuhcibq-ew.a.run.app` |
+| **test** | `ailang-test-dashboard` | `ailang-multivac-test` | `https://ailang-test-dashboard-rrmdhcxo4a-ew.a.run.app` (no DNS name) |
 | **dev** | `ailang-dev-dashboard` | `ailang-multivac-dev` | `https://ailang-dev-dashboard-ejjw6zt3bq-ew.a.run.app` (no DNS name) |
 
-Both in `europe-west1`. Related: `ailang-coordinator`, `ailang-mcp` (`mcp.ailang.sunholo.com`),
+All in `europe-west1`. Related: `ailang-coordinator`, `ailang-mcp` (`mcp.ailang.sunholo.com`),
 `ailang-billing-api`, `ailang-docparse-api`, `ailang-website-builder`; registry-validator lives in
-the separate `ailang-registry` project. Deploy is Terraform-only via `ailang-multivac-deploy`
-(Cloud Build, **`europe-west3`** — builds are invisible without `--region`).
+the separate `ailang-registry` project.
+
+**How a route you add here reaches each environment** (unified 2026-09-03 — the model is
+written down once, in `ailang-multivac/.claude/skills/release/SKILL.md`; how to cut a release
+is in [`.claude/skills/release-manager/SKILL.md`](../skills/release-manager/SKILL.md) §7.6–7.7):
+a push to ailang `dev` builds and rolls **dev**; a `v*` tag builds the same images from the
+tagged tree and rolls **test**, then stops; **prod** is a manual promote by version
+(`scripts/release.sh promote core vX.Y.Z` in ailang-multivac). Terraform and config travel by
+ailang-multivac branch (`dev → test → prod`) and build no images. So a merged dashboard change
+is public on **dev only** until it is tagged and promoted — do not read "it deployed" as "it is
+on `dashboard.ailang.sunholo.com`". The builds themselves run in **`europe-west3`**, project
+`ailang-multivac-deploy` — `gcloud builds list` defaults to `global` and shows nothing, which
+reads as "the trigger never fired" when it did.
 
 `dashboard.ailang.sunholo.com` maps to **prod**, which is why `DATA_BASE` in the benchmark fetch
 path still points at the dev run.app URL — see `design_docs/planned/m-eval-data-hosting-decouple.md:60`.
@@ -83,35 +95,14 @@ Two Firestore-specific traps that command hit, both absent from the SQLite path:
   span docs carry `gen_ai.prompt`/`gen_ai.completion` (whole prompts and generated programs), and a
   400-op batch blew the limit on the first real run. Chunk on bytes, not just op count.
 
-## OTLP/JSON ID decoding — FIXED AND DEPLOYED (v0.33.1)
+## OTLP/JSON ID decoding — fixed and deployed (v0.33.1)
 
-OTLP/JSON encodes `traceId`/`spanId` as **hex**; `protojson` correctly implements the proto3 JSON
-mapping, which decodes `bytes` as **base64**. Feeding a spec-compliant body straight to `protojson`
-therefore stored 24 bytes where 16 were meant, and still answered `HTTP 200 {"partialSuccess":{}}`.
-
-**Fixed by `normalizeOTLPJSONIDs`** ([otlp_json_ids.go](../../internal/observatory/otlp_json_ids.go)),
-applied at all three JSON decode sites plus their content-type-sniffing fallbacks. Malformed IDs now
-return a typed **400** and write no row. `migrate_v18` repairs existing rows — the corruption is
-lossless, so `base64encode(unhexlify(stored))` recovers the original exactly.
-
-> **DEPLOYED to prod in v0.33.1** (2026-08-13, revision `ailang-dashboard-00032-qm2`) and **fully
-> repaired**. Verified live: a 32-char hex `traceId` round-trips exactly, a malformed one returns
-> HTTP 400, and the 190 pre-deploy rows were repaired by `ailang observatory repair-ids --apply`.
-> Prod now reads `{32: 193}` — every span correct, count unchanged, and a second run is a clean
-> no-op.
-
-Symptom of an unfixed receiver — a stored trace ID **48 hex chars instead of 32**:
-
-```
-sent    5b8aa5a2d2c872e8321cf37308d69df2                  (16 bytes)
-stored  e5bf1a6b96b677673cef67bcdf6d5c7f7ef7d3c77af5d7f6  (24 bytes) == base64decode(sent)
-```
-
-Check what production is actually storing:
-
-```bash
-curl -s "https://dashboard.ailang.sunholo.com/api/observatory/spans?limit=5" | python3 -m json.tool
-```
+OTLP/JSON carries `traceId`/`spanId` as hex, but `protojson` decodes `bytes` as base64 — the
+receiver stored corrupted 48-hex-char IDs while answering HTTP 200. Fixed by
+`normalizeOTLPJSONIDs` ([otlp_json_ids.go](../../internal/observatory/otlp_json_ids.go)) at all
+JSON decode sites (malformed IDs now 400), and prod was fully repaired 2026-08-13 via
+`ailang observatory repair-ids --apply`. A stored trace ID longer than 32 hex chars is the
+symptom of an unfixed receiver.
 
 ## OTLP ingest auth (available, OFF — deliberately)
 

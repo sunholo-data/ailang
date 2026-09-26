@@ -251,7 +251,12 @@ func (e *Elaborator) normalizeUnaryOp(unop *ast.UnaryOp) (core.CoreExpr, error) 
 	switch unop.Op {
 	case "-":
 		op = core.OpNeg
-	case "not":
+	case "not", "!":
+		// `!e` is the same boolean negation as `not e` (the teaching prompt promises
+		// both). Without this arm `!` fell through to a generic UnOp that no later
+		// stage knows, and died in the type checker as "unknown unary operator: !"
+		// (claude-sonnet-5, mlfq_scheduler_hidden, 2026-09-22). Mapped here rather than
+		// in the parser so the surface AST — and `ailang fmt` — keep what the user wrote.
 		op = core.OpNot
 	case "~":
 		op = core.OpBitwiseNot

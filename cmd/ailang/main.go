@@ -5,16 +5,11 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/fatih/color"
-	"github.com/sunholo-data/ailang/internal/agentprompt"
-	"github.com/sunholo-data/ailang/internal/devtoolsprompt"
 	"github.com/sunholo-data/ailang/internal/loader"
-	"github.com/sunholo-data/ailang/internal/observatory"
 	"github.com/sunholo-data/ailang/internal/prompt"
 	"github.com/sunholo-data/ailang/internal/schema"
-	ailangTesting "github.com/sunholo-data/ailang/internal/testing"
 	"github.com/sunholo-data/ailang/internal/version"
 )
 
@@ -36,18 +31,19 @@ var (
 	blue    = color.New(color.FgBlue).SprintFunc()
 	magenta = color.New(color.FgMagenta).SprintFunc()
 	bold    = color.New(color.Bold).SprintFunc()
-	// dim is defined in debug_types.go
 
 	// Global flags
 	_ = false // quietMode placeholder for future use
 )
 
 func main() {
-	// Set embedded filesystem for prompts (bundled in binary)
-	// This allows `ailang prompt` and `ailang devtools-prompt` to work from anywhere
+	// Platform backends behind the core's registration seams (platform_init.go).
+	registerPlatform()
+
+	// Set embedded filesystem for prompts (bundled in binary) — one FS carries
+	// every kind, so `ailang prompt`, `agent-prompt` and `devtools-prompt`
+	// all work from anywhere.
 	prompt.SetEmbeddedFS(embeddedPrompts)
-	devtoolsprompt.SetEmbeddedFS(embeddedPrompts)
-	agentprompt.SetEmbeddedFS(embeddedPrompts)
 
 	var (
 		versionFlag             = flag.Bool("version", false, "Print version information")
@@ -68,9 +64,27 @@ func main() {
 
 	flag.Parse()
 
-	// Observatory health check — detect bloated DB early (M-OBS-RETENTION).
-	// Fast path: just os.Stat, no DB open unless cleanup needed.
-	observatory.CheckHealth(observatory.DefaultDatabasePath())
+	// The global flags the dispatch table's closures need (repl, watch).
+	globals = globalFlags{
+		learn:               *learnFlag,
+		trace:               *traceFlag,
+		strictSyntax:        *strictSyntaxFlag,
+		binopShim:           *binopShimFlag,
+		failOnShim:          *failOnShimFlag,
+		requireLowering:     *requireLoweringFlag,
+		trackInstantiations: *trackInstantiationsFlag,
+		noMono:              *noMonoFlag,
+		debugCompile:        *debugCompileFlag,
+		maxRecursionDepth:   *maxRecursionDepthFlag,
+	}
+
+	// Language commands (run/check/fmt/...) open no state database and print
+	// nothing to stderr that the program itself did not print. The observatory
+	// health check and the stale-binary probe run only for platform commands
+	// (M-V1-SIMPLIFY-S1 M6). The membership list is the table's Group attribute
+	// since S5 M1; platformStartup holds the whole decision so a test can count
+	// the probes instead of reading this file.
+	runStaleProbe := platformStartup(flag.Args())
 
 	// Set binary version for stdlib compatibility check
 	// Version is set by ldflags at build time (e.g., "v0.4.8")
@@ -94,8 +108,9 @@ func main() {
 		return
 	}
 
-	// Check for stale binary (DX: prevents confusion when testing changes)
-	checkStaleBinary()
+	// Check for stale binary (DX: prevents confusion when testing changes).
+	// After the --version/--help short circuits, exactly as before.
+	runStaleProbe()
 
 	command := flag.Arg(0)
 	if err := guardEvalRemoteRead(command, flag.Args()[1:], os.Stderr); err != nil {
@@ -103,500 +118,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	switch command {
-	case "version":
-		printVersion()
-		return
-
-	case "run":
-		runCommand()
-
-	case "repl":
-		runREPL(*learnFlag, *traceFlag, *strictSyntaxFlag)
-
-	case "test":
-		// Test command with flags
-		testFlags := flag.NewFlagSet("test", flag.ExitOnError)
-		formatFlag := testFlags.String("format", "human", "Output format: human or json")
-		noColorFlag := testFlags.Bool("no-color", false, "Disable colored output")
-		packageFlag := testFlags.Bool("package", false, "Run tests in package mode (discovers *_test.ail via ailang.toml)")
-		allowSkipsFlag := testFlags.Bool("allow-skips", false, "Exit 0 even when all tests are skipped (default: skipped-only suites exit 1)")
-		seedFlag := testFlags.Int64("seed", 0, "Master seed for property generation (signed int64)")
-		randomSeedFlag := testFlags.Bool("random-seed", false, "Read one master seed from crypto/rand and report it")
-		helpTestFlag := testFlags.Bool("help", false, "Show help for test command")
-
-		_ = testFlags.Parse(flag.Args()[1:]) // Parse errors handled by flags package
-
-		if *helpTestFlag {
-			printTestHelp()
-			return
-		}
-
-		// Both flags are registered above so the CLI accepts them. D1 mandates
-		// detecting PRESENCE via Visit — presence, not value — so the returned
-		// randomSeedFlag value is intentionally unused (--seed 0 must not be
-		// confused with unset); blank it rather than dereference it.
-		_ = randomSeedFlag
-
-		// Detect flag PRESENCE via Visit (D1) — presence, not value, because
-		// --seed 0 is a legitimate explicit master seed and must not be confused
-		// with "unset". Visit iterates only flags that were set on the command line.
-		seedSet, randomSet := false, false
-		testFlags.Visit(func(f *flag.Flag) {
-			switch f.Name {
-			case "seed":
-				seedSet = true
-			case "random-seed":
-				randomSet = true
-			}
-		})
-		if seedSet && randomSet { // D2 — mutual exclusion on stderr, exit 2
-			fmt.Fprintln(os.Stderr, "Error: --seed and --random-seed cannot be used together")
-			os.Exit(2)
-		}
-		// Capture os.Getwd() ONCE, before any path walking.
-		cwd, err := os.Getwd()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: cannot determine working directory: %v\n", err)
-			os.Exit(1)
-		}
-		cfg := ailangTesting.TestConfig{WorkspaceRoot: cwd, SeedMode: ailangTesting.SeedModeDerived, MasterSeed: 0}
-		switch {
-		case seedSet:
-			cfg.SeedMode, cfg.MasterSeed = ailangTesting.SeedModeMaster, *seedFlag
-		case randomSet:
-			m, err := ailangTesting.NewRandomMasterSeed()
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-				os.Exit(1) // BEFORE any property runs
-			}
-			cfg.SeedMode, cfg.MasterSeed = ailangTesting.SeedModeMaster, m
-		}
-
-		path := "."
-		if testFlags.NArg() >= 1 {
-			path = testFlags.Arg(0)
-		}
-
-		// Record the CLI argument tail that reproduces this run, shell-safe, so
-		// the emitted replay command is runnable (defect §3(A)); see
-		// replayTargetArg for the quoting rules.
-		if *packageFlag {
-			cfg.ReplayTarget = "--package " + replayTargetArg(path)
-		} else {
-			cfg.ReplayTarget = replayTargetArg(path)
-		}
-
-		if *packageFlag {
-			runPackageTests(path, *formatFlag, !*noColorFlag, *allowSkipsFlag, cfg)
-		} else {
-			runTestsV2(path, *formatFlag, !*noColorFlag, *allowSkipsFlag, cfg)
-		}
-
-	case "watch":
-		if flag.NArg() < 2 {
-			fmt.Fprintf(os.Stderr, "%s: missing file argument\n", red("Error"))
-			fmt.Println("Usage: ailang watch <file.ail>")
-			os.Exit(1)
-		}
-		watchFile(flag.Arg(1), *traceFlag, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag, *noMonoFlag, *debugCompileFlag, *maxRecursionDepthFlag)
-
-	case "check":
-		// Parse check subcommand flags
-		checkFS := flag.NewFlagSet("check", flag.ExitOnError)
-		strictSyntaxCheck := checkFS.Bool("strict-syntax", false, "Disable syntactic sugar (require canonical syntax)")
-		relaxModulesCheck := checkFS.Bool("relax-modules", false, "Relax MOD010 validation (allow module path mismatches with warning)")
-		timeoutCheck := checkFS.String("timeout", "", "Compilation timeout (e.g., 30s, 2m). Dumps stack on timeout.")
-		debugCompileCheck := checkFS.Bool("debug-compile", false, "Show compilation phase timing breakdown")
-		jsonCheck := checkFS.Bool("json", false, "Output errors in JSON format (for AI/machine consumption)")
-		formatCheck := checkFS.String("format", "human", "Output format: human, json, or agent (compact one-line diagnostics for AI agent context)")
-		quietCheck := checkFS.Bool("quiet", false, "Suppress progress lines, only output errors")
-		packageCheck := checkFS.Bool("package", false, "Check entire package (reads ailang.toml for module discovery)")
-
-		_ = checkFS.Parse(flag.Args()[1:])
-
-		// Resolve output format (M-AILANG-SEMANTIC-CONTEXT R1). --json is the
-		// back-compat alias for --format=json. Both json and agent are "machine"
-		// formats that reuse the structured-error path; agent is the compact,
-		// token-lean one-line rendering for AI agent loops.
-		checkAgentFormat = (*formatCheck == "agent")
-		machineFormat := *jsonCheck || *formatCheck == "json" || *formatCheck == "agent"
-
-		// --package mode: check a package directory using ailang.toml
-		if *packageCheck {
-			dir := "."
-			if checkFS.NArg() >= 1 {
-				dir = checkFS.Arg(0)
-			}
-			checkPackageWithContext(dir, *strictSyntaxCheck, *relaxModulesCheck, *timeoutCheck, *debugCompileCheck, machineFormat, *quietCheck)
-			return
-		}
-
-		if checkFS.NArg() < 1 {
-			fmt.Fprintf(os.Stderr, "%s: missing file or directory argument\n", red("Error"))
-			fmt.Println("Usage: ailang check [options] <file.ail|directory>")
-			fmt.Println()
-			fmt.Println("Options:")
-			fmt.Println("  --strict-syntax    Disable syntactic sugar (require canonical syntax)")
-			fmt.Println("  --relax-modules    Relax MOD010 validation (allow module path mismatches)")
-			fmt.Println("  --timeout <dur>    Compilation timeout (e.g., 30s, 2m). Dumps stack on timeout.")
-			fmt.Println("  --debug-compile    Show compilation phase timing breakdown")
-			fmt.Println("  --json             Output errors in JSON format")
-			fmt.Println("  --format <fmt>     Output format: human (default), json, or agent (compact one-line diagnostics)")
-			fmt.Println("  --quiet            Suppress progress lines, only output errors")
-			fmt.Println("  --package          Check entire package (reads ailang.toml)")
-			fmt.Println()
-			fmt.Println("If a directory is given, all .ail files are checked recursively.")
-			os.Exit(1)
-		}
-		checkFile(checkFS.Arg(0), *strictSyntaxCheck, *relaxModulesCheck, *timeoutCheck, *debugCompileCheck, machineFormat, *quietCheck)
-
-	case "fmt":
-		// Canonical AILANG source formatter (M-AILANG-FMT). Owns its own flag
-		// parsing and exit codes; never returns on its exit paths.
-		runFmtCommand(flag.Args()[1:])
-
-	case "iface":
-		ifaceFS := flag.NewFlagSet("iface", flag.ExitOnError)
-		ifaceCompact := ifaceFS.Bool("compact", false, "Compact one-line-per-export signatures (dense typed-interface view for agent context)")
-		_ = ifaceFS.Parse(flag.Args()[1:])
-		if ifaceFS.NArg() < 1 {
-			fmt.Fprintf(os.Stderr, "%s: missing module argument\n", red("Error"))
-			fmt.Println("Usage: ailang iface [--compact] <module>")
-			os.Exit(1)
-		}
-		outputInterface(ifaceFS.Arg(0), *ifaceCompact)
-
-	case "select-best":
-		runSelectBest()
-
-	case "ast-edit":
-		runAstEdit()
-
-	case "export-training":
-		exportTraining()
-
-	case "eval":
-		runEval()
-
-	case "eval-analyze":
-		runEvalAnalyze()
-
-	case "eval-compare":
-		runEvalCompare()
-
-	case "eval-paired":
-		runEvalPaired()
-
-	case "eval-censored-pairs":
-		runEvalCensoredPairs()
-
-	case "eval-matrix":
-		runEvalMatrix()
-
-	case "eval-sweet-spot":
-		runEvalSweetSpot()
-
-	case "eval-summary":
-		runEvalSummary()
-
-	case "eval-report":
-		runEvalReport()
-
-	case "eval-suite":
-		runEvalSuite()
-
-	case "browser-profile":
-		runBrowserProfile(os.Args[2:])
-
-	case "eval-elo":
-		// Per-language (AILANG vs Python) ELO leaderboard + benchmark difficulty
-		runEvalELO()
-
-	case "eval-trend":
-		// M-EVAL-OS-LONGITUDINAL Phase 4: failure-feedback candidate triage
-		runEvalTrend()
-
-	case "eval-publish":
-		// M-EVAL-OS-LONGITUDINAL Phase 5: per-release Docusaurus publication
-		runEvalPublish()
-
-	case "eval-chains":
-		evalChainsCommand()
-
-	case "doctor":
-		runDoctor()
-
-	case "builtins":
-		runBuiltins()
-
-	case "docs":
-		docsCommand()
-
-	case "debug":
-		runDebug()
-
-	case "messages", "msg":
-		messagesCommand()
-
-	case "cache", "brain":
-		cacheCommand()
-
-	case "micro-rag", "microrag", "urag":
-		microragCommand()
-
-	case "prompt":
-		runPrompt()
-
-	case "devtools-prompt":
-		runDevtoolsPrompt()
-
-	case "agent-prompt":
-		runAgentPrompt()
-
-	case "mcp":
-		runMCPCommand()
-
-	case "daemon":
-		daemonCommand()
-
-	case "server", "serve": // "serve" kept as alias for backward compatibility
-		if err := serverCommand(flag.Args()[1:]); err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
-			os.Exit(1)
-		}
-
-	case "serve-api":
-		if err := serveAPICommand(flag.Args()[1:]); err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
-			os.Exit(1)
-		}
-
-	case "lsp":
-		if err := lspCommand(flag.Args()[1:]); err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
-			os.Exit(1)
-		}
-
-	case "init":
-		if err := initCommand(flag.Args()[1:]); err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
-			os.Exit(1)
-		}
-
-	case "access-control":
-		if err := accessControlCommand(flag.Args()[1:]); err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
-			os.Exit(1)
-		}
-
-	case "compile":
-		compileCommand()
-
-	case "disasm":
-		disasmCommand()
-
-	case "editor":
-		editorCommand()
-
-	case "axioms":
-		axiomsCommand()
-
-	case "replay":
-		replayCommand()
-
-	case "trace":
-		traceCommand()
-
-	case "observatory":
-		observatoryCommand()
-
-	case "chains":
-		chainsCommand()
-
-	case "dashboard":
-		dashboardCommand()
-
-	case "budget":
-		budgetCommand()
-
-	case "coordinator":
-		if err := coordinatorCommand(flag.Args()[1:]); err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
-			os.Exit(1)
-		}
-
-	case "storage":
-		if err := storageCommand(flag.Args()[1:]); err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
-			os.Exit(1)
-		}
-
-	case "workspaces":
-		if err := workspacesCommand(flag.Args()[1:]); err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
-			os.Exit(1)
-		}
-
-	case "exec":
-		runExec()
-
-	case "design-review":
-		runDesignReview()
-
-	case "design-quorum":
-		runDesignQuorum()
-
-	case "verify":
-		verifyCommand()
-
-	case "add":
-		if err := pkgAddCommand(flag.Args()[1:]); err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
-			os.Exit(1)
-		}
-
-	case "lock":
-		if err := pkgLockCommand(flag.Args()[1:]); err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
-			os.Exit(1)
-		}
-
-	case "tree":
-		if err := pkgTreeCommand(flag.Args()[1:]); err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
-			os.Exit(1)
-		}
-
-	case "install":
-		if err := pkgInstallCommand(flag.Args()[1:]); err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
-			os.Exit(1)
-		}
-
-	case "search":
-		if err := pkgSearchCommand(flag.Args()[1:]); err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
-			os.Exit(1)
-		}
-
-	case "publish":
-		if err := pkgPublishCommand(flag.Args()[1:]); err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
-			os.Exit(1)
-		}
-
-	case "unpublish":
-		if err := pkgUnpublishCommand(flag.Args()[1:]); err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
-			os.Exit(1)
-		}
-
-	case "generate-extension-registry":
-		if err := extRegistryGenCommand(flag.Args()[1:]); err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
-			os.Exit(1)
-		}
-
-	case "pkg-docs":
-		if err := pkgDocsCommand(flag.Args()[1:]); err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
-			os.Exit(1)
-		}
-
-	case "pkg":
-		// Sub-commands under "ailang pkg"
-		subArgs := flag.Args()[1:]
-		if len(subArgs) == 0 {
-			fmt.Println("Usage: ailang pkg <command>")
-			fmt.Println()
-			fmt.Println("Commands:")
-			fmt.Println("  info <vendor/name>          Show detailed package information")
-			fmt.Println("  versions <vendor/name>      List all versions with hashes")
-			fmt.Println("  stats                       Show ecosystem-wide statistics")
-			fmt.Println("  provenance <pkg>@<ver>      Show provenance chain for a version")
-			fmt.Println("  history <pkg>@<ver>         Show version history timeline")
-			fmt.Println("  notify-upgrade <pkg>@<ver>  Emit upgrade-available message (manual fallback)")
-			fmt.Println("  affected-by <pkg>           List workspaces depending on a package")
-			fmt.Println()
-			fmt.Println("To publish a new version and fire the full cascade bus:")
-			fmt.Println("  ailang publish              (preferred — wraps notify-upgrade + cascade-topic)")
-			os.Exit(1)
-		}
-		switch subArgs[0] {
-		case "info":
-			if err := pkgInfoCommand(subArgs[1:]); err != nil {
-				fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
-				os.Exit(1)
-			}
-		case "versions":
-			if err := pkgVersionsCommand(subArgs[1:]); err != nil {
-				fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
-				os.Exit(1)
-			}
-		case "stats":
-			if err := pkgStatsCommand(subArgs[1:]); err != nil {
-				fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
-				os.Exit(1)
-			}
-		case "notify-upgrade":
-			if err := pkgNotifyUpgradeCommand(subArgs[1:]); err != nil {
-				fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
-				os.Exit(1)
-			}
-		case "affected-by":
-			if err := pkgAffectedByCommand(subArgs[1:]); err != nil {
-				fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
-				os.Exit(1)
-			}
-		case "provenance":
-			if err := pkgProvenanceCommand(subArgs[1:]); err != nil {
-				fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
-				os.Exit(1)
-			}
-		case "history":
-			if err := pkgHistoryCommand(subArgs[1:]); err != nil {
-				fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
-				os.Exit(1)
-			}
-		case "cascade":
-			// M-PKG-AUTONOMOUS-CASCADE-SAFE M4
-			if err := pkgCascadeCommand(subArgs[1:]); err != nil {
-				fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
-				os.Exit(1)
-			}
-		default:
-			fmt.Fprintf(os.Stderr, "%s: unknown pkg command '%s'\n", red("Error"), subArgs[0])
-			os.Exit(1)
-		}
-
-	case "ai-check":
-		aiCheckCommand()
-
-	case "policy-check":
-		policyCheckCommand()
-
-	case "examples":
-		examplesCommand(flag.Args()[1:])
-
-	case "sandbox-check":
-		sandboxCheckCommand(flag.Args()[1:])
-
-	default:
-		fmt.Fprintf(os.Stderr, "%s: unknown command '%s'\n", red("Error"), command)
-		printHelp()
-		os.Exit(1)
-	}
+	dispatchCommand(command, flag.Args()[1:])
 }
 
-// replayTargetArg renders a CLI argument tail that reproduces a test run,
-// shell-safe. A space, single quote, or double quote triggers single-quote
-// wrapping with embedded single quotes escaped as '\”; otherwise the argument
-// is emitted bare. It lives in ONE helper (used only by the test subcommand)
-// so the package mode and ordinary mode targets cannot diverge.
-func replayTargetArg(path string) string {
-	if strings.ContainsAny(path, " '\"") {
-		return "'" + strings.ReplaceAll(path, "'", "'\\''") + "'"
-	}
-	return path
+// dim renders text in the terminal's dim attribute.
+func dim(s string) string {
+	return "\033[2m" + s + "\033[0m"
 }

@@ -141,8 +141,16 @@ func (s *Server) handleCoordinatorApproval(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if s.approvalStore == nil {
+	// Both stores are required: cmd/ailang/server.go always sets them together,
+	// and resolving the record with only approvalStore is the bug this route
+	// had — an approval that fires no handoff and merges nothing.
+	if s.approvalStore == nil || s.coordStoreRaw == nil {
 		http.Error(w, "Coordinator approval store not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	body, ok := decodeApprovalDecisionBody(w, r)
+	if !ok {
 		return
 	}
 
@@ -150,7 +158,7 @@ func (s *Server) handleCoordinatorApproval(w http.ResponseWriter, r *http.Reques
 
 	// Check if approval request exists
 	req, err := s.approvalStore.GetApprovalRequest(ctx, id)
-	if err != nil {
+	if err != nil || req == nil {
 		log.Printf("Failed to get approval request %s: %v", id, err)
 		http.Error(w, "Approval request not found", http.StatusNotFound)
 		return
@@ -161,15 +169,16 @@ func (s *Server) handleCoordinatorApproval(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// Resolve the request
-	status := "approved"
-	if action == "reject" {
-		status = "rejected"
+	// Secret approvals have no task behind them; they resolve on their own path.
+	if req.Type == "secret" {
+		s.resolveSecretApproval(w, r, req, action, "dashboard-user")
+		return
 	}
 
-	if err := s.approvalStore.ResolveApprovalRequest(ctx, id, status, "dashboard-user"); err != nil {
-		log.Printf("Failed to resolve approval request %s: %v", id, err)
-		http.Error(w, "Failed to resolve approval request", http.StatusInternalServerError)
+	// The same processor the /api/approvals route uses — the only path that
+	// fires handoffs (M-V1-SIMPLIFY-S1 M3).
+	if _, err := s.processTaskApproval(ctx, req, action, body); err != nil {
+		http.Error(w, "Failed to resolve approval request: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -425,12 +434,18 @@ func (s *Server) handleCoordinatorTaskEvents_(w http.ResponseWriter, r *http.Req
 	case "text":
 		// Return formatted text for CLI/human consumption
 		text := coordinator.FormatEventsAsText(events, opts)
+		turns, err := countTurns(events)
+		if err != nil {
+			log.Printf("count turns for %s: %v", taskID, err)
+			http.Error(w, "turn-count transform unavailable: "+err.Error(), http.StatusServiceUnavailable)
+			return
+		}
 		resp := map[string]interface{}{
 			"task_id":      taskID,
 			"format":       "text",
 			"content":      text,
 			"total_events": len(events),
-			"total_turns":  countTurns(events),
+			"total_turns":  turns,
 		}
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
@@ -440,16 +455,27 @@ func (s *Server) handleCoordinatorTaskEvents_(w http.ResponseWriter, r *http.Req
 
 	case "summary":
 		// Return compact summary
-		// Uses AILANG implementation when AILANG_DASHBOARD=1
+		// The summary transform is AILANG, and it is the only implementation.
 		bridge := GetAILANGBridge()
-		summary := bridge.SummarizeEvents(events)
+		summary, err := bridge.SummarizeEvents(events)
+		if err != nil {
+			log.Printf("summarize events for %s: %v", taskID, err)
+			http.Error(w, "summary transform unavailable: "+err.Error(), http.StatusServiceUnavailable)
+			return
+		}
+		turns, err := countTurns(events)
+		if err != nil {
+			log.Printf("count turns for %s: %v", taskID, err)
+			http.Error(w, "summary transform unavailable: "+err.Error(), http.StatusServiceUnavailable)
+			return
+		}
 		resp := map[string]interface{}{
 			"task_id":       taskID,
 			"format":        "summary",
 			"content":       summary,
 			"total_events":  len(events),
-			"total_turns":   countTurns(events),
-			"ailang_active": bridge.IsEnabled(),
+			"total_turns":   turns,
+			"ailang_active": bridge.Ready() == nil,
 		}
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
@@ -472,21 +498,13 @@ func (s *Server) handleCoordinatorTaskEvents_(w http.ResponseWriter, r *http.Req
 	}
 }
 
-// countTurns counts unique turn numbers in event list.
-// Uses AILANG implementation when AILANG_DASHBOARD=1.
-func countTurns(events []*coordinator.TaskEventRecord) int {
-	bridge := GetAILANGBridge()
-	if bridge.IsEnabled() {
-		return bridge.CountTurns(events)
-	}
-	// Go fallback
-	turns := make(map[int]bool)
-	for _, e := range events {
-		if e.TurnNum > 0 {
-			turns[e.TurnNum] = true
-		}
-	}
-	return len(turns)
+// countTurns counts unique turn numbers in the event list, in AILANG.
+//
+// The inline Go loop that used to sit here was the THIRD copy of this rule —
+// alongside coordinator.CountTurns and event_formatter.ail — reachable whenever
+// AILANG_DASHBOARD was unset, which in production was always.
+func countTurns(events []*coordinator.TaskEventRecord) (int, error) {
+	return GetAILANGBridge().CountTurns(events)
 }
 
 // handleTaskDiff returns the git diff for a task's worktree

@@ -1,0 +1,391 @@
+package main
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"slices"
+	"strings"
+	"testing"
+)
+
+var expectedPiExtensions = []string{
+	"ail-fmt-autolint.ts",
+	"ailang-exec.ts",
+	"ailang-lsp-lite.ts",
+	"binary-freshness.ts",
+	"builtin-sprint.ts",
+	"examples-search.ts",
+	"microrag-context.ts",
+	"prepush-gate.ts",
+	"provider-quota.ts",
+	"quality-monitor.ts",
+	"session-protocol-gate.ts",
+	"sprint-steward.ts",
+	"unowned-dirty.ts",
+	"workspace-trust.ts",
+}
+
+// M-DX-PI-HARNESS Distribution v2: the managed-file install contract.
+// decidePiInstall must never plan a clobber of user-owned content.
+func TestDecidePiInstall(t *testing.T) {
+	const embeddedContent = "extension content v2"
+	const v2 = "v0.35.0"
+
+	tests := []struct {
+		name      string
+		diskHash  string // "" = absent
+		managed   *piManagedFile
+		want      string
+		suggested bool
+	}{
+		{name: "absent → install", diskHash: "", managed: nil, want: "install"},
+		{name: "identical unmanaged → conflict, preserve", diskHash: sha256Hex([]byte(embeddedContent)), managed: nil, want: "conflict-unmanaged", suggested: true},
+		{name: "managed identical, same binary → current",
+			diskHash: sha256Hex([]byte(embeddedContent)),
+			managed:  &piManagedFile{SHA256: sha256Hex([]byte(embeddedContent)), Version: v2},
+			want:     "current"},
+		{name: "managed identical but older binary → update (stamp refresh)",
+			diskHash: sha256Hex([]byte(embeddedContent)),
+			managed:  &piManagedFile{SHA256: sha256Hex([]byte(embeddedContent)), Version: "v0.34.0"},
+			want:     "update"},
+		{name: "managed old asset unchanged on disk → safe content update",
+			diskHash: sha256Hex([]byte("extension content v1")),
+			managed:  &piManagedFile{SHA256: sha256Hex([]byte("extension content v1")), Version: "v0.34.0"},
+			want:     "update"},
+		{name: "managed but user-modified → conflict, preserve", //nolint:dupl // table rows are intentionally parallel
+			diskHash:  "deadbeef",
+			managed:   &piManagedFile{SHA256: sha256Hex([]byte(embeddedContent)), Version: v2},
+			want:      "conflict-user-modified",
+			suggested: true},
+		{name: "unmanaged different content → conflict, preserve", //nolint:dupl // sibling row
+			diskHash:  "deadbeef",
+			managed:   nil,
+			want:      "conflict-unmanaged",
+			suggested: true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			action, suggested := decidePiInstall("x.ts", []byte(embeddedContent), tc.diskHash, tc.managed, v2)
+			if action != tc.want {
+				t.Errorf("decidePiInstall(%s) action = %q, want %q", tc.name, action, tc.want)
+			}
+			if suggested != tc.suggested {
+				t.Errorf("decidePiInstall(%s) suggested = %v, want %v", tc.name, suggested, tc.suggested)
+			}
+		})
+	}
+}
+
+func TestPiFilesystemLifecycle(t *testing.T) {
+	home := t.TempDir()
+	var stdout, stderr bytes.Buffer
+	if err := installPiExtensions(home, &stdout, &stderr); err != nil {
+		t.Fatalf("first install: %v", err)
+	}
+
+	embedded, names, err := piEmbeddedFiles()
+	if err != nil {
+		t.Fatalf("embedded files: %v", err)
+	}
+	expectedAssets := append([]string{"README.md"}, expectedPiExtensions...)
+	if !slices.Equal(names, expectedAssets) {
+		t.Fatalf("embedded asset inventory = %q, want %q", names, expectedAssets)
+	}
+	if got, want := len(names), len(expectedAssets); got != want {
+		t.Fatalf("embedded asset count = %d, want %d (%d extensions + README)", got, want, len(expectedPiExtensions))
+	}
+	var extensionCount int
+	for _, name := range names {
+		if strings.HasSuffix(name, ".ts") {
+			extensionCount++
+		}
+		got, err := os.ReadFile(filepath.Join(piExtensionsDir(home), name))
+		if err != nil {
+			t.Fatalf("read installed %s: %v", name, err)
+		}
+		if !bytes.Equal(got, embedded[name]) {
+			t.Errorf("installed %s differs from embedded asset", name)
+		}
+	}
+	if extensionCount != len(expectedPiExtensions) {
+		t.Fatalf("installed extension count = %d, want %d", extensionCount, len(expectedPiExtensions))
+	}
+
+	manifestBefore := readPiManifestForTest(t, home)
+	if got, want := len(manifestBefore.Files), len(names); got != want {
+		t.Fatalf("manifest file count = %d, want %d", got, want)
+	}
+	stdout.Reset()
+	stderr.Reset()
+	if err := installPiExtensions(home, &stdout, &stderr); err != nil {
+		t.Fatalf("idempotent install: %v", err)
+	}
+	expectedSummary := fmt.Sprintf(
+		"installed: 0, updated: 0, current: %d, conflicts preserved: 0",
+		len(expectedAssets),
+	)
+	foundSummary := false
+	for _, line := range strings.Split(stdout.String(), "\n") {
+		if strings.TrimSpace(line) == expectedSummary {
+			foundSummary = true
+			break
+		}
+	}
+	if !foundSummary {
+		t.Fatalf("second install summary missing exact line %q:\n%s", expectedSummary, stdout.String())
+	}
+	manifestAfter := readPiManifestForTest(t, home)
+	if !piManifestsEqual(manifestBefore, manifestAfter) {
+		t.Fatal("idempotent install changed managed manifest")
+	}
+
+	modifiedName := "binary-freshness.ts"
+	modifiedPath := filepath.Join(piExtensionsDir(home), modifiedName)
+	modified := append(append([]byte{}, embedded[modifiedName]...), []byte("\n// user modification\n")...)
+	if err := os.WriteFile(modifiedPath, modified, 0o644); err != nil {
+		t.Fatalf("modify managed extension: %v", err)
+	}
+	stdout.Reset()
+	stderr.Reset()
+	if err := installPiExtensions(home, &stdout, &stderr); err != nil {
+		t.Fatalf("conflict install: %v", err)
+	}
+	gotModified, err := os.ReadFile(modifiedPath)
+	if err != nil {
+		t.Fatalf("read preserved extension: %v", err)
+	}
+	if !bytes.Equal(gotModified, modified) {
+		t.Fatal("install clobbered a user-modified managed extension")
+	}
+	gotSuggested, err := os.ReadFile(piSuggestedPath(home, modifiedName))
+	if err != nil {
+		t.Fatalf("read suggested extension: %v", err)
+	}
+	if !bytes.Equal(gotSuggested, embedded[modifiedName]) {
+		t.Fatal("suggested extension differs from the embedded asset")
+	}
+	if !strings.Contains(stderr.String(), "preserved") {
+		t.Fatalf("conflict warning missing:\n%s", stderr.String())
+	}
+
+	foreignPath := filepath.Join(piExtensionsDir(home), "user-owned.ts")
+	if err := os.WriteFile(foreignPath, []byte("// user owned\n"), 0o644); err != nil {
+		t.Fatalf("write foreign extension: %v", err)
+	}
+	stdout.Reset()
+	if err := uninstallPiExtensions(home, &stdout); err != nil {
+		t.Fatalf("uninstall: %v", err)
+	}
+	for _, path := range []string{modifiedPath, foreignPath} {
+		if _, err := os.Stat(path); err != nil {
+			t.Errorf("uninstall removed preserved file %s: %v", filepath.Base(path), err)
+		}
+	}
+	if _, err := os.Stat(piManifestPath(home)); !os.IsNotExist(err) {
+		t.Errorf("manifest still exists after uninstall: %v", err)
+	}
+	for _, name := range names {
+		if name == modifiedName {
+			continue
+		}
+		if _, err := os.Stat(filepath.Join(piExtensionsDir(home), name)); !os.IsNotExist(err) {
+			t.Errorf("clean managed file %s still exists after uninstall: %v", name, err)
+		}
+	}
+}
+
+func TestPiStatusReportsManagedStates(t *testing.T) {
+	home := t.TempDir()
+	var stdout, stderr bytes.Buffer
+	if err := installPiExtensions(home, &stdout, &stderr); err != nil {
+		t.Fatalf("install: %v", err)
+	}
+
+	driftName := "binary-freshness.ts"
+	if err := os.WriteFile(filepath.Join(piExtensionsDir(home), driftName), []byte("modified\n"), 0o644); err != nil {
+		t.Fatalf("seed drift: %v", err)
+	}
+	missingName := "provider-quota.ts"
+	if err := os.Remove(filepath.Join(piExtensionsDir(home), missingName)); err != nil {
+		t.Fatalf("seed missing: %v", err)
+	}
+	unmanagedName := "ailang-lsp-lite.ts"
+	manifest := readPiManifestForTest(t, home)
+	delete(manifest.Files, unmanagedName)
+	if err := writePiManaged(home, manifest.Files); err != nil {
+		t.Fatalf("seed unmanaged: %v", err)
+	}
+
+	stdout.Reset()
+	if err := statusPiExtensions(home, "", &stdout); err != nil {
+		t.Fatalf("status: %v", err)
+	}
+	output := stdout.String()
+	for _, want := range []string{
+		"FRESH      README.md",
+		"DRIFT      " + driftName,
+		"MISSING    " + missingName,
+		"UNMANAGED  " + unmanagedName,
+	} {
+		if !strings.Contains(output, want) {
+			t.Errorf("status missing %q:\n%s", want, output)
+		}
+	}
+}
+
+// A workspace that ships its own copy of the suite (the AILANG repo, every
+// worktree of it) MUST NOT also have the global copy: pi refuses to start on
+// the duplicate tool registration (cmd/ailang/pi_extension_collision.go).
+// So on such a machine the global copies are deliberately absent, and status
+// reporting them as MISSING sent an agent to "fix" the rig on 2026-09-16.
+// Identical workspace copy => WORKSPACE, not MISSING.
+func TestPiStatusReportsWorkspaceProvidedSuite(t *testing.T) {
+	home := t.TempDir()
+	ws := t.TempDir()
+	embedded, _, err := piEmbeddedFiles()
+	if err != nil {
+		t.Fatal(err)
+	}
+	wsExt := filepath.Join(ws, ".pi", "extensions")
+	if err := os.MkdirAll(wsExt, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	same := "provider-quota.ts"
+	stale := "binary-freshness.ts"
+	if err := os.WriteFile(filepath.Join(wsExt, same), embedded[same], 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(wsExt, stale), []byte("older copy\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var stdout bytes.Buffer
+	if err := statusPiExtensions(home, ws, &stdout); err != nil {
+		t.Fatalf("status: %v", err)
+	}
+	output := stdout.String()
+	if !strings.Contains(output, "WORKSPACE  "+same) {
+		t.Errorf("identical workspace copy must report WORKSPACE, not MISSING:\n%s", output)
+	}
+	if !strings.Contains(output, "MISSING    "+stale) || !strings.Contains(output, "workspace copy differs") {
+		t.Errorf("a differing workspace copy is still MISSING, and must say the copy differs:\n%s", output)
+	}
+	if !strings.Contains(output, "MISSING    ailang-lsp-lite.ts") {
+		t.Errorf("a file the workspace does not ship stays MISSING:\n%s", output)
+	}
+}
+
+func TestPiInstallPreservesUnmanagedConflict(t *testing.T) {
+	home := t.TempDir()
+	extDir := piExtensionsDir(home)
+	if err := os.MkdirAll(extDir, 0o755); err != nil {
+		t.Fatalf("mkdir extension dir: %v", err)
+	}
+	name := "provider-quota.ts"
+	userContent := []byte("// independently installed\n")
+	if err := os.WriteFile(filepath.Join(extDir, name), userContent, 0o644); err != nil {
+		t.Fatalf("write unmanaged conflict: %v", err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	if err := installPiExtensions(home, &stdout, &stderr); err != nil {
+		t.Fatalf("install: %v", err)
+	}
+	got, err := os.ReadFile(filepath.Join(extDir, name))
+	if err != nil {
+		t.Fatalf("read unmanaged conflict: %v", err)
+	}
+	if !bytes.Equal(got, userContent) {
+		t.Fatal("install clobbered an unmanaged conflicting extension")
+	}
+	if _, managed := readPiManifestForTest(t, home).Files[name]; managed {
+		t.Fatal("unmanaged conflicting extension was recorded as managed")
+	}
+	embedded, _, err := piEmbeddedFiles()
+	if err != nil {
+		t.Fatalf("embedded files: %v", err)
+	}
+	suggested, err := os.ReadFile(piSuggestedPath(home, name))
+	if err != nil {
+		t.Fatalf("read suggestion: %v", err)
+	}
+	if !bytes.Equal(suggested, embedded[name]) {
+		t.Fatal("unmanaged conflict suggestion differs from embedded asset")
+	}
+}
+
+func TestPiIdenticalUnmanagedAssetRemainsUnmanaged(t *testing.T) {
+	home := t.TempDir()
+	extDir := piExtensionsDir(home)
+	if err := os.MkdirAll(extDir, 0o755); err != nil {
+		t.Fatalf("mkdir extension dir: %v", err)
+	}
+	embedded, _, err := piEmbeddedFiles()
+	if err != nil {
+		t.Fatalf("embedded files: %v", err)
+	}
+	name := "provider-quota.ts"
+	target := filepath.Join(extDir, name)
+	if err := os.WriteFile(target, embedded[name], 0o644); err != nil {
+		t.Fatalf("write identical unmanaged asset: %v", err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	if err := installPiExtensions(home, &stdout, &stderr); err != nil {
+		t.Fatalf("install: %v", err)
+	}
+	if got, err := os.ReadFile(target); err != nil || !bytes.Equal(got, embedded[name]) {
+		t.Fatalf("identical unmanaged asset was not preserved: got %q, err %v", got, err)
+	}
+	if _, managed := readPiManifestForTest(t, home).Files[name]; managed {
+		t.Fatal("identical unmanaged asset was adopted into the managed manifest")
+	}
+	if !strings.Contains(stderr.String(), name+" — preserved") {
+		t.Fatalf("identical unmanaged warning missing:\n%s", stderr.String())
+	}
+	suggested, err := os.ReadFile(piSuggestedPath(home, name))
+	if err != nil {
+		t.Fatalf("read identical unmanaged suggestion: %v", err)
+	}
+	if !bytes.Equal(suggested, embedded[name]) {
+		t.Fatal("identical unmanaged suggestion differs from embedded asset")
+	}
+
+	stdout.Reset()
+	if err := statusPiExtensions(home, "", &stdout); err != nil {
+		t.Fatalf("status: %v", err)
+	}
+	if !strings.Contains(stdout.String(), "UNMANAGED  "+name) {
+		t.Fatalf("status did not report identical unmanaged asset as UNMANAGED:\n%s", stdout.String())
+	}
+
+	stdout.Reset()
+	if err := uninstallPiExtensions(home, &stdout); err != nil {
+		t.Fatalf("uninstall: %v", err)
+	}
+	if got, err := os.ReadFile(target); err != nil || !bytes.Equal(got, embedded[name]) {
+		t.Fatalf("uninstall removed or changed identical unmanaged asset: got %q, err %v", got, err)
+	}
+}
+
+func readPiManifestForTest(t *testing.T, home string) piManagedManifest {
+	t.Helper()
+	data, err := os.ReadFile(piManifestPath(home))
+	if err != nil {
+		t.Fatalf("read manifest: %v", err)
+	}
+	var manifest piManagedManifest
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		t.Fatalf("parse manifest: %v", err)
+	}
+	return manifest
+}
+
+func piManifestsEqual(a, b piManagedManifest) bool {
+	left, _ := json.Marshal(a)
+	right, _ := json.Marshal(b)
+	return bytes.Equal(left, right)
+}

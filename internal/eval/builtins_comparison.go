@@ -1,6 +1,10 @@
 package eval
 
-import "math"
+import (
+	"math"
+
+	"github.com/sunholo-data/ailang/internal/types"
+)
 
 // registerComparisonBuiltins registers comparison operations
 func registerComparisonBuiltins() {
@@ -66,11 +70,8 @@ func registerComparisonBuiltins() {
 		NumArgs: 2,
 		IsPure:  true,
 		Impl: func(a, b *FloatValue) (*BoolValue, error) {
-			// NaN is not equal to anything, including itself
-			if math.IsNaN(a.Value) || math.IsNaN(b.Value) {
-				return &BoolValue{Value: false}, nil
-			}
-			return &BoolValue{Value: a.Value == b.Value}, nil
+			// IEEE: NaN is not equal to anything, including itself (types.FloatEq)
+			return &BoolValue{Value: types.FloatEq(a.Value, b.Value)}, nil
 		},
 	}
 
@@ -79,11 +80,8 @@ func registerComparisonBuiltins() {
 		NumArgs: 2,
 		IsPure:  true,
 		Impl: func(a, b *FloatValue) (*BoolValue, error) {
-			// NaN is not equal to anything, so != returns true for any NaN
-			if math.IsNaN(a.Value) || math.IsNaN(b.Value) {
-				return &BoolValue{Value: true}, nil
-			}
-			return &BoolValue{Value: a.Value != b.Value}, nil
+			// IEEE: != is true whenever either side is NaN (types.FloatEq)
+			return &BoolValue{Value: !types.FloatEq(a.Value, b.Value)}, nil
 		},
 	}
 

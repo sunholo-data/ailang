@@ -36,6 +36,9 @@ type Verdict struct {
 	Action string  // ActionDispatch | ActionFile | ActionReject
 	Reason string  // structured reason code (see reason constants)
 	Cost   float64 // estimated USD if dispatched (0 for file/reject)
+	// Shadow is set only when the System One shadow ran beside the classifier
+	// (see shadow.go). It is observational: nothing reads it to decide.
+	Shadow *ShadowVerdict
 }
 
 // Action constants for Verdict.Action. Using named constants keeps the string

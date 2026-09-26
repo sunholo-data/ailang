@@ -7,6 +7,8 @@ import (
 	"context"
 	"fmt"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/modelreg"
 )
 
 // Executor is the common interface for all AI coding agent executors.
@@ -52,13 +54,57 @@ type Task struct {
 	// coordinator leaves it false so opencode keeps auto-loading the repo's CLAUDE.md.
 	PersistentSystemPrompt bool
 
-	Workspace    string            // Working directory (local path)
-	Timeout      time.Duration     // Hard ceiling execution timeout
-	IdleTimeout  time.Duration     // Kill if no events for this long after first event (0 = use default 3m)
-	TTFTTimeout  time.Duration     // Kill if no output before first event (prefill budget; 0 = use default 30s)
-	AllowedTools []string          // Tools the agent can use
-	Model        string            // Model to use (provider-specific)
-	Metadata     map[string]string // Provider-specific options
+	Workspace    string        // Working directory (local path)
+	Timeout      time.Duration // Hard ceiling execution timeout
+	IdleTimeout  time.Duration // Kill if no events for this long after first event (0 = use default 3m)
+	TTFTTimeout  time.Duration // Kill if no output before first event (prefill budget; 0 = use default 30s)
+	AllowedTools []string      // Tools the agent can use (canonical names; nil = CLI default, empty = none)
+	// PolicyPath is the AILANG program policy (agent-policy.toml) an
+	// `ailang_only` run is gated by; forwarded to the pi tool as
+	// AILANG_AGENT_POLICY and its digest banked on the Result.
+	PolicyPath string
+
+	// IsolateFromAmbientContext asks the harness NOT to auto-discover and load the
+	// repository's standing agent-instruction files (AGENTS.md, CLAUDE.md and friends).
+	//
+	// pi loads them by default. For a mission stage that is a correctness problem, not a
+	// convenience: the stage's contract is meant to be FROZEN, and a work item whose
+	// behaviour depends on the current contents of AGENTS.md is not frozen. Measured
+	// 2026-09-08 — a mission evaluator dispatched into a repo worktree inherited
+	// AGENTS.md's "Read CLAUDE.md first - hard gate", "Work Routing (do not self-approve)"
+	// and "Classify every task BEFORE touching code", none of which its contract mentions,
+	// and one model correctly refused the job as a suspected prompt injection.
+	//
+	// Harnesses that cannot express this may ignore it; it is a request, not a guarantee.
+	IsolateFromAmbientContext bool
+
+	// IsolateFromProjectExtensions asks the harness NOT to load the repository's own
+	// agent extensions (pi: `.pi/extensions/*.ts`), while keeping project-local skills.
+	//
+	// This is not tidiness — it repairs a DEADLOCK, measured 2026-09-14 on the
+	// M-MISSION-ITERATION-RELIABILITY M4 canary. The repo's `session-protocol-gate.ts`
+	// arms in every pi workspace and refuses `bash` until a `session_protocol_ack` tool
+	// call. That is survivable for author roles: they run with no `--tools` allowlist, so
+	// the ack tool is present and they ack and proceed (measured across this machine's pi
+	// sessions: 14 of 16 gated sessions acked, ~2 refusals each).
+	//
+	// The EVALUATOR is the one stage that carries an allowlist — read/bash/grep/find/ls,
+	// added to strip edit and write from a judge. That allowlist also removes
+	// `session_protocol_ack`, so the gate arms with NO reachable disarm, and `bash` is
+	// permanently confined to the gate's three start-anchored allow-regexes. Measured
+	// refusals, all read-only: `pwd`; `git rev-parse HEAD`; `cd <dir> && git status`
+	// (`cd` unlisted, and one non-matching segment sinks the whole compound);
+	// `/usr/bin/git ... status` (absolute path fails `^git `); `git --no-pager -C <dir>
+	// status` (flag before subcommand). The canary burned 51 of 63 bash calls on
+	// refusals and died 1.1% over its immutable token budget with no verdict.
+	//
+	// Safe for a judge specifically because it holds no edit/write: the gate also carries
+	// commit attribution in its tool_call handler, so extending this to a role that
+	// COMMITS would silently drop `Co-Authored-By` until that is split out.
+	IsolateFromProjectExtensions bool
+
+	Model    string            // Model to use (provider-specific)
+	Metadata map[string]string // Provider-specific options
 
 	// ExtraEnv are additional environment variables exported to the agent
 	// subprocess, merged into the executor's process env by BuildEnvironment.
@@ -213,6 +259,25 @@ type Result struct {
 	// failed are indistinguishable without it (v0.30.0 baseline CAVEATS.md).
 	ReasonTokens int
 
+	// ExecutorVersion is the harness identity the CLI itself REPORTED, as
+	// "<cli>@<version>" (e.g. "pi@0.85.1"). It is what `--version` printed, never
+	// what the build believed it installed. Empty means UNMEASURED — the
+	// executor could not probe, or predates this field — and must never be read
+	// as "the current one". M-PI-HARNESS-UPGRADE M1: three un-annotated ollama
+	// boundaries and a rig/cloud pi split were invisible in the banked corpus
+	// because nothing recorded this.
+	ExecutorVersion string
+
+	// ToolPolicy is the EFFECTIVE tool list the executor passed to its CLI,
+	// or [ToolPolicyCLIDefault] when the caller left Task.AllowedTools nil and
+	// the CLI's own defaults applied. An empty non-nil list means "no tools"
+	// (--no-tools). nil means unmeasured. PolicyDigest is the sha256 of the
+	// AILANG program policy file the run was gated by (Task.PolicyPath), empty
+	// when none. M-AGENT-AILANG-ONLY-EXECUTION M1: banked BEFORE any policy
+	// changes so the boundary is visible in the data.
+	ToolPolicy   []string
+	PolicyDigest string
+
 	// Session info
 	SessionID  string // Provider's session identifier
 	Transcript string // Full conversation log
@@ -286,7 +351,17 @@ const (
 	// FinishError means the run terminated abnormally (non-zero exit, crash,
 	// cancellation).
 	FinishError = "error"
+	// FinishWireDrift means the harness CLI's wire format lacked a field a
+	// banked metric depends on (e.g. an assistant message_end with no usage).
+	// The run may have completed; its RECORD is untrustworthy, and a wrong
+	// number is worse than no number. M-PI-HARNESS-UPGRADE D4.
+	FinishWireDrift = "wire_drift"
 )
+
+// ToolPolicyCLIDefault is the Result.ToolPolicy sentinel for "the caller did
+// not restrict tools and the CLI's own default set applied". Distinct from an
+// empty list (no tools) and from nil (unmeasured).
+const ToolPolicyCLIDefault = "<cli default>"
 
 // TokenUsage captures token metrics
 type TokenUsage struct {
@@ -431,27 +506,86 @@ type ExecutionMetrics struct {
 	Success        bool
 }
 
-// CostModel contains pricing information
+// CostModel is a per-model rate card carried on Task.Pricing across the
+// executor boundary. It is a thin ADAPTER over modelreg.Pricing
+// (M-V1-SIMPLIFY-S3 M2): build it with CostModelFor (registry lookup by any
+// wire name) or CostModelFromPricing (a registry row the caller already
+// holds) — never from a literal dollar table. Until 2026-09-15 claude and
+// codex each shipped one (Haiku's rates applied to every Claude model,
+// gpt-5-codex's to every codex model) and this type had its own arithmetic
+// that ignored cache writes; CalculateCost now delegates to
+// modelreg.Pricing.Cost so there is exactly one formula.
+//
+// MinimumCharge was removed with the tables: no registry row and no
+// production caller ever set one, only a test.
 type CostModel struct {
 	ProviderName    string
+	Model           string  // registry key the rates came from; "" when built from a bare Pricing
 	InputTokenCost  float64 // Cost per 1K input tokens
 	OutputTokenCost float64 // Cost per 1K output tokens
-	CacheReadCost   float64 // Cost per 1K cache read tokens
-	CacheWriteCost  float64 // Cost per 1K cache write tokens
-	MinimumCharge   float64 // Minimum per-request charge
+	CacheReadCost   float64 // Cost per 1K cache read tokens (0 = undeclared → input rate)
+	CacheWriteCost  float64 // Cost per 1K cache write tokens (0 = undeclared → input rate)
+	// Unpriced is set by CostModelFor's fallback when the model is not in the
+	// registry. CalculateCost then returns 0, but the caller can SEE why —
+	// bank it with CostProvenanceUnknown, never as a metered $0.
+	Unpriced bool
 }
 
-// CalculateCost computes total cost from token usage
-func (c *CostModel) CalculateCost(usage TokenUsage) float64 {
-	inputCost := float64(usage.InputTokens) / 1000.0 * c.InputTokenCost
-	outputCost := float64(usage.OutputTokens) / 1000.0 * c.OutputTokenCost
-	cacheReadCost := float64(usage.CacheReadInputTokens) / 1000.0 * c.CacheReadCost
-
-	total := inputCost + outputCost + cacheReadCost
-	if total < c.MinimumCharge {
-		return c.MinimumCharge
+// CostModelFor resolves a model name through the registry (friendly key,
+// api_name, alias, dated/dotted variant) and returns its rate card. The
+// error wraps modelreg.ErrUnknownModel when nothing matches.
+func CostModelFor(model string) (*CostModel, error) {
+	if modelreg.GlobalModelsConfig == nil {
+		if err := modelreg.InitModelsConfig(); err != nil {
+			return nil, err
+		}
 	}
-	return total
+	key, m, err := modelreg.GlobalModelsConfig.Resolve(model)
+	if err != nil {
+		return nil, err
+	}
+	return CostModelFromPricing(m.Provider, key, m.Pricing), nil
+}
+
+// CostModelFromPricing adapts a registry row's pricing. Callers that copy the
+// four rates by hand have dropped one before (CacheReadCost until 2026-09-02,
+// CacheWriteCost until this milestone); use this instead.
+func CostModelFromPricing(provider, model string, p modelreg.Pricing) *CostModel {
+	return &CostModel{
+		ProviderName:    provider,
+		Model:           model,
+		InputTokenCost:  p.InputPer1K,
+		OutputTokenCost: p.OutputPer1K,
+		CacheReadCost:   p.CacheReadPer1K,
+		CacheWriteCost:  p.CacheWritePer1K,
+	}
+}
+
+// UnpricedCostModel is the explicit fallback an executor's CostModel() returns
+// when its configured model is not in the registry: non-nil (the interface
+// contract) but marked, so a caller that bills through it can tell "$0
+// because free" from "$0 because nobody knows".
+func UnpricedCostModel(provider, model string) *CostModel {
+	return &CostModel{ProviderName: provider, Model: model, Unpriced: true}
+}
+
+// Pricing returns the registry-shaped rate card this adapter wraps.
+func (c *CostModel) Pricing() modelreg.Pricing {
+	return modelreg.Pricing{
+		InputPer1K:      c.InputTokenCost,
+		OutputPer1K:     c.OutputTokenCost,
+		CacheReadPer1K:  c.CacheReadCost,
+		CacheWritePer1K: c.CacheWriteCost,
+	}
+}
+
+// CalculateCost prices token usage with modelreg.Pricing.Cost — the one
+// formula. InputTokens must be FRESH input (disjoint from cache reads).
+func (c *CostModel) CalculateCost(usage TokenUsage) float64 {
+	if c.Unpriced {
+		return 0
+	}
+	return c.Pricing().Cost(usage.InputTokens, usage.OutputTokens, usage.CacheReadInputTokens, usage.CacheCreationInputTokens)
 }
 
 // NoOpEventHandler is a no-op implementation of EventHandler

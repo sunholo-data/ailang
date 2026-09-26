@@ -1,9 +1,12 @@
 package coordinator
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/sunholo-data/ailang/internal/messaging"
 	"github.com/sunholo-data/ailang/internal/observatory"
@@ -53,8 +56,24 @@ func (d *Daemon) resolveInboxAgent(inbox string) (string, bool) {
 // previous one's failure notice, every task dying at dispatch. Cheap per iteration and
 // therefore quiet — it burned container starts, not tokens, and nothing in the unread
 // counts moved because completions are auto-read.
+//
+// approval_request joins completion for the same reason, found 2026-09-07 when the
+// backstop sweep was first read in prod: it flagged four "Approval needed: ..."
+// notices addressed to design-doc-creator's own inbox as recoverable work. They are
+// notices TO an approver, not requests FOR work, so dispatching one would have asked
+// design-doc-creator to perform its own approval request as a task. Push has never
+// created those tasks, so nothing broke — but the sweep reaches messages push
+// skipped, and would have been the first component to act on them.
 func isOutcomeNotice(msg *Message) bool {
-	return msg != nil && msg.Kind == "completion"
+	if msg == nil {
+		return false
+	}
+	switch msg.Kind {
+	case messaging.InboxTypeCompletion, messaging.InboxTypeApprovalRequest:
+		return true
+	default:
+		return false
+	}
 }
 
 // pollAndProcessTasks polls for new messages and queues them as tasks.
@@ -198,13 +217,20 @@ func (d *Daemon) pollAndProcessTasks() error {
 		// Check for duplicates
 		fingerprint := analyzed.Fingerprint
 		if fingerprint != 0 {
-			if dup, _ := d.taskStore.FindDuplicateTask(d.ctx, fingerprint, 0.9); dup != nil {
-				d.logger.Printf("Skipping duplicate task for message %s (similar to task %s)", msg.ID, dup.ID)
+			dup, dupErr := d.taskStore.FindDuplicateTask(d.ctx, fingerprint, DedupScopeFor(task, time.Now()))
+			if dupErr != nil {
+				// Fail open — running the work twice is recoverable, refusing it
+				// on a lookup error is not — but say so, because a store that
+				// always errors here looks exactly like a store with no duplicates.
+				d.logger.Printf("Duplicate check failed for message %s (dispatching anyway): %v", msg.ID, dupErr)
+			}
+			if dup != nil {
+				d.logger.Printf("Skipping duplicate task for message %s (same content as task %s, status %s)", msg.ID, dup.ID, dup.Status)
 				// Mark message as read since we're skipping it
 				if adapter := d.inboxAdapters[im.inbox]; adapter != nil {
 					_ = adapter.MarkAsRead(msg.ID)
 				}
-				d.publishDedupCompletion(taskID, agentID, dup.ID)
+				d.publishDedupCompletion(taskID, agentID, msg.ID, dup)
 				continue
 			}
 		}
@@ -251,7 +277,12 @@ func (d *Daemon) pollAndProcessTasks() error {
 
 		// Set fingerprint for deduplication
 		if fingerprint != 0 {
-			_ = d.taskStore.SetTaskFingerprint(d.ctx, task.ID, fingerprint)
+			if fpErr := d.taskStore.SetTaskFingerprint(d.ctx, task.ID, fingerprint); fpErr != nil {
+				// Not fatal — the task runs either way — but never silent: a task
+				// with no stored fingerprint is invisible to every future dedup
+				// check, and that looked exactly like "no duplicates found".
+				d.logger.Printf("Warning: task %s has no stored fingerprint, it cannot suppress a future duplicate: %v", task.ID, fpErr)
+			}
 		}
 
 		// M-CHAINS-SIMPLIFY: Create execution chain and stage for unified hierarchy tracking
@@ -384,7 +415,17 @@ func (d *Daemon) pollAndProcessTasksCloud() error {
 		// resolveInboxAgent for why an empty agent ID must never reach the job.
 		agentID, ok := d.resolveInboxAgent(inbox)
 		if !ok {
-			d.logger.Printf("Skipping message %s: no agent registered for inbox %q (left unread for triage)", msg.ID, inbox)
+			// The message stays unread and discoverable, exactly as before. What
+			// changes is that the SENDER is told, instead of the fact living only
+			// in this log line. Fifteen reports were lost this way over
+			// 2026-09-08..10 — see unrouted_bounce.go for the measurement and for
+			// the loop guards, which are not optional in a component that answers
+			// messages with messages.
+			if d.bounceUnroutedMessage(msg, inbox) {
+				d.logger.Printf("Skipping message %s: no agent registered for inbox %q (left unread for triage; sender %q notified)", msg.ID, inbox, msg.From)
+			} else {
+				d.logger.Printf("Skipping message %s: no agent registered for inbox %q (left unread for triage)", msg.ID, inbox)
+			}
 			continue
 		}
 
@@ -494,9 +535,13 @@ func (d *Daemon) pollAndProcessTasksCloud() error {
 		// Check for duplicates
 		fingerprint := analyzed.Fingerprint
 		if fingerprint != 0 {
-			if dup, _ := d.taskStore.FindDuplicateTask(d.ctx, fingerprint, 0.9); dup != nil {
-				d.logger.Printf("Skipping duplicate task for message %s (similar to task %s)", msg.ID, dup.ID)
-				d.publishDedupCompletion(taskID, agentID, dup.ID)
+			dup, dupErr := d.taskStore.FindDuplicateTask(d.ctx, fingerprint, DedupScopeFor(task, time.Now()))
+			if dupErr != nil {
+				d.logger.Printf("Duplicate check failed for message %s (dispatching anyway): %v", msg.ID, dupErr)
+			}
+			if dup != nil {
+				d.logger.Printf("Skipping duplicate task for message %s (same content as task %s, status %s)", msg.ID, dup.ID, dup.Status)
+				d.publishDedupCompletion(taskID, agentID, msg.ID, dup)
 				continue
 			}
 		}
@@ -525,7 +570,12 @@ func (d *Daemon) pollAndProcessTasksCloud() error {
 		}
 
 		if fingerprint != 0 {
-			_ = d.taskStore.SetTaskFingerprint(d.ctx, task.ID, fingerprint)
+			if fpErr := d.taskStore.SetTaskFingerprint(d.ctx, task.ID, fingerprint); fpErr != nil {
+				// Not fatal — the task runs either way — but never silent: a task
+				// with no stored fingerprint is invisible to every future dedup
+				// check, and that looked exactly like "no duplicates found".
+				d.logger.Printf("Warning: task %s has no stored fingerprint, it cannot suppress a future duplicate: %v", task.ID, fpErr)
+			}
 		}
 
 		// M-CHAINS-SIMPLIFY: Create execution chain and stage
@@ -585,8 +635,13 @@ func (d *Daemon) pollAndProcessTasksCloud() error {
 		d.logger.Printf("Created task %s (type: %s, agent: %s, inbox: %s) from cloud message %s",
 			task.ID, task.Type, agentID, im.inbox, msg.ID)
 
-		// PubSub messages are acked on receipt — MarkAsRead is a no-op
+		// The WIRE message is acked on receipt, so the adapter's MarkAsRead is a
+		// no-op by design. The STORE row is a separate fact and must be written
+		// here, or the message stays unread forever after being dispatched and
+		// `messages health` keeps counting it as never dispatched
+		// (M-COORDINATOR-EXECUTION-TRUST M4).
 		d.cloudInboxAdapter.MarkAsRead(msg.ID)
+		markDispatchedMessageRead(d.msgStore, msg.ID, d.logger)
 		d.tasksRun++
 	}
 
@@ -596,17 +651,35 @@ func (d *Daemon) pollAndProcessTasksCloud() error {
 // publishDedupCompletion posts a completion notification when a task is skipped
 // due to deduplication. This ensures external clients (portal, sidecar) receive
 // a response instead of hanging indefinitely waiting for a build that never starts.
-func (d *Daemon) publishDedupCompletion(taskID, agentID, originalTaskID string) {
+//
+// messageID is the request this answers, and it MUST be carried as the
+// correlation: this was the one completion publisher of three that omitted it
+// (the pubsub and stale-task paths both set task.MessageID), so a client with a
+// request in flight received a reply it could not attribute and went on waiting
+// — the hang this function exists to prevent. There is no task record to read it
+// from here, precisely because no task was created.
+func (d *Daemon) publishDedupCompletion(taskID, agentID, messageID string, dup *TaskRecord) {
 	if d.msgStore == nil {
 		return
+	}
+
+	originalTaskID := ""
+	originalStatus := ""
+	if dup != nil {
+		originalTaskID = dup.ID
+		originalStatus = string(dup.Status)
 	}
 
 	payload, _ := json.Marshal(map[string]interface{}{
 		"task_id":          taskID,
 		"agent_id":         agentID,
 		"status":           "deduplicated",
-		"error_msg":        fmt.Sprintf("Skipped: similar to recent task %s", originalTaskID),
+		"correlation_id":   messageID,
+		"error_msg":        fmt.Sprintf("Skipped: identical content to task %s (%s)", originalTaskID, originalStatus),
 		"original_task_id": originalTaskID,
+		// The status of what suppressed this, so a client can tell "already
+		// running" from "already done" without a second lookup.
+		"original_task_status": originalStatus,
 	})
 
 	toInbox := agentID
@@ -615,17 +688,18 @@ func (d *Daemon) publishDedupCompletion(taskID, agentID, originalTaskID string) 
 	}
 
 	msg := &messaging.InboxMessage{
-		FromAgent:   agentID,
-		ToInbox:     toInbox,
-		MessageType: "completion",
-		Title:       fmt.Sprintf("Task %s: deduplicated", taskID),
-		Payload:     string(payload),
+		FromAgent:     agentID,
+		ToInbox:       toInbox,
+		MessageType:   "completion",
+		Title:         fmt.Sprintf("Task %s: deduplicated", taskID),
+		Payload:       string(payload),
+		CorrelationID: messageID,
 	}
 
 	if err := d.msgStore.InsertInboxMessage(msg); err != nil {
 		d.logger.Printf("Failed to post dedup completion for task %s: %v", taskID, err)
 	} else {
-		d.logger.Printf("Posted dedup completion for task %s (original: %s)", taskID, originalTaskID)
+		d.logger.Printf("Posted dedup completion for task %s (original: %s, correlation: %s)", taskID, originalTaskID, messageID)
 	}
 }
 
@@ -636,5 +710,38 @@ func msgIDSuffix(id string, n int) string {
 	if len(id) <= n {
 		return id
 	}
-	return id[len(id)-n:]
+	// The tail is only unique when the ID ENDS in a random suffix, which is true
+	// of the inbox form (inbox_<millis>_<8 hex>) and false of the deterministic
+	// form the handoff path uses: task-<parent>:handoff:<target>.
+	//
+	// Measured 2026-09-07: a sprint-evaluator handoff carried the message ID
+	// "task-c871949f:handoff:sprint-evaluator", whose last 8 characters are
+	// "valuator" — so EVERY evaluator handoff, from any parent task, would derive
+	// task-valuator. Firestore's Doc().Set overwrites silently, so the second
+	// such handoff would destroy the first task's record with no error anywhere.
+	//
+	// Hashing the WHOLE id keeps the property that actually matters — the same
+	// message always yields the same task, so a redelivery is idempotent — while
+	// making the collision unrepresentable. The random-tail form keeps its
+	// existing suffix so no in-flight message changes identity mid-redelivery.
+	if tail := id[len(id)-n:]; isRandomHexTail(id, tail) {
+		return tail
+	}
+	sum := sha256.Sum256([]byte(id))
+	return hex.EncodeToString(sum[:])[:n]
+}
+
+// isRandomHexTail reports whether the tail looks like the generated suffix of an
+// inbox ID, i.e. preceded by "_" and entirely hex.
+func isRandomHexTail(id, tail string) bool {
+	if len(id) <= len(tail) || id[len(id)-len(tail)-1] != '_' {
+		return false
+	}
+	for _, c := range tail {
+		isHex := (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')
+		if !isHex {
+			return false
+		}
+	}
+	return true
 }

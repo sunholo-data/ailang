@@ -6,11 +6,12 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 
 	commonpb "go.opentelemetry.io/proto/otlp/common/v1"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // anyValueToGo converts an OTLP AnyValue to a Go value.
@@ -297,29 +298,29 @@ func parseFilterPattern(raw string) FilterPattern {
 // LoadSpanFilterConfig creates a SpanFilterConfig from environment variables,
 // merging with defaults. Exported for testing.
 func LoadSpanFilterConfig() *SpanFilterConfig {
-	config := DefaultSpanFilterConfig()
+	cfg := DefaultSpanFilterConfig()
 
-	if os.Getenv("AILANG_SPAN_FILTER_DISABLE") == "true" {
-		config.DisableAll = true
+	if config.SpanFilterDisabled() {
+		cfg.DisableAll = true
 	}
 
-	if allowEnv := os.Getenv("AILANG_SPAN_FILTER_ALLOW"); allowEnv != "" {
+	if allowEnv := config.SpanFilterAllow(); allowEnv != "" {
 		for _, raw := range strings.Split(allowEnv, ",") {
 			if p := parseFilterPattern(raw); p.Pattern != "" {
-				config.AllowPatterns = append(config.AllowPatterns, p)
+				cfg.AllowPatterns = append(cfg.AllowPatterns, p)
 			}
 		}
 	}
 
-	if denyEnv := os.Getenv("AILANG_SPAN_FILTER_DENY"); denyEnv != "" {
+	if denyEnv := config.SpanFilterDeny(); denyEnv != "" {
 		for _, raw := range strings.Split(denyEnv, ",") {
 			if p := parseFilterPattern(raw); p.Pattern != "" {
-				config.DenyPatterns = append(config.DenyPatterns, p)
+				cfg.DenyPatterns = append(cfg.DenyPatterns, p)
 			}
 		}
 	}
 
 	fmt.Printf("observatory: span filter config loaded (allow=%d, deny=%d, disable=%v)\n",
-		len(config.AllowPatterns), len(config.DenyPatterns), config.DisableAll)
-	return config
+		len(cfg.AllowPatterns), len(cfg.DenyPatterns), cfg.DisableAll)
+	return cfg
 }

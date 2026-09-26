@@ -12,23 +12,37 @@ import (
 func pkgInstallCommand(args []string) error {
 	flagSet := flag.NewFlagSet("install", flag.ExitOnError)
 	helpFlag := flagSet.Bool("help", false, "Show help")
+	pathFlag := flagSet.String("path", "", "Install the [bin] commands of a local package directory instead of a registry package (the developer loop)")
+	binDirFlag := flagSet.String("bin-dir", "", "Where [bin] shims are written (default: ~/.ailang/bin)")
+	noBinFlag := flagSet.Bool("no-bin", false, "Library only: do not write [bin] shims")
 
 	if err := flagSet.Parse(args); err != nil {
 		return err
 	}
 
-	if *helpFlag || flagSet.NArg() < 1 {
-		fmt.Println("Usage: ailang install <vendor/name[@version]>")
+	if *helpFlag || (flagSet.NArg() < 1 && *pathFlag == "") {
+		fmt.Println("Usage: ailang install <vendor/name[@version]> [--bin-dir DIR] [--no-bin]")
+		fmt.Println("       ailang install --path <package-dir> [--bin-dir DIR]")
 		fmt.Println()
 		fmt.Println("Download a package from the registry, verify its hash, and add it to ailang.toml.")
+		fmt.Println("A package that declares [bin] in its ailang.toml also gets each command shimmed")
+		fmt.Println("onto PATH (~/.ailang/bin by default); see `ailang bin`.")
 		fmt.Println()
 		fmt.Println("Examples:")
 		fmt.Println("  ailang install sunholo/auth           # installs latest version")
 		fmt.Println("  ailang install sunholo/auth@latest     # same as above")
 		fmt.Println("  ailang install sunholo/auth@0.1.0      # installs exact version")
+		fmt.Println("  ailang install --path packages/email   # shim this checkout's [bin] commands")
 		fmt.Println()
 		fmt.Println("Registry: $AILANG_REGISTRY (default: https://storage.googleapis.com/ailang-registry)")
 		return nil
+	}
+
+	if *pathFlag != "" {
+		if flagSet.NArg() > 0 {
+			return fmt.Errorf("--path installs a local package; drop the vendor/name argument")
+		}
+		return installLocalBins(*pathFlag, *binDirFlag)
 	}
 
 	spec := flagSet.Arg(0)
@@ -118,6 +132,14 @@ func pkgInstallCommand(args []string) error {
 	}
 
 	fmt.Printf("%s Downloaded %s@%s (%d bytes)\n", green("✓"), name, version, len(tarballData))
+
+	// M-PKG-BIN-ENTRYPOINTS: a package that declares [bin] becomes a program
+	// root in the cache (lock beside its manifest) and each command a shim.
+	if !*noBinFlag {
+		if err := installBins(cachePath, *binDirFlag); err != nil {
+			return err
+		}
+	}
 
 	// Add to ailang.toml if we're in a package project
 	cwd, err := os.Getwd()

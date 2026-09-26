@@ -3,6 +3,7 @@ package eval_harness
 import (
 	"context"
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/modelreg"
 
 	"github.com/sunholo-data/ailang/internal/executor"
 )
@@ -53,10 +54,10 @@ func FilterCanaryHealthyModels(ctx context.Context, models []string, run canaryR
 // better context. The canary's job is narrowly to catch a subject that is
 // present but broken.
 func runModelCanary(ctx context.Context, model string) error {
-	if GlobalModelsConfig == nil {
+	if modelreg.GlobalModelsConfig == nil {
 		return nil
 	}
-	executorName, agentModelName, err := GlobalModelsConfig.GetExecutorForModel(model)
+	executorName, agentModelName, err := modelreg.GlobalModelsConfig.GetExecutorForModel(model)
 	if err != nil {
 		return nil // not a canary failure; let the normal path report it
 	}
@@ -72,7 +73,7 @@ func runModelCanary(ctx context.Context, model string) error {
 	// first real run failed exactly that way. The profile travels the same route
 	// the real path uses: task metadata.
 	subject := executor.CanarySubject{Model: agentModelName}
-	if mc, err := GlobalModelsConfig.GetModel(model); err == nil && mc.MotokoProfile != "" {
+	if mc, err := modelreg.GlobalModelsConfig.GetModel(model); err == nil && mc.MotokoProfile != "" {
 		subject.Options = map[string]string{"motoko_profile": mc.MotokoProfile}
 	}
 

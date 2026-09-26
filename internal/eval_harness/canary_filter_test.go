@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/sunholo-data/ailang/internal/executor"
+	"github.com/sunholo-data/ailang/internal/modelreg"
 	"strings"
 	"testing"
 )
@@ -115,9 +116,9 @@ func TestRunModelCanary_EndToEnd(t *testing.T) {
 	})
 
 	brokenCLI, healthyCLI := "broken-subject", "healthy-subject"
-	saved := GlobalModelsConfig
-	t.Cleanup(func() { GlobalModelsConfig = saved })
-	GlobalModelsConfig = &ModelsConfig{Models: map[string]ModelConfig{
+	saved := modelreg.GlobalModelsConfig
+	t.Cleanup(func() { modelreg.GlobalModelsConfig = saved })
+	modelreg.GlobalModelsConfig = &ModelsConfig{Models: map[string]ModelConfig{
 		"dead-model":  {AgentCLI: &brokenCLI},
 		"alive-model": {AgentCLI: &healthyCLI},
 	}}

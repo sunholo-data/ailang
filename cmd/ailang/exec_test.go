@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"os"
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/executor"
+	"github.com/sunholo-data/ailang/internal/testutil"
 	// Blank-imported so the managed_agents executor registers itself in the
 	// global factory (mirrors the blank import in exec.go). Required for
 	// TestResolveAgenticExecutorNameReachable below.
@@ -50,32 +52,22 @@ func TestResolveAgenticExecutorNameReachable(t *testing.T) {
 	}
 }
 
-// TestResolveGCPProjectEnv is the regression guard for
-// M-GEMINI-EXEC-PROJECT-PLUMBING (Acceptance Criterion 4). It asserts the
-// env precedence of resolveGCPProjectEnv() — AILANG_CLOUD_PROJECT wins over
-// GOOGLE_CLOUD_PROJECT, falls back to GOOGLE_CLOUD_PROJECT, and is empty when
-// neither is set (so the executor fails loud downstream, no silent default).
-// Env is injected via t.Setenv (auto-restored per case) — no live GCP call.
-func TestResolveGCPProjectEnv(t *testing.T) {
-	cases := []struct {
-		name       string
-		ailangProj string
-		googleProj string
-		want       string
-	}{
-		{"ailang wins over google", "ailang-proj", "google-proj", "ailang-proj"},
-		{"google fallback when ailang unset", "", "google-proj", "google-proj"},
-		{"ailang used when google unset", "ailang-proj", "", "ailang-proj"},
-		{"empty when neither set", "", "", ""},
+// TestExecGCPProjectIsOptional: the precedence itself is config's contract
+// (internal/config/cloud_test.go); exec.go only needs an unresolvable project
+// to come back EMPTY rather than as an error, so executors that do not need
+// one keep working and the ones that do fail loud downstream.
+func TestExecGCPProjectIsOptional(t *testing.T) {
+	testutil.SetHomeDir(t, t.TempDir())
+	for _, v := range []string{"AILANG_CLOUD_PROJECT", "GOOGLE_CLOUD_PROJECT", "AILANG_CONFIG"} {
+		t.Setenv(v, "")
 	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Setenv("AILANG_CLOUD_PROJECT", tc.ailangProj)
-			t.Setenv("GOOGLE_CLOUD_PROJECT", tc.googleProj)
-			if got := resolveGCPProjectEnv(); got != tc.want {
-				t.Errorf("resolveGCPProjectEnv() = %q, want %q", got, tc.want)
-			}
-		})
+	t.Setenv("AILANG_NO_METADATA", "1")
+	if got := execGCPProject(context.Background()); got != "" {
+		t.Errorf("execGCPProject() = %q with nothing set, want empty", got)
+	}
+	t.Setenv("AILANG_CLOUD_PROJECT", "ailang-proj")
+	if got := execGCPProject(context.Background()); got != "ailang-proj" {
+		t.Errorf("execGCPProject() = %q, want ailang-proj", got)
 	}
 }
 
@@ -90,7 +82,7 @@ func TestExecTaskGCPFieldsFromEnv(t *testing.T) {
 	t.Setenv("GOOGLE_CLOUD_LOCATION", "europe-west3")
 
 	task := &executor.Task{
-		GCPProject:  resolveGCPProjectEnv(),
+		GCPProject:  execGCPProject(context.Background()),
 		GCPLocation: os.Getenv("GOOGLE_CLOUD_LOCATION"), // mirrors exec.go executeCLI
 	}
 	if task.GCPProject != "ailang-proj" {

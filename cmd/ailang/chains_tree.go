@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/observatory"
+	"github.com/sunholo-data/ailang/internal/strutil"
 )
 
 func chainsTreeCommand() {
@@ -26,7 +27,7 @@ func chainsTreeCommand() {
 	errorsOnly := fs.Bool("errors", false, "Only show failed or stuck stages (human-readable)")
 	handoffsOnly := fs.Bool("handoffs", false, "Show handoff summary only (compact view)")
 	lastTurnOnly := fs.Bool("last-turn", false, "Show only the final turn per stage")
-	remote := fs.String("remote", "", "Read from this observatory storage mode (gcp). Default: $AILANG_CHAINS_READ")
+	remote := fs.String("remote", "", "Read from this observatory storage mode (gcp). Default: the plane's observatory store ($AILANG_STORAGE_OBSERVATORY, else $AILANG_STORAGE)")
 	fs.Parse(flag.Args()[2:])
 
 	// Direct session query mode
@@ -383,37 +384,37 @@ func formatToolInputPreview(toolName string, input interface{}) string {
 	case "Read":
 		if m, ok := input.(map[string]interface{}); ok {
 			if path, ok := m["file_path"].(string); ok {
-				return truncateString(path, 60)
+				return strutil.Truncate(path, 60)
 			}
 		}
 	case "Write":
 		if m, ok := input.(map[string]interface{}); ok {
 			if path, ok := m["file_path"].(string); ok {
-				return truncateString(path, 60)
+				return strutil.Truncate(path, 60)
 			}
 		}
 	case "Edit":
 		if m, ok := input.(map[string]interface{}); ok {
 			if path, ok := m["file_path"].(string); ok {
-				return truncateString(path, 60)
+				return strutil.Truncate(path, 60)
 			}
 		}
 	case "Bash":
 		if m, ok := input.(map[string]interface{}); ok {
 			if cmd, ok := m["command"].(string); ok {
-				return truncateString(cmd, 80)
+				return strutil.Truncate(cmd, 80)
 			}
 		}
 	case "Grep", "Glob":
 		if m, ok := input.(map[string]interface{}); ok {
 			if pattern, ok := m["pattern"].(string); ok {
-				return truncateString(pattern, 60)
+				return strutil.Truncate(pattern, 60)
 			}
 		}
 	case "Task":
 		if m, ok := input.(map[string]interface{}); ok {
 			if desc, ok := m["description"].(string); ok {
-				return truncateString(desc, 60)
+				return strutil.Truncate(desc, 60)
 			}
 		}
 	}

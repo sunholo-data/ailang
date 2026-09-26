@@ -135,11 +135,29 @@ func TestBatchDebugOutput_SeverityFilterApplies(t *testing.T) {
 	}
 	// Known-positive control: ERROR (3) >= warn (2), so this line MUST survive
 	// the filter — and it can only appear if the batch item flushed at all.
-	if !strings.Contains(out, "[ONLY] ") || !strings.Contains(out, "HIGH-SEVERITY-BATCH") {
+	// M-DEBUG-SINK-STRUCTURED-LINES: a structured (JSON-object) line is
+	// written VERBATIM on its own line — the "[ONLY] " batch label is applied
+	// to unstructured lines only, so a JSON-line consumer can parse it.
+	const highLine = `{"severity":"ERROR","message":"HIGH-SEVERITY-BATCH"}`
+	if !strings.Contains(out, highLine) {
 		t.Fatalf("instrument failure: the above-threshold line never reached stderr, "+
 			"so the absence assertion below proves nothing:\n%s", out)
+	}
+	if !hasExactLine(out, highLine) {
+		t.Errorf("structured line was decorated (label/prefix) instead of written verbatim:\n%s", out)
 	}
 	if strings.Contains(out, "LOW-SEVERITY-BATCH") {
 		t.Errorf("DEBUG-severity message escaped --log-level warn filter:\n%s", out)
 	}
+}
+
+// hasExactLine reports whether out contains want as a whole line, i.e. with
+// nothing prepended — the property a JSON-line log consumer depends on.
+func hasExactLine(out, want string) bool {
+	for _, line := range strings.Split(out, "\n") {
+		if strings.TrimRight(line, "\r") == want {
+			return true
+		}
+	}
+	return false
 }

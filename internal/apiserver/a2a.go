@@ -10,12 +10,13 @@ import (
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/embed"
+	"github.com/sunholo-data/ailang/internal/httpjson"
 )
 
 // handleA2AAgentCard serves the A2A Agent Card at /.well-known/agent.json.
 func (s *Server) handleA2AAgentCard(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" {
-		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "GET only"})
+		httpjson.Write(w, http.StatusMethodNotAllowed, map[string]string{"error": "GET only"})
 		return
 	}
 
@@ -107,7 +108,7 @@ func (s *Server) buildAgentCard(r *http.Request) map[string]any {
 // handleA2ATask handles JSON-RPC 2.0 requests at /a2a/.
 func (s *Server) handleA2ATask(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
-		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "POST only"})
+		httpjson.Write(w, http.StatusMethodNotAllowed, map[string]string{"error": "POST only"})
 		return
 	}
 

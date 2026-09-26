@@ -6,6 +6,9 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+
+	"github.com/sunholo-data/ailang/internal/eval_harness"
+	"github.com/sunholo-data/ailang/internal/strutil"
 )
 
 // LoadResults loads all benchmark results from a directory
@@ -21,158 +24,68 @@ func LoadResults(dir string) ([]*BenchmarkResult, error) {
 // never deleted (they are evidence of the bug that produced them), so this is
 // how you reach them. Everything that reports a rate must use LoadResults.
 func LoadResultsIncludingInvalid(dir string) ([]*BenchmarkResult, error) {
-	return loadResultsFromDirs(dir)
+	return LoadResultsFromDirsIncludingInvalid(dir)
 }
 
 // LoadResultsFromDirsIncludingInvalid is LoadResultsFromDirs without the
 // validity filter. See LoadResultsIncludingInvalid.
 func LoadResultsFromDirsIncludingInvalid(dirs ...string) ([]*BenchmarkResult, error) {
-	return loadResultsFromDirs(dirs...)
+	return loadResultsFromDirs(dirs, eval_harness.LoadOptions{IncludeInvalid: true})
 }
 
 // LoadResultsFromDirs loads and merges all benchmark results from one or more
 // directories. This is the durable primitive behind `eval-report --merge`:
 // it walks every directory, concatenates the results, and applies a single
 // cross-directory dedup pass so overlapping result files (same
-// model/benchmark/lang/seed/mode) collapse to the newest one regardless of
-// which directory they came from. The merge is order-independent because the
-// dedup key is content-derived and selection is by timestamp, not by argument
-// order.
+// model/benchmark/lang/seed/mode/trial) collapse to the newest one regardless
+// of which directory they came from. The merge is order-independent because
+// the dedup key is content-derived and selection is by timestamp, not by
+// argument order.
 //
 // At least one directory must be provided. A directory is required to exist,
 // but a directory that simply contains no JSON files is tolerated as long as
 // the combined set across all directories is non-empty (so callers can merge a
 // populated baseline with an empty/absent rotation without failing).
 // Rows that are not MEASUREMENTS (dead subject, harness error, wrong config)
-// are excluded by default — see FilterValidResults for why the default matters.
-// Use LoadResultsFromDirsIncludingInvalid to opt back in.
+// are excluded by default — that default is the point of the measurement
+// contract (see eval_harness.LoadOptions.IncludeInvalid). Use
+// LoadResultsFromDirsIncludingInvalid to opt back in.
 func LoadResultsFromDirs(dirs ...string) ([]*BenchmarkResult, error) {
-	results, err := loadResultsFromDirs(dirs...)
+	return loadResultsFromDirs(dirs, eval_harness.LoadOptions{})
+}
+
+// loadResultsFromDirs is the analysis-side adapter over the ONE row loader,
+// eval_harness.LoadRows (M-V1-SIMPLIFY-S3 M1). The walk, decode, required-field
+// check, newest-first order, per-slot dedup and validity filter all live there;
+// this only wraps each row in BenchmarkResult, applies the read-side refusal
+// annotation, and keeps this package's error contract: an empty result set is
+// an error here, and files that failed to decode are fatal only when NOTHING
+// loaded.
+func loadResultsFromDirs(dirs []string, opts eval_harness.LoadOptions) ([]*BenchmarkResult, error) {
+	rows, stats, err := eval_harness.LoadRows(dirs, opts)
 	if err != nil {
 		return nil, err
 	}
-	return FilterValidResults(results), nil
-}
-
-// loadResultsFromDirs is the raw walker: no validity filtering.
-func loadResultsFromDirs(dirs ...string) ([]*BenchmarkResult, error) {
-	if len(dirs) == 0 {
-		return nil, fmt.Errorf("no directories provided")
-	}
-
-	var allMatches []string
-
-	for _, dir := range dirs {
-		if _, err := os.Stat(dir); os.IsNotExist(err) {
-			return nil, fmt.Errorf("directory not found: %s", dir)
-		}
-
-		// Walk directory tree to find all .json files
-		err := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
-			if err != nil {
-				return nil // Skip inaccessible dirs
-			}
-			if !d.IsDir() && filepath.Ext(path) == ".json" {
-				allMatches = append(allMatches, path)
-			}
-			return nil
-		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to walk directory %s: %w", dir, err)
-		}
-	}
-
-	if len(allMatches) == 0 {
+	if stats.Files == 0 {
 		return nil, fmt.Errorf("no JSON files found in %v", dirs)
 	}
-
-	// Dedupe identical file paths (e.g. a --merge dir nested under the primary,
-	// or the same dir passed twice) so a file is loaded at most once.
-	if len(dirs) > 1 {
-		seenPath := make(map[string]struct{}, len(allMatches))
-		uniq := allMatches[:0]
-		for _, p := range allMatches {
-			abs, err := filepath.Abs(p)
-			if err != nil {
-				abs = p
-			}
-			if _, dup := seenPath[abs]; dup {
-				continue
-			}
-			seenPath[abs] = struct{}{}
-			uniq = append(uniq, p)
-		}
-		allMatches = uniq
+	if len(stats.ParseErrors) > 0 && stats.Loaded == 0 && stats.Invalid == 0 && stats.Duplicates == 0 {
+		return nil, fmt.Errorf("failed to load any results: %v", stats.ParseErrors)
 	}
-
-	var results []*BenchmarkResult
-	var errors []string
-
-	for _, path := range allMatches {
-		// Skip baseline.json metadata file
-		if filepath.Base(path) == "baseline.json" {
-			continue
-		}
-
-		result, err := LoadResult(path)
-		if err != nil {
-			// Collect errors but don't fail completely
-			errors = append(errors, fmt.Sprintf("%s: %v", filepath.Base(path), err))
-			continue
-		}
-
-		results = append(results, result)
+	results := make([]*BenchmarkResult, 0, len(rows))
+	for i := range rows {
+		results = append(results, annotate(rows[i]))
 	}
+	return results, nil
+}
 
-	// Report errors if some files failed to load
-	if len(errors) > 0 && len(results) == 0 {
-		return nil, fmt.Errorf("failed to load any results: %v", errors)
-	}
-
-	// Sort by timestamp (newest first)
-	sort.Slice(results, func(i, j int) bool {
-		return results[i].Timestamp.After(results[j].Timestamp)
-	})
-
-	// Deduplicate: keep only the latest result per (model, benchmark_id, lang, seed, mode).
-	// This ensures re-runs (e.g. debug runs followed by a clean eval suite run) don't
-	// pollute aggregate stats — only the most-recent attempt for each slot is kept.
-	// Mode MUST be part of the key: a model run in BOTH standard and agent suites
-	// (e.g. claude-sonnet-4-6, gpt5-4-mini) has a legitimately-distinct result per
-	// mode for the same (benchmark, lang, seed); without mode in the key one of them
-	// is silently dropped, removing the model from that mode's leaderboard.
-	// Trial is part of the key. Both trials of a benchmark share
-	// (model, id, lang, seed, mode), so omitting it made a --trials N run
-	// collapse to its newest trial per slot — an 84-row arm loaded as 42, and
-	// every multi-trial rate was computed from half the data. Re-runs still
-	// dedup correctly: a repeat of trial 1 has the same key, newest wins.
-	// Legacy rows (no `trial` field) all carry Trial=0, so they behave exactly
-	// as before.
-	type dedupKey struct {
-		Model string
-		ID    string
-		Lang  string
-		Seed  int64
-		Mode  string
-		Trial int
-	}
-	mode := func(r *BenchmarkResult) string {
-		if r.EvalMode == "agent" {
-			return "agent"
-		}
-		return "standard" // empty/legacy eval_mode == standard
-	}
-	seen := make(map[dedupKey]struct{}, len(results))
-	deduped := results[:0]
-	for _, r := range results { // already newest-first, so first seen = latest
-		k := dedupKey{Model: r.Model, ID: r.ID, Lang: r.Lang, Seed: r.Seed, Mode: mode(r), Trial: r.Trial}
-		if _, exists := seen[k]; !exists {
-			seen[k] = struct{}{}
-			deduped = append(deduped, r)
-		}
-	}
-
-	return deduped, nil
+// annotate wraps a banked row with the read-side annotations the harness never
+// writes. RefusalDetected is derived here so historical baselines — written
+// before the field existed — inherit it.
+func annotate(m eval_harness.RunMetrics) *BenchmarkResult {
+	r := &BenchmarkResult{RunMetrics: m}
+	r.RefusalDetected = DetectRefusal(r.Code, r.Stderr, r.Stdout)
+	return r
 }
 
 // LoadArmForPairing loads ONE A/B arm WITHOUT the re-run dedup.
@@ -188,36 +101,20 @@ func LoadArmForPairing(dir string) ([]*BenchmarkResult, error) {
 	return LoadResultsFromDirs(dir)
 }
 
-// LoadResult loads a single benchmark result from a JSON file
+// LoadResult loads a single benchmark result file, including an invalid one
+// (a single-row read is an inspection, not a rate).
 func LoadResult(path string) (*BenchmarkResult, error) {
-	data, err := os.ReadFile(path)
+	rows, stats, err := eval_harness.LoadRowFiles([]string{path}, eval_harness.LoadOptions{IncludeInvalid: true})
 	if err != nil {
-		return nil, fmt.Errorf("failed to read file: %w", err)
+		return nil, err
 	}
-
-	var result BenchmarkResult
-	if err := json.Unmarshal(data, &result); err != nil {
-		return nil, fmt.Errorf("failed to parse JSON: %w", err)
+	if len(stats.ParseErrors) > 0 {
+		return nil, fmt.Errorf("%s", stats.ParseErrors[0])
 	}
-
-	// Validate required fields
-	if result.ID == "" {
-		return nil, fmt.Errorf("missing required field: id")
+	if len(rows) != 1 {
+		return nil, fmt.Errorf("expected one row in %s, got %d", path, len(rows))
 	}
-	if result.Lang == "" {
-		return nil, fmt.Errorf("missing required field: lang")
-	}
-	if result.Model == "" {
-		return nil, fmt.Errorf("missing required field: model")
-	}
-
-	// Annotate refusal at load time so historical baselines — which were
-	// written before the RefusalDetected field existed — inherit the flag.
-	if !result.RefusalDetected {
-		result.RefusalDetected = DetectRefusal(result.Code, result.Stderr, result.Stdout)
-	}
-
-	return &result, nil
+	return annotate(rows[0]), nil
 }
 
 // LoadBaseline loads a baseline from a directory
@@ -272,7 +169,7 @@ func LoadBaseline(dir string) (*Baseline, error) {
 	baseline.FailCount = 0
 
 	for _, r := range results {
-		if r.StdoutOk {
+		if r.Passed() {
 			baseline.SuccessCount++
 		} else {
 			baseline.FailCount++
@@ -308,7 +205,7 @@ func ListBaselines() ([]string, error) {
 		if entry.IsDir() {
 			// Check if it contains baseline.json or any result files
 			dir := filepath.Join(baselinesDir, entry.Name())
-			hasMetadata := fileExists(filepath.Join(dir, "baseline.json"))
+			hasMetadata := strutil.FileExists(filepath.Join(dir, "baseline.json"))
 			hasResults := hasJSONFiles(dir)
 
 			if hasMetadata || hasResults {
@@ -365,10 +262,10 @@ func Filter(results []*BenchmarkResult, filter ResultFilter) []*BenchmarkResult 
 		if filter.Benchmark != "" && r.ID != filter.Benchmark {
 			continue
 		}
-		if filter.SuccessOnly && !r.StdoutOk {
+		if filter.SuccessOnly && !r.Passed() {
 			continue
 		}
-		if filter.FailuresOnly && r.StdoutOk {
+		if filter.FailuresOnly && r.Passed() {
 			continue
 		}
 
@@ -379,11 +276,6 @@ func Filter(results []*BenchmarkResult, filter ResultFilter) []*BenchmarkResult 
 }
 
 // Helper functions
-
-func fileExists(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
-}
 
 func hasJSONFiles(dir string) bool {
 	found := false

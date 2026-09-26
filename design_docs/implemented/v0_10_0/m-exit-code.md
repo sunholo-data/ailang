@@ -1,6 +1,6 @@
 # M-EXIT-CODE: Process Exit with Explicit Exit Code
 
-**Status**: Planned
+**Status**: ✅ Implemented (v0.10.1) — `std/io.exit(code) -> () ! {IO}`; batch-item handling fixed v0.33.1 (#607), served-handler semantics (routes/A2A/MCP) fixed #706
 **Target**: v0.10.0
 **Priority**: P1 — Blocks CLI tool development and ai-coding-lang-bench Track A
 **Estimated**: 0.5 days (~4 hours)

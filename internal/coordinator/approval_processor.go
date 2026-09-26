@@ -3,15 +3,15 @@ package coordinator
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/gitexec"
 	"github.com/sunholo-data/ailang/internal/messaging"
 	"github.com/sunholo-data/ailang/internal/observatory"
+	"github.com/sunholo-data/ailang/internal/strutil"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -34,6 +34,10 @@ type ApprovalParams struct {
 	SkipMerge         bool // If true, don't merge worktree on approval
 	KeepWorktree      bool // If true, don't clean up worktree after merge
 	RetriggerOnReject bool // If true, send feedback to agent for re-attempt (feedback loop)
+	// SkipHandoffs records the approval WITHOUT dispatching the edges waiting on
+	// it. For a card whose PR already merged and whose downstream is stale or
+	// superseded — see LandedCard. Every other caller leaves it false.
+	SkipHandoffs bool
 
 	// Dependencies (injected by caller)
 	Store         Store                  // Required: coordinator store for task/approval operations
@@ -52,6 +56,10 @@ type ApprovalResult struct {
 	ConflictFiles []string // Files with conflicts (if merge failed)
 	NewTaskID     string   // ID of new task if re-triggered
 	Error         string   // Error message if failed
+	// HandoffTargets are the agents this approval actually dispatched. Reported
+	// so a caller can SEE the chain advance; "approved" with nothing dispatched
+	// was indistinguishable from "approved and handed off" for twelve days.
+	HandoffTargets []string
 }
 
 // ProcessApprovalRequest handles approval/rejection from any channel (CLI, dashboard, daemon).
@@ -179,8 +187,20 @@ func processApproval(ctx context.Context, span trace.Span, params *ApprovalParam
 		}
 	}
 
-	// 2. Resolve the approval request in database
-	if err := params.Store.ResolveApprovalRequestByTask(ctx, taskID, "approved", params.ApprovedBy); err != nil {
+	// 2. Resolve the approval request in database.
+	//
+	// SkipHandoffs is recorded IN the resolution, not after it: "handoffs NOT
+	// fired" used to be printed and not stored, so the next coordinator boot
+	// found the approval "without triggered handoffs" and fired them — 22 on
+	// 2026-09-23 15:17, 17 of which ran sprint-planner on stale work
+	// (M-TASK-STATUS-TRUTH S4).
+	resolve := func() error {
+		if params.SkipHandoffs {
+			return params.Store.ResolveApprovalSuppressingHandoffs(ctx, taskID, params.ApprovedBy)
+		}
+		return params.Store.ResolveApprovalRequestByTask(ctx, taskID, "approved", params.ApprovedBy)
+	}
+	if err := resolve(); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to resolve approval")
 		return nil, fmt.Errorf("failed to approve task: %w", err)
@@ -188,23 +208,79 @@ func processApproval(ctx context.Context, span trace.Span, params *ApprovalParam
 
 	result.Message = fmt.Sprintf("Task approved: %s", taskID)
 
-	// 3. Skip merge if requested or no worktree
-	if params.SkipMerge {
-		result.Message += " (merge skipped)"
-		span.SetStatus(codes.Ok, "approved, merge skipped")
-		return result, nil
+	// 2.5. Fire the handoffs that were WAITING on this approval.
+	//
+	// Placed after the approval resolves and before every later branch, because
+	// the CLI's SkipMerge path returns immediately below — the previous position
+	// for anything like this would have been skipped for exactly the callers that
+	// needed it. Auto edges are excluded (they dispatched at completion), so a
+	// target fires once, at one moment.
+	//
+	// A handoff failure does NOT fail the approval: the approval is already
+	// durably resolved and cannot be retried, so returning an error here would
+	// report failure for work that succeeded. It is surfaced in the result
+	// instead, which is what callers print.
+	var handedOff []string
+	var hErr error
+	if params.SkipHandoffs {
+		result.Message += " (handoffs NOT fired)"
+	} else {
+		handedOff, hErr = dispatchApprovalHandoffs(ctx, params.AgentRegistry, params.MsgStore, params.Store, task)
+		if hErr == nil {
+			decidedWork := ""
+			if apr, err := params.Store.GetApprovalRequestByTaskAnyStatus(ctx, taskID); err == nil && apr != nil {
+				decidedWork = workIDFromContext(apr.ContextJSON)
+			}
+			// Every owed handoff is written (or none was owed): record the decision
+			// so boot recovery stops scanning this approval. An optimisation only —
+			// correctness no longer rests on it, because every row is written under
+			// its (task, target) identity and a replay collides.
+			if err := params.Store.MarkApprovalHandoffsTriggered(ctx, taskID, decidedWork); err != nil {
+				span.AddEvent("warning: failed to record handoff decision", trace.WithAttributes(
+					attribute.String("error", err.Error()),
+				))
+			}
+		}
+	}
+	switch {
+	case hErr != nil:
+		span.AddEvent("warning: approval handoff failed", trace.WithAttributes(
+			attribute.String("error", hErr.Error()),
+		))
+		result.Message += fmt.Sprintf(" — HANDOFF FAILED: %v", hErr)
+	case len(handedOff) > 0:
+		span.AddEvent("approval handoffs dispatched", trace.WithAttributes(
+			attribute.StringSlice("handoff.targets", handedOff),
+		))
+		result.Message += fmt.Sprintf(" — dispatched %s", strings.Join(handedOff, ", "))
+		result.HandoffTargets = handedOff
 	}
 
-	if task.WorktreePath == "" {
-		result.Message += " (no worktree to merge)"
-		span.SetStatus(codes.Ok, "approved, no worktree")
-		return result, nil
-	}
-
-	// Check worktree exists
-	if _, err := os.Stat(task.WorktreePath); os.IsNotExist(err) {
-		result.Message += " (worktree no longer exists)"
-		span.SetStatus(codes.Ok, "approved, worktree missing")
+	// 3. No local merge to do. Three ways that happens — and all three used to
+	// return success WITHOUT moving the task off pending_approval, because the
+	// only status write lives in finalizeApprovedTask below, which merging
+	// reaches and these do not.
+	//
+	// The task then sat approved-but-pending forever: `approvals` could not show
+	// it (no pending record) and approve/reject refused it (already resolved).
+	// Every successful cloud chain left its own stage behind that way — the same
+	// state as two eval-rig tasks stranded since 2026-08-26 — so an operator's
+	// queue filled with rows that look actionable and are not. That matters most
+	// for an unattended approver, whose only view of "what needs me" is this list.
+	//
+	// Approved with nothing to merge IS completion: the work is done and the
+	// branch is already pushed. Say so.
+	if params.SkipMerge || task.WorktreePath == "" || worktreeGone(task.WorktreePath) {
+		switch {
+		case params.SkipMerge:
+			result.Message += " (merge skipped)"
+		case task.WorktreePath == "":
+			result.Message += " (no worktree to merge)"
+		default:
+			result.Message += " (worktree no longer exists)"
+		}
+		completeApprovedTaskWithoutMerge(ctx, span, params, task, taskID, result)
+		span.SetStatus(codes.Ok, "approved, no merge")
 		return result, nil
 	}
 
@@ -285,7 +361,7 @@ func finalizeApprovedTask(ctx context.Context, span trace.Span, params *Approval
 	result.Message = fmt.Sprintf("Task approved and merged to %s (commit: %s)", mergeBranch, mergeResult.CommitHash)
 
 	// 7. Trigger embedded handoffs if this was a merge_handoff approval
-	if params.MsgStore != nil && params.AgentRegistry != nil {
+	if params.MsgStore != nil && params.AgentRegistry != nil && !params.SkipHandoffs {
 		if handoffTriggered, err := triggerEmbeddedHandoffsFromProcessor(ctx, span, params, task, taskID); err != nil {
 			span.AddEvent("warning: failed to trigger handoffs", trace.WithAttributes(
 				attribute.String("error", err.Error()),
@@ -456,7 +532,7 @@ func processRejection(ctx context.Context, span trace.Span, params *ApprovalPara
 				FromAgent:     params.ApprovedBy,
 				ToInbox:       agentInbox,
 				MessageType:   messaging.InboxTypeNotification,
-				Title:         fmt.Sprintf("Feedback: %s (iteration %d)", truncateString(task.Title, 30), nextIteration),
+				Title:         fmt.Sprintf("Feedback: %s (iteration %d)", strutil.Truncate(task.Title, 30), nextIteration),
 				Payload:       payload,
 				CorrelationID: taskID,
 				ParentTaskID:  taskID,
@@ -525,7 +601,7 @@ func processRejection(ctx context.Context, span trace.Span, params *ApprovalPara
 // autoCommitWorktreeChanges commits any uncommitted changes in the worktree.
 func autoCommitWorktreeChanges(worktreePath, taskTitle string) error {
 	// Check for changes
-	statusCmd := exec.Command("git", "-C", worktreePath, "status", "--porcelain")
+	statusCmd := gitexec.Command("-C", worktreePath, "status", gitFlagPorcelain)
 	statusOutput, err := statusCmd.Output()
 	if err != nil {
 		return fmt.Errorf("failed to check git status: %w", err)
@@ -536,14 +612,14 @@ func autoCommitWorktreeChanges(worktreePath, taskTitle string) error {
 	}
 
 	// Add all changes
-	addCmd := exec.Command("git", "-C", worktreePath, "add", "-A")
+	addCmd := gitexec.Command("-C", worktreePath, "add", "-A")
 	if output, err := addCmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to stage changes: %s", output)
 	}
 
 	// Commit
 	commitMsg := fmt.Sprintf("Agent work: %s\n\nAuto-committed on approval", taskTitle)
-	commitCmd := exec.Command("git", "-C", worktreePath, "commit", "-m", commitMsg)
+	commitCmd := gitexec.Command("-C", worktreePath, "commit", "-m", commitMsg)
 	if output, err := commitCmd.CombinedOutput(); err != nil {
 		// Check if it's just "nothing to commit"
 		if strings.Contains(string(output), "nothing to commit") {
@@ -562,17 +638,17 @@ func cleanupWorktree(worktreePath string) {
 	}
 
 	// Get the branch name before removing worktree
-	branchCmd := exec.Command("git", "-C", worktreePath, "rev-parse", "--abbrev-ref", "HEAD")
+	branchCmd := gitexec.Command("-C", worktreePath, gitCommandRevParse, "--abbrev-ref", "HEAD")
 	branchOutput, _ := branchCmd.Output()
 	branchName := strings.TrimSpace(string(branchOutput))
 
 	// Remove the worktree
-	removeCmd := exec.Command("git", "worktree", "remove", worktreePath, "--force")
+	removeCmd := gitexec.Command("worktree", "remove", worktreePath, "--force")
 	removeCmd.Run() // Ignore errors
 
 	// Also delete the branch
 	if branchName != "" && branchName != "HEAD" {
-		deleteCmd := exec.Command("git", "branch", "-D", branchName)
+		deleteCmd := gitexec.Command("branch", "-D", branchName)
 		deleteCmd.Run() // Ignore errors
 	}
 }
@@ -597,90 +673,52 @@ func triggerEmbeddedHandoffsFromProcessor(ctx context.Context, span trace.Span, 
 	return triggerHandoffsFromApprovalRecord(ctx, span, params, task, taskID, approvalReq)
 }
 
-// triggerHandoffsFromApprovalRecord triggers handoffs from an already-fetched approval record.
-// This variant is used by the catch-up mechanism which already has the approval record.
-func triggerHandoffsFromApprovalRecord(ctx context.Context, span trace.Span, params *ApprovalParams, task *TaskRecord, taskID string, approvalReq *ApprovalRequestRecord) (bool, error) {
-	if params.MsgStore == nil || params.AgentRegistry == nil {
-		return false, nil
+// worktreeGone reports whether a recorded worktree path no longer resolves.
+func worktreeGone(path string) bool {
+	if path == "" {
+		return false
 	}
+	_, err := os.Stat(path)
+	return os.IsNotExist(err)
+}
 
-	// Only trigger handoffs for merge_handoff type approvals
-	if approvalReq.Type != "merge_handoff" || approvalReq.ContextJSON == "" {
-		return false, nil
+// completeApprovedTaskWithoutMerge moves an approved task off pending_approval
+// when there is no local merge to perform.
+//
+// Mirrors the status writes finalizeApprovedTask does after a merge — task,
+// stage and chain — because "approved, nothing to merge" is a completed task and
+// leaving it pending is what produced a growing list of rows nobody can action.
+//
+// Every failure here is a warning, never fatal: the approval is already durably
+// resolved, so returning an error would report failure for work that succeeded.
+func completeApprovedTaskWithoutMerge(
+	ctx context.Context,
+	span trace.Span,
+	params *ApprovalParams,
+	task *TaskRecord,
+	taskID string,
+	result *ApprovalResult,
+) {
+	output := "Approved; no local merge required (branch already pushed)"
+	if len(result.HandoffTargets) > 0 {
+		output = fmt.Sprintf("%s; handed off to %s", output, strings.Join(result.HandoffTargets, ", "))
 	}
-
-	// Parse the embedded handoff data
-	var handoffContext struct {
-		HandoffTargets []string `json:"handoff_targets"`
-		SessionID      string   `json:"session_id"`
-		SourceAgent    string   `json:"source_agent"`
-	}
-	if err := json.Unmarshal([]byte(approvalReq.ContextJSON), &handoffContext); err != nil {
-		return false, fmt.Errorf("failed to parse handoff context: %w", err)
-	}
-
-	if len(handoffContext.HandoffTargets) == 0 {
-		return false, nil
-	}
-
-	span.AddEvent("triggering embedded handoffs", trace.WithAttributes(
-		attribute.StringSlice("handoff.targets", handoffContext.HandoffTargets),
-		attribute.String("handoff.source", handoffContext.SourceAgent),
-	))
-
-	// Build handoff message
-	handoffMessage := fmt.Sprintf("**Handoff from %s (approved)**\n\n"+
-		"Task: %s\n"+
-		"Title: %s\n"+
-		"Original Request: %s\n\n"+
-		"Please continue this work.",
-		handoffContext.SourceAgent, task.ID, task.Title, truncateString(task.Content, 500))
-
-	// Trigger each handoff
-	triggered := false
-	for _, targetAgentID := range handoffContext.HandoffTargets {
-		targetAgent := params.AgentRegistry.GetAgentByID(targetAgentID)
-		if targetAgent == nil {
-			span.AddEvent("warning: handoff target not found", trace.WithAttributes(
-				attribute.String("target.agent", targetAgentID),
-			))
-			continue
-		}
-
-		// Send to target agent's inbox
-		msg := &messaging.InboxMessage{
-			FromAgent:    "coordinator",
-			ToInbox:      targetAgent.Inbox,
-			MessageType:  "handoff",
-			Title:        fmt.Sprintf("Handoff: %s (approved)", task.Title),
-			Payload:      handoffMessage,
-			ParentTaskID: task.ID,      // M-TASK-HIERARCHY: Link to parent task for handoff chains
-			ChainID:      task.ChainID, // M-CHAINS-SIMPLIFY: Link to existing chain
-		}
-
-		if err := params.MsgStore.InsertInboxMessage(msg); err != nil {
-			span.AddEvent("warning: failed to send handoff", trace.WithAttributes(
-				attribute.String("target.agent", targetAgentID),
-				attribute.String("error", err.Error()),
-			))
-			continue
-		}
-
-		span.AddEvent("handoff sent", trace.WithAttributes(
-			attribute.String("target.agent", targetAgentID),
-			attribute.String("target.inbox", targetAgent.Inbox),
+	if err := params.Store.MarkTaskCompleted(ctx, taskID, &ExecuteResult{
+		Success: true,
+		Output:  output,
+	}); err != nil {
+		span.AddEvent("warning: failed to complete approved task", trace.WithAttributes(
+			attribute.String("error", err.Error()),
 		))
-		triggered = true
+		result.Message += fmt.Sprintf(" — WARNING: task left in %s: %v", task.Status, err)
+		return
 	}
 
-	// Mark handoffs as triggered to prevent re-triggering on daemon restart
-	if triggered {
-		if err := params.Store.MarkApprovalHandoffsTriggered(ctx, taskID); err != nil {
-			span.AddEvent("warning: failed to mark handoffs as triggered", trace.WithAttributes(
+	if params.ObsBackend != nil && task.StageID != "" {
+		if err := params.ObsBackend.UpdateStageStatus(ctx, task.StageID, observatory.StageStatusCompleted); err != nil {
+			span.AddEvent("warning: failed to update stage status", trace.WithAttributes(
 				attribute.String("error", err.Error()),
 			))
 		}
 	}
-
-	return triggered, nil
 }

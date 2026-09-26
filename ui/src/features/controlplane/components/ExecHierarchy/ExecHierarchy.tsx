@@ -14,7 +14,6 @@ import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import type { HierarchyNode, ViewMode, ExecHierarchyProps, Span, FilterCriteria, ExecHierarchyNode, ChainData, ChainStageData } from './types';
 import { ChainExplorer } from '../ChainExplorer/ChainExplorer';
 import { ChatHistory } from './ChatHistory';
-import { EvolutionTree } from './EvolutionTree';
 import { CliCommandHint } from '../CliCommandHint';
 import { TraceWaterfall } from '../TraceWaterfall';
 import { useObservatoryWs, Span as ObsSpan } from '../../../../hooks/useObservatory';
@@ -172,8 +171,8 @@ function nodeMatchesFilter(node: HierarchyNode, criteria: FilterCriteria | undef
   // Check date range filter - convert string dates to Date objects for reliable comparison
   if (criteria.dateRange && node.startTime) {
     const nodeDate = new Date(node.startTime);
-    const startDate = new Date(criteria.dateRange.start + 'T00:00:00');
-    const endDate = new Date(criteria.dateRange.end + 'T23:59:59');
+    const startDate = new Date(criteria.dateRange.start + 'T00:00:00.000Z');
+    const endDate = new Date(criteria.dateRange.end + 'T23:59:59.999Z');
     if (nodeDate < startDate || nodeDate > endDate) {
       return false;
     }
@@ -824,21 +823,6 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
             spans={spans}
           />
         )}
-        {viewMode === 'evolution' && (
-          <EvolutionTree
-            spans={spans}
-            nodes={transformedNodes}
-            selectedNodeId={selectedNodeId}
-            onNodeClick={handleNodeClick}
-            hiddenSpanTypes={hiddenSpanTypes}
-            isExpanded={isExpanded}
-            theme={theme}
-            onChatContextClick={() => {
-              // Popover shows inline chat_context when node is clicked
-            }}
-          />
-        )}
-
         {/* Load more buttons - not shown in chains view (ChainExplorer manages its own data) */}
         {viewMode !== 'chains' && hasMoreNodes && (
           <div className={styles.loadMoreContainer}>

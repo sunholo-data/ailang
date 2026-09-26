@@ -14,7 +14,7 @@
 // Usage:
 //
 //	c := mcp_client.New(mcp_client.Options{
-//	    BaseURL:        os.Getenv("AILANG_MCP_URL"),  // empty -> default prod
+//	    BaseURL:        config.MCPURL(),  // empty -> default prod
 //	    AILangVersion:  version.Version,
 //	    Timeout:        1500 * time.Millisecond,
 //	})

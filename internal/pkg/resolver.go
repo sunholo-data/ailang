@@ -2,6 +2,7 @@ package pkg
 
 import (
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/strutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -178,7 +179,7 @@ func ResolveDependencies(manifest *PackageManifest, rootDir string) ([]ResolvedP
 						ContentHash:   hash,
 						InterfaceHash: InterfaceHash(depManifest),
 						Source:        "path",
-						Path:          depDir,
+						Path:          portablePathDep(rootDir, depDir),
 						Effects:       depManifest.Effects.Max,
 						Exports:       depManifest.Exports.Modules,
 					})
@@ -340,7 +341,7 @@ func BuildDependencyTree(manifest *PackageManifest, rootDir string) (string, err
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("%s@%s\n", manifest.Package.Name, manifest.Package.Version))
 
-	deps := sortedKeys(manifest.Dependencies)
+	deps := strutil.SortedKeys(manifest.Dependencies)
 	for i, name := range deps {
 		dep := manifest.Dependencies[name]
 		isLast := i == len(deps)-1
@@ -374,7 +375,7 @@ func BuildDependencyTree(manifest *PackageManifest, rootDir string) (string, err
 }
 
 func printSubTree(sb *strings.Builder, m *PackageManifest, dir string, indent string) {
-	deps := sortedKeys(m.Dependencies)
+	deps := strutil.SortedKeys(m.Dependencies)
 	for i, name := range deps {
 		dep := m.Dependencies[name]
 		isLast := i == len(deps)-1
@@ -391,16 +392,20 @@ func printSubTree(sb *strings.Builder, m *PackageManifest, dir string, indent st
 	}
 }
 
-func sortedKeys(m map[string]Dependency) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
+// portablePathDep stores a path dependency RELATIVE to the lock file's
+// directory so a committed ailang.lock works on every machine. The loader
+// joins a relative Path with its root (loader.go packageDir), and
+// ValidateContentHashes resolves against the lock's directory. Absolute is
+// kept only when no relative form exists (another volume on Windows).
+//
+// Before this, 43 committed locks in ailang-packages carried
+// /Users/<someone>/… paths and every other machine's `check --package`
+// failed with "package directory not found" (core backlog 2026-09-15; the
+// Daneel eparse outage).
+func portablePathDep(rootDir, depDir string) string {
+	rel, err := filepath.Rel(rootDir, depDir)
+	if err != nil {
+		return depDir
 	}
-	// Sort for deterministic output
-	for i := 1; i < len(keys); i++ {
-		for j := i; j > 0 && keys[j] < keys[j-1]; j-- {
-			keys[j], keys[j-1] = keys[j-1], keys[j]
-		}
-	}
-	return keys
+	return filepath.ToSlash(rel)
 }

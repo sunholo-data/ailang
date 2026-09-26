@@ -1,12 +1,9 @@
 package openrouter
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"strconv"
 
 	"github.com/sunholo-data/ailang/internal/ai"
@@ -41,10 +38,10 @@ func (c *Client) generateChat(ctx context.Context, req *ai.Request, reasoning ai
 
 	// Build request. OpenRouter normalizes max_tokens for upstream providers,
 	// so we always use MaxTokens (no max_completion_tokens distinction).
-	apiReq := chatRequest{
+	apiReq := chatRequest{ChatRequest: openai.ChatRequest{
 		Model:    req.Model,
 		Messages: messages,
-	}
+	}}
 
 	// Broadcast correlation (M-OPENROUTER-BROADCAST-INGEST M3). No-op, and
 	// wire-identical to before, when the caller set no correlation.
@@ -111,48 +108,20 @@ func (c *Client) generateChat(ctx context.Context, req *ai.Request, reasoning ai
 		}
 	}
 
-	// Marshal request
 	jsonBody, err := json.Marshal(apiReq)
 	if err != nil {
 		return nil, ai.NewProviderError("openrouter", 0, "failed to marshal request", err)
 	}
 
-	// Create HTTP request
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/chat/completions", bytes.NewReader(jsonBody))
-	if err != nil {
-		return nil, ai.NewProviderError("openrouter", 0, "failed to create request", err)
-	}
-
-	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
-	setAttributionHeaders(httpReq, req.Attribution)
-
-	// Execute request
-	resp, err := c.httpClient.Do(httpReq)
-	if err != nil {
-		return nil, ai.NewProviderError("openrouter", 0, "request failed", err)
-	}
-	defer resp.Body.Close()
-
-	// Read response
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, ai.NewProviderError("openrouter", resp.StatusCode, "failed to read response", err)
-	}
-
-	// Handle errors
-	if resp.StatusCode != http.StatusOK {
-		var errResp errorResponse
-		if json.Unmarshal(body, &errResp) == nil && errResp.Error.Message != "" {
-			return nil, ai.NewProviderError("openrouter", resp.StatusCode, errResp.Error.Message, nil)
-		}
-		return nil, ai.NewProviderError("openrouter", resp.StatusCode, string(body), nil)
-	}
-
-	// Parse successful response
 	var result chatResponse
-	if err := json.Unmarshal(body, &result); err != nil {
-		return nil, ai.NewProviderError("openrouter", 0, "failed to parse response", err)
+	if _, err := ai.DoJSON(ctx, ai.JSONCall{
+		Provider: "openrouter",
+		Client:   c.httpClient,
+		URL:      c.baseURL + "/chat/completions",
+		Headers:  c.requestHeaders(req.Attribution),
+		Body:     jsonBody,
+	}, &result); err != nil {
+		return nil, err
 	}
 
 	if len(result.Choices) == 0 {

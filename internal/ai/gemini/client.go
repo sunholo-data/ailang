@@ -2,15 +2,14 @@ package gemini
 
 import (
 	"context"
-	"io"
 	"net/http"
-	"os"
 	"os/exec"
 	"strings"
-	"time"
 
 	"github.com/sunholo-data/ailang/internal/ai"
 	gcpauth "github.com/sunholo-data/ailang/internal/auth/gcp"
+	"github.com/sunholo-data/ailang/internal/config"
+	"github.com/sunholo-data/ailang/internal/strutil"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -32,7 +31,7 @@ const (
 type Client struct {
 	apiKey     string   // API key for AI Studio
 	projectID  string   // GCP project for Vertex AI
-	location   string   // GCP location (default: "global")
+	location   string   // Vertex AI location; see NewVertexAIClient for how it resolves
 	authType   AuthType // Authentication type
 	httpClient *http.Client
 	baseURL    string // Override base URL (for testing)
@@ -62,12 +61,13 @@ func WithBaseURL(url string) ClientOption {
 	}
 }
 
-// NewClient creates a new Gemini client using API key (AI Studio).
+// NewClient creates a new Gemini client using API key (AI Studio). The AI
+// Studio endpoint has no location; the field stays empty unless WithLocation
+// sets it, so no regional default is ever implied here.
 func NewClient(apiKey string, opts ...ClientOption) *Client {
 	c := &Client{
 		apiKey:     apiKey,
 		authType:   AuthAPIKey,
-		location:   "global",
 		httpClient: http.DefaultClient,
 	}
 	for _, opt := range opts {
@@ -76,21 +76,37 @@ func NewClient(apiKey string, opts ...ClientOption) *Client {
 	return c
 }
 
+// EnvVertexLocation names the Vertex AI location a request is routed to. It
+// decides the regional endpoint, data residency and — since Vertex prices
+// some models per region — the bill, so it is not a cosmetic default.
+const EnvVertexLocation = config.EnvGoogleCloudLocation
+
+// deprecatedVertexLocation is the value served when nothing names one
+// (M-V1-SIMPLIFY-S4 M1): warned once via config.DeprecatedDefault, refused
+// under AILANG_STRICT_CONFIG=1.
+const deprecatedVertexLocation = "global"
+
 // NewVertexAIClient creates a new Gemini client using ADC (Vertex AI).
-// If projectID is empty, it will be fetched from gcloud config.
+// If projectID is empty, it will be fetched from gcloud config. The location
+// is WithLocation, else GOOGLE_CLOUD_LOCATION, else the deprecated "global".
 func NewVertexAIClient(projectID string, opts ...ClientOption) (*Client, error) {
-	location := os.Getenv("GOOGLE_CLOUD_LOCATION")
-	if location == "" {
-		location = "global"
-	}
 	c := &Client{
 		projectID:  projectID,
 		authType:   AuthADC,
-		location:   location,
 		httpClient: http.DefaultClient,
 	}
 	for _, opt := range opts {
 		opt(c)
+	}
+	if c.location == "" {
+		c.location = strings.TrimSpace(config.GoogleCloudLocation())
+	}
+	if c.location == "" {
+		loc, err := config.DeprecatedDefault(EnvVertexLocation, deprecatedVertexLocation)
+		if err != nil {
+			return nil, ai.NewProviderError("gemini", 0, "no Vertex AI location", err)
+		}
+		c.location = loc
 	}
 
 	// Get project ID from gcloud if not provided
@@ -118,7 +134,7 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 			attribute.String("ai.provider", "gemini"),
 			attribute.String("ai.model", req.Model),
 			attribute.String("ai.auth_type", string(c.authType)),
-			attribute.String("ai.prompt_preview", telemetry.Truncate(req.UserPrompt, 100)),
+			attribute.String("ai.prompt_preview", strutil.Truncate(req.UserPrompt, 100)),
 		),
 	)
 	defer span.End()
@@ -126,7 +142,7 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 	resp, err := c.generateContent(ctx, req)
 	if err != nil {
 		span.SetAttributes(
-			attribute.String("error.message", telemetry.Truncate(err.Error(), 200)),
+			attribute.String("error.message", strutil.Truncate(err.Error(), 200)),
 			attribute.String("error.category", telemetry.CategorizeError(err)),
 		)
 		span.RecordError(err)
@@ -139,7 +155,7 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 		attribute.Int("ai.tokens_in", resp.InputTokens),
 		attribute.Int("ai.tokens_out", resp.OutputTokens),
 		attribute.Int("ai.tokens_total", resp.TotalTokens),
-		attribute.String("ai.response_preview", telemetry.Truncate(resp.Text, 100)),
+		attribute.String("ai.response_preview", strutil.Truncate(resp.Text, 100)),
 	)
 
 	return resp, nil
@@ -155,12 +171,6 @@ func (c *Client) NewHandler(model string, opts ...ai.HandlerOption) *ai.Handler 
 	return ai.NewHandler(c, model, opts...)
 }
 
-// metadataClient is a short-timeout HTTP client for the GCE/Cloud Run metadata server.
-// Used only by getGCPProject below — the ADC token path moved to
-// internal/auth/gcp as part of M-MANAGED-AGENTS (v0.22.0) so both this
-// package and the new managed_agents executor share one implementation.
-var metadataClient = &http.Client{Timeout: 2 * time.Second}
-
 // getAccessToken retrieves an ADC access token for Vertex AI. Delegates to
 // the shared internal/auth/gcp helper (metadata-first, gcloud fallback) so
 // the executor side has a single source of truth. The wrap with ai.NewProviderError
@@ -173,26 +183,17 @@ func getAccessToken() (string, error) {
 	return token, nil
 }
 
-// getGCPProject gets the current GCP project ID.
-// Tries: (1) GOOGLE_CLOUD_PROJECT env var, (2) GCP_PROJECT env var,
-// (3) GCE/Cloud Run metadata server, (4) gcloud CLI fallback.
+// getGCPProject gets the current GCP project ID: config.CloudProject (env,
+// config file, metadata server — one precedence for the whole binary), then
+// the gcloud CLI as a local-dev fallback. The CLI step stays here, not in the
+// resolver: a Vertex call from a laptop is the one place "whatever gcloud is
+// pointed at" is what the developer means, and the store selectors must never
+// inherit it.
 func getGCPProject() (string, error) {
-	// 1. GOOGLE_CLOUD_PROJECT env var (set by Cloud Run, GKE, App Engine)
-	if project := os.Getenv("GOOGLE_CLOUD_PROJECT"); project != "" {
+	if project, err := config.CloudProject(context.Background()); err == nil {
 		return project, nil
 	}
 
-	// 2. GCP_PROJECT env var (alternate convention)
-	if project := os.Getenv("GCP_PROJECT"); project != "" {
-		return project, nil
-	}
-
-	// 3. Metadata server (Cloud Run, GKE, GCE)
-	if project, err := getProjectFromMetadata(); err == nil && project != "" {
-		return project, nil
-	}
-
-	// 4. Fall back to gcloud CLI (local dev)
 	cmd := exec.Command("gcloud", "config", "get-value", "project")
 	output, err := cmd.Output()
 	if err != nil {
@@ -206,26 +207,4 @@ func getGCPProject() (string, error) {
 	}
 
 	return project, nil
-}
-
-// getProjectFromMetadata fetches the project ID from the GCE/Cloud Run metadata server.
-func getProjectFromMetadata() (string, error) {
-	req, err := http.NewRequest("GET",
-		"http://metadata.google.internal/computeMetadata/v1/project/project-id", nil)
-	if err != nil {
-		return "", err
-	}
-	req.Header.Set("Metadata-Flavor", "Google")
-
-	resp, err := metadataClient.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(string(body)), nil
 }

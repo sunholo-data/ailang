@@ -42,13 +42,53 @@
         <string>/Users/voightkampff/dev/sunholo-data/ailang/tools/launchd/mission-control.sh</string>
     </array>
 
-    <!-- Continuous mode (2026-07-10, Mark): fire every 2h; the driver's overlap
-         guard yields while an iteration is still running, so this is
-         "back-to-back iterations, at most 2h idle gap". No GPU/rig-lock clash —
-         iterations are cloud-model work; subscription rate limits are the
-         natural throttle. Revert to a StartCalendarInterval block for
-         nightly-only cadence. -->
-    <key>StartInterval</key>
+    <!-- Continuous mode (2026-07-10, Mark): the driver's overlap guard yields while
+         an iteration is still running, so this is "back-to-back iterations, at most
+         one interval of idle gap". No GPU/rig-lock clash — iterations are cloud-model
+         work; subscription rate limits are the natural throttle. Revert to a
+         StartCalendarInterval block for nightly-only cadence.
+         REVERTED to 90m (Mark, attended 2026-09-02) after ONE day at 60m. The 60m trial
+         and its rationale are kept below because the measurement that killed it is the
+         useful part:
+           date         starts  stalls  rate
+           2026-08-31       18       1     6%
+           2026-09-02       18       6    33%   <- first full day at the tightened cadence
+         Every stall was the same signature — "claude idle with a descendant alive >=2400s"
+         — so each burned 40min before the watchdog killed it, and 3 of v1's 7 fires died
+         that way. Total starts did NOT rise (19 -> 18): we paid the contention and got no
+         extra throughput. Confound checked and rejected: the attended git/merge work that
+         day ran 09:35-11:20 and ALL SIX stalls fell between 14:02 and 18:42.
+         Mechanism (inferred, not proven): tightening v1+world+docs together made three
+         controllers overlap against one quota bucket, sub-agents slowed, controllers sat
+         idle, the watchdog fired. The original 60m rationale still stands on its own terms
+         — there IS a flat ~90min idle gap per cycle — but the gap is not the binding
+         constraint; the bucket and the box are. Do not re-tighten one loop without holding
+         the other two, and re-read the stall rate the next day. -->
+    <!-- KeepAlive + ThrottleInterval, NOT StartInterval (2026-09-05, Mark attended:
+         "fix this, especially for ailang v1 and world").
+         MEASURED FIRST, then changed. StartInterval re-arms from the job's EXIT, not its
+         start — three consecutive v1 gaps in ~/.ailang/state/mission-v1-slot-verdicts.log
+         measured 5403s, 5372s and 5379s against a 5400s interval, and world independently
+         gave 14390s against 14400s. So the real period was duration + interval, and v1's
+         duration (mean 5479s over 5 slots) is almost exactly its interval: HALF of v1's
+         day was idle, 11.9h, none of it chosen. This plist's own text has said since
+         2026-07-10 that the intent was "back-to-back iterations, at most one interval of
+         idle gap" — the scheduler was never delivering that.
+         ThrottleInterval is measured from the START, so the period becomes
+         max(duration, 5400) instead of duration + 5400: the NOMINAL SPACING IS UNCHANGED
+         at the 90m Mark ratified on 09-02, only the wasted slot goes. Projected 7.9 ->
+         15.8 iterations/day.
+         ThrottleInterval is load-bearing, not decoration: the yield paths (kill switch,
+         overlap guard, memory gate, dry run) exit in seconds, and bare KeepAlive would
+         respawn them in a tight loop. It floors that at one start per 90m.
+         NOT a licence to re-tighten. The 09-02 measurement below stands — three loops
+         tightened at once took the fleet stall rate 6% -> 33% and returned no extra
+         starts. This changes ONE loop and does not touch the interval. Re-read the stall
+         rate the next day; the signature is "claude idle with a descendant alive >=2400s".
+         Revert = delete these two keys and restore <key>StartInterval</key> 5400. -->
+    <key>KeepAlive</key>
+    <true/>
+    <key>ThrottleInterval</key>
     <integer>5400</integer>
 
     <key>EnvironmentVariables</key>
@@ -68,7 +108,8 @@
     <key>StandardErrorPath</key>
     <string>/tmp/ailang-mission-control.stderr</string>
 
-    <!-- RunAtLoad=true (2026-07-21): fire once at every login/boot so a reboot can never silently kill the cadence (18h outage 07-20); the kill switch still gates deliberate offs. Not a daemon: no KeepAlive. -->
+    <!-- RunAtLoad=true (2026-07-21): fire once at every login/boot so a reboot can never silently kill the cadence (18h outage 07-20); the kill switch still gates deliberate offs. Redundant under KeepAlive (which starts it
+         at load anyway) but kept so the two can be reverted independently. -->
     <key>RunAtLoad</key>
     <true/>
 </dict>

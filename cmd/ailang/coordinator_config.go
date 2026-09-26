@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	"cloud.google.com/go/storage"
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/coordinator"
-	"gopkg.in/yaml.v3"
 )
 
 // M-MESSAGE-PLANE-FAIL-LOUD M4: compare-and-swap for the shared coordinator
@@ -53,14 +53,18 @@ func (e *staleGenerationError) Error() string {
 // every coordinator on its next cold start, so publishing one is strictly worse
 // than refusing the edit.
 func validateCoordinatorConfigBytes(data []byte) error {
-	var file struct {
-		Coordinator coordinator.CoordinatorConfig `yaml:"coordinator"`
+	// The candidate is parsed by the one config loader (config.Parse — a
+	// document held in memory, not the process's own file).
+	f, err := config.Parse(data)
+	if err != nil {
+		return fmt.Errorf("config is not valid YAML: %w", err)
 	}
-	if err := yaml.Unmarshal(data, &file); err != nil {
+	var cc coordinator.CoordinatorConfig
+	if _, err := f.Section("coordinator", &cc); err != nil {
 		return fmt.Errorf("config is not valid YAML: %w", err)
 	}
 
-	agents := file.Coordinator.Agents
+	agents := cc.Agents
 	if len(agents) == 0 {
 		return errors.New("config declares no agents: refusing to publish a config that would leave every inbox unserved")
 	}
@@ -169,28 +173,35 @@ func isPreconditionFailure(err error) bool {
 
 // defaultConfigBucket/Object locate the shared coordinator config. Overridable
 // so a staging bucket can be targeted without a code change.
-func configLocation() (bucket, object string) {
-	bucket = os.Getenv("AILANG_CONFIG_BUCKET")
+//
+// The bucket is derived from the cloud project; with no project resolvable
+// it falls through to the deprecated prod default (D3: a warning now, an
+// error in v1.0.0 — and today under AILANG_STRICT_CONFIG=1).
+func configLocation(ctx context.Context) (bucket, object string, err error) {
+	bucket = config.ConfigBucket()
 	if bucket == "" {
-		project := os.Getenv("AILANG_CLOUD_PROJECT")
-		if project == "" {
-			project = "ailang-multivac"
+		project, perr := config.CloudProject(ctx)
+		if errors.Is(perr, config.ErrNoCloudProject) {
+			project, perr = config.DeprecatedDefault("AILANG_CLOUD_PROJECT", "ailang-multivac")
+		}
+		if perr != nil {
+			return "", "", perr
 		}
 		bucket = project + "-ailang-config"
 	}
-	object = os.Getenv("AILANG_CONFIG_OBJECT")
-	if object == "" {
-		object = "config.yaml"
-	}
-	return bucket, object
+	object = config.ConfigObject()
+	return bucket, object, nil
 }
 
 func newGCSConfigStore(ctx context.Context) (*gcsConfigStore, error) {
+	bucket, object, err := configLocation(ctx)
+	if err != nil {
+		return nil, err
+	}
 	client, err := storage.NewClient(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("create GCS client: %w", err)
 	}
-	bucket, object := configLocation()
 	return &gcsConfigStore{ctx: ctx, client: client, bucket: bucket, object: object}, nil
 }
 
@@ -211,11 +222,13 @@ func coordinatorConfig(args []string) error {
 		return coordinatorConfigSet(ctx, rest)
 	case "diff":
 		return coordinatorConfigDiff(ctx, rest)
+	case "roll":
+		return coordinatorConfigRoll(ctx)
 	case "help", "-h", "--help":
 		printCoordinatorConfigHelp()
 		return nil
 	default:
-		return fmt.Errorf("unknown subcommand %q (want: get, set, diff)", sub)
+		return fmt.Errorf("unknown subcommand %q (want: get, set, diff, roll)", sub)
 	}
 }
 
@@ -250,8 +263,9 @@ func coordinatorConfigGet(ctx context.Context, args []string) error {
 
 // coordinatorConfigSet validates and writes, refusing a stale generation.
 func coordinatorConfigSet(ctx context.Context, args []string) error {
+	args, skipRoll := noRollRequested(args)
 	if len(args) == 0 {
-		return errors.New("usage: ailang coordinator config set <file> --if-generation N [--force]")
+		return errors.New("usage: ailang coordinator config set <file> --if-generation N [--force] [--no-roll]")
 	}
 	path := args[0]
 
@@ -301,7 +315,17 @@ func coordinatorConfigSet(ctx context.Context, args []string) error {
 	if err := writeConfigCAS(store, data, ifGen); err != nil {
 		return err
 	}
+	// The write is reported FIRST and on its own line. Whatever happens to the
+	// roll below, this much is true and durable — conflating the two is how an
+	// operator ends up re-writing config that was already correct.
 	fmt.Fprintf(os.Stderr, "wrote gs://%s/%s\n", store.bucket, store.object)
+
+	// A write that does not reach the running service is the failure this
+	// command existed to have. Rolling is the default; --no-roll is for staging
+	// a config you do not want live yet.
+	if !reportConfigRoll(ctx, skipRoll) {
+		return errors.New("config written but NOT live — see above")
+	}
 	return nil
 }
 
@@ -339,58 +363,43 @@ func printCoordinatorConfigHelp() {
 	fmt.Fprintln(os.Stdout, `ailang coordinator config — read/write the shared coordinator config safely
 
   get [file]                              Fetch config; reports its generation
-  set <file> --if-generation N [--force]  Validate and write iff unchanged
+  set <file> --if-generation N [--force]  Validate, write iff unchanged, then ROLL
   diff <file>                             Compare a local copy against live
+  roll                                    Force the coordinator to re-read the config
 
 Writes use a generation precondition. A write built on a stale read is REFUSED
 rather than applied, because overwriting silently discards the other machine's
 edit (measured 2026-08-26: a correct change was clobbered 13 minutes later, with
 no error on either side).
 
+A successful write ROLLS the coordinator, because writing is not deploying. The
+bucket is mounted into the service via gcsfuse, so the file it sees updates in
+seconds — but the agent registry is built ONCE at startup, so routing keeps
+following the old config until a new revision serves. Measured 2026-09-10: an
+inbox declared triage_only still bounced after a successful write.
+
+So "set" exits NON-ZERO if the write lands but the roll does not, and says
+so in those terms — the file is durable, the plane is not yet using it. Pass
+--no-roll to stage a config deliberately.
+
 Location: $AILANG_CONFIG_BUCKET / $AILANG_CONFIG_OBJECT, defaulting to
 <AILANG_CLOUD_PROJECT>-ailang-config/config.yaml.`)
 }
 
-// coordinatorRouting implements `ailang coordinator routing [role]` — the
-// Lane A entry point to the shared model-routing table (M-PIPELINE-
-// RECONCILIATION M5, D3). With a role it prints that role's chain one model
-// per line (primary first) so a shell driver can consume it; with no args it
-// prints every role. Reads the SAME object the coordinator loads, so both
-// lanes answer "which model runs this role?" identically.
+// coordinatorRouting implements `ailang coordinator routing [role]`.
+//
+// RETIRED by M-MODEL-REGISTRY-SINGLE-SOURCE M7. It read the `model_routing`
+// table in the coordinator config (M-PIPELINE-RECONCILIATION M5, D3); that table
+// is deleted, because the registry answers the same question in one place that
+// does not need its own deploy.
+//
+// It forwards rather than 404s: the mission driver and any operator muscle
+// memory should land on the replacement with the answer in hand, not an error.
+// The output shape differs — `models role` prints friendly name, wire string and
+// harness — so anything parsing this must move to field 2.
 func coordinatorRouting(args []string) error {
-	ctx := context.Background()
-	store, err := newGCSConfigStore(ctx)
-	if err != nil {
-		return err
-	}
-	data, gen, err := store.Read()
-	if err != nil {
-		return err
-	}
-	var file struct {
-		Coordinator coordinator.CoordinatorConfig `yaml:"coordinator"`
-	}
-	if err := yaml.Unmarshal(data, &file); err != nil {
-		return fmt.Errorf("config is not valid YAML: %w", err)
-	}
-	routing := file.Coordinator.ModelRouting
-	if len(routing) == 0 {
-		return fmt.Errorf("no model_routing table in gs://%s/%s (generation %d)", store.bucket, store.object, gen)
-	}
-
-	if len(args) == 0 {
-		for role, chain := range routing {
-			fmt.Printf("%s: %s\n", role, strings.Join(chain, " "))
-		}
-		return nil
-	}
-	role := args[0]
-	chain, ok := routing[role]
-	if !ok || len(chain) == 0 {
-		return fmt.Errorf("model_routing has no entry for role %q", role)
-	}
-	for _, m := range chain {
-		fmt.Println(m)
-	}
-	return nil
+	fmt.Fprintln(os.Stderr,
+		"note: `coordinator routing` is retired — the model_routing table it read no longer exists.\n"+
+			"      The registry answers this now; forwarding to `ailang models role`.")
+	return modelsRole(args)
 }

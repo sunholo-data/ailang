@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/ai"
+	"github.com/sunholo-data/ailang/internal/ai/openai"
 )
 
 // TestClient_Generate_HappyPath exercises the full happy-path flow:
@@ -114,18 +115,20 @@ func TestClient_Generate_HappyPath(t *testing.T) {
 func TestClient_Generate_ReasoningTokens(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		resp := chatResponse{
-			Model: "openai/gpt-5",
-			Choices: []chatChoice{
-				{Message: chatMessage{Content: "Thinking..."}},
+			ChatResponse: openai.ChatResponse{
+				Model: "openai/gpt-5",
+				Choices: []chatChoice{
+					{Message: chatMessage{Content: "Thinking..."}},
+				},
 			},
-			Usage: chatUsage{
+			Usage: chatUsage{ChatUsage: openai.ChatUsage{
 				PromptTokens:     10,
 				CompletionTokens: 100,
 				TotalTokens:      110,
 				CompletionTokensDetails: struct {
 					ReasoningTokens int `json:"reasoning_tokens"`
 				}{ReasoningTokens: 80},
-			},
+			}},
 		}
 		_ = json.NewEncoder(w).Encode(resp)
 	}))
@@ -234,7 +237,7 @@ func TestClient_Generate_MalformedJSON(t *testing.T) {
 // TestClient_Generate_EmptyChoices covers the empty-choices error path.
 func TestClient_Generate_EmptyChoices(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		resp := chatResponse{Choices: []chatChoice{}}
+		resp := chatResponse{ChatResponse: openai.ChatResponse{Choices: []chatChoice{}}}
 		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
@@ -261,13 +264,15 @@ func TestClient_Generate_EmptyChoices(t *testing.T) {
 func TestClient_Generate_NoCostNoCachedTokens(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		resp := chatResponse{
-			Model: "openrouter/auto",
-			Choices: []chatChoice{
-				{Message: chatMessage{Content: "ok"}},
+			ChatResponse: openai.ChatResponse{
+				Model: "openrouter/auto",
+				Choices: []chatChoice{
+					{Message: chatMessage{Content: "ok"}},
+				},
 			},
-			Usage: chatUsage{
+			Usage: chatUsage{ChatUsage: openai.ChatUsage{
 				PromptTokens: 5, CompletionTokens: 3, TotalTokens: 8,
-			},
+			}},
 		}
 		_ = json.NewEncoder(w).Encode(resp)
 	}))
@@ -336,9 +341,9 @@ func TestClient_Generate_StructuredOutput(t *testing.T) {
 			t.Error("JSONSchema.Strict = false, want true")
 		}
 
-		resp := chatResponse{
+		resp := chatResponse{ChatResponse: openai.ChatResponse{
 			Choices: []chatChoice{{Message: chatMessage{Content: `{"answer": 42}`}}},
-		}
+		}}
 		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
@@ -365,9 +370,9 @@ func TestClient_Generate_JSONObjectFormat(t *testing.T) {
 			t.Errorf("ResponseFormat.Type = %v, want json_object", reqBody.ResponseFormat)
 		}
 
-		resp := chatResponse{
+		resp := chatResponse{ChatResponse: openai.ChatResponse{
 			Choices: []chatChoice{{Message: chatMessage{Content: `{}`}}},
-		}
+		}}
 		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
@@ -392,7 +397,7 @@ func TestClient_Generate_DefaultMaxTokens(t *testing.T) {
 		_ = json.NewDecoder(r.Body).Decode(&reqBody)
 		receivedMaxTokens = reqBody.MaxTokens
 
-		resp := chatResponse{Choices: []chatChoice{{Message: chatMessage{Content: "ok"}}}}
+		resp := chatResponse{ChatResponse: openai.ChatResponse{Choices: []chatChoice{{Message: chatMessage{Content: "ok"}}}}}
 		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
@@ -416,7 +421,7 @@ func TestClient_Generate_SeedOption(t *testing.T) {
 		_ = json.NewDecoder(r.Body).Decode(&reqBody)
 		receivedSeed = reqBody.Seed
 
-		resp := chatResponse{Choices: []chatChoice{{Message: chatMessage{Content: "ok"}}}}
+		resp := chatResponse{ChatResponse: openai.ChatResponse{Choices: []chatChoice{{Message: chatMessage{Content: "ok"}}}}}
 		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
@@ -440,7 +445,7 @@ func TestClient_Generate_OptionalAttributionHeaders(t *testing.T) {
 		seenReferer = r.Header.Get("HTTP-Referer")
 		seenTitle = r.Header.Get("X-Title")
 
-		resp := chatResponse{Choices: []chatChoice{{Message: chatMessage{Content: "ok"}}}}
+		resp := chatResponse{ChatResponse: openai.ChatResponse{Choices: []chatChoice{{Message: chatMessage{Content: "ok"}}}}}
 		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()

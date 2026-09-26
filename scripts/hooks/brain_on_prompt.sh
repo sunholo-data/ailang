@@ -17,6 +17,23 @@
 #
 # Master switch: AILANG_BRAIN_ON_PROMPT=0 disables.
 
+
+# ISOLATED MISSION STAGE — emit nothing.
+#
+# A mission work item is meant to be FROZEN: same spec, same inputs, same result. This hook
+# injects prompt-MATCHED brain resolutions, so its content differs run to run with whatever is
+# in the brain DB that day. A stage whose input varies per run is not frozen, and the whole
+# work-item design rests on it being so.
+#
+# It is also the shape this repo has already been burned by: d6060c325 fixed the SessionStart
+# banner because "sessions arrived, found a backlog addressed to nobody in particular, and
+# triaged it instead of the work they were started for". Measured 2026-09-08, a mission
+# evaluator handed ambient repo instructions declined the job as a suspected prompt injection.
+#
+# The CONTROLLER is deliberately NOT isolated: it is a session-shaped agent and this context is
+# doing its job there. Only frozen stage execution is exempted.
+[ -n "${AILANG_MISSION_STAGE:-}" ] && exit 0
+
 set +e
 
 [ "${AILANG_BRAIN_ON_PROMPT:-1}" = "0" ] && exit 0
@@ -34,9 +51,13 @@ MIN_LEN="${AILANG_BRAIN_MIN_PROMPT_LEN:-40}"
 MIN_SCORE="${AILANG_BRAIN_MIN_SCORE:-0.70}"
 LIMIT="${AILANG_BRAIN_PROMPT_LIMIT:-3}"
 
+# macOS ships no coreutils timeout; without a bound the search runs until the
+# hook harness kills it at its 4s cap (measured 28/28 prompts timing out under
+# GPU contention). perl's alarm is the portable fallback — same pattern as
+# session_start.sh's run_bounded.
 if command -v gtimeout >/dev/null 2>&1; then TIMEOUT=(gtimeout 3s)
 elif command -v timeout >/dev/null 2>&1; then TIMEOUT=(timeout 3s)
-else TIMEOUT=(); fi
+else TIMEOUT=(perl -e 'alarm shift; exec @ARGV' 3); fi
 
 # Flags must come BEFORE the positional query (Go stdlib flag parser).
 RESULT=$("${TIMEOUT[@]}" ailang cache search -json -limit "$LIMIT" -scope both "$PROMPT" 2>/dev/null)

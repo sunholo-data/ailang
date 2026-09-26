@@ -1,0 +1,152 @@
+{
+  "sprint_id": "M-V1-SIMPLIFY-S5",
+  "status": "complete",
+  "created": "2026-09-17T20:38:21Z",
+  "design_doc": "design_docs/planned/m-v1-simplification-program.md",
+  "sprint_plan": "design_docs/planned/m-v1-simplification-s5-sprint-plan.md",
+  "github_issues": [],
+  "velocity": {
+    "target_loc_per_day": 200,
+    "estimated_total_loc": 1000,
+    "estimated_days": 5
+  },
+  "features": [
+    {
+      "id": "M1_DISPATCH_TABLE",
+      "description": "\u2014 Dispatch table",
+      "estimated_loc": 600,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "`cmd/ailang/commands.go` is the only place a command name appears; `main.go` has no `case` labels for commands",
+        "`cmd/ailang/help.go`'s 505 hand-written lines are generated from the table",
+        "`tools/cli_surface_snapshot.sh` diff vs `bin/ailang-before`: every difference intentional and listed",
+        "`ailang <group> --help` exits 0 for all groups; `ailang daemon` with no args prints help and does NOT start the daemon",
+        "unknown command: one line + suggestion, exit 1, nothing on stdout",
+        "negative control: a test that fails against pre-M1 code (help-exit-0 for the 8 rejecting groups)",
+        "language commands open no observatory DB and run no git probe \u2014 proven by a counting fake, with the test failing if the probe is re-added",
+        "`make test-core` green; `go test ./cmd/ailang/... -count=1` green"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": null,
+      "notes": "Merged ea58ad23c. main.go 674->127. Verified in the main checkout: build, vet, go test ./cmd/ailang/... (136s), make lint (0), test-core, 10 gates, verify-examples, test-imports \u2014 all exit 0. NEGATIVE CONTROL: the new HelpExitsZero gate run against a pre-merge binary built in a separate worktree fails on exactly 22 routes and exactly the named ones, and passes against the merged tree. Audit predicted 8 groups rejecting --help; real number 22 (ailang watch --help started watching a file named '--help'). KNOWN FALSE GREEN: commands_top_level now reads 0 because the metric greps `case \"` in main.go and none remain \u2014 true count unchanged at 78 commands / 83 routes; M6 rewires it.",
+      "merged_commit": "ea58ad23c"
+    },
+    {
+      "id": "M2_GROUPS_AND_ALIASES_D1",
+      "description": "\u2014 Groups and aliases, D1",
+      "estimated_loc": 400,
+      "dependencies": [
+        "M1_DISPATCH_TABLE"
+      ],
+      "acceptance_criteria": [
+        "every name in today's switch \u2014 including `msg`, `brain`, `microrag`, `urag`, `serve`, `serve-api`, `internal-dump-iface`, and the seven bare `pkg` verbs (`add lock tree install search publish unpublish`) \u2014 resolves to the same behaviour it has today",
+        "a table-driven test enumerates every pre-S5 spelling from a **checked-in fixture list** and asserts non-\"unknown command\"; the fixture is generated from `bin/ailang-before`, not hand-typed",
+        "`ailang --help` fits one screen: \u2264 20 visible entries, hidden groups discoverable via `ailang dev --help` / `ailang ops --help`",
+        "`ai_check_exit_test.go` passes unchanged (its exit contract and the DP7 gate depend on it)",
+        "`make test-launchd-drivers` green (bash 3.2: pin-root + routing + notices + hook stdout)",
+        "snapshot diff: alias paths byte-identical to `ailang-before` on stdout; help text is the only intended change"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": null,
+      "notes": "Visible top level 89->17. D1 verified independently: 93/93 pre-S5 spellings resolve (fixture cmd/ailang/testdata/pre_s5_spellings.txt, generated from the pre-M2 binary); group routes byte-identical to top-level incl. exit code; language-via-group quiet in 50/50 trials with a platform-via-group positive control. ai_check_exit_test.go diff empty. All gates + test-launchd-drivers rc=0 unpiped. Caught by byte-diff only: the binary has TWO argument sources (44 os.Args[2:] sites vs a flag.Args() family) \u2014 both exit 0 reading the wrong arg; runAsName now resets both. commands_top_level STILL VACUOUS (reads 0); real=17; M6 rewires.",
+      "merged_commit": "19dd95e96"
+    },
+    {
+      "id": "M3_FOLD_TRACE_OBSERVATORY_DASHBOA",
+      "description": "\u2014 Fold `trace` + `observatory` + `dashboard` + `eval-chains` into `chains` (\u2212~5,000 LOC)",
+      "estimated_loc": 0,
+      "dependencies": [
+        "M2_GROUPS_AND_ALIASES_D1"
+      ],
+      "acceptance_criteria": [
+        "evidence recorded first: for each deleted subcommand, last-commit date + reference count + the `git log -S` line, in the commit body (coding standard: never delete on \"unused\" alone)",
+        "web dashboard verified to call `server` HTTP, with the handler cited, before any deletion",
+        "`trace`, `observatory`, `dashboard`, `eval-chains` survive as aliases into `chains` for one release",
+        "`ailang chains --help` lists the folded subcommands; the eight zero-reference `observatory` subcommands are gone",
+        "`go test ./cmd/ailang/... ./internal/observatory/... -count=1` green; chains tests (`chains_list_options`, `chains_live`, `chains_read_backend`, `chains_stats_cvs`) unchanged and passing"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": null,
+      "notes": "-2,249 net LOC in cmd/ailang (not the ~5,000 estimated; stopped where the evidence stopped). Fold uses NAMESPACES not flattening \u2014 trace/observatory/dashboard/eval-chains collide with chains and each other on list/view/stats/hierarchy/health, so flattening would have stolen 5 existing chains subcommands. No route removed; 93-route D1 fixture unchanged. 8 observatory subs deleted, each verified 0 refs with git log -S; backfill/repair-ids/cleanup/sync-chat and all 4 trace subs KEPT (live callers). trace/observatory/dashboard bare now exit 1. INSTRUMENT FINDING: pair-equality is blind to a fault the twins share \u2014 a dispatcher mutation broke `trace status` AND `chains trace status` identically while the 31-pair harness still read 31/31; the same mutant moved 762 lines of the before/after diff. Before/after is the real instrument. FOLLOW-UP SHIPPED (20f29dfd6): the fold left ailang devtools-prompt teaching 8 dead commands while check-prompt-freeze stayed green (it pins bytes, not truth) \u2014 fixed, hashes re-banked, new gate `make check-prompt-commands`. A later gatelint pass by another agent dropped 6 inert -short gates M3 had added.",
+      "merged_commit": "f8fcaed7c"
+    },
+    {
+      "id": "M4_D7_REMOVALS_THE_NON_CHAINS_SET",
+      "description": "\u2014 D7 removals, the non-chains set",
+      "estimated_loc": 0,
+      "dependencies": [
+        "M2_GROUPS_AND_ALIASES_D1"
+      ],
+      "acceptance_criteria": [
+        "every removal commit body carries: last-commit date, live-caller count, `git log -S` output",
+        "any command whose count is non-zero in `tools/`, `make/`, `.claude/skills/**`, `.github/` is **not** removed this sprint \u2014 it is reported for the caller sweep instead",
+        "docs citing removed commands updated in the same commit (`check-referenced-paths` green)",
+        "`make lint` green \u2014 no orphaned helpers left behind (and none deleted on \"unused\" alone)"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": null,
+      "notes": "One removal shipped (storage migrate|verify + internal/storage/migrate, 342 LOC), seven declined with evidence. KEY FINDING, verified independently: deleting access-control would have broken PRODUCTION AUTH \u2014 the CLI is the sole writer of Collection('access_control') doc 'email:<email>:<ws>' that internal/server/auth/firestore.go GetUserRoleByEmail reads from AuthMiddleware; no doc => Role='Guest'. The 5 library writers have 0 non-test callers. git grep returns 0 only because a HUMAN operator invokes it. Reference counting cannot see coupling through a data key \u2014 this is the general lesson. models/workspaces/storage bare now exit 1. Binary closure 124->123 re-banked; language closure unchanged at 45.",
+      "merged_commit": "2f2d22d1c"
+    },
+    {
+      "id": "M5_FOUR_FLAG_FAMILIES",
+      "description": "\u2014 Four flag families",
+      "estimated_loc": 200,
+      "dependencies": [
+        "M2_GROUPS_AND_ALIASES_D1"
+      ],
+      "acceptance_criteria": [
+        "one shared registration helper; `flag_names_distinct` in the metrics snapshot drops",
+        "each superseded spelling accepted with a single deprecation line on **stderr**, never stdout (JSON consumers)",
+        "`--dry-run` audited at every site: any site where the default was already \"don't act\" is listed in the report, not silently flipped",
+        "snapshot diff shows no stdout change for any existing invocation"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": null,
+      "notes": "--json canonical; test --format json, eval-paired/eval-censored --pretty, eval-suite --models all gain the canonical spelling with the old one working. DECLINED with reasons: check --format (agent is a third rendering, not a boolean; ai-check/DP7 contract), exec --stream-json (exec ALREADY has --json meaning something else \u2014 one object at the end vs an NDJSON stream during; two questions not two spellings), and ALL deprecation warnings (15 FROZEN prompts teach `test --format json` and pkg_quality.go execs it \u2014 warning = the ailang fmt defect; --models has ~180 call sites = de-facto caller sweep, out of scope). --dry-run: 14 sites not 13, 'default acts' already held everywhere, nothing flipped; audit is now an AST test with a scanner control. flag_names_distinct 384->384 and UNMEETABLE this release by construction (D1 keeps old spellings registered) \u2014 M5 said so rather than gaming it; M6 should count canonical names.",
+      "merged_commit": "342d031b6"
+    },
+    {
+      "id": "M6_GENERATED_CLI_REFERENCE_METRIC",
+      "description": "\u2014 Generated CLI reference + metrics rewire (lands last)",
+      "estimated_loc": 0,
+      "dependencies": [
+        "M3_FOLD_TRACE_OBSERVATORY_DASHBOA",
+        "M4_D7_REMOVALS_THE_NON_CHAINS_SET",
+        "M5_FOUR_FLAG_FAMILIES"
+      ],
+      "acceptance_criteria": [
+        "`docs/docs/reference/cli.md` generated from the table by a make target, with a CI diff gate; `docs/sidebars.js` updated; the 11-line orphan `docs/docs/guides/cli.md` redirected or deleted",
+        "docs citing commands the binary rejects fixed: `eval-chains`, `daemon` (7 cites), `disk`",
+        "`tools/simplicity_metrics.sh` `commands_top_level` reads the dispatch table (not `grep 'case \"'` on main.go) and its `how` string updated; **counts visible top-level entries only**",
+        "new metric `help_exit0_rate` = share of commands+groups where `--help` exits 0, gate 100",
+        "`make simplicity-audit` shows `commands_top_level` \u2264 20 and no other gate regressed (exit 2 = stop and name it in the changelog)"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": null,
+      "notes": "docs/docs/reference/cli.md GENERATED from the table + TestCLIReferenceMatchesTable (renders fresh, compares to disk; a git diff --exit-code arm was written and REMOVED because it measures tree-cleanliness, not table-vs-page). help_exit0_rate=100/69 routes with a <20 blindness guard. output_format_spellings=4 gate 4 (ratchet). THE DEAD-DOC LIST WAS WRONG: trace hierarchy / dashboard health / dashboard stats / eval-chains / daemon all ALIVE (verified exit 0); only prompt-freeze (a make target) and `ailang models list` (never existed) were dead. Orchestrator's flag_names_distinct suggestion was inverted and refuted. 3 cli-doc-maintainer scripts RETIRED as actively wrong. Snapshot diff EMPTY.",
+      "merged_commit": "da1174b4c"
+    }
+  ],
+  "gate": {
+    "metric": "commands_top_level",
+    "from": 89,
+    "to": 20,
+    "source": "tools/simplicity_metrics.sh"
+  },
+  "completed": "2026-09-18",
+  "gate_result": {
+    "metric": "commands_top_level",
+    "from": 89,
+    "to": 17,
+    "target": 20,
+    "status": "CLOSED and measured",
+    "note": "metric rewired in 83dc683f0 \u2014 it previously counted case labels in a main.go that has none, reading 0 and killing the whole metrics script under set -euo pipefail"
+  }
+}

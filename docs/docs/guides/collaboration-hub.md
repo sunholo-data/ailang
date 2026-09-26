@@ -18,7 +18,12 @@ The web dashboard provides real-time monitoring of agent execution with:
 - **Task Execution Panel** - Live streaming of agent activity
 - **Approval Queue** - Review and approve/reject agent work with git diff viewer
 - **Message Center** - Send directives and view results
-- **Analytics** - Cost tracking, token usage, and performance metrics
+- **Work evidence** - Chain details, timeline and chat inspection, with direct date filters
+
+The simplified UI removes the optional activity/analytics panel and evolution-tree
+mode. Costs shown in retained evidence still depend on capture and backend coverage;
+a missing value is not proof of zero usage. The screenshot below shows the older
+layout and does not represent the simplified navigation.
 
 ![AILANG Collaboration Hub - React Dashboard](/img/aitana-dashboard-react.png)
 
@@ -129,7 +134,7 @@ flowchart TB
     subgraph Server["ailang serve (:1957)"]
         HTTP["HTTP Server"]
         WS["WebSocket /ws"]
-        REST["REST API<br/>/api/threads, /api/messages"]
+        REST["REST API<br/>/api/threads, /api/thread-messages"]
         CoordAPI["Coordinator API<br/>/api/coordinator/events"]
     end
 
@@ -411,11 +416,12 @@ curl http://localhost:1957/api/threads/{thread_id}
 ### Messages
 
 ```bash
-# Get messages for thread
-curl http://localhost:1957/api/messages?thread_id={thread_id}
+# Get messages for thread (NOT /api/messages — that path is the coordinator
+# daemon's inbox-message REST API on port 8765, a different body and auth)
+curl http://localhost:1957/api/thread-messages?thread_id={thread_id}
 
 # Send message
-curl -X POST http://localhost:1957/api/messages \
+curl -X POST http://localhost:1957/api/thread-messages \
   -H "Content-Type: application/json" \
   -d '{
     "thread_id": "...",

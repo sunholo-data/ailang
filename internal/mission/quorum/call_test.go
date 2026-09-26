@@ -1,6 +1,7 @@
 package quorum
 
 import (
+	"github.com/sunholo-data/ailang/internal/modelreg"
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/eval_harness"
@@ -13,7 +14,7 @@ func TestResolveCaller_OpenAIRequiresKey(t *testing.T) {
 	if err := eval_harness.InitModelsConfig(); err != nil {
 		t.Skipf("models.yml unavailable: %v", err)
 	}
-	if _, err := eval_harness.GlobalModelsConfig.GetModel("gpt5-6-sol"); err != nil {
+	if _, err := modelreg.GlobalModelsConfig.GetModel("gpt5-6-sol"); err != nil {
 		t.Skipf("gpt5-6-sol not in models.yml: %v", err)
 	}
 	t.Setenv("OPENAI_API_KEY", "")
@@ -35,7 +36,7 @@ func TestReviewerMaxTokens_UsesRegistryNotAPolicyCap(t *testing.T) {
 	if err := eval_harness.InitModelsConfig(); err != nil {
 		t.Skipf("models.yml unavailable: %v", err)
 	}
-	mc, err := eval_harness.GlobalModelsConfig.GetModel("gemini-3-1-pro")
+	mc, err := modelreg.GlobalModelsConfig.GetModel("gemini-3-1-pro")
 	if err != nil {
 		t.Skipf("gemini-3-1-pro not in models.yml: %v", err)
 	}
@@ -70,7 +71,7 @@ func TestResolveCaller_GeminiDoesNotReadGeminiKey(t *testing.T) {
 	if err := eval_harness.InitModelsConfig(); err != nil {
 		t.Skipf("models.yml unavailable: %v", err)
 	}
-	mc, err := eval_harness.GlobalModelsConfig.GetModel("gemini-3-1-pro")
+	mc, err := modelreg.GlobalModelsConfig.GetModel("gemini-3-1-pro")
 	if err != nil {
 		t.Skipf("gemini-3-1-pro not in models.yml: %v", err)
 	}

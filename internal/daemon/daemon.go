@@ -6,10 +6,8 @@ package daemon
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
-	"sync"
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/messaging"
@@ -112,44 +110,39 @@ func (d *Daemon) AddMessageSource(src MessageSource) {
 
 // Run blocks until ctx is cancelled, pulling task events from the primary
 // source and inbox messages from EVERY registered message source in parallel.
-// Returns nil on a clean shutdown; returns the first error from a subscription
-// if one fails.
+//
+// Every subscription is SUPERVISED: one that returns is restarted with backoff
+// and its outage announced. Previously each was started once and its error
+// parked in a buffered channel that was only read after all the others exited —
+// so a dead messages subscription left the process alive, silent, and receiving
+// nothing for five days (see supervise.go).
+//
+// Returns nil on a clean shutdown.
 func (d *Daemon) Run(ctx context.Context) error {
-	var wg sync.WaitGroup
-	// One goroutine per message source, plus one for the primary task events.
-	errCh := make(chan error, len(d.msgSources)+1)
+	runners := make([]subscriptionRunner, 0, len(d.msgSources)+1)
 
 	// Task events: primary source only.
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		err := d.sub.Subscribe(ctx, d.cfg.EventsSub, d.handleTaskEvent)
-		if err != nil && !errors.Is(err, context.Canceled) {
-			errCh <- fmt.Errorf("events subscription: %w", err)
-		}
-	}()
+	runners = append(runners, subscriptionRunner{
+		Label:   "task-events",
+		SubName: d.cfg.EventsSub,
+		Start: func(ctx context.Context) error {
+			return d.sub.Subscribe(ctx, d.cfg.EventsSub, d.handleTaskEvent)
+		},
+	})
 
 	// Inbox messages: every registered source.
 	for _, src := range d.msgSources {
 		src := src // capture per-iteration
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			err := src.Sub.Subscribe(ctx, src.SubName, d.messageHandlerFor(src))
-			if err != nil && !errors.Is(err, context.Canceled) {
-				errCh <- fmt.Errorf("messages subscription (%s): %w", src.Label, err)
-			}
-		}()
+		runners = append(runners, subscriptionRunner{
+			Label:   src.Label,
+			SubName: src.SubName,
+			Start: func(ctx context.Context) error {
+				return src.Sub.Subscribe(ctx, src.SubName, d.messageHandlerFor(src))
+			},
+		})
 	}
 
-	wg.Wait()
-	close(errCh)
-	for err := range errCh {
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return d.runSupervised(ctx, runners)
 }
 
 func (d *Daemon) handleTaskEvent(_ context.Context, data []byte, _ map[string]string) error {

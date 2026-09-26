@@ -7,13 +7,14 @@ import (
 	"sort"
 )
 
-// BrainStore wraps two SQLiteSharedCache instances: user-level (global) and
-// project-level (repo-scoped). Both are queried by default with project results
+// BrainStore wraps two BrainCache tiers: user-level (global) and
+// project-level (repo-scoped), each opened through the registered persistent
+// backend (see sharedmem_backend.go). Both are queried by default with project results
 // ranked higher. Follows the same two-tier pattern as Claude Code settings and
 // ailang messages inboxes.
 type BrainStore struct {
-	User    *SQLiteSharedCache // ~/.ailang/state/brain.db (cross-project)
-	Project *SQLiteSharedCache // .ailang/state/brain.db (project-specific)
+	User    BrainCache // ~/.ailang/state/brain.db (cross-project)
+	Project BrainCache // .ailang/state/brain.db (project-specific)
 }
 
 // BrainScope controls which tier(s) to query or write to.
@@ -28,19 +29,21 @@ const (
 // NewBrainStore creates a BrainStore from two database paths.
 // Either path may be empty to skip that tier.
 // Optional CacheOption values are applied to both caches (e.g., WithEmbedder).
+// Without a registered backend it returns an error wrapping
+// ErrBackendNotRegistered.
 func NewBrainStore(userDBPath, projectDBPath string, opts ...CacheOption) (*BrainStore, error) {
-	var userCache, projectCache *SQLiteSharedCache
+	var userCache, projectCache BrainCache
 	var err error
 
 	if userDBPath != "" {
-		userCache, err = NewSQLiteSharedCache(userDBPath, opts...)
+		userCache, err = OpenSharedCache(userDBPath, opts...)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	if projectDBPath != "" {
-		projectCache, err = NewSQLiteSharedCache(projectDBPath, opts...)
+		projectCache, err = OpenSharedCache(projectDBPath, opts...)
 		if err != nil {
 			if userCache != nil {
 				userCache.Close()
@@ -220,7 +223,7 @@ func (b *BrainStore) EmbeddingStats() map[string]struct {
 		Total, WithEmbedding int
 		Models               map[string]int
 	})
-	for name, cache := range map[string]*SQLiteSharedCache{"user": b.User, "project": b.Project} {
+	for name, cache := range map[string]BrainCache{"user": b.User, "project": b.Project} {
 		if cache == nil {
 			continue
 		}
@@ -251,7 +254,7 @@ func ExportFrameRecord(f BrainFrame, tier string) map[string]interface{} {
 		record["expires_at"] = *f.ExpiresAt
 	}
 	if len(f.Embedding) > 0 {
-		record["embedding"] = base64.StdEncoding.EncodeToString(encodeEmbedding(f.Embedding))
+		record["embedding"] = base64.StdEncoding.EncodeToString(EncodeEmbedding(f.Embedding))
 		record["embedding_dim"] = f.EmbeddingDim
 		record["embed_model"] = f.EmbedModel
 	}
@@ -262,7 +265,7 @@ func ExportFrameRecord(f BrainFrame, tier string) map[string]interface{} {
 func ImportFrameEmbedding(record map[string]interface{}, f *BrainFrame) {
 	if embStr, ok := record["embedding"].(string); ok && embStr != "" {
 		if embBytes, err := base64.StdEncoding.DecodeString(embStr); err == nil {
-			f.Embedding = decodeEmbedding(embBytes)
+			f.Embedding = DecodeEmbedding(embBytes)
 			f.EmbeddingDim = len(f.Embedding)
 		}
 	}
@@ -326,24 +329,11 @@ func (b *BrainStore) Promote(key string) bool {
 		return false
 	}
 
-	// Read the full frame for metadata (v2 schema with 13 columns)
-	rows, err := b.Project.db.Query(
-		`SELECT key, namespace, value, simhash, content, version, created_at, updated_at, expires_at, source, embedding, embedding_dim, embed_model
-		 FROM brain_frames WHERE key = ?`, key,
-	)
-	if err != nil {
-		b.User.Put(key, value)
+	// Carry the full frame metadata across when the backend can read it.
+	if f, ok := b.Project.GetFrame(key); ok {
+		f.Source = "promoted:" + f.Source
+		_ = b.User.PutFrame(*f)
 		return true
-	}
-	defer rows.Close()
-
-	if rows.Next() {
-		f := scanBrainFrame(rows)
-		if f != nil {
-			f.Source = "promoted:" + f.Source
-			_ = b.User.PutFrame(*f)
-			return true
-		}
 	}
 
 	b.User.Put(key, value)
@@ -362,7 +352,7 @@ func (b *BrainStore) Stats() map[string]BrainStats {
 	return result
 }
 
-func (b *BrainStore) cacheForScope(scope BrainScope) *SQLiteSharedCache {
+func (b *BrainStore) cacheForScope(scope BrainScope) BrainCache {
 	switch scope {
 	case ScopeUser:
 		return b.User

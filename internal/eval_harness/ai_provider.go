@@ -5,15 +5,10 @@ package eval_harness
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ai"
-	"github.com/sunholo-data/ailang/internal/ai/anthropic"
-	"github.com/sunholo-data/ailang/internal/ai/gemini"
-	"github.com/sunholo-data/ailang/internal/ai/ollama"
-	"github.com/sunholo-data/ailang/internal/ai/openai"
-	"github.com/sunholo-data/ailang/internal/ai/openrouter"
+	"github.com/sunholo-data/ailang/internal/ai/factory"
 )
 
 // providerAdapter wraps ai.Provider for eval harness use.
@@ -47,45 +42,49 @@ const defaultMaxTokens = 4096
 // honors the provider field set in models.yml (the source of truth) so that
 // api_name strings without provider-identifying prefixes (e.g. "gemma4:26b",
 // "codellama:7b") still route correctly.
-func newProviderAdapter(model string, apiKey string, explicitProvider ai.ProviderType) (*providerAdapter, error) {
+//
+// Credentials, endpoints and auth lanes are resolved by ai/factory — the one
+// place every caller shares (M-V1-SIMPLIFY-S3 M4). For Anthropic that means
+// ai.ResolveAnthropicCredential decides between a metered key and an OAuth
+// subscription token, so this cannot disagree with the cost classifier
+// (metrics.go, ai.AnthropicLaneIsOAuth); Google is Vertex ADC first. A
+// missing credential fails HERE, before any benchmark is spent.
+//
+// Do NOT generalize a "credential not set" error from this STANDARD-mode
+// (direct HTTP) path to agent mode: the agent-mode Claude executor
+// (internal/executor) shells out to the `claude` CLI and authenticates via
+// Keychain OAuth — it must run with ANTHROPIC_API_KEY unset, since an
+// inherited key silently wins over OAuth there and bills the metered API
+// (reference_headless_claude_billing_rig in project memory — a real billing
+// incident). An Anthropic model failing THIS function while also being run
+// via --agent is expected for the warm-up call (cmd/ailang/eval_cache_warmup.go)
+// and is not evidence the agent executor is broken.
+func newProviderAdapter(model string, explicitProvider ai.ProviderType) (*providerAdapter, error) {
 	providerType := explicitProvider
 	if providerType == "" {
 		providerType = ai.GuessProvider(model)
 	}
-
-	var provider ai.Provider
-	switch providerType {
-	case ai.ProviderOpenAI:
-		provider = openai.NewClient(apiKey)
-	case ai.ProviderAnthropic:
-		provider = anthropic.NewClient(apiKey)
-	case ai.ProviderGoogle:
-		// Gemini uses ADC (Application Default Credentials) via Vertex AI
-		client, err := gemini.NewVertexAIClient("")
-		if err != nil {
-			return nil, fmt.Errorf("failed to create Gemini client: %w", err)
-		}
-		provider = client
-	case ai.ProviderOllama:
-		// Ollama is local, strip the "ollama:" prefix for the model name
-		client, err := ollama.NewClient()
-		if err != nil {
-			return nil, fmt.Errorf("failed to create Ollama client: %w", err)
-		}
-		// Strip ollama: prefix if present
-		model = strings.TrimPrefix(model, "ollama:")
-		provider = client
-	case ai.ProviderOpenRouter:
-		// Strip optional explicit "openrouter:" prefix; the model name itself
-		// is "vendor/model" (e.g., "anthropic/claude-sonnet-4.5").
-		model = strings.TrimPrefix(model, "openrouter:")
-		provider = openrouter.NewClient(apiKey)
-	default:
+	if providerType == "" {
 		return nil, fmt.Errorf("unsupported provider for model: %s", model)
 	}
 
+	client, err := factory.New(string(providerType))
+	if err != nil {
+		return nil, fmt.Errorf("%w (required for model: %s)", err, model)
+	}
+
+	// Strip the routing prefix the provider does not want on the wire:
+	// "ollama:" for the local daemon, "openrouter:" for the gateway (whose
+	// model names are "vendor/model", e.g. "anthropic/claude-sonnet-4.5").
+	switch providerType {
+	case ai.ProviderOllama:
+		model = strings.TrimPrefix(model, "ollama:")
+	case ai.ProviderOpenRouter:
+		model = strings.TrimPrefix(model, "openrouter:")
+	}
+
 	return &providerAdapter{
-		provider:     provider,
+		provider:     client.Provider,
 		providerType: providerType,
 		model:        model,
 		maxTokens:    0, // 0 => defaultMaxTokens; set via setMaxTokens
@@ -227,47 +226,9 @@ func (p *providerAdapter) generate(ctx context.Context, cachedPrefix, prompt str
 		TotalTokens:              resp.TotalTokens,
 		FinishReason:             resp.FinishReason,
 		Model:                    resp.Model,
+		WallMS:                   resp.WallMS,
+		TTFTMS:                   resp.TTFTMS,
 	}, nil
-}
-
-// getAPIKeyForProvider returns the API key for the given provider.
-// Uses ai.EnvVarForProvider as the single source of truth for provider →
-// env-var mapping.
-//
-// This is the STANDARD-mode (direct HTTP) provider path — every caller into it
-// (0-shot benchmark generation, prompt-cache warm-up) genuinely needs a real API
-// key, since a raw HTTP client has no OAuth mechanism to fall back to. Do NOT
-// generalize "ANTHROPIC_API_KEY not set" errors from here to agent mode: the
-// agent-mode Claude executor (internal/executor) is a completely different code
-// path that shells out to the `claude` CLI and authenticates via Keychain
-// OAuth/subscription — it must run with ANTHROPIC_API_KEY unset, since an
-// inherited key silently wins over OAuth there and bills the metered API
-// instead of the subscription (see reference_headless_claude_billing_rig in
-// project memory — a real billing incident already happened from this). If an
-// Anthropic model is failing THIS function specifically while also being run
-// via --agent, that's expected for the warm-up call (cmd/ailang/eval_cache_warmup.go)
-// and not evidence the agent executor itself is broken.
-func getAPIKeyForProvider(provider string, model string) (string, error) {
-	providerType := ai.ProviderFromString(provider)
-	switch providerType {
-	case ai.ProviderGoogle:
-		// Google uses ADC, no API key required
-		return "", nil
-	case ai.ProviderOllama:
-		// Ollama is local, no API key required
-		return "", nil
-	}
-
-	envVar := ai.EnvVarForProvider(providerType)
-	if envVar == "" {
-		return "", fmt.Errorf("unsupported provider: %s (model: %s)", provider, model)
-	}
-
-	key := os.Getenv(envVar)
-	if key == "" {
-		return "", fmt.Errorf("%s environment variable not set (required for model: %s)", envVar, model)
-	}
-	return key, nil
 }
 
 // extractCodeFromMarkdown strips markdown code fences if present.

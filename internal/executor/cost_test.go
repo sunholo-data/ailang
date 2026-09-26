@@ -301,3 +301,59 @@ func TestResolveCostModel_MatchesBudgetPricing(t *testing.T) {
 		t.Errorf("banked $%.5f >= cap $%.2f, but the run was not killed — banked cost is billing the wrong model", banked, maxUSD)
 	}
 }
+
+// Cache tokens are most of a cached run's bill, and the budget could not see them at all
+// until 2026-09-14.
+//
+// Numbers are the measured docs-canary-guide-review-4 run: input 121,577, output 14,901,
+// cache reads 2,030,142, metered total $0.176163, with the provider's real cache-read rate
+// derived from that total at $0.00006/1K (20% of input).
+func TestCostBudget_CacheTokensArePriced(t *testing.T) {
+	const in, out, cread = 121577, 14901, 2030142
+	const inR, outR, crR = 0.0003, 0.0012, 0.00006
+
+	blind := NewCostBudget(0, inR, outR)
+	blind.Add(in, out)
+	blind.AddCache(cread, 0)
+
+	aware := NewCostBudgetWithCache(0, inR, outR, crR, 0)
+	aware.Add(in, out)
+	aware.AddCache(cread, 0)
+
+	// The blind budget prices cache at zero, so it sees only input+output.
+	if got, want := blind.Current(), 0.0544; got < want-0.001 || got > want+0.001 {
+		t.Errorf("blind budget = $%.4f, want ~$%.4f", got, want)
+	}
+	// The aware one lands on the real metered figure.
+	if got, want := aware.Current(), 0.176163; got < want-0.001 || got > want+0.001 {
+		t.Errorf("cache-aware budget = $%.4f, want ~$%.4f (the metered total)", got, want)
+	}
+	// 69% of the bill was invisible.
+	if share := (aware.Current() - blind.Current()) / aware.Current(); share < 0.65 || share > 0.72 {
+		t.Errorf("cache share of the bill = %.0f%%, want ~69%%", share*100)
+	}
+}
+
+// An UNDECLARED cache rate must price at zero, never at the input rate.
+//
+// The post-hoc cost model deliberately falls back to the input rate, because overstating
+// only makes a report pessimistic. Here it would KILL A HEALTHY RUN: on the same measured
+// run, pricing 2,030,142 cache reads at the $0.0003/1K input rate computes $0.6634 against
+// an actual $0.1762 — 3.8x over, enough to trip a $0.30 ceiling the run never approached.
+func TestCostBudget_UndeclaredCacheRateDoesNotGuess(t *testing.T) {
+	const in, out, cread = 121577, 14901, 2030142
+	const inR, outR = 0.0003, 0.0012
+
+	b := NewCostBudgetWithCache(0.30, inR, outR, 0, 0) // rate undeclared
+	b.Add(in, out)
+	_, exceeded := b.AddCache(cread, 0)
+	if exceeded {
+		t.Fatal("an undeclared cache rate killed a run that cost $0.176 against a $0.30 ceiling")
+	}
+	// Prove the counterfactual: at the input-rate fallback it WOULD have been killed.
+	guessing := NewCostBudgetWithCache(0.30, inR, outR, inR, 0)
+	guessing.Add(in, out)
+	if _, over := guessing.AddCache(cread, 0); !over {
+		t.Fatal("control failed: the input-rate fallback should breach $0.30, or this test proves nothing")
+	}
+}

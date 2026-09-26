@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 	"regexp"
 	"strings"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/pkg"
 )
 
@@ -82,7 +82,7 @@ func applyNamedAuth(req *http.Request, auth pkg.AIProviderAuth) error {
 // credentials produce confusing 401 errors at the provider rather than a
 // clear "missing credential" diagnostic.
 func requireEnv(name string) (string, error) {
-	val := os.Getenv(name)
+	val := config.Raw(name)
 	if val == "" {
 		return "", fmt.Errorf("env var %s is unset (required for AI provider auth)", name)
 	}
@@ -96,7 +96,7 @@ func interpolateEnv(s string) (string, error) {
 	result := envInterpolationPattern.ReplaceAllStringFunc(s, func(match string) string {
 		// match is "${VAR}"; strip braces.
 		varName := match[2 : len(match)-1]
-		val := os.Getenv(varName)
+		val := config.Raw(varName)
 		if val == "" && firstErr == nil {
 			firstErr = fmt.Errorf("env var %s is unset (referenced in auth_headers as %s)", varName, match)
 		}

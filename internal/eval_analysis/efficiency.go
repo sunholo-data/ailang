@@ -8,7 +8,7 @@ import (
 // observables (M-EVAL-COST-AND-SPEED-BUDGETS, v0.15.1).
 //
 // All fields are summary statistics over the runs that succeeded
-// (StdoutOk == true). Fields default to 0 when:
+// (RunMetrics.Passed() == true). Fields default to 0 when:
 //   - No runs succeeded
 //   - The underlying speed metric was never measured (executor pre-v0.15.1)
 type EfficiencyAggregates struct {
@@ -63,7 +63,7 @@ func ComputeEfficiency(results []*BenchmarkResult) EfficiencyAggregates {
 			costKilled++
 		}
 
-		if !r.StdoutOk {
+		if !r.Passed() {
 			continue
 		}
 		successCount++

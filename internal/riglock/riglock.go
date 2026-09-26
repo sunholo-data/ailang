@@ -22,6 +22,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/config"
+	"github.com/sunholo-data/ailang/internal/statedir"
 )
 
 const (
@@ -29,15 +32,25 @@ const (
 	// (tools/launchd/rig-lock.sh sets it after acquiring, and Acquire sets it
 	// for child processes). When present, Acquire is a no-op so a wrapper-driven
 	// eval-suite does not deadlock against its own parent's lock.
-	EnvHeld = "AILANG_RIG_LOCK_HELD"
+	EnvHeld = config.EnvRigLockHeld
 
 	// EnvLockDir overrides the lock directory (mirrors rig-lock.sh RIG_LOCK_DIR).
-	EnvLockDir = "RIG_LOCK_DIR"
+	EnvLockDir = config.EnvRigLockDir
+
+	// EnvSharedDir overrides the machine-wide parent directory (RIG_SHARED_DIR).
+	EnvSharedDir = config.EnvRigSharedDir
+
+	// DefaultSharedDir is the machine-wide home for the lock on a rig where more
+	// than one OS user runs GPU jobs. It is used ONLY when it already exists:
+	// the directory is created deliberately by an operator (group-owned,
+	// inheritable ACL so any member can reclaim another member's stale holder),
+	// never by this package, so a rig with one user keeps the per-user path.
+	// A symlink cannot stand in for this — the take is an atomic mkdir, and
+	// mkdir on a symlink is EEXIST forever.
+	DefaultSharedDir = config.DefaultRigSharedDir
 
 	// EnvStaleMin overrides the staleness window in minutes (RIG_LOCK_STALE_MIN).
-	EnvStaleMin = "RIG_LOCK_STALE_MIN"
-
-	defaultStaleMin = 360 // steal a lock older than 6h (matches rig-lock.sh)
+	EnvStaleMin = config.EnvRigLockStale
 )
 
 // Mode controls Acquire's blocking behaviour.
@@ -53,31 +66,36 @@ const (
 // Release frees the lock. It is always safe to call (idempotent, nil-safe).
 type Release func()
 
+// lockDir resolves where the lock lives, in this order: an explicit
+// RIG_LOCK_DIR; the machine-wide directory if it exists on this rig; the
+// per-user path. The middle step is what lets two OS users (the eval fleet
+// and a virtual employee drafting on the same GPU) hold ONE lock; without it
+// each would hold a private lock and both would run, and both would degrade.
 func lockDir() string {
-	if d := os.Getenv(EnvLockDir); d != "" {
+	if d := config.RigLockDir(); d != "" {
 		return d
 	}
-	home, err := os.UserHomeDir()
-	if err != nil || home == "" {
-		home = os.TempDir()
+	shared := config.RigSharedDir()
+	if st, err := os.Stat(shared); err == nil && st.IsDir() {
+		return filepath.Join(shared, "rig.lock.d")
 	}
-	return filepath.Join(home, ".ailang", "state", "rig.lock.d")
+	dir, err := statedir.Path("rig.lock.d")
+	if err != nil {
+		// The lock is a coordination aid, not data: without a resolvable
+		// state tree it lives in the OS temp dir, as before.
+		return filepath.Join(os.TempDir(), ".ailang-rig.lock.d")
+	}
+	return dir
 }
 
 func staleWindow() time.Duration {
-	if v := os.Getenv(EnvStaleMin); v != "" {
-		var n int
-		if _, err := fmt.Sscanf(v, "%d", &n); err == nil && n > 0 {
-			return time.Duration(n) * time.Minute
-		}
-	}
-	return defaultStaleMin * time.Minute
+	return config.RigLockStaleWindow()
 }
 
 // HeldByAncestor reports whether an ancestor process already holds the lock
 // (via EnvHeld). Callers can skip their own acquire when true.
 func HeldByAncestor() bool {
-	return os.Getenv(EnvHeld) == "1"
+	return config.RigLockHeld()
 }
 
 // Holder returns a human-readable description of the current lock holder
@@ -123,7 +141,12 @@ func holderAlive(dir string) bool {
 	return pidAlive(pid)
 }
 
-// Acquire attempts to take the rig lock.
+// Acquire attempts to take the rig lock as an unnamed caller. See AcquireAs.
+func Acquire(mode Mode) (bool, Release, error) {
+	return AcquireAs(mode, "")
+}
+
+// AcquireAs attempts to take the rig lock on behalf of a named requester.
 //
 //   - If an ancestor already holds it (EnvHeld=1), returns (true, noop-release,
 //     nil) without touching the filesystem — the ancestor owns release.
@@ -132,11 +155,37 @@ func holderAlive(dir string) bool {
 //   - In Wait mode, blocks until the lock is free.
 //
 // A stale lock (directory older than the staleness window) is stolen. On
-// success Acquire writes a holder file and sets EnvHeld=1 for child processes.
-func Acquire(mode Mode) (bool, Release, error) {
+// success it writes a holder file and sets EnvHeld=1 for child processes.
+//
+// requester names this caller for the cooperative-yield protocol (yield.go).
+// While a handoff to SOMEONE ELSE is in force, the gap the holder opened
+// belongs to the named requester: a NoWait caller is refused rather than
+// allowed to race into it, and a Wait caller queues behind it. Pass the same
+// name here that was given to RequestYield; "" means "not the requester", which
+// is the right default for every caller that never asks for a yield.
+func AcquireAs(mode Mode, requester string) (bool, Release, error) {
 	if HeldByAncestor() {
 		return true, func() {}, nil
 	}
+	requester = strings.TrimSpace(requester)
+	for {
+		y, pending := PendingYield()
+		if !pending || y.Requester == requester {
+			break
+		}
+		if mode == NoWait {
+			return false, func() {}, nil
+		}
+		time.Sleep(yieldPollInterval)
+	}
+	return acquireDir(mode)
+}
+
+// acquireDir does the raw mkdir-lock work with no ancestor or handoff checks.
+// Checkpoint re-acquires through here because both of those guards would be
+// wrong for it: it IS the ancestor-held holder stepping back in, and the
+// handoff it is honouring is the one it just served.
+func acquireDir(mode Mode) (bool, Release, error) {
 	dir := lockDir()
 	if err := os.MkdirAll(filepath.Dir(dir), 0o755); err != nil {
 		return false, func() {}, fmt.Errorf("riglock: cannot create state dir: %w", err)

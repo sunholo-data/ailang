@@ -3,15 +3,17 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/coordinator"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"sync/atomic"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/executor"
+	"github.com/sunholo-data/ailang/internal/gitexec"
 	// Import to trigger init() registration — same as local coordinator (provider_executor.go)
 	_ "github.com/sunholo-data/ailang/internal/executor/claude"
 	_ "github.com/sunholo-data/ailang/internal/executor/managed_agents"
@@ -45,10 +47,23 @@ import (
 //	AILANG_BRANCH        - Base branch to clone (default: "dev")
 //	AILANG_PUSH_BRANCH   - Push directly to this branch (skip coordinator/ branch creation)
 //	AILANG_DIRECTIVE     - Task directive/prompt
+//	AILANG_TASK_TITLE    - Human task title, used for PR/commit subjects
 //	AILANG_TOPIC_PREFIX  - Topic prefix (default: "ailang")
 //	AILANG_PLUGIN_REPO   - Git URL for shared skills plugin (cloned as --plugin-dir)
 //	AILANG_MAX_COST_USD  - Per-task cost budget in USD (0 = unlimited) from budget config
 //	AILANG_MODEL         - AI model override (e.g., "sonnet", "opus") from agent config
+//
+// executeJobWorkspace resolves the workspace a job's completion is published
+// under. A silent "default" filed a mis-dispatched job's result where nothing
+// listened, so it is a deprecated default under D3 (M-V1-SIMPLIFY-S4 M1):
+// served with one stderr warning, refused under AILANG_STRICT_CONFIG=1.
+func executeJobWorkspace() (string, error) {
+	if ws := config.Workspace(); ws != "" {
+		return ws, nil
+	}
+	return config.DeprecatedDefault(coordinator.EnvWorkspace, coordinator.DeprecatedWorkspaceDefault)
+}
+
 func coordinatorExecuteJob(args []string) error {
 	// Parse flags
 	for _, arg := range args {
@@ -59,30 +74,30 @@ func coordinatorExecuteJob(args []string) error {
 	}
 
 	// Read ALL environment variables upfront (before any early returns).
-	taskID := os.Getenv("AILANG_TASK_ID")
-	agentID := os.Getenv("AILANG_AGENT_ID")
-	workspace := os.Getenv("AILANG_WORKSPACE")
-	if workspace == "" {
-		workspace = "default"
+	taskID := config.TaskID()
+	agentID := config.AgentID()
+	// Refused before Pub/Sub exists, because there is no workspace to publish
+	// a failure to.
+	workspace, wsErr := executeJobWorkspace()
+	if wsErr != nil {
+		fmt.Fprintf(os.Stderr, "COMPLETION_FAILED|task=%s|agent=%s|error=%v\n", taskID, agentID, wsErr)
+		return wsErr
 	}
-	projectID := os.Getenv("AILANG_CLOUD_PROJECT")
-	if projectID == "" {
-		projectID = os.Getenv("GOOGLE_CLOUD_PROJECT")
-	}
-	provider := os.Getenv("AILANG_PROVIDER")
-	if provider == "" {
-		provider = "claude"
-	}
-	repoURL := os.Getenv("AILANG_REPO_URL")
-	branch := os.Getenv("AILANG_BRANCH")
-	if branch == "" {
-		branch = "dev"
-	}
-	directive := os.Getenv("AILANG_DIRECTIVE")
-	prefix := os.Getenv("AILANG_TOPIC_PREFIX")
-	if prefix == "" {
-		prefix = pubsub.DefaultTopicPrefix
-	}
+	// The container's project: the one resolver, which on Cloud Run also has
+	// the metadata server. Unresolvable is reported below, once
+	// publishCompletion exists — it is "" here so the guard can still say so.
+	projectID, projErr := config.CloudProject(context.Background())
+	// Resolved (and verified) below, once publishCompletion exists to report a
+	// bad answer. Deliberately not defaulted here — see resolveContainerProvider.
+	requestedProvider := config.Provider()
+	imageProvider := config.ImageProvider()
+	var provider string
+	repoURL := config.RepoURL()
+	branch := config.Branch()
+	directive := config.Directive()
+	// AILANG_TASK_TITLE is read where it is used (taskSubject); named here so
+	// the env contract above stays the complete list.
+	prefix := pubsub.TopicPrefixFromEnv()
 
 	// Initialize Pub/Sub client as early as possible so the defer guard can use it.
 	// If Pub/Sub init itself fails, we fall back to stderr logging.
@@ -106,21 +121,29 @@ func coordinatorExecuteJob(args []string) error {
 	// The optional execResult carries metrics from the executor for parity with local.
 	// changedFiles lists files created/modified by the agent (discovered via git diff).
 	// artifactPath is the GCS path prefix where raw artifacts were uploaded (may be empty).
-	publishCompletion := func(status, errMsg, branchName string, execResult *executor.Result, changedFiles []string, artifactPath string) {
+	publishCompletion := func(status, errMsg, branchName string, execResult *executor.Result, ev gitEvidence, artifactPath string) {
 		if completionSent.Swap(true) {
 			return // Already sent — prevent double-publish.
 		}
+		status, errMsg = contractCompletionStatus(status, errMsg)
 		completion := pubsub.TaskCompletion{
-			TaskID:          taskID,
-			AgentID:         agentID,
-			Status:          status,
-			ErrorMsg:        errMsg,
-			BranchName:      branchName,
-			ChangedFiles:    changedFiles,
+			TaskID:       taskID,
+			AgentID:      agentID,
+			Status:       status,
+			ErrorMsg:     errMsg,
+			BranchName:   branchName,
+			ChangedFiles: ev.ChangedFiles,
+			// Approval evidence (M3). Two immutable SHAs, so the card renders
+			// identically however many times this completion is delivered.
+			BaseCommit:      ev.BaseCommit,
+			HeadCommit:      ev.HeadCommit,
+			DiffStat:        ev.DiffStat,
+			Diff:            ev.Diff,
 			ArtifactGCSPath: artifactPath,
 		}
 		// Populate executor metrics when available (same data as local coordinator)
 		if execResult != nil {
+			completion.Summary = completionSummary(execResult.Transcript)
 			completion.SessionID = execResult.SessionID
 			completion.NumTurns = execResult.NumTurns
 			completion.ToolCallCount = execResult.ToolCallCount
@@ -151,45 +174,70 @@ func coordinatorExecuteJob(args []string) error {
 	// Defer guard: catches panics and any exit path that forgot to publish.
 	defer func() {
 		if r := recover(); r != nil {
-			publishCompletion("failed", fmt.Sprintf("panic: %v", r), "", nil, nil, "")
+			publishCompletion("failed", fmt.Sprintf("panic: %v", r), "", nil, gitEvidence{}, "")
 		} else if !completionSent.Load() {
 			// Should not happen — means we returned without publishing.
-			publishCompletion("failed", "unknown: exited without publishing completion", "", nil, nil, "")
+			publishCompletion("failed", "unknown: exited without publishing completion", "", nil, gitEvidence{}, "")
 		}
 	}()
 
 	// Validate required env vars (after Pub/Sub init so failures are reported).
 	if taskID == "" {
-		publishCompletion("failed", "AILANG_TASK_ID environment variable is required", "", nil, nil, "")
+		publishCompletion("failed", "AILANG_TASK_ID environment variable is required", "", nil, gitEvidence{}, "")
 		return fmt.Errorf("AILANG_TASK_ID environment variable is required")
 	}
 	if agentID == "" {
-		publishCompletion("failed", "AILANG_AGENT_ID environment variable is required", "", nil, nil, "")
+		publishCompletion("failed", "AILANG_AGENT_ID environment variable is required", "", nil, gitEvidence{}, "")
 		return fmt.Errorf("AILANG_AGENT_ID environment variable is required")
 	}
-	if projectID == "" {
-		publishCompletion("failed", "AILANG_CLOUD_PROJECT or GOOGLE_CLOUD_PROJECT is required", "", nil, nil, "")
-		return fmt.Errorf("AILANG_CLOUD_PROJECT or GOOGLE_CLOUD_PROJECT is required")
+	if projErr != nil {
+		publishCompletion("failed", projErr.Error(), "", nil, gitEvidence{}, "")
+		return projErr
+	}
+
+	// Settle which executor runs, and prove it can, BEFORE cloning the repo.
+	// Three prod runs on 2026-08-27/28 cloned 24,032 files and only then failed
+	// on a binary the image never installed.
+	var provErr error
+	if provider, provErr = resolveContainerProvider(requestedProvider, imageProvider); provErr != nil {
+		publishCompletion("failed", provErr.Error(), "", nil, gitEvidence{}, "")
+		return provErr
+	}
+	if err := preflightExecutor(ctx, provider); err != nil {
+		publishCompletion("failed", err.Error(), "", nil, gitEvidence{}, "")
+		return err
 	}
 
 	// Read plugin repo for shared skills (M-CLOUD-PLUGIN-SKILLS, v0.9.1)
-	pluginRepo := os.Getenv("AILANG_PLUGIN_REPO")
+	pluginRepo := config.PluginRepo()
 
 	// Read model override from agent config (passed via AILANG_MODEL env var).
-	// Without this, the executor defaults to "haiku" which is too weak for coding tasks.
-	model := os.Getenv("AILANG_MODEL")
+	// The executor has NO default model (M-MODEL-REGISTRY-SINGLE-SOURCE M6,
+	// D2(a)): an empty value fails at the point of use rather than silently
+	// running "haiku", which is too weak for coding tasks.
+	model := config.Model()
 
 	// Read timeout from agent config (passed via AILANG_TIMEOUT env var, M-CLOUD-OAUTH).
 	// Without this, the executor defaults to 5m which is too short for complex tasks.
-	timeoutStr := os.Getenv("AILANG_TIMEOUT")
+	timeoutStr := config.Timeout()
 	if timeoutStr == "" {
-		timeoutStr = "30m" // Reasonable default for cloud tasks
+		// M-COORDINATOR-EXECUTION-TRUST M8: was 30m. Cloud Run Jobs allow 24h and
+		// were chosen for that; idle_timeout is the liveness guard, so a generous
+		// wall-clock costs nothing while an agent is making progress.
+		timeoutStr = coordinator.DefaultTaskTimeout.String()
 	}
 
-	fmt.Printf("execute-job: starting task %s (agent=%s, workspace=%s, model=%s, timeout=%s)\n", taskID, agentID, workspace, model, timeoutStr)
+	// idle_timeout is printed because its ABSENCE was invisible for months: the
+	// start line named the wall-clock ceiling only, so a 3m idle kill under a
+	// declared 5m read as the model stalling rather than as config not arriving.
+	idleStr := config.IdleTimeout()
+	if idleStr == "" {
+		idleStr = "executor default"
+	}
+	fmt.Printf("execute-job: starting task %s (agent=%s, workspace=%s, model=%s, timeout=%s, idle_timeout=%s)\n", taskID, agentID, workspace, model, timeoutStr, idleStr)
 
 	// Execute the task
-	branchName, execResult, changedFiles, execErr := executeCloudTask(ctx, taskID, agentID, repoURL, branch, directive, provider, pluginRepo, model, timeoutStr)
+	branchName, execResult, evidence, execErr := executeCloudTask(ctx, taskID, agentID, repoURL, branch, directive, provider, pluginRepo, model, timeoutStr)
 
 	// Write artifact files to the GCS-mounted directory (/artifacts/tasks/{taskID}/).
 	// The artifact bucket is mounted read-write at /artifacts via Cloud Run volume mount.
@@ -198,11 +246,53 @@ func coordinatorExecuteJob(args []string) error {
 
 	// Publish completion with executor metrics (success or failure)
 	if execErr != nil {
-		publishCompletion("failed", execErr.Error(), branchName, execResult, nil, artifactPath)
+		publishCompletion("failed", execErr.Error(), branchName, execResult, gitEvidence{}, artifactPath)
 		fmt.Printf("execute-job: task %s failed: %v\n", taskID, execErr)
 	} else {
-		publishCompletion("completed", "", branchName, execResult, changedFiles, artifactPath)
-		fmt.Printf("execute-job: task %s completed (branch=%s, files=%d)\n", taskID, branchName, len(changedFiles))
+		// M-COORDINATOR-EXECUTION-TRUST M2: "the executor exited 0" is not
+		// "work landed". A run that was expected to produce a diff and produced
+		// none reports no_changes — a terminal status that an old consumer reads
+		// as not-success, which is the safe direction.
+		//
+		// expectChanges is trusted dispatch metadata (AILANG_EXPECT_CHANGES,
+		// from the agent registry), NOT the content-derived task type: that
+		// classifier is a substring match over sender-controlled message text
+		// (design doc V18), and M2's first draft inherited exactly the hole M1a
+		// was rewritten to remove.
+		//
+		// A pushed branch implies commits, and commits imply discovered files,
+		// so changedFiles is the load-bearing signal here; branchPushed is
+		// passed for callers that can distinguish the two.
+		// Only an explicit "true" declares acknowledge-only. Unset, empty or
+		// malformed all mean "changes were expected", so a misconfigured or
+		// older dispatcher fails LOUD rather than silently lenient.
+		expectChanges := !config.AcknowledgeOnly()
+		status := coordinator.ClassifyCompletionStatus(evidence.ChangedFiles, false, expectChanges)
+
+		// The agent's own word on the outcome, which it has never had.
+		//
+		// A BLOCKED: marker means it did not attempt the work — a precondition
+		// was unmet — and that is a different fact from `no_changes`, which also
+		// means "I did the work and nothing needed changing". One of those needs
+		// a human and the other needs nobody, and they were indistinguishable.
+		//
+		// Only honoured when the run produced NOTHING. An agent that declared a
+		// blocker and then changed files worked around it, and the files are the
+		// stronger evidence — trusting the marker over them would discard real
+		// work on the strength of a sentence.
+		blockedMsg := ""
+		if len(evidence.ChangedFiles) == 0 && execResult != nil {
+			if report, ok := coordinator.ParseBlockedMarker(execResult.Transcript); ok {
+				status = coordinator.TaskStatusBlocked
+				blockedMsg = report.Reason
+				if report.On != "" {
+					blockedMsg += " (blocked on: " + report.On + ")"
+				}
+				fmt.Printf("execute-job: task %s BLOCKED: %s\n", taskID, blockedMsg)
+			}
+		}
+		publishCompletion(string(status), blockedMsg, branchName, execResult, evidence, artifactPath)
+		fmt.Printf("execute-job: task %s %s (branch=%s, files=%d)\n", taskID, status, branchName, len(evidence.ChangedFiles))
 	}
 
 	return execErr
@@ -214,9 +304,9 @@ func coordinatorExecuteJob(args []string) error {
 // When AILANG_PUSH_BRANCH is set, the agent works directly on the cloned branch
 // and pushes to that branch (no coordinator/{taskID} branch creation). This is
 // used for skip_approval agents like website-builder that push directly to main.
-func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch, directive, provider, pluginRepo, model, timeoutStr string) (string, *executor.Result, []string, error) {
+func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch, directive, provider, pluginRepo, model, timeoutStr string) (string, *executor.Result, gitEvidence, error) {
 	workDir := fmt.Sprintf("/workspace/%s", taskID)
-	pushBranch := os.Getenv("AILANG_PUSH_BRANCH")
+	pushBranch := config.PushBranch()
 
 	// When push branch is set, clone that branch instead of baseBranch.
 	// This handles repos where the default branch differs from "dev"
@@ -230,13 +320,27 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 	// Step -1: Configure git credentials from GITHUB_TOKEN.
 	// Cloud containers don't have a credential helper — git can't authenticate HTTPS
 	// requests without this. GITHUB_TOKEN is provided via Secret Manager.
-	if token := os.Getenv("GITHUB_TOKEN"); token != "" {
+	if token := config.GitHubToken(); token != "" {
 		credHelper := fmt.Sprintf("!f() { echo username=x-access-token; echo \"password=%s\"; }; f", token)
 		credCmd := exec.CommandContext(ctx, "git", "config", "--global", "credential.helper", credHelper)
 		if err := credCmd.Run(); err != nil {
 			fmt.Fprintf(os.Stderr, "warning: failed to configure git credentials: %v\n", err)
 		}
 	}
+
+	// Who the commits are BY. Separate from the token that pushes them: git
+	// distinguishes authorship from transport, and only authorship is a claim
+	// about who did the work.
+	//
+	// Unset inherits the container's identity, which resolves to the fleet bot.
+	// That was every agent's author line in every repo — including an agent
+	// working inside another identity's own memory repo, where the record being
+	// that identity's own is the point.
+	//
+	// Repo-local, not --global: the credential helper above IS global (it must
+	// cover clones of other repos), but authorship belongs to the work, and a
+	// global author would silently follow the process into any other checkout.
+	configureGitAuthor(ctx, workDir)
 
 	// Step 0: Resolve shared skills plugin directory (M-CLOUD-PLUGIN-SKILLS, v0.9.1)
 	pluginDir := ""
@@ -261,14 +365,57 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 
 	// Step 1: Clone the repository (required in cloud mode)
 	if repoURL == "" {
-		return "", nil, nil, fmt.Errorf("AILANG_REPO_URL is required: set workspace to GitHub org/repo (e.g., sunholo-data/ailang) in agent config")
+		return "", nil, gitEvidence{}, fmt.Errorf("AILANG_REPO_URL is required: set workspace to GitHub org/repo (e.g., sunholo-data/ailang) in agent config")
 	}
+	// A per-agent SSH deploy key, when the registry gave this agent one. It
+	// replaces the fleet token for THIS repo only, because the fleet token is
+	// deliberately read-only on some repos and a deploy key is scoped to one.
+	//
+	// Fatal on failure, not best-effort: the alternative is silently falling
+	// back to the fleet identity, which would push as the wrong actor or fail
+	// later with a confusing permission error. If an agent was configured to use
+	// its own credential, using someone else's instead is never the right
+	// recovery.
+	deployKeyRepo := ""
+	if sshDeployKeyRequested() {
+		keyProject, keyErr := config.CloudProject(ctx)
+		if keyErr != nil {
+			return "", nil, gitEvidence{}, fmt.Errorf("ssh deploy key: %w", keyErr)
+		}
+		alias, keyErr := configureSSHDeployKey(ctx, keyProject)
+		if keyErr != nil {
+			return "", nil, gitEvidence{}, fmt.Errorf("ssh deploy key: %w", keyErr)
+		}
+		// READ only, here: `git push --dry-run ... HEAD:...` resolves a LOCAL ref
+		// and cannot run outside a repository, which is what broke attempt 3 on
+		// task-98301715. The write half runs from inside the clone, below.
+		if ownerRepo := gitHubOwnerRepoFromURL(repoURL); ownerRepo != "" {
+			if vErr := verifyDeployKeyRead(ctx, alias, ownerRepo); vErr != nil {
+				// Pre-flight, so this costs seconds instead of surfacing after a
+				// full agent run has produced work it then cannot push.
+				return "", nil, gitEvidence{}, vErr
+			}
+			deployKeyRepo = ownerRepo
+		}
+		repoURL = sshCloneURL(repoURL, alias)
+	}
+
 	fmt.Printf("execute-job: cloning %s (branch=%s)\n", repoURL, baseBranch)
 	cloneCmd := exec.CommandContext(ctx, "git", "clone", "--branch", baseBranch, "--depth", "1", repoURL, workDir)
 	cloneCmd.Stdout = os.Stdout
 	cloneCmd.Stderr = os.Stderr
 	if err := cloneCmd.Run(); err != nil {
-		return "", nil, nil, fmt.Errorf("git clone failed: %w", err)
+		return "", nil, gitEvidence{}, fmt.Errorf("git clone failed: %w", err)
+	}
+
+	// The WRITE half of the deploy-key pre-flight. Here because it needs a
+	// repository, and still before the agent does any work — which is what a
+	// pre-flight is for. Fatal: an agent that cannot push should not spend a run
+	// discovering that at the end.
+	if deployKeyRepo != "" {
+		if vErr := verifyDeployKeyWrite(ctx, workDir, deployKeyRepo); vErr != nil {
+			return "", nil, gitEvidence{}, vErr
+		}
 	}
 
 	// M-HARNESS-COMMIT-CONTRACT: Capture clone point for artifact discovery.
@@ -277,11 +424,14 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 	clonePoint := strings.TrimSpace(string(clonePointOutput))
 
 	// Step 1.5: Inject AGENTS.md from plugin if repo doesn't have one.
-	// M-PKG-CASCADE-DETERMINISTIC-FIRST: skip injection for cascade tasks —
-	// AGENTS.md is generic agent guidance and just clutters the cascade PR
-	// (which has a single deterministic toml bump as its diff). Cascade
-	// tasks are detected via AILANG_CASCADE_ROOT_PACKAGE.
-	if pluginDir != "" && os.Getenv("AILANG_CASCADE_ROOT_PACKAGE") == "" {
+	//
+	// The cascade-only skip that used to guard this is GONE. It existed because
+	// "AGENTS.md is generic agent guidance and just clutters the cascade PR" —
+	// true, and true of every other PR too. injectAgentsMD now excludes the
+	// injected copy via .git/info/exclude, so it clutters nothing anywhere and
+	// cascade needs no special case. The old guard fixed one caller and left the
+	// rest committing the file into four ailang-parse PRs.
+	if pluginDir != "" {
 		injectAgentsMD(pluginDir, workDir)
 	}
 
@@ -298,13 +448,13 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 		checkoutCmd.Stdout = os.Stdout
 		checkoutCmd.Stderr = os.Stderr
 		if err := checkoutCmd.Run(); err != nil {
-			return "", nil, nil, fmt.Errorf("git checkout -b failed: %w", err)
+			return "", nil, gitEvidence{}, fmt.Errorf("git checkout -b failed: %w", err)
 		}
 	}
 
 	// M-PKG-AUTONOMOUS-UPDATES: Scope executor to monorepo subdirectory if set.
 	execWorkDir := workDir
-	if subdir := os.Getenv("AILANG_SUBDIRECTORY"); subdir != "" {
+	if subdir := config.Subdirectory(); subdir != "" {
 		execWorkDir = filepath.Join(workDir, subdir)
 		fmt.Printf("execute-job: scoped to subdirectory %s (within %s)\n", subdir, workDir)
 	}
@@ -317,9 +467,9 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 	var execResult *executor.Result
 	var execErr error
 	deterministicSuccess := false
-	if rootPackage := os.Getenv("AILANG_CASCADE_ROOT_PACKAGE"); rootPackage != "" {
-		changeClass := os.Getenv("AILANG_CASCADE_CHANGE_CLASS")
-		toVersion := os.Getenv("AILANG_CASCADE_TO_VERSION")
+	if rootPackage := config.CascadeRootPackage(); rootPackage != "" {
+		changeClass := config.CascadeChangeClass()
+		toVersion := config.CascadeToVersion()
 		path := classifyDispatchPath(changeClass)
 		fmt.Printf("execute-job: cascade detected — root=%s, change_class=%s, dispatch_path=%s\n",
 			rootPackage, changeClass, path)
@@ -350,8 +500,8 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 		}
 
 		// M-GIT-GUARDRAILS: Default to guardrails if not set per-agent or via Terraform.
-		if os.Getenv("AILANG_GIT_MODE") == "" {
-			os.Setenv("AILANG_GIT_MODE", "guardrails")
+		if !config.GitModeSet() {
+			os.Setenv(config.EnvGitMode, "guardrails")
 		}
 
 		// Direct Claude Code session storage into the GCS-mounted artifact directory.
@@ -363,10 +513,26 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 			fmt.Printf("execute-job: CLAUDE_CONFIG_DIR=%s (session JSONL → GCS)\n", claudeConfigDir)
 		}
 
+		// M-COORDINATOR-EXECUTION-TRUST M6 (V30): the globally installed pi suite
+		// and a repo that ships .pi/extensions/ register the same tool names, and
+		// pi exits 1 before turn 1. Let the workspace's own copy win. No-op for a
+		// repo without .pi/extensions/, which is the common case and keeps the
+		// gate applying everywhere (D2).
+		if globalExt := piGlobalExtensionsDir(); globalExt != "" {
+			if removed, cErr := resolveExtensionCollisions(globalExt, execWorkDir); cErr != nil {
+				// Loud, but not fatal: a task that can still start is better than
+				// one killed by the mitigation for a crash.
+				fmt.Fprintf(os.Stderr, "execute-job: WARNING: could not resolve pi extension collisions: %v\n", cErr)
+			} else if len(removed) > 0 {
+				fmt.Printf("execute-job: workspace ships %d pi extension(s) that shadow the global suite; using the workspace copies: %v\n",
+					len(removed), removed)
+			}
+		}
+
 		fmt.Printf("execute-job: running %s executor (unified path)\n", provider)
-		execResult, execErr = runExecutor(ctx, execWorkDir, provider, directive, taskID, pluginDir, model, timeoutStr)
+		execResult, execErr = runExecutor(ctx, execWorkDir, provider, directive, taskID, pluginDir, model, timeoutStr, repoURL)
 		if execErr != nil {
-			return branchName, execResult, nil, fmt.Errorf("executor failed: %w", execErr)
+			return branchName, execResult, gitEvidence{}, fmt.Errorf("executor failed: %w", execErr)
 		}
 
 		// Log executor metrics
@@ -378,31 +544,24 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 		}
 	}
 
-	// Step 4: Check if there are uncommitted changes to stage+commit
-	statusCmd := exec.CommandContext(ctx, "git", "-C", workDir, "status", "--porcelain")
-	statusOutput, err := statusCmd.Output()
+	// Step 4/5a: stage whatever changed — except the agent's scratch dir
+	// (coordinator_cloud_scratch.go) — and commit only if something is staged.
+	staged, err := stageForCommit(ctx, workDir)
 	if err != nil {
-		return branchName, execResult, nil, fmt.Errorf("git status failed: %w", err)
+		return branchName, execResult, gitEvidence{}, err
 	}
-
-	if len(strings.TrimSpace(string(statusOutput))) > 0 {
-		// Step 5a: Stage, commit uncommitted changes
-		addCmd := exec.CommandContext(ctx, "git", "-C", workDir, "add", "-A")
-		if err := addCmd.Run(); err != nil {
-			return branchName, execResult, nil, fmt.Errorf("git add failed: %w", err)
-		}
-
+	if staged {
 		// M-HARNESS-COMMIT-CONTRACT: Use structured commit message when site metadata available.
 		// Co-author resolves to the actual model the executor invoked (AILANG_MODEL env var,
 		// set by the dispatcher from the agent config). Falls back to "AILANG cascade wrapper"
 		// when there's no model — e.g., the deterministic bump path that doesn't invoke AI.
 		var commitMsg string
 		coAuthor := "AILANG cascade wrapper <noreply@sunholo.com>"
-		if m := os.Getenv("AILANG_MODEL"); m != "" {
+		if m := config.Model(); m != "" {
 			coAuthor = fmt.Sprintf("Claude (%s) <noreply@anthropic.com>", m)
 		}
-		siteSlug := os.Getenv("AILANG_SITE_SLUG")
-		briefID := os.Getenv("AILANG_BRIEF_ID")
+		siteSlug := config.SiteSlug()
+		briefID := config.BriefID()
 		if siteSlug != "" {
 			subject := fmt.Sprintf("Build: %s", siteSlug)
 			if briefID != "" {
@@ -411,15 +570,19 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 			commitMsg = fmt.Sprintf("%s\n\nTask: %s\nAgent: %s\nTimestamp: %s\n\nCo-Authored-By: %s",
 				subject, taskID, agentID, time.Now().UTC().Format(time.RFC3339), coAuthor)
 		} else {
-			commitMsg = fmt.Sprintf("Task %s: %s\n\nAgent: %s\nTimestamp: %s\n\nCo-Authored-By: %s",
-				taskID, directive, agentID, time.Now().UTC().Format(time.RFC3339), coAuthor)
+			// Subject is a bounded, readable summary; the FULL directive moves
+			// into the body. Previously the whole prompt was the subject line —
+			// raw JSON for a structured request, unbounded for prose.
+			commitMsg = fmt.Sprintf("%s\n\nTask: %s\nAgent: %s\nTimestamp: %s\n\n%s\n\nCo-Authored-By: %s",
+				agentCommitSubject(taskID, directive), taskID, agentID,
+				time.Now().UTC().Format(time.RFC3339), strings.TrimSpace(directive), coAuthor)
 		}
 
 		commitCmd := exec.CommandContext(ctx, "git", "-C", workDir, "commit", "-m", commitMsg)
 		commitCmd.Stdout = os.Stdout
 		commitCmd.Stderr = os.Stderr
 		if err := commitCmd.Run(); err != nil {
-			return branchName, execResult, nil, fmt.Errorf("git commit failed: %w", err)
+			return branchName, execResult, gitEvidence{}, fmt.Errorf("git commit failed: %w", err)
 		}
 	} else {
 		fmt.Println("execute-job: no uncommitted changes (agent may have committed directly)")
@@ -455,184 +618,158 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 	// Observed 2026-08-26 on task-90d5eeef, an acknowledge-only probe. Every
 	// no-op cloud task left an orphan branch behind and logged a failure for
 	// doing exactly the right thing. Compare against the clone point instead.
-	if newBranch {
-		aheadCmd := exec.CommandContext(ctx, "git", "-C", workDir, "log", clonePoint+"..HEAD", "--oneline")
-		if aheadOut, aheadErr := aheadCmd.Output(); aheadErr == nil && len(strings.TrimSpace(string(aheadOut))) == 0 {
-			fmt.Println("execute-job: no commits to push (agent made no changes) — not creating branch or PR")
-			changedFiles := discoverChangedFilesFromCommit(workDir, clonePoint)
-			return branchName, execResult, changedFiles, nil
-		}
+	// Does this branch actually CONTAIN work? That is the question the PR
+	// depends on, and it is not the same as "does the wrapper have something
+	// left to push".
+	//
+	// Measured 2026-09-12, task-389b7a51 (design-doc-creator-daneel, its first
+	// run): the agent pushed the branch itself, so origin/BRANCH..HEAD was empty,
+	// the wrapper logged "no commits to push" and returned — and the PR call
+	// lived INSIDE the push block, so no PR was ever opened. The design doc sat
+	// on a pushed branch nobody was told about, and the PR was opened by hand six
+	// minutes later. An agent that does its own pushing is not an agent that
+	// wants no review.
+	hasWork := true
+	aheadCmd := gitexec.CommandContext(ctx, "-C", workDir, "log", clonePoint+"..HEAD", "--oneline")
+	if aheadOut, aheadErr := aheadCmd.Output(); aheadErr == nil {
+		hasWork = len(strings.TrimSpace(string(aheadOut))) > 0
+	}
+	if !hasWork {
+		fmt.Println("execute-job: no commits since the clone point (agent made no changes) — not creating branch or PR")
+		return branchName, execResult, gitEvidence{BaseCommit: clonePoint, ChangedFiles: discoverChangedFilesFromCommit(workDir, clonePoint)}, nil
 	}
 
-	if !newBranch && len(strings.TrimSpace(string(logOutput))) == 0 {
-		fmt.Println("execute-job: no commits to push")
-		changedFiles := discoverChangedFilesFromCommit(workDir, clonePoint)
-		return branchName, execResult, changedFiles, nil
-	}
+	unpushed := branchNeedsPush(newBranch, string(logOutput))
 
-	fmt.Printf("execute-job: unpushed commits:\n%s", string(logOutput))
-
-	// Step 5c: Push all commits.
+	// Step 5c: Push all commits, if any are still local.
 	// Shallow clones can't push new branches — unshallow first so the remote
 	// has full history context for the new branch ref.
 	if repoURL != "" {
-		unshallowCmd := exec.CommandContext(ctx, "git", "-C", workDir, "fetch", "--unshallow")
-		unshallowCmd.Stdout = os.Stdout
-		unshallowCmd.Stderr = os.Stderr
-		if err := unshallowCmd.Run(); err != nil {
-			// Already a full clone or network issue — log and continue
-			fmt.Fprintf(os.Stderr, "execute-job: fetch --unshallow skipped: %v\n", err)
+		if unpushed {
+			fmt.Printf("execute-job: unpushed commits:\n%s", string(logOutput))
+			unshallowCmd := exec.CommandContext(ctx, "git", "-C", workDir, "fetch", "--unshallow")
+			unshallowCmd.Stdout = os.Stdout
+			unshallowCmd.Stderr = os.Stderr
+			if err := unshallowCmd.Run(); err != nil {
+				// Already a full clone or network issue — log and continue
+				fmt.Fprintf(os.Stderr, "execute-job: fetch --unshallow skipped: %v\n", err)
+			}
+			// HEAD:refs/heads/<branch>, never the bare branch NAME.
+			//
+			// Measured 2026-09-13, tasks 70b77905 and 1063e5fd
+			// (design-doc-creator-daneel): the wrapper creates
+			// coordinator/task-<id> and the agent then made its OWN branch
+			// (design-doc/...) and committed there, so the coordinator branch
+			// never moved. `git push origin coordinator/task-<id>` pushed that
+			// unmoved ref — an empty branch — and GitHub refused the PR with
+			// 422 "No commits between main and coordinator/task-1063e5fd".
+			// The design docs existed the whole time, on a branch nobody was
+			// told about, and a human opened and merged the PRs six hours later.
+			//
+			// hasWork above already measures clonePoint..HEAD, so it FOUND those
+			// commits; the push then sent a different ref. The check and the push
+			// have to be talking about the same commits, and HEAD is the one
+			// thing that means "what the agent actually produced" whichever
+			// branch it decided to stand on.
+			pushCmd := exec.CommandContext(ctx, "git", "-C", workDir, "push", "origin", pushRefspec(branchName))
+			pushCmd.Stdout = os.Stdout
+			pushCmd.Stderr = os.Stderr
+			if err := pushCmd.Run(); err != nil {
+				return branchName, execResult, gitEvidence{}, fmt.Errorf("git push failed: %w", err)
+			}
+			fmt.Printf("execute-job: pushed branch %s\n", branchName)
+
+			// Assert the remote ref IS what we just built. "git push exited 0"
+			// and "the work is published" were the same claim until 2026-09-13,
+			// and they came apart: the push sent an unmoved ref, exited 0, and
+			// the completion went out as completed with changed_files listing a
+			// document that was on no published branch.
+			if err := assertRemoteMatchesHead(ctx, workDir, branchName); err != nil {
+				return branchName, execResult, gitEvidence{}, err
+			}
+		} else {
+			fmt.Printf("execute-job: branch %s is already on the remote (the agent pushed it) — still opening the PR\n", branchName)
 		}
-		pushCmd := exec.CommandContext(ctx, "git", "-C", workDir, "push", "origin", branchName)
-		pushCmd.Stdout = os.Stdout
-		pushCmd.Stderr = os.Stderr
-		if err := pushCmd.Run(); err != nil {
-			return branchName, execResult, nil, fmt.Errorf("git push failed: %w", err)
-		}
-		fmt.Printf("execute-job: pushed branch %s\n", branchName)
 
 		// Step 5d: Open a deterministic PR (M-PKG-AUTONOMOUS-CASCADE-SAFE follow-up).
 		// Always-PR is the design — no autonomous merge for v1. Doing this in the
 		// wrapper (vs the agent) means the agent doesn't need to know `gh` syntax,
 		// and we get a consistent PR title/body across every agent run.
-		// Best-effort: failures don't fail the task (branch is already pushed).
-		openCascadePullRequest(ctx, workDir, branchName, taskID, agentID, baseBranch)
+		//
+		// Deliberately outside the `if unpushed` arm, and deliberately NOT gated on
+		// auto_merge: whether a PR gets merged automatically is a separate question
+		// from whether one exists. Best-effort: failures don't fail the task.
+		//
+		// A direct-push agent (skip_approval, committing onto merge_branch itself)
+		// has no head/base pair to open a PR between, and GitHub answers 422; skip
+		// it rather than log a failure for working as designed.
+		if !branchWantsPR(branchName, baseBranch) {
+			fmt.Printf("execute-job: %s IS the base branch (direct-push agent) — no PR to open\n", branchName)
+		} else {
+			if prErr := openCascadePullRequest(ctx, workDir, branchName, taskID, agentID, baseBranch); prErr != nil {
+				return branchName, execResult, gitEvidence{}, prErr
+			}
+		}
 	}
 
 	// Step 6: Discover changed files for the completion message.
-	changedFiles := discoverChangedFilesFromCommit(workDir, clonePoint)
-	return branchName, execResult, changedFiles, nil
+	// After the push: HEAD is final, so the two SHAs bounding the diff are
+	// immutable and the approval card renders identically on every replay.
+	return branchName, execResult, collectGitEvidence(ctx, workDir, clonePoint), nil
 }
 
-// DispatchPath classifies how a cascade task should be handled.
-// M-PKG-CASCADE-DETERMINISTIC-FIRST.
-type DispatchPath string
-
-const (
-	// DispatchDeterministic — wrapper applies the toml bump + lock + check + test
-	// and only commits if all green. No AI agent is invoked.
-	DispatchDeterministic DispatchPath = "deterministic"
-	// DispatchAI — interface change with removed exports or widened effects;
-	// the AI agent is invoked with full hash context to repair consumers.
-	DispatchAI DispatchPath = "ai"
-)
-
-// classifyDispatchPath chooses how to handle a cascade task based on the
-// change_class from the publisher. This mirrors classifyChange in
-// internal/messaging/pkg_events.go but lives wrapper-side so the cloud job
-// can decide without re-invoking the classifier.
+// assertRemoteMatchesHead proves the branch we published carries the commit we
+// built. A push can exit 0 having sent something other than the agent's work —
+// measured 2026-09-13, when it sent a branch ref still sitting at the clone
+// point while HEAD held two design documents.
 //
-// Mapping:
-//
-//	A (content-only)  → Deterministic
-//	B (additive)      → Deterministic (consumer code keeps working — no exports removed, no effects widened)
-//	C (interface)     → AI (something was removed OR effects widened — needs interpretation)
-//	(unknown / empty) → AI (conservative default)
-//
-// M-PKG-CASCADE-DETERMINISTIC-FIRST.
-func classifyDispatchPath(changeClass string) DispatchPath {
-	switch changeClass {
-	case "A", "B":
-		return DispatchDeterministic
-	default:
-		return DispatchAI
-	}
-}
-
-// deterministicCascadeBump performs the routine cascade work without invoking
-// an AI agent: edit ailang.toml to point the dependency at the new version,
-// regenerate ailang.lock, run check + test. If any step fails the function
-// returns the error and the wrapper falls back to the AI escalation path.
-//
-// On success it stages and commits the changes; the wrapper's existing
-// push + open-PR steps then run unchanged. The commit message tags the work
-// as deterministic so the PR shows clearly that no AI was involved.
-//
-// M-PKG-CASCADE-DETERMINISTIC-FIRST.
-func deterministicCascadeBump(ctx context.Context, workDir, rootPackage, toVersion, taskID, agentID string) error {
-	// rootPackage format: "vendor/name@x.y.z" — strip the version since we
-	// already have it as toVersion (and the toml maps to vendor/name only).
-	parts := strings.SplitN(rootPackage, "@", 2)
-	if len(parts) != 2 {
-		return fmt.Errorf("invalid root package format %q (expected vendor/name@version)", rootPackage)
-	}
-	pkgName := parts[0]
-	if toVersion == "" {
-		toVersion = parts[1]
-	}
-
-	// 1. Read ailang.toml from the consumer package directory.
-	tomlPath := filepath.Join(workDir, "ailang.toml")
-	contentBytes, err := os.ReadFile(tomlPath)
+// This is deliberately an assertion and not a log line: a completion that names
+// changed_files on a branch that does not contain them is worse than a failure,
+// because everything downstream believes it.
+func assertRemoteMatchesHead(ctx context.Context, workDir, branchName string) error {
+	headOut, err := gitexec.CommandContext(ctx, "-C", workDir, "rev-parse", "HEAD").Output()
 	if err != nil {
-		return fmt.Errorf("read ailang.toml at %s: %w", tomlPath, err)
+		return fmt.Errorf("cannot read local HEAD to verify the push: %w", err)
 	}
+	head := strings.TrimSpace(string(headOut))
 
-	// 2. Find and replace the dep version. ailang.toml uses TOML syntax
-	// like:  "vendor/name" = "0.1.2"
-	// We match the line with the package name and rewrite the version.
-	pattern := fmt.Sprintf(`("%s"\s*=\s*)"[^"]+"`, regexp.QuoteMeta(pkgName))
-	re := regexp.MustCompile(pattern)
-	replacement := fmt.Sprintf(`${1}"%s"`, toVersion)
-	newContent := re.ReplaceAllString(string(contentBytes), replacement)
-	if newContent == string(contentBytes) {
-		return fmt.Errorf("dep %q not found in ailang.toml at %s (or already at %s)", pkgName, tomlPath, toVersion)
+	lsOut, err := gitexec.CommandContext(ctx, "-C", workDir, "ls-remote", "origin", "refs/heads/"+branchName).Output()
+	if err != nil {
+		return fmt.Errorf("cannot read origin/%s to verify the push: %w", branchName, err)
 	}
-	if err := os.WriteFile(tomlPath, []byte(newContent), 0644); err != nil {
-		return fmt.Errorf("write ailang.toml: %w", err)
+	fields := strings.Fields(string(lsOut))
+	if len(fields) == 0 {
+		return fmt.Errorf("push reported success but origin/%s does not exist — the work is at %s locally and was NOT published", branchName, head)
 	}
-	fmt.Printf("execute-job: deterministic bump %s → %s in %s\n", pkgName, toVersion, tomlPath)
-
-	// 3. Regenerate ailang.lock against the bumped dep.
-	lockCmd := exec.CommandContext(ctx, "ailang", "lock")
-	lockCmd.Dir = workDir
-	if out, lockErr := lockCmd.CombinedOutput(); lockErr != nil {
-		return fmt.Errorf("ailang lock failed: %w (output: %s)", lockErr, strings.TrimSpace(string(out)))
+	if remote := fields[0]; remote != head {
+		return fmt.Errorf("push reported success but origin/%s is %s, not the HEAD we built (%s) — the work was NOT published to that branch",
+			branchName, remote, head)
 	}
-	fmt.Println("execute-job: deterministic ailang lock regenerated")
-
-	// 4. ailang check — this MUST pass for a class A or B bump. If it fails,
-	// the change_class was misclassified at publish time or there's a real
-	// breakage we didn't anticipate; either way, escalate to AI.
-	checkCmd := exec.CommandContext(ctx, "ailang", "check", "--package", ".")
-	checkCmd.Dir = workDir
-	if out, checkErr := checkCmd.CombinedOutput(); checkErr != nil {
-		return fmt.Errorf("ailang check failed (escalating to AI): %w (output: %s)", checkErr, strings.TrimSpace(string(out)))
-	}
-	fmt.Println("execute-job: deterministic ailang check passed")
-
-	// 5. ailang test — only run if a *_test.ail exists in the package.
-	testFiles, _ := filepath.Glob(filepath.Join(workDir, "*_test.ail"))
-	if len(testFiles) > 0 {
-		testCmd := exec.CommandContext(ctx, "ailang", "test", "--package", ".")
-		testCmd.Dir = workDir
-		if out, testErr := testCmd.CombinedOutput(); testErr != nil {
-			return fmt.Errorf("ailang test failed (escalating to AI): %w (output: %s)", testErr, strings.TrimSpace(string(out)))
-		}
-		fmt.Printf("execute-job: deterministic ailang test passed (%d test files)\n", len(testFiles))
-	}
-
-	// 6. Stage + commit. The wrapper's existing Step 4 detects this commit
-	// and the existing Step 5 does the push + PR-open.
-	addCmd := exec.CommandContext(ctx, "git", "-C", workDir, "add", "-A")
-	if err := addCmd.Run(); err != nil {
-		return fmt.Errorf("git add failed: %w", err)
-	}
-	commitMsg := fmt.Sprintf(
-		"[cascade] bump %s to %s\n\n"+
-			"Deterministic cascade bump by AILANG coordinator wrapper.\n"+
-			"No AI agent was invoked — change_class permitted direct\n"+
-			"toml bump + lock + check + test. All steps passed.\n\n"+
-			"Task: %s\n"+
-			"Agent: %s\n"+
-			"Timestamp: %s",
-		pkgName, toVersion, taskID, agentID, time.Now().UTC().Format(time.RFC3339),
-	)
-	commitCmd := exec.CommandContext(ctx, "git", "-C", workDir, "commit", "-m", commitMsg)
-	commitCmd.Stdout = os.Stdout
-	commitCmd.Stderr = os.Stderr
-	if err := commitCmd.Run(); err != nil {
-		return fmt.Errorf("git commit failed: %w", err)
-	}
+	fmt.Printf("execute-job: verified origin/%s is at %s\n", branchName, head)
 	return nil
+}
+
+// configureGitAuthor sets the commit author for this task's checkout.
+//
+// Both halves or neither: git resolves user.name and user.email independently,
+// so setting one leaves the other on the container default and produces a commit
+// half-attributed to each identity — worse than either alone, and hard to spot.
+func configureGitAuthor(ctx context.Context, workDir string) {
+	name, email := config.GitAuthor()
+	if name == "" || email == "" {
+		if name != "" || email != "" {
+			fmt.Fprintf(os.Stderr, "warning: git identity is half-configured (name=%q email=%q) — using the container default for BOTH rather than mixing identities\n", name, email)
+		}
+		return
+	}
+	for _, kv := range [][2]string{{"user.name", name}, {"user.email", email}} {
+		cmd := gitexec.CommandContext(ctx, "-C", workDir, "config", kv[0], kv[1])
+		if err := cmd.Run(); err != nil {
+			// Loud: the commit will still be made, but by somebody else, and an
+			// author line nobody checked is how a record stops being evidence.
+			fmt.Fprintf(os.Stderr, "warning: could not set git %s=%q: %v — commits will carry the container's identity\n", kv[0], kv[1], err)
+			return
+		}
+	}
+	fmt.Printf("execute-job: commits authored as %s <%s>\n", name, email)
 }

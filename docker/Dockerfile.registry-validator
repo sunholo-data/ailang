@@ -25,7 +25,7 @@ RUN VERSION="$(git describe --tags --always --dirty 2>/dev/null || echo unknown)
     CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
       go build -ldflags="-s -w -X main.validatorBuildVersion=${VERSION}" -o /registry-validator ./cmd/registry-validator/ && \
     CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-      go build -ldflags="-s -w -X github.com/sunholo/ailang/internal/version.Version=${VERSION} -X github.com/sunholo/ailang/internal/version.Commit=${COMMIT} -X github.com/sunholo/ailang/internal/version.BuildTime=${BUILD_TIME}" -o /ailang ./cmd/ailang/
+      go build -ldflags="-s -w -X github.com/sunholo-data/ailang/internal/version.Version=${VERSION} -X github.com/sunholo-data/ailang/internal/version.Commit=${COMMIT} -X github.com/sunholo-data/ailang/internal/version.BuildTime=${BUILD_TIME}" -o /ailang ./cmd/ailang/
 
 # ── Runtime stage ────────────────────────────────────────────
 FROM debian:bookworm-slim

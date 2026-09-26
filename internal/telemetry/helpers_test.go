@@ -5,36 +5,6 @@ import (
 	"testing"
 )
 
-func TestTruncate(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		maxLen   int
-		expected string
-	}{
-		{"empty string", "", 10, ""},
-		{"short string", "hello", 10, "hello"},
-		{"exact length", "hello", 5, "hello"},
-		{"needs truncation", "hello world", 8, "hello..."},
-		{"very short max", "hello", 3, "hel"},
-		{"zero max", "hello", 0, ""},
-		{"negative max", "hello", -1, ""},
-		{"unicode string", "hello 世界", 10, "hello 世界"},           // 8 runes, no truncation needed
-		{"unicode needs truncation", "hello 世界!", 8, "hello..."}, // 9 runes, truncate
-		{"long unicode", "世界世界世界世界世界", 8, "世界世界世..."},            // 10 runes, truncate to 5+...
-		{"emoji", "hello 👋 world", 12, "hello 👋 w..."},           // 13 runes, truncate to 9+...
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := Truncate(tt.input, tt.maxLen)
-			if result != tt.expected {
-				t.Errorf("Truncate(%q, %d) = %q, want %q", tt.input, tt.maxLen, result, tt.expected)
-			}
-		})
-	}
-}
-
 func TestCategorizeError(t *testing.T) {
 	tests := []struct {
 		name     string

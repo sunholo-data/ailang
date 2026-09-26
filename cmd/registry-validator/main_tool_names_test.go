@@ -157,3 +157,82 @@ func TestDescribeBadName_NamesTheCharacter(t *testing.T) {
 		}
 	}
 }
+
+// #1133: HTTP header key/value records — { name: "Content-Type", value: "..." }
+// passed to std/net.httpRequest — are wire data, not advertised tools. They
+// cannot be renamed (Content-Type is the wire format) and must not block a
+// publish. Before the fix, Pattern 2's `name: "X"` scan read them as tool
+// names and rejected sunholo/gmail behind the deprecated
+// --allow-dotted-tool-names flag.
+func TestValidateToolNames_HeaderPairsExempt(t *testing.T) {
+	dir := t.TempDir()
+	src := `module gmail_tools
+
+export func fetchMail(url: string) -> string ! {NET} {
+  let headers = [
+    { name: "Authorization", value: "Bearer tok" },
+    { name: "Content-Type", value: "application/json" }
+  ] in
+  httpRequest(url, headers)
+}
+
+let tools = [
+  {
+    name: "gmail_fetch",
+    description: "Fetch mail",
+    provided_tools: ["gmail_fetch"]
+  }
+]
+`
+	if err := os.WriteFile(filepath.Join(dir, "gmail.ail"), []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	allNames, badName, reason := validateToolNames(dir)
+	if badName != "" {
+		t.Fatalf("header names must not block publish: bad=%q reason=%q", badName, reason)
+	}
+	for _, want := range []string{"gmail_fetch"} {
+		found := false
+		for _, n := range allNames {
+			if n == want {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("expected %q in scanned names, got %v", want, allNames)
+		}
+	}
+	for _, banned := range []string{"Authorization", "Content-Type"} {
+		for _, n := range allNames {
+			if n == banned {
+				t.Errorf("header name %q must not be scanned as a tool name, got %v", banned, allNames)
+			}
+		}
+	}
+}
+
+// The exemption must not open the gate: a genuinely bad TOOL name is still
+// rejected even when a header pair appears elsewhere in the file.
+func TestValidateToolNames_HeaderExemptionDoesNotMaskBadTools(t *testing.T) {
+	dir := t.TempDir()
+	src := `module mixed
+
+let headers = [
+  { name: "Authorization", value: "Bearer tok" }
+]
+let tools = [
+  {
+    name: "bad-name",
+    description: "still a tool"
+  }
+]
+`
+	if err := os.WriteFile(filepath.Join(dir, "mixed.ail"), []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, badName, reason := validateToolNames(dir)
+	if badName != "bad-name" {
+		t.Fatalf("bad tool name must still be rejected, got bad=%q reason=%q", badName, reason)
+	}
+}

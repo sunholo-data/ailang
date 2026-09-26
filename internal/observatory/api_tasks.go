@@ -2,6 +2,7 @@ package observatory
 
 import (
 	"encoding/json"
+	"github.com/sunholo-data/ailang/internal/httpjson"
 	"net/http"
 	"strconv"
 )
@@ -27,23 +28,23 @@ func (a *API) handleListTasks(w http.ResponseWriter, r *http.Request) {
 
 	tasks, err := a.backend.ListTasks(r.Context(), opts)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		httpjson.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, tasks)
+	httpjson.Write(w, http.StatusOK, tasks)
 }
 
 func (a *API) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 	var task Task
 	if err := json.NewDecoder(r.Body).Decode(&task); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
+		httpjson.Error(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
 		return
 	}
 	if err := a.backend.CreateTask(r.Context(), &task); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		httpjson.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusCreated, task)
+	httpjson.Write(w, http.StatusCreated, task)
 }
 
 func (a *API) handleGetTask(w http.ResponseWriter, r *http.Request) {
@@ -51,34 +52,34 @@ func (a *API) handleGetTask(w http.ResponseWriter, r *http.Request) {
 	task, err := a.backend.GetTask(r.Context(), id)
 	if err != nil {
 		if isNotFoundError(err) {
-			writeError(w, http.StatusNotFound, "task not found: "+id)
+			httpjson.Error(w, http.StatusNotFound, "task not found: "+id)
 		} else {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			httpjson.Error(w, http.StatusInternalServerError, err.Error())
 		}
 		return
 	}
-	writeJSON(w, http.StatusOK, task)
+	httpjson.Write(w, http.StatusOK, task)
 }
 
 func (a *API) handleUpdateTask(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	var task Task
 	if err := json.NewDecoder(r.Body).Decode(&task); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
+		httpjson.Error(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
 		return
 	}
 	task.ID = id
 	if err := a.backend.UpdateTask(r.Context(), &task); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		httpjson.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, task)
+	httpjson.Write(w, http.StatusOK, task)
 }
 
 func (a *API) handleDeleteTask(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if err := a.backend.DeleteTask(r.Context(), id); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		httpjson.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

@@ -3,14 +3,15 @@ package effects
 import (
 	"bufio"
 	"context"
+	"crypto/tls"
 	"io"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
-	"strconv"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/eval"
 	"github.com/sunholo-data/ailang/internal/trace"
 )
@@ -86,6 +87,14 @@ type EffContext struct {
 	// SpanWrapper wraps each effect operation with an OTEL span (nil = no tracing).
 	GoCtx       context.Context
 	SpanWrapper SpanWrapperFunc
+
+	// M-EXECUTOR-POLICY-HARDENING M1: the ONE confined filesystem root for
+	// Env.Sandbox, opened once and shared by every derived context (pointer
+	// copied by WithBudget/Clone); the owner closes it via CloseFSRoot.
+	fsRoot *fsRootHolder
+	// M-EXECUTOR-POLICY-HARDENING M4: the run's operator budget — one shared
+	// ceiling, independent of the per-invocation frames; nil = none.
+	operatorBudget *OperatorBudget
 }
 
 // BeginBudgetChargeScope marks the start of a single logical effect op that has
@@ -144,6 +153,18 @@ type EffEnv struct {
 	TZ      string // TZ for deterministic time operations
 	Locale  string // LANG for deterministic string operations
 	Sandbox string // Root directory for FS operations (empty = no sandbox)
+	// FSMaxBytes caps every FS read; 0 = unbounded (the CLI default).
+	// serve-api sets it to its upload cap (M-V1-MEMORY-FOOTPRINT M3, D-C).
+	FSMaxBytes int64
+	// ProtectGitDir (restricted policy mode, M-EXECUTOR-POLICY-HARDENING M6):
+	// any path with a `.git` component is read-only to every mutating FS
+	// op, so the repo config the confined git adapter trusts stays the
+	// launcher's.
+	ProtectGitDir bool
+	// DenyWrite (M7): operator-protected patterns inside the sandbox,
+	// relative to its root — a glob for one path or "<dir>/**" for a
+	// subtree. Mutating FS ops on a matching path fail E_FS_PROTECTED.
+	DenyWrite []string
 }
 
 // ClockContext provides monotonic time for Clock effect
@@ -199,6 +220,13 @@ type NetContext struct {
 	AllowMetadata  bool          // Allow cloud metadata server at 169.254.169.254 (default: false)
 	AllowedDomains []string      // Domain allowlist (empty = all allowed)
 	UserAgent      string        // User-Agent header
+	// RefuseProxy (restricted policy mode, M-EXECUTOR-POLICY-HARDENING): a
+	// proxy selected for a request is a named refusal, never a direct
+	// fallback — the destination address cannot be pinned behind a proxy.
+	RefuseProxy bool
+	// SensitiveHeaders are stripped on a cross-origin redirect in addition
+	// to Authorization, Cookie and Proxy-Authorization (operator-designated).
+	SensitiveHeaders []string
 
 	// The following hooks are unexported and nil in production. They let
 	// package-internal tests inject resolver/dial/proxy-selection behavior so
@@ -210,6 +238,9 @@ type NetContext struct {
 	lookupIP      func(hostname string) ([]net.IP, error)
 	dialContext   func(ctx context.Context, network, addr string) (net.Conn, error)
 	proxySelector func(req *http.Request) (*url.URL, error)
+	// tlsClientConfig lets a test trust an httptest TLS certificate; nil in
+	// production (system roots, ServerName from the URL).
+	tlsClientConfig *tls.Config
 }
 
 // NewNetContext creates a new net context with secure defaults
@@ -269,6 +300,7 @@ func NewEffContext(args []string) *EffContext {
 		EnvAllowlist: nil, // nil = allow all (no restrictions by default)
 		Args:         args,
 		BudgetFrames: NewBudgetFrameStack(), // M-BUDGET-SCOPING-BUG: per-execution frame stack
+		fsRoot:       &fsRootHolder{},       // M-EXECUTOR-POLICY-HARDENING M1: shared sandbox root
 	}
 	// Debug is a ghost effect — always available, no explicit --caps needed
 	ctx.Grant(NewCapability("Debug"))
@@ -370,6 +402,13 @@ func (ctx *EffContext) RequireCapWithBudget(name, position string) error {
 		return nil
 	}
 
+	// M-EXECUTOR-POLICY-HARDENING M4: the operator ceiling is charged first,
+	// once per logical op, whatever --no-budgets or the frames say. A denial
+	// here happens BEFORE the operation and its side effect.
+	if err := ctx.operatorBudget.Charge(name, position); err != nil {
+		return err
+	}
+
 	// M-BUDGET-SCOPING-BUG: enforcement lives in the per-invocation frame stack.
 	// The LIMIT check is applied against every active frame via the bubbling
 	// charge rule. Physical usage stays tracked on ctx.Budget for --emit-trace
@@ -446,16 +485,18 @@ func (ctx *EffContext) WithBudget(budget *BudgetContext) *EffContext {
 		EnvSnapshot:    ctx.EnvSnapshot,
 		EnvAllowlist:   ctx.EnvAllowlist,
 		Args:           ctx.Args,
-		Trace:          ctx.Trace,       // Preserve trace collector across budget scopes (M-TRACE-EXPORT)
-		IOWriter:       ctx.IOWriter,    // Preserve IO writer across budget scopes
-		IOReader:       ctx.IOReader,    // Preserve IO reader across budget scopes
-		stdinReader:    ctx.stdinReader, // Share persistent buffered reader across scopes
-		FnCaller:       ctx.FnCaller,    // Preserve function caller across budget scopes (M-STREAM-BIDI)
-		FnCallerN:      ctx.FnCallerN,   // Preserve multi-arg function caller across budget scopes (M-ITERATIVE-LIST)
-		GoCtx:          ctx.GoCtx,       // Preserve OTEL trace context across budget scopes
-		SpanWrapper:    ctx.SpanWrapper, // Preserve OTEL span wrapper across budget scopes
-		randMode:       ctx.randMode,    // M-EFFECT-REPLAY-CONTRACTS: SHARE Rand-mode state across budget scopes (same execution)
-		seedSet:        ctx.seedSet,     // M-EFFECT-REPLAY-CONTRACTS: preserve AILANG_SEED presence
+		Trace:          ctx.Trace,          // Preserve trace collector across budget scopes (M-TRACE-EXPORT)
+		IOWriter:       ctx.IOWriter,       // Preserve IO writer across budget scopes
+		IOReader:       ctx.IOReader,       // Preserve IO reader across budget scopes
+		stdinReader:    ctx.stdinReader,    // Share persistent buffered reader across scopes
+		FnCaller:       ctx.FnCaller,       // Preserve function caller across budget scopes (M-STREAM-BIDI)
+		FnCallerN:      ctx.FnCallerN,      // Preserve multi-arg function caller across budget scopes (M-ITERATIVE-LIST)
+		GoCtx:          ctx.GoCtx,          // Preserve OTEL trace context across budget scopes
+		SpanWrapper:    ctx.SpanWrapper,    // Preserve OTEL span wrapper across budget scopes
+		randMode:       ctx.randMode,       // M-EFFECT-REPLAY-CONTRACTS: SHARE Rand-mode state across budget scopes (same execution)
+		seedSet:        ctx.seedSet,        // M-EFFECT-REPLAY-CONTRACTS: preserve AILANG_SEED presence
+		fsRoot:         ctx.fsRoot,         // M-EXECUTOR-POLICY-HARDENING M1: SHARE the sandbox root (owner closes)
+		operatorBudget: ctx.operatorBudget, // M-EXECUTOR-POLICY-HARDENING M4: SHARE the run ceiling
 	}
 }
 
@@ -508,27 +549,17 @@ func (ctx *EffContext) PopBudgetFrame(fnName string, bodyErr error) error {
 func loadEffEnv() (EffEnv, bool) {
 	seed := int64(0)
 	seedSet := false
-	if seedStr := os.Getenv("AILANG_SEED"); seedStr != "" {
-		if s, err := strconv.ParseInt(seedStr, 10, 64); err == nil {
-			seed = s
-			seedSet = true // M-EFFECT-REPLAY-CONTRACTS: AILANG_SEED present → seeded mode may draw
-		}
+	if s, ok := config.Seed(); ok {
+		seed = s
+		seedSet = true // M-EFFECT-REPLAY-CONTRACTS: AILANG_SEED present → seeded mode may draw
 	}
 
 	return EffEnv{
 		Seed:    seed,
-		TZ:      getEnv("TZ", "UTC"),
-		Locale:  getEnv("LANG", "C"),
-		Sandbox: os.Getenv("AILANG_FS_SANDBOX"),
+		TZ:      config.TZ(),
+		Locale:  config.Locale(),
+		Sandbox: config.FSSandbox(),
 	}, seedSet
-}
-
-// getEnv gets an environment variable with a default fallback
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
 }
 
 // captureEnvSnapshot creates an immutable snapshot of environment variables
@@ -670,6 +701,12 @@ func (ctx *EffContext) GetIOReader() *bufio.Reader {
 func (ctx *EffContext) Clone() interface{} {
 	clone := *ctx // shallow copy of config + shared references
 	clone.randMode = nil
+	// Debug output is per request: a shared accumulator interleaved every
+	// concurrent request's lines and was flushed by whichever finished first
+	// (M-V1-MEMORY-FOOTPRINT F6). The clone inherits the sink, not the buffer.
+	if ctx.Debug != nil {
+		clone.Debug = ctx.Debug.Fresh()
+	}
 	return &clone
 }
 
@@ -687,6 +724,40 @@ func (ctx *EffContext) SetFnCallerN(fn func(eval.Value, []eval.Value) (eval.Valu
 
 func (ctx *EffContext) HasTraceCollector() bool {
 	return ctx.Trace != nil && ctx.Trace.Enabled()
+}
+
+// RecordsFunctionCalls reports whether the active collector's tier admits
+// per-call function events.
+//
+// The evaluator consults this BEFORE rendering arguments (M-TRACE-TIER-NOT-ENFORCED):
+// rendering a String() per argument per call is where the superlinear memory cost
+// is paid, so discovering inside the collector that the event is unwanted would be
+// too late.
+func (ctx *EffContext) RecordsFunctionCalls() bool {
+	return ctx.Trace != nil && ctx.Trace.Enabled() && ctx.Trace.RecordsFunctionCalls()
+}
+
+// RenderTraceValue renders a value for the trace under the collector's value
+// policy: bounded to the per-value budget, or a byte-count descriptor in
+// redacted mode. The whole value is never materialised (M-V1-MEMORY-FOOTPRINT
+// M1) — this is the render every trace site must use in place of v.String().
+// With no collector it renders unbounded, which callers never reach because
+// they gate on HasTraceCollector first.
+func (ctx *EffContext) RenderTraceValue(v eval.Value) string {
+	if v == nil {
+		return ""
+	}
+	if ctx.Trace == nil {
+		return eval.ShowTraceBounded(v, 0)
+	}
+	budget, redacted := ctx.Trace.ValueBudget()
+	if redacted {
+		return trace.RedactedDescriptor(eval.RenderedLen(v))
+	}
+	// Credentials are withheld at every tier (M-SERVEAPI-WS-BRIDGE G7):
+	// this is the one renderer effect, builtin and function-call trace
+	// sites share.
+	return eval.ShowTraceBounded(v, budget)
 }
 
 // RecordFunctionEnter delegates to trace collector if present.

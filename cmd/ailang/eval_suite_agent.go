@@ -13,9 +13,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/sunholo-data/ailang/internal/agentprompt"
-	"github.com/sunholo-data/ailang/internal/devtoolsprompt"
 	"github.com/sunholo-data/ailang/internal/eval_harness"
+	"github.com/sunholo-data/ailang/internal/prompt"
 )
 
 // agentSuiteConfigParams is the resolved flag set the agent config derives from.
@@ -27,6 +26,8 @@ type agentSuiteConfigParams struct {
 	requestsPerSecond  int
 	timeoutSeconds     int
 	maxTokensPerBench  int
+	toolPolicy         string
+	policyFile         string
 	verify             bool
 	verifyTimeout      time.Duration
 	browserProvider    string
@@ -74,6 +75,8 @@ func buildAgentSuiteConfig(agent bool, p agentSuiteConfigParams) *eval_harness.A
 
 	return &eval_harness.AgentBenchmarkConfig{
 		MaxTokensPerBench:  p.maxTokensPerBench,
+		ToolPolicy:         p.toolPolicy,
+		PolicyPath:         p.policyFile,
 		RequestsPerSecond:  p.requestsPerSecond,
 		TimeoutSeconds:     p.timeoutSeconds,
 		WorkspaceDir:       filepath.Join(os.TempDir(), "ailang_eval"),
@@ -109,7 +112,7 @@ func loadDevtoolsPrompt(conditions []string) string {
 	if !need {
 		return ""
 	}
-	content, err := devtoolsprompt.LoadPrompt("v0.8.0-compact")
+	content, err := prompt.DevTools.LoadPrompt("v0.8.0-compact")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s Failed to load devtools prompt: %v\n", yellow("⚠️"), err)
 		return ""
@@ -124,7 +127,7 @@ func loadAgentCodingPrompt(conditions []string) string {
 		if c != "agent_prompt" {
 			continue
 		}
-		content, err := agentprompt.LoadPrompt("latest")
+		content, err := prompt.Agent.LoadPrompt("latest")
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s Failed to load agent prompt: %v\n", yellow("⚠️"), err)
 			return ""

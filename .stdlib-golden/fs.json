@@ -35,6 +35,14 @@
       "pure": true
     },
     {
+      "name": "glob",
+      "type": "(string,string)-\u003elist[string]!{FS}",
+      "effects": [
+        "FS"
+      ],
+      "pure": true
+    },
+    {
       "name": "isDir",
       "type": "(string)-\u003ebool!{FS}",
       "effects": [
@@ -83,6 +91,14 @@
       "pure": true
     },
     {
+      "name": "mkdirResult",
+      "type": "(string)-\u003eResult[(),string]!{FS}",
+      "effects": [
+        "FS"
+      ],
+      "pure": true
+    },
+    {
       "name": "readFile",
       "type": "(string)-\u003estring!{FS}",
       "effects": [
@@ -107,6 +123,14 @@
       "pure": true
     },
     {
+      "name": "removeDirResult",
+      "type": "(string)-\u003eResult[(),string]!{FS}",
+      "effects": [
+        "FS"
+      ],
+      "pure": true
+    },
+    {
       "name": "removeFile",
       "type": "(string)-\u003e()!{FS}",
       "effects": [
@@ -117,6 +141,30 @@
     {
       "name": "removeFileResult",
       "type": "(string)-\u003eResult[(),string]!{FS}",
+      "effects": [
+        "FS"
+      ],
+      "pure": true
+    },
+    {
+      "name": "renameFile",
+      "type": "(string,string)-\u003e()!{FS}",
+      "effects": [
+        "FS"
+      ],
+      "pure": true
+    },
+    {
+      "name": "renameFileResult",
+      "type": "(string,string)-\u003eResult[(),string]!{FS}",
+      "effects": [
+        "FS"
+      ],
+      "pure": true
+    },
+    {
+      "name": "walk",
+      "type": "(string)-\u003e[string]!{FS}",
       "effects": [
         "FS"
       ],

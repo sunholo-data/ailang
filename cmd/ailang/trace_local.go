@@ -6,11 +6,12 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/coordinator"
 	"github.com/sunholo-data/ailang/internal/observatory"
+	"github.com/sunholo-data/ailang/internal/statedir"
+	"github.com/sunholo-data/ailang/internal/strutil"
 )
 
 // traceHierarchyCommand shows span hierarchy from the local observatory database
@@ -113,8 +114,11 @@ func traceTaskHierarchyCommand(workspace, taskID string, limit int, jsonOutput b
 	ctx := context.Background()
 
 	// Open coordinator database for tasks
-	homeDir, _ := os.UserHomeDir()
-	coordDBPath := filepath.Join(homeDir, ".ailang", "state", "coordinator.db")
+	coordDBPath, err := statedir.Path("coordinator.db")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error opening coordinator database: %v\n", err)
+		os.Exit(1)
+	}
 	coordStore, err := coordinator.NewSQLiteStore(coordDBPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error opening coordinator database: %v\n", err)
@@ -259,16 +263,12 @@ func traceTaskHierarchyCommand(workspace, taskID string, limit int, jsonOutput b
 	}
 }
 
-// buildSpanHierarchyFromList builds a hierarchy from a flat list of spans
+// buildSpanHierarchyFromList builds a hierarchy from a flat list of spans.
+// Roots and children keep the query's order (the previous linker walked a
+// map, so the printed order changed from run to run).
 func buildSpanHierarchyFromList(spans []*observatory.Span) []*observatory.SpanHierarchyNode {
-	if len(spans) == 0 {
-		return nil
-	}
-
-	// Build node map
-	nodeMap := make(map[string]*observatory.SpanHierarchyNode)
-	for _, span := range spans {
-		nodeMap[span.ID] = &observatory.SpanHierarchyNode{
+	roots, _ := observatory.LinkSpans(spans, func(span *observatory.Span) *observatory.SpanHierarchyNode {
+		return &observatory.SpanHierarchyNode{
 			ID:         span.ID,
 			ParentID:   span.ParentSpanID,
 			Name:       span.Name,
@@ -278,41 +278,11 @@ func buildSpanHierarchyFromList(spans []*observatory.Span) []*observatory.SpanHi
 			TokensOut:  span.TokensOut,
 			Status:     span.Status,
 			Provider:   span.Provider,
-			NodeType:   classifySpanType(span.Name),
+			NodeType:   observatory.ClassifySpanNodeType(span.Name),
 			Children:   []*observatory.SpanHierarchyNode{},
 		}
-	}
-
-	// Build parent-child relationships
-	var roots []*observatory.SpanHierarchyNode
-	for _, node := range nodeMap {
-		if node.ParentID == "" {
-			roots = append(roots, node)
-		} else if parent, ok := nodeMap[node.ParentID]; ok {
-			parent.Children = append(parent.Children, node)
-		} else {
-			// Parent not in our set, treat as root
-			roots = append(roots, node)
-		}
-	}
-
+	}, func(p, c *observatory.SpanHierarchyNode) { p.Children = append(p.Children, c) })
 	return roots
-}
-
-// classifySpanType determines the node type from span name
-func classifySpanType(name string) observatory.SpanHierarchyNodeType {
-	switch {
-	case strings.Contains(name, "coordinator"):
-		return observatory.NodeTypeCoordinator
-	case strings.Contains(name, "execute") || strings.Contains(name, "claude") || strings.Contains(name, "gemini"):
-		return observatory.NodeTypeExecutor
-	case strings.Contains(name, "turn"):
-		return observatory.NodeTypeTurn
-	case strings.Contains(name, "tool"):
-		return observatory.NodeTypeTool
-	default:
-		return observatory.NodeTypeOther
-	}
 }
 
 // printUnifiedTask prints a task with its spans in tree format
@@ -361,7 +331,7 @@ func printUnifiedTask(u *unifiedTaskSpan, prefix string) {
 
 	// Print title if different from ID
 	if task.Title != "" && task.Title != task.ID {
-		fmt.Printf("%s  Title: %s\n", prefix, truncateString(task.Title, 60))
+		fmt.Printf("%s  Title: %s\n", prefix, strutil.Truncate(task.Title, 60))
 	}
 
 	// Print spans

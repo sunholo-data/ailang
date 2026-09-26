@@ -18,7 +18,7 @@ func chainsChatCommand() {
 	compact := fs.Bool("compact", false, "Compact one-line-per-turn view")
 	jsonOutput := fs.Bool("json", false, "Output as JSON")
 	limit := fs.Int("limit", 0, "Limit number of turns shown")
-	remote := fs.String("remote", "", "Read from this observatory storage mode (gcp). Default: $AILANG_CHAINS_READ")
+	remote := fs.String("remote", "", "Read from this observatory storage mode (gcp). Default: the plane's observatory store ($AILANG_STORAGE_OBSERVATORY, else $AILANG_STORAGE)")
 	fs.Parse(flag.Args()[2:])
 
 	if fs.NArg() < 1 {

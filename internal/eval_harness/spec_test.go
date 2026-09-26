@@ -66,6 +66,54 @@ prompt: "Test"
 	}
 }
 
+// TestRequiresAgentWorkspace pins the mode-compatibility predicate
+// (M-EVAL-STANDARD-MODE-INPUT-FILES-GAP): a benchmark requires an agent
+// workspace iff it sets grade_entrypoint. Covered via direct struct literals
+// AND the real specs — the two benchmarks that carry grade_entrypoint
+// (markdown_reimplement, docx_reimplement) must keep reporting true (that is
+// what keeps them out of standard mode), and a real benchmark without one must
+// stay standard-mode eligible.
+func TestRequiresAgentWorkspace(t *testing.T) {
+	if (&BenchmarkSpec{}).RequiresAgentWorkspace() {
+		t.Error("empty spec: RequiresAgentWorkspace() = true, want false")
+	}
+	if (&BenchmarkSpec{SolutionFiles: []string{"docparse/services/parser.ail"}}).RequiresAgentWorkspace() {
+		t.Error("solution_files without grade_entrypoint: RequiresAgentWorkspace() = true, want false")
+	}
+	if !(&BenchmarkSpec{GradeEntrypoint: "main.ail"}).RequiresAgentWorkspace() {
+		t.Error("grade_entrypoint set: RequiresAgentWorkspace() = false, want true")
+	}
+
+	for _, id := range []string{"markdown_reimplement", "docx_reimplement"} {
+		specPath := filepath.Join("..", "..", "benchmarks", id+".yml")
+		if _, err := os.Stat(specPath); err != nil {
+			t.Skipf("%s not present (%v); skipping real-spec cases", specPath, err)
+		}
+		spec, err := LoadSpec(specPath)
+		if err != nil {
+			t.Fatalf("%s: LoadSpec failed: %v", id, err)
+		}
+		if spec.GradeEntrypoint == "" {
+			t.Fatalf("%s: fixture drift — expected grade_entrypoint to be set", id)
+		}
+		if !spec.RequiresAgentWorkspace() {
+			t.Errorf("%s: RequiresAgentWorkspace() = false, want true (grade_entrypoint implies agent-mode-only)", id)
+		}
+	}
+
+	noGradePath := filepath.Join("..", "..", "benchmarks", "fizzbuzz.yml")
+	if _, err := os.Stat(noGradePath); err != nil {
+		t.Skipf("fizzbuzz.yml not present (%v); skipping real-spec negative case", err)
+	}
+	noGrade, err := LoadSpec(noGradePath)
+	if err != nil {
+		t.Fatalf("fizzbuzz: LoadSpec failed: %v", err)
+	}
+	if noGrade.RequiresAgentWorkspace() {
+		t.Errorf("fizzbuzz: RequiresAgentWorkspace() = true, want false (no grade_entrypoint)")
+	}
+}
+
 func TestSupportsLanguage(t *testing.T) {
 	spec := &BenchmarkSpec{
 		ID:        "test",

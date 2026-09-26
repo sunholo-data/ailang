@@ -7,16 +7,35 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/executor"
 	"github.com/sunholo-data/ailang/internal/observatory"
 	"github.com/sunholo-data/ailang/internal/pubsub"
 	"github.com/sunholo-data/ailang/internal/websocket"
 )
 
-// CoordinatorMode determines how the coordinator receives messages and broadcasts events.
+// shouldRecoverStaleTasksOnStartup reports whether startup recovery — which
+// cancels in-flight tasks — is safe for this mode.
+//
+// Only local. In cloud mode the executor is a separate Cloud Run Job that
+// outlives the coordinator, so a daemon restart says nothing about whether the
+// task is alive (M-COORDINATOR-EXECUTION-TRUST M7, V36).
+//
+// An unset or unrecognised mode recovers, like local: local is the documented
+// default, and the asymmetry favours it — recovering when you should not have
+// merely re-runs a task, while failing to recover a genuinely dead local task
+// leaves it running forever.
+func shouldRecoverStaleTasksOnStartup(mode string) bool {
+	return mode != CoordinatorModeCloud
+}
+
+// CoordinatorMode determines how the coordinator receives messages, broadcasts
+// events and runs work. The values are config's; COORDINATOR_MODE is read and
+// validated against the storage plane there (config.CoordinatorMode), and
+// this package asks IsCloudMode.
 const (
-	CoordinatorModeLocal = "local" // Default: SQLite polling + HTTP broadcaster
-	CoordinatorModeCloud = "cloud" // Pub/Sub subscriptions + Pub/Sub broadcaster
+	CoordinatorModeLocal = config.CoordinatorModeLocal // Default: SQLite polling + HTTP broadcaster + worktrees on this host
+	CoordinatorModeCloud = config.CoordinatorModeCloud // Pub/Sub push + Pub/Sub broadcaster + Cloud Run Jobs
 )
 
 // stageToAgentID maps task stages to agent IDs for config lookup.
@@ -68,9 +87,12 @@ func (d *Daemon) initTaskProcessing() error {
 	// carried the context never existed. On the shared plane the publisher is
 	// REQUIRED; failing to build it fails init (and, per M1, the daemon).
 	// Pure-local single-machine setups keep no publisher and are unaffected.
-	// (AILANG_STORAGE read directly: internal/storage imports this package, so
-	// the mode helper would be an import cycle. gcp|hybrid = shared plane.)
-	if sm := os.Getenv("AILANG_STORAGE"); (sm == "gcp" || sm == "hybrid") && d.pubsubClient == nil {
+	// gcp|hybrid = the shared plane, resolved by the one plane switch.
+	plane, err := config.StoragePlane()
+	if err != nil {
+		return err
+	}
+	if plane.Shared() && d.pubsubClient == nil {
 		if err := d.initPubSub(d.ctx); err != nil {
 			return fmt.Errorf("shared-plane coordinator needs a Pub/Sub publisher (approvals would be silent): %w", err)
 		}
@@ -96,6 +118,10 @@ func (d *Daemon) initTaskProcessing() error {
 			d.logger.Printf("Warning: Failed to register pipeline agent %q: %v", agent.ID, regErr)
 		}
 	}
+	// M-PKG-QUALITY-LADDER M6: derive a per-package agent for every published
+	// package the config does not name, from `package_agent_template` (if any).
+	d.agentRegistry.SetPackageAgentTemplate(coordConfig.PackageAgentTemplate)
+	d.refreshPackageAgents()
 	if len(expandedAgents) > 0 {
 		d.logger.Printf("Pipeline expansion: %d agent(s) from %d pipeline(s)", len(expandedAgents), len(coordConfig.Pipelines))
 	}
@@ -106,6 +132,18 @@ func (d *Daemon) initTaskProcessing() error {
 
 	d.logger.Printf("Agent registry initialized with %d agent(s): %v",
 		d.agentRegistry.Count(), d.agentRegistry.ListInboxes())
+
+	// A `provider:` that contradicts its image is a CONFIG error, reported once
+	// at startup for the whole fleet — not a runtime refusal discovered one
+	// agent at a time when a task happens to be aimed at it. Two pipeline stages
+	// sat undispatchable and nothing said so until a task retried against one
+	// every five minutes for half an hour.
+	if declErrs := ValidateAgentProviders(d.agentRegistry.ListAgents()); len(declErrs) > 0 {
+		d.logger.Printf("CONFIG ERROR: %d agent(s) declare a provider their image cannot run:", len(declErrs))
+		for _, err := range declErrs {
+			d.logger.Printf("  %v", err)
+		}
+	}
 	if len(coordConfig.TriageOnlyInboxes) > 0 {
 		d.logger.Printf("Human-triage inboxes (no agent by design): %v", coordConfig.TriageOnlyInboxes)
 	}
@@ -122,7 +160,10 @@ func (d *Daemon) initTaskProcessing() error {
 	d.inboxAdapters = make(map[string]*InboxMessageAdapter)
 	d.worktreeManagers = make(map[string]*WorktreeManager)
 
-	mode := os.Getenv("COORDINATOR_MODE")
+	mode, _, err := config.CoordinatorMode()
+	if err != nil {
+		return err
+	}
 	if mode == CoordinatorModeCloud {
 		// Cloud mode requires pre-set message store (Firestore via SetStores).
 		if d.msgStore == nil {
@@ -305,9 +346,28 @@ func (d *Daemon) initTaskProcessing() error {
 		d.observatorySync = NewObservatorySync(d.obsBackend, d.logger)
 	}
 
-	// Recover stale tasks from previous daemon runs
-	// Tasks that were running/queued when daemon crashed are marked cancelled
-	if d.taskStore != nil {
+	// Recover stale tasks from previous daemon runs — LOCAL MODE ONLY.
+	//
+	// M-COORDINATOR-EXECUTION-TRUST M7 (design doc V36). This marks every
+	// running/queued task older than the threshold "cancelled" on startup. Its
+	// premise is "the daemon restarted, so anything still running must be dead",
+	// which holds in local mode where the daemon owns the worker process — and is
+	// FALSE in cloud mode, where the executor is a separate Cloud Run Job whose
+	// lifecycle is independent of the coordinator's.
+	//
+	// The cloud coordinator scales to zero, so every cold start was cancelling
+	// live work. Measured in prod 2026-09-02: task-c8126248 dispatched at
+	// 12:33:57, the coordinator scaled to zero at 12:49:05, the job finished and
+	// opened PR #56 at 12:50:40, a new instance cold-started and cancelled the
+	// task at 12:50:45, and the real completion was discarded one second later
+	// with "already in terminal state cancelled, skipping". The work succeeded
+	// and nobody was told.
+	//
+	// The split was already documented on StaleTaskDetector ("Only runs in cloud
+	// mode ... Local mode uses RecoverStaleTasks at startup instead") — nothing
+	// enforced it. In cloud mode the stale-task detector owns this, and it ages
+	// tasks from their own timeout rather than from the daemon's lifetime.
+	if d.taskStore != nil && shouldRecoverStaleTasksOnStartup(mode) {
 		staleThreshold := 5 * time.Minute // Tasks idle for >5 min are considered stale
 		recovered, err := d.taskStore.RecoverStaleTasks(d.ctx, staleThreshold)
 		if err != nil {
@@ -342,38 +402,25 @@ func (d *Daemon) initHTTPBroadcaster() error {
 	return nil
 }
 
-// initEventBroadcaster initializes the event broadcaster based on COORDINATOR_MODE.
-// In cloud mode, events are published to Pub/Sub. In local mode (default),
-// events are sent to the Collaboration Hub server via HTTP.
+// initEventBroadcaster initializes the event broadcaster for the coordinator
+// mode. In cloud mode, events are published to Pub/Sub. In local mode
+// (default), events are sent to the Collaboration Hub server via HTTP.
 func (d *Daemon) initEventBroadcaster() error {
-	mode := os.Getenv("COORDINATOR_MODE")
-	if mode == "" {
-		mode = CoordinatorModeLocal
-	}
-
-	switch mode {
-	case CoordinatorModeCloud:
+	if IsCloudMode() {
 		return d.initPubSubBroadcaster()
-	default:
-		return d.initHTTPBroadcaster()
 	}
+	return d.initHTTPBroadcaster()
 }
 
 // initPubSub initializes the Pub/Sub client, publisher, and subscriber.
 // Called when COORDINATOR_MODE=cloud.
 func (d *Daemon) initPubSub(ctx context.Context) error {
-	projectID := os.Getenv("AILANG_CLOUD_PROJECT")
-	if projectID == "" {
-		projectID = os.Getenv("GOOGLE_CLOUD_PROJECT")
-	}
-	if projectID == "" {
-		return fmt.Errorf("AILANG_CLOUD_PROJECT or GOOGLE_CLOUD_PROJECT must be set for cloud mode")
+	projectID, err := config.CloudProject(ctx)
+	if err != nil {
+		return fmt.Errorf("cloud mode: %w", err)
 	}
 
-	prefix := os.Getenv("AILANG_TOPIC_PREFIX")
-	if prefix == "" {
-		prefix = pubsub.DefaultTopicPrefix
-	}
+	prefix := pubsub.TopicPrefixFromEnv()
 
 	client, err := pubsub.NewClient(ctx, projectID, prefix)
 	if err != nil {
@@ -387,6 +434,16 @@ func (d *Daemon) initPubSub(ctx context.Context) error {
 	return nil
 }
 
+// EnvWorkspace names the workspace a cloud process partitions its data under:
+// the Pub/Sub broadcaster's event workspace here, and the execute-job's
+// completion workspace in cmd/ailang. DeprecatedWorkspaceDefault is the value
+// both silently assumed before M-V1-SIMPLIFY-S4 M1; it is now served only
+// through config.DeprecatedDefault.
+const (
+	EnvWorkspace               = config.EnvWorkspace
+	DeprecatedWorkspaceDefault = "default"
+)
+
 // initPubSubBroadcaster initializes the Pub/Sub event broadcaster.
 func (d *Daemon) initPubSubBroadcaster() error {
 	if d.pubsubPublisher == nil {
@@ -396,9 +453,16 @@ func (d *Daemon) initPubSubBroadcaster() error {
 		}
 	}
 
-	workspace := os.Getenv("AILANG_WORKSPACE")
+	// The workspace partitions every event this daemon broadcasts; a silent
+	// "default" put a mis-deployed daemon's events in a partition nobody
+	// watched. Deprecated default under D3 (M-V1-SIMPLIFY-S4 M1): warned once,
+	// refused under AILANG_STRICT_CONFIG=1.
+	workspace := config.Workspace()
 	if workspace == "" {
-		workspace = "default"
+		var err error
+		if workspace, err = config.DeprecatedDefault(EnvWorkspace, DeprecatedWorkspaceDefault); err != nil {
+			return fmt.Errorf("pubsub broadcaster: %w", err)
+		}
 	}
 
 	broadcaster := NewPubSubBroadcaster(d.pubsubPublisher, workspace, d.logger)

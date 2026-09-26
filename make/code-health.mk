@@ -2,8 +2,11 @@
 # CODE HEALTH & ORGANIZATION TARGETS
 # =============================================================================
 
-.PHONY: check-file-sizes report-file-sizes codebase-health largest-files check-pi-wire-budget check-prompt-freeze
-.PHONY: fmt fmt-check fmt-check-ail vet lint install-lint
+.PHONY: check-file-sizes report-file-sizes codebase-health largest-files check-pi-wire-budget check-prompt-freeze check-prompt-commands check-referenced-paths check-architecture-closure gen-architecture-closure simplicity-metrics simplicity-metrics-fast simplicity-audit simplicity-audit-fast perf-sweep perf-sweep-quick perf-sweep-control docs-cli check-cli-docs
+.PHONY: fmt fmt-check fmt-check-ail shellcheck-autopush vet lint install-lint
+
+check-referenced-paths: ## Check that referenced tools/scripts paths exist and are tracked
+	@bash scripts/check_referenced_paths.sh
 
 # Code formatting
 fmt: ## Format all Go code
@@ -13,12 +16,29 @@ fmt: ## Format all Go code
 
 fmt-check: ## Check code formatting (CI gate)
 	@echo "Checking code formatting..."
-	@if [ -n "$$(gofmt -l .)" ]; then \
+	@err_file=$$(mktemp "$$PWD/.tmp-fmt-check.XXXXXX") || exit 1; \
+	trap 'rm -f "$$err_file"' EXIT HUP INT TERM; \
+	output=$$(gofmt -l . 2>"$$err_file"); rc=$$?; \
+	if [ "$$rc" -ne 0 ]; then \
+		cat "$$err_file"; \
+		echo "$(RED)$(CROSS) gofmt failed; fix invalid Go syntax before formatting$(RESET)"; \
+		exit 1; \
+	fi; \
+	if [ -n "$$output" ]; then \
 		echo "$(RED)$(CROSS) Go code is not formatted. Run 'make fmt'$(RESET)"; \
-		gofmt -l .; \
+		printf '%s\n' "$$output"; \
 		exit 1; \
 	fi
 	@echo "$(GREEN)$(CHECKMARK) Code formatting check passed$(RESET)"
+
+AUTOPUSH_SHELL_SCRIPTS := scripts/hooks/push_dev_on_stop.sh scripts/hooks/test_push_dev_on_stop.sh
+
+shellcheck-autopush: ## ShellCheck the production auto-push hook and its harness
+	@if ! command -v shellcheck >/dev/null 2>&1; then \
+		echo "$(RED)$(CROSS) shellcheck is required for the auto-push integrity gate$(RESET)"; \
+		exit 1; \
+	fi
+	@shellcheck $(AUTOPUSH_SHELL_SCRIPTS)
 
 # AILANG canonical-form drift check (opt-in, standalone — NOT wired into `make ci`).
 # Reports `.ail` files under examples/ and std/ that are not in `ailang fmt`
@@ -91,7 +111,7 @@ lint: prepare-embed ## Run linter (bug detectors only)
 		LINT_OUT=""; \
 		trap 'rm -f "$$LINT_RAW" "$$LINT_OUT"' EXIT; \
 		LINT_OUT=$$(mktemp "$${TMPDIR:-/tmp}/ailang-lint-out.XXXXXX") || exit 1; \
-		golangci-lint run ./cmd/... ./internal/... ./serveapi/... ./testutil/... > "$$LINT_RAW" 2>&1; \
+		golangci-lint run ./cmd/... ./internal/... ./serveapi/... > "$$LINT_RAW" 2>&1; \
 		LINT_RC=$$?; \
 		if grep -qE "can't load config|the Go language version" "$$LINT_RAW"; then \
 			echo "$(RED)$(CROSS) golangci-lint config/toolchain error — run 'make install-lint':$(RESET)"; \
@@ -108,7 +128,7 @@ lint: prepare-embed ## Run linter (bug detectors only)
 			grep -v "^\t" | \
 			grep -v "^[[:space:]]*\^" | \
 			tee "$$LINT_OUT"; \
-		if grep -qE "^(internal|cmd|serveapi|testutil)" "$$LINT_OUT"; then \
+		if grep -qE "^(internal|cmd|serveapi)" "$$LINT_OUT"; then \
 			echo "$(RED)$(CROSS) Lint errors found$(RESET)"; \
 			exit 1; \
 		fi; \
@@ -161,6 +181,14 @@ check-file-sizes: ## Check for files >800 lines (CI gate)
 check-boundaries: ## Check architecture layer boundaries (CI gate)
 	@bash scripts/check_boundaries.sh
 
+check-git-exec: ## Refuse bare-name git exec sites outside internal/gitexec (CI gate)
+	@bash scripts/check_git_exec.sh
+
+test-check-git-exec: ## Run the git-exec gate's own self-test (bash 3.2)
+	@/bin/bash scripts/test_check_git_exec.sh
+	@/bin/bash -n scripts/check_git_exec.sh
+	@go test ./tools/check-git-exec/... -count=1
+
 check-protocol-closure: ## Check serveapi protocol/facade build closures (CI gate)
 	@/bin/bash scripts/check_protocol_closure.sh
 
@@ -170,6 +198,20 @@ check-tmpfile-hygiene: ## Refuse fixed /tmp paths in make recipes (CI gate)
 test-check-tmpfile-hygiene: ## Run the tmpfile-hygiene gate's own self-test (bash 3.2)
 	@/bin/bash scripts/test_check_tmpfile_hygiene.sh
 	@/bin/bash -n scripts/check_tmpfile_hygiene.sh
+
+check-home-isolation: ## Refuse bare HOME overrides outside internal/testutil (CI gate)
+	@/bin/bash scripts/check_home_isolation.sh
+
+test-check-home-isolation: ## Run the home-isolation gate's own self-test (bash 3.2)
+	@/bin/bash scripts/test_check_home_isolation.sh
+	@/bin/bash -n scripts/check_home_isolation.sh
+
+check-no-personal-email: ## Refuse a personal email in the loop-written surface (CI gate)
+	@/bin/bash scripts/check_no_personal_email.sh
+
+test-check-no-personal-email: ## Run the personal-email gate's own self-test (bash 3.2)
+	@/bin/bash scripts/test_check_no_personal_email.sh
+	@/bin/bash -n scripts/check_no_personal_email.sh
 
 check-changelog: ## Check root CHANGELOG.md stays an index, not a changelog (CI gate)
 	@bash scripts/check_changelog.sh
@@ -181,8 +223,53 @@ check-autoclose: ## Refuse issue-closing phrases in docs-only commit/PR records 
 check-skills: ## Check .claude/skills/*/SKILL.md have name+description frontmatter (CI gate)
 	@bash scripts/check_skills.sh
 
-check-prompt-freeze: ## Check frozen prompt immutability and mirror agreement (CI gate)
+check-context-docs: ## Check CLAUDE.md/rules/skills respect progressive disclosure (CI gate)
+	@bash scripts/check_context_docs.sh
+
+test-check-context-docs: ## Run the context-doc gate's own self-test (bash 3.2)
+	@/bin/bash scripts/test_check_context_docs.sh
+	@/bin/bash -n scripts/check_context_docs.sh
+
+check-prompt-freeze: ## Check prompt registry integrity (all entries) + frozen immutability (CI gate)
 	@go run ./cmd/ailang prompt freeze --check
+
+# The freeze gate above pins each prompt's SHA256 — it proves the FILE has not
+# changed, and is structurally blind to the BINARY changing underneath it.
+# M-V1-SIMPLIFY-S5 M3 deleted eight `observatory` subcommands and freeze stayed
+# green while `ailang devtools-prompt` went on teaching all eight. This gate
+# pins the prompt's TRUTH: every route it teaches must be one the binary takes.
+check-prompt-commands: ## Every command the devtools prompt teaches must exist in the binary
+	@go build -o bin/ailang ./cmd/ailang
+	@/bin/bash tools/check_prompt_commands.sh bin/ailang
+
+# The CLI reference page is rendered from the dispatch table in
+# cmd/ailang/commands.go — the only place a command name is written down.
+# The renderer and the gate both live in cmd/ailang because the table is
+# `package main` and no other package can read it; `-update-cli-reference`
+# (not `-update`, which internal/parser/testutil.go already registers on
+# flag.CommandLine) turns the gate into the generator.
+docs-cli: ## Regenerate docs/docs/reference/cli.md from the CLI dispatch table
+	@go test ./cmd/ailang -run TestCLIReferenceMatchesTable -count=1 -update-cli-reference
+	@echo "$(GREEN)$(CHECKMARK) docs/docs/reference/cli.md regenerated$(RESET)"
+
+# The gate renders FRESH from the table and compares against the page ON DISK.
+# That direction is the point: a gate pointed at the generated artifact measures
+# the build, not the intent — which is how this sprint's prompt-truth fix passed
+# on a clean checkout and went red after the next build.
+#
+# There is deliberately NO `git diff --exit-code` arm. It was written and
+# removed the same hour: it compares the working tree against the INDEX, so it
+# measures "is the tree clean", not "does the page match the table", and it reds
+# on the correct workflow — edit a Summary, `make docs-cli`, run the gate before
+# committing. In CI the tree is committed, so the on-disk page IS the checked-in
+# page and the Go test is the same comparison without the false positive.
+#
+# TestCLIReferenceCoversEveryRoute is the second arm: the byte-compare alone
+# still passes if the renderer drops a whole section, because the page would
+# drop it too. That one asserts against the TABLE.
+check-cli-docs: ## Every command in the dispatch table appears, correctly, in docs/docs/reference/cli.md
+	@go test ./cmd/ailang -run 'TestCLIReference' -count=1
+	@echo "$(GREEN)$(CHECKMARK) CLI reference matches the dispatch table$(RESET)"
 
 check-pi-wire-budget: ## Assert the output budget pi ACTUALLY sends (real API call; NOT a CI gate)
 	@# Deliberately outside `make ci`: it costs a fraction of a cent, needs
@@ -242,3 +329,31 @@ largest-files: ## Show 20 largest files
 	@echo "$(BOLD)=== 20 Largest Files ===$(RESET)"
 	@find internal cmd -name "*.go" -exec wc -l {} \; | sort -rn | head -20 | \
 		awk '{printf "%4d lines: %s\n", $$1, $$2}'
+
+# M-V1-SIMPLIFY-S1: count-and-duplication metrics the 800-line gate cannot see.
+simplicity-metrics: ## Bank the v1.0.0 simplicity release-gate table (.ailang/state/simplicity/<date>.json)
+	@/bin/bash tools/simplicity_metrics.sh
+
+simplicity-metrics-fast: ## Same, without the timed test-core run
+	@/bin/bash tools/simplicity_metrics.sh --no-test
+
+simplicity-audit: ## Weekly: re-measure, diff vs last banked snapshot, exit 2 on regression (simplicity-audit skill)
+	@/bin/bash .claude/skills/simplicity-audit/scripts/audit.sh
+
+simplicity-audit-fast: ## Same, without the timed test-core run
+	@/bin/bash .claude/skills/simplicity-audit/scripts/audit.sh --fast
+
+check-architecture-closure: ## Check ARCHITECTURE.md's generated language-closure section is current (CI gate)
+	@/bin/bash scripts/gen_architecture_closure.sh --check
+
+gen-architecture-closure: ## Regenerate ARCHITECTURE.md's language-closure section from go list -deps
+	@/bin/bash scripts/gen_architecture_closure.sh
+
+perf-sweep: ## Monthly: runtime latency + peak-RSS + alloc/op, diff vs last banked snapshot, exit 2 on regression (perf-sweep skill)
+	@/bin/bash .claude/skills/perf-sweep/scripts/sweep.sh
+
+perf-sweep-quick: ## Same, 3 workload runs and count=1 benches (~2 min)
+	@/bin/bash .claude/skills/perf-sweep/scripts/sweep.sh --quick
+
+perf-sweep-control: ## Positive control: the sweep must report WORSE and exit 2 on a planted regression
+	@/bin/bash .claude/skills/perf-sweep/scripts/sweep.sh --quick --control

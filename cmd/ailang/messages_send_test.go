@@ -1,13 +1,19 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/sunholo-data/ailang/internal/config"
+	"github.com/sunholo-data/ailang/internal/messaging"
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 // TestSplitAndTrim covers the comma-separated --requires parsing.
@@ -47,6 +53,12 @@ func TestSplitAndTrim(t *testing.T) {
 // "comma-separated form `--requires 'agent:motoko,ollama:gemma4-26b-ailang'`
 // accepts and stores them as a 2-element slice".
 func TestSendViaHTTP_PostsCorrectShape(t *testing.T) {
+	// discoverCoordinatorAPIKey falls back to the installed LaunchAgent plist
+	// under $HOME; on the rig that plist carries a real key, so the test must
+	// run against an empty home (measured 2026-09-15: the assertion below
+	// printed the rig's key into a session transcript before this isolation).
+	testutil.SetHomeDir(t, t.TempDir())
+	t.Setenv(config.EnvCoordinatorAPIKey, "")
 	var gotBody map[string]interface{}
 	var gotAuth string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -107,7 +119,8 @@ func TestSendViaHTTP_PostsCorrectShape(t *testing.T) {
 	// (the daemon's middleware accepts open requests when COORDINATOR_API_KEY
 	// is unset, matching the local-mode default).
 	if gotAuth != "" {
-		t.Errorf("Authorization header = %q, want empty (no COORDINATOR_API_KEY in test env)", gotAuth)
+		// Never print the header: on a failure it would be a credential.
+		t.Errorf("Authorization header was set (%d bytes), want empty with COORDINATOR_API_KEY cleared", len(gotAuth))
 	}
 }
 
@@ -154,7 +167,7 @@ func TestSendViaHTTP_ErrorWhenUnreachable(t *testing.T) {
 	// and point HOME at a dir without a launchd plist.
 	t.Setenv("AILANG_COORD_HTTP_PORT", "")
 	t.Setenv("PORT", "")
-	t.Setenv("HOME", t.TempDir())
+	testutil.SetHomeDir(t, t.TempDir())
 
 	err := sendViaHTTP("eval-rig", "t", "c", "f", "", "", []string{"agent:motoko"})
 	if err == nil {
@@ -165,5 +178,139 @@ func TestSendViaHTTP_ErrorWhenUnreachable(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "make coord-install") {
 		t.Errorf("error message should suggest `make coord-install`: %v", err)
+	}
+}
+
+// captureStderr runs fn with os.Stderr redirected and returns what it wrote.
+func captureStderr(t *testing.T, fn func()) string {
+	t.Helper()
+	orig := os.Stderr
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("pipe: %v", err)
+	}
+	os.Stderr = w
+	done := make(chan string, 1)
+	go func() {
+		var buf bytes.Buffer
+		_, _ = io.Copy(&buf, r)
+		done <- buf.String()
+	}()
+	fn()
+	_ = w.Close()
+	os.Stderr = orig
+	return <-done
+}
+
+// TestWarnIfFiledButUndispatchable pins the guard on the seam that let three
+// pkg:sunholo/ailang_parse reports sit unread with no task and no job: the write
+// to Firestore succeeded, no Pub/Sub notification was published, and the CLI
+// still printed a bare success line. The cloud coordinator's intake is Pub/Sub
+// ONLY, so silence there means the work never starts.
+func TestWarnIfFiledButUndispatchable(t *testing.T) {
+	tests := []struct {
+		name     string
+		store    string
+		project  string
+		notified bool
+		wantWarn bool
+	}{
+		{"gcp store, not notified -> WARN", "gcp", "ailang-multivac", false, true},
+		{"gcp store, notified -> silent", "gcp", "ailang-multivac", true, false},
+		{"local store, not notified -> silent (daemon polls the store)", "local", "", false, false},
+		{"hybrid store keeps messaging in SQLite -> silent", "hybrid", "", false, false},
+		{"unset store defaults local -> silent", "", "", false, false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			clearMessagesEnv(t)
+			// hybrid is a plane value; local and gcp are per-store values.
+			if tc.store == "hybrid" {
+				t.Setenv("AILANG_STORAGE", tc.store)
+			} else {
+				t.Setenv("AILANG_STORAGE_MESSAGING", tc.store)
+			}
+			t.Setenv("AILANG_MESSAGES_PROJECT", tc.project)
+
+			out := captureStderr(t, func() {
+				warnIfFiledButUndispatchable("pkg:sunholo/ailang_parse", tc.notified)
+			})
+
+			gotWarn := strings.Contains(out, "FILED, NOT DISPATCHED")
+			if gotWarn != tc.wantWarn {
+				t.Errorf("warn = %v, want %v\nstderr:\n%s", gotWarn, tc.wantWarn, out)
+			}
+			if tc.wantWarn {
+				// The warning has to be ACTIONABLE, not just loud: it must name
+				// the inbox the message is readable from and the config fix.
+				for _, want := range []string{"pkg:sunholo/ailang_parse", "pubsub:", "enabled: true", "ailang-multivac"} {
+					if !strings.Contains(out, want) {
+						t.Errorf("warning missing %q\nstderr:\n%s", want, out)
+					}
+				}
+			}
+		})
+	}
+}
+
+// TestTopicPrefixForProject pins the project→prefix pairing. The prefix is
+// per-environment infrastructure (terraform sets AILANG_TOPIC_PREFIX = var.prefix),
+// so carrying one environment's prefix into another publishes to a topic that
+// does not exist there.
+func TestTopicPrefixForProject(t *testing.T) {
+	for _, tc := range []struct {
+		project string
+		want    string
+		ok      bool
+	}{
+		{"ailang-multivac", "ailang", true},
+		{"ailang-multivac-dev", "ailang-dev", true},
+		{"ailang-multivac-test", "ailang-test", true},
+		// An unknown project must NOT get a guessed prefix: a wrong topic is a
+		// silently undelivered message, which is the whole failure class here.
+		{"some-other-project", "", false},
+		{"", "", false},
+	} {
+		got, ok := topicPrefixForProject(tc.project)
+		if got != tc.want || ok != tc.ok {
+			t.Errorf("topicPrefixForProject(%q) = (%q,%v), want (%q,%v)", tc.project, got, ok, tc.want, tc.ok)
+		}
+	}
+}
+
+// TestNotifyConfigForStoreFollowsStore pins the fix for the split-brain measured
+// 2026-08-31: a probe written to ailang-multivac-dev published its notification
+// to ailang-multivac because the config pinned project_id to prod. The dev
+// coordinator was never told and the task never ran. Notifying a project you did
+// not write to is never correct, so the store wins.
+func TestNotifyConfigForStoreFollowsStore(t *testing.T) {
+	clearMessagesEnv(t)
+	t.Setenv("AILANG_STORAGE_MESSAGING", "gcp")
+	t.Setenv("AILANG_MESSAGES_PROJECT", "ailang-multivac-dev")
+
+	in := &messaging.PubSubConfig{Enabled: true, ProjectID: "ailang-multivac", TopicPrefix: "ailang"}
+	out := notifyConfigForStore(in)
+
+	if out.ProjectID != "ailang-multivac-dev" {
+		t.Errorf("ProjectID = %q, want the STORE's project", out.ProjectID)
+	}
+	if out.TopicPrefix != "ailang-dev" {
+		t.Errorf("TopicPrefix = %q, want ailang-dev — project and prefix must move together", out.TopicPrefix)
+	}
+	// The caller's config must not be mutated underneath them.
+	if in.ProjectID != "ailang-multivac" || in.TopicPrefix != "ailang" {
+		t.Errorf("input config was mutated: %+v", in)
+	}
+}
+
+// TestNotifyConfigForStoreLeavesLocalAlone: a local store needs no notification
+// and must not have its config rewritten.
+func TestNotifyConfigForStoreLeavesLocalAlone(t *testing.T) {
+	clearMessagesEnv(t)
+	t.Setenv("AILANG_STORAGE_MESSAGING", "local")
+
+	in := &messaging.PubSubConfig{Enabled: true, ProjectID: "ailang-multivac", TopicPrefix: "ailang"}
+	if out := notifyConfigForStore(in); out != in {
+		t.Errorf("local store should pass the config through unchanged, got %+v", out)
 	}
 }

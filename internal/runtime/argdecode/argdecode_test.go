@@ -631,3 +631,50 @@ func TestDecodeJSONUntyped_Structured(t *testing.T) {
 		t.Error("malformed JSON must error")
 	}
 }
+
+// The type checker represents `list[T]` as TApp{list, [T]} (DX-17), not TList.
+// The decoder only knew TList, so every `--args-json` list parameter failed
+// with "unsupported type for argument decoding: *types.TApp" — at top level
+// and inside records.
+func TestDecodeJSON_ListAsTApp(t *testing.T) {
+	listOf := func(elem types.Type) types.Type {
+		return &types.TApp{Constructor: &types.TCon{Name: "list"}, Args: []types.Type{elem}}
+	}
+	str := &types.TCon{Name: "string"}
+	num := &types.TCon{Name: "int"}
+
+	v, err := DecodeJSON(`["a","b"]`, listOf(str))
+	if err != nil {
+		t.Fatalf("list[string]: %v", err)
+	}
+	if l, ok := v.(*eval.ListValue); !ok || len(l.Elements) != 2 || l.Elements[1].(*eval.StringValue).Value != "b" {
+		t.Fatalf("list[string] decoded to %#v", v)
+	}
+
+	v, err = DecodeJSON(`[[1],[2,3]]`, listOf(listOf(num)))
+	if err != nil {
+		t.Fatalf("list[list[int]]: %v", err)
+	}
+	if l := v.(*eval.ListValue); len(l.Elements) != 2 || len(l.Elements[1].(*eval.ListValue).Elements) != 2 {
+		t.Fatalf("list[list[int]] decoded to %#v", v)
+	}
+
+	rec := &types.TRecord{Fields: map[string]types.Type{"names": listOf(str), "n": num}}
+	v, err = DecodeJSON(`{"names":["a"],"n":1}`, rec)
+	if err != nil {
+		t.Fatalf("record with list field: %v", err)
+	}
+	if r := v.(*eval.RecordValue); len(r.Fields["names"].(*eval.ListValue).Elements) != 1 {
+		t.Fatalf("record list field decoded to %#v", v)
+	}
+
+	// Element-type mismatch inside a TApp list is still a typed decode error.
+	if _, err := DecodeJSON(`["a", 1]`, listOf(str)); err == nil {
+		t.Fatal("list[string] accepted a number element")
+	}
+	// A TApp that is not a list is still unsupported — no silent guess.
+	other := &types.TApp{Constructor: &types.TCon{Name: "Option"}, Args: []types.Type{str}}
+	if _, err := DecodeJSON(`"a"`, other); err == nil {
+		t.Fatal("Option[string] should be rejected, not guessed")
+	}
+}

@@ -15,7 +15,7 @@ import (
 )
 
 func TestDefaultExecutorIntegration(t *testing.T) {
-	factory := executor.GlobalFactory()
+	factory := testFactory()
 
 	// List available executors
 	available := factory.ListAvailable()
@@ -53,7 +53,7 @@ func TestDefaultExecutorIntegration(t *testing.T) {
 }
 
 func TestClaudeHealthCheck(t *testing.T) {
-	factory := executor.GlobalFactory()
+	factory := testFactory()
 	claudeExec, err := factory.GetExecutor("claude")
 	if err != nil {
 		t.Fatalf("Failed to get claude executor: %v", err)
@@ -73,7 +73,7 @@ func TestClaudeHealthCheck(t *testing.T) {
 
 // TestFactoryGetExecutorUnknown tests handling of unknown executor
 func TestFactoryGetExecutorUnknown(t *testing.T) {
-	factory := executor.GlobalFactory()
+	factory := testFactory()
 
 	_, err := factory.GetExecutor("nonexistent-executor")
 	if err == nil {
@@ -83,7 +83,7 @@ func TestFactoryGetExecutorUnknown(t *testing.T) {
 
 // TestFactoryConcurrentGetExecutor tests thread-safe concurrent access
 func TestFactoryConcurrentGetExecutor(t *testing.T) {
-	factory := executor.GlobalFactory()
+	factory := testFactory()
 	numGoroutines := 10
 	var wg sync.WaitGroup
 	var mu sync.Mutex
@@ -145,9 +145,8 @@ func TestCostModelEdgeCases(t *testing.T) {
 			costModel: &executor.CostModel{
 				InputTokenCost:  0.001,
 				OutputTokenCost: 0.003,
-				MinimumCharge:   0.01,
 			},
-			expectedResult: 0.01, // Should return minimum charge
+			expectedResult: 0, // no tokens, no charge — MinimumCharge was removed with the dollar tables (M-V1-SIMPLIFY-S3 M2)
 		},
 		{
 			name: "large token count",
@@ -175,7 +174,28 @@ func TestCostModelEdgeCases(t *testing.T) {
 				CacheReadCost:   0.0001,
 				CacheWriteCost:  0.0005,
 			},
-			expectedResult: 0.0026, // (1K/1K)*0.001 + (0.5K/1K)*0.003 + (1K/1K)*0.0001
+			// (1K/1K)*0.001 + (0.5K/1K)*0.003 + (1K/1K)*0.0001 + (0.5K/1K)*0.0005.
+			// Cache WRITES are billed since M-V1-SIMPLIFY-S3 M2 routed this through
+			// modelreg.Pricing.Cost; the old executor arithmetic ignored them.
+			expectedResult: 0.00285,
+		},
+		{
+			name: "undeclared cache rates bill at the input rate, not $0",
+			usage: executor.TokenUsage{
+				CacheReadInputTokens:     1000,
+				CacheCreationInputTokens: 1000,
+			},
+			costModel: &executor.CostModel{
+				InputTokenCost:  0.001,
+				OutputTokenCost: 0.003,
+			},
+			expectedResult: 0.002,
+		},
+		{
+			name:           "unpriced card is explicit and bills nothing",
+			usage:          executor.TokenUsage{InputTokens: 1_000_000, OutputTokens: 1_000_000},
+			costModel:      executor.UnpricedCostModel("test", "no-such-model"),
+			expectedResult: 0,
 		},
 	}
 
@@ -193,7 +213,7 @@ func TestCostModelEdgeCases(t *testing.T) {
 
 // TestFactoryCloseIdempotent tests that Close() can be called multiple times safely
 func TestFactoryCloseIdempotent(t *testing.T) {
-	factory := executor.NewFactory(executor.DefaultConfig())
+	factory := testFactory()
 
 	// Register a test executor
 	factory.Register("test", func(cfg *executor.Config) (executor.Executor, error) {
@@ -234,7 +254,7 @@ func (t *testExecutor) Close() error                          { return nil }
 
 // TestInvalidWorkspacePath tests handling of invalid workspace paths
 func TestInvalidWorkspacePath(t *testing.T) {
-	factory := executor.GlobalFactory()
+	factory := testFactory()
 	exec, err := factory.GetExecutor("claude")
 	if err != nil {
 		t.Fatalf("GetExecutor failed: %v", err)
@@ -387,7 +407,7 @@ func stringContains(s, substr string) bool {
 // TestContextAwareHandlerSetContext verifies context propagation
 func TestContextAwareHandlerSetContext(t *testing.T) {
 	// Test that ContextAwareHandler interface works
-	factory := executor.GlobalFactory()
+	factory := testFactory()
 	exec, err := factory.GetExecutor("claude")
 	if err != nil {
 		t.Fatalf("GetExecutor failed: %v", err)

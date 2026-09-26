@@ -1,5 +1,5 @@
 // Command verify-model-pricing drift-checks the priced rows in
-// internal/eval_harness/models.yml against the live OpenRouter models API.
+// internal/modelreg/models.yml against the live OpenRouter models API.
 //
 // # Coverage, and why the vendor-direct half is advisory
 //
@@ -157,7 +157,7 @@ type finding struct {
 }
 
 func main() {
-	ymlPath := flag.String("yml", "internal/eval_harness/models.yml", "path to models.yml")
+	ymlPath := flag.String("yml", "internal/modelreg/models.yml", "path to models.yml")
 	asJSON := flag.Bool("json", false, "emit findings as JSON")
 	strict := flag.Bool("strict", false, "also fail when a slug no longer resolves on the API")
 	flag.Parse()

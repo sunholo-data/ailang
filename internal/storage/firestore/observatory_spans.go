@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/sunholo-data/ailang/internal/mapval"
 	obs "github.com/sunholo-data/ailang/internal/observatory"
 )
 
@@ -37,6 +38,12 @@ func (s *ObservatoryStore) GetSpan(ctx context.Context, id string) (*obs.Span, e
 }
 
 func (s *ObservatoryStore) ListSpans(ctx context.Context, opts obs.SpanListOptions) ([]*obs.Span, error) {
+	if opts.Offset < 0 {
+		return nil, fmt.Errorf("span offset must be non-negative")
+	}
+	if opts.Workspace != "" || opts.WorkspaceID != "" {
+		return nil, fmt.Errorf("Firestore ListSpans does not support workspace filters")
+	}
 	q := s.client.Collection(collObsSpans).Query
 	if opts.TraceID != "" {
 		q = q.Where("trace_id", "==", opts.TraceID)
@@ -62,6 +69,7 @@ func (s *ObservatoryStore) ListSpans(ctx context.Context, opts obs.SpanListOptio
 	if !opts.StartBefore.IsZero() {
 		q = q.Where("start_time", "<=", timeToFirestore(opts.StartBefore))
 	}
+	q = q.OrderBy("start_time", firestore.Asc).OrderBy(firestore.DocumentID, firestore.Asc).Offset(opts.Offset)
 	if opts.Limit > 0 {
 		q = q.Limit(opts.Limit)
 	}
@@ -69,7 +77,7 @@ func (s *ObservatoryStore) ListSpans(ctx context.Context, opts obs.SpanListOptio
 	iter := q.Documents(ctx)
 	defer iter.Stop()
 
-	var result []*obs.Span
+	result := make([]*obs.Span, 0)
 	for {
 		doc, err := iter.Next()
 		if err == iterator.Done {
@@ -118,11 +126,11 @@ func (s *ObservatoryStore) RecalculateTaskAggregates(ctx context.Context, taskID
 		}
 		data := doc.Data()
 		spanCount++
-		totalDur += getInt64(data, "duration_ms")
-		tokIn += getInt64(data, "tokens_in")
-		tokOut += getInt64(data, "tokens_out")
-		cost += getFloat64(data, "cost_usd")
-		if getString(data, "status") == "error" {
+		totalDur += mapval.Int64(data, "duration_ms")
+		tokIn += mapval.Int64(data, "tokens_in")
+		tokOut += mapval.Int64(data, "tokens_out")
+		cost += mapval.Float(data, "cost_usd")
+		if mapval.String(data, "status") == "error" {
 			errorCount++
 		}
 	}
@@ -203,12 +211,12 @@ func (s *ObservatoryStore) ListTraces(ctx context.Context, opts obs.TraceQuery) 
 		}
 		data := doc.Data()
 		result = append(result, &obs.TraceSummary{
-			TraceID:    getString(data, "trace_id"),
-			RootSpan:   getString(data, "name"),
-			DurationMs: getInt64(data, "duration_ms"),
+			TraceID:    mapval.String(data, "trace_id"),
+			RootSpan:   mapval.String(data, "name"),
+			DurationMs: mapval.Int64(data, "duration_ms"),
 			StartTime:  snapshotToTime(data, "start_time"),
-			Status:     obs.SpanStatus(getString(data, "status")),
-			TaskID:     getString(data, "task_id"),
+			Status:     obs.SpanStatus(mapval.String(data, "status")),
+			TaskID:     mapval.String(data, "task_id"),
 		})
 	}
 	return result, nil
@@ -232,7 +240,7 @@ func (s *ObservatoryStore) LookupChainBySessionID(ctx context.Context, sessionID
 		return "", ""
 	}
 	data := doc.Data()
-	return getString(data, "chain_id"), getString(data, "stage_id")
+	return mapval.String(data, "chain_id"), mapval.String(data, "stage_id")
 }
 
 func (s *ObservatoryStore) LookupTaskBySessionID(ctx context.Context, sessionID string) (taskID, assignmentID, traceID string) {
@@ -240,7 +248,7 @@ func (s *ObservatoryStore) LookupTaskBySessionID(ctx context.Context, sessionID 
 	doc, err := s.client.Doc(collObsSessions, sessionID).Get(ctx)
 	if err == nil {
 		data := doc.Data()
-		if tid := getString(data, "task_id"); tid != "" {
+		if tid := mapval.String(data, "task_id"); tid != "" {
 			taskID = tid
 		}
 	}
@@ -254,10 +262,10 @@ func (s *ObservatoryStore) LookupTaskBySessionID(ctx context.Context, sessionID 
 	if d, err := iter.Next(); err == nil {
 		data := d.Data()
 		if taskID == "" {
-			taskID = getString(data, "task_id")
+			taskID = mapval.String(data, "task_id")
 		}
-		assignmentID = getString(data, "agent_assignment_id")
-		traceID = getString(data, "trace_id")
+		assignmentID = mapval.String(data, "agent_assignment_id")
+		traceID = mapval.String(data, "trace_id")
 	}
 	return
 }
@@ -300,7 +308,7 @@ func (s *ObservatoryStore) GetSessionWorkspace(sessionID string) (string, error)
 		}
 		return "", err
 	}
-	return getString(doc.Data(), "workspace"), nil
+	return mapval.String(doc.Data(), "workspace"), nil
 }
 
 func (s *ObservatoryStore) UpsertSession(ctx context.Context, sessionID, workspace, version, source string) error {
@@ -314,6 +322,7 @@ func (s *ObservatoryStore) UpsertSessionWithCorrelation(ctx context.Context, ses
 		"claude_version": version,
 		"source":         source,
 		"started_at":     time.Now(),
+		"expire_at":      time.Now().Add(s.chainTTL),
 	}
 	if corr != nil {
 		data["task_id"] = corr.TaskID
@@ -366,7 +375,7 @@ func (s *ObservatoryStore) FindLatestUnfinishedTool(ctx context.Context, session
 		data := doc.Data()
 		// Find one without end_time
 		if _, ok := data["end_time"]; !ok || data["end_time"] == nil {
-			return getString(data, "tool_use_id"), nil
+			return mapval.String(data, "tool_use_id"), nil
 		}
 	}
 	return "", fmt.Errorf("no unfinished tool call found for session %s, tool %s", sessionID, toolName)
@@ -404,20 +413,20 @@ func (s *ObservatoryStore) GetToolForSpan(ctx context.Context, sessionID, toolNa
 		// Find tool closest to spanTime
 		if !st.After(spanTime.Add(5 * time.Second)) {
 			tool := &obs.SessionTool{
-				ToolUseID: getString(data, "tool_use_id"),
-				SessionID: getString(data, "session_id"),
-				ToolName:  getString(data, "tool_name"),
+				ToolUseID: mapval.String(data, "tool_use_id"),
+				SessionID: mapval.String(data, "session_id"),
+				ToolName:  mapval.String(data, "tool_name"),
 				StartTime: st,
 			}
-			if input := getString(data, "tool_input"); input != "" {
+			if input := mapval.String(data, "tool_input"); input != "" {
 				tool.ToolInput = json.RawMessage(input)
 			}
-			if resp := getString(data, "tool_response"); resp != "" {
+			if resp := mapval.String(data, "tool_response"); resp != "" {
 				tool.ToolResponse = json.RawMessage(resp)
 			}
 			tool.EndTime = snapshotToTimePtr(data, "end_time")
 			if v, ok := data["success"]; ok && v != nil {
-				b := getBool(data, "success")
+				b := mapval.Bool(data, "success")
 				tool.Success = &b
 			}
 			return tool, nil
@@ -442,7 +451,7 @@ func (s *ObservatoryStore) BackfillSpansWorkspace(ctx context.Context, sessionID
 		if err != nil {
 			return count, err
 		}
-		if getString(doc.Data(), "workspace") == "" {
+		if mapval.String(doc.Data(), "workspace") == "" {
 			if _, err := doc.Ref.Update(ctx, []firestore.Update{
 				{Path: "workspace", Value: workspace},
 			}); err != nil {
@@ -497,15 +506,15 @@ func (s *ObservatoryStore) GetSpanEvents(ctx context.Context, spanID string) ([]
 		}
 		data := doc.Data()
 		e := obs.SpanEvent{
-			SpanID:         getString(data, "span_id"),
-			Name:           getString(data, "name"),
+			SpanID:         mapval.String(data, "span_id"),
+			Name:           mapval.String(data, "name"),
 			Timestamp:      snapshotToTime(data, "timestamp"),
-			EventType:      obs.EventType(getString(data, "event_type")),
-			ApprovalStatus: obs.ApprovalStatus(getString(data, "approval_status")),
-			ToolName:       getString(data, "tool_name"),
-			ErrorMessage:   getString(data, "error_message"),
+			EventType:      obs.EventType(mapval.String(data, "event_type")),
+			ApprovalStatus: obs.ApprovalStatus(mapval.String(data, "approval_status")),
+			ToolName:       mapval.String(data, "tool_name"),
+			ErrorMessage:   mapval.String(data, "error_message"),
 		}
-		if attrStr := getString(data, "attributes"); attrStr != "" {
+		if attrStr := mapval.String(data, "attributes"); attrStr != "" {
 			_ = json.Unmarshal([]byte(attrStr), &e.Attributes)
 		}
 		result = append(result, e)
@@ -546,7 +555,7 @@ func spanToMap(sp *obs.Span, ttl time.Duration) map[string]interface{} {
 		"model":                 sp.Model,
 		"provider":              string(sp.Provider),
 		"created_at":            timeToFirestore(sp.CreatedAt),
-		"expire_at":             timeToFirestore(sp.CreatedAt.Add(ttl)),
+		"expire_at":             expireAt(sp.CreatedAt, ttl),
 	}
 
 	// Store session_id at top level for efficient queries
@@ -575,33 +584,33 @@ func spanToMap(sp *obs.Span, ttl time.Duration) map[string]interface{} {
 
 func mapToSpan(data map[string]interface{}) *obs.Span {
 	sp := &obs.Span{
-		ID:                  getString(data, "id"),
-		TraceID:             getString(data, "trace_id"),
-		ParentSpanID:        getString(data, "parent_span_id"),
-		TaskID:              getString(data, "task_id"),
-		AgentAssignmentID:   getString(data, "agent_assignment_id"),
-		ChainID:             getString(data, "chain_id"),
-		StageID:             getString(data, "stage_id"),
-		Name:                getString(data, "name"),
-		Kind:                obs.SpanKind(getString(data, "kind")),
-		Status:              obs.SpanStatus(getString(data, "status")),
-		StatusMessage:       getString(data, "status_message"),
+		ID:                  mapval.String(data, "id"),
+		TraceID:             mapval.String(data, "trace_id"),
+		ParentSpanID:        mapval.String(data, "parent_span_id"),
+		TaskID:              mapval.String(data, "task_id"),
+		AgentAssignmentID:   mapval.String(data, "agent_assignment_id"),
+		ChainID:             mapval.String(data, "chain_id"),
+		StageID:             mapval.String(data, "stage_id"),
+		Name:                mapval.String(data, "name"),
+		Kind:                obs.SpanKind(mapval.String(data, "kind")),
+		Status:              obs.SpanStatus(mapval.String(data, "status")),
+		StatusMessage:       mapval.String(data, "status_message"),
 		StartTime:           snapshotToTime(data, "start_time"),
 		EndTime:             snapshotToTimePtr(data, "end_time"),
-		DurationMs:          getInt64(data, "duration_ms"),
-		TokensIn:            getInt64(data, "tokens_in"),
-		TokensOut:           getInt64(data, "tokens_out"),
-		CacheReadTokens:     getInt64(data, "cache_read_tokens"),
-		CacheCreationTokens: getInt64(data, "cache_creation_tokens"),
-		CostUSD:             getFloat64(data, "cost_usd"),
-		Model:               getString(data, "model"),
-		Provider:            obs.Provider(getString(data, "provider")),
+		DurationMs:          mapval.Int64(data, "duration_ms"),
+		TokensIn:            mapval.Int64(data, "tokens_in"),
+		TokensOut:           mapval.Int64(data, "tokens_out"),
+		CacheReadTokens:     mapval.Int64(data, "cache_read_tokens"),
+		CacheCreationTokens: mapval.Int64(data, "cache_creation_tokens"),
+		CostUSD:             mapval.Float(data, "cost_usd"),
+		Model:               mapval.String(data, "model"),
+		Provider:            obs.Provider(mapval.String(data, "provider")),
 		CreatedAt:           snapshotToTime(data, "created_at"),
 	}
-	if attrStr := getString(data, "attributes"); attrStr != "" {
+	if attrStr := mapval.String(data, "attributes"); attrStr != "" {
 		_ = json.Unmarshal([]byte(attrStr), &sp.Attributes)
 	}
-	if raStr := getString(data, "resource_attributes"); raStr != "" {
+	if raStr := mapval.String(data, "resource_attributes"); raStr != "" {
 		_ = json.Unmarshal([]byte(raStr), &sp.ResourceAttributes)
 	}
 	return sp

@@ -1,0 +1,116 @@
+{
+  "sprint_id": "M-DX-PI-HARNESS",
+  "status": "completed",
+  "created": "2026-08-28T09:51:37Z",
+  "design_doc": "design_docs/implemented/v0_35_0/m-dx-pi-harness.md",
+  "sprint_plan": "design_docs/implemented/v0_35_0/m-dx-pi-harness-sprint-plan.md",
+  "github_issues": [
+    934
+  ],
+  "velocity": {
+    "target_loc_per_day": 440,
+    "estimated_total_loc": 650,
+    "estimated_days": 2
+  },
+  "features": [
+    {
+      "id": "M1_STREAM_A_EXTENSIONS",
+      "description": "binary-freshness (version-stamp classify + /fresh + freshness_report), sprint-steward (/sprint-start|complete, constrained JSON), unowned-dirty (git-authority warn on git add/stash/checkout), builtin-sprint (/builtin-finish ceremony chain)",
+      "estimated_loc": 260,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Predicate tests: freshness classify incl -dirty+UNKNOWN; constrained write refuses non-conforming edits; unowned intersection; version-output parsing",
+        "All four load clean alongside the session gate in pi -p and TUI"
+      ],
+      "passes": true,
+      "started": "2026-08-28T11:55:00Z",
+      "completed": "2026-08-28T12:10:00Z",
+      "notes": "4 extensions shipped; 12 predicate tests green (incl. echo-redirect + IMP010-format catches); e2e load verified with gate"
+    },
+    {
+      "id": "M2_STREAM_B_LSP_LITE",
+      "description": "ailang-lsp-lite.ts: ailang_check tool (30s timeout, structured {code,message,file,line,col,hint}) + builtins_search tool (15s, filtered --json inventory, cap 10 on query); shared subprocess helper per Subprocess Contract",
+      "estimated_loc": 90,
+      "dependencies": [
+        "M1_STREAM_A_EXTENSIONS"
+      ],
+      "acceptance_criteria": [
+        "B1 returns code-tagged diagnostics for seeded IMP010 and a TC error",
+        "B2 returns <=10 matches on query, full inventory without query",
+        "Parser handles live error formats (V3)"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-08-28T12:12:00Z",
+      "notes": "lsp-lite shipped; e2e: ailang_check clean on relative path (abs-path MOD010 quirk documented), builtins_search full std/fs inventory; parser handles IMP010 + TC + hint formats after 2 live-format fixes"
+    },
+    {
+      "id": "M3_HARDENING_DOCS",
+      "description": "F5 coordinator-session inheritance check; compat matrix (pi 0.84.3) in README; README index; CHANGELOG DX entries; session-gate regression check",
+      "estimated_loc": 40,
+      "dependencies": [
+        "M1_STREAM_A_EXTENSIONS",
+        "M2_STREAM_B"
+      ],
+      "acceptance_criteria": [
+        "All design-doc Success Criteria pass or deferred with register entry",
+        "Session gate arms/acks with all extensions loaded",
+        "CHANGELOG updated"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-08-28T12:15:00Z",
+      "notes": "F5 deferred (register); compat matrix pi 0.84.3 in README; session-gate regression OK (all e2e runs included it); BONUS: caught + fixed dev CI RED (stdlib freeze goldens for #897) \u2014 second snapshot mechanism folded into /builtin-finish ceremony"
+    },
+    {
+      "id": "M4_COMMIT_ATTRIBUTION",
+      "description": "Approved addendum: commit-attribution folded INTO the session gate (single tool_call handler \u2014 a separate extension was skippable under pi's block short-circuit). Appends Co-Authored-By: pi (<provider>/<model-id>) <noreply@ailang.dev> to allowed git commits; conservative (skips dynamic messages/editor flow); distinguishes pi+model from Claude Code and the human",
+      "estimated_loc": 70,
+      "dependencies": [
+        "M1_STREAM_A_EXTENSIONS"
+      ],
+      "acceptance_criteria": [
+        "9+ table tests (flag clusters -am/-m=, idempotence, dynamic-message skip, harness fallback)",
+        "E2E: fresh gated -p session commit carries 'Co-Authored-By: pi (ollama/glm-5.3-flash:cloud)'"
+      ],
+      "passes": true,
+      "started": "2026-08-28T12:25:00Z",
+      "completed": "2026-08-28T12:40:00Z",
+      "notes": "E2E verified on /tmp scratch repo; debugging surfaced pi runner block-short-circuit (runner.js returns on first block) \u2014 consolidation into the gate removes the ordering dependency"
+    },
+    {
+      "id": "M5_PROVIDER_QUOTA",
+      "description": "Approved addendum: provider-quota extension \u2014 quota_report tool + /quota command. OpenRouter /api/v1/key budget (CRITICAL>=95%, WARN>=80%), ollama status, current session lane. Motivated by enabling the openrouter lane (key found at 98.8% used)",
+      "estimated_loc": 110,
+      "dependencies": [
+        "M1_STREAM_A_EXTENSIONS"
+      ],
+      "acceptance_criteria": [
+        "threshold tests (WARN>=80, CRITICAL>=95, UNLIMITED, UNKNOWN)",
+        "e2e: fresh gated -p session reports current session lane + OpenRouter CRITICAL state",
+        "key never appears in tool output"
+      ],
+      "passes": true,
+      "started": "2026-08-28T13:05:00Z",
+      "completed": "2026-08-28T13:15:00Z",
+      "notes": "Fetch-based (no subprocess); async factory (typebox); ollama cloud quota has no public API \u2014 documented as dashboard-only. Switching lanes: pi --provider openrouter --model <id>; ailang exec pi inherits OPENROUTER_API_KEY via os.Environ"
+    },
+    {
+      "id": "M5_PI_INSTALL_BINARY_CHANNEL",
+      "description": "Distribution v2: ailang pi install/uninstall/status \u2014 embed pi_assets in the binary, materialize to ~/.pi/agent/extensions with managed-file manifest (never clobbers user files), Dockerfile.agent-pi RUN ailang pi install (F5), drift-check Makefile target",
+      "estimated_loc": 260,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "install writes 9 extensions + README + manifest to ~/.pi/agent/extensions; re-run idempotent",
+        "unmanaged/user-modified conflicts \u2192 .ailang-suggested/ + warning, original preserved",
+        "uninstall removes only managed files",
+        "status reports per-file FRESH/DRIFT/UNMANAGED/MISSING",
+        "pi -e loads installed extensions (tool surface present)"
+      ],
+      "passes": true,
+      "started": "2026-08-28T13:00:00Z",
+      "completed": "2026-08-29T22:18:44Z",
+      "notes": "Distribution v2 landed in 83d306bff; lifecycle correction merged as PR #961 / 45503bac6; byte-identical unmanaged ownership correction merged as PR #965 / 4c9431ec2. Independent iteration-301 evaluator PASS 86/100 r2; iteration-304 reconciliation evaluator PASS 88/100. D-49 remains open for global-vs-repo-local precedence policy."
+    }
+  ]
+}

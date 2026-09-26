@@ -5,9 +5,10 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
-	"path/filepath"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/sqliteopen"
+	"github.com/sunholo-data/ailang/internal/statedir"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 )
 
@@ -29,6 +30,9 @@ func NewStore(db *sql.DB) *Store {
 // If dbPath doesn't exist, creates a new database with schema.
 // Also applies any pending schema migrations.
 func OpenStore(dbPath string) (*Store, error) {
+	if dbPath == "" {
+		return nil, fmt.Errorf("messaging: no database path: set %s (or HOME)", statedir.EnvVar)
+	}
 	db, err := InitDB(dbPath)
 	if err != nil {
 		return nil, err
@@ -59,8 +63,9 @@ func DatabaseExists(dbPath string) bool {
 		return false
 	}
 
-	// Verify it's a valid SQLite database with our schema
-	db, err := sql.Open("sqlite3", dbPath)
+	// Verify it's a valid SQLite database with our schema. Read-only: an
+	// existence check must not create the file it is asking about.
+	db, err := sqliteopen.Open(dbPath, sqliteopen.Options{ReadOnly: true})
 	if err != nil {
 		return false
 	}
@@ -72,18 +77,16 @@ func DatabaseExists(dbPath string) bool {
 	return err == nil
 }
 
-// GetDefaultDatabasePath returns the default path for the collaboration database.
+// GetDefaultDatabasePath returns the default path for the collaboration
+// database: collaboration.db under statedir.Dir(). When no state directory
+// resolves it returns "", which OpenStore refuses — never a relative
+// .ailang/state beside the process.
 func GetDefaultDatabasePath() string {
-	stateDir := os.Getenv("AILANG_STATE_DIR")
-	if stateDir == "" {
-		homeDir, err := os.UserHomeDir()
-		if err != nil {
-			stateDir = ".ailang/state"
-		} else {
-			stateDir = filepath.Join(homeDir, ".ailang", "state")
-		}
+	p, err := statedir.Path("collaboration.db")
+	if err != nil {
+		return ""
 	}
-	return filepath.Join(stateDir, "collaboration.db")
+	return p
 }
 
 // EnsureDatabase creates the database if it doesn't exist.

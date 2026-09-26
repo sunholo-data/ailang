@@ -38,7 +38,12 @@ func makePushBody(t *testing.T, payload interface{}, attrs map[string]string) st
 func TestHandlePushMessage_Valid(t *testing.T) {
 	logger := log.New(os.Stderr, "test: ", 0)
 
-	adapter := NewPubSubInboxAdapter(nil, "test-sub", "coordinator", nil, logger)
+	// A hydrating store: since 2026-09-14 a notification the adapter cannot read
+	// is refused rather than dispatched as a content-free task, so a test of the
+	// PUSH ENVELOPE needs the fetch to succeed or it would be asserting against
+	// a refusal for an unrelated reason.
+	adapter := NewPubSubInboxAdapter(nil, "test-sub", "coordinator",
+		&hydratingStore{toInbox: "design-doc-creator", fromAgent: "user"}, logger)
 
 	d := &Daemon{
 		logger:            logger,

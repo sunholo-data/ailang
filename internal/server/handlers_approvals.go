@@ -272,6 +272,89 @@ func (s *Server) handleApprovals(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// approvalDecisionBody is the optional JSON body both approve/reject surfaces
+// accept. Optional because ntfy action buttons and the documented curl
+// examples POST with no body at all.
+type approvalDecisionBody struct {
+	Notes     string `json:"notes"`
+	Permanent bool   `json:"permanent"` // If true, permanent rejection (no retry)
+}
+
+// decodeApprovalDecisionBody reads the optional decision body. An empty body
+// (io.EOF) is not an error; a malformed one is, and has already been answered
+// with 400 when ok is false.
+func decodeApprovalDecisionBody(w http.ResponseWriter, r *http.Request) (approvalDecisionBody, bool) {
+	var body approvalDecisionBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil && err != io.EOF {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return body, false
+	}
+	return body, true
+}
+
+// processTaskApproval is the ONE place the server turns a task-approval
+// decision into coordinator.ProcessApprovalRequest — the single path that
+// resolves the record, merges the worktree, updates GitHub and fires the
+// handoffs that were waiting on the approval.
+//
+// Both HTTP surfaces call this: /api/approvals/{id}/{action} (the React UI)
+// and /api/coordinator/{action}/{id} (the documented curl/script route). The
+// second used to resolve the record by hand and return — so an approval on
+// that route recorded "approved", dispatched nothing, and left the task
+// pending_approval forever, a week after the CLI path had been fixed for the
+// same bug (2026-09-07). Two wirings of one decision is how that happens; this
+// is the only one now.
+func (s *Server) processTaskApproval(ctx context.Context, req *coordinator.ApprovalRequestRecord, action string, body approvalDecisionBody) (*coordinator.ApprovalResult, error) {
+	if s.coordStoreRaw == nil {
+		return nil, fmt.Errorf("coordinator store not configured")
+	}
+	if req == nil {
+		return nil, fmt.Errorf("approval request is nil")
+	}
+
+	// A registry that failed to load is not "no agents": it means every handoff
+	// this approval owes will be silently skipped, which is the exact failure
+	// this helper exists to end. Say so in the log rather than discarding it.
+	agentRegistry, err := coordinator.LoadAgentRegistry()
+	if err != nil {
+		log.Printf("Approval %s: agent registry unavailable, handoffs cannot fire: %v", req.ID, err)
+	}
+
+	// Create GitHub poster for issue updates
+	var githubPoster *coordinator.GitHubPoster
+	if poster, err := coordinator.NewGitHubPoster(); err == nil {
+		githubPoster = poster
+	}
+
+	result, err := coordinator.ProcessApprovalRequest(ctx, &coordinator.ApprovalParams{
+		TaskID:            req.TaskID,
+		Action:            action,
+		ApprovedBy:        "dashboard-user",
+		Channel:           "dashboard",
+		Feedback:          body.Notes,
+		SkipMerge:         false,
+		KeepWorktree:      false,
+		RetriggerOnReject: !body.Permanent, // false = permanent rejection, true = retry with feedback
+		Store:             s.coordStoreRaw,
+		MsgStore:          s.store, // For feedback messages and handoff delivery
+		GitHubPoster:      githubPoster,
+		AgentRegistry:     agentRegistry,
+		ObsBackend:        s.obsBackend, // M-CHAINS-SIMPLIFY: For chain status updates
+	})
+	if err != nil {
+		log.Printf("Approval processing failed for %s: %v", req.TaskID, err)
+		return nil, err
+	}
+
+	if !result.Success && len(result.ConflictFiles) > 0 {
+		// Report conflicts but don't fail - approval is resolved
+		log.Printf("Merge conflicts in task %s: %v", req.TaskID, result.ConflictFiles)
+	}
+
+	log.Printf("Dashboard %s: %s", action, result.Message)
+	return result, nil
+}
+
 // POST /api/approvals/{id}/approve - Approve an approval request
 // POST /api/approvals/{id}/reject - Reject an approval request
 func (s *Server) handleApproval(w http.ResponseWriter, r *http.Request) {
@@ -319,16 +402,21 @@ func (s *Server) handleApproval(w http.ResponseWriter, r *http.Request) {
 	if handled, ok := s.checkSecretApprovalToken(r, approvalID, action); handled && !ok {
 		http.Error(w, "Invalid or expired approval token", http.StatusUnauthorized)
 		return
+	} else if !handled {
+		// No secret-approval token: this is a dashboard/browser action, so it
+		// must meet the same bar as /api/coordinator/approve/ — an
+		// authenticated session with the Approver role (#920). Without this
+		// gate the endpoint approved as "dashboard-user" for ANY unauthenticated
+		// caller. When Firebase auth is not configured the gate passes through,
+		// consistent with requireApprover; the single-use ntfy token above
+		// remains the only no-session way to resolve an approval.
+		if !s.approverSessionAuthorized(w, r) {
+			return
+		}
 	}
 
-	// Parse request body for review notes. The body is optional — ntfy action
-	// buttons POST with no body — so an empty body (io.EOF) is not an error.
-	var body struct {
-		Notes     string `json:"notes"`
-		Permanent bool   `json:"permanent"` // If true, permanent rejection (no retry)
-	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil && err != io.EOF {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	body, ok := decodeApprovalDecisionBody(w, r)
+	if !ok {
 		return
 	}
 
@@ -353,44 +441,10 @@ func (s *Server) handleApproval(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Use unified ProcessApprovalRequest for ALL approval types (merge, merge_handoff, handoff)
-		// This ensures handoffs are triggered, worktrees merged, and GitHub updated
-		agentRegistry, _ := coordinator.LoadAgentRegistry()
-
-		// Create GitHub poster for issue updates
-		var githubPoster *coordinator.GitHubPoster
-		if poster, err := coordinator.NewGitHubPoster(); err == nil {
-			githubPoster = poster
-		}
-
-		result, err := coordinator.ProcessApprovalRequest(ctx, &coordinator.ApprovalParams{
-			TaskID:            req.TaskID,
-			Action:            action,
-			ApprovedBy:        "dashboard-user",
-			Channel:           "dashboard",
-			Feedback:          body.Notes,
-			SkipMerge:         false,
-			KeepWorktree:      false,
-			RetriggerOnReject: !body.Permanent, // false = permanent rejection, true = retry with feedback
-			Store:             s.coordStoreRaw,
-			MsgStore:          s.store, // For feedback messages
-			GitHubPoster:      githubPoster,
-			AgentRegistry:     agentRegistry,
-			ObsBackend:        s.obsBackend, // M-CHAINS-SIMPLIFY: For chain status updates
-		})
-
-		if err != nil {
-			log.Printf("Approval processing failed for %s: %v", req.TaskID, err)
+		if _, err := s.processTaskApproval(ctx, req, action, body); err != nil {
 			http.Error(w, fmt.Sprintf("Failed to %s: %v", action, err), http.StatusInternalServerError)
 			return
 		}
-
-		if !result.Success && len(result.ConflictFiles) > 0 {
-			// Report conflicts but don't fail - approval is resolved
-			log.Printf("Merge conflicts in task %s: %v", req.TaskID, result.ConflictFiles)
-		}
-
-		log.Printf("Dashboard %s: %s", action, result.Message)
 
 		// Success response
 		w.Header().Set("Content-Type", "application/json")

@@ -4,28 +4,45 @@ import (
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/coordinator"
+	"github.com/sunholo-data/ailang/internal/mapval"
 )
 
 // taskToMap converts a TaskRecord to a Firestore document map.
+//
+// A zero CreatedAt is stamped rather than written as null, matching
+// observatory_tasks.go which has always done this. The asymmetry was load-bearing:
+// timeToFirestore turns a zero time into a Firestore null, the task reads back with
+// a zero CreatedAt, and the stale-task detector then aged it from the zero time and
+// killed it seconds after dispatch. Persisting "unknown" as null let a missing
+// timestamp travel; stamping it at the write boundary keeps every task row orderable
+// and ageable. Fixing this does NOT excuse the caller from setting CreatedAt — the
+// detector reports an unknowable age loudly rather than acting on one.
 func taskToMap(t *coordinator.TaskRecord) map[string]interface{} {
+	if t.CreatedAt.IsZero() {
+		t.CreatedAt = time.Now()
+	}
 	m := map[string]interface{}{
-		"id":               t.ID,
-		"message_id":       t.MessageID,
-		"thread_id":        t.ThreadID,
-		"parent_task_id":   t.ParentTaskID,
-		"title":            t.Title,
-		"content":          t.Content,
-		"type":             string(t.Type),
-		"kind":             t.Kind,
-		"source":           t.Source, // M-PKG-AUTONOMOUS-CASCADE-SAFE M1: Pub/Sub topic origin
-		"priority":         t.Priority,
-		"status":           string(t.Status),
-		"provider":         t.Provider,
-		"agent_id":         t.AgentID,
-		"worktree_id":      t.WorktreeID,
-		"worktree_path":    t.WorktreePath,
-		"base_branch":      t.BaseBranch,
-		"base_commit":      t.BaseCommit,
+		"id":             t.ID,
+		"message_id":     t.MessageID,
+		"thread_id":      t.ThreadID,
+		"parent_task_id": t.ParentTaskID,
+		"title":          t.Title,
+		"content":        t.Content,
+		"type":           string(t.Type),
+		"kind":           t.Kind,
+		"source":         t.Source, // M-PKG-AUTONOMOUS-CASCADE-SAFE M1: Pub/Sub topic origin
+		"priority":       t.Priority,
+		"status":         string(t.Status),
+		"provider":       t.Provider,
+		"agent_id":       t.AgentID,
+		"worktree_id":    t.WorktreeID,
+		"worktree_path":  t.WorktreePath,
+		"base_branch":    t.BaseBranch,
+		"base_commit":    t.BaseCommit,
+		// M-COMPLETION-PATH-PARITY C1: the ledger must appear in BOTH directions
+		// of this hand-written map. Omitting it from either silently drops the
+		// ledger, and every redelivery would then re-run every effect.
+		"finalization":     ledgerToMap(t.Finalization),
 		"session_id":       t.SessionID,
 		"iteration":        t.Iteration,
 		"workspace":        t.Workspace,
@@ -38,6 +55,7 @@ func taskToMap(t *coordinator.TaskRecord) map[string]interface{} {
 		"sprint_plan_path": t.SprintPlanPath,
 		"created_at":       timeToFirestore(t.CreatedAt),
 		"started_at":       timePtrToFirestore(t.StartedAt),
+		"queued_at":        timePtrToFirestore(t.QueuedAt),
 		"completed_at":     timePtrToFirestore(t.CompletedAt),
 		"duration":         int64(t.Duration),
 		"error":            t.Error,
@@ -83,59 +101,61 @@ func taskToMap(t *coordinator.TaskRecord) map[string]interface{} {
 // mapToTask converts a Firestore document map to a TaskRecord.
 func mapToTask(data map[string]interface{}) *coordinator.TaskRecord {
 	t := &coordinator.TaskRecord{
-		ID:             getString(data, "id"),
-		MessageID:      getString(data, "message_id"),
-		ThreadID:       getString(data, "thread_id"),
-		ParentTaskID:   getString(data, "parent_task_id"),
-		Title:          getString(data, "title"),
-		Content:        getString(data, "content"),
-		Type:           coordinator.TaskType(getString(data, "type")),
-		Kind:           getString(data, "kind"),
-		Source:         getString(data, "source"), // M-PKG-AUTONOMOUS-CASCADE-SAFE M1
-		Priority:       getInt(data, "priority"),
-		Status:         coordinator.TaskStatus(getString(data, "status")),
-		Provider:       getString(data, "provider"),
-		AgentID:        getString(data, "agent_id"),
-		WorktreeID:     getString(data, "worktree_id"),
-		WorktreePath:   getString(data, "worktree_path"),
-		BaseBranch:     getString(data, "base_branch"),
-		BaseCommit:     getString(data, "base_commit"),
-		SessionID:      getString(data, "session_id"),
-		Iteration:      getInt(data, "iteration"),
-		Workspace:      getString(data, "workspace"),
-		ChainID:        getString(data, "chain_id"),
-		StageID:        getString(data, "stage_id"),
-		GithubIssue:    getInt(data, "github_issue"),
-		GithubRepo:     getString(data, "github_repo"),
-		Stage:          coordinator.TaskStage(getString(data, "stage")),
-		DesignDocPath:  getString(data, "design_doc_path"),
-		SprintPlanPath: getString(data, "sprint_plan_path"),
+		ID:             mapval.String(data, "id"),
+		MessageID:      mapval.String(data, "message_id"),
+		ThreadID:       mapval.String(data, "thread_id"),
+		ParentTaskID:   mapval.String(data, "parent_task_id"),
+		Title:          mapval.String(data, "title"),
+		Content:        mapval.String(data, "content"),
+		Type:           coordinator.TaskType(mapval.String(data, "type")),
+		Kind:           mapval.String(data, "kind"),
+		Source:         mapval.String(data, "source"), // M-PKG-AUTONOMOUS-CASCADE-SAFE M1
+		Priority:       mapval.Int(data, "priority"),
+		Status:         coordinator.TaskStatus(mapval.String(data, "status")),
+		Provider:       mapval.String(data, "provider"),
+		AgentID:        mapval.String(data, "agent_id"),
+		WorktreeID:     mapval.String(data, "worktree_id"),
+		WorktreePath:   mapval.String(data, "worktree_path"),
+		BaseBranch:     mapval.String(data, "base_branch"),
+		BaseCommit:     mapval.String(data, "base_commit"),
+		Finalization:   ledgerFromMap(data["finalization"]),
+		SessionID:      mapval.String(data, "session_id"),
+		Iteration:      mapval.Int(data, "iteration"),
+		Workspace:      mapval.String(data, "workspace"),
+		ChainID:        mapval.String(data, "chain_id"),
+		StageID:        mapval.String(data, "stage_id"),
+		GithubIssue:    mapval.Int(data, "github_issue"),
+		GithubRepo:     mapval.String(data, "github_repo"),
+		Stage:          coordinator.TaskStage(mapval.String(data, "stage")),
+		DesignDocPath:  mapval.String(data, "design_doc_path"),
+		SprintPlanPath: mapval.String(data, "sprint_plan_path"),
 		CreatedAt:      snapshotToTime(data, "created_at"),
 		StartedAt:      snapshotToTimePtr(data, "started_at"),
+		QueuedAt:       snapshotToTimePtr(data, "queued_at"),
 		CompletedAt:    snapshotToTimePtr(data, "completed_at"),
-		Duration:       time.Duration(getInt64(data, "duration")),
-		Error:          getString(data, "error"),
-		Output:         getString(data, "output"),
-		Cost:           getFloat64(data, "cost"),
-		TokensUsed:     getInt(data, "tokens_used"),
-		InputTokens:    getInt(data, "input_tokens"),
-		OutputTokens:   getInt(data, "output_tokens"),
-		PeakCPU:        getFloat64(data, "peak_cpu"),
-		PeakMemory:     getFloat64(data, "peak_memory_mb"),
-		ImpactLevel:    getString(data, "impact_level"),
-		EstimatedCost:  getFloat64(data, "estimated_cost"),
+		Duration:       time.Duration(mapval.Int64(data, "duration")),
+		Error:          mapval.String(data, "error"),
+		Output:         mapval.String(data, "output"),
+		Cost:           mapval.Float(data, "cost"),
+		TokensUsed:     mapval.Int(data, "tokens_used"),
+		InputTokens:    mapval.Int(data, "input_tokens"),
+		OutputTokens:   mapval.Int(data, "output_tokens"),
+		PeakCPU:        mapval.Float(data, "peak_cpu"),
+		PeakMemory:     mapval.Float(data, "peak_memory_mb"),
+		ImpactLevel:    mapval.String(data, "impact_level"),
+		EstimatedCost:  mapval.Float(data, "estimated_cost"),
 		// M-PKG-CASCADE-DETERMINISTIC-FIRST: cascade envelope hydration
-		RootPackage:       getString(data, "root_package"),
-		RootChangeClass:   getString(data, "root_change_class"),
-		FromVersion:       getString(data, "from_version"),
-		ToVersion:         getString(data, "to_version"),
-		FromInterfaceHash: getString(data, "from_interface_hash"),
-		ToInterfaceHash:   getString(data, "to_interface_hash"),
-		FromContentHash:   getString(data, "from_content_hash"),
-		ToContentHash:     getString(data, "to_content_hash"),
-		EffectsWidened:    getBool(data, "effects_widened"),
-		PrevEffectCeiling: getStringSlice(data, "prev_effect_ceiling"),
-		NewEffectCeiling:  getStringSlice(data, "new_effect_ceiling"),
+		RootPackage:       mapval.String(data, "root_package"),
+		RootChangeClass:   mapval.String(data, "root_change_class"),
+		FromVersion:       mapval.String(data, "from_version"),
+		ToVersion:         mapval.String(data, "to_version"),
+		FromInterfaceHash: mapval.String(data, "from_interface_hash"),
+		ToInterfaceHash:   mapval.String(data, "to_interface_hash"),
+		FromContentHash:   mapval.String(data, "from_content_hash"),
+		ToContentHash:     mapval.String(data, "to_content_hash"),
+		EffectsWidened:    mapval.Bool(data, "effects_widened"),
+		PrevEffectCeiling: mapval.Strings(data, "prev_effect_ceiling"),
+		NewEffectCeiling:  mapval.Strings(data, "new_effect_ceiling"),
 	}
 
 	// Convert capabilities array
@@ -143,8 +163,8 @@ func mapToTask(data map[string]interface{}) *coordinator.TaskRecord {
 		for _, c := range caps {
 			if cm, ok := c.(map[string]interface{}); ok {
 				cap := coordinator.Capability{
-					Type:        coordinator.CapabilityType(getString(cm, "type")),
-					BudgetDelta: getFloat64(cm, "budget_delta"),
+					Type:        coordinator.CapabilityType(mapval.String(cm, "type")),
+					BudgetDelta: mapval.Float(cm, "budget_delta"),
 				}
 				if paths, ok := cm["paths"].([]interface{}); ok {
 					for _, p := range paths {
@@ -183,18 +203,18 @@ func approvalToMap(a *coordinator.ApprovalRequestRecord) map[string]interface{} 
 // mapToApproval converts a Firestore document map to an ApprovalRequestRecord.
 func mapToApproval(data map[string]interface{}) *coordinator.ApprovalRequestRecord {
 	return &coordinator.ApprovalRequestRecord{
-		ID:          getString(data, "id"),
-		TaskID:      getString(data, "task_id"),
-		Type:        getString(data, "type"),
-		Description: getString(data, "description"),
-		ContextJSON: getString(data, "context_json"),
-		Status:      getString(data, "status"),
-		ResolvedBy:  getString(data, "resolved_by"),
+		ID:          mapval.String(data, "id"),
+		TaskID:      mapval.String(data, "task_id"),
+		Type:        mapval.String(data, "type"),
+		Description: mapval.String(data, "description"),
+		ContextJSON: mapval.String(data, "context_json"),
+		Status:      mapval.String(data, "status"),
+		ResolvedBy:  mapval.String(data, "resolved_by"),
 		CreatedAt:   snapshotToTime(data, "created_at"),
 		ResolvedAt:  snapshotToTimePtr(data, "resolved_at"),
 		TimeoutAt:   snapshotToTimePtr(data, "timeout_at"),
-		AutoReject:  getBool(data, "auto_reject"),
-		Evaluation:  getString(data, "evaluation"),
+		AutoReject:  mapval.Bool(data, "auto_reject"),
+		Evaluation:  mapval.String(data, "evaluation"),
 	}
 }
 
@@ -223,116 +243,19 @@ func eventToMap(e *coordinator.TaskEventRecord) map[string]interface{} {
 func mapToEvent(data map[string]interface{}, taskID string) *coordinator.TaskEventRecord {
 	return &coordinator.TaskEventRecord{
 		TaskID:      taskID,
-		ThreadID:    getString(data, "thread_id"),
-		StreamType:  getString(data, "stream_type"),
-		TurnNum:     getInt(data, "turn_num"),
-		Text:        getString(data, "text"),
-		ToolName:    getString(data, "tool_name"),
-		ToolInput:   getString(data, "tool_input"),
-		ToolOutput:  getString(data, "tool_output"),
-		ErrorMsg:    getString(data, "error_msg"),
-		Status:      getString(data, "status"),
-		TokensIn:    getInt(data, "tokens_in"),
-		TokensOut:   getInt(data, "tokens_out"),
-		Cost:        getFloat64(data, "cost"),
-		DurationSec: getInt(data, "duration_sec"),
+		ThreadID:    mapval.String(data, "thread_id"),
+		StreamType:  mapval.String(data, "stream_type"),
+		TurnNum:     mapval.Int(data, "turn_num"),
+		Text:        mapval.String(data, "text"),
+		ToolName:    mapval.String(data, "tool_name"),
+		ToolInput:   mapval.String(data, "tool_input"),
+		ToolOutput:  mapval.String(data, "tool_output"),
+		ErrorMsg:    mapval.String(data, "error_msg"),
+		Status:      mapval.String(data, "status"),
+		TokensIn:    mapval.Int(data, "tokens_in"),
+		TokensOut:   mapval.Int(data, "tokens_out"),
+		Cost:        mapval.Float(data, "cost"),
+		DurationSec: mapval.Int(data, "duration_sec"),
 		CreatedAt:   snapshotToTime(data, "created_at"),
 	}
-}
-
-// --- Type-safe Firestore value extractors ---
-
-func getString(data map[string]interface{}, key string) string {
-	v, ok := data[key]
-	if !ok || v == nil {
-		return ""
-	}
-	if s, ok := v.(string); ok {
-		return s
-	}
-	return ""
-}
-
-func getInt(data map[string]interface{}, key string) int {
-	v, ok := data[key]
-	if !ok || v == nil {
-		return 0
-	}
-	// Firestore returns numbers as int64 or float64
-	switch n := v.(type) {
-	case int64:
-		return int(n)
-	case float64:
-		return int(n)
-	case int:
-		return n
-	}
-	return 0
-}
-
-func getInt64(data map[string]interface{}, key string) int64 {
-	v, ok := data[key]
-	if !ok || v == nil {
-		return 0
-	}
-	switch n := v.(type) {
-	case int64:
-		return n
-	case float64:
-		return int64(n)
-	case int:
-		return int64(n)
-	}
-	return 0
-}
-
-func getFloat64(data map[string]interface{}, key string) float64 {
-	v, ok := data[key]
-	if !ok || v == nil {
-		return 0
-	}
-	switch n := v.(type) {
-	case float64:
-		return n
-	case int64:
-		return float64(n)
-	case int:
-		return float64(n)
-	}
-	return 0
-}
-
-func getBool(data map[string]interface{}, key string) bool {
-	v, ok := data[key]
-	if !ok || v == nil {
-		return false
-	}
-	if b, ok := v.(bool); ok {
-		return b
-	}
-	return false
-}
-
-// getStringSlice extracts a []string from a Firestore document field that
-// may have arrived as []interface{} (Firestore's native array type) or as
-// a real []string. Returns nil for missing keys (so omitempty JSON works).
-// M-PKG-CASCADE-DETERMINISTIC-FIRST.
-func getStringSlice(data map[string]interface{}, key string) []string {
-	v, ok := data[key]
-	if !ok || v == nil {
-		return nil
-	}
-	switch arr := v.(type) {
-	case []string:
-		return arr
-	case []interface{}:
-		out := make([]string, 0, len(arr))
-		for _, x := range arr {
-			if s, ok := x.(string); ok {
-				out = append(out, s)
-			}
-		}
-		return out
-	}
-	return nil
 }

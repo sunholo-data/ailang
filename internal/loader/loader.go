@@ -2,6 +2,7 @@ package loader
 
 import (
 	"bytes"
+	stderrors "errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -45,15 +46,16 @@ type PackageResolver interface {
 
 // LoadedModule represents a loaded and parsed module
 type LoadedModule struct {
-	Path         string
-	File         *ast.File
-	Imports      []string                 // Module paths this module imports
-	Exports      map[string]*ast.FuncDecl // Export table (for now, just functions)
-	Types        map[string]*ast.TypeDecl // Exported type declarations
-	Constructors map[string]string        // Constructor name -> Type name mapping
-	Core         *core.Program            // Core representation (after elaboration)
-	Iface        *iface.Iface             // Module interface (after type checking)
-	CoreTI       interface{}              // Type info for Core expressions (types.CoreTypeInfo, interface{} to avoid import cycle)
+	Path          string
+	File          *ast.File
+	SourceContent *string                  // Exact source text parsed by the lexer; nil when unavailable
+	Imports       []string                 // Module paths this module imports
+	Exports       map[string]*ast.FuncDecl // Export table (for now, just functions)
+	Types         map[string]*ast.TypeDecl // Exported type declarations
+	Constructors  map[string]string        // Constructor name -> Type name mapping
+	Core          *core.Program            // Core representation (after elaboration)
+	Iface         *iface.Iface             // Module interface (after type checking)
+	CoreTI        interface{}              // Type info for Core expressions (types.CoreTypeInfo, interface{} to avoid import cycle)
 }
 
 // NewModuleLoader creates a new module loader
@@ -270,11 +272,16 @@ func (ml *ModuleLoader) Load(path string) (*LoadedModule, error) {
 		fullPath = projPath
 	}
 
-	// Read file (skip if content already loaded from embedded stdlib)
+	// Read file (skip if content already loaded from embedded stdlib). Through
+	// the source snapshot when one is enabled (M-EXECUTOR-POLICY-HARDENING M3):
+	// admission and execution then see the same bytes for the same path.
 	if content == nil {
 		var err error
-		content, err = os.ReadFile(fullPath)
+		content, err = ReadSourceFile(fullPath)
 		if err != nil {
+			if stderrors.Is(err, ErrSourceTooLarge) {
+				return nil, err
+			}
 			// Collect similar module suggestions
 			similar := ml.suggestSimilar(path)
 			report := newLDR001(canonicalID, searchTrace, similar, nil)
@@ -282,8 +289,10 @@ func (ml *ModuleLoader) Load(path string) (*LoadedModule, error) {
 		}
 	}
 
-	// Parse file
-	l := lexer.New(string(content), fullPath)
+	// Parse the exact source snapshot retained on the loaded module. The pointer
+	// distinguishes known-empty source from source that was never available.
+	sourceText := string(content)
+	l := lexer.New(sourceText, fullPath)
 	p := parser.New(l)
 	p.SetStrictSyntaxMode(ml.strictSyntaxMode)
 	file := p.ParseFile()
@@ -332,44 +341,61 @@ func (ml *ModuleLoader) Load(path string) (*LoadedModule, error) {
 	// Cache and return with canonical ID
 	canonicalID = CanonicalModuleID(path)
 	loaded := &LoadedModule{
-		Path:         canonicalID, // Store canonical form
-		File:         file,
-		Imports:      imports,
-		Exports:      exports,
-		Types:        types,
-		Constructors: constructors,
-		Core:         nil, // Will be populated by runtime
+		Path:          canonicalID, // Store canonical form
+		File:          file,
+		SourceContent: &sourceText,
+		Imports:       imports,
+		Exports:       exports,
+		Types:         types,
+		Constructors:  constructors,
+		Core:          nil, // Will be populated by runtime
 	}
 	ml.cache[canonicalID] = loaded
 
 	return loaded, nil
 }
 
-// resolvePath resolves a module path to a file path
-func (ml *ModuleLoader) resolvePath(path string) string {
+// resolvePath resolves a module path to a file path.
+//
+// A std/ path goes through the SAME StdlibResolver Load uses (CLI flag, cwd,
+// binary-relative, AILANG_STDLIB_PATH, user and system dirs), then the
+// embedded copy. Until M-V1-SIMPLIFY-S4 M1 this function had its own second
+// implementation — AILANG_STDLIB_PATH else "." — so with the variable unset it
+// named `./std/<module>.ail` relative to whatever the process cwd happened to
+// be: a stale cwd meant the wrong stdlib, or a path to nothing, with no error.
+// No caller wants "."; an unresolvable stdlib module is an error here exactly
+// as it is in Load.
+func (ml *ModuleLoader) resolvePath(path string) (string, error) {
 	// If path already ends with .ail, use it as-is (absolute)
 	if strings.HasSuffix(path, ".ail") {
-		return path
+		return path, nil
 	}
 
 	// Handle explicit relative imports (starts with ./ or ../)
 	if strings.HasPrefix(path, "./") || strings.HasPrefix(path, "../") {
-		return filepath.Join(ml.basePath, path) + ".ail"
+		return filepath.Join(ml.basePath, path) + ".ail", nil
 	}
 
-	// Handle standard library imports (always relative to std root)
+	// Handle standard library imports (always relative to the std root the
+	// resolver finds — never the cwd)
 	if strings.HasPrefix(path, "std/") {
-		// Resolve from AILANG_STDLIB_PATH env or default to current directory
-		stdlibPath := os.Getenv("AILANG_STDLIB_PATH")
-		if stdlibPath == "" {
-			stdlibPath = "." // std/ is at repository root
+		if ml.stdlibResolver == nil {
+			ml.stdlibResolver = NewStdlibResolver("", false, false)
 		}
-		return filepath.Join(stdlibPath, path) + ".ail"
+		resolved, err := ml.stdlibResolver.ResolveStdlib(path)
+		if err == nil {
+			return resolved, nil
+		}
+		embFile := strings.TrimPrefix(path, "std/") + ".ail"
+		if _, embErr := std.FS.ReadFile(embFile); embErr == nil {
+			return "<embedded>/std/" + embFile, nil
+		}
+		return "", err
 	}
 
 	// Default: treat as project-relative (join with basePath)
 	// Example: "examples/v3_3/math/gcd" → "/abs/path/examples/v3_3/math/gcd.ail"
-	return filepath.Join(ml.basePath, path) + ".ail"
+	return filepath.Join(ml.basePath, path) + ".ail", nil
 }
 
 // CanonicalModuleID returns the canonical module ID for a path
@@ -620,7 +646,10 @@ func (ml *ModuleLoader) NormalizeContent(content []byte) []byte {
 // CanonicalPath returns the canonical path for a module
 func (ml *ModuleLoader) CanonicalPath(path string) (string, error) {
 	// Resolve to absolute path
-	fullPath := ml.resolvePath(path)
+	fullPath, err := ml.resolvePath(path)
+	if err != nil {
+		return "", err
+	}
 
 	// Get canonical path (resolves symlinks, etc.)
 	canonical, err := filepath.EvalSymlinks(fullPath)
@@ -671,26 +700,17 @@ func IsTempPath(path string) bool {
 		return false
 	}
 
-	// Check os.TempDir() first (cross-platform)
+	// Check os.TempDir() first (cross-platform). On Windows this IS the
+	// %TMP%-then-%TEMP% lookup, so there is no separate Windows branch
+	// (M-V1-SIMPLIFY-S4 M4: the two reads it duplicated were the last
+	// os.Getenv calls in the loader).
 	tempDir := os.TempDir()
 	if strings.HasPrefix(absPath, tempDir) {
 		return true
 	}
 
 	// Platform-specific patterns
-	if runtime.GOOS == "windows" {
-		// Windows: check %TEMP% and %TMP% environment variables
-		if temp := os.Getenv("TEMP"); temp != "" {
-			if strings.HasPrefix(absPath, temp) {
-				return true
-			}
-		}
-		if tmp := os.Getenv("TMP"); tmp != "" {
-			if strings.HasPrefix(absPath, tmp) {
-				return true
-			}
-		}
-	} else {
+	if runtime.GOOS != "windows" {
 		// Unix-like systems
 		// Check /tmp/ prefix
 		if strings.HasPrefix(absPath, "/tmp/") || absPath == "/tmp" {

@@ -6,6 +6,7 @@ package cloudrun
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	run "cloud.google.com/go/run/apiv2"
@@ -14,6 +15,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/coordinator"
 )
 
@@ -74,9 +76,83 @@ var knownVariants = map[string]bool{
 	"codex-go":  true,
 	"opencode":  true,
 	"pi":        true,
+	"pi-go":     true, // Dockerfile.agent-pi-go + job ailang-agent-executor-pi-go both exist
 	"motoko":    true, // M-MOTOKO-EXECUTOR-ADAPTER (v0.18.0): AILANG-native agent
 	"eval":      true,
 	"eval-go":   true,
+}
+
+// providersForVariant maps an executor variant to the executor binaries baked
+// into that variant's image. Ground truth is docker/Dockerfile.agent-<variant>:
+// the Cloud Run Jobs API cannot override an image per execution, so the variant
+// IS the image, and the image decides which binary exists on $PATH.
+//
+// A nil value means "any provider" — only agent-eval installs every CLI.
+var providersForVariant = map[string][]string{
+	"":          {"claude"},   // Dockerfile.agent: @anthropic-ai/claude-code
+	"default":   {"claude"},   //   ditto
+	"go":        {"claude"},   // Dockerfile.agent-go: FROM agent
+	"codex":     {"codex"},    // Dockerfile.agent-codex: @openai/codex
+	"codex-go":  {"codex"},    // FROM agent-codex
+	"gemini":    {"gemini"},   // Dockerfile.agent-gemini: @google/gemini-cli
+	"gemini-go": {"gemini"},   // FROM agent-gemini
+	"opencode":  {"opencode"}, // Dockerfile.agent-opencode: opencode-ai
+	"pi":        {"pi"},       // Dockerfile.agent-pi: @mariozechner/pi-coding-agent
+	"pi-go":     {"pi"},       // FROM agent-pi
+	"motoko":    {"motoko"},   // Dockerfile.agent-motoko
+	"eval":      nil,          // agent-eval: claude + gemini + codex + opencode + pi
+	"eval-go":   nil,          // FROM agent-eval
+}
+
+// binarylessProviders reach a remote API and shell out to nothing, so they are
+// runnable in any image and must never be refused on image grounds.
+var binarylessProviders = map[string]bool{
+	"managed_agents": true,
+}
+
+// checkVariantProviderAgreement refuses a dispatch whose executor binary cannot
+// exist in the image it would run in.
+//
+// ExecutorVariant selects the Cloud Run Job, and therefore the image. The
+// separate AILANG_PROVIDER env var selects which executor runs INSIDE it
+// (cmd/ailang/coordinator_cloud.go passes it to executor.GetExecutor). Nothing
+// tied the two together, so a mismatch was discoverable only by the container,
+// at the END of its setup. Measured 2026-08-28: task-a0628a5f dispatched to
+// ailang-agent-executor-codex, logged "running opencode executor (unified path)"
+// and died on
+//
+//	exec: "opencode": executable file not found in $PATH
+//
+// AFTER cloning 24,032 files and cutting its branch. Every such dispatch burns a
+// full container start and repo clone to learn something knowable before launch.
+// Refusing here turns a silent late failure into a loud early one.
+func checkVariantProviderAgreement(variant, provider string) error {
+	if provider == "" || binarylessProviders[provider] {
+		return nil
+	}
+	allowed, known := providersForVariant[variant]
+	if !known || allowed == nil {
+		// Unknown variants are rejected by jobSuffixForVariant; nil means the
+		// image carries every CLI.
+		return nil
+	}
+	for _, p := range allowed {
+		if p == provider {
+			return nil
+		}
+	}
+	return fmt.Errorf("executor_variant %q runs image agent-%s, which has %v on $PATH, but provider is %q: "+
+		"the job would clone the repo and then fail with %q: executable file not found in $PATH. "+
+		"Fix the agent's provider/executor_variant pair in config.cloud.yaml",
+		variant, variantImageName(variant), allowed, provider, provider)
+}
+
+// variantImageName renders the image basename for a variant, for error text.
+func variantImageName(variant string) string {
+	if variant == "" || variant == "default" {
+		return "agent"
+	}
+	return variant
 }
 
 // jobSuffixForVariant returns the Cloud Run Job name suffix for a variant + auth mode pair.
@@ -111,6 +187,9 @@ func (d *Dispatcher) Dispatch(ctx context.Context, params coordinator.DispatchPa
 	if err != nil {
 		return err
 	}
+	if err := checkVariantProviderAgreement(params.ExecutorVariant, params.Provider); err != nil {
+		return err
+	}
 	jobName := fmt.Sprintf("projects/%s/locations/%s/jobs/%s-%s",
 		d.projectID, d.region, d.prefix, jobSuffix)
 
@@ -118,8 +197,19 @@ func (d *Dispatcher) Dispatch(ctx context.Context, params coordinator.DispatchPa
 		{Name: "AILANG_TASK_ID", Values: &runpb.EnvVar_Value{Value: params.TaskID}},
 		{Name: "AILANG_AGENT_ID", Values: &runpb.EnvVar_Value{Value: params.AgentID}},
 		{Name: "AILANG_WORKSPACE", Values: &runpb.EnvVar_Value{Value: params.Workspace}},
+		// M-COORDINATOR-EXECUTION-TRUST M1a: the permission tier the session-protocol
+		// gate runs under. Resolved by coordinator.ResolveWorkTier from the trusted
+		// agent registry — never from message content (design doc V18).
+		{Name: "AILANG_WORK_TIER", Values: &runpb.EnvVar_Value{Value: params.WorkTier}},
+		// M2: was this run supposed to produce a diff? Trusted metadata, not the
+		// content-derived task type. Only an explicit "true" suppresses the
+		// no_changes outcome, so an unset value stays loud.
+		{Name: "AILANG_ACKNOWLEDGE_ONLY", Values: &runpb.EnvVar_Value{Value: strconv.FormatBool(params.AcknowledgeOnly)}},
 		{Name: "AILANG_PROVIDER", Values: &runpb.EnvVar_Value{Value: params.Provider}},
 		{Name: "AILANG_DIRECTIVE", Values: &runpb.EnvVar_Value{Value: params.Directive}},
+		// The human description, so the job need not reverse-engineer one from a
+		// template-wrapped prompt. See DispatchParams.TaskTitle.
+		{Name: "AILANG_TASK_TITLE", Values: &runpb.EnvVar_Value{Value: params.TaskTitle}},
 		{Name: "AILANG_REPO_URL", Values: &runpb.EnvVar_Value{Value: params.RepoURL}},
 		{Name: "AILANG_BRANCH", Values: &runpb.EnvVar_Value{Value: params.Branch}},
 	}
@@ -147,6 +237,13 @@ func (d *Dispatcher) Dispatch(ctx context.Context, params coordinator.DispatchPa
 	if params.Timeout != "" {
 		envOverrides = append(envOverrides, &runpb.EnvVar{
 			Name: "AILANG_TIMEOUT", Values: &runpb.EnvVar_Value{Value: params.Timeout},
+		})
+	}
+	// Idle kill, distinct from the hard ceiling above. Absent, the job uses the
+	// executor default (3m) and the agent's declared idle_timeout is dead config.
+	if params.IdleTimeout != "" {
+		envOverrides = append(envOverrides, &runpb.EnvVar{
+			Name: config.EnvIdleTimeout, Values: &runpb.EnvVar_Value{Value: params.IdleTimeout},
 		})
 	}
 	// M-CLOUD-PROGRESS-TRACKING: Pass per-task cost budget for mid-execution enforcement.
@@ -177,6 +274,56 @@ func (d *Dispatcher) Dispatch(ctx context.Context, params coordinator.DispatchPa
 	if params.Subdirectory != "" {
 		envOverrides = append(envOverrides, &runpb.EnvVar{
 			Name: "AILANG_SUBDIRECTORY", Values: &runpb.EnvVar_Value{Value: params.Subdirectory},
+		})
+	}
+	// Only set when true: an absent variable and "0" must mean the same thing, so
+	// a wrapper reading it cannot accidentally treat "false" as enabled.
+	if params.AutoMerge {
+		envOverrides = append(envOverrides, &runpb.EnvVar{
+			Name: "AILANG_AUTO_MERGE", Values: &runpb.EnvVar_Value{Value: "1"},
+		})
+		// Newline-separated: a pattern may legitimately contain a comma, and a
+		// separator that can appear in the data is how a scope guard silently
+		// widens.
+		if len(params.ArtifactPatterns) > 0 {
+			envOverrides = append(envOverrides, &runpb.EnvVar{
+				Name:   "AILANG_ARTIFACT_PATTERNS",
+				Values: &runpb.EnvVar_Value{Value: strings.Join(params.ArtifactPatterns, "\n")},
+			})
+		}
+	}
+	// M-AGENT-AILANG-ONLY-EXECUTION: the tool lane, and the program policy by
+	// CONTENT (the Job cannot read the coordinator's disk). full = no override.
+	if params.ToolPolicy != "" && params.ToolPolicy != "full" {
+		envOverrides = append(envOverrides, &runpb.EnvVar{
+			Name: "AILANG_TOOL_POLICY", Values: &runpb.EnvVar_Value{Value: params.ToolPolicy},
+		})
+	}
+	if params.PolicyTOML != "" {
+		envOverrides = append(envOverrides, &runpb.EnvVar{
+			Name: "AILANG_AGENT_POLICY_TOML", Values: &runpb.EnvVar_Value{Value: params.PolicyTOML},
+		})
+	}
+	if params.SSHKeySecret != "" {
+		envOverrides = append(envOverrides, &runpb.EnvVar{
+			Name: "AILANG_SSH_KEY_SECRET", Values: &runpb.EnvVar_Value{Value: params.SSHKeySecret},
+		})
+		alias := params.SSHHostAlias
+		if alias == "" {
+			alias = "agent-repo"
+		}
+		envOverrides = append(envOverrides, &runpb.EnvVar{
+			Name: "AILANG_SSH_HOST_ALIAS", Values: &runpb.EnvVar_Value{Value: alias},
+		})
+	}
+	if params.GitAuthorName != "" {
+		envOverrides = append(envOverrides, &runpb.EnvVar{
+			Name: "AILANG_GIT_AUTHOR_NAME", Values: &runpb.EnvVar_Value{Value: params.GitAuthorName},
+		})
+	}
+	if params.GitAuthorEmail != "" {
+		envOverrides = append(envOverrides, &runpb.EnvVar{
+			Name: "AILANG_GIT_AUTHOR_EMAIL", Values: &runpb.EnvVar_Value{Value: params.GitAuthorEmail},
 		})
 	}
 	// M-PKG-CASCADE-DETERMINISTIC-FIRST: cascade envelope env vars. The Cloud
@@ -259,4 +406,24 @@ func (d *Dispatcher) Dispatch(ctx context.Context, params coordinator.DispatchPa
 	}
 
 	return nil
+}
+
+// ProvidersForVariant exposes the variant/provider table for cross-package drift
+// checks (M-COMPLETION-PATH-PARITY follow-up, 2026-09-03).
+//
+// The coordinator's startup audit needs this table but cannot import it — this
+// package already imports the coordinator's types, so the reverse edge would be
+// a cycle. It therefore keeps a copy, and a drift arm compares the two. A
+// duplicated table that silently diverges is worse than no table at all: the
+// audit would clear an agent the dispatcher then refuses.
+func ProvidersForVariant() map[string][]string {
+	out := make(map[string][]string, len(providersForVariant))
+	for k, v := range providersForVariant {
+		if v == nil {
+			out[k] = nil
+			continue
+		}
+		out[k] = append([]string(nil), v...)
+	}
+	return out
 }

@@ -1,0 +1,219 @@
+// Observatory session reporting for the resident agent (v6.40.0 M8).
+//
+// WHY THIS EXISTS ALONGSIDE otel.mjs
+//
+// Two planes, and the dashboard shows the second one. OTel spans correlate
+// services; what an operator actually READS is a task record with its turns and
+// tool calls — `POST /api/exec/sessions` creates a coordinator.TaskRecord and
+// `POST /api/exec/events` hangs the transcript off it
+// (internal/server/handlers_exec.go). That is how a Cloud Run agent job and a
+// Claude Code session appear, and a resident run emitting only spans would be
+// "traced" and still absent from the view that matters.
+//
+// The mapping is not a translation so much as a coincidence worth using: pi's
+// NDJSON event types and the exec API's stream types describe the same thing.
+//
+//     pi                                     exec stream_type
+//     ─────────────────────────────────────  ────────────────
+//     (run start)                            turn_start
+//     message_update / text_delta            text       (COALESCED — see below)
+//     tool_execution_start                   tool_use
+//     tool_execution_end                     tool_result
+//     message_end                            turn_end
+//     (a throw, or a non-zero exit)          error
+//
+// TEXT IS COALESCED, DELIBERATELY. pi emits one message_update per token. A
+// POST each would make telemetry the bottleneck of the thing it measures, and
+// would bury the tool calls — the events anyone is actually looking for — under
+// thousands of one-character rows. Deltas accumulate and flush as one `text`
+// event at the next tool call or at the end of the turn, which also keeps the
+// transcript in the order it happened.
+//
+// THREE ENDPOINTS, because the executors use three and parity is the point.
+//
+//   /api/observatory/hooks      the SESSIONS table. What OTel spans are
+//                               enriched against, and what makes this a
+//                               first-class session rather than a task record
+//                               that happens to exist. Its SessionStart 400s
+//                               without a workspace, so that is not optional.
+//   /api/exec/sessions          creates the coordinator.TaskRecord
+//   /api/exec/events            the transcript hung off it (the Chat History view)
+//
+// claude_telemetry.sh posts to all three for a Claude Code session; a resident
+// run posts the same shapes, from pi's events instead of Claude Code's hooks.
+//
+// Same failure posture as otel.mjs: unset URL is inert, an unreachable
+// observatory drops events and warns ONCE. Reporting must never be the reason a
+// turn fails.
+
+// The pi -> vocabulary mapping lives in agent-events.mjs, because M7's events
+// artifact reads the SAME stream to build the user's story. Two copies of it
+// could disagree about the same run, and the `result.content[]` lesson below
+// would have to be learned twice.
+import { createNormaliser } from "./agent-events.mjs";
+
+let cfg = { url: "" };
+let warned = false;
+
+export function configure({ url = "" } = {}) {
+  cfg = { url: String(url || "").replace(/\/+$/, "") };
+  warned = false;
+  return enabled();
+}
+
+export function enabled() {
+  return cfg.url !== "";
+}
+
+function warnOnce(message) {
+  if (warned) return;
+  warned = true;
+  console.warn(`observatory | ${message}`);
+}
+
+async function post(path, body) {
+  if (!enabled()) return null;
+  try {
+    const res = await fetch(`${cfg.url}${path}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+      // Short, like the Go side's OTLP timeout: a slow dashboard must not
+      // become a slow agent.
+      signal: AbortSignal.timeout(3000),
+    });
+    if (!res.ok) {
+      warnOnce(`${path} returned ${res.status} — session reporting is degraded, the agent is not`);
+      return null;
+    }
+    return await res.json().catch(() => ({}));
+  } catch (e) {
+    warnOnce(`${path} unreachable (${String(e.message).slice(0, 120)}) — session reporting is degraded, the agent is not`);
+    return null;
+  }
+}
+
+const INERT_RUN = {
+  event() {},
+  async flush() {},
+  async finish() {},
+};
+
+/**
+ * Open a reported run. `sessionId` is the A2A TASK id, so the record the
+ * dashboard shows (`exec-<first 8>`) ties back to the task the platform holds
+ * and to the `a2a.task.id` attribute carried on the spans.
+ *
+ * ⚠️ THE DASHBOARD RECORD IS KEYED ON THE FIRST 8 CHARACTERS.
+ * `handlers_exec.go` derives `task_id = "exec-" + session_id[:8]`, so two runs
+ * whose ids share a prefix collapse into ONE record — which looks exactly like
+ * working telemetry, with one enormous fake session. Safe today because an A2A
+ * task id defaults to `randomUUID()`, and unsafe the moment a caller passes a
+ * PREFIXED `metadata.runId`: the platform's own thread ids are `aitana-<hash>`,
+ * and every one of those truncates to `exec-aitana-`. Verified live 2026-09-04
+ * (`m8probe-1788530540` -> `exec-m8probe-`). If runId is ever plumbed through
+ * `a2a_client.converse`, put the entropy in the first 8 characters or fix the
+ * truncation.
+ */
+export function startRun({ sessionId, workspace = "/workspace", provider = "pi" }) {
+  if (!enabled()) return INERT_RUN;
+
+  // Queued rather than awaited: startRun is called on the request path and the
+  // dashboard is not allowed to add latency to it. Ordering is preserved by
+  // chaining every send onto this same promise.
+  let chain = Promise.all([
+    post("/api/exec/sessions", { session_id: sessionId, workspace, provider }),
+    hook({ event: "SessionStart", workspace, claude_version: provider }),
+  ]).then(() => send({ stream_type: "turn_start", text: "resident run started" }));
+  const norm = createNormaliser();
+  let turn = 0;
+
+  function send(fields) {
+    return post("/api/exec/events", { session_id: sessionId, turn_num: turn, ...fields });
+  }
+  function hook(fields) {
+    return post("/api/observatory/hooks", {
+      session_id: sessionId,
+      timestamp: new Date().toISOString(),
+      ...fields,
+    });
+  }
+  function enqueue(fields) {
+    chain = chain.then(() => send(fields)).catch(() => {});
+  }
+  function enqueueHook(fields) {
+    chain = chain.then(() => hook(fields)).catch(() => {});
+  }
+  // Post whatever the normaliser has produced. The mapping pi -> vocabulary is
+  // shared with M7's events artifact; what each sink does with a record is
+  // NOT, and this is that half.
+  function drain() {
+    for (const e of norm.drain()) {
+      switch (e.type) {
+        case "text":
+          enqueue({ stream_type: "text", text: e.text });
+          break;
+        case "tool_use":
+          enqueue({ stream_type: "tool_use", tool_name: e.tool, tool_input: e.input });
+          // tool_input/tool_response are json.RawMessage on the hooks handler,
+          // so they must be JSON VALUES, not the strings the exec API takes.
+          // This is why the normaliser carries both `args` and `input`.
+          enqueueHook({
+            event: "PreToolUse", tool_name: e.tool,
+            tool_use_id: e.toolCallId, tool_input: e.args,
+          });
+          break;
+        case "tool_result":
+          enqueue({ stream_type: "tool_result", tool_name: e.tool, tool_output: e.output });
+          enqueueHook({
+            event: "PostToolUse", tool_name: e.tool,
+            tool_use_id: e.toolCallId, tool_response: e.output,
+          });
+          break;
+        case "turn_end":
+          // NOT forwarded. This plane's `turn_end` is emitted once by finish()
+          // to close the transcript, and it carries the turn COUNTER that
+          // every subsequent event is stamped with. A per-message_end turn_end
+          // here would be a second terminal event on a run still going.
+          turn += 1;
+          break;
+        default:
+          break;
+      }
+    }
+  }
+
+  return {
+    /** Feed pi's NDJSON events straight in; unknown types are ignored. */
+    event(ev) {
+      norm.push(ev);
+      drain();
+    },
+
+    /** Await everything queued so far. Used by tests and before finishing. */
+    async flush() {
+      norm.flush();
+      drain();
+      await chain;
+    },
+
+    /**
+     * Close the run. A failed run that reports no terminal event is
+     * indistinguishable from one still going, which is the state the dashboard
+     * exists to rule out.
+     */
+    async finish({ ok = true, error = "", usage = null } = {}) {
+      norm.flush();
+      drain();
+      enqueue(
+        ok
+          ? { stream_type: "turn_end", text: usage ? `usage: ${JSON.stringify(usage)}` : "run complete" }
+          : { stream_type: "error", error_msg: String(error || "run failed") },
+      );
+      // Stop closes the SESSION as well as the transcript. A session that never
+      // stops is a session still running, as far as the dashboard is concerned.
+      enqueueHook({ event: "Stop" });
+      await chain;
+    },
+  };
+}

@@ -11,7 +11,7 @@
 //
 // Usage:
 //
-//	OLLAMA_TAP_LOG=/tmp/tap.jsonl go run ./tools/ollama-tap            # listen :11435 → :11434
+//	OLLAMA_TAP_LOG=/tmp/tap.jsonl go run ./tools/ollama-tap            # listen 127.0.0.1:11435 → :11434
 //	# then point ONE harness at the tap for one benchmark, e.g.:
 //	#   motoko:   OLLAMA_HOST=http://localhost:11435  (AILANG reads OLLAMA_HOST)
 //	#   pi:       set its ollama base URL to http://localhost:11435/v1
@@ -22,7 +22,7 @@
 //
 // Env:
 //
-//	OLLAMA_TAP_LISTEN    (default ":11435")
+//	OLLAMA_TAP_LISTEN    (default "127.0.0.1:11435"; loopback — the log holds full request bodies)
 //	OLLAMA_TAP_UPSTREAM  (default "http://localhost:11434")
 //	OLLAMA_TAP_LOG       (default "ollama-tap.jsonl") — JSONL of captured requests
 //
@@ -60,7 +60,7 @@ type capture struct {
 }
 
 func main() {
-	listen := envOr("OLLAMA_TAP_LISTEN", ":11435")
+	listen := envOr("OLLAMA_TAP_LISTEN", "127.0.0.1:11435")
 	upstreamRaw := envOr("OLLAMA_TAP_UPSTREAM", "http://localhost:11434")
 	logPath := envOr("OLLAMA_TAP_LOG", "ollama-tap.jsonl")
 

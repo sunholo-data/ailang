@@ -56,12 +56,18 @@ type AnthropicThinkingStyle struct {
 // is pinned by TestAnthropicThinkingStyle_CoversCapabilityTable.
 var anthropicThinkingStyles = map[string]AnthropicThinkingStyle{
 	// --- Adaptive generation: budget_tokens REMOVED (400) -----------------
+	// Opus 5.5 (2026-09-22) drops Opus 5's disable path: {type:"disabled"} is a
+	// 400 at EVERY effort level, and its default effort is "medium", not "high".
+	"claude-opus-5-5": {Adaptive: true, CanDisable: false},
 	"claude-opus-5":   {Adaptive: true, CanDisable: true},
 	"claude-opus-4-8": {Adaptive: true, CanDisable: true},
 	"claude-opus-4-7": {Adaptive: true, CanDisable: true},
 	"claude-sonnet-5": {Adaptive: true, CanDisable: true},
 	// Fable 5 / Mythos 5: thinking is ALWAYS on. An explicit
 	// {type:"disabled"} is a 400 at any effort, so "off" is not expressible.
+	// Fable 5.1 (2026-09-01) keeps that surface unchanged — same generation,
+	// same always-on adaptive thinking, default effort "high".
+	"claude-fable-5-1":      {Adaptive: true, CanDisable: false},
 	"claude-fable-5":        {Adaptive: true, CanDisable: false},
 	"claude-mythos-5":       {Adaptive: true, CanDisable: false},
 	"claude-mythos-preview": {Adaptive: true, CanDisable: false},

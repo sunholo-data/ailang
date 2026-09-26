@@ -13,6 +13,7 @@
 package main
 
 import (
+	"github.com/sunholo-data/ailang/internal/modelreg"
 	"path/filepath"
 
 	"github.com/sunholo-data/ailang/internal/eval_analysis"
@@ -95,7 +96,7 @@ type costEstimate struct {
 // config. Thin wrapper over estimateRunCostUSDWithMeans so tests can inject
 // a fixture instead of touching the filesystem/global state.
 func estimateRunCostUSD(models, benchmarks []string, langs, trials int) costEstimate {
-	return estimateRunCostUSDWithMeans(models, benchmarks, langs, trials, loadBenchmarkTokenMeans(), eval_harness.GlobalModelsConfig)
+	return estimateRunCostUSDWithMeans(models, benchmarks, langs, trials, loadBenchmarkTokenMeans(), modelreg.GlobalModelsConfig)
 }
 
 // estimateRunCostUSDWithMeans is the pure computation: no filesystem or

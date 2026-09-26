@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/sunholo-data/ailang/internal/mapval"
 	obs "github.com/sunholo-data/ailang/internal/observatory"
 )
 
@@ -34,7 +35,7 @@ func (s *ObservatoryStore) CreateChain(ctx context.Context, req *obs.ChainCreate
 		WorkspacePath:     req.WorkspacePath,
 		CreatedAt:         now,
 	}
-	_, err := s.client.Doc(collObsChains, chain.ID).Set(ctx, chainToMap(chain))
+	_, err := s.client.Doc(collObsChains, chain.ID).Set(ctx, chainToMap(chain, s.chainTTL))
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +80,7 @@ func (s *ObservatoryStore) GetChainByTaskID(ctx context.Context, taskID string) 
 	if err != nil {
 		return nil, err
 	}
-	chainID := getString(doc.Data(), "chain_id")
+	chainID := mapval.String(doc.Data(), "chain_id")
 	return s.GetChain(ctx, chainID, obs.ChainReadOptions{IncludeStages: true})
 }
 
@@ -99,65 +100,6 @@ func (s *ObservatoryStore) GetChainByGitHubIssue(ctx context.Context, repo strin
 		return nil, err
 	}
 	return mapToChain(doc.Data()), nil
-}
-
-func (s *ObservatoryStore) ListChains(ctx context.Context, opts obs.ChainListOptions) ([]*obs.ChainSummary, error) {
-	q := s.client.Collection(collObsChains).Query
-	if opts.Status != "" {
-		q = q.Where("status", "==", string(opts.Status))
-	}
-	if opts.SourceType != "" {
-		q = q.Where("source_type", "==", opts.SourceType)
-	}
-	if opts.WorkspaceID != "" {
-		q = q.Where("workspace_id", "==", opts.WorkspaceID)
-	}
-	if opts.GitHubRepo != "" {
-		q = q.Where("github_repo", "==", opts.GitHubRepo)
-	}
-	if opts.CreatedAfter != nil {
-		q = q.Where("created_at", ">=", timeToFirestore(*opts.CreatedAfter))
-	}
-	q = q.OrderBy("created_at", firestore.Desc)
-	if opts.Limit > 0 {
-		q = q.Limit(opts.Limit)
-	}
-
-	iter := q.Documents(ctx)
-	defer iter.Stop()
-
-	var result []*obs.ChainSummary
-	for {
-		doc, err := iter.Next()
-		if err == iterator.Done {
-			break
-		}
-		if err != nil {
-			return nil, err
-		}
-		data := doc.Data()
-		result = append(result, &obs.ChainSummary{
-			ID:                getString(data, "id"),
-			SourceType:        getString(data, "source_type"),
-			SourceRef:         getString(data, "source_ref"),
-			GitHubRepo:        getString(data, "github_repo"),
-			GitHubIssueNumber: getInt(data, "github_issue_number"),
-			Status:            obs.ChainStatus(getString(data, "status")),
-			CurrentStage:      getInt(data, "current_stage"),
-			TotalCost:         getFloat64(data, "total_cost"),
-			TotalTokens:       getInt(data, "total_tokens"),
-			TotalTurns:        getInt(data, "total_turns"),
-			StagesCompleted:   getInt(data, "stages_completed"),
-			CreatedAt:         snapshotToTime(data, "created_at"),
-			CompletedAt:       snapshotToTimePtr(data, "completed_at"),
-		})
-	}
-
-	if opts.AgentID != "" {
-		result = s.filterChainsByAgent(ctx, result, opts.AgentID)
-	}
-
-	return result, nil
 }
 
 func (s *ObservatoryStore) UpdateChainStatus(ctx context.Context, chainID string, chainStatus obs.ChainStatus) error {
@@ -199,11 +141,11 @@ func (s *ObservatoryStore) GetChainStats(ctx context.Context) (*obs.ChainStats, 
 		}
 		data := doc.Data()
 		stats.TotalChains++
-		stats.TotalCost += getFloat64(data, "total_cost")
-		stats.TotalTokens += getInt64(data, "total_tokens")
-		totalStages += getInt(data, "stages_completed")
+		stats.TotalCost += mapval.Float(data, "total_cost")
+		stats.TotalTokens += mapval.Int64(data, "total_tokens")
+		totalStages += mapval.Int(data, "stages_completed")
 
-		st := obs.ChainStatus(getString(data, "status"))
+		st := obs.ChainStatus(mapval.String(data, "status"))
 		switch st {
 		case obs.ChainStatusActive:
 			stats.ActiveChains++
@@ -261,7 +203,7 @@ func (s *ObservatoryStore) CreateStage(ctx context.Context, req *obs.StageCreate
 		stage.Iteration = 1
 	}
 
-	_, err := s.client.Doc(collObsChainStages, stage.ID).Set(ctx, stageToMap(stage))
+	_, err := s.client.Doc(collObsChainStages, stage.ID).Set(ctx, stageToMap(stage, s.chainTTL))
 	if err != nil {
 		return nil, err
 	}
@@ -278,7 +220,7 @@ func (s *ObservatoryStore) GetStage(ctx context.Context, id string) (*obs.ChainS
 	doc, err := s.client.Doc(collObsChainStages, id).Get(ctx)
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
-			return nil, fmt.Errorf("stage not found: %s", id)
+			return nil, fmt.Errorf("%w: stage %s", obs.ErrNotFound, id)
 		}
 		return nil, err
 	}
@@ -323,8 +265,34 @@ func (s *ObservatoryStore) UpdateStageStatus(ctx context.Context, stageID string
 	if stageStatus == obs.StageStatusCompleted || stageStatus == obs.StageStatusFailed {
 		updates = append(updates, firestore.Update{Path: "completed_at", Value: time.Now()})
 	}
-	_, err := s.client.Doc(collObsChainStages, stageID).Update(ctx, updates)
-	return err
+	if _, err := s.client.Doc(collObsChainStages, stageID).Update(ctx, updates); err != nil {
+		return err
+	}
+	if stageStatus != obs.StageStatusCompleted {
+		return nil
+	}
+
+	// Parity with the SQLite store (store_chains.go: "increment chain's
+	// stages_completed counter"). This backend's ListChains REPORTS that
+	// denormalized field rather than counting stage documents, so without the
+	// increment every cloud chain reads "0 stages" however many it really
+	// holds — which is precisely how a populated store came to look empty.
+	// The status write above is already durable; a counter failure is returned
+	// named rather than swallowed, so it cannot silently reappear as 0.
+	stage, err := s.GetStage(ctx, stageID)
+	if err != nil {
+		return fmt.Errorf("stage status written, but reading it back for the chain counter failed: %w", err)
+	}
+	if stage.ChainID == "" {
+		return nil
+	}
+	if _, err := s.client.Doc(collObsChains, stage.ChainID).Update(ctx, []firestore.Update{
+		{Path: "stages_completed", Value: firestore.Increment(1)},
+		{Path: "updated_at", Value: time.Now()},
+	}); err != nil {
+		return fmt.Errorf("stage status written, but incrementing stages_completed on chain %s failed: %w", stage.ChainID, err)
+	}
+	return nil
 }
 
 func (s *ObservatoryStore) UpdateStageSession(ctx context.Context, stageID, sessionID string) error {
@@ -388,6 +356,26 @@ func (s *ObservatoryStore) UpdateStageEvalAssessment(ctx context.Context, stageI
 	return err
 }
 
+// UpdateStageQuotaTokens records SUBSCRIPTION token spend on the remote store.
+//
+// It writes its own field and never tokens_in/tokens_out: the cost classifier reads
+// `tokens > 0` as "metered", so putting a quota lane's real count there would price a
+// subscription run as billed (M-QUOTA-RATIONING-ROUTING M2). A zero is rejected
+// because every quota stage already reads zero, so writing one is indistinguishable
+// from never having reported.
+func (s *ObservatoryStore) UpdateStageQuotaTokens(ctx context.Context, stageID string, tokens int64) error {
+	if stageID == "" {
+		return fmt.Errorf("stage_id is required")
+	}
+	if tokens <= 0 {
+		return fmt.Errorf("quota_tokens must be positive (got %d); a zero write is indistinguishable from never reporting", tokens)
+	}
+	_, err := s.client.Doc(collObsChainStages, stageID).Update(ctx, []firestore.Update{
+		{Path: "quota_tokens", Value: tokens},
+	})
+	return err
+}
+
 func (s *ObservatoryStore) UpdateStageError(ctx context.Context, stageID, errorMessage string) error {
 	_, err := s.client.Doc(collObsChainStages, stageID).Update(ctx, []firestore.Update{
 		{Path: "error_message", Value: errorMessage},
@@ -437,9 +425,9 @@ func (s *ObservatoryStore) GetChainStatusCounts(ctx context.Context, createdAfte
 		}
 		data := doc.Data()
 		counts.Total++
-		counts.TotalCost += getFloat64(data, "total_cost")
-		counts.TotalTokens += getInt64(data, "total_tokens")
-		switch obs.ChainStatus(getString(data, "status")) {
+		counts.TotalCost += mapval.Float(data, "total_cost")
+		counts.TotalTokens += mapval.Int64(data, "total_tokens")
+		switch obs.ChainStatus(mapval.String(data, "status")) {
 		case obs.ChainStatusCompleted:
 			counts.Completed++
 		case obs.ChainStatusActive:
@@ -472,7 +460,7 @@ func (s *ObservatoryStore) GetChainStatsByAgent(ctx context.Context, createdAfte
 			return nil, err
 		}
 		data := doc.Data()
-		agentID := getString(data, "agent_id")
+		agentID := mapval.String(data, "agent_id")
 		if agentID == "" {
 			continue
 		}
@@ -482,10 +470,10 @@ func (s *ObservatoryStore) GetChainStatsByAgent(ctx context.Context, createdAfte
 			agentMap[agentID] = stats
 		}
 		stats.Stages++
-		stats.TotalCost += getFloat64(data, "cost")
-		stats.TokensIn += getInt(data, "tokens_in")
-		stats.TokensOut += getInt(data, "tokens_out")
-		switch obs.ChainStageStatus(getString(data, "status")) {
+		stats.TotalCost += mapval.Float(data, "cost")
+		stats.TokensIn += mapval.Int(data, "tokens_in")
+		stats.TokensOut += mapval.Int(data, "tokens_out")
+		switch obs.ChainStageStatus(mapval.String(data, "status")) {
 		case obs.StageStatusCompleted:
 			stats.Completed++
 		case obs.StageStatusFailed:
@@ -527,11 +515,11 @@ func (s *ObservatoryStore) GetCostRollup(ctx context.Context, createdAfter *time
 		// carry source_ref); sourcePrefix is honored by the SQLite backend which the
 		// mission uses. Firestore callers pass "" today.
 		stage := &obs.ChainStage{
-			Cost:      getFloat64(data, "cost"),
-			TokensIn:  getInt(data, "tokens_in"),
-			TokensOut: getInt(data, "tokens_out"),
+			Cost:      mapval.Float(data, "cost"),
+			TokensIn:  mapval.Int(data, "tokens_in"),
+			TokensOut: mapval.Int(data, "tokens_out"),
 		}
-		if model := getString(data, "model"); model != "" {
+		if model := mapval.String(data, "model"); model != "" {
 			stage.EvalAssessment = &obs.EvalAssessment{Model: model}
 		}
 		rollup.AddStage(stage)
@@ -546,6 +534,9 @@ func (s *ObservatoryStore) GetMissionRollups(ctx context.Context, createdAfter *
 }
 
 func (s *ObservatoryStore) GetSpanLitesByStageID(ctx context.Context, stageID string, limit, offset int) (*obs.SpanLitePage, error) {
+	if offset < 0 {
+		return nil, fmt.Errorf("offset must be non-negative")
+	}
 	if limit <= 0 {
 		limit = 50
 	}
@@ -553,6 +544,7 @@ func (s *ObservatoryStore) GetSpanLitesByStageID(ctx context.Context, stageID st
 	allIter := s.client.Collection(collObsSpans).
 		Where("stage_id", "==", stageID).
 		Documents(ctx)
+	defer allIter.Stop()
 	allDocs, err := collectDocs(allIter)
 	total := len(allDocs)
 	if err != nil {
@@ -562,13 +554,14 @@ func (s *ObservatoryStore) GetSpanLitesByStageID(ctx context.Context, stageID st
 	q := s.client.Collection(collObsSpans).
 		Where("stage_id", "==", stageID).
 		OrderBy("start_time", firestore.Asc).
+		OrderBy(firestore.DocumentID, firestore.Asc).
 		Offset(offset).
 		Limit(limit)
 
 	iter := q.Documents(ctx)
 	defer iter.Stop()
 
-	var spans []*obs.SpanLite
+	spans := []*obs.SpanLite{}
 	for {
 		doc, err := iter.Next()
 		if err == iterator.Done {
@@ -585,23 +578,23 @@ func (s *ObservatoryStore) GetSpanLitesByStageID(ctx context.Context, stageID st
 			durationMs = endTime.Sub(startTime).Milliseconds()
 		}
 		spans = append(spans, &obs.SpanLite{
-			ID:            getString(data, "id"),
-			TraceID:       getString(data, "trace_id"),
-			ParentSpanID:  getString(data, "parent_span_id"),
-			ChainID:       getString(data, "chain_id"),
-			StageID:       getString(data, "stage_id"),
-			Name:          getString(data, "name"),
-			Kind:          obs.SpanKind(getString(data, "kind")),
-			Status:        getString(data, "status"),
-			StatusMessage: getString(data, "status_message"),
+			ID:            mapval.String(data, "id"),
+			TraceID:       mapval.String(data, "trace_id"),
+			ParentSpanID:  mapval.String(data, "parent_span_id"),
+			ChainID:       mapval.String(data, "chain_id"),
+			StageID:       mapval.String(data, "stage_id"),
+			Name:          mapval.String(data, "name"),
+			Kind:          obs.SpanKind(mapval.String(data, "kind")),
+			Status:        mapval.String(data, "status"),
+			StatusMessage: mapval.String(data, "status_message"),
 			StartTime:     startTime,
 			EndTime:       endTime,
 			DurationMs:    durationMs,
-			TokensIn:      getInt64(data, "tokens_in"),
-			TokensOut:     getInt64(data, "tokens_out"),
-			CostUSD:       getFloat64(data, "cost_usd"),
-			Model:         getString(data, "model"),
-			Provider:      getString(data, "provider"),
+			TokensIn:      mapval.Int64(data, "tokens_in"),
+			TokensOut:     mapval.Int64(data, "tokens_out"),
+			CostUSD:       mapval.Float(data, "cost_usd"),
+			Model:         mapval.String(data, "model"),
+			Provider:      mapval.String(data, "provider"),
 		})
 	}
 
@@ -643,16 +636,16 @@ func (s *ObservatoryStore) ListPendingApprovals(ctx context.Context, limit int) 
 		}
 		data := doc.Data()
 		result = append(result, &obs.PendingApprovalInfo{
-			ChainID:        getString(data, "chain_id"),
-			StageID:        getString(data, "id"),
-			StageNumber:    getInt(data, "stage_number"),
-			AgentID:        getString(data, "agent_id"),
-			ApprovalStatus: getString(data, "approval_status"),
-			ApprovalType:   obs.ApprovalType(getString(data, "approval_type")),
-			TaskID:         getString(data, "task_id"),
-			SessionID:      getString(data, "session_id"),
-			Cost:           getFloat64(data, "cost"),
-			Turns:          getInt(data, "turns"),
+			ChainID:        mapval.String(data, "chain_id"),
+			StageID:        mapval.String(data, "id"),
+			StageNumber:    mapval.Int(data, "stage_number"),
+			AgentID:        mapval.String(data, "agent_id"),
+			ApprovalStatus: mapval.String(data, "approval_status"),
+			ApprovalType:   obs.ApprovalType(mapval.String(data, "approval_type")),
+			TaskID:         mapval.String(data, "task_id"),
+			SessionID:      mapval.String(data, "session_id"),
+			Cost:           mapval.Float(data, "cost"),
+			Turns:          mapval.Int(data, "turns"),
 		})
 	}
 	return result, nil

@@ -612,7 +612,7 @@ func TestLiveRun_Motoko(t *testing.T) {
 	if os.Getenv("AILANG_MOTOKO_LIVE") != "1" {
 		t.Skip("set AILANG_MOTOKO_LIVE=1 to run live motoko tests")
 	}
-	exec, err := New(executor.DefaultConfig())
+	exec, err := New(testConfig())
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
@@ -692,7 +692,9 @@ exit 0
 
 	// No explicit MotokoModel: New defaults e.model to openrouter (V31). This is
 	// load-bearing for the mutation's refusal.
-	exec, _ := New(&executor.Config{MotokoPath: mockMotoko})
+	exec, _ := New(&executor.Config{MotokoPath: mockMotoko,
+		MotokoModel: "openrouter/anthropic/claude-haiku-4-5", // D2(a): model is required
+	})
 
 	// DO NOT Fatal on HealthCheck's error here. Repaired at iteration 14 after the
 	// evaluator showed this row was decorative: a `t.Fatalf("HealthCheck: %v", err)`

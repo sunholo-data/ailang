@@ -96,6 +96,28 @@ level = "experimental"
 - `stable`: Semver guarantees (breaking changes = major version bump)
 - `frozen`: No changes planned
 
+## [bin] Section (v0.40.1)
+
+Commands the package ships. `ailang install` writes a shim per entry into `~/.ailang/bin`
+(`--bin-dir` to override) that runs the module with the package as program root.
+
+```toml
+[bin]
+eparse   = "cli"                                   # string form: module only
+docparse = { module = "docparse/main",             # table form
+             entry = "main",                       # default "main"; must be an exported func
+             caps = "IO,FS,Env,AI",                # default "auto": inferred from the entry's effects
+             run_flags = ["--max-recursion-depth", "50000"] }   # extra `ailang run` flags, verbatim
+```
+
+- Name: `^[a-z0-9][a-z0-9._-]*$` (it becomes a file on PATH); `ailang` is reserved
+- `module`: resolved like an import — `cli`, `vendor/name/cli`, `src/cli.ail` and a
+  `module_prefix` layout all work
+- `run_flags` may not set `--caps`, `--entry`, `--package-dir` or `--quiet` (the shim owns them)
+- Verified at `ailang publish` and `ailang install`: module file exists and exports the entry
+- Shim: `exec ailang run --quiet --package-dir <pkg> --entry <e> --caps <c> <run_flags> <file> -- "$@"`;
+  install writes `ailang.lock` beside the cached manifest so the package's own deps resolve
+
 ## Import Conventions
 
 Three-way import distinction:

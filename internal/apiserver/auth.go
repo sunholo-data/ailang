@@ -2,9 +2,10 @@ package apiserver
 
 import (
 	"crypto/subtle"
+	"github.com/sunholo-data/ailang/internal/config"
+	"github.com/sunholo-data/ailang/internal/httpjson"
 	"log"
 	"net/http"
-	"os"
 	"strings"
 )
 
@@ -16,7 +17,7 @@ func (s *Server) authMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		return next // no auth configured
 	}
 
-	expected := os.Getenv(s.apiKeyEnv)
+	expected := config.Raw(s.apiKeyEnv)
 	if expected == "" {
 		log.Fatalf("serve-api: --api-key-env %q is set but the environment variable is empty or not defined", s.apiKeyEnv)
 	}
@@ -45,7 +46,7 @@ func (s *Server) authMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		}
 
 		if key == "" || subtle.ConstantTimeCompare([]byte(key), []byte(expected)) != 1 {
-			writeJSON(w, http.StatusUnauthorized, FunctionCallResponse{
+			httpjson.Write(w, http.StatusUnauthorized, FunctionCallResponse{
 				Error: "unauthorized: invalid or missing API key",
 			})
 			return

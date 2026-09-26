@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/observatory"
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 func testPost(source string) *observatory.IterationPost {
@@ -31,7 +32,7 @@ func testPost(source string) *observatory.IterationPost {
 // TestOpenPostTargets_NoCloudIsUnchanged: with no remote named, the command has
 // exactly one target and behaves as it did before dual-write existed.
 func TestOpenPostTargets_NoCloudIsUnchanged(t *testing.T) {
-	t.Setenv("AILANG_CHAINS_CLOUD", "")
+	clearObservatoryPlaneEnv(t)
 	spool := filepath.Join(t.TempDir(), "spool.jsonl")
 
 	targets := openPostTargets(context.Background(), spool, "")
@@ -53,8 +54,8 @@ func TestOpenPostTargets_NoCloudIsUnchanged(t *testing.T) {
 // would silently discard the post instead of spooling it — the failure mode the
 // never-block decision exists to prevent.
 func TestOpenPostTargets_BrokenCloudConfigStillReturnsTarget(t *testing.T) {
-	// A genuinely broken config: gcp mode with no project set.
-	t.Setenv("AILANG_CLOUD_PROJECT", "")
+	// A genuinely broken config: gcp mode with no project resolvable.
+	noCloudIdentity(t)
 	spool := filepath.Join(t.TempDir(), "spool.jsonl")
 
 	targets := openPostTargets(context.Background(), spool, "gcp")
@@ -179,25 +180,9 @@ func TestCloudSpoolPath_IsSeparate(t *testing.T) {
 	}
 }
 
-// setHomeDir points os.UserHomeDir() at dir (or makes it fail, when dir is "")
-// on every platform the CI matrix builds.
-//
-// os.UserHomeDir reads a DIFFERENT variable per GOOS — USERPROFILE on Windows,
-// $home on plan9, HOME elsewhere — so a test that sets only HOME silently has no
-// effect on Windows: the runner's real profile resolves, the guard under test
-// never sees the input the test believes it supplied, and the assertion fails for
-// the platform rather than for the code. Setting all three keeps the arm honest
-// wherever it runs.
-func setHomeDir(t *testing.T, dir string) {
-	t.Helper()
-	t.Setenv("HOME", dir)        // unix, darwin
-	t.Setenv("USERPROFILE", dir) // windows
-	t.Setenv("home", dir)        // plan9
-}
-
 func TestCheckRemoteIsElsewhere_UnresolvableHomeIsAnError(t *testing.T) {
 	t.Setenv("AILANG_STATE_DIR", "")
-	setHomeDir(t, "")
+	testutil.SetHomeDir(t, "")
 
 	err := checkRemoteIsElsewhere("local")
 	if err == nil || !strings.Contains(err.Error(), "cannot resolve") {
@@ -207,7 +192,7 @@ func TestCheckRemoteIsElsewhere_UnresolvableHomeIsAnError(t *testing.T) {
 
 func TestCheckRemoteIsElsewhere_SelfTargetIsRejected(t *testing.T) {
 	home := t.TempDir()
-	setHomeDir(t, home)
+	testutil.SetHomeDir(t, home)
 	t.Setenv("AILANG_STATE_DIR", filepath.Join(home, ".ailang", "state"))
 
 	err := checkRemoteIsElsewhere("local")
@@ -218,19 +203,24 @@ func TestCheckRemoteIsElsewhere_SelfTargetIsRejected(t *testing.T) {
 
 func TestCheckRemoteIsElsewhere_PositiveControls(t *testing.T) {
 	t.Run("non-local mode short-circuits", func(t *testing.T) {
-		setHomeDir(t, "")
+		testutil.SetHomeDir(t, "")
 		t.Setenv("AILANG_STATE_DIR", "")
 		if err := checkRemoteIsElsewhere("gcp"); err != nil {
 			t.Fatalf("gcp target rejected: %v", err)
 		}
 	})
 
-	t.Run("different local directory is accepted", func(t *testing.T) {
-		home := t.TempDir()
-		setHomeDir(t, home)
-		t.Setenv("AILANG_STATE_DIR", filepath.Join(t.TempDir(), "remote-state"))
-		if err := checkRemoteIsElsewhere("local"); err != nil {
-			t.Fatalf("distinct local target rejected: %v", err)
+	// There is no "different local directory" arm any more: AILANG_STATE_DIR
+	// moves the LOCAL target too (one resolver, M-V1-SIMPLIFY-S2 M4), so a
+	// local remote target is always this node. The self-target test above
+	// covers it; gcp is the only elsewhere.
+	t.Run("AILANG_STATE_DIR moves both targets, so local is still self", func(t *testing.T) {
+		testutil.SetHomeDir(t, t.TempDir())
+		state := filepath.Join(t.TempDir(), "remote-state")
+		t.Setenv("AILANG_STATE_DIR", state)
+		err := checkRemoteIsElsewhere("local")
+		if err == nil || !strings.Contains(err.Error(), state) {
+			t.Fatalf("err = %v, want self-observatory rejection naming %s", err, state)
 		}
 	})
 }

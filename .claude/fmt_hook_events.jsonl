@@ -40,3 +40,6 @@
 {"status":"error","file":"/Users/voightkampff/dev/sunholo-data/.wt-iter183/std/list.ail","exit_code":2,"id":"toolu_017aLbhnyDBkBdUxc4zdPxLU","detail":"Error: /Users/voightkampff/dev/sunholo-data/.wt-iter183/std/list.ail: comment at byte 590 (\"-- Simple recursive reverse (not tail-recursive)\") could not be attached to any boundary"}
 {"status":"error","file":"/Users/voightkampff/dev/sunholo-data/.wt-iter183/std/list.ail","exit_code":2,"id":"toolu_01RF56xHNY7agg1aFifwF7ZU","detail":"Error: /Users/voightkampff/dev/sunholo-data/.wt-iter183/std/list.ail: comment at byte 590 (\"-- Simple recursive reverse (not tail-recursive)\") could not be attached to any boundary"}
 {"status":"formatted","file":"/Users/voightkampff/dev/sunholo-data/ailang/examples/bitwise_or.ail","exit_code":0,"id":"toolu_01URtDzh7VLUvLuc3nA5Yoxz","detail":""}
+{"status":"formatted","file":"/tmp/captest.ail","exit_code":0,"id":"call_8db0g6w2","detail":""}
+{"status":"formatted","file":"/tmp/captest.ail","exit_code":0,"id":"call_9pd8327a","detail":""}
+{"status":"formatted","file":"/tmp/captest.ail","exit_code":0,"id":"call_6zo5f2ex","detail":""}

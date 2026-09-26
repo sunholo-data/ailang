@@ -68,15 +68,23 @@ func runDesignReview() {
 // flags are single tokens. Everything after a bare `--` is treated as
 // positional verbatim.
 func hoistFlags(args []string) []string {
-	valueFlags := map[string]bool{
+	return hoistFlagsWith(args, map[string]bool{
 		"--reviewer": true, "-reviewer": true,
 		"--reviewers": true, "-reviewers": true,
+		"--author": true, "-author": true,
+		"--seats": true, "-seats": true,
 		"--max-cost-usd": true, "-max-cost-usd": true,
 		"--artifact-dir": true, "-artifact-dir": true,
 		"--mission-log": true, "-mission-log": true,
 		"--controller-verdict": true, "-controller-verdict": true,
 		"--controller-note": true, "-controller-note": true,
-	}
+	})
+}
+
+// hoistFlagsWith is hoistFlags for any command: valueFlags names the flags
+// (with their dashes) whose value is the following token. Shared with
+// `ailang bin`, which needs `bin uninstall <name> --bin-dir X` to parse.
+func hoistFlagsWith(args []string, valueFlags map[string]bool) []string {
 	var flags, positional []string
 	for i := 0; i < len(args); i++ {
 		a := args[i]
@@ -138,7 +146,7 @@ USAGE:
 FLAGS:
   --reviewer <model>     reviewer model id from models.yml (gpt5-6-sol, gemini-3-1-pro, ...)  [required]
   --json                 emit the reviewer's structured JSON verdict
-  --max-cost-usd <n>     per-reviewer budget cap in USD (default 0.10)
+  --max-cost-usd <n>     per-reviewer budget cap in USD (default 0.30)
 
 BEHAVIOR:
   Runs ONE reject-by-default reviewer via the shipped internal/ai handlers +

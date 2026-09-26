@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { benchmarkFetch } from '@site/src/lib/benchmarkFetch';
+import { benchmarkFetchWithSource } from '@site/src/lib/benchmarkFetch';
 import { buildCoverage } from '@site/src/components/BenchmarkDashboard/coverageGate';
 import LocalCloudBadge from '@site/src/components/LocalCloudBadge';
 import { isLocalModel, formatLocalName, LOCAL_CAVEAT } from '@site/src/lib/localModel';
@@ -479,12 +479,16 @@ export default function BenchmarkExplorer() {
   const [activeHarness, setActiveHarness] = useState(null);
   const [activeLang, setActiveLang] = useState(null);
   const [activeTier, setActiveTier] = useState(null);
+  const [dataSource, setDataSource] = useState(null);
 
   useEffect(() => {
     // Baseline (cloud, release/nightly) + live OS/Local rotation, unioned.
     // The OS file is optional: if it's missing, fall back to baseline only.
     Promise.all([
-      benchmarkFetch('latest.json').then(r => r.json()),
+      benchmarkFetchWithSource('latest.json').then(({ response, source }) => {
+        setDataSource(source);
+        return response.json();
+      }),
       benchmarkFetch('os/latest.json').then(r => (r.ok ? r.json() : null)).catch(() => null),
     ])
       .then(([base, os]) => setData(mergeOSData(base, os)))
@@ -524,7 +528,7 @@ export default function BenchmarkExplorer() {
 
   return (
     <div>
-      <DataProvenance version={data?.version} timestamp={data?.timestamp} />
+      <DataProvenance version={data?.version} timestamp={data?.timestamp} source={dataSource} />
       <FilterBar
         harnesses={allHarnesses}
         activeHarness={activeHarness}

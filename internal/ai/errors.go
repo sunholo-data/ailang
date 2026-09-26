@@ -1,8 +1,10 @@
 package ai
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 )
 
@@ -122,14 +124,18 @@ func IsRetryable(code string) bool {
 
 // ClassifyHTTPError maps an HTTP status + provider response body into an
 // AIError with a normalized code. Adapters call this from their Step
-// implementations after parsing a non-2xx response.
+// implementations after parsing a non-2xx response; DoJSON calls it for
+// every client; ClassifyError calls it for a *ProviderError that carries a
+// status.
 //
 // The body is scanned for substrings that disambiguate codes within a
 // status class — e.g. HTTP 400 may be a context-length overflow ("context
 // length exceeded") OR a schema validation failure ("does not match
-// schema") OR plain bad request. The match is case-insensitive and only
-// looks for high-confidence signals; ambiguous bodies fall through to
-// the status-code default.
+// schema") OR plain bad request, and HTTP 429 may be a transient rate limit
+// OR a spent quota window (Ollama Cloud returns exhaustion as 429 with type
+// "api_error"; only the message separates them — see IsQuotaExhausted). The
+// match is case-insensitive and only looks for high-confidence signals;
+// ambiguous bodies fall through to the status-code default.
 func ClassifyHTTPError(provider string, statusCode int, body string) *AIError {
 	bodyLower := strings.ToLower(body)
 	msg := strings.TrimSpace(body)
@@ -140,9 +146,19 @@ func ClassifyHTTPError(provider string, statusCode int, body string) *AIError {
 	switch {
 	case statusCode == 401, statusCode == 403:
 		return NewAIError(CodeAuthFailed, msg, false)
+	case statusCode == 402:
+		// Payment Required: OpenRouter's out-of-credits answer. Not a rate
+		// limit — no wait makes it succeed.
+		return NewAIError(CodeBudgetExhausted, msg, false)
 	case statusCode == 404:
 		return NewAIError(CodeModelNotFound, msg, false)
 	case statusCode == 429:
+		if IsQuotaExhausted(bodyLower) {
+			// A spent session/weekly/monthly window does not clear on retry;
+			// retrying burns the rest of the run against a bucket that cannot
+			// recover (measured 2026-08-26, M-OLLAMA-CLOUD V22).
+			return NewAIError(CodeBudgetExhausted, msg, false)
+		}
 		return NewAIError(CodeRateLimit, msg, true)
 	case statusCode == 400:
 		// 400 disambiguation: context length and schema validation are
@@ -168,33 +184,123 @@ func ClassifyHTTPError(provider string, statusCode int, body string) *AIError {
 	return NewAIError(CodeProtocolError, msg, false)
 }
 
-// ClassifyError maps a non-HTTP Go error into an AIError. Useful for
-// transport/timeout/cancel errors that surface before any HTTP response
-// is received.
+// IsQuotaExhausted reports whether a lower-cased provider message describes a
+// spent quota window rather than a transient rate limit. The two share HTTP
+// status 429 at Ollama Cloud (type "api_error" — captured verbatim 2026-08-26
+// by deliberately exhausting a session window, M-OLLAMA-CLOUD V22), so only the
+// message can tell them apart; getting it wrong retries into a bucket that
+// does not refill for hours (session) or days (weekly).
+func IsQuotaExhausted(msgLower string) bool {
+	for _, sig := range quotaExhaustionSignals {
+		if strings.Contains(msgLower, sig) {
+			return true
+		}
+	}
+	return false
+}
+
+var quotaExhaustionSignals = []string{
+	// Ollama Cloud (V22, verbatim). Both windows.
+	"session usage limit",
+	"weekly usage limit",
+	"usage limit, upgrade",
+	// Other providers.
+	"key limit exceeded",
+	"monthly limit",
+	"insufficient_quota",
+	"insufficient quota",
+	"quota exceeded",
+	"billing",
+}
+
+// httpStatusWord matches a transient/server status code as a standalone
+// token, so "1500 tokens" is not read as a 500 and "id 4290" is not a 429.
+var httpStatusWord = regexp.MustCompile(`(^|[^0-9])(429|500|502|503|504)([^0-9]|$)`)
+
+func hasStatusWord(msgLower string, codes ...string) bool {
+	m := httpStatusWord.FindStringSubmatch(msgLower)
+	if m == nil {
+		return false
+	}
+	for _, c := range codes {
+		if m[2] == c {
+			return true
+		}
+	}
+	return false
+}
+
+// ClassifyError maps any Go error into an AIError. It is the ONE classifier:
+// a *AIError passes through unchanged; a *ProviderError carrying an HTTP
+// status goes through ClassifyHTTPError (so a config-driven provider's 429 is
+// CodeRateLimit, not CodeInternal); everything else is matched on its
+// message — quota exhaustion, rate limits, timeouts, connection failures and
+// server errors, in that order. An unrecognised error is CodeInternal with
+// Retryable=true, the conservative default for AILANG-level callers that
+// must not treat a new adapter code as fatal; retry LOOPS use ShouldRetry
+// instead, which refuses to spend on an error nobody recognised.
 func ClassifyError(err error) *AIError {
+	e, _ := classify(err)
+	return e
+}
+
+// ShouldRetry is the retry-loop predicate shared by the eval harness and the
+// coordinator (M-V1-SIMPLIFY-S3 M4; it replaces two substring matchers that
+// disagreed with each other and with this file). True only for an error
+// classified into a KNOWN transient code — rate limit, timeout, connection
+// failure, server error — and never for quota exhaustion, which arrives as a
+// 429 but does not clear on retry. Unknown errors are not retried: a retry
+// loop spends money, and "we could not tell what went wrong" is not a reason
+// to spend it three more times.
+func ShouldRetry(err error) bool {
+	e, known := classify(err)
+	return e != nil && known && e.Retryable
+}
+
+// classify returns the AIError plus whether it came from a recognised signal
+// (false only for the CodeInternal catch-all).
+func classify(err error) (*AIError, bool) {
 	if err == nil {
-		return nil
+		return nil, false
 	}
 	// Allow callers to thread an existing AIError through unchanged.
 	var aiErr *AIError
 	if errors.As(err, &aiErr) {
-		return aiErr
+		return aiErr, true
+	}
+	var perr *ProviderError
+	if errors.As(err, &perr) && perr.StatusCode > 0 {
+		return ClassifyHTTPError(perr.Provider, perr.StatusCode, perr.Message), true
 	}
 	msg := err.Error()
 	msgLower := strings.ToLower(msg)
 	switch {
-	case strings.Contains(msgLower, "context deadline exceeded"),
+	case IsQuotaExhausted(msgLower):
+		// Checked BEFORE the 429 rule: exhaustion arrives as a 429.
+		return NewAIError(CodeBudgetExhausted, msg, false), true
+	case hasStatusWord(msgLower, "429"),
+		strings.Contains(msgLower, "rate limit"),
+		strings.Contains(msgLower, "too many requests"):
+		return NewAIError(CodeRateLimit, msg, true), true
+	case errors.Is(err, context.DeadlineExceeded),
+		errors.Is(err, context.Canceled),
+		strings.Contains(msgLower, "context deadline exceeded"),
 		strings.Contains(msgLower, "timeout"),
-		strings.Contains(msgLower, "timed out"):
-		return NewAIError(CodeTimeout, msg, true)
-	case strings.Contains(msgLower, "context canceled"):
-		return NewAIError(CodeTimeout, msg, true)
-	case strings.Contains(msgLower, "connection refused"),
-		strings.Contains(msgLower, "connection reset"),
+		strings.Contains(msgLower, "timed out"),
+		strings.Contains(msgLower, "context canceled"):
+		return NewAIError(CodeTimeout, msg, true), true
+	case strings.Contains(msgLower, "connection"),
 		strings.Contains(msgLower, "no such host"),
+		strings.Contains(msgLower, "network"),
 		strings.Contains(msgLower, "tls"),
 		strings.Contains(msgLower, "eof"):
-		return NewAIError(CodeConnectionFailed, msg, true)
+		return NewAIError(CodeConnectionFailed, msg, true), true
+	case hasStatusWord(msgLower, "500", "502", "503", "504"),
+		strings.Contains(msgLower, "internal server error"),
+		strings.Contains(msgLower, "bad gateway"),
+		strings.Contains(msgLower, "service unavailable"),
+		strings.Contains(msgLower, "gateway timeout"):
+		return NewAIError(CodeInternal, msg, true), true
 	}
-	return NewAIError(CodeInternal, msg, true)
+	return NewAIError(CodeInternal, msg, true), false
 }

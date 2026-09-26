@@ -3,6 +3,7 @@ package coordinator
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/executor"
@@ -97,6 +98,19 @@ func (p *ExecutorProvider) Execute(ctx context.Context, task *AnalyzedTask, opts
 		ResumeSessionID: task.Task.SessionID, // M-TRANSCRIPT: resume session if iteration > 1
 	}
 
+	// workspace-trust per-repo injection (M-DX-PI-HARNESS): headless pi drops
+	// project resources (.agents/skills/, .pi/) in any checkout without a saved
+	// trust decision. The global workspace-trust extension trusts checkouts whose
+	// git origin matches this pattern — the agent's own repo coordinate from the
+	// registry (machine-owned dispatcher config; the repo never supplies its own
+	// trust input). Applies to every executor; non-pi executors ignore the var.
+	if opts.AgentConfig != nil && opts.AgentConfig.Repo != "" {
+		if execTask.ExtraEnv == nil {
+			execTask.ExtraEnv = make(map[string]string)
+		}
+		execTask.ExtraEnv["PI_WORKSPACE_TRUST_REMOTES"] = opts.AgentConfig.Repo
+	}
+
 	// Pass Observatory context for trace linking (M-TASK-HIERARCHY)
 	if opts.ObservatoryContext != nil {
 		execTask.Metadata["ailang.task_id"] = opts.ObservatoryContext.TaskID
@@ -119,9 +133,40 @@ func (p *ExecutorProvider) Execute(ctx context.Context, task *AnalyzedTask, opts
 		}
 	}
 
-	// For questions, use read-only tools (no file modifications)
+	// Tool policy (M-AGENT-AILANG-ONLY-EXECUTION M4). Two inputs compose:
+	// the task KIND (a question is read-only) and the agent's declared
+	// tool_policy. A run gets what both allow. Names are canonical; pi maps
+	// them and ERRORS on one it cannot (D7) — before this, the question list
+	// below reached pi verbatim and pi silently ran with zero tools.
 	if task.Task.Kind == "question" {
-		execTask.AllowedTools = []string{"Read", "Grep", "Glob", "WebFetch", "WebSearch"}
+		execTask.AllowedTools = questionTools(p.executorName)
+	}
+	if opts.AgentConfig != nil {
+		if profile, err := executor.ProfileTools(opts.AgentConfig.GetEffectiveToolPolicy()); err != nil {
+			return nil, fmt.Errorf("agent %s: %w", opts.AgentConfig.ID, err)
+		} else if profile != nil {
+			if execTask.AllowedTools != nil {
+				execTask.AllowedTools = executor.IntersectTools(execTask.AllowedTools, profile)
+			} else {
+				execTask.AllowedTools = profile
+			}
+		}
+		if opts.AgentConfig.PolicyPath != "" {
+			// The lane's boundary claim needs a restricted policy underneath
+			// it (M-EXECUTOR-POLICY-HARDENING D3).
+			toml, rerr := os.ReadFile(opts.AgentConfig.PolicyPath)
+			if rerr != nil {
+				return nil, fmt.Errorf("agent %s: policy_path %s: %w", opts.AgentConfig.ID, opts.AgentConfig.PolicyPath, rerr)
+			}
+			if lerr := executor.CheckLanePolicy(opts.AgentConfig.GetEffectiveToolPolicy(), toml); lerr != nil {
+				return nil, fmt.Errorf("agent %s: %w", opts.AgentConfig.ID, lerr)
+			}
+			execTask.PolicyPath = opts.AgentConfig.PolicyPath
+			if execTask.ExtraEnv == nil {
+				execTask.ExtraEnv = make(map[string]string)
+			}
+			execTask.ExtraEnv["AILANG_AGENT_POLICY"] = opts.AgentConfig.PolicyPath
+		}
 	}
 
 	// Execute using the CLI executor — use streaming if handler provided
@@ -176,4 +221,18 @@ func convertPluginsConfig(pc *PluginsConfig) *executor.PluginsConfig {
 // (see meta_prompt.go:BuildSystemPrompt) to avoid burying skill invocations.
 func buildDirective(task *AnalyzedTask) string {
 	return task.Task.Content
+}
+
+// questionTools is the read-only tool set for a question-kind task, per
+// executor vocabulary: Claude has Grep/Glob/Web*, pi has none of them (it
+// would have run toolless — design doc V4); on pi a question gets Read plus
+// the type-checker so it can still reason about AILANG code.
+func questionTools(executorName string) []string {
+	if executorName == "pi" {
+		// Both file-read shapes: the native one for the full profile, the
+		// sandboxed one for the ailang_only lane; the profile intersection
+		// keeps whichever the agent may have.
+		return []string{"Read", "AilangRead", "AilangCheck"}
+	}
+	return []string{"Read", "Grep", "Glob", "WebFetch", "WebSearch"}
 }

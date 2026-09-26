@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/mapval"
 	"github.com/sunholo-data/ailang/internal/messaging"
 )
 
@@ -27,16 +28,16 @@ func threadToMap(t *messaging.Thread) map[string]interface{} {
 
 func mapToThread(data map[string]interface{}) *messaging.Thread {
 	return &messaging.Thread{
-		ID:            getString(data, "id"),
-		Title:         getString(data, "title"),
+		ID:            mapval.String(data, "id"),
+		Title:         mapval.String(data, "title"),
 		CreatedAt:     snapshotToTime(data, "created_at"),
-		CreatedByType: getString(data, "created_by_type"),
-		CreatedByID:   getString(data, "created_by_id"),
-		Status:        getString(data, "status"),
-		ContextJSON:   getString(data, "context_json"),
-		TargetAgent:   getString(data, "target_agent"),
-		Workspace:     getString(data, "workspace"),
-		LastSeq:       getInt(data, "last_seq"),
+		CreatedByType: mapval.String(data, "created_by_type"),
+		CreatedByID:   mapval.String(data, "created_by_id"),
+		Status:        mapval.String(data, "status"),
+		ContextJSON:   mapval.String(data, "context_json"),
+		TargetAgent:   mapval.String(data, "target_agent"),
+		Workspace:     mapval.String(data, "workspace"),
+		LastSeq:       mapval.Int(data, "last_seq"),
 		UpdatedAt:     snapshotToTime(data, "updated_at"),
 	}
 }
@@ -63,19 +64,19 @@ func messageToMap(m *messaging.Message) map[string]interface{} {
 
 func mapToMessage(data map[string]interface{}) *messaging.Message {
 	return &messaging.Message{
-		ID:            getString(data, "id"),
-		ThreadID:      getString(data, "thread_id"),
-		MessageSeq:    getInt(data, "message_seq"),
+		ID:            mapval.String(data, "id"),
+		ThreadID:      mapval.String(data, "thread_id"),
+		MessageSeq:    mapval.Int(data, "message_seq"),
 		CreatedAt:     snapshotToTime(data, "created_at"),
-		FromType:      getString(data, "from_type"),
-		FromID:        getString(data, "from_id"),
-		ToType:        getString(data, "to_type"),
-		ToID:          getString(data, "to_id"),
-		Kind:          getString(data, "kind"),
-		Content:       getString(data, "content"),
-		MetadataJSON:  getString(data, "metadata_json"),
-		DeliveryState: getString(data, "delivery_state"),
-		BusinessState: getString(data, "business_state"),
+		FromType:      mapval.String(data, "from_type"),
+		FromID:        mapval.String(data, "from_id"),
+		ToType:        mapval.String(data, "to_type"),
+		ToID:          mapval.String(data, "to_id"),
+		Kind:          mapval.String(data, "kind"),
+		Content:       mapval.String(data, "content"),
+		MetadataJSON:  mapval.String(data, "metadata_json"),
+		DeliveryState: mapval.String(data, "delivery_state"),
+		BusinessState: mapval.String(data, "business_state"),
 	}
 }
 
@@ -123,32 +124,32 @@ func inboxToMap(m *messaging.InboxMessage) map[string]interface{} {
 
 func mapToInbox(data map[string]interface{}) *messaging.InboxMessage {
 	m := &messaging.InboxMessage{
-		ID:             getString(data, "id"),
-		MessageID:      getString(data, "message_id"),
-		CorrelationID:  getString(data, "correlation_id"),
-		FromAgent:      getString(data, "from_agent"),
-		ToInbox:        getString(data, "to_inbox"),
-		MessageType:    getString(data, "message_type"),
-		Title:          getString(data, "title"),
-		Payload:        getString(data, "payload"),
-		Category:       getString(data, "category"),
-		GitHubRepo:     getString(data, "github_repo"),
-		DupOf:          getString(data, "dup_of"),
-		Embedding:      getString(data, "embedding"),
-		EmbeddingModel: getString(data, "embedding_model"),
-		ParentTaskID:   getString(data, "parent_task_id"),
-		ChainID:        getString(data, "chain_id"),
-		Iteration:      getInt(data, "iteration"),
-		Status:         getString(data, "status"),
+		ID:             mapval.String(data, "id"),
+		MessageID:      mapval.String(data, "message_id"),
+		CorrelationID:  mapval.String(data, "correlation_id"),
+		FromAgent:      mapval.String(data, "from_agent"),
+		ToInbox:        mapval.String(data, "to_inbox"),
+		MessageType:    mapval.String(data, "message_type"),
+		Title:          mapval.String(data, "title"),
+		Payload:        mapval.String(data, "payload"),
+		Category:       mapval.String(data, "category"),
+		GitHubRepo:     mapval.String(data, "github_repo"),
+		DupOf:          mapval.String(data, "dup_of"),
+		Embedding:      mapval.String(data, "embedding"),
+		EmbeddingModel: mapval.String(data, "embedding_model"),
+		ParentTaskID:   mapval.String(data, "parent_task_id"),
+		ChainID:        mapval.String(data, "chain_id"),
+		Iteration:      mapval.Int(data, "iteration"),
+		Status:         mapval.String(data, "status"),
 		CreatedAt:      snapshotToTime(data, "created_at"),
 	}
-	if v := getInt(data, "github_issue"); v != 0 {
+	if v := mapval.Int(data, "github_issue"); v != 0 {
 		m.GitHubIssue = &v
 	}
-	if v := getInt64(data, "simhash"); v != 0 {
+	if v := mapval.Int64(data, "simhash"); v != 0 {
 		m.Simhash = &v
 	}
-	if v := getInt64(data, "embedding_updated_at"); v != 0 {
+	if v := mapval.Int64(data, "embedding_updated_at"); v != 0 {
 		m.EmbeddingUpdatedAt = &v
 	}
 	m.ReadAt = snapshotToTimePtr(data, "read_at")
@@ -181,20 +182,20 @@ func approvalMsgToMap(a *messaging.Approval) map[string]interface{} {
 
 func mapToApprovalMsg(data map[string]interface{}) *messaging.Approval {
 	return &messaging.Approval{
-		ID:              getString(data, "id"),
-		ThreadID:        getString(data, "thread_id"),
-		ThreadTitle:     getString(data, "thread_title"),
-		InstanceID:      getString(data, "instance_id"),
+		ID:              mapval.String(data, "id"),
+		ThreadID:        mapval.String(data, "thread_id"),
+		ThreadTitle:     mapval.String(data, "thread_title"),
+		InstanceID:      mapval.String(data, "instance_id"),
 		CreatedAt:       snapshotToTime(data, "created_at"),
-		EffectDeltaJSON: getString(data, "effect_delta_json"),
-		Proposal:        getString(data, "proposal"),
-		Impact:          getString(data, "impact"),
-		EstimatedCost:   getFloat64(data, "estimated_cost"),
-		Status:          getString(data, "status"),
-		ReviewedBy:      getString(data, "reviewed_by"),
+		EffectDeltaJSON: mapval.String(data, "effect_delta_json"),
+		Proposal:        mapval.String(data, "proposal"),
+		Impact:          mapval.String(data, "impact"),
+		EstimatedCost:   mapval.Float(data, "estimated_cost"),
+		Status:          mapval.String(data, "status"),
+		ReviewedBy:      mapval.String(data, "reviewed_by"),
 		ReviewedAt:      snapshotToTime(data, "reviewed_at"),
-		ReviewNotes:     getString(data, "review_notes"),
-		CapabilityToken: getString(data, "capability_token"),
+		ReviewNotes:     mapval.String(data, "review_notes"),
+		CapabilityToken: mapval.String(data, "capability_token"),
 		TokenExpiresAt:  snapshotToTime(data, "token_expires_at"),
 	}
 }
@@ -222,19 +223,19 @@ func approvalHistoryToMap(e *messaging.ApprovalHistoryEntry) map[string]interfac
 
 func mapToApprovalHistory(data map[string]interface{}) messaging.ApprovalHistoryEntry {
 	e := messaging.ApprovalHistoryEntry{
-		ID:              getString(data, "id"),
-		ApprovalID:      getString(data, "approval_id"),
-		ThreadID:        getString(data, "thread_id"),
-		AgentID:         getString(data, "agent_id"),
-		Action:          getString(data, "action"),
-		Actor:           getString(data, "actor"),
-		Proposal:        getString(data, "proposal"),
-		Impact:          getString(data, "impact"),
-		CapabilityToken: getString(data, "capability_token"),
-		CreatedAt:       getInt64(data, "created_at"),
+		ID:              mapval.String(data, "id"),
+		ApprovalID:      mapval.String(data, "approval_id"),
+		ThreadID:        mapval.String(data, "thread_id"),
+		AgentID:         mapval.String(data, "agent_id"),
+		Action:          mapval.String(data, "action"),
+		Actor:           mapval.String(data, "actor"),
+		Proposal:        mapval.String(data, "proposal"),
+		Impact:          mapval.String(data, "impact"),
+		CapabilityToken: mapval.String(data, "capability_token"),
+		CreatedAt:       mapval.Int64(data, "created_at"),
 	}
 	if v, ok := data["estimated_cost"]; ok && v != nil {
-		cost := getFloat64(data, "estimated_cost")
+		cost := mapval.Float(data, "estimated_cost")
 		e.EstimatedCost = &cost
 	}
 	return e
@@ -261,19 +262,19 @@ func instanceHistoryToMap(e *messaging.InstanceHistoryEntry) map[string]interfac
 
 func mapToInstanceHistory(data map[string]interface{}) messaging.InstanceHistoryEntry {
 	e := messaging.InstanceHistoryEntry{
-		ID:            getString(data, "id"),
-		AgentID:       getString(data, "agent_id"),
-		InstanceID:    getString(data, "instance_id"),
-		StartedAt:     getInt64(data, "started_at"),
-		TotalTokens:   getInt(data, "total_tokens"),
-		TotalCostCent: getInt(data, "total_cost_cents"),
-		ThreadCount:   getInt(data, "thread_count"),
+		ID:            mapval.String(data, "id"),
+		AgentID:       mapval.String(data, "agent_id"),
+		InstanceID:    mapval.String(data, "instance_id"),
+		StartedAt:     mapval.Int64(data, "started_at"),
+		TotalTokens:   mapval.Int(data, "total_tokens"),
+		TotalCostCent: mapval.Int(data, "total_cost_cents"),
+		ThreadCount:   mapval.Int(data, "thread_count"),
 	}
-	if v := getInt64(data, "ended_at"); v != 0 {
+	if v := mapval.Int64(data, "ended_at"); v != 0 {
 		e.EndedAt = &v
 	}
 	if v, ok := data["exit_code"]; ok && v != nil {
-		code := getInt(data, "exit_code")
+		code := mapval.Int(data, "exit_code")
 		e.ExitCode = &code
 	}
 	return e
@@ -308,8 +309,8 @@ func agentInfoToMap(agentID, label, status string) map[string]interface{} {
 
 func mapToAgentInfo(data map[string]interface{}) messaging.AgentInfo {
 	return messaging.AgentInfo{
-		ID:     getString(data, "agent_id"),
-		Label:  getString(data, "label"),
-		Status: getString(data, "status"),
+		ID:     mapval.String(data, "agent_id"),
+		Label:  mapval.String(data, "label"),
+		Status: mapval.String(data, "status"),
 	}
 }

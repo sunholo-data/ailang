@@ -1,12 +1,9 @@
 package gemini
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ai"
@@ -65,35 +62,24 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 		return nil, ai.NewAIError(ai.CodeInternal,
 			fmt.Sprintf("gemini: failed to marshal request: %v", marshalErr), false)
 	}
-
-	httpReq, reqErr := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(jsonBody))
-	if reqErr != nil {
-		return nil, ai.NewAIError(ai.CodeInternal,
-			fmt.Sprintf("gemini: failed to build request: %v", reqErr), false)
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-	if authErr := c.addAuth(httpReq); authErr != nil {
+	headers, authErr := c.authHeaders()
+	if authErr != nil {
 		return nil, ai.NewAIError(ai.CodeAuthFailed,
 			fmt.Sprintf("gemini: %v", authErr), false)
 	}
 
-	httpResp, doErr := c.httpClient.Do(httpReq)
+	res, doErr := ai.DoJSON(ctx, ai.JSONCall{
+		Provider: "gemini",
+		Client:   c.httpClient,
+		URL:      url,
+		Headers:  headers,
+		Body:     jsonBody,
+	}, nil)
 	if doErr != nil {
 		return nil, ai.ClassifyError(doErr)
 	}
-	defer func() { _ = httpResp.Body.Close() }()
 
-	body, readErr := io.ReadAll(httpResp.Body)
-	if readErr != nil {
-		return nil, ai.NewAIError(ai.CodeConnectionFailed,
-			fmt.Sprintf("gemini: failed to read response body: %v", readErr), true)
-	}
-
-	if httpResp.StatusCode != http.StatusOK {
-		return nil, classifyGeminiHTTP(httpResp.StatusCode, body)
-	}
-
-	return parseStepResponse(req, body)
+	return parseStepResponse(req, res.Body)
 }
 
 // buildStepRequest translates req.Messages + req.Tools into the Gemini
@@ -412,10 +398,9 @@ func mapFinishReason(geminiReason string) string {
 // parsing so the AIError.Message carries the human-readable error.message
 // field rather than the raw JSON envelope.
 func classifyGeminiHTTP(statusCode int, body []byte) *ai.AIError {
-	var er errorResponse
 	msg := string(body)
-	if json.Unmarshal(body, &er) == nil && er.Error.Message != "" {
-		msg = er.Error.Message
+	if m := ai.ErrorEnvelopeMessage(body); m != "" {
+		msg = m
 	}
 	return ai.ClassifyHTTPError("gemini", statusCode, msg)
 }

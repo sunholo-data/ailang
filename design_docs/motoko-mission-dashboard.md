@@ -1,41 +1,43 @@
 # Mission Dashboard — Motoko
 
-*Snapshot, overwritten every iteration. History lives in the charter STATUS block and the mission log.*
+*Snapshot, overwritten every iteration. History lives in the charter STATUS stamps and the log.*
+**Last refreshed**: 2026-09-07 (iteration 39) · base `ead709c31`
 
-**Last iteration**: 26 · 2026-08-27 · **PARKED on a human decision** (no code landed, by design)
+## Where the mission is
 
-## ⚠ The loop is running stale code and cannot fix itself
+North star unmoved. Current work is `[HARNESS]` — the connection-probe self-test suite's own
+integrity gates. The gated `m-motoko-dst-refactor-migration` epic is still Phase-0 CLOSED.
 
-The launchd driver pin has failed on **every** motoko fire. Iteration 25 found the cause and landed
-the correct fix (`ff0da7445`) — **it has never executed**, because launchd runs the *source clone's*
-`pin-root.sh`, and that clone is **172 commits behind** `origin/dev`, so it still carries the
-pre-fix gate. The fix was landed into the only tree the defect prevents from being read.
+## In flight
 
-Measured: the clone's predicate → `REFUSE-TO-PIN`; `origin/dev`'s → **`PIN-OK`** on this exact
-machine. The fix works; it is unreachable. **Motoko-only** — V1's clone is 0 behind and self-healed,
-world has no `pin-root.sh`. Drift grew **152 → 172 in one day** and is unbounded.
+- **Row 6s — `expected_arms` drift gate.** Code written and measured, **not merged**, on
+  `sprint/motoko-iter39-armcount-r3` (design `f6750002d`). Three quorum rounds, all BLOCKED.
+  **Parked on `D-MOTOKO-P2-1`** — see below. Independent judge passed iteration 39's work
+  **90/100, zero blocking**.
+- **Next after that**: row **7** (profile restoration design), which still needs its premise
+  restated before it can be picked — its one-line charter row is not reconstructible.
 
-## Parked on Mark — one word, fifth ask
+## Parked on Mark — 1 open decision
 
-**`D-MOTOKO-WORKDIR-2`** — standing authorization to reconcile the source clone to `origin/dev`
-unattended when three predicates hold. **`yes`** (standing) or **`no`** (keep asking each time).
-All four non-destructiveness obligations measured today: **0** ahead · **0** dirty in the clone and
-all 8 worktrees · nothing to back up · `checkout -B` refuses rather than clobbers.
+- **`D-MOTOKO-P2-1`** — the arm-count gate's exact count (60) holds only while one
+  environment-conditional arm stays skipped. `gpt6-astra` and `gemini-3-1-pro` proposed **opposite**
+  remedies and the loop may not choose. **(A)** model the arm with a `loopback_sampled` flag;
+  **(B)** count only environment-independent arms. Loop recommends **(B)**; default (B) if
+  unanswered **2026-09-21**. One word unblocks it.
+- Resolved last iteration: `D-MOTOKO-CARVEOUT-1` → **(B) overrule**. Actioned in full this fire.
 
-*Manual alternative, ~10s:* `cd ~/dev/sunholo-data/ailang-motoko && git checkout -B dev origin/dev`
+## Blocked, not waiting on Mark
 
-## Queue
-
-| | row | state |
-|---|---|---|
-| next | **6h** provider failure arrives as a successful empty completion (#842) | NEXT — verified still open |
-| then | **6i** production `run_lane` group-kill pinned by nothing | NEXT |
-| then | **6j** `launchd drivers (bash 3.2)` arm 33 intermittent hang | NEXT |
-| new | **6l** pin gate loaded from the tree it replaces (bootstrap trap) | blocked-by-design on the reconcile |
-| parked | 10 / 11 / 12 Phase-0 gated | G1 `#154` re-measured OPEN |
+Rows **10/11/12** stay Phase-0 gated on upstream `arniwesth/motoko_agent`: `#154` still open and
+unmerged, **0** maintainer comments on `#165` (controls fire). Re-measured as commands every fire.
 
 ## Loop health
 
-- **CI on `dev`**: 20 checks, 1 not-green — `SonarCloud`, inherited from V1's commits, non-required.
-- **Routing**: controller `claude:claude-opus-5` only. Fable **unspent**. Metered **$0.00** of $5.
-- **Cadence**: unpinned fires — every iteration runs whatever the stale clone holds.
+- Cadence 12h (`dev.ailang.mission-motoko`), staggered against V1 (90m) and World (4h).
+- Routing: designer `claude:claude-fable-5-1` (Agent tool DENIED the colon pin — row 6u, instance
+  4 — so the `claude-sub` recipe), evaluator `sonnet` via Agent tool; planner and executor
+  correctly did not run (no approved design ⇒ no plan, nothing to execute).
+- **generator≠judge is model-level only, and FLAGGED.** Codex routing blocked all fire on a stale
+  provider observation; the pi/minimax judge lane timed out at iteration 37. No cross-vendor judge
+  was reachable.
+- Metered **$0.27** of the $5 ceiling. Ollama gauge 38.3% session / 43.1% weekly, unused. No GPU.

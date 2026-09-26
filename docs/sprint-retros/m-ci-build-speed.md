@@ -5,6 +5,12 @@
 **LOC delivered**: ~310 (vs 290 estimated)
 **Repo**: ailang-multivac (no ailang Go changes)
 
+> **Retired 2026-09-03.** The `ailang-multivac-{dev,test,prod}` full-pipeline triggers and
+> `ailang-multivac/cloudbuild.yaml` measured here no longer exist: ailang's own
+> `cloudbuild-dev.yaml` (push → dev) and `cloudbuild-release.yaml` (`v*` tag → test) build
+> every image, and prod is a manual promote by version. Kept as a record of the
+> measurements, not as a description of the pipeline.
+
 ## Headline Numbers
 
 | Push type | Before | After | Speedup |

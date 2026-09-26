@@ -116,60 +116,6 @@ func (m FmtHookMode) Apply(workspace string) (settingsPath string, settingsJSON 
 	return settingsPath, jsonBytes, nil
 }
 
-// Marker strings emitted by the LANDED scripts/hooks/format_ail.sh. These are
-// the ground-truth signals of what the hook actually did; we key hook-reality
-// classification off them so we never fabricate a "treated" event.
-const (
-	fmtHookMarkerFormatted = "✓ Formatted "            // exit 0: canonical format applied
-	fmtHookMarkerFailed    = "ailang fmt failed"       // non-0/non-3 exit surfaced via additionalContext
-	fmtHookMarkerTimedOut  = "ailang fmt timed out"    // synthetic timeout branch
-	fmtHookMarkerSkippedJq = "format_ail hook: jq not" // jq missing → skipped
-)
-
-// detectFmtHookEvent inspects one stream-json line for a format_ail.sh status
-// marker and, if present, returns a classified FmtHookEvent tagged with the
-// current turn. Returns ok=false when the line carries no hook marker.
-//
-// Classification (M-EVAL-FMT-WEAKMODEL-AB hook-reality metric):
-//   - "formatted" — the hook ran ailang fmt and it exited 0 (treatment delivered)
-//   - "error"     — the hook surfaced a failure/timeout/skip via additionalContext
-//     or stderr (refusal/no-op class; counts against the treatment-delivery rate)
-//
-// The exit-3 "deferred" (unparseable-mid-edit) case is intentionally SILENT in
-// the LANDED hook (contract clause 5), so it emits no marker and is not counted
-// as either treated or refused — which is the correct treatment-integrity
-// accounting.
-func detectFmtHookEvent(line string, turn int) (FmtHookEvent, bool) {
-	switch {
-	case strings.Contains(line, fmtHookMarkerFormatted):
-		return FmtHookEvent{Turn: turn, Status: "formatted", File: extractFmtFile(line, fmtHookMarkerFormatted)}, true
-	case strings.Contains(line, fmtHookMarkerTimedOut):
-		return FmtHookEvent{Turn: turn, Status: "error", Detail: "fmt timed out"}, true
-	case strings.Contains(line, fmtHookMarkerFailed):
-		return FmtHookEvent{Turn: turn, Status: "error", Detail: "ailang fmt failed"}, true
-	case strings.Contains(line, fmtHookMarkerSkippedJq):
-		return FmtHookEvent{Turn: turn, Status: "error", Detail: "jq missing — fmt skipped"}, true
-	default:
-		return FmtHookEvent{}, false
-	}
-}
-
-// extractFmtFile pulls the .ail filename out of a "✓ Formatted <file>" marker.
-// Best-effort: the marker may be embedded in a JSON string, so we take the token
-// after the marker up to the next quote/whitespace/escape.
-func extractFmtFile(line, marker string) string {
-	i := strings.Index(line, marker)
-	if i < 0 {
-		return ""
-	}
-	rest := line[i+len(marker):]
-	end := strings.IndexAny(rest, "\"\\ \t\n")
-	if end < 0 {
-		return strings.TrimSpace(rest)
-	}
-	return rest[:end]
-}
-
 // fmtHookSinkName is the workspace-relative sink file both the hook and the
 // harness compute independently. The hook derives its dir from the PostToolUse
 // stdin's `cwd` field (= the agent workspace); the harness derives it from the

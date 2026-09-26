@@ -11,9 +11,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/gitexec"
 	"github.com/sunholo-data/ailang/internal/messaging"
 	"github.com/sunholo-data/ailang/internal/observatory"
 	"github.com/sunholo-data/ailang/internal/pkg"
+	"github.com/sunholo-data/ailang/internal/strutil"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -108,7 +110,7 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 	}
 
 	directive := BuildDirectiveFromConfig(task, agentConfig)
-	d.logger.Printf("[DEBUG] Built directive (first 500 chars): %s", truncateString(directive, 500))
+	d.logger.Printf("[DEBUG] Built directive (first 500 chars): %s", strutil.Truncate(directive, 500))
 	analyzed := &AnalyzedTask{
 		Task: &Task{
 			ID:           task.ID,
@@ -205,12 +207,16 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 			d.logger.Printf("Warning: Failed to sync task to Observatory: %v", err)
 		}
 
-		// Create agent assignment and get ID for context propagation
-		providerName := "claude" // fallback
-		if agentConfig != nil && agentConfig.Provider != "" {
-			providerName = agentConfig.Provider
-		} else if d.coordConfig != nil && d.coordConfig.DefaultProvider != "" {
-			providerName = d.coordConfig.DefaultProvider
+		// Create agent assignment and get ID for context propagation. The
+		// provider labels this assignment's cost in the observatory, so a
+		// guessed one mislabels spend — resolved through the one helper, never
+		// a literal (M-V1-SIMPLIFY-S4 M1).
+		providerName, provErr := d.taskProvider(agentConfig)
+		if provErr != nil {
+			if err := d.taskStore.MarkTaskFailed(taskCtx, task.ID, provErr); err != nil {
+				d.logger.Printf("Warning: Failed to mark task %s as failed: %v", task.ID, err)
+			}
+			return provErr
 		}
 		assignmentID, err := d.observatorySync.SyncAgentAssignment(taskCtx, task.ID, targetAgent, providerName)
 		if err != nil {
@@ -234,25 +240,23 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 			task.ID, targetAgent, assignmentID, workspaceID)
 	}
 
-	opts := &ExecuteOptions{
-		Timeout:            agentConfig.GetEffectiveTimeout(),     // Hard ceiling (v0.8.1), default 60m
-		IdleTimeout:        agentConfig.GetEffectiveIdleTimeout(), // Idle kill (v0.8.1), default 3m
-		Workspace:          workspacePath,                         // Worktree path for AI agents, direct workspace for script agents
-		ObservatoryContext: obsContext,
-		AgentConfig:        agentConfig, // For system prompt construction (v0.8.0+)
-	}
+	// Base on DefaultExecuteOptions so RetryBaseDelay/Wait are set explicitly
+	// (M-COORDINATOR-TEST-PARALLELISM, FIX 2). Each override below wins over the
+	// default, so the five fields are identical to today's literal.
+	opts := DefaultExecuteOptions()
+	opts.Timeout = agentConfig.GetEffectiveTimeout()         // Hard ceiling (v0.8.1), default 60m
+	opts.IdleTimeout = agentConfig.GetEffectiveIdleTimeout() // Idle kill (v0.8.1), default 3m
+	opts.Workspace = workspacePath                           // Worktree path for AI agents, direct workspace for script agents
+	opts.ObservatoryContext = obsContext
+	opts.AgentConfig = agentConfig // For system prompt construction (v0.8.0+)
 
-	// Per-agent model, resolved through the shared routing table
-	// (M-PIPELINE-RECONCILIATION M5, D3): explicit pin > role lookup > provider
-	// default. A role the table does not know FAILS THE TASK rather than
-	// silently running on the default — the whole point of one table is that a
-	// gap in it is visible.
+	// Per-agent model, resolved through the REGISTRY
+	// (M-MODEL-REGISTRY-SINGLE-SOURCE M7, superseding M-PIPELINE-RECONCILIATION
+	// M5's config-side table): explicit pin > role lookup > no opinion. A role
+	// the registry does not know FAILS THE TASK rather than running on some
+	// default — the whole point of one source is that a gap in it is visible.
 	if agentConfig != nil {
-		var routing ModelRouting
-		if d.coordConfig != nil {
-			routing = d.coordConfig.ModelRouting
-		}
-		model, mErr := ResolveModel(agentConfig, routing)
+		model, mErr := ResolveModel(agentConfig)
 		if mErr != nil {
 			return fmt.Errorf("model routing: %w", mErr)
 		}
@@ -457,10 +461,10 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 							d.logger.Printf("Deterministic version bump: %s → %s (%s) for %s",
 								manifest.Package.Version, newVersion, bumpType, agentConfig.ID)
 							// Commit the version bump
-							commitCmd := exec.Command("git", "-C", worktreePath, "add", "-A")
+							commitCmd := gitexec.Command("-C", worktreePath, "add", "-A")
 							commitCmd.Run()
 							commitMsg := fmt.Sprintf("chore: bump %s %s → %s (%s update)", manifest.Package.Name, manifest.Package.Version, newVersion, bumpType)
-							exec.Command("git", "-C", worktreePath, "commit", "-m", commitMsg).Run()
+							gitexec.Command("-C", worktreePath, "commit", "-m", commitMsg).Run()
 						}
 					} else {
 						d.logger.Printf("Warning: Version bump failed for %s: %v", agentConfig.ID, bumpErr)
@@ -681,7 +685,7 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 // but don't affect task completion.
 func (d *Daemon) enrichResolutionEnvelope(ctx context.Context, task *TaskRecord, worktreePath string) {
 	// Get git diff (HEAD~1..HEAD)
-	diffCmd := exec.Command("git", "diff", "HEAD~1..HEAD", "--stat")
+	diffCmd := gitexec.Command("diff", "HEAD~1..HEAD", "--stat")
 	diffCmd.Dir = worktreePath
 	diffOutput, err := diffCmd.Output()
 	if err != nil {
@@ -690,7 +694,7 @@ func (d *Daemon) enrichResolutionEnvelope(ctx context.Context, task *TaskRecord,
 	}
 
 	// Get commit message
-	logCmd := exec.Command("git", "log", "-1", "--pretty=%B")
+	logCmd := gitexec.Command("log", "-1", "--pretty=%B")
 	logCmd.Dir = worktreePath
 	commitMsg, err := logCmd.Output()
 	if err != nil {

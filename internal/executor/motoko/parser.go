@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/executor"
 )
 
@@ -17,14 +18,16 @@ import (
 // searching multiple candidate roots (workspace, MOTOKO_REPO, discovered).
 const motokoStateDir = ".motoko"
 
-// Schema-v1 events emitted by motoko's session JSONL. Every event carries
-// `schema_version: "1"`, `session_id`, and `type`. Documented in motoko_agent
-// design_docs/implemented/motoko_agent/m-motoko-eval-instrumentation.md.
+// SessionEvent is the ONE decoder for motoko's session JSONL (schema v1:
+// every event carries `schema_version: "1"`, `session_id`, and `type`;
+// documented in motoko_agent design_docs/implemented/motoko_agent/
+// m-motoko-eval-instrumentation.md). The eval adapter reads it for the
+// Result; internal/observatory's ImportMotokoSession reads it for chains —
+// it used to carry its own copy, which lacked the cache-token fields.
 //
-// We use json.RawMessage for fields whose shape varies by event type so a
-// single Go struct can cover all event types — narrowed by `type` switch in
-// the consumer.
-type motokoEvent struct {
+// json.RawMessage covers fields whose shape varies by event type so one
+// struct spans all events — narrowed by a `type` switch in the consumer.
+type SessionEvent struct {
 	SchemaVersion string `json:"schema_version,omitempty"`
 	SessionID     string `json:"session_id,omitempty"`
 	Type          string `json:"type"`
@@ -79,10 +82,42 @@ type motokoEvent struct {
 	// compaction_extension / compaction_exhausted carry no level; Step is shared.
 	Level *int `json:"level,omitempty"`
 
-	// NativeToolCalls is populated by parseSessionLine from ToolCallsRaw
+	// native_tool_results
+	Results []ToolResult `json:"results,omitempty"`
+
+	// NativeToolCalls is populated by ParseSessionLine from ToolCallsRaw
 	// when ev.Type == "native_tool_calls" (where the field is an array).
 	// Not json-tagged — set by the parser, not the decoder.
 	NativeToolCalls []json.RawMessage `json:"-"`
+}
+
+// ToolCall is one entry of a native_tool_calls event's array.
+type ToolCall struct {
+	ID        string          `json:"id"`
+	Tool      string          `json:"tool"`
+	Arguments json.RawMessage `json:"arguments"`
+}
+
+// ToolResult is one entry of a native_tool_results event's array.
+type ToolResult struct {
+	ToolCallID string          `json:"tool_call_id"`
+	ExitCode   int             `json:"exit_code"`
+	Stdout     string          `json:"stdout"`
+	Stderr     string          `json:"stderr"`
+	Payload    json.RawMessage `json:"payload"`
+}
+
+// ToolCalls decodes NativeToolCalls into typed entries; malformed entries
+// are skipped, the count of NativeToolCalls remains the authority.
+func (e *SessionEvent) ToolCalls() []ToolCall {
+	out := make([]ToolCall, 0, len(e.NativeToolCalls))
+	for _, raw := range e.NativeToolCalls {
+		var tc ToolCall
+		if json.Unmarshal(raw, &tc) == nil {
+			out = append(out, tc)
+		}
+	}
+	return out
 }
 
 // runSummaryUsage matches the omit-when-absent semantics of motoko's
@@ -95,9 +130,9 @@ type runSummaryUsage struct {
 	TotalTokens              int  `json:"total_tokens"`
 }
 
-// parseSessionLine parses a single JSONL line. Returns (event, raw, err).
+// ParseSessionLine parses a single JSONL line. Returns (event, raw, err).
 // Raw map preserves the full payload for ProviderData round-trip.
-func parseSessionLine(line []byte) (*motokoEvent, map[string]any, error) {
+func ParseSessionLine(line []byte) (*SessionEvent, map[string]any, error) {
 	trimmed := strings.TrimSpace(string(line))
 	if trimmed == "" {
 		return nil, nil, fmt.Errorf("empty line")
@@ -105,7 +140,7 @@ func parseSessionLine(line []byte) (*motokoEvent, map[string]any, error) {
 	if trimmed[0] != '{' {
 		return nil, nil, fmt.Errorf("non-JSON line")
 	}
-	var ev motokoEvent
+	var ev SessionEvent
 	if err := json.Unmarshal(line, &ev); err != nil {
 		return nil, nil, fmt.Errorf("parse: %w", err)
 	}
@@ -149,7 +184,7 @@ func parseSessionLine(line []byte) (*motokoEvent, map[string]any, error) {
 //     emits a Result with Error pointing to that fact.
 func findSessionJSONL(workspace, sessionID, discoveredRepo string) (string, error) {
 	candidates := []string{filepath.Join(workspace, motokoStateDir, "logfile")}
-	if motokoRepo := os.Getenv("MOTOKO_REPO"); motokoRepo != "" {
+	if motokoRepo := config.MotokoRepo(); motokoRepo != "" {
 		candidates = append(candidates, filepath.Join(motokoRepo, motokoStateDir, "logfile"))
 	} else if discoveredRepo != "" {
 		// MOTOKO_REPO env was unset but `motoko --version` reported one.
@@ -321,7 +356,7 @@ func parseSessionJSONL(path string) (*executor.Result, error) {
 
 	for scanner.Scan() {
 		line := scanner.Bytes()
-		ev, raw, err := parseSessionLine(line)
+		ev, raw, err := ParseSessionLine(line)
 		if err != nil {
 			// Skip non-JSON / malformed lines silently (preamble chatter etc.)
 			continue

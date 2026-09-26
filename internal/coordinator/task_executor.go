@@ -2,10 +2,12 @@ package coordinator
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/ai"
 	"github.com/sunholo-data/ailang/internal/executor"
 )
 
@@ -155,16 +157,17 @@ func (te *TaskExecutor) ExecuteWithRetry(ctx context.Context, task *AnalyzedTask
 	}
 
 	var lastResult *ExecuteResult
-	baseDelay := time.Second
+	baseDelay := opts.RetryBaseDelay
 
 	for attempt := 0; attempt <= maxRetries; attempt++ {
 		if attempt > 0 {
-			// Exponential backoff
+			// Exponential backoff (injected, cancellable wait seam:
+			// M-COORDINATOR-TEST-PARALLELISM). defaultWait returns ctx.Err()
+			// as soon as the context is cancelled, so a cancelled context is
+			// noticed immediately rather than after the full delay.
 			delay := baseDelay * time.Duration(1<<(attempt-1))
-			select {
-			case <-time.After(delay):
-			case <-ctx.Done():
-				return nil, ctx.Err()
+			if err := opts.Wait(ctx, delay); err != nil {
+				return nil, err
 			}
 		}
 
@@ -225,46 +228,14 @@ func (te *TaskExecutor) ListProviders() []string {
 	return names
 }
 
-// isRetryable checks if an error should trigger a retry
+// isRetryable checks if an executor result's error should trigger a retry.
+// Our own execution timeouts are never retried — the agent was given its full
+// configured timeout (v0.8.1); everything else is ai.ShouldRetry, the one
+// classifier (M-V1-SIMPLIFY-S3 M4): rate limits, network and server errors
+// retry, quota exhaustion and unrecognised errors do not.
 func isRetryable(errMsg string) bool {
-	if errMsg == "" {
+	if errMsg == "" || strings.HasPrefix(errMsg, "timeout after") {
 		return false
 	}
-
-	// Our own execution timeouts should NOT be retried —
-	// the agent was given its full configured timeout (v0.8.1)
-	if strings.HasPrefix(errMsg, "timeout after") {
-		return false
-	}
-
-	// Rate limiting
-	if contains(errMsg, "rate limit", "429", "too many requests") {
-		return true
-	}
-
-	// Temporary network errors
-	if contains(errMsg, "timeout", "connection", "network") {
-		return true
-	}
-
-	// Server errors
-	if contains(errMsg, "500", "502", "503", "504", "internal server error") {
-		return true
-	}
-
-	return false
-}
-
-// contains checks if s contains any of the substrings
-func contains(s string, substrs ...string) bool {
-	for _, sub := range substrs {
-		if len(s) >= len(sub) {
-			for i := 0; i <= len(s)-len(sub); i++ {
-				if s[i:i+len(sub)] == sub {
-					return true
-				}
-			}
-		}
-	}
-	return false
+	return ai.ShouldRetry(errors.New(errMsg))
 }

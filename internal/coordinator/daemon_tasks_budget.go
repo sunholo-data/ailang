@@ -5,26 +5,64 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/websocket"
 )
 
+// Environment variables the budget gate and provider resolver read
+// (M-V1-SIMPLIFY-S4 M1). Both are documented in docs/docs/guides/debugging.md.
+const (
+	// EnvDefaultProvider names the provider a task is attributed to when
+	// neither the agent's config nor the coordinator section's
+	// default_provider says. Before M1 the literal "claude" was assumed at two
+	// sites, which mislabelled provider and cost in the observatory and keyed
+	// the wrong per-provider spend cap for every agent dispatched without a
+	// declaration.
+	EnvDefaultProvider = config.EnvDefaultProvider
+	// EnvBudgetUnlimited, set to 1, acknowledges that tasks may run with NO
+	// spend cap. Without it, every path where the cap disappears (no budgets
+	// section, an unreadable config, a spend lookup that fails, or limits
+	// that resolve to zero) warns once per process and, under
+	// AILANG_STRICT_CONFIG=1, refuses the task instead of running it
+	// unlimited. Before M1 each of those paths silently allowed the task.
+	EnvBudgetUnlimited = config.EnvBudgetUnlimited
+)
+
+// taskProvider resolves the provider a task runs under: the agent's own
+// declaration, then the coordinator config's default_provider, then
+// AILANG_DEFAULT_PROVIDER, then the deprecated "claude" default through
+// config.DeprecatedDefault — one stderr warning per process, and an error
+// wrapping config.ErrDeprecatedDefault under AILANG_STRICT_CONFIG=1.
+func (d *Daemon) taskProvider(agentConfig *AgentConfig) (string, error) {
+	if agentConfig != nil && agentConfig.Provider != "" {
+		return agentConfig.Provider, nil
+	}
+	if d.coordConfig != nil && d.coordConfig.DefaultProvider != "" {
+		return d.coordConfig.DefaultProvider, nil
+	}
+	if v := config.DefaultProvider(); v != "" {
+		return v, nil
+	}
+	return config.DeprecatedDefault(EnvDefaultProvider, "claude")
+}
+
 // checkBudgetBeforeExecution checks if the task can proceed within budget limits.
-// Returns (blocked, error) where blocked=true means task should wait for approval.
+// Returns (blocked, error) where blocked=true means the task must not run now:
+// either it waits for a cost approval, or (under AILANG_STRICT_CONFIG=1) it was
+// refused because it would have run with no spend cap at all.
 func (d *Daemon) checkBudgetBeforeExecution(ctx context.Context, task *TaskRecord, agentConfig *AgentConfig) (bool, error) {
-	// Load budget configuration
-	budgetsCfg, err := LoadBudgetsConfig()
-	if err != nil || budgetsCfg == nil {
-		// No budget config = no enforcement
-		d.logger.Printf("[DEBUG] No budget config found, skipping budget check")
-		return false, nil
+	// Determine provider — the per-provider cap is keyed on it, so a guessed
+	// provider is a guessed cap.
+	provider, err := d.taskProvider(agentConfig)
+	if err != nil {
+		return d.refuseTask(ctx, task, err)
 	}
 
-	// Determine provider
-	provider := "claude" // default
-	if agentConfig != nil && agentConfig.Provider != "" {
-		provider = agentConfig.Provider
-	} else if d.coordConfig != nil && d.coordConfig.DefaultProvider != "" {
-		provider = d.coordConfig.DefaultProvider
+	// Load budget configuration. An unreadable file used to mean "no
+	// enforcement" — a parse error erased the cap.
+	budgetsCfg, err := LoadBudgetsConfig()
+	if err != nil || budgetsCfg == nil {
+		return d.uncapped(ctx, task, provider, fmt.Sprintf("budget config unavailable: %v", err))
 	}
 
 	// Get provider-specific limits
@@ -47,16 +85,16 @@ func (d *Daemon) checkBudgetBeforeExecution(ctx context.Context, task *TaskRecor
 		taskMaxLimit = budgetsCfg.Global.TaskMaxCost
 	}
 
-	// If no limits configured, allow the task
+	// No limits configured at either level: the cap is gone.
 	if dailyLimit == 0 && taskMaxLimit == 0 {
-		return false, nil
+		return d.uncapped(ctx, task, provider, "no daily_budget or task_max_cost for the provider or globally")
 	}
 
-	// Get current spend by provider
+	// Get current spend by provider. A failed lookup used to allow the task —
+	// a cap that cannot be checked is a cap that has disappeared.
 	costByProvider, err := d.taskStore.GetCostByProvider()
 	if err != nil {
-		d.logger.Printf("Warning: Failed to get cost by provider: %v", err)
-		return false, nil // Allow task if we can't check budget
+		return d.uncapped(ctx, task, provider, fmt.Sprintf("spend lookup failed: %v", err))
 	}
 
 	currentSpend := costByProvider[provider]
@@ -77,6 +115,34 @@ func (d *Daemon) checkBudgetBeforeExecution(ctx context.Context, task *TaskRecor
 	}
 
 	return false, nil
+}
+
+// uncapped is every path on which a task would run with no spend cap. With
+// AILANG_BUDGET_UNLIMITED=1 that is acknowledged and logged; otherwise it is
+// the deprecated default — served with one stderr warning per process, and
+// refused under AILANG_STRICT_CONFIG=1 (config.ErrDeprecatedDefault).
+func (d *Daemon) uncapped(ctx context.Context, task *TaskRecord, provider, reason string) (bool, error) {
+	d.logger.Printf("[BUDGET] no spend cap for provider %s on task %s: %s — set budgets.providers.%s.daily_budget "+
+		"(or budgets.global.daily_budget) in %s, or %s=1 to acknowledge unlimited spend",
+		provider, task.ID, reason, provider, config.FilePath(), EnvBudgetUnlimited)
+	if config.BudgetUnlimited() {
+		return false, nil
+	}
+	if _, err := config.DeprecatedDefault(EnvBudgetUnlimited, "1 (no spend cap)"); err != nil {
+		return d.refuseTask(ctx, task, fmt.Errorf("task %s would run with no spend cap (%s): %w", task.ID, reason, err))
+	}
+	return false, nil
+}
+
+// refuseTask marks the task failed with err and reports it as blocked so the
+// caller does not execute it. This is the strict-mode outcome: loud, terminal,
+// and attributable to the unset variable in err.
+func (d *Daemon) refuseTask(ctx context.Context, task *TaskRecord, err error) (bool, error) {
+	d.logger.Printf("[BUDGET] REFUSED task %s: %v", task.ID, err)
+	if mErr := d.taskStore.MarkTaskFailed(ctx, task.ID, err); mErr != nil {
+		d.logger.Printf("Warning: Failed to mark task %s as failed: %v", task.ID, mErr)
+	}
+	return true, err
 }
 
 // createBudgetApproval creates an ApprovalTypeCost approval request for budget-blocked tasks.

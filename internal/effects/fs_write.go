@@ -2,191 +2,133 @@ package effects
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/sunholo-data/ailang/internal/eval"
 )
 
+// fsWriteArgs unpacks (path, String content) for the string write/append ops.
+func fsWriteArgs(op string, args []eval.Value) (string, []byte, error) {
+	if len(args) != 2 {
+		return "", nil, fmt.Errorf("%s: expected 2 arguments, got %d", op, len(args))
+	}
+	pathVal, ok := args[0].(*eval.StringValue)
+	if !ok {
+		return "", nil, fmt.Errorf("%s: expected String for path, got %T", op, args[0])
+	}
+	contentVal, ok := args[1].(*eval.StringValue)
+	if !ok {
+		return "", nil, fmt.Errorf("%s: expected String for content, got %T", op, args[1])
+	}
+	return pathVal.Value, []byte(contentVal.Value), nil
+}
+
+// fsWriteBytesArgs unpacks (path, Bytes data) for the binary write/append ops.
+func fsWriteBytesArgs(op string, args []eval.Value) (string, []byte, error) {
+	if len(args) != 2 {
+		return "", nil, fmt.Errorf("%s: expected 2 arguments, got %d", op, len(args))
+	}
+	pathVal, ok := args[0].(*eval.StringValue)
+	if !ok {
+		return "", nil, fmt.Errorf("%s: expected String for path, got %T", op, args[0])
+	}
+	bytesVal, ok := args[1].(*eval.BytesValue)
+	if !ok {
+		return "", nil, fmt.Errorf("%s: expected Bytes for data, got %T", op, args[1])
+	}
+	return pathVal.Value, bytesVal.Value, nil
+}
+
 // fsWriteFile implements FS.writeFile(path: String, content: String) -> ()
 //
-// Writes a string to a file, creating it if it doesn't exist.
-// If the file exists, it will be truncated.
-// If AILANG_FS_SANDBOX is set, the path is restricted to the sandbox directory.
-//
-// Parameters:
-//   - ctx: Effect context (with optional Sandbox configuration)
-//   - args: [StringValue, StringValue] - file path and content
-//
-// Returns:
-//   - UnitValue on success
-//   - Error if write fails or wrong arguments
+// Writes a string to a file, creating it if it doesn't exist and truncating
+// it otherwise. File permissions: 0644.
 //
 // Example AILANG code:
 //
 //	writeFile("output.txt", "Hello, World!")
-//
-// File permissions: 0644 (owner: rw, group: r, others: r)
 func fsWriteFile(ctx *EffContext, args []eval.Value) (eval.Value, error) {
-	if len(args) != 2 {
-		return nil, fmt.Errorf("writeFile: expected 2 arguments, got %d", len(args))
-	}
-
-	pathVal, ok := args[0].(*eval.StringValue)
-	if !ok {
-		return nil, fmt.Errorf("writeFile: expected String for path, got %T", args[0])
-	}
-
-	contentVal, ok := args[1].(*eval.StringValue)
-	if !ok {
-		return nil, fmt.Errorf("writeFile: expected String for content, got %T", args[1])
-	}
-
-	path := pathVal.Value
-	content := contentVal.Value
-
-	// Apply sandbox
-	if ctx.Env.Sandbox != "" {
-		resolved, sandboxErr := resolveSandboxPath(ctx.Env.Sandbox, path)
-		if sandboxErr != nil {
-			return nil, sandboxErr
-		}
-		path = resolved
-	}
-
-	// Write file (0644 permissions)
-	err := os.WriteFile(path, []byte(content), 0644)
+	path, data, err := fsWriteArgs("writeFile", args)
 	if err != nil {
+		return nil, err
+	}
+	if err := ctx.fsCheckTransfer(path, len(data)); err != nil {
+		return nil, err
+	}
+	if err := ctx.fsCheckMutation(path); err != nil {
+		return nil, err
+	}
+	b, err := ctx.fsBackendFor()
+	if err != nil {
+		return nil, err
+	}
+	if err := fsWriteAll(b, path, data); err != nil {
 		return nil, fmt.Errorf("writeFile: %w", err)
 	}
-
 	return &eval.UnitValue{}, nil
 }
 
 // fsWriteFileBytes implements FS.writeFileBytes(path: String, data: Bytes) -> ()
 //
-// Writes raw bytes to a file, creating it if it doesn't exist.
-// If the file exists, it will be truncated.
-// If AILANG_FS_SANDBOX is set, the path is restricted to the sandbox directory.
-//
-// Parameters:
-//   - ctx: Effect context (with optional Sandbox configuration)
-//   - args: [StringValue, BytesValue] - file path and binary data
-//
-// Returns:
-//   - UnitValue on success
-//   - Error if write fails or wrong arguments
+// Writes raw bytes to a file, creating it if it doesn't exist and truncating
+// it otherwise. File permissions: 0644.
 //
 // Example AILANG code:
 //
 //	import std/bytes (fromString)
 //	writeFileBytes("output.bin", fromString("binary data"))
-//
-// File permissions: 0644 (owner: rw, group: r, others: r)
 func fsWriteFileBytes(ctx *EffContext, args []eval.Value) (eval.Value, error) {
-	if len(args) != 2 {
-		return nil, fmt.Errorf("writeFileBytes: expected 2 arguments, got %d", len(args))
-	}
-
-	pathVal, ok := args[0].(*eval.StringValue)
-	if !ok {
-		return nil, fmt.Errorf("writeFileBytes: expected String for path, got %T", args[0])
-	}
-
-	bytesVal, ok := args[1].(*eval.BytesValue)
-	if !ok {
-		return nil, fmt.Errorf("writeFileBytes: expected Bytes for data, got %T", args[1])
-	}
-
-	path := pathVal.Value
-
-	// Apply sandbox
-	if ctx.Env.Sandbox != "" {
-		resolved, sandboxErr := resolveSandboxPath(ctx.Env.Sandbox, path)
-		if sandboxErr != nil {
-			return nil, sandboxErr
-		}
-		path = resolved
-	}
-
-	// Write file (0644 permissions)
-	err := os.WriteFile(path, bytesVal.Value, 0644)
+	path, data, err := fsWriteBytesArgs("writeFileBytes", args)
 	if err != nil {
+		return nil, err
+	}
+	if err := ctx.fsCheckTransfer(path, len(data)); err != nil {
+		return nil, err
+	}
+	if err := ctx.fsCheckMutation(path); err != nil {
+		return nil, err
+	}
+	b, err := ctx.fsBackendFor()
+	if err != nil {
+		return nil, err
+	}
+	if err := fsWriteAll(b, path, data); err != nil {
 		return nil, fmt.Errorf("writeFileBytes: %w", err)
 	}
-
 	return &eval.UnitValue{}, nil
 }
 
 // fsAppendFile implements FS.appendFile(path: String, content: String) -> ()
 //
-// Appends a string to a file, creating it if it doesn't exist.
-// If AILANG_FS_SANDBOX is set, the path is restricted to the sandbox directory.
-//
-// Parameters:
-//   - ctx: Effect context (with optional Sandbox configuration)
-//   - args: [StringValue, StringValue] - file path and content to append
-//
-// Returns:
-//   - UnitValue on success
-//   - Error if write fails or wrong arguments
+// Appends a string to a file, creating it if it doesn't exist. Permissions 0644.
 //
 // Example AILANG code:
 //
 //	appendFile("log.txt", "new line\n")
-//
-// File permissions: 0644 (owner: rw, group: r, others: r)
 func fsAppendFile(ctx *EffContext, args []eval.Value) (eval.Value, error) {
-	if len(args) != 2 {
-		return nil, fmt.Errorf("appendFile: expected 2 arguments, got %d", len(args))
-	}
-
-	pathVal, ok := args[0].(*eval.StringValue)
-	if !ok {
-		return nil, fmt.Errorf("appendFile: expected String for path, got %T", args[0])
-	}
-
-	contentVal, ok := args[1].(*eval.StringValue)
-	if !ok {
-		return nil, fmt.Errorf("appendFile: expected String for content, got %T", args[1])
-	}
-
-	path := pathVal.Value
-
-	// Apply sandbox
-	if ctx.Env.Sandbox != "" {
-		resolved, sandboxErr := resolveSandboxPath(ctx.Env.Sandbox, path)
-		if sandboxErr != nil {
-			return nil, sandboxErr
-		}
-		path = resolved
-	}
-
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	path, data, err := fsWriteArgs("appendFile", args)
 	if err != nil {
+		return nil, err
+	}
+	if err := ctx.fsCheckTransfer(path, len(data)); err != nil {
+		return nil, err
+	}
+	if err := ctx.fsCheckMutation(path); err != nil {
+		return nil, err
+	}
+	b, err := ctx.fsBackendFor()
+	if err != nil {
+		return nil, err
+	}
+	if err := fsAppendAll(b, path, data); err != nil {
 		return nil, fmt.Errorf("appendFile: %w", err)
 	}
-	defer f.Close()
-
-	if _, err := f.WriteString(contentVal.Value); err != nil {
-		return nil, fmt.Errorf("appendFile: %w", err)
-	}
-
 	return &eval.UnitValue{}, nil
 }
 
 // fsAppendFileBytes implements FS.appendFileBytes(path: String, data: Bytes) -> ()
 //
-// Appends raw bytes to a file, creating it if it doesn't exist.
-// Ideal for streaming binary data to disk (e.g., accumulating PCM audio frames).
-// If AILANG_FS_SANDBOX is set, the path is restricted to the sandbox directory.
-//
-// Parameters:
-//   - ctx: Effect context (with optional Sandbox configuration)
-//   - args: [StringValue, BytesValue] - file path and binary data to append
-//
-// Returns:
-//   - UnitValue on success
-//   - Error if write fails or wrong arguments
+// Appends raw bytes to a file, creating it if it doesn't exist. Ideal for
+// streaming binary data to disk (e.g., accumulating PCM audio frames).
 //
 // Example AILANG code:
 //
@@ -196,44 +138,24 @@ func fsAppendFile(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 //	  Some(pcm) => appendFileBytes("output.pcm", pcm),
 //	  None => ()
 //	}
-//
-// File permissions: 0644 (owner: rw, group: r, others: r)
 func fsAppendFileBytes(ctx *EffContext, args []eval.Value) (eval.Value, error) {
-	if len(args) != 2 {
-		return nil, fmt.Errorf("appendFileBytes: expected 2 arguments, got %d", len(args))
-	}
-
-	pathVal, ok := args[0].(*eval.StringValue)
-	if !ok {
-		return nil, fmt.Errorf("appendFileBytes: expected String for path, got %T", args[0])
-	}
-
-	bytesVal, ok := args[1].(*eval.BytesValue)
-	if !ok {
-		return nil, fmt.Errorf("appendFileBytes: expected Bytes for data, got %T", args[1])
-	}
-
-	path := pathVal.Value
-
-	// Apply sandbox
-	if ctx.Env.Sandbox != "" {
-		resolved, sandboxErr := resolveSandboxPath(ctx.Env.Sandbox, path)
-		if sandboxErr != nil {
-			return nil, sandboxErr
-		}
-		path = resolved
-	}
-
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	path, data, err := fsWriteBytesArgs("appendFileBytes", args)
 	if err != nil {
+		return nil, err
+	}
+	if err := ctx.fsCheckTransfer(path, len(data)); err != nil {
+		return nil, err
+	}
+	if err := ctx.fsCheckMutation(path); err != nil {
+		return nil, err
+	}
+	b, err := ctx.fsBackendFor()
+	if err != nil {
+		return nil, err
+	}
+	if err := fsAppendAll(b, path, data); err != nil {
 		return nil, fmt.Errorf("appendFileBytes: %w", err)
 	}
-	defer f.Close()
-
-	if _, err := f.Write(bytesVal.Value); err != nil {
-		return nil, fmt.Errorf("appendFileBytes: %w", err)
-	}
-
 	return &eval.UnitValue{}, nil
 }
 
@@ -243,28 +165,21 @@ func fsAppendFileBytes(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 
 // fsWriteFileResult implements FS.writeFileResult(path: String, content: String) -> Result[(), String]
 func fsWriteFileResult(ctx *EffContext, args []eval.Value) (eval.Value, error) {
-	if len(args) != 2 {
-		return nil, fmt.Errorf("writeFileResult: expected 2 arguments, got %d", len(args))
+	path, data, err := fsWriteArgs("writeFileResult", args)
+	if err != nil {
+		return nil, err
 	}
-	pathVal, ok := args[0].(*eval.StringValue)
-	if !ok {
-		return nil, fmt.Errorf("writeFileResult: expected String for path, got %T", args[0])
+	if err := ctx.fsCheckTransfer(path, len(data)); err != nil {
+		return fsMakeErr(fmt.Sprintf("cannot write file: %v", err)), nil
 	}
-	contentVal, ok := args[1].(*eval.StringValue)
-	if !ok {
-		return nil, fmt.Errorf("writeFileResult: expected String for content, got %T", args[1])
+	if err := ctx.fsCheckMutation(path); err != nil {
+		return fsMakeErr(fmt.Sprintf("cannot write file: %v", err)), nil
 	}
-
-	path := pathVal.Value
-	if ctx.Env.Sandbox != "" {
-		resolved, sandboxErr := resolveSandboxPath(ctx.Env.Sandbox, path)
-		if sandboxErr != nil {
-			return nil, sandboxErr
-		}
-		path = resolved
+	b, err := ctx.fsBackendFor()
+	if err != nil {
+		return nil, err
 	}
-
-	if err := os.WriteFile(path, []byte(contentVal.Value), 0644); err != nil {
+	if err := fsWriteAll(b, path, data); err != nil {
 		return fsMakeErr(fmt.Sprintf("cannot write file: %v", err)), nil
 	}
 	return fsMakeOk(&eval.UnitValue{}), nil
@@ -272,33 +187,21 @@ func fsWriteFileResult(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 
 // fsAppendFileResult implements FS.appendFileResult(path: String, content: String) -> Result[(), String]
 func fsAppendFileResult(ctx *EffContext, args []eval.Value) (eval.Value, error) {
-	if len(args) != 2 {
-		return nil, fmt.Errorf("appendFileResult: expected 2 arguments, got %d", len(args))
-	}
-	pathVal, ok := args[0].(*eval.StringValue)
-	if !ok {
-		return nil, fmt.Errorf("appendFileResult: expected String for path, got %T", args[0])
-	}
-	contentVal, ok := args[1].(*eval.StringValue)
-	if !ok {
-		return nil, fmt.Errorf("appendFileResult: expected String for content, got %T", args[1])
-	}
-
-	path := pathVal.Value
-	if ctx.Env.Sandbox != "" {
-		resolved, sandboxErr := resolveSandboxPath(ctx.Env.Sandbox, path)
-		if sandboxErr != nil {
-			return nil, sandboxErr
-		}
-		path = resolved
-	}
-
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	path, data, err := fsWriteArgs("appendFileResult", args)
 	if err != nil {
+		return nil, err
+	}
+	if err := ctx.fsCheckTransfer(path, len(data)); err != nil {
 		return fsMakeErr(fmt.Sprintf("cannot append to file: %v", err)), nil
 	}
-	defer f.Close()
-	if _, err := f.WriteString(contentVal.Value); err != nil {
+	if err := ctx.fsCheckMutation(path); err != nil {
+		return fsMakeErr(fmt.Sprintf("cannot append to file: %v", err)), nil
+	}
+	b, err := ctx.fsBackendFor()
+	if err != nil {
+		return nil, err
+	}
+	if err := fsAppendAll(b, path, data); err != nil {
 		return fsMakeErr(fmt.Sprintf("cannot append to file: %v", err)), nil
 	}
 	return fsMakeOk(&eval.UnitValue{}), nil

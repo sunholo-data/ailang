@@ -1,0 +1,67 @@
+{
+  "sprint_id": "M-PI-EVALUATOR-SESSION-HANDSHAKE",
+  "status": "completed",
+  "completed": "2026-09-06T21:24:26Z",
+  "created": "2026-09-06T20:51:28Z",
+  "design_doc": "design_docs/implemented/v0_35_2/m-pi-evaluator-session-handshake.md",
+  "sprint_plan": "design_docs/implemented/v0_35_2/m-pi-evaluator-session-handshake-sprint-plan.md",
+  "github_issues": [],
+  "velocity": {
+    "target_loc_per_day": 460,
+    "estimated_total_loc": 230,
+    "estimated_days": 0.5
+  },
+  "features": [
+    {
+      "id": "M1_CANONICAL_PI_CHILD_ENVIRONMENT",
+      "description": "Test-first actual-runner/fake-pi integration and the two command-scoped canonical messaging bindings at the existing pi child invocation, preserving AILANG_STORAGE and every runner argument, pipeline, watchdog, and verdict.",
+      "estimated_loc": 85,
+      "dependencies": [],
+      "files": [
+        ".pi/extensions/.session-protocol-gate.test.ts",
+        "scripts/mission_pi_run.sh"
+      ],
+      "acceptance_criteria": [
+        "AC7: the real checked-out runner is invoked with a fake pi first in PATH in both unset and hostile-caller arms; both return rc 0 and prove the fake child ran",
+        "AC7: the fake child receives AILANG_MESSAGES_STORE=gcp and AILANG_MESSAGES_PROJECT=ailang-multivac in both arms",
+        "AC7: AILANG_STORAGE remains absent when absent and remains local when supplied by the caller",
+        "The test uses MISSION_PI_POLL_SECONDS=1, max/stall 5 seconds, a 15-second Node subprocess backstop, output paths outside the temporary git worktree, and cleans its owned fixture after child exit",
+        "AC6: scripts/mission_pi_run.sh changes only by the two command-scoped child messaging bindings; arguments, stdin, awk pipeline, watchdogs, typed verdicts, and retries are unchanged",
+        "node --experimental-strip-types --test .pi/extensions/.session-protocol-gate.test.ts, make test-pi-extensions, and git diff --check pass"
+      ],
+      "passes": true,
+      "started": "2026-09-06T20:55:12Z",
+      "completed": "2026-09-06T20:57:42Z",
+      "notes": "Added hermetic actual-runner/fake-pi coverage with unset and hostile caller environments, then added exactly the two command-scoped messaging bindings. Focused 8/8, aggregate pi extensions, checkpoint make test/lint, whitespace, exact runner diff, and storage preservation checks passed."
+    },
+    {
+      "id": "M2_EVALUATOR_HANDSHAKE_CONTRACT",
+      "description": "Add exactly one source-bound canonical Gate 3 evaluator preamble and focused tests for delivery, command/timeout compatibility, local-history evidence, authority/failure semantics, scope, and the complete independent mutation matrix.",
+      "estimated_loc": 145,
+      "dependencies": [
+        "M1_CANONICAL_PI_CHILD_ENVIRONMENT"
+      ],
+      "files": [
+        ".pi/extensions/.session-protocol-gate.test.ts",
+        ".claude/skills/mission-control/resources/gate-3-route.md"
+      ],
+      "acceptance_criteria": [
+        "AC1: the module-relative actual route resource contains exactly one non-empty delimited preamble whose first line is MISSION-ROLE: evaluator and whose read/list/summarize-classify/ack/judge steps are ordered",
+        "AC2: extracted JSON equals the exact bare command ailang messages list --unread --json --limit 1 with numeric timeout 30; the real bashAllowed and armed shouldBlock admit it while env/assignment prefixes do not",
+        "AC3: extracted read/list calls make headlessPrerequisitesMet(branch: unknown[]).met true; controller prose and omission controls are false; an isError:true result documents that the current predicate checks calls rather than success",
+        "AC3: source text requires a successful listing before session_protocol_ack {}, requires acked=true before judge work, and never claims mechanical result-success enforcement",
+        "AC4: recipe requires launcher canonical store/project without touching AILANG_STORAGE, distinguishes protocol ack from inbox-message ack, and requires exact error reporting, stop, and existing fallback on timeout/failure",
+        "AC5: the independent evaluator kills every named recipe, order, command, timeout, success/failure, ack, authority, runner-binding, and storage mutation one at a time and records diff, command, nonzero rc, red test, restoration, and green control",
+        "AC5: removing only the new recipe block fails a new acceptance test while the seven original guard tests remain green",
+        "AC6: focused and aggregate pi-extension tests, make check-context-docs, make check-skills, whitespace checks, controller make test, and controller make lint pass",
+        "AC6: only the three frozen implementation files differ from design commit 13ac9c21a6135e3c4640ece3f84b9b86683702f5; session-protocol-gate.ts, scripts/test_mission_pi_run.sh, and the parked iteration-339 candidate remain unchanged",
+        "AC7: both actual-runner fake-pi environment arms remain green after the route-resource change",
+        "The evaluator runs in a separate sibling worktree at the reviewed sprint commit; generator is not judge, and absent report or failed handshake is routing failure rather than a verdict"
+      ],
+      "passes": true,
+      "started": "2026-09-06T20:58:00Z",
+      "completed": "2026-09-06T21:01:44Z",
+      "notes": "Added one module-relative, duplicate-sensitive evaluator handshake contract and canonical Gate 3 preamble. Focused 12/12, aggregate pi extensions, context docs, skill metadata, checkpoint make test/lint, fmt, file-size, whitespace, frozen-file, and exact five-file scope checks passed. Independent OpenRouter MiniMax evaluation killed all 13 mutations with green restoration controls and passed at 99/100."
+    }
+  ]
+}

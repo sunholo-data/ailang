@@ -1,0 +1,102 @@
+package main
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+// TestEqEvaluatorVMParity pins the seam between the two implementations of ==
+// (M-EQ-DERIVE-CONTAINERS R-D6): the evaluator's valuesStructurallyEqual and the
+// bytecode VM's runtimeEq/Value.Equal. The programs are PURE on purpose: an
+// effectful main is bridged back to the evaluator under --bytecode and would
+// compare the evaluator with itself.
+//
+// Every row must agree across the two backends. A future divergence should be
+// fixed, not recorded here as an expected difference.
+func TestEqEvaluatorVMParity(t *testing.T) {
+	cases := []struct {
+		name     string
+		body     string
+		eval, vm string // expected result per backend
+	}{
+		// Records compare by field NAME in the evaluator and by POSITION in the
+		// VM (which relies on canonical field order); literals written in a
+		// different order must still agree.
+		{"record field order", "mkA() == mkB()", "true", "true"},
+		{"record field order neq", "mkA() == mkC()", "false", "false"},
+		{"list", "[1, 2] == [1, 2]", "true", "true"},
+		{"option", "Some(1) == None", "false", "false"},
+		// Float == is IEEE on every path and both backends, bare or nested
+		// (types.FloatEq, M-FLOAT-EQ-ONE-SEMANTICS #1274). Before it, the
+		// evaluator answered nan == nan true via the dictionary but false via
+		// a generic helper, and the VM disagreed with both.
+		{"top-level NaN", "(0.0 / 0.0) == (0.0 / 0.0)", "false", "false"},
+		{"top-level NaN !=", "(0.0 / 0.0) != (0.0 / 0.0)", "true", "true"},
+		{"NaN via generic helper", "eqp(0.0 / 0.0, 0.0 / 0.0)", "false", "false"},
+		{"NaN via lambda", "(\\p. \\q. p == q)(0.0 / 0.0)(0.0 / 0.0)", "false", "false"},
+		{"nested NaN", "[0.0 / 0.0] == [0.0 / 0.0]", "false", "false"},
+		{"NaN in ADT", "Some(0.0 / 0.0) == Some(0.0 / 0.0)", "false", "false"},
+		{"isNaN", "isNaN(0.0 / 0.0)", "true", "true"},
+		{"signed zero", "(0.0 - 0.0) == (0.0 * -1.0)", "true", "true"},
+		{"ordinary float in list", "[1.5] == [1.5]", "true", "true"},
+		// std/list membership and set operations follow the same rule: a NaN is
+		// never found and never merged (round-1 evaluation: member and contains
+		// disagreed across backends, and dedup/intersect merged NaNs).
+		{"member NaN", "member(nan(), [nan()])", "false", "false"},
+		{"contains same NaN", "{ let n = nan() in contains([n], n) }", "false", "false"},
+		{"dedup keeps NaNs", "length(dedup([nan(), nan()])) == 2", "true", "true"},
+		{"intersect drops NaN", "length(intersect([nan()], [nan()])) == 0", "true", "true"},
+		{"union keeps both NaNs", "length(union([nan()], [nan()])) == 2", "true", "true"},
+		{"difference keeps NaN", "length(difference([nan()], [nan()])) == 1", "true", "true"},
+		{"dedup signed zero", "length(dedup([0.0, 0.0 * -1.0])) == 1", "true", "true"},
+		{"member ordinary float", "member(1.5, [0.5, 1.5])", "true", "true"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			src := filepath.Join(t.TempDir(), "eqparity.ail")
+			prog := fmt.Sprintf(`module test/eqparity
+
+import std/math (isNaN)
+import std/list (member, contains, dedup, intersect, union, difference, length)
+
+type P = {x: int, y: string} deriving (Eq)
+
+func mkA() -> P { {x: 1, y: "a"} }
+func mkB() -> P { {y: "a", x: 1} }
+func mkC() -> P { {y: "b", x: 1} }
+func eqp[a](x: a, y: a) -> bool { x == y }
+func nan() -> float { 0.0 / 0.0 }
+
+export func main() -> bool = %s
+`, c.body)
+			if err := os.WriteFile(src, []byte(prog), 0644); err != nil {
+				t.Fatal(err)
+			}
+			t.Setenv("AILANG_NO_CACHE", "1")
+			for _, backend := range []struct {
+				name string
+				args []string
+				want string
+			}{
+				{"evaluator", []string{"run", "--relax-modules", src}, c.eval},
+				{"vm", []string{"run", "--bytecode", "--relax-modules", src}, c.vm},
+			} {
+				stdout, stderr, code := runCLI(t, backend.args...)
+				if code != 0 {
+					t.Fatalf("%s: exit %d\nstderr=%s", backend.name, code, stderr)
+				}
+				if backend.name == "vm" && !strings.Contains(stderr, "via bytecode VM") {
+					t.Fatalf("vm: program did not run on the VM\nstderr=%s", stderr)
+				}
+				// Status lines share stdout; the program's value is the last line.
+				lines := strings.Split(strings.TrimSpace(stdout), "\n")
+				if got := lines[len(lines)-1]; got != backend.want {
+					t.Errorf("%s: %s = %q, want %q", backend.name, c.body, got, backend.want)
+				}
+			}
+		})
+	}
+}

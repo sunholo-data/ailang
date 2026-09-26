@@ -154,6 +154,36 @@ $ DEBUG_PARSER=1 ailang run test.ail
 | `DEBUG_MONO_VERBOSE=1` | Monomorphization tracing | Type issues | Specialization details |
 | `DEBUG_OPERATOR_LOWERING=1` | Operator resolution | Dispatch issues | Builtin selection |
 | `DEBUG_PARSER=1` | Token position tracing | Parser bugs | Token flow |
+| `DEBUG_CODEGEN=1` | Record type fallback warnings | Codegen issues | Fallback warnings |
+| `DEBUG_APPROVAL_WATCHER=1` | ApprovalWatcher polling | Coordinator approval flow | Poll tracing |
+| `DEBUG_CONCURRENCY=1` | Per-request evaluator Fork/Call/Done tracing | Concurrency issues | Goroutine IDs |
+| `DEBUG_AGENT=1` | Keep agent-eval workspaces after a run (skips cleanup) and trace the agent runner | Inspecting what an agent left behind | Workspace paths retained under the eval dir |
+| `DEBUG_DELIMITERS=1` | Parser delimiter-stack trace | Unbalanced bracket/brace diagnostics | Per-token delimiter events |
+| `DEBUG_DOCSEARCH=1` | Docs-search subdir filter tracing | `ailang docs search` returning the wrong section | Filter decisions per candidate |
+| `DEBUG_EFFECTS=1` | Effect-validation phase tracing | Effect inference disagreeing with the signature | Effect rows per declaration |
+| `DEBUG_EVAL_APP=1` | Function-application tracing in the evaluator | Wrong argument binding, closure capture | Call-by-call values |
+| `DEBUG_LOADER=1` | Module search-path trace | `LDR001` module-not-found | Every path probed, in order |
+| `DEBUG_MATCH=1` | Pattern-match tracing in the evaluator | A `match` arm that should fire but does not | Arm-by-arm decisions |
+| `DEBUG_PARAM_ANNOTS=1` | Parameter-annotation handling in the type checker | Float params inferred as int, annotation ignored | Which annotation was used |
+| `DEBUG_PRELUDE=1` | Prelude loading trace | Prelude symbols missing or shadowed | Prelude phases |
+| `DEBUG_PROCESS=1` | Process effect exec tracing (`exec` was a black hole before cmd.Run returned) | Hanging or silent subprocesses | Spawn/wait/exit events |
+| `DEBUG_PROMPT=1` | Print the assembled eval prompt | Eval prompt content questions | The prompt as sent |
+| `DEBUG_TYPENAME=1` | Type-name assignment during substitution | Auto-named types colliding | Signature/name decisions |
+| `AILANG_LIVE_NET=1` | Test lane only (`internal/testutil`): opt a test into live network access; also fails the test if the poison proxy is still configured | Running live-network tests deliberately | Skip otherwise |
+| `AILANG_STATE_DIR=/path` | Relocate the per-user state tree (coordinator/collaboration/observatory DBs, mission pid files, ledgers); default `~/.ailang/state`, resolved ONLY by `internal/statedir` | Isolating a run from the machine's live state; two commands disagreeing about which `coordinator.db` is real | Every store opens under that dir; unresolvable (no var, no HOME) is an error, never `./.ailang/state` |
+| `AILANG_CLOUD_PROJECT=<id>` | The GCP project a process acts on; precedence `AILANG_CLOUD_PROJECT` > `GOOGLE_CLOUD_PROJECT` > `~/.ailang/config.yaml` `pubsub.project_id` > GCE metadata, resolved ONLY by `internal/config` | Any Firestore/Pub/Sub/Cloud Run command; `ailang storage status` prints the value AND its source | Unresolvable → `config.ErrNoCloudProject` (names what to set); never a default |
+| `AILANG_CLOUD_REGION=<region>` | Cloud Run region (`AILANG_CLOUD_REGION` > `GOOGLE_CLOUD_REGION`, else the deprecated `europe-west1` default with a warning) | Config rolls, dispatcher | One stderr deprecation warning per process when defaulted |
+| `AILANG_STRICT_CONFIG=1` | Refuse every deprecated production default (D3 ruling: warn in v0.39, hard error in v1.0.0) — rehearses the v1.0.0 failure today | Proving a plist or Cloud Run env is complete before v1.0.0 | Error wrapping `config.ErrDeprecatedDefault` naming the unset variable |
+| `AILANG_NO_METADATA=1` | Skip the GCE metadata-server step of project resolution | Tests, offline laptops, anywhere the 500 ms probe is unwanted | Resolution stops at the config file |
+| `COORDINATOR_API_KEY=<token>` | Bearer token for the coordinator daemon's HTTP API (`/status`, `/pending`, `/chains/*`, `/api/messages`); compared in constant time and **fail-closed** — unset means every request is rejected, not admitted (M-V1-SIMPLIFY-S3 M5; before that unset meant open). `/health` and the OIDC-guarded `/instances/*` routes are unaffected. Also the `?token=` for non-same-origin WebSocket clients on the dashboard | Any caller of the daemon HTTP API; `make coord-install` writes one into the plist and `ailang messages send --requires` reads it from there when the shell has none | Missing/wrong → `401 {"error": ...}` naming the variable; the daemon logs `SECURITY: COORDINATOR_API_KEY is unset` at start |
+| `AILANG_DEFAULT_PROVIDER=<name>` | Provider a coordinator task is attributed to when neither the agent's `provider:` nor the coordinator section's `default_provider` says; labels cost/provider in the observatory and keys the per-provider spend cap. Unset → the deprecated `claude` default (M-V1-SIMPLIFY-S4 M1) | Coordinator daemon; agents dispatched without a declaration | One stderr deprecation warning per process; under `AILANG_STRICT_CONFIG=1` the task is marked failed with `config.ErrDeprecatedDefault` |
+| `AILANG_BUDGET_UNLIMITED=1` | Acknowledges that coordinator tasks may run with NO spend cap. Every path where the cap disappears (unreadable `budgets:` config, zero limits at both provider and global level, a failed spend lookup) logs why; without this variable that is the deprecated "unlimited" default | Deliberately uncapped installs (dev boxes); otherwise configure `budgets.providers.<p>.daily_budget` | Warned once per process; under strict the task is refused (marked failed) instead of running unlimited |
+| `AILANG_WORKSPACE=<org/repo>` | The partition a cloud process files its data under: the Pub/Sub broadcaster's event workspace (daemon) and the execute-job's completion workspace (`coordinator execute-job`). Unset → the deprecated `default` | Cloud Run jobs and the shared-plane daemon | Warned once; under strict the broadcaster fails to init / the job refuses BEFORE Pub/Sub exists (`COMPLETION_FAILED\|…`) |
+| `AILANG_APPROVAL_TIMEOUT=<duration>` | How long an approval request waits for a human when neither the request nor `NewApprovalCheckpoint` gives a timeout (`24h`, `90m`). Unset → the deprecated `1h`; a set-but-unparseable value is an error, never `1h` | Coordinator approval checkpoints built with a zero default | Warned once; under strict only the request that NEEDS the default is rejected with `config.ErrDeprecatedDefault` — requests carrying their own `Timeout` proceed |
+| `AILANG_EMBED_OPENAI_MODEL` / `AILANG_EMBED_GEMINI_MODEL` | The OpenAI / Gemini embedding model (env > `embeddings.<provider>.model` in `config.yaml`). The model FIXES the vector dimension (1536 / 768): a brain indexed under one model and queried under another returns silently wrong neighbours — so the old hard-coded `text-embedding-3-small` / `text-embedding-004` are deprecated defaults, not conveniences. Ollama's is `AILANG_OLLAMA_MODEL` | Any `AILANG_EMBED_PROVIDER=openai\|gemini` install | Warned once (plus one line naming the dimension hazard); under strict `NewEmbedderFromConfig` returns `config.ErrDeprecatedDefault` |
+| `GOOGLE_CLOUD_LOCATION=<location>` | Vertex AI location for `internal/ai/gemini` (`WithLocation` > this > the deprecated `global`). Decides the regional endpoint, data residency and per-region pricing | Vertex ADC Gemini calls | Warned once; under strict `NewVertexAIClient` returns an `ai.ProviderError` wrapping `config.ErrDeprecatedDefault` |
+| `AILANG_BIN=/path/to/ailang` | The binary the agent-eval grade probe runs (`gradeInWorkspace`). Unset, the PATH `ailang` is looked up and its RESOLVED path served as a deprecated default — the stale-binary trap, where last week's `~/go/bin/ailang` grades this week's benchmarks | Any agent-mode eval; pin it to the build under test | The warning names the resolved binary; under strict grading refuses (`[harness_setup] grade: …`). No `ailang` on PATH is an error in both modes |
+| `AILANG_APPROVAL_URL=<url>` | Service serving `/api/approvals` (the dashboard) for the networked `secret()` gate; falls back to `AILANG_COORDINATOR_URL`. On the shared plane (`AILANG_STORAGE=gcp\|hybrid`) with NEITHER set, `secret()` is un-gated — the deprecated default (M-V1-SIMPLIFY-S4 M1) | Every shared-plane process that may call `secret()` | Warned once; under strict a denying approver is installed so each `secret()` fails with `config.ErrDeprecatedDefault` while programs that never call it are untouched |
 
 ### Ollama Streaming Timeouts (v0.34.0)
 
@@ -233,6 +263,20 @@ exactly why that field is read back from the context rather than reported from
 the configured value.
 :::
 
+### Ollama Context Window (`AILANG_OLLAMA_NUM_CTX`)
+
+Pins ollama's `num_ctx`. **Unset (the default) sends no `num_ctx` at all**, so
+ollama sizes the context from the model (measured 2026-08-13: 262144 for
+`qwen3.6:35b-a3b-mxfp8`) — matching the `/v1` lanes pi and opencode already use.
+Both option maps in `internal/ai/ollama` previously hardcoded **8192**, below the
+28k–44k-token prompts the eval harness sends these models.
+
+Affects the non-tool paths only (`Generate`, tool-less chat, and the legacy
+native tool path incl. motoko's `compaction_ai`); motoko's tool-calling turns
+route via `/v1`, where `num_ctx` is not expressible. Raise or lower only for
+VRAM: the KV cache scales with it — see **Ollama Memory Budget on the Rig**
+below for the machine-level bound and the panic that established it.
+
 When request logging is enabled — `AILANG_OLLAMA_LOG_REQUESTS=<path>`, or a path
 written to the `~/.ailang/state/ollama-log-requests` **sentinel file** whose
 contents are the dump path (it exists because harnesses like motoko's
@@ -266,6 +310,140 @@ harness propagates env; reach for the sentinel only when it does not, and remove
 it when the capture ends.
 :::
 
+### Ollama Memory Budget on the Rig (`OLLAMA_GPU_OVERHEAD`, `OLLAMA_CONTEXT_LENGTH`)
+
+The section above tunes `num_ctx` per request for **quality** — don't truncate the
+28k–44k-token prompts the harness sends. These two **server-side** variables bound
+what ollama may consume on the *machine*, and they are what stands between a local
+eval and a kernel panic.
+
+Measured 2026-09-03, after the rig panicked at 02:23 (incident `561F0912`):
+
+- ollama claims **84% of unified memory** as VRAM — `total="107.5 GiB"` of 128 GiB —
+  and by default reserves nothing for anything else: `overhead="0 B"`.
+- Because that budget looks large, it auto-selects the model's full native context:
+  `msg="vram-based default context" total_vram="107.5 GiB" default_num_ctx=262144`.
+  This is not ollama over-reaching — 262144 *is* `qwen3.8:27b`'s trained maximum.
+- At 256k that runner peaked at **90.39 GiB** (max of 2,322 `peak memory` samples),
+  leaving ~38 GB for the desktop, the agent fleet and the eval harness. Memory ran
+  out, the pager stopped making progress (20 pages reclaimed of 3,088 wanted), and
+  the hardware watchdog panicked the machine.
+
+**`OLLAMA_GPU_OVERHEAD` is admission control, not a runtime limit.** It is a
+bookkeeping subtraction inside the scheduler, not an allocation — nothing is held,
+and every other process still sees the full machine:
+
+```
+available="45.3 GiB"   free="77.8 GiB"   overhead="32.0 GiB"
+```
+
+`free` is real free VRAM; `available = free − overhead` is only what ollama will
+*consider* when deciding whether a model fits. A model admitted under that budget
+can still grow past it as the KV cache fills — which is precisely what the 90 GiB
+peaks were.
+
+**`OLLAMA_CONTEXT_LENGTH` is the runtime bound**, because KV size is a direct
+function of context length. Both are required: the reservation stops ollama loading
+something too big, the context length stops what it *did* load from growing into
+the reservation.
+
+Current rig values (`~/Library/LaunchAgents/dev.ollama.serve.plist`):
+
+| Variable | Value | Why |
+|----------|-------|-----|
+| `OLLAMA_GPU_OVERHEAD` | `34359738368` (32 GiB) | headroom for desktop + agent fleet + harness |
+| `OLLAMA_CONTEXT_LENGTH` | `131072` | halves KV against the 256k native max; largest prompt ever observed was 108,738 tokens |
+| `OLLAMA_MAX_LOADED_MODELS` | `2` | keeps the embedder resident — see "Embedder evicts the eval LLM" |
+
+Sizing a new model is one inequality: `weights + KV(context) < available`. Raising
+context is safe only while that holds. A 1M-context model's KV alone would exceed
+this machine no matter how these are set — at that point it is hardware talking,
+not configuration.
+
+:::caution No swap on the rig — there is no warning phase
+
+`/private/var/vm` is empty and ollama logs `free_swap="0 B"` on every sample. A
+machine with swap thrashes audibly before it dies and someone notices; this one
+goes straight from healthy to wedged. The kernel's own `memoryPressure` flag also
+read **false** throughout the panic, so never key a guard to it — use free pages
+and reclaim rate instead.
+:::
+
+:::caution `OLLAMA_CONTEXT_LENGTH` is applied but UNPROVEN (2026-09-03)
+
+After the change ollama still logged `default_num_ctx=262144` against the reduced
+75.5 GiB budget, and small-prompt probes cannot discriminate — a 33-token prompt
+populates almost no KV, so load peak barely moves either way. The discriminating
+test is a real large-context eval: a peak near **59 GiB** means the cap is working,
+near **90 GiB** means it is not. Do not record this as fixed until that
+measurement exists.
+:::
+
+### Fleet Memory Admission (`MISSION_MIN_AVAIL_GB`, `MISSION_BOOT_WINDOW`)
+
+Capping ollama moved the ceiling; it did not remove it. In the two days after the
+caps landed the rig hit `JetsamEvent` three times — 2026-09-04 05:08, 09-05 08:29,
+09-05 09:23 — at ~60 MB free each time.
+
+ollama was **not** the growth term any more. Its physical footprint was
+**25.77 GB at all three events, identical to two decimals**: flat, under load, days
+apart. What filled the machine was 46 GB wired plus a compressor holding **131 GB**
+of logical pages, while only 37 GB was resident across 566 processes. The largest
+identifiable population was ours — **22 concurrent Claude Code processes**, 12.7
+CPU-hours between them.
+
+The structural cause is in the plists. Every mission carries `RunAtLoad=true`,
+deliberately: it is what restores the cadence after a reboot (the 18h outage of
+2026-07-20). The cost is that a boot or GUI login fires **all four missions within
+seconds**. The motoko plist recorded exactly this on 2026-08-17 (world 20:55:45, v1
+20:55:49, motoko 20:55:50) and fixed the steady-state half with non-harmonic
+`StartInterval`s — 5400 / 14400 / 21600 / 46800. The boot half was never fixed, and
+on 09-05 all four fired together again: 33 `claude` processes inside ten minutes.
+
+`tools/launchd/mission-control.sh` now gates both, as two deliberately separate
+mechanisms:
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `MISSION_BOOT_WINDOW` | `900` | Seconds after boot during which the stagger applies. Outside it the offset is not taken at all, so the tuned non-harmonic phase is untouched. |
+| `MISSION_MIN_AVAIL_GB` | `16` | Refuse to start an iteration below this much available memory. |
+| `MISSION_MAX_COMPRESSED_GB` | `48` | Refuse when the compressor already holds this much — the arm for a box that is paging hard while `inactive` still looks healthy. |
+| `MISSION_MEM_WAIT` | `600` | Wait this long for room before yielding the slot. A transient spike should delay a fire, not cancel it: skipping outright costs motoko 13h. |
+| `MISSION_MEM_POLL` | `60` | Re-check interval while waiting. |
+
+Boot offsets are v1 0s · world 420s · docs 840s · motoko 1260s. The 7-minute spacing
+exceeds the worst measured controller preamble (a v1 slot burned 240s on opus
+probes), so each mission's spawn burst finishes before the next begins. v1 is 0
+because it has the shortest interval and the deepest ladder.
+
+:::tip Available memory is not `free`
+
+The gate reads `free + inactive + speculative + purgeable`. A **free-only** threshold
+cannot be set sanely: at the 09-05 09:23 event free was 4,030 pages (66 MB) while
+506,169 pages (7.7 GB) sat reclaimable in `inactive`. With the full expression the
+two states are two orders of magnitude apart — **7.8 GB** at each OOM event, **104 GB**
+on a healthy idle box — so the threshold is not delicate.
+
+Do not use the kernel's `memoryPressure` flag: it read `false` throughout the 09-03
+panic.
+:::
+
+:::caution Thresholds are starting values, not measured ones
+
+Nobody has profiled an iteration's peak footprint. The numbers above are chosen to
+sit far from both observed states, and **every fire logs the live values** —
+`memory gate: ok (avail=…MB …)` — so the driver log is what should correct them.
+`tools/launchd/test_mission_memgate.sh` pins the parsers and both refusal arms.
+:::
+
+:::caution The driver pin delays any fix here
+
+The loops re-exec out of `~/.ailang-driver-pin/<mission>/`, a worktree at *committed
+`origin/dev`*. A driver edit therefore changes nothing until it is committed **and
+pushed** — a local-only commit leaves every mission running the old script. Check
+with `git -C ~/.ailang-driver-pin/v1 log --oneline -1`.
+:::
+
 ### CLI Flags
 
 | Flag | Purpose | Use When |
@@ -286,6 +464,65 @@ with `AILANG_NO_TRACE=1` (legacy) or `--trace-tier off`. Opt into per-call spans
 explicitly with `--trace-tier deep` or `AILANG_TRACE=deep` when you need them.
 See [Telemetry: Tracing tiers](/docs/guides/telemetry#tracing-tiers).
 :::
+
+### What each tier records
+
+| Tier | Module / effect / contract spans | Per-call function args and results |
+|------|----------------------------------|------------------------------------|
+| `off` | — | — |
+| `standard` (default) | yes | **no** |
+| `deep` | yes | **yes** — this is its purpose |
+
+**`deep` captures values verbatim.** Every function's arguments and its result are
+rendered to strings and retained. Two consequences worth planning around:
+
+- **Memory is superlinear when a function carries a growing argument.** A recursive
+  accumulator serialises O(n) data on each of n calls. Measured on a 400-iteration
+  `concat(acc, [x])` loop: **2478 MB** at `deep` versus **105 MB** at `standard`.
+  Use `standard` (or `off`) for anything data-intensive.
+- **Recorded values are not filtered by IFC labels.** A `string<secret>` value crossing
+  a traced call boundary is written to the trace in full — the label governs sinks the
+  type system can see, and the tracer is below it. Do not enable `deep` while resolving
+  secrets. Tracked as `M-TRACE-LABEL-AWARE`.
+
+Before v0.36.0 the tier was resolved but never reached the collector, so `standard`
+recorded per-call values too. If you are on an older binary, `--trace-tier off` is the
+only setting that avoids it. The per-tier behaviour above is now pinned by
+`TestTierGovernsWhatIsRecorded` (`internal/trace/tier_enforcement_test.go`).
+
+**Effect args and results are recorded at every tier above `off`** — a `readFile` span carries
+what was read. The tier does not gate them; `AILANG_TRACE_VALUES` does.
+
+### Tracing under confidentiality terms
+
+`AILANG_TRACE_VALUES=off` records the **complete call tree with no payloads**. It is orthogonal
+to the tier, so the useful setting for a workload handling credentials or client data is:
+
+```bash
+AILANG_TRACE=deep AILANG_TRACE_VALUES=off ailang run --caps ... prog.ail --emit-trace jsonl
+```
+
+Every function, every effect, arity, depth, span parentage and timings are retained. Each
+argument and result becomes a size descriptor:
+
+```json
+{"event":"effect","effect":{"effect_name":"Net","op_name":"httpRequest",
+ "args":["<redacted:46 bytes>"],"result":"<redacted:2 bytes>"}}
+```
+
+Measured on a program handling a bearer token and a client document: **17 trace lines with
+values on, 17 with them off — 8 verbatim copies of the secrets versus 0.** The byte count is
+kept deliberately: it leaks no content, and an empty response, a body that grew between
+retries, or a token of unexpected size all remain visible.
+
+Why a blunt switch rather than redacting only *labelled* values: its guarantee is "the trace
+contains no values", which is explicable in one sentence to someone reading a contract.
+Label-aware redaction (`M-TRACE-LABEL-AWARE`) is more precise but its guarantee is only ever
+"no values the label checker flagged" — worth exactly as much as the checker. For a
+confidentiality engagement, blunt is the stronger claim.
+
+A misspelling (`AILANG_TRACE_VALUES=of`) is an **error**, not a silent default: a typo must not
+turn into a data leak.
 
 ### Latency Budget Workloads
 
@@ -314,6 +551,40 @@ the on-disk JSON is regenerated by `make bench-workloads` and is **not**
 hand-edited. Runs from one machine class are not comparable to another —
 the JSON records `cpu`, `os`, `arch`, and `go` so a different machine's
 measurements never overwrite a baseline silently.
+
+## Memory
+
+Every control on the runtime's memory, what it bounds, and what it does not (M-V1-MEMORY-FOOTPRINT,
+v1.0.0). `ailang doctor memory` prints what a run on this host would resolve.
+
+| Control | Bounds | Default | Notes |
+|---------|--------|---------|-------|
+| `--max-memory <size\|cgroup>` / `AILANG_MEMLIMIT` | Go's **soft** memory limit (`debug.SetMemoryLimit`) | none | `cgroup` reads the container's `memory.max` (v1: `memory.limit_in_bytes`) × 0.9 on Linux; opt-in, never inferred. Best-effort GC tuning: the collector works harder as total memory nears it. It is **not** a hard bound, a per-request bound or a request-failure mechanism — reachable data can exceed it and the kernel OOM killer still ends the process. |
+| `GOGC` | GC trigger (heap growth before a cycle) | Go's 100; `run`/`exec` raise it to 500 when unset | 500 buys ~25 % on short CLI runs at ~24 MB extra floor and up to 6× live heap of garbage before a cycle. `serve-api` keeps 100. The trigger is min(GOGC target, limit target), so a limit does not override GOGC below it. |
+| `--fs-max-bytes <size>` / `AILANG_FS_MAX_BYTES` | Every FS read | unbounded (CLI); the upload cap (serve-api) | Oversize is `E_FS_FILE_TOO_LARGE` with the size and the cap; the check is on what was read, so a growing file is rejected, never truncated. |
+| Net body cap | Each HTTP response body | 5 MB | `E_NET_BODY_TOO_LARGE`. Fully buffered, not streamed. |
+| serve-api upload cap (`--max-upload`) | Request body | 50 MB | Enforced on the body; a string-param file part streams to its temp file (one copy on disk, none in RAM). |
+| Trace value cap / retention | Each rendered trace value; retained events | 1 KB; 32 MB | Values are rendered **bounded** at the site (`eval.ShowBounded`), so the whole value never exists. Exporters read the observer stream and see everything. |
+| `--max-recursion-depth` | AILANG call depth | 10,000 | Each frame costs ≈ 6–7 KB of Go stack and **keeps every binding of that frame alive until the recursion unwinds** — see below. |
+| `AILANG_EVAL_MAX_RSS` | Process-group RSS of generated code | 8G | Eval harness only. |
+
+**What a memory limit cannot fix.** Live data. Two shapes dominate:
+
+- **Build-by-prepend** (`n :: acc` recursion): every frame holds its own copy of the accumulator,
+  so live memory is O(n²). Depth 9,000 measured 772 MB on the rig; `--max-memory 64MB` spent 11 s
+  in GC and changed nothing. The structural fix is M-LIST-CONS-QUADRATIC; until then build with
+  `foldl`/`map`, which run iteratively in Go.
+- **Per-item work inside a recursive loop**: there is no tail-call optimisation in the tree-walking
+  evaluator, so a `let s = readFile(...)` in each frame of a recursive loop stays reachable until
+  the whole loop returns — 40 reads of a 20 MB file peaked at 870 MB. Put the per-item work in a
+  function the loop *calls* (`foldlE(step, ...)`, `mapE`): the binding dies with the callee's frame.
+  Same program, 212 MB.
+
+**Measuring.** Peak RSS is the number: `/usr/bin/time -l ailang run …` (macOS, bytes) or
+`/usr/bin/time -v` (Linux, KB). Compare against the same program with the suspect feature off;
+a ratio is robust to the ~50 MB process floor. `GODEBUG=gctrace=1` shows whether a high peak
+is garbage (many cycles, low live) or live data (few cycles, high live). `cmd/ailang/memprobe_test.go`
+pins three ratios and runs in `make test`.
 
 ## CLI Debug Flags
 
@@ -619,7 +890,7 @@ make doc PKG=<package>    # Show package documentation
 
 ## Sandbox Debugging (`AILANG_FS_SANDBOX`)
 
-When `AILANG_FS_SANDBOX` is set, all FS operations are restricted to a root directory. `exists`, `isDir`, and `isFile` silently return `false` for out-of-sandbox paths (correct public contract — they don't throw). This can cause programs with fallback logic to silently degrade to defaults with no error or warning.
+When `AILANG_FS_SANDBOX` is set, all FS operations go through one `os.Root` handle on that directory (v0.41.0, M-EXECUTOR-POLICY-HARDENING): `..` past the root, absolute paths outside it, and symlinks whose target leaves it — relative or absolute — are refused inside the syscall. `exists`, `isDir`, and `isFile` silently return `false` for such paths (correct public contract — they don't throw). This can cause programs with fallback logic to silently degrade to defaults with no error or warning. Relative symlinks that stay inside the root still resolve; an absolute symlink is refused even when it points back inside.
 
 ### Symptom
 
@@ -657,7 +928,10 @@ ailang sandbox-check <path>   # ALLOW/REJECT + resolved path, exits 0/1
 ```
 
 Exit 0 = ALLOW (path is within sandbox or sandbox not configured).  
-Exit 1 = REJECT (path escapes sandbox).
+Exit 1 = REJECT (path escapes sandbox — by traversal, by an absolute path outside it, or through a symlink).
+
+The verdict comes from the same root handle the runtime uses, so what `sandbox-check` says is what
+`readFile` will do; it is not a lexical imitation of the resolver.
 
 No `AILANG_FS_SANDBOX` set → prints "no sandbox configured", exits 0.
 
@@ -759,5 +1033,5 @@ Measured: declaring 20000 sends 20000; declaring 65536 sends 32000.
 
 - [Telemetry & Tracing](/docs/guides/telemetry) - Distributed tracing for performance analysis and debugging
 - [Evaluation Framework](/docs/guides/evaluation) - Debugging failed AI benchmarks
-- [Development Guide](/docs/guides/development) - Full development workflow
+- [Development Guide](/docs/guides/development-workflow) - Full development workflow
 - [Known Limitations](/docs/reference/limitations) - Current limitations and workarounds

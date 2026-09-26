@@ -7,7 +7,6 @@
 package codex
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"os"
@@ -18,6 +17,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sunholo-data/ailang/internal/executor"
+	"github.com/sunholo-data/ailang/internal/strutil"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -41,9 +41,16 @@ func New(cfg *executor.Config) (*CodexExecutor, error) {
 	}
 
 	model := cfg.CodexModel
-	if model == "" {
-		model = "gpt-5-codex"
-	}
+	// M-MODEL-REGISTRY-SINGLE-SOURCE M6 (D2(a)): NO DEFAULT. An empty model is
+	// permitted HERE because the coordinator constructs an executor before it
+	// knows the task, then supplies Task.Model per task. The fail-loud lives at
+	// the point of USE (getModel) rather than construction — checking here would
+	// reject the normal path where the model arrives with the task.
+
+	// NOTE: constructing an executor deliberately does NOT materialise a
+	// credential. Writing ~/.codex/auth.json is a deployment action, not a
+	// library side effect — see EnsureAPIKeyAuth, called from the cloud job
+	// entry point where the job's own key is the intended credential.
 
 	return &CodexExecutor{
 		codexPath:      codexPath,
@@ -59,6 +66,9 @@ func (e *CodexExecutor) Name() string {
 
 // Execute runs a task and returns the result.
 func (e *CodexExecutor) Execute(ctx context.Context, task *executor.Task) (*executor.Result, error) {
+	if err := e.requireModel(task); err != nil {
+		return nil, err
+	}
 	return e.ExecuteStreaming(ctx, task, &executor.NoOpEventHandler{})
 }
 
@@ -96,12 +106,15 @@ func startTurn(
 // ExecuteStreaming runs a task with real-time event callbacks, parsing the
 // Codex NDJSON stream into normalized executor events.
 func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, handler executor.EventHandler) (*executor.Result, error) {
+	if err := e.requireModel(task); err != nil {
+		return nil, err
+	}
 	ctx, span := telemetry.StartSpan(ctx, codexTracer, "codex.execute",
 		trace.WithAttributes(
 			attribute.String("executor.name", "codex"),
 			attribute.String("executor.model", e.getModel(task)),
 			attribute.String("task.workspace", task.Workspace),
-			attribute.String("task.directive", telemetry.Truncate(task.Directive, 500)),
+			attribute.String("task.directive", strutil.Truncate(task.Directive, 500)),
 		),
 	)
 	defer span.End()
@@ -223,12 +236,14 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 	var prevBudgetIn, prevBudgetOut int
 
 	go func() {
-		stdoutScanner := bufio.NewScanner(stdout)
-		stderrScanner := bufio.NewScanner(stderr)
-
-		const maxScannerBuffer = 1024 * 1024
-		stdoutScanner.Buffer(make([]byte, 0, maxScannerBuffer), maxScannerBuffer)
-		stderrScanner.Buffer(make([]byte, 0, maxScannerBuffer), maxScannerBuffer)
+		// executor.LineReader, not bufio.Scanner. A Scanner's token cap turns a
+		// single long line into a FAILED TASK: four sprint-planner runs died on
+		// 2026-09-14 with "stdout scanner error: bufio.Scanner: token too long",
+		// after the agent had already done the work. A long line is one event we
+		// cannot parse, not a broken run — LineReader truncates and continues,
+		// and counts what it cut so the loss is reportable.
+		stdoutScanner := executor.NewLineReader(stdout)
+		stderrScanner := executor.NewLineReader(stderr)
 
 		go func() {
 			for stderrScanner.Scan() {
@@ -339,6 +354,8 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 								killProcessTree(cmd)
 							}
 						}
+						// Whole-input already; see splitCodexInputTokens' doc for why this
+						// must NOT gain a cache term.
 						if task.MaxTokensPerBench > 0 && !thrashKilled &&
 							inputTokens+outputTokens > task.MaxTokensPerBench {
 							thrashKilled = true
@@ -413,6 +430,7 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 							killProcessTree(cmd)
 						}
 					}
+					// Whole-input already — see splitCodexInputTokens' doc.
 					if task.MaxTokensPerBench > 0 && !thrashKilled &&
 						inputTokens+outputTokens > task.MaxTokensPerBench {
 						thrashKilled = true
@@ -473,9 +491,16 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 			turnSpan.End()
 		}
 
+		// Err() is now a GENUINE read error only — never a length one.
 		if err := stdoutScanner.Err(); err != nil {
-			done <- fmt.Errorf("stdout scanner error: %w", err)
+			done <- fmt.Errorf("stdout read error: %w", err)
 			return
+		}
+		if n := stdoutScanner.Truncations; n > 0 {
+			// Not fatal, never silent: a caller seeing a parse gap must be able
+			// to learn that output was cut rather than malformed.
+			fmt.Fprintf(os.Stderr, "[CODEX] %d output line(s) exceeded %d bytes and were truncated\n",
+				n, executor.MaxLineBytes)
 		}
 		done <- cmd.Wait()
 	}()
@@ -636,11 +661,19 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 			// Bill the model that actually ran, not codex's default. The harness
 			// supplies per-model rates via Task.Pricing; CostModel() is the
 			// fallback for callers that don't (see executor.ResolveCostModel).
-			cost := executor.ResolveCostModel(task, e.CostModel()).CalculateCost(executor.TokenUsage{
+			cm := executor.ResolveCostModel(task, e.CostModel())
+			cost := cm.CalculateCost(executor.TokenUsage{
 				InputTokens:          freshInput,
 				OutputTokens:         outputTokens,
 				CacheReadInputTokens: cachedInput,
 			})
+			// A model the registry cannot price yields $0 from CalculateCost;
+			// banking that as metered would be a fabricated free run. The
+			// provenance says "unknown" instead (M-V1-SIMPLIFY-S4 M1).
+			provenance := executor.ResolveCostProvenance(task, e.authLane())
+			if cm.Unpriced {
+				provenance = executor.CostProvenanceUnknown
+			}
 			success := sawResult
 			// The codex CLI's --json stream carries NO model-level stop reason
 			// (see the schema note on codexEvent), so "stop" here asserts only
@@ -683,7 +716,7 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 				NumTurns:             turnNum,
 				ToolCallCount:        toolCallCount,
 				CostUSD:              cost,
-				CostProvenance:       executor.ResolveCostProvenance(task, e.authLane()),
+				CostProvenance:       provenance,
 				InputTokens:          freshInput,
 				OutputTokens:         outputTokens,
 				CacheReadInputTokens: cachedInput,
@@ -698,60 +731,4 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 			}, nil
 		}
 	}
-}
-
-// Capabilities returns the list of features this executor supports.
-func (e *CodexExecutor) Capabilities() []executor.Capability {
-	return []executor.Capability{
-		executor.CapStreaming,
-		executor.CapLocalWorkspace,
-		executor.CapMCP,
-	}
-}
-
-// HealthCheck verifies the codex binary exists on PATH and responds.
-func (e *CodexExecutor) HealthCheck(ctx context.Context) error {
-	codexPath := e.codexPath
-	if _, err := exec.LookPath(codexPath); err != nil {
-		if _, statErr := os.Stat(codexPath); statErr != nil {
-			return fmt.Errorf("codex CLI not found: %w (install with: npm i -g @openai/codex)", err)
-		}
-	}
-	checkCmd := exec.CommandContext(ctx, codexPath, "--version")
-	if err := checkCmd.Run(); err != nil {
-		return fmt.Errorf("codex --version failed: %w", err)
-	}
-	// Auth comes from ~/.codex/auth.json, written by `codex login`. OPENAI_API_KEY
-	// in the environment does NOT override it — probe-verified 2026-07-30 against
-	// codex-cli 0.145.0 with auth_mode "chatgpt": a deliberately invalid key in the
-	// env still ran clean. So its absence is not a warning condition, and its
-	// presence is not proof that runs are metered (this rig is on a ChatGPT
-	// subscription, where cost_usd is a list-price equivalent, never billed spend).
-	if os.Getenv("DEBUG_AGENT") != "" {
-		fmt.Fprintf(os.Stderr, "[DEBUG_CODEX] auth: ~/.codex/auth.json (codex login); OPENAI_API_KEY is not consulted\n")
-	}
-	return nil
-}
-
-// Close releases any resources held by the executor.
-func (e *CodexExecutor) Close() error {
-	return nil
-}
-
-func (e *CodexExecutor) getModel(task *executor.Task) string {
-	if task.Model != "" {
-		return task.Model
-	}
-	return e.model
-}
-
-// Register registers the Codex executor with the global factory.
-func Register() {
-	executor.GlobalFactory().Register("codex", func(cfg *executor.Config) (executor.Executor, error) {
-		return New(cfg)
-	})
-}
-
-func init() {
-	Register()
 }

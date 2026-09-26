@@ -15,52 +15,36 @@ import (
 )
 
 func chainsCommand() {
+	// `ailang chains --help` answers here rather than from the dispatch
+	// table's generic block, because since the M3 fold `chains` is the entry
+	// point for four namespaces and the generic block cannot name them.
+	// (`chains` is therefore NOT in helpFallbackCommands.)
+	if flag.NArg() >= 2 && wantsHelp(flag.Args()[1:]) {
+		printChainsHelp()
+		return
+	}
 	if flag.NArg() < 2 {
 		// No subcommand - show interactive mode if terminal, else show help
 		if isTerminal() {
 			runChainsInteractive()
 			return
 		}
-		fmt.Println("Usage: ailang chains <subcommand> [options]")
-		fmt.Println()
-		fmt.Println("Subcommands:")
-		fmt.Println("  list      List execution chains")
-		fmt.Println("  active    List currently active chains")
-		fmt.Println("  live      Single-page refreshing view of an in-flight chain (M-EVAL-LOCAL-OBSERVABILITY)")
-		fmt.Println("  view      View a chain with all stages")
-		fmt.Println("  tree      ASCII tree view of chain hierarchy")
-		fmt.Println("  stats     Cost and token aggregation")
-		fmt.Println("  diagnose  Quick health report for a specific chain")
-		fmt.Println("  diff      Show git diff across all stages in a chain")
-		fmt.Println("  find      Find chain by message ID, task ID, or GitHub issue")
-		fmt.Println("  chat      View turn-by-turn conversation for a chain stage")
-		fmt.Println("  journey   Show execution journey narrative for a chain")
-		fmt.Println("  health    System-wide data capture validation")
-		fmt.Println()
-		fmt.Println("Examples:")
-		fmt.Println("  ailang chains list                  # List all chains")
-		fmt.Println("  ailang chains active                # Currently running chains")
-		fmt.Println("  ailang chains view <chain-id>       # View chain details")
-		fmt.Println("  ailang chains view --spans <id>     # View with span summaries (no attributes)")
-		fmt.Println("  ailang chains view --full <id>      # View with full span data (heavy)")
-		fmt.Println("  ailang chains tree <chain-id>       # View as tree")
-		fmt.Println("  ailang chains stats --hours 168     # Last week's cost summary")
-		fmt.Println("  ailang chains stats --by-mission    # Per-mission metered total vs budget + quota buckets")
-		fmt.Println("  ailang chains post-iteration        # Post a mission iteration chain (JSON on stdin)")
-		fmt.Println("  ailang chains diagnose <chain-id>   # Quick issue check")
-		fmt.Println("  ailang chains diff <chain-id>        # Git diff across all stages")
-		fmt.Println("  ailang chains diff <chain-id> --stat # Diffstat summary")
-		fmt.Println("  ailang chains find --github repo#42  # Find chain by GitHub issue")
-		fmt.Println("  ailang chains chat <id> --stage 3    # View stage conversation")
-		fmt.Println("  ailang chains chat <id> --compact    # One-line turn summaries")
-		fmt.Println("  ailang chains health                # System-wide validation")
-		fmt.Println("  ailang chains import-motoko <id>     # Import a motoko run log into chains")
-		fmt.Println()
-		fmt.Println("Run 'ailang chains' in a terminal for interactive mode.")
+		printChainsHelp()
 		os.Exit(1)
 	}
 
 	subcommand := flag.Arg(1)
+
+	// The fold first: `chains trace|observatory|dashboard|eval` reach the four
+	// commands M-V1-SIMPLIFY-S5 M3 folded in here. None of these words is a
+	// chains subcommand, so the namespaces add routes without shadowing one —
+	// which is why they are namespaces and not a flattening of four subcommand
+	// sets that collide on list/view/stats/hierarchy/health.
+	if ns := lookupFoldedNamespace(subcommand); ns != nil {
+		runFoldedNamespace(ns, flag.Args()[2:])
+		return
+	}
+
 	switch subcommand {
 	case "list":
 		chainsListCommand()
@@ -88,6 +72,8 @@ func chainsCommand() {
 		chainsChatCommand()
 	case "journey":
 		chainsJourneyCommand()
+	case "reconcile":
+		chainsReconcileCommand()
 	case "import-motoko":
 		chainsImportMotokoCommand()
 	default:
@@ -96,20 +82,63 @@ func chainsCommand() {
 	}
 }
 
+// printChainsHelp is the one help block `chains` has: `--help` prints it and
+// exits 0, a bare non-terminal `ailang chains` prints it and exits 1.
+func printChainsHelp() {
+	fmt.Println("Usage: ailang chains <subcommand> [options]")
+	fmt.Println()
+	fmt.Println("Subcommands:")
+	fmt.Println("  list      List execution chains")
+	fmt.Println("  active    List currently active chains")
+	fmt.Println("  live      Single-page refreshing view of an in-flight chain (M-EVAL-LOCAL-OBSERVABILITY)")
+	fmt.Println("  view      View a chain with all stages")
+	fmt.Println("  tree      ASCII tree view of chain hierarchy")
+	fmt.Println("  stats     Cost and token aggregation")
+	fmt.Println("  diagnose  Quick health report for a specific chain")
+	fmt.Println("  diff      Show git diff across all stages in a chain")
+	fmt.Println("  find      Find chain by message ID, task ID, or GitHub issue")
+	fmt.Println("  chat      View turn-by-turn conversation for a chain stage")
+	fmt.Println("  journey   Show execution journey narrative for a chain")
+	fmt.Println("  health    System-wide data capture validation")
+	fmt.Println()
+	fmt.Println("Examples:")
+	fmt.Println("  ailang chains list                  # List all chains")
+	fmt.Println("  ailang chains list --remote gcp --limit 20 --offset 20 # Next cloud page")
+	fmt.Println("  ailang chains active                # Currently running chains")
+	fmt.Println("  ailang chains view <chain-id>       # View chain details")
+	fmt.Println("  ailang chains view --spans <id>     # View with span summaries (no attributes)")
+	fmt.Println("  ailang chains view --full <id>      # View with full span data (heavy)")
+	fmt.Println("  ailang chains tree <chain-id>       # View as tree")
+	fmt.Println("  ailang chains stats --hours 168     # Last week's cost summary")
+	fmt.Println("  ailang chains stats --by-mission    # Per-mission metered total vs budget + quota buckets")
+	fmt.Println("  ailang chains post-iteration        # Post a mission iteration chain (JSON on stdin)")
+	fmt.Println("  ailang chains diagnose <chain-id>   # Quick issue check")
+	fmt.Println("  ailang chains diff <chain-id>        # Git diff across all stages")
+	fmt.Println("  ailang chains diff <chain-id> --stat # Diffstat summary")
+	fmt.Println("  ailang chains find --github repo#42  # Find chain by GitHub issue")
+	fmt.Println("  ailang chains chat <id> --stage 3    # View stage conversation")
+	fmt.Println("  ailang chains chat <id> --compact    # One-line turn summaries")
+	fmt.Println("  ailang chains health                # System-wide validation")
+	fmt.Println("  ailang chains reconcile             # Close chains that can never progress (dry run by default)")
+	fmt.Println("  ailang chains import-motoko <id>     # Import a motoko run log into chains")
+	fmt.Println()
+	printFoldedNamespaces(os.Stdout)
+	fmt.Println()
+	fmt.Println("Run 'ailang chains' in a terminal for interactive mode.")
+}
+
 func chainsListCommand() {
-	fs := flag.NewFlagSet("chains list", flag.ExitOnError)
-	status := fs.String("status", "", "Filter by status (active, pending_approval, completed, failed)")
-	sourceType := fs.String("source", "", "Filter by source type (github_issue, message, manual)")
-	agent := fs.String("agent", "", "Filter by agent ID (e.g., design-doc-creator)")
-	since := fs.String("since", "", "Show chains created after (e.g., 24h, 7d, 2026-02-01)")
-	limit := fs.Int("limit", 20, "Maximum number of chains to show")
-	jsonOutput := fs.Bool("json", false, "Output as JSON")
-	fullIDs := fs.Bool("full", false, "Show full chain IDs (for copy-paste)")
-	remote := fs.String("remote", "", "Read from this observatory storage mode (gcp). Default: $AILANG_CHAINS_READ")
-	fs.Parse(flag.Args()[2:])
+	options, err := parseChainsListFlags(flag.Args()[2:], os.Stderr)
+	if err == flag.ErrHelp {
+		return
+	}
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
 
 	// Connect to observatory database
-	backend, closeBackend, err := openChainsReadBackend(context.Background(), *remote)
+	backend, closeBackend, err := openChainsReadBackend(context.Background(), options.Remote)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: failed to connect to observatory: %v\n", err)
 		os.Exit(1)
@@ -117,34 +146,14 @@ func chainsListCommand() {
 	defer closeBackend()
 
 	ctx := context.Background()
-	opts := observatory.ChainListOptions{
-		Limit: *limit,
-	}
-	if *status != "" {
-		opts.Status = observatory.ChainStatus(*status)
-	}
-	if *sourceType != "" {
-		opts.SourceType = *sourceType
-	}
-	if *agent != "" {
-		opts.AgentID = *agent
-	}
-	if *since != "" {
-		t, err := parseSinceFlag(*since)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: invalid --since value %q: %v\n", *since, err)
-			os.Exit(1)
-		}
-		opts.CreatedAfter = &t
-	}
 
-	chains, err := backend.ListChains(ctx, opts)
+	chains, err := backend.ListChains(ctx, options.Query)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: failed to list chains: %v\n", err)
 		os.Exit(1)
 	}
 
-	if *jsonOutput {
+	if options.JSON {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
 		enc.Encode(chains)
@@ -169,7 +178,7 @@ func chainsListCommand() {
 
 		// Show full or truncated ID based on flag
 		chainID := truncateChainID(chain.ID)
-		if *fullIDs {
+		if options.FullIDs {
 			chainID = chain.ID
 		}
 
@@ -190,7 +199,7 @@ func chainsViewCommand() {
 	includeSpans := fs.Bool("spans", false, "Include span summaries for each stage (no attributes)")
 	fullSpans := fs.Bool("full", false, "Include full span data with attributes (heavy)")
 	jsonOutput := fs.Bool("json", false, "Output as JSON")
-	remote := fs.String("remote", "", "Read from this observatory storage mode (gcp). Default: $AILANG_CHAINS_READ")
+	remote := fs.String("remote", "", "Read from this observatory storage mode (gcp). Default: the plane's observatory store ($AILANG_STORAGE_OBSERVATORY, else $AILANG_STORAGE)")
 	fs.Parse(flag.Args()[2:])
 
 	if fs.NArg() < 1 {
@@ -350,7 +359,7 @@ func printStageSessionDetails(backend observatory.Backend, ctx context.Context, 
 // chainsActiveCommand is a convenience alias for list --status active
 func chainsActiveCommand() {
 	fs := flag.NewFlagSet("chains active", flag.ExitOnError)
-	remote := fs.String("remote", "", "Read from this observatory storage mode (gcp). Default: $AILANG_CHAINS_READ")
+	remote := fs.String("remote", "", "Read from this observatory storage mode (gcp). Default: the plane's observatory store ($AILANG_STORAGE_OBSERVATORY, else $AILANG_STORAGE)")
 	fs.Parse(flag.Args()[2:])
 	backend, closeBackend, err := openChainsReadBackend(context.Background(), *remote)
 	if err != nil {
@@ -509,7 +518,7 @@ func printEvalAssessment(a *observatory.EvalAssessment) {
 func chainsJourneyCommand() {
 	fs := flag.NewFlagSet("chains journey", flag.ExitOnError)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	remote := fs.String("remote", "", "Read from this observatory storage mode (gcp). Default: $AILANG_CHAINS_READ")
+	remote := fs.String("remote", "", "Read from this observatory storage mode (gcp). Default: the plane's observatory store ($AILANG_STORAGE_OBSERVATORY, else $AILANG_STORAGE)")
 	fs.Parse(flag.Args()[2:])
 
 	chainIDPrefix := fs.Arg(0)

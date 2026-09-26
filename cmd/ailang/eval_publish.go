@@ -17,6 +17,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/modelreg"
 	"os"
 	"path/filepath"
 	"sort"
@@ -220,7 +221,7 @@ func buildOSLeaderboardJSON(releaseTag, ailangVersion string, current map[string
 	sort.Strings(langs)
 
 	harnessOf := func(model string) string {
-		if cfg := eval_harness.GlobalModelsConfig; cfg != nil {
+		if cfg := modelreg.GlobalModelsConfig; cfg != nil {
 			if mc, ok := cfg.Models[model]; ok && mc.AgentCLI != nil && *mc.AgentCLI != "" {
 				return *mc.AgentCLI
 			}
@@ -279,7 +280,54 @@ func buildOSLeaderboardJSON(releaseTag, ailangVersion string, current map[string
 		"trials":         maxTrials,
 		"languages":      langs,
 		"rows":           rows,
+		"notes":          osDataNotes,
 	}, "", "  ")
+}
+
+// OSDataNote is a dated, machine-readable caveat carried INSIDE the published
+// OS leaderboard JSON, so a reader of the numbers sees the boundary next to the
+// numbers. Until M-V1-SIMPLIFY-S3 M1 the only precedent (the v0.30.0 cost-data
+// invalidation) lived in a gitignored CAVEATS.md beside the bank dir — invisible
+// to every published consumer. The snapshot script (tools/os-release-snapshot.sh)
+// copies selected keys into os/history.json; carry `notes` through there too so
+// the boundary survives into the longitudinal series.
+type OSDataNote struct {
+	// Date the ruling or boundary took effect (YYYY-MM-DD).
+	Date string `json:"date"`
+	// Ref names the decision (mission ruling id, sprint milestone) so the full
+	// record can be found.
+	Ref string `json:"ref"`
+	// Text is the one-paragraph caveat a dashboard may render verbatim.
+	Text string `json:"text"`
+}
+
+// osDataNotes is every caveat currently in force on the OS leaderboard data.
+// Append, never edit: a note is a dated boundary in a longitudinal series.
+var osDataNotes = []OSDataNote{
+	{
+		Date: "2026-09-15",
+		Ref:  "M-V1-SIMPLIFY-S3 M1 / ruling D2",
+		Text: "Pass = compile_ok && runtime_ok && stdout_ok (RunMetrics.Passed) everywhere from this " +
+			"date. The OS rotation summary (SummarizeRotation) always used this conjunction, so OS " +
+			"leaderboard/history rows are unaffected; cloud-baseline views (eval-report matrix, tags, " +
+			"sweet-spot, comparison, ELO) had read stdout_ok alone. Measured over every baseline dir " +
+			"(26,758 valid rows): 31 rows disagree, 30 of them on the retired print_missing_effect " +
+			"benchmark (empty expected stdout graded a compile/runtime failure as stdout_ok); overall " +
+			"delta -0.12pp, worst version v0.4.1 at -0.90pp, v0.30.0 and v0.32.0 unchanged. Nothing " +
+			"was re-banked. Full per-version table: TestD2DiscordantCount in internal/eval_analysis.",
+	},
+	{
+		Date: "2026-09-15",
+		Ref:  "M-V1-SIMPLIFY-S4 M4 / ruling D9",
+		Text: "Write side unified, bank-forward: from this date standard mode gates stdout_ok on " +
+			"runtime_ok exactly as every agent-mode lane already did, so a run that crashed after " +
+			"printing the expected bytes (or whose expected stdout is empty) banks stdout_ok=false " +
+			"instead of true. Rows banked before this date keep their stored flags; nothing was " +
+			"re-banked. Published rates are unaffected because the D2 read-side predicate above " +
+			"already required all three flags — this only makes the STORED stdout_ok mean the same " +
+			"thing in both modes. Pinned by TestD9StandardModeStdoutOkGatedOnRuntime in " +
+			"internal/eval_harness.",
+	},
 }
 
 // readAilangVersion returns the AILANG language version under test, read from

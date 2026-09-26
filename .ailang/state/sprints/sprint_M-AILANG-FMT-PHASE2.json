@@ -1,0 +1,94 @@
+{
+  "sprint_id": "M-AILANG-FMT-PHASE2",
+  "status": "completed",
+  "created": "2026-07-19T15:04:00Z",
+  "design_doc": "design_docs/planned/v0_30_0/m-ailang-fmt-phase2.md",
+  "sprint_plan": "design_docs/planned/v0_30_0/m-ailang-fmt-phase2-sprint-plan.md",
+  "github_issues": [
+    399
+  ],
+  "velocity": {
+    "target_loc_per_day": 110,
+    "estimated_total_loc": 1500,
+    "estimated_days": 3,
+    "loc_note": "~1500 LOC is heavily test/fixture (envelope 300 + attach 250 + ~700 tests + 150 lexer + 150 emission + ~90 corpus/docs). Budget is gated by correctness (idempotence/totality/corpus-zero-error + M0 audit completeness), NOT typing volume — same posture as Phase 1 (4d for the printer). ~110 LOC/day derived from comparable completed sprints M-SYNTAX-AI-FORGIVING (315/3d) and M-ARITY-STYLE-DIAGNOSTIC (100/2d). 3-3.5d = doc-skeleton 2.5-3d + 0.5d for the human-directed M0 printer audit."
+  },
+  "features": [
+    {
+      "id": "M0_PRINTER_CHILD_LIST_CODE_AUDIT_",
+      "description": "M0 — Printer Child-List Code Audit (proven inventory): enumerate every ordered child-list emission site in internal/format printer (params/type-args/ctor-args/record-fields/annotations/effect-rows/list-tuple-record/match-arms/imports/decls/block-children + any others), verified against source, folded into design doc. Deliverable = written proven inventory; BINDS M1-M2 coverage. 0.5 day.",
+      "estimated_loc": 0,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Read every printer child-list emission site across `internal/format/*.go` (`format.go`, `decl.go`, `expr.go`, `pattern.go`, `types.go`, `literal.go`, `precedence.go`) and enumerate EVERY ordered child-list boundary the printer emits: params, type args, constructor args, record fields, annotations, effect rows, list/tuple/record elements, match arms, import lists, top-level decls, block children — **and any others discovered in the source**.",
+        "For each site, record: the AST node kind, the printer function/line, the delimiter pair (`()`/`[]`/`{}`/effect-row braces/none), and whether it can carry a comment boundary.",
+        "Cross-check the inventory against the doc's partial list (doc §\"Child-boundary resolution\" names: top-level decls, block children, list/tuple/record elements, match arms, import lists). Every site the doc omits is FLAGGED and ADDED — the audit's completeness claim is verified against printer source, not asserted.",
+        "Fold the proven inventory into `m-ailang-fmt-phase2.md` as a new \"Printer Child-List Inventory (M0, verified)\" subsection under Solution Design."
+      ],
+      "passes": true,
+      "started": "2026-07-19T19:00:00Z",
+      "completed": "2026-07-19T19:20:00Z",
+      "notes": "Verified inventory of 39 child-list emission sites folded into design doc as 'Printer Child-List Inventory (M0, verified)'. 34 sites [ADDED by M0 audit] beyond the doc's partial list of 5. Confirmed gpt5-6-sol objection real (params/type-args/ctor-args/record-fields/annotations were omitted). 9 sites are WRITER-LEVEL MULTI-LINE ordered lists (bind M2 totality fixtures); rest are single-line/string-built (float to enclosing multi-line list). Commit 83f7ebf23."
+    },
+    {
+      "id": "M1_LOSSLESS_COLLECTOR_TOKEN_ANCHO",
+      "description": "M1 — Lossless Collector + Token-Anchored Envelope + Interpolation FAIL-CLOSED Carve-Out: premise-sweep test first; ScanForComment -> collector + literal-region map; envelope (anchor conversion/clamping/bracket-match/child-boundary resolution + hard left wall); refuse comments inside interpolation holes fail-closed (exit 2, byte-identical). 1 day.",
+      "estimated_loc": 700,
+      "dependencies": [
+        "M0_PRINTER_CHILD_LIST_CODE_AUDIT_"
+      ],
+      "acceptance_criteria": [
+        "**Premise-sweep test first** (`internal/format/premise_sweep_test.go`): re-implement the design-time V18 sweep as a permanent test — every parse-path token's rune-walk-converted offset lands on its source text over all corpus files, literal interiors exempted via the region map. Green before any attachment code exists.",
+        "Extend `internal/lexer/comment_scan.go` from boolean `ScanForComment` into a comment collector + literal-region map: `[]Comment{Kind, Text, Start, End}` with byte-exact spans; literal/quasiquote disambiguation preserved; parser token stream provably unchanged (`go test ./internal/lexer ./internal/parser`).",
+        "**Interpolation FAIL-CLOSED carve-out (BINDING CONSTRAINT 2):** the collector detects any comment token that falls INSIDE a `${...}` interpolation hole and surfaces it as a refusal signal. Wire a preflight so `ailang fmt` on such a file is REFUSED (fail-closed, exit 2, byte-identical file, clear message) — silent deletion of an interior comment is structurally impossible. NO general interpolation-aware attachment; `skipString` only needs enough interpolation-nesting awareness to correctly *classify* a comment as interior (fixing the naive first-`\"` termination measured on `directory_ops.ail`, V19) so the carve-out cannot miss one.",
+        "Envelope (`internal/format/envelope.go`): line-start table + rune-walk anchor conversion + literal-region clamping; byte-level bracket matching over code bytes; child-boundary resolution (min-anchor + closed-class left widening over brackets/modifiers) with the **hard left wall** (left-widening stops at the nearest enclosing-list open-delimiter; comments before the first child attach to the parent's boundary 0); envelope-error taxonomy; fail-closed wiring.",
+        "Unit tests (`envelope_test.go`): collector spans (incl. unicode + nested-interpolation classification), boundary resolution over `export`/`pure` and paren-wrapped heads, the parent-open-delimiter hard left wall (`[ /* C */ x ]`, `[ /* C */ [ y ] ]`), envelope errors on constructed inconsistencies, **and the interpolation-comment refusal** (a `${ /* c */ … }` fixture → exit-2 refusal, file untouched)."
+      ],
+      "passes": true,
+      "started": "2026-07-19T19:20:00Z",
+      "completed": "2026-07-19T20:10:00Z",
+      "notes": "Premise-sweep test green FIRST over corpus (393 files, 81224 tokens, 8639 exempted — matches design V18). Collector (CollectComments) with byte-exact spans + literal-region map + interpolation-aware skipString; ScanForComment delegates to it. Parser/lexer token stream unchanged (all lexer+parser tests green unmodified). Envelope: anchor conversion, literal clamping, byte-level bracket matching, MinAnchor (reflective anchor walk, recovers leftmost subtree token), WidenLeft with hard left wall + modifier absorption, interpolation FAIL-CLOSED carve-out (EnvelopeError interp-comment). All envelope unit tests green incl. hard-left-wall + refusal. Commit 4ac8426bf. NOTE: envelope machinery unit-proven but not yet wired to attachment/emission — that is M2."
+    },
+    {
+      "id": "M2_DETERMINISTIC_ATTACHMENT_EMISS",
+      "description": "M2 — Deterministic Attachment (rules 1-5) + Emission: totality (fail-closed), totality fixtures keyed to M0 inventory + hard-left-wall cases, emission interleaving, per-rule fixed-point idempotence tests. 1 day.",
+      "estimated_loc": 500,
+      "dependencies": [
+        "M0_PRINTER_CHILD_LIST_CODE_AUDIT_",
+        "M1_LOSSLESS_COLLECTOR_TOKEN_ANCHO"
+      ],
+      "acceptance_criteria": [
+        "Implement attachment rules 1–5 (`internal/format/attach.go`) + `Attachment` model; totality check — every comment attached to exactly one boundary, or the file errors fail-closed.",
+        "**Totality fixtures keyed to the M0 inventory:** at minimum the hard-left-wall cases (`[ /* C */ x ]` → attaches to the list's boundary 0, NOT `x`; `[ /* C */ [ y ] ]` → outer list's boundary 0, not widened into the inner list) PLUS a comment-boundary fixture for each additional printer child-list site the M0 audit enumerated (params, type args, ctor args, record fields, annotations, effect rows, …).",
+        "Emission interleaving in the document builder (`format.go`/`decl.go`/`expr.go`): fixed order leading / node / same-line trailing / boundary-floating; rule-5 blank-line grouping. `internal/ast/print.go` untouched.",
+        "Fixed-point tests per rule: each attachment class re-derives identically on its own output (rule-level idempotence — e.g. a trailing comment re-emits on the same line as its owner so a second pass cannot reclassify it as leading)."
+      ],
+      "passes": true,
+      "started": "2026-07-19T20:10:00Z",
+      "completed": "2026-07-19T21:00:00Z",
+      "notes": "attach.go: total attacher over envelope; rules 1-5 (trailing checked first across lists; leading=contiguous-no-blank incl. rule-5 grouping; floating=blank-separated; boundary 0/hard-left-wall; tail). Totality: unattachable comment -> fail-closed (never silent drop). Emission interleaving in file()/blockBraced()/match() in fixed order; `;` separator emitted before trailing comment. SourceWithComments entry point; comment-free output byte-identical to Source (proven). All rule + totality + idempotence tests green. Commit b4aae3dec. CALIBRATED LIMIT: func body represented as let-in single-tail (not Block) emits inline -> comment there fails closed (safe, no loss), not attached. Corpus impact measured in M3."
+    },
+    {
+      "id": "M3_PROPERTY_GATE_REFUSAL_REMOVAL_",
+      "description": "M3 — Property Gate + Refusal Removal + Exit Split + Corpus + Docs: marker property test; 386-file parse-valid corpus zero-error gate + interpolation refusal-rate measurement; remove HasComments refusal (fmt.go:103-108) ONLY after green; exit split (3=parse,2=operational); docs. 0.5-1 day.",
+      "estimated_loc": 300,
+      "dependencies": [
+        "M1_LOSSLESS_COLLECTOR_TOKEN_ANCHO",
+        "M2_DETERMINISTIC_ATTACHMENT_EMISS"
+      ],
+      "acceptance_criteria": [
+        "Marker property test (`marker_property_test.go`): unique marker per input comment; formatted output contains each marker exactly once; `fmt(fmt(x)) == fmt(x)` byte-for-byte.",
+        "**Corpus gate (hard precondition):** sweep over the **386 parse-valid** `examples/**/*.ail` files (of 393; the 7 non-parsing error-demo/experimental/bug fixtures enumerated in V21 exit 3 and are OUT of the gate) — every parse-valid file formats with **0 comment-refusals AND 0 envelope/attachment errors**; structural round-trip `Parse(fmt(x)) ≡ Parse(x)` green. **Measure and record the interpolation-comment refusal rate** (BINDING CONSTRAINT 2 evidence gate; expected ≈0 — any refusal is enumerated so the deferred full-interpolation follow-up is evidence-gated).",
+        "Remove the `HasComments` refusal path in `cmd/ailang/fmt.go` (currently `fmt.go:103-108`) — **only after the marker property test + corpus round-trip are green.** Split exit codes: **3 = input parse error** (`parseForFmt` on original source), **2 = operational error** (usage / read / print / round-trip / envelope / write). Update `fmt --help` (remove the Phase-1 limitation paragraph at `fmt.go:280`; add the 2/3 exit distinction) and `docs/docs/reference/formatter.md` (exit table + NFC-normalization note).",
+        "`make test`, `make verify-examples`, `make check-file-sizes` green."
+      ],
+      "passes": true,
+      "started": "2026-07-19T21:00:00Z",
+      "completed": "2026-07-19T22:00:00Z",
+      "notes": "Marker property test (unique MK markers, exactly-once, idempotence) + corpus idempotence 299/299 green. Corpus gate (all 386 parse-valid): formatted=327, marker-fail=0, PHASE2-rt-regression=0, other-refusal=0. INTERPOLATION REFUSAL RATE = 0/386 (0.00%) — BINDING CONSTRAINT 2 evidence gate satisfied. let-in/inline-interior refusal=59 (15.28%, fail-closed, enumerated as Future Work). 28 round-trip failures are PRE-EXISTING Phase-1 properties-block printer bugs (fail round-trip comment-free too), caught fail-closed by fmt.go — NOT Phase-2 regressions. HasComments refusal REMOVED; SourceWithComments wired; exit split live (3=parse via fmtParseError+errors.As, 2=operational; round-trip defect stays 2). fmt --help + formatter.md updated. Phase-1 comment-refusal CLI tests rewritten to Phase-2. make test (format+lexer+cmd/ailang), verify-examples, check-file-sizes green. Commit a879844fe. V22 added to design doc. CALIBRATED: 85% lossless+idempotent, 15% fail-closed (never lossy)."
+    }
+  ],
+  "risk_level": "medium",
+  "status_final": "completed",
+  "completed": "2026-07-19T22:00:00Z"
+}

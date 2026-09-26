@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/eval_harness"
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/eval_analysis"
@@ -17,17 +18,24 @@ func TestBuildELOModeReport_CoverageGating(t *testing.T) {
 	// full-model runs 40 distinct AILANG benchmarks (the max coverage).
 	for i := 0; i < 40; i++ {
 		id := fmt.Sprintf("bench%02d", i)
-		results = append(results, &eval_analysis.BenchmarkResult{
+		results = append(results, &eval_analysis.BenchmarkResult{RunMetrics: eval_harness.RunMetrics{
 			ID: id, Lang: "ailang", Model: "full-model", EvalMode: "agent",
 			CompileOk: true, RuntimeOk: true, StdoutOk: i%2 == 0, // 50% pass → non-degenerate fit
-		})
+		}})
 	}
 	// sparse-model runs only 5 benchmarks (< 50% of 40 → provisional).
 	for i := 0; i < 5; i++ {
 		id := fmt.Sprintf("bench%02d", i)
 		results = append(results, &eval_analysis.BenchmarkResult{
-			ID: id, Lang: "ailang", Model: "sparse-model", EvalMode: "agent",
-			CompileOk: true, RuntimeOk: true, StdoutOk: true,
+			RunMetrics: eval_harness.RunMetrics{
+				ID:        id,
+				Lang:      "ailang",
+				Model:     "sparse-model",
+				EvalMode:  "agent",
+				CompileOk: true,
+				RuntimeOk: true,
+				StdoutOk:  true,
+			},
 		})
 	}
 	// mid-model runs exactly at the unified 90% threshold (ceil(0.9*40) = 36 →
@@ -36,16 +44,30 @@ func TestBuildELOModeReport_CoverageGating(t *testing.T) {
 	for i := 0; i < 36; i++ {
 		id := fmt.Sprintf("bench%02d", i)
 		results = append(results, &eval_analysis.BenchmarkResult{
-			ID: id, Lang: "ailang", Model: "mid-model", EvalMode: "agent",
-			CompileOk: true, RuntimeOk: true, StdoutOk: i%3 == 0,
+			RunMetrics: eval_harness.RunMetrics{
+				ID:        id,
+				Lang:      "ailang",
+				Model:     "mid-model",
+				EvalMode:  "agent",
+				CompileOk: true,
+				RuntimeOk: true,
+				StdoutOk:  i%3 == 0,
+			},
 		})
 	}
 	// near-model sits one below the threshold (35 < 36 → provisional).
 	for i := 0; i < 35; i++ {
 		id := fmt.Sprintf("bench%02d", i)
 		results = append(results, &eval_analysis.BenchmarkResult{
-			ID: id, Lang: "ailang", Model: "near-model", EvalMode: "agent",
-			CompileOk: true, RuntimeOk: true, StdoutOk: i%4 == 0,
+			RunMetrics: eval_harness.RunMetrics{
+				ID:        id,
+				Lang:      "ailang",
+				Model:     "near-model",
+				EvalMode:  "agent",
+				CompileOk: true,
+				RuntimeOk: true,
+				StdoutOk:  i%4 == 0,
+			},
 		})
 	}
 

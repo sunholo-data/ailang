@@ -280,6 +280,9 @@ func computeEcosystemStats(index *pkg.RegistryIndex) *EcosystemStats {
 		if len(p.Effects) == 0 {
 			pureCount++
 		}
+		if p.ContractsTotal > 0 {
+			stats.PackagesWithContracts++
+		}
 		for _, effect := range p.Effects {
 			stats.EffectDistribution[effect]++
 		}

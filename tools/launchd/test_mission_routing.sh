@@ -24,17 +24,29 @@ driver="$ROOT/tools/launchd/mission-control.sh"
 # FLEET (Mark 2026-08-26, attended): codex KEEPS both primary roles; the Ollama
 # Cloud lanes sit at the FIRST FALLBACK. Asserting the primaries explicitly so a
 # future promotion has to be deliberate rather than accidental.
-grep -q 'MISSION_EXECUTOR_MODEL:-codex:gpt-5.6-sol' "$driver" \
-  && ok "executor primary remains Codex Sol" || bad "executor primary remains Codex Sol" "missing default"
-grep -q 'MISSION_PLANNER_MODEL:-codex:gpt-5.6-sol' "$driver" \
-  && ok "planner primary remains Codex Sol" || bad "planner primary remains Codex Sol" "missing default"
+# RE-AFFIRMED 2026-09-05 (Mark, attended): astra goes IN THE CHAIN and does NOT
+# take a primary. These two arms were briefly flipped to astra earlier the same
+# day and are restored — sol keeps both primaries on months of in-role track
+# record, against astra's single fizzbuzz round-trip and an rc=0 probe.
+grep -q 'MISSION_EXECUTOR_MODEL:-codex:gpt-6-sol' "$driver" \
+  && ok "executor primary is Codex Sol (gpt-6-sol since 2026-09-22)" || bad "executor primary is Codex Sol (gpt-6-sol since 2026-09-22)" "missing default"
+grep -q 'MISSION_PLANNER_MODEL:-codex:gpt-6-sol' "$driver" \
+  && ok "planner primary is Codex Sol (gpt-6-sol since 2026-09-22)" || bad "planner primary is Codex Sol (gpt-6-sol since 2026-09-22)" "missing default"
+# The fallback chains must stay `pi:*`-headed. A `codex:*` value here would run
+# UNPROBED — the codex loop hands off to a value that only the *pi* loop probes —
+# which is the "pin running unprobed on World" defect ailang#611 fixed. This is the
+# arm that dies if someone "helpfully" inserts sol as the first fallback rung.
+grep -q 'MISSION_EXECUTOR_FALLBACK:-pi:' "$driver" \
+  && ok "executor fallback head is a probed pi lane" || bad "executor fallback head is a probed pi lane" "codex:* head runs unprobed (#611)"
+grep -q 'MISSION_PLANNER_FALLBACK:-pi:' "$driver" \
+  && ok "planner fallback head is a probed pi lane" || bad "planner fallback head is a probed pi lane" "codex:* head runs unprobed (#611)"
 # Executor fallback: SAME deepseek-v4-flash weights, flat-rate ollama route
 # instead of metered OpenRouter. The ratified codex->deepseek->opus chain is
 # preserved; only the route changed. Brace-anchored so a prefix cannot pass.
 # Each ollama rung must be BACKED BY ITS OPENROUTER TWIN, so exhausting the
 # Ollama Cloud quota (unpublished denominator, so unpredictable) degrades the
 # ROUTE and not the model. Asserted as a full chain, brace-anchored.
-grep -q 'MISSION_EXECUTOR_FALLBACK:-pi:ollama/deepseek-v4-flash:0731-cloud,pi:openrouter/deepseek/deepseek-v4-flash-0731}' "$driver" \
+grep -q 'MISSION_EXECUTOR_FALLBACK:-pi:ollama/deepseek-v4.1-flash:cloud,pi:openrouter/deepseek/deepseek-v4.1-flash}' "$driver" \
   && ok "executor chain is ollama -> openrouter twin" || bad "executor chain is ollama -> openrouter twin" "missing or unchained"
 # Planner fallback: kimi-k3 sits BETWEEN codex and opus, so opus stays last resort.
 grep -q 'MISSION_PLANNER_FALLBACK:-pi:ollama/kimi-k3:cloud,pi:openrouter/moonshotai/kimi-k3}' "$driver" \
@@ -48,6 +60,119 @@ want "pi planner pin reaches its lane, not a silent opus" "$out" "pi:ollama/kimi
 # ...but the allowlist must still bind it exactly as it binds codex.
 out=$(MISSION_PLANNER_MODEL='pi:ollama/kimi-k3:cloud' "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/a-unlisted-language-path.md")
 want "pi planner still fails closed outside the allowlist" "$out" "opus fail-closed:path-not-in-codex-allowlist"
+
+# THE EMITTED LANE MUST CARRY ITS MODEL (2026-08-28). Step 5 used to emit a bare
+# `codex` for any codex:* pin, dropping the model. Invisible on V1 by coincidence —
+# its pin is codex:gpt-5.6-sol and the consumer default is also sol, so the dropped
+# value equalled the fallback. NOT invisible on a mission pinned to a cheaper tier:
+# the docs mission pins codex:gpt-5.6-luna ($0.20/$1.20 per M) and would have
+# planned on gpt-5.6-sol ($2/$10) every iteration. Asserted with TWO different
+# codex models so a re-hardcoded literal cannot satisfy both.
+out=$(MISSION_PLANNER_MODEL='codex:gpt-5.6-luna' "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/c-clean-infra.md")
+want "codex planner lane keeps its model (luna)" "$out" "codex:gpt-5.6-luna declared:codex-ok"
+out=$(MISSION_PLANNER_MODEL='codex:gpt-5.6-sol' "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/c-clean-infra.md")
+want "codex planner lane keeps its model (sol)" "$out" "codex:gpt-5.6-sol declared:codex-ok"
+
+# --- DELIVERY MECHANISM, NOT JUST THE CONSUMER (docs iteration 1, 2026-08-28) ------
+# THE MISS THIS GUARDS, stated plainly because it defeated 34 passing tests: every
+# assertion above invokes the script as `MISSION_PLANNER_ALLOWLIST=... "$DERIVE" ...`,
+# which exports the variable FOR THAT COMMAND. The production path does something
+# different — the driver SOURCES a mission env file whose entries are bare
+# assignments, and `derive-planner-lane.sh` runs as a CHILD PROCESS, which inherits
+# only EXPORTED variables. So the allowlist was set and never delivered, every docs
+# design doc failed closed to opus, and the whole widening was inert in production
+# while its tests were green. Found by the docs mission itself, live
+# (`env | grep MISSION_PLANNER_ALLOWLIST` empty in a real session), fixed by
+# exporting it in the driver.
+#
+# Rule this encodes: a variable's TEST must exercise the same delivery path as its
+# USE. Setting it on the command line tests the consumer and proves nothing about
+# whether anything ever sets it.
+grep -qE '^export MISSION_PLANNER_ALLOWLIST' "$driver" \
+  && ok "driver EXPORTS the planner allowlist (bare assignment never reaches the child)" \
+  || bad "driver EXPORTS the planner allowlist (bare assignment never reaches the child)" "not exported — allowlist is inert in production"
+
+# Order is load-bearing: `export VAR="${VAR:-default}"` only picks up a mission's
+# value if the env file was sourced FIRST. Asserted by line number so a reordering
+# that silently reverts every mission to the default default is RED.
+_src_line=$(grep -n 'config/ailang/mission-\${MISSION_NAME}.env' "$driver" | head -1 | cut -d: -f1)
+_exp_line=$(grep -n '^export MISSION_PLANNER_ALLOWLIST' "$driver" | head -1 | cut -d: -f1)
+if [ -n "$_src_line" ] && [ -n "$_exp_line" ] && [ "$_exp_line" -gt "$_src_line" ]; then
+  ok "allowlist export comes AFTER the mission env file is sourced (line $_exp_line > $_src_line)"
+else
+  bad "allowlist export comes AFTER the mission env file is sourced" "src=$_src_line exp=$_exp_line"
+fi
+
+# --- PER-MISSION ALLOWLIST (M-DOCS-MISSION, 2026-08-28) --------------------------
+# The allowlist is infra-only by default, which SILENTLY defeats any mission whose
+# subject matter is docs/: the cheap planner pin reads as configured in the driver
+# log while opus actually runs, every iteration. Four assertions, because the risk
+# is symmetric — widening must work, and it must not become a hole.
+DOCS_AL='tools/launchd/*|.claude/skills/mission-control/SKILL.md|.claude/skills/design-doc-creator/*|docs/*|examples/*|README.md|CHANGELOG.md'
+
+# 1. DEFAULT allowlist still denies docs paths => v1/world/motoko are unaffected.
+out=$(MISSION_PLANNER_MODEL='pi:ollama/kimi-k3:cloud' "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/o-docs-mission-paths.md")
+want "docs paths fail closed under the DEFAULT allowlist" "$out" "opus fail-closed:path-not-in-codex-allowlist"
+
+# 2. WIDENED allowlist reaches the pinned cheap lane (the whole point).
+out=$(MISSION_PLANNER_ALLOWLIST="$DOCS_AL" MISSION_PLANNER_MODEL='pi:ollama/kimi-k3:cloud' "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/o-docs-mission-paths.md")
+want "docs paths reach the cheap lane under a widened allowlist" "$out" "pi:ollama/kimi-k3:cloud declared:codex-ok"
+
+# 3. Widening for docs must NOT admit compiler paths — still an allowlist, not an off switch.
+out=$(MISSION_PLANNER_ALLOWLIST="$DOCS_AL" MISSION_PLANNER_MODEL='pi:ollama/kimi-k3:cloud' "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/a-unlisted-language-path.md")
+want "widened allowlist still denies compiler paths" "$out" "opus fail-closed:path-not-in-codex-allowlist"
+
+# 4. `docs/../internal/...` must not ride a `docs/*` prefix out of the sandbox.
+out=$(MISSION_PLANNER_ALLOWLIST="$DOCS_AL" MISSION_PLANNER_MODEL='pi:ollama/kimi-k3:cloud' "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/p-docs-traversal-escape.md")
+want "traversal cannot escape an allowlisted prefix" "$out" "opus fail-closed:path-not-in-codex-allowlist"
+
+# 5. `set -f` in the matcher is load-bearing: this script runs with cwd = the repo,
+# so an unquoted `tools/launchd/*` in the matcher loop would PATHNAME-EXPAND into the
+# real file list and then match none of the DECLARED paths. Asserted behaviourally,
+# from the repo root, using the default allowlist's own literal prefix.
+out=$(cd "$ROOT" && MISSION_PLANNER_MODEL='pi:ollama/kimi-k3:cloud' "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/c-clean-infra.md")
+want "allowlist globs are patterns, not repo-cwd pathname expansions" "$out" "pi:ollama/kimi-k3:cloud declared:codex-ok"
+
+# --- DOCS MISSION LADDER (2026-08-28) -------------------------------------------
+# The docs mission runs a subscription-first cost ladder: subscription -> flat-rate
+# -> metered. Asserted on the VERSIONED env copy, because the live file in
+# ~/.config/ailang is not reviewable and drifts silently.
+docsenv="$ROOT/tools/launchd/mission-env/mission-docs.env"
+[ -r "$docsenv" ] && ok "docs mission env profile exists" || bad "docs mission env profile exists" "missing"
+
+# THE TRAP THIS GUARDS: derive-planner-lane.sh Step 0 accepts only codex:* or pi:*.
+# A bare Anthropic alias as the PLANNER pin emits "opus fail-closed:env-pin" and
+# silently runs OPUS — the most expensive model in the fleet, on the mission built to
+# avoid it. Negative assertion, so a well-meaning "put sonnet first everywhere" edit
+# is RED rather than silently expensive.
+grep -qE '^MISSION_PLANNER_MODEL="\$\{MISSION_PLANNER_MODEL:-(codex|pi):' "$docsenv" \
+  && ok "docs planner pin is a vetted non-opus lane (not a bare alias)" \
+  || bad "docs planner pin is a vetted non-opus lane (not a bare alias)" "bare alias fails closed to opus"
+
+# The allowlist widening is what makes that pin reach its lane at all.
+grep -q 'MISSION_PLANNER_ALLOWLIST' "$docsenv" \
+  && ok "docs mission widens the planner allowlist" \
+  || bad "docs mission widens the planner allowlist" "missing — planner would fail closed to opus every fire"
+
+# Rung 2 -> rung 3 must be the SAME WEIGHTS on two routes, so exhausting the
+# flat-rate quota costs money and never capability.
+grep -q 'MISSION_EXECUTOR_FALLBACK:-pi:ollama/glm-5.3-flash:cloud,pi:openrouter/z-ai/glm-5.3-flash}' "$docsenv" \
+  && ok "docs executor chain is flat-rate -> metered twin (same weights)" \
+  || bad "docs executor chain is flat-rate -> metered twin (same weights)" "missing or unchained"
+grep -q 'MISSION_PLANNER_FALLBACK:-pi:ollama/glm-5.3-flash:cloud,pi:openrouter/z-ai/glm-5.3-flash}' "$docsenv" \
+  && ok "docs planner chain is flat-rate -> metered twin (same weights)" \
+  || bad "docs planner chain is flat-rate -> metered twin (same weights)" "missing or unchained"
+
+# GENERATOR != JUDGE, asserted as VENDOR DISJOINTNESS ACROSS THE WHOLE CHAIN, not just
+# the primary. The executor walks OpenAI -> Z-AI -> Z-AI; an evaluator on the same
+# ladder would share a vendor at every rung, which is exactly the shared blind spot the
+# rule exists to prevent.
+grep -qE '^MISSION_EVALUATOR_FALLBACK=.*minimax' "$docsenv" \
+  && ok "docs evaluator chain is vendor-disjoint from the executor" \
+  || bad "docs evaluator chain is vendor-disjoint from the executor" "evaluator shares the executor vendor"
+grep -qE '^MISSION_EVALUATOR_FALLBACK=.*(glm|deepseek|gpt-)' "$docsenv" \
+  && bad "docs evaluator never shares an executor-chain vendor" "evaluator chain contains an executor vendor" \
+  || ok "docs evaluator never shares an executor-chain vendor"
 # The `:floor` guard, generalised. It previously pinned the OpenRouter route, which
 # broke when the fallback moved to the flat-rate ollama route (same deepseek-v4-flash
 # weights). The route is now asserted above; what must survive ANY route change is
@@ -61,20 +186,95 @@ want "pi planner still fails closed outside the allowlist" "$out" "opus fail-clo
 grep -q 'MISSION_EXECUTOR_FALLBACK:-[^}]*:floor' "$driver" \
   && bad "executor fallback is never price-pinned (:floor)" "fallback is :floor-pinned" \
   || ok "executor fallback is never price-pinned (:floor)"
+# CONTROLLER LADDER. Amended 2026-09-05 (Mark, attended): astra is inserted
+# BETWEEN opus and fable — "ahead of each fable instance, that falls back to fable".
+# The single exact-string arm this replaces bundled three separate guarantees, so
+# any one edit reddened it without saying which broke. Split, because two of the
+# three are negative assertions that must keep biting on their own.
+# The ORDER is the ruling, not just the membership: astra before fable, fable kept
+# as what it falls back to. An astra entry placed AFTER fable would satisfy a naive
+# membership check and invert the decision.
 # opus-4.8 REMOVED from the controller ladder (Mark 2026-08-26). Negative
 # assertion so a silent reintroduction is RED, not merely unasserted.
-grep -q 'MISSION_MODEL_PREFS:-claude-opus-5,claude-fable-5}' "$driver" \
-  && ok "controller ladder is opus-5 -> fable-5 (no opus-4.8)" || bad "controller ladder is opus-5 -> fable-5 (no opus-4.8)" "wrong ladder"
+grep -q 'MISSION_MODEL_PREFS:-[^}]*opus-4-8' "$driver" \
+  && bad "controller ladder excludes opus-4.8" "opus-4-8 reintroduced" \
+  || ok "controller ladder excludes opus-4.8"
+# Fable 5 -> 5.1 (Mark 2026-09-02). The bracket class is load-bearing: plain
+# 'claude-fable-5' is a SUBSTRING of 'claude-fable-5-1', so an unanchored negative
+# would fire on the correct value and this arm would be permanently red.
+grep -q 'MISSION_MODEL_PREFS:-[^}]*claude-fable-5[,}]' "$driver" \
+  && bad "controller ladder uses fable-5-1, not bare fable-5" "bare fable-5 in the ladder" \
+  || ok "controller ladder uses fable-5-1, not bare fable-5"
 # ACTIVE lines only: a comment recording the removal must not trip the guard,
 # but a real reintroduction must. (This distinction is why the first version of
 # this assertion went red on its own changelog note.)
 grep -v '^[[:space:]]*#' "$driver" | grep -q 'claude-opus-4-8' \
   && bad "opus-4.8 stays removed" "opus-4.8 reappeared in active driver code" \
   || ok "opus-4.8 stays removed"
-# NO-SINGLE-PROVIDER-ROLE: the evaluator was the only role with no fallback at
-# all. Every role must now name at least two providers across its chain.
-grep -q 'MISSION_EVALUATOR_FALLBACK:-pi:ollama/minimax-m3:cloud,pi:openrouter/minimax/minimax-m3}' "$driver" \
-  && ok "evaluator chain is ollama -> openrouter twin" || bad "evaluator chain is ollama -> openrouter twin" "missing evaluator chain"
+# NO-SINGLE-PROVIDER-ROLE IS RETIRED (Mark, 2026-09-08). It required every role to name at
+# least two providers across its chain, and pinned the evaluator to an exact
+# ollama -> openrouter twin -> codex tail. The driver has since moved the evaluator to
+# claude:claude-sonnet-4-6,claude:claude-haiku-4-5,opus, and cross-provider breadth is a
+# nice-to-have here, not a release blocker — so the assertion went red for eight consecutive
+# CI runs (including the v0.35.3 release) while guarding a policy nobody intended to keep.
+# Do NOT reinstate an exact-chain grep: it re-freezes a routing decision that is meant to move.
+# The evaluator's live guards are the two below — codex stays the LAST rung (D-62, generator
+# != judge at vendor level), and anthropic-pinned roles get a pre-flight probe.
+# The codex rung must stay LAST. The executor is codex:gpt-5.6-sol, so promoting a codex
+# judge above minimax would make the vendor-level generator==judge collision the DEFAULT
+# rather than the last resort before having no judge at all (2026-09-05).
+grep -q 'MISSION_EVALUATOR_FALLBACK:-codex:' "$driver" \
+  && bad "codex is the evaluator's LAST rung" "a codex judge was promoted to the head of the chain" \
+  || ok "codex is the evaluator's LAST rung"
+# ANTHROPIC PRE-FLIGHT (2026-09-05). The codex and pi loops only ever inspect codex:*
+# and pi:* values, so before this existed an anthropic-pinned role (the sonnet evaluator,
+# a claude:* designer) was probed by NOTHING and a dry bucket killed it mid-iteration.
+grep -q '_an_probed' "$driver" && grep -q '_mc_probe "\$an_model"' "$driver" \
+  && ok "anthropic lanes get a role pre-flight" || bad "anthropic lanes get a role pre-flight" "no anthropic role probe"
+# It must NOT tail to opus. Opus is anthropic, so on the exact failure this loop exists for
+# it is guaranteed dry too — an opus tail would launder a drought into a later failure.
+grep -A40 '_an_probed=' "$driver" | grep -q "fbvar=\"MISSION_\${role}_FALLBACK\"; _chain=\"\${!fbvar:-}\"" \
+  && ok "anthropic pre-flight has no implicit opus tail" \
+  || bad "anthropic pre-flight has no implicit opus tail" "an opus default crept into the anthropic chain"
+# All four roles must be walked by ALL THREE provider loops (anthropic, codex, pi), or a
+# role's chain is decoration on whichever loop skipped it.
+[ "$(grep -c 'for role in DESIGNER PLANNER EXECUTOR EVALUATOR; do' "$driver")" = "3" ] \
+  && ok "all three provider loops cover all four roles" \
+  || bad "all three provider loops cover all four roles" "a loop still covers only PLANNER EXECUTOR"
+# The designer needs a chain for the PINNED case; the rotation covers the rotating one.
+grep -q 'MISSION_DESIGNER_FALLBACK:-codex:gpt-6-astra' "$driver" \
+  && ok "pinned designer has a codex rung" || bad "pinned designer has a codex rung" "designer chain missing"
+# ASTRA IS OUT OF THE CONTROLLER LADDER (2026-09-06, on measurement). It was 60% of codex
+# spend: four overnight CONTROLLER fires cost 2,121,499 tokens, because a controller drives the
+# whole iteration and re-sends the fixed context on every turn. It remains the DESIGNER, where
+# the Fable diet bounds it to one run per iteration — which is exactly why that role never
+# showed up in the burn.
+grep -qE 'MISSION_(MODEL_PREFS|CONTROLLER_FALLBACK):-[^}]*gpt-6-astra' "$driver" \
+  && bad "astra is NOT a controller rung" "astra is back in a controller ladder" \
+  || ok "astra is NOT a controller rung"
+# RETIERED 2026-09-22 (Mark, attended): opus-5 -> opus-5-5, gpt-5.6-sol -> gpt-6-sol, and
+# fable-5-1 DROPPED from the controller. It sat last in an ordered preference list at $10/$50,
+# 2.5x the price of the head — a degrade chain whose final rung is its most expensive model.
+# It also bought almost nothing under an account-wide Anthropic limit (see the 08-16 note
+# below), and dropping it restores Mark's 2026-07-16 rule that Fable is for high-cognition
+# ROLES. The ladder is now monotonically cheaper with one bucket per rung.
+grep -q 'MISSION_MODEL_PREFS:-claude-opus-5-5,codex:gpt-6-sol}' "$driver" \
+  && ok "controller ladder is opus-5-5 -> gpt-6-sol (fable dropped 2026-09-22)" \
+  || bad "controller ladder is opus-5-5 -> gpt-6-sol (fable dropped 2026-09-22)" "wrong ladder"
+# The reorder-to-Anthropic-first arm is deliberately NOT reinstated. Anthropic's limit is
+# account-wide, not per-model — the 08-16 drought quota-limited opus-5, opus-4-8 AND fable-5
+# together — so "opus spent but fable healthy" is not a state this account reaches, and the
+# reorder only bought an extra failed probe on every fall-through.
+# The Sol rung moved OUT of the fallback head 2026-09-22: codex:gpt-6-sol is already the
+# prefs tail, and a rung that just failed its probe fails again ~20s later. The fallback now
+# starts where the prefs stop — at the first bucket the prefs did not try.
+grep -q 'MISSION_CONTROLLER_FALLBACK:-pi:ollama' "$driver" \
+  && ok "controller fallback starts at pi (sol de-duplicated 2026-09-22)" \
+  || bad "controller fallback starts at pi (sol de-duplicated 2026-09-22)" "missing"
+# The designer keeps its astra rung — the change is scoped to the controller.
+grep -q 'MISSION_DESIGNER_FALLBACK:-codex:gpt-6-astra' "$driver" \
+  && ok "designer keeps its astra rung" || bad "designer keeps its astra rung" "astra was removed from the designer too"
+
 # The chain walker must exist, or a comma value would be passed to pi as ONE
 # model name and every fallback would 404.
 grep -q '_chain_head()' "$driver" && grep -q 'CHAIN_REMAINING' "$driver" \
@@ -87,8 +287,17 @@ grep -q '_chain_head()' "$driver" && grep -q 'CHAIN_REMAINING' "$driver" \
 grep -q 'MISSION_EVALUATOR_FALLBACK:-pi:ollama/\(kimi\|deepseek\)' "$driver" \
   && bad "evaluator vendor is distinct from planner/executor" "evaluator shares a VENDOR with a generator" \
   || ok "evaluator vendor is distinct from planner/executor"
-grep -q 'MISSION_CONTROLLER_FALLBACK:-codex:gpt-5.6-sol' "$driver" \
-  && ok "controller has Codex Sol fallback" || bad "controller has Codex Sol fallback" "missing fallback"
+# AMENDED 2026-09-05 (Mark, attended): astra is ADDED to the controller chain
+# BEHIND sol, not ahead of it. Two arms, and they are different claims: the first
+# is the pre-existing guarantee that sol still LEADS the chain (it must not be
+# displaced); the second is that astra sits immediately behind it. Order is the
+# whole point of this change — reversing them would make astra the effective
+# codex controller, which is exactly what Mark declined.
+# INVERTED 2026-09-22: the assertion is now that codex does NOT appear in the fallback at
+# all, because it is in the prefs. A codex rung reappearing here is the duplicate coming back.
+grep -qE 'MISSION_CONTROLLER_FALLBACK:-[^}]*codex:' "$driver" \
+  && bad "controller fallback carries NO codex rung (it lives in prefs)" "codex duplicated across prefs and fallback again" \
+  || ok "controller fallback carries NO codex rung (it lives in prefs)"
 
 "$ROOT/scripts/mission_decisions.sh" --check --file "$ROOT/design_docs/v1-mission.md" >/dev/null \
   && ok "decision ledger validates" || bad "decision ledger validates" "invalid"
@@ -107,7 +316,7 @@ out=$(/bin/bash -c '
   _mc_probe() { return 1; }
   _mc_probe_codex() { [ "$1" = gpt-5.6-sol ]; }
   log() { :; }
-  PREFS="claude-opus-5,claude-fable-5"
+  PREFS="claude-opus-5,claude-fable-5-1"
   CONTROLLER_FALLBACK="codex:gpt-5.6-sol"
   OVERRIDE_FILE="$2/no-override"
   select_model || exit 1
@@ -134,7 +343,7 @@ out=$(/bin/bash -c '
   _mc_probe() { [ "$1" = claude-opus-5 ]; }
   _mc_probe_codex() { return 1; }
   log() { :; }
-  PREFS="claude-opus-5,claude-fable-5"
+  PREFS="claude-opus-5,claude-fable-5-1"
   CONTROLLER_FALLBACK="codex:gpt-5.6-sol"
   OVERRIDE_FILE="$2/no-override"
   select_model || exit 1
@@ -144,6 +353,245 @@ want "controller pin is exported to child processes (#696)" "$out" \
   "CONTROLLER_ID=claude:claude-opus-5|MC_EXPORT_CONTROL=sentinel|MODEL=claude-opus-5|MODEL_WHY=probe ok|"
 rm -rf "$lab"
 
+# --- M1 RESOLVER (M-SPAWN-PIN-ENFORCEMENT, 2026-09-03) -------------------------
+# resolve-role-spawn.sh maps a role's spawn pin to a recipe or agent-tool alias.
+# Each arm sets its own env explicitly (env -u / explicit assignments) so no arm
+# inherits another's. MISSION_EXECUTOR_RESOLVED is unset in the evaluator arms so
+# they exercise the raw MISSION_EXECUTOR_MODEL path (M3 has not landed yet).
+RESOLVE="$ROOT/tools/launchd/resolve-role-spawn.sh"
+
+# R1: provider pin (contains ':') -> recipe. Kills a deleted `:`-detection branch.
+out=$(MISSION_EXECUTOR_MODEL=codex:gpt-5.6-luna "$RESOLVE" executor)
+want "R1 provider pin resolves to a recipe" "$out" "recipe codex:gpt-5.6-luna declared:provider-pin"
+
+# R2: bare alias -> agent-tool. Kills a "make every pin a recipe" mutation.
+out=$(MISSION_DESIGNER_MODEL=fable "$RESOLVE" designer)
+want "R2 bare alias resolves to an agent-tool" "$out" "agent-tool fable declared:alias-pin"
+
+# R3: evaluator alias != executor resolved -> no collision (R4's false-positive control).
+out=$(env -u MISSION_EXECUTOR_RESOLVED -u MISSION_EVALUATOR_FALLBACK \
+  MISSION_EVALUATOR_MODEL=sonnet MISSION_EXECUTOR_MODEL=codex:gpt-5.6-sol "$RESOLVE" evaluator)
+want "R3 evaluator alias with distinct executor stays an agent-tool" "$out" "agent-tool sonnet declared:alias-pin"
+
+# R4: evaluator alias == executor resolved -> reroute to the fallback chain head.
+out=$(env -u MISSION_EXECUTOR_RESOLVED \
+  MISSION_EVALUATOR_MODEL=sonnet MISSION_EXECUTOR_MODEL=sonnet \
+  MISSION_EVALUATOR_FALLBACK=pi:ollama/minimax-m3:cloud,pi:openrouter/minimax/minimax-m3 "$RESOLVE" evaluator)
+want "R4 evaluator collision reroutes to the fallback head" "$out" "reroute pi:ollama/minimax-m3:cloud generator-equals-judge"
+
+# R4b: same collision but no fallback -> fail closed.
+out=$(env -u MISSION_EXECUTOR_RESOLVED -u MISSION_EVALUATOR_FALLBACK \
+  MISSION_EVALUATOR_MODEL=sonnet MISSION_EXECUTOR_MODEL=sonnet "$RESOLVE" evaluator)
+want "R4b evaluator collision with no fallback fails closed" "$out" "refuse fail-closed:evaluator-collision-no-fallback"
+
+# R5: planner consumes derive-planner-lane.sh; provider:model lane -> recipe, token copied through.
+out=$(MISSION_PLANNER_MODEL=pi:ollama/kimi-k3:cloud "$RESOLVE" planner \
+  "$ROOT/tools/launchd/testdata/planner-lane/c-clean-infra.md")
+want "R5 planner provider lane maps to a recipe" "$out" "recipe pi:ollama/kimi-k3:cloud declared:codex-ok"
+
+# R6: planner opus lane -> agent-tool opus, reason token copied through verbatim.
+out=$(MISSION_PLANNER_MODEL=codex:gpt-5.6-sol "$RESOLVE" planner \
+  "$ROOT/tools/launchd/testdata/planner-lane/a-unlisted-language-path.md")
+want "R6 planner opus lane maps to agent-tool opus" "$out" "agent-tool opus fail-closed:path-not-in-codex-allowlist"
+
+# R7: unknown role -> fail closed.
+out=$("$RESOLVE" judge)
+want "R7 unknown role fails closed" "$out" "refuse fail-closed:role-unknown"
+
+# --- M2 SPAWN-PIN HOOK WIRING (M-SPAWN-PIN-ENFORCEMENT, 2026-09-03) -----------
+# Arm W: the spawn-pin hook suite must be wired into make/test.mk, or a suite
+# that exists but is never invoked is green forever while enforcing nothing —
+# the same class as the "driver EXPORTS the planner allowlist" arm above.
+grep -q 'test_spawn_pin_hook.sh' "$ROOT/make/test.mk" \
+  && ok "spawn-pin hook suite is wired into make/test.mk" \
+  || bad "spawn-pin hook suite is wired into make/test.mk" "missing from make/test.mk"
+
+# --- M3 DRIVER EXPORTS + DOCS ALLOWLIST (M-SPAWN-PIN-ENFORCEMENT, 2026-09-03) --
+# D1: Layer 3 must publish the resolved plan only after lane degradation has
+# finished rewriting the role pins. Moving it beside the initial role exports
+# would publish stale values while the driver silently runs different ones.
+_res_line=$(grep -n 'export MISSION_CONTROL_ACTIVE=1' "$driver" | head -1 | cut -d: -f1)
+_deg_line=$(grep -nF 'codex ${role_lc} lane -> falling back to' "$driver" | head -1 | cut -d: -f1)
+if [ -n "$_res_line" ] && [ -n "$_deg_line" ] && [ "$_res_line" -gt "$_deg_line" ]; then
+  ok "D1 resolved-role exports come AFTER lane degradation (line $_res_line > $_deg_line)"
+else
+  bad "D1 resolved-role exports come AFTER lane degradation" "resolved=$_res_line degradation=$_deg_line"
+fi
+
+# D2: exercise the real Layer-3 block across a child-process boundary. As in
+# the #696 arm, unset ambient values and carry a known-positive export control
+# through the SAME /usr/bin/env call so a broken instrument cannot look green.
+lab=$(mktemp -d "${TMPDIR:-/tmp}/mission-layer3.XXXXXX") || exit 1
+awk '/^# Layer 3 \(M-SPAWN-PIN-ENFORCEMENT\):/,/^unset _role _mv _rv$/' "$driver" > "$lab/layer3.sh"
+out=$(/bin/bash -c '
+  set -uo pipefail
+  unset MISSION_DESIGNER_MODEL MISSION_PLANNER_MODEL MISSION_EXECUTOR_MODEL MISSION_EVALUATOR_MODEL
+  unset MISSION_DESIGNER_RESOLVED MISSION_PLANNER_RESOLVED MISSION_EXECUTOR_RESOLVED MISSION_EVALUATOR_RESOLVED
+  unset MISSION_DESIGNER_PATH MISSION_PLANNER_PATH MISSION_EXECUTOR_PATH MISSION_EVALUATOR_PATH
+  export MC_EXPORT_CONTROL=sentinel
+  MISSION_EXECUTOR_MODEL=codex:x
+  MISSION_EVALUATOR_MODEL=sonnet
+  . "$1"
+  /usr/bin/env | grep -E "^(MC_EXPORT_CONTROL|MISSION_(EXECUTOR|EVALUATOR)_(RESOLVED|PATH))=" | LC_ALL=C sort | tr "\n" "|"
+' _ "$lab/layer3.sh")
+want "D2 resolved role plan is exported to child processes" "$out" \
+  "MC_EXPORT_CONTROL=sentinel|MISSION_EVALUATOR_PATH=agent-tool|MISSION_EVALUATOR_RESOLVED=sonnet|MISSION_EXECUTOR_PATH=recipe|MISSION_EXECUTOR_RESOLVED=codex:x|"
+rm -rf "$lab"
+
+# Arm 12: the versioned docs allowlist admits top-level scripts/* while the
+# exact pre-widening list remains the fail-closed control.
+lab=$(mktemp -d "${TMPDIR:-/tmp}/mission-arm12.XXXXXX") || exit 1
+cat > "$lab/scripts-doc.md" <<'EOF'
+**Planner-Lane**: codex-ok
+
+## Files
+- `scripts/verify_examples.go`
+EOF
+out=$(/bin/bash -c 'unset MISSION_PLANNER_ALLOWLIST; . "$1"; export MISSION_PLANNER_ALLOWLIST; MISSION_PLANNER_MODEL=codex:gpt-5.6-luna "$2" "$3"' \
+  _ "$docsenv" "$DERIVE" "$lab/scripts-doc.md")
+want "arm12 docs allowlist admits top-level scripts" "$out" "codex:gpt-5.6-luna declared:codex-ok"
+PRE_SCRIPTS_AL='tools/*|.claude/skills/mission-control/SKILL.md|.claude/skills/design-doc-creator/*|docs/*|examples/*|README.md|CHANGELOG.md|.claude/skills/docs-sync/scripts/*'
+out=$(MISSION_PLANNER_ALLOWLIST="$PRE_SCRIPTS_AL" MISSION_PLANNER_MODEL=codex:gpt-5.6-luna \
+  "$DERIVE" "$lab/scripts-doc.md")
+want "arm12 pre-widening allowlist still denies top-level scripts" "$out" "opus fail-closed:path-not-in-codex-allowlist"
+rm -rf "$lab"
+
+# --- M4 SKILL DELIVERY GUARDS (M-SPAWN-PIN-ENFORCEMENT, 2026-09-03) ------------
+# THE SKILL IS NOW CORE + RESOURCES (2026-09-06 context split). Gate rules moved to
+# resources/ so the always-loaded prefix fell 63k -> 12k tokens; the RULES did not move
+# out of existence, so an arm that asserts a rule exists must look in both places.
+# Concatenating is deliberate: an arm that silently stopped matching because its text
+# moved one file over would be a test passing for the wrong reason, which is the failure
+# class this suite exists to catch.
+skill="$ROOT/.claude/skills/mission-control/SKILL.md"
+skill_all=$(mktemp -t skill_all) || exit 1
+cat "$ROOT/.claude/skills/mission-control/SKILL.md" \
+    "$ROOT"/.claude/skills/mission-control/resources/*.md > "$skill_all" 2>/dev/null
+trap 'rm -f "$skill_all"' EXIT
+if grep -q 'resolve-role-spawn.sh' "$skill_all" && grep -q 'MISSION-ROLE:' "$skill_all"; then
+  ok "S1 mission-control skill invokes resolver and requires role tokens"
+else
+  bad "S1 mission-control skill invokes resolver and requires role tokens" "resolver call or MISSION-ROLE token missing"
+fi
+# The longer literal is line-wrapped and cannot be matched by line-oriented grep.
+grep -q 'enum in this build lists' "$skill_all" \
+  && ok "S2 fable capability paragraph survives the spawn-pattern edit" \
+  || bad "S2 fable capability paragraph survives the spawn-pattern edit" "capability control missing"
+
+# S3/S4/S5 — astra's placement, and the collision it creates. Rewritten 2026-09-05
+# after Mark corrected the first attempt: astra is an ADDITIONAL fable-class entry
+# to vary between, NOT a replacement for fable's slot.
+# AMENDED 2026-09-22 (Mark, attended): opus-5-5 REPLACES fable-5-1 in the Anthropic authoring
+# slot — cheaper ($4/$20 vs $10/$50) at the property that put Fable here (thinking that cannot
+# be disabled at all). Astra and deepseek are untouched, so this stays a three-entry rotation
+# across three billing surfaces.
+# AMENDED 2026-09-25 (Mark, attended): GLM 5.3 and Kimi K3 replace deepseek-v4-flash, so
+# designers and quorum reviewers share one vendor pool.
+grep -q 'now `claude:claude-opus-5-5` → `codex:gpt-6-astra` → `pi:ollama/glm-5.3:cloud` → `pi:ollama/kimi-k3:cloud` → repeat' "$skill_all" \
+  && ok "S3 designer rotation is opus-5-5 -> astra -> glm-5.3 -> kimi-k3 (four vendors)" \
+  || bad "S3 designer rotation is opus-5-5 -> astra -> glm-5.3 -> kimi-k3 (four vendors)" "rotation is not the four-entry list"
+grep -q 'MISSION_DESIGNER_FALLBACK:-codex:gpt-6-astra,pi:ollama/glm-5.3:cloud,pi:ollama/kimi-k3:cloud,pi:openrouter/z-ai/glm-5.3,pi:openrouter/moonshotai/kimi-k3' tools/launchd/mission-control.sh \
+  && ok "S3b designer fallback chain follows the rotation (astra -> glm-5.3 -> kimi-k3)" \
+  || bad "S3b designer fallback chain follows the rotation (astra -> glm-5.3 -> kimi-k3)" "driver chain still names another model"
+# The driver seed must NOT have moved: astra is a rotation entry, so nothing pins it.
+# This is the arm that dies if someone re-applies the "astra takes the fable slot"
+# version, which looked identical in a role table and was not what was asked for.
+# The seed moved to opus-5-5 with the rotation. What this arm still defends is unchanged and
+# is the reason it exists: astra must NOT become the pin. It is a rotation entry to vary
+# between, not a replacement for the Anthropic slot — the version Mark declined in 2026-09-05
+# looked identical in a role table.
+grep -q 'MISSION_DESIGNER_MODEL:-claude:claude-opus-5-5' "$driver" \
+  && ok "S4 designer seed is the Anthropic slot (opus-5-5), not astra" \
+  || bad "S4 designer seed is the Anthropic slot (opus-5-5), not astra" "seed is not opus-5-5"
+# S5: astra (and opus) sit in the designer rotation AND on the quorum roster. Since
+# 2026-09-25 the quorum benches the author's vendor itself, but only if the loop
+# says who the author was — this arm fails if the skill stops telling the
+# controller to pass --author.
+if grep -q -- '--author "<designer lane>"' "$skill_all"; then
+  ok "S5 skill passes the designer to design-quorum as --author"
+else
+  bad "S5 skill passes the designer to design-quorum as --author" "no --author instruction — the author's vendor would review its own doc"
+fi
+
 echo ""
+# PER-ROLE TOKEN ATTRIBUTION (2026-09-06). The fleet's cost KPI measures METERED dollars,
+# and every codex/Anthropic role is a subscription bucket billing $0 metered — so it cannot
+# see quota burn. The driver logs the CONTROLLER's tokens only; planner and executor are
+# separate `codex exec` processes whose totals reach no log. The routing-evidence row is the
+# only place that knows which model ran which role, so it is where the number has to land.
+grep -q 'RECORD PER-ROLE TOKEN COST' "$skill_all" \
+  && ok "Gate 4 requires per-role token cost in the routing-evidence row" \
+  || bad "Gate 4 requires per-role token cost in the routing-evidence row" "the rule is missing — 'which role should move off codex' has no evidence without it"
+grep -q 'tok: not reported' "$skill_all" \
+  && ok "an unreported lane must be stated, not omitted" \
+  || bad "an unreported lane must be stated, not omitted" "a silent gap reads as zero"
+
+# ─── CONTEXT BUDGET (2026-09-06) ─────────────────────────────────────────────
+# The controller's SKILL.md is loaded into every session and RE-SENT ON EVERY TURN, so
+# its size multiplies by turn count. Measured 2026-09-05: at 251,637 B (~63k tokens) it
+# cost ~3.1M input tokens per iteration before reading a single file, and astra — which
+# takes the most turns — became 60% of all codex spend and emptied the weekly bucket in
+# a day. Split to ~47k B (~12k tokens) with each gate's rules in resources/, read on
+# arrival. This budget is what stops it growing back one paragraph at a time.
+_skill=".claude/skills/mission-control/SKILL.md"
+_skill_b=$(wc -c < "$_skill" | tr -d ' ')
+if [ "$_skill_b" -le 60000 ]; then
+  ok "controller skill is within the context budget (${_skill_b} B <= 60000)"
+else
+  bad "controller skill is within the context budget" "${_skill_b} B > 60000 — move a section to resources/, do not raise the budget"
+fi
+
+# Every gate must have its rules SOMEWHERE, and the stub must point at a file that exists.
+# A stub pointing at a missing file is worse than inline text: the gate silently runs with
+# no rules at all.
+_gate_missing=0
+for _g in $(grep -oE 'resources/gate-[a-z0-9-]+\.md' "$_skill" | sort -u); do
+  [ -f ".claude/skills/mission-control/$_g" ] || { _gate_missing=1; echo "    missing: $_g"; }
+done
+[ "$_gate_missing" -eq 0 ] && ok "every gate stub points at a resource that exists" \
+  || bad "every gate stub points at a resource that exists" "a stub references a missing file"
+
+# All seven gates must still be reachable.
+_gate_count=$(grep -cE '^## Gate [0-9]' "$_skill")
+[ "$_gate_count" -ge 7 ] && ok "all seven gate stubs are present (${_gate_count})" \
+  || bad "all seven gate stubs are present" "only ${_gate_count} — a gate was dropped in the split"
+
+# CACHING: the volatile Current State block must stay LAST. Prompt caching keys on a
+# byte-identical prefix, so any stable text placed after it can never be cached.
+_first_dyn=$(grep -n "!'" "$_skill" | head -1 | cut -d: -f1)
+_total=$(wc -l < "$_skill" | tr -d ' ')
+if [ -n "$_first_dyn" ] && [ "$_first_dyn" -gt $(( _total * 9 / 10 )) ]; then
+  ok "volatile Current State stays in the last 10% (cacheable prefix preserved)"
+else
+  bad "volatile Current State stays in the last 10%" "first dynamic block at line ${_first_dyn} of ${_total} — everything after it is uncacheable"
+fi
+
+# ─── REGISTRY-PARAMETERISED ARMS (M-MISSION-LOOP-WORKBENCH Phase 3) ──────────
+# Every mission in missions/ is checked here. Adding a mission adds its coverage with
+# NO new test file — which is the point: the suites used to hardcode one mission's env
+# path (docsenv), so a fifth mission would have been silently uncovered.
+for _mtoml in "$ROOT"/missions/*.toml; do
+  [ -e "$_mtoml" ] || continue
+  _mname=$(sed -n 's/^name[[:space:]]*=[[:space:]]*"\(.*\)"/\1/p' "$_mtoml" | head -1)
+  [ -n "$_mname" ] || { bad "registry entry $_mtoml declares a name" "no name field"; continue; }
+  ok "registry entry $_mname parses"
+
+  # Every entry must name a schedule mode the renderer can render.
+  _mmode=$(sed -n 's/^mode[[:space:]]*=[[:space:]]*"\(.*\)"/\1/p' "$_mtoml" | head -1)
+  case "$_mmode" in
+    keepalive|interval) ok "$_mname schedule mode is renderable ($_mmode)" ;;
+    *) bad "$_mname schedule mode is renderable" "got '$_mmode'" ;;
+  esac
+
+  # THE SCOPE CUT, enforced in the shell suite too: role/model assignment belongs to
+  # M-MODEL-REGISTRY-SINGLE-SOURCE, not here.
+  if grep -q '^\[roles\]' "$_mtoml"; then
+    bad "$_mname declares no [roles] block" "a [roles] block would be a second source of model assignment"
+  else
+    ok "$_mname declares no [roles] block"
+  fi
+done
+
+
 echo "==== $PASS passed, $FAIL failed ===="
 [ "$FAIL" -eq 0 ]

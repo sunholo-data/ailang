@@ -1,0 +1,64 @@
+{
+  "doc": "design_docs/planned/v0_36_0/m-gate1-shared-clone-ref-drift.md",
+  "iso_ts": "2026-09-06T08:49:20Z",
+  "reviewers": [
+    {
+      "model": "gpt6-astra",
+      "cost_usd": 0,
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "present": false,
+      "absent_reason": "auth",
+      "error": "reviewer \"gpt6-astra\" needs OPENAI_API_KEY (openai provider) — not set",
+      "landed": null
+    },
+    {
+      "model": "gemini-3-1-pro",
+      "cost_usd": 0.026524,
+      "tokens_in": 11132,
+      "tokens_out": 355,
+      "present": true,
+      "result": {
+        "verdict": "reject",
+        "strongest_objection": "PREMISE VERIFICATION: The document asserts several critical codebase states that are entirely absent from the Verification Log. Specifically, it claims Gate 3b already uses `target=$(git rev-parse origin/dev)` and Gate 2 uses `git fetch origin` at §780-794, but neither snippet is verified. More severely, it claims `mission-heartbeat.sh` requires no changes because its 'label whitelist already accepts arbitrary strings as the note', but the design places `base-\u003clabel\u003e` into the *label* field itself, without verifying if the existing whitelist will reject the new `base-*` labels.",
+        "catch": "Unverified codebase claims for Gate 2/Gate 3b, unverified `mission-heartbeat.sh` whitelist behavior which likely blocks the new labels, and a bash implementation bug in `record()` (`snap || return $?` outputs to stdout, causing the function to echo the tuple twice).",
+        "proposed_fix": "1. Add Verification Log entries measuring the Gate 3b `target=` snippet, the Gate 2 §780-794 `fetch` behavior, and the exact label whitelist logic in `mission-heartbeat.sh`. 2. If `mission-heartbeat.sh` enforces a whitelist on the third column, update the Conflict Surface to explicitly add `base-*` to the allowed labels. 3. In `mission-base.sh`, remove the bare `snap || return $?` line from `record()` to prevent duplicating the tuple in standard output before the command substitution runs."
+      },
+      "landed": null
+    },
+    {
+      "model": "oc-glm-5-2",
+      "cost_usd": 0.020169140000000002,
+      "tokens_in": 10286,
+      "tokens_out": 2120,
+      "present": true,
+      "result": {
+        "verdict": "reject",
+        "strongest_objection": "The `record()` function in the proposed `mission-base.sh` calls `snap` twice — once on line `snap || return $?` (discarding the output) and again on `IFS=$'\t' read -r sha iso \u003c\u003c\u003c \"$(snap)\"` — to read the same shared ref. Between these two calls a sibling's fetch can advance `origin/dev`, so the SHA written to the heartbeat may differ from the one the first `snap` resolved. The instrument designed to detect ref-drift introduces the exact ref-drift race it exists to prevent, inside its own measurement path. A `rev-parse` is atomic; calling it twice is not.",
+        "catch": "Gate 3b's drift invocation (`bash tools/launchd/mission-base.sh drift gate1 2\u003e/dev/null`) suppresses stderr, so if `base-gate1` was never recorded (exit 2, 'no base record yet'), the error is silently swallowed and the gate proceeds — a silent fallback in violation of the no-silent-fallback axiom. Additionally, the doc asserts `mission-heartbeat.sh` 'already accepts arbitrary strings as the label' but Verification Log row 4 only confirms the printf format, not whether a label whitelist or validation gate exists that would reject `base-\u003clabel\u003e` values.",
+        "proposed_fix": "Replace the double-snap in `record()` with a single captured snap: `out=$(snap) || return $?; IFS=$'\\t' read -r sha iso \u003c\u003c\u003c \"$out\" || return $?`. This makes one atomic `rev-parse` the sole source of the recorded SHA. Remove the `2\u003e/dev/null` from Gate 3b's drift call (or handle exit 2 explicitly as 'no base recorded — abort, Gate 1 did not stamp'). Add a verification-log row that runs `grep -n` for any label validation/whitelist logic in `mission-heartbeat.sh` (e.g., `case`/`grep -e` on the label argument) and confirms `base-gate1` is accepted or rejected, with a positive control showing a known-good label value passing."
+      },
+      "landed": null
+    }
+  ],
+  "controller_in_session": {
+    "verdict": "pass",
+    "note": "Controller verified the doc's load-bearing premises first-party in this worktree: SKILL.md is 2781 lines matching baseline line 19 exactly; all four S-guard literals present (S2 at line 1118); .agents stub is a distinct 551-line file with no sync mechanism; make check-context-docs rc=0; heartbeat 5-column tab format exact. Non-vacuity mutation story is concrete and executable. Doc is sprint-sized (3 milestones ~3 days)."
+  },
+  "synthesis": {
+    "verdict": "blocked",
+    "blocking_objections": [
+      "gemini-3-1-pro: PREMISE VERIFICATION: The document asserts several critical codebase states that are entirely absent from the Verification Log. Specifically, it claims Gate 3b already uses `target=$(git rev-parse origin/dev)` and Gate 2 uses `git fetch origin` at §780-794, but neither snippet is verified. More severely, it claims `mission-heartbeat.sh` requires no changes because its 'label whitelist already accepts arbitrary strings as the note', but the design places `base-\u003clabel\u003e` into the *label* field itself, without verifying if the existing whitelist will reject the new `base-*` labels.",
+      "oc-glm-5-2: The `record()` function in the proposed `mission-base.sh` calls `snap` twice — once on line `snap || return $?` (discarding the output) and again on `IFS=$'\t' read -r sha iso \u003c\u003c\u003c \"$(snap)\"` — to read the same shared ref. Between these two calls a sibling's fetch can advance `origin/dev`, so the SHA written to the heartbeat may differ from the one the first `snap` resolved. The instrument designed to detect ref-drift introduces the exact ref-drift race it exists to prevent, inside its own measurement path. A `rev-parse` is atomic; calling it twice is not."
+    ],
+    "absent_reviewers": [
+      {
+        "model": "gpt6-astra",
+        "reason": "auth"
+      }
+    ],
+    "total_cost_usd": 0.04669314,
+    "total_tokens_in": 21418,
+    "total_tokens_out": 2475
+  }
+}

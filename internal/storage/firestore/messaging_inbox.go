@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/sunholo-data/ailang/internal/mapval"
 	"github.com/sunholo-data/ailang/internal/messaging"
 )
 
@@ -19,10 +20,12 @@ func (s *MessagingStore) InsertInboxMessage(msg *messaging.InboxMessage) error {
 	return s.InsertInboxMessageWithContext(context.Background(), msg)
 }
 
-func (s *MessagingStore) InsertInboxMessageWithContext(ctx context.Context, msg *messaging.InboxMessage) error {
-	if msg.ID == "" {
-		msg.ID = fmt.Sprintf("inbox_%d_%s", time.Now().UnixMilli(), generateShortID())
-	}
+// normalizeInboxDefaults fills the fields every write path must agree on.
+//
+// Shared by InsertInboxMessageWithContext and PutMessageIfAbsent so the two
+// cannot drift: a finalisation replay that normalized differently would produce a
+// document that looks like a different message.
+func normalizeInboxDefaults(msg *messaging.InboxMessage) {
 	// MessageID is the stable business identifier used by the Pub/Sub publisher
 	// (MessageNotification.MessageID) and by the daemon's downstream fetch. For
 	// the Firestore backend the doc ID is the only lookup key (GetInboxMessage
@@ -42,6 +45,21 @@ func (s *MessagingStore) InsertInboxMessageWithContext(ctx context.Context, msg 
 	}
 	if msg.CreatedAt.IsZero() {
 		msg.CreatedAt = time.Now()
+	}
+}
+
+func (s *MessagingStore) InsertInboxMessageWithContext(ctx context.Context, msg *messaging.InboxMessage) error {
+	if msg.ID == "" {
+		msg.ID = fmt.Sprintf("inbox_%d_%s", time.Now().UnixMilli(), generateShortID())
+	}
+	normalizeInboxDefaults(msg)
+	// Populate the search index at write time, exactly as the SQLite backend does.
+	// Without this every cloud-written message landed with simhash=nil, and both
+	// SemanticSearch and FindDuplicates skip such documents — so `messages search`
+	// against the canonical prod store scanned everything and matched nothing.
+	if msg.Simhash == nil {
+		h := messaging.ComputeSimhash(msg.Title, msg.Payload)
+		msg.Simhash = &h
 	}
 	_, err := s.client.Doc(collInbox, msg.ID).Set(ctx, inboxToMap(msg))
 	return err
@@ -246,7 +264,7 @@ func (s *MessagingStore) InboxMessageExistsByTitle(inbox string, title string) (
 	if err != nil {
 		return "", err
 	}
-	return getString(doc.Data(), "id"), nil
+	return mapval.String(doc.Data(), "id"), nil
 }
 
 func (s *MessagingStore) UpdateInboxMessageGitHub(messageID string, issueNumber int, repo string) error {
@@ -309,7 +327,7 @@ func (s *MessagingStore) CountInboxMessagesByStatus(inbox string) (map[string]in
 		if err != nil {
 			return nil, err
 		}
-		st := getString(doc.Data(), "status")
+		st := mapval.String(doc.Data(), "status")
 		if st != "" {
 			counts[st]++
 		}
@@ -338,8 +356,8 @@ func (s *MessagingStore) GetMessageFlowEdges() ([]messaging.MessageFlowEdge, err
 			return nil, err
 		}
 		data := doc.Data()
-		from := getString(data, "from_agent")
-		to := getString(data, "to_inbox")
+		from := mapval.String(data, "from_agent")
+		to := mapval.String(data, "to_inbox")
 		if from == "" || to == "" {
 			continue
 		}
@@ -384,8 +402,8 @@ func (s *MessagingStore) GetActiveAgents() ([]messaging.ActiveAgent, error) {
 			return nil, err
 		}
 		data := doc.Data()
-		from := getString(data, "from_agent")
-		to := getString(data, "to_inbox")
+		from := mapval.String(data, "from_agent")
+		to := mapval.String(data, "to_inbox")
 
 		if from != "" {
 			if a, ok := agents[from]; ok {

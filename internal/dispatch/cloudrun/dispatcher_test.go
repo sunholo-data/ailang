@@ -2,7 +2,9 @@ package cloudrun
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 	"testing"
 
 	run "cloud.google.com/go/run/apiv2"
@@ -81,11 +83,22 @@ func TestDispatchEnvVarOverrides(t *testing.T) {
 	}
 
 	envVars := overrides.ContainerOverrides[0].Env
-	if len(envVars) != 7 {
-		t.Fatalf("expected 7 env vars, got %d", len(envVars))
+
+	// Assert the base set is PRESENT rather than counting it. A count breaks
+	// every time a base var is legitimately added (it did, when
+	// M-COORDINATOR-EXECUTION-TRUST M1a added AILANG_WORK_TIER) and says
+	// nothing about which var is missing when it fails.
+	for _, name := range []string{
+		"AILANG_TASK_ID", "AILANG_AGENT_ID", "AILANG_WORKSPACE", "AILANG_PROVIDER",
+		"AILANG_DIRECTIVE", "AILANG_REPO_URL", "AILANG_BRANCH", "AILANG_WORK_TIER",
+		"AILANG_ACKNOWLEDGE_ONLY",
+	} {
+		if !hasEnvVar(envVars, name) {
+			t.Errorf("base env var %s not set", name)
+		}
 	}
 
-	// Verify all 7 env vars are set correctly
+	// Verify the base env vars carry the right values
 	expectedEnv := map[string]string{
 		"AILANG_TASK_ID":   "task-12345678",
 		"AILANG_AGENT_ID":  "design-doc-creator",
@@ -94,6 +107,16 @@ func TestDispatchEnvVarOverrides(t *testing.T) {
 		"AILANG_DIRECTIVE": "Fix the parser bug",
 		"AILANG_REPO_URL":  "https://github.com/sunholo-data/ailang",
 		"AILANG_BRANCH":    "dev",
+		// Unset on a bare DispatchParams — and empty is exactly what the gate
+		// reads as tier 2. The fail-closed default is the assertion here.
+		"AILANG_WORK_TIER": "",
+		// false on a bare DispatchParams — the Go zero value IS the loud
+		// direction, which is why the field is named acknowledge-only.
+		"AILANG_ACKNOWLEDGE_ONLY": "false",
+		// Empty on a bare DispatchParams: the job then falls back to deriving a
+		// subject from the directive, which is the pre-2026-09-14 behaviour and
+		// still correct for a dispatcher that sends no title.
+		"AILANG_TASK_TITLE": "",
 	}
 
 	for _, env := range envVars {
@@ -161,9 +184,11 @@ func TestDispatchPluginRepoEnvVar(t *testing.T) {
 	}
 
 	envVars := mock.lastReq.Overrides.ContainerOverrides[0].Env
-	// 7 base + PushBranch + PluginRepo = 9
-	if len(envVars) != 9 {
-		t.Fatalf("expected 9 env vars (7 base + PushBranch + PluginRepo), got %d", len(envVars))
+	// Presence, not arithmetic — see TestDispatchEnvVarOverrides.
+	for _, name := range []string{"AILANG_PUSH_BRANCH", "AILANG_PLUGIN_REPO", "AILANG_WORK_TIER"} {
+		if !hasEnvVar(envVars, name) {
+			t.Errorf("env var %s not set", name)
+		}
 	}
 
 	// Verify PluginRepo is set
@@ -388,4 +413,116 @@ func TestDispatchDifferentRegions(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestCheckVariantProviderAgreement pins the guard on the mismatch measured
+// 2026-08-28: task-a0628a5f dispatched to ailang-agent-executor-codex, ran the
+// opencode executor, and died on "executable file not found in $PATH" only
+// after cloning 24,032 files.
+func TestCheckVariantProviderAgreement(t *testing.T) {
+	tests := []struct {
+		name     string
+		variant  string
+		provider string
+		wantErr  bool
+	}{
+		// The measured production failure.
+		{"codex image running opencode -> REFUSE", "codex", "opencode", true},
+		{"pi image running codex -> REFUSE", "pi", "codex", true},
+		{"default image running pi -> REFUSE", "", "pi", true},
+		{"go image running codex -> REFUSE", "go", "codex", true},
+
+		// Correct pairings must dispatch.
+		{"codex/codex", "codex", "codex", false},
+		{"codex-go/codex", "codex-go", "codex", false},
+		{"pi/pi", "pi", "pi", false},
+		{"opencode/opencode", "opencode", "opencode", false},
+		{"motoko/motoko", "motoko", "motoko", false},
+		{"default/claude", "", "claude", false},
+		{"default alias/claude", "default", "claude", false},
+		{"go/claude", "go", "claude", false},
+
+		// agent-eval installs every CLI — it must never be refused.
+		{"eval image runs anything", "eval", "opencode", false},
+		{"eval-go image runs anything", "eval-go", "pi", false},
+
+		// managed_agents is a remote API and needs no binary on PATH.
+		{"managed_agents in codex image", "codex", "managed_agents", false},
+		{"managed_agents in pi image", "pi", "managed_agents", false},
+
+		// An empty provider leaves the image default in charge.
+		{"empty provider", "codex", "", false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := checkVariantProviderAgreement(tc.variant, tc.provider)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("checkVariantProviderAgreement(%q,%q) err=%v, wantErr=%v",
+					tc.variant, tc.provider, err, tc.wantErr)
+			}
+			if tc.wantErr && !strings.Contains(err.Error(), tc.provider) {
+				t.Errorf("error must name the offending provider %q, got: %v", tc.provider, err)
+			}
+		})
+	}
+}
+
+// TestProvidersForVariantCoversKnownVariants keeps the compatibility table and
+// the accepted-variant set from drifting apart: a variant that dispatch accepts
+// but the table has never heard of would silently skip the check.
+func TestProvidersForVariantCoversKnownVariants(t *testing.T) {
+	for variant := range knownVariants {
+		if _, ok := providersForVariant[variant]; !ok {
+			t.Errorf("variant %q is accepted by jobSuffixForVariant but absent from providersForVariant", variant)
+		}
+	}
+}
+
+// countingRunner records whether the Cloud Run API was ever reached.
+type countingRunner struct{ calls int }
+
+func (c *countingRunner) RunJob(_ context.Context, _ *runpb.RunJobRequest, _ ...gax.CallOption) (*run.RunJobOperation, error) {
+	c.calls++
+	return nil, errors.New("countingRunner: API reached")
+}
+
+// TestDispatchRefusesVariantProviderMismatch proves the guard is WIRED INTO
+// Dispatch, not merely present in the package.
+//
+// This arm exists because the first version of these tests called
+// checkVariantProviderAgreement directly, and a mutant that deleted the call
+// from Dispatch left every one of them green — a guard nothing invokes is worth
+// nothing. The assertion that matters is that the Cloud Run API is never
+// reached: the whole point is to refuse BEFORE a container starts and clones
+// 24,032 files to discover the same thing.
+func TestDispatchRefusesVariantProviderMismatch(t *testing.T) {
+	runner := &countingRunner{}
+	d := newDispatcherWithClient(runner, "proj", "europe-west1", "ailang")
+
+	err := d.Dispatch(context.Background(), coordinator.DispatchParams{
+		TaskID:          "task-a0628a5f",
+		AgentID:         "sprint-planner",
+		ExecutorVariant: "codex",
+		Provider:        "opencode", // the measured production mismatch
+		AuthMode:        "oauth",
+	})
+	if err == nil {
+		t.Fatal("Dispatch accepted a codex image running the opencode executor")
+	}
+	if !strings.Contains(err.Error(), "opencode") {
+		t.Errorf("error should name the offending provider, got: %v", err)
+	}
+	if runner.calls != 0 {
+		t.Errorf("Cloud Run API was called %d time(s); the mismatch must be refused before dispatch", runner.calls)
+	}
+}
+
+// hasEnvVar reports whether a Cloud Run env var of the given name is present.
+func hasEnvVar(envVars []*runpb.EnvVar, name string) bool {
+	for _, env := range envVars {
+		if env.Name == name {
+			return true
+		}
+	}
+	return false
 }

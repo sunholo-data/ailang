@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"math"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/ollama/ollama/api"
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // Embedder provides text embedding capabilities for semantic search
@@ -129,33 +130,35 @@ func LoadEmbedConfigFromEnv() EmbedConfig {
 	}
 
 	// Environment variables override config file
-	if provider := os.Getenv("AILANG_EMBED_PROVIDER"); provider != "" {
+	if provider := config.EmbedProvider(); provider != "" {
 		cfg.Provider = provider
 	}
-	if model := os.Getenv("AILANG_OLLAMA_MODEL"); model != "" {
+	if model := config.EmbedOllamaModel(); model != "" {
 		cfg.Ollama.Model = model
 	}
-	if endpoint := os.Getenv("AILANG_OLLAMA_ENDPOINT"); endpoint != "" {
+	if endpoint := config.EmbedOllamaEndpoint(); endpoint != "" {
 		cfg.Ollama.Endpoint = endpoint
 	}
 
-	// OpenAI env var defaults
+	// OpenAI env var defaults. The MODEL is deliberately left empty here:
+	// NewEmbedderFromConfig resolves it (env var, else the deprecated default
+	// with a warning), because this function cannot return an error.
 	if cfg.OpenAI.APIKey == "" {
-		cfg.OpenAI.APIKey = os.Getenv("OPENAI_API_KEY")
+		cfg.OpenAI.APIKey = config.OpenAIAPIKey()
 	}
-	if cfg.OpenAI.Model == "" {
-		cfg.OpenAI.Model = "text-embedding-3-small"
+	if m := config.EmbedOpenAIModel(); m != "" {
+		cfg.OpenAI.Model = m
 	}
 	if cfg.OpenAI.Timeout == 0 {
 		cfg.OpenAI.Timeout = 30 * time.Second
 	}
 
-	// Gemini env var defaults
+	// Gemini env var defaults — same shape.
 	if cfg.Gemini.APIKey == "" {
-		cfg.Gemini.APIKey = os.Getenv("GOOGLE_API_KEY")
+		cfg.Gemini.APIKey = config.GoogleAPIKey()
 	}
-	if cfg.Gemini.Model == "" {
-		cfg.Gemini.Model = "text-embedding-004"
+	if m := config.EmbedGeminiModel(); m != "" {
+		cfg.Gemini.Model = m
 	}
 	if cfg.Gemini.Timeout == 0 {
 		cfg.Gemini.Timeout = 30 * time.Second
@@ -163,6 +166,49 @@ func LoadEmbedConfigFromEnv() EmbedConfig {
 
 	return cfg
 }
+
+// Environment variables naming the OpenAI and Gemini embedding models
+// (M-V1-SIMPLIFY-S4 M1). Precedence: env var > embeddings.<provider>.model in
+// ~/.ailang/config.yaml > the deprecated default below. Ollama's model already
+// has AILANG_OLLAMA_MODEL.
+const (
+	EnvEmbedOpenAIModel = config.EnvEmbedOpenAIModel
+	EnvEmbedGeminiModel = config.EnvEmbedGeminiModel
+)
+
+// The models served when nothing names one. Each fixes a VECTOR DIMENSION
+// (1536 and 768): a brain indexed under one model and queried under another
+// compares vectors of different geometry and returns confidently wrong
+// neighbours — no error, just silently corrupted search. That is why the
+// default is deprecated rather than merely documented: an operator must know
+// which model their stored vectors came from.
+const (
+	deprecatedOpenAIEmbedModel = "text-embedding-3-small"
+	deprecatedGeminiEmbedModel = "text-embedding-004"
+)
+
+// resolveEmbedModel serves the configured model, else the deprecated default
+// through config.DeprecatedDefault — one stderr warning per process naming
+// the env var, plus one line saying WHY the model must be pinned; under
+// AILANG_STRICT_CONFIG=1 an error wrapping config.ErrDeprecatedDefault.
+func resolveEmbedModel(configured, envName, deprecated string) (string, error) {
+	if configured != "" {
+		return configured, nil
+	}
+	model, err := config.DeprecatedDefault(envName, deprecated)
+	if err != nil {
+		return "", fmt.Errorf("embedding model: %w", err)
+	}
+	embedDimensionWarning.Do(func() {
+		fmt.Fprintf(os.Stderr, "%s: the embedding model fixes the vector dimension; a brain indexed under a different model "+
+			"will return silently wrong search results. Pin it so stored vectors and queries agree.\n", envName)
+	})
+	return model, nil
+}
+
+// embedDimensionWarning prints the dimension-mismatch consequence once per
+// process, alongside config.DeprecatedDefault's own once-per-name line.
+var embedDimensionWarning sync.Once
 
 // NewEmbedderFromConfig creates the appropriate Embedder based on config.
 // Returns (nil, nil) if provider is "none" — callers should check for nil.
@@ -174,11 +220,21 @@ func NewEmbedderFromConfig(cfg EmbedConfig) (Embedder, error) {
 		if cfg.OpenAI.APIKey == "" {
 			return nil, fmt.Errorf("openai embedder requires OPENAI_API_KEY or openai.api_key config")
 		}
+		model, err := resolveEmbedModel(cfg.OpenAI.Model, EnvEmbedOpenAIModel, deprecatedOpenAIEmbedModel)
+		if err != nil {
+			return nil, err
+		}
+		cfg.OpenAI.Model = model
 		return NewOpenAIEmbedder(cfg.OpenAI)
 	case "gemini":
 		if cfg.Gemini.APIKey == "" {
 			return nil, fmt.Errorf("gemini embedder requires GOOGLE_API_KEY or gemini.api_key config")
 		}
+		model, err := resolveEmbedModel(cfg.Gemini.Model, EnvEmbedGeminiModel, deprecatedGeminiEmbedModel)
+		if err != nil {
+			return nil, err
+		}
+		cfg.Gemini.Model = model
 		return NewGeminiEmbedder(cfg.Gemini)
 	case "none", "":
 		return nil, nil
@@ -199,7 +255,7 @@ type OllamaEmbedder struct {
 func NewOllamaEmbedder(cfg OllamaConfig) (*OllamaEmbedder, error) {
 	// Set OLLAMA_HOST for the client
 	if cfg.Endpoint != "" {
-		os.Setenv("OLLAMA_HOST", cfg.Endpoint)
+		os.Setenv(config.EnvOllamaHost, cfg.Endpoint)
 	}
 
 	client, err := api.ClientFromEnvironment()
@@ -408,26 +464,6 @@ func (e *OllamaEmbedder) Dimension() int {
 // ModelName returns the model identifier
 func (e *OllamaEmbedder) ModelName() string {
 	return "ollama:" + e.model
-}
-
-// CosineSimilarity computes cosine similarity between two embeddings
-func CosineSimilarity(a, b []float32) float64 {
-	if len(a) != len(b) {
-		return 0
-	}
-
-	var dot, normA, normB float64
-	for i := range a {
-		dot += float64(a[i]) * float64(b[i])
-		normA += float64(a[i]) * float64(a[i])
-		normB += float64(b[i]) * float64(b[i])
-	}
-
-	if normA == 0 || normB == 0 {
-		return 0
-	}
-
-	return dot / (math.Sqrt(normA) * math.Sqrt(normB))
 }
 
 // EmbeddingToJSON converts an embedding to JSON string for storage

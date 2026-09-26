@@ -15,7 +15,7 @@
 #   stretch — hard benchmarks, mix of pass/fail expected
 #   vision  — research-grade, expect low AILANG pass rate
 #
-# Dev models are read from internal/eval_harness/models.yml — no hardcoded list.
+# Dev models are read from internal/modelreg/models.yml — no hardcoded list.
 #
 # Output: gap analysis prioritised by tier, grouped by tags, with rotation hints.
 
@@ -52,7 +52,7 @@ if [[ -z "$EVAL_DIR" ]]; then
 
     DEV_MODELS="$(dev_models_csv)"
     if [[ -z "$DEV_MODELS" ]]; then
-        echo "Error: could not resolve dev_models from internal/eval_harness/models.yml"
+        echo "Error: could not resolve dev_models from internal/modelreg/models.yml"
         exit 1
     fi
     echo "Running evals with dev models ($DEV_MODELS) at tier=$TIER..."

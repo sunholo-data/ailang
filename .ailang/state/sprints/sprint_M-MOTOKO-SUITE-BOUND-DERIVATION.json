@@ -1,0 +1,50 @@
+{
+  "sprint_id": "M-MOTOKO-SUITE-BOUND-DERIVATION",
+  "design_doc": "design_docs/planned/m-motoko-suite-bound-derivation.md",
+  "sprint_plan": "design_docs/planned/m-motoko-suite-bound-derivation-sprint-plan.md",
+  "implementation_scope": [
+    "tools/eval/test_motoko_connection_probe.sh"
+  ],
+  "milestones": [
+    {
+      "id": "M1",
+      "goal": "Measure stimulus and canonical pgrep-stub rates, derive and publish unwired bounds, bookend drift, and prove every measurement failure refuses before publication.",
+      "expected_arm_count": 57,
+      "acceptance_commands": [
+        "/bin/bash -n tools/eval/test_motoko_connection_probe.sh",
+        "run_suite_bounded M1 300 /bin/bash tools/eval/test_motoko_connection_probe.sh",
+        "[ \"$(grep -Ec '^# bound derivation: r=[1-9][0-9]*/s r_real=[1-9][0-9]*/s p_obs=[0-9]+\\.[0-9][0-9] reference=400/s scale=[1-4] arm_cap=(120|240|360|480)s node_ceiling=[1-9][0-9]* floor=DISABLED$' \"$RUN_OUT\")\" -eq 1 ]",
+        "[ \"$(grep -Ec '^# (bound drift: .* drift=none|BOUND_DRIFT_DURING_RUN: )' \"$RUN_OUT\")\" -eq 1 ]",
+        "grep '^PASS: 57 probe self-test arms ran$' \"$RUN_OUT\""
+      ]
+    },
+    {
+      "id": "M2",
+      "goal": "Scale every must-not-fire wall-clock bound, enforce the rate floor, census literals, and gate the published two-class throughput proxy on both sides of 4.70.",
+      "expected_arm_count": 59,
+      "acceptance_commands": [
+        "/bin/bash -n tools/eval/test_motoko_connection_probe.sh",
+        "run_suite_bounded M2-base 900 /bin/bash tools/eval/test_motoko_connection_probe.sh",
+        "run_suite_bounded M2-k2 900 env PROBE_SELFTEST_FORK_RATE=200 /bin/bash tools/eval/test_motoko_connection_probe.sh",
+        "rg -c 'PROBE_TIMEOUT_SECS=[0-9]+' tools/eval/test_motoko_connection_probe.sh",
+        "run_suite_bounded M2-floor-high 30 env PROBE_SELFTEST_FORK_RATE=99 PROBE_SELFTEST_DERIVATION_ONLY=1 /bin/bash tools/eval/test_motoko_connection_probe.sh",
+        "run_suite_bounded M2-proxy-high 30 env PROBE_SELFTEST_FORK_RATE=800 PROBE_SELFTEST_REAL_OP_RATE=100 PROBE_SELFTEST_DERIVATION_ONLY=1 /bin/bash tools/eval/test_motoko_connection_probe.sh",
+        "run_suite_bounded M2-proxy-low 30 env PROBE_SELFTEST_FORK_RATE=400 PROBE_SELFTEST_REAL_OP_RATE=100 PROBE_SELFTEST_DERIVATION_ONLY=1 /bin/bash tools/eval/test_motoko_connection_probe.sh",
+        "run_m2_load_evidence"
+      ]
+    },
+    {
+      "id": "M3",
+      "goal": "Replace the discovery arm's 50000 node pin with the derived ceiling while preserving arm scope, the literal census, and the untouched production probe.",
+      "expected_arm_count": 59,
+      "acceptance_commands": [
+        "/bin/bash -n tools/eval/test_motoko_connection_probe.sh",
+        "run_suite_bounded M3-k2 900 env PROBE_SELFTEST_FORK_RATE=200 /bin/bash tools/eval/test_motoko_connection_probe.sh",
+        "rg -c 'PROBE_MAX_TREE_NODES=[0-9]+' tools/eval/test_motoko_connection_probe.sh",
+        "run_suite_bounded M3-scope 900 env PROBE_MAX_TREE_NODES=50000 /bin/bash tools/eval/test_motoko_connection_probe.sh",
+        "shasum -a 256 tools/eval/motoko_connection_probe.sh",
+        "git diff --quiet 087fbea631a0b80556baa034b499fbdae33e76d2 -- tools/eval/motoko_connection_probe.sh"
+      ]
+    }
+  ]
+}

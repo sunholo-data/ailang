@@ -1,0 +1,9 @@
+package fixture
+
+import "os/exec"
+
+func blindspots() {
+	git := "git"
+	exec.Command(git, "status")
+	exec.Command("bash", "-c", "git status")
+}

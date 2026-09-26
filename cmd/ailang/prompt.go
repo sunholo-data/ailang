@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/prompt"
 	versionpkg "github.com/sunholo-data/ailang/internal/version"
 )
@@ -95,7 +96,7 @@ func runPrompt() {
 	res, err := prompt.LoadPromptFresh(context.Background(), prompt.FreshOptions{
 		Source:  src,
 		Version: version,
-		MCPURL:  os.Getenv("AILANG_MCP_URL"),
+		MCPURL:  config.MCPURL(),
 	}, versionpkg.Version)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
@@ -105,7 +106,7 @@ func runPrompt() {
 	// stderr should only carry errors/warnings. Explicit AILANG_MCP_QUIET=1 also
 	// suppresses; AILANG_MCP_VERBOSE=1 forces the note even in pipe mode for
 	// when an operator wants to see it.
-	if res.MCPNote != "" && os.Getenv("AILANG_MCP_QUIET") == "" && (isStdoutTerminal() || os.Getenv("AILANG_MCP_VERBOSE") != "") {
+	if res.MCPNote != "" && !config.MCPQuiet() && (isStdoutTerminal() || config.MCPVerbose()) {
 		fmt.Fprintf(os.Stderr, "%s prompt source=%s version=%s sha=%s (%s)\n",
 			yellow("note:"), res.Source, res.Version, shortSHA(res.SHA256), res.MCPNote)
 	}

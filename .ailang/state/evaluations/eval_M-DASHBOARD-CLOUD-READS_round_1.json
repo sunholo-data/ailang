@@ -1,0 +1,122 @@
+{
+  "sprint_id": "M-DASHBOARD-CLOUD-READS",
+  "evaluation_round": 1,
+  "timestamp": "2026-09-08T13:23:21.496805+00:00",
+  "design_doc": "design_docs/dashboard-recovery-plan-2026-09-08.md",
+  "sprint_plan": "design_docs/planned/m-dashboard-cloud-reads-sprint-plan.md",
+  "total_score": 64,
+  "pass_threshold": 70,
+  "result": "fail",
+  "score_breakdown": {
+    "tests_pass": 0,
+    "lint_clean": 10,
+    "acceptance_criteria": 21,
+    "code_quality": 8,
+    "documentation": 15,
+    "design_fidelity": 10
+  },
+  "hard_fails": [
+    {
+      "condition": "tests_broken",
+      "details": "Full make test exits nonzero with four failures matching the previously recorded environmental failures. Affected-package success does not satisfy the full-suite gate.",
+      "output_snippet": "TestMemWatchdogKillsAllocator; TestMemWatchdogKillsGrandchild; TestProcessGroupRSSSamplesGroup; TestPackageDir_RegistryRuntimeResolution"
+    }
+  ],
+  "automated_checks": {
+    "tests_pass": false,
+    "tests_output": "/tmp/cloud-reads-full-test.log: watchdog tests timed out without MemExceeded; RSS test did not find live process group; registry fixture cache unavailable at real home path.",
+    "targeted_tests_pass": true,
+    "targeted_evidence": "Independent final targeted SDK/SQLite, server and CLI parser tests: /tmp/dashboard-cloud-reads-independent-final.log; affected full packages /tmp/cloud-reads-packages.log. No CLI main or production requests invoked by reviewer.",
+    "race_pass": true,
+    "race_evidence": "/tmp/cloud-reads-race-final.log: firestore, observatory, server pass.",
+    "lint_clean": true,
+    "lint_output": "/tmp/cloud-reads-lint-final.log:0 issues.",
+    "architecture_boundaries": true,
+    "boundary_evidence": "/tmp/cloud-reads-boundaries.log",
+    "filtered_full_suite": "Executor reports exit0 for /tmp/cloud-reads-filtered-test.log, excluding exactly four known environment failures. This does not remove the unfiltered hard failure.",
+    "coverage_pct": null,
+    "file_sizes_ok": true
+  },
+  "acceptance_criteria": [
+    {
+      "feature_id": "M1",
+      "criterion": "Chain/span page contract and tie ordering tested",
+      "met": true,
+      "evidence": "SDK request assertions and tied-time fixed-cohort SQLite comparison, including stage-lite pages, full/partial/empty offsets."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Agent filtering precedes paging and errors propagate",
+      "met": true,
+      "evidence": "TestChainAgentFilterBeforePaging and TestChainAgentReadFailureIsNotEmptySuccess."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "SQLite agrees and unsupported workspace filter is explicit",
+      "met": true,
+      "evidence": "Fixed cohort IDs and nonnil empty list checks; Firestore workspace/negative offset rejection."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Existing CLI offset and API filter forwarding tested",
+      "met": true,
+      "evidence": "Pure parser tests before backend opening; HTTP paging/since validation including duplicate/overflow inputs, workspace/repo forwarding."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Stage ownership and storage/index errors are explicit",
+      "met": true,
+      "evidence": "Server endpoint fixtures distinguish wrong chain/missing404, auth401, permission403, precondition/unavailable503, internal500; sanitized response bodies."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Relevant checks and independent review recorded",
+      "met": false,
+      "evidence": "Focused checks succeed and review recorded, but formal full-suite acceptance remains blocked; sprint M3 correctly false."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Index/deployment contract and remaining gaps documented",
+      "met": true,
+      "evidence": "docs/internal/dashboard-cloud-read-indexes.md; milestone scoring remains0 for M3 until gate closes."
+    }
+  ],
+  "documentation_check": {
+    "changelog_updated": true,
+    "examples_created": null,
+    "examples_note": "No language semantics changed; SDK/HTTP/parser fixtures serve as executable examples.",
+    "design_doc_status": "M1/M2 complete, M3 verification pending; status paused and limitations explicit."
+  },
+  "design_fidelity": {
+    "score": 10,
+    "notes": "Bounded read repair follows plan; no new data model or UI removal, cloud write or deployment. Canonical orders and paging apply to fixed cohorts only."
+  },
+  "feedback": [
+    {
+      "file": "design_docs/planned/m-dashboard-cloud-reads-sprint-plan.md",
+      "category": "tests_pass",
+      "severity": "high",
+      "issue": "Formal verification cannot pass while unfiltered full suite fails. No unresolved implementation regression was identified in reviewed changes.",
+      "suggestion": "Rerun unfiltered make test in disposable environment supporting process-group RSS and isolated writable registry fixtures; preserve these four failure records and keep M3 pending until gate passes."
+    }
+  ],
+  "resolved_findings": [
+    {
+      "issue": "Stage span route bypassed newly stable ListSpans ordering",
+      "resolution": "Both GetSpanLitesByStageID backends now explicitly tie-break by ID; negative offsets rejected; stage parity fixture added."
+    },
+    {
+      "issue": "HTTP since silently ignored bad input",
+      "resolution": "Strict positive integer hours with duplicate, zero, malformed and duration-overflow rejection/tests."
+    },
+    {
+      "issue": "SQLite empty pages serialized null unlike cloud arrays",
+      "resolution": "SQLite chain/span/stage lists initialized nonnil; fixed-cohort empty page assertions."
+    },
+    {
+      "issue": "SDK fixture did not verify filter values/combinations",
+      "resolution": "Exact protobuf AND filter assertions cover chain dimensions/exclusive creation bound and span trace/status/inclusive bounds. Fixture still does not implement Firestore query engine."
+    }
+  ],
+  "notes": "Scoring acceptance21/30 follows5 of7 criteria in passed milestones, rounded; M3 remains false. Code-quality8/15 reflects inherited large functions and intentionally incomplete formal sprint artifacts, not an instruction to enlarge this patch. No shared compiler/performance conditional category applies. Review conducted on shared dev diff; no implementation edits made. Production readiness is unproven: index definitions were documented, not applied; actual Firestore filter/index behavior is not emulated by preordered bufconn fixture. Legacy span HTTP validation, summary parity, cost normalization, capture deployment, lineage and approval delivery remain explicit future work."
+}

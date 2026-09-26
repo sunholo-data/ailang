@@ -11,7 +11,6 @@ package apiserver
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -28,6 +27,7 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/sunholo-data/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/effects"
 	"github.com/sunholo-data/ailang/internal/embed"
 	"github.com/sunholo-data/ailang/internal/iface"
@@ -61,7 +61,9 @@ type Server struct {
 	// under-basePath filter to compare against physical file paths.
 	// Computed once at New() to avoid per-call symlink resolution.
 	normalizedBasePath string
-	cors               bool
+	bind               string          // host to listen on; "" = config.DefaultBindHost()
+	cors               bool            // CORS any-origin mode (--cors)
+	corsOrigins        map[string]bool // CORS allowlist mode (--cors-origin); exact match
 
 	// Frontend proxy
 	frontendPath string // path to React project (optional)
@@ -84,6 +86,7 @@ type Server struct {
 	logLevel       int                 // minimum severity for Debug output
 	routesOnly     bool                // only expose @route-annotated functions
 	noFeedbackTool bool                // suppress the built-in submit_feedback MCP tool
+	ws             *wsState            // WebSocket route sessions (routes_ws.go)
 }
 
 // ModuleInfo holds metadata about a loaded AILANG module.
@@ -146,12 +149,16 @@ type ExportInfo struct {
 	IsNoMCP     bool     `json:"is_no_mcp,omitempty"`    // @nomcp annotation: hide from the MCP tool surface only (HTTP/OpenAPI/A2A unaffected)
 	MCPName     string   `json:"mcp_name,omitempty"`     // @mcp_name annotation: explicit MCP tool name override
 	DocComment  string   `json:"doc_comment,omitempty"`  // doc comment (-- lines) preceding the function
+	IsWS        bool     `json:"is_ws,omitempty"`        // @route("WS", ...): a WebSocket route, off every HTTP/MCP/A2A surface
+	Effects     []string `json:"-"`                      // declared effect row (WS registration check)
 }
 
 // Config holds configuration for the API server.
 type Config struct {
 	Port           string
-	CORS           bool
+	Bind           string      // host to listen on; "" = config.DefaultBindHost() (127.0.0.1, or 0.0.0.0 when PORT is set)
+	CORS           bool        // allow every origin (Access-Control-Allow-Origin: *)
+	CORSOrigins    []string    // exact-match origin allowlist; validate with ValidateCORSConfig
 	FrontendPath   string      // optional: React project path for Vite proxy
 	StaticPath     string      // optional: built frontend files
 	Watch          bool        // enable file watching for hot reload
@@ -165,6 +172,7 @@ type Config struct {
 	LogLevel       int         // minimum severity for Debug output (0=DEBUG, 1=INFO, 2=WARN, 3=ERROR, 4=NONE)
 	RoutesOnly     bool        // only expose @route-annotated functions as HTTP endpoints
 	NoFeedbackTool bool        // suppress the built-in submit_feedback MCP tool; user exports unaffected
+	WS             WSConfig    // @route("WS") session limits (M-SERVEAPI-WS-BRIDGE)
 }
 
 // New creates a new API server.
@@ -195,9 +203,29 @@ func New(basePath string, cfg Config) *Server {
 			storedEffCtx = effCtx
 		}
 	}
+	// Debug.log streams to stderr as it arrives (M-V1-MEMORY-FOOTPRINT M2,
+	// D-E). Each request's Clone gets a Fresh context on the same sink, so
+	// concurrent requests neither share a buffer nor retain one.
+	if storedEffCtx != nil {
+		if storedEffCtx.Debug == nil {
+			storedEffCtx.Debug = effects.NewDebugContext()
+		}
+		effects.DebugSink{
+			Logf:       func(format string, args ...any) { log.Printf("[Debug] "+format, args...) },
+			MinLevel:   cfg.LogLevel,
+			Structured: true,
+		}.Attach(storedEffCtx.Debug) // W nil: the current os.Stderr at each write
+	}
 	maxUpload := cfg.MaxUploadSize
 	if maxUpload == 0 {
 		maxUpload = DefaultMaxUploadSize
+	}
+	// Every FS read a served handler makes is bounded by the upload cap
+	// (M-V1-MEMORY-FOOTPRINT M3, D-C): the temp files the server itself
+	// writes are under it by construction, and nothing larger should be read
+	// on behalf of one request.
+	if storedEffCtx != nil && storedEffCtx.Env.FSMaxBytes == 0 {
+		storedEffCtx.Env.FSMaxBytes = maxUpload
 	}
 	return &Server{
 		engine:             eng,
@@ -205,7 +233,9 @@ func New(basePath string, cfg Config) *Server {
 		port:               cfg.Port,
 		basePath:           basePath,
 		normalizedBasePath: normalizedBase,
+		bind:               cfg.Bind,
 		cors:               cfg.CORS,
+		corsOrigins:        originSet(cfg.CORSOrigins),
 		frontendPath:       cfg.FrontendPath,
 		staticPath:         cfg.StaticPath,
 		watch:              cfg.Watch,
@@ -219,6 +249,7 @@ func New(basePath string, cfg Config) *Server {
 		logLevel:           cfg.LogLevel,
 		routesOnly:         cfg.RoutesOnly,
 		noFeedbackTool:     cfg.NoFeedbackTool,
+		ws:                 newWSState(cfg.WS),
 	}
 }
 
@@ -229,7 +260,7 @@ func New(basePath string, cfg Config) *Server {
 // version where the same layout was silently degraded). NOT a CLI flag
 // — env-var-only forces operators to make the bypass explicit in their
 // Dockerfile / deployment manifest. See M-SERVEAPI-SURFACE-DROPS.
-const AllowDropsEnvVar = "AILANG_SERVE_API_ALLOW_DROPS"
+const AllowDropsEnvVar = config.EnvServeAPIAllowDrops
 
 // ValidateRegistration must be called after LoadModules and before
 // Start. Returns a non-nil error if any module rejected by the
@@ -274,7 +305,7 @@ func (s *Server) ValidateRegistration() error {
 	}
 	log.Printf("⚠  Dropped %d module(s) outside basePath: %s", len(drops), strings.Join(names, ", "))
 
-	allowDrops := os.Getenv(AllowDropsEnvVar) == "1"
+	allowDrops := config.ServeAPIAllowDrops()
 	if len(fatal) > 0 && allowDrops {
 		log.Printf("⚠  %s=1 — starting with %d @route-bearing module(s) dropped (NOT recommended for production)",
 			AllowDropsEnvVar, len(fatal))
@@ -305,56 +336,22 @@ func (s *Server) DroppedModules() []DroppedModule {
 	return out
 }
 
-// flushDebugOutput collects Debug ghost effect logs and prints them to stderr,
-// then resets the context for the next request. Respects s.logLevel for filtering.
+// flushDebugOutput drains anything a Debug context still holds. With the sink
+// attached in New (M-V1-MEMORY-FOOTPRINT M2) lines stream on arrival and this
+// finds nothing; it remains for an effect context handed in without one.
+// Structured (JSON-object) lines and failed checks are written verbatim as
+// JSON so Cloud Logging lifts their severity; unstructured lines keep the
+// timestamped "[Debug] " decoration (M-DEBUG-SINK-STRUCTURED-LINES).
 func (s *Server) flushDebugOutput() {
-	if s.effCtx == nil || s.effCtx.Debug == nil {
+	if s.effCtx == nil {
 		return
 	}
-	out := s.effCtx.Debug.Collect()
-	for _, l := range out.Logs {
-		if s.logLevel > 0 {
-			sev := extractServerSeverity(l.Message)
-			if sev != "" && serverSeverityLevel(sev) < s.logLevel {
-				continue
-			}
-		}
-		log.Printf("[Debug] %s", l.Message)
-	}
-	for _, a := range out.Assertions {
-		if !a.Passed {
-			log.Printf("[Debug ASSERT FAIL] %s at %s", a.Message, a.Location)
-		}
-	}
-	s.effCtx.Debug.Reset()
-}
-
-func extractServerSeverity(msg string) string {
-	if len(msg) < 2 || msg[0] != '{' {
-		return ""
-	}
-	var parsed struct {
-		Severity string `json:"severity"`
-	}
-	if err := json.Unmarshal([]byte(msg), &parsed); err != nil {
-		return ""
-	}
-	return parsed.Severity
-}
-
-func serverSeverityLevel(severity string) int {
-	switch severity {
-	case "DEBUG", "TRACE":
-		return 0
-	case "INFO":
-		return 1
-	case "WARNING":
-		return 2
-	case "ERROR":
-		return 3
-	default:
-		return 1
-	}
+	effects.DebugSink{
+		W:          os.Stderr,
+		Logf:       func(format string, args ...any) { log.Printf("[Debug] "+format, args...) },
+		MinLevel:   s.logLevel,
+		Structured: true,
+	}.Flush(s.effCtx.Debug)
 }
 
 // LoadModules compiles and loads AILANG modules from the given paths.
@@ -520,13 +517,19 @@ func (s *Server) Start() error {
 		return s.StartMCP()
 	}
 
+	if err := s.ValidateWSRoutes(); err != nil {
+		return err
+	}
 	mux := s.buildRoutes()
 
-	httpAddr := fmt.Sprintf(":%s", s.port)
-	srv := &http.Server{
-		Addr:    httpAddr,
-		Handler: mux,
+	// Bind before anything announces a launch: a taken port exits non-zero
+	// with no banner (M-SERVEAPI-BIND-HOST-CORS M1).
+	ln, err := s.listen()
+	if err != nil {
+		return err
 	}
+	srv := &http.Server{Handler: mux}
+	srv.RegisterOnShutdown(s.closeWSSessions)
 
 	// Start Vite dev server if frontend path specified
 	if s.frontendPath != "" {
@@ -562,9 +565,9 @@ func (s *Server) Start() error {
 		_ = srv.Shutdown(ctx)
 	}()
 
-	s.printStartupBanner()
+	s.printStartupBanner(ln.Addr().String())
 
-	return srv.ListenAndServe()
+	return srv.Serve(ln)
 }
 
 func (s *Server) buildRoutes() *http.ServeMux {
@@ -630,21 +633,6 @@ func (s *Server) buildRoutes() *http.ServeMux {
 	return mux
 }
 
-func (s *Server) corsWrap(handler http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if s.cors {
-			w.Header().Set("Access-Control-Allow-Origin", "*")
-			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-			if r.Method == "OPTIONS" {
-				w.WriteHeader(http.StatusNoContent)
-				return
-			}
-		}
-		handler(w, r)
-	}
-}
-
 func (s *Server) startViteProxy() error {
 	// Check if Vite config exists
 	viteCfg := filepath.Join(s.frontendPath, "vite.config.ts")
@@ -668,11 +656,11 @@ func (s *Server) startViteProxy() error {
 	return nil
 }
 
-func (s *Server) printStartupBanner() {
+func (s *Server) printStartupBanner(addr string) {
 	log.Println()
 	log.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 	log.Println("  AILANG API Server")
-	log.Printf("  http://localhost:%s", s.port)
+	log.Printf("  http://%s", addr)
 	log.Println()
 	log.Println("  Endpoints:")
 

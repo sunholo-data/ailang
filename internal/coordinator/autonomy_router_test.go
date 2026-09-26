@@ -1,6 +1,7 @@
 package coordinator
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/messaging"
@@ -64,6 +65,170 @@ func TestClassifyChange_BreakingOverride(t *testing.T) {
 	got := ClassifyChange(env)
 	if got != ChangeClassC {
 		t.Errorf("expected Class C for breaking=true, got %d", got)
+	}
+}
+
+func TestAutonomyRouter_UnknownRoutesToReview(t *testing.T) {
+	// The "U" check is KIND-INDEPENDENT by design (see ClassifyChange). Both
+	// emitters that call M5's classifier can stamp "U", and a per-kind arm is
+	// exactly what let a mixed-signature upgrade auto-apply. This table covers
+	// every kind that carries a change class; add a row when a kind is added.
+	kinds := []messaging.PackageMessageKind{
+		messaging.PkgMsgInterfaceChange,
+		messaging.PkgMsgUpgradeAvailable,
+	}
+	for _, kind := range kinds {
+		t.Run(string(kind), func(t *testing.T) {
+			env := &messaging.PackageMessageEnvelope{
+				Kind: kind,
+				Package: messaging.PackageRef{
+					Name:        "sunholo/auth",
+					ChangeClass: "U",
+					// Breaking is deliberately nil: "U" is not a known-breaking
+					// change, so the breaking override must NOT be what saves us.
+				},
+			}
+			if got := ClassifyChange(env); got != ChangeClassC {
+				t.Fatalf("ClassifyChange(%s, U) = %d, want %d (unknown must never auto-apply)", kind, got, ChangeClassC)
+			}
+		})
+	}
+}
+
+// TestAutonomyRouter_MixedSignaturePairRoutesToReview is the CROSS-BOUNDARY lock
+// for the "U" path: it emits a real mixed-signature pair through
+// internal/messaging and routes the emitted envelope through this package.
+//
+// A mixed pair (exactly one side carrying v2 signatures) is the unavoidable
+// shape of every package's FIRST post-migration publish, so this is the path
+// the feature takes on its first real use — not an edge case. Before this lock
+// existed, the upgrade-available half of it classified as ChangeClassA, i.e.
+// fully autonomous auto-merge of a change the classifier had just declared
+// unmeasurable.
+func TestAutonomyRouter_MixedSignaturePairRoutesToReview(t *testing.T) {
+	old := messaging.PackageVersionInfo{
+		Name: "sunholo/auth", Version: "0.1.0",
+		InterfaceHash: "sha256:aaa", ContentHash: "sha256:ccc",
+		Signatures: []string{"auth:func:login:String -> Bool"},
+	}
+	newer := messaging.PackageVersionInfo{
+		Name: "sunholo/auth", Version: "0.2.0",
+		InterfaceHash: "sha256:bbb", ContentHash: "sha256:ddd",
+		// no Signatures: the old side is v2, the new side is legacy => "U"
+	}
+
+	cases := []struct {
+		name string
+		emit func(*messaging.Store) (string, error)
+	}{
+		{"upgrade-available", func(st *messaging.Store) (string, error) {
+			return messaging.EmitUpgradeAvailable(st, old, newer, []string{"workspace:probe"})
+		}},
+		{"interface-change", func(st *messaging.Store) (string, error) {
+			return messaging.EmitInterfaceChangeNotice(st, old, newer, []string{"workspace:probe"})
+		}},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			store, err := messaging.OpenStore(filepath.Join(t.TempDir(), "test.db"))
+			if err != nil {
+				t.Fatalf("OpenStore: %v", err)
+			}
+			t.Cleanup(func() { store.Close() })
+
+			if _, err := tc.emit(store); err != nil {
+				t.Fatalf("emit: %v", err)
+			}
+			msgs, err := store.ListInboxMessages(messaging.InboxListOptions{Inbox: "workspace:probe", Limit: 10})
+			if err != nil {
+				t.Fatalf("ListInboxMessages: %v", err)
+			}
+			if len(msgs) != 1 {
+				t.Fatalf("expected 1 emitted message, got %d", len(msgs))
+			}
+			env, err := messaging.ExtractPackageEnvelope(&msgs[0])
+			if err != nil {
+				t.Fatalf("ExtractPackageEnvelope: %v", err)
+			}
+			if env.Package.ChangeClass != "U" {
+				t.Fatalf("emitted change_class = %q, want U for a mixed-signature pair", env.Package.ChangeClass)
+			}
+			// The breaking override must NOT be what rescues this: "U" is not a
+			// known-breaking change, so the flag is false and the class alone
+			// has to carry the decision.
+			if env.Package.Breaking == nil || *env.Package.Breaking {
+				t.Fatalf("emitted breaking = %v, want non-nil false for a mixed pair classified U", env.Package.Breaking)
+			}
+			if got := ClassifyChange(env); got != ChangeClassC {
+				t.Fatalf("ClassifyChange = %d, want %d — an unknown change class must never auto-apply", got, ChangeClassC)
+			}
+		})
+	}
+}
+
+func TestAutonomyRouter_LegacyEnvelopeRoutingUnchanged(t *testing.T) {
+	// A wholly-legacy pair: neither side carries signature metadata, and the
+	// interface hash changed, so the hash-only classifier yields "C".
+	old := messaging.PackageVersionInfo{
+		Name: "sunholo/auth", Version: "0.1.0",
+		InterfaceHash: "sha256:aaa", ContentHash: "sha256:ccc",
+	}
+	newer := messaging.PackageVersionInfo{
+		Name: "sunholo/auth", Version: "0.2.0",
+		InterfaceHash: "sha256:bbb", ContentHash: "sha256:ddd",
+	}
+
+	cases := []struct {
+		name string
+		emit func(*messaging.Store) (string, error)
+		want ChangeClass
+	}{
+		{
+			name: "legacy upgrade-available stays auto-apply",
+			emit: func(st *messaging.Store) (string, error) {
+				return messaging.EmitUpgradeAvailable(st, old, newer, []string{"workspace:probe"})
+			},
+			want: ChangeClassA,
+		},
+		{
+			name: "legacy interface-change stays semi-autonomous",
+			emit: func(st *messaging.Store) (string, error) {
+				return messaging.EmitInterfaceChangeNotice(st, old, newer, []string{"workspace:probe"})
+			},
+			want: ChangeClassB,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			store, err := messaging.OpenStore(filepath.Join(t.TempDir(), "test.db"))
+			if err != nil {
+				t.Fatalf("OpenStore: %v", err)
+			}
+			t.Cleanup(func() { store.Close() })
+
+			if _, err := tc.emit(store); err != nil {
+				t.Fatalf("emit: %v", err)
+			}
+			msgs, err := store.ListInboxMessages(messaging.InboxListOptions{Inbox: "workspace:probe", Limit: 10})
+			if err != nil {
+				t.Fatalf("ListInboxMessages: %v", err)
+			}
+			if len(msgs) != 1 {
+				t.Fatalf("expected 1 emitted message, got %d", len(msgs))
+			}
+			env, err := messaging.ExtractPackageEnvelope(&msgs[0])
+			if err != nil {
+				t.Fatalf("ExtractPackageEnvelope: %v", err)
+			}
+			if env.Package.Breaking != nil {
+				t.Errorf("emitted breaking = %v, want nil for a legacy pair", *env.Package.Breaking)
+			}
+			if got := ClassifyChange(env); got != tc.want {
+				t.Fatalf("ClassifyChange = %d, want %d — legacy cascade routing changed", got, tc.want)
+			}
+		})
 	}
 }
 

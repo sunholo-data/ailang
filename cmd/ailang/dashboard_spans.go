@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/strutil"
 	"io"
 	"net/http"
 	"net/url"
@@ -130,12 +131,12 @@ func dashboardSpansCommand() {
 		if name == "" {
 			name = getString(span, "name")
 		}
-		name = truncate(name, 40)
+		name = strutil.Truncate(name, 40)
 		prov := getString(span, "provider")
 		if prov == "" {
 			prov = "-"
 		}
-		mod := truncate(getString(span, "model"), 20)
+		mod := strutil.Truncate(getString(span, "model"), 20)
 		if mod == "" {
 			mod = "-"
 		}
@@ -148,10 +149,10 @@ func dashboardSpansCommand() {
 		if *includeChat {
 			if chatCtx, ok := span["chat_context"].(map[string]interface{}); ok && chatCtx != nil {
 				if prompt, _ := chatCtx["user_prompt"].(string); prompt != "" {
-					fmt.Fprintf(w, "\t  💬 User: %s\n", truncate(prompt, 80))
+					fmt.Fprintf(w, "\t  💬 User: %s\n", strutil.Truncate(prompt, 80))
 				}
 				if response, _ := chatCtx["assistant_response"].(string); response != "" {
-					fmt.Fprintf(w, "\t  🤖 Asst: %s\n", truncate(response, 80))
+					fmt.Fprintf(w, "\t  🤖 Asst: %s\n", strutil.Truncate(response, 80))
 				}
 				turn, _ := chatCtx["turn_number"].(float64)
 				thinking, _ := chatCtx["has_thinking"].(bool)
@@ -274,7 +275,7 @@ func dashboardInboxCommand() {
 		if msgType == "" {
 			msgType = getString(msg, "message_type")
 		}
-		from := truncate(getString(msg, "from_agent"), 12)
+		from := strutil.Truncate(getString(msg, "from_agent"), 12)
 		age := formatTimestampAge(getString(msg, "created_at"))
 
 		// Cost and token info (only for claude_code events)
@@ -377,8 +378,8 @@ func dashboardTracesCommand() {
 
 	for _, trace := range traces {
 		trID := truncateID(getString(trace, "trace_id"))
-		rootSpan := truncate(getString(trace, "root_span"), 20)
-		service := truncate(getString(trace, "service_name"), 15)
+		rootSpan := strutil.Truncate(getString(trace, "root_span"), 20)
+		service := strutil.Truncate(getString(trace, "service_name"), 15)
 		if service == "" {
 			service = "-"
 		}

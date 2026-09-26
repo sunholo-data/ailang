@@ -1,0 +1,42 @@
+{
+  "sprint_id": "M-COORDINATOR-CHILD-ENV-OPENCODE-RETRY-STORM-RECOVERY",
+  "status": "blocked_pending_fresh_quorum",
+  "iteration": 305,
+  "base_commit": "3fc7be9b88d5198c9954a5ba5b8775705bbd6dd6",
+  "recovered_m1_commit": "3500db0a77146f0bd4709951a8554c433998be23",
+  "recovered_worktree": "/Users/voightkampff/dev/sunholo-data/.wt-iter302",
+  "sprint_plan": "design_docs/planned/v0_35_0/m-coordinator-child-env-opencode-retry-storm-recovery-plan.md",
+  "blocking_gates": [
+    "fresh quorum PASS after bounded M2a scope",
+    "explicit user approval and execute-sprint instruction",
+    "isolated Firestore-emulator CI with named transaction PASS evidence"
+  ],
+  "features": [
+    {
+      "id": "M1_IMMUTABLE_ROUTE_AUTHORITY",
+      "source": "3500db0a7",
+      "disposition": "reviewable_candidate_only",
+      "passes": null
+    },
+    {
+      "id": "M2A_OPENCODE_CHILD_PREFLIGHT",
+      "disposition": "incident_local_only",
+      "passes": null
+    },
+    {
+      "id": "M3_DURABLE_STATE_MACHINE_PARITY",
+      "disposition": "candidate_after_emulator_gate",
+      "passes": null
+    },
+    {
+      "id": "M4_BOUNDED_DISPATCH_AND_NOTIFICATION_OWNERSHIP",
+      "disposition": "candidate_after_M1_M2A_M3",
+      "passes": null
+    }
+  ],
+  "excluded": [
+    "five-adapter executable resolver sweep",
+    "adoption of uncommitted recovered M2-M4 work",
+    "live cloud configuration, deployment, or canary"
+  ]
+}

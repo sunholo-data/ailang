@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sunholo-data/ailang/internal/effects"
 	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
@@ -46,9 +45,21 @@ func TestCLI_Help(t *testing.T) {
 		t.Errorf("Expected exit code 0, got %d", exitCode)
 	}
 
+	// The command list is generated from the dispatch table since
+	// M-V1-SIMPLIFY-S5 M1. M2 then replaced M1's "Language commands:" /
+	// "Platform commands:" split with one "Commands:" list of the visible top
+	// level plus a footer pointing at the hidden groups — the two splits
+	// answered different questions (what a command IS versus where it is
+	// filed), and only the second one belongs in help.
+	//
+	// The exact membership of that list is asserted in
+	// commands_groups_test.go (TestGroups_VisibleTopLevelIsTheSpecifiedSet);
+	// this is the end-to-end check that the binary prints it at all.
 	expectedSections := []string{
 		"Usage:",
 		"Commands:",
+		"ailang dev --help",
+		"ailang ops --help",
 		"run",
 		"repl",
 		"check",
@@ -327,82 +338,6 @@ func TestCLI_InvalidCommand(t *testing.T) {
 	if !strings.Contains(stderr, "Unknown command") && !strings.Contains(stderr, "invalid") {
 		t.Logf("Note: Expected error about invalid command. Stderr: %s", stderr)
 		// Don't fail - error message format may vary
-	}
-}
-
-// TestSetupNetHandler_Parity ensures Net effect gets the same security
-// configuration options as Stream. Regression test: --net-allow-http flag
-// was documented in error messages but never wired up, causing httpRequest
-// to silently reject all http:// URLs (including GCP metadata server).
-func TestSetupNetHandler(t *testing.T) {
-	tests := []struct {
-		name           string
-		caps           string
-		allowHTTP      bool
-		allowLocalhost bool
-		allowMetadata  bool
-		allowDomains   string
-		wantHTTP       bool
-		wantLocalhost  bool
-		wantMetadata   bool
-		wantDomains    int
-	}{
-		{
-			name:      "no Net cap — defaults unchanged",
-			caps:      "IO",
-			allowHTTP: true,
-			wantHTTP:  false, // Net not granted, so AllowHTTP stays default
-		},
-		{
-			name:      "Net cap with AllowHTTP",
-			caps:      "Net",
-			allowHTTP: true,
-			wantHTTP:  true,
-		},
-		{
-			name:           "Net cap with AllowLocalhost",
-			caps:           "Net",
-			allowLocalhost: true,
-			wantLocalhost:  true,
-		},
-		{
-			name:          "Net cap with AllowMetadata",
-			caps:          "Net",
-			allowMetadata: true,
-			wantMetadata:  true,
-		},
-		{
-			name:         "Net cap with domain allowlist",
-			caps:         "Net",
-			allowDomains: "metadata.google.internal,example.com",
-			wantDomains:  2,
-		},
-		{
-			name:     "Net cap defaults — http blocked",
-			caps:     "Net",
-			wantHTTP: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			effCtx := effects.NewEffContext([]string{})
-			grantCapabilities(effCtx, tt.caps)
-			setupNetHandler(effCtx, tt.allowHTTP, tt.allowDomains, tt.allowLocalhost, tt.allowMetadata)
-
-			if effCtx.Net.AllowHTTP != tt.wantHTTP {
-				t.Errorf("AllowHTTP = %v, want %v", effCtx.Net.AllowHTTP, tt.wantHTTP)
-			}
-			if effCtx.Net.AllowLocalhost != tt.wantLocalhost {
-				t.Errorf("AllowLocalhost = %v, want %v", effCtx.Net.AllowLocalhost, tt.wantLocalhost)
-			}
-			if effCtx.Net.AllowMetadata != tt.wantMetadata {
-				t.Errorf("AllowMetadata = %v, want %v", effCtx.Net.AllowMetadata, tt.wantMetadata)
-			}
-			if tt.wantDomains > 0 && len(effCtx.Net.AllowedDomains) != tt.wantDomains {
-				t.Errorf("AllowedDomains len = %d, want %d", len(effCtx.Net.AllowedDomains), tt.wantDomains)
-			}
-		})
 	}
 }
 

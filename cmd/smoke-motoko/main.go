@@ -21,6 +21,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/executor"
 	_ "github.com/sunholo-data/ailang/internal/executor/motoko" // init() registration
 )
@@ -35,7 +36,7 @@ func main() {
 	)
 	flag.Parse()
 
-	if os.Getenv("OPENROUTER_API_KEY") == "" {
+	if config.OpenRouterAPIKey() == "" {
 		fmt.Fprintln(os.Stderr, "ERROR: OPENROUTER_API_KEY is not set; motoko routes via OpenRouter")
 		os.Exit(2)
 	}
@@ -45,8 +46,8 @@ func main() {
 	// findSessionJSONL has a MOTOKO_REPO env-var fallback for exactly this;
 	// default it to the wrapper's hardcoded fallback if the user hasn't
 	// set it explicitly.
-	if os.Getenv("MOTOKO_REPO") == "" {
-		_ = os.Setenv("MOTOKO_REPO", "/Users/mark/dev/sunholo/motoko_agent")
+	if config.MotokoRepo() == "" {
+		_ = os.Setenv(config.EnvMotokoRepo, "/Users/mark/dev/sunholo/motoko_agent")
 	}
 
 	// Mutate the global factory's config in place — the motoko package's
@@ -93,7 +94,7 @@ func main() {
 	// Result.CostUSD field exercise the env-var pricing path. The eval
 	// harness derives this from models.yml; the smoke runner doesn't have
 	// that wired (it's a one-off CLI), so we hardcode the haiku-4-5 rates.
-	// Updating: keep in sync with internal/eval_harness/models.yml entry
+	// Updating: keep in sync with internal/modelreg/models.yml entry
 	// "motoko-claude-haiku-4-5".pricing (input_per_1k=0.00025, output=0.00125).
 	startTime := time.Now()
 	res, err := exec.Execute(ctx, &executor.Task{

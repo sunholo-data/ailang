@@ -1,0 +1,11 @@
+package fixture
+
+import "os/exec"
+
+func singleLine() { exec.Command("git", "status") }
+
+func multiLine() {
+	exec.Command(
+		"git", "status",
+	)
+}

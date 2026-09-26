@@ -73,6 +73,37 @@ func greet(name: string) -> () ! {IO} {
 | `println` | `string -> () ! {IO}` | Print with newline |
 | `print` | `string -> () ! {IO}` | Print without newline |
 | `readLine` | `() -> string ! {IO}` | Read line from stdin |
+| `exit` | `int -> () ! {IO}` | Terminate this program with an exit code (see below) |
+
+#### Exit code
+
+`exit(code)` is how a CLI written in AILANG fails. It lives in `std/io` (not `std/process`,
+which runs *other* programs), needs only `--caps IO`, never returns, and flushes
+telemetry/traces before the process ends. Shipped v0.10.1 (M-EXIT-CODE).
+
+```typescript
+import std/io (println, exit)
+
+export func main() -> () ! {IO} {
+  match validate(args) {
+    Ok(())   => println("ok"),
+    Err(msg) => {
+      println("error: ${msg}");
+      exit(1)
+    }
+  }
+}
+```
+
+| Surface | `exit(0)` | `exit(n≠0)` |
+|---------|-----------|-------------|
+| `ailang run` | process exits 0 | process exits `n` (OS applies `& 0xFF`) |
+| `ailang run --batch` | that item succeeds | that item fails with `program called exit(n)`; remaining items still run (v0.33.1, #607) |
+| `serve-api` route / A2A / MCP handler | success (unit result) | request fails — HTTP 500 / task `failed` / MCP error `program called exit(n)`; the server keeps running (#706) |
+
+Do not use `exit()` to report a *value* — return it. A runtime panic also exits non-zero,
+so an exit-code-only test cannot tell "found a negative answer" from "crashed"; print the
+reason before exiting.
 
 ### FS Effect
 
@@ -209,6 +240,16 @@ func fetchJson(url: string) -> Result[Json, string] ! {Net} =
 - Private IP blocking (10.x.x.x, 192.168.x.x, etc.)
 - HTTPS enforcement (configurable)
 
+**CLI Flags:**
+
+| Flag | Meaning |
+|------|---------|
+| `--net-allow-domains <list>` | Domain allowlist (comma-separated). |
+| `--net-allow-http` | Permit `http://` URLs (default: https only). |
+| `--net-allow-localhost` | Permit loopback (`127.0.0.1`, `localhost`) — with `--net-allow-http`, this is how a program talks to a local model server such as ollama. |
+| `--net-allow-metadata` | Permit the cloud metadata address (169.254.169.254). |
+| `--net-timeout <duration>` | Per-request timeout for every Net call (`httpGet`, `httpPost`, `httpRequest*`). Default **30s**. A local 27B model answering in 45s needs e.g. `--net-timeout 5m`; on timeout the call returns `Err(Transport("... context deadline exceeded"))`. Mirrors `--process-timeout`. |
+
 ### Env Effect
 
 Environment variable access.
@@ -232,7 +273,9 @@ func getConfig() -> string ! {Env} {
 
 ### Process Effect
 
-Execute external commands with capability-based security.
+Execute external commands with capability-based security. (This effect runs *other*
+programs. To set *this* program's own exit code — a CLI that must fail non-zero — use
+`exit(code)` from **`std/io`**, under the IO effect; see [Exit code](#exit-code) below.)
 
 ```typescript
 import std/process (exec)
@@ -279,12 +322,25 @@ func runCommand(cmd: string, args: [string]) -> () ! {IO, Process} {
 
 **CLI Flags:**
 
+| Flag | Meaning |
+|------|---------|
+| `--caps Process` | Grant the effect. Without it every `exec` fails with a capability error. |
+| `--process-allowlist <bins>` | Comma-separated binaries the program may exec. Each entry is resolved via `PATH` **once, at startup**, and pinned to that absolute path — a same-named binary placed earlier in `PATH` later cannot satisfy it. Anything not listed fails with `NotAllowed`. This is the flag that turns "the tool has Process, so it is effectively a shell" into "the tool may run these five binaries". Enforced identically by `exec`, `spawnProcess` and `asyncExecProcess`. Allowlisting a shell *script* does not grant its interpreter. |
+| `--process-allowlist cmd:sub[:sub…]` | **Subcommand narrowing.** `git:status,git:commit,gh:pr:list` allows `git status …`, `git commit …` and `gh pr list …` and refuses every other invocation of `git`/`gh` with `NotAllowed("git push")` — the refusal names the subcommand that was tried. Rules: a chain must match **positionally from the first argument**, so `git -C /x status` is refused under `git:status` (fail closed; put global options after the subcommand or add a wrapper); arguments *after* the chain are unrestricted (`git:commit` allows `git commit --amend` — narrowing is per subcommand, not per flag); a bare `git` or `git:*` in the same list is the broadest grant and wins; an empty segment (`git:`, `git::status`) is a startup error, never a wider allow. |
+| `--process-timeout <dur>` | Per-exec wall-clock limit (default 30s) → `Timeout`. |
+| `--process-max-output <bytes>` | Combined stdout+stderr cap (default 10MB) → `OutputLimitExceeded`, `truncated: true`. |
+
 ```bash
 ailang run --caps Process --entry main module.ail
 ailang run --caps IO,Process --process-timeout 10s --entry main module.ail
 ailang run --caps IO,Process --process-allowlist "echo,curl,git" --entry main module.ail
+ailang run --caps IO,Process --process-allowlist "git:status,git:log,gh:pr:list" --entry main module.ail
 ailang run --caps IO,Process --process-max-output 5242880 --entry main module.ail
 ```
+
+Runnable example: [`examples/runnable/process_subcmd_allowlist.ail`](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/process_subcmd_allowlist.ail).
+
+The allowlist is a property of the **invocation**, not of the program's signature — run the `.ail` without the flag and it may exec anything. Signature-level narrowing (`! {Process[scope=...]}`) is tracked under [M-EFFECT-REFINEMENT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-effect-refinement.md).
 
 ### Stream Effect
 

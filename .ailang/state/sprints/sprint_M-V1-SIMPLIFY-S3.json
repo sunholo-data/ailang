@@ -1,0 +1,120 @@
+{
+  "sprint_id": "M-V1-SIMPLIFY-S3",
+  "status": "completed",
+  "created": "2026-09-15T10:12:09Z",
+  "design_doc": "design_docs/planned/m-v1-simplification-program.md",
+  "sprint_plan": "design_docs/planned/m-v1-simplification-s3-sprint-plan.md",
+  "github_issues": [
+    1198,
+    1199
+  ],
+  "velocity": {
+    "target_loc_per_day": 1000,
+    "estimated_total_loc": 3050,
+    "estimated_days": 4
+  },
+  "features": [
+    {
+      "id": "M1_EVAL_ROWS_PREDICATE",
+      "description": "BenchmarkResult embeds RunMetrics; one LoadRows with validity filter; one Passed() (D2); discordant-count measurement + OS-history annotation",
+      "estimated_loc": 600,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "one loader, one predicate",
+        "discordant table in PR",
+        "boundary annotation dated",
+        "eval tests green"
+      ],
+      "passes": true,
+      "started": "2026-09-15T11:12:02Z",
+      "completed": "2026-09-15T11:12:02Z",
+      "notes": "0fbbcb9d2. D2 measured: 31/26,758 discordant rows (−0.12pp over history; 30 in retired print_missing_effect); OS pipeline already used the conjunction; notes[] added to eval-publish output. 5 loaders → LoadRows; BenchmarkResult embeds RunMetrics."
+    },
+    {
+      "id": "M2_PRICING_MODELREG",
+      "description": "observatory/pricing.go second loader deleted; executor/quorum/seed cost through modelreg; aliases in models.yml; cost delta measured",
+      "estimated_loc": 300,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "one pricing source",
+        "cost delta by provider reported",
+        "tests green"
+      ],
+      "passes": true,
+      "started": "2026-09-15T11:12:02Z",
+      "completed": "2026-09-15T11:12:02Z",
+      "notes": "c3ab92757..d8a7fa8ce. FINDING: 100% of prod OpenRouter spans (09-01..13) had cost_usd=null — generic path never tried api_name. MinimumCharge deleted (only a test pinned it); ErrUnpriced → CostStatusUnknown. Non-Anthropic cache was under-billed by the 10%/125% hardcode."
+    },
+    {
+      "id": "M3_PLANE_SWITCH_SQLITEOPEN_CONFIGYAML",
+      "description": "AILANG_STORAGE + per-store overrides only; old names hard-error; storage status per store; internal/sqliteopen leaf; one config.yaml loader; docs/plists/CLAUDE.md updated",
+      "estimated_loc": 700,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "backend_switches 6->1",
+        "storage status per-store with source",
+        "9 openers -> 1",
+        "3 loaders -> 1",
+        "every repo file setting old names updated"
+      ],
+      "passes": true,
+      "started": "2026-09-15T11:12:02Z",
+      "completed": "2026-09-15T11:12:02Z",
+      "notes": "0fba88a82..7883d3d7e. DEVIATION: COORDINATOR_MODE validated against the plane, not derived (the rig runs AILANG_STORAGE=gcp with local execution). Retired names hard-error; storage status per store; sqliteopen (observatory.db: pool 1 + FKs on; coordinator.db FKs stay off — data migration); config.Load one loader. Prod terraform sets both vars (verified). Blast radius measured and fixed in close-out (deferred approver)."
+    },
+    {
+      "id": "M4_AI_FACTORY_PROMPT_LOADER",
+      "description": "ai.NewProviderFor, ai.ClassifyError (429 fix), openrouter reuses openai types, one doJSON; internal/prompt parameterised replaces 3 loaders",
+      "estimated_loc": 500,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "5 factories -> 1",
+        "3 classifiers -> 1 with 429 test",
+        "4 prompt loaders -> 1",
+        "check-prompt-freeze green"
+      ],
+      "passes": true,
+      "started": "2026-09-15T11:12:02Z",
+      "completed": "2026-09-15T11:12:02Z",
+      "notes": "4cc34241d..3da415336. ai/factory.New (not ai.NewProviderFor — cycle); ollama default 127.0.0.1:11434 via OLLAMA_HOST; 429 from configdriven now CodeRateLimit (was never classified); prompt Kind loader, 126-file byte-identical output. NewClient×8 etc. are legitimate per-provider constructors."
+    },
+    {
+      "id": "M5_HTTP_PROCTREE_SIMHASH_HELPERS",
+      "description": "one writeJSON, one ws hub, fail-closed daemon auth, route collision; internal/proctree leaf (4 copies -> 1); internal/simhash leaf (3 -> 1, migration-safe); observatory classifier/tree/decoder dupes; strutil for truncate/fileExists/sortedKeys outside M1-M4 files; getInt int64 fix",
+      "estimated_loc": 900,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "fail-closed auth test",
+        "proctree+simhash leaves; closure test green",
+        "writeJSON 7->1",
+        "hash-space migration handled or proven unchanged"
+      ],
+      "passes": true,
+      "started": "2026-09-15T11:12:02Z",
+      "completed": "2026-09-15T11:12:02Z",
+      "notes": "79da32b60..48318e987. internal/{proctree,simhash,httpjson,strutil} leaves; simhash survivor = builtins FNV-1a, 8 golden vectors bit-identical, no re-index except coordinator tasks.fingerprint (24h dedup gap, S4); daemon_http auth fail-CLOSED + constant-time (TestRequireAPIKey_FailsClosed); observatory ws hub had zero producers, deleted; /api/thread-messages."
+    },
+    {
+      "id": "M6_CLOSEOUT",
+      "description": "audit vs 2026-09-15; full test + gates; Sprint 4 backlog",
+      "estimated_loc": 50,
+      "dependencies": [
+        "M1_EVAL_ROWS_PREDICATE",
+        "M2_PRICING_MODELREG",
+        "M3_PLANE_SWITCH_SQLITEOPEN_CONFIGYAML",
+        "M4_AI_FACTORY_PROMPT_LOADER",
+        "M5_HTTP_PROCTREE_SIMHASH_HELPERS"
+      ],
+      "acceptance_criteria": [
+        "dup_symbol_names <= 20",
+        "backend_switches 1",
+        "make test + gates green",
+        "S4 backlog written"
+      ],
+      "passes": true,
+      "started": "2026-09-15T11:12:02Z",
+      "completed": "2026-09-15T11:12:02Z",
+      "notes": "Close-out: deferred-approver fix for retired-selector blast radius; metric split leaf/non-leaf; codex_test split at the 800 gate; factory_test HOME via testutil. Full suite green; all gates green. OPERATOR: install_coordinator.sh before next rig coordinator restart (plist has no COORDINATOR_API_KEY; auto-mode refused the plist edit)."
+    }
+  ]
+}

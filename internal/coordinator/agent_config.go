@@ -1,25 +1,51 @@
 package coordinator
 
 import (
+	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
 
-	"gopkg.in/yaml.v3"
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
-// defaultConfigPath returns the AILANG config file path.
-// Checks AILANG_CONFIG env var first (for Cloud Run), falls back to ~/.ailang/config.yaml.
-func defaultConfigPath() string {
-	if p := os.Getenv("AILANG_CONFIG"); p != "" {
-		return p
-	}
-	homeDir, err := os.UserHomeDir()
+// The coordinator's sections of ~/.ailang/config.yaml are read through the
+// ONE loader in internal/config (M-V1-SIMPLIFY-S3 M3): one parse per process,
+// AILANG_CONFIG honoured everywhere, and a broken file is an error from
+// every reader rather than a default from some of them.
+
+// loadSection decodes one top-level section of the config file into out.
+// It returns (false, nil) when there is no config file or no such section,
+// so the caller applies its defaults; a file that exists but does not parse,
+// or a section that does not fit, is an error.
+func loadSection(key string, out any) (bool, error) {
+	f, err := config.Load()
 	if err != nil {
-		return ""
+		if errors.Is(err, config.ErrConfigNotFound) {
+			return false, nil
+		}
+		return false, fmt.Errorf("failed to read config file: %w", err)
 	}
-	return filepath.Join(homeDir, ".ailang", "config.yaml")
+	present, err := f.Section(key, out)
+	if err != nil {
+		return present, fmt.Errorf("failed to parse config file: %w", err)
+	}
+	return present, nil
+}
+
+// loadSectionFrom is loadSection for an explicit path (tests and
+// `coordinator agent check --repo-config`).
+func loadSectionFrom(path, key string, out any) (bool, error) {
+	f, err := config.LoadFrom(path)
+	if err != nil {
+		if errors.Is(err, config.ErrConfigNotFound) {
+			return false, nil
+		}
+		return false, fmt.Errorf("failed to read config file: %w", err)
+	}
+	present, err := f.Section(key, out)
+	if err != nil {
+		return present, fmt.Errorf("failed to parse config file: %w", err)
+	}
+	return present, nil
 }
 
 // CoordinatorConfig is the coordinator section of the global config file.
@@ -36,16 +62,26 @@ type CoordinatorConfig struct {
 	// here is what makes "unrouted" mean INTENDED rather than FORGOTTEN.
 	TriageOnlyInboxes []string `yaml:"triage_only_inboxes" json:"triage_only_inboxes,omitempty"`
 
+	// PackageAgentTemplate, when declared, is cloned into a per-package agent
+	// for every package in the registry index that no `agents:` entry names
+	// (M-PKG-QUALITY-LADDER M6). It is NOT an agent and serves no inbox
+	// itself — a `pkg:` inbox for a package that is not in the registry stays
+	// a visible typo, exactly as the typos-bounce control intends. Its `id`
+	// and `inbox` are ignored; workspace/lane/policy/template fields are the
+	// defaults each derived agent starts from.
+	PackageAgentTemplate *AgentConfig `yaml:"package_agent_template" json:"package_agent_template,omitempty"`
+
 	// Pipelines declare a stage chain once and bind it per project
 	// (M-PIPELINE-RECONCILIATION M4, D2). ExpandPipelines materializes bindings
 	// into AgentConfigs at load time; expanded agents behave identically to
 	// hand-written entries.
 	Pipelines []PipelineConfig `yaml:"pipelines" json:"pipelines,omitempty"`
 
-	// ModelRouting maps role → ordered model chain (M-PIPELINE-RECONCILIATION
-	// M5, D3). Both lanes read it: Lane B via ResolveModel at dispatch, Lane A
-	// via `ailang coordinator routing <role>`.
-	ModelRouting ModelRouting `yaml:"model_routing" json:"model_routing,omitempty"`
+	// model_routing was DELETED by M-MODEL-REGISTRY-SINGLE-SOURCE M7. The
+	// registry (internal/modelreg, `roles:` in models.yml) answers "which model
+	// runs this role?" now, so the table no longer has a second home here that
+	// needs its own deploy. Proven inert before removal: zero of the 34 cloud
+	// agents change resolution without it.
 
 	DefaultProvider string            `yaml:"default_provider" json:"default_provider"`
 	ClaudePath      string            `yaml:"claude_path" json:"claude_path,omitempty"` // Explicit path to Claude CLI binary (empty = auto-detect: native > PATH > NVM)
@@ -127,26 +163,9 @@ func (c *GitHubSyncConfig) GetRepos(defaultRepo string) []RepoSyncConfig {
 	}
 }
 
-// ConfigFile represents the full ~/.ailang/config.yaml structure.
-type ConfigFile struct {
-	Coordinator *CoordinatorConfig `yaml:"coordinator"`
-	Budgets     *BudgetsConfig     `yaml:"budgets"`
-	Firebase    *FirebaseConfig    `yaml:"firebase"`
-	Workspaces  *WorkspacesConfig  `yaml:"workspaces"`
-}
-
-// WorkspacesConfig contains workspace-related configuration for access control.
-type WorkspacesConfig struct {
-	Mappings         []WorkspaceMapping `yaml:"mappings" json:"mappings"`
-	DefaultWorkspace string             `yaml:"default_workspace" json:"default_workspace"`
-	DeriveFromPath   bool               `yaml:"derive_from_path" json:"derive_from_path"` // If true, derive workspace from path when not matched
-}
-
-// WorkspaceMapping defines a path pattern to workspace ID mapping.
-type WorkspaceMapping struct {
-	Pattern   string `yaml:"pattern" json:"pattern"`     // Glob pattern (e.g., "*/dev/sunholo/ailang")
-	Workspace string `yaml:"workspace" json:"workspace"` // Workspace ID (e.g., "sunholo-data/ailang")
-}
+// The coordinator's sections of the config file are `coordinator:`,
+// `budgets:`, `firebase:` and `workspaces:`; each loader below decodes its
+// own through config.Load, so there is no whole-file struct here any more.
 
 // FirebaseConfig contains Firebase authentication settings.
 type FirebaseConfig struct {
@@ -199,37 +218,35 @@ func DefaultBudgetsConfig() *BudgetsConfig {
 	}
 }
 
-// LoadBudgetsConfig loads budget configuration from ~/.ailang/config.yaml.
-// Respects AILANG_CONFIG env var for Cloud Run deployments.
+// LoadBudgetsConfig loads the budgets section of the config file
+// (AILANG_CONFIG, else ~/.ailang/config.yaml). No file or no section means
+// the defaults.
 func LoadBudgetsConfig() (*BudgetsConfig, error) {
-	configPath := defaultConfigPath()
-	if configPath == "" {
+	budgets := &BudgetsConfig{}
+	present, err := loadSection("budgets", budgets)
+	if err != nil {
+		return nil, err
+	}
+	if !present {
 		return DefaultBudgetsConfig(), nil
 	}
-	return LoadBudgetsConfigFrom(configPath)
+	return applyBudgetDefaults(budgets), nil
 }
 
-// LoadBudgetsConfigFrom loads budget configuration from a specific path
+// LoadBudgetsConfigFrom is LoadBudgetsConfig for an explicit path.
 func LoadBudgetsConfigFrom(configPath string) (*BudgetsConfig, error) {
-	data, err := os.ReadFile(configPath)
+	budgets := &BudgetsConfig{}
+	present, err := loadSectionFrom(configPath, "budgets", budgets)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return DefaultBudgetsConfig(), nil
-		}
-		return nil, fmt.Errorf("failed to read config file: %w", err)
+		return nil, err
 	}
-
-	var config ConfigFile
-	if err := yaml.Unmarshal(data, &config); err != nil {
-		return nil, fmt.Errorf("failed to parse config file: %w", err)
-	}
-
-	if config.Budgets == nil {
+	if !present {
 		return DefaultBudgetsConfig(), nil
 	}
+	return applyBudgetDefaults(budgets), nil
+}
 
-	// Apply defaults
-	budgets := config.Budgets
+func applyBudgetDefaults(budgets *BudgetsConfig) *BudgetsConfig {
 	if budgets.Global == nil {
 		budgets.Global = DefaultBudgetsConfig().Global
 	} else {
@@ -247,271 +264,20 @@ func LoadBudgetsConfigFrom(configPath string) (*BudgetsConfig, error) {
 			budgets.Global.WarningThreshold = 0.8
 		}
 	}
-
-	return budgets, nil
+	return budgets
 }
 
-// LoadFirebaseConfig loads Firebase configuration from ~/.ailang/config.yaml.
-// Returns nil if no Firebase config is set (Firebase auth will be disabled).
+// LoadFirebaseConfig loads the firebase section of the config file. Returns
+// nil when there is no file or no section (Firebase auth disabled). A file
+// that does not parse is also nil here — the callers are UI defaults — but
+// the coordinator daemon has already refused to start on it.
 func LoadFirebaseConfig() *FirebaseConfig {
-	configPath := defaultConfigPath()
-	if configPath == "" {
+	fb := &FirebaseConfig{}
+	present, err := loadSection("firebase", fb)
+	if err != nil || !present {
 		return nil
 	}
-
-	data, err := os.ReadFile(configPath)
-	if err != nil {
-		return nil // No config file
-	}
-
-	var config ConfigFile
-	if err := yaml.Unmarshal(data, &config); err != nil {
-		return nil // Invalid config
-	}
-
-	return config.Firebase
-}
-
-// LoadWorkspacesConfig loads workspace configuration from ~/.ailang/config.yaml.
-// Returns a default configuration if no config is set.
-func LoadWorkspacesConfig() *WorkspacesConfig {
-	configPath := defaultConfigPath()
-	if configPath == "" {
-		return DefaultWorkspacesConfig()
-	}
-
-	data, err := os.ReadFile(configPath)
-	if err != nil {
-		return DefaultWorkspacesConfig()
-	}
-
-	var config ConfigFile
-	if err := yaml.Unmarshal(data, &config); err != nil {
-		return DefaultWorkspacesConfig()
-	}
-
-	if config.Workspaces == nil {
-		return DefaultWorkspacesConfig()
-	}
-
-	// Apply defaults
-	if config.Workspaces.DefaultWorkspace == "" {
-		config.Workspaces.DefaultWorkspace = "public"
-	}
-
-	return config.Workspaces
-}
-
-// DefaultWorkspacesConfig returns minimal default workspace mappings.
-// Only internal patterns are hardcoded - user projects should be in config.
-// For unmapped paths, DeriveWorkspaceFromPath() extracts workspace ID from path.
-func DefaultWorkspacesConfig() *WorkspacesConfig {
-	return &WorkspacesConfig{
-		Mappings: []WorkspaceMapping{
-			// Internal patterns only - user project mappings go in config
-			{Pattern: "*/.eval_workspace/*", Workspace: "eval_workspace"},
-			{Pattern: "*/worktrees/*", Workspace: "coordinator_worktrees"},
-		},
-		DefaultWorkspace: "", // Empty means use derived workspace
-		DeriveFromPath:   true,
-	}
-}
-
-// DeriveWorkspaceFromPath extracts a workspace ID from a file path.
-// Uses the last two meaningful path segments (parent/basename) as the workspace ID.
-// This is portable across different directory structures.
-//
-// Examples:
-//   - /Users/mark/dev/sunholo/ailang -> sunholo/ailang
-//   - /home/user/projects/rockwool/ROCKGAP -> rockwool/ROCKGAP
-//   - /path/to/TwilightGame -> to/TwilightGame (or just TwilightGame if only 1 meaningful segment)
-//   - /tmp/foo -> foo
-func DeriveWorkspaceFromPath(path string) string {
-	if path == "" || path == "unknown" {
-		return "unknown"
-	}
-
-	// Clean path and split into components
-	path = filepath.Clean(path)
-	parts := strings.Split(path, string(filepath.Separator))
-
-	// Collect meaningful path segments (skip empty, hidden, and common temp dirs)
-	var meaningful []string
-	for _, p := range parts {
-		if p == "" || p == "tmp" || p == "var" || p == "folders" || strings.HasPrefix(p, ".") {
-			continue
-		}
-		// Also skip common home/user path segments
-		if p == "Users" || p == "home" || p == "mark" {
-			continue
-		}
-		meaningful = append(meaningful, p)
-	}
-
-	if len(meaningful) == 0 {
-		return "unknown"
-	}
-
-	// Use last two segments as org/repo (or just last one if only one exists)
-	if len(meaningful) >= 2 {
-		return meaningful[len(meaningful)-2] + "/" + meaningful[len(meaningful)-1]
-	}
-	return meaningful[len(meaningful)-1]
-}
-
-// BuildWorkspaceMappingSQL generates a SQL CASE statement for mapping file paths to workspace IDs.
-// Used by the analytics backend to map process.cwd values to Firestore workspace IDs.
-//
-// When DeriveFromPath is true, unmapped paths are derived using SQL expressions:
-// - Paths with /dev/{org}/{repo} return "org/repo"
-// - Other paths return "unknown"
-func (c *WorkspacesConfig) BuildWorkspaceMappingSQL(cwdColumn string) string {
-	if c == nil {
-		return "'unknown'"
-	}
-
-	var cases []string
-	for _, m := range c.Mappings {
-		// Convert glob pattern to SQL LIKE pattern:
-		// - "*" at start/end becomes "%"
-		// - Internal "*" becomes "%"
-		pattern := m.Pattern
-		pattern = strings.ReplaceAll(pattern, "*", "%")
-
-		cases = append(cases, fmt.Sprintf(
-			"WHEN %s LIKE '%s' THEN '%s'",
-			cwdColumn, pattern, m.Workspace))
-	}
-
-	// ELSE clause: either use default or derive from path
-	if c.DeriveFromPath {
-		// For unmapped paths, use the raw cwd value as workspace.
-		// The config mappings handle the main workspaces.
-		// Label formatting will make raw paths human-readable.
-		deriveSql := fmt.Sprintf(`ELSE %s`, cwdColumn)
-		cases = append(cases, deriveSql)
-	} else {
-		defaultWs := c.DefaultWorkspace
-		if defaultWs == "" {
-			defaultWs = "unknown"
-		}
-		cases = append(cases, fmt.Sprintf("ELSE '%s'", defaultWs))
-	}
-
-	return "CASE\n" + strings.Join(cases, "\n") + "\nEND"
-}
-
-// GetWorkspaceLabel returns a human-friendly label for a workspace ID.
-// For internal workspaces, returns predefined labels.
-// For user workspaces (org/repo format), returns a formatted label.
-// For raw paths (from DeriveFromPath fallback), derives and formats the label.
-func (c *WorkspacesConfig) GetWorkspaceLabel(workspaceID string) string {
-	// Internal workspace labels
-	internalLabels := map[string]string{
-		"eval_workspace":        "Eval Benchmarks",
-		"coordinator_worktrees": "Coordinator Tasks",
-		"unknown":               "No Workspace",
-	}
-	if label, ok := internalLabels[workspaceID]; ok {
-		return label
-	}
-
-	// Check if this looks like a raw file path (starts with / or has more than 2 slashes)
-	if strings.HasPrefix(workspaceID, "/") || strings.Count(workspaceID, "/") > 1 {
-		// Derive workspace from path and use that
-		derived := DeriveWorkspaceFromPath(workspaceID)
-		if parts := strings.Split(derived, "/"); len(parts) == 2 {
-			return formatWorkspaceLabel(parts[1])
-		}
-		return formatWorkspaceLabel(derived)
-	}
-
-	// For org/repo format, make the repo name the label
-	if parts := strings.Split(workspaceID, "/"); len(parts) == 2 {
-		return formatWorkspaceLabel(parts[1])
-	}
-
-	// For single-segment workspace, format it nicely
-	return formatWorkspaceLabel(workspaceID)
-}
-
-// GetPathPatternsForWorkspace returns SQL LIKE patterns that match a workspace ID.
-// Used for filtering spans by workspace when the filter is an org/repo ID.
-// Returns nil if no matching mappings found (caller should use fallback).
-//
-// Example: For workspace "MarkEdmondson1234/TwilightGame" with mapping
-// {Pattern: "*/TwilightGame*", Workspace: "MarkEdmondson1234/TwilightGame"},
-// returns ["%/TwilightGame%"] as the pattern to match process.cwd values.
-func (c *WorkspacesConfig) GetPathPatternsForWorkspace(workspaceID string) []string {
-	if c == nil || workspaceID == "" {
-		return nil
-	}
-
-	var patterns []string
-	for _, m := range c.Mappings {
-		if m.Workspace == workspaceID {
-			// Convert glob pattern to SQL LIKE pattern
-			pattern := strings.ReplaceAll(m.Pattern, "*", "%")
-			patterns = append(patterns, pattern)
-		}
-	}
-
-	// If no explicit mapping, try to derive patterns from the workspace ID
-	// For org/repo format, generate patterns that would match the repo name
-	if len(patterns) == 0 && c.DeriveFromPath {
-		// Extract the repo name from org/repo format
-		parts := strings.Split(workspaceID, "/")
-		if len(parts) >= 1 {
-			repoName := parts[len(parts)-1]
-			// Generate pattern that matches paths ending with this repo name
-			patterns = append(patterns, "%/"+repoName)
-			patterns = append(patterns, "%/"+repoName+"/%")
-		}
-	}
-
-	return patterns
-}
-
-// formatWorkspaceLabel converts a workspace name to a human-readable label.
-// Examples: "ailang" -> "Ailang", "ROCKGAP" -> "ROCKGAP", "stapledons_voyage" -> "Stapledons Voyage"
-//
-//	"TwilightGame" -> "Twilight Game" (splits camel case)
-func formatWorkspaceLabel(name string) string {
-	if name == "" {
-		return "Unknown"
-	}
-
-	// If all uppercase, keep it (like ROCKGAP, ROCKGPT)
-	if strings.ToUpper(name) == name && len(name) > 1 {
-		return name
-	}
-
-	// Insert spaces before uppercase letters (camel case -> spaces)
-	var result strings.Builder
-	for i, r := range name {
-		if i > 0 && r >= 'A' && r <= 'Z' {
-			// Check if previous char was lowercase (camel case boundary)
-			prev := rune(name[i-1])
-			if prev >= 'a' && prev <= 'z' {
-				result.WriteRune(' ')
-			}
-		}
-		result.WriteRune(r)
-	}
-	name = result.String()
-
-	// Replace underscores/dashes with spaces
-	name = strings.ReplaceAll(name, "_", " ")
-	name = strings.ReplaceAll(name, "-", " ")
-
-	// Title case each word
-	words := strings.Fields(name)
-	for i, w := range words {
-		if len(w) > 0 {
-			words[i] = strings.ToUpper(w[:1]) + strings.ToLower(w[1:])
-		}
-	}
-	return strings.Join(words, " ")
+	return fb
 }
 
 // DefaultCoordinatorConfig returns a minimal default configuration.
@@ -537,40 +303,52 @@ func DefaultCoordinatorConfig() *CoordinatorConfig {
 	}
 }
 
-// LoadCoordinatorConfig loads the coordinator configuration from ~/.ailang/config.yaml.
-// If the file doesn't exist, returns a default configuration.
-// If the file exists but has no coordinator section, returns a default configuration.
+// LoadCoordinatorConfig loads the coordinator section of the config file
+// (AILANG_CONFIG, else ~/.ailang/config.yaml). No file or no coordinator
+// section returns the default configuration; a file that does not parse is
+// an error.
 func LoadCoordinatorConfig() (*CoordinatorConfig, error) {
-	configPath := defaultConfigPath()
-	if configPath == "" {
+	cfg := &CoordinatorConfig{}
+	present, err := loadSection("coordinator", cfg)
+	if err != nil {
+		return nil, err
+	}
+	if !present {
 		return DefaultCoordinatorConfig(), nil
 	}
-	return LoadCoordinatorConfigFrom(configPath)
+	return applyCoordinatorDefaults(cfg), nil
 }
 
-// LoadCoordinatorConfigFrom loads the coordinator configuration from a specific path.
+// LoadCoordinatorConfigFrom is LoadCoordinatorConfig for an explicit path.
 func LoadCoordinatorConfigFrom(configPath string) (*CoordinatorConfig, error) {
-	data, err := os.ReadFile(configPath)
+	cfg, _, err := loadCoordinatorConfigDeclared(configPath)
+	return cfg, err
+}
+
+// loadCoordinatorConfigDeclared also reports whether the FILE declared a
+// `coordinator:` section, which is the difference between "these are the
+// deployment's agents" and "these are AILANG's built-in defaults".
+//
+// The distinction is invisible in the returned config: a file with no
+// coordinator section yields DefaultCoordinatorConfig(), which builds a registry
+// holding exactly one agent (`coordinator`, measured 2026-09-17). A caller that
+// shows that as "the registry" is presenting a built-in stub as a deployment.
+// See LoadAgentRegistryFromDeclared.
+func loadCoordinatorConfigDeclared(configPath string) (*CoordinatorConfig, bool, error) {
+	cfg := &CoordinatorConfig{}
+	present, err := loadSectionFrom(configPath, "coordinator", cfg)
 	if err != nil {
-		if os.IsNotExist(err) {
-			// Config file doesn't exist, use defaults
-			return DefaultCoordinatorConfig(), nil
-		}
-		return nil, fmt.Errorf("failed to read config file: %w", err)
+		return nil, false, err
 	}
-
-	var config ConfigFile
-	if err := yaml.Unmarshal(data, &config); err != nil {
-		return nil, fmt.Errorf("failed to parse config file: %w", err)
+	if !present {
+		return DefaultCoordinatorConfig(), false, nil
 	}
+	return applyCoordinatorDefaults(cfg), true, nil
+}
 
-	if config.Coordinator == nil {
-		// No coordinator section, use defaults
-		return DefaultCoordinatorConfig(), nil
-	}
-
-	// Validate and apply defaults
-	cfg := config.Coordinator
+// applyCoordinatorDefaults validates and fills the defaults of a loaded
+// coordinator section.
+func applyCoordinatorDefaults(cfg *CoordinatorConfig) *CoordinatorConfig {
 	if cfg.DefaultProvider == "" {
 		cfg.DefaultProvider = "claude"
 	}
@@ -615,7 +393,7 @@ func LoadCoordinatorConfigFrom(configPath string) (*CoordinatorConfig, error) {
 		}
 	}
 
-	return cfg, nil
+	return cfg
 }
 
 // LoadAgentRegistry loads agents from config and returns a populated registry.
@@ -648,16 +426,42 @@ func buildRegistryFromConfig(cfg *CoordinatorConfig) (*AgentRegistry, error) {
 		}
 	}
 	registry.SetTriageOnlyInboxes(cfg.TriageOnlyInboxes)
+	// M-PKG-QUALITY-LADDER M6: the CLI readouts (`messages inboxes`, health,
+	// the send guard) see the same derived package agents the daemon serves.
+	registry.SetPackageAgentTemplate(cfg.PackageAgentTemplate)
+	registry.MaterializePackageAgentsFromRegistry(nil)
 	return registry, nil
 }
 
 // LoadAgentRegistryFrom loads agents from a specific config path.
 func LoadAgentRegistryFrom(configPath string) (*AgentRegistry, error) {
-	cfg, err := LoadCoordinatorConfigFrom(configPath)
+	reg, _, err := LoadAgentRegistryFromDeclared(configPath)
+	return reg, err
+}
+
+// LoadAgentRegistryFromDeclared loads agents from a config path AND reports
+// whether that file actually declared any.
+//
+// A file with no `coordinator:` section does not produce an empty registry — it
+// produces AILANG's built-in default, a registry of one agent (`coordinator`).
+// Handing that back unlabelled turns a config-shape mistake into a confident
+// wrong answer about which agents exist: every other inbox reads as unserved.
+//
+// Measured 2026-09-17 (daneel v0.2.5 → v0.2.11): Daneel's send path sets
+// $AILANG_CONFIG to a pubsub-only file, because a send publishes its
+// notification only when the sender's config has a pubsub section. Every
+// command that resolves a registry from that variable — inboxes, health, prs,
+// approvals, the send guard, pipeline, lint, agents — then answered from the
+// default fleet while labelling it as the plane's registry. Daneel's own guard
+// ("refuse unless the registry is the shared plane's") caught it and deferred
+// two of Mark's design requests for seven hours; nothing else would have.
+func LoadAgentRegistryFromDeclared(configPath string) (*AgentRegistry, bool, error) {
+	cfg, declared, err := loadCoordinatorConfigDeclared(configPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load coordinator config from %q: %w", configPath, err)
+		return nil, false, fmt.Errorf("failed to load coordinator config from %q: %w", configPath, err)
 	}
-	return buildRegistryFromConfig(cfg)
+	reg, err := buildRegistryFromConfig(cfg)
+	return reg, declared, err
 }
 
 // SampleAgentConfig returns a sample configuration string for documentation.
@@ -749,4 +553,28 @@ coordinator:
   #         - label_prefix: "feature"
   #           target: stapledon-design-doc
 `
+}
+
+// UnknownConfigKeys returns config keys that no struct field reads.
+//
+// YAML silently drops keys it cannot map, so a plausible-looking setting can sit
+// in the config doing nothing. Measured 2026-09-11: `push_branch: dev` was added
+// to an agent entry to make it push directly. AgentConfig has no PushBranch
+// field — the real control is skip_approval + merge_branch — so the key was
+// inert, and the entry read as if it were configured.
+//
+// Returns the offending key paths rather than an error, because the caller
+// wants to report all of them, not stop at the first. Only AGENT keys are
+// reported: the decode target models `coordinator:` alone, so every sibling
+// top-level block (github:, pubsub:) would report as unknown and be a false
+// positive — and a checker that cries wolf gets ignored.
+func UnknownConfigKeys(data []byte) ([]string, error) {
+	f, err := config.Parse(data)
+	if err != nil {
+		return nil, err
+	}
+	var cfg struct {
+		Coordinator CoordinatorConfig `yaml:"coordinator"`
+	}
+	return f.UnknownKeys(&cfg, "coordinator.AgentConfig")
 }

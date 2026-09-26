@@ -2,6 +2,7 @@ package coordinator
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 )
@@ -11,9 +12,12 @@ import (
 // =============================================================================
 
 type MockStore struct {
-	mu     sync.Mutex
-	tasks  map[string]*TaskRecord
-	stages map[string]TaskStage
+	approvalIDs map[string]bool // ids already created, so CreateApprovalIfAbsent models first-write-wins
+	ledgers     map[string]FinalizationLedger
+	statuses    map[string]TaskStatus
+	mu          sync.Mutex
+	tasks       map[string]*TaskRecord
+	stages      map[string]TaskStage
 
 	// Error injection
 	getTaskErr            error
@@ -166,7 +170,7 @@ func (m *MockStore) ResetTaskToPending(ctx context.Context, id string) error {
 	return nil
 }
 
-func (m *MockStore) FindDuplicateTask(ctx context.Context, fingerprint uint64, threshold float64) (*TaskRecord, error) {
+func (m *MockStore) FindDuplicateTask(ctx context.Context, fingerprint uint64, scope DedupScope) (*TaskRecord, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.calls["FindDuplicateTask"]++
@@ -272,6 +276,26 @@ func (m *MockStore) CreateApprovalRequest(ctx context.Context, req *ApprovalRequ
 	defer m.mu.Unlock()
 	m.calls["CreateApprovalRequest"]++
 	return nil
+}
+
+// CreateApprovalIfAbsent models first-write-wins rather than returning a
+// constant: a mock that always reports "created" would make any idempotency
+// assertion against it vacuous.
+func (m *MockStore) CreateApprovalIfAbsent(ctx context.Context, req *ApprovalRequestRecord) (bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.calls["CreateApprovalIfAbsent"]++
+	if req == nil || req.ID == "" {
+		return false, nil
+	}
+	if m.approvalIDs == nil {
+		m.approvalIDs = map[string]bool{}
+	}
+	if m.approvalIDs[req.ID] {
+		return false, nil
+	}
+	m.approvalIDs[req.ID] = true
+	return true, nil
 }
 
 func (m *MockStore) GetApprovalRequest(ctx context.Context, id string) (*ApprovalRequestRecord, error) {
@@ -389,7 +413,7 @@ func (m *MockStore) ListApprovedMergeHandoffsWithoutTrigger(ctx context.Context)
 	return nil, nil
 }
 
-func (m *MockStore) MarkApprovalHandoffsTriggered(ctx context.Context, taskID string) error {
+func (m *MockStore) MarkApprovalHandoffsTriggered(ctx context.Context, taskID, workID string) error {
 	return nil
 }
 
@@ -429,4 +453,98 @@ func newTestTaskWithGitHub(id string, issueNum int) *TaskRecord {
 	task := newTestTask(id)
 	task.GithubIssue = issueNum
 	return task
+}
+
+// Ledger accessors backed by a real map, so idempotency assertions against the
+// mock exercise the same first-write-wins logic the stores implement.
+func (m *MockStore) GetTaskFinalization(ctx context.Context, taskID string) (FinalizationLedger, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.ledgers == nil {
+		return FinalizationLedger{}, nil
+	}
+	l, ok := m.ledgers[taskID]
+	if !ok {
+		return FinalizationLedger{}, nil
+	}
+	return l, nil
+}
+
+func (m *MockStore) SetTaskFinalization(ctx context.Context, taskID string, ledger FinalizationLedger) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.ledgers == nil {
+		m.ledgers = map[string]FinalizationLedger{}
+	}
+	m.ledgers[taskID] = ledger
+	return nil
+}
+
+// CompareAndSetTaskStatus models the real conditional write, so tests that rely
+// on supersession behave as production does rather than always succeeding.
+func (m *MockStore) CompareAndSetTaskStatus(ctx context.Context, id string, expected []TaskStatus, next TaskStatus) (bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.statuses == nil {
+		m.statuses = map[string]TaskStatus{}
+	}
+	current, ok := m.statuses[id]
+	if !ok {
+		current = TaskStatusRunning
+	}
+	for _, want := range expected {
+		if current == want {
+			m.statuses[id] = next
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// ReopenApprovalForNewWork: a later execution produced different work, so the
+// resolved approval goes back to pending. Mock reports "nothing reopened".
+func (m *MockStore) ReopenApprovalForNewWork(ctx context.Context, taskID, description, contextJSON string) (bool, error) {
+	return false, nil
+}
+
+// RefreshPendingApproval: a pending card describing superseded work. The mock
+// records the call and reports "nothing refreshed".
+func (m *MockStore) RefreshPendingApproval(ctx context.Context, taskID, description, contextJSON string) (bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.calls["RefreshPendingApproval"]++
+	return false, nil
+}
+
+// ReopenTask: rejected/cancelled goes back to pending_approval, anything else
+// is refused — the guard is the part worth modelling.
+func (m *MockStore) ReopenTask(ctx context.Context, taskID string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.calls["ReopenTask"]++
+	task, ok := m.tasks[taskID]
+	if !ok {
+		return fmt.Errorf("task not found: %s", taskID)
+	}
+	if task.Status != TaskStatusRejected && task.Status != TaskStatusCancelled {
+		return fmt.Errorf("cannot reopen task with status %q (only rejected or cancelled tasks can be reopened)", task.Status)
+	}
+	task.Status = TaskStatusPendingApproval
+	task.CompletedAt = nil
+	if m.statuses != nil {
+		m.statuses[taskID] = TaskStatusPendingApproval
+	}
+	return nil
+}
+
+func (m *MockStore) ResolveApprovalSuppressingHandoffs(ctx context.Context, taskID, resolvedBy string) error {
+	return nil
+}
+
+func (m *MockStore) ApprovalHandoffsSuppressed(ctx context.Context, taskID string) (bool, error) {
+	return false, nil
+}
+
+func (m *MockStore) MarkApprovalHandoffsExpired(ctx context.Context, taskID, workID string) error {
+	return nil
 }

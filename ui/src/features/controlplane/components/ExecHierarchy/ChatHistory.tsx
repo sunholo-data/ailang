@@ -1024,12 +1024,12 @@ export const ChatHistory: React.FC<ChatHistoryProps> = ({
           <div className={styles.chatCliHint}>
             <span className={styles.chatCliLabel}>CLI:</span>
             <code className={styles.chatCliCommand}>
-              ailang trace view {selectedSpan.id}
+              ailang chains trace view {selectedSpan.id}
             </code>
             <button
               className={styles.chatCliCopy}
               onClick={() => {
-                navigator.clipboard.writeText(`ailang trace view ${selectedSpan.id}`);
+                navigator.clipboard.writeText(`ailang chains trace view ${selectedSpan.id}`);
               }}
               title="Copy full command"
             >

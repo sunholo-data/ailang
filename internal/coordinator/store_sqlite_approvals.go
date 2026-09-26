@@ -147,11 +147,48 @@ func (s *SQLiteStore) ResolveApprovalRequest(ctx context.Context, id string, sta
 // ResolveApprovalRequestByTask marks approval requests for a task as approved or rejected.
 // Resolves both "merge" and "merge_handoff" type approvals - pure "handoff" approvals must be resolved separately via ResolveApprovalRequest.
 func (s *SQLiteStore) ResolveApprovalRequestByTask(ctx context.Context, taskID string, status string, resolvedBy string) error {
+	return s.resolveApprovalByTask(ctx, taskID, status, resolvedBy, false)
+}
+
+// ResolveApprovalSuppressingHandoffs approves with the suppression in the SAME
+// UPDATE as the resolution (M-TASK-STATUS-TRUTH D3).
+func (s *SQLiteStore) ResolveApprovalSuppressingHandoffs(ctx context.Context, taskID, resolvedBy string) error {
+	return s.resolveApprovalByTask(ctx, taskID, "approved", resolvedBy, true)
+}
+
+func (s *SQLiteStore) ApprovalHandoffsSuppressed(ctx context.Context, taskID string) (bool, error) {
+	var n int
+	err := s.db.QueryRowContext(ctx,
+		"SELECT COUNT(*) FROM approval_requests WHERE task_id = ? AND handoffs_suppressed = 1", taskID,
+	).Scan(&n)
+	return n > 0, err
+}
+
+func (s *SQLiteStore) MarkApprovalHandoffsExpired(ctx context.Context, taskID, workID string) error {
+	_, err := s.db.ExecContext(ctx,
+		"UPDATE approval_requests SET handoffs_triggered = 1, handoffs_expired = 1 WHERE task_id = ? AND status = 'approved' AND "+sqliteApprovalWorkID+" = ?",
+		taskID, workID)
+	return err
+}
+
+// sqliteApprovalWorkID is the approval's current work id in SQL, "" when the
+// context is absent or not JSON — the same reading as workIDFromContext.
+const sqliteApprovalWorkID = "(CASE WHEN json_valid(context_json) THEN COALESCE(json_extract(context_json, '$.work_id'), '') ELSE '' END)"
+
+func (s *SQLiteStore) resolveApprovalByTask(ctx context.Context, taskID, status, resolvedBy string, suppressHandoffs bool) error {
 	now := time.Now()
-	// Resolve merge and merge_handoff approvals - pure handoff approvals require explicit approval via separate CLI command
+	suppressed := 0
+	if suppressHandoffs {
+		suppressed = 1
+	}
+	// Resolve merge and merge_handoff approvals - pure handoff approvals require explicit approval via separate CLI command.
+	// A suppressed resolution also sets handoffs_triggered: the recovery query
+	// excludes on it, and it is written in this one statement, not after.
 	result, err := s.db.ExecContext(ctx,
-		"UPDATE approval_requests SET status = ?, resolved_by = ?, resolved_at = ? WHERE task_id = ? AND status = 'pending' AND type IN ('merge', 'merge_handoff')",
-		status, resolvedBy, now, taskID,
+		`UPDATE approval_requests SET status = ?, resolved_by = ?, resolved_at = ?,
+		        handoffs_suppressed = ?, handoffs_triggered = CASE WHEN ? = 1 THEN 1 ELSE handoffs_triggered END
+		 WHERE task_id = ? AND status = 'pending' AND type IN ('merge', 'merge_handoff')`,
+		status, resolvedBy, now, suppressed, suppressed, taskID,
 	)
 	if err != nil {
 		return err
@@ -313,31 +350,35 @@ func (s *SQLiteStore) scanApprovalRequestFromRows(rows *sql.Rows) (*ApprovalRequ
 	return req, nil
 }
 
-// MarkApprovalHandoffsTriggered marks that handoffs have been sent for an approval request.
+// MarkApprovalHandoffsTriggered records that the approval's handoff decision is
+// made (a scan latch for boot recovery — see the Store interface).
 // This is used to track whether handoffs were triggered, enabling catch-up on daemon startup.
-func (s *SQLiteStore) MarkApprovalHandoffsTriggered(ctx context.Context, taskID string) error {
+func (s *SQLiteStore) MarkApprovalHandoffsTriggered(ctx context.Context, taskID, workID string) error {
 	_, err := s.db.ExecContext(ctx,
-		"UPDATE approval_requests SET handoffs_triggered = 1 WHERE task_id = ?",
-		taskID,
+		"UPDATE approval_requests SET handoffs_triggered = 1 WHERE task_id = ? AND status = 'approved' AND "+sqliteApprovalWorkID+" = ?",
+		taskID, workID,
 	)
 	return err
 }
 
-// ListApprovedMergeHandoffsWithoutTrigger finds approved merge_handoff requests where handoffs were never sent.
-// These are approvals that were processed before the handoff triggering code was deployed (catch-up mechanism).
-// Only returns approvals from the last 7 days to avoid re-triggering very old approvals.
+// ListApprovedMergeHandoffsWithoutTrigger finds approved merge_handoff requests
+// whose handoff decision was never recorded — the crash case boot recovery exists
+// for. It returns them regardless of age: the window (HandoffRecoveryWindow) is
+// applied in ONE place, triggerMissedHandoffs, which expires what it will not
+// fire so nothing is returned twice. The Firestore store has always returned
+// every age; SQLite silently bounded in SQL, so the two stores disagreed on
+// which approvals prod would re-fire (M-TASK-STATUS-TRUTH V11).
 func (s *SQLiteStore) ListApprovedMergeHandoffsWithoutTrigger(ctx context.Context) ([]*ApprovalRequestRecord, error) {
-	cutoff := time.Now().Add(-7 * 24 * time.Hour) // Only last 7 days
 	query := `
 		SELECT id, task_id, type, description, context_json, status, resolved_by, created_at, resolved_at, timeout_at, auto_reject, evaluation
 		FROM approval_requests
 		WHERE type = 'merge_handoff'
 		  AND status = 'approved'
 		  AND (handoffs_triggered IS NULL OR handoffs_triggered = 0)
-		  AND created_at > ?
 		ORDER BY resolved_at ASC
+		LIMIT ?
 	`
-	rows, err := s.db.QueryContext(ctx, query, cutoff)
+	rows, err := s.db.QueryContext(ctx, query, HandoffRecoveryBatch)
 	if err != nil {
 		return nil, err
 	}

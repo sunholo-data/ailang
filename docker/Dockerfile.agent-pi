@@ -4,7 +4,37 @@
 ARG PROJECT
 FROM europe-west1-docker.pkg.dev/${PROJECT}/ailang/agent-base:latest
 
-# pi CLI (npm package: @mariozechner/pi-coding-agent, binary: pi)
+# pi CLI — PINNED to the maintained package (M-PI-HARNESS-UPGRADE M4, 2026-09-16).
+#
+# HISTORY: the fleet ran @mariozechner/pi-coding-agent, ABANDONED at 0.73.1 (the
+# npm deprecation notice points at @earendil-works), while the rig ran 0.84.x —
+# two harness versions across the one comparison this program exists to make,
+# and nothing in the banked data said so. Both planes are now on this pin, and
+# every agent-mode row banks `executor_version` from the binary's own --version.
+#
+# THE SAME VERSION LIVES IN internal/executor/pi (ExpectedVersion): HealthCheck
+# refuses a mismatch, and TestDockerfilesPinExpectedPiVersion fails if this ARG
+# and that constant disagree. Bump both, together, after re-capturing the
+# differential fixtures (design doc M3.0).
+#
+# The abandoned package must be REMOVED first: both publish a `pi` bin and npm
+# refuses to clobber another package's link (`npm error EEXIST`) — which shipped
+# the OLD pi under a green build once (resident, 2026-09-02). And the result is
+# ASSERTED: a build that installs any other version fails, it does not warn.
+ARG PI_PACKAGE=@earendil-works/pi-coding-agent
+ARG PI_VERSION=0.85.1
 USER root
-RUN npm install -g @mariozechner/pi-coding-agent
+RUN npm uninstall -g @mariozechner/pi-coding-agent 2>/dev/null || true; \
+    npm install -g "${PI_PACKAGE}@${PI_VERSION}" \
+    && pi --version </dev/null | grep -qx "${PI_VERSION}" \
+       || { echo "pi --version = $(pi --version </dev/null), pinned ${PI_VERSION}" >&2; exit 1; }
 USER ailang
+
+# M-DX-PI-HARNESS Distribution v2 (F5): install the binary-embedded suite
+# only after switching to the runtime user, so it lands in /home/ailang/.pi.
+RUN ailang pi install
+
+# The image declares the executor CLI it installs. cmd/ailang execute-job
+# refuses a task whose AILANG_PROVIDER disagrees, instead of cloning the repo
+# and then exec-failing on a binary that was never here (2026-08-27/28).
+ENV AILANG_IMAGE_PROVIDER=pi

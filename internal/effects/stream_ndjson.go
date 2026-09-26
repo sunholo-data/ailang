@@ -2,9 +2,7 @@ package effects
 
 import (
 	"bufio"
-	"context"
 	"fmt"
-	"net"
 	"net/http"
 	"strings"
 
@@ -77,16 +75,14 @@ func StreamNDJSONPost(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 		}
 	}
 
-	transport := &http.Transport{
-		DialContext: (&net.Dialer{
-			Timeout: ctx.Stream.ConnectTimeout,
-		}).DialContext,
-		TLSHandshakeTimeout:   ctx.Stream.ConnectTimeout,
-		ResponseHeaderTimeout: ctx.Stream.ConnectTimeout,
+	// Through the shared destination authorizer: per-hop re-authorization,
+	// pinned dial, ConnectTimeout on the connect phase only.
+	client, err := streamHTTPClient(ctx, urlVal.Value)
+	if err != nil {
+		return makeStreamErr("ConnectionFailed", err.Error()), nil
 	}
-	client := &http.Client{Transport: transport}
 
-	req, err := http.NewRequestWithContext(context.Background(), "POST", urlVal.Value, strings.NewReader(bodyVal.Value))
+	req, err := http.NewRequestWithContext(requestContext(ctx), "POST", urlVal.Value, strings.NewReader(bodyVal.Value))
 	if err != nil {
 		return makeStreamErr("ConnectionFailed", fmt.Sprintf("NDJSON POST request creation failed: %s", err.Error())), nil
 	}
@@ -94,7 +90,7 @@ func StreamNDJSONPost(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return makeStreamErr("ConnectionFailed", fmt.Sprintf("NDJSON POST connection failed: %s", err.Error())), nil
+		return makeStreamErr("ConnectionFailed", fmt.Sprintf("NDJSON POST connection failed: %s", transportMessage(err))), nil
 	}
 
 	if resp.StatusCode != http.StatusOK {

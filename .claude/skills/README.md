@@ -115,14 +115,10 @@ Skills differ from Agents in that they provide focused, reusable workflows rathe
 
 ### Performance & Quality
 
-**[perf-reviewer/](perf-reviewer/)** - Review code for performance issues and run benchmarks
-- Cross-language benchmarks: AILANG interpreted vs Python vs AILANG compiled to Go
-- Performance principles guide (Abseil-inspired + Go patterns)
-- Phase timing profiler for AILANG compilation
-- Memory layout, batch operations, algorithmic complexity checks
-- **Scripts**: benchmark.sh, profile_ailang.sh
-- **Resources**: principles.md, go_patterns.md
-- **Key finding**: AILANG interpreter ~5x slower than Python for recursive workloads; compilation provides 10-50x speedup
+**[perf-sweep/](perf-sweep/)** - Monthly runtime performance and memory sweep (`make perf-sweep`)
+- Workload p95, peak RSS of five memory-shaped probes, alloc/op of evaluator and builtins
+- Diffs against `.ailang/state/perf/<date>.json`, exit 2 on regression, positive control
+- Instruments table (which question → which tool); replaces the April `perf-reviewer`
 
 **[test-coverage-guardian/](test-coverage-guardian/)** - Analyze test coverage, identify gaps, improve test quality
 - Coverage analysis and gap detection

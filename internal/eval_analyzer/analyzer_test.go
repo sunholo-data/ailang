@@ -34,11 +34,15 @@ func TestAnalyzer(t *testing.T) {
 			Timestamp:     time.Now(),
 			Code:          "if x > 0 else x",
 		},
+		// A second fizzbuzz failure on a DIFFERENT seed: the loader collapses
+		// re-runs of the same (model, id, lang, seed, mode, trial) slot to the
+		// newest row, so the second occurrence that feeds the frequency-2
+		// grouping must be a genuinely distinct run.
 		{
 			ID:            "fizzbuzz",
 			Lang:          "ailang",
 			Model:         "gpt5",
-			Seed:          42,
+			Seed:          43,
 			InputTokens:   100,
 			OutputTokens:  200,
 			TotalTokens:   300,
@@ -249,5 +253,88 @@ func TestGenerateTitle(t *testing.T) {
 				t.Errorf("generateTitle() = %q, want %q", got, tt.want)
 			}
 		})
+	}
+}
+
+// TestAnalyzer_RuntimeFailureWithMatchingStdoutIsAFailure pins ruling D2 on
+// the analyzer: a row with compile_ok=true, runtime_ok=false, stdout_ok=true
+// is NOT a pass and is counted — and surfaced as an issue — as a failure.
+func TestAnalyzer_RuntimeFailureWithMatchingStdoutIsAFailure(t *testing.T) {
+	dir := t.TempDir()
+	logger := eval_harness.NewMetricsLogger(dir)
+	discordant := eval_harness.RunMetrics{
+		ID: "print_missing_effect", Lang: "ailang", Model: "gpt5", Seed: 1,
+		CompileOk: true, RuntimeOk: false, StdoutOk: true,
+		ErrorCategory: eval_harness.ErrorCategoryRuntime,
+		Stderr:        "effect IO not declared", Timestamp: time.Now(),
+	}
+	pass := eval_harness.RunMetrics{
+		ID: "fizzbuzz", Lang: "ailang", Model: "gpt5", Seed: 1,
+		CompileOk: true, RuntimeOk: true, StdoutOk: true,
+		ErrorCategory: eval_harness.ErrorCategoryNone, Timestamp: time.Now(),
+	}
+	for _, m := range []eval_harness.RunMetrics{discordant, pass} {
+		m := m
+		if err := logger.Log(&m); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	result, err := NewAnalyzer(dir, 1, nil).Analyze()
+	if err != nil {
+		t.Fatalf("Analyze: %v", err)
+	}
+	if result.TotalRuns != 2 || result.FailureCount != 1 {
+		t.Fatalf("runs=%d failures=%d, want 2 / 1 (stdout_ok alone is not a pass)", result.TotalRuns, result.FailureCount)
+	}
+	if result.SuccessRate < 49.9 || result.SuccessRate > 50.1 {
+		t.Errorf("success rate = %.1f%%, want 50%%", result.SuccessRate)
+	}
+	found := false
+	for _, issue := range result.Issues {
+		if issue.Category == eval_harness.ErrorCategoryRuntime {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("the runtime failure was not surfaced as an issue: %+v", result.Issues)
+	}
+}
+
+// TestAnalyzer_ExcludesInvalidRows: a harness crash banked as api_error (and
+// so marked invalid at bank time) must not be analysed as a model failure.
+// Before M-V1-SIMPLIFY-S3 M1 the analyzer had its own loader with no validity
+// filter and did exactly that.
+func TestAnalyzer_ExcludesInvalidRows(t *testing.T) {
+	dir := t.TempDir()
+	logger := eval_harness.NewMetricsLogger(dir)
+	rows := []eval_harness.RunMetrics{
+		{ID: "fizzbuzz", Lang: "ailang", Model: "m", Seed: 1, CompileOk: true, RuntimeOk: true, StdoutOk: true,
+			ErrorCategory: eval_harness.ErrorCategoryNone, Timestamp: time.Now()},
+		{ID: "json_parse", Lang: "ailang", Model: "m", Seed: 1,
+			ErrorCategory: eval_harness.ErrorCategoryAPI, Stderr: "motoko terminated without emitting run_summary",
+			Timestamp: time.Now()},
+	}
+	for _, m := range rows {
+		m := m
+		if err := logger.Log(&m); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	result, err := NewAnalyzer(dir, 1, nil).Analyze()
+	if err != nil {
+		t.Fatalf("Analyze: %v", err)
+	}
+	if result.TotalRuns != 1 || result.FailureCount != 0 {
+		t.Errorf("runs=%d failures=%d, want 1 / 0 — the api_error row is not a measurement", result.TotalRuns, result.FailureCount)
+	}
+	if result.InvalidExcluded != 1 {
+		t.Errorf("InvalidExcluded = %d, want 1 (the exclusion must be stated, not silent)", result.InvalidExcluded)
+	}
+	for _, issue := range result.Issues {
+		if issue.Category == eval_harness.ErrorCategoryAPI {
+			t.Errorf("api_error surfaced as a model issue: %+v", issue)
+		}
 	}
 }

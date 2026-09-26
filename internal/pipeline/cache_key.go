@@ -21,15 +21,20 @@ import (
 // (tolerant of new/missing fields), so this is a defensive guard against a
 // same-version dev/worktree build decoding a pre-AliasParams blob and treating a
 // parameterized alias as nullary.
-const cacheKeyVersion = "v3"
+//
+// v3 -> v4 (M-COMPILE-CACHE-UNVERIFIED-ARTIFACTS): executable blobs are
+// authorized by a versioned artifacts.json stamp that binds their hashes to the
+// exact module ID and caller-computed cache key.
+const cacheKeyVersion = "v4"
 
 // ModuleCacheKey computes a deterministic cache key for a module.
 // The key incorporates:
 //   - Cache format version (cacheKeyVersion, bumped on format changes)
-//   - Compiler identity (typically the build commit from internal/version.Commit) —
-//     this invalidates cache on every rebuild, so bugfixes to elaboration,
-//     type-checking, or op-lowering take effect without manual cache nukes.
-//     For tests, any stable string works.
+//   - Compiler identity (compilerIdentity: the build commit, plus a per-build
+//     fingerprint when the commit does not identify the build, see
+//     version.Dirty). The commit ALONE only invalidates across commits: every
+//     rebuild of a dirty tree used to share one identity and be served its
+//     predecessor's verdicts (#1275). For tests, any stable string works.
 //   - Module source content hash
 //   - Sorted dependency interface digests (invalidates when any dep changes)
 //

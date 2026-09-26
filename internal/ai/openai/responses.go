@@ -1,11 +1,8 @@
 package openai
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
-	"io"
-	"net/http"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ai"
@@ -76,47 +73,22 @@ func (c *Client) generateResponses(ctx context.Context, req *ai.Request, reasoni
 		}
 	}
 
-	// Marshal request
 	jsonBody, err := json.Marshal(apiReq)
 	if err != nil {
 		return nil, ai.NewProviderError("openai", 0, "failed to marshal request", err)
 	}
 
-	// Create HTTP request to /v1/responses endpoint
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/responses", bytes.NewReader(jsonBody))
-	if err != nil {
-		return nil, ai.NewProviderError("openai", 0, "failed to create request", err)
-	}
-
-	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
-
-	// Execute request
-	resp, err := c.httpClient.Do(httpReq)
-	if err != nil {
-		return nil, ai.NewProviderError("openai", 0, "request failed", err)
-	}
-	defer resp.Body.Close()
-
-	// Read response
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, ai.NewProviderError("openai", resp.StatusCode, "failed to read response", err)
-	}
-
-	// Handle errors
-	if resp.StatusCode != http.StatusOK {
-		var errResp errorResponse
-		if json.Unmarshal(body, &errResp) == nil && errResp.Error.Message != "" {
-			return nil, ai.NewProviderError("openai", resp.StatusCode, errResp.Error.Message, nil)
-		}
-		return nil, ai.NewProviderError("openai", resp.StatusCode, string(body), nil)
-	}
-
-	// Parse successful response
+	// Same wall-time + non-streaming-TTFT semantics as generateChat.
 	var result responsesResponse
-	if err := json.Unmarshal(body, &result); err != nil {
-		return nil, ai.NewProviderError("openai", 0, "failed to parse response", err)
+	res, err := ai.DoJSON(ctx, ai.JSONCall{
+		Provider: "openai",
+		Client:   c.httpClient,
+		URL:      c.baseURL + "/responses",
+		Headers:  c.authHeader(),
+		Body:     jsonBody,
+	}, &result)
+	if err != nil {
+		return nil, err
 	}
 
 	// Extract text from polymorphic output items
@@ -155,5 +127,6 @@ func (c *Client) generateResponses(ctx context.Context, req *ai.Request, reasoni
 		TotalTokens:          result.Usage.TotalTokens,
 		ReasonTokens:         reasoningTokens,
 		Model:                result.Model,
+		WallMS:               res.WallMS,
 	}, nil
 }

@@ -1,0 +1,98 @@
+{
+  "sprint_id": "M-V1-SIMPLIFY-S4",
+  "status": "completed",
+  "created": "2026-09-15T12:23:38Z",
+  "design_doc": "design_docs/planned/m-v1-simplification-program.md",
+  "sprint_plan": "design_docs/planned/m-v1-simplification-s4-sprint-plan.md",
+  "github_issues": [],
+  "velocity": {
+    "target_loc_per_day": 900,
+    "estimated_total_loc": 2350,
+    "estimated_days": 4
+  },
+  "features": [
+    {
+      "id": "M1_FALLBACKS",
+      "description": "remaining behaviour-affecting silent fallbacks → DeprecatedDefault (warn now, strict errors); Unpriced → CostProvenanceUnknown; CostModelFromPricing at hand-copy sites",
+      "estimated_loc": 400,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "each site warns once + errors under AILANG_STRICT_CONFIG, tested",
+        "no $0 banked for unpriced",
+        "tests green"
+      ],
+      "passes": true,
+      "started": "2026-09-15T13:54:07Z",
+      "completed": "2026-09-15T13:54:07Z",
+      "notes": "9 commits merged. 10 sites → DeprecatedDefault with new env vars (AILANG_DEFAULT_PROVIDER, AILANG_WORKSPACE, AILANG_EMBED_*_MODEL, AILANG_APPROVAL_TIMEOUT, AILANG_BUDGET_UNLIMITED, AILANG_APPROVAL_URL…); haiku removed outright (was an override); loader \".\" → shared resolver, error. Unpriced → CostProvenanceUnknown; OTLP stamps ailang.cost.unpriced."
+    },
+    {
+      "id": "M2_ENV_TO_CONFIG",
+      "description": "~300 os.Getenv sites → internal/config typed getters (excluding files owned by M1/M3); make docs-env generates docs/docs/reference/env-vars.md",
+      "estimated_loc": 900,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "getenv_outside_config < 40 after merge",
+        "env doc generated and linked",
+        "precedence documented once"
+      ],
+      "passes": true,
+      "started": "2026-09-15T13:54:07Z",
+      "completed": "2026-09-15T13:54:07Z",
+      "notes": "6 commits merged. 301 → 91 sites (88 in other lanes); Registry 159 vars/20 areas; make docs-env + reference page + sidebar; TestEveryGetenvNameIsRegistered bidirectional."
+    },
+    {
+      "id": "M3A_EVAL_LEFTOVERS",
+      "description": "eval/tools leftovers: proctree in eval_harness, strutil in eval files, Truncate delegates retired, Passed() in tools, OS-history notes, events.yml D2 entry, ai-check loop unification, isQuotaExhaustion",
+      "estimated_loc": 400,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "dup_symbols: truncate/sortedKeys/fileExists gone",
+        "ai_check_exit_test pins contract",
+        "tests green"
+      ],
+      "passes": true,
+      "started": "2026-09-15T13:54:07Z",
+      "completed": "2026-09-15T13:54:07Z",
+      "notes": "9 commits merged. proctree/strutil adoption; Truncate delegates deleted (40 callers); ai-check unified onto smt.Verify — cross-module verification was FAILING in ai-check (bug); unsupported-construct stays an ai-check error via option; D2 events.yml + history notes."
+    },
+    {
+      "id": "M3B_STORAGE_AI_LEFTOVERS",
+      "description": "storage/ai/prompt leftovers: firestore+sharedmem simhash/cosine/hamming → internal/simhash, tasks.fingerprint re-index, getInt/getString, agentprompt/devtoolsprompt deleted, module findProjectRoot, sendHandoffMessage dup, observatory cache-token columns",
+      "estimated_loc": 500,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "simhash 1 impl repo-wide",
+        "fingerprint migration tested",
+        "2 prompt packages deleted",
+        "one handoff sender",
+        "tests green"
+      ],
+      "passes": true,
+      "started": "2026-09-15T13:54:07Z",
+      "completed": "2026-09-15T13:54:07Z",
+      "notes": "8 commits merged. simhash leaf everywhere; coordinator.db versioned data migrations + fingerprint re-index; mapval leaf (482 sites); agentprompt/devtoolsprompt deleted (byte-identical output); repo leaf; ONE handoff sender — daemon thread-trail had written nothing since 775028c1e (empty thread id); observatory v21 cache columns."
+    },
+    {
+      "id": "M4_CLOSEOUT",
+      "description": "forbidigo enabled; leftover getenv sites in M1/M3 files migrated; audit; rulings applied (dispatch pin, pass-flag asymmetry)",
+      "estimated_loc": 150,
+      "dependencies": [
+        "M1_FALLBACKS",
+        "M2_ENV_TO_CONFIG",
+        "M3A_EVAL_LEFTOVERS",
+        "M3B_STORAGE_AI_LEFTOVERS"
+      ],
+      "acceptance_criteria": [
+        "make lint green with forbidigo",
+        "getenv_outside_config = 0",
+        "env_vars_documented_pct = 100",
+        "make test + gates green"
+      ],
+      "passes": true,
+      "started": "2026-09-15T13:54:07Z",
+      "completed": "2026-09-15T13:54:07Z",
+      "notes": "6 commits merged. 95 → 0 sites; Registry 222/24 areas; forbidigo on (canary-proven); v1 lint exclusions had been silently ignored under v2 — migrated. D8 config.MissionMessagePlaneProject constant; D9 standard-mode stdout_ok gated on runtime_ok + note + tests; ollama OLLAMA_HOST Setenv removed. Close-out: metric counts registry names; DEBUG_* + AILANG_LIVE_NET documented → 100%. Rig coordinator key ROTATED after a test failure message echoed it."
+    }
+  ]
+}

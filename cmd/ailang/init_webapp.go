@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/sunholo-data/ailang/internal/apiserver/templates"
 )
@@ -24,6 +25,19 @@ func initCommand(args []string) error {
 	}
 
 	kind := flagSet.Arg(0)
+
+	// A help flag AFTER the type never reaches helpFlag above: flag.Parse stops
+	// at the first non-flag argument, so in `init web-app --help` everything
+	// past "web-app" is positional and unparsed. Without this, --help became
+	// the project NAME — `ailang init web-app --help` printed "Creating AILANG
+	// web app: --help" and scaffolded a directory called "--help" (one is in
+	// this repo, made 2026-09-18 01:55). Help is what was asked for; give it.
+	for _, a := range flagSet.Args()[1:] {
+		if a == "--help" || a == "-help" || a == "-h" {
+			printInitHelp()
+			return nil
+		}
+	}
 
 	switch kind {
 	case "web-app":
@@ -44,7 +58,33 @@ func initCommand(args []string) error {
 	}
 }
 
+// checkScaffoldName rejects a project name that is really a misplaced flag.
+// Split out so the rule is one thing to state and one thing to test, and so
+// any future `init <type>` shares it rather than re-deriving it.
+func checkScaffoldName(name string) error {
+	if name == "" {
+		return fmt.Errorf("project name is empty (an unset shell variable?)")
+	}
+	if strings.HasPrefix(name, "-") {
+		return fmt.Errorf("refusing to create a directory named %q: it starts with a dash, "+
+			"so it is a FLAG that landed in the project-name slot rather than a name.\n"+
+			"`ailang init web-app` takes the name positionally, and flag parsing stops at "+
+			"the type, so any option after it is read as the name.\n"+
+			"For help: ailang init --help", name)
+	}
+	return nil
+}
+
 func initWebApp(name string) error {
+	// Refuse to name a directory after a flag. The help flags are handled in
+	// initCommand, so anything dash-leading reaching here is a flag that landed
+	// in the positional slot — an unknown option, or a shell variable that
+	// expanded empty. Creating the directory anyway is how "--help" ends up on
+	// disk, and mkdir is the wrong moment to discover the typo.
+	if err := checkScaffoldName(name); err != nil {
+		return err
+	}
+
 	// Check target directory doesn't exist
 	if _, err := os.Stat(name); err == nil {
 		return fmt.Errorf("directory %q already exists", name)

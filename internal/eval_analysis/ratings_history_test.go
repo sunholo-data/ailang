@@ -3,6 +3,7 @@ package eval_analysis
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/eval_harness"
 	"os"
 	"path/filepath"
 	"testing"
@@ -106,8 +107,14 @@ func TestAttachRatings_DropsUnidentifiableModels(t *testing.T) {
 	var results []*BenchmarkResult
 	add := func(model, bench string, pass bool) {
 		results = append(results, &BenchmarkResult{
-			ID: bench, Model: model, Lang: "ailang",
-			CompileOk: true, RuntimeOk: true, StdoutOk: pass,
+			RunMetrics: eval_harness.RunMetrics{
+				ID:        bench,
+				Model:     model,
+				Lang:      "ailang",
+				CompileOk: true,
+				RuntimeOk: true,
+				StdoutOk:  pass,
+			},
 		})
 	}
 	for i := 0; i < 6; i++ {

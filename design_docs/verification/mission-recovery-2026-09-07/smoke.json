@@ -1,0 +1,14 @@
+{
+  "result": "pass",
+  "provider": "fake Pi executable, no network inference",
+  "invocations": 1,
+  "dry_run_db_absent": true,
+  "second_receipt_refused": true,
+  "durable_status": "execution_completed",
+  "artifact_verified": false,
+  "receipt_events": [
+    "started",
+    "dispatching",
+    "finished"
+  ]
+}

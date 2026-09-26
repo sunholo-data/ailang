@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/sunholo-data/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // debugEvalApp enables debug output for function application when DEBUG_EVAL_APP=1
@@ -115,10 +116,16 @@ func (e *CoreEvaluator) evalCoreApp(app *core.App) (retVal Value, err error) {
 
 		// M-TRACE-EXPORT: Record function entry
 		funcName := extractFuncName(app.Func)
-		if recorder, ok := e.effContext.(TraceRecorder); ok && recorder.HasTraceCollector() {
+		// M-TRACE-TIER-NOT-ENFORCED: check the TIER before rendering. Each
+		// a.String() materialises the whole value, so for a function carrying an
+		// accumulator this loop is O(n) per call and O(n^2) over a recursion —
+		// the measured cause of 2059 MB peak RSS on a 400-iteration loop that
+		// costs 106 MB with tracing off. Rendering and then discarding would fix
+		// the retention and leave the memory cost exactly where it was.
+		if recorder, ok := e.effContext.(TraceRecorder); ok && recorder.HasTraceCollector() && recorder.RecordsFunctionCalls() {
 			argStrs := make([]string, len(args))
 			for i, a := range args {
-				argStrs[i] = a.String()
+				argStrs[i] = recorder.RenderTraceValue(a)
 			}
 			recorder.RecordFunctionEnter(funcName, argStrs)
 		}
@@ -206,13 +213,11 @@ func (e *CoreEvaluator) evalCoreApp(app *core.App) (retVal Value, err error) {
 			e.resolver = oldResolver
 		}
 
-		// M-TRACE-EXPORT: Record function exit
-		if recorder, ok := e.effContext.(TraceRecorder); ok && recorder.HasTraceCollector() {
-			resultStr := ""
-			if result != nil {
-				resultStr = result.String()
-			}
-			recorder.RecordFunctionExit(funcName, resultStr)
+		// M-TRACE-EXPORT: Record function exit.
+		// Tier-gated before rendering, for the same reason as the enter site above:
+		// result.String() on a returned accumulator is the other half of the O(n^2).
+		if recorder, ok := e.effContext.(TraceRecorder); ok && recorder.HasTraceCollector() && recorder.RecordsFunctionCalls() {
+			recorder.RecordFunctionExit(funcName, recorder.RenderTraceValue(result))
 		}
 
 		// M-BUDGET-SCOPING-BUG: budget scope exit (frame pop + @min check) is
@@ -444,9 +449,9 @@ func (e *CoreEvaluator) applyBinOp(op string, left, right Value) (Value, error) 
 			if rFloat, rOk := right.(*FloatValue); rOk {
 				switch op {
 				case "==":
-					return &BoolValue{Value: lFloat.Value == rFloat.Value}, nil
+					return &BoolValue{Value: types.FloatEq(lFloat.Value, rFloat.Value)}, nil
 				case "!=":
-					return &BoolValue{Value: lFloat.Value != rFloat.Value}, nil
+					return &BoolValue{Value: !types.FloatEq(lFloat.Value, rFloat.Value)}, nil
 				case "<":
 					return &BoolValue{Value: lFloat.Value < rFloat.Value}, nil
 				case ">":
@@ -485,6 +490,11 @@ func (e *CoreEvaluator) applyBinOp(op string, left, right Value) (Value, error) 
 		// the same structural comparison the derived-Eq dictionary method uses.
 		if op == "==" || op == "!=" {
 			eq := valuesStructurallyEqual(left, right)
+			if !eq {
+				if err := rejectFunctionEquality(left, right); err != nil {
+					return nil, err
+				}
+			}
 			if op == "!=" {
 				eq = !eq
 			}
@@ -583,9 +593,9 @@ func (e *CoreEvaluator) applyBinOp(op string, left, right Value) (Value, error) 
 					}
 					return &FloatValue{Value: lFloat.Value / rFloat.Value}, nil
 				case "==":
-					return &BoolValue{Value: lFloat.Value == rFloat.Value}, nil
+					return &BoolValue{Value: types.FloatEq(lFloat.Value, rFloat.Value)}, nil
 				case "!=":
-					return &BoolValue{Value: lFloat.Value != rFloat.Value}, nil
+					return &BoolValue{Value: !types.FloatEq(lFloat.Value, rFloat.Value)}, nil
 				case "<":
 					return &BoolValue{Value: lFloat.Value < rFloat.Value}, nil
 				case ">":

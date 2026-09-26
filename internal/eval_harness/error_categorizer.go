@@ -3,6 +3,8 @@ package eval_harness
 import (
 	"errors"
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/ai"
 )
 
 // ErrorCategoryNonAgentic: the executor returned a 0-shot answer — one turn,
@@ -56,6 +58,8 @@ func CategorizeAgentError(err error, finishReason string) string {
 		return ErrorCategoryTimeout
 	case "thrash_aborted":
 		return ErrorCategoryThrashAborted // M-EVAL-OS-LONGITUDINAL Phase 1
+	case "wire_drift":
+		return ErrorCategoryWireDrift // M-PI-HARNESS-UPGRADE D4: the record is wrong, not the model
 	}
 
 	// Fallback: detect by error-message substring when finish_reason wasn't
@@ -101,6 +105,12 @@ func CategorizeAgentError(err error, finishReason string) string {
 		return ErrorCategoryNonAgentic
 	}
 
+	// The ailang_only lane's gate refused the program (M-AGENT-AILANG-ONLY-
+	// EXECUTION): the agent asked for an effect its policy does not grant.
+	if containsAny(msg, "policy_violation") {
+		return ErrorCategoryPolicyViolation
+	}
+
 	// API-level model refusal (Anthropic stop_reason "refusal"): a model
 	// behavior, not an infrastructure failure. Kept out of api_error so
 	// capability scoring can see "declined to answer" distinctly. First
@@ -113,7 +123,12 @@ func CategorizeAgentError(err error, finishReason string) string {
 	// Quota exhaustion — provider account/key cap. Distinct from a transient
 	// 429: a quota kill says nothing about model capability and should be
 	// excluded from capability scoring (see ShouldExcludeFromCapability).
-	if isQuotaExhaustion(msg) {
+	// ai.IsQuotaExhausted is the ONE predicate: the retry classifier
+	// (ai.ShouldRetry) refuses exactly what is banked here, so the two can
+	// never disagree about the same error. Checked before the 429 rule
+	// because exhaustion arrives as a 429 (Ollama Cloud, verbatim in
+	// quota_exhaustion_test.go).
+	if ai.IsQuotaExhausted(msg) {
 		return ErrorCategoryQuotaExhausted
 	}
 
@@ -207,38 +222,4 @@ func IsReasoningStall(content string, outputTokens, reasoningTokens int) bool {
 		return false
 	}
 	return outputTokens <= reasoningTokens
-}
-
-// isQuotaExhaustion reports whether an error message means "this account's
-// allowance is spent", as opposed to "you are going too fast right now".
-//
-// The distinction is invisible from the HTTP status. Ollama Cloud returns
-// exhaustion as **429 with type "api_error"** — the same status a transient
-// rate-limit uses — and only the message separates them. Measured verbatim
-// 2026-08-26 by deliberately exhausting a session window (M-OLLAMA-CLOUD V22):
-//
-//	429 {"error":{"message":"you (marked) have reached your session usage limit,
-//	     upgrade for higher limits: https://ollama.com/upgrade ...",
-//	     "type":"api_error","param":null,"code":null}}
-//
-// Why it matters that these are separated: a rate-limit clears in seconds and
-// SHOULD be retried; an Ollama session limit does not clear until the 5-hour
-// window rolls, and a weekly limit takes days. Retrying into either burns the
-// run for nothing. This helper is the single definition shared by the error
-// categoriser and the retry predicate, so the two cannot drift into disagreeing
-// about the same error.
-func isQuotaExhaustion(msg string) bool {
-	return containsAny(msg,
-		// Ollama Cloud (V22, verbatim above). Both windows.
-		"session usage limit",
-		"weekly usage limit",
-		"usage limit, upgrade",
-		// Other providers.
-		"key limit exceeded",
-		"monthly limit",
-		"insufficient_quota",
-		"insufficient quota",
-		"quota exceeded",
-		"billing",
-	)
 }

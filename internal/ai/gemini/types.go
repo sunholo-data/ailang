@@ -148,15 +148,6 @@ type usageMetadata struct {
 	CachedContentTokenCount int `json:"cachedContentTokenCount,omitempty"` // Cache hit tokens (Gemini context-caching)
 }
 
-// errorResponse represents an error response from the API.
-type errorResponse struct {
-	Error struct {
-		Code    int    `json:"code"`
-		Message string `json:"message"`
-		Status  string `json:"status"`
-	} `json:"error"`
-}
-
 // AuthType indicates the authentication method.
 type AuthType string
 

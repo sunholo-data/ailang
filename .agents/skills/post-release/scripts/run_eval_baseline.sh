@@ -19,7 +19,7 @@ OLLAMA_API="${OLLAMA_HOST:-http://localhost:11434}"
 # Usage: get_ollama_models "opencode-gemma4-e4b,claude-sonnet-4-5"
 get_ollama_models() {
     local model_ids="$1"
-    local yml="internal/eval_harness/models.yml"
+    local yml="internal/modelreg/models.yml"
     [[ -f "$yml" ]] || return 0
 
     local IFS=','

@@ -1,0 +1,48 @@
+# The V1 mission — the AILANG core loop.
+#
+# ⚠ ITS LAUNCHD JOB IS `dev.ailang.mission-control`, NOT `-v1`. That name predates
+# MISSION_PROFILE and is load-bearing: the installed plist, the recovery job's target,
+# the pidfile and the log paths all key off it. Renaming is a migration, not a config
+# change. internal/mission encodes this as the one historical irregularity.
+#
+# ⚠ This mission's env file is ENTIRELY COMMENTS — it declares nothing and rides the
+# driver's own defaults (mission-control.sh:65-67, workdir derived at :40). The values
+# below make that implicit state explicit for the first time; they are the defaults,
+# so stating them changes no behaviour.
+name    = "v1"
+repo    = "sunholo-data/ailang"
+workdir = "/Users/voightkampff/dev/sunholo-data/ailang"
+doc     = "design_docs/v1-mission.md"
+
+# ── SCHEDULE ─────────────────────────────────────────────────────────────────
+# KeepAlive + ThrottleInterval, NOT StartInterval (Mark, attended 2026-09-05).
+#
+# MEASURED FIRST, THEN CHANGED. StartInterval re-arms from the job's EXIT, not its
+# start: three consecutive v1 gaps in ~/.ailang/state/mission-v1-slot-verdicts.log came
+# in at 5403s, 5372s and 5379s against a 5400s interval, and world independently gave
+# 14390s against 14400s. So the real period was duration + interval, and v1's mean
+# duration (5479s over 5 slots) is almost exactly its interval: HALF of v1's day was
+# idle — 11.9 hours — none of it chosen. The plist had said since 2026-07-10 that the
+# intent was "back-to-back iterations, at most one interval of idle gap"; the scheduler
+# was never delivering it.
+#
+# ThrottleInterval is measured from the START, so the period becomes
+# max(duration, 5400) instead of duration + 5400. NOMINAL SPACING IS UNCHANGED at the
+# 90m Mark ratified on 09-02 — only the wasted slot goes. Projected 7.9 -> 15.8
+# iterations/day.
+#
+# ThrottleInterval is load-bearing, not decoration: the yield paths (kill switch,
+# overlap guard, memory gate, dry run) exit in seconds, and bare KeepAlive would
+# respawn them in a tight loop.
+#
+# ⚠ NOT A LICENCE TO RE-TIGHTEN. On 2026-09-02 three loops were tightened in the same
+# hour: fleet stall rate 6% -> 33%, and total starts did NOT rise (19 -> 18). Every
+# stall was "claude idle with a descendant alive >=2400s", burning 40 min before the
+# watchdog killed it. Change ONE loop, hold the others, re-read the stall rate the next
+# day.
+[schedule]
+mode             = "keepalive"
+throttle_seconds = 5400
+# 0 — v1 goes first out of a boot stampede: shortest cadence, deepest ladder, the loop
+# we least want to delay.
+boot_offset = 0

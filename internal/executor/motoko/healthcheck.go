@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/proctree"
 )
 
 // HealthCheck verifies the motoko binary exists, is executable, and (when
@@ -156,8 +158,8 @@ func (e *MotokoExecutor) clearStalePort8080() {
 			continue
 		}
 		fmt.Fprintf(os.Stderr, "[motoko/healthcheck] LOUD: killing STALE motoko env-server PID %d squatting port 8080 (orphan from a crashed/hung run; would otherwise crash this run with 'no run_summary')\n", pid)
-		if kerr := killProcessGroup(pid); kerr != nil {
-			_ = killProcess(pid)
+		if kerr := proctree.KillGroup(pid); kerr != nil {
+			_ = proctree.KillProcess(pid)
 		}
 	}
 }

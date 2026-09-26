@@ -256,9 +256,9 @@ func TestParseSessionLine_RejectsNonJSON(t *testing.T) {
 		[]byte("not json at all"),
 	}
 	for _, line := range cases {
-		_, _, err := parseSessionLine(line)
+		_, _, err := ParseSessionLine(line)
 		if err == nil {
-			t.Errorf("parseSessionLine(%q) = no error, want error", string(line))
+			t.Errorf("ParseSessionLine(%q) = no error, want error", string(line))
 		}
 	}
 }
@@ -389,3 +389,60 @@ func TestFindSessionJSONL_EnvWinsOverDiscovered(t *testing.T) {
 
 // (mock-binary end-to-end Execute test lives in execute_test.go to keep
 // imports tidy and avoid dragging the executor package into parser_test.go)
+
+// TestParseSessionJSONL_NoSummarySumsCacheBuckets closes the one gap the other
+// no-run_summary fixtures leave open.
+//
+// The parser's fallback path sums FOUR counters (parser.go:378-392) but every
+// fixture that reaches it carried cache_read/cache_creation as ABSENT, so
+// sumCacheRead and sumCacheCreation had never been observed non-zero. Live code,
+// no arm — and it is the half that matters for a token cap: on this fixture
+// input+output is 947 while the run actually processed 19,879, a 21x gap. That is
+// the same shape as the claude in-flight cap defect, where 62 tokens were weighed
+// against a cap of 20,000 on a run that processed 49,970.
+//
+// PROVENANCE: this fixture is SYNTHETIC, like every other session_*.jsonl here
+// (session ids are `session_test-*` and the originals use round numbers). It pins
+// what OUR PARSER does with a given shape. It does NOT pin motoko's real wire
+// shape — only a recorded session can do that, and none exists. See the
+// per-harness table in executor/tokens_processed.go.
+func TestParseSessionJSONL_NoSummarySumsCacheBuckets(t *testing.T) {
+	res, err := parseSessionJSONL("testdata/session_no_summary_cache.jsonl")
+	if err != nil {
+		t.Fatalf("parse failed: %v", err)
+	}
+	if !res.Success {
+		t.Errorf("Success = false, want true (last thinking finish_reason=stop). Error=%q", res.Error)
+	}
+	// 310+205+118 input, 47+63+204 output across three thinking events.
+	if res.InputTokens != 633 {
+		t.Errorf("InputTokens = %d, want 633 (310+205+118)", res.InputTokens)
+	}
+	if res.OutputTokens != 314 {
+		t.Errorf("OutputTokens = %d, want 314 (47+63+204)", res.OutputTokens)
+	}
+	// The assertions this test exists for: both cache buckets accumulate.
+	if res.CacheCreationInputTokens != 18932 {
+		t.Errorf("CacheCreationInputTokens = %d, want 18932 (18420+512+0) — the fallback "+
+			"path must SUM cache creation, not drop it", res.CacheCreationInputTokens)
+	}
+	if res.CacheReadInputTokens != 37352 {
+		t.Errorf("CacheReadInputTokens = %d, want 37352 (0+18420+18932)", res.CacheReadInputTokens)
+	}
+	if res.NumTurns != 3 {
+		t.Errorf("NumTurns = %d, want 3", res.NumTurns)
+	}
+
+	// Why the cache sum has to work: the canonical quantity a cap is compared
+	// against counts fresh input + newly cached input + output, and it is 21x the
+	// naive Input+Output on this run.
+	const wantProcessed = 633 + 18932 + 314
+	if got := res.TokensProcessed(); got != wantProcessed {
+		t.Errorf("TokensProcessed() = %d, want %d", got, wantProcessed)
+	}
+	if naive := res.InputTokens + res.OutputTokens; naive*20 > wantProcessed {
+		t.Errorf("fixture is too weak to be evidence: Input+Output=%d is not far below "+
+			"TokensProcessed=%d, so it cannot show the divergence it exists to show",
+			naive, wantProcessed)
+	}
+}

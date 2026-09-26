@@ -215,20 +215,52 @@ func TestHandleStatus_WithStore(t *testing.T) {
 
 // M-CLOUD-ENDPOINT-AUTH: API key middleware tests
 
-func TestRequireAPIKey_NoKeyConfigured(t *testing.T) {
-	// When COORDINATOR_API_KEY is unset, requests pass through (local mode)
+// TestRequireAPIKey_FailsClosed is the M-V1-SIMPLIFY-S3 M5 security fix's
+// measurement: an unauthenticated request is rejected both when the key is
+// UNSET (previously: every request passed — a lost secret binding silently
+// opened the API) and when it is set but the caller's token is wrong.
+func TestRequireAPIKey_FailsClosed(t *testing.T) {
 	d := newTestDaemonT(t)
-	t.Setenv("COORDINATOR_API_KEY", "")
-
 	handler := d.requireAPIKey(d.handleHealth)
-	req := httptest.NewRequest(http.MethodGet, "/health", nil)
-	rec := httptest.NewRecorder()
 
-	handler(rec, req)
+	t.Run("key unset rejects an unauthenticated request", func(t *testing.T) {
+		t.Setenv("COORDINATOR_API_KEY", "")
+		req := httptest.NewRequest(http.MethodGet, "/status", nil)
+		rec := httptest.NewRecorder()
+		handler(rec, req)
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("expected 401 with no key configured (fail closed), got %d", rec.Code)
+		}
+		if !strings.Contains(rec.Body.String(), "COORDINATOR_API_KEY") {
+			t.Errorf("rejection must name the missing variable, got %q", rec.Body.String())
+		}
+	})
 
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200 (no key = open), got %d", rec.Code)
-	}
+	t.Run("key unset rejects even a bearer token", func(t *testing.T) {
+		t.Setenv("COORDINATOR_API_KEY", "")
+		req := httptest.NewRequest(http.MethodGet, "/status", nil)
+		req.Header.Set("Authorization", "Bearer anything")
+		rec := httptest.NewRecorder()
+		handler(rec, req)
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("expected 401: no configured key can match any token, got %d", rec.Code)
+		}
+	})
+
+	t.Run("key set but token wrong", func(t *testing.T) {
+		t.Setenv("COORDINATOR_API_KEY", "test-secret-key")
+		for _, auth := range []string{"", "Bearer wrong-key", "Bearer test-secret-ke", "Bearer test-secret-key-and-more", "Basic test-secret-key"} {
+			req := httptest.NewRequest(http.MethodGet, "/status", nil)
+			if auth != "" {
+				req.Header.Set("Authorization", auth)
+			}
+			rec := httptest.NewRecorder()
+			handler(rec, req)
+			if rec.Code != http.StatusUnauthorized {
+				t.Errorf("Authorization=%q: expected 401, got %d", auth, rec.Code)
+			}
+		}
+	})
 }
 
 func TestRequireAPIKey_ValidToken(t *testing.T) {
@@ -667,26 +699,5 @@ func TestHandleGetMessages_CustomLimit(t *testing.T) {
 	}
 	if resp.Limit != 2 {
 		t.Errorf("expected limit 2, got %d", resp.Limit)
-	}
-}
-
-func TestWriteJSON(t *testing.T) {
-	rec := httptest.NewRecorder()
-	writeJSON(rec, http.StatusOK, map[string]string{"key": "value"})
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d", rec.Code)
-	}
-	ct := rec.Header().Get("Content-Type")
-	if ct != "application/json" {
-		t.Errorf("expected application/json, got %s", ct)
-	}
-
-	var resp map[string]string
-	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
-		t.Fatal(err)
-	}
-	if resp["key"] != "value" {
-		t.Errorf("expected value, got %s", resp["key"])
 	}
 }

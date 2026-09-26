@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
 	"sync"
-	"time"
 )
 
 // InvokeConfig specifies how an agent should be invoked.
@@ -133,22 +133,70 @@ type AgentConfig struct {
 	// coordinator config's model_routing table.
 	Role string `yaml:"role" json:"role,omitempty"`
 
+	// WorkTier is the permission tier this agent's dispatches run under
+	// (M-COORDINATOR-EXECUTION-TRUST M1a). Trusted: it lives in the
+	// coordinator's own registry, which a message sender cannot write. Unset
+	// or unrecognised means tier 2 — see ResolveWorkTier, which is the only
+	// place this field may be read from.
+	WorkTier WorkTier `yaml:"work_tier" json:"work_tier,omitempty"`
+
+	// AcknowledgeOnly marks an agent whose dispatches are NOT expected to change
+	// files — probes and acknowledgement tasks (M-COORDINATOR-EXECUTION-TRUST
+	// M2). Default false: a dispatched task is normally meant to do something,
+	// so a no-diff run is reported as no_changes rather than as success. Like
+	// WorkTier this lives in the trusted registry, not in message content.
+	AcknowledgeOnly bool `yaml:"acknowledge_only" json:"acknowledge_only,omitempty"`
+
 	// EvaluatesParent marks an agent whose completions carry an
 	// EVALUATION_VERDICT: line to be attached to the PARENT task's pending
 	// approval (M2). Set on sprint-evaluator only.
-	EvaluatesParent    bool   `yaml:"evaluates_parent" json:"evaluates_parent,omitempty"`
-	AutoMerge          bool   `yaml:"auto_merge" json:"auto_merge"`                     // Automatically merge approved work
-	SkipApproval       bool   `yaml:"skip_approval" json:"skip_approval"`               // Skip approval workflow entirely (for script agents)
-	Provider           string `yaml:"provider" json:"provider"`                         // "claude" or "gemini"
+	EvaluatesParent bool   `yaml:"evaluates_parent" json:"evaluates_parent,omitempty"`
+	AutoMerge       bool   `yaml:"auto_merge" json:"auto_merge"`       // Automatically merge approved work
+	SkipApproval    bool   `yaml:"skip_approval" json:"skip_approval"` // Skip approval workflow entirely (for script agents)
+	Provider        string `yaml:"provider" json:"provider"`           // "claude" or "gemini"
+	// ToolPolicy: what this agent may DO — "full" (the CLI's defaults; the
+	// coordinator's default, D6), "ailang_only" (read/edit/write + the
+	// AILANG gate, no shell), or an explicit canonical list. Resolved into
+	// Task.AllowedTools; pi refuses a name it cannot map (D7). PolicyPath is
+	// the operator program policy an ailang_only agent's `ailang_run` is
+	// gated by (deployment config, forwarded as AILANG_AGENT_POLICY).
+	// M-AGENT-AILANG-ONLY-EXECUTION M4.
+	ToolPolicy         string `yaml:"tool_policy" json:"tool_policy,omitempty"`
+	PolicyPath         string `yaml:"policy_path" json:"policy_path,omitempty"`
 	MergeBranch        string `yaml:"merge_branch" json:"merge_branch"`                 // Target branch for merges (e.g., "dev", "main")
 	MaxConcurrentTasks int    `yaml:"max_concurrent_tasks" json:"max_concurrent_tasks"` // 0 = unlimited
 	SessionContinuity  bool   `yaml:"session_continuity" json:"session_continuity"`     // Use --resume for Claude Code / --conversation-id for Gemini
 
 	// Generic workflow configuration (v0.6.3+)
-	Invoke           *InvokeConfig   `yaml:"invoke" json:"invoke,omitempty"`                       // How to invoke this agent
-	OutputMarkers    []string        `yaml:"output_markers" json:"output_markers,omitempty"`       // Markers to extract from output (e.g., "DESIGN_DOC_PATH:")
-	ArtifactPatterns []string        `yaml:"artifact_patterns" json:"artifact_patterns,omitempty"` // File patterns for artifacts (e.g., "*.md", "design_docs/**")
-	Approval         *ApprovalConfig `yaml:"approval" json:"approval,omitempty"`                   // Approval workflow configuration
+	Invoke           *InvokeConfig `yaml:"invoke" json:"invoke,omitempty"`                       // How to invoke this agent
+	OutputMarkers    []string      `yaml:"output_markers" json:"output_markers,omitempty"`       // Markers to extract from output (e.g., "DESIGN_DOC_PATH:")
+	ArtifactPatterns []string      `yaml:"artifact_patterns" json:"artifact_patterns,omitempty"` // File patterns for artifacts (e.g., "*.md", "design_docs/**")
+
+	// GitIdentity is who this agent's commits are AUTHORED by. Distinct from
+	// the push credential: git separates authorship from the token that moves
+	// the bytes, and only the first is a statement about who did the work.
+	//
+	// Unset inherits the container's identity, which resolves to the fleet bot —
+	// so before this, every agent's commits in every repo read
+	// "Voight-Kampff (bot)", including an agent working inside another
+	// identity's own memory repo.
+	GitIdentity *GitIdentity `yaml:"git_identity" json:"git_identity,omitempty"`
+
+	// SSHKeySecret names a Secret Manager secret holding a per-repo SSH deploy
+	// key. Set it when the fleet token is deliberately read-only on this agent's
+	// workspace. Only the NAME lives here and in the job env — the key material
+	// is fetched by the job's own service account, so it never enters the Cloud
+	// Run execution spec, which project viewers can read.
+	//
+	// A deploy key cannot use the GitHub API, so an agent with one cannot open a
+	// PR or enable auto-merge: pair it with push_branch.
+	SSHKeySecret string `yaml:"ssh_key_secret" json:"ssh_key_secret,omitempty"`
+
+	// SSHHostAlias is the ssh_config Host the key is bound to. The alias IS the
+	// bound: with IdentitiesOnly yes, a push to git@github.com has no identity
+	// and fails, so the agent cannot reach any other repository.
+	SSHHostAlias string          `yaml:"ssh_host_alias" json:"ssh_host_alias,omitempty"`
+	Approval     *ApprovalConfig `yaml:"approval" json:"approval,omitempty"` // Approval workflow configuration
 
 	// Per-agent system prompt (v0.8.0+)
 	// Appended to the global meta-prompt for agent-specific instructions.
@@ -251,6 +299,10 @@ type AgentRegistry struct {
 	// deliberate: anonymous input is not handed to something that acts on it,
 	// and Discord is the routing (verified delivering the same day).
 	triageOnly map[string]bool
+
+	// packageTemplate is the `package_agent_template` config section
+	// (M-PKG-QUALITY-LADDER M6); nil = no derivation.
+	packageTemplate *AgentConfig
 }
 
 // wildcardEntry is one trailing-`*` inbox pattern and the agent serving it.
@@ -622,58 +674,6 @@ func DefaultApprovalConfig(agentID string) *ApprovalConfig {
 	}
 }
 
-// GetEffectiveInvokeConfig returns the agent's invoke config, or defaults for known agents.
-// Returns nil for unknown agents without explicit config.
-//
-// Note: Deprecation warnings for using defaults should be logged by the caller,
-// as they have logger access. Check if result differs from explicit config.
-func (a *AgentConfig) GetEffectiveInvokeConfig() *InvokeConfig {
-	if a.Invoke != nil {
-		return a.Invoke
-	}
-	return DefaultInvokeConfig(a.ID)
-}
-
-// GetEffectiveOutputMarkers returns the agent's output markers, or defaults for known agents.
-func (a *AgentConfig) GetEffectiveOutputMarkers() []string {
-	if len(a.OutputMarkers) > 0 {
-		return a.OutputMarkers
-	}
-	return DefaultOutputMarkers(a.ID)
-}
-
-// GetEffectiveArtifactPatterns returns the agent's artifact patterns, or defaults for known agents.
-// These patterns are used with git diff to discover created/modified files.
-func (a *AgentConfig) GetEffectiveArtifactPatterns() []string {
-	if len(a.ArtifactPatterns) > 0 {
-		return a.ArtifactPatterns
-	}
-	return DefaultArtifactPatterns(a.ID)
-}
-
-// GetEffectiveTimeout returns the agent's configured hard ceiling timeout, or the default (60m).
-// This is the maximum wall-clock time regardless of activity. Safe to call on nil receiver.
-func (a *AgentConfig) GetEffectiveTimeout() time.Duration {
-	if a != nil && a.Timeout != "" {
-		if d, err := time.ParseDuration(a.Timeout); err == nil && d > 0 {
-			return d
-		}
-	}
-	return 60 * time.Minute
-}
-
-// GetEffectiveIdleTimeout returns the agent's configured idle timeout, or the default (3m).
-// The agent is killed if no streaming events are produced for this duration.
-// Safe to call on nil receiver.
-func (a *AgentConfig) GetEffectiveIdleTimeout() time.Duration {
-	if a != nil && a.IdleTimeout != "" {
-		if d, err := time.ParseDuration(a.IdleTimeout); err == nil && d > 0 {
-			return d
-		}
-	}
-	return 3 * time.Minute
-}
-
 // GetEffectiveApprovalConfig returns the agent's approval config, or defaults for known agents.
 func (a *AgentConfig) GetEffectiveApprovalConfig() *ApprovalConfig {
 	if a.Approval != nil {
@@ -704,6 +704,21 @@ func (r *AgentRegistry) IsTriageOnly(inbox string) bool {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return r.triageOnly[inbox]
+}
+
+// TriageInboxes lists the inboxes declared human-triage, sorted.
+//
+// The declaration is the only thing that distinguishes "unrouted on purpose"
+// from "unrouted by accident", so it has to be listable, not just queryable.
+func (r *AgentRegistry) TriageInboxes() []string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	out := make([]string, 0, len(r.triageOnly))
+	for in := range r.triageOnly {
+		out = append(out, in)
+	}
+	sort.Strings(out)
+	return out
 }
 
 // IsUndeclaredUnrouted reports an inbox that has neither an agent nor a

@@ -363,3 +363,21 @@ mcp-local: build snapshot
 # =============================================================================
 
 .DEFAULT_GOAL := help
+
+## pi-assets: sync .pi/extensions → cmd/ailang/pi_assets (embed source; commit both)
+pi-assets:
+	@mkdir -p cmd/ailang/pi_assets
+	@find cmd/ailang/pi_assets -mindepth 1 -maxdepth 1 -type f \( -name '*.ts' -o -name 'README.md' \) -delete
+	@for f in .pi/extensions/*.ts .pi/extensions/README.md; do \
+		[ -f "$$f" ] && cp "$$f" cmd/ailang/pi_assets/ || true; \
+	done
+	@mkdir -p internal/executor/pi/profile_assets
+	@cp .pi/extensions/ailang-exec.ts .pi/extensions/ailang-lsp-lite.ts .pi/extensions/examples-search.ts internal/executor/pi/profile_assets/
+	@echo "pi_assets synced from .pi/extensions (+ the ailang_only extensions into internal/executor/pi/profile_assets)"
+
+## verify-pi-assets: drift-check embedded pi assets against .pi/extensions (M-DX-PI-HARNESS Distribution v2)
+verify-pi-assets:
+	@diff -rq -x '.*' .pi/extensions cmd/ailang/pi_assets 2>/dev/null || \
+		{ echo "DRIFT: cmd/ailang/pi_assets is stale vs .pi/extensions — run 'make pi-assets'"; exit 1; }
+	@for f in ailang-exec.ts ailang-lsp-lite.ts examples-search.ts; do cmp -s .pi/extensions/$$f internal/executor/pi/profile_assets/$$f || \
+		{ echo "DRIFT: internal/executor/pi/profile_assets/$$f is stale vs .pi/extensions — run 'make pi-assets'"; exit 1; }; done

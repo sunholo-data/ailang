@@ -75,7 +75,14 @@ func encodePattern(pat core.CorePattern) (string, error) {
 	case *core.RecordPattern:
 		return encodeRecordPattern(p)
 	default:
-		return "", fmt.Errorf("unsupported pattern type %T in SMT encoding", pat)
+		// Wrap the sentinel so errors.Is survives the %w wrapping chain up
+		// through the unroller — the verifier classifies this as a SKIP.
+		// Known constructs get a user-facing name; #757's complaint was the raw
+		// Go type name leaking into output.
+		if _, ok := pat.(*core.ListPattern); ok {
+			return "", fmt.Errorf("%w: match on list patterns (x :: rest) is outside the decodable fragment", ErrUnsupportedConstruct)
+		}
+		return "", fmt.Errorf("%w: unsupported pattern type %T in SMT encoding", ErrUnsupportedConstruct, pat)
 	}
 }
 

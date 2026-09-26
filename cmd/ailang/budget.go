@@ -175,34 +175,71 @@ type BurnRateInfo struct {
 	WindowHours          int     `json:"windowHours"`
 }
 
-func runBudgetStatus(config BudgetConfig, workspaceSpend, dailySpend float64, provider string, allProviders, jsonOutput bool) {
-	// Use AILANG to check budget status
-	engine := ailembed.New(".")
-	defer engine.Close()
-
-	result, err := engine.Call(
+// checkBudgetViaAILANG evaluates the budget rule. There is one implementation
+// of it, in internal/dashboard_transforms/budget_checker.ail.
+//
+// This function used to fall back to a Go copy on error, SILENTLY — not even a
+// log line — and it built its engine with ailembed.New("."), so running
+// `ailang budget` from anywhere but the repo root resolved no modules at all
+// and quietly used the copy instead. The result was a spending decision whose
+// rule depended on the caller's working directory, with nothing to indicate
+// which one had answered.
+func checkBudgetViaAILANG(engine *ailembed.Engine, config BudgetConfig, estimatedCost, workspaceSpend, dailySpend float64) (BudgetStatus, error) {
+	// CallPreserveFloats, not Call: Call folds a whole float64 into an IntValue
+	// for JSON compatibility, so a budget of 100.0 arrives at a `float`-typed
+	// AILANG function as an int and fails with
+	// "missing dictionary method: prelude::Fractional::Int::add".
+	//
+	// That is what the deleted Go fallback was hiding. `ailang budget status` has
+	// been answering from the Go copy since this was written; the AILANG rule it
+	// claimed to use could not run at all. Nothing said so, because the error was
+	// discarded and the copy agreed closely enough to look right.
+	result, err := engine.CallPreserveFloats(
 		"internal/dashboard_transforms/budget_checker",
 		"checkTaskBudget",
 		config,
-		0.0, // estimated cost of 0 for status check
+		estimatedCost,
 		workspaceSpend,
 		dailySpend,
 	)
-
-	var status BudgetStatus
 	if err != nil {
-		// Fall back to Go implementation
-		status = goCheckTaskBudget(config, 0, workspaceSpend, dailySpend)
-	} else {
-		goResult, _ := ailembed.ToGo(result)
-		resultMap := goResult.(map[string]interface{})
-		status = BudgetStatus{
-			Allowed:            getBoolVal(resultMap, "allowed"),
-			RemainingWorkspace: getFloatVal(resultMap, "remainingWorkspace"),
-			RemainingDaily:     getFloatVal(resultMap, "remainingDaily"),
-			WarningLevel:       getStringVal(resultMap, "warningLevel"),
-			Message:            getStringVal(resultMap, "message"),
-		}
+		return BudgetStatus{}, fmt.Errorf("checkTaskBudget: %w", err)
+	}
+	goResult, err := ailembed.ToGo(result)
+	if err != nil {
+		return BudgetStatus{}, fmt.Errorf("checkTaskBudget result: %w", err)
+	}
+	resultMap, ok := goResult.(map[string]interface{})
+	if !ok {
+		return BudgetStatus{}, fmt.Errorf("checkTaskBudget returned %T, want a record", goResult)
+	}
+	return BudgetStatus{
+		Allowed:            getBoolVal(resultMap, "allowed"),
+		RemainingWorkspace: getFloatVal(resultMap, "remainingWorkspace"),
+		RemainingDaily:     getFloatVal(resultMap, "remainingDaily"),
+		WarningLevel:       getStringVal(resultMap, "warningLevel"),
+		Message:            getStringVal(resultMap, "message"),
+	}, nil
+}
+
+// openBudgetEngine resolves the tree holding the budget rule and loads it.
+// A budget that cannot be evaluated refuses rather than guessing.
+func openBudgetEngine() (*ailembed.Engine, error) {
+	return ailembed.NewForModule("internal/dashboard_transforms/budget_checker")
+}
+
+func runBudgetStatus(config BudgetConfig, workspaceSpend, dailySpend float64, provider string, allProviders, jsonOutput bool) {
+	engine, err := openBudgetEngine()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "budget rule unavailable: %v\n", err)
+		os.Exit(1)
+	}
+	defer func() { _ = engine.Close() }()
+
+	status, err := checkBudgetViaAILANG(engine, config, 0.0, workspaceSpend, dailySpend)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "budget status: %v\n", err)
+		os.Exit(1)
 	}
 
 	// Calculate burn rate from daily spend (simplified: assume 8-hour window)
@@ -217,7 +254,7 @@ func runBudgetStatus(config BudgetConfig, workspaceSpend, dailySpend float64, pr
 			"workspaceSpend": workspaceSpend,
 			"dailySpend":     dailySpend,
 			"usagePercent":   (dailySpend / config.DailyBudget) * 100,
-			"usingAilang":    err == nil,
+			"usingAilang":    true,
 			"burnRate": map[string]interface{}{
 				"costPerHour":          burnRate.CostPerHour,
 				"hoursUntilExhaustion": exhaustionHours,
@@ -322,14 +359,16 @@ func runBudgetStatus(config BudgetConfig, workspaceSpend, dailySpend float64, pr
 		fmt.Printf("    Forecast:  N/A\n")
 	}
 
-	if err == nil {
-		fmt.Printf("\n  %s\n", cyan("(using AILANG budget_checker)"))
-	}
+	fmt.Printf("\n  %s\n", cyan("(using AILANG budget_checker)"))
 }
 
 func runBudgetCheck(config BudgetConfig, estimatedCost, workspaceSpend, dailySpend float64, provider string, jsonOutput bool) {
-	engine := ailembed.New(".")
-	defer engine.Close()
+	engine, err := openBudgetEngine()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "budget rule unavailable: %v\n", err)
+		os.Exit(1)
+	}
+	defer func() { _ = engine.Close() }()
 
 	// Get effective limits for this provider
 	effectiveDailyBudget := config.DailyBudget
@@ -360,35 +399,17 @@ func runBudgetCheck(config BudgetConfig, estimatedCost, workspaceSpend, dailySpe
 		WarningThreshold: effectiveWarningThreshold,
 	}
 
-	result, err := engine.Call(
-		"internal/dashboard_transforms/budget_checker",
-		"checkTaskBudget",
-		effectiveConfig,
-		estimatedCost,
-		workspaceSpend,
-		dailySpend,
-	)
-
-	var status BudgetStatus
+	status, err := checkBudgetViaAILANG(engine, effectiveConfig, estimatedCost, workspaceSpend, dailySpend)
 	if err != nil {
-		status = goCheckTaskBudget(effectiveConfig, estimatedCost, workspaceSpend, dailySpend)
-	} else {
-		goResult, _ := ailembed.ToGo(result)
-		resultMap := goResult.(map[string]interface{})
-		status = BudgetStatus{
-			Allowed:            getBoolVal(resultMap, "allowed"),
-			RemainingWorkspace: getFloatVal(resultMap, "remainingWorkspace"),
-			RemainingDaily:     getFloatVal(resultMap, "remainingDaily"),
-			WarningLevel:       getStringVal(resultMap, "warningLevel"),
-			Message:            getStringVal(resultMap, "message"),
-		}
+		fmt.Fprintf(os.Stderr, "budget check: %v\n", err)
+		os.Exit(1)
 	}
 
 	if jsonOutput {
 		output := map[string]interface{}{
 			"status":      status,
 			"hardLimit":   hardLimit,
-			"usingAilang": err == nil,
+			"usingAilang": true,
 		}
 		if provider != "" {
 			output["provider"] = provider
@@ -443,52 +464,6 @@ func colorWarningLevel(level string) string {
 		return red("EXCEEDED")
 	default:
 		return level
-	}
-}
-
-// Go fallback implementation
-func goCheckTaskBudget(config BudgetConfig, estimatedCost, workspaceSpend, dailySpend float64) BudgetStatus {
-	remainingWorkspace := config.WorkspaceBudget - workspaceSpend
-	remainingDaily := config.DailyBudget - dailySpend
-	minRemaining := remainingWorkspace
-	if remainingDaily < minRemaining {
-		minRemaining = remainingDaily
-	}
-
-	if estimatedCost > minRemaining {
-		return BudgetStatus{
-			Allowed:            false,
-			RemainingWorkspace: remainingWorkspace,
-			RemainingDaily:     remainingDaily,
-			WarningLevel:       "exceeded",
-			Message:            "Task cost exceeds remaining budget",
-		}
-	}
-
-	if estimatedCost > config.TaskMaxCost {
-		return BudgetStatus{
-			Allowed:            false,
-			RemainingWorkspace: remainingWorkspace,
-			RemainingDaily:     remainingDaily,
-			WarningLevel:       "exceeded",
-			Message:            "Task exceeds maximum single-task cost",
-		}
-	}
-
-	usageRatio := (dailySpend + estimatedCost) / config.DailyBudget
-	level := "ok"
-	if usageRatio > 0.9 {
-		level = "critical"
-	} else if usageRatio > config.WarningThreshold {
-		level = "warning"
-	}
-
-	return BudgetStatus{
-		Allowed:            true,
-		RemainingWorkspace: remainingWorkspace - estimatedCost,
-		RemainingDaily:     remainingDaily - estimatedCost,
-		WarningLevel:       level,
-		Message:            "Task approved",
 	}
 }
 

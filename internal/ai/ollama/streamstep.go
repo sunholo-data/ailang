@@ -12,13 +12,13 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/ai"
 	"github.com/sunholo-data/ailang/internal/ai/openai"
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // --- Streaming /v1 path (M-OLLAMA-V1-STREAMING-IDLE-TIMEOUT, ailang#618 M2) ---
@@ -39,7 +39,7 @@ import (
 // (doc S5 — with the flag unset the wire bytes must be identical to today's),
 // so this must be an opt-IN test, not an opt-out one.
 func ollamaStreamEnabled() bool {
-	return os.Getenv("AILANG_OLLAMA_V1_STREAM") == "1"
+	return config.OllamaV1Stream()
 }
 
 // streamCallContext derives the streaming call's context from outer — the

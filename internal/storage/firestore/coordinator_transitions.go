@@ -12,9 +12,32 @@ import (
 
 // --- Task State Transitions ---
 
+// MarkTaskQueued claims a task for dispatch: pending -> queued, atomically, so
+// that exactly one of N concurrent dispatchers wins. Losers get
+// coordinator.ErrTaskNotClaimable and skip the task.
+//
+// A transaction rather than a precondition: Firestore preconditions test
+// existence and update time, not a FIELD VALUE, so "update only if status is
+// still pending" cannot be expressed as one. Read-then-write inside a
+// transaction is the supported form, and Firestore retries it on contention —
+// which is precisely the case this exists for.
 func (s *CoordinatorStore) MarkTaskQueued(ctx context.Context, id string) error {
-	_, err := s.client.Doc(collTasks, id).Update(ctx, []firestore.Update{
-		{Path: "status", Value: string(coordinator.TaskStatusQueued)},
+	doc := s.client.Doc(collTasks, id)
+	err := s.client.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
+		snap, err := tx.Get(doc)
+		if err != nil {
+			return err
+		}
+		status, _ := snap.Data()["status"].(string)
+		if status != string(coordinator.TaskStatusPending) {
+			return coordinator.ErrTaskNotClaimable
+		}
+		return tx.Update(doc, []firestore.Update{
+			{Path: "status", Value: string(coordinator.TaskStatusQueued)},
+			// Stamped in the claim's own write: the stale detector ages a cloud
+			// task from this, never from the message (M-TASK-STATUS-TRUTH S1).
+			{Path: "queued_at", Value: time.Now()},
+		})
 	})
 	if err == nil {
 		s.invalidateStatsCache()
@@ -181,22 +204,49 @@ func (s *CoordinatorStore) ResetTaskToPending(ctx context.Context, id string) er
 
 // --- Duplicate Detection ---
 
-func (s *CoordinatorStore) FindDuplicateTask(ctx context.Context, fingerprint uint64, _ float64) (*coordinator.TaskRecord, error) {
-	// Firestore doesn't support bitwise operations, so we do exact fingerprint match
+// HASH-SPACE NOTE (M-V1-SIMPLIFY-S4 M3B). Until M-V1-SIMPLIFY-S3 M5
+// (5731a1f38) the coordinator fingerprinted with an ASCII-only SimHash
+// variant; the survivor, simhash.Hash, differs for content holding a
+// non-ASCII rune or a one-character token. The SQLite store re-indexes the
+// column at open (store_sqlite_schema.go). This store deliberately does NOT:
+//
+//   - A stored fingerprint only matters while its row is inside DedupWindow
+//     (24h): BlocksDuplicate ignores anything older.
+//   - So the only rows a re-index could touch are those written in the 24h
+//     before a binary carrying the survivor first runs against the project,
+//     and they age out on their own within 24h of that moment.
+//   - The failure mode inside that day is a MISSED suppression — one extra
+//     execution of a request whose predecessor had a non-ASCII or one-char
+//     token — never a false suppression, which needs exact equality between
+//     two hashes of different content in different spaces.
+//   - Running the re-index once per project would need a `_meta` marker plus
+//     a start-up hook the daemon does not have, for a fix whose value is
+//     zero after the first day. The exposure was accepted at the S3 switch.
+func (s *CoordinatorStore) FindDuplicateTask(ctx context.Context, fingerprint uint64, scope coordinator.DedupScope) (*coordinator.TaskRecord, error) {
+	// Firestore doesn't support bitwise operations, so we do exact fingerprint
+	// match. The status and age rule is coordinator.BlocksDuplicate — applied here
+	// rather than as query filters, because status + fingerprint + created_at
+	// needs a composite index that does not exist, and a missing-index error
+	// would fail the whole query (the caller drops the error and would then
+	// suppress nothing at all).
 	iter := s.client.Collection(collTasks).
 		Where("fingerprint", "==", int64(fingerprint)).
-		Limit(1).
+		Limit(coordinator.DedupCandidateLimit).
 		Documents(ctx)
 	defer iter.Stop()
 
-	doc, err := iter.Next()
-	if err == iterator.Done {
-		return nil, nil
+	for {
+		doc, err := iter.Next()
+		if err == iterator.Done {
+			return nil, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		if task := mapToTask(doc.Data()); task.BlocksDuplicate(scope) {
+			return task, nil
+		}
 	}
-	if err != nil {
-		return nil, err
-	}
-	return mapToTask(doc.Data()), nil
 }
 
 func (s *CoordinatorStore) SetTaskFingerprint(ctx context.Context, id string, fingerprint uint64) error {

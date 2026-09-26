@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"sort"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/simhash"
 )
 
 // neuralSearch performs semantic search using embeddings via Ollama
@@ -59,7 +61,7 @@ func (s *Store) neuralSearch(opts SearchOptions) ([]SearchHit, error) {
 
 		if embedding != nil {
 			// Has embedding - compute similarity
-			score := CosineSimilarity(queryEmbedding, embedding)
+			score := simhash.Cosine(queryEmbedding, embedding)
 			if score >= opts.Threshold {
 				hits = append(hits, SearchHit{
 					Message:   msg,
@@ -98,7 +100,7 @@ func (s *Store) neuralSearch(opts SearchOptions) ([]SearchHit, error) {
 		_ = s.UpdateMessageEmbedding(msg.ID, msgEmbedding, embedder.ModelName())
 
 		// Compute similarity
-		score := CosineSimilarity(queryEmbedding, msgEmbedding)
+		score := simhash.Cosine(queryEmbedding, msgEmbedding)
 		if score >= opts.Threshold {
 			hits = append(hits, SearchHit{
 				Message:   msg,
@@ -278,7 +280,7 @@ func (s *Store) SearchByEnvelope(opts SearchOptions) ([]SearchHit, error) {
 			continue
 		}
 
-		score := CosineSimilarity(queryVec, slotVec)
+		score := simhash.Cosine(queryVec, slotVec)
 		if score >= opts.Threshold {
 			hits = append(hits, SearchHit{
 				Message:   msg,

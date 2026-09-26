@@ -1,22 +1,18 @@
 package openai
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ai"
+	"github.com/sunholo-data/ailang/internal/config"
+	"github.com/sunholo-data/ailang/internal/statedir"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -26,14 +22,14 @@ import (
 // e.g. motoko's bun→ailang chain — which is why the env alone wasn't enough to
 // see what motoko actually sends). Empty string = logging off.
 func aiHTTPLogPath() string {
-	if p := strings.TrimSpace(os.Getenv("AILANG_AI_HTTP_LOG")); p != "" {
+	if p := config.AIHTTPLog(); p != "" {
 		return p
 	}
-	home, err := os.UserHomeDir()
+	sentinel, err := statedir.Path("ai-http-log")
 	if err != nil {
 		return ""
 	}
-	data, err := os.ReadFile(filepath.Join(home, ".ailang", "state", "ai-http-log"))
+	data, err := os.ReadFile(sentinel) //nolint:gosec // a fixed name under the state dir
 	if err != nil {
 		return ""
 	}
@@ -114,62 +110,45 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 	// M-AI-REASONING-EFFORT: resolve reasoning controls BEFORE building/marshaling.
 	reasoning, rErr := ai.ResolveReasoning(req, "openai", req.Model)
 	if rErr != nil {
-		recordStepError(span, asAIError(rErr))
+		ai.RecordSpanError(span, rErr)
 		return nil, rErr
 	}
 
 	apiReq, aiErr := BuildChatStepRequest(req, reasoning)
 	if aiErr != nil {
-		recordStepError(span, aiErr)
+		ai.RecordSpanError(span, aiErr)
 		return nil, aiErr
 	}
 
 	jsonBody, err := json.Marshal(apiReq)
 	if err != nil {
 		e := ai.NewAIError(ai.CodeInternal, fmt.Sprintf("openai: failed to marshal request: %v", err), false)
-		recordStepError(span, e)
+		ai.RecordSpanError(span, e)
 		return nil, e
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/chat/completions", bytes.NewReader(jsonBody))
+	res, err := ai.DoJSON(ctx, ai.JSONCall{
+		Provider: "openai",
+		Client:   c.httpClient,
+		URL:      c.baseURL + "/chat/completions",
+		Headers:  c.authHeader(),
+		Body:     jsonBody,
+	}, nil)
+	if res != nil {
+		span.SetAttributes(attribute.Int("http.status_code", res.StatusCode))
+		// Authoritative wire capture: exact request + response bytes (off unless
+		// the AILANG_AI_HTTP_LOG env / ai-http-log sentinel is set).
+		logAIWire(c.baseURL+"/chat/completions", jsonBody, res.Body)
+	}
 	if err != nil {
 		e := ai.ClassifyError(err)
-		recordStepError(span, e)
-		return nil, e
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
-
-	resp, err := c.httpClient.Do(httpReq)
-	if err != nil {
-		e := ai.ClassifyError(err)
-		recordStepError(span, e)
-		return nil, e
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	span.SetAttributes(attribute.Int("http.status_code", resp.StatusCode))
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		e := ai.ClassifyError(err)
-		recordStepError(span, e)
+		ai.RecordSpanError(span, e)
 		return nil, e
 	}
 
-	// Authoritative wire capture: exact request + response bytes (off unless the
-	// AILANG_AI_HTTP_LOG env / ai-http-log sentinel is set).
-	logAIWire(c.baseURL+"/chat/completions", jsonBody, body)
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		e := classifyChatHTTPError("openai", resp.StatusCode, body)
-		recordStepError(span, e)
-		return nil, e
-	}
-
-	out, parseErr := ParseChatStepResponse(body, req.Model)
+	out, parseErr := ParseChatStepResponse(res.Body, req.Model)
 	if parseErr != nil {
-		recordStepError(span, parseErr)
+		ai.RecordSpanError(span, parseErr)
 		return nil, parseErr
 	}
 
@@ -297,7 +276,11 @@ type ChatStepResponse struct {
 	Object  string           `json:"object"`
 	Model   string           `json:"model"`
 	Choices []ChatStepChoice `json:"choices"`
-	Usage   ChatStepUsage    `json:"usage"`
+	// Usage is a pointer so an omitted usage key (nil) remains distinguishable
+	// from a present but all-zero usage block. A value field made that distinction
+	// inexpressible; deciding policy from it is deliberately future work tracked
+	// by row 6h step 2 and issue #842.
+	Usage *ChatStepUsage `json:"usage"`
 }
 
 // ChatStepChoice is one completion choice. Message.Content is RawMessage so
@@ -333,15 +316,6 @@ type ChatStepUsage struct {
 // equivalent on OpenAI — the cache write isn't surfaced separately.
 type ChatStepPromptTokDetails struct {
 	CachedTokens int `json:"cached_tokens"`
-}
-
-// ChatStepErrorEnvelope is the OpenAI/OpenRouter error response shape.
-type ChatStepErrorEnvelope struct {
-	Error struct {
-		Message string `json:"message"`
-		Type    string `json:"type"`
-		Code    string `json:"code"`
-	} `json:"error"`
 }
 
 // ============================================================================
@@ -624,16 +598,20 @@ func ParseChatStepResponse(body []byte, requestedModel string) (*ai.Response, *a
 		model = requestedModel
 	}
 
+	usage := ChatStepUsage{}
+	if raw.Usage != nil {
+		usage = *raw.Usage
+	}
 	cacheRead := 0
-	if raw.Usage.PromptTokensDetails != nil {
-		cacheRead = raw.Usage.PromptTokensDetails.CachedTokens
+	if usage.PromptTokensDetails != nil {
+		cacheRead = usage.PromptTokensDetails.CachedTokens
 	}
 	return &ai.Response{
 		Text:                 text,
 		Reasoning:            reasoning,
-		InputTokens:          raw.Usage.PromptTokens,
-		OutputTokens:         raw.Usage.CompletionTokens,
-		TotalTokens:          raw.Usage.TotalTokens,
+		InputTokens:          usage.PromptTokens,
+		OutputTokens:         usage.CompletionTokens,
+		TotalTokens:          usage.TotalTokens,
 		CacheReadInputTokens: cacheRead,
 		Model:                model,
 		ToolCalls:            toolCalls,
@@ -712,49 +690,15 @@ func MapChatFinishReason(r string) string {
 	return "error"
 }
 
-// classifyChatHTTPError wraps ai.ClassifyHTTPError with OpenAI-style envelope
-// parsing so AIError.Message carries the human-readable error.message field
-// rather than the raw JSON envelope. Exported via classifyChatHTTPErrorFor for
-// the openrouter adapter to share.
-func classifyChatHTTPError(provider string, statusCode int, body []byte) *ai.AIError {
-	return ClassifyChatHTTPErrorFor(provider, statusCode, body)
-}
-
 // ClassifyChatHTTPErrorFor classifies an OpenAI-format error envelope. Both
 // OpenAI and OpenRouter speak this shape — provider distinguishes which name
 // is reported in the AIError.Message when the body is empty.
 func ClassifyChatHTTPErrorFor(provider string, statusCode int, body []byte) *ai.AIError {
 	msg := string(body)
-	var env ChatStepErrorEnvelope
-	if json.Unmarshal(body, &env) == nil && env.Error.Message != "" {
-		msg = env.Error.Message
+	if m := ai.ErrorEnvelopeMessage(body); m != "" {
+		msg = m
 	}
 	// Trim noise but preserve case for downstream substring matching.
 	msg = strings.TrimSpace(msg)
 	return ai.ClassifyHTTPError(provider, statusCode, msg)
-}
-
-// recordStepError annotates the span with the AIError's code/message and
-// marks it as a failure.
-// asAIError extracts the *ai.AIError from a resolver error for span recording.
-// ResolveReasoning always returns a *ai.AIError on failure; this is a safe
-// unwrap that never returns nil for a non-nil input.
-func asAIError(err error) *ai.AIError {
-	var e *ai.AIError
-	if errors.As(err, &e) {
-		return e
-	}
-	return ai.NewAIError(ai.CodeInternal, err.Error(), false)
-}
-
-func recordStepError(span trace.Span, e *ai.AIError) {
-	if e == nil {
-		return
-	}
-	span.SetAttributes(
-		attribute.String("error.code", e.Code),
-		attribute.String("error.message", telemetry.Truncate(e.Message, 200)),
-		attribute.Bool("error.retryable", e.Retryable),
-	)
-	span.SetStatus(codes.Error, e.Code)
 }

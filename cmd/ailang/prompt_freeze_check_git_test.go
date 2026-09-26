@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -65,6 +66,123 @@ func TestFreezeCheck_UnmodifiedTreeIsGreen(t *testing.T) {
 	}
 }
 
+func TestFreezeCheck_MutablePlaceholderIsRed(t *testing.T) {
+	root := newFreezeCheckRepo(t)
+	writeFreezeCheckRegistries(t, root, "PLACEHOLDER", "PLACEHOLDER", false)
+
+	violations, rc := runFreezeCheck(t, root)
+	if rc != 1 || !hasViolation(violations, "mutable version v1.0.0", "unenforceable") {
+		t.Fatalf("want mutable placeholder violation and rc 1, got rc=%d violations=%v", rc, violations)
+	}
+}
+
+func TestFreezeCheck_MutableSourceDivergenceIsRed(t *testing.T) {
+	root := newFreezeCheckRepo(t)
+	base := []byte("base prompt\n")
+	writeFreezeCheckRegistries(t, root, hashBytes(base), hashBytes(base), false)
+	writeFreezeCheckFile(t, root, "prompts/v1.0.0.md", []byte("changed source\n"))
+
+	violations, rc := runFreezeCheck(t, root)
+	if rc != 1 || !hasViolation(violations, "mutable version v1.0.0", "file bytes do not match recorded hash") {
+		t.Fatalf("want mutable source divergence and rc 1, got rc=%d violations=%v", rc, violations)
+	}
+}
+
+func TestFreezeCheck_SourceMissingIsViolationNotError(t *testing.T) {
+	for _, frozen := range []bool{true, false} {
+		t.Run(map[bool]string{true: "frozen", false: "mutable"}[frozen], func(t *testing.T) {
+			root := newFreezeCheckRepo(t)
+			base := []byte("base prompt\n")
+			writeFreezeCheckRegistries(t, root, hashBytes(base), hashBytes(base), frozen)
+			if err := os.Remove(filepath.Join(root, "prompts", "v1.0.0.md")); err != nil {
+				t.Fatal(err)
+			}
+			violations, rc := runFreezeCheck(t, root)
+			if rc != 1 || !hasViolation(violations, map[bool]string{true: "frozen", false: "mutable"}[frozen]+" version v1.0.0", "prompt file missing at prompts/v1.0.0.md") {
+				t.Fatalf("want named source-missing violation and rc 1, got rc=%d violations=%v", rc, violations)
+			}
+		})
+	}
+}
+
+func TestFreezeCheck_MutableMirrorDivergenceIsRed(t *testing.T) {
+	root := newFreezeCheckRepo(t)
+	base := []byte("base prompt\n")
+	writeFreezeCheckRegistries(t, root, hashBytes(base), hashBytes(base), false)
+	writeFreezeCheckFile(t, root, "cmd/ailang/prompts/v1.0.0.md", []byte("changed mirror\n"))
+
+	violations, rc := runFreezeCheck(t, root)
+	if rc != 1 || !hasViolation(violations, "mutable version v1.0.0", "mirror bytes differ at cmd/ailang/prompts/v1.0.0.md") {
+		t.Fatalf("want mutable mirror divergence and rc 1, got rc=%d violations=%v", rc, violations)
+	}
+}
+
+func TestFreezeCheck_MirrorMissingIsRed(t *testing.T) {
+	for _, frozen := range []bool{true, false} {
+		t.Run(map[bool]string{true: "frozen", false: "mutable"}[frozen], func(t *testing.T) {
+			root := newFreezeCheckRepo(t)
+			base := []byte("base prompt\n")
+			writeFreezeCheckRegistries(t, root, hashBytes(base), hashBytes(base), frozen)
+			if err := os.Remove(filepath.Join(root, "cmd", "ailang", "prompts", "v1.0.0.md")); err != nil {
+				t.Fatal(err)
+			}
+			violations, rc := runFreezeCheck(t, root)
+			if rc != 1 || !hasViolation(violations, map[bool]string{true: "frozen", false: "mutable"}[frozen]+" version v1.0.0", "mirror file missing at cmd/ailang/prompts/v1.0.0.md") {
+				t.Fatalf("want named mirror-missing violation and rc 1, got rc=%d violations=%v", rc, violations)
+			}
+		})
+	}
+}
+
+func TestFreezeCheck_MirrorOnlyEntryIsRed(t *testing.T) {
+	root := newFreezeCheckRepo(t)
+	addMirrorOnlyFreezeCheckEntry(t, root, "v9.9.9-extra")
+	violations, rc := runFreezeCheck(t, root)
+	if rc != 1 || !hasViolation(violations, "entry v9.9.9-extra missing from source registry") {
+		t.Fatalf("want mirror-only violation and rc 1, got rc=%d violations=%v", rc, violations)
+	}
+}
+
+func TestFreezeCheck_CheckedCountMovesOnAddition(t *testing.T) {
+	root := newFreezeCheckRepo(t)
+	addMirrorOnlyFreezeCheckEntry(t, root, "v9.9.9-extra")
+	oldScanner := corpusScanner
+	corpusScanner = func(string) (map[string]corpusEvidence, error) { return map[string]corpusEvidence{}, nil }
+	t.Cleanup(func() { corpusScanner = oldScanner })
+	violations, checked, err := checkRegistries(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if checked != 2 || !hasViolation(violations, "entry v9.9.9-extra missing from source registry") {
+		t.Fatalf("want mirror-only addition counted (fixture 1 -> 2), got checked=%d violations=%v", checked, violations)
+	}
+}
+
+func TestFreezeCheck_InvalidHashAndMissingSourceEmitsBoth(t *testing.T) {
+	root := newFreezeCheckRepo(t)
+	writeFreezeCheckRegistries(t, root, "PLACEHOLDER", "PLACEHOLDER", false)
+	if err := os.Remove(filepath.Join(root, "prompts", "v1.0.0.md")); err != nil {
+		t.Fatal(err)
+	}
+	violations, rc := runFreezeCheck(t, root)
+	if rc != 1 || !hasViolation(violations, "mutable version v1.0.0", "unenforceable") || !hasViolation(violations, "mutable version v1.0.0", "prompt file missing") {
+		t.Fatalf("want both invalid-hash and missing-source violations, got rc=%d violations=%v", rc, violations)
+	}
+}
+
+func TestFreezeCheck_BothTreesDeletedEmitsBoth(t *testing.T) {
+	root := newFreezeCheckRepo(t)
+	for _, rel := range []string{"prompts/v1.0.0.md", "cmd/ailang/prompts/v1.0.0.md"} {
+		if err := os.Remove(filepath.Join(root, filepath.FromSlash(rel))); err != nil {
+			t.Fatal(err)
+		}
+	}
+	violations, rc := runFreezeCheck(t, root)
+	if rc != 1 || !hasViolation(violations, "prompt file missing at prompts/v1.0.0.md") || !hasViolation(violations, "mirror file missing at cmd/ailang/prompts/v1.0.0.md") {
+		t.Fatalf("want both source- and mirror-missing violations, got rc=%d violations=%v", rc, violations)
+	}
+}
+
 func TestFreezeCheckHelperProcess(t *testing.T) {
 	if os.Getenv("AILANG_FREEZE_CHECK_HELPER") != "1" {
 		return
@@ -117,6 +235,20 @@ func writeFreezeCheckFile(t *testing.T, root, rel string, data []byte) {
 	}
 }
 
+func addMirrorOnlyFreezeCheckEntry(t *testing.T, root, id string) {
+	t.Helper()
+	path := filepath.Join(root, "cmd", "ailang", "prompts", "versions.json")
+	r, err := loadOrderedRegistry(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.VersionKeys = append(r.VersionKeys, id)
+	r.Versions[id] = &registryEntry{File: "prompts/" + id + ".md", Hash: strings.Repeat("a", 64)}
+	if err := writeOrderedRegistry(path, r); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func runFreezeCheckGit(t *testing.T, root string, args ...string) {
 	t.Helper()
 	cmd := exec.Command("git", args...)
@@ -131,7 +263,7 @@ func runFreezeCheck(t *testing.T, root string) ([]string, int) {
 	oldScanner := corpusScanner
 	corpusScanner = func(string) (map[string]corpusEvidence, error) { return map[string]corpusEvidence{}, nil }
 	t.Cleanup(func() { corpusScanner = oldScanner })
-	violations, err := checkRegistries(root)
+	violations, _, err := checkRegistries(root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -145,6 +277,29 @@ func runFreezeCheck(t *testing.T, root string) ([]string, int) {
 		t.Fatal(err)
 	}
 	return violations, rc
+}
+
+// TestFreezeCheck_CountLinePrintedToStdout pins the CLI wiring that PRINTS the
+// count, which is a different mechanism from the count itself.
+// TestFreezeCheck_CheckedCountMovesOnAddition pins checkRegistries' returned int;
+// it stays green if the command never prints it, because it never looks at stdout.
+// This arm reads the bytes the command actually emits, so it dies when the Printf
+// is removed. AC1's rc half is a regression guard (rc is 0 at base and after), so
+// this stdout line is AC1's only falsifiable half and it needs a killer in Go.
+func TestFreezeCheck_CountLinePrintedToStdout(t *testing.T) {
+	root := newFreezeCheckRepo(t)
+	cmd := exec.Command(os.Args[0], "-test.run=^TestFreezeCheckHelperProcess$")
+	cmd.Env = append(os.Environ(), "AILANG_FREEZE_CHECK_HELPER=1", "AILANG_FREEZE_CHECK_REPO="+root)
+	var stdout bytes.Buffer
+	cmd.Stdout = &stdout
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("green fixture must exit 0, got %v (stdout=%q)", err, stdout.String())
+	}
+	// The fixture registry holds exactly one entry, so the count is derivable and
+	// a wrong count fails as loudly as a missing line.
+	if want := "checked 1 registry entries"; !strings.Contains(stdout.String(), want) {
+		t.Fatalf("stdout must carry %q, got %q", want, stdout.String())
+	}
 }
 
 func hasViolation(violations []string, parts ...string) bool {

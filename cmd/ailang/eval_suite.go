@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/modelreg"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -13,8 +14,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/eval_harness"
 	"github.com/sunholo-data/ailang/internal/messaging"
+	otelplatform "github.com/sunholo-data/ailang/internal/platform/otel"
 	"github.com/sunholo-data/ailang/internal/riglock"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"github.com/sunholo-data/ailang/internal/version"
@@ -56,19 +59,19 @@ func runEvalSuite() {
 	if taskID == "" {
 		taskID = fmt.Sprintf("eval-%d", time.Now().UnixNano())
 		assignmentID = fmt.Sprintf("aa_%d", time.Now().UnixNano())
-		// Set in environment so it gets picked up by telemetry.NewResource()
+		// Set in environment so it gets picked up by otelplatform.NewResource()
 		// Both task_id and assignment_id are needed for full hierarchy visibility
-		existingAttrs := os.Getenv("OTEL_RESOURCE_ATTRIBUTES")
+		existingAttrs := config.OTELResourceAttributes()
 		newAttrs := fmt.Sprintf("ailang.task_id=%s,ailang.assignment_id=%s", taskID, assignmentID)
 		if existingAttrs != "" {
-			os.Setenv("OTEL_RESOURCE_ATTRIBUTES", existingAttrs+","+newAttrs)
+			os.Setenv(config.EnvOTELResourceAttrs, existingAttrs+","+newAttrs)
 		} else {
-			os.Setenv("OTEL_RESOURCE_ATTRIBUTES", newAttrs)
+			os.Setenv(config.EnvOTELResourceAttrs, newAttrs)
 		}
 	}
 
 	// Initialize telemetry (traces exported if GOOGLE_CLOUD_PROJECT or OTEL_EXPORTER_OTLP_ENDPOINT set)
-	shutdownTelemetry, err := telemetry.Init(ctx, "ailang-eval")
+	shutdownTelemetry, err := otelplatform.Init(ctx, "ailang-eval")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: telemetry init failed: %v\n", err)
 	} else {
@@ -95,6 +98,12 @@ func runEvalSuite() {
 	// Parse eval-suite subcommand flags
 	fs := flag.NewFlagSet("eval-suite", flag.ExitOnError)
 	models := fs.String("models", "", "Comma-separated list of models (default: dev models)")
+	// --model is the canonical singular spelling of the model-selection family
+	// (M-V1-SIMPLIFY-S5 M5); `exec` and `cache embed` already spell it that way.
+	// --models keeps working for its fleet callers and takes the same value —
+	// renaming those call sites is the caller sweep, explicitly out of this
+	// sprint. No deprecation line: it would fire on every nightly rotation.
+	aliasStringFlag(fs, models, "model", "Alias of --models (canonical singular spelling; still accepts a comma-separated list)")
 	fullSuite := fs.Bool("full", false, "Run full benchmark suite with all models from extended_suite (gpt5-2-codex, claude-opus-4-6, claude-sonnet-4-6, gemini-3-pro, gemini-2-5-pro)")
 	benchmarks := fs.String("benchmarks", "", "Comma-separated list of benchmarks (empty = auto-discover from benchmarks/)")
 	tier := fs.String("tier", "", "Comma-separated list of tiers to include (smoke|core|stretch|frontier|vision). Empty = all tiers. Applied after benchmark discovery.")
@@ -112,6 +121,7 @@ func runEvalSuite() {
 	bankByVersion := fs.Bool("bank-by-version", false, "Namespace the output dir by the AILANG build version (eval_results/.../<version>/). A new build re-evals from scratch and history accumulates per release; with --skip-existing the rotation banks per-version (M-EVAL-VERSION-BANKING)")
 	dryRun := fs.Bool("dry-run", false, "Print the planned (model, harness, benchmark) runs and exit without executing")
 	noRigLock := fs.Bool("no-rig-lock", false, "Skip the shared rig lock. The rig is a single GPU; by default eval-suite refuses to start if another rig job (nightly/lang-eval/rotation) holds the lock, to prevent thrash/model-reload hangs. Use only on an isolated box.")
+	maxWallClock := fs.Duration("max-wall-clock", 0, "Wall-clock ceiling for the whole suite (0 = no cap, default). On breach: in-flight trials finish, no new trial is dispatched, a wallclock_stopped.json sentinel is written to --output, and the suite finalizes normally. Bounds a RUN; --max-tokens-per-bench and --timeout only bound a single benchmark, so a suite could still run away in aggregate and hold the single-GPU rig lock all day (M-RIG-LOCK-YIELD).")
 	budgetUSD := fs.Float64("budget-usd", 0, "Aggregate cost ceiling for this run (0 = no cap, default). On breach: in-flight trials finish, no new trial is scheduled, a budget_stopped.json sentinel is written to --output, and a loud warning is printed. Tracks banked cost_usd, not a real-time meter — expect some overshoot bounded by --parallel (M-EVAL-STANDARD-CONFIDENCE-GATING).")
 
 	// Agent mode flags
@@ -133,6 +143,8 @@ func runEvalSuite() {
 	// here; the AgentBenchmarkConfig.MaxConcurrent field is likewise removed.
 	agentRequestsPerSecond := fs.Int("agent-rate", 1, "API requests per second (agent mode only)")
 	agentTimeout := fs.Int("agent-timeout", 60, "Timeout per benchmark in seconds (agent mode only)")
+	toolPolicy := fs.String("tool-policy", "", "Agent-mode tool policy LANE: full | ailang_only | Canonical,List (M-AGENT-AILANG-ONLY-EXECUTION). ailang_only = read/edit/write + ailang_check/ailang_run, NO bash. Banked as tool_policy on every row; empty = the executor's defaults (the historical lane).")
+	policyFile := fs.String("policy-file", "", "agent-policy.toml gating ailang_run for the ailang_only lane (forwarded as AILANG_AGENT_POLICY; its sha256 is banked as policy_digest)")
 	maxTokensPerBench := fs.Int("max-tokens-per-bench", 0, "Hard token-budget ceiling per benchmark; aborts mid-run if exceeded (0 = unlimited). M-EVAL-OS-LONGITUDINAL Phase 1: thrash detection for free local models.")
 	browserProvider := fs.String("browser-provider", "", "Agent browser session provider: local-playwright or browserbase (empty = disabled; requires MCP-capable executor)")
 	browserProfile := fs.String("browser-profile", "", "Authenticated browser profile as alias@version (e.g. crm-readonly-eu@latest). Requires --browser-provider. `latest` resolves to a concrete version before the run starts.")
@@ -250,7 +262,7 @@ func runEvalSuite() {
 			// Agent mode REQUIRES models.yml for executor routing -- fail fast
 			fmt.Fprintf(os.Stderr, "Error: Could not load models.yml: %v\n", err)
 			fmt.Fprintf(os.Stderr, "Agent mode requires models.yml for executor routing (agent_cli, agent_model_name).\n")
-			fmt.Fprintf(os.Stderr, "Ensure models.yml exists at internal/eval_harness/models.yml or is embedded in the binary.\n")
+			fmt.Fprintf(os.Stderr, "Ensure models.yml exists at internal/modelreg/models.yml or is embedded in the binary.\n")
 			os.Exit(1)
 		}
 		fmt.Fprintf(os.Stderr, "Warning: Could not load models.yml: %v\n", err)
@@ -298,7 +310,12 @@ func runEvalSuite() {
 		}
 
 		// Auto-discover benchmarks from benchmarks/ directory (standard mode only)
-		benchmarkList = discoverBenchmarks()
+		// M-EVAL-STANDARD-MODE-INPUT-FILES-GAP: grade_entrypoint-bearing
+		// benchmarks are agent-mode-only — exclude them from standard-mode
+		// scheduling here so no result row is written at all (the dispatch-time
+		// guard in runSingleBenchmark remains as defense in depth for direct
+		// --benchmarks invocations).
+		benchmarkList = filterStandardModeBenchmarks(discoverBenchmarks())
 		if len(benchmarkList) == 0 {
 			fmt.Fprintf(os.Stderr, "Error: No benchmarks found in benchmarks/ directory\n")
 			os.Exit(1)
@@ -329,9 +346,9 @@ func runEvalSuite() {
 	// AILANG_RIG_LOCK_HELD=1, which riglock.Acquire honours so it never
 	// deadlocks against its own parent.
 	needsRigLock := false
-	if eval_harness.GlobalModelsConfig != nil {
+	if modelreg.GlobalModelsConfig != nil {
 		for _, m := range modelList {
-			if eval_harness.GlobalModelsConfig.UsesLocalGPU(m) {
+			if modelreg.GlobalModelsConfig.UsesLocalGPU(m) {
 				needsRigLock = true
 				break
 			}
@@ -400,10 +417,10 @@ func runEvalSuite() {
 			fmt.Printf("  ⚠ %d model×benchmark pair(s) have no pricing in models.yml — priced as $0, excluded from the total above\n", est.UnknownPricing)
 		}
 
-		if eval_harness.GlobalModelsConfig != nil {
+		if modelreg.GlobalModelsConfig != nil {
 			fmt.Printf("\nHarness routing (agent_cli per model):\n")
 			for _, m := range modelList {
-				if cfg, ok := eval_harness.GlobalModelsConfig.Models[m]; ok {
+				if cfg, ok := modelreg.GlobalModelsConfig.Models[m]; ok {
 					cli := "<none>"
 					if cfg.AgentCLI != nil && *cfg.AgentCLI != "" {
 						cli = *cfg.AgentCLI
@@ -419,20 +436,20 @@ func runEvalSuite() {
 
 	// Filter models for agent mode
 	if *agent {
-		if eval_harness.GlobalModelsConfig == nil {
+		if modelreg.GlobalModelsConfig == nil {
 			fmt.Fprintf(os.Stderr, "Error: models.yml not loaded, cannot determine agent support\n")
 			os.Exit(1)
 		}
 
 		// Filter to only models that support agent eval
 		originalModels := modelList
-		modelList = eval_harness.GlobalModelsConfig.FilterAgentSupportedModels(modelList)
+		modelList = modelreg.GlobalModelsConfig.FilterAgentSupportedModels(modelList)
 
 		// Warn about skipped models
 		if len(modelList) < len(originalModels) {
 			skipped := []string{}
 			for _, model := range originalModels {
-				if !eval_harness.GlobalModelsConfig.SupportsAgentEval(model) {
+				if !modelreg.GlobalModelsConfig.SupportsAgentEval(model) {
 					skipped = append(skipped, model)
 				}
 			}
@@ -667,6 +684,8 @@ func runEvalSuite() {
 		agentModelOverride: *agentModel, maxConcurrent: *maxConcurrent,
 		requestsPerSecond: *agentRequestsPerSecond, timeoutSeconds: *agentTimeout,
 		maxTokensPerBench: *maxTokensPerBench,
+		toolPolicy:        *toolPolicy,
+		policyFile:        *policyFile,
 		verify:            *verify, verifyTimeout: *verifyTimeout,
 		browserProvider: *browserProvider, browserProfile: *browserProfile, browserArtifacts: *browserArtifacts,
 		browserRegion: *browserRegion, browserMCPVersion: *browserMCPVersion, outputDir: *outputDir,
@@ -759,7 +778,7 @@ func runEvalSuite() {
 
 	// Run benchmarks with concurrency control (direct mode)
 	startTime := time.Now()
-	results := runBenchmarksParallel(ctx, jobs, *seed, *outputDir, *timeout, *maxConcurrent, finalSelfRepair, *promptVersion, agentConfig, taskID, evalChain, *budgetUSD)
+	results := runBenchmarksParallel(ctx, jobs, *seed, *outputDir, *timeout, *maxConcurrent, finalSelfRepair, *promptVersion, agentConfig, taskID, evalChain, *budgetUSD, *maxWallClock)
 	duration := time.Since(startTime)
 
 	finalizeSuiteRun(suiteSummaryParams{

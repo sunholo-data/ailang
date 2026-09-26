@@ -5,8 +5,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"sync"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // Aver is installed via `cargo install aver-lang`, which places the `aver`
@@ -36,7 +37,7 @@ func (e *ErrAverMissing) Unwrap() error { return e.cause }
 // resolveAver locates the aver binary and caches the path.
 func resolveAver() (string, error) {
 	averResolveOnce.Do(func() {
-		if env := strings.TrimSpace(os.Getenv("AILANG_AVER")); env != "" {
+		if env := config.Aver(); env != "" {
 			averBinPath = env
 			return
 		}
@@ -45,7 +46,7 @@ func resolveAver() (string, error) {
 			return
 		}
 		// Fallback to $CARGO_HOME/bin/aver (typically $HOME/.cargo/bin/aver).
-		cargoHome := strings.TrimSpace(os.Getenv("CARGO_HOME"))
+		cargoHome := config.CargoHome()
 		if cargoHome == "" {
 			home, err := os.UserHomeDir()
 			if err != nil {

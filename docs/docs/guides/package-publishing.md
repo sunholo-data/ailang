@@ -45,13 +45,102 @@ That's the whole flow. The rest of this guide explains the prerequisites and got
 
 ---
 
+## What `publish` checks — the quality report (v0.40.0)
+
+`ailang publish` (and `--dry-run`) runs the same quality report the registry validator runs
+on upload, and refuses on the same `PUBnnn` codes **before** a tarball is built. You can run
+it on its own:
+
+```bash
+ailang pkg quality .            # human summary
+ailang pkg quality --json .     # schema ailang.package-quality/v1
+ailang pkg quality --strict .   # warn-level badges become gates (exit 2)
+ailang pkg quality --no-run .   # skip executing tests and _smoke.ail
+```
+
+Every section carries a **provenance**:
+
+| Provenance | Sections | Who computes it | Can it block a publish? |
+|---|---|---|---|
+| `server` | compile · contracts (Z3) · interface identity · effects · release · docs · style | you locally **and** the validator, identically | yes — these are the registry's gates |
+| `attested` | tests · `_smoke.ail` | **only your machine** (the validator never executes package code) | locally yes; at the registry never — it is banked with `attested_by` = your key owner and shown as a badge |
+
+Gates vs badges depend on `[stability] level`: at `experimental` only compile failures,
+refuted contracts (`PUB006`), release-description problems and identity skew block; at
+`stable`/`frozen` the badges (uncontracted exports, tests, effect ceiling) become gates too.
+
+### Every version describes itself
+
+Two things are required from v0.41.0 (badges in v0.40.0):
+
+```toml
+# ailang.toml
+[release]
+kind = "fix"     # security | fix | feature | breaking
+```
+
+```markdown
+# CHANGELOG.md
+## 0.8.2
+- token refresh no longer logs the refresh token on failure
+```
+
+`ailang init package` scaffolds both. The section for the version being published must
+exist and be non-empty (`PUB001`); the kind must be declared (`PUB002`). `CHANGELOG.md`
+ships in the tarball; `ailang pkg versions <name>` prints the kind and notes per version.
+The kind is your *claim* — a later release of the ladder checks it against the measured
+change class, so `security` is the label that is verified hardest.
+
+### Contracts are now counted
+
+The validator verifies `requires`/`ensures` contracts package-wide (`ailang verify
+--package .`) and banks `contracts_verified/contracts_total` in `metadata.json` and
+`contracts_total` in the index. A refuted contract is a gate everywhere.
+
+### Interface identity (v2)
+
+Alongside the manifest-level `interface_hash`, the validator now banks a
+signature-sensitive `interface_hash_v2` and the exported `interface_signatures`. If your
+`ailang` computes a different v2 hash than the validator's, the publish is refused with
+`PUB005` naming both — upgrade the publisher. A package whose v2 identity cannot be built
+gets a badge today (shadow mode); `GET /api/stats` reports `v2_clean_streak`.
+
+### The package inbox
+
+Every published package has an agent inbox, `pkg:<vendor>/<name>`, derived from
+`[metadata] repository` — a GitHub tree URL such as
+`https://github.com/sunholo-data/ailang-packages/tree/main/packages/gcp-auth`. Without a
+parseable URL **no agent is derived** — the repository is not a function of the package name —
+and `PUB021` warns until you add it. A `pkg:` inbox for a package that is not in the registry is
+served by nothing either — a typo stays visible. See the autonomous-package-updates guide.
+
+---
+
 ## Prerequisites
 
 ### 1. An API key
 
-Today the registry uses a single shared API key for publish authorization. Contact [the AILANG maintainers](https://github.com/sunholo-data/ailang/issues) (or your existing channel — for arniwesth and other established partners, this is direct) to be issued the key.
+Publishing needs a key in `AILANG_REGISTRY_API_KEY`. There are two kinds:
 
-> **Honest disclosure:** the current key is a superuser key — it can publish under any namespace. Per-namespace key scoping is on the roadmap (see [Limitations](#current-limitations) below). The key MUST be kept private — don't commit it, don't paste it in a PR, don't put it in a GitHub Action without using a secret.
+| Kind | Who holds it | Can write |
+|---|---|---|
+| **Scoped key** (`ailr_…`) | each publisher | only the package globs it was minted with, e.g. `daneel/*` or `sunholo/daneel_*` |
+| **Superuser key** | the AILANG maintainers | every namespace, plus `unpublish` of anything, `rebuild-index`, and minting scoped keys |
+
+Ask [the AILANG maintainers](https://github.com/sunholo-data/ailang/issues) (or your existing channel) for a scoped key for your namespace. Reads never need a key — the registry bucket is public.
+
+A maintainer mints one with:
+
+```bash
+export AILANG_REGISTRY_API_KEY=<superuser key>
+ailang pkg key create --owner daneel --scope 'daneel/*' --note "Daneel's publish key"
+# ✓ Minted key for daneel (scopes: daneel/*)
+#   id:  3f9c…        ← for `ailang pkg key revoke <id>`
+#   key: ailr_…       ← shown ONCE; hand over on a private channel
+ailang pkg key list
+```
+
+The key MUST be kept private — don't commit it, don't paste it in a PR, don't put it in a GitHub Action without using a secret. A scoped key publishing outside its scope gets a 403 that names the owner and the package; the scopes are enforced on `publish` and `unpublish` alike, and `published_by` in the package metadata is stamped with the key's owner.
 
 ### 2. A namespace
 
@@ -177,17 +266,79 @@ The package also auto-appears at `https://ailang.sunholo.com/docs/packages/<name
 
 ---
 
+## For maintainers: issuing and managing keys
+
+Keys are minted centrally (CRAN-style) — there is no signup. The superuser key in Secret
+Manager (`ailang-registry-api-key`, project `ailang-registry`) is the only thing that can mint.
+
+### What a publisher may write
+
+A key carries one or more **scopes**, globs over the full `vendor/name`. Two shapes cover
+the cases we actually have:
+
+| Situation | Scope | Effect |
+|---|---|---|
+| Their own namespace — they publish whatever they like there | `daneel/*` | any package under `daneel/` |
+| A package of ours we hand to them | `sunholo/daneel_tools` | that one package, nothing else under `sunholo/` |
+| A family of ours we hand to them | `sunholo/daneel_*` | every `sunholo/daneel_…` package |
+
+Combine with repeated `--scope`:
+
+```bash
+ailang pkg key create --owner daneel \
+  --scope 'daneel/*' \
+  --scope 'sunholo/daneel_tools' \
+  --note "Daneel: own namespace + the docs tooling we delegated"
+```
+
+Rules of thumb:
+
+- **Namespace = owner name.** The `--owner` you record and the vendor they publish under
+  should match (`--owner daneel` ↔ `daneel/*`). `published_by` in metadata is stamped with
+  the owner, so provenance reads cleanly.
+- **Never hand out `sunholo/*`.** Delegate specific packages or a prefix; the wildcard on our
+  own namespace is superuser territory.
+- **Nothing stops two keys covering the same package.** Scopes are permissions, not ownership
+  records. Before minting a scope inside a namespace someone else already holds, check
+  `ailang pkg key list` — it is the only registry of who can write what.
+
+### Changing what someone can publish
+
+There is deliberately no "edit scopes" — mint a replacement and revoke the old one, so the
+change is a new key in the holder's hands and an audit row, not a silent widening:
+
+```bash
+ailang pkg key list                          # find the id
+ailang pkg key create --owner daneel --scope 'daneel/*' --scope 'sunholo/new_thing'
+ailang pkg key revoke <old-id>               # after they have switched
+```
+
+Revocation is immediate (checked on every write) and permanent — a revoked id cannot be
+re-enabled. Keys are stored as SHA-256 only; a lost key is re-minted, never recovered.
+
+### The superuser key
+
+- Existing holders keep working unchanged. It is still the break-glass and the minting authority.
+- **Rotate it once every current holder has a scoped key** — the point of scoping is that only
+  maintainers hold `*`. Rotation: add a new version to the `ailang-registry-api-key` secret in
+  `ailang-registry`, mirror it into `ailang-multivac`'s copy (recipe in that repo's
+  `terraform/secrets.tf`), then roll the validator revision so the new version is read — the
+  env is resolved at instance start, not on every request.
+- The fleet's own publish jobs (`ailang-multivac/terraform/cloud_run_jobs.tf`) currently use
+  the superuser key. They should be moved to a scoped `sunholo/*`-shaped key before rotation
+  so a leaked job env cannot mint keys.
+
 ## Current limitations
 
 These are real today. Known and tracked.
 
-1. **Single shared API key.** No per-namespace scoping at the validator (see [`cmd/registry-validator/main.go:178`](https://github.com/sunholo-data/ailang/blob/dev/cmd/registry-validator/main.go#L178) — `// Step 5: Namespace auth — deferred (accept all publishers for now)`). Whoever holds the key can publish under any namespace. **Acceptable for trusted partners; not yet ready for an open ecosystem.** Tracked as `M-PKG-MULTI-NAMESPACE-AUTH` (planned).
+1. **No self-registration.** Only a maintainer can mint a scoped key (CRAN-style curation); there is no signup flow. Scopes are globs, not ownership records — two keys can be minted over the same namespace, and nothing stops a maintainer from doing so.
 
 2. **No version yanking yet.** Once published, a version is immutable — no way to retract a broken release. Workaround: publish a fixed `x.y.(z+1)`. Yanking is on the roadmap.
 
 3. **No private registries.** All publishes go to the same Sunholo-hosted GCS bucket. For private packages, keep them as path-deps in a monorepo.
 
-4. **No package owners other than via the API key.** Future namespace scoping will introduce an owner concept, but today there's no per-package ACL — the key is the only authority.
+4. **The key is the only identity.** `published_by` records the key's owner, but there is no owner concept beyond that — no transfer, no co-owners, no per-package ACL other than the key scopes.
 
 ---
 

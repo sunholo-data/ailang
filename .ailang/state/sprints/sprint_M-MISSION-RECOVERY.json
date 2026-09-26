@@ -1,0 +1,64 @@
+{
+  "sprint_id": "M-MISSION-RECOVERY",
+  "status": "completed",
+  "created": "2026-09-07",
+  "design_doc": "design_docs/planned/m-mission-runtime-contract.md",
+  "sprint_plan": "design_docs/planned/m-mission-recovery-sprint-plan.md",
+  "authorization": "Mark attended: can you take care of that; preserve running loops and newly rotated threads",
+  "github_issues": [
+    1075
+  ],
+  "features": [
+    {
+      "id": "M1",
+      "description": "Repository identity before driver re-exec",
+      "estimated_loc": 250,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Different repository retained; same-origin clone redirected",
+        "Overrides and ambiguity have discriminating tests"
+      ],
+      "passes": true,
+      "started": "2026-09-07",
+      "completed": "2026-09-07",
+      "notes": "81 shell assertions pass"
+    },
+    {
+      "id": "M2",
+      "description": "Persisted stage admission and fencing",
+      "estimated_loc": 600,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Concurrent claim has exactly one owner",
+        "Crash/reopen preserves state; running never auto-retries",
+        "Stale completion and duplicate receipt cannot bypass stage fence"
+      ],
+      "passes": true,
+      "started": "2026-09-07",
+      "completed": "2026-09-07",
+      "notes": "SQLite race, fencing and abrupt process recovery tests pass"
+    },
+    {
+      "id": "M3",
+      "description": "CLI recovery and independent engineering review",
+      "estimated_loc": 350,
+      "dependencies": [
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "Dry-run stays write-free; status/reconcile/cancel operate explicitly",
+        "Heartbeat renews and cancels worker on lost ownership",
+        "Bounded checks and independent review pass with documented limits"
+      ],
+      "passes": true,
+      "started": "2026-09-07",
+      "completed": "2026-09-07",
+      "notes": "CLI state/receipt duplicate, external cancellation and heartbeat tests pass. Built binary fake-Pi smoke invoked once and rejected second receipt. Independent engineering PASS; inherited exec.go file-size failure remains owned by V1 #1074."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 300,
+    "estimated_total_loc": 1200,
+    "estimated_days": 4
+  }
+}

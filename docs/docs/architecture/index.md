@@ -110,7 +110,7 @@ For detailed design decisions and implementation history, see:
 
 ## See Also
 
-- [Development Guide](/docs/guides/development) - Contributing to the codebase
+- [Development Guide](https://github.com/sunholo-data/ailang/blob/dev/CONTRIBUTING.md) - Contributing to the codebase
 - [Development Workflow](/docs/guides/development-workflow) - Sprint planning and execution
 - [Testing Guide](/docs/guides/testing) - Writing and running tests
 - [Debugging Guide](/docs/guides/debugging) - Debug flags and troubleshooting

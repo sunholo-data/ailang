@@ -2,18 +2,24 @@ package eval_analysis
 
 import (
 	"testing"
+
+	"github.com/sunholo-data/ailang/internal/eval_harness"
 )
 
 func mkAgentResult(id, lang, model, executor string, stdoutOk bool, cost float64, durMs int64) *BenchmarkResult {
 	return &BenchmarkResult{
-		ID:         id,
-		Lang:       lang,
-		Model:      model,
-		Executor:   executor,
-		EvalMode:   "agent",
-		StdoutOk:   stdoutOk,
-		CostUSD:    cost,
-		DurationMs: durMs,
+		RunMetrics: eval_harness.RunMetrics{
+			ID:         id,
+			Lang:       lang,
+			Model:      model,
+			Executor:   executor,
+			EvalMode:   "agent",
+			CompileOk:  true,
+			RuntimeOk:  true,
+			StdoutOk:   stdoutOk,
+			CostUSD:    cost,
+			DurationMs: durMs,
+		},
 	}
 }
 

@@ -167,27 +167,10 @@ func typeCheckAndLowerModule(
 		typeChecker.SetEffectAnnotationsFull(effectAnnotsFull)
 	}
 
-	// M-DX19: Register derived Eq instances for types with `deriving (Eq)`
-	// This allows == to work on user-defined ADT and record types
-	derivedEqTypes := elaborator.GetDerivedEqTypes()
-	for _, typeName := range derivedEqTypes {
-		inst := &types.ClassInstance{
-			ClassName: "Eq",
-			TypeHead:  &types.TCon{Name: typeName},
-			Dict: types.Dict{
-				"eq":  fmt.Sprintf("derived_eq_%s", typeName),
-				"neq": fmt.Sprintf("derived_neq_%s", typeName),
-			},
-		}
-		if err := cfg.InstEnv.Add(inst); err != nil {
-			// Ignore duplicate instance errors (may happen with multiple files)
-			if cfg.DebugCompile {
-				fmt.Fprintf(os.Stderr, "[DEBUG] Could not add derived Eq instance for %s: %v\n", typeName, err)
-			}
-		}
-
-		// M-DX19: Also register in DictionaryRegistry for runtime lookup
-		cfg.DictReg.RegisterDerivedEq(typeName)
+	// M-DX19 + M-EQ-DERIVE-CONTAINERS: register `deriving (Eq)` instances and
+	// require Eq of every field
+	if err := registerDerivedEq(cfg, elaborator); err != nil {
+		return nil, fmt.Errorf("type error in %s: %w", modID, err)
 	}
 
 	// #327 interim diagnostic: record this module's function names so the type
@@ -385,6 +368,24 @@ func runPostTypeCheckPhases(
 		fmt.Fprintf(os.Stderr, "[DEBUG] Monomorphization disabled for module %s\n", modID)
 	}
 
+	// M-SMT-INTERP-SHOW: drop the `show` the interpolation desugar inserts around
+	// holes whose type makes it redundant (string) or trivially encodable (bool).
+	// Runs AFTER monomorphization so a generic helper's string instantiation is
+	// visible, and unconditionally so the DisableMonomorphization path is covered
+	// too. See internal/pipeline/show_normalize.go.
+	{
+		normalizer := NewShowNormalizer(&typeChecker.CoreTI)
+		normalized, err := normalizer.Normalize(unit.Core)
+		if err != nil {
+			return fmt.Errorf("show normalization failed in %s: %w", modID, err)
+		}
+		unit.Core = normalized
+		if cfg.DebugCompile {
+			fmt.Fprintf(os.Stderr, "[DEBUG] ShowNormalize (module %s): %d elided, %d rewritten, %d residue\n",
+				modID, normalizer.Elided, normalizer.Rewritten, normalizer.Residue)
+		}
+	}
+
 	// Phase 3.5.5: Var Type Resolution (M-DX4 workaround) for this module
 	if !cfg.DisableVarResolution {
 		resolver := NewVarResolver(typeChecker.CoreTI)
@@ -438,6 +439,10 @@ func runPostTypeCheckPhases(
 		// }
 
 		unit.Core.Flags.Lowered = true
+
+		// M-DEBUG-SINK-STRUCTURED-LINES: inject call-site locations into
+		// std/debug wrapper calls (always; erasure below sees the builtin shape)
+		unit.Core = (&DebugLocationInjector{}).Inject(unit.Core)
 
 		// M-DEBUG-ERASURE: Erase Debug ghost effect in release mode
 		if cfg.ReleaseMode {

@@ -1,22 +1,19 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"os"
-	"strings"
 	"time"
 
-	"github.com/sunholo-data/ailang/internal/ast"
-	"github.com/sunholo-data/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/pipeline"
 	"github.com/sunholo-data/ailang/internal/smt"
-	"github.com/sunholo-data/ailang/internal/types"
 )
 
-// verifyCommand implements the `ailang verify` CLI command.
-// It performs static contract verification using SMT solving (Z3).
+// verifyCommand implements the `ailang verify` CLI command: parse flags,
+// compile the file, hand the artifacts to smt.Verify, print the report.
+// The verification logic itself lives in internal/smt (M-V1-SIMPLIFY-S2 M3).
 func verifyCommand() {
 	fs := flag.NewFlagSet("verify", flag.ExitOnError)
 	verboseFlag := fs.Bool("verbose", false, "Show generated SMT-LIB for each function")
@@ -25,10 +22,22 @@ func verifyCommand() {
 	timeoutFlag := fs.Duration("timeout", 5*time.Second, "Per-function Z3 timeout (hard backstop adds 2s grace)")
 	recursiveDepthFlag := fs.Int("verify-recursive-depth", 2, "Bounded recursion unrolling depth (1-10, 0 to disable)")
 	relaxModulesFlag := fs.Bool("relax-modules", false, "Relax MOD010 validation (allow module path mismatches with warning)")
+	packageFlag := fs.String("package", "", "Verify every exported module of the package at this directory (M-PKG-QUALITY-LADDER)")
+	wallCapFlag := fs.Duration("wall-cap", 0, "With --package: whole-package time cap (0 = unbounded)")
 
 	if err := fs.Parse(os.Args[2:]); err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
 		os.Exit(1)
+	}
+
+	if *packageFlag != "" {
+		verifyPackageCommand(*packageFlag, verifyPackageOptions{
+			Timeout:        *timeoutFlag,
+			RecursiveDepth: *recursiveDepthFlag,
+			Verbose:        *verboseFlag,
+			WallCap:        *wallCapFlag,
+		}, *jsonFlag, *strictFlag)
+		return
 	}
 
 	if fs.NArg() < 1 {
@@ -41,6 +50,8 @@ func verifyCommand() {
 		fmt.Println("  --strict          Exit with error if any function cannot be verified")
 		fmt.Println("  --timeout         Per-function Z3 timeout; hard backstop adds 2s grace (default: 5s)")
 		fmt.Println("  --relax-modules   Relax MOD010 validation (allow module path mismatches)")
+		fmt.Println("  --package <dir>   Verify every exported module of a package (flat or canonical layout)")
+		fmt.Println("  --wall-cap        With --package: whole-package time cap (default: unbounded)")
 		fmt.Println()
 		fmt.Println("Verifies requires/ensures contracts using Z3 SMT solver.")
 		fmt.Println("Returns exit code 0 if all verifiable contracts are proven.")
@@ -77,13 +88,7 @@ func verifyCommand() {
 	}
 
 	// Check AILANG_RELAX_MODULES environment variable
-	relaxModulesEffective := *relaxModulesFlag
-	if envVal := os.Getenv("AILANG_RELAX_MODULES"); envVal != "" {
-		switch strings.ToLower(envVal) {
-		case "1", "true", "yes":
-			relaxModulesEffective = true
-		}
-	}
+	relaxModulesEffective := *relaxModulesFlag || config.RelaxModules()
 
 	cfg := pipeline.Config{
 		DryLink:      true, // Don't evaluate, just compile
@@ -115,561 +120,71 @@ func verifyCommand() {
 		os.Exit(0)
 	}
 
-	// Extract ADT types, record type aliases, and inline record types from the Surface AST.
-	adtResult := extractADTTypesWithRecords(surfaceAST)
-	adtTypes := adtResult.ADTTypes
-	adtRecordDecls := adtResult.RecordDecls
-	recordAliases := adtResult.RecordAliases
-	// Also extract from imported modules so cross-module types
-	// (e.g., Block, XmlNode, TableCell) get declare-datatype in the Z3 output.
-	if result.Modules != nil {
-		for _, mod := range result.Modules {
-			if mod.File != nil {
-				modResult := extractADTTypesWithRecords(mod.File)
-				for name, variants := range modResult.ADTTypes {
-					if _, exists := adtTypes[name]; !exists {
-						adtTypes[name] = variants
-					}
-				}
-				adtRecordDecls = append(adtRecordDecls, modResult.RecordDecls...)
-				for name, rec := range modResult.RecordAliases {
-					if _, exists := recordAliases[name]; !exists {
-						recordAliases[name] = rec
-					}
-				}
-			}
-		}
-	}
-
-	// Build Surface AST function lookup for param extraction
-	surfaceFuncs := make(map[string]*ast.FuncDecl)
-	for _, f := range surfaceAST.Funcs {
-		surfaceFuncs[f.Name] = f
-	}
-
-	// Solver configuration
-	solverCfg := smt.SolverConfig{
-		Timeout: *timeoutFlag,
-	}
-
-	// Collect results
-	var results []verifyResult
-	var verified, counterexample, skipped, errCount int
-
-	// Fixup: functions with ! {} (empty effects) are semantically pure
-	// but the parser only sets IsPure for the explicit `pure` keyword.
-	// For SMT verification, we treat empty-effect functions as pure.
-	for funcName, meta := range coreProg.Meta {
-		if fd, ok := surfaceFuncs[funcName]; ok {
-			if fd.Effects != nil && len(fd.Effects) == 0 && !meta.IsPure {
-				meta.IsPure = true
-			}
-		}
-	}
-
-	// Build surface params and return sorts for all functions (for cross-function call resolution)
-	allSurfaceParams := make(map[string][]smt.FunctionParam)
-	allSurfaceReturnSorts := make(map[string]string)
-	for funcName, fd := range surfaceFuncs {
-		var params []smt.FunctionParam
-		for _, p := range fd.Params {
-			paramType := convertASTTypeToType(p.Type)
-			if paramType != nil {
-				params = append(params, smt.FunctionParam{Name: p.Name, Type: paramType})
-			}
-		}
-		allSurfaceParams[funcName] = params
-		if fd.ReturnType != nil {
-			allSurfaceReturnSorts[funcName] = astTypeToSMTSort(fd.ReturnType)
-		}
-	}
-
-	// Build imported programs map and extend surface params/sorts from imported modules.
-	importedPrograms := make(map[string]*core.Program)
-	if result.Modules != nil {
-		for modPath, mod := range result.Modules {
-			if mod.Core != nil {
-				importedPrograms[modPath] = mod.Core
-				// Apply the same IsPure fixup as for same-module functions:
-				// imported functions with ! {} (empty effects) are semantically
-				// pure and must be marked so the callee resolver can inline them.
-				if mod.File != nil {
-					for _, fd := range mod.File.Funcs {
-						if meta, ok := mod.Core.Meta[fd.Name]; ok {
-							if fd.Effects != nil && len(fd.Effects) == 0 && !meta.IsPure {
-								meta.IsPure = true
-							}
-						}
-					}
-				}
-			}
-			// Include imported module functions in surface params/sorts so the
-			// callee resolver can build correct define-fun signatures for them.
-			if mod.File != nil {
-				for _, fd := range mod.File.Funcs {
-					if _, exists := allSurfaceParams[fd.Name]; exists {
-						continue // current module takes priority
-					}
-					var params []smt.FunctionParam
-					for _, p := range fd.Params {
-						if pt := convertASTTypeToType(p.Type); pt != nil {
-							params = append(params, smt.FunctionParam{Name: p.Name, Type: pt})
-						}
-					}
-					allSurfaceParams[fd.Name] = params
-					if fd.ReturnType != nil {
-						allSurfaceReturnSorts[fd.Name] = astTypeToSMTSort(fd.ReturnType)
-					}
-				}
-			}
-		}
-	}
-
-	encOpts := smt.EncodeFunctionOpts{
-		Program:            coreProg,
-		SurfaceParams:      allSurfaceParams,
-		SurfaceReturnSorts: allSurfaceReturnSorts,
-		ExtraDeclarations:  adtRecordDecls,
-		RecordTypeAliases:  recordAliases,
-		ImportedPrograms:   importedPrograms,
-	}
-
-	// Build the callee-sort gate inputs. The gate rejects a contracted function whose
-	// cross-function callee has an unencodable signature *type* (e.g. Option[float], a
-	// parametric ADT application) with a structured UNENCODABLE_TYPE reason, instead of
-	// leaking an undeclared sort into the SMT script and crashing Z3. See
-	// M-SMT-CALLEE-SORT-GATE.
-	//
-	// We inspect the surface AST types (not the flattened SMT sort strings): a mapped
-	// sort like "Option" loses the [float] argument, and an imported parametric ADT such
-	// as Option is registered in adtTypes yet cannot be declared as a usable monomorphic
-	// sort — so a sort-string check wrongly passes it. The AST distinguishes a monomorphic
-	// enum (SimpleType) from a parametric application (TypeApp with args) and a type var.
-	calleeASTFuncs := make(map[string]*ast.FuncDecl)
-	for name, fd := range surfaceFuncs {
-		calleeASTFuncs[name] = fd
-	}
-	allTypeFiles := []*ast.File{surfaceAST}
-	if result.Modules != nil {
-		for _, mod := range result.Modules {
-			if mod.File == nil {
-				continue
-			}
-			allTypeFiles = append(allTypeFiles, mod.File)
-			for _, fd := range mod.File.Funcs {
-				if _, exists := calleeASTFuncs[fd.Name]; !exists {
-					calleeASTFuncs[fd.Name] = fd
-				}
-			}
-		}
-	}
-	// declarableADTs: monomorphic (non-parametric) ADT/record names that WILL be declared
-	// as SMT sorts. Parametric ADTs (those whose TypeDecl carries type parameters) are
-	// excluded — they cannot be monomorphized by the current encoder.
-	declarableADTs := collectMonomorphicTypeNames(allTypeFiles)
-
-	// Process each function with contracts
-	for funcName, meta := range coreProg.Meta {
-		if len(meta.Contracts) == 0 {
-			continue
-		}
-
-		// Find the function body in Core decls
-		body := findFunctionBody(coreProg, funcName)
-		if body == nil {
-			results = append(results, verifyResult{
-				Function: funcName,
-				Status:   "skipped",
-				Reason:   "function body not found in Core AST",
-			})
-			skipped++
-			continue
-		}
-
-		// Check if function has ensures clauses (nothing to verify without postconditions)
-		hasEnsures := false
-		for _, c := range meta.Contracts {
-			if c.Kind == core.EnsuresKind {
-				hasEnsures = true
-				break
-			}
-		}
-		if !hasEnsures {
-			results = append(results, verifyResult{
-				Function: funcName,
-				Status:   "skipped",
-				Reason:   "no ensures clause (nothing to verify)",
-			})
-			skipped++
-			continue
-		}
-
-		// M4: Determine effective recursive depth for this function
-		// Per-function @verify(depth: N) overrides global --verify-recursive-depth
-		effectiveDepth := *recursiveDepthFlag
-		if meta.VerifyDepth > 0 {
-			effectiveDepth = meta.VerifyDepth
-		}
-
-		// Check if function is in the decidable SMT fragment
-		encodable, rejections := smt.IsSMTEncodable(funcName, meta, body)
-		// Callee-sort gate: reject cleanly if a cross-function callee has an
-		// unencodable signature type (e.g. Option[float]) rather than leaking an
-		// undeclared sort into the SMT script and crashing Z3. See M-SMT-CALLEE-SORT-GATE.
-		if callee, badType := firstUnencodableCalleeType(funcName, body, coreProg, importedPrograms, calleeASTFuncs, declarableADTs); callee != "" {
-			rejections = append(rejections, smt.SMTRejectionReason{
-				Code:    smt.RejectUnencodable,
-				Message: fmt.Sprintf("Function %q calls %q whose signature uses an unencodable type %q", funcName, callee, badType),
-				Hint:    "Cross-function verification cannot encode parametric ADTs (Option/Result) or type variables in a callee signature. Callees returning records/enum ADTs are also not yet inlinable and will skip. Rewrite the callee to return a primitive, or inline its logic into the caller.",
-			})
-			encodable = false
-		}
-		if !encodable {
-			// If bounded recursion is enabled, filter out RejectRecursive
-			if effectiveDepth > 0 {
-				var filtered []smt.SMTRejectionReason
-				for _, r := range rejections {
-					if r.Code != smt.RejectRecursive {
-						filtered = append(filtered, r)
-					}
-				}
-				rejections = filtered
-				encodable = len(rejections) == 0
-			}
-			if !encodable {
-				reasons := make([]string, len(rejections))
-				for i, r := range rejections {
-					reasons[i] = r.Message
-				}
-				results = append(results, verifyResult{
-					Function:   funcName,
-					Status:     "skipped",
-					Reason:     strings.Join(reasons, "; "),
-					Rejections: rejections,
-				})
-				skipped++
-				continue
-			}
-		}
-
-		// Unwrap Lambda nodes to separate params from body
-		params, innerBody := unwrapLambdaParams(funcName, surfaceFuncs, body)
-
-		// Determine return sort from Surface AST
-		returnSort := ""
-		var returnType types.Type
-		if fd, ok := surfaceFuncs[funcName]; ok && fd.ReturnType != nil {
-			returnSort = astTypeToSMTSort(fd.ReturnType)
-			returnType = convertASTTypeToType(fd.ReturnType)
-		}
-
-		// Build per-function encode options (return type, body, contracts for record discovery)
-		funcEncOpts := encOpts
-		funcEncOpts.ReturnType = returnType
-		funcEncOpts.Body = innerBody
-		funcEncOpts.Contracts = meta.Contracts
-		funcEncOpts.RecursiveDepth = effectiveDepth
-
-		// Demand-driven ADT filtering: only pass ADT types that this function actually
-		// references via its params, return type, or body. This prevents cascade failures
-		// where unrelated cross-module types (e.g., Json) poison functions that only use
-		// primitive types (e.g., int → int).
-		funcADTTypes, funcAliases, funcExtraDecls :=
-			filterSMTInputsForFunction(params, returnSort, innerBody, adtTypes, recordAliases, adtRecordDecls)
-		funcEncOpts.RecordTypeAliases = funcAliases
-		funcEncOpts.ExtraDeclarations = funcExtraDecls
-
-		// Encode function to SMT-LIB (with cross-function call support)
-		encResult, err := smt.EncodeFunction(funcName, params, innerBody, returnSort, meta, funcADTTypes, funcEncOpts)
-		if err != nil {
-			// If the error is due to unresolvable cross-module types,
-			// skip gracefully instead of reporting as error
-			if errors.Is(err, smt.ErrUnresolvableTypes) {
-				results = append(results, unresolvedTypeVerifyResult(funcName, err))
-				skipped++
-				continue
-			}
-			results = append(results, verifyResult{
-				Function: funcName,
-				Status:   "error",
-				Reason:   fmt.Sprintf("encoding error: %v", err),
-			})
-			errCount++
-			continue
-		}
-
-		// Solve with Z3
-		solveResult, err := smt.Solve(encResult.SMTLib, solverCfg)
-		if err != nil {
-			results = append(results, verifyResult{
-				Function: funcName,
-				Status:   "error",
-				Reason:   fmt.Sprintf("solver error: %v", err),
-			})
-			errCount++
-			continue
-		}
-
-		vr := verifyResult{
-			Function: funcName,
-			Duration: solveResult.Duration,
-		}
-		// Mark bounded recursion depth if the function is recursive
-		if effectiveDepth > 0 && smt.IsRecursiveFunc(innerBody, funcName) {
-			vr.BoundedDepth = effectiveDepth
-		}
-		if *verboseFlag {
-			vr.SMTLib = encResult.SMTLib
-		}
-
-		switch solveResult.Status {
-		case smt.StatusVerified:
-			vr.Status = "verified"
-			verified++
-		case smt.StatusCounterexample:
-			vr.Status = "counterexample"
-			vr.Model = solveResult.Model
-			counterexample++
-		case smt.StatusUnknown:
-			vr.Status = "unknown"
-			vr.Reason = solveResult.Error
-			errCount++
-		case smt.StatusError:
-			vr.Status = "error"
-			vr.Reason = solveResult.Error
-			errCount++
-		}
-
-		results = append(results, vr)
-	}
-
-	// Account for exported functions that carry no contract at all.
-	//
-	// These never enter the loop above (`len(meta.Contracts) == 0` skips them),
-	// so before this they were absent from the denominator entirely: a module
-	// with 25 exports of which 11 had contracts reported "11 functions: 11
-	// verified" and said nothing about the other 14. The teaching prompt asks
-	// agents to maximise the surface area of verified code, which is a ratio
-	// the tool has to be willing to print the bottom half of.
-	uncontracted := 0
-	for _, fd := range surfaceAST.Funcs {
-		if !fd.IsExport {
-			continue
-		}
-		meta, ok := coreProg.Meta[fd.Name]
-		if ok && len(meta.Contracts) > 0 {
-			continue
-		}
-		results = append(results, verifyResult{
-			Function: fd.Name,
-			Status:   "uncontracted",
-			Reason:   "no contract annotations (not a verification candidate)",
-		})
-		uncontracted++
-	}
+	report := smt.Verify(coreProg, surfaceAST, verifyModulesFromPipeline(result), smt.VerifyOptions{
+		Timeout:        *timeoutFlag,
+		RecursiveDepth: *recursiveDepthFlag,
+		Verbose:        *verboseFlag,
+	})
 
 	// Output results
 	if *jsonFlag {
-		printVerifyJSON(results, filename, verified, counterexample, skipped, errCount, uncontracted)
+		printVerifyJSON(report.Results, filename, report.Verified, report.Counterexample, report.Skipped, report.Errors, report.Uncontracted)
 	} else {
-		printVerifyHuman(results, filename, verified, counterexample, skipped, errCount, uncontracted, *verboseFlag)
+		printVerifyHuman(report.Results, filename, report.Verified, report.Counterexample, report.Skipped, report.Errors, report.Uncontracted, *verboseFlag)
 	}
 
 	// Exit code logic
-	if counterexample > 0 {
+	if report.Counterexample > 0 {
 		os.Exit(1) // Contract violations found
 	}
 	// Strict mode is deliberately unchanged: an uncontracted function is not a
 	// verification failure, it is a function nobody has written a contract for.
 	// Counting it here would turn --strict red on every module with a helper.
-	if *strictFlag && (skipped > 0 || errCount > 0) {
+	if *strictFlag && (report.Skipped > 0 || report.Errors > 0) {
 		os.Exit(1) // Strict mode: non-verifiable functions are failures
 	}
 }
 
-// verifyResult holds the result of verifying a single function.
-type verifyResult struct {
-	Function     string                   `json:"function"`
-	Status       string                   `json:"status"` // verified, counterexample, skipped, error, unknown
-	Reason       string                   `json:"reason,omitempty"`
-	Model        []smt.ModelBinding       `json:"model,omitempty"`
-	Rejections   []smt.SMTRejectionReason `json:"rejections,omitempty"`
-	Duration     time.Duration            `json:"duration,omitempty"`
-	SMTLib       string                   `json:"smtlib,omitempty"`
-	BoundedDepth int                      `json:"bounded_depth,omitempty"`
-}
-
-// adtExtractionResult holds ADT types, inline record types from ADT constructor fields,
-// and named record type aliases (type X = {fields}).
-type adtExtractionResult struct {
-	ADTTypes      map[string][]smt.ADTVariant
-	RecordDecls   []string                  // SMT-LIB declare-datatype for inline record types in ADT fields
-	RecordAliases map[string]*types.TRecord // Named record type aliases (e.g., "TableCell" → TRecord)
-}
-
-// extractADTTypesWithRecords extracts ADT type definitions and record type aliases
-// from the Surface AST and converts them to SMT-compatible formats.
-// Handles three cases:
-//  1. Record type aliases (type TableCell = {text: string, ...}) → RecordAliases
-//  2. ADTs (type Block = TextBlock(...) | ...) → ADTTypes
-//  3. Inline record types in ADT constructor fields → RecordDecls
-func extractADTTypesWithRecords(file *ast.File) adtExtractionResult {
-	result := adtExtractionResult{
-		ADTTypes:      make(map[string][]smt.ADTVariant),
-		RecordAliases: make(map[string]*types.TRecord),
+// verifyModulesFromPipeline projects the pipeline's loaded modules onto the
+// (File, Core) pair the verifier consumes, so internal/smt does not depend on
+// internal/loader.
+func verifyModulesFromPipeline(result pipeline.Result) map[string]smt.VerifyModule {
+	if result.Modules == nil {
+		return nil
 	}
-	// Track record types found in ADT fields that need declaration
-	recordsSeen := make(map[string]bool)
-
-	for _, decl := range file.Decls {
-		typeDecl, ok := decl.(*ast.TypeDecl)
-		if !ok {
+	mods := make(map[string]smt.VerifyModule, len(result.Modules))
+	for path, mod := range result.Modules {
+		if mod == nil {
 			continue
 		}
-
-		// Case 1: Record type alias (type TableCell = {text: string, colSpan: int, ...})
-		if recType, ok := typeDecl.Definition.(*ast.RecordType); ok {
-			collectNamedRecordAlias(typeDecl.Name, recType, &result, recordsSeen)
-			continue
-		}
-
-		// Case 2: ADT (type Block = TextBlock(...) | TableBlock(...) | ...)
-		algType, ok := typeDecl.Definition.(*ast.AlgebraicType)
-		if !ok {
-			continue
-		}
-
-		var variants []smt.ADTVariant
-		for _, ctor := range algType.Constructors {
-			variant := smt.ADTVariant{Name: ctor.Name}
-			for _, field := range ctor.Fields {
-				sortName := astTypeToSMTSort(field.Type)
-				fieldName := field.Name
-				if fieldName == "" {
-					// Prefix with constructor name to ensure uniqueness across
-					// all constructors in the datatype (Z3 requirement).
-					fieldName = fmt.Sprintf("%s_%d", ctor.Name, len(variant.Fields))
-				}
-				variant.Fields = append(variant.Fields, smt.ADTField{
-					Name: fieldName,
-					Sort: sortName,
-				})
-				// If this field is an inline record type, collect its declaration
-				if recType, ok := field.Type.(*ast.RecordType); ok {
-					collectRecordDeclFromAST(recType, &result, recordsSeen)
-				}
-			}
-			variants = append(variants, variant)
-		}
-		result.ADTTypes[typeDecl.Name] = variants
+		mods[path] = smt.VerifyModule{File: mod.File, Core: mod.Core}
 	}
-
-	return result
+	return mods
 }
 
-// collectNamedRecordAlias registers a named record type alias for Z3 encoding.
-// For example: type TableCell = {text: string, colSpan: int, rowSpan: int, merged: bool}
-// becomes: (declare-datatype TableCell ((mk_TableCell (colSpan Int) (merged Bool) (rowSpan Int) (text String))))
-func collectNamedRecordAlias(name string, recType *ast.RecordType, result *adtExtractionResult, seen map[string]bool) {
-	if seen[name] {
-		return
+// verifyPackageCommand is the --package arm: Z3 check, verify, print, exit.
+func verifyPackageCommand(dir string, opts verifyPackageOptions, jsonOut, strict bool) {
+	if !smt.Z3Available() {
+		fmt.Fprintf(os.Stderr, "%s Z3 solver not found\n", red("Error:"))
+		os.Exit(1)
 	}
-	seen[name] = true
-
-	typeFields := make(map[string]types.Type, len(recType.Fields))
-	for _, f := range recType.Fields {
-		ft := convertASTTypeToType(f.Type)
-		if ft == nil {
-			continue
-		}
-		typeFields[f.Name] = ft
+	if jsonOut {
+		os.Setenv("AILANG_QUIET_WARNINGS", "1")
 	}
-	if len(typeFields) > 0 {
-		result.RecordAliases[name] = &types.TRecord{
-			Fields:   typeFields,
-			TypeName: name,
-		}
+	report, err := verifyPackage(dir, opts)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		os.Exit(1)
 	}
-
-	// Also check if any field is itself an inline record type that needs declaration
-	for _, f := range recType.Fields {
-		if innerRec, ok := f.Type.(*ast.RecordType); ok {
-			collectRecordDeclFromAST(innerRec, result, seen)
-		}
+	if jsonOut {
+		printPackageVerifyJSON(report)
+	} else {
+		printPackageVerifyHuman(report)
 	}
-}
-
-// collectRecordDeclFromAST generates a declare-datatype for a record type
-// found in an ADT constructor field, so it's declared before the ADT.
-func collectRecordDeclFromAST(recType *ast.RecordType, result *adtExtractionResult, seen map[string]bool) {
-	rec := convertASTTypeToType(recType)
-	if rec == nil {
-		return
+	if report.Counterexample > 0 || report.Errors > 0 {
+		os.Exit(1)
 	}
-	trec, ok := rec.(*types.TRecord)
-	if !ok {
-		return
-	}
-	sortName := smt.MapRecordSortName(trec)
-	if seen[sortName] {
-		return
-	}
-	seen[sortName] = true
-
-	// Build field sorts
-	fields := make(map[string]string)
-	for name, fieldType := range trec.Fields {
-		sort, err := smt.MapType(fieldType)
-		if err != nil {
-			continue // Skip unencodable fields
-		}
-		fields[name] = sort
-	}
-	if len(fields) > 0 {
-		result.RecordDecls = append(result.RecordDecls, smt.DeclareRecordDatatype(sortName, fields))
-	}
-}
-
-// astTypeToSMTSort converts an AST type annotation to an SMT-LIB sort name.
-func astTypeToSMTSort(t ast.Type) string {
-	switch ty := t.(type) {
-	case *ast.SimpleType:
-		switch ty.Name {
-		case "int":
-			return "Int"
-		case "float":
-			return "Real"
-		case "bool":
-			return "Bool"
-		case "string":
-			return "String"
-		default:
-			return ty.Name // ADT type name
-		}
-	case *ast.ListType:
-		elemSort := astTypeToSMTSort(ty.Element)
-		return fmt.Sprintf("(Seq %s)", elemSort)
-	case *ast.TypeApp:
-		// TypeApp{Constructor: "list", Args: [int]} → (Seq Int)
-		if ty.Constructor == "list" && len(ty.Args) == 1 {
-			elemSort := astTypeToSMTSort(ty.Args[0])
-			return fmt.Sprintf("(Seq %s)", elemSort)
-		}
-		return ty.Constructor // ADT type name
-	case *ast.RecordType:
-		rec := convertASTTypeToType(ty)
-		if rec == nil {
-			return "Int" // Fallback
-		}
-		trec, ok := rec.(*types.TRecord)
-		if !ok {
-			return "Int"
-		}
-		return smt.MapRecordSortName(trec)
-	case *ast.LabelledType:
-		// Strip IFC label metadata — labels do not affect SMT sorts.
-		return astTypeToSMTSort(ty.Base)
-	default:
-		return "Int" // Fallback for complex types
+	if strict && report.Skipped > 0 {
+		os.Exit(1)
 	}
 }

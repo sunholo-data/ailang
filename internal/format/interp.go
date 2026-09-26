@@ -91,6 +91,20 @@ func (p *printer) interpolationString(n *ast.FuncCall) (string, bool) {
 		if !isID || id.Name != "show" || len(call.Args) != 1 {
 			return "", false
 		}
+		// ...and it must be a show the DESUGAR synthesized, not one the user
+		// wrote. ResolveAsBuiltin is set only by parseInterpolatedString, so it
+		// answers exactly the question the structural guards above approximate:
+		// "did this chain come from a "${...}" literal?"
+		//
+		// Without this check, a hand-written `concat_String("a", show(n))` is
+		// reprinted as `"a${n}"` — which today means the same thing, but stops
+		// meaning the same thing the moment a module-local `show` can win over
+		// the builtin: the chain would call the user's function and the
+		// interpolation would not. A formatter must never be the thing that
+		// changes which function a program calls.
+		if !id.ResolveAsBuiltin {
+			return "", false
+		}
 		hole, holeOK := p.holeText(call.Args[0])
 		if !holeOK {
 			return "", false

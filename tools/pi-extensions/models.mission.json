@@ -51,6 +51,57 @@
             "high": null,
             "xhigh": null
           }
+        },
+        {
+          "id": "deepseek-v4.1-flash:cloud",
+          "maxTokens": 32000,
+          "contextWindow": 1048576,
+          "reasoning": true,
+          "thinkingLevelMap": {
+            "off": null,
+            "minimal": null,
+            "xhigh": null
+          },
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          }
+        },
+        {
+          "id": "kimi-k3:cloud",
+          "maxTokens": 32000,
+          "contextWindow": 1048576,
+          "reasoning": true,
+          "thinkingLevelMap": {
+            "off": null,
+            "minimal": null,
+            "xhigh": null
+          },
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          }
+        },
+        {
+          "id": "glm-5.3:cloud",
+          "maxTokens": 32000,
+          "contextWindow": 1048576,
+          "reasoning": true,
+          "thinkingLevelMap": {
+            "off": null,
+            "minimal": null,
+            "xhigh": null
+          },
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          }
         }
       ]
     },
@@ -80,9 +131,9 @@
           }
         },
         {
-          "id": "z-ai/glm-4.7-flash",
+          "id": "z-ai/glm-5.3-flash",
           "maxTokens": 32000,
-          "contextWindow": 202752,
+          "contextWindow": 1310720,
           "reasoning": true,
           "thinkingLevelMap": {
             "off": null,
@@ -93,9 +144,9 @@
             "xhigh": null
           },
           "cost": {
-            "input": 0.06,
-            "output": 0.4,
-            "cacheRead": 0.01,
+            "input": 0.075,
+            "output": 0.25,
+            "cacheRead": 0.015,
             "cacheWrite": 0
           }
         },
@@ -132,11 +183,66 @@
             "cacheRead": 0.016,
             "cacheWrite": 0
           }
+        },
+        {
+          "id": "deepseek/deepseek-v4.1-flash",
+          "maxTokens": 32000,
+          "contextWindow": 1048576,
+          "reasoning": true,
+          "thinkingLevelMap": {
+            "off": null,
+            "minimal": null,
+            "xhigh": null
+          },
+          "cost": {
+            "input": 0.3,
+            "output": 1.2,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          }
+        },
+        {
+          "id": "deepseek/deepseek-v4.1-flash:floor",
+          "maxTokens": 32000,
+          "contextWindow": 1048576,
+          "reasoning": true,
+          "thinkingLevelMap": {
+            "off": null,
+            "minimal": null,
+            "xhigh": null
+          },
+          "cost": {
+            "input": 0.3,
+            "output": 1.2,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          }
         }
       ],
       "compat": {
         "thinkingFormat": "openrouter"
       }
+    },
+    "vertex": {
+      "api": "google-vertex",
+      "_note": "No apiKey by design (design P6): pi's google-vertex provider uses Application Default Credentials, which on Cloud Run is the instance's own service account. A shared key baked into every per-user instance is exfiltratable from any user's thread and works for everyone; an ADC token is scoped to the instance that minted it.",
+      "models": [
+        {
+          "id": "gemini-3.8-flash",
+          "maxTokens": 65536,
+          "contextWindow": 1048576,
+          "reasoning": true,
+          "thinkingLevelMap": {
+            "off": null,
+            "minimal": null,
+            "low": "low",
+            "medium": "medium",
+            "high": "high",
+            "xhigh": null,
+            "max": null
+          }
+        }
+      ]
     }
   }
 }

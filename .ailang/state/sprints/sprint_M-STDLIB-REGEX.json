@@ -1,0 +1,123 @@
+{
+  "sprint_id": "M-STDLIB-REGEX",
+  "status": "completed",
+  "created": "2026-07-11T00:00:00Z",
+  "design_doc": "design_docs/planned/v0_30_0/m-stdlib-regex.md",
+  "sprint_plan": "design_docs/planned/v0_30_0/m-stdlib-regex-sprint-plan.md",
+  "github_issues": [
+    329
+  ],
+  "metadata": {
+    "planner-model": "claude-opus-4-8",
+    "scope": "Ship std/regex backed by Go regexp (RE2, linear-time): two-stage compile -> Result[Regex,string] + total match fns (isMatch, findFirst, findAll, replaceAll, split) with capture groups. Purely additive: new internal/eval/builtins_regex.go, new _regex_* builtin names, new std/regex module. NON-SCOPE: backreferences/lookaround (inherent RE2 limitation, compile returns Err), replaceAllFunc (AILANG-callback repl, deferred), named-group map accessor (deferred), compiled-handle int registry (deferred unless string-cache proven insufficient), URL parse (queue #12). Closes v1.0 bar clause 4 regex half.",
+    "estimated_effort": "2 days (M1 1d engine+builtins+unit tests, M2 0.5d stdlib module+examples, M3 0.5d integration tests+docs+buffer)",
+    "premises_verified_live": true,
+    "verification_binary": "read-only against HEAD v0.29.2-35-gb62ab5433 (make quick-install; ailang --version == git describe); sources read live, no code written by planner",
+    "verification_date": "2026-07-11",
+    "read_only_main_checkout": true,
+    "gpu_step": "NONE - pure Go builtin + AILANG stdlib + cloud-model evaluation; does not touch ollama/local models, no rig.lock needed"
+  },
+  "velocity": {
+    "target_loc_per_day": 375,
+    "estimated_total_loc": 750,
+    "estimated_days": 2,
+    "loc_note": "750 = M1 ~400 (impl ~220 + tests ~180) + M2 ~170 (module ~70 + examples ~90 + website reg) + M3 ~180 (integration test + docs). Test-heavy; the 2-day budget is gated by the byte->rune offset correctness (F1), not typing volume. The RE2-wrap decision keeps this at 2d not multi-week."
+  },
+  "discrepancies_found": [
+    {
+      "id": "F1",
+      "doc_claim": "Risks table: 'Byte-offset vs rune-index mismatch between Go regexp (byte offsets) and AILANG string indexing' flagged Medium, convention to be determined.",
+      "finding": "CONFIRMED REAL + resolved: _str_slice and _str_len are rune-indexed / UTF-8 aware (internal/eval/builtins_string.go:77 '_str_len returns number of runes not bytes', :88 '_str_slice with UTF-8 rune indices'). Go regexp FindStringSubmatchIndex returns BYTE offsets.",
+      "action": "M1 MUST convert byte offsets -> rune indices for the exposed RegexMatch.start/end and groups[].start/end so spans match std/string. Slice .text from the byte offsets (correct regardless). Multibyte-UTF8 test fixture is a required M1 acceptance criterion."
+    },
+    {
+      "id": "F2",
+      "doc_claim": "Files-to-Modify: 'std/embed.go (+1 LOC, if the embed list is explicit) - embed regex.ail'.",
+      "finding": "std/embed.go uses a glob: //go:embed *.ail (std/embed.go:10). The embed list is NOT explicit.",
+      "action": "std/regex.ail auto-embeds by existing in std/. Do NOT modify std/embed.go."
+    },
+    {
+      "id": "F4",
+      "doc_claim": "Files-to-Modify lists 'CHANGELOG.md'.",
+      "finding": "Root CHANGELOG.md and changelogs/v0.18-current.md both exist; the current active changelog is changelogs/v0.18-current.md (prior sprint m-syntax-ai-forgiving D2 convention).",
+      "action": "Add the [Unreleased] entry to changelogs/v0.18-current.md; only touch root CHANGELOG.md if the executor confirms it is the canonical aggregate."
+    }
+  ],
+  "risk_level": "low-medium",
+  "risks": [
+    "Byte<->rune offset mismatch (F1) - mitigated by M1 headline requirement + multibyte fixture",
+    "Nested record/list marshalling into eval.Value is fiddly - mitigated by copying builtins_json.go (records) + builtins_string.go (_str_split list) patterns verbatim",
+    "Users expect PCRE backref/lookaround, hit Err - mitigated by loud compile error + LIMITATIONS note + example framing RE2 tradeoff as safety",
+    "Hidden compile-cache nondeterminism/leak - mitigated by pure memoization keyed by pattern string, mutex-guarded, compile-twice test"
+  ],
+  "features": [
+    {
+      "id": "M1_GO_RE2_BUILTINS",
+      "description": "Create internal/eval/builtins_regex.go: six _regex_* builtins (_regex_compile, _regex_is_match, _regex_find_first, _regex_find_all, _regex_replace_all, _regex_split) delegating to a mutex-guarded memoized *regexp.Regexp cache keyed by pattern string. Marshal Result/record/list results with the SAME helpers builtins_json.go and builtins_string.go use. Convert byte offsets -> rune indices for exposed spans (F1); slice .text from byte offsets; non-participating optional groups report start=-1. Register via registerRegexBuiltins() in builtins.go init() (F3), all IsPure:true. Go unit tests incl. linear-time wall bound + multibyte rune fixture + compile-err-no-panic + cache memoization.",
+      "estimated_loc": 400,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "go test ./internal/eval/... -run Regex -count=1 green",
+        "_regex_compile returns Err (never panics) for '(' (unbalanced), '(?=x)' (lookaround), '(a)\\1' (backref)",
+        "Linear-time bound test: (a+)+$ vs strings.Repeat(\"a\",40)+\"!\" completes under a hard wall bound (e.g. 100ms)",
+        "Multibyte-UTF8 fixture: RegexMatch spans are rune indices consistent with _str_slice/_str_len, NOT byte offsets (F1)",
+        "findFirst/findAll return correct spans+text for a multi-group pattern; non-participating optional group reports start=-1",
+        "replaceAll with $1 works; split on \\s+ works",
+        "Compile-twice-same-pattern returns consistent result (cache memoization test)",
+        ">=80% coverage on builtins_regex.go; make lint clean on the new file",
+        "registerRegexBuiltins() added to builtins.go init(); builtin-registry test confirms all prior builtins still present"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-07-11T00:00:00Z",
+      "notes": "internal/builtins/regex.go \u2014 6 _regex_* builtins via modern RegisterEffectBuiltin (NOT eval/builtins_json.go path the doc referenced \u2014 D-ARCH), mutex-guarded memoized regexp cache, byte->rune span conversion (F1). Tests pass -count=20: compile Err-never-panics for ( / (?=x) / (a)\\1; linear-time (a+)+$<100ms; multibyte rune fixture; find/groups/split/replaceAll; cache memoization. Golden builtin_types regenerated. Coverage ~89.5%.",
+      "commit": "6454c3fe0"
+    },
+    {
+      "id": "M2_STDLIB_MODULE_EXAMPLES",
+      "description": "Create std/regex.ail (auto-embedded via //go:embed *.ail glob, F2 - do NOT touch embed.go): export type Regex = Regex(string), export type RegexMatch record, and six pure func wrappers per the design doc Public API (already ailang check-verified). Add examples/regex_basics.ail (isMatch/find/split), examples/regex_capture.ail (group extraction), and one orchestration-flavored example (validate + extract fields from a log/LLM line, feeds clause-4 flagship #19). Register examples on the website via raw-loader per coding-standards.",
+      "estimated_loc": 170,
+      "dependencies": [
+        "M1_GO_RE2_BUILTINS"
+      ],
+      "acceptance_criteria": [
+        "ailang check std/regex.ail clean (No errors found)",
+        "std/regex.ail exports compile, isMatch, findFirst, findAll, replaceAll, split + Regex + RegexMatch types",
+        "ailang run examples/regex_capture.ail prints extracted capture groups",
+        "All three examples run successfully",
+        "make verify-examples green over the full corpus (no pre-existing example regresses)",
+        "Examples registered on the website via raw-loader (not inlined)"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-07-11T00:00:00Z",
+      "notes": "std/regex.ail (opaque Regex(string) + RegexMatch + 6 pure wrappers) auto-embedded via //go:embed *.ail (F2, no embed.go edit). 3 runnable examples (basics/capture/log_orchestration) all run clean; verify-examples PASSED 32 type-checked/29 ran. Groups accessed via nth_or (doc's m.groups[1] subscript not runnable \u2014 lists use nth). Registered in manifest.json.",
+      "commit": "0ca5c0bfd"
+    },
+    {
+      "id": "M3_INTEGRATION_DOCS_POLISH",
+      "description": "Stdlib-level test (.ail golden or Go harness) over the public API incl. cross-module use with std/string + std/result. Docs: docs/LIMITATIONS.md (regex now present, RE2 subset = no backref/lookaround caveat), docs/docs/reference/stability.md (std/regex -> Experimental row, F5), changelogs/v0.18-current.md [Unreleased] entry (F4). Teaching-prompt note if the prompt enumerates stdlib modules. Full-suite gates green.",
+      "estimated_loc": 180,
+      "dependencies": [
+        "M2_STDLIB_MODULE_EXAMPLES"
+      ],
+      "acceptance_criteria": [
+        "Stdlib-level integration test covers compile->find->group-extraction and cross-module (std/regex + std/string + std/result) use",
+        "docs/LIMITATIONS.md updated: regex present, RE2 subset (no backref/lookaround) documented",
+        "docs/docs/reference/stability.md: std/regex added as Experimental (F5)",
+        "changelogs/v0.18-current.md [Unreleased] entry added (F4)",
+        "make test green",
+        "make lint green",
+        "make check-file-sizes green (builtins_regex.go under 800 lines)",
+        "make verify-examples green"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-07-11T00:00:00Z",
+      "notes": "stdlib parse test guards std/regex; cross-module integration CI-gated via regex_log_orchestration.ail. LIMITATIONS (RE2 subset), stability tier (std/regex Experimental), CHANGELOG [Unreleased]. make lint 0 issues; check-file-sizes \u2713; make test green except pre-existing timing flake TestRunCommand_PipedStdoutFlushesPerLine (passes in isolation, unrelated).",
+      "commit": "6478aff99"
+    }
+  ],
+  "completed": "2026-07-11T00:00:00Z",
+  "branch": "sprint/m-stdlib-regex"
+}

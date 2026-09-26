@@ -41,6 +41,7 @@ _bytes_length : bytes -> int
 _bytes_mime_type : bytes -> string
 _bytes_slice : (bytes, int, int) -> Option[bytes]
 _bytes_to_base64 : bytes -> string
+_bytes_to_base64url : bytes -> string
 _bytes_to_ints : bytes -> list[int]
 _bytes_to_string : bytes -> string
 _clock_now : () -> int ! {Clock}
@@ -76,6 +77,7 @@ _embedding_decode : bytes -> Option[list[float]]
 _embedding_encode : list[float] -> bytes
 _env_getArgs : () -> list[string] ! {Env}
 _env_getEnv : string -> Result[string, EnvError] ! {Env}
+_env_getPid : () -> int ! {Env}
 _env_hasEnv : string -> bool ! {Env}
 _escapeXml : string -> string
 _float_to_int : float -> int
@@ -89,11 +91,15 @@ _fs_listDir : string -> list[string] ! {FS}
 _fs_mkdir : string -> () ! {FS}
 _fs_mkdirAll : string -> () ! {FS}
 _fs_mkdirAllResult : string -> Result[(), string] ! {FS}
+_fs_mkdirResult : string -> Result[(), string] ! {FS}
 _fs_readFile : string -> string ! {FS}
 _fs_readFileBytes : string -> Result[string, string] ! {FS}
 _fs_readFileResult : string -> Result[string, string] ! {FS}
+_fs_removeDirResult : string -> Result[(), string] ! {FS}
 _fs_removeFile : string -> () ! {FS}
 _fs_removeFileResult : string -> Result[(), string] ! {FS}
+_fs_rename : (string, string) -> () ! {FS}
+_fs_renameResult : (string, string) -> Result[(), string] ! {FS}
 _fs_writeFile : (string, string) -> () ! {FS}
 _fs_writeFileBytes : (string, bytes) -> () ! {FS}
 _fs_writeFileResult : (string, string) -> Result[(), string] ! {FS}
@@ -232,8 +238,9 @@ _str_startsWithIC : (string, string) -> bool
 _str_trim : string -> string
 _str_upper : string -> string
 _str_words : string -> list[string]
-_stream_async_exec_process : (string, list[string], string, int, int) -> StreamSource ! {Stream}
+_stream_async_exec_process : (string, list[string], string, int, int) -> StreamSource ! {Process, Stream}
 _stream_async_read_stdin_lines : (string, int) -> StreamSource ! {Stream}
+_stream_bridge : (StreamConn, StreamConn, s, (s, BridgeFrame) -> (s, Verdict)) -> (s, BridgeEnd) ! {Stream}
 _stream_close : StreamConn -> () ! {Stream}
 _stream_connect : (string, {headers: list[{name: string, value: string}]}) -> Result[StreamConn, StreamErrorKind] ! {Stream}
 _stream_ndjson_post : (string, string, {headers: list[{name: string, value: string}]}) -> Result[StreamConn, StreamErrorKind] ! {Stream}
@@ -263,6 +270,8 @@ _trace_event : (string, string) -> () ! {Trace}
 _trace_span_end : string -> () ! {Trace}
 _trace_span_start : string -> () ! {Trace}
 _uuid4 : () -> string ! {Rand}
+_web_fetch : string -> Result[{content: string, links: list[string], title: string}, NetError] ! {Net}
+_web_search : (string, int) -> Result[list[{content: string, title: string, url: string}], NetError] ! {Net}
 _xmlComment : string -> XmlNode
 _xmlElement : (string, list[{name: string, value: string}], list[XmlNode]) -> XmlNode
 _xmlText : string -> XmlNode

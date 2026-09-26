@@ -2,6 +2,8 @@ package parser
 
 import (
 	"testing"
+
+	"github.com/sunholo-data/ailang/internal/lexer"
 )
 
 // TestFunctionDeclarations tests basic function declaration parsing
@@ -251,5 +253,36 @@ func TestComplexFunctionBodies(t *testing.T) {
 			output := parseAndPrint(t, tt.input)
 			goldenCompare(t, tt.golden, output)
 		})
+	}
+}
+
+// #962: interior whitespace in an empty parameter list must not change the
+// parsed AST. `func f(   )` used to produce ZERO params (parseParams on an
+// LPAREN/RPAREN pair) while `func f()` produced the S-CALL0 unit param — so
+// the two spellings of the same declaration disagreed, fmt round-trip failed,
+// and `f()` rejected its only sensible call with TC_ARITY_001.
+func TestZeroArgFunc_WhitespaceInParensIsUnitParam(t *testing.T) {
+	srcs := []string{
+		"module m\nfunc f() -> int { 7 }",
+		"module m\nfunc f(   ) -> int { 7 }",
+		"module m\nfunc f(\t) -> int { 7 }",
+		"module m\nfunc f( \n ) -> int { 7 }",
+	}
+	for i, src := range srcs {
+		p := New(lexer.New(src, "m.ail"))
+		prog := p.Parse()
+		if errs := p.Errors(); len(errs) > 0 {
+			t.Fatalf("src %d parse errors: %v", i, errs)
+		}
+		fn := prog.File.Funcs[0]
+		if len(fn.Params) != 1 || fn.Params[0].Name != "_" {
+			t.Errorf("src %d (%q): expected exactly the unit param, got %d params (%v)",
+				i, src, len(fn.Params), fn.Params)
+			continue
+		}
+		st := fn.Params[0].Type.String()
+		if st != "()" {
+			t.Errorf("src %d: unit param type = %q, want \"()\"", i, st)
+		}
 	}
 }

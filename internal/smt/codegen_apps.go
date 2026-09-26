@@ -180,6 +180,23 @@ func encodeStringBuiltin(spec StringBuiltinSpec, args []core.CoreExpr) (string, 
 		return fmt.Sprintf("(%s %s)", spec.Op, arg), nil
 	}
 
+	// IntToStrMode: intToStr(n) → (ite (>= n 0) (str.from_int n) (str.++ "-" (str.from_int (- n))))
+	//
+	// Z3's str.from_int returns "" for a negative argument, so the sign must be
+	// handled explicitly or every negative input would be proved to render as
+	// the empty string. See StringBuiltinSpecial["_string_intToStr"].
+	if spec.IntToStrMode {
+		if len(args) != 1 {
+			return "", fmt.Errorf("string builtin %q expects 1 arg, got %d", spec.Op, len(args))
+		}
+		n, err := EncodeExpr(args[0])
+		if err != nil {
+			return "", err
+		}
+		return fmt.Sprintf("(ite (>= %s 0) (%s %s) (str.++ \"-\" (%s (- %s))))",
+			n, spec.Op, n, spec.Op, n), nil
+	}
+
 	// SubstrMode: _str_slice(s, start, end) → (str.substr s start (- end start))
 	if spec.SubstrMode {
 		if len(args) != 3 {

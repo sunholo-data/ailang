@@ -43,17 +43,9 @@ export interface DateRange {
 
 // Detail panel state
 export interface DetailPanelState {
-  type: 'agent' | 'trace' | 'event' | 'date' | null;
+  type: 'agent' | 'trace' | 'event' | null;
   id: string | null;
   data?: unknown;
-}
-
-// Heatmap cell data
-export interface HeatmapCell {
-  date: string;
-  taskCount: number;
-  cost: number;
-  successRate: number;
 }
 
 // Span for trace waterfall

@@ -49,6 +49,15 @@ type Elaborator struct {
 	// M-DX19: Types that derive Eq automatically
 	// Tracks ADT/record types with `deriving (Eq)` clause
 	derivedEqTypes map[string]bool
+	// M-EQ-DERIVE-CONTAINERS: field types of each derived-Eq type, so the
+	// pipeline can require Eq of every field (lazily initialized)
+	derivedEqFields map[string][]DerivedEqField
+}
+
+// DerivedEqField is one field a `deriving (Eq)` declaration needs Eq for.
+type DerivedEqField struct {
+	Where string     // e.g. "field 1 of constructor Handler", "field x"
+	Type  types.Type // the field's declared type
 }
 
 // ConstructorInfo holds information about an available constructor
@@ -252,6 +261,23 @@ func (e *Elaborator) GetDerivedEqTypes() []string {
 		result = append(result, typeName)
 	}
 	return result
+}
+
+// GetDerivedEqFields returns the field types of every `deriving (Eq)` type.
+// M-EQ-DERIVE-CONTAINERS: a derived type has Eq iff every field does.
+func (e *Elaborator) GetDerivedEqFields() map[string][]DerivedEqField {
+	return e.derivedEqFields
+}
+
+// recordDerivedEqField notes a field that a `deriving (Eq)` type needs Eq for.
+func (e *Elaborator) recordDerivedEqField(typeName, where string, t types.Type) {
+	if t == nil {
+		return
+	}
+	if e.derivedEqFields == nil {
+		e.derivedEqFields = make(map[string][]DerivedEqField)
+	}
+	e.derivedEqFields[typeName] = append(e.derivedEqFields[typeName], DerivedEqField{Where: where, Type: t})
 }
 
 // GetWarnings returns accumulated exhaustiveness warnings

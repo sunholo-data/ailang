@@ -1,0 +1,271 @@
+{
+  "sprint_id": "M-EVAL-STANDARD-MODE-INPUT-FILES-GAP",
+  "title": "Gate multi-file grading benchmarks out of standard mode",
+  "design_doc": "design_docs/planned/v0_33_1/m-eval-standard-mode-input-files-gap.md",
+  "mission": "docs",
+  "status": "planned",
+  "target_version": "v0.33.1",
+  "estimated_days": 2.0,
+  "estimated_hours": 8.5,
+  "scope": {
+    "primary_deliverable": "Mode-compatibility gate: benchmarks with grade_entrypoint set are agent-mode-only — excluded from standard-mode scheduling, short-circuited with a structured skip (error_category skipped_mode_incompatible + Validity ReasonModeIncompatible) at dispatch time, and excluded from every downstream aggregate via the existing FilterValidResults machinery.",
+    "allowed_paths": [
+      "internal/eval_harness/spec.go",
+      "internal/eval_harness/validity.go",
+      "internal/eval_harness/spec_test.go",
+      "cmd/ailang/eval_benchmark.go",
+      "cmd/ailang/eval_benchmark_test.go",
+      "cmd/ailang/eval_helpers.go",
+      "cmd/ailang/eval_suite.go",
+      "internal/eval_analysis/validity_filter_test.go",
+      "design_docs/PROGRAM.md",
+      "docs/docs/guides/evaluation/harness-setup.md",
+      "changelogs/v0.32-current.md"
+    ],
+    "hard_unchanged_paths": [
+      "internal/eval_harness/runner.go",
+      "internal/eval_harness/agent_validation.go",
+      "internal/eval_analysis/validity_filter.go",
+      "internal/eval_analysis/loader.go",
+      "benchmarks/",
+      "eval_results/",
+      "CHANGELOG.md"
+    ],
+    "out_of_scope": [
+      "building real multi-file standard-mode support (inline InputFiles, splice into SolutionFiles, run GradeEntrypoint in standard mode)",
+      "independently re-verifying docx_reimplement per-model failure causes",
+      "auditing other benchmarks for similar prompt/execution mismatches",
+      "changes to ShouldExcludeFromCapability or the ShouldExcludeFromCapability switch surface",
+      "a check_benchmark.sh / ailang doctor benchmarks lint rule (design Future Work)",
+      "retroactively editing historical eval result rows",
+      "git staging, commits, and pushes"
+    ]
+  },
+  "milestones": [
+    {
+      "id": "M1_PREDICATE_AND_VALIDITY_REASON",
+      "title": "Add RequiresAgentWorkspace() predicate and ReasonModeIncompatible validity reason",
+      "files": [
+        "internal/eval_harness/spec.go",
+        "internal/eval_harness/validity.go",
+        "internal/eval_harness/spec_test.go"
+      ],
+      "estimated_loc": 30,
+      "estimated_hours": 1.5,
+      "dependencies": [],
+      "verification_refs": [
+        "V1",
+        "V7",
+        "V9",
+        "V10"
+      ],
+      "acceptance_criteria": [
+        "Add func (s *BenchmarkSpec) RequiresAgentWorkspace() bool { return s.GradeEntrypoint != \"\" } co-located with the GradeEntrypoint/SolutionFiles fields (spec.go:45-54).",
+        "Extend the GradeEntrypoint doc comment to state the mode-compatibility rule explicitly: grade_entrypoint implies agent-mode-only (design Risks mitigation for future benchmark authors).",
+        "Add ReasonModeIncompatible = \"mode_incompatible\" to the Reason constants in internal/eval_harness/validity.go alongside ReasonCanaryFailed/ReasonZeroFiles/etc., with a doc comment in the file's established style.",
+        "spec_test.go covers RequiresAgentWorkspace() true iff GradeEntrypoint != \"\" (both set and unset cases; the two real benchmark specs qualify via V10).",
+        "End the milestone with go build ./... and go test ./internal/eval_harness/ passing."
+      ],
+      "passes": false
+    },
+    {
+      "id": "M2_DISPATCH_TIME_GUARD",
+      "title": "Dispatch-time guard in runSingleBenchmark with zero-provider-calls test",
+      "files": [
+        "cmd/ailang/eval_benchmark.go",
+        "cmd/ailang/eval_benchmark_test.go"
+      ],
+      "estimated_loc": 45,
+      "estimated_hours": 2,
+      "dependencies": [
+        "M1_PREDICATE_AND_VALIDITY_REASON"
+      ],
+      "verification_refs": [
+        "V5",
+        "V9",
+        "V14"
+      ],
+      "acceptance_criteria": [
+        "In runSingleBenchmark (eval_benchmark.go:31), add an early standard-mode check after spec load and before the standard-mode chain-stage setup (:87): when agentConfig == nil and spec.RequiresAgentWorkspace(), short-circuit before any provider dispatch (~15 LOC per design).",
+        "The skip result carries BOTH error_category = \"skipped_mode_incompatible\" (human/log readability) AND Validity: eval_harness.MarkInvalid(eval_harness.ReasonModeIncompatible) (machine aggregation exclusion) — design component 3.",
+        "The guard is standard-mode-only by construction: the agent branch already returned at :83-84, so agent-mode behavior is untouched.",
+        "Create cmd/ailang/eval_benchmark_test.go (new file — none exists today): direct runSingleBenchmark call against markdown_reimplement in standard mode with a mocked/counted provider transport (follow the in-package httptest precedent from configdriven_*_test.go); assert the skip result shape and a zero AI provider call count.",
+        "End the milestone with go build ./... and go test ./cmd/ailang/ passing."
+      ],
+      "passes": false
+    },
+    {
+      "id": "M3_SCHEDULING_TIME_EXCLUSION",
+      "title": "Exclude agent-workspace-only benchmarks from standard-mode auto-discovery",
+      "files": [
+        "cmd/ailang/eval_helpers.go",
+        "cmd/ailang/eval_suite.go"
+      ],
+      "estimated_loc": 30,
+      "estimated_hours": 1.5,
+      "dependencies": [
+        "M1_PREDICATE_AND_VALIDITY_REASON"
+      ],
+      "verification_refs": [
+        "V3",
+        "V4",
+        "V6",
+        "V12",
+        "V13"
+      ],
+      "acceptance_criteria": [
+        "Filter out RequiresAgentWorkspace() benchmarks from the standard-mode auto-discovery result (design component 2, ~15-30 LOC): filter at the eval_suite.go:302 call site (evalMode in scope there) or gate inside discoverBenchmarks() — the design allows either; the call-site filter is the smaller diff.",
+        "Agent-mode scheduling untouched: agent mode never routes through discoverBenchmarks (explicit --benchmarks required, eval_suite.go:288-292); the explicit-list path must remain unfiltered.",
+        "CLI verification: ailang eval-suite --dry-run --tier frontier (standard) no longer lists docx_reimplement/markdown_reimplement in the Benchmarks: line; ailang eval-suite --dry-run --agent --benchmarks docx_reimplement,markdown_reimplement still plans both.",
+        "Executor note (V12, no scope change): the --benchmarks-by-confidence path (eval_confidence.go:33, feeds benchmarkList at eval_suite.go:286) is outside design component 2; any such dispatch is caught by M2's dispatch-time guard per the design's defense-in-depth. Record observed behavior; add no second scheduler filter without controller approval.",
+        "End the milestone with go build ./... and go test ./cmd/ailang/ passing."
+      ],
+      "passes": false
+    },
+    {
+      "id": "M4_AGGREGATION_EXCLUSION_VERIFIED",
+      "title": "Prove the skip row is excluded from every aggregate; real-data re-run",
+      "files": [
+        "internal/eval_analysis/validity_filter_test.go"
+      ],
+      "estimated_loc": 20,
+      "estimated_hours": 2,
+      "dependencies": [
+        "M2_DISPATCH_TIME_GUARD",
+        "M3_SCHEDULING_TIME_EXCLUSION"
+      ],
+      "verification_refs": [
+        "V8",
+        "V11",
+        "V7"
+      ],
+      "acceptance_criteria": [
+        "Extend validity_filter_test.go: a row with Validity.Valid == false and Reason == ReasonModeIncompatible is dropped by FilterValidResults (validity_filter.go:26).",
+        "Confirm by reading the load path (verification only, no production edits): eval_elo.go:122 loads via eval_analysis.LoadResults → FilterValidResults, so fitLang (eval_elo.go:254) never sees the skip row; confidence-gating ratings are fit from the already-filtered set.",
+        "ShouldExcludeFromCapability remains untouched — a Valid:false row is filtered upstream of it (design component 4 / Verification Log round 3).",
+        "Historical result rows are never retroactively edited: old rows keep their historical error_category with no Validity field (absent = valid per IsValid()'s doc comment); only new runs use the skip path.",
+        "Manual (design's manual-testing item): re-run markdown_reimplement/docx_reimplement in standard mode post-fix — or confirm on the next scheduled run — and record that they appear absent/labelled-skipped, not as compile/runtime failures.",
+        "End the milestone with go build ./... and go test ./internal/eval_analysis/ ./internal/eval_harness/ passing."
+      ],
+      "passes": false
+    },
+    {
+      "id": "M5_DOCS_NOTE_AND_FINAL_GATES",
+      "title": "Document the mode-compatibility rule, changelog note, final gates",
+      "files": [
+        "design_docs/PROGRAM.md",
+        "docs/docs/guides/evaluation/harness-setup.md",
+        "changelogs/v0.32-current.md"
+      ],
+      "estimated_loc": 10,
+      "estimated_hours": 1.5,
+      "dependencies": [
+        "M4_AGGREGATION_EXCLUSION_VERIFIED"
+      ],
+      "verification_refs": [
+        "V16",
+        "V15"
+      ],
+      "acceptance_criteria": [
+        "Document the rule in ONE author-facing location (design Success Criterion 6 says 'or'): design_docs/PROGRAM.md or docs/docs/guides/evaluation/harness-setup.md — a benchmark setting grade_entrypoint is agent-mode-only and is excluded from standard-mode scheduling.",
+        "Add the release note in changelogs/v0.32-current.md: pre-fix standard-mode data for markdown_reimplement/docx_reimplement should be treated as unreliable per the design doc (design Risks mitigation). Do NOT edit root CHANGELOG.md — it is index-only under the make check-changelog CI gate (V16).",
+        "Final diff contains only the approved file list; git diff --name-only matches the allowed_paths table in the plan.",
+        "All final gates pass from this worktree: go build ./..., go test ./..., make fmt-check, make lint, make check-boundaries, make check-file-sizes.",
+        "No changes to internal/eval_harness/runner.go, internal/eval_harness/agent_validation.go, internal/eval_analysis/validity_filter.go, benchmarks/, or eval_results/."
+      ],
+      "passes": false
+    }
+  ],
+  "final_gates": [
+    "go build ./...",
+    "go test ./...",
+    "make fmt-check",
+    "make lint",
+    "make check-boundaries",
+    "make check-file-sizes",
+    "git diff --name-only matches the approved file list",
+    "ailang eval-suite --dry-run --tier frontier standard-mode Benchmarks: line excludes docx_reimplement and markdown_reimplement"
+  ],
+  "verification_log": [
+    {
+      "id": "V1",
+      "command": "nl -ba internal/eval_harness/spec.go | sed -n '45,54p'",
+      "observed_output": "Agent-mode grading doc comment at 45-52; GradeEntrypoint field at line 53, SolutionFiles at line 54 — exactly as the design cites."
+    },
+    {
+      "id": "V2",
+      "command": "grep -n \"PromptForLanguage\\|PromptPartsForLanguage\" internal/eval_harness/spec.go",
+      "observed_output": "PromptForLanguage at :215, PromptPartsForLanguage at :229 — inside the design's cited 229-311 region."
+    },
+    {
+      "id": "V3",
+      "command": "grep -n \"func discoverBenchmarks\" cmd/ailang/eval_helpers.go",
+      "observed_output": "Defined at line 36 (doc comment on 35)."
+    },
+    {
+      "id": "V4",
+      "command": "grep -n \"discoverBenchmarks\" cmd/ailang/eval_suite.go",
+      "observed_output": "Exactly one call site at line 302, under the comment 'Auto-discover benchmarks from benchmarks/ directory (standard mode only)'."
+    },
+    {
+      "id": "V5",
+      "command": "grep -n \"func runSingleBenchmark\" cmd/ailang/eval_benchmark.go",
+      "observed_output": "Defined at line 31; agent branch delegates to runSingleBenchmarkAgent and returns at :83-84; standard-mode chain-stage setup begins :87 — the guard insertion point is after spec load, before :87."
+    },
+    {
+      "id": "V6",
+      "command": "grep -n '\"tier\"\\|\"dry-run\"\\|evalMode :=' cmd/ailang/eval_suite.go",
+      "observed_output": "--tier flag :101, --dry-run flag :114, evalMode := \"standard\" :277 (agent :279), and the dry-run printer emits the Benchmarks: list at :387."
+    },
+    {
+      "id": "V7",
+      "command": "grep -n \"Reason\\|func MarkInvalid\\|IsValid\" internal/eval_harness/validity.go",
+      "observed_output": "Validity type :22, existing constants ReasonCanaryFailed :41 through ReasonTreatmentUnproven :58, MarkInvalid :74 (empty reason falls back to ReasonHarnessError), IsValid :89; ReasonModeIncompatible absent (to be added)."
+    },
+    {
+      "id": "V8",
+      "command": "grep -rn \"func FilterValidResults\" internal/eval_analysis/ && sed -n '14,49p' internal/eval_analysis/loader.go",
+      "observed_output": "FilterValidResults at validity_filter.go:26; LoadResults :14 → LoadResultsFromDirs :49 filters invalid rows by default (LoadResultsIncludingInvalid :23 opts back in) — matches design component 4."
+    },
+    {
+      "id": "V9",
+      "command": "ls internal/eval_harness/spec_test.go cmd/ailang/eval_benchmark_test.go internal/eval_analysis/validity_filter_test.go",
+      "observed_output": "spec_test.go exists (12.8KB, update); validity_filter_test.go exists (5.7KB, update); cmd/ailang/eval_benchmark_test.go does NOT exist (new file)."
+    },
+    {
+      "id": "V10",
+      "command": "grep -l \"^grade_entrypoint:\" benchmarks/*.yml && grep -l \"^solution_files:\" benchmarks/*.yml",
+      "observed_output": "Identical result for both queries: exactly benchmarks/docx_reimplement.yml and benchmarks/markdown_reimplement.yml."
+    },
+    {
+      "id": "V11",
+      "command": "sed -n '120,124p' cmd/ailang/eval_elo.go && grep -n \"func fitLang\" cmd/ailang/eval_elo.go",
+      "observed_output": "eval_analysis.LoadResults(resultsDir) at ~:122; func fitLang at :254 — the design's aggregation-exclusion claim holds."
+    },
+    {
+      "id": "V12",
+      "command": "grep -rn \"func selectBenchmarksByConfidence\" cmd/ailang/ && sed -n '275,292p' cmd/ailang/eval_suite.go",
+      "observed_output": "A third scheduling path exists: --benchmarks-by-confidence → selectBenchmarksByConfidence (eval_confidence.go:33) sets benchmarkList at :286. Outside design component 2 by scope; covered by component 3's dispatch-time guard. Recorded as an executor note in M3."
+    },
+    {
+      "id": "V13",
+      "command": "sed -n '288,292p' cmd/ailang/eval_suite.go",
+      "observed_output": "'SAFETY: Agent mode requires explicit benchmark list' — agent mode errors out rather than auto-discovering, so the agent-mode regression criterion is exercised via explicit --benchmarks (never through discoverBenchmarks)."
+    },
+    {
+      "id": "V14",
+      "command": "grep -rln \"httptest\" cmd/ailang/*_test.go | head",
+      "observed_output": "Provider-mock precedent exists in-package (configdriven_callstream_test.go, configdriven_dispatch_test.go, configdriven_harvest_test.go, ...) — the pattern M2's zero-provider-calls test follows."
+    },
+    {
+      "id": "V15",
+      "command": "git status --porcelain=v1",
+      "observed_output": "Empty; worktree clean before planning."
+    },
+    {
+      "id": "V16",
+      "command": "make help-health && head -5 CHANGELOG.md",
+      "observed_output": "CI gates fmt-check, lint, check-boundaries, check-file-sizes exist; root CHANGELOG.md is index-only pointing at changelogs/v0.32-current.md (enforced by make check-changelog) — release notes go in the changelogs/ file."
+    }
+  ]
+}

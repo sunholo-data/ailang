@@ -2,7 +2,7 @@
  * DetailPanel - Slide-in panel for viewing details of agents, events, etc.
  */
 import React from 'react';
-import type { Agent, DetailPanelState, HeatmapCell, EventMessage, TrustCapability } from './types';
+import type { Agent, DetailPanelState, EventMessage, TrustCapability } from './types';
 import { getTrustLevel } from './utils';
 import styles from '../ControlPlane.module.css';
 
@@ -101,38 +101,6 @@ export const DetailPanel: React.FC<DetailPanelProps> = ({
           </div>
         );
       }
-      case 'date': {
-        const cell = state.data as HeatmapCell;
-        return (
-          <div className={styles.detailContent}>
-            <div className={styles.detailSection}>
-              <h4>Activity Summary</h4>
-              <div className={styles.detailStats}>
-                <div className={styles.detailStat}>
-                  <span className={styles.detailStatLabel}>Tasks</span>
-                  <span className={styles.detailStatValue}>{cell.taskCount}</span>
-                </div>
-                <div className={styles.detailStat}>
-                  <span className={styles.detailStatLabel}>Cost</span>
-                  <span className={styles.detailStatValue}>${cell.cost.toFixed(3)}</span>
-                </div>
-                <div className={styles.detailStat}>
-                  <span className={styles.detailStatLabel}>Success</span>
-                  <span className={styles.detailStatValue}>{(cell.successRate * 100).toFixed(0)}%</span>
-                </div>
-              </div>
-            </div>
-            <div className={styles.detailSection}>
-              <h4>Actions</h4>
-              <div className={styles.detailActions}>
-                <button className={styles.actionBtn}>View Tasks</button>
-                <button className={styles.actionBtn}>View Traces</button>
-                <button className={styles.actionBtn}>Export Report</button>
-              </div>
-            </div>
-          </div>
-        );
-      }
       case 'event': {
         const event = state.data as EventMessage;
         return (
@@ -177,7 +145,6 @@ export const DetailPanel: React.FC<DetailPanelProps> = ({
       <div className={styles.detailHeader}>
         <h3 className={styles.detailTitle}>
           {state.type === 'agent' && `Agent: ${state.id}`}
-          {state.type === 'date' && `Date: ${state.id}`}
           {state.type === 'event' && `Event: ${state.id.slice(0, 8)}`}
         </h3>
         <button className={styles.detailClose} onClick={onClose}>✕</button>

@@ -1,0 +1,27 @@
+-- fs_walk_glob.ail - Demonstrates std/fs walk (recursive file listing) and glob (suffix filter)
+-- Builds a small tree under /tmp, then walks it — no hand-rolled recursion needed
+module examples/runnable/fs_walk_glob
+import std/fs (mkdirAll, writeFile, walk, glob)
+import std/list (length, forEachE)
+import std/io (println)
+
+export func main() -> () ! {IO, FS} {
+  let base = "/tmp/ailang_walk_glob"
+  -- A tree with files at three depths, a dotfile, and an empty directory
+  let _ = mkdirAll("${base}/src/nested")
+  let _ = mkdirAll("${base}/empty")
+  let _ = writeFile("${base}/README.md", "# walk demo")
+  let _ = writeFile("${base}/src/main.ail", "module main")
+  let _ = writeFile("${base}/src/util.ail", "module util")
+  let _ = writeFile("${base}/src/notes.txt", "not ailang")
+  let _ = writeFile("${base}/src/nested/deep.ail", "module deep")
+  -- walk: every regular file, recursively, sorted; directories are not listed
+  let all = walk(base)
+  let _ = println("walk: ${show(length(all))} files")
+  let _ = forEachE(\p. println("  ${p}"), all)
+  -- glob: walk filtered by suffix (not fnmatch — "*.ail" would match nothing)
+  let ail = glob(base, ".ail")
+  let _ = println("glob .ail: ${show(length(ail))} files")
+  let _ = forEachE(\p. println("  ${p}"), ail)
+  println("glob .md: ${show(length(glob(base, ".md")))} file")
+}

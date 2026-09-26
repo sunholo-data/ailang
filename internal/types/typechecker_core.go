@@ -50,10 +50,10 @@ package types
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/core"
 	"github.com/sunholo-data/ailang/internal/typedast"
 )
@@ -192,7 +192,7 @@ func NewCoreTypeChecker() *CoreTypeChecker {
 	var instanceEnv *InstanceEnv
 
 	// Auto-import std/prelude instances unless explicitly disabled
-	if os.Getenv("AILANG_NO_PRELUDE") == "1" {
+	if config.NoPrelude() {
 		// Explicit mode: start with empty environment
 		instanceEnv = NewInstanceEnv()
 	} else {
@@ -206,7 +206,7 @@ func NewCoreTypeChecker() *CoreTypeChecker {
 	instanceEnv.SetDefault("Fractional", &TCon{Name: "float"})
 
 	// Check environment flag for records v2
-	useRecordsV2 := os.Getenv("AILANG_RECORDS_V2") == "1"
+	useRecordsV2 := config.RecordsV2()
 
 	return &CoreTypeChecker{
 		instanceEnv:         instanceEnv,
@@ -233,7 +233,7 @@ func NewCoreTypeChecker() *CoreTypeChecker {
 // NewCoreTypeCheckerWithInstances creates a type checker with preloaded instances
 func NewCoreTypeCheckerWithInstances(instances *InstanceEnv) *CoreTypeChecker {
 	// Check environment flag for records v2
-	useRecordsV2 := os.Getenv("AILANG_RECORDS_V2") == "1"
+	useRecordsV2 := config.RecordsV2()
 
 	return &CoreTypeChecker{
 		instanceEnv:         instances,
@@ -461,11 +461,10 @@ func (tc *CoreTypeChecker) InferWithConstraints(expr core.CoreExpr, env *TypeEnv
 		path:                 []string{},
 		qualifiedConstraints: []ClassConstraint{},
 		debugSink:            tc.DebugSink, // M-DX11: Wire provenance tracking
-		// M-TYPE-LIST-SOUND round 3: snapshot the decl's base-env free vars so
-		// generalization withholds ONLY vars introduced by binders inside this
-		// decl (enclosing lambda params), not the module env's leaked rigid
-		// type-parameter names (a, b, k, v, …).
+		// M-TYPE-LIST-SOUND round 3 + M-EQ-DERIVE-CONTAINERS: generalization
+		// withholds only vars bound inside this decl (see InferenceContext).
 		baseEnvFreeVars: env.FreeTypeVars(),
+		baseEnv:         env,
 	}
 	// M-DX11-PHASE2: Wire debugSink to Unifier for OnSubstitute events
 	unifier.SetDebugSink(tc.DebugSink)
@@ -527,7 +526,10 @@ func (tc *CoreTypeChecker) InferWithConstraints(expr core.CoreExpr, env *TypeEnv
 	typedNode = tc.applySubstitutionToTyped(sub, typedNode)
 
 	// Resolve ground constraints
-	ground, nonGround := tc.partitionConstraints(unsolved)
+	ground, nonGround, err := tc.partitionAndReduce(unsolved)
+	if err != nil {
+		return nil, updatedEnv, nil, nil, err
+	}
 	if err := tc.resolveGroundConstraints(ground, expr); err != nil {
 		return nil, updatedEnv, nil, nil, err
 	}
@@ -595,6 +597,7 @@ func (tc *CoreTypeChecker) CheckCoreExpr(expr core.CoreExpr, env *TypeEnv) (type
 	ctx.SetDebugSink(tc.DebugSink)          // M-DX11: Wire provenance tracking
 	// M-TYPE-LIST-SOUND round 3: see InferWithConstraints for rationale.
 	ctx.baseEnvFreeVars = env.FreeTypeVars()
+	ctx.baseEnv = env
 
 	// Infer type and effects
 	typedNode, newEnv, err := tc.inferCore(ctx, expr)
@@ -665,12 +668,11 @@ func (tc *CoreTypeChecker) CheckCoreExpr(expr core.CoreExpr, env *TypeEnv) (type
 	// Apply the complete substitution (unification + defaulting) to the typed node
 	typedNode = tc.applySubstitutionToTyped(sub, typedNode)
 
-	// The constraints from defaulting should already be properly substituted
-	// Don't double-apply substitution
-	groundConstraints := unsolved
-
-	// Partition into ground and non-ground constraints
-	ground, nonGround := tc.partitionConstraints(groundConstraints)
+	// Partition (constraints from defaulting are already substituted; don't re-apply)
+	ground, nonGround, err := tc.partitionAndReduce(unsolved)
+	if err != nil {
+		return nil, env, err
+	}
 
 	// Resolve ground constraints using instance environment
 	if err := tc.resolveGroundConstraints(ground, expr); err != nil {

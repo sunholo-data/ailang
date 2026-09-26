@@ -2,9 +2,9 @@ package trace
 
 import (
 	"fmt"
-	"os"
-	"strconv"
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // Tier controls how much detail the tracing emitter writes.
@@ -19,6 +19,13 @@ const (
 	// TierStandard emits module, top-level effect, coordinator, executor,
 	// compile, task/chain-linked spans, but NOT per-call function spans or
 	// nested effect spans. This is the default.
+	//
+	// ENFORCED, as of M-TRACE-TIER-NOT-ENFORCED (v0.36.0), by Collector.tier.
+	// Before that the tier never reached the collector and this comment described
+	// a behavior the code did not implement — costing 2059 MB of peak RSS on a
+	// 400-iteration accumulator loop, and retaining every function's arguments and
+	// results by default. TestTierGovernsWhatIsRecorded pins the matrix so prose
+	// and behavior cannot drift apart again.
 	TierStandard
 	// TierDeep emits everything, including per-call eval.function.* spans
 	// and per-op eval.effect.* spans. Opt-in for profiling / training data.
@@ -68,11 +75,7 @@ func DefaultTracingOptions() TracingOptions {
 		Tier:             TierStandard,
 		MaxSpansPerTrace: 500,
 	}
-	if v := os.Getenv("AILANG_TRACE_MAX_SPANS"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
-			opts.MaxSpansPerTrace = n
-		}
-	}
+	opts.MaxSpansPerTrace = config.TraceMaxSpans()
 	return opts
 }
 
@@ -85,10 +88,10 @@ func DefaultTracingOptions() TracingOptions {
 // Returns the resolved tier and a non-nil error only when AILANG_TRACE
 // is set to an unrecognized value.
 func TierFromEnv() (Tier, error) {
-	if v := os.Getenv("AILANG_TRACE"); v != "" {
+	if v := config.TraceTier(); v != "" {
 		return ParseTier(v)
 	}
-	if os.Getenv("AILANG_NO_TRACE") == "1" {
+	if config.NoTrace() {
 		return TierOff, nil
 	}
 	return TierStandard, nil
@@ -111,4 +114,31 @@ func (o TracingOptions) DeepTrace() bool {
 // Enabled reports whether any spans should be emitted.
 func (o TracingOptions) Enabled() bool {
 	return o.Tier != TierOff
+}
+
+// ResolveValueMode reads AILANG_TRACE_VALUES (on|off). Default: on.
+//
+// Orthogonal to the tier on purpose. A confidentiality-bound workload wants
+// `AILANG_TRACE=deep AILANG_TRACE_VALUES=off`: the complete call tree, no
+// payloads. Folding this into the tier ladder would have forced a choice between
+// structure and safety, which is the choice this exists to remove.
+//
+// Unknown values are an ERROR rather than a silent default. Defaulting a
+// misspelled AILANG_TRACE_VALUES=of to "record everything" would turn a typo into
+// a data leak, which is the wrong direction to fail.
+func ResolveValueMode(s string) (ValueMode, error) {
+	if s == "" {
+		if env := config.TraceValues(); env != "" {
+			s = env
+		}
+	}
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "", "on", "full":
+		return ValuesFull, nil
+	case "off", "redacted", "none":
+		return ValuesRedacted, nil
+	default:
+		return ValuesRedacted, fmt.Errorf(
+			"unknown AILANG_TRACE_VALUES %q (want on|off); refusing to record values on an unrecognised setting", s)
+	}
 }

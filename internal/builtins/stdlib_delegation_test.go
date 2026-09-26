@@ -41,7 +41,6 @@ type listDelegationExemption struct {
 
 var listDelegationExemptions = map[string]listDelegationExemption{
 	"_list_any":       {NoRuntimeImpl, false, "codegen-only: the interpreter has no implementation to which std/list.any can delegate"},
-	"_list_contains":  {NotNeeded, true, "std/list exposes membership as member, which delegates to _list_member; contains has no std/list counterpart to serve"},
 	"_list_extract":   {NotNeeded, true, "std/list exposes no extract operation to delegate"},
 	"_list_filterE":   {NoRuntimeImpl, false, "codegen-only: the interpreter has no implementation to which std/list.filterE can delegate"},
 	"_list_findIndex": {NoRuntimeImpl, false, "codegen-only: the interpreter has no implementation to which std/list.findIndex can delegate"},

@@ -1,0 +1,78 @@
+{
+  "sprint_id": "M-AI-DECIDE-SYSTEM-ONE",
+  "status": "completed",
+  "created": "2026-09-18T12:45:07Z",
+  "design_doc": "design_docs/planned/m-ai-decide-system-one.md",
+  "sprint_plan": "design_docs/planned/m-ai-decide-system-one-sprint-plan.md",
+  "github_issues": [
+    1,
+    4
+  ],
+  "velocity": {
+    "target_loc_per_day": 400,
+    "estimated_total_loc": 720,
+    "estimated_days": 2,
+    "actual_total_loc": 1175
+  },
+  "features": [
+    {
+      "id": "M1",
+      "name": "sunholo/decisions package",
+      "description": "Pure-AILANG package over std/net+std/json+std/env: Question/Answer/DecideError/Decision/Gate ADTs, pure buildRequest/parseAnswers/questionsToJsonSchema/answer/gate/expectedScore, effectful decide ! {Net, Env}; fixture tests, _smoke, AGENT.md, pkg quality, publish.",
+      "estimated_loc": 330,
+      "estimated_hours": 4,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "ailang check clean and ailang test --package green in packages/decisions",
+        "Mutation: deleting the score arm fails a test; empty-Ok on missing name fails a test",
+        "ailang pkg quality . exit 0 and package published; import pkg/sunholo/decisions/decide resolves",
+        "AGENT.md states non-determinism and not-in-AI-budget limitations verbatim; gate is three-way; no default thresholds"
+      ],
+      "passes": true,
+      "started": "2026-09-18T12:46:24.696480Z",
+      "completed": "2026-09-18T13:02:46.779114Z",
+      "notes": "ailang-packages 0e96dab: decide.ail (~230 LOC), decide_test.ail (15 tests; 3 real fixtures + 3 malformed; mutations 3/3 caught), _smoke.ail, AGENT.md, CHANGELOG. pkg quality: no gates (PUB011 warn on 3 effectful/lookup exports; PUB016 contracts are runtime-checked). Published sunholo/decisions@0.1.0; resolves from registry in a fresh project. Harness quirk found: named-test bodies are re-printed, so escaped strings and integral float literals must live in helpers.",
+      "actual_loc": 520
+    },
+    {
+      "id": "M2",
+      "name": "Price the model + example manifest",
+      "description": "models.yml row or-typesafe-jev-1-13 with api_name typesafe/jev-1.13 and alias typesafe/jev-1-13 (resolver normalises only the query); resolve+price tests; suite-exclusion test; manifest entry for examples/runnable/decide_jev.ail.",
+      "estimated_loc": 60,
+      "estimated_hours": 1.5,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Resolve(typesafe/jev-1.13-20260917) and Resolve(typesafe/jev-1.13) hit the row; PriceTokens(424,73)=1.7808e-05",
+        "Test proves the key is in no suite list and carries no agent_* fields",
+        "go run ./scripts/validate_manifest.go --ci green with decide_jev listed",
+        "go test ./internal/modelreg/ ./internal/observatory/ green"
+      ],
+      "passes": true,
+      "started": "2026-09-18T13:02:46.779114Z",
+      "completed": "2026-09-18T13:10:50.474505Z",
+      "notes": "3b98e1c4e: models.yml row or-typesafe-jev-1-13 (api_name + normalised alias), 3 tests (dated/bare resolve, cost = banked bill, no-suite/no-agent), headroom-policy ceiling entry, manifest entry for decide_jev.ail. First insertion landed outside the models map (YAML parse fail) \u2014 caught by the package tests.",
+      "actual_loc": 95
+    },
+    {
+      "id": "M3",
+      "name": "Shadow lane-router measurement",
+      "description": "tools/decisions: routed_docs.sh (45 docs -> declared lane JSONL), lane_shadow.ail (arm A decide; arm B chat-completions json_schema on the same Net transport with own LlmAnswer type; D6 rows), lane_shadow_report.sh (agreements, confidence tertiles, cost/latency/timeouts); run it; report + PROGRAM.md candidate row + CHANGELOG.",
+      "estimated_loc": 330,
+      "estimated_hours": 5,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "design_docs/planned/m-ai-decide-system-one-shadow-report.md committed with Jev/label, LLM/label, Jev/LLM agreement, tertile table, per-arm cost/latency/timeouts",
+        "No importer of pkg/sunholo/decisions/ outside tools/decisions and examples (nothing acts)",
+        "PROGRAM.md section 5b candidate row decision-gate; CHANGELOG Unreleased entry; design-doc footer summary"
+      ],
+      "passes": true,
+      "started": "2026-09-18T13:10:50.474505Z",
+      "completed": "2026-09-18T13:29:01.332642Z",
+      "notes": "tools/decisions: routed_docs.sh+.py (20 hand-read labels w/ evidence; the '45' was a routing-section count), lane_shadow.ail (Jev + glm-5.3-flash control on the same Net transport; D6 rows), lane_shadow_report.py (+ interpretation file). Result n=20: Jev 14/20, LLM 12/17 (3 \u00d7 30s timeouts), agree 15/17; Jev 491ms/$0.0012 vs 16.4s/$0.013. 4 of 6 Jev misses = label defects (docs routed AILANG-substrate work as extension). Report at design_docs/planned/m-ai-decide-system-one-shadow-report.md; PROGRAM.md \u00a75b candidate row; CHANGELOG. Package bumped to 0.1.1 mid-milestone (additionalProperties bool bug).",
+      "actual_loc": 560
+    }
+  ],
+  "completed": "2026-09-18T13:29:01.332642Z"
+}

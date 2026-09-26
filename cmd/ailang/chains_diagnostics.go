@@ -2,16 +2,15 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/observatory"
+	"github.com/sunholo-data/ailang/internal/sqliteopen"
 )
 
 // chainsDiagnoseCommand provides a quick health report for a specific chain
@@ -19,7 +18,7 @@ import (
 func chainsDiagnoseCommand() {
 	fs := flag.NewFlagSet("chains diagnose", flag.ExitOnError)
 	jsonOutput := fs.Bool("json", false, "Output as JSON")
-	remote := fs.String("remote", "", "Read from this observatory storage mode (gcp). Default: $AILANG_CHAINS_READ")
+	remote := fs.String("remote", "", "Read from this observatory storage mode (gcp). Default: the plane's observatory store ($AILANG_STORAGE_OBSERVATORY, else $AILANG_STORAGE)")
 	fs.Parse(flag.Args()[2:])
 
 	if fs.NArg() < 1 {
@@ -287,7 +286,7 @@ func chainsHealthCommand() {
 	fs := flag.NewFlagSet("chains health", flag.ExitOnError)
 	hours := fs.Int("hours", 24, "Time window in hours")
 	jsonOutput := fs.Bool("json", false, "Output as JSON")
-	remote := fs.String("remote", "", "Read from this observatory storage mode (gcp). Default: $AILANG_CHAINS_READ")
+	remote := fs.String("remote", "", "Read from this observatory storage mode (gcp). Default: the plane's observatory store ($AILANG_STORAGE_OBSERVATORY, else $AILANG_STORAGE)")
 	fs.Parse(flag.Args()[2:])
 
 	// Connect to observatory database
@@ -404,10 +403,14 @@ func runSystemHealthCheck(ctx context.Context, backend observatory.Backend, hour
 		health.SessionLinkRate = float64(health.StagesWithSession) / float64(health.TotalStages) * 100
 	}
 
-	// Get chat message stats from database directly
-	dbPath := filepath.Join(filepath.Dir(observatory.DefaultDatabasePath()), "observatory.db")
-	db, err := sql.Open("sqlite3", dbPath)
-	if err == nil {
+	// Get chat message stats from database directly. An unopenable database
+	// used to leave every count at zero with no word — a "healthy" report
+	// about nothing. Read-only: a health check must not create the file.
+	dbPath := observatory.DefaultDatabasePath()
+	db, err := sqliteopen.Open(dbPath, sqliteopen.Options{ReadOnly: true})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "chains health: %s unavailable, chat/session counts omitted: %v\n", dbPath, err)
+	} else {
 		defer db.Close()
 
 		// Count chat messages and task_id linkage

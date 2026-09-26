@@ -122,9 +122,15 @@ func applyClassifier(ctx context.Context, in Input, cfg FeedbackGateConfig) (Ver
 		return Verdict{Action: ActionDispatch, Reason: ReasonPassed, Cost: estimatedDispatchCostUSD}, nil
 	}
 
-	// Only heuristic-flagged messages reach the LLM.
+	// Only heuristic-flagged messages reach the LLM. With ShadowAll the
+	// System One shadow still sees the unflagged ones (cheap, never acts) —
+	// the verdict is the same pass-through either way.
 	if !shouldClassify(in) {
-		return Verdict{Action: ActionDispatch, Reason: ReasonPassed, Cost: estimatedDispatchCostUSD}, nil
+		pass := Verdict{Action: ActionDispatch, Reason: ReasonPassed, Cost: estimatedDispatchCostUSD}
+		if cfg.ShadowAll {
+			return runShadow(ctx, in, cfg, pass), nil
+		}
+		return pass, nil
 	}
 
 	// M5: daily budget. Over budget → file (never dispatch), never a Sonnet
@@ -139,9 +145,12 @@ func applyClassifier(ctx context.Context, in Input, cfg FeedbackGateConfig) (Ver
 		}
 	}
 
-	// A nil provider means we cannot classify — fail closed.
+	// A nil provider means we cannot classify — fail closed. The System One
+	// shadow still runs: this is the prod coordinator's configuration (no
+	// Anthropic key on the service), and it is precisely where the shadow's
+	// would-do rows are wanted.
 	if cl.provider == nil {
-		return Verdict{Action: ActionFile, Reason: ReasonClassifierError}, nil
+		return runShadow(ctx, in, cfg, Verdict{Action: ActionFile, Reason: ReasonClassifierError}), nil
 	}
 
 	// No prompt-cache breakpoint here, deliberately (M-ANTHROPIC-CACHE-HIT-RATE
@@ -163,16 +172,19 @@ func applyClassifier(ctx context.Context, in Input, cfg FeedbackGateConfig) (Ver
 	if err != nil {
 		// Provider error is NOT a gate-level error we propagate — a flaky
 		// classifier must not open the gate. Fail closed to file.
-		return Verdict{Action: ActionFile, Reason: ReasonClassifierError}, nil
+		return runShadow(ctx, in, cfg, Verdict{Action: ActionFile, Reason: ReasonClassifierError}), nil
 	}
 
 	var result classifierResult
 	if perr := json.Unmarshal([]byte(strings.TrimSpace(resp.Text)), &result); perr != nil {
 		// Malformed JSON → fail closed.
-		return Verdict{Action: ActionFile, Reason: ReasonClassifierParseFailed}, nil
+		return runShadow(ctx, in, cfg, Verdict{Action: ActionFile, Reason: ReasonClassifierParseFailed}), nil
 	}
 
-	return classifierVerdict(in, result), nil
+	// The System One shadow runs on exactly the messages the classifier saw
+	// (same pre-filter, same budget gate), so the two arms are compared on the
+	// same population. It cannot change the verdict (shadow.go).
+	return runShadow(ctx, in, cfg, classifierVerdict(in, result)), nil
 }
 
 // classifierVerdict maps a parsed classifier result to a Verdict per the M3

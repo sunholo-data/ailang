@@ -50,6 +50,19 @@ func (e *TypedEvaluator) valuesEqual(left, right interface{}) bool {
 	return false
 }
 
+// tracedValueMaxBytes bounds a value rendered into this evaluator's trace.
+//
+// Mirrors trace.DefaultMaxValueBytes deliberately rather than importing it: the
+// eval package reaches the trace subsystem through interfaces, not a direct
+// dependency, and one constant is not worth inverting that. If the collector's
+// policy changes, change this with it.
+//
+// The previous call site passed 10, which boundedShow ignored along with every
+// other bound. Honouring 10 as a byte budget would have truncated every traced
+// value to ten characters, so the budget is restated here rather than the stub
+// simply being made literal.
+const tracedValueMaxBytes = 1024
+
 // recordTrace records a function call trace
 func (e *TypedEvaluator) recordTrace(app *typedast.TypedApp, fn Value, args []Value) {
 	if e.trace == nil || !e.trace.Enabled {
@@ -60,7 +73,7 @@ func (e *TypedEvaluator) recordTrace(app *typedast.TypedApp, fn Value, args []Va
 	// For now, create a placeholder trace
 	var inputs []string
 	for _, arg := range args {
-		inputs = append(inputs, boundedShow(arg, 3, 10))
+		inputs = append(inputs, boundedShow(arg, 3, tracedValueMaxBytes))
 	}
 
 	entry := TraceEntry{
@@ -74,7 +87,7 @@ func (e *TypedEvaluator) recordTrace(app *typedast.TypedApp, fn Value, args []Va
 		Timestamp:   e.getTimestamp(),
 	}
 
-	e.trace.Entries = append(e.trace.Entries, entry)
+	e.trace.add(entry)
 }
 
 // getTimestamp returns current timestamp (virtual or real)
@@ -89,8 +102,23 @@ func (e *TypedEvaluator) getTimestamp() int64 {
 
 // boundedShow produces bounded string representation
 func boundedShow(v Value, maxDepth, maxWidth int) string {
-	// TODO: Implement bounded show with depth/width limits
-	return showValue(v, 0)
+	// This used to ignore BOTH limits and call showValue unbounded, while its
+	// caller (recordTrace) relied on it to keep trace values small — the same
+	// defect as M-TRACE-TIER-NOT-ENFORCED, latent in the typed evaluator's
+	// tracing path. A helper that takes bounds and discards them is worse than
+	// one that does not take them: the caller believes it is protected.
+	//
+	// maxWidth is honoured as a byte budget on the rendered result, matching the
+	// collector's per-value policy (trace.DefaultMaxValueBytes), with an explicit
+	// marker so an elided value is distinguishable from a short one. maxDepth is
+	// applied by showValue's own depth limiting.
+	//
+	// Rendered with ShowBounded so the value is never materialised past the
+	// budget (M-V1-MEMORY-FOOTPRINT M1). String() semantics replace the
+	// showValue quoting this path used before; the training-data consumer of
+	// this trace reads the same shape the exported trace carries.
+	_ = maxDepth
+	return ShowTraceBounded(v, maxWidth)
 }
 
 // capRequirer is implemented by effect contexts that gate effects on granted
@@ -98,6 +126,16 @@ func boundedShow(v Value, maxDepth, maxWidth int) string {
 // to avoid the import cycle — same pattern as budgetChargeScoper.
 type capRequirer interface {
 	RequireCap(name string) error
+}
+
+// capBudgetRequirer is capRequirer plus the budget charge (effects.EffContext
+// implements it). The prelude println is a real IO operation and must be
+// charged like `import std/io (println)` is — against the per-invocation
+// frame AND the operator ceiling (M-EXECUTOR-POLICY-HARDENING M4). Gating on
+// the capability alone left [budgets] IO = 0 admitting an unbounded number of
+// bare printlns.
+type capBudgetRequirer interface {
+	RequireCapWithBudget(name, position string) error
 }
 
 // requireCap enforces a capability for a PRELUDE builtin that performs a real
@@ -119,6 +157,9 @@ type capRequirer interface {
 func requireCap(e *CoreEvaluator, name string) error {
 	if e == nil {
 		return nil
+	}
+	if rb, ok := e.effContext.(capBudgetRequirer); ok {
+		return rb.RequireCapWithBudget(name, "")
 	}
 	r, ok := e.effContext.(capRequirer)
 	if !ok {

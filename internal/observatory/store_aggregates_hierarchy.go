@@ -159,7 +159,7 @@ func (s *Store) GetSpanHierarchy(limit int) (*SpanHierarchyResult, error) {
 
 		// Parse attributes to extract session.id and turn.number
 		node.parseAttributesForHierarchy(attrsJSON, sessions)
-		node.NodeType = classifySpanNodeType(name)
+		node.NodeType = ClassifySpanNodeType(name)
 
 		allNodes[id] = node
 	}
@@ -243,7 +243,7 @@ func scanSpanHierarchyNode(rows *sql.Rows) (*SpanHierarchyNode, error) {
 	// Parse attributes
 	sessions := make(map[string]int) // Dummy for parsing
 	node.parseAttributesForHierarchy(attrsJSON.String, sessions)
-	node.NodeType = classifySpanNodeType(name)
+	node.NodeType = ClassifySpanNodeType(name)
 
 	return node, nil
 }
@@ -289,22 +289,6 @@ func (n *SpanHierarchyNode) parseAttributesForHierarchy(attrsJSON string, sessio
 			"executor.name", "executor.model", "tool.input", "tool.output":
 			n.Attributes[key] = val
 		}
-	}
-}
-
-// classifySpanNodeType determines the node type based on span name
-func classifySpanNodeType(name string) SpanHierarchyNodeType {
-	switch {
-	case name == "coordinator.task.execute":
-		return NodeTypeCoordinator
-	case name == "claude.execute" || name == "gemini.execute" || name == "ailang.exec":
-		return NodeTypeExecutor
-	case name == "exec.turn":
-		return NodeTypeTurn
-	case strings.HasPrefix(name, "claude_code.tool.") || strings.HasPrefix(name, "exec.tool_use"):
-		return NodeTypeTool
-	default:
-		return NodeTypeOther
 	}
 }
 

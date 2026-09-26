@@ -25,7 +25,7 @@ var validThinkingStates = map[string]bool{
 // here: a wrong label silently corrupts an efficiency comparison, whereas
 // "unknown" correctly withholds the row from one.
 func TestModels_DefaultThinkingIsExplicit(t *testing.T) {
-	c, err := LoadModelsConfig("models.yml")
+	c, err := LoadModelsConfig("../modelreg/models.yml")
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
@@ -68,9 +68,11 @@ func TestModels_CloudHeadroomEqualised(t *testing.T) {
 	ceilingLimited := map[string]int{
 		// Anthropic family cap for the non-streaming Messages API as encoded in
 		// this repo. 2.3% under target; not worth a hard 400 to close.
-		"claude-opus-5": 64000, "claude-opus-4-8": 64000, "claude-opus-4-7": 64000,
+		"claude-opus-5-5": 64000,
+		"claude-opus-5":   64000, "claude-opus-4-8": 64000, "claude-opus-4-7": 64000,
 		"claude-opus-4-6": 64000, "claude-opus-4-5": 64000, "claude-fable-5": 64000,
-		"claude-sonnet-5": 64000, "claude-sonnet-4-6": 64000, "claude-sonnet-4-5": 64000,
+		"claude-fable-5-1": 64000,
+		"claude-sonnet-5":  64000, "claude-sonnet-4-6": 64000, "claude-sonnet-4-5": 64000,
 		"claude-haiku-4-5": 64000, "opencode-sonnet-4-6": 64000, "opencode-haiku": 64000,
 		"pi-claude-sonnet-4-6": 64000, "pi-claude-haiku-4-5": 64000,
 		"motoko-claude-sonnet-4-6": 64000, "motoko-claude-haiku-4-5": 64000,
@@ -78,6 +80,17 @@ func TestModels_CloudHeadroomEqualised(t *testing.T) {
 		// Hard provider ceilings verified via the OpenRouter endpoints API
 		// (2026-07-27): max_completion_tokens across ALL upstreams.
 		"or-deepseek-v3": 16384, "or-qwen-2-5-72b": 16384,
+		// Tencent Hy4 preview (2026-09-01): /endpoints reports ONE upstream
+		// (Tencent first-party) at max_completion_tokens 64000, so 65536 is
+		// unreachable — and with a single route there is no provider order to
+		// pin that would raise it.
+		"or-hy4-preview": 64000,
+		// TypeSafe Jev is a text->decisions model (M-AI-DECIDE-SYSTEM-ONE M2):
+		// it never generates a completion, so output headroom is meaningless.
+		// 28800 is the value /endpoints reports (2026-09-17 endpoint); the row
+		// exists only so the observatory can price Broadcast spans, and it is
+		// in no suite list (TestModels_TypeSafeJevIsPricedButNotInAnySuite).
+		"or-typesafe-jev-1-13": 28800,
 
 		// HARNESS ceiling, not a provider one — and the only one here proven by
 		// reading the actual request rather than a vendor doc. pi-ai's
@@ -95,9 +108,34 @@ func TestModels_CloudHeadroomEqualised(t *testing.T) {
 		// Re-verify with scripts/check_pi_wire_budget.sh.
 		"pi-gpt5-4": 32000, "pi-gemini-3-flash-preview": 32000,
 		"pi-or-deepseek-v4-flash": 32000,
+		// Same pi harness clamp; bare-id A/B control for the evaluator route (2026-09-08).
+		"pi-or-deepseek-v4-flash-bare": 32000,
+		// Same pi harness clamp, for the binary mission path's evaluator lane, which has
+		// led with pi since 2026-09-14. INHERITED rather than separately measured: the
+		// clamp is in pi-ai's buildBaseOptions for every openai-compat provider, and
+		// minimax-m3 reaches OpenRouter over the same openai-compat lane as the deepseek
+		// rows above, so the mechanism is identical rather than model-specific. Confirm
+		// with scripts/check_pi_wire_budget.sh if this row ever needs to carry weight on
+		// its own. The opencode sibling declares 65536 because opencode has no such clamp.
+		//
+		// Resolved from a duplicate: V1 iteration 354 fixed this red forward (#1165) while
+		// an attended session fixed it independently (242075de9). Both added the same
+		// entry; this keeps one, with the mechanism note from the attended side and the
+		// routing context from the loop's.
+		"pi-or-minimax-m3": 32000,
+		// Same pi harness clamp again, for the binary mission path's DESIGNER and PLANNER
+		// lanes, which lead with pi from 2026-09-21. Same inheritance argument as the row
+		// above: kimi-k3 reaches OpenRouter over the same openai-compat lane, so the clamp
+		// is the harness's, not the model's. The opencode sibling (opencode-or-kimi-k3)
+		// declares 65536 because opencode has no such clamp — the two rows differing is
+		// the mechanism showing through, not a transcription error.
+		"pi-or-kimi-k3": 32000,
+		// Same pi harness clamp, for the executor fallback's metered rung from 2026-09-25
+		// (deepseek-v4.1-flash replaced 0731). Same openai-compat lane as pi-or-deepseek-v4-flash.
+		"pi-or-deepseek-v4-1-flash": 32000,
 	}
 
-	c, err := LoadModelsConfig("models.yml")
+	c, err := LoadModelsConfig("../modelreg/models.yml")
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}

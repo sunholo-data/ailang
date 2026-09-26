@@ -393,6 +393,19 @@ func (l *OpLowerer) lowerIntrinsic(intrinsic *core.Intrinsic) core.CoreExpr {
 			typeSuffix = "Bool"
 			l.trackFallback(intrinsic.Op, typeNode, "CoreTI-hit", location)
 		case types.HeadList:
+			// M-EQ-DERIVE-CONTAINERS: there is no eq_List builtin. An == on a list
+			// that reaches here was not dictionary-elaborated because its element
+			// type is still a variable (`[] == []`, or `xs == ys` in a generic
+			// function); the type checker has already required Eq of the element,
+			// so defer to the evaluator's structural comparison.
+			if intrinsic.Op == core.OpEq || intrinsic.Op == core.OpNe {
+				l.trackFallback(intrinsic.Op, typeNode, "Deferred-to-shim", location)
+				return &core.Intrinsic{
+					CoreNode: intrinsic.CoreNode,
+					Op:       intrinsic.Op,
+					Args:     l.lowerExprs(intrinsic.Args),
+				}
+			}
 			typeSuffix = "List"
 			l.trackFallback(intrinsic.Op, typeNode, "CoreTI-hit", location)
 		default:

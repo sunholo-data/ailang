@@ -74,7 +74,6 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
-	"os"
 	"os/exec"
 	"strings"
 	"sync"
@@ -152,7 +151,6 @@ type Server struct {
 	// Observatory for telemetry, traces, and metrics visualization
 	obsBackend observatory.Backend
 	obsAPI     *observatory.API
-	obsHub     *observatory.Hub
 
 	// Response cache for expensive polling endpoints (prevents 400% CPU from dashboard polls)
 	pollingCache   *responseCache
@@ -207,9 +205,6 @@ func NewServer(dbPath string, httpAddr string, opts ...ServerOption) (*Server, e
 	s.wsServer = websocket.NewServer(s.store)
 	if s.wsToken != "" {
 		s.wsServer.SetToken(s.wsToken)
-		if s.obsHub != nil {
-			s.obsHub.SetToken(s.wsToken)
-		}
 		log.Printf("WebSocket token authentication enabled for /ws and /ws/observatory")
 	}
 
@@ -251,7 +246,6 @@ func WithObservatoryBackend(backend observatory.Backend) ServerOption {
 	return func(s *Server) {
 		s.obsBackend = backend
 		s.obsAPI = observatory.NewAPI(backend)
-		s.obsHub = observatory.NewHub()
 	}
 }
 
@@ -307,74 +301,20 @@ func WithCoordinatorStore(store CoordinatorStore) ServerOption {
 }
 
 // WithObservatoryDB sets up the observatory backend with SQLite at the given path.
-// If GCP project is configured (via GOOGLE_CLOUD_PROJECT or OTLP_GOOGLE_CLOUD_PROJECT),
-// it also adds a GCP Trace remote backend for federated trace queries.
+// The observatory is local-only; the GCP Trace / composite remote backends were
+// deleted in M-V1-SIMPLIFY-S1 M4 (nothing ever set AILANG_ENABLE_GCP_TRACE).
 func WithObservatoryDB(dbPath string) ServerOption {
 	return func(s *Server) {
-		// Create local SQLite backend
 		sqliteBackend, err := observatory.NewSQLiteBackendFromPath(dbPath)
 		if err != nil {
 			log.Printf("Warning: Failed to initialize observatory: %v", err)
 			return
 		}
+		log.Printf("Observatory: Local-only mode")
 
-		// Check for GCP project configuration
-		gcpProject := getGCPProject()
-		var backend observatory.Backend
-
-		// GCP Trace federation disabled until M-GEMINI-TRACE investigation is complete
-		// See: design_docs/planned/v0_6_4/m-gemini-trace-investigation.md
-		// Issue: Gemini CLI exports to Cloud Logging, not Cloud Trace
-		if gcpProject != "" && getEnv("AILANG_ENABLE_GCP_TRACE") == "1" {
-			// Create GCP Trace remote backend
-			gcpBackend, err := observatory.NewGCPTraceBackend(observatory.GCPConfig{
-				ProjectID: gcpProject,
-			})
-			if err != nil {
-				log.Printf("Warning: Failed to initialize GCP Trace backend (will use local only): %v", err)
-				backend = sqliteBackend
-			} else {
-				// Create composite backend with local + GCP remote
-				compositeBackend, err := observatory.NewCompositeBackend(observatory.CompositeConfig{
-					Local:   sqliteBackend,
-					Remotes: []observatory.Backend{gcpBackend},
-				})
-				if err != nil {
-					log.Printf("Warning: Failed to create composite backend: %v", err)
-					backend = sqliteBackend
-				} else {
-					backend = compositeBackend
-					log.Printf("Observatory: Composite backend enabled (local + GCP Trace project=%s)", gcpProject)
-				}
-			}
-		} else {
-			backend = sqliteBackend
-			if gcpProject != "" {
-				log.Printf("Observatory: Local-only mode (GCP Trace disabled, set AILANG_ENABLE_GCP_TRACE=1 to enable)")
-			} else {
-				log.Printf("Observatory: Local-only mode")
-			}
-		}
-
-		s.obsBackend = backend
-		s.obsAPI = observatory.NewAPI(backend)
-		s.obsHub = observatory.NewHub()
+		s.obsBackend = sqliteBackend
+		s.obsAPI = observatory.NewAPI(sqliteBackend)
 	}
-}
-
-// getGCPProject returns the GCP project ID from environment variables.
-func getGCPProject() string {
-	// Check OTLP-specific variable first (for dual-export scenarios)
-	if project := getEnv("OTLP_GOOGLE_CLOUD_PROJECT"); project != "" {
-		return project
-	}
-	// Fall back to standard GCP variable
-	return getEnv("GOOGLE_CLOUD_PROJECT")
-}
-
-// getEnv returns an environment variable value.
-func getEnv(key string) string {
-	return os.Getenv(key)
 }
 
 // WithFirebaseAuth initializes Firebase authentication and Firestore-based access control.
@@ -482,8 +422,13 @@ func (s *Server) Start() error {
 	// Setup HTTP routes
 	mux := http.NewServeMux()
 
-	// WebSocket endpoint
+	// WebSocket endpoint. /ws/observatory is the SAME hub: the observatory
+	// hub it used to name (internal/observatory/websocket.go) had no producer
+	// anywhere in the tree — nothing ever called its Broadcast* methods — so
+	// the control-plane UI's socket only ever carried a heartbeat. One hub,
+	// one origin/token check (M-V1-SIMPLIFY-S3 M5).
 	mux.HandleFunc("/ws", s.wsServer.HandleWebSocket)
+	mux.HandleFunc("/ws/observatory", s.wsServer.HandleWebSocket)
 
 	// Public benchmark data (M-EVAL-DATA-HOSTING-DECOUPLE) — read-through from the
 	// private GCS bucket so the docs site fetches it at runtime, no site rebuild.
@@ -497,7 +442,12 @@ func (s *Server) Start() error {
 	mux.HandleFunc("/api/statistics", s.handleStatistics)
 
 	// REST API endpoints - Messages
-	mux.HandleFunc("/api/messages", s.handleMessages)
+	// Thread messages. Was /api/messages, which the coordinator daemon ALSO
+	// serves — as inbox messages, with a different body and auth. Two
+	// servers, one path, two meanings; the thread one moves because it has
+	// no external callers (the UI never used it, the coordinator's is a
+	// documented REST contract). M-V1-SIMPLIFY-S3 M5.
+	mux.HandleFunc("/api/thread-messages", s.handleMessages)
 
 	// REST API endpoints - Approvals
 	mux.HandleFunc("/api/approvals", s.handleApprovals)
@@ -603,11 +553,6 @@ func (s *Server) Start() error {
 		otlpReceiver := observatory.NewOTLPReceiver(s.obsBackend)
 		otlpReceiver.RegisterRoutes(mux)
 		log.Printf("OTLP receiver registered at /v1/traces, /v1/logs, /v1/metrics")
-	}
-	if s.obsHub != nil {
-		go s.obsHub.Run()
-		mux.HandleFunc("/ws/observatory", s.obsHub.HandleWebSocket)
-		log.Printf("Observatory WebSocket registered at /ws/observatory")
 	}
 
 	// Health check and version
@@ -737,9 +682,7 @@ func (s *Server) Close() error {
 	if s.pubsubEventSub != nil {
 		s.pubsubEventSub.Stop()
 	}
-	if s.obsHub != nil {
-		s.obsHub.Stop()
-	}
+
 	if s.obsBackend != nil {
 		if err := s.obsBackend.Close(); err != nil {
 			log.Printf("Warning: Failed to close observatory backend: %v", err)

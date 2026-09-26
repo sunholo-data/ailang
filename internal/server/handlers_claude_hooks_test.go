@@ -569,105 +569,6 @@ func TestClaudeHooks_PostToolUse_FindsUnfinished(t *testing.T) {
 	}
 }
 
-// --- Payload parsing tests ---
-
-func TestClaudeHookPayload_AllFields(t *testing.T) {
-	raw := `{
-		"session_id": "s1",
-		"transcript_path": "/path/to/transcript",
-		"cwd": "/home/user",
-		"permission_mode": "plan",
-		"hook_event_name": "PreToolUse",
-		"agent_id": "agent-1",
-		"agent_type": "general-purpose",
-		"tool_name": "Bash",
-		"tool_input": {"command": "ls"},
-		"tool_response": "output",
-		"tool_use_id": "tu-1",
-		"source": "vscode",
-		"model": "claude-opus-4-6"
-	}`
-
-	var p ClaudeHookPayload
-	if err := json.Unmarshal([]byte(raw), &p); err != nil {
-		t.Fatalf("unmarshal failed: %v", err)
-	}
-
-	if p.SessionID != "s1" {
-		t.Errorf("SessionID: want s1, got %s", p.SessionID)
-	}
-	if p.TranscriptPath != "/path/to/transcript" {
-		t.Errorf("TranscriptPath mismatch")
-	}
-	if p.Cwd != "/home/user" {
-		t.Errorf("Cwd mismatch")
-	}
-	if p.PermissionMode != "plan" {
-		t.Errorf("PermissionMode mismatch")
-	}
-	if p.HookEventName != "PreToolUse" {
-		t.Errorf("HookEventName mismatch")
-	}
-	if p.AgentID != "agent-1" {
-		t.Errorf("AgentID mismatch")
-	}
-	if p.AgentType != "general-purpose" {
-		t.Errorf("AgentType mismatch")
-	}
-	if p.ToolName != "Bash" {
-		t.Errorf("ToolName mismatch")
-	}
-	if p.ToolUseID != "tu-1" {
-		t.Errorf("ToolUseID mismatch")
-	}
-	if p.Source != "vscode" {
-		t.Errorf("Source mismatch")
-	}
-	if p.Model != "claude-opus-4-6" {
-		t.Errorf("Model mismatch")
-	}
-	if p.ToolInput == nil {
-		t.Error("ToolInput should not be nil")
-	}
-	if p.ToolResponse == nil {
-		t.Error("ToolResponse should not be nil")
-	}
-}
-
-func TestClaudeHookPayload_OmittedFields(t *testing.T) {
-	raw := `{"session_id":"s1","hook_event_name":"Stop","cwd":"/tmp"}`
-	var p ClaudeHookPayload
-	if err := json.Unmarshal([]byte(raw), &p); err != nil {
-		t.Fatalf("unmarshal failed: %v", err)
-	}
-	if p.ToolName != "" {
-		t.Errorf("ToolName should be empty, got %s", p.ToolName)
-	}
-	if p.AgentID != "" {
-		t.Errorf("AgentID should be empty, got %s", p.AgentID)
-	}
-	if p.ToolInput != nil {
-		t.Errorf("ToolInput should be nil")
-	}
-}
-
-func TestClaudeHookPayload_CorrelationIDsNotInJSON(t *testing.T) {
-	// Correlation IDs use `json:"-"` so they must not appear in JSON output
-	p := ClaudeHookPayload{
-		SessionID:     "s1",
-		HookEventName: "SessionStart",
-		TaskID:        "task-secret",
-		ChainID:       "chain-secret",
-	}
-	body, _ := json.Marshal(p)
-	if bytes.Contains(body, []byte("task-secret")) {
-		t.Error("TaskID should not be in JSON output (has json:\"-\" tag)")
-	}
-	if bytes.Contains(body, []byte("chain-secret")) {
-		t.Error("ChainID should not be in JSON output (has json:\"-\" tag)")
-	}
-}
-
 // --- Benchmark ---
 
 func BenchmarkClaudeHooks_SessionStart(b *testing.B) {
@@ -754,5 +655,79 @@ func BenchmarkClaudeHooks_PreToolUse(b *testing.B) {
 		req := httptest.NewRequest("POST", "/api/hooks/claude", bytes.NewReader(body))
 		w := httptest.NewRecorder()
 		s.handleClaudeHooks(w, req)
+	}
+}
+
+// TestClaudeHooks_PreToolUseEnsuresSession pins the fix for the FOREIGN KEY
+// defect: session_tools references sessions, so a PreToolUse arriving for a
+// session that never sent SessionStart — every session already running when the
+// server starts — had its tool event rejected for the rest of the session while
+// the hook still answered 200. PreToolUse must upsert the parent row first.
+func TestClaudeHooks_PreToolUseEnsuresSession(t *testing.T) {
+	mock := newMockClaudeHooksBackend()
+	s := &Server{obsBackend: mock}
+
+	body := `{"hook_event_name":"PreToolUse","session_id":"orphan-1","cwd":"/repo","tool_name":"Bash","tool_use_id":"t1"}`
+	req := httptest.NewRequest("POST", "/api/hooks/claude", bytes.NewReader([]byte(body)))
+	w := httptest.NewRecorder()
+	s.handleClaudeHooks(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+	if len(mock.upsertedSessions) != 1 {
+		t.Fatalf("PreToolUse must upsert the parent session before the tool insert; got %d upserts", len(mock.upsertedSessions))
+	}
+	if got := mock.upsertedSessions[0].sessionID; got != "orphan-1" {
+		t.Errorf("upserted session_id = %q, want %q", got, "orphan-1")
+	}
+	if got := mock.upsertedSessions[0].workspace; got != "/repo" {
+		t.Errorf("upserted workspace = %q, want %q", got, "/repo")
+	}
+	if len(mock.insertedToolStarts) != 1 {
+		t.Fatalf("expected the tool start to be inserted, got %d", len(mock.insertedToolStarts))
+	}
+}
+
+// TestClaudeHooks_PreToolUseCarriesCorrelation asserts the coordinator's
+// correlation headers survive the ensure-session path, so a coordinator-executed
+// session is still joinable to its chain when SessionStart was missed.
+func TestClaudeHooks_PreToolUseCarriesCorrelation(t *testing.T) {
+	mock := newMockClaudeHooksBackend()
+	s := &Server{obsBackend: mock}
+
+	body := `{"hook_event_name":"PreToolUse","session_id":"orphan-2","cwd":"/repo","tool_name":"Bash"}`
+	req := httptest.NewRequest("POST", "/api/hooks/claude", bytes.NewReader([]byte(body)))
+	req.Header.Set("X-Ailang-Chain-Id", "chain-9")
+	req.Header.Set("X-Ailang-Stage-Id", "stage-3")
+	w := httptest.NewRecorder()
+	s.handleClaudeHooks(w, req)
+
+	if len(mock.upsertedSessions) != 1 {
+		t.Fatalf("expected 1 upsert, got %d", len(mock.upsertedSessions))
+	}
+	corr := mock.upsertedSessions[0].corr
+	if corr == nil {
+		t.Fatal("correlation must be carried through the ensure-session path, got nil")
+	}
+	if corr.ChainID != "chain-9" || corr.StageID != "stage-3" {
+		t.Errorf("correlation = %+v, want chain-9/stage-3", corr)
+	}
+}
+
+// TestClaudeHooks_PreToolUseWithoutCwdSkipsUpsert guards the boundary: with no
+// cwd there is no workspace to record, and UpsertSessionWithCorrelation rejects
+// an empty workspace. Skipping is correct; inventing a placeholder is not.
+func TestClaudeHooks_PreToolUseWithoutCwdSkipsUpsert(t *testing.T) {
+	mock := newMockClaudeHooksBackend()
+	s := &Server{obsBackend: mock}
+
+	body := `{"hook_event_name":"PreToolUse","session_id":"orphan-3","tool_name":"Bash"}`
+	req := httptest.NewRequest("POST", "/api/hooks/claude", bytes.NewReader([]byte(body)))
+	w := httptest.NewRecorder()
+	s.handleClaudeHooks(w, req)
+
+	if len(mock.upsertedSessions) != 0 {
+		t.Errorf("expected no upsert without cwd, got %d", len(mock.upsertedSessions))
 	}
 }

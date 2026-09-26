@@ -1,0 +1,12 @@
+[package]
+name = "sunholo/ailang_feedbackgate_shadow"
+version = "0.1.0"
+edition = "1"
+ailang = ">=0.40.0"
+description = "Feedback-gate shadow classifier (M-AI-DECIDE-SYSTEM-ONE, audit site #1): asks a System One model the gate's four questions beside the Haiku classifier. Run by the coordinator as a subprocess; never acts."
+
+[dependencies]
+"sunholo/decisions" = "0.3.0"
+
+[effects]
+max = ["Net", "Env", "IO", "Clock"]

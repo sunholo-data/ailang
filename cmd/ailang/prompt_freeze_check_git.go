@@ -3,11 +3,14 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/gitexec"
 )
 
 func checkGitPromptFreezeInvariants(repoRoot string, source, mirror *orderedRegistry, violations []string) ([]string, error) {
@@ -38,6 +41,9 @@ func checkGitPromptFreezeInvariants(repoRoot string, source, mirror *orderedRegi
 			return nil, fmt.Errorf("git show merge-base prompt %s: %w", id, showErr)
 		}
 		currentBytes, readErr := os.ReadFile(filepath.Join(repoRoot, current.File))
+		if errors.Is(readErr, fs.ErrNotExist) {
+			continue
+		}
 		if readErr != nil {
 			return nil, readErr
 		}
@@ -48,8 +54,9 @@ func checkGitPromptFreezeInvariants(repoRoot string, source, mirror *orderedRegi
 
 	for _, id := range source.VersionKeys {
 		entry := source.Versions[id]
-		if entry.Frozen == nil {
-			continue
+		state := "mutable"
+		if entry.Frozen != nil {
+			state = "frozen"
 		}
 		mirrorEntry := mirror.Versions[id]
 		if !sameFrozenRegistryEntry(entry, mirrorEntry) {
@@ -62,12 +69,17 @@ func checkGitPromptFreezeInvariants(repoRoot string, source, mirror *orderedRegi
 		}
 		mirrorPath := filepath.Join("cmd", "ailang", entry.File)
 		sourceBytes, sourceErr := os.ReadFile(filepath.Join(repoRoot, entry.File))
-		mirrorBytes, mirrorErr := os.ReadFile(filepath.Join(repoRoot, mirrorPath))
-		if sourceErr != nil {
+		sourceExists := !errors.Is(sourceErr, fs.ErrNotExist)
+		if sourceExists && sourceErr != nil {
 			return nil, sourceErr
 		}
-		if mirrorErr != nil || !bytes.Equal(sourceBytes, mirrorBytes) {
-			violations = append(violations, fmt.Sprintf("frozen version %s: mirror bytes differ at %s", id, filepath.ToSlash(mirrorPath)))
+		mirrorBytes, mirrorErr := os.ReadFile(filepath.Join(repoRoot, mirrorPath))
+		if errors.Is(mirrorErr, fs.ErrNotExist) {
+			violations = append(violations, fmt.Sprintf("%s version %s: mirror file missing at %s", state, id, filepath.ToSlash(mirrorPath)))
+		} else if mirrorErr != nil {
+			return nil, mirrorErr
+		} else if sourceExists && !bytes.Equal(sourceBytes, mirrorBytes) {
+			violations = append(violations, fmt.Sprintf("%s version %s: mirror bytes differ at %s", state, id, filepath.ToSlash(mirrorPath)))
 		}
 	}
 	return violations, nil
@@ -79,7 +91,7 @@ func gitOutput(repoRoot string, args ...string) (string, error) {
 }
 
 func gitBytes(repoRoot string, args ...string) ([]byte, error) {
-	cmd := exec.Command("git", args...)
+	cmd := gitexec.Command(args...)
 	cmd.Dir = repoRoot
 	out, err := cmd.Output()
 	if err != nil {

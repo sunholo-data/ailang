@@ -4,29 +4,9 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/strutil"
 )
-
-// Truncate safely truncates a string to maxLen runes (characters), appending "..." if truncated.
-// Handles UTF-8 correctly to avoid breaking multi-byte characters.
-func Truncate(s string, maxLen int) string {
-	if maxLen <= 0 {
-		return ""
-	}
-
-	runes := []rune(s)
-	if len(runes) <= maxLen {
-		return s
-	}
-
-	// For very short maxLen, just return what we can
-	if maxLen <= 3 {
-		return string(runes[:maxLen])
-	}
-
-	// Leave room for "..."
-	targetLen := maxLen - 3
-	return string(runes[:targetLen]) + "..."
-}
 
 // ErrorCategory represents categories of errors for filtering in traces.
 type ErrorCategory string
@@ -124,7 +104,7 @@ func LineSnippet(source string, lineNum int, maxLen int) string {
 	// Trim whitespace and truncate
 	snippet := strings.TrimSpace(targetLine)
 	if len(snippet) > maxLen {
-		return Truncate(snippet, maxLen)
+		return strutil.Truncate(snippet, maxLen)
 	}
 
 	return snippet

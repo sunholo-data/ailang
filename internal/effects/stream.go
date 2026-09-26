@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"github.com/sunholo-data/ailang/internal/eval"
 )
 
@@ -38,7 +37,7 @@ func (s StreamStatus) String() string {
 // StreamConnection holds per-connection state for a WebSocket or SSE connection.
 type StreamConnection struct {
 	mu           sync.Mutex
-	conn         *websocket.Conn // WebSocket only
+	transport    StreamTransport // WebSocket only: registered platform transport (stream_ws.go)
 	httpResp     *http.Response  // SSE only: HTTP response for body close
 	protocol     string          // "WebSocket" or "SSE"
 	lastEventID  string          // SSE only: last received id: field
@@ -68,8 +67,15 @@ type streamEvent struct {
 	sourceName   string // M-ASYNC-IO: source tag for SourceText/SourceBytes events
 }
 
-// Close gracefully shuts down the connection.
+// Close gracefully shuts down the connection (normal closure).
 func (sc *StreamConnection) Close() {
+	sc.CloseWithCode(0, "")
+}
+
+// CloseWithCode shuts the connection down, sending code and reason in the
+// WebSocket close frame (0 = normal closure). SSE ignores the code.
+// Idempotent: only the first close sends a frame.
+func (sc *StreamConnection) CloseWithCode(code int, reason string) {
 	sc.mu.Lock()
 	if sc.status == StreamStatusClosed || sc.status == StreamStatusClosing {
 		sc.mu.Unlock()
@@ -85,15 +91,7 @@ func (sc *StreamConnection) Close() {
 			_ = sc.httpResp.Body.Close()
 		}
 	} else {
-		// WebSocket: send close frame with deadline
-		if sc.conn != nil {
-			_ = sc.conn.WriteControl(
-				websocket.CloseMessage,
-				websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""),
-				time.Now().Add(3*time.Second),
-			)
-			_ = sc.conn.Close()
-		}
+		sc.closeWS(code, reason)
 	}
 
 	// Signal read goroutine to stop
@@ -192,171 +190,6 @@ func init() {
 	RegisterOp("Stream", "asyncExecProcess", StreamAsyncExecProcess)
 }
 
-// StreamConnect establishes a WebSocket connection.
-//
-// Args: [url: string, config: record{protocol, headers, subprotocols}]
-// Returns: Result[StreamConn(int), StreamError]
-func StreamConnect(ctx *EffContext, args []eval.Value) (eval.Value, error) {
-	if len(args) != 2 {
-		return nil, fmt.Errorf("_stream_connect: expected 2 arguments, got %d", len(args))
-	}
-
-	urlVal, ok := args[0].(*eval.StringValue)
-	if !ok {
-		return nil, fmt.Errorf("_stream_connect: expected String for url, got %T", args[0])
-	}
-
-	if ctx.Stream == nil {
-		return nil, fmt.Errorf("E_STREAM_NO_CONTEXT: Stream effect not configured (missing --caps Stream)")
-	}
-
-	// Budget check: Stream.connect consumes one budget unit (after capability check)
-	if err := ctx.RequireCapWithBudget("Stream", "stream.connect"); err != nil {
-		return makeStreamErr("BudgetExhausted", err.Error()), nil
-	}
-
-	// Validate URL against security policy
-	if err := ctx.Stream.ValidateURL(urlVal.Value); err != nil {
-		return makeStreamErr("ConnectionFailed", err.Error()), nil
-	}
-
-	// Parse config record for headers and subprotocols
-	headers := make(map[string][]string)
-	var subprotocols []string
-
-	if configRec, ok := args[1].(*eval.RecordValue); ok {
-		if hdrs, ok := configRec.Fields["headers"]; ok {
-			if hdrList, ok := hdrs.(*eval.ListValue); ok {
-				for _, hdr := range hdrList.Elements {
-					if hdrRec, ok := hdr.(*eval.RecordValue); ok {
-						nameVal, _ := hdrRec.Fields["name"].(*eval.StringValue)
-						valVal, _ := hdrRec.Fields["value"].(*eval.StringValue)
-						if nameVal != nil && valVal != nil {
-							headers[nameVal.Value] = append(headers[nameVal.Value], valVal.Value)
-						}
-					}
-				}
-			}
-		}
-		if subs, ok := configRec.Fields["subprotocols"]; ok {
-			if subList, ok := subs.(*eval.ListValue); ok {
-				for _, s := range subList.Elements {
-					if sv, ok := s.(*eval.StringValue); ok {
-						subprotocols = append(subprotocols, sv.Value)
-					}
-				}
-			}
-		}
-	}
-
-	// Dial WebSocket
-	dialer := websocket.Dialer{
-		HandshakeTimeout: ctx.Stream.ConnectTimeout,
-		Subprotocols:     subprotocols,
-		ReadBufferSize:   1024,
-		WriteBufferSize:  1024,
-	}
-
-	wsConn, resp, err := dialer.Dial(urlVal.Value, headers)
-	if err != nil {
-		msg := fmt.Sprintf("WebSocket dial failed: %s", err.Error())
-		if resp != nil {
-			msg = fmt.Sprintf("WebSocket dial failed (HTTP %d): %s", resp.StatusCode, err.Error())
-		}
-		return makeStreamErr("ConnectionFailed", msg), nil
-	}
-
-	// Set read limit
-	wsConn.SetReadLimit(ctx.Stream.MaxFrameSize)
-
-	// Create connection
-	conn := &StreamConnection{
-		conn:        wsConn,
-		protocol:    "WebSocket",
-		status:      StreamStatusOpen,
-		eventBuffer: make(chan streamEvent, ctx.Stream.EventBufferSize),
-		done:        make(chan struct{}),
-		idleTimeout: ctx.Stream.IdleTimeout,
-		maxDuration: ctx.Stream.MaxDuration,
-		subprotocol: wsConn.Subprotocol(),
-	}
-
-	// Register connection
-	id, err := ctx.Stream.AcquireConnection(conn)
-	if err != nil {
-		wsConn.Close()
-		return makeStreamErr("ConnectionFailed", err.Error()), nil
-	}
-
-	// Deliver Opened BEFORE starting the read goroutine so it is always the
-	// first event in the buffer (buffered channel → never blocks); otherwise
-	// the reader can race an inbound message ahead of Opened.
-	conn.eventBuffer <- streamEvent{
-		kind: "opened",
-		text: conn.subprotocol,
-	}
-
-	// Start read goroutine
-	go conn.readLoop()
-
-	// Return Ok(StreamConn(id))
-	return makeStreamOk(makeStreamConn(id)), nil
-}
-
-// readLoop runs in a goroutine, reading WebSocket frames into the event buffer.
-func (sc *StreamConnection) readLoop() {
-	defer func() {
-		// Deliver closed event if we exit normally
-		sc.mu.Lock()
-		status := sc.status
-		sc.mu.Unlock()
-		if status != StreamStatusClosed && status != StreamStatusClosing {
-			sc.eventBuffer <- streamEvent{kind: "closed", code: 1006, reason: "connection lost"}
-		}
-	}()
-
-	for {
-		select {
-		case <-sc.done:
-			return
-		default:
-		}
-
-		msgType, data, err := sc.conn.ReadMessage()
-		if err != nil {
-			if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway) {
-				closeCode := websocket.CloseNormalClosure
-				closeReason := ""
-				if ce, ok := err.(*websocket.CloseError); ok {
-					closeCode = ce.Code
-					closeReason = ce.Text
-				}
-				sc.eventBuffer <- streamEvent{kind: "closed", code: closeCode, reason: closeReason}
-				return
-			}
-			sc.eventBuffer <- streamEvent{kind: "error", errType: "ProtocolError", text: err.Error()}
-			return
-		}
-
-		switch msgType {
-		case websocket.TextMessage:
-			sc.mu.Lock()
-			sc.messagesRecv++
-			sc.bytesRecv += int64(len(data))
-			sc.mu.Unlock()
-			sc.eventBuffer <- streamEvent{kind: "message", text: string(data)}
-		case websocket.BinaryMessage:
-			sc.mu.Lock()
-			sc.messagesRecv++
-			sc.bytesRecv += int64(len(data))
-			sc.mu.Unlock()
-			sc.eventBuffer <- streamEvent{kind: "binary", data: data}
-		case websocket.PingMessage:
-			sc.eventBuffer <- streamEvent{kind: "ping", data: data}
-		}
-	}
-}
-
 // streamSend sends a message on a connection.
 //
 // Args: [conn: StreamConn(int), msg: StreamMessage(Text(string)|Bin(bytes))]
@@ -420,7 +253,7 @@ func StreamSend(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 			return makeStreamErr("MessageTooLarge",
 				fmt.Sprintf("message size %d exceeds limit %d", len(data), ctx.Stream.MaxMessageSize)), nil
 		}
-		if err := conn.conn.WriteMessage(websocket.TextMessage, data); err != nil {
+		if err := conn.writeWS(true, data); err != nil {
 			return makeStreamErr("ProtocolError", err.Error()), nil
 		}
 		conn.messagesSent++
@@ -438,7 +271,7 @@ func StreamSend(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 			return makeStreamErr("MessageTooLarge",
 				fmt.Sprintf("message size %d exceeds limit %d", len(bv.Value), ctx.Stream.MaxMessageSize)), nil
 		}
-		if err := conn.conn.WriteMessage(websocket.BinaryMessage, bv.Value); err != nil {
+		if err := conn.writeWS(false, bv.Value); err != nil {
 			return makeStreamErr("ProtocolError", err.Error()), nil
 		}
 		conn.messagesSent++

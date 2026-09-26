@@ -16,6 +16,8 @@ import (
 	"sort"
 	"strings"
 	"sync"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 var (
@@ -31,7 +33,7 @@ var (
 // stdlibDir resolves the stdlib directory the same way the runtime does: AILANG_STDLIB_PATH
 // (first existing entry of a path-list) else ./std.
 func stdlibDir() string {
-	if p := strings.TrimSpace(os.Getenv("AILANG_STDLIB_PATH")); p != "" {
+	if p := strings.TrimSpace(config.StdlibPath()); p != "" {
 		for _, e := range strings.Split(p, string(os.PathListSeparator)) {
 			if e == "" {
 				continue

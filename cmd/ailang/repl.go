@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	otelplatform "github.com/sunholo-data/ailang/internal/platform/otel"
 	"github.com/sunholo-data/ailang/internal/repl"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 )
@@ -14,7 +15,7 @@ import (
 func runREPL(learn bool, trace bool, strictSyntax bool) {
 	// Initialize telemetry (traces exported if GOOGLE_CLOUD_PROJECT or OTEL_EXPORTER_OTLP_ENDPOINT set)
 	ctx := context.Background()
-	shutdownTelemetry, err := telemetry.Init(ctx, "ailang-repl")
+	shutdownTelemetry, err := otelplatform.Init(ctx, "ailang-repl")
 	if err != nil {
 		// Non-fatal: continue without telemetry
 	} else {
@@ -73,5 +74,5 @@ func watchFile(filename string, trace bool, binopShim bool, failOnShim bool, req
 	// TODO: Implement file watching
 	// For now, just run the file once (no json/compact/quiet for watch mode)
 	// Default to main entrypoint with null args for watch mode, no caps, no stdlib overrides, no env overrides, no CLI args, no relaxModules, no debug-types, no budget bypass, no contract verification
-	runFile(filename, []string{}, trace, 0, false, false, false, false, binopShim, failOnShim, requireLowering, trackInstantiations, noMono, debugCompile, false, "main", "null", true, false, false, "", maxRecursionDepth, "", false, false, "", "", "", "", "", false, "", routingFlagValues{}, false, false, false, 0, false, "", false, "", "", false, "", false, false, false, "", false, "30s", "", 10*1024*1024, false, false, false, "", "", "")
+	runFile(filename, []string{}, trace, 0, false, false, false, false, binopShim, failOnShim, requireLowering, trackInstantiations, noMono, debugCompile, false, "main", "null", true, false, false, "", maxRecursionDepth, "", false, false, "", "", "", "", "", false, "", routingFlagValues{}, false, false, false, 0, false, "", false, "", "", false, "", false, false, "", false, "", false, "30s", "", 10*1024*1024, false, false, false, "", "", "", "", "")
 }

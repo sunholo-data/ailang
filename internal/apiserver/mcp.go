@@ -38,7 +38,22 @@ func NewMCPServer(srv *Server) *MCPServer {
 	mcpSrv := mcp.NewServer(&mcp.Implementation{
 		Name:    "ailang-api",
 		Version: "0.8.1",
-	}, nil)
+	}, &mcp.ServerOptions{
+		// Tools and resources are fixed at boot (they are the loaded modules'
+		// exports), so never advertise listChanged. Left to the SDK default the
+		// capability is inferred as listChanged:true, and every MCP 2025-11-25
+		// client (Claude Code 2.1.27x, the go-sdk client) then opens a
+		// subscriptions/listen stream that the server holds open until the
+		// platform kills it. On Cloud Run that is a permanently in-flight request
+		// per connected session: the instance can never go idle, the client
+		// re-handshakes every 300s, and a service with zero real traffic bills
+		// 86,400 instance-seconds a day (docparse prod, measured 2026-09-21).
+		Capabilities: &mcp.ServerCapabilities{
+			Logging:   &mcp.LoggingCapabilities{},
+			Tools:     &mcp.ToolCapabilities{},
+			Resources: &mcp.ResourceCapabilities{},
+		},
+	})
 
 	ms := &MCPServer{
 		server:     srv,

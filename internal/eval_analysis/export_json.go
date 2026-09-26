@@ -42,7 +42,7 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 	agentTotalTokens := 0
 	totalAgentCost := 0.0
 	for _, r := range agentResults {
-		if r.StdoutOk {
+		if r.Passed() {
 			agentSuccessCount++
 		}
 		totalAgentTurns += r.AgentTurns
@@ -180,7 +180,7 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 		}
 		stats := langStats[r.ID][r.Lang]
 		stats.TotalRuns++
-		if r.StdoutOk {
+		if r.Passed() {
 			stats.SuccessRate = float64(int(stats.SuccessRate*float64(stats.TotalRuns-1))+1) / float64(stats.TotalRuns)
 		} else {
 			stats.SuccessRate = float64(int(stats.SuccessRate*float64(stats.TotalRuns-1))) / float64(stats.TotalRuns)
@@ -202,7 +202,7 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 				modelBenchStats[r.ID][r.Model][r.Lang] = ms
 			}
 			ms.runs++
-			if r.StdoutOk {
+			if r.Passed() {
 				ms.passes++
 			}
 		}
@@ -238,7 +238,7 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 			agentBenchStats[r.ID][r.Lang] = stats
 		}
 		stats.runs++
-		if r.StdoutOk {
+		if r.Passed() {
 			stats.success++
 		}
 		if ShouldExcludeFromCapability(r.ErrorCategory) {
@@ -255,7 +255,7 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 				stats.perHarness[r.Executor] = hs
 			}
 			hs.runs++
-			if r.StdoutOk {
+			if r.Passed() {
 				hs.success++
 			}
 			if ShouldExcludeFromCapability(r.ErrorCategory) {

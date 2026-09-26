@@ -1,0 +1,172 @@
+{
+  "date": "2026-09-16",
+  "commit": "24e3a908b",
+  "metrics": {
+    "closure_internal_packages": {
+      "value": 45,
+      "gate": null,
+      "dir": "le",
+      "how": "go list -deps over the language roots (leaves included)"
+    },
+    "closure_nonleaf_packages": {
+      "value": 31,
+      "gate": 36,
+      "dir": "le",
+      "how": "closure packages that import something under the module — the coupling that can ripple"
+    },
+    "closure_leaf_packages": {
+      "value": 14,
+      "gate": null,
+      "dir": "le",
+      "how": "closure packages importing nothing under the module"
+    },
+    "closure_leak_roots": {
+      "value": 0,
+      "gate": 0,
+      "dir": "le",
+      "detail": "",
+      "how": "third-party roots {sqlite3, otel sdk/exporters, grpc, websocket, gcp firestore/pubsub/storage/trace} in that closure"
+    },
+    "closure_platform_packages": {
+      "value": 0,
+      "gate": 0,
+      "dir": "le",
+      "detail": "",
+      "how": "platform packages reachable from the language roots"
+    },
+    "binary_internal_packages": {
+      "value": 124,
+      "gate": null,
+      "dir": "le",
+      "how": "go list -deps ./cmd/ailang"
+    },
+    "internal_packages": {
+      "value": 135,
+      "gate": null,
+      "dir": "le",
+      "how": "go list ./internal/..."
+    },
+    "internal_loc": {
+      "value": 307301,
+      "gate": null,
+      "dir": "le",
+      "how": "non-test Go lines under internal/"
+    },
+    "cmd_ailang_loc": {
+      "value": 60749,
+      "gate": null,
+      "dir": "le",
+      "how": "non-test Go lines under cmd/ailang"
+    },
+    "cmd_ailang_files": {
+      "value": 229,
+      "gate": null,
+      "dir": "le",
+      "how": "non-test Go files under cmd/ailang"
+    },
+    "commands_top_level": {
+      "value": 89,
+      "gate": 20,
+      "dir": "le",
+      "how": "distinct case labels in cmd/ailang/main.go until the dispatch table lands"
+    },
+    "flag_names_distinct": {
+      "value": 388,
+      "gate": null,
+      "dir": "le",
+      "how": "distinct FlagSet definition names in cmd/ailang"
+    },
+    "getenv_sites_total": {
+      "value": 110,
+      "gate": null,
+      "dir": "le",
+      "how": "os.Getenv/LookupEnv call sites, non-test"
+    },
+    "getenv_outside_config": {
+      "value": 0,
+      "gate": 0,
+      "dir": "le",
+      "how": "same, excluding internal/config, internal/statedir, internal/testutil and DEBUG_* knobs"
+    },
+    "env_vars_distinct": {
+      "value": 246,
+      "gate": null,
+      "dir": "le",
+      "how": "distinct literal names read"
+    },
+    "env_vars_documented_pct": {
+      "value": 100,
+      "gate": 100,
+      "dir": "ge",
+      "detail": "246",
+      "how": "named in CLAUDE.md, .claude/rules, debugging.md, README, reference/env-vars.md"
+    },
+    "backend_switches": {
+      "value": 1,
+      "gate": 1,
+      "dir": "le",
+      "how": "independent which-backend env vars still read"
+    },
+    "dup_symbol_names": {
+      "value": 14,
+      "gate": null,
+      "dir": "le",
+      "how": "top-level func names declared in >=3 packages (tools/dup_symbols.sh lists them)"
+    },
+    "packages_without_doc": {
+      "value": 14,
+      "gate": 0,
+      "dir": "le",
+      "detail": "internal/core internal/dtree internal/effects/testctx internal/eval_analysis internal/eval_analyzer internal/lexer internal/link internal/loader internal/modelreg internal/parser internal/prompt internal/runtime internal/typedast internal/websocket",
+      "how": "internal packages with no // Package comment"
+    },
+    "skill_trees": {
+      "value": 2,
+      "gate": 1,
+      "dir": "le",
+      "how": ".agents/skills present and differing from .claude/skills"
+    },
+    "instruction_surface_bytes": {
+      "value": 27389,
+      "gate": 25600,
+      "dir": "le",
+      "how": "CLAUDE.md + unscoped rules + skill descriptions"
+    },
+    "instruction_surface_with_memory_bytes": {
+      "value": 52700,
+      "gate": null,
+      "dir": "le",
+      "how": "plus the MEMORY.md index on this machine"
+    },
+    "tracked_files": {
+      "value": 25101,
+      "gate": 8000,
+      "dir": "le",
+      "how": "git ls-files"
+    },
+    "root_entries": {
+      "value": 75,
+      "gate": null,
+      "dir": "le",
+      "how": "entries at repo root incl. untracked"
+    },
+    "root_sprint_files": {
+      "value": 0,
+      "gate": 0,
+      "dir": "le",
+      "how": "sprint_* / sprint-* files at repo root"
+    },
+    "planned_design_docs": {
+      "value": 254,
+      "gate": null,
+      "dir": "le",
+      "how": "markdown files under design_docs/planned"
+    },
+    "test_core_seconds": {
+      "value": 18,
+      "gate": 15,
+      "dir": "le",
+      "how": "wall time of make test-core"
+    }
+  }
+}

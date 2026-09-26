@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/runner"
 	"os"
 
 	"runtime/debug"
@@ -31,7 +32,9 @@ func runCommand() {
 	printFlag := fs.Bool("print", true, "Print return value (even for unit type)")
 	noPrintFlag := fs.Bool("no-print", false, "Suppress output (exit code only)")
 	batchFlag := fs.Bool("batch", false, "Batch mode: compile once, run entrypoint per input (remaining args are inputs)")
-	capsFlag := fs.String("caps", "", "Enable capabilities (comma-separated: IO,FS,Net,Env,Process; or 'auto' to infer from the entrypoint)")
+	capsFlag := fs.String("caps", "", "Enable capabilities (comma-separated: "+runner.CapsList+"; or 'auto' to infer from the entrypoint)")
+	policyFlag := fs.String("policy", "", "Gate the run by an operator program policy (agent-policy.toml): caps, net allowlist, FS sandbox, entry and limits come from the file; every widening flag is refused by name; denial prints the decision JSON and exits 2 without running; the run is supervised (timeout_ms, output cap)")
+	policyWorkerFlag := fs.Int("policy-worker", 0, "internal: the control-pipe fd handed to the worker by a supervising `run --policy`; never pass by hand")
 	maxRecursionDepthFlag := fs.Int("max-recursion-depth", 10000, "Maximum recursion depth (default: 10000)")
 
 	// Stdlib resolution flags
@@ -61,6 +64,7 @@ func runCommand() {
 
 	// Module relaxation flag
 	relaxModulesFlag := fs.Bool("relax-modules", false, "Relax MOD010 validation (allow module path mismatches with warning)")
+	packageDirFlag := fs.String("package-dir", "", "Package root whose ailang.toml/ailang.lock govern this run (default: found upward from the file); also lets MOD010 accept the package's canonical module paths. What an installed [bin] shim passes.")
 
 	// Type debugging flags (M-DX11)
 	debugTypesFlag := fs.Bool("debug-types", false, "Show type inference debug output (substitutions, constraints, CoreTI)")
@@ -71,6 +75,7 @@ func runCommand() {
 	netAllowDomainsFlag := fs.String("net-allow-domains", "", "Domain allowlist for Net requests (comma-separated)")
 	netAllowLocalhostFlag := fs.Bool("net-allow-localhost", false, "Allow localhost Net requests")
 	netAllowMetadataFlag := fs.Bool("net-allow-metadata", false, "Allow cloud metadata server (169.254.169.254) for GCP/AWS/Azure")
+	netTimeoutFlag := fs.String("net-timeout", "", "Per-request timeout for Net effect HTTP calls (e.g. 300s, 5m; default 30s)")
 
 	// Stream capability flags (M-STREAM-BIDI)
 	streamAllowHTTPFlag := fs.Bool("stream-allow-http", false, "Allow insecure ws:// connections (default: wss:// only)")
@@ -79,7 +84,7 @@ func runCommand() {
 
 	// Process capability flags (M-PROCESS)
 	processTimeoutFlag := fs.String("process-timeout", "30s", "Process execution timeout (e.g., 10s, 1m)")
-	processAllowlistFlag := fs.String("process-allowlist", "", "Allowed commands (comma-separated, path-pinned at startup)")
+	processAllowlistFlag := fs.String("process-allowlist", "", "Allowed commands (comma-separated, path-pinned at startup). cmd:sub narrows a command to a subcommand chain: git:status,gh:pr:list; git:* = any subcommand")
 	processMaxOutputFlag := fs.Int64("process-max-output", 10*1024*1024, "Maximum stdout+stderr bytes before kill (default: 10MB)")
 
 	// Budget bypass flag (M-CAPABILITY-BUDGETS)
@@ -105,7 +110,8 @@ func runCommand() {
 	traceTierFlag := fs.String("trace-tier", "", "Tracing tier (off|standard|deep). Overrides AILANG_TRACE env var.")
 
 	// Memory limit flag (M-EVAL-BOUNDED-PIPELINE)
-	maxMemoryFlag := fs.String("max-memory", "", "Memory limit (e.g., 256MB, 1GB). Triggers aggressive GC near limit.")
+	maxMemoryFlag := fs.String("max-memory", "", "Go soft memory limit: a size (256MB, 1GB) or 'cgroup' (the container limit x 0.9). Unset = AILANG_MEMLIMIT, else none.")
+	fsMaxBytesFlag := fs.String("fs-max-bytes", "", "Cap on every FS read (e.g. 10MB); unset = AILANG_FS_MAX_BYTES, else unbounded. Oversize reads fail with E_FS_FILE_TOO_LARGE.")
 
 	// CPU/memory profiling
 	cpuprofileFlag := fs.String("cpuprofile", "", "Write CPU profile to file (Go pprof format)")
@@ -191,12 +197,10 @@ func runCommand() {
 	}
 
 	// Apply memory limit early (process-wide setting)
-	if *maxMemoryFlag != "" {
-		if err := applyMemoryLimit(*maxMemoryFlag); err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
-			fmt.Println("Examples: 256MB, 512MB, 1GB, 2GB")
-			os.Exit(1)
-		}
+	if _, err := applyResolvedMemoryLimit(*maxMemoryFlag, *quietFlag || *jsonFlag); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		fmt.Println("Examples: 256MB, 512MB, 1GB, 2GB, cgroup")
+		os.Exit(1)
 	}
 
 	// Check for filename argument
@@ -208,6 +212,38 @@ func runCommand() {
 	}
 
 	filename := fs.Arg(0)
+
+	// M-AGENT-AILANG-ONLY-EXECUTION M2: with --policy the authority is the
+	// file. Resolved here into the existing flag values rather than threaded
+	// as another runFile parameter.
+	if *policyFlag != "" {
+		// Every flag the caller set explicitly, by name: the refusal list is
+		// checked against what was PASSED, not against values.
+		widening := runPolicyWidening{set: map[string]bool{}}
+		fs.Visit(func(f *flag.Flag) { widening.set[f.Name] = true })
+		if *policyWorkerFlag == 0 {
+			// PARENT: supervise a worker and exit with its verdict. Nothing
+			// executes in this process (M-EXECUTOR-POLICY-HARDENING M3).
+			os.Exit(supervisePolicyRun(*policyFlag, filename, widening, os.Args[2:]))
+		}
+		control := os.NewFile(uintptr(*policyWorkerFlag), "policy-control")
+		resolved := applyRunPolicy(*policyFlag, filename, widening, control)
+		*capsFlag = resolved.caps
+		*aiModelFlag = resolved.aiModel
+		*aiStubFlag = resolved.aiStub
+		*entryFlag = resolved.entry
+		if resolved.netDomains != "" {
+			*netAllowDomainsFlag = resolved.netDomains
+			*streamAllowDomainsFlag = resolved.netDomains
+		}
+		*netAllowHTTPFlag = resolved.netAllowHTTP
+		*streamAllowHTTPFlag = resolved.netAllowHTTP
+		*netAllowLocalhostFlag = resolved.netAllowLocalhost
+		*streamAllowLocalhostFlag = resolved.netAllowLocalhost
+		if resolved.processAllow != "" {
+			*processAllowlistFlag = resolved.processAllow
+		}
+	}
 
 	// M-BYTECODE-VM Phase 2D M3: bytecode VM execution is now spliced into
 	// the regular runFile path so the VM and evaluator share the same module
@@ -227,5 +263,5 @@ func runCommand() {
 		}
 	}
 
-	runFile(filename, programArgs, *traceFlag, *seedFlag, *virtualTime, *jsonFlag, *compactFlag, *quietFlag, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag, *noMonoFlag, *debugCompileFlag, *strictSyntaxFlagRun, *entryFlag, *argsJSONFlag, *printFlag, *noPrintFlag, *batchFlag, *capsFlag, *maxRecursionDepthFlag, *stdlibPathFlag, *traceLoaderFlag, *strictVersionFlag, *allowEnvFlag, *allowEnvFileFlag, *envFlag, *envSnapshotFlag, *writeEnvSnapshotFlag, *aiStubFlag, *aiModelFlag, routingValues, *debugFlag, *relaxModulesFlag, *debugTypesFlag, *debugTypesNodeFlag, *noBudgetsFlag, *budgetReportFlag, *verifyContractsFlag, *emitTraceFlag, *traceTierFlag, *netAllowHTTPFlag, *netAllowDomainsFlag, *netAllowLocalhostFlag, *netAllowMetadataFlag, *streamAllowHTTPFlag, *streamAllowDomainsFlag, *streamAllowLocalhostFlag, *processTimeoutFlag, *processAllowlistFlag, *processMaxOutputFlag, *releaseFlag, *bytecodeFlag, *strictBytecodeFlag, *orRefererFlag, *orTitleFlag, *orCategoriesFlag)
+	runFile(filename, programArgs, *traceFlag, *seedFlag, *virtualTime, *jsonFlag, *compactFlag, *quietFlag, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag, *noMonoFlag, *debugCompileFlag, *strictSyntaxFlagRun, *entryFlag, *argsJSONFlag, *printFlag, *noPrintFlag, *batchFlag, *capsFlag, *maxRecursionDepthFlag, *stdlibPathFlag, *traceLoaderFlag, *strictVersionFlag, *allowEnvFlag, *allowEnvFileFlag, *envFlag, *envSnapshotFlag, *writeEnvSnapshotFlag, *aiStubFlag, *aiModelFlag, routingValues, *debugFlag, *relaxModulesFlag, *debugTypesFlag, *debugTypesNodeFlag, *noBudgetsFlag, *budgetReportFlag, *verifyContractsFlag, *emitTraceFlag, *traceTierFlag, *netAllowHTTPFlag, *netAllowDomainsFlag, *netAllowLocalhostFlag, *netAllowMetadataFlag, *netTimeoutFlag, *streamAllowHTTPFlag, *streamAllowDomainsFlag, *streamAllowLocalhostFlag, *processTimeoutFlag, *processAllowlistFlag, *processMaxOutputFlag, *releaseFlag, *bytecodeFlag, *strictBytecodeFlag, *orRefererFlag, *orTitleFlag, *orCategoriesFlag, *fsMaxBytesFlag, *packageDirFlag)
 }

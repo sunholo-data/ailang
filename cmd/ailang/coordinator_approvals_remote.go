@@ -1,0 +1,327 @@
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"flag"
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/sunholo-data/ailang/internal/config"
+	"github.com/sunholo-data/ailang/internal/coordinator"
+	"github.com/sunholo-data/ailang/internal/storage"
+)
+
+// `ailang coordinator approvals` — review and resolve approvals on ANY plane.
+//
+// An approval releases work: approving a merge_handoff dispatches the next agent
+// in the chain. So the card has to carry enough to decide on, and the decision
+// has to reach the store that actually holds the approval.
+//
+// Neither was true before. The approve path was hardcoded to local SQLite, and
+// nothing printed which plane it was acting on.
+
+func coordinatorApprovalsCommand(args []string) error {
+	fs := flag.NewFlagSet("coordinator approvals", flag.ExitOnError)
+	remote := fs.String("remote", "", "plane: local|gcp (default $AILANG_STORAGE_COORDINATOR, then $AILANG_STORAGE)")
+	stateDir := fs.String("state-dir", "", "local state dir (local mode only)")
+	full := fs.Bool("full", false, "print the whole diff rather than a summary")
+	clearOrphans := fs.Bool("clear-orphans", false, "cancel tasks awaiting an approval that does not exist")
+	force := fs.Bool("force", false, "with --clear-orphans, also cancel tasks that still have a worktree")
+	asJSON := fs.Bool("json", false, "emit the queue as JSON (for hooks and agents)")
+	refreshCards := fs.Bool("refresh-cards", false, "check every pending card against its branch and report disagreements")
+	apply := fs.Bool("apply", false, "with --refresh-cards, rewrite the stale cards from their branches")
+	_ = fs.Parse(args)
+
+	ctx := context.Background()
+	bundle, err := openCoordinatorStore(ctx, *remote, *stateDir)
+	if err != nil {
+		return err
+	}
+	defer bundle.Close()
+
+	// --json is the machine path: it prints ONLY the document, and errors as a
+	// non-zero exit rather than an empty queue. Handled before the human view
+	// so no banner line ever lands on stdout ahead of it.
+	if *asJSON {
+		out, jErr := collectPendingApprovals(ctx, bundle, resolveApprovalAuthority(), time.Now())
+		if jErr != nil {
+			return jErr
+		}
+		return printApprovalsJSON(out)
+	}
+
+	// Always say which plane. "approved" against the wrong store looks exactly
+	// like success.
+	fmt.Printf("store: %s\n\n", bundle.Mode)
+
+	// Card repair is its own job: it rewrites evidence rather than listing it,
+	// so it never runs as a side effect of viewing the queue.
+	if *refreshCards {
+		reg, _, rErr := resolveInboxRegistry("")
+		if rErr != nil {
+			return fmt.Errorf("cannot load the registry — a task's repo comes from its agent: %w", rErr)
+		}
+		return refreshApprovalCards(ctx, bundle, reg, *apply)
+	}
+
+	pending, err := bundle.Store.ListPendingApprovals(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to list pending approvals: %w", err)
+	}
+
+	// Orphans are looked up EVERY time, not behind a flag. A task stuck in
+	// pending_approval with no record is invisible to this view and refused by
+	// approve/reject, so the old "No pending approvals." was a lie told to an
+	// operator with 16 stuck tasks in prod.
+	orphans, oErr := findOrphanedApprovals(ctx, bundle.Store)
+	if oErr != nil {
+		// Loud, not fatal: the real approvals below are still worth showing.
+		fmt.Printf("⚠ could not check for orphaned approvals: %v\n\n", oErr)
+	}
+
+	if *clearOrphans {
+		if len(orphans) == 0 {
+			fmt.Println("No orphaned approvals to clear.")
+			return nil
+		}
+		cleared, skipped, cErr := clearOrphanedApprovals(ctx, bundle.Store, orphans, *force)
+		fmt.Printf("\ncleared %d, skipped %d\n", cleared, skipped)
+		return cErr
+	}
+
+	switch {
+	case len(pending) == 0 && len(orphans) == 0:
+		fmt.Println("No pending approvals.")
+	case len(pending) == 0:
+		fmt.Println("No actionable approvals.")
+	default:
+		for _, req := range pending {
+			printApprovalCard(req, *full)
+		}
+		fmt.Printf("\n%d pending. Approve with:\n", len(pending))
+		fmt.Printf("  ailang coordinator approve <task-id> --remote %s\n", firstWord(bundle.Mode))
+	}
+
+	reportOrphanedApprovals(orphans, firstWord(bundle.Mode))
+	return nil
+}
+
+// printApprovalCard shows what the approval actually releases.
+//
+// The four things a reviewer needs and could not previously see: what changed,
+// what it was asked to do, what approving will START, and whether the diff is
+// real or absent. A card that renders a confident "Files (0)" gets approved
+// blind — measured twice (#921) — so an absent diff is stated as absent.
+func printApprovalCard(req *coordinator.ApprovalRequestRecord, full bool) {
+	fmt.Printf("── %s ──\n", req.ID)
+	fmt.Printf("  task:    %s\n", req.TaskID)
+	fmt.Printf("  type:    %s\n", req.Type)
+	fmt.Printf("  created: %s\n", req.CreatedAt.Format(time.RFC3339))
+	if req.Description != "" {
+		fmt.Printf("  what:    %s\n", req.Description)
+	}
+
+	if req.ContextJSON == "" {
+		fmt.Println("  ⚠ no context recorded — nothing to review")
+		fmt.Println()
+		return
+	}
+
+	var ctxData struct {
+		HandoffTargets  []string `json:"handoff_targets"`
+		SourceAgent     string   `json:"source_agent"`
+		ChangedFiles    []string `json:"changed_files"`
+		DiffStat        string   `json:"diff_stat"`
+		Diff            string   `json:"diff"`
+		DiffUnavailable string   `json:"diff_unavailable"`
+	}
+	if err := json.Unmarshal([]byte(req.ContextJSON), &ctxData); err != nil {
+		fmt.Printf("  ⚠ context could not be parsed: %v\n\n", err)
+		return
+	}
+
+	// What approving STARTS. This is the part that makes an approval more than a
+	// merge: on a merge_handoff it dispatches the next agent.
+	if len(ctxData.HandoffTargets) > 0 {
+		fmt.Printf("  ⚠ APPROVING DISPATCHES: %s\n", strings.Join(ctxData.HandoffTargets, ", "))
+		if ctxData.SourceAgent != "" {
+			fmt.Printf("    (handoff from %s)\n", ctxData.SourceAgent)
+		}
+	}
+
+	switch {
+	case ctxData.DiffUnavailable != "":
+		fmt.Printf("  ⚠ DIFF UNAVAILABLE: %s\n", ctxData.DiffUnavailable)
+		fmt.Println("    Approving this means approving a change you cannot see.")
+	case len(ctxData.ChangedFiles) == 0:
+		fmt.Println("  ⚠ no changed files recorded")
+	default:
+		fmt.Printf("  files:   %d\n", len(ctxData.ChangedFiles))
+		for i, f := range ctxData.ChangedFiles {
+			if i == 12 && !full {
+				fmt.Printf("           … and %d more (--full)\n", len(ctxData.ChangedFiles)-12)
+				break
+			}
+			fmt.Printf("           %s\n", f)
+		}
+		if ctxData.DiffStat != "" {
+			fmt.Printf("  stat:    %s\n", strings.TrimSpace(ctxData.DiffStat))
+		}
+	}
+
+	if full && ctxData.Diff != "" {
+		fmt.Println("\n--- diff ---")
+		fmt.Println(ctxData.Diff)
+	}
+	fmt.Println()
+}
+
+// coordinatorResolveRemote approves or rejects on the resolved plane, using the
+// SAME processor the dashboard uses — so handoffs fire immediately rather than
+// waiting for the coordinator's next startup sweep.
+func coordinatorResolveRemote(args []string, action string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("usage: ailang coordinator %s <task-id|approval-id> --remote gcp", action)
+	}
+	taskID := args[0]
+
+	fs := flag.NewFlagSet("coordinator "+action, flag.ExitOnError)
+	remote := fs.String("remote", "", "plane: local|gcp")
+	stateDir := fs.String("state-dir", "", "local state dir (local mode only)")
+	by := fs.String("by", "", "who is approving (defaults to $USER)")
+	feedback := fs.String("feedback", "", "feedback text (rejections)")
+	yes := fs.Bool("yes", false, "skip the confirmation prompt")
+	_ = fs.Parse(args[1:])
+
+	ctx := context.Background()
+	bundle, err := openCoordinatorStore(ctx, *remote, *stateDir)
+	if err != nil {
+		return err
+	}
+	defer bundle.Close()
+
+	fmt.Printf("store: %s\n", bundle.Mode)
+
+	// Show the card before acting on it. An approval that dispatches the next
+	// agent should never be a blind yes.
+	if req, err := bundle.Store.GetApprovalRequestByTaskAnyStatus(ctx, strings.Replace(taskID, "apr-", "task-", 1)); err == nil && req != nil {
+		printApprovalCard(req, false)
+		if req.Status != "pending" {
+			return fmt.Errorf("approval %s is already %q — nothing to do", req.ID, req.Status)
+		}
+	}
+
+	if !*yes {
+		fmt.Printf("%s %s? [y/N] ", strings.ToUpper(action), taskID)
+		var answer string
+		_, _ = fmt.Scanln(&answer)
+		if !strings.EqualFold(strings.TrimSpace(answer), "y") {
+			fmt.Println("Aborted.")
+			return nil
+		}
+	}
+
+	// Who decided. An unattended controller approval used to record $USER —
+	// on this fleet that is the same login Mark's own sessions run under, so
+	// the audit trail could not tell a 3am fable controller from the operator.
+	// The resolved identity names the actual decider (controller id, or the
+	// attended session), and --by still overrides it.
+	who := *by
+	if who == "" {
+		who = resolveApprovalAuthority().Identity
+	}
+	if who == "" {
+		who = config.User()
+	}
+	if who == "" {
+		who = "cli-user"
+	}
+
+	// An approval that cannot fire its handoffs must not report success.
+	//
+	// ProcessApprovalRequest reads TriggerOnComplete off the agent it looks up in
+	// this registry. LoadAgentRegistry returns the LOCAL config (~/.ailang or
+	// $AILANG_CONFIG) and reports **no error** when that config simply has no
+	// cloud agents — so approving a cloud task from a laptop marked the approval
+	// "approved", fired nothing, and left the task pending_approval forever.
+	//
+	// Measured 2026-09-07 on task-3807b3e1: approval recorded, sprint-planner
+	// never dispatched, task still pending. It is the same signature as two
+	// eval-rig tasks stranded since 2026-08-26, which is how long this has been
+	// silently true. Refusing here is the difference between a bug and a lie.
+	//
+	// But the guard must ask the registry for the plane the TASK is on, not the
+	// one this laptop happens to carry. It read LoadAgentRegistry() — this
+	// machine's config — for sixteen days, and on a laptop that config declares
+	// two agents (eval-rig, sprint-evaluator). Every cloud task's agent failed
+	// to resolve, so the guard built to stop a silent lie refused every honest
+	// approval instead: 83 pending on prod by 2026-09-23, oldest 2026-09-11,
+	// nothing decidable from a terminal since. The dashboard kept working
+	// throughout (it runs against /etc/ailang-config, which does declare them),
+	// which is exactly what made the fault look intermittent.
+	//
+	// resolveInboxRegistryForPlane is what `coordinator agents` already uses —
+	// the same concept had two implementations and only the other one was right.
+	agentRegistry, registrySource, regErr := approvalRegistry(bundle.Mode)
+	if err := checkRegistryCanDispatch(ctx, bundle, agentRegistry, regErr, taskID, action); err != nil {
+		return err
+	}
+
+	result, err := coordinator.ProcessApprovalRequest(ctx, &coordinator.ApprovalParams{
+		TaskID:        taskID,
+		Action:        action,
+		ApprovedBy:    who,
+		Channel:       "cli",
+		Feedback:      *feedback,
+		Store:         bundle.Store,
+		MsgStore:      bundle.MsgStore,
+		ObsBackend:    bundle.ObsBackend,
+		AgentRegistry: agentRegistry,
+		// A cloud task has no worktree to merge or clean up; the branch is already
+		// pushed and its PR already open.
+		SkipMerge: bundle.MsgStore != nil,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to %s: %w", action, err)
+	}
+
+	fmt.Printf("\n✓ %sd %s (by %s)\n", action, taskID, who)
+	// Name the registry the handoff topology came from. A dispatch from the
+	// wrong registry is indistinguishable from one from the right registry.
+	if registrySource != "" {
+		fmt.Printf("  handoff topology from: %s\n", registrySource)
+	}
+
+	// And the pull request the decision was ABOUT. A cloud task sets SkipMerge
+	// (there is no worktree), which used to mean the branch was simply
+	// abandoned: 22 open coordinator PRs belonged to already-rejected or failed
+	// tasks, and one belonged to a task approved twenty minutes earlier.
+	reconcileTaskPR(taskID, bundle.Store, agentRegistry)
+	if result != nil && result.Message != "" {
+		fmt.Printf("  %s\n", result.Message)
+	}
+	return nil
+}
+
+// approvalRegistry resolves the registry whose trigger_on_complete this
+// approval's handoffs will be dispatched from, for the plane the task is on.
+//
+// It takes the bundle's Mode LABEL, not a plane, because that is what the call
+// site has and the conversion is the part that breaks: Mode reads "gcp (project
+// ailang-multivac, via config.yaml pubsub.project_id)", and storage.Mode of
+// that string equals no plane at all. It falls through to this machine's
+// config, resolves no cloud agent, and the guard refuses every approval —
+// silently, and identically to the original fault. Conversion and resolution
+// live together here so one test covers both.
+func approvalRegistry(bundleMode string) (*coordinator.AgentRegistry, string, error) {
+	return resolveInboxRegistryForPlane("", storage.Mode(firstWord(bundleMode)))
+}
+
+func firstWord(s string) string {
+	if i := strings.IndexByte(s, ' '); i > 0 {
+		return s[:i]
+	}
+	return s
+}

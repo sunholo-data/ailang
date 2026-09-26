@@ -3,9 +3,10 @@ package openrouter
 import (
 	"context"
 	"net/http"
-	"os"
 
 	"github.com/sunholo-data/ailang/internal/ai"
+	"github.com/sunholo-data/ailang/internal/config"
+	"github.com/sunholo-data/ailang/internal/strutil"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -34,18 +35,28 @@ const (
 //     OPENROUTER_CATEGORIES
 //  3. Built-in defaults
 func setAttributionHeaders(r *http.Request, attr *ai.Attribution) {
+	for k, vs := range attributionHeaders(attr) {
+		for _, v := range vs {
+			r.Header.Set(k, v)
+		}
+	}
+}
+
+// attributionHeaders builds the OpenRouter attribution headers (see
+// setAttributionHeaders) in http.Header form for ai.DoJSON callers.
+func attributionHeaders(attr *ai.Attribution) http.Header {
 	referer := defaultHTTPReferer
 	title := defaultXTitle
 	categories := defaultCategories
 
-	// Layer 2: env vars override defaults
-	if v := os.Getenv("OPENROUTER_HTTP_REFERER"); v != "" {
+	envAttr := config.OpenRouterAttributionConfig() // Layer 2: env vars override defaults
+	if v := envAttr.HTTPReferer; v != "" {
 		referer = v
 	}
-	if v := os.Getenv("OPENROUTER_X_TITLE"); v != "" {
+	if v := envAttr.XTitle; v != "" {
 		title = v
 	}
-	if v := os.Getenv("OPENROUTER_CATEGORIES"); v != "" {
+	if v := envAttr.Categories; v != "" {
 		categories = v
 	}
 
@@ -62,10 +73,19 @@ func setAttributionHeaders(r *http.Request, attr *ai.Attribution) {
 		}
 	}
 
-	r.Header.Set("HTTP-Referer", referer)
-	r.Header.Set("X-OpenRouter-Title", title) // Canonical (v0.16.0+)
-	r.Header.Set("X-Title", title)            // Backwards compat
-	r.Header.Set("X-OpenRouter-Categories", categories)
+	return http.Header{
+		"HTTP-Referer":            []string{referer},
+		"X-OpenRouter-Title":      []string{title}, // Canonical (v0.16.0+)
+		"X-Title":                 []string{title}, // Backwards compat
+		"X-OpenRouter-Categories": []string{categories},
+	}
+}
+
+// requestHeaders is the bearer auth plus attribution every OpenRouter call carries.
+func (c *Client) requestHeaders(attr *ai.Attribution) http.Header {
+	h := attributionHeaders(attr)
+	h.Set("Authorization", "Bearer "+c.apiKey)
+	return h
 }
 
 // Client implements ai.Provider for OpenRouter's unified Chat Completions API.
@@ -125,7 +145,7 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 			attribute.String("ai.provider", "openrouter"),
 			attribute.String("ai.model", req.Model),
 			attribute.String("ai.api_type", "chat"),
-			attribute.String("ai.prompt_preview", telemetry.Truncate(req.UserPrompt, 100)),
+			attribute.String("ai.prompt_preview", strutil.Truncate(req.UserPrompt, 100)),
 		),
 	)
 	defer span.End()
@@ -141,7 +161,7 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 	resp, err := c.generateChat(ctx, req, reasoning)
 	if err != nil {
 		span.SetAttributes(
-			attribute.String("error.message", telemetry.Truncate(err.Error(), 200)),
+			attribute.String("error.message", strutil.Truncate(err.Error(), 200)),
 			attribute.String("error.category", telemetry.CategorizeError(err)),
 		)
 		span.RecordError(err)
@@ -156,7 +176,7 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 		attribute.Int("ai.tokens_total", resp.TotalTokens),
 		attribute.Int("ai.tokens_cached", resp.CachedTokens),
 		attribute.String("ai.cost_usd", resp.CostUSD),
-		attribute.String("ai.response_preview", telemetry.Truncate(resp.Text, 100)),
+		attribute.String("ai.response_preview", strutil.Truncate(resp.Text, 100)),
 	)
 
 	return resp, nil

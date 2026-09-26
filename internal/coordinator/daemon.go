@@ -12,10 +12,12 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/feedbackgate"
 	"github.com/sunholo-data/ailang/internal/messaging"
 	"github.com/sunholo-data/ailang/internal/observatory"
 	"github.com/sunholo-data/ailang/internal/pubsub"
+	"github.com/sunholo-data/ailang/internal/statedir"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	traceAttribute "go.opentelemetry.io/otel/attribute"
 )
@@ -31,11 +33,21 @@ type Config struct {
 	DevMode              bool          // Skip stale detector + approval watcher, increase poll interval
 }
 
-// DefaultConfig returns sensible defaults
+// DefaultConfig returns sensible defaults. StateDir comes from statedir.Dir()
+// so AILANG_STATE_DIR is honoured; when neither it nor HOME resolves the
+// state paths are left EMPTY and NewDaemon refuses to start, rather than
+// creating a relative .ailang/state beside the process.
 func DefaultConfig() *Config {
 	homeDir, _ := os.UserHomeDir()
-	stateDir := filepath.Join(homeDir, ".ailang", "state")
 	logsDir := filepath.Join(homeDir, ".ailang", "logs")
+	stateDir, err := statedir.Dir()
+	if err != nil {
+		return &Config{
+			PollInterval: 30 * time.Second,
+			MaxWorktrees: 3,
+			LogFile:      filepath.Join(logsDir, "coordinator.log"),
+		}
+	}
 
 	return &Config{
 		PollInterval: 30 * time.Second,
@@ -62,6 +74,12 @@ type Status struct {
 	TotalTokens      int     `json:"total_tokens,omitempty"`
 }
 
+// taskExecutor is the narrow seam executeTask needs. The single production
+// implementor is *TaskExecutor (assigned in daemon_tasks_init.go).
+type taskExecutor interface {
+	ExecuteWithRetry(ctx context.Context, task *AnalyzedTask, opts *ExecuteOptions, maxRetries int) (*ExecuteResult, error)
+}
+
 // Daemon is the coordinator daemon
 type Daemon struct {
 	config    *Config
@@ -71,6 +89,13 @@ type Daemon struct {
 	cancel    context.CancelFunc
 	startedAt time.Time
 	tasksRun  int
+
+	// lastPackageAgentRefresh throttles the registry-index re-read that
+	// derives inbox agents for newly published packages (M-PKG-QUALITY-LADDER M6).
+	lastPackageAgentRefresh time.Time
+
+	// lastLandedCardSweep throttles the PR -> card sweep (daemon_landed_cards.go).
+	lastLandedCardSweep time.Time
 
 	// approvalDedup suppresses duplicate Pub/Sub push deliveries of secret
 	// approvals (at-least-once). Lazily initialised on first push.
@@ -85,7 +110,7 @@ type Daemon struct {
 	analyzer         *TaskAnalyzer
 	worktreeMgr      *WorktreeManager // Legacy: default worktree manager
 	taskStore        Store
-	executor         *TaskExecutor
+	executor         taskExecutor
 
 	// Agent configuration
 	agentRegistry *AgentRegistry
@@ -206,6 +231,9 @@ func NewDaemon(config *Config) (*Daemon, error) {
 	if config == nil {
 		config = DefaultConfig()
 	}
+	if config.StateDir == "" {
+		return nil, fmt.Errorf("coordinator: no state directory: set %s (or HOME)", statedir.EnvVar)
+	}
 
 	// Ensure directories exist
 	if err := os.MkdirAll(filepath.Dir(config.LogFile), 0755); err != nil {
@@ -221,10 +249,19 @@ func NewDaemon(config *Config) (*Daemon, error) {
 		return nil, fmt.Errorf("failed to open log file: %w", err)
 	}
 
+	// The coordinator mode must agree with the storage plane before anything
+	// else starts: COORDINATOR_MODE=cloud with a SQLite coordinator or
+	// messaging store used to open the wrong database and publish to
+	// Pub/Sub about it (M-V1-SIMPLIFY-S3 M3).
+	if err := validateCoordinatorMode(); err != nil {
+		_ = logFile.Close()
+		return nil, err
+	}
+
 	// M-CLOUD-DISPATCH: In cloud mode, log to both file and stderr.
 	// Cloud Run only ingests stdout/stderr into Cloud Logging.
 	var writer io.Writer = logFile
-	if os.Getenv("COORDINATOR_MODE") == CoordinatorModeCloud {
+	if IsCloudMode() {
 		writer = io.MultiWriter(logFile, os.Stderr)
 	}
 	logger := log.New(writer, "[coordinator] ", log.LstdFlags|log.Lshortfile)
@@ -337,7 +374,7 @@ func (d *Daemon) Run() error {
 	// M-CLOUD-WEBHOOK: In cloud mode, use a longer poll interval (safety net only).
 	// Primary work arrives via push handlers and webhooks, not polling.
 	pollInterval := d.config.PollInterval
-	if os.Getenv("COORDINATOR_MODE") == CoordinatorModeCloud {
+	if IsCloudMode() {
 		pollInterval = 5 * time.Minute
 	}
 	ticker := time.NewTicker(pollInterval)
@@ -384,12 +421,12 @@ func (d *Daemon) Run() error {
 	d.logger.Println("Daemon running, polling for tasks...")
 
 	// Start HTTP health server if PORT env var is set (Cloud Run convention)
-	if port := os.Getenv("PORT"); port != "" {
+	if port := config.Port(); port != "" {
 		go d.startHealthServer(port)
 	}
 
 	// Initialize event broadcaster for real-time streaming
-	// COORDINATOR_MODE=cloud uses Pub/Sub, local (default) uses HTTP
+	// cloud mode uses Pub/Sub, local (default) uses HTTP
 	if err := d.initEventBroadcaster(); err != nil {
 		d.logger.Printf("Warning: Event broadcaster not available: %v", err)
 		d.logger.Println("Task streaming disabled - events will be logged only")
@@ -403,6 +440,11 @@ func (d *Daemon) Run() error {
 	if d.cloudInboxAdapter != nil && d.pubsubClient != nil && d.taskStore != nil {
 		subscriber := pubsub.NewSubscriber(d.pubsubClient)
 		d.completionHandler = NewCompletionHandler(subscriber, d.taskStore, d.msgStore, d.agentRegistry, d.logger)
+		// Without the observatory backend a cloud completion can set a status and
+		// nothing else — no chain, no stage, no metrics. That was the state of
+		// production: every chain "active", every stage frozen at "pending"
+		// (M-COMPLETION-PATH-PARITY M1).
+		d.completionHandler.SetFinalizationDeps(d.obsBackend, d.instanceID)
 		d.logger.Println("Cloud mode: completion handler ready (push delivery via /pubsub/completions)")
 	}
 
@@ -411,9 +453,18 @@ func (d *Daemon) Run() error {
 	// Catches container failures, Pub/Sub delivery failures, and missed completions.
 	// M-COST1: Skip in dev mode to reduce Firestore reads.
 	if IsCloudMode() && d.taskStore != nil && !d.config.DevMode {
-		detector := NewStaleTaskDetector(d.taskStore, d.agentRegistry, d.msgStore, d.logger)
+		detector := NewStaleTaskDetector(d.taskStore, d.agentRegistry, d.msgStore, d.logger).
+			WithObservatory(d.obsBackend)
 		go detector.Run(d.ctx)
 		d.logger.Println("Cloud mode: stale task detector started (interval=2m)")
+
+		// M-MESSAGE-PLANE-TRUST M1: receive-side floor under Pub/Sub delivery.
+		// Cloud intake reads the adapter only, so an undelivered notification is
+		// permanent rather than late. Defaults to report-only.
+		if d.cloudInboxAdapter != nil && d.msgStore != nil && d.agentRegistry != nil {
+			sweep := NewBackstopSweep(d.msgStore, d.agentRegistry, d.cloudInboxAdapter, d.logger)
+			go sweep.Run(d.ctx)
+		}
 	} else if d.config.DevMode {
 		d.logger.Println("Dev mode: stale task detector disabled")
 	}
@@ -425,8 +476,7 @@ func (d *Daemon) Run() error {
 
 	// M-CLOUD-WEBHOOK: In cloud mode, GitHub webhooks replace polling goroutines.
 	// Local mode keeps polling as before.
-	mode := os.Getenv("COORDINATOR_MODE")
-	if mode != CoordinatorModeCloud {
+	if !IsCloudMode() {
 		// Local mode: start polling-based GitHub sync and approval watcher
 		if d.coordConfig != nil && d.coordConfig.GitHubSync != nil && d.coordConfig.GitHubSync.Enabled {
 			go d.runGitHubSync()
@@ -492,6 +542,7 @@ func (d *Daemon) Run() error {
 			return nil
 		case <-ticker.C:
 			d.logger.Println("Checking for new tasks...")
+			d.refreshPackageAgents() // new packages get an inbox without a config roll
 			if d.msgAdapter != nil {
 				if err := d.pollAndProcessTasks(); err != nil {
 					d.logger.Printf("Error processing tasks: %v", err)
@@ -510,6 +561,8 @@ func (d *Daemon) Run() error {
 			// M-PIPELINE-RECONCILIATION M7: finalize approvals resolved on
 			// another machine for tasks whose worktree lives here.
 			d.sweepStrandedApprovals()
+			// Cards whose coordinator PR merged: the merge is the approval.
+			d.sweepLandedCards()
 
 		case <-retentionTicker.C:
 			// M-OBS-RETENTION: Run retention cleanup on observatory + coordinator DBs
@@ -565,6 +618,19 @@ func (d *Daemon) triggerMissedHandoffs() (int, error) {
 
 	triggered := 0
 	for _, approval := range missedApprovals {
+		// The window is applied HERE, once, for both stores. An approval older
+		// than it is not fired — its downstream is stale — and is resolved as
+		// expired so no later boot fetches it again: the candidate set holds only
+		// genuinely unresolved recent approvals, never a growing backlog
+		// (M-TASK-STATUS-TRUTH D3, quorum round 3).
+		if !approval.CreatedAt.IsZero() && time.Since(approval.CreatedAt) > HandoffRecoveryWindow {
+			if err := d.taskStore.MarkApprovalHandoffsExpired(d.ctx, approval.TaskID, workIDFromContext(approval.ContextJSON)); err != nil {
+				d.logger.Printf("Warning: could not expire stale approval %s: %v", approval.TaskID, err)
+			} else {
+				d.logger.Printf("Expired approval %s: older than the %v recovery window, handoffs not fired", approval.TaskID, HandoffRecoveryWindow)
+			}
+			continue
+		}
 		// Get the task for context
 		task, err := d.taskStore.GetTask(d.ctx, approval.TaskID)
 		if err != nil || task == nil {

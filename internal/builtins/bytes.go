@@ -28,6 +28,7 @@ func init() {
 	registerBytesFilename()
 	registerBytesMimeType()
 	registerBytesFromBase64URL()
+	registerBytesToBase64URL()
 }
 
 // ============================================================================
@@ -156,7 +157,7 @@ func registerBytesToBase64() {
 			Examples: []Example{
 				{Code: `_bytes_to_base64(bytes_from_string("hello"))`, Description: `Returns "aGVsbG8="`},
 			},
-			SeeAlso:   []string{"_bytes_from_base64", "_bytes_from_string"},
+			SeeAlso:   []string{"_bytes_from_base64", "_bytes_to_base64url", "_bytes_from_string"},
 			Since:     "v0.5.11",
 			Stability: StabilityStable,
 			Tags:      []string{"bytes", "base64", "encoding", "serialization"},
@@ -279,7 +280,7 @@ func registerBytesFromBase64URL() {
 				{Code: `_bytes_from_base64url("SGVsbG8")`, Description: "Returns Some(bytes for 'Hello')"},
 				{Code: `_bytes_from_base64url("invalid!!!")`, Description: "Returns None"},
 			},
-			SeeAlso:   []string{"_bytes_from_base64", "_bytes_to_base64"},
+			SeeAlso:   []string{"_bytes_to_base64url", "_bytes_from_base64", "_bytes_to_base64"},
 			Since:     "v0.9.5",
 			Stability: StabilityStable,
 			Tags:      []string{"bytes", "base64url", "jwt", "decoding", "option"},
@@ -320,6 +321,58 @@ func bytesFromBase64URLImpl(_ *effects.EffContext, args []eval.Value) (eval.Valu
 		CtorName:   "Some",
 		Fields:     []eval.Value{&eval.BytesValue{Value: decoded}},
 	}, nil
+}
+
+// registerBytesToBase64URL registers _bytes_to_base64url: bytes -> string
+//
+// The exact inverse of _bytes_from_base64url. Both use base64.RawURLEncoding
+// (RFC 4648 §5, URL-safe alphabet, NO padding) — a padded encoder here would
+// emit strings the sibling decoder rejects, so the two must not drift apart.
+func registerBytesToBase64URL() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/bytes",
+		Name:    "_bytes_to_base64url",
+		NumArgs: 1,
+		IsPure:  true,
+		Effect:  "",
+		Type:    makeBytesToBase64URLType,
+		Impl:    bytesToBase64URLImpl,
+
+		Metadata: &BuiltinMetadata{
+			Description: "Encode bytes as a base64url string (no padding)",
+			LongDesc:    "Encodes bytes using the URL-safe base64 alphabet (RFC 4648 §5): '-' and '_' replace '+' and '/', and no '=' padding is emitted. This is the required wire encoding for the Gmail API's raw message field and for JWT header/payload segments. Exact inverse of _bytes_from_base64url.",
+			Params: []ParamDoc{
+				{Name: "b", Description: "The bytes to encode"},
+			},
+			Returns: "Base64url encoded string (URL-safe alphabet, no padding)",
+			Examples: []Example{
+				{Code: `_bytes_to_base64url(_bytes_from_string("Hello"))`, Description: `Returns "SGVsbG8"`},
+				{Code: `_bytes_to_base64url(_bytes_from_string("a+b/c?"))`, Description: `Returns "YStiL2M_" (standard base64 would be "YStiL2M/")`},
+			},
+			SeeAlso:   []string{"_bytes_from_base64url", "_bytes_to_base64"},
+			Since:     "v0.35.4",
+			Stability: StabilityStable,
+			Tags:      []string{"bytes", "base64url", "jwt", "gmail", "encoding", "serialization"},
+			Category:  "bytes",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _bytes_to_base64url: %v", err))
+	}
+}
+
+func makeBytesToBase64URLType() types.Type {
+	T := types.NewBuilder()
+	return T.Func(T.Bytes()).Returns(T.String()).Build()
+}
+
+func bytesToBase64URLImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	bytesVal, ok := args[0].(*eval.BytesValue)
+	if !ok {
+		return nil, fmt.Errorf("_bytes_to_base64url: expected Bytes, got %T", args[0])
+	}
+
+	return &eval.StringValue{Value: base64.RawURLEncoding.EncodeToString(bytesVal.Value)}, nil
 }
 
 // registerBytesLength registers the _bytes_length builtin

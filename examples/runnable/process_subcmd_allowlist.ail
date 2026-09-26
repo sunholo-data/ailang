@@ -1,0 +1,36 @@
+-- process_subcmd_allowlist.ail — narrow a binary to named subcommands at the CLI
+--
+-- Run with a subcommand allowlist:
+--   ailang run --caps IO,Process --process-allowlist "echo:hello,date" \
+--     --entry main examples/runnable/process_subcmd_allowlist.ail
+--
+-- `echo:hello` lets the program run `echo hello …` and nothing else under echo;
+-- `date` (bare) allows any arguments. The refusal names the subcommand that was
+-- tried: Err(NotAllowed(echo bye)). Matching is positional from the first
+-- argument, so flags before the subcommand are refused too (fail closed).
+--
+-- verify-examples runs this WITHOUT the flag, so its pinned stdout shows both
+-- calls running; the narrowed behaviour is proved by
+-- cmd/ailang/process_subcmd_e2e_test.go against the built binary.
+module examples/runnable/process_subcmd_allowlist
+import std/io (println)
+import std/process (exec)
+import std/bytes (toString)
+
+export func main() -> () ! {IO, Process} {
+  -- allowed: first argument matches the chain
+  match exec("echo", ["hello", "world"]) {
+    Ok(out) => println("allowed: ${toString(out.stdout)}"),
+    Err(e) => println("unexpected: ${show(e)}")
+  };
+  -- refused: "bye" is not an allowed subcommand of echo
+  match exec("echo", ["bye"]) {
+    Ok(_) => println("ran: no --process-allowlist in effect"),
+    Err(e) => println("refused: ${show(e)}")
+  };
+  -- refused: echo with no subcommand at all
+  match exec("echo", []) {
+    Ok(_) => println("ran: no --process-allowlist in effect"),
+    Err(e) => println("refused: ${show(e)}")
+  }
+}

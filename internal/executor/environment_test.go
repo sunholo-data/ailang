@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 func TestFindNVMBinary(t *testing.T) {
@@ -14,9 +16,7 @@ func TestFindNVMBinary(t *testing.T) {
 	}
 	// Create a fake NVM directory structure
 	tmpDir := t.TempDir()
-	origHome := os.Getenv("HOME")
-	t.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	testutil.SetHomeDir(t, tmpDir)
 
 	nvmDir := filepath.Join(tmpDir, ".nvm", "versions", "node")
 
@@ -55,7 +55,7 @@ func TestFindNVMBinary_NoNVM(t *testing.T) {
 		t.Skip("NVM uses Unix paths; not applicable on Windows")
 	}
 	tmpDir := t.TempDir()
-	t.Setenv("HOME", tmpDir)
+	testutil.SetHomeDir(t, tmpDir)
 
 	// No .nvm directory at all
 	result := FindNVMBinary("claude")
@@ -69,7 +69,7 @@ func TestFindNVMNodeBinDir(t *testing.T) {
 		t.Skip("NVM uses Unix paths; not applicable on Windows")
 	}
 	tmpDir := t.TempDir()
-	t.Setenv("HOME", tmpDir)
+	testutil.SetHomeDir(t, tmpDir)
 
 	// Create one version with gemini
 	binDir := filepath.Join(tmpDir, ".nvm", "versions", "node", "v25.0.0", "bin")
@@ -97,7 +97,7 @@ func TestFindNVMBinary_SemverSort(t *testing.T) {
 		t.Skip("NVM uses Unix paths; not applicable on Windows")
 	}
 	tmpDir := t.TempDir()
-	t.Setenv("HOME", tmpDir)
+	testutil.SetHomeDir(t, tmpDir)
 
 	nvmDir := filepath.Join(tmpDir, ".nvm", "versions", "node")
 
@@ -144,10 +144,7 @@ func TestParseSemver(t *testing.T) {
 
 func TestFindNativeBinary(t *testing.T) {
 	tmpDir := t.TempDir()
-	t.Setenv("HOME", tmpDir)
-	if runtime.GOOS == "windows" {
-		t.Setenv("USERPROFILE", tmpDir)
-	}
+	testutil.SetHomeDir(t, tmpDir)
 
 	// Map Go arch to VSCode arch
 	arch := runtime.GOARCH
@@ -182,10 +179,7 @@ func TestFindNativeBinary(t *testing.T) {
 
 func TestFindNativeBinary_MultipleVersions(t *testing.T) {
 	tmpDir := t.TempDir()
-	t.Setenv("HOME", tmpDir)
-	if runtime.GOOS == "windows" {
-		t.Setenv("USERPROFILE", tmpDir)
-	}
+	testutil.SetHomeDir(t, tmpDir)
 
 	arch := runtime.GOARCH
 	if arch == "amd64" {

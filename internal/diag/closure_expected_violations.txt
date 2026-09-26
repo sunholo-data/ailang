@@ -1,0 +1,18 @@
+# Known leaks from the language core into the platform. Read by
+# internal/diag/closure_test.go, which fails on any NEW entry and on any entry
+# that is no longer reached — so this file can only shrink. Each line is a
+# platform package (path under the module) or a third-party root exactly as
+# spelled in tools/simplicity_metrics.sh.
+#
+# History (design_docs/planned/m-v1-simplification-program.md, Phase 1.3):
+#   2026-09-14  nine entries listed when the gate landed (S1 M6)
+#   2026-09-15  otel sdk / exporters / GCP exporter / grpc / cloud trace cleared —
+#               internal/telemetry is API-only, the SDK lives in
+#               internal/platform/otel, registered from cmd/ailang (S2 M1)
+#   2026-09-15  go-sqlite3 and gorilla/websocket cleared — effects opens its
+#               persistent SharedCache and its ws:// transport through
+#               registration seams; internal/platform/{sharedmem,streamws} (S2 M2)
+#
+# The list is EMPTY: the language core is a leaf of the platform. Keep it that
+# way — add a line here only with a written reason, and expect a reviewer to
+# ask why the symbol could not move DOWN instead.

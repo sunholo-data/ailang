@@ -1518,7 +1518,7 @@ Pub/Sub POSTs this JSON to your endpoint:
 
 ### Coordinator API Key
 
-The REST API (`/api/messages`) is protected by a single `COORDINATOR_API_KEY` set on the Cloud Run service. All clients share this key. Inbox-level filtering provides functional isolation — each client only queries their own inbox.
+The REST API (`/api/messages`) is protected by a single `COORDINATOR_API_KEY` set on the Cloud Run service (fail-closed: a service with the key unset rejects every request). All clients share this key. Inbox-level filtering provides functional isolation — each client only queries their own inbox.
 
 For stronger per-user isolation, deploy separate coordinator instances with distinct API keys. The architecture supports this — Firestore and Pub/Sub are shared with workspace-based routing, so each coordinator instance serves its own set of workspaces.
 

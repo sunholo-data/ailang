@@ -5,13 +5,16 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
-	_ "github.com/mattn/go-sqlite3"
+	"github.com/sunholo-data/ailang/internal/sqliteopen"
+	"github.com/sunholo-data/ailang/internal/statedir"
 )
+
+// coordinatorDBOptions is how every opener of coordinator.db opens it —
+// see NewSQLiteStore for why foreign keys are off.
+var coordinatorDBOptions = sqliteopen.Options{NoForeignKeys: true}
 
 // SQLiteStore implements Store using SQLite
 type SQLiteStore struct {
@@ -21,25 +24,24 @@ type SQLiteStore struct {
 // NewSQLiteStore creates a new SQLite store
 func NewSQLiteStore(dbPath string) (*SQLiteStore, error) {
 	if dbPath == "" {
-		homeDir, _ := os.UserHomeDir()
-		dbPath = filepath.Join(homeDir, ".ailang", "state", "coordinator.db")
+		p, err := statedir.Path("coordinator.db")
+		if err != nil {
+			return nil, err
+		}
+		dbPath = p
 	}
 
-	// Ensure directory exists
-	if err := os.MkdirAll(filepath.Dir(dbPath), 0755); err != nil {
-		return nil, fmt.Errorf("failed to create database directory: %w", err)
-	}
-
-	db, err := sql.Open("sqlite3", dbPath+"?_journal_mode=WAL&_busy_timeout=5000")
+	// WAL, busy timeout, single-writer pool and directory creation are the
+	// one recipe in internal/sqliteopen. Foreign keys stay OFF for this file:
+	// the schema declares approval_requests.task_id and task_events.task_id
+	// REFERENCES tasks(id), but this store has never enforced them and rows
+	// that violate them exist (approvals are filed for task ids the store
+	// does not hold — TestStoreBackedApprovalCheckpoint does exactly that).
+	// Turning enforcement on is a data migration, not an opener setting.
+	db, err := sqliteopen.Open(dbPath, coordinatorDBOptions)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
-
-	// SQLite is single-writer; limit to 1 connection to serialize writes at
-	// the Go pool level instead of contending on the SQLite file lock.
-	db.SetMaxOpenConns(1)
-	db.SetMaxIdleConns(1)
-	db.SetConnMaxLifetime(0)
 
 	store := &SQLiteStore{db: db}
 	if err := store.migrate(); err != nil {
@@ -185,8 +187,13 @@ func (s *SQLiteStore) migrate() error {
 		"ALTER TABLE tasks ADD COLUMN source TEXT",
 		// Handoff tracking - to detect missed handoffs on daemon startup
 		"ALTER TABLE approval_requests ADD COLUMN handoffs_triggered INTEGER DEFAULT 0",
+		// M-TASK-STATUS-TRUTH D3: why handoffs_triggered was set without firing.
+		"ALTER TABLE approval_requests ADD COLUMN handoffs_suppressed INTEGER DEFAULT 0",
+		"ALTER TABLE approval_requests ADD COLUMN handoffs_expired INTEGER DEFAULT 0",
 		// Execution chain tracking (M-CHAINS-SIMPLIFY)
 		"ALTER TABLE tasks ADD COLUMN chain_id TEXT",
+		// M-TASK-STATUS-TRUTH S1: when the claim happened — the stale clock.
+		"ALTER TABLE tasks ADD COLUMN queued_at DATETIME",
 		"ALTER TABLE tasks ADD COLUMN stage_id TEXT",
 		// M-PKG-CASCADE-DETERMINISTIC-FIRST: cascade envelope persisted on
 		// the task so the dispatcher can choose deterministic-bump vs AI
@@ -202,6 +209,7 @@ func (s *SQLiteStore) migrate() error {
 		"ALTER TABLE tasks ADD COLUMN effects_widened INTEGER DEFAULT 0",
 		"ALTER TABLE tasks ADD COLUMN prev_effect_ceiling TEXT", // JSON-encoded []string
 		"ALTER TABLE tasks ADD COLUMN new_effect_ceiling TEXT",  // JSON-encoded []string
+		"ALTER TABLE tasks ADD COLUMN finalization TEXT",        // JSON-encoded FinalizationLedger (M-COMPLETION-PATH-PARITY C1)
 	}
 	for _, q := range alterQueries {
 		_, _ = s.db.Exec(q) // Ignore errors - columns may already exist
@@ -212,7 +220,13 @@ func (s *SQLiteStore) migrate() error {
 	_, _ = s.db.Exec("CREATE INDEX IF NOT EXISTS idx_tasks_github_issue ON tasks(github_issue)")
 	_, _ = s.db.Exec("CREATE INDEX IF NOT EXISTS idx_tasks_stage ON tasks(stage)")
 
-	return nil
+	if err := s.migrateMissionAttempts(); err != nil {
+		return err
+	}
+	if err := s.migrateMissionWorkItems(); err != nil {
+		return err
+	}
+	return s.migrateData(time.Now())
 }
 
 // CreateTask creates a new task
@@ -263,7 +277,7 @@ func (s *SQLiteStore) GetTask(ctx context.Context, id string) (*TaskRecord, erro
 		SELECT id, message_id, thread_id, parent_task_id, title, content, type, kind, source, priority, status, provider, agent_id,
 		       worktree_id, worktree_path, base_branch, base_commit, workspace, github_issue, github_repo, stage, design_doc_path, sprint_plan_path,
 		       session_id, iteration, chain_id, stage_id,
-		       created_at, started_at, completed_at, duration_ns,
+		       created_at, started_at, completed_at, queued_at, duration_ns,
 		       error, output, cost, tokens_used,
 		       capabilities_json, impact_level, estimated_cost
 		FROM tasks WHERE id = ?
@@ -312,7 +326,7 @@ func (s *SQLiteStore) ListTasks(ctx context.Context, filter *TaskFilter) ([]*Tas
 		SELECT id, message_id, thread_id, parent_task_id, title, content, type, kind, source, priority, status, provider, agent_id,
 		       worktree_id, worktree_path, base_branch, base_commit, workspace, github_issue, github_repo, stage, design_doc_path, sprint_plan_path,
 		       session_id, iteration, chain_id, stage_id,
-		       created_at, started_at, completed_at, duration_ns,
+		       created_at, started_at, completed_at, queued_at, duration_ns,
 		       error, output, cost, tokens_used,
 		       capabilities_json, impact_level, estimated_cost
 		FROM tasks WHERE 1=1
@@ -571,130 +585,63 @@ func (s *SQLiteStore) GetCostByProvider() (map[string]float64, error) {
 	return result, nil
 }
 
-// MarkTaskQueued marks a task as queued
-func (s *SQLiteStore) MarkTaskQueued(ctx context.Context, id string) error {
-	_, err := s.db.ExecContext(ctx,
-		"UPDATE tasks SET status = ? WHERE id = ?",
-		TaskStatusQueued, id,
-	)
-	return err
-}
-
-// MarkTaskRunning marks a task as running
-func (s *SQLiteStore) MarkTaskRunning(ctx context.Context, id, provider, worktreeID string) error {
-	_, err := s.db.ExecContext(ctx,
-		"UPDATE tasks SET status = ?, provider = ?, worktree_id = ?, started_at = ? WHERE id = ?",
-		TaskStatusRunning, provider, worktreeID, time.Now(), id,
-	)
-	return err
-}
-
-// MarkTaskCompleted marks a task as completed with results
-func (s *SQLiteStore) MarkTaskCompleted(ctx context.Context, id string, result *ExecuteResult) error {
-	now := time.Now()
-	_, err := s.db.ExecContext(ctx,
-		`UPDATE tasks SET
-			status = ?, completed_at = ?, duration_ns = ?,
-			output = ?, cost = ?, tokens_used = ?,
-			session_id = ?
-		WHERE id = ?`,
-		TaskStatusCompleted, now, int64(result.Duration),
-		result.Output, result.Cost, result.TokensUsed,
-		result.SessionID, id,
-	)
-	return err
-}
-
-// MarkTaskFailed marks a task as failed
-func (s *SQLiteStore) MarkTaskFailed(ctx context.Context, id string, taskErr error) error {
-	now := time.Now()
-	errMsg := ""
-	if taskErr != nil {
-		errMsg = taskErr.Error()
-	}
-	_, err := s.db.ExecContext(ctx,
-		"UPDATE tasks SET status = ?, completed_at = ?, error = ? WHERE id = ?",
-		TaskStatusFailed, now, errMsg, id,
-	)
-	return err
-}
-
-// MarkTaskCancelled marks a task as cancelled
-func (s *SQLiteStore) MarkTaskCancelled(ctx context.Context, id string) error {
-	now := time.Now()
-	_, err := s.db.ExecContext(ctx,
-		"UPDATE tasks SET status = ?, completed_at = ? WHERE id = ?",
-		TaskStatusCancelled, now, id,
-	)
-	return err
-}
-
-// MarkTaskPendingApproval marks a task as awaiting human approval
-func (s *SQLiteStore) MarkTaskPendingApproval(ctx context.Context, id, worktreePath, worktreeBranch, baseBranch, baseCommit string, result *ExecuteResult) error {
-	now := time.Now()
-	_, err := s.db.ExecContext(ctx,
-		`UPDATE tasks SET
-			status = ?, completed_at = ?, worktree_path = ?, worktree_id = ?, base_branch = ?, base_commit = ?,
-			duration_ns = ?, output = ?, cost = ?, tokens_used = ?, session_id = ?
-		WHERE id = ?`,
-		TaskStatusPendingApproval, now, worktreePath, worktreeBranch, baseBranch, baseCommit,
-		int64(result.Duration), result.Output, result.Cost, result.TokensUsed, result.SessionID, id,
-	)
-	return err
-}
-
-// MarkTaskRejected marks a task as rejected by human
-func (s *SQLiteStore) MarkTaskRejected(ctx context.Context, id string) error {
-	now := time.Now()
-	_, err := s.db.ExecContext(ctx,
-		"UPDATE tasks SET status = ?, completed_at = ? WHERE id = ?",
-		TaskStatusRejected, now, id,
-	)
-	return err
-}
-
-// RequeueTask resets a task to pending status for re-execution.
-func (s *SQLiteStore) RequeueTask(ctx context.Context, id string) error {
-	_, err := s.db.ExecContext(ctx,
-		"UPDATE tasks SET status = ?, started_at = NULL, completed_at = NULL WHERE id = ?",
-		TaskStatusPending, id,
-	)
-	return err
-}
-
-// ResetTaskToPending resets a running task back to pending state.
-func (s *SQLiteStore) ResetTaskToPending(ctx context.Context, id string) error {
-	_, err := s.db.ExecContext(ctx,
-		"UPDATE tasks SET status = ?, started_at = NULL WHERE id = ?",
-		TaskStatusPending, id,
-	)
-	return err
-}
-
 // FindDuplicateTask finds a similar task by fingerprint
-func (s *SQLiteStore) FindDuplicateTask(ctx context.Context, fingerprint uint64, threshold float64) (*TaskRecord, error) {
-	row := s.db.QueryRowContext(ctx,
+func (s *SQLiteStore) FindDuplicateTask(ctx context.Context, fingerprint uint64, scope DedupScope) (*TaskRecord, error) {
+	// The status rule is NOT in the SQL. It lives in BlocksDuplicate so that this
+	// store and the Firestore one cannot drift into two different answers — the
+	// old `status != 'cancelled'` here had no counterpart in Firestore at all,
+	// so the cloud coordinator suppressed against cancelled tasks and this one
+	// did not.
+	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, message_id, thread_id, parent_task_id, title, content, type, kind, source, priority, status, provider, agent_id,
 		        worktree_id, worktree_path, base_branch, base_commit, workspace, github_issue, github_repo, stage, design_doc_path, sprint_plan_path,
 		        session_id, iteration, chain_id, stage_id,
-		        created_at, started_at, completed_at, duration_ns,
+		        created_at, started_at, completed_at, queued_at, duration_ns,
 		        error, output, cost, tokens_used,
 		        capabilities_json, impact_level, estimated_cost
-		FROM tasks WHERE fingerprint = ? AND status != 'cancelled' LIMIT 1`,
-		fingerprint,
+		FROM tasks WHERE fingerprint = ? ORDER BY created_at DESC LIMIT ?`,
+		int64(fingerprint), DedupCandidateLimit, // int64 on BOTH sides — see SetTaskFingerprint
 	)
-	task, err := s.scanTask(row)
-	if err == sql.ErrNoRows {
-		return nil, nil
+	if err != nil {
+		return nil, err
 	}
-	return task, err
+	defer func() { _ = rows.Close() }()
+
+	for rows.Next() {
+		task, err := s.scanTaskFromRows(rows)
+		if err != nil {
+			return nil, err
+		}
+		if task.BlocksDuplicate(scope) {
+			return task, nil
+		}
+	}
+	if err := rows.Err(); err != nil && err != sql.ErrNoRows {
+		return nil, err
+	}
+	return nil, nil
 }
 
 // SetTaskFingerprint sets the fingerprint for duplicate detection
+// SetTaskFingerprint stores the dedup fingerprint.
+//
+// int64, not uint64. go-sqlite3 REFUSES a uint64 with the high bit set —
+// "converting argument $1 type: uint64 values with high bit set are not
+// supported" — and simhash returns a full 64-bit value, so roughly half of all
+// content failed to store a fingerprint at all. Both callers in
+// daemon_tasks_polling discarded the error, so the effect was silent: a task
+// with no stored fingerprint can never be matched, and dedup simply did not
+// apply to half the traffic on any SQLite coordinator.
+//
+// The cast is what Firestore has always done (int64(fingerprint) in
+// coordinator_transitions.go), so this makes the two stores agree rather than
+// inventing a third behaviour. Values below 2^63 are unchanged, so fingerprints
+// already stored keep matching; higher ones wrap to negative consistently on
+// both write and read.
 func (s *SQLiteStore) SetTaskFingerprint(ctx context.Context, id string, fingerprint uint64) error {
 	_, err := s.db.ExecContext(ctx,
 		"UPDATE tasks SET fingerprint = ? WHERE id = ?",
-		fingerprint, id,
+		int64(fingerprint), id,
 	)
 	return err
 }

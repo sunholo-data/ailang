@@ -12,6 +12,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/browser/auth"
 	"github.com/sunholo-data/ailang/internal/browser/browserbase"
 	localbrowser "github.com/sunholo-data/ailang/internal/browser/local"
+	envcfg "github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/executor"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
@@ -66,7 +67,7 @@ type BrowserSessionConfig struct {
 // AILANG_BROWSER_PROFILE_DIR overrides it so an eval never has to touch the
 // operator's real registry.
 func AuthProfileRoot() (string, error) {
-	if override := os.Getenv("AILANG_BROWSER_PROFILE_DIR"); override != "" {
+	if override := envcfg.BrowserProfileDir(); override != "" {
 		return override, nil
 	}
 	home, err := os.UserHomeDir()
@@ -295,14 +296,14 @@ func resolveBrowserProvider(config BrowserSessionConfig) (browser.SessionProvide
 	case browserbase.ProviderName:
 		apiKeyEnv := config.APIKeyEnv
 		if apiKeyEnv == "" {
-			apiKeyEnv = "BROWSERBASE_API_KEY"
+			apiKeyEnv = envcfg.EnvBrowserbaseAPIKey
 		}
 		projectIDEnv := config.ProjectIDEnv
 		if projectIDEnv == "" {
-			projectIDEnv = "BROWSERBASE_PROJECT_ID"
+			projectIDEnv = envcfg.EnvBrowserbaseProject
 		}
 		return browserbase.New(browserbase.Config{
-			APIKey: os.Getenv(apiKeyEnv), ProjectID: os.Getenv(projectIDEnv),
+			APIKey: envcfg.Raw(apiKeyEnv), ProjectID: envcfg.Raw(projectIDEnv),
 			BaseURL: config.BrowserbaseBaseURL, NpxPath: config.NpxPath, MCPVersion: config.MCPVersion,
 		})
 	default:

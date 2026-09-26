@@ -151,10 +151,10 @@ func TestFeedbackRateLimit_EnvVarOverride(t *testing.T) {
 		wantRPM   int
 		wantBurst int
 	}{
-		{"defaults", "", "", defaultFeedbackRPM, defaultFeedbackBurst},
+		{"defaults", "", "", 5, 3},
 		{"explicit override", "20", "10", 20, 10},
 		{"disable via 0", "0", "5", 0, 5},
-		{"junk values fall back to defaults", "abc", "xyz", defaultFeedbackRPM, defaultFeedbackBurst},
+		{"junk values fall back to defaults", "abc", "xyz", 5, 3},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

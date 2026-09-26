@@ -88,7 +88,7 @@ func TestResolvedHardTimeoutSecs(t *testing.T) {
 // TestRealModelsYmlBackCompat ensures the existing models.yml (no budgets:
 // blocks) still parses cleanly and produces sensible default cost ceilings.
 func TestRealModelsYmlBackCompat(t *testing.T) {
-	cfg, err := LoadModelsConfig("models.yml")
+	cfg, err := LoadModelsConfig("../modelreg/models.yml")
 	if err != nil {
 		t.Fatalf("LoadModelsConfig: %v", err)
 	}

@@ -37,7 +37,7 @@ budget_stopped() {
 # Usage: get_ollama_models "opencode-gemma4-e4b,claude-sonnet-4-5"
 get_ollama_models() {
     local model_ids="$1"
-    local yml="internal/eval_harness/models.yml"
+    local yml="internal/modelreg/models.yml"
     [[ -f "$yml" ]] || return 0
 
     local IFS=','
@@ -175,7 +175,7 @@ resolve_benchmarks_in_tiers() {
 # newline-separated model IDs. Empty output on any parse failure (fail-open —
 # caller treats "no models" the same as "everything is new").
 extended_suite_models() {
-    local yml="internal/eval_harness/models.yml"
+    local yml="internal/modelreg/models.yml"
     [[ -f "$yml" ]] || return 0
     awk '
         /^extended_suite:/ { insuite=1; next }
@@ -482,7 +482,7 @@ fi
 echo "Running eval baseline for $VERSION..."
 echo "Tier scope: $TIER_FLAG ($BENCHMARK_COUNT benchmarks)"
 if [[ -n "$FULL_FLAG" ]]; then
-    echo "Mode: FULL (extended_suite, 18 models incl. claude-fable-5 + claude-opus-5, + agent_suite)"
+    echo "Mode: FULL (extended_suite, 18 models incl. claude-fable-5-1 + claude-opus-5, + agent_suite)"
     echo "Expected cost: run \`ailang eval-suite --full --tier $TIER_FLAG --dry-run\` for a real"
     echo "  computed estimate (M-EVAL-STANDARD-CONFIDENCE-GATING) — recent full releases banked"
     echo "  \$98-135 combined (standard+agent); see SKILL.md's Cost & time section for the real figures."

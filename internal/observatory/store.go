@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	_ "github.com/mattn/go-sqlite3"
+	"github.com/sunholo-data/ailang/internal/sqliteopen"
 )
 
 // chainLink caches the chain_id/stage_id mapping for a task_id.
@@ -19,6 +19,10 @@ type chainLink struct {
 // Store provides CRUD operations for the observatory platform.
 type Store struct {
 	db *sql.DB
+	// dbPath is the on-disk file OpenStore opened, "" for a caller-supplied
+	// connection. RunRetention stamps a sibling file so CheckHealth can tell
+	// a recent pass from a stat, without opening the DB.
+	dbPath string
 
 	// Write-time chain linking cache (M-AUDIT-OBSERVATORY)
 	chainLinkCache map[string]chainLink
@@ -50,10 +54,21 @@ func OpenDefaultStore() (*Store, error) {
 	return OpenStore(DefaultDatabasePath())
 }
 
-// OpenStore opens the observatory database at the given path,
-// runs migrations, and returns a ready-to-use Store.
+// OpenStore opens the observatory database at the given path, runs
+// migrations, and returns a ready-to-use Store. It is the ONE opener for
+// observatory.db (NewSQLiteBackendFromPath wraps it).
+//
+// Pool and pragmas (M-V1-SIMPLIFY-S3 M3): one open connection and foreign
+// keys ON — the settings NewSQLiteBackendFromPath had, not the default pool
+// and no-FK this path had. One connection because the observatory is the
+// busiest writer in the process (every span) and SQLite serialises writers
+// anyway; foreign keys because session_tools declares ON DELETE CASCADE and
+// an opener that ignored it would leave orphans a later reader trips over.
 func OpenStore(dbPath string) (*Store, error) {
-	db, err := sql.Open("sqlite3", dbPath+"?_journal_mode=WAL&_busy_timeout=5000")
+	if dbPath == "" {
+		return nil, errNoDatabasePath
+	}
+	db, err := sqliteopen.Open(dbPath, sqliteopen.Options{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to open observatory database: %w", err)
 	}
@@ -67,7 +82,9 @@ func OpenStore(dbPath string) (*Store, error) {
 	// Without this, the WAL can grow to 40GB+ and cause memory pressure.
 	db.Exec("PRAGMA wal_checkpoint(TRUNCATE)") //nolint:errcheck
 
-	return NewStore(db), nil
+	st := NewStore(db)
+	st.dbPath = dbPath
+	return st, nil
 }
 
 // ===== Workspace Operations =====

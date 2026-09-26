@@ -1,0 +1,9 @@
+-- NEGATIVE: deriving (Eq) needs == on every field; a function field has none.
+-- Expected: cannot derive Eq for Handler: field 1 of constructor Handler has type int -> int
+module examples/eq_containers_negative/fn_field
+
+type Handler = Handler(int -> int) deriving (Eq)
+
+export func main() -> () ! {IO} {
+  _io_println("unreachable")
+}

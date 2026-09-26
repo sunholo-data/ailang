@@ -39,7 +39,9 @@ Agents are configured in `~/.ailang/config.yaml`. Each agent has an inbox, works
 # ~/.ailang/config.yaml
 
 coordinator:
-  default_provider: claude  # "claude" (the Gemini CLI provider was retired in v0.22.0)
+  default_provider: claude  # claude | codex | motoko | opencode | pi | managed_agents
+                            # (the Gemini CLI provider was retired in v0.22.0).
+                            # The examples below are a LOCAL coordinator; the cloud fleet pins pi.
 
   agents:
     # Design Doc Creator - reads GitHub issues, creates design docs
@@ -107,7 +109,7 @@ coordinator:
 | `inbox` | string | Message inbox to watch |
 | `workspace` | string | Base directory for worktrees |
 | `capabilities` | list | Agent capabilities (code, test, docs, research, planning) |
-| `provider` | string | AI provider: "claude" or "gemini" |
+| `provider` | string | Executor: `claude`, `codex`, `motoko`, `opencode`, `pi`, `managed_agents` (the Gemini CLI provider was retired in v0.22.0) |
 | `trigger_on_complete` | list | Agent IDs to trigger when this agent completes |
 | `auto_approve_handoffs` | bool | Skip approval for agent-to-agent handoffs |
 | `auto_merge` | bool | Automatically merge approved changes |
@@ -118,10 +120,25 @@ coordinator:
 | `approval` | object | Approval workflow configuration - v0.6.3+ |
 | `plugin_dirs` | list | Local plugin directories passed as `--plugin-dir` to Claude CLI - v0.9.1+ |
 | `plugins` | object | Third-party plugin installation config (marketplaces + install) - v0.9.1+ |
-| `model` | string | Claude model override (e.g., "opus", "sonnet", "haiku") - v0.8.0+ |
+| `model` | string | Model override for the chosen executor — an executor-native name (`"opus"`, `"gpt-5.6-sol"`) or an OpenRouter id (`"openrouter/z-ai/glm-5.3-flash"`, what most of the fleet pins) - v0.8.0+ |
 | `timeout` | string | Hard ceiling timeout (e.g., "30m", "1h"). Default: 60m - v0.8.1+ |
 | `idle_timeout` | string | Kill if no output for this long. Default: 3m - v0.8.1+ |
 | `effort` | string | Claude Code effort level: "low", "medium", "high" |
+| `executor_variant` | string | Which container image variant runs the job (`pi`, `codex`, …) — the cloud dispatcher picks the Cloud Run Job from it |
+| `tool_policy` | string | `ailang_only` restricts the agent to read/edit/write + `ailang_check`/`ailang_run`/`builtins_search`/`examples_search`/`ailang_cli` — **no shell**. Absent = the executor's full tool set |
+| `policy_path` | string | The operator policy `ailang_run` admits programs against (caps, `fs_sandbox`, `process_allow`, `net_allow`, `cli_allow`). Required for `tool_policy: ailang_only` to be useful |
+| `artifact_patterns` | list | Globs bounding what a merge may land. **Declared** patterns gate auto-merge and the PR reconciler; leaving it unset defaults to `**/*`, which bounds nothing |
+| `merge_branch` | string | The branch the wrapper clones and targets (e.g. `main`); defaults to the repo default |
+| `subdirectory` | string | Scopes the agent's CWD to a package inside a monorepo |
+
+**What the production fleet actually runs (2026-09-17):** 41 agents — 38 `pi`, 2 `codex`,
+1 `motoko`, and no `claude`. Six are on `tool_policy: ailang_only`, the lane where an agent
+executes programs only by submitting AILANG source to a policy it cannot edit; that lane is
+the default shape for new agents. Its full contract — the gate, the `ailang_run` tool, the
+policy file, what `cli_allow` admits — is
+[Agent tool policy](./agent-tool-policy.md). The registry the cloud plane actually reads is
+`ailang-multivac/config/config.cloud.yaml`, not this machine's `~/.ailang/config.yaml`;
+`ailang coordinator agents` prints the live one and names its source.
 
 ### Generic Workflow Configuration (v0.6.3+)
 
@@ -1051,7 +1068,7 @@ The coordinator can run on **Google Cloud Run** for 24/7 operation without a dev
 
 | Variable | Purpose | Default |
 |----------|---------|---------|
-| `COORDINATOR_MODE` | Set to `cloud` to enable cloud mode | `local` |
+| `COORDINATOR_MODE` | Set to `cloud` to enable cloud mode. Validated against the storage plane at start-up: `cloud` requires the coordinator AND messaging stores in Firestore (`AILANG_STORAGE=gcp`), else the daemon refuses to start naming what to set. Unset is `local` on ANY plane — the rig runs a local-execution daemon on `AILANG_STORAGE=gcp` | `local` |
 | `AILANG_CLOUD_PROJECT` | GCP project ID for Pub/Sub, Firestore, Cloud Run Jobs | (required) |
 | `AILANG_CLOUD_REGION` | GCP region for Cloud Run Jobs | `europe-west1` |
 | `AILANG_TOPIC_PREFIX` | Pub/Sub topic prefix and job name prefix | `ailang` |

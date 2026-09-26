@@ -97,7 +97,21 @@ EXPECTED="$DECLARED"
 # --- watermark BEFORE the probe ----------------------------------------------
 # Without this a stale span from an earlier run would be read as this run's result —
 # the check would "pass" having measured nothing.
-window_start() { date -u -v-2H +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -d '2 hours ago' +%Y-%m-%dT%H:%M:%SZ; }
+#
+# WHY 15 MINUTES, NOT A GENEROUS 2 HOURS (incident 2026-09-16). ListSpans on both
+# backends (firestore/observatory_spans.go, observatory/store_spans.go) orders
+# start_time ASC then applies Limit — so on a wide window that holds more than
+# `limit` spans total, the response is silently truncated to the OLDEST matches,
+# not the newest. A -2h window routinely holds >1000 spans of ALL kinds (mostly
+# ailang-coordinator's own Firestore instrumentation noise, ~25 spans/min), so
+# fetch_spans() never reached "now" — newest_pi_ts read a stale watermark from
+# ~20-40 minutes into the window while real ingest continued past it undetected.
+# That produced three straight false INCONCLUSIVE runs though nothing was broken.
+# 15 minutes stays well under the 1000-doc cap at current volume (~375 docs) with
+# room to spare, and is still far more than the probe ever needs to land in. If
+# this starts flaking again, check volume before widening the window back out —
+# widening is what caused the incident.
+window_start() { date -u -v-15M +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -d '15 minutes ago' +%Y-%m-%dT%H:%M:%SZ; }
 window_end()   { date -u -v+1d +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -d 'tomorrow'    +%Y-%m-%dT%H:%M:%SZ; }
 
 fetch_spans() {
@@ -162,7 +176,7 @@ fi
 echo "FAIL: wire budget is $ACTUAL, expected $EXPECTED."
 if [ "$ACTUAL" -gt "$CLAMP" ]; then
   echo "  actual EXCEEDS the clamp — pi-ai may have raised or removed it."
-  echo "  If so, the pi rows in internal/eval_harness/models.yml are now UNDER-declared"
+  echo "  If so, the pi rows in internal/modelreg/models.yml are now UNDER-declared"
   echo "  and should be raised, along with PI_WIRE_CLAMP here and in models_headroom_test.go."
 fi
 exit 1

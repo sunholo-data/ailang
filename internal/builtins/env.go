@@ -156,4 +156,33 @@ CLI usage:
 	if err != nil {
 		panic(fmt.Sprintf("failed to register _env_getArgs: %v", err))
 	}
+
+	// _env_getPid: the running program's own pid (unit-argument model)
+	err = RegisterEffectBuiltin(BuiltinSpec{
+		Module: "std/env", Name: "_env_getPid", NumArgs: 1, IsPure: false, Effect: "Env",
+		Type: func() types.Type {
+			T := types.NewBuilder()
+			return T.Func(T.Unit()).Returns(T.Int()).Effects("Env")
+		},
+		Impl: func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+			return effects.Call(ctx, "Env", "getPid", args)
+		},
+		Metadata: &BuiltinMetadata{
+			Description: "Get the current process id",
+			Params:      []ParamDoc{},
+			Returns:     "int - the running program's own OS process id",
+			Examples: []Example{
+				{Code: `writeFile("rig.lock.d/owner", show(_env_getPid()))`, Description: "A lock holder names itself so a peer can check whether it is still alive"},
+			},
+			LongDesc:  "Reads the process's own id — the AILANG equivalent of bash's $$. No policy implications: it discloses nothing beyond what `ps` already shows. Requires Env capability.",
+			SeeAlso:   []string{"_env_getArgs", "_env_getEnv"},
+			Since:     "v0.38.0",
+			Stability: StabilityStable,
+			Tags:      []string{"env", "process", "pid", "lock"},
+			Category:  "env",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _env_getPid: %v", err))
+	}
 }

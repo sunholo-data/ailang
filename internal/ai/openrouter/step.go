@@ -1,19 +1,14 @@
 package openrouter
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io"
-	"net/http"
 
 	"github.com/sunholo-data/ailang/internal/ai"
 	"github.com/sunholo-data/ailang/internal/ai/openai"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -54,14 +49,14 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 	// reasoning_effort field, so we pass ReasoningNone to the shared builder.
 	reasoning, rErr := ai.ResolveReasoning(req, "openrouter", req.Model)
 	if rErr != nil {
-		recordStepError(span, asAIError(rErr))
+		ai.RecordSpanError(span, rErr)
 		return nil, rErr
 	}
 
 	// Build the OpenAI-format Chat Completions body via the shared helper.
 	chatReq, aiErr := openai.BuildChatStepRequest(req, ai.ReasoningDecision{})
 	if aiErr != nil {
-		recordStepError(span, aiErr)
+		ai.RecordSpanError(span, aiErr)
 		return nil, aiErr
 	}
 
@@ -72,7 +67,7 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 	if cacheErr := applyCacheHintsForRoute(chatReq, req.Model, req.CacheBreakpoints); cacheErr != nil {
 		e := ai.NewAIError(ai.CodeInternal,
 			fmt.Sprintf("openrouter: failed to apply cache hints: %v", cacheErr), false)
-		recordStepError(span, e)
+		ai.RecordSpanError(span, e)
 		return nil, e
 	}
 
@@ -83,7 +78,7 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 	if rerr != nil {
 		e := ai.NewAIError(ai.CodeSchemaValidation,
 			fmt.Sprintf("openrouter: invalid routing policy: %v", rerr), false)
-		recordStepError(span, e)
+		ai.RecordSpanError(span, e)
 		return nil, e
 	}
 	var extras [][]byte
@@ -92,7 +87,7 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 		if mErr != nil {
 			e := ai.NewAIError(ai.CodeInternal,
 				fmt.Sprintf("openrouter: failed to marshal provider field: %v", mErr), false)
-			recordStepError(span, e)
+			ai.RecordSpanError(span, e)
 			return nil, e
 		}
 		extras = append(extras, append([]byte(`"provider":`), provBytes...))
@@ -101,7 +96,7 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 	if rfErr != nil {
 		e := ai.NewAIError(ai.CodeInternal,
 			fmt.Sprintf("openrouter: failed to marshal reasoning field: %v", rfErr), false)
-		recordStepError(span, e)
+		ai.RecordSpanError(span, e)
 		return nil, e
 	}
 	extras = append(extras, reasoningFrags...)
@@ -113,7 +108,7 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 	if cErr != nil {
 		e := ai.NewAIError(ai.CodeSchemaValidation,
 			fmt.Sprintf("openrouter: invalid correlation: %v", cErr), false)
-		recordStepError(span, e)
+		ai.RecordSpanError(span, e)
 		return nil, e
 	}
 	extras = append(extras, corrFrags...)
@@ -122,46 +117,29 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 	if marshalErr != nil {
 		e := ai.NewAIError(ai.CodeInternal,
 			fmt.Sprintf("openrouter: failed to marshal request: %v", marshalErr), false)
-		recordStepError(span, e)
+		ai.RecordSpanError(span, e)
 		return nil, e
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/chat/completions", bytes.NewReader(body))
+	res, err := ai.DoJSON(ctx, ai.JSONCall{
+		Provider: "openrouter",
+		Client:   c.httpClient,
+		URL:      c.baseURL + "/chat/completions",
+		Headers:  c.requestHeaders(req.Attribution),
+		Body:     body,
+	}, nil)
+	if res != nil {
+		span.SetAttributes(attribute.Int("http.status_code", res.StatusCode))
+	}
 	if err != nil {
 		e := ai.ClassifyError(err)
-		recordStepError(span, e)
-		return nil, e
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
-	setAttributionHeaders(httpReq, req.Attribution)
-
-	resp, err := c.httpClient.Do(httpReq)
-	if err != nil {
-		e := ai.ClassifyError(err)
-		recordStepError(span, e)
-		return nil, e
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	span.SetAttributes(attribute.Int("http.status_code", resp.StatusCode))
-
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		e := ai.ClassifyError(err)
-		recordStepError(span, e)
+		ai.RecordSpanError(span, e)
 		return nil, e
 	}
 
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		e := openai.ClassifyChatHTTPErrorFor("openrouter", resp.StatusCode, respBody)
-		recordStepError(span, e)
-		return nil, e
-	}
-
-	out, parseErr := openai.ParseChatStepResponse(respBody, req.Model)
+	out, parseErr := openai.ParseChatStepResponse(res.Body, req.Model)
 	if parseErr != nil {
-		recordStepError(span, parseErr)
+		ai.RecordSpanError(span, parseErr)
 		return nil, parseErr
 	}
 
@@ -217,16 +195,6 @@ func marshalStepBodyWithExtras(chatReq *openai.ChatStepRequest, extraFields [][]
 	return out, nil
 }
 
-// asAIError extracts the *ai.AIError from a resolver error for span recording.
-// ai.ResolveReasoning always returns a *ai.AIError on failure.
-func asAIError(err error) *ai.AIError {
-	var e *ai.AIError
-	if errors.As(err, &e) {
-		return e
-	}
-	return ai.NewAIError(ai.CodeInternal, err.Error(), false)
-}
-
 // reasoningExtras returns the OpenRouter-specific reasoning wire fragment(s)
 // for a resolved reasoning decision, to be spliced into the top-level request
 // body via marshalStepBodyWithExtras. Returns nil for ReasoningNone (no
@@ -247,18 +215,4 @@ func reasoningExtras(d ai.ReasoningDecision) ([][]byte, error) {
 		return nil, err
 	}
 	return [][]byte{append([]byte(`"reasoning":`), b...)}, nil
-}
-
-// recordStepError annotates the span with the AIError's code/message and
-// marks it as a failure.
-func recordStepError(span trace.Span, e *ai.AIError) {
-	if e == nil {
-		return
-	}
-	span.SetAttributes(
-		attribute.String("error.code", e.Code),
-		attribute.String("error.message", telemetry.Truncate(e.Message, 200)),
-		attribute.Bool("error.retryable", e.Retryable),
-	)
-	span.SetStatus(codes.Error, e.Code)
 }

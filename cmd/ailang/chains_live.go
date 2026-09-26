@@ -43,7 +43,7 @@ func chainsLiveCommand() {
 	fs := flag.NewFlagSet("chains live", flag.ExitOnError)
 	interval := fs.Int("interval", 3, "Refresh interval in seconds")
 	once := fs.Bool("once", false, "Render once and exit (for snapshot testing)")
-	remote := fs.String("remote", "", "Read from this observatory storage mode (gcp). Default: $AILANG_CHAINS_READ")
+	remote := fs.String("remote", "", "Read from this observatory storage mode (gcp). Default: the plane's observatory store ($AILANG_STORAGE_OBSERVATORY, else $AILANG_STORAGE)")
 	if err := fs.Parse(flag.Args()[2:]); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
@@ -241,7 +241,8 @@ func lastSpanForStage(backend observatory.Backend, ctx context.Context, chainID,
 // model, or empty string if Ollama is not running.
 func ollamaCurrent() (string, float64) {
 	client := &http.Client{Timeout: 500 * time.Millisecond}
-	resp, err := client.Get("http://localhost:11434/api/ps")
+	// IPv4-pinned so this reports the server the harness actually uses.
+	resp, err := client.Get("http://127.0.0.1:11434/api/ps")
 	if err != nil {
 		return "", 0
 	}

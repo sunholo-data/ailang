@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/runner"
 	"log"
 	"os"
 	"path/filepath"
@@ -16,11 +17,14 @@ import (
 func serveAPICommand(args []string) error {
 	fs := flag.NewFlagSet("serve-api", flag.ExitOnError)
 	portFlag := fs.String("port", "8080", "HTTP server port")
-	corsFlag := fs.Bool("cors", true, "Enable CORS for all origins")
+	bindFlag := fs.String("bind", "", "Host to listen on (default: 127.0.0.1, or 0.0.0.0 when the PORT env var is set)")
+	corsFlag := fs.Bool("cors", false, "Allow cross-origin requests from every origin (Access-Control-Allow-Origin: *)")
+	var corsOrigins multiFlag
+	fs.Var(&corsOrigins, "cors-origin", "Allow cross-origin requests from this exact origin (scheme://host[:port]); repeatable. Unlisted origins get 403 on non-GET requests")
 	frontendFlag := fs.String("frontend", "", "Path to React/Vite project (proxies non-/api/ requests to Vite dev server)")
 	staticFlag := fs.String("static", "", "Path to built frontend files (serve as static files)")
 	watchFlag := fs.Bool("watch", false, "Watch .ail files for changes and hot-reload")
-	capsFlag := fs.String("caps", "", "Capabilities to grant (comma-separated: IO,FS,Net,AI,Clock,Env,Stream)")
+	capsFlag := fs.String("caps", "", "Capabilities to grant (comma-separated: "+runner.CapsList+")")
 	aiModelFlag := fs.String("ai", "", "AI model for AI effect (e.g., gemini-2-5-flash, claude-sonnet-4-6)")
 	aiStubFlag := fs.Bool("ai-stub", false, "Use stub AI handler (for testing)")
 	verifyContractsFlag := fs.Bool("verify-contracts", false, "Enable runtime contract validation (requires/ensures)")
@@ -33,8 +37,9 @@ func serveAPICommand(args []string) error {
 	routesOnlyFlag := fs.Bool("routes-only", false, "Only expose @route-annotated functions as HTTP endpoints")
 	noFeedbackToolFlag := fs.Bool("no-feedback-tool", false, "Suppress the built-in submit_feedback MCP tool (exact tool surface)")
 	helpFlag := fs.Bool("help", false, "Show help for serve-api command")
-	maxMemoryFlag := fs.String("max-memory", "", "Memory limit (e.g., 256MB, 1GB). Triggers aggressive GC near limit.")
+	maxMemoryFlag := fs.String("max-memory", "", "Go soft memory limit: a size (256MB, 1GB) or 'cgroup' (the container limit x 0.9). Unset = AILANG_MEMLIMIT, else none.")
 	logLevelFlag := fs.String("log-level", "", "Minimum log level for Debug output (debug, info, warn, error, none)")
+	ws := registerServeAPIWSFlags(fs)
 
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -51,10 +56,12 @@ func serveAPICommand(args []string) error {
 	}
 
 	// Apply memory limit early (process-wide setting)
-	if *maxMemoryFlag != "" {
-		if err := applyMemoryLimit(*maxMemoryFlag); err != nil {
-			return fmt.Errorf("invalid --max-memory: %w", err)
-		}
+	if _, err := applyResolvedMemoryLimit(*maxMemoryFlag, false); err != nil {
+		return fmt.Errorf("invalid --max-memory: %w", err)
+	}
+
+	if err := apiserver.ValidateCORSConfig(*corsFlag, corsOrigins); err != nil {
+		return err
 	}
 
 	if fs.NArg() < 1 {
@@ -92,10 +99,15 @@ func serveAPICommand(args []string) error {
 	}
 
 	// Set up effect context if capabilities, AI, or contract flags are provided
-	var effCtx *effects.EffContext
+	// Always construct the effect context: NewEffContext grants only the
+	// ghost Debug capability, and without it serve-api silently dropped
+	// every Debug.log line when no --caps/--ai-*/--verify-contracts flag was
+	// set (M-DEBUG-SINK-STRUCTURED-LINES D5). Real capabilities stay gated.
+	effCtx := effects.NewEffContext(nil)
 	if *capsFlag != "" || *aiModelFlag != "" || *aiStubFlag || *verifyContractsFlag {
-		effCtx = effects.NewEffContext(nil)
-		grantCapabilities(effCtx, *capsFlag)
+		if err := runner.GrantCapabilities(effCtx, *capsFlag); err != nil {
+			return err
+		}
 		// serve-api does not expose --routing-* flags today (no routing per request);
 		// pass nil for the routing policy so the handler matches the run/exec shape.
 		if err := setupAIHandler(effCtx, *aiStubFlag, *aiModelFlag, nil, nil); err != nil {
@@ -124,9 +136,15 @@ func serveAPICommand(args []string) error {
 		}
 	}
 
+	if err := ws.apply(effCtx); err != nil {
+		return err
+	}
+
 	cfg := apiserver.Config{
 		Port:           *portFlag,
+		Bind:           *bindFlag,
 		CORS:           *corsFlag,
+		CORSOrigins:    corsOrigins,
 		FrontendPath:   *frontendFlag,
 		StaticPath:     *staticFlag,
 		Watch:          *watchFlag,
@@ -140,6 +158,7 @@ func serveAPICommand(args []string) error {
 		LogLevel:       debugLogLevel,
 		RoutesOnly:     *routesOnlyFlag,
 		NoFeedbackTool: *noFeedbackToolFlag,
+		WS:             ws.config(),
 	}
 
 	srv := apiserver.New(basePath, cfg)
@@ -243,11 +262,14 @@ func printServeAPIHelp() {
 	fmt.Println()
 	fmt.Println("Options:")
 	fmt.Println("  --port PORT          HTTP server port (default: 8080)")
-	fmt.Println("  --cors               Enable CORS for all origins (default: true)")
+	fmt.Println("  --bind ADDR          Host to listen on (default: 127.0.0.1; 0.0.0.0 when PORT env is set)")
+	fmt.Println("  --cors               Allow cross-origin requests from every origin (default: off)")
+	fmt.Println("  --cors-origin ORIGIN Allow one exact origin, e.g. https://app.example.com (repeatable);")
+	fmt.Println("                       unlisted origins get 403 on POST/PUT/DELETE and preflights")
 	fmt.Println("  --frontend PATH      Path to React/Vite project for dev proxy")
 	fmt.Println("  --static PATH        Path to built frontend files")
 	fmt.Println("  --watch              Watch .ail files for changes and hot-reload")
-	fmt.Println("  --caps CAPS          Capabilities to grant (comma-separated: IO,FS,Net,AI,Clock,Env)")
+	fmt.Printf("  --caps CAPS          Capabilities to grant (comma-separated: %s)\n", runner.CapsList)
 	fmt.Println("  --ai MODEL           AI model for AI effect (e.g., gemini-2-5-flash, claude-sonnet-4-6)")
 	fmt.Println("  --ai-stub            Use stub AI handler (for testing)")
 	fmt.Println("  --verify-contracts   Enable runtime contract validation (requires/ensures)")
@@ -259,6 +281,7 @@ func printServeAPIHelp() {
 	fmt.Println("  --api-key-env VAR    Environment variable containing the expected API key")
 	fmt.Println("  --routes-only        Only expose @route-annotated functions (skip auto-generated endpoints)")
 	fmt.Println("  --no-feedback-tool   Suppress the built-in submit_feedback MCP tool (exact tool surface)")
+	printServeAPIWSHelp()
 	fmt.Println("  --help               Show this help message")
 	fmt.Println()
 	fmt.Println("Route annotations:")
@@ -273,6 +296,11 @@ func printServeAPIHelp() {
 	fmt.Println("    export func handle(req: {body: string, headers: Json, method: string}) -> string ! {IO}")
 	fmt.Println("  Headers/query are Json — use getString(req.headers, \"Stripe-Signature\")")
 	fmt.Println()
+	fmt.Println("  Use @route(\"WS\", \"/path\") for a WebSocket route (needs --caps Stream); the handler")
+	fmt.Println("  runs once per connection and gets the browser leg as a StreamConn:")
+	fmt.Println("    @route(\"WS\", \"/live\")")
+	fmt.Println("    export func live(client: StreamConn) -> unit ! {Stream}")
+	fmt.Println()
 	fmt.Println("  Use @noexpose to hide exported functions from HTTP (still importable by other modules):")
 	fmt.Println("    @noexpose")
 	fmt.Println("    export func generateApiKey(userId: string) -> string ! {IO}")
@@ -283,6 +311,8 @@ func printServeAPIHelp() {
 	fmt.Println("Examples:")
 	fmt.Println("  ailang serve-api api/handlers.ail")
 	fmt.Println("  ailang serve-api ./api/ --port 3000")
+	fmt.Println("  ailang serve-api --bind 0.0.0.0 ./api/                 # reachable from the LAN")
+	fmt.Println("  ailang serve-api --cors-origin https://app.example.com ./api/")
 	fmt.Println("  ailang serve-api ./api/ --frontend ./ui")
 	fmt.Println("  ailang serve-api ./api/ --static ./ui/dist")
 	fmt.Println("  ailang serve-api --watch ./api/")

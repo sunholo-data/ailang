@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/modelreg"
 	"os"
 	"path/filepath"
 	"strings"
@@ -262,7 +263,7 @@ func printAvailableModels() {
 		return
 	}
 
-	config := eval_harness.GlobalModelsConfig
+	config := modelreg.GlobalModelsConfig
 
 	fmt.Println(bold("Available Models"))
 	fmt.Println()

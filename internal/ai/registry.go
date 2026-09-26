@@ -40,6 +40,8 @@ var builtInProviderNames = map[string]bool{
 	"gemini":     true,
 	"ollama":     true,
 	"openrouter": true,
+	"lyceum":     true,
+	"zai":        true,
 }
 
 // NewProviderRegistry returns an empty registry. Most callers want

@@ -1,17 +1,16 @@
 package configdriven
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/ai"
 	"github.com/sunholo-data/ailang/internal/pkg"
+	"github.com/sunholo-data/ailang/internal/strutil"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -111,7 +110,7 @@ func (p *Provider) Generate(ctx context.Context, req *ai.Request) (*ai.Response,
 			attribute.String("ai.model", req.Model),
 			attribute.String("ai.request_shape", p.spec.RequestShape),
 			attribute.String("ai.endpoint", safeEndpointForTrace(p.spec)),
-			attribute.String("ai.prompt_preview", telemetry.Truncate(req.UserPrompt, 100)),
+			attribute.String("ai.prompt_preview", strutil.Truncate(req.UserPrompt, 100)),
 		),
 	)
 	defer span.End()
@@ -145,52 +144,37 @@ func (p *Provider) Generate(ctx context.Context, req *ai.Request) (*ai.Response,
 		return nil, ai.NewProviderError(p.spec.Name, 0, err.Error(), err)
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", p.spec.Endpoint, bytes.NewReader(body))
+	// Auth may add headers OR rewrite the URL (query-param shape), so it is
+	// applied to a template request whose URL and headers the call then uses.
+	authReq, err := http.NewRequest(http.MethodPost, p.spec.Endpoint, nil)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return nil, ai.NewProviderError(p.spec.Name, 0, "build HTTP request: "+err.Error(), err)
 	}
-	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("Accept", "application/json")
-
-	if err := applyAuth(httpReq, p.spec); err != nil {
+	authReq.Header.Set("Accept", "application/json")
+	if err := applyAuth(authReq, p.spec); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return nil, ai.NewProviderError(p.spec.Name, 0, err.Error(), err)
 	}
 
-	httpResp, err := p.httpClient.Do(httpReq)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		return nil, ai.NewProviderError(p.spec.Name, 0, "HTTP request failed: "+err.Error(), err)
-	}
-	defer httpResp.Body.Close()
-
-	respBytes, err := io.ReadAll(httpResp.Body)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		return nil, ai.NewProviderError(p.spec.Name, httpResp.StatusCode, "read response: "+err.Error(), err)
-	}
-
-	// Non-2xx: extract error via error_path if declared, fall back to a
-	// truncated response body. classifyHTTPError marks 5xx and 429 as
-	// retryable per existing provider conventions.
-	if httpResp.StatusCode < 200 || httpResp.StatusCode >= 300 {
-		errMsg := extractErrorMessage(respBytes, p.spec.ErrorPath)
-		err := ai.NewProviderError(p.spec.Name, httpResp.StatusCode, errMsg, nil)
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		return nil, err
-	}
-
-	// 2xx: extract response text via response_path.
+	// Non-2xx: the error message comes from error_path if declared, else a
+	// truncated body; ai.DoJSON classifies it (5xx and a transient 429 are
+	// retryable, a spent quota is not) so the ProviderError this returns
+	// carries the same classification every built-in provider produces.
 	var parsed any
-	if jerr := json.Unmarshal(respBytes, &parsed); jerr != nil {
-		err := ai.NewProviderError(p.spec.Name, httpResp.StatusCode,
-			"response is not valid JSON: "+jerr.Error(), jerr)
+	res, err := ai.DoJSON(ctx, ai.JSONCall{
+		Provider: p.spec.Name,
+		Client:   p.httpClient,
+		URL:      authReq.URL.String(),
+		Headers:  authReq.Header,
+		Body:     body,
+		ErrorMessage: func(body []byte) string {
+			return extractErrorMessage(body, p.spec.ErrorPath)
+		},
+	}, &parsed)
+	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return nil, err
@@ -198,7 +182,7 @@ func (p *Provider) Generate(ctx context.Context, req *ai.Request) (*ai.Response,
 
 	text, perr := extractString(parsed, p.spec.ResponsePath)
 	if perr != nil {
-		err := ai.NewProviderError(p.spec.Name, httpResp.StatusCode,
+		err := ai.NewProviderError(p.spec.Name, res.StatusCode,
 			fmt.Sprintf("response_path extraction failed: %s", perr.Error()), perr)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
@@ -228,7 +212,7 @@ func (p *Provider) Generate(ctx context.Context, req *ai.Request) (*ai.Response,
 		attribute.Int("ai.tokens_out", resp.OutputTokens),
 		attribute.Int("ai.tokens_total", resp.TotalTokens),
 		attribute.String("ai.cost_usd", resp.CostUSD),
-		attribute.String("ai.response_preview", telemetry.Truncate(resp.Text, 100)),
+		attribute.String("ai.response_preview", strutil.Truncate(resp.Text, 100)),
 	)
 	return resp, nil
 }

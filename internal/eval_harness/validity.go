@@ -56,6 +56,13 @@ const (
 	// be perfectly healthy — it simply does not measure what it claims, so a
 	// null result from it would be meaningless. Void by preregistration.
 	ReasonTreatmentUnproven = "treatment_unproven"
+	// ReasonModeIncompatible: the benchmark was dispatched into an evaluation
+	// mode that cannot grade it at all — e.g. a grade_entrypoint (multi-file
+	// workspace-grading) benchmark forced through standard mode, which never
+	// constructs the agent workspace its grading requires. The model was never
+	// invoked, so this is a "we failed to measure the subject" row, not a
+	// measurement. (M-EVAL-STANDARD-MODE-INPUT-FILES-GAP.)
+	ReasonModeIncompatible = "mode_incompatible"
 )
 
 // MarkValid returns an explicitly-valid marker.

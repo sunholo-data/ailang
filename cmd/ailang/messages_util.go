@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/messaging"
 	"github.com/sunholo-data/ailang/internal/pubsub"
 	"golang.org/x/term"
@@ -288,10 +289,12 @@ func runMessagesWatchPubSub(inbox string) {
 	// Create a subscriber directly for pull mode
 	projectID := cfg.PubSub.ProjectID
 	if projectID == "" {
-		projectID = os.Getenv("AILANG_CLOUD_PROJECT")
-	}
-	if projectID == "" {
-		projectID = os.Getenv("GOOGLE_CLOUD_PROJECT")
+		p, perr := config.CloudProject(context.Background())
+		if perr != nil {
+			fmt.Fprintf(os.Stderr, "%s: pubsub.project_id unset and %v\n", red("Error"), perr)
+			os.Exit(1)
+		}
+		projectID = p
 	}
 
 	prefix := cfg.PubSub.TopicPrefix
@@ -466,12 +469,4 @@ func formatAge(t time.Time) string {
 		return fmt.Sprintf("%dd ago", int(d.Hours()/24))
 	}
 	return t.Format("Jan 2")
-}
-
-// truncateString truncates a string to maxLen and adds "..." if needed.
-func truncateString(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
-	}
-	return s[:maxLen-3] + "..."
 }

@@ -1,0 +1,86 @@
+{
+  "sprint_id": "M-COORDINATOR-EXECUTION-TRUST",
+  "status": "completed",
+  "created": "2026-09-02T06:22:03Z",
+  "design_doc": "design_docs/planned/m-coordinator-execution-trust.md",
+  "sprint_plan": "design_docs/planned/m-coordinator-execution-trust-sprint-plan.md",
+  "github_issues": [],
+  "velocity": {
+    "target_loc_per_day": 170,
+    "estimated_total_loc": 670,
+    "estimated_days": 4,
+    "actual_loc": null
+  },
+  "features": [
+    {
+      "id": "M1A_TRUSTED_TIER_AND_FLOOR",
+      "description": "work_tier closed enum set by the coordinator from its own registry (inbox -> registered agent -> tier), never from message content or a sender-chosen inbox; fail closed to tier2; tier1 refused when PushBranch is set; gate gains two built-in prerequisite sets (generic floor + AILANG set) selected by trusted metadata; tier1 auto-disarms on floor satisfaction, ack still recorded, tier2 has no auto-path.",
+      "estimated_loc": 230,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "A pi executor run in a clean non-AILANG workspace writes a file",
+        "Interactive TUI confirm path is byte-identical",
+        "work_tier is not derivable from message content (MU-5d) or from a sender-chosen inbox",
+        "Missing, unknown or model-supplied tier resolves to tier2 (MU-5e)",
+        "A dispatch with PushBranch set never receives tier1 (V24)",
+        "The generic floor is satisfiable with no CLAUDE.md (MU-5c)",
+        "make pi-assets leaves the tree clean"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-09-02T06:47:54.106707Z",
+      "notes": "Landed. Tier from agent registry (never content, V18); fail-closed at every boundary; tier1 refused on PushBranch (V24). Gate: GateContext + two built-in prereq sets, generic floor satisfiable with no CLAUDE.md. Side finding: the 83-test pi extension suite was never run by make or CI \u2014 now wired into make test."
+    },
+    {
+      "id": "M2_NO_CHANGES_TERMINAL_STATUS",
+      "description": "Add no_changes as a terminal completion status; classify from trusted dispatch metadata rather than content-derived TaskType; add a case at every consumer enumerated in V19, starting with the terminality string-compare at pubsub_completion_handler.go:85 and worktree cleanup at daemon_tasks_worktrees.go:103; add an exhaustiveness test so the list cannot go stale.",
+      "estimated_loc": 180,
+      "dependencies": [
+        "M1A_TRUSTED_TIER_AND_FLOOR"
+      ],
+      "acceptance_criteria": [
+        "A zero-diff bug-fix task reports no_changes, not completed (MU-8)",
+        "An acknowledge-only probe still completes cleanly with no branch (MU-9)",
+        "no_changes is recognised as terminal at pubsub_completion_handler.go:85 (MU-8b, V20)",
+        "no_changes survives a persistence round-trip",
+        "Adding a status value with no case at a switch site fails the suite (MU-8c)"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-09-02T07:28:30.364780+00:00",
+      "notes": "Landed. no_changes terminal status; terminality + observatory mapping are now tables the tests iterate. Found three pre-existing defects: string-compare terminality, a default:pending arm swallowing TaskStatusDuplicate, and a drifted worktree terminal list. Expectation from AgentConfig.AcknowledgeOnly (trusted), named so the zero value is fail-loud."
+    },
+    {
+      "id": "M3_TWO_TIER_RETRY_DURABLE_CAP",
+      "description": "ResolveModel returns the full chain; in-container walk on transport-class failure (named list, never a 429 substring); attempt_count + chain_link_index persisted on the task row in the status-transition write; stale-task detector is the SOLE re-dispatcher via compare-and-set; completion records which link ran; convert cloud-config model: pins to role: (D6).",
+      "estimated_loc": 260,
+      "dependencies": [
+        "M1A_TRUSTED_TIER_AND_FLOOR"
+      ],
+      "acceptance_criteria": [
+        "A stalled first link completes on the second in-container, with the link recorded (MU-10, MU-14)",
+        "Only transport-class failures advance the chain (MU-11)",
+        "Only infra-class failures re-dispatch (MU-12)",
+        "Never more than 2 Cloud Run executions per task (MU-13)",
+        "The cap survives a coordinator restart (MU-13d, V22)",
+        "An unknowable task age never triggers re-dispatch (MU-13b)",
+        "Exactly one component may re-dispatch (MU-13c, V23)",
+        "TestCloudAgents_RegistryMatchesTheDeletedRoutingTable still passes (V16)"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-09-02T07:57:47.237715+00:00",
+      "notes": "Landed. ResolveModelChain + ResolveModel as its head; ClassifyFailure with NAMED signatures (not a bare 429 substring); stale-task detector is the sole re-dispatcher with a persisted AttemptCount/ChainLinkIndex and a hard 2-execution cap; losing CAS is loud and still terminal. D6 (model: -> role: in the cloud config) is an OPERATOR step and is NOT done \u2014 until then M3 is correct and dormant."
+    }
+  ],
+  "method": "Every mutation arm is verified RED before its fix. This sprint exists because three code paths had zero coverage (V10).",
+  "out_of_scope": [
+    "per-repo protocol manifests (m-package-protocol-manifests.md)",
+    "M-MESSAGE-PLANE-TRUST M4/M5",
+    "executor GitHub 422",
+    "ANTHROPIC_API_KEY on the coordinator",
+    "OTLP from the executor"
+  ],
+  "github_issues_note": "auto-extraction matched M1/M2/M3 milestone labels as issue numbers, not real issues \u2014 cleared 2026-09-02",
+  "completion_note": "All three milestones landed on dev. Code complete; two follow-ups are operator work, not code: D6 config conversion, and the coordinator+executor image rebuild without which nothing here reaches prod."
+}

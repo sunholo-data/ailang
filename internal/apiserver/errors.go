@@ -1,6 +1,10 @@
 package apiserver
 
-import "net/http"
+import (
+	"net/http"
+
+	"github.com/sunholo-data/ailang/internal/httpjson"
+)
 
 // Router error codes. These are stable identifiers AI agents and SDKs can
 // match on to decide how to recover from a router-layer failure.
@@ -78,9 +82,9 @@ type RouterErrorDetail struct {
 //
 // The module and func fields of FunctionCallResponse are left empty by this
 // helper; callers that know them (e.g. the legacy module/func dispatch path)
-// should use writeJSON directly with a manually-constructed response.
+// should use httpjson.Write directly with a manually-constructed response.
 func writeRouterError(w http.ResponseWriter, status int, code, msg, suggestedFix string, available []string) {
-	writeJSON(w, status, FunctionCallResponse{
+	httpjson.Write(w, status, FunctionCallResponse{
 		Error: msg,
 		ErrorDetail: &RouterErrorDetail{
 			Code:            code,
@@ -97,7 +101,7 @@ func writeRouterError(w http.ResponseWriter, status int, code, msg, suggestedFix
 // /api/{module}/{func} dispatch path so existing clients that inspect those
 // fields continue to work.
 func writeRouterErrorWithDispatch(w http.ResponseWriter, status int, code, msg, suggestedFix, module, fn string) {
-	writeJSON(w, status, FunctionCallResponse{
+	httpjson.Write(w, status, FunctionCallResponse{
 		Module: module,
 		Func:   fn,
 		Error:  msg,

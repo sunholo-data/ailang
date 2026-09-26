@@ -10,6 +10,7 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/effects"
 	"github.com/sunholo-data/ailang/internal/messaging"
+	"github.com/sunholo-data/ailang/internal/statedir"
 )
 
 // cacheCommand handles the 'cache' subcommand for the AILANG brain.
@@ -89,9 +90,15 @@ func createEmbedder() effects.Embedder {
 	return embedder
 }
 
+// getUserBrainPath is the cross-project brain under the per-user state dir,
+// or "" when none resolves (the caller then skips the user tier rather than
+// opening a brain beside the process).
 func getUserBrainPath() string {
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".ailang", "state", "brain.db")
+	p, err := statedir.Path("brain.db")
+	if err != nil {
+		return ""
+	}
+	return p
 }
 
 func getProjectBrainPath() string {
@@ -109,9 +116,9 @@ func getProjectBrainPath() string {
 			// is also the only way accumulated learning isn't fragmented
 			// per-branch and lost when the worktree is removed.
 			if main := mainWorktreeRoot(dir); main != "" {
-				return filepath.Join(main, ".ailang", "state", "brain.db")
+				return statedir.Project(main, "brain.db")
 			}
-			return filepath.Join(dir, ".ailang", "state", "brain.db")
+			return statedir.Project(dir, "brain.db")
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
@@ -120,7 +127,7 @@ func getProjectBrainPath() string {
 		dir = parent
 	}
 	// Fallback: use cwd
-	return filepath.Join(".ailang", "state", "brain.db")
+	return statedir.Project(".", "brain.db")
 }
 
 // mainWorktreeRoot returns the main worktree's root path when dir is the root of
@@ -230,7 +237,7 @@ func runCacheShow(args []string) {
 	// Try project first, then user
 	for _, tier := range []struct {
 		name  string
-		cache *effects.SQLiteSharedCache
+		cache effects.BrainCache
 	}{
 		{"project", store.Project},
 		{"user", store.User},
@@ -324,7 +331,7 @@ func runCacheGC(args []string) {
 
 	for _, tier := range []struct {
 		name  string
-		cache *effects.SQLiteSharedCache
+		cache effects.BrainCache
 	}{
 		{"project", store.Project},
 		{"user", store.User},
@@ -384,7 +391,7 @@ func runCacheDeleteNamespace(args []string) {
 	for _, tier := range []struct {
 		name  string
 		match bool
-		cache *effects.SQLiteSharedCache
+		cache effects.BrainCache
 	}{
 		{"project", *scope == "project" || *scope == "both", store.Project},
 		{"user", *scope == "user" || *scope == "both", store.User},

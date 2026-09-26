@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -275,5 +276,138 @@ func TestRetentionStats_String(t *testing.T) {
 	s := stats.String()
 	if s == "" {
 		t.Error("expected non-empty string")
+	}
+}
+
+// insertTestChain writes a chain with one stage, dated by the chain's
+// created_at (stages are aged by their chain, see RunRetention).
+func insertTestChain(t *testing.T, store *Store, id string, createdAt time.Time) {
+	t.Helper()
+	if _, err := store.db.Exec(`INSERT INTO execution_chains (id, source_type, status, created_at)
+		VALUES (?, 'manual', 'completed', ?)`, id, createdAt); err != nil {
+		t.Fatalf("insert chain %s: %v", id, err)
+	}
+	if _, err := store.db.Exec(`INSERT INTO chain_stages (id, chain_id, stage_number, agent_id, status)
+		VALUES (?, ?, 1, 'sprint-executor', 'completed')`, "stage-"+id, id); err != nil {
+		t.Fatalf("insert stage for %s: %v", id, err)
+	}
+}
+
+func TestRunRetention_Chains90DayTTL(t *testing.T) {
+	store := openTestDB(t)
+	now := time.Now()
+
+	insertTestChain(t, store, "old-chain", now.Add(-91*24*time.Hour))
+	insertTestChain(t, store, "kept-chain", now.Add(-89*24*time.Hour))
+
+	stats, err := store.RunRetention(context.Background())
+	if err != nil {
+		t.Fatalf("RunRetention failed: %v", err)
+	}
+	if stats.ChainsDeleted != 1 || stats.StagesDeleted != 1 {
+		t.Errorf("expected chains=1 stages=1 deleted, got %s", stats)
+	}
+
+	var chains, stages int
+	store.db.QueryRow("SELECT COUNT(*) FROM execution_chains").Scan(&chains)
+	store.db.QueryRow("SELECT COUNT(*) FROM chain_stages").Scan(&stages)
+	if chains != 1 || stages != 1 {
+		t.Errorf("expected 1 chain + 1 stage left, got chains=%d stages=%d", chains, stages)
+	}
+	var left string
+	store.db.QueryRow("SELECT chain_id FROM chain_stages").Scan(&left)
+	if left != "kept-chain" {
+		t.Errorf("surviving stage belongs to %q, want kept-chain", left)
+	}
+}
+
+func TestRunRetention_Sessions90DayTTL_TakesUnparseableToolsWithThem(t *testing.T) {
+	store := openTestDB(t)
+	now := time.Now()
+
+	for _, s := range []struct {
+		id  string
+		age time.Duration
+	}{{"old-session", 91 * 24 * time.Hour}, {"kept-session", 10 * 24 * time.Hour}} {
+		if _, err := store.db.Exec(`INSERT INTO sessions (session_id, workspace, started_at) VALUES (?, '/tmp', ?)`,
+			s.id, now.Add(-s.age)); err != nil {
+			t.Fatalf("insert session: %v", err)
+		}
+		// A tool row whose start_time the 30-day step cannot parse: it must
+		// still go when its session does, without relying on foreign_keys=ON.
+		if _, err := store.db.Exec(`INSERT INTO session_tools (tool_use_id, session_id, tool_name, start_time)
+			VALUES (?, ?, 'Bash', 'not-a-time')`, "tool-"+s.id, s.id); err != nil {
+			t.Fatalf("insert tool: %v", err)
+		}
+	}
+
+	stats, err := store.RunRetention(context.Background())
+	if err != nil {
+		t.Fatalf("RunRetention failed: %v", err)
+	}
+	if stats.SessionsDeleted != 1 || stats.ToolsDeleted != 1 {
+		t.Errorf("expected sessions=1 tools=1 deleted, got %s", stats)
+	}
+	var tools int
+	store.db.QueryRow("SELECT COUNT(*) FROM session_tools WHERE session_id = 'old-session'").Scan(&tools)
+	if tools != 0 {
+		t.Errorf("old session left %d orphan tool rows", tools)
+	}
+	store.db.QueryRow("SELECT COUNT(*) FROM session_tools WHERE session_id = 'kept-session'").Scan(&tools)
+	if tools != 1 {
+		t.Errorf("kept session lost its tool row (have %d)", tools)
+	}
+}
+
+func TestRunRetention_StampsAndCheckHealthSkipsFreshStamp(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := dir + "/observatory.db"
+	store, err := OpenStore(dbPath)
+	if err != nil {
+		t.Fatalf("OpenStore: %v", err)
+	}
+	defer store.Close()
+
+	if RetentionRanWithin(dbPath, RetentionFreshFor) {
+		t.Fatal("stamp reported fresh before any pass ran")
+	}
+	if _, err := store.RunRetention(context.Background()); err != nil {
+		t.Fatalf("RunRetention: %v", err)
+	}
+	if !RetentionRanWithin(dbPath, RetentionFreshFor) {
+		t.Fatal("stamp not written by a successful pass")
+	}
+	// An hour-old stamp is stale: the daemon's tick is hourly, so the CLI
+	// start must run the pass itself.
+	old := time.Now().Add(-RetentionFreshFor - time.Minute)
+	if err := os.Chtimes(dbPath+RetentionStampSuffix, old, old); err != nil {
+		t.Fatal(err)
+	}
+	if RetentionRanWithin(dbPath, RetentionFreshFor) {
+		t.Fatal("stale stamp reported fresh")
+	}
+	// A second pass refreshes it in place.
+	if _, err := store.RunRetention(context.Background()); err != nil {
+		t.Fatalf("RunRetention: %v", err)
+	}
+	if !RetentionRanWithin(dbPath, RetentionFreshFor) {
+		t.Fatal("second pass did not refresh the stamp")
+	}
+}
+
+// A session written by a hook that did not know its client's version (1,489
+// of 24,306 rows on the rig on 2026-09-21) used to 500 the whole
+// /api/observatory/sessions listing: "converting NULL to string is unsupported".
+func TestListRecentSessions_ToleratesNullVersion(t *testing.T) {
+	store := openTestDB(t)
+	if _, err := store.db.Exec(`INSERT INTO sessions (session_id, workspace, claude_version, source) VALUES ('nv', '/tmp', NULL, NULL)`); err != nil {
+		t.Fatal(err)
+	}
+	got, err := store.ListRecentSessions(context.Background(), 10)
+	if err != nil {
+		t.Fatalf("ListRecentSessions: %v", err)
+	}
+	if len(got) != 1 || got[0].SessionID != "nv" || got[0].ClaudeVersion != "" {
+		t.Fatalf("got %+v", got)
 	}
 }

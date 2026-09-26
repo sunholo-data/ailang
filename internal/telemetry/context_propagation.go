@@ -7,6 +7,8 @@ import (
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // InjectTraceContext adds W3C trace context to environment variables.
@@ -104,7 +106,7 @@ func ExtractTraceContext(ctx context.Context) context.Context {
 //
 // These IDs can be recorded as span attributes for post-run trace correlation.
 func ExtractCorrelationIDs() (taskID, sessionID string) {
-	return os.Getenv("AILANG_TASK_ID"), os.Getenv("AILANG_SESSION_ID")
+	return config.TaskID(), config.SessionID()
 }
 
 // ExtractTraceContextFromEnv reads W3C trace context from a provided environment slice.

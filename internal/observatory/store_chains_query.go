@@ -222,7 +222,9 @@ func (s *Store) GetChainStatsByAgent(ctx context.Context, createdAfter *time.Tim
 		       SUM(CASE WHEN cs.status = 'failed' THEN 1 ELSE 0 END) as failed,
 		       COALESCE(SUM(cs.cost), 0) as total_cost,
 		       COALESCE(SUM(cs.tokens_in), 0) as total_tokens_in,
-		       COALESCE(SUM(cs.tokens_out), 0) as total_tokens_out
+		       COALESCE(SUM(cs.tokens_out), 0) as total_tokens_out,
+		       COALESCE(SUM(cs.cache_read_tokens), 0) as total_cache_read_tokens,
+		       COALESCE(SUM(cs.cache_creation_tokens), 0) as total_cache_creation_tokens
 		FROM chain_stages cs
 		JOIN execution_chains c ON cs.chain_id = c.id
 	`
@@ -241,7 +243,8 @@ func (s *Store) GetChainStatsByAgent(ctx context.Context, createdAfter *time.Tim
 	var results []*AgentStatsResult
 	for rows.Next() {
 		r := &AgentStatsResult{}
-		if err := rows.Scan(&r.AgentID, &r.Stages, &r.Completed, &r.Failed, &r.TotalCost, &r.TokensIn, &r.TokensOut); err != nil {
+		if err := rows.Scan(&r.AgentID, &r.Stages, &r.Completed, &r.Failed, &r.TotalCost, &r.TokensIn, &r.TokensOut,
+			&r.CacheReadTokens, &r.CacheCreationTokens); err != nil {
 			return nil, fmt.Errorf("failed to scan agent stats row: %w", err)
 		}
 		results = append(results, r)
@@ -330,8 +333,11 @@ func (s *Store) getStagesForCost(ctx context.Context, createdAfter *time.Time, s
 // GetSpanLitesByStageID returns lightweight spans for a stage without the heavy attributes columns.
 // This avoids reading the 3.9GB attributes data when only metadata is needed (M-PERF-OBSERVATORY).
 func (s *Store) GetSpanLitesByStageID(ctx context.Context, stageID string, limit, offset int) (*SpanLitePage, error) {
+	if offset < 0 {
+		return nil, fmt.Errorf("offset must be non-negative")
+	}
 	if stageID == "" {
-		return &SpanLitePage{}, nil
+		return &SpanLitePage{Spans: []*SpanLite{}}, nil
 	}
 	if limit <= 0 {
 		limit = 200
@@ -354,7 +360,7 @@ func (s *Store) GetSpanLitesByStageID(ctx context.Context, stageID string, limit
 		       model, provider
 		FROM spans
 		WHERE stage_id = ?
-		ORDER BY start_time ASC
+		ORDER BY start_time ASC, id ASC
 		LIMIT ? OFFSET ?
 	`, stageID, limit, offset)
 	if err != nil {
@@ -362,7 +368,7 @@ func (s *Store) GetSpanLitesByStageID(ctx context.Context, stageID string, limit
 	}
 	defer rows.Close()
 
-	var spans []*SpanLite
+	spans := []*SpanLite{}
 	for rows.Next() {
 		sl := &SpanLite{}
 		var parentSpanID, statusMessage, model, provider sql.NullString

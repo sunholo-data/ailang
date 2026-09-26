@@ -183,29 +183,6 @@ func TestInMemorySharedIndex_ConcurrentAccess(t *testing.T) {
 	}
 }
 
-func TestHammingDistance(t *testing.T) {
-	tests := []struct {
-		a, b     int64
-		expected int
-	}{
-		{0, 0, 0},
-		{0, 1, 1},
-		{0, 3, 2},
-		{0, 0xFF, 8},
-		{0, 0xFFFF, 16},
-		{0, -1, 64}, // All bits different
-		{-1, -1, 0}, // Same
-		{0x5555555555555555, -0x5555555555555556, 64}, // Alternating bits (0xAAAA... as negative)
-	}
-
-	for _, tt := range tests {
-		got := hammingDistance(tt.a, tt.b)
-		if got != tt.expected {
-			t.Errorf("hammingDistance(%x, %x) = %d, want %d", tt.a, tt.b, got, tt.expected)
-		}
-	}
-}
-
 func TestSharedIndexContext(t *testing.T) {
 	ctx := NewSharedIndexContext(nil)
 
@@ -300,67 +277,6 @@ func TestSharedIndexContext_Tracing(t *testing.T) {
 // ============================================================================
 // DX-17: Embedding-based Similarity Search Tests
 // ============================================================================
-
-func TestCosineSimilarity(t *testing.T) {
-	tests := []struct {
-		name     string
-		a, b     []float64
-		expected float64
-	}{
-		{
-			name:     "identical vectors",
-			a:        []float64{1.0, 0.0, 0.0},
-			b:        []float64{1.0, 0.0, 0.0},
-			expected: 1.0, // (1+1)/2 = 1
-		},
-		{
-			name:     "orthogonal vectors",
-			a:        []float64{1.0, 0.0, 0.0},
-			b:        []float64{0.0, 1.0, 0.0},
-			expected: 0.5, // (0+1)/2 = 0.5
-		},
-		{
-			name:     "opposite vectors",
-			a:        []float64{1.0, 0.0, 0.0},
-			b:        []float64{-1.0, 0.0, 0.0},
-			expected: 0.0, // (-1+1)/2 = 0
-		},
-		{
-			name:     "similar vectors",
-			a:        []float64{1.0, 1.0, 0.0},
-			b:        []float64{1.0, 0.9, 0.0},
-			expected: 0.999, // Very close to 1
-		},
-		{
-			name:     "zero vector a",
-			a:        []float64{0.0, 0.0, 0.0},
-			b:        []float64{1.0, 1.0, 1.0},
-			expected: 0.0,
-		},
-		{
-			name:     "empty vectors",
-			a:        []float64{},
-			b:        []float64{},
-			expected: 0.0,
-		},
-		{
-			name:     "mismatched lengths",
-			a:        []float64{1.0, 2.0},
-			b:        []float64{1.0, 2.0, 3.0},
-			expected: 0.0,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := cosineSimilarity(tt.a, tt.b)
-			// Use tolerance for floating point comparison
-			if diff := got - tt.expected; diff > 0.01 || diff < -0.01 {
-				t.Errorf("cosineSimilarity(%v, %v) = %f, want ~%f", tt.a, tt.b, got, tt.expected)
-			}
-		})
-	}
-}
 
 func TestInMemorySharedIndex_UpsertWithEmbedding(t *testing.T) {
 	idx := NewInMemorySharedIndex()

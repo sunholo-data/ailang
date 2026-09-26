@@ -14,8 +14,24 @@ linters:
     - staticcheck
     - unused
     - misspell
+    # The one route to configuration (M-V1-SIMPLIFY-S4 M4): see the
+    # forbidigo settings and the exclusions below.
+    - forbidigo
 
   settings:
+    forbidigo:
+      forbid:
+        # internal/config is the ONLY reader of the environment (internal/config/doc.go,
+        # "The rule"). Everything else calls a typed getter, or config.Raw for a name
+        # chosen at runtime. Exempt by path: internal/config, internal/statedir (a
+        # stdlib-only leaf below config), internal/testutil (test-lane opt-ins) and
+        # _test.go; exempt by source: the DEBUG_* compiler knobs. os.Environ is NOT
+        # forbidden — it builds child environments (cmd.Env) and the Env effect.
+        - pattern: '^os\.Getenv$'
+          msg: "read the environment through internal/config (a typed getter, or config.Raw for a runtime-chosen name)"
+        - pattern: '^os\.LookupEnv$'
+          msg: "read the environment through internal/config (a typed getter, or config.RawSet for a runtime-chosen name)"
+      exclude-godoc-examples: true
     staticcheck:
       # Disable style suggestions - focus on bugs only
       checks:
@@ -27,33 +43,52 @@ linters:
         - "-SA5011"  # Disable nil pointer (false positives)
         - "-SA5012"  # Disable variadic argument count
 
+
+  # v2 shape (`golangci-lint config verify` is the check). The v1 keys
+  # issues.exclude-dirs / issues.exclude-rules this file carried until
+  # M-V1-SIMPLIFY-S4 M4 were silently ignored by v2, so none of these
+  # rules had been applying.
+  exclusions:
+    paths:
+      - examples/agents
+      - scripts
+
+    rules:
+      # forbidigo (os.Getenv / os.LookupEnv) exemptions — the four places that
+      # may read the environment, per internal/config/doc.go "The rule".
+      - path: internal/config/
+        linters: [forbidigo]
+      - path: internal/statedir/
+        linters: [forbidigo]
+      - path: internal/testutil/
+        linters: [forbidigo]
+      - path: _test\.go
+        linters: [forbidigo]
+      # The DEBUG_* compiler knobs stay where they are by rule.
+      - linters: [forbidigo]
+        source: 'os\.(Getenv|LookupEnv)\("DEBUG_'
+
+      # Allow underscore in package names for eval packages (M-EVAL framework)
+      - path: internal/eval_harness/
+        text: "don't use an underscore in package name"
+
+      - path: internal/eval_analysis/
+        text: "don't use an underscore in package name"
+
+      - path: internal/eval_analyzer/
+        text: "don't use an underscore in package name"
+
+      # Allow ALL_CAPS for error codes (match JSON schema codes)
+      - path: internal/types/errors\.go
+        text: "don't use ALL_CAPS in Go names"
+
+      - path: internal/eval_harness/errors\.go
+        text: "don't use ALL_CAPS in Go names"
+
+      - path: internal/planning/validator\.go
+        text: "don't use ALL_CAPS in Go names"
+
 issues:
-  # Exclude directories
-  exclude-dirs:
-    - examples/agents
-    - scripts
-
-  exclude-rules:
-    # Allow underscore in package names for eval packages (M-EVAL framework)
-    - path: internal/eval_harness/
-      text: "don't use an underscore in package name"
-
-    - path: internal/eval_analysis/
-      text: "don't use an underscore in package name"
-
-    - path: internal/eval_analyzer/
-      text: "don't use an underscore in package name"
-
-    # Allow ALL_CAPS for error codes (match JSON schema codes)
-    - path: internal/types/errors\.go
-      text: "don't use ALL_CAPS in Go names"
-
-    - path: internal/eval_harness/errors\.go
-      text: "don't use ALL_CAPS in Go names"
-
-    - path: internal/planning/validator\.go
-      text: "don't use ALL_CAPS in Go names"
-
   # Limit output
   max-issues-per-linter: 50
   max-same-issues: 10

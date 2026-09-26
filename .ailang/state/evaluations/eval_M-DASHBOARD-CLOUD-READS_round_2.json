@@ -1,0 +1,139 @@
+{
+  "sprint_id": "M-DASHBOARD-CLOUD-READS",
+  "evaluation_round": 2,
+  "timestamp": "2026-09-08T14:28:27.969299+00:00",
+  "design_doc": "design_docs/dashboard-recovery-plan-2026-09-08.md",
+  "sprint_plan": "design_docs/planned/m-dashboard-cloud-reads-sprint-plan.md",
+  "total_score": 93,
+  "pass_threshold": 70,
+  "result": "pass",
+  "score_breakdown": {
+    "tests_pass": 20,
+    "lint_clean": 10,
+    "acceptance_criteria": 30,
+    "code_quality": 8,
+    "documentation": 15,
+    "design_fidelity": 10
+  },
+  "hard_fails": [],
+  "automated_checks": {
+    "tests_pass": true,
+    "tests_output": "Independently retrieved GitHub CI/test job success at dd0a96ed8. Command go test -timeout416s ./... runs without skip filters. Verbose coverage steps explicitly PASS TestMemWatchdogKillsAllocator, TestMemWatchdogKillsGrandchild, TestProcessGroupRSSSamplesGroup, TestPackageDir_RegistryRuntimeResolution. This clears the exact round1 Go failure gate.",
+    "hosted_test_url": "https://github.com/sunholo-data/ailang/actions/runs/34231976270/job/102080121553",
+    "hosted_test_log": "/tmp/dashboard-cloud-reads-hosted-test.log",
+    "lint_clean": true,
+    "hosted_lint_url": "https://github.com/sunholo-data/ailang/actions/runs/34231976270/job/102080121438",
+    "windows_tests_pass": true,
+    "build_pass": true,
+    "ancestry_verification": "git merge-base --is-ancestor95955af6b dd0a96ed8 exits0. No subsequent diff in read-contract storage, observatory, chain handlers or CLI chain files.",
+    "prior_race_evidence": "/tmp/cloud-reads-race-final.log:firestore, observatory, server pass; unchanged code.",
+    "overall_workflow_pass": false,
+    "overall_workflow_note": "Run34231976270 conclusion failure. Unrelated launchd drivers bash3.2 job fails new test_stage_isolation.sh positive control: brain_on_prompt.sh silent WITHOUT marker. Added by descendant dd0a96ed8; outside95955af6b.",
+    "launchd_failure_url": "https://github.com/sunholo-data/ailang/actions/runs/34231976270/job/102080121398",
+    "launchd_failure_log": "/tmp/dashboard-cloud-reads-hosted-launchd.log",
+    "full_make_test_claim": "No claim that every make test or CI workflow step is green. Scoped hosted Go gate is green; overall CI remains red.",
+    "coverage_pct": null,
+    "file_sizes_ok": true
+  },
+  "acceptance_criteria": [
+    {
+      "feature_id": "M1",
+      "criterion": "Chain/span page contract and tie ordering tested",
+      "met": true,
+      "evidence": "SDK request assertions and tied-time fixed-cohort SQLite comparison, including stage-lite pages, full/partial/empty offsets."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Agent filtering precedes paging and errors propagate",
+      "met": true,
+      "evidence": "TestChainAgentFilterBeforePaging and TestChainAgentReadFailureIsNotEmptySuccess."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "SQLite agrees and unsupported workspace filter is explicit",
+      "met": true,
+      "evidence": "Fixed cohort IDs and nonnil empty list checks; Firestore workspace/negative offset rejection."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Existing CLI offset and API filter forwarding tested",
+      "met": true,
+      "evidence": "Pure parser tests before backend opening; HTTP paging/since validation including duplicate/overflow inputs, workspace/repo forwarding."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Stage ownership and storage/index errors are explicit",
+      "met": true,
+      "evidence": "Server endpoint fixtures distinguish wrong chain/missing404, auth401, permission403, precondition/unavailable503, internal500; sanitized response bodies."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Relevant checks and independent review recorded",
+      "met": true,
+      "evidence": "Round2 independently verifies hosted unfiltered Go suite and all four prior environment failures passing; this report records that evidence. Production verification is separate."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Index/deployment contract and remaining gaps documented",
+      "met": true,
+      "evidence": "docs/internal/dashboard-cloud-read-indexes.md; milestone scoring remains0 for M3 until gate closes."
+    }
+  ],
+  "documentation_check": {
+    "changelog_updated": true,
+    "examples_created": null,
+    "examples_note": "No language semantics changed; SDK/HTTP/parser fixtures serve as executable examples.",
+    "design_doc_status": "Round1 pending state remains historical on disk; executor may close scoped Go verification with this round2 evidence. Overall CI and production status must remain explicit."
+  },
+  "design_fidelity": {
+    "score": 10,
+    "notes": "Bounded read repair follows plan; no new data model or UI removal, cloud write or deployment. Canonical orders and paging apply to fixed cohorts only."
+  },
+  "feedback": [],
+  "resolved_findings": [
+    {
+      "issue": "Stage span route bypassed newly stable ListSpans ordering",
+      "resolution": "Both GetSpanLitesByStageID backends now explicitly tie-break by ID; negative offsets rejected; stage parity fixture added."
+    },
+    {
+      "issue": "HTTP since silently ignored bad input",
+      "resolution": "Strict positive integer hours with duplicate, zero, malformed and duration-overflow rejection/tests."
+    },
+    {
+      "issue": "SQLite empty pages serialized null unlike cloud arrays",
+      "resolution": "SQLite chain/span/stage lists initialized nonnil; fixed-cohort empty page assertions."
+    },
+    {
+      "issue": "SDK fixture did not verify filter values/combinations",
+      "resolution": "Exact protobuf AND filter assertions cover chain dimensions/exclusive creation bound and span trace/status/inclusive bounds. Fixture still does not implement Firestore query engine."
+    }
+  ],
+  "notes": "Round1 retained unchanged. This bounded round2 reevaluates its exact four-test Go blocker using independently retrieved hosted evidence; local failures are not erased or relabeled passing. All implementation findings were already resolved in round1. Score93 reflects restored20 test points and9 milestone-criterion points; previous8/15 maintainability score retained. Parent must update artifact status with scope distinction. No production stability claim: query-engine/index readiness, capture deployment, costs, lineage, approval delivery and overall CI release gates remain separate.",
+  "implementation_commit": "95955af6b",
+  "verified_descendant": "dd0a96ed8b1c58a3a9873dc97ddccd2877d85474",
+  "scope": "Read-contract sprint code and its hosted Go verification only. Not overall CI, release, infrastructure or production acceptance.",
+  "remaining_release_blockers": [
+    {
+      "issue": "Overall CI fails unrelated launchd hook positive control",
+      "independently_verified": true,
+      "evidence": "Hosted launchd log and descendant diff."
+    },
+    {
+      "issue": "Parent reports Sonar coverage77.3/securityC red",
+      "independently_verified": false,
+      "evidence": "Parent handoff; no Sonar verification performed by this evaluator."
+    }
+  ],
+  "dev_probe_evidence": {
+    "source": "/tmp/dashboard-dev-read-probes.json",
+    "provenance": "Parent-collected live dev responses, independently inspected artifact only; reviewer did not repeat remote requests.",
+    "findings": [
+      "First two pages have distinct IDs",
+      "Beyond-end page is200 empty array",
+      "Malformed since returns400",
+      "Workspace/repository probes return503 query_not_ready for missing indexes"
+    ],
+    "limitation": "These probes do not establish index readiness, stage evidence completeness, summary parity or production health."
+  },
+  "infrastructure_status": "Parent reports dev Cloud Build b1dea44b-dab7-4a5a-a999-5e33bd74ce69 success and12-add index provisioning in progress. Not independently verified; no infrastructure success or readiness certification in this report."
+}

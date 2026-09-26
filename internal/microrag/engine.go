@@ -11,18 +11,21 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/config"
+	"github.com/sunholo-data/ailang/internal/statedir"
 )
 
 // EnvEnabled is the master eval-toggle env var (0/1). Default: enabled.
 const (
-	EnvEnabled = "AILANG_MICRORAG_ENABLED"
-	EnvRoutes  = "AILANG_MICRORAG_ROUTES"
-	EnvDryrun  = "AILANG_MICRORAG_DRYRUN"
-	EnvSession = "AILANG_MICRORAG_SESSION"
+	EnvEnabled = config.EnvMicroRAGEnabled
+	EnvRoutes  = config.EnvMicroRAGRoutes
+	EnvDryrun  = config.EnvMicroRAGDryrun
+	EnvSession = config.EnvMicroRAGSession
 	// EnvUserPromptFloor overrides userPromptRelevanceFloor without a rebuild.
 	// The floor is corpus-dependent (see the calibration note in userprompt.go),
 	// so re-tuning after a reindex must not require shipping a binary.
-	EnvUserPromptFloor = "AILANG_MICRORAG_USERPROMPT_FLOOR"
+	EnvUserPromptFloor = config.EnvMicroRAGUserPromptFloor
 
 	searchCacheTTLSecs = 240
 	embedCacheTTLDays  = 1
@@ -102,7 +105,7 @@ type ContextResult struct {
 // EnabledFromEnv returns the engine on/off state from env, defaulting to true.
 // Invalid values default to true ("don't fail closed" — see design Risks table).
 func EnabledFromEnv() bool {
-	v := strings.TrimSpace(os.Getenv(EnvEnabled))
+	v := config.MicroRAGEnabled()
 	if v == "" {
 		return true
 	}
@@ -111,14 +114,13 @@ func EnabledFromEnv() bool {
 
 // DryrunFromEnv returns whether dryrun mode is active.
 func DryrunFromEnv() bool {
-	v := strings.TrimSpace(os.Getenv(EnvDryrun))
-	return v == "1" || strings.ToLower(v) == "true"
+	return config.MicroRAGDryrun()
 }
 
 // RoutesAllowlist returns the AILANG_MICRORAG_ROUTES allowlist as a set,
 // or nil if no allowlist is set (means: allow all).
 func RoutesAllowlist() map[string]bool {
-	v := strings.TrimSpace(os.Getenv(EnvRoutes))
+	v := config.MicroRAGRoutes()
 	if v == "" {
 		return nil
 	}
@@ -479,10 +481,15 @@ func hashSnippet(h SearchHit) string {
 // Honors AILANG_MICRORAG_SESSION; otherwise uses a per-pid fallback so that
 // concurrent sessions don't share a ledger.
 func DefaultSessionDir() string {
-	sid := strings.TrimSpace(os.Getenv(EnvSession))
+	sid := config.MicroRAGSession()
 	if sid == "" {
 		sid = fmt.Sprintf("pid-%d", os.Getpid())
 	}
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".ailang", "state", "microrag", sid)
+	dir, err := statedir.Path("microrag", sid)
+	if err != nil {
+		// A session ledger is an optional cache; without a resolvable state
+		// tree it lives in the OS temp dir rather than beside the process.
+		return filepath.Join(os.TempDir(), "ailang-microrag", sid)
+	}
+	return dir
 }

@@ -1,0 +1,153 @@
+{
+  "sprint_id": "M-EXECUTOR-POLICY-HARDENING",
+  "status": "completed",
+  "created": "2026-09-21T09:43:02Z",
+  "design_doc": "design_docs/implemented/v0_41_0/m-executor-policy-hardening.md",
+  "sprint_plan": "design_docs/implemented/v0_41_0/m-executor-policy-hardening-sprint-plan.md",
+  "github_issues": [],
+  "velocity": {
+    "target_loc_per_day": 600,
+    "estimated_total_loc": 4300,
+    "estimated_days": 8
+  },
+  "features": [
+    {
+      "id": "M1_ROOT_ANCHORED_FS",
+      "description": "New leaf package internal/fileguard wrapping os.Root; EffContext carries one shared root handle (opened once per sandbox path, copied by WithBudget/Clone, closed by the owner via CloseFSRoot); all 23 registered FS ops (read/readBytes/write/writeBytes/append/appendBytes/exists/listDir/mkdir/mkdirAll/isDir/isFile/removeFile/renameFile + the 8 Result variants) dispatch to the root when Env.Sandbox is set and to os.* otherwise. Absolute paths lexically inside the root become relative names; final authorization is always the root-handle operation. Boolean probes return false + logSandboxReject on escape, Result ops return Err, error ops return an error; a rejected op has no outside side effect. GOOS=js refuses a sandbox instead of a lexical fallback. Red-first: fs_containment_test.go (F1 ../marker.txt, F2 link.txt) must FAIL on baseline before fs.go is touched; transcript in the commit body.",
+      "estimated_loc": 950,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "TestFSContainment_Traversal and TestFSContainment_Symlink fail on the audited baseline (transcript recorded) and pass after; the random sentinel never appears in any result",
+        "A table-driven containment test iterates every FS op name in effects.Registry[\"FS\"] so an op with no containment row fails the test",
+        "Valid in-root relative symlinks keep working; absolute symlinks (even pointing back inside) are denied and the CHANGELOG names that migration",
+        "Rename is tested with BOTH operands escaping under a set Sandbox (the existing TestFSRenameFile_DirectoryWithinSandbox never set Sandbox)",
+        "removeDirResult on a symlink-to-directory is Err (entry not dereferenced); non-empty dir still Err; empty dir Ok",
+        "Concurrent symlink-swap test under -race never reads/modifies the outside sentinel; CloseFSRoot is idempotent and a descriptor-count check shows no leak",
+        "TestFSSandbox_AbsolutePathWithinSandbox, TestSandboxReject_*, TestFS_RemoveDirResult_EmptyOnly unchanged and green; make test-core, make lint, make check-boundaries green"
+      ],
+      "passes": true,
+      "started": "2026-09-21T09:44:36Z",
+      "completed": "2026-09-21T10:04:34Z",
+      "notes": "fileguard leaf package over os.Root; EffContext shared root holder (WithBudget/Clone share, owner CloseFSRoot in runner/batch); all 23 FS ops + pkgAssetPath on the backend seam; archive builtins (zip/gzip/tar/zip_xml) routed through EffContext.FS*. Red-first: 118 containment rows + swap race failed on baseline; archive test mutation-tested (15 rows red on old files). effects/builtins/fileguard/runner/embed/cmd/ailang/server suites green; make lint + check-boundaries green."
+    },
+    {
+      "id": "M2_NET_DESTINATION_AUTHORIZER",
+      "description": "One destination authorizer (net_authorize.go) built from NetContext or StreamContext: scheme, non-empty host, no userinfo, one domain-allowlist implementation (lowercase + trailing-dot normalisation, label-boundary wildcard), resolve-with-context + validate every candidate + pinned dial. netProxyRoundTripper.RoundTrip authorizes the URL BEFORE proxy/direct selection so every redirect hop is authorized before any dial; validateRedirect authorizes too; cross-origin redirects strip Authorization/Cookie/Proxy-Authorization in all four HTTP entrypoints. SSE GET/POST and NDJSON POST use a stream round tripper sharing the authorizer + pinned dial with CheckRedirect. StreamDialConfig gains DialContext + Authorize; streamws uses cfg.DialContext as NetDialContext (no independent re-resolution). NetContext.RefuseProxy for restricted mode: named error, no direct fallback. Red-first: net_redirect_containment_test.go (N1) fails on baseline.",
+      "estimated_loc": 800,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Redirect-to-denied-host tests for httpGet, httpRequest, sseConnect and ndjsonPost FAIL on baseline (transcript recorded: /final reached, error nil) and pass after; the recording handler proves /final is never hit",
+        "Table test per entrypoint: allowed host, denied host, redirect to denied, resolved private IP, IPv4/IPv6/mapped-IPv4 literal, GoCtx cancellation, TLS SNI == original hostname against httptest.NewTLSServer",
+        "isStreamAllowedDomain and matchDomain collapse to one implementation; *.example.com does not match evil-example.com or example.com",
+        "streamws test proves the transport dials only through cfg.DialContext (counter on the injected dialer) and never calls net.LookupIP itself",
+        "RefuseProxy test: a configured proxy under restricted mode yields a named error and zero dials",
+        "All existing net_proxy_test.go / net_test.go / stream_*_test.go contracts green; go test -race ./internal/effects ./internal/platform/streamws green"
+      ],
+      "passes": true,
+      "started": "2026-09-21T10:04:34Z",
+      "completed": "2026-09-21T10:19:12Z",
+      "notes": "net_authorize.go destinationPolicy from NetContext/StreamContext; one isAllowedDomain/validateIP; netProxyRoundTripper authorizes every hop before any dial; checkRedirect strips Authorization/Cookie/Proxy-Authorization + SensitiveHeaders cross-origin; SSE/NDJSON via streamHTTPClient (connect-phase timeouts, no whole-response timeout); StreamDialConfig.DialContext pinned dialer, streamws refuses without it; GoCtx cancellation honoured; NetContext.RefuseProxy. Red-first: 7 entrypoints reached /final on baseline + cancelled ctx dialed. Full effects/streamws/runner/builtins/cmd suites green, -race green, lint + boundaries green."
+    },
+    {
+      "id": "M3_TYPED_POLICY_MODE_SUPERVISOR",
+      "description": "internal/policy: security_mode (restricted default | trusted_host), Resolve() into an immutable policy.Resolved (mode, root, effects, net grants, budgets, Timeout, MaxSourceBytes, entry, output caps) validating timeout_ms > 0, restricted mode admitting only IO/FS/Net/Clock/Rand/Stream (Stream process-source ops denied), ailang_only agents refusing trusted_host (internal/executor/agent_policy.go). policy.Check tests row.Tail BEFORE the empty-label shortcut. cmd/ailang/run_policy.go refuses --entry/--env/--env-snapshot/--net-allow-localhost/--net-allow-metadata/--stream-allow-*/--stdlib-path/--package-dir by name, pins the entry from the policy, derives Stream domains from net_allow, sets RefuseProxy in restricted mode, reads the source ONCE under max_source_bytes and admits + executes the same bytes. Supervisor: parent re-execs the binary with an internal --policy-worker flag; child writes the admission decision on a dedicated control pipe (fd 3, JSON lines), stdout/stderr stay data; parent enforces timeout_ms from before source load with exec.CommandContext + proctree group kill, caps combined output (stop reading at the cap and kill), sanitises the worker env to an allowlist, and emits a versioned envelope {version:1, stage, effect, policy_digest, reason}. Windows restricted mode is a named startup refusal.",
+      "estimated_loc": 950,
+      "dependencies": [
+        "M1_ROOT_ANCHORED_FS",
+        "M2_NET_DESTINATION_AUTHORIZER"
+      ],
+      "acceptance_criteria": [
+        "TestCheck_OpenEmptyRowDenied fails on baseline and passes after; a compiler-generated open-row fixture is added if reachable, else the direct row test is the evidence and the notes say so",
+        "TestRunPolicy_TimeoutMsEnforced: an infinite-loop program with timeout_ms = 200 terminates within 2s with envelope.reason == timeout; a trusted_host grandchild (sleep 30) is dead within 2s of return (bounded ESRCH poll)",
+        "TestRunPolicy_RefusesWideningFlags covers every newly refused flag by name; --entry is refused and the policy's entry is what runs",
+        "TestResolve_*: restricted refuses Process/Env/Secret/AI/SharedCache with a named message; trusted_host keeps Process; ailang_only + trusted_host is refused at the executor; timeout_ms 0/negative refused",
+        "Mutating the .ail file between admission and execution does not change what runs (test writes a second program over the file from a goroutine after the policy line appears, or the worker is fed the captured bytes) — decisions come only from the control pipe, a program printing a fake 'policy: {...}' line on stdout is not believed",
+        "Existing TestRunPolicy_* green; make test-core, make lint green"
+      ],
+      "passes": true,
+      "started": "2026-09-21T10:19:12Z",
+      "completed": "2026-09-21T10:48:08Z",
+      "notes": "policy.Resolve/LoadResolved/security_mode (restricted default; RestrictedEffects=IO,FS,Net,Clock,Rand,Stream; D5 defaults); Check tail-before-empty fix (mutation-tested); supervised run --policy (parent+worker, control pipe fd3, proctree group kill, output cap, restricted env allowlist, envelope exit 3); 26 widening flags refused by name; entry pinned; loader source snapshot (AC6, mutation-tested in-process); executor.CheckLanePolicy at both dispatch paths. Extra: Process.Authorize(nil) bypass via Stream.asyncExecProcess (red-first, row now {Stream,Process}); prelude println budget charge. 3 deployed lane policies admit Process -> M5 migration, prod config untouched."
+    },
+    {
+      "id": "M4_OPERATOR_BUDGETS_MEDIATED_TOOLS",
+      "description": "OperatorBudget (budget_operator.go): mutex-guarded per-effect ceilings charged once at the canonical charge scope before the frame charge, shared by pointer across WithBudget/Clone, untouched by --no-budgets; explicit 0 = zero ops, absent = unlimited; run_policy installs it instead of refusing [budgets]. New leaf package internal/policytool: typed dispatch table {read, write, edit, check, fmt, iface, test, docs_search, examples, builtins, summary} backed by policy.Resolved + fileguard; read/write/edit root-anchored, edit keeps the exact-once expected-content contract; CLI ops build argv from validated in-root relative paths only. `ailang policy-tool --policy <p> <op>` = JSON request on stdin, JSON response on stdout. .pi/extensions/ailang-exec.ts drops fsSandboxOf/policySummary/cliDecision regex+heuristics for the Go summary; ailang_cli forwards typed requests; ailang_read/ailang_write/ailang_edit tools registered with pi's canonical parameter names; executor.ProfileTools(ailang_only) replaces native Read/Write/Edit with AilangRead/AilangWrite/AilangEdit; canonicalToPi maps them; make pi-assets regenerates the embedded copies.",
+      "estimated_loc": 1100,
+      "dependencies": [
+        "M3_TYPED_POLICY_MODE_SUPERVISOR"
+      ],
+      "acceptance_criteria": [
+        "TestOperatorBudget_ExactlyN: budget N permits exactly N charged ops across nested functions, an imported module and repeated WithBudget scopes, then denies BEFORE the side effect; a source @limit larger than N cannot raise it; explicit 0 denies the first op; go test -race on a concurrent Stream charge test green",
+        "TestPolicyTool_* : read/write/edit of ../marker, the policy file and the extension dir are refused; check/fmt/iface with ../x.ail, --stdlib-path, -o, --package-dir are refused; a positive in-root read/edit/check round-trip passes",
+        "TestToolArgs_AilangOnlyProfile asserts the exact pi --tools list contains ailang_read,ailang_write,ailang_edit and NOT read,write,edit",
+        "Extension unit tests (.pi) pass with the Go-produced summary; make verify-pi-assets green",
+        "A policy declaring [budgets] no longer refuses at run_policy; the banked policy: line lists the enforced budgets"
+      ],
+      "passes": true,
+      "started": "2026-09-21T10:48:08Z",
+      "completed": "2026-09-21T11:13:13Z",
+      "notes": "OperatorBudget (charged once per logical op at the canonical scope; shared across WithBudget/Clone; --no-budgets inert; -race exact). internal/policytool typed dispatch table + `ailang policy-tool` (stdin JSON; policy from --policy/AILANG_AGENT_POLICY; library never execs itself — a first draft re-ran the test binary recursively, caught and fixed). ailang-exec.ts: Go summary, typed requests, ailang_read/write/edit, ailang_cli {op,...}; ailang_check via endpoint under a policy; 13 extension suites green. Profile ailang_only = AilangRead/Edit/Write/...; pi --tools has no native read/write/edit. CLI reference regenerated. E2E containment suite (F1/F2/N1 through run --policy) green."
+    },
+    {
+      "id": "M5_E2E_PROOF_MIGRATION_DOCS",
+      "description": "cmd/ailang/run_policy_containment_test.go builds the checkout binary and proves, end to end under a generated policy: traversal read denied, symlink read denied, redirect to a denied host denied (local listener on an allowed literal IP with net_allow_http), timeout envelope, budget exhaustion, Process refused in restricted mode, trusted_host positive control. Registry inventory of ailang_only agents whose policies admit Process/AI/Env with the migration note (security_mode = \"trusted_host\" examples) in the agent-policy guide; example policies updated; CHANGELOG Security entry; docs/LIMITATIONS.md residual trust assumptions (hard links, devices, mounts, CPU/memory, proxy, GOOS=js/windows) and supported-platform matrix; design doc moved to implemented/v0_41_0 with a verification log. Final: make test, make lint, make check-boundaries, make verify-pi-assets, make verify-examples.",
+      "estimated_loc": 500,
+      "dependencies": [
+        "M4_OPERATOR_BUDGETS_MEDIATED_TOOLS"
+      ],
+      "acceptance_criteria": [
+        "Every AC1-AC12 row of the design doc maps to a named test or doc artifact in the verification log",
+        "The four conflict fixtures (effects_fs_io, fs_walk_glob, process_subcmd_allowlist, net_only_admitted) still ailang check clean and run in trusted mode",
+        "CHANGELOG, docs/LIMITATIONS.md, agent-policy guide and example policies updated; design doc in design_docs/implemented/v0_41_0/",
+        "make test, make lint, make check-boundaries, make verify-pi-assets, make verify-examples all green (output recorded in notes)"
+      ],
+      "passes": true,
+      "started": "2026-09-21T11:13:13Z",
+      "completed": "2026-09-21T11:26:02Z",
+      "notes": "run_policy_containment_test.go (F1/F2/N1 e2e); sandbox-check onto fileguard (was a lexical copy that reported ../x ALLOW); docs (agent-tool-policy guide rewrite, LIMITATIONS residuals matrix, debugging guide, example policy, cli.md); verification log in the design doc; golden builtin_types updated for the intentional {Stream,Process} row. Gates: make test, lint, check-boundaries, verify-pi-assets, check-file-sizes, verify-examples all green. Migration of 3 multivac policies documented, not applied."
+    },
+    {
+      "id": "M6_CONFINED_GIT",
+      "description": "Confined Process adapter: restricted mode admits Process only for git:status/diff/log; argv built from per-subcommand schemas; hardened invocation (gitexec path, sandbox cwd, GIT_* stripped, config disabled, fsmonitor/hooks/pager/external forced off, --no-optional-locks); exec-only; .git/ read-only to FS ops and policy-tool. Added after M5 at Mark's request so the executors keep git without trusted_host.",
+      "estimated_loc": 600,
+      "dependencies": [
+        "M5_E2E_PROOF_MIGRATION_DOCS"
+      ],
+      "acceptance_criteria": [
+        "planted core.fsmonitor/diff.external/core.pager execute nothing under status/diff/log",
+        "outside-reaching flags (--no-index, --output, -c, --git-dir, -C, --exec-path, pathspec ..) are NotAllowed before any process",
+        "status/diff/log positive control with hostile GIT_* in the caller env",
+        "spawnProcess/asyncExecProcess refused under confinement",
+        ".git/ read-only through every mutating FS op and the tools; .gitignore writable",
+        "Resolve admits git:status/diff/log in restricted mode and refuses other entries by name with the trusted_host migration",
+        "e2e with the deployed policy shape; mutation-tested with confinement off"
+      ],
+      "passes": true,
+      "started": "2026-09-21T12:00:16Z",
+      "completed": "2026-09-21T12:00:16Z",
+      "notes": "Red-first: with Confined=false the fsmonitor command ran and --no-index/--output returned Ok. Two of the three deployed lane policies need no change now; daneel-executor (AI) still needs a decision."
+    },
+    {
+      "id": "M7_LAST_REACHES",
+      "description": "From the audit of what the agent inside pi can still reach: ailang_run/run --policy entry file must be inside fs_sandbox; AI admitted in restricted mode iff ai_provider pinned AND [budgets] AI set, worker env carries only that provider credentials; fs_deny_write patterns enforced by FS ops and policy-tool.",
+      "estimated_loc": 450,
+      "dependencies": [
+        "M6_CONFINED_GIT"
+      ],
+      "acceptance_criteria": [
+        "entry outside fs_sandbox refused by name; inside runs",
+        "restricted AI with stub + AI=2 runs, AI=1 denies the second call, no budget refused by name",
+        "only the pinned provider credential vars reach a restricted worker",
+        "fs_deny_write refuses writes/appends/removes/renames/mkdir under the patterns from FS ops and tools; reads and ordinary files unaffected",
+        "docs + changelog"
+      ],
+      "passes": true,
+      "started": "2026-09-21T12:26:12Z",
+      "completed": "2026-09-21T12:26:12Z",
+      "notes": "design-quorum stays gated by cli_allow (daneel-design only); docs search and ai-check/z3 stay in the default set (Mark). daneel-executor.toml now needs only [budgets] AI."
+    }
+  ],
+  "github_issues_note": "create_sprint_json.sh keyword-matched #1259/#1261-#1264 (std/ai deadline, ailang test env, decisions); none concern executor policy — cleared by the planner",
+  "completed": "2026-09-21T11:26:02Z",
+  "outcome": "LANDED on dev in 5 milestone commits + finalize. Every AC1-AC12 row has a named artifact; every counterexample was red-first. Extra findings closed: archive builtins F1/F2, Process.Authorize(nil) bypass via Stream, prelude println budget, sandbox-check lie. OPEN: operator decision on the 3 deployed ailang_only policies that admit Process/AI (refused at dispatch once shipped). M6 (confined git) added after close: pkg-ailang-only and ailang-only-executor need no migration; daneel-executor (AI) still does. M7: entry-in-sandbox, restricted AI with budget, fs_deny_write; daneel-executor needs only [budgets] AI."
+}

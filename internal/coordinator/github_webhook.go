@@ -8,8 +8,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // handleGitHubWebhook handles incoming GitHub webhook events.
@@ -48,7 +49,7 @@ func (d *Daemon) handleGitHubWebhook(w http.ResponseWriter, r *http.Request) {
 	// handler specifically: handleWebhookOpened's chain ends in executeTaskQueue(),
 	// so an unsigned POST could enqueue and dispatch work. A deploy that forgets the
 	// secret must serve nothing, not serve everything.
-	secret := os.Getenv("GITHUB_WEBHOOK_SECRET")
+	secret := config.GitHubWebhookSecret()
 	if secret == "" {
 		d.logger.Printf("Webhook: REFUSING request — GITHUB_WEBHOOK_SECRET is unset, signatures cannot be verified")
 		w.WriteHeader(http.StatusServiceUnavailable)

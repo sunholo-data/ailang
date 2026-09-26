@@ -4,11 +4,26 @@
 ARG PROJECT
 FROM europe-west1-docker.pkg.dev/${PROJECT}/ailang/agent-base:latest
 
+# pi is pinned and asserted for the reasons given in Dockerfile.agent-pi — same
+# package, same version, same seam test against internal/executor/pi. The other
+# four are left as they are — pinning them is the same good idea and a separate
+# change, not one to fold in silently here.
+ARG PI_PACKAGE=@earendil-works/pi-coding-agent
+ARG PI_VERSION=0.85.1
+
 # All five executor CLIs — order matters for npm install speed (largest first)
 USER root
 RUN npm install -g @anthropic-ai/claude-code \
     && npm install -g @google/gemini-cli \
     && npm install -g @openai/codex \
     && npm install -g opencode-ai \
-    && npm install -g @mariozechner/pi-coding-agent
+    && { npm uninstall -g @mariozechner/pi-coding-agent 2>/dev/null || true; } \
+    && npm install -g "${PI_PACKAGE}@${PI_VERSION}" \
+    && pi --version </dev/null | grep -qx "${PI_VERSION}" \
+       || { echo "pi --version = $(pi --version </dev/null), pinned ${PI_VERSION}" >&2; exit 1; }
 USER ailang
+
+# This image carries SEVERAL executor CLIs, so it cannot answer "which one" —
+# "multi" tells execute-job the caller must name one via AILANG_PROVIDER, rather
+# than the image asserting an answer it does not have.
+ENV AILANG_IMAGE_PROVIDER=multi

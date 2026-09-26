@@ -14,15 +14,14 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sunholo-data/ailang/internal/ai"
-	"github.com/sunholo-data/ailang/internal/ai/anthropic"
-	"github.com/sunholo-data/ailang/internal/ai/gemini"
-	"github.com/sunholo-data/ailang/internal/ai/ollama"
-	"github.com/sunholo-data/ailang/internal/ai/openai"
-	"github.com/sunholo-data/ailang/internal/ai/openrouter"
+	"github.com/sunholo-data/ailang/internal/ai/factory"
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/coordinator"
 	"github.com/sunholo-data/ailang/internal/executor"
 	_ "github.com/sunholo-data/ailang/internal/executor/claude"
 	_ "github.com/sunholo-data/ailang/internal/executor/managed_agents"
+	otelplatform "github.com/sunholo-data/ailang/internal/platform/otel"
+	"github.com/sunholo-data/ailang/internal/strutil"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -83,7 +82,10 @@ func runExec() {
 	cloneRepo := fs.String("clone-repo", "", "Egress-enabled sandbox clones this public git URL, checks out the target revision, and reviews in-sandbox (gemini/managed_agents only)")
 	cloneSHA := fs.String("clone-sha", "", "Target 40-hex commit SHA for --clone-repo (default: shallow HEAD clone). Requires --clone-repo")
 
-	// Output flags
+	// Output flags. --stream-json is NOT folded into --json (S5 M5): the two
+	// names mean different things here — an NDJSON event stream during the run
+	// (default ON) versus one JSON object at the end — and --json is already
+	// taken below with the second meaning. See output_flags.go.
 	streamJSON := fs.Bool("stream-json", true, "Output NDJSON streaming events")
 	quiet := fs.Bool("quiet", false, "Suppress streaming output, only show final result")
 	jsonOutput := fs.Bool("json", false, "Output result as single JSON object (for programmatic use)")
@@ -95,13 +97,16 @@ func runExec() {
 
 	// Parse arguments (normalize flags first)
 	args := flag.Args()[1:] // Skip "exec" command
-	normalizable := []string{
-		"workspace", "model", "timeout", "task-id", "parent-task-id",
-		"system-prompt", "api-only", "register-task", "dry-run",
-		"stream-json", "quiet", "json", "clone-repo", "clone-sha",
+	// The flag names come from fs itself (M-COORDINATOR-EXECUTION-TRUST M5).
+	// This used to be a hand-maintained list plus routingFlagNames(); a list that
+	// must track a FlagSet drifts, and it could not say which flags take a value —
+	// so a bool flag swallowed the following positional and a dash-leading value
+	// shifted every later token.
+	args, normErr := normalizeArgsForFlags(args, fs)
+	if normErr != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), normErr)
+		os.Exit(1)
 	}
-	normalizable = append(normalizable, routingFlagNames()...)
-	args = normalizeArgsForFlags(args, normalizable)
 
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
@@ -129,11 +134,12 @@ func runExec() {
 	// Validate provider
 	validProviders := map[string]bool{
 		"claude": true, "gemini": true, "openai": true,
-		"anthropic": true, "ollama": true, "openrouter": true,
+		"anthropic": true, "ollama": true, "openrouter": true, "lyceum": true,
+		"zai": true,
 	}
 	if !validProviders[provider] {
 		fmt.Fprintf(os.Stderr, "%s: unknown provider %q\n", red("Error"), provider)
-		fmt.Fprintf(os.Stderr, "Valid providers: claude, gemini, openai, anthropic, ollama, openrouter\n")
+		fmt.Fprintf(os.Stderr, "Valid providers: claude, gemini, openai, anthropic, ollama, openrouter, lyceum, zai\n")
 		os.Exit(1)
 	}
 
@@ -149,7 +155,7 @@ func runExec() {
 
 	// Initialize telemetry
 	ctx := context.Background()
-	shutdownTelemetry, err := telemetry.Init(ctx, "ailang-exec")
+	shutdownTelemetry, err := otelplatform.Init(ctx, "ailang-exec")
 	if err != nil {
 		// Non-fatal - continue without telemetry
 		if !*quiet {
@@ -171,7 +177,7 @@ func runExec() {
 	// Inherit parent task from environment if not explicitly provided
 	// This enables automatic hierarchy linking when one exec spawns another
 	if *parentTaskID == "" {
-		*parentTaskID = os.Getenv("AILANG_PARENT_TASK_ID")
+		*parentTaskID = config.ParentTaskID()
 	}
 
 	// If still no parent task, use generic root marker for analytics
@@ -210,7 +216,7 @@ func runExec() {
 
 	// Dry run mode - just validate and exit
 	if *dryRun {
-		fmt.Printf("Dry run: would execute %s with directive: %s\n", provider, truncateString(directive, 50))
+		fmt.Printf("Dry run: would execute %s with directive: %s\n", provider, strutil.Truncate(directive, 50))
 		span.SetStatus(codes.Ok, "dry run")
 		if *streamJSON && !*quiet && !*jsonOutput {
 			emitEvent(ExecEvent{
@@ -357,15 +363,13 @@ func isEgressCapable(execName string) bool {
 	return false
 }
 
-// resolveGCPProjectEnv returns the GCP project for exec tasks, using the same
-// precedence as the coordinator (daemon_tasks_init.go): AILANG_CLOUD_PROJECT
-// first, then GOOGLE_CLOUD_PROJECT. Empty when neither is set — the executor
-// fails loud downstream (no silent default project).
-func resolveGCPProjectEnv() string {
-	if p := os.Getenv("AILANG_CLOUD_PROJECT"); p != "" {
-		return p
-	}
-	return os.Getenv("GOOGLE_CLOUD_PROJECT")
+// execGCPProject is the project for exec tasks: config.CloudProject, or
+// empty when nothing resolves — the project is optional for most executors,
+// and the ones that need it (gemini, managed agents) fail loud downstream
+// rather than silently defaulting.
+func execGCPProject(ctx context.Context) string {
+	p, _ := config.CloudProject(ctx)
+	return p
 }
 
 // executeCLI uses the agentic executor (Claude Code CLI, Vertex Managed Agents, ...)
@@ -401,8 +405,8 @@ func executeCLI(ctx context.Context, provider, directive, workspace, model, syst
 		Workspace:      workspace,
 		Timeout:        timeout,
 		Model:          model,
-		GCPProject:     resolveGCPProjectEnv(),
-		GCPLocation:    os.Getenv("GOOGLE_CLOUD_LOCATION"), // empty → executor default ("global")
+		GCPProject:     execGCPProject(ctx),
+		GCPLocation:    config.GoogleCloudLocation(), // empty → executor default ("global")
 		RequiresEgress: requiresEgress,
 	}
 
@@ -433,59 +437,13 @@ func executeCLI(ctx context.Context, provider, directive, workspace, model, syst
 
 // executeAPI uses the API provider directly (no file editing)
 func executeAPI(ctx context.Context, provider, directive, model, systemPrompt string, timeout time.Duration, streamJSON bool, routing *ai.AIRoutingPolicy) (*executor.Result, error) {
-	// Create API client based on provider
-	var client ai.Provider
-	var err error
-
-	switch provider {
-	case "openai":
-		apiKey := os.Getenv("OPENAI_API_KEY")
-		customBaseURL := strings.TrimSpace(os.Getenv("OPENAI_BASE_URL"))
-		if apiKey == "" && customBaseURL == "" {
-			return nil, fmt.Errorf("OPENAI_API_KEY environment variable required (or set OPENAI_BASE_URL for a custom unauthenticated endpoint)")
-		}
-		var clientOpts []openai.ClientOption
-		if customBaseURL != "" {
-			clientOpts = append(clientOpts, openai.WithBaseURL(customBaseURL))
-		}
-		client = openai.NewClient(apiKey, clientOpts...)
-	case "anthropic":
-		apiKey := os.Getenv("ANTHROPIC_API_KEY")
-		if apiKey == "" {
-			return nil, fmt.Errorf("ANTHROPIC_API_KEY environment variable required")
-		}
-		client = anthropic.NewClient(apiKey)
-	case "gemini":
-		apiKey := os.Getenv("GEMINI_API_KEY")
-		if apiKey == "" {
-			return nil, fmt.Errorf("GEMINI_API_KEY environment variable required")
-		}
-		client = gemini.NewClient(apiKey)
-	case "ollama":
-		endpoint := os.Getenv("OLLAMA_HOST")
-		if endpoint == "" {
-			endpoint = "http://localhost:11434"
-		}
-		var ollamaErr error
-		client, ollamaErr = ollama.NewClient(ollama.WithEndpoint(endpoint))
-		if ollamaErr != nil {
-			return nil, fmt.Errorf("failed to create ollama client: %w", ollamaErr)
-		}
-	case "openrouter":
-		apiKey := os.Getenv("OPENROUTER_API_KEY")
-		if apiKey == "" {
-			return nil, fmt.Errorf("OPENROUTER_API_KEY environment variable required")
-		}
-		client = openrouter.NewClient(apiKey)
-	default:
-		// M-AI-PROVIDER-CONFIG: consult the config-driven provider registry.
-		// Built-ins are checked above first (D4 — built-ins win on collision).
-		// Auth, endpoint, request shape all live in the package's [[ai_provider]] block.
-		if cd := LookupConfigDrivenProvider(provider); cd != nil {
-			client = cd
-		} else {
-			return nil, fmt.Errorf("API mode not supported for provider %s (use CLI mode, or install a package declaring an [[ai_provider]] with name = %q)", provider, provider)
-		}
+	// One factory resolves credential, endpoint and lane for every provider
+	// (M-V1-SIMPLIFY-S3 M4). Built-ins win over a same-named [[ai_provider]]
+	// block (M-AI-PROVIDER-CONFIG D4); the block's auth, endpoint and request
+	// shape live in the package manifest.
+	client, err := factory.NewProvider(provider, factory.WithConfigDriven(LookupConfigDrivenProvider))
+	if err != nil {
+		return nil, fmt.Errorf("API mode for provider %s: %w (use CLI mode, or install a package declaring an [[ai_provider]] with name = %q)", provider, err, provider)
 	}
 
 	// Build request
@@ -528,199 +486,6 @@ func executeAPI(ctx context.Context, provider, directive, model, systemPrompt st
 		OutputTokens: resp.OutputTokens,
 		CostUSD:      0, // API providers don't return cost directly
 	}, nil
-}
-
-// spanningEventHandler creates OTEL child spans from streaming events
-// for hierarchical tracing in the dashboard while also emitting NDJSON.
-// Optionally stores events to the coordinator database for chat history view.
-type spanningEventHandler struct {
-	ctx         context.Context
-	tracer      trace.Tracer
-	taskID      string
-	streamJSON  bool
-	currentTurn int
-	turnSpan    trace.Span
-	toolSpans   map[string]trace.Span // tool name -> active span
-	// Event storage for chat history (optional)
-	eventStore func(*coordinator.TaskEventRecord) error
-}
-
-// newSpanningEventHandler creates a handler that creates child spans.
-// If eventStore is provided, events will also be stored for chat history.
-func newSpanningEventHandler(ctx context.Context, taskID string, streamJSON bool, eventStore func(*coordinator.TaskEventRecord) error) *spanningEventHandler {
-	return &spanningEventHandler{
-		ctx:        ctx,
-		tracer:     execTracer,
-		taskID:     taskID,
-		streamJSON: streamJSON,
-		toolSpans:  make(map[string]trace.Span),
-		eventStore: eventStore,
-	}
-}
-
-// SetContext updates the handler's context for proper span hierarchy.
-// Called by the executor after creating its span, so turn/tool spans
-// become children of the executor's span rather than siblings.
-func (h *spanningEventHandler) SetContext(ctx context.Context) {
-	h.ctx = ctx
-}
-
-func (h *spanningEventHandler) OnTurnStart(turnNum int) {
-	h.currentTurn = turnNum
-	// Create child span for this turn
-	_, h.turnSpan = h.tracer.Start(h.ctx, "exec.turn",
-		trace.WithAttributes(
-			attribute.Int("turn.number", turnNum),
-			attribute.String("exec.task_id", h.taskID),
-		),
-	)
-	// Store to database for chat history
-	if h.eventStore != nil {
-		h.eventStore(&coordinator.TaskEventRecord{
-			TaskID:     h.taskID,
-			StreamType: "turn_start",
-			TurnNum:    turnNum,
-		})
-	}
-	// Also emit NDJSON for backward compatibility
-	if h.streamJSON {
-		emitEvent(ExecEvent{
-			Type: "turn_start",
-			Turn: turnNum,
-		})
-	}
-}
-
-func (h *spanningEventHandler) OnText(text string) {
-	// Text is recorded on turn span as an event, not a separate span
-	if h.turnSpan != nil {
-		h.turnSpan.AddEvent("text", trace.WithAttributes(
-			attribute.String("text.content", truncateString(text, 500)),
-		))
-	}
-	// Store FULL text to database for chat history (not truncated!)
-	if h.eventStore != nil {
-		h.eventStore(&coordinator.TaskEventRecord{
-			TaskID:     h.taskID,
-			StreamType: "text",
-			TurnNum:    h.currentTurn,
-			Text:       text,
-		})
-	}
-	if h.streamJSON {
-		emitEvent(ExecEvent{
-			Type:    "text",
-			Content: text,
-		})
-	}
-}
-
-func (h *spanningEventHandler) OnToolUse(toolName, input string) {
-	// Create child span for tool use (child of current turn)
-	_, toolSpan := h.tracer.Start(h.ctx, "exec.tool_use",
-		trace.WithAttributes(
-			attribute.String("tool.name", toolName),
-			attribute.String("tool.input", truncateString(input, 1000)),
-			attribute.String("exec.task_id", h.taskID),
-			attribute.Int("turn.number", h.currentTurn),
-		),
-	)
-	h.toolSpans[toolName] = toolSpan
-
-	// Store to database for chat history
-	if h.eventStore != nil {
-		h.eventStore(&coordinator.TaskEventRecord{
-			TaskID:     h.taskID,
-			StreamType: "tool_use",
-			TurnNum:    h.currentTurn,
-			ToolName:   toolName,
-			ToolInput:  input,
-		})
-	}
-	if h.streamJSON {
-		emitEvent(ExecEvent{
-			Type:  "tool_use",
-			Tool:  toolName,
-			Input: input,
-		})
-	}
-}
-
-func (h *spanningEventHandler) OnToolResult(toolName, output string) {
-	// End the matching tool span with the result
-	if span, ok := h.toolSpans[toolName]; ok {
-		span.SetAttributes(attribute.String("tool.output", truncateString(output, 1000)))
-		span.End()
-		delete(h.toolSpans, toolName)
-	}
-	// Store to database for chat history
-	if h.eventStore != nil {
-		h.eventStore(&coordinator.TaskEventRecord{
-			TaskID:     h.taskID,
-			StreamType: "tool_result",
-			TurnNum:    h.currentTurn,
-			ToolName:   toolName,
-			ToolOutput: output,
-		})
-	}
-	if h.streamJSON {
-		emitEvent(ExecEvent{
-			Type:   "tool_result",
-			Tool:   toolName,
-			Output: output,
-		})
-	}
-}
-
-func (h *spanningEventHandler) OnTurnEnd(turnNum int) {
-	// End any remaining tool spans (shouldn't happen normally)
-	for name, span := range h.toolSpans {
-		span.SetAttributes(attribute.Bool("tool.incomplete", true))
-		span.End()
-		delete(h.toolSpans, name)
-	}
-	// End turn span
-	if h.turnSpan != nil {
-		h.turnSpan.End()
-		h.turnSpan = nil
-	}
-	// Store to database for chat history
-	if h.eventStore != nil {
-		h.eventStore(&coordinator.TaskEventRecord{
-			TaskID:     h.taskID,
-			StreamType: "turn_end",
-			TurnNum:    turnNum,
-		})
-	}
-	if h.streamJSON {
-		emitEvent(ExecEvent{
-			Type: "turn_end",
-			Turn: turnNum,
-		})
-	}
-}
-
-func (h *spanningEventHandler) OnError(err error) {
-	// Record error on turn span if active
-	if h.turnSpan != nil {
-		h.turnSpan.RecordError(err)
-		h.turnSpan.SetStatus(codes.Error, err.Error())
-	}
-	// Store to database for chat history
-	if h.eventStore != nil {
-		h.eventStore(&coordinator.TaskEventRecord{
-			TaskID:     h.taskID,
-			StreamType: "error",
-			TurnNum:    h.currentTurn,
-			ErrorMsg:   err.Error(),
-		})
-	}
-	if h.streamJSON {
-		emitEvent(ExecEvent{
-			Type:  "error",
-			Error: err.Error(),
-		})
-	}
 }
 
 // printExecHelp prints help for the exec command

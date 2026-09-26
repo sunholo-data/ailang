@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"io"
-	"os"
 	"strings"
 )
 
@@ -56,8 +55,9 @@ func guardEvalRemoteRead(command string, args []string, warningWriter io.Writer)
 		}
 		return fmt.Errorf("%s remote read is view-scoped per D-15; register demand at #698 part 1", displayCommand)
 	}
-	if mode := os.Getenv("AILANG_CHAINS_READ"); mode != "" && mode != "local" {
-		fmt.Fprintf(warningWriter, "WARNING: %s ignores AILANG_CHAINS_READ=%s; remote read is view-scoped per D-15; register demand at #698 part 1\n", displayCommand, mode)
-	}
+	// AILANG_CHAINS_READ was retired (M-V1-SIMPLIFY-S3 M3): every reader that
+	// resolves the observatory plane now hard-errors on it via config, so the
+	// "ignored" warning this guard used to print would be a second, softer
+	// route to the same fact. The eval-* commands never honoured it.
 	return nil
 }

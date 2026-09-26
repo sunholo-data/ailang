@@ -2,30 +2,48 @@ package coordinator
 
 import (
 	"context"
+	"crypto/subtle"
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"strconv"
+	"strings"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
+	"github.com/sunholo-data/ailang/internal/httpjson"
 	"github.com/sunholo-data/ailang/internal/messaging"
 	"github.com/sunholo-data/ailang/internal/observatory"
 	"github.com/sunholo-data/ailang/internal/pubsub"
 )
 
-// requireAPIKey returns middleware that checks for a valid Bearer token.
-// When COORDINATOR_API_KEY is unset, all requests pass through (local mode).
+// apiKeyEnv names the bearer token the coordinator's HTTP API requires.
+const apiKeyEnv = config.EnvCoordinatorAPIKey
+
+// requireAPIKey returns middleware that checks for a valid Bearer token and
+// FAILS CLOSED: with COORDINATOR_API_KEY unset every request is rejected.
+//
+// Until M-V1-SIMPLIFY-S3 M5 (2026-09-15) an unset key meant "open" — so a
+// deploy that lost the secret binding silently exposed /status, /pending,
+// /chains/* and the /api/messages ingestion path, and the comparison was a
+// plain string equality, which leaks the key length and prefix through
+// timing. instances_http.go already refused that default for its own routes;
+// this makes the two rules one. Local installs get a key from
+// tools/launchd/install_coordinator.sh and `ailang messages send` reads it
+// from the rendered plist, so the loopback daemon keeps working.
 func (d *Daemon) requireAPIKey(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		key := os.Getenv("COORDINATOR_API_KEY")
+		key := config.CoordinatorAPIKey()
 		if key == "" {
-			next(w, r) // No key configured = open (local mode)
+			httpjson.Error(w, http.StatusUnauthorized,
+				apiKeyEnv+" is not set on the coordinator; this endpoint is closed until it is")
 			return
 		}
+		const scheme = "Bearer "
 		auth := r.Header.Get("Authorization")
-		if auth != "Bearer "+key {
-			w.WriteHeader(http.StatusUnauthorized)
+		if !strings.HasPrefix(auth, scheme) ||
+			subtle.ConstantTimeCompare([]byte(auth[len(scheme):]), []byte(key)) != 1 {
+			httpjson.Error(w, http.StatusUnauthorized, "invalid or missing bearer token")
 			return
 		}
 		next(w, r)
@@ -36,6 +54,10 @@ func (d *Daemon) requireAPIKey(next http.HandlerFunc) http.HandlerFunc {
 // Called from Run() when PORT env var is set (Cloud Run convention).
 func (d *Daemon) startHealthServer(port string) {
 	mux := http.NewServeMux()
+
+	if config.CoordinatorAPIKey() == "" {
+		d.logger.Printf("SECURITY: %s is unset — /status, /chains/*, /pending and /api/messages will reject every request until it is set (fail-closed since M-V1-SIMPLIFY-S3 M5; `make coord-install` writes one)", apiKeyEnv)
+	}
 
 	// M3: Health endpoint (Cloud Run startup/liveness probe) — always public
 	mux.HandleFunc("/health", d.handleHealth)
@@ -49,9 +71,17 @@ func (d *Daemon) startHealthServer(port string) {
 	// M-REST-INGESTION: REST API for client message ingestion and retrieval (all modes).
 	mux.HandleFunc("/api/messages", d.requireAPIKey(d.handleMessages))
 
+	// v6.40.0 M4: start a stopped resident agent instance.
+	//
+	// Not behind requireAPIKey: a route that operates infrastructure verifies
+	// Google-signed OIDC against an explicit caller allowlist instead of a
+	// shared bearer token. Both fail CLOSED when unconfigured.
+	mux.HandleFunc("/instances/start", d.handleStartInstance)
+	mux.HandleFunc("/instances/sweep", d.handleSweepInstances)
+
 	// M-CLOUD-PUSH: Pub/Sub push endpoints for cloud mode.
 	// Pub/Sub delivers messages via HTTP POST instead of pull subscriptions.
-	if os.Getenv("COORDINATOR_MODE") == CoordinatorModeCloud {
+	if IsCloudMode() {
 		mux.HandleFunc("/pubsub/push", d.handlePushMessage)
 		mux.HandleFunc("/pubsub/completions", d.handlePushCompletion)
 		d.logger.Println("Pub/Sub push endpoints registered: /pubsub/push, /pubsub/completions")
@@ -64,7 +94,7 @@ func (d *Daemon) startHealthServer(port string) {
 		// misconfigured deploy 404s instead of advertising an endpoint whose whole
 		// chain ends in task dispatch. Loud, because a silently-absent webhook and a
 		// silently-unauthenticated one look identical from outside.
-		if os.Getenv("GITHUB_WEBHOOK_SECRET") == "" {
+		if config.GitHubWebhookSecret() == "" {
 			d.logger.Println("SECURITY: GitHub webhook endpoint NOT registered — GITHUB_WEBHOOK_SECRET is unset")
 		} else {
 			mux.HandleFunc("/github/webhook", d.handleGitHubWebhook)
@@ -78,10 +108,10 @@ func (d *Daemon) startHealthServer(port string) {
 	// Override with COORDINATOR_BIND_ADDR when the local daemon genuinely must be
 	// reachable off-host.
 	host := "127.0.0.1"
-	if os.Getenv("COORDINATOR_MODE") == CoordinatorModeCloud {
+	if IsCloudMode() {
 		host = "0.0.0.0"
 	}
-	if override := os.Getenv("COORDINATOR_BIND_ADDR"); override != "" {
+	if override := config.CoordinatorBindAddr(); override != "" {
 		host = override
 	}
 	addr := fmt.Sprintf("%s:%s", host, port)
@@ -106,7 +136,7 @@ func (d *Daemon) handleHealth(w http.ResponseWriter, r *http.Request) {
 		"component": "coordinator",
 		"uptime":    time.Since(d.startedAt).Round(time.Second).String(),
 	}
-	writeJSON(w, http.StatusOK, resp)
+	httpjson.Write(w, http.StatusOK, resp)
 }
 
 // handleStatus returns the coordinator's current state with task counts.
@@ -116,7 +146,7 @@ func (d *Daemon) handleStatus(w http.ResponseWriter, r *http.Request) {
 
 	status, err := d.Status()
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		httpjson.Write(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
 
@@ -134,13 +164,13 @@ func (d *Daemon) handleStatus(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	writeJSON(w, http.StatusOK, status)
+	httpjson.Write(w, http.StatusOK, status)
 }
 
 // handleChainsActive returns currently running execution chains.
 func (d *Daemon) handleChainsActive(w http.ResponseWriter, r *http.Request) {
 	if d.obsBackend == nil {
-		writeJSON(w, http.StatusOK, []interface{}{})
+		httpjson.Write(w, http.StatusOK, []interface{}{})
 		return
 	}
 
@@ -152,18 +182,18 @@ func (d *Daemon) handleChainsActive(w http.ResponseWriter, r *http.Request) {
 		Limit:  50,
 	})
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		httpjson.Write(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
 
-	writeJSON(w, http.StatusOK, chains)
+	httpjson.Write(w, http.StatusOK, chains)
 }
 
 // handleChainsStats returns aggregate chain metrics.
 // Accepts ?hours=N query parameter (default: 168 = 1 week).
 func (d *Daemon) handleChainsStats(w http.ResponseWriter, r *http.Request) {
 	if d.obsBackend == nil {
-		writeJSON(w, http.StatusOK, &observatory.ChainStatusCounts{})
+		httpjson.Write(w, http.StatusOK, &observatory.ChainStatusCounts{})
 		return
 	}
 
@@ -181,17 +211,17 @@ func (d *Daemon) handleChainsStats(w http.ResponseWriter, r *http.Request) {
 	createdAfter := time.Now().Add(-time.Duration(hours) * time.Hour)
 	counts, err := d.obsBackend.GetChainStatusCounts(ctx, &createdAfter)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		httpjson.Write(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
 
-	writeJSON(w, http.StatusOK, counts)
+	httpjson.Write(w, http.StatusOK, counts)
 }
 
 // handlePending returns pending approval requests.
 func (d *Daemon) handlePending(w http.ResponseWriter, r *http.Request) {
 	if d.obsBackend == nil {
-		writeJSON(w, http.StatusOK, []interface{}{})
+		httpjson.Write(w, http.StatusOK, []interface{}{})
 		return
 	}
 
@@ -200,11 +230,11 @@ func (d *Daemon) handlePending(w http.ResponseWriter, r *http.Request) {
 
 	approvals, err := d.obsBackend.ListPendingApprovals(ctx, 50)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		httpjson.Write(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
 
-	writeJSON(w, http.StatusOK, approvals)
+	httpjson.Write(w, http.StatusOK, approvals)
 }
 
 // handlePushMessage receives Pub/Sub push messages from the messages topic.
@@ -318,7 +348,7 @@ type getMessagesResponse struct {
 // Query params: inbox, status, from, limit (default 50), collapsed.
 func (d *Daemon) handleGetMessages(w http.ResponseWriter, r *http.Request) {
 	if d.msgStore == nil {
-		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "message store not configured"})
+		httpjson.Write(w, http.StatusServiceUnavailable, map[string]string{"error": "message store not configured"})
 		return
 	}
 
@@ -341,7 +371,7 @@ func (d *Daemon) handleGetMessages(w http.ResponseWriter, r *http.Request) {
 	msgs, err := d.msgStore.ListInboxMessages(opts)
 	if err != nil {
 		d.logger.Printf("GET /api/messages: list error: %v", err)
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to list messages"})
+		httpjson.Write(w, http.StatusInternalServerError, map[string]string{"error": "failed to list messages"})
 		return
 	}
 
@@ -350,7 +380,7 @@ func (d *Daemon) handleGetMessages(w http.ResponseWriter, r *http.Request) {
 		msgs = []messaging.InboxMessage{}
 	}
 
-	writeJSON(w, http.StatusOK, getMessagesResponse{
+	httpjson.Write(w, http.StatusOK, getMessagesResponse{
 		Messages: msgs,
 		Count:    len(msgs),
 		Limit:    limit,
@@ -392,23 +422,23 @@ type postMessageResponse struct {
 func (d *Daemon) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 	var req postMessageRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON: " + err.Error()})
+		httpjson.Write(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON: " + err.Error()})
 		return
 	}
 
 	// Validate required fields.
 	switch {
 	case req.Inbox == "":
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "missing required field: inbox"})
+		httpjson.Write(w, http.StatusBadRequest, map[string]string{"error": "missing required field: inbox"})
 		return
 	case req.Title == "":
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "missing required field: title"})
+		httpjson.Write(w, http.StatusBadRequest, map[string]string{"error": "missing required field: title"})
 		return
 	case req.Content == "":
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "missing required field: content"})
+		httpjson.Write(w, http.StatusBadRequest, map[string]string{"error": "missing required field: content"})
 		return
 	case req.From == "":
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "missing required field: from"})
+		httpjson.Write(w, http.StatusBadRequest, map[string]string{"error": "missing required field: from"})
 		return
 	}
 
@@ -421,7 +451,7 @@ func (d *Daemon) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if d.msgStore == nil {
-		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "message store not configured"})
+		httpjson.Write(w, http.StatusServiceUnavailable, map[string]string{"error": "message store not configured"})
 		return
 	}
 
@@ -443,7 +473,7 @@ func (d *Daemon) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 
 	if err := d.msgStore.InsertInboxMessageWithContext(ctx, msg); err != nil {
 		d.logger.Printf("POST /api/messages: store error: %v", err)
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to store message"})
+		httpjson.Write(w, http.StatusInternalServerError, map[string]string{"error": "failed to store message"})
 		return
 	}
 
@@ -454,7 +484,7 @@ func (d *Daemon) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 			encrypted, err := d.kmsEncrypter.Encrypt(ctx, apiKeyValue)
 			if err != nil {
 				d.logger.Printf("POST /api/messages: KMS encrypt failed for %s: %v", msg.ID, err)
-				writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to encrypt API key"})
+				httpjson.Write(w, http.StatusInternalServerError, map[string]string{"error": "failed to encrypt API key"})
 				return
 			}
 			apiKeyValue = encrypted
@@ -475,7 +505,7 @@ func (d *Daemon) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 			// requirements so PubSubInboxAdapter can do tag-subset filtering.
 			Requires: req.Requires,
 		}
-		if err := d.pubsubPublisher.PublishMessage(ctx, msg.ID, attrs); err != nil {
+		if err := d.pubsubPublisher.PublishMessage(ctx, messaging.NotificationIDFor(msg), attrs); err != nil {
 			d.logger.Printf("POST /api/messages: pubsub publish warning (message stored OK): %v", err)
 			// Don't fail the request — message is safely stored.
 		}
@@ -493,7 +523,7 @@ func (d *Daemon) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 
 	d.logger.Printf("POST /api/messages: created %s (inbox=%s, from=%s)", SanitizeLog(msg.ID), SanitizeLog(req.Inbox), SanitizeLog(req.From))
 
-	writeJSON(w, http.StatusCreated, postMessageResponse{
+	httpjson.Write(w, http.StatusCreated, postMessageResponse{
 		MessageID: msg.ID,
 		Inbox:     req.Inbox,
 		Status:    messaging.InboxStatusUnread,
@@ -501,8 +531,3 @@ func (d *Daemon) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 }
 
 // writeJSON writes a JSON response with the given status code.
-func writeJSON(w http.ResponseWriter, status int, v interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(v)
-}

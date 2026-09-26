@@ -35,7 +35,10 @@ func isDebugCall(app *core.App) bool {
 	case *core.Var:
 		return isDebugBuiltin(fn.Name)
 	case *core.VarGlobal:
-		return fn.Ref.Module == "std/debug" && isDebugBuiltin(fn.Ref.Name)
+		// "$builtin" is what DebugLocationInjector rewrites user-level
+		// std/debug.log/check calls into; before that pass existed, user
+		// calls reached the wrapper by name and were never erased.
+		return (fn.Ref.Module == "std/debug" || fn.Ref.Module == "$builtin") && isDebugBuiltin(fn.Ref.Name)
 	}
 	return false
 }
@@ -46,25 +49,32 @@ func unitLit() core.CoreExpr {
 }
 
 // eraseExpr recursively transforms a Core expression, replacing Debug calls
-// with unit literals and erasing Debug from effect rows.
+// with unit literals. Traversal is the shared mapCoreChildren walker.
 func (e *DebugEraser) eraseExpr(expr core.CoreExpr) core.CoreExpr {
+	if app, ok := expr.(*core.App); ok && isDebugCall(app) {
+		return unitLit()
+	}
+	return mapCoreChildren(expr, e.eraseExpr)
+}
+
+// mapCoreChildren rebuilds expr with f applied to each direct child. It is
+// the one structural walker shared by the Core-to-Core passes in this
+// package (DebugEraser, DebugLocationInjector); f decides what to do at a
+// node, this function only knows the node shapes. Leaves are returned as-is.
+func mapCoreChildren(expr core.CoreExpr, f func(core.CoreExpr) core.CoreExpr) core.CoreExpr {
 	if expr == nil {
 		return nil
 	}
 
 	switch n := expr.(type) {
 	case *core.App:
-		if isDebugCall(n) {
-			return unitLit()
-		}
-		// Recurse into function and args
 		newArgs := make([]core.CoreExpr, len(n.Args))
 		for i, arg := range n.Args {
-			newArgs[i] = e.eraseExpr(arg)
+			newArgs[i] = f(arg)
 		}
 		return &core.App{
 			CoreNode: n.CoreNode,
-			Func:     e.eraseExpr(n.Func),
+			Func:     f(n.Func),
 			Args:     newArgs,
 		}
 
@@ -72,8 +82,8 @@ func (e *DebugEraser) eraseExpr(expr core.CoreExpr) core.CoreExpr {
 		return &core.Let{
 			CoreNode: n.CoreNode,
 			Name:     n.Name,
-			Value:    e.eraseExpr(n.Value),
-			Body:     e.eraseExpr(n.Body),
+			Value:    f(n.Value),
+			Body:     f(n.Body),
 		}
 
 	case *core.LetRec:
@@ -81,28 +91,28 @@ func (e *DebugEraser) eraseExpr(expr core.CoreExpr) core.CoreExpr {
 		for i, b := range n.Bindings {
 			newBindings[i] = core.RecBinding{
 				Name:  b.Name,
-				Value: e.eraseExpr(b.Value),
+				Value: f(b.Value),
 			}
 		}
 		return &core.LetRec{
 			CoreNode: n.CoreNode,
 			Bindings: newBindings,
-			Body:     e.eraseExpr(n.Body),
+			Body:     f(n.Body),
 		}
 
 	case *core.Lambda:
 		return &core.Lambda{
 			CoreNode: n.CoreNode,
 			Params:   n.Params,
-			Body:     e.eraseExpr(n.Body),
+			Body:     f(n.Body),
 		}
 
 	case *core.If:
 		return &core.If{
 			CoreNode: n.CoreNode,
-			Cond:     e.eraseExpr(n.Cond),
-			Then:     e.eraseExpr(n.Then),
-			Else:     e.eraseExpr(n.Else),
+			Cond:     f(n.Cond),
+			Then:     f(n.Then),
+			Else:     f(n.Else),
 		}
 
 	case *core.Match:
@@ -110,13 +120,13 @@ func (e *DebugEraser) eraseExpr(expr core.CoreExpr) core.CoreExpr {
 		for i, arm := range n.Arms {
 			newArms[i] = core.MatchArm{
 				Pattern: arm.Pattern,
-				Guard:   e.eraseExpr(arm.Guard),
-				Body:    e.eraseExpr(arm.Body),
+				Guard:   f(arm.Guard),
+				Body:    f(arm.Body),
 			}
 		}
 		return &core.Match{
 			CoreNode:   n.CoreNode,
-			Scrutinee:  e.eraseExpr(n.Scrutinee),
+			Scrutinee:  f(n.Scrutinee),
 			Arms:       newArms,
 			Exhaustive: n.Exhaustive,
 		}
@@ -124,7 +134,7 @@ func (e *DebugEraser) eraseExpr(expr core.CoreExpr) core.CoreExpr {
 	case *core.Record:
 		newFields := make(map[string]core.CoreExpr, len(n.Fields))
 		for k, v := range n.Fields {
-			newFields[k] = e.eraseExpr(v)
+			newFields[k] = f(v)
 		}
 		return &core.Record{
 			CoreNode: n.CoreNode,
@@ -134,25 +144,25 @@ func (e *DebugEraser) eraseExpr(expr core.CoreExpr) core.CoreExpr {
 	case *core.RecordAccess:
 		return &core.RecordAccess{
 			CoreNode: n.CoreNode,
-			Record:   e.eraseExpr(n.Record),
+			Record:   f(n.Record),
 			Field:    n.Field,
 		}
 
 	case *core.RecordUpdate:
 		newUpdates := make(map[string]core.CoreExpr, len(n.Updates))
 		for k, v := range n.Updates {
-			newUpdates[k] = e.eraseExpr(v)
+			newUpdates[k] = f(v)
 		}
 		return &core.RecordUpdate{
 			CoreNode: n.CoreNode,
-			Base:     e.eraseExpr(n.Base),
+			Base:     f(n.Base),
 			Updates:  newUpdates,
 		}
 
 	case *core.List:
 		newElems := make([]core.CoreExpr, len(n.Elements))
 		for i, elem := range n.Elements {
-			newElems[i] = e.eraseExpr(elem)
+			newElems[i] = f(elem)
 		}
 		return &core.List{
 			CoreNode: n.CoreNode,
@@ -162,7 +172,7 @@ func (e *DebugEraser) eraseExpr(expr core.CoreExpr) core.CoreExpr {
 	case *core.Array:
 		newElems := make([]core.CoreExpr, len(n.Elements))
 		for i, elem := range n.Elements {
-			newElems[i] = e.eraseExpr(elem)
+			newElems[i] = f(elem)
 		}
 		return &core.Array{
 			CoreNode: n.CoreNode,
@@ -172,7 +182,7 @@ func (e *DebugEraser) eraseExpr(expr core.CoreExpr) core.CoreExpr {
 	case *core.Tuple:
 		newElems := make([]core.CoreExpr, len(n.Elements))
 		for i, elem := range n.Elements {
-			newElems[i] = e.eraseExpr(elem)
+			newElems[i] = f(elem)
 		}
 		return &core.Tuple{
 			CoreNode: n.CoreNode,
@@ -183,21 +193,21 @@ func (e *DebugEraser) eraseExpr(expr core.CoreExpr) core.CoreExpr {
 		return &core.BinOp{
 			CoreNode: n.CoreNode,
 			Op:       n.Op,
-			Left:     e.eraseExpr(n.Left),
-			Right:    e.eraseExpr(n.Right),
+			Left:     f(n.Left),
+			Right:    f(n.Right),
 		}
 
 	case *core.UnOp:
 		return &core.UnOp{
 			CoreNode: n.CoreNode,
 			Op:       n.Op,
-			Operand:  e.eraseExpr(n.Operand),
+			Operand:  f(n.Operand),
 		}
 
 	case *core.Intrinsic:
 		newArgs := make([]core.CoreExpr, len(n.Args))
 		for i, arg := range n.Args {
-			newArgs[i] = e.eraseExpr(arg)
+			newArgs[i] = f(arg)
 		}
 		return &core.Intrinsic{
 			CoreNode: n.CoreNode,
@@ -209,26 +219,26 @@ func (e *DebugEraser) eraseExpr(expr core.CoreExpr) core.CoreExpr {
 		return &core.Forall{
 			CoreNode: n.CoreNode,
 			Var:      n.Var,
-			Lo:       e.eraseExpr(n.Lo),
-			Hi:       e.eraseExpr(n.Hi),
-			Body:     e.eraseExpr(n.Body),
+			Lo:       f(n.Lo),
+			Hi:       f(n.Hi),
+			Body:     f(n.Body),
 		}
 
 	case *core.DictAbs:
 		return &core.DictAbs{
 			CoreNode: n.CoreNode,
 			Params:   n.Params,
-			Body:     e.eraseExpr(n.Body),
+			Body:     f(n.Body),
 		}
 
 	case *core.DictApp:
 		newArgs := make([]core.CoreExpr, len(n.Args))
 		for i, arg := range n.Args {
-			newArgs[i] = e.eraseExpr(arg)
+			newArgs[i] = f(arg)
 		}
 		return &core.DictApp{
 			CoreNode: n.CoreNode,
-			Dict:     e.eraseExpr(n.Dict),
+			Dict:     f(n.Dict),
 			Method:   n.Method,
 			Args:     newArgs,
 		}

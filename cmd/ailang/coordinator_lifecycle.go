@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -13,14 +14,15 @@ import (
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/ai"
-	"github.com/sunholo-data/ailang/internal/ai/anthropic"
+	"github.com/sunholo-data/ailang/internal/ai/factory"
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/coordinator"
 	"github.com/sunholo-data/ailang/internal/dispatch/cloudrun"
 	"github.com/sunholo-data/ailang/internal/feedbackgate"
+	otelplatform "github.com/sunholo-data/ailang/internal/platform/otel"
 	"github.com/sunholo-data/ailang/internal/pubsub"
 	"github.com/sunholo-data/ailang/internal/storage"
 	fsstore "github.com/sunholo-data/ailang/internal/storage/firestore"
-	"github.com/sunholo-data/ailang/internal/telemetry"
 )
 
 func coordinatorStart(args []string) error {
@@ -66,20 +68,17 @@ func coordinatorStart(args []string) error {
 
 	// Initialize OpenTelemetry (if configured via environment variables)
 	ctx := context.Background()
-	shutdownTelemetry, err := telemetry.Init(ctx, "ailang-coordinator")
+	shutdownTelemetry, telemetryStatus, err := otelplatform.InitWithStatus(ctx, "ailang-coordinator")
 	if err != nil {
 		fmt.Printf("  %s Warning: Failed to initialize OpenTelemetry: %v\n", yellow("!"), err)
-	} else if telemetry.IsDualExportEnabled() {
-		fmt.Printf("  %s Dual telemetry export enabled:\n", green("✓"))
-		fmt.Printf("      → Google Cloud Trace (project: %s)\n", telemetry.GoogleCloudProject())
-		fmt.Printf("      → OTLP endpoint: %s\n", os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"))
-	} else if telemetry.IsGoogleCloudEnabled() {
-		fmt.Printf("  %s Google Cloud Trace enabled (project: %s)\n", green("✓"), telemetry.GoogleCloudProject())
-	} else if telemetry.IsEnabled() {
-		fmt.Printf("  %s OpenTelemetry OTLP export enabled\n", green("✓"))
+	} else {
+		fmt.Printf("  Telemetry: %s\n", telemetryStatus)
+		defer func() {
+			if err := shutdownTelemetry(context.Background()); err != nil {
+				fmt.Printf("  %s Warning: Failed to flush OpenTelemetry: %v\n", yellow("!"), err)
+			}
+		}()
 	}
-	// Note: shutdownTelemetry will be called when daemon stops via defer in daemon.Run()
-	_ = shutdownTelemetry // We don't call it here since daemon runs indefinitely
 
 	// Create daemon
 	daemon, err := coordinator.NewDaemon(cfg)
@@ -100,9 +99,11 @@ func coordinatorStart(args []string) error {
 	// visible to a separate `workers list` CLI process on the same host.
 	// Cross-host visibility (Firestore-backed) is the v0.25 roadmap item —
 	// drops into the same HeartbeatStore interface without changing this wiring.
-	daemon.SetHeartbeatStore(coordinator.NewFileHeartbeatStore(
-		coordinator.DefaultHeartbeatPath(cfg.StateDir),
-	))
+	hbPath, err := coordinator.DefaultHeartbeatPath(cfg.StateDir)
+	if err != nil {
+		return err
+	}
+	daemon.SetHeartbeatStore(coordinator.NewFileHeartbeatStore(hbPath))
 
 	// Pre-set cloud backends if configured (AILANG_STORAGE=gcp|hybrid)
 	storageMode := storage.GetMode()
@@ -137,11 +138,15 @@ func coordinatorStart(args []string) error {
 		budget := feedbackgate.NewBudget(fsstore.NewFeedbackGateBudgetStore(fsClient))
 
 		var provider ai.Provider
-		if key := os.Getenv("ANTHROPIC_API_KEY"); key != "" {
+		if key := config.AnthropicAPIKey(); key != "" {
 			// The classifier model is a per-request field (ai.Request.Model =
 			// cfg.ClassifierModel), so a bare client is correct — do NOT thread a
-			// model into the client here.
-			provider = anthropic.NewClient(key)
+			// model into the client here. The metered key is passed explicitly:
+			// the gate stays closed on OAuth-only machines by design.
+			provider, err = factory.NewProvider("anthropic", factory.WithAPIKey(key))
+			if err != nil {
+				return fmt.Errorf("feedback-gate classifier: %w", err)
+			}
 		} else {
 			fmt.Printf("  %s ANTHROPIC_API_KEY not set: feedback-gate classifier fail-closed "+
 				"(heuristic-flagged submissions filed, never dispatched)\n", yellow("⚠"))
@@ -155,17 +160,15 @@ func coordinatorStart(args []string) error {
 
 	// M-CLOUD-DISPATCH: Create Cloud Run Jobs dispatcher in cloud mode.
 	// Created here (not in coordinator package) to avoid circular imports.
-	if os.Getenv("COORDINATOR_MODE") == "cloud" {
-		projectID := os.Getenv("AILANG_CLOUD_PROJECT")
-		region := os.Getenv("AILANG_CLOUD_REGION")
-		if region == "" {
-			region = "europe-west1"
+	if coordinator.IsCloudMode() {
+		projectID, projErr := config.CloudProject(ctx)
+		region, regionErr := config.Region()
+		prefix := pubsub.TopicPrefixFromEnv()
+		var dispatcher *cloudrun.Dispatcher
+		dispErr := errors.Join(projErr, regionErr)
+		if dispErr == nil {
+			dispatcher, dispErr = cloudrun.NewDispatcher(ctx, projectID, region, prefix)
 		}
-		prefix := os.Getenv("AILANG_TOPIC_PREFIX")
-		if prefix == "" {
-			prefix = pubsub.DefaultTopicPrefix
-		}
-		dispatcher, dispErr := cloudrun.NewDispatcher(ctx, projectID, region, prefix)
 		if dispErr != nil {
 			fmt.Printf("  %s Cloud Run Jobs dispatcher: %v\n", yellow("⚠"), dispErr)
 		} else {
@@ -425,10 +428,10 @@ func printCoordinatorStatusOutput(status *coordinator.Status) {
 // without an HTTP listener, which means tag-routed `POST /api/messages` is
 // unreachable. M-COORD-TAG-ROUTING-LASTMILE.
 func discoverCoordinatorHTTPPort() string {
-	if p := os.Getenv("AILANG_COORD_HTTP_PORT"); p != "" {
+	if p := config.CoordHTTPPort(); p != "" {
 		return p
 	}
-	if p := os.Getenv("PORT"); p != "" {
+	if p := config.Port(); p != "" {
 		return p
 	}
 	home, err := os.UserHomeDir()

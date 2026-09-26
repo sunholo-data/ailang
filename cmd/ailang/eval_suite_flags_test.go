@@ -193,10 +193,10 @@ func TestLoadBenchmarkTags(t *testing.T) {
 // stdout because the printers write directly to os.Stdout.
 func TestSectionPrintersSmoke(t *testing.T) {
 	results := []*eval_analysis.BenchmarkResult{
-		{ID: "fizzbuzz", Lang: "ailang", Model: "m1", StdoutOk: true},
-		{ID: "fizzbuzz", Lang: "python", Model: "m1", StdoutOk: true},
-		{ID: "contract_bst_validate", Lang: "ailang", Model: "m1", StdoutOk: true},
-		{ID: "contract_bst_validate", Lang: "python", Model: "m1", StdoutOk: false},
+		{RunMetrics: eval_harness.RunMetrics{ID: "fizzbuzz", Lang: "ailang", Model: "m1", CompileOk: true, RuntimeOk: true, StdoutOk: true}},
+		{RunMetrics: eval_harness.RunMetrics{ID: "fizzbuzz", Lang: "python", Model: "m1", CompileOk: true, RuntimeOk: true, StdoutOk: true}},
+		{RunMetrics: eval_harness.RunMetrics{ID: "contract_bst_validate", Lang: "ailang", Model: "m1", CompileOk: true, RuntimeOk: true, StdoutOk: true}},
+		{RunMetrics: eval_harness.RunMetrics{ID: "contract_bst_validate", Lang: "python", Model: "m1", CompileOk: true, RuntimeOk: true, StdoutOk: false}},
 	}
 
 	t.Run("saturated", func(t *testing.T) {
@@ -266,7 +266,7 @@ func captureStdout(t *testing.T, fn func()) string {
 // This guards against adding a suite to models.yml but forgetting to register
 // it in expandModelSuite()'s switch statement.
 func TestExpandModelSuite(t *testing.T) {
-	cfg, err := eval_harness.LoadModelsConfig("../../internal/eval_harness/models.yml")
+	cfg, err := eval_harness.LoadModelsConfig("../../internal/modelreg/models.yml")
 	if err != nil {
 		t.Skipf("models.yml not available: %v", err)
 	}

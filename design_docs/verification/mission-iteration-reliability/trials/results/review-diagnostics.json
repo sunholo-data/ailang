@@ -1,0 +1,62 @@
+{
+  "usage": {
+    "DurationMS": 362068,
+    "NumTurns": 19,
+    "ToolCallCount": 26,
+    "CostUSD": 0.016704388,
+    "CostProvenance": "metered",
+    "InputTokens": 93659,
+    "OutputTokens": 6365,
+    "CacheReadInputTokens": 504123,
+    "CacheCreationInputTokens": 0,
+    "SessionID": "01a07fa2-684a-772a-a4d4-9a466b33de02",
+    "FinishReason": "thrash_aborted"
+  },
+  "event_counts": {
+    "session": 1,
+    "agent_start": 1,
+    "turn_start": 19,
+    "message_start": 46,
+    "message_end": 46,
+    "message_update": 3580,
+    "tool_execution_start": 26,
+    "tool_execution_update": 78,
+    "tool_execution_end": 25,
+    "turn_end": 18
+  },
+  "commands": [
+    "cd /private/tmp/ailang-docs-canary/workspaces/docs/docs-canary-guide-review-3/stages/evaluator && pwd && ls -la && git status 2>&1 | head -50",
+    "cd /private/tmp/ailang-docs-canary/workspaces/docs/docs-canary-guide-review-3/stages/evaluator && git log --oneline -15 2>&1",
+    "cd /private/tmp/ailang-docs-canary/workspaces/docs/docs-canary-guide-review-3/stages/evaluator && cat AGENTS.md 2>&1 | head -120",
+    "cd /private/tmp/ailang-docs-canary/workspaces/docs/docs-canary-guide-review-3/stages/evaluator && ls -la missions/ && echo \"---STATUS---\" && git status && echo \"---SHOW HEAD---\" && git show --stat HEAD 2>&1 | head -60",
+    "cd /private/tmp/ailang-docs-canary/workspaces/docs/docs-canary-guide-review-3/stages/evaluator && git show HEAD --stat && echo \"---DIFF---\" && git show HEAD",
+    "cd /private/tmp/ailang-docs-canary/workspaces/docs/docs-canary-guide-review-3/stages/evaluator && echo \"---LOG---\" && git log --oneline -15 && echo \"---REV 3fd8271---\" && git show 3fd8271ac8399f0f83e7e3ddf2675cb9 --stat 2>&1 | head -40",
+    "cd /private/tmp/ailang-docs-canary/workspaces/docs/docs-canary-guide-review-3/stages/evaluator && echo \"===PWD===\" && pwd && echo \"===TOP LEVEL===\" && ls -la && echo \"===GIT STATUS===\" && git status 2>&1 | head -30",
+    "cd /private/tmp/ailang-docs-canary/workspaces/docs/docs-canary-guide-review-3/stages/evaluator && echo \"===STAGES===\" && ls -la ../ 2>&1 | head && echo \"===REPO ROOT?===\" && ls -la ../../../ 2>&1 | head -40",
+    "cd /private/tmp/ailang-docs-canary/workspaces/docs/docs-canary-guide-review-3/stages/evaluator && echo \"===CAT .git===\" && cat .git && echo && echo \"===GIT LOG (top 15)===\" && git log --oneline -15 2>&1 && echo && echo \"===GIT HEAD RAW===\" && git rev-parse HEAD 2>&1",
+    "cd /private/tmp/ailang-docs-canary/workspaces/docs/docs-canary-guide-review-3/stages/evaluator && echo \"===.agents===\" && ls -la .agents 2>&1 && echo \"===.ailang===\" && ls -la .ailang 2>&1 && echo \"===.sprint-verification===\" && ls -la .sprint-verification 2>&1",
+    "cd /private/tmp/ailang-docs-canary/workspaces/docs/docs-canary-guide-review-3/stages/evaluator && echo \"===TOP LEVEL===\" && ls -la && echo && echo \"===DESIGN_DOCS===\" && ls -la design_docs 2>&1 | head -60",
+    "cd /private/tmp/ailang-docs-canary/workspaces/docs/docs-canary-guide-review-3/stages/evaluator && echo \"===CLAUDE.md===\" && cat CLAUDE.md 2>&1 | head -200",
+    "cd /private/tmp/ailang-docs-canary/workspaces/docs/docs-canary-guide-review-3/stages/evaluator && echo \"=== docs-mission-index.md ===\" && cat docs-mission-index.md && echo && echo \"=== docs-mission-dashboard.md ===\" && cat docs-mission-dashboard.md && echo && echo \"=== docs-mission-status-index.md ===\" && cat docs-mission-status-index.md",
+    "cd /private/tmp/ailang-docs-canary/workspaces/docs/docs-canary-guide-review-3/stages/evaluator && echo \"=== docs-2-brief.md ===\" && cat docs-2-brief.md && echo && echo \"=== docs-3-brief.md ===\" && cat docs-3-brief.md && echo && echo \"=== docs-3-sprint-plan.md ===\" && cat docs-3-sprint-plan.md",
+    "cd /private/tmp/ailang-docs-canary/workspaces/docs/docs-canary-guide-review-3/stages/evaluator && ls -la && echo \"--- parent ---\" && ls -la ..",
+    "cd /private/tmp/ailang-docs-canary/workspaces/docs/docs-canary-guide-review-3/stages/evaluator && cat .git && echo \"---\" && git log --oneline -5 2>&1 | head -20",
+    "cd /private/tmp/ailang-docs-canary/workspaces/docs/docs-canary-guide-review-3/stages/evaluator && git rev-parse HEAD && echo \"---HEAD---\" && git show --stat HEAD | head -40 && echo \"---FIRST HASH?---\" && git cat-file -t 3fd8271ac8399f0f83e7e3ddf2675cb9 2>&1 | head",
+    "cd /private/tmp/ailang-docs-canary/workspaces/docs/docs-canary-guide-review-3/stages/evaluator && git log --oneline -15 && echo \"---REMOTE---\" && git remote -v && echo \"---STATUS---\" && git status && echo \"---BRANCH---\" && git branch -a | head -20",
+    "cd /private/tmp/ailang-docs-canary/workspaces/docs/docs-canary-guide-review-3/stages/evaluator && ls -la && echo \"---PARENT---\" && ls -la .. && echo \"---GITROOT---\" && git rev-parse --show-toplevel && echo \"---SHOW HEAD---\" && git show --stat HEAD | head -40",
+    "cd /private/tmp/ailang-docs-canary/workspaces/docs/docs-canary-guide-review-3/stages/evaluator && echo \"=== GIT LOG (15) ===\" && git log --oneline -15 && echo && echo \"=== GIT STATUS ===\" && git status && echo && echo \"=== MISSIONS DIR ===\" && ls -la missions/ 2>/dev/null && echo && echo \"=== .sprint-verification ===\" && ls -la .sprint-verification/ 2>/dev/null && echo && echo \"=== .ailang ===\" && ls -la .ailang/ 2>/dev/null",
+    "cd /private/tmp/ailang-docs-canary/workspaces/docs/docs-canary-guide-review-3/stages/evaluator && echo \"=== ROOT LISTING ===\" && ls -la && echo && echo \"=== ALL MD FILES ===\" && find . -name '*.md' -not -path './.git/*' | head -100",
+    "cd /private/tmp/ailang-docs-canary/workspaces/docs/docs-canary-guide-review-3/stages/evaluator && echo \"=== MISSIONS ===\" && find missions -type f | head -50 && echo && echo \"=== DOCS ===\" && ls -la docs && echo && echo \"=== .sprint-verification ===\" && find .sprint-verification -type f && echo && echo \"=== .agents ===\" && find .agents -type f | head -50",
+    "cd /private/tmp/ailang-docs-canary/workspaces/docs/docs-canary-guide-review-3/stages/evaluator && echo \"=== CLAUDE.md ===\" && cat CLAUDE.md 2>/dev/null | head -80; echo \"=== missions/world.toml ===\"; cat missions/world.toml; echo; echo \"=== missions/docs.toml ===\"; cat missions/docs.toml; echo; echo \"=== missions/v1.toml ===\"; cat missions/v1.toml",
+    "cd /private/tmp/ailang-docs-canary/workspaces/docs/docs-canary-guide-review-3/stages/evaluator && ls -la; echo \"=== .git ===\"; git status 2>&1 | head -20; echo \"=== git log ===\"; git --no-pager log --oneline -8 2>&1",
+    "cd /private/tmp/ailang-docs-canary/workspaces/docs/docs-canary-guide-review-3/stages/evaluator && cat CLAUDE.md",
+    "cd /private/tmp/ailang-docs-canary/workspaces/docs/docs-canary-guide-review-3/stages/evaluator && ls -la && echo \"---PARENT---\" && ls -la .. && echo \"---GIT LOG---\" && git log --oneline -20 2>/dev/null && echo \"---GIT STATUS---\" && git status 2>/dev/null"
+  ],
+  "progress": {
+    "tool_calls": 26,
+    "completed_tools": 25,
+    "repeated_calls": 0,
+    "last_completed_tool": "bash",
+    "last_progress_time": "2026-09-08T06:14:53.134377Z"
+  }
+}

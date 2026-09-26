@@ -4,11 +4,12 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/gitexec"
 )
 
 // ErrWorktreeLimitReached is returned when no worktrees are available.
@@ -111,7 +112,7 @@ func (wm *WorktreeManager) CreateWorktree(taskID, baseBranch string) (*Worktree,
 	// Capture the commit hash of baseBranch BEFORE creating worktree
 	// This is stable - the branch ref may move later, but this commit is fixed
 	baseCommit := ""
-	commitCmd := exec.Command("git", "rev-parse", baseBranch)
+	commitCmd := gitexec.Command(gitCommandRevParse, baseBranch)
 	commitCmd.Dir = wm.repoDir
 	if commitOutput, err := commitCmd.Output(); err == nil {
 		baseCommit = strings.TrimSpace(string(commitOutput))
@@ -122,7 +123,7 @@ func (wm *WorktreeManager) CreateWorktree(taskID, baseBranch string) (*Worktree,
 	worktreePath := filepath.Join(wm.baseDir, sanitizeTaskID(taskID))
 
 	// Create the worktree with a new branch from the specified base branch
-	cmd := exec.Command("git", "worktree", "add", "-b", branchName, worktreePath, baseBranch)
+	cmd := gitexec.Command("worktree", "add", "-b", branchName, worktreePath, baseBranch)
 	cmd.Dir = wm.repoDir
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -153,7 +154,7 @@ func (wm *WorktreeManager) RemoveWorktree(taskID string) error {
 	}
 
 	// Remove the worktree
-	cmd := exec.Command("git", "worktree", "remove", "--force", wt.Path)
+	cmd := gitexec.Command("worktree", "remove", "--force", wt.Path)
 	cmd.Dir = wm.repoDir
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -161,7 +162,7 @@ func (wm *WorktreeManager) RemoveWorktree(taskID string) error {
 	}
 
 	// Delete the branch
-	cmd = exec.Command("git", "branch", "-D", wt.Branch)
+	cmd = gitexec.Command("branch", "-D", wt.Branch)
 	cmd.Dir = wm.repoDir
 	_ = cmd.Run() // Ignore errors - branch might already be deleted
 
@@ -203,7 +204,7 @@ func (wm *WorktreeManager) CleanupOrphaned() (int, error) {
 	defer wm.mu.Unlock()
 
 	// Run git worktree prune
-	cmd := exec.Command("git", "worktree", "prune")
+	cmd := gitexec.Command("worktree", "prune")
 	cmd.Dir = wm.repoDir
 	if err := cmd.Run(); err != nil {
 		return 0, fmt.Errorf("failed to prune worktrees: %w", err)
@@ -228,13 +229,13 @@ func (wm *WorktreeManager) CleanupAll() error {
 
 	var lastErr error
 	for taskID, wt := range wm.worktrees {
-		cmd := exec.Command("git", "worktree", "remove", "--force", wt.Path)
+		cmd := gitexec.Command("worktree", "remove", "--force", wt.Path)
 		cmd.Dir = wm.repoDir
 		if err := cmd.Run(); err != nil {
 			lastErr = err
 		}
 
-		cmd = exec.Command("git", "branch", "-D", wt.Branch)
+		cmd = gitexec.Command("branch", "-D", wt.Branch)
 		cmd.Dir = wm.repoDir
 		_ = cmd.Run()
 
@@ -246,7 +247,7 @@ func (wm *WorktreeManager) CleanupAll() error {
 
 // loadExisting loads existing worktrees from git
 func (wm *WorktreeManager) loadExisting() error {
-	cmd := exec.Command("git", "worktree", "list", "--porcelain")
+	cmd := gitexec.Command("worktree", "list", gitFlagPorcelain)
 	cmd.Dir = wm.repoDir
 	output, err := cmd.Output()
 	if err != nil {
@@ -305,14 +306,14 @@ func validateRepoDir(repoDir string) error {
 	if !info.IsDir() {
 		return fmt.Errorf("worktree repo dir %q is not a directory", repoDir)
 	}
-	if err := exec.Command("git", "-C", repoDir, "rev-parse", "--git-dir").Run(); err != nil {
+	if err := gitexec.Command("-C", repoDir, gitCommandRevParse, "--git-dir").Run(); err != nil {
 		return fmt.Errorf("worktree repo dir %q is not a git repository: %w", repoDir, err)
 	}
 	return nil
 }
 
 func findGitRoot() (string, error) {
-	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
+	cmd := gitexec.Command(gitCommandRevParse, "--show-toplevel")
 	output, err := cmd.Output()
 	if err != nil {
 		return "", err
@@ -331,7 +332,7 @@ func (wm *WorktreeManager) HasChanges(taskID string) (bool, error) {
 	}
 
 	// Check for uncommitted changes using git status
-	cmd := exec.Command("git", "status", "--porcelain")
+	cmd := gitexec.Command("status", gitFlagPorcelain)
 	cmd.Dir = wt.Path
 	output, err := cmd.Output()
 	if err != nil {
@@ -359,7 +360,7 @@ func (wm *WorktreeManager) GetChangeSummary(taskID string) (*WorktreeChanges, er
 	}
 
 	// Get list of changed files
-	cmd := exec.Command("git", "status", "--porcelain")
+	cmd := gitexec.Command("status", gitFlagPorcelain)
 	cmd.Dir = wt.Path
 	output, err := cmd.Output()
 	if err != nil {
@@ -374,13 +375,13 @@ func (wm *WorktreeManager) GetChangeSummary(taskID string) (*WorktreeChanges, er
 	}
 
 	// Get diff summary
-	cmd = exec.Command("git", "diff", "--stat", "HEAD")
+	cmd = gitexec.Command("diff", "--stat", "HEAD")
 	cmd.Dir = wt.Path
 	diffOutput, _ := cmd.Output() // Ignore errors
 	changes.DiffSummary = strings.TrimSpace(string(diffOutput))
 
 	// Get commit count ahead of origin
-	cmd = exec.Command("git", "rev-list", "--count", "origin/dev..HEAD")
+	cmd = gitexec.Command("rev-list", "--count", "origin/dev..HEAD")
 	cmd.Dir = wt.Path
 	countOutput, _ := cmd.Output()
 	if count := strings.TrimSpace(string(countOutput)); count != "" {
@@ -423,7 +424,7 @@ func sanitizeTaskID(taskID string) string {
 // This avoids hardcoding branch names like "main" or "dev".
 func GetDefaultBranch(repoPath string) string {
 	// Method 1: Check symbolic ref (works if origin/HEAD is set)
-	cmd := exec.Command("git", "symbolic-ref", "refs/remotes/origin/HEAD")
+	cmd := gitexec.Command("symbolic-ref", "refs/remotes/origin/HEAD")
 	cmd.Dir = repoPath
 	if output, err := cmd.Output(); err == nil {
 		// Output: refs/remotes/origin/dev -> extract "dev"
@@ -434,7 +435,7 @@ func GetDefaultBranch(repoPath string) string {
 	}
 
 	// Method 2: Query remote directly (slower but more reliable)
-	cmd = exec.Command("git", "remote", "show", "origin")
+	cmd = gitexec.Command("remote", "show", "origin")
 	cmd.Dir = repoPath
 	if output, err := cmd.Output(); err == nil {
 		// Parse "HEAD branch: dev" from output

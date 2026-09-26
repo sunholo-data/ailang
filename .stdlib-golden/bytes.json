@@ -63,6 +63,12 @@
       "pure": true
     },
     {
+      "name": "toBase64URL",
+      "type": "(bytes)-\u003estring",
+      "effects": [],
+      "pure": true
+    },
+    {
       "name": "toInts",
       "type": "(bytes)-\u003elist[int]",
       "effects": [],

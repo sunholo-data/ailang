@@ -1,0 +1,112 @@
+{
+  "sprint_id": "M-DASHBOARD-DELETE-ANALYTICS",
+  "evaluation_round": 1,
+  "timestamp": "2026-09-08T12:45:19.936415+00:00",
+  "design_doc": "design_docs/dashboard-recovery-plan-2026-09-08.md",
+  "sprint_plan": "design_docs/planned/m-dashboard-delete-analytics-sprint-plan.md",
+  "total_score": 80,
+  "pass_threshold": 70,
+  "result": "pass",
+  "scope": "Authorized UI deletion only; not whole-repository or production reliability acceptance.",
+  "score_breakdown": {
+    "tests_pass": 20,
+    "lint_clean": 5,
+    "acceptance_criteria": 30,
+    "code_quality": 0,
+    "documentation": 15,
+    "design_fidelity": 10
+  },
+  "hard_fails": [],
+  "automated_checks": {
+    "tests_pass": true,
+    "tests_output": "Independent npm test: 147 tests in four files pass; /tmp/dashboard-deletion-independent-tests.log. Baseline142.",
+    "lint_clean": true,
+    "lint_output": "Independent npm run lint:errors exits0; warnings were not checked so only5/10 awarded. /tmp/dashboard-deletion-independent-lint.log.",
+    "production_build": true,
+    "production_build_evidence": "Final executor log /tmp/dashboard-delete-ui-assets-final.log:295 modules, JS720.26kB CSS203.20kB. Vite >500kB warning remains.",
+    "architecture_boundaries": true,
+    "architecture_evidence": "/tmp/dashboard-delete-boundaries.log",
+    "file_sizes_ok": false,
+    "coverage_pct": null,
+    "full_go_suite": "not run: UI-only scope; prior environment limitations remain unresolved",
+    "browser_interaction": "not verified: executor reports cgWindowNotFound",
+    "production_deployment": "not performed; make ui-deploy refreshes local checked-in assets"
+  },
+  "acceptance_criteria": [
+    {
+      "feature_id": "M1",
+      "criterion": "Analytics panel and heatmap polling removed",
+      "met": true,
+      "evidence": "ControlPlane no longer imports/renders VisualizationPanel or calls useHeatmapData; exclusive files deleted."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Evolution mode and tree removed",
+      "met": true,
+      "evidence": "ViewMode is chains/timeline/chat, toolbar evolution option removed; tree/builders/slideovers/styles deleted."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Work, approvals, date filters and timeline/chat retained",
+      "met": true,
+      "evidence": "Retained branch and callback review; date input handlers plus rendered MessageQueue UTC boundary fixture pass. No browser/live API verification."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Exclusive hooks, styles and exports deleted",
+      "met": true,
+      "evidence": "Removed symbol source search clean; generic shared panel styles and retained outlier evidence hook preserved."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Chart/tree dependencies removed with no retained imports",
+      "met": true,
+      "evidence": "recharts, d3-hierarchy and @types/d3-hierarchy absent from source, package.json and package-lock.json."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "UI tests and production build pass",
+      "met": true,
+      "evidence": "Independent147 tests; final executor lint/build log inspected."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Independent review recorded and regressions resolved",
+      "met": true,
+      "evidence": "This report; initial date-input loss, UTC disagreement and narrow sidebar wrapping findings resolved."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Changelog/recovery plan record deletion counts and limitations",
+      "met": true,
+      "evidence": "Unreleased dashboard simplification entry, recovery plan and sprint execution evidence updated."
+    }
+  ],
+  "documentation_check": {
+    "changelog_updated": true,
+    "examples_created": null,
+    "examples_note": "Not applicable to UI deletion; focused date-filter fixtures supply executable examples. No language change.",
+    "design_doc_status": "Execution evidence current. Executor will close M3/status and velocity after this independent report exists."
+  },
+  "design_fidelity": {
+    "score": 10,
+    "notes": "Removes optional visualization footprint while retaining chain explorer, approval detail, timeline/chat and direct dates. Broad data gaps expressly remain; no backend repair or deployment claimed."
+  },
+  "feedback": [],
+  "resolved_findings": [
+    {
+      "issue": "Deleting heatmap removed sole date selection path",
+      "resolution": "New direct DateRangeFilter used by MessageQueue with five focused tests."
+    },
+    {
+      "issue": "UTC input label disagreed with local date comparisons",
+      "resolution": "MessageQueue and ExecHierarchy use UTC start/full end-of-day; rendered queue fixture covers both boundaries."
+    },
+    {
+      "issue": "Date inputs compressed beside menus in narrow sidebar",
+      "resolution": "Filter toolbar wraps; date inputs take full row."
+    }
+  ],
+  "notes": "Independent review of executor-owned changes on shared dev, finalized in commit bd06e6534. Existing ControlPlane.module.css4048 lines and ExecHierarchy.tsx865 lines exceed rubric limit, with inherited large functions; code-quality deductions exhaust15 points despite substantial shrinkage. Sprint artifacts are awaiting final M3 closure; reviewer does not mutate executor artifacts. Full Go tests, browser interactions, remote data and deployed build are outside this scoped pass. The skill generic automated script was not invoked because explicit frontend plan limits checks and CLI tests can mutate home state.",
+  "implementation_commit": "bd06e6534"
+}

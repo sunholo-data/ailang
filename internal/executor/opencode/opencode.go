@@ -15,7 +15,6 @@
 package opencode
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -28,6 +27,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sunholo-data/ailang/internal/executor"
+	"github.com/sunholo-data/ailang/internal/proctree"
+	"github.com/sunholo-data/ailang/internal/strutil"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -51,9 +52,11 @@ func New(cfg *executor.Config) (*OpenCodeExecutor, error) {
 	}
 
 	model := cfg.OpenCodeModel
-	if model == "" {
-		model = "anthropic/claude-haiku-4-5"
-	}
+	// M-MODEL-REGISTRY-SINGLE-SOURCE M6 (D2(a)): NO DEFAULT. An empty model is
+	// permitted HERE because the coordinator constructs an executor before it
+	// knows the task, then supplies Task.Model per task. The fail-loud lives at
+	// the point of USE (getModel) rather than construction — checking here would
+	// reject the normal path where the model arrives with the task.
 
 	return &OpenCodeExecutor{
 		opencodePath:   opencodePath,
@@ -69,18 +72,24 @@ func (e *OpenCodeExecutor) Name() string {
 
 // Execute runs a task and returns the result.
 func (e *OpenCodeExecutor) Execute(ctx context.Context, task *executor.Task) (*executor.Result, error) {
+	if err := e.requireModel(task); err != nil {
+		return nil, err
+	}
 	return e.ExecuteStreaming(ctx, task, &executor.NoOpEventHandler{})
 }
 
 // ExecuteStreaming runs a task with real-time event callbacks, parsing the
 // opencode NDJSON stream into normalized executor events.
 func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, handler executor.EventHandler) (*executor.Result, error) {
+	if err := e.requireModel(task); err != nil {
+		return nil, err
+	}
 	ctx, span := telemetry.StartSpan(ctx, opencodeTracer, "opencode.execute",
 		trace.WithAttributes(
 			attribute.String("executor.name", "opencode"),
 			attribute.String("executor.model", e.getModel(task)),
 			attribute.String("task.workspace", task.Workspace),
-			attribute.String("task.directive", telemetry.Truncate(task.Directive, 500)),
+			attribute.String("task.directive", strutil.Truncate(task.Directive, 500)),
 		),
 	)
 	defer span.End()
@@ -146,6 +155,9 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 	opencodePath := e.opencodePath
 
 	cmd := exec.CommandContext(ctx, opencodePath, args...)
+	// Own process group: opencode forks a server (fixed port 8080) and MCP
+	// children; killing only the leader orphaned them on timeout (M-V1-SIMPLIFY-S1 M2).
+	proctree.Configure(cmd)
 	if task.Workspace != "" {
 		cmd.Dir = task.Workspace
 	}
@@ -244,12 +256,11 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 	var thrashKilledAtTokens int
 
 	go func() {
-		stdoutScanner := bufio.NewScanner(stdout)
-		stderrScanner := bufio.NewScanner(stderr)
-
-		const maxScannerBuffer = 1024 * 1024
-		stdoutScanner.Buffer(make([]byte, 0, maxScannerBuffer), maxScannerBuffer)
-		stderrScanner.Buffer(make([]byte, 0, maxScannerBuffer), maxScannerBuffer)
+		// executor.LineReader, not bufio.Scanner — a token cap turns one long
+		// line into a failed task (measured on codex, 2026-09-14). One cap for
+		// every harness, and exceeding it truncates rather than failing.
+		stdoutScanner := executor.NewLineReader(stdout)
+		stderrScanner := executor.NewLineReader(stderr)
 
 		go func() {
 			for stderrScanner.Scan() {
@@ -347,11 +358,19 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 					lastFinishReason = ev.Part.Reason
 				}
 
+				// Cache tokens, which opencode reports EXCLUSIVE of input/output (see above),
+				// and which were invisible to the budget until 2026-09-14.
+				if task.Budget != nil && (ev.Part.Tokens.Cache.Read > 0 || ev.Part.Tokens.Cache.Write > 0) {
+					if _, exceeded := task.Budget.AddCache(ev.Part.Tokens.Cache.Read, ev.Part.Tokens.Cache.Write); exceeded {
+						costKilled = true
+						proctree.Kill(cmd)
+					}
+				}
 				// M-EVAL-COST-AND-SPEED-BUDGETS: incremental cost tally on per-step deltas.
 				if task.Budget != nil && (ev.Part.Tokens.Input > 0 || ev.Part.Tokens.Output > 0) {
 					if _, exceeded := task.Budget.Add(ev.Part.Tokens.Input, ev.Part.Tokens.Output); exceeded {
 						costKilled = true
-						_ = cmd.Process.Kill()
+						proctree.Kill(cmd)
 					}
 				}
 
@@ -359,13 +378,16 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 				// tokens. Local Ollama models have $0 cost so the cost-budget
 				// path never trips — this is the only safety net against runaway
 				// 2.88M-token thrashing observed in fizzbuzz.
+				// Canonical quantity: opencode reports cache and reasoning tokens
+				// EXCLUSIVE of input/output (see the comment above and the testdata
+				// assertion), so these are additive here rather than double-counted.
 				if task.MaxTokensPerBench > 0 && !thrashKilled {
-					if inputTokens+outputTokens > task.MaxTokensPerBench {
+					if tp := executor.TokensProcessedFrom(inputTokens, cacheWriteTokens, outputTokens, reasonTokens); tp > task.MaxTokensPerBench {
 						thrashKilled = true
-						thrashKilledAtTokens = inputTokens + outputTokens
+						thrashKilledAtTokens = tp
 						fmt.Fprintf(os.Stderr, "[OPENCODE] thrash abort: cumulative tokens %d exceeded MaxTokensPerBench=%d\n",
 							thrashKilledAtTokens, task.MaxTokensPerBench)
-						_ = cmd.Process.Kill()
+						proctree.Kill(cmd)
 					}
 				}
 
@@ -468,7 +490,7 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 			}, nil
 
 		case <-hardTimer.C:
-			_ = cmd.Process.Kill()
+			proctree.Kill(cmd)
 			span.SetStatus(codes.Error, "hard timeout")
 			return &executor.Result{
 				Success:                  false,
@@ -484,7 +506,7 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 			}, nil
 
 		case <-ttftTimer.C:
-			_ = cmd.Process.Kill()
+			proctree.Kill(cmd)
 			span.SetStatus(codes.Error, "ttft timeout")
 			return &executor.Result{
 				Success:        false,
@@ -496,7 +518,7 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 		case <-idleCheck.C:
 			since := time.Since(time.Unix(0, lastActivity.Load()))
 			if since > idleTimeout {
-				_ = cmd.Process.Kill()
+				proctree.Kill(cmd)
 				span.SetStatus(codes.Error, "generation idle timeout")
 				return &executor.Result{
 					Success:                  false,
@@ -514,7 +536,7 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 			idleCheck.Reset(idleTimeout - since)
 
 		case <-ctx.Done():
-			_ = cmd.Process.Kill()
+			proctree.Kill(cmd)
 			span.SetStatus(codes.Error, ctx.Err().Error())
 			return &executor.Result{
 				Success:                  false,
@@ -563,6 +585,7 @@ func (e *OpenCodeExecutor) HealthCheck(ctx context.Context) error {
 		}
 	}
 	checkCmd := exec.CommandContext(ctx, opencodePath, "--version")
+	proctree.Configure(checkCmd)
 	if err := checkCmd.Run(); err != nil {
 		return fmt.Errorf("opencode --version failed: %w", err)
 	}
@@ -579,6 +602,21 @@ func (e *OpenCodeExecutor) getModel(task *executor.Task) string {
 		return task.Model
 	}
 	return e.model
+}
+
+// requireModel is the D2(a) fail-loud point (M-MODEL-REGISTRY-SINGLE-SOURCE M6).
+//
+// The check lives at the ENTRY to execution rather than at construction,
+// because the coordinator builds an executor before it knows the task and
+// then supplies Task.Model per task — rejecting an empty model at
+// construction would break the normal path. It lives here rather than inside
+// getModel to avoid threading an error through every call site of a helper
+// that runs after this guard has already passed.
+func (e *OpenCodeExecutor) requireModel(task *executor.Task) error {
+	if e.getModel(task) == "" {
+		return executor.ErrUnresolvedModel("opencode", "OpenCodeModel")
+	}
+	return nil
 }
 
 // opencodeEventPart captures the type-specific payload.

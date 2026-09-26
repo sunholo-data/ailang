@@ -1,10 +1,11 @@
 package effects
 
 import (
+	"context"
+	"crypto/tls"
 	"fmt"
 	"net"
 	"net/url"
-	"strings"
 	"sync"
 	"time"
 )
@@ -42,6 +43,19 @@ type StreamContext struct {
 	// Event buffer
 	EventBufferSize int // Default: 1000 (bounded; backpressure when full)
 
+	// Credentials is the host-side credential binding (M-SERVEAPI-WS-BRIDGE
+	// D3). Nil = no binding. It is consulted ONLY for wss:// dials, after the
+	// destination authorizer has passed, and returns the headers to add for
+	// that exact URL (bound=false when no binding matches). The returned
+	// values never become AILANG values: they are merged into the dial
+	// headers in Go and nowhere else. The binder must not put the credential
+	// into err.
+	Credentials func(u *url.URL) (hdr map[string][]string, bound bool, err error)
+
+	// BridgeLog, when set, receives one payload-free decision per bridged
+	// frame (M-SERVEAPI-WS-BRIDGE M4). serve-api sets it per session.
+	BridgeLog func(BridgeDecision)
+
 	// Runtime state
 	mu          sync.Mutex
 	connections map[int]*StreamConnection
@@ -50,6 +64,13 @@ type StreamContext struct {
 	// Event source management (M-ASYNC-IO)
 	sources      map[int]EventSource
 	nextSourceID int
+
+	// Test hooks, nil in production — the same seam NetContext has, so the
+	// shared destination authorizer (net_authorize.go) is falsifiable for
+	// Stream transports with an injected resolver/dialer.
+	lookupIP        func(hostname string) ([]net.IP, error)
+	dialContext     func(ctx context.Context, network, addr string) (net.Conn, error)
+	tlsClientConfig *tls.Config
 }
 
 // NewStreamContext creates a new stream context with secure defaults
@@ -71,52 +92,59 @@ func NewStreamContext() *StreamContext {
 	}
 }
 
-// ValidateURL checks a URL against the stream security policy.
+// Child returns a context with this context's POLICY (limits, timeouts,
+// destination rules, credential binding, test seams) and FRESH runtime state:
+// its own connection map, IDs and sources. serve-api gives every WebSocket
+// session one, so MaxConnections, MaxDuration and connection IDs are per
+// connection rather than process-wide (M-SERVEAPI-WS-BRIDGE G6), and one
+// session cannot reach another session's connections by ID.
+func (sc *StreamContext) Child() *StreamContext {
+	c := &StreamContext{
+		MaxConnections:  sc.MaxConnections,
+		MaxMessageSize:  sc.MaxMessageSize,
+		MaxFrameSize:    sc.MaxFrameSize,
+		ConnectTimeout:  sc.ConnectTimeout,
+		IdleTimeout:     sc.IdleTimeout,
+		MaxDuration:     sc.MaxDuration,
+		AllowHTTP:       sc.AllowHTTP,
+		AllowLocalhost:  sc.AllowLocalhost,
+		BlockPrivateIPs: sc.BlockPrivateIPs,
+		AllowedDomains:  append([]string(nil), sc.AllowedDomains...),
+		EventBufferSize: sc.EventBufferSize,
+		Credentials:     sc.Credentials,
+		BridgeLog:       sc.BridgeLog,
+		connections:     make(map[int]*StreamConnection),
+		nextID:          1,
+		lookupIP:        sc.lookupIP,
+		dialContext:     sc.dialContext,
+		tlsClientConfig: sc.tlsClientConfig,
+	}
+	return c
+}
+
+// SetTLSClientConfig sets the TLS client configuration Stream transports use
+// (the RootCAs a wss:// or https:// dial trusts). Nil restores the system
+// roots. Used by tests that stand up an httptest TLS upstream and by hosts
+// that pin a private CA; it never relaxes verification by itself.
+func (sc *StreamContext) SetTLSClientConfig(cfg *tls.Config) {
+	sc.tlsClientConfig = cfg
+}
+
+// ValidateURL checks a URL against the stream security policy — the shared
+// destination authorizer (net_authorize.go), which the SSE/NDJSON transports
+// re-run on every redirect hop and the WebSocket dialer pins on.
 // Returns nil if the URL passes all checks.
 func (sc *StreamContext) ValidateURL(rawURL string) error {
 	u, err := url.Parse(rawURL)
 	if err != nil {
 		return fmt.Errorf("E_STREAM_INVALID_URL: %w", err)
 	}
+	return sc.policy().authorizeURL(u)
+}
 
-	// Protocol check
-	switch u.Scheme {
-	case "wss", "https":
-		// Always allowed
-	case "ws", "http":
-		if !sc.AllowHTTP {
-			return fmt.Errorf("E_STREAM_PROTOCOL_ERROR: insecure protocol %q not allowed (use wss:// or set --stream-allow-http)", u.Scheme)
-		}
-	default:
-		return fmt.Errorf("E_STREAM_PROTOCOL_ERROR: unsupported protocol %q (expected wss:// or ws://)", u.Scheme)
-	}
-
-	hostname := u.Hostname()
-	if hostname == "" {
-		return fmt.Errorf("E_STREAM_INVALID_URL: missing hostname")
-	}
-
-	// Domain allowlist check
-	if len(sc.AllowedDomains) > 0 {
-		if !isStreamAllowedDomain(hostname, sc.AllowedDomains) {
-			return fmt.Errorf("E_STREAM_DISALLOWED_HOST: domain not in allowlist: %s", hostname)
-		}
-	}
-
-	// Localhost check
-	if !sc.AllowLocalhost && isLocalhost(hostname) {
-		return fmt.Errorf("E_STREAM_DISALLOWED_HOST: localhost connections not allowed")
-	}
-
-	// Private IP check
-	if sc.BlockPrivateIPs {
-		ip := net.ParseIP(hostname)
-		if ip != nil && isPrivateIP(ip) {
-			return fmt.Errorf("E_STREAM_DISALLOWED_HOST: private IP addresses not allowed: %s", hostname)
-		}
-	}
-
-	return nil
+// policy is the destination policy for this context.
+func (sc *StreamContext) policy() destinationPolicy {
+	return streamPolicy(&EffContext{Stream: sc})
 }
 
 // AcquireConnection registers a new connection and returns its ID.
@@ -159,6 +187,12 @@ func (sc *StreamContext) ConnectionCount() int {
 
 // CloseAll closes all active connections. Used for graceful shutdown.
 func (sc *StreamContext) CloseAll() {
+	sc.CloseAllWithCode(0, "")
+}
+
+// CloseAllWithCode closes all active connections, sending code and reason on
+// WebSocket ones (0 = normal closure). serve-api sends 1001 on shutdown.
+func (sc *StreamContext) CloseAllWithCode(code int, reason string) {
 	sc.mu.Lock()
 	conns := make([]*StreamConnection, 0, len(sc.connections))
 	for _, c := range sc.connections {
@@ -167,61 +201,6 @@ func (sc *StreamContext) CloseAll() {
 	sc.mu.Unlock()
 
 	for _, c := range conns {
-		c.Close()
+		c.CloseWithCode(code, reason)
 	}
-}
-
-// isStreamAllowedDomain checks if a hostname matches the allowlist.
-func isStreamAllowedDomain(hostname string, allowed []string) bool {
-	hostname = strings.ToLower(hostname)
-	for _, d := range allowed {
-		d = strings.ToLower(d)
-		if d == hostname {
-			return true
-		}
-		// Wildcard prefix match: *.example.com matches sub.example.com
-		if strings.HasPrefix(d, "*.") {
-			suffix := d[1:] // ".example.com"
-			if strings.HasSuffix(hostname, suffix) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-// isLocalhost checks if a hostname resolves to a loopback address.
-func isLocalhost(hostname string) bool {
-	hostname = strings.ToLower(hostname)
-	if hostname == "localhost" || hostname == "127.0.0.1" || hostname == "::1" {
-		return true
-	}
-	if strings.HasPrefix(hostname, "127.") {
-		return true
-	}
-	return false
-}
-
-// isPrivateIP checks if an IP is in RFC1918 or link-local ranges.
-func isPrivateIP(ip net.IP) bool {
-	privateRanges := []struct {
-		network string
-	}{
-		{"10.0.0.0/8"},
-		{"172.16.0.0/12"},
-		{"192.168.0.0/16"},
-		{"169.254.0.0/16"}, // Link-local IPv4
-		{"fc00::/7"},       // IPv6 unique local
-		{"fe80::/10"},      // IPv6 link-local
-	}
-	for _, r := range privateRanges {
-		_, cidr, err := net.ParseCIDR(r.network)
-		if err != nil {
-			continue
-		}
-		if cidr.Contains(ip) {
-			return true
-		}
-	}
-	return false
 }

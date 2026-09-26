@@ -7,13 +7,22 @@ import (
 
 // TaskRecord represents a task stored in the database
 type TaskRecord struct {
-	ID           string     `json:"id"`
-	MessageID    string     `json:"message_id,omitempty"`
-	ThreadID     string     `json:"thread_id,omitempty"`      // Thread in collaboration.db for dashboard visibility
-	ParentTaskID string     `json:"parent_task_id,omitempty"` // Parent task for hierarchy tracking (handoffs)
-	Title        string     `json:"title"`
-	Content      string     `json:"content"`
-	Type         TaskType   `json:"type"`
+	ID           string   `json:"id"`
+	MessageID    string   `json:"message_id,omitempty"`
+	ThreadID     string   `json:"thread_id,omitempty"`      // Thread in collaboration.db for dashboard visibility
+	ParentTaskID string   `json:"parent_task_id,omitempty"` // Parent task for hierarchy tracking (handoffs)
+	Title        string   `json:"title"`
+	Content      string   `json:"content"`
+	Type         TaskType `json:"type"`
+	// AttemptCount is how many Cloud Run executions this task has consumed, and
+	// ChainLinkIndex which model link the latest one ran on
+	// (M-COORDINATOR-EXECUTION-TRUST M3). Persisted rather than held in memory:
+	// the coordinator scales to zero, and a cap that a restart forgets is not a
+	// cap. Written in the same update that transitions status, so the two
+	// cannot disagree.
+	AttemptCount   int `json:"attempt_count,omitempty"`
+	ChainLinkIndex int `json:"chain_link_index,omitempty"`
+
 	Kind         string     `json:"kind,omitempty"`   // "directive" or "question" or message_type (e.g. "feedback") - affects template selection
 	Source       string     `json:"source,omitempty"` // Pub/Sub topic the message arrived on: "cascade" = authoritative bump (M-PKG-AUTONOMOUS-CASCADE-SAFE M1)
 	Priority     int        `json:"priority"`
@@ -24,9 +33,15 @@ type TaskRecord struct {
 	WorktreePath string     `json:"worktree_path,omitempty"` // Path to git worktree (preserved until approval)
 	BaseBranch   string     `json:"base_branch,omitempty"`   // Base branch worktree was created from (for diff comparison)
 	BaseCommit   string     `json:"base_commit,omitempty"`   // Base commit hash at worktree creation (stable reference for diff)
-	SessionID    string     `json:"session_id,omitempty"`    // Claude Code/Gemini CLI session for resumption
-	Iteration    int        `json:"iteration,omitempty"`     // Iteration number (1 = first, 2+ = re-run with feedback)
-	Workspace    string     `json:"workspace,omitempty"`     // Source workspace from thread (not worktree)
+	// Finalization is the per-effect ledger (M-COMPLETION-PATH-PARITY C1). Stored
+	// as JSON in a single column. It MUST appear in every converter that maps a
+	// task to and from storage: the Firestore mapping is hand-written, so a field
+	// missing there is silently dropped on read, and finalisation would see an
+	// empty ledger on every redelivery and re-run every effect.
+	Finalization FinalizationLedger `json:"finalization,omitempty"`
+	SessionID    string             `json:"session_id,omitempty"` // Claude Code/Gemini CLI session for resumption
+	Iteration    int                `json:"iteration,omitempty"`  // Iteration number (1 = first, 2+ = re-run with feedback)
+	Workspace    string             `json:"workspace,omitempty"`  // Source workspace from thread (not worktree)
 	// Execution chain tracking (M-CHAINS-SIMPLIFY)
 	ChainID string `json:"chain_id,omitempty"` // ExecutionChain ID for unified hierarchy
 	StageID string `json:"stage_id,omitempty"` // ChainStage ID for this agent's execution
@@ -37,8 +52,15 @@ type TaskRecord struct {
 	DesignDocPath  string    `json:"design_doc_path,omitempty"`  // Path to design doc (for merge comment)
 	SprintPlanPath string    `json:"sprint_plan_path,omitempty"` // Path to sprint plan (for merge comment)
 	// Timestamps
-	CreatedAt   time.Time     `json:"created_at"`
-	StartedAt   *time.Time    `json:"started_at,omitempty"`
+	CreatedAt time.Time  `json:"created_at"`
+	StartedAt *time.Time `json:"started_at,omitempty"`
+	// QueuedAt is when a dispatcher CLAIMED the task (pending -> queued), stamped
+	// in the same write as the claim. It is the stale detector's clock for a task
+	// that never reaches `running` — every cloud task, since MarkTaskRunning is
+	// local-only. CreatedAt cannot serve: a task inherits it from its MESSAGE, so
+	// anything the backstop sweep recovers is born "days old" and was failed on
+	// the detector's first tick (M-TASK-STATUS-TRUTH S1).
+	QueuedAt    *time.Time    `json:"queued_at,omitempty"`
 	CompletedAt *time.Time    `json:"completed_at,omitempty"`
 	Duration    time.Duration `json:"duration,omitempty"`
 	Error       string        `json:"error,omitempty"`
@@ -90,6 +112,11 @@ const (
 	TaskStatusRejected        TaskStatus = "rejected" // Human rejected the work
 	TaskStatusCancelled       TaskStatus = "cancelled"
 	TaskStatusDuplicate       TaskStatus = "duplicate"
+	// TaskStatusBlocked: the agent did not attempt the work because a
+	// precondition was unmet, and said so. Distinct from no_changes ("I did the
+	// work and nothing needed changing") and from failed ("something broke").
+	// See task_blocked.go.
+	TaskStatusBlocked TaskStatus = "blocked"
 )
 
 // TaskStage represents the pipeline stage for GitHub-linked tasks.
@@ -190,6 +217,15 @@ type Store interface {
 	GetTaskStats(ctx context.Context) (*TaskStats, error)
 
 	// Task state transitions
+	//
+	// MarkTaskQueued CLAIMS a task for dispatch: it moves pending -> queued and
+	// returns ErrTaskNotClaimable if the task is in any other status, so exactly
+	// one caller can win. dispatchTasksCloud has always treated it as a claim
+	// (it skips the task when this errors) but neither store could refuse —
+	// both wrote the status unconditionally, so every concurrent caller "won".
+	// Measured on the prod plane 2026-09-17 20:06: one task, one creation, and
+	// THREE `Cloud dispatch` lines inside 500ms, each producing its own Cloud Run
+	// execution, its own commit and its own completion.
 	MarkTaskQueued(ctx context.Context, id string) error
 	MarkTaskRunning(ctx context.Context, id, provider, worktreeID string) error
 	MarkTaskPendingApproval(ctx context.Context, id, worktreePath, worktreeBranch, baseBranch, baseCommit string, result *ExecuteResult) error // Work done, awaiting human review
@@ -200,8 +236,12 @@ type Store interface {
 	RequeueTask(ctx context.Context, id string) error        // Reset status to pending for next stage execution
 	ResetTaskToPending(ctx context.Context, id string) error // Reset running task back to pending (worktree limit recovery)
 
-	// Duplicate detection
-	FindDuplicateTask(ctx context.Context, fingerprint uint64, threshold float64) (*TaskRecord, error)
+	// Duplicate detection. `since` is the oldest task that may suppress a new
+	// one; the status rule is BlocksDuplicate, shared by every implementation.
+	// The old signature took a `threshold float64` that NO implementation read —
+	// both match the fingerprint exactly — which is where the "similar to recent
+	// task" wording came from.
+	FindDuplicateTask(ctx context.Context, fingerprint uint64, scope DedupScope) (*TaskRecord, error)
 	SetTaskFingerprint(ctx context.Context, id string, fingerprint uint64) error
 
 	// Thread linking (for dashboard visibility)
@@ -231,6 +271,42 @@ type Store interface {
 
 	// Approval requests
 	CreateApprovalRequest(ctx context.Context, req *ApprovalRequestRecord) error
+	// CreateApprovalIfAbsent is the replay-safe counterpart: first write wins,
+	// and it reports whether it created the row. Finalisation uses this because
+	// the approval id is deterministic and Pub/Sub delivery is at-least-once
+	// (M-COMPLETION-PATH-PARITY M0b).
+	CreateApprovalIfAbsent(ctx context.Context, req *ApprovalRequestRecord) (bool, error)
+	// ReopenApprovalForNewWork moves a RESOLVED approval back to pending when a
+	// later execution of the same task produced a different change. The
+	// approval id is derived from the task id alone, so two executions collide
+	// on one row and a stale decision would otherwise strand the new work.
+	ReopenApprovalForNewWork(ctx context.Context, taskID, description, contextJSON string) (bool, error)
+	// RefreshPendingApproval replaces a PENDING approval's description and
+	// context because a later execution produced different work. No decision is
+	// disturbed — there is none yet — but the card must describe the change
+	// that would actually land, or the operator approves the previous run's
+	// evidence.
+	RefreshPendingApproval(ctx context.Context, taskID, description, contextJSON string) (bool, error)
+	// ReopenTask puts a REJECTED or CANCELLED task back in front of the
+	// operator: status returns to pending_approval, completed_at is cleared and
+	// the task's approval is reset to pending (created if it never existed).
+	// Anything else is refused — reopening a running or completed task would
+	// invent a decision point the work has already passed.
+	//
+	// It is on the interface because `coordinator reopen` was local-only for as
+	// long as it existed: the method lived on *SQLiteStore alone, so asking to
+	// reopen a cloud task silently acted on this machine's database.
+	ReopenTask(ctx context.Context, taskID string) error
+
+	// Finalisation ledger (M-COMPLETION-PATH-PARITY C1). Read once at the start
+	// of finalisation, written after each effect.
+	GetTaskFinalization(ctx context.Context, taskID string) (FinalizationLedger, error)
+	SetTaskFinalization(ctx context.Context, taskID string, ledger FinalizationLedger) error
+	// CompareAndSetTaskStatus writes a status only if the record still holds one
+	// of the expected values, so a stale replay cannot regress a task another
+	// step has advanced (M-COMPLETION-PATH-PARITY C1). A false return means
+	// superseded, not failed.
+	CompareAndSetTaskStatus(ctx context.Context, id string, expected []TaskStatus, next TaskStatus) (bool, error)
 	GetApprovalRequest(ctx context.Context, id string) (*ApprovalRequestRecord, error)                    // Get by approval ID
 	GetApprovalRequestByTask(ctx context.Context, taskID string) (*ApprovalRequestRecord, error)          // Get pending by task ID
 	GetApprovalRequestByTaskAnyStatus(ctx context.Context, taskID string) (*ApprovalRequestRecord, error) // Get approval regardless of status (for handoff triggering)
@@ -238,8 +314,27 @@ type Store interface {
 	ListResolvedApprovals(ctx context.Context, limit int) ([]*ApprovalRequestRecord, error) // List resolved (approved/rejected) approvals
 	ResolveApprovalRequest(ctx context.Context, id, status, resolvedBy string) error
 	ResolveApprovalRequestByTask(ctx context.Context, taskID, status, resolvedBy string) error
-	UpdateApprovalEvaluationByTask(ctx context.Context, taskID, evaluation string) error           // Attach evaluator verdict to a task's PENDING approval (M-PIPELINE-RECONCILIATION M1); errors if none
-	MarkApprovalHandoffsTriggered(ctx context.Context, taskID string) error                        // Mark that handoffs were sent
+	UpdateApprovalEvaluationByTask(ctx context.Context, taskID, evaluation string) error // Attach evaluator verdict to a task's PENDING approval (M-PIPELINE-RECONCILIATION M1); errors if none
+	// MarkApprovalHandoffsTriggered records that the approval's handoff DECISION is
+	// made — fired, or nothing owed — so boot recovery stops scanning it. Despite
+	// the historical name it is a scan latch, not "sent": its only readers are
+	// the two ListApprovedMergeHandoffsWithoutTrigger queries. Suppression and
+	// expiry set it too, and record themselves in handoffs_suppressed /
+	// handoffs_expired (M-TASK-STATUS-TRUTH V22).
+	//
+	// workID makes it a compare-and-set on the DECISION it describes: the mark
+	// lands only while the approval still describes that work. An approval can
+	// be reopened for new work (ReopenApprovalForNewWork), and a delayed mark for
+	// the old work must not stamp the new decision as handled (quorum round 8).
+	MarkApprovalHandoffsTriggered(ctx context.Context, taskID, workID string) error
+	// ResolveApprovalSuppressingHandoffs approves AND records that its handoffs
+	// are withheld, in ONE write: there is no state in which the approval reads
+	// approved and the suppression is absent (M-TASK-STATUS-TRUTH D3).
+	ResolveApprovalSuppressingHandoffs(ctx context.Context, taskID, resolvedBy string) error
+	ApprovalHandoffsSuppressed(ctx context.Context, taskID string) (bool, error) // false when there is no approval
+	// MarkApprovalHandoffsExpired resolves an approval boot recovery will not
+	// fire (older than HandoffRecoveryWindow), so it is fetched at most once.
+	MarkApprovalHandoffsExpired(ctx context.Context, taskID, workID string) error
 	ListApprovedMergeHandoffsWithoutTrigger(ctx context.Context) ([]*ApprovalRequestRecord, error) // Find missed handoffs
 
 	// Cleanup

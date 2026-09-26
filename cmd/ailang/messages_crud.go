@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -27,6 +28,18 @@ func runMessagesList(args []string) {
 
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+
+	// #1037: Go's flag parser STOPS at the first positional argument and leaves
+	// everything from there on in fs.Args() — so `messages list approvals
+	// --unread` silently discarded --unread and printed the unfiltered listing,
+	// indistinguishable from a correctly-filtered one. Gate-0 triages its inbox
+	// with this command, so a silently-unfiltered listing is a decision-spine
+	// hazard: refuse instead of guessing.
+	if fs.NArg() > 0 {
+		fmt.Fprintf(os.Stderr, "%s: unexpected argument %q — 'messages list' takes only flags; the inbox goes in --inbox\n", red("Error"), fs.Arg(0))
+		fmt.Fprintln(os.Stderr, "  Usage: ailang messages list [--inbox NAME] [--unread] [--from AGENT] [--limit N]")
 		os.Exit(1)
 	}
 
@@ -369,6 +382,7 @@ func runMessagesForward(args []string) {
 	fs := flag.NewFlagSet("messages forward", flag.ExitOnError)
 	toInbox := fs.String("to", "", "Target inbox (required)")
 	reason := fs.String("reason", "", "Reason for forwarding (logged)")
+	force := fs.Bool("force", false, "Forward even to an inbox no agent serves (e.g. a deliberate probe)")
 
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
@@ -391,6 +405,13 @@ func runMessagesForward(args []string) {
 		fmt.Fprintf(os.Stderr, "%s: message ID required\n", red("Error"))
 		os.Exit(1)
 	}
+
+	// Forwarding is REDIRECTING: its whole purpose is to put a misfiled message
+	// where it belongs, so a typo here lands it somewhere else that does
+	// nothing — the fault it was invoked to repair. `send` has refused unknown
+	// inboxes since 2026-09-14; this did not, and it is the command most likely
+	// to be pointed at a half-remembered name.
+	guardSendInbox(*toInbox, *force)
 
 	store, err := openStore()
 	if err != nil {
@@ -433,6 +454,40 @@ func runMessagesForward(args []string) {
 
 	fmt.Printf("%s Forwarded message from '%s' to '%s'%s\n",
 		green("✓"), oldInbox, *toInbox, reasonStr)
+
+	// ANNOUNCE it, or the forward is only a database edit.
+	//
+	// ForwardInboxMessage rewrites to_inbox in place and stops. Nothing is told,
+	// and on a cloud plane push is the only delivery path — so the message
+	// arrives at an inbox with an agent, sits unread, and no task is ever
+	// created. Measured 2026-09-15: a report forwarded to `ailang-core` at
+	// 06:04 was still unread fifteen minutes later with no task, which is
+	// exactly the "FILED, NOT DISPATCHED" outcome this command exists to
+	// REPAIR.
+	//
+	// The row carries its ORIGINAL created_at, so the message also looks old to
+	// anything that ages it. That is left alone deliberately: the message really
+	// was sent then, and rewriting history to make dispatch work would hide when
+	// the report actually arrived.
+	msg.ToInbox = *toInbox
+	notified := false
+	if cfg, cfgErr := messaging.LoadConfig(); cfgErr != nil {
+		fmt.Fprintf(os.Stderr, "%s messaging config unreadable (%v) — cannot tell whether this will be dispatched\n", yellow("!"), cfgErr)
+	} else if cfg != nil && cfg.PubSub != nil && cfg.PubSub.Enabled {
+		notifier, nErr := messaging.NewPubSubNotifier(notifyConfigForStore(cfg.PubSub))
+		if nErr != nil {
+			fmt.Fprintf(os.Stderr, "%s Pub/Sub notify failed: %v\n", yellow("!"), nErr)
+		} else if notifier != nil {
+			defer notifier.Close()
+			if nErr := notifier.Notify(context.Background(), msg); nErr != nil {
+				fmt.Fprintf(os.Stderr, "%s Pub/Sub notify failed: %v\n", yellow("!"), nErr)
+			} else {
+				notified = true
+				fmt.Printf("%s Pub/Sub notification published\n", green("✓"))
+			}
+		}
+	}
+	warnIfFiledButUndispatchable(*toInbox, notified)
 	fmt.Printf("   Title: %s\n", msg.Title)
 	fmt.Printf("   ID: %s\n", msgID[:8]+"...")
 }

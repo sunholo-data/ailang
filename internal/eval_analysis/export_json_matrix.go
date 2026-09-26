@@ -24,7 +24,7 @@ type dimAcc struct {
 
 func (a *dimAcc) add(r *BenchmarkResult) {
 	a.total++
-	if r.StdoutOk {
+	if r.Passed() {
 		a.pass++
 	}
 	if r.OutputTokens > 0 {
@@ -209,7 +209,7 @@ func computeTierExtras(
 		if r.FirstAttemptOk {
 			pl.firstOk++
 		}
-		if r.StdoutOk {
+		if r.Passed() {
 			pl.stdoutOk++
 		}
 		if ShouldExcludeFromCapability(r.ErrorCategory) {
@@ -369,7 +369,7 @@ func buildHistoricalTierPoints(
 			pt.langs[r.Lang] = &langCount{}
 		}
 		pt.langs[r.Lang].total++
-		if r.StdoutOk {
+		if r.Passed() {
 			pt.langs[r.Lang].pass++
 		}
 	}
@@ -433,7 +433,7 @@ func buildTierAggregates(
 			acc.langs[r.Lang] = &langCount{}
 		}
 		acc.langs[r.Lang].runs++
-		if r.StdoutOk {
+		if r.Passed() {
 			acc.langs[r.Lang].pass++
 		}
 	}

@@ -1,7 +1,7 @@
 -- std/io - Console input/output
 --
--- Print to stdout and read from stdin.
--- Effects tracked in the type system with ! {IO}.
+-- Print to stdout, read from stdin, and exit(code) — the way a CLI written
+-- in AILANG signals failure. Effects tracked in the type system with ! {IO}.
 --
 -- Requires: IO capability (--caps IO)
 

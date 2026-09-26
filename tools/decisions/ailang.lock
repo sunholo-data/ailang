@@ -1,0 +1,25 @@
+{
+  "ailang_version": "v0.40.0-49-g96d729018-dirty",
+  "generated_at": "2026-09-18T13:16:55.884098Z",
+  "generator": "ailang lock v0.40.0-49-g96d729018-dirty",
+  "packages": [
+    {
+      "ailang": ">=0.40.0",
+      "content_hash": "sha256:b8a3a78a05dfa8778c7a2fc104d9be02f3eb9997be028b247cd9a3e6d184982f",
+      "effects": [
+        "Env",
+        "IO",
+        "Net"
+      ],
+      "exports": [
+        "sunholo/decisions/decide"
+      ],
+      "interface_hash": "sha256:336cabf1d1cf9eeef1aba627e8c163bdfe0c1fb94d64b67f54acb80f9c11ab3e",
+      "name": "sunholo/decisions",
+      "source": "registry",
+      "version": "0.1.1"
+    }
+  ],
+  "schema": "ailang.lock/v1",
+  "schema_version": "1.0.0"
+}

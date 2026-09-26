@@ -1,0 +1,108 @@
+{
+  "sprint_id": "M-PI-HARNESS-UPGRADE",
+  "status": "completed",
+  "created": "2026-09-16T06:12:51Z",
+  "design_doc": "design_docs/planned/v0_35_0/m-pi-harness-upgrade.md",
+  "sprint_plan": "design_docs/planned/v0_35_0/m-pi-harness-upgrade-sprint-plan.md",
+  "github_issues": [],
+  "velocity": {
+    "target_loc_per_day": 150,
+    "estimated_total_loc": 450,
+    "estimated_days": 3
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Bank the harness version: Result.ExecutorVersion captured from `pi --version`, plumbed to RunMetrics.executor_version (absent => unmeasured)",
+      "estimated_loc": 90,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Result with no version banks the field omitted, never empty-string-as-current",
+        "TestHealthCheck_WithFakeBinary proves captured string equals the fake binary's output",
+        "executor_version appears on RunMetrics via AgentBenchmarkResult with omitempty and a doc comment"
+      ],
+      "passes": true,
+      "started": "2026-09-16T06:17:05Z",
+      "completed": "2026-09-16T06:17:05Z",
+      "notes": "Result.ExecutorVersion + shared executor.VersionProbe; pi HealthCheck captures --version; plumbed through AgentBenchmarkResult to RunMetrics.executor_version (omitempty, absent=>unmeasured). Identity banked as <cli>@<observed> (pi@0.85.1), not <package>@<version>: the package is a build belief, the version is what the binary reports. Other executors deferred (VersionProbe makes it 2 lines + stamping each). pi.go split into pi.go/args.go/events.go at the 800-line gate.",
+      "actual_loc": 180
+    },
+    {
+      "id": "M2",
+      "description": "Fail loud on the drift that matters: expected-version assertion, unknown-event counter, fatal missing-usage, retry events banked, `max` thinking level, mission_pi_run.sh snapshot, lowercase tool names",
+      "estimated_loc": 140,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Version mismatch errors naming both expected and running strings; install hint names @earendil-works",
+        "Replay with an unknown event type banks ProviderData.pi_unknown_events",
+        "Replay with a usage-less assistant message_end fails with a named error, not zero cost",
+        "auto_retry_* banked as pi_retries {count,max_attempts,exhausted}",
+        "first_attempt_ms fires on lowercase write/edit"
+      ],
+      "passes": true,
+      "started": "2026-09-16T06:33:09Z",
+      "completed": "2026-09-16T06:33:09Z",
+      "notes": "Version assertion in HealthCheck; pi_unknown_events + pi_unparsed_lines + pi_retries in ProviderData; missing-usage => FinishWireDrift/error_category wire_drift; max thinking level; lowercase write/edit; mission_pi_run.sh snapshot -> rolling window (awk truncate/refill proven). M3.0 differential done early: 0.85.1 == 0.84.4 table on every row (V33); D5 verified on real usage. check-pi-wire-budget INCONCLUSIVE (observatory ingest lag, probe ok) \u2014 re-run at M5.",
+      "actual_loc": 260
+    },
+    {
+      "id": "M3",
+      "description": "Re-capture the 0.85.1 differential; wire usage.reasoning (disjoint from output) and rawStopReason; record 0.73.1 + 0.85.1 fixture pairs, retire the 0.70.2 pair",
+      "estimated_loc": 120,
+      "dependencies": [
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "0.85.1 differential captured on the rig and diffed against the doc's 0.84.4 table; any delta logged in the Verification Log",
+        "reason_tokens > 0 on the reasoning fixture and output_tokens + reason_tokens == usage.output",
+        "testdata/v0_73_1 and testdata/v0_85_1 replay green; 0.70.2 fixtures deleted",
+        "rawStopReason banked in ProviderData"
+      ],
+      "passes": true,
+      "started": "2026-09-16T06:38:53Z",
+      "completed": "2026-09-16T06:38:53Z",
+      "notes": "usage.reasoning subtracted from output (mutation-tested); rawStopReason banked + fallback vote; v0_73_1 pair captured from a scratch install of the abandoned package (global pi untouched), v0_85_1 pair + reasoning fixture; 0.70.2 pair deleted; tests re-pointed with patchAssistantUsage for cacheWrite/cost; dual-version replay test. README + package doc updated.",
+      "actual_loc": 330
+    },
+    {
+      "id": "M4",
+      "description": "Move the images to @earendil-works@0.85.1 with build-time version + Node-floor assertions, no workspace trust, negative sentinel test; verify by reading pushed image config",
+      "estimated_loc": 60,
+      "dependencies": [
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "Dockerfile.agent-pi and agent-eval pin 0.85.1 with uninstall-before-install and `pi --version | grep -qx` assertion",
+        "agent-base pins Node 22.x and asserts >= 22.19.0",
+        "resident Dockerfile at 0.85.1; same-package reinstall does not EEXIST; --session-id assertion passes",
+        "Container tests: positive extension probe + negative workspace-sentinel, neither allowFailure",
+        "Read-back of pushed config shows 0.85.1 for agent-pi, agent-pi-go, agent-eval, agent-eval-go, resident-pi (dev + prod)"
+      ],
+      "passes": true,
+      "started": "2026-09-16T06:44:27Z",
+      "completed": "2026-09-16T06:58:49Z",
+      "notes": "Dockerfiles pinned+asserted; Node pinned by assertion (arch-specific deb suffix rules out apt =version); seam test Go<->Dockerfiles; docker/test-agent-pi.sh + hard-failing test-agent-pi Cloud Build step (model-free D7 sentinel pair, validated on rig 12/12); sandbox import renamed; quota_report execution probe green on 0.85.1. Cloud Build 4a6ac6f6 (dev) SUCCESS: agent-base Node pin asserted, build-agent-pi pin asserted, test-agent-pi 12/12 in the real container, test-resident-pi green (same-package reinstall, no EEXIST). Registry read-back: all 5 dev images PI_PACKAGE=@earendil-works PI_VERSION=0.85.1 NODE_VERSION=22.23.2, 0 abandoned layers. PROD still 0.73.1/0.84.4 \u2014 moves on the next release tag + promote (release action, attended).",
+      "actual_loc": 190
+    },
+    {
+      "id": "M5",
+      "description": "Boundary bookkeeping before the first post-upgrade bank; comparator set via eval-paired; annotate pre-boundary rows",
+      "estimated_loc": 40,
+      "dependencies": [
+        "M4"
+      ],
+      "acceptance_criteria": [
+        "Charter, runbook, memory and eval caveats record the boundary before any 0.85.1 row banks",
+        "Comparator set chosen with pre-boundary rows on both planes and stated in the plan",
+        "eval-paired report committed; pre-boundary rows annotated, none re-banked"
+      ],
+      "passes": true,
+      "started": "2026-09-16T06:58:49Z",
+      "completed": "2026-09-16T06:58:49Z",
+      "notes": "Boundary recorded in runbook (table + four-place pin + upgrade/rollback), charter (Rig integration), memory, BEFORE any 0.85.1 row banks (executor_version field landed first). Rig 08-31 step sized after the fact from os-rolling/v0.34.0 (same AILANG version + model): 26 shared benchmarks, 0 worse; eval-paired: control 91.9% above headroom ceiling, 0 discordant pairs -> unresolvable, not a claimed gain. No cloud pi EVAL lane exists (cloud pi = coordinator jobs), so the cloud comparator is N/A; first cloud rows will carry executor_version. check-pi-wire-budget INCONCLUSIVE x3: prod observatory's newest LLM Generation span is 05:40Z, OpenRouter runs since did not ingest \u2014 an ingest outage outside this sprint.",
+      "actual_loc": 60
+    }
+  ]
+}

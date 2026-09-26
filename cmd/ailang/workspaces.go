@@ -9,13 +9,19 @@ import (
 
 	"cloud.google.com/go/firestore"
 	firebase "firebase.google.com/go/v4"
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/coordinator"
 	"github.com/sunholo-data/ailang/internal/server/auth"
 )
 
 func workspacesCommand(args []string) error {
+	// No subcommand is a usage error, not a success — see modelsCommand for
+	// why the three ops groups that returned 0 here now exit 1.
 	if len(args) == 0 {
-		return workspacesHelp()
+		if err := workspacesHelp(); err != nil {
+			return err
+		}
+		os.Exit(1)
 	}
 
 	switch args[0] {
@@ -435,7 +441,7 @@ func workspacesShow(args []string) error {
 // getFirestoreClient creates a Firestore client with the configured project
 func getFirestoreClient(projectID string) (*firestore.Client, context.CancelFunc, error) {
 	if projectID == "" {
-		projectID = os.Getenv("AILANG_FIREBASE_PROJECT")
+		projectID = config.FirebaseProject()
 	}
 	if projectID == "" {
 		cfg := coordinator.LoadFirebaseConfig()

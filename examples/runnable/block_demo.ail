@@ -1,4 +1,5 @@
 module examples/runnable/block_demo
+import std/io (println)
 
 export func compute() -> int {
   let x = 1 + 2
@@ -15,4 +16,10 @@ export func multiStep() -> int {
   let a = 10
   let b = 20
   a + b
+}
+
+export func main() -> () ! {IO} {
+  println(show(compute()))
+  println(show(singleLine()))
+  println(show(multiStep()))
 }

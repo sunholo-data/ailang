@@ -26,6 +26,17 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 		return nil, fmt.Errorf("parse error: %s", p.Errors()[0])
 	}
 
+	// #1114: enforce the same IFC gate the CLI enforces. CheckModuleIFC is a
+	// self-contained surface-AST analysis — the CLI runs it on every compile
+	// (pipeline_module_compile.go), but this path historically skipped it, so
+	// a module the CLI rejects with an information-flow violation loaded and
+	// published its exports in the browser WASM REPL.
+	if program.File != nil {
+		if ifcErrs := types.CheckModuleIFC(program.File); len(ifcErrs) > 0 {
+			return nil, fmt.Errorf("information-flow violation in %s: %w", name, ifcErrs[0])
+		}
+	}
+
 	// Step 2: Elaborate to Core
 	// Use ElaborateFile for modules (has module declaration) to get proper Meta map with IsExport flags
 	// Use Elaborate for REPL-style code (bare expressions)

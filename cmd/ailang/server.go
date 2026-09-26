@@ -13,24 +13,27 @@ import (
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/approvaltoken"
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/coordinator"
+	"github.com/sunholo-data/ailang/internal/messaging"
+	"github.com/sunholo-data/ailang/internal/observatory"
+	otelplatform "github.com/sunholo-data/ailang/internal/platform/otel"
 	"github.com/sunholo-data/ailang/internal/pubsub"
 	"github.com/sunholo-data/ailang/internal/server"
+	"github.com/sunholo-data/ailang/internal/statedir"
 	"github.com/sunholo-data/ailang/internal/storage"
-	"github.com/sunholo-data/ailang/internal/telemetry"
 )
 
 func serverCommand(args []string) error {
 	// Default values
 	port := "1957"
-	bindAddr := "localhost" // Safe default for local development
-	dbPath := filepath.Join(os.Getenv("HOME"), ".ailang", "state", "collaboration.db")
-	firebaseProject := "" // Firebase project ID for authentication
+	bindAddr := config.DefaultBindHost()         // 127.0.0.1; 0.0.0.0 when PORT is set (Cloud Run)
+	dbPath := messaging.GetDefaultDatabasePath() // "" when no state dir resolves; --db overrides
+	firebaseProject := ""                        // Firebase project ID for authentication
 
 	// Check PORT env var (Cloud Run convention) — overridden by --port flag
-	if envPort := os.Getenv("PORT"); envPort != "" {
+	if envPort := config.Port(); envPort != "" {
 		port = envPort
-		bindAddr = "0.0.0.0" // Cloud Run requires binding to all interfaces
 	}
 
 	// Parse flags (--port/--bind override env vars)
@@ -65,7 +68,7 @@ func serverCommand(args []string) error {
 			fmt.Println("")
 			fmt.Println("Options:")
 			fmt.Println("  --port PORT              HTTP server port (default: 1957, or PORT env var)")
-			fmt.Println("  --bind ADDR              Bind address (default: localhost, 0.0.0.0 when PORT env set)")
+			fmt.Println("  --bind ADDR              Bind address (default: 127.0.0.1, 0.0.0.0 when PORT env set)")
 			fmt.Println("  --db PATH                Database path (default: ~/.ailang/state/collaboration.db)")
 			fmt.Println("  --firebase-project ID    Firebase project ID for authentication (optional)")
 			fmt.Println("  --help, -h               Show this help message")
@@ -96,7 +99,7 @@ func serverCommand(args []string) error {
 	// Check for Firebase project from config or environment if not specified via flag
 	if firebaseProject == "" {
 		// Try environment variable first
-		firebaseProject = os.Getenv("AILANG_FIREBASE_PROJECT")
+		firebaseProject = config.FirebaseProject()
 	}
 	if firebaseProject == "" {
 		// Try config file
@@ -104,14 +107,17 @@ func serverCommand(args []string) error {
 	}
 
 	// Ensure database directory exists
+	if dbPath == "" {
+		return fmt.Errorf("no collaboration database path: set %s (or HOME), or pass --db", statedir.EnvVar)
+	}
 	dbDir := filepath.Dir(dbPath)
 	if err := os.MkdirAll(dbDir, 0755); err != nil {
 		return fmt.Errorf("failed to create database directory: %w", err)
 	}
 
 	// Check if server is already running on this port
-	httpAddr := fmt.Sprintf("%s:%s", bindAddr, port)
-	if isPortInUse(port) {
+	httpAddr := net.JoinHostPort(bindAddr, port)
+	if isPortInUse(httpAddr) {
 		// Port is in use - check if it's our server
 		healthURL := fmt.Sprintf("http://%s/health", httpAddr)
 		if checkServerHealth(healthURL) {
@@ -136,20 +142,12 @@ func serverCommand(args []string) error {
 
 	// Initialize OpenTelemetry (if configured via environment variables)
 	ctx := context.Background()
-	shutdownTelemetry, err := telemetry.Init(ctx, "ailang-server")
+	shutdownTelemetry, telemetryStatus, err := otelplatform.InitWithStatus(ctx, "ailang-server")
 	if err != nil {
 		log.Printf("Warning: Failed to initialize OpenTelemetry: %v", err)
 	} else {
 		defer shutdownTelemetry(ctx)
-		if telemetry.IsDualExportEnabled() {
-			log.Printf("Dual telemetry export enabled:")
-			log.Printf("  → Google Cloud Trace (project: %s)", telemetry.GoogleCloudProject())
-			log.Printf("  → OTLP endpoint: %s", os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"))
-		} else if telemetry.IsGoogleCloudEnabled() {
-			log.Printf("Google Cloud Trace enabled (project: %s)", telemetry.GoogleCloudProject())
-		} else if telemetry.IsEnabled() {
-			log.Printf("OpenTelemetry OTLP export enabled")
-		}
+		log.Printf("Telemetry: %s", telemetryStatus)
 	}
 
 	// Build server options based on storage mode
@@ -158,13 +156,13 @@ func serverCommand(args []string) error {
 	}
 
 	// Add hook token auth if configured (for cloud deployments)
-	if hookToken := os.Getenv("AILANG_HUB_TOKEN"); hookToken != "" {
+	if hookToken := config.HubToken(); hookToken != "" {
 		serverOpts = append(serverOpts, server.WithHookToken(hookToken))
 		log.Printf("Hook token authentication enabled for /api/hooks/*")
 	}
 
 	// Add WebSocket token auth if configured (reuses COORDINATOR_API_KEY)
-	if wsToken := os.Getenv("COORDINATOR_API_KEY"); wsToken != "" {
+	if wsToken := config.CoordinatorAPIKey(); wsToken != "" {
 		serverOpts = append(serverOpts, server.WithWebSocketToken(wsToken))
 		log.Printf("WebSocket token authentication enabled (external clients require ?token= parameter)")
 	}
@@ -193,12 +191,11 @@ func serverCommand(args []string) error {
 
 		// Create Pub/Sub subscriber for real-time event streaming.
 		// Dashboard pulls from ailang-events-dashboard and broadcasts via WebSocket.
-		project := os.Getenv("AILANG_CLOUD_PROJECT")
-		topicPrefix := os.Getenv("AILANG_TOPIC_PREFIX")
-		if topicPrefix == "" {
-			topicPrefix = pubsub.DefaultTopicPrefix
-		}
-		if project != "" {
+		project, projErr := config.CloudProject(ctx)
+		topicPrefix := pubsub.TopicPrefixFromEnv()
+		if projErr != nil {
+			log.Printf("Warning: no Pub/Sub event streaming: %v", projErr)
+		} else {
 			psClient, psErr := pubsub.NewClient(ctx, project, topicPrefix)
 			if psErr != nil {
 				log.Printf("Warning: Failed to create Pub/Sub client for event streaming: %v", psErr)
@@ -224,7 +221,7 @@ func serverCommand(args []string) error {
 		log.Printf("Storage mode: %s", storageMode)
 	} else {
 		// Local mode: use SQLite paths (existing behavior)
-		obsDbPath := filepath.Join(os.Getenv("HOME"), ".ailang", "state", "observatory.db")
+		obsDbPath := observatory.DefaultDatabasePath()
 		serverOpts = append(serverOpts, server.WithObservatoryDB(obsDbPath))
 		log.Printf("Storage mode: local")
 		log.Printf("Observatory DB: %s", obsDbPath)
@@ -245,8 +242,8 @@ func serverCommand(args []string) error {
 		srv.SetCoordinatorStore(&coordStoreAdapter{store: backends.Coordinator})
 		srv.SetCoordinatorStoreRaw(backends.Coordinator)
 	} else {
-		// Local mode: open SQLite coordinator store
-		coordDbPath := filepath.Join(os.Getenv("HOME"), ".ailang", "state", "coordinator.db")
+		// Local mode: open SQLite coordinator store under the state dir
+		coordDbPath, _ := statedir.Path("coordinator.db") // "" → NewSQLiteStore reports the resolution error
 		coordStore, err := coordinator.NewSQLiteStore(coordDbPath)
 		if err != nil {
 			log.Printf("Warning: Could not connect to coordinator store: %v", err)
@@ -264,7 +261,7 @@ func serverCommand(args []string) error {
 	// M-SECRET-REMOTE-APPROVAL-WIRING: enable signed single-use token auth on the
 	// secret approve/reject endpoints when a signing key is configured, so the
 	// iPhone ntfy action buttons can POST without Google IAM.
-	if keyStr := os.Getenv("AILANG_APPROVAL_SIGNING_KEY"); keyStr != "" {
+	if keyStr := config.ApprovalSigningKey(); keyStr != "" {
 		if signer, err := approvaltoken.NewSigner([]byte(keyStr)); err == nil {
 			srv.SetSecretApprovalAuth(signer)
 			log.Printf("Secret approval token auth enabled")
@@ -293,9 +290,10 @@ func serverCommand(args []string) error {
 	return srv.Start()
 }
 
-// isPortInUse checks if a TCP port is already bound
-func isPortInUse(port string) bool {
-	addr := fmt.Sprintf(":%s", port)
+// isPortInUse checks whether addr (the exact host:port the server will bind)
+// is already taken. Probing the wildcard ":port" instead misses a holder on
+// 127.0.0.1 on macOS, where both binds succeed and requests split between them.
+func isPortInUse(addr string) bool {
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
 		return true // Port is in use

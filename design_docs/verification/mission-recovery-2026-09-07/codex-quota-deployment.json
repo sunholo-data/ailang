@@ -1,0 +1,44 @@
+{
+  "revision": "8e5899affaa499eff57aa29ee3b7f2463909cac5",
+  "time": "20260907T125557",
+  "configs": [
+    {
+      "mission": "v1",
+      "backup": "/Users/voightkampff/.config/ailang/mission-v1.env.pre-codex-quota-20260907T125557",
+      "sha256": "2c561c3624ef1bc4fbd1b4ae438fcdeb870f0694453e4deeb53283097ab92aa5"
+    },
+    {
+      "mission": "world",
+      "backup": "/Users/voightkampff/.config/ailang/mission-world.env.pre-codex-quota-20260907T125557",
+      "sha256": "a408e4cb7b5d3d2c8ac55da91ed2f63f51285b5ff82962686c8268ab71195467"
+    },
+    {
+      "mission": "motoko",
+      "backup": "/Users/voightkampff/.config/ailang/mission-motoko.env.pre-codex-quota-20260907T125557",
+      "sha256": "d7b6aa557c38b31cec7df620e914188c3627187631f0b9776c0c0fc661117fa4"
+    },
+    {
+      "mission": "docs",
+      "backup": "/Users/voightkampff/.config/ailang/mission-docs.env.pre-codex-quota-20260907T125557",
+      "sha256": "34bb66b4886c2db1538366bd47c58329e24ad9f8d1c3bfe8b8734a1538d89417"
+    }
+  ],
+  "active_iterations_restarted": false,
+  "binary_backup": "/Users/voightkampff/go/bin/ailang.pre-codex-quota-20260907T125557",
+  "binary_before_sha256": "b185182d1efc64c041e10e12e1410b92ceea85079c42a08a467591208bb510a3",
+  "installed_observation": {
+    "state": "over",
+    "reason": "provider-reported Codex account usage exceeds ration or exhausts a window",
+    "observed_at": "2026-09-07T10:55:57.468Z",
+    "source": "rollout-2026-09-07T07-10-37-01a07a46-880a-70f1-becd-5024bd266688.jsonl",
+    "windows": [
+      {
+        "used_percent": 20,
+        "window_minutes": 10080,
+        "resets_at": "2026-09-14T05:28:10Z",
+        "allowance_percent": 10
+      }
+    ]
+  },
+  "binary_after_sha256": "be2c2d0c51a13f736bd85d99d84a8b0ceb0e26985b26003d11dea6867016387f"
+}

@@ -1,9 +1,9 @@
 package ai
 
 import (
-	"fmt"
-	"os"
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // ProviderType represents an AI provider.
@@ -15,6 +15,8 @@ const (
 	ProviderGoogle     ProviderType = "google"
 	ProviderOllama     ProviderType = "ollama"
 	ProviderOpenRouter ProviderType = "openrouter"
+	ProviderLyceum     ProviderType = "lyceum"
+	ProviderZAI        ProviderType = "zai"
 )
 
 // openrouterVendorPrefixes lists known "vendor/" prefixes that identify a
@@ -25,6 +27,7 @@ var openrouterVendorPrefixes = []string{
 	"anthropic/", "openai/", "google/", "meta-llama/", "mistralai/",
 	"deepseek/", "qwen/", "nvidia/", "x-ai/", "cohere/", "openrouter/",
 	"moonshotai/", "microsoft/", "z-ai/", "minimax/", // M-AI-EFFECT-MODES eval-suite expansion (May 2026)
+	"tencent/", // Hy4 preview candidate (Sep 2026)
 }
 
 // ModelConfig contains provider-specific model configuration.
@@ -98,6 +101,26 @@ func GuessProvider(modelName string) ProviderType {
 	return ""
 }
 
+// LyceumBaseURL returns the EU-hosted Lyceum OpenAI-compatible endpoint.
+// LYCEUM_BASE_URL overrides it for tests and proxies (M-LYCEUM-PROVIDER D2:
+// constant + env override, not a models.yml schema field); the constant is
+// config.DefaultLyceumBaseURL.
+func LyceumBaseURL() string { return config.LyceumBaseURL() }
+
+// ZAIBaseURL returns z.ai's first-party OpenAI-compatible endpoint — the
+// PAYG lane (M-ZAI-WINDOW-ROUTING Phase 1). ZAI_BASE_URL overrides it for
+// tests and proxies, mirroring LYCEUM_BASE_URL (M-LYCEUM-PROVIDER D2:
+// constant + env override, not a models.yml schema field).
+//
+// NOT the coding-plan endpoint (/api/coding/paas/v4). The GLM Coding Plan is
+// contractually restricted to officially supported tools, and driving it from
+// this harness is a usage-policy violation with account-level consequences
+// (M-ZAI-WINDOW-ROUTING V5). Keep the two lanes separate: PAYG here, plan in
+// opencode/claude only. An operator who points ZAI_BASE_URL at the coding
+// endpoint has crossed that line deliberately. The constant is
+// config.DefaultZAIBaseURL.
+func ZAIBaseURL() string { return config.ZAIBaseURL() }
+
 // EnvVarForProvider returns the environment variable name that holds the
 // API key for the given provider. Returns empty string for providers that
 // don't need an API key (Google ADC, Ollama local).
@@ -113,43 +136,13 @@ func EnvVarForProvider(provider ProviderType) string {
 		return "" // Local, no API key
 	case ProviderOpenRouter:
 		return "OPENROUTER_API_KEY"
+	case ProviderLyceum:
+		return "LYCEUM_API_KEY"
+	case ProviderZAI:
+		return "ZAI_API_KEY"
 	default:
 		return ""
 	}
-}
-
-// GetAPIKey returns the API key for a provider from environment variables.
-func GetAPIKey(provider ProviderType) (string, error) {
-	var envVar string
-	switch provider {
-	case ProviderOpenAI:
-		envVar = "OPENAI_API_KEY"
-	case ProviderAnthropic:
-		envVar = "ANTHROPIC_API_KEY"
-	case ProviderGoogle:
-		// Google supports multiple auth methods
-		// Check for API key first, then ADC will be used
-		envVar = "GOOGLE_API_KEY"
-		if key := os.Getenv(envVar); key != "" {
-			return key, nil
-		}
-		// No API key, but ADC might work - return empty string
-		// Provider implementations should handle ADC separately
-		return "", nil
-	case ProviderOllama:
-		// Ollama is local, no API key needed
-		return "", nil
-	case ProviderOpenRouter:
-		envVar = "OPENROUTER_API_KEY"
-	default:
-		return "", fmt.Errorf("unknown provider: %s", provider)
-	}
-
-	key := os.Getenv(envVar)
-	if key == "" {
-		return "", fmt.Errorf("environment variable %s not set", envVar)
-	}
-	return key, nil
 }
 
 // ProviderFromString converts a string to ProviderType.
@@ -165,6 +158,10 @@ func ProviderFromString(s string) ProviderType {
 		return ProviderOllama
 	case "openrouter":
 		return ProviderOpenRouter
+	case "lyceum":
+		return ProviderLyceum
+	case "zai", "z-ai", "z.ai":
+		return ProviderZAI
 	default:
 		return ProviderType(s)
 	}

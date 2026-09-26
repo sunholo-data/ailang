@@ -2,26 +2,18 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
-	"os"
-	"path/filepath"
 	"sort"
 
 	"github.com/sunholo-data/ailang/internal/eval_harness"
 	"github.com/sunholo-data/ailang/internal/observatory"
-
-	_ "github.com/mattn/go-sqlite3"
+	"github.com/sunholo-data/ailang/internal/sqliteopen"
 )
 
-// defaultObservatoryDB resolves ~/.ailang/state/observatory.db (where the ELO
-// rating tables live). Returns "" if the home dir can't be determined.
+// defaultObservatoryDB resolves observatory.db under the state directory
+// (where the ELO rating tables live). Returns "" if no state dir resolves.
 func defaultObservatoryDB() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return ""
-	}
-	return filepath.Join(home, ".ailang", "state", "observatory.db")
+	return observatory.DefaultDatabasePath()
 }
 
 // selectBenchmarksByConfidence returns up to max benchmarks worth re-running for
@@ -31,7 +23,7 @@ func defaultObservatoryDB() string {
 // median model rating: a benchmark sitting near where the models actually are
 // discriminates them best, so one more trial there moves belief the most.
 func selectBenchmarksByConfidence(dbPath, mode string, max int) ([]string, error) {
-	db, err := sql.Open("sqlite3", dbPath)
+	db, err := sqliteopen.Open(dbPath, sqliteopen.Options{ReadOnly: true})
 	if err != nil {
 		return nil, fmt.Errorf("open ratings db %s: %w", dbPath, err)
 	}

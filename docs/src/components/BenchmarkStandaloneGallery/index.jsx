@@ -1,15 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { benchmarkFetch } from '@site/src/lib/benchmarkFetch';
+import { benchmarkFetchWithSource } from '@site/src/lib/benchmarkFetch';
 import BenchmarkGallery from '../BenchmarkDashboard/BenchmarkGallery';
 import DataProvenance from '../DataProvenance';
 
 export default function BenchmarkStandaloneGallery() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
+  const [dataSource, setDataSource] = useState(null);
 
   useEffect(() => {
-    benchmarkFetch('latest.json')
-      .then(r => r.json())
+    benchmarkFetchWithSource('latest.json')
+      .then(({ response, source }) => {
+        setDataSource(source);
+        return response.json();
+      })
       .then(setData)
       .catch(e => setError(e.message));
   }, []);
@@ -20,7 +24,7 @@ export default function BenchmarkStandaloneGallery() {
 
   return (
     <div>
-      <DataProvenance version={data.version} timestamp={data.timestamp} />
+      <DataProvenance version={data.version} timestamp={data.timestamp} source={dataSource} />
       <BenchmarkGallery benchmarks={data.benchmarks} ratings={data.ratings} />
     </div>
   );

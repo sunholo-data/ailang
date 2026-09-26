@@ -2,9 +2,10 @@ package coordinator
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/gitexec"
 )
 
 // ArtifactDiscovery provides deterministic artifact discovery using git diff.
@@ -52,6 +53,20 @@ func (ad *ArtifactDiscovery) DiscoverChangedFiles() ([]string, error) {
 		return nil, err
 	}
 
+	// Scratch never counts as a changed file. The wrapper's commit excludes
+	// ScratchDir by pathspec (cmd/ailang/coordinator_cloud_scratch.go), but
+	// getChangedFiles reports staged + unstaged + UNTRACKED, so probe programs
+	// the branch will never carry were still landing on the approval card.
+	//
+	// Measured 2026-09-17 on task-e0d87876 (the first pkg-sunholo-docparse run):
+	// the card listed six files — Dockerfile, ci.yml and four
+	// `.ailang-scratch/*.ail` probes — while PR #188 carried exactly the two
+	// real ones. The card/branch check in DecidePR then refuses that merge,
+	// correctly, on evidence that was wrong. One concept — "what did this task
+	// change" — had two implementations, and only the commit side knew about
+	// scratch.
+	changedFiles = dropScratchPaths(changedFiles)
+
 	// Filter by patterns
 	if len(ad.Patterns) == 0 {
 		return changedFiles, nil
@@ -65,6 +80,35 @@ func (ad *ArtifactDiscovery) DiscoverChangedFiles() ([]string, error) {
 	}
 
 	return matched, nil
+}
+
+// ScratchDirName is the one directory an agent may use for probe programs that
+// the wrapper never commits. Declared here, next to artifact discovery, because
+// both the commit pathspec and the changed-file list have to agree on it.
+const ScratchDirName = ".ailang-scratch"
+
+// dropScratchPaths removes anything inside a scratch directory, at any depth.
+func dropScratchPaths(files []string) []string {
+	out := files[:0:0]
+	for _, f := range files {
+		if isScratchPath(f) {
+			continue
+		}
+		out = append(out, f)
+	}
+	return out
+}
+
+// isScratchPath reports whether a path has a scratch directory as one of its
+// segments. Segment-wise, not a prefix match: `notes.ailang-scratch.md` is a
+// real file and must survive.
+func isScratchPath(file string) bool {
+	for _, seg := range strings.Split(filepath.ToSlash(file), "/") {
+		if seg == ScratchDirName {
+			return true
+		}
+	}
+	return false
 }
 
 // getChangedFiles returns all files that have changed in the worktree.
@@ -83,59 +127,48 @@ func (ad *ArtifactDiscovery) getChangedFiles() ([]string, error) {
 	// NOTE: Uses two-dot (..) not three-dot (...) to show only what HEAD added,
 	// not symmetric difference which would show changes from parallel branches
 	if base != "" {
-		cmd := exec.Command("git", "diff", "--name-only", base+"..HEAD")
+		cmd := gitexec.Command("diff", gitFlagNameOnly, base+"..HEAD")
 		cmd.Dir = ad.WorktreePath
 		output, err := cmd.Output()
-		if err == nil && len(output) > 0 {
-			files := strings.Split(strings.TrimSpace(string(output)), "\n")
-			for _, f := range files {
-				if f != "" {
-					allFiles = append(allFiles, f)
-				}
-			}
+		if err == nil {
+			allFiles = appendUniqueFiles(allFiles, output)
 		}
 	}
 
 	// Also check uncommitted changes (staged + unstaged)
-	cmd := exec.Command("git", "diff", "--name-only", "HEAD")
+	cmd := gitexec.Command("diff", gitFlagNameOnly, "HEAD")
 	cmd.Dir = ad.WorktreePath
 	output, err := cmd.Output()
-	if err == nil && len(output) > 0 {
-		files := strings.Split(strings.TrimSpace(string(output)), "\n")
-		for _, f := range files {
-			if f != "" && !sliceContains(allFiles, f) {
-				allFiles = append(allFiles, f)
-			}
-		}
+	if err == nil {
+		allFiles = appendUniqueFiles(allFiles, output)
 	}
 
 	// Get staged changes (in case HEAD doesn't exist yet)
-	cmd = exec.Command("git", "diff", "--name-only", "--cached")
+	cmd = gitexec.Command("diff", gitFlagNameOnly, "--cached")
 	cmd.Dir = ad.WorktreePath
 	output, err = cmd.Output()
-	if err == nil && len(output) > 0 {
-		files := strings.Split(strings.TrimSpace(string(output)), "\n")
-		for _, f := range files {
-			if f != "" && !sliceContains(allFiles, f) {
-				allFiles = append(allFiles, f)
-			}
-		}
+	if err == nil {
+		allFiles = appendUniqueFiles(allFiles, output)
 	}
 
 	// Get untracked files
-	cmd = exec.Command("git", "ls-files", "--others", "--exclude-standard")
+	cmd = gitexec.Command("ls-files", "--others", "--exclude-standard")
 	cmd.Dir = ad.WorktreePath
 	output, err = cmd.Output()
-	if err == nil && len(output) > 0 {
-		files := strings.Split(strings.TrimSpace(string(output)), "\n")
-		for _, f := range files {
-			if f != "" && !sliceContains(allFiles, f) {
-				allFiles = append(allFiles, f)
-			}
-		}
+	if err == nil {
+		allFiles = appendUniqueFiles(allFiles, output)
 	}
 
 	return allFiles, nil
+}
+
+func appendUniqueFiles(files []string, output []byte) []string {
+	for _, file := range strings.Split(strings.TrimSpace(string(output)), "\n") {
+		if file != "" && !sliceContains(files, file) {
+			files = append(files, file)
+		}
+	}
+	return files
 }
 
 // detectBaseBranch determines which branch to use as the base for comparison.
@@ -172,7 +205,7 @@ func (ad *ArtifactDiscovery) detectBaseBranch() string {
 
 // branchExists checks if a branch exists in the worktree.
 func (ad *ArtifactDiscovery) branchExists(branch string) bool {
-	cmd := exec.Command("git", "rev-parse", "--verify", branch)
+	cmd := gitexec.Command(gitCommandRevParse, "--verify", branch)
 	cmd.Dir = ad.WorktreePath
 	err := cmd.Run()
 	return err == nil
@@ -292,6 +325,22 @@ func (ad *ArtifactDiscovery) DiscoverArtifacts(maxSize int64) (map[string]string
 func sliceContains(slice []string, item string) bool {
 	for _, s := range slice {
 		if s == item {
+			return true
+		}
+	}
+	return false
+}
+
+// MatchesArtifactPattern reports whether a file matches one of an agent's
+// declared artifact patterns.
+//
+// Exported for the Cloud Run wrapper's auto-merge guard, which asks a narrower
+// question than artifact discovery does: "did this branch change ONLY what this
+// agent is declared to produce?" A branch that strays outside the declaration is
+// not the work the operator authorised auto-merge for, whatever its checks say.
+func MatchesArtifactPattern(patterns []string, file string) bool {
+	for _, p := range patterns {
+		if matchGlob(p, file) {
 			return true
 		}
 	}

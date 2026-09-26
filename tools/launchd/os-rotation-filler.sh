@@ -28,7 +28,13 @@ export PATH="$HOME/go/bin:$HOME/.local/bin:$PATH"
 source "$(dirname "$0")/rig-lock.sh"
 
 LOG=/tmp/ailang-os-filler.log
-log() { echo "[$(date '+%F %H:%M:%S')] $*" | tee -a "$LOG"; }
+# APPEND ONLY, no tee. The plist sets BOTH StandardOutPath and StandardErrorPath
+# to this same file, so a `| tee -a "$LOG"` wrote every line twice — once by tee
+# and once by launchd capturing the same line on stdout. Harmless to read, but it
+# silently doubled every count taken from this log, which is the instrument we
+# use to judge how much rig time the filler is actually getting. Sub-command
+# output still lands here via launchd's capture, so nothing is lost.
+log() { printf '[%s] %s\n' "$(date '+%F %H:%M:%S')" "$*" >> "$LOG"; }
 
 # Cross-harness TRIO on the SAME local qwen3.6: opencode (multi-turn) vs pi
 # (minimal) vs motoko (AILANG-native). All three drive the ONE loaded qwen3.6
@@ -57,6 +63,13 @@ log() { echo "[$(date '+%F %H:%M:%S')] $*" | tee -a "$LOG"; }
 # gate (max_tokens_per_bench 3.0M), not wall-clock, is what bounds runs now.
 # CAVEAT at time of switching: the clean motoko A/B was still running. If motoko
 # regresses, revert this line to the qwen3-6 triple — banked qwen3.6 rows stay valid.
+# The rotation trio is UNCHANGED through the motoko_agent refactor (Mark,
+# 2026-09-02). What is paused is motoko A/B TESTING — an A/B needs a stable
+# harness on both arms, so a treatment measured against a moving motoko would be
+# uninterpretable. The plain rotation has no such problem: it is a single-arm
+# capability measurement, its rows are stamped with resolved_profile /
+# resolved_extensions, and dropping motoko here would blank the harness-comparison
+# columns this filler exists to fill.
 MODELS="${OS_FILLER_MODELS:-${OS_FILLER_MODEL:-opencode-qwen3-8-27b,pi-qwen3-8-27b,motoko-local-qwen3-8-27b}}"
 LANGS="${OS_FILLER_LANGS:-ailang,python,javascript,go}"
 CHUNK="${OS_FILLER_CHUNK:-3}"                  # benchmarks per cycle
@@ -90,8 +103,39 @@ FULL_MAX_LAPS="${OS_FILLER_FULL_MAX_LAPS:-3}"
 # AILANG-first pass) for cross-language signal before AILANG fully fills. Set
 # OS_FILLER_AILANG_FULL=0 for a legacy pure cross-language rig.
 FORCE_4LANG="${OS_FILLER_4LANG:-0}"
-BLACKOUT_START="${OS_FILLER_BLACKOUT_START:-04:00}"  # covers nightly + lang-eval + model reloads
-BLACKOUT_END="${OS_FILLER_BLACKOUT_END:-07:00}"
+# PRE-NIGHTLY GUARD (replaced a fixed 04:00-07:00 blackout, 2026-09-11).
+#
+# The old window was sized for a ~3-hour nightly and had stopped being true: the
+# nightly now runs 03:00 to roughly 13:00 (9h45m measured on 09-10), so the
+# window never covered the job it was named for, and on the days the nightly DID
+# finish early it skipped the filler for three hours of free rig. Both halves of
+# a fixed window are wrong once the thing it guards has variable length.
+#
+# What actually covers the nightly is the rig lock, which the filler yields to on
+# every cycle (step 3). The one thing a lock CANNOT do is stop us starting a
+# multi-hour chunk ten minutes before the nightly is due and making the priority
+# job queue behind it — a lock has no notion of a job that has not started yet.
+# So that, and only that, is what this guard does: stay out of the run-up.
+#
+# NIGHTLY_START must match dev.ailang.nightly-eval.plist's StartCalendarInterval.
+# It is read from the installed plist when one is present, so the two cannot
+# drift; the literal is the fallback for a box with no plist installed (CI, a
+# fresh checkout) and is logged when it is used.
+NIGHTLY_START="${OS_FILLER_NIGHTLY_START:-}"
+if [ -z "$NIGHTLY_START" ]; then
+  _np="$HOME/Library/LaunchAgents/dev.ailang.nightly-eval.plist"
+  if [ -f "$_np" ]; then
+    _nh=$(/usr/libexec/PlistBuddy -c "Print :StartCalendarInterval:Hour" "$_np" 2>/dev/null)
+    _nm=$(/usr/libexec/PlistBuddy -c "Print :StartCalendarInterval:Minute" "$_np" 2>/dev/null)
+    [ -n "$_nh" ] && NIGHTLY_START=$(printf '%02d:%02d' "$_nh" "${_nm:-0}")
+  fi
+fi
+NIGHTLY_START="${NIGHTLY_START:-03:00}"
+# One filler interval (45 min) plus headroom: long enough that a chunk started
+# just before the guard has a fair chance of being done by NIGHTLY_START.
+PRE_NIGHTLY_MIN="${OS_FILLER_PRE_NIGHTLY_MIN:-60}"
+BLACKOUT_START="$(rig_time_minus "$NIGHTLY_START" "$PRE_NIGHTLY_MIN")"
+BLACKOUT_END="$NIGHTLY_START"
 AUTOPUSH="${OS_FILLER_PUSH:-0}"   # 0 = accumulate + commit LOCALLY only (safe default);
                                   # set OS_FILLER_PUSH=1 to autonomously push -> docs deploy.
 # M-EVAL-DATA-HOSTING-DECOUPLE W5: the routine per-cycle data commits are RETIRED.
@@ -175,13 +219,14 @@ run_chunk() {
     --output "$ROLL" >>"$LOG" 2>&1 || log "$rc_label chunk had failures (continuing)"
 }
 
-# 1. Blackout window — stay clear of the scheduled nightly jobs.
+# 1. Pre-nightly guard — do not start a chunk the priority job would queue behind.
+#    Everything AFTER the nightly starts is handled by the rig lock in step 3.
 if rig_in_blackout "$BLACKOUT_START" "$BLACKOUT_END"; then
-  log "in blackout ${BLACKOUT_START}-${BLACKOUT_END} — skip"; exit 0
+  log "pre-nightly guard ${BLACKOUT_START}-${BLACKOUT_END} (nightly starts ${NIGHTLY_START}) — skip"; exit 0
 fi
 
 # 2. ollama up?
-if ! curl -s --max-time 3 http://localhost:11434/api/version >/dev/null 2>&1; then
+if ! curl -s --max-time 3 http://127.0.0.1:11434/api/version >/dev/null 2>&1; then
   log "ollama unreachable — skip"; exit 0
 fi
 
@@ -274,20 +319,41 @@ else
     # Coverage signal: AILANG is "in" when EVERY full-tier benchmark has a banked
     # ailang result for EVERY local model (== what --skip-existing treats as done).
     # Min distinct-ailang-benches across models = the bottleneck harness.
-    FULL_SET=",$(IFS=,; printf '%s' "${BENCHES_FULL[*]}"),"
-    MIN_COV=999999
-    _OIFS="$IFS"; IFS=','
-    for m in $MODELS; do
-      IFS="$_OIFS"
-      cov=0
-      for b in $(ls "$VDIR"/*_ailang_"${m}"_*.json 2>/dev/null | sed -E "s#.*/##; s/_(trial[0-9]+_)?ailang_.*//" | sort -u); do
-        case "$FULL_SET" in *",$b,"*) cov=$((cov + 1));; esac
-      done
-      [ "$cov" -lt "$MIN_COV" ] && MIN_COV="$cov"
-      IFS=','
-    done
-    IFS="$_OIFS"
-    [ "$MIN_COV" = "999999" ] && MIN_COV=0
+    # Coverage counts a benchmark as done for a model only when it has at least one
+    # VALID ailang row. The previous version counted FILE EXISTENCE and its comment
+    # claimed that equalled "what --skip-existing treats as done" — which was false:
+    # eval_skip_existing.go only treats a row as done `if row.IsValid()`.
+    #
+    # The gap latched. A crash row counted as coverage, so v0.34.0 was declared
+    # "coverage COMPLETE", .ailang-full-lapped was written, and the AILANG pass
+    # short-circuited to cross-language FOREVER for this release — leaving 5
+    # (benchmark, model) tuples that had never actually been measured and could
+    # never be retried. Same bug class as the aggregator fix in c8c841e24: a
+    # non-measurement being read as a measurement, here in the coverage gate.
+    MIN_COV=$(python3 - "$VDIR" "$(IFS=,; printf '%s' "${BENCHES_FULL[*]}")" "$MODELS" <<'PYEOF'
+import glob, json, os, sys
+vdir, benches, models = sys.argv[1], sys.argv[2], sys.argv[3]
+want = {b for b in benches.split(",") if b}
+best = None
+for m in [x for x in models.split(",") if x]:
+    covered = set()
+    for path in glob.glob(os.path.join(vdir, "*_ailang_%s_*.json" % m)):
+        try:
+            d = json.load(open(path))
+        except Exception:
+            continue
+        v = d.get("validity")
+        if v is not None and not v.get("valid"):
+            continue          # a crash is not coverage
+        bid = d.get("id")
+        if bid in want:
+            covered.add(bid)
+    n = len(covered)
+    best = n if best is None else min(best, n)
+print(best if best is not None else 0)
+PYEOF
+)
+    case "$MIN_COV" in (''|*[!0-9]*) MIN_COV=0;; esac
 
     if [ "$MIN_COV" -ge "$FULL_TOTAL" ]; then
       AILANG_DONE=1
@@ -415,6 +481,78 @@ if [ -d "$ROLL/$VERSION" ] && ailang eval-publish "rolling-$(date +%Y%m%d)" --ro
       log "committed locally (auto-push OFF — set OS_FILLER_PUSH=1 to publish)"
     fi
   fi
+  fi
+fi
+
+# 7a. HARNESS-HEALTH ESCALATION. summary.json now separates "the subject was
+#     measured and did badly" from "we failed to measure it" (RunMetrics.IsValid,
+#     dominantly the api_error backstop). Those non-measurements are excluded from
+#     every published pass rate — which is correct, and which is exactly why they
+#     need a voice of their own: silently dropping them turns a harness outage
+#     into a quietly smaller sample instead of an alert.
+#
+#     WHY: before the aggregator filtered, motoko published 86.0% on AILANG vs
+#     pi's 92.7% and was read for weeks as the weakest AILANG harness. 11 of its
+#     12 failures were zero-token non-starts; on rows where it actually ran it was
+#     98.7%, the BEST of the three. The crash rate was being read as a model
+#     result. Nobody was told, because nothing escalated.
+#
+#     Threshold is a RATE, not a count: a big rotation legitimately accumulates a
+#     few transient ollama overloads. Fires to the controlplane inbox, which is
+#     where a human triages — Discord is reserved for pass-rate regressions.
+SUMMARY_JSON="$ROLL/$VERSION/summary.json"
+INVALID_ALERT_PCT="${OS_FILLER_INVALID_ALERT_PCT:-5}"
+if [ -f "$SUMMARY_JSON" ]; then
+  INVALID_REPORT=$(python3 - "$SUMMARY_JSON" "$INVALID_ALERT_PCT" <<'PYEOF'
+import json, sys
+path, thresh = sys.argv[1], float(sys.argv[2])
+try:
+    d = json.load(open(path))
+except Exception:
+    sys.exit(0)
+inv = d.get("invalid_excluded", 0)
+total = d.get("total_result_files", 0)
+if not inv or not total:
+    sys.exit(0)
+pct = 100.0 * inv / total
+# A GLOBAL rate hides the thing worth alerting on. Measured 2026-09-02: motoko's
+# AILANG non-start rate was 11/86 = 12.8% — the failure that made it look like the
+# weakest AILANG harness — while the global rate was 2.0% and would not have
+# tripped a 5% threshold. So alert on the worst (model, lang) slice too.
+worst, worst_pct = None, 0.0
+slice_tot, slice_inv = {}, {}
+for bs in d.get("benchmarks", []):
+    k = (bs.get("model", "?"), bs.get("lang", "?"))
+    slice_tot[k] = slice_tot.get(k, 0) + bs.get("trials", 0) + bs.get("invalid_excluded", 0)
+    slice_inv[k] = slice_inv.get(k, 0) + bs.get("invalid_excluded", 0)
+for k, n in slice_tot.items():
+    if n < 20:
+        continue          # too few rows for a rate to mean anything
+    p = 100.0 * slice_inv[k] / n
+    if p > worst_pct:
+        worst, worst_pct = k, p
+if pct < thresh and worst_pct < thresh:
+    sys.exit(0)
+hotspot = ""
+if worst and worst_pct >= thresh:
+    hotspot = (" WORST SLICE: %s/%s at %.1f%% (%d of %d rows)."
+               % (worst[0], worst[1], worst_pct, slice_inv[worst], slice_tot[worst]))
+reasons = ", ".join(f"{k}={v}" for k, v in sorted(d.get("invalid_reasons", {}).items()))
+unmeasured = d.get("unmeasured_tuples", 0)
+print(f"{inv}/{total} rows ({pct:.1f}%) were NOT measurements and are excluded from "
+      f"every published pass rate.{hotspot} reasons: {reasons or 'unspecified'}. "
+      f"unmeasured (benchmark,model,lang) tuples: {unmeasured}. "
+      f"This is a HARNESS health signal, not a model result — the subject never ran. "
+      f"Triage: grep the excluded rows' stderr in {path.rsplit('/',1)[0]}/agent for the "
+      f"failure mode (motoko startup crash / ollama 'maximum pending requests' / stdlib "
+      f"type error), then re-run those tuples: --skip-existing retries invalid rows.")
+PYEOF
+)
+  if [ -n "$INVALID_REPORT" ]; then
+    log "HARNESS HEALTH: $INVALID_REPORT"
+    ailang messages send controlplane "$INVALID_REPORT" \
+      --title "OS rotation harness health: non-measurement rate >= ${INVALID_ALERT_PCT}% (${VERSION})" \
+      --from "os-rotation-filler" >>"$LOG" 2>&1 || true
   fi
 fi
 

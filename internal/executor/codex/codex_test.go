@@ -3,6 +3,8 @@ package codex
 import (
 	"bufio"
 	"context"
+	"encoding/json"
+	"errors"
 	"os"
 	osexec "os/exec"
 	"path/filepath"
@@ -15,10 +17,11 @@ import (
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/executor"
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 func TestNewCodexExecutor(t *testing.T) {
-	cfg := executor.DefaultConfig()
+	cfg := testConfig()
 	exec, err := New(cfg)
 	if err != nil {
 		t.Fatalf("New failed: %v", err)
@@ -35,17 +38,32 @@ func TestNewCodexExecutor(t *testing.T) {
 	}
 }
 
-func TestNewCodexExecutor_EmptyConfigUsesFallbacks(t *testing.T) {
-	// Empty config (no defaults) should still produce a working executor.
-	exec, err := New(&executor.Config{})
+func TestNewCodexExecutor_EmptyConfigFailsLoudly(t *testing.T) {
+	// M-MODEL-REGISTRY-SINGLE-SOURCE M6 (D2(a)). This once asserted a fallback to
+	// "gpt-5-codex" — the defect: an unpinned agent silently ran a model nobody chose,
+	// a model nobody chose, on an account nobody was watching.
+	//
+	// The check is at EXECUTION, not construction. The coordinator builds an
+	// executor before it knows the task and then supplies Task.Model per task
+	// (provider_executor.go), so failing at construction would break the normal
+	// path — which is exactly what a first cut of this milestone did.
+	e, err := New(&executor.Config{})
 	if err != nil {
-		t.Fatalf("New failed: %v", err)
+		t.Fatalf("construction must still succeed with no model: %v", err)
 	}
-	if exec.codexPath != "codex" {
-		t.Errorf("expected fallback path 'codex', got %q", exec.codexPath)
+	_, err = e.Execute(context.Background(), &executor.Task{ID: "t", Directive: "hi"})
+	if err == nil {
+		t.Fatal("executing with no model anywhere must fail rather than pick one")
 	}
-	if exec.model != "gpt-5-codex" {
-		t.Errorf("expected fallback model 'gpt-5-codex', got %q", exec.model)
+	var ume *executor.UnresolvedModelError
+	if !errors.As(err, &ume) {
+		t.Fatalf("want *executor.UnresolvedModelError, got %T: %v", err, err)
+	}
+	if ume.Executor != "codex" {
+		t.Errorf("Executor = %q, want %q", ume.Executor, "codex")
+	}
+	if !strings.Contains(err.Error(), "model") || !strings.Contains(err.Error(), "role") {
+		t.Errorf("error should name both remedies; got: %v", err)
 	}
 }
 
@@ -121,7 +139,7 @@ func TestBuildCodexArgs_RejectsUnsafeMCPName(t *testing.T) {
 }
 
 func TestCodexCapabilities(t *testing.T) {
-	exec, _ := New(executor.DefaultConfig())
+	exec, _ := New(testConfig())
 	caps := exec.Capabilities()
 	if len(caps) == 0 {
 		t.Fatal("expected at least one capability")
@@ -141,29 +159,6 @@ func TestCodexCapabilities(t *testing.T) {
 		if !present {
 			t.Errorf("missing expected capability %q", c)
 		}
-	}
-}
-
-func TestCodexCostModel(t *testing.T) {
-	exec, _ := New(executor.DefaultConfig())
-	cm := exec.CostModel()
-
-	if cm.ProviderName != "openai" {
-		t.Errorf("expected provider 'openai', got %q", cm.ProviderName)
-	}
-	// gpt-5-codex: $1.25/$10.00 per 1M = $0.00125/$0.01 per 1K
-	if cm.InputTokenCost != 0.00125 {
-		t.Errorf("expected input cost 0.00125, got %v", cm.InputTokenCost)
-	}
-	if cm.OutputTokenCost != 0.01 {
-		t.Errorf("expected output cost 0.01, got %v", cm.OutputTokenCost)
-	}
-
-	// Cost calculation sanity check: 1000 in + 500 out.
-	got := cm.CalculateCost(executor.TokenUsage{InputTokens: 1000, OutputTokens: 500})
-	want := 0.00125 + 0.005
-	if diff := got - want; diff > 1e-9 || diff < -1e-9 {
-		t.Errorf("expected cost %v, got %v", want, got)
 	}
 }
 
@@ -194,10 +189,14 @@ func TestInit_RegistersCodex(t *testing.T) {
 		t.Fatalf("init() did not register 'codex'; factory.ListAvailable() = %v", available)
 	}
 
-	// Also verify the factory can actually build the executor.
+	// M-MODEL-REGISTRY-SINGLE-SOURCE M6 (D2(a)): the factory still BUILDS the
+	// executor with no model configured — construction is not where the check
+	// lives, because the coordinator builds an executor before it knows the
+	// task and supplies Task.Model per task. The fail-loud is at execution
+	// entry; see TestNew ...EmptyConfig/EmptyModel FailsLoudly in this package.
 	exec, err := factory.GetExecutor("codex")
 	if err != nil {
-		t.Fatalf("factory.GetExecutor(\"codex\") failed: %v", err)
+		t.Fatalf("factory.GetExecutor(%q) failed: %v", "codex", err)
 	}
 	if exec.Name() != "codex" {
 		t.Errorf("built executor has wrong name: %q", exec.Name())
@@ -205,14 +204,14 @@ func TestInit_RegistersCodex(t *testing.T) {
 }
 
 func TestCodexClose(t *testing.T) {
-	exec, _ := New(executor.DefaultConfig())
+	exec, _ := New(testConfig())
 	if err := exec.Close(); err != nil {
 		t.Errorf("Close returned error: %v", err)
 	}
 }
 
 func TestGetModel_TaskOverride(t *testing.T) {
-	exec, _ := New(executor.DefaultConfig())
+	exec, _ := New(testConfig())
 	task := &executor.Task{Model: "override-model"}
 	if got := exec.getModel(task); got != "override-model" {
 		t.Errorf("expected task model override, got %q", got)
@@ -508,8 +507,11 @@ func TestExecuteStreaming_ParsesFixture(t *testing.T) {
 	fake := writeFakeCodex(t, tmpDir, string(fixture))
 
 	exec, _ := New(&executor.Config{
-		CodexPath:      fake,
-		CodexModel:     "gpt-5-codex",
+		CodexPath: fake,
+		// A registry api_name: with no Task.Pricing the cost below comes from
+		// CostModel(), which since M-V1-SIMPLIFY-S3 M2 is the registry row of
+		// this model rather than a gpt-5-codex table applied to everything.
+		CodexModel:     "gpt-5.2-codex",
 		TimeoutSeconds: 30,
 	})
 
@@ -588,7 +590,7 @@ func TestExecuteStreaming_TolerantToNonJSONPreamble(t *testing.T) {
 	tmpDir := t.TempDir()
 	fake := writeFakeCodex(t, tmpDir, body)
 
-	exec, _ := New(&executor.Config{CodexPath: fake, TimeoutSeconds: 10})
+	exec, _ := New(&executor.Config{CodexPath: fake, CodexModel: "gpt-5-codex", TimeoutSeconds: 10})
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -612,7 +614,7 @@ func TestExecuteStreaming_NoResultMeansFailure(t *testing.T) {
 	tmpDir := t.TempDir()
 	fake := writeFakeCodex(t, tmpDir, body)
 
-	exec, _ := New(&executor.Config{CodexPath: fake, TimeoutSeconds: 10})
+	exec, _ := New(&executor.Config{CodexPath: fake, CodexModel: "gpt-5-codex", TimeoutSeconds: 10})
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -628,6 +630,7 @@ func TestExecuteStreaming_NoResultMeansFailure(t *testing.T) {
 func TestExecuteStreaming_BinaryNotFound(t *testing.T) {
 	exec, _ := New(&executor.Config{
 		CodexPath:      "/nonexistent/path/to/codex-xyz-not-real",
+		CodexModel:     "gpt-5-codex", // D2(a): a model is required; this test is about the BINARY
 		TimeoutSeconds: 5,
 	})
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -645,7 +648,7 @@ func TestExecute_DelegatesToExecuteStreaming(t *testing.T) {
 	tmpDir := t.TempDir()
 	fake := writeFakeCodex(t, tmpDir, body)
 
-	exec, _ := New(&executor.Config{CodexPath: fake, TimeoutSeconds: 10})
+	exec, _ := New(&executor.Config{CodexPath: fake, CodexModel: "gpt-5-codex", TimeoutSeconds: 10})
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -655,36 +658,6 @@ func TestExecute_DelegatesToExecuteStreaming(t *testing.T) {
 	}
 	if !result.Success {
 		t.Error("expected success from Execute")
-	}
-}
-
-func TestHealthCheck_MissingBinary(t *testing.T) {
-	exec, _ := New(&executor.Config{CodexPath: "/nonexistent/codex-not-here-xyz"})
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-	if err := exec.HealthCheck(ctx); err == nil {
-		t.Error("expected error for missing codex binary")
-	}
-}
-
-func TestHealthCheck_SucceedsWhenBinaryRespondsToVersion(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("shell scripts unsupported on windows")
-	}
-	tmpDir := t.TempDir()
-	// Fake binary that prints a version and exits 0 when invoked with --version.
-	scriptPath := filepath.Join(tmpDir, "fake-codex")
-	script := "#!/bin/sh\necho 'codex 0.0.1'\nexit 0\n"
-	if err := os.WriteFile(scriptPath, []byte(script), 0755); err != nil {
-		t.Fatalf("write script: %v", err)
-	}
-	exec, _ := New(&executor.Config{CodexPath: scriptPath})
-	// Generous: the fake-binary exec only needs ms, but CI runners under load have
-	// blown the old 3s deadline (test-windows flake). A real hang still trips go test.
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-	if err := exec.HealthCheck(ctx); err != nil {
-		t.Errorf("expected HealthCheck to succeed, got %v", err)
 	}
 }
 
@@ -699,7 +672,7 @@ func TestLiveRun_Codex(t *testing.T) {
 		t.Skipf("codex binary not found on PATH: %v", err)
 	}
 
-	cfg := executor.DefaultConfig()
+	cfg := testConfig()
 	e, err := New(cfg)
 	if err != nil {
 		t.Fatalf("New failed: %v", err)
@@ -739,20 +712,62 @@ func TestLiveRun_Codex(t *testing.T) {
 	}
 }
 
-func TestRegister_Idempotent(t *testing.T) {
-	// init() already registered; calling Register() again should not panic
-	// and should not duplicate the entry.
-	Register()
-	Register()
-
-	available := executor.GlobalFactory().ListAvailable()
-	count := 0
-	for _, n := range available {
-		if n == "codex" {
-			count++
-		}
+// M-V1-SIMPLIFY-S4 M1: a model the registry cannot price yields $0 from
+// CalculateCost, and banking that as the auth lane's provenance ("metered" or
+// "list-price-equivalent") fabricates a free run. The provenance must say
+// "unknown" — with a POSITIVE control on the priced fixture run above, whose
+// provenance is NOT unknown, so this cannot pass because every run is unknown.
+func TestExecuteStreaming_UnpricedModelBanksUnknownProvenance(t *testing.T) {
+	fixture, err := os.ReadFile("testdata/codex_response.jsonl")
+	if err != nil {
+		t.Fatalf("read fixture: %v", err)
 	}
-	if count != 1 {
-		t.Errorf("expected 'codex' to appear exactly once, got %d", count)
+	run := func(model string) *executor.Result {
+		t.Helper()
+		tmpDir := t.TempDir()
+		fake := writeFakeCodex(t, tmpDir, string(fixture))
+		// authLane reads ~/.codex/auth.json from the real OS home directory;
+		// left ambient, the control's provenance depends on whether the
+		// machine running the test happens to have codex logged in (true on
+		// a dev box, false on a bare CI runner — the failure this pins down).
+		home := t.TempDir()
+		testutil.SetHomeDir(t, home)
+		authDir := filepath.Join(home, ".codex")
+		if err := os.MkdirAll(authDir, 0o755); err != nil {
+			t.Fatalf("mkdir .codex: %v", err)
+		}
+		authJSON, err := json.Marshal(map[string]string{"auth_mode": "apikey"})
+		if err != nil {
+			t.Fatalf("marshal auth.json: %v", err)
+		}
+		if err := os.WriteFile(filepath.Join(authDir, "auth.json"), authJSON, 0o600); err != nil {
+			t.Fatalf("write auth.json: %v", err)
+		}
+		ex, err := New(&executor.Config{CodexPath: fake, CodexModel: model, TimeoutSeconds: 30})
+		if err != nil {
+			t.Fatalf("New(%s): %v", model, err)
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		res, err := ex.ExecuteStreaming(ctx, &executor.Task{ID: "t", Directive: "x", Workspace: tmpDir}, &recordingHandler{})
+		if err != nil || res == nil {
+			t.Fatalf("ExecuteStreaming(%s): %v", model, err)
+		}
+		return res
+	}
+
+	control := run("gpt-5.2-codex")
+	if !control.Success || control.CostUSD <= 0 || control.CostProvenance == executor.CostProvenanceUnknown {
+		t.Fatalf("control (priced model): success=%v cost=%v provenance=%q — the instrument must see a priced run",
+			control.Success, control.CostUSD, control.CostProvenance)
+	}
+
+	unpriced := run("codex-model-nobody-registered")
+	if unpriced.CostUSD != 0 {
+		t.Fatalf("unpriced model cost = %v, want 0", unpriced.CostUSD)
+	}
+	if unpriced.CostProvenance != executor.CostProvenanceUnknown {
+		t.Fatalf("unpriced model provenance = %q, want %q: a $0 with the lane's provenance is a fabricated free run",
+			unpriced.CostProvenance, executor.CostProvenanceUnknown)
 	}
 }

@@ -3,7 +3,7 @@
 #
 # Runs the smoke + core tiers (every `tier: smoke` / `tier: core` benchmark,
 # default-core included) against the accuracy-first local Qwen model
-# (opencode-qwen3-6-35b-a3b-mxfp8). Regressions — benchmarks with a passing
+# (opencode-qwen3-8-27b). Regressions — benchmarks with a passing
 # baseline that now fail every trial — alert via Discord; never-passed
 # benchmarks are filed to the controlplane inbox as known gaps for the
 # gap-finder (no Discord). See eval_baselines gating below.
@@ -44,84 +44,6 @@ RESULTS_DIR="/tmp/nightly_eval_$(date +%Y%m%d)"
 DATE=$(date +%Y-%m-%d)
 
 log() { echo "[$(date '+%H:%M:%S')] $*" | tee -a "$LOG"; }
-
-# BEGIN FMT_AB_TESTABLE_FUNCTIONS
-run_fmt_ab_smoke() {
-    local smoke_benchmark smoke_dir smoke_row smoke_count smoke_state smoke_validity failure
-    smoke_benchmark="${FMT_BENCH_LIST%%,*}"
-    smoke_dir="${RESULTS_DIR}_fmt_smoke_$$"
-    # Clear the scratch dir before banking. The row-count contract below reads whatever is in
-    # $smoke_dir/agent, so a leftover row from an earlier smoke would be adjudicated as this run's
-    # -- and would satisfy or violate the contract for a reason that has nothing to do with today.
-    rm -rf "$smoke_dir"
-    log "  fmt smoke: benchmark=${smoke_benchmark} model=motoko-local-qwen3-6-fmt"
-    "$BIN" eval-suite --agent \
-        --models "motoko-local-qwen3-6-fmt" \
-        --benchmarks "$smoke_benchmark" \
-        --langs ailang \
-        --output "$smoke_dir" \
-        --parallel 1 \
-        --trials 1 \
-        --max-tokens-per-bench "$MAX_TOKENS_PER_BENCH" >> "$LOG" 2>&1 || \
-        log "  fmt smoke eval-suite exited non-zero (see $LOG)"
-
-    smoke_count=$(find "$smoke_dir/agent" -name '*.json' -type f 2>/dev/null | wc -l | tr -d ' ')
-    smoke_row=$(find "$smoke_dir/agent" -name '*.json' -type f 2>/dev/null | head -n 1)
-    smoke_state="<absent>"
-    smoke_validity="<absent>"
-    failure=""
-    if [[ "$smoke_count" != "1" || -z "$smoke_row" ]]; then
-        failure="banked-row contract failed: observed row_count=${smoke_count}, want 1"
-    else
-        smoke_state=$(jq -r '.fmt_hook_state // "<absent>"' "$smoke_row")
-        smoke_validity=$(jq -r 'if has("validity") then (.validity.valid | tostring) else "<absent>" end' "$smoke_row")
-        if [[ "$smoke_state" != "on" ]]; then
-            failure="fmt_hook_state contract failed: observed '${smoke_state}', want 'on'"
-        elif [[ "$smoke_validity" != "<absent>" && "$smoke_validity" != "true" ]]; then
-            failure="treatment-integrity contract failed: observed validity.valid='${smoke_validity}', want absent or true"
-        fi
-    fi
-    if [[ -n "$failure" ]]; then
-        log "fmt A/B SKIPPED: smoke ${failure}"
-        ailang messages send controlplane \
-            "fmt A/B skipped (${DATE}): smoke ${failure}. No measured rows were run." \
-            --title "fmt A/B smoke failed (${DATE})" --from "nightly-eval" 2>/dev/null || true
-        RUN_AB_FMT=0
-        return 1
-    fi
-    log "  fmt smoke passed: fmt_hook_state=${smoke_state} validity.valid=${smoke_validity}"
-}
-
-run_fmt_ab_measurements() {
-    local benchmark i arm m
-    local -a FMT_BENCHES arms
-    IFS=',' read -ra FMT_BENCHES <<< "$FMT_BENCH_LIST"
-    for ((i = 0; i < ${#FMT_BENCHES[@]}; i++)); do
-        benchmark="${FMT_BENCHES[i]}"
-        if ((i % 2 == 0)); then
-            arms=(on off)
-        else
-            arms=(off on)
-        fi
-        for arm in "${arms[@]}"; do
-            case "$arm" in
-                on)  m="motoko-local-qwen3-6-fmt" ;;
-                off) m="motoko-local-qwen3-6-35b-a3b-mxfp8" ;;
-            esac
-            log "  benchmark=${benchmark} fmt=${arm} model=${m}"
-            "$BIN" eval-suite --agent \
-                --models "$m" \
-                --benchmarks "$benchmark" \
-                --langs ailang \
-                --output "${RESULTS_DIR}_fmt_${arm}" \
-                --parallel 1 \
-                --trials "$FMT_TRIALS" \
-                --max-tokens-per-bench "$MAX_TOKENS_PER_BENCH" >> "$LOG" 2>&1 || \
-                log "  benchmark=${benchmark} fmt=${arm} eval-suite exited non-zero (see $LOG)"
-        done
-    done
-}
-# END FMT_AB_TESTABLE_FUNCTIONS
 
 # Shared rig mutex (M-EVAL-OS-CONTINUOUS-ROTATION): the nightly is the priority
 # job — wait for any in-flight rig work, then hold the lock for the whole run so
@@ -215,7 +137,24 @@ log "build OK: ${BUILD_VERSION} (commit ${SHORT})"
 # the other 16 fall back to the fixed THRASH ceiling below until they accrue 5
 # passing samples. qwen3.5 registry entries are deliberately KEPT in models.yml:
 # 2,438 banked pass-trials are attributed to them.
-MODEL="opencode-qwen3-6-35b-a3b-mxfp8"
+#
+# qwen3.6 -> qwen3.8 on 2026-09-02. The rotation was migrated by Mark's directive
+# on 2026-08-18 (see os-rotation-filler.sh: "REPLACEMENT, never an addition" --
+# ollama holds OLLAMA_MAX_LOADED_MODELS=2 = ONE on-device LLM + ONE embedder), but
+# this driver was missed, and qwen3.6:35b-a3b-mxfp8 is no longer pulled. The two
+# harnesses failed DIFFERENTLY on the missing model, which is why it went unnoticed
+# for three nights: motoko's canary said so plainly ("model not found"), while
+# opencode degraded silently to 0 turns / 0 tool calls and banked 0/24 -- read as a
+# non-agentic executor bug, not an absent model. Nights 2026-08-31..09-02 were all
+# flagged INVALID (infra_outage) by the validity guard, so no 0% row entered the
+# baseline; newest VALID night is 2026-08-30.
+#
+# BASELINE CAVEAT: adaptive thresholds are keyed on (model, benchmark), so this
+# swap re-bases them. opencode-qwen3-8-27b carries banked rows from the OS rotation
+# (302 agent runs as of 2026-09-02), but benchmarks under 5 passing samples fall
+# back to the fixed THRASH ceiling below until they accrue them. Trailing-median
+# regression comparisons also span the model change for the next few nights.
+MODEL="opencode-qwen3-8-27b"
 BENCH_TIERS="smoke,core"   # display label for alerts/log
 # Thrash ceiling per benchmark (M-EVAL-OS-LONGITUDINAL). When eval_baselines has
 # >=5 passing samples for a (model, benchmark), the eval-suite uses an adaptive
@@ -226,6 +165,22 @@ BENCH_TIERS="smoke,core"   # display label for alerts/log
 # adding ~an hour to the night. A 1M cap was A/B-validated 2026-06-11 (bounded an
 # 8.3M-token runaway); 4M is the looser nightly ceiling that protects legit passes.
 MAX_TOKENS_PER_BENCH=4000000
+
+# WALL-CLOCK CEILING FOR THE NIGHT (M-RIG-LOCK-YIELD, 2026-09-11).
+#
+# MAX_TOKENS_PER_BENCH and --timeout bound ONE benchmark; nothing bounded the
+# suite. Measured 09-10: 12 benchmarks x 2 trials took 9h45m and held the
+# single-GPU rig lock 04:36->14:21, of which two runs spent the full 1h hard
+# timeout each and produced nothing. The rig has other tenants — the
+# os-rotation-filler got one acquisition that whole day, Daneel's mail intake
+# deferred on 83% of its runs — so an unbounded night is not just a long night,
+# it is everyone else's day.
+#
+# This is a budget for the NIGHT, divided between the arms that will run, so an
+# A/B Monday costs the rig the same as an ordinary Tuesday instead of double.
+# At 03:00 + 8h the rig is free by 11:00 either way. It stops DISPATCH only:
+# in-flight trials finish and everything banked stays banked.
+NIGHT_MAX_WALL_CLOCK_HOURS="${AILANG_NIGHTLY_MAX_HOURS:-8}"
 
 BENCH_LIST=$( {
     grep -lE '^[[:space:]]*tier:[[:space:]]*smoke' benchmarks/*.yml
@@ -259,24 +214,30 @@ fi
 # hours and neither got the trial count it needs.
 #
 #   Monday    -> microRAG A/B  (on vs off)
-#   Wednesday -> fmt A/B       (ollama_fmt vs ollama)
 #
 # Every other night: microRAG=on only, as a regression guard with no comparison
-# overhead. Both A/Bs pool across weeks — see the fmt block's note on why
-# McNemar needs accumulation rather than one big night.
+# overhead. The A/B pools across weeks — McNemar needs accumulation rather than
+# one big night.
+#
+# The Wednesday fmt A/B (M-EVAL-FMT-WEAKMODEL-AB) was REMOVED on 2026-09-02.
+# Both of its arms were qwen3.6 registry entries and qwen3.6:35b-a3b-mxfp8 is no
+# longer pulled on the rig, so it had not measured anything; and it could not be
+# repointed, because motoko-local-qwen3-6-fmt was the ONLY ollama_fmt row in
+# models.yml — there was no qwen3.8 treatment arm to swap in. Reviving it means
+# onboarding a motoko-local-qwen3-8-27b-fmt entry and re-validating that the
+# treatment applies, which is new work, not a flag flip. Banked rows stay in
+# docs/static/benchmarks/fmt_ab.jsonl and the models.yml entry is retained
+# (2026-08 precedent: registry rows are kept because banked trials point at them).
+# Wednesday now runs the plain regression guard.
 DAY_OF_WEEK=$(date +%u)  # 1=Mon … 7=Sun
 RUN_AB_MICRORAG=0
-RUN_AB_FMT=0
 [[ "$DAY_OF_WEEK" == "1" ]] && RUN_AB_MICRORAG=1
-[[ "$DAY_OF_WEEK" == "3" ]] && RUN_AB_FMT=1
-# AILANG_FORCE_AB=1 forces BOTH (kept for back-compat); the per-experiment
-# overrides below force just one, which is what a manual catch-up run wants.
-[[ "${AILANG_FORCE_AB:-0}" == "1" ]] && { RUN_AB_MICRORAG=1; RUN_AB_FMT=1; }
+# AILANG_FORCE_AB=1 kept for back-compat; the per-experiment override below is
+# what a manual catch-up run wants.
+[[ "${AILANG_FORCE_AB:-0}" == "1" ]] && RUN_AB_MICRORAG=1
 [[ "${AILANG_FORCE_AB_MICRORAG:-0}" == "1" ]] && RUN_AB_MICRORAG=1
-[[ "${AILANG_FORCE_AB_FMT:-0}" == "1" ]] && RUN_AB_FMT=1
-# Opt OUT of one on its own night (e.g. to give the other the whole rig).
+# Opt OUT to give the rig over to something else.
 [[ "${AILANG_AB_MICRORAG:-1}" == "0" ]] && RUN_AB_MICRORAG=0
-[[ "${AILANG_AB_FMT:-1}" == "0" ]] && RUN_AB_FMT=0
 
 # select_ab_benchmarks <model> <max> -- echo a comma-separated benchmark set chosen
 # by CONFIDENCE from the ratings DB, or nothing if selection is unavailable.
@@ -308,9 +269,23 @@ select_ab_benchmarks() {
         | grep '^Benchmarks:' | sed 's/^Benchmarks:[[:space:]]*//' | tr -d ' '
 }
 
+# arm_wall_clock — the night's budget divided by the number of arms this run
+# will execute. Computed at call time rather than stored, because RUN_AB_MICRORAG
+# can be turned off mid-script (the confidence-selection skip below does exactly
+# that) and a cap fixed before that point would halve an ordinary night for an
+# A/B that never happened.
+arm_wall_clock() {
+    local arms=1
+    [[ "$RUN_AB_MICRORAG" == "1" ]] && arms=2
+    # Integer minutes: bash has no floats, and `8h/2` in Go duration syntax is
+    # not a thing we can hand to a flag.
+    printf '%dm' $(( NIGHT_MAX_WALL_CLOCK_HOURS * 60 / arms ))
+}
+
 run_eval() {
-    local mode="$1" outdir="$2"
-    log "running smoke: microrag=${mode} → ${outdir}"
+    local mode="$1" outdir="$2" cap
+    cap=$(arm_wall_clock)
+    log "running smoke: microrag=${mode} → ${outdir} (wall-clock cap ${cap})"
     "$BIN" eval-suite --agent \
         --models "$MODEL" \
         --benchmarks "${RAG_BENCH_LIST:-$BENCH_LIST}" \
@@ -319,8 +294,15 @@ run_eval() {
         --output "$outdir" \
         --parallel 1 \
         --trials 2 \
+        --max-wall-clock "$cap" \
         --max-tokens-per-bench "$MAX_TOKENS_PER_BENCH" >> "$LOG" 2>&1
+    if [[ -f "${outdir}/wallclock_stopped.json" ]]; then
+        log "WALL-CLOCK CAP HIT on the ${mode} arm (${cap}) — this arm is PARTIAL: $(tr -d '\n' < "${outdir}/wallclock_stopped.json")"
+    fi
 }
+
+# arm_truncated DIR — true if that arm stopped on the wall-clock cap.
+arm_truncated() { [[ -f "$1/wallclock_stopped.json" ]]; }
 
 # Count passing results in an arm dir. Both arms of an A/B MUST be counted the
 # same way — the old PASS_ON had a grep-first path whose `||` fallback could
@@ -328,10 +310,10 @@ run_eval() {
 # matched nothing). It therefore yielded an EMPTY string, which `${PASS_ON:-0}`
 # turned into a literal 0 and banked as a real 0% measurement. That is exactly
 # how the 2026-07-20 row (on_pass=0, delta_pp=-73.8) entered microrag_ab.jsonl.
-# Top-level on purpose: BOTH the microRAG (Monday) and fmt (Wednesday) A/B
-# blocks call it — defined inside the microRAG block it was undefined on
-# fmt-only nights, and under `set -e` the 127 killed the whole run at the
-# comparison step (2026-08-05: 8.5h of evals died unbanked at line 477).
+# Top-level on purpose. It was once defined INSIDE the microRAG block, which
+# left it undefined on nights that did not run microRAG; under `set -e` the 127
+# killed the whole run at the comparison step (2026-08-05: 8.5h of evals died
+# unbanked). Keep it at top level even though one caller remains.
 count_passes() {
     python3 -c "
 import json,glob,sys
@@ -372,8 +354,6 @@ print(head + tail)' 2>/dev/null || echo "parse failed"
     log "microRAG arm set (confidence-selected): ${RAG_BENCH_LIST}"
 
 run_eval "on"  "${RESULTS_DIR}_rag_on"
-
-if [[ "$RUN_AB_MICRORAG" == "1" || "$RUN_AB_FMT" == "1" ]]; then
 
 # --- microRAG A/B (Mondays) -------------------------------------------------
 # Guarded WITHOUT re-indenting the ~110-line body: reindentation would bury a
@@ -442,10 +422,22 @@ print(json.dumps({
             AB_VALID=0
         fi
     done
+    # Same rule, time axis. A truncated arm ran a DIFFERENT benchmark set from
+    # its partner — the cap cuts wherever each arm happened to be — so the pair
+    # is no longer paired and the delta is not a treatment effect. That is the
+    # ambiguity the confidence-selected arm set exists to avoid; do not reopen
+    # it from the other end. Refuse to bank, loudly, and keep both dirs.
+    for arm_dir in "ON:${RESULTS_DIR}_rag_on" "OFF:${RESULTS_DIR}_rag_off"; do
+        arm=${arm_dir%%:*}; d=${arm_dir#*:}
+        if arm_truncated "$d"; then
+            log "A/B INVALID: ${arm} arm hit the wall-clock cap — a partial arm is not comparable; refusing to bank this week"
+            AB_VALID=0
+        fi
+    done
 
     if [[ "$AB_VALID" == "0" ]]; then
         ailang messages send controlplane \
-            "Weekly A/B (${DATE}) NOT banked — an arm returned zero passes or zero result files. This is a harness failure, not a result. Check ${RESULTS_DIR}_rag_on / _rag_off and $LOG" \
+            "Weekly A/B (${DATE}) NOT banked — an arm returned zero passes/zero result files, or hit the wall-clock cap and is partial. Either way it is not a result. Check ${RESULTS_DIR}_rag_on / _rag_off and $LOG" \
             --title "A/B invalid (${DATE})" --from "nightly-eval" 2>/dev/null || true
         REC=""
     fi
@@ -485,160 +477,6 @@ print(json.dumps(rec))" "$REC" "$PAIRED" 2>/dev/null || echo "$REC")
     fi
 fi  # end microRAG A/B
 
-    # ------------------------------------------------------------------
-    # Wednesday experiment: motoko fmt extension (M-EVAL-FMT-WEAKMODEL-AB).
-    #
-    # Hypothesis: running `ailang fmt --write` on every .ail write removes
-    # syntax drift, so a WEAK local model re-reads canonical code each turn and
-    # spirals into compile-stuck loops less often. Haiku data is useless here —
-    # both arms sit at ~96%, pure ceiling. The subject has to be the local model.
-    #
-    # Arms are two models.yml entries that differ ONLY by motoko profile:
-    #   ON  = motoko-local-qwen3-6-fmt          (profile ollama_fmt: +fmt)
-    #   OFF = motoko-local-qwen3-6-35b-a3b-mxfp8 (profile ollama)
-    # Both are local/$0 and drive the SAME loaded qwen3.6 — no extra VRAM.
-    #
-    # fmt is deliberately NOT added to the ollama/cloud profiles: doing that
-    # before the A/B concludes would destroy the control.
-    # ------------------------------------------------------------------
-    if [[ "$RUN_AB_FMT" == "1" ]]; then
-        # PREREGISTERED scope (M5 hardset prereg / M6). NOT the smoke+core set:
-        # fmt removes syntax drift, so the experiment has to run where drift
-        # actually occurs. The smoke set is largely drift-free — fizzbuzz has no
-        # syntax drift to remove — which is the same category of mistake as
-        # running the A/B against haiku at a 96% ceiling: a subject that cannot
-        # exhibit the failure mode cannot show the remedy working.
-        #
-        # AMENDED 2026-07-29 after the first fully-instrumented run, which made
-        # that exact mistake a THIRD time. The original set
-        # (contract_rle_roundtrip, config_file_parser, contract_roman_numeral,
-        # contract_sorted_merge, log_file_analyzer) was picked from banked rates
-        # of 35-86%, but the OFF arm came in at 10/10 — and 4 of the 5 were 4/4.
-        # P(10/10 | those rates) ~= 0.3%, so the set did not get lucky: THE
-        # BASELINE MOVED. Every pre-2026-07-29 row predates the MOTOKO_REPO fix,
-        # so no extension had ever loaded — not even DP7's per-edit `ailang
-        # check`. With extensions live, the control arm alone clears that set.
-        #
-        # DO NOT PICK THIS SET FROM RAW PASS RATES. That is what produced both
-        # earlier mistakes. A raw rate blends three things — how hard the
-        # benchmark is, how strong the model was, and which harness era the rows
-        # came from — so it moves when any of them moves, which is exactly how a
-        # set chosen at 35-86% arrived at a 10/10 control arm.
-        #
-        # `ailang eval-elo <dir> --json` already solves this: it fits benchmark
-        # difficulty as a latent parameter SEPARATE from model strength, so a
-        # benchmark's ailang_elo is era-robust in a way its pass rate is not.
-        # Selection rule — expected score under the standard ELO logistic:
-        #
-        #   E[pass] = 1 / (1 + 10^((bench_elo - model_elo) / 400))
-        #
-        # and keep benchmarks with E[pass] in ~0.20-0.70, nearest 0.50 first,
-        # because DISCORDANT PAIRS are what McNemar consumes and discordance is
-        # maximised where the outcome is least certain. Both tails are useless:
-        # at E=0.93 both arms pass, at E=0.15 both arms fail, and neither
-        # produces a pair that can move the test.
-        #
-        # Scored against subject ELO 2196 (motoko-local-qwen3-6-*, agent mode,
-        # 69 benchmarks of coverage, non-provisional), the first amendment to
-        # this list was wrong on 3 of 5 IN BOTH DIRECTIONS — red_black_tree
-        # E=0.93 and csv_to_json_converter E=0.81 (raw rates said 56%/59%), and
-        # docx_reimplement E=0.15. docx is deliberately NOT here: it is the
-        # hardest benchmark we have and it fails ~100% compile-stuck, so it is
-        # its own line of work, not an A/B row that can resolve anything.
-        #
-        #   config_file_parser .55 | parse_prec_climb .47 | legal_obligation .44
-        #   ssa_constant_fold  .35 | bytecode_vm_trace .68
-        # Confidence-selected, not frozen. The list below WAS hand-picked by the
-        # ELO rule above, against subject ELO 2196 -- but a hardcoded set silently
-        # goes stale the moment the subject's rating moves, which is exactly the
-        # failure this comment warns about one paragraph earlier. Selecting at run
-        # time from the ratings DB makes the rule self-applying instead of a
-        # snapshot someone has to remember to redo.
-        FMT_BENCH_LIST="${AILANG_AB_FMT_BENCHMARKS:-$(select_ab_benchmarks "motoko-local-qwen3-6-fmt" "${AILANG_AB_FMT_N:-6}")}"
-        if [[ -z "$FMT_BENCH_LIST" ]]; then
-            log "fmt A/B SKIPPED: confidence selection returned nothing (seed ratings: go run ./tools/eval-elo --mode agent --persist ~/.ailang/state/observatory.db <results_dir>)"
-            ailang messages send controlplane \
-                "fmt A/B skipped (${DATE}): no agent benchmark ratings, so the arm set could not be chosen by headroom. Running a stale set would produce another uninterpretable null." \
-                --title "fmt A/B skipped (${DATE})" --from "nightly-eval" 2>/dev/null || true
-            RUN_AB_FMT=0
-        fi
-        # N>=5 per the prereg. The previous 2 was inherited from the microRAG
-        # block, not chosen for this experiment.
-        FMT_TRIALS="${AILANG_AB_FMT_TRIALS:-5}"
-        log "Wednesday A/B: motoko fmt extension (on vs off) — ELO-selected set, N=${FMT_TRIALS}"
-        log "  benchmarks: ${FMT_BENCH_LIST}"
-        if [[ "$RUN_AB_FMT" == "1" ]]; then
-            run_fmt_ab_smoke || true
-        fi
-        if [[ "$RUN_AB_FMT" == "1" ]]; then
-            run_fmt_ab_measurements
-        fi
-
-        # Paired analysis for the fmt arm too. Banking aggregates only would
-        # leave THIS experiment — the one the pairing work was motivated by —
-        # stuck with the same ~13pp detection floor that made the microRAG
-        # weekly unable to conclude anything.
-        FMT_PAIRED=$("$BIN" eval-paired --with-pairs=true "${RESULTS_DIR}_fmt_on" "${RESULTS_DIR}_fmt_off" 2>>"$LOG" || echo "")
-        if [[ -n "$FMT_PAIRED" ]]; then
-            log "fmt paired: $(echo "$FMT_PAIRED" | paired_summary)"
-        else
-            log "fmt paired: eval-paired produced no output (see $LOG)"
-        fi
-
-        # `|| true`: same as the microRAG arm — let the FMT_VALID guard see an
-        # empty value instead of set -e killing the run here.
-        FMT_ON=$(count_passes "${RESULTS_DIR}_fmt_on" || true)
-        FMT_OFF=$(count_passes "${RESULTS_DIR}_fmt_off" || true)
-        FMT_ON_T=$(find "${RESULTS_DIR}_fmt_on"/agent -name '*.json' -type f 2>/dev/null | wc -l | tr -d ' ')
-        FMT_OFF_T=$(find "${RESULTS_DIR}_fmt_off"/agent -name '*.json' -type f 2>/dev/null | wc -l | tr -d ' ')
-        log "fmt A/B result: on=${FMT_ON}/${FMT_ON_T} off=${FMT_OFF}/${FMT_OFF_T}"
-
-        FMT_VALID=1
-        for pair in "ON:${FMT_ON}:${FMT_ON_T}" "OFF:${FMT_OFF}:${FMT_OFF_T}"; do
-            arm=${pair%%:*}; rest=${pair#*:}; p=${rest%%:*}; t=${rest#*:}
-            if ! [[ "$p" =~ ^[0-9]+$ ]] || ! [[ "$t" =~ ^[0-9]+$ ]] || [[ "$t" -eq 0 ]] || [[ "$p" -eq 0 ]]; then
-                log "fmt A/B INVALID: ${arm} arm pass='${p}' total='${t}' — refusing to bank"
-                FMT_VALID=0
-            fi
-        done
-
-        if [[ "$FMT_VALID" == "1" ]]; then
-            FMT_HIST="$REPO/docs/static/benchmarks/fmt_ab.jsonl"
-            FREC=$(python3 -c "
-import json
-on_p,on_t=${FMT_ON},${FMT_ON_T}; off_p,off_t=${FMT_OFF},${FMT_OFF_T}
-print(json.dumps({
-  'date':'${DATE}','experiment':'motoko_ext_fmt','lang':'ailang','trials':${FMT_TRIALS},
-  'on_model':'motoko-local-qwen3-6-fmt','off_model':'motoko-local-qwen3-6-35b-a3b-mxfp8',
-  'on_pass':on_p,'on_total':on_t,'off_pass':off_p,'off_total':off_t,
-  'on_rate':round(on_p/on_t,4),'off_rate':round(off_p/off_t,4),
-  'delta_pp':round(100*(on_p/on_t-off_p/off_t),1)}))" 2>/dev/null)
-            if [[ -n "$FREC" && -n "$FMT_PAIRED" ]]; then
-                FREC=$(python3 -c "
-import json,sys
-rec=json.loads(sys.argv[1]); paired=json.loads(sys.argv[2])
-for k in ('pairs','only_on_passed','only_off_passed','unpaired','mcnemar','headroom'):
-    rec[k]=paired.get(k)
-print(json.dumps(rec))" "$FREC" "$FMT_PAIRED" 2>/dev/null || echo "$FREC")
-            fi
-
-            if [[ -n "$FREC" ]]; then
-                echo "$FREC" >> "$FMT_HIST"
-                log "fmt A/B persisted -> docs/static/benchmarks/fmt_ab.jsonl"
-                if git -C "$REPO" add "$FMT_HIST" 2>>"$LOG" && ! git -C "$REPO" diff --cached --quiet -- "$FMT_HIST" 2>/dev/null; then
-                    git -C "$REPO" commit -q \
-                        -m "data(fmt): weekly A/B ${DATE} (on=${FMT_ON}/${FMT_ON_T} off=${FMT_OFF}/${FMT_OFF_T})" \
-                        -m "Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>" 2>>"$LOG" || true
-                fi
-            fi
-        fi
-
-        ailang messages send controlplane \
-            "Weekly fmt A/B (${DATE}): on=${FMT_ON}/${FMT_ON_T} off=${FMT_OFF}/${FMT_OFF_T} valid=${FMT_VALID}" \
-            --title "motoko fmt A/B (${DATE})" --from "nightly-eval" 2>/dev/null || true
-    fi
-fi
-
 # Use the rag_on results for regression detection (canonical arm)
 RESULTS_AGENT="${RESULTS_DIR}_rag_on/agent"
 export RESULTS_AGENT
@@ -646,6 +484,12 @@ PASS=$(python3 -c "import json,glob; r=[json.load(open(f)) for f in glob.glob('$
 RATE=$(python3 -c "import json,glob; r=[json.load(open(f)) for f in glob.glob('${RESULTS_AGENT}/*.json')]; p=sum(1 for d in r if d.get('compile_ok') and d.get('runtime_ok') and d.get('stdout_ok')); n=len(r); print(f'{100*p//n if n else 0}%')" 2>/dev/null || echo "?%")
 
 log "regression check result: ${PASS} (${RATE})"
+# A short night is an ABSENCE, not a result. The classifier reads per-benchmark
+# rows, so a missing benchmark cannot look like a regression — but a human
+# reading "18/24" needs to know whether the other 6 failed or never ran.
+if arm_truncated "${RESULTS_DIR}_rag_on"; then
+    log "NOTE: tonight's canonical arm was TRUNCATED by the wall-clock cap — ${PASS} is out of what RAN, not out of the tier"
+fi
 
 # Durable cross-night history is classifier-owned. Absence is deliberately a
 # loud degraded state; only a manual --bootstrap may create the history file.

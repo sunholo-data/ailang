@@ -17,6 +17,18 @@ type PackageVersionInfo struct {
 	ContentHash   string
 	Effects       []string
 	Exports       []string
+	// Signatures is the v2 export signature set. Nil or empty means legacy
+	// metadata; non-empty means v2.
+	//
+	// PRECONDITION, relied on by classifyChange: the elements are DEDUPLICATED
+	// and INJECTIVE — one string per exported symbol, distinct symbols never
+	// colliding. The intended producer, pkg.InterfaceHashV2, satisfies both (it
+	// collects behind a seen-set, and iface.SignatureSet escapes each field so
+	// `mod:kind:name:sig` cannot collide). classifyChange compares these with SET
+	// semantics, so a producer that violated the precondition by emitting a
+	// duplicate would classify a real change as "A". Any future producer must
+	// satisfy it; do not relax this comment without a test at this boundary.
+	Signatures []string
 }
 
 // EmitUpgradeAvailable compares old and new package versions and emits an
@@ -44,6 +56,7 @@ func EmitUpgradeAvailable(store *Store, old, new PackageVersionInfo, recipients 
 			FromContentHash:   old.ContentHash,
 			ToContentHash:     new.ContentHash,
 			ChangeClass:       changeClass,
+			Breaking:          breakingFlag(old, new, changeClass),
 		},
 		Status: "open",
 	}
@@ -58,6 +71,7 @@ func EmitInterfaceChangeNotice(store *Store, old, new PackageVersionInfo, recipi
 		return "", nil // No interface change
 	}
 
+	changeClass := classifyChange(old, new)
 	env := &PackageMessageEnvelope{
 		Schema:    PackageMessageSchema,
 		Kind:      PkgMsgInterfaceChange,
@@ -70,6 +84,8 @@ func EmitInterfaceChangeNotice(store *Store, old, new PackageVersionInfo, recipi
 			ToVersion:         new.Version,
 			FromInterfaceHash: old.InterfaceHash,
 			ToInterfaceHash:   new.InterfaceHash,
+			ChangeClass:       changeClass,
+			Breaking:          breakingFlag(old, new, changeClass),
 		},
 		Status: "open",
 	}
@@ -154,19 +170,81 @@ func EmitFromLockfileDiff(store *Store, oldPkgs, newPkgs []PackageVersionInfo, w
 	return count, nil
 }
 
-// classifyChange determines the change class based on hash comparison.
+// classifyChange determines the change class from signature sets when both
+// sides have them, while preserving hash classification for legacy pairs.
 //
 //	A = internal only (content changed, interface same)
 //	B = additive (new exports, existing interface unchanged)
 //	C = contract change (interface hash changed)
+//	U = unknown (only one side has signatures)
 func classifyChange(old, new PackageVersionInfo) string {
+	// Both nil and empty signature slices are legacy. An empty set cannot
+	// establish that signature metadata was produced, so len is intentional.
+	oldV2 := len(old.Signatures) > 0
+	newV2 := len(new.Signatures) > 0
+	if !oldV2 && !newV2 {
+		return legacyClassify(old, new)
+	}
+	if !oldV2 && newV2 {
+		return "U"
+	}
+	if oldV2 && !newV2 {
+		return "U"
+	}
+	if sameSignatureSet(old.Signatures, new.Signatures) {
+		return "A"
+	}
+	if isSuperset(new.Signatures, old.Signatures) {
+		return "B"
+	}
+	return "C"
+}
+
+func legacyClassify(old, new PackageVersionInfo) string {
 	if old.InterfaceHash != new.InterfaceHash {
 		return "C"
 	}
-	if old.ContentHash != new.ContentHash {
-		return "A"
-	}
 	return "A"
+}
+
+// breakingFlag reports the envelope's `breaking` field, and deliberately leaves
+// it UNSET for a wholly-legacy pair.
+//
+// `breaking` is not merely descriptive: internal/coordinator's ClassifyChange
+// short-circuits on it before it ever looks at the message kind, so a non-nil
+// true flag routes the cascade to review instead of auto-apply. Setting it from
+// the hash-only legacy classification would therefore flip EVERY
+// interface-hash-changing publish from auto-apply to review on the day this
+// lands — real blast radius, and zero benefit, because no producer emits
+// signatures yet. Gating on signature presence keeps the legacy path
+// byte-identical to the pre-M5 envelope (nil, omitted by `omitempty`) and lets
+// the flag start carrying meaning exactly when a measured signature diff can
+// justify it. Pinned by TestEmitUpgradeAvailable (legacy pair, nil) and
+// TestEmitUpgradeAvailable_V2PairCarriesBreaking (v2 pair, true), and the
+// routing consequence by TestAutonomyRouter_LegacyEnvelopeRoutingUnchanged.
+func breakingFlag(old, new PackageVersionInfo, changeClass string) *bool {
+	if len(old.Signatures) == 0 && len(new.Signatures) == 0 {
+		return nil
+	}
+	breaking := changeClass == "C"
+	return &breaking
+}
+
+func sameSignatureSet(a, b []string) bool {
+	return isSuperset(a, b) && isSuperset(b, a)
+}
+
+func isSuperset(candidate, required []string) bool {
+	set := make(map[string]struct{}, len(candidate))
+	for _, signature := range candidate {
+		set[signature] = struct{}{}
+	}
+	for _, signature := range required {
+		if _, ok := set[signature]; !ok {
+			return false
+		}
+	}
+	return true
 }
 
 // effectsWidened returns true if newEffects contains effects not in oldEffects.

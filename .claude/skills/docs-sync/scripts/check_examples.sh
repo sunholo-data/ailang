@@ -61,12 +61,13 @@ FAILED_FILES=""
 
 for file in $files; do
     basename=$(basename "$file")
+    relative_file="${file#$PROJECT_ROOT/}"
 
     # Try to compile/check the file
-    if "$PROJECT_ROOT/bin/ailang" run --entry main --caps IO "$file" >/dev/null 2>&1; then
+    if (cd "$PROJECT_ROOT" && "$PROJECT_ROOT/bin/ailang" run --entry main --caps IO "$relative_file") >/dev/null 2>&1; then
         echo "  [OK] $basename"
         ((PASSED++))
-    elif "$PROJECT_ROOT/bin/ailang" run --entry main "$file" >/dev/null 2>&1; then
+    elif (cd "$PROJECT_ROOT" && "$PROJECT_ROOT/bin/ailang" run --entry main "$relative_file") >/dev/null 2>&1; then
         echo "  [OK] $basename (no caps)"
         ((PASSED++))
     else

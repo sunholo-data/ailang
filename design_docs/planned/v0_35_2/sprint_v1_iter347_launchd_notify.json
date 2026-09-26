@@ -1,0 +1,270 @@
+{
+  "sprint": "v1-iter347-launchd-notify",
+  "design_doc": "design_docs/planned/v0_35_2/m-launchd-notify-subshell-observation.md",
+  "base_commit": "027bcb022",
+  "branch": "sprint/v1-iter347-launchd-notify-bounded",
+  "baseline_measured": {
+    "command": "bash tools/launchd/test_driver_notify.sh",
+    "result": "20 passed, 7 failed",
+    "rc": 1,
+    "bash": "3.2.57(1)-release (arm64-apple-darwin25)"
+  },
+  "sequencing_invariant": "M1 (fixture PATH stubs) MUST land before M2 (production _mc_bounded wraps): _mc_bounded runs ( exec \"$@\" ), which cannot reach the fixture's shell-function stubs, so production-first would exec the REAL ailang/gh binaries and the suite would silently stop exercising the stubs while contacting Firestore/GitHub.",
+  "executor_constraints": [
+    "bash 3.2.57 only: no declare -A, no ${v,,}, no GNU timeout, no new dependencies, no Go",
+    "no network: all labs resolve ailang/gh to suite-owned PATH stubs; no Firestore, GitHub, model providers, or launchd",
+    "do NOT stub sleep: _mc_bounded's 2s poll and 2s SIGKILL grace are part of the measured 5s cutoff (V5c) that the 7s acceptance budget assumes",
+    "NO git write operations (add/commit/stash/checkout); git diff/status reads only; the controller commits",
+    "record ACTUAL pass/fail counts and timings at every milestone boundary"
+  ],
+  "total_est_minutes": 29,
+  "cut_order_if_short": [
+    "M4: trim mutation sweep to the three P0 mutants (direct-send bound removal, split-trace, drain-budget removal); defer the rest to the evaluator",
+    "M3: shrink backlog lab from 5 spool rows to 3"
+  ],
+  "milestones": [
+    {
+      "id": "M1",
+      "title": "Fixture observation repair: PATH executable stubs, unified MC_TRACE_FILE medium, immediate RC capture",
+      "est_minutes": 10,
+      "files": ["tools/launchd/test_driver_notify.sh"],
+      "design_refs": ["Half 2 steps 1-4", "Conflict Surface rows 1-2", "G1", "G2", "G3", "Mutation rows 5,6,9"],
+      "steps": [
+        "suite-owned bin/ with executable ailang/gh scripts appending ordered AILANG:/GH: records to exported MC_TRACE_FILE; ailang stub echoes store=<$AILANG_MESSAGES_STORE> proj=<$AILANG_MESSAGES_PROJECT>; AILANG_RC/GH_RC honoured; bin/ prepended to exported PATH in run(), run_drift(), and the inline drift-j lab",
+        "log() appends its LOG: record to the SAME MC_TRACE_FILE; teardown loads the file into TRACE after sourcing the block and before the assertions read it",
+        "fix G2: capture rc=$? immediately after sourcing the block in run() (T:52-55), emit trace after; run_drift's DECISION_RC form is already correct",
+        "new assertions: 'retry: attempts recorded across subshells (file counter)'; 'RC capture: block failure visible, not masked by printf'; 'positive control: unified medium shows genuine AILANG fire (checkno would FAIL)'"
+      ],
+      "boundary_expectation": "==== 30 passed, 0 failed ==== rc=0 (27 restored incl. the seven red rows + 3 new; record actual)",
+      "acceptance": [
+        {
+          "command": "bash tools/launchd/test_driver_notify.sh",
+          "red_at_base": "20 passed, 7 failed; rc=1",
+          "green_after": "N passed, 0 failed (N approx 30); rc=0"
+        },
+        {
+          "command": "bash tools/launchd/test_driver_notify.sh | grep -c 'PASS: positive control: unified medium'",
+          "red_at_base": "0",
+          "green_after": "1"
+        },
+        {
+          "command": "bash tools/launchd/test_driver_notify.sh | grep -c 'PASS: RC capture'",
+          "red_at_base": "0",
+          "green_after": "1"
+        },
+        {
+          "command": "make test-launchd-drivers",
+          "red_at_base": "rc!=0 (notify suite red after 54 pin-root checks pass)",
+          "green_after": "rc=0",
+          "declared": "redness is fully carried by M1's seven rows; not independent evidence"
+        }
+      ],
+      "mutations": [
+        {
+          "mutation": "Keep in-shell ailang()/gh() function stubs instead of PATH executable scripts",
+          "kills_assertion": "fires on both channels (ailang)"
+        },
+        {
+          "mutation": "Split trace: log() stays on the TRACE var and teardown does not load MC_TRACE_FILE",
+          "kills_assertion": "positive control: unified medium shows genuine AILANG fire (checkno would FAIL)"
+        },
+        {
+          "mutation": "Move RC:$? capture back after the printf in run()",
+          "kills_assertion": "RC capture: block failure visible, not masked by printf"
+        },
+        {
+          "mutation": "Replace the retry file counter with a shell variable",
+          "kills_assertion": "retry: attempts recorded across subshells (file counter)"
+        }
+      ],
+      "non_vacuity_anchor": "Production is untouched in M1, so every green at this boundary is caused by M1's fixture diff alone; each mutation above IS a partial revert of that diff and re-reds exactly its named assertion."
+    },
+    {
+      "id": "M2",
+      "title": "Production bounding of the three D-60 paths with _mc_bounded + env transport + synthesised rc=124 diagnostic",
+      "est_minutes": 9,
+      "files": ["tools/launchd/mission-control.sh", "tools/launchd/test_driver_notify.sh"],
+      "design_refs": ["Half 1 steps 1-5", "G5 ARM A/B", "V5c", "Conflict Surface rows 3-5", "Mutation rows 1-4,7,8,11"],
+      "steps": [
+        "FIXTURE FIRST (no git staging available): awk-extract _mc_bounded and _mc_drain_notices into the lab; add STUB_HANG=1 never-returning stub variant; add the new production-bound arms; RUN THE SUITE AND RECORD RED against unwrapped production (hang labs trip their outer watchdogs and fail cleanly)",
+        "production: NOTIFY_TIMEOUT=\"${MISSION_NOTIFY_TIMEOUT:-30}\" beside PROBE_TIMEOUT (P:492)",
+        "production P:184 direct send: _mc_bounded \"$NOTIFY_TIMEOUT\" env AILANG_MESSAGES_STORE=gcp AILANG_MESSAGES_PROJECT=\"${AILANG_MESSAGES_PROJECT:-ailang-multivac}\" ailang messages send ...; _rc=$?; _out=\"$MC_BOUNDED_OUT\"; retry/sleep semantics unchanged",
+        "production failure arm: if _rc -eq 124, synthesise _out=\"timed out after ${NOTIFY_TIMEOUT}s (no output)\" BEFORE the tail-300 WARNING (G5 ARM B: a timed-out command leaves MC_BOUNDED_OUT EMPTY)",
+        "production P:154 drain send: same _mc_bounded + env form; rc=124 re-appends the row (retention unchanged)",
+        "production P:198 GH notice: _mc_bounded \"$NOTIFY_TIMEOUT\" gh issue comment ...; one-shot semantics unchanged; drop the now-redundant >/dev/null 2>&1",
+        "assertions (MISSION_NOTIFY_TIMEOUT=2): 'production: hanging direct send is cut off at the bound' (rc=124, elapsed <=7s, outer 15s date+kill -9 watchdog); 'production: direct send retries 3x then spools on timeout' (outer 60s; ARM B measured 28s); 'synthesised timeout diagnostic'; 'production: hanging drain send is cut off and row retained'; 'production: hanging gh comment is cut off and warns'; guards 'direct send reaches child with store=gcp' and 'wiring: exactly one preflight drain call'",
+        "run the suite; record GREEN"
+      ],
+      "boundary_expectation": "==== 37 passed, 0 failed ==== rc=0 (30 + 7 new of which 2 are declared guards; record actual)",
+      "acceptance": [
+        {
+          "command": "bash tools/launchd/test_driver_notify.sh",
+          "red_at_base": "after fixture-first step: the new 'production:' arms FAIL against unwrapped production (record exact count)",
+          "green_after": "0 failed; rc=0"
+        },
+        {
+          "command": "bash tools/launchd/test_driver_notify.sh | grep -c 'PASS: synthesised timeout diagnostic'",
+          "red_at_base": "0",
+          "green_after": "1"
+        },
+        {
+          "command": "grep -c '_mc_bounded \"$NOTIFY_TIMEOUT\" env' tools/launchd/mission-control.sh",
+          "red_at_base": "0",
+          "green_after": "2"
+        },
+        {
+          "command": "grep -c '_mc_bounded \"$NOTIFY_TIMEOUT\" gh issue comment' tools/launchd/mission-control.sh",
+          "red_at_base": "0",
+          "green_after": "1"
+        },
+        {
+          "command": "bash -n tools/launchd/mission-control.sh tools/launchd/test_driver_notify.sh",
+          "red_at_base": "rc=0",
+          "green_after": "rc=0",
+          "declared": "green/green parse guard; measures nothing as red-green evidence, retained as a regression tripwire"
+        },
+        {
+          "command": "bash tools/launchd/test_driver_notify.sh | grep -c 'PASS: direct send reaches child with store=gcp'",
+          "red_at_base": "1",
+          "green_after": "1",
+          "declared": "GREEN AT BASE AND GREEN AFTER — the unbounded VAR=val prefix also delivers the vars; measures nothing; kept only so the env-prefix mutation has a named victim"
+        }
+      ],
+      "mutations": [
+        {
+          "mutation": "Remove _mc_bounded/NOTIFY_TIMEOUT on the direct send (revert to unbounded command substitution)",
+          "kills_assertion": "production: hanging direct send is cut off at the bound"
+        },
+        {
+          "mutation": "Remove _mc_bounded on the drain-time send",
+          "kills_assertion": "production: hanging drain send is cut off and row retained"
+        },
+        {
+          "mutation": "Remove _mc_bounded on the GH notice",
+          "kills_assertion": "production: hanging gh comment is cut off and warns"
+        },
+        {
+          "mutation": "Drop the env AILANG_MESSAGES_STORE=gcp AILANG_MESSAGES_PROJECT=... prefix from the bounded direct send",
+          "kills_assertion": "direct send reaches child with store=gcp"
+        },
+        {
+          "mutation": "Revert the rc=124 synthesised diagnostic to the raw (empty) MC_BOUNDED_OUT tail",
+          "kills_assertion": "synthesised timeout diagnostic"
+        }
+      ],
+      "non_vacuity_anchor": "Each M2 mutation reverts only the P:154/184/198 wraps or the synthesis while keeping M1 intact; with the bound gone the hang labs' outer watchdogs trip and fail cleanly, with env gone the child sees no store vars, with synthesis gone the WARNING tail is empty — all caused by M2's own diff."
+    },
+    {
+      "id": "M3",
+      "title": "Aggregate drain budget DRAIN_BUDGET with before-each-row remaining check, stop-and-preserve, deferred-drain diagnostic",
+      "est_minutes": 5,
+      "files": ["tools/launchd/mission-control.sh", "tools/launchd/test_driver_notify.sh"],
+      "design_refs": ["Half 1 step 6", "G4", "Mutation row 10"],
+      "steps": [
+        "FIXTURE FIRST: backlog arm — 5-row spool, hanging ailang stub, MISSION_NOTIFY_TIMEOUT=2, MISSION_DRAIN_BUDGET=8; RUN AND RECORD RED: with only per-call bounds the drain attempts all 5 rows (~25s > 8s budget) and emits no deferred diagnostic",
+        "production _mc_drain_notices: DRAIN_BUDGET=\"${MISSION_DRAIN_BUDGET:-90}\"; drain_start=$(date +%s) after spool claim; before EACH row require remaining >= NOTIFY_TIMEOUT + 2; else STOP, append current + all unattempted rows to the spool unchanged, log 'notice spool: deferred <k> row(s), aggregate budget <BUDGET>s exhausted', return 0",
+        "assertions: 'drain: whole drain returns within aggregate budget and preserves unattempted rows' (elapsed <=15s, outer deadline 30s, spool holds 5 rows, attempt counter = 1); 'drain: deferred-drain diagnostic names deferred row count'",
+        "run the suite; record GREEN"
+      ],
+      "boundary_expectation": "==== 39 passed, 0 failed ==== rc=0 (37 + 2; record actual)",
+      "acceptance": [
+        {
+          "command": "bash tools/launchd/test_driver_notify.sh | grep -c 'FAIL: drain: whole drain'",
+          "red_at_base": "1 (after fixture-first step, before production edit)",
+          "green_after": "0 (suite prints 0 failed, rc=0)"
+        },
+        {
+          "command": "grep -c 'MISSION_DRAIN_BUDGET' tools/launchd/mission-control.sh",
+          "red_at_base": "0",
+          "green_after": "1"
+        }
+      ],
+      "mutations": [
+        {
+          "mutation": "Remove the DRAIN_BUDGET remaining-budget check before each drain row",
+          "kills_assertion": "drain: whole drain returns within aggregate budget and preserves unattempted rows"
+        },
+        {
+          "mutation": "Attempt rows regardless of budget / drop the deferred-drain diagnostic",
+          "kills_assertion": "drain: deferred-drain diagnostic names deferred row count"
+        }
+      ],
+      "non_vacuity_anchor": "M3's base already contains M1+M2, so the backlog arm is RED at M3 base purely because the aggregate guard is absent; removing only M3's guard restores exactly that red state (~25s elapsed, no diagnostic) — the anchor is M3's own diff, not the sprint's."
+    },
+    {
+      "id": "M4",
+      "title": "Mutation sweep (11 mutants in temp copies) + full verification; no new production/test diff",
+      "est_minutes": 5,
+      "files": [],
+      "design_refs": ["Mutation Table (all 11 rows)", "Acceptance GREEN-after block"],
+      "steps": [
+        "apply each mutation to a COPY under mktemp -d; bash -n the copy; run the suite against it; record that the named assertion fails and the harness itself did not crash; prove each mutation absent from the real tree afterwards",
+        "make test-launchd-drivers -> rc=0; record exit code and elapsed",
+        "determinism: run the notify suite twice on the clean tree, identical counts; git status --porcelain tools/launchd/ shows only the two intended files",
+        "bash -n both files on the clean tree"
+      ],
+      "boundary_expectation": "suite count unchanged from M3 (39 passed, 0 failed); 11/11 mutants kill their named assertion; make test-launchd-drivers rc=0",
+      "acceptance": [
+        {
+          "command": "make test-launchd-drivers; echo rc=$?",
+          "red_at_base": "rc=1 at sprint base (carried by M1's seven rows — declared, not independent evidence)",
+          "green_after": "rc=0"
+        },
+        {
+          "command": "bash tools/launchd/test_driver_notify.sh | tail -1",
+          "red_at_base": "==== 20 passed, 7 failed ==== at sprint base",
+          "green_after": "==== N passed, 0 failed ==== with N matching M3's recorded actual"
+        }
+      ],
+      "mutations": [
+        {
+          "mutation": "Remove _mc_bounded/NOTIFY_TIMEOUT on the direct send",
+          "kills_assertion": "production: hanging direct send is cut off at the bound"
+        },
+        {
+          "mutation": "Remove _mc_bounded on the drain-time send",
+          "kills_assertion": "production: hanging drain send is cut off and row retained"
+        },
+        {
+          "mutation": "Remove _mc_bounded on the GH notice",
+          "kills_assertion": "production: hanging gh comment is cut off and warns"
+        },
+        {
+          "mutation": "Drop the env store-var prefix from the bounded direct send",
+          "kills_assertion": "direct send reaches child with store=gcp"
+        },
+        {
+          "mutation": "Keep the in-shell ailang() function stub instead of the PATH script",
+          "kills_assertion": "fires on both channels (ailang)"
+        },
+        {
+          "mutation": "Revert to a split trace (log() on the TRACE var, teardown does not load MC_TRACE_FILE)",
+          "kills_assertion": "positive control: unified medium shows genuine AILANG fire (checkno would FAIL)"
+        },
+        {
+          "mutation": "Suppress re-appending a failed drain row",
+          "kills_assertion": "production: hanging drain send is cut off and row retained"
+        },
+        {
+          "mutation": "Delete only the top-level drain invocation",
+          "kills_assertion": "wiring: exactly one preflight drain call"
+        },
+        {
+          "mutation": "Replace the retry file counter with a shell variable",
+          "kills_assertion": "retry: attempts recorded across subshells (file counter)"
+        },
+        {
+          "mutation": "Remove the DRAIN_BUDGET remaining-budget check before each row",
+          "kills_assertion": "drain: whole drain returns within aggregate budget and preserves unattempted rows"
+        },
+        {
+          "mutation": "Revert the rc=124 synthesised diagnostic to the raw MC_BOUNDED_OUT tail",
+          "kills_assertion": "synthesised timeout diagnostic"
+        }
+      ],
+      "non_vacuity_anchor": "M4 adds no diff of its own and is NOT assertion-anchored — declared explicitly. Its value is re-running the M1-M3 mutations against the FINAL tree to catch a mutant an earlier milestone's base state masked."
+    }
+  ],
+  "out_of_scope": "The seven non-D-60 call sites (P:1470/1473/1486/1835/1838/1852/1855) — deferred to named queue row M-LAUNCHD-NOTIFY-REMAINING-BOUNDING; do not touch.",
+  "handoff": "Executor makes NO git write operations; the controller commits. Evaluator: sprint-evaluator against the design's Acceptance Criteria + Mutation Table, re-running make test-launchd-drivers first-party."
+}

@@ -1,0 +1,111 @@
+{
+  "sprint_id": "M-AGENT-AILANG-ONLY-EXECUTION",
+  "status": "completed",
+  "created": "2026-09-16T07:09:22Z",
+  "design_doc": "design_docs/planned/v0_35_0/m-agent-ailang-only-execution.md",
+  "sprint_plan": "design_docs/planned/v0_35_0/m-agent-ailang-only-execution-sprint-plan.md",
+  "github_issues": [],
+  "velocity": {
+    "target_loc_per_day": 180,
+    "estimated_total_loc": 740,
+    "estimated_days": 4
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Bank the effective tool policy and policy digest on every agent-mode row (Result -> AgentBenchmarkResult -> RunMetrics), absent => unmeasured",
+      "estimated_loc": 70,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "nil AllowedTools banks the sentinel [\"<pi default>\"], not []",
+        "explicit list banks verbatim; empty digest omitted",
+        "fields plumbed with omitempty and doc comments"
+      ],
+      "passes": true,
+      "started": "2026-09-16T07:11:34Z",
+      "completed": "2026-09-16T07:11:34Z",
+      "notes": "Result.ToolPolicy (sentinel <cli default> for nil, verbatim otherwise) + Result.PolicyDigest (sha256 of Task.PolicyPath) stamped in PiExecutor's wrapper; plumbed to RunMetrics.tool_policy/policy_digest omitempty. Task.PolicyPath added.",
+      "actual_loc": 90
+    },
+    {
+      "id": "M2",
+      "description": "ailang run --policy: admission via the shared policy-check path, caps/net/sandbox derived from the policy, refuses --caps/--no-budgets/[budgets], --json program-result shape, error_kind -> error_category",
+      "estimated_loc": 180,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "lying entry (clean row, imported Net) -> typecheck_failed through run --policy",
+        "allowed_caps=[] refuses a !{IO} program with policy_violation and no execution",
+        "--policy + --caps exits 1 naming the conflict; a policy with [budgets] is refused",
+        "admitted !{IO} program runs; stdout in the JSON result",
+        "caps table shared with runner.CapsList (drift test)",
+        "policy_violation error_category verified unallocated"
+      ],
+      "passes": true,
+      "started": "2026-09-16T07:15:19Z",
+      "completed": "2026-09-16T07:15:19Z",
+      "notes": "run --policy: admitProgram extracted from policy-check (one path); caps/net_allow/fs_sandbox derived; --caps/--no-budgets/--allow-env refused by name; [budgets] refused (unenforceable); unknown caps refused against effects.Registry; FS without fs_sandbox refused; denial -> decision JSON stdout exit 2, admission -> one 'policy:' JSON line on stderr with policy_digest. Lying-entry test pins transitive effects (V14 refuted). error_category policy_violation added. 6 e2e tests via the built binary.",
+      "actual_loc": 260
+    },
+    {
+      "id": "M3",
+      "description": "pi extension ailang-exec.ts (ailang_run, ailang_check) in the embedded suite; default-deny with a named refusal; ailang pi tool-profile; container probe",
+      "estimated_loc": 150,
+      "dependencies": [
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "extension in .pi/extensions and cmd/ailang/pi_assets (make verify-pi-assets clean)",
+        "no AILANG_AGENT_POLICY -> ailang_run refuses with a named reason",
+        "policy whose fs_sandbox contains the policy dir -> refused at load (D4)",
+        "ailang pi tool-profile ailang_only prints the flag expansion",
+        "rig: bash-free run produces tool_execution_start ailang_run with admitted:true",
+        "docker/test-agent-pi.sh gains the tool checks"
+      ],
+      "passes": true,
+      "started": "2026-09-16T07:20:53Z",
+      "completed": "2026-09-16T07:20:53Z",
+      "notes": "ailang-exec.ts (ailang_run; ailang_check already in ailang-lsp-lite) with default-deny gate + D4 check, 9 pure tests; synced to pi_assets; toolnames.go (profiles + D7 mapping, wired into buildPiArgs \u2014 brought forward from M4); ailang pi tool-profile; test-agent-pi.sh section 6 model-free (18/18 on rig). LIVE on rig 0.85.1: bash-free run write->ailang_check->ailang_run admitted exit 0; Net program denied policy_violation missing=[Net]; env unset -> named refusal.",
+      "actual_loc": 330
+    },
+    {
+      "id": "M4",
+      "description": "Registry tool_policy field resolved into Task.AllowedTools; D7 canonical->pi tool-name mapping that errors on unmapped names; coordinator agents shows declared vs effective; question-kind list made pi-valid",
+      "estimated_loc": 140,
+      "dependencies": [
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "ailang_only expands to --no-builtin-tools --tools read,edit,write,ailang_check,ailang_run and never emits bash",
+        "unmapped canonical name errors naming it (Grep/Glob/WebFetch/WebSearch on pi)",
+        "question-kind tasks resolve to a pi-valid list",
+        "ailang coordinator agents <id> shows tool_policy declared vs effective, default full"
+      ],
+      "passes": true,
+      "started": "2026-09-16T07:24:39Z",
+      "completed": "2026-09-16T07:24:39Z",
+      "notes": "AgentConfig.tool_policy + policy_path (default full, D6); executor.ProfileTools/IntersectTools executor-neutral; provider_executor resolves kind (question) x profile by intersection, forwards AILANG_AGENT_POLICY + Task.PolicyPath; questionTools per executor (pi: Read+AilangCheck \u2014 the Claude list ran toolless on pi); coordinator agents shows tool_policy declared/effective; agent_registry.go split at the 800 gate.",
+      "actual_loc": 230
+    },
+    {
+      "id": "M5",
+      "description": "Resident cutover (delete resident-run; pi.mjs default ailang_only; test-image.sh; resident-instance.sh --policy-file; redeploy + verify), eval-suite --tool-policy lane, boundary note, comparator",
+      "estimated_loc": 200,
+      "dependencies": [
+        "M4"
+      ],
+      "acceptance_criteria": [
+        "resident-run and allowlist.example.json deleted; test-image.sh section 4 targets ailang run --policy",
+        "resident-pi-ailang redeployed with a policy; verify: bash refused, admitted .ail runs",
+        "eval-suite --tool-policy ailang_only banks tool_policy on pi rows",
+        "boundary note in runbook/charter/memory before the first banked row; comparator via eval-paired committed"
+      ],
+      "passes": true,
+      "started": "2026-09-16T08:43:31Z",
+      "completed": "2026-09-16T08:43:31Z",
+      "notes": "Resident: resident-run deleted, ailang_only default, policy via AILANG_AGENT_POLICY_TOML read-only outside sandbox, boot keeps the execution pair, /health reports profile+policy; test-image.sh 130/0 in Cloud Build. resident-instance.sh --policy-file + boundary checks in verify (multivac f7e2689). Dev resident UPDATED with the policy but the Preview instances API returns 'internal error' on start for the untouched control too \u2014 live verify PENDING on Google. Profile carries its extensions (--no-extensions -e) after the rig showed an eval workspace had no execution route. Eval lane: --tool-policy/--policy-file; A/B on OpenRouter minimax-m3: bash 5/5 vs ailang_only 4/5, one model-stop miss, no gate refusals, McNemar n/a at n=5; report in docs/sprint-retros/. Rig 27B comparator deferred (GPU contention, lock not exclusive).",
+      "actual_loc": 420
+    }
+  ]
+}

@@ -1,5 +1,662 @@
 [
   {
+    "ailang_version": "v0.40.2",
+    "generated": "2026-09-21",
+    "trials": 4,
+    "languages": [
+      "ailang"
+    ],
+    "rows": [
+      {
+        "harness": "motoko",
+        "lang": {
+          "ailang": 1
+        },
+        "model": "motoko-local-qwen3-8-27b",
+        "tiers": {
+          "core": {
+            "ailang": 1
+          },
+          "stretch": {
+            "ailang": 1
+          }
+        }
+      },
+      {
+        "harness": "opencode",
+        "lang": {
+          "ailang": 0.8518518518518519
+        },
+        "model": "opencode-qwen3-8-27b",
+        "tiers": {
+          "core": {
+            "ailang": 0.9583333333333334
+          },
+          "frontier": {
+            "ailang": 0.3333333333333333
+          },
+          "stretch": {
+            "ailang": 0.875
+          }
+        }
+      },
+      {
+        "harness": "pi",
+        "lang": {
+          "ailang": 0.6140350877192983
+        },
+        "model": "pi-qwen3-8-27b",
+        "tiers": {
+          "core": {
+            "ailang": 0.5384615384615384
+          },
+          "frontier": {
+            "ailang": 0.6
+          },
+          "stretch": {
+            "ailang": 0.6923076923076923
+          }
+        }
+      }
+    ],
+    "notes": [
+      {
+        "date": "2026-09-15",
+        "ref": "M-V1-SIMPLIFY-S3 M1 / ruling D2",
+        "text": "Pass = compile_ok && runtime_ok && stdout_ok (RunMetrics.Passed) everywhere from this date. The OS rotation summary (SummarizeRotation) always used this conjunction, so OS leaderboard/history rows are unaffected; cloud-baseline views (eval-report matrix, tags, sweet-spot, comparison, ELO) had read stdout_ok alone. Measured over every baseline dir (26,758 valid rows): 31 rows disagree, 30 of them on the retired print_missing_effect benchmark (empty expected stdout graded a compile/runtime failure as stdout_ok); overall delta -0.12pp, worst version v0.4.1 at -0.90pp, v0.30.0 and v0.32.0 unchanged. Nothing was re-banked. Full per-version table: TestD2DiscordantCount in internal/eval_analysis."
+      },
+      {
+        "date": "2026-09-15",
+        "ref": "M-V1-SIMPLIFY-S4 M4 / ruling D9",
+        "text": "Write side unified, bank-forward: from this date standard mode gates stdout_ok on runtime_ok exactly as every agent-mode lane already did, so a run that crashed after printing the expected bytes (or whose expected stdout is empty) banks stdout_ok=false instead of true. Rows banked before this date keep their stored flags; nothing was re-banked. Published rates are unaffected because the D2 read-side predicate above already required all three flags \u2014 this only makes the STORED stdout_ok mean the same thing in both modes. Pinned by TestD9StandardModeStdoutOkGatedOnRuntime in internal/eval_harness."
+      }
+    ]
+  },
+  {
+    "ailang_version": "v0.38.9",
+    "generated": "2026-09-16",
+    "trials": 3,
+    "languages": [
+      "ailang"
+    ],
+    "rows": [
+      {
+        "harness": "motoko",
+        "lang": {
+          "ailang": 1
+        },
+        "model": "motoko-local-qwen3-8-27b",
+        "tiers": {
+          "core": {
+            "ailang": 1
+          },
+          "frontier": {
+            "ailang": 1
+          },
+          "stretch": {
+            "ailang": 1
+          }
+        }
+      },
+      {
+        "harness": "opencode",
+        "lang": {
+          "ailang": 0.7222222222222222
+        },
+        "model": "opencode-qwen3-8-27b",
+        "tiers": {
+          "core": {
+            "ailang": 0.8888888888888888
+          },
+          "frontier": {
+            "ailang": 0.4
+          },
+          "stretch": {
+            "ailang": 0.75
+          }
+        }
+      },
+      {
+        "harness": "pi",
+        "lang": {
+          "ailang": 0.8888888888888888
+        },
+        "model": "pi-qwen3-8-27b",
+        "tiers": {
+          "core": {
+            "ailang": 1
+          },
+          "frontier": {
+            "ailang": 0.6666666666666666
+          },
+          "stretch": {
+            "ailang": 0.8333333333333334
+          }
+        }
+      }
+    ],
+    "notes": [
+      {
+        "date": "2026-09-15",
+        "ref": "M-V1-SIMPLIFY-S3 M1 / ruling D2",
+        "text": "Pass = compile_ok && runtime_ok && stdout_ok (RunMetrics.Passed) everywhere from this date. The OS rotation summary (SummarizeRotation) always used this conjunction, so OS leaderboard/history rows are unaffected; cloud-baseline views (eval-report matrix, tags, sweet-spot, comparison, ELO) had read stdout_ok alone. Measured over every baseline dir (26,758 valid rows): 31 rows disagree, 30 of them on the retired print_missing_effect benchmark (empty expected stdout graded a compile/runtime failure as stdout_ok); overall delta -0.12pp, worst version v0.4.1 at -0.90pp, v0.30.0 and v0.32.0 unchanged. Nothing was re-banked. Full per-version table: TestD2DiscordantCount in internal/eval_analysis."
+      },
+      {
+        "date": "2026-09-15",
+        "ref": "M-V1-SIMPLIFY-S4 M4 / ruling D9",
+        "text": "Write side unified, bank-forward: from this date standard mode gates stdout_ok on runtime_ok exactly as every agent-mode lane already did, so a run that crashed after printing the expected bytes (or whose expected stdout is empty) banks stdout_ok=false instead of true. Rows banked before this date keep their stored flags; nothing was re-banked. Published rates are unaffected because the D2 read-side predicate above already required all three flags \u2014 this only makes the STORED stdout_ok mean the same thing in both modes. Pinned by TestD9StandardModeStdoutOkGatedOnRuntime in internal/eval_harness."
+      }
+    ]
+  },
+  {
+    "ailang_version": "v0.38.5",
+    "generated": "2026-09-14",
+    "trials": 3,
+    "languages": [
+      "ailang"
+    ],
+    "rows": [
+      {
+        "harness": "motoko",
+        "lang": {
+          "ailang": 1
+        },
+        "model": "motoko-local-qwen3-8-27b",
+        "tiers": {
+          "core": {
+            "ailang": 1
+          },
+          "frontier": {
+            "ailang": 1
+          }
+        }
+      },
+      {
+        "harness": "opencode",
+        "lang": {
+          "ailang": 0.8181818181818182
+        },
+        "model": "opencode-qwen3-8-27b",
+        "tiers": {
+          "core": {
+            "ailang": 1
+          },
+          "frontier": {
+            "ailang": 1
+          },
+          "stretch": {
+            "ailang": 0.3333333333333333
+          }
+        }
+      },
+      {
+        "harness": "pi",
+        "lang": {
+          "ailang": 1
+        },
+        "model": "pi-qwen3-8-27b",
+        "tiers": {
+          "core": {
+            "ailang": 1
+          },
+          "stretch": {
+            "ailang": 1
+          }
+        }
+      }
+    ]
+  },
+  {
+    "ailang_version": "v0.38.4",
+    "generated": "2026-09-13",
+    "trials": 0,
+    "languages": [],
+    "rows": []
+  },
+  {
+    "ailang_version": "v0.37.2",
+    "generated": "2026-09-11",
+    "trials": 3,
+    "languages": [
+      "ailang"
+    ],
+    "rows": [
+      {
+        "harness": "motoko",
+        "lang": {
+          "ailang": 1
+        },
+        "model": "motoko-local-qwen3-8-27b",
+        "tiers": {
+          "core": {
+            "ailang": 1
+          },
+          "frontier": {
+            "ailang": 1
+          }
+        }
+      },
+      {
+        "harness": "opencode",
+        "lang": {
+          "ailang": 0.7777777777777778
+        },
+        "model": "opencode-qwen3-8-27b",
+        "tiers": {
+          "core": {
+            "ailang": 1
+          },
+          "frontier": {
+            "ailang": 0.5
+          },
+          "stretch": {
+            "ailang": 0
+          }
+        }
+      },
+      {
+        "harness": "pi",
+        "lang": {
+          "ailang": 0.8181818181818182
+        },
+        "model": "pi-qwen3-8-27b",
+        "tiers": {
+          "core": {
+            "ailang": 0.8571428571428571
+          },
+          "frontier": {
+            "ailang": 0.5
+          },
+          "stretch": {
+            "ailang": 1
+          }
+        }
+      }
+    ]
+  },
+  {
+    "ailang_version": "v0.37.1",
+    "generated": "2026-09-11",
+    "trials": 0,
+    "languages": [],
+    "rows": []
+  },
+  {
+    "ailang_version": "v0.37.0",
+    "generated": "2026-09-10",
+    "trials": 1,
+    "languages": [
+      "ailang"
+    ],
+    "rows": [
+      {
+        "harness": "motoko",
+        "lang": {
+          "ailang": 1
+        },
+        "model": "motoko-local-qwen3-8-27b",
+        "tiers": {
+          "frontier": {
+            "ailang": 1
+          },
+          "stretch": {
+            "ailang": 1
+          }
+        }
+      },
+      {
+        "harness": "opencode",
+        "lang": {
+          "ailang": 0.6666666666666666
+        },
+        "model": "opencode-qwen3-8-27b",
+        "tiers": {
+          "frontier": {
+            "ailang": 0
+          },
+          "stretch": {
+            "ailang": 1
+          }
+        }
+      },
+      {
+        "harness": "pi",
+        "lang": {
+          "ailang": 0.6666666666666666
+        },
+        "model": "pi-qwen3-8-27b",
+        "tiers": {
+          "stretch": {
+            "ailang": 0.6666666666666666
+          }
+        }
+      }
+    ]
+  },
+  {
+    "ailang_version": "v0.35.4",
+    "generated": "2026-09-09",
+    "trials": 3,
+    "languages": [
+      "ailang"
+    ],
+    "rows": [
+      {
+        "harness": "motoko",
+        "lang": {
+          "ailang": 1
+        },
+        "model": "motoko-local-qwen3-8-27b",
+        "tiers": {
+          "core": {
+            "ailang": 1
+          },
+          "frontier": {
+            "ailang": 1
+          },
+          "stretch": {
+            "ailang": 1
+          }
+        }
+      },
+      {
+        "harness": "opencode",
+        "lang": {
+          "ailang": 0.8181818181818182
+        },
+        "model": "opencode-qwen3-8-27b",
+        "tiers": {
+          "core": {
+            "ailang": 1
+          },
+          "frontier": {
+            "ailang": 0.3333333333333333
+          },
+          "stretch": {
+            "ailang": 1
+          }
+        }
+      },
+      {
+        "harness": "pi",
+        "lang": {
+          "ailang": 0.6666666666666666
+        },
+        "model": "pi-qwen3-8-27b",
+        "tiers": {
+          "core": {
+            "ailang": 0.7142857142857143
+          },
+          "stretch": {
+            "ailang": 0.5
+          }
+        }
+      }
+    ]
+  },
+  {
+    "ailang_version": "v0.35.1",
+    "generated": "2026-09-07",
+    "trials": 2,
+    "languages": [
+      "ailang"
+    ],
+    "rows": [
+      {
+        "harness": "motoko",
+        "lang": {
+          "ailang": 0.9230769230769231
+        },
+        "model": "motoko-local-qwen3-8-27b",
+        "tiers": {
+          "core": {
+            "ailang": 0.9090909090909091
+          },
+          "frontier": {
+            "ailang": 0.75
+          },
+          "stretch": {
+            "ailang": 1
+          }
+        }
+      },
+      {
+        "harness": "opencode",
+        "lang": {
+          "ailang": 0.8461538461538461
+        },
+        "model": "opencode-qwen3-8-27b",
+        "tiers": {
+          "core": {
+            "ailang": 0.9166666666666666
+          },
+          "frontier": {
+            "ailang": 0.6
+          },
+          "stretch": {
+            "ailang": 0.8888888888888888
+          }
+        }
+      },
+      {
+        "harness": "pi",
+        "lang": {
+          "ailang": 0.9259259259259259
+        },
+        "model": "pi-qwen3-8-27b",
+        "tiers": {
+          "core": {
+            "ailang": 0.9285714285714286
+          },
+          "frontier": {
+            "ailang": 1
+          },
+          "stretch": {
+            "ailang": 0.9
+          }
+        }
+      }
+    ]
+  },
+  {
+    "ailang_version": "v0.35.0",
+    "generated": "2026-09-04",
+    "trials": 0,
+    "languages": [],
+    "rows": []
+  },
+  {
+    "ailang_version": "v0.34.0",
+    "generated": "2026-09-03",
+    "trials": 8,
+    "languages": [
+      "ailang",
+      "go",
+      "javascript",
+      "python"
+    ],
+    "rows": [
+      {
+        "harness": "motoko",
+        "lang": {
+          "ailang": 0.9662921348314607,
+          "go": 1,
+          "javascript": 0.9836065573770492,
+          "python": 1
+        },
+        "model": "motoko-local-qwen3-8-27b",
+        "tiers": {
+          "core": {
+            "ailang": 1,
+            "go": 1,
+            "javascript": 0.9333333333333333,
+            "python": 1
+          },
+          "frontier": {
+            "ailang": 0.75
+          },
+          "smoke": {
+            "ailang": 0.9333333333333333,
+            "go": 1,
+            "javascript": 1,
+            "python": 1
+          },
+          "stretch": {
+            "ailang": 1,
+            "go": 1,
+            "javascript": 1,
+            "python": 1
+          },
+          "vision": {
+            "ailang": 1,
+            "go": 1,
+            "javascript": 1,
+            "python": 1
+          }
+        }
+      },
+      {
+        "harness": "opencode",
+        "lang": {
+          "ailang": 0.9345794392523364,
+          "go": 1,
+          "javascript": 0.9850746268656716,
+          "python": 0.9848484848484849
+        },
+        "model": "opencode-qwen3-8-27b",
+        "tiers": {
+          "core": {
+            "ailang": 0.96,
+            "go": 1,
+            "javascript": 1,
+            "python": 1
+          },
+          "frontier": {
+            "ailang": 0.625
+          },
+          "smoke": {
+            "ailang": 0.9736842105263158,
+            "go": 1,
+            "javascript": 1,
+            "python": 0.9722222222222222
+          },
+          "stretch": {
+            "ailang": 0.9333333333333333,
+            "go": 1,
+            "javascript": 1,
+            "python": 1
+          },
+          "vision": {
+            "ailang": 1,
+            "go": 1,
+            "javascript": 0.8571428571428571,
+            "python": 1
+          }
+        }
+      },
+      {
+        "harness": "pi",
+        "lang": {
+          "ailang": 0.9310344827586207,
+          "go": 1,
+          "javascript": 1,
+          "python": 0.9848484848484849
+        },
+        "model": "pi-qwen3-8-27b",
+        "tiers": {
+          "core": {
+            "ailang": 0.9696969696969697,
+            "go": 1,
+            "javascript": 1,
+            "python": 1
+          },
+          "frontier": {
+            "ailang": 0.5833333333333334
+          },
+          "smoke": {
+            "ailang": 1,
+            "go": 1,
+            "javascript": 1,
+            "python": 0.9736842105263158
+          },
+          "stretch": {
+            "ailang": 0.9285714285714286,
+            "go": 1,
+            "javascript": 1,
+            "python": 1
+          },
+          "vision": {
+            "ailang": 1,
+            "go": 1,
+            "javascript": 1,
+            "python": 1
+          }
+        }
+      }
+    ]
+  },
+  {
+    "ailang_version": "v0.33.2",
+    "generated": "2026-08-26",
+    "trials": 2,
+    "languages": [
+      "ailang",
+      "go",
+      "javascript",
+      "python"
+    ],
+    "rows": [
+      {
+        "harness": "opencode",
+        "lang": {
+          "ailang": 0.9473684210526315,
+          "go": 1,
+          "javascript": 1,
+          "python": 1
+        },
+        "model": "opencode-qwen3-8-27b",
+        "tiers": {
+          "core": {
+            "ailang": 1
+          },
+          "frontier": {
+            "ailang": 0.6
+          },
+          "stretch": {
+            "ailang": 1,
+            "go": 1,
+            "javascript": 1,
+            "python": 1
+          }
+        }
+      },
+      {
+        "harness": "pi",
+        "lang": {
+          "ailang": 0.9333333333333333,
+          "go": 1,
+          "javascript": 1,
+          "python": 1
+        },
+        "model": "pi-qwen3-8-27b",
+        "tiers": {
+          "core": {
+            "ailang": 1
+          },
+          "frontier": {
+            "ailang": 0.875
+          },
+          "stretch": {
+            "ailang": 0.8888888888888888,
+            "go": 1,
+            "javascript": 1,
+            "python": 1
+          }
+        }
+      }
+    ]
+  },
+  {
     "ailang_version": "v0.33.1",
     "generated": "2026-08-24",
     "trials": 9,
@@ -52,7 +709,7 @@
           "ailang": 1,
           "go": 1,
           "javascript": 1,
-          "python": 0.9090909090909091
+          "python": 0.9411764705882353
         },
         "model": "opencode-qwen3-8-27b",
         "tiers": {
@@ -64,6 +721,12 @@
           },
           "frontier": {
             "ailang": 1
+          },
+          "smoke": {
+            "ailang": 1,
+            "go": 1,
+            "javascript": 1,
+            "python": 1
           },
           "stretch": {
             "ailang": 1,
@@ -95,7 +758,7 @@
         "harness": "pi",
         "lang": {
           "ailang": 1,
-          "go": 0.9090909090909091,
+          "go": 0.9411764705882353,
           "javascript": 1,
           "python": 1
         },
@@ -109,6 +772,12 @@
           },
           "frontier": {
             "ailang": 1
+          },
+          "smoke": {
+            "ailang": 1,
+            "go": 1,
+            "javascript": 1,
+            "python": 1
           },
           "stretch": {
             "ailang": 1,

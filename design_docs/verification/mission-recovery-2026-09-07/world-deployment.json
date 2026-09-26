@@ -1,0 +1,19 @@
+{
+  "mission": "world",
+  "candidate": "f26d646661c4e9ef7c7840d6a2ad355afd402945",
+  "backup": "/Users/voightkampff/.config/ailang/mission-world.env.pre-runtime-recovery-20260907T120308",
+  "before_sha256": "b58461cbe2933218fef90c9d86f3ee5eb08e86439143f93dd6add97fd1f38112",
+  "after_sha256": "19bb2ff0c00d87eb2be298d7d8bc4b6beab6d3515c8e6b00c1ad26996cc8fdab",
+  "other_missions_changed": false,
+  "world_idle_at_change": true,
+  "pin_enabled": true,
+  "deployed_preflight_exit": 0,
+  "deployed_preflight_pass": true,
+  "deployed_preflight_lines": [
+    "[2026-09-07 12:03:51] driver pin: running committed f26d646661c4e9ef7c7840d6a2ad355afd402945 @ f26d64666 with mission work repository /Users/voightkampff/dev/sunholo-data/ailang-world (source clone /Users/voightkampff/dev/sunholo-data/ailang was 0 behind)",
+    "[2026-09-07 12:04:07] DRY RUN ok: mission=world repo-slug=sunholo-data/ailang-world doc=design_docs/world-mission.md workdir=/Users/voightkampff/dev/sunholo-data/ailang-world pidfile=/Users/voightkampff/.ailang/state/mission-world.pid prefs=claude-opus-5,codex:gpt-5.6-sol,claude-fable-5-1 timeout=120s | roles: designer=claude:claude-fable-5-1 planner=codex:gpt-5.6-sol executor=codex:gpt-5.6-sol evaluator=sonnet | lanes=ok | pin=pinned(0 behind)"
+  ],
+  "kickstart_client_timed_out_seconds": 15,
+  "live_canary_status": "pending: launchd spawn scheduled; no World PID at follow-up",
+  "pr": "https://github.com/sunholo-data/ailang/pull/1082"
+}

@@ -2,6 +2,7 @@ package claude
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sunholo-data/ailang/internal/executor"
+	"github.com/sunholo-data/ailang/internal/modelreg"
 )
 
 // TestClaudeExecutorNew tests executor initialization with various configs
@@ -23,10 +25,15 @@ func TestClaudeExecutorNew(t *testing.T) {
 		expectedTimout int
 	}{
 		{
-			name: "default config",
+			// M-MODEL-REGISTRY-SINGLE-SOURCE M6 (D2(a)): the model is no longer
+			// defaulted — it must be supplied. Every OTHER field still defaults,
+			// which is the distinction: a path, a tool list and a permission mode
+			// decide nothing, while a model decides billing and availability.
+			// Empty-model construction is covered by TestClaudeExecutorNew_EmptyModelFailsLoudly.
+			name: "defaults apply to everything except the model",
 			config: &executor.Config{
 				ClaudePath:       "",
-				ClaudeModel:      "",
+				ClaudeModel:      "haiku",
 				ClaudeTools:      nil,
 				ClaudePermission: "",
 				TimeoutSeconds:   0,
@@ -53,10 +60,12 @@ func TestClaudeExecutorNew(t *testing.T) {
 			expectedTimout: 300,
 		},
 		{
+			// The model is supplied here because D2(a) requires it; the point of
+			// this row is that the OTHER unset fields still take their defaults.
 			name: "partial override",
 			config: &executor.Config{
 				ClaudePath:       "/bin/claude",
-				ClaudeModel:      "",
+				ClaudeModel:      "haiku",
 				ClaudePermission: "",
 			},
 			expectedModel: "haiku",
@@ -100,7 +109,7 @@ func TestClaudeExecutorNew(t *testing.T) {
 
 // TestClaudeExecutorName tests the Name() method
 func TestClaudeExecutorName(t *testing.T) {
-	exec, _ := New(executor.DefaultConfig())
+	exec, _ := New(testConfig())
 	name := exec.Name()
 	if name != "claude" {
 		t.Errorf("expected name 'claude', got %q", name)
@@ -197,7 +206,7 @@ func TestClaudeGetModel(t *testing.T) {
 
 // TestClaudeCapabilities verifies Claude executor claims correct capabilities
 func TestClaudeCapabilities(t *testing.T) {
-	exec, _ := New(executor.DefaultConfig())
+	exec, _ := New(testConfig())
 	caps := exec.Capabilities()
 
 	// Claude should support streaming
@@ -214,31 +223,63 @@ func TestClaudeCapabilities(t *testing.T) {
 	}
 }
 
-// TestClaudeCostModel verifies cost calculation setup
+// TestClaudeCostModel: the rate card comes from the registry row of the
+// configured model, not a hard-coded Haiku table (M-V1-SIMPLIFY-S3 M2).
 func TestClaudeCostModel(t *testing.T) {
-	exec, _ := New(executor.DefaultConfig())
+	cfg := testConfig()
+	cfg.ClaudeModel = "claude-haiku-4-5-20251001" // an api_name; resolves to claude-haiku-4-5
+	exec, _ := New(cfg)
 	costModel := exec.CostModel()
 
 	if costModel == nil {
 		t.Fatal("CostModel() returned nil")
 	}
-
+	if costModel.Unpriced {
+		t.Fatalf("a registry api_name must price; got Unpriced for %q", cfg.ClaudeModel)
+	}
 	if costModel.ProviderName != "anthropic" {
 		t.Errorf("expected provider 'anthropic', got %q", costModel.ProviderName)
 	}
-
-	// Cost model should have reasonable pricing
-	if costModel.InputTokenCost <= 0 {
-		t.Error("input token cost should be positive")
+	if costModel.Model != "claude-haiku-4-5" {
+		t.Errorf("expected registry key claude-haiku-4-5, got %q", costModel.Model)
 	}
-	if costModel.OutputTokenCost <= 0 {
-		t.Error("output token cost should be positive")
+	if err := modelreg.InitModelsConfig(); err != nil {
+		t.Fatal(err)
+	}
+	row := modelreg.GlobalModelsConfig.Models["claude-haiku-4-5"].Pricing
+	if costModel.InputTokenCost != row.InputPer1K || costModel.OutputTokenCost != row.OutputPer1K ||
+		costModel.CacheReadCost != row.CacheReadPer1K || costModel.CacheWriteCost != row.CacheWritePer1K {
+		t.Errorf("rate card %+v does not match the registry row %+v", costModel, row)
+	}
+}
+
+// A CLI short name ("haiku") is not a key, api_name or alias; it resolves
+// through the registry's LAST tier, agent_model_name, and only because every
+// row carrying that wire name agrees on price (modelreg.ErrAmbiguousModel
+// otherwise). A name no tier matches yields an EXPLICIT unpriced card, never
+// another model's rates.
+func TestClaudeCostModel_ShortNameResolvesViaWireName_UnknownIsUnpriced(t *testing.T) {
+	exec, _ := New(testConfig()) // ClaudeModel = "haiku"
+	cm := exec.CostModel()
+	if cm == nil || cm.Unpriced || cm.Model != "claude-haiku-4-5" {
+		t.Fatalf("expected haiku to resolve through agent_model_name to claude-haiku-4-5, got %+v", cm)
+	}
+
+	cfg := testConfig()
+	cfg.ClaudeModel = "claude-no-such-model-9"
+	exec, _ = New(cfg)
+	cm = exec.CostModel()
+	if cm == nil || !cm.Unpriced {
+		t.Fatalf("expected an Unpriced card for an unknown model, got %+v", cm)
+	}
+	if cm.InputTokenCost != 0 || cm.CalculateCost(executor.TokenUsage{InputTokens: 1000}) != 0 {
+		t.Errorf("an unpriced card must carry no rates; got %+v", cm)
 	}
 }
 
 // TestClaudeHealthCheck verifies health check implementation
 func TestClaudeHealthCheck(t *testing.T) {
-	exec, _ := New(executor.DefaultConfig())
+	exec, _ := New(testConfig())
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -252,7 +293,7 @@ func TestClaudeHealthCheck(t *testing.T) {
 
 // TestClaudeClose tests executor cleanup
 func TestClaudeClose(t *testing.T) {
-	exec, _ := New(executor.DefaultConfig())
+	exec, _ := New(testConfig())
 	err := exec.Close()
 	if err != nil {
 		t.Errorf("Close() failed: %v", err)
@@ -264,7 +305,9 @@ func TestClaudeExecuteWithoutHandler(t *testing.T) {
 	// Skip if claude binary not available
 	t.Skip("requires claude binary installation")
 
-	exec, _ := New(&executor.Config{ClaudePath: "claude"})
+	exec, _ := New(&executor.Config{ClaudePath: "claude",
+		ClaudeModel: "haiku", // D2(a): model is required
+	})
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -286,7 +329,9 @@ func TestClaudeExecuteStreamingWithMockHandler(t *testing.T) {
 	t.Skip("requires claude binary installation")
 
 	handler := &MockEventHandler{}
-	exec, _ := New(&executor.Config{ClaudePath: "claude"})
+	exec, _ := New(&executor.Config{ClaudePath: "claude",
+		ClaudeModel: "haiku", // D2(a): model is required
+	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -398,7 +443,9 @@ func TestClaudeContextCancellation(t *testing.T) {
 	// Skip if claude binary not available
 	t.Skip("requires claude binary installation and runtime testing")
 
-	exec, _ := New(&executor.Config{ClaudePath: "claude"})
+	exec, _ := New(&executor.Config{ClaudePath: "claude",
+		ClaudeModel: "haiku", // D2(a): model is required
+	})
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // Cancel immediately
@@ -421,7 +468,9 @@ func TestClaudeContextTimeout(t *testing.T) {
 	// Skip if claude binary not available
 	t.Skip("requires claude binary installation and runtime testing")
 
-	exec, _ := New(&executor.Config{ClaudePath: "claude"})
+	exec, _ := New(&executor.Config{ClaudePath: "claude",
+		ClaudeModel: "haiku", // D2(a): model is required
+	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
 	defer cancel()
@@ -441,7 +490,9 @@ func TestClaudeContextTimeout(t *testing.T) {
 func TestClaudeExecuteTimeoutBefore(t *testing.T) {
 	// This test validates timeout behavior without needing claude binary
 	// by checking that the timeout value is properly set
-	exec, _ := New(&executor.Config{TimeoutSeconds: 300})
+	exec, _ := New(&executor.Config{TimeoutSeconds: 300,
+		ClaudeModel: "haiku", // D2(a): model is required
+	})
 
 	if exec.timeoutSeconds != 300 {
 		t.Errorf("expected timeout 300, got %d", exec.timeoutSeconds)
@@ -463,7 +514,9 @@ func TestClaudeStreamingWithContextCancellation(t *testing.T) {
 	// Skip if claude binary not available
 	t.Skip("requires claude binary installation and runtime testing")
 
-	exec, _ := New(&executor.Config{ClaudePath: "claude"})
+	exec, _ := New(&executor.Config{ClaudePath: "claude",
+		ClaudeModel: "haiku", // D2(a): model is required
+	})
 	handler := &MockEventHandler{}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -482,7 +535,9 @@ func TestClaudeStreamingWithContextCancellation(t *testing.T) {
 
 // TestClaudeHealthCheckTimeout verifies health check respects timeout
 func TestClaudeHealthCheckTimeout(t *testing.T) {
-	exec, _ := New(&executor.Config{ClaudePath: "/nonexistent/claude"})
+	exec, _ := New(&executor.Config{ClaudePath: "/nonexistent/claude",
+		ClaudeModel: "haiku", // D2(a): model is required
+	})
 
 	// This should fail quickly without hanging
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
@@ -615,7 +670,7 @@ func TestClaudeCloudPermissionHandling(t *testing.T) {
 
 // BenchmarkClaudeNew benchmarks executor initialization
 func BenchmarkClaudeNew(b *testing.B) {
-	cfg := executor.DefaultConfig()
+	cfg := testConfig()
 	cfg.ClaudePath = "/usr/bin/claude"
 	cfg.ClaudeModel = "opus"
 
@@ -644,5 +699,34 @@ func TestNormalizeClaudeFinishReason(t *testing.T) {
 		if got := normalizeClaudeFinishReason(in); got != want {
 			t.Errorf("normalizeClaudeFinishReason(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+func TestClaudeExecutorNew_EmptyModelFailsLoudly(t *testing.T) {
+	// M-MODEL-REGISTRY-SINGLE-SOURCE M6 (D2(a)). This once asserted a fallback to
+	// "haiku" — the defect: an unpinned agent silently ran a model nobody chose,
+	// a model nobody chose, on an account nobody was watching.
+	//
+	// The check is at EXECUTION, not construction. The coordinator builds an
+	// executor before it knows the task and then supplies Task.Model per task
+	// (provider_executor.go), so failing at construction would break the normal
+	// path — which is exactly what a first cut of this milestone did.
+	e, err := New(&executor.Config{})
+	if err != nil {
+		t.Fatalf("construction must still succeed with no model: %v", err)
+	}
+	_, err = e.Execute(context.Background(), &executor.Task{ID: "t", Directive: "hi"})
+	if err == nil {
+		t.Fatal("executing with no model anywhere must fail rather than pick one")
+	}
+	var ume *executor.UnresolvedModelError
+	if !errors.As(err, &ume) {
+		t.Fatalf("want *executor.UnresolvedModelError, got %T: %v", err, err)
+	}
+	if ume.Executor != "claude" {
+		t.Errorf("Executor = %q, want %q", ume.Executor, "claude")
+	}
+	if !strings.Contains(err.Error(), "model") || !strings.Contains(err.Error(), "role") {
+		t.Errorf("error should name both remedies; got: %v", err)
 	}
 }

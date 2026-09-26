@@ -3,9 +3,12 @@ package openai
 import (
 	"context"
 	"net/http"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ai"
+	"github.com/sunholo-data/ailang/internal/strutil"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -90,7 +93,7 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 			attribute.String("ai.provider", "openai"),
 			attribute.String("ai.model", req.Model),
 			attribute.String("ai.api_type", string(apiType)),
-			attribute.String("ai.prompt_preview", telemetry.Truncate(req.UserPrompt, 100)),
+			attribute.String("ai.prompt_preview", strutil.Truncate(req.UserPrompt, 100)),
 		),
 	)
 	defer span.End()
@@ -107,7 +110,7 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 
 	if err != nil {
 		span.SetAttributes(
-			attribute.String("error.message", telemetry.Truncate(err.Error(), 200)),
+			attribute.String("error.message", strutil.Truncate(err.Error(), 200)),
 			attribute.String("error.category", telemetry.CategorizeError(err)),
 		)
 		span.RecordError(err)
@@ -120,7 +123,7 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 		attribute.Int("ai.tokens_in", resp.InputTokens),
 		attribute.Int("ai.tokens_out", resp.OutputTokens),
 		attribute.Int("ai.tokens_total", resp.TotalTokens),
-		attribute.String("ai.response_preview", telemetry.Truncate(resp.Text, 100)),
+		attribute.String("ai.response_preview", strutil.Truncate(resp.Text, 100)),
 	)
 
 	return resp, nil
@@ -151,6 +154,11 @@ func (c *Client) detectAPIType(model string) APIType {
 }
 
 // Name implements ai.Provider.
+// authHeader is the bearer header every OpenAI-compatible endpoint takes.
+func (c *Client) authHeader() http.Header {
+	return http.Header{"Authorization": []string{"Bearer " + c.apiKey}}
+}
+
 func (c *Client) Name() string {
 	return "openai"
 }
@@ -160,11 +168,25 @@ func (c *Client) NewHandler(model string, opts ...ai.HandlerOption) *ai.Handler 
 	return ai.NewHandler(c, model, opts...)
 }
 
+// gptGenerationRe extracts the generation number from a GPT model id:
+// "gpt-5" -> 5, "gpt-5.6-sol" -> 5, "gpt-6-astra" -> 6, "gpt-4o" -> 4.
+var gptGenerationRe = regexp.MustCompile(`^gpt-(\d+)`)
+
 // usesMaxCompletionTokens returns true if the model uses max_completion_tokens.
 // All GPT-5+ models and o-series reasoning models require this instead of max_tokens.
+//
+// The generation is PARSED, not prefix-matched against a literal. A hardcoded
+// strings.HasPrefix(lower, "gpt-5") silently broke the day gpt-6-astra was added
+// (2026-09-05): the request went out with max_tokens and OpenAI rejected every
+// call with 400 "Unsupported parameter". Anything gpt-N for N>=5 is covered here,
+// so the next generation does not need a code change to be evaluated.
 func usesMaxCompletionTokens(model string) bool {
 	lower := strings.ToLower(model)
-	return strings.HasPrefix(lower, "gpt-5") || // All GPT-5 models
-		strings.Contains(lower, "o1") ||
+	if m := gptGenerationRe.FindStringSubmatch(lower); m != nil {
+		if gen, err := strconv.Atoi(m[1]); err == nil {
+			return gen >= 5
+		}
+	}
+	return strings.Contains(lower, "o1") ||
 		strings.Contains(lower, "o3")
 }

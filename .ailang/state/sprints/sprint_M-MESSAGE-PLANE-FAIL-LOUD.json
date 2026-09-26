@@ -1,0 +1,87 @@
+{
+  "sprint_id": "M-MESSAGE-PLANE-FAIL-LOUD",
+  "status": "completed",
+  "created": "2026-08-26T14:56:40Z",
+  "design_doc": "design_docs/planned/v0_35_0/m-message-plane-fail-loud.md",
+  "sprint_plan": "design_docs/planned/v0_35_0/m-message-plane-fail-loud-sprint-plan.md",
+  "github_issues": [
+    17,
+    25,
+    900
+  ],
+  "velocity": {
+    "target_loc_per_day": 170,
+    "estimated_total_loc": 670,
+    "estimated_days": 4
+  },
+  "features": [
+    {
+      "id": "M1_FATAL_EXIT_AND_WORKTREE_VALIDATION",
+      "description": "initTaskProcessing failure exits non-zero (D1); NewWorktreeManager validates a supplied repoDir instead of accepting an unresolvable path and failing later on every CleanupOrphaned",
+      "estimated_loc": 180,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Coordinator started with CWD outside a git repo exits non-zero with an actionable message naming the fix",
+        "NewWorktreeManager with a nonexistent repoDir returns an error at construction",
+        "NewWorktreeManager on a valid repo still succeeds",
+        "go test ./internal/coordinator/... passes"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-08-26",
+      "notes": null
+    },
+    {
+      "id": "M2_TRIAGE_ONLY_INBOXES",
+      "description": "Add triage_only to agent/inbox config (D2) and assert at startup that every inbox is either agent-served or explicitly triage_only, so 'no agent' stops being ambiguous between intended and forgotten. public-feedback is triage_only; Discord is its routing (verified delivering).",
+      "estimated_loc": 120,
+      "dependencies": [
+        "M1_FATAL_EXIT_AND_WORKTREE_VALIDATION"
+      ],
+      "acceptance_criteria": [
+        "triage_only: true parses and round-trips through agent config",
+        "A triage_only inbox is never dispatched",
+        "An inbox with neither an agent nor triage_only is a startup error naming the inbox",
+        "go test ./internal/coordinator/... passes"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-08-26",
+      "notes": null
+    },
+    {
+      "id": "M3_EXPLICIT_EXECUTION_LANE",
+      "description": "Add execution_lane local|cloud and a separate repo coordinate (D3) so the lane is declared, not inferred from whether workspace starts with a slash. Back-compat: all 39 cloud agents carry a bare org/repo workspace and MUST infer cloud.",
+      "estimated_loc": 150,
+      "dependencies": [
+        "M2_TRIAGE_ONLY_INBOXES"
+      ],
+      "acceptance_criteria": [
+        "execution_lane parses; absent infers org/repo->cloud and absolute path->local",
+        "Regression test pins that all 39 existing cloud agents infer cloud",
+        "eval-rig resolves local and yields no cloud dispatch",
+        "Deprecation warning when a bare org/repo workspace is used as a repo coordinate"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-08-26",
+      "notes": null
+    },
+    {
+      "id": "M4_CONFIG_COMPARE_AND_SWAP",
+      "description": "ailang coordinator config get|set|diff with an if-generation-match precondition. No generation precondition exists anywhere in the repo today (0 grep hits) and a lost update was demonstrated live: a 14:24:33Z write clobbered at 14:37:10Z with no error on either side.",
+      "estimated_loc": 220,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "get records the generation it fetched",
+        "set against a stale generation is refused, naming both generations",
+        "set validates YAML and agent invariants before writing",
+        "--force retained but must name the generation it overwrites"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-08-26",
+      "notes": null
+    }
+  ]
+}

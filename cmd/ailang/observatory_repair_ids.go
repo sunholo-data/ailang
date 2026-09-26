@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	fsstore "github.com/sunholo-data/ailang/internal/storage/firestore"
 )
 
@@ -31,16 +32,17 @@ func observatoryRepairIDsCommand() {
 		os.Exit(1)
 	}
 
+	ctx := context.Background()
 	proj := *project
 	if proj == "" {
-		proj = os.Getenv("AILANG_CLOUD_PROJECT")
-	}
-	if proj == "" {
-		fmt.Fprintln(os.Stderr, "Error: no project. Pass --project or set AILANG_CLOUD_PROJECT.")
-		os.Exit(1)
+		p, err := config.CloudProject(ctx)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: pass --project, or: %v\n", err)
+			os.Exit(1)
+		}
+		proj = p
 	}
 
-	ctx := context.Background()
 	client, err := fsstore.NewClientForProject(ctx, proj)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: failed to connect to Firestore in %s: %v\n", proj, err)

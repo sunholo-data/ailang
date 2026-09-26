@@ -1,0 +1,84 @@
+{
+  "sprint_id": "M-EFFECT-PURE-ROW",
+  "status": "completed",
+  "created": "2026-09-08T06:05:24Z",
+  "design_doc": "design_docs/planned/v0_35_3/m-effect-pure-row-overgeneralization.md",
+  "sprint_plan": "design_docs/planned/v0_35_3/m-effect-pure-row-overgeneralization-sprint-plan.md",
+  "base_commit": "3ee5bb177",
+  "github_issues": [
+    1091
+  ],
+  "velocity": {
+    "target_loc_per_day": 190,
+    "estimated_total_loc": 286,
+    "estimated_days": 1.5,
+    "actual_total_loc": 463,
+    "actual_days": 0.5
+  },
+  "features": [
+    {
+      "id": "M1_REGRESSION_TESTS_RED",
+      "description": "Write all regression tests before the fix: Scheme-level unit tests in internal/types/ plus two-module cross-module fixtures in internal/pipeline/. Both RED tests must be observed failing for the right reason, and both GREEN tests must pass at base so they cannot pass vacuously.",
+      "estimated_loc": 230,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "internal/types/effect_row_defaulting_test.go exists with three cases: recursive pure binding asserts RowVars empty and a closed effect row (RED at base); declared ! {e} binding asserts RowVars == [e] preserved (GREEN at base, pins V14); recursive ! {IO} binding asserts closed {IO} (GREEN at base, pins V9)",
+        "internal/pipeline/validate_effects_xmod_test.go exists with two two-module fixtures: accept case reproducing the #1091 shape (pure export delegating to a private recursive scan, imported by a pure function reachable from an ! {FS} function) failing at base with exactly 'Missing effects: FS' (RED); reject case where an importer calls a genuinely ! {IO} cross-module function from a pure function and is still rejected (GREEN at base)",
+        "The RED cross-module test fails with 'Missing effects: FS', NOT with a type error \u2014 a type error means the fixture does not reproduce the defect",
+        "All assertions are on the types.Scheme (TypeVars/RowVars/Type), never on 'ailang iface' output, which flattens the row variable away and reports a row-polymorphic export as pure:true (design doc V16)",
+        "go test ./internal/types/... ./internal/pipeline/... runs and shows exactly the two expected failures and no others"
+      ],
+      "passes": true,
+      "started": "2026-09-08T06:23:21Z",
+      "completed": "2026-09-08T06:23:21Z",
+      "notes": "Done, consolidated into ONE file internal/pipeline/effect_pure_row_overgeneralization_test.go (7 tests) instead of the two planned files. A pure internal/types unit test cannot observe this defect: the declared row is not an input to generalizeWithConstraints, so the assertion must be made after the module interface is built (pipeline layer), on Result.Interface.Exports[...].Type. The RED test failed for the stated reason (RowVars=[rho2] on `pure func hLast`), and four control tests passed at base so none is vacuous.",
+      "actual_loc": 300
+    },
+    {
+      "id": "M2_EFFECT_ROW_DEFAULTING_FIX",
+      "description": "Add effect-row defaulting before generalization: when a top-level binding's declared effect row is closed, bind its unresolved effect-row variables to that declared row so no compiler-fresh row var is quantified into the exported scheme. Keyed on the declaration, never on the row variable's name.",
+      "estimated_loc": 50,
+      "dependencies": [
+        "M1_REGRESSION_TESTS_RED"
+      ],
+      "acceptance_criteria": [
+        "Effect-row defaulting runs alongside the existing type-class defaulting pass in the LetRec path (internal/types/typechecker_functions.go:330-377) and the corresponding Let/top-level binding path, before generalizeWithConstraints",
+        "The discriminator is the binding's DECLARED effect row, not the row variable's name prefix: a closed declared row (pure, no ! annotation, or an explicit closed ! {...}) closes the inferred row; a declared row carrying a user-written row variable bound in the signature's type params is left polymorphic",
+        "Only unresolved effect-row VARIABLES are defaulted \u2014 concrete labels are never removed, so a genuine effect still reaches the effect checker",
+        "All M1 tests green, including both previously-GREEN pins",
+        "DEBUG_EFFECTS=1 on the reconstructed repro reports 'VarGlobal(docparse/services/pkg_template.pkgLastIndexOf) -> []'",
+        "No existing effect-checking test's expected message text is changed",
+        "make test and make lint green"
+      ],
+      "passes": true,
+      "started": "2026-09-08T06:23:21Z",
+      "completed": "2026-09-08T06:23:21Z",
+      "notes": "Done in internal/types/effect_row_declared_closure.go (new) wired into both generalization paths in typechecker_functions.go. NARROWER than the design doc specified: closure applies only when the outer row variable occurs nowhere else in the type. The doc's whole-type substitution was wrong - an inferred row shared with a callback is load-bearing even with no `! {e}` (std/list.flatMap), and closing it broke epub_parser's flatMap call with 'incompatible closed rows: r1 [] vs r2 [FS]'. Discriminator is the declaration (ast.EffectAnnotation.IsRowVar / isEffectRowVar), never the row-variable name.",
+      "actual_loc": 103
+    },
+    {
+      "id": "M3_VALIDATION_END_TO_END",
+      "description": "Full-suite validation plus the required end-to-end acceptance artifact: the reconstructed ailang-parse extraction. This milestone cannot be closed on unit tests alone, because the defect resists minimization (a dependency-aware delta-debugger converged at 37/37 decls retained).",
+      "estimated_loc": 6,
+      "dependencies": [
+        "M2_EFFECT_ROW_DEFAULTING_FIX"
+      ],
+      "acceptance_criteria": [
+        "make test, make lint and make verify-examples all green",
+        "Reconstructed ailang-parse extraction (160c7f1 plus extraction of pkgLastIndexOf/pkgDropSpans and their private scans into docparse/services/pkg_template): 'ailang check docparse/services/docx_template.ail' passes AND 'ailang run docparse/main.ail --entry main' passes, with no .ail source edits \u2014 actual output recorded in sprint notes",
+        "The same reconstruction is confirmed to FAIL on a pre-fix binary first, proving the end-to-end check is not vacuous",
+        "std/ swept for any pure-declared export still carrying a quantified effect row: none found",
+        "std/list.mapE still shows RowVars=[e] via the Scheme-level check",
+        "Follow-up note appended to design_docs/planned/v1_0_0/m-effect-row-var-unification.md recording that its V14/V15 pinned ACs ('Cross-module callees \u2014 Already correct') must be re-scoped to declared row-polymorphic callees only when it is unparked",
+        "CHANGELOG.md entry added under v0.35.3",
+        "A correction comment is drafted for issue #1091 noting that 'ailang check a.ail b.ail' ignores every argument after the first, so the issue's 'revealing part' is a CLI artifact rather than a checker signal"
+      ],
+      "passes": true,
+      "started": "2026-09-08T06:23:21Z",
+      "completed": "2026-09-08T06:23:21Z",
+      "notes": "Done. make test exit 0; lint 0 issues; fmt-check, check-boundaries, check-file-sizes and verify-examples green. End-to-end: the reconstructed ailang-parse extraction (compile cache cleared) now passes `check` and compiles under `run` - runtime stops only on the expected missing --caps - versus 'Missing effects: FS' pre-fix; the unpatched tree is unchanged by the fix, so no regression. std/ sweep criterion REFINED: not 'no pure export carries a quantified row' (std/option.flatMap and std/result.flatMap legitimately do, shared with their callback) but 'no UNSHARED quantified outer row', encoded as TestStdlib_NoUnsharedQuantifiedEffectRows - which is a forward guard and was verified NOT to catch #1091 itself. Correction appended to design_docs/planned/v1_0_0/m-effect-row-var-unification.md re-scoping its V14/V15 pinned ACs. CHANGELOG entry added under [Unreleased] in changelogs/v0.32-current.md.",
+      "actual_loc": 60
+    }
+  ],
+  "completed": "2026-09-08T06:23:21Z"
+}

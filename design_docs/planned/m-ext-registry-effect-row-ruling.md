@@ -1,0 +1,164 @@
+# Extension-Registry Effect Row: Compat Ruling
+
+**Status**: Planned
+**Kind**: Compat ruling (semantics decision, not a feature)
+**Target**: v0.38.6
+**Priority**: P1 (High)
+**Estimated**: 1 day
+**Dependencies**: None
+**Source**: GitHub issue #800 (sunholo-data/ailang)
+
+## Problem Statement
+
+`ailang generate-extension-registry` stamps every generated dispatch function
+(`resolve`, `parse_tokens`, `parse_core_ext_order`) with the manifest's
+`[effects].max` — the project's declared *ceiling* — via `effectRowFromManifest`
+(`cmd/ailang/ext_registry_gen.go:108`, consumed at line 245 as `EffectRow`).
+
+Two defects, one structural:
+
+1. **Over-declaration fails at consumers, not at the generator.** The row is a
+   claim that `resolve` performs every effect in the ceiling. It does not:
+   `resolve` performs only what the `register_with_config` of the extensions
+   actually declared in `[extensions].packages` perform. A consumer that
+   handles the generated file under a stricter effect policy (e.g. motoko_agent
+   type-checking `registry_generated.ail` with its own effect-row soundness) sees
+   the full ceiling and fails — far from the file that caused the problem. This
+   is the exact failure class documented in
+   `internal/executor/motoko/healthcheck.go` (cryptic effect-row mismatches in
+   `registry_generated.ail`).
+2. **Non-deterministic regeneration.** `effectRowFromManifest` joins
+   `m.Effects.Max` in manifest-declaration order
+   (`strings.Join(max, ", ")`, order "preserved as declared"). TOML arrays are
+   ordered, so reordering `max = ["IO", "FS"]` to `["FS", "IO"]` — or any edit
+   that touches the section without changing the set — produces a spurious diff
+   in a "GENERATED — do not edit" file. A clean regeneration must diff empty.
+
+**Impact:** every consumer of a published generated registry (motoko_agent is
+the primary one; the generator docs ship it as the standard motoko extension
+onboarding path in `docs/docs/guides/build-a-motoko-extension.md`), and any CI
+that regenerates to verify freshness.
+
+## Ruling
+
+### Dispatch-row semantics: emit the ceiling, exactly as today — but sorted, and documented as a *bound*, not a *claim*
+
+Three candidates were considered:
+
+- **(A) Emit the `[effects].max` ceiling** (status quo semantics). The
+  generated dispatch calls *every* extension's `register_with_config`, and the
+  set of registered extensions changes with the manifest's `[extensions]`
+  section, not with `[effects]`. The safest sound row for a closed-world
+  dispatch is a superset of what any registered extension declares; the ceiling
+  is the author's declared superset for exactly that.
+- **(B) Emit the union of what `resolve` actually performs.** Most precise,
+  but it requires the generator to introspect each extension package's
+  exported effect rows — i.e. resolve and type-check the transitive
+  `[extensions].packages` at generation time. The generator is currently a
+  pure manifest→text tool (it reads `ailang.toml` + `ailang.lock` only); option
+  (B) couples it to the package loader's effect-inference path
+  (`internal/pkg/loader.go`) and makes generation fail whenever an extension
+  publishes a new effect — converting a regeneration into a compile step.
+- **(C) Emit per-extension rows and let consumers union them.** Would require
+  the generated `resolve` to be effect-polymorphic per branch, which the
+  AILANG row syntax in a single function signature does not express
+  (one signature, one row). This is a language change, not a generator change.
+
+**Ruling: (A), retained deliberately.** The ceiling is the correct *sound
+upper bound* for a function that dispatches over a manifest-configured
+extension set; the defect in #800 is not the choice of (A) but that the bound
+was never *validated* against the extensions and that consumers had no way to
+distinguish "declared ceiling" from "performed effects". This ruling therefore
+adds:
+
+1. **Sorted emission (determinism).** `effectRowFromManifest` must emit the
+   row in sorted order (`Env, FS, IO`, not declaration order), and the
+   default `Env, FS` is already sorted. Any regeneration whose manifest
+   `[effects].max` set is unchanged must diff empty. This is the
+   compatibility-breaking part of the ruling: one generation after adoption
+   produces a single reordering diff, which must be regenerated and committed
+   by the publishing projects.
+2. **Validation, not reduction.** Generation gains a cheap check: each
+   registered extension package's *declared* effect set (from its own
+   `ailang.toml`/package metadata available via the lock file, no
+   type-checking) must be a subset of the ceiling. Violation fails at
+   generation time with a named-package error — moving the failure from
+   every consumer to the generator, which is the fix for defect 1 that
+   option (B) was after, without its coupling cost.
+
+### Does the ceiling belong in the published artifact?
+
+**Yes — but as a bound, stated in the file.** The generated header comment
+(`-- GENERATED by ...`) gains one line declaring the row as the manifest
+ceiling, e.g.
+`-- Effect row: manifest [effects] ceiling (Env, FS, IO) — superset of registered extensions`.
+Consumers needing the precise performed-set must compute it from the
+extensions themselves; the docs
+(`docs/docs/guides/build-a-motoko-extension.md`) gain one paragraph saying the
+generated row is a ceiling, and that `[effects].max` ordering is canonical
+(sorted) as of this ruling.
+
+**No** to embedding anything richer (per-extension rows, hashes of effect
+sets): that re-invents package metadata inside a generated code file.
+
+### Consumer compatibility and migration
+
+- The row *set* is unchanged by this ruling; only its **order** and the
+  **header comment** change. Consumers that match effect rows as sets
+  (AILANG effect rows are set-typed in the type system) are unaffected at
+  type-check time; consumers that string-match the row (none known in-repo,
+  but external consumers cannot be excluded) would break on reorder —
+  hence compat ruling, shipped in a patch release with a changelog note.
+- Already-published registries (motoko_agent's `src/core/ext/registry_generated.ail`)
+  are **not** required to regenerate immediately; the generator and old
+  artifacts remain mutually compatible at the type level. Regeneration
+  becomes mandatory only when an extension set changes.
+- `ailang check` on a reordered-but-same-set row must pass identically
+  (effect rows are order-insensitive in the type checker); this is an
+  acceptance criterion, not an assumption.
+
+### Relation to the registry validator's effect checks
+
+`CheckEffectCeiling` (`internal/pkg/loader.go:280`) already enforces the
+*package-local* rule: a package's function effects must be within its own
+`[effects].max` (skipping ghost effects like `Debug` and effect variables).
+This ruling is the generator-side complement: the *published dispatch
+artifact* must also be within the ceiling it stamps — validated at generation
+time against the registered extensions, not re-derived per function. The two
+checks must not be merged: `CheckEffectCeiling` operates on type-checked
+functions inside one package; the generator check operates on declared
+manifests across packages. A future divergence (generator emits the precise
+performed union, option B) would remove the generator check, not the loader
+one.
+
+## Acceptance Criteria
+
+1. `effectRowFromManifest` output is sorted; identical `[effects].max` *sets*
+   with different declaration orders produce byte-identical generated files.
+2. Regeneration of an unchanged manifest diffs empty (golden-file test).
+3. Generation fails with a named-extension error when a registered
+   extension's declared effect set exceeds `[effects].max` (the "ceiling
+   violation at generation time" test).
+4. Generated header states the row is the manifest ceiling.
+5. `ailang check` passes on a generated file whose row is a reordered
+   version of a previously generated file (order-insensitivity proof).
+6. Docs (`build-a-motoko-extension.md`) state the ceiling semantics and
+   canonical ordering.
+
+## Alternatives Considered
+
+- **Option (B) precise performed-union** — rejected for generator/loader
+  coupling; see ruling. Revisit only if a consumer demonstrably needs
+  narrower-than-ceiling dispatch and cannot obtain it from the extension
+  metadata directly.
+- **Option (C) per-extension rows** — rejected: needs effect-polymorphic
+  single-signature dispatch, i.e. a language change.
+- **Keep declaration order, accept spurious diffs** — rejected: "Do not
+  edit, regenerate" files must be diff-stable; #800's determinism complaint
+  is the second time this class has bitten (first: the hardcoded
+   `Env, FS` bug, documented in `extRegistryTemplateData.EffectRow`).
+
+## Related Documents
+
+- [M-AILANG-EXT-REGISTRY-GEN (implemented, v0.17.1)](../implemented/v0_17_1/m-ailang-ext-registry-gen.md)
+- Issue #800: over-declared effect row fails at consumers; regeneration diff noise

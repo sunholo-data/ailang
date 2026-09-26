@@ -72,11 +72,11 @@ explicit `root != cwd` arm, verified to fail when the bug is reintroduced.
 
 ## sandbox/ — the bash layer
 
-Upstream's example, adapted for pi 0.73.1. Two forced deltas, both recorded in the file
-header: the package rename (`@earendil-works` → `@mariozechner`), and `CONFIG_DIR_NAME`,
-which 0.73.1 does not export from the package root (only `"."` and `"./hooks"` are
-exported) so it is inlined as `".pi"` — the value read out of the installed
-`dist/config.js`. Dependency moved 0.0.26 → ^0.0.71; `SandboxManager.wrapWithSandbox`
+Upstream's example. It imports VALUES from the pi package, so the package name must be
+the one installed: `@earendil-works/pi-coding-agent` since the fleet pin moved to 0.85.1
+(M-PI-HARNESS-UPGRADE M4; it was adapted to the abandoned `@mariozechner` name while the
+fleet ran 0.73.1). `CONFIG_DIR_NAME` stays inlined as `".pi"` — the value read out of the
+installed `dist/config.js`. Dependency moved 0.0.26 → ^0.0.71; `SandboxManager.wrapWithSandbox`
 and `initialize` were verified present in 0.0.71 before adopting.
 
 Policy: `sandbox.mission.json` here is canonical; installed at
@@ -136,8 +136,11 @@ Setting `reasoning: true` **alone makes it worse.** With `compat.thinkingFormat:
 *disabling* thinking that previously happened by default. The `thinkingLevelMap` here maps
 `off` to `null`, which suppresses that branch: no reasoning field is sent unless
 `--thinking <level>` is explicitly passed. Levels a model cannot honour are mapped to
-`null` too (glm-4.7-flash and gemma-4-26b do not list `reasoning_effort` in their
-OpenRouter `supported_parameters`).
+`null` too (gemma-4-26b does not list `reasoning_effort` in its OpenRouter
+`supported_parameters`). glm-5.3-flash **does** list it, and is still mapped to
+`null` deliberately: the same reasoning applies — with no effort passed, default
+thinking is preserved, and an explicit `--thinking <level>` is the only way to
+override it.
 
 Verified live 2026-08-13 after the change: `stopReason: stop`, a 358-char `thinking` block
 present in the response — thinking preserved, not disabled.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/modelreg"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/claudehistory"
 	"github.com/sunholo-data/ailang/internal/eval_harness"
 	"github.com/sunholo-data/ailang/internal/observatory"
+	"github.com/sunholo-data/ailang/internal/strutil"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -66,7 +68,7 @@ func runSingleBenchmarkAgent(ctx context.Context, benchSpan trace.Span, spec *ev
 	if modelName == "" {
 		// Look up executor and model from models.yml
 		var err error
-		executorName, modelName, err = eval_harness.GlobalModelsConfig.GetExecutorForModel(model)
+		executorName, modelName, err = modelreg.GlobalModelsConfig.GetExecutorForModel(model)
 		if err != nil {
 			return false, fmt.Errorf("could not determine executor for model %q in agent mode: %w\n"+
 				"Ensure model has agent_cli and agent_model_name configured in models.yml", model, err)
@@ -75,7 +77,7 @@ func runSingleBenchmarkAgent(ctx context.Context, benchSpan trace.Span, spec *ev
 	} else {
 		// Model name overridden via --agent-model; still need executor name for routing
 		var err error
-		executorName, _, err = eval_harness.GlobalModelsConfig.GetExecutorForModel(model)
+		executorName, _, err = modelreg.GlobalModelsConfig.GetExecutorForModel(model)
 		if err != nil {
 			return false, fmt.Errorf("could not determine executor for model %q in agent mode: %w\n"+
 				"Ensure model has agent_cli configured in models.yml", model, err)
@@ -202,7 +204,7 @@ func runSingleBenchmarkAgent(ctx context.Context, benchSpan trace.Span, spec *ev
 				EvalMode:      "agent",
 				Executor:      executorName,
 				ErrorCategory: errCategory,
-				Stderr:        telemetry.Truncate(fmt.Sprintf("API Error: %v", err), 500),
+				Stderr:        strutil.Truncate(fmt.Sprintf("API Error: %v", err), 500),
 			}
 			_ = evalChain.Store.UpdateStageEvalAssessment(ctx, stageID, assessment)
 			_ = evalChain.Store.UpdateStageError(ctx, stageID, err.Error())
@@ -226,8 +228,8 @@ func runSingleBenchmarkAgent(ctx context.Context, benchSpan trace.Span, spec *ev
 	// motoko entries silently ran `dogfood` for weeks while advertising
 	// microRAG+DP7, and nothing noticed because nothing compared them.
 	var claimedProfile string
-	if eval_harness.GlobalModelsConfig != nil {
-		if mc, err := eval_harness.GlobalModelsConfig.GetModel(model); err == nil {
+	if modelreg.GlobalModelsConfig != nil {
+		if mc, err := modelreg.GlobalModelsConfig.GetModel(model); err == nil {
 			claimedProfile = mc.MotokoProfile
 		}
 	}
@@ -329,6 +331,9 @@ func runSingleBenchmarkAgent(ctx context.Context, benchSpan trace.Span, spec *ev
 		// Fmt-hook A/B (M-EVAL-FMT-WEAKMODEL-AB): resolved arm + hook reality,
 		// banked for the config-diff review and M3's treatment-delivery metric.
 		ResolvedProfile:    result.ResolvedProfile,
+		ExecutorVersion:    result.ExecutorVersion,
+		ToolPolicy:         result.ToolPolicy,
+		PolicyDigest:       result.PolicyDigest,
 		ResolvedExtensions: result.ResolvedExtensions,
 		FmtHookState:       result.FmtHook,
 		FmtHookEvents:      result.FmtHookEvents,
@@ -378,7 +383,7 @@ func runSingleBenchmarkAgent(ctx context.Context, benchSpan trace.Span, spec *ev
 	// excluded — a thrashing run's 2M tokens would skew the baseline up
 	// and disable the very abort it's meant to inform. Best-effort: DB
 	// errors don't affect the result reported to the caller.
-	if metrics.CompileOk && metrics.RuntimeOk && metrics.StdoutOk &&
+	if metrics.Passed() &&
 		evalChain != nil && evalChain.Store != nil && metrics.TotalTokens > 0 {
 		if upErr := observatory.UpdatePassedTrial(ctx, evalChain.Store.DB(), model, spec.ID, metrics.TotalTokens); upErr != nil {
 			// Non-fatal — log and continue.
@@ -411,10 +416,10 @@ func runSingleBenchmarkAgent(ctx context.Context, benchSpan trace.Span, spec *ev
 			VerifyErrors:    result.VerifyErrors,
 			PromptVersion:   result.PromptVersion,
 			CodeHash:        telemetry.ShortHash(result.SolutionCode, 8),
-			Code:            telemetry.Truncate(result.SolutionCode, 2000),
-			Stdout:          telemetry.Truncate(result.Stdout, 500),
-			ExpectedStdout:  telemetry.Truncate(spec.ExpectedOut, 500),
-			Stderr:          telemetry.Truncate(result.Stderr, 500),
+			Code:            strutil.Truncate(result.SolutionCode, 2000),
+			Stdout:          strutil.Truncate(result.Stdout, 500),
+			ExpectedStdout:  strutil.Truncate(spec.ExpectedOut, 500),
+			Stderr:          strutil.Truncate(result.Stderr, 500),
 		}
 		_ = evalChain.Store.UpdateStageEvalAssessment(ctx, stageID, assessment)
 
@@ -492,7 +497,7 @@ func runSingleBenchmarkAgent(ctx context.Context, benchSpan trace.Span, spec *ev
 	// Add code preview and hash for debugging and deduplication
 	if result.SolutionCode != "" {
 		benchSpan.SetAttributes(
-			attribute.String("code.preview", telemetry.Truncate(result.SolutionCode, 100)),
+			attribute.String("code.preview", strutil.Truncate(result.SolutionCode, 100)),
 			attribute.String("code.hash", telemetry.ShortHash(result.SolutionCode, 8)),
 		)
 	}
@@ -505,7 +510,7 @@ func runSingleBenchmarkAgent(ctx context.Context, benchSpan trace.Span, spec *ev
 	// Add error summary for failed benchmarks
 	if result.Stderr != "" {
 		benchSpan.SetAttributes(
-			attribute.String("error.summary", telemetry.Truncate(result.Stderr, 200)),
+			attribute.String("error.summary", strutil.Truncate(result.Stderr, 200)),
 			attribute.String("error.category", telemetry.CategorizeError(errors.New(result.Stderr))),
 		)
 	}

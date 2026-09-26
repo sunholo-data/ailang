@@ -14,10 +14,11 @@
 package observatory
 
 import (
-	"database/sql"
 	"log"
 	"os"
-	"strconv"
+
+	"github.com/sunholo-data/ailang/internal/config"
+	"github.com/sunholo-data/ailang/internal/sqliteopen"
 )
 
 // DefaultWALCheckpointThresholdMB is the WAL size at which auto-checkpoint
@@ -26,19 +27,12 @@ import (
 // rotation load.
 //
 // Override at runtime via AILANG_OBSERVATORY_WAL_CHECKPOINT_MB env var.
-const DefaultWALCheckpointThresholdMB = 1024
+const DefaultWALCheckpointThresholdMB = config.DefaultWALCheckpointMB
 
 // walCheckpointThresholdMB returns the configured WAL checkpoint threshold,
 // honoring the env override. Falls back to DefaultWALCheckpointThresholdMB
 // if the env var is unset, malformed, or non-positive.
-func walCheckpointThresholdMB() int64 {
-	if v := os.Getenv("AILANG_OBSERVATORY_WAL_CHECKPOINT_MB"); v != "" {
-		if n, err := strconv.ParseInt(v, 10, 64); err == nil && n > 0 {
-			return n
-		}
-	}
-	return DefaultWALCheckpointThresholdMB
-}
+func walCheckpointThresholdMB() int64 { return config.WALCheckpointMB() }
 
 // WALSizeMB returns the size of the WAL file in MB, or 0 if the file
 // doesn't exist or is unreadable. Pure stat call — no DB open.
@@ -68,7 +62,7 @@ func MaybeCheckpointWAL(dbPath string) (sizeBeforeMB, sizeAfterMB int64, didChec
 	log.Printf("Observatory WAL: %dMB exceeds checkpoint threshold (%dMB) — running PRAGMA wal_checkpoint(TRUNCATE)",
 		sizeBeforeMB, threshold)
 
-	db, err := sql.Open("sqlite3", dbPath+"?_journal_mode=WAL&_busy_timeout=5000")
+	db, err := sqliteopen.Open(dbPath, sqliteopen.Options{MustExist: true})
 	if err != nil {
 		log.Printf("Observatory WAL: failed to open DB for checkpoint: %v", err)
 		return sizeBeforeMB, sizeBeforeMB, false

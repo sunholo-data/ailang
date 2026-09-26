@@ -31,8 +31,16 @@
 #   1. FILTERS `message_update` out of the banked NDJSON. Nothing is lost: `message_end`
 #      carries the complete final message including reasoning. Size becomes LINEAR, so
 #      the disk-exhaustion hazard goes away without a ceiling that truncates real work.
-#   2. Keeps the newest message_update in a separate single-record SNAPSHOT file, so a
-#      run killed mid-turn still has full forensics at bounded cost.
+#   2. Keeps a bounded ROLLING WINDOW of the most recent message_update records in a
+#      separate SNAPSHOT file (between 1 and SNAP_EVERY records — the file is truncated
+#      every SNAP_EVERY updates and refilled), so a run killed mid-turn still has its
+#      newest text/thinking fragments and the cumulative `usage` at bounded cost.
+#      HISTORY: this was a single-record snapshot, which held the FULL accumulated
+#      message at pi 0.73.1. Since pi 0.84 message_update carries only a ~300-byte
+#      DELTA (M-PI-HARNESS-UPGRADE V29), so one record would be forensically empty;
+#      the window is what restores the guarantee. The filter in (1) is unchanged and
+#      still correct — the quadratic-size hazard it was written for no longer exists
+#      at 0.85.1, but the banked file staying free of updates is what makes (3) work.
 #   3. Uses the banked file's mtime as a PROGRESS CLOCK. Because updates are filtered,
 #      a content-free reasoning turn writes nothing to it — the clock freezes exactly
 #      when the failure mode is occurring. This costs nothing and needs no parsing.
@@ -136,8 +144,9 @@ now() { date +%s; }
 # emits message_update at ~3 MB/s during a long turn, and a shell loop becomes the
 # bottleneck and backpressures the model.
 #
-# `close(snap)` before each snapshot write reopens with `>`, which truncates — so the
-# snapshot stays exactly one record instead of growing.
+# awk's `print > file` truncates on FIRST open and appends until `close(file)`; closing
+# every SNAP_EVERY records therefore truncates-and-refills, so the snapshot holds the
+# most recent 1..SNAP_EVERY message_update deltas instead of growing without bound.
 #
 # `set -m` matters and is not cosmetic: without job control a background job shares the
 # script's process group, so the `kill -- -PID` below would either fail or — if the pid
@@ -152,11 +161,13 @@ set -m
   # 2026-08-26 when a run reported 4 tool executions and 0 changed files, and the
   # model's own closing message said it could not find the file and created it.
   cd "$WORKDIR" || exit 14
-  pi --mode json --no-session --model "$MODEL" < "$DIRECTIVE" 2>"$ERR" |
+  AILANG_STORAGE_MESSAGING=gcp AILANG_MESSAGES_PROJECT=ailang-multivac \
+    pi --mode json --no-session --model "$MODEL" < "$DIRECTIVE" 2>"$ERR" |
     awk -v out="$OUT" -v snap="$SNAP" -v every="$SNAP_EVERY" '
       /"type":"message_update"/ {
         n++
-        if (n % every == 1) { close(snap); print $0 > snap }
+        if (n % every == 1) { close(snap) }
+        print $0 > snap; fflush(snap)
         next
       }
       { print $0 >> out; fflush(out) }

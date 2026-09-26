@@ -17,6 +17,43 @@ emit() {
   exit 0
 }
 
+# PER-MISSION PATH ALLOWLIST (M-DOCS-MISSION, 2026-08-28).
+#
+# The allowlist below used to be three literal patterns hardcoded in the Step-4
+# `case`. That is exactly right for a mission that plans COMPILER changes: a cheap
+# planner has no business planning `internal/`. But it silently defeats a mission
+# whose whole subject matter is `docs/` — every docs design doc emits
+# "opus fail-closed:path-not-in-codex-allowlist", so the mission's cheap planner
+# pin reads as configured while OPUS actually runs, every iteration. Measured
+# 2026-08-28 with a discriminating control: a `docs/` doc failed closed while an
+# identical `tools/launchd/` doc passed to the pinned pi lane.
+#
+# So the allowlist becomes per-mission DATA with the infra list as the default —
+# v1/world/motoko are byte-for-byte unaffected, and the docs mission widens it in
+# its own env file. It is still an allowlist: anything not named is still denied.
+#
+# `set -f` is LOAD-BEARING, not tidiness. Unquoted `$PLANNER_ALLOWLIST` in a `for`
+# undergoes PATHNAME EXPANSION, and this script runs with cwd = the repo, so
+# `tools/launchd/*` would expand into the actual file list and then match none of
+# the paths a design doc declares. Measured: without `set -f`, even
+# `tools/launchd/x.sh` was DENIED by its own literal pattern.
+PLANNER_ALLOWLIST="${MISSION_PLANNER_ALLOWLIST:-tools/launchd/*|.claude/skills/mission-control/SKILL.md|.claude/skills/design-doc-creator/*}"
+
+_path_allowed() {
+  _p="$1"; _save_ifs=$IFS; _rc=1
+  set -f
+  IFS='|'
+  for _pat in $PLANNER_ALLOWLIST; do
+    # SC2254 is INTENTIONAL here: the allowlist entries ARE globs (`docs/*`), so the
+    # expansion must be matched as a pattern. Quoting it would make `tools/launchd/*`
+    # match only a literal path ending in an asterisk — i.e. deny everything.
+    # shellcheck disable=SC2254
+    case "$_p" in $_pat) _rc=0; break ;; esac
+  done
+  IFS=$_save_ifs; set +f
+  return $_rc
+}
+
 # Step 0: only a VETTED non-opus lane may proceed to the path analysis; anything
 # else fails closed to opus.
 #
@@ -111,17 +148,35 @@ for path in $paths; do
   case "$path" in
     /*|~*|*..*) IFS=$old_ifs; emit "opus fail-closed:path-not-in-codex-allowlist" ;;
   esac
-  case "$path" in
-    tools/launchd/*|.claude/skills/mission-control/SKILL.md|.claude/skills/design-doc-creator/*) ;;
-    *) IFS=$old_ifs; emit "opus fail-closed:path-not-in-codex-allowlist" ;;
-  esac
+  if ! _path_allowed "$path"; then
+    IFS=$old_ifs; emit "opus fail-closed:path-not-in-codex-allowlist"
+  fi
 done
 IFS=$old_ifs
 
 # Step 5: every declared path is approved infrastructure. Emit the lane actually
-# pinned, not a hardcoded "codex" — the driver uses this value VERBATIM, so
-# naming the wrong lane here would route a pi planner to codex.
+# pinned, not a hardcoded literal — the driver and the skill use this value
+# VERBATIM, so naming the wrong lane here routes a pinned planner somewhere else.
+#
+# BOTH branches now emit the full pinned value. Until 2026-08-28 only the `pi:`
+# branch did, and `codex:*` collapsed to a bare `codex` — DROPPING THE MODEL. The
+# comment above already described that bug; it had been fixed for one branch and
+# left in the other.
+#
+# It was invisible on V1 by coincidence: its pin is `codex:gpt-5.6-sol` and the
+# consumer's default is also sol, so the value being dropped happened to equal the
+# value fallen back to. That coincidence does not hold for a mission pinned to a
+# CHEAPER tier — the docs mission pins `codex:gpt-5.6-luna` ($0.20/$1.20 per M) and
+# would have silently planned on gpt-5.6-sol ($2/$10) on every single iteration, on
+# the mission created specifically to be cheap.
+#
+# The skill's own rule already assumes the full form ("Any `codex:*` result enters
+# the codex planner recipe"), and a bare `codex` does not match its
+# `^([a-z_]+):(.+)$` split at all — so the emitted value was not merely lossy, it
+# was unparseable by its documented consumer.
 case "${MISSION_PLANNER_MODEL:-}" in
-  pi:*) emit "${MISSION_PLANNER_MODEL} declared:codex-ok" ;;
-  *)    emit "codex declared:codex-ok" ;;
+  codex:*|pi:*) emit "${MISSION_PLANNER_MODEL} declared:codex-ok" ;;
+  # Unreachable in practice — Step 0 already refuses anything else — but a
+  # defensive default beats an empty emit if that gate is ever widened.
+  *)            emit "codex declared:codex-ok" ;;
 esac

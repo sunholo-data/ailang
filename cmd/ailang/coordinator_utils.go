@@ -2,11 +2,11 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/coordinator"
+	"github.com/sunholo-data/ailang/internal/strutil"
 )
 
 // wrapText wraps text at the specified width
@@ -90,12 +90,6 @@ func showRawLogs(events []*coordinator.TaskEventRecord) {
 	fmt.Scanln()
 }
 
-// fileExists checks if a file/directory exists
-func fileExists(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
-}
-
 // openInFinder opens a directory in the system file manager (Finder on macOS)
 func openInFinder(path string) {
 	fmt.Println(cyan("→"), "Opening in file manager:", path)
@@ -103,11 +97,11 @@ func openInFinder(path string) {
 
 	// Use platform-appropriate command
 	switch {
-	case fileExists("/usr/bin/open"): // macOS
+	case strutil.FileExists("/usr/bin/open"): // macOS
 		cmd = exec.Command("open", path)
-	case fileExists("/usr/bin/xdg-open"): // Linux
+	case strutil.FileExists("/usr/bin/xdg-open"): // Linux
 		cmd = exec.Command("xdg-open", path)
-	case fileExists("/usr/bin/explorer"): // Windows (unlikely via CLI)
+	case strutil.FileExists("/usr/bin/explorer"): // Windows (unlikely via CLI)
 		cmd = exec.Command("explorer", path)
 	default:
 		fmt.Println(yellow("!"), "No file manager command found")

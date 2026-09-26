@@ -1,0 +1,65 @@
+{
+  "sprint_id": "M-IFACE-COMPACT",
+  "design_doc": "design_docs/planned/m-iface-compact-adt-fields.md",
+  "sprint_plan": "design_docs/planned/m-iface-compact-adt-fields-sprint-plan.md",
+  "target_version": "v0.25.1",
+  "priority": "P1",
+  "risk_level": "low-medium",
+  "github_issues": [],
+  "velocity": {
+    "target_loc_per_day": 140,
+    "estimated_total_loc": 137,
+    "estimated_days": 1
+  },
+  "features": [
+    {
+      "id": "M1_RENDER_TRECORD",
+      "description": "Add a cycle-safe `case *types.TRecord` to formatTypeCanonical so record types render as {label: type, ...} instead of leaking <*types.TRecord>. Shared by all exported function signatures.",
+      "estimated_loc": 55,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "A record-returning exported function renders {...}, not <*types.TRecord>",
+        "A recursive-record type renders without hanging (bounded via visited/depth guard)",
+        "Open/row-polymorphic records render known labels + an explicit open-row marker"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-06-26",
+      "notes": "Implemented + verified on docparse/types/document.ail (leak count 0); 7 new tests pass"
+    },
+    {
+      "id": "M2_THREAD_FIELDTYPES",
+      "description": "Add FieldTypes []types.Type to the iface ConstructorInfo (builder.go), populate from elaborate ConstructorInfo.FieldTypes, and extend TypeJSON ctor entries to {name, fields} rendered via M1.",
+      "estimated_loc": 30,
+      "dependencies": [
+        "M1_RENDER_TRECORD"
+      ],
+      "acceptance_criteria": [
+        "ailang iface JSON for the test ADT includes each constructor's field types",
+        "Deterministic ordering preserved (sorted ctors and labels)"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-06-26",
+      "notes": "Implemented + verified on docparse/types/document.ail (leak count 0); 7 new tests pass"
+    },
+    {
+      "id": "M3_COMPACT_RENDER_TESTS",
+      "description": "Render Ctor({...})/Ctor(t1,t2) in cmd/ailang/check.go compactInterface; add field-rendering tests; regenerate digest goldens in internal/iface/constructor_test.go (keep same-ctors/different-fields invariants); verify on minimal ADT and document.ail.",
+      "estimated_loc": 52,
+      "dependencies": [
+        "M2_THREAD_FIELDTYPES"
+      ],
+      "acceptance_criteria": [
+        "ailang iface --compact on the minimal ADT prints: type Shape = Circle({radius: float}) | Rect({w: float, h: float})",
+        "grep for '<*' across regenerated stdlib ifaces returns nothing",
+        "make test green with regenerated digest goldens",
+        "Validation: docx eval cat-fallback count < 3 (baseline 11)"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-06-26",
+      "notes": "Implemented + verified on docparse/types/document.ail (leak count 0); 7 new tests pass"
+    }
+  ]
+}

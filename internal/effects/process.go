@@ -26,10 +26,26 @@ func (pc *ProcessContext) ResolveAllowlist(allowlistStr string) error {
 
 	pc.HasAllowlist = true
 	pc.Allowlist = make(map[string]string)
+	pc.Subcommands = make(map[string][][]string)
+	bare := make(map[string]bool) // commands granted without a subcommand chain
 
-	for _, cmd := range strings.Split(allowlistStr, ",") {
-		cmd = strings.TrimSpace(cmd)
-		if cmd == "" {
+	for _, entry := range strings.Split(allowlistStr, ",") {
+		entry = strings.TrimSpace(entry)
+		if entry == "" {
+			continue
+		}
+
+		cmd, chain, err := splitSubcommandEntry(entry)
+		if err != nil {
+			return err
+		}
+		if chain == nil {
+			bare[cmd] = true
+			delete(pc.Subcommands, cmd) // bare grant is the broadest; it wins
+		} else if !bare[cmd] {
+			pc.Subcommands[cmd] = append(pc.Subcommands[cmd], chain)
+		}
+		if _, seen := pc.Allowlist[cmd]; seen {
 			continue
 		}
 
@@ -49,6 +65,30 @@ func (pc *ProcessContext) ResolveAllowlist(allowlistStr string) error {
 		}
 	}
 	return nil
+}
+
+// splitSubcommandEntry parses one --process-allowlist entry. `git` → ("git", nil);
+// `git:status` → ("git", ["status"]); `gh:pr:list` → ("gh", ["pr","list"]);
+// `git:*` → ("git", nil). An empty segment anywhere is an error: a typo must
+// not widen the grant.
+func splitSubcommandEntry(entry string) (cmd string, chain []string, err error) {
+	parts := strings.Split(entry, ":")
+	cmd = parts[0]
+	if cmd == "" {
+		return "", nil, fmt.Errorf("--process-allowlist entry %q has no command before ':'", entry)
+	}
+	if len(parts) == 1 {
+		return cmd, nil, nil
+	}
+	if len(parts) == 2 && parts[1] == "*" {
+		return cmd, nil, nil
+	}
+	for _, seg := range parts[1:] {
+		if seg == "" {
+			return "", nil, fmt.Errorf("--process-allowlist entry %q has an empty subcommand segment", entry)
+		}
+	}
+	return cmd, parts[1:], nil
 }
 
 func init() {
@@ -96,24 +136,22 @@ func processExec(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 		pc = NewProcessContext()
 	}
 
-	// Step 1: Allowlist check
-	var resolvedPath string
-	if pc.HasAllowlist {
-		resolved, allowed := pc.Allowlist[cmdName]
-		if !allowed {
-			return makeProcessResultErr("NotAllowed", cmdName), nil
+	// Step 1: Allowlist check — the one authorizer shared with spawnProcess and asyncExecProcess
+	resolvedPath, denial := pc.Authorize(cmdName, cmdArgs)
+	if denial != nil {
+		return makeProcessResultErr(denial.Ctor, denial.Detail), nil
+	}
+
+	// Step 1b: confinement (restricted mode) — the argv is rebuilt from the
+	// subcommand's schema and the environment hardened; a token the schema
+	// does not admit is a denial before any process exists.
+	var confinedEnvironment []string
+	if pc.Confined {
+		var cdenial *ProcessDenial
+		resolvedPath, cmdArgs, confinedEnvironment, cdenial = pc.confine(cmdName, cmdArgs)
+		if cdenial != nil {
+			return makeProcessResultErr(cdenial.Ctor, cdenial.Detail), nil
 		}
-		if resolved == "" {
-			return makeProcessResultErr("NotFound", cmdName), nil
-		}
-		resolvedPath = resolved
-	} else {
-		// No allowlist — resolve via LookPath
-		resolved, err := exec.LookPath(cmdName)
-		if err != nil {
-			return makeProcessResultErr("NotFound", cmdName), nil
-		}
-		resolvedPath = resolved
 	}
 
 	// Step 2: Set up command with timeout
@@ -121,6 +159,9 @@ func processExec(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 	defer cancel()
 
 	cmd := exec.CommandContext(execCtx, resolvedPath, cmdArgs...)
+	if confinedEnvironment != nil {
+		cmd.Env = confinedEnvironment
+	}
 
 	// WaitDelay bounds how long cmd.Run() blocks on the I/O pipes after the process exits or the
 	// context fires. Without it, an orphaned grandchild (e.g. `find /` in a `find / | head` pipeline

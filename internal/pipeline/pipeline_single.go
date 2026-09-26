@@ -15,6 +15,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/link"
 	"github.com/sunholo-data/ailang/internal/linked"
 	"github.com/sunholo-data/ailang/internal/parser"
+	"github.com/sunholo-data/ailang/internal/strutil"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"github.com/sunholo-data/ailang/internal/types"
 	"go.opentelemetry.io/otel/attribute"
@@ -96,7 +97,7 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 		if len(p.Errors()) > 0 {
 			parseErr := convertParserErrors(p.Errors())
 			attrs := []attribute.KeyValue{
-				attribute.String("error.message", telemetry.Truncate(parseErr.Error(), 200)),
+				attribute.String("error.message", strutil.Truncate(parseErr.Error(), 200)),
 				attribute.String("error.category", telemetry.CategorizeError(parseErr)),
 			}
 			// Extract position and code snippet if ParserError
@@ -133,7 +134,7 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 		if len(p.Errors()) > 0 {
 			parseErr := convertParserErrors(p.Errors())
 			attrs := []attribute.KeyValue{
-				attribute.String("error.message", telemetry.Truncate(parseErr.Error(), 200)),
+				attribute.String("error.message", strutil.Truncate(parseErr.Error(), 200)),
 				attribute.String("error.category", telemetry.CategorizeError(parseErr)),
 			}
 			// Extract position and code snippet if ParserError
@@ -175,7 +176,7 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 	if err != nil {
 		elabErr := fmt.Errorf("elaboration error: %w", err)
 		elabSpan.SetAttributes(
-			attribute.String("error.message", telemetry.Truncate(elabErr.Error(), 200)),
+			attribute.String("error.message", strutil.Truncate(elabErr.Error(), 200)),
 			attribute.String("error.category", telemetry.CategorizeError(elabErr)),
 		)
 		elabSpan.RecordError(elabErr)
@@ -308,29 +309,10 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 		typeChecker.SetEffectAnnotationsFull(effectAnnotsFull)
 	}
 
-	// M-DX19: Register derived Eq instances for types with `deriving (Eq)`
-	// This allows == to work on user-defined ADT and record types
-	derivedEqTypes := elaborator.GetDerivedEqTypes()
-	for _, typeName := range derivedEqTypes {
-		inst := &types.ClassInstance{
-			ClassName: "Eq",
-			TypeHead:  &types.TCon{Name: typeName},
-			Dict: types.Dict{
-				"eq":  fmt.Sprintf("derived_eq_%s", typeName),
-				"neq": fmt.Sprintf("derived_neq_%s", typeName),
-			},
-		}
-		if err := cfg.InstEnv.Add(inst); err != nil {
-			// Ignore duplicate instance errors (may happen with multiple files)
-			// Just log if debug mode
-			if cfg.DebugCompile {
-				fmt.Fprintf(os.Stderr, "[DEBUG] Could not add derived Eq instance for %s: %v\n", typeName, err)
-			}
-		}
-
-		// M-DX19: Also register in DictionaryRegistry for runtime lookup
-		// This tells the evaluator to use structural TaggedValue comparison
-		cfg.DictReg.RegisterDerivedEq(typeName)
+	// M-DX19 + M-EQ-DERIVE-CONTAINERS: register `deriving (Eq)` instances and
+	// require Eq of every field
+	if err := registerDerivedEq(cfg, elaborator); err != nil {
+		return result, err
 	}
 
 	// For REPL, extract first declaration as expression
@@ -352,7 +334,7 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 	if err != nil {
 		typeErr := fmt.Errorf("type error: %w", err)
 		typeSpan.SetAttributes(
-			attribute.String("error.message", telemetry.Truncate(typeErr.Error(), 200)),
+			attribute.String("error.message", strutil.Truncate(typeErr.Error(), 200)),
 			attribute.String("error.category", telemetry.CategorizeError(typeErr)),
 		)
 		typeSpan.RecordError(typeErr)
@@ -476,6 +458,24 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 			result.PhaseTimings["monomorphization"])
 	}
 
+	// M-SMT-INTERP-SHOW: drop the `show` the interpolation desugar inserts around
+	// holes whose type makes it redundant (string) or trivially encodable (bool).
+	// Runs AFTER monomorphization so a generic helper's string instantiation is
+	// visible, and unconditionally so the DisableMonomorphization path is covered
+	// too. See internal/pipeline/show_normalize.go.
+	{
+		normalizer := NewShowNormalizer(&typeChecker.CoreTI)
+		normalized, err := normalizer.Normalize(coreProg)
+		if err != nil {
+			return result, fmt.Errorf("show normalization failed: %w", err)
+		}
+		coreProg = normalized
+		if cfg.DebugCompile {
+			fmt.Fprintf(os.Stderr, "[DEBUG] ShowNormalize: %d elided, %d rewritten, %d residue\n",
+				normalizer.Elided, normalizer.Rewritten, normalizer.Residue)
+		}
+	}
+
 	// Phase 3.5.5: Var Type Resolution (M-DX4 workaround)
 	// Resolve Var types from monomorphic bindings to fix operand types for lowering.
 	// This propagates concrete types from Let bindings to Var usages when the binding
@@ -544,6 +544,10 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 		// }
 
 		loweredProg.Flags.Lowered = true
+
+		// M-DEBUG-SINK-STRUCTURED-LINES: inject call-site locations into
+		// std/debug wrapper calls (always; erasure below sees the builtin shape)
+		loweredProg = (&DebugLocationInjector{}).Inject(loweredProg)
 
 		// M-DEBUG-ERASURE: Erase Debug ghost effect in release mode
 		if cfg.ReleaseMode {

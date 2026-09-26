@@ -6,8 +6,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
-	"os"
-	"path/filepath"
 
 	"github.com/sunholo-data/ailang/internal/effects"
 	"github.com/sunholo-data/ailang/internal/eval"
@@ -267,12 +265,8 @@ func gzipDecompressFileImpl(ctx *effects.EffContext, args []eval.Value) (eval.Va
 		return nil, fmt.Errorf("_gzip_decompressFile: expected String, got %T", args[0])
 	}
 
-	path := pathVal.Value
-	if ctx.Env.Sandbox != "" {
-		path = filepath.Join(ctx.Env.Sandbox, path)
-	}
-
-	f, err := os.Open(path)
+	// Through the sandbox root when one is set (M-EXECUTOR-POLICY-HARDENING M1).
+	f, err := ctx.FSOpen(pathVal.Value)
 	if err != nil {
 		return gzipMakeErr(fmt.Sprintf("cannot open file: %v", err)), nil
 	}

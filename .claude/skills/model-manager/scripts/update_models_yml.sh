@@ -28,7 +28,7 @@ INPUT_PRICE="$4"
 OUTPUT_PRICE="$5"
 DESCRIPTION="${6:-$FRIENDLY_NAME model}"
 
-MODELS_YML="internal/eval_harness/models.yml"
+MODELS_YML="internal/modelreg/models.yml"
 
 if [ ! -f "$MODELS_YML" ]; then
     echo "✗ models.yml not found at: $MODELS_YML"

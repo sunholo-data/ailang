@@ -21,7 +21,7 @@ import (
 // lining up. See eval_analysis.LoadArmForPairing.
 func runEvalPaired() {
 	fs := flag.NewFlagSet("eval-paired", flag.ExitOnError)
-	pretty := fs.Bool("pretty", false, "Indent the JSON output")
+	indent := registerJSONOnlyOutputFlags(fs)
 	withPairs := fs.Bool("with-pairs", true, "Include the per-benchmark pairs array (set false for a compact summary)")
 	if err := fs.Parse(os.Args[2:]); err != nil {
 		os.Exit(1)
@@ -63,7 +63,7 @@ func runEvalPaired() {
 	}
 
 	enc := json.NewEncoder(os.Stdout)
-	if *pretty {
+	if indent() {
 		enc.SetIndent("", "  ")
 	}
 	if err := enc.Encode(result); err != nil {

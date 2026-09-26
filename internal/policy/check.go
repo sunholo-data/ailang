@@ -51,8 +51,8 @@ type Decision struct {
 func Check(p *Policy, entry string, row *types.Row) Decision {
 	allowed := sortedAllowed(p)
 
-	// Pure or absent effect row: trivially admitted.
-	if row == nil || len(row.Labels) == 0 {
+	// Absent effect row: pure, trivially admitted.
+	if row == nil {
 		return Decision{
 			OK:              true,
 			Function:        entry,
@@ -63,7 +63,10 @@ func Check(p *Policy, entry string, row *types.Row) Decision {
 
 	declared := sortedLabels(row)
 
-	// Parametric entry: reject. We cannot soundly admit an open row.
+	// Parametric entry: reject. We cannot soundly admit an open row — and
+	// that includes an open row with NO concrete labels (`{ | e }`), which
+	// used to take the pure shortcut above before the tail was examined
+	// (M-EXECUTOR-POLICY-HARDENING M3, V12).
 	if row.Tail != nil {
 		return Decision{
 			OK:              false,
@@ -71,6 +74,16 @@ func Check(p *Policy, entry string, row *types.Row) Decision {
 			Message:         "entry function has parametric effect row; policy admission requires a monomorphic entry. Instantiate the entry's effects explicitly.",
 			Function:        entry,
 			DeclaredEffects: declared,
+			AllowedCaps:     allowed,
+		}
+	}
+
+	// Closed row with no labels: pure.
+	if len(row.Labels) == 0 {
+		return Decision{
+			OK:              true,
+			Function:        entry,
+			DeclaredEffects: []string{},
 			AllowedCaps:     allowed,
 		}
 	}

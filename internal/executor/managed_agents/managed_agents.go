@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/executor"
+	"github.com/sunholo-data/ailang/internal/strutil"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -97,8 +98,9 @@ func buildEnvironment(task *executor.Task) (json.RawMessage, error) {
 func (e *Executor) CostModel() *executor.CostModel {
 	return &executor.CostModel{
 		ProviderName:    "google-managed-agents",
-		InputTokenCost:  0.0015, // $1.50 per 1M tokens
-		OutputTokenCost: 0.009,  // $9.00 per 1M (includes reasoning/thought tokens)
+		InputTokenCost:  0.0015,  // $1.50 per 1M fresh input tokens
+		OutputTokenCost: 0.009,   // $9.00 per 1M (includes reasoning/thought tokens)
+		CacheReadCost:   0.00015, // $0.15 per 1M — 10% of fresh input, Gemini's standard cache-read rate
 	}
 }
 
@@ -144,7 +146,7 @@ func (e *Executor) ExecuteStreaming(
 			attribute.String("executor.name", "managed_agents"),
 			attribute.String("task.id", task.ID),
 			attribute.String("task.parent_task_id", task.ParentTaskID),
-			attribute.String("task.directive", telemetry.Truncate(task.Directive, 500)),
+			attribute.String("task.directive", strutil.Truncate(task.Directive, 500)),
 		),
 	)
 	defer span.End()
@@ -257,17 +259,27 @@ func (e *Executor) ExecuteStreaming(
 		turns = 1
 	}
 	res := &executor.Result{
-		Output:      state.Text.String(),
-		DurationMS:  int(duration.Milliseconds()),
-		NumTurns:    turns,
-		SessionID:   state.InteractionID,
-		InputTokens: state.Usage.TotalInputTokens,
+		Output:     state.Text.String(),
+		DurationMS: int(duration.Milliseconds()),
+		NumTurns:   turns,
+		SessionID:  state.InteractionID,
+		// FRESH input, not the cache-inclusive total. executor.Result's contract
+		// (see eval_harness/agent_runner_multi.go: "result.InputTokens is FRESH
+		// input here ... the two arguments stay disjoint and no token is billed
+		// twice") requires InputTokens and CacheReadInputTokens to be DISJOINT.
+		// Reporting the inclusive total here would double-count every cached
+		// token downstream — the same defect this change fixes in the cost call.
+		InputTokens: state.Usage.FreshInputTokens(),
 		// Kept DISJOINT: thought tokens live in ReasonTokens, not folded into
 		// OutputTokens. Merging them made thinking invisible downstream and, now
 		// that TotalTokens counts reasoning, would double-count it.
-		OutputTokens:             state.Usage.TotalOutputTokens,
-		ReasonTokens:             state.Usage.TotalThoughtTokens,
-		CacheReadInputTokens:     0, // Not reported by Managed Agents API
+		OutputTokens: state.Usage.TotalOutputTokens,
+		ReasonTokens: state.Usage.TotalThoughtTokens,
+		// The API DOES report cache reads (total_cached_tokens); the previous
+		// "Not reported by Managed Agents API" comment here was false and made
+		// every cached token bill at the fresh rate. Cache CREATION is still
+		// genuinely unreported, so that one stays 0.
+		CacheReadInputTokens:     state.Usage.TotalCachedTokens,
 		CacheCreationInputTokens: 0,
 	}
 
@@ -277,10 +289,20 @@ func (e *Executor) ExecuteStreaming(
 	// stored separately.
 	cm := executor.ResolveCostModel(task, e.CostModel())
 	// Vertex ADC bills a real GCP project — the one agent lane that is metered.
+	// Unless the registry cannot price the model: then CalculateCost yields $0
+	// and "metered $0" would be a fabricated free run, so the provenance says
+	// "unknown" (M-V1-SIMPLIFY-S4 M1).
 	res.CostProvenance = executor.ResolveCostProvenance(task, executor.AuthLaneBilled)
+	if cm.Unpriced {
+		res.CostProvenance = executor.CostProvenanceUnknown
+	}
+	// InputTokens here is the FRESH count: CalculateCost adds cache-read cost on
+	// top of input cost, so passing the cache-inclusive total would bill the
+	// cached tokens at both rates.
 	res.CostUSD = cm.CalculateCost(executor.TokenUsage{
-		InputTokens:  res.InputTokens,
-		OutputTokens: res.OutputTokens + res.ReasonTokens,
+		InputTokens:          res.InputTokens, // already fresh, see above
+		OutputTokens:         res.OutputTokens + res.ReasonTokens,
+		CacheReadInputTokens: res.CacheReadInputTokens,
 	})
 
 	// Stash multi-turn handles + unknown events into ProviderData for the

@@ -1,3 +1,8 @@
+---
+name: motoko-analyzer
+description: Run ONE motoko-mission improvement cycle with deterministic diagnostic gates (observe → diff → cheap-confirm → build → validate). Use when working on the motoko mission, running improvement cycles, or when the mission diagnostic loop or its gates are mentioned.
+---
+
 # Motoko Analyzer — the mission diagnostic loop
 
 Run ONE motoko-mission improvement cycle with the deterministic diagnostic gates that this

@@ -18,6 +18,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 // fakeLaunchctl records launchctl invocations for assertions.
@@ -45,7 +47,7 @@ func withLaunchctl(t *testing.T, l *fakeLaunchctl) func() {
 func tempHome(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
-	t.Setenv("HOME", dir)
+	testutil.SetHomeDir(t, dir)
 	return dir
 }
 

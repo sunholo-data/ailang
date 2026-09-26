@@ -235,6 +235,9 @@ func (s *Store) GetSpan(id string) (*Span, error) {
 
 // ListSpans returns spans with optional filtering.
 func (s *Store) ListSpans(opts SpanListOptions) ([]*Span, error) {
+	if opts.Offset < 0 {
+		return nil, fmt.Errorf("span offset must be non-negative")
+	}
 	query := `
 		SELECT id, trace_id, parent_span_id, task_id, agent_assignment_id,
 		       COALESCE(chain_id, ''), COALESCE(stage_id, ''),
@@ -296,12 +299,15 @@ func (s *Store) ListSpans(opts SpanListOptions) ([]*Span, error) {
 		args = append(args, opts.WorkspaceID)
 	}
 
-	query += " ORDER BY start_time ASC"
+	query += " ORDER BY start_time ASC, id ASC"
 
 	if opts.Limit > 0 {
 		query += fmt.Sprintf(" LIMIT %d", opts.Limit)
 	}
 	if opts.Offset > 0 {
+		if opts.Limit <= 0 {
+			query += " LIMIT -1"
+		}
 		query += fmt.Sprintf(" OFFSET %d", opts.Offset)
 	}
 
@@ -311,7 +317,7 @@ func (s *Store) ListSpans(opts SpanListOptions) ([]*Span, error) {
 	}
 	defer rows.Close()
 
-	var spans []*Span
+	spans := []*Span{}
 	for rows.Next() {
 		span := &Span{}
 		var parentSpanID, taskID, agentAssignmentID, chainID, stageID, statusMessage, model sql.NullString

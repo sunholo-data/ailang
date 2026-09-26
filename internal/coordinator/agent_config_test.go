@@ -6,31 +6,42 @@ import (
 	"testing"
 )
 
-func TestDefaultConfigPath_EnvOverride(t *testing.T) {
-	// Save and restore env var
-	orig := os.Getenv("AILANG_CONFIG")
-	defer os.Setenv("AILANG_CONFIG", orig)
+// The path resolution (AILANG_CONFIG, else ~/.ailang/config.yaml) lives in
+// internal/config and is tested there; what this package owns is that a
+// config file which exists but does not parse is an ERROR from every
+// loader, never a silent default (M-V1-SIMPLIFY-S3 M3).
+func TestLoadCoordinatorConfig_BrokenFileIsAnError(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(configPath, []byte("coordinator: [unclosed\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("AILANG_CONFIG", configPath)
 
-	// Set AILANG_CONFIG
-	os.Setenv("AILANG_CONFIG", "/etc/ailang-config/config.yaml")
-	got := defaultConfigPath()
-	if got != "/etc/ailang-config/config.yaml" {
-		t.Errorf("defaultConfigPath() = %q, want /etc/ailang-config/config.yaml", got)
+	if _, err := LoadCoordinatorConfig(); err == nil {
+		t.Error("LoadCoordinatorConfig: a broken file must be an error, not the default config")
+	}
+	if _, err := LoadBudgetsConfig(); err == nil {
+		t.Error("LoadBudgetsConfig: a broken file must be an error, not the default budgets")
+	}
+	if _, err := LoadCoordinatorConfigFrom(configPath); err == nil {
+		t.Error("LoadCoordinatorConfigFrom: a broken file must be an error")
 	}
 }
 
-func TestDefaultConfigPath_DefaultFallback(t *testing.T) {
-	// Save and restore env var
-	orig := os.Getenv("AILANG_CONFIG")
-	defer os.Setenv("AILANG_CONFIG", orig)
-
-	// Unset AILANG_CONFIG
-	os.Unsetenv("AILANG_CONFIG")
-	got := defaultConfigPath()
-	homeDir, _ := os.UserHomeDir()
-	want := filepath.Join(homeDir, ".ailang", "config.yaml")
-	if got != want {
-		t.Errorf("defaultConfigPath() = %q, want %q", got, want)
+func TestLoadCoordinatorConfig_NoFileIsTheDefault(t *testing.T) {
+	t.Setenv("AILANG_CONFIG", filepath.Join(t.TempDir(), "absent.yaml"))
+	cfg, err := LoadCoordinatorConfig()
+	if err != nil || cfg.DefaultProvider != "claude" {
+		t.Fatalf("no file: cfg=%+v err=%v; want the default config", cfg, err)
+	}
+	if b, err := LoadBudgetsConfig(); err != nil || b.Global == nil {
+		t.Fatalf("no file: budgets=%+v err=%v", b, err)
+	}
+	if fb := LoadFirebaseConfig(); fb != nil {
+		t.Fatalf("no file: firebase=%+v, want nil", fb)
+	}
+	if ws := LoadWorkspacesConfig(); ws == nil || len(ws.Mappings) == 0 {
+		t.Fatalf("no file: workspaces=%+v, want defaults", ws)
 	}
 }
 

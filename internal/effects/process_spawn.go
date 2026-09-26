@@ -5,7 +5,6 @@ package effects
 import (
 	"context"
 	"fmt"
-	"os/exec"
 
 	"github.com/sunholo-data/ailang/internal/eval"
 )
@@ -55,7 +54,7 @@ func ProcessSpawn(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 	}
 
 	// Resolve command path via ProcessContext (reuse allowlist + LookPath)
-	resolvedPath, err := resolveCommand(ctx.Process, cmdVal.Value)
+	resolvedPath, err := resolveCommand(ctx.Process, cmdVal.Value, cmdArgs)
 	if err != nil {
 		return nil, fmt.Errorf("_process_spawn_process: %w", err)
 	}
@@ -137,29 +136,15 @@ func ProcessCloseStdin(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 // --- Helper functions ---
 
 // resolveCommand resolves a command name to an absolute path using ProcessContext.
-func resolveCommand(pc *ProcessContext, cmdName string) (string, error) {
-	if pc == nil {
-		resolved, err := exec.LookPath(cmdName)
-		if err != nil {
-			return "", fmt.Errorf("command not found: %s", cmdName)
-		}
-		return resolved, nil
+func resolveCommand(pc *ProcessContext, cmdName string, args []string) (string, error) {
+	if pc != nil && pc.Confined {
+		// Confined mode is exec-only: a long-lived child with an open stdin
+		// has no hardened shape (M-EXECUTOR-POLICY-HARDENING M6).
+		return "", &ProcessDenial{Ctor: "NotAllowed", Detail: cmdName + " (spawnProcess is not available under confined Process; use exec)"}
 	}
-
-	if pc.HasAllowlist {
-		resolved, allowed := pc.Allowlist[cmdName]
-		if !allowed {
-			return "", fmt.Errorf("command not allowed: %s", cmdName)
-		}
-		if resolved == "" {
-			return "", fmt.Errorf("command not found: %s", cmdName)
-		}
-		return resolved, nil
-	}
-
-	resolved, err := exec.LookPath(cmdName)
-	if err != nil {
-		return "", fmt.Errorf("command not found: %s", cmdName)
+	resolved, denial := pc.Authorize(cmdName, args)
+	if denial != nil {
+		return "", denial
 	}
 	return resolved, nil
 }

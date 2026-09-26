@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/observatory"
 )
 
@@ -18,10 +19,7 @@ import (
 // attribute so all child spans (benchmarks, API calls) are linked.
 func createEvalTask(taskID, assignmentID string, models, benchmarks, langs []string, totalRuns int, agentMode bool) {
 	// Try Observatory API endpoint (default server at localhost:1957)
-	endpoint := os.Getenv("OBSERVATORY_ENDPOINT")
-	if endpoint == "" {
-		endpoint = "http://localhost:1957"
-	}
+	endpoint := config.ObservatoryEndpoint()
 
 	// Get working directory for workspace lookup
 	cwd, _ := os.Getwd()
@@ -140,10 +138,7 @@ func createEvalAgentAssignment(endpoint, taskID, assignmentID string, models []s
 
 // completeEvalTask updates the task status to completed when the eval finishes.
 func completeEvalTask(taskID string, success bool) {
-	endpoint := os.Getenv("OBSERVATORY_ENDPOINT")
-	if endpoint == "" {
-		endpoint = "http://localhost:1957"
-	}
+	endpoint := config.ObservatoryEndpoint()
 
 	status := observatory.TaskStatusCompleted
 	if !success {

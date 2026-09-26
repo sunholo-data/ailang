@@ -197,51 +197,7 @@ ailang run --caps IO,SharedMem,SharedIndex --trace-sharedmem --trace-sharedindex
 - Success/failure status
 - Timing information
 
-## Two-Tier Search Architecture
-
-AILANG provides two complementary search methods:
-
-### Tier 1: SimHash (Fast, Deterministic)
-
-Best for:
-- Near-duplicate detection
-- Typo tolerance
-- No external dependencies
-
-```ailang
-let hash = _simhash("The quick brown fox")
-let dist = _hamming_distance(hash1, hash2)  -- 0-64 bits
--- Score: 1.0 - (distance / 64.0)
-```
-
-### Tier 2: Neural Embeddings (Semantic, Accurate)
-
-Best for:
-- True semantic similarity ("car" ~ "automobile")
-- Paraphrase detection
-- Cross-lingual matching
-
-```ailang
--- Requires: ollama serve && ollama pull embeddinggemma
-let emb = _ollama_embed("embeddinggemma", "The quick brown fox")
-let results = _sharedindex_find_by_embedding("ns", emb, 5, 100, true)
-```
-
-### Hybrid Search Pattern
-
-Combine both for best results:
-
-```ailang
-func hybrid_search(ns: string, query: string, top_k: int) -> list[string] ! {SharedMem, SharedIndex} {
-  -- Phase 1: Fast SimHash pre-filter (100 candidates)
-  let hash = _simhash(query);
-  let candidates = _sharedindex_find_simhash(ns, hash, 100, 1000, true);
-
-  -- Phase 2: Re-rank with embeddings (top_k results)
-  let query_emb = _ollama_embed("embeddinggemma", query);
-  rerank_by_embedding(candidates, query_emb, top_k)
-}
-```
+For the two-tier search architecture, see [Semantic Search](/docs/guides/semantic-search).
 
 ## Embeddings Doctrine
 

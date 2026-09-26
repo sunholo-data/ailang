@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/sunholo-data/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/errors"
 	"github.com/sunholo-data/ailang/internal/lexer"
 	"github.com/sunholo-data/ailang/internal/parser"
@@ -72,7 +73,7 @@ func getDefaultSearchPaths() []string {
 	}
 
 	// Add AILANG_PATH if set
-	if ailangPath := os.Getenv("AILANG_PATH"); ailangPath != "" {
+	if ailangPath := config.ModulePath(); ailangPath != "" {
 		paths = append(paths, strings.Split(ailangPath, string(os.PathListSeparator))...)
 	}
 
@@ -87,7 +88,7 @@ func getDefaultSearchPaths() []string {
 // getStdlibPath returns the path to the standard library
 func getStdlibPath() string {
 	// Check environment variable
-	if stdlib := os.Getenv("AILANG_STDLIB"); stdlib != "" {
+	if stdlib := config.Stdlib(); stdlib != "" {
 		return stdlib
 	}
 

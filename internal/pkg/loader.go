@@ -97,10 +97,15 @@ func (pl *PackageLoader) ResolveImport(importPath string) (string, error) {
 	// Use MapImportToModulePath to construct the prefix-based path.
 	manifest, _ := pl.loadManifest(pkgName, pkgDir)
 
-	// Try src/ subdirectory first, then root
+	// Try src/ subdirectory first, then root, then the canonical checkout
+	// layout (<pkgdir>/<vendor>/<name>/<module>.ail) — the same three
+	// candidates as ResolveModuleToFile, so a package resolves its own
+	// siblings identically in a flat tarball and in a source checkout
+	// (M-PKG-QUALITY-LADDER: the v2 identity is built in both).
 	candidates := []string{
 		filepath.Join(pkgDir, "src", modulePath),
 		filepath.Join(pkgDir, modulePath),
+		filepath.Join(pkgDir, filepath.FromSlash(strings.TrimPrefix(importPath, "pkg/"))+".ail"),
 	}
 
 	// Add prefix-based candidates if module_prefix is set

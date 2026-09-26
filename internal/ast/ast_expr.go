@@ -31,6 +31,22 @@ import (
 type Identifier struct {
 	Name string
 	Pos  Pos
+
+	// ResolveAsBuiltin marks an identifier a DESUGAR synthesized to reach a
+	// $builtin function, rather than one the user wrote. The elaborator
+	// resolves it straight to $builtin.<Name>, bypassing normal name
+	// resolution, so no binding a user can introduce is able to capture it.
+	//
+	// It exists because the interpolation desugar inserts a `show` call the
+	// source does not contain (parser_literals.go). Ordinary resolution
+	// consults globalEnv and then local bindings, so the moment a module's own
+	// top-level definitions are allowed to win over builtins — the natural fix
+	// for the `export func show` shadowing bug — a user's `show` would take
+	// over every "${x}" hole in the program, silently.
+	//
+	// Only meaningful in expression position; Identifier is also a pattern
+	// node, where this field is ignored.
+	ResolveAsBuiltin bool
 }
 
 func (i *Identifier) String() string { return i.Name }

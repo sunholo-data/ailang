@@ -15,6 +15,8 @@ import (
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/messaging"
+	"github.com/sunholo-data/ailang/internal/storage"
+	"github.com/sunholo-data/ailang/internal/strutil"
 )
 
 // Send and reply operations for messages
@@ -53,7 +55,11 @@ func runMessagesSend(args []string) {
 
 	// Normalize args: move flags before positional arguments
 	// Go's flag package requires flags to come first, but users often put them at the end
-	args = normalizeArgsForFlags(args, []string{"payload", "title", "from", "correlation", "force", "parent-task", "envelope-code", "envelope-context", "no-envelope", "github", "type", "repo", "github-user", "requires"})
+	args, normErr := normalizeArgsForFlags(args, fs)
+	if normErr != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), normErr)
+		os.Exit(1)
+	}
 
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
@@ -68,6 +74,12 @@ func runMessagesSend(args []string) {
 	}
 
 	inbox := fs.Arg(0)
+
+	// Before anything is written: does this inbox do anything? An unknown one
+	// is accepted, filed, bounced and never acted on, so the cheapest place to
+	// catch a typo is here. --force is the deliberate-probe escape hatch.
+	guardSendInbox(inbox, *force)
+
 	var payload string
 
 	if *payloadFlag != "" {
@@ -89,7 +101,7 @@ func runMessagesSend(args []string) {
 	// Determine message title
 	msgTitle := *title
 	if msgTitle == "" {
-		msgTitle = truncateString(payload, 50)
+		msgTitle = strutil.Truncate(payload, 50)
 	}
 
 	// Determine category from --type flag (any string allowed)
@@ -121,10 +133,25 @@ func runMessagesSend(args []string) {
 		return
 	}
 
+	// --type names a CATEGORY (bug/feature/docs, for GitHub sync) but when it
+	// names a declared inbox message TYPE it must set that too.
+	//
+	// It did not, and the gap was invisible: `--type feedback` set Category and
+	// left MessageType as "notification", while config.cloud.yaml selects a
+	// package agent's prompt template on MessageType. So a feedback report sent
+	// from the CLI reached the agent under the CASCADE-REPAIR template and was
+	// worked as a dependency repair — measured 2026-09-07 on task-30429ccd, which
+	// went to the consumer package looking for a breakage that did not exist.
+	// Only mcp-public's submit_feedback could reach the feedback template.
+	messageType := messaging.InboxTypeNotification
+	if t := resolveInboxMessageType(category); t != "" {
+		messageType = t
+	}
+
 	msg := &messaging.InboxMessage{
 		FromAgent:     *from,
 		ToInbox:       inbox,
-		MessageType:   messaging.InboxTypeNotification,
+		MessageType:   messageType,
 		Title:         msgTitle,
 		Payload:       payload,
 		CorrelationID: *correlationID,
@@ -156,9 +183,16 @@ func runMessagesSend(args []string) {
 
 	// Dual-write: publish notification to Pub/Sub if enabled (M-PUBSUB)
 	// This is non-fatal — message is already safely in SQLite/Firestore.
-	cfg, _ := messaging.LoadConfig()
+	// The config error is REPORTED, not discarded: an unreadable config is the
+	// difference between "will be worked on" and "will sit forever", and the
+	// caller cannot tell those apart from a bare success line.
+	cfg, cfgErr := messaging.LoadConfig()
+	if cfgErr != nil {
+		fmt.Fprintf(os.Stderr, "%s messaging config unreadable (%v) — cannot determine whether this message will be dispatched\n", yellow("!"), cfgErr)
+	}
+	notified := false
 	if cfg != nil && cfg.PubSub != nil && cfg.PubSub.Enabled {
-		notifier, notifyErr := messaging.NewPubSubNotifier(cfg.PubSub)
+		notifier, notifyErr := messaging.NewPubSubNotifier(notifyConfigForStore(cfg.PubSub))
 		if notifyErr != nil {
 			fmt.Fprintf(os.Stderr, "%s Pub/Sub notify failed: %v\n", yellow("!"), notifyErr)
 		} else if notifier != nil {
@@ -166,10 +200,12 @@ func runMessagesSend(args []string) {
 			if notifyErr := notifier.Notify(context.Background(), msg); notifyErr != nil {
 				fmt.Fprintf(os.Stderr, "%s Pub/Sub notify failed: %v\n", yellow("!"), notifyErr)
 			} else {
+				notified = true
 				fmt.Printf("%s Pub/Sub notification published\n", green("✓"))
 			}
 		}
 	}
+	warnIfFiledButUndispatchable(inbox, notified)
 
 	// Compute envelope (M-SEMANTIC-ENVELOPE)
 	// Auto-detects git context unless --no-envelope is set
@@ -283,7 +319,7 @@ func sendViaHTTP(inbox, title, content, from, category, repo string, requires []
 		return fmt.Errorf("building HTTP request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	if key := os.Getenv("COORDINATOR_API_KEY"); key != "" {
+	if key := discoverCoordinatorAPIKey(); key != "" {
 		req.Header.Set("Authorization", "Bearer "+key)
 	}
 
@@ -296,7 +332,11 @@ func sendViaHTTP(inbox, title, content, from, category, repo string, requires []
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		respBody, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("POST %s returned %d: %s", url, resp.StatusCode, strings.TrimSpace(string(respBody)))
+		hint := ""
+		if resp.StatusCode == http.StatusUnauthorized {
+			hint = "\n  The daemon's HTTP API fails closed: it needs COORDINATOR_API_KEY in its plist and the CLI sends the same key (env COORDINATOR_API_KEY, else read from ~/Library/LaunchAgents/dev.ailang.coordinator.plist). `make coord-install` writes both."
+		}
+		return fmt.Errorf("POST %s returned %d: %s%s", url, resp.StatusCode, strings.TrimSpace(string(respBody)), hint)
 	}
 	return nil
 }
@@ -412,49 +452,100 @@ func runMessagesReply(args []string) {
 	fmt.Printf("%s Reply added to GitHub issue #%d in %s\n", green("✓"), *msg.GitHubIssue, targetRepo)
 }
 
-// normalizeArgsForFlags moves flags to the front of args so Go's flag package can parse them.
-// Go's flag package stops parsing when it sees a non-flag argument, but users often put
-// flags at the end (e.g., "send inbox message --title foo" instead of "send --title foo inbox message").
-func normalizeArgsForFlags(args []string, flagNames []string) []string {
-	// Build a set of known flag names (with -- prefix)
-	knownFlags := make(map[string]bool)
-	for _, name := range flagNames {
-		knownFlags["--"+name] = true
-		knownFlags["-"+name] = true
+// normalizeArgsForFlags moves flags to the front of args so Go's flag package
+// can parse them. Go stops parsing at the first non-flag argument, but users
+// naturally write `send inbox message --title foo` rather than
+// `send --title foo inbox message`.
+//
+// The flag set is read from fs itself rather than a hand-maintained list of
+// names. The old signature took []string, which meant every caller repeated the
+// names — and a list that must be kept in step with a FlagSet is a list that
+// drifts. It also could not distinguish a boolean flag from one taking a value,
+// which was the second half of the bug below.
+//
+// M-COORDINATOR-EXECUTION-TRUST M5 (design doc V29). The previous version
+// decided whether the NEXT token was a value with `!strings.HasPrefix(next, "-")`.
+// The intent was to avoid swallowing a following flag; the effect was to reject
+// any legitimate value that begins with a dash, drop it into the positional
+// list, and shift every later token. Measured 2026-09-02:
+//
+//	ailang messages send diag-argparse "body" \
+//	  --title "--help is inconsistent" --from "diag-sender"
+//
+// delivered the message to inbox "diag-sender", set from_agent to the "cli"
+// default, set the title to the literal string "--from" — and printed
+// "✓ Message sent". A misrouted message that reports success is exactly the
+// failure class this milestone exists to remove, one layer earlier than the rest.
+//
+// Two rules now:
+//
+//  1. Whether the next token is this flag's value is decided by the FLAG, not by
+//     the token's first character. A value flag always takes the next token; a
+//     boolean flag never does. Dash-leading values therefore survive, and a bool
+//     flag no longer swallows the positional after it.
+//  2. A value flag with nothing left to consume is an ERROR. Silently shifting is
+//     how routing became a side effect of a parse that half-failed.
+func normalizeArgsForFlags(args []string, fs *flag.FlagSet) ([]string, error) {
+	if fs == nil {
+		return args, nil
 	}
 
-	var flags []string
-	var positional []string
+	// takesValue[name] reports whether that flag consumes the following token.
+	// Booleans are identified the way the flag package itself does it.
+	takesValue := make(map[string]bool)
+	fs.VisitAll(func(f *flag.Flag) {
+		isBool := false
+		if bv, ok := f.Value.(interface{ IsBoolFlag() bool }); ok && bv.IsBoolFlag() {
+			isBool = true
+		}
+		takesValue[f.Name] = !isBool
+	})
+
+	// flagNameOf returns the bare flag name for "-x"/"--x", and whether it is one
+	// this set knows.
+	flagNameOf := func(arg string) (string, bool) {
+		if !strings.HasPrefix(arg, "-") {
+			return "", false
+		}
+		name := strings.TrimLeft(arg, "-")
+		if name == "" {
+			return "", false
+		}
+		_, known := takesValue[name]
+		return name, known
+	}
+
+	var flags, positional []string
 
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
-		// Check if this is a known flag
-		isFlag := false
-		for flagName := range knownFlags {
-			if arg == flagName {
-				isFlag = true
-				// Flag with separate value
+
+		// "--name=value" carries its own value; nothing to consume.
+		if eq := strings.IndexByte(arg, '='); eq > 0 {
+			if _, known := flagNameOf(arg[:eq]); known {
 				flags = append(flags, arg)
-				if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
-					i++
-					flags = append(flags, args[i])
-				}
-				break
-			}
-			if strings.HasPrefix(arg, flagName+"=") {
-				isFlag = true
-				// Flag with = value
-				flags = append(flags, arg)
-				break
+				continue
 			}
 		}
-		if !isFlag {
+
+		name, known := flagNameOf(arg)
+		if !known {
 			positional = append(positional, arg)
+			continue
 		}
+
+		flags = append(flags, arg)
+		if !takesValue[name] {
+			continue // boolean: must not eat the next token
+		}
+		if i+1 >= len(args) {
+			return nil, fmt.Errorf("flag --%s needs a value", name)
+		}
+		i++
+		flags = append(flags, args[i])
 	}
 
-	// Flags first, then positional arguments
-	return append(flags, positional...)
+	return append(flags, positional...), nil
 }
 
 // resolveEnvelopeCodeFiles determines which files to use for the code envelope slot.
@@ -588,4 +679,111 @@ func isSourceFile(path string) bool {
 		}
 	}
 	return false
+}
+
+// warnIfFiledButUndispatchable says so when a message has been FILED but will
+// never be DISPATCHED.
+//
+// The cloud coordinator's intake is Pub/Sub ONLY: pollAndProcessTasksCloud reads
+// the Pub/Sub adapter (internal/coordinator/daemon_tasks_polling.go) and never
+// queries Firestore. So a message written to the cloud store whose notification
+// did not publish is invisible to it — permanently, not slowly.
+//
+// Printing a bare "✓ Message sent" in that case is exactly the failure this
+// guards against: the write genuinely succeeded, the caller reasonably believed
+// work had been queued, and nothing ever ran. Measured 2026-08-31 — three
+// pkg:sunholo/ailang_parse reports sat unread with no task and no job, because
+// this machine's config carries no pubsub section at all.
+//
+// Local and hybrid stores are silent here on purpose: that daemon polls the
+// store directly, so no notification is required for work to start.
+func warnIfFiledButUndispatchable(inbox string, notified bool) {
+	if notified {
+		return
+	}
+	mode, project := messagesTarget()
+	if mode != storage.ModeGCP {
+		return
+	}
+	fmt.Fprintf(os.Stderr, "\n%s FILED, NOT DISPATCHED — no Pub/Sub notification was published.\n", yellow("!"))
+	fmt.Fprintf(os.Stderr, "  The message IS in Firestore (project %s, inbox %q) and is readable with\n", project, inbox)
+	fmt.Fprintf(os.Stderr, "    ailang messages list --inbox %q\n", inbox)
+	fmt.Fprintf(os.Stderr, "  but the cloud coordinator takes work from Pub/Sub only, so nothing will pick it up.\n")
+	fmt.Fprintf(os.Stderr, "  Fix — add to %s:\n", messaging.GetConfigPath())
+	fmt.Fprintf(os.Stderr, "    pubsub:\n      enabled: true\n      project_id: %s\n", project)
+}
+
+// notifyConfigForStore makes the notification follow the store the message was
+// actually written to.
+//
+// NewPubSubNotifier resolves its project from config.project_id, then
+// AILANG_CLOUD_PROJECT, then GOOGLE_CLOUD_PROJECT — none of which know which
+// store the write went to. So a message written to one project could be
+// announced in another, reaching a coordinator that cannot see it. The write
+// succeeds, the publish succeeds, both report ok, and the work is invisible to
+// the only process that could do it.
+//
+// Measured 2026-08-31: a probe written to ailang-multivac-dev published its
+// notification to ailang-multivac, because the pubsub block pinned project_id
+// to prod. The dev coordinator was never told and the task never ran.
+//
+// Notifying a project you did not write to is never correct, so the store wins
+// and a pinned mismatch is reported rather than honoured.
+func notifyConfigForStore(pc *messaging.PubSubConfig) *messaging.PubSubConfig {
+	mode, storeProject := messagesTarget()
+	if mode != storage.ModeGCP || storeProject == "" || pc == nil {
+		return pc
+	}
+	if pc.ProjectID != "" && pc.ProjectID != storeProject {
+		fmt.Fprintf(os.Stderr, "%s pubsub.project_id is %q but this message was written to %q; notifying %q so the right coordinator hears it\n",
+			yellow("!"), pc.ProjectID, storeProject, storeProject)
+	}
+	clone := *pc
+	clone.ProjectID = storeProject
+	// The topic prefix is per-environment infrastructure, not a user preference:
+	// terraform sets AILANG_TOPIC_PREFIX = var.prefix, giving ailang / ailang-dev
+	// / ailang-test alongside ailang-multivac{,-dev,-test}. Carrying prod's
+	// prefix into a dev store publishes to a topic that does not exist there —
+	// measured 2026-08-31, the probe failed on ailang-messages in a project whose
+	// topic is ailang-dev-messages. Derive it with the project so the pair always
+	// agrees; an unrecognised project keeps whatever was configured, and the
+	// FILED, NOT DISPATCHED warning still fires if that turns out to be wrong.
+	if derived, ok := topicPrefixForProject(storeProject); ok {
+		clone.TopicPrefix = derived
+	}
+	return &clone
+}
+
+// topicPrefixForProject maps ailang-multivac{,-dev,-test} to the topic prefix
+// terraform provisions for it. Returns false for anything it does not recognise,
+// so an unknown project is never silently given a guessed prefix.
+func topicPrefixForProject(project string) (string, bool) {
+	switch project {
+	case "ailang-multivac":
+		return "ailang", true
+	case "ailang-multivac-dev":
+		return "ailang-dev", true
+	case "ailang-multivac-test":
+		return "ailang-test", true
+	}
+	return "", false
+}
+
+// resolveInboxMessageType maps a --type value onto a declared inbox message
+// type, or returns "" when it is only a category.
+//
+// Deliberately a lookup against messaging.InboxMessageTypes rather than a second
+// list: a type accepted here but absent from the vocabulary is rejected by the
+// SQLite CHECK at write time and accepted by Firestore, which is exactly how the
+// two backends came to disagree about what a valid message is.
+func resolveInboxMessageType(category string) string {
+	if category == "" {
+		return ""
+	}
+	for _, t := range messaging.InboxMessageTypes {
+		if category == t {
+			return t
+		}
+	}
+	return ""
 }

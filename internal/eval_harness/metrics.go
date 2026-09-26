@@ -3,11 +3,13 @@ package eval_harness
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/modelreg"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/ai"
 	"github.com/sunholo-data/ailang/internal/executor"
 )
 
@@ -49,13 +51,24 @@ type RunMetrics struct {
 	// Added 2026-07-30. omitempty keeps earlier baselines parsing unchanged —
 	// but an ABSENT value means unmeasured, NOT metered. Any aggregate that
 	// claims metered dollars must filter on this, not assume it.
-	CostProvenance string    `json:"cost_provenance,omitempty"`
-	CompileOk      bool      `json:"compile_ok"`
-	RuntimeOk      bool      `json:"runtime_ok"`
-	StdoutOk       bool      `json:"stdout_ok"`
-	DurationMs     int64     `json:"duration_ms"`    // Total time (startup + compile + execution)
-	CompileMs      int64     `json:"compile_ms"`     // Time spent in compilation (if separate)
-	ExecuteMs      int64     `json:"execute_ms"`     // Time spent in execution (if measurable)
+	CostProvenance string `json:"cost_provenance,omitempty"`
+	CompileOk      bool   `json:"compile_ok"`
+	RuntimeOk      bool   `json:"runtime_ok"`
+	StdoutOk       bool   `json:"stdout_ok"`
+	DurationMs     int64  `json:"duration_ms"` // Total time (startup + compile + execution)
+	CompileMs      int64  `json:"compile_ms"`  // Time spent in compilation (if separate)
+	ExecuteMs      int64  `json:"execute_ms"`  // Time spent in execution (if measurable)
+
+	// LLM generation latency (M-LYCEUM-PROVIDER M3 route A/B). llm_wall_ms is
+	// the client-observed wall time of the generation HTTP call(s) behind this
+	// row — first attempt, PLUS the repair attempt when one produced the
+	// persisted code, and the FAILED call's wall time on api_error rows (the
+	// "did the gateway die at 30s or 5min?" datum). ttft_ms is
+	// time-to-first-token, only measurable on streaming transports (ollama);
+	// 0/absent means UNMEASURED, not instant. OpenRouter's server-side TTFT
+	// lives in the broadcast observatory instead.
+	LLMWallMs      int64     `json:"llm_wall_ms,omitempty"`
+	TTFTMs         int64     `json:"ttft_ms,omitempty"`
 	ErrorCategory  string    `json:"error_category"` // compile_error | runtime_error | logic_error | none
 	Stdout         string    `json:"stdout,omitempty"`
 	Stderr         string    `json:"stderr,omitempty"`
@@ -70,6 +83,24 @@ type RunMetrics struct {
 	// behind.
 	ResolvedProfile    string `json:"resolved_profile,omitempty"`
 	ResolvedExtensions string `json:"resolved_extensions,omitempty"`
+
+	// ExecutorVersion is the harness identity the CLI REPORTED ("pi@0.85.1"),
+	// captured from its own --version at run time. ABSENT MEANS UNMEASURED —
+	// every row banked before M-PI-HARNESS-UPGRADE M1 lacks it, and reading
+	// absent as "the current one" would let a harness boundary (0.73.1 → 0.85.1
+	// on 2026-09) vanish from the record exactly as the three ollama boundaries
+	// did. Compare across rows only when both carry the field.
+	ExecutorVersion string `json:"executor_version,omitempty"`
+
+	// ToolPolicy is the EFFECTIVE tool list the harness CLI ran with (or the
+	// executor.ToolPolicyCLIDefault sentinel when its defaults applied), and
+	// PolicyDigest the sha256 of the AILANG program policy an `ailang_only`
+	// run was gated by. ABSENT MEANS UNMEASURED — every row banked before
+	// M-AGENT-AILANG-ONLY-EXECUTION M1 lacks both, and reading absent as
+	// "full" would make the ailang_only lane boundary invisible. Compare
+	// tool-policy-sensitive rows only when both carry the field.
+	ToolPolicy   []string `json:"tool_policy,omitempty"`
+	PolicyDigest string   `json:"policy_digest,omitempty"`
 
 	// Validity marks whether this row is a MEASUREMENT at all, as opposed to a
 	// failure to measure (dead subject, harness error, wrong config). NIL means
@@ -251,7 +282,39 @@ const (
 	// third-party upstreams do NOT enforce it (probed 2026-07-19, recorded on the
 	// or-glm-5-2 entry in models.yml). Output headroom is the only enforced lever.
 	ErrorCategoryReasoningStall = "reasoning_stall"
+
+	// ErrorCategoryWireDrift: the executor CLI's NDJSON lacked a field a banked
+	// metric depends on (executor.FinishWireDrift). The MODEL may have finished
+	// fine; the harness could not record it truthfully. Distinct from api_error
+	// (cause unknown) because the cause is known and is ours: a harness upgrade
+	// moved the wire. M-PI-HARNESS-UPGRADE D4.
+	ErrorCategoryWireDrift = "wire_drift"
+
+	// ErrorCategoryPolicyViolation: the agent submitted a program whose declared
+	// effect row exceeds its operator policy (`ailang run --policy`,
+	// policy.KindPolicyViolation). A MODEL behaviour on the ailang_only lane —
+	// it reached for authority it was not granted — never api_error.
+	// M-AGENT-AILANG-ONLY-EXECUTION M2.
+	ErrorCategoryPolicyViolation = "policy_violation"
 )
+
+// Passed reports whether this row is a benchmark PASS: the code compiled, ran
+// to completion, AND its stdout matched. This is THE pass predicate (ruling
+// D2, Mark 2026-09-15); every rate, leaderboard, ELO fit and A/B join reads it.
+//
+// It is not the same as StdoutOk. Agent mode gates stdout_ok on runtime_ok
+// (agent_validation.go), but standard mode grades stdout independently
+// (repair.go runSingleAttempt), so a program that printed the expected output
+// and then crashed — or a compile failure on a benchmark whose expected stdout
+// is empty — banks stdout_ok=true with runtime_ok=false. Measured over every
+// baseline dir on 2026-09-15 (TestD2DiscordantCount): the two formulas
+// disagree on a small number of rows, and only StdoutOk-alone readers were ever
+// counting them as passes. Read StdoutOk directly only where the question is
+// genuinely "did the output match" (a diagnostic that reports the three flags
+// side by side), and say so at the read.
+func (m *RunMetrics) Passed() bool {
+	return m.CompileOk && m.RuntimeOk && m.StdoutOk
+}
 
 // CategorizeError determines the error category based on execution results
 func CategorizeError(compileOk, runtimeOk, stdoutOk bool) string {
@@ -372,14 +435,14 @@ func (l *MetricsLogger) Log(m *RunMetrics) error {
 // This provides accurate pricing based on models.yml configuration
 // Returns 0.0 if model not found - FAIL LOUDLY, NO SILENT FALLBACKS
 func CalculateCostWithBreakdown(model string, inputTokens, outputTokens int) float64 {
-	// CRITICAL: GlobalModelsConfig MUST be initialized
-	if GlobalModelsConfig == nil {
+	// CRITICAL: modelreg.GlobalModelsConfig MUST be initialized
+	if modelreg.GlobalModelsConfig == nil {
 		// Return 0 to make it obvious something is wrong
 		// Better to see $0.00 in reports than trust wrong data
 		return 0.0
 	}
 
-	cost, err := GlobalModelsConfig.CalculateCostForModel(model, inputTokens, outputTokens)
+	cost, err := modelreg.GlobalModelsConfig.CalculateCostForModel(model, inputTokens, outputTokens)
 	if err != nil {
 		// Model not found in config - return 0 to force investigation
 		// NO SILENT FALLBACKS - we want to know when pricing is missing
@@ -392,12 +455,12 @@ func CalculateCostWithBreakdown(model string, inputTokens, outputTokens int) flo
 // CalculateCostWithCache is CalculateCostWithBreakdown for callers that know the
 // run's prompt-cache reads. inputTokens must be FRESH input, disjoint from
 // cacheReadTokens. Same no-silent-fallback stance: an unpriced model returns 0.
-func CalculateCostWithCache(model string, inputTokens, outputTokens, cacheReadTokens int) float64 {
-	if GlobalModelsConfig == nil {
+func CalculateCostWithCache(model string, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens int) float64 {
+	if modelreg.GlobalModelsConfig == nil {
 		return 0.0
 	}
 
-	cost, err := GlobalModelsConfig.CalculateCostForModelWithCache(model, inputTokens, outputTokens, cacheReadTokens)
+	cost, err := modelreg.GlobalModelsConfig.CalculateCostForModelWithCache(model, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens)
 	if err != nil {
 		return 0.0
 	}
@@ -413,10 +476,10 @@ func CalculateCostWithCache(model string, inputTokens, outputTokens, cacheReadTo
 // on-device and free. An unresolvable model yields unknown rather than a guess,
 // matching CalculateCostWithBreakdown's no-silent-fallback stance.
 func standardModeCostProvenance(model string) string {
-	if GlobalModelsConfig == nil {
+	if modelreg.GlobalModelsConfig == nil {
 		return string(executor.CostProvenanceUnknown)
 	}
-	cfg, ok := GlobalModelsConfig.Models[model]
+	cfg, ok := modelreg.GlobalModelsConfig.Models[model]
 	if !ok {
 		return string(executor.CostProvenanceUnknown)
 	}
@@ -428,6 +491,15 @@ func standardModeCostProvenance(model string) string {
 	// `metered` would claim a spend that never happened.
 	if IsOllamaCloudRoute(cfg.APIName) ||
 		(cfg.AgentModelName != nil && IsOllamaCloudRoute(*cfg.AgentModelName)) {
+		return string(executor.CostListPriceEquivalent)
+	}
+	// Same reasoning for Anthropic on the OAuth lane (M-EVAL-STANDARD-OAUTH):
+	// standard mode can now authenticate with a subscription access token, in
+	// which case the priced arithmetic is real but nobody was charged. Calling
+	// that `metered` would invent spend — the exact defect this field exists to
+	// prevent. Reads the same resolver the client used, so the label cannot
+	// disagree with the lane that actually ran.
+	if cfg.Provider == string(ai.ProviderAnthropic) && ai.AnthropicLaneIsOAuth() {
 		return string(executor.CostListPriceEquivalent)
 	}
 	return string(executor.CostMetered)

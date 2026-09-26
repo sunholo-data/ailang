@@ -80,6 +80,43 @@ __pycache__/
 
 # Agent protocol runtime state (like .git/)
 .ailang/
+# ...EXCEPT the sprint state files, which are a pipeline ARTIFACT, not runtime
+# scratch. sprint-planner declares `.ailang/state/sprints/*.json` in its
+# artifact_patterns and sprint-executor REFUSES to start without the matching
+# file — so ignoring them makes the handoff between those two agents impossible
+# to complete.
+#
+# Measured 2026-09-14: sprint-planner produced a 178-line plan, it merged, and
+# sprint-executor then stopped with "Execution is blocked by the mandatory
+# sprint-executor gate: .ailang/state/sprints/sprint_M-OPENROUTER-EU-ROUTING.json
+# is missing." The planner had nothing to commit it WITH; `git add` skipped it
+# in silence. Older sprint JSONs are in the repo only because they were tracked
+# before this rule, and gitignore does not apply to already-tracked files —
+# which is exactly why the gap was invisible.
+#
+# Git cannot re-include a path whose parent directory is excluded, so each level
+# is re-admitted in turn. Everything else under .ailang/ stays ignored.
+# The exceptions are anchored to the repo root on purpose: an unanchored
+# `!.ailang/` re-admits every nested `.ailang/cache` the compiler drops next
+# to a source file (examples/**/.ailang showed as untracked for months).
+!/.ailang/
+/.ailang/*
+!/.ailang/state/
+/.ailang/state/*
+!/.ailang/state/sprints/
+!/.ailang/state/sprints/*.json
+# ...and the simplicity-metrics snapshots (M-V1-SIMPLIFY-S1): the weekly audit
+# diffs against the last banked one, so they must travel with the repo.
+!/.ailang/state/simplicity/
+!/.ailang/state/simplicity/*.json
+# ...and the decision-shadow rows (M-AI-DECIDE-SYSTEM-ONE D6): every decision
+# call banks its full distribution + provenance; the shadow report is a pure
+# aggregation of these, so they must travel with it.
+!/.ailang/state/decisions/
+!/.ailang/state/decisions/*.jsonl
+# ...and the perf-sweep snapshots (M-V1-MEMORY-FOOTPRINT): same reason, monthly.
+!/.ailang/state/perf/
+!/.ailang/state/perf/*.json
 /ui/node_modules
 internal/executor/opencode/plugins/node_modules
 internal/executor/opencode/plugins/coverage
@@ -111,3 +148,17 @@ code-harness-skills/
 smoke-motoko
 /tmp
 design_docs/research/*.pdf
+
+# Machine-local pi state (per-session agent-name marker; never versioned)
+.ailang_voice
+
+# Harness scratch dirs. scripts/test_fmt_check.sh, scripts/test_shellcheck_autopush.sh and
+# scripts/hooks/test_push_dev_on_stop.sh mktemp INSIDE the repo (deliberately — a /tmp-rooted
+# checkout makes CWD-relative path tests fail for the location rather than the code). Their
+# EXIT traps clean up; these two lines cover the SIGKILL/crash case only.
+.tmp-fmt-check.*
+.tmp-iter327.*
+
+# Build/scratch outputs at the root (M-V1-SIMPLIFY-S1 M5)
+/gen/
+/.eval_workspace/

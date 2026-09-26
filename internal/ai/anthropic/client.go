@@ -2,14 +2,13 @@
 package anthropic
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 
 	"github.com/sunholo-data/ailang/internal/ai"
+	"github.com/sunholo-data/ailang/internal/strutil"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -25,7 +24,10 @@ const (
 
 // Client implements ai.Provider for Anthropic's Claude API.
 type Client struct {
+	// apiKey holds the credential. Which HEADER it goes in — and therefore
+	// whether the run is billed — depends on authMode; see auth.go.
 	apiKey     string
+	authMode   AuthMode
 	baseURL    string
 	apiVersion string
 	httpClient *http.Client
@@ -151,6 +153,17 @@ type anthropicUsage struct {
 	OutputTokens             int `json:"output_tokens"`
 	CacheReadInputTokens     int `json:"cache_read_input_tokens"`
 	CacheCreationInputTokens int `json:"cache_creation_input_tokens"`
+	// OutputTokensDetails carries the thinking/answer split. Thinking tokens are
+	// INCLUDED in OutputTokens (and billed there) — this is a decomposition of
+	// that number, not an addition to it, so never sum the two.
+	OutputTokensDetails anthropicOutputTokensDetails `json:"output_tokens_details"`
+}
+
+// anthropicOutputTokensDetails is the `usage.output_tokens_details` object.
+// Absent on models that do not think, in which case ThinkingTokens is 0 — which
+// is also the honest answer for a thinking model that chose not to think.
+type anthropicOutputTokensDetails struct {
+	ThinkingTokens int `json:"thinking_tokens"`
 }
 
 // messagesResponse represents the response from the Messages API.
@@ -173,15 +186,6 @@ type contentBlock struct {
 	Input json.RawMessage `json:"input,omitempty"` // tool_use input (the structured output)
 }
 
-// errorResponse represents an error response from the API.
-type errorResponse struct {
-	Type  string `json:"type"`
-	Error struct {
-		Type    string `json:"type"`
-		Message string `json:"message"`
-	} `json:"error"`
-}
-
 // Generate implements ai.Provider.
 func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, error) {
 	if req.Routing != nil && (req.Routing.HasRouting() || req.Routing.PriceCapSet()) {
@@ -197,7 +201,7 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 		trace.WithAttributes(
 			attribute.String("ai.provider", "anthropic"),
 			attribute.String("ai.model", req.Model),
-			attribute.String("ai.prompt_preview", telemetry.Truncate(req.UserPrompt, 100)),
+			attribute.String("ai.prompt_preview", strutil.Truncate(req.UserPrompt, 100)),
 		),
 	)
 	defer span.End()
@@ -287,87 +291,27 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 	// Marshal request
 	jsonBody, err := json.Marshal(apiReq)
 	if err != nil {
-		span.SetAttributes(
-			attribute.String("error.message", telemetry.Truncate(err.Error(), 200)),
-			attribute.String("error.category", telemetry.CategorizeError(err)),
-		)
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to marshal request")
-		return nil, ai.NewProviderError("anthropic", 0, "failed to marshal request", err)
+		e := ai.NewProviderError("anthropic", 0, "failed to marshal request", err)
+		ai.RecordSpanError(span, e)
+		return nil, e
 	}
 
-	// Create HTTP request
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/messages", bytes.NewReader(jsonBody))
-	if err != nil {
-		span.SetAttributes(
-			attribute.String("error.message", telemetry.Truncate(err.Error(), 200)),
-			attribute.String("error.category", telemetry.CategorizeError(err)),
-		)
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to create request")
-		return nil, ai.NewProviderError("anthropic", 0, "failed to create request", err)
-	}
-
-	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("x-api-key", c.apiKey)
-	httpReq.Header.Set("anthropic-version", c.apiVersion)
-
-	// Execute request
-	resp, err := c.httpClient.Do(httpReq)
-	if err != nil {
-		span.SetAttributes(
-			attribute.String("error.message", telemetry.Truncate(err.Error(), 200)),
-			attribute.String("error.category", telemetry.CategorizeError(err)),
-		)
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "request failed")
-		return nil, ai.NewProviderError("anthropic", 0, "request failed", err)
-	}
-	defer resp.Body.Close()
-
-	span.SetAttributes(attribute.Int("http.status_code", resp.StatusCode))
-
-	// Read response
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		span.SetAttributes(
-			attribute.String("error.message", telemetry.Truncate(err.Error(), 200)),
-			attribute.String("error.category", telemetry.CategorizeError(err)),
-		)
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to read response")
-		return nil, ai.NewProviderError("anthropic", resp.StatusCode, "failed to read response", err)
-	}
-
-	// Handle errors
-	if resp.StatusCode != 200 {
-		var errResp errorResponse
-		if json.Unmarshal(body, &errResp) == nil && errResp.Error.Message != "" {
-			span.SetAttributes(
-				attribute.String("error.message", telemetry.Truncate(errResp.Error.Message, 200)),
-				attribute.String("error.category", "api_error"),
-			)
-			span.SetStatus(codes.Error, errResp.Error.Message)
-			return nil, ai.NewProviderError("anthropic", resp.StatusCode, errResp.Error.Message, nil)
-		}
-		span.SetAttributes(
-			attribute.String("error.message", telemetry.Truncate(string(body), 200)),
-			attribute.String("error.category", "api_error"),
-		)
-		span.SetStatus(codes.Error, string(body))
-		return nil, ai.NewProviderError("anthropic", resp.StatusCode, string(body), nil)
-	}
-
-	// Parse successful response
+	headers := http.Header{}
+	c.applyAuthHeaders(headers)
 	var result messagesResponse
-	if err := json.Unmarshal(body, &result); err != nil {
-		span.SetAttributes(
-			attribute.String("error.message", telemetry.Truncate(err.Error(), 200)),
-			attribute.String("error.category", telemetry.CategorizeError(err)),
-		)
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to parse response")
-		return nil, ai.NewProviderError("anthropic", 0, "failed to parse response", err)
+	res, err := ai.DoJSON(ctx, ai.JSONCall{
+		Provider: "anthropic",
+		Client:   c.httpClient,
+		URL:      c.baseURL + "/messages",
+		Headers:  headers,
+		Body:     jsonBody,
+	}, &result)
+	if res != nil {
+		span.SetAttributes(attribute.Int("http.status_code", res.StatusCode))
+	}
+	if err != nil {
+		ai.RecordSpanError(span, err)
+		return nil, err
 	}
 
 	// Extract text from content blocks
@@ -416,7 +360,7 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 		attribute.Int("ai.tokens_in", result.Usage.InputTokens),
 		attribute.Int("ai.tokens_out", result.Usage.OutputTokens),
 		attribute.Int("ai.tokens_total", result.Usage.InputTokens+result.Usage.OutputTokens),
-		attribute.String("ai.response_preview", telemetry.Truncate(text, 100)),
+		attribute.String("ai.response_preview", strutil.Truncate(text, 100)),
 		attribute.String("ai.finish_reason", result.StopReason),
 	)
 
@@ -431,10 +375,20 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 		// produced the GLM-5.2 misdiagnosis. "max_tokens" normalizes to "length".
 		// The agent path (step.go) has always mapped this; only Generate dropped it.
 		//
-		// NOTE: ReasonTokens is deliberately NOT set. Anthropic reports no separate
-		// thinking-token count — thinking is billed inside Usage.OutputTokens — so
-		// any split here would be fabricated. Leaving it 0 keeps cost math honest
-		// at the price of no thinking/answer decomposition on Anthropic rows.
+		// ReasonTokens comes from usage.output_tokens_details.thinking_tokens.
+		//
+		// This comment previously asserted that "Anthropic reports no separate
+		// thinking-token count" and left the field at 0 on purpose. That was
+		// TRUE when written and is FALSE now — the field exists and populates
+		// (live-probed 2026-09-02: 298 thinking of 1160 output tokens, content
+		// blocks ["thinking","text"]). The stale claim cost us the
+		// thinking/answer split on every Anthropic row of the Fable 5.1
+		// core+frontier run, which read as 0 reasoning tokens for an always-on
+		// thinking model.
+		//
+		// Cost math is unaffected either way: thinking is billed INSIDE
+		// OutputTokens, so this decomposes that figure rather than adding to it.
+		ReasonTokens: result.Usage.OutputTokensDetails.ThinkingTokens,
 		FinishReason: mapStopReason(result.StopReason),
 		Model:        result.Model,
 	}, nil

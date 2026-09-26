@@ -1,0 +1,49 @@
+{
+  "sprint_id": "M-FLOAT-EQ-ONE-SEMANTICS",
+  "evaluation_round": 1,
+  "mode": "local (read-only: no executor invoked, design doc not moved per caller instruction)",
+  "timestamp": "2026-09-25T21:00:00+02:00",
+  "evaluator_model": "claude-opus-5-5",
+  "design_doc": "design_docs/planned/v0_41_2/m-float-eq-one-semantics.md",
+  "commits": ["62608138d"],
+  "tracking": "#1274",
+  "total_score": 84,
+  "pass_threshold": 70,
+  "result": "pass",
+  "score_breakdown": {"tests_pass": 20, "lint_clean": 10, "acceptance_criteria": 27, "code_quality": 12, "documentation": 10, "design_fidelity": 5},
+  "conditional": {"regression_surface_coverage": "triggered (internal/types, eval, vm); Conflict Surface present; must-still-work examples pass verify-examples-toplevel (only pre-existing examples/ai_modes.ail fails)"},
+  "hard_fails": [],
+  "automated_checks": {
+    "make_test": "green except pre-existing untracked internal/riglock tests",
+    "make_lint": "only untracked internal/riglock/children.go issue",
+    "verify_examples_toplevel": "1 failure: examples/ai_modes.ail (pre-existing)",
+    "mutation": "restoring lawful NaN in valuesStructurallyEqual -> parity rows 'nested NaN' and 'NaN in ADT' FAIL - test non-vacuous"
+  },
+  "acceptance_criteria": [
+    {"criterion": "D1 recorded", "met": true},
+    {"criterion": "13-row parity eval==VM", "met": true},
+    {"criterion": "std/math.isNaN + prompt row", "met": true},
+    {"criterion": "mutation catches reversions", "met": true, "evidence": "structural reversion independently verified"},
+    {"criterion": "test-core, verify-examples-toplevel, CHANGELOG", "met": true, "evidence": "only pre-existing ai_modes failure; box unticked in doc"}
+  ],
+  "headline_claim_check": "'IEEE on every path' is NOT fully true: std/list membership/set helpers still disagree (below). Pre-existing, not regressions, but inside the doc's own problem statement ('one answer on every path').",
+  "probes_live": {
+    "member(nan,[nan])": {"eval": false, "vm": true},
+    "let n=nan; contains([n], n)": {"eval": true, "vm": false},
+    "contains([nan], nan)": {"eval": false, "vm": false},
+    "length(dedup([nan,nan]))": {"eval": 1, "vm": 1, "ieee": 2},
+    "length(intersect([nan],[nan]))": {"eval": 1, "vm": 1, "ieee": 0},
+    "length(difference([nan],[nan]))": {"eval": 0, "vm": 0, "ieee": 1},
+    "let xs=[nan]; xs == xs": {"eval": false, "vm": false},
+    "REPL let n=nan in [n]==[n]": false
+  },
+  "feedback": [
+    {"file": "internal/vm/builtins_list.go:43 (also :62, :87, :111, :135)", "issue": "__list_member/dedup/difference/intersect/union compare with bytecode Value.Equal, which D3 deliberately kept NaN==NaN 'for constant-pool dedup' - but these are membership ==, so member(nan,[nan]) is true on the VM and false on the evaluator: a live eval/VM divergence on a float == path", "suggestion": "use runtimeEq in the VM list builtins (Value.Equal stays for image.go constant dedup only) and add member/contains rows to TestEqEvaluatorVMParity"},
+    {"file": "internal/builtins/list.go:382", "issue": "valuesEqual starts with `if left == right { return true }` pointer identity, so `let n = nan; contains([n], n)` is true on the evaluator and false on the VM", "suggestion": "drop the identity shortcut (or skip it for FloatValue)"},
+    {"file": "internal/builtins/list_set.go:22-27 (canonicalKey hashing)", "issue": "dedup/intersect/union/difference collapse NaNs on both backends (dedup([nan,nan]) has 1 element, intersect([nan],[nan]) has 1) - consistent, but not IEEE", "suggestion": "decide explicitly (set semantics may legitimately collapse NaN, as Go map keys do not and Python sets do only by identity), then document in the CHANGELOG/prompt and pin in the parity test"},
+    {"file": "internal/smt/codegen_infer.go:33", "issue": "float encoded as SMT Real: Z3 can prove x == x for a float that is NaN at runtime; contract verification is not IEEE", "suggestion": "pre-existing; record in docs/LIMITATIONS.md (FP sort is a separate sprint)"},
+    {"file": "internal/gen/golang/codegen_dictionaries.go:211", "issue": "derived Eq in Go codegen uses reflect.DeepEqual, which short-circuits on identical slice backing arrays, so a list compared with itself containing NaN would be true; doc V8 says 'not run end-to-end'", "suggestion": "low; add one codegen parity row or note it"},
+    {"file": "examples/", "issue": "new stdlib feature std/math.isNaN has no example file", "suggestion": "add examples/runnable/float_nan.ail (isNaN, nan != nan, [nan] != [nan]) with manifest entry"},
+    {"note": "Checked and fine: Ord[Float] compare treats NaN==NaN (explicit non-goal); ailang test equalValues uses |a-b|<1e-9 which is false for NaN (consistent); REPL IEEE; no example/std/benchmark relies on nan==nan true"}
+  ]
+}

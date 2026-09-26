@@ -8,6 +8,7 @@ import type { EventMessage, DateRange } from './types';
 import type { ControlPlaneFilters, SortField, SortOrder } from '../types';
 import { hasActiveFilters } from '../types';
 import { CliCommandHint } from './CliCommandHint';
+import { DateRangeFilter } from './DateRangeFilter';
 import styles from '../ControlPlane.module.css';
 
 // Chat preview cache type
@@ -78,15 +79,6 @@ const formatRelativeTime = (timestamp: string): string => {
 
 const ALL_EVENT_TYPES: EventType[] = ['task_start', 'task_complete', 'task_error', 'handoff', 'approval', 'message', 'session'];
 
-const formatDateRange = (range: DateRange): string => {
-  const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
-  const startDate = new Date(range.start + 'T00:00:00');
-  const endDate = new Date(range.end + 'T00:00:00');
-  const startStr = startDate.toLocaleDateString('en-US', opts);
-  const endStr = endDate.toLocaleDateString('en-US', opts);
-  if (startStr === endStr) return startStr;
-  return `${startStr} - ${endStr}`;
-};
 
 // Helper to extract workspace name from full path
 const getWorkspaceName = (workspace: string): string => {
@@ -149,8 +141,8 @@ export const MessageQueue: React.FC<MessageQueueProps> = ({
 
     // Filter by date range - convert strings to Date objects for reliable comparison
     if (selectedDateRange) {
-      const startDate = new Date(selectedDateRange.start + 'T00:00:00');
-      const endDate = new Date(selectedDateRange.end + 'T23:59:59');
+      const startDate = new Date(selectedDateRange.start + 'T00:00:00.000Z');
+      const endDate = new Date(selectedDateRange.end + 'T23:59:59.999Z');
       result = result.filter((event) => {
         const eventDate = new Date(event.timestamp);
         return eventDate >= startDate && eventDate <= endDate;
@@ -288,9 +280,6 @@ export const MessageQueue: React.FC<MessageQueueProps> = ({
     }
   }, [selectedTypes, onTypeFilterChange]);
 
-  const handleClearDateFilter = useCallback(() => {
-    onDateRangeChange?.(null);
-  }, [onDateRangeChange]);
 
   // "All" means clear filter (show all types) - use empty array
   const handleSelectAllTypes = useCallback(() => {
@@ -321,17 +310,7 @@ export const MessageQueue: React.FC<MessageQueueProps> = ({
 
       {/* Filter toolbar */}
       <div className={styles.queueFilters}>
-        {/* Date range filter */}
-        <button
-          className={`${styles.filterBtn} ${selectedDateRange ? styles.filterBtnActive : ''}`}
-          onClick={handleClearDateFilter}
-          disabled={!selectedDateRange}
-          title={selectedDateRange ? 'Clear date filter' : 'Select dates from heatmap'}
-        >
-          <span className={styles.filterIcon}>📅</span>
-          {selectedDateRange ? formatDateRange(selectedDateRange) : 'Dates'}
-          {selectedDateRange && <span className={styles.filterClear}>×</span>}
-        </button>
+        <DateRangeFilter value={selectedDateRange} onChange={onDateRangeChange} />
 
         {/* Event type filter */}
         <div className={styles.filterDropdown}>

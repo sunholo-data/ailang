@@ -1,9 +1,21 @@
 package pubsub
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/sunholo-data/ailang/internal/config"
+)
 
 // DefaultTopicPrefix is the default prefix for all AILANG Pub/Sub topics.
-const DefaultTopicPrefix = "ailang"
+const DefaultTopicPrefix = config.DefaultTopicPrefix
+
+// TopicPrefixFromEnv resolves the topic prefix: AILANG_TOPIC_PREFIX (set by
+// terraform per environment: ailang / ailang-dev) or DefaultTopicPrefix.
+// The one place that reads the variable; eight call sites used to repeat
+// the two-line fallback (M-V1-SIMPLIFY-S3 M5).
+func TopicPrefixFromEnv() string {
+	return config.TopicPrefix()
+}
 
 // Topic base names. The full topic name is "{prefix}-{base}".
 const (
@@ -55,6 +67,14 @@ type TaskCompletion struct {
 	// Used by external clients (portal, sidecar) to know which files were created/modified.
 	ChangedFiles []string `json:"changed_files,omitempty"`
 
+	// ModelUsed / ChainLinkIndex record WHICH link of the model chain actually
+	// produced this result (M-COORDINATOR-EXECUTION-TRUST M3). Without them a
+	// retry is unattributable and the banked model field is a guess — which
+	// also makes per-task cost attribution wrong for exactly the runs that
+	// changed lane.
+	ModelUsed      string `json:"model_used,omitempty"`
+	ChainLinkIndex int    `json:"chain_link_index,omitempty"`
+
 	// Executor metrics (populated when using full executor infrastructure)
 	SessionID     string  `json:"session_id,omitempty"`
 	NumTurns      int     `json:"num_turns,omitempty"`
@@ -68,9 +88,44 @@ type TaskCompletion struct {
 	CacheReadTokens     int `json:"cache_read_tokens,omitempty"`
 	CacheCreationTokens int `json:"cache_creation_tokens,omitempty"`
 
+	// Summary is the agent's OWN account of what it did, in its own words.
+	//
+	// Without it a `no_changes` or `failed` completion says only that nothing
+	// happened, and the reason — which the agent stated plainly — lives in a GCS
+	// transcript nobody reads. Measured 2026-09-14: sprint-executor ran, spent
+	// 33,737 input tokens, produced 1,015 tokens of output ending
+	//
+	//	Execution is blocked by the mandatory sprint-executor gate:
+	//	.ailang/state/sprints/sprint_M-OPENROUTER-EU-ROUTING.json is missing.
+	//
+	// and the completion that reached the message plane carried an empty
+	// error_msg, changed_files:null, and nothing else. An agent that declines to
+	// act for a GOOD reason is indistinguishable from one that silently did
+	// nothing, and that is the single worst outcome for trusting a pipeline.
+	//
+	// Bounded, because this rides on every completion: the tail, since an
+	// agent's conclusion is at the end.
+	Summary string `json:"summary,omitempty"`
+
 	// GCS path prefix for raw artifacts: transcript.txt, session.jsonl, metrics.json
 	// Format: "tasks/{taskID}" (relative to the per-environment artifact bucket)
 	ArtifactGCSPath string `json:"artifact_gcs_path,omitempty"`
+
+	// Approval evidence, produced by the executor because it is the only
+	// component with a git tree — the cloud coordinator has no clone and cannot
+	// run `git diff` at any price (M-COMPLETION-PATH-PARITY M3).
+	//
+	// The diff is bounded by two IMMUTABLE commit SHAs rather than by a branch
+	// name: a branch can move or be deleted between delivery attempts, so a
+	// branch-bounded diff could render differently on a replay of the same
+	// completion.
+	BaseCommit string `json:"base_commit,omitempty"`
+	HeadCommit string `json:"head_commit,omitempty"`
+	DiffStat   string `json:"diff_stat,omitempty"`
+	// Diff is capped by the executor; a patch large enough to breach the Pub/Sub
+	// message limit would fail the whole completion, losing the run's status in
+	// order to make its approval card prettier.
+	Diff string `json:"diff,omitempty"`
 }
 
 // MessageAttributes carries routing metadata as Pub/Sub message attributes.

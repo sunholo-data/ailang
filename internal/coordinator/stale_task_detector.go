@@ -5,11 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"os"
 	"sync"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/messaging"
+	"github.com/sunholo-data/ailang/internal/observatory"
 )
 
 // StaleTaskDetector periodically checks for tasks stuck in queued/running status
@@ -24,13 +25,36 @@ type StaleTaskDetector struct {
 	store         Store
 	agentRegistry *AgentRegistry
 	msgStore      messaging.MessageStore
+	obsBackend    observatory.Backend // may be nil; chain closure is skipped when absent
 	logger        *log.Logger
 	interval      time.Duration // Check interval (default: 2 min)
+
+	// reDispatch, when set, re-runs an infra-class failure on the next chain
+	// link. Nil means "report only" — the detector then behaves exactly as it
+	// did before M3, which is the safe default for any caller that has not
+	// opted in. This detector is the only component that may hold it.
+	reDispatch func(ctx context.Context, task *TaskRecord) error
 
 	// TTL cache for stale task query results.
 	cacheMu     sync.RWMutex
 	cachedTasks []*TaskRecord
 	cacheExpiry time.Time
+}
+
+// WithReDispatcher opts this detector in as the sole re-dispatcher of
+// infra-class failures. The callback must compare-and-set AttemptCount so two
+// coordinator instances cannot both spend an execution.
+func (d *StaleTaskDetector) WithReDispatcher(f func(ctx context.Context, task *TaskRecord) error) *StaleTaskDetector {
+	d.reDispatch = f
+	return d
+}
+
+// WithObservatory attaches the observatory backend so a timed-out task also
+// closes its execution chain. Without it, chain closure is skipped (and said so
+// once), which is the pre-existing behaviour.
+func (d *StaleTaskDetector) WithObservatory(b observatory.Backend) *StaleTaskDetector {
+	d.obsBackend = b
+	return d
 }
 
 // NewStaleTaskDetector creates a detector that checks for stale tasks periodically.
@@ -72,10 +96,47 @@ func (d *StaleTaskDetector) detectAndMarkStale(ctx context.Context) {
 
 	for _, task := range tasks {
 		timeout := d.getTaskTimeout(task)
-		age := d.getTaskAge(task)
+		age, known := d.getTaskAge(task)
+		if !known {
+			// Loud, and every pass: this is a writer defect upstream (a task
+			// persisted with no created_at), and staying quiet about it is how it
+			// survived long enough to be discovered from its blast radius.
+			d.logger.Printf("stale task detector: task %s has no created_at and no started_at — "+
+				"age unknowable, NOT marking stale (upstream writer defect)", task.ID)
+			continue
+		}
 
 		if age <= timeout {
 			continue
+		}
+
+		// M-COORDINATOR-EXECUTION-TRUST M3: a task that timed out without ever
+		// publishing a completion is the INFRASTRUCTURE class — the container
+		// died, was OOM-killed or was preempted. In-container retry is
+		// impossible by definition here, which is exactly why this tier exists.
+		//
+		// This detector is the SOLE re-dispatcher. Three other components can
+		// also move a task toward a terminal state (the completion handler, the
+		// stranded-approval sweep, the worktree sweep — design doc V23); any
+		// second one gaining this power would breach the cap and duplicate work
+		// nondeterministically.
+		if ShouldReDispatch(task, age, known) {
+			if d.reDispatch != nil {
+				// Compare-and-set on the persisted counter: a loser LOGS and does
+				// nothing. Deliberately not a lock — a silent loser is
+				// indistinguishable from a component that never ran.
+				if err := d.reDispatch(ctx, task); err != nil {
+					d.logger.Printf("stale task detector: task %s not re-dispatched (attempt %d/%d): %v",
+						task.ID, task.AttemptCount+1, MaxTaskExecutions, err)
+				} else {
+					d.logger.Printf("stale task detector: task %s re-dispatched on chain link %d (attempt %d/%d)",
+						task.ID, task.ChainLinkIndex+1, task.AttemptCount+1, MaxTaskExecutions)
+					d.cacheMu.Lock()
+					d.cachedTasks = nil
+					d.cacheMu.Unlock()
+					continue
+				}
+			}
 		}
 
 		errMsg := fmt.Sprintf("task timed out: no completion received within %v of being queued (age=%v)", timeout, age)
@@ -91,8 +152,34 @@ func (d *StaleTaskDetector) detectAndMarkStale(ctx context.Context) {
 		d.cachedTasks = nil
 		d.cacheMu.Unlock()
 
+		d.closeChainForFailedTask(ctx, task, errMsg)
 		d.postFailureNotification(ctx, task, errMsg)
 	}
+}
+
+// closeChainForFailedTask drives the task's execution chain to a terminal state.
+//
+// MarkTaskFailed moved only the TASK. Nothing reconciled the chain, and chain
+// closure otherwise happens solely on the approval/rejection path
+// (approval_processor.go) — which a job that died before completing never
+// reaches. So a chain opened at dispatch stayed `active` forever.
+//
+// Measured 2026-08-31 in prod: 92 of 99 chains were `active`, the oldest since
+// 2026-04-27. That makes "running right now" and "died in April" the same
+// reading, which is worse than no status at all — a stuck chain is invisible
+// precisely because it looks busy.
+func (d *StaleTaskDetector) closeChainForFailedTask(ctx context.Context, task *TaskRecord, errMsg string) {
+	if d.obsBackend == nil || task.ChainID == "" {
+		return
+	}
+	if err := d.obsBackend.UpdateChainStatus(ctx, task.ChainID, observatory.ChainStatusFailed); err != nil {
+		// Loud, not fatal: the task IS failed and the notification still goes out.
+		// A chain left open is a reporting defect, not a lost outcome.
+		d.logger.Printf("stale task detector: task %s marked failed but chain %s could not be closed: %v",
+			task.ID, task.ChainID, err)
+		return
+	}
+	d.logger.Printf("stale task detector: closed chain %s as failed (task %s: %s)", task.ChainID, task.ID, errMsg)
 }
 
 // getCachedOrQueryTasks returns queued/running tasks, using a 90-second TTL cache
@@ -132,12 +219,31 @@ func (d *StaleTaskDetector) getTaskTimeout(task *TaskRecord) time.Duration {
 	return 90 * time.Minute
 }
 
-// getTaskAge returns how long a task has been in its current status.
-func (d *StaleTaskDetector) getTaskAge(task *TaskRecord) time.Duration {
-	if task.StartedAt != nil {
-		return time.Since(*task.StartedAt)
+// getTaskAge reports how long the task has been outstanding, and whether that
+// is knowable at all.
+//
+// NO SILENT FALLBACK. A task with neither StartedAt nor CreatedAt used to fall
+// through to time.Since(zero) — about 292 years — so every such task exceeded
+// every timeout and was killed on the first tick after dispatch. Measured in
+// prod 2026-08-31: task-a855b349 and task-133e933b were both written with
+// created_at = null, marked "timed out ... within 22m30s (age=2562047h47m16s)"
+// roughly 57s after being queued, and each failure notice then fed a dispatch
+// loop. An unknown age is a data defect to report, never a timeout to act on.
+func (d *StaleTaskDetector) getTaskAge(task *TaskRecord) (time.Duration, bool) {
+	if task.StartedAt != nil && !task.StartedAt.IsZero() {
+		return time.Since(*task.StartedAt), true
 	}
-	return time.Since(task.CreatedAt)
+	// The claim, not the message: CreatedAt is inherited from the message, so a
+	// task the backstop sweep recovers would otherwise be born past its timeout
+	// (M-TASK-STATUS-TRUTH S1). CreatedAt remains the floor for rows claimed
+	// before queued_at existed.
+	if task.QueuedAt != nil && !task.QueuedAt.IsZero() {
+		return time.Since(*task.QueuedAt), true
+	}
+	if !task.CreatedAt.IsZero() {
+		return time.Since(task.CreatedAt), true
+	}
+	return 0, false
 }
 
 // postFailureNotification posts a failure message to the agent's inbox
@@ -176,7 +282,18 @@ func (d *StaleTaskDetector) postFailureNotification(ctx context.Context, task *T
 	}
 }
 
-// IsCloudMode returns true if running in cloud mode.
+// validateCoordinatorMode is NewDaemon's start-up gate: COORDINATOR_MODE
+// must resolve and agree with the storage plane.
+func validateCoordinatorMode() error {
+	_, _, err := config.CoordinatorMode()
+	return err
+}
+
+// IsCloudMode reports whether the daemon runs in cloud mode — COORDINATOR_MODE
+// resolved and validated against the storage plane by internal/config, the
+// one reader of that variable. A mode that does not resolve is not cloud;
+// NewDaemon has already refused to start on it.
 func IsCloudMode() bool {
-	return os.Getenv("COORDINATOR_MODE") == CoordinatorModeCloud
+	mode, _, err := config.CoordinatorMode()
+	return err == nil && mode == CoordinatorModeCloud
 }

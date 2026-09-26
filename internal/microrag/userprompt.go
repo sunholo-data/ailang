@@ -3,10 +3,10 @@ package microrag
 import (
 	"context"
 	"fmt"
-	"os"
 	"sort"
-	"strconv"
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // UserPromptRequest is the input to a UserPromptSubmit-driven engine call.
@@ -66,7 +66,7 @@ const (
 	// calibrated on short prompts only and still admitted the 0.65 long case.
 	// Re-run TestUserPrompt_FloorSeparatesCalibrationPanel after any reindex and
 	// use EnvUserPromptFloor to re-tune without a rebuild.
-	userPromptRelevanceFloor = 0.70
+	userPromptRelevanceFloor = config.DefaultMicroRAGUserPromptFloor
 
 	// userPromptMinLen — below this we skip the search entirely. Embedding
 	// signal on <20 chars of prompt is dominated by noise.
@@ -84,15 +84,7 @@ const (
 // a config typo, and silently widening the gate is the failure mode this
 // hook's token cost cannot afford.
 func UserPromptFloorFromEnv() float64 {
-	v := strings.TrimSpace(os.Getenv(EnvUserPromptFloor))
-	if v == "" {
-		return userPromptRelevanceFloor
-	}
-	f, err := strconv.ParseFloat(v, 64)
-	if err != nil || f <= 0 || f > 1 {
-		return userPromptRelevanceFloor
-	}
-	return f
+	return config.MicroRAGUserPromptFloor()
 }
 
 // userPromptBypassFor returns the dedup-bypass threshold for the user-prompt

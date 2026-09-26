@@ -378,17 +378,18 @@ func listContainsImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, err
 // valuesEqual compares two eval.Value instances for structural equality.
 // M-HASH-COLLECTIONS Phase 1: Replaced reflect.DeepEqual fallback with
 // recursive structural comparison for all value types.
+//
+// There is no pointer-identity shortcut: `left == right` answered true for the
+// same NaN value, so contains([n], n) was true while member(n, [n]) was false
+// (M-FLOAT-EQ-ONE-SEMANTICS, #1274).
 func valuesEqual(left, right eval.Value) bool {
-	if left == right {
-		return true
-	}
 	switch l := left.(type) {
 	case *eval.IntValue:
 		r, ok := right.(*eval.IntValue)
 		return ok && l.Value == r.Value
 	case *eval.FloatValue:
 		r, ok := right.(*eval.FloatValue)
-		return ok && l.Value == r.Value
+		return ok && types.FloatEq(l.Value, r.Value)
 	case *eval.StringValue:
 		r, ok := right.(*eval.StringValue)
 		return ok && l.Value == r.Value

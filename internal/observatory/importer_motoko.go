@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/sunholo-data/ailang/internal/executor/motoko"
 )
 
 // motokoNS is the stable namespace for deterministic motoko-import IDs, so re-importing
@@ -18,40 +19,6 @@ import (
 var motokoNS = uuid.MustParse("a1c0c0de-0000-4000-8000-000000000001")
 
 var motokoStampRe = regexp.MustCompile(`(\d{8})-(\d{6})`)
-
-// motokoEvent is the union of fields we read from a .motoko/logfile/*.jsonl event stream.
-type motokoEvent struct {
-	Type         string `json:"type"`
-	Step         *int   `json:"step"`
-	Text         string `json:"text"`
-	FinishReason string `json:"finish_reason"`
-	InputTokens  int    `json:"input_tokens"`
-	OutputTokens int    `json:"output_tokens"`
-	Model        string `json:"model"`
-	// tool_calls is overloaded across event types: an ARRAY in native_tool_calls events but
-	// an INT count in thinking events. Keep it raw and decode only where it's an array.
-	ToolCalls json.RawMessage `json:"tool_calls"`
-	Results   []motokoResult  `json:"results"`
-	// run_summary fields
-	StepsExecuted int     `json:"steps_executed"`
-	Error         string  `json:"error"`
-	DurationMs    int64   `json:"duration_ms"`
-	TotalCostUSD  float64 `json:"total_cost_usd"`
-}
-
-type motokoCall struct {
-	ID        string          `json:"id"`
-	Tool      string          `json:"tool"`
-	Arguments json.RawMessage `json:"arguments"`
-}
-
-type motokoResult struct {
-	ToolCallID string          `json:"tool_call_id"`
-	ExitCode   int             `json:"exit_code"`
-	Stdout     string          `json:"stdout"`
-	Stderr     string          `json:"stderr"`
-	Payload    json.RawMessage `json:"payload"`
-}
 
 // Anthropic-style content blocks, the shape the chains chat renderer parses.
 type motokoBlock struct {
@@ -83,6 +50,12 @@ type MotokoImportResult struct {
 	TokensIn     int
 	TokensOut    int
 	PeakInput    int
+	// Cache tokens, summed over thinking events — decoded by the executor's
+	// SessionEvent, which the importer shares (its own decoder had no cache
+	// fields, so imported chains lost them). Stored per assistant turn on
+	// chat_messages and summed on the stage (schema v21, S4 M3B).
+	CacheReadTokens     int
+	CacheCreationTokens int
 }
 
 // ImportMotokoSession reads a motoko run log (.motoko/logfile/session_*.jsonl) and writes it
@@ -94,15 +67,11 @@ func (s *Store) ImportMotokoSession(ctx context.Context, logPath string) (*Motok
 		return nil, fmt.Errorf("read motoko log: %w", err)
 	}
 
-	var events []motokoEvent
+	var events []*motoko.SessionEvent
 	for _, line := range strings.Split(string(raw), "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-		var ev motokoEvent
-		if err := json.Unmarshal([]byte(line), &ev); err != nil {
-			continue // skip malformed lines rather than abort the import
+		ev, _, err := motoko.ParseSessionLine([]byte(line))
+		if err != nil {
+			continue // skip blank and malformed lines rather than abort the import
 		}
 		events = append(events, ev)
 	}
@@ -114,17 +83,15 @@ func (s *Store) ImportMotokoSession(ctx context.Context, logPath string) (*Motok
 	started := motokoStartedAt(label)
 
 	// Roll up per-step events.
-	var summary *motokoEvent
-	thinkByStep := map[int]motokoEvent{}
-	callsByStep := map[int][]motokoCall{}
-	resByStep := map[int][]motokoResult{}
+	var summary *motoko.SessionEvent
+	thinkByStep := map[int]*motoko.SessionEvent{}
+	callsByStep := map[int][]motoko.ToolCall{}
+	resByStep := map[int][]motoko.ToolResult{}
 	maxStep := 0
-	for i := range events {
-		ev := events[i]
+	for _, ev := range events {
 		switch ev.Type {
 		case "run_summary":
-			cp := ev
-			summary = &cp
+			summary = ev
 		case "thinking":
 			if ev.Step != nil {
 				thinkByStep[*ev.Step] = ev
@@ -134,9 +101,7 @@ func (s *Store) ImportMotokoSession(ctx context.Context, logPath string) (*Motok
 			}
 		case "native_tool_calls":
 			if ev.Step != nil {
-				var calls []motokoCall
-				_ = json.Unmarshal(ev.ToolCalls, &calls)
-				callsByStep[*ev.Step] = calls
+				callsByStep[*ev.Step] = ev.ToolCalls()
 			}
 		case "native_tool_results":
 			if ev.Step != nil {
@@ -150,7 +115,7 @@ func (s *Store) ImportMotokoSession(ctx context.Context, logPath string) (*Motok
 	if summary != nil {
 		res.FinishReason = summary.FinishReason
 		res.Error = summary.Error
-		res.Steps = summary.StepsExecuted
+		res.Steps = deref(summary.StepsExecuted)
 	}
 	if res.Steps == 0 {
 		res.Steps = maxStep + 1
@@ -163,14 +128,21 @@ func (s *Store) ImportMotokoSession(ctx context.Context, logPath string) (*Motok
 	var model string
 	var durationMs int64
 	if summary != nil {
-		cost = summary.TotalCostUSD
-		durationMs = summary.DurationMs
+		if summary.TotalCostUSD != nil {
+			cost = *summary.TotalCostUSD
+		}
+		if summary.DurationMS != nil {
+			durationMs = *summary.DurationMS
+		}
 	}
 	for _, t := range thinkByStep {
-		res.TokensIn += t.InputTokens
-		res.TokensOut += t.OutputTokens
-		if t.InputTokens > res.PeakInput {
-			res.PeakInput = t.InputTokens
+		in := deref(t.InputTokens)
+		res.TokensIn += in
+		res.TokensOut += deref(t.OutputTokens)
+		res.CacheReadTokens += deref(t.CacheReadInputTokens)
+		res.CacheCreationTokens += deref(t.CacheCreationInputTokens)
+		if in > res.PeakInput {
+			res.PeakInput = in
 		}
 		if model == "" && t.Model != "" {
 			model = t.Model
@@ -221,10 +193,12 @@ func (s *Store) ImportMotokoSession(ctx context.Context, logPath string) (*Motok
 	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO chain_stages
 		(id, chain_id, stage_number, agent_id, provider, session_id, status, started_at,
-		 completed_at, error_message, cost, tokens_in, tokens_out, turns, tool_calls, duration_ms)
-		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+		 completed_at, error_message, cost, tokens_in, tokens_out, cache_read_tokens, cache_creation_tokens,
+		 turns, tool_calls, duration_ms)
+		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 		stageID, chainID, 1, "motoko-agent", "ollama", sessID, res.Status, started, started,
-		res.Error, cost, res.TokensIn, res.TokensOut, res.Steps, res.ToolCalls, durationMs); err != nil {
+		res.Error, cost, res.TokensIn, res.TokensOut, res.CacheReadTokens, res.CacheCreationTokens,
+		res.Steps, res.ToolCalls, durationMs); err != nil {
 		return nil, fmt.Errorf("insert stage: %w", err)
 	}
 
@@ -241,6 +215,9 @@ func (s *Store) ImportMotokoSession(ctx context.Context, logPath string) (*Motok
 	turn := 0
 	for _, st := range steps {
 		t := thinkByStep[st]
+		if t == nil {
+			t = &motoko.SessionEvent{}
+		}
 		text := strings.TrimSpace(t.Text)
 		var blocks []motokoBlock
 		if text != "" {
@@ -275,10 +252,12 @@ func (s *Store) ImportMotokoSession(ctx context.Context, logPath string) (*Motok
 		if _, err := tx.ExecContext(ctx, `
 			INSERT INTO chat_messages
 			(id, session_id, turn_number, role, content_text, content_thinking, content_json,
-			 tokens_in, tokens_out, model, timestamp)
-			VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+			 tokens_in, tokens_out, cache_read_tokens, cache_creation_tokens, model, timestamp)
+			VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 			uuid.New().String(), sessID, turn, "assistant", summaryText, text, string(blocksJSON),
-			t.InputTokens, t.OutputTokens, modelOr(t.Model, model), started); err != nil {
+			deref(t.InputTokens), deref(t.OutputTokens),
+			deref(t.CacheReadInputTokens), deref(t.CacheCreationInputTokens),
+			modelOr(t.Model, model), started); err != nil {
 			return nil, fmt.Errorf("insert chat (assistant): %w", err)
 		}
 
@@ -326,7 +305,14 @@ func motokoStartedAt(label string) time.Time {
 	return time.Now()
 }
 
-func motokoToolLine(c motokoCall) string {
+func deref(p *int) int {
+	if p == nil {
+		return 0
+	}
+	return *p
+}
+
+func motokoToolLine(c motoko.ToolCall) string {
 	var args map[string]interface{}
 	_ = json.Unmarshal(c.Arguments, &args)
 	tgt := ""
@@ -349,7 +335,7 @@ func modelOr(a, b string) string {
 	return b
 }
 
-func sortedSteps(a map[int]motokoEvent, b map[int][]motokoCall) []int {
+func sortedSteps(a map[int]*motoko.SessionEvent, b map[int][]motoko.ToolCall) []int {
 	seen := map[int]bool{}
 	for k := range a {
 		seen[k] = true

@@ -285,3 +285,55 @@ func f(xs: List[int]) -> int {
 		t.Errorf("Expected PAT_INVALID_CONS error, got: %v", p.Errors())
 	}
 }
+
+// TestMatchArmBodyRecordLiteralCons is the mirror of TestListConsPatternWithRecord:
+// a record literal as the head of a :: cons EXPRESSION in a match-arm body. parseCase
+// used to return right after the `{...}` body, so `:: rest` was re-parsed as the next
+// arm's pattern (PAT_INVALID_CONS) — while the same expression parsed as a function
+// body, let RHS or if-branch. Found 2026-09-22 when it failed gpt6-astra's otherwise
+// byte-correct regex_backtrack_captures solution.
+func TestMatchArmBodyRecordLiteralCons(t *testing.T) {
+	cases := []struct {
+		name  string
+		input string
+	}{
+		{"record head of cons", `module test
+
+func f(xs: [int]) -> [{lo: int, hi: int}] =
+  match xs {
+    [] => [],
+    _ => {lo: 1, hi: 1} :: []
+  }`},
+		{"record cons in a nested non-first arm", `module test
+
+func f(xs: [int]) -> [{lo: int, hi: int}] =
+  match xs {
+    [] => [],
+    x :: rest => match rest {
+      d :: tl => [],
+      _ => {lo: x, hi: x} :: f(rest)
+    }
+  }`},
+		{"comma-less arms with record bodies still parse", `module test
+
+func f(xs: [int]) -> {lo: int, hi: int} =
+  match xs {
+    [] => {lo: 0, hi: 0}
+    [x] => {lo: x, hi: x}
+    _ => {lo: 1, hi: 1}
+  }`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			l := lexer.New(tc.input, "test.ail")
+			p := New(l)
+			prog := p.Parse()
+			if errs := p.Errors(); len(errs) > 0 {
+				t.Fatalf("unexpected parse errors: %v", errs)
+			}
+			if prog == nil {
+				t.Fatal("nil program")
+			}
+		})
+	}
+}

@@ -4,14 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
+	"github.com/sunholo-data/ailang/internal/modelreg"
 	"strings"
-	"sync"
 
 	"github.com/sunholo-data/ailang/internal/ai"
-	"github.com/sunholo-data/ailang/internal/ai/gemini"
-	"github.com/sunholo-data/ailang/internal/ai/ollama"
-	"github.com/sunholo-data/ailang/internal/ai/openai"
+	"github.com/sunholo-data/ailang/internal/ai/factory"
 	"github.com/sunholo-data/ailang/internal/eval_harness"
 )
 
@@ -19,14 +16,6 @@ import (
 // in models.yml. Callers use errors.Is to report a semantically correct
 // absence reason ("unknown-model") rather than lumping it under "auth".
 var ErrUnknownModel = errors.New("model not in models.yml")
-
-// googleEnvMu serializes the process-global os.Setenv of GOOGLE_CLOUD_PROJECT
-// below. RunQuorum resolves reviewers in PARALLEL, so two Google reviewers with
-// different gcp_project values could otherwise race on this shared env var (a
-// latent data race + a wrong-project mutation). The mutation is process-global
-// because the Vertex ADC client reads GOOGLE_CLOUD_PROJECT from the environment;
-// we serialize rather than restructure that contract.
-var googleEnvMu sync.Mutex
 
 // JSONCaller is the minimal provider surface the reviewer needs: a single
 // structured-JSON call plus token/cost details for budget accounting. Both
@@ -110,63 +99,28 @@ func ResolveCaller(modelID string) (JSONCaller, *eval_harness.ModelConfig, error
 	if err := eval_harness.InitModelsConfig(); err != nil {
 		return nil, nil, fmt.Errorf("load models.yml: %w", err)
 	}
-	mc, err := eval_harness.GlobalModelsConfig.GetModel(modelID)
+	mc, err := modelreg.GlobalModelsConfig.GetModel(modelID)
 	if err != nil {
 		return nil, nil, fmt.Errorf("model %q not in models.yml: %w", modelID, ErrUnknownModel)
 	}
 
-	var provider ai.Provider
+	// Three vendors are admitted so the quorum's priors stay independent:
+	// openai, google (Vertex ADC — the model's gcp_project is handed to the
+	// factory EXPLICITLY, which makes that lane the only one tried; GEMINI_API_KEY,
+	// absent on the rig, is never consulted), and ollama (the local daemon
+	// proxies `-cloud` models to ollama.com on the device key from `ollama
+	// signin`; there is no API key to check — M-OLLAMA-CLOUD-PROVIDER). Each
+	// lane refuses loudly when its credential is missing rather than letting a
+	// reviewer silently vanish: an absent reviewer degrades the quorum to N-1,
+	// which must be a reported fact, not an accident.
 	switch ai.ProviderFromString(mc.Provider) {
-	case ai.ProviderOpenAI:
-		apiKey := os.Getenv("OPENAI_API_KEY")
-		if apiKey == "" {
-			return nil, nil, fmt.Errorf("reviewer %q needs OPENAI_API_KEY (openai provider) — not set", modelID)
-		}
-		provider = openai.NewClient(apiKey)
-
-	case ai.ProviderGoogle:
-		// Vertex ADC path — the design doc's flagged-but-mitigated route.
-		// Export the model's gcp_project so NewVertexAIClient/ADC resolves the
-		// right project on a rig where GOOGLE_CLOUD_PROJECT is unset. We do
-		// NOT read GEMINI_API_KEY (absent on the rig) — that is the whole point.
-		if mc.GCPProject != "" {
-			// Set for this process so the ADC client picks up the project.
-			// Serialized: RunQuorum fans out reviewers in parallel and this env
-			// var is process-global (see googleEnvMu). Re-check inside the lock
-			// so we only mutate when still unset.
-			googleEnvMu.Lock()
-			if os.Getenv("GOOGLE_CLOUD_PROJECT") == "" {
-				_ = os.Setenv("GOOGLE_CLOUD_PROJECT", mc.GCPProject)
-			}
-			googleEnvMu.Unlock()
-		}
-		client, gerr := gemini.NewVertexAIClient(mc.GCPProject)
-		if gerr != nil {
-			return nil, nil, fmt.Errorf("reviewer %q needs Vertex ADC (gemini provider, gcp_project=%q) — %w", modelID, mc.GCPProject, gerr)
-		}
-		provider = client
-
-	case ai.ProviderOllama:
-		// Ollama Cloud reviewer (M-OLLAMA-CLOUD-PROVIDER). A third vendor for the
-		// quorum: gpt5-6-sol is OpenAI and gemini-3-1-pro is Google, so a
-		// `-cloud`-suffixed ollama model adds an independent prior without
-		// touching the local GPU — the daemon proxies it to ollama.com.
-		//
-		// There is NO API key to check here: inference rides the DEVICE key
-		// registered by `ollama signin`, and OLLAMA_API_KEY is only for
-		// ollama.com's own /api/usage, which the local daemon does not proxy.
-		// Same Principle-2 posture as the other lanes — refuse loudly if the
-		// daemon is unreachable rather than letting a reviewer silently vanish
-		// (an absent reviewer degrades the quorum to N-1, which must be a
-		// reported fact, not an accident).
-		client, oerr := ollama.NewClient()
-		if oerr != nil {
-			return nil, nil, fmt.Errorf("reviewer %q needs a reachable ollama daemon (ollama provider) — %w", modelID, oerr)
-		}
-		provider = client
-
+	case ai.ProviderOpenAI, ai.ProviderGoogle, ai.ProviderOllama:
 	default:
 		return nil, nil, fmt.Errorf("reviewer %q provider %q unsupported for quorum (want openai, google, or ollama)", modelID, mc.Provider)
+	}
+	provider, err := factory.NewProvider(mc.Provider, factory.WithGCPProject(mc.GCPProject))
+	if err != nil {
+		return nil, nil, fmt.Errorf("reviewer %q (%s provider) — %w", modelID, mc.Provider, err)
 	}
 
 	maxTokens, err := reviewerMaxTokens(mc)

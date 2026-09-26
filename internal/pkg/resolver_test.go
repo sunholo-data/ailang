@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 func writeManifest(t *testing.T, dir, content string) {
@@ -300,7 +302,7 @@ edition = "1"
 	// Override HOME so cache goes to temp dir
 	fakeHome := filepath.Join(root, "fakehome")
 	os.MkdirAll(fakeHome, 0755)
-	t.Setenv("HOME", fakeHome)
+	testutil.SetHomeDir(t, fakeHome)
 
 	// Create app that depends on B@registry
 	appDir := filepath.Join(root, "app")

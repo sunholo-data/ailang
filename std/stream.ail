@@ -155,7 +155,7 @@ export func selectEvents(sources: [StreamSource], handler: StreamEvent -> bool !
 -- name: Source name for SourceBytes(name, data) matching
 -- priority: Dispatch priority (higher = checked first)
 -- chunkSize: Bytes per SourceBytes event (e.g. 4096 for audio, 65536 for video)
-export func asyncExecProcess(cmd: string, args: [string], name: string, priority: int, chunkSize: int) -> StreamSource ! {Stream} {
+export func asyncExecProcess(cmd: string, args: [string], name: string, priority: int, chunkSize: int) -> StreamSource ! {Stream, Process} {
   _stream_async_exec_process(cmd, args, name, priority, chunkSize)
 }
 

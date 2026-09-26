@@ -22,6 +22,8 @@ var ruleAllowlist = map[Rule]map[string]allowReason{
 		"internal/parser/suggestion_errors_test.go":   mustReason("httpbin.org appears only in parser suggestion/error fixtures; this test performs no live network call"),
 		"internal/messaging/config_test.go":           mustReason("ailang-packages appears only in registry-mapping configuration fixtures; this test performs no live network call"),
 		"internal/pkg/manifest_test.go":               mustReason("ailang-packages appears only in manifest parsing fixture URLs; this test performs no live network call"),
+		"internal/pkg/repository_url_test.go":         mustReason("ailang-packages appears only in metadata.repository URL parsing fixtures (M-PKG-QUALITY-LADDER M6); this test performs no live network call"),
+		"internal/coordinator/package_agents_test.go": mustReason("ailang-packages appears only in registry-index fixture URLs for package-agent derivation (M-PKG-QUALITY-LADDER M6); MaterializePackageAgents is fed an in-memory index, no live network call"),
 	},
 }
 

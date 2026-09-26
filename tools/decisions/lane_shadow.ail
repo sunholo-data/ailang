@@ -1,0 +1,203 @@
+-- lane_shadow — the M-AI-DECIDE-SYSTEM-ONE shadow lane-router (M3).
+--
+-- For each labelled design doc (labels.jsonl from routed_docs.sh) ask the SAME
+-- typed questions of two oracles and bank both answers, per D6, as one JSONL
+-- row per (doc, arm):
+--   arm "jev": sunholo/decisions.decide -> TypeSafe Jev via OpenRouter /api/alpha/decisions
+--   arm "llm": the same Net transport -> OpenRouter chat completions with a strict
+--              json_schema built from the same Question list, asking for a per-label
+--              probability distribution. Its output is an LlmAnswer, never an Answer:
+--              a self-reported spread is not a calibrated confidence.
+-- Nothing here ACTS on an answer. Both arms are bounded by the Net deadline.
+--
+-- Run (from the repo root; needs OPENROUTER_API_KEY):
+--   cd tools/decisions && ailang lock && ailang run --caps FS,Net,Env,IO,Clock --entry main lane_shadow.ail \
+--       ../../.ailang/state/decisions/labels.jsonl ../../.ailang/state/decisions/lane_shadow_<date>.jsonl [control-model]
+module tools/decisions/lane_shadow
+
+import std/fs (readFile, appendFile)
+import std/net (httpRequest)
+import std/env (getEnv, getArgs)
+import std/clock (now)
+import std/io (println)
+import std/json (Json, encode, decode, jo, ja, kv, js, jnum, jint, get, getString, getInt, getObject, getArray, asObject, asNumber)
+import std/list (map, length, filter)
+import std/string (split, trim)
+import std/option (Option, Some, None)
+import std/result (Result, Ok, Err)
+import pkg/sunholo/decisions/decide (Question, Noul, Choice, Score, Answer, NoulA, ChoiceA, ScoreA, Decision, DecideError, decide, buildRequest, questionsToJsonSchema)
+
+-- ---------------------------------------------------------------- the questions (identical for both arms)
+
+pure func lanes() -> [{ key: string, desc: string }] = [
+  { key: "extension", desc: "A motoko/harness extension, eval or rig tooling, a package, a script, or mission/coordinator infrastructure — anything that lives ABOVE the frozen motoko core and outside the AILANG compiler/runtime" },
+  { key: "ailang_fix", desc: "A change to the AILANG language substrate itself: compiler, typechecker, runtime, stdlib, diagnostics/error text, the CLI, or the teaching prompt" },
+  { key: "core_floor_fix", desc: "A change to the frozen motoko agent-loop core floor itself (crash/overflow/data-loss class), which must then be re-frozen" },
+  { key: "other", desc: "None of the above: registry/infra, process or policy documents, or work outside the program's three lanes" }]
+
+pure func questions() -> [{ name: string, q: Question }] = [
+  { name: "lane", q: Choice("Per design_docs/PROGRAM.md section 4 (the self-specializing harness routing rule: AILANG fix | motoko extension | core-floor fix; default bias: if it can be an extension it is an extension), which lane does this design doc's work belong to?", lanes()) },
+  { name: "touches_core", q: Noul("Implementing this design requires changing the frozen motoko agent-loop core (not AILANG, not an extension).") },
+  { name: "severity", q: Score("How important is this work to the program's goals", ["P2: nice to have", "P1: should ship this cycle", "P0: blocks the program's next step"]) }]
+
+-- ---------------------------------------------------------------- answer -> Json (bank the distribution, never argmax alone)
+
+func distJson(ps: [{ key: string, p: float }]) -> Json = jo(map(\e. kv(e.key, jnum(e.p)), ps))
+
+func answerJson(a: Answer) -> Json =
+  match a {
+    NoulA(p) => jo([kv("type", js("noul")), kv("p", jnum(p))]),
+    ChoiceA(c) => jo([kv("type", js("choice")), kv("choice", js(c.choice)), kv("confidence", jnum(c.confidence)), kv("probabilities", distJson(c.probabilities))]),
+    ScoreA(s) => jo([kv("type", js("score")), kv("score", jnum(s.score)), kv("confidence", jnum(s.confidence)), kv("probabilities", distJson(s.probabilities))])
+  }
+
+func answersJson(xs: [{ name: string, answer: Answer }]) -> Json = jo(map(\x. kv(x.name, answerJson(x.answer)), xs))
+
+-- ---------------------------------------------------------------- arm A: Jev
+
+func jevRow(path: string, label: string, state: Json, t0: int, t1: int, r: Result[Decision, DecideError]) -> Json =
+  match r {
+    Ok(d) => jo([kv("arm", js("jev")), kv("path", js(path)), kv("label", js(label)), kv("model", js(d.model)), kv("id", js(d.id)),
+                 kv("latency_ms", jint(t1 - t0)), kv("input_tokens", jint(d.input_tokens)), kv("output_tokens", jint(d.output_tokens)),
+                 kv("cost_usd", jnum(d.cost_usd)), kv("answers", answersJson(d.answers)), kv("error", js(""))]),
+    Err(e) => jo([kv("arm", js("jev")), kv("path", js(path)), kv("label", js(label)), kv("model", js("typesafe/jev-1.13")), kv("id", js("")),
+                  kv("latency_ms", jint(t1 - t0)), kv("input_tokens", jint(0)), kv("output_tokens", jint(0)), kv("cost_usd", jnum(0.0)),
+                  kv("answers", jo([])), kv("error", js(show(e)))])
+  }
+
+-- ---------------------------------------------------------------- arm B: chat LLM, same transport, own record type
+
+-- LlmAnswer: what the control arm produces. Deliberately NOT an Answer.
+type LlmAnswer = { name: string, kind: string, label: string, top_p: float, sum: float, self_reported: Json }
+
+func chatBody(model: string, state: Json, qs: [{ name: string, q: Question }]) -> string =
+  encode(jo([
+    kv("model", js(model)),
+    kv("temperature", jnum(0.0)),
+    kv("messages", ja([
+      jo([kv("role", js("system")), kv("content", js("You are a routing classifier for the AILANG self-specializing harness program. You will receive a STATE (a design document excerpt) and QUESTIONS in the TypeSafe System One format (type noul = probability that the statement is true; type choice = one option among the criteria keys; type score = one ordered level among the criteria, index 0 upwards). Answer with a JSON object keyed by question name. For a choice or score question give a probability for EVERY option/level key, summing to 1. For a noul question give the probability the statement is true. Do not explain."))]),
+      jo([kv("role", js("user")), kv("content", js(buildRequest("n/a", state, qs)))])])),
+    kv("response_format", jo([kv("type", js("json_schema")), kv("json_schema", jo([kv("name", js("decisions")), kv("strict", jb(true)), kv("schema", schemaJson(qs))]))]))]))
+
+func schemaJson(qs: [{ name: string, q: Question }]) -> Json = match decode(questionsToJsonSchema(qs)) { Ok(j) => j, Err(_) => jo([]) }
+func jb(b: bool) -> Json = match decode(if b then "true" else "false") { Ok(j) => j, Err(_) => js("?") }
+
+func sumP(kvs: [{ key: string, value: Json }]) -> float =
+  match kvs { [] => 0.0, [x, ...rest] => (match asNumber(x.value) { Some(p) => p, None => 0.0 }) + sumP(rest) }
+
+func argmax(kvs: [{ key: string, value: Json }], bestK: string, bestP: float) -> { key: string, p: float } =
+  match kvs {
+    [] => { key: bestK, p: bestP },
+    [x, ...rest] => match asNumber(x.value) {
+      Some(p) => if p > bestP then argmax(rest, x.key, p) else argmax(rest, bestK, bestP),
+      None => argmax(rest, bestK, bestP)
+    }
+  }
+
+func llmAnswerOf(name: string, q: Question, v: Json) -> LlmAnswer =
+  match q {
+    Noul(_) => { name: name, kind: "noul", label: "", top_p: (match asNumber(v) { Some(p) => p, None => -1.0 }), sum: 1.0, self_reported: v },
+    _ => match asObject(v) {
+      Some(kvs) => {
+        let best = argmax(kvs, "", -1.0);
+        { name: name, kind: (match q { Choice(_, _) => "choice", _ => "score" }), label: best.key, top_p: best.p, sum: sumP(kvs), self_reported: v }
+      },
+      None => { name: name, kind: "malformed", label: "", top_p: -1.0, sum: 0.0, self_reported: v }
+    }
+  }
+
+func llmAnswers(content: Json, qs: [{ name: string, q: Question }]) -> [LlmAnswer] =
+  map(\nq. match get(content, nq.name) { Some(v) => llmAnswerOf(nq.name, nq.q, v), None => { name: nq.name, kind: "missing", label: "", top_p: -1.0, sum: 0.0, self_reported: jo([]) } }, qs)
+
+func llmAnswerJson(a: LlmAnswer) -> Json =
+  jo([kv("type", js(a.kind)), kv("label", js(a.label)), kv("top_p", jnum(a.top_p)), kv("sum", jnum(a.sum)), kv("self_reported", a.self_reported)])
+
+func contentOf(body: Json) -> Result[Json, string] =
+  match getArray(body, "choices") {
+    None => Err("no choices"),
+    Some([]) => Err("empty choices"),
+    Some([c, ..._]) => match getObject(c, "message") {
+      None => Err("no message"),
+      Some(m) => match getString(m, "content") {
+        None => Err("no content"),
+        Some(text) => match decode(text) { Ok(j) => Ok(j), Err(e) => Err("content not JSON: ${e}") }
+      }
+    }
+  }
+
+func llmRow(path: string, label: string, model: string, t0: int, t1: int, resp: Result[string, string]) -> Json =
+  match resp {
+    Err(e) => jo([kv("arm", js("llm")), kv("path", js(path)), kv("label", js(label)), kv("model", js(model)), kv("latency_ms", jint(t1 - t0)),
+                  kv("input_tokens", jint(0)), kv("output_tokens", jint(0)), kv("cost_usd", jnum(0.0)), kv("answers", jo([])), kv("error", js(e))]),
+    Ok(bodyText) => match decode(bodyText) {
+      Err(e) => jo([kv("arm", js("llm")), kv("path", js(path)), kv("label", js(label)), kv("model", js(model)), kv("latency_ms", jint(t1 - t0)),
+                    kv("input_tokens", jint(0)), kv("output_tokens", jint(0)), kv("cost_usd", jnum(0.0)), kv("answers", jo([])), kv("error", js("body not JSON: ${e}"))]),
+      Ok(body) => {
+        let inTok = usageInt(body, "prompt_tokens");
+        let outTok = usageInt(body, "completion_tokens");
+        let cost = match getObject(body, "usage") { None => 0.0, Some(u) => (match get(u, "cost") { Some(v) => (match asNumber(v) { Some(x) => x, None => 0.0 }), None => 0.0 }) };
+        match contentOf(body) {
+          Err(e) => jo([kv("arm", js("llm")), kv("path", js(path)), kv("label", js(label)), kv("model", js(model)), kv("latency_ms", jint(t1 - t0)),
+                        kv("input_tokens", jint(inTok)), kv("output_tokens", jint(outTok)), kv("cost_usd", jnum(cost)), kv("answers", jo([])), kv("error", js(e))]),
+          Ok(content) => jo([kv("arm", js("llm")), kv("path", js(path)), kv("label", js(label)), kv("model", js(model)), kv("latency_ms", jint(t1 - t0)),
+                             kv("input_tokens", jint(inTok)), kv("output_tokens", jint(outTok)), kv("cost_usd", jnum(cost)),
+                             kv("answers", jo(map(\a. kv(a.name, llmAnswerJson(a)), llmAnswers(content, questions())))), kv("error", js(""))])
+        }
+      }
+    }
+  }
+
+func usageInt(body: Json, k: string) -> int =
+  match getObject(body, "usage") { None => 0, Some(u) => (match getInt(u, k) { Some(n) => n, None => 0 }) }
+
+func callLlm(key: string, model: string, state: Json) -> Result[string, string] ! {Net} =
+  match httpRequest("POST", "https://openrouter.ai/api/v1/chat/completions",
+                    [{ name: "Authorization", value: "Bearer ${key}" }, { name: "Content-Type", value: "application/json" }, { name: "X-Title", value: "ailang lane_shadow control arm" }],
+                    chatBody(model, state, questions())) {
+    Err(e) => Err("net: ${show(e)}"),
+    Ok(resp) => if resp.ok then Ok(resp.body) else Err("http ${show(resp.status)}: ${resp.body}")
+  }
+
+-- ---------------------------------------------------------------- driver
+
+func runOne(out: string, key: string, control: string, line: string) -> () ! {FS, Net, Env, IO, Clock} =
+  match decode(line) {
+    Err(e) => println("skip (bad label row): ${e}"),
+    Ok(row) => {
+      let path = match getString(row, "path") { Some(p) => p, None => "?" };
+      let label = match getString(row, "lane") { Some(l) => l, None => "?" };
+      let state = match getObject(row, "state") { Some(s) => s, None => jo([]) };
+      let t0 = now();
+      let jev = decide("typesafe/jev-1.13", state, questions());
+      let t1 = now();
+      appendFile(out, "${encode(jevRow(path, label, state, t0, t1, jev))}\n");
+      let t2 = now();
+      let llm = callLlm(key, control, state);
+      let t3 = now();
+      appendFile(out, "${encode(llmRow(path, label, control, t2, t3, llm))}\n");
+      println("${path}  label=${label}  jev=${show(t1 - t0)}ms  llm=${show(t3 - t2)}ms")
+    }
+  }
+
+func runAll(out: string, key: string, control: string, lines: [string]) -> () ! {FS, Net, Env, IO, Clock} =
+  match lines {
+    [] => (),
+    [l, ...rest] => { if trim(l) == "" then () else runOne(out, key, control, l); runAll(out, key, control, rest) }
+  }
+
+export func main() -> () ! {FS, Net, Env, IO, Clock} =
+  match getArgs() {
+    [labels, out] => run(labels, out, "z-ai/glm-5.3-flash"),
+    [labels, out, control] => run(labels, out, control),
+    _ => println("usage: lane_shadow <labels.jsonl> <out.jsonl> [control-model]")
+  }
+
+func run(labels: string, out: string, control: string) -> () ! {FS, Net, Env, IO, Clock} =
+  match getEnv("OPENROUTER_API_KEY") {
+    Err(_) => println("OPENROUTER_API_KEY not set"),
+    Ok(key) => {
+      let lines = split(readFile(labels), "\n");
+      println("lane_shadow: ${show(length(filter(\l. trim(l) != "", lines)))} docs, control=${control}, out=${out}");
+      runAll(out, key, control, lines)
+    }
+  }

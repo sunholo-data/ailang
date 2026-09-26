@@ -1,0 +1,16 @@
+{
+  "sha": "dad6e8efb0d939a48f639b5f39907994a5f11792",
+  "exit": 0,
+  "log": "/private/tmp/world-recovery-canary.log",
+  "selected": [
+    "[2026-09-07 11:56:33] driver pin: running committed dad6e8efb0d939a48f639b5f39907994a5f11792 @ dad6e8efb with mission work repository /Users/voightkampff/dev/sunholo-data/ailang-world (source clone /Users/voightkampff/dev/sunholo-data/ailang was 7 behind)",
+    "[2026-09-07 11:56:48] DRY RUN ok: mission=world repo-slug=sunholo-data/ailang-world doc=design_docs/world-mission.md workdir=/Users/voightkampff/dev/sunholo-data/ailang-world pidfile=/Users/voightkampff/.ailang/state/mission-world.pid prefs=claude-opus-5,codex:gpt-5.6-sol,claude-fable-5-1 timeout=120s | roles: designer=claude:claude-fable-5-1 planner=codex:gpt-5.6-sol executor=codex:gpt-5.6-sol evaluator=sonnet | lanes=ok | pin=pinned(7 behind)"
+  ],
+  "mode": "local committed-ref preflight; no publication or saved config change",
+  "pinned_checkout_sha": "dad6e8efb0d939a48f639b5f39907994a5f11792",
+  "mission_origin": "https://github.com/sunholo-data/ailang-world.git",
+  "charter_exists": true,
+  "saved_pin_setting": [
+    "AILANG_DRIVER_PIN=0"
+  ]
+}

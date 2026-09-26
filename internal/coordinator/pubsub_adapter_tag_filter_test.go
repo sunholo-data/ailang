@@ -10,10 +10,43 @@ import (
 )
 
 // We avoid implementing the full messaging.MessageStore interface (dozens of
-// methods) by using nil msgStore in most tests — HandleNotification guards the
-// fetch with `if a.msgStore != nil`. For the no-fetch-on-mismatch assertion
-// we use panicOnGetStore which fails the test if GetInboxMessage is reached.
+// methods) by embedding it and overriding only GetInboxMessage.
+//
+// These tests used a NIL msgStore, which worked while hydration was
+// best-effort. It no longer is: a notification the adapter cannot hydrate must
+// never become a task (2026-09-14 — sixteen content-free tasks dispatched to
+// sprint-planner in four minutes). So a tag-filter test now needs a store that
+// hydrates, or it would be asserting the tag filter against a path that refuses
+// for an unrelated reason.
 
+// hydratingStore returns a usable message for any id, so these tests exercise
+// the TAG FILTER and nothing else.
+type hydratingStore struct {
+	messaging.MessageStore
+	toInbox   string // defaults to "eval-rig"
+	fromAgent string // defaults to "tester"
+}
+
+func (h *hydratingStore) GetInboxMessage(id string) (*messaging.InboxMessage, error) {
+	inbox := h.toInbox
+	if inbox == "" {
+		inbox = "eval-rig"
+	}
+	from := h.fromAgent
+	if from == "" {
+		from = "tester"
+	}
+	return &messaging.InboxMessage{
+		MessageID: id,
+		ToInbox:   inbox,
+		FromAgent: from,
+		Title:     "a real request",
+		Payload:   "do the actual work described here",
+	}, nil
+}
+
+// panicOnGetStore fails the test if GetInboxMessage is reached — used for the
+// no-fetch-on-mismatch assertion.
 type panicOnGetStore struct {
 	messaging.MessageStore // embed nil interface; all methods will panic if called
 	t                      *testing.T
@@ -36,7 +69,7 @@ func validNotification(id string) []byte {
 func TestPubSubAdapter_NoRequiresAttribute_BackwardsCompat(t *testing.T) {
 	// Adapter with no advertised tags + message with no `requires` attribute:
 	// the pre-tag world's behavior. Must process normally.
-	a := NewPubSubInboxAdapter(nil, "sub-x", "eval-rig", nil, newSilentLogger())
+	a := NewPubSubInboxAdapter(nil, "sub-x", "eval-rig", &hydratingStore{}, newSilentLogger())
 
 	attrs := map[string]string{"inbox": "eval-rig", "from_agent": "user"}
 	if err := a.HandleNotification(validNotification("m1"), attrs); err != nil {
@@ -50,7 +83,7 @@ func TestPubSubAdapter_NoRequiresAttribute_BackwardsCompat(t *testing.T) {
 
 func TestPubSubAdapter_RequiresMatched_ProcessesAndAcks(t *testing.T) {
 	// Adapter advertises ollama:gemma4-26b-ailang. Message requires same.
-	a := NewPubSubInboxAdapter(nil, "sub-x", "eval-rig", nil, newSilentLogger())
+	a := NewPubSubInboxAdapter(nil, "sub-x", "eval-rig", &hydratingStore{}, newSilentLogger())
 	a.SetWorkerTags("studio.eval-rig", []string{"ollama:gemma4-26b-ailang", "gpu:m4-max"})
 
 	attrs := map[string]string{
@@ -109,7 +142,7 @@ func TestPubSubAdapter_RequiresMultipleTags_AllMustMatch(t *testing.T) {
 
 func TestPubSubAdapter_RequiresWithGlob_MatchesByFamily(t *testing.T) {
 	// Adapter advertises ollama:* (family glob). Message requires specific.
-	a := NewPubSubInboxAdapter(nil, "sub-x", "eval-rig", nil, newSilentLogger())
+	a := NewPubSubInboxAdapter(nil, "sub-x", "eval-rig", &hydratingStore{}, newSilentLogger())
 	a.SetWorkerTags("studio.eval-rig", []string{"ollama:*"})
 
 	attrs := map[string]string{
@@ -124,10 +157,10 @@ func TestPubSubAdapter_RequiresWithGlob_MatchesByFamily(t *testing.T) {
 func TestPubSubAdapter_TwoWorkers_OnlyOneClaims(t *testing.T) {
 	// The headline scenario: two adapters receive the same Pub/Sub
 	// notification. Only the matching one processes; the other nacks.
-	studio := NewPubSubInboxAdapter(nil, "sub-studio", "eval-rig", nil, newSilentLogger())
+	studio := NewPubSubInboxAdapter(nil, "sub-studio", "eval-rig", &hydratingStore{}, newSilentLogger())
 	studio.SetWorkerTags("studio.eval-rig", []string{"ollama:gemma4-26b-ailang", "gpu:m4-max"})
 
-	laptop := NewPubSubInboxAdapter(nil, "sub-laptop", "eval-rig", nil, newSilentLogger())
+	laptop := NewPubSubInboxAdapter(nil, "sub-laptop", "eval-rig", &hydratingStore{}, newSilentLogger())
 	laptop.SetWorkerTags("laptop.dev", []string{"code", "docs", "research"})
 
 	attrs := map[string]string{
@@ -153,7 +186,7 @@ func TestPubSubAdapter_TwoWorkers_OnlyOneClaims(t *testing.T) {
 func TestPubSubAdapter_EmptyAdvertisedTags_StillProcessesUntaggedMessages(t *testing.T) {
 	// Adapter never had SetWorkerTags called. Message has NO requires attr.
 	// Must still process — protects legacy single-host setups.
-	a := NewPubSubInboxAdapter(nil, "sub-x", "eval-rig", nil, newSilentLogger())
+	a := NewPubSubInboxAdapter(nil, "sub-x", "eval-rig", &hydratingStore{}, newSilentLogger())
 
 	attrs := map[string]string{"inbox": "eval-rig"}
 	if err := a.HandleNotification(validNotification("m1"), attrs); err != nil {
@@ -179,7 +212,7 @@ func TestPubSubAdapter_EmptyAdvertisedTags_RejectsRequiresMessage(t *testing.T) 
 func TestPubSubAdapter_RequiresWhitespace_Trimmed(t *testing.T) {
 	// `requires: " ollama:gemma4-26b-ailang , gpu:m4-max "` (spaces around commas)
 	// Should still parse cleanly.
-	a := NewPubSubInboxAdapter(nil, "sub-x", "eval-rig", nil, newSilentLogger())
+	a := NewPubSubInboxAdapter(nil, "sub-x", "eval-rig", &hydratingStore{}, newSilentLogger())
 	a.SetWorkerTags("studio.eval-rig", []string{"ollama:gemma4-26b-ailang", "gpu:m4-max"})
 
 	attrs := map[string]string{
@@ -193,7 +226,7 @@ func TestPubSubAdapter_RequiresWhitespace_Trimmed(t *testing.T) {
 
 func TestPubSubAdapter_RequiresEmptyString_NoOp(t *testing.T) {
 	// `requires: ""` (empty) is equivalent to no requires — process normally.
-	a := NewPubSubInboxAdapter(nil, "sub-x", "eval-rig", nil, newSilentLogger())
+	a := NewPubSubInboxAdapter(nil, "sub-x", "eval-rig", &hydratingStore{}, newSilentLogger())
 
 	attrs := map[string]string{
 		"inbox":    "eval-rig",

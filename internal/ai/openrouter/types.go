@@ -5,20 +5,22 @@
 // is a thin Chat Completions adapter — it does not attempt to support OpenAI's
 // Responses API or any vendor-specific extensions other than the OpenRouter-specific
 // `cached_tokens` and `cost` fields surfaced in the response.
+//
+// The wire types are openai's Chat Completions types (the step path already
+// reused openai's builders; M-V1-SIMPLIFY-S3 M4 made the Generate path do the
+// same) extended by composition with OpenRouter's own fields. Embedding keeps
+// the JSON field order of the OpenAI shape and appends the extensions, so a
+// request with none of them set marshals byte-identically to a plain OpenAI
+// body — the property the golden-body tests defend.
 package openrouter
 
-import "encoding/json"
+import "github.com/sunholo-data/ailang/internal/ai/openai"
 
-// chatRequest represents the request body for OpenRouter's Chat Completions API.
-// OpenRouter normalizes max_tokens across providers, so we use that field
-// uniformly (no max_completion_tokens distinction).
+// chatRequest is openai.ChatRequest plus OpenRouter's routing, reasoning and
+// Broadcast-correlation fields. OpenRouter normalizes max_tokens across
+// providers, so only MaxTokens is set (never MaxCompletionTokens).
 type chatRequest struct {
-	Model          string              `json:"model"`
-	Messages       []chatMessage       `json:"messages"`
-	MaxTokens      int                 `json:"max_tokens,omitempty"`
-	Temperature    float64             `json:"temperature,omitempty"`
-	Seed           *int64              `json:"seed,omitempty"`
-	ResponseFormat *chatResponseFormat `json:"response_format,omitempty"`
+	openai.ChatRequest
 	// Provider carries OpenRouter's dynamic routing config. Translated from
 	// ai.AIRoutingPolicy by translatePolicy; nil when the caller did not
 	// supply a routing policy.
@@ -58,76 +60,38 @@ type reasoningField struct {
 	Effort    string `json:"effort,omitempty"`
 }
 
-// chatResponseFormat configures structured output.
-type chatResponseFormat struct {
-	Type       string          `json:"type"`                  // "json_schema" or "json_object"
-	JSONSchema *chatJSONSchema `json:"json_schema,omitempty"` // Schema definition
-}
+// Message, choice and structured-output shapes are OpenAI's verbatim.
+type (
+	chatMessage        = openai.ChatMessage
+	chatResponseFormat = openai.ChatResponseFormat
+	chatJSONSchema     = openai.ChatJSONSchema
+)
 
-// chatJSONSchema defines the JSON schema for structured output.
-type chatJSONSchema struct {
-	Name   string          `json:"name"`
-	Schema json.RawMessage `json:"schema"`
-	Strict bool            `json:"strict"`
-}
-
-// chatMessage represents a message in the Chat Completions API.
-type chatMessage struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
-}
-
-// chatResponse represents the response from OpenRouter's Chat Completions API.
+// chatResponse is openai.ChatResponse with OpenRouter's extensions.
 //
-// Provider is an OpenRouter extension reporting which underlying vendor
-// served the request when routing is engaged (e.g. "Anthropic", "OpenAI").
-// Not all responses include it; absent → empty string.
+// Provider reports which underlying vendor served the request when routing
+// is engaged (e.g. "Anthropic", "OpenAI"). Not all responses include it;
+// absent → empty string. Usage shadows the embedded field so the extended
+// usage block (cost, cached tokens) decodes.
 type chatResponse struct {
-	ID       string       `json:"id"`
-	Object   string       `json:"object"`
-	Created  int64        `json:"created"`
-	Model    string       `json:"model"`
-	Provider string       `json:"provider,omitempty"`
-	Choices  []chatChoice `json:"choices"`
-	Usage    chatUsage    `json:"usage"`
+	openai.ChatResponse
+	Provider string    `json:"provider,omitempty"`
+	Usage    chatUsage `json:"usage"`
 }
 
-// chatChoice represents a completion choice.
-type chatChoice struct {
-	Index        int         `json:"index"`
-	Message      chatMessage `json:"message"`
-	FinishReason string      `json:"finish_reason"`
-}
+// chatChoice is a completion choice — OpenAI's shape verbatim.
+type chatChoice = openai.ChatChoice
 
-// chatUsage represents OpenRouter's extended token usage block.
-//
-// In addition to the OpenAI-shape prompt/completion/total tokens, OpenRouter
-// reports:
-//   - prompt_tokens_details.cached_tokens — input tokens served from prompt cache
+// chatUsage is openai.ChatUsage plus OpenRouter's cost reporting:
 //   - cost — total inference cost in USD as a float (sum of upstream + markup)
 //   - cost_details.upstream_inference_cost — upstream-only portion (informational)
+//
+// prompt_tokens_details.cached_tokens (input tokens served from prompt cache)
+// is already on the OpenAI shape.
 type chatUsage struct {
-	PromptTokens            int `json:"prompt_tokens"`
-	CompletionTokens        int `json:"completion_tokens"`
-	TotalTokens             int `json:"total_tokens"`
-	CompletionTokensDetails struct {
-		ReasoningTokens int `json:"reasoning_tokens"`
-	} `json:"completion_tokens_details,omitempty"`
-	// OpenRouter extensions:
-	PromptTokensDetails struct {
-		CachedTokens int `json:"cached_tokens"`
-	} `json:"prompt_tokens_details,omitempty"`
+	openai.ChatUsage
 	Cost        float64 `json:"cost,omitempty"` // OpenRouter reports total cost as a float
 	CostDetails struct {
 		UpstreamInferenceCost float64 `json:"upstream_inference_cost,omitempty"`
 	} `json:"cost_details,omitempty"`
-}
-
-// errorResponse represents an error response from the API.
-type errorResponse struct {
-	Error struct {
-		Message string `json:"message"`
-		Type    string `json:"type"`
-		Code    string `json:"code"`
-	} `json:"error"`
 }

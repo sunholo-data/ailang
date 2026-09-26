@@ -7,7 +7,7 @@
 .PHONY: test-operator-assertions test-regression-guards test-builtin-consistency
 .PHONY: test-stdlib-canaries test-row-properties test-golden-types test-repl-smoke
 .PHONY: test-sim-stub test-stdlib-freeze verify-no-shim verify-lowering
-.PHONY: test-nightly-classifier test-launchd-drivers test-check-changelog test-check-protocol-closure test-check-autoclose
+.PHONY: test-nightly-classifier test-launchd-drivers test-fmt-check test-shellcheck-autopush test-check-changelog test-check-protocol-closure test-check-autoclose test-check-referenced-paths
 
 # Core tests. Depends on build so integration tests that shell out to the
 # ailang binary never see a stale bin/ailang — a stale binary caused phantom
@@ -24,13 +24,32 @@
 # warm run, with go.sum untouched. The CI workflows keep `download all`: they
 # run on three OSes whose build constraints were not measured here, and their
 # checkout is ephemeral so the go.sum churn is harmless there.
-test: build ## Run all Go unit tests (builds bin/ailang first)
+test: build test-pi-extensions ## Run all Go unit tests + the pi extension suite (builds bin/ailang first)
 	@echo "Running tests..."
 	@$(GOCMD) mod download
 	@HTTP_PROXY=http://127.0.0.1:9 HTTPS_PROXY=http://127.0.0.1:9 NO_PROXY=localhost,127.0.0.1 GOPROXY=off $(GOTEST) -v $$($(GOCMD) list ./... | grep -v /scripts | grep -v /examples/agents)
 
+# The pi extension suite carried ZERO automated coverage until
+# M-COORDINATOR-EXECUTION-TRUST M1a — 24 tests, none of them ever run by `make`
+# or CI, now including the arms that guard the permission tier. An arm that
+# cannot fail is not a guard, which is the whole thesis of that design doc.
+# Skips (rather than fails) where node is too old for --experimental-strip-types,
+# so the target is safe on any runner; CI's node is current.
+.PHONY: test-pi-extensions
+test-pi-extensions: ## Run the pi extension (TypeScript) test suite
+	@echo "Running pi extension tests..."
+	@if ! command -v node >/dev/null 2>&1; then 		echo "  node not found — skipping"; exit 0; 	fi; 	if ! node --experimental-strip-types -e '' >/dev/null 2>&1; then 		echo "  node $$(node -v) lacks --experimental-strip-types — skipping"; exit 0; 	fi; 	rc=0; 	for f in .pi/extensions/.*.test.ts; do 		[ -e "$$f" ] || continue; 		echo "  $$f"; 		node --experimental-strip-types --test "$$f" || rc=1; 	done; 	exit $$rc
+
 test-nightly-classifier: ## Run nightly variance-guard contract and replay tests
 	@python3 tools/test_nightly_classify.py -v
+
+test-fmt-check: ## Run the Go formatting gate's self-test (bash 3.2)
+	@/bin/bash scripts/test_fmt_check.sh
+	@/bin/bash -n scripts/test_fmt_check.sh
+
+test-shellcheck-autopush: ## Run mutation controls for the scoped ShellCheck gate
+	@/bin/bash scripts/test_shellcheck_autopush.sh
+	@/bin/bash -n scripts/test_shellcheck_autopush.sh
 
 # The launchd drivers carried ZERO automated coverage until #558's second recurrence — a large
 # part of why two silent-staleness bugs shipped unnoticed. /bin/bash explicitly, not $$SHELL:
@@ -41,13 +60,30 @@ test-launchd-drivers: ## Run launchd driver tests (pin-root + routing + notices 
 	@/bin/bash tools/launchd/test_pin_root.sh
 	@/bin/bash tools/launchd/test_driver_notify.sh
 	@/bin/bash tools/launchd/test_mission_routing.sh
+	@/bin/bash tools/launchd/test_spawn_pin_hook.sh
 	@/bin/bash tools/launchd/test_hook_stdout.sh
-	@/bin/bash tools/launchd/test_fmt_ab_schedule.sh
+	@/bin/bash tools/launchd/test_controller_chain.sh
+	@/bin/bash tools/launchd/test_mission_heartbeat.sh
+	@/bin/bash tools/launchd/test_mission_stall.sh
+	@/bin/bash tools/launchd/test_mission_memgate.sh
+	@/bin/bash tools/launchd/test_mission_iteration.sh
+	@/bin/bash tools/launchd/test_cron_kicker.sh
+	@/bin/bash tools/launchd/test_mission_base.sh
+	@/bin/bash tools/launchd/test_codex_quota_admission.sh
+	@/bin/bash tools/launchd/test_ollama_quota_admission.sh
+	@/bin/bash tools/launchd/test_anthropic_quota_admission.sh
+	@/bin/bash scripts/hooks/test_stage_isolation.sh
+	@/bin/bash tools/launchd/test_evaluator_skill_lane.sh
+# Keep this shell-only: the bash-3.2 CI job deliberately has no Go toolchain.
 	@/bin/bash tools/eval/test_motoko_connection_probe.sh
 	@for f in tools/launchd/*.sh tools/launchd/lib/*.sh; do /bin/bash -n "$$f" || exit 1; done
 	@/bin/bash -n tools/eval/motoko_connection_probe.sh
 	@/bin/bash -n tools/eval/test_motoko_connection_probe.sh
 	@/bin/bash -n scripts/mission_decisions.sh
+# Its sibling was ungated until 2026-09-04 (mission_decisions.sh had a line here,
+# mission_answer.sh did not) — so an edit to the attended-ruling writer reached the
+# ledger with no syntax check anywhere in CI.
+	@/bin/bash -n scripts/mission_answer.sh
 	@echo "launchd drivers: tests + bash 3.2 syntax OK"
 
 # `make check-changelog` is a refusal gate that shipped with no coverage of WHICH release-note
@@ -66,6 +102,10 @@ test-check-protocol-closure: ## Run the protocol-closure gate's own self-test (b
 test-check-autoclose: ## Run the issue-autoclose gate's own self-test (bash 3.2)
 	@/bin/bash scripts/test_check_autoclose.sh
 	@/bin/bash -n scripts/check_autoclose.sh
+
+test-check-referenced-paths: ## Run the referenced-paths gate's own self-test (bash 3.2)
+	@/bin/bash scripts/test_check_referenced_paths.sh
+	@/bin/bash -n scripts/check_referenced_paths.sh
 
 test-parser: ## Run parser tests only
 	@echo "Testing parser..."
@@ -313,3 +353,24 @@ test-stdlib-ail: build ## Run the .ail test suites + run-fixtures under tests/st
 	rm -f /tmp/ailang_stdlib_fixtures.$$$$; \
 	echo "  $$fixtures run-fixture(s) matched expected stdout"
 	@echo "$(GREEN)✓ stdlib .ail suites and run-fixtures pass$(NC)"
+
+.PHONY: test-mission-registry
+# Deliberately NOT referenced by any other target or CI job: it needs Go, and the
+# only target that would naturally call it (test-launchd-drivers) is the Go-less
+# bash-3.2 job. The package is covered by `make test` and by CI's own
+# `go test ./...`; this target exists as a hand-run entry point. Do not delete it
+# as unused.
+test-mission-registry: ## Run mission-registry tests (schema, renderer, doctor; live gates skip off-rig)
+	@go test ./internal/mission/...
+
+# M-V1-SIMPLIFY-S1 M1: the language inner loop. Lexer → VM plus stdlib and the
+# formatter, nothing platform-shaped. Target: under 15s wall. `make test` is the
+# full suite; this is what you run between edits to the language.
+CORE_PKGS := ./internal/lexer/... ./internal/parser/... ./internal/ast/... ./internal/core/... \
+	./internal/types/... ./internal/elaborate/... ./internal/typedast/... ./internal/eval/... \
+	./internal/effects/... ./internal/pipeline/... ./internal/link/... ./internal/loader/... \
+	./internal/module/... ./internal/runtime/... ./internal/iface/... ./internal/format/... \
+	./internal/errors/... ./internal/stdlib/...
+
+test-core: ## Run the language-core tests only (lexer→VM, stdlib, fmt) — the fast inner loop
+	@AILANG_TEST_FAST_LOOP=1 $(GOTEST) $(CORE_PKGS) -count=1

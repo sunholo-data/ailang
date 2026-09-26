@@ -2,9 +2,12 @@ package coordinator
 
 import (
 	"context"
+	"log"
 	"os"
+	"path/filepath"
 	"strings"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/feedbackgate"
 )
 
@@ -39,11 +42,14 @@ type FeedbackGateConfig = feedbackgate.FeedbackGateConfig
 // top of the config value. Env wins (operator kill-switch). Returns the config
 // unchanged when the env is unset/empty.
 func resolveFeedbackGateMode(cfg feedbackgate.FeedbackGateConfig) feedbackgate.FeedbackGateConfig {
-	if m := strings.TrimSpace(os.Getenv("AILANG_FEEDBACK_GATE_MODE")); m != "" {
+	if m := config.FeedbackGateMode(); m != "" {
 		cfg.Mode = m
 	}
-	if isTruthyEnv(os.Getenv("AILANG_FEEDBACK_GATE_DRY_RUN")) {
+	if isTruthyEnv(config.FeedbackGateDryRun()) {
 		cfg.DryRun = true
+	}
+	if sm := config.FeedbackGateShadow(); sm != "" {
+		cfg.ShadowMode = sm
 	}
 	return cfg
 }
@@ -80,12 +86,72 @@ func (d *Daemon) enableFeedbackGate(cfg *FeedbackGateConfig) {
 	}
 
 	resolved := resolveFeedbackGateMode(*cfg)
-	d.logger.Printf("Feedback gate enabled (mode=%s, dry_run=%v, cooldown=%s, classifier=%s, budget=%s)",
+	d.feedbackGateCfg.Shadow = feedbackGateShadowRunner(resolved, d.logger)
+	d.logger.Printf("Feedback gate enabled (mode=%s, dry_run=%v, cooldown=%s, classifier=%s, budget=%s, shadow=%s)",
 		resolved.Mode, resolved.DryRun,
 		feedbackGateCooldownStage(d.feedbackGateCfg),
 		feedbackGateClassifierStage(d.feedbackGateCfg),
 		feedbackGateBudgetStage(d.feedbackGateCfg),
+		feedbackGateShadowStage(resolved, d.feedbackGateCfg.Shadow),
 	)
+}
+
+// feedbackGateShadowDir is where the shadow program and its ailang.toml live,
+// relative to the repo root the daemon runs in. The subprocess resolves the
+// sunholo/decisions package from that directory's manifest.
+var feedbackGateShadowDir = "internal/feedbackgate/shadow" // var so tests can point it at a fixture
+
+// feedbackGateShadowRunner builds the System One shadow runner when the
+// resolved config asks for one (M-AI-DECIDE-SYSTEM-ONE audit site #1). It is
+// a subprocess of THIS binary running feedback_shadow.ail, so the package and
+// the transports live in AILANG, not in a second Go HTTP client. Returns nil
+// (stage off) when ShadowMode is off/empty, when the mode is unknown, or when
+// the program directory is missing — each case is logged, never silent.
+func feedbackGateShadowRunner(cfg feedbackgate.FeedbackGateConfig, logger *log.Logger) feedbackgate.ShadowRunner {
+	mode := strings.ToLower(strings.TrimSpace(cfg.ShadowMode))
+	switch mode {
+	case "", feedbackgate.ShadowOff:
+		return nil
+	case feedbackgate.ShadowOpenRouter, feedbackgate.ShadowDirect:
+	default:
+		logger.Printf("[feedback-gate] shadow mode %q unknown (want off|openrouter|direct) — shadow stage OFF", cfg.ShadowMode)
+		return nil
+	}
+	bin, err := os.Executable()
+	if err != nil {
+		logger.Printf("[feedback-gate] shadow: cannot resolve own binary (%v) — shadow stage OFF", err)
+		return nil
+	}
+	// Prefer a source checkout (attended runs, tests); otherwise materialise
+	// the embedded program — the prod coordinator image carries the binary
+	// only (docker/Dockerfile.agent-base), which is where the classifier runs.
+	dir, err := filepath.Abs(feedbackGateShadowDir)
+	if err != nil || !fileExists(filepath.Join(dir, "feedback_shadow.ail")) {
+		mdir, merr := feedbackgate.MaterializeShadowProgram(feedbackgate.DefaultShadowProgramDir())
+		if merr != nil {
+			logger.Printf("[feedback-gate] shadow: no source checkout at %s and materialising the embedded program failed (%v) — shadow stage OFF", dir, merr)
+			return nil
+		}
+		logger.Printf("[feedback-gate] shadow: program materialised from the binary at %s", mdir)
+		dir = mdir
+	}
+	return feedbackgate.NewSubprocessShadow(bin, dir, mode, cfg.ShadowFallbackModel)
+}
+
+// feedbackGateShadowStage names the shadow stage for the startup log.
+func feedbackGateShadowStage(cfg feedbackgate.FeedbackGateConfig, runner feedbackgate.ShadowRunner) string {
+	if runner == nil {
+		return "off"
+	}
+	if cfg.ShadowFallbackModel != "" {
+		return cfg.ShadowMode + "+fallback:" + cfg.ShadowFallbackModel
+	}
+	return cfg.ShadowMode
+}
+
+func fileExists(p string) bool {
+	st, err := os.Stat(p)
+	return err == nil && !st.IsDir()
 }
 
 // feedbackGateCooldownStage names the cooldown stage for the startup log:
@@ -179,6 +245,12 @@ func (d *Daemon) gateFeedbackMessage(msg *Message, inbox string) bool {
 	}
 
 	if verdict.Action == feedbackgate.ActionDispatch {
+		// A dispatch is normally unaudited (the dispatch itself is the record).
+		// When the System One shadow ran, audit anyway: the shadow comparison
+		// needs BOTH arms on every classified message, not only the filed ones.
+		if verdict.Shadow != nil {
+			d.emitGateAudit(msg, verdict, cfg.DryRun)
+		}
 		return true
 	}
 

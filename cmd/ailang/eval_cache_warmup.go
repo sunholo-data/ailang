@@ -153,7 +153,8 @@ func warmOneCache(ctx context.Context, key cacheWarmupKey, sample Job, timeout t
 // is nothing this indirection hides that a unit test could have checked anyway.
 //
 // NewAIAgent is the STANDARD-mode (direct HTTP) path — it always requires
-// ANTHROPIC_API_KEY, via getAPIKeyForProvider in internal/eval_harness/ai_provider.go.
+// ANTHROPIC_API_KEY: newProviderAdapter (internal/eval_harness/ai_provider.go)
+// calls factory.New, which resolves the provider credential before any spend.
 // isAnthropicModel (above) does not distinguish "runs in standard mode" from
 // "runs in agent mode via the claude CLI executor" — so on every --agent run with
 // an Anthropic model, this warm-up call ALWAYS attempts the key-based path and

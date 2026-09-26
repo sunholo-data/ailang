@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
@@ -288,8 +289,22 @@ func TestPromptCommand_EndsWithNewline(t *testing.T) {
 	}
 }
 
-// TestMain ensures we're running from project root
+// TestMain ensures we're running from project root and wires the platform
+// backends the way main does (tests never call main).
 func TestMain(m *testing.M) {
+	registerPlatform()
+	// The retired storage selectors are hard errors by design (M-V1-SIMPLIFY-S3
+	// M3) — `ailang run` refuses them through the secret-approver gate — and a
+	// developer's shell may still export one (CLAUDE.md told every session to).
+	// The subprocess tests below inherit this environment; they must measure the
+	// binary, not the shell.
+	for _, v := range config.RemovedEnvNames() {
+		_ = os.Unsetenv(v)
+	}
+	// AILANG_NO_CACHE disables the compile cache for every command since #1275,
+	// and #1275's own workaround told developers to export it; the cache
+	// tests here must see the cache. Tests that want it off set it themselves.
+	_ = os.Unsetenv(config.EnvNoCache)
 	// Check if we're in the project root
 	if _, err := os.Stat("prompts/versions.json"); os.IsNotExist(err) {
 		// Try to find project root

@@ -53,13 +53,13 @@ func (c *Client) StreamStep(ctx context.Context, req *ai.Request, onChunk func(a
 	// M-AI-REASONING-EFFORT: resolve reasoning controls BEFORE building/marshaling.
 	reasoning, rErr := ai.ResolveReasoning(req, "anthropic", req.Model)
 	if rErr != nil {
-		recordSpanError(span, asAIError(rErr))
+		ai.RecordSpanError(span, rErr)
 		return nil, rErr
 	}
 
 	apiReq, aiErr := buildStepRequest(req, reasoning)
 	if aiErr != nil {
-		recordSpanError(span, aiErr)
+		ai.RecordSpanError(span, aiErr)
 		return nil, aiErr
 	}
 	apiReq.Stream = true
@@ -67,25 +67,24 @@ func (c *Client) StreamStep(ctx context.Context, req *ai.Request, onChunk func(a
 	jsonBody, err := json.Marshal(apiReq)
 	if err != nil {
 		e := ai.NewAIError(ai.CodeInternal, fmt.Sprintf("anthropic: failed to marshal stream request: %v", err), false)
-		recordSpanError(span, e)
+		ai.RecordSpanError(span, e)
 		return nil, e
 	}
 
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/messages", bytes.NewReader(jsonBody))
 	if err != nil {
 		e := ai.ClassifyError(err)
-		recordSpanError(span, e)
+		ai.RecordSpanError(span, e)
 		return nil, e
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Accept", "text/event-stream")
-	httpReq.Header.Set("x-api-key", c.apiKey)
-	httpReq.Header.Set("anthropic-version", c.apiVersion)
+	c.applyAuthHeaders(httpReq.Header)
 
 	httpResp, err := c.httpClient.Do(httpReq)
 	if err != nil {
 		e := ai.ClassifyError(err)
-		recordSpanError(span, e)
+		ai.RecordSpanError(span, e)
 		return nil, e
 	}
 	defer func() { _ = httpResp.Body.Close() }()
@@ -95,18 +94,17 @@ func (c *Client) StreamStep(ctx context.Context, req *ai.Request, onChunk func(a
 	if httpResp.StatusCode < 200 || httpResp.StatusCode >= 300 {
 		body, _ := io.ReadAll(httpResp.Body)
 		bodyStr := string(body)
-		var errEnv errorResponse
-		if json.Unmarshal(body, &errEnv) == nil && errEnv.Error.Message != "" {
-			bodyStr = errEnv.Error.Message
+		if m := ai.ErrorEnvelopeMessage(body); m != "" {
+			bodyStr = m
 		}
 		e := ai.ClassifyHTTPError("anthropic", httpResp.StatusCode, bodyStr)
-		recordSpanError(span, e)
+		ai.RecordSpanError(span, e)
 		return nil, e
 	}
 
 	out, parseErr := parseAnthropicSSEStream(httpResp.Body, onChunk)
 	if parseErr != nil {
-		recordSpanError(span, parseErr)
+		ai.RecordSpanError(span, parseErr)
 		return nil, parseErr
 	}
 
@@ -385,6 +383,10 @@ func dispatchAnthropicSSEEvent(
 				fmt.Sprintf("anthropic: failed to parse message_delta: %v", err), false)
 		}
 		out.OutputTokens = ev.Usage.OutputTokens
+		// The terminal message_delta carries the final usage, including the
+		// thinking split — without this the streaming path would report 0
+		// reasoning tokens while the non-streaming path reports the truth.
+		out.ReasonTokens = ev.Usage.OutputTokensDetails.ThinkingTokens
 		out.TotalTokens = out.InputTokens + out.OutputTokens
 		out.FinishReason = mapStopReason(ev.Delta.StopReason)
 		if onChunk != nil {

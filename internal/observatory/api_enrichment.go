@@ -3,6 +3,8 @@ package observatory
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/httpjson"
+	"github.com/sunholo-data/ailang/internal/strutil"
 	"net/http"
 	"sort"
 	"strconv"
@@ -66,7 +68,7 @@ func (a *API) handleGetEnrichedSpans(w http.ResponseWriter, r *http.Request) {
 		spans, err = a.backend.ListSpans(r.Context(), opts)
 	}
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		httpjson.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -77,7 +79,7 @@ func (a *API) handleGetEnrichedSpans(w http.ResponseWriter, r *http.Request) {
 
 	if !isSQLite {
 		// No enrichment available, return spans as-is
-		writeJSON(w, http.StatusOK, map[string]any{"spans": spans, "enriched": false, "hierarchical": false})
+		httpjson.Write(w, http.StatusOK, map[string]any{"spans": spans, "enriched": false, "hierarchical": false})
 		return
 	}
 
@@ -133,7 +135,7 @@ func (a *API) handleGetEnrichedSpans(w http.ResponseWriter, r *http.Request) {
 	// Return hierarchical format if requested
 	if hierarchical {
 		hierarchicalSpans := buildHierarchicalSpans(spans, displayNames)
-		writeJSON(w, http.StatusOK, map[string]any{
+		httpjson.Write(w, http.StatusOK, map[string]any{
 			"spans":        hierarchicalSpans,
 			"enriched":     true,
 			"hierarchical": true,
@@ -151,7 +153,7 @@ func (a *API) handleGetEnrichedSpans(w http.ResponseWriter, r *http.Request) {
 		enrichedSpans = append(enrichedSpans, enriched)
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{"spans": enrichedSpans, "enriched": true, "hierarchical": false})
+	httpjson.Write(w, http.StatusOK, map[string]any{"spans": enrichedSpans, "enriched": true, "hierarchical": false})
 }
 
 // ===== Display Name Extraction Helpers =====
@@ -350,14 +352,14 @@ func generateDisplayName(toolName string, input json.RawMessage) string {
 		if path, ok := data["file_path"].(string); ok {
 			// Show what's being changed if available
 			if oldStr, ok := data["old_string"].(string); ok {
-				preview := truncateString(oldStr, 25)
+				preview := strutil.Truncate(oldStr, 28)
 				return fmt.Sprintf("Edit: %s (%q)", shortenPath(path), preview)
 			}
 			return fmt.Sprintf("Edit: %s", shortenPath(path))
 		}
 	case "Grep":
 		if pattern, ok := data["pattern"].(string); ok {
-			truncated := truncateString(pattern, 30)
+			truncated := strutil.Truncate(pattern, 33)
 			if path, ok := data["path"].(string); ok {
 				return fmt.Sprintf("Grep: %q in %s", truncated, shortenPath(path))
 			}
@@ -372,7 +374,7 @@ func generateDisplayName(toolName string, input json.RawMessage) string {
 		}
 	case "Bash":
 		if cmd, ok := data["command"].(string); ok {
-			return fmt.Sprintf("Bash: %s", truncateString(cmd, 40))
+			return fmt.Sprintf("Bash: %s", strutil.Truncate(cmd, 43))
 		}
 	case "WebFetch":
 		if url, ok := data["url"].(string); ok {
@@ -381,13 +383,13 @@ func generateDisplayName(toolName string, input json.RawMessage) string {
 	case "Task":
 		// Prefer description (short summary), then subagent_type, then prompt
 		if desc, ok := data["description"].(string); ok && desc != "" {
-			return fmt.Sprintf("Task: %s", truncateString(desc, 50))
+			return fmt.Sprintf("Task: %s", strutil.Truncate(desc, 53))
 		}
 		if agentType, ok := data["subagent_type"].(string); ok {
 			return fmt.Sprintf("Task: %s agent", agentType)
 		}
 		if prompt, ok := data["prompt"].(string); ok {
-			return fmt.Sprintf("Task: %s", truncateString(prompt, 40))
+			return fmt.Sprintf("Task: %s", strutil.Truncate(prompt, 43))
 		}
 	case "Skill":
 		// Show which skill was invoked
@@ -396,7 +398,7 @@ func generateDisplayName(toolName string, input json.RawMessage) string {
 		}
 	case "WebSearch":
 		if query, ok := data["query"].(string); ok {
-			return fmt.Sprintf("WebSearch: %q", truncateString(query, 40))
+			return fmt.Sprintf("WebSearch: %q", strutil.Truncate(query, 43))
 		}
 	case "AskUserQuestion":
 		if questions, ok := data["questions"].([]any); ok && len(questions) > 0 {
@@ -449,17 +451,17 @@ func generateDisplayName(toolName string, input json.RawMessage) string {
 	case "TaskOutput":
 		// Show which task we're getting output from
 		if taskID, ok := data["task_id"].(string); ok {
-			return fmt.Sprintf("TaskOutput: %s", truncateString(taskID, 20))
+			return fmt.Sprintf("TaskOutput: %s", strutil.Truncate(taskID, 23))
 		}
 	case "KillShell":
 		// Show which shell is being killed
 		if shellID, ok := data["shell_id"].(string); ok {
-			return fmt.Sprintf("KillShell: %s", truncateString(shellID, 12))
+			return fmt.Sprintf("KillShell: %s", strutil.Truncate(shellID, 15))
 		}
 	case "BashOutput":
 		// Show which bash output is being read
 		if bashID, ok := data["bash_id"].(string); ok {
-			return fmt.Sprintf("BashOutput: %s", truncateString(bashID, 12))
+			return fmt.Sprintf("BashOutput: %s", strutil.Truncate(bashID, 15))
 		}
 	case "NotebookEdit":
 		// Show notebook being edited
@@ -515,14 +517,6 @@ func splitPathForDisplay(path string) []string {
 		parts = append(parts, current)
 	}
 	return parts
-}
-
-// truncateString truncates a string to maxLen with ellipsis.
-func truncateString(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
-	}
-	return s[:maxLen] + "..."
 }
 
 // truncateURL truncates a URL to show host + truncated path.

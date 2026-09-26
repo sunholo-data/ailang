@@ -10,6 +10,9 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	ailangconfig "github.com/sunholo-data/ailang/internal/config"
+	"github.com/sunholo-data/ailang/internal/proctree"
 )
 
 const (
@@ -76,7 +79,7 @@ func DefaultSolverConfig() SolverConfig {
 // Search order: AILANG_Z3_PATH env, PATH, common locations.
 func FindZ3() (string, error) {
 	// 1. Check AILANG_Z3_PATH environment variable
-	if envPath := os.Getenv("AILANG_Z3_PATH"); envPath != "" {
+	if envPath := ailangconfig.Z3Path(); envPath != "" {
 		if _, err := os.Stat(envPath); err == nil {
 			return envPath, nil
 		}
@@ -133,7 +136,7 @@ func Solve(smtlib string, config SolverConfig) (*SolverResult, error) {
 		return nil, fmt.Errorf("creating temp file: %w", err)
 	}
 	tmpPath := tmpFile.Name()
-	if os.Getenv("AILANG_DUMP_SMT") == "" {
+	if !ailangconfig.DumpSMT() {
 		defer os.Remove(tmpPath)
 	}
 
@@ -160,10 +163,7 @@ func Solve(smtlib string, config SolverConfig) (*SolverResult, error) {
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, z3Path, args...)
-	setProcessGroup(cmd)
-	cmd.Cancel = func() error {
-		return killProcessGroup(cmd.Process.Pid)
-	}
+	proctree.Configure(cmd)
 	cmd.WaitDelay = solverKillGrace
 	output, err := cmd.CombinedOutput()
 	result.Duration = time.Since(start)
@@ -303,10 +303,7 @@ func Z3Version() string {
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, z3Path, "--version")
-	setProcessGroup(cmd)
-	cmd.Cancel = func() error {
-		return killProcessGroup(cmd.Process.Pid)
-	}
+	proctree.Configure(cmd)
 	cmd.WaitDelay = solverKillGrace
 	out, err := cmd.Output()
 	if err != nil {

@@ -19,9 +19,12 @@ run: build ## Run an AILANG file (FILE=path/to/file.ail)
 	@$(BUILD_DIR)/$(BINARY) run $(FILE)
 
 # Server
-# AILANG_DASHBOARD=1 enables AILANG transforms (event_formatter.ail, heatmap.ail, budget_checker.ail)
+# The dashboard transforms (event_formatter.ail, heatmap.ail, budget_checker.ail) are
+# AILANG and are the ONLY implementation, so AILANG_PROJECT_ROOT is required, not
+# optional. AILANG_DASHBOARD=1 used to pick between AILANG and a Go copy; the copies
+# were removed 2026-09-08 and the flag with them.
 # AILANG_PROJECT_ROOT tells the embed.Engine where to find the .ail files
-AILANG_ENV := AILANG_DASHBOARD=1 AILANG_PROJECT_ROOT="$(CURDIR)"
+AILANG_ENV := AILANG_PROJECT_ROOT="$(CURDIR)"
 
 serve: quick-install ## Start Collaboration Hub server (foreground)
 	@echo "Starting AILANG Collaboration Hub..."

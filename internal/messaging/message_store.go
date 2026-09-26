@@ -48,6 +48,13 @@ type MessageStore interface {
 
 	InsertInboxMessage(msg *InboxMessage) error
 	InsertInboxMessageWithContext(ctx context.Context, msg *InboxMessage) error
+	// PutMessageIfAbsent is the replay-safe counterpart: first write wins, and it
+	// reports whether it created the row. Task finalisation uses this because it
+	// dispatches handoffs under a deterministic id and Pub/Sub delivery is
+	// at-least-once. The backends fail in opposite directions without it —
+	// SQLite raises a UNIQUE violation, Firestore silently overwrites a message
+	// the recipient has already read (M-COMPLETION-PATH-PARITY M0b).
+	PutMessageIfAbsent(ctx context.Context, msg *InboxMessage) (bool, error)
 	ListInboxMessages(opts InboxListOptions) ([]InboxMessage, error)
 	GetInboxMessage(id string) (*InboxMessage, error)
 	FindMessageByPrefix(prefix string) (string, error)

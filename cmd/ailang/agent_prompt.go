@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/sunholo-data/ailang/internal/agentprompt"
+	"github.com/sunholo-data/ailang/internal/prompt"
 )
 
 // runAgentPrompt handles the 'ailang agent-prompt' command
@@ -44,7 +44,7 @@ func runAgentPrompt() {
 		version = "latest"
 	}
 
-	content, err := agentprompt.LoadPrompt(version)
+	content, err := prompt.Agent.LoadPrompt(version)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 		os.Exit(1)
@@ -93,13 +93,13 @@ THREE PROMPT TYPES:
 
 // listAgentPromptVersions lists all available agent prompt versions
 func listAgentPromptVersions() {
-	versions, err := agentprompt.ListVersions()
+	versions, err := prompt.Agent.ListVersions()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 		os.Exit(1)
 	}
 
-	activeVersion, err := agentprompt.GetActiveVersion()
+	activeVersion, err := prompt.Agent.GetActiveVersion()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: failed to get active version: %v\n", yellow("Warning"), err)
 		activeVersion = ""
@@ -124,13 +124,13 @@ func listAgentPromptVersions() {
 
 // showAgentPromptInfo displays metadata for a specific agent prompt version
 func showAgentPromptInfo(version string) {
-	metadata, err := agentprompt.GetVersionMetadata(version)
+	metadata, err := prompt.Agent.GetVersionMetadata(version)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 		os.Exit(1)
 	}
 
-	activeVersion, _ := agentprompt.GetActiveVersion()
+	activeVersion, _ := prompt.Agent.GetActiveVersion()
 	isActive := false
 	if version == "latest" || version == "" {
 		version = activeVersion

@@ -94,6 +94,14 @@
              Should match the gcloud config: `gcloud config get-value project`. -->
         <key>AILANG_CLOUD_PROJECT</key>
         <string>@AILANG_CLOUD_PROJECT@</string>
+        <!-- M-V1-SIMPLIFY-S3: the rig coordinator lives on the SHARED plane
+             (Firestore coordinator + messaging + observatory) with LOCAL
+             execution (worktrees on this host, no COORDINATOR_MODE). This line
+             had been added to the installed plist by hand and was lost on
+             re-install on 2026-09-15, which silently moved the daemon onto
+             the local SQLite plane. It lives in the template now. -->
+        <key>AILANG_STORAGE</key>
+        <string>gcp</string>
         <!-- M-COORD-TAG-ROUTING-LASTMILE (v0.23.0): PORT activates the
              daemon's HTTP listener at http://127.0.0.1:$PORT. Without it,
              /api/messages and /health are unreachable and tag-routed sends
@@ -101,6 +109,12 @@
              `install_coordinator.sh --port N`. -->
         <key>PORT</key>
         <string>@HTTP_PORT@</string>
+        <!-- M-V1-SIMPLIFY-S3 M5: the HTTP API fails CLOSED without a bearer
+             token (an unset key used to mean "open"). install_coordinator.sh
+             keeps an existing key across re-installs or generates one;
+             `ailang messages send --requires` reads it from this file. -->
+        <key>COORDINATOR_API_KEY</key>
+        <string>@COORDINATOR_API_KEY@</string>
         <!-- Repo coordinate for cloud dispatch. deriveRepoURL
              (daemon_tasks_exec.go:14) prefers the agent's `workspace` when it
              looks like a GitHub org/repo, and falls back to this env var when

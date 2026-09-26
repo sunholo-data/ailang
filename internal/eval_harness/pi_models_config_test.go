@@ -66,7 +66,7 @@ func TestPiModelsConfigMatchesRegistry(t *testing.T) {
 		t.Fatalf("parse canonical pi config: %v", err)
 	}
 
-	c, err := LoadModelsConfig("models.yml")
+	c, err := LoadModelsConfig("../modelreg/models.yml")
 	if err != nil {
 		t.Fatalf("load models.yml: %v", err)
 	}

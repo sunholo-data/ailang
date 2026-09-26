@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/strutil"
 )
 
 // MergeStrategy determines how to handle an issue when similar docs exist
@@ -430,9 +432,9 @@ func MergeDesignDoc(existingPath string, issue IssueReport, totalFailures int) e
 				code = issue.Examples[i]
 			}
 
-			newExamples += fmt.Sprintf("**Error %d:**\n```\n%s\n```\n\n", i+1, truncate(issue.ErrorMessages[i], 500))
+			newExamples += fmt.Sprintf("**Error %d:**\n```\n%s\n```\n\n", i+1, strutil.Truncate(issue.ErrorMessages[i], 500+3))
 			if code != "" {
-				newExamples += fmt.Sprintf("**Generated Code:**\n```%s\n%s\n```\n\n---\n\n", issue.Lang, truncate(code, 1000))
+				newExamples += fmt.Sprintf("**Generated Code:**\n```%s\n%s\n```\n\n---\n\n", issue.Lang, strutil.Truncate(code, 1000+3))
 			}
 		}
 

@@ -36,6 +36,19 @@ type IterationStage struct {
 	// M1's tokens>0 estimation gate excludes them structurally (no schema marker).
 	TokensIn  int `json:"tokens_in"`
 	TokensOut int `json:"tokens_out"`
+	// QuotaTokens is the token count for a QUOTA lane, and it exists because TokensIn/
+	// TokensOut cannot carry it.
+	//
+	// `tokens > 0` is the structural marker meaning "this stage is metered and can be
+	// priced" — which is why quota lanes MUST post 0/0 above. Writing a real count there
+	// would make the estimator price a subscription run as if it were billed, corrupting
+	// the metered KPI in order to fix the quota one. So quota spend gets its own field,
+	// which the estimator never reads.
+	//
+	// Measured 2026-09-06: 4,979 quota stages recorded zero tokens, so nothing in the
+	// fleet could answer "how much of a bucket have we spent?" — the question a ration
+	// exists to answer. Metered stages are unaffected and keep using TokensIn/TokensOut.
+	QuotaTokens int64 `json:"quota_tokens,omitempty"`
 	// QuotaBucket, when set (fable|opus|sonnet|…), marks a subscription/quota lane.
 	// It is encoded into the free-text agent_id as "<role> (quota:<bucket>)" so it
 	// is visible in `chains view` with NO schema change.
@@ -118,6 +131,15 @@ func (p *IterationPost) Validate() error {
 		if st.QuotaBucket != "" && (st.TokensIn != 0 || st.TokensOut != 0 || st.CostUSD != 0) {
 			return fmt.Errorf("iteration post: quota-lane stage %q must have zero tokens and cost (subscription spend is bucket-visible, not dollar-faked)", st.Role)
 		}
+		// The converse. QuotaTokens on a METERED stage would be double-counted: the
+		// ration sums QuotaTokens and the estimator sums TokensIn/TokensOut, so a
+		// stage carrying both is counted once in each system as if it were two runs.
+		if st.QuotaTokens != 0 && st.QuotaBucket == "" {
+			return fmt.Errorf("iteration post: stage %q reports %d quota_tokens with no quota_bucket (a metered stage's tokens belong in tokens_in/tokens_out)", st.Role, st.QuotaTokens)
+		}
+		if st.QuotaTokens < 0 {
+			return fmt.Errorf("iteration post: stage %q reports negative quota_tokens (%d)", st.Role, st.QuotaTokens)
+		}
 		if _, err := st.stageStatus(); err != nil {
 			return fmt.Errorf("iteration post: stage %d (%s): %w", i, st.Role, err)
 		}
@@ -181,6 +203,13 @@ func PostIteration(ctx context.Context, backend Backend, p *IterationPost) (stri
 			// "" = provenance not classified by this poster; reads as unknown.
 			if err := backend.UpdateStageMetrics(ctx, stage.ID, st.CostUSD, st.TokensIn, st.TokensOut, 0, 0, 0, ""); err != nil {
 				return chain.ID, fmt.Errorf("update stage %d metrics: %w", i, err)
+			}
+		}
+		// Subscription spend. Separate call, separate column: see the QuotaTokens
+		// field comment for why this must not ride on UpdateStageMetrics.
+		if st.QuotaTokens > 0 {
+			if err := backend.UpdateStageQuotaTokens(ctx, stage.ID, st.QuotaTokens); err != nil {
+				return chain.ID, fmt.Errorf("update stage %d quota tokens: %w", i, err)
 			}
 		}
 		// Record the model (metered lanes) so the M1 classifier can resolve a rate.

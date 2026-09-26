@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/strutil"
 	"github.com/sunholo-data/ailang/internal/websocket"
 )
 
@@ -43,6 +44,7 @@ type CoordinatorEventHandler struct {
 	eventCount      int
 	maxEventsPerSec int
 	throttled       bool
+	now             func() time.Time // Injected clock (M-COORDINATOR-TEST-PARALLELISM); default time.Now
 
 	// Event buffering for replay
 	eventBuffer   []*websocket.TaskStreamEvent
@@ -57,9 +59,20 @@ type CoordinatorEventHandler struct {
 	startTime   time.Time
 }
 
+// CoordinatorEventHandlerOption is a functional option for NewCoordinatorEventHandler.
+type CoordinatorEventHandlerOption func(*CoordinatorEventHandler)
+
+// WithClock injects the clock used by the rate-limit window check
+// (M-COORDINATOR-TEST-PARALLELISM). Default: time.Now.
+func WithClock(now func() time.Time) CoordinatorEventHandlerOption {
+	return func(h *CoordinatorEventHandler) {
+		h.now = now
+	}
+}
+
 // NewCoordinatorEventHandler creates a new event handler for a task.
-func NewCoordinatorEventHandler(taskID, threadID string, broadcast EventBroadcaster) *CoordinatorEventHandler {
-	return &CoordinatorEventHandler{
+func NewCoordinatorEventHandler(taskID, threadID string, broadcast EventBroadcaster, opts ...CoordinatorEventHandlerOption) *CoordinatorEventHandler {
+	h := &CoordinatorEventHandler{
 		taskID:          taskID,
 		threadID:        threadID,
 		broadcast:       broadcast,
@@ -67,7 +80,12 @@ func NewCoordinatorEventHandler(taskID, threadID string, broadcast EventBroadcas
 		maxBufferSize:   100, // Keep last 100 events for replay
 		eventBuffer:     make([]*websocket.TaskStreamEvent, 0, 100),
 		startTime:       time.Now(),
+		now:             time.Now,
 	}
+	for _, opt := range opts {
+		opt(h)
+	}
+	return h
 }
 
 // SetEventStorer sets the database storage function for persisting events.
@@ -253,9 +271,9 @@ func (h *CoordinatorEventHandler) broadcastEvent(event *websocket.TaskStreamEven
 	if h.broadcast != nil {
 		// Truncate for WebSocket broadcast (live streaming)
 		broadcastEvent := *event
-		broadcastEvent.Text = truncateString(event.Text, 2000)
-		broadcastEvent.ToolInput = truncateString(event.ToolInput, 1000)
-		broadcastEvent.ToolOutput = truncateString(event.ToolOutput, 2000)
+		broadcastEvent.Text = strutil.Truncate(event.Text, 2000)
+		broadcastEvent.ToolInput = strutil.Truncate(event.ToolInput, 1000)
+		broadcastEvent.ToolOutput = strutil.Truncate(event.ToolOutput, 2000)
 
 		// Enrich with task context if available
 		if h.taskContext != nil {
@@ -263,7 +281,7 @@ func (h *CoordinatorEventHandler) broadcastEvent(event *websocket.TaskStreamEven
 			broadcastEvent.AgentID = h.taskContext.AgentID
 			broadcastEvent.SourceType = h.taskContext.SourceType
 			// Truncate directive for preview, include full for detail view
-			broadcastEvent.Directive = truncateString(h.taskContext.Directive, 200)
+			broadcastEvent.Directive = strutil.Truncate(h.taskContext.Directive, 200)
 			broadcastEvent.DirectiveFull = h.taskContext.Directive
 		}
 
@@ -276,7 +294,7 @@ func (h *CoordinatorEventHandler) checkRateLimit() bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	now := time.Now()
+	now := h.now()
 
 	// Reset counter every second
 	if now.Sub(h.lastEventTime) >= time.Second {
@@ -307,12 +325,4 @@ func (h *CoordinatorEventHandler) IsThrottled() bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	return h.throttled
-}
-
-// truncateString truncates a string to maxLen characters
-func truncateString(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
-	}
-	return s[:maxLen-3] + "..."
 }

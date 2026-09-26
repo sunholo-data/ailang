@@ -7,12 +7,12 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/gitexec"
 	"github.com/sunholo-data/ailang/internal/observatory"
 )
 
@@ -214,7 +214,7 @@ func (s *ObservatorySync) generateAssignmentID(taskID, agentID string) string {
 
 // getGitRemote returns the git remote URL for a path, or empty string if not a git repo.
 func (s *ObservatorySync) getGitRemote(path string) string {
-	cmd := exec.Command("git", "-C", path, "remote", "get-url", "origin")
+	cmd := gitexec.Command("-C", path, "remote", "get-url", "origin")
 	output, err := cmd.Output()
 	if err != nil {
 		return ""
@@ -243,18 +243,14 @@ func (s *ObservatorySync) getSourceRef(task *TaskRecord) string {
 
 // convertTaskStatus converts coordinator status to observatory status.
 func (s *ObservatorySync) convertTaskStatus(status TaskStatus) observatory.TaskStatus {
-	switch status {
-	case TaskStatusPending, TaskStatusQueued:
-		return observatory.TaskStatusPending
-	case TaskStatusRunning:
-		return observatory.TaskStatusRunning
-	case TaskStatusCompleted, TaskStatusPendingApproval:
-		return observatory.TaskStatusCompleted
-	case TaskStatusFailed, TaskStatusRejected, TaskStatusCancelled:
-		return observatory.TaskStatusFailed
-	default:
-		return observatory.TaskStatusPending
+	// Table-driven so a new status cannot silently land in a default arm and
+	// report as still-pending (M-COORDINATOR-EXECUTION-TRUST M2). The old switch
+	// had exactly that arm, and TaskStatusDuplicate was already falling through
+	// it. TestEveryStatusConsumerHandlesEveryStatus asserts the table's coverage.
+	if mapped, ok := observatoryByStatus[status]; ok {
+		return mapped
 	}
+	return observatory.TaskStatusPending
 }
 
 // convertPriority converts numeric priority to string.

@@ -120,6 +120,25 @@ func TestCoordinatorEventHandler_RateLimiting(t *testing.T) {
 	}
 }
 
+// manualClock is a test-controlled clock for the rate-limit window
+// (M-COORDINATOR-TEST-PARALLELISM). Advancing it never touches wall time.
+type manualClock struct {
+	mu  sync.Mutex
+	now time.Time
+}
+
+func (c *manualClock) Now() time.Time {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.now
+}
+
+func (c *manualClock) Advance(d time.Duration) {
+	c.mu.Lock()
+	c.now = c.now.Add(d)
+	c.mu.Unlock()
+}
+
 func TestCoordinatorEventHandler_RateLimitReset(t *testing.T) {
 	var events []*websocket.TaskStreamEvent
 	var mu sync.Mutex
@@ -130,20 +149,27 @@ func TestCoordinatorEventHandler_RateLimitReset(t *testing.T) {
 		mu.Unlock()
 	}
 
-	handler := NewCoordinatorEventHandler("task-123", "", broadcaster)
+	clock := &manualClock{now: time.Unix(1_700_000_000, 0)}
+	handler := NewCoordinatorEventHandler("task-123", "", broadcaster, WithClock(clock.Now))
 
-	// Send burst to trigger throttling
+	// Send 15 events at a frozen time: exactly maxEventsPerSec (10) are broadcast,
+	// the rest are throttled. This "engaged" assertion keeps the test non-vacuous.
 	for i := 0; i < 15; i++ {
 		handler.OnText("message")
 	}
 
-	// Wait for rate limit to reset
-	time.Sleep(1100 * time.Millisecond)
-
-	// Should be able to send more events now
 	mu.Lock()
-	countBefore := len(events)
+	count := len(events)
 	mu.Unlock()
+	if count != 10 {
+		t.Errorf("expected exactly 10 events broadcast before reset, got %d", count)
+	}
+	if !handler.IsThrottled() {
+		t.Error("expected handler to be throttled after burst")
+	}
+
+	// Advance the injected clock past the 1s window — no wall-clock sleep.
+	clock.Advance(1100 * time.Millisecond)
 
 	handler.OnText("after reset")
 
@@ -151,8 +177,8 @@ func TestCoordinatorEventHandler_RateLimitReset(t *testing.T) {
 	countAfter := len(events)
 	mu.Unlock()
 
-	if countAfter <= countBefore {
-		t.Error("expected event to be sent after rate limit reset")
+	if countAfter != 11 {
+		t.Errorf("expected 11 events after clock-driven reset, got %d", countAfter)
 	}
 }
 
@@ -241,25 +267,6 @@ func TestCoordinatorEventHandler_Error(t *testing.T) {
 
 	if events[0].StreamType != websocket.TaskStreamError {
 		t.Errorf("expected error event, got %s", events[0].StreamType)
-	}
-}
-
-func TestCoordinatorEventHandler_TruncateString(t *testing.T) {
-	// Test truncation
-	long := "This is a very long string that should be truncated"
-	truncated := truncateString(long, 20)
-	if len(truncated) > 20 {
-		t.Errorf("expected string to be truncated to 20 chars, got %d", len(truncated))
-	}
-	if truncated[len(truncated)-3:] != "..." {
-		t.Error("expected truncated string to end with ...")
-	}
-
-	// Test no truncation needed
-	short := "Short"
-	notTruncated := truncateString(short, 20)
-	if notTruncated != short {
-		t.Errorf("expected '%s', got '%s'", short, notTruncated)
 	}
 }
 

@@ -5,18 +5,25 @@ package observatory
 
 import (
 	"encoding/json"
-	"os"
-	"path/filepath"
+	"errors"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/statedir"
 )
 
-// DefaultDatabasePath returns the default path for the observatory database.
+// errNoDatabasePath is what an empty database path opens to.
+var errNoDatabasePath = errors.New("observatory: no database path: set " + statedir.EnvVar + " (or HOME), or pass --db")
+
+// DefaultDatabasePath returns the default path for the observatory database:
+// observatory.db under statedir.Dir(). When no state directory resolves it
+// returns "", which OpenStore and NewSQLiteBackendFromPath refuse — never a
+// relative observatory.db beside the process.
 func DefaultDatabasePath() string {
-	homeDir, err := os.UserHomeDir()
+	p, err := statedir.Path("observatory.db")
 	if err != nil {
-		return "observatory.db"
+		return ""
 	}
-	return filepath.Join(homeDir, ".ailang", "state", "observatory.db")
+	return p
 }
 
 // Workspace represents a git repository or project root.

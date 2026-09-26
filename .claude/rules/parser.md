@@ -24,13 +24,6 @@ The lexer NEVER generates NEWLINE tokens — `skipWhitespace()` consumes `\n`. N
 - Print errors BEFORE `t.Fatalf` in tests
 - `string(rune(i))` produces unprintable chars (use `fmt.Sprintf`)
 
-## Constructors
-
-- `parser.New(lexer)` — Takes lexer instance
-- `elaborate.NewElaborator()` — No arguments
-- `types.NewTypeChecker(core, imports)` — Takes Core prog + imports
-- `link.NewLinker()` — No arguments
-
 ## Adding a New Language Feature
 
 1. Token definitions: `internal/lexer/token.go`

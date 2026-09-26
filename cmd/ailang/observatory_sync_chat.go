@@ -9,6 +9,7 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/claudehistory"
 	"github.com/sunholo-data/ailang/internal/observatory"
+	"github.com/sunholo-data/ailang/internal/strutil"
 )
 
 func observatorySyncChatCommand() {
@@ -93,7 +94,7 @@ func showImportStatus(ctx context.Context, importer *claudehistory.Importer, ses
 	fmt.Printf("%-40s  %8s  %s\n", "----------", "--------", "-----------")
 	for _, s := range statuses {
 		fmt.Printf("%-40s  %8d  %s\n",
-			truncateString(s.SessionID, 40),
+			strutil.Truncate(s.SessionID, 40),
 			s.MessageCount,
 			s.ImportedAt.Format("2006-01-02 15:04:05"))
 	}

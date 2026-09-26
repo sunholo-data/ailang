@@ -85,8 +85,22 @@ func TestDefaultConfig(t *testing.T) {
 	if cfg.DefaultExecutor != "claude" {
 		t.Errorf("expected default executor 'claude', got '%s'", cfg.DefaultExecutor)
 	}
-	if cfg.ClaudeModel != "haiku" {
-		t.Errorf("expected claude model 'haiku', got '%s'", cfg.ClaudeModel)
+	// M-MODEL-REGISTRY-SINGLE-SOURCE M6 (D2(a)): DefaultConfig must NOT seed a
+	// model for any harness. This block previously asserted ClaudeModel ==
+	// "haiku" — i.e. it asserted the defect. DefaultConfig was the UPSTREAM half
+	// of it: it filled cfg.*Model, so each executor's own default only fired
+	// when this one had not, and removing only the downstream five was a no-op.
+	for name, got := range map[string]string{
+		"ClaudeModel":   cfg.ClaudeModel,
+		"CodexModel":    cfg.CodexModel,
+		"OpenCodeModel": cfg.OpenCodeModel,
+		"PiModel":       cfg.PiModel,
+		"MotokoModel":   cfg.MotokoModel,
+	} {
+		if got != "" {
+			t.Errorf("DefaultConfig seeds %s = %q; it must seed no model at all, "+
+				"or an unpinned agent silently runs it", name, got)
+		}
 	}
 }
 

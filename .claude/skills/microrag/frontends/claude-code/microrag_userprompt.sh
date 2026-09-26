@@ -37,12 +37,16 @@ if [ "${#PROMPT}" -gt 4096 ]; then
     PROMPT="${PROMPT:0:4096}"
 fi
 
+# macOS ships no coreutils timeout; the bare-else branch previously ran the
+# engine UNBOUNDED, so under GPU contention the hook harness killed it at its
+# 4s cap on every prompt. perl's alarm is the portable fallback — same
+# pattern as session_start.sh's run_bounded.
 if command -v gtimeout >/dev/null 2>&1; then
     RESULT=$(gtimeout 3s ailang micro-rag user-prompt --prompt "$PROMPT" 2>/dev/null)
 elif command -v timeout >/dev/null 2>&1; then
     RESULT=$(timeout 3s ailang micro-rag user-prompt --prompt "$PROMPT" 2>/dev/null)
 else
-    RESULT=$(ailang micro-rag user-prompt --prompt "$PROMPT" 2>/dev/null)
+    RESULT=$(perl -e 'alarm shift; exec @ARGV' 3 ailang micro-rag user-prompt --prompt "$PROMPT" 2>/dev/null)
 fi
 [ -z "$RESULT" ] && exit 0
 

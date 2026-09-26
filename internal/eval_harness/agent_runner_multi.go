@@ -6,6 +6,7 @@ package eval_harness
 import (
 	"context"
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/modelreg"
 	"os"
 	"path/filepath"
 	"strings"
@@ -87,9 +88,9 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 	modelName := config.ModelName // Use provided model name (e.g., "gemini-3-flash-preview")
 
 	// If executor not provided, look up from model config
-	if executorName == "" && GlobalModelsConfig != nil {
+	if executorName == "" && modelreg.GlobalModelsConfig != nil {
 		var err error
-		executorName, modelName, err = GlobalModelsConfig.GetExecutorForModel(config.ModelName)
+		executorName, modelName, err = modelreg.GlobalModelsConfig.GetExecutorForModel(config.ModelName)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get executor for model %s: %w", config.ModelName, err)
 		}
@@ -230,6 +231,24 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 		Metadata:               buildChainMetadata(config.ChainID, config.StageID),
 		MaxTokensPerBench:      config.MaxTokensPerBench,        // M-EVAL-OS-LONGITUDINAL Phase 1
 		MaxOutputTokens:        modelMaxOutputTokens(modelName), // M-OLLAMA-PER-MODEL-MAX-TOKENS
+		PolicyPath:             config.PolicyPath,
+	}
+
+	// The ailang_only lane (M-AGENT-AILANG-ONLY-EXECUTION D5): a tool policy
+	// is a harness boundary, so it is explicit, banked, and never a silent
+	// default. An unknown profile fails the run before any model is called.
+	if config.ToolPolicy != "" {
+		tools, err := executor.ProfileTools(config.ToolPolicy)
+		if err != nil {
+			return nil, fmt.Errorf("tool-policy: %w", err)
+		}
+		task.AllowedTools = tools
+	}
+	if config.PolicyPath != "" {
+		if task.ExtraEnv == nil {
+			task.ExtraEnv = make(map[string]string)
+		}
+		task.ExtraEnv["AILANG_AGENT_POLICY"] = config.PolicyPath
 	}
 
 	// Export benchmark agent_env to the executor subprocess (M-EVAL-REIMPLEMENT-BENCH).
@@ -249,8 +268,8 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 	if config.ConfigKey != "" {
 		lookupKey = config.ConfigKey
 	}
-	if GlobalModelsConfig != nil {
-		if cfg, ok := GlobalModelsConfig.Models[lookupKey]; ok {
+	if modelreg.GlobalModelsConfig != nil {
+		if cfg, ok := modelreg.GlobalModelsConfig.Models[lookupKey]; ok {
 			if cfg.TTFTTimeoutSeconds > 0 {
 				task.TTFTTimeout = time.Duration(cfg.TTFTTimeoutSeconds) * time.Second
 			}
@@ -295,11 +314,14 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 			// (maxCost > 0), but a cost_usd is banked either way, and before
 			// this the two came from different price tables — a codex row could
 			// bank $0.34 while the budget that spared it saw $0.27.
-			task.Pricing = &executor.CostModel{
-				ProviderName:    cfg.Provider,
-				InputTokenCost:  cfg.Pricing.InputPer1K,
-				OutputTokenCost: cfg.Pricing.OutputPer1K,
-			}
+			//
+			// Through the one adapter, never a hand copy: CacheReadCost was
+			// omitted until 2026-09-02 and CacheWriteCost until 2026-09-15,
+			// each silently zeroing that rate for EVERY agent-mode row —
+			// this struct overrides the executor's own CostModel via
+			// ResolveCostModel, so an executor that priced the cache
+			// correctly had that pricing discarded here.
+			task.Pricing = executor.CostModelFromPricing(cfg.Provider, lookupKey, cfg.Pricing)
 			// The WORK gate. A per-model budgets:max_tokens_per_bench overrides
 			// the global --max-tokens-per-bench flag; this is what makes the
 			// agent suite comparable, because the dollar gate above buys work
@@ -349,6 +371,7 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 			failed.NumTurns = result.NumTurns
 			failed.ToolCallCount = result.ToolCallCount
 			failed.Error = result.Error
+			withProvenance(failed, result)
 		}
 		return failed, fmt.Errorf("execution failed: %w", err)
 	}
@@ -413,16 +436,19 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 
 	// diagnosticsOnly carries the session log out ALONGSIDE an error return so
 	// the caller can still bank the transcript of a run that produced no usable
-	// measurement. Every other field is deliberately zero: this value is NOT a
-	// result and must never be counted as one.
+	// measurement. Every MEASUREMENT field is deliberately zero: this value is
+	// NOT a result and must never be counted as one. PROVENANCE is kept —
+	// which harness version and tool lane the failure happened on is exactly
+	// what a diagnostic row is for (the 2026-09-16 A/B banked its first
+	// failure with executor_version and tool_policy both null).
 	diagnosticsOnly := func() *AgentBenchmarkResult {
-		return &AgentBenchmarkResult{
+		return withProvenance(&AgentBenchmarkResult{
 			BenchmarkID:      spec.ID,
 			Executor:         executorName,
 			SessionID:        result.SessionID,
 			SessionJSONLPath: sessionJSONLPath,
 			Browser:          browserManifest,
-		}
+		}, result)
 	}
 
 	// Check for executor-level failure (crash, timeout, non-zero exit).
@@ -481,11 +507,17 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 	// Pricing.CacheReadPer1K, and a model that declares no rate bills its cache
 	// reads at the FULL input rate — overstating is visible in a budget, whereas
 	// $0 hides both the spend and a broken cache. result.InputTokens is FRESH
-	// input here (executors report cache reads separately), so the two arguments
+	// input here (executors report cache reads separately), so the arguments
 	// stay disjoint and no token is billed twice.
+	//
+	// CACHE WRITES ADDED 2026-09-14. There are THREE disjoint input buckets, not two,
+	// and cache CREATION had no parameter here at all — so a cached prompt was created
+	// for free. Measured: one role-run reading five files reported InputTokens=50 and
+	// CacheCreationInputTokens=44,841, i.e. 99.9% of its paid-for prompt was invisible
+	// to this calculation.
 	costUSD := result.CostUSD
 	if costUSD == 0 {
-		if c := CalculateCostWithCache(lookupKey, result.InputTokens, result.OutputTokens+result.ReasonTokens, result.CacheReadInputTokens); c > 0 {
+		if c := CalculateCostWithCache(lookupKey, result.InputTokens, result.OutputTokens+result.ReasonTokens, result.CacheReadInputTokens, result.CacheCreationInputTokens); c > 0 {
 			costUSD = c
 		}
 	}
@@ -494,6 +526,9 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 		BenchmarkID:        spec.ID,
 		ResolvedProfile:    resolvedProfile,
 		ResolvedExtensions: resolvedExtensions,
+		ExecutorVersion:    result.ExecutorVersion,
+		ToolPolicy:         result.ToolPolicy,
+		PolicyDigest:       result.PolicyDigest,
 		SessionJSONLPath:   sessionJSONLPath,
 		Executor:           executorName,
 		Success:            success,
@@ -510,8 +545,8 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 		Usage:              tokenUsageFromResult(result),
 		TTFTSeconds:        ttftTracker.seconds,
 		ModelFamily: func() string {
-			if GlobalModelsConfig != nil {
-				if cfg, ok := GlobalModelsConfig.Models[lookupKey]; ok {
+			if modelreg.GlobalModelsConfig != nil {
+				if cfg, ok := modelreg.GlobalModelsConfig.Models[lookupKey]; ok {
 					return cfg.ModelFamily
 				}
 			}
@@ -565,9 +600,9 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 // hook's exit-0 stderr in stream-json mode, so those markers never reached the
 // stream — the handler was structurally always empty on the active claude path.
 // Hook reality is now read from the out-of-band file sink post-run via
-// ReadFmtHookSink (see the ON-arm block after ExecuteStreaming above). The legacy
-// RunHeadlessSessionStreaming path still uses detectFmtHookEvent directly for
-// executors whose hook stderr DOES surface in the stream.
+// ReadFmtHookSink (see the ON-arm block after ExecuteStreaming above).
+// (The legacy RunHeadlessSessionStreaming stream-scan path and detectFmtHookEvent
+// were deleted in M-V1-SIMPLIFY-S1 M4.)
 
 // debugEventHandler prints streaming events when DEBUG_AGENT is set
 type debugEventHandler struct{}
@@ -678,89 +713,3 @@ func (h *ttftEventHandler) OnError(error)               {}
 // convention agent_prompt.txt uses. A package var (not const) so tests can
 // redirect it at a temp file.
 var trapsCardDefaultPath = "prompts/agent/dialect-traps.md"
-
-// maybePrependTrapsCard front-loads the compact "dialect traps" card into the
-// turn-1 task message — a tiny, un-buryable reminder of the highest-frequency
-// rule violations, distilled from the 14-failure analysis.
-//
-// Default ON. The 2026-06-06 prompt-delivery experiment (local qwen3.5, n=2)
-// showed the card sharply cuts flailing (symbolic_diff 1/2→2/2, 880k→246k
-// tokens) by front-loading the import/syntax rules the model otherwise misses.
-// It loads trapsCardDefaultPath unless AILANG_EVAL_TRAPS_CARD overrides the
-// path; set AILANG_EVAL_TRAPS_CARD=off (or 0/false/no/none) to disable. If the
-// card file is unreadable the directive is returned unchanged — this is an
-// additive salience aid, not a data-integrity path.
-func maybePrependTrapsCard(directive string) string {
-	path := strings.TrimSpace(os.Getenv("AILANG_EVAL_TRAPS_CARD"))
-	switch strings.ToLower(path) {
-	case "off", "0", "false", "no", "none":
-		return directive // explicitly disabled
-	case "":
-		path = trapsCardDefaultPath // default on
-	}
-	card, err := os.ReadFile(path)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "[eval] traps card unreadable (%s): %v — continuing without card\n", path, err)
-		return directive
-	}
-	return strings.TrimRight(string(card), "\n") + "\n\n---\n\n" + directive
-}
-
-// persistentSystemPromptEnabled reports whether the FULL teaching prompt should
-// be delivered via a persistent system-prompt channel (opencode AGENTS.md),
-// re-injected every turn, instead of concatenated once into the first user
-// message.
-//
-// Defaults to FALSE. The 2026-06-05/06 prompt-delivery experiment (local
-// qwen3.5, n=2) showed re-injecting the full ~22k prompt every turn ("MOVE")
-// was the WORST delivery — 1/6 vs 3/6 for turn-1 concatenation — because it
-// bloated the context (up to 39 turns / 2.4M tokens) and the model lost the
-// signal. Set AILANG_EVAL_PERSIST_PROMPT=1/true/on to re-enable for A/B testing.
-func persistentSystemPromptEnabled() bool {
-	switch strings.ToLower(strings.TrimSpace(os.Getenv("AILANG_EVAL_PERSIST_PROMPT"))) {
-	case "1", "true", "on", "yes":
-		return true
-	default:
-		return false
-	}
-}
-
-// modelMaxOutputTokens returns the registry's declared max_output_tokens for a
-// model (its per-request output strength), or 0 if unknown. Forwarded on the Task
-// to executors that drive a separate runtime so a reasoning model isn't truncated
-// mid-<think> by a small default (M-OLLAMA-PER-MODEL-MAX-TOKENS).
-func modelMaxOutputTokens(modelName string) int {
-	if GlobalModelsConfig == nil {
-		return 0
-	}
-	if m, err := GlobalModelsConfig.GetModel(modelName); err == nil {
-		return m.MaxOutputTokens
-	}
-	return 0
-}
-
-// tokenUsageFromResult maps executor token counts into the banked TokenUsage.
-//
-// This mapping is a proven silent-data-loss point. The standard path had the
-// same shape and dropped reasoning tokens + finish_reason for every provider
-// until 43333e7a8, which is why the whole v0.30.0 standard baseline banked
-// cost figures that understate real spend (see
-// eval_results/baselines/v0.30.0/CAVEATS.md). The agent path dropped them for
-// even longer.
-//
-// It is a named function, not an inline literal, so the boundary itself is
-// covered by a test rather than only the parsers feeding it — a field that is
-// parsed correctly but never copied here is indistinguishable, in the banked
-// data, from a field the provider never reported.
-func tokenUsageFromResult(result *executor.Result) TokenUsage {
-	if result == nil {
-		return TokenUsage{}
-	}
-	return TokenUsage{
-		InputTokens:              result.InputTokens,
-		OutputTokens:             result.OutputTokens,
-		ReasonTokens:             result.ReasonTokens,
-		CacheReadInputTokens:     result.CacheReadInputTokens,
-		CacheCreationInputTokens: result.CacheCreationInputTokens,
-	}
-}

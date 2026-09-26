@@ -66,35 +66,37 @@ func (p *Parser) parseFunctionDeclaration(isPure bool, isExport bool) *ast.FuncD
 	if hasTypeParams && p.curTokenIs(lexer.UNIT) {
 		// Generic function with unit parameter: func name[T]()
 		// FIXED (v0.4.2): Add implicit unit parameter for S-CALL0 compatibility
-		fn.Params = []*ast.Param{
-			{
-				Name: "_", // Unnamed parameter (convention for ignored params)
-				Type: &ast.SimpleType{Name: "()", Pos: p.curPos()},
-				Pos:  p.curPos(),
-			},
-		}
+		fn.Params = []*ast.Param{newUnitParam(p.curPos())}
 		// Stay AT the UNIT token (don't advance) — matches non-generic branch convention.
 		// The return type check (peekTokenIs(ARROW)) expects curToken to be the last param token.
 	} else if hasTypeParams && p.curTokenIs(lexer.LPAREN) {
 		// Generic function with parameters: func name[T](x: T)
 		// Already at LPAREN after parseTypeParams()
 		fn.Params = p.parseParams()
+		if len(fn.Params) == 0 {
+			// #962: `func name[T](   )` lexes LPAREN/RPAREN (interior whitespace
+			// prevents the UNIT token) — same convention as the UNIT branch:
+			// an empty parameter list is unit-param, regardless of whitespace.
+			fn.Params = []*ast.Param{newUnitParam(p.curPos())}
+		}
 	} else if !hasTypeParams && p.peekTokenIs(lexer.UNIT) {
 		// Non-generic function with unit parameter: func name()
 		// FIXED (v0.4.2): Add implicit unit parameter for S-CALL0 compatibility
 		// Zero-arg syntax func f() is sugar for func f(_: ()) - takes unit parameter
 		p.nextToken()
-		fn.Params = []*ast.Param{
-			{
-				Name: "_", // Unnamed parameter (convention for ignored params)
-				Type: &ast.SimpleType{Name: "()", Pos: p.curPos()},
-				Pos:  p.curPos(),
-			},
-		}
+		fn.Params = []*ast.Param{newUnitParam(p.curPos())}
 	} else {
 		// Non-generic function with parameters: func name(x: int)
 		p.expectPeek(lexer.LPAREN)
 		fn.Params = p.parseParams()
+		if len(fn.Params) == 0 {
+			// #962: whitespace inside empty parens must not change the AST —
+			// `func f(   )` is the same declaration as `func f()`, and it must
+			// be callable as f() (which desugars to f(())). Before this fix the
+			// whitespace variant produced a zero-param function that rejected
+			// its only sensible call with TC_ARITY_001 and failed fmt round-trip.
+			fn.Params = []*ast.Param{newUnitParam(p.curPos())}
+		}
 	}
 
 	// Parse return type if present
@@ -280,18 +282,17 @@ func (p *Parser) parseExternFunctionDeclaration() *ast.FuncDecl {
 	if p.peekTokenIs(lexer.UNIT) {
 		// Zero-arg extern: extern func name()
 		p.nextToken()
-		fn.Params = []*ast.Param{
-			{
-				Name: "_",
-				Type: &ast.SimpleType{Name: "()", Pos: p.curPos()},
-				Pos:  p.curPos(),
-			},
-		}
+		fn.Params = []*ast.Param{newUnitParam(p.curPos())}
 	} else {
 		if !p.expectPeek(lexer.LPAREN) {
 			return nil
 		}
 		fn.Params = p.parseParams()
+		if len(fn.Params) == 0 {
+			// #962: same whitespace rule as parseFunctionDeclaration —
+			// `extern func name(   )` is unit-param, like `extern func name()`.
+			fn.Params = []*ast.Param{newUnitParam(p.curPos())}
+		}
 	}
 
 	// Extern functions must have explicit return type
@@ -327,6 +328,18 @@ func (p *Parser) parseExternFunctionDeclaration() *ast.FuncDecl {
 // parseFunctionBody parses a function body as a block of semicolon-separated expressions
 // Assumes we're currently AT the LBRACE token
 // Returns either a single expression or a Block containing multiple expressions
+// newUnitParam returns the implicit unit parameter for zero-arg declarations
+// (S-CALL0 convention, v0.4.2): `func f()` is sugar for `func f(_: ())`.
+// Since #962 it is applied to ANY empty parameter list, so interior whitespace
+// (`func f(   )`) cannot change the AST.
+func newUnitParam(pos ast.Pos) *ast.Param {
+	return &ast.Param{
+		Name: "_", // Unnamed parameter (convention for ignored params)
+		Type: &ast.SimpleType{Name: "()", Pos: pos},
+		Pos:  pos,
+	}
+}
+
 func (p *Parser) parseFunctionBody() ast.Expr {
 	startPos := p.curPos()
 	p.nextToken() // move past LBRACE

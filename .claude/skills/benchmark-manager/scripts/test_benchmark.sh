@@ -23,10 +23,10 @@ if [[ -z "$BENCHMARK_ID" ]]; then
     if [[ -n "$DEV_MODELS" ]]; then
         echo "  $DEV_MODELS"
     else
-        echo "  (could not resolve dev_models from internal/eval_harness/models.yml)"
+        echo "  (could not resolve dev_models from internal/modelreg/models.yml)"
     fi
     echo ""
-    echo "Full model list: see internal/eval_harness/models.yml"
+    echo "Full model list: see internal/modelreg/models.yml"
     exit 1
 fi
 

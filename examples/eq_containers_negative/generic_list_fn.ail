@@ -1,0 +1,15 @@
+-- NEGATIVE: a generic function that wraps its parameters in list literals
+-- must still pass its Eq obligation to the caller. The ANF temporary for
+-- [x] used to be let-generalized over the function's own `a`, so closures
+-- reached the runtime comparator and printed false (M-EQ-DERIVE-CONTAINERS
+-- round-1 evaluation).
+-- Expected: No instance for Eq[[int -> int]]
+module examples/eq_containers_negative/generic_list_fn
+
+func pick[a](x: a, y: a) -> bool {
+  [x] == [y]
+}
+
+export func main() -> () ! {IO} {
+  let f = \z. z + 1 in _io_println(show(pick(f, f)))
+}

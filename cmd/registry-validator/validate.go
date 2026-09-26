@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,8 +11,11 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/pkg"
+	"github.com/sunholo-data/ailang/internal/strutil"
 )
 
 // runAilangCheck runs ailang check on the package directory.
@@ -19,7 +23,7 @@ import (
 // and cross-module types), falls back to per-file checks for bare packages.
 func runAilangCheck(dir string) (bool, string) {
 	// If ailang.toml exists, use package-level check (resolves deps + cross-module types)
-	if fileExists(filepath.Join(dir, "ailang.toml")) {
+	if strutil.FileExists(filepath.Join(dir, "ailang.toml")) {
 		// Step 1: Rewrite any remaining path deps to registry versions.
 		// The publish command now rewrites path deps client-side, but older clients
 		// may still send tarballs with path deps.
@@ -102,41 +106,36 @@ func runAilangCheck(dir string) (bool, string) {
 	return true, ""
 }
 
-// runAilangVerify runs ailang verify and parses results.
-func runAilangVerify(dir string) (verified, total, skipped int) {
-	var files []string
-	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if err == nil && !info.IsDir() && strings.HasSuffix(path, ".ail") {
-			files = append(files, path)
-		}
-		return nil
-	})
+// verifyWallCap bounds the whole-package Z3 run (M-PKG-QUALITY-LADDER M2).
+// Per-function timeouts already exist inside verify; this caps the package so
+// a 60-module upload cannot hold a validator worker for minutes.
+const verifyWallCap = 120 * time.Second
 
-	for _, f := range files {
-		cmd := exec.Command("ailang", "verify", "--json", f)
-		cmd.Dir = dir
-		output, err := cmd.CombinedOutput()
-		if err != nil {
-			skipped++
-			continue
+// runAilangVerify runs `ailang verify --package` and decodes the shared
+// PackageVerifyReport (M-PKG-QUALITY-LADDER M1/M2).
+//
+// History: until 2026-09-17 this ran `ailang verify --json <abs file>` per
+// file — MOD010 on every flat tarball — and decoded a bare array the command
+// never printed, so all 373 published versions banked contracts_total=0 while
+// sunholo/deontic alone proves 7/7. A failed run now returns an error the
+// caller BANKS (validation.contracts_error) rather than counting zero.
+func runAilangVerify(dir string) (*pkg.PackageVerifyReport, error) {
+	cmd := exec.Command("ailang", "verify", "--package", ".", "--json", "--wall-cap", verifyWallCap.String())
+	cmd.Dir = dir
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	runErr := cmd.Run()
+	// verify exits 1 on counterexamples/errors but still prints the report;
+	// decode first and only surface runErr when there is nothing to decode.
+	report, decodeErr := pkg.DecodePackageVerifyReport(stdout.Bytes())
+	if decodeErr != nil {
+		if runErr != nil {
+			return nil, fmt.Errorf("verify --package: %v: %s", runErr, strutil.Truncate(strings.TrimSpace(stderr.String()), 400))
 		}
-		// Parse JSON output to count verified/counterexample/skipped
-		var results []struct {
-			Status string `json:"status"`
-		}
-		if json.Unmarshal(output, &results) == nil {
-			for _, r := range results {
-				total++
-				switch r.Status {
-				case "verified":
-					verified++
-				case "skipped", "timeout", "error":
-					skipped++
-				}
-			}
-		}
+		return nil, decodeErr
 	}
-	return
+	return report, nil
 }
 
 // rewritePathDepsToRegistry reads ailang.toml, replaces path dependencies with
@@ -189,10 +188,7 @@ func rewritePathDepsToRegistry(dir string, manifest *pkg.PackageManifest) error 
 
 // lookupLatestVersion fetches the registry index and finds the latest version of a package.
 func lookupLatestVersion(pkgName string) string {
-	registryURL := os.Getenv("AILANG_REGISTRY")
-	if registryURL == "" {
-		registryURL = "https://storage.googleapis.com/ailang-registry"
-	}
+	registryURL := config.RegistryURL()
 	indexURL := registryURL + "/index.json"
 
 	resp, err := http.Get(indexURL)
@@ -231,11 +227,6 @@ func getAilangVersion() string {
 		return "unknown"
 	}
 	return strings.TrimSpace(string(output))
-}
-
-func fileExists(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
 }
 
 func getMetaString(meta map[string]interface{}, key string) string {
