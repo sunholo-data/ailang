@@ -52,3 +52,33 @@ esac
 MC_RATION_REASONS='codex over: provider-reported Codex account usage exceeds ration or exhausts a window'
 [ -z "$(_mc_reset_hint)" ] || { echo "FAIL reset hint printed with no credit held"; exit 1; }
 echo 'PASS reset credits in reserve are lifted into the notice, and absent when none are held'
+
+# OPUS BEFORE PI (2026-09-26): with the knob on, a dry codex hands planner/executor to opus
+# when the Anthropic probe passes, and to the pi chain when it does not. Knob off = unchanged.
+_opb_run() {  # $1 = knob, $2 = anthropic probe rc
+  OPB_RC="$2"; AN_PROBES=0
+  _mc_probe() { AN_PROBES=$((AN_PROBES+1)); return "$OPB_RC"; }
+  MISSION_OPUS_BEFORE_PI="$1"
+  MISSION_PLANNER_MODEL=codex:test-model; MISSION_EXECUTOR_MODEL=codex:test-model
+  unset MISSION_PLANNER_CHAIN_REMAINING MISSION_EXECUTOR_CHAIN_REMAINING
+  _cx_probed=:; _cx_failed=:; _cx_rcmap=''; _lane_degraded=''; _an_probed=:; _an_failed=:
+  eval "$block"
+}
+_opb_run 1 0
+[ "$MISSION_PLANNER_MODEL" = opus ] && [ "$MISSION_EXECUTOR_MODEL" = opus ] && [ "$AN_PROBES" = 1 ] \
+  || { echo "FAIL opus-before-pi positive: $MISSION_PLANNER_MODEL $MISSION_EXECUTOR_MODEL probes=$AN_PROBES"; exit 1; }
+case "$_lane_degraded" in *'handed to `opus`'*) ;; *) echo "FAIL ledger does not name opus"; exit 1 ;; esac
+_opb_run 1 75
+[ "$MISSION_PLANNER_MODEL" = pi:ollama/test ] && [ "$MISSION_EXECUTOR_MODEL" = pi:ollama/test ] && [ "$AN_PROBES" = 1 ] \
+  || { echo "FAIL opus-before-pi drought: $MISSION_PLANNER_MODEL $MISSION_EXECUTOR_MODEL probes=$AN_PROBES"; exit 1; }
+_opb_run 0 0
+[ "$MISSION_PLANNER_MODEL" = pi:ollama/test ] && [ "$AN_PROBES" = 0 ] \
+  || { echo "FAIL knob off changed routing: $MISSION_PLANNER_MODEL probes=$AN_PROBES"; exit 1; }
+echo 'PASS opus-before-pi: admitted opus wins over pi (one probe for both roles); Anthropic dry walks the pi chain; knob off unchanged'
+
+# log() must be defined before its first caller, or bash resolves macOS /usr/bin/log.
+first_def=$(grep -n '^log() {' "$DRIVER" | head -1 | cut -d: -f1)
+first_call=$(grep -n '^[[:space:]]*log "' "$DRIVER" | head -1 | cut -d: -f1)
+[ -n "$first_def" ] && [ -n "$first_call" ] && [ "$first_def" -lt "$first_call" ] \
+  || { echo "FAIL log() defined at line $first_def but first called at line $first_call"; exit 1; }
+echo 'PASS log() is defined before its first caller'
