@@ -133,6 +133,7 @@ _list_difference : (list[a], list[a]) -> list[a]
 _list_drop : (int, list[a]) -> list[a]
 _list_extract : (list[a], int, int) -> list[a]
 _list_filter : (a -> bool, list[a]) -> list[a]
+_list_flatMap : (a -> list[b] ! {...e}, list[a]) -> list[b] ! {...e}
 _list_foldl : ((b, a) -> b, b, list[a]) -> b
 _list_head : list[a] -> a
 _list_intersect : (list[a], list[a]) -> list[a]
@@ -141,10 +142,12 @@ _list_map : (a -> b, list[a]) -> list[b]
 _list_member : (a, list[a]) -> bool
 _list_nth : (list[a], int) -> a
 _list_reverse : list[a] -> list[a]
+_list_sortBy : ((a, a) -> int ! {...e}, list[a]) -> list[a] ! {...e}
 _list_take : (int, list[a]) -> list[a]
 _list_takeFlatMap : (int, a -> list[b], list[a]) -> list[b]
 _list_takeMap : (int, a -> b, list[a]) -> list[b]
 _list_union : (list[a], list[a]) -> list[a]
+_list_zip : (list[a], list[b]) -> list[(a, b)]
 _map_empty : () -> Map[k, v]
 _map_from_list : list[(k, v)] -> Map[k, v]
 _map_insert : (Map[k, v], k, v) -> Map[k, v]
@@ -229,6 +232,7 @@ _str_join : (list[string], string) -> string
 _str_len : string -> int
 _str_lower : string -> string
 _str_mapSlicesJoin : (string, string, string -> string) -> string
+_str_repeat : (string, int) -> string
 _str_replace : (string, string, string) -> string
 _str_replaceMany : (string, list[(string, string)]) -> string
 _str_slice : (string, int, int) -> string

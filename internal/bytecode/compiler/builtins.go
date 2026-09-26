@@ -132,6 +132,8 @@ var HOFBuiltinTable = []string{
 	"__str_foldSlices",
 	"__str_mapSlicesJoin",
 	"__xml_parseFold",
+	"__list_sortBy",
+	"__list_flatMap",
 }
 
 var hofBuiltinIndex = func() map[string]uint8 {

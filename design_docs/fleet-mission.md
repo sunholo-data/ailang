@@ -89,7 +89,9 @@ ticket is filed to `mission-fleet`. Plane: `mission-fleet` is declared triage in
   elaborate,core,eval,vm,codegen,effects,builtins,pipeline,runtime,link,iface}/**`, `std/**`,
   `examples/**`, `benchmarks/**`.
 - **Parks for Mark (HD-2a, policy class)**: any fix that changes routing, lane order, quota or
-  ration thresholds, or a billing guard. File a decision row with a recommendation; take the next
+  ration thresholds, or a billing guard. **Also any change to `.pi/extensions/**`** (D-FLEET-3): the
+  pi EVAL harness loads the same extensions, so a fleet fix there can shift eval results unnoticed.
+  Such a ticket parks with the proposed diff and its expected eval impact. File a decision row with a recommendation; take the next
   ticket.
 
 ## Guardrails (on top of the skill's Standing Rules)
@@ -121,6 +123,7 @@ Shared per-role routing from `mission-control`. Overrides in `~/.config/ailang/m
 |---|---|---|
 | D-FLEET-1 | RULED 2026-09-26 (Mark, attended: "yes") | Design docs without `planner_lane` default to the mission's planner pin, not `opus fail-closed`. |
 | D-FLEET-2 | RULED 2026-09-26 (Mark, attended: "yes") | The spawn-pin hook may walk the role's DECLARED fallback chain, in order, when the pinned model is dead. No undeclared model is ever allowed. |
+| D-FLEET-3 | RULED 2026-09-26 (Mark, attended: "do the follow ups") | Changes to `.pi/extensions/**` park for Mark with the diff and expected eval impact; the pi eval harness shares them. Affects `pi-runner:sandbox-extensions-not-wired` (P0 #4): the fleet designs it, and Mark approves before it lands. |
 
 ## Queue (top = next; tags: [NEXT] [IN-SPRINT] [PARKED] [LANDED] [RULED OUT])
 
@@ -173,8 +176,11 @@ and resolve it as "already fixed" with evidence if it no longer reproduces.
 
 **Ruled policy questions** — both moved into P1 above (items 0a and 0b; decisions D-FLEET-1 and D-FLEET-2).
 
-Standing parked item: the Phase 3a skill-resolution spike (design P1–P3), routed here only on
-Mark's directive.
+**[DIRECTIVE, Mark 2026-09-26] After P1, before P2:** the Phase 3a skill-resolution spike
+(design doc M-HARNESS-MISSION-LOOP, premises P1–P3). Measure how the claude, codex and pi controllers
+each resolve skills, using marker skills in the pin worktree against conflicting user-level copies.
+**Measurement only**: record the results in the design doc's Verification Log and park Phase 3b's
+mechanism choice for Mark. This is what unblocks `harness-stable`.
 
 ---
 **Document created**: 2026-09-26. Iteration 0 ratifies it with Mark before any ticket routes.
