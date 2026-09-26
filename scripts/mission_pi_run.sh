@@ -56,7 +56,7 @@
 #      post-fix — so it can neither confirm nor deny that work happened.
 #
 # EXIT CODES (the verdict is also written as JSON to --verdict)
-#   0  ok               — pi finished and the worktree or HEAD changed, or commits were made
+#   0  ok               — pi finished and the worktree changed or commits were made since launch
 #   10 empty_worktree   — pi finished, changed nothing and made no commits. The false-green in its pure form.
 #   11 reasoning_stall  — killed: reasoning with no content/tool-call past the stall bound
 #   12 stream_dead      — killed: no bytes at all past the stall bound
@@ -243,9 +243,8 @@ PI_RC=$?
 ELAPSED=$(( $(now) - START ))
 DIFF_LINES=$(git -C "$WORKDIR" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
 # #1096: porcelain alone is blind to a committing executor; a pre-dirty tree still reads ok vacuously.
+# A moved HEAD alone is not work: a backward reset or lost .git must still read empty_worktree.
 HEAD_AFTER=$(git -C "$WORKDIR" rev-parse --verify -q HEAD 2>/dev/null) || HEAD_AFTER=""
-HEAD_MOVED=0
-[ "$HEAD_AFTER" != "$BASE_HEAD" ] && HEAD_MOVED=1
 if [ -n "$BASE_HEAD" ]; then
   COMMITS=$(git -C "$WORKDIR" rev-list --count "$BASE_HEAD..HEAD" 2>/dev/null) || COMMITS=0
 elif [ -n "$HEAD_AFTER" ]; then
@@ -253,6 +252,7 @@ elif [ -n "$HEAD_AFTER" ]; then
 else
   COMMITS=0
 fi
+case "$COMMITS" in ''|*[!0-9]*) COMMITS=0 ;; esac
 AGENT_END=$(grep -c '"type":"agent_end"' "$OUT" 2>/dev/null | tr -d ' ')
 # pi emits tool_execution_START/_UPDATE/_END, never a bare "tool_execution" — an
 # exact-match grep on the bare name silently reports 0 on a run that used tools.
@@ -262,7 +262,7 @@ OUT_BYTES=$(wc -c < "$OUT" 2>/dev/null | tr -d ' ')
 
 case "$OUTCOME" in
   finished)
-    if [ "${DIFF_LINES:-0}" -gt 0 ] || [ "$COMMITS" -gt 0 ] || [ "$HEAD_MOVED" -eq 1 ]; then VERDICT_NAME="ok"; RC=0
+    if [ "${DIFF_LINES:-0}" -gt 0 ] || [ "$COMMITS" -gt 0 ]; then VERDICT_NAME="ok"; RC=0
     else VERDICT_NAME="empty_worktree"; RC=10; fi ;;
   reasoning_stall) VERDICT_NAME="reasoning_stall"; RC=11 ;;
   stream_dead)     VERDICT_NAME="stream_dead";     RC=12 ;;

@@ -11,12 +11,13 @@ MISSION_PI_POLL_SECONDS=1; export MISSION_PI_POLL_SECONDS
 
 passed=0; failed=0
 field() { sed -n "s/.*\"$2\": \"\{0,1\}\([^\",}]*\)\"\{0,1\}.*/\1/p" "$1"; }
-check() { # name expected-rc expected-verdict actual-rc verdict-file
+check() { # name expected-rc expected-verdict actual-rc verdict-file [expected-commits]
   actual_verdict=$(field "$5" verdict)
-  if [ "$2" = "$4" ] && [ "$3" = "$actual_verdict" ]; then
+  if [ "$2" = "$4" ] && [ "$3" = "$actual_verdict" ] && \
+     { [ -z "${6:-}" ] || [ "$(field "$5" commits_since_start)" = "$6" ]; }; then
     echo "PASS: $1"; passed=$((passed+1))
   else
-    echo "FAIL: $1 (rc=$4 verdict=${actual_verdict:-<missing>}; expected $2/$3)"
+    echo "FAIL: $1 (rc=$4 verdict=${actual_verdict:-<missing>} commits=$(field "$5" commits_since_start); expected $2/$3${6:+ commits=$6})"
     failed=$((failed+1))
   fi
 }
@@ -33,12 +34,12 @@ repo() { # path base|unborn
     git -C "$1" -c user.email=t@t -c user.name=t commit -qm base
   fi
 }
-run() { # id expected-rc expected-verdict
+run() { # id expected-rc expected-verdict [expected-commits] [label]
   echo directive > "$TMP/$1.directive"
   "$SUT" --model m --directive "$TMP/$1.directive" --workdir "$TMP/$1" \
     --out "$TMP/$1.ndjson" --max-seconds 30 --stall-seconds 10 >/dev/null 2>&1
   actual_rc=$?
-  check "$1" "$2" "$3" "$actual_rc" "$TMP/$1.ndjson.verdict.json"
+  check "${5:-$1}" "$2" "$3" "$actual_rc" "$TMP/$1.ndjson.verdict.json" "${4:-}"
 }
 
 repo "$TMP/A" base
@@ -64,7 +65,18 @@ run E 0 ok
 
 repo "$TMP/F" base
 stub 'git -c user.email=t@t -c user.name=t commit --amend -qm x'
-run F 0 ok
+run F 0 ok 1 'F (amend counted as a commit)'
+
+repo "$TMP/H" base
+echo second > "$TMP/H/f.txt"
+git -C "$TMP/H" add f.txt
+git -C "$TMP/H" -c user.email=t@t -c user.name=t commit -qm second
+stub 'git reset -q --hard HEAD~1'
+run H 10 empty_worktree 0
+
+repo "$TMP/I" base
+stub 'rm -rf .git'
+run I 10 empty_worktree
 
 A_JSON="$TMP/A.ndjson.verdict.json"
 B_JSON="$TMP/B.ndjson.verdict.json"
