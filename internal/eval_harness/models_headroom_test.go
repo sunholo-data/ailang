@@ -68,7 +68,8 @@ func TestModels_CloudHeadroomEqualised(t *testing.T) {
 	ceilingLimited := map[string]int{
 		// Anthropic family cap for the non-streaming Messages API as encoded in
 		// this repo. 2.3% under target; not worth a hard 400 to close.
-		"claude-opus-5": 64000, "claude-opus-4-8": 64000, "claude-opus-4-7": 64000,
+		"claude-opus-5-5": 64000,
+		"claude-opus-5":   64000, "claude-opus-4-8": 64000, "claude-opus-4-7": 64000,
 		"claude-opus-4-6": 64000, "claude-opus-4-5": 64000, "claude-fable-5": 64000,
 		"claude-fable-5-1": 64000,
 		"claude-sonnet-5":  64000, "claude-sonnet-4-6": 64000, "claude-sonnet-4-5": 64000,
@@ -122,6 +123,16 @@ func TestModels_CloudHeadroomEqualised(t *testing.T) {
 		// entry; this keeps one, with the mechanism note from the attended side and the
 		// routing context from the loop's.
 		"pi-or-minimax-m3": 32000,
+		// Same pi harness clamp again, for the binary mission path's DESIGNER and PLANNER
+		// lanes, which lead with pi from 2026-09-21. Same inheritance argument as the row
+		// above: kimi-k3 reaches OpenRouter over the same openai-compat lane, so the clamp
+		// is the harness's, not the model's. The opencode sibling (opencode-or-kimi-k3)
+		// declares 65536 because opencode has no such clamp — the two rows differing is
+		// the mechanism showing through, not a transcription error.
+		"pi-or-kimi-k3": 32000,
+		// Same pi harness clamp, for the executor fallback's metered rung from 2026-09-25
+		// (deepseek-v4.1-flash replaced 0731). Same openai-compat lane as pi-or-deepseek-v4-flash.
+		"pi-or-deepseek-v4-1-flash": 32000,
 	}
 
 	c, err := LoadModelsConfig("../modelreg/models.yml")

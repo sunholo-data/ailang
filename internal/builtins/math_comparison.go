@@ -26,9 +26,9 @@ func registerComparisons() {
 		"Test if first integer is greater than or equal to second", []string{"comparison", "ordering", "int"})
 
 	// Float comparisons
-	registerCmpFloatWithMeta("eq_Float", func(a, b float64) bool { return a == b },
+	registerCmpFloatWithMeta("eq_Float", types.FloatEq,
 		"Test if two floats are equal (IEEE 754 equality)", []string{"comparison", "equality", "float"})
-	registerCmpFloatWithMeta("ne_Float", func(a, b float64) bool { return a != b },
+	registerCmpFloatWithMeta("ne_Float", func(a, b float64) bool { return !types.FloatEq(a, b) },
 		"Test if two floats are not equal (IEEE 754 equality)", []string{"comparison", "inequality", "float"})
 	registerCmpFloatWithMeta("lt_Float", func(a, b float64) bool { return a < b },
 		"Test if first float is less than second", []string{"comparison", "ordering", "float"})

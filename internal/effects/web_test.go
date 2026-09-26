@@ -331,3 +331,22 @@ func TestWeb_LiveOllama(t *testing.T) {
 		t.Fatalf("live search: %s %#v", ctor, payload)
 	}
 }
+
+func TestWebCredentialVars(t *testing.T) {
+	cases := []struct {
+		allow []string
+		want  bool
+	}{
+		{[]string{"ollama.com"}, true},
+		{[]string{"OLLAMA.COM."}, true},
+		{[]string{"example.org"}, false},
+		{[]string{"*.ollama.com"}, false}, // wildcard excludes the apex
+		{nil, false},                      // no list admits nothing here
+	}
+	for _, tc := range cases {
+		got := WebCredentialVars(tc.allow)
+		if (len(got) == 1 && got[0] == "OLLAMA_API_KEY") != tc.want || (!tc.want && got != nil) {
+			t.Errorf("WebCredentialVars(%v) = %v, want key=%v", tc.allow, got, tc.want)
+		}
+	}
+}

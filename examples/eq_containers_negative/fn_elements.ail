@@ -1,0 +1,7 @@
+-- NEGATIVE: functions have no ==, so neither does a list of them.
+-- Expected: No instance for Eq[[int -> int]]
+module examples/eq_containers_negative/fn_elements
+
+export func main() -> () ! {IO} {
+  _io_println(show([\x. x + 1] == [\x. x + 1]))
+}

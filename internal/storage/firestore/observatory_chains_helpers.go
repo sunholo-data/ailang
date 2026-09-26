@@ -15,8 +15,9 @@ import (
 
 // --- Conversion helpers ---
 
-func chainToMap(c *obs.ExecutionChain) map[string]interface{} {
+func chainToMap(c *obs.ExecutionChain, ttl time.Duration) map[string]interface{} {
 	return map[string]interface{}{
+		"expire_at":           expireAt(c.CreatedAt, ttl),
 		"id":                  c.ID,
 		"source_type":         string(c.SourceType),
 		"source_ref":          c.SourceRef,
@@ -57,8 +58,13 @@ func mapToChain(data map[string]interface{}) *obs.ExecutionChain {
 	}
 }
 
-func stageToMap(st *obs.ChainStage) map[string]interface{} {
+func stageToMap(st *obs.ChainStage, ttl time.Duration) map[string]interface{} {
+	var started time.Time
+	if st.StartedAt != nil {
+		started = *st.StartedAt
+	}
 	m := map[string]interface{}{
+		"expire_at":             expireAt(started, ttl),
 		"id":                    st.ID,
 		"chain_id":              st.ChainID,
 		"stage_number":          st.StageNumber,

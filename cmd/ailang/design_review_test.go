@@ -32,6 +32,16 @@ func TestHoistFlags(t *testing.T) {
 			want: []string{"--json", "-weird-file.md"},
 		},
 		{
+			name: "--author takes a value (the doc path is not the author)",
+			in:   []string{"--author", "codex:gpt-6-astra", "doc.md"},
+			want: []string{"--author", "codex:gpt-6-astra", "doc.md"},
+		},
+		{
+			name: "--author after the doc",
+			in:   []string{"doc.md", "--author", "claude:claude-opus-5-5"},
+			want: []string{"--author", "claude:claude-opus-5-5", "doc.md"},
+		},
+		{
 			name: "bare dash is positional (stdin)",
 			in:   []string{"-", "--reviewer", "x"},
 			want: []string{"--reviewer", "x", "-"},

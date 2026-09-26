@@ -165,6 +165,7 @@ func TestZipCreateArchive_Sandbox(t *testing.T) {
 	ctx := effects.NewEffContext([]string{})
 	ctx.Grant(effects.NewCapability("FS"))
 	ctx.Env.Sandbox = sandbox
+	t.Cleanup(func() { _ = ctx.CloseFSRoot() }) // the root handle pins the dir on Windows
 
 	entries := &eval.ListValue{
 		Elements: []eval.Value{

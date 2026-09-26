@@ -14,6 +14,12 @@ type DerivedADTEquality struct {
 	TypeName string // The ADT type name (e.g., "Color")
 }
 
+// DerivedStructuralEquality is the marker for every Eq instance synthesized
+// from its parts (lists, Option, Result, tuples, derived records). The evaluator
+// compares the two values structurally, whatever their shape.
+// M-EQ-DERIVE-CONTAINERS
+type DerivedStructuralEquality struct{}
+
 // DictionaryRegistry manages type class dictionaries for all instances.
 // Keys are in the format: "namespace::ClassName::TypeNF::method"
 // Example: "prelude::Num::Int::add"
@@ -73,6 +79,10 @@ func (r *DictionaryRegistry) LookupMethod(namespace, className string, typ Type,
 
 // registerBuiltins registers all built-in type class instances
 func (r *DictionaryRegistry) registerBuiltins() {
+	// M-EQ-DERIVE-CONTAINERS: the single dictionary synthesized Eq resolves to
+	r.Register("prelude", "Eq", StructuralEqTypeName, "eq", &DerivedStructuralEquality{})
+	r.Register("prelude", "Eq", StructuralEqTypeName, "neq", &DerivedStructuralEquality{})
+
 	// Num instances for Int
 	r.registerNumInt()
 
@@ -199,26 +209,11 @@ func (r *DictionaryRegistry) registerEqInt() {
 func (r *DictionaryRegistry) registerEqFloat() {
 	ns := "prelude"
 
-	// eq: Float -> Float -> Bool
-	// IMPORTANT: This implementation makes NaN == NaN return true
-	// to satisfy the reflexivity law of Eq type class
-	r.Register(ns, "Eq", "float", "eq", func(x, y float64) bool {
-		// Reflexive equality: NaN == NaN is true
-		if math.IsNaN(x) && math.IsNaN(y) {
-			return true
-		}
-		// Standard IEEE 754 equality for non-NaN values
-		return x == y
-	})
-
-	// neq: Float -> Float -> Bool
-	r.Register(ns, "Eq", "float", "neq", func(x, y float64) bool {
-		// Consistent with our eq implementation
-		if math.IsNaN(x) && math.IsNaN(y) {
-			return false
-		}
-		return x != y
-	})
+	// eq/neq: IEEE via FloatEq (M-FLOAT-EQ-ONE-SEMANTICS, #1274). This was
+	// "lawful" (NaN == NaN) for reflexivity, which made == answer differently
+	// through the dictionary than through every other path.
+	r.Register(ns, "Eq", "float", "eq", func(x, y float64) bool { return FloatEq(x, y) })
+	r.Register(ns, "Eq", "float", "neq", func(x, y float64) bool { return !FloatEq(x, y) })
 }
 
 // Eq instance for Bool

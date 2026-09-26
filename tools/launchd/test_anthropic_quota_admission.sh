@@ -15,14 +15,17 @@ QUOTA_SIG='usage limit'
 MC_OVER_RATION=anthropic
 _mc_load_ration(){ :; }
 _mc_bounded(){ PROBES=$((PROBES+1));MC_BOUNDED_OUT=ok;return 0; }
-for fn in _mc_rung_bucket _mc_is_over_ration _mc_probe; do
+# _mc_probe gained a call to _mc_ration_unreadable (which calls _mc_ration_reason) when the
+# Anthropic CLI-usage fallback landed, so both must be extracted or _mc_probe runs with an
+# undefined function and this suite reports a degradation-ledger defect that does not exist.
+for fn in _mc_rung_bucket _mc_is_over_ration _mc_ration_reason _mc_ration_unreadable _mc_probe; do
  body=$(awk -v f="$fn" '$0 == f "() {" {on=1} on {print} on && /^}$/ {exit}' "$DRIVER")
  [ -n "$body" ] || { echo "FAIL extraction $fn";exit 1; }
  eval "$body"
 done
 
 # Both spellings of an Anthropic rung: the explicit claude: pin and the bare Agent alias.
-for model in claude-fable-5-1 sonnet opus claude-opus-5; do
+for model in claude-fable-5-1 sonnet opus claude-opus-5-5; do
  _mc_probe "$model";rc=$?
  [ "$rc" = 75 ] || { echo "FAIL $model probed at rc=$rc, want 75 (ration)";exit 1; }
 done
@@ -41,6 +44,10 @@ MC_OVER_RATION=anthropic
 PROBES=0
 role=$(awk '/^for role in DESIGNER PLANNER EXECUTOR EVALUATOR; do/{on=1;buf=""} on{buf=buf $0 "\n"} on && /^done$/{if(buf ~ /an_model=/)print buf;on=0}' "$DRIVER")
 [ -n "$role" ] || { echo 'FAIL anthropic role loop extraction';exit 1; }
+# The extracted block is itself `for role in ... EVALUATOR; do`, so eval'ing it overwrites
+# $role with "EVALUATOR" — a second eval would then run that as a command. Hold the source
+# in a name the loop cannot clobber.
+_role_src="$role"
 printf '%s' "$role" | grep -q '_mc_probe "$an_model"' || { echo 'FAIL role loop bypasses shared gate';exit 1; }
 
 MISSION_DESIGNER_MODEL=claude:claude-fable-5-1
@@ -49,10 +56,14 @@ MISSION_EXECUTOR_MODEL=codex:gpt-5.6-sol
 MISSION_EVALUATOR_MODEL=sonnet
 MISSION_DESIGNER_FALLBACK=codex:gpt-6-astra
 MISSION_EVALUATOR_FALLBACK=pi:ollama/minimax-m3:cloud
+# _mc_ration_reason reads MC_RATION_REASONS, which _mc_load_ration populates in production
+# and the stub above does not. Supply it, or the arm below asserts on a state the fleet cannot
+# reach (over ration with no reason line) and reads as a defect that is really a missing input.
+MC_RATION_REASONS='anthropic over 12.0% used / 11.4% allowed'
 _an_probed=:;_an_failed=:;_an_rcmap='';_lane_degraded=''
 _chain_head(){ printf '%s' "${1%%,*}"; }
 _chain_tail(){ printf ''; }
-eval "$role"
+eval "$_role_src"
 [ "$PROBES" = 0 ] || { echo "FAIL role loop spent $PROBES Anthropic calls while over ration";exit 1; }
 [ "$MISSION_DESIGNER_MODEL" = codex:gpt-6-astra ] || { echo "FAIL designer stayed on $MISSION_DESIGNER_MODEL";exit 1; }
 [ "$MISSION_EVALUATOR_MODEL" = pi:ollama/minimax-m3:cloud ] || { echo "FAIL evaluator stayed on $MISSION_EVALUATOR_MODEL";exit 1; }
@@ -61,6 +72,31 @@ eval "$role"
 # The ledger must name the ration, not report a broken lane: they resume differently.
 printf '%s' "$_lane_degraded" | grep -q 'over daily ration' || { echo "FAIL degradation ledger hid the cause: $_lane_degraded";exit 1; }
 echo 'PASS role loop yields Anthropic lanes to their chains and reports the ration as the cause'
+
+# THE SPLIT IS THE POINT, and it decides whether to SPEND, not just what to print. "Over" is
+# a measurement: probing anyway spends against a limit we know we have passed. "Unknown" is
+# the ABSENCE of a measurement, and refusing on it idles a lane that may be perfectly healthy
+# — which is exactly what happened for a week in September 2026, when an expired Anthropic
+# credential read as an exhausted quota and three World iterations were routed away from a
+# bucket sitting at ~89% free.
+#
+# So under an UNREADABLE quota the role loop must PROBE and leave the lane alone, where under
+# an OVER one (the arm above) it must refuse without spending a call.
+PROBES=0
+MC_RATION_REASONS='anthropic unknown credential unreadable'
+MISSION_DESIGNER_MODEL=claude:claude-fable-5-1
+MISSION_EVALUATOR_MODEL=sonnet
+MISSION_DESIGNER_FALLBACK=codex:gpt-6-astra
+MISSION_EVALUATOR_FALLBACK=pi:ollama/minimax-m3:cloud
+_an_probed=:;_an_failed=:;_an_rcmap='';_lane_degraded=''
+eval "$_role_src"
+[ "$PROBES" -gt 0 ] \
+  || { echo "FAIL an UNREADABLE quota refused without probing — that is the September 2026 defect";exit 1; }
+[ "$MISSION_DESIGNER_MODEL" = claude:claude-fable-5-1 ] \
+  || { echo "FAIL an UNREADABLE quota displaced the designer to $MISSION_DESIGNER_MODEL";exit 1; }
+printf '%s' "$_lane_degraded" | grep -q 'over daily ration' \
+  && { echo "FAIL an unreadable quota was reported as OVER — they resume differently: $_lane_degraded";exit 1; }
+echo "PASS an UNREADABLE Anthropic quota PROBES the lane (${PROBES} call(s)) instead of refusing it"
 
 # ORDERING: the kill switch must be reached BEFORE any inference probe.
 #

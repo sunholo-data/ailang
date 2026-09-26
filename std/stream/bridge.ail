@@ -1,0 +1,43 @@
+-- std/stream/bridge.ail
+-- The WebSocket bridge: relay frames between two StreamConns with an AILANG
+-- step deciding each frame (M-SERVEAPI-WS-BRIDGE, v0.44.0).
+--
+-- Usage:
+--   import std/stream (connect, disconnect, StreamConn)
+--   import std/stream/bridge (bridge, BridgeFrame, ClientText, ClientBin, UpText, UpBin)
+--   import std/stream/bridge (Verdict, Forward, Drop, ReplaceText, ReplaceBin, CloseBridge)
+--   import std/stream/bridge (BridgeEnd, ClientClosed, UpstreamClosed, ClosedByVerdict, TimedOut, StepFailed)
+--
+-- The step is a Mealy machine: (state, frame) -> (state, verdict). It runs
+-- once per data frame, in either direction, in arrival order. Go moves the
+-- bytes: Forward re-sends the ORIGINAL frame to the other side and Drop sends
+-- nothing, so a Forward never copies the payload through AILANG. Because the
+-- state is a value, the same step can be replayed offline with foldl over a
+-- recorded frame list.
+--
+-- When bridge returns, the upstream is closed, and so is the client unless
+-- the end is UpstreamClosed (the handler may then dial a new upstream).
+--
+-- Requires: --caps Stream
+
+module std/stream/bridge
+import std/stream (StreamConn)
+
+-- One data frame, tagged with where it came from.
+-- Client* = browser -> upstream; Up* = upstream -> browser. Binary is bytes.
+export type BridgeFrame = ClientText(string) | ClientBin(bytes) | UpText(string) | UpBin(bytes)
+
+-- What to do with a frame. Replacements go to the frame's natural
+-- destination (the other side). CloseBridge(code, reason) closes the client
+-- with that code (1000, 1001, 1003, 1007-1011 or 3000-4999) and ends.
+export type Verdict = Forward | Drop | ReplaceText(string) | ReplaceBin(bytes) | CloseBridge(int, string)
+
+-- Why the bridge ended.
+export type BridgeEnd = ClientClosed(int, string) | UpstreamClosed(int, string) | ClosedByVerdict(int, string) | TimedOut(string) | StepFailed(string)
+
+-- Relay client <-> up until one side closes, the step closes, or a timeout.
+-- Returns the final state and why it ended. The step's effects join the
+-- caller's effect row.
+export func bridge[s](client: StreamConn, up: StreamConn, init: s, step: (s, BridgeFrame) -> (s, Verdict) ! {e}) -> (s, BridgeEnd) ! {Stream, e} {
+  _stream_bridge(client, up, init, step)
+}

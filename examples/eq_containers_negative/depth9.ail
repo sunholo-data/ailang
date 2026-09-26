@@ -1,0 +1,8 @@
+-- NEGATIVE: Eq synthesis is depth-capped at 8 nested containers.
+-- Expected: E_EQ_SYNTH_DEPTH
+module examples/eq_containers_negative/depth9
+
+export func main() -> () ! {IO} {
+  let v = [[[[[[[[[1]]]]]]]]] in
+  _io_println(show(v == v))
+}

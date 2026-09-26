@@ -52,8 +52,15 @@ type TaskRecord struct {
 	DesignDocPath  string    `json:"design_doc_path,omitempty"`  // Path to design doc (for merge comment)
 	SprintPlanPath string    `json:"sprint_plan_path,omitempty"` // Path to sprint plan (for merge comment)
 	// Timestamps
-	CreatedAt   time.Time     `json:"created_at"`
-	StartedAt   *time.Time    `json:"started_at,omitempty"`
+	CreatedAt time.Time  `json:"created_at"`
+	StartedAt *time.Time `json:"started_at,omitempty"`
+	// QueuedAt is when a dispatcher CLAIMED the task (pending -> queued), stamped
+	// in the same write as the claim. It is the stale detector's clock for a task
+	// that never reaches `running` — every cloud task, since MarkTaskRunning is
+	// local-only. CreatedAt cannot serve: a task inherits it from its MESSAGE, so
+	// anything the backstop sweep recovers is born "days old" and was failed on
+	// the detector's first tick (M-TASK-STATUS-TRUTH S1).
+	QueuedAt    *time.Time    `json:"queued_at,omitempty"`
 	CompletedAt *time.Time    `json:"completed_at,omitempty"`
 	Duration    time.Duration `json:"duration,omitempty"`
 	Error       string        `json:"error,omitempty"`
@@ -307,8 +314,27 @@ type Store interface {
 	ListResolvedApprovals(ctx context.Context, limit int) ([]*ApprovalRequestRecord, error) // List resolved (approved/rejected) approvals
 	ResolveApprovalRequest(ctx context.Context, id, status, resolvedBy string) error
 	ResolveApprovalRequestByTask(ctx context.Context, taskID, status, resolvedBy string) error
-	UpdateApprovalEvaluationByTask(ctx context.Context, taskID, evaluation string) error           // Attach evaluator verdict to a task's PENDING approval (M-PIPELINE-RECONCILIATION M1); errors if none
-	MarkApprovalHandoffsTriggered(ctx context.Context, taskID string) error                        // Mark that handoffs were sent
+	UpdateApprovalEvaluationByTask(ctx context.Context, taskID, evaluation string) error // Attach evaluator verdict to a task's PENDING approval (M-PIPELINE-RECONCILIATION M1); errors if none
+	// MarkApprovalHandoffsTriggered records that the approval's handoff DECISION is
+	// made — fired, or nothing owed — so boot recovery stops scanning it. Despite
+	// the historical name it is a scan latch, not "sent": its only readers are
+	// the two ListApprovedMergeHandoffsWithoutTrigger queries. Suppression and
+	// expiry set it too, and record themselves in handoffs_suppressed /
+	// handoffs_expired (M-TASK-STATUS-TRUTH V22).
+	//
+	// workID makes it a compare-and-set on the DECISION it describes: the mark
+	// lands only while the approval still describes that work. An approval can
+	// be reopened for new work (ReopenApprovalForNewWork), and a delayed mark for
+	// the old work must not stamp the new decision as handled (quorum round 8).
+	MarkApprovalHandoffsTriggered(ctx context.Context, taskID, workID string) error
+	// ResolveApprovalSuppressingHandoffs approves AND records that its handoffs
+	// are withheld, in ONE write: there is no state in which the approval reads
+	// approved and the suppression is absent (M-TASK-STATUS-TRUTH D3).
+	ResolveApprovalSuppressingHandoffs(ctx context.Context, taskID, resolvedBy string) error
+	ApprovalHandoffsSuppressed(ctx context.Context, taskID string) (bool, error) // false when there is no approval
+	// MarkApprovalHandoffsExpired resolves an approval boot recovery will not
+	// fire (older than HandoffRecoveryWindow), so it is fetched at most once.
+	MarkApprovalHandoffsExpired(ctx context.Context, taskID, workID string) error
 	ListApprovedMergeHandoffsWithoutTrigger(ctx context.Context) ([]*ApprovalRequestRecord, error) // Find missed handoffs
 
 	// Cleanup

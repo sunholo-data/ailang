@@ -3,6 +3,7 @@ package pipeline
 import (
 	"context"
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/config"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -290,8 +291,12 @@ func (st *modulePipelineState) compileAllAndFinalize() error {
 
 // newPipelineModuleCache builds the per-run cache runtime unless the cache is
 // disabled. The returned runtime may have a nil store after a failed init.
+//
+// AILANG_NO_CACHE is read HERE, not by each caller: it used to be honored only
+// by `ailang run` (internal/runner), so `ailang check` and eleven other entry
+// points ignored the escape hatch (M-COMPILE-CACHE-DIRTY-BUILD-KEY, #1275).
 func newPipelineModuleCache(cfg Config, deps cacheDependencies, src Source) *cacheRuntime {
-	if cfg.NoCache {
+	if cfg.NoCache || config.NoCache() {
 		return nil
 	}
 	return newCacheRuntime(filepath.Dir(src.Filename), deps)

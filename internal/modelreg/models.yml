@@ -501,6 +501,86 @@ models:
       QUOTA BURN RATE, which for a flagship is the real constraint; only a full
       agent run reveals that.
 
+  # OpenAI GPT-6 Sol + Luna (API model objects created 2026-09-14; on OpenRouter 2026-09-22).
+  # The GPT-6 generation's mid and small tiers, below gpt-6-astra. Both: 1.05M context
+  # (922K max input), 128K max output, reasoning.effort none/low/medium(DEFAULT)/high/
+  # xhigh/max — unlike astra, "none" exists, so thinking CAN be switched off.
+  # >272K-token prompts bill at 2x input/cache and 1.5x output for the WHOLE request.
+  # Chat Completions supports function calling ONLY at reasoning_effort=none (use the
+  # Responses API otherwise) — irrelevant to standard mode, which sends no tools.
+  # Source: developers.openai.com/api/docs/models/gpt-6-sol, .../gpt-6-luna (fetched 2026-09-22).
+  gpt6-sol:
+    api_name: "gpt-6-sol"
+    provider: "openai"
+    default_thinking: "on"  # probed 2026-09-22: bare request → reasoning_tokens=87 of 161
+                            # completion, finish=stop (adaptive, default effort medium)
+    description: "GPT-6 Sol - GPT-6 generation mid tier (Sep 2026)"
+    env_var: "OPENAI_API_KEY"
+    agent_cli: "codex"  # needs codex-cli >= 0.155.1 — see notes
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM convention; declared ceiling is 128000
+    pricing:
+      input_per_1k: 0.002     # $2.00 per 1M = $0.002 per 1K
+      output_per_1k: 0.010    # $10.00 per 1M = $0.010 per 1K
+    notes: |
+      GPT-6 Sol — mid tier of the GPT-6 generation. Knowledge cutoff 2026-04-20.
+      $2/$10 per 1M: 1/5 of gpt-6-astra, 2/5 of gpt-5.6-sol ($5/$30), and cheaper
+      than gpt-5.6-terra ($2/$12). Cached input $0.20/M, cache writes $2.50/M.
+      NAME TRAP: gpt6-sol (GPT-6) is NOT gpt5-6-sol (GPT-5.6 flagship). Different
+      generation, different tier position, different price. Read the digit after "gpt".
+      API access VERIFIED 2026-09-22 (chat/completions, max_completion_tokens,
+      finish_reason=stop). Negative control gpt-9-nonexistent-zzz → "does not exist".
+      ✅ CODEX SUBSCRIPTION LANE — REQUIRES codex-cli >= 0.155.1. On 0.154.0 (OPENAI_API_KEY
+      stripped, i.e. the ChatGPT-account lane) `codex exec --model gpt-6-sol` returned 400
+      "not supported when using Codex with a ChatGPT account" + "Model metadata ... not
+      found" — byte-for-byte the nonexistent-model control, which reads as server-side
+      unavailability but WAS NOT: 0.155.1 returns rc=0 for gpt-6-sol and gpt-6-luna, while
+      gpt-9-nonexistent-zzz still 400s (control holds) and gpt-6-astra passes on both.
+      The rig's global codex was upgraded 0.154.0 → 0.155.1 on 2026-09-22. A box on an
+      older codex will fail every agent run of these two rows as api_error — check
+      `codex --version` before reading such a failure as the model.
+      OpenRouter also lists openai/gpt-6-sol-pro at the same $2/$10 — absent from
+      OpenAI's own /v1/models, so NOT registered here.
+      PLACEMENT 2026-09-22: `--tier core,frontier` N=1, candidate alone per §5.5
+      → 28/29, anchored standard ELO 2288.7, $1.85. Only failure gauntlet_10
+      (logic_error, finish=stop, 2,483 reasoning tokens) — capability, not truncation.
+      For reference, gpt6-astra's 09-05 anchored placement was 2554.4 at 29/31.
+      Standard smoke tier NOT run (cloud rows don't normally; astra precedent).
+      Suite promotion: PENDING a decision — not in any suite yet.
+      Uses max_completion_tokens instead of max_tokens.
+
+  gpt6-luna:
+    api_name: "gpt-6-luna"
+    provider: "openai"
+    default_thinking: "on"  # probed 2026-09-22: bare request → reasoning_tokens=143 of 221
+                            # completion, finish=stop (adaptive, default effort medium)
+    description: "GPT-6 Luna - GPT-6 generation fast/cheap tier (Sep 2026)"
+    env_var: "OPENAI_API_KEY"
+    agent_cli: "codex"  # needs codex-cli >= 0.155.1 — see gpt6-sol notes
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM convention; declared ceiling is 128000
+    pricing:
+      input_per_1k: 0.0001    # $0.10 per 1M = $0.0001 per 1K
+      output_per_1k: 0.0005   # $0.50 per 1M = $0.0005 per 1K
+    notes: |
+      GPT-6 Luna — small/fast tier of the GPT-6 generation. Knowledge cutoff 2026-05-18.
+      $0.10/$0.50 per 1M: the CHEAPEST OpenAI row in this file — half of the
+      post-cut gpt-5.6-luna ($0.20/$1.20). Cached input $0.01/M, cache writes
+      $0.125/M. Batch/flex 50% off, fast tier 2x.
+      NAME TRAP: gpt6-luna (GPT-6) is NOT gpt5-6-luna (GPT-5.6).
+      API access VERIFIED 2026-09-22 (chat/completions, finish_reason=stop).
+      ✅ Codex subscription lane verified 2026-09-22 — needs codex-cli >= 0.155.1
+      (0.154.0 400s it). See gpt6-sol for the probe and controls.
+      Candidate for the gpt5-4-mini dev_models / lang_harness_suite slot IF placement
+      shows it matches mini's quality — that is the question worth answering here.
+      PLACEMENT 2026-09-22: `--tier core,frontier` N=1, candidate alone → 26/29,
+      anchored standard ELO 2008.2, $0.11 for the whole panel. Failures:
+      contract_rle_roundtrip + ssa_constant_fold (compile_error), gauntlet_10
+      (logic_error); all finish=stop with modest reasoning — capability, not truncation.
+      The pre-anchor gpt5-4-mini rating (1790.8, 2026-08-03) is on a DIFFERENT scale;
+      do not rank luna against it. Settling the mini slot needs mini's own anchored
+      placement (candidate alone, ~$0.55), not a shared re-run.
+      Suite promotion: PENDING a decision — not in any suite yet.
+      Uses max_completion_tokens instead of max_tokens.
+
   # OpenAI GPT-5.4 (released March 5, 2026)
   gpt5-4:
     api_name: "gpt-5.4"
@@ -892,7 +972,9 @@ models:
     pricing:
       input_per_1k: 0.010   # $10 per million = $0.010 per 1K — UNCHANGED from Fable 5
       output_per_1k: 0.050  # $50 per million = $0.050 per 1K — UNCHANGED from Fable 5
-      cache_read_per_1k: 0.001   # 0.1x input — Anthropic prompt-cache read rate
+      cache_read_per_1k: 0.00025  # $0.25/M = 0.025x input, NOT the usual 0.1x (pricing page,
+                                  # 2026-09-22). Was 0.001 until then — a 4x overstatement of
+                                  # every cached Fable 5.1 read, pinned in place by a 0.1x test.
       cache_write_per_1k: 0.0125  # 1.25x input — Anthropic 5-minute cache write rate
     notes: |
       Anthropic's most capable widely released model (September 1, 2026).
@@ -948,6 +1030,68 @@ models:
       output_tokens, and the arithmetic reconciles exactly
       ($5.58699 = 14,979 in x $10/M + 108,744 out x $50/M). A re-run would
       populate the split at a cost of ~$5.59 and would not change pass/fail.
+
+  # Anthropic Claude Opus 5.5 (launched 2026-09-22)
+  claude-opus-5-5:
+    api_name: "claude-opus-5-5"
+    provider: "anthropic"
+    default_thinking: "always_on"  # probed 2026-09-22: bare request → content blocks
+      # ["thinking","text"], thinking_tokens=167 of 298 output. And it CANNOT be turned
+      # off: {type:"disabled"} is a 400 at EVERY effort level (Opus 5 allowed it <= high).
+    description: "Claude Opus 5.5 - Opus-line successor to Opus 5 at a lower price (Sep 2026)"
+    env_var: "ANTHROPIC_API_KEY"
+    agent_cli: "claude"
+    agent_model_name: "claude-opus-5-5"  # explicit id, never the "opus" alias (the alias
+      # trap documented on claude-opus-5). Verified 2026-09-22: `claude -p --model
+      # claude-opus-5-5` (CLI 2.1.280, ANTHROPIC_API_KEY stripped = subscription lane)
+      # → rc=0, modelUsage keys ["claude-opus-5-5"]. Negative control claude-opus-9-zzz
+      # → rc=1 "unrecognized_model".
+    model_family: "claude-opus-5-5"
+    max_output_tokens: 64000   # Same reasoning as claude-opus-5: standard mode calls the
+      # NON-streaming Messages API; 128K is the streaming ceiling. Thinking and text share
+      # this cap — a finish=length failure is truncation until proven otherwise (§2a).
+    pricing:
+      input_per_1k: 0.004    # $4.00 per million (Opus 5 was $5)
+      output_per_1k: 0.020   # $20.00 per million (Opus 5 was $25)
+      cache_read_per_1k: 0.0002    # $0.20/M = 0.05x input, NOT the usual 0.1x (pricing page, 2026-09-22)
+      cache_write_per_1k: 0.005    # $5/M = 1.25x input — 5-minute cache write rate
+    notes: |
+      Successor to Claude Opus 5 in the Opus line, 20% CHEAPER ($4/$20 vs $5/$25).
+      Same 1M context, 128K max output, tokenizer and feature set as Opus 5.
+
+      Harness-relevant API deltas vs Opus 5 (read before debugging a failure):
+        • ⚠️ DEFAULT EFFORT IS "medium", not "high" (Opus 5's default). This row sends no
+          effort, so it runs at MEDIUM. A head-to-head with claude-opus-5 therefore
+          compares medium vs high effort, not just 5.5 vs 5. Deliberately left at vendor
+          default (model-manager §2a); if pinning is ever chosen, record it here.
+        • Thinking CANNOT be disabled — {type:"disabled"} and budget_tokens both 400 at
+          every effort. Registered CanDisable:false in internal/ai/reasoning_anthropic.go.
+        • Forced tool_choice (any / tool) → 400. ⚠️ internal/ai/anthropic/client.go
+          implements ResponseFormat=="json" with tool_choice {type:"tool"} — that path
+          will 400 on this model (and on claude-fable-5-1, which has the same rule).
+          Standard eval code-gen does not use it; anything that does must not route here
+          until the client switches to tool_choice auto / output_config.format.
+        • Thinking blocks are tied to model + conversation (preserved thinking); only
+          Fable 5.1 / Mythos 5.1 read them. Irrelevant to single-shot standard mode.
+        • Broader safety classifiers: bio and reasoning_extraction join cyber. A
+          stop_reason "refusal" is NOT an api_error — bank it as such if seen.
+        • Minimum cacheable prefix is NOT in Anthropic's published table as of
+          2026-09-22; cache.go's substring match gives it Opus 5's 512 — unverified.
+      Fast mode ($8/$40) is Claude-API-only and unused by this harness.
+
+      Access verified 2026-09-22 on BOTH lanes: Messages API (stop=end_turn) and the
+      Claude Code CLI subscription lane (see agent_model_name). Listed on OpenRouter
+      as anthropic/claude-opus-5.5 at $4/$20.
+      PLACEMENT 2026-09-22: `--tier core,frontier` N=1, candidate alone per §5.5
+      → 29/29 (every core+frontier benchmark in the 2026-09-22 tier set, incl.
+      gauntlet_10), anchored standard ELO 2871.9, $1.36 for the whole panel — at
+      vendor-default MEDIUM effort. A perfect score has no upper bound in an ELO fit,
+      so 2871.9 is a FLOOR, not a point estimate; N>=3 or a harder tier is what would
+      sharpen it. Above gpt6-astra's anchored 2554.4 — but astra's 31-benchmark panel
+      included docx_reimplement + markdown_reimplement (its only two misses), which
+      are NOT in today's 29-benchmark tier set, so the raw pass counts do not compare;
+      only the anchored ratings do.
+      Suite promotion: PENDING a decision — not in any suite yet.
 
   # Anthropic Claude Opus 5 (released July 2026)
   claude-opus-5:
@@ -2275,6 +2419,46 @@ models:
       Independent of the designer rotation by construction: the skill forbids
       routing a designer to a model that is also a reviewer of the same doc, and
       the rotation is fable-5 -> kimi-k3, neither of which is this model.
+
+  oc-glm-5-3:
+    api_name: "glm-5.3:cloud"                          # Ollama Cloud route (M-OLLAMA-CLOUD-PROVIDER)
+    provider: "ollama"
+    default_thinking: "always_on"  # the OpenRouter twin refuses a reasoning disable (or-glm-5-3)
+    description: "GLM-5.3 via Ollama Cloud — DESIGN-QUORUM REVIEWER lane (replaced oc-glm-5-2 2026-09-25)."
+    env_var: ""                                        # device key via `ollama signin`
+    model_family: "glm-5"
+    max_output_tokens: 65536  # always-thinking — same headroom as or-glm-5-3
+    pricing:
+      # PROVISIONAL, same convention as oc-glm-5-2: imputed from the OpenRouter twin
+      # z-ai/glm-5.3 (or-glm-5-3, verified 2026-08-31). Ollama Cloud is flat-rate;
+      # this price feeds only the reviewer cap and the imputed-cost ledger.
+      input_per_1k: 0.0014
+      output_per_1k: 0.0044
+    notes: |
+      Third design-quorum reviewer (Z-AI seat) from 2026-09-25, Mark attended:
+      "update to latest glm". Successor to oc-glm-5-2 in the same seat and for the
+      same reason — a quorum verdict is short, so output headroom does not bind.
+      Not in any designer rotation.
+
+  oc-kimi-k3:
+    api_name: "kimi-k3:cloud"                          # Ollama Cloud route (M-OLLAMA-CLOUD-PROVIDER)
+    provider: "ollama"
+    default_thinking: "on"   # the OpenRouter twin (or-kimi-k3) reasons by default
+    description: "Kimi K3 via Ollama Cloud — DESIGN-QUORUM REVIEWER pool (Moonshot seat, added 2026-09-25)."
+    env_var: ""                                        # device key via `ollama signin`
+    model_family: "kimi-k3"
+    max_output_tokens: 65536  # reasoning headroom, same as or-kimi-k3
+    pricing:
+      # PROVISIONAL, same convention as oc-glm-5-3: imputed from the OpenRouter twin
+      # moonshotai/kimi-k3. Ollama Cloud is flat-rate; this feeds the reviewer cap only.
+      input_per_1k: 0.003
+      output_per_1k: 0.015
+    notes: |
+      Moonshot seat in the design-quorum reviewer POOL (Mark, attended 2026-09-25:
+      "we keep three reviewers but we select from the pool so we can expand it").
+      Best measured open-weight AILANG writer on the v0.32.0 board (or-kimi-k3:
+      84% AILANG, standard ELO 2115). Also a designer-rotation entry; the quorum
+      benches it on its own designer turn.
 
   oc-glm-5-3-flash:
     api_name: "glm-5.3-flash:cloud"                   # Ollama Cloud route (M-OLLAMA-CLOUD-PROVIDER); proxy strips :cloud (V21)
@@ -3702,6 +3886,173 @@ models:
       this row the only pi OpenRouter entries were deepseek-v4-flash variants, so there was
       no way to express the driver's first evaluator rung as a registry friendly name.
 
+  # ── M-ONE-ROLE-TABLE Phase 0 ────────────────────────────────────────────────
+  # Two pi rows on OLLAMA CLOUD. The mission driver leads BOTH of these lanes with
+  # the flat-rate route before the metered OpenRouter one
+  # (mission-control.sh:1106 designer, :1215 planner), and until now the registry
+  # could not express that rung at all: it had 4 pi×ollama rows, every one of them a
+  # LOCAL-GPU qwen3.x, and its ollama-cloud rows were all on the motoko harness.
+  #
+  # M-MODEL-REGISTRY-SINGLE-SOURCE M8's park note called this a capability gap. It is
+  # not: IsOllamaCloudRoute (models.go:284) and UsesLocalGPU already classify a
+  # `:cloud`/`-cloud` row as NON-GPU, so these survive the LaneCloud filter and do not
+  # take the rig lock. It was only ever a missing row.
+  #
+  # INERT ON PURPOSE: no `roles:` chain references these. Phase 0 adds the vocabulary
+  # and changes no routing, so it is falsifiable and reversible on its own. Putting
+  # them INTO a chain is a routing change and gets the dated-departure treatment the
+  # evaluator repointing got (7423434b4).
+  pi-cloud-kimi-k3:
+    api_name: "kimi-k3:cloud"                          # untagged model -> `:cloud`
+    provider: "ollama"                                 # local daemon proxies to ollama.com (M-OLLAMA-CLOUD-PROVIDER)
+    default_thinking: "unknown"  # NOT VERIFIED on this harness — inherited from the
+                                 # motoko-cloud twin; do not read this row's token
+                                 # counts as efficiency data
+    description: "Kimi K3 via pi on Ollama Cloud — the driver's FIRST planner fallback rung, flat-rate before metered"
+    env_var: ""                                        # device key via `ollama signin`; OLLAMA_API_KEY is only for /api/usage
+    agent_cli: "pi"
+    agent_model_name: "ollama/kimi-k3:cloud"
+    model_family: "kimi-k3"
+    max_output_tokens: 32000  # PI_WIRE_CLAMP (was 65536, never reachable: pi sends min(declared, 32000))
+    pricing:
+      # TRANSCRIBED from motoko-cloud-kimi-k3, which shares this row's api_name slug
+      # (`kimi-k3:cloud`) — the pricing-consistency gate compares every row for a slug,
+      # so they must match. That row's own numbers are PROVISIONAL, imputed from the
+      # OpenRouter list price. Deliberately NOT 0/0: zero maps to the FALSE
+      # `free-local` provenance, and this route is flat-rate, not free. No metered pi
+      # run on this route exists yet, so no cache rate is declared — the documented
+      # fallback is loud, a guessed number would be quietly wrong.
+      input_per_1k: 0.003    # $3.00 per 1M
+      output_per_1k: 0.015   # $15.00 per 1M
+    budgets:
+      max_cost_usd: 1.00
+      hard_timeout_secs: 3600
+    notes: |
+      Exists so the registry can express `pi:ollama/kimi-k3:cloud`, which
+      tools/launchd/mission-control.sh:1215 has resolved as the planner's first
+      fallback since 2026-08-26. The pi sibling of motoko-cloud-kimi-k3 (same weights,
+      same flat-rate route, different harness) and the flat-rate twin of pi-or-kimi-k3.
+
+      Not referenced by any role chain — see the Phase 0 note above.
+
+  pi-cloud-deepseek-v4-1-flash:
+    api_name: "deepseek-v4.1-flash:cloud"              # Ollama Cloud (tag resolves, family deepseek_v41, 2026-09-25)
+    provider: "ollama"
+    default_thinking: "unknown"  # NOT VERIFIED on this harness
+    description: "DeepSeek V4.1 Flash via pi on Ollama Cloud — executor fallback rung 1 (flat-rate) from 2026-09-25"
+    env_var: ""
+    agent_cli: "pi"
+    agent_model_name: "ollama/deepseek-v4.1-flash:cloud"
+    model_family: "deepseek-v4-flash"
+    max_output_tokens: 32000  # PI_WIRE_CLAMP — pi sends min(declared, 32000) on every provider
+    pricing:
+      # PROVISIONAL, imputed from the OpenRouter twin (or-deepseek-v4-1-flash). Ollama Cloud
+      # is flat-rate; not 0/0, which maps to the false `free-local` provenance.
+      input_per_1k: 0.0003
+      output_per_1k: 0.0012
+    budgets:
+      max_cost_usd: 1.00
+      hard_timeout_secs: 3600
+    notes: |
+      Replaces pi-cloud-deepseek-v4-flash (0731) in MISSION_EXECUTOR_FALLBACK, Mark attended
+      2026-09-25. Gate (standard mode, or-deepseek-v4-1-flash vs or-deepseek-v4-flash, ailang,
+      2026-09-25): smoke 23/23; core 22/23 vs 21/23; stretch+frontier on the 22 benchmarks both
+      reached (2 trials, wall-clock-capped at 61/124 runs) 25/29 vs 1/29, 20 discordant pairs
+      all in v4.1's favour; cost per pass ~$0.024 vs ~$0.14.
+
+  pi-or-deepseek-v4-1-flash:
+    api_name: "deepseek/deepseek-v4.1-flash"
+    provider: "openrouter"
+    default_thinking: "unknown"  # NOT VERIFIED on this harness
+    description: "DeepSeek V4.1 Flash via pi on OpenRouter — executor fallback rung 2 (metered) from 2026-09-25"
+    env_var: "OPENROUTER_API_KEY"
+    agent_cli: "pi"
+    agent_model_name: "openrouter/deepseek/deepseek-v4.1-flash"  # BARE, like the rung it replaces: the driver
+                                                                 # dropped :floor deliberately (mission-control.sh)
+    model_family: "deepseek-v4"
+    max_output_tokens: 32000  # PI_WIRE_CLAMP
+    pricing:
+      input_per_1k: 0.0003    # $0.30 per 1M (OpenRouter API, read 2026-09-25) — must match or-deepseek-v4-1-flash
+      output_per_1k: 0.0012   # $1.20 per 1M
+    budgets:
+      max_cost_usd: 0.50
+      hard_timeout_secs: 3600
+    notes: |
+      Replaces pi-or-deepseek-v4-flash (0731) in MISSION_EXECUTOR_FALLBACK; gate record on
+      pi-cloud-deepseek-v4-1-flash.
+
+  pi-cloud-deepseek-v4-flash:
+    api_name: "deepseek-v4-flash:0731-cloud"           # tagged model -> `-cloud` on the TAG
+    provider: "ollama"                                 # local daemon proxies to ollama.com (M-OLLAMA-CLOUD-PROVIDER)
+    default_thinking: "unknown"  # NOT VERIFIED on this harness — inherited from the
+                                 # motoko-cloud twin
+    description: "DeepSeek V4 Flash 0731 via pi on Ollama Cloud — the driver's designer fallback rung, flat-rate before metered"
+    env_var: ""
+    agent_cli: "pi"
+    agent_model_name: "ollama/deepseek-v4-flash:0731-cloud"
+    model_family: "deepseek-v4-flash"
+    max_output_tokens: 65536
+    pricing:
+      # TRANSCRIBED from motoko-cloud-deepseek-v4-flash, which shares this row's
+      # api_name slug. That is not a style preference: the pricing-consistency gate
+      # compares every row for a slug, so these MUST match byte-for-byte. An earlier
+      # draft of this row imputed $0.20/$0.80 per 1M from the OpenRouter twin and was
+      # wrong on both counts — wrong numbers, and the wrong twin to copy from.
+      # Deliberately NOT 0/0: zero maps to the FALSE `free-local` provenance.
+      input_per_1k: 0.000065   # $0.065 per 1M
+      output_per_1k: 0.00018   # $0.18 per 1M
+    budgets:
+      max_cost_usd: 1.00
+      hard_timeout_secs: 3600
+    notes: |
+      Exists so the registry can express `pi:ollama/deepseek-v4-flash:0731-cloud`,
+      which tools/launchd/mission-control.sh:1106 has resolved as a designer fallback
+      rung. The pi sibling of motoko-cloud-deepseek-v4-flash.
+
+      Not referenced by any role chain — see the Phase 0 note above.
+
+  pi-or-kimi-k3:
+    api_name: "moonshotai/kimi-k3"
+    provider: "openrouter"
+    default_thinking: "on"   # INHERITED from the opencode sibling for the same model, not
+                             # re-measured on pi; do not read this row's token counts as
+                             # efficiency data.
+    description: "Kimi K3 via pi minimal harness — binary mission-path designer + planner lanes"
+    env_var: "OPENROUTER_API_KEY"
+    agent_cli: "pi"
+    agent_model_name: "openrouter/moonshotai/kimi-k3"
+    model_family: "kimi"
+    max_output_tokens: 32000  # PI_WIRE_CLAMP min(declared, 32000) — the opencode sibling
+                              # declares 65536, but pi has no max-tokens flag and reads
+                              # maxTokens from ~/.pi/agent/models.json, so a larger number
+                              # here would not reach the wire. Same reasoning as
+                              # pi-or-minimax-m3.
+    pricing:
+      input_per_1k: 0.003    # $3.00 per 1M
+      output_per_1k: 0.015   # $15.00 per 1M
+      # Model facts (id, context, pricing) are TRANSCRIBED from opencode-or-kimi-k3, the
+      # sibling row for the same OpenRouter model. cache_read_per_1k is deliberately NOT
+      # declared: pi-or-minimax-m3's rate was DERIVED from a metered run, and no metered pi
+      # run on kimi-k3 exists yet. Declaring a guessed rate would be worse than the
+      # documented fallback, which is loud rather than wrong-and-quiet.
+    budgets:
+      max_cost_usd: 1.00      # matches the opencode sibling for the SAME model, not
+                              # pi-or-minimax-m3's 0.30 — kimi-k3 is frontier-priced
+                              # ($3/$15 per MTok) and the planner is a long role.
+      hard_timeout_secs: 3600
+    notes: |
+      The pi sibling of opencode-or-kimi-k3 — same OpenRouter model, skill-capable harness.
+      Serves the DESIGNER and PLANNER rows, the same defect and the same fix as
+      pi-or-minimax-m3 did for the evaluator: before this row the registry could express
+      kimi-k3 only as an opencode entry, so the binary mission path resolved a designer and
+      a planner that cannot load design-doc-creator or sprint-planner.
+
+      For planner it also expresses the driver's own fallback
+      (`pi:ollama/kimi-k3:cloud,pi:openrouter/moonshotai/kimi-k3`, mission-control.sh:1215),
+      so the two tables agree on that lane rather than merely both being defensible.
+
+      Smoke gate: PENDING on pi, inherited from the opencode sibling's own pending gate.
+
   pi-or-deepseek-v4-flash-bare:
     api_name: "deepseek/deepseek-v4-flash-0731"
     provider: "openrouter"
@@ -3886,6 +4237,28 @@ models:
       Repointed 2026-08-03 from the April preview slug (deepseek/deepseek-v4-flash)
       to the official 0731 release — see opencode-or-deepseek-v4-flash's notes for
       the full rationale. Pricing dropped $0.14/$0.28 -> $0.09/$0.18 per 1M.
+
+  or-deepseek-v4-1-flash:
+    api_name: "deepseek/deepseek-v4.1-flash"
+    provider: "openrouter"
+    default_thinking: "unknown"  # NOT VERIFIED — probe before reading token counts as efficiency data
+    description: "DeepSeek V4.1 Flash (2026-09-10) via OpenRouter (standard) — successor candidate to or-deepseek-v4-flash (0731)"
+    env_var: "OPENROUTER_API_KEY"
+    model_family: "deepseek-v4"
+    max_output_tokens: 65536  # same headroom as 0731 (reasoning-stall class); provider ceiling 393216
+    pricing:
+      input_per_1k: 0.0003    # $0.30 per 1M (OpenRouter API, read 2026-09-25)
+      output_per_1k: 0.0012   # $1.20 per 1M (OpenRouter API, read 2026-09-25)
+    budgets:
+      max_cost_usd: 0.30
+      hard_timeout_secs: 600
+    notes: |
+      Registered 2026-09-25 (Mark, attended: "please update the deepseek"). The fleet's
+      deepseek lanes (executor fallback, docs/motoko envs) run v4-flash-0731; Ollama Cloud
+      now lists deepseek-v4.1-flash and the tag resolves (`deepseek-v4.1-flash:cloud`,
+      family deepseek_v41). ~4x 0731's registered input rate and ~7x its output rate on
+      OpenRouter; the Ollama route is flat-rate. Lanes move only after this row passes
+      the smoke gate.
 
   or-deepseek-v4-pro:
     api_name: "deepseek/deepseek-v4-pro-0813"
@@ -5198,8 +5571,58 @@ default: "claude-sonnet-4-6"
 # only. Said plainly because the table this replaced carried a comment claiming
 # Lane A read it, which a grep showed was never true.
 roles:
-  designer:  [opencode-or-kimi-k3]
-  planner:   [gpt5-6-sol, opencode-or-kimi-k3]
+  # MODEL UPGRADE 2026-09-22 (attended): the planner and executor heads move
+  # gpt5-6-sol -> gpt6-sol. Same lane (codex subscription), same position, better row:
+  # $2/$10 per M, and thinking is PROBED (reasoning_tokens=87 of 161) where gpt5-6-sol
+  # still carries default_thinking "unknown" — so the upgrade also closes a measurement
+  # blind spot on the two roles that do the most tokens.
+  #
+  # REQUIRES codex-cli >= 0.155.1 (0.154.0 400s gpt-6-sol, which reads as unavailability
+  # and is not). The gpt5-6-sol ROW IS KEPT in the catalogue above: it is still the
+  # design-quorum's OpenAI seat and the comparator in the astra benchmark record, and
+  # provenance_test.go uses it as the control that the embedded registry is the real one.
+  #
+  # READ THE DIGIT AFTER "gpt" — gpt5-6-sol and gpt6-sol are different generations and
+  # prices. TestRoles_NeverMixGptGenerations below asserts no role chain names both.
+  # The historical mentions of gpt5-6-sol elsewhere in this file are MEASUREMENTS and
+  # were deliberately left alone; rewriting them would falsify the record.
+  # designer and planner gain a pi rung (2026-09-21) — the SAME defect and the same fix as
+  # executor and evaluator below, found by asking the property rather than waiting for the
+  # third incident. EVERY RUNG MUST LOAD SKILLS (2026-09-08, attended): the roles are driven
+  # by .agents/skills/{design-doc-creator,sprint-planner}, and a harness that cannot load a
+  # skill receives the NAME of the procedure and none of its content. Only pi carries the
+  # workspace-trust extension that makes skill loading work (internal/executor/pi/isolation.go);
+  # opencode has no such capability, and the comment block above the executor row records that
+  # codex is skill-less too.
+  #
+  # Measured 2026-09-21 with codex over ration: designer resolved to [opencode] alone and
+  # planner to [codex, opencode], so BOTH roles had no skill-capable route on the binary path —
+  # designer had none at all, at any time, ration or not.
+  #
+  # THE DEFECT IS THE HARNESS, NOT THE MODEL, so the fix changes only the harness: each role
+  # keeps the model its chain already named and moves it from opencode to pi. designer stays on
+  # kimi-k3, planner keeps codex at the head and gains kimi-k3 on pi. Nothing here re-decides
+  # WHICH model runs a role — that is M-MODEL-REGISTRY-SINGLE-SOURCE M8's parked work, and its
+  # park note is why the shell's designer head (`claude:claude-fable-5-1`) is NOT transcribed:
+  # the registry yields `claude:fable`, which the Agent tool's sonnet|opus|haiku enum would
+  # silently downgrade to opus. Giving these roles a skill-capable rung does not need that work
+  # and does not wait for it.
+  #
+  # Keeping the model identical also keeps the CLOUD side inert: coordinator's ResolveModelChain
+  # reads these rows on LaneCloud, and TestCloudAgents_RegistryMatchesTheDeletedRoutingTable
+  # asserts the resolved MODEL still matches config.cloud.yaml's deleted routing table. Same
+  # shape as the evaluator fix, which moved minimax-m3 from opencode to pi and stayed inert there
+  # for exactly this reason.
+  #
+  # Corroboration that pi is the right harness for planner specifically: the shell driver
+  # independently resolves `pi:ollama/kimi-k3:cloud,pi:openrouter/moonshotai/kimi-k3`
+  # (mission-control.sh:1215) — the same model on the same harness, ratified separately.
+  #
+  # opencode stays as the LAST rung rather than being deleted — same precedent as the executor
+  # and evaluator rows: it is the route these roles actually ran, so it stays reachable for
+  # comparison.
+  designer:  [pi-or-kimi-k3, opencode-or-kimi-k3]
+  planner:   [gpt6-sol, pi-or-kimi-k3, opencode-or-kimi-k3]
   # executor gains a pi rung (2026-09-14), same defect and same fix as evaluator above.
   # Measured: with codex over ration, `mission iterate` reported "no available candidate" —
   # gpt5-6-sol blocked on quota, and opencode-or-deepseek-v4-flash refused with "executor
@@ -5211,7 +5634,7 @@ roles:
   # `:floor` was dropped from the mission executor lane on 2026-08-18 — its two cheapest
   # hosts carry negative health status and it returned rc=0 with zero bytes changed twice.
   # opencode stays last, reachable for comparison rather than deleted.
-  executor:  [gpt5-6-sol, pi-or-deepseek-v4-flash-bare, opencode-or-deepseek-v4-flash]
+  executor:  [gpt6-sol, pi-or-deepseek-v4-flash-bare, opencode-or-deepseek-v4-flash]
   # evaluator leads with pi, not opencode (changed 2026-09-14). The binary mission path is
   # the only LaneLocal consumer of this row; the coordinator's retry chain reads it on
   # LaneCloud but short-circuits first for any agent carrying an explicit model
@@ -5384,7 +5807,8 @@ extended_suite:
   - "or-kimi-k3"        # Kimi K3 (general successor, 1M ctx) — 96% std smoke 2026-07-19 (22/23, only
     # dense_operator_program IMP010 bug), beat K2.7 Code sibling. Frontier-priced $3/$15/M — capability
     # probe, ADDITION not a K2.7-Code replacement (different lineage + 4x cost).
-  - "or-deepseek-v4-flash" # DeepSeek V4 Flash — 75% std, $0.10/1M (cheapest viable; re-gated 2026-06-04)
+  - "or-deepseek-v4-1-flash" # DeepSeek V4.1 Flash — REPLACED or-deepseek-v4-flash (0731) 2026-09-25 (Mark):
+                             # stretch+frontier 25/29 vs 1/29 on shared benchmarks, core 22/23 vs 21/23
   - "or-deepseek-v4-pro"   # DeepSeek V4 Pro — REPOINTED 2026-08-13 to the 0813 GA slug
     # (core N=3 67/69 vs the preview's 65/69, and ~2.7x cheaper). Pre-2026-08-13 rows
     # under this name are the April preview — see the entry's baseline-boundary note.

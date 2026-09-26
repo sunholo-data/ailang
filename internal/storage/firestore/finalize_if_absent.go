@@ -92,6 +92,11 @@ func (s *CoordinatorStore) ReopenApprovalForNewWork(ctx context.Context, taskID,
 			{Path: "resolved_at", Value: nil},
 			{Path: "description", Value: description},
 			{Path: "context_json", Value: contextJSON},
+			// A reopened approval is a NEW decision: the previous one's handoff
+			// record must not decide it (M-TASK-STATUS-TRUTH D3, quorum round 7).
+			{Path: "handoffs_triggered", Value: false},
+			{Path: "handoffs_suppressed", Value: false},
+			{Path: "handoffs_expired", Value: false},
 		})
 	})
 	if err != nil {

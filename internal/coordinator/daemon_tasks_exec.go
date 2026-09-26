@@ -245,6 +245,15 @@ func (d *Daemon) dispatchTasksCloud() error {
 				if agent.Timeout != "" {
 					params.Timeout = agent.Timeout
 				}
+				// Without this the job falls back to the executor default (3m),
+				// which reads as the agent stalling rather than as config that
+				// never arrived. Deliberative agents notice first: they emit few,
+				// long turns, where a tool-heavy agent resets the idle timer
+				// constantly. sprint-evaluator died on "pi idle for 3m0.004s"
+				// six times on 2026-09-22 while declaring idle_timeout: 5m.
+				if agent.IdleTimeout != "" {
+					params.IdleTimeout = agent.IdleTimeout
+				}
 				// M-CLOUD-DUAL-AUTH: Per-agent default auth mode.
 				if agent.AuthMode != "" {
 					params.AuthMode = agent.AuthMode

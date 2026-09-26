@@ -16,6 +16,9 @@ type ClassInstance struct {
 	TypeHead  Type     // Monomorphic type for v1 (TInt, TFloat, etc.)
 	Dict      Dict     // Method implementations
 	Super     []string // Superclasses this instance provides (e.g., Ord provides Eq)
+	// Structural marks an Eq instance synthesized from its parts
+	// (M-EQ-DERIVE-CONTAINERS); it resolves to StructuralEqTypeName at runtime.
+	Structural bool
 }
 
 // InstanceEnv manages type class instances with coherence checking
@@ -42,8 +45,14 @@ func (env *InstanceEnv) Add(inst *ClassInstance) error {
 	return nil
 }
 
-// Lookup finds an instance, including superclass derivation
+// Lookup finds an instance, including superclass derivation and Eq synthesis
+// for containers (see instances_eq_synth.go)
 func (env *InstanceEnv) Lookup(class string, typ Type) (*ClassInstance, error) {
+	return env.lookup(class, typ, 0)
+}
+
+// lookup is Lookup at a synthesis depth; depth only grows through synthesizeEq.
+func (env *InstanceEnv) lookup(class string, typ Type, depth int) (*ClassInstance, error) {
 	// Direct lookup
 	key := canonicalKey(class, typ)
 	if inst, ok := env.instances[key]; ok {
@@ -55,6 +64,9 @@ func (env *InstanceEnv) Lookup(class string, typ Type) (*ClassInstance, error) {
 		ordKey := canonicalKey("Ord", typ)
 		if ordInst, ok := env.instances[ordKey]; ok {
 			return deriveEqFromOrd(ordInst), nil
+		}
+		if inst, handled, err := env.synthesizeEq(typ, depth); handled {
+			return inst, err
 		}
 	}
 
@@ -86,11 +98,37 @@ func actionableInstanceHint(class string, typ Type) string {
 	case "Fractional":
 		return fmt.Sprintf("Float division (/) needs floats; %s is not Fractional. Convert ints with intToFloat, e.g. intToFloat(x) / intToFloat(y).", ts)
 	case "Ord":
-		return fmt.Sprintf("Comparisons (<, >, <=, >=) need an Ord instance; %s has none. Import std/prelude, or compare a supported type (int, float, string).", ts)
+		return fmt.Sprintf("Comparisons (<, >, <=, >=) need an Ord instance; %s has none. Compare a supported type instead (int, float, string), e.g. a key field.", ts)
 	case "Eq":
-		return fmt.Sprintf("Equality (==, !=) needs an Eq instance; %s has none. Import std/prelude, or derive/define one.", ts)
+		return eqInstanceHint(typ, ts)
 	}
 	return "Import std/prelude or define instance"
+}
+
+// eqInstanceHint says how to FIX a missing Eq for the kind of type involved.
+//
+// Standard-mode evals feed this text to the model's one self-repair attempt, so it
+// must be advice that works. (It once said "Import std/prelude", a module that does
+// not exist.) Since M-EQ-DERIVE-CONTAINERS, lists, Option, Result, tuples and
+// records declared `deriving (Eq)` HAVE == whenever their parts do; the container
+// case is reported by synthesizeEq, which names the part that lacks Eq and then
+// appends this hint for that part. So this text only covers genuinely non-Eq types.
+func eqInstanceHint(typ Type, ts string) string {
+	prefix := fmt.Sprintf("Equality (==, !=) is not defined on %s.", ts)
+	switch t := typ.(type) {
+	case *TFunc2:
+		return prefix + " Functions have no ==: compare the values they produce instead."
+	case *TRecord, *TRecordOpen:
+		return prefix + " Anonymous records have no ==: declare a named record type with `deriving (Eq)`, e.g. `type Point = {x: int, y: int} deriving (Eq)`, or compare the fields you care about, e.g. a.id == b.id."
+	case *TApp:
+		if c, ok := t.Constructor.(*TCon); ok && (c.Name == "Option" || c.Name == "Result") {
+			return prefix + fmt.Sprintf(" %s has == only when its type arguments do.", c.Name)
+		}
+		return prefix + " deriving (Eq) is not supported on polymorphic types yet: pattern-match on the constructors instead."
+	case *TCon:
+		return prefix + " If this is your own type, declare it with `deriving (Eq)`, e.g. `type T = A | B(int) deriving (Eq)`."
+	}
+	return prefix + " Compare a supported type instead (int, float, string, bool, or a type declared with `deriving (Eq)`)."
 }
 
 // DefaultFor returns the default type for a class (for numeric literal defaulting)
@@ -160,6 +198,10 @@ type MissingInstanceError struct {
 	Class string
 	Type  Type
 	Hint  string
+	// leaf/leafHint name the innermost part that lacks Eq when the instance
+	// was being synthesized for a container (M-EQ-DERIVE-CONTAINERS).
+	leaf     Type
+	leafHint string
 }
 
 func (e *MissingInstanceError) Error() string {
@@ -226,12 +268,12 @@ func builtinInstances() []*ClassInstance {
 			},
 		},
 
-		// Eq[Float] - Lawful equivalence relation
+		// Eq[Float] - IEEE 754 (NaN != NaN), see FloatEq
 		{
 			ClassName: "Eq",
 			TypeHead:  TFloat,
 			Dict: Dict{
-				"eq":  "builtin_eq_float_eq", // Lawful: NaN==NaN, -0==+0
+				"eq":  "builtin_eq_float_eq", // IEEE: NaN!=NaN, -0==+0
 				"neq": "builtin_eq_float_neq",
 			},
 		},

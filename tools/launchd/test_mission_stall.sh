@@ -31,8 +31,9 @@ awk '/^_mc_stalled\(\) \{/,/^\}$/'        "$DRIVER" > "$TMP/fn_stalled.sh"
 # _mc_etime_secs is extracted, not stubbed: the age arm is only as good as the
 # driver's own "[[DD-]HH:]MM:SS" parser, so the suite must run the real one.
 awk '/^_mc_etime_secs\(\) \{/,/^\}$/'     "$DRIVER" > "$TMP/fn_etime.sh"
+awk '/^_mc_tree_write_bytes\(\) \{/,/^\}$/' "$DRIVER" > "$TMP/fn_treew.sh"
 # Guard the extraction: an empty extract would make every arm vacuously pass.
-[ -s "$TMP/fn_prog.sh" ] && [ -s "$TMP/fn_stalled.sh" ] && [ -s "$TMP/fn_etime.sh" ] \
+[ -s "$TMP/fn_prog.sh" ] && [ -s "$TMP/fn_stalled.sh" ] && [ -s "$TMP/fn_etime.sh" ] && [ -s "$TMP/fn_treew.sh" ] \
   || { echo "FAIL extraction: function boundaries not found in $DRIVER"; exit 1; }
 # And guard that we extracted the REAL predicate, not a stub with the same name.
 grep -q '_MC_PROG_PREV' "$TMP/fn_stalled.sh" \
@@ -44,6 +45,8 @@ grep -q '_MC_PROG_PREV' "$TMP/fn_stalled.sh" \
 . "$TMP/fn_prog.sh"
 # shellcheck source=/dev/null
 . "$TMP/fn_stalled.sh"
+# shellcheck source=/dev/null
+. "$TMP/fn_treew.sh"
 
 PASS=0; FAIL=0
 ok()   { PASS=$((PASS+1)); echo "ok - $1"; }
@@ -66,6 +69,14 @@ ps() {
   esac
 }
 log() { LOGGED="$LOGGED$*"$'\n'; }
+# lsof -F records for the files the tree holds open. Empty by default, so the
+# wedge arms below see no open-for-write file unless a case sets one.
+STUB_OPEN_W=""
+lsof() {
+  [ -n "$STUB_OPEN_W" ] || return 1
+  printf 'p1001\nf1\naw\ntREG\nn%s\nf2\naw\ntCHR\nn/dev/null\nf3\nar\ntREG\nn%s\n' \
+    "$STUB_OPEN_W" "$STUB_OPEN_W.readonly"
+}
 
 STALL_CHILD_AGE=2400
 STALL_CPU_PCT=2
@@ -215,6 +226,51 @@ grow "$(date +%s)	iso	gate-4	1	" "$DERIVED"
 verdict
 check "the heartbeat path is derived from MISSION_NAME when unset" "$V" "live"
 _mc_heartbeat="$SAVED_HB"
+
+# ---------------------------------------------------------------------------
+# 10. THE 2026-09-24 REGRESSION: a controller blocked on a child executor. Its
+#     own transcript, the driver log and the heartbeat are all flat and the tree
+#     reads 0% CPU, but the child is streaming into a file it holds open. That is
+#     live work — the executor finished M1-M3 24 minutes after it was killed.
+# ---------------------------------------------------------------------------
+reset_state
+STUB_CPU="0.0"
+EXEC_OUT="$TMP/pi_exec.ndjson"; : > "$EXEC_OUT"; : > "$EXEC_OUT.readonly"
+STUB_OPEN_W="$EXEC_OUT"
+verdict                             # seed
+grow '{"type":"message_end"}' "$EXEC_OUT"
+verdict
+check "a child streaming into a file it holds open for write is live" "$V" "live"
+
+# ...and the arm must not make the wedge unkillable: an open-for-write file that
+# does NOT grow is no progress. (A read-only file growing must not count either.)
+verdict
+grow "someone else's append" "$EXEC_OUT.readonly"
+verdict
+check "an open-for-write file that stays flat is still stalled" "$V" "stalled"
+STUB_OPEN_W=""
+
+# ---------------------------------------------------------------------------
+# 11. A pi controller's own transcript. `pi -p` buffers to the end, so the
+#     driver log is flat for the whole run; without this arm, every pi slot past
+#     STALL_CHILD_AGE died on the first 10 quiet minutes (pi is itself a
+#     descendant of the watched subshell, so the long-child arm is always true).
+#     The path rule is pi's safePath: leading / dropped, [/\:] -> -, dots KEPT.
+# ---------------------------------------------------------------------------
+reset_state
+CONTROLLER_PROVIDER=pi
+PI_SLUG="--$(printf '%s' "${PWD#/}" | tr '/' '-')--"
+case "$PI_SLUG" in *.pin-v1--) ok "pi slug keeps dots ($PI_SLUG)" ;; *) bad "pi slug should keep dots, got $PI_SLUG" ;; esac
+PI_DIR="$HOME/.pi/agent/sessions/$PI_SLUG"; mkdir -p "$PI_DIR"
+PI_T="$PI_DIR/2026-09-24T05-29-00-416Z_01a0d1e3.jsonl"; : > "$PI_T"
+verdict
+grow '{"type":"message","message":{"role":"toolResult"}}' "$PI_T"
+verdict
+check "a pi controller whose session transcript grows is live" "$V" "live"
+verdict
+verdict
+check "a pi controller with a flat transcript and nothing else moving is stalled" "$V" "stalled"
+CONTROLLER_PROVIDER=claude
 
 echo "---"
 echo "stall watchdog: $PASS passed, $FAIL failed"

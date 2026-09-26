@@ -67,17 +67,23 @@ have "pi failed on the MODEL, not earlier" 'grep -q "not found" "$OUT/err.txt"'
 echo "=== 6. ailang_run is present and default-deny (M-AGENT-AILANG-ONLY-EXECUTION) ==="
 have "ailang-exec.ts installed"           '[ -f "$EXT/ailang-exec.ts" ]'
 PROFILE_ARGS="$(ailang pi tool-profile ailang_only 2>/dev/null || true)"
-have "ailang pi tool-profile ailang_only: allowlist, no bash" 'case "$PROFILE_ARGS" in *"--no-builtin-tools --tools read,edit,write,ailang_check,ailang_run,builtins_search,examples_search,ailang_cli") true;; *) false;; esac'
+# M-EXECUTOR-POLICY-HARDENING M4: the file tools are the policy's sandboxed
+# ailang_read/edit/write, never pi's native read/edit/write.
+have "ailang pi tool-profile ailang_only: allowlist, no bash" 'case "$PROFILE_ARGS" in *"--no-builtin-tools --tools ailang_read,ailang_edit,ailang_write,ailang_check,ailang_run,builtins_search,examples_search,ailang_cli") true;; *) false;; esac'
+have "  ...and no native read/edit/write"                     'case "$PROFILE_ARGS" in *"--tools read,"*|*",read,"*|*",write,"*|*",edit,"*) false;; *) true;; esac'
 have "  ...carries its extensions with discovery off"         'case "$PROFILE_ARGS" in "--no-extensions -e "*ailang-exec.ts*|"--no-extensions -e "*ailang-lsp-lite.ts*) true;; *) false;; esac'
 have "  ...and the carried files exist"                       'for f in $PROFILE_ARGS; do case "$f" in *.ts) [ -f "$f" ] || exit 1;; esac; done'
-# Model-free: the extension's gate is a pure function of the environment.
+# Model-free: the extension's gate is gateFromEnv (the environment) followed by
+# gateWithSummary (the Go endpoint's verdict — `ailang policy-tool` op=summary,
+# M-EXECUTOR-POLICY-HARDENING M4). Both halves run for real here.
 # (capture-then-grep, never `cmd | grep -q` — see the pipefail note above)
-GATE_JS='import("'"$EXT"'/ailang-exec.ts").then(m => { const g = m.gateFromEnv(process.env); console.log(JSON.stringify(g)); })'
+GATE_JS='import("'"$EXT"'/ailang-exec.ts").then(async m => { let g = m.gateFromEnv(process.env); if (!g.refusal && g.policyPath) { g = m.gateWithSummary(g, await m.defaultToolRunner()(g.policyPath, { op: "summary" })).gate; } console.log(JSON.stringify(g)); })'
 POL="$(mktemp -d)"
 G_UNSET="$(env -u AILANG_AGENT_POLICY node --experimental-strip-types -e "$GATE_JS" 2>/dev/null || true)"
-printf 'allowed_caps = ["IO"]\nfs_sandbox = "%s"\nentry = "main"\n' "$POL" > "$POL/policy.toml"
+# FS needs a sandbox; a policy whose sandbox contains its own directory is D4.
+printf 'allowed_caps = ["IO", "FS"]\nfs_sandbox = "%s"\nentry = "main"\n' "$POL" > "$POL/policy.toml"
 G_INSIDE="$(AILANG_AGENT_POLICY="$POL/policy.toml" node --experimental-strip-types -e "$GATE_JS" 2>/dev/null || true)"
-printf 'allowed_caps = ["IO"]\nfs_sandbox = "%s"\nentry = "main"\n' "$WS" > "$POL/policy.toml"
+printf 'allowed_caps = ["IO", "FS"]\nfs_sandbox = "%s"\nentry = "main"\n' "$WS" > "$POL/policy.toml"
 G_OUTSIDE="$(AILANG_AGENT_POLICY="$POL/policy.toml" node --experimental-strip-types -e "$GATE_JS" 2>/dev/null || true)"
 RUN_HELP="$(ailang run --help 2>&1 || true)"
 have "no policy env -> refusal names AILANG_AGENT_POLICY" 'grep -q "AILANG_AGENT_POLICY is unset" <<<"$G_UNSET"'
@@ -94,10 +100,17 @@ printf 'module probe\nexport func main() -> () ! {} = ()\n' > "$WS/probe.ail"
 AICHECK="$(cd "$WS" && ailang ai-check probe.ail 2>/dev/null || true)"
 have "ai-check reports verify.available=true" 'grep -Eq "\"available\": *true" <<<"$AICHECK"'
 
-echo "=== 8. ailang_cli: allowlisted CLI, execution stays gated ==="
-CLI_JS='import("'"$EXT"'/ailang-exec.ts").then(m => { const r = [["iface","std/fs"],["run","x.ail"],["messages","send"],["fmt","../../etc/x"]].map(a => m.cliDecision(a, null, "'"$WS"'").ok); console.log(JSON.stringify(r)); })'
-CLI_DEC="$(node --experimental-strip-types -e "$CLI_JS" 2>/dev/null || true)"
-have "iface allowed; run, messages, sandbox-escape refused" '[ "$CLI_DEC" = "[true,false,false,false]" ]'
+echo "=== 8. ailang_cli: typed requests to the Go endpoint; execution stays gated ==="
+# The decision is the endpoint's (`ailang policy-tool`), not the extension's:
+# iface builds an argv; run is gate-only; messages has no schema; a path that
+# leaves the sandbox is refused by the root handle. ($POL/policy.toml is the
+# outside-the-sandbox policy from section 6, sandbox = $WS.)
+cli_ok() { local out; out="$(printf '%s' "$1" | AILANG_AGENT_POLICY="$POL/policy.toml" ailang policy-tool 2>/dev/null || true)"; grep -Eq '"ok": *true' <<<"$out"; }
+have "iface std/fs -> ok (argv built in Go)"        'cli_ok "{\"op\":\"iface\",\"module\":\"std/fs\"}"'
+have "run -> refused (gate-only)"                    '! cli_ok "{\"op\":\"run\",\"path\":\"x.ail\"}"'
+have "messages -> refused (no schema)"               '! cli_ok "{\"op\":\"messages\",\"query\":\"send\"}"'
+have "fmt ../../etc/x -> refused (leaves the sandbox)" '! cli_ok "{\"op\":\"fmt\",\"path\":\"../../etc/x\"}"'
+have "read outside the sandbox -> refused"           '! cli_ok "{\"op\":\"read\",\"path\":\"/etc/passwd\"}"'
 
 echo
 echo "passed: $pass  failed: $fail"

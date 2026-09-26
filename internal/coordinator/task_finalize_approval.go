@@ -280,6 +280,19 @@ func (f *finalizer) applyHandoff(ctx context.Context) (FinalizationState, error)
 	targets := f.autoHandoffTargets()
 	var dispatched, skipped int
 
+	// The same identity the approval path uses: (task, target, work). A task that
+	// runs again and produces DIFFERENT work owes its auto edges a new handoff; a
+	// redelivery of the same completion computes the same work id from the same
+	// immutable SHAs and collides (M-TASK-STATUS-TRUTH D3, quorum round 8).
+	// Without a diff source the work id is "" and this is HandoffMessageID, as
+	// before.
+	workID := ""
+	if f.strategy != nil {
+		if d, err := f.strategy.DiffSource(ctx, f.in.Task); err == nil {
+			workID = WorkIDForApproval(d.ChangedFiles, d.Stat)
+		}
+	}
+
 	for _, targetID := range targets {
 		target := f.deps.AgentRegistry.GetAgentByID(targetID)
 		if target == nil {
@@ -310,7 +323,7 @@ func (f *finalizer) applyHandoff(ctx context.Context) (FinalizationState, error)
 		body := handoffContent(source, f.in.Task, f.in.Task.GithubIssue, artifacts)
 
 		created, err := f.deps.MsgStore.PutMessageIfAbsent(ctx, &messaging.InboxMessage{
-			ID:           HandoffMessageID(f.in.Task.ID, targetID),
+			ID:           HandoffMessageIDForWork(f.in.Task.ID, targetID, workID),
 			FromAgent:    "coordinator",
 			ToInbox:      target.Inbox,
 			MessageType:  messaging.InboxTypeHandoff,

@@ -15,6 +15,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/coordinator"
 )
 
@@ -236,6 +237,13 @@ func (d *Dispatcher) Dispatch(ctx context.Context, params coordinator.DispatchPa
 	if params.Timeout != "" {
 		envOverrides = append(envOverrides, &runpb.EnvVar{
 			Name: "AILANG_TIMEOUT", Values: &runpb.EnvVar_Value{Value: params.Timeout},
+		})
+	}
+	// Idle kill, distinct from the hard ceiling above. Absent, the job uses the
+	// executor default (3m) and the agent's declared idle_timeout is dead config.
+	if params.IdleTimeout != "" {
+		envOverrides = append(envOverrides, &runpb.EnvVar{
+			Name: config.EnvIdleTimeout, Values: &runpb.EnvVar_Value{Value: params.IdleTimeout},
 		})
 	}
 	// M-CLOUD-PROGRESS-TRACKING: Pass per-task cost budget for mid-execution enforcement.

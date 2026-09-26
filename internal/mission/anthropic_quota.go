@@ -85,6 +85,20 @@ func AnthropicRationEnabled() bool { return config.AnthropicRation() }
 // NOTE the asymmetry that makes this work at all: launchd jobs have keychain access, plain
 // shells often do not. That is why this resolves at RUN time in the mission fire rather
 // than being captured into config by a human session.
+//
+// CLAUDE_CODE_OAUTH_TOKEN IS NOT A SUBSTITUTE FOR THE KEYCHAIN HERE, and the env
+// var winning is a hazard rather than a convenience. Measured 2026-09-22: a token
+// from `claude setup-token` authenticates but is FORBIDDEN from the usage
+// endpoint — HTTP 403, not 401 — while the keychain credential read 12.0%/11.4%
+// in the same minute. Because the env var is preferred, storing one in
+// secrets.env does not sit inert: it OVERRIDES a working keychain read with an
+// unreadable bucket, which `mission quota --over` then blocks by policy.
+//
+// The keychain item carries scopes user:file_upload, user:inference,
+// user:mcp_servers, user:profile, user:sessions:claude_code; a setup-token token
+// evidently carries a narrower set. So the env var remains the documented escape
+// hatch for a token that CAN read usage, and is a footgun for one that cannot —
+// verify against the endpoint before storing one, never assume.
 func anthropicOAuthToken(ctx context.Context) string {
 	// LookupEnv, not Getenv: an explicitly EMPTY CLAUDE_CODE_OAUTH_TOKEN means "no
 	// credential" and must not fall through to the keychain. That is the same seam
@@ -104,6 +118,7 @@ func anthropicOAuthToken(ctx context.Context) string {
 	var cred struct {
 		ClaudeAIOauth struct {
 			AccessToken string `json:"accessToken"`
+			ExpiresAt   int64  `json:"expiresAt"`
 		} `json:"claudeAiOauth"`
 		AccessToken string `json:"accessToken"`
 	}
@@ -111,9 +126,42 @@ func anthropicOAuthToken(ctx context.Context) string {
 		return ""
 	}
 	if cred.ClaudeAIOauth.AccessToken != "" {
+		// Record the stored token's expiry so a STALE credential can be named as
+		// such. Claude Code refreshes its access token in memory and does not write
+		// the fresh one back here, so this blob goes stale while the app keeps
+		// working — which is exactly how the fleet ended up reading a week-old
+		// token, getting HTTP 401, and reporting the bucket as unmeasurable.
+		//
+		// Measured 2026-09-22: expiresAt was 2026-09-15, seven days earlier, while
+		// the neighbouring refreshToken was valid for another fourteen. Anthropic
+		// sat at ~89% free and three World iterations were routed away from it.
+		lastKeychainExpiry = cred.ClaudeAIOauth.ExpiresAt
 		return cred.ClaudeAIOauth.AccessToken
 	}
 	return cred.AccessToken
+}
+
+// lastKeychainExpiry is the expiry (unix millis) of the access token most
+// recently read from the keychain, or 0 when it was unset or the token came from
+// the environment. It exists only to turn a bare HTTP 401 into a sentence an
+// operator can act on; it is never used to decide whether to make the call,
+// because a clock skew must not be able to suppress a reading that would work.
+var lastKeychainExpiry int64
+
+// keychainTokenStaleness returns a human clause when the stored token has
+// expired, and "" otherwise.
+func keychainTokenStaleness(now time.Time) string {
+	if lastKeychainExpiry <= 0 {
+		return ""
+	}
+	exp := time.UnixMilli(lastKeychainExpiry)
+	if !exp.Before(now) {
+		return ""
+	}
+	return fmt.Sprintf(" — the keychain access token EXPIRED %s (%s ago); "+
+		"Claude Code refreshes in memory without writing back, so re-authenticate it "+
+		"(the stored refreshToken is not used by this reader)",
+		exp.UTC().Format("2006-01-02"), now.Sub(exp).Round(time.Hour))
 }
 
 // ObserveAnthropicQuota makes one bounded usage-only call. It never makes an inference call.
@@ -122,7 +170,32 @@ func ObserveAnthropicQuota(now time.Time) AnthropicQuotaObservation {
 		Timeout:       5 * time.Second,
 		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 	}
-	return observeAnthropicQuota(anthropicOAuthToken(context.Background()), now, client)
+	o := observeAnthropicQuota(anthropicOAuthToken(context.Background()), now, client)
+	if o.State != "unknown" {
+		return o
+	}
+	// FALL BACK TO THE CLI when the endpoint could not be read.
+	//
+	// Every credential route to the HTTP endpoint has failed in a different way
+	// (see anthropic_usage_cli.go for the measurements), and the consequence was a
+	// week of routing away from the fleet's largest allocation. `claude -p /usage`
+	// carries its own live credential — the same one that makes `claude -p` work for
+	// inference — so it answers when the endpoint cannot.
+	//
+	// Second, not first, only because it is slower: the endpoint returns in ~5s and
+	// the CLI takes tens of seconds, and this runs on every mission fire. When the
+	// endpoint works, nothing changes.
+	windows, err := anthropicCLIUsage(context.Background(), now)
+	if err != nil {
+		o.Reason += fmt.Sprintf("; CLI fallback also failed (%v)", err)
+		return o
+	}
+	o.Windows = windows
+	o.Source = "claude -p /usage"
+	o.State = "ok"
+	o.Reason = "subscription usage read from `claude -p /usage` (the HTTP endpoint was unreadable)"
+	evaluateAnthropicQuota(&o, now)
+	return o
 }
 
 func observeAnthropicQuota(token string, now time.Time, client *http.Client) AnthropicQuotaObservation {
@@ -152,7 +225,8 @@ func observeAnthropicQuota(token string, now time.Time, client *http.Client) Ant
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
-		o.Reason = fmt.Sprintf("Anthropic usage endpoint returned HTTP %d", resp.StatusCode)
+		o.Reason = fmt.Sprintf("Anthropic usage endpoint returned HTTP %d%s", resp.StatusCode,
+			keychainTokenStaleness(now))
 		return o
 	}
 	const limit = 1 << 20
@@ -271,7 +345,7 @@ func evaluateAnthropicQuota(o *AnthropicQuotaObservation, now time.Time) {
 		return // a locked window is already decided
 	}
 	verdict := CodexQuotaObservation{ObservedAt: now, Windows: o.Windows}
-	verdict.evaluate(now)
+	verdict.evaluateAt(now, AnthropicDailyRationFraction)
 	o.State = verdict.State
 	o.Windows = verdict.Windows
 	switch o.State {

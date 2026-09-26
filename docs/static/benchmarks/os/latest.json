@@ -1,22 +1,31 @@
 {
-  "ailang_version": "v0.35.1",
-  "generated": "2026-09-07",
+  "ailang_version": "v0.40.2",
+  "generated": "2026-09-21",
   "languages": [
     "ailang"
+  ],
+  "notes": [
+    {
+      "date": "2026-09-15",
+      "ref": "M-V1-SIMPLIFY-S3 M1 / ruling D2",
+      "text": "Pass = compile_ok \u0026\u0026 runtime_ok \u0026\u0026 stdout_ok (RunMetrics.Passed) everywhere from this date. The OS rotation summary (SummarizeRotation) always used this conjunction, so OS leaderboard/history rows are unaffected; cloud-baseline views (eval-report matrix, tags, sweet-spot, comparison, ELO) had read stdout_ok alone. Measured over every baseline dir (26,758 valid rows): 31 rows disagree, 30 of them on the retired print_missing_effect benchmark (empty expected stdout graded a compile/runtime failure as stdout_ok); overall delta -0.12pp, worst version v0.4.1 at -0.90pp, v0.30.0 and v0.32.0 unchanged. Nothing was re-banked. Full per-version table: TestD2DiscordantCount in internal/eval_analysis."
+    },
+    {
+      "date": "2026-09-15",
+      "ref": "M-V1-SIMPLIFY-S4 M4 / ruling D9",
+      "text": "Write side unified, bank-forward: from this date standard mode gates stdout_ok on runtime_ok exactly as every agent-mode lane already did, so a run that crashed after printing the expected bytes (or whose expected stdout is empty) banks stdout_ok=false instead of true. Rows banked before this date keep their stored flags; nothing was re-banked. Published rates are unaffected because the D2 read-side predicate above already required all three flags — this only makes the STORED stdout_ok mean the same thing in both modes. Pinned by TestD9StandardModeStdoutOkGatedOnRuntime in internal/eval_harness."
+    }
   ],
   "rows": [
     {
       "harness": "motoko",
       "lang": {
-        "ailang": 0.9230769230769231
+        "ailang": 1
       },
       "model": "motoko-local-qwen3-8-27b",
       "tiers": {
         "core": {
-          "ailang": 0.9090909090909091
-        },
-        "frontier": {
-          "ailang": 0.75
+          "ailang": 1
         },
         "stretch": {
           "ailang": 1
@@ -26,40 +35,40 @@
     {
       "harness": "opencode",
       "lang": {
-        "ailang": 0.8461538461538461
+        "ailang": 0.8518518518518519
       },
       "model": "opencode-qwen3-8-27b",
       "tiers": {
         "core": {
-          "ailang": 0.9166666666666666
+          "ailang": 0.9583333333333334
         },
         "frontier": {
-          "ailang": 0.6
+          "ailang": 0.3333333333333333
         },
         "stretch": {
-          "ailang": 0.8888888888888888
+          "ailang": 0.875
         }
       }
     },
     {
       "harness": "pi",
       "lang": {
-        "ailang": 0.9259259259259259
+        "ailang": 0.6140350877192983
       },
       "model": "pi-qwen3-8-27b",
       "tiers": {
         "core": {
-          "ailang": 0.9285714285714286
+          "ailang": 0.5384615384615384
         },
         "frontier": {
-          "ailang": 1
+          "ailang": 0.6
         },
         "stretch": {
-          "ailang": 0.9
+          "ailang": 0.6923076923076923
         }
       }
     }
   ],
-  "trials": 2,
-  "version": "rolling-20260907"
+  "trials": 4,
+  "version": "rolling-20260921"
 }

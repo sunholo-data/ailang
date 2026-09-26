@@ -322,6 +322,7 @@ func (s *ObservatoryStore) UpsertSessionWithCorrelation(ctx context.Context, ses
 		"claude_version": version,
 		"source":         source,
 		"started_at":     time.Now(),
+		"expire_at":      time.Now().Add(s.chainTTL),
 	}
 	if corr != nil {
 		data["task_id"] = corr.TaskID
@@ -554,7 +555,7 @@ func spanToMap(sp *obs.Span, ttl time.Duration) map[string]interface{} {
 		"model":                 sp.Model,
 		"provider":              string(sp.Provider),
 		"created_at":            timeToFirestore(sp.CreatedAt),
-		"expire_at":             timeToFirestore(sp.CreatedAt.Add(ttl)),
+		"expire_at":             expireAt(sp.CreatedAt, ttl),
 	}
 
 	// Store session_id at top level for efficient queries

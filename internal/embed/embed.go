@@ -180,6 +180,13 @@ func (e *Engine) compileModule(modulePath string) error {
 // Arguments are automatically converted from Go types to AILANG values.
 // The module is loaded if not already cached.
 func (e *Engine) Call(modulePath, funcName string, args ...interface{}) (eval.Value, error) {
+	return e.CallPrepared(nil, modulePath, funcName, args...)
+}
+
+// CallPrepared is Call with a hook on this call's own cloned effect context
+// (see runtime.CallEntrypointPrepared). serve-api's WebSocket routes use it
+// to give each connection a fresh StreamContext.
+func (e *Engine) CallPrepared(prepare func(effCtx interface{}), modulePath, funcName string, args ...interface{}) (eval.Value, error) {
 	// Fast path: check if module is already loaded (read lock only)
 	e.mu.RLock()
 	if e.closed {
@@ -236,7 +243,7 @@ func (e *Engine) Call(modulePath, funcName string, args ...interface{}) (eval.Va
 
 	// Call the function. exit() in the module must not panic the host (#691).
 	return recoverProgramExit(func() (eval.Value, error) {
-		return runtime.CallEntrypoint(e.runtime, inst, funcName, ailangArgs)
+		return runtime.CallEntrypointPrepared(e.runtime, inst, funcName, ailangArgs, prepare)
 	})
 }
 

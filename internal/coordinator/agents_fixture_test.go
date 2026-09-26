@@ -35,6 +35,25 @@ type cloudFixture struct {
 	ModelRouting map[string][]string `json:"model_routing"`
 }
 
+// ratifiedRoleMigrations records deliberate role-head upgrades made AFTER the
+// 2026-08-27 snapshot. The fixture stays a faithful record of the deleted table;
+// this map is the only way a role may legitimately resolve somewhere else, so any
+// drift NOT listed here still fails. Add a row only with the commit that ratified it.
+var ratifiedRoleMigrations = map[string]string{
+	// 045bb3ed3 (2026-09-22, attended): fleet migration to GPT-6 Sol for the
+	// planner and executor heads — same codex lane and subscription.
+	"gpt-5.6-sol": "gpt-6-sol",
+}
+
+// expectedRoleHead is what a role must resolve to today: the deleted table's
+// head, carried through any ratified migration.
+func expectedRoleHead(tableHead string) string {
+	if to, ok := ratifiedRoleMigrations[tableHead]; ok {
+		return to
+	}
+	return tableHead
+}
+
 func loadCloudFixture(t *testing.T) cloudFixture {
 	t.Helper()
 	raw, err := os.ReadFile("testdata/cloud_agents_20260827.json")
@@ -94,9 +113,10 @@ func TestCloudAgents_RegistryMatchesTheDeletedRoutingTable(t *testing.T) {
 			continue
 		}
 		checkedRoles++
-		if got != want[0] {
-			t.Errorf("agent %q role %q: registry says %q, the deleted table said %q — "+
-				"M7 was supposed to be inert", a.ID, a.Role, got, want[0])
+		if exp := expectedRoleHead(want[0]); got != exp {
+			t.Errorf("agent %q role %q: registry says %q, the deleted table said %q "+
+				"(expected %q after ratified migrations) — M7 was supposed to be inert",
+				a.ID, a.Role, got, want[0], exp)
 		}
 	}
 	// Every one of the 34 carries a pin, so the loop above never exercises the
@@ -120,9 +140,10 @@ func TestCloudAgents_RegistryMatchesTheDeletedRoutingTable(t *testing.T) {
 				continue
 			}
 			checkedRoles++
-			if got != want[0] {
+			if exp := expectedRoleHead(want[0]); got != exp {
 				t.Errorf("agent %q role %q WITHOUT its pin: registry says %q, the deleted "+
-					"table said %q — M7 is not inert on the role path", a.ID, a.Role, got, want[0])
+					"table said %q (expected %q after ratified migrations) — M7 is not "+
+					"inert on the role path", a.ID, a.Role, got, want[0], exp)
 			}
 		}
 		if checkedRoles == 0 {

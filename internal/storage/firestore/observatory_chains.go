@@ -35,7 +35,7 @@ func (s *ObservatoryStore) CreateChain(ctx context.Context, req *obs.ChainCreate
 		WorkspacePath:     req.WorkspacePath,
 		CreatedAt:         now,
 	}
-	_, err := s.client.Doc(collObsChains, chain.ID).Set(ctx, chainToMap(chain))
+	_, err := s.client.Doc(collObsChains, chain.ID).Set(ctx, chainToMap(chain, s.chainTTL))
 	if err != nil {
 		return nil, err
 	}
@@ -203,7 +203,7 @@ func (s *ObservatoryStore) CreateStage(ctx context.Context, req *obs.StageCreate
 		stage.Iteration = 1
 	}
 
-	_, err := s.client.Doc(collObsChainStages, stage.ID).Set(ctx, stageToMap(stage))
+	_, err := s.client.Doc(collObsChainStages, stage.ID).Set(ctx, stageToMap(stage, s.chainTTL))
 	if err != nil {
 		return nil, err
 	}

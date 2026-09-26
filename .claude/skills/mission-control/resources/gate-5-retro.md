@@ -11,6 +11,22 @@ After every Gate-5 report has been sent and this iteration is fully complete, ru
    - **process fix** — edit the mission doc (guardrails/ordering/routing policy per its rules).
    - **backlog** — new design doc via design-doc-creator, or re-prioritize the queue.
 2. Routing-policy change? Only with ≥3 evidence rows; stamp it in the mission doc.
+2b. **COUNT THE HARNESS SHARE — the Gate-2 admissibility cap is only real if something reads it.**
+
+    ```bash
+    grep -c '\[HARNESS\]' design_docs/${MISSION_NAME}-mission-index.md
+    grep -oE '^\| [0-9]+ \|' design_docs/${MISSION_NAME}-mission-index.md | tail -20 | wc -l
+    ```
+
+    Report the share over the last 20 iterations in the digest, one figure, every time.
+    Under the attended-only rule (Gate 2) this share should now trend to ZERO for loop-authored
+    work — a non-zero figure means either an escalation was recorded (correct) or the rule was
+    breached (report it as a breach, by row).
+    **A rising share is a signal to STOP AND ASK MARK, never to work harder** — it means the
+    mission is repairing itself instead of working, which is the condition that took the fleet
+    to 55% and cost it two weeks (iterations 309–348: 16 lines of compiler and stdlib).
+    If the share exceeds one third over 20 iterations, say so in the digest under its own
+    heading and name the harness rows responsible.
 3. Morning report, TWO channels (both required). **DIGEST FORMAT, HARD-CAPPED (Mark directive
    2026-07-31: "the github progress issues are very verbose … we could work on more conciseness").**
    The issue thread is a COMMUNICATION channel, not loop memory — the loop never re-reads its own

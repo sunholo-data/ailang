@@ -103,6 +103,14 @@ build-wasm: ## Build WASM binary for browser REPL
 	GOOS=js GOARCH=wasm $(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY).wasm ./cmd/wasm
 	@echo "$(GREEN)$(CHECKMARK) WASM binary: $(BUILD_DIR)/$(BINARY).wasm$(RESET)"
 
+# Compile-only wasm gate. Nothing else before the tag builds for js/wasm, so a
+# `//go:build !js` symbol used from an untagged file (v0.41.0: ProcessDenial in
+# process_confined.go) passed every CI job and broke only the Release workflow.
+check-wasm-build: ## Compile for js/wasm without producing an artifact (release-blocking gate)
+	@echo "Checking js/wasm compiles..."
+	@GOOS=js GOARCH=wasm $(GOBUILD) -o /dev/null ./cmd/wasm
+	@echo "$(GREEN)$(CHECKMARK) js/wasm compiles$(RESET)"
+
 # Bootstrap content bundle for ailang_bootstrap plugin repo
 bootstrap-content: build ## Generate content bundle for bootstrap plugin sync
 	@echo "Generating bootstrap content bundle..."

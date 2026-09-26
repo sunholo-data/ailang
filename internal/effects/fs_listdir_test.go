@@ -68,6 +68,7 @@ func TestFsListDir_Sandbox(t *testing.T) {
 	ctx := NewEffContext([]string{})
 	ctx.Grant(NewCapability("FS"))
 	ctx.Env.Sandbox = sandbox
+	t.Cleanup(func() { _ = ctx.CloseFSRoot() }) // the root handle pins the dir on Windows
 
 	result, err := fsListDir(ctx, []eval.Value{
 		&eval.StringValue{Value: "data"},

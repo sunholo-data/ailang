@@ -82,6 +82,11 @@ const (
 	OutcomeCompleted CompletionOutcome = "completed"
 	OutcomeNoChanges CompletionOutcome = "no_changes"
 	OutcomeFailed    CompletionOutcome = "failed"
+	// OutcomeBlocked: the agent did not attempt the work because a precondition
+	// was unmet, and said why (task_blocked.go). Not a failure of the run and not
+	// a success: terminal for this attempt, nothing to approve, nothing to hand
+	// off (M-TASK-STATUS-TRUTH S2).
+	OutcomeBlocked CompletionOutcome = "blocked"
 )
 
 // FinalizeDeps are the stores and collaborators finalisation writes through.
@@ -156,7 +161,9 @@ func FinalizeTaskCompletion(ctx context.Context, deps *FinalizeDeps, in Finalize
 	f.run(EffectStageStatus, in.Task.StageID != "", f.applyStageStatus)
 	f.run(EffectStageSession, in.Task.StageID != "" && in.Result != nil && in.Result.SessionID != "", f.applyStageSession)
 	f.run(EffectMetrics, in.Result != nil, f.applyMetrics)
-	f.run(EffectStageError, in.Outcome == OutcomeFailed && in.Task.StageID != "", f.applyStageError)
+	// A blocked run's reason is the one thing the human needs, so it is recorded
+	// exactly as a failure's error is.
+	f.run(EffectStageError, (in.Outcome == OutcomeFailed || in.Outcome == OutcomeBlocked) && in.Task.StageID != "", f.applyStageError)
 	f.run(EffectChainStatus, in.Task.ChainID != "", f.applyChainStatus)
 	f.run(EffectApproval, f.wantsApproval(), f.applyApproval)
 	f.run(EffectHandoff, f.wantsHandoff(), f.applyHandoff)
@@ -236,6 +243,8 @@ func (f *finalizer) nextTaskStatus() TaskStatus {
 	switch f.in.Outcome {
 	case OutcomeFailed:
 		return TaskStatusFailed
+	case OutcomeBlocked:
+		return TaskStatusBlocked
 	case OutcomeNoChanges:
 		// D5 (Mark, attended 2026-09-03): terminal, and nothing follows.
 		return TaskStatusNoChanges
@@ -264,7 +273,9 @@ func (f *finalizer) applyStageStatus(ctx context.Context) (FinalizationState, er
 	}
 	var status observatory.ChainStageStatus
 	switch f.in.Outcome {
-	case OutcomeFailed:
+	case OutcomeFailed, OutcomeBlocked:
+		// Blocked maps to failed in the observatory's smaller vocabulary
+		// (task_status.go observatoryByStatus): the work did not happen.
 		status = observatory.StageStatusFailed
 	case OutcomeNoChanges:
 		status = observatory.StageStatusCompleted
@@ -338,7 +349,7 @@ func (f *finalizer) applyChainStatus(ctx context.Context) (FinalizationState, er
 	}
 	var status observatory.ChainStatus
 	switch f.in.Outcome {
-	case OutcomeFailed:
+	case OutcomeFailed, OutcomeBlocked:
 		status = observatory.ChainStatusFailed
 	case OutcomeNoChanges:
 		// D5: terminal. A chain left active is the leak this work closes — 315 of

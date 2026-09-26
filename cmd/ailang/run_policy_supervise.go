@@ -14,6 +14,7 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/ai"
 	"github.com/sunholo-data/ailang/internal/config"
+	"github.com/sunholo-data/ailang/internal/effects"
 	"github.com/sunholo-data/ailang/internal/policy"
 	"github.com/sunholo-data/ailang/internal/proctree"
 )
@@ -188,10 +189,11 @@ func stageFor(admitted bool) string {
 // workerEnv is the worker's environment: the full parent environment for
 // trusted_host (operator-approved host integrations need their
 // credentials), the allowlist for restricted — plus, when the policy admits
-// AI, the credential variables of the ONE pinned provider (M7). On Cloud
-// Run the Google provider needs none of them (ADC via the metadata server);
-// locally it is the provider's key. Nothing else's key ever reaches the
-// worker.
+// AI, the credential variables of the ONE pinned provider (M7), and, when it
+// admits Net to std/web's backend host, that backend's key (read in Go; the
+// program never sees it). On Cloud Run the Google provider needs none of
+// them (ADC via the metadata server); locally it is the provider's key.
+// Nothing else's key ever reaches the worker.
 func workerEnv(res *policy.Resolved) []string {
 	if !res.Restricted() {
 		return os.Environ()
@@ -199,6 +201,9 @@ func workerEnv(res *policy.Resolved) []string {
 	names := append([]string{}, workerEnvAllow...)
 	if res.Admits("AI") {
 		names = append(names, providerCredentialVars(res.AIProvider)...)
+	}
+	if res.Admits("Net") {
+		names = append(names, effects.WebCredentialVars(res.NetAllow)...)
 	}
 	out := make([]string, 0, len(names))
 	for _, name := range names {

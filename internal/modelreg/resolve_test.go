@@ -193,6 +193,16 @@ func TestValidate_AliasCollisionsAreRejected(t *testing.T) {
 	}
 }
 
+// anthropicCacheReadMultiplier records the models whose cache-hit rate is NOT
+// Anthropic's standard 0.1x of base input. Source: the "Cache read (hit)" row of
+// platform.claude.com/docs/en/about-claude/pricing (fetched 2026-09-22). Before
+// this table existed the test pinned every row to 0.1x, which ENFORCED a 4x
+// overstatement on claude-fable-5-1 ($1.00/M declared vs $0.25/M billed).
+var anthropicCacheReadMultiplier = map[string]float64{
+	"claude-fable-5-1": 0.025,
+	"claude-opus-5-5":  0.05,
+}
+
 // Every anthropic-provider row must declare its cache rates: the undeclared
 // default bills reads at 100% of input, a 10x OVERSTATEMENT on the vendor whose
 // cache we lean on hardest.
@@ -209,8 +219,12 @@ func TestModels_AnthropicRowsDeclareCacheRates(t *testing.T) {
 			t.Errorf("%s: anthropic row without cache_read_per_1k/cache_write_per_1k", k)
 			continue
 		}
-		if r := m.Pricing.CacheReadPer1K / m.Pricing.InputPer1K; r < 0.09 || r > 0.11 {
-			t.Errorf("%s: cache read is %.3fx input, Anthropic bills 0.1x", k, r)
+		want, ok := anthropicCacheReadMultiplier[m.APIName]
+		if !ok {
+			want = 0.1
+		}
+		if r := m.Pricing.CacheReadPer1K / m.Pricing.InputPer1K; r < want*0.9 || r > want*1.1 {
+			t.Errorf("%s: cache read is %.3fx input, Anthropic bills %gx for %s", k, r, want, m.APIName)
 		}
 		if w := m.Pricing.CacheWritePer1K / m.Pricing.InputPer1K; w < 1.24 || w > 1.26 {
 			t.Errorf("%s: cache write is %.3fx input, Anthropic bills 1.25x", k, w)
