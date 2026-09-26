@@ -3,7 +3,7 @@
 # =============================================================================
 
 .PHONY: check-file-sizes report-file-sizes codebase-health largest-files check-pi-wire-budget check-prompt-freeze check-prompt-commands check-referenced-paths check-architecture-closure gen-architecture-closure simplicity-metrics simplicity-metrics-fast simplicity-audit simplicity-audit-fast perf-sweep perf-sweep-quick perf-sweep-control docs-cli check-cli-docs
-.PHONY: fmt fmt-check fmt-check-ail shellcheck-autopush vet lint install-lint
+.PHONY: fmt fmt-check fmt-check-ail shellcheck-autopush vet lint install-lint install-hooks
 
 check-referenced-paths: ## Check that referenced tools/scripts paths exist and are tracked
 	@bash scripts/check_referenced_paths.sh
@@ -31,7 +31,7 @@ fmt-check: ## Check code formatting (CI gate)
 	fi
 	@echo "$(GREEN)$(CHECKMARK) Code formatting check passed$(RESET)"
 
-AUTOPUSH_SHELL_SCRIPTS := scripts/hooks/push_dev_on_stop.sh scripts/hooks/test_push_dev_on_stop.sh
+AUTOPUSH_SHELL_SCRIPTS := scripts/hooks/push_dev_on_stop.sh scripts/hooks/test_push_dev_on_stop.sh scripts/hooks/pre-push scripts/hooks/test_pre_push.sh
 
 shellcheck-autopush: ## ShellCheck the production auto-push hook and its harness
 	@if ! command -v shellcheck >/dev/null 2>&1; then \
@@ -357,3 +357,10 @@ perf-sweep-quick: ## Same, 3 workload runs and count=1 benches (~2 min)
 
 perf-sweep-control: ## Positive control: the sweep must report WORSE and exit 2 on a planted regression
 	@/bin/bash .claude/skills/perf-sweep/scripts/sweep.sh --quick --control
+
+# Git hooks versioned in scripts/hooks/. pre-push refuses a push to dev whose std/
+# interfaces drift from .stdlib-golden/ (direct pushes bypass PR CI; #1274, #1318).
+# Installs into the COMMON git dir, so every worktree of this clone is covered.
+# Idempotent; refuses to overwrite a different, unmanaged pre-push hook.
+install-hooks: ## Install versioned git hooks (pre-push stdlib freeze gate)
+	@bash scripts/hooks/install_hooks.sh

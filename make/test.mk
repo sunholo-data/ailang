@@ -76,6 +76,7 @@ test-launchd-drivers: ## Run launchd driver tests (pin-root + routing + notices 
 	@/bin/bash tools/launchd/test_ollama_quota_admission.sh
 	@/bin/bash tools/launchd/test_anthropic_quota_admission.sh
 	@/bin/bash scripts/hooks/test_stage_isolation.sh
+	@/bin/bash scripts/hooks/test_pre_push.sh
 	@/bin/bash tools/launchd/test_evaluator_skill_lane.sh
 # Keep this shell-only: the bash-3.2 CI job deliberately has no Go toolchain.
 	@/bin/bash tools/eval/test_motoko_connection_probe.sh
