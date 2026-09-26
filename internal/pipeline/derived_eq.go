@@ -17,7 +17,10 @@ import (
 //
 // Before R-D5 no field was checked at all: `type H = H(int -> int) deriving (Eq)`
 // was accepted and its == silently answered false for equal handlers.
-func registerDerivedEq(cfg Config, elaborator *elaborate.Elaborator) error {
+//
+// importedAliases carries the importing module's alias definitions so a field
+// naming an imported record alias is checked by that record's fields.
+func registerDerivedEq(cfg Config, elaborator *elaborate.Elaborator, importedAliases map[string]types.Type) error {
 	derivedEqTypes := elaborator.GetDerivedEqTypes()
 	sort.Strings(derivedEqTypes)
 	for _, typeName := range derivedEqTypes {
@@ -40,10 +43,17 @@ func registerDerivedEq(cfg Config, elaborator *elaborate.Elaborator) error {
 		cfg.DictReg.RegisterDerivedEq(typeName)
 	}
 
+	aliases := make(map[string]types.Type, len(importedAliases))
+	for name, target := range importedAliases {
+		aliases[name] = target
+	}
+	for name, target := range elaborator.GetTypeAliases() {
+		aliases[name] = target
+	}
 	fields := elaborator.GetDerivedEqFields()
 	for _, typeName := range derivedEqTypes {
 		for _, f := range fields[typeName] {
-			if err := cfg.InstEnv.CheckDerivedEqField(f.Type); err != nil {
+			if err := cfg.InstEnv.CheckDerivedEqField(f.Type, aliases); err != nil {
 				detail := err.Error()
 				var missing *types.MissingInstanceError
 				if errors.As(err, &missing) {

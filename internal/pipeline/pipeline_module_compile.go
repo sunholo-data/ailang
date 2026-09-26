@@ -169,7 +169,7 @@ func typeCheckAndLowerModule(
 
 	// M-DX19 + M-EQ-DERIVE-CONTAINERS: register `deriving (Eq)` instances and
 	// require Eq of every field
-	if err := registerDerivedEq(cfg, elaborator); err != nil {
+	if err := registerDerivedEq(cfg, elaborator, imports.ImportedTypeAliases); err != nil {
 		return nil, fmt.Errorf("type error in %s: %w", modID, err)
 	}
 

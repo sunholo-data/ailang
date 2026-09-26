@@ -451,6 +451,26 @@ Single session (~6h), three phases with gates between.
 | Record alias name-vs-shape double registration | Med | Key on the alias-expanded structural shape (M-FIX-RECORD-UPDATE hook) |
 | Composed dict ABI mismatch with evaluator expectations | Med | Reuse the M-DX19 dictionary synthesis path verbatim; e2e fixtures before bank |
 
+## Follow-up (2026-09-26): R-D5 broke working code
+
+R-D5 made `deriving (Eq)` require `==` on every field. Before it, no field was checked. Two
+kinds of field lost their only fix. First, a record alias reached through a container, such as
+motoko_ext_abi's `PassThroughObserved(code: string, fields: [DiagnosticField])`. Second, stdlib
+ADTs such as `Json`, which user code cannot annotate. Every motoko tree stopped booting on
+v0.42+ (v0.41.0 was green).
+
+Resolution, keeping "no action at a distance" at use sites:
+- `CheckDerivedEqField` checks a record by its fields, whether written inline or named by an
+  alias (resolved through local and imported aliases), and reaches through list, Option,
+  Result and tuple. Recursive aliases are assumed Eq on re-entry. Function fields still fail.
+  A plain alias still has no `==` of its own.
+- Pure-data stdlib ADTs declare `deriving (Eq)`. Types that carry `bytes` are excluded because
+  `bytes` has no `==` yet.
+
+Found while running the long `let` chain in `examples/eq_containers.ail`: two added lines that
+contain nested record literals took `ailang check` from about 1s to 42s on the *released*
+v0.43.1. That is an inference-cost problem unrelated to Eq. It has not been fixed yet.
+
 ## Related Documents
 
 <!-- Auto-populated by neural search on "eq derive containers"; duplicate gate passed (max 0.38) -->

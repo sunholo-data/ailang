@@ -136,27 +136,96 @@ func structuralEqInstance(typ Type) *ClassInstance {
 
 // CheckDerivedEqField reports whether a field of a `deriving (Eq)` declaration
 // has Eq. A derived type has Eq iff every field does (M-EQ-DERIVE-CONTAINERS
-// R-D5). An anonymous record written inline in the declaration, like the field
-// of `type Boxed = Boxed({a: int})`, is opted in by that declaration, so its own
-// fields are checked instead of the record as a whole.
-// Cycle-safety: recursion is only into inline record fields, which are finite
-// syntax trees; everything else goes through the depth-capped Lookup.
-func (env *InstanceEnv) CheckDerivedEqField(t Type) error {
-	if rec, ok := t.(*TRecord); ok && rec.TypeName == "" {
-		names := make([]string, 0, len(rec.Fields))
-		for name := range rec.Fields {
+// R-D5). The declaration opts in every record shape its fields reach, so a
+// record reached through a field is checked by its own fields instead of by an
+// Eq instance of its own. That covers an anonymous record written inline, like
+// the field of `type Boxed = Boxed({a: int})`, and a record alias that is not
+// itself `deriving (Eq)`, like `DF` in `type D = D([DF]) deriving (Eq)`: before
+// R-D5 no field was checked and both compiled and compared structurally, so
+// demanding Eq of the alias broke working code (motoko_ext_abi, 2026-09-26).
+// The record still has no == of its own at use sites; only the declaration
+// that reaches it compares it.
+//
+// aliases resolves type names to their definitions (local and imported). A nil
+// map disables alias expansion, leaving only the Eq-instance lookup.
+// Cycle-safety: aliases already being expanded are assumed Eq (a recursive
+// record is Eq iff its other fields are), containers are depth-capped, and
+// inline record fields are finite syntax trees.
+func (env *InstanceEnv) CheckDerivedEqField(t Type, aliases map[string]Type) error {
+	return env.checkDerivedEqField(t, aliases, map[string]bool{}, 0)
+}
+
+func (env *InstanceEnv) checkDerivedEqField(t Type, aliases map[string]Type, expanding map[string]bool, depth int) error {
+	if depth > eqSynthDepthCap {
+		return &EqSynthDepthError{Type: t}
+	}
+	if _, err := env.Lookup("Eq", t); err == nil {
+		return nil
+	} else if !isRecordReach(t, aliases) {
+		return err
+	}
+	switch tt := t.(type) {
+	case *TRecord:
+		if tt.TypeName != "" {
+			if expanding[tt.TypeName] {
+				return nil
+			}
+			expanding[tt.TypeName] = true
+			defer delete(expanding, tt.TypeName)
+		}
+		names := make([]string, 0, len(tt.Fields))
+		for name := range tt.Fields {
 			names = append(names, name)
 		}
 		sort.Strings(names)
 		for _, name := range names {
-			if err := env.CheckDerivedEqField(rec.Fields[name]); err != nil {
+			if err := env.checkDerivedEqField(tt.Fields[name], aliases, expanding, depth); err != nil {
 				return err
 			}
 		}
 		return nil
+	case *TCon:
+		// Keyed apart from the record's TypeName: the alias target usually
+		// carries the same name, and sharing the key would skip its fields.
+		key := "alias:" + tt.Name
+		if expanding[key] {
+			return nil
+		}
+		expanding[key] = true
+		defer delete(expanding, key)
+		return env.checkDerivedEqField(aliases[tt.Name], aliases, expanding, depth)
 	}
-	_, err := env.Lookup("Eq", t)
-	return err
+	parts, _ := eqParts(t)
+	for _, part := range parts {
+		if err := env.checkDerivedEqField(part, aliases, expanding, depth+1); err != nil {
+			return wrapPartError(t, err)
+		}
+	}
+	return nil
+}
+
+// isRecordReach reports whether t is, or contains through list/Option/Result/
+// tuple parts, a record shape (inline, or an alias naming one) whose own fields
+// a derived declaration may check. Anything else keeps the plain Eq lookup and
+// its error.
+func isRecordReach(t Type, aliases map[string]Type) bool {
+	switch tt := t.(type) {
+	case *TRecord:
+		return true
+	case *TCon:
+		_, isRec := aliases[tt.Name].(*TRecord)
+		return isRec
+	}
+	parts, ok := eqParts(t)
+	if !ok {
+		return false
+	}
+	for _, p := range parts {
+		if isRecordReach(p, aliases) {
+			return true
+		}
+	}
+	return false
 }
 
 // reduceEq decomposes a NON-ground Eq[typ] by the same rules as synthesizeEq

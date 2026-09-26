@@ -1,0 +1,12 @@
+-- NEGATIVE: a record alias without deriving (Eq) has no == at use sites, even when a derived ADT reaches it.
+-- Expected: No instance for Eq[
+module examples/eq_containers_negative/nominal_record
+
+type Field = { key: string, value: string }
+
+type Diag = Diag([Field]) deriving (Eq)
+
+export func main() -> () ! {IO} {
+  let f: Field = { key: "a", value: "1" } in
+  _io_println(show(f == f))
+}

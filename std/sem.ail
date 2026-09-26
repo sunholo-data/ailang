@@ -79,7 +79,7 @@ export type similarity_match = {
 -- Result of CAS (compare-and-swap) update
 -- CASSuccess: Update succeeded
 -- CASConflict: Another writer modified the entry (stale version)
-export type UpdateResult = CASSuccess | CASConflict(string)
+export type UpdateResult = CASSuccess | CASConflict(string) deriving (Eq)
 
 -- ============================================================================
 -- The Semantic Frame Type
@@ -391,7 +391,7 @@ export func store_frame(key: string, frame: sem_frame) -> unit ! {SharedMem} {
 -- UpdateResult type for CAS operations
 export type UpdateResult =
   | CASSuccess
-  | CASConflict
+  | CASConflict deriving (Eq)
 
 -- update_frame: Atomically update a frame using CAS with retries
 -- Takes an update function that transforms the frame

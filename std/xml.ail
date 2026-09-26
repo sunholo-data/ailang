@@ -27,13 +27,13 @@ import std/iter (FoldStep, Continue, Stop)
 -- XmlNode ADT — represents an XML document tree.
 -- Constructors match the Go builtins in internal/builtins/xml.go.
 -- M-CODEGEN-MULTIMOD: Type declaration required for Go codegen to emit struct definitions.
-export type XmlNode = Element(string, [{ name: string, value: string }], [XmlNode]) | Text(string) | Comment(string)
+export type XmlNode = Element(string, [{ name: string, value: string }], [XmlNode]) | Text(string) | Comment(string) deriving (Eq)
 
 -- NodeKind classifies an XmlNode without string-equality on the tag.
 -- Returned by nodeKind(node) so callers can pattern-match exhaustively
 -- instead of testing `getTag(n) == ""` to detect text. Constructors are
 -- prefixed to avoid name collision with XmlNode's Element/Text/Comment.
-export type NodeKind = KindElement | KindText | KindComment
+export type NodeKind = KindElement | KindText | KindComment deriving (Eq)
 
 -- Parse XML string into XmlNode tree
 -- Returns Ok(XmlNode) or Err(message) for malformed XML

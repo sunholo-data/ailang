@@ -42,23 +42,23 @@ import std/result (Result, Ok, Err)
 -- ============================================================================
 
 -- Connection handle (opaque, holds integer ID)
-export type StreamConn = StreamConn(int)
+export type StreamConn = StreamConn(int) deriving (Eq)
 
 -- Event source handle (opaque, holds integer ID) — M-ASYNC-IO
-export type StreamSource = StreamSource(int)
+export type StreamSource = StreamSource(int) deriving (Eq)
 
 -- Stream event union — received by event handlers
 -- M-ASYNC-IO adds SourceText and SourceBytes for multi-source events
 export type StreamEvent = Message(string) | Binary(string) | Opened(string) | Closed(int, string) | StreamError(StreamErrorKind) | Ping(string) | SSEData(string, string) | SourceText(string, string) | SourceBytes(string, bytes)
 
 -- Stream error variants
-export type StreamErrorKind = ConnectionFailed(string) | Timeout(string) | BudgetExhausted(string) | ProtocolError(string) | MessageTooLarge(string)
+export type StreamErrorKind = ConnectionFailed(string) | Timeout(string) | BudgetExhausted(string) | ProtocolError(string) | MessageTooLarge(string) deriving (Eq)
 
 -- Message type for transmit
-export type StreamMessage = Text(string) | Bin(string)
+export type StreamMessage = Text(string) | Bin(string) deriving (Eq)
 
 -- Connection status
-export type StreamStatus = Connecting | Open | Closing | StreamClosed
+export type StreamStatus = Connecting | Open | Closing | StreamClosed deriving (Eq)
 
 -- Header entry for connection config
 export type StreamHeader = { name: string, value: string }

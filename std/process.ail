@@ -33,7 +33,7 @@ export type ProcessError =
   | Timeout(int)                -- Execution timeout (duration_ms)
   | OutputLimitExceeded(int)    -- stdout+stderr exceeded limit (bytes)
   | SpawnFailed(string)         -- Other spawn/exec failure
-  | AbnormalExit(int, string)   -- Signal kill (signal_num, signal_name)
+  | AbnormalExit(int, string) deriving (Eq)   -- Signal kill (signal_num, signal_name)
 
 -- Process output record
 -- All completed processes return this (even non-zero exit code)
@@ -75,7 +75,7 @@ export func exec(
 -- M-ASYNC-IO Phase 3: Managed subprocess with writable stdin
 
 -- Opaque handle for a managed subprocess with writable stdin
-export type ProcessHandle = ProcessHandle(int)
+export type ProcessHandle = ProcessHandle(int) deriving (Eq)
 
 -- Spawn a subprocess with writable stdin pipe
 --

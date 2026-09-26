@@ -311,7 +311,7 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 
 	// M-DX19 + M-EQ-DERIVE-CONTAINERS: register `deriving (Eq)` instances and
 	// require Eq of every field
-	if err := registerDerivedEq(cfg, elaborator); err != nil {
+	if err := registerDerivedEq(cfg, elaborator, nil); err != nil {
 		return result, err
 	}
 

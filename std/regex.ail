@@ -19,7 +19,7 @@ import std/result (Result, Ok, Err)
 import std/option (Option, Some, None)
 
 -- Opaque validated-pattern handle. Construct ONLY via compile.
-export type Regex = Regex(string)
+export type Regex = Regex(string) deriving (Eq)
 
 -- A single match: absolute rune span into the subject + capture groups + text.
 -- groups[0] is the whole match; groups[i] is capture group i. Optional groups

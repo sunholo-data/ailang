@@ -33,7 +33,7 @@ export type BridgeFrame = ClientText(string) | ClientBin(bytes) | UpText(string)
 export type Verdict = Forward | Drop | ReplaceText(string) | ReplaceBin(bytes) | CloseBridge(int, string)
 
 -- Why the bridge ended.
-export type BridgeEnd = ClientClosed(int, string) | UpstreamClosed(int, string) | ClosedByVerdict(int, string) | TimedOut(string) | StepFailed(string)
+export type BridgeEnd = ClientClosed(int, string) | UpstreamClosed(int, string) | ClosedByVerdict(int, string) | TimedOut(string) | StepFailed(string) deriving (Eq)
 
 -- Relay client <-> up until one side closes, the step closes, or a timeout.
 -- Returns the final state and why it ended. The step's effects join the

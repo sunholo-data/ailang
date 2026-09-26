@@ -16,7 +16,7 @@ export type NetError =
   | Transport(string)      -- DNS, timeout, TLS, connection errors
   | DisallowedHost(string) -- Domain not in allowlist
   | InvalidHeader(string)  -- Blocked or malformed header
-  | BodyTooLarge(string)   -- Response exceeds size limit
+  | BodyTooLarge(string) deriving (Eq)   -- Response exceeds size limit
 
 -- HTTP response with full metadata
 export type HttpResponse = {

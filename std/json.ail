@@ -7,7 +7,7 @@ import std/list (foldl, foldr, map)
 import std/math (floatToInt, intToFloat)
 
 -- JSON ADT with all JSON types
-export type Json = JNull | JBool(bool) | JNumber(float) | JString(string) | JArray([Json]) | JObject([{ key: string, value: Json }])
+export type Json = JNull | JBool(bool) | JNumber(float) | JString(string) | JArray([Json]) | JObject([{ key: string, value: Json }]) deriving (Eq)
 
 -- Encode JSON to string (Go-backed for correctness)
 export func encode(obj: Json) -> string {

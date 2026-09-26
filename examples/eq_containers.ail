@@ -15,6 +15,26 @@ type Boxed = Boxed({ a: int }) deriving (Eq)
 
 type Slot = Slot(Option[int]) deriving (Eq)
 
+-- A derived ADT compares every record its fields reach, even through a list,
+-- and even when that record's alias is not itself deriving (Eq).
+-- Field itself still has no ==: `f == f` does not type-check.
+type Field = { key: string, value: string }
+
+type Diag = Diag(string, [Field]) deriving (Eq)
+
+-- A record that reaches itself through a list is checked once.
+type Node = { label: string, kids: [Node] }
+
+type Tree = Tree(Node) deriving (Eq)
+
+func mkDiag(v: string) -> Diag {
+  Diag("w", [{ key: "a", value: v }])
+}
+
+func mkTree(child: string) -> Tree {
+  Tree({ label: "r", kids: [{ label: child, kids: [] }] })
+}
+
 func mkPoint(n: int) -> Point {
   { x: n, y: 2 }
 }
@@ -70,6 +90,11 @@ export func main() -> () ! {IO} {
   let _ = check("adt_record_eq", Boxed({ a: 1 }) == Boxed({ a: 1 }), true) in
   let _ = check("adt_record_ne", Boxed({ a: 1 }) == Boxed({ a: 2 }), false) in
   let _ = check("adt_option_ne", Slot(Some(1)) == Slot(None), false) in
+  -- records reached through a derived ADT's fields
+  let _ = check("adt_reach_eq", mkDiag("1") == mkDiag("1"), true) in
+  let _ = check("adt_reach_ne", mkDiag("1") == mkDiag("2"), false) in
+  let _ = check("adt_recursive_eq", mkTree("c") == mkTree("c"), true) in
+  let _ = check("adt_recursive_ne", mkTree("c") == mkTree("d"), false) in
   -- nesting composes
   let _ = check("nested_eq", [Some([1])] == [Some([1])], true) in
   let _ = check("nested_ne", [Some([1])] == [Some([2])], false) in

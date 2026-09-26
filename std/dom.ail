@@ -24,7 +24,7 @@ export type DOMPatch =
   | AddPanel(string, string)    -- title, content
   | UpdateNode(string, string)  -- node_id, content
   | RemoveNode(string)          -- node_id
-  | AddTimeline(string)         -- title
+  | AddTimeline(string) deriving (Eq)         -- title
 
 -- Apply a single patch atomically.
 -- Returns the assigned node_id + remaining DOM.patches budget.

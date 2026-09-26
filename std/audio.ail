@@ -30,7 +30,7 @@ import std/result (Result)
 
 -- Compressed output formats; the payload is the target bitrate in bits/s.
 -- OggOpus(24000) is a good default for speech: about 230 KB for 50 s.
-export type Codec = OggOpus(int)
+export type Codec = OggOpus(int) deriving (Eq)
 
 pure func le16(n: int) -> [int] = [n % 256, n / 256 % 256]
 

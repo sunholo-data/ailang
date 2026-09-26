@@ -1,0 +1,11 @@
+-- NEGATIVE: a record reached through a derived field is checked field by field; a function field still has no ==.
+-- Expected: cannot derive Eq for Registry: field 1 of constructor Registry has type list[Hook]
+module examples/eq_containers_negative/reached_fn_field
+
+type Hook = { name: string, run: int -> int }
+
+type Registry = Registry([Hook]) deriving (Eq)
+
+export func main() -> () ! {IO} {
+  _io_println("unreachable")
+}

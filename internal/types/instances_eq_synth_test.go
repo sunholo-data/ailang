@@ -183,3 +183,52 @@ func TestReduceEqConstraintsDepthCap(t *testing.T) {
 		t.Fatalf("depth %d residual Eq: want E_EQ_SYNTH_DEPTH, got %v", eqSynthDepthCap+1, err)
 	}
 }
+
+// TestCheckDerivedEqFieldReachesRecords pins R-D5 for records a derived field
+// reaches: their own fields decide, whether or not the record's alias is itself
+// deriving (Eq). v0.42.0 demanded Eq of the alias and broke motoko_ext_abi's
+// `PassThroughObserved(code: string, fields: [DiagnosticField])`, which had
+// compiled and compared structurally before.
+func TestCheckDerivedEqFieldReachesRecords(t *testing.T) {
+	env := LoadBuiltinInstances()
+	field := &TRecord{Fields: map[string]Type{"key": TString, "value": TString}, TypeName: "Field"}
+	hook := &TRecord{Fields: map[string]Type{"name": TString, "run": intToInt}, TypeName: "Hook"}
+	node := &TRecord{TypeName: "Node"}
+	node.Fields = map[string]Type{"label": TString, "kids": listOf(&TCon{Name: "Node"})}
+	badNode := &TRecord{TypeName: "BadNode"}
+	badNode.Fields = map[string]Type{"kids": listOf(&TCon{Name: "BadNode"}), "f": intToInt}
+	aliases := map[string]Type{"Field": field, "Hook": hook, "Node": node, "BadNode": badNode}
+
+	cases := []struct {
+		name    string
+		typ     Type
+		aliases map[string]Type
+		ok      bool
+	}{
+		{"list of non-derived record alias", listOf(&TCon{Name: "Field"}), aliases, true},
+		{"option of tuple with record alias", optionOf(&TTuple{Elements: []Type{TInt, &TCon{Name: "Field"}}}), aliases, true},
+		{"record alias value", field, aliases, true},
+		{"inline anonymous record", &TRecord{Fields: map[string]Type{"a": TInt}}, aliases, true},
+		{"recursive record alias", &TCon{Name: "Node"}, aliases, true},
+		{"reached record with function field", listOf(&TCon{Name: "Hook"}), aliases, false},
+		{"recursive record with function field", &TCon{Name: "BadNode"}, aliases, false},
+		{"function", intToInt, aliases, false},
+		{"non-derived ADT", listOf(&TCon{Name: "Shape"}), aliases, false},
+		{"alias unknown without an alias map", listOf(&TCon{Name: "Field"}), nil, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			err := env.CheckDerivedEqField(c.typ, c.aliases)
+			if c.ok && err != nil {
+				t.Fatalf("field %s: unexpected error %v", c.typ, err)
+			}
+			if !c.ok && err == nil {
+				t.Fatalf("field %s: must fail, has no ==", c.typ)
+			}
+		})
+	}
+	// Reaching a record through a derived field does not give it == at use sites.
+	if _, err := env.Lookup("Eq", field); err == nil {
+		t.Error("a non-derived record alias must still have no == of its own")
+	}
+}

@@ -232,7 +232,7 @@ export func stepWithCache(model: string, messages: [Message], tools: [ToolSchema
 --   Ollama / config-driven providers:
 --     NO-OP fallback — calls stepWithCache and fires one synthetic
 --     ContentDelta(full_text) + one Usage. No ThinkingDelta surfaces.
-export type StreamChunk = ContentDelta(string) | ThinkingDelta(string) | Usage({ input_tokens: int, output_tokens: int, cache_read_input_tokens: int, cache_creation_input_tokens: int })
+export type StreamChunk = ContentDelta(string) | ThinkingDelta(string) | Usage({ input_tokens: int, output_tokens: int, cache_read_input_tokens: int, cache_creation_input_tokens: int }) deriving (Eq)
 
 -- stepWithStream: streaming variant of stepWithCache.
 --
