@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -27,7 +28,7 @@ func TestCompileCache_DirtyBuildsDoNotShareVerdicts(t *testing.T) {
 		t.Fatal(err)
 	}
 	build := func(version string) string {
-		bin := filepath.Join(t.TempDir(), "ailang")
+		bin := filepath.Join(t.TempDir(), dirtyBuildBinName())
 		ldflags := "-X github.com/sunholo-data/ailang/internal/version.Commit=REPRO" +
 			" -X github.com/sunholo-data/ailang/internal/version.Version=" + version
 		// -buildvcs=false: the test controls "dirty" through Version alone,
@@ -45,7 +46,7 @@ func TestCompileCache_DirtyBuildsDoNotShareVerdicts(t *testing.T) {
 			t.Fatal(err)
 		}
 		time.Sleep(10 * time.Millisecond) // distinct mtime even on coarse clocks
-		dst := filepath.Join(t.TempDir(), "ailang")
+		dst := filepath.Join(t.TempDir(), dirtyBuildBinName())
 		if err := os.WriteFile(dst, data, 0o755); err != nil {
 			t.Fatal(err)
 		}
@@ -112,4 +113,14 @@ func TestCompileCache_DirtyBuildsDoNotShareVerdicts(t *testing.T) {
 			t.Fatalf("check with AILANG_NO_CACHE=1 consulted the cache: %q", v)
 		}
 	})
+}
+
+// dirtyBuildBinName is the test binary's file name. Windows only executes a
+// path that carries an extension, so an extensionless "ailang" built with
+// `go build -o` could not be started there.
+func dirtyBuildBinName() string {
+	if runtime.GOOS == "windows" {
+		return "ailang.exe"
+	}
+	return "ailang"
 }
