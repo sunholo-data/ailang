@@ -115,6 +115,13 @@ Shared per-role routing from `mission-control`. Overrides in `~/.config/ailang/m
 - **Opus before pi**: on (`MISSION_OPUS_BEFORE_PI=1`), same as World. Harness fixes are
   high-blast-radius, so capability beats flat-rate here.
 
+## Decisions (policy rulings the fleet may act on; HD-2a)
+
+| ID | Status | Ruling |
+|---|---|---|
+| D-FLEET-1 | RULED 2026-09-26 (Mark, attended: "yes") | Design docs without `planner_lane` default to the mission's planner pin, not `opus fail-closed`. |
+| D-FLEET-2 | RULED 2026-09-26 (Mark, attended: "yes") | The spawn-pin hook may walk the role's DECLARED fallback chain, in order, when the pinned model is dead. No undeclared model is ever allowed. |
+
 ## Queue (top = next; tags: [NEXT] [IN-SPRINT] [PARKED] [LANDED] [RULED OUT])
 
 The live tickets are **`ailang mission ticket open`**. This section is **Mark's triage order**
@@ -143,6 +150,12 @@ and resolve it as "already fixed" with evidence if it no longer reproduces.
    iteration has to prove the red is not a regression. Fix it at the suite boundary (scrub mission
    env per suite, or in the make target), not per test. The `GIT_CONFIG_*` half was fixed attended
    in `test_mission_scope_guard.sh`.
+0a. **[RULED D-FLEET-1]** `resolver:planner-lane-field-missing-vs-spawn-pin`: a design doc with no
+   `planner_lane` field uses the mission's planner pin instead of `opus fail-closed`. It is
+   hand-overridden on every World fire today.
+0b. **[RULED D-FLEET-2]** `spawn-pin-hook:no-fallback-mode`: when the pinned role model is dead, the
+   spawn-pin hook allows the role's declared `MISSION_<ROLE>_FALLBACK` chain, in order and nothing
+   else, so the pin still means something.
 5. `driver:exit-path-notices-unbounded`: unbounded sends on the exit path can hang a fire.
 6. `gate0:driver-crash-notices-invisible`: loops cannot see their own crash notices.
 7. `quorum:artifact-dir-cwd-relative`: reviewed docs read as unreviewed from pin worktrees.
@@ -158,14 +171,7 @@ and resolve it as "already fixed" with evidence if it no longer reproduces.
     show `stamps=9` on every completed 09-25/26 fire, so stamps land. Verify, then resolve as not
     reproducing.
 
-**[PARKED] — routing policy, questions for Mark (HD-2a)**
-- `resolver:planner-lane-field-missing-vs-spawn-pin`: should a design doc with no `planner_lane`
-  field default to the mission's planner pin instead of `opus fail-closed`? Recommendation: yes.
-  Almost no doc carries the field, so fail-closed is the common case, and it is hand-overridden
-  every World fire.
-- `spawn-pin-hook:no-fallback-mode`: should the spawn-pin hook allow the role's declared
-  `MISSION_<ROLE>_FALLBACK` chain when the pinned designer is dead? Recommendation: yes, walking
-  only the declared chain in order, so the pin still means something.
+**Ruled policy questions** — both moved into P1 below (decisions D-FLEET-1 and D-FLEET-2).
 
 Standing parked item: the Phase 3a skill-resolution spike (design P1–P3), routed here only on
 Mark's directive.
