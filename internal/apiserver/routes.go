@@ -29,6 +29,8 @@ type RouteEntry struct {
 	IsNowrap   bool     // @nowrap: skip FunctionCallResponse envelope, return raw JSON
 	ParamNames []string // parameter names for named JSON binding
 	ParamTypes []string // parameter type strings for zero-value padding
+	IsWS       bool     // @route("WS", ...): WebSocket upgrade route
+	Effects    []string // declared effect row (WS routes)
 }
 
 // extractParamInfo populates ExportInfo.ParamNames and ExportInfo.ParamTypes
@@ -95,6 +97,12 @@ func extractRouteAnnotations(modInfo *ModuleInfo, file *ast.File) {
 		path := pathLit.Value.(string)
 		isRaw := fn.GetAnnotation("raw") != nil
 		isNowrap := fn.GetAnnotation("nowrap") != nil
+		var effs []string
+		for _, e := range fn.Effects {
+			if !e.IsRowVar {
+				effs = append(effs, e.Name)
+			}
+		}
 
 		// Find matching export and set route info
 		for i := range modInfo.Exports {
@@ -103,6 +111,8 @@ func extractRouteAnnotations(modInfo *ModuleInfo, file *ast.File) {
 				modInfo.Exports[i].RoutePath = path
 				modInfo.Exports[i].IsRaw = isRaw
 				modInfo.Exports[i].IsNowrap = isNowrap
+				modInfo.Exports[i].IsWS = method == "WS"
+				modInfo.Exports[i].Effects = effs
 				modInfo.Exports[i].IsNoExpose = false // @route overrides @noexpose
 				flags := ""
 				if isRaw {
@@ -297,6 +307,8 @@ func (s *Server) getCustomRoutes() []RouteEntry {
 					IsNowrap:   exp.IsNowrap,
 					ParamNames: exp.ParamNames,
 					ParamTypes: exp.ParamTypes,
+					IsWS:       exp.IsWS,
+					Effects:    exp.Effects,
 				})
 			}
 		}
@@ -322,6 +334,15 @@ func (s *Server) registerCustomRoutes(mux *http.ServeMux, builtinPaths map[strin
 			continue
 		}
 		r := route // capture for closure
+		if r.IsWS {
+			// No corsWrap (CORS does not govern WebSockets; the Origin check
+			// in wsHandler does) and no header-only authMiddleware (a browser
+			// cannot set headers on new WebSocket()).
+			mux.HandleFunc(r.Path, s.wsHandler(r))
+			registered[route.Path] = true
+			log.Printf("  WebSocket route: %s -> %s/%s", r.Path, r.Module, r.Function)
+			continue
+		}
 		handler := func(w http.ResponseWriter, req *http.Request) {
 			// Enforce HTTP method
 			if req.Method != r.Method && req.Method != "OPTIONS" {

@@ -27,14 +27,13 @@ import (
 func serverCommand(args []string) error {
 	// Default values
 	port := "1957"
-	bindAddr := "localhost"                      // Safe default for local development
+	bindAddr := config.DefaultBindHost()         // 127.0.0.1; 0.0.0.0 when PORT is set (Cloud Run)
 	dbPath := messaging.GetDefaultDatabasePath() // "" when no state dir resolves; --db overrides
 	firebaseProject := ""                        // Firebase project ID for authentication
 
 	// Check PORT env var (Cloud Run convention) — overridden by --port flag
 	if envPort := config.Port(); envPort != "" {
 		port = envPort
-		bindAddr = "0.0.0.0" // Cloud Run requires binding to all interfaces
 	}
 
 	// Parse flags (--port/--bind override env vars)
@@ -69,7 +68,7 @@ func serverCommand(args []string) error {
 			fmt.Println("")
 			fmt.Println("Options:")
 			fmt.Println("  --port PORT              HTTP server port (default: 1957, or PORT env var)")
-			fmt.Println("  --bind ADDR              Bind address (default: localhost, 0.0.0.0 when PORT env set)")
+			fmt.Println("  --bind ADDR              Bind address (default: 127.0.0.1, 0.0.0.0 when PORT env set)")
 			fmt.Println("  --db PATH                Database path (default: ~/.ailang/state/collaboration.db)")
 			fmt.Println("  --firebase-project ID    Firebase project ID for authentication (optional)")
 			fmt.Println("  --help, -h               Show this help message")
@@ -117,8 +116,8 @@ func serverCommand(args []string) error {
 	}
 
 	// Check if server is already running on this port
-	httpAddr := fmt.Sprintf("%s:%s", bindAddr, port)
-	if isPortInUse(port) {
+	httpAddr := net.JoinHostPort(bindAddr, port)
+	if isPortInUse(httpAddr) {
 		// Port is in use - check if it's our server
 		healthURL := fmt.Sprintf("http://%s/health", httpAddr)
 		if checkServerHealth(healthURL) {
@@ -291,9 +290,10 @@ func serverCommand(args []string) error {
 	return srv.Start()
 }
 
-// isPortInUse checks if a TCP port is already bound
-func isPortInUse(port string) bool {
-	addr := fmt.Sprintf(":%s", port)
+// isPortInUse checks whether addr (the exact host:port the server will bind)
+// is already taken. Probing the wildcard ":port" instead misses a holder on
+// 127.0.0.1 on macOS, where both binds succeed and requests split between them.
+func isPortInUse(addr string) bool {
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
 		return true // Port is in use

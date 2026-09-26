@@ -1,0 +1,105 @@
+{
+  "sprint_id": "M-SERVEAPI-WS-BRIDGE",
+  "design_doc": "design_docs/implemented/v0_44_0/m-serveapi-websocket-bridge.md",
+  "sprint_plan": "design_docs/implemented/v0_44_0/m-serveapi-websocket-bridge-sprint-plan.md",
+  "target_version": "v0.44.0",
+  "created": "2026-09-25",
+  "planner_model": "claude-opus-5-5",
+  "github_issues": [],
+  "risk_level": "medium-high",
+  "velocity": {
+    "target_loc_per_day": 600,
+    "estimated_total_loc": 2270,
+    "estimated_days": 4
+  },
+  "features": [
+    {
+      "id": "M1_WS_ROUTE_ACCEPT",
+      "description": "@route(\"WS\") parser; ExportInfo.IsWS surface exclusion; registration check; streamws.Accept + AdoptStreamConnection; StreamContext.Child + CallPrepared (G6); wsHandler with 426/403/503 before upgrade; session flags.",
+      "estimated_loc": 800,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "A1 echo handler round-trips text and binary frames",
+        "A2 plain GET 426, bad Origin 403, over-cap session 503, all before upgrade",
+        "A3 WS export absent from OpenAPI and MCP tools/list",
+        "A4 two sessions cannot see each other's connection IDs",
+        "A5 existing apiserver tests pass unmodified"
+      ],
+      "passes": true,
+      "started": "2026-09-25T19:30:00Z",
+      "completed": "2026-09-25T20:30:00Z",
+      "notes": "Parser WS; IsWS surface exclusion via loadedExportMember; ValidateWSRoutes (shape, Stream row, caps, @raw/@nowrap, loopback-or-allowlist); streamws.Accept + AdoptStreamConnection; StreamContext.Child + Engine.CallPrepared; 426/403/401/503 before upgrade; shutdown 1001. Tests: TestWS_EchoRoundTripsTextAndBinary, TestWS_RefusedBeforeUpgrade, TestWS_AllowlistedOriginAccepted, TestWS_ExcludedFromHTTPAndMCPSurfaces, TestWS_SessionsAreIsolated, TestWS_ValidateRoutes, TestWS_APIKeyViaSubprotocol, TestWS_ShutdownSendsGoingAway. Mutation-checked (Origin, Child)."
+    },
+    {
+      "id": "M2_BRIDGE_FOLD",
+      "description": "std/stream/bridge.ail + _stream_bridge builtin + effects.StreamBridge Go loop with Forward/Drop/Replace/Close verdicts on the original bytes.",
+      "estimated_loc": 700,
+      "dependencies": [
+        "M1_WS_ROUTE_ACCEPT"
+      ],
+      "acceptance_criteria": [
+        "A1 Forward-all relays 1000 mixed frames each way byte-identical in order",
+        "A2/A3 speech-gate fixture delivers exactly a strict subset",
+        "A4 barge-in: 0 stale frames after the interruption",
+        "A5 raising step returns StepFailed and client sees 1011",
+        "A6 client close returns ClientClosed within 100ms and closes upstream"
+      ],
+      "passes": true,
+      "started": "2026-09-25T19:30:00Z",
+      "completed": "2026-09-25T20:30:00Z",
+      "notes": "std/stream/bridge.ail + _stream_bridge + effects.StreamBridge; Forward re-sends original bytes; typed BridgeEnd; recv/send budget with charge scope reset; readLoop no longer leaks on a full buffer after close. Tests: 8 TestBridge_* (A1-A6 + CloseBridge + Replace/UpstreamClosed + budget), race-clean. Mutation-checked (Forward)."
+    },
+    {
+      "id": "M3_CREDENTIAL_BINDING_G7",
+      "description": "--stream-credential HOST=SOURCE with explicit sources; Go-only header injection at dial for exact host + wss; double-auth refusal; unified trace redaction of sensitive header values (G7).",
+      "estimated_loc": 550,
+      "dependencies": [
+        "M2_BRIDGE_FOLD"
+      ],
+      "acceptance_criteria": [
+        "A1 canary: 0 token hits in client frames, deep trace, stderr, decision log",
+        "A2 fake TLS upstream received Authorization",
+        "A3 binding not applied to another host, ws://, or another port",
+        "A4 program-supplied Authorization to a bound host fails with a named error",
+        "A5 unbound Authorization header is [REDACTED] in the trace"
+      ],
+      "passes": true,
+      "started": "2026-09-25T19:30:00Z",
+      "completed": "2026-09-25T20:30:00Z",
+      "notes": "internal/platform/streamcred (gcp-key-file, gcp-metadata, bearer-file; authorized_user refused; 5-min early refresh; startup prefetch); applyStreamCredential (wss + exact host:port, double-auth refusal); eval.ShowTraceBounded withholds credentials at the one trace renderer. Tests: TestCredentialBinding_*, TestTrace_RedactsProgramAuthorizationHeader, streamcred + trace_redact unit tests, end-to-end TestWS_CredentialCanary (TLS fake upstream, 4 sinks x 0 hits). Mutation-checked (scheme guard, G7, canary)."
+    },
+    {
+      "id": "M4_DECISION_LOG_EXAMPLE_DOCS",
+      "description": "Per-frame decision log line (no payload), examples/serveapi_ws_bridge.ail, serve-api guide section, CHANGELOG.",
+      "estimated_loc": 120,
+      "dependencies": [
+        "M3_CREDENTIAL_BINDING_G7"
+      ],
+      "acceptance_criteria": [
+        "make verify-examples green",
+        "decision log lines carry no payload"
+      ],
+      "passes": true,
+      "started": "2026-09-25T19:30:00Z",
+      "completed": "2026-09-25T20:30:00Z",
+      "notes": "--ws-decision-log JSON lines (no payload); examples/serveapi_ws_bridge.ail (type-checks, offline replay runs); serve-api guide section; changelog; devtools prompts updated (hashes refreshed)."
+    },
+    {
+      "id": "M5_MEASUREMENT",
+      "description": "Go benchmark: step cost and relay latency against the fake upstream; numbers recorded in the design doc.",
+      "estimated_loc": 100,
+      "dependencies": [
+        "M2_BRIDGE_FOLD"
+      ],
+      "acceptance_criteria": [
+        "p95 added latency per frame recorded",
+        "frames/s per connection recorded"
+      ],
+      "passes": true,
+      "started": "2026-09-25T19:30:00Z",
+      "completed": "2026-09-25T20:30:00Z",
+      "notes": "routes_ws_bench_test.go: direct p50 35us/p95 84us; bridge binary p50 114us/p95 ~232us; text p50 128us/p95 ~257us (22 KB, two AILANG steps per iteration). ~87us added per frame at p95."
+    }
+  ],
+  "status": "completed"
+}

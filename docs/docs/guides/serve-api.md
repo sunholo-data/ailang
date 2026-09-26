@@ -510,7 +510,9 @@ Serve AILANG module exports as REST API endpoints.
 
 Flags:
   --port PORT          HTTP port (default: 8080)
-  --cors               Enable CORS for all origins (default: true)
+  --bind ADDR          Host to listen on (default: 127.0.0.1; 0.0.0.0 when PORT env is set)
+  --cors               Allow cross-origin requests from every origin (default: off)
+  --cors-origin ORIGIN Allow one exact origin, e.g. https://app.example.com (repeatable)
   --frontend PATH      Proxy to Vite dev server at PATH
   --static PATH        Serve static files from PATH
   --watch              Watch .ail files for changes and hot-reload
@@ -543,6 +545,12 @@ ailang serve-api ./api/
 
 # Custom port (flags before paths)
 ailang serve-api --port 3000 ./api/
+
+# Reachable from other machines on the LAN (default is loopback only)
+ailang serve-api --bind 0.0.0.0 ./api/
+
+# Let one browser origin call the API cross-origin
+ailang serve-api --cors-origin https://app.example.com ./api/
 
 # With Vite frontend proxy (development)
 ailang serve-api --frontend ./ui ./api/
@@ -1176,6 +1184,163 @@ ailang serve-api app.ail \
 - Meta endpoints (`/api/_health`, `/api/_meta/*`), MCP, and A2A bypass auth
 
 ---
+
+## Binding & CORS (v0.44.0+)
+
+serve-api exposes nothing beyond the machine, and grants no cross-origin access, unless you ask for it.
+
+**Bind address.** The default is `127.0.0.1`, so only processes on the same machine can connect. When the `PORT` environment variable is set (Cloud Run injects it), the default becomes `0.0.0.0`, because Cloud Run requires the wildcard. `--bind ADDR` always wins, for example `--bind 0.0.0.0` for the LAN or `--bind ::1` for IPv6 loopback. This is the same rule `ailang server --bind` follows.
+
+serve-api binds the port **before** it prints its startup banner. If the port is taken, it exits non-zero with `listen tcp 127.0.0.1:N: bind: address already in use` and prints no banner.
+
+**CORS** has three modes:
+
+| Mode | Flag | What a browser page on another origin gets |
+|------|------|--------------------------------------------|
+| off (default) | none | No `Access-Control-Allow-*` headers, so the page cannot read any response. |
+| any | `--cors` | `Access-Control-Allow-Origin: *` on every API route, and preflights answered 204. |
+| allowlist | `--cors-origin ORIGIN` (repeatable) | Listed origins get their exact origin echoed back, with `Vary: Origin`. A request from an **unlisted** origin that is not `GET`/`HEAD` (a preflight or a `POST`) gets **403 before the function runs**. |
+
+`--cors` and `--cors-origin` together are a startup error. Each origin must be written exactly the way a browser sends it, `scheme://host[:port]` with no path or trailing slash: `https://daneel.example.ts.net`, `http://localhost:5173`.
+
+Why the allowlist refuses the call and not only the response: CORS stops a page from *reading* the answer, but a `POST` with `Content-Type: text/plain` is a CORS "simple request" that a browser sends without any preflight. Without the 403, a page on any origin could still make the function run. **Off mode does not refuse such calls**, so if a handler spends money or acts on someone's behalf, set `--cors-origin` to the origins that may call it.
+
+Requests with no `Origin` header (curl, server-to-server calls, MCP clients) are never affected. A browser also sends `Origin` on same-origin `POST`s, so in allowlist mode you must list your own page's origin too, including when it is served by `--static` or reached through a proxy such as `tailscale serve`.
+
+`/mcp/` and the `--static`/`--frontend` routes are not CORS-wrapped.
+
+**Tailnet-only example** (the backend listens on loopback, and `tailscale serve` is the only way in):
+
+```bash
+ailang serve-api --bind 127.0.0.1 --port 8791 \
+  --cors-origin https://myhost.tailnet-name.ts.net ./api/
+tailscale serve --https=8791 http://127.0.0.1:8791
+```
+
+**Migrating from v0.43.x:** add `--bind 0.0.0.0` if other devices reached your dev server, and `--cors` (or better, `--cors-origin ...`) if a page on another origin called it. Container images that set `PORT` keep binding `0.0.0.0` with no change.
+
+---
+
+## WebSocket Routes & the Bridge (v0.44.0+)
+
+`@route("WS", "/path")` makes serve-api accept a WebSocket upgrade and call the handler **once for
+the life of the connection**. The browser leg arrives as an ordinary `std/stream` `StreamConn`, so
+`transmit`, `onEvent` and `disconnect` work on it unchanged. The route needs `--caps Stream`.
+
+```ailang
+import std/stream (connect, disconnect, StreamConn)
+import std/stream/bridge (bridge, BridgeFrame, Verdict, Forward, Drop, UpBin, UpstreamClosed)
+import std/result (Ok, Err)
+
+pure func muteAudio(n: int, f: BridgeFrame) -> (int, Verdict) =
+  match f { UpBin(_) => (n + 1, Drop), _ => (n, Forward) }
+
+@route("WS", "/live")
+export func live(client: StreamConn) -> unit ! {Stream} {
+  match connect("wss://upstream.example/ws", { headers: [] }) {
+    Ok(up) => match bridge(client, up, 0, muteAudio) {
+      (_, UpstreamClosed(_, _)) => disconnect(client),
+      _ => ()
+    },
+    Err(_) => disconnect(client)
+  }
+}
+```
+
+The full example, a speech gate with an offline `foldl` replay, is
+[`examples/serveapi_ws_bridge.ail`](https://github.com/sunholo-data/ailang/blob/dev/examples/serveapi_ws_bridge.ail).
+
+**Handler shape.** `handler(client: StreamConn)`, or `handler(client: StreamConn, req: {path: string,
+query: string, origin: string})`. The effect row must include `Stream`, and every effect it names
+must be granted by `--caps`. `@raw` and `@nowrap` do not apply. serve-api refuses to start when any
+of these is wrong. When the handler returns, serve-api closes the client (1000, or 1011 if the call
+failed) and every connection the session opened.
+
+**Before the upgrade**, serve-api refuses:
+
+| Request | Status |
+|---|---|
+| A plain `GET` with no `Upgrade: websocket` | 426 |
+| `Origin` missing, `null`, or neither same-origin nor in `--cors-origin` | 403 |
+| API key configured (`--api-key-header`/`--api-key-env`) and not presented | 401 |
+| More than `--ws-max-sessions` live sessions (default 4) | 503 |
+
+CORS does not govern WebSockets, so the `Origin` check is what stops another page in the user's
+browser from opening the socket. The `--cors-origin` list is the WS allowlist too. **A WS route on
+a non-loopback `--bind` needs a `--cors-origin` allowlist**, or serve-api will not start; `--cors`
+(every origin) does not count. A browser cannot set headers on `new WebSocket()`, so it presents an
+API key as subprotocols: `new WebSocket(url, ["ailang.v1", "ailang.key." + key])`. The server
+selects `ailang.v1` and never echoes the key. Query-string keys are not accepted.
+
+**Sessions are isolated.** Each connection gets its own `StreamContext`: its own connection IDs,
+its own `MaxConnections` (4 legs by default), and its own `--stream-max-duration` and
+`--stream-idle-timeout`. The defaults are 5 minutes and 60 seconds; a voice session usually needs
+a longer ceiling, such as `--stream-max-duration 30m`. Each direction queues at most
+`--ws-queue-frames` frames (default 64). When the queue is full the reader blocks, and TCP pushes
+back on the sender. The runtime never drops a frame on its own.
+
+### `bridge`: one AILANG verdict per frame
+
+`bridge(client, up, init, step)` relays two connections. `step : (s, BridgeFrame) -> (s, Verdict)`
+runs once per data frame in either direction, in arrival order, and threads its state. The state is
+a value, so the same step replays offline with `foldl` over a recorded frame list.
+
+| `BridgeFrame` | | `Verdict` | Effect |
+|---|---|---|---|
+| `ClientText(string)` | browser → upstream | `Forward` | Go re-sends the **original** bytes |
+| `ClientBin(bytes)` | browser → upstream | `Drop` | nothing is sent |
+| `UpText(string)` | upstream → browser | `ReplaceText(s)` / `ReplaceBin(b)` | the replacement is sent onward |
+| `UpBin(bytes)` | upstream → browser | `CloseBridge(code, reason)` | the client is closed with `code`, and the bridge ends |
+
+`bridge` returns `(state, BridgeEnd)`, one of `ClientClosed(code, reason)`,
+`UpstreamClosed(code, reason)`, `ClosedByVerdict(code, reason)`, `TimedOut(msg)` or
+`StepFailed(msg)`. A step that fails closes the client with 1011. The upstream is always closed
+when `bridge` returns. The client is closed too, except on `UpstreamClosed`, where the handler
+still holds it and may dial a new upstream. Every data frame charges `Stream.recv`, and every frame
+sent charges `Stream.send`. The step's effects join the caller's row, so a logging step shows up in
+the handler's signature.
+
+Because the step runs when a frame is **dequeued**, a barge-in policy can mark `interrupted` and
+`Drop` the model audio already queued behind the interruption. A proxy that sees frames only after
+they are sent cannot do that.
+
+`--ws-decision-log` writes one JSON line per frame to the server log, never with a payload:
+
+```
+[ws-bridge] {"call_id":"ws-3","seq":17,"dir":"up","kind":"bin","bytes":16384,"verdict":"Drop","step_us":31}
+```
+
+### Upstream credentials: `--stream-credential`
+
+Do not put an upstream token in `connect`'s headers: it would be an AILANG value. Bind it to the
+host instead:
+
+```bash
+ailang serve-api --bind 100.101.102.103 --caps Stream \
+  --cors-origin https://studio.tailnet-name.ts.net \
+  --stream-credential us-central1-aiplatform.googleapis.com=gcp-key-file:/secrets/daneel-sa.json \
+  --stream-max-duration 30m ./live/
+```
+
+serve-api adds `Authorization: Bearer …` at dial time, in Go, only for `wss://` to that exact host
+and port (a binding without a port means 443). It never applies the binding to `ws://`, another
+host or another port. The program never sees the token, so it cannot reach a frame, the trace or a
+log through program code. A program that sends its own `Authorization` to a bound host fails with
+`credential binding: Authorization header supplied by program for bound host …`.
+
+| Source | Meaning |
+|---|---|
+| `gcp-key-file:PATH` | A Google credentials file: `service_account`, `impersonated_service_account` or `external_account`. A gcloud user login (`authorized_user`) is refused. |
+| `gcp-metadata` | The GCE/Cloud Run metadata server's service account, named explicitly |
+| `bearer-file:PATH` | A token file that another tool keeps fresh, read on every dial |
+
+There is no implicit Application Default Credentials lookup and no gcloud fallback. Tokens are
+cached and refreshed 5 minutes before expiry. Each source is fetched once at startup, so a broken
+source fails the launch instead of the first call.
+
+Separately from the binding, the trace never records credential values. A header-shaped
+`{name: "Authorization", value: …}` value, a `("Cookie", …)` pair, a credential-named record field
+and any `Bearer …`/`Basic …` string are written as `[REDACTED]` in traces at every tier.
 
 ## Concurrency (v0.9.4+)
 

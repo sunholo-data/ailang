@@ -41,7 +41,7 @@ const (
 var coordinatorVars = []Var{
 	{EnvCoordinatorAPIKey, "", AreaCoordinator, "Shared secret for the coordinator's HTTP API and the dashboard's WebSocket; the daemon rejects every request while it is unset (fail-closed since S3 M5) and `ailang coordinator` commands discover it from here first."},
 	{EnvCoordinatorBindAddr, "", AreaCoordinator, "Host the daemon's HTTP server binds; unset is 127.0.0.1 locally and 0.0.0.0 in cloud mode."},
-	{EnvPort, "", AreaCoordinator, "Cloud Run's port convention: when set, the daemon starts its HTTP server on it, `ailang server` binds it on 0.0.0.0, and the registry validator listens on it (default 8080 there)."},
+	{EnvPort, "", AreaCoordinator, "Cloud Run's port convention: when set, the daemon starts its HTTP server on it, `ailang server` and `ailang serve-api` bind 0.0.0.0 instead of 127.0.0.1 (DefaultBindHost; --bind overrides), and the registry validator listens on it (default 8080 there)."},
 	{EnvCoordHTTPPort, "", AreaCoordinator, "Port the coordinator's HTTP API is on, for commands that must reach a running daemon; falls back to PORT."},
 	{EnvGitHubWebhookSecret, "", AreaCoordinator, "HMAC secret for the /github/webhook route; unset means the route is not served."},
 	{EnvRepoURL, "", AreaCoordinator, "Repository URL for task worktrees when the task's workspace does not name one."},
@@ -81,6 +81,17 @@ func CoordinatorBindAddr() string { return get(EnvCoordinatorBindAddr) }
 
 // Port returns PORT, "" when unset.
 func Port() string { return get(EnvPort) }
+
+// DefaultBindHost is the host an AILANG HTTP listener binds when no --bind
+// is given: 0.0.0.0 when PORT is set (Cloud Run injects PORT and requires the
+// wildcard), otherwise 127.0.0.1. One rule for `ailang server` and
+// `ailang serve-api` (M-SERVEAPI-BIND-HOST-CORS F2).
+func DefaultBindHost() string {
+	if Port() != "" {
+		return "0.0.0.0"
+	}
+	return "127.0.0.1"
+}
 
 // CoordHTTPPort returns AILANG_COORD_HTTP_PORT, "" when unset.
 func CoordHTTPPort() string { return get(EnvCoordHTTPPort) }
