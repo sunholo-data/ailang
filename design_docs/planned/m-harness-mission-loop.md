@@ -1,6 +1,6 @@
 # M-HARNESS-MISSION-LOOP: A Fleet Loop That Owns the Loop Harness, So Product Loops Don't
 
-**Status**: Planned. Quorum-blocked twice (all six objections correct; five fixed in-doc, one needs the Phase 3a spike). Design-freeze items HD-1 to HD-6 open for Mark. Phases 1–2 can be ratified independently of Phase 3.
+**Status**: **HD-1..HD-6 RATIFIED — Mark, attended 2026-09-26** (*"great sprint plan and execute"*), delegated to the doc's recommendations rather than chosen option by option. Sprint 1 = Phases 1–2. Phase 3b stays gated on the 3a spike (P1–P3). Quorum-blocked twice; all six objections were correct, five are fixed in-doc and unreviewed, and one needs the spike.
 **Created**: 2026-09-26 (attended, Mark: *"would it be better instead to have a dedicated loop to its own harness?"*)
 **Target**: v0.44.0
 **Priority**: P1
@@ -110,12 +110,12 @@ routine repairs.
 
 ### Design Freeze
 
-- [ ] HD-1 ratified
-- [ ] HD-2 ratified
-- [ ] HD-3 ratified
-- [ ] HD-4 ratified
-- [ ] HD-5 ratified
-- [ ] HD-6 ratified
+- [x] HD-1 ratified (2026-09-26)
+- [x] HD-2 ratified (2026-09-26)
+- [x] HD-3 ratified (2026-09-26)
+- [x] HD-4 ratified (2026-09-26)
+- [x] HD-5 ratified (2026-09-26)
+- [x] HD-6 ratified (2026-09-26)
 
 ## Solution Design
 

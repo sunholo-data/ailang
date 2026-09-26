@@ -1,0 +1,26 @@
+{
+  "sprint_id": "M-HARNESS-MISSION-LOOP-S1",
+  "plan_path": "design_docs/planned/m-harness-mission-loop-sprint-plan.md",
+  "design_doc": "design_docs/planned/m-harness-mission-loop.md",
+  "created": "2026-09-26",
+  "status": "in_progress",
+  "github_issues": [],
+  "velocity": {"target_loc_per_day": 260, "estimated_total_loc": 910, "estimated_days": 3.5},
+  "features": [
+    {"id": "M1", "description": "ailang mission ticket file|open|resolve", "estimated_loc": 380, "dependencies": [],
+     "acceptance_criteria": ["Unit tests: validation, stable titles, grouping/ranking", "Local-store integration: file x3 / 2 signatures -> open=2 -> resolve -> open=1, origin inbox has reply", "Mutation: removing mark-read reds the count test"],
+     "passes": null, "started": null, "completed": null, "notes": null},
+    {"id": "M2", "description": "Per-fire pre-push scope guard via GIT_CONFIG_* core.hooksPath", "estimated_loc": 150, "dependencies": [],
+     "acceptance_criteria": ["Table test MISSION_NAME x path class x repo", "End-to-end push to bare repo proves env hooksPath fires", "Wired in make/test.mk; mutation-tested"],
+     "passes": null, "started": null, "completed": null, "notes": null},
+    {"id": "M3", "description": "Skill rules: product loops file tickets; fleet branch inverts admissibility; Gate 0 unparks on replies", "estimated_loc": 80, "dependencies": ["M1"],
+     "acceptance_criteria": ["gate-2-pick.md files tickets instead of ad-hoc issues", "Fleet branch: ticket-driven queue, policy classes park, no self-sourced audits", "Gate 0 reads harness-resolved replies"],
+     "passes": null, "started": null, "completed": null, "notes": null},
+    {"id": "M4", "description": "Fleet mission: toml, env, boot offset, idle pre-check, charter, multivac triage declaration", "estimated_loc": 250, "dependencies": ["M1"],
+     "acceptance_criteria": ["Pre-check: count 0 -> idle exit before probes; count>0 proceeds; count failure yields loudly", "Charter + log + index seeded", "mission-fleet declared triage in config.cloud.yaml (dev)"],
+     "passes": null, "started": null, "completed": null, "notes": null},
+    {"id": "M5", "description": "Live verification, install (kept disabled), docs", "estimated_loc": 50, "dependencies": ["M1", "M2", "M3", "M4"],
+     "acceptance_criteria": ["Fleet dry runs: idle and 1-ticket", "Planted ticket per mission round-trips on prod store", "Installed with kill switch in place", "CHANGELOG + mission-loop-change skill + message-plane-topology updated; suites green"],
+     "passes": null, "started": null, "completed": null, "notes": null}
+  ]
+}
