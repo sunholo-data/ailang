@@ -18,6 +18,7 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/eval_harness/langreg"
+	"github.com/sunholo-data/ailang/internal/stdlibroot"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 )
 
@@ -272,9 +273,6 @@ func (r *AILANGRunner) Run(code string, timeout time.Duration) (*RunResult, erro
 		}
 	}
 
-	// Use --stdlib-path flag instead of symlinking (more reliable, especially on Windows)
-	stdlibPath := filepath.Join(cwd, "std")
-
 	// Build command with flags BEFORE filename (required by ailang CLI)
 	args := []string{"run", "--entry", "main", "--quiet"}
 
@@ -284,8 +282,11 @@ func (r *AILANGRunner) Run(code string, timeout time.Duration) (*RunResult, erro
 	// module declarations that don't exactly match the workspace path.
 	args = append(args, "--relax-modules")
 
-	// Add stdlib path (ensures stdlib can be found from isolated workspace)
-	args = append(args, "--stdlib-path", stdlibPath)
+	// Pin the stdlib root to the harness's ./std when there is one (the eval runs
+	// from the repo root, the child from an isolated workspace). An explicit
+	// --stdlib-path that holds no stdlib is an error in the child, so it is only
+	// passed when it resolves; otherwise the child uses its built-in stdlib.
+	args = append(args, stdlibPathArgs(cwd)...)
 
 	// Add capabilities if specified
 	if len(r.caps) > 0 {
@@ -567,4 +568,15 @@ func FindAILANG() (string, error) {
 	}
 
 	return "", fmt.Errorf("ailang binary not found in PATH or common locations")
+}
+
+// stdlibPathArgs returns `--stdlib-path <dir>/std` when that directory holds a
+// stdlib, and nothing otherwise (M-STDLIB-ROOT-RESOLUTION: an explicit override
+// that resolves nowhere is an error, not a silently skipped search entry).
+func stdlibPathArgs(dir string) []string {
+	stdDir := filepath.Join(dir, "std")
+	if !stdlibroot.IsStdlibDir(stdDir) {
+		return nil
+	}
+	return []string{"--stdlib-path", stdDir}
 }

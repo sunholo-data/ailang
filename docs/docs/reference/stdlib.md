@@ -135,6 +135,33 @@ export func main() -> unit ! {IO} {
 
 Run with: `ailang run --caps IO myapp.ail`
 
+## Where the standard library comes from
+
+Every command that reads the stdlib — `run`, `check`, `iface`, `test`, the REPL, `docs`, and the
+"add the matching import" hint on an undefined name — uses one resolver
+(`internal/stdlibroot`). It picks **one root per process**; the first candidate that contains
+`io.ail` wins:
+
+1. `--stdlib-path <dir>` (on `ailang run`)
+2. `AILANG_STDLIB_PATH` (a path-list, OS separator)
+3. `./std` in the working directory (development and `go run`)
+4. `<binary>/../std` (tarball layout)
+5. the user data directory (`~/Library/Application Support/ailang/std`, `$XDG_DATA_HOME/ailang/std`, `%APPDATA%\ailang\std`)
+6. `/usr/local/share/ailang/std`, `/usr/share/ailang/std` (not on Windows)
+7. the stdlib built into the binary, which always exists and matches the binary's version
+
+So `ailang docs std/stream` works from any directory, including a scratch directory outside
+any project. Three rules follow from "one root":
+
+- An explicit override (1 or 2) beats `./std`. If it names no directory holding `io.ail`, the
+  command fails and lists what it tried; it never falls back to a different stdlib.
+- A module missing from the chosen root is an error naming that root. A partial `./std` is not
+  topped up from another stdlib.
+- `ailang docs prelude` reads no stdlib file, so it never depends on any of this.
+
+`ailang run --trace-loader` prints the chosen root, every candidate tried, and where each std
+module was read from. `ailang run --strict` turns a stdlib `VERSION` mismatch into an error.
+
 ## See also
 
 - **[Effects](/docs/reference/effects)** — how the capability system works

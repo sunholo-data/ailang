@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/config"
+	"github.com/sunholo-data/ailang/internal/stdlibroot"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 )
 
@@ -77,15 +78,12 @@ func BuildEnvironment(opts EnvironmentOptions) []string {
 	// Priority: workspace/std (cloud: cloned repo has stdlib) > cwd/std (local: running from repo root).
 	// This ensures cloud agents (where cwd=/workspace but repo is at /workspace/{taskID})
 	// find the stdlib correctly when the cloned repo is an AILANG workspace.
-	cwd, _ := os.Getwd()
-	stdlibPath := filepath.Join(cwd, "std")
-	if opts.Task != nil && opts.Task.Workspace != "" {
-		workspaceStd := filepath.Join(opts.Task.Workspace, "std")
-		if info, err := os.Stat(workspaceStd); err == nil && info.IsDir() {
-			stdlibPath = workspaceStd
-		}
+	// Only a directory that IS a stdlib is exported: an explicit AILANG_STDLIB_PATH
+	// that holds none is an error in the child (M-STDLIB-ROOT-RESOLUTION), and with
+	// nothing exported the child uses the stdlib built into its binary.
+	if stdlibPath := childStdlibPath(opts); stdlibPath != "" {
+		env = append(env, fmt.Sprintf("AILANG_STDLIB_PATH=%s", stdlibPath))
 	}
-	env = append(env, fmt.Sprintf("AILANG_STDLIB_PATH=%s", stdlibPath))
 
 	// Set working directory if specified
 	if opts.Task != nil && opts.Task.Workspace != "" {
@@ -432,4 +430,22 @@ func GetClaudeSettingsPath() (string, error) {
 	}
 
 	return settingsPath, nil
+}
+
+// childStdlibPath picks the stdlib root to export to an agent child process:
+// <workspace>/std, else <cwd>/std, and only if it holds a stdlib; "" otherwise.
+func childStdlibPath(opts EnvironmentOptions) string {
+	var candidates []string
+	if opts.Task != nil && opts.Task.Workspace != "" {
+		candidates = append(candidates, filepath.Join(opts.Task.Workspace, "std"))
+	}
+	if cwd, err := os.Getwd(); err == nil {
+		candidates = append(candidates, filepath.Join(cwd, "std"))
+	}
+	for _, c := range candidates {
+		if stdlibroot.IsStdlibDir(c) {
+			return c
+		}
+	}
+	return ""
 }

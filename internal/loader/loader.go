@@ -17,7 +17,6 @@ import (
 	"github.com/sunholo-data/ailang/internal/iface"
 	"github.com/sunholo-data/ailang/internal/lexer"
 	"github.com/sunholo-data/ailang/internal/parser"
-	"github.com/sunholo-data/ailang/std"
 )
 
 // ModuleLoader loads and caches modules
@@ -95,12 +94,6 @@ func (ml *ModuleLoader) SetModulePrefixMap(prefixMap map[string]string) {
 	for pkgName, prefix := range prefixMap {
 		ml.modulePrefixMap[prefix] = append(ml.modulePrefixMap[prefix], pkgName)
 	}
-}
-
-// ConfigureStdlibResolver configures the stdlib resolver with CLI flags
-// Call this before loading any stdlib modules
-func (ml *ModuleLoader) ConfigureStdlibResolver(cliPath string, traceEnabled, strictMode bool) {
-	ml.stdlibResolver = NewStdlibResolver(cliPath, traceEnabled, strictMode)
 }
 
 // Preload adds a pre-loaded module to the cache
@@ -193,28 +186,15 @@ func (ml *ModuleLoader) Load(path string) (*LoadedModule, error) {
 		// in a module name in the first place.
 		canonPath = strings.TrimSuffix(canonPath, ".ail")
 
-		resolvedPath, err := ml.stdlibResolver.ResolveStdlib(canonPath)
+		// One root per run (M-STDLIB-ROOT-RESOLUTION): the embedded copy is
+		// that root when no on-disk stdlib was found, never a per-module fallback.
+		resolvedPath, embContent, err := ml.stdlibResolver.ReadStdlib(canonPath)
 		if err != nil {
-			// Filesystem resolution failed — try embedded stdlib fallback.
-			// The stdlib .ail files are compiled into the binary via std/embed.go,
-			// so the binary is self-contained even without a filesystem std/ directory.
-			moduleName := strings.TrimPrefix(canonPath, "std/")
-			embFile := moduleName + ".ail"
-			if embContent, embErr := std.FS.ReadFile(embFile); embErr == nil {
-				content = embContent
-				fullPath = "<embedded>/std/" + embFile
-				searchTrace = append(searchTrace, "embedded: "+fullPath)
-				if ml.stdlibResolver.traceEnabled {
-					fmt.Fprintf(os.Stderr, "[trace-loader] Filesystem stdlib not found, using embedded fallback: %s\n", fullPath)
-				}
-			} else {
-				// Both filesystem and embedded failed — return original error
-				return nil, err
-			}
-		} else {
-			fullPath = resolvedPath
-			searchTrace = append(searchTrace, "std: "+resolvedPath)
+			return nil, err
 		}
+		fullPath = resolvedPath
+		content = embContent
+		searchTrace = append(searchTrace, "std: "+resolvedPath)
 	} else if strings.HasSuffix(canonPath, ".ail") {
 		// Absolute path
 		searchTrace = append(searchTrace, "absolute: "+canonPath)
@@ -357,9 +337,9 @@ func (ml *ModuleLoader) Load(path string) (*LoadedModule, error) {
 
 // resolvePath resolves a module path to a file path.
 //
-// A std/ path goes through the SAME StdlibResolver Load uses (CLI flag, cwd,
-// binary-relative, AILANG_STDLIB_PATH, user and system dirs), then the
-// embedded copy. Until M-V1-SIMPLIFY-S4 M1 this function had its own second
+// A std/ path goes through the SAME StdlibResolver Load uses, which reads the one
+// stdlib root of the process (internal/stdlibroot: flag, AILANG_STDLIB_PATH,
+// ./std, binary-relative, user and system dirs, then the embedded copy). Until M-V1-SIMPLIFY-S4 M1 this function had its own second
 // implementation — AILANG_STDLIB_PATH else "." — so with the variable unset it
 // named `./std/<module>.ail` relative to whatever the process cwd happened to
 // be: a stale cwd meant the wrong stdlib, or a path to nothing, with no error.
@@ -382,15 +362,7 @@ func (ml *ModuleLoader) resolvePath(path string) (string, error) {
 		if ml.stdlibResolver == nil {
 			ml.stdlibResolver = NewStdlibResolver("", false, false)
 		}
-		resolved, err := ml.stdlibResolver.ResolveStdlib(path)
-		if err == nil {
-			return resolved, nil
-		}
-		embFile := strings.TrimPrefix(path, "std/") + ".ail"
-		if _, embErr := std.FS.ReadFile(embFile); embErr == nil {
-			return "<embedded>/std/" + embFile, nil
-		}
-		return "", err
+		return ml.stdlibResolver.ResolveStdlib(path)
 	}
 
 	// Default: treat as project-relative (join with basePath)

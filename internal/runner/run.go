@@ -18,6 +18,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/pipeline"
 	"github.com/sunholo-data/ailang/internal/policy"
 	"github.com/sunholo-data/ailang/internal/runtime"
+	"github.com/sunholo-data/ailang/internal/stdlibroot"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	ailtrace "github.com/sunholo-data/ailang/internal/trace"
 	"go.opentelemetry.io/otel"
@@ -50,9 +51,10 @@ type Options struct {
 	DebugTypes          bool
 	DebugTypesNode      uint64
 	Release             bool
-	StdlibPath          string
-	// TraceLoader and StrictVersion are accepted but not yet wired into
-	// ModuleRuntime (follow-up).
+	// StdlibPath (--stdlib-path), TraceLoader (--trace-loader) and
+	// StrictVersion (--strict) configure the process stdlib root
+	// (internal/stdlibroot) before anything loads.
+	StdlibPath    string
 	TraceLoader   bool
 	StrictVersion bool
 
@@ -117,15 +119,19 @@ func Run(ctx context.Context, opts Options) int {
 	quiet := opts.Quiet
 	emitTrace := opts.EmitTrace
 
-	// Configure stdlib resolver via environment variables
-	// CLI flags override environment variables
-	if opts.StdlibPath != "" {
-		os.Setenv("AILANG_STDLIB_PATH", opts.StdlibPath)
+	// One stdlib root for the whole run (M-STDLIB-ROOT-RESOLUTION): --stdlib-path
+	// is a real override (it beats ./std and AILANG_STDLIB_PATH, and a path that
+	// holds no stdlib is an error), --trace-loader prints the chosen root and every
+	// candidate, --strict makes a stdlib VERSION mismatch fatal.
+	stdlibroot.Configure(stdlibroot.Options{
+		Override:      opts.StdlibPath,
+		Trace:         opts.TraceLoader,
+		StrictVersion: opts.StrictVersion,
+	})
+	if _, err := stdlibroot.Resolve(""); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		return 1
 	}
-	// Note: TraceLoader and StrictVersion will need ModuleRuntime integration (TODO: follow-up)
-	// For now, they're accepted but not fully wired up
-	_ = opts.TraceLoader
-	_ = opts.StrictVersion
 
 	// Read the file — through the source snapshot when a policy run enabled
 	// one, so the bytes admitted are the bytes executed (M-EXECUTOR-POLICY-

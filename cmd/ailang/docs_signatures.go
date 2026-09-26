@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"os"
+	"io/fs"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ast"
@@ -30,8 +30,9 @@ type exportSignatures map[string]string
 // A parse failure is returned as an error naming the file — the caller MUST fail
 // loudly (non-zero exit), never drop or partial-render a row. Stdlib always
 // parsing is CI's contract.
-func parseExportSignatures(filePath string) (exportSignatures, []string, error) {
-	source, err := os.ReadFile(filePath)
+func parseExportSignatures(stdlib fs.FS, fileName string) (exportSignatures, []string, error) {
+	filePath := "std/" + fileName // display name: the root may be the embedded copy
+	source, err := fs.ReadFile(stdlib, fileName)
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot read %s: %w", filePath, err)
 	}

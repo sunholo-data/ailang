@@ -173,7 +173,7 @@ func TestCachePipeline_EmbeddedKeys(t *testing.T) {
 	root := t.TempDir()
 	t.Chdir(root)
 	testutil.SetHomeDir(t, filepath.Join(root, "home"))
-	t.Setenv("AILANG_STDLIB_PATH", filepath.Join(root, "missing-stdlib"))
+	t.Setenv("AILANG_STDLIB_PATH", "") // an empty temp cwd: the embedded stdlib is the root
 	t.Setenv("AILANG_CACHE_DIR", filepath.Join(root, "cache"))
 	if err := os.WriteFile("main.ail", []byte("module main\nexport pure func main() -> int = 1\n"), 0o644); err != nil {
 		t.Fatalf("write entry source: %v", err)

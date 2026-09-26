@@ -123,6 +123,19 @@ jobs:
     - name: Build binaries
       run: make install
 
+    - name: Stdlib docs work outside a repo (M-STDLIB-ROOT-RESOLUTION)
+      # `ailang docs std/<module>` once failed from any directory without ./std
+      # (Daneel's ticket, 2026-09-25) although the stdlib is built into the binary.
+      # Run the built binary from an empty temp dir with no stdlib env set.
+      run: |
+        bin="$(go env GOPATH)/bin/ailang"   # what `make install` just built
+        cd "$(mktemp -d)"
+        out=$(env -u AILANG_STDLIB_PATH "$bin" docs std/stream)
+        echo "$out" | head -5
+        echo "$out" | grep -q '^# std/stream' || { echo "::error::ailang docs std/stream failed outside a repo"; exit 1; }
+        echo "$out" | grep -q 'connect(' || { echo "::error::ailang docs std/stream printed no exports outside a repo"; exit 1; }
+        env -u AILANG_STDLIB_PATH "$bin" docs prelude > /dev/null
+
     - name: Consumer regression guardrail (M-RIG-RELIABILITY)
       # Fail the PR if an AILANG change breaks real-world consumer .ail code (the escape/
       # parser/type/effect constructs the motoko harness relies on). The v0.27.0 \uXXXX

@@ -1,13 +1,13 @@
 # M-STDLIB-ROOT-RESOLUTION: one stdlib root for every command (`ailang docs std/<module>` fails outside a project root)
 
-**Status**: Planned
+**Status**: Implemented (PR pending review; sprint plan: [m-stdlib-root-resolution-sprint-plan.md](m-stdlib-root-resolution-sprint-plan.md))
 **Target**: v0.44.0
 **Priority**: P1 (Medium). The fourth external report of the same gap (GitHub #1131 was the third), and the tool agents are told to use first.
 **Estimated**: about 1.5 agent-days. M1 takes 0.5, M2 takes 0.5 and M3 takes 0.5.
 **Dependencies**: None. No design-freeze items: every decision below can be resolved by an agent, and the open questions have defaults.
 **Planner-Lane**: codex-ok
 **Requested by**: Daneel, bug ticket "Bug: ailang docs std/<module> fails outside a project root (stdlib directory not found)" (2026-09-25). Also closes GitHub #1131.
-**Supersedes**: [m-docs-stdlib-resolution.md](../m-docs-stdlib-resolution.md) and its sprint plan (planned for v0.38.6, not implemented). See "Relation to the earlier doc" below.
+**Supersedes**: [m-docs-stdlib-resolution.md](../../archive/m-docs-stdlib-resolution.md) and its sprint plan (planned for v0.38.6, not implemented). See "Relation to the earlier doc" below.
 
 ---
 
@@ -249,7 +249,7 @@ the quorum unless the reviewer disagrees with deliberate change 5(b).
 
 ## Relation to the earlier doc
 
-[m-docs-stdlib-resolution.md](../m-docs-stdlib-resolution.md) (2026-09-13, #1131) diagnosed
+[m-docs-stdlib-resolution.md](../../archive/m-docs-stdlib-resolution.md) (2026-09-13, #1131) diagnosed
 R2 correctly, but some of its premises were wrong or have gone stale:
 
 - It says embedding `std/` is "new" and rules out a loader-side embedded fallback. Both
