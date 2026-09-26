@@ -171,7 +171,7 @@ and resolve it as "already fixed" with evidence if it no longer reproduces.
     show `stamps=9` on every completed 09-25/26 fire, so stamps land. Verify, then resolve as not
     reproducing.
 
-**Ruled policy questions** — both moved into P1 below (decisions D-FLEET-1 and D-FLEET-2).
+**Ruled policy questions** — both moved into P1 above (items 0a and 0b; decisions D-FLEET-1 and D-FLEET-2).
 
 Standing parked item: the Phase 3a skill-resolution spike (design P1–P3), routed here only on
 Mark's directive.
