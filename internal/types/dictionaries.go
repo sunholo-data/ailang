@@ -209,26 +209,11 @@ func (r *DictionaryRegistry) registerEqInt() {
 func (r *DictionaryRegistry) registerEqFloat() {
 	ns := "prelude"
 
-	// eq: Float -> Float -> Bool
-	// IMPORTANT: This implementation makes NaN == NaN return true
-	// to satisfy the reflexivity law of Eq type class
-	r.Register(ns, "Eq", "float", "eq", func(x, y float64) bool {
-		// Reflexive equality: NaN == NaN is true
-		if math.IsNaN(x) && math.IsNaN(y) {
-			return true
-		}
-		// Standard IEEE 754 equality for non-NaN values
-		return x == y
-	})
-
-	// neq: Float -> Float -> Bool
-	r.Register(ns, "Eq", "float", "neq", func(x, y float64) bool {
-		// Consistent with our eq implementation
-		if math.IsNaN(x) && math.IsNaN(y) {
-			return false
-		}
-		return x != y
-	})
+	// eq/neq: IEEE via FloatEq (M-FLOAT-EQ-ONE-SEMANTICS, #1274). This was
+	// "lawful" (NaN == NaN) for reflexivity, which made == answer differently
+	// through the dictionary than through every other path.
+	r.Register(ns, "Eq", "float", "eq", func(x, y float64) bool { return FloatEq(x, y) })
+	r.Register(ns, "Eq", "float", "neq", func(x, y float64) bool { return !FloatEq(x, y) })
 }
 
 // Eq instance for Bool

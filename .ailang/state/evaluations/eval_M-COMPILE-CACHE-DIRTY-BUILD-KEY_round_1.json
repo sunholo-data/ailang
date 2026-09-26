@@ -1,0 +1,41 @@
+{
+  "sprint_id": "M-COMPILE-CACHE-DIRTY-BUILD-KEY",
+  "evaluation_round": 1,
+  "mode": "local (read-only: no executor invoked, design doc not moved per caller instruction)",
+  "timestamp": "2026-09-25T21:00:00+02:00",
+  "evaluator_model": "claude-opus-5-5",
+  "design_doc": "design_docs/planned/v0_41_2/m-compile-cache-dirty-build-key.md",
+  "commits": ["e19eb8375", "b68fdaac0"],
+  "tracking": "#1275",
+  "total_score": 94,
+  "pass_threshold": 70,
+  "result": "pass",
+  "score_breakdown": {"tests_pass": 20, "lint_clean": 10, "acceptance_criteria": 30, "code_quality": 13, "documentation": 13, "design_fidelity": 8},
+  "hard_fails": [],
+  "automated_checks": {
+    "make_test": "exit 2; ONLY internal/riglock TestAcquire_RefusesStealWhileRegisteredChildLives + TestAcquire_StealsAndReapsOrphanedChild fail, both defined in UNTRACKED internal/riglock/children_test.go (not these commits)",
+    "make_lint": "1 issue: internal/riglock/children.go:196 reapChildren unused (UNTRACKED file, not these commits)",
+    "check_file_sizes": "pass",
+    "mutation": "compilerIdentity ignoring fingerprint -> TestCompileCache_DirtyBuildsDoNotShareVerdicts/dirty_rebuild_misses FAILS (SKIP served) - test is non-vacuous"
+  },
+  "acceptance_criteria": [
+    {"criterion": "V1 repro test with real binaries, fails without fingerprint", "met": true, "evidence": "evaluator mutation run in a temp worktree"},
+    {"criterion": "AILANG_NO_CACHE honored by check", "met": true, "evidence": "pipeline_module_phases.go newPipelineModuleCache reads config.NoCache(); single chokepoint for all ModuleCacheKey lookups"},
+    {"criterion": "Clean identity unchanged", "met": true, "evidence": "compilerIdentity(commit,\"\",cfg)==commit; clean-copy subtest hits"},
+    {"criterion": "False comments corrected; CHANGELOG", "met": true},
+    {"criterion": "make test-core green", "met": true, "evidence": "full make test green apart from untracked riglock files; doc checkbox still unticked"}
+  ],
+  "probes": {
+    "release_builds": "release.yml:211 stamps only Version; Commit filled from vcs.revision, vcs.modified=false on a clean checkout -> Dirty()=false -> bare-commit key. No release hit-rate regression.",
+    "go_install_module_at_version": "no VCS info -> Commit=dev -> Dirty() -> per-binary key (previously ALL such installs shared key 'dev': a latent cross-version stale-verdict bug, now closed)",
+    "untracked_files": "git describe --dirty ignores untracked files but Go vcs.modified counts them, so Dirty() still true (rig main tree always dirty -> per-binary keys, intended)",
+    "other_paths": "only internal/pipeline computes cache keys (prepareCacheLookup); REPL/check/run/test all flow through it; AILANG_CACHE_DIR only relocates the store; dependency modules key on identity too; empty key never stored (cache_artifacts.go:228)",
+    "silent_fallback": "none: fingerprint error -> CACHE_FINGERPRINT_UNAVAILABLE warning + bypass"
+  },
+  "feedback": [
+    {"file": "cmd/ailang/cache_dirty_build_test.go:59-67", "issue": "check() discards the exit code and returns \"none\" whenever no [CACHE] line appears; the AILANG_NO_CACHE subtest therefore passes if the binary crashes, times out, or --debug-compile output changes", "suggestion": "assert exit 0 and a 'No errors' line in the NO_CACHE subtest (and ideally that --debug-compile prints another marker so 'none' is positive evidence)"},
+    {"file": "internal/pipeline/pipeline_module_cache.go dirtyBuildFingerprint", "issue": "size+mtime collides on coarse-mtime filesystems (HFS+ 1s, FAT/exFAT 2s, some network/overlay mounts) when two rebuilds land in the same tick with the same size; Mach-O segment alignment makes equal sizes common after small edits. ns-precision APFS/ext4 makes it practically unreachable. Also cp -p/rsync -a of a different same-size binary", "suggestion": "add inode and ctime (ctime cannot be preserved by cp -p/touch) to the fingerprint; still microseconds"},
+    {"file": "cmd/ailang/cache_dirty_build_test.go", "issue": "only the Version '-dirty' path is integration-tested (-buildvcs=false); the vcs.modified path is only unit-tested via TestDirty with a patched var", "suggestion": "optional: one subtest building with -buildvcs=true in a temp git repo is overkill; acceptable as is"},
+    {"file": "design_docs/planned/v0_41_2/m-compile-cache-dirty-build-key.md", "issue": "'make test-core green' box unticked; status 'awaiting evaluation'", "suggestion": "tick and move to implemented/v0_41_2 on merge"}
+  ]
+}

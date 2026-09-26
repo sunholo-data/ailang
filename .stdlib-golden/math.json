@@ -93,6 +93,12 @@
       "pure": true
     },
     {
+      "name": "isNaN",
+      "type": "(float)-\u003ebool",
+      "effects": [],
+      "pure": true
+    },
+    {
       "name": "log",
       "type": "(float)-\u003efloat",
       "effects": [],

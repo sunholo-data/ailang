@@ -36,6 +36,29 @@ func (s *CloudStrategy) DiffSource(ctx context.Context, task *TaskRecord) (DiffR
 	}, nil
 }
 
+// ExecutorCompletionStatuses is every status the Cloud Run executor may publish
+// on a completion (coordinator_cloud.go). It is the contract between producer
+// and consumer: the producer refuses to publish anything outside it, and a test
+// asserts completionOutcome accepts everything inside it.
+//
+// It exists because the two sides drifted once already. `blocked` was taught to
+// the producer on 2026-09-14 and never to this consumer, so every blocked run
+// was dropped as "unknown completion status" and later reported as a 3h
+// timeout (M-TASK-STATUS-TRUTH S2).
+func ExecutorCompletionStatuses() []TaskStatus {
+	return []TaskStatus{TaskStatusCompleted, TaskStatusNoChanges, TaskStatusFailed, TaskStatusBlocked}
+}
+
+// IsExecutorCompletionStatus reports whether status is in the contract.
+func IsExecutorCompletionStatus(status string) bool {
+	for _, st := range ExecutorCompletionStatuses() {
+		if string(st) == status {
+			return true
+		}
+	}
+	return false
+}
+
 // completionOutcome maps the executor's reported status onto the finalisation
 // outcome. An unrecognised status is reported as such rather than defaulted:
 // treating an unknown value as success is what let "the agent was structurally
@@ -48,6 +71,8 @@ func completionOutcome(status string) (CompletionOutcome, bool) {
 		return OutcomeNoChanges, true
 	case TaskStatusFailed:
 		return OutcomeFailed, true
+	case TaskStatusBlocked:
+		return OutcomeBlocked, true
 	default:
 		return "", false
 	}

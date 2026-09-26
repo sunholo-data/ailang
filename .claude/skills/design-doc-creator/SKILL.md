@@ -386,9 +386,9 @@ A reject that is wrong on the rule can still be right on the substance.
 # One reviewer (reject-by-default; exits non-zero if it can't produce a verdict):
 ailang design-review design_docs/planned/vX_Y/my-doc.md --reviewer gpt5-6-sol --json
 
-# Full quorum (parallel reviewers + your own IN-SESSION verdict as the controller):
+# Full quorum (parallel reviewers + your IN-SESSION controller verdict; --author = the doc's writer, whose vendor sits out):
 ailang design-quorum design_docs/planned/vX_Y/my-doc.md \
-  --reviewers gpt5-6-sol,gemini-3-1-pro \
+  --author claude:claude-opus-5-5 \
   --controller-verdict pass --controller-note "<your in-session judgement>" \
   --mission-log design_docs/v1-mission-log.md
 ```

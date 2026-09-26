@@ -7,13 +7,14 @@
 //	-X github.com/sunholo-data/ailang/internal/version.BuildTime=<iso>
 //
 // For `go run` / `go test` invocations without ldflags, init() populates
-// Commit/BuildTime from runtime/debug.ReadBuildInfo() when available so
-// the module cache key still differentiates between builds. If no VCS
-// info is available (e.g. outside a git checkout), Commit stays "dev"
-// and the source-hash component of the cache key still catches edits.
+// Commit/BuildTime from runtime/debug.ReadBuildInfo() when available.
+// Commit alone does NOT identify a build: see Dirty.
 package version
 
-import "runtime/debug"
+import (
+	"runtime/debug"
+	"strings"
+)
 
 var (
 	// Version is the release version (e.g. "v0.11.4"). "dev" for unreleased builds.
@@ -24,33 +25,47 @@ var (
 	BuildTime = "unknown"
 )
 
+// vcsModified records the build info's vcs.modified flag, which `go build`
+// embeds whether or not -ldflags stamped Commit.
+var vcsModified bool
+
 func init() {
-	// Fallback for builds without -ldflags (go run, go test): read VCS info
-	// from the embedded build info. This keeps the module cache key stable
-	// across rebuilds of the same commit but invalidates when the commit changes.
-	if Commit != "dev" {
-		return
-	}
 	info, ok := debug.ReadBuildInfo()
 	if !ok {
 		return
 	}
+	// Fallback for builds without -ldflags (go run, go test): read VCS info
+	// from the embedded build info so Commit names the real revision.
+	fillCommit := Commit == "dev"
 	for _, s := range info.Settings {
 		switch s.Key {
 		case "vcs.revision":
-			if s.Value != "" {
+			if fillCommit && s.Value != "" {
 				Commit = s.Value
 			}
 		case "vcs.time":
-			if s.Value != "" {
+			if fillCommit && s.Value != "" {
 				BuildTime = s.Value
 			}
 		case "vcs.modified":
-			// If the working tree had uncommitted changes at build time,
-			// mark the commit as dirty so cache keys change on every edit.
-			if s.Value == "true" && Commit != "dev" {
+			vcsModified = s.Value == "true"
+			// A constant marker: it does NOT change per edit, so it cannot
+			// key a cache on its own. See Dirty and M-COMPILE-CACHE-DIRTY-BUILD-KEY.
+			if fillCommit && vcsModified && Commit != "dev" {
 				Commit = Commit + "-dirty"
 			}
 		}
 	}
+}
+
+// Dirty reports whether this binary's source is not fully identified by
+// Commit: built from a tree with uncommitted changes, or with no VCS
+// information at all. Two such builds of one commit can compile the same
+// source differently, so anything keyed by Commit (the module compile cache)
+// must add a per-build fingerprint. It reads both build paths: Makefile
+// builds stamp Commit with a bare SHA and put "-dirty" only in Version;
+// plain go build/run/test builds carry vcs.modified.
+func Dirty() bool {
+	return Commit == "dev" || vcsModified ||
+		strings.HasSuffix(Commit, "-dirty") || strings.Contains(Version, "-dirty")
 }

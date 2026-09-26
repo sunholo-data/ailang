@@ -46,7 +46,7 @@ grep -q 'MISSION_PLANNER_FALLBACK:-pi:' "$driver" \
 # Each ollama rung must be BACKED BY ITS OPENROUTER TWIN, so exhausting the
 # Ollama Cloud quota (unpublished denominator, so unpredictable) degrades the
 # ROUTE and not the model. Asserted as a full chain, brace-anchored.
-grep -q 'MISSION_EXECUTOR_FALLBACK:-pi:ollama/deepseek-v4-flash:0731-cloud,pi:openrouter/deepseek/deepseek-v4-flash-0731}' "$driver" \
+grep -q 'MISSION_EXECUTOR_FALLBACK:-pi:ollama/deepseek-v4.1-flash:cloud,pi:openrouter/deepseek/deepseek-v4.1-flash}' "$driver" \
   && ok "executor chain is ollama -> openrouter twin" || bad "executor chain is ollama -> openrouter twin" "missing or unchained"
 # Planner fallback: kimi-k3 sits BETWEEN codex and opus, so opus stays last resort.
 grep -q 'MISSION_PLANNER_FALLBACK:-pi:ollama/kimi-k3:cloud,pi:openrouter/moonshotai/kimi-k3}' "$driver" \
@@ -485,9 +485,14 @@ grep -q 'enum in this build lists' "$skill_all" \
 # slot — cheaper ($4/$20 vs $10/$50) at the property that put Fable here (thinking that cannot
 # be disabled at all). Astra and deepseek are untouched, so this stays a three-entry rotation
 # across three billing surfaces.
-grep -q 'now `claude:claude-opus-5-5` → `codex:gpt-6-astra` → `pi:ollama/deepseek-v4-flash:0731-cloud` → repeat' "$skill_all" \
-  && ok "S3 designer rotation is opus-5-5 -> astra -> deepseek (three entries, three vendors)" \
-  || bad "S3 designer rotation is opus-5-5 -> astra -> deepseek (three entries, three vendors)" "rotation is not the three-entry list"
+# AMENDED 2026-09-25 (Mark, attended): GLM 5.3 and Kimi K3 replace deepseek-v4-flash, so
+# designers and quorum reviewers share one vendor pool.
+grep -q 'now `claude:claude-opus-5-5` → `codex:gpt-6-astra` → `pi:ollama/glm-5.3:cloud` → `pi:ollama/kimi-k3:cloud` → repeat' "$skill_all" \
+  && ok "S3 designer rotation is opus-5-5 -> astra -> glm-5.3 -> kimi-k3 (four vendors)" \
+  || bad "S3 designer rotation is opus-5-5 -> astra -> glm-5.3 -> kimi-k3 (four vendors)" "rotation is not the four-entry list"
+grep -q 'MISSION_DESIGNER_FALLBACK:-codex:gpt-6-astra,pi:ollama/glm-5.3:cloud,pi:ollama/kimi-k3:cloud,pi:openrouter/z-ai/glm-5.3,pi:openrouter/moonshotai/kimi-k3' tools/launchd/mission-control.sh \
+  && ok "S3b designer fallback chain follows the rotation (astra -> glm-5.3 -> kimi-k3)" \
+  || bad "S3b designer fallback chain follows the rotation (astra -> glm-5.3 -> kimi-k3)" "driver chain still names another model"
 # The driver seed must NOT have moved: astra is a rotation entry, so nothing pins it.
 # This is the arm that dies if someone re-applies the "astra takes the fable slot"
 # version, which looked identical in a role table and was not what was asked for.
@@ -498,19 +503,14 @@ grep -q 'now `claude:claude-opus-5-5` → `codex:gpt-6-astra` → `pi:ollama/dee
 grep -q 'MISSION_DESIGNER_MODEL:-claude:claude-opus-5-5' "$driver" \
   && ok "S4 designer seed is the Anthropic slot (opus-5-5), not astra" \
   || bad "S4 designer seed is the Anthropic slot (opus-5-5), not astra" "seed is not opus-5-5"
-# S5: astra sits in the designer rotation AND in the default quorum roster, so on
-# astra's turn the author is one of its own reviewers. That is a real defect with a
-# named workaround, not a footnote — this arm fails if the quorum default gains
-# astra while the skill stops carrying the substitution instruction, i.e. if the
-# collision ever becomes undocumented.
-if grep -q 'gpt6-astra,gemini-3-1-pro,oc-glm-5-2' cmd/ailang/design_quorum.go; then
-  if grep -q 'ASTRA IS ALSO A QUORUM REVIEWER' "$skill_all"; then
-    ok "S5 astra-in-quorum collision is documented where the designer is chosen"
-  else
-    bad "S5 astra-in-quorum collision is documented where the designer is chosen" "quorum names astra but the rotation row does not warn"
-  fi
+# S5: astra (and opus) sit in the designer rotation AND on the quorum roster. Since
+# 2026-09-25 the quorum benches the author's vendor itself, but only if the loop
+# says who the author was — this arm fails if the skill stops telling the
+# controller to pass --author.
+if grep -q -- '--author "<designer lane>"' "$skill_all"; then
+  ok "S5 skill passes the designer to design-quorum as --author"
 else
-  ok "S5 astra-in-quorum collision is documented where the designer is chosen"
+  bad "S5 skill passes the designer to design-quorum as --author" "no --author instruction — the author's vendor would review its own doc"
 fi
 
 echo ""

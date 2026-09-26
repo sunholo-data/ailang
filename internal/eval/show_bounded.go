@@ -29,7 +29,13 @@ func ShowBounded(v Value, maxBytes int) string {
 	if w.overflow == 0 {
 		return string(w.buf)
 	}
-	return fmt.Sprintf("%s…(+%d bytes elided)", w.buf, w.overflow)
+	return ShowBoundedOverflow(w.buf, w.overflow)
+}
+
+// ShowBoundedOverflow formats a truncated rendering: prefix plus the elided
+// byte count.
+func ShowBoundedOverflow(prefix []byte, overflow int) string {
+	return fmt.Sprintf("%s…(+%d bytes elided)", prefix, overflow)
 }
 
 // RenderedLen reports len(v.String()) without building the string. Used for
@@ -46,6 +52,7 @@ type boundedWriter struct {
 	budget    int
 	overflow  int
 	countOnly bool
+	redact    bool // withhold credentials (ShowTraceBounded, trace_redact.go)
 	scratch   [24]byte
 }
 
@@ -101,12 +108,22 @@ func (w *boundedWriter) render(v Value) {
 	case *IntValue:
 		w.writeBytes(strconv.AppendInt(w.scratch[:0], int64(val.Value), 10))
 	case *StringValue:
+		if w.redact && isCredentialString(val.Value) {
+			w.writeString(RedactedMarker)
+			return
+		}
 		w.writeString(val.Value)
 	case *ListValue:
 		w.renderSeq("[", "]", val.Elements)
 	case *ArrayValue:
 		w.renderSeq("#[", "]", val.Elements)
 	case *TupleValue:
+		if w.redact && len(val.Elements) == 2 {
+			if name, ok := val.Elements[0].(*StringValue); ok && IsSensitiveHeaderName(name.Value) {
+				w.renderSeq("(", ")", []Value{name, &StringValue{Value: RedactedMarker}})
+				return
+			}
+		}
 		w.renderSeq("(", ")", val.Elements)
 	case *TaggedValue:
 		w.writeString(val.CtorName)
@@ -119,6 +136,12 @@ func (w *boundedWriter) render(v Value) {
 			keys = append(keys, k)
 		}
 		sort.Strings(keys)
+		redactValue := false
+		if w.redact {
+			if name, ok := headerEntryName(val); ok && IsSensitiveHeaderName(name) {
+				redactValue = true
+			}
+		}
 		w.writeByte('{')
 		for i, k := range keys {
 			if i > 0 {
@@ -126,6 +149,10 @@ func (w *boundedWriter) render(v Value) {
 			}
 			w.writeString(k)
 			w.writeString(": ")
+			if w.redact && ((redactValue && k == "value") || IsSensitiveHeaderName(k)) {
+				w.writeString(RedactedMarker)
+				continue
+			}
 			w.render(val.Fields[k])
 		}
 		w.writeByte('}')

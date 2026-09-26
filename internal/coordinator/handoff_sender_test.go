@@ -57,7 +57,7 @@ func TestHandoffSender_AutoAndApprovalPathsProduceTheSameEnvelope(t *testing.T) 
 	}
 	// Approval path: no Pub/Sub in the test environment, so the row is stored
 	// and the sender reports exactly that — never a swallowed success.
-	err := sendAgentHandoffMessage(approvalStore, source, target, task, artifacts, task.GithubIssue)
+	err := sendAgentHandoffMessage(context.Background(), nil, approvalStore, source, target, task, artifacts, task.GithubIssue)
 	if err != nil && !errors.Is(err, errHandoffNotDispatched) {
 		t.Fatalf("approval path: %v", err)
 	}

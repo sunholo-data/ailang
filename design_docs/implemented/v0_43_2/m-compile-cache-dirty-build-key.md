@@ -1,6 +1,6 @@
 # M-COMPILE-CACHE-DIRTY-BUILD-KEY — a rebuilt compiler must not be served its predecessor's verdicts
 
-**Status**: Planned
+**Status**: Implemented 2026-09-25. Evaluated: PASS 94/100, round-1 findings fixed
 **Target**: v0.41.2
 **Priority**: P1. It silently falsifies verification: a fixed compiler reports "No errors" on
 programs it rejects, and `ailang run` executes them
@@ -104,6 +104,25 @@ premises).
 - `Makefile`: `COMMIT` dirty suffix (~2 LOC)
 - `internal/pipeline/cache_dirty_identity_test.go`: new (~80 LOC)
 
+### Implementation notes (2026-09-25)
+
+- **Deviation: the Makefile's `COMMIT` is unchanged.** `version.Commit` is also recorded as
+  `GitCommit` in eval-suite manifests (`cmd/ailang/eval_suite_manifest.go`), so a `-dirty` suffix
+  there would corrupt banked provenance. `version.Dirty()` reads the `-dirty` already present in
+  `Version` instead, plus `vcs.modified`. A build with no VCS info (`Commit == "dev"`) also counts
+  as dirty: every such build had shared one identity.
+- `currentCompilerIdentity` is the single production and test entry point, so the cache tests'
+  expected keys track the fingerprint instead of re-deriving a commit-only key.
+- `go run` re-links on every call, so CLI tests that use `runCLI` always miss. No test depended
+  on a cross-invocation hit; the in-process hit tests share one binary and still hit.
+
+- **Round-1 evaluation (PASS 94/100) fixes:** on unix the fingerprint includes the inode
+  (`build_fingerprint_unix.go`; other platforms use size and mtime only). This closes same-size
+  rebuilds within one coarse mtime tick and `cp -p` copies. `check()` in the integration test now
+  fails when the command fails, instead of reading a crash as "no cache line". Test packages'
+  `TestMain` unsets a developer's `AILANG_NO_CACHE`: with it exported, 13 cache tests failed after
+  the pipeline began honoring it.
+
 ## Conflict Surface
 
 No parser/type-system change. Shared machinery touched: the cache identity, which every compile
@@ -126,11 +145,11 @@ path reads.
 
 ## Success Criteria
 
-- [ ] V1 reproduction is a test and passes; it fails with the fingerprint removed
-- [ ] `AILANG_NO_CACHE=1` honored by `check` (test)
-- [ ] Clean build identity unchanged (existing cache tests green)
-- [ ] Both false comments corrected; CHANGELOG entry
-- [ ] `make test-core` green
+- [x] V1 reproduction is a test (`cmd/ailang/cache_dirty_build_test.go`, real binaries) and passes; it fails with the fingerprint removed (mutation run). The original fn_field reproduction also rejects at every step on the new code
+- [x] `AILANG_NO_CACHE=1` honored by `check` (subtest; it fails with the central read reverted)
+- [x] Clean build identity unchanged: a clean copy still hits, and the existing cache tests are green
+- [x] Both false comments corrected; CHANGELOG entry
+- [x] `make test-core` green
 
 ## Axiom Compliance
 
@@ -167,9 +186,9 @@ path reads.
 - [design_docs/implemented/v0_6_0/DX-15-semantic-caching-MVP.md](../../implemented/v0_6_0/DX-15-semantic-caching-MVP.md) (0.44)
 
 **Planned (check for overlap):**
-- [design_docs/planned/ailang-core-triage/compile-cache-path-dep-invalidation.md](../ailang-core-triage/compile-cache-path-dep-invalidation.md) (0.49): distinct key component (dependency interfaces)
-- [design_docs/planned/v0_36_0/m-cache-module-id-encoding.md](../v0_36_0/m-cache-module-id-encoding.md) (0.45): distinct (entry naming)
-- [design_docs/implemented/v0_41_2/m-eq-derive-containers.md](../../implemented/v0_41_2/m-eq-derive-containers.md): the sprint where this bit
+- [design_docs/planned/ailang-core-triage/compile-cache-path-dep-invalidation.md](../../planned/ailang-core-triage/compile-cache-path-dep-invalidation.md) (0.49): distinct key component (dependency interfaces)
+- [design_docs/planned/v0_36_0/m-cache-module-id-encoding.md](../../planned/v0_36_0/m-cache-module-id-encoding.md) (0.45): distinct (entry naming)
+- [design_docs/implemented/v0_42_0/m-eq-derive-containers.md](../v0_42_0/m-eq-derive-containers.md): the sprint where this bit
 
 ---
 

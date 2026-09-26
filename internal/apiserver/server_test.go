@@ -10,8 +10,14 @@ import (
 	"testing"
 )
 
-// testServer creates an API server loaded with a test module.
+// testServer creates an API server loaded with a test module, CORS any-origin.
 func testServer(t *testing.T) *Server {
+	t.Helper()
+	return testServerWith(t, Config{Port: "0", CORS: true})
+}
+
+// testServerWith creates an API server with cfg, loaded with a test module.
+func testServerWith(t *testing.T, cfg Config) *Server {
 	t.Helper()
 
 	// Create a temporary directory with a test AILANG module
@@ -54,7 +60,7 @@ export pure func add(x: int, y: int) -> int =
 		os.Setenv("AILANG_STDLIB_PATH", stdlibPath)
 	}
 
-	srv := New(tmpDir, Config{Port: "0", CORS: true})
+	srv := New(tmpDir, cfg)
 
 	if err := srv.LoadModules([]string{modPath}); err != nil {
 		t.Fatalf("LoadModules: %v", err)
@@ -368,37 +374,6 @@ func TestFunctionCallErrors(t *testing.T) {
 
 		if w.Code != http.StatusMethodNotAllowed {
 			t.Fatalf("expected 405, got %d", w.Code)
-		}
-	})
-}
-
-func TestCORSHeaders(t *testing.T) {
-	srv := testServer(t)
-	defer srv.Close()
-
-	mux := srv.buildRoutes()
-
-	t.Run("OPTIONS preflight", func(t *testing.T) {
-		req := httptest.NewRequest("OPTIONS", "/api/_health", nil)
-		w := httptest.NewRecorder()
-		mux.ServeHTTP(w, req)
-
-		if w.Code != http.StatusNoContent {
-			t.Fatalf("expected 204, got %d", w.Code)
-		}
-
-		if w.Header().Get("Access-Control-Allow-Origin") != "*" {
-			t.Error("expected CORS origin header")
-		}
-	})
-
-	t.Run("CORS on regular request", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/_health", nil)
-		w := httptest.NewRecorder()
-		mux.ServeHTTP(w, req)
-
-		if w.Header().Get("Access-Control-Allow-Origin") != "*" {
-			t.Error("expected CORS origin header on regular request")
 		}
 	})
 }

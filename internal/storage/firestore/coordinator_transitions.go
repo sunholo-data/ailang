@@ -34,6 +34,9 @@ func (s *CoordinatorStore) MarkTaskQueued(ctx context.Context, id string) error 
 		}
 		return tx.Update(doc, []firestore.Update{
 			{Path: "status", Value: string(coordinator.TaskStatusQueued)},
+			// Stamped in the claim's own write: the stale detector ages a cloud
+			// task from this, never from the message (M-TASK-STATUS-TRUTH S1).
+			{Path: "queued_at", Value: time.Now()},
 		})
 	})
 	if err == nil {

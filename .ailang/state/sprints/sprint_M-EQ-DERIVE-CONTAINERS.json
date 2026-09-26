@@ -2,8 +2,8 @@
   "sprint_id": "M-EQ-DERIVE-CONTAINERS",
   "status": "completed",
   "created": "2026-09-22",
-  "design_doc": "design_docs/implemented/v0_41_2/m-eq-derive-containers.md",
-  "sprint_plan": "design_docs/implemented/v0_41_2/m-eq-derive-containers-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_42_0/m-eq-derive-containers.md",
+  "sprint_plan": "design_docs/implemented/v0_42_0/m-eq-derive-containers-sprint-plan.md",
   "github_issues": [
     960,
     963
