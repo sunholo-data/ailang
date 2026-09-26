@@ -7,6 +7,35 @@ import (
 
 // Type system nodes
 
+// builtinTypeNames is the one list of lowercase primitive type names a
+// source annotation may use. The parser consults it to decide whether a
+// lowercase identifier in type position is a primitive (SimpleType) or a
+// type variable (TypeVar); anything missing here is silently parsed as a
+// type variable, which makes the annotation polymorphic. That is how
+// `f(b: bytes) -> bytes` once accepted `f(42)`. The type converters in
+// internal/elaborate and internal/types map these names to TCons, and
+// their tests range over BuiltinTypeNames so a name added here without a
+// mapping there fails a test instead of degrading silently.
+var builtinTypeNames = []string{"int", "float", "string", "bool", "unit", "char", "bytes"}
+
+// BuiltinTypeNames returns a copy of the primitive type names that are
+// never type variables in annotation position.
+func BuiltinTypeNames() []string {
+	out := make([]string, len(builtinTypeNames))
+	copy(out, builtinTypeNames)
+	return out
+}
+
+// IsBuiltinTypeName reports whether name is a primitive type name.
+func IsBuiltinTypeName(name string) bool {
+	for _, n := range builtinTypeNames {
+		if n == name {
+			return true
+		}
+	}
+	return false
+}
+
 // SimpleType represents basic types
 type SimpleType struct {
 	Name string
