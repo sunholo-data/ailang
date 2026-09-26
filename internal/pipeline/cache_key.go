@@ -25,7 +25,11 @@ import (
 // v3 -> v4 (M-COMPILE-CACHE-UNVERIFIED-ARTIFACTS): executable blobs are
 // authorized by a versioned artifacts.json stamp that binds their hashes to the
 // exact module ID and caller-computed cache key.
-const cacheKeyVersion = "v4"
+//
+// v4 -> v5: the on-disk Iface gained DerivedEq (types declared `deriving (Eq)`).
+// A v4 blob decodes with none, and a module served from it would silently lose
+// its Eq instances again, so v4 entries must miss.
+const cacheKeyVersion = "v5"
 
 // ModuleCacheKey computes a deterministic cache key for a module.
 // The key incorporates:

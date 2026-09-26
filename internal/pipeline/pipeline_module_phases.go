@@ -355,7 +355,7 @@ func (st *modulePipelineState) compileFreshModule(mod *loader.LoadedModule, modI
 		st.rootDebugSink = compileResult.DebugSink
 	}
 
-	if err := buildAndRegisterInterface(unit, modID, compileResult.ModuleTypeEnv, st.modLinker, imports.ImportedTypeAliases); err != nil {
+	if err := buildAndRegisterInterface(unit, modID, compileResult.ModuleTypeEnv, st.modLinker, imports.ImportedTypeAliases, elaborator.GetDerivedEqTypes()); err != nil {
 		return err
 	}
 

@@ -76,7 +76,7 @@ func TestCompileCacheClear_Artifacts(t *testing.T) {
 		if err := os.WriteFile(filepath.Join(modulesRoot, "orphan", "nested", ".artifacts-dead.tmp"), []byte("partial"), 0o644); err != nil {
 			t.Fatal(err)
 		}
-		manifest := `{"version":"v4","entries":{"seed":{"cache_key":"key","iface_digest":"digest","compile_time_ms":1,"timestamp":"2026-01-01T00:00:00Z"}}}`
+		manifest := `{"version":"v5","entries":{"seed":{"cache_key":"key","iface_digest":"digest","compile_time_ms":1,"timestamp":"2026-01-01T00:00:00Z"}}}`
 		if err := os.WriteFile(filepath.Join(compileRoot, "manifest.json"), []byte(manifest), 0o644); err != nil {
 			t.Fatal(err)
 		}

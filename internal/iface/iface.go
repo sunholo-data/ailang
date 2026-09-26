@@ -13,6 +13,7 @@ type Iface struct {
 	Types        map[string]*TypeExport        // Exported type names
 	TypeAliases  map[string]types.Type         // M-FIX-RECORD-UPDATE: Type alias expansions for record types
 	AliasParams  map[string][]string           // M-XMOD-ALIAS-POLY: param names for parameterized aliases (name -> ["a"]); missing = nullary
+	DerivedEq    []string                      // Types this module declares `deriving (Eq)`, sorted; importers need their Eq instances
 	Schema       string                        // Schema version, e.g., "ailang.iface/v1"
 	Digest       string                        // Deterministic digest of interface
 }

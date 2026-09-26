@@ -23,25 +23,7 @@ import (
 func registerDerivedEq(cfg Config, elaborator *elaborate.Elaborator, importedAliases map[string]types.Type) error {
 	derivedEqTypes := elaborator.GetDerivedEqTypes()
 	sort.Strings(derivedEqTypes)
-	for _, typeName := range derivedEqTypes {
-		inst := &types.ClassInstance{
-			ClassName: "Eq",
-			TypeHead:  &types.TCon{Name: typeName},
-			Dict: types.Dict{
-				"eq":  fmt.Sprintf("derived_eq_%s", typeName),
-				"neq": fmt.Sprintf("derived_neq_%s", typeName),
-			},
-		}
-		if err := cfg.InstEnv.Add(inst); err != nil {
-			// Duplicate registrations are expected when several files declare
-			// into one environment; only surface them in debug mode.
-			if cfg.DebugCompile {
-				fmt.Fprintf(os.Stderr, "[DEBUG] Could not add derived Eq instance for %s: %v\n", typeName, err)
-			}
-		}
-		// Runtime: the evaluator compares these TaggedValues structurally
-		cfg.DictReg.RegisterDerivedEq(typeName)
-	}
+	registerDerivedEqInstances(cfg, derivedEqTypes)
 
 	aliases := make(map[string]types.Type, len(importedAliases))
 	for name, target := range importedAliases {
@@ -65,4 +47,31 @@ func registerDerivedEq(cfg Config, elaborator *elaborate.Elaborator, importedAli
 		}
 	}
 	return nil
+}
+
+// registerDerivedEqInstances registers the Eq instance and runtime dictionary
+// of each named `deriving (Eq)` type. A module served from the compile cache
+// is never elaborated, so its interface's DerivedEq list is the only record
+// of these; without re-registering them an importer compiled in the same run
+// saw "No instance for Eq[T]" for a type that derives it.
+func registerDerivedEqInstances(cfg Config, typeNames []string) {
+	for _, typeName := range typeNames {
+		inst := &types.ClassInstance{
+			ClassName: "Eq",
+			TypeHead:  &types.TCon{Name: typeName},
+			Dict: types.Dict{
+				"eq":  fmt.Sprintf("derived_eq_%s", typeName),
+				"neq": fmt.Sprintf("derived_neq_%s", typeName),
+			},
+		}
+		if err := cfg.InstEnv.Add(inst); err != nil {
+			// Duplicate registrations are expected when several files declare
+			// into one environment; only surface them in debug mode.
+			if cfg.DebugCompile {
+				fmt.Fprintf(os.Stderr, "[DEBUG] Could not add derived Eq instance for %s: %v\n", typeName, err)
+			}
+		}
+		// Runtime: the evaluator compares these TaggedValues structurally
+		cfg.DictReg.RegisterDerivedEq(typeName)
+	}
 }
