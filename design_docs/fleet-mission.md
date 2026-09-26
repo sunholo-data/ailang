@@ -18,7 +18,7 @@ mission.
 **Scheduling**: launchd `dev.ailang.mission-fleet`, registry entry [`missions/fleet.toml`](../missions/fleet.toml)
 (interval 6h, boot offset 1680s). Billing guard as for every mission.
 **Log**: [fleet-mission-log.md](fleet-mission-log.md), append-only, one entry per iteration.
-**Human-facing reporting**: GitHub issue #<NNN> (seeded at install; live number in
+**Human-facing reporting**: GitHub issue #1321 (live number in
 `~/.ailang/state/mission-fleet-gh-issue`).
 
 ## Repo Profile (M-MISSION-PORTABILITY M2 — the per-mission values mission-control reads)
@@ -28,7 +28,7 @@ mission.
 - **Mission name / state namespace**: `fleet` (driver: `MISSION_NAME`; `~/.ailang/state/mission-fleet-*`)
 - **Checkout**: `/Users/voightkampff/dev/sunholo-data/ailang-fleet`, **its own clone**, same
   reason as docs and motoko: two loops in one working tree is the concurrent-agent hazard.
-- **Bookkeeping issue**: `#<NNN>`, rotates weekly; live number in `~/.ailang/state/mission-fleet-gh-issue`
+- **Bookkeeping issue**: `#1321`, rotates weekly; live number in `~/.ailang/state/mission-fleet-gh-issue`
 - **CI workflows Gate 3b / Gate 1 poll**: `CI` (runs on every push; no push paths filter).
 - **Verify profile**: `go-compiler`, plus the mission-loop-change pre-flight as the done-gate
   (below). Harness changes live in `tools/launchd/` (bash 3.2), `internal/mission/` and

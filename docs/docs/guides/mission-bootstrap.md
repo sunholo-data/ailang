@@ -140,6 +140,17 @@ Do these once on the machine that will host the loop:
    already-used working tree (V1) never sees it, which is why four prior mission bootstraps did not
    surface it.
 
+   > **SETTLED 2026-09-26 — the hang no longer happens; one side effect remains.** Run from an
+   > authenticated host shell in a brand-new clone (`ailang-fleet`, no `~/.claude.json` entry at all):
+   > `claude -p 'reply with exactly: ok'` returned `ok`, rc=0, well within 90s. So the trust dialog
+   > IS skipped under `-p` and the step is **not required** to avoid a hang. What an untrusted
+   > workspace still does, printed on stderr: *"Ignoring 66 permissions.allow entries from
+   > .claude/settings.json: this workspace has not been trusted."* The mission controller runs with
+   > `--permission-mode bypassPermissions`, so the ignored allowlist does not affect it. Opening
+   > Claude Code once in the checkout is still worthwhile for parity (project settings apply), but
+   > it is no longer a precondition. The `pin-root.sh` onboarding gate checks the *driver's* clone
+   > (the onboarded main checkout), not the mission workdir, so it is unaffected either way.
+   >
    > **⚠ This step may now be obsolete — settle it before paying for it (open, 2026-08-28).**
    > `claude --help` (v2.1.228) states, under `-p/--print`, that "the workspace trust dialog **is
    > skipped** when Claude is run in non-interactive mode (via `-p`, or when stdout is not a TTY)".

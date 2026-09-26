@@ -6,6 +6,20 @@
 **Risk**: medium. The code is small; the risk is reach, meaning edits that land somewhere nothing reads (see mission-loop-change Gates 0–3).
 **Worktree**: `.claude/worktrees/harness-mission-loop` (branch `sprint/harness-mission-loop`, base `origin/dev` 52a53a5d3)
 
+## Status: COMPLETE 2026-09-26 (all 5 milestones pass). Three items are outside this session's reach
+
+1. **Skills are not live yet.** Loops read `.claude/skills/*` from the MAIN checkout's working tree
+   (design V12, plan F6). That tree is behind `origin/dev` with a dirty tracked
+   `internal/proctree/child.pid`, so updating it is Mark's call. Until it is updated, the product
+   loops still follow the old Gate-2 text. The driver changes (scope guard, idle pre-check) ARE
+   live through the pin.
+2. **`ailang mission apply fleet`** must run from the main checkout once it carries
+   `missions/fleet.toml` (for the same reason). Until then the fleet plist is not installed. The
+   kill switch is armed regardless.
+3. **Promote `ailang-multivac` to prod** so `mission-fleet` is a declared triage inbox on the plane
+   (the dev commit d2f277d is the only commit ahead of prod). Filing works meanwhile; the send guard
+   warns.
+
 ## Facts established during planning (they shape the milestones)
 
 | # | Fact | Consequence |
@@ -20,27 +34,27 @@
 
 ## Milestones
 
-### M1: `ailang mission ticket` (file / open / resolve), about 380 LOC with tests
+### ✅ M1: `ailang mission ticket` (file / open / resolve), about 380 LOC with tests
 - `internal/mission/ticket.go`: the `Ticket` schema (mission, iteration, fire_started, signature, slot_verdict, blocking ∈ {none,item,all}, evidence ≤ 2 KB, workaround), `Validate`, `Title()`, `CorrelationID()`, and `GroupOpen([]InboxMessage) []OpenSignature` (ranked by occurrences desc, then oldest first).
 - `cmd/ailang/mission_ticket.go`: `ticket file` (validates, inserts to `mission-fleet` through `openStore`, runs the inbox guard), `ticket open [--count|--json]` (does not mark read), and `ticket resolve <signature> --resolution TEXT [--sha SHA]` (replies to each origin `mission-<name>` inbox once, then marks every occurrence read).
 - **Acceptance**: unit tests cover validation (bad blocking value, empty signature, oversized evidence truncated with a marker), stable titles, and grouping/ranking. An integration test against a local SQLite store runs file ×3 across 2 signatures → `open --count` = 2 → resolve one → `open --count` = 1, and the origin inbox holds the reply. Mutation check: drop the mark-read and the count test goes red.
 
-### M2: scope guard, about 150 LOC
+### ✅ M2: scope guard, about 150 LOC
 - `tools/launchd/githooks/pre-push`: when `MISSION_NAME` is set and the push target is `sunholo-data/ailang`, classify every changed path. A product mission (anything except `fleet`) touching a harness path is refused; `fleet` touching a product path is refused. The refusal message names `ailang mission ticket file`. Mission bookkeeping (`design_docs/<name>-mission*.md`) is always allowed. With no `MISSION_NAME` (an attended session) it does nothing. Pushes to other repos (world) do nothing.
 - Driver: export `GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.hooksPath GIT_CONFIG_VALUE_0=$MC_DRIVER_ROOT/tools/launchd/githooks` before the controller spawn.
 - `tools/launchd/test_mission_scope_guard.sh`, wired in `make/test.mk`: table (MISSION_NAME × path class × target repo) → allow/refuse, plus an end-to-end push into a bare repo proving the env-based hooksPath actually fires. Mutation-tested.
 
-### M3: skill rules (Gate 0 and Gate 2), about 80 lines of markdown
+### ✅ M3: skill rules (Gate 0 and Gate 2), about 80 lines of markdown
 - `gate-2-pick.md`: steps 2 and 5 become "file a ticket, record `[HARNESS] ticket:<signature>` in the queue row". Add a **fleet branch**: admissibility inverted; the queue = `ailang mission ticket open --json`; policy class (routing, quota, ration, billing guard, lane order) parks a decision row for Mark (HD-2a); no self-sourced audits.
 - Gate 0 (product loops): read `mission-<name>` for `harness-resolved` replies and unpark the matching rows.
 
-### M4: the fleet mission, about 250 lines (config and charter)
+### ✅ M4: the fleet mission, about 250 lines (config and charter)
 - `missions/fleet.toml` (interval 21600s, boot_offset 1680), `tools/launchd/mission-env/mission-fleet.env`, and a `fleet)` arm in `_mc_boot_offset`.
 - Driver pre-check: `MISSION_NAME=fleet` and `ailang mission ticket open --count` = 0 → log `fleet: no open tickets — idle` and exit 0 **before probes**. If the count command fails, yield loudly (never treat a failure as zero). Driver test with stubbed `ailang` for count=0, count=2 and rc≠0.
 - `design_docs/fleet-mission.md` charter (goal, authority row and scope, ranking, policy classes, done-gate = mission-loop-change pre-flight), plus seeded `fleet-mission-log.md` and `fleet-mission-index.md`.
 - `ailang-multivac/config/config.cloud.yaml`: declare `mission-fleet` triage (a dev commit in that repo; the prod promote is Mark's).
 
-### M5: live verification and docs
+### ✅ M5: live verification and docs
 - Dry-run `MISSION_PROFILE=fleet` with 0 open tickets (idle exit, no probes) and with 1 planted ticket (proceeds to `DRY RUN ok`).
 - Plant one ticket per mission (v1, docs, motoko, world) on the prod store with a `sprint-test:` signature; `open` shows 4 occurrences under 1 signature; resolve it; each origin inbox receives the reply.
 - Install: clone `ailang-fleet`, copy the env to `~/.config`, `ailang mission install fleet`. **The kill switch `mission-fleet.disabled` stays in place**: turning the fleet loop on is Mark's call.
