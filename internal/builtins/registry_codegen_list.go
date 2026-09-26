@@ -194,7 +194,7 @@ func registerListCodegenSpecs() {
 			Body: `list := toSlice(xs)
 	result := make([]interface{}, len(list))
 	copy(result, list)
-	sort.Slice(result, func(i, j int) bool {
+	sort.SliceStable(result, func(i, j int) bool {
 		return toInt64(CallFunc(cmp, result[i], result[j])) < 0
 	})
 	return result`,

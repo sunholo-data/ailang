@@ -112,18 +112,10 @@ export pure func join(delimiter: string, xs: [string]) -> string = _str_join(xs,
 export pure func concat(xs: [string]) -> string = _str_join(xs, "")
 
 -- repeat: Repeat a string n times
--- Complexity: O(n) single allocation via _str_join.
+-- Complexity: O(n) single allocation via the _str_repeat builtin (#1318).
 -- repeat("ab", 3) = "ababab"
 -- repeat("x", 0) = ""
-export pure func repeat(s: string, n: int) -> string {
-  if n <= 0 then "" else _str_join(_repeat_list(s, n), "")
-}
-
--- Internal helper: build [s, s, ..., s] (n times).
--- Not exported; used by repeat/. Keep the strings.Builder in _str_join doing the heavy lifting.
-pure func _repeat_list(s: string, n: int) -> [string] {
-  if n <= 0 then [] else s :: _repeat_list(s, n - 1)
-}
+export pure func repeat(s: string, n: int) -> string = _str_repeat(s, n)
 
 -- M-DOCPARSE-DX M3: String splitting
 

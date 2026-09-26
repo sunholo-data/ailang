@@ -2,7 +2,6 @@ package builtins
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/sunholo-data/ailang/internal/effects"
 	"github.com/sunholo-data/ailang/internal/eval"
@@ -637,15 +636,6 @@ func listTakeImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, error) 
 	n := nVal.Value
 	if n <= 0 {
 		return &eval.ListValue{Elements: []eval.Value{}}, nil
-	}
-
-	// M-EVAL-BOUNDED-PIPELINE: warn when take discards a large portion of the list.
-	// This suggests the list was fully materialized before take could cap it —
-	// takeFlatMap or takeMap would avoid the intermediate allocation.
-	if len(list.Elements) > 10000 && n < len(list.Elements)/2 {
-		fmt.Fprintf(os.Stderr, "note: take(%d) on a %d-element list — %d elements were materialized then discarded.\n"+
-			"      Consider takeFlatMap(n, f, xs) or takeMap(n, f, xs) to avoid intermediate allocation.\n",
-			n, len(list.Elements), len(list.Elements)-n)
 	}
 
 	if n > len(list.Elements) {

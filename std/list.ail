@@ -37,22 +37,10 @@ export pure func reverse[a](xs: [a]) -> [a] = _list_reverse(xs)
 -- Appends ys to xs by copying: O(len(xs) + len(ys)) per call. In a loop, `concat(acc, [x])`
 -- is O(n^2) in time AND memory (measured: 5,000 records = 78 s / 1.7 GB; the same list
 -- built by prepend-then-reverse = 0.36 s / 294 MB). Prefer foldl/map; else `x :: acc` then `reverse`.
-export pure func concat[a](xs: [a], ys: [a]) -> [a] {
-  match xs {
-    [] => ys,
-    [x, ...rest] => [x] ++ concat(rest, ys)
-  }
-}
+export pure func concat[a](xs: [a], ys: [a]) -> [a] = xs ++ ys
 
-export pure func zip[a, b](xs: [a], ys: [b]) -> [(a, b)] {
-  match xs {
-    [] => [],
-    [xh, ...xr] => match ys {
-      [] => [],
-      [yh, ...yr] => [(xh, yh)] ++ zip(xr, yr)
-    }
-  }
-}
+-- Truncates to the shorter list. Delegates to the iterative _list_zip builtin (#1318).
+export pure func zip[a, b](xs: [a], ys: [b]) -> [(a, b)] = _list_zip(xs, ys)
 
 -- Apply a function to each element, returning a new list.
 -- M-ITERATIVE-LIST: Delegates to Go-level iterative builtin for O(1) stack usage.
@@ -70,42 +58,18 @@ export pure func foldr[a, b](f: (a, b) -> b, acc: b, xs: [a]) -> b {
 }
 
 -- ============================================================================
--- Sorting (v0.6.3) - Merge sort with custom comparator
+-- Sorting (v0.6.3) - stable sort with custom comparator
 -- ============================================================================
 
 -- sortBy: Sort list using a comparison function
 -- cmp(a, b) should return: negative if a < b, 0 if equal, positive if a > b
-export pure func sortBy[a](cmp: (a, a) -> int, xs: [a]) -> [a] {
-  match xs {
-    [] => [],
-    [x] => [x],
-    _ => {
-      let mid = length(xs) / 2
-      let left = take(mid, xs)
-      let right = drop(mid, xs)
-      mergeBy(cmp, sortBy(cmp, left), sortBy(cmp, right))
-    }
-  }
-}
-
--- mergeBy: Merge two sorted lists using comparison function
-pure func mergeBy[a](cmp: (a, a) -> int, xs: [a], ys: [a]) -> [a] {
-  match xs {
-    [] => ys,
-    [x, ...xr] => match ys {
-      [] => xs,
-      [y, ...yr] => if cmp(x, y) <= 0 then [x] ++ mergeBy(cmp, xr, ys) else [y] ++ mergeBy(cmp, xs, yr)
-    }
-  }
-}
+-- Stable: elements that compare equal keep their input order. Delegates to the
+-- iterative _list_sortBy builtin (#1318) — the old merge sort recursed once per
+-- element and copied on every `++` (84k strings: 99.7 GB, 36 s).
+export pure func sortBy[a](cmp: (a, a) -> int, xs: [a]) -> [a] = _list_sortBy(cmp, xs)
 
 -- take: Take first n elements
-export pure func take[a](n: int, xs: [a]) -> [a] {
-  if n <= 0 then [] else match xs {
-    [] => [],
-    [x, ...rest] => [x] ++ take(n - 1, rest)
-  }
-}
+export pure func take[a](n: int, xs: [a]) -> [a] = _list_take(n, xs)
 
 -- drop: Drop first n elements
 -- Delegates to the iterative builtin to avoid recursion-depth failures on large n.
@@ -203,12 +167,7 @@ export pure func zipWith[a, b, c](f: (a, b) -> c, xs: [a], ys: [b]) -> [c] {
 -- ============================================================================
 
 -- flatMap: Apply function returning list to each element, flatten results
-export pure func flatMap[a, b](f: a -> [b], xs: [a]) -> [b] {
-  match xs {
-    [] => [],
-    [x, ...rest] => concat(f(x), flatMap(f, rest))
-  }
-}
+export pure func flatMap[a, b](f: a -> [b], xs: [a]) -> [b] = _list_flatMap(f, xs)
 
 -- Fused take + flatMap: retains at most n outputs and stops invoking f once
 -- they exist. It bounds f invocation to the needed input prefix, but does NOT

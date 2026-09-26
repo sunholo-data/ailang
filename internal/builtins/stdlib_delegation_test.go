@@ -44,7 +44,6 @@ var listDelegationExemptions = map[string]listDelegationExemption{
 	"_list_extract":   {NotNeeded, true, "std/list exposes no extract operation to delegate"},
 	"_list_filterE":   {NoRuntimeImpl, false, "codegen-only: the interpreter has no implementation to which std/list.filterE can delegate"},
 	"_list_findIndex": {NoRuntimeImpl, false, "codegen-only: the interpreter has no implementation to which std/list.findIndex can delegate"},
-	"_list_flatMap":   {NoRuntimeImpl, false, "codegen-only: the interpreter has no implementation to which std/list.flatMap can delegate"},
 	"_list_flatMapE":  {NoRuntimeImpl, false, "codegen-only: the interpreter has no implementation to which std/list.flatMapE can delegate"},
 	"_list_foldlE":    {NoRuntimeImpl, false, "codegen-only: the interpreter has no implementation to which std/list.foldlE can delegate"},
 	"_list_foldr":     {NoRuntimeImpl, false, "codegen-only: the interpreter has no implementation to which std/list.foldr can delegate"},
@@ -52,14 +51,7 @@ var listDelegationExemptions = map[string]listDelegationExemption{
 	"_list_head":      {NotNeeded, true, "std/list.head is already O(1) through list pattern matching"},
 	"_list_last":      {NotNeeded, false, "codegen-only helper is unnecessary in the interpreter because std/list.last composes _list_length and _list_nth"},
 	"_list_mapE":      {NoRuntimeImpl, false, "codegen-only: the interpreter has no implementation to which std/list.mapE can delegate"},
-	"_list_sortBy":    {NoRuntimeImpl, false, "codegen-only: the interpreter has no implementation to which std/list.sortBy can delegate"},
 	"_list_tail":      {NotNeeded, false, "codegen-only helper is unnecessary in the interpreter because std/list.tail is O(1) pattern matching"},
-	"_list_take": {DelegableNow, true, "runtime-backed, and std/list.take STILL FAILS RT_REC_003 on large n — " +
-		"the same crash std/list.drop had, measured at take(12000, <16384-element list>). Delegation is " +
-		"deferred, NOT because the problem is absent, but because _list_take is the only list builtin that " +
-		"writes to stderr (a materialization note), so delegating would make a pure stdlib function emit " +
-		"output on the common take(small_n, big_list) call. Needs its own fix, not just a delegation"},
-	"_list_zip": {NoRuntimeImpl, false, "codegen-only: the interpreter has no implementation to which std/list.zip can delegate"},
 }
 
 // registeredListBuiltins reads the LIVE registries rather than parsing source.

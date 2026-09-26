@@ -2,6 +2,7 @@ package vm
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/bytecode"
@@ -207,4 +208,65 @@ func hofBuiltinStrMapSlicesJoin(caller ClosureCaller, args []bytecode.Value) (by
 		s = s[idx+len(delim):]
 	}
 	return bytecode.NewString(builder.String()), nil
+}
+
+// hofBuiltinListSortBy implements __list_sortBy: ((a, a) -> int, [a]) -> [a].
+// Stable, matching the evaluator's _list_sortBy (#1318).
+func hofBuiltinListSortBy(caller ClosureCaller, args []bytecode.Value) (bytecode.Value, error) {
+	if len(args) != 2 {
+		return bytecode.Value{}, fmt.Errorf("__list_sortBy: expected 2 args, got %d", len(args))
+	}
+	cmp := args[0]
+	if args[1].Tag != bytecode.TagList {
+		return bytecode.Value{}, fmt.Errorf("__list_sortBy: arg 1 must be list, got %s", args[1].Tag)
+	}
+	src := args[1].AsList()
+	result := make([]bytecode.Value, len(src))
+	copy(result, src)
+	// sort.SliceStable cannot return an error: record the first failure and
+	// short-circuit every later comparison.
+	var cmpErr error
+	sort.SliceStable(result, func(i, j int) bool {
+		if cmpErr != nil {
+			return false
+		}
+		v, err := caller.CallClosure(cmp, []bytecode.Value{result[i], result[j]})
+		if err != nil {
+			cmpErr = fmt.Errorf("__list_sortBy: comparator error: %w", err)
+			return false
+		}
+		if v.Tag != bytecode.TagInt {
+			cmpErr = fmt.Errorf("__list_sortBy: comparator must return int, got %s", v.Tag)
+			return false
+		}
+		return v.Int < 0
+	})
+	if cmpErr != nil {
+		return bytecode.Value{}, cmpErr
+	}
+	return bytecode.NewList(result), nil
+}
+
+// hofBuiltinListFlatMap implements __list_flatMap: (a -> [b], [a]) -> [b] (#1318).
+func hofBuiltinListFlatMap(caller ClosureCaller, args []bytecode.Value) (bytecode.Value, error) {
+	if len(args) != 2 {
+		return bytecode.Value{}, fmt.Errorf("__list_flatMap: expected 2 args, got %d", len(args))
+	}
+	fn := args[0]
+	if args[1].Tag != bytecode.TagList {
+		return bytecode.Value{}, fmt.Errorf("__list_flatMap: arg 1 must be list, got %s", args[1].Tag)
+	}
+	elems := args[1].AsList()
+	result := make([]bytecode.Value, 0, len(elems))
+	for i, e := range elems {
+		v, err := caller.CallClosure(fn, []bytecode.Value{e})
+		if err != nil {
+			return bytecode.Value{}, fmt.Errorf("__list_flatMap: callback error at index %d: %w", i, err)
+		}
+		if v.Tag != bytecode.TagList {
+			return bytecode.Value{}, fmt.Errorf("__list_flatMap: f must return a list, got %s at index %d", v.Tag, i)
+		}
+		result = append(result, v.AsList()...)
+	}
+	return bytecode.NewList(result), nil
 }
