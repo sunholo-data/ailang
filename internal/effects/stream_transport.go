@@ -2,6 +2,7 @@ package effects
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"net"
@@ -62,6 +63,16 @@ type StreamDialConfig struct {
 	// platform package cannot re-resolve the name on its own. A transport
 	// that ignores it is a boundary violation, not a fallback.
 	DialContext func(ctx context.Context, network, addr string) (net.Conn, error)
+
+	// TLSClientConfig is the StreamContext's TLS client config (nil = system
+	// roots). Carried so a wss:// dial trusts exactly what the policy says.
+	TLSClientConfig *tls.Config
+}
+
+// StreamCodeCloser is implemented by transports that can send a specific
+// close code and reason (bridge CloseBridge verdicts, serve-api 1011/1001).
+type StreamCodeCloser interface {
+	CloseWithCode(code int, reason string) error
 }
 
 // StreamTransport is a bidirectional message transport opened by a registered

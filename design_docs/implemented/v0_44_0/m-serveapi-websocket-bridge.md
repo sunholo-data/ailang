@@ -1,15 +1,15 @@
 # M-SERVEAPI-WS-BRIDGE: a serve-api WebSocket route with a per-frame AILANG verdict
 
-**Status**: Planned. A **candidate for `ailang design-quorum`** (not yet run; see [Quorum](#quorum-candidate-not-run)).
+**Status**: IMPLEMENTED (M1–M5), 2026-09-25. See [Decisions](#decisions-mark-2026-09-25) and the [Implementation Report](#implementation-report). design-quorum was not run.
 **Target**: v0.44.0
 **Priority**: P1. The consumer is Daneel's live voice/avatar page (daneel repo, M-DANEEL-LIVE), whose sprint assumes this lands "within days". Mark sets the final priority.
 **Estimated**: 5–6 working days across M0–M5. The core relay (M1+M2) is about 3 days.
 **Dependencies**:
 - **Hard prerequisite:** [m-serveapi-bind-host-cors](m-serveapi-bind-host-cors.md) (written in parallel). serve-api binds `*:port` and sends `Access-Control-Allow-Origin: *` by default, so without it this route would publish a credential-bearing relay on every interface.
-- Reuses: [M-STREAM-BIDI](../implemented/v0_8_1/m-stream-bidi-primitives.md) (v0.8.1), [M-ASYNC-IO](../implemented/v0_9_0/m-async-io-stream.md) (v0.9.0), the serve-api per-call `Fork`, and the `StreamTransport` seam (S2 M2).
-- Relates to: [m-trace-label-aware](v0_36_0/m-trace-label-aware.md), which does **not** block this design. The design keeps the credential out of AILANG values, so it does not depend on trace redaction.
+- Reuses: [M-STREAM-BIDI](../v0_8_1/m-stream-bidi-primitives.md) (v0.8.1), [M-ASYNC-IO](../v0_9_0/m-async-io-stream.md) (v0.9.0), the serve-api per-call `Fork`, and the `StreamTransport` seam (S2 M2).
+- Relates to: [m-trace-label-aware](../../planned/v0_36_0/m-trace-label-aware.md), which does **not** block this design. The design keeps the credential out of AILANG values, so it does not depend on trace redaction.
 
-**Revisits**: [M-STREAM-SERVE-API (REJECTED 2026-02-16)](../rejected/m-stream-serve-api-proxy.md)
+**Revisits**: [M-STREAM-SERVE-API (REJECTED 2026-02-16)](../../rejected/m-stream-serve-api-proxy.md)
 **Requester**: Daneel, message `inbox_1790359269771_90811127`, 2026-09-25
 **Author**: design-doc-creator, attended session 2026-09-25, `dev` = `62608138d` (dirty tree, which is other agents' work; none of it touches the files cited here)
 **Planner-Lane**: opus-required. It touches the parser, the effects core, serve-api and credential handling.
@@ -127,10 +127,27 @@ The rejected doc also made points that were **right and are carried forward**:
 
 Mark must rule on these before sprint-executor starts:
 
-- [ ] **D1** mechanism: route + bridge fold (recommended below)
-- [ ] **D2** `@route("WS", …)` rather than `@websocket`
-- [ ] **D3** host-side credential binding, with `gcp-adc` as the only provider in v1
-- [ ] **D4** browser authentication posture for the Daneel page (see [Open questions](#open-questions-for-mark))
+- [x] **D1** mechanism: route + bridge fold (recommended below)
+- [x] **D2** `@route("WS", …)` rather than `@websocket`
+- [x] **D3** host-side credential binding. **Amended by Mark:** the source must be explicit, not `gcp-adc` (see [Decisions](#decisions-mark-2026-09-25))
+- [x] **D4** browser authentication posture for the Daneel page (see [Open questions](#open-questions-for-mark))
+
+### Decisions (Mark, 2026-09-25)
+
+- **D1 mechanism:** route + bridge, as recommended.
+- **D3 credential:** Daneel already has its own GCP credential in its own GCP project. The binding uses a credential **configured for the upstream host from an explicitly named source**, not implicitly the Studio's gcloud user ADC. It is still never an AILANG value and never in a frame or trace. Implemented as `--stream-credential HOST[:PORT]=SOURCE` with sources `gcp-key-file:PATH` (service_account, impersonated_service_account or external_account; a gcloud `authorized_user` file is refused), `gcp-metadata` (named explicitly) and `bearer-file:PATH`. No implicit ADC and no gcloud fallback.
+- **D4 browser auth:** tailnet bind + Origin allowlist for v1. An optional key is supported (`Sec-WebSocket-Protocol: ailang.v1, ailang.key.<key>`) but not required.
+- **Sequencing:** M0 is [#1313](https://github.com/sunholo-data/ailang/pull/1313) (`--bind` loopback default, `--cors-origin` allowlist), which this work reuses and does not reimplement.
+
+### Implementation decisions (agent, 2026-09-25)
+
+- **No `--ws-allow-any-interface`.** #1313 made loopback the default, so the escape hatch had nothing left to protect. Instead serve-api **refuses to start** when a `WS` route is registered, the bind host is not loopback, and there is no `--cors-origin` allowlist. `--cors` (every origin) does not count.
+- **One allowlist.** `--cors-origin` is both the CORS and the WS Origin allowlist; `--ws-allowed-origins` was not added. Same-origin is always allowed; a missing or `null` Origin is refused.
+- **Queue bound** is `--ws-queue-frames` (default 64 per direction). The byte bound is 64 × the 64 KiB frame limit = 4 MiB, so there is no second byte counter.
+- **Bridge end semantics:** the upstream is always closed when `bridge` returns; the client too, except on `UpstreamClosed`, so the handler can dial a new upstream (the doc's A1 non-goal leaves reconnection to the handler).
+- **Handler request record** is `{path, query, origin}`; headers are not passed (cookies would be one `show` away from a log).
+- **Decision log sink:** the serve-api log (`[ws-bridge] {json}` lines), enabled by `--ws-decision-log`.
+- **G7 fix location:** the one trace renderer (`eval.ShowTraceBounded`, reached from `EffContext.RenderTraceValue` and the typed evaluator's `boundedShow`), so effect, builtin and function-call trace sites are all covered by one change. Name rules are exact names, not substrings, so `{input_tokens: 50}` stays readable.
 
 ## Deferred Decisions
 
@@ -507,7 +524,7 @@ The mutation check (memory: *mutation-test your own tests*): revert the Origin c
 
 ## Quorum (candidate, not run)
 
-This doc is a **candidate for `ailang design-quorum`**. Two triggers fire: **#1**, because there are design-freeze items (D1–D4), and **#4**, because load-bearing premises concern external systems (the Vertex Live frame format and the browser WebSocket auth constraints). It was **not run in this session**, per the task instructions. When it is run: `ailang design-quorum design_docs/planned/m-serveapi-websocket-bridge.md --author claude:claude-opus-5-5 --max-cost-usd 0.30`. The doc is long, and the $0.10 cap drops gpt6-astra (memory: design-quorum budget cap).
+This doc is a **candidate for `ailang design-quorum`**. Two triggers fire: **#1**, because there are design-freeze items (D1–D4), and **#4**, because load-bearing premises concern external systems (the Vertex Live frame format and the browser WebSocket auth constraints). It was **not run in this session**, per the task instructions. When it is run: `ailang design-quorum design_docs/implemented/v0_44_0/m-serveapi-websocket-bridge.md --author claude:claude-opus-5-5 --max-cost-usd 0.30`. The doc is long, and the $0.10 cap drops gpt6-astra (memory: design-quorum budget cap).
 
 ---
 
@@ -552,13 +569,13 @@ All in-repo claims were checked at `dev` = `62608138d`, 2026-09-25, `ailang v0.4
 
 ## Related Documents
 
-- [M-STREAM-SERVE-API (rejected)](../rejected/m-stream-serve-api-proxy.md): answered point by point above
-- [M-STREAM-BIDI](../implemented/v0_8_1/m-stream-bidi-primitives.md): dispatch model, block backpressure, budget keys (reused); server-side WS was its explicit non-goal (`:964`)
-- [M-WASM-STREAM-BRIDGE](../implemented/v0_8_1/m-wasm-stream-bridge.md): the browser-side AILANG stream bridge. Orthogonal: it runs AILANG **in** the browser, whereas here the browser is a thin client and policy runs on the Studio
-- [M-ASYNC-IO](../implemented/v0_9_0/m-async-io-stream.md): `selectEvents` merge rules reused by the bridge loop
-- [m-serveapi-protocol-only-module](m-serveapi-protocol-only-module.md): Go-packaging split of the `serveapi` facade. **Overlap:** the new WS code must stay in `internal/apiserver` and `internal/platform/streamws` and add nothing to the protocol-only package's closure. The facade may later expose a `WS` option, which is out of scope here
+- [M-STREAM-SERVE-API (rejected)](../../rejected/m-stream-serve-api-proxy.md): answered point by point above
+- [M-STREAM-BIDI](../v0_8_1/m-stream-bidi-primitives.md): dispatch model, block backpressure, budget keys (reused); server-side WS was its explicit non-goal (`:964`)
+- [M-WASM-STREAM-BRIDGE](../v0_8_1/m-wasm-stream-bridge.md): the browser-side AILANG stream bridge. Orthogonal: it runs AILANG **in** the browser, whereas here the browser is a thin client and policy runs on the Studio
+- [M-ASYNC-IO](../v0_9_0/m-async-io-stream.md): `selectEvents` merge rules reused by the bridge loop
+- [m-serveapi-protocol-only-module](../../planned/m-serveapi-protocol-only-module.md): Go-packaging split of the `serveapi` facade. **Overlap:** the new WS code must stay in `internal/apiserver` and `internal/platform/streamws` and add nothing to the protocol-only package's closure. The facade may later expose a `WS` option, which is out of scope here
 - [m-serveapi-bind-host-cors](m-serveapi-bind-host-cors.md): **prerequisite** (written in parallel)
-- [m-trace-label-aware](v0_36_0/m-trace-label-aware.md): the general trace/label fix. This design avoids depending on it
+- [m-trace-label-aware](../../planned/v0_36_0/m-trace-label-aware.md): the general trace/label fix. This design avoids depending on it
 
 ## References
 
@@ -573,3 +590,36 @@ All in-repo claims were checked at `dev` = `62608138d`, 2026-09-25, `ailang v0.4
 - `Tick` frames and "emit to the other side" verdicts, if a second consumer needs them.
 - More credential providers (`secret:op://…` through `std/secret`'s resolver, kept host-side).
 - Network record/replay of bridge sessions (the unimplemented M-STREAM-BIDI replay contract).
+
+## Implementation Report
+
+Implemented 2026-09-25 on `feat/serveapi-websocket-bridge` (base: #1313).
+
+| Milestone | Where | Tests |
+|---|---|---|
+| M1 accept path | `internal/parser/parser_decl.go` (`"WS"`), `internal/apiserver/routes_ws.go`, `authorized_surface.go` (`IsWS`), `internal/platform/streamws/accept.go`, `effects.AdoptStreamConnection`, `StreamContext.Child`, `embed.Engine.CallPrepared` / `runtime.CallEntrypointPrepared`, `cmd/ailang/serve_api_ws.go` | `routes_ws_test.go`: echo (A1), 426/403/503 (A2), OpenAPI/MCP/catch-all exclusion (A3), session isolation (A4), startup validation, API-key subprotocol, shutdown 1001 |
+| M2 bridge fold | `std/stream/bridge.ail`, `internal/builtins/stream_bridge.go`, `internal/effects/stream_bridge.go` | `stream_bridge_test.go`: 1,000 mixed frames each way (A1), speech gate strict subset (A2/A3), barge-in (A4), `StepFailed` + 1011 (A5), client close under 100 ms (A6), `CloseBridge` codes, Replace/UpstreamClosed, `Stream.recv`/`Stream.send` budget |
+| M3 credential + G7 | `internal/platform/streamcred`, `applyStreamCredential` in `stream_ws.go`, `internal/eval/trace_redact.go` | `stream_credential_test.go` (binding fires over TLS, exact host/port/scheme, double-auth refusal, trace redaction), `streamcred_test.go`, `trace_redact_test.go`, and the end-to-end canary `routes_ws_canary_test.go` |
+| M4 decision log + example | `decisionLogger` in `routes_ws.go`, `examples/serveapi_ws_bridge.ail`, guide section "WebSocket Routes & the Bridge" | canary test asserts one line per frame and no payloads |
+| M5 measurement | `internal/apiserver/routes_ws_bench_test.go` | recorded below |
+
+**Canary (Success metric 4).** A token planted through the binding reaches the TLS fake upstream (positive control) and appears in 0 client frames, 0 bytes of the deep trace file, 0 lines of stderr/server log and 0 decision-log lines.
+
+**Mutation checks.** Each was reverted and the named test failed, then restored: the Origin check (`TestWS_RefusedBeforeUpgrade`), `Child()` replaced by the shared context (`TestWS_SessionsAreIsolated`, probe saw "Open Open"), `Forward` sending nothing (four bridge tests), the `wss`-only guard removed in both the core and the binder (`TestCredentialBinding_ExactHostPortSchemeOnly`), the G7 renderer reverted (`TestTrace_RedactsProgramAuthorizationHeader`), and the credential copied into the program's `connect` config with G7 reverted (`TestWS_CredentialCanary`). With G7 in place, that last leak was still withheld from the trace: the defence in depth works.
+
+**M5 numbers** (Apple M4 Max, `go test ./internal/apiserver/ -run NONE -bench WSRelay -benchtime 5000x -count 3`). One iteration is one 22 KB frame from client to serve-api to an echo upstream and back, so it includes two AILANG step calls and two relay hops:
+
+| Path | p50 RTT | p95 RTT |
+|---|---|---|
+| Direct to the echo upstream (baseline) | 35 µs | 84 µs |
+| Through the bridge, binary frames (`UpBin` gate) | 114 µs | 224–239 µs |
+| Through the bridge, text frames (string-scan gate) | 128 µs | 254–261 µs |
+
+The added latency is about (257 − 84) / 2 ≈ 87 µs per frame at p95, well under the 2 ms target. Sequential round trips sustain about 7,000 frames/s per connection, against the 200 frames/s target, with 0 frames lost (the benchmark checks every echoed frame's size). RSS was not measured separately; the per-direction queue bound (64 frames × 64 KiB) caps queued memory at 4 MiB.
+
+**Not done / follow-ups.**
+- The Daneel acceptance against live `BidiGenerateContent` (outside CI) and the P1 captured Vertex frames remain Daneel's to run.
+- `@raw` routes still receive the request's headers (cookies included) as a Json value. The trace renderer now withholds credential-named entries, but a program that `println`s them is not covered.
+- `ailang server`'s own WebSocket (`internal/websocket/server.go`) still accepts any Origin. That is out of scope here, as #1313 also noted.
+- `--watch` reload with live sessions: sessions finish on the code they started with (no special handling was added).
+
