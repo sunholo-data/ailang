@@ -136,6 +136,13 @@ and resolve it as "already fixed" with evidence if it no longer reproduces.
 4. `pi-runner:sandbox-extensions-not-wired`: pi roles run unfenced. Safety, not throughput.
 
 **P1 — silent wedges and invisible failures**
+0. **[DIRECTIVE, Mark via attended session 2026-09-26, from fleet iteration 1's own friction (a)]**
+   `tests:driver-env-leaks-into-launchd-suite`: inside a fire, the driver's exported `MISSION_*`
+   env reaches `make test-launchd-drivers`, and `test_mission_routing` reads it as
+   "unparsable-path-entry". So the fleet's own done-gate is red at base on every fire, and each
+   iteration has to prove the red is not a regression. Fix it at the suite boundary (scrub mission
+   env per suite, or in the make target), not per test. The `GIT_CONFIG_*` half was fixed attended
+   in `test_mission_scope_guard.sh`.
 5. `driver:exit-path-notices-unbounded`: unbounded sends on the exit path can hang a fire.
 6. `gate0:driver-crash-notices-invisible`: loops cannot see their own crash notices.
 7. `quorum:artifact-dir-cwd-relative`: reviewed docs read as unreviewed from pin worktrees.
