@@ -20,13 +20,22 @@
    (the dev commit d2f277d is the only commit ahead of prod). Filing works meanwhile; the send guard
    warns.
 
+### Evaluation round 1 (Sonnet, independent): 78/100 PASS, three findings fixed the same day
+1. The fleet scope was a denylist while the charter said allowlist. It is now a real allowlist
+   (harness + support paths); CI workflows, `go.mod`, server, UI and non-mission commands are refused.
+2. Product loops could push the fleet's own charter and log. `design_docs/fleet-mission*` is now a harness path.
+3. A retried `ticket file` double-counted `slots_lost`. Filing is now idempotent per occurrence.
+
+Open follow-up (low): "unread = open" is a prose rule; an attended `messages ack --all` would close every
+ticket. A mechanical guard (refuse read/ack on `mission-fleet` outside `ticket resolve`) is not built.
+
 ## Facts established during planning (they shape the milestones)
 
 | # | Fact | Consequence |
 |---|---|---|
 | F1 | `ailang messages send` refuses an inbox that is neither agent-served nor declared triage when the registry is authoritative (`cmd/ailang/messages_send_inbox_guard.go`) | `mission-fleet` must be declared in `triage_only_inboxes` in `ailang-multivac/config/config.cloud.yaml`, and it goes live only when the prod branch is promoted (Mark's step). Until then the ticket command passes the guard's force path explicitly, and says so |
 | F2 | Inbox messages have only `unread`/`read`; `ack` = mark read; `list --json` does not mark read | Protocol: the fleet loop reads with `list`/`ticket open`, **never** `messages read`, and marks tickets read only when resolving. "Open" = unread in `mission-fleet` |
-| F3 | Titles are deduped per inbox (`InboxMessageExistsByTitle`) | One message per **occurrence**, titled `[harness] <signature> · <mission>#<iter>`, with `correlation_id = harness:<signature>`. `slots_lost` = occurrences per signature, computed rather than updated (this settles the design's deferred decision) |
+| F3 | Titles are deduped per inbox (`InboxMessageExistsByTitle`). **Corrected by evaluation round 1:** only `messages send` performs that check; the store enforces no uniqueness, so `ticket file` now checks it itself (idempotent per occurrence) | One message per **occurrence**, titled `[harness] <signature> · <mission>#<iter>`, with `correlation_id = harness:<signature>`. `slots_lost` = occurrences per signature, computed rather than updated (this settles the design's deferred decision) |
 | F4 | No git hooks are installed in any mission clone, and git is 2.54 | The scope guard is a `pre-push` hook enabled **per fire** through `GIT_CONFIG_COUNT/KEY/VALUE` → `core.hooksPath`. No repo config is touched, and attended sessions are unaffected |
 | F5 | Mission PR branches use a `mission/` prefix | A CI backstop is possible but is deferred (the hook comes first; see Deferred) |
 | F6 | Skills are symlinks into the **main checkout working tree** (design V12) | Skill edits reach loops only when the main checkout is at or past the commit. The main checkout is currently behind origin with a dirty tracked `internal/proctree/child.pid`, so delivery needs Mark's OK to update it. This is reported and not worked around |

@@ -27,7 +27,19 @@ check fleet internal/types/unify.go refuse
 check fleet std/list.ail refuse
 check fleet design_docs/fleet-mission-log.md allow
 check "" tools/launchd/mission-control.sh allow
-echo 'PASS scope verdicts: product loops refused on harness paths, fleet refused on core, attended unaffected'
+check v1 design_docs/fleet-mission.md refuse
+check docs design_docs/fleet-mission-log.md refuse
+check fleet .github/workflows/ci.yml refuse
+check fleet go.mod refuse
+check fleet internal/server/api.go refuse
+check fleet cmd/ailang/main.go refuse
+check fleet changelogs/v0.32-current.md allow
+check fleet design_docs/planned/m-harness-mission-loop.md allow
+check fleet docs/docs/guides/mission-bootstrap.md allow
+check fleet internal/config/mission.go allow
+check fleet make/test.mk allow
+check fleet .ailang/state/sprints/sprint_X.json allow
+echo 'PASS scope verdicts: product loops refused on harness paths (incl. the fleet charter), fleet held to its allowlist, attended unaffected'
 
 # End to end: git must actually run the hook when core.hooksPath comes ONLY from env.
 T=$(mktemp -d "${TMPDIR:-/tmp}/scope-guard.XXXXXX"); trap 'rm -rf "$T"' EXIT

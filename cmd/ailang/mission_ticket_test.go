@@ -118,3 +118,31 @@ func TestMissionTicketUnparseableStillCountsOpen(t *testing.T) {
 		t.Fatalf("an unparseable ticket must count as open work, got %q", got)
 	}
 }
+
+// A retried file (network timeout, double fire) must not add a second occurrence: slots_lost is
+// the fleet's ranking signal, and a phantom repeat would inflate it.
+func TestMissionTicketFileIsIdempotentPerOccurrence(t *testing.T) {
+	s := newTicketTestStore(t)
+	fileTicket(t, s, "world", "192", "stall:gate-3")
+	out, err := runTicket(t, s, "file", "--mission", "world", "--iteration", "192",
+		"--signature", "stall:gate-3", "--evidence", "retry")
+	if err != nil {
+		t.Fatalf("a retried file must succeed (already filed is not an error): %v", err)
+	}
+	if !strings.Contains(out, "already filed") {
+		t.Fatalf("retry output should say it was already filed: %q", out)
+	}
+	js, _ := runTicket(t, s, "open", "--json")
+	var groups []mission.OpenSignature
+	if err := json.Unmarshal([]byte(js), &groups); err != nil {
+		t.Fatal(err)
+	}
+	if len(groups) != 1 || groups[0].SlotsLost != 1 {
+		t.Fatalf("retry inflated slots_lost: %+v", groups)
+	}
+	// A DIFFERENT iteration is a real repeat and must count.
+	fileTicket(t, s, "world", "193", "stall:gate-3")
+	if js, _ = runTicket(t, s, "open", "--json"); !strings.Contains(js, `"slots_lost": 2`) {
+		t.Fatalf("a new occurrence must count: %s", js)
+	}
+}

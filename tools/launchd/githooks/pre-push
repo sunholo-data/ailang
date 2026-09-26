@@ -16,6 +16,19 @@ _scope_is_harness() {
     tools/launchd/*|internal/mission/*|cmd/ailang/mission*|missions/*) return 0 ;;
     .claude/skills/mission-*|.claude/skills/sprint-*|.pi/extensions/*) return 0 ;;
     scripts/hooks/*|scripts/mission_*) return 0 ;;
+    design_docs/fleet-mission*) return 0 ;;   # the fleet's own queue, log and charter
+  esac
+  return 1
+}
+
+# Support paths the fleet may ALSO change: the bookkeeping, docs and wiring a harness fix
+# needs (every one was needed by the sprint that built this guard). The fleet's write scope
+# is harness + support — an ALLOWLIST, so anything unlisted (CI workflows, go.mod, the
+# server, the UI, other commands) is refused rather than silently allowed.
+_scope_is_fleet_support() {
+  case "$1" in
+    design_docs/*|changelogs/*|CHANGELOG.md|docs/*|.ailang/state/sprints/*) return 0 ;;
+    internal/config/mission.go|make/test.mk) return 0 ;;
   esac
   return 1
 }
@@ -36,7 +49,11 @@ _scope_verdict() {
   local m="$1" p="$2"
   [ -n "$m" ] || return 0
   if [ "$m" = fleet ]; then
-    _scope_is_core "$p" && echo "refuse language-core path; the fleet mission works the loop harness only"
+    if _scope_is_core "$p"; then
+      echo "refuse language-core path; the fleet mission works the loop harness only"
+    elif ! _scope_is_harness "$p" && ! _scope_is_fleet_support "$p"; then
+      echo "refuse path outside the fleet allowlist (design_docs/fleet-mission.md, Authority)"
+    fi
   else
     _scope_is_harness "$p" && echo "refuse loop-harness path; file it with: ailang mission ticket file --signature <key> --evidence <...>"
   fi

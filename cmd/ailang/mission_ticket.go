@@ -31,6 +31,7 @@ type ticketStore interface {
 	InsertInboxMessage(msg *messaging.InboxMessage) error
 	ListInboxMessages(opts messaging.InboxListOptions) ([]messaging.InboxMessage, error)
 	MarkInboxMessageRead(id string) error
+	InboxMessageExistsByTitle(inbox, title string) (string, error)
 }
 
 func missionTicket(args []string) error {
@@ -120,6 +121,17 @@ func ticketFile(args []string, store ticketStore, out io.Writer) error {
 		Payload:       payload,
 		CorrelationID: t.CorrelationID(),
 		Category:      mission.TicketCategory,
+	}
+	// Idempotent per occurrence. The store does NOT enforce unique titles (only `messages send`
+	// checks), so a retried file after a timeout would otherwise add a phantom repeat and inflate
+	// slots_lost — the number the fleet ranks by.
+	existing, err := store.InboxMessageExistsByTitle(mission.FleetInbox, t.Title())
+	if err != nil {
+		return fmt.Errorf("ticket: check for an existing %s: %w", t.Title(), err)
+	}
+	if existing != "" {
+		fmt.Fprintf(out, "already filed %s (id %s) — not counted twice\n", t.Title(), existing)
+		return nil
 	}
 	if err := store.InsertInboxMessage(msg); err != nil {
 		return fmt.Errorf("ticket: file to %s: %w", mission.FleetInbox, err)

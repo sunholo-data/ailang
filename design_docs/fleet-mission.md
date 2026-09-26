@@ -62,10 +62,13 @@ until Mark lifts it.
 
 ## Authority (the write scope — enforced by `tools/launchd/githooks/pre-push`)
 
-- **May change** (loop harness): `tools/launchd/**`, `internal/mission/**`, `cmd/ailang/mission*`,
-  `missions/**`, `.claude/skills/mission-*/**`, `.claude/skills/sprint-*/**`, `.pi/extensions/**`,
-  `scripts/hooks/**`, `scripts/mission_*`. Also its own charter, log and index, CHANGELOG, and the
-  mission guides under `docs/`.
+- **May change**, as an allowlist enforced by the guard: the loop harness (`tools/launchd/**`,
+  `internal/mission/**`, `cmd/ailang/mission*`, `missions/**`, `.claude/skills/mission-*/**`,
+  `.claude/skills/sprint-*/**`, `.pi/extensions/**`, `scripts/hooks/**`, `scripts/mission_*`, its own
+  `design_docs/fleet-mission*`), plus support paths (`design_docs/**`, `changelogs/**`,
+  `CHANGELOG.md`, `docs/**`, `.ailang/state/sprints/**`, `internal/config/mission.go`, `make/test.mk`).
+  **Anything else is refused**, including CI workflows, `go.mod`, the server, the UI and non-mission
+  commands. A fix that genuinely needs one of those parks for Mark.
 - **May not change** (language core, refused by the guard): `internal/{parser,lexer,ast,types,
   elaborate,core,eval,vm,codegen,effects,builtins,pipeline,runtime,link,iface}/**`, `std/**`,
   `examples/**`, `benchmarks/**`.
