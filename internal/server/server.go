@@ -84,6 +84,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/coordinator"
 	"github.com/sunholo-data/ailang/internal/messaging"
 	"github.com/sunholo-data/ailang/internal/observatory"
+	"github.com/sunholo-data/ailang/internal/platform/originpolicy"
 	"github.com/sunholo-data/ailang/internal/pubsub"
 	"github.com/sunholo-data/ailang/internal/server/auth"
 	"github.com/sunholo-data/ailang/internal/telemetry"
@@ -167,6 +168,11 @@ type Server struct {
 	// WebSocket authentication (reuses COORDINATOR_API_KEY for external clients)
 	wsToken string
 
+	// Cross-origin policy (origin.go): --cors-origin allowlist, built in NewServer
+	// and shared by the HTTP middleware and the WebSocket hub.
+	corsOrigins []string
+	origins     *originpolicy.Policy
+
 	// Pub/Sub event subscriber for cloud mode (bridges events to WebSocket).
 	// pubsubEventSub is created in NewServer after wsServer is initialized.
 	pubsubEventSub     *PubSubEventSubscriber
@@ -193,6 +199,11 @@ func NewServer(dbPath string, httpAddr string, opts ...ServerOption) (*Server, e
 		opt(s)
 	}
 
+	if err := originpolicy.Validate(false, s.corsOrigins); err != nil {
+		return nil, err
+	}
+	s.origins = originpolicy.New(false, s.corsOrigins, hubAllowMethods)
+
 	// If no messaging store was injected, open one from dbPath (local SQLite)
 	if s.store == nil {
 		store, err := messaging.OpenStore(dbPath)
@@ -203,6 +214,7 @@ func NewServer(dbPath string, httpAddr string, opts ...ServerOption) (*Server, e
 	}
 
 	s.wsServer = websocket.NewServer(s.store)
+	s.wsServer.SetOriginPolicy(s.origins)
 	if s.wsToken != "" {
 		s.wsServer.SetToken(s.wsToken)
 		log.Printf("WebSocket token authentication enabled for /ws and /ws/observatory")
@@ -646,35 +658,6 @@ func (s *Server) Start() error {
 	log.Printf("UI: http://%s/", s.httpAddr)
 
 	return http.ListenAndServe(s.httpAddr, handler)
-}
-
-// CORS middleware to allow cross-origin requests from the UI
-func (s *Server) corsMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Log ALL POST requests to help debug Gemini telemetry
-		if r.Method == "POST" {
-			log.Printf("POST request: %s (Content-Type: %s, UA: %s)", r.URL.Path, r.Header.Get("Content-Type"), r.Header.Get("User-Agent"))
-		}
-		// Debug logging for OTLP paths or any POST to non-API paths
-		if strings.HasPrefix(r.URL.Path, "/v1/") {
-			log.Printf("OTLP request: %s %s (Content-Type: %s)", r.Method, r.URL.Path, r.Header.Get("Content-Type"))
-		}
-		// Catch any other telemetry paths that might be used
-		if strings.Contains(r.URL.Path, "trace") || strings.Contains(r.URL.Path, "log") || strings.Contains(r.URL.Path, "metric") {
-			log.Printf("Potential telemetry request: %s %s (Content-Type: %s, UA: %s)", r.Method, r.URL.Path, r.Header.Get("Content-Type"), r.Header.Get("User-Agent"))
-		}
-
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
 }
 
 // Close closes the server and releases resources

@@ -179,20 +179,29 @@ func TestCORS_AnyMode(t *testing.T) {
 	}
 }
 
+// A page serve-api serves itself (same host:port) may POST to its own API in
+// allowlist mode without being listed (M-SERVER-ORIGIN-POLICY: the shared
+// policy treats same-origin as trusted).
+func TestCORS_AllowlistAdmitsSameOrigin(t *testing.T) {
+	h, calls := countingCORS(allowlistServer(t))
+	req := httptest.NewRequest(http.MethodPost, fnPath, strings.NewReader(`{"args":[1,2]}`))
+	req.Host = "127.0.0.1:8080"
+	req.Header.Set("Origin", "http://127.0.0.1:8080")
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, req)
+	if w.Code != http.StatusOK || *calls != 1 {
+		t.Fatalf("same-origin POST in allowlist mode: status %d calls %d, want 200 and 1", w.Code, *calls)
+	}
+}
+
 func TestCORS_FlagConflict(t *testing.T) {
 	if err := ValidateCORSConfig(true, []string{listedOrigin}); err == nil {
 		t.Error("--cors with --cors-origin: want a startup error")
 	}
-	for _, ok := range []string{"https://daneel.ts.net", "http://localhost:5173", "http://127.0.0.1:8080"} {
-		if err := ValidateCORSConfig(false, []string{ok}); err != nil {
-			t.Errorf("origin %q rejected: %v", ok, err)
-		}
-	}
-	for _, bad := range []string{"daneel.ts.net", "https://daneel.ts.net/", "https://daneel.ts.net/app",
-		"*", "null", "ftp://x.example", "https://", "https://x.example?q=1", "https://u@x.example", ""} {
-		if err := ValidateCORSConfig(false, []string{bad}); err == nil {
-			t.Errorf("malformed origin %q accepted", bad)
-		}
+	// The full origin-format matrix lives in originpolicy's tests; this only
+	// pins that serve-api delegates to it.
+	if err := ValidateCORSConfig(false, []string{"https://daneel.ts.net/"}); err == nil {
+		t.Error("malformed origin accepted")
 	}
 	if err := ValidateCORSConfig(true, nil); err != nil {
 		t.Errorf("--cors alone: %v", err)

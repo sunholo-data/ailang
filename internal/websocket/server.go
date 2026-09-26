@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"crypto/subtle"
 	"fmt"
 	"log"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/sunholo-data/ailang/internal/messaging"
+	"github.com/sunholo-data/ailang/internal/platform/originpolicy"
 )
 
 const (
@@ -34,10 +36,10 @@ const (
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
-	CheckOrigin: func(r *http.Request) bool {
-		// TODO: In production, validate origin header
-		return true
-	},
+	// HandleWebSocket enforces the origin policy (and token) BEFORE calling
+	// Upgrade, with distinct 401/403 answers; by the time gorilla asks, the
+	// request has already been admitted (same pattern as platform/streamws).
+	CheckOrigin: func(*http.Request) bool { return true },
 }
 
 // Server manages WebSocket connections and message broadcasting
@@ -56,11 +58,20 @@ type Server struct {
 	// Authentication token for external WebSocket clients.
 	// When set, non-same-origin connections must provide ?token=<value>.
 	token string
+
+	// origins decides which browser origins may open a socket. The default
+	// (NewServer) is same-origin only; `ailang server --cors-origin` extends it.
+	origins *originpolicy.Policy
 }
 
 // SetToken sets the authentication token for external WebSocket clients.
 func (s *Server) SetToken(token string) {
 	s.token = token
+}
+
+// SetOriginPolicy replaces the origin policy (M-SERVER-ORIGIN-POLICY).
+func (s *Server) SetOriginPolicy(p *originpolicy.Policy) {
+	s.origins = p
 }
 
 // Connection represents a WebSocket client connection
@@ -97,6 +108,7 @@ func NewServer(store messaging.MessageStore) *Server {
 		register:    make(chan *Connection),
 		unregister:  make(chan *Connection),
 		threadSeq:   make(map[string]int),
+		origins:     originpolicy.New(false, nil, ""),
 	}
 }
 
@@ -242,18 +254,23 @@ func (s *Server) broadcastToThread(threadID string, msg *messaging.Message) {
 
 // HandleWebSocket handles WebSocket upgrade requests
 func (s *Server) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
-	// Token authentication for external clients.
-	// Same-origin browser connections (embedded React UI) are exempt.
-	if s.token != "" {
-		origin := r.Header.Get("Origin")
-		isSameOrigin := origin != "" && (origin == "http://"+r.Host || origin == "https://"+r.Host)
-		if !isSameOrigin {
-			qToken := r.URL.Query().Get("token")
-			if qToken != s.token {
-				http.Error(w, "Unauthorized", http.StatusUnauthorized)
-				return
-			}
-		}
+	// Origin policy (M-SERVER-ORIGIN-POLICY): CORS does not govern
+	// WebSockets, so without this any page open in the user's browser could
+	// open the hub socket (cross-site WebSocket hijacking). A missing Origin
+	// is a non-browser client and passes. A valid ?token= also passes: it is
+	// the documented external-client contract, and a hostile page cannot know
+	// the token.
+	tokenOK := s.token != "" &&
+		subtle.ConstantTimeCompare([]byte(r.URL.Query().Get("token")), []byte(s.token)) == 1
+	if err := s.origins.CheckWebSocket(r, true); err != nil && !tokenOK {
+		http.Error(w, err.Error(), http.StatusForbidden)
+		return
+	}
+	// Token authentication for external clients. Same-origin browser
+	// connections (embedded React UI) are exempt.
+	if s.token != "" && !originpolicy.SameOrigin(r) && !tokenOK {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
 	}
 
 	// Upgrade HTTP connection to WebSocket
