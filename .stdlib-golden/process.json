@@ -21,7 +21,7 @@
     },
     {
       "name": "ProcessOutput",
-      "alias": "{exitCode: int, resolvedPath: string, stderr: a, stdout: a, truncated: bool}"
+      "alias": "{exitCode: int, resolvedPath: string, stderr: bytes, stdout: bytes, truncated: bool}"
     }
   ],
   "funcs": [

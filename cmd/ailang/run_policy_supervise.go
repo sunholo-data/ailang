@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/sunholo-data/ailang/internal/ai"
 	"github.com/sunholo-data/ailang/internal/config"
@@ -74,18 +75,28 @@ func supervisePolicyRun(policyPath, filename string, w runPolicyWidening, argsAf
 	proctree.Configure(cmd)
 	cmd.WaitDelay = proctree.DefaultWaitDelay
 
-	stdout, err := cmd.StdoutPipe()
+	// Our own pipes, not cmd.StdoutPipe: exec.Cmd.Wait closes StdoutPipe's
+	// read end as soon as the worker exits, so output still in the pipe when
+	// Wait returns was dropped (linux CI lost a program's whole stdout, or
+	// every line after the first). With os.Pipe the parent decides when the
+	// read ends close: after the copiers reach EOF.
+	stdout, stdoutW, err := os.Pipe()
 	if err != nil {
 		refusePolicy("stdout pipe: %v", err)
 	}
-	stderr, err := cmd.StderrPipe()
+	stderr, stderrW, err := os.Pipe()
 	if err != nil {
 		refusePolicy("stderr pipe: %v", err)
 	}
+	cmd.Stdout = stdoutW
+	cmd.Stderr = stderrW
 	if err := cmd.Start(); err != nil {
 		refusePolicy("cannot start the worker: %v", err)
 	}
-	_ = ctrlW.Close() // the worker holds the write end now
+	// The worker holds the write ends now.
+	_ = ctrlW.Close()
+	_ = stdoutW.Close()
+	_ = stderrW.Close()
 
 	// Output cap: one counter across both streams; at the cap we stop
 	// copying and kill the group — never capture-then-truncate.
@@ -133,7 +144,7 @@ func supervisePolicyRun(policyPath, filename string, w runPolicyWidening, argsAf
 	}()
 
 	waitErr := cmd.Wait()
-	wg.Wait()
+	drainOutput(&wg, proctree.DefaultWaitDelay, stdout, stderr)
 	<-ctrlDone
 
 	// Re-emit the decision in the documented shape, from the control pipe
@@ -177,6 +188,27 @@ func supervisePolicyRun(policyPath, filename string, w runPolicyWidening, argsAf
 		return 1
 	}
 	return 0
+}
+
+// drainOutput waits for the stdout/stderr copiers to reach EOF, which is when
+// every holder of the write ends has exited. A descendant that outlives the
+// worker and keeps a write end open would block EOF forever, so after grace
+// the read ends are closed and the copiers return (what the worker itself
+// wrote is already in the pipe and has been copied by then).
+func drainOutput(wg *sync.WaitGroup, grace time.Duration, readEnds ...*os.File) {
+	done := make(chan struct{})
+	go func() { wg.Wait(); close(done) }()
+	select {
+	case <-done:
+	case <-time.After(grace):
+		for _, f := range readEnds {
+			_ = f.Close()
+		}
+		<-done
+	}
+	for _, f := range readEnds {
+		_ = f.Close()
+	}
 }
 
 func stageFor(admitted bool) string {
