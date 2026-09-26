@@ -1199,7 +1199,7 @@ serve-api binds the port **before** it prints its startup banner. If the port is
 |------|------|--------------------------------------------|
 | off (default) | none | No `Access-Control-Allow-*` headers, so the page cannot read any response. |
 | any | `--cors` | `Access-Control-Allow-Origin: *` on every API route, and preflights answered 204. |
-| allowlist | `--cors-origin ORIGIN` (repeatable) | Listed origins get their exact origin echoed back, with `Vary: Origin`. A request from an **unlisted** origin that is not `GET`/`HEAD` (a preflight or a `POST`) gets **403 before the function runs**. |
+| allowlist | `--cors-origin ORIGIN` (repeatable) | Listed origins get their exact origin echoed back, with `Vary: Origin`. A request from an **unlisted** origin that is not `GET`/`HEAD` (a preflight or a `POST`) gets **403 before the function runs**. A same-origin request (its `Origin` names the host:port it was sent to, e.g. a page serve-api serves itself) passes without being listed. |
 
 `--cors` and `--cors-origin` together are a startup error. Each origin must be written exactly the way a browser sends it, `scheme://host[:port]` with no path or trailing slash: `https://daneel.example.ts.net`, `http://localhost:5173`.
 

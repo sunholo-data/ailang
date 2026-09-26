@@ -6,6 +6,12 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 HOOK="$HERE/githooks/pre-push"
 DRIVER="$HERE/mission-control.sh"
 fail() { echo "FAIL $*"; exit 1; }
+# Scrub inherited git env config. Inside a mission fire the DRIVER exports GIT_CONFIG_* to turn
+# this very guard on; inherited here, it guarded the "unguarded control" push and the suite read
+# red at base (found by fleet iteration 1, 2026-09-26).
+unset GIT_CONFIG_COUNT
+for _v in $(env | grep -E '^GIT_CONFIG_(KEY|VALUE)_[0-9]+=' | cut -d= -f1); do unset "$_v"; done
+unset _v
 
 MISSION_SCOPE_LIB=1 . "$HOOK"
 check() {  # mission path want(allow|refuse)

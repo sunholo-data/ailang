@@ -336,6 +336,60 @@ _mc_descendants() {
   local kids k; kids=$(pgrep -P "$pid" 2>/dev/null)
   for k in $kids; do _mc_descendants "$k"; done
 }
+# _mc_kill_tree PID GRACE → TERM a snapshot, then KILL surviving members and
+# descendants born during grace. Record process birth times so a reused PID is
+# never signalled as though it still belonged to this tree.
+_mc_kill_tree() {
+  local root="$1" grace="$2" pid birth current stat i j seen=0
+  local -a pids births
+  case "$root" in ''|*[!0-9]*) return 1 ;; esac
+  [ "$root" -gt 1 ] 2>/dev/null || return 1
+  [ "$root" -ne "$$" ] && [ "$root" -ne "${BASHPID:-$$}" ] || return 1
+  birth=$(ps -p "$root" -o lstart= 2>/dev/null) || return 1
+  [ -n "$birth" ] || return 1
+  for pid in $(_mc_descendants "$root"); do
+    case "$pid" in ''|*[!0-9]*) continue ;; esac
+    [ "$pid" -ne "$$" ] && [ "$pid" -ne "${BASHPID:-$$}" ] || continue
+    current=$(ps -p "$pid" -o lstart= 2>/dev/null) || continue
+    [ -n "$current" ] || continue
+    pids[${#pids[@]}]="$pid"
+    births[${#births[@]}]="$current"
+  done
+  [ "${#pids[@]}" -gt 0 ] || return 1
+  for ((i=${#pids[@]}-1; i>=0; i--)); do
+    current=$(ps -p "${pids[i]}" -o lstart= 2>/dev/null) || continue
+    [ "$current" = "${births[i]}" ] && kill -TERM "${pids[i]}" 2>/dev/null || true
+  done
+  sleep "$grace"
+  # Each surviving snapshot member is a fresh root: the original parent may
+  # have exited and its children may already have been reparented.
+  for ((i=0; i<${#pids[@]}; i++)); do
+    current=$(ps -p "${pids[i]}" -o lstart= 2>/dev/null) || continue
+    [ "$current" = "${births[i]}" ] || continue
+    stat=$(ps -p "${pids[i]}" -o stat= 2>/dev/null) || continue
+    case "$stat" in *Z*) continue ;; esac
+    for pid in $(_mc_descendants "${pids[i]}"); do
+      case "$pid" in ''|*[!0-9]*) continue ;; esac
+      [ "$pid" -ne "$$" ] && [ "$pid" -ne "${BASHPID:-$$}" ] || continue
+      seen=0
+      for ((j=0; j<${#pids[@]}; j++)); do
+        [ "${pids[j]}" = "$pid" ] && { seen=1; break; }
+      done
+      [ "$seen" -eq 0 ] || continue
+      current=$(ps -p "$pid" -o lstart= 2>/dev/null) || continue
+      [ -n "$current" ] || continue
+      pids[${#pids[@]}]="$pid"
+      births[${#births[@]}]="$current"
+    done
+  done
+  for ((i=${#pids[@]}-1; i>=0; i--)); do
+    current=$(ps -p "${pids[i]}" -o lstart= 2>/dev/null) || continue
+    [ "$current" = "${births[i]}" ] || continue
+    stat=$(ps -p "${pids[i]}" -o stat= 2>/dev/null) || continue
+    case "$stat" in *Z*) continue ;; esac
+    kill -KILL "${pids[i]}" 2>/dev/null || true
+  done
+}
 # _mc_etime_secs "[[DD-]HH:]MM:SS" → seconds (macOS ps has no `etimes`).
 _mc_etime_secs() {
   local t="${1// /}" dd=0 hh=0 mm=0 ss=0 rest nf
@@ -2255,6 +2309,9 @@ _mc_run_once() {
   mkdir -p "$_mc_slot_state"
   _mc_heartbeat="$_mc_slot_state/mission-${MISSION_NAME}-heartbeat" # mission-heartbeat, namespaced
   _mc_history="$_mc_slot_state/mission-${MISSION_NAME}-slot-verdicts.log"
+  _mc_hard_trigger="$_mc_slot_state/mission-${MISSION_NAME}-attempt-${MISSION_ATTEMPT}-driver-$$-hard-trigger"
+  _mc_stall_trigger="$_mc_slot_state/mission-${MISSION_NAME}-attempt-${MISSION_ATTEMPT}-driver-$$-stall-trigger"
+  rmdir "$_mc_hard_trigger" "$_mc_stall_trigger" 2>/dev/null || true
   printf '%s\t%s\tfired\t%s\t\n' "$(date +%s)" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$MISSION_ATTEMPT" > "$_mc_heartbeat"
   # --- ATTEMPT HEARTBEAT END ---
   if [ "$CONTROLLER_PROVIDER" = "codex" ]; then
@@ -2302,8 +2359,10 @@ _mc_run_once() {
   (
     sleep "$HARD_TIMEOUT"
     if kill -0 "$CONTROLLER_PID" 2>/dev/null; then
+      # mkdir arbitrates atomically with the parent cancelling this attempt.
+      mkdir "$_mc_hard_trigger" 2>/dev/null || exit 0
       echo "[$(date '+%F %H:%M:%S')] HARD TIMEOUT ${HARD_TIMEOUT}s — killing $CONTROLLER_PID" >>"$LOG"
-      kill -TERM "$CONTROLLER_PID" 2>/dev/null; sleep 60; kill -KILL "$CONTROLLER_PID" 2>/dev/null
+      _mc_kill_tree "$CONTROLLER_PID" 60
     fi
   ) &
   WATCHDOG_PID=$!
@@ -2319,8 +2378,9 @@ _mc_run_once() {
     while kill -0 "$CONTROLLER_PID" 2>/dev/null; do
       if _mc_stalled "$CONTROLLER_PID"; then hits=$((hits + 1)); else hits=0; fi
       if [ "$hits" -ge "$STALL_SAMPLES" ]; then
+        mkdir "$_mc_stall_trigger" 2>/dev/null || exit 0
         echo "[$(date '+%F %H:%M:%S')] STALL: $CONTROLLER_PROVIDER $CONTROLLER_PID made NO PROGRESS across $STALL_SAMPLES samples ($((STALL_SAMPLES * STALL_INTERVAL))s) with a descendant alive ≥${STALL_CHILD_AGE}s — killing early [${_MC_STALL_WHY:-unknown}]" >>"$LOG"
-        kill -TERM "$CONTROLLER_PID" 2>/dev/null; sleep 30; kill -KILL "$CONTROLLER_PID" 2>/dev/null
+        _mc_kill_tree "$CONTROLLER_PID" 30
         break
       fi
       sleep "$STALL_INTERVAL"
@@ -2329,7 +2389,20 @@ _mc_run_once() {
   STALL_PID=$!
 
   wait "$CONTROLLER_PID"; RC=$?
-  kill "$WATCHDOG_PID" "$STALL_PID" 2>/dev/null
+  local _mc_hard_active=0 _mc_stall_active=0
+  if mkdir "$_mc_hard_trigger" 2>/dev/null; then
+    kill "$WATCHDOG_PID" 2>/dev/null
+  else
+    _mc_hard_active=1
+  fi
+  if mkdir "$_mc_stall_trigger" 2>/dev/null; then
+    kill "$STALL_PID" 2>/dev/null
+  else
+    _mc_stall_active=1
+  fi
+  [ "$_mc_hard_active" -eq 1 ] && wait "$WATCHDOG_PID"
+  [ "$_mc_stall_active" -eq 1 ] && wait "$STALL_PID"
+  rmdir "$_mc_hard_trigger" "$_mc_stall_trigger" 2>/dev/null || true
   return "$RC"
 }
 

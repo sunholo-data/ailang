@@ -7,7 +7,6 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"net/url"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -102,7 +101,7 @@ func (s *Server) ValidateWSRoutes() error {
 	for _, r := range routes {
 		problems = append(problems, s.wsRouteProblems(r)...)
 	}
-	if !isLoopbackHost(s.bindHost()) && len(s.corsOrigins) == 0 {
+	if !isLoopbackHost(s.bindHost()) && !s.origins.HasAllowlist() {
 		problems = append(problems, fmt.Sprintf(
 			"serve-api binds %s (not loopback) and has no --cors-origin allowlist: a WebSocket route there would accept any page that can reach the address. Pass --cors-origin https://your.page (repeatable), or --bind 127.0.0.1",
 			s.bindHost()))
@@ -235,19 +234,10 @@ func (s *Server) serveWSSession(w http.ResponseWriter, r *http.Request, route Ro
 // the user's browser from opening the socket. Allowed: same-origin (Origin's
 // host equals the request Host) and exact --cors-origin entries. A missing
 // Origin or "null" (sandboxed/file pages) is refused.
+// The rule itself is originpolicy.CheckWebSocket, shared with `ailang server`;
+// serve-api passes allowMissing=false (its WS routes are browser-facing).
 func (s *Server) checkWSOrigin(r *http.Request) error {
-	origin := r.Header.Get("Origin")
-	if origin == "" || origin == "null" {
-		return fmt.Errorf("WebSocket refused: missing or null Origin")
-	}
-	if s.corsOrigins[origin] {
-		return nil
-	}
-	u, err := url.Parse(origin)
-	if err == nil && u.Host != "" && strings.EqualFold(u.Host, r.Host) {
-		return nil
-	}
-	return fmt.Errorf("WebSocket refused: origin %s is not allowed (same-origin, or serve-api --cors-origin)", origin)
+	return s.origins.CheckWebSocket(r, false)
 }
 
 // checkWSKey applies --api-key-header/--api-key-env to a WS upgrade. With no

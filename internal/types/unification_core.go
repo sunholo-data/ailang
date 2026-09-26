@@ -25,6 +25,9 @@ type Unifier struct {
 	// (M-XMOD-ALIAS-POLY). expandAlias returns Type (4 call sites) and cannot
 	// itself return an error, so Unify checks this immediately after expanding.
 	aliasArityErr error
+	// aliasCaptures: imported aliases whose bodies a local type name would
+	// capture (M-TYPE-NAME-SHADOW, alias_capture.go); expanding one latches.
+	aliasCaptures map[string]string
 	// M-DX11-PHASE2: Debug sink for emitting OnSubstitute events during unification
 	debugSink TypeDebugSink
 	// M-TYPECHECK-NO-AUTO-UNWRAP-RESULT (v0.20.0): constructor → ADT-name
@@ -106,7 +109,7 @@ func (u *Unifier) SetDebugSink(sink TypeDebugSink) {
 // M-BUGFIX: Handles type aliases like `type Coord = {x: int, y: int}`
 // M-CROSS-MODULE: When expanding TCon to TRecord, preserve the type name
 func (u *Unifier) expandAlias(t Type) Type {
-	if u.aliasEnv == nil {
+	if u.aliasEnv == nil && u.aliasCaptures == nil {
 		return t
 	}
 	// M-XMOD-ALIAS-CHAIN: iterate to a fixpoint so chained aliases resolve
@@ -131,7 +134,8 @@ func (u *Unifier) expandAlias(t Type) Type {
 			}
 			body, isAlias := u.aliasEnv[headCon.Name]
 			if !isAlias {
-				return t // not an alias head → real ADT / type application, stay nominal
+				u.latchAliasCapture(headCon.Name) // M-TYPE-NAME-SHADOW
+				return t                          // not an alias head → real ADT / type application, stay nominal
 			}
 			params := u.aliasParams[headCon.Name] // nil for a nullary alias
 			if len(args) != len(params) {
@@ -167,6 +171,7 @@ func (u *Unifier) expandAlias(t Type) Type {
 		}
 		target, exists := u.aliasEnv[con.Name]
 		if !exists {
+			u.latchAliasCapture(con.Name) // M-TYPE-NAME-SHADOW
 			return t
 		}
 		if seen[con.Name] {

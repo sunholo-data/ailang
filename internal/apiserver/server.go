@@ -32,6 +32,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/embed"
 	"github.com/sunholo-data/ailang/internal/iface"
 	"github.com/sunholo-data/ailang/internal/pipeline"
+	"github.com/sunholo-data/ailang/internal/platform/originpolicy"
 )
 
 // DefaultMaxUploadSize is the default maximum upload size (50MB).
@@ -61,9 +62,8 @@ type Server struct {
 	// under-basePath filter to compare against physical file paths.
 	// Computed once at New() to avoid per-call symlink resolution.
 	normalizedBasePath string
-	bind               string          // host to listen on; "" = config.DefaultBindHost()
-	cors               bool            // CORS any-origin mode (--cors)
-	corsOrigins        map[string]bool // CORS allowlist mode (--cors-origin); exact match
+	bind               string               // host to listen on; "" = config.DefaultBindHost()
+	origins            *originpolicy.Policy // --cors / --cors-origin; mode picked in cors.go
 
 	// Frontend proxy
 	frontendPath string // path to React project (optional)
@@ -234,8 +234,7 @@ func New(basePath string, cfg Config) *Server {
 		basePath:           basePath,
 		normalizedBasePath: normalizedBase,
 		bind:               cfg.Bind,
-		cors:               cfg.CORS,
-		corsOrigins:        originSet(cfg.CORSOrigins),
+		origins:            originpolicy.New(cfg.CORS, cfg.CORSOrigins, corsAllowMethods),
 		frontendPath:       cfg.FrontendPath,
 		staticPath:         cfg.StaticPath,
 		watch:              cfg.Watch,

@@ -322,7 +322,10 @@ func (st *modulePipelineState) compileFreshModule(mod *loader.LoadedModule, modI
 		return err
 	}
 
-	imports := resolveModuleImports(mod.File.Imports, modID, st.modLinker, st.cfg)
+	imports := resolveModuleImports(mod.File.Imports, modID, st.modLinker, st.cfg, st.depClosure(modID))
+	// M-TYPE-NAME-SHADOW: the module's own type declarations win over any
+	// same-named type from its imports (direct or transitive).
+	shadowLocalTypeNames(imports, mod.File, modID)
 
 	elaborator := elaborate.NewElaboratorWithPath(modID)
 	elaborator.SetGlobalEnv(imports.GlobalRefs)

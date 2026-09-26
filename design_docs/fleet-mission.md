@@ -43,6 +43,17 @@ mission.
 
 Newest **3** STATUS stamps live here; older ones move to `fleet-mission-status-archive.md`.
 
+## STATUS 2026-09-26 — ITERATION 1: **P0 #1 LANDED**, `driver:slot-kill-leaves-orphan-descendants` ([#1325](https://github.com/sunholo-data/ailang/pull/1325), `e3dadcd07`)
+
+Both watchdogs now reap the controller's whole process tree through `_mc_kill_tree`, which
+snapshots before TERM, re-walks before KILL and skips recycled PIDs. A triggered watchdog is no
+longer cancelled mid-grace. Evaluator (sonnet) PASS 87, 0 blocking. Ticket resolved. Thresholds
+are untouched. Clause map: **1 product share** unmeasured (no product-loop window since the
+charter); **2 turnaround** first datum ≈3h (filed 14:50Z); **3 one queue** MET (16 tickets, all in
+`mission-fleet`); **4 idle is free** MET by construction (driver pre-check, iteration 0 dry run);
+**5 no regressions** MET for this ticket, with one caveat: the done-gate's dry-run line cannot
+reach `_mc_run_once` edits (UNINFORMATIVE, see log). Next: P0 #2, mechanical half.
+
 ## STATUS 2026-09-26 — ITERATION 0: **charter RATIFIED as written** (Mark, attended)
 
 Mark: *"yes as written"* — the bar (clauses 1–5), Authority and Guardrails below stand unchanged.
@@ -78,7 +89,9 @@ ticket is filed to `mission-fleet`. Plane: `mission-fleet` is declared triage in
   elaborate,core,eval,vm,codegen,effects,builtins,pipeline,runtime,link,iface}/**`, `std/**`,
   `examples/**`, `benchmarks/**`.
 - **Parks for Mark (HD-2a, policy class)**: any fix that changes routing, lane order, quota or
-  ration thresholds, or a billing guard. File a decision row with a recommendation; take the next
+  ration thresholds, or a billing guard. **Also any change to `.pi/extensions/**`** (D-FLEET-3): the
+  pi EVAL harness loads the same extensions, so a fleet fix there can shift eval results unnoticed.
+  Such a ticket parks with the proposed diff and its expected eval impact. File a decision row with a recommendation; take the next
   ticket.
 
 ## Guardrails (on top of the skill's Standing Rules)
@@ -104,6 +117,14 @@ Shared per-role routing from `mission-control`. Overrides in `~/.config/ailang/m
 - **Opus before pi**: on (`MISSION_OPUS_BEFORE_PI=1`), same as World. Harness fixes are
   high-blast-radius, so capability beats flat-rate here.
 
+## Decisions (policy rulings the fleet may act on; HD-2a)
+
+| ID | Status | Ruling |
+|---|---|---|
+| D-FLEET-1 | RULED 2026-09-26 (Mark, attended: "yes") | Design docs without `planner_lane` default to the mission's planner pin, not `opus fail-closed`. |
+| D-FLEET-2 | RULED 2026-09-26 (Mark, attended: "yes") | The spawn-pin hook may walk the role's DECLARED fallback chain, in order, when the pinned model is dead. No undeclared model is ever allowed. |
+| D-FLEET-3 | RULED 2026-09-26 (Mark, attended: "do the follow ups") | Changes to `.pi/extensions/**` park for Mark with the diff and expected eval impact; the pi eval harness shares them. Affects `pi-runner:sandbox-extensions-not-wired` (P0 #4): the fleet designs it, and Mark approves before it lands. |
+
 ## Queue (top = next; tags: [NEXT] [IN-SPRINT] [PARKED] [LANDED] [RULED OUT])
 
 The live tickets are **`ailang mission ticket open`**. This section is **Mark's triage order**
@@ -114,10 +135,10 @@ order. New tickets filed after today rank by `slots_lost` BELOW this list unless
 and resolve it as "already fixed" with evidence if it no longer reproduces.
 
 **P0 — loops lose whole slots or run unsafe today**
-1. [NEXT] `driver:slot-kill-leaves-orphan-descendants`: a killed slot leaves its descendants
+1. [LANDED 2026-09-26 iter 1, #1325 `e3dadcd07`] `driver:slot-kill-leaves-orphan-descendants`: a killed slot leaves its descendants
    running (world 2026-09-26: the planner's harness ran 26 min past the kill). Leaks processes on a
    box with an OOM history.
-2. `stall-watchdog:kills-controller-on-long-drill`: **mechanical half only.** Count a live,
+2. [NEXT] `stall-watchdog:kills-controller-on-long-drill`: **mechanical half only.** Count a live,
    progressing descendant as progress, as 4a86ea17b does for pi. **Changing the 600s threshold
    or the sample counts is POLICY: park it.** Cost world a whole slot today (04:45, rc 143).
 3. `pi-runner:verdict-blind-to-commits-and-predirty`: the pi fallback lanes (now the tail after
@@ -125,6 +146,19 @@ and resolve it as "already fixed" with evidence if it no longer reproduces.
 4. `pi-runner:sandbox-extensions-not-wired`: pi roles run unfenced. Safety, not throughput.
 
 **P1 — silent wedges and invisible failures**
+0. **[DIRECTIVE, Mark via attended session 2026-09-26, from fleet iteration 1's own friction (a)]**
+   `tests:driver-env-leaks-into-launchd-suite`: inside a fire, the driver's exported `MISSION_*`
+   env reaches `make test-launchd-drivers`, and `test_mission_routing` reads it as
+   "unparsable-path-entry". So the fleet's own done-gate is red at base on every fire, and each
+   iteration has to prove the red is not a regression. Fix it at the suite boundary (scrub mission
+   env per suite, or in the make target), not per test. The `GIT_CONFIG_*` half was fixed attended
+   in `test_mission_scope_guard.sh`.
+0a. **[RULED D-FLEET-1]** `resolver:planner-lane-field-missing-vs-spawn-pin`: a design doc with no
+   `planner_lane` field uses the mission's planner pin instead of `opus fail-closed`. It is
+   hand-overridden on every World fire today.
+0b. **[RULED D-FLEET-2]** `spawn-pin-hook:no-fallback-mode`: when the pinned role model is dead, the
+   spawn-pin hook allows the role's declared `MISSION_<ROLE>_FALLBACK` chain, in order and nothing
+   else, so the pin still means something.
 5. `driver:exit-path-notices-unbounded`: unbounded sends on the exit path can hang a fire.
 6. `gate0:driver-crash-notices-invisible`: loops cannot see their own crash notices.
 7. `quorum:artifact-dir-cwd-relative`: reviewed docs read as unreviewed from pin worktrees.
@@ -140,17 +174,13 @@ and resolve it as "already fixed" with evidence if it no longer reproduces.
     show `stamps=9` on every completed 09-25/26 fire, so stamps land. Verify, then resolve as not
     reproducing.
 
-**[PARKED] — routing policy, questions for Mark (HD-2a)**
-- `resolver:planner-lane-field-missing-vs-spawn-pin`: should a design doc with no `planner_lane`
-  field default to the mission's planner pin instead of `opus fail-closed`? Recommendation: yes.
-  Almost no doc carries the field, so fail-closed is the common case, and it is hand-overridden
-  every World fire.
-- `spawn-pin-hook:no-fallback-mode`: should the spawn-pin hook allow the role's declared
-  `MISSION_<ROLE>_FALLBACK` chain when the pinned designer is dead? Recommendation: yes, walking
-  only the declared chain in order, so the pin still means something.
+**Ruled policy questions** — both moved into P1 above (items 0a and 0b; decisions D-FLEET-1 and D-FLEET-2).
 
-Standing parked item: the Phase 3a skill-resolution spike (design P1–P3), routed here only on
-Mark's directive.
+**[DIRECTIVE, Mark 2026-09-26] After P1, before P2:** the Phase 3a skill-resolution spike
+(design doc M-HARNESS-MISSION-LOOP, premises P1–P3). Measure how the claude, codex and pi controllers
+each resolve skills, using marker skills in the pin worktree against conflicting user-level copies.
+**Measurement only**: record the results in the design doc's Verification Log and park Phase 3b's
+mechanism choice for Mark. This is what unblocks `harness-stable`.
 
 ---
 **Document created**: 2026-09-26. Iteration 0 ratifies it with Mark before any ticket routes.

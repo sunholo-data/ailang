@@ -234,7 +234,29 @@ ailang serve --port 8080
 
 # Custom database
 ailang serve --db /path/to/collab.db
+
+# Let a UI on another origin call the API and open the WebSocket (repeatable)
+ailang serve --cors-origin http://localhost:5173
 ```
+
+#### Cross-origin access (v0.44.x+)
+
+The server is **same-origin only** by default. The embedded dashboard, the Vite dev server
+(`cd ui && npm run dev`, which proxies `/api` and `/ws` without rewriting `Host`), CLIs, Claude
+Code hooks, OTLP exporters and other server-to-server callers (no `Origin` header) all keep
+working with no flag.
+
+A page on any other origin:
+
+- gets **no `Access-Control-Allow-Origin`** on reads, so it cannot read the API;
+- gets **403 before dispatch** on any other method, including preflights and `text/plain` POSTs;
+- gets **403 on the WebSocket upgrade** (`/ws`, `/ws/observatory`), which blocks cross-site
+  WebSocket hijacking. A client holding the `COORDINATOR_API_KEY` token (`?token=`) is still
+  admitted from any origin, as before.
+
+`--cors-origin ORIGIN` (exact `scheme://host[:port]`, repeatable) grants one origin both REST and
+WebSocket access. `/benchmarks/*` stays readable from every origin because the docs site fetches it.
+The policy is shared with `ailang serve-api` (`internal/platform/originpolicy`).
 
 ### Coordinator Daemon
 

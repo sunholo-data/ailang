@@ -22,10 +22,13 @@ func (st *modulePipelineState) prepareCacheLookup(mod *loader.LoadedModule, modI
 		st.moduleCache.warnSourceUnavailable(modID)
 		return "", false
 	}
+	// M-TYPE-NAME-SHADOW M3: the whole transitive closure, digest + alias digest
+	// (cache_dep_closure.go) — the direct imports' digests alone missed alias
+	// edits two hops away.
 	depDigests := make(map[string]string)
-	for _, imp := range mod.Imports {
+	for imp := range st.depClosure(modID) {
 		if cu, ok := st.compiledUnits[imp]; ok && cu.Iface != nil {
-			depDigests[imp] = cu.Iface.Digest
+			depDigests[imp] = cacheDepDigest(cu.Iface)
 		}
 	}
 	// The compiled Core differs by pipeline mode — --release erases Debug

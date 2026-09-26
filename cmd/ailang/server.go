@@ -17,6 +17,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/coordinator"
 	"github.com/sunholo-data/ailang/internal/messaging"
 	"github.com/sunholo-data/ailang/internal/observatory"
+	"github.com/sunholo-data/ailang/internal/platform/originpolicy"
 	otelplatform "github.com/sunholo-data/ailang/internal/platform/otel"
 	"github.com/sunholo-data/ailang/internal/pubsub"
 	"github.com/sunholo-data/ailang/internal/server"
@@ -30,6 +31,7 @@ func serverCommand(args []string) error {
 	bindAddr := config.DefaultBindHost()         // 127.0.0.1; 0.0.0.0 when PORT is set (Cloud Run)
 	dbPath := messaging.GetDefaultDatabasePath() // "" when no state dir resolves; --db overrides
 	firebaseProject := ""                        // Firebase project ID for authentication
+	var corsOrigins []string                     // --cors-origin (repeatable): exact cross-origin allowlist
 
 	// Check PORT env var (Cloud Run convention) — overridden by --port flag
 	if envPort := config.Port(); envPort != "" {
@@ -59,6 +61,11 @@ func serverCommand(args []string) error {
 				firebaseProject = args[i+1]
 				i++
 			}
+		case "--cors-origin":
+			if i+1 < len(args) {
+				corsOrigins = append(corsOrigins, args[i+1])
+				i++
+			}
 		case "--help", "-h":
 			fmt.Println("Usage: ailang server [options]")
 			fmt.Println("")
@@ -71,6 +78,8 @@ func serverCommand(args []string) error {
 			fmt.Println("  --bind ADDR              Bind address (default: 127.0.0.1, 0.0.0.0 when PORT env set)")
 			fmt.Println("  --db PATH                Database path (default: ~/.ailang/state/collaboration.db)")
 			fmt.Println("  --firebase-project ID    Firebase project ID for authentication (optional)")
+			fmt.Println("  --cors-origin ORIGIN     Let this exact origin (scheme://host[:port]) call the API and open")
+			fmt.Println("                           the WebSocket cross-origin; repeatable. Default: same-origin only")
 			fmt.Println("  --help, -h               Show this help message")
 			fmt.Println("")
 			fmt.Println("Environment variables:")
@@ -94,6 +103,10 @@ func serverCommand(args []string) error {
 			fmt.Println("  Health:      http://localhost:PORT/health")
 			return nil
 		}
+	}
+
+	if err := originpolicy.Validate(false, corsOrigins); err != nil {
+		return err
 	}
 
 	// Check for Firebase project from config or environment if not specified via flag
@@ -153,6 +166,7 @@ func serverCommand(args []string) error {
 	// Build server options based on storage mode
 	serverOpts := []server.ServerOption{
 		server.WithVersion(Version),
+		server.WithCORSOrigins(corsOrigins),
 	}
 
 	// Add hook token auth if configured (for cloud deployments)
