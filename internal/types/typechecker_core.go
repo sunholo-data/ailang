@@ -87,9 +87,8 @@ type CoreTypeChecker struct {
 	// aliasEnv maps type alias names to their underlying types
 	// M-BUGFIX: Used for alias expansion during unification
 	aliasEnv map[string]Type
-	// aliasParams maps parameterized-alias names to their ordered param names
-	// (M-XMOD-ALIAS-POLY). Missing entry = nullary alias (arity 0). Passed to
-	// the Unifier so applied aliases (`Box[int]`) instantiate their body.
+	// aliasParams: parameterized-alias name -> ordered param names (M-XMOD-ALIAS-POLY);
+	// missing = nullary. Passed to the Unifier so `Box[int]` instantiates its body.
 	aliasParams   map[string][]string
 	aliasCaptures map[string]string // M-TYPE-NAME-SHADOW (alias_capture.go)
 	// M-FIX-FLOAT-OP: Parameter type annotations from function declarations
@@ -446,8 +445,7 @@ func (tc *CoreTypeChecker) InferWithConstraints(expr core.CoreExpr, env *TypeEnv
 	// M-BUGFIX: Create unifier with alias environment for type alias expansion
 	var unifier *Unifier
 	if len(tc.aliasEnv) > 0 || len(tc.aliasCaptures) > 0 {
-		// M-XMOD-ALIAS-POLY: thread the parameterized-alias param env so applied
-		// aliases (`Box[int]`) instantiate their body during unification.
+		// M-XMOD-ALIAS-POLY: param env so applied aliases (`Box[int]`) instantiate.
 		unifier = NewUnifierWithAliasesAndParams(tc.aliasEnv, tc.aliasParams)
 		unifier.SetAliasCaptures(tc.aliasCaptures)
 	} else {
