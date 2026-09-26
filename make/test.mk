@@ -70,6 +70,7 @@ test-launchd-drivers: ## Run launchd driver tests (pin-root + routing + notices 
 	@/bin/bash tools/launchd/test_cron_kicker.sh
 	@/bin/bash tools/launchd/test_mission_base.sh
 	@/bin/bash tools/launchd/test_codex_quota_admission.sh
+	@/bin/bash tools/launchd/test_mission_scope_guard.sh
 	@/bin/bash tools/launchd/test_ollama_quota_admission.sh
 	@/bin/bash tools/launchd/test_anthropic_quota_admission.sh
 	@/bin/bash scripts/hooks/test_stage_isolation.sh

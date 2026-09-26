@@ -1,0 +1,88 @@
+#!/bin/bash
+# Mission scope guard (M-HARNESS-MISSION-LOOP, HD-4). Enabled PER FIRE: the mission driver
+# points core.hooksPath here through GIT_CONFIG_COUNT/KEY/VALUE, so no repo config changes
+# and attended sessions (no MISSION_NAME) never see it.
+#
+# Product loops (v1, docs, motoko, ...) may not push changes to the loop harness; they file
+# a ticket instead. The fleet loop may not push changes to the language core. Pushes to any
+# repo other than sunholo-data/ailang (world, daneel) pass untouched.
+#
+# BASH 3.2 (the rig): no arrays-of-arrays, no ${v,,}, no mapfile.
+
+# Harness paths: the fleet mission's write scope. Keep in step with
+# design_docs/fleet-mission.md "Authority".
+_scope_is_harness() {
+  case "$1" in
+    tools/launchd/*|internal/mission/*|cmd/ailang/mission*|missions/*) return 0 ;;
+    .claude/skills/mission-*|.claude/skills/sprint-*|.pi/extensions/*) return 0 ;;
+    scripts/hooks/*|scripts/mission_*) return 0 ;;
+  esac
+  return 1
+}
+
+# Language-core paths the fleet mission must not touch.
+_scope_is_core() {
+  case "$1" in
+    internal/parser/*|internal/lexer/*|internal/ast/*|internal/types/*|internal/elaborate/*) return 0 ;;
+    internal/core/*|internal/eval/*|internal/vm/*|internal/codegen/*|internal/effects/*) return 0 ;;
+    internal/builtins/*|internal/pipeline/*|internal/runtime/*|internal/link/*|internal/iface/*) return 0 ;;
+    std/*|examples/*|benchmarks/*) return 0 ;;
+  esac
+  return 1
+}
+
+# _scope_verdict MISSION PATH → prints "refuse <reason>" or nothing.
+_scope_verdict() {
+  local m="$1" p="$2"
+  [ -n "$m" ] || return 0
+  if [ "$m" = fleet ]; then
+    _scope_is_core "$p" && echo "refuse language-core path; the fleet mission works the loop harness only"
+  else
+    _scope_is_harness "$p" && echo "refuse loop-harness path; file it with: ailang mission ticket file --signature <key> --evidence <...>"
+  fi
+  return 0
+}
+
+_scope_target_is_ailang() {
+  case "$1" in
+    *[:/]sunholo-data/ailang|*[:/]sunholo-data/ailang.git) return 0 ;;
+  esac
+  [ -n "${MISSION_SCOPE_TEST_REMOTE:-}" ] && [ "$1" = "$MISSION_SCOPE_TEST_REMOTE" ] && return 0
+  return 1
+}
+
+_scope_main() {
+  local remote_url="$2" zero=0000000000000000000000000000000000000000
+  local m="${MISSION_NAME:-}" local_ref local_sha remote_ref remote_sha base paths p why refused=0
+  [ -n "$m" ] || exit 0
+  _scope_target_is_ailang "$remote_url" || exit 0
+  while read -r local_ref local_sha remote_ref remote_sha; do
+    [ "$local_sha" = "$zero" ] && continue            # a delete pushes no content
+    if [ "$remote_sha" != "$zero" ] && git cat-file -e "$remote_sha^{commit}" 2>/dev/null; then
+      base="$remote_sha"
+    else
+      base=$(git merge-base "$local_sha" origin/dev 2>/dev/null) || base=""
+    fi
+    if [ -n "$base" ]; then
+      paths=$(git diff --name-only "$base" "$local_sha")
+    else
+      paths=$(git show --name-only --format= "$local_sha")
+    fi
+    while IFS= read -r p; do
+      [ -n "$p" ] || continue
+      why=$(_scope_verdict "$m" "$p")
+      if [ -n "$why" ]; then
+        echo "mission scope guard: MISSION_NAME=$m may not push $p (${why#refuse })" >&2
+        refused=1
+      fi
+    done <<<"$paths"
+  done
+  if [ "$refused" -ne 0 ]; then
+    echo "mission scope guard: push refused (M-HARNESS-MISSION-LOOP). Tickets go to the mission-fleet inbox." >&2
+    exit 1
+  fi
+  exit 0
+}
+
+# Sourced by the test suite with MISSION_SCOPE_LIB=1 to reach the functions.
+[ "${MISSION_SCOPE_LIB:-}" = 1 ] || _scope_main "$@"

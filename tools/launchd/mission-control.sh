@@ -2192,6 +2192,16 @@ unset _role _mv _rv
 
 log "=== mission iteration starting (controller=$CONTROLLER_ID via ${MODEL_WHY}, timeout=${HARD_TIMEOUT}s | bg-wait-ceiling=${CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS}ms | roles: designer=$MISSION_DESIGNER_MODEL planner=$MISSION_PLANNER_MODEL executor=$MISSION_EXECUTOR_MODEL evaluator=$MISSION_EVALUATOR_MODEL) ==="
 
+# MISSION SCOPE GUARD (M-HARNESS-MISSION-LOOP, HD-4). Product loops may not push loop-harness
+# paths (they file `ailang mission ticket` instead); the fleet loop may not push language-core
+# paths. Enabled through git's env config so no repo config changes and attended sessions (no
+# MISSION_NAME) never see it. Appended after any GIT_CONFIG_* entries already in the env.
+_gc_n="${GIT_CONFIG_COUNT:-0}"
+export "GIT_CONFIG_KEY_${_gc_n}=core.hooksPath" "GIT_CONFIG_VALUE_${_gc_n}=$MC_DRIVER_ROOT/tools/launchd/githooks"
+export GIT_CONFIG_COUNT=$((_gc_n + 1)) MISSION_NAME
+unset _gc_n
+log "scope guard: git pre-push hooks from $MC_DRIVER_ROOT/tools/launchd/githooks (MISSION_NAME=$MISSION_NAME)"
+
 PROMPT="Run one mission-control iteration: invoke the mission-control skill for \
 ${MISSION_DOC} and follow its gates. You are a scheduled run; \
 there is no human present — park anything needing human input and report via \
