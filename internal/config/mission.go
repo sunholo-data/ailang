@@ -4,6 +4,7 @@ import "strings"
 
 // The mission outer loop and the identity of whoever is acting.
 const (
+	EnvMissionName          = "MISSION_NAME"
 	EnvMissionGHIssue       = "MISSION_GH_ISSUE"
 	EnvMissionControlActive = "MISSION_CONTROL_ACTIVE"
 	EnvControllerID         = "CONTROLLER_ID"
@@ -31,6 +32,7 @@ const (
 const MissionMessagePlaneProject = "ailang-multivac"
 
 var missionVars = []Var{
+	{EnvMissionName, "", AreaMission, "Name of the mission whose fire this process belongs to (v1, docs, motoko, world, fleet); set by the mission driver. Default filer for `ailang mission ticket file`; the push scope guard keys on it."},
 	{EnvMissionGHIssue, "", AreaMission, "GitHub issue number that overrides the mission's directive channel, so a cutover can be rehearsed against a scratch issue."},
 	{EnvMissionControlActive, "0", AreaMission, "1 marks the process as running inside a mission-control iteration."},
 	{EnvControllerID, "", AreaMission, "Identity of the mission controller acting in this process; used as the approval identity label."},
@@ -44,6 +46,9 @@ var missionVars = []Var{
 	{EnvClaudeCodeSessionID, "", AreaMission, "Claude Code session id, appended to the attended identity label."},
 	{EnvUser, "", AreaMission, "The login user, the last-resort identity label and operator principal."},
 }
+
+// MissionName returns the trimmed MISSION_NAME, "" when unset (an attended session).
+func MissionName() string { return strings.TrimSpace(get(EnvMissionName)) }
 
 // MissionGHIssue returns the trimmed MISSION_GH_ISSUE, "" when unset.
 func MissionGHIssue() string { return strings.TrimSpace(get(EnvMissionGHIssue)) }

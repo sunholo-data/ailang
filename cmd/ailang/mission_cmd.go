@@ -61,11 +61,13 @@ func missionCommand(args []string) error {
 		return missionRoleRun(args[1:])
 	case "quota":
 		return missionQuota(args[1:])
+	case "ticket":
+		return missionTicket(args[1:])
 	case "help", "--help", "-h":
 		printMissionHelp()
 		return nil
 	default:
-		return fmt.Errorf("unknown mission subcommand %q (want: list, doctor, install, apply, rotate-log, normalize, quota, role-run, attempt, iterate, status, resume, cancel, retry-review, confirm-stopped, activation, report)", args[0])
+		return fmt.Errorf("unknown mission subcommand %q (want: list, doctor, install, apply, rotate-log, normalize, quota, ticket, role-run, attempt, iterate, status, resume, cancel, retry-review, confirm-stopped, activation, report)", args[0])
 	}
 }
 
@@ -75,6 +77,8 @@ func printMissionHelp() {
   ailang mission report --mission NAME --body-file FILE [--dry-run]
                                    post a report to the resolved bookkeeping issue
                                    see report --help for state/issue overrides
+  ailang mission ticket file|open|resolve
+                                   harness tickets: product loops file, the fleet loop resolves
   ailang mission iterate --work-item FILE [--dry-run]
                                    one frozen work item through validated completion
   ailang mission status NAME --work-item ID [--json] [--activation OP]
