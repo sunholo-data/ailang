@@ -62,5 +62,5 @@ ailang run --caps IO,FS,Env --entry convert examples/runnable/std_audio_brief.ai
 
 - AAC/m4a: the only pure-Go encoder is LGPL, and the alternative needs cgo.
 - Resampling (for example 24 kHz to 16 kHz for Live API input). Planned as a
-  follow-up; see `design_docs/planned/v0_44_0/m-std-audio.md` M3.
+  follow-up; see `design_docs/implemented/v0_44_0/m-std-audio.md` M3.
 - Decoding, MP3, Vorbis and streaming (incremental) encoding.
