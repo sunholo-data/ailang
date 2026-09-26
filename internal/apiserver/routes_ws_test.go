@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/sunholo-data/ailang/internal/effects"
+	"github.com/sunholo-data/ailang/internal/platform/originpolicy"
 )
 
 // M1-A1: a WS route whose handler uses only the pre-existing Stream ops
@@ -165,7 +166,7 @@ func TestWS_ValidateRoutes(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "not loopback") || !strings.Contains(err.Error(), "--cors-origin") {
 		t.Fatalf("non-loopback bind without allowlist: %v", err)
 	}
-	f.srv.corsOrigins = originSet([]string{"https://studio.example"})
+	f.srv.origins = originpolicy.New(false, []string{"https://studio.example"}, corsAllowMethods)
 	if err := f.srv.ValidateWSRoutes(); err != nil {
 		t.Fatalf("non-loopback bind WITH allowlist: %v", err)
 	}
