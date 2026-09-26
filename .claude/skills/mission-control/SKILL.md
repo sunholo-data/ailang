@@ -228,7 +228,7 @@ act on. Skipping the read is how a gate's rules silently stop applying.
 
 ## Gate 2 — PICK + REALITY-CHECK
 
-Pick the top item and REALITY-CHECK it first-party. The judgement gate: most bad iterations start with an unchecked premise here.
+Map the bar (which clauses are UNMET, which rows move them), then pick and REALITY-CHECK first-party. The judgement gate: most bad iterations start with an unchecked premise here, and a run of good ones can still drift off the bar.
 
 **⚠ THE FULL RULES FOR THIS GATE ARE NOT IN THIS FILE.** Read
 `.claude/skills/mission-control/resources/gate-2-pick.md` **NOW**, before doing anything in

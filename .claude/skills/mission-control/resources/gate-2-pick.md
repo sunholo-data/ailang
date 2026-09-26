@@ -58,6 +58,47 @@ index first; open the archive only when the index says something relevant happen
 
 First action: `bash tools/launchd/mission-heartbeat.sh stamp gate-2`.
 
+### CRITICAL-PATH CHECK — does the pick move an UNMET clause of the bar? (Mark, attended 2026-09-26)
+
+**Every row can be real and well-executed, and together they can still stop moving the bar.**
+Measured on `mission-world` 2026-09-26: iterations 189, 193 and 194 each landed a clause-2
+robustness row, judged 97–98. Each landing filed successor rows (22 → 111; 24 → 112, 113). Clause
+2 was already MET. Meanwhile the two ungated rows on the path to the UNMET clauses 4 and 6 (106,
+107) had no position in the attended groom table. They had been split out of a groomed row at
+iter-187 and never inherited its place. The loop followed the table correctly, and the table had
+fallen behind the queue. An attended review saw this in minutes because it started from the bar
+and worked down to the rows. Every rule in this gate starts from a single row and works up, and
+that is the blind spot. Local correctness does not aggregate.
+
+**Rules, before taking the queue head:**
+
+**(a) Write the clause map.** One line per clause of the charter's bar (the finish line: 1.0
+clauses, a sweep's site count, whatever unit the charter counts in): `MET` / `UNMET`, and for each
+UNMET clause, the open row(s) that move it and whether each is routable now (blocker named and
+re-measured per the blocker rules below). This goes in the STATUS stamp, and it is short: a
+7-clause bar is 7 lines.
+
+**(b) If a routable row moves an UNMET clause and your pick does not, the pick is wrong** unless
+the stamp names a measured reason (the row's premise failed, its blocker re-measured true, an
+attended ruling parks it). "It is lower in the groom table" is NOT a reason. It is the drift signal
+in (d).
+
+**(c) A row split out of a groomed row INHERITS the parent's groom position**, with the children
+in dependency order, unless the split record says otherwise. When you split a row, write the
+children into the groom table in the same commit. Filing a row and ranking it are separate steps,
+and the second one is the one that goes missing.
+
+**(d) The loop may not reorder an attended groom, and it must not silently route around one.**
+When (a) shows a routable critical-path row that the groom table ranks below non-critical-path
+rows, or gives no rank at all, file a `DECISIONS FOR MARK` ask proposing its position. The ask
+carries the clause map, the proposed order, a recommendation, and the default: until answered,
+pick the critical-path row. An attended groom ORDERS work toward the bar; it never licenses
+ignoring the bar. Then pick per (b).
+
+**(e) A MET clause stays met.** Polish on a met clause (robustness, a successor row, hygiene) is
+real work, but it goes BELOW every routable UNMET-clause row, whatever its class tag. PRODUCT is
+a tag about who experiences the change. It says nothing about whether the change moves the bar.
+
 Take the top `[NEXT]` queue item. **Before any work, verify the doc's claimed status against repo
 reality**: `git log --grep`, does the code/test already exist, does `make test` already cover it.
 

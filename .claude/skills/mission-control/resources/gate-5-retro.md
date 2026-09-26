@@ -27,6 +27,14 @@ After every Gate-5 report has been sent and this iteration is fully complete, ru
     to 55% and cost it two weeks (iterations 309–348: 16 lines of compiler and stdlib).
     If the share exceeds one third over 20 iterations, say so in the digest under its own
     heading and name the harness rows responsible.
+2c. **COUNT BAR-MOVING LANDINGS — the drift alarm (Mark, attended 2026-09-26).** 2b catches the
+    loop repairing itself. This check catches the quieter failure: well-executed PRODUCT work
+    that no longer moves the bar (Gate 2's CRITICAL-PATH CHECK, with the `mission-world` 189/193/194
+    instance). For each of the last 3 landings, record which UNMET clause it moved, or "none".
+    **If all 3 read "none" while Gate 2's clause map shows a routable UNMET-clause row, the digest
+    LEADS with a `DRIFT` line** naming the three landings and the idle critical-path rows, and
+    `DECISIONS FOR MARK` carries a proposed regroom (a complete ask: order, recommendation,
+    default). As with 2b, a drift alarm is a signal to STOP AND ASK MARK, never to work harder.
 3. Morning report, TWO channels (both required). **DIGEST FORMAT, HARD-CAPPED (Mark directive
    2026-07-31: "the github progress issues are very verbose … we could work on more conciseness").**
    The issue thread is a COMMUNICATION channel, not loop memory — the loop never re-reads its own
@@ -80,8 +88,9 @@ After every Gate-5 report has been sent and this iteration is fully complete, ru
    - **Pick**: <item> (<why in ≤1 clause, only if not the queue head>)
    - **Outcome**: LANDED/PARKED/none · [PRODUCT|HARNESS|ADMIN|REFUTATION] · evaluator <score> · <commit SHAs as links>
    - **Progress**: <distance to the charter's finish line, in the charter's own countable unit —
-     e.g. "sweep 7/93 sites converted (M1 of 4 milestones)" — then what THIS iteration moved.
-     A HARNESS/ADMIN iteration writes "goal unmoved" in those words.>
+     e.g. "sweep 7/93 sites converted (M1 of 4 milestones)" or "1.0: clauses 4, 5, 6 unmet" —
+     then what THIS iteration moved. A HARNESS/ADMIN iteration, OR a PRODUCT iteration on an
+     already-MET clause, writes "goal unmoved" in those words.>
    - **Up next (banked)**: <top 2-3 READY queue items, each "<item> — <why it ranks>" on one line>
    - **Key find**: <≤2 sentences, ONLY if it should change Mark's priorities — else omit the row>
    - **Cost**: metered $<x> · quota buckets <list>
