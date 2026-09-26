@@ -75,11 +75,11 @@ Common patterns we expect you to write:
 
 | Domain | Source labels | Sink refinements |
 |--------|---------------|------------------|
-| **Agent / LLM** | `<user-input>`, `<email>`, `<tool-output>` | `{not user-input}` on `sendEmail`, `runShell`, `evalSql` |
-| **Web / API** | `<request-body>`, `<query-string>`, `<header>` | `{not request-body}` on `executeSQL`, `renderHTML` |
-| **Compliance** | `<pii>`, `<phi>`, `<gdpr-eu>` | `{not pii}` on `logEvent`, `analytics` |
-| **Secrets** | `<api-key>`, `<token>`, `<password>` | `{not api-key}` on `httpResponseBody`, `errorReport` |
-| **Multi-tenant** | `<tenant-a>`, `<tenant-b>` | `{not tenant-a}` on serialisers crossing tenant boundaries |
+| **Agent / LLM** | `<user_input>`, `<email>`, `<tool_output>` | `{not user_input}` on `sendEmail`, `runShell`, `evalSql` |
+| **Web / API** | `<request_body>`, `<query_string>`, `<header>` | `{not request_body}` on `executeSQL`, `renderHTML` |
+| **Compliance** | `<pii>`, `<phi>`, `<gdpr_eu>` | `{not pii}` on `logEvent`, `analytics` |
+| **Secrets** | `<api_key>`, `<token>`, `<password>` | `{not api_key}` on `httpResponseBody`, `errorReport` |
+| **Multi-tenant** | `<tenant_a>`, `<tenant_b>` | `{not tenant_a}` on serialisers crossing tenant boundaries |
 
 The runtime cost is zero regardless of how many labels you define —
 they all erase at compile time. Pick the labels that match your threat
@@ -93,8 +93,8 @@ the **source** of the taint — not the sink, and not the policy.
 | Good | Why |
 |------|-----|
 | `<email>` | A string came from email content |
-| `<user-input>` | A string came from user input (kebab-case for compounds) |
-| `<sql-text>` | A string came from a SQL builder context |
+| `<user_input>` | A string came from user input (snake_case for compounds: `-` does not parse in a label) |
+| `<sql_text>` | A string came from a SQL builder context |
 | `<pii>` | Personally identifiable info |
 | `<sanitized>` | Output of an explicit sanitiser (reset state) |
 
@@ -200,19 +200,22 @@ extensively in
 This is the headline scenario for IFC labels.
 
 ```ailang
--- Source: any text fetched from external content
-pure func fetchEmailBody() -> string<email> ! {FS}
-pure func fetchWebPage(url: string) -> string<web> ! {Net}
+-- Source: any text fetched from external content carries one shared label
+pure func fetchEmailBody() -> string<untrusted> ! {FS}
+pure func fetchWebPage(url: string) -> string<untrusted> ! {Net}
 
 -- Sink: tool calls that act in the world
-pure func sendEmail(to: string, body: string{not email}) -> () ! {Net}
-pure func runShell(cmd: string{not email, not web}) -> () ! {Process}
+pure func sendEmail(to: string, body: string{not untrusted}) -> () ! {Net}
+pure func runShell(cmd: string{not untrusted}) -> () ! {Process}
 ```
 
-The `runShell` sink rejects both `<email>`-tainted and `<web>`-tainted
-arguments, so a model that reads a PDF and tries to execute a shell
-command described inside it gets a structural type error before the
-shell runs.
+The `runShell` sink rejects anything fetched from email or the web, so a
+model that reads a PDF and tries to execute a shell command described
+inside it gets a structural type error before the shell runs.
+
+A value carries one label and a parameter takes one `not` refinement:
+`string{not email, not web}` does not parse. To forbid several sources at
+one sink, give those sources a shared label, as above.
 
 ### 2. PII leakage in agent summaries
 
@@ -249,10 +252,10 @@ to telemetry pipelines for years.
 
 ```ailang
 -- Secrets are tainted at the source
-pure func getEnv(name: string) -> string<api-key> ! {Env}
+pure func getEnv(name: string) -> string<api_key> ! {Env}
 
 -- Error responses cannot contain api-key-tainted strings
-pure func httpResponse(status: int, body: string{not api-key}) -> Response ! {}
+pure func httpResponse(status: int, body: string{not api_key}) -> Response ! {}
 ```
 
 A debug handler that does `httpResponse(500, "config: ${getEnv("OPENAI_API_KEY")}")`
@@ -294,10 +297,10 @@ where the prompt context is shared. Categories: SOC 2 CC6.6, ISO
 
 ```ailang
 -- Per-tenant labels - open vocabulary, you make these up
-pure func loadOrders(tenant: TenantId) -> [Order<tenant-a>] ! {DB}
+pure func loadOrders(tenant: TenantId) -> [Order<tenant_a>] ! {DB}
 
 -- Per-tenant webhook sink
-pure func dispatchToTenantB(payload: string{not tenant-a}) -> () ! {Net}
+pure func dispatchToTenantB(payload: string{not tenant_a}) -> () ! {Net}
 ```
 
 Routing tenant-A data into a tenant-B webhook produces a type error.
