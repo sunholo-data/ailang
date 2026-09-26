@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/core"
@@ -34,6 +35,12 @@ type moduleImports struct {
 	// transitively; it does NOT bring constructors into scope.
 	// M-MATCH-XCHECK-ERROR-QUALITY.
 	AllCtorTypes map[string]string
+	// ImportedAliasOrigin records which module's interface supplied each entry
+	// of ImportedTypeAliases (M-TYPE-NAME-SHADOW), for diagnostics.
+	ImportedAliasOrigin map[string]string
+	// CapturedAliases: imported aliases withheld because their body names a type
+	// this module declares itself; value = the loud error message for using one.
+	CapturedAliases map[string]string
 }
 
 // resolveModuleImports builds the external type environment and global references
@@ -43,6 +50,7 @@ func resolveModuleImports(
 	modID string,
 	modLinker *link.ModuleLinker,
 	cfg Config,
+	reach map[string]bool, // transitive import closure; the transitive alias pull reads only these (nil = all)
 ) *moduleImports {
 	imports := &moduleImports{
 		ExternalTypes:         make(map[string]*types.Scheme),
@@ -53,6 +61,8 @@ func resolveModuleImports(
 		ImportedADTTypeParams: make(map[string]int),
 		ImportedCtorInfos:     make(map[string]*importedCtorInfo),
 		AllCtorTypes:          make(map[string]string),
+		ImportedAliasOrigin:   make(map[string]string),
+		CapturedAliases:       make(map[string]string),
 	}
 
 	// M-MATCH-XCHECK-ERROR-QUALITY: collect a diagnostic-only Constructor → ADT
@@ -130,13 +140,28 @@ func resolveModuleImports(
 	// The first-wins guard preserves precedence: direct-import aliases populated
 	// above run first; this loop only fills in transitively-reachable gaps.
 	// Symmetric to ad84b68d (WASM path); see m-transitive-alias-env-import.md.
-	for modPath, modIface := range modLinker.GetLoadedModules() {
+	//
+	// M-TYPE-NAME-SHADOW: iterate in sorted module order so that, when two
+	// transitively-loaded modules export the same alias name, WHICH one fills the
+	// gap is deterministic (it used to follow Go map order). This does not make
+	// the pick right — that needs defining-module-qualified alias bodies (M2 of
+	// m-type-name-shadow-and-cache.md) — but it makes it reproducible. And only
+	// modules in this module's own import closure (`reach`) are read: pulling
+	// from every module compiled so far let a sibling's `type Row` reach a module
+	// that never imports it, depending on topo order, which no cache key covers.
+	loaded := modLinker.GetLoadedModules()
+	for _, modPath := range sortedIfaceKeys(loaded) {
+		modIface := loaded[modPath]
 		if modPath == "$builtin" || modIface == nil {
+			continue
+		}
+		if reach != nil && !reach[modPath] {
 			continue
 		}
 		for aliasName, aliasTarget := range modIface.TypeAliases {
 			if _, exists := imports.ImportedTypeAliases[aliasName]; !exists {
 				imports.ImportedTypeAliases[aliasName] = aliasTarget
+				imports.ImportedAliasOrigin[aliasName] = modPath
 				// M-XMOD-ALIAS-POLY: carry params alongside the alias body.
 				if params, ok := modIface.GetTypeAliasParams(aliasName); ok {
 					imports.ImportedAliasParams[aliasName] = params
@@ -149,6 +174,17 @@ func resolveModuleImports(
 	}
 
 	return imports
+}
+
+// sortedIfaceKeys returns the module paths of a loaded-interface map in sorted
+// order, so iteration over it is deterministic.
+func sortedIfaceKeys(m map[string]*iface.Iface) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 // resolveSelectiveImports resolves selective symbol imports from a dependency interface.
@@ -189,6 +225,7 @@ func resolveSelectiveImports(
 			// This enables cross-module record update syntax
 			if alias, hasAlias := depIface.GetTypeAlias(sym); hasAlias {
 				imports.ImportedTypeAliases[sym] = alias
+				imports.ImportedAliasOrigin[sym] = depIface.Module
 				// M-XMOD-ALIAS-POLY: carry params for parameterized aliases.
 				if params, ok := depIface.GetTypeAliasParams(sym); ok {
 					imports.ImportedAliasParams[sym] = params
@@ -224,6 +261,7 @@ func resolveSelectiveImports(
 	for aliasName, aliasTarget := range depIface.TypeAliases {
 		if _, exists := imports.ImportedTypeAliases[aliasName]; !exists {
 			imports.ImportedTypeAliases[aliasName] = aliasTarget
+			imports.ImportedAliasOrigin[aliasName] = depIface.Module
 			// M-XMOD-ALIAS-POLY: carry params for parameterized aliases.
 			if params, ok := depIface.GetTypeAliasParams(aliasName); ok {
 				imports.ImportedAliasParams[aliasName] = params
