@@ -487,3 +487,40 @@ func TestWorkerEnv_ProviderScopedCredentials(t *testing.T) {
 		t.Errorf("trusted_host gets the operator's full environment")
 	}
 }
+
+// std/web reads OLLAMA_API_KEY in Go, so a restricted worker granted Net to
+// the backend host needs it whatever the AI cap says (task-386cc079: 16/16
+// webFetch/webSearch failed with the key unset). Any other net_allow, or a
+// Net-less policy, gets no key.
+func TestWorkerEnv_WebBackendCredential(t *testing.T) {
+	t.Setenv("OLLAMA_API_KEY", "ol-secret")
+	t.Setenv("OPENROUTER_API_KEY", "or-secret")
+	has := func(env []string, name string) bool {
+		for _, kv := range env {
+			if strings.HasPrefix(kv, name+"=") {
+				return true
+			}
+		}
+		return false
+	}
+	cases := []struct {
+		name string
+		res  *policy.Resolved
+		want bool
+	}{
+		{"net ollama.com, no AI", &policy.Resolved{Mode: policy.ModeRestricted, Effects: []string{"IO", "Net"}, NetAllow: []string{"ollama.com"}}, true},
+		{"net ollama.com, AI on gemini", &policy.Resolved{Mode: policy.ModeRestricted, Effects: []string{"AI", "IO", "Net"}, AIProvider: "gemini-3-5-flash-lite", NetAllow: []string{"example.org", "ollama.com"}}, true},
+		{"net without ollama.com", &policy.Resolved{Mode: policy.ModeRestricted, Effects: []string{"IO", "Net"}, NetAllow: []string{"example.org"}}, false},
+		{"lookalike host", &policy.Resolved{Mode: policy.ModeRestricted, Effects: []string{"IO", "Net"}, NetAllow: []string{"evil-ollama.com", "*.ollama.com"}}, false},
+		{"net_allow without Net cap", &policy.Resolved{Mode: policy.ModeRestricted, Effects: []string{"IO"}, NetAllow: []string{"ollama.com"}}, false},
+	}
+	for _, tc := range cases {
+		env := workerEnv(tc.res)
+		if got := has(env, "OLLAMA_API_KEY"); got != tc.want {
+			t.Errorf("%s: OLLAMA_API_KEY present=%v, want %v", tc.name, got, tc.want)
+		}
+		if has(env, "OPENROUTER_API_KEY") {
+			t.Errorf("%s: an unrelated key leaked", tc.name)
+		}
+	}
+}

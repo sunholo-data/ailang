@@ -25,12 +25,16 @@ import (
 )
 
 func coordinatorPRs(args []string) error {
-	apply := false
+	apply, landed, fireHandoffs := false, false, false
 	remote, stateDir, repo := "", "", ""
 	for i := 0; i < len(args); i++ {
 		switch {
 		case args[i] == "--apply":
 			apply = true
+		case args[i] == "--landed":
+			landed = true
+		case args[i] == "--fire-handoffs":
+			fireHandoffs = true
 		case args[i] == "--remote" && i+1 < len(args):
 			i++
 			remote = args[i]
@@ -50,9 +54,18 @@ func coordinatorPRs(args []string) error {
 	}
 	defer bundle.Close()
 
-	reg, _, err := resolveInboxRegistry("")
+	// The registry of the plane the tasks are ON (from --remote), not the one
+	// the message store implies — the same seam 97cc947b8 fixed for approve.
+	reg, registrySource, err := approvalRegistry(bundle.Mode)
 	if err != nil {
 		return fmt.Errorf("cannot load the registry — the merge scope check needs it: %w", err)
+	}
+
+	if fireHandoffs && !landed {
+		return fmt.Errorf("--fire-handoffs only applies with --landed")
+	}
+	if landed {
+		return coordinatorPRsLanded(ctx, bundle, reg, registrySource, repo, apply, fireHandoffs)
 	}
 
 	ghCfg, err := messaging.LoadGitHubConfig()

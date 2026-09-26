@@ -37,8 +37,8 @@ import (
 // task. Without it every concurrent caller succeeded and every one dispatched.
 func (s *SQLiteStore) MarkTaskQueued(ctx context.Context, id string) error {
 	res, err := s.db.ExecContext(ctx,
-		"UPDATE tasks SET status = ?, finalization = NULL WHERE id = ? AND status = ?",
-		TaskStatusQueued, id, TaskStatusPending,
+		"UPDATE tasks SET status = ?, finalization = NULL, queued_at = ? WHERE id = ? AND status = ?",
+		TaskStatusQueued, time.Now(), id, TaskStatusPending,
 	)
 	if err != nil {
 		return err

@@ -98,6 +98,7 @@ func printCoordinatorHelp() {
 	fmt.Println("  lint           Validate the WHOLE registry: chain edges, cycles, dead handoffs")
 	fmt.Println("  pipeline       Did the agent chain run, and which stage stopped it?")
 	fmt.Println("  prs            Reconcile the PRs agents left behind (dry run; --apply to act)")
+	fmt.Println("                 --landed: resolve pending cards whose PR already merged [--fire-handoffs]")
 	fmt.Println("  agent-set      Change one field on one agent and deploy it (dev->test->prod)")
 	fmt.Println("  list           List all tasks (with filters)")
 	fmt.Println("  pending        List tasks awaiting approval (interactive)")

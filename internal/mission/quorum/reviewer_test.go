@@ -267,3 +267,27 @@ func TestRunReviewerWith_BudgetCapRefusalZeroSpend(t *testing.T) {
 		t.Errorf("caller was invoked despite budget refusal (non-zero spend risk)")
 	}
 }
+
+// TestRunReviewerWith_DefaultCapAdmitsAstraOnAWorldSizedDoc pins the 2026-09-25
+// regression: at the old $0.10 cap, gpt6-astra's pricing refused every World doc
+// of ~9-13k tokens before spending anything, so the quorum ran at N-1.
+func TestRunReviewerWith_DefaultCapAdmitsAstraOnAWorldSizedDoc(t *testing.T) {
+	astra := &eval_harness.ModelConfig{
+		APIName:  "gpt-6-astra",
+		Provider: "openai",
+		Pricing:  eval_harness.Pricing{InputPer1K: 0.010, OutputPer1K: 0.050},
+	}
+	stub := &stubCaller{
+		raw:  `{"verdict":"pass","strongest_objection":"none material","catch":"none"}`,
+		resp: &ai.Response{InputTokens: 13414, OutputTokens: 800},
+	}
+	out := &ReviewerOutcome{Model: "gpt6-astra"}
+	body := strings.Repeat("x", 13414*charsPerToken) // iteration 186's doc, ~13.4k tokens
+	got := runReviewerWith(stub, astra, out, "doc.md", body, DefaultMaxCostUSD)
+	if got.AbsentReason == ReasonBudget {
+		t.Fatalf("default cap refused astra on a World-sized doc: %s", got.Err)
+	}
+	if !got.Present {
+		t.Fatalf("astra should have reviewed: %s %s", got.AbsentReason, got.Err)
+	}
+}

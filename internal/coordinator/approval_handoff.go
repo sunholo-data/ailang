@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/sunholo-data/ailang/internal/messaging"
 )
@@ -42,6 +43,42 @@ import (
 // but no dispatch notification went out. The work is not lost, but it will not
 // start on its own — a distinction the caller must be able to report.
 var errHandoffNotDispatched = errors.New("handoff stored but not dispatched")
+
+// errHandoffSuppressed: the approval this handoff would follow was resolved with
+// its handoffs deliberately withheld (SkipHandoffs). Not an error to report as a
+// failure — a decision to honour, from every producer (M-TASK-STATUS-TRUTH D3).
+var errHandoffSuppressed = errors.New("handoffs for this approval were suppressed by the operator")
+
+// HandoffMessageIDForWork is the identity of the handoff an APPROVAL owes one
+// target. One task can be approved more than once — ReopenApprovalForNewWork
+// puts an approved decision back to pending when a later run produces different
+// work — and each distinct piece of work owes its own handoff. The work id
+// (approval context, since 2026-09-15) is what tells a new decision from a
+// replay of the old one. Without a work id it is HandoffMessageID.
+func HandoffMessageIDForWork(taskID, target, workID string) string {
+	id := HandoffMessageID(taskID, target)
+	if workID == "" {
+		return id
+	}
+	if len(workID) > 16 {
+		workID = workID[:16]
+	}
+	return id + ":" + workID
+}
+
+// HandoffRecoveryWindow bounds boot recovery: an approval older than this whose
+// handoff decision was never recorded is expired, not fired.
+const HandoffRecoveryWindow = 7 * 24 * time.Hour
+
+// HandoffRecoveryBatch bounds ONE boot's recovery work. Each pass takes at most
+// this many undecided approvals, and every one it takes is decided (fired,
+// nothing owed, or expired), so a backlog drains across boots instead of
+// holding one boot hostage (M-TASK-STATUS-TRUTH D3, quorum round 6).
+const HandoffRecoveryBatch = 100
+
+// approvalHandoffNotify is how the approval-path producers notify. A variable
+// only so tests can count deliveries; production never reassigns it.
+var approvalHandoffNotify = notifyInboxMessage
 
 // approvalHandoffTargets returns the edges that waited for this approval.
 //
@@ -93,6 +130,11 @@ type handoff struct {
 	Task           *TaskRecord
 	Artifacts      []string // what the previous stage produced (resolveHandoffArtifacts)
 	IssueNumber    int      // GitHub issue, 0 when there is none
+	// ID is the row identity. Empty means HandoffMessageID(task, target); the
+	// approval path sets it to include the approval's work id, so a task that is
+	// approved again for DIFFERENT work owes a new handoff while a replay of the
+	// same decision still collides (M-TASK-STATUS-TRUTH D3, quorum round 7).
+	ID string
 }
 
 // inboxMessage is the delivery row — the one thing that starts the next stage.
@@ -120,7 +162,24 @@ type handoffSender struct {
 	notify   func(*messaging.InboxMessage) error
 }
 
-// send stores the inbox row, then notifies.
+// send stores the inbox row under the handoff's identity, then notifies — only
+// if this call created the row.
+//
+// ONE HANDOFF, ONE ROW (M-TASK-STATUS-TRUTH D3). A handoff is identified by
+// (task, target): HandoffMessageID, the id the completion path already used.
+// The row is written first-write-wins (PutMessageIfAbsent), so every replay —
+// boot recovery, a second instance during a rollout, a retry after a partial
+// failure — collides and does nothing. Before this, the row got a fresh random
+// id on every send and "sent already?" was a boolean on the approval that the
+// approve path never set: every approval that owed a handoff sent it twice in
+// prod, once at approval and again at the next boot (task-08032ebc,
+// task-080f4657, task-38dcb44a, task-90bb931d).
+//
+// A crash after the write and before the notify leaves an unread, routable row
+// that nothing was told about. That is exactly what the backstop sweep delivers
+// (prod 2026-09-23 15:17:49: it recovered un-notified handoff
+// inbox_1790176655955_877d700f into the drain), so the collision path does not
+// re-notify — re-notifying would turn every replay into a second delivery.
 //
 // It must be an InboxMessage, not a thread message. `CreateMessage` writes to the
 // thread-message collection, which dispatch never polls — so OnAgentApproved's
@@ -151,8 +210,16 @@ func (s handoffSender) send(h handoff) error {
 	}
 
 	msg := h.inboxMessage()
-	if err := s.msgStore.InsertInboxMessage(msg); err != nil {
+	msg.ID = h.ID
+	if msg.ID == "" {
+		msg.ID = HandoffMessageID(h.Task.ID, h.Target.ID)
+	}
+	created, err := s.msgStore.PutMessageIfAbsent(context.Background(), msg)
+	if err != nil {
 		return err
+	}
+	if !created {
+		return nil // already written by an earlier send; delivered by it or by the sweep
 	}
 	if s.notify == nil {
 		return nil
@@ -160,16 +227,39 @@ func (s handoffSender) send(h handoff) error {
 	return s.notify(msg)
 }
 
-// sendAgentHandoffMessage is the approval path's entry: OnAgentApproved and
-// dispatchApprovalHandoffs. Notification goes through notifyInboxMessage.
+// sendAgentHandoffMessage is the approval path's entry: OnAgentApproved, the
+// approve path (dispatchApprovalHandoffs) and boot recovery. Notification goes
+// through approvalHandoffNotify.
+//
+// It refuses when the task's approval was resolved with its handoffs suppressed.
+// The check lives HERE, in the one sender every approval-path producer shares,
+// so "do not fire" binds all of them — the GitHub-label path included — rather
+// than only the producer that happened to know about it (quorum round 3). A
+// store that cannot answer is an error, never a guess in either direction.
 func sendAgentHandoffMessage(
+	ctx context.Context,
+	store Store,
 	msgStore messaging.MessageStore,
 	sourceAgent, targetAgent *AgentConfig,
 	task *TaskRecord,
 	artifacts []string,
 	issueNumber int,
 ) error {
-	return handoffSender{msgStore: msgStore, notify: notifyInboxMessage}.send(handoff{
+	var id string
+	if store != nil && task != nil {
+		suppressed, err := store.ApprovalHandoffsSuppressed(ctx, task.ID)
+		if err != nil {
+			return fmt.Errorf("cannot tell whether handoffs for %s were suppressed: %w", task.ID, err)
+		}
+		if suppressed {
+			return errHandoffSuppressed
+		}
+		if apr, err := store.GetApprovalRequestByTaskAnyStatus(ctx, task.ID); err == nil && apr != nil && targetAgent != nil {
+			id = HandoffMessageIDForWork(task.ID, targetAgent.ID, workIDFromContext(apr.ContextJSON))
+		}
+	}
+	return handoffSender{msgStore: msgStore, notify: approvalHandoffNotify}.send(handoff{
+		ID:          id,
 		Source:      sourceAgent,
 		Target:      targetAgent,
 		Task:        task,
@@ -423,10 +513,12 @@ func dispatchApprovalHandoffs(
 		if targetAgent == nil {
 			return dispatched, fmt.Errorf("handoff target %q not found in registry (task %s)", targetID, task.ID)
 		}
-		sErr := sendAgentHandoffMessage(msgStore, sourceAgent, targetAgent, task, artifacts, task.GithubIssue)
+		sErr := sendAgentHandoffMessage(ctx, store, msgStore, sourceAgent, targetAgent, task, artifacts, task.GithubIssue)
 		switch {
 		case sErr == nil:
 			dispatched = append(dispatched, targetID)
+		case errors.Is(sErr, errHandoffSuppressed):
+			return dispatched, nil
 		case errors.Is(sErr, errHandoffNotDispatched):
 			// Stored but not notified: report it as a warning naming the target,
 			// never as a success and never as a lost handoff.

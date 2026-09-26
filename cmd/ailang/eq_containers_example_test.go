@@ -65,3 +65,23 @@ func TestEqContainersNegatives(t *testing.T) {
 		})
 	}
 }
+
+// TestFloatNaNExample pins examples/float_nan.ail: float == is IEEE on every
+// path and std/math.isNaN detects NaN (M-FLOAT-EQ-ONE-SEMANTICS, #1274).
+func TestFloatNaNExample(t *testing.T) {
+	t.Setenv("AILANG_NO_CACHE", "1")
+	example, err := filepath.Abs(filepath.Join("..", "..", "examples", "float_nan.ail"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	stdout, stderr, code := runCLI(t, "run", "--caps", "IO", "--entry", "main", "--relax-modules", example)
+	if code != 0 {
+		t.Fatalf("exit %d\nstdout=%s\nstderr=%s", code, stdout, stderr)
+	}
+	if strings.Contains(stdout, "WRONG") {
+		t.Errorf("a NaN comparison evaluated to the wrong boolean:\n%s", stdout)
+	}
+	if n := strings.Count(stdout, "\nok "); n < 12 {
+		t.Errorf("want 12 evaluated comparisons, got %d:\n%s", n, stdout)
+	}
+}

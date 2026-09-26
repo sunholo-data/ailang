@@ -2,7 +2,8 @@ package eval
 
 import (
 	"fmt"
-	"math"
+
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // Structural equality behind every derived and synthesized Eq instance
@@ -100,17 +101,10 @@ func valuesStructurallyEqual(a, b Value) bool {
 		bv, ok := b.(*IntValue)
 		return ok && av.Value == bv.Value
 	case *FloatValue:
-		// Lawful, like the Eq[Float] dictionary: NaN == NaN. Structural equality
-		// must agree with the composed dictionaries, so [nan] == [nan] is true
-		// exactly as nan == nan is (M-EQ-DERIVE-CONTAINERS).
+		// IEEE, like every other float == path: [nan] == [nan] is false
+		// exactly as nan == nan is (types.FloatEq, #1274).
 		bv, ok := b.(*FloatValue)
-		if !ok {
-			return false
-		}
-		if math.IsNaN(av.Value) && math.IsNaN(bv.Value) {
-			return true
-		}
-		return av.Value == bv.Value
+		return ok && types.FloatEq(av.Value, bv.Value)
 	case *StringValue:
 		bv, ok := b.(*StringValue)
 		return ok && av.Value == bv.Value

@@ -29,6 +29,9 @@ type PullRequest struct {
 	BaseRefName string   `json:"baseRefName"`
 	Title       string   `json:"title"`
 	Files       []string `json:"-"`
+	// MergedAt / MergedBy are set only by ListMergedPRsWithPrefix.
+	MergedAt string `json:"-"`
+	MergedBy string `json:"-"`
 }
 
 type ghPRResponse struct {
@@ -80,6 +83,68 @@ func (c *GitHubClient) ListOpenPRsWithPrefix(repo, prefix string) ([]PullRequest
 		}
 		for _, f := range p.Files {
 			pr.Files = append(pr.Files, f.Path)
+		}
+		prs = append(prs, pr)
+	}
+	return prs, nil
+}
+
+// ListMergedPRsWithPrefix returns every MERGED pull request whose head branch
+// starts with prefix, in one API call.
+//
+// The other half of the reconciliation. ListOpenPRsWithPrefix asks "which PRs
+// does a decision still owe an action?"; this asks "which decisions did a merge
+// already make?". Measured 2026-09-23: 57 of 77 pending approval cards had a
+// merged coordinator PR, because nothing read GitHub in this direction.
+//
+// The search narrows on the server; the prefix check is repeated here because
+// `head:` search is a match, not a guaranteed prefix.
+func (c *GitHubClient) ListMergedPRsWithPrefix(repo, prefix string) ([]PullRequest, error) {
+	if err := c.PreFlightChecks(); err != nil {
+		return nil, err
+	}
+	if repo == "" && c.config != nil {
+		repo = c.config.DefaultRepo
+	}
+	if repo == "" {
+		return nil, fmt.Errorf("no repository specified")
+	}
+	args := []string{"pr", "list", "--repo", repo, "--state", "merged", "--limit", "1000",
+		"--json", "number,state,headRefName,baseRefName,title,mergedAt,mergedBy"}
+	if prefix != "" {
+		args = append(args, "--search", "head:"+prefix)
+	}
+	out, err := c.execCommandCtx("gh", args...)
+	if err != nil {
+		return nil, fmt.Errorf("listing merged PRs in %s: %w\nOutput: %s", repo, err, string(out))
+	}
+	return decodeMergedPRs(out, prefix)
+}
+
+// decodeMergedPRs is the parsing half of ListMergedPRsWithPrefix, split out so
+// the prefix filter is testable without GitHub.
+func decodeMergedPRs(out []byte, prefix string) ([]PullRequest, error) {
+	var raw []struct {
+		ghPRResponse
+		MergedAt string `json:"mergedAt"`
+		MergedBy *struct {
+			Login string `json:"login"`
+		} `json:"mergedBy"`
+	}
+	if err := json.Unmarshal(out, &raw); err != nil {
+		return nil, fmt.Errorf("decoding merged PR list: %w", err)
+	}
+	var prs []PullRequest
+	for _, p := range raw {
+		if prefix != "" && !strings.HasPrefix(p.HeadRefName, prefix) {
+			continue
+		}
+		pr := PullRequest{
+			Number: p.Number, State: p.State, HeadRefName: p.HeadRefName,
+			BaseRefName: p.BaseRefName, Title: p.Title, MergedAt: p.MergedAt,
+		}
+		if p.MergedBy != nil {
+			pr.MergedBy = p.MergedBy.Login
 		}
 		prs = append(prs, pr)
 	}

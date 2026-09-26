@@ -24,6 +24,8 @@ type cacheRuntime struct {
 	stderr        io.Writer
 	invalidWarned map[string]bool
 	writeWarned   map[string]bool
+	// fingerprintWarned: the dirty-build fingerprint failure is reported once
+	fingerprintWarned bool
 }
 
 func newCacheRuntime(projectDir string, deps cacheDependencies) *cacheRuntime {
@@ -118,6 +120,16 @@ func (runtime *cacheRuntime) warnInvalid(moduleID string, err error) {
 
 func (runtime *cacheRuntime) warnSourceUnavailable(moduleID string) {
 	fmt.Fprintf(runtime.stderr, "CACHE_SOURCE_UNAVAILABLE module=%s; bypassing compilation cache\n", moduleID)
+}
+
+// warnFingerprintUnavailable reports, once per run, that a dirty build could
+// not fingerprint itself and so bypasses the cache (M-COMPILE-CACHE-DIRTY-BUILD-KEY).
+func (runtime *cacheRuntime) warnFingerprintUnavailable(err error) {
+	if runtime.fingerprintWarned {
+		return
+	}
+	runtime.fingerprintWarned = true
+	fmt.Fprintf(runtime.stderr, "CACHE_FINGERPRINT_UNAVAILABLE %v; dirty build bypasses compilation cache\n", err)
 }
 
 func (runtime *cacheRuntime) warnWrite(stage, moduleID, path string, err error) {

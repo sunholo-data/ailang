@@ -72,3 +72,60 @@ func TestKnownAgeStillTimesOut(t *testing.T) {
 		t.Fatalf("MarkTaskFailed called %d times, want 1 — the zero-guard must not disable the detector", got)
 	}
 }
+
+// TestQueueClockNotMessageClock is the regression arm for M-TASK-STATUS-TRUTH S1.
+//
+// A task inherits CreatedAt from its MESSAGE (daemon_tasks_polling), and a cloud
+// task stays `queued` for its whole run — MarkTaskRunning is local-only — so the
+// detector aged a cloud task from when the message was written. Every message
+// the backstop sweep recovers is old by definition, so every recovered task was
+// failed on the detector's first tick. Measured in prod 2026-09-23: task-03bd17ad
+// dispatched 15:23:37, "timed out ... within 30m0s of being queued
+// (age=154h9m23s)" at 15:23:49, and its real `completed` arrived at 15:26:22 and
+// was dropped. It had opened PR #1283.
+//
+// MU: remove the QueuedAt arm from getTaskAge and this fails.
+func TestQueueClockNotMessageClock(t *testing.T) {
+	queuedJustNow := time.Now().Add(-1 * time.Minute)
+	store := NewMockStore()
+	if err := store.CreateTask(context.Background(), &TaskRecord{
+		ID:        "task-03bd17ad",
+		Status:    TaskStatusQueued,
+		AgentID:   "ailang-core-triage",
+		CreatedAt: time.Now().Add(-154 * time.Hour), // the message's age
+		QueuedAt:  &queuedJustNow,                   // the claim's age
+	}); err != nil {
+		t.Fatalf("seed task: %v", err)
+	}
+
+	d := NewStaleTaskDetector(store, nil, nil, log.New(io.Discard, "", 0))
+	d.detectAndMarkStale(context.Background())
+
+	if got := store.calls["MarkTaskFailed"]; got != 0 {
+		t.Errorf("a task queued a minute ago was marked failed (%d call(s)) because its MESSAGE is "+
+			"154h old — the stale clock must start at the claim, not at the message", got)
+	}
+}
+
+// TestQueueClockStillTimesOut keeps TestQueueClockNotMessageClock honest: a task
+// that has genuinely sat queued past its timeout is still failed.
+func TestQueueClockStillTimesOut(t *testing.T) {
+	queuedLongAgo := time.Now().Add(-48 * time.Hour)
+	store := NewMockStore()
+	if err := store.CreateTask(context.Background(), &TaskRecord{
+		ID:        "task-genuinely-stuck",
+		Status:    TaskStatusQueued,
+		AgentID:   "docparse",
+		CreatedAt: time.Now().Add(-49 * time.Hour),
+		QueuedAt:  &queuedLongAgo,
+	}); err != nil {
+		t.Fatalf("seed task: %v", err)
+	}
+
+	d := NewStaleTaskDetector(store, nil, nil, log.New(io.Discard, "", 0))
+	d.detectAndMarkStale(context.Background())
+
+	if got := store.calls["MarkTaskFailed"]; got != 1 {
+		t.Fatalf("MarkTaskFailed called %d times, want 1 — a task queued 48h ago is stale", got)
+	}
+}

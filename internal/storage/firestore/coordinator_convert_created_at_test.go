@@ -51,3 +51,21 @@ func TestTaskToMapPreservesRealCreatedAt(t *testing.T) {
 		t.Errorf("created_at = %v, want %v — a real timestamp must survive untouched", got, want)
 	}
 }
+
+// TestTaskQueuedAtRoundTrips: queued_at must appear in BOTH directions of the
+// hand-written map (M-TASK-STATUS-TRUTH S1). Dropping it from either leaves the
+// stale detector aging a cloud task from its message.
+//
+// MU: remove "queued_at" from taskToMap or mapToTask and this fails.
+func TestTaskQueuedAtRoundTrips(t *testing.T) {
+	queued := time.Date(2026, 9, 23, 15, 23, 37, 0, time.UTC)
+	m := taskToMap(&coordinator.TaskRecord{
+		ID:        "task-03bd17ad",
+		CreatedAt: time.Date(2026, 9, 17, 5, 14, 26, 0, time.UTC),
+		QueuedAt:  &queued,
+	})
+	back := mapToTask(m)
+	if back.QueuedAt == nil || !back.QueuedAt.Equal(queued) {
+		t.Fatalf("queued_at did not round-trip: got %v, want %v", back.QueuedAt, queued)
+	}
+}

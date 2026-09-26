@@ -233,6 +233,13 @@ func (d *StaleTaskDetector) getTaskAge(task *TaskRecord) (time.Duration, bool) {
 	if task.StartedAt != nil && !task.StartedAt.IsZero() {
 		return time.Since(*task.StartedAt), true
 	}
+	// The claim, not the message: CreatedAt is inherited from the message, so a
+	// task the backstop sweep recovers would otherwise be born past its timeout
+	// (M-TASK-STATUS-TRUTH S1). CreatedAt remains the floor for rows claimed
+	// before queued_at existed.
+	if task.QueuedAt != nil && !task.QueuedAt.IsZero() {
+		return time.Since(*task.QueuedAt), true
+	}
 	if !task.CreatedAt.IsZero() {
 		return time.Since(task.CreatedAt), true
 	}

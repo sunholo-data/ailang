@@ -1,6 +1,6 @@
 # M-FLOAT-EQ-ONE-SEMANTICS — one answer to `NaN == NaN`, on every path
 
-**Status**: Planned. **Blocked on design freeze (D1).**
+**Status**: Implemented 2026-09-25 (D1 = IEEE, Mark). Evaluated: PASS 84/100, round-1 findings fixed.
 **Target**: v0.41.2
 **Priority**: P1. It is a correctness bug: the same comparison answers differently depending on
 how the compiler lowered it
@@ -47,7 +47,7 @@ generic function is false. The VM disagrees with the evaluator on the top-level 
 | V7 | Tests pinning today's behavior | `grep -rln NaN --include='*_test.go'` → `internal/bytecode/value_test.go:126` (`TestEqual_Float_NaN`: Value.Equal NaN==NaN "for dedup"), `cmd/ailang/eq_parity_test.go` (top-level divergence + nested agreement) | Both change deliberately with this doc |
 | V9 | `-0.0 == +0.0` already agrees; `nan < 1.0` already agrees | `(0.0 - 0.0) == (0.0 * -1.0)` → true on both backends; `(0.0 / 0.0) < 1.0` → false on both | Confirmed (non-goals) |
 | V10 | `internal/types` is importable from both `eval` and `vm` | `go list -deps ./internal/vm` and `./internal/eval` both include `internal/types` | Confirmed, so `types.FloatEq` adds no new edge |
-| V8 | Go codegen float `==` | `grep IsNaN internal/gen/golang/*.go` → only in `show` formatting | **Unmeasured.** Emitted Go `==` is presumably IEEE; confirm in Phase 0 |
+| V8 | Go codegen float `==` | `grep IsNaN internal/gen/golang/*.go` → only in `show` formatting | Resolved 2026-09-25 by reading: `internal/gen/golang/contracts.go` maps `Eq.eq`→`==`, and Go's float `==` is IEEE, so Go codegen already agrees with the ruling. Not run end-to-end |
 
 ## Goals
 
@@ -64,7 +64,7 @@ backends, bare or nested in a container.
 
 | Decision | Why High Impact | Chosen By | Deadline | Change Cost |
 |----------|-----------------|-----------|----------|-------------|
-| **D1: IEEE or lawful?** | Observable semantics of every float comparison | **human** | before sprint | med (flip later = same work again) |
+| **D1: IEEE or lawful?** → **IEEE (Mark, 2026-09-25)** | Observable semantics of every float comparison | **human** | decided | med (flip later = same work again) |
 | D2: Add `std/math.isNaN` | Only way to test for NaN under a lawful rule; convenience under IEEE | agent | sprint | low |
 | D3: Keep `Value.Equal`'s NaN==NaN for constant-pool dedup, but stop OpEq reaching it for nested floats | Dedup is a legitimate separate use | agent | sprint | low |
 
@@ -83,8 +83,8 @@ backends, bare or nested in a container.
 
 ### Design Freeze
 
-- [ ] D1 decided by Mark (A recommended)
-- [ ] D2/D3 confirmed (agent defaults stand unless objected)
+- [x] D1 decided by Mark, 2026-09-25: **(A) IEEE everywhere**. `NaN == NaN` is false and `NaN != NaN` is true, bare or nested. This reverts the lawful structural-NaN choice made in `6d096fe98`
+- [x] D2/D3: agent defaults applied (`std/math.isNaN`; `Value.Equal` keeps dedup semantics, `OpEq` no longer reaches it for composites)
 
 ## Solution Design
 
@@ -160,11 +160,30 @@ quorum is optional. D1 is a values call for Mark rather than a premise a reviewe
 
 ## Success Criteria
 
-- [ ] D1 recorded in this doc
-- [ ] Every problem-table row agrees between the evaluator and the VM, and top-level/nested agree under the rule
-- [ ] `std/math.isNaN` exists and is taught
-- [ ] Mutation: reverting any one of the five paths fails the parity test
-- [ ] `make test-core`, `verify-examples-toplevel` green; CHANGELOG entry names the behavior change
+- [x] D1 recorded in this doc
+- [x] Every problem-table row agrees between the evaluator and the VM, and top-level and nested cases agree (13-row parity test)
+- [x] `std/math.isNaN` exists (`x != x`, correct under IEEE) and is taught in the prompt row
+- [x] Mutation: reverting the dictionary, the structural comparator or the VM nested recursion each fails the parity test (the builtins and shim were already IEEE; they now route through `FloatEq` too)
+- [x] `make test-core`, `verify-examples-toplevel` green; CHANGELOG entry names the behavior change
+
+## Implementation notes (2026-09-25)
+
+- **Round-1 evaluation (PASS 84/100) found more `==` paths than the doc's five.** std/list's
+  `member`, `contains`, `dedup`, `intersect`, `union` and `difference` compared elements outside
+  `FloatEq`:
+  - the VM's list builtins used `Value.Equal` (dedup semantics);
+  - the evaluator's `valuesEqual` had a pointer-identity shortcut, so `contains([n], n)` was true;
+  - the set operations keyed NaN as one hash key.
+
+  All are fixed. The VM uses `runtimeEq`, the identity shortcut is removed, and a NaN-holding value
+  is never keyed (`keyable`). `canonicalKey` also normalizes `-0.0` to `0`: `dedup` kept both
+  signed zeros, though IEEE says they are equal. The parity test has 21 rows; each fix has a
+  mutation run that fails a row.
+- **Residuals (in `docs/LIMITATIONS.md`, not fixed here):** contract verification encodes `float`
+  as an SMT `Real`, which has no NaN (`internal/smt/codegen_infer.go`). Go codegen's derived Eq
+  uses `reflect.DeepEqual`, which short-circuits a slice compared with itself
+  (`internal/gen/golang/codegen_dictionaries.go`).
+- `examples/float_nan.ail` (12 checks) is pinned by `TestFloatNaNExample`.
 
 ## Non-Goals
 
@@ -188,9 +207,9 @@ quorum is optional. D1 is a values call for Mark rather than a premise a reviewe
 - [design_docs/implemented/v0_28_0/m-deriving-eq-runtime-and-exit-code.md](design_docs/implemented/v0_28_0/m-deriving-eq-runtime-and-exit-code.md) (0.37)
 
 **Planned (check for overlap):**
-- [design_docs/implemented/v0_41_2/m-eq-derive-containers.md](../../implemented/v0_41_2/m-eq-derive-containers.md): the sprint that surfaced this (R-D6 parity tests)
-- [design_docs/planned/ailang-core-triage/named-test-float-dict-resolution.md](../ailang-core-triage/named-test-float-dict-resolution.md) (0.40): distinct (Fractional dict in test bodies), same family of "float op resolves differently by position"
-- [design_docs/planned/m-adt-equality-position-independence.md](../m-adt-equality-position-independence.md) (0.38): distinct (ADT Eq in contracts)
+- [design_docs/implemented/v0_42_0/m-eq-derive-containers.md](../v0_42_0/m-eq-derive-containers.md): the sprint that surfaced this (R-D6 parity tests)
+- [design_docs/planned/ailang-core-triage/named-test-float-dict-resolution.md](../../planned/ailang-core-triage/named-test-float-dict-resolution.md) (0.40): distinct (Fractional dict in test bodies), same family of "float op resolves differently by position"
+- [design_docs/planned/m-adt-equality-position-independence.md](../../planned/m-adt-equality-position-independence.md) (0.38): distinct (ADT Eq in contracts)
 
 ---
 

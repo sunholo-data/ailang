@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/sunholo-data/ailang/internal/bytecode"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // DefaultMaxStack is the default frame depth limit. Matches the evaluator's
@@ -612,19 +613,19 @@ func arith(op bytecode.OpCode, lhs, rhs bytecode.Value) (bytecode.Value, error) 
 	return bytecode.Value{}, fmt.Errorf("arith %s on %s not supported", op, lhs.Tag)
 }
 
-// runtimeEq is the IEEE-aware equality used by OpEq. Unlike Value.Equal it
-// treats NaN != NaN. Used for ==, not for dedup.
+// runtimeEq is the equality used by OpEq: types.FloatEq (IEEE, NaN != NaN)
+// for floats wherever they sit, bare or nested in a list, tuple, record or
+// ADT (M-FLOAT-EQ-ONE-SEMANTICS, #1274). It used to fall through to
+// Value.Equal for composites, whose NaN == NaN is for constant-pool dedup,
+// so [nan] == [nan] was true on the VM while nan == nan was false.
+// Cycle-safety: values are finite trees built at runtime.
 func runtimeEq(lhs, rhs bytecode.Value) bool {
 	if lhs.Tag != rhs.Tag {
 		return false
 	}
 	switch lhs.Tag {
 	case bytecode.TagFloat:
-		// IEEE: NaN != anything, including itself.
-		if lhs.Flt != lhs.Flt || rhs.Flt != rhs.Flt {
-			return false
-		}
-		return lhs.Flt == rhs.Flt
+		return types.FloatEq(lhs.Flt, rhs.Flt)
 	case bytecode.TagInt:
 		return lhs.Int == rhs.Int
 	case bytecode.TagBool:
@@ -633,11 +634,39 @@ func runtimeEq(lhs, rhs bytecode.Value) bool {
 		return true
 	case bytecode.TagString:
 		return lhs.AsString() == rhs.AsString()
+	case bytecode.TagList:
+		return runtimeEqAll(lhs.Obj.(*bytecode.ListObj).Elems, rhs.Obj.(*bytecode.ListObj).Elems)
+	case bytecode.TagTuple:
+		return runtimeEqAll(lhs.Obj.(*bytecode.TupleObj).Elems, rhs.Obj.(*bytecode.TupleObj).Elems)
+	case bytecode.TagRecord:
+		a, b := lhs.Obj.(*bytecode.RecordObj).Fields, rhs.Obj.(*bytecode.RecordObj).Fields
+		if len(a) != len(b) {
+			return false
+		}
+		for i := range a {
+			if a[i].Name != b[i].Name || !runtimeEq(a[i].Value, b[i].Value) {
+				return false
+			}
+		}
+		return true
+	case bytecode.TagADT:
+		a, b := lhs.Obj.(*bytecode.ADTObj), rhs.Obj.(*bytecode.ADTObj)
+		return a.Tag == b.Tag && runtimeEqAll(a.Fields, b.Fields)
 	}
-	// For lists/records/tuples/ADTs, fall through to structural equality. We
-	// reuse Value.Equal here since the NaN concern is float-specific and we've
-	// already handled the float case above.
+	// Closures: the type checker rejects Eq on functions; keep the old answer.
 	return lhs.Equal(rhs)
+}
+
+func runtimeEqAll(a, b []bytecode.Value) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if !runtimeEq(a[i], b[i]) {
+			return false
+		}
+	}
+	return true
 }
 
 // compare implements LT and LE for ordered numeric and string types.

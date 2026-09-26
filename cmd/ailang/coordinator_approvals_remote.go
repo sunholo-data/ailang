@@ -10,6 +10,7 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/coordinator"
+	"github.com/sunholo-data/ailang/internal/storage"
 )
 
 // `ailang coordinator approvals` — review and resolve approvals on ANY plane.
@@ -250,7 +251,20 @@ func coordinatorResolveRemote(args []string, action string) error {
 	// never dispatched, task still pending. It is the same signature as two
 	// eval-rig tasks stranded since 2026-08-26, which is how long this has been
 	// silently true. Refusing here is the difference between a bug and a lie.
-	agentRegistry, regErr := coordinator.LoadAgentRegistry()
+	//
+	// But the guard must ask the registry for the plane the TASK is on, not the
+	// one this laptop happens to carry. It read LoadAgentRegistry() — this
+	// machine's config — for sixteen days, and on a laptop that config declares
+	// two agents (eval-rig, sprint-evaluator). Every cloud task's agent failed
+	// to resolve, so the guard built to stop a silent lie refused every honest
+	// approval instead: 83 pending on prod by 2026-09-23, oldest 2026-09-11,
+	// nothing decidable from a terminal since. The dashboard kept working
+	// throughout (it runs against /etc/ailang-config, which does declare them),
+	// which is exactly what made the fault look intermittent.
+	//
+	// resolveInboxRegistryForPlane is what `coordinator agents` already uses —
+	// the same concept had two implementations and only the other one was right.
+	agentRegistry, registrySource, regErr := approvalRegistry(bundle.Mode)
 	if err := checkRegistryCanDispatch(ctx, bundle, agentRegistry, regErr, taskID, action); err != nil {
 		return err
 	}
@@ -274,6 +288,11 @@ func coordinatorResolveRemote(args []string, action string) error {
 	}
 
 	fmt.Printf("\n✓ %sd %s (by %s)\n", action, taskID, who)
+	// Name the registry the handoff topology came from. A dispatch from the
+	// wrong registry is indistinguishable from one from the right registry.
+	if registrySource != "" {
+		fmt.Printf("  handoff topology from: %s\n", registrySource)
+	}
 
 	// And the pull request the decision was ABOUT. A cloud task sets SkipMerge
 	// (there is no worktree), which used to mean the branch was simply
@@ -284,6 +303,20 @@ func coordinatorResolveRemote(args []string, action string) error {
 		fmt.Printf("  %s\n", result.Message)
 	}
 	return nil
+}
+
+// approvalRegistry resolves the registry whose trigger_on_complete this
+// approval's handoffs will be dispatched from, for the plane the task is on.
+//
+// It takes the bundle's Mode LABEL, not a plane, because that is what the call
+// site has and the conversion is the part that breaks: Mode reads "gcp (project
+// ailang-multivac, via config.yaml pubsub.project_id)", and storage.Mode of
+// that string equals no plane at all. It falls through to this machine's
+// config, resolves no cloud agent, and the guard refuses every approval —
+// silently, and identically to the original fault. Conversion and resolution
+// live together here so one test covers both.
+func approvalRegistry(bundleMode string) (*coordinator.AgentRegistry, string, error) {
+	return resolveInboxRegistryForPlane("", storage.Mode(firstWord(bundleMode)))
 }
 
 func firstWord(s string) string {

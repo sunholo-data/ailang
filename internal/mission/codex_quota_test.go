@@ -69,19 +69,19 @@ func TestObserveCodexQuotaLatestAndPartialTail(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "rollout-test.jsonl"), []byte(data), 0600); err != nil {
 		t.Fatal(err)
 	}
-	o := ObserveCodexQuota(home, now)
+	o := observeCodexSessions(home, now)
 	if o.State != "over" || o.Windows[0].UsedPercent != 25 {
 		t.Fatalf("%+v", o)
 	}
 	// Re-reading cannot accumulate percentages or mutate records.
-	again := ObserveCodexQuota(home, now)
+	again := observeCodexSessions(home, now)
 	if again.Windows[0].UsedPercent != 25 {
 		t.Fatal(again)
 	}
 }
 func TestCodexQuotaMissingAndWrongLimit(t *testing.T) {
 	now := time.Now()
-	o := ObserveCodexQuota(t.TempDir(), now)
+	o := observeCodexSessions(t.TempDir(), now)
 	if !o.Blocked() || o.State != "unknown" {
 		t.Fatal(o)
 	}
@@ -105,7 +105,7 @@ func TestCodexQuotaMalformedDoesNotExposeOlderPass(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "rollout-invalid.jsonl"), append(append(append(good, '\n'), bad...), '\n'), 0600); err != nil {
 		t.Fatal(err)
 	}
-	o := ObserveCodexQuota(home, now)
+	o := observeCodexSessions(home, now)
 	if !o.Blocked() {
 		t.Fatalf("invalid newest record uncovered old pass: %+v", o)
 	}
@@ -124,7 +124,7 @@ func TestCodexQuotaValidRefreshRecoversMalformedRecord(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "rollout-refresh.jsonl"), append(append(append(bad, '\n'), good...), '\n'), 0600); err != nil {
 		t.Fatal(err)
 	}
-	o := ObserveCodexQuota(home, now)
+	o := observeCodexSessions(home, now)
 	if o.Blocked() {
 		t.Fatalf("valid refresh did not recover: %+v", o)
 	}
@@ -148,14 +148,14 @@ func TestCodexQuotaBoundedScanRequiresNewerObservation(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if o := ObserveCodexQuota(home, now); o.State != "unknown" {
+	if o := observeCodexSessions(home, now); o.State != "unknown" {
 		t.Fatalf("omitted newer files should block: %+v", o)
 	}
 	path := filepath.Join(dir, "rollout-newest.jsonl")
 	if err := os.WriteFile(path, append(quotaFixture(t, now, quotaWindow(now, 17, 10080), nil), '\n'), 0600); err != nil {
 		t.Fatal(err)
 	}
-	o := ObserveCodexQuota(home, now)
+	o := observeCodexSessions(home, now)
 	if o.State != "over" || o.Windows[0].UsedPercent != 17 {
 		t.Fatalf("fresh observation should win safely: %+v", o)
 	}
