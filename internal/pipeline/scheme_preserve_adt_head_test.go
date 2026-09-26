@@ -46,6 +46,18 @@ func TestSchemeImport_PreservesADTHead_OptionReturn(t *testing.T) {
 		t.Fatalf("mkdir std: %v", err)
 	}
 
+	// A complete (for this test) stdlib root: io.ail is the root marker, and
+	// std/result is the entry module's implicit prelude import. A run never
+	// mixes modules from two stdlib roots, so nothing comes from the real one.
+	for name, content := range map[string]string{
+		"io.ail":     "module std/io\n",
+		"result.ail": "module std/result\nexport type Result[a, e] = Ok(a) | Err(e)\n",
+	} {
+		if err := os.WriteFile(filepath.Join(stdDir, name), []byte(content), 0644); err != nil {
+			t.Fatalf("write %s: %v", name, err)
+		}
+	}
+
 	// Minimal Option (Some / None) — getNumber's return-type carrier.
 	if err := os.WriteFile(filepath.Join(stdDir, "option.ail"),
 		[]byte(`module std/option

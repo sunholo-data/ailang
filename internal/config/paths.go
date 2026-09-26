@@ -5,8 +5,6 @@ const (
 	EnvStateDir          = "AILANG_STATE_DIR"
 	EnvCacheDir          = "AILANG_CACHE_DIR"
 	EnvStdlibPath        = "AILANG_STDLIB_PATH"
-	EnvStdlib            = "AILANG_STDLIB"
-	EnvModulePath        = "AILANG_PATH"
 	EnvGOPATH            = "GOPATH"
 	EnvProjectRoot       = "AILANG_PROJECT_ROOT"
 	EnvExamples          = "AILANG_EXAMPLES"
@@ -21,9 +19,7 @@ const (
 var pathVars = []Var{
 	{EnvStateDir, "~/.ailang", AreaPaths, "Directory for every local store (SQLite databases, ledgers, locks). Read by internal/statedir itself — a stdlib-only leaf that cannot import this package — and registered here so the reference lists it."},
 	{EnvCacheDir, "", AreaPaths, "Root of the compile cache (<dir>/compile) and the prompt cache; unset means <project>/.ailang/cache and $XDG_CACHE_HOME/ailang (else ~/.cache/ailang) respectively."},
-	{EnvStdlibPath, "", AreaPaths, "Path-list (OS separator) of stdlib roots searched before the bundled and installed copies; the embed engine sets it for child processes when unset."},
-	{EnvStdlib, "", AreaPaths, "One stdlib directory the module loader and resolver use first; unset searches ../stdlib from the binary, then the working directory."},
-	{EnvModulePath, "", AreaPaths, "Path-list (OS separator) of extra module search roots, after the working directory and before ~/.ailang/modules."},
+	{EnvStdlibPath, "", AreaPaths, "Path-list (OS separator) of stdlib directories; the first holding io.ail is the stdlib root for the whole process. Beats ./std and the installed copies; loses only to --stdlib-path. Set but holding no stdlib is an error. Unset falls through to ./std, <binary>/../std, the user data dir, system dirs, then the stdlib built into the binary."},
 	{EnvGOPATH, "", AreaPaths, "Go workspace; the eval harness looks for $GOPATH/bin/ailang after PATH and ./bin."},
 	{EnvProjectRoot, "", AreaPaths, "Root the embed engine resolves module paths against; must contain the requested module or Load fails."},
 	{EnvExamples, "", AreaPaths, "Directory `ailang examples` reads instead of searching upward from the binary."},
@@ -40,12 +36,6 @@ func CacheDir() string { return get(EnvCacheDir) }
 
 // StdlibPath returns AILANG_STDLIB_PATH verbatim (a path-list), "" when unset.
 func StdlibPath() string { return get(EnvStdlibPath) }
-
-// Stdlib returns AILANG_STDLIB, "" when unset.
-func Stdlib() string { return get(EnvStdlib) }
-
-// ModulePath returns AILANG_PATH verbatim (a path-list), "" when unset.
-func ModulePath() string { return get(EnvModulePath) }
 
 // GOPATH returns GOPATH verbatim, "" when unset.
 func GOPATH() string { return get(EnvGOPATH) }

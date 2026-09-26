@@ -239,8 +239,8 @@ func gradeInWorkspace(spec *BenchmarkSpec, workspace string) ValidationResult {
 		return ValidationResult{Stderr: fmt.Sprintf("[harness_setup] grade: %v", err)}
 	}
 	cwd, _ := os.Getwd()
-	args := []string{"run", "--entry", "main", "--quiet", "--relax-modules",
-		"--stdlib-path", filepath.Join(cwd, "std")}
+	args := append([]string{"run", "--entry", "main", "--quiet", "--relax-modules"},
+		stdlibPathArgs(cwd)...)
 	if len(spec.Caps) > 0 {
 		args = append(args, "--caps", strings.Join(spec.Caps, ","))
 	}

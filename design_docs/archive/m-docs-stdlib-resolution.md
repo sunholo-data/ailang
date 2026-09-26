@@ -1,6 +1,12 @@
 # Docs stdlib resolution for release-tarball installs
 
-**Status**: Planned
+> **Superseded (2026-09-26)** by [M-STDLIB-ROOT-RESOLUTION](../planned/v0_44_0/m-stdlib-root-resolution.md),
+> which unifies every stdlib resolver (loader, `ailang docs`, import hints) behind one
+> `internal/stdlibroot` package ending at the embedded `std.FS`. PR #1197, which implemented
+> this doc, was closed in favour of it. Kept for history; see "Relation to the earlier doc"
+> in the new doc for what this one got right and what had gone stale.
+
+**Status**: Superseded
 **Target**: v0.38.6
 **Priority**: P1 (Medium)
 **Estimated**: 2 days

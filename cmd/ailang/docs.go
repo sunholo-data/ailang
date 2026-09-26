@@ -3,13 +3,14 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
 
-	"github.com/sunholo-data/ailang/internal/config"
+	"github.com/sunholo-data/ailang/internal/stdlibroot"
 )
 
 // moduleDoc represents documentation for a stdlib module
@@ -20,7 +21,7 @@ type moduleDoc struct {
 	Types       []typeDoc   // Exported type declarations
 	Exports     []exportDoc // Exported functions
 	Examples    []string    // Usage examples from comments
-	FilePath    string      // Full path to .ail file
+	FileName    string      // Slash path of the .ail file inside the stdlib root
 }
 
 // exportDoc represents an exported function
@@ -70,13 +71,32 @@ func docsCommand() {
 		return
 	}
 
-	// Find stdlib directory
-	stdlibPath, err := findStdlibDir()
+	// `ailang docs prelude` needs no stdlib files: the prelude is not a
+	// std/*.ail file — it is rendered from live mechanisms (loader
+	// implicit-import accessors + pipeline.InjectPrelude). It is handled before
+	// the stdlib root is resolved so it works everywhere. With --all-functions a
+	// trailing "prelude" is a filter, and --list ignores positionals.
+	if !*allFunctionsFlag && !*listFlag {
+		if docsFlags.NArg() == 0 {
+			printDocsHelp()
+			return
+		}
+		if docsFlags.Arg(0) == "prelude" {
+			renderPreludeDocs()
+			return
+		}
+	}
+
+	// The one stdlib root every command uses (internal/stdlibroot): an explicit
+	// AILANG_STDLIB_PATH, else ./std, the installed copies, and finally the
+	// stdlib built into this binary — so this works from any directory. Only an
+	// explicit AILANG_STDLIB_PATH that holds no stdlib fails, naming what it tried.
+	root, err := stdlibroot.Resolve("")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
-		fmt.Fprintf(os.Stderr, "\nTip: Set AILANG_STDLIB_PATH or run from project root\n")
 		os.Exit(1)
 	}
+	stdlib := root.FS
 
 	// All-functions mode: one grep-able line per stdlib export (+ prelude),
 	// deterministic order, signatures rendered from the AST. Handled before
@@ -84,75 +104,23 @@ func docsCommand() {
 	// positional (the filter) is not treated as a module name.
 	if *allFunctionsFlag {
 		filter := docsFlags.Arg(0)
-		allFunctionsCommand(stdlibPath, filter)
+		allFunctionsCommand(stdlib, filter)
 		return
 	}
 
 	// List mode
 	if *listFlag {
-		listModules(stdlibPath)
+		listModules(stdlib)
 		return
 	}
 
 	// View specific module
-	if docsFlags.NArg() >= 1 {
-		moduleName := docsFlags.Arg(0)
-		// `ailang docs prelude` is special-cased BEFORE the stdlib file lookup:
-		// the prelude is not a std/*.ail file — it is rendered from live
-		// mechanisms (loader implicit-import accessors + pipeline.InjectPrelude).
-		if moduleName == "prelude" {
-			renderPreludeDocs()
-			return
-		}
-		showModuleDocs(stdlibPath, moduleName, *examplesFlag)
-		return
-	}
-
-	// No arguments - show help
-	printDocsHelp()
-}
-
-// findStdlibDir finds the stdlib directory
-func findStdlibDir() (string, error) {
-	// Priority order:
-	// 1. AILANG_STDLIB_PATH environment variable
-	// 2. ./std (current directory)
-	// 3. ../std (parent directory)
-
-	if envPath := config.StdlibPath(); envPath != "" {
-		if isStdlibDir(envPath) {
-			return envPath, nil
-		}
-	}
-
-	// Check ./std
-	if isStdlibDir("std") {
-		absPath, _ := filepath.Abs("std")
-		return absPath, nil
-	}
-
-	// Check ../std (for running from cmd/ailang)
-	if isStdlibDir("../std") {
-		absPath, _ := filepath.Abs("../std")
-		return absPath, nil
-	}
-
-	return "", fmt.Errorf("stdlib directory not found")
-}
-
-// isStdlibDir checks if path looks like stdlib directory
-func isStdlibDir(path string) bool {
-	// Check for existence of common stdlib files
-	ioPath := filepath.Join(path, "io.ail")
-	if _, err := os.Stat(ioPath); err == nil {
-		return true
-	}
-	return false
+	showModuleDocs(stdlib, docsFlags.Arg(0), *examplesFlag)
 }
 
 // listModules lists all available stdlib modules
-func listModules(stdlibPath string) {
-	modules := discoverModules(stdlibPath)
+func listModules(stdlib fs.FS) {
+	modules := discoverModules(stdlib)
 
 	fmt.Println("Available stdlib modules:")
 	fmt.Println()
@@ -171,11 +139,11 @@ func listModules(stdlibPath string) {
 	fmt.Printf("Use 'ailang docs --all-functions [filter]' to dump every stdlib export (grep-able)\n")
 }
 
-// discoverModules finds all stdlib modules
-func discoverModules(stdlibPath string) []moduleDoc {
+// discoverModules finds all top-level stdlib modules of a stdlib root.
+func discoverModules(stdlib fs.FS) []moduleDoc {
 	var modules []moduleDoc
 
-	entries, err := os.ReadDir(stdlibPath)
+	entries, err := fs.ReadDir(stdlib, ".")
 	if err != nil {
 		return modules
 	}
@@ -185,8 +153,7 @@ func discoverModules(stdlibPath string) []moduleDoc {
 			continue
 		}
 
-		filePath := filepath.Join(stdlibPath, entry.Name())
-		mod := parseModuleFile(filePath)
+		mod := parseModuleFile(stdlib, entry.Name())
 		if mod.Name != "" {
 			modules = append(modules, mod)
 		}
@@ -205,13 +172,13 @@ func discoverModules(stdlibPath string) []moduleDoc {
 // Reads the whole file up front and scans by index: both the multi-line
 // `export func` signature and the multi-line `export type` declaration need
 // to look ahead, and a bufio.Scanner can only over-read.
-func parseModuleFile(filePath string) moduleDoc {
-	data, err := os.ReadFile(filePath)
+func parseModuleFile(stdlib fs.FS, fileName string) moduleDoc {
+	data, err := fs.ReadFile(stdlib, fileName)
 	if err != nil {
 		return moduleDoc{}
 	}
 
-	mod := moduleDoc{FilePath: filePath}
+	mod := moduleDoc{FileName: fileName}
 	lines := strings.Split(string(data), "\n")
 
 	var headerComments []string
@@ -385,7 +352,7 @@ func typeDeclContinues(decl []string, lines []string, next int) bool {
 }
 
 // showModuleDocs displays documentation for a specific module
-func showModuleDocs(stdlibPath, moduleName string, showExamples bool) {
+func showModuleDocs(stdlib fs.FS, moduleName string, showExamples bool) {
 	// Normalize module name (allow both "std/io" and "io")
 	if !strings.HasPrefix(moduleName, "std/") {
 		moduleName = "std/" + moduleName
@@ -393,22 +360,21 @@ func showModuleDocs(stdlibPath, moduleName string, showExamples bool) {
 
 	// Find the file
 	fileName := strings.TrimPrefix(moduleName, "std/") + ".ail"
-	filePath := filepath.Join(stdlibPath, fileName)
 
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+	if _, err := fs.Stat(stdlib, fileName); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: module '%s' not found\n", red("Error"), moduleName)
 		fmt.Fprintf(os.Stderr, "\nUse 'ailang docs --list' to see available modules\n")
 		os.Exit(1)
 	}
 
-	mod := parseModuleFile(filePath)
+	mod := parseModuleFile(stdlib, fileName)
 
 	// Signatures are rendered from the AST (fixes V16: the exportSigRe regex
 	// truncated effect rows at `{`, so `now() -> int ! {Clock}` printed as
 	// `now() -> int ! `). A parse failure fails loudly — stdlib must always
 	// parse (CI's contract). The regex-derived exp.Signature is kept only as a
 	// fallback should the AST somehow lack an export.
-	astSigs, _, err := parseExportSignatures(filePath)
+	astSigs, _, err := parseExportSignatures(stdlib, fileName)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 		os.Exit(1)

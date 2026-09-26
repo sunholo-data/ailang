@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -14,7 +15,7 @@ import (
 func TestDocsModule_HeaderIsShownInFull(t *testing.T) {
 	stdlib := filepath.Join(findRepoRootForTest(t), "std")
 	var process, io *moduleDoc
-	mods := discoverModules(stdlib)
+	mods := discoverModules(os.DirFS(stdlib))
 	for i := range mods {
 		switch mods[i].Name {
 		case "std/process":

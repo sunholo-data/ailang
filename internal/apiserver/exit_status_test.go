@@ -21,7 +21,7 @@ func newExitHandlerTestServer(t *testing.T) *Server {
 	if err != nil {
 		t.Fatalf("resolving repo root: %v", err)
 	}
-	t.Setenv("AILANG_STDLIB_PATH", root)
+	t.Setenv("AILANG_STDLIB_PATH", filepath.Join(root, "std"))
 
 	effCtx := effects.NewEffContext(nil)
 	effCtx.Grant(effects.NewCapability("IO"))

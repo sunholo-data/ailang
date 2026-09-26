@@ -49,7 +49,7 @@ func newDebugTestServer(t *testing.T, effCtx *effects.EffContext) *Server {
 	if err != nil {
 		t.Fatalf("resolving repo root: %v", err)
 	}
-	t.Setenv("AILANG_STDLIB_PATH", root)
+	t.Setenv("AILANG_STDLIB_PATH", filepath.Join(root, "std"))
 	srv := New(root, Config{EffCtx: effCtx})
 	t.Cleanup(func() { _ = srv.Close() })
 	if err := srv.LoadModules([]string{filepath.Join(root, debugFixture+".ail")}); err != nil {
@@ -121,7 +121,7 @@ func TestServeAPI_StructuredDebugLinesReachStderrVerbatim(t *testing.T) {
 // suppressed but the failed check — always ERROR-structured — still surfaces.
 func TestServeAPI_LogLevelFiltersStructuredLines(t *testing.T) {
 	root, _ := filepath.Abs(filepath.Join("..", ".."))
-	t.Setenv("AILANG_STDLIB_PATH", root)
+	t.Setenv("AILANG_STDLIB_PATH", filepath.Join(root, "std"))
 	srv := New(root, Config{EffCtx: effects.NewEffContext(nil), LogLevel: 4})
 	t.Cleanup(func() { _ = srv.Close() })
 	if err := srv.LoadModules([]string{filepath.Join(root, debugFixture+".ail")}); err != nil {
@@ -146,7 +146,7 @@ func TestServeAPI_ConcurrentRequestsKeepTheirOwnDebugLines(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv("AILANG_STDLIB_PATH", root)
+	t.Setenv("AILANG_STDLIB_PATH", filepath.Join(root, "std"))
 	srv := New(root, Config{EffCtx: effects.NewEffContext(nil)})
 	t.Cleanup(func() { _ = srv.Close() })
 	const module = "internal/embed/testdata/debug_concurrent"
