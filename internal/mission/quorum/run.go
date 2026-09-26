@@ -7,11 +7,17 @@ import (
 	"github.com/sunholo-data/ailang/internal/eval_harness"
 )
 
-// DefaultMaxCostUSD is the per-reviewer budget cap. A design-doc review is a
-// few thousand tokens each way; even the priciest reviewer lands in single-
-// digit cents. The cap is a guardrail against a runaway (e.g. a reviewer that
-// echoes the whole doc back), not an expected-cost estimate.
-const DefaultMaxCostUSD = 0.10
+// DefaultMaxCostUSD is the per-reviewer budget cap. The cap is a guardrail
+// against a runaway (e.g. a reviewer that echoes the whole doc back), not an
+// expected-cost estimate.
+//
+// It was $0.10 until 2026-09-25, sized when docs were a few thousand tokens.
+// World's docs grew to ~9-13k tokens, which prices gpt6-astra ($10/$50 per 1M)
+// at $0.14-0.19 per review, so the pre-flight refused it on EVERY quorum from
+// 2026-09-24 21:46Z on — the reviewer that finds real objections, silently
+// reduced to N-1 (Mark, attended: raise it). $0.30 admits astra up to a ~25k
+// token doc.
+const DefaultMaxCostUSD = 0.30
 
 // expectedOutputTokens is the pre-flight output estimate for the budget-cap
 // PRE-check. The review output is a small structured JSON object; this is a

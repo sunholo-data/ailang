@@ -61,7 +61,9 @@ type Server struct {
 	// under-basePath filter to compare against physical file paths.
 	// Computed once at New() to avoid per-call symlink resolution.
 	normalizedBasePath string
-	cors               bool
+	bind               string          // host to listen on; "" = config.DefaultBindHost()
+	cors               bool            // CORS any-origin mode (--cors)
+	corsOrigins        map[string]bool // CORS allowlist mode (--cors-origin); exact match
 
 	// Frontend proxy
 	frontendPath string // path to React project (optional)
@@ -84,6 +86,7 @@ type Server struct {
 	logLevel       int                 // minimum severity for Debug output
 	routesOnly     bool                // only expose @route-annotated functions
 	noFeedbackTool bool                // suppress the built-in submit_feedback MCP tool
+	ws             *wsState            // WebSocket route sessions (routes_ws.go)
 }
 
 // ModuleInfo holds metadata about a loaded AILANG module.
@@ -146,12 +149,16 @@ type ExportInfo struct {
 	IsNoMCP     bool     `json:"is_no_mcp,omitempty"`    // @nomcp annotation: hide from the MCP tool surface only (HTTP/OpenAPI/A2A unaffected)
 	MCPName     string   `json:"mcp_name,omitempty"`     // @mcp_name annotation: explicit MCP tool name override
 	DocComment  string   `json:"doc_comment,omitempty"`  // doc comment (-- lines) preceding the function
+	IsWS        bool     `json:"is_ws,omitempty"`        // @route("WS", ...): a WebSocket route, off every HTTP/MCP/A2A surface
+	Effects     []string `json:"-"`                      // declared effect row (WS registration check)
 }
 
 // Config holds configuration for the API server.
 type Config struct {
 	Port           string
-	CORS           bool
+	Bind           string      // host to listen on; "" = config.DefaultBindHost() (127.0.0.1, or 0.0.0.0 when PORT is set)
+	CORS           bool        // allow every origin (Access-Control-Allow-Origin: *)
+	CORSOrigins    []string    // exact-match origin allowlist; validate with ValidateCORSConfig
 	FrontendPath   string      // optional: React project path for Vite proxy
 	StaticPath     string      // optional: built frontend files
 	Watch          bool        // enable file watching for hot reload
@@ -165,6 +172,7 @@ type Config struct {
 	LogLevel       int         // minimum severity for Debug output (0=DEBUG, 1=INFO, 2=WARN, 3=ERROR, 4=NONE)
 	RoutesOnly     bool        // only expose @route-annotated functions as HTTP endpoints
 	NoFeedbackTool bool        // suppress the built-in submit_feedback MCP tool; user exports unaffected
+	WS             WSConfig    // @route("WS") session limits (M-SERVEAPI-WS-BRIDGE)
 }
 
 // New creates a new API server.
@@ -225,7 +233,9 @@ func New(basePath string, cfg Config) *Server {
 		port:               cfg.Port,
 		basePath:           basePath,
 		normalizedBasePath: normalizedBase,
+		bind:               cfg.Bind,
 		cors:               cfg.CORS,
+		corsOrigins:        originSet(cfg.CORSOrigins),
 		frontendPath:       cfg.FrontendPath,
 		staticPath:         cfg.StaticPath,
 		watch:              cfg.Watch,
@@ -239,6 +249,7 @@ func New(basePath string, cfg Config) *Server {
 		logLevel:           cfg.LogLevel,
 		routesOnly:         cfg.RoutesOnly,
 		noFeedbackTool:     cfg.NoFeedbackTool,
+		ws:                 newWSState(cfg.WS),
 	}
 }
 
@@ -506,13 +517,19 @@ func (s *Server) Start() error {
 		return s.StartMCP()
 	}
 
+	if err := s.ValidateWSRoutes(); err != nil {
+		return err
+	}
 	mux := s.buildRoutes()
 
-	httpAddr := fmt.Sprintf(":%s", s.port)
-	srv := &http.Server{
-		Addr:    httpAddr,
-		Handler: mux,
+	// Bind before anything announces a launch: a taken port exits non-zero
+	// with no banner (M-SERVEAPI-BIND-HOST-CORS M1).
+	ln, err := s.listen()
+	if err != nil {
+		return err
 	}
+	srv := &http.Server{Handler: mux}
+	srv.RegisterOnShutdown(s.closeWSSessions)
 
 	// Start Vite dev server if frontend path specified
 	if s.frontendPath != "" {
@@ -548,9 +565,9 @@ func (s *Server) Start() error {
 		_ = srv.Shutdown(ctx)
 	}()
 
-	s.printStartupBanner()
+	s.printStartupBanner(ln.Addr().String())
 
-	return srv.ListenAndServe()
+	return srv.Serve(ln)
 }
 
 func (s *Server) buildRoutes() *http.ServeMux {
@@ -616,21 +633,6 @@ func (s *Server) buildRoutes() *http.ServeMux {
 	return mux
 }
 
-func (s *Server) corsWrap(handler http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if s.cors {
-			w.Header().Set("Access-Control-Allow-Origin", "*")
-			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-			if r.Method == "OPTIONS" {
-				w.WriteHeader(http.StatusNoContent)
-				return
-			}
-		}
-		handler(w, r)
-	}
-}
-
 func (s *Server) startViteProxy() error {
 	// Check if Vite config exists
 	viteCfg := filepath.Join(s.frontendPath, "vite.config.ts")
@@ -654,11 +656,11 @@ func (s *Server) startViteProxy() error {
 	return nil
 }
 
-func (s *Server) printStartupBanner() {
+func (s *Server) printStartupBanner(addr string) {
 	log.Println()
 	log.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 	log.Println("  AILANG API Server")
-	log.Printf("  http://localhost:%s", s.port)
+	log.Printf("  http://%s", addr)
 	log.Println()
 	log.Println("  Endpoints:")
 

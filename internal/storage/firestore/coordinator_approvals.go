@@ -147,6 +147,81 @@ func (s *CoordinatorStore) ResolveApprovalRequest(ctx context.Context, id, resol
 }
 
 func (s *CoordinatorStore) ResolveApprovalRequestByTask(ctx context.Context, taskID, resolveStatus, resolvedBy string) error {
+	return s.resolveApprovalByTask(ctx, taskID, resolveStatus, resolvedBy, false)
+}
+
+// ResolveApprovalSuppressingHandoffs approves with the suppression in the SAME
+// document update as the resolution (M-TASK-STATUS-TRUTH D3): no reader can see
+// the approval approved without also seeing that its handoffs are withheld.
+func (s *CoordinatorStore) ResolveApprovalSuppressingHandoffs(ctx context.Context, taskID, resolvedBy string) error {
+	return s.resolveApprovalByTask(ctx, taskID, "approved", resolvedBy, true)
+}
+
+func (s *CoordinatorStore) ApprovalHandoffsSuppressed(ctx context.Context, taskID string) (bool, error) {
+	iter := s.client.Collection(collApprovals).
+		Where("task_id", "==", taskID).
+		Where("handoffs_suppressed", "==", true).
+		Limit(1).
+		Documents(ctx)
+	defer iter.Stop()
+	_, err := iter.Next()
+	if err == iterator.Done {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (s *CoordinatorStore) MarkApprovalHandoffsExpired(ctx context.Context, taskID, workID string) error {
+	return s.markApprovalDecision(ctx, taskID, workID, []firestore.Update{
+		{Path: "handoffs_triggered", Value: true},
+		{Path: "handoffs_expired", Value: true},
+	})
+}
+
+// markApprovalDecision writes a handoff-decision mark as a compare-and-set on
+// the decision it describes: inside a transaction, only while the approval is
+// still approved AND still describes workID. An approval can be reopened for
+// new work between a recovery pass reading it and marking it; without this the
+// old work's mark would stamp the new decision as handled and its handoff would
+// never be sent (M-TASK-STATUS-TRUTH D3, quorum round 8).
+func (s *CoordinatorStore) markApprovalDecision(ctx context.Context, taskID, workID string, updates []firestore.Update) error {
+	iter := s.client.Collection(collApprovals).
+		Where("task_id", "==", taskID).
+		Documents(ctx)
+	defer iter.Stop()
+	for {
+		doc, err := iter.Next()
+		if err == iterator.Done {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		err = s.client.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
+			snap, err := tx.Get(doc.Ref)
+			if err != nil {
+				return err
+			}
+			data := snap.Data()
+			if st, _ := data["status"].(string); st != "approved" {
+				return nil
+			}
+			cj, _ := data["context_json"].(string)
+			if coordinator.WorkIDFromApprovalContext(cj) != workID {
+				return nil
+			}
+			return tx.Update(doc.Ref, updates)
+		})
+		if err != nil {
+			return err
+		}
+	}
+}
+
+func (s *CoordinatorStore) resolveApprovalByTask(ctx context.Context, taskID, resolveStatus, resolvedBy string, suppressHandoffs bool) error {
 	// Find the pending approval for this task, then resolve it
 	iter := s.client.Collection(collApprovals).
 		Where("task_id", "==", taskID).
@@ -164,35 +239,42 @@ func (s *CoordinatorStore) ResolveApprovalRequestByTask(ctx context.Context, tas
 	}
 
 	now := time.Now()
-	_, err = doc.Ref.Update(ctx, []firestore.Update{
+	updates := []firestore.Update{
 		{Path: "status", Value: resolveStatus},
 		{Path: "resolved_by", Value: resolvedBy},
 		{Path: "resolved_at", Value: now},
+	}
+	// Always written, so the resolution alone states the decision — never an
+	// older value left behind by a previous round of the same approval.
+	updates = append(updates, firestore.Update{Path: "handoffs_suppressed", Value: suppressHandoffs})
+	if suppressHandoffs {
+		// Same Update as the resolution: atomic by construction.
+		updates = append(updates, firestore.Update{Path: "handoffs_triggered", Value: true})
+	}
+	// A COMPARE-AND-SET, not query-then-update. The query above only locates the
+	// document; two resolvers can both find it pending. Re-reading the status
+	// inside a transaction makes exactly one of them win — the same shape as
+	// MarkTaskQueued's claim — which is what lets the approve path treat "I
+	// resolved it" as "no one else decided its handoffs" (M-TASK-STATUS-TRUTH
+	// D3; quorum round 5 caught that the plain Update was not a CAS, and two
+	// coordinator revisions do run side by side during a rollout, V15).
+	err = s.client.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
+		snap, err := tx.Get(doc.Ref)
+		if err != nil {
+			return err
+		}
+		if status, _ := snap.Data()["status"].(string); status != "pending" {
+			return fmt.Errorf("approval for task %s already resolved (%s)", taskID, status)
+		}
+		return tx.Update(doc.Ref, updates)
 	})
 	return err
 }
 
-func (s *CoordinatorStore) MarkApprovalHandoffsTriggered(ctx context.Context, taskID string) error {
-	// Find approval for task and mark handoffs as triggered
-	iter := s.client.Collection(collApprovals).
-		Where("task_id", "==", taskID).
-		Where("status", "==", "approved").
-		Limit(1).
-		Documents(ctx)
-	defer iter.Stop()
-
-	doc, err := iter.Next()
-	if err == iterator.Done {
-		return nil // No approval to update
-	}
-	if err != nil {
-		return err
-	}
-
-	_, err = doc.Ref.Update(ctx, []firestore.Update{
+func (s *CoordinatorStore) MarkApprovalHandoffsTriggered(ctx context.Context, taskID, workID string) error {
+	return s.markApprovalDecision(ctx, taskID, workID, []firestore.Update{
 		{Path: "handoffs_triggered", Value: true},
 	})
-	return err
 }
 
 func (s *CoordinatorStore) ListApprovedMergeHandoffsWithoutTrigger(ctx context.Context) ([]*coordinator.ApprovalRequestRecord, error) {
@@ -201,6 +283,7 @@ func (s *CoordinatorStore) ListApprovedMergeHandoffsWithoutTrigger(ctx context.C
 		Where("status", "==", "approved").
 		Where("type", "==", "merge_handoff").
 		Where("handoffs_triggered", "==", false).
+		Limit(coordinator.HandoffRecoveryBatch). // one boot's work is bounded (M-TASK-STATUS-TRUTH D3)
 		Documents(ctx)
 	defer iter.Stop()
 

@@ -16,7 +16,6 @@ import (
 	"github.com/sunholo-data/ailang/internal/loader"
 	ailruntime "github.com/sunholo-data/ailang/internal/runtime"
 	"github.com/sunholo-data/ailang/internal/testutil"
-	"github.com/sunholo-data/ailang/internal/version"
 )
 
 func TestCacheSource_ExactSnapshot(t *testing.T) {
@@ -53,7 +52,7 @@ func diskChangeAfterLoadPreservesKey(t *testing.T) {
 	if entry == nil {
 		t.Fatal("retained disk snapshot produced no cache entry")
 	}
-	if want := ModuleCacheKey(version.Commit, source, nil); entry.CacheKey != want {
+	if want := ModuleCacheKey(testCompilerIdentity(t), source, nil); entry.CacheKey != want {
 		t.Fatalf("cache key = %q, want retained-source key %q", entry.CacheKey, want)
 	}
 }
@@ -162,7 +161,7 @@ func assertKnownEmptySourceCacheable(t *testing.T) {
 	}
 	emptyManifest := readCacheManifest(t, filepath.Join(emptyRoot, "cache", "compile", "manifest.json"))
 	emptyEntry := emptyManifest.Entries["answer"]
-	if emptyEntry == nil || emptyEntry.CacheKey != ModuleCacheKey(version.Commit, "", nil) {
+	if emptyEntry == nil || emptyEntry.CacheKey != ModuleCacheKey(testCompilerIdentity(t), "", nil) {
 		t.Fatalf("known-empty snapshot entry = %#v", emptyEntry)
 	}
 	if strings.Contains(warnings.String(), "CACHE_SOURCE_UNAVAILABLE") {
@@ -215,11 +214,11 @@ func assertEmbeddedModuleKey(t *testing.T, loaded map[string]*loader.LoadedModul
 	if entry == nil {
 		t.Fatalf("manifest has no %s entry", moduleID)
 	}
-	want := ModuleCacheKey(version.Commit, *mod.SourceContent, map[string]string{})
+	want := ModuleCacheKey(testCompilerIdentity(t), *mod.SourceContent, map[string]string{})
 	if entry.CacheKey != want {
 		t.Fatalf("%s key = %q, want %q", moduleID, entry.CacheKey, want)
 	}
-	if empty := ModuleCacheKey(version.Commit, "", map[string]string{}); entry.CacheKey == empty {
+	if empty := ModuleCacheKey(testCompilerIdentity(t), "", map[string]string{}); entry.CacheKey == empty {
 		t.Fatalf("%s embedded key equals empty-source key %q", moduleID, empty)
 	}
 	if result.Modules[moduleID].SourceContent != nil {
@@ -729,4 +728,15 @@ func readCacheKey(t *testing.T, projectDir, moduleID string) string {
 		return ""
 	}
 	return entry.CacheKey
+}
+
+// testCompilerIdentity is the identity production keys use in this test binary
+// (which is always version.Dirty(): no VCS stamp), so expectations track it.
+func testCompilerIdentity(t *testing.T) string {
+	t.Helper()
+	id, err := currentCompilerIdentity(Config{})
+	if err != nil {
+		t.Fatalf("compiler identity: %v", err)
+	}
+	return id
 }

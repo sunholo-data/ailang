@@ -108,6 +108,10 @@ func ClassifyApprovalCollision(existing *ApprovalRequestRecord, newWorkID string
 	return CollisionNewWork
 }
 
+// WorkIDFromApprovalContext is workIDFromContext for other packages (the
+// Firestore store reads it to make its decision marks conditional).
+func WorkIDFromApprovalContext(contextJSON string) string { return workIDFromContext(contextJSON) }
+
 // workIDFromContext reads the work id out of a stored approval context.
 //
 // Absent on every approval written before 2026-09-15, which is why an unknown

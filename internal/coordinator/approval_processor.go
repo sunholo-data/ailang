@@ -3,7 +3,6 @@ package coordinator
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -188,8 +187,20 @@ func processApproval(ctx context.Context, span trace.Span, params *ApprovalParam
 		}
 	}
 
-	// 2. Resolve the approval request in database
-	if err := params.Store.ResolveApprovalRequestByTask(ctx, taskID, "approved", params.ApprovedBy); err != nil {
+	// 2. Resolve the approval request in database.
+	//
+	// SkipHandoffs is recorded IN the resolution, not after it: "handoffs NOT
+	// fired" used to be printed and not stored, so the next coordinator boot
+	// found the approval "without triggered handoffs" and fired them — 22 on
+	// 2026-09-23 15:17, 17 of which ran sprint-planner on stale work
+	// (M-TASK-STATUS-TRUTH S4).
+	resolve := func() error {
+		if params.SkipHandoffs {
+			return params.Store.ResolveApprovalSuppressingHandoffs(ctx, taskID, params.ApprovedBy)
+		}
+		return params.Store.ResolveApprovalRequestByTask(ctx, taskID, "approved", params.ApprovedBy)
+	}
+	if err := resolve(); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to resolve approval")
 		return nil, fmt.Errorf("failed to approve task: %w", err)
@@ -215,6 +226,21 @@ func processApproval(ctx context.Context, span trace.Span, params *ApprovalParam
 		result.Message += " (handoffs NOT fired)"
 	} else {
 		handedOff, hErr = dispatchApprovalHandoffs(ctx, params.AgentRegistry, params.MsgStore, params.Store, task)
+		if hErr == nil {
+			decidedWork := ""
+			if apr, err := params.Store.GetApprovalRequestByTaskAnyStatus(ctx, taskID); err == nil && apr != nil {
+				decidedWork = workIDFromContext(apr.ContextJSON)
+			}
+			// Every owed handoff is written (or none was owed): record the decision
+			// so boot recovery stops scanning this approval. An optimisation only —
+			// correctness no longer rests on it, because every row is written under
+			// its (task, target) identity and a replay collides.
+			if err := params.Store.MarkApprovalHandoffsTriggered(ctx, taskID, decidedWork); err != nil {
+				span.AddEvent("warning: failed to record handoff decision", trace.WithAttributes(
+					attribute.String("error", err.Error()),
+				))
+			}
+		}
 	}
 	switch {
 	case hErr != nil:
@@ -645,94 +671,6 @@ func triggerEmbeddedHandoffsFromProcessor(ctx context.Context, span trace.Span, 
 	}
 
 	return triggerHandoffsFromApprovalRecord(ctx, span, params, task, taskID, approvalReq)
-}
-
-// triggerHandoffsFromApprovalRecord triggers handoffs from an already-fetched approval record.
-// This variant is used by the catch-up mechanism which already has the approval record.
-func triggerHandoffsFromApprovalRecord(ctx context.Context, span trace.Span, params *ApprovalParams, task *TaskRecord, taskID string, approvalReq *ApprovalRequestRecord) (bool, error) {
-	if params.MsgStore == nil || params.AgentRegistry == nil {
-		return false, nil
-	}
-
-	// Only trigger handoffs for merge_handoff type approvals
-	if approvalReq.Type != "merge_handoff" || approvalReq.ContextJSON == "" {
-		return false, nil
-	}
-
-	// Parse the embedded handoff data
-	var handoffContext struct {
-		HandoffTargets []string `json:"handoff_targets"`
-		SessionID      string   `json:"session_id"`
-		SourceAgent    string   `json:"source_agent"`
-	}
-	if err := json.Unmarshal([]byte(approvalReq.ContextJSON), &handoffContext); err != nil {
-		return false, fmt.Errorf("failed to parse handoff context: %w", err)
-	}
-
-	if len(handoffContext.HandoffTargets) == 0 {
-		return false, nil
-	}
-
-	span.AddEvent("triggering embedded handoffs", trace.WithAttributes(
-		attribute.StringSlice("handoff.targets", handoffContext.HandoffTargets),
-		attribute.String("handoff.source", handoffContext.SourceAgent),
-	))
-
-	// Build handoff message
-	handoffMessage := fmt.Sprintf("**Handoff from %s (approved)**\n\n"+
-		"Task: %s\n"+
-		"Title: %s\n"+
-		"Original Request: %s\n\n"+
-		"Please continue this work.",
-		handoffContext.SourceAgent, task.ID, task.Title, strutil.Truncate(task.Content, 500))
-
-	// Trigger each handoff
-	triggered := false
-	for _, targetAgentID := range handoffContext.HandoffTargets {
-		targetAgent := params.AgentRegistry.GetAgentByID(targetAgentID)
-		if targetAgent == nil {
-			span.AddEvent("warning: handoff target not found", trace.WithAttributes(
-				attribute.String("target.agent", targetAgentID),
-			))
-			continue
-		}
-
-		// Send to target agent's inbox
-		msg := &messaging.InboxMessage{
-			FromAgent:    "coordinator",
-			ToInbox:      targetAgent.Inbox,
-			MessageType:  "handoff",
-			Title:        fmt.Sprintf("Handoff: %s (approved)", task.Title),
-			Payload:      handoffMessage,
-			ParentTaskID: task.ID,      // M-TASK-HIERARCHY: Link to parent task for handoff chains
-			ChainID:      task.ChainID, // M-CHAINS-SIMPLIFY: Link to existing chain
-		}
-
-		if err := params.MsgStore.InsertInboxMessage(msg); err != nil {
-			span.AddEvent("warning: failed to send handoff", trace.WithAttributes(
-				attribute.String("target.agent", targetAgentID),
-				attribute.String("error", err.Error()),
-			))
-			continue
-		}
-
-		span.AddEvent("handoff sent", trace.WithAttributes(
-			attribute.String("target.agent", targetAgentID),
-			attribute.String("target.inbox", targetAgent.Inbox),
-		))
-		triggered = true
-	}
-
-	// Mark handoffs as triggered to prevent re-triggering on daemon restart
-	if triggered {
-		if err := params.Store.MarkApprovalHandoffsTriggered(ctx, taskID); err != nil {
-			span.AddEvent("warning: failed to mark handoffs as triggered", trace.WithAttributes(
-				attribute.String("error", err.Error()),
-			))
-		}
-	}
-
-	return triggered, nil
 }
 
 // worktreeGone reports whether a recorded worktree path no longer resolves.

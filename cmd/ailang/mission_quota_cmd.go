@@ -28,6 +28,9 @@ func missionQuotaWithPaths(args []string, paths mission.Paths, now time.Time) er
 	bucket := fs.String("bucket", "", "Report only this bucket (codex, anthropic, openrouter, ollama)")
 	consolidate := fs.Bool("consolidate", false, "Compact the journal into the ledger cache before reporting")
 	over := fs.Bool("over", false, "Print buckets unavailable for quota routing, one per line. Codex uses local provider percentages. Ollama uses its OLLAMA_API_KEY usage gauge (95% cutoff), plus a trailing-24h rate ration because the gauge carries no reset. Anthropic uses /api/oauth/usage percentages and resets; AILANG_ANTHROPIC_RATION=0 opts one process out. These block unknown quota; other buckets require proven ledger exceedance.")
+	codexReset := fs.Bool("codex-reset", false, "ATTENDED ONLY: spend one Codex reset credit (resets the account's current windows). Requires --yes; refused inside a mission iteration.")
+	codexCredit := fs.String("credit", "", "With --codex-reset: the credit id to spend (default: the provider picks)")
+	yes := fs.Bool("yes", false, "With --codex-reset: confirm spending the credit")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -36,6 +39,10 @@ func missionQuotaWithPaths(args []string, paths mission.Paths, now time.Time) er
 	if codexHome == "" {
 		codexHome = filepath.Join(paths.Home, ".codex")
 	}
+	if *codexReset {
+		return missionQuotaCodexReset(codexHome, *codexCredit, *yes, now)
+	}
+
 	var codex *mission.CodexQuotaObservation
 	if *bucket == "" || *bucket == "codex" {
 		observation := mission.ObserveCodexQuota(codexHome, now)
@@ -177,6 +184,16 @@ func missionQuotaWithPaths(args []string, paths mission.Paths, now time.Time) er
 		fmt.Printf("codex provider usage: %s — %s\n", codex.State, codex.Reason)
 		for _, w := range codex.Windows {
 			fmt.Printf("  %dm: %.1f%% used / %.1f%% allowed; resets %s (observed %s)\n", w.WindowMinutes, w.UsedPercent, w.AllowancePercent, w.ResetsAt.Format(time.RFC3339), codex.ObservedAt.Format(time.RFC3339))
+		}
+		if rc := codex.ResetCredits; rc != nil {
+			fmt.Printf("  reset credits in reserve: %d (spend: attended only, `ailang mission quota --codex-reset --yes`)\n", rc.Available)
+			for _, c := range rc.Credits {
+				exp := "no expiry"
+				if !c.ExpiresAt.IsZero() {
+					exp = "expires " + c.ExpiresAt.Format("2006-01-02")
+				}
+				fmt.Printf("    %s  %q  %s\n", c.ID, c.Title, exp)
+			}
 		}
 	}
 	if ollama != nil {

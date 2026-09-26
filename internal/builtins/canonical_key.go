@@ -2,6 +2,7 @@ package builtins
 
 import (
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 
@@ -19,8 +20,11 @@ func canonicalKey(v eval.Value) string {
 	case *eval.IntValue:
 		return fmt.Sprintf("i:%d", val.Value)
 	case *eval.FloatValue:
-		// Phase 1: %g format is sufficient for string-heavy workloads.
-		// Full NaN/-0.0 normalization deferred to Phase 2 (M-HASH-COLLECTIONS).
+		// -0.0 and +0.0 are == (IEEE), so they share a key. NaN is never ==
+		// to anything; set operations must not key it at all (keyable).
+		if val.Value == 0 {
+			return "f:0"
+		}
 		return fmt.Sprintf("f:%g", val.Value)
 	case *eval.StringValue:
 		// Length-prefix the string to avoid collisions like "s:a,b" vs "s:a" + ",b"
@@ -103,4 +107,41 @@ func canonicalKey(v eval.Value) string {
 		// Safe fallback for unknown types (functions, closures, etc.)
 		return "x:" + v.String()
 	}
+}
+
+// keyable reports whether v can stand for itself in a key-based set operation.
+// A value holding a NaN is never == to anything, itself included (IEEE,
+// types.FloatEq), so dedup/intersect/union/difference treat every such value
+// as distinct instead of merging NaNs under one key (M-FLOAT-EQ-ONE-SEMANTICS).
+// Cycle-safety: walks a finite value tree.
+func keyable(v eval.Value) bool {
+	switch val := v.(type) {
+	case *eval.FloatValue:
+		return !math.IsNaN(val.Value)
+	case *eval.ListValue:
+		for _, e := range val.Elements {
+			if !keyable(e) {
+				return false
+			}
+		}
+	case *eval.TupleValue:
+		for _, e := range val.Elements {
+			if !keyable(e) {
+				return false
+			}
+		}
+	case *eval.RecordValue:
+		for _, f := range val.Fields {
+			if !keyable(f) {
+				return false
+			}
+		}
+	case *eval.TaggedValue:
+		for _, f := range val.Fields {
+			if !keyable(f) {
+				return false
+			}
+		}
+	}
+	return true
 }

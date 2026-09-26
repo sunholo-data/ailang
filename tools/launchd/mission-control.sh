@@ -370,14 +370,64 @@ _mc_progress_bytes() {
         fi
       fi
       ;;
+    pi)
+      # `pi -p` BUFFERS to the end exactly like `claude -p`, so the driver log below
+      # never moves while a pi controller works — the comment that used to sit here
+      # said pi streams into it, and that premise let the watchdog kill 5 of 7 pi
+      # World iterations 2026-09-21..24. pi saves a session anyway, appended per
+      # message, under <agent dir>/sessions/--<cwd minus leading /, [/\:] -> ->--/
+      # (pi's own safePath rule; unlike claude's slug, dots are KEPT).
+      local slug="${PWD#/}"; slug=$(printf '%s' "$slug" | tr '/\\:' '---')
+      dir="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/sessions/--${slug}--"
+      if [ -d "$dir" ]; then
+        newest=$(ls -t "$dir"/*.jsonl 2>/dev/null | head -1)
+        if [ -n "$newest" ] && [ -f "$newest" ]; then
+          sz=$(wc -c < "$newest" 2>/dev/null | tr -d ' ')
+          total=$((total + ${sz:-0})); got=1
+        fi
+      fi
+      ;;
   esac
-  # The driver log is a second arm, and the ONLY one for codex/pi — both stream
-  # into it, while `claude -p` buffers to the end, which is exactly why claude
-  # needs the transcript above.
+  # The driver log is a second arm, and the only one for codex, which streams
+  # into it. claude and pi both buffer `-p` output to the end, which is exactly
+  # why they need the transcripts above.
   if [ -n "${LOG:-}" ] && [ -f "$LOG" ]; then
     sz=$(wc -c < "$LOG" 2>/dev/null | tr -d ' ')
     total=$((total + ${sz:-0})); got=1
   fi
+  [ "$got" -eq 1 ] || return 1
+  echo "$total"
+}
+# _mc_tree_write_bytes PIDS → total size of the regular files the tree holds open
+# for WRITING, or non-zero rc when there are none (or no lsof).
+#
+# The controller's own transcript goes flat the moment it blocks on a tool call,
+# and a sprint executor is one long tool call. Measured 2026-09-24: the World
+# controller spent 36 minutes in `mission_pi_run.sh` while the executor it was
+# waiting on streamed 2.6MB into /tmp/pi_exec_iter182_m123.ndjson and finished
+# M1-M3 at 08:43 — 24 minutes AFTER the watchdog killed its parent at 08:19 for
+# "no progress". A child streaming into a file it holds open is progress
+# whatever the provider, and the fd is visible without knowing anything about
+# how the child was launched. Files opened and closed per append (transcripts)
+# are invisible here, which is why this is an extra arm, not a replacement.
+_mc_tree_write_bytes() {
+  local csv files f sz total=0 got=0
+  csv=$(printf '%s\n' $1 | paste -sd, -)
+  [ -n "$csv" ] || return 1
+  command -v lsof >/dev/null 2>&1 || return 1
+  files=$(lsof -nP -a -p "$csv" -F atn 2>/dev/null | awk '
+    /^f/ { a=""; t="" }
+    /^a/ { a=substr($0,2) }
+    /^t/ { t=substr($0,2) }
+    /^n/ { if ((a=="w" || a=="u") && t=="REG") print substr($0,2) }' | sort -u)
+  [ -n "$files" ] || return 1
+  while IFS= read -r f; do
+    [ -f "$f" ] || continue
+    sz=$(wc -c < "$f" 2>/dev/null | tr -d ' ')
+    total=$((total + ${sz:-0})); got=1
+  done <<EOF_FILES
+$files
+EOF_FILES
   [ "$got" -eq 1 ] || return 1
   echo "$total"
 }
@@ -410,6 +460,9 @@ _mc_stalled() {
     _MC_STALL_WHY="no-progress-instrument"
     return 1
   fi
+  # Fold in the tree's open-for-write files (see _mc_tree_write_bytes): a child
+  # streaming its output is progress even while the controller's transcript is flat.
+  local tw; tw=$(_mc_tree_write_bytes "$pids") && prog="${prog}+w${tw}"
   hb=$(wc -c < "${_mc_heartbeat:-${AILANG_STATE_DIR:-$HOME/.ailang/state}/mission-${MISSION_NAME:-none}-heartbeat}" 2>/dev/null | tr -d ' '); hb="${hb:-0}"
 
   # A first sample can prove nothing — seed the baseline and report live.
@@ -889,6 +942,15 @@ _mc_ration_reason() {
   esac
 }
 
+# _mc_reset_hint → the reset credits held in reserve, one line per bucket that reports
+# any, or nothing. `ailang mission quota --over` appends a "; N Codex reset credit(s) in
+# reserve ... attended only: <command>" clause to a blocked bucket's reason, and this lifts
+# it out so the notices a human reads when quota runs dry say what is still in hand.
+# Spending a credit is an ATTENDED decision (Mark, 2026-09-24): the driver only reports it.
+_mc_reset_hint() {
+  printf '%s\n' "${MC_RATION_REASONS:-}" | awk -F'; ' '{for (i = 2; i <= NF; i++) if ($i ~ /reset credit/) print $i}'
+}
+
 # _mc_ration_unreadable BUCKET → true when the bucket is blocked because its quota
 # could not be READ, as opposed to measurably exceeding it.
 #
@@ -1298,10 +1360,11 @@ fi
 # which is the property the designer role wants and the reason Fable held this slot.
 #
 # Unchanged by design: the lane is still Anthropic, so the rotation's provider spread is
-# untouched (astra = ChatGPT subscription, deepseek = flat-rate pi), and quorum
-# independence still holds — the reviewers are gpt5-6-sol (OpenAI), gemini-3-1-pro
-# (Google) and oc-glm-5-2 (Z-AI), none of them Anthropic, so the designer is no more a
-# reviewer of its own doc than Fable was.
+# untouched (astra = ChatGPT subscription, deepseek = flat-rate pi). Quorum independence
+# is enforced by design-quorum itself since 2026-09-25: the skill passes the designer as
+# --author, that vendor sits out, and three seats are drawn from the pool (gpt6-astra,
+# gemini-3-1-pro, oc-glm-5-3, oc-kimi-k3, claude-sonnet-5@claude-p), so on this Anthropic turn
+# Claude does not review the doc.
 #
 # Worth knowing rather than acting on: the CONTROLLER is also claude-opus-5-5 as of today,
 # so one of the rotation's three entries now shares the controller's model. That is not the
@@ -1318,13 +1381,15 @@ fi
 export MISSION_DESIGNER_MODEL="${MISSION_DESIGNER_MODEL:-claude:claude-opus-5-5}"
 # DESIGNER FALLBACK (2026-09-05). The seed above is Anthropic, and until now the
 # designer was the one role with NO chain behind it in this driver — the skill's
-# three-entry rotation (fable -> astra -> deepseek) is what actually spans providers,
+# four-entry rotation (opus -> astra -> glm-5.3 -> kimi-k3) is what actually spans providers,
 # and it is owned by the SKILL, not here. This chain therefore covers only the case
 # the rotation cannot: a designer PINNED via MISSION_DESIGNER_MODEL, where a dry
 # Anthropic bucket would otherwise leave the role with nowhere to go. Same rungs as
 # the rotation, in the same order, so a pinned designer degrades the way a rotating
 # one does.
-export MISSION_DESIGNER_FALLBACK="${MISSION_DESIGNER_FALLBACK:-codex:gpt-6-astra,pi:ollama/deepseek-v4-flash:0731-cloud,pi:openrouter/deepseek/deepseek-v4-flash-0731}"
+# 2026-09-25 (Mark, attended): the rotation is opus -> astra -> GLM 5.3 -> Kimi K3 (deepseek-v4-flash
+# retired), so this chain follows it: flat-rate ollama rungs first, OpenRouter metered after.
+export MISSION_DESIGNER_FALLBACK="${MISSION_DESIGNER_FALLBACK:-codex:gpt-6-astra,pi:ollama/glm-5.3:cloud,pi:ollama/kimi-k3:cloud,pi:openrouter/z-ai/glm-5.3,pi:openrouter/moonshotai/kimi-k3}"
 # Per-iteration METERED-spend ceiling (2026-07-18, Mark: "make sure costs don't go crazy"):
 # the sum of all metered-API spend (codex $ + gemini $) within ONE iteration must stay under
 # this. Enforced by the skill's Gate-3 metered ledger; quota-bucket (subscription) spend is
@@ -1425,8 +1490,11 @@ export MISSION_EXECUTOR_MODEL="${MISSION_EXECUTOR_MODEL:-codex:gpt-6-sol}"
 # default but deepseek to be replacement when codex out of quota", then opus last —
 # are preserved exactly. Same deepseek-v4-flash weights; the flat-rate ollama route
 # replaces the metered OpenRouter one. Measured 0.029 ollama usage-units/M tokens.
-# ROLLBACK: restore pi:openrouter/deepseek/deepseek-v4-flash-0731 here.
-export MISSION_EXECUTOR_FALLBACK="${MISSION_EXECUTOR_FALLBACK:-pi:ollama/deepseek-v4-flash:0731-cloud,pi:openrouter/deepseek/deepseek-v4-flash-0731}"
+# MODEL CHANGE (2026-09-25, Mark attended): deepseek-v4-flash-0731 -> deepseek-v4.1-flash on
+# both rungs. Gate: stretch+frontier 25/29 vs 1/29 on shared benchmarks, core 22/23 vs 21/23,
+# cost per pass ~$0.024 vs ~$0.14 (record: models.yml pi-cloud-deepseek-v4-1-flash).
+# ROLLBACK: pi:ollama/deepseek-v4-flash:0731-cloud,pi:openrouter/deepseek/deepseek-v4-flash-0731
+export MISSION_EXECUTOR_FALLBACK="${MISSION_EXECUTOR_FALLBACK:-pi:ollama/deepseek-v4.1-flash:cloud,pi:openrouter/deepseek/deepseek-v4.1-flash}"
 # kimi-k3 sits between codex and opus rather than degrading straight to opus:
 # strongest open-weight model measured externally (88.3 Terminal-Bench 2.1), and
 # a flat-rate lane is the right thing to try before spending Anthropic quota.
@@ -1748,7 +1816,7 @@ for role in DESIGNER PLANNER EXECUTOR EVALUATOR; do
       _cx_rc_for=$(printf '%s' "$_cx_rcmap" | tr ';' '\n' | grep "^${cx_model}=" | head -1 | cut -d= -f2)
       [ -n "$_cx_rc_for" ] || _cx_rc_for="unknown"
       _lane_degraded="${_lane_degraded}
-- \`${role_lc}\`: **codex** lane \`${cx_model}\` unusable (probe rc=\`${_cx_rc_for}\`$([ "$_cx_rc_for" = "124" ] && printf ' — TIMEOUT after %ss' "$PROBE_TIMEOUT")) → handed to \`${fb}\`"
+- \`${role_lc}\`: **codex** lane \`${cx_model}\` unusable (probe rc=\`${_cx_rc_for}\`$([ "$_cx_rc_for" = "124" ] && printf ' — TIMEOUT after %ss' "$PROBE_TIMEOUT")$([ "$_cx_rc_for" = "75" ] && printf ' — %s' "$(_mc_ration_reason codex)")) → handed to \`${fb}\`"
       printf -v "$var" '%s' "$fb"; export "$var"
     ;; esac
   ;; esac
@@ -1922,11 +1990,16 @@ if ! select_model; then
     log "refusal already announced this episode ($BLOCKED_FILE) — staying quiet"
   else
     : > "$BLOCKED_FILE"
+    _mc_load_ration
+    _ref_reserve=$(_mc_reset_hint | sed 's/^/- 💳 /')
     ailang messages send controlplane \
-      "mission-control refused to start: no usable controller in Anthropic prefs ($PREFS) or fallback ($CONTROLLER_FALLBACK). Per-model reasons are in the driver log. Zero tokens spent beyond probes. Further refusals in this episode are silent; mission-recovery retries automatically." \
+      "mission-control refused to start: no usable controller in Anthropic prefs ($PREFS) or fallback ($CONTROLLER_FALLBACK). Per-model reasons are in the driver log. Zero tokens spent beyond probes. Further refusals in this episode are silent; mission-recovery retries automatically.${_ref_reserve:+ Held in reserve (attended decision): $(printf '%s' "$_ref_reserve" | tr '\n' ' ')}" \
       --title "Mission iteration blocked: no usable model" --from "$MSG_FROM" 2>/dev/null
     [ -n "${MISSION_GH_ISSUE:-}" ] && gh issue comment "$MISSION_GH_ISSUE" --repo "$MISSION_REPO" \
-      --body "⚠️ Mission iteration did not start: **no usable controller** in Anthropic preferences (\`$PREFS\`) or fallback (\`$CONTROLLER_FALLBACK\`). Per-model detail is in the driver log. \`mission-recovery\` retries automatically; further refusals in this episode are silent to avoid comment spam." 2>/dev/null
+      --body "⚠️ Mission iteration did not start: **no usable controller** in Anthropic preferences (\`$PREFS\`) or fallback (\`$CONTROLLER_FALLBACK\`). Per-model detail is in the driver log. \`mission-recovery\` retries automatically; further refusals in this episode are silent to avoid comment spam.${_ref_reserve:+
+
+**Held in reserve** (an attended decision — the loop never spends these):
+${_ref_reserve}}" 2>/dev/null
   fi
   exit 1
 fi
@@ -2000,8 +2073,12 @@ if [ -n "$_lane_degraded" ]; then
     log "lane degradation unchanged this episode — notice suppressed ($_lane_ep)"
   else
     printf '%s' "$_lane_fp" > "$_lane_ep"
+    _deg_reserve=$(_mc_reset_hint | sed 's/^/- 💳 /')
     _deg_body="**Executor/planner lane degraded on this fire** — recorded before the iteration ran.
-${_lane_degraded}
+${_lane_degraded}${_deg_reserve:+
+
+**Held in reserve** (an attended decision — the loop never spends these):
+${_deg_reserve}}
 
 Controller: \`${MODEL}\` (${MODEL_WHY}). Effective roles now: designer=\`${MISSION_DESIGNER_MODEL}\` planner=\`${MISSION_PLANNER_MODEL}\` executor=\`${MISSION_EXECUTOR_MODEL}\` evaluator=\`${MISSION_EVALUATOR_MODEL}\`.
 Driver log: \`${LOG}\`. If this repeats across fires, the lane is down — check the bucket, and check that this mission's plist carries a PATH that reaches the CLI (the World mission lost five iterations to exactly that). Identical notices are suppressed until the degradation changes or heals."
