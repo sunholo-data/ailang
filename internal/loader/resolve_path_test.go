@@ -19,6 +19,7 @@ func TestResolvePath_StdGoesThroughTheResolverNeverCwd(t *testing.T) {
 	testutil.SetHomeDir(t, t.TempDir()) // no ~/.ailang/std on this run
 	stdDir := t.TempDir()
 	want := filepath.Join(stdDir, "zz_probe.ail")
+	writeStdFile(t, stdDir, "io.ail", "module std/io\n") // the stdlib-root marker
 	if err := os.WriteFile(want, []byte("module std/zz_probe\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -33,8 +34,8 @@ func TestResolvePath_StdGoesThroughTheResolverNeverCwd(t *testing.T) {
 		t.Fatalf("resolved path %q is cwd-relative — the fallback this test retires", got)
 	}
 
-	// A module that no search path and no embedded copy has is an error, not
-	// "./std/…": the resolver's error names what was tried.
+	// A module the chosen root lacks is an error, not "./std/…" and not the
+	// embedded copy: the resolver's error names the root.
 	got, err = ml.resolvePath("std/zz_nowhere")
 	if err == nil || got != "" {
 		t.Fatalf("resolvePath(std/zz_nowhere) = (%q, %v), want an error", got, err)
@@ -44,7 +45,7 @@ func TestResolvePath_StdGoesThroughTheResolverNeverCwd(t *testing.T) {
 	}
 
 	// Embedded stdlib modules resolve even with no std/ on disk.
-	t.Setenv("AILANG_STDLIB_PATH", t.TempDir())
+	isolateStdlib(t)
 	ml = NewModuleLoader(t.TempDir())
 	got, err = ml.resolvePath("std/io")
 	if err != nil || !strings.HasPrefix(got, "<embedded>/std/") {

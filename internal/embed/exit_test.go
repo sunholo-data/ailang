@@ -23,7 +23,7 @@ func newExitTestEngine(t *testing.T) *Engine {
 	if err != nil {
 		t.Fatalf("resolving repo root: %v", err)
 	}
-	t.Setenv("AILANG_STDLIB_PATH", root)
+	t.Setenv("AILANG_STDLIB_PATH", filepath.Join(root, "std"))
 
 	engine := New(root)
 	t.Cleanup(func() { _ = engine.Close() })

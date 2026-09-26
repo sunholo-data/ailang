@@ -49,6 +49,11 @@ export type Option[a] = Some(a) | None
 		"result.ail": `module std/result
 export type Result[a, e] = Ok(a) | Err(e)
 `,
+		// io.ail marks the directory as a stdlib root (internal/stdlibroot):
+		// without it ./std is not a stdlib and the run reads the real one.
+		// Every std module these tests import must be in this directory —
+		// a run never mixes modules from two stdlib roots.
+		"io.ail": "module std/io\n",
 	}
 	for name, content := range files {
 		if err := os.WriteFile(filepath.Join(stdDir, name), []byte(content), 0644); err != nil {

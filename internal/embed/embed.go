@@ -29,7 +29,6 @@ import (
 	"sync"
 
 	"github.com/petermattis/goid"
-	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/eval"
 	"github.com/sunholo-data/ailang/internal/loader"
 	"github.com/sunholo-data/ailang/internal/pipeline"
@@ -54,19 +53,13 @@ type Engine struct {
 
 // New creates a new AILANG embedding engine.
 // basePath is the root directory for resolving module imports.
-// The basePath should be the root of the project containing both
-// user modules and the stdlib directory.
+// The stdlib comes from the process stdlib root (internal/stdlibroot), which
+// falls back to the copy built into the binary; basePath need not contain one.
 func New(basePath string) *Engine {
 	// Resolve basePath to absolute for consistent path handling
 	absBasePath, err := filepath.Abs(basePath)
 	if err != nil {
 		absBasePath = basePath
-	}
-
-	// Set AILANG_STDLIB_PATH to basePath so stdlib modules can be found
-	// This is needed because the loader resolves stdlib relative to CWD by default
-	if config.StdlibPath() == "" {
-		os.Setenv(config.EnvStdlibPath, absBasePath)
 	}
 
 	return &Engine{

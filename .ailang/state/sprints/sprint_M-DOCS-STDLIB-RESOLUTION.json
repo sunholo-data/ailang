@@ -1,9 +1,9 @@
 {
   "sprint_id": "M-DOCS-STDLIB-RESOLUTION",
   "title": "Docs stdlib resolution for release installs",
-  "status": "planned",
-  "design_doc": "design_docs/planned/m-docs-stdlib-resolution.md",
-  "sprint_plan": "design_docs/planned/m-docs-stdlib-resolution-sprint-plan.md",
+  "status": "superseded",
+  "design_doc": "design_docs/archive/m-docs-stdlib-resolution.md",
+  "sprint_plan": "design_docs/archive/m-docs-stdlib-resolution-sprint-plan.md",
   "github_issues": [
     1131
   ],
@@ -68,5 +68,6 @@
     "estimated_days": 2
   },
   "risk_level": "medium",
-  "execution_gate": "User must approve this plan and explicitly say execute sprint"
+  "execution_gate": "User must approve this plan and explicitly say execute sprint",
+  "superseded_by": "design_docs/planned/v0_44_0/m-stdlib-root-resolution.md"
 }

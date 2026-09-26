@@ -89,7 +89,7 @@ func TestAllFunctions_ExactNameSet(t *testing.T) {
 
 	// Emitted set (strip signature/doc; drop prelude.* pseudo-module).
 	got := map[string]bool{}
-	for _, line := range buildAllFunctionsLines(stdDir) {
+	for _, line := range buildAllFunctionsLines(os.DirFS(stdDir)) {
 		key := line[:strings.Index(line, ":")]
 		if strings.HasPrefix(key, "prelude.") {
 			continue
@@ -131,7 +131,7 @@ func moduleNameOf(t *testing.T, filePath string) string {
 // non-empty signature (not `[signature unparsed]`, not blank).
 func TestAllFunctions_EverySignatureNonEmpty(t *testing.T) {
 	stdDir := stdlibDirForTest(t)
-	for _, line := range buildAllFunctionsLines(stdDir) {
+	for _, line := range buildAllFunctionsLines(os.DirFS(stdDir)) {
 		colon := strings.Index(line, ": ")
 		if colon < 0 {
 			t.Errorf("line has no signature separator: %q", line)
@@ -157,7 +157,7 @@ func TestAllFunctions_SignatureFidelity(t *testing.T) {
 
 	// Build emitted map: module.name -> signature (without leading name/doc).
 	emitted := map[string]string{}
-	for _, line := range buildAllFunctionsLines(stdDir) {
+	for _, line := range buildAllFunctionsLines(os.DirFS(stdDir)) {
 		key := line[:strings.Index(line, ":")]
 		if strings.HasPrefix(key, "prelude.") {
 			continue
@@ -202,7 +202,7 @@ func TestAllFunctions_SignatureFidelity(t *testing.T) {
 func TestAllFunctions_V16EffectRow(t *testing.T) {
 	stdDir := stdlibDirForTest(t)
 	var nowLine string
-	for _, line := range buildAllFunctionsLines(stdDir) {
+	for _, line := range buildAllFunctionsLines(os.DirFS(stdDir)) {
 		if strings.HasPrefix(line, "std/clock.now:") {
 			nowLine = line
 			break
@@ -220,7 +220,7 @@ func TestAllFunctions_V16EffectRow(t *testing.T) {
 // `ailang docs std/clock` output (rendered from the AST, not the truncating regex).
 func TestPerModuleDocs_V16EffectRow(t *testing.T) {
 	stdDir := stdlibDirForTest(t)
-	sigs, _, err := parseExportSignatures(filepath.Join(stdDir, "clock.ail"))
+	sigs, _, err := parseExportSignatures(os.DirFS(stdDir), "clock.ail")
 	if err != nil {
 		t.Fatalf("parseExportSignatures(clock): %v", err)
 	}
@@ -237,7 +237,7 @@ func TestPerModuleDocs_V16EffectRow(t *testing.T) {
 // drops unrelated modules (case-insensitive substring over the full line).
 func TestAllFunctions_Filter(t *testing.T) {
 	stdDir := stdlibDirForTest(t)
-	lines := buildAllFunctionsLines(stdDir)
+	lines := buildAllFunctionsLines(os.DirFS(stdDir))
 
 	// Apply the same filter allFunctionsCommand applies, in-process.
 	filter := "timestamp"
@@ -313,12 +313,12 @@ func TestParseExportSignatures_UnparseableFileErrors(t *testing.T) {
 	if err := os.WriteFile(bad, []byte("module std/broken\nexport func f( -> {{{ !!!\n"), 0o644); err != nil {
 		t.Fatalf("write bad file: %v", err)
 	}
-	_, _, err := parseExportSignatures(bad)
+	_, _, err := parseExportSignatures(os.DirFS(dir), "broken.ail")
 	if err == nil {
 		t.Fatal("expected parse error for broken .ail, got nil")
 	}
-	if !strings.Contains(err.Error(), bad) {
-		t.Errorf("error should name the file %q, got: %v", bad, err)
+	if !strings.Contains(err.Error(), "broken.ail") {
+		t.Errorf("error should name the file broken.ail, got: %v", err)
 	}
 }
 

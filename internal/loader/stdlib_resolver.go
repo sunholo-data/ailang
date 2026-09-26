@@ -2,14 +2,15 @@ package loader
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/importhint"
+	"github.com/sunholo-data/ailang/internal/stdlibroot"
 )
 
 // BinaryVersion is the version of the ailang binary.
@@ -76,80 +77,28 @@ func validateModuleName(name string) error {
 	return nil
 }
 
-// getUserDataDir returns the platform-specific user data directory for AILANG stdlib
-// Returns empty string if unable to determine (caller should skip this path)
-func getUserDataDir() string {
-	var baseDir string
-
-	switch runtime.GOOS {
-	case "linux", "freebsd", "openbsd", "netbsd":
-		// Linux/BSD: Use XDG_DATA_HOME or ~/.local/share
-		if xdg := config.XDGDataHome(); xdg != "" {
-			baseDir = xdg
-		} else if home := config.Home(); home != "" {
-			baseDir = filepath.Join(home, ".local", "share")
-		}
-
-	case "darwin":
-		// macOS: Use ~/Library/Application Support
-		if home := config.Home(); home != "" {
-			baseDir = filepath.Join(home, "Library", "Application Support")
-		}
-
-	case "windows":
-		// Windows: Use %APPDATA%
-		if appdata := config.AppData(); appdata != "" {
-			baseDir = appdata
-		}
-
-	default:
-		// Unknown OS - return empty
-		return ""
-	}
-
-	if baseDir == "" {
-		return ""
-	}
-
-	// Append ailang/std to base directory
-	return filepath.Join(baseDir, "ailang", "std")
-}
-
-// getPathSeparator returns the path separator for environment variables
-// Windows uses semicolon, Unix uses colon
-func getPathSeparator() string {
-	if runtime.GOOS == "windows" {
-		return ";"
-	}
-	return ":"
-}
-
-// StdlibResolver resolves stdlib module paths using a search path strategy
+// StdlibResolver resolves stdlib module names against the ONE stdlib root of the
+// process (internal/stdlibroot, M-STDLIB-ROOT-RESOLUTION). Modules are never
+// searched for one by one across several roots: a module missing from the chosen
+// root is an error naming that root, so a run cannot mix modules from two stdlibs.
 type StdlibResolver struct {
-	// Search paths (computed once and cached)
-	searchPaths []string
-
-	// Negative cache: module name → paths tried
-	// Avoids repeated filesystem hits for missing modules
-	negativeCache map[string][]string
-
-	// CLI override path (highest priority)
+	// CLI override path (--stdlib-path); "" uses the process configuration.
 	cliOverridePath string
 
-	// Enable trace logging (for --trace-loader flag)
+	// Enable trace logging (--trace-loader); ORed with the process configuration.
 	traceEnabled bool
 
-	// Strict mode (fail on version mismatch)
+	// Strict mode (--strict: fail on version mismatch); ORed likewise.
 	strictMode bool
 
 	// Expected stdlib version (embedded at compile time)
 	expectedVersion string
 }
 
-// NewStdlibResolver creates a new stdlib resolver
+// NewStdlibResolver creates a new stdlib resolver. Empty/false arguments defer to
+// the process configuration set by stdlibroot.Configure.
 func NewStdlibResolver(cliPath string, traceEnabled, strictMode bool) *StdlibResolver {
 	return &StdlibResolver{
-		negativeCache:   make(map[string][]string),
 		cliOverridePath: cliPath,
 		traceEnabled:    traceEnabled,
 		strictMode:      strictMode,
@@ -157,138 +106,75 @@ func NewStdlibResolver(cliPath string, traceEnabled, strictMode bool) *StdlibRes
 	}
 }
 
-// ResolveStdlib resolves a stdlib module name to an absolute file path
-// Returns the resolved path or an error with search trace
+func (r *StdlibResolver) tracing() bool { return r.traceEnabled || stdlibroot.Current().Trace }
+
+func (r *StdlibResolver) strict() bool { return r.strictMode || stdlibroot.Current().StrictVersion }
+
+// Root returns the stdlib root this resolver reads from, after the version check
+// (on-disk roots only: the embedded copy matches the binary by construction).
+func (r *StdlibResolver) Root() (stdlibroot.Root, error) {
+	root, err := stdlibroot.Resolve(r.cliOverridePath)
+	if err != nil {
+		return root, err
+	}
+	if root.Embedded() {
+		return root, nil
+	}
+	if err := r.checkStdlibVersion(root.Dir); err != nil {
+		if r.strict() {
+			return root, err
+		}
+		// M-DX21: Non-strict: log warning only once per process
+		// AILANG_NO_VERSION_WARNINGS: suppress entirely
+		// AILANG_QUIET_WARNINGS: suppress in JSON/quiet mode (set by CLI)
+		if !stdlibVersionWarningShown && !config.StdlibVersionWarningsSuppressed() {
+			fmt.Fprintf(os.Stderr, "Warning: %v\n", err)
+			stdlibVersionWarningShown = true
+		}
+	}
+	return root, nil
+}
+
+// ResolveStdlib resolves a stdlib module name to the path of its source in the
+// process stdlib root: <root>/<module>.ail on disk, "<embedded>/std/<module>.ail"
+// for the copy built into the binary.
 func (r *StdlibResolver) ResolveStdlib(moduleName string) (string, error) {
+	path, _, err := r.resolve(moduleName)
+	return path, err
+}
+
+// ReadStdlib resolves a stdlib module and returns its path plus, for the embedded
+// root, its source. For an on-disk root content is nil: the caller reads the file
+// itself (through the source snapshot, so admission and execution see one read).
+func (r *StdlibResolver) ReadStdlib(moduleName string) (string, []byte, error) {
+	path, root, err := r.resolve(moduleName)
+	if err != nil || !root.Embedded() {
+		return path, nil, err
+	}
+	content, err := fs.ReadFile(root.FS, strings.TrimPrefix(path, "<embedded>/std/"))
+	return path, content, err
+}
+
+func (r *StdlibResolver) resolve(moduleName string) (string, stdlibroot.Root, error) {
 	// Validate module name for security
 	if err := validateModuleName(moduleName); err != nil {
-		return "", err
+		return "", stdlibroot.Root{}, err
 	}
-
-	// Remove std/ prefix if present (we'll add it back)
 	moduleName = strings.TrimPrefix(moduleName, "std/")
 
-	// Check negative cache first
-	if triedPaths, found := r.checkNegativeCache(moduleName); found {
-		return "", r.errWithSearchTrace(moduleName, triedPaths)
+	root, err := r.Root()
+	if err != nil {
+		return "", root, err
 	}
-
-	// Initialize search paths (done once)
-	if r.searchPaths == nil {
-		r.initializeSearchPaths()
+	name := moduleName + ".ail"
+	if st, statErr := fs.Stat(root.FS, name); statErr != nil || st.IsDir() {
+		return "", root, r.errWithSearchTrace(moduleName, root)
 	}
-
-	// Try each search path
-	var triedPaths []string
-	for _, searchPath := range r.searchPaths {
-		fullPath := filepath.Join(searchPath, moduleName+".ail")
-		triedPaths = append(triedPaths, fullPath)
-
-		if r.traceEnabled {
-			fmt.Fprintf(os.Stderr, "[trace-loader] Checking: %s\n", fullPath)
-		}
-
-		if _, err := os.Stat(fullPath); err == nil {
-			// Found! Check version if this is the stdlib root
-			if err := r.checkStdlibVersion(searchPath); err != nil {
-				if r.strictMode {
-					return "", err
-				}
-				// M-DX21: Non-strict: log warning only once per process
-				// AILANG_NO_VERSION_WARNINGS: suppress entirely
-				// AILANG_QUIET_WARNINGS: suppress in JSON/quiet mode (set by CLI)
-				if !stdlibVersionWarningShown && !config.StdlibVersionWarningsSuppressed() {
-					fmt.Fprintf(os.Stderr, "Warning: %v\n", err)
-					stdlibVersionWarningShown = true
-				}
-			}
-			return fullPath, nil
-		}
+	path := root.DisplayPath(name)
+	if r.tracing() {
+		fmt.Fprintf(os.Stderr, "[trace-loader] std/%s -> %s\n", moduleName, path)
 	}
-
-	// Not found - cache negative result
-	r.cacheNegative(moduleName, triedPaths)
-	return "", r.errWithSearchTrace(moduleName, triedPaths)
-}
-
-// initializeSearchPaths initializes the search path list
-// Search order (highest priority first):
-// 1. CLI flag (--stdlib-path)
-// 2. Current working directory (./std) - for development and `go run`
-// 3. Binary-relative (../std from binary location)
-// 4. AILANG_STDLIB_PATH environment variable (colon/semicolon separated)
-// 5. User data directory (platform-specific)
-// 6. System directories (/usr/local/share/ailang/std, /usr/share/ailang/std)
-func (r *StdlibResolver) initializeSearchPaths() {
-	var paths []string
-
-	// 1. CLI override (highest priority)
-	if r.cliOverridePath != "" {
-		paths = append(paths, r.cliOverridePath)
-	}
-
-	// 2. Current working directory (for development, `go run`, CI)
-	// This is critical for running from repo root where std/ lives
-	if cwd, err := os.Getwd(); err == nil {
-		cwdStd := filepath.Join(cwd, "std")
-		if absPath, err := filepath.Abs(cwdStd); err == nil {
-			paths = append(paths, absPath)
-		}
-	}
-
-	// 3. Binary-relative path
-	if binPath, err := os.Executable(); err == nil {
-		binDir := filepath.Dir(binPath)
-		stdPath := filepath.Join(binDir, "..", "std")
-		if absPath, err := filepath.Abs(stdPath); err == nil {
-			paths = append(paths, absPath)
-		}
-	}
-
-	// 4. AILANG_STDLIB_PATH environment variable (multi-path)
-	if envPath := config.StdlibPath(); envPath != "" {
-		sep := getPathSeparator()
-		for _, p := range strings.Split(envPath, sep) {
-			p = strings.TrimSpace(p)
-			if p != "" {
-				paths = append(paths, p)
-			}
-		}
-	}
-
-	// 5. User data directory (platform-specific)
-	if userDir := getUserDataDir(); userDir != "" {
-		paths = append(paths, userDir)
-	}
-
-	// 6. System directories (Unix only)
-	if runtime.GOOS != "windows" {
-		paths = append(paths,
-			"/usr/local/share/ailang/std",
-			"/usr/share/ailang/std",
-		)
-	}
-
-	r.searchPaths = paths
-
-	if r.traceEnabled {
-		fmt.Fprintf(os.Stderr, "[trace-loader] Search paths initialized (%d paths):\n", len(paths))
-		for i, p := range paths {
-			fmt.Fprintf(os.Stderr, "  %d. %s\n", i+1, p)
-		}
-	}
-}
-
-// checkNegativeCache checks if a module lookup previously failed
-// Returns (tried paths, found)
-func (r *StdlibResolver) checkNegativeCache(moduleName string) ([]string, bool) {
-	paths, found := r.negativeCache[moduleName]
-	return paths, found
-}
-
-// cacheNegative caches a failed module lookup
-func (r *StdlibResolver) cacheNegative(moduleName string, triedPaths []string) {
-	r.negativeCache[moduleName] = triedPaths
+	return path, root, nil
 }
 
 // checkStdlibVersion checks if the stdlib VERSION file matches expected version
@@ -324,15 +210,17 @@ func baseVersion(v string) string {
 	return v
 }
 
-// errWithSearchTrace returns a detailed error with search trace
-func (r *StdlibResolver) errWithSearchTrace(moduleName string, triedPaths []string) error {
+// errWithSearchTrace returns a detailed error for a module the stdlib root lacks.
+func (r *StdlibResolver) errWithSearchTrace(moduleName string, root stdlibroot.Root) error {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("stdlib module not found: std/%s\n", moduleName))
-	sb.WriteString("searched:\n")
-	for _, p := range triedPaths {
-		sb.WriteString(fmt.Sprintf("  - %s\n", p))
+	if root.Embedded() {
+		sb.WriteString("stdlib root: the copy built into this binary\n")
+	} else {
+		sb.WriteString(fmt.Sprintf("stdlib root: %s (from %s)\n", root.Dir, rootSourceLabel(root.Source)))
+		sb.WriteString("the stdlib root is chosen once per run; a module missing from it is not looked up anywhere else\n")
+		sb.WriteString("\ntip: point AILANG_STDLIB_PATH or --stdlib-path at a complete std/ directory, or remove a partial ./std\n")
 	}
-	sb.WriteString("\ntip: set AILANG_STDLIB_PATH=/path/to/ailang/std or use --stdlib-path flag\n")
 
 	// M-DX-AI-DISCOVERY M3: recover a mistyped stdlib MODULE name. A curated alias
 	// table (time->clock, ...) first, then Levenshtein <= 2 over the live module
@@ -347,11 +235,30 @@ func (r *StdlibResolver) errWithSearchTrace(moduleName string, triedPaths []stri
 		if mods := importhint.ModuleLocator(); len(mods) > 0 {
 			sb.WriteString(fmt.Sprintf("available: %s (%d modules)\n", strings.Join(mods, ", "), len(mods)))
 		} else {
-			sb.WriteString("available: (module list unavailable — no stdlib root resolved; see 'searched' above)\n")
+			sb.WriteString("available: (module list unavailable — the import-hint index could not read the stdlib root)\n")
 		}
 	} else {
-		sb.WriteString("available: (module list unavailable — no stdlib root resolved; see 'searched' above)\n")
+		sb.WriteString("available: (module list unavailable — the import-hint index could not read the stdlib root)\n")
 	}
 
 	return fmt.Errorf("%s", sb.String())
+}
+
+// rootSourceLabel names where a root came from, for error text.
+func rootSourceLabel(source string) string {
+	switch source {
+	case "flag":
+		return "--stdlib-path"
+	case "env":
+		return config.EnvStdlibPath
+	case "cwd":
+		return "./std in the working directory"
+	case "binary":
+		return "the std/ next to the ailang binary"
+	case "user":
+		return "the user data directory"
+	case "system":
+		return "a system directory"
+	}
+	return source
 }

@@ -40,7 +40,7 @@ func newWSFixture(t testing.TB, cfg Config, upstream string, configure func(*eff
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv("AILANG_STDLIB_PATH", repoRoot)
+	t.Setenv("AILANG_STDLIB_PATH", filepath.Join(repoRoot, "std"))
 	root := t.TempDir()
 	var paths []string
 	for _, m := range modules {
