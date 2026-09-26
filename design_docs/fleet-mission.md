@@ -106,11 +106,51 @@ Shared per-role routing from `mission-control`. Overrides in `~/.config/ailang/m
 
 ## Queue (top = next; tags: [NEXT] [IN-SPRINT] [PARKED] [LANDED] [RULED OUT])
 
-The live queue is **`ailang mission ticket open`**, not this list. Rows here record only what the
-tickets cannot: parked policy questions and Phase-3 work Mark has routed here.
+The live tickets are **`ailang mission ticket open`**. This section is **Mark's triage order**
+(attended, 2026-09-26) for the 16-ticket backfill. It **outranks** the `slots_lost` ranking,
+because every backfilled ticket has exactly one occurrence, so that ranking degenerates to filing
+order. New tickets filed after today rank by `slots_lost` BELOW this list unless they are
+`blocking=all`, which jumps the queue. Always re-check a ticket at HEAD in Gate 2 before working it,
+and resolve it as "already fixed" with evidence if it no longer reproduces.
 
-1. [PARKED] Phase 3a skill-resolution spike (P1–P3, design doc) · clause 5 · routed here only on
-   Mark's directive.
+**P0 — loops lose whole slots or run unsafe today**
+1. [NEXT] `driver:slot-kill-leaves-orphan-descendants`: a killed slot leaves its descendants
+   running (world 2026-09-26: the planner's harness ran 26 min past the kill). Leaks processes on a
+   box with an OOM history.
+2. `stall-watchdog:kills-controller-on-long-drill`: **mechanical half only.** Count a live,
+   progressing descendant as progress, as 4a86ea17b does for pi. **Changing the 600s threshold
+   or the sample counts is POLICY: park it.** Cost world a whole slot today (04:45, rc 143).
+3. `pi-runner:verdict-blind-to-commits-and-predirty`: the pi fallback lanes (now the tail after
+   opus) report `empty_worktree` for executors that commit, so a working lane reads as dead.
+4. `pi-runner:sandbox-extensions-not-wired`: pi roles run unfenced. Safety, not throughput.
+
+**P1 — silent wedges and invisible failures**
+5. `driver:exit-path-notices-unbounded`: unbounded sends on the exit path can hang a fire.
+6. `gate0:driver-crash-notices-invisible`: loops cannot see their own crash notices.
+7. `quorum:artifact-dir-cwd-relative`: reviewed docs read as unreviewed from pin worktrees.
+8. `quorum:invalid-absent-on-quoted-literals`: a real reviewer counted absent.
+9. `quorum:zero-signal-guard-vacuous-with-controller-verdict`: verify first (never re-checked).
+
+**P2 — hygiene**
+10. `mission:rotate-log-registry-cwd`
+11. `ci:launchd-driver-suite-flakes`: verify it reproduces before working it.
+12. `skills:agents-copies-stale`: mission-*/sprint-* copies only (the fleet's scope).
+13. `driver:unclassified-state-unreachable`
+14. `skill:heartbeat-relative-path-absent-in-world`: **likely stale**. World's slot verdicts
+    show `stamps=9` on every completed 09-25/26 fire, so stamps land. Verify, then resolve as not
+    reproducing.
+
+**[PARKED] — routing policy, questions for Mark (HD-2a)**
+- `resolver:planner-lane-field-missing-vs-spawn-pin`: should a design doc with no `planner_lane`
+  field default to the mission's planner pin instead of `opus fail-closed`? Recommendation: yes.
+  Almost no doc carries the field, so fail-closed is the common case, and it is hand-overridden
+  every World fire.
+- `spawn-pin-hook:no-fallback-mode`: should the spawn-pin hook allow the role's declared
+  `MISSION_<ROLE>_FALLBACK` chain when the pinned designer is dead? Recommendation: yes, walking
+  only the declared chain in order, so the pin still means something.
+
+Standing parked item: the Phase 3a skill-resolution spike (design P1–P3), routed here only on
+Mark's directive.
 
 ---
 **Document created**: 2026-09-26. Iteration 0 ratifies it with Mark before any ticket routes.
