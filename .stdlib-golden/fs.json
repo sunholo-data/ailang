@@ -164,7 +164,7 @@
     },
     {
       "name": "walk",
-      "type": "(string)-\u003e[string]!{FS}",
+      "type": "(string)-\u003elist[string]!{FS}",
       "effects": [
         "FS"
       ],
