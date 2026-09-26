@@ -198,6 +198,15 @@ verbatim. Validating it against the registry at that boundary is what stops a ph
 inbox being created — this is how ten `pkg:sunholo/ailang-parse` tickets ended up
 somewhere nothing watches.
 
+**`mission-fleet` — the harness ticket queue (2026-09-26).** Product mission loops file loop-harness
+defects here with `ailang mission ticket file` (one message per occurrence, category
+`harness-friction`, correlation `harness:<signature>`); the fleet mission reads them with
+`ailang mission ticket open`. It is a declared **triage** inbox (never dispatched), and **unread
+means open**: only `ailang mission ticket resolve` marks a ticket read, after replying
+(`harness-resolved`) to each filing mission's `mission-<name>` inbox. Do not `messages read` or
+`ack --all` it. The ticket command always writes to `ailang-multivac`, whatever the caller's
+storage env says (the same pin as mission stage dispatch).
+
 Agents may claim a family with a trailing `*` (`pkg:sunholo/motoko_ext_*`). Precedence is
 exact match, then longest matching prefix, then no dispatch. See
 [cloud-coordinator-config.md](./cloud-coordinator-config.md).

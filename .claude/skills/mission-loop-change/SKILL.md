@@ -99,8 +99,12 @@ separate worktree.
 iteration but *after* the probes, so it reports real resolved lanes.
 
 ```bash
-# Working tree instead of the pinned copy — REQUIRED or you are testing the old driver:
-AILANG_DRIVER_PIN=0 MISSION_PROFILE=<name> MISSION_DRY_RUN=1 \
+# Working tree instead of the pinned copy — REQUIRED or you are testing the old driver.
+# Use AILANG_DRIVER_PINNED, NOT AILANG_DRIVER_PIN=0: an env file that runs `export
+# AILANG_DRIVER_PIN=1` (world's does) overrides the latter, the driver re-execs into the pin, and
+# you silently test the old copy (measured 2026-09-26 — the old log line appeared in the output).
+AILANG_DRIVER_PINNED=worktree-test MISSION_WORKDIR=<the mission's checkout> \
+  MISSION_PROFILE=<name> MISSION_DRY_RUN=1 \
   /bin/bash tools/launchd/mission-control.sh 2>&1 | tail -3
 ```
 
@@ -194,8 +198,11 @@ reboot).
 
 ## Adding a whole new mission
 
-Until the registry lands, this is the manual path (`tools/launchd/mission-template.plist` and
-`docs/docs/guides/mission-bootstrap.md`):
+**Follow `docs/docs/guides/mission-bootstrap.md`** (Steps 3.6 and 4 were rewritten for the registry
+on 2026-09-26). The registry exists now: `missions/<name>.toml`, then `ailang mission install <name>`
+(renders for review) and `ailang mission apply <name>` (installs and loads), run from the MAIN
+checkout. Worked example: the fleet mission (M-HARNESS-MISSION-LOOP). The older manual path is
+kept below for reference only:
 
 1. `sed s/__NAME__/<name>/g < tools/launchd/mission-template.plist > ~/Library/LaunchAgents/dev.ailang.mission-<name>.plist`
    — and **commit a copy to the repo**.
@@ -211,6 +218,13 @@ Until the registry lands, this is the manual path (`tools/launchd/mission-templa
 
 Prefer running the new mission's driver from a clone that sources `pin-root.sh`. A fork is how
 world ended up invisible.
+
+## Harness work belongs to the fleet mission (2026-09-26)
+
+Product loops no longer change the loop harness: the driver enables a per-fire pre-push scope
+guard (`tools/launchd/githooks/pre-push`), and they file `ailang mission ticket file` instead. The
+`fleet` mission works those tickets, and this skill's pre-flight is its done-gate. An attended
+session (no `MISSION_NAME`) is unaffected and can still make changes like these directly.
 
 ## The five-line pre-flight
 

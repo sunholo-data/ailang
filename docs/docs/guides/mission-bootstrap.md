@@ -240,42 +240,50 @@ done
 
 Do NOT copy the skill files into your repo — a copy is a fork, and forks stop learning.
 
-## Step 3.6 — Put the driver in the target repo
+## Step 3.6 — Register the mission (no driver copy)
 
-The plist you are about to install points at `__WORKDIR__/tools/launchd/mission-control.sh` —
-**inside your repo's checkout**, so the driver must exist (and be committed) there:
+**Superseded 2026-09-06 (the de-fork).** Missions no longer carry their own copy of the driver.
+Every mission runs the ONE driver in `sunholo-data/ailang`, re-executed from the committed
+`origin/dev` pin (`tools/launchd/lib/pin-root.sh`), and points it at its own checkout through
+`MISSION_WORKDIR`. A copied driver is the fork that made World miss every fleet fix for weeks.
 
-```bash
-mkdir -p tools/launchd
-cp <ailang-checkout>/tools/launchd/mission-control.sh tools/launchd/
-cp <ailang-checkout>/tools/launchd/mission-template.plist tools/launchd/
-git add tools/ && git commit -m "infra: mission-loop driver (from sunholo-data/ailang)" && git push
+What a mission needs instead is a registry entry, `missions/<name>.toml`, in the ailang repo:
+
+```toml
+name    = "<name>"
+repo    = "<owner>/<repo>"
+workdir = "/absolute/path/to/the/checkout"
+doc     = "design_docs/<name>-mission.md"
+
+[schedule]
+mode             = "interval"      # or "keepalive" with throttle_seconds
+interval_seconds = 21600
+boot_offset      = <next free 420s slot>   # also add an arm to _mc_boot_offset in the driver
 ```
 
-The driver is fully parameterized — committing a copy here is *deployment*, not a fork: mission
-behavior comes from the shared skill and your env profile, and driver improvements are synced by
-re-copying on upgrade.
+Also commit the reviewable env copy at `tools/launchd/mission-env/mission-<name>.env` and keep it
+byte-identical to `~/.config/ailang/mission-<name>.env` (the mission-loop-change skill's Gate 0).
+Worked example: the fleet mission, 2026-09-26 (`missions/fleet.toml`).
 
 ## Step 4 — Install the launchd job
 
-**Set the kill switch FIRST.** The template ships `RunAtLoad=true` (so reboots can never
-silently kill the cadence) — which means `launchctl bootstrap` **fires an iteration immediately**.
-Without the switch, that first fire runs unattended against a not-yet-ratified charter, spending
-real tokens. The proven launch sequence (this is how Ailang World launched on 2026-07-23):
+**Set the kill switch FIRST.** Plists carry `RunAtLoad=true` (so reboots can never silently kill
+the cadence), which means loading one **fires an iteration immediately**. Without the switch, that
+first fire runs unattended against a not-yet-ratified charter, spending real tokens.
 
 ```bash
-touch ~/.ailang/state/mission-<name>.disabled       # armed-but-silent: every fire exits at Gate 0
-sed 's/__NAME__/<name>/g; s#__WORKDIR__#/absolute/path/to/checkout#g' \
-  tools/launchd/mission-template.plist > ~/Library/LaunchAgents/dev.ailang.mission-<name>.plist
-launchctl bootstrap gui/$UID ~/Library/LaunchAgents/dev.ailang.mission-<name>.plist
+touch ~/.ailang/state/mission-<name>.disabled   # armed-but-silent: every fire exits at the kill switch
+ailang mission install <name>                    # RENDERS the env + plist to staged files; touches nothing that runs
+diff <printed target> <printed staged>           # review both diffs it prints
+ailang mission apply <name>                      # puts them in place and (re)loads the job; --no-reload to skip loading
+ailang mission doctor                            # reports drift between registry, plist and env
 ```
 
-The switch comes off in Step 6, deliberately — never as a side effect.
+**Run these from the MAIN ailang checkout**, never from a worktree: the plist's driver path is
+resolved from where the registry is read (`ailang mission list` shows it in the DRIVER column), and a
+worktree path dies with the worktree.
 
-**Stagger the `StartInterval` offset** against any other live mission so two loops never fire on top
-of each other (they share the rig's quota and would contend for the model). The template sets a
-90-minute interval and `RunAtLoad=true` so a reboot can never silently kill the cadence — the kill
-switch (`~/.ailang/state/mission-<name>.disabled`) is how you turn it off deliberately.
+The switch comes off in Step 6, deliberately — never as a side effect.
 
 ## Step 5 — Dry-run acceptance (no tokens spent)
 
