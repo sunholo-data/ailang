@@ -545,6 +545,7 @@ _mc_boot_offset() {
     world)  echo 420  ;;
     docs)   echo 840  ;;
     motoko) echo 1260 ;;
+    fleet)  echo 1680 ;;
     *)      echo 0    ;;
   esac
 }
@@ -1679,6 +1680,27 @@ _cx_failed=":"   # models whose probe failed
 if [ -f "$KILL_SWITCH" ]; then
   log "kill switch present ($KILL_SWITCH) — skip"; exit 0
 fi
+
+# --- FLEET IDLE PRE-CHECK START ---
+# The fleet mission (M-HARNESS-MISSION-LOOP) works harness tickets and nothing else, so a fire
+# with no open ticket has nothing to do. Exit HERE, below the kill switch and above every
+# probe and the notice drain, so an idle fleet spends nothing (charter clause 4).
+# A count that cannot be READ is not zero and not work: yield, loudly. An `ailang` too old to
+# know `mission ticket` lands here too, and says so every fire until it is reinstalled.
+if [ "${MISSION_NAME:-}" = fleet ] && [ -z "${AILANG_MISSION_WORK_ITEM:-}" ]; then
+  _mc_bounded 60 ailang mission ticket open --count; _fl_rc=$?
+  _fl_open=$(printf '%s\n' "$MC_BOUNDED_OUT" | tail -1 | tr -dc '0-9')
+  if [ "$_fl_rc" -ne 0 ] || [ -z "$_fl_open" ]; then
+    log "fleet: cannot count open tickets (rc=$_fl_rc: $(printf '%s' "$MC_BOUNDED_OUT" | tail -2 | tr '\n' ' ')) — yielding; a failed read is neither zero nor work"
+    exit 0
+  fi
+  if [ "$_fl_open" -eq 0 ]; then
+    log "fleet: no open tickets — idle, nothing spent"
+    exit 0
+  fi
+  log "fleet: $_fl_open open ticket signature(s) — proceeding"
+fi
+# --- FLEET IDLE PRE-CHECK END ---
 
 # Deliver anything a previous fire could not. Placed after the pin decision so a drained
 # notice is reported by the same driver the rest of this fire runs, and BELOW the kill

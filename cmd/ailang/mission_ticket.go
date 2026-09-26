@@ -11,6 +11,7 @@ package main
 // `ailang messages read` on this inbox.
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -22,6 +23,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/messaging"
 	"github.com/sunholo-data/ailang/internal/mission"
+	fsstore "github.com/sunholo-data/ailang/internal/storage/firestore"
 )
 
 // ticketStore is the slice of the message store tickets need.
@@ -48,12 +50,24 @@ func missionTicket(args []string) error {
 	if sub == "file" {
 		guardSendInbox(mission.FleetInbox, true)
 	}
-	store, err := openStore()
+	store, err := openMissionPlaneStore()
 	if err != nil {
 		return err
 	}
 	defer store.Close()
 	return missionTicketWithStore(sub, args[1:], store, os.Stdout)
+}
+
+// openMissionPlaneStore opens the canonical mission message plane REGARDLESS of the caller's
+// storage env — the same pin internal/mission/dispatch applies to every stage (D8). A ticket
+// filed to a controller's private SQLite would be read by nobody, and the loop that filed it
+// would believe it had escalated.
+func openMissionPlaneStore() (messaging.MessageStore, error) {
+	client, err := fsstore.NewClientForProject(context.Background(), config.MissionMessagePlaneProject)
+	if err != nil {
+		return nil, fmt.Errorf("ticket: open mission message plane (%s): %w", config.MissionMessagePlaneProject, err)
+	}
+	return fsstore.NewMessagingStore(client), nil
 }
 
 func missionTicketWithStore(sub string, args []string, store ticketStore, out io.Writer) error {

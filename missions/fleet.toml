@@ -1,0 +1,19 @@
+# The Fleet mission — works harness tickets filed by the product loops
+# (M-HARNESS-MISSION-LOOP, HD-1..HD-6 ratified by Mark 2026-09-26).
+#
+# Its own clone, like docs and motoko: two loops in one working tree is the concurrent-agent
+# hazard. The driver exits before any probe or spawn when no ticket is open, so the interval
+# is a polling period, not a spend rate.
+name    = "fleet"
+repo    = "sunholo-data/ailang"
+workdir = "/Users/voightkampff/dev/sunholo-data/ailang-fleet"
+doc     = "design_docs/fleet-mission.md"
+
+
+# ── SCHEDULE ─────────────────────────────────────────────────────────────────
+# 6h interval, same as docs. boot_offset 1680 = the next 420s slot after motoko (1260), so the
+# five missions never stampede a boot together.
+[schedule]
+mode             = "interval"
+interval_seconds = 21600
+boot_offset      = 1680
