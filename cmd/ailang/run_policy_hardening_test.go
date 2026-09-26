@@ -442,7 +442,7 @@ export func main() -> () ! {IO, FS} = { try(".github/workflows/ci.yml"); try("Ma
 		t.Fatalf("exit %d\n%s%s", code, stdout, stderr)
 	}
 	if !strings.Contains(stdout, "PROTECTED:.github/workflows/ci.yml") || !strings.Contains(stdout, "PROTECTED:Makefile") || !strings.Contains(stdout, "WROTE:src.ail.txt") {
-		t.Fatalf("%q", stdout)
+		t.Fatalf("stdout: %q\nstderr: %q", stdout, stderr)
 	}
 	if _, err := os.Stat(filepath.Join(sandbox, "Makefile")); err == nil {
 		t.Fatal("Makefile was written")

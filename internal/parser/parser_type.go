@@ -62,12 +62,10 @@ func (p *Parser) parseType() ast.Type {
 			goto checkArrow
 		}
 
-		// Check if it's a built-in type (lowercase but not type vars)
-		builtinTypes := map[string]bool{
-			"int": true, "float": true, "string": true, "bool": true,
-			"unit": true, "char": true,
-		}
-		if builtinTypes[name] {
+		// Check if it's a built-in type (lowercase but not type vars).
+		// The canonical list lives in ast so the parser and the type
+		// converters cannot drift (a missing entry made `bytes` a TypeVar).
+		if ast.IsBuiltinTypeName(name) {
 			typ = &ast.SimpleType{
 				Name: name,
 				Pos:  startPos,

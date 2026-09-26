@@ -58,6 +58,7 @@ See [Effects](/docs/reference/effects) for how the capability system works, [Mod
 | `std/html` | Lenient HTML5 parse (WHATWG-spec) into the same `XmlNode` ADT as `std/xml` | — |
 | `std/gzip` | Gzip compress/decompress (base64-encoded I/O) | — |
 | `std/deflate` | Raw deflate (RFC 1951) and zlib-wrapped (RFC 1950) primitives — PDF FlateDecode, HTTP `Content-Encoding: deflate`, PNG IDAT | — |
+| `std/audio` | [PCM to WAV (pure AILANG) and PCM to Ogg Opus](./std-audio) (`wavFromPcm`, `durationMs`, deterministic `encode`) | — |
 | `std/zip` | Read/write ZIP archives (including `.docx`, `.xlsx`, `.epub`) | — |
 | `std/tar` | Read entries from uncompressed tar archives | — |
 | `std/jwt` | Parse and verify JSON Web Tokens | — |

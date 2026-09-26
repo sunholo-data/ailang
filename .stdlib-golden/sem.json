@@ -18,7 +18,7 @@
     },
     {
       "name": "sem_frame",
-      "alias": "{content: string, embedding: Option[a], embedding_dim: int, id: string, opaque: a, simhash: int, ts: int, ver: int}"
+      "alias": "{content: string, embedding: Option[bytes], embedding_dim: int, id: string, opaque: bytes, simhash: int, ts: int, ver: int}"
     },
     {
       "name": "simhash64",
@@ -131,7 +131,7 @@
     },
     {
       "name": "make_frame",
-      "type": "(string,string,a)-\u003e{content: string, embedding: Option[b], embedding_dim: c, id: string, opaque: a, simhash: int, ts: int, ver: d}!{Clock}",
+      "type": "(string,string,bytes)-\u003e{content: string, embedding: Option[a], embedding_dim: b, id: string, opaque: bytes, simhash: int, ts: int, ver: c}!{Clock}",
       "effects": [
         "Clock"
       ],
@@ -139,7 +139,7 @@
     },
     {
       "name": "make_frame_at",
-      "type": "(string,string,a,int)-\u003e{content: string, embedding: Option[b], embedding_dim: c, id: string, opaque: a, simhash: int, ts: int, ver: d}",
+      "type": "(string,string,bytes,int)-\u003e{content: string, embedding: Option[a], embedding_dim: b, id: string, opaque: bytes, simhash: int, ts: int, ver: c}",
       "effects": [],
       "pure": true
     },
@@ -180,7 +180,7 @@
     },
     {
       "name": "update_frame",
-      "type": "(string,({content: string, embedding: Option[bytes], embedding_dim: int, id: string, opaque: bytes, simhash: int, ts: int, ver: int})-\u003e{content: string, embedding: Option[bytes], embedding_dim: int, id: string, opaque: bytes, simhash: int, ts: int, ver: int},int)-\u003eUpdateResult!{SharedMem}",
+      "type": "(string,(sem_frame)-\u003esem_frame,int)-\u003eUpdateResult!{SharedMem}",
       "effects": [
         "SharedMem"
       ],
@@ -194,7 +194,7 @@
     },
     {
       "name": "with_embedding",
-      "type": "(\u003c*types.TRecordOpen\u003e,a,int)-\u003e\u003c*types.TRecordOpen\u003e",
+      "type": "(\u003c*types.TRecordOpen\u003e,bytes,int)-\u003e\u003c*types.TRecordOpen\u003e",
       "effects": [],
       "pure": true
     }

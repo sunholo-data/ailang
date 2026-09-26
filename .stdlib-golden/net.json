@@ -3,7 +3,7 @@
   "types": [
     {
       "name": "HttpResponse",
-      "alias": "{body: string, bodyBytes: a, headers: list[{name: string, value: string}], ok: bool, status: int}"
+      "alias": "{body: string, bodyBytes: bytes, headers: list[{name: string, value: string}], ok: bool, status: int}"
     },
     {
       "name": "NetError",

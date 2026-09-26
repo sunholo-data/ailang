@@ -117,6 +117,10 @@ fi
 # --- DRIVER PIN STATE PATHS END ---
 # -----------------------------------------------------------------------------
 [ -f "$HOME/.config/ailang/secrets.env" ] && . "$HOME/.config/ailang/secrets.env"
+# Defined HERE, before its first caller. It used to sit below the credential block, so
+# both provenance lines resolved to macOS /usr/bin/log ("log: Unknown subcommand
+# 'anthropic credential: ...'" in the launchd log) and never reached $LOG.
+log() { echo "[$(date '+%F %H:%M:%S')] $*" | tee -a "$LOG"; }
 # ANTHROPIC CREDENTIAL PROVENANCE — say which path is in play, once per fire.
 #
 # There are two, and they fail differently. CLAUDE_CODE_OAUTH_TOKEN (from
@@ -131,10 +135,16 @@ fi
 # the driver called it "over daily ration" on a subscription at 12% consumed.
 # Nothing in the log said which credential was in use, so the diagnosis started
 # from the wrong end.
+#
+# CORRECTED 2026-09-26: this line used to tell the operator to SET the env token. That
+# advice is the footgun internal/mission/anthropic_quota.go documents — a setup-token
+# token is FORBIDDEN (HTTP 403) from the usage endpoint and, being preferred, overrides a
+# working keychain read. A stale keychain token is survivable: the quota reader falls
+# back to `claude -p /usage`, which carries its own live credential.
 if [ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]; then
-  log "anthropic credential: CLAUDE_CODE_OAUTH_TOKEN (long-lived, from secrets.env)"
+  log "anthropic credential: CLAUDE_CODE_OAUTH_TOKEN from env — it OVERRIDES the keychain for the quota read; a setup-token token gets HTTP 403 there, and the reader then falls back to \`claude -p /usage\`"
 else
-  log "anthropic credential: keychain fallback — NO CLAUDE_CODE_OAUTH_TOKEN set. The keychain access token expires ~8h and Claude Code does not write refreshes back, so quota reads WILL go stale. Fix once: tools/attended/set_claude_oauth_token.sh"
+  log "anthropic credential: keychain (Claude Code-credentials); if its stored token is stale the quota reader falls back to \`claude -p /usage\` — no action needed"
 fi
 
 # BILLING GUARD (2026-07-10): the mission MUST bill the Claude subscription,
@@ -147,7 +157,6 @@ fi
 # mission iterations, deliberately.
 unset ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN OPENAI_API_KEY
 
-log() { echo "[$(date '+%F %H:%M:%S')] $*" | tee -a "$LOG"; }
 
 # _mc_notify TITLE BODY LABEL — report a degradation on BOTH human channels.
 # Extracted from the lane-degradation block (564cc4640) when the driver-pin notice (#558) needed
@@ -1812,6 +1821,25 @@ for role in DESIGNER PLANNER EXECUTOR EVALUATOR; do
       # Remember what is left so the pi loop can advance instead of jumping to opus.
       remvar="MISSION_${role}_CHAIN_REMAINING"
       printf -v "$remvar" '%s' "$(_chain_tail "$_chain")"; export "$remvar"
+      # OPUS BEFORE PI (Mark attended 2026-09-26, World first). When codex is dry and the
+      # Anthropic subscription has headroom, opus takes the role BEFORE the pi rungs. The
+      # pi lanes stay as the tail for an Anthropic drought, not the first thing we try.
+      # Measured the day it landed: codex+ollama blocked, Anthropic 59% of a 69% weekly
+      # allowance, and the fire that went codex -> pi:openrouter was STALL-killed at gate 3
+      # after 4602s, while the two fires that fell through to opus the previous day both
+      # completed. _mc_probe carries the Anthropic ration gate (rc=75 when measurably over),
+      # so a drought or an over-ration week walks the pi chain exactly as before. One
+      # `claude -p` per fire, deduped with the anthropic loop's set.
+      if [ "${MISSION_OPUS_BEFORE_PI:-0}" = 1 ] && [ "$fb" != opus ]; then
+        case "${_an_probed:-:}" in *":opus:"*) : ;; *)
+          _an_probed="${_an_probed:-:}opus:"
+          _mc_probe opus || _an_failed="${_an_failed:-:}opus:"
+        ;; esac
+        case "${_an_failed:-:}" in
+          *":opus:"*) log "codex ${role_lc} lane: opus-before-pi skipped (anthropic probe failed or over ration) — walking the pi chain" ;;
+          *) fb=opus ;;
+        esac
+      fi
       log "codex ${role_lc} lane -> falling back to '$fb' for this fire (model '$cx_model')"
       _cx_rc_for=$(printf '%s' "$_cx_rcmap" | tr ';' '\n' | grep "^${cx_model}=" | head -1 | cut -d= -f2)
       [ -n "$_cx_rc_for" ] || _cx_rc_for="unknown"

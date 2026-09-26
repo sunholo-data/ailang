@@ -1,0 +1,86 @@
+{
+  "sprint_id": "M-STD-AUDIO",
+  "status": "completed",
+  "created": "2026-09-25T19:30:00Z",
+  "design_doc": "design_docs/planned/v0_44_0/m-std-audio.md",
+  "sprint_plan": "design_docs/planned/v0_44_0/m-std-audio-sprint-plan.md",
+  "github_issues": [],
+  "velocity": {
+    "target_loc_per_day": 300,
+    "estimated_total_loc": 500,
+    "estimated_days": 2
+  },
+  "features": [
+    {
+      "id": "M0_BYTES_ANNOTATION",
+      "description": "bytes in a type annotation is TBytes, not a TypeVar. One primitive-name list in internal/ast used by the parser; tests over that list in types and pipeline; re-freeze stdlib interfaces the fix corrects.",
+      "estimated_loc": 80,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "pure func f(b: bytes) -> bytes = b; g() = f(42) is rejected by ailang check",
+        "Every name in ast.BuiltinTypeNames maps to a TCon in types.astTypeToType",
+        "Regression test goes red with bytes removed from the list",
+        "make test, make verify-examples and make verify-stdlib pass; changed stdlib interfaces listed"
+      ],
+      "passes": true,
+      "started": "2026-09-25T19:30:00Z",
+      "completed": "2026-09-25T21:30:00Z",
+      "notes": "ast.BuiltinTypeNames/IsBuiltinTypeName is the one list; parser uses it. types.astTypeToType also mapped unit/char to TVar (found by the list-ranging test), fixed. Stdlib re-freeze corrects net.HttpResponse.bodyBytes, process.ProcessOutput.stdout/stderr, stream.SourceBytes, sem frame fields/functions (all were type var a). Mutation: removing bytes from the list turns TestBuiltinTypeAnnotation_IntPassedAsBytesRejected red; reverting the unit/char mapping turns TestAstTypeToType_BuiltinNamesAreConcrete red."
+    },
+    {
+      "id": "M1_WAV_PURE_AILANG",
+      "description": "std/audio.ail with Codec = OggOpus(int), wavHeader, wavFromPcm, durationMs (requires/ensures) in pure AILANG",
+      "estimated_loc": 70,
+      "dependencies": [
+        "M0_BYTES_ANNOTATION"
+      ],
+      "acceptance_criteria": [
+        "ailang verify std/audio.ail reports durationMs VERIFIED",
+        "Golden mono 24 kHz header equals the doc's 44 bytes; stereo 48 kHz has blockAlign 4 and byteRate 192000",
+        "wavFromPcm length is len(pcm)+44 and slicing from 44 returns the PCM",
+        "tests/stdlib/audio_wav_test.ail runs under make test-stdlib-ail"
+      ],
+      "passes": true,
+      "started": "2026-09-25T19:30:00Z",
+      "completed": "2026-09-25T21:30:00Z",
+      "notes": "std/audio.ail wavHeader/wavFromPcm/durationMs; ailang verify: durationMs VERIFIED. tests/stdlib/audio_wav_test.ail 13/13 under make test-stdlib-ail (SUITES_EXPECTED 4->5); le16(1)->le16(3) mutation turns 2 golden tests red."
+    },
+    {
+      "id": "M2_ENCODE_OGG_OPUS",
+      "description": "Vendored go-opus v1.1.0 under third_party/goopus (no Go bump), deterministic own Ogg container, pure builtin _audio_encode_ogg_opus, std/audio.encode",
+      "estimated_loc": 350,
+      "dependencies": [
+        "M1_WAV_PURE_AILANG"
+      ],
+      "acceptance_criteria": [
+        "Builds on Go 1.26.6 with CGO_ENABLED=0 and for GOOS=js GOARCH=wasm",
+        "Two encodes are byte-identical; golden SHA-256 of the 5 s fixture holds on arm64 and wasm",
+        "Round trip through oggopus decoder gives the exact input sample count",
+        "5 s fixture < 40 KB, 50 s < 400 KB at OggOpus(24000)",
+        "Rate 44100, 3 channels, odd length, bitrate 0 and 1000000 each return Err naming the field",
+        "DONE WHEN: ~50 s 24 kHz mono PCM -> < 1 MB .ogg from an AILANG program, identical across runs, afconvert decodes to the right duration"
+      ],
+      "passes": true,
+      "started": "2026-09-25T19:30:00Z",
+      "completed": "2026-09-25T21:30:00Z",
+      "notes": "go-opus v1.1.0 vendored to third_party/goopus (declares go 1.26; no lowering needed; import paths rewritten, no replace). Own Ogg writer with FNV-1a serial. Golden SHA-256 identical on darwin/arm64 and js/wasm. DONE WHEN: 50.96 s say render 2,446,018 PCM bytes -> 236,967 B .ogg in 0.19 s, two runs cmp-identical, afconvert decodes to exactly 2,446,018 bytes / 50.958708 s. Mutations: random serial -> determinism test red; no end trim -> round-trip test red."
+    },
+    {
+      "id": "M3_RESAMPLE_DEFERRED",
+      "description": "Optional integer polyphase resample 24k<->16k. Deferred to a follow-up; not needed by the encoder.",
+      "estimated_loc": 150,
+      "dependencies": [
+        "M2_ENCODE_OGG_OPUS"
+      ],
+      "acceptance_criteria": [
+        "Documented as a follow-up in the std-audio reference page and the changelog"
+      ],
+      "passes": false,
+      "started": "2026-09-25T19:30:00Z",
+      "completed": null,
+      "notes": "Deferred (optional in the design doc, not needed by the encoder). Documented as follow-up in docs/docs/reference/std-audio.md and the changelog."
+    }
+  ],
+  "completed": "2026-09-25T21:30:00Z",
+  "completion_note": "M0-M2 complete; M3 deferred by plan (optional in the design doc)."
+}
