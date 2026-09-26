@@ -1,0 +1,20 @@
+{
+  "id": "m-fleet-slot-kill-reaps-descendants",
+  "design_doc": "design_docs/planned/m-fleet-slot-kill-reaps-descendants-sprint-plan.md",
+  "milestones": [
+    {
+      "id": "M1",
+      "title": "Reap the controller tree from both watchdogs and test real descendants",
+      "acceptance_criteria": [
+        "/bin/bash -n tools/launchd/mission-control.sh",
+        "/bin/bash -n tools/launchd/test_mission_kill_tree.sh",
+        "/bin/bash tools/launchd/test_mission_kill_tree.sh",
+        "make test-launchd-drivers",
+        "git diff --check",
+        "git diff --name-only contains only tools/launchd/mission-control.sh, tools/launchd/test_mission_kill_tree.sh, make/test.mk, and the two approved planning artifacts"
+      ],
+      "status": "completed"
+    }
+  ],
+  "status": "completed"
+}

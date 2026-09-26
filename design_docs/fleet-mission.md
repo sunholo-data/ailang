@@ -43,6 +43,17 @@ mission.
 
 Newest **3** STATUS stamps live here; older ones move to `fleet-mission-status-archive.md`.
 
+## STATUS 2026-09-26 — ITERATION 1: **P0 #1 LANDED**, `driver:slot-kill-leaves-orphan-descendants` ([#1325](https://github.com/sunholo-data/ailang/pull/1325), `e3dadcd07`)
+
+Both watchdogs now reap the controller's whole process tree through `_mc_kill_tree`, which
+snapshots before TERM, re-walks before KILL and skips recycled PIDs. A triggered watchdog is no
+longer cancelled mid-grace. Evaluator (sonnet) PASS 87, 0 blocking. Ticket resolved. Thresholds
+are untouched. Clause map: **1 product share** unmeasured (no product-loop window since the
+charter); **2 turnaround** first datum ≈3h (filed 14:50Z); **3 one queue** MET (16 tickets, all in
+`mission-fleet`); **4 idle is free** MET by construction (driver pre-check, iteration 0 dry run);
+**5 no regressions** MET for this ticket, with one caveat: the done-gate's dry-run line cannot
+reach `_mc_run_once` edits (UNINFORMATIVE, see log). Next: P0 #2, mechanical half.
+
 ## STATUS 2026-09-26 — ITERATION 0: **charter RATIFIED as written** (Mark, attended)
 
 Mark: *"yes as written"* — the bar (clauses 1–5), Authority and Guardrails below stand unchanged.
@@ -114,10 +125,10 @@ order. New tickets filed after today rank by `slots_lost` BELOW this list unless
 and resolve it as "already fixed" with evidence if it no longer reproduces.
 
 **P0 — loops lose whole slots or run unsafe today**
-1. [NEXT] `driver:slot-kill-leaves-orphan-descendants`: a killed slot leaves its descendants
+1. [LANDED 2026-09-26 iter 1, #1325 `e3dadcd07`] `driver:slot-kill-leaves-orphan-descendants`: a killed slot leaves its descendants
    running (world 2026-09-26: the planner's harness ran 26 min past the kill). Leaks processes on a
    box with an OOM history.
-2. `stall-watchdog:kills-controller-on-long-drill`: **mechanical half only.** Count a live,
+2. [NEXT] `stall-watchdog:kills-controller-on-long-drill`: **mechanical half only.** Count a live,
    progressing descendant as progress, as 4a86ea17b does for pi. **Changing the 600s threshold
    or the sample counts is POLICY: park it.** Cost world a whole slot today (04:45, rc 143).
 3. `pi-runner:verdict-blind-to-commits-and-predirty`: the pi fallback lanes (now the tail after

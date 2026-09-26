@@ -138,6 +138,11 @@ func typeCheckAndLowerModule(
 	for name, params := range imports.ImportedAliasParams {
 		typeChecker.RegisterTypeAliasParams(name, params)
 	}
+	// M-TYPE-NAME-SHADOW: imported aliases a local type name would capture are
+	// withheld above; using one is a loud error naming both definitions.
+	for name, msg := range imports.CapturedAliases {
+		typeChecker.RegisterAliasCapture(name, msg)
+	}
 
 	// M-FIX-FLOAT-OP: Pass parameter type annotations to type checker
 	// This preserves float annotations from function declarations through elaboration
