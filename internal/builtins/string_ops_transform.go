@@ -360,7 +360,7 @@ func strFoldSlicesImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, 
 			segVal := &eval.StringValue{Value: string(r)}
 			acc, err = ctx.FnCallerN(fn, []eval.Value{acc, segVal})
 			if err != nil {
-				return nil, fmt.Errorf("_str_foldSlices: callback error: %w", err)
+				return nil, callbackErr(err, "_str_foldSlices: callback error")
 			}
 		}
 		return acc, nil
@@ -378,7 +378,7 @@ func strFoldSlicesImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, 
 		segVal := &eval.StringValue{Value: segment}
 		acc, err = ctx.FnCallerN(fn, []eval.Value{acc, segVal})
 		if err != nil {
-			return nil, fmt.Errorf("_str_foldSlices: callback error: %w", err)
+			return nil, callbackErr(err, "_str_foldSlices: callback error")
 		}
 
 		if idx == -1 {
@@ -453,7 +453,7 @@ func strMapSlicesJoinImpl(ctx *effects.EffContext, args []eval.Value) (eval.Valu
 			segVal := &eval.StringValue{Value: string(r)}
 			result, callErr := ctx.FnCallerN(fn, []eval.Value{segVal})
 			if callErr != nil {
-				return nil, fmt.Errorf("_str_mapSlicesJoin: callback error: %w", callErr)
+				return nil, callbackErr(callErr, "_str_mapSlicesJoin: callback error")
 			}
 			resultStr, strErr := SafeAsString(result)
 			if strErr != nil {
@@ -476,7 +476,7 @@ func strMapSlicesJoinImpl(ctx *effects.EffContext, args []eval.Value) (eval.Valu
 		segVal := &eval.StringValue{Value: segment}
 		result, callErr := ctx.FnCallerN(fn, []eval.Value{segVal})
 		if callErr != nil {
-			return nil, fmt.Errorf("_str_mapSlicesJoin: callback error: %w", callErr)
+			return nil, callbackErr(callErr, "_str_mapSlicesJoin: callback error")
 		}
 		resultStr, strErr := SafeAsString(result)
 		if strErr != nil {

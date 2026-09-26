@@ -80,7 +80,7 @@ func listMapImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error)
 	for i, elem := range list.Elements {
 		val, err := ctx.FnCaller(fn, elem)
 		if err != nil {
-			return nil, fmt.Errorf("_list_map: callback error at index %d: %w", i, err)
+			return nil, callbackErr(err, "_list_map: callback error at index %d", i)
 		}
 		result[i] = val
 	}
@@ -143,7 +143,7 @@ func listFilterImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, err
 	for i, elem := range list.Elements {
 		val, err := ctx.FnCaller(fn, elem)
 		if err != nil {
-			return nil, fmt.Errorf("_list_filter: callback error at index %d: %w", i, err)
+			return nil, callbackErr(err, "_list_filter: callback error at index %d", i)
 		}
 		boolVal, ok := val.(*eval.BoolValue)
 		if !ok {
@@ -215,7 +215,7 @@ func listFoldlImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, erro
 		var err error
 		acc, err = ctx.FnCallerN(fn, []eval.Value{acc, elem})
 		if err != nil {
-			return nil, fmt.Errorf("_list_foldl: callback error at index %d: %w", i, err)
+			return nil, callbackErr(err, "_list_foldl: callback error at index %d", i)
 		}
 	}
 	return acc, nil

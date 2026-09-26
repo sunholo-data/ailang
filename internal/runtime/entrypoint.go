@@ -119,6 +119,12 @@ func CallEntrypointPrepared(rt *ModuleRuntime, inst *ModuleInstance, name string
 	// causing FnCaller to use the shared evaluator instead of the fork.
 	rt.builtins.SetGoroutineEvaluator(reqEval)
 	defer rt.builtins.ClearGoroutineEvaluator()
+	// Deep recursion continues on fresh goroutines (#1317); each must map to
+	// this fork too, or builtins there would call back into the shared one.
+	reqEval.SetStackHopHook(func() func() {
+		rt.builtins.SetGoroutineEvaluator(reqEval)
+		return rt.builtins.ClearGoroutineEvaluator
+	})
 
 	// 6. Call the function on the forked evaluator
 	if debugConcurrency {
