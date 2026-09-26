@@ -13,8 +13,8 @@
         "git diff --check",
         "git diff --name-only contains only tools/launchd/mission-control.sh, tools/launchd/test_mission_kill_tree.sh, make/test.mk, and the two approved planning artifacts"
       ],
-      "status": "pending"
+      "status": "completed"
     }
   ],
-  "status": "planned"
+  "status": "completed"
 }
