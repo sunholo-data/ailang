@@ -26,8 +26,11 @@ mission.
 - **Repo slug**: `sunholo-data/ailang` (driver: `MISSION_REPO`)
 - **Mission doc**: `design_docs/fleet-mission.md` (driver: `MISSION_DOC`)
 - **Mission name / state namespace**: `fleet` (driver: `MISSION_NAME`; `~/.ailang/state/mission-fleet-*`)
-- **Checkout**: `/Users/voightkampff/dev/sunholo-data/ailang-fleet`, **its own clone**, same
-  reason as docs and motoko: two loops in one working tree is the concurrent-agent hazard.
+- **Checkout**: work happens in the **pin worktree** `~/.ailang-driver-pin/fleet` (detached at the
+  pinned `origin/dev`, fresh each fire). Every mission whose work repo IS `sunholo-data/ailang` runs
+  this way (v1, docs, motoko; `pin-root.sh` `_set_pin_workdir`). The clone
+  `~/dev/sunholo-data/ailang-fleet` is only launchd's working directory, as `ailang-docs` is for docs.
+  Land changes through a branch or PR, never by editing the pin worktree in place.
 - **Bookkeeping issue**: `#1321`, rotates weekly; live number in `~/.ailang/state/mission-fleet-gh-issue`
 - **CI workflows Gate 3b / Gate 1 poll**: `CI` (runs on every push; no push paths filter).
 - **Verify profile**: `go-compiler`, plus the mission-loop-change pre-flight as the done-gate
@@ -40,18 +43,20 @@ mission.
 
 Newest **3** STATUS stamps live here; older ones move to `fleet-mission-status-archive.md`.
 
-## STATUS 2026-09-26 — ITERATION 0 pending: **charter ratification** (attended, with Mark)
+## STATUS 2026-09-26 — ITERATION 0: **charter RATIFIED as written** (Mark, attended)
 
-Installed with its kill switch in place (`~/.ailang/state/mission-fleet.disabled`). Nothing fires
-until Mark lifts it.
+Mark: *"yes as written"* — the bar (clauses 1–5), Authority and Guardrails below stand unchanged.
+Kill switch lifted the same session. The loop idles at zero cost (driver pre-check) until the first
+ticket is filed to `mission-fleet`. Plane: `mission-fleet` is declared triage in prod
+(ailang-multivac d2f277d, promoted 2026-09-26).
 
 ## CURRENT GOAL
 
-1. **Iteration 0 (definition)**: ratify the bar and guardrails below with Mark.
+1. **Iteration 0 (definition)**: DONE 2026-09-26, ratified as written.
 2. **Then**: each fire takes the top open ticket through the inner loop (design only when the fix
    warrants one, then plan, execute, evaluate), lands it on `dev`, and resolves it.
 
-## The bar (RATIFY with Mark at iteration 0)
+## The bar (RATIFIED 2026-09-26)
 
 - **Clause 1 — product share**: `[HARNESS]`-tagged share of product-loop iterations ≤ 10% over a
   rolling 14 days (design goal 1; measured by header scan of each `<name>-mission-log.md`).
