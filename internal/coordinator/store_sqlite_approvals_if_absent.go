@@ -53,7 +53,10 @@ func (s *SQLiteStore) ReopenApprovalForNewWork(ctx context.Context, taskID, desc
 	res, err := s.db.ExecContext(ctx, `
 		UPDATE approval_requests
 		   SET status = 'pending', resolved_by = NULL, resolved_at = NULL,
-		       description = ?, context_json = ?
+		       description = ?, context_json = ?,
+		       -- A reopened approval is a NEW decision: the previous one's handoff
+		       -- record must not decide it (M-TASK-STATUS-TRUTH D3, quorum round 7).
+		       handoffs_triggered = 0, handoffs_suppressed = 0, handoffs_expired = 0
 		 WHERE task_id = ? AND status IN ('approved','rejected')
 	`, description, contextJSON, taskID)
 	if err != nil {

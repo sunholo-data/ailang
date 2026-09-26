@@ -71,6 +71,8 @@ func hoistFlags(args []string) []string {
 	return hoistFlagsWith(args, map[string]bool{
 		"--reviewer": true, "-reviewer": true,
 		"--reviewers": true, "-reviewers": true,
+		"--author": true, "-author": true,
+		"--seats": true, "-seats": true,
 		"--max-cost-usd": true, "-max-cost-usd": true,
 		"--artifact-dir": true, "-artifact-dir": true,
 		"--mission-log": true, "-mission-log": true,
@@ -144,7 +146,7 @@ USAGE:
 FLAGS:
   --reviewer <model>     reviewer model id from models.yml (gpt5-6-sol, gemini-3-1-pro, ...)  [required]
   --json                 emit the reviewer's structured JSON verdict
-  --max-cost-usd <n>     per-reviewer budget cap in USD (default 0.10)
+  --max-cost-usd <n>     per-reviewer budget cap in USD (default 0.30)
 
 BEHAVIOR:
   Runs ONE reject-by-default reviewer via the shipped internal/ai handlers +

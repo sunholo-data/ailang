@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -240,7 +241,7 @@ export pure func listFormats() -> string { "json,xml" }`
 
 // TestRouteAnnotation_AllMethods tests all valid HTTP methods.
 func TestRouteAnnotation_AllMethods(t *testing.T) {
-	methods := []string{"GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"}
+	methods := []string{"GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS", "WS"}
 	for _, method := range methods {
 		input := `@route("` + method + `", "/test")
 func f(x: int) -> int ! {} { x }`
@@ -261,6 +262,25 @@ func f(x: int) -> int ! {} { x }`
 		}
 		if ann.Args[0].(*ast.Literal).Value.(string) != method {
 			t.Errorf("method %s: got %v", method, ann.Args[0].(*ast.Literal).Value)
+		}
+	}
+}
+
+// TestRouteAnnotation_WSCaseSensitive: only the exact literal "WS" names a
+// WebSocket route; "ws" and "WEBSOCKET" stay errors that list WS.
+func TestRouteAnnotation_WSCaseSensitive(t *testing.T) {
+	for _, method := range []string{"ws", "WEBSOCKET", "Ws"} {
+		input := `@route("` + method + `", "/live")
+func f(x: int) -> int ! {} { x }`
+		p := New(lexer.New(input, "test.ail"))
+		p.ParseFile()
+		if len(p.Errors()) == 0 {
+			t.Errorf("method %q: expected PAR_ROUTE_INVALID_METHOD, got no error", method)
+			continue
+		}
+		msg := fmt.Sprint(p.Errors()[0])
+		if !strings.Contains(msg, "OPTIONS, or WS") {
+			t.Errorf("method %q: error should list WS, got %s", method, msg)
 		}
 	}
 }

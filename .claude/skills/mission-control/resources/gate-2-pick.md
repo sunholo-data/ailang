@@ -116,6 +116,15 @@ is non-empty: re-run each absent reviewer alone with a raised cap
 re-run is cents against the $5 iteration ceiling and is the cheapest gate in this loop. If a
 reviewer genuinely cannot be restored, then everywhere the verdict is quoted downstream it reads
 "PROCEED at N−1, `<model>` absent (`<reason>`)" — never a bare "quorum passed".
+**The author's vendor sits out (Mark, attended 2026-09-25).** Always pass the designer lane that
+wrote the doc: `ailang design-quorum <doc> --author "<designer lane>" ...` (e.g.
+`claude:claude-opus-5-5`, `codex:gpt-6-astra`). Reviewers come from a POOL — `gpt6-astra`,
+`gemini-3-1-pro`, `oc-glm-5-3`, `oc-kimi-k3`, `claude-sonnet-5@claude-p` (Anthropic, subscription) —
+three seats per doc, the same three on every round of that doc, an absent seat replaced from the pool,
+and the author's vendor is benched: opus designs → Claude does not review; astra designs → OpenAI is
+not on the quorum. Omitting `--author` assumes a Claude author. A benched seat comes back only when
+every other reviewer is absent, labelled `"tier": "author-vendor-fallback"`; quote such a verdict as
+"on the author's own vendor only, `<models>` absent" and try the re-run rule above first.
 **⚠ BUT THE PATH THIS RULE NAMES IS WRONG, AND THE WRONG PATH FAILS IN THE EXACT DIRECTION THE
 RULE EXISTS TO PREVENT — `jq '.absent_reviewers'` RETURNS `null`, WHICH READS AS "NOBODY WAS
 ABSENT"** (fixed 2026-08-31 V1 iteration 311; instance 1 is iteration 309, instance 2 is iteration
@@ -501,4 +510,5 @@ throughout the later gates and in the mission log; the numbering is stable.
 - **3l.** "ENVIRONMENTAL" IS A CLAIM, AND THE FLEET IS ITS CONTROL GROUP — THREE MISSIONS RUN ON THIS RIG, SO ANY "IT'S THE MACHINE, NOT US" DIAGNOSIS HAS A READY-MADE THIRD ARM, AND SKIPPING IT COSTS MONTHS
 - **3m.** A STRESS OR LOAD CONTROL ONLY CERTIFIES THE AXIS YOU VARIED — AND WHERE A BOUND AND ITS STIMULUS BOTH SCALE WITH THE MACHINE, THE BOUND MUST BE *DERIVED* FROM THE MEASURED STIMULUS
 - **3n.** YOUR MUTATION SET IS DERIVED FROM WHAT THE MILESTONE *FIXES*, SO IT SYSTEMATICALLY MISSES WHAT THE MILESTONE *SHIPS* — ANCHOR THE ENUMERATION TO THE DIFF, WHICH IS COMPLETE BY CONSTRUCTION
+- **3o.** A BASH TOOL THAT DOES NOT PERSIST CWD BETWEEN CALLS MAKES EVERY MULTI-DIRECTORY COMMAND A CLAIM ABOUT WHERE YOU STOOD — pin `cd <abs-path>` or absolute paths in the SAME call; assert `pwd` when a verdict's scope depends on it; a "nothing staged" from an unpinned `git add` is INSTRUMENT FAILURE, not a clean tree
 - **4.** The shared main checkout is mutable mid-iteration

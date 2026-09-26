@@ -130,6 +130,9 @@ func TestModels_CloudHeadroomEqualised(t *testing.T) {
 		// declares 65536 because opencode has no such clamp — the two rows differing is
 		// the mechanism showing through, not a transcription error.
 		"pi-or-kimi-k3": 32000,
+		// Same pi harness clamp, for the executor fallback's metered rung from 2026-09-25
+		// (deepseek-v4.1-flash replaced 0731). Same openai-compat lane as pi-or-deepseek-v4-flash.
+		"pi-or-deepseek-v4-1-flash": 32000,
 	}
 
 	c, err := LoadModelsConfig("../modelreg/models.yml")

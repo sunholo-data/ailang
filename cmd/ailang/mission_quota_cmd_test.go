@@ -29,6 +29,11 @@ func TestMissionQuotaCorruptLedgerCannotBypassCodex(t *testing.T) {
 	t.Setenv("OLLAMA_API_KEY", "")
 	t.Setenv("CLAUDE_CODE_OAUTH_TOKEN", "")
 	t.Setenv("OPENROUTER_API_KEY", "")
+	// PATH too: with no token, Anthropic falls back to the real `claude -p /usage`, and
+	// Codex asks the real `codex app-server`. On the rig both answer with LIVE quota, so the
+	// test passed only while Anthropic happened to be over ration (it went red the day the
+	// Anthropic ration moved to 13% and the live reading became ok, 2026-09-24).
+	t.Setenv("PATH", t.TempDir())
 	paths := mission.Paths{Home: t.TempDir()}
 	t.Setenv("CODEX_HOME", filepath.Join(paths.Home, "codex"))
 	dir := filepath.Join(paths.Home, ".ailang", "state")

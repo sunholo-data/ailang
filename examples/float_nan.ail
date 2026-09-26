@@ -1,0 +1,36 @@
+-- Example: float == is IEEE 754, and NaN is tested with isNaN (M-FLOAT-EQ-ONE-SEMANTICS)
+-- NaN is never equal to anything, itself included, whether bare or inside a
+-- list, Option or record, and on every code path. Use std/math.isNaN to test for it.
+module examples/float_nan
+import std/math (isNaN, sqrt)
+import std/list (member, dedup, length)
+
+func nan() -> float {
+  0.0 / 0.0
+}
+
+-- Generic code gets the same answer as a direct comparison.
+func same[a](x: a, y: a) -> bool {
+  x == y
+}
+
+func check(label: string, got: bool, want: bool) -> () ! {IO} {
+  let mark = if got == want then "ok" else "WRONG" in _io_println("${mark} ${label}=${show(got)}")
+}
+
+export func main() -> () ! {IO} {
+  let n = nan() in
+  let _ = check("nan_eq_nan", n == n, false) in
+  let _ = check("nan_neq_nan", n != n, true) in
+  let _ = check("generic_nan", same(n, n), false) in
+  let _ = check("list_nan", [n] == [n], false) in
+  let _ = check("option_nan", Some(n) == Some(n), false) in
+  let _ = check("isNaN_nan", isNaN(n), true) in
+  let _ = check("isNaN_sqrt_neg", isNaN(sqrt(-1.0)), true) in
+  let _ = check("isNaN_number", isNaN(1.5), false) in
+  let _ = check("signed_zero", 0.0 == 0.0 * -1.0, true) in
+  let _ = check("member_nan", member(n, [n]), false) in
+  let _ = check("dedup_keeps_nans", length(dedup([n, n])) == 2, true) in
+  let _ = check("ordinary_float", [1.5] == [1.5], true) in
+  ()
+}

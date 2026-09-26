@@ -86,10 +86,14 @@ func MarkdownBlock(q *QuorumResult) string {
 		strings.ToUpper(string(q.Synthesis.Verdict)), q.Synthesis.TotalCostUSD,
 		q.Synthesis.TotalTokensIn, q.Synthesis.TotalTokensOut)
 	for _, o := range q.Reviewers {
+		label := ""
+		if o.Tier == TierAuthorVendor {
+			label = " (SAME VENDOR AS THE AUTHOR — recalled because every independent seat was absent)"
+		}
 		if o.Present {
-			fmt.Fprintf(&b, "- `%s` → **%s** ($%.4f, %d/%d tok) — %s\n", o.Model, o.Result.Verdict, o.CostUSD, o.TokensIn, o.TokensOut, o.Result.StrongestObjection)
+			fmt.Fprintf(&b, "- `%s`%s → **%s** ($%.4f, %d/%d tok) — %s\n", o.Model, label, o.Result.Verdict, o.CostUSD, o.TokensIn, o.TokensOut, o.Result.StrongestObjection)
 		} else {
-			fmt.Fprintf(&b, "- `%s` → **ABSENT** (%s) — degraded to N-1, not a silent pass\n", o.Model, o.AbsentReason)
+			fmt.Fprintf(&b, "- `%s`%s → **ABSENT** (%s) — degraded to N-1, not a silent pass\n", o.Model, label, o.AbsentReason)
 		}
 	}
 	if q.ControllerInSession != nil {
