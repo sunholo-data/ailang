@@ -43,6 +43,19 @@ type StreamContext struct {
 	// Event buffer
 	EventBufferSize int // Default: 1000 (bounded; backpressure when full)
 
+	// Credentials is the host-side credential binding (M-SERVEAPI-WS-BRIDGE
+	// D3). Nil = no binding. It is consulted ONLY for wss:// dials, after the
+	// destination authorizer has passed, and returns the headers to add for
+	// that exact URL (bound=false when no binding matches). The returned
+	// values never become AILANG values: they are merged into the dial
+	// headers in Go and nowhere else. The binder must not put the credential
+	// into err.
+	Credentials func(u *url.URL) (hdr map[string][]string, bound bool, err error)
+
+	// BridgeLog, when set, receives one payload-free decision per bridged
+	// frame (M-SERVEAPI-WS-BRIDGE M4). serve-api sets it per session.
+	BridgeLog func(BridgeDecision)
+
 	// Runtime state
 	mu          sync.Mutex
 	connections map[int]*StreamConnection
@@ -77,6 +90,44 @@ func NewStreamContext() *StreamContext {
 		connections:     make(map[int]*StreamConnection),
 		nextID:          1,
 	}
+}
+
+// Child returns a context with this context's POLICY (limits, timeouts,
+// destination rules, credential binding, test seams) and FRESH runtime state:
+// its own connection map, IDs and sources. serve-api gives every WebSocket
+// session one, so MaxConnections, MaxDuration and connection IDs are per
+// connection rather than process-wide (M-SERVEAPI-WS-BRIDGE G6), and one
+// session cannot reach another session's connections by ID.
+func (sc *StreamContext) Child() *StreamContext {
+	c := &StreamContext{
+		MaxConnections:  sc.MaxConnections,
+		MaxMessageSize:  sc.MaxMessageSize,
+		MaxFrameSize:    sc.MaxFrameSize,
+		ConnectTimeout:  sc.ConnectTimeout,
+		IdleTimeout:     sc.IdleTimeout,
+		MaxDuration:     sc.MaxDuration,
+		AllowHTTP:       sc.AllowHTTP,
+		AllowLocalhost:  sc.AllowLocalhost,
+		BlockPrivateIPs: sc.BlockPrivateIPs,
+		AllowedDomains:  append([]string(nil), sc.AllowedDomains...),
+		EventBufferSize: sc.EventBufferSize,
+		Credentials:     sc.Credentials,
+		BridgeLog:       sc.BridgeLog,
+		connections:     make(map[int]*StreamConnection),
+		nextID:          1,
+		lookupIP:        sc.lookupIP,
+		dialContext:     sc.dialContext,
+		tlsClientConfig: sc.tlsClientConfig,
+	}
+	return c
+}
+
+// SetTLSClientConfig sets the TLS client configuration Stream transports use
+// (the RootCAs a wss:// or https:// dial trusts). Nil restores the system
+// roots. Used by tests that stand up an httptest TLS upstream and by hosts
+// that pin a private CA; it never relaxes verification by itself.
+func (sc *StreamContext) SetTLSClientConfig(cfg *tls.Config) {
+	sc.tlsClientConfig = cfg
 }
 
 // ValidateURL checks a URL against the stream security policy — the shared
@@ -136,6 +187,12 @@ func (sc *StreamContext) ConnectionCount() int {
 
 // CloseAll closes all active connections. Used for graceful shutdown.
 func (sc *StreamContext) CloseAll() {
+	sc.CloseAllWithCode(0, "")
+}
+
+// CloseAllWithCode closes all active connections, sending code and reason on
+// WebSocket ones (0 = normal closure). serve-api sends 1001 on shutdown.
+func (sc *StreamContext) CloseAllWithCode(code int, reason string) {
 	sc.mu.Lock()
 	conns := make([]*StreamConnection, 0, len(sc.connections))
 	for _, c := range sc.connections {
@@ -144,6 +201,6 @@ func (sc *StreamContext) CloseAll() {
 	sc.mu.Unlock()
 
 	for _, c := range conns {
-		c.Close()
+		c.CloseWithCode(code, reason)
 	}
 }

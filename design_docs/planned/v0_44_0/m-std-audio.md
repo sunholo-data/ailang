@@ -1,6 +1,6 @@
 # M-STD-AUDIO: `std/audio`, PCM to WAV in pure AILANG plus a pure-Go Ogg Opus encoder
 
-**Status**: Planned
+**Status**: M0-M2 implemented (sprint M-STD-AUDIO, 2026-09-25); M3 (resample) still planned
 **Target**: v0.44.0
 **Priority**: P2 (Low). The requester placed it below the serve-api WebSocket and `--host` tickets.
 **Estimated**: about 3.5 agent-days. M1 takes 0.5, M2 takes 2, M3 takes 1 and is optional.
@@ -128,8 +128,8 @@ Success metrics:
 
 ### Design Freeze
 
-- [ ] **F1** (Mark): accept `github.com/tphakala/go-opus` (BSD-3), pinned to an exact version, into `internal/builtins`. The alternative is to vendor its `opus` + `internal/*` packages under `third_party/`, which lets us hold our own copy if upstream disappears.
-- [ ] **F2** (Mark): the Go 1.27 toolchain bump. The alternative is to vendor the code and lower its `go` directive, if it does not actually use 1.27 features (UNVERIFIED, since the spike used `GOTOOLCHAIN=auto` and go1.27.0).
+- [x] **F1** (ruled 2026-09-25: vendor under `third_party/goopus`): accept `github.com/tphakala/go-opus` (BSD-3), pinned to an exact version, into `internal/builtins`. The alternative is to vendor its `opus` + `internal/*` packages under `third_party/`, which lets us hold our own copy if upstream disappears.
+- [x] **F2** (ruled 2026-09-25: no Go bump; v1.1.0 already declares `go 1.26` and builds on 1.26.6): the Go 1.27 toolchain bump. The alternative is to vendor the code and lower its `go` directive, if it does not actually use 1.27 features (UNVERIFIED, since the spike used `GOTOOLCHAIN=auto` and go1.27.0).
 - [x] **F3**: the codec set is Ogg Opus only. AAC/m4a is deferred (see Non-Goals).
 
 ## Deferred Decisions

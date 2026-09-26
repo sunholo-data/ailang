@@ -118,7 +118,7 @@ func boundedShow(v Value, maxDepth, maxWidth int) string {
 	// showValue quoting this path used before; the training-data consumer of
 	// this trace reads the same shape the exported trace carries.
 	_ = maxDepth
-	return ShowBounded(v, maxWidth)
+	return ShowTraceBounded(v, maxWidth)
 }
 
 // capRequirer is implemented by effect contexts that gate effects on granted

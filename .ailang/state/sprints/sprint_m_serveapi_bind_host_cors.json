@@ -1,0 +1,73 @@
+{
+  "sprint_id": "M-SERVEAPI-BIND-HOST-CORS",
+  "design_doc": "design_docs/implemented/v0_44_0/m-serveapi-bind-host-cors.md",
+  "sprint_plan": "design_docs/implemented/v0_44_0/m-serveapi-bind-host-cors-sprint-plan.md",
+  "target_version": "v0.44.0",
+  "created": "2026-09-25",
+  "planner_model": "claude-opus-5-5",
+  "github_issues": [],
+  "risk_level": "medium",
+  "velocity": {
+    "target_loc_per_day": 300,
+    "estimated_total_loc": 450,
+    "estimated_days": 1.5
+  },
+  "features": [
+    {
+      "id": "M1_BIND_POLICY_EAGER_LISTEN",
+      "description": "config.DefaultBindHost(); serve-api --bind; Config.Bind; net.JoinHostPort; net.Listen before banner; banner prints ln.Addr(); ailang server uses shared getter; isPortInUse probes exact address.",
+      "estimated_loc": 180,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "TestListenAddress_DefaultLoopback passes",
+        "TestListenAddress_PortEnvSelectsWildcard passes",
+        "TestListenAddress_ExplicitBindWins passes (skip without IPv6)",
+        "TestListen_PortInUseFailsBeforeBanner passes",
+        "lsof shows 127.0.0.1:N LISTEN for serve-api --bind 127.0.0.1"
+      ],
+      "passes": true,
+      "started": "2026-09-25T21:10:00Z",
+      "completed": "2026-09-25T21:10:00Z",
+      "notes": "config.DefaultBindHost() + internal/apiserver/listen.go (bindHost, eager listen via net.JoinHostPort); Start listens before banner, Serve(ln); banner prints ln.Addr(). ailang server uses the getter (localhost -> 127.0.0.1) and isPortInUse probes the exact address. Tests: TestDefaultBindHost, TestListenAddress_{DefaultLoopback,PortEnvSelectsWildcard,ExplicitBindWins}, TestListen_PortInUseFailsBeforeBanner, TestIsPortInUse_ExactAddress. Mutation-checked. lsof shows TCP 127.0.0.1:N (LISTEN)."
+    },
+    {
+      "id": "M2_CORS_MODES_ORIGIN_ENFORCEMENT",
+      "description": "--cors default false; repeatable --cors-origin exact-match allowlist; startup validation; three-mode corsWrap with 403 for unlisted Origin on non-safe methods and preflights.",
+      "estimated_loc": 230,
+      "dependencies": [
+        "M1_BIND_POLICY_EAGER_LISTEN"
+      ],
+      "acceptance_criteria": [
+        "TestCORS_OffByDefault passes",
+        "TestCORS_AllowlistPreflightDenied passes",
+        "TestCORS_AllowlistPreflightAllowed passes (ACAO echo + Vary: Origin)",
+        "TestCORS_AllowlistBlocksSimplePost passes with handler not invoked",
+        "TestCORS_NoOriginPasses passes",
+        "TestCORS_AnyMode passes (replaces TestCORSHeaders)",
+        "TestCORS_FlagConflict passes (conflict + malformed origin)"
+      ],
+      "passes": true,
+      "started": "2026-09-25T21:10:00Z",
+      "completed": "2026-09-25T21:10:00Z",
+      "notes": "internal/apiserver/cors.go: ValidateCORSConfig + three-mode corsWrap; --cors default false, repeatable --cors-origin (multiFlag). Unlisted Origin: OPTIONS/POST/PUT/DELETE/PATCH -> 403 before dispatch; GET/HEAD run without ACAO. TestCORSHeaders replaced by TestCORS_* (7 tests). Mutation-checked."
+    },
+    {
+      "id": "M3_CONSUMERS_DOCS",
+      "description": "Dockerfile.mcp --bind 0.0.0.0; web_api_demo/test.sh --cors; ollama-tap loopback default; serve-api guide Binding & CORS section; help text; CHANGELOG Breaking defaults; design doc decisions recorded.",
+      "estimated_loc": 40,
+      "dependencies": [
+        "M2_CORS_MODES_ORIGIN_ENFORCEMENT"
+      ],
+      "acceptance_criteria": [
+        "make test and make lint green",
+        "CHANGELOG has Breaking defaults entry",
+        "docs/docs/guides/serve-api.md documents --bind, --cors, --cors-origin"
+      ],
+      "passes": true,
+      "started": "2026-09-25T21:10:00Z",
+      "completed": "2026-09-25T21:10:00Z",
+      "notes": "Dockerfile.mcp --bind 0.0.0.0; web_api_demo/test.sh --cors (also fixed pre-existing ++-on-string compile error in api/greet.ail and GET-405 expectation drift -> DELETE; now 17/17); ollama-tap 127.0.0.1:11435; serve-api guide Binding & CORS section; changelog Breaking defaults; decisions recorded; port-collision triage doc annotated. Docker build not run (no docker on this host)."
+    }
+  ],
+  "status": "completed"
+}

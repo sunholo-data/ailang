@@ -75,6 +75,16 @@ func GetExportNames(inst *ModuleInstance) []string {
 //	}
 //	fmt.Println(result.String())
 func CallEntrypoint(rt *ModuleRuntime, inst *ModuleInstance, name string, args []eval.Value) (eval.Value, error) {
+	return CallEntrypointPrepared(rt, inst, name, args, nil)
+}
+
+// CallEntrypointPrepared is CallEntrypoint with a hook that runs on the
+// forked evaluator's cloned effect context before the call — the per-call
+// place to install per-call state such as a WebSocket session's child
+// StreamContext (M-SERVEAPI-WS-BRIDGE G6). prepare receives the clone
+// (an *effects.EffContext, typed interface{} to avoid the import) and never
+// the shared parent. A nil prepare is CallEntrypoint.
+func CallEntrypointPrepared(rt *ModuleRuntime, inst *ModuleInstance, name string, args []eval.Value, prepare func(effCtx interface{})) (eval.Value, error) {
 	// 1. Get the entrypoint from exports
 	entrypoint, err := inst.GetExport(name)
 	if err != nil {
@@ -94,6 +104,11 @@ func CallEntrypoint(rt *ModuleRuntime, inst *ModuleInstance, name string, args [
 		log.Printf("[CONCURRENCY] Fork evaluator for %s.%s (goroutine %d)", inst.Path, name, goroutineID())
 	}
 	reqEval := rt.evaluator.Fork()
+	if prepare != nil {
+		if ec := reqEval.GetEffContext(); ec != nil {
+			prepare(ec)
+		}
+	}
 
 	// 4. Set up resolver for this request's module context
 	resolver := newModuleGlobalResolver(inst, rt)

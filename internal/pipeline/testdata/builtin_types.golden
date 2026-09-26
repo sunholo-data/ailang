@@ -29,6 +29,7 @@ _array_make : (int, a) -> Array[a]
 _array_set : (Array[a], int, a) -> Array[a]
 _array_to_list : Array[a] -> list[a]
 _array_unsafe_get : (Array[a], int) -> a
+_audio_encode_ogg_opus : (bytes, int, int, int) -> Result[bytes, string]
 _bytes_byte_at : (bytes, int) -> Option[int]
 _bytes_concat : (bytes, bytes) -> bytes
 _bytes_concat_list : list[bytes] -> bytes
@@ -240,6 +241,7 @@ _str_upper : string -> string
 _str_words : string -> list[string]
 _stream_async_exec_process : (string, list[string], string, int, int) -> StreamSource ! {Process, Stream}
 _stream_async_read_stdin_lines : (string, int) -> StreamSource ! {Stream}
+_stream_bridge : (StreamConn, StreamConn, s, (s, BridgeFrame) -> (s, Verdict)) -> (s, BridgeEnd) ! {Stream}
 _stream_close : StreamConn -> () ! {Stream}
 _stream_connect : (string, {headers: list[{name: string, value: string}]}) -> Result[StreamConn, StreamErrorKind] ! {Stream}
 _stream_ndjson_post : (string, string, {headers: list[{name: string, value: string}]}) -> Result[StreamConn, StreamErrorKind] ! {Stream}
