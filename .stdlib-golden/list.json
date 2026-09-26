@@ -10,7 +10,7 @@
     },
     {
       "name": "concat",
-      "type": "(list[a],list[a])-\u003elist[a]",
+      "type": "(list[a],list[a])-\u003e[a]",
       "effects": [],
       "pure": true
     },
@@ -58,7 +58,7 @@
     },
     {
       "name": "flatMap",
-      "type": "((a)-\u003elist[b],list[a])-\u003e[b]",
+      "type": "((a)-\u003elist[b],list[a])-\u003elist[b]",
       "effects": [],
       "pure": true
     },
@@ -202,7 +202,7 @@
     },
     {
       "name": "sortBy",
-      "type": "((a,a)-\u003eint,list[a])-\u003e[a]",
+      "type": "((a,a)-\u003eint,list[a])-\u003elist[a]",
       "effects": [],
       "pure": true
     },
@@ -214,7 +214,7 @@
     },
     {
       "name": "take",
-      "type": "(int,list[a])-\u003e[a]",
+      "type": "(int,list[a])-\u003elist[a]",
       "effects": [],
       "pure": true
     },
@@ -238,7 +238,7 @@
     },
     {
       "name": "zip",
-      "type": "(list[a],list[b])-\u003e[\u003c*types.TTuple\u003e]",
+      "type": "(list[a],list[b])-\u003elist[\u003c*types.TTuple\u003e]",
       "effects": [],
       "pure": true
     },
