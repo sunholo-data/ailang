@@ -2,7 +2,7 @@
 
 ### ADMISSIBILITY — harness work is NOT loop work
 
-**Harness work happens in ATTENDED SESSIONS ONLY. It is outside this loop's authority.**
+**Harness work happens in the FLEET loop or an attended session — never in a product loop. It is outside this loop's authority** (unless you ARE the fleet mission; see below).
 Mark, attended 2026-09-21 (tightened the same day from an earlier "only when it blocks" draft,
 which still left the loop deciding — and the deciding is the part that fails).
 
@@ -20,21 +20,51 @@ always yield them. That is how 55% of iterations 309–348 came to be tagged `[H
 compiler and stdlib got 16 lines in two weeks — the loop was not malfunctioning, it was doing what
 it was permitted to do. The cap has to sit OUTSIDE the judgement it constrains.
 
-**What to do when a harness defect blocks you:**
+**What to do when a harness defect blocks you — FILE A TICKET (M-HARNESS-MISSION-LOOP, 2026-09-26):**
 
-1. **Stop working it.** Do not fix, do not work around, do not "just quickly".
-2. **File the row** in your mission's queue, tagged `[HARNESS]`, with what you measured.
-3. **Say it is blocking** in the Gate-5 digest under its own heading, naming what it blocks.
-4. **Pick the next admissible item.** If nothing is admissible, **end the iteration with the
-   escalation as the outcome.** A loop that stops and says *"I am blocked by X"* is worth far more
-   than one that silently spends its iteration on X — the first is visible to a human, the second
-   is the failure mode this rule exists to end.
-5. If the defect is in the SHARED harness (`sunholo-data/ailang`: the driver, the skill,
-   `scripts/`), route it upstream as an issue. Missions other than v1 cannot edit it anyway, so
-   working it locally produces proposals, not fixes.
+1. **Stop working it.** Do not fix, do not work around, do not "just quickly". A push that touches
+   a loop-harness path is refused anyway: the driver enables a per-fire pre-push scope guard
+   (`tools/launchd/githooks/pre-push`).
+2. **File a ticket** to the fleet loop's inbox, one per occurrence, with what you measured:
+   ```bash
+   ailang mission ticket file --iteration <N> --signature <stable-key> \
+     --blocking none|item|all --evidence-file <excerpt> \
+     --slot-verdict "<line from mission-<name>-slot-verdicts.log>" --workaround none
+   ```
+   `--mission` defaults to `$MISSION_NAME`. **The signature is the dedupe key** — reuse the same
+   one for the same defect (e.g. `stall:gate-3:pi-openrouter-executor`, `probe-timeout:codex`), so
+   repeats add up as slots lost instead of scattering. Check the open list first:
+   `ailang mission ticket open`.
+3. **Record the row** in your mission's queue tagged `[HARNESS] ticket:<signature>`, and say it is
+   blocking in the Gate-5 digest if it is.
+4. **Pick the next admissible item.** If nothing is admissible (`--blocking all`), **end the
+   iteration with the escalation as the outcome.** A loop that stops and says *"I am blocked by X"*
+   is worth far more than one that silently spends its iteration on X.
+5. **When the fix lands** the fleet loop replies to your `mission-<name>` inbox with a
+   `harness-resolved` message naming the signature and the commit. Gate 0 unparks the row.
 
-**Maintenance is an ATTENDED session**, roughly weekly as needed — never a loop iteration. It is a
-ceiling, not a quota: a quiet week does not need one manufactured.
+Attended maintenance sessions still happen, and they drain the same queue. Tickets replace the old "route it upstream as an issue". Everything goes to one queue, and a
+dedicated loop works it — see `design_docs/planned/m-harness-mission-loop.md`.
+
+### THE FLEET MISSION — admissibility is INVERTED (`MISSION_NAME=fleet`)
+
+The fleet loop exists to do exactly the work above, so for it:
+
+- **Its queue is the open tickets and nothing else**, ranked by slots lost:
+  `ailang mission ticket open --json`. Plus directives from Mark. **Never self-source work**: no
+  audits, no "while I'm here". The attended hunt of 2026-09-21 found harness defects faster than
+  anyone could fix them and never ran out — a loop that finds its own work becomes the new sink.
+- **Harness paths are admissible; language-core paths are not** (the scope guard refuses them).
+- **Policy class parks for Mark (HD-2a).** A ticket whose fix changes routing, lane order, quota or
+  ration thresholds, or a billing guard goes to the decision ledger as a question with a
+  recommendation, and the fleet moves to the next ticket. Mechanical fixes (a log-order bug, a
+  probe timeout, a wrong path) land autonomously.
+- **Never `ailang messages read` on `mission-fleet`.** Unread means open; only
+  `ailang mission ticket resolve <signature> --resolution … --sha …` closes a ticket, and it replies
+  to every filing mission first.
+- **Done-gate = the mission-loop-change pre-flight**: the right surface edited, reach confirmed
+  (pushed, since every mission runs the pinned `origin/dev`), dry-run healthy **and** degraded,
+  `make test-launchd-drivers` green. Resolve only after the fix is on `origin/dev`.
 
 **The one carve-out**: bookkeeping the gates themselves mandate (Gate 4's log/index/dashboard
 writes) is not "harness work" — it is the iteration's own record-keeping.
