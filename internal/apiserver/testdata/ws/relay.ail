@@ -1,0 +1,36 @@
+-- Fixture for routes_ws_test.go (M-SERVEAPI-WS-BRIDGE M2/M3).
+-- __UPSTREAM__ is replaced with the fake upstream's URL by the test; the URL
+-- is chosen by the program, never taken from the client request.
+module ws/relay
+
+import std/string (contains)
+import std/stream (connect, transmit, disconnect, StreamConn)
+import std/stream/bridge (bridge, BridgeFrame, ClientText, ClientBin, UpText, UpBin)
+import std/stream/bridge (Verdict, Forward, Drop, ReplaceText)
+import std/result (Ok, Err)
+
+-- The policy: model audio is dropped until the user addressed "daneel";
+-- frames marked drop-me never reach the client; client frames pass.
+pure func gate(addressed: bool, f: BridgeFrame) -> (bool, Verdict) =
+  match f {
+    ClientText(_) => (addressed, Forward),
+    ClientBin(_) => (addressed, Forward),
+    UpBin(_) => if addressed then (addressed, Forward) else (addressed, Drop),
+    UpText(msg) =>
+      if contains(msg, "daneel") then (true, ReplaceText("{\"addressed\":true}"))
+      else if contains(msg, "drop-me") then (addressed, Drop)
+      else (addressed, Forward)
+  }
+
+@route("WS", "/relay")
+export func relay(client: StreamConn) -> unit ! {Stream} {
+  match connect("__UPSTREAM__", { headers: [] }) {
+    Ok(up) => {
+      let _ = transmit(up, "{\"setup\":{\"model\":\"fake\"}}");
+      match bridge(client, up, false, gate) {
+        _ => ()
+      }
+    },
+    Err(_) => disconnect(client)
+  }
+}

@@ -1,0 +1,38 @@
+-- Fixture for routes_ws_test.go (M-SERVEAPI-WS-BRIDGE M1).
+module ws/echo
+
+import std/stream (onEvent, runEventLoop, transmit, transmitBinary, status, StreamConn, StreamEvent, Message, Binary, Closed, StreamStatus, Open, StreamClosed)
+import std/bytes (fromString)
+
+-- M1-A1: an echo written with the pre-existing Stream ops only.
+@route("WS", "/echo")
+export func echo(client: StreamConn) -> unit ! {Stream} {
+  onEvent(client, \ev. match ev {
+    Message(t) => { let _ = transmit(client, t); true },
+    Binary(b) => { let _ = transmitBinary(client, fromString(b)); true },
+    Closed(_, _) => false,
+    _ => true
+  });
+  runEventLoop(client)
+}
+
+pure func statusName(s: StreamStatus) -> string =
+  match s {
+    Open => "Open",
+    StreamClosed => "StreamClosed",
+    _ => "Other"
+  }
+
+-- M1-A4: what connection IDs can this session see? Its own client is 1 in
+-- its own StreamContext; any other session's connection must be invisible.
+@route("WS", "/probe")
+export func probe(client: StreamConn, req: { path: string, query: string, origin: string }) -> unit ! {Stream} {
+  let a = statusName(status(StreamConn(1)));
+  let b = statusName(status(StreamConn(2)));
+  let _ = transmit(client, "${a} ${b} ${req.path}?${req.query}");
+  ()
+}
+
+-- An ordinary export: HTTP surfaces must be unchanged next to WS routes.
+@route("POST", "/api/v1/inc")
+export pure func inc(x: int) -> int = x + 1

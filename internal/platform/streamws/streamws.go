@@ -42,6 +42,7 @@ func Open(cfg effects.StreamDialConfig) (effects.StreamTransport, error) {
 		ReadBufferSize:   1024,
 		WriteBufferSize:  1024,
 		NetDialContext:   cfg.DialContext,
+		TLSClientConfig:  cfg.TLSClientConfig,
 		Proxy:            nil,
 	}
 	conn, resp, err := dialer.Dial(cfg.URL, cfg.Headers)
@@ -78,7 +79,9 @@ func (t *transport) Recv() (effects.StreamFrame, error) {
 func (t *transport) recvOne() (effects.StreamFrame, bool, error) {
 	msgType, data, err := t.conn.ReadMessage()
 	if err != nil {
-		if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway) {
+		// 1005 (no status) is how a browser's bare ws.close() arrives: a clean
+		// close that carried no code, not a protocol error.
+		if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway, websocket.CloseNoStatusReceived) {
 			ce := &effects.StreamCloseError{Code: websocket.CloseNormalClosure}
 			var wsErr *websocket.CloseError
 			if errors.As(err, &wsErr) {
@@ -112,9 +115,18 @@ func (t *transport) Send(frame effects.StreamFrame) error {
 
 // Close sends a normal-closure frame with a 3s deadline, then closes the socket.
 func (t *transport) Close() error {
+	return t.CloseWithCode(websocket.CloseNormalClosure, "")
+}
+
+// CloseWithCode sends a close frame with code and reason (3s deadline), then
+// closes the socket. The reason is cut to the 123 bytes a close frame allows.
+func (t *transport) CloseWithCode(code int, reason string) error {
+	if len(reason) > 123 {
+		reason = reason[:123]
+	}
 	_ = t.conn.WriteControl(
 		websocket.CloseMessage,
-		websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""),
+		websocket.FormatCloseMessage(code, reason),
 		time.Now().Add(3*time.Second),
 	)
 	return t.conn.Close()

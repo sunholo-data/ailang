@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strings"
 
 	"github.com/sunholo-data/ailang/internal/eval"
 )
@@ -83,6 +84,13 @@ func StreamConnect(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 		return makeStreamErr("ConnectionFailed", err.Error()), nil
 	}
 
+	// Host-side credential binding (M-SERVEAPI-WS-BRIDGE D3): applied only
+	// here, only after the authorizer passed, and only in Go.
+	headers, err = applyStreamCredential(ctx.Stream, wsURL, headers)
+	if err != nil {
+		return makeStreamErr("ConnectionFailed", err.Error()), nil
+	}
+
 	// Dial through the registered transport. No registration is a harness
 	// error (the binary forgot platform_init), not a program-visible result.
 	transport, err := openStreamTransport(urlVal.Value, StreamDialConfig{
@@ -92,6 +100,7 @@ func StreamConnect(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 		HandshakeTimeout: ctx.Stream.ConnectTimeout,
 		MaxFrameSize:     ctx.Stream.MaxFrameSize,
 		DialContext:      dial,
+		TLSClientConfig:  ctx.Stream.tlsClientConfig,
 	})
 	if err != nil {
 		if errors.Is(err, ErrBackendNotRegistered) {
@@ -100,23 +109,44 @@ func StreamConnect(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 		return makeStreamErr("ConnectionFailed", "WebSocket dial failed: "+err.Error()), nil
 	}
 
-	// Create connection
+	id, err := registerWSConnection(ctx.Stream, transport)
+	if err != nil {
+		return makeStreamErr("ConnectionFailed", err.Error()), nil
+	}
+	return makeStreamOk(makeStreamConn(id)), nil
+}
+
+// AdoptStreamConnection registers an already-open transport — the server
+// side of an accepted WebSocket upgrade — in sc and starts its read loop, so
+// the program sees it as an ordinary StreamConn: same event buffer, same
+// frame accounting, same transmit/onEvent/bridge ops as an outbound
+// connection (M-SERVEAPI-WS-BRIDGE M1). On error the transport is closed.
+func AdoptStreamConnection(sc *StreamContext, t StreamTransport) (int, error) {
+	if sc == nil {
+		_ = t.Close()
+		return 0, fmt.Errorf("E_STREAM_NO_CONTEXT: Stream effect not configured (missing --caps Stream)")
+	}
+	return registerWSConnection(sc, t)
+}
+
+// registerWSConnection wraps transport as a StreamConnection, registers it in
+// sc, delivers Opened and starts the read loop. Closes transport on error.
+func registerWSConnection(sc *StreamContext, transport StreamTransport) (int, error) {
 	conn := &StreamConnection{
 		transport:   transport,
 		protocol:    "WebSocket",
 		status:      StreamStatusOpen,
-		eventBuffer: make(chan streamEvent, ctx.Stream.EventBufferSize),
+		eventBuffer: make(chan streamEvent, sc.EventBufferSize),
 		done:        make(chan struct{}),
-		idleTimeout: ctx.Stream.IdleTimeout,
-		maxDuration: ctx.Stream.MaxDuration,
+		idleTimeout: sc.IdleTimeout,
+		maxDuration: sc.MaxDuration,
 		subprotocol: transport.Subprotocol(),
 	}
 
-	// Register connection
-	id, err := ctx.Stream.AcquireConnection(conn)
+	id, err := sc.AcquireConnection(conn)
 	if err != nil {
 		_ = transport.Close()
-		return makeStreamErr("ConnectionFailed", err.Error()), nil
+		return 0, err
 	}
 
 	// Deliver Opened BEFORE starting the read goroutine so it is always the
@@ -127,11 +157,40 @@ func StreamConnect(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 		text: conn.subprotocol,
 	}
 
-	// Start read goroutine
 	go conn.readLoop()
+	return id, nil
+}
 
-	// Return Ok(StreamConn(id))
-	return makeStreamOk(makeStreamConn(id)), nil
+// applyStreamCredential merges the host-side credential binding into the
+// program's dial headers. The binding is consulted for wss:// only — never
+// ws://, whatever the binder would say — and a program that supplies its own
+// Authorization for a bound host is refused, so the credential has exactly
+// one source. The returned map is a copy; the program's headers are not
+// mutated. Error text never carries a header value.
+func applyStreamCredential(sc *StreamContext, u *url.URL, headers map[string][]string) (map[string][]string, error) {
+	if sc.Credentials == nil || u.Scheme != "wss" {
+		return headers, nil
+	}
+	hdr, bound, err := sc.Credentials(u)
+	if !bound {
+		return headers, nil
+	}
+	for name := range headers {
+		if strings.EqualFold(name, "Authorization") {
+			return nil, fmt.Errorf("credential binding: Authorization header supplied by program for bound host %s (the operator's --stream-credential owns it; remove the header)", u.Host)
+		}
+	}
+	if err != nil {
+		return nil, fmt.Errorf("credential binding for %s: %v", u.Host, err)
+	}
+	merged := make(map[string][]string, len(headers)+len(hdr))
+	for k, v := range headers {
+		merged[k] = v
+	}
+	for k, v := range hdr {
+		merged[k] = v
+	}
+	return merged, nil
 }
 
 // readLoop runs in a goroutine, reading WebSocket frames into the event buffer.
@@ -142,7 +201,7 @@ func (sc *StreamConnection) readLoop() {
 		status := sc.status
 		sc.mu.Unlock()
 		if status != StreamStatusClosed && status != StreamStatusClosing {
-			sc.eventBuffer <- streamEvent{kind: "closed", code: 1006, reason: "connection lost"}
+			sc.deliver(streamEvent{kind: "closed", code: 1006, reason: "connection lost"})
 		}
 	}()
 
@@ -157,10 +216,10 @@ func (sc *StreamConnection) readLoop() {
 		if err != nil {
 			var ce *StreamCloseError
 			if errors.As(err, &ce) {
-				sc.eventBuffer <- streamEvent{kind: "closed", code: ce.Code, reason: ce.Reason}
+				sc.deliver(streamEvent{kind: "closed", code: ce.Code, reason: ce.Reason})
 				return
 			}
-			sc.eventBuffer <- streamEvent{kind: "error", errType: "ProtocolError", text: err.Error()}
+			sc.deliver(streamEvent{kind: "error", errType: "ProtocolError", text: err.Error()})
 			return
 		}
 
@@ -170,23 +229,50 @@ func (sc *StreamConnection) readLoop() {
 			sc.messagesRecv++
 			sc.bytesRecv += int64(len(frame.Data))
 			sc.mu.Unlock()
-			sc.eventBuffer <- streamEvent{kind: "message", text: string(frame.Data)}
+			if !sc.deliver(streamEvent{kind: "message", text: string(frame.Data), data: frame.Data}) {
+				return
+			}
 		case StreamFrameBinary:
 			sc.mu.Lock()
 			sc.messagesRecv++
 			sc.bytesRecv += int64(len(frame.Data))
 			sc.mu.Unlock()
-			sc.eventBuffer <- streamEvent{kind: "binary", data: frame.Data}
+			if !sc.deliver(streamEvent{kind: "binary", data: frame.Data}) {
+				return
+			}
 		case StreamFramePing:
-			sc.eventBuffer <- streamEvent{kind: "ping", data: frame.Data}
+			if !sc.deliver(streamEvent{kind: "ping", data: frame.Data}) {
+				return
+			}
 		}
 	}
 }
 
-// closeWS runs the transport's close handshake and releases the socket.
-func (sc *StreamConnection) closeWS() {
+// deliver queues evt for the consumer, blocking while the buffer is full —
+// that block IS the backpressure — but never past Close: a reader stuck on a
+// full buffer after its consumer went away used to leak forever. Reports
+// false when the connection was closed instead.
+func (sc *StreamConnection) deliver(evt streamEvent) bool {
+	select {
+	case sc.eventBuffer <- evt:
+		return true
+	case <-sc.done:
+		return false
+	}
+}
+
+// closeWS runs the transport's close handshake and releases the socket. A
+// code of 0 means a normal closure; a transport that implements
+// StreamCodeCloser sends the given code and reason.
+func (sc *StreamConnection) closeWS(code int, reason string) {
 	if sc.transport == nil {
 		return
+	}
+	if code != 0 {
+		if cc, ok := sc.transport.(StreamCodeCloser); ok {
+			_ = cc.CloseWithCode(code, reason)
+			return
+		}
 	}
 	_ = sc.transport.Close()
 }
