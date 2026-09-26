@@ -1,0 +1,77 @@
+-- Example: == on lists, Option, Result, tuples and derived records (M-EQ-DERIVE-CONTAINERS)
+-- Equality composes: a container supports == when every part does.
+-- Every comparison below is EVALUATED and printed, each with an unequal control.
+module examples/eq_containers
+
+type Color = Red | Green deriving (Eq)
+
+-- A record alias opts in with deriving (Eq); anonymous records do not get ==.
+type Point = { x: int, y: int } deriving (Eq)
+
+-- ADTs whose fields are lists, Options, tuples or records.
+type Bag = Bag([int]) deriving (Eq)
+
+type Boxed = Boxed({ a: int }) deriving (Eq)
+
+type Slot = Slot(Option[int]) deriving (Eq)
+
+func mkPoint(n: int) -> Point {
+  { x: n, y: 2 }
+}
+
+-- Generic code gets == on [a] when the caller's a has it.
+func sameList[a](xs: [a], ys: [a]) -> bool {
+  xs == ys
+}
+
+-- Wrapping generic values in a list keeps the caller's Eq obligation.
+func sameWrapped[a](x: a, y: a) -> bool {
+  [x] == [y]
+}
+
+func check(label: string, got: bool, want: bool) -> () ! {IO} {
+  let mark = if got == want then "ok" else "WRONG" in _io_println("${mark} ${label}=${show(got)}")
+}
+
+export func main() -> () ! {IO} {
+  let xs: [int] = [1, 2] in
+  let o: Option[int] = Some(1) in
+  let r: Result[int, string] = Ok(1) in
+  let q0: [string] = [] in
+  -- lists (V12, V13)
+  let _ = check("list_eq", xs == [1, 2], true) in
+  let _ = check("list_ne", xs == [1, 3], false) in
+  let _ = check("list_len", xs == [1, 2, 3], false) in
+  let _ = check("list_empty", q0 == [], true) in
+  let _ = check("list_not_empty", xs != [], true) in
+  let _ = check("list_generic_eq", sameList(["a"], ["a"]), true) in
+  let _ = check("list_generic_ne", sameList([1], [2]), false) in
+  let _ = check("list_wrapped_eq", sameWrapped(3, 3), true) in
+  let _ = check("list_wrapped_ne", sameWrapped("a", "b"), false) in
+  -- Option (V14, V15)
+  let _ = check("opt_eq", o == Some(1), true) in
+  let _ = check("opt_ne", o == Some(2), false) in
+  let _ = check("opt_none", o == None, false) in
+  let _ = check("none_none", None == None, true) in
+  let _ = check("opt_adt_eq", Some(Red) == Some(Red), true) in
+  let _ = check("opt_adt_ne", Some(Red) == Some(Green), false) in
+  -- Result
+  let _ = check("res_eq", r == Ok(1), true) in
+  let _ = check("res_ne", r == Err("boom"), false) in
+  -- tuples (V16)
+  let _ = check("tuple_eq", (1, "a") == (1, "a"), true) in
+  let _ = check("tuple_ne", (1, "a") == (1, "b"), false) in
+  -- derived records (V17)
+  let _ = check("record_eq", mkPoint(1) == mkPoint(1), true) in
+  let _ = check("record_ne", mkPoint(1) == mkPoint(2), false) in
+  let _ = check("record_list_eq", [mkPoint(1)] == [mkPoint(1)], true) in
+  -- derived ADTs with container / record fields (V18, V19)
+  let _ = check("adt_list_ne", Bag([1]) == Bag([1, 1]), false) in
+  let _ = check("adt_record_eq", Boxed({ a: 1 }) == Boxed({ a: 1 }), true) in
+  let _ = check("adt_record_ne", Boxed({ a: 1 }) == Boxed({ a: 2 }), false) in
+  let _ = check("adt_option_ne", Slot(Some(1)) == Slot(None), false) in
+  -- nesting composes
+  let _ = check("nested_eq", [Some([1])] == [Some([1])], true) in
+  let _ = check("nested_ne", [Some([1])] == [Some([2])], false) in
+  ()
+}

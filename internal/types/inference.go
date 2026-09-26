@@ -39,6 +39,12 @@ type InferenceContext struct {
 	// freeVars(currentEnv) \ baseEnvFreeVars. nil => restriction disabled
 	// (legacy generalize-everything behavior). See M-TYPE-LIST-SOUND round 3.
 	baseEnvFreeVars map[string]bool
+	// baseEnv is the declaration's base env itself. The name subtraction above
+	// cannot withhold a declaration's own type parameter when it shares a name
+	// with a leaked one (the user's `a` vs a leaked `a`), so generalization
+	// also withholds every var free in the bindings pushed ABOVE baseEnv
+	// (M-EQ-DERIVE-CONTAINERS: `func pick[a](x: a, y: a) { [x] == [y] }`).
+	baseEnv *TypeEnv
 }
 
 // TypeConstraint represents a constraint to be solved

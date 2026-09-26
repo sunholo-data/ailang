@@ -7,7 +7,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"syscall"
 	"testing"
 	"time"
 
@@ -21,6 +20,7 @@ import (
 // writePolicy writes a policy file with the given body plus a sandbox.
 func writePolicy(t *testing.T, dir, body string) string {
 	t.Helper()
+	skipWithoutRestrictedMode(t)
 	sandbox := filepath.Join(dir, "sandbox")
 	if err := os.MkdirAll(sandbox, 0o755); err != nil {
 		t.Fatal(err)
@@ -73,15 +73,16 @@ func TestRunPolicy_TimeoutKillsDescendants(t *testing.T) {
 	bin := buildAilang(t)
 	dir := t.TempDir()
 	pidFile := filepath.Join(dir, "sandbox", "child.pid")
-	pol := writePolicy(t, dir, "allowed_caps = [\"IO\", \"FS\", \"Process\"]\nsecurity_mode = \"trusted_host\"\nfs_sandbox = \"${SANDBOX}\"\nprocess_allow = [\"sh\"]\nentry = \"main\"\ntimeout_ms = 4000\n")
-	// sh writes its own pid then sleeps far past the deadline. exec's own
-	// per-call timeout (30s) would otherwise outlive the policy. 4s leaves
-	// room for the binary's own startup (the local observatory health check
-	// alone costs ~1.5s on the rig); the property is descendant death.
+	pol := writePolicy(t, dir, "allowed_caps = [\"IO\", \"FS\", \"Process\"]\nsecurity_mode = \"trusted_host\"\nfs_sandbox = \"${SANDBOX}\"\nprocess_allow = [\"sh\"]\nentry = \"main\"\ntimeout_ms = 15000\nmax_output_bytes = 0\n")
+	// sh writes its own pid then sleeps far past the deadline; exec's own
+	// per-call timeout (30s) is raised below so the POLICY is what fires.
+	// 15s leaves room for the binary's startup under a parallel `make test`
+	// (measured: 4s was not enough on a loaded rig); the property under test
+	// is descendant death, not the exact deadline.
 	prog := `module prog
 import std/process (exec)
 export func main() -> () ! {IO, Process} = {
-  match exec("sh", ["-c", "echo $$ > child.pid; sleep 30"]) {
+  match exec("sh", ["-c", "echo $$ > child.pid; sleep 120"]) {
     Ok(_) => println("done"),
     Err(_) => println("err")
   }
@@ -103,12 +104,12 @@ export func main() -> () ! {IO, Process} = {
 	// Bounded ESRCH poll: the grandchild must be gone within 2s of return.
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
-		if err := syscall.Kill(pid, 0); err == syscall.ESRCH {
+		if processGone(pid) {
 			return
 		}
 		time.Sleep(50 * time.Millisecond)
 	}
-	_ = syscall.Kill(pid, syscall.SIGKILL)
+	killProcess(pid)
 	t.Fatalf("grandchild %d survived the supervisor's group kill", pid)
 }
 
@@ -484,5 +485,42 @@ func TestWorkerEnv_ProviderScopedCredentials(t *testing.T) {
 	trusted := &policy.Resolved{Mode: policy.ModeTrustedHost, Effects: []string{"IO"}}
 	if env := workerEnv(trusted); !has(env, "OPENROUTER_API_KEY") {
 		t.Errorf("trusted_host gets the operator's full environment")
+	}
+}
+
+// std/web reads OLLAMA_API_KEY in Go, so a restricted worker granted Net to
+// the backend host needs it whatever the AI cap says (task-386cc079: 16/16
+// webFetch/webSearch failed with the key unset). Any other net_allow, or a
+// Net-less policy, gets no key.
+func TestWorkerEnv_WebBackendCredential(t *testing.T) {
+	t.Setenv("OLLAMA_API_KEY", "ol-secret")
+	t.Setenv("OPENROUTER_API_KEY", "or-secret")
+	has := func(env []string, name string) bool {
+		for _, kv := range env {
+			if strings.HasPrefix(kv, name+"=") {
+				return true
+			}
+		}
+		return false
+	}
+	cases := []struct {
+		name string
+		res  *policy.Resolved
+		want bool
+	}{
+		{"net ollama.com, no AI", &policy.Resolved{Mode: policy.ModeRestricted, Effects: []string{"IO", "Net"}, NetAllow: []string{"ollama.com"}}, true},
+		{"net ollama.com, AI on gemini", &policy.Resolved{Mode: policy.ModeRestricted, Effects: []string{"AI", "IO", "Net"}, AIProvider: "gemini-3-5-flash-lite", NetAllow: []string{"example.org", "ollama.com"}}, true},
+		{"net without ollama.com", &policy.Resolved{Mode: policy.ModeRestricted, Effects: []string{"IO", "Net"}, NetAllow: []string{"example.org"}}, false},
+		{"lookalike host", &policy.Resolved{Mode: policy.ModeRestricted, Effects: []string{"IO", "Net"}, NetAllow: []string{"evil-ollama.com", "*.ollama.com"}}, false},
+		{"net_allow without Net cap", &policy.Resolved{Mode: policy.ModeRestricted, Effects: []string{"IO"}, NetAllow: []string{"ollama.com"}}, false},
+	}
+	for _, tc := range cases {
+		env := workerEnv(tc.res)
+		if got := has(env, "OLLAMA_API_KEY"); got != tc.want {
+			t.Errorf("%s: OLLAMA_API_KEY present=%v, want %v", tc.name, got, tc.want)
+		}
+		if has(env, "OPENROUTER_API_KEY") {
+			t.Errorf("%s: an unrelated key leaked", tc.name)
+		}
 	}
 }

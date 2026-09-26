@@ -21,6 +21,7 @@ const (
 	EnvPluginRepo         = "AILANG_PLUGIN_REPO"
 	EnvModel              = "AILANG_MODEL"
 	EnvTimeout            = "AILANG_TIMEOUT"
+	EnvIdleTimeout        = "AILANG_IDLE_TIMEOUT"
 	EnvAcknowledgeOnly    = "AILANG_ACKNOWLEDGE_ONLY"
 	EnvSubdirectory       = "AILANG_SUBDIRECTORY"
 	EnvGitMode            = "AILANG_GIT_MODE"
@@ -62,6 +63,7 @@ var jobVars = []Var{
 	{EnvPluginRepo, "", AreaJob, "Repository of shared skills cloned into the job's plugin directory."},
 	{EnvModel, "", AreaJob, "Model the executor runs; there is no default (an empty value fails at the point of use), and it names the commit co-author."},
 	{EnvTimeout, "", AreaJob, "Executor wall-clock as a Go duration; unset means the coordinator's default task timeout (2h)."},
+	{EnvIdleTimeout, "", AreaJob, "Max silence BETWEEN executor output events as a Go duration, distinct from the wall-clock ceiling; unset means the executor default (3m). Set by the dispatcher from the agent's idle_timeout — before 2026-09-22 it did not travel, so every cloud task ran at 3m whatever the registry declared."},
 	{EnvAcknowledgeOnly, "false", AreaJob, "Exactly true declares the task acknowledge-only (no file changes expected); anything else means changes were expected, so an older dispatcher fails loud rather than lenient."},
 	{EnvSubdirectory, "", AreaJob, "Monorepo subdirectory the executor is scoped to, relative to the clone."},
 	{EnvGitMode, "", AreaJob, "Git mode the executor's children run under; unset, the job exports guardrails before starting the executor."},
@@ -112,6 +114,10 @@ func Model() string { return get(EnvModel) }
 // Timeout returns AILANG_TIMEOUT verbatim, "" when unset; the job applies
 // the coordinator's default and parses it.
 func Timeout() string { return get(EnvTimeout) }
+
+// IdleTimeout returns AILANG_IDLE_TIMEOUT verbatim, "" when unset; the job
+// parses it and falls back to the executor default.
+func IdleTimeout() string { return get(EnvIdleTimeout) }
 
 // AcknowledgeOnly reports AILANG_ACKNOWLEDGE_ONLY=true exactly.
 func AcknowledgeOnly() bool { return get(EnvAcknowledgeOnly) == "true" }

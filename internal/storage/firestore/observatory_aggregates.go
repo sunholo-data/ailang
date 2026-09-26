@@ -401,7 +401,7 @@ func (s *ObservatoryStore) CreateMetric(ctx context.Context, m *obs.Metric) erro
 		m.CreatedAt = time.Now()
 	}
 	id := fmt.Sprintf("metric_%d_%s", time.Now().UnixMilli(), generateShortID())
-	_, err := s.client.Doc(collObsMetrics, id).Set(ctx, obsMetricToMap(m))
+	_, err := s.client.Doc(collObsMetrics, id).Set(ctx, obsMetricToMap(m, s.spanTTL))
 	return err
 }
 
@@ -540,8 +540,9 @@ func (s *ObservatoryStore) GetSessionTools(ctx context.Context, sessionID string
 
 // --- Metric conversion helpers ---
 
-func obsMetricToMap(m *obs.Metric) map[string]interface{} {
+func obsMetricToMap(m *obs.Metric, ttl time.Duration) map[string]interface{} {
 	data := map[string]interface{}{
+		"expire_at":      expireAt(m.CreatedAt, ttl),
 		"name":           m.Name,
 		"metric_type":    m.Type,
 		"session_id":     m.SessionID,

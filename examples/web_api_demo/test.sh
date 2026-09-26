@@ -29,7 +29,7 @@ trap cleanup EXIT
 
 # Start the API server
 echo "Starting ailang serve-api on port $PORT..."
-ailang serve-api --port "$PORT" "$SCRIPT_DIR/api/" > /dev/null 2>&1 &
+ailang serve-api --cors --port "$PORT" "$SCRIPT_DIR/api/" > /dev/null 2>&1 &
 SERVER_PID=$!
 sleep 3
 
@@ -120,12 +120,12 @@ RESP=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
   "http://localhost:$PORT/api/no/such/module/func" -d '{}')
 check "unknown module returns 404" "$RESP" "404"
 
-# GET not allowed
-RESP=$(curl -s -o /dev/null -w "%{http_code}" \
+# DELETE not allowed (GET is allowed for function calls; see TestFunctionCallErrors)
+RESP=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE \
   "http://localhost:$PORT/api/api/math/add")
-check "GET returns 405" "$RESP" "405"
+check "DELETE returns 405" "$RESP" "405"
 
-# CORS preflight
+# CORS preflight (CORS is opt-in; the server above is started with --cors)
 RESP=$(curl -s -o /dev/null -w "%{http_code}" -X OPTIONS \
   "http://localhost:$PORT/api/_health")
 check "OPTIONS returns 204" "$RESP" "204"

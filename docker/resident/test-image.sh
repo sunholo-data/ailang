@@ -127,7 +127,7 @@ out=$(cd /tmp/sbx && ailang run --policy /tmp/pol/io.toml prog.ail 2>/tmp/pol/er
 have "admitted IO program runs"                       '[ "$rc" = "0" ] && grep -q "ran-under-policy" <<<"$out"'
 have "  ...admission line carries the policy digest"  'grep -q "policy_digest" /tmp/pol/err'
 have "RESIDENT_TOOLS defaults to ailang_only"         '[ "${RESIDENT_TOOLS:-}" = "ailang_only" ]'
-have "ailang pi tool-profile ailang_only has no bash" 'case "$(ailang pi tool-profile ailang_only)" in "--no-extensions -e "*"--no-builtin-tools --tools read,edit,write,ailang_check,ailang_run,builtins_search,examples_search,ailang_cli") true;; *) false;; esac'
+have "ailang pi tool-profile ailang_only has no bash" 'case "$(ailang pi tool-profile ailang_only)" in "--no-extensions -e "*"--no-builtin-tools --tools ailang_read,ailang_edit,ailang_write,ailang_check,ailang_run,builtins_search,examples_search,ailang_cli") true;; *) false;; esac'
 # boot (section 3 above) moved the suite aside and kept the execution pair:
 have "boot kept ailang-exec.ts"                       '[ -f /home/ailang/.pi/agent/extensions/ailang-exec.ts ]'
 have "boot kept ailang-lsp-lite.ts"                   '[ -f /home/ailang/.pi/agent/extensions/ailang-lsp-lite.ts ]'
@@ -270,7 +270,7 @@ have "a sole registered model is used when none is requested" 'echo "$out" | gre
 
 echo "=== 6d. tool policy (D8 → M-AGENT-AILANG-ONLY-EXECUTION D6) ==="
 # RESIDENT_TOOLS is a PROFILE. The image default is ailang_only: pi's builtins
-# are dropped and exactly read/edit/write + the AILANG gate are allowed — no
+# are dropped and exactly the Go-mediated ailang_read/edit/write + the AILANG gate are allowed — no
 # bash, so `ailang run --policy` behind ailang_run is a boundary. What an agent
 # can do must be readable from the command line and from /health.
 STUB=$(mktemp -d)
@@ -280,7 +280,7 @@ import { runPi } from "/usr/local/bin/lib/pi.mjs";
 runPi({ model: "m", prompt: "hi", ttftMs: 5000 }).catch(() => {});' >/dev/null 2>&1
 ARGV="$(cat /tmp/pi-argv.txt 2>/dev/null || true)"
 have "default profile drops pi's builtins"        'grep -q -- "--no-builtin-tools" <<<"$ARGV"'
-have "  ...and allows exactly the ailang_only set" 'grep -q -- "--tools read,edit,write,ailang_check,ailang_run,builtins_search,examples_search,ailang_cli" <<<"$ARGV"'
+have "  ...and allows exactly the ailang_only set" 'grep -q -- "--tools ailang_read,ailang_edit,ailang_write,ailang_check,ailang_run,builtins_search,examples_search,ailang_cli" <<<"$ARGV"'
 have "  ...so bash is absent"                      '! grep -q "bash" <<<"$ARGV"'
 
 RESIDENT_TOOLS="read" PATH="$STUB:$PATH" timeout 30 node --input-type=module -e '

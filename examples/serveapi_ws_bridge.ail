@@ -1,0 +1,92 @@
+-- examples/serveapi_ws_bridge.ail
+-- A serve-api WebSocket route that relays a browser to an upstream WebSocket,
+-- with an AILANG step deciding every frame (M-SERVEAPI-WS-BRIDGE, v0.44.0).
+--
+-- Serve it (the upstream here is a local echo server on :9001):
+--   ailang serve-api --caps Stream --ws-max-sessions 4 examples/serveapi_ws_bridge.ail
+--   # browser: new WebSocket("ws://127.0.0.1:8080/live")  (same-origin page, or --cors-origin)
+--
+-- For a real upstream that needs a credential, the operator binds it to the
+-- host; the program never sees it and never puts it in a header:
+--   ailang serve-api --caps Stream \
+--     --stream-credential us-central1-aiplatform.googleapis.com=gcp-key-file:/path/sa.json ...
+--
+-- Run the offline replay (no network): ailang run --caps IO --entry main examples/serveapi_ws_bridge.ail
+
+module examples/serveapi_ws_bridge
+
+import std/string (contains, toLower)
+import std/list (foldl, map)
+import std/stream (connect, transmit, disconnect, StreamConn)
+import std/stream/bridge (bridge, BridgeFrame, ClientText, ClientBin, UpText, UpBin)
+import std/stream/bridge (Verdict, Forward, Drop, ReplaceText, CloseBridge)
+import std/stream/bridge (BridgeEnd, UpstreamClosed)
+import std/result (Ok, Err)
+
+export type GateState = { addressed: bool, turns: int, dropped: int }
+
+-- The speech gate: forward the model's turn only after the user addressed
+-- "daneel"; drop model audio otherwise; the client may never send setup.
+export pure func gate(s: GateState, f: BridgeFrame) -> (GateState, Verdict) =
+  match f {
+    ClientText(msg) =>
+      if contains(msg, "\"setup\"")
+      then (s, CloseBridge(1008, "setup is server-owned"))
+      else (s, Forward),
+    ClientBin(_) => (s, Forward),
+    UpBin(_) =>
+      if s.addressed then (s, Forward) else ({s | dropped: s.dropped + 1}, Drop),
+    UpText(msg) =>
+      if contains(msg, "\"inputTranscription\"") && contains(toLower(msg), "daneel")
+      then ({s | addressed: true}, Forward)
+      else if contains(msg, "\"turnComplete\"")
+      then ({s | addressed: false, turns: s.turns + 1}, ReplaceText("{\"turnComplete\":true}"))
+      else if contains(msg, "\"modelTurn\"") && !s.addressed
+      then ({s | dropped: s.dropped + 1}, Drop)
+      else (s, Forward)
+  }
+
+-- The route: called once per browser connection. The browser leg arrives as
+-- an ordinary StreamConn.
+@route("WS", "/live")
+export func live(client: StreamConn, req: { path: string, query: string }) -> unit ! {Stream} {
+  match connect("ws://127.0.0.1:9001/", { headers: [] }) {
+    Ok(up) => {
+      let _ = transmit(up, "{\"setup\":{}}");
+      match bridge(client, up, { addressed: false, turns: 0, dropped: 0 }, gate) {
+        (_, UpstreamClosed(_, _)) => disconnect(client),
+        _ => ()
+      }
+    },
+    Err(_) => disconnect(client)
+  }
+}
+
+-- Offline replay: the same step the bridge drives, over a recorded session.
+export pure func replay(frames: [BridgeFrame], s0: GateState) -> (GateState, [Verdict]) =
+  foldl(\acc f. match acc {
+    (s, vs) => match gate(s, f) { (s2, v) => (s2, v :: vs) }
+  }, (s0, []), frames)
+
+pure func verdictName(v: Verdict) -> string =
+  match v {
+    Forward => "Forward",
+    Drop => "Drop",
+    ReplaceText(_) => "ReplaceText",
+    _ => "Other"
+  }
+
+export func main() -> unit ! {IO} {
+  let session = [
+    UpText("{\"serverContent\":{\"modelTurn\":{}}}"),
+    UpText("{\"serverContent\":{\"inputTranscription\":{\"text\":\"hey Daneel\"}}}"),
+    UpText("{\"serverContent\":{\"modelTurn\":{}}}"),
+    UpText("{\"serverContent\":{\"turnComplete\":true}}")
+  ];
+  match replay(session, { addressed: false, turns: 0, dropped: 0 }) {
+    (s, vs) => {
+      println("verdicts (latest first): ${show(map(verdictName, vs))}");
+      println("turns=${show(s.turns)} dropped=${show(s.dropped)}")
+    }
+  }
+}

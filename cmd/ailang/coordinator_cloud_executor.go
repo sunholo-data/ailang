@@ -58,8 +58,11 @@ func runExecutor(ctx context.Context, workDir, provider, directive, taskID, plug
 		Workspace: workDir,
 		Model:     model,   // From AILANG_MODEL env var (agent config) — empty means executor default
 		Timeout:   timeout, // From AILANG_TIMEOUT env var — overrides executor default (5m)
-		Metadata:  make(map[string]string),
-		ExtraEnv:  make(map[string]string),
+		// From AILANG_IDLE_TIMEOUT. Zero leaves the executor's own 3m default,
+		// which is what EVERY cloud task silently used until 2026-09-22.
+		IdleTimeout: resolveIdleTimeout(config.IdleTimeout()),
+		Metadata:    make(map[string]string),
+		ExtraEnv:    make(map[string]string),
 	}
 	// workspace-trust per-repo injection (M-DX-PI-HARNESS): the container's pi
 	// runs headless against a fresh clone with a fresh HOME, so pi's project-trust
@@ -364,4 +367,27 @@ func (h *cloudEventHandler) broadcast(event *websocket.TaskStreamEvent) {
 	if h.broadcaster != nil {
 		h.broadcaster.Broadcast(event)
 	}
+}
+
+// resolveIdleTimeout turns AILANG_IDLE_TIMEOUT into a duration for executor.Task.
+//
+// Zero means "use the executor's default", so an unset or unusable value is
+// returned as zero rather than guessed at. A malformed value is announced: it
+// is an operator typo in the agent registry, and swallowing it would reproduce
+// the exact failure this function exists to end — a declared idle_timeout that
+// does not apply, diagnosed as the agent stalling.
+func resolveIdleTimeout(raw string) time.Duration {
+	if raw == "" {
+		return 0
+	}
+	d, err := time.ParseDuration(raw)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "execute-job: invalid %s %q, using executor default: %v\n", config.EnvIdleTimeout, raw, err)
+		return 0
+	}
+	if d <= 0 {
+		fmt.Fprintf(os.Stderr, "execute-job: %s %q is not positive, using executor default\n", config.EnvIdleTimeout, raw)
+		return 0
+	}
+	return d
 }

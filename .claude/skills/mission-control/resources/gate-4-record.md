@@ -41,6 +41,23 @@ Gate 2 greps before picking. Nothing is deleted; the command is verified lossles
 Regenerated, never appended: an append-only index drifts the moment an entry is edited,
 and an index that answers "already tried?" confidently and wrongly is worse than none.
 
+**`ailang` here is the FLEET CLI on PATH — never the mission's `$AILANG_BIN`.** A mission may
+pin an OLDER compiler for reproducibility, and that pin is a *compiler*, not the mission CLI:
+two different jobs wearing one name. The older binary may not carry the `mission` command
+group at all. Measured on World at iteration 172 — it pins v0.30.0 because its publish fence
+freezes the compiler its ready packet was projected with — `~/.pinned-ailang/ailang mission
+rotate-log world --keep 31` prints **`Error: unknown command 'mission'`**, with
+`design-quorum --help` resolving fine as the positive control, so the whole group is absent.
+
+**If you see that error you invoked the pin, not the fleet CLI — re-run with the fleet CLI.**
+Do NOT "fix" it by moving the pin: on a mission that freezes a compiler, the pin is
+load-bearing for its published artifacts. If the fleet CLI genuinely cannot be reached, add
+the index row BY HAND in the same commit as the log entry, and record it as a **pin-version
+gap**, never as a controller lapse. The cost is silent in the direction that matters:
+iteration 171 had a full log entry and no index row, and Gate 2 greps this index before
+picking — so a missing row does not error, it answers "nothing like this has been tried"
+confidently and wrongly.
+
 First action: `bash tools/launchd/mission-heartbeat.sh stamp gate-4`.
 
 **FIRST: overwrite `design_docs/${MISSION_NAME}-mission-dashboard.md`** (Mark 2026-08-04: the

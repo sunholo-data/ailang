@@ -18,6 +18,22 @@ type CodexQuotaObservation struct {
 	ObservedAt time.Time          `json:"observed_at,omitempty"`
 	Source     string             `json:"source,omitempty"`
 	Windows    []CodexQuotaWindow `json:"windows,omitempty"`
+	// ResetCredits is what the account holds in reserve (app-server reads only; nil when
+	// the observation came from the session scan, which does not carry it).
+	ResetCredits *CodexResetCredits `json:"reset_credits,omitempty"`
+}
+
+// CodexResetCredits are one-shot "full reset" grants on the Codex account. Spending one
+// is an operator's decision, never the loop's: see ConsumeCodexResetCredit.
+type CodexResetCredits struct {
+	Available int64              `json:"available"`
+	Credits   []CodexResetCredit `json:"credits,omitempty"`
+}
+type CodexResetCredit struct {
+	ID        string    `json:"id"`
+	Title     string    `json:"title,omitempty"`
+	Status    string    `json:"status"`
+	ExpiresAt time.Time `json:"expires_at,omitempty"`
 }
 type CodexQuotaWindow struct {
 	UsedPercent      float64   `json:"used_percent"`
@@ -74,26 +90,43 @@ func parseCodexQuota(line []byte, now time.Time) *CodexQuotaObservation {
 		return &CodexQuotaObservation{ObservedAt: now, State: "unknown", Reason: "invalid Codex observation timestamp"}
 	}
 	o := &CodexQuotaObservation{ObservedAt: e.Timestamp, State: "unknown", Reason: "no valid long-window Codex provider observation"}
-	for _, w := range []*codexRateWindow{r.Primary, r.Secondary} {
-		if w == nil {
-			continue
-		}
-		if w.Used == nil || *w.Used < 0 || *w.Used > 100 || w.Minutes <= 0 || w.Minutes > 31*24*60 || w.Reset <= 0 {
-			o.Windows = nil
-			return o
-		}
-		reset := time.Unix(w.Reset, 0).UTC()
-		duration := time.Duration(w.Minutes) * time.Minute
-		if !reset.After(e.Timestamp) || reset.Sub(e.Timestamp) > duration+time.Minute {
-			o.Windows = nil
-			return o
-		}
-		o.Windows = append(o.Windows, CodexQuotaWindow{UsedPercent: *w.Used, WindowMinutes: w.Minutes, ResetsAt: reset})
+	windows, ok := codexValidWindows([]*codexRateWindow{r.Primary, r.Secondary}, e.Timestamp)
+	if ok {
+		o.Windows = windows
 	}
 	return o
 }
 
+// codexValidWindows validates provider windows observed at AT. ok=false means one window
+// was malformed, and then NONE may be used: a half-valid reading could hide the window
+// that is over. Nil entries (an absent secondary) are skipped.
+func codexValidWindows(raw []*codexRateWindow, at time.Time) ([]CodexQuotaWindow, bool) {
+	var out []CodexQuotaWindow
+	for _, w := range raw {
+		if w == nil {
+			continue
+		}
+		if w.Used == nil || *w.Used < 0 || *w.Used > 100 || w.Minutes <= 0 || w.Minutes > 31*24*60 || w.Reset <= 0 {
+			return nil, false
+		}
+		reset := time.Unix(w.Reset, 0).UTC()
+		duration := time.Duration(w.Minutes) * time.Minute
+		if !reset.After(at) || reset.Sub(at) > duration+time.Minute {
+			return nil, false
+		}
+		out = append(out, CodexQuotaWindow{UsedPercent: *w.Used, WindowMinutes: w.Minutes, ResetsAt: reset})
+	}
+	return out, true
+}
+
 func (o *CodexQuotaObservation) evaluate(now time.Time) {
+	o.evaluateAt(now, DailyRationFraction)
+}
+
+// evaluateAt is evaluate with an explicit daily fraction, so a provider whose ration was
+// ruled separately (Anthropic, AnthropicDailyRationFraction) shares the one pacing rule
+// without sharing its number.
+func (o *CodexQuotaObservation) evaluateAt(now time.Time, fraction float64) {
 	// The allowance is arithmetic on the window itself, so it is computed for EVERY window
 	// before any early return. It used to be computed after the staleness and expiry checks,
 	// which left AllowancePercent at its zero value on those paths — and the report prints
@@ -118,9 +151,9 @@ func (o *CodexQuotaObservation) evaluate(now time.Time) {
 		if w.WindowMinutes > 24*60 {
 			hasLong = true
 			start := w.ResetsAt.Add(-time.Duration(w.WindowMinutes) * time.Minute)
-			w.AllowancePercent = 100 * DailyRationFraction * now.Sub(start).Hours() / 24
-			if w.AllowancePercent < 100*DailyRationFraction {
-				w.AllowancePercent = 100 * DailyRationFraction
+			w.AllowancePercent = 100 * fraction * now.Sub(start).Hours() / 24
+			if w.AllowancePercent < 100*fraction {
+				w.AllowancePercent = 100 * fraction
 			}
 			if w.AllowancePercent > 100 {
 				w.AllowancePercent = 100
@@ -159,9 +192,24 @@ func (o *CodexQuotaObservation) evaluate(now time.Time) {
 	}
 }
 
-// ObserveCodexQuota reads a bounded tail of recent local sessions. It makes no
-// provider request and does not add account percentages to the token ledger.
+// ObserveCodexQuota asks the provider first (codex app-server, see
+// codex_app_server_quota.go) and falls back to the session scan. The fallback's own
+// "unknown" carries the app-server's failure reason, so an operator sees both instruments.
 func ObserveCodexQuota(codexHome string, now time.Time) CodexQuotaObservation {
+	o, ok, why := observeCodexAppServer(codexHome, now)
+	if ok {
+		return o
+	}
+	scan := observeCodexSessions(codexHome, now)
+	if scan.State == "unknown" {
+		scan.Reason += "; app-server read also failed (" + why + ")"
+	}
+	return scan
+}
+
+// observeCodexSessions reads a bounded tail of recent local sessions. It makes no
+// provider request and does not add account percentages to the token ledger.
+func observeCodexSessions(codexHome string, now time.Time) CodexQuotaObservation {
 	unknown := CodexQuotaObservation{State: "unknown", Reason: "no recent Codex provider observation; new Codex routing blocked"}
 	type candidate struct {
 		path     string

@@ -348,6 +348,12 @@ export async function register(pi: ExtensionAPI, Type: TypeLike, env: Record<str
 			// Run IN the file's directory with the bare filename. ailang's module
 			// rule (MOD010) wants `module x` for x.ail relative to the cwd.
 			const abs = resolve(params.path);
+			// The program must live in the sandbox (the gate refuses otherwise —
+			// this is the readable reason, not the authority): running an .ail
+			// from elsewhere would read sources outside the clone under the policy.
+			if (summary?.fs_sandbox && !insideSandbox(summary.fs_sandbox, abs)) {
+				return result({ admitted: false, refused: `program ${abs} is outside the FS sandbox ${summary.fs_sandbox}; write it inside the sandbox root and run it from there` });
+			}
 			const args = ["run", "--policy", gate.policyPath as string];
 			if (params.args_json) args.push("--args-json", params.args_json);
 			args.push(basename(abs));

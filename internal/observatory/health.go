@@ -22,7 +22,10 @@ const (
 // Thresholds:
 //   - < 200MB:       ok (no output)
 //   - 200-500MB:     warn (log only)
-//   - 500MB-2GB:     auto-cleanup (run retention)
+//   - 500MB-2GB:     auto-cleanup (run retention) — unless a pass completed
+//     within RetentionFreshFor, in which case the size is the
+//     steady state the TTL windows produce and there is nothing
+//     a second pass could remove (see RetentionStampSuffix)
 //   - > 2GB:         loud warning, no destructive action
 //
 // The >2GB branch intentionally does NOT delete the database. The previous
@@ -75,6 +78,9 @@ func CheckHealth(dbPath string) {
 		log.Printf("     rm %s %s-wal %s-shm", dbPath, dbPath, dbPath)
 
 	case totalMB > 500:
+		if RetentionRanWithin(dbPath, RetentionFreshFor) {
+			return
+		}
 		log.Printf("Observatory: %dMB (DB=%dMB WAL=%dMB) — running retention cleanup",
 			totalMB, sizeMB, walMB)
 		store, err := OpenStore(dbPath)

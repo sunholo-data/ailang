@@ -39,14 +39,32 @@ type ObservatoryStore struct {
 	// Dashboard aggregate caches.
 	metricsSummaryCache *ttlCache[obs.MetricsSummary]
 
-	// spanTTL controls the expire_at field written to obs_spans documents.
-	// Firestore TTL policy deletes documents after this timestamp.
-	// Default: 7 days for dev, 30 days for prod.
-	spanTTL time.Duration
+	// spanTTL is the expire_at horizon for obs_spans, obs_session_tools and
+	// obs_metrics; chainTTL for obs_chains, obs_chain_stages and
+	// obs_sessions. A Firestore TTL policy on each collection's expire_at
+	// field (terraform/firestore.tf in ailang-multivac) does the deleting.
+	// Both default in every environment: WithSpanTTL has no caller, so the
+	// old "30 days for prod" note here described nothing.
+	spanTTL  time.Duration
+	chainTTL time.Duration
 }
 
-// DefaultSpanTTL is the default time-to-live for observatory span documents.
+// DefaultSpanTTL is the default time-to-live for span, tool and metric documents.
 const DefaultSpanTTL = 7 * 24 * time.Hour // 7 days
+
+// DefaultChainTTL is the default time-to-live for chain, stage and session
+// documents — the same 90-day window the SQLite observatory's RunRetention
+// applies, so `chains stats` means the same period on either backend.
+const DefaultChainTTL = 90 * 24 * time.Hour
+
+// expireAt is the TTL deadline for a document dated base; a document with no
+// usable date counts from now rather than never expiring.
+func expireAt(base time.Time, ttl time.Duration) time.Time {
+	if base.IsZero() {
+		base = time.Now()
+	}
+	return base.Add(ttl)
+}
 
 // NewObservatoryStore creates a new Firestore-backed observatory store.
 func NewObservatoryStore(client *Client) *ObservatoryStore {
@@ -54,6 +72,7 @@ func NewObservatoryStore(client *Client) *ObservatoryStore {
 		client:              client,
 		metricsSummaryCache: newTTLCache[obs.MetricsSummary](2 * time.Minute),
 		spanTTL:             DefaultSpanTTL,
+		chainTTL:            DefaultChainTTL,
 	}
 }
 

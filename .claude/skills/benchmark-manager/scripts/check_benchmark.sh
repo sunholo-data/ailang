@@ -45,15 +45,15 @@ done
 # Tier is optional (defaults to "core") but warn if missing
 if ! grep -q "^tier:" "$BENCHMARK_FILE"; then
     echo "WARNING: No tier field — will default to 'core'"
-    echo "  -> Valid tiers: smoke, core, stretch, vision"
+    echo "  -> Valid tiers: smoke, core, stretch, frontier, vision, experimental"
     echo "  -> See benchmarks/CURATION.md for tier definitions"
     ((WARNINGS++))
 else
     TIER=$(grep "^tier:" "$BENCHMARK_FILE" | head -1 | sed 's/tier:[[:space:]]*//' | tr -d '"' | tr -d "'" | tr -d '[:space:]')
     case "$TIER" in
-        smoke|core|stretch|vision) ;;
+        smoke|core|stretch|frontier|vision|experimental) ;;  # mirrors ValidTiers in internal/eval_harness/spec.go
         *)
-            echo "ERROR: Invalid tier '$TIER' — must be one of: smoke, core, stretch, vision"
+            echo "ERROR: Invalid tier '$TIER' — must be one of: smoke, core, stretch, frontier, vision, experimental"
             ((ERRORS++))
             ;;
     esac

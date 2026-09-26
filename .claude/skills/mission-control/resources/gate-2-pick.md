@@ -1,5 +1,44 @@
 ## Gate 2 — PICK + REALITY-CHECK
 
+### ADMISSIBILITY — harness work is NOT loop work
+
+**Harness work happens in ATTENDED SESSIONS ONLY. It is outside this loop's authority.**
+Mark, attended 2026-09-21 (tightened the same day from an earlier "only when it blocks" draft,
+which still left the loop deciding — and the deciding is the part that fails).
+
+This is the Daneel rung model applied to the fleet: **no capability without its authority row**,
+and **down is a normal move**. The loop's authority row covers work on its mission's own clauses.
+Repairing the harness it runs on is not in that row, so the correct response to a harness defect
+is **escalation, not a fix** — and escalation is a SUCCESSFUL iteration outcome, not a failure.
+
+**Why the earlier, softer rule was not enough.** "Admissible when it blocks the rung" still asked
+the loop to judge whether something blocks it, and a harness defect always argues well: it is
+real, it is in the way, and fixing it feels like progress. Measured 2026-09-21: an attended
+session went looking for harness defects, found six genuine ones in a day without trying hard, and
+**never ran out**. A harness of ~6,000 lines of shell, five executors and four missions will
+always yield them. That is how 55% of iterations 309–348 came to be tagged `[HARNESS]` while the
+compiler and stdlib got 16 lines in two weeks — the loop was not malfunctioning, it was doing what
+it was permitted to do. The cap has to sit OUTSIDE the judgement it constrains.
+
+**What to do when a harness defect blocks you:**
+
+1. **Stop working it.** Do not fix, do not work around, do not "just quickly".
+2. **File the row** in your mission's queue, tagged `[HARNESS]`, with what you measured.
+3. **Say it is blocking** in the Gate-5 digest under its own heading, naming what it blocks.
+4. **Pick the next admissible item.** If nothing is admissible, **end the iteration with the
+   escalation as the outcome.** A loop that stops and says *"I am blocked by X"* is worth far more
+   than one that silently spends its iteration on X — the first is visible to a human, the second
+   is the failure mode this rule exists to end.
+5. If the defect is in the SHARED harness (`sunholo-data/ailang`: the driver, the skill,
+   `scripts/`), route it upstream as an issue. Missions other than v1 cannot edit it anyway, so
+   working it locally produces proposals, not fixes.
+
+**Maintenance is an ATTENDED session**, roughly weekly as needed — never a loop iteration. It is a
+ceiling, not a quota: a quiet week does not need one manufactured.
+
+**The one carve-out**: bookkeeping the gates themselves mandate (Gate 4's log/index/dashboard
+writes) is not "harness work" — it is the iteration's own record-keeping.
+
 **⚠ BEFORE PICKING, GREP THE ITERATION INDEX. This is how the loop avoids redoing work.**
 
 ```bash
@@ -77,6 +116,15 @@ is non-empty: re-run each absent reviewer alone with a raised cap
 re-run is cents against the $5 iteration ceiling and is the cheapest gate in this loop. If a
 reviewer genuinely cannot be restored, then everywhere the verdict is quoted downstream it reads
 "PROCEED at N−1, `<model>` absent (`<reason>`)" — never a bare "quorum passed".
+**The author's vendor sits out (Mark, attended 2026-09-25).** Always pass the designer lane that
+wrote the doc: `ailang design-quorum <doc> --author "<designer lane>" ...` (e.g.
+`claude:claude-opus-5-5`, `codex:gpt-6-astra`). Reviewers come from a POOL — `gpt6-astra`,
+`gemini-3-1-pro`, `oc-glm-5-3`, `oc-kimi-k3`, `claude-sonnet-5@claude-p` (Anthropic, subscription) —
+three seats per doc, the same three on every round of that doc, an absent seat replaced from the pool,
+and the author's vendor is benched: opus designs → Claude does not review; astra designs → OpenAI is
+not on the quorum. Omitting `--author` assumes a Claude author. A benched seat comes back only when
+every other reviewer is absent, labelled `"tier": "author-vendor-fallback"`; quote such a verdict as
+"on the author's own vendor only, `<models>` absent" and try the re-run rule above first.
 **⚠ BUT THE PATH THIS RULE NAMES IS WRONG, AND THE WRONG PATH FAILS IN THE EXACT DIRECTION THE
 RULE EXISTS TO PREVENT — `jq '.absent_reviewers'` RETURNS `null`, WHICH READS AS "NOBODY WAS
 ABSENT"** (fixed 2026-08-31 V1 iteration 311; instance 1 is iteration 309, instance 2 is iteration
@@ -462,4 +510,5 @@ throughout the later gates and in the mission log; the numbering is stable.
 - **3l.** "ENVIRONMENTAL" IS A CLAIM, AND THE FLEET IS ITS CONTROL GROUP — THREE MISSIONS RUN ON THIS RIG, SO ANY "IT'S THE MACHINE, NOT US" DIAGNOSIS HAS A READY-MADE THIRD ARM, AND SKIPPING IT COSTS MONTHS
 - **3m.** A STRESS OR LOAD CONTROL ONLY CERTIFIES THE AXIS YOU VARIED — AND WHERE A BOUND AND ITS STIMULUS BOTH SCALE WITH THE MACHINE, THE BOUND MUST BE *DERIVED* FROM THE MEASURED STIMULUS
 - **3n.** YOUR MUTATION SET IS DERIVED FROM WHAT THE MILESTONE *FIXES*, SO IT SYSTEMATICALLY MISSES WHAT THE MILESTONE *SHIPS* — ANCHOR THE ENUMERATION TO THE DIFF, WHICH IS COMPLETE BY CONSTRUCTION
+- **3o.** A BASH TOOL THAT DOES NOT PERSIST CWD BETWEEN CALLS MAKES EVERY MULTI-DIRECTORY COMMAND A CLAIM ABOUT WHERE YOU STOOD — pin `cd <abs-path>` or absolute paths in the SAME call; assert `pwd` when a verdict's scope depends on it; a "nothing staged" from an unpinned `git add` is INSTRUMENT FAILURE, not a clean tree
 - **4.** The shared main checkout is mutable mid-iteration

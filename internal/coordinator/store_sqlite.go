@@ -187,8 +187,13 @@ func (s *SQLiteStore) migrate() error {
 		"ALTER TABLE tasks ADD COLUMN source TEXT",
 		// Handoff tracking - to detect missed handoffs on daemon startup
 		"ALTER TABLE approval_requests ADD COLUMN handoffs_triggered INTEGER DEFAULT 0",
+		// M-TASK-STATUS-TRUTH D3: why handoffs_triggered was set without firing.
+		"ALTER TABLE approval_requests ADD COLUMN handoffs_suppressed INTEGER DEFAULT 0",
+		"ALTER TABLE approval_requests ADD COLUMN handoffs_expired INTEGER DEFAULT 0",
 		// Execution chain tracking (M-CHAINS-SIMPLIFY)
 		"ALTER TABLE tasks ADD COLUMN chain_id TEXT",
+		// M-TASK-STATUS-TRUTH S1: when the claim happened — the stale clock.
+		"ALTER TABLE tasks ADD COLUMN queued_at DATETIME",
 		"ALTER TABLE tasks ADD COLUMN stage_id TEXT",
 		// M-PKG-CASCADE-DETERMINISTIC-FIRST: cascade envelope persisted on
 		// the task so the dispatcher can choose deterministic-bump vs AI
@@ -272,7 +277,7 @@ func (s *SQLiteStore) GetTask(ctx context.Context, id string) (*TaskRecord, erro
 		SELECT id, message_id, thread_id, parent_task_id, title, content, type, kind, source, priority, status, provider, agent_id,
 		       worktree_id, worktree_path, base_branch, base_commit, workspace, github_issue, github_repo, stage, design_doc_path, sprint_plan_path,
 		       session_id, iteration, chain_id, stage_id,
-		       created_at, started_at, completed_at, duration_ns,
+		       created_at, started_at, completed_at, queued_at, duration_ns,
 		       error, output, cost, tokens_used,
 		       capabilities_json, impact_level, estimated_cost
 		FROM tasks WHERE id = ?
@@ -321,7 +326,7 @@ func (s *SQLiteStore) ListTasks(ctx context.Context, filter *TaskFilter) ([]*Tas
 		SELECT id, message_id, thread_id, parent_task_id, title, content, type, kind, source, priority, status, provider, agent_id,
 		       worktree_id, worktree_path, base_branch, base_commit, workspace, github_issue, github_repo, stage, design_doc_path, sprint_plan_path,
 		       session_id, iteration, chain_id, stage_id,
-		       created_at, started_at, completed_at, duration_ns,
+		       created_at, started_at, completed_at, queued_at, duration_ns,
 		       error, output, cost, tokens_used,
 		       capabilities_json, impact_level, estimated_cost
 		FROM tasks WHERE 1=1
@@ -591,7 +596,7 @@ func (s *SQLiteStore) FindDuplicateTask(ctx context.Context, fingerprint uint64,
 		`SELECT id, message_id, thread_id, parent_task_id, title, content, type, kind, source, priority, status, provider, agent_id,
 		        worktree_id, worktree_path, base_branch, base_commit, workspace, github_issue, github_repo, stage, design_doc_path, sprint_plan_path,
 		        session_id, iteration, chain_id, stage_id,
-		        created_at, started_at, completed_at, duration_ns,
+		        created_at, started_at, completed_at, queued_at, duration_ns,
 		        error, output, cost, tokens_used,
 		        capabilities_json, impact_level, estimated_cost
 		FROM tasks WHERE fingerprint = ? ORDER BY created_at DESC LIMIT ?`,

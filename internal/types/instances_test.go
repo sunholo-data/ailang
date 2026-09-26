@@ -248,3 +248,34 @@ func TestNoAmbientInstances(t *testing.T) {
 		}
 	}
 }
+
+// TestEqInstanceHintIsActionable pins the Eq hint per kind of type. The old text told
+// every caller to "Import std/prelude", a module that does not exist — and standard-mode
+// evals hand this string to the model's only self-repair attempt.
+func TestEqInstanceHintIsActionable(t *testing.T) {
+	cases := []struct {
+		name string
+		typ  Type
+		want string
+	}{
+		// M-EQ-DERIVE-CONTAINERS: lists, Option and tuples no longer reach this hint
+		// when their parts have Eq (see instances_eq_synth_test.go); what remains
+		// are the genuinely non-Eq types.
+		{"function", &TFunc2{Params: []Type{TInt}, Return: TInt}, "Functions have no =="},
+		{"anonymous record", &TRecord{Fields: map[string]Type{"x": TInt}}, "deriving (Eq)"},
+		{"option of non-Eq", &TApp{Constructor: &TCon{Name: "Option"}, Args: []Type{TInt}}, "only when its type arguments do"},
+		{"polymorphic ADT", &TApp{Constructor: &TCon{Name: "Tree"}, Args: []Type{TInt}}, "pattern-match"},
+		{"user ADT", &TCon{Name: "Color"}, "deriving (Eq)"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			h := actionableInstanceHint("Eq", c.typ)
+			if !strings.Contains(h, c.want) {
+				t.Errorf("Eq hint for %s = %q, want it to contain %q", c.typ, h, c.want)
+			}
+			if strings.Contains(h, "std/prelude") {
+				t.Errorf("Eq hint for %s points at std/prelude, which does not exist: %q", c.typ, h)
+			}
+		})
+	}
+}

@@ -19,6 +19,10 @@ type chainLink struct {
 // Store provides CRUD operations for the observatory platform.
 type Store struct {
 	db *sql.DB
+	// dbPath is the on-disk file OpenStore opened, "" for a caller-supplied
+	// connection. RunRetention stamps a sibling file so CheckHealth can tell
+	// a recent pass from a stat, without opening the DB.
+	dbPath string
 
 	// Write-time chain linking cache (M-AUDIT-OBSERVATORY)
 	chainLinkCache map[string]chainLink
@@ -78,7 +82,9 @@ func OpenStore(dbPath string) (*Store, error) {
 	// Without this, the WAL can grow to 40GB+ and cause memory pressure.
 	db.Exec("PRAGMA wal_checkpoint(TRUNCATE)") //nolint:errcheck
 
-	return NewStore(db), nil
+	st := NewStore(db)
+	st.dbPath = dbPath
+	return st, nil
 }
 
 // ===== Workspace Operations =====

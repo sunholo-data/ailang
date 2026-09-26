@@ -1,0 +1,7 @@
+-- NEGATIVE: anonymous records have no ==; declare an alias with deriving (Eq).
+-- Expected: No instance for Eq[{ x: int ... }]
+module examples/eq_containers_negative/anon_record
+
+export func main() -> () ! {IO} {
+  _io_println(show({x: 1} == {x: 1}))
+}

@@ -7,5 +7,5 @@ import "embed"
 // FS contains all .ail files from the stdlib directory.
 // These are embedded at compile time using Go's embed package.
 //
-//go:embed *.ail
+//go:embed *.ail ai/*.ail stream/*.ail
 var FS embed.FS

@@ -3,6 +3,7 @@ package pipeline
 import (
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/loader"
@@ -31,17 +32,75 @@ func (st *modulePipelineState) prepareCacheLookup(mod *loader.LoadedModule, modI
 	// calls — so the mode is part of the compiler identity: without it a
 	// --release compile was served to normal runs (all Debug output gone)
 	// and vice versa (M-DEBUG-SINK-STRUCTURED-LINES, measured 2026-09-11).
-	return ModuleCacheKey(compilerIdentity(version.Commit, st.cfg), *mod.SourceContent, depDigests), true
+	identity, err := currentCompilerIdentity(st.cfg)
+	if err != nil {
+		// No per-build identity: a commit-only key would serve another
+		// build's verdicts, so this module is not cached at all.
+		st.moduleCache.warnFingerprintUnavailable(err)
+		return "", false
+	}
+	return ModuleCacheKey(identity, *mod.SourceContent, depDigests), true
+}
+
+// currentCompilerIdentity is compilerIdentity for THIS binary: the commit,
+// plus the executable fingerprint when version.Dirty().
+func currentCompilerIdentity(cfg Config) (string, error) {
+	fingerprint := ""
+	if version.Dirty() {
+		fp, err := dirtyBuildFingerprint()
+		if err != nil {
+			return "", err
+		}
+		fingerprint = fp
+	}
+	return compilerIdentity(version.Commit, fingerprint, cfg), nil
 }
 
 // compilerIdentity is the cache-key component that must change whenever the
-// same source would compile to different Core: the build commit plus every
-// Config flag that alters the emitted program.
-func compilerIdentity(commit string, cfg Config) string {
-	if cfg.ReleaseMode {
-		return commit + "+release"
+// same source would compile to different Core: the build commit, a per-build
+// fingerprint when the commit does not identify the build (version.Dirty),
+// and every Config flag that alters the emitted program.
+//
+// Without the fingerprint, every rebuild of a dirty tree shared one identity
+// and was served its predecessor's verdicts: a fixed type checker reported
+// "No errors" and `ailang run` executed programs it rejects
+// (M-COMPILE-CACHE-DIRTY-BUILD-KEY, #1275).
+func compilerIdentity(commit, fingerprint string, cfg Config) string {
+	id := commit
+	if fingerprint != "" {
+		id += "+build:" + fingerprint
 	}
-	return commit
+	if cfg.ReleaseMode {
+		id += "+release"
+	}
+	return id
+}
+
+// dirtyBuildFingerprint identifies this executable by size, nanosecond mtime
+// and (on unix) inode: microseconds to read, and it changes on every go
+// build/go install, including same-size rebuilds on coarse-mtime filesystems.
+// A content hash would cost ~0.2s per invocation on a 100 MB binary.
+func dirtyBuildFingerprint() (string, error) {
+	buildFingerprint.once.Do(func() {
+		exe, err := os.Executable()
+		if err != nil {
+			buildFingerprint.err = err
+			return
+		}
+		fi, err := os.Stat(exe)
+		if err != nil {
+			buildFingerprint.err = err
+			return
+		}
+		buildFingerprint.value = fmt.Sprintf("%d-%d%s", fi.Size(), fi.ModTime().UnixNano(), fileIdentity(fi))
+	})
+	return buildFingerprint.value, buildFingerprint.err
+}
+
+var buildFingerprint struct {
+	once  sync.Once
+	value string
+	err   error
 }
 
 // serveFromCache performs the verified lookup accounting and, on a verified hit

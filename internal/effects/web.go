@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/url"
 
 	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/eval"
@@ -56,6 +57,23 @@ type webFetchResult struct {
 // ollamaWebBaseURL is the fixed endpoint base. Tests point it at an httptest
 // server; nothing else changes it — there is deliberately no env var.
 var ollamaWebBaseURL = "https://ollama.com"
+
+// WebCredentialVars names the environment variables std/web reads in Go when
+// a policy's net_allow admits the backend's host — nil otherwise. A
+// restricted worker's environment is an allowlist, so the supervisor asks
+// here rather than knowing the backend: one credential, for one granted
+// host (M-EXECUTOR-POLICY-HARDENING M7 posture). An empty net_allow admits
+// nothing here, unlike isAllowedDomain's "no list = any host".
+func WebCredentialVars(netAllow []string) []string {
+	if len(netAllow) == 0 {
+		return nil
+	}
+	u, err := url.Parse(ollamaWebBaseURL)
+	if err != nil || !isAllowedDomain(u.Hostname(), netAllow) {
+		return nil
+	}
+	return []string{config.EnvOllamaAPIKey}
+}
 
 type ollamaWebBackend struct{}
 

@@ -175,9 +175,12 @@ func (p *Parser) parseRouteAnnotation(pos ast.Pos) *ast.Annotation {
 	switch method {
 	case "GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS":
 		// valid
+	case "WS":
+		// valid: a WebSocket route — serve-api accepts the upgrade and calls
+		// the handler once per connection (M-SERVEAPI-WS-BRIDGE)
 	default:
 		p.report("PAR_ROUTE_INVALID_METHOD",
-			fmt.Sprintf("invalid HTTP method %q in @route; expected GET, POST, PUT, DELETE, PATCH, HEAD, or OPTIONS", method),
+			fmt.Sprintf("invalid HTTP method %q in @route; expected GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS, or WS", method),
 			"Use @route(\"POST\", \"/path\")")
 		return nil
 	}

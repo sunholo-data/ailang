@@ -524,7 +524,8 @@ func (s *Store) ListRecentSessions(ctx context.Context, limit int) ([]Session, e
 	}
 
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT s.session_id, s.workspace, s.claude_version, s.source, s.started_at, s.ended_at, s.turn_count,
+		SELECT s.session_id, s.workspace, COALESCE(s.claude_version, ''), COALESCE(s.source, ''),
+		       s.started_at, s.ended_at, COALESCE(s.turn_count, 0),
 		       COALESCE((SELECT COUNT(*) FROM session_tools t WHERE t.session_id = s.session_id), 0) as tool_count
 		FROM sessions s
 		ORDER BY s.started_at DESC

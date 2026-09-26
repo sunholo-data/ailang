@@ -210,6 +210,11 @@ jobs:
     - name: Check file sizes (>800 lines)
       run: make check-file-sizes
 
+    # The Release workflow is the only other place that builds js/wasm; a build-tag
+    # mismatch must fail here, on dev, not after the tag is pushed (v0.41.0).
+    - name: Check js/wasm compiles
+      run: make check-wasm-build
+
     - name: Check architecture boundaries
       run: make check-boundaries
 

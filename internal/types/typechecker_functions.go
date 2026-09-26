@@ -220,7 +220,7 @@ func (tc *CoreTypeChecker) inferLet(ctx *InferenceContext, let *core.Let) (*type
 		// After defaulting, only non-ground constraints should remain for generalization
 		nonGroundConstraints := []ClassConstraint{}
 		for _, c := range defaultedConstraints {
-			if !isGround(c.Type) {
+			if !constraintIsGround(c) {
 				nonGroundConstraints = append(nonGroundConstraints, c)
 			}
 		}
@@ -230,7 +230,7 @@ func (tc *CoreTypeChecker) inferLet(ctx *InferenceContext, let *core.Let) (*type
 		// which binding form a function happens to elaborate into.
 		defaultedType = tc.closeDeclaredEffectRowForBinding(let.Value.ID(), defaultedType)
 
-		binding = tc.generalizeWithConstraints(defaultedType, valueEffects, nonGroundConstraints, ctx.env, ctx.baseEnvFreeVars)
+		binding = tc.generalizeWithConstraints(defaultedType, valueEffects, nonGroundConstraints, ctx.env, ctx.baseEnvFreeVars, ctx.baseEnv)
 	} else {
 		binding = defaultedType
 	}
@@ -371,7 +371,7 @@ func (tc *CoreTypeChecker) inferLetRec(ctx *InferenceContext, letrec *core.LetRe
 
 		nonGroundConstraints := []ClassConstraint{}
 		for _, c := range remainingConstraints {
-			if !isGround(c.Type) {
+			if !constraintIsGround(c) {
 				nonGroundConstraints = append(nonGroundConstraints, c)
 			}
 		}
@@ -387,7 +387,7 @@ func (tc *CoreTypeChecker) inferLetRec(ctx *InferenceContext, letrec *core.LetRe
 		// the recursive bindings' own fresh vars live only in newEnv, so they
 		// remain generalizable, while any enclosing lambda params (free in
 		// oldEnv but not in the decl's base env) are correctly withheld.
-		scheme := tc.generalizeWithConstraints(valueType, getEffectRow(valueNode), nonGroundConstraints, oldEnv, ctx.baseEnvFreeVars)
+		scheme := tc.generalizeWithConstraints(valueType, getEffectRow(valueNode), nonGroundConstraints, oldEnv, ctx.baseEnvFreeVars, ctx.baseEnv)
 
 		typedBindings[i] = typedast.TypedRecBinding{
 			Name:   binding.Name,
@@ -454,7 +454,12 @@ func (tc *CoreTypeChecker) inferLetRec(ctx *InferenceContext, letrec *core.LetRe
 // uses hit occurs-check cycles). For a top-level decl currentEnv == baseEnv, so
 // nothing is withheld and full generalization is preserved. baseEnvFreeVars==nil
 // disables the restriction entirely (legacy generalize-everything behavior).
-func (tc *CoreTypeChecker) generalizeWithConstraints(typ Type, effects *Row, constraints []ClassConstraint, currentEnv *TypeEnv, baseEnvFreeVars map[string]bool) *Scheme {
+//
+// baseEnv (may be nil) adds a second, name-independent withhold: every var free
+// in a binding pushed above baseEnv by this declaration. Without it a parameter
+// typed with the declaration's own `a` was generalized whenever a leaked `a`
+// also sat in the base env, re-opening exactly the ANF `[b]` hole above.
+func (tc *CoreTypeChecker) generalizeWithConstraints(typ Type, effects *Row, constraints []ClassConstraint, currentEnv *TypeEnv, baseEnvFreeVars map[string]bool, baseEnv *TypeEnv) *Scheme {
 	// Find free type variables in the type being generalized.
 	typeFreeVars := make(map[string]bool)
 	collectFreeVars(typ, typeFreeVars)
@@ -468,6 +473,9 @@ func (tc *CoreTypeChecker) generalizeWithConstraints(typ Type, effects *Row, con
 			if !baseEnvFreeVars[v] {
 				withhold[v] = true
 			}
+		}
+		for v := range currentEnv.FreeTypeVarsAbove(baseEnv) {
+			withhold[v] = true
 		}
 	}
 

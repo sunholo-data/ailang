@@ -49,7 +49,7 @@ func (s *SQLiteStore) GetTasksByGithubIssue(ctx context.Context, issueNum int) (
 		SELECT id, message_id, thread_id, parent_task_id, title, content, type, kind, source, priority, status, provider, agent_id,
 		       worktree_id, worktree_path, base_branch, base_commit, workspace, github_issue, github_repo, stage, design_doc_path, sprint_plan_path,
 		       session_id, iteration, chain_id, stage_id,
-		       created_at, started_at, completed_at, duration_ns,
+		       created_at, started_at, completed_at, queued_at, duration_ns,
 		       error, output, cost, tokens_used,
 		       capabilities_json, impact_level, estimated_cost
 		FROM tasks WHERE github_issue = ?
@@ -78,7 +78,7 @@ func (s *SQLiteStore) GetTasksByStage(ctx context.Context, stage TaskStage) ([]*
 		SELECT id, message_id, thread_id, parent_task_id, title, content, type, kind, source, priority, status, provider, agent_id,
 		       worktree_id, worktree_path, base_branch, base_commit, workspace, github_issue, github_repo, stage, design_doc_path, sprint_plan_path,
 		       session_id, iteration, chain_id, stage_id,
-		       created_at, started_at, completed_at, duration_ns,
+		       created_at, started_at, completed_at, queued_at, duration_ns,
 		       error, output, cost, tokens_used,
 		       capabilities_json, impact_level, estimated_cost
 		FROM tasks WHERE stage = ?
@@ -130,12 +130,14 @@ func (s *SQLiteStore) RecoverStaleTasks(ctx context.Context, staleThreshold time
 	cutoff := time.Now().Add(-staleThreshold)
 	now := time.Now()
 
-	// Cancel tasks that are running/queued but started more than staleThreshold ago
+	// Cancel tasks that are running/queued but started more than staleThreshold ago.
+	// Same clock as the stale detector's getTaskAge: started, else claimed, else
+	// created (M-TASK-STATUS-TRUTH S1 — created_at is the MESSAGE's time).
 	result, err := s.db.ExecContext(ctx,
 		`UPDATE tasks SET status = ?, completed_at = ?, error = ?
-		 WHERE status IN (?, ?) AND (started_at < ? OR (started_at IS NULL AND created_at < ?))`,
+		 WHERE status IN (?, ?) AND COALESCE(started_at, queued_at, created_at) < ?`,
 		TaskStatusCancelled, now, "Recovered: task was stale after daemon restart",
-		TaskStatusRunning, TaskStatusQueued, cutoff, cutoff,
+		TaskStatusRunning, TaskStatusQueued, cutoff,
 	)
 	if err != nil {
 		return 0, err
@@ -166,7 +168,7 @@ func (s *SQLiteStore) Close() error {
 // Helper to scan a single task from a row
 func (s *SQLiteStore) scanTask(row *sql.Row) (*TaskRecord, error) {
 	task := &TaskRecord{}
-	var startedAt, completedAt sql.NullTime
+	var startedAt, completedAt, queuedAt sql.NullTime
 	var durationNs sql.NullInt64
 	var messageID sql.NullString
 	var provider, agentID, worktreeID, worktreePath, baseBranch, baseCommit, workspace, errStr, output, threadID, parentTaskID, stage sql.NullString
@@ -185,7 +187,7 @@ func (s *SQLiteStore) scanTask(row *sql.Row) (*TaskRecord, error) {
 		&task.Type, &kindCol, &sourceCol, &task.Priority, &task.Status, &provider, &agentID,
 		&worktreeID, &worktreePath, &baseBranch, &baseCommit, &workspace, &githubIssue, &githubRepo, &stage, &designDocPath, &sprintPlanPath,
 		&sessionID, &iteration, &chainID, &stageID,
-		&task.CreatedAt, &startedAt, &completedAt,
+		&task.CreatedAt, &startedAt, &completedAt, &queuedAt,
 		&durationNs, &errStr, &output, &task.Cost, &task.TokensUsed,
 		&capsJSON, &impactLevel, &estimatedCost,
 	)
@@ -199,6 +201,9 @@ func (s *SQLiteStore) scanTask(row *sql.Row) (*TaskRecord, error) {
 	if sourceCol.Valid {
 		task.Source = sourceCol.String
 	}
+	if queuedAt.Valid {
+		task.QueuedAt = &queuedAt.Time
+	}
 
 	return s.populateTaskFields(task, startedAt, completedAt, durationNs, messageID,
 		provider, agentID, worktreeID, worktreePath, baseBranch, baseCommit, workspace,
@@ -210,7 +215,7 @@ func (s *SQLiteStore) scanTask(row *sql.Row) (*TaskRecord, error) {
 // Helper to scan a task from rows
 func (s *SQLiteStore) scanTaskFromRows(rows *sql.Rows) (*TaskRecord, error) {
 	task := &TaskRecord{}
-	var startedAt, completedAt sql.NullTime
+	var startedAt, completedAt, queuedAt sql.NullTime
 	var durationNs sql.NullInt64
 	var messageID sql.NullString
 	var provider, agentID, worktreeID, worktreePath, baseBranch, baseCommit, workspace, errStr, output, threadID, parentTaskID, stage sql.NullString
@@ -229,7 +234,7 @@ func (s *SQLiteStore) scanTaskFromRows(rows *sql.Rows) (*TaskRecord, error) {
 		&task.Type, &kindCol, &sourceCol, &task.Priority, &task.Status, &provider, &agentID,
 		&worktreeID, &worktreePath, &baseBranch, &baseCommit, &workspace, &githubIssue, &githubRepo, &stage, &designDocPath, &sprintPlanPath,
 		&sessionID, &iteration, &chainID, &stageID,
-		&task.CreatedAt, &startedAt, &completedAt,
+		&task.CreatedAt, &startedAt, &completedAt, &queuedAt,
 		&durationNs, &errStr, &output, &task.Cost, &task.TokensUsed,
 		&capsJSON, &impactLevel, &estimatedCost,
 	)
@@ -242,6 +247,9 @@ func (s *SQLiteStore) scanTaskFromRows(rows *sql.Rows) (*TaskRecord, error) {
 	}
 	if sourceCol.Valid {
 		task.Source = sourceCol.String
+	}
+	if queuedAt.Valid {
+		task.QueuedAt = &queuedAt.Time
 	}
 
 	return s.populateTaskFields(task, startedAt, completedAt, durationNs, messageID,

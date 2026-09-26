@@ -1,0 +1,33 @@
+-- Capability probe for M-ONE-ROLE-TABLE D1.
+module design_docs/planned/m_one_role_table_probe
+
+import std/string (startsWith)
+import std/list (any, filter, length)
+
+export type LaneResult = {
+  lane: string,
+  reason: string
+}
+
+-- Allowlist membership: does this path match ANY allowlist prefix?
+export func pathAllowed(allow: [string], p: string) -> bool =
+  any(\pref. startsWith(p, pref), allow)
+
+-- Fail-closed: no declared path may fall outside the allowlist.
+-- Expressed via filter+length because std/list exports `any` but not `all`.
+export func allPathsAllowed(allow: [string], paths: [string]) -> bool =
+  length(filter(\p. not pathAllowed(allow, p), paths)) == 0
+
+export func resolvePlannerLane(
+  allow: [string],
+  paths: [string],
+  cheapLane: string,
+  anthropicAvailable: bool,
+  anthropicFallback: string
+) -> LaneResult =
+  if allPathsAllowed(allow, paths)
+  then { lane: cheapLane, reason: "declared:codex-ok" }
+  else
+    if anthropicAvailable
+    then { lane: "opus", reason: "fail-closed:path-not-in-codex-allowlist" }
+    else { lane: anthropicFallback, reason: "anthropic-fallback:fail-closed:path-not-in-codex-allowlist" }

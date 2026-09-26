@@ -1,0 +1,108 @@
+{
+  "sprint_id": "M-EQ-DERIVE-CONTAINERS",
+  "status": "completed",
+  "created": "2026-09-22",
+  "design_doc": "design_docs/implemented/v0_42_0/m-eq-derive-containers.md",
+  "sprint_plan": "design_docs/implemented/v0_42_0/m-eq-derive-containers-sprint-plan.md",
+  "github_issues": [
+    960,
+    963
+  ],
+  "velocity": {
+    "estimated_total_loc": 560,
+    "estimated_days": 1,
+    "target_loc_per_day": 560
+  },
+  "features": [
+    {
+      "id": "M0",
+      "description": "Evidence harness: examples/eq_containers.ail + negatives",
+      "dependencies": [],
+      "estimated_loc": 120,
+      "acceptance_criteria": [
+        "Every V12-V19 positive has an unequal control",
+        "Pre-change output recorded"
+      ],
+      "passes": true,
+      "started": "2026-09-22",
+      "completed": "2026-09-22",
+      "notes": "examples/eq_containers.ail (now 28 evaluated checks with unequal controls) + 6 negative fixtures; baseline recorded: all positives failed at check."
+    },
+    {
+      "id": "M1",
+      "description": "Eq synthesis in Lookup + StructuralEq marker + real depth cap",
+      "dependencies": [
+        "M0"
+      ],
+      "estimated_loc": 200,
+      "acceptance_criteria": [
+        "All eq_containers.ail positives print correct booleans",
+        "Element-lacks-Eq still fails naming element",
+        "Depth 9 -> E_EQ_SYNTH_DEPTH, mutation-tested"
+      ],
+      "passes": true,
+      "started": "2026-09-22",
+      "completed": "2026-09-22",
+      "notes": "Lookup synthesis for list/Option/Result/tuple + nominal records (TRecord.TypeName); DerivedStructuralEquality marker; E_EQ_SYNTH_DEPTH cap mutation-tested."
+    },
+    {
+      "id": "M2",
+      "description": "Uniform deriving (Eq) field check (R-D5)",
+      "dependencies": [
+        "M1"
+      ],
+      "estimated_loc": 80,
+      "acceptance_criteria": [
+        "Function field under deriving (Eq) fails naming the field",
+        "ADT with record field compares correctly"
+      ],
+      "passes": true,
+      "started": "2026-09-22",
+      "completed": "2026-09-22",
+      "notes": "pipeline/derived_eq.go: uniform field check naming the field; de-duplicated registration from two pipeline paths."
+    },
+    {
+      "id": "M3",
+      "description": "Close residual-type-variable Eq leak (R-D7)",
+      "dependencies": [
+        "M1"
+      ],
+      "estimated_loc": 80,
+      "acceptance_criteria": [
+        "None == None still type-checks",
+        "Residual Eq on arrow/polymorphic ADT fails loudly",
+        "verify-examples-toplevel green (pre-existing ai_modes excepted)"
+      ],
+      "passes": true,
+      "started": "2026-09-22",
+      "completed": "2026-09-22",
+      "notes": "ReduceEqConstraints at top-level partition; Eq-only deep groundness (constraintIsGround). Round-1 eval found [x]==[y] in generic funcs leaked via ANF-temp over-generalization (name collision with leaked base-env vars); fixed with FreeTypeVarsAbove withhold + runtime rejectFunctionEquality guard."
+    },
+    {
+      "id": "M4",
+      "description": "VM parity tests, hint/prompt/CHANGELOG, offline re-grade",
+      "dependencies": [
+        "M1",
+        "M3"
+      ],
+      "estimated_loc": 80,
+      "acceptance_criteria": [
+        "Record-order + NaN parity tests exist",
+        "Eq hint test updated deliberately",
+        "Prompt states == support, verified with ailang check",
+        "make test green"
+      ],
+      "passes": false,
+      "started": "2026-09-22",
+      "completed": null,
+      "notes": "All M4 items done EXCEPT the offline re-grade: banked mlfq_scheduler_hidden rows not found on this machine."
+    }
+  ],
+  "evaluation": {
+    "round": 1,
+    "score": 88,
+    "result": "pass",
+    "report": ".ailang/state/evaluations/eval_M-EQ-DERIVE-CONTAINERS_round_1.json",
+    "follow_up": "round-1 soundness finding fixed 2026-09-23 (generalization withhold by env frame)"
+  }
+}

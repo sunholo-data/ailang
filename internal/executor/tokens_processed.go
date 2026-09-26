@@ -95,6 +95,39 @@ func nonNeg(n int) int {
 // weighed against a cap of 20,000 on a run that processed 49,970. Pinned now by
 // TestClaudeStreamUsageIsPerTurnAndSums and TestClaudeTokenCapKillsInFlight.
 //
-// Still NOT pinned by a recorded stream: opencode, codex and motoko. pi's rows are
-// exercised by its own fixtures (executor/pi/testdata). Any row in this table without a
-// fixture behind it is a belief, and the claude row is what a belief costs.
+// EVIDENCE BEHIND EACH ROW — audited 2026-09-21, and the previous version of this note
+// ("Still NOT pinned by a recorded stream: opencode, codex and motoko") was wrong about two
+// of the three. Two different things can back a row, and conflating them is how the claude
+// row stayed wrong:
+//
+//	                        pins the PROVIDER's wire shape   pins OUR code's handling
+//	a RECORDED capture      yes                              yes
+//	a SYNTHETIC fixture     no                               yes
+//
+//	harness    fixture                                  provenance   what is pinned
+//	pi         executor/pi/testdata/{v0_73_1,v0_85_1}   RECORDED     both
+//	claude     claude/testdata/claude_stream_partial    RECORDED     both
+//	opencode   opencode/testdata/opencode_response      RECORDED     both
+//	motoko     motoko/testdata/session_*.jsonl          SYNTHETIC    our parser only
+//	codex      codex/testdata/codex_response.jsonl      —            NOTHING: no usage at all
+//
+// opencode IS pinned at the executor level: TestExecuteStreaming_CacheTokens runs the real
+// executor against the recorded stream and asserts the SUMMED totals across its three
+// step_finish events (input 5, output 184, cache write 34,583, cache read 17,223), which is
+// exactly this table's "per-step DELTAS, SUM, cache EXCLUSIVE of input/output".
+//
+// motoko's BOTH is really EITHER/OR, and both branches are asserted: run_summary wins when
+// present (TestParseSessionJSONL), and the per-turn sums are the FALLBACK when the JSONL
+// truncated before it (parser.go:547). All four summed counters now have an arm —
+// TestParseSessionJSONL_NoSummarySumsCacheBuckets closed the cache half, which was live code
+// no fixture reached. But every motoko fixture is hand-built, so none of it is evidence about
+// what motoko actually emits.
+//
+// codex is the one genuine blank: its fixture contains ZERO usage lines, so the
+// "CUMULATIVE, ASSIGN, cached is a SUBSET of input" row rests entirely on
+// TestSplitCodexInputTokens, a unit test of the split function against values a human typed.
+// To settle it, a capture needs >= 2 usage events in one run with DIFFERENT totals — that is
+// the minimum that distinguishes CUMULATIVE-assign from DELTA-sum, and it is the exact
+// property the claude fixture had to have. Until then the row is a belief, and the claude row
+// is what a belief costs: 62 tokens weighed against a cap of 20,000 on a run that processed
+// 49,970.

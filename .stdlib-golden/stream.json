@@ -65,8 +65,9 @@
   "funcs": [
     {
       "name": "asyncExecProcess",
-      "type": "(string,list[string],string,int,int)-\u003eStreamSource!{Stream}",
+      "type": "(string,list[string],string,int,int)-\u003eStreamSource!{Process,Stream}",
       "effects": [
+        "Process",
         "Stream"
       ],
       "pure": true

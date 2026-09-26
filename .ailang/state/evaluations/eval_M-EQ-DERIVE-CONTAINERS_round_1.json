@@ -1,0 +1,70 @@
+{
+  "sprint_id": "M-EQ-DERIVE-CONTAINERS",
+  "evaluation_round": 1,
+  "timestamp": "2026-09-23T00:30:00Z",
+  "evaluated_commit": "6d096fe98",
+  "design_doc": "design_docs/planned/v0_35_0/m-eq-derive-containers.md",
+  "sprint_plan": "design_docs/planned/v0_35_0/m-eq-derive-containers-sprint-plan.md",
+  "total_score": 88,
+  "conditional_score": {"regression_surface": 8, "max": 10},
+  "pass_threshold": 70,
+  "result": "pass",
+  "score_breakdown": {
+    "tests_pass": 20,
+    "lint_clean": 10,
+    "acceptance_criteria": 26,
+    "code_quality": 10,
+    "documentation": 15,
+    "design_fidelity": 7
+  },
+  "hard_fails": [],
+  "automated_checks": {
+    "tests_pass": true,
+    "tests_output": "make test exit 2 in main tree; every failure unrelated to the sprint: internal/coordinator TestCloudAgents_RegistryMatchesTheDeletedRoutingTable also fails at 6d096fe98^ (worktree); internal/riglock TestAcquire_* fail only because of UNTRACKED internal/riglock/children*.go in the main tree (riglock passes at 6d096fe98^ worktree; commit does not touch riglock); internal/pkg TestBuildModuleIface_Cancellation is a process-group flake (passes -count=3 in main tree and clean worktree).",
+    "lint_clean": true,
+    "lint_output": "0 issues in a clean worktree at 6d096fe98. Main-tree lint reports unused reapChildren in untracked internal/riglock/children.go (someone else's WIP).",
+    "file_sizes_ok": true,
+    "file_sizes_note": "only internal/parser/parser_expr.go (817) exceeds 800; last touched by 2122705e0, not this sprint",
+    "test_core": "pass",
+    "verify_examples": "pass (199 modules, 0 drift)",
+    "verify_examples_toplevel": "only examples/ai_modes.ail fails, identical at 6d096fe98^; eq_containers.ail type-checks and runs"
+  },
+  "independent_probes": {
+    "eq_containers_example": "26/26 ok, all unequal controls print false (AILANG_NO_CACHE=1, fresh quick-install)",
+    "negative_fixtures": "5/5 fail with the expected error (anon_record, depth9 E_EQ_SYNTH_DEPTH, fn_elements, fn_field, residual_fn)",
+    "depth_cap_mutation": "removing depth+1 in synthesizeEq makes TestEqSynthesisDepthCap fail (confirmed). Removing depth+1 in reduceEq: ALL tests still pass (uncovered)",
+    "non_eq_regression": "42(1) is still a type error (No instance for Num[int -> ...])",
+    "soundness_caught": ["eqAny[a](f,f)", "let eqf = \\a b. a == b; eqf(f,f)", "sameList([f],[f])", "(f,1)==(f,1)", "Some(f)==None", "eqOpt(Some f, Some f)", "unannotated func pick(x) { [x]==[x] }", "lambda \\x. [x]==[x]", "func pick[a](x:a){Some(x)==Some(x)}", "func pick[a](x:a){(x,1)==(x,1)}", "polymorphic deriving (Eq) rejected", "inline record fn field / record alias fn field / non-derived nested alias field rejected"],
+    "soundness_HOLE": "func pick[a](x: a, y: a) -> bool { [x] == [y] }; pick(f, f) type-checks and prints false. Same for `let ys: [a] = [x] in ys == ys` and `[x] != [x]` (prints true). At 6d096fe98^ these were rejected (Eq[[α2]]), so the commit OPENS this path. Only annotated generic functions whose list is built from a list literal; Option/tuple literals and [a]-typed params are caught."
+  },
+  "acceptance_criteria": [
+    {"feature_id": "M0", "criterion": "Every V12-V19 positive has an unequal control", "met": true, "evidence": "examples/eq_containers.ail, TestEqContainersExample, independent run 26 ok"},
+    {"feature_id": "M0", "criterion": "Pre-change output recorded", "met": true, "evidence": "baseline binary at 6d096fe98^ rejects the positives (independently rebuilt)"},
+    {"feature_id": "M1", "criterion": "All eq_containers.ail positives print correct booleans", "met": true, "evidence": "independent run"},
+    {"feature_id": "M1", "criterion": "Element-lacks-Eq still fails naming element", "met": true, "evidence": "fn_elements fixture + TestEqSynthesisNamesTheInnermostPart"},
+    {"feature_id": "M1", "criterion": "Depth 9 -> E_EQ_SYNTH_DEPTH, mutation-tested", "met": true, "evidence": "mutation re-run by evaluator (synthesizeEq path only)"},
+    {"feature_id": "M2", "criterion": "Function field under deriving (Eq) fails naming the field", "met": true, "evidence": "fn_field fixture; extra probes on record alias + inline record"},
+    {"feature_id": "M2", "criterion": "ADT with record field compares correctly", "met": true, "evidence": "adt_record_eq/ne"},
+    {"feature_id": "M3", "criterion": "None == None still type-checks", "met": true, "evidence": "none_none ok"},
+    {"feature_id": "M3", "criterion": "Residual Eq on arrow/polymorphic ADT fails loudly", "met": false, "evidence": "PARTIAL: residual_fn fixture passes, but annotated generic `[x] == [y]` lets closures reach the runtime comparator (soundness_HOLE)"},
+    {"feature_id": "M3", "criterion": "verify-examples-toplevel green (pre-existing ai_modes excepted)", "met": true, "evidence": "only ai_modes fails, same at base"},
+    {"feature_id": "M4", "criterion": "Record-order + NaN parity tests exist", "met": true, "evidence": "cmd/ailang/eq_parity_test.go"},
+    {"feature_id": "M4", "criterion": "Eq hint test updated deliberately", "met": true, "evidence": "TestEqInstanceHintIsActionable cases rewritten, not deleted"},
+    {"feature_id": "M4", "criterion": "Prompt states == support, verified with ailang check", "met": true, "evidence": "v0.16.6 rows + versions.json hash/notes"},
+    {"feature_id": "M4", "criterion": "make test green", "met": true, "evidence": "failures pre-existing/unrelated (see automated_checks)"},
+    {"feature_id": "doc", "criterion": "Offline re-grade of banked mlfq_scheduler_hidden failures", "met": false, "evidence": "reported NOT DONE; evaluator did not locate the data either"}
+  ],
+  "documentation_check": {
+    "changelog_updated": true,
+    "examples_created": true,
+    "design_doc_status": "matches (Implemented, awaiting evaluation); implementation notes section is candid"
+  },
+  "issues": [
+    {"severity": "high", "file": "internal/types/typechecker_functions.go (inferLetRec / generalizeWithConstraints ~L371-390) + internal/types/instances_eq_synth.go reduceEq", "issue": "Soundness hole opened by constraintIsGround: in an annotated generic func, Eq[[α]] from a list literal survives with a variable not linked to the scheme's quantified type var, so instantiation at the call site never re-checks it; pick(f,f) with `[x]==[y]` evaluates closures and returns false.", "suggestion": "Apply the final substitution to constraints before generalizing and reduce Eq at let/letrec generalization too (not only at the top-level boundary); reject (or error on) any residual constraint whose type variables are not quantified by the scheme nor free in the env. Add the p12/r1/r2 probes as negative fixtures."},
+    {"severity": "medium", "file": "internal/eval/eval_equality.go valuesStructurallyEqual default branch", "issue": "Unknown kinds (closures) silently compare false; this is exactly what turns the type-checker hole into a wrong answer (CLAUDE.md 'no silent fallbacks').", "suggestion": "In makeStructuralEqualityFn, return an error when a FunctionValue/closure is reached so any future leak fails loudly."},
+    {"severity": "low", "file": "internal/types/instances_eq_synth.go:194 reduceEq depth+1", "issue": "Mutation-uncovered: removing the increment passes every test.", "suggestion": "Add a non-ground depth-9 case to TestReduceEqConstraints."},
+    {"severity": "low", "file": ".ailang/state/sprints/sprint_M-EQ-DERIVE-CONTAINERS.json / sprint plan", "issue": "status 'implemented' not 'completed'; M0-M3 lack notes; plan milestones carry no completion marks.", "suggestion": "Fill notes/status when closing."},
+    {"severity": "low", "file": "design doc success criteria", "issue": "mlfq_scheduler_hidden re-grade unmet.", "suggestion": "Re-run on the rig where banked rows live, or re-scope explicitly."}
+  ],
+  "feedback_summary": "PASS 88/100 (+8/10 regression surface); one real soundness hole in annotated generic list-literal == should be fixed before #960/#963 are considered closed."
+}

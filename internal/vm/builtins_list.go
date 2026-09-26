@@ -40,7 +40,7 @@ func builtinListMember(args []bytecode.Value) (bytecode.Value, error) {
 	}
 	elem := args[0]
 	for _, v := range args[1].AsList() {
-		if elem.Equal(v) {
+		if runtimeEq(elem, v) {
 			return bytecode.NewBool(true), nil
 		}
 	}
@@ -59,7 +59,7 @@ func builtinListDedup(args []bytecode.Value) (bytecode.Value, error) {
 	for _, e := range elems {
 		found := false
 		for _, r := range result {
-			if e.Equal(r) {
+			if runtimeEq(e, r) {
 				found = true
 				break
 			}
@@ -84,7 +84,7 @@ func builtinListDifference(args []bytecode.Value) (bytecode.Value, error) {
 	for _, x := range xs {
 		found := false
 		for _, y := range ys {
-			if x.Equal(y) {
+			if runtimeEq(x, y) {
 				found = true
 				break
 			}
@@ -108,7 +108,7 @@ func builtinListIntersect(args []bytecode.Value) (bytecode.Value, error) {
 	result := make([]bytecode.Value, 0, len(xs))
 	for _, x := range xs {
 		for _, y := range ys {
-			if x.Equal(y) {
+			if runtimeEq(x, y) {
 				result = append(result, x)
 				break
 			}
@@ -132,7 +132,7 @@ func builtinListUnion(args []bytecode.Value) (bytecode.Value, error) {
 	for _, y := range ys {
 		found := false
 		for _, x := range result {
-			if y.Equal(x) {
+			if runtimeEq(y, x) {
 				found = true
 				break
 			}

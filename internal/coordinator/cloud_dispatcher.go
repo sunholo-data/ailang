@@ -24,13 +24,20 @@ type DispatchParams struct {
 	// dispatch, so its first line is boilerplate ("You are an autonomous AILANG
 	// …") and any heuristic that reads it produces a PR title naming the harness
 	// instead of the change — measured on PR #62, 2026-09-14.
-	TaskTitle       string
-	RepoURL         string  // Git repo URL
-	Branch          string  // Base branch (default: "dev")
-	PushBranch      string  // If set, push directly to this branch (skip coordinator/ branch creation)
-	PluginRepo      string  // Git URL for shared skills plugin (M-CLOUD-PLUGIN-SKILLS, v0.9.1)
-	Model           string  // AI model override (e.g., "sonnet", "opus") — from agent config
-	Timeout         string  // Executor timeout (e.g., "15m", "60m") — from agent config (M-CLOUD-OAUTH)
+	TaskTitle  string
+	RepoURL    string // Git repo URL
+	Branch     string // Base branch (default: "dev")
+	PushBranch string // If set, push directly to this branch (skip coordinator/ branch creation)
+	PluginRepo string // Git URL for shared skills plugin (M-CLOUD-PLUGIN-SKILLS, v0.9.1)
+	Model      string // AI model override (e.g., "sonnet", "opus") — from agent config
+	Timeout    string // Executor timeout (e.g., "15m", "60m") — from agent config (M-CLOUD-OAUTH)
+	// IdleTimeout is the max silence BETWEEN output events, distinct from
+	// Timeout's hard ceiling. It must travel: the local daemon read it from the
+	// agent config and the cloud job did not, so every cloud task ran on the
+	// executor's hardcoded 3m no matter what the registry declared — 41 agents
+	// declaring 5m/6m/10m, all silently 3m, while `coordinator agents <id>`
+	// printed the declared value as EFFECTIVE. Measured 2026-09-22.
+	IdleTimeout     string
 	AuthMode        string  // "oauth" (default) or "apikey" — selects Cloud Run Job template (M-CLOUD-DUAL-AUTH)
 	APIKey          string  // User-provided Anthropic API key, only when AuthMode == "apikey"
 	MaxCostUSD      float64 // Per-task cost budget (0 = unlimited) — M-CLOUD-PROGRESS-TRACKING

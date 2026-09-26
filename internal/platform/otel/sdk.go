@@ -16,6 +16,7 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"google.golang.org/api/option"
 
 	"github.com/sunholo-data/ailang/internal/config"
 )
@@ -124,7 +125,9 @@ func initTelemetry(ctx context.Context, serviceName string, cfg initConfig) (shu
 	}
 	opts := []sdktrace.TracerProviderOption{sdktrace.WithResource(res)}
 	if cfg.cloudProject != "" {
-		opts = append(opts, sdktrace.WithSampler(sdktrace.AlwaysSample()))
+		opts = append(opts, sdktrace.WithSampler(dropExportSelfSpans(sdktrace.AlwaysSample())))
+	} else {
+		opts = append(opts, sdktrace.WithSampler(dropExportSelfSpans(sdktrace.ParentBased(sdktrace.AlwaysSample()))))
 	}
 	for _, exporter := range exporters {
 		opts = append(opts, sdktrace.WithBatcher(exporter, sdktrace.WithExportTimeout(3*time.Second)))
@@ -145,6 +148,14 @@ func initTelemetry(ctx context.Context, serviceName string, cfg initConfig) (shu
 		status.CloudTrace = ExporterRegistered
 	}
 	return boundedShutdown(owned), status, nil
+}
+
+// cloudTraceClientOptions is the Cloud Trace client's option set, named so a
+// test can pin it. WithTelemetryDisabled is load-bearing: without it the
+// google-api gRPC transport installs otelgrpc's client handler and every
+// BatchWriteSpans call emits a span that the next BatchWriteSpans call ships.
+func cloudTraceClientOptions() []option.ClientOption {
+	return []option.ClientOption{option.WithTelemetryDisabled()}
 }
 
 // Validate URLs before the SDK can log an invalid setting and use its default.
@@ -181,7 +192,19 @@ func cloudExporter(ctx context.Context, cfg initConfig) (sdktrace.SpanExporter, 
 	}
 	if cfg.newCloudExporter == nil {
 		cfg.newCloudExporter = func(project string) (sdktrace.SpanExporter, error) {
-			return cloudtrace.New(cloudtrace.WithProjectID(project))
+			// The exporter's own BatchWriteSpans RPC must not be traced. The
+			// google-api client attaches otelgrpc.NewClientHandler() by default
+			// (transport/grpc/dial.go addOpenTelemetryStatsHandler), which names a
+			// span after the RPC. That span is queued, shipped by the NEXT export,
+			// and produces another — a loop that runs at the batch interval
+			// forever, whatever the service is doing. Measured 2026-09-22: a
+			// steady 12 spans/min (the 5s default delay) into every dashboard,
+			// which then discarded 173 of 174 batches as internal noise while the
+			// traffic alone held a scale-to-zero Cloud Run instance up 24/7.
+			return cloudtrace.New(
+				cloudtrace.WithProjectID(project),
+				cloudtrace.WithTraceClientOptions(cloudTraceClientOptions()),
+			)
 		}
 	}
 	ctx, cancel := context.WithTimeout(ctx, cfg.cloudTimeout)

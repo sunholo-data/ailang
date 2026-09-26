@@ -320,13 +320,93 @@ func applySubToEffectRow(sub Substitution, row *Row) *Row {
 // partitionConstraints separates ground (concrete) from non-ground (polymorphic) constraints
 func (tc *CoreTypeChecker) partitionConstraints(constraints []ClassConstraint) (ground, nonGround []ClassConstraint) {
 	for _, c := range constraints {
-		if isGround(c.Type) {
+		if constraintIsGround(c) {
 			ground = append(ground, c)
 		} else {
 			nonGround = append(nonGround, c)
 		}
 	}
 	return
+}
+
+// partitionAndReduce is partitionConstraints for a top-level boundary, where a
+// non-ground constraint would otherwise leave unchecked: each non-ground Eq is
+// decomposed (M-EQ-DERIVE-CONTAINERS R-D7), so a closure can never reach the
+// runtime comparator behind a residual type variable.
+func (tc *CoreTypeChecker) partitionAndReduce(constraints []ClassConstraint) (ground, nonGround []ClassConstraint, err error) {
+	ground, nonGround = tc.partitionConstraints(constraints)
+	nonGround, err = tc.instanceEnv.ReduceEqConstraints(nonGround)
+	return ground, nonGround, err
+}
+
+// constraintIsGround decides whether a class constraint is resolved now or kept
+// polymorphic (generalized / reduced).
+//
+// Eq looks through every structure (M-EQ-DERIVE-CONTAINERS): isGround stops at
+// lists, tuples and functions, so Eq[[α]] used to be "resolved" and rejected
+// while Eq[Option[α]] was generalized — `[] == []` failed, `None == None`
+// passed, and generic `xs == ys` on [a] could never compile. A non-ground Eq is
+// then decomposed by ReduceEqConstraints, which still rejects functions.
+//
+// Every other class keeps isGround: their instances all have primitive heads,
+// so Num[int -> β] can never be satisfied, and resolving it now is what makes
+// `42(1)` a type error rather than a runtime crash.
+func constraintIsGround(c ClassConstraint) bool {
+	if c.Class == "Eq" {
+		return isGroundDeep(c.Type)
+	}
+	return isGround(c.Type)
+}
+
+// isGroundDeep is isGround that also looks inside lists, tuples, functions and
+// open records. Cycle-safety: recursion follows the type's syntax tree, which
+// substitution keeps finite (the occurs check rejects cyclic unifiers).
+func isGroundDeep(t Type) bool {
+	switch typ := t.(type) {
+	case *TList:
+		return isGroundDeep(typ.Element)
+	case *TTuple:
+		for _, e := range typ.Elements {
+			if !isGroundDeep(e) {
+				return false
+			}
+		}
+		return true
+	case *TFunc2:
+		for _, p := range typ.Params {
+			if !isGroundDeep(p) {
+				return false
+			}
+		}
+		return isGroundDeep(typ.Return)
+	case *TRecordOpen:
+		return false // an open row is never ground
+	case *TApp:
+		if !isGroundDeep(typ.Constructor) {
+			return false
+		}
+		for _, arg := range typ.Args {
+			if !isGroundDeep(arg) {
+				return false
+			}
+		}
+		return true
+	case *TRecord:
+		for _, fieldType := range typ.Fields {
+			if !isGroundDeep(fieldType) {
+				return false
+			}
+		}
+		return typ.Row == nil || isGroundDeep(typ.Row)
+	case *Row:
+		for _, labelType := range typ.Labels {
+			if !isGroundDeep(labelType) {
+				return false
+			}
+		}
+		return typ.Tail == nil
+	}
+	return isGround(t)
 }
 
 // isGround checks if a type is ground (contains no type variables)
@@ -384,11 +464,14 @@ func (tc *CoreTypeChecker) resolveGroundConstraints(constraints []ClassConstrain
 		}
 
 		// Look up instance in the environment
-		_, err := tc.instanceEnv.Lookup(c.Class, c.Type)
+		inst, err := tc.instanceEnv.Lookup(c.Class, c.Type)
 		if err != nil {
 			// No instance found - return error with hint
 			if missingErr, ok := err.(*MissingInstanceError); ok {
 				return fmt.Errorf("at %s: %v", c.Path[0], missingErr)
+			}
+			if depthErr, ok := err.(*EqSynthDepthError); ok {
+				return fmt.Errorf("at %s: %v", c.Path[0], depthErr)
 			}
 			return err
 		}
@@ -404,6 +487,11 @@ func (tc *CoreTypeChecker) resolveGroundConstraints(constraints []ClassConstrain
 			// This will be done when we scan the Core AST
 			// Create normalized type for dictionary lookup consistency
 			normalizedType := &TCon{Name: NormalizeTypeName(c.Type)}
+			// M-EQ-DERIVE-CONTAINERS: a synthesized Eq (list, Option, tuple,
+			// derived record…) dispatches to the one structural dictionary.
+			if inst.Structural {
+				normalizedType = &TCon{Name: StructuralEqTypeName}
+			}
 
 			// M-FIX-FLOAT-OP: Upgrade class based on resolved type
 			// If type resolved to Float but class is still Num, use Fractional instead

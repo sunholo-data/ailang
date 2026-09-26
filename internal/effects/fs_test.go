@@ -200,6 +200,7 @@ func TestFSSandbox_ReadFile(t *testing.T) {
 	// Create context with sandbox
 	ctx := NewEffContext([]string{})
 	ctx.Env.Sandbox = sandbox
+	t.Cleanup(func() { _ = ctx.CloseFSRoot() }) // the root handle pins the dir on Windows
 	ctx.Grant(NewCapability("FS"))
 
 	// Read using relative path (should be joined with sandbox)
@@ -237,6 +238,7 @@ func TestFSSandbox_Exists(t *testing.T) {
 	// Create context with sandbox
 	ctx := NewEffContext([]string{})
 	ctx.Env.Sandbox = sandbox
+	t.Cleanup(func() { _ = ctx.CloseFSRoot() }) // the root handle pins the dir on Windows
 	ctx.Grant(NewCapability("FS"))
 
 	// Check existence using relative path
@@ -276,6 +278,7 @@ func TestFSSandbox_AbsolutePathWithinSandbox(t *testing.T) {
 
 	ctx := NewEffContext([]string{})
 	ctx.Env.Sandbox = sandbox
+	t.Cleanup(func() { _ = ctx.CloseFSRoot() }) // the root handle pins the dir on Windows
 	ctx.Grant(NewCapability("FS"))
 
 	// exists(absolutePath) must return true, not false
@@ -309,6 +312,7 @@ func TestFSSandbox_AbsolutePathOutsideSandbox(t *testing.T) {
 
 	ctx := NewEffContext([]string{})
 	ctx.Env.Sandbox = sandbox
+	t.Cleanup(func() { _ = ctx.CloseFSRoot() }) // the root handle pins the dir on Windows
 	ctx.Grant(NewCapability("FS"))
 
 	outsidePath := "/etc/hostname"
@@ -426,6 +430,7 @@ func TestFSRenameFile_SandboxEscape_OldPath(t *testing.T) {
 	}
 	defer os.RemoveAll(sandbox)
 	ctx.Env.Sandbox = sandbox
+	t.Cleanup(func() { _ = ctx.CloseFSRoot() }) // the root handle pins the dir on Windows
 
 	outside, err := os.MkdirTemp("", "rename-outside-*")
 	if err != nil {
@@ -460,6 +465,7 @@ func TestFSRenameFile_SandboxEscape_NewPath(t *testing.T) {
 	}
 	defer os.RemoveAll(sandbox)
 	ctx.Env.Sandbox = sandbox
+	t.Cleanup(func() { _ = ctx.CloseFSRoot() }) // the root handle pins the dir on Windows
 
 	outside, err := os.MkdirTemp("", "rename-out2-*")
 	if err != nil {
