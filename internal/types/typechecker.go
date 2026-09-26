@@ -199,10 +199,12 @@ func (tc *TypeChecker) astTypeToType(t ast.Type) Type {
 			return TString
 		case "bool":
 			return TBool
-		case "()":
+		case "()", "unit":
 			return TUnit
 		case "bytes":
 			return TBytes
+		case "char":
+			return &TCon{Name: "char"}
 		default:
 			// Type variable or constructor
 			if isLowerCase(typ.Name) {

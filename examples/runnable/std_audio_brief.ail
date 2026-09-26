@@ -1,0 +1,77 @@
+-- std/audio demo: raw TTS PCM to a WAV and a small Ogg Opus file
+--
+-- Text-to-speech APIs (Gemini TTS / Live) return raw 16-bit little-endian
+-- PCM at 24 kHz, mono. std/audio wraps it as WAV (pure AILANG) and compresses
+-- it to Ogg Opus (a pure, deterministic builtin): no Process, no afconvert.
+--
+-- main: synthesises one second of a 400 Hz tone and reports the sizes.
+--   ailang run --caps IO --entry main examples/runnable/std_audio_brief.ail
+--
+-- convert: turns a raw PCM file into <stem>.wav and <stem>.ogg.
+--   ailang run --caps IO,FS,Env --entry convert examples/runnable/std_audio_brief.ail -- brief.pcm brief
+
+module examples/runnable/std_audio_brief
+import std/audio (wavFromPcm, durationMs, encode, Codec, OggOpus)
+import std/bytes (fromInts, concatList, fromBase64, length, slice, toString)
+import std/fs (readFileBytes, writeFileBytes)
+import std/env (getArgs)
+import std/io (println)
+import std/option (Option, Some, None)
+import std/result (Result, Ok, Err)
+
+-- Daneel's brief: raw 16-bit 24 kHz mono PCM in, a WAV and an Ogg Opus out.
+-- Returns the clip length in milliseconds.
+export func saveBrief(pcm: bytes, stem: string) -> Result[int, string] ! {FS} {
+  writeFileBytes("${stem}.wav", wavFromPcm(pcm, 24000, 1, 16))
+  match encode(pcm, 24000, 1, OggOpus(24000)) {
+    Ok(ogg) => {
+      writeFileBytes("${stem}.ogg", ogg)
+      Ok(durationMs(length(pcm), 24000, 1, 16))
+    },
+    Err(e) => Err(e)
+  }
+}
+
+-- One 400 Hz square-wave period at 24 kHz: 60 samples, 120 bytes of s16le.
+pure func period(k: int) -> [int] = if k >= 60 then [] else (if k < 30 then [0, 32] else [0, 224]) ++ period(k + 1)
+
+pure func copies(b: bytes, n: int) -> [bytes] = if n <= 0 then [] else b :: copies(b, n - 1)
+
+export func main() -> () ! {IO} {
+  let pcm = concatList(copies(fromInts(period(0)), 400))
+  let wav = wavFromPcm(pcm, 24000, 1, 16)
+  println("pcm bytes: ${show(length(pcm))}")
+  println("wav bytes: ${show(length(wav))}")
+  println("duration: ${show(durationMs(length(pcm), 24000, 1, 16))} ms")
+  match encode(pcm, 24000, 1, OggOpus(24000)) {
+    Ok(ogg) => {
+      let magic = match slice(ogg, 0, 4) {
+        Some(m) => toString(m),
+        None => "?"
+      }
+      println("ogg magic: ${magic}")
+      println("ogg smaller than wav: ${show(length(ogg) < length(wav))}")
+    },
+    Err(e) => println("encode failed: ${e}")
+  }
+  match encode(pcm, 44100, 1, OggOpus(24000)) {
+    Ok(_) => println("44.1 kHz accepted (unexpected)"),
+    Err(e) => println("rejected: ${e}")
+  }
+}
+
+export func convert() -> () ! {IO, FS, Env} {
+  match getArgs() {
+    path :: stem :: _ => match readFileBytes(path) {
+      Ok(b64) => match fromBase64(b64) {
+        Some(pcm) => match saveBrief(pcm, stem) {
+          Ok(ms) => println("wrote ${stem}.wav and ${stem}.ogg (${show(ms)} ms)"),
+          Err(e) => println("encode failed: ${e}")
+        },
+        None => println("could not decode ${path}")
+      },
+      Err(e) => println("read failed: ${e}")
+    },
+    _ => println("usage: convert <pcm-file> <output-stem>")
+  }
+}

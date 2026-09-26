@@ -1,0 +1,44 @@
+-- std/audio WAV helpers: golden headers and the PCM round trip.
+-- Run: ailang test tests/stdlib/audio_wav_test.ail
+module tests/stdlib/audio_wav_test
+import std/audio (wavHeader, wavFromPcm, durationMs)
+import std/bytes (fromInts, toInts, length, slice)
+import std/option (Option, Some, None)
+
+-- The 50.39 s Gemini-TTS-shaped fixture: 2,418,712 bytes of 24 kHz mono s16.
+-- Expected bytes are the xxd of a header CoreAudio's afinfo accepts.
+pure func monoHeaderIsGolden(dataLen: int) -> bool tests [(2418712, true), (2418713, false)] {
+  toInts(wavHeader(dataLen, 24000, 1, 16)) == [82, 73, 70, 70, 60, 232, 36, 0, 87, 65, 86, 69, 102, 109, 116, 32, 16, 0, 0, 0, 1, 0, 1, 0, 192, 93, 0, 0, 128, 187, 0, 0, 2, 0, 16, 0, 100, 97, 116, 97, 24, 232, 36, 0]
+}
+
+-- Stereo 48 kHz: blockAlign 4, byteRate 192000.
+pure func stereoHeaderIsGolden(dataLen: int) -> bool tests [(100, true), (101, false)] {
+  toInts(wavHeader(dataLen, 48000, 2, 16)) == [82, 73, 70, 70, 136, 0, 0, 0, 87, 65, 86, 69, 102, 109, 116, 32, 16, 0, 0, 0, 1, 0, 2, 0, 128, 187, 0, 0, 0, 238, 2, 0, 4, 0, 16, 0, 100, 97, 116, 97, 100, 0, 0, 0]
+}
+
+-- wavFromPcm is the header plus the PCM, unchanged.
+pure func wavLength(xs: [int]) -> int
+  tests [
+    ([], 44),
+    ([1, 2, 3, 4], 48)
+  ] {
+  length(wavFromPcm(fromInts(xs), 24000, 1, 16))
+}
+
+pure func pcmSurvives(xs: [int]) -> bool tests [([1, 2, 3, 4], true), ([255, 0], true), ([], true)] {
+  let wav = wavFromPcm(fromInts(xs), 24000, 1, 16)
+  match slice(wav, 44, length(wav) - 44) {
+    Some(b) => toInts(b) == xs,
+    None => false
+  }
+}
+
+pure func monoMs(pcmLen: int) -> int
+  tests [
+    (2418712, 50389),
+    (48000, 1000),
+    (0, 0),
+    (1, 0)
+  ] {
+  durationMs(pcmLen, 24000, 1, 16)
+}

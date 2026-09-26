@@ -30,7 +30,7 @@
         "Opened(string)",
         "Ping(string)",
         "SSEData(string, string)",
-        "SourceBytes(string, a)",
+        "SourceBytes(string, bytes)",
         "SourceText(string, string)",
         "StreamError(StreamErrorKind)"
       ]
