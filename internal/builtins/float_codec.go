@@ -168,7 +168,7 @@ func registerJSONDecodeFloatArray() {
 		},
 		Metadata: &BuiltinMetadata{
 			Description: "Parse a flat JSON array of numbers into a packed Array[float] without a Json tree",
-			Since:       "v0.46.0",
+			Since:       "v0.47.0",
 			Stability:   StabilityExperimental,
 			Tags:        []string{"json", "array", "float", "numeric"},
 			Category:    "json",
