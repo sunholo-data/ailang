@@ -229,9 +229,15 @@ fi
 # docs/static/benchmarks/fmt_ab.jsonl and the models.yml entry is retained
 # (2026-08 precedent: registry rows are kept because banked trials point at them).
 # Wednesday now runs the plain regression guard.
-DAY_OF_WEEK=$(date +%u)  # 1=Mon … 7=Sun
+#
+# The Monday microRAG A/B was STOPPED on 2026-09-27 (Mark: "not sure they are even
+# relevant anymore"). It had not produced a bankable row since ~09-14: the ON arm
+# alone hits the 8h night cap (10-23 of 24 jobs), so the OFF arm was either never
+# reached or refused as a partial arm ("A/B INVALID"). Every night — Monday included —
+# now runs the ON arm only, as the regression guard. The machinery below is kept so a
+# deliberate re-run is a flag, not a revert: AILANG_FORCE_AB_MICRORAG=1 on a night with
+# the rig to itself (and a benchmark set small enough that BOTH arms fit the cap).
 RUN_AB_MICRORAG=0
-[[ "$DAY_OF_WEEK" == "1" ]] && RUN_AB_MICRORAG=1
 # AILANG_FORCE_AB=1 kept for back-compat; the per-experiment override below is
 # what a manual catch-up run wants.
 [[ "${AILANG_FORCE_AB:-0}" == "1" ]] && RUN_AB_MICRORAG=1

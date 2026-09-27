@@ -84,6 +84,37 @@ if [ -n "$newest" ]; then
     case "$mtime" in ''|*[!0-9]*) ;; *) stall_min=$(( ( $(date +%s) - mtime ) / 60 ));; esac
 fi
 
+# descendants PID — every descendant of PID, deepest first. Must be walked BEFORE any
+# kill: once a parent dies its children are reparented to launchd and the tree is gone.
+descendants() {
+    local c
+    for c in $(pgrep -P "${1:-}" 2>/dev/null); do descendants "$c"; echo "$c"; done
+}
+
+# kill_tree PID — TERM the whole process tree under PID, not just PID's group.
+#
+# Killing only the chunk's process group LEAKED the GPU. opencode (and pi, via
+# proctree.Configure) start in their OWN process group, so `kill -TERM -$pgid` left
+# them running: reparented to launchd, still streaming prompts at the 27B model with
+# no rig lock held. Measured 2026-09-27: two such `opencode run` orphans, 15h and 18h
+# old, born at the 00:26 and 03:11 wedge-kills below. With OLLAMA_NUM_PARALLEL=1 every
+# real eval queued behind them — 92 chat requests >15m that day, nightly 0/10 INVALID.
+# So collect every descendant, kill each one's group (catching grandchildren we did not
+# enumerate) and each pid, and never our own group.
+kill_tree() {
+    local root="$1" own p g groups=""
+    own=$(ps -o pgid= -p $$ 2>/dev/null | tr -d ' ')
+    for p in $(descendants "$root") "$root"; do
+        g=$(ps -o pgid= -p "$p" 2>/dev/null | tr -d ' ')
+        case " $groups " in *" $g "*) ;; *) [ -n "$g" ] && groups="$groups $g" ;; esac
+        kill -TERM "$p" 2>/dev/null
+    done
+    for g in $groups; do
+        [ "$g" = "$own" ] || [ "$g" = "1" ] || kill -TERM "-$g" 2>/dev/null
+    done
+    echo "$groups"
+}
+
 for pid in $(pgrep -f "ailang eval-suite" 2>/dev/null); do
     ppid=$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ')
     pcmd=$(ps -o command= -p "$ppid" 2>/dev/null)
@@ -95,11 +126,31 @@ for pid in $(pgrep -f "ailang eval-suite" 2>/dev/null); do
     elif [ "$secs" -gt "$SOFT_SECS" ] && [ "$stall_min" -gt "$STALL_MIN" ]; then
         reason="no-progress (${stall_min}m since last session write, ${secs}s alive)"; fi
     if [ -n "$reason" ]; then
-        pgid=$(ps -o pgid= -p "$pid" 2>/dev/null | tr -d ' ')
-        echo "${TIMESTAMP} [WATCHDOG] WEDGED rotation chunk pid $pid — $reason — killing pgroup $pgid"
-        { [ -n "$pgid" ] && kill -TERM "-$pgid"; } 2>/dev/null || kill -TERM "$pid" 2>/dev/null
+        groups=$(kill_tree "$pid")
+        echo "${TIMESTAMP} [WATCHDOG] WEDGED rotation chunk pid $pid — $reason — killed tree (pgroups:${groups})"
     fi
 done
+
+# ── ORPHANED GPU CLIENTS (opt-in: RIG_WATCHDOG_REAP_ORPHANS=1) ────────────────────────
+# Backstop for trees kill_tree never saw: an eval-suite SIGKILLed by someone else, or a
+# crash, leaves its agent reparented to launchd (PPID 1) and still talking to ollama.
+# Only an agent CLI aimed at an ollama/ model, with PPID 1, older than the grace period,
+# is touched — a live eval's agent always has its eval-suite as parent, and a human's
+# interactive session has a shell. Opt-in because it acts on processes this watchdog
+# did not start; enable once the operator has confirmed it on the rig.
+if [ "${RIG_WATCHDOG_REAP_ORPHANS:-0}" = "1" ]; then
+    ORPHAN_GRACE=$(( ${RIG_WATCHDOG_ORPHAN_GRACE_MIN:-10} * 60 ))
+    for op in $(pgrep -f -- "--model ollama/" 2>/dev/null); do
+        [ "$(ps -o ppid= -p "$op" 2>/dev/null | tr -d ' ')" = "1" ] || continue
+        ocmd=$(ps -o command= -p "$op" 2>/dev/null)
+        case "$ocmd" in "opencode run "*|*"/pi "*|"pi "*) ;; *) continue ;; esac
+        osecs=$(etime_secs "$op")
+        case "$osecs" in ''|*[!0-9]*) continue ;; esac
+        [ "$osecs" -gt "$ORPHAN_GRACE" ] || continue
+        groups=$(kill_tree "$op")
+        echo "${TIMESTAMP} [WATCHDOG] ORPHANED GPU client pid $op (PPID 1, ${osecs}s) — killed tree (pgroups:${groups}): $(printf '%s' "$ocmd" | cut -c1-80)"
+    done
+fi
 
 for zp in $(lsof -ti :8080 2>/dev/null); do
     zpp=$(ps -o ppid= -p "$zp" 2>/dev/null | tr -d ' ')
