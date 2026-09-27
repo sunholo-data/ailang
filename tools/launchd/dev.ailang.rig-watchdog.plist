@@ -51,7 +51,10 @@
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>
-        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/sbin:/usr/bin:/bin</string>
+        <!-- Reap agent CLIs left holding an ollama socket with PPID 1 (2026-09-27). -->
+        <key>RIG_WATCHDOG_REAP_ORPHANS</key>
+        <string>1</string>
     </dict>
 </dict>
 </plist>

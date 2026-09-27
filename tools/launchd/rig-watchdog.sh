@@ -134,16 +134,20 @@ done
 # ── ORPHANED GPU CLIENTS (opt-in: RIG_WATCHDOG_REAP_ORPHANS=1) ────────────────────────
 # Backstop for trees kill_tree never saw: an eval-suite SIGKILLed by someone else, or a
 # crash, leaves its agent reparented to launchd (PPID 1) and still talking to ollama.
-# Only an agent CLI aimed at an ollama/ model, with PPID 1, older than the grace period,
-# is touched — a live eval's agent always has its eval-suite as parent, and a human's
-# interactive session has a shell. Opt-in because it acts on processes this watchdog
-# did not start; enable once the operator has confirmed it on the rig.
+# Selected by what matters, a live connection to ollama: a process holding a socket to
+# 127.0.0.1:11434, with PPID 1, whose binary is an agent CLI, older than the grace
+# period. NOT by command line — pi rewrites its process title to a bare "pi" (measured
+# 2026-09-27: `ps -o command=` shows no arguments), so an argv match never sees it.
+# A live eval's agent always has its eval-suite as parent, a human's session has a
+# shell, and short-lived hooks (`ailang cache put-resolution`, PPID 1, embeds) are not
+# agent CLIs. Opt-in because it acts on processes this watchdog did not start.
 if [ "${RIG_WATCHDOG_REAP_ORPHANS:-0}" = "1" ]; then
     ORPHAN_GRACE=$(( ${RIG_WATCHDOG_ORPHAN_GRACE_MIN:-10} * 60 ))
-    for op in $(pgrep -f -- "--model ollama/" 2>/dev/null); do
+    for op in $(lsof -t -nP -iTCP@127.0.0.1:11434 -sTCP:ESTABLISHED 2>/dev/null | sort -u); do
         [ "$(ps -o ppid= -p "$op" 2>/dev/null | tr -d ' ')" = "1" ] || continue
+        ocomm=$(basename "$(ps -o comm= -p "$op" 2>/dev/null)" 2>/dev/null)
+        case "$ocomm" in opencode|pi|node) ;; *) continue ;; esac
         ocmd=$(ps -o command= -p "$op" 2>/dev/null)
-        case "$ocmd" in "opencode run "*|*"/pi "*|"pi "*) ;; *) continue ;; esac
         osecs=$(etime_secs "$op")
         case "$osecs" in ''|*[!0-9]*) continue ;; esac
         [ "$osecs" -gt "$ORPHAN_GRACE" ] || continue

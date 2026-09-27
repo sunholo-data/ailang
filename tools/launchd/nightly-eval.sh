@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # nightly-eval.sh — nightly regression-guard smoke run on the local rig.
 #
-# Runs the smoke + core tiers (every `tier: smoke` / `tier: core` benchmark,
-# default-core included) against the accuracy-first local Qwen model
-# (opencode-qwen3-8-27b). Regressions — benchmarks with a passing
+# Runs a PINNED regression-guard set (benchmarks the model reliably passes; see
+# GUARD_BENCH_LIST) against the accuracy-first local Qwen model
+# (opencode-qwen3-8-27b), and only when origin/dev moved since the last good night
+# (COMMIT GATE). Regressions — benchmarks with a passing
 # baseline that now fail every trial — alert via Discord; never-passed
 # benchmarks are filed to the controlplane inbox as known gaps for the
 # gap-finder (no Discord). See eval_baselines gating below.
@@ -51,6 +52,25 @@ log() { echo "[$(date '+%H:%M:%S')] $*" | tee -a "$LOG"; }
 # shellcheck source=tools/launchd/rig-lock.sh
 # shellcheck disable=SC1091
 source "$(dirname "$0")/rig-lock.sh"
+
+# COMMIT GATE (2026-09-27, Mark). The nightly's one job the os-rotation-filler does
+# not already do is to build origin/dev HEAD (the filler runs RELEASES), so it
+# catches a dev change that breaks code models write. If dev has not moved since
+# the last GOOD night there is nothing new to catch, and the run is 2+ GPU-hours
+# taken from the filler and Daneel for a repeat measurement. Checked BEFORE the
+# lock so a skipped night never holds the rig. The marker is written only by a
+# valid, untruncated night (end of script), so an outage or a capped night re-runs
+# the same commit. AILANG_NIGHTLY_FORCE=1 runs anyway.
+LAST_GOOD_FILE="$HOME/.ailang/state/nightly-last-good-commit"
+if [[ "${AILANG_NIGHTLY_FORCE:-0}" != "1" ]] && git -C "$REPO" fetch --quiet origin 2>/dev/null; then
+    GATE_HEAD=$(git -C "$REPO" rev-parse "${AILANG_NIGHTLY_REF:-origin/dev}" 2>/dev/null || true)
+    GATE_LAST=$(head -1 "$LAST_GOOD_FILE" 2>/dev/null || true)
+    if [[ -n "$GATE_HEAD" && "$GATE_HEAD" == "$GATE_LAST" ]]; then
+        log "=== nightly eval SKIPPED (${DATE}): ${AILANG_NIGHTLY_REF:-origin/dev} unchanged since last good night ($(git -C "$REPO" rev-parse --short "$GATE_HEAD")) ==="
+        exit 0
+    fi
+fi
+
 rig_lock_acquire wait
 
 log "=== nightly eval started (${DATE}) ==="
@@ -348,7 +368,25 @@ tail = "p=%.4f (%s)" % (m["p_value"], m["method"]) if m["reportable"] else "no p
 print(head + tail)' 2>/dev/null || echo "parse failed"
 }
 
-# microRAG arm set: confidence-selected, not the smoke+core tier dump.
+# REGRESSION-GUARD SET (2026-09-27, Mark): PINNED, not selected. A regression guard
+# needs benchmarks the model reliably PASSES, so a failure means AILANG broke, and it
+# needs the SAME ones every night so the classifier's per-benchmark windows fill.
+# The previous set was the A/B's confidence-selected one: benchmarks near the median
+# rating, i.e. the ones that split. Over 18 nights (09-10..27) it caught 0
+# regressions; every alert was noise from commonmark_emphasis (13% historical pass)
+# and docx_reimplement (35%), and their 1h timeouts are what pushed nights past the
+# 8h cap. Chosen from nightly-eval-history.jsonl for opencode-qwen3-8-27b: >=96%
+# pooled pass rate, fast (median <=12 min where measured). ~8 x 2 trials ~ 2h.
+# Refresh deliberately (re-run the history query in the 2026-09-27 audit), never
+# nightly — a set recomputed from pass rates lets a regressed benchmark drop out.
+GUARD_BENCH_LIST="${AILANG_NIGHTLY_BENCHMARKS:-records_book,canonical_normalization,json_parse,numeric_modulo,cli_args,run_length_encode,polymorphic_ord_defaulting,api_call_json}"
+RAG_BENCH_LIST="$GUARD_BENCH_LIST"
+TIER_COUNT=$(echo "$RAG_BENCH_LIST" | tr ',' '\n' | grep -c .)
+BENCH_TIERS="guard-set"
+log "regression-guard set (pinned, ${TIER_COUNT}): ${RAG_BENCH_LIST}"
+
+# microRAG A/B arm set (only on a forced A/B night): confidence-selected.
+if [[ "$RUN_AB_MICRORAG" == "1" ]]; then
     RAG_BENCH_LIST="${AILANG_AB_MICRORAG_BENCHMARKS:-$(select_ab_benchmarks "$MODEL" "${AILANG_AB_MICRORAG_N:-12}")}"
     if [[ -z "$RAG_BENCH_LIST" ]]; then
         log "microRAG A/B SKIPPED: confidence selection returned nothing (seed ratings: go run ./tools/eval-elo --mode agent --persist ~/.ailang/state/observatory.db <results_dir>)"
@@ -356,8 +394,13 @@ print(head + tail)' 2>/dev/null || echo "parse failed"
             "microRAG A/B skipped (${DATE}): no agent benchmark ratings, so the arm set could not be chosen by headroom. Running the saturated tier set would produce another uninterpretable null." \
             --title "microRAG A/B skipped (${DATE})" --from "nightly-eval" 2>/dev/null || true
         RUN_AB_MICRORAG=0
+        RAG_BENCH_LIST="$GUARD_BENCH_LIST"
+    else
+        TIER_COUNT=$(echo "$RAG_BENCH_LIST" | tr ',' '\n' | grep -c .)
+        BENCH_TIERS="ab-confidence-set"
+        log "microRAG arm set (confidence-selected): ${RAG_BENCH_LIST}"
     fi
-    log "microRAG arm set (confidence-selected): ${RAG_BENCH_LIST}"
+fi
 
 run_eval "on"  "${RESULTS_DIR}_rag_on"
 
@@ -631,6 +674,15 @@ Regressions: ${REG_NAMES}| Sustained failures: ${SUSTAINED_NAMES}| Suspected fla
 ${INSUFFICIENT_BODY}" \
     --title "Nightly eval: ${PASS} (${DATE})" \
     --from "nightly-eval" 2>/dev/null || true
+fi
+
+# Commit-gate marker: only a night that measured the whole guard set counts as
+# "this commit was checked". INVALID (infra outage) or truncated → re-run tomorrow.
+if [[ -z "${INVALID:-}" ]] && ! arm_truncated "${RESULTS_DIR}_rag_on"; then
+    echo "$TARGET" > "$LAST_GOOD_FILE"
+    log "commit gate: ${SHORT} recorded as last good night"
+else
+    log "commit gate: NOT recording ${SHORT} (invalid or truncated) — the next night re-runs it"
 fi
 
 log "=== nightly eval done ==="
