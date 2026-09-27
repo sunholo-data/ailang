@@ -130,8 +130,15 @@ rig_lock_acquire() {
   # the rig lock, so its native riglock.Acquire (internal/riglock) is a no-op and
   # does not deadlock against this wrapper's lock. Must match riglock.EnvHeld.
   export AILANG_RIG_LOCK_HELD=1
+  # Lease token (M-RIG-GPU-ADMISSION-GATEWAY): the same file internal/riglock
+  # mints (lease.go). The rig gateway admits long GPU work only with the live
+  # token while the lock is held; removing the directory revokes it. 0640 so the
+  # setgid "rig" group can read it.
+  AILANG_RIG_LEASE=$(od -An -N16 -tx1 /dev/urandom 2>/dev/null | tr -d ' \n')
+  ( umask 027; printf '%s\n' "$AILANG_RIG_LEASE" > "$RIG_LOCK_DIR/token" ) 2>/dev/null || true
+  export AILANG_RIG_LEASE
   # shellcheck disable=SC2064
-  trap "rm -rf '$RIG_LOCK_DIR'; unset AILANG_RIG_LOCK_HELD" EXIT
+  trap "rm -rf '$RIG_LOCK_DIR'; unset AILANG_RIG_LOCK_HELD; export AILANG_RIG_LEASE=none" EXIT
   return 0
 }
 

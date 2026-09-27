@@ -74,6 +74,12 @@ func BuildEnvironment(opts EnvironmentOptions) []string {
 	// about this workaround.
 	env = RemoveEnvVar(env, "CLAUDECODE")
 
+	// Always define the rig lease (M-RIG-GPU-ADMISSION-GATEWAY): the held lock's
+	// token, or "none". A pi provider that templates it into a header refuses to
+	// start when the variable is unset (measured 2026-09-27), so an agent must
+	// never inherit an environment without it.
+	env = append(RemoveEnvVar(env, config.EnvRigLease), config.EnvRigLease+"="+config.RigLease())
+
 	// Set up AILANG stdlib path.
 	// Priority: workspace/std (cloud: cloned repo has stdlib) > cwd/std (local: running from repo root).
 	// This ensures cloud agents (where cwd=/workspace but repo is at /workspace/{taskID})

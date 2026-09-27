@@ -91,6 +91,12 @@ func platformCommands() []Command {
 			Run:     serveAPICommand,
 		},
 		{
+			Name:    "rig-gate",
+			Group:   groupOps,
+			Summary: "GPU admission gateway in front of ollama (rig lock lease)",
+			Run:     rigGateCommand,
+		},
+		{
 			Name:    "access-control",
 			Group:   groupOps,
 			Summary: "Access control management",

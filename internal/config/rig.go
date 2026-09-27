@@ -13,7 +13,14 @@ const (
 	EnvRigLockStale   = "RIG_LOCK_STALE_MIN"
 	EnvRigLockHeld    = "AILANG_RIG_LOCK_HELD"
 	EnvRigHandoffFile = "RIG_HANDOFF_FILE"
+	EnvRigLease       = "AILANG_RIG_LEASE"
 )
+
+// RigLeaseNone is the value a GPU client carries when no lease is held. pi
+// refuses to start if a header it templates from the environment is unset
+// (measured 2026-09-27), so executors always define AILANG_RIG_LEASE and the
+// rig gateway reads this value as "no token".
+const RigLeaseNone = "none"
 
 // DefaultRigSharedDir is the shared directory every user on the rig can
 // reach, so agents under different accounts hold ONE lock.
@@ -29,6 +36,7 @@ var rigVars = []Var{
 	{EnvRigLockStale, strconv.Itoa(DefaultRigLockStaleMin), AreaRig, "Minutes without a heartbeat before a holder is presumed dead; a non-positive or malformed value keeps the default."},
 	{EnvRigLockHeld, "0", AreaRig, "Set to 1 by a lock holder for its children, which then skip their own acquire."},
 	{EnvRigHandoffFile, "", AreaRig, "Path of the yield hand-off file; unset derives rig.handoff beside the lock directory."},
+	{EnvRigLease, RigLeaseNone, AreaRig, "Lease token of the held rig lock, exported by the holder for its GPU clients; the rig gateway admits long work only with the live token while the lock is held."},
 }
 
 // RigLockDir returns RIG_LOCK_DIR, "" when unset.
@@ -55,3 +63,6 @@ func RigLockHeld() bool { return getOr(EnvRigLockHeld) == "1" }
 
 // RigHandoffFile returns RIG_HANDOFF_FILE, "" when unset.
 func RigHandoffFile() string { return get(EnvRigHandoffFile) }
+
+// RigLease returns AILANG_RIG_LEASE, RigLeaseNone when unset.
+func RigLease() string { return getOr(EnvRigLease) }

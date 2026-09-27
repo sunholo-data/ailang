@@ -241,6 +241,9 @@ func acquireDir(mode Mode) (bool, Release, error) {
 	_ = os.WriteFile(filepath.Join(dir, "holder"),
 		[]byte(fmt.Sprintf("%d %s", pid, time.Now().UTC().Format(time.RFC3339))), 0o644)
 	_ = os.Setenv(EnvHeld, "1")
+	if tok, err := mintLease(dir); err == nil {
+		_ = os.Setenv(config.EnvRigLease, tok)
+	}
 
 	var released bool
 	release := func() {
@@ -250,6 +253,7 @@ func acquireDir(mode Mode) (bool, Release, error) {
 		released = true
 		_ = os.RemoveAll(dir)
 		_ = os.Unsetenv(EnvHeld)
+		_ = os.Setenv(config.EnvRigLease, config.RigLeaseNone)
 	}
 	return true, release, nil
 }

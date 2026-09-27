@@ -1,6 +1,6 @@
 # M-RIG-GPU-ADMISSION-GATEWAY: Enforce the rig lock at ollama, not by convention
 
-**Status**: Planned
+**Status**: Phase 1 BUILT (2026-09-27): gateway, policy, lease minting, ledger, tests. Phase 2 cutover NOT done (see "Phase 1 as built")
 **Target**: v0_44_2+
 **Priority**: P1 (rig throughput; the rig produced zero usable eval rows on 2026-09-23 and 2026-09-27)
 **Estimated**: 4–5 days (Phase 0 spike DONE 2026-09-27; the children.go decision is still open)
@@ -184,6 +184,20 @@ Two things keep that gap visible rather than silent:
 - `internal/executor/pi/pi.go`, `internal/executor/opencode/*` (~+20 each): leased base URL
 - `~/dev/daneel/tools/daneel_rig.ail`, `daneel_model.ail`: mint and read the token, parameterise the endpoint (Daneel repo, cross-repo PR)
 
+### Phase 1 as built (2026-09-27)
+
+- `internal/dashboard_transforms/rig_admission.ail`: the decision (`label` with 7 inline tests, `decide`, `isLong` with 11). Labels: `short | unleased | legacy-holder | lease | refused-foreign | refused-none`.
+- **`legacy-holder` was added while building.** A holder that minted no token (an old binary, or Daneel's lock code until it mints) would otherwise have its own work refused, because nobody could match. It is admitted and labelled, which is the pre-gateway behaviour, so the ledger shows how often it happens. It disappears once every holder mints.
+- **The `modelLoaded` fact was dropped.** D2 already refuses every unleased long request while a lease is held, so a separate eviction rule adds nothing.
+- `internal/riggate/`: policy bridge (no Go fallback, so a policy error returns 500), proxy and ledger. Refusal is 423 and upstream failure is 502, never 503 (V11). Token precedence is `X-Rig-Lease`, then `Authorization: Bearer`. The values `none` and `ollama` count as no token.
+- `internal/riglock/lease.go` + `tools/launchd/rig-lock.sh`: both mint a 32-hex `token` (0640) into the lock dir on acquire and export `AILANG_RIG_LEASE`. Release resets it to `none`.
+- `internal/executor/environment.go`: every agent environment defines `AILANG_RIG_LEASE` (**V12**, measured: pi refuses to start when a templated `apiKey` or header variable is unset, and its template syntax has no default).
+- `ailang rig-gate`: refuses to start when `--listen` equals `--upstream` or `--listen` is not loopback. `tools/launchd/dev.ailang.rig-gate.plist` is **not installed** and its header lists the cutover order.
+- Tests: an admission table (8 cases), refusal under 100 ms, revocation cuts off an orphan, byte-identical and incremental streaming for SSE and NDJSON, client cancel reaching upstream, and the ledger. Mutation-checked: accepting a foreign token fails 2 tests. `FlushInterval=0` is an *equivalent* mutant, because Go 1.26 flushes any response of unknown length.
+- End-to-end on the rig: the real binary on :18998 in front of the real ollama, with a fake held lease. `/api/tags` returned 200 in 4 ms. Unleased and foreign long requests got 423 in 0.5 ms and never reached the GPU. There are 3 ledger lines.
+
+**Remaining (Phase 2 + detector):** Daneel mints and sends the token (cross-repo); an `ollama-rig` pi provider plus the opencode apiKey template; the ollama port move; installing the plist; the bypass reconciler in rig-watchdog. Each needs the step before it. The order is in the plist header.
+
 ## Examples
 
 **Orphan after the lock was stolen**:
@@ -224,6 +238,7 @@ run under `/bin/bash` (3.2), because the rig has no bash 4. Mutation-check each 
 | V7 | Daneel's endpoint is a literal | `~/dev/daneel/tools/daneel_model.ail:48` `endpoint() -> "http://127.0.0.1:11434/api/generate"` | Confirmed |
 | V8 | Daneel already honours the rig lock | `~/dev/daneel/tools/daneel:2828` `rig_lock_try`. The q27 measurement script takes the shared lock | Confirmed |
 | V9 | Per-run token injection from the environment | Spike 2026-09-27: a capture server on :18999 recorded each client's request. **opencode 1.15.7** (`{env:SPIKE_LEASE}` in `baseURL`, `apiKey`, `headers`): path `/lease/tokOC123/v1/chat/completions`, `Authorization: Bearer tokOC123`, `X-Rig-Lease: tokOC123`, so all three are templated. **pi 0.85.1** (`${SPIKE_LEASE}` in `models.json`): path `/lease/$%7BSPIKE_LEASE%7D/v1/...` (NOT templated), `Authorization: Bearer tokPI456`, `X-Rig-Lease: tokPI456`. Source agrees: `provider-composer.js` runs `resolveConfigValueOrThrow` on the key and `resolveHeadersOrThrow` on headers; `baseUrl` is used verbatim | **Confirmed**: API key and header work in both; URL path works in opencode only, so D1 = (d) |
+| V12 | pi's behaviour when a templated variable is unset | Capture server, `AILANG_RIG_LEASE` unset. With the variable in `apiKey`, pi printed "No API key found" and exited 1. With it in `headers`, pi returned `Failed to resolve provider header "X-Rig-Lease" from environment variable`. `resolve-config-value.js` has no `${VAR:-default}` form. opencode sends an empty value | **Confirmed**: executors must always define the variable; a separate `ollama-rig` provider keeps interactive and mission pi use unaffected |
 | V11 | Which rejection status clients treat as final | Capture server returning a fixed status, both clients at their **real retry defaults** (pi `retry.maxRetries` unset = 3), a 40 s window. **503**: opencode retried until killed. **403**: opencode sent 2 requests (title call + main) and exited in 2 s; pi sent 1 and exited at once. **423**: opencode 2 requests, 1 s; pi 1 request, 0 s | **Confirmed**: 423 and 403 are final in both, 503 is not. The gateway rejects with **423** |
 | V10 | ollama has no per-request auth, priority or admission hook we could use instead | `ollama serve --help` on the rig (ollama **0.33.2**): the environment knobs are HOST, CONTEXT_LENGTH, KEEP_ALIVE, MAX_LOADED_MODELS, MAX_QUEUE, NUM_PARALLEL, ORIGINS (browser CORS only, not caller identity), GPU_OVERHEAD, KV_CACHE_TYPE, LOAD_TIMEOUT and so on. None identifies or admits a caller | **Confirmed** (re-check when ollama is upgraded) |
 
