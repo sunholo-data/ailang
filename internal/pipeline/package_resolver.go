@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/loader"
 	"github.com/sunholo-data/ailang/internal/pkg"
 )
@@ -118,40 +117,6 @@ func tryLoadSelfOnlyPackageResolver(dir string) loader.PackageResolver {
 		return nil
 	}
 	return pkgLoader
-}
-
-// validateEffectCeiling checks that a module's declared function effects
-// do not exceed the current package's [effects].max ceiling.
-// Only applies when an ailang.toml exists; bare projects are unchecked.
-func validateEffectCeiling(surfaceAST *ast.File, modID string) error {
-	if currentPackageManifest == nil {
-		return nil // No package — no ceiling to enforce
-	}
-	if surfaceAST == nil {
-		return nil
-	}
-
-	// Only check modules belonging to the current package (not dependencies)
-	// Dependencies are imported via pkg/ prefix; the current package's own
-	// modules use local paths.
-	if strings.HasPrefix(modID, "pkg/") {
-		return nil // This is a dependency module, not ours
-	}
-
-	maxEffects := currentPackageManifest.Effects.Max
-	if maxEffects == nil {
-		return nil // No ceiling declared
-	}
-
-	// Check each function's declared effects
-	for _, fn := range surfaceAST.Funcs {
-		declaredEffects := ast.EffectNames(fn.Effects)
-		if err := pkg.CheckEffectCeiling(currentPackageManifest.Package.Name, declaredEffects, maxEffects); err != nil {
-			return fmt.Errorf("in function %s in %s: %w", fn.Name, modID, err)
-		}
-	}
-
-	return nil
 }
 
 // packageSearchDir decides where to look for ailang.toml/ailang.lock.
