@@ -119,3 +119,45 @@ func TestResolveCalleesFromRoots_ChainedNullaryAndContractRoot(t *testing.T) {
 		t.Fatal("ResolveCalleesFromRoots leaked activeResolvedCallees")
 	}
 }
+
+// TestFirstUnencodableCalleeInFunc_GatesContractPredicates: contract predicates are
+// callee roots now, so the sort gate must see a callee reached only from an ensures.
+func TestFirstUnencodableCalleeInFunc_GatesContractPredicates(t *testing.T) {
+	body := &core.Var{Name: "x"}
+	prog := makeTestProgram(
+		map[string]core.CoreExpr{
+			"f":    body,
+			"conv": &core.Lambda{Params: []string{"x"}, Body: &core.Var{Name: "x"}},
+			"cap":  &core.Lambda{Params: []string{"_"}, Body: intLit(1000)},
+		},
+		map[string]*core.DeclMeta{"f": pureMetaWithContracts(), "conv": pureMeta(), "cap": pureMeta()},
+	)
+	astFuncs := map[string]*ast.FuncDecl{
+		"conv": {
+			Name:       "conv",
+			Params:     []*ast.Param{{Name: "x", Type: &ast.SimpleType{Name: "float"}}},
+			ReturnType: &ast.TypeApp{Constructor: "Option", Args: []ast.Type{&ast.SimpleType{Name: "float"}}},
+		},
+		"cap": nullaryFuncDecl("cap", "int"),
+	}
+	ensures := func(callee string, arg core.CoreExpr) []*core.Contract {
+		return []*core.Contract{
+			nil, // tolerated
+			{Kind: core.EnsuresKind, Expr: callGlobal(callee, arg)},
+		}
+	}
+
+	if callee, _ := firstUnencodableCalleeInFunc("f", body, nil, prog, nil, astFuncs, nil); callee != "" {
+		t.Fatalf("no contracts: got %q, want clean", callee)
+	}
+	if callee, bad := firstUnencodableCalleeInFunc("f", body, ensures("conv", &core.Var{Name: "result"}), prog, nil, astFuncs, nil); callee != "conv" || bad != "Option[float]" {
+		t.Fatalf("Option callee in ensures: got (%q, %q), want (conv, Option[float])", callee, bad)
+	}
+	if callee, _ := firstUnencodableCalleeInFunc("f", body, ensures("cap", unitLit()), prog, nil, astFuncs, nil); callee != "" {
+		t.Fatalf("nullary callee in ensures rejected: %q", callee)
+	}
+	// Body is still checked first.
+	if callee, _ := firstUnencodableCalleeInFunc("f", callGlobal("conv", body), nil, prog, nil, astFuncs, nil); callee != "conv" {
+		t.Fatalf("Option callee in body: got %q, want conv", callee)
+	}
+}
