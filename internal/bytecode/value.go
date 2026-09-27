@@ -24,6 +24,7 @@ const (
 	TagRecord
 	TagClosure
 	TagADT
+	TagArray
 )
 
 // String returns the human-readable tag name. Used for error messages and
@@ -50,6 +51,8 @@ func (t ValueTag) String() string {
 		return "Closure"
 	case TagADT:
 		return "ADT"
+	case TagArray:
+		return "Array"
 	}
 	return fmt.Sprintf("UnknownTag(%d)", uint8(t))
 }
@@ -69,7 +72,7 @@ type Value struct {
 	Int  int64
 	Flt  float64
 	Bool bool
-	Obj  any // *StringObj, *ListObj, *TupleObj, *RecordObj, *ClosureObj, *ADTObj
+	Obj  any // *StringObj, *ListObj, *TupleObj, *RecordObj, *ClosureObj, *ADTObj, *ArrayObj
 }
 
 // --- Heap object types -------------------------------------------------------
@@ -85,6 +88,31 @@ type StringObj struct {
 // indexing. Revisit in Phase 2D if benchmarks demand.
 type ListObj struct {
 	Elems []Value
+}
+
+// ArrayObj is an immutable Array[a] (M-NUMERICS-VEC-ARRAY M4). Like the
+// evaluator's ArrayValue it has two stores and exactly one is used: Floats for
+// an all-float array (shared with the evaluator across the bridge, no copy),
+// Elems for everything else. Neither slice is ever mutated after construction.
+type ArrayObj struct {
+	Elems  []Value
+	Floats []float64
+}
+
+// Len returns the number of elements.
+func (a *ArrayObj) Len() int {
+	if a.Floats != nil {
+		return len(a.Floats)
+	}
+	return len(a.Elems)
+}
+
+// At returns element i as a VM value. The caller checks bounds.
+func (a *ArrayObj) At(i int) Value {
+	if a.Floats != nil {
+		return NewFloat(a.Floats[i])
+	}
+	return a.Elems[i]
 }
 
 // TupleObj is a fixed-arity heterogeneous record-without-names.
@@ -157,6 +185,25 @@ func NewString(s string) Value {
 // retained as-is — callers must not mutate it after construction.
 func NewList(elems []Value) Value {
 	return Value{Tag: TagList, Obj: &ListObj{Elems: elems}}
+}
+
+// NewArray constructs a boxed Array value. The slice is retained as-is.
+func NewArray(elems []Value) Value {
+	return Value{Tag: TagArray, Obj: &ArrayObj{Elems: elems}}
+}
+
+// NewFloatArray constructs a packed Array[float] value. The slice is retained
+// as-is and must not be mutated by anyone afterwards.
+func NewFloatArray(xs []float64) Value {
+	return Value{Tag: TagArray, Obj: &ArrayObj{Floats: xs}}
+}
+
+// AsArray returns the underlying ArrayObj. Panics if v is not an Array.
+func (v Value) AsArray() *ArrayObj {
+	if v.Tag != TagArray {
+		panic(fmt.Sprintf("bytecode: AsArray called on %s", v.Tag))
+	}
+	return v.Obj.(*ArrayObj)
 }
 
 // NewTuple constructs a Tuple value from the given elements.
@@ -297,6 +344,17 @@ func (v Value) Equal(other Value) bool {
 			}
 		}
 		return true
+	case TagArray:
+		a, b := v.Obj.(*ArrayObj), other.Obj.(*ArrayObj)
+		if a.Len() != b.Len() {
+			return false
+		}
+		for i := 0; i < a.Len(); i++ {
+			if !a.At(i).Equal(b.At(i)) {
+				return false
+			}
+		}
+		return true
 	case TagRecord:
 		a, b := v.Obj.(*RecordObj).Fields, other.Obj.(*RecordObj).Fields
 		if len(a) != len(b) {
@@ -364,6 +422,18 @@ func (v Value) String() string {
 				sb.WriteString(", ")
 			}
 			sb.WriteString(e.String())
+		}
+		sb.WriteByte(']')
+		return sb.String()
+	case TagArray:
+		a := v.Obj.(*ArrayObj)
+		var sb strings.Builder
+		sb.WriteString("#[")
+		for i := 0; i < a.Len(); i++ {
+			if i > 0 {
+				sb.WriteString(", ")
+			}
+			sb.WriteString(a.At(i).String())
 		}
 		sb.WriteByte(']')
 		return sb.String()

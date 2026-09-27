@@ -162,6 +162,21 @@ func bytecodeValueToEval(v bytecode.Value) (eval.Value, error) {
 			dst[f.Name] = ev
 		}
 		return &eval.RecordValue{Fields: dst}, nil
+	case bytecode.TagArray:
+		a := v.AsArray()
+		if a.Floats != nil {
+			// Shared, not copied: both sides treat the slice as immutable.
+			return eval.NewFloatArray(a.Floats), nil
+		}
+		dst := make([]eval.Value, len(a.Elems))
+		for i, e := range a.Elems {
+			ev, err := bytecodeValueToEval(e)
+			if err != nil {
+				return nil, fmt.Errorf("array[%d]: %w", i, err)
+			}
+			dst[i] = ev
+		}
+		return eval.NewArray(dst), nil
 	case bytecode.TagADT:
 		return nil, fmt.Errorf("bridge: ADT values not yet supported (M-BYTECODE-2E scope)")
 	case bytecode.TagClosure:
@@ -208,6 +223,21 @@ func evalValueToBytecode(v eval.Value) (bytecode.Value, error) {
 			dst[i] = bv
 		}
 		return bytecode.NewTuple(dst), nil
+	case *eval.ArrayValue:
+		if xs, packed := ev.Floats(); packed {
+			// O(1): the packed store crosses the bridge without a copy.
+			return bytecode.NewFloatArray(xs), nil
+		}
+		src := ev.Elements()
+		dst := make([]bytecode.Value, len(src))
+		for i, e := range src {
+			bv, err := evalValueToBytecode(e)
+			if err != nil {
+				return bytecode.Value{}, fmt.Errorf("array[%d]: %w", i, err)
+			}
+			dst[i] = bv
+		}
+		return bytecode.NewArray(dst), nil
 	case *eval.RecordValue:
 		fields := make([]bytecode.RecordField, 0, len(ev.Fields))
 		for name, val := range ev.Fields {

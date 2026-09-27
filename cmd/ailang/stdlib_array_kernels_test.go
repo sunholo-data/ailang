@@ -34,7 +34,7 @@ var arrayKernelCases = []struct{ name, body, want string }{
 func TestStdArrayFloatKernels(t *testing.T) {
 	for _, c := range arrayKernelCases {
 		t.Run(c.name, func(t *testing.T) {
-			for backend, got := range runArrayCase(t, arrayProgram(arrayKernelImports, c.body), false) {
+			for backend, got := range runArrayCase(t, arrayProgram(arrayKernelImports, c.body), true) {
 				if got != c.want {
 					t.Errorf("%s: got %q, want %q", backend, got, c.want)
 				}

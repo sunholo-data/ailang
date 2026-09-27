@@ -76,10 +76,10 @@
         "10M Array[float] peak RSS < 200 MB measured",
         "SGD benchmark ~0.1ms/step not regressed"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-27T16:55:46+00:00",
+      "completed": "2026-09-27T16:55:46+00:00",
+      "notes": "bytecode.TagArray + ArrayObj{Elems,Floats} (Len/At, Equal, String), vm showValue + runtimeEq, runner bridge both ways (packed slice shared, O(1) crossing). Array test tables (parity 11, kernels 16, OOB) assert VM-native (no fallback). Mutation: eval->bc array bridge removed => all 11 parity VM rows fail. Measured VM: 10M Array[float] 132 MB peak RSS; 1000 SGD steps x 768: Array 10 ms, [float] 19 ms (evaluator 9/20 ms) -> ~0.02 ms/step, not regressed vs ~0.1 ms. Codec tests (std/embedding bytes+Result) still fall back on VM: bridge lacks bytes and eval->VM ADT; addressed in M6."
     },
     {
       "id": "M5",
