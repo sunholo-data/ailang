@@ -57,10 +57,10 @@
         "Length mismatch and empty argmax are errors",
         "Inputs not mutated; NaN behaviour tested"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-27T16:49:55+00:00",
+      "completed": "2026-09-27T16:49:55+00:00",
+      "notes": "internal/builtins/array_float.go: _array_f_dot/sum/argmax/add/sub/mul/scale/axpy (strict lengths, index-order sums, argmax skips NaN, empty errors). std/array exports dot/axpy/scale/add/sub/mul/sum/argmax. Tests: cmd/ailang/stdlib_array_kernels_test.go (semantics, no mutation, NaN, errors), internal/builtins/array_float_test.go (-count=20 determinism, boxed store read, non-float element is an error)."
     },
     {
       "id": "M4",
@@ -93,10 +93,10 @@
         "scatterAdd length/OOB errors",
         "100k batched writes to 3840-elem array < 50 ms"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-27T16:49:55+00:00",
+      "completed": "2026-09-27T16:49:55+00:00",
+      "notes": "_array_update_many (generic, packed fast path, later writes win, OOB error) and _array_scatter_add (length + OOB errors). Measured on evaluator: 100k batched writes to 3840-elem array: updateMany ~1 ms, scatterAdd <1 ms (target <50 ms)."
     },
     {
       "id": "M6",

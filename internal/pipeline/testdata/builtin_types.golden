@@ -22,13 +22,23 @@ _ai_step_with_stream_recorded : (string, list[{content: string, images: list[{mi
 _ai_stream_call : (string, string, string) -> Result[StreamConn, StreamErrorKind] ! {AI, Net, Stream}
 _array_append : (Array[a], a) -> Array[a]
 _array_empty : () -> Array[a]
+_array_f_add : (Array[float], Array[float]) -> Array[float]
+_array_f_argmax : Array[float] -> int
+_array_f_axpy : (float, Array[float], Array[float]) -> Array[float]
+_array_f_dot : (Array[float], Array[float]) -> float
+_array_f_mul : (Array[float], Array[float]) -> Array[float]
+_array_f_scale : (float, Array[float]) -> Array[float]
+_array_f_sub : (Array[float], Array[float]) -> Array[float]
+_array_f_sum : Array[float] -> float
 _array_from_list : list[a] -> Array[a]
 _array_get : (Array[a], int) -> a
 _array_length : Array[a] -> int
 _array_make : (int, a) -> Array[a]
+_array_scatter_add : (Array[float], list[int], list[float]) -> Array[float]
 _array_set : (Array[a], int, a) -> Array[a]
 _array_to_list : Array[a] -> list[a]
 _array_unsafe_get : (Array[a], int) -> a
+_array_update_many : (Array[a], list[(int, a)]) -> Array[a]
 _audio_encode_ogg_opus : (bytes, int, int, int) -> Result[bytes, string]
 _bytes_byte_at : (bytes, int) -> Option[int]
 _bytes_concat : (bytes, bytes) -> bytes

@@ -85,3 +85,54 @@ export pure func set[a](arr: Array[a], idx: int, val: a) -> Array[a] {
 export pure func append[a](arr: Array[a], val: a) -> Array[a] {
   _array_append(arr, val)
 }
+
+-- ============================================================================
+-- Bulk updates (one copy, then k writes: O(n + k), not O(n * k))
+-- ============================================================================
+
+-- Apply (index, value) writes in list order with ONE copy; a later write to the
+-- same index wins. Any out-of-bounds index is an error.
+--   updateMany(make(3, 0.0), [(0, 1.0), (2, 5.0)])  -- #[1.0, 0.0, 5.0]
+export pure func updateMany[a](arr: Array[a], writes: [(int, a)]) -> Array[a] {
+  _array_update_many(arr, writes)
+}
+
+-- Add xs[j] into position idx[j] for every j, with ONE copy (gradient
+-- accumulation). idx and xs must have equal length; out of bounds is an error.
+--   scatterAdd(make(3, 0.0), [0, 0, 2], [1.0, 2.0, 5.0])  -- #[3.0, 0.0, 5.0]
+export pure func scatterAdd(arr: Array[float], idx: [int], xs: [float]) -> Array[float] {
+  _array_scatter_add(arr, idx, xs)
+}
+
+-- ============================================================================
+-- Float kernels on Array[float] (native loops over an unboxed store)
+-- ============================================================================
+-- An all-float array is stored as 8 bytes per element. Two-array kernels are
+-- STRICT: a length mismatch is an error (std/embedding's [float] versions keep
+-- a lenient common-prefix rule). Sums run in index order (bit-reproducible).
+-- Use [float] + std/embedding for small vectors; Array[float] when memory or
+-- bulk updates matter.
+
+-- Dot product. O(n).
+export pure func dot(a: Array[float], b: Array[float]) -> float = _array_f_dot(a, b)
+
+-- a*x + y in one pass (the SGD update). O(n).
+export pure func axpy(a: float, x: Array[float], y: Array[float]) -> Array[float] = _array_f_axpy(a, x, y)
+
+-- s * v. O(n).
+export pure func scale(s: float, v: Array[float]) -> Array[float] = _array_f_scale(s, v)
+
+-- Elementwise a + b. O(n).
+export pure func add(a: Array[float], b: Array[float]) -> Array[float] = _array_f_add(a, b)
+
+-- Elementwise a - b. O(n).
+export pure func sub(a: Array[float], b: Array[float]) -> Array[float] = _array_f_sub(a, b)
+
+-- Elementwise a * b. O(n).
+export pure func mul(a: Array[float], b: Array[float]) -> Array[float] = _array_f_mul(a, b)
+
+-- Sum of all elements, in index order. O(n).
+export pure func sum(v: Array[float]) -> float = _array_f_sum(v)
+
+-- Index of the first largest element; NaNs are skipped. Error on empty. O(n).
+export pure func argmax(v: Array[float]) -> int = _array_f_argmax(v)
