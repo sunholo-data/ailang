@@ -58,6 +58,7 @@ test-shellcheck-autopush: ## Run mutation controls for the scoped ShellCheck gat
 # refuses when the instrument can no longer prove both treatment absence and control visibility.
 test-launchd-drivers: ## Run launchd driver tests (pin-root + routing + notices + hook stdout, bash 3.2)
 	@/bin/bash tools/launchd/test_pin_root.sh
+	@/bin/bash tools/launchd/test_mission_pi_run_commits.sh
 	@/bin/bash tools/launchd/test_driver_notify.sh
 	@/bin/bash tools/launchd/test_mission_routing.sh
 	@/bin/bash tools/launchd/test_spawn_pin_hook.sh
