@@ -56,31 +56,34 @@ test-shellcheck-autopush: ## Run mutation controls for the scoped ShellCheck gat
 # the rig runs 3.2.57, so a suite that only passes under a newer bash proves nothing about it.
 # The motoko connection probe's routing verdict is load-bearing; run its self-test here so CI
 # refuses when the instrument can no longer prove both treatment absence and control visibility.
+LAUNCHD_SUITE := /bin/bash tools/launchd/lib/suite-env.sh
+
 test-launchd-drivers: ## Run launchd driver tests (pin-root + routing + notices + hook stdout, bash 3.2)
-	@/bin/bash tools/launchd/test_pin_root.sh
-	@/bin/bash tools/launchd/test_mission_pi_run_commits.sh
-	@/bin/bash tools/launchd/test_driver_notify.sh
-	@/bin/bash tools/launchd/test_mission_routing.sh
-	@/bin/bash tools/launchd/test_spawn_pin_hook.sh
-	@/bin/bash tools/launchd/test_hook_stdout.sh
-	@/bin/bash tools/launchd/test_controller_chain.sh
-	@/bin/bash tools/launchd/test_mission_heartbeat.sh
-	@/bin/bash tools/launchd/test_mission_stall.sh
-	@/bin/bash tools/launchd/test_mission_kill_tree.sh
-	@/bin/bash tools/launchd/test_mission_memgate.sh
-	@/bin/bash tools/launchd/test_mission_iteration.sh
-	@/bin/bash tools/launchd/test_cron_kicker.sh
-	@/bin/bash tools/launchd/test_mission_base.sh
-	@/bin/bash tools/launchd/test_codex_quota_admission.sh
-	@/bin/bash tools/launchd/test_mission_scope_guard.sh
-	@/bin/bash tools/launchd/test_mission_fleet_idle.sh
-	@/bin/bash tools/launchd/test_ollama_quota_admission.sh
-	@/bin/bash tools/launchd/test_anthropic_quota_admission.sh
-	@/bin/bash scripts/hooks/test_stage_isolation.sh
-	@/bin/bash scripts/hooks/test_pre_push.sh
-	@/bin/bash tools/launchd/test_evaluator_skill_lane.sh
+	@$(LAUNCHD_SUITE) tools/launchd/test_suite_env.sh
+	@$(LAUNCHD_SUITE) tools/launchd/test_pin_root.sh
+	@$(LAUNCHD_SUITE) tools/launchd/test_mission_pi_run_commits.sh
+	@$(LAUNCHD_SUITE) tools/launchd/test_driver_notify.sh
+	@$(LAUNCHD_SUITE) tools/launchd/test_mission_routing.sh
+	@$(LAUNCHD_SUITE) tools/launchd/test_spawn_pin_hook.sh
+	@$(LAUNCHD_SUITE) tools/launchd/test_hook_stdout.sh
+	@$(LAUNCHD_SUITE) tools/launchd/test_controller_chain.sh
+	@$(LAUNCHD_SUITE) tools/launchd/test_mission_heartbeat.sh
+	@$(LAUNCHD_SUITE) tools/launchd/test_mission_stall.sh
+	@$(LAUNCHD_SUITE) tools/launchd/test_mission_kill_tree.sh
+	@$(LAUNCHD_SUITE) tools/launchd/test_mission_memgate.sh
+	@$(LAUNCHD_SUITE) tools/launchd/test_mission_iteration.sh
+	@$(LAUNCHD_SUITE) tools/launchd/test_cron_kicker.sh
+	@$(LAUNCHD_SUITE) tools/launchd/test_mission_base.sh
+	@$(LAUNCHD_SUITE) tools/launchd/test_codex_quota_admission.sh
+	@$(LAUNCHD_SUITE) tools/launchd/test_mission_scope_guard.sh
+	@$(LAUNCHD_SUITE) tools/launchd/test_mission_fleet_idle.sh
+	@$(LAUNCHD_SUITE) tools/launchd/test_ollama_quota_admission.sh
+	@$(LAUNCHD_SUITE) tools/launchd/test_anthropic_quota_admission.sh
+	@$(LAUNCHD_SUITE) scripts/hooks/test_stage_isolation.sh
+	@$(LAUNCHD_SUITE) scripts/hooks/test_pre_push.sh
+	@$(LAUNCHD_SUITE) tools/launchd/test_evaluator_skill_lane.sh
 # Keep this shell-only: the bash-3.2 CI job deliberately has no Go toolchain.
-	@/bin/bash tools/eval/test_motoko_connection_probe.sh
+	@$(LAUNCHD_SUITE) tools/eval/test_motoko_connection_probe.sh
 	@for f in tools/launchd/*.sh tools/launchd/lib/*.sh; do /bin/bash -n "$$f" || exit 1; done
 	@/bin/bash -n tools/eval/motoko_connection_probe.sh
 	@/bin/bash -n tools/eval/test_motoko_connection_probe.sh
