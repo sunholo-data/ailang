@@ -1,6 +1,8 @@
 package iface
 
 import (
+	"sort"
+
 	"github.com/sunholo-data/ailang/internal/core"
 	"github.com/sunholo-data/ailang/internal/types"
 )
@@ -133,4 +135,23 @@ func (i *Iface) AddTypeAliasParams(name string, params []string) {
 func (i *Iface) GetTypeAliasParams(name string) ([]string, bool) {
 	params, ok := i.AliasParams[name]
 	return params, ok
+}
+
+// SetDerivedEq records the types this module declares `deriving (Eq)` and
+// recomputes the digest. The names are part of the interface: an importer that
+// uses == on one of them type-checks only while the declaration derives Eq, so
+// adding or dropping `deriving (Eq)` must change what importers' cache keys see.
+func (i *Iface) SetDerivedEq(names []string) error {
+	sorted := append([]string(nil), names...)
+	sort.Strings(sorted)
+	if len(sorted) == 0 {
+		sorted = nil
+	}
+	i.DerivedEq = sorted
+	digest, err := NewBuilder(i.Module, nil).computeDigest(i)
+	if err != nil {
+		return err
+	}
+	i.Digest = digest
+	return nil
 }

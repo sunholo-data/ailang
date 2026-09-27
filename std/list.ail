@@ -71,6 +71,11 @@ export pure func sortBy[a](cmp: (a, a) -> int, xs: [a]) -> [a] = _list_sortBy(cm
 -- take: Take first n elements
 export pure func take[a](n: int, xs: [a]) -> [a] = _list_take(n, xs)
 
+-- range: the integers from start (inclusive) to end (exclusive).
+-- range(0, 3) = [0, 1, 2]; empty when end <= start. One allocation, no recursion:
+-- use it as the source list for map/filter/foldl instead of hand-rolled recursion.
+export pure func range(start: int, end: int) -> [int] = _list_range(start, end)
+
 -- drop: Drop first n elements
 -- Delegates to the iterative builtin to avoid recursion-depth failures on large n.
 export pure func drop[a](n: int, xs: [a]) -> [a] = _list_drop(n, xs)
