@@ -115,7 +115,7 @@ func TestE2E_SetupAIHandlerDirect_DispatchesToConfigDriven(t *testing.T) {
 	}
 
 	effCtx := &effects.EffContext{}
-	if err := setupAIHandlerDirect(effCtx, "directtest/some-model", nil, nil); err != nil {
+	if err := setupAIHandlerDirect(effCtx, "directtest/some-model", nil, nil, 0); err != nil {
 		t.Fatalf("setupAIHandlerDirect failed: %v", err)
 	}
 	out, err := effCtx.AI.Call("Hi")

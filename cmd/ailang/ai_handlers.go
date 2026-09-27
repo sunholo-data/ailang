@@ -69,14 +69,14 @@ func setupAIHandler(effCtx *effects.EffContext, aiStub bool, aiModel string, rou
 	// Load models config to look up model details
 	if err := eval_harness.InitModelsConfig(); err != nil {
 		// Config not found - try to use model name directly with guessed provider
-		return setupAIHandlerDirect(effCtx, aiModel, routingPolicy, attr)
+		return setupAIHandlerDirect(effCtx, aiModel, routingPolicy, attr, 0)
 	}
 
 	// Look up model in config
 	model, err := modelreg.GlobalModelsConfig.GetModel(aiModel)
 	if err != nil {
 		// Model not in config - try direct usage with guessed provider
-		return setupAIHandlerDirect(effCtx, aiModel, routingPolicy, attr)
+		return setupAIHandlerDirect(effCtx, aiModel, routingPolicy, attr, declaredMaxOutputTokens(aiModel))
 	}
 
 	return setupAIHandlerFromConfig(effCtx, model, aiModel, routingPolicy, attr)
@@ -167,18 +167,44 @@ func makeModelResolver(boundProvider string) effects.ModelResolver {
 	}
 }
 
+// declaredMaxOutputTokens returns max_output_tokens for a --ai name that is not
+// a models.yml key but that the registry resolves by another form: an api_name,
+// an alias, or a harness wire name such as motoko's
+// "openrouter/deepseek/deepseek-v4-flash-0731". Harnesses pass exactly those, so
+// without this every step() they made through the direct path was capped at the
+// handler's 4096 whatever the model declares; a reasoning model then spent the
+// whole budget thinking and returned finish_reason=length with no text and no
+// tool call (motoko A/B, 2026-09-27). Unknown or ambiguous names return 0, which
+// keeps the handler default.
+func declaredMaxOutputTokens(name string) int {
+	if modelreg.GlobalModelsConfig == nil {
+		return 0
+	}
+	_, model, err := modelreg.GlobalModelsConfig.Resolve(name)
+	if err != nil || model == nil {
+		return 0
+	}
+	return model.MaxOutputTokens
+}
+
 // setupAIHandlerDirect creates an AI handler using the model name directly
 // (fallback when models.yml is not available).
 //
 // routingPolicy is optional and threaded onto the handler via WithRoutingPolicy
 // when non-nil. Only OpenRouter consumes it; passing a routing policy with a
 // non-OpenRouter provider yields ai.ErrRoutingNotSupported on the first call.
-func setupAIHandlerDirect(effCtx *effects.EffContext, modelName string, routingPolicy *ai.AIRoutingPolicy, attr *ai.Attribution) error {
+//
+// maxTokens is the model's declared output budget when the registry knows the
+// name under another form (0 = the handler default, 4096).
+func setupAIHandlerDirect(effCtx *effects.EffContext, modelName string, routingPolicy *ai.AIRoutingPolicy, attr *ai.Attribution, maxTokens int) error {
 	// Guess provider from model name
 	provider := ai.GuessProvider(modelName)
 
 	// Build handler options once; reused across providers.
 	var opts []ai.HandlerOption
+	if maxTokens > 0 {
+		opts = append(opts, ai.WithMaxTokens(maxTokens))
+	}
 	if routingPolicy != nil {
 		opts = append(opts, ai.WithRoutingPolicy(routingPolicy))
 	}
