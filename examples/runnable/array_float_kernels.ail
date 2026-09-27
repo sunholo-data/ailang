@@ -1,5 +1,5 @@
 -- Array[float]: unboxed float arrays, native kernels, bulk updates and binary
--- ingest (M-NUMERICS-VEC-ARRAY, v0.45.0).
+-- ingest (M-NUMERICS-VEC-ARRAY, v0.46.0).
 --
 -- An all-float Array is stored as 8 bytes per element. The kernels (dot, axpy,
 -- scale, add, sub, mul, sum, argmax) are native loops; two-array kernels require

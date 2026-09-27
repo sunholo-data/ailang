@@ -1,8 +1,8 @@
 # Sprint plan: M-NUMERICS-VEC-ARRAY-INGEST
 
-**Design doc**: `design_docs/implemented/v0_45_0/m-numerics-vec-array-ingest.md` (ratified by Mark 2026-09-27,
+**Design doc**: `design_docs/implemented/v0_46_0/m-numerics-vec-array-ingest.md` (ratified by Mark 2026-09-27,
 all five Design Freeze items as recommended: D1 = D, D2 = `std/array`, D3 = (i), D4 = both widths, D5 = error)
-**Target**: v0.45.0 (M1 can ship in a patch release)
+**Target**: v0.46.0 (retargeted: v0.45.0 was released the same day without it) (M1 can ship in a patch release)
 **Estimated**: ~1,500 LOC including tests, 7 milestones, ~6 working days. The doc says 7–10 days
 across its phases; the saving comes from the VM finding below.
 **Status**: ✅ COMPLETE 2026-09-27 (all 7 milestones; measurements in the design doc's Implementation Record)
@@ -86,7 +86,7 @@ across its phases; the saving comes from the VM finding below.
 - `examples/runnable/array_float_kernels.ail` (verified on both backends); the teaching prompt
   rule "`[float]` + `std/embedding` for small vectors, `Array[float]` when memory or updates
   matter", with F32 marked lossy; a `docs/docs/reference/stdlib.md` row; CHANGELOG; the design
-  doc moved to `design_docs/implemented/v0_45_0/` with the measurements filled in.
+  doc moved to `design_docs/implemented/v0_46_0/` with the measurements filled in.
 
 ## Dependencies
 

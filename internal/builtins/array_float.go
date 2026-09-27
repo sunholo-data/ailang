@@ -79,7 +79,7 @@ func registerArrayBuiltin(name, desc string, nargs int, typ func() types.Type, i
 		Impl:    impl,
 		Metadata: &BuiltinMetadata{
 			Description: desc,
-			Since:       "v0.45.0",
+			Since:       "v0.46.0",
 			Stability:   StabilityExperimental,
 			Tags:        []string{"array", "float", "numeric"},
 			Category:    "array",

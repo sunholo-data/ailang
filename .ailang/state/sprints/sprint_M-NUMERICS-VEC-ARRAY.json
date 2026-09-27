@@ -1,7 +1,7 @@
 {
   "sprint_id": "M-NUMERICS-VEC-ARRAY",
-  "plan_path": "design_docs/implemented/v0_45_0/m-numerics-vec-array-ingest-sprint-plan.md",
-  "design_doc": "design_docs/implemented/v0_45_0/m-numerics-vec-array-ingest.md",
+  "plan_path": "design_docs/implemented/v0_46_0/m-numerics-vec-array-ingest-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_46_0/m-numerics-vec-array-ingest.md",
   "created": "2026-09-27",
   "status": "completed",
   "github_issues": [],
@@ -130,7 +130,7 @@
       "passes": true,
       "started": "2026-09-27T17:05:44+00:00",
       "completed": "2026-09-27T17:05:44+00:00",
-      "notes": "examples/runnable/array_float_kernels.ail (identical output evaluator + VM, VM-native) + manifest entry/stats; prompt v0.16.6 (unfrozen head, amended in place: canonical std/array line, std/json decodeFloatArray, Arrays section OOB errors / unboxed / bulk ops / F32 lossy) in prompts/, cmd/ailang/prompts/, docs/docs/prompts/current.md, versions.json hash+notes; stdlib.md rows (array, json, embedding); CHANGELOG entries per milestone; design doc + sprint plan moved to implemented/v0_45_0 with Implementation Record (measurements, deviations, mutation checks). make verify-examples green."
+      "notes": "examples/runnable/array_float_kernels.ail (identical output evaluator + VM, VM-native) + manifest entry/stats; prompt v0.16.6 (unfrozen head, amended in place: canonical std/array line, std/json decodeFloatArray, Arrays section OOB errors / unboxed / bulk ops / F32 lossy) in prompts/, cmd/ailang/prompts/, docs/docs/prompts/current.md, versions.json hash+notes; stdlib.md rows (array, json, embedding); CHANGELOG entries per milestone; design doc + sprint plan moved to implemented/v0_46_0 with Implementation Record (measurements, deviations, mutation checks). make verify-examples green."
     }
   ],
   "completed": "2026-09-27T17:05:44+00:00"

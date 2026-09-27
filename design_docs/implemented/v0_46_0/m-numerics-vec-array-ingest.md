@@ -1,7 +1,7 @@
 # M-NUMERICS-VEC-ARRAY-INGEST: Unboxed float arrays, bulk update, binary numeric ingest
 
 **Status**: IMPLEMENTED (2026-09-27, all four phases; see "Implementation Record"). Was: Planned, **ratified by Mark 2026-09-27** (attended session): the quorum block after round 2 is overridden on the strength of the round-2 revisions, and all five Design Freeze items are decided as recommended (D1 = D, D2 = `std/array`, D3 = (i), D4 = both widths named, D5 = error). Sprint plan: `m-numerics-vec-array-ingest-sprint-plan.md`.
-**Target**: v0.45.0 (Phase 0 can ship in a patch)
+**Target**: v0.46.0 (retargeted: v0.45.0 was released the same day without it) (Phase 0 can ship in a patch)
 **Priority**: P2. The quick fixes already closed most of the reported gap (see "What already shipped").
 **Estimated**: Phase 0: 0.5 day. Phase 1: 3–4 days. Phase 2: 2–3 days. Phase 3: 1–2 days.
 **Dependencies**: M-NUMERICS-QUICK (landed with this doc). Interacts with the D-19 cons-cells
