@@ -61,12 +61,10 @@ func (c *cacheWriter) WriteHeader(status int) {
 	c.ResponseWriter.WriteHeader(status)
 }
 
-func (c *cacheWriter) Write(b []byte) (int, error) {
-	if !c.wroteHeader {
-		c.WriteHeader(http.StatusOK)
-	}
-	return c.ResponseWriter.Write(b)
-}
+// No Write override: http.FileServer calls WriteHeader explicitly for file
+// content (200/206) and 304, which is where the header belongs. A body
+// written without WriteHeader (a directory listing) stays uncached, which is
+// right for a listing that changes when files are added.
 
 // Unwrap lets http.ResponseController reach the underlying writer.
 func (c *cacheWriter) Unwrap() http.ResponseWriter { return c.ResponseWriter }

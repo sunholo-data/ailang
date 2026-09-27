@@ -79,6 +79,10 @@ func TestStaticCache_SetOnSuccessOnly(t *testing.T) {
 	if notMod.StatusCode != 304 || notMod.Header.Get("Cache-Control") != want {
 		t.Fatalf("304: status %d Cache-Control %q", notMod.StatusCode, notMod.Header.Get("Cache-Control"))
 	}
+	listing := head(t, ts.URL+"/", nil)
+	if listing.StatusCode != 200 || listing.Header.Get("Cache-Control") != "" {
+		t.Fatalf("a directory listing changes as files are added; must not be cached: status %d Cache-Control %q", listing.StatusCode, listing.Header.Get("Cache-Control"))
+	}
 	missing := head(t, ts.URL+"/nope.mp4", nil)
 	if missing.StatusCode != 404 || missing.Header.Get("Cache-Control") != "" {
 		t.Fatalf("404 must not be cacheable: status %d Cache-Control %q", missing.StatusCode, missing.Header.Get("Cache-Control"))

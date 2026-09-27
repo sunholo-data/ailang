@@ -832,7 +832,8 @@ ailang serve-api ./api/ --static ./ui/dist --static-cache immutable   # public, 
 ailang serve-api ./api/ --static ./ui/dist --static-cache 3600        # public, max-age=3600
 ```
 
-The header goes on `200`, `206` and `304` responses only — a `404` is never cacheable. It applies to
+The header goes on file responses (`200`, `206`) and `304` only — a `404` or a directory listing is
+never marked cacheable. It applies to
 `--static` files, not to API routes or the `--frontend` dev proxy.
 
 ---
