@@ -37,6 +37,12 @@
 #
 # The CONTROLLER is deliberately NOT isolated: it is a session-shaped agent and this context is
 # doing its job there. Only frozen stage execution is exempted.
+#
+# Hook install runs FIRST, for every session including frozen stages: it adds nothing to the
+# context (stderr only, silent when already installed) and stages push too. The pre-push hook
+# refuses a dev push whose std/ interfaces drift from .stdlib-golden/ (#1274, #1318 reached dev
+# by direct push, where PR CI never ran).
+( cd "$(dirname "$0")/../.." 2>/dev/null && bash scripts/hooks/install_hooks.sh >&2 ) || true
 [ -n "${AILANG_MISSION_STAGE:-}" ] && exit 0
 
 set -euo pipefail

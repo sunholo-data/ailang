@@ -56,5 +56,9 @@ drops decision rows. Do that merge by hand, verify with
 `scripts/mission_decisions.sh --check`, then push. Opt out for a session with
 `AILANG_AUTOPUSH=0`.
 
+**Stdlib freeze gate on push:** a `pre-push` hook (installed by SessionStart / `make install-hooks`)
+refuses a dev push that changes `std/` interfaces without `make freeze-stdlib`. Direct pushes skip
+PR CI, which is how #1274 and #1318 turned dev red.
+
 Why it exists: nothing used to push the attended path, and mission-control Gate 1 forbids
 the loop from touching the shared tree, so work stranded — 25 commits deep by 2026-09-02.

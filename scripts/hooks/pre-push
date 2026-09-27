@@ -1,0 +1,94 @@
+#!/bin/bash
+# pre-push — refuse a push to dev whose stdlib interfaces drift from .stdlib-golden/.
+#
+# WHY: PR CI already runs verify-stdlib (the `test` check is required on dev), but the bot
+# account bypasses branch protection, and the attended workflow commits straight to dev
+# (push_dev_on_stop.sh). Twice on 2026-09-25/26 a direct push changed std/ without
+# `make freeze-stdlib` (#1274 std/math.isNaN, #1318 std/list builtins) and dev's CI went red
+# for everyone until someone re-froze. A pre-push hook sits on EVERY push path — the Stop
+# auto-push, a manual `git push origin HEAD:dev`, a loop's push — so it is the one place the
+# gate cannot be routed around by accident.
+#
+# WHAT: for each ref being pushed to refs/heads/dev, if the pushed range touches the stdlib
+# or the code that renders its interfaces, check out the EXACT pushed commit in a throwaway
+# worktree, build it, and run tools/verify-stdlib.sh there. The working tree is never
+# consulted: a shared checkout carries other sessions' edits.
+#
+# Escape hatch (deliberate, visible): git push --no-verify
+# Self-test mode:  pre-push --needs-gate <base-sha> <head-sha>   → prints yes|no
+#
+# bash 3.2 compatible (rig shell). Install: make install-hooks.
+
+set -u
+
+ZERO=0000000000000000000000000000000000000000
+
+# Paths whose change can move a frozen interface. std/ is the obvious one; the others
+# change how an interface is computed or printed (#1318 moved list functions onto
+# builtins and the printed spelling changed without any std/ signature changing).
+gate_paths_regex='^(std/|\.stdlib-golden/|internal/(iface|types|builtins)/|tools/(verify-stdlib|freeze-stdlib|stdlib-iface-lib)\.sh$)'
+
+needs_gate() {
+    # $1 base (may be empty), $2 head
+    local base="$1" head="$2" files
+    if [ -n "$base" ]; then
+        files=$(git diff --name-only "$base" "$head" 2>/dev/null) || { echo yes; return; }
+    else
+        # New branch / unknown remote tip: judge the whole commit's tree against origin/dev.
+        base=$(git merge-base "$head" origin/dev 2>/dev/null)
+        if [ -z "$base" ]; then echo yes; return; fi
+        files=$(git diff --name-only "$base" "$head" 2>/dev/null) || { echo yes; return; }
+    fi
+    if printf '%s\n' "$files" | grep -Eq "$gate_paths_regex"; then echo yes; else echo no; fi
+}
+
+if [ "${1:-}" = "--needs-gate" ]; then
+    needs_gate "${2:-}" "${3:-}"
+    exit 0
+fi
+
+run_gate() {
+    # $1 head sha. Returns verify-stdlib's exit code; any setup failure is a refusal
+    # (Principle 2: an unverifiable push is not a verified one).
+    local head="$1" tmp rc
+    tmp=$(mktemp -d "${TMPDIR:-/tmp}/ailang-prepush.XXXXXX") || return 1
+    if ! git worktree add -q --detach "$tmp/wt" "$head" 2>/dev/null; then
+        echo "pre-push: could not check out $head for the stdlib gate" >&2
+        rm -rf "$tmp"; return 1
+    fi
+    (
+        cd "$tmp/wt" || exit 1
+        echo "pre-push: building $(git rev-parse --short HEAD) to verify stdlib interfaces..." >&2
+        go build -o bin/ailang ./cmd/ailang >&2 || { echo "pre-push: build failed" >&2; exit 1; }
+        bash tools/verify-stdlib.sh > "$tmp/verify.log" 2>&1
+    )
+    rc=$?
+    if [ $rc -ne 0 ]; then
+        grep -E '✗|^\s*[-+] |"name"' "$tmp/verify.log" | head -40 >&2
+    fi
+    git worktree remove --force "$tmp/wt" >/dev/null 2>&1
+    rm -rf "$tmp"
+    return $rc
+}
+
+status=0
+while read -r _local_ref local_sha remote_ref remote_sha; do
+    [ "$remote_ref" = "refs/heads/dev" ] || continue
+    [ "$local_sha" = "$ZERO" ] && continue            # deleting dev: not our business
+    base=""
+    if [ "$remote_sha" != "$ZERO" ] && git cat-file -e "$remote_sha^{commit}" 2>/dev/null; then
+        base="$remote_sha"
+    fi
+    [ "$(needs_gate "$base" "$local_sha")" = "yes" ] || continue
+    if ! run_gate "$local_sha"; then
+        cat >&2 <<EOF
+
+✗ pre-push: refusing to push to dev — std/ interfaces differ from .stdlib-golden/.
+  If the change is intentional:   make freeze-stdlib
+  and state the interface change in the commit message, then push again.
+  (Deliberate override: git push --no-verify)
+EOF
+        status=1
+    fi
+done
+exit $status
