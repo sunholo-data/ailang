@@ -86,7 +86,7 @@ See [Effects](/docs/reference/effects) for how the capability system works, [Mod
 | Module | Purpose | Capability |
 |---|---|---|
 | `std/ai` | General-purpose AI oracle: `string -> string`, JSON variants | `AI` |
-| `std/embedding` | Compute embedding vectors via host-provided model | varies by host |
+| `std/embedding` | Pure `[float]` vector math, native loops: `dot`, `cosine`, `magnitude`, `normalize`, `scale`, `add_vectors`, `axpy`, `euclidean_distance`, `cosine_encoded` | none (pure) |
 | `std/sem` | Semantic frame caching primitives | `Clock`, `SharedMem` |
 | `std/sharedmem` | Key-value shared memory (effect wrappers for caching) | `SharedMem` |
 | `std/sharedindex` | Namespace-partitioned similarity search index | `SharedIndex` |
