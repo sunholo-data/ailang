@@ -60,7 +60,7 @@ export func main() -> string = %s
 			} {
 				stdout, stderr, code := runCLI(t, backend.args...)
 				if code != 0 {
-					t.Fatalf("%s: exit %d\nstderr=%s", backend.name, code, stderr)
+					t.Fatalf("%s: exit %d\nstdout=%s\nstderr=%s", backend.name, code, stdout, stderr)
 				}
 				// A VM run that silently fell back to the evaluator would pass on
 				// the evaluator's answer: the callback builtins need VM-native
