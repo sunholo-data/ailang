@@ -30,6 +30,12 @@ export function missionBashAllowed(missionMode: boolean, initialized: boolean): 
 	return !missionMode || initialized;
 }
 
+export function requireMissionBash(missionMode: boolean, initialized: boolean): void {
+	if (!missionBashAllowed(missionMode, initialized)) {
+		throw new Error("Mission sandbox is not initialized; bash refused");
+	}
+}
+
 export async function initializeMissionSandbox(
 	initialize: () => Promise<void>, readyFile: string,
 ): Promise<void> {
