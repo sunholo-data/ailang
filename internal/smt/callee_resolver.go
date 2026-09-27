@@ -49,6 +49,22 @@ func ResolveCallees(
 	adtTypes map[string][]ADTVariant,
 	importedPrograms ...map[string]*core.Program,
 ) ([]CalleeDef, error) {
+	return ResolveCalleesFromRoots(funcName, []core.CoreExpr{body}, prog,
+		surfaceParams, surfaceReturnSorts, adtTypes, importedPrograms...)
+}
+
+// ResolveCalleesFromRoots is ResolveCallees over several root expressions — the
+// function body plus its requires/ensures predicates — so a user function called
+// only from a contract (e.g. `ensures { result <= cap() }`) is also defined.
+func ResolveCalleesFromRoots(
+	funcName string,
+	roots []core.CoreExpr,
+	prog *core.Program,
+	surfaceParams map[string][]FunctionParam,
+	surfaceReturnSorts map[string]string,
+	adtTypes map[string][]ADTVariant,
+	importedPrograms ...map[string]*core.Program,
+) ([]CalleeDef, error) {
 	if prog == nil {
 		return nil, nil
 	}
@@ -58,11 +74,20 @@ func ResolveCallees(
 		imported = importedPrograms[0]
 	}
 
-	// Find all user-defined function calls in the body (same-module + cross-module)
-	callees := collectCalleeCalls(body, funcName, prog, imported, 0)
+	// Find all user-defined function calls in the roots (same-module + cross-module)
+	callees := collectCalleeCallsFromRoots(roots, funcName, prog, imported)
 	if len(callees) == 0 {
 		return nil, nil
 	}
+
+	// Callee bodies are encoded in dependency order; register each successfully
+	// defined callee as it is emitted so a later callee's call to it encodes as a
+	// define-fun application (dropping unit args of nullary callees) rather than
+	// falling through to the constructor path. Restore the caller's view after.
+	prevResolved := activeResolvedCallees
+	resolvedSoFar := make(map[string]bool)
+	activeResolvedCallees = resolvedSoFar
+	defer func() { activeResolvedCallees = prevResolved }()
 
 	// Build topological order with cycle detection
 	order, err := topoSort(callees, funcName, prog, imported)
@@ -141,6 +166,7 @@ func ResolveCallees(
 			Name:   calleeName,
 			SMTLib: smtDef,
 		})
+		resolvedSoFar[calleeName] = true
 	}
 
 	return defs, nil
@@ -183,6 +209,20 @@ func collectCalleeCalls(body core.CoreExpr, selfName string, prog *core.Program,
 	seen := make(map[string]bool)
 	collectCalleeCallsInner(body, selfName, prog, imported, seen, xmodDepth)
 	var result []string
+	for name := range seen {
+		result = append(result, name)
+	}
+	return result
+}
+
+// collectCalleeCallsFromRoots is collectCalleeCalls over several root expressions,
+// de-duplicated. Order is unspecified (topoSort orders the result).
+func collectCalleeCallsFromRoots(roots []core.CoreExpr, selfName string, prog *core.Program, imported map[string]*core.Program) []string {
+	seen := make(map[string]bool)
+	for _, root := range roots {
+		collectCalleeCallsInner(root, selfName, prog, imported, seen, 0)
+	}
+	result := make([]string, 0, len(seen))
 	for name := range seen {
 		result = append(result, name)
 	}

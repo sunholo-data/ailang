@@ -87,6 +87,10 @@ type Server struct {
 	routesOnly     bool                // only expose @route-annotated functions
 	noFeedbackTool bool                // suppress the built-in submit_feedback MCP tool
 	ws             *wsState            // WebSocket route sessions (routes_ws.go)
+
+	// M-SERVEAPI-OPERATOR-SURFACE
+	noIntrospection bool   // --no-introspection: no /api/_meta/* and no /api/_health
+	staticCache     string // --static-cache: the Cache-Control value for --static 2xx/304 ("" = none)
 }
 
 // ModuleInfo holds metadata about a loaded AILANG module.
@@ -151,6 +155,8 @@ type ExportInfo struct {
 	DocComment  string   `json:"doc_comment,omitempty"`  // doc comment (-- lines) preceding the function
 	IsWS        bool     `json:"is_ws,omitempty"`        // @route("WS", ...): a WebSocket route, off every HTTP/MCP/A2A surface
 	Effects     []string `json:"-"`                      // declared effect row (WS registration check)
+	WSReq       []string `json:"-"`                      // WS routes: the declared req record fields, sorted
+	WSReqIssue  string   `json:"-"`                      // WS routes: why the declared req record is refused ("" = accepted)
 }
 
 // Config holds configuration for the API server.
@@ -173,6 +179,12 @@ type Config struct {
 	RoutesOnly     bool        // only expose @route-annotated functions as HTTP endpoints
 	NoFeedbackTool bool        // suppress the built-in submit_feedback MCP tool; user exports unaffected
 	WS             WSConfig    // @route("WS") session limits (M-SERVEAPI-WS-BRIDGE)
+	// NoIntrospection removes /api/_meta/* and /api/_health (the paths stay
+	// reserved: a @route cannot claim them). M-SERVEAPI-OPERATOR-SURFACE D1.
+	NoIntrospection bool
+	// StaticCache is the Cache-Control value set on --static 2xx/304
+	// responses; build it with ParseStaticCache. "" sets none.
+	StaticCache string
 }
 
 // New creates a new API server.
@@ -249,6 +261,8 @@ func New(basePath string, cfg Config) *Server {
 		routesOnly:         cfg.RoutesOnly,
 		noFeedbackTool:     cfg.NoFeedbackTool,
 		ws:                 newWSState(cfg.WS),
+		noIntrospection:    cfg.NoIntrospection,
+		staticCache:        cfg.StaticCache,
 	}
 }
 
@@ -572,15 +586,18 @@ func (s *Server) Start() error {
 func (s *Server) buildRoutes() *http.ServeMux {
 	mux := http.NewServeMux()
 
-	// Meta/introspection endpoints
-	mux.HandleFunc("/api/_meta/modules", s.corsWrap(s.handleListModules))
-	mux.HandleFunc("/api/_meta/modules/", s.corsWrap(s.handleModuleDetail))
-	mux.HandleFunc("/api/_health", s.corsWrap(s.handleHealth))
-
-	// OpenAPI spec + interactive docs
-	mux.HandleFunc("/api/_meta/openapi.json", s.corsWrap(s.handleOpenAPISpec))
-	mux.HandleFunc("/api/_meta/docs", s.corsWrap(s.handleSwaggerUI))
-	mux.HandleFunc("/api/_meta/redoc", s.corsWrap(s.handleReDoc))
+	// Meta/introspection endpoints, OpenAPI spec + interactive docs.
+	// --no-introspection leaves them unregistered: the paths fall to the
+	// /api/ catch-all (404) but stay in builtinPaths below, so a @route can
+	// never claim one.
+	if !s.noIntrospection {
+		mux.HandleFunc("/api/_meta/modules", s.corsWrap(s.handleListModules))
+		mux.HandleFunc("/api/_meta/modules/", s.corsWrap(s.handleModuleDetail))
+		mux.HandleFunc("/api/_health", s.corsWrap(s.handleHealth))
+		mux.HandleFunc("/api/_meta/openapi.json", s.corsWrap(s.handleOpenAPISpec))
+		mux.HandleFunc("/api/_meta/docs", s.corsWrap(s.handleSwaggerUI))
+		mux.HandleFunc("/api/_meta/redoc", s.corsWrap(s.handleReDoc))
+	}
 
 	// A2A Agent Card (opt-in via --a2a flag)
 	if s.a2aEnabled {
@@ -621,7 +638,7 @@ func (s *Server) buildRoutes() *http.ServeMux {
 
 	// Static files or frontend proxy
 	if s.staticPath != "" {
-		mux.Handle("/", http.FileServer(http.Dir(s.staticPath)))
+		mux.Handle("/", staticCacheHandler(s.staticCache, http.FileServer(http.Dir(s.staticPath))))
 	} else if s.frontendPath != "" {
 		// Proxy to Vite dev server
 		viteURL, _ := url.Parse("http://localhost:5173")
@@ -688,13 +705,21 @@ func (s *Server) printStartupBanner(addr string) {
 		log.Printf("  (%d endpoints exposed, %d filtered)", exposed, filtered)
 	}
 
+	if hint := s.routesOnlyHint(); hint != "" {
+		log.Println(hint)
+	}
+
 	log.Println()
-	log.Println("  Introspection:")
-	log.Println("    GET  /api/_meta/modules")
-	log.Println("    GET  /api/_meta/openapi.json")
-	log.Println("    GET  /api/_meta/docs            (Swagger UI)")
-	log.Println("    GET  /api/_meta/redoc           (ReDoc)")
-	log.Println("    GET  /api/_health")
+	if s.noIntrospection {
+		log.Println("  Introspection: off (--no-introspection)")
+	} else {
+		log.Println("  Introspection:")
+		log.Println("    GET  /api/_meta/modules")
+		log.Println("    GET  /api/_meta/openapi.json")
+		log.Println("    GET  /api/_meta/docs            (Swagger UI)")
+		log.Println("    GET  /api/_meta/redoc           (ReDoc)")
+		log.Println("    GET  /api/_health")
+	}
 	log.Println()
 	log.Println("  Protocols:")
 	if s.a2aEnabled {
@@ -712,6 +737,9 @@ func (s *Server) printStartupBanner(addr string) {
 	if s.staticPath != "" {
 		log.Println()
 		log.Printf("  Frontend: serving static files from %s", s.staticPath)
+		if s.staticCache != "" {
+			log.Printf("  Static Cache-Control: %s", s.staticCache)
+		}
 	}
 	if s.watch {
 		log.Println()

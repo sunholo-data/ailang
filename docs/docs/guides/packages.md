@@ -130,12 +130,26 @@ Packages declare their maximum allowed effects:
 max = ["IO"]  # Only IO allowed; Net, FS, etc. would be a compile error
 ```
 
-If a function in the package declares an effect not in `max`, compilation fails:
+The ceiling covers what the package's **own** code can reach. The package's own modules are its
+local modules and its siblings, including any imported as `./x` or `pkg/<self>/x`. For each own
+module, compilation fails if either of these includes an effect not in `max`:
+
+- the effects a function **declares** in its signature;
+- the effects in the type of any **reference** to a function outside the package: a stdlib or
+  dependency function, or a builtin. The reference counts wherever it appears — called, passed
+  to a higher-order function, stored in a record, or returned inside a closure, even one that is
+  never called.
 
 ```
 effect ceiling violation in package sunholo/mylib: effects [FS] not in max [IO]
 Add missing effects to [effects].max in ailang.toml
 ```
+
+Imported modules' own bodies are **not** charged. Importing only `disconnect` from `std/stream`
+needs `Stream`, not the `Process` that `std/stream.asyncExecProcess` uses. An imported name
+that is never referenced charges nothing. The effect rows that appear only in the types of your
+own values are not charged either. For example, a hook must carry an ABI's fixed row even when
+its body uses less. Performing such a callback still requires declaring its effects.
 
 An empty `max = []` means the package is pure — no effects allowed.
 

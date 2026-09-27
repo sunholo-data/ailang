@@ -36,6 +36,14 @@ func (s *Server) registerModule(loaded *loader.LoadedModule) (string, bool, erro
 	if loaded.File.Path == "" {
 		return "", false, nil // no source path → cannot be a local file
 	}
+	// M-SERVEAPI-OPERATOR-SURFACE D4: the stdlib is never local surface, and
+	// never a drop. Decided by module identity, not by where the stdlib root
+	// happens to sit: the embedded copy's display path "<embedded>/std/x.ail"
+	// is relative (filepath.Abs puts it under a cwd base path), and the ./std
+	// tier puts real stdlib files under the project.
+	if isStdlibModule(loaded) {
+		return "", false, nil
+	}
 
 	// Compute identity: symlink-resolved absolute path.
 	absFile, err := filepath.Abs(loaded.File.Path)
@@ -206,4 +214,13 @@ func (s *Server) findModuleByRelPath(rel string) (*ModuleInfo, bool) {
 		}
 	}
 	return nil, false
+}
+
+// isStdlibModule reports whether a loaded module belongs to the standard
+// library: its canonical ID or its `module` header lies in the std/ namespace.
+func isStdlibModule(loaded *loader.LoadedModule) bool {
+	if strings.HasPrefix(loaded.Path, "std/") {
+		return true
+	}
+	return loaded.File != nil && loaded.File.Module != nil && strings.HasPrefix(loaded.File.Module.Path, "std/")
 }

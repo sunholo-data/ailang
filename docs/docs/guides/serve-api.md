@@ -47,25 +47,22 @@ ailang serve-api ./api/ --port 8080
 ailang serve-api ./api/ --port 8080 --frontend ./ui
 ```
 
-:::caution basePath = current working directory
+:::note How serve-api picks the project root (basePath, v0.45.0+)
 
-`serve-api` derives the **basePath** (the under-which-modules-register filter) from the **current working directory**, not from the path argument. A module file is registered as a route only if it lives under the CWD on disk *and* its declared module path resolves to that location.
+A module is registered as a route only if its file lives under the **basePath**. serve-api starts
+from **the directory you give it** (for a file argument, that file's directory) and moves outward
+only when a `module` header requires it: `serve-api ./api/` with `api/handlers.ail` declaring
+`module api/handlers` uses the directory above `api/`. A header never moves the basePath *inward*,
+so another `.ail` file in a subdirectory (`client/wsclient.ail` declaring `module wsclient`) no longer
+makes `client/` the basePath and drops your route module. Without a usable header, the basePath is
+the current directory when it contains the arguments, else the arguments' own directory.
 
-This matters for hosted packages whose modules use a canonical namespaced declaration like `module sunholo/<pkg>/<module>` (the convention used across `ailang-packages/packages/*`). If you run from outside the package directory:
+Hosted packages whose modules declare a namespaced path like `module sunholo/<pkg>/<module>`
+must be served from a directory their declared paths resolve under — `cd` into the package
+directory and run `ailang serve-api .`.
 
-```bash
-# ❌ basePath = /Users/me/elsewhere; declared "sunholo/<pkg>/<module>"
-#    resolves to the package source under ailang-packages/, which is
-#    outside basePath → silently filtered (logged as "Skipped: ...").
-cd /Users/me/elsewhere
-ailang serve-api /abs/path/to/ailang-packages/packages/<pkg>/
-
-# ✅ basePath = /abs/path/to/ailang-packages/packages/<pkg>/
-cd /abs/path/to/ailang-packages/packages/<pkg>/
-ailang serve-api .
-```
-
-`cd` into the package directory first, or use a `module main` (flat) declaration if you need to serve from elsewhere.
+Standard-library modules (`std/*`) are never registered: they are not listed in the banner,
+`/api/_meta/modules` or `/api/_health`, and have no `/api/std/...` endpoints.
 
 :::
 
@@ -281,6 +278,18 @@ curl -X POST http://localhost:8080/api/api/greet/welcome \
 ---
 
 ## Introspection Endpoints
+
+The endpoints below list what the server **serves**: with `--routes-only` they show only `@route`
+exports, and `@noexpose` exports never appear. A page that must expose nothing but its own routes
+and files turns them all off with `--no-introspection`: `/api/_meta/modules`, `/api/_meta/modules/*`,
+`/api/_meta/openapi.json`, `/api/_meta/docs`, `/api/_meta/redoc` and `/api/_health` then answer 404.
+The paths stay reserved, so a `@route` still cannot claim them — give your proxy its own health
+route (e.g. `@route("GET", "/healthz")`). The Swagger UI and ReDoc pages load fonts and scripts from
+public CDNs; `--no-introspection` also removes those external fetches.
+
+```bash
+ailang serve-api --routes-only --no-introspection --static ./public ./server/
+```
 
 ### List All Modules
 
@@ -515,6 +524,7 @@ Flags:
   --cors-origin ORIGIN Allow one exact origin, e.g. https://app.example.com (repeatable)
   --frontend PATH      Proxy to Vite dev server at PATH
   --static PATH        Serve static files from PATH
+  --static-cache V     Cache-Control on --static 2xx/304: 'immutable' or a max-age in seconds
   --watch              Watch .ail files for changes and hot-reload
   --caps CAPS          Capabilities to grant (comma-separated: IO,FS,Net,AI,Clock,Env)
   --ai MODEL           AI model for AI effect (e.g., gemini-2-5-flash)
@@ -526,6 +536,8 @@ Flags:
   --api-key-header H   HTTP header name for API key authentication
   --api-key-env VAR    Environment variable containing the expected API key
   --routes-only        Only expose @route-annotated functions (skip auto-generated endpoints)
+  --no-introspection   Serve no /api/_meta/* and no /api/_health (the paths stay reserved)
+  --ws-pass-header H   Give @route("WS") handlers this request header in req.headers (repeatable)
   --no-feedback-tool   Suppress the built-in submit_feedback MCP tool (exact tool surface)
 
 Arguments:
@@ -811,6 +823,18 @@ For production, build the frontend and serve statically:
 cd ui && npm run build && cd ..
 ailang serve-api ./api/ --static ./ui/dist
 ```
+
+`--static` sends `Last-Modified` and answers range requests, and sets no `Cache-Control` unless you
+ask. For files that are never rewritten (dated or content-hashed names), opt in:
+
+```bash
+ailang serve-api ./api/ --static ./ui/dist --static-cache immutable   # public, max-age=31536000, immutable
+ailang serve-api ./api/ --static ./ui/dist --static-cache 3600        # public, max-age=3600
+```
+
+The header goes on file responses (`200`, `206`) and `304` only — a `404` or a directory listing is
+never marked cacheable. It applies to
+`--static` files, not to API routes or the `--frontend` dev proxy.
 
 ---
 
@@ -1250,8 +1274,10 @@ export func live(client: StreamConn) -> unit ! {Stream} {
 The full example, a speech gate with an offline `foldl` replay, is
 [`examples/serveapi_ws_bridge.ail`](https://github.com/sunholo-data/ailang/blob/dev/examples/serveapi_ws_bridge.ail).
 
-**Handler shape.** `handler(client: StreamConn)`, or `handler(client: StreamConn, req: {path: string,
-query: string, origin: string})`. The effect row must include `Stream`, and every effect it names
+**Handler shape.** `handler(client: StreamConn)`, or `handler(client: StreamConn, req: R)` where `R`
+is a record of any of `path: string`, `query: string`, `origin: string` and
+`headers: [{name: string, value: string}]`. serve-api builds exactly the fields you declare (a type
+alias for `R` gets `{path, query, origin}`). The effect row must include `Stream`, and every effect it names
 must be granted by `--caps`. `@raw` and `@nowrap` do not apply. serve-api refuses to start when any
 of these is wrong. When the handler returns, serve-api closes the client (1000, or 1011 if the call
 failed) and every connection the session opened.
@@ -1271,6 +1297,28 @@ a non-loopback `--bind` needs a `--cors-origin` allowlist**, or serve-api will n
 (every origin) does not count. A browser cannot set headers on `new WebSocket()`, so it presents an
 API key as subprotocols: `new WebSocket(url, ["ailang.v1", "ailang.key." + key])`. The server
 selects `ailang.v1` and never echoes the key. Query-string keys are not accepted.
+
+**Request headers (`--ws-pass-header`).** A WS handler sees no request headers unless the operator
+names them:
+
+```bash
+ailang serve-api --caps Stream --bind 127.0.0.1 --ws-pass-header Tailscale-User-Login ./server/
+```
+
+```ailang
+@route("WS", "/live")
+export func live(client: StreamConn, req: {path: string, headers: [{name: string, value: string}]}) -> unit ! {Stream} = ...
+```
+
+`req.headers` then holds only the named headers: names lower-cased (`tailscale-user-login`), one entry
+per received header line in flag order, no entry when the header is absent. The program cannot widen
+the list, so a page cannot smuggle a header in. `Authorization`, `Proxy-Authorization`, `Cookie`,
+`Sec-WebSocket-Protocol`, `Sec-WebSocket-Key` and the `--api-key-header` cannot be named — serve-api
+refuses to start — so credentials never reach program values or traces. A passed header is only as
+trustworthy as the proxy in front: `tailscale serve` overwrites `Tailscale-User-Login`, but a process
+that reaches the listener directly can send anything, so pass identity headers only with a loopback
+`--bind` behind the proxy that stamps them. HTTP `@route` handlers are unchanged: `_headers`/`@raw`
+still receive every header.
 
 **Sessions are isolated.** Each connection gets its own `StreamContext`: its own connection IDs,
 its own `MaxConnections` (4 legs by default), and its own `--stream-max-duration` and

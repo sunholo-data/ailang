@@ -31,6 +31,8 @@ type RouteEntry struct {
 	ParamTypes []string // parameter type strings for zero-value padding
 	IsWS       bool     // @route("WS", ...): WebSocket upgrade route
 	Effects    []string // declared effect row (WS routes)
+	WSReq      []string // WS routes: the req record fields the handler declares
+	WSReqIssue string   // WS routes: why the declared req record is refused
 }
 
 // extractParamInfo populates ExportInfo.ParamNames and ExportInfo.ParamTypes
@@ -113,6 +115,9 @@ func extractRouteAnnotations(modInfo *ModuleInfo, file *ast.File) {
 				modInfo.Exports[i].IsNowrap = isNowrap
 				modInfo.Exports[i].IsWS = method == "WS"
 				modInfo.Exports[i].Effects = effs
+				if method == "WS" {
+					modInfo.Exports[i].WSReq, modInfo.Exports[i].WSReqIssue = extractWSReq(fn)
+				}
 				modInfo.Exports[i].IsNoExpose = false // @route overrides @noexpose
 				flags := ""
 				if isRaw {
@@ -309,6 +314,8 @@ func (s *Server) getCustomRoutes() []RouteEntry {
 					ParamTypes: exp.ParamTypes,
 					IsWS:       exp.IsWS,
 					Effects:    exp.Effects,
+					WSReq:      exp.WSReq,
+					WSReqIssue: exp.WSReqIssue,
 				})
 			}
 		}
