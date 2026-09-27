@@ -26,9 +26,14 @@ The runner stages `index.ts`, its local `mission.ts` policy helper, `package.jso
 The staged sandbox symlinks runtime `node_modules` from the runner checkout first,
 then the main checkout resolved through the worktree's common gitdir. This avoids
 requiring source parity with the intentionally drifting main checkout. The generated
-policy permits the linked worktree gitdir and the common gitdir's `objects`,
-`refs/heads`, and `logs`; the latter two support branch-attached fixture repositories
-and branch-attached mission worktrees without granting writes to the whole checkout.
+policy permits the linked worktree gitdir and the common gitdir's `objects` only.
+(The executor's first draft also allowed the common `refs/heads` and `logs`; the controller
+removed them, because those directories hold every branch of the main checkout, `dev`
+included. A branch-attached worktree therefore cannot commit under the fence; its work stays
+uncommitted, porcelain counts it, and the controller commits — the codex lane's contract.)
+The controller also fixed `index.ts`'s disabled check to `config.enabled === false`: the
+mission policy carries no `enabled` key, and `!config.enabled` disabled the sandbox on every
+real mission run, which would have read `sandbox_not_ready` (rc 17) forever.
 
 ### M1 — NEEDS-MARK: explicit policy and fail-closed extension (~45 LOC)
 

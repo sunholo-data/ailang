@@ -260,7 +260,9 @@ export default function (pi: ExtensionAPI) {
 
 		const config = missionMode ? loadMissionPolicy(process.env.PI_SANDBOX_POLICY_FILE!) : loadConfig(ctx.cwd);
 
-		if (!config.enabled) {
+		// `=== false`, not `!enabled`: the mission policy (sandbox.mission.json) carries no
+		// `enabled` key, and `!undefined` silently disabled the sandbox on every mission run.
+		if (config.enabled === false) {
 			sandboxEnabled = false;
 			ctx.ui.notify("Sandbox disabled via config", "info");
 			return;

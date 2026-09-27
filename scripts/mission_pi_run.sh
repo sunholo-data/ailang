@@ -154,9 +154,17 @@ GITDIR=$(cd "$GITDIR" && pwd -P) || preflight_fail 16 sandbox_policy_invalid "in
 COMMON_DIR=$(cd "$COMMON_DIR" && pwd -P) || preflight_fail 16 sandbox_policy_invalid "invalid common gitdir"
 MAIN_ROOT=$(cd "$COMMON_DIR/.." && pwd -P) || preflight_fail 15 sandbox_unavailable "main checkout unavailable"
 
+# The dependency is untracked, so it lives in whichever checkout ran `npm install`. Look in
+# the runner's own checkout, then the RUNNER's main checkout (a pin worktree's common gitdir),
+# then the WORKDIR's. The runner's main checkout is the one that matters for missions whose
+# work repo is not this repo (World's WORKDIR is an ailang-world worktree, with no node_modules).
+RUNNER_COMMON=$(git -C "$RUNNER_ROOT" rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || RUNNER_COMMON=""
+RUNNER_MAIN=""
+[ -n "$RUNNER_COMMON" ] && RUNNER_MAIN=$(cd "$RUNNER_COMMON/.." 2>/dev/null && pwd -P)
 NODE_MODULES="${MISSION_PI_SANDBOX_NODE_MODULES:-}"
 if [ -z "$NODE_MODULES" ]; then
-  for candidate in "$EXT_SRC/node_modules" "$MAIN_ROOT/tools/pi-extensions/sandbox/node_modules"; do
+  for candidate in "$EXT_SRC/node_modules" "${RUNNER_MAIN:-/nonexistent}/tools/pi-extensions/sandbox/node_modules" \
+                   "$MAIN_ROOT/tools/pi-extensions/sandbox/node_modules"; do
     if [ -f "$candidate/@anthropic-ai/sandbox-runtime/package.json" ]; then NODE_MODULES="$candidate"; break; fi
   done
 fi
@@ -188,9 +196,13 @@ if ! jq -e 'type=="object" and .enabled!=false and
   (.network|type=="object" and (.allowedDomains|type=="array" and all(.[];type=="string")) and (.deniedDomains|type=="array" and all(.[];type=="string")))' "$POLICY_SRC" >/dev/null 2>&1; then
   rm -rf "$STAGE"; preflight_fail 16 sandbox_policy_invalid "canonical mission sandbox policy is missing or invalid"
 fi
+# Only this worktree's own gitdir and the shared object store. NOT the common refs/heads or
+# logs: those hold every branch of the main checkout (dev included), so a fenced executor could
+# move any ref. A branch-attached worktree therefore cannot `git commit` under the fence (the
+# ref update is denied) — its work is left uncommitted and counted by porcelain, exactly the
+# codex lane's contract, and the controller commits it.
 if ! jq --arg gitdir "$GITDIR" --arg objects "$COMMON_DIR/objects" \
-  --arg heads "$COMMON_DIR/refs/heads" --arg logs "$COMMON_DIR/logs" \
-  '.filesystem.allowWrite += [$gitdir,$objects,$heads,$logs]' "$POLICY_SRC" > "$STAGE/policy.json"; then
+  '.filesystem.allowWrite += [$gitdir,$objects]' "$POLICY_SRC" > "$STAGE/policy.json"; then
   rm -rf "$STAGE"; preflight_fail 16 sandbox_policy_invalid "cannot generate mission sandbox policy"
 fi
 READY_FILE="$STAGE/ready"
