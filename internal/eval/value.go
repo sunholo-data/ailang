@@ -126,16 +126,18 @@ func (a *ArrayValue) Get(i int64) (Value, bool) {
 	return a.Elements[i], true
 }
 
-// Set returns a new array with the element at index i replaced
-func (a *ArrayValue) Set(i int64, v Value) *ArrayValue {
+// Set returns a new array with the element at index i replaced. An index out
+// of bounds returns (nil, false): the caller must report it, never compute on
+// the unchanged array (M-NUMERICS D5).
+func (a *ArrayValue) Set(i int64, v Value) (*ArrayValue, bool) {
 	if i < 0 || i >= int64(len(a.Elements)) {
-		return a // Out of bounds, return unchanged
+		return nil, false
 	}
 	// Copy-on-write
 	newElements := make([]Value, len(a.Elements))
 	copy(newElements, a.Elements)
 	newElements[i] = v
-	return &ArrayValue{Elements: newElements}
+	return &ArrayValue{Elements: newElements}, true
 }
 
 // MapValue represents an immutable hash map with O(1) lookup (copy-on-write)

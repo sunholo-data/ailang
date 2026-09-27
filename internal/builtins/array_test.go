@@ -1,6 +1,8 @@
 package builtins
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/effects/testctx"
@@ -277,14 +279,23 @@ func TestArrayUnsafeGet(t *testing.T) {
 		t.Errorf("want 42, got %d", v.Value)
 	}
 
-	// Out of bounds should panic
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("expected panic for out of bounds access")
+	// Out of bounds is a typed runtime error, not a Go panic (M-NUMERICS Phase 0).
+	_, err = arrayUnsafeGetImpl(ctx, []eval.Value{arr, &eval.IntValue{Value: 99}})
+	if err == nil || !strings.Contains(err.Error(), "index 99 out of bounds (array length: 1)") {
+		t.Fatalf("want an out-of-bounds error naming index and length, got %v", err)
+	}
+}
+
+// An out-of-bounds set used to return the array unchanged, so a training loop
+// with an off-by-one computed on stale weights and reported nothing (D5).
+func TestArraySetOutOfBoundsIsAnError(t *testing.T) {
+	ctx := testctx.NewMockEffContext().EffContext
+	arr := &eval.ArrayValue{Elements: []eval.Value{&eval.IntValue{Value: 1}, &eval.IntValue{Value: 2}}}
+	for _, idx := range []int{-1, 2, 99} {
+		_, err := arraySetImpl(ctx, []eval.Value{arr, &eval.IntValue{Value: idx}, &eval.IntValue{Value: 7}})
+		want := fmt.Sprintf("index %d out of bounds (array length: 2)", idx)
+		if err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("set(arr, %d, _): want error containing %q, got %v", idx, want, err)
 		}
-	}()
-	_, _ = arrayUnsafeGetImpl(ctx, []eval.Value{
-		arr,
-		&eval.IntValue{Value: 99},
-	})
+	}
 }

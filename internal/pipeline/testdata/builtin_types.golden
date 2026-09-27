@@ -278,7 +278,10 @@ _trace_span_start : string -> () ! {Trace}
 _uuid4 : () -> string ! {Rand}
 _vec_add : (list[float], list[float]) -> list[float]
 _vec_axpy : (float, list[float], list[float]) -> list[float]
+_vec_decode_f32le : bytes -> Result[list[float], string]
+_vec_decode_f64le : bytes -> Result[list[float], string]
 _vec_dot : (list[float], list[float]) -> float
+_vec_encode_f64le : list[float] -> bytes
 _vec_scale : (float, list[float]) -> list[float]
 _vec_sub : (list[float], list[float]) -> list[float]
 _web_fetch : string -> Result[{content: string, links: list[string], title: string}, NetError] ! {Net}

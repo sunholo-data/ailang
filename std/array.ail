@@ -1,7 +1,9 @@
 -- std/array - Fixed-size arrays with O(1) access
 --
 -- Arrays provide O(1) indexed access, unlike lists which are O(n).
--- Use for performance-critical code or when random access is needed.
+-- Use when random access is needed. set() copies the whole array, so a loop of
+-- single-element set() calls is O(n^2): build the values first (fromList,
+-- make) or use a whole-array operation instead.
 --
 -- Pure functions (no effects required)
 
@@ -21,8 +23,8 @@ import std/list (map as listMap, foldl as listFoldl, filter as listFilter)
 --   fromList(xs)   O(n)  - converts each element
 --   toList(arr)    O(n)  - converts each element
 --
--- TIP: For hot loops, minimize set() calls by batching updates
--- or using intermediate data structures.
+-- ERRORS: get, unsafeGet and set fail on an out-of-bounds index, naming the
+-- index and the length. getOpt returns None instead.
 -- ============================================================================
 -- Array creation
 
@@ -62,7 +64,7 @@ export pure func getOpt[a](arr: Array[a], idx: int) -> Option[a] {
   if idx < 0 then None else if idx >= _array_length(arr) then None else Some(_array_get(arr, idx))
 }
 
--- Unsafe get: panics if out of bounds. Use only when you've verified bounds.
+-- Unsafe get: runtime error if out of bounds. Use only when you've verified bounds.
 export pure func unsafeGet[a](arr: Array[a], idx: int) -> a {
   _array_unsafe_get(arr, idx)
 }
@@ -70,7 +72,8 @@ export pure func unsafeGet[a](arr: Array[a], idx: int) -> a {
 -- Array modification (immutable - returns new array)
 
 -- Set element at index, returning NEW array. O(n) due to copy-on-write.
--- Original array is unchanged (immutable semantics).
+-- Original array is unchanged (immutable semantics). An out-of-bounds index
+-- is an error naming the index and the length.
 -- TIP: For many updates, consider building a list and using fromList.
 export pure func set[a](arr: Array[a], idx: int, val: a) -> Array[a] {
   _array_set(arr, idx, val)

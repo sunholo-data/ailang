@@ -185,7 +185,7 @@ func arrayGetImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error
 }
 
 // registerArrayUnsafeGet registers the array_unsafe_get builtin
-// Returns element directly, panics if out of bounds
+// Returns element directly; out of bounds is a runtime error (not a Go panic)
 func registerArrayUnsafeGet() {
 	err := RegisterEffectBuiltin(BuiltinSpec{
 		Module:  "std/array",
@@ -196,13 +196,13 @@ func registerArrayUnsafeGet() {
 		Type:    makeArrayUnsafeGetType,
 		Impl:    arrayUnsafeGetImpl,
 		Metadata: &BuiltinMetadata{
-			Description: "Get element at index (unsafe, panics if out of bounds)",
-			LongDesc:    "Returns the element at the given index. Panics if the index is out of bounds. Use array_get for safe access with Option return type.",
+			Description: "Get element at index (no bounds pre-check; errors if out of bounds)",
+			LongDesc:    "Returns the element at the given index. An out-of-bounds index is a runtime error. Use getOpt for access that returns None instead.",
 			Params: []ParamDoc{
 				{Name: "arr", Description: "Array to access"},
 				{Name: "idx", Description: "Index of element to get"},
 			},
-			Returns:   "Element at index (panics if invalid)",
+			Returns:   "Element at index (runtime error if invalid)",
 			Since:     "v0.5.0",
 			Stability: StabilityExperimental,
 			Tags:      []string{"array", "access", "index", "unsafe"},
@@ -235,7 +235,7 @@ func arrayUnsafeGetImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value,
 
 	elem, found := arr.Get(int64(idxVal.Value))
 	if !found {
-		panic(fmt.Sprintf("array_unsafe_get: index %d out of bounds (array length: %d)", idxVal.Value, len(arr.Elements)))
+		return nil, fmt.Errorf("array_unsafe_get: index %d out of bounds (array length: %d)", idxVal.Value, len(arr.Elements))
 	}
 	return elem, nil
 }
@@ -253,7 +253,7 @@ func registerArraySet() {
 		Impl:    arraySetImpl,
 		Metadata: &BuiltinMetadata{
 			Description: "Set element at index (returns new array)",
-			LongDesc:    "Returns a new array with the element at the given index replaced. The original array is not modified. Returns the original array unchanged if index is out of bounds.",
+			LongDesc:    "Returns a new array with the element at the given index replaced. The original array is not modified. An out-of-bounds index is an error naming the index and the length.",
 			Params: []ParamDoc{
 				{Name: "arr", Description: "Array to update"},
 				{Name: "idx", Description: "Index of element to set"},
@@ -290,8 +290,11 @@ func arraySetImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error
 		return nil, fmt.Errorf("array_set: expected int for index, got %T", args[1])
 	}
 
-	newVal := args[2]
-	return arr.Set(int64(idxVal.Value), newVal), nil
+	updated, ok := arr.Set(int64(idxVal.Value), args[2])
+	if !ok {
+		return nil, fmt.Errorf("array_set: index %d out of bounds (array length: %d)", idxVal.Value, len(arr.Elements))
+	}
+	return updated, nil
 }
 
 // registerArrayLength registers the array_length builtin
