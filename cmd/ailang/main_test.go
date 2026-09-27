@@ -23,7 +23,10 @@ func runCLI(t *testing.T, args ...string) (stdout, stderr string, exitCode int) 
 		t.Fatalf("Failed to get project root: %v", err)
 	}
 
-	return testutil.RunBounded(t, projectRoot, 120*time.Second, "go", append([]string{"run", "./cmd/ailang"}, args...)...)
+	// The shared binary, not `go run`: every `go run` re-links (~5s warm, more on
+	// windows-latest), and with 32 callers that alone pushed the Windows package to
+	// 406s of its 416s budget on 2026-09-27.
+	return testutil.RunBounded(t, projectRoot, 120*time.Second, buildAilang(t), args...)
 }
 
 func TestCLI_Version(t *testing.T) {

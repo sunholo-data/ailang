@@ -98,6 +98,20 @@ func TestHangGuard_FloorsAtOneSecond(t *testing.T) {
 	}
 }
 
+func TestHangGuardBound_ExhaustedDeadlineIsReported(t *testing.T) {
+	for _, left := range []time.Duration{0, 5 * time.Second, 20 * time.Second, 20*time.Second + 999*time.Millisecond} {
+		if _, exhausted := hangGuardBound(time.Minute, left); !exhausted {
+			t.Errorf("hangGuardBound(1m, %v): exhausted = false, want true (no honest bound fits)", left)
+		}
+	}
+	if got, exhausted := hangGuardBound(time.Minute, 21*time.Second); exhausted || got != time.Second {
+		t.Errorf("hangGuardBound(1m, 21s) = %v, %v; want 1s, false", got, exhausted)
+	}
+	if got, exhausted := hangGuardBound(0, time.Hour); exhausted || got != time.Second {
+		t.Errorf("hangGuardBound(0, 1h) = %v, %v; want the 1s floor for a small cap", got, exhausted)
+	}
+}
+
 func TestHangGuard_UsesCap(t *testing.T) {
 	const cap = 2 * time.Second
 	if got := HangGuard(t, cap); got != cap {
