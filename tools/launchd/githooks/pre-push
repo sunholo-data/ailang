@@ -15,7 +15,7 @@ _scope_is_harness() {
   case "$1" in
     tools/launchd/*|internal/mission/*|cmd/ailang/mission*|missions/*) return 0 ;;
     .claude/skills/mission-*|.claude/skills/sprint-*|.pi/extensions/*) return 0 ;;
-    scripts/hooks/*|scripts/mission_*) return 0 ;;
+    scripts/hooks/*|scripts/mission_*|scripts/test_mission_*) return 0 ;;   # tests of harness scripts (D-FLEET-5)
     design_docs/fleet-mission*) return 0 ;;   # the fleet's own queue, log and charter
   esac
   return 1
@@ -29,6 +29,7 @@ _scope_is_fleet_support() {
   case "$1" in
     design_docs/*|changelogs/*|CHANGELOG.md|docs/*|.ailang/state/sprints/*) return 0 ;;
     internal/config/mission.go|make/test.mk) return 0 ;;
+    tools/pi-extensions/sandbox/*) return 0 ;;   # the pi sandbox fail-closed fix (D-FLEET-6); the eval harness shares the rest of tools/pi-extensions
   esac
   return 1
 }

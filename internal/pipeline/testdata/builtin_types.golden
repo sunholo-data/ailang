@@ -141,6 +141,7 @@ _list_length : list[a] -> int
 _list_map : (a -> b, list[a]) -> list[b]
 _list_member : (a, list[a]) -> bool
 _list_nth : (list[a], int) -> a
+_list_range : (int, int) -> list[int]
 _list_reverse : list[a] -> list[a]
 _list_sortBy : ((a, a) -> int ! {...e}, list[a]) -> list[a] ! {...e}
 _list_take : (int, list[a]) -> list[a]
@@ -275,6 +276,11 @@ _trace_event : (string, string) -> () ! {Trace}
 _trace_span_end : string -> () ! {Trace}
 _trace_span_start : string -> () ! {Trace}
 _uuid4 : () -> string ! {Rand}
+_vec_add : (list[float], list[float]) -> list[float]
+_vec_axpy : (float, list[float], list[float]) -> list[float]
+_vec_dot : (list[float], list[float]) -> float
+_vec_scale : (float, list[float]) -> list[float]
+_vec_sub : (list[float], list[float]) -> list[float]
 _web_fetch : string -> Result[{content: string, links: list[string], title: string}, NetError] ! {Net}
 _web_search : (string, int) -> Result[list[{content: string, title: string, url: string}], NetError] ! {Net}
 _xmlComment : string -> XmlNode

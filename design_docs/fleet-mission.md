@@ -108,9 +108,11 @@ reach `_mc_run_once` edits (UNINFORMATIVE, see log). Next: P0 #2, mechanical hal
 
 - **May change**, as an allowlist enforced by the guard: the loop harness (`tools/launchd/**`,
   `internal/mission/**`, `cmd/ailang/mission*`, `missions/**`, `.claude/skills/mission-*/**`,
-  `.claude/skills/sprint-*/**`, `.pi/extensions/**`, `scripts/hooks/**`, `scripts/mission_*`, its own
+  `.claude/skills/sprint-*/**`, `.pi/extensions/**`, `scripts/hooks/**`, `scripts/mission_*`,
+  `scripts/test_mission_*` (D-FLEET-5), its own
   `design_docs/fleet-mission*`), plus support paths (`design_docs/**`, `changelogs/**`,
-  `CHANGELOG.md`, `docs/**`, `.ailang/state/sprints/**`, `internal/config/mission.go`, `make/test.mk`).
+  `CHANGELOG.md`, `docs/**`, `.ailang/state/sprints/**`, `internal/config/mission.go`, `make/test.mk`,
+  `tools/pi-extensions/sandbox/**` (D-FLEET-6)).
   **Anything else is refused**, including CI workflows, `go.mod`, the server, the UI and non-mission
   commands. A fix that genuinely needs one of those parks for Mark.
 - **May not change** (language core, refused by the guard): `internal/{parser,lexer,ast,types,
@@ -152,9 +154,9 @@ Shared per-role routing from `mission-control`. Overrides in `~/.config/ailang/m
 | D-FLEET-1 | RULED 2026-09-26 (Mark, attended: "yes") | Design docs without `planner_lane` default to the mission's planner pin, not `opus fail-closed`. |
 | D-FLEET-2 | RULED 2026-09-26 (Mark, attended: "yes") | The spawn-pin hook may walk the role's DECLARED fallback chain, in order, when the pinned model is dead. No undeclared model is ever allowed. |
 | D-FLEET-3 | RULED 2026-09-26 (Mark, attended: "do the follow ups") | Changes to `.pi/extensions/**` park for Mark with the diff and expected eval impact; the pi eval harness shares them. Affects `pi-runner:sandbox-extensions-not-wired` (P0 #4): the fleet designs it, and Mark approves before it lands. |
-| D-FLEET-4 | OPEN 2026-09-27 (iter 2) | **Stall watchdog: may the fleet add a cumulative-CPU progress arm with a new threshold?** No threshold-free arm keeps both reference wedges killable (plan: `design_docs/planned/sprint-plan-stall-descendant-progress.md`). **Recommend: YES to M1 only**, i.e. measure `ps -S -o time` deltas for the drill shape and both wedges on the rig, then bring a measured threshold back for approval (provisional ≥2 CPU-s per 120 s sample). Default until answered: parked; thresholds unchanged. |
-| D-FLEET-5 | OPEN 2026-09-27 (iter 2) | **Widen the Authority allowlist to `scripts/test_mission_*`?** The tests of allowlisted `scripts/mission_*` sit outside it, so the fleet cannot repair `scripts/test_mission_pi_run.sh` (TEST 3 is red at base on a stale ≤1-line snapshot assertion). **Recommend: YES** (a one-line change to the charter and to `tools/launchd/githooks/pre-push`). Default until answered: new tests go under `tools/launchd/`. |
-| D-FLEET-6 | OPEN 2026-09-27 (iter 3) | **May the fleet land the pi sandbox fix, including a change to `tools/pi-extensions/sandbox/index.ts`?** That file is outside the fleet allowlist, and D-FLEET-3 reserved this ticket for you. The extension fails OPEN: if sandbox init throws, bash runs unsandboxed. Plan (`sprint-plan-pi-runner-sandbox-wiring.md`): M1 makes the extension fail closed and read an explicit policy file; M2 wires `-e` into `scripts/mission_pi_run.sh` with typed verdicts (rc 15/16/17); M3 adds tests. Eval impact: none on `internal/eval*` or `.pi/extensions`; mission pi roles gain containment plus new lane-failure verdicts. **Recommend: YES to M1–M3 as one fleet sprint.** Default until answered: parked; pi roles stay unfenced, as today. |
+| D-FLEET-4 | RULED 2026-09-27 (Mark, attended: "go with the recommendations") | **YES to M1 only.** Measure `ps -S -o time` CPU deltas on the rig for the long-drill shape and both reference wedges (plan: `design_docs/planned/sprint-plan-stall-descendant-progress.md`), then bring a MEASURED threshold back as a new decision row. Until that row is ruled, thresholds and sample counts are unchanged; the provisional ≥2 CPU-s / 120 s is not live. |
+| D-FLEET-5 | RULED 2026-09-27 (Mark, attended: "go with the recommendations") | **YES.** `scripts/test_mission_*` is a harness path: the fleet may change it, product loops are refused on it (`tools/launchd/githooks/pre-push`, `_scope_is_harness`). The fleet may now repair `scripts/test_mission_pi_run.sh` TEST 3. |
+| D-FLEET-6 | RULED 2026-09-27 (Mark, attended: "go with the recommendations") | **YES to M1–M3 as one fleet sprint** (`design_docs/planned/sprint-plan-pi-runner-sandbox-wiring.md`): the extension fails closed and reads an explicit policy file; `scripts/mission_pi_run.sh` passes `-e` with typed verdicts rc 15/16/17; tests. The guard allows the fleet `tools/pi-extensions/sandbox/**` only; the rest of `tools/pi-extensions/**` stays outside its scope because the eval harness shares it. This ruling discharges D-FLEET-3 for this ticket. |
 
 ## Queue (top = next; tags: [NEXT] [IN-SPRINT] [PARKED] [LANDED] [RULED OUT])
 
@@ -169,12 +171,12 @@ and resolve it as "already fixed" with evidence if it no longer reproduces.
 1. [LANDED 2026-09-26 iter 1, #1325 `e3dadcd07`] `driver:slot-kill-leaves-orphan-descendants`: a killed slot leaves its descendants
    running (world 2026-09-26: the planner's harness ran 26 min past the kill). Leaks processes on a
    box with an OOM history.
-2. [PARKED 2026-09-27 iter 2, policy, D-FLEET-4] `stall-watchdog:kills-controller-on-long-drill`: **mechanical half only.** Count a live,
+2. [NEXT — D-FLEET-4 RULED 2026-09-27: M1 (measure) only, threshold returns for approval] `stall-watchdog:kills-controller-on-long-drill`: **mechanical half only.** Count a live,
    progressing descendant as progress, as 4a86ea17b does for pi. **Changing the 600s threshold
    or the sample counts is POLICY: park it.** Cost world a whole slot today (04:45, rc 143).
 3. [IN-SPRINT iter 2: commit-blind half built + PASS 97 in #1329, merge waits on dev `test` green; pre-dirty half = V1 D-58 design, not started] `pi-runner:verdict-blind-to-commits-and-predirty`: the pi fallback lanes (now the tail after
    opus) report `empty_worktree` for executors that commit, so a working lane reads as dead.
-4. [PARKED 2026-09-27 iter 3, D-FLEET-6; plan in #1330] `pi-runner:sandbox-extensions-not-wired`: pi roles run unfenced. Safety, not throughput. The extension itself fails open, so the fix needs `tools/pi-extensions/**`.
+4. [UNPARKED — D-FLEET-6 RULED 2026-09-27: M1–M3 as one sprint; plan in #1330] `pi-runner:sandbox-extensions-not-wired`: pi roles run unfenced. Safety, not throughput. The extension itself fails open, so the fix needs `tools/pi-extensions/**`.
 
 **P1 — silent wedges and invisible failures**
 0. [IN-SPRINT iter 3: built + PASS 97 in #1330, merge waits on dev `test` green] **[DIRECTIVE, Mark via attended session 2026-09-26, from fleet iteration 1's own friction (a)]**

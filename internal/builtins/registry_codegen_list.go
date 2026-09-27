@@ -230,6 +230,19 @@ func registerListCodegenSpecs() {
 		})
 	}
 
+	registerIfMissing("_list_range", 2, true, &GoCodegenSpec{
+		Helper: &GoHelperSpec{
+			FuncName: "Range", Signature: "func Range(start, end interface{}) interface{}",
+			Body: `lo, hi := toInt64(start), toInt64(end)
+	if hi <= lo { return []interface{}{} }
+	result := make([]interface{}, hi-lo)
+	for i := range result { result[i] = lo + int64(i) }
+	return result`,
+		},
+		StdlibName:   "range",
+		StdlibModule: "std/list",
+	})
+
 	// Additional stdlib names that map to existing helpers
 	registerIfMissing("_list_nth", 2, true, &GoCodegenSpec{
 		Helper: &GoHelperSpec{
