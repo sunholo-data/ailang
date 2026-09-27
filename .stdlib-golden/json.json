@@ -76,13 +76,13 @@
     },
     {
       "name": "filterNumbers",
-      "type": "(list[Json])-\u003e[float]",
+      "type": "(list[Json])-\u003elist[float]",
       "effects": [],
       "pure": true
     },
     {
       "name": "filterStrings",
-      "type": "(list[Json])-\u003e[string]",
+      "type": "(list[Json])-\u003elist[string]",
       "effects": [],
       "pure": true
     },
@@ -118,13 +118,13 @@
     },
     {
       "name": "getNumberArray",
-      "type": "(Json,string)-\u003eOption[[float]]",
+      "type": "(Json,string)-\u003eOption[list[float]]",
       "effects": [],
       "pure": true
     },
     {
       "name": "getNumberArrayOrEmpty",
-      "type": "(Json,string)-\u003e[float]",
+      "type": "(Json,string)-\u003elist[float]",
       "effects": [],
       "pure": true
     },
@@ -154,13 +154,13 @@
     },
     {
       "name": "getStringArray",
-      "type": "(Json,string)-\u003eOption[[string]]",
+      "type": "(Json,string)-\u003eOption[list[string]]",
       "effects": [],
       "pure": true
     },
     {
       "name": "getStringArrayOrEmpty",
-      "type": "(Json,string)-\u003e[string]",
+      "type": "(Json,string)-\u003elist[string]",
       "effects": [],
       "pure": true
     },

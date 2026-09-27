@@ -45,6 +45,11 @@ check fleet docs/docs/guides/mission-bootstrap.md allow
 check fleet internal/config/mission.go allow
 check fleet make/test.mk allow
 check fleet .ailang/state/sprints/sprint_X.json allow
+check fleet scripts/test_mission_pi_run.sh allow
+check v1 scripts/test_mission_pi_run.sh refuse
+check fleet tools/pi-extensions/sandbox/index.ts allow
+check fleet tools/pi-extensions/ailang-exec/index.ts refuse
+check v1 tools/pi-extensions/sandbox/index.ts allow
 echo 'PASS scope verdicts: product loops refused on harness paths (incl. the fleet charter), fleet held to its allowlist, attended unaffected'
 
 # End to end: git must actually run the hook when core.hooksPath comes ONLY from env.

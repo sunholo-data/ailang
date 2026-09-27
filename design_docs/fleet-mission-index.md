@@ -12,6 +12,7 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 3 | 2026-09-27 | pi sandbox wiring parks for Mark (extension fails open); launchd suites run under an allowlisted env (built, PASS 97, merge blocked) [HARNESS] |
 | 2 | 2026-09-27 | stall-watchdog descendant arm parks as policy; pi runner counts commits (built, PASS 97, merge blocked) [HARNESS] |
 | 1 | 2026-09-26 | slot kill now reaps the controller's whole process tree (P0 #1) [HARNESS] |
 | 0 | 2026-09-26 | charter ratified as written (attended, Mark) |

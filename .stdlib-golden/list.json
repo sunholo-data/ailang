@@ -195,6 +195,12 @@
       "pure": true
     },
     {
+      "name": "range",
+      "type": "(int,int)-\u003elist[int]",
+      "effects": [],
+      "pure": true
+    },
+    {
       "name": "reverse",
       "type": "(list[a])-\u003elist[a]",
       "effects": [],

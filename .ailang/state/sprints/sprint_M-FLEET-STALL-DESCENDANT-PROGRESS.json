@@ -1,0 +1,28 @@
+{
+  "sprint_id": "M-FLEET-STALL-DESCENDANT-PROGRESS",
+  "design_doc": "design_docs/planned/sprint-plan-stall-descendant-progress.md",
+  "ticket": "stall-watchdog:kills-controller-on-long-drill",
+  "milestones": [
+    {
+      "id": "M1",
+      "title": "Measure and decide the discriminator",
+      "acceptance_criteria": [
+        "Observe rig cumulative CPU-time deltas for a 46-row scratch harness, W1, and W2 with stable PID identity and 120-second endpoints; sandboxed external-path or socket observations are uninformative.",
+        "Observe /bin/bash tools/launchd/test_mission_stall.sh exit 0 with named 04:45-shape, W1, and W2 arms only if one measured threshold separates them; base is 16/16 green.",
+        "If measured deltas overlap, observe a policy decision returned to Mark and no watchdog implementation."
+      ],
+      "files": ["tools/launchd/test_mission_stall.sh"]
+    },
+    {
+      "id": "M2",
+      "title": "Implement approved cumulative CPU-time arm",
+      "acceptance_criteria": [
+        "After Mark approves a measured threshold, observe bash -n tools/launchd/mission-control.sh exit 0.",
+        "Observe /bin/bash tools/launchd/test_mission_stall.sh exit 0 with the 04:45-shape live, W1 and W2 stalled, and named mutation victims red under one-line arm mutations.",
+        "Observe controller-run env -i HOME=$HOME PATH=$PATH make test-launchd-drivers exit 0 outside the sandbox; a sandbox run touching sockets or external paths is uninformative."
+      ],
+      "files": ["tools/launchd/mission-control.sh", "tools/launchd/test_mission_stall.sh", "changelogs/v0.32-current.md"]
+    }
+  ],
+  "status": "planned"
+}

@@ -61,6 +61,7 @@ LAUNCHD_SUITE := /bin/bash tools/launchd/lib/suite-env.sh
 test-launchd-drivers: ## Run launchd driver tests (pin-root + routing + notices + hook stdout, bash 3.2)
 	@$(LAUNCHD_SUITE) tools/launchd/test_suite_env.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_pin_root.sh
+	@$(LAUNCHD_SUITE) tools/launchd/test_mission_pi_run_commits.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_driver_notify.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_mission_routing.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_spawn_pin_hook.sh
@@ -79,6 +80,7 @@ test-launchd-drivers: ## Run launchd driver tests (pin-root + routing + notices 
 	@$(LAUNCHD_SUITE) tools/launchd/test_ollama_quota_admission.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_anthropic_quota_admission.sh
 	@$(LAUNCHD_SUITE) scripts/hooks/test_stage_isolation.sh
+	@$(LAUNCHD_SUITE) scripts/hooks/test_pre_push.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_evaluator_skill_lane.sh
 # Keep this shell-only: the bash-3.2 CI job deliberately has no Go toolchain.
 	@$(LAUNCHD_SUITE) tools/eval/test_motoko_connection_probe.sh
