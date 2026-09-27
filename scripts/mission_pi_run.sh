@@ -164,7 +164,11 @@ fi
   preflight_fail 15 sandbox_unavailable "@anthropic-ai/sandbox-runtime is unavailable"
 
 STAGE_PARENT="${MISSION_PI_SANDBOX_STAGE_PARENT:-/tmp}"
-[ "$STAGE_PARENT" != "$WORKDIR" ] && [ "$STAGE_PARENT" != "$HOME" ] || \
+case "$STAGE_PARENT/" in "$WORKDIR/"*|"$HOME/"*|"$WORKDIR/"|"$HOME/") \
+  preflight_fail 15 sandbox_unavailable "private stage parent cannot be inside workdir or HOME" ;; esac
+case "$STAGE_PARENT" in /*) ;; *) \
+  preflight_fail 15 sandbox_unavailable "private stage parent must be absolute" ;; esac
+[ -d "$STAGE_PARENT" ] || \
   preflight_fail 15 sandbox_unavailable "private stage parent cannot be workdir or HOME"
 STAGE=$(mktemp -d "$STAGE_PARENT/mission-pi.XXXXXX") || \
   preflight_fail 15 sandbox_unavailable "cannot create private stage"
@@ -180,8 +184,8 @@ mv "$STAGE/mission.ts" "$STAGE/sandbox/mission.ts" || {
 }
 
 if ! jq -e 'type=="object" and .enabled!=false and
-  (.filesystem|type=="object" and (.allowWrite|type=="array") and (.denyWrite|type=="array") and (.denyRead|type=="array")) and
-  (.network|type=="object" and (.allowedDomains|type=="array") and (.deniedDomains|type=="array"))' "$POLICY_SRC" >/dev/null 2>&1; then
+  (.filesystem|type=="object" and (.allowWrite|type=="array" and all(.[];type=="string")) and (.denyWrite|type=="array" and all(.[];type=="string")) and (.denyRead|type=="array" and all(.[];type=="string"))) and
+  (.network|type=="object" and (.allowedDomains|type=="array" and all(.[];type=="string")) and (.deniedDomains|type=="array" and all(.[];type=="string")))' "$POLICY_SRC" >/dev/null 2>&1; then
   rm -rf "$STAGE"; preflight_fail 16 sandbox_policy_invalid "canonical mission sandbox policy is missing or invalid"
 fi
 if ! jq --arg gitdir "$GITDIR" --arg objects "$COMMON_DIR/objects" \

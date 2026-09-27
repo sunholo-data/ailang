@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import test from "node:test";
-import { initializeMissionSandbox, loadMissionPolicy, missionBashAllowed } from "./mission.ts";
+import { initializeMissionSandbox, loadMissionPolicy, missionBashAllowed, requireMissionBash } from "./mission.ts";
 
 test("mission policy requires a complete explicit source", () => {
 	const dir = mkdtempSync(join(tmpdir(), "pi-policy-"));
@@ -21,6 +21,7 @@ test("mission policy requires a complete explicit source", () => {
 		assert.throws(() => loadMissionPolicy(file));
 		writeFileSync(file, JSON.stringify(valid));
 		assert.deepEqual(loadMissionPolicy(file).filesystem.allowWrite, ["."]);
+		assert.throws(() => loadMissionPolicy(relative(process.cwd(), file)));
 	} finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
@@ -38,7 +39,7 @@ test("ready marker follows successful initialization only", async () => {
 test("failed-init mission bash is refused", () => {
 	let localCalls = 0;
 	const bash = () => {
-		if (!missionBashAllowed(true, false)) throw Error("Mission sandbox is not initialized");
+		requireMissionBash(true, false);
 		localCalls++;
 	};
 	assert.throws(bash, /not initialized/);
