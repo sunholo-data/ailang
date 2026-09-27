@@ -68,7 +68,7 @@ gitdir=$(git -C "$TMP/wt-happy" rev-parse --path-format=absolute --git-dir)
 common=$(git -C "$TMP/wt-happy" rev-parse --path-format=absolute --git-common-dir)
 check 'explicit policy has caches and narrow git metadata' "$(
   jq -e --arg gitdir "$gitdir" --arg objects "$common/objects" --arg heads "$common/refs/heads" --arg logs "$common/logs" \
-    '.filesystem.allowWrite | index("~/Library/Caches/go-build") and index($gitdir) and index($objects) and index($heads) and index($logs)' "$TMP/happy.policy" >/dev/null &&
+    '.filesystem.allowWrite | index("~/Library/Caches/go-build") and index($gitdir) and index($objects) and (index($heads) | not) and (index($logs) | not)' "$TMP/happy.policy" >/dev/null &&
   [ "$(sed -n '3p' "$TMP/happy.env")" = "$stage/policy.json" ] &&
   [ "$(sed -n '4p' "$TMP/happy.env")" = "$stage/ready" ] && [ ! -e "$stage" ] && echo true || echo false)"
 
