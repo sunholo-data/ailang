@@ -243,19 +243,34 @@ func encodeStringBuiltin(spec StringBuiltinSpec, args []core.CoreExpr) (string, 
 
 // encodeUserFunctionCall encodes a call to a user-defined function
 // that has been resolved as a define-fun in the SMT-LIB context.
+//
+// A zero-arg AILANG function `f()` desugars to `f(_: ())` and is called with a
+// single unit literal. Unit carries no information and the define-fun drops the
+// unit parameter (see isUnitParam), so unit arguments are dropped here too. A call
+// with no remaining arguments is a nullary define-fun, i.e. an SMT-LIB constant,
+// and is referenced by its bare name (`(f)` is not a valid SMT-LIB term).
 func encodeUserFunctionCall(funcName string, args []core.CoreExpr) (string, error) {
-	if len(args) == 0 {
-		return fmt.Sprintf("(%s)", funcName), nil
-	}
-	encodedArgs := make([]string, len(args))
+	encodedArgs := make([]string, 0, len(args))
 	for i, arg := range args {
+		if isUnitLiteral(arg) {
+			continue
+		}
 		encoded, err := EncodeExpr(arg)
 		if err != nil {
 			return "", fmt.Errorf("function call %s arg %d: %w", funcName, i, err)
 		}
-		encodedArgs[i] = encoded
+		encodedArgs = append(encodedArgs, encoded)
+	}
+	if len(encodedArgs) == 0 {
+		return funcName, nil
 	}
 	return fmt.Sprintf("(%s %s)", funcName, strings.Join(encodedArgs, " ")), nil
+}
+
+// isUnitLiteral reports whether a Core expression is the unit value `()`.
+func isUnitLiteral(e core.CoreExpr) bool {
+	lit, ok := e.(*core.Lit)
+	return ok && lit.Kind == core.UnitLit
 }
 
 // encodeConstructorApp encodes an ADT constructor application.

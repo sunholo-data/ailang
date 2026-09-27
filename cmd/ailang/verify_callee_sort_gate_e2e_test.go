@@ -68,9 +68,10 @@ func TestVerify_UnencodableCalleeSkipsNotErrors(t *testing.T) {
 }
 
 // TestVerify_UnresolvedCalleeShapesSkipNotError covers the leak-site guard: a
-// callee returning a record and a user function called inside an ensures predicate
-// both used to hard-ERROR with "unknown constant"; they must now skip gracefully.
-// These are the reporter's `strrec` and `adt_result` minimal repros.
+// callee returning a record used to hard-ERROR with "unknown constant"; it must
+// skip gracefully. (The reporter's `adt_result` repro — a user function called in
+// an ensures predicate — is now resolved and verified: see
+// TestVerify_ContractPredicateCalleeIsEncoded.)
 func TestVerify_UnresolvedCalleeShapesSkipNotError(t *testing.T) {
 	if !smt.Z3Available() {
 		t.Skip("Z3 not installed (e.g. Windows CI) — verify e2e needs the solver")
@@ -84,14 +85,6 @@ export func canon(s: string) -> Rec ! {} { { name: s } }
 export func useCanon(s: string) -> string ! {}
 ensures { true }
 { (canon(s)).name }
-`,
-		"contract_predicate_callee": `module m
-type V = A | B
-export func legal(v: V) -> bool ! {} { match v { A => true, B => true } }
-export func pick(n: int) -> V ! {}
-requires { n >= 0 }
-ensures { legal(result) }
-{ A }
 `,
 	}
 

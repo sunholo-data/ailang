@@ -127,14 +127,7 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 	allSurfaceParams := make(map[string][]FunctionParam)
 	allSurfaceReturnSorts := make(map[string]string)
 	for funcName, fd := range surfaceFuncs {
-		var params []FunctionParam
-		for _, p := range fd.Params {
-			paramType := ConvertASTTypeToType(p.Type)
-			if paramType != nil {
-				params = append(params, FunctionParam{Name: p.Name, Type: paramType})
-			}
-		}
-		allSurfaceParams[funcName] = params
+		allSurfaceParams[funcName] = SurfaceFunctionParams(fd)
 		if fd.ReturnType != nil {
 			allSurfaceReturnSorts[funcName] = ASTTypeToSMTSort(fd.ReturnType)
 		}
@@ -165,13 +158,7 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 				if _, exists := allSurfaceParams[fd.Name]; exists {
 					continue // current module takes priority
 				}
-				var params []FunctionParam
-				for _, p := range fd.Params {
-					if pt := ConvertASTTypeToType(p.Type); pt != nil {
-						params = append(params, FunctionParam{Name: p.Name, Type: pt})
-					}
-				}
-				allSurfaceParams[fd.Name] = params
+				allSurfaceParams[fd.Name] = SurfaceFunctionParams(fd)
 				if fd.ReturnType != nil {
 					allSurfaceReturnSorts[fd.Name] = ASTTypeToSMTSort(fd.ReturnType)
 				}
@@ -268,7 +255,9 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 		// Callee-sort gate: reject cleanly if a cross-function callee has an
 		// unencodable signature type (e.g. Option[float]) rather than leaking an
 		// undeclared sort into the SMT script and crashing Z3. See M-SMT-CALLEE-SORT-GATE.
-		if callee, badType := FirstUnencodableCalleeType(funcName, body, coreProg, importedPrograms, calleeASTFuncs, declarableADTs); callee != "" {
+		// Contract predicates are gated too: their callees are resolved as define-funs
+		// (ResolveCalleesFromRoots), so an unencodable callee sort there would leak.
+		if callee, badType := firstUnencodableCalleeInFunc(funcName, body, meta.Contracts, coreProg, importedPrograms, calleeASTFuncs, declarableADTs); callee != "" {
 			rejections = append(rejections, SMTRejectionReason{
 				Code:    RejectUnencodable,
 				Message: fmt.Sprintf("Function %q calls %q whose signature uses an unencodable type %q", funcName, callee, badType),
