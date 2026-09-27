@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"testing"
 	"time"
@@ -33,6 +34,13 @@ func seedHeldLock(t *testing.T, dir, holder string) {
 // was started from.
 func sleeper(t *testing.T) (*exec.Cmd, int, string) {
 	t.Helper()
+	// Child liveness is read with ps (commOf), which Windows lacks; a ps failure
+	// deliberately reads as "no live children" so a broken probe cannot hold the
+	// rig hostage. The rig lock runs on the macOS rig only — POSIX-only, like the
+	// shell half of the protocol (yield_shell_test.go).
+	if runtime.GOOS == "windows" {
+		t.Skip("child registry liveness uses ps; the rig lock is POSIX-only")
+	}
 	bin, err := exec.LookPath("sleep")
 	if err != nil {
 		t.Skipf("sleep not available: %v", err)
