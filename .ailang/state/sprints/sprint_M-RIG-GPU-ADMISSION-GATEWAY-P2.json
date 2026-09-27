@@ -1,0 +1,90 @@
+{
+  "sprint_id": "M-RIG-GPU-ADMISSION-GATEWAY-P2",
+  "status": "not_started",
+  "created": "2026-09-27T17:56:13Z",
+  "design_doc": "design_docs/planned/m-rig-gpu-admission-gateway.md",
+  "sprint_plan": "design_docs/planned/m-rig-gpu-admission-gateway-sprint-plan.md",
+  "github_issues": [],
+  "velocity": {
+    "target_loc_per_day": 173,
+    "estimated_total_loc": 520,
+    "estimated_days": 3
+  },
+  "features": [
+    {
+      "id": "M1_CLIENT_LEASE_WIRING",
+      "description": "Route on-device pi and opencode eval lanes through a separate leased provider while preserving everyday and cloud ollama routes.",
+      "estimated_loc": 180,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "With `AILANG_RIG_LEASE=test-token`, pi sends `X-Rig-Lease: test-token`; opencode sends `Authorization: Bearer test-token` (an additional matching header is allowed).",
+        "With the variable unset, the everyday `ollama` pi provider still starts; the `ollama-rig` provider fails loudly as measured by design-doc V12.",
+        "Every on-device pi/opencode eval row uses `ollama-rig/...`; no Cloud, interactive, mission, or motoko row is accidentally moved.",
+        "Canonical config/install drift tests pass and include a mutation that changes one local row back to `ollama/...` and makes the test fail.",
+        "Smoke artifacts bank `executor_version` for both executors and show the leased provider/model actually resolved."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_MOTOKO_CHILD_REGISTRATION",
+      "description": "Split motoko process execution into Start and Wait and register the started process with riglock before waiting.",
+      "estimated_loc": 80,
+      "dependencies": [
+        "M1_CLIENT_LEASE_WIRING"
+      ],
+      "acceptance_criteria": [
+        "A held-lock motoko child appears in the riglock children ledger before the fake child exits.",
+        "No-lock execution remains a no-op for registration.",
+        "Start failure returns the existing executor failure shape without panic; nonzero child exit still proceeds to JSONL parsing as before.",
+        "Motoko package tests, riglock tests, race-enabled targeted test, formatting, and lint are green."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_BYPASS_DETECTOR",
+      "description": "Reconcile complete-minute ollama long-request counts against the gateway ledger and rate-limit controlplane alerts.",
+      "estimated_loc": 210,
+      "dependencies": [
+        "M2_MOTOKO_CHILD_REGISTRATION"
+      ],
+      "acceptance_criteria": [
+        "Fixture table covers equal counts, ollama excess, gateway excess, irrelevant endpoints, minute boundary exclusion, rotated/truncated log, missing ledger, duplicate watchdog invocation, and alert re-arm after 60 minutes.",
+        "First ollama excess logs and messages; a second within the hour logs but does not message; the first after the hour messages again.",
+        "A mutation from `>` to `>=` fails the equal-count test; removing any one endpoint fails its endpoint case; treating a missing ledger as zero fails loudly.",
+        "Tests do not read live rig logs or send real messages; curl/ailang/date are injected or shimmed."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_ATTENDED_CUTOVER_AND_SOAK",
+      "description": "After external token readiness and Mark's go, move ollama to port 11435, bootstrap rig-gate on 11434, verify rollback, and complete a seven-night soak.",
+      "estimated_loc": 50,
+      "dependencies": [
+        "M3_BYPASS_DETECTOR",
+        "DANEEL_TOKEN_READY",
+        "EPARSE_TOKEN_READY",
+        "MARK_CUTOVER_GO"
+      ],
+      "acceptance_criteria": [
+        "Repo and installed ollama plists are `plutil`-equivalent and pin `127.0.0.1:11435`.",
+        "Public `127.0.0.1:11434` is owned by rig-gate; private `127.0.0.1:11435` is owned by ollama; neither listens on a non-loopback address.",
+        "Watchdog independently detects and recovers each service without confusing `localhost`/IPv6.",
+        "Leased three-harness smoke passes, foreign/unleased refusal is <100 ms, and no direct-port request is emitted by an eval client.",
+        "Seven-night report is attached to the design doc; docs/runbooks/changelog are updated. Phase 2 is not marked complete before this report."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
