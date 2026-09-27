@@ -47,7 +47,9 @@ func (s *Server) handleListModules(w http.ResponseWriter, r *http.Request) {
 	s.mu.RLock()
 	modules := make([]*ModuleInfo, 0, len(s.modules))
 	for _, m := range s.modules {
-		modules = append(modules, m)
+		if view := s.exposedView(m); view != nil {
+			modules = append(modules, view)
+		}
 	}
 	s.mu.RUnlock()
 
@@ -71,6 +73,10 @@ func (s *Server) handleModuleDetail(w http.ResponseWriter, r *http.Request) {
 
 	s.mu.RLock()
 	modInfo, ok := s.findModuleByRelPath(path)
+	if ok {
+		modInfo = s.exposedView(modInfo)
+		ok = modInfo != nil
+	}
 	s.mu.RUnlock()
 
 	if !ok {
@@ -133,4 +139,26 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httpjson.Write(w, http.StatusOK, resp)
+}
+
+// exposedView is the introspection projection of a module: a copy whose
+// Exports are only those the authorized-surface gateway admits, so
+// /api/_meta/modules never lists (with type and doc comment) an export that
+// --routes-only or @noexpose hides from dispatch. A module with no exposed
+// export has no surface and returns nil. M-SERVEAPI-OPERATOR-SURFACE D2.
+func (s *Server) exposedView(m *ModuleInfo) *ModuleInfo {
+	if m == nil {
+		return nil
+	}
+	view := *m
+	view.Exports = make([]ExportInfo, 0, len(m.Exports))
+	for _, e := range m.Exports {
+		if s.isExposed(e) {
+			view.Exports = append(view.Exports, e)
+		}
+	}
+	if len(view.Exports) == 0 {
+		return nil
+	}
+	return &view
 }
