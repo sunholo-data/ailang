@@ -68,10 +68,10 @@ func TestArrayMakeNegativeSize(t *testing.T) {
 func TestArrayGet(t *testing.T) {
 	ctx := testctx.NewMockEffContext().EffContext
 	arr := eval.NewArray([]eval.Value{
-			&eval.IntValue{Value: 10},
-			&eval.IntValue{Value: 20},
-			&eval.IntValue{Value: 30},
-		})
+		&eval.IntValue{Value: 10},
+		&eval.IntValue{Value: 20},
+		&eval.IntValue{Value: 30},
+	})
 
 	tests := []struct {
 		name    string
@@ -115,10 +115,10 @@ func TestArrayGet(t *testing.T) {
 func TestArraySet(t *testing.T) {
 	ctx := testctx.NewMockEffContext().EffContext
 	original := eval.NewArray([]eval.Value{
-			&eval.IntValue{Value: 1},
-			&eval.IntValue{Value: 2},
-			&eval.IntValue{Value: 3},
-		})
+		&eval.IntValue{Value: 1},
+		&eval.IntValue{Value: 2},
+		&eval.IntValue{Value: 3},
+	})
 
 	// Set middle element
 	result, err := arraySetImpl(ctx, []eval.Value{
@@ -217,10 +217,10 @@ func TestArrayFromList(t *testing.T) {
 func TestArrayToList(t *testing.T) {
 	ctx := testctx.NewMockEffContext().EffContext
 	arr := eval.NewArray([]eval.Value{
-			&eval.StringValue{Value: "a"},
-			&eval.StringValue{Value: "b"},
-			&eval.StringValue{Value: "c"},
-		})
+		&eval.StringValue{Value: "a"},
+		&eval.StringValue{Value: "b"},
+		&eval.StringValue{Value: "c"},
+	})
 
 	result, err := arrayToListImpl(ctx, []eval.Value{arr})
 	if err != nil {
@@ -252,8 +252,8 @@ func TestArrayToList(t *testing.T) {
 func TestArrayUnsafeGet(t *testing.T) {
 	ctx := testctx.NewMockEffContext().EffContext
 	arr := eval.NewArray([]eval.Value{
-			&eval.IntValue{Value: 42},
-		})
+		&eval.IntValue{Value: 42},
+	})
 
 	// Valid access
 	result, err := arrayUnsafeGetImpl(ctx, []eval.Value{
