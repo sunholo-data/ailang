@@ -1,14 +1,12 @@
 package main
 
 import (
-	"bufio"
 	"flag"
 	"fmt"
 	"github.com/sunholo-data/ailang/internal/runner"
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/sunholo-data/ailang/internal/apiserver"
 	"github.com/sunholo-data/ailang/internal/effects"
@@ -35,6 +33,8 @@ func serveAPICommand(args []string) error {
 	apiKeyHeaderFlag := fs.String("api-key-header", "", "HTTP header name for API key authentication")
 	apiKeyEnvFlag := fs.String("api-key-env", "", "Environment variable containing the expected API key")
 	routesOnlyFlag := fs.Bool("routes-only", false, "Only expose @route-annotated functions as HTTP endpoints")
+	noIntrospectionFlag := fs.Bool("no-introspection", false, "Serve no /api/_meta/* (module list, OpenAPI, Swagger UI, ReDoc) and no /api/_health")
+	staticCacheFlag := fs.String("static-cache", "", "Cache-Control for --static files: 'immutable' (public, max-age=31536000, immutable) or a max-age in seconds")
 	noFeedbackToolFlag := fs.Bool("no-feedback-tool", false, "Suppress the built-in submit_feedback MCP tool (exact tool surface)")
 	helpFlag := fs.Bool("help", false, "Show help for serve-api command")
 	maxMemoryFlag := fs.String("max-memory", "", "Go soft memory limit: a size (256MB, 1GB) or 'cgroup' (the container limit x 0.9). Unset = AILANG_MEMLIMIT, else none.")
@@ -64,6 +64,14 @@ func serveAPICommand(args []string) error {
 		return err
 	}
 
+	staticCache, err := apiserver.ParseStaticCache(*staticCacheFlag)
+	if err != nil {
+		return err
+	}
+	if staticCache != "" && *staticFlag == "" {
+		return fmt.Errorf("--static-cache needs --static")
+	}
+
 	if fs.NArg() < 1 {
 		fmt.Fprintf(os.Stderr, "%s: missing path argument\n", red("Error"))
 		printServeAPIHelp()
@@ -85,18 +93,11 @@ func serveAPICommand(args []string) error {
 		paths[i] = p
 	}
 
-	// Derive basePath from the provided files.
-	// Read the first .ail file's module declaration to compute the project root.
-	// e.g., file at /tmp/myproject/api/handlers.ail declaring "module api/handlers"
-	// gives basePath = /tmp/myproject/
-	basePath := cwd
-	if declaredMod, absFile := findFirstModuleDecl(paths); declaredMod != "" {
-		suffix := filepath.FromSlash(declaredMod) + ".ail"
-		if strings.HasSuffix(absFile, suffix) {
-			basePath = strings.TrimSuffix(absFile, suffix)
-			basePath = strings.TrimRight(basePath, string(filepath.Separator))
-		}
-	}
+	// The project root: the directory given on the command line, moved
+	// outward only when a module header requires it (e.g. api/handlers.ail
+	// declaring "module api/handlers" under `serve-api ./api/` gives the
+	// directory above api/). M-SERVEAPI-OPERATOR-SURFACE D5.
+	basePath := apiserver.ResolveBasePath(paths, cwd)
 
 	// Set up effect context if capabilities, AI, or contract flags are provided
 	// Always construct the effect context: NewEffContext grants only the
@@ -139,6 +140,10 @@ func serveAPICommand(args []string) error {
 	if err := ws.apply(effCtx); err != nil {
 		return err
 	}
+	wsCfg, err := ws.config(*apiKeyHeaderFlag)
+	if err != nil {
+		return err
+	}
 
 	cfg := apiserver.Config{
 		Port:           *portFlag,
@@ -158,7 +163,10 @@ func serveAPICommand(args []string) error {
 		LogLevel:       debugLogLevel,
 		RoutesOnly:     *routesOnlyFlag,
 		NoFeedbackTool: *noFeedbackToolFlag,
-		WS:             ws.config(),
+		WS:             wsCfg,
+
+		NoIntrospection: *noIntrospectionFlag,
+		StaticCache:     staticCache,
 	}
 
 	srv := apiserver.New(basePath, cfg)
@@ -197,60 +205,6 @@ func serveAPICommand(args []string) error {
 	return srv.Start()
 }
 
-// findFirstModuleDecl scans the provided paths for the first .ail file
-// and extracts its module declaration. Returns (declaredModule, absFilePath).
-func findFirstModuleDecl(paths []string) (string, string) {
-	for _, p := range paths {
-		info, err := os.Stat(p)
-		if err != nil {
-			continue
-		}
-		if info.IsDir() {
-			// Scan directory for first .ail file
-			_ = filepath.Walk(p, func(path string, fi os.FileInfo, err error) error {
-				if err != nil || fi.IsDir() || !strings.HasSuffix(path, ".ail") {
-					return nil
-				}
-				p = path
-				return filepath.SkipAll
-			})
-		}
-		if !strings.HasSuffix(p, ".ail") {
-			continue
-		}
-
-		mod := readModuleDecl(p)
-		if mod != "" {
-			absP, _ := filepath.Abs(p)
-			return mod, absP
-		}
-	}
-	return "", ""
-}
-
-// readModuleDecl reads the module declaration from an .ail file.
-// Returns empty string if not found.
-func readModuleDecl(path string) string {
-	f, err := os.Open(path)
-	if err != nil {
-		return ""
-	}
-	defer f.Close()
-
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if strings.HasPrefix(line, "--") || line == "" {
-			continue // skip comments and blank lines
-		}
-		if strings.HasPrefix(line, "module ") {
-			return strings.TrimSpace(strings.TrimPrefix(line, "module"))
-		}
-		break // first non-comment, non-empty line is not a module decl
-	}
-	return ""
-}
-
 func printServeAPIHelp() {
 	fmt.Println("Usage: ailang serve-api [options] <path...>")
 	fmt.Println()
@@ -258,7 +212,8 @@ func printServeAPIHelp() {
 	fmt.Println("Each exported function becomes a POST endpoint at /api/{module}/{function}.")
 	fmt.Println()
 	fmt.Println("Arguments:")
-	fmt.Println("  <path...>            One or more .ail files or directories to load")
+	fmt.Println("  <path...>            One or more .ail files or directories to load. The project root is")
+	fmt.Println("                       the directory given, or further out when a module header requires it")
 	fmt.Println()
 	fmt.Println("Options:")
 	fmt.Println("  --port PORT          HTTP server port (default: 8080)")
@@ -268,6 +223,7 @@ func printServeAPIHelp() {
 	fmt.Println("                       unlisted origins get 403 on POST/PUT/DELETE and preflights")
 	fmt.Println("  --frontend PATH      Path to React/Vite project for dev proxy")
 	fmt.Println("  --static PATH        Path to built frontend files")
+	fmt.Println("  --static-cache V     Cache-Control on --static 2xx/304: 'immutable' or a max-age in seconds")
 	fmt.Println("  --watch              Watch .ail files for changes and hot-reload")
 	fmt.Printf("  --caps CAPS          Capabilities to grant (comma-separated: %s)\n", runner.CapsList)
 	fmt.Println("  --ai MODEL           AI model for AI effect (e.g., gemini-2-5-flash, claude-sonnet-4-6)")
@@ -280,6 +236,7 @@ func printServeAPIHelp() {
 	fmt.Println("  --api-key-header H   HTTP header name for API key authentication")
 	fmt.Println("  --api-key-env VAR    Environment variable containing the expected API key")
 	fmt.Println("  --routes-only        Only expose @route-annotated functions (skip auto-generated endpoints)")
+	fmt.Println("  --no-introspection   Serve no /api/_meta/* and no /api/_health (the paths stay reserved)")
 	fmt.Println("  --no-feedback-tool   Suppress the built-in submit_feedback MCP tool (exact tool surface)")
 	printServeAPIWSHelp()
 	fmt.Println("  --help               Show this help message")
@@ -341,6 +298,7 @@ func printServeAPIHelp() {
 	fmt.Println("  GET  /api/_meta/redoc             ReDoc (API reference documentation)")
 	fmt.Println("  GET  /api/_meta/modules/{path}    Details for a specific module")
 	fmt.Println("  GET  /api/_health                 Health check")
+	fmt.Println("  (all off with --no-introspection; with --routes-only they list only @route exports)")
 	fmt.Println()
 	fmt.Println("Protocol endpoints (opt-in via flags):")
 	fmt.Println("  GET  /.well-known/agent.json      A2A Agent Card (with --a2a)")

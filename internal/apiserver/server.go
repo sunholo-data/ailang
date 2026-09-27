@@ -155,6 +155,8 @@ type ExportInfo struct {
 	DocComment  string   `json:"doc_comment,omitempty"`  // doc comment (-- lines) preceding the function
 	IsWS        bool     `json:"is_ws,omitempty"`        // @route("WS", ...): a WebSocket route, off every HTTP/MCP/A2A surface
 	Effects     []string `json:"-"`                      // declared effect row (WS registration check)
+	WSReq       []string `json:"-"`                      // WS routes: the declared req record fields, sorted
+	WSReqIssue  string   `json:"-"`                      // WS routes: why the declared req record is refused ("" = accepted)
 }
 
 // Config holds configuration for the API server.
