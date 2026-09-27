@@ -1,7 +1,7 @@
 {
   "sprint_id": "M-SERVEAPI-OPERATOR-SURFACE",
-  "design_doc": "design_docs/planned/v0_45_0/m-serveapi-operator-surface.md",
-  "sprint_plan": "design_docs/planned/v0_45_0/m-serveapi-operator-surface-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_46_0/m-serveapi-operator-surface.md",
+  "sprint_plan": "design_docs/implemented/v0_46_0/m-serveapi-operator-surface-sprint-plan.md",
   "target_version": "v0.45.0",
   "created": "2026-09-27",
   "planner_model": "claude-opus-5-5",
