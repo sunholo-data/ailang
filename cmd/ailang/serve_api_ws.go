@@ -20,6 +20,7 @@ type serveAPIWSFlags struct {
 	maxDuration   *time.Duration
 	idleTimeout   *time.Duration
 	credentialRaw multiFlag
+	passHeaders   multiFlag
 }
 
 func registerServeAPIWSFlags(fs *flag.FlagSet) *serveAPIWSFlags {
@@ -30,12 +31,19 @@ func registerServeAPIWSFlags(fs *flag.FlagSet) *serveAPIWSFlags {
 		maxDuration: fs.Duration("stream-max-duration", 0, "Hard ceiling per Stream connection / bridge (default 5m)"),
 		idleTimeout: fs.Duration("stream-idle-timeout", 0, "Idle timeout per Stream connection / bridge (default 60s)"),
 	}
+	fs.Var(&f.passHeaders, "ws-pass-header", "Pass this request header to @route(\"WS\") handlers as req.headers (repeatable; lower-cased; credential headers are refused)")
 	fs.Var(&f.credentialRaw, "stream-credential", "Bind a credential to one wss upstream host: HOST[:PORT]=gcp-key-file:PATH | gcp-metadata | bearer-file:PATH (repeatable)")
 	return f
 }
 
-func (f *serveAPIWSFlags) config() apiserver.WSConfig {
-	return apiserver.WSConfig{MaxSessions: *f.maxSessions, QueueFrames: *f.queueFrames, DecisionLog: *f.decisionLog}
+// config builds the WS session config; --ws-pass-header is validated against
+// the credential headers, including the configured --api-key-header.
+func (f *serveAPIWSFlags) config(apiKeyHeader string) (apiserver.WSConfig, error) {
+	pass, err := apiserver.ValidatePassHeaders(f.passHeaders, apiKeyHeader)
+	if err != nil {
+		return apiserver.WSConfig{}, err
+	}
+	return apiserver.WSConfig{MaxSessions: *f.maxSessions, QueueFrames: *f.queueFrames, DecisionLog: *f.decisionLog, PassHeaders: pass}, nil
 }
 
 // apply sets the Stream session limits and the credential binding on the
@@ -92,6 +100,8 @@ func printServeAPIWSHelp() {
 	fmt.Println("  --ws-max-sessions N  Concurrent @route(\"WS\") sessions (default 4); more get 503")
 	fmt.Println("  --ws-queue-frames N  Inbound queue per WebSocket connection, frames (default 64)")
 	fmt.Println("  --ws-decision-log    Log one payload-free line per bridged frame")
+	fmt.Println("  --ws-pass-header H   Give WS handlers this request header in req.headers (repeatable);")
+	fmt.Println("                       Authorization, Cookie and the API-key header are refused")
 	fmt.Println("  --stream-max-duration D  Ceiling per Stream connection / bridge (default 5m)")
 	fmt.Println("  --stream-idle-timeout D  Idle timeout per Stream connection / bridge (default 60s)")
 	fmt.Println("  --stream-credential HOST=SOURCE  Bind a credential to one wss upstream host;")

@@ -37,6 +37,9 @@ type WSConfig struct {
 	MaxSessions int  // concurrent WS sessions server-wide (0 = DefaultWSMaxSessions)
 	QueueFrames int  // per-connection inbound queue, frames (0 = DefaultWSQueueFrames)
 	DecisionLog bool // log one payload-free line per bridged frame
+	// PassHeaders are the request headers (lower-case) a WS handler's
+	// req.headers may carry: --ws-pass-header, checked by ValidatePassHeaders.
+	PassHeaders []string
 }
 
 const (
@@ -94,7 +97,13 @@ func (s *Server) wsRoutes() []RouteEntry {
 // needs an Origin allowlist (--cors-origin); --cors (every origin) is not one.
 func (s *Server) ValidateWSRoutes() error {
 	routes := s.wsRoutes()
+	if _, err := ValidatePassHeaders(s.ws.cfg.PassHeaders, s.apiKeyHeader); err != nil {
+		return err
+	}
 	if len(routes) == 0 {
+		if len(s.ws.cfg.PassHeaders) > 0 {
+			return fmt.Errorf("--ws-pass-header is set but no @route(\"WS\") handler is loaded")
+		}
 		return nil
 	}
 	var problems []string
@@ -119,7 +128,10 @@ func (s *Server) wsRouteProblems(r RouteEntry) []string {
 		p = append(p, fmt.Sprintf("%s: @raw/@nowrap do not apply to a WS route", name))
 	}
 	if n := len(r.ParamTypes); n < 1 || n > 2 || r.ParamTypes[0] != "StreamConn" {
-		p = append(p, fmt.Sprintf("%s: a WS handler takes (client: StreamConn) or (client: StreamConn, req: {path: string, query: string, origin: string})", name))
+		p = append(p, fmt.Sprintf("%s: a WS handler takes (client: StreamConn) or (client: StreamConn, req: %s)", name, wsReqShape))
+	}
+	if r.WSReqIssue != "" {
+		p = append(p, fmt.Sprintf("%s: %s; req is %s", name, r.WSReqIssue, wsReqShape))
 	}
 	hasStream := false
 	for _, e := range r.Effects {
@@ -202,11 +214,7 @@ func (s *Server) serveWSSession(w http.ResponseWriter, r *http.Request, route Ro
 
 	args := []interface{}{&eval.TaggedValue{CtorName: "StreamConn", Fields: []eval.Value{&eval.IntValue{Value: id}}}}
 	if len(route.ParamTypes) == 2 {
-		args = append(args, &eval.RecordValue{Fields: map[string]eval.Value{
-			"path":   &eval.StringValue{Value: r.URL.Path},
-			"query":  &eval.StringValue{Value: r.URL.RawQuery},
-			"origin": &eval.StringValue{Value: r.Header.Get("Origin")},
-		}})
+		args = append(args, wsReqRecord(r, route.WSReq, s.ws.cfg.PassHeaders))
 	}
 	_, callErr := s.engine.CallPrepared(func(ec interface{}) {
 		if eff, ok := ec.(*effects.EffContext); ok {

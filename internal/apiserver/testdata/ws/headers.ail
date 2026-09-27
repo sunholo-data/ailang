@@ -1,0 +1,28 @@
+-- Fixture for ws_headers_test.go (M-SERVEAPI-OPERATOR-SURFACE D7).
+module ws/headers
+import std/stream (transmit, StreamConn)
+import std/list (foldl)
+
+pure func renderHeader(acc: string, h: { name: string, value: string }) -> string = "${acc}${h.name}=${h.value};"
+
+-- Sees only the headers the operator passed with --ws-pass-header.
+@route("WS", "/who")
+export func who(client: StreamConn, req: { path: string, headers: [{ name: string, value: string }] }) -> unit ! {Stream} {
+  let shown = foldl(renderHeader, "", req.headers);
+  let _ = transmit(client, "${req.path}|${shown}");
+  ()
+}
+
+-- Declares one field only: the record it gets must be exactly that field.
+@route("WS", "/query")
+export func query(client: StreamConn, req: { query: string }) -> unit ! {Stream} {
+  let _ = transmit(client, "q=${req.query}");
+  ()
+}
+
+-- The pre-existing three-field shape keeps working unchanged.
+@route("WS", "/legacy")
+export func legacy(client: StreamConn, req: { path: string, query: string, origin: string }) -> unit ! {Stream} {
+  let _ = transmit(client, "${req.path}?${req.query}");
+  ()
+}
