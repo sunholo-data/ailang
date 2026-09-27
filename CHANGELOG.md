@@ -1,5 +1,9 @@
 # AILANG Changelog
 
+## Unreleased
+
+- Mission pi runs now require staged sandbox extensions, an explicit policy, and a readiness handshake before reporting fenced success.
+
 For the latest version, see [changelogs/v0.32-current.md](changelogs/v0.32-current.md).
 
 ## Changelog Archives
