@@ -1,6 +1,6 @@
 {
-  "ailang_version": "v0.40.2",
-  "generated": "2026-09-21",
+  "ailang_version": "v0.44.1",
+  "generated": "2026-09-27",
   "languages": [
     "ailang"
   ],
@@ -20,12 +20,15 @@
     {
       "harness": "motoko",
       "lang": {
-        "ailang": 1
+        "ailang": 0.8333333333333334
       },
       "model": "motoko-local-qwen3-8-27b",
       "tiers": {
         "core": {
           "ailang": 1
+        },
+        "frontier": {
+          "ailang": 0.5
         },
         "stretch": {
           "ailang": 1
@@ -35,40 +38,40 @@
     {
       "harness": "opencode",
       "lang": {
-        "ailang": 0.8518518518518519
+        "ailang": 0.6428571428571429
       },
       "model": "opencode-qwen3-8-27b",
       "tiers": {
         "core": {
-          "ailang": 0.9583333333333334
+          "ailang": 0.75
         },
         "frontier": {
-          "ailang": 0.3333333333333333
+          "ailang": 0
         },
         "stretch": {
-          "ailang": 0.875
+          "ailang": 1
         }
       }
     },
     {
       "harness": "pi",
       "lang": {
-        "ailang": 0.6140350877192983
+        "ailang": 0.4666666666666667
       },
       "model": "pi-qwen3-8-27b",
       "tiers": {
         "core": {
-          "ailang": 0.5384615384615384
+          "ailang": 0.6666666666666666
         },
         "frontier": {
-          "ailang": 0.6
+          "ailang": 0.16666666666666666
         },
         "stretch": {
-          "ailang": 0.6923076923076923
+          "ailang": 0.6666666666666666
         }
       }
     }
   ],
-  "trials": 4,
-  "version": "rolling-20260921"
+  "trials": 3,
+  "version": "rolling-20260927"
 }

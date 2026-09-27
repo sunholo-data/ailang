@@ -70,7 +70,14 @@ log() { printf '[%s] %s\n' "$(date '+%F %H:%M:%S')" "$*" >> "$LOG"; }
 # capability measurement, its rows are stamped with resolved_profile /
 # resolved_extensions, and dropping motoko here would blank the harness-comparison
 # columns this filler exists to fill.
-MODELS="${OS_FILLER_MODELS:-${OS_FILLER_MODEL:-opencode-qwen3-8-27b,pi-qwen3-8-27b,motoko-local-qwen3-8-27b}}"
+#
+# motoko REMOVED 2026-09-27 (Mark: "we are updating to a new motoko so can remove that
+# until the new motoko is stable"), superseding the 09-02 ruling above. Measured
+# reason it was not filling the columns anyway: 31 canary pre-flight failures
+# ("canary did not finish within 4m0s") since ~09-17, so it banked 0-8 rows/day and
+# none 09-23..09-25. Re-add motoko-local-qwen3-8-27b once motoko main (ABI 8.0,
+# ~/dev/mk-main) is the eval checkout and passes its canary; see MOTOKO.md §9.
+MODELS="${OS_FILLER_MODELS:-${OS_FILLER_MODEL:-opencode-qwen3-8-27b,pi-qwen3-8-27b}}"
 LANGS="${OS_FILLER_LANGS:-ailang,python,javascript,go}"
 CHUNK="${OS_FILLER_CHUNK:-3}"                  # benchmarks per cycle
 CHUNK_TIMEOUT="${OS_FILLER_TIMEOUT:-1500s}"    # ~25-min wall budget per chunk
