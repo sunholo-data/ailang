@@ -324,16 +324,19 @@ func runPostTypeCheckPhases(
 		return fmt.Errorf("CoreTypeInfo validation failed in %s: %w", modID, err)
 	}
 
+	// Validate package effect ceiling (M-PKG, M-EFFECT-CEILING-REACHABLE).
+	// Runs BEFORE the per-function effect check: the ceiling is computed from
+	// the inferred types of every expression in the package's own modules, so
+	// it does not depend on how the effect checker attributes a closure's
+	// effects, and an authority breach is reported as one.
+	if err := validateEffectCeiling(unit.Surface, unit.Core, typeChecker.CoreTI, modID); err != nil {
+		return err
+	}
+
 	// Validate effects (M-SOUNDNESS)
 	// Compare declared effects from Surface AST with required effects from Core AST
 	if err := ValidateEffects(unit.Surface, unit.Core, typeChecker.CoreTI, typeChecker.DeclaredLambdaEffectRow); err != nil {
 		return fmt.Errorf("effect checking failed in %s: %w", modID, err)
-	}
-
-	// Validate package effect ceiling (M-PKG)
-	// If this module belongs to a package, check its declared effects against the ceiling
-	if err := validateEffectCeiling(unit.Surface, modID); err != nil {
-		return err
 	}
 
 	// Perform monomorphization unless explicitly disabled

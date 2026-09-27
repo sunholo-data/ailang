@@ -31,6 +31,12 @@ func (st *modulePipelineState) prepareCacheLookup(mod *loader.LoadedModule, modI
 			depDigests[imp] = cacheDepDigest(cu.Iface)
 		}
 	}
+	// M-EFFECT-CEILING-REACHABLE: an own-package module's cached verdict was
+	// reached under ONE [effects].max; narrowing the manifest must miss.
+	// ("$" cannot begin a module ID, so this key cannot collide with a dep.)
+	if digest, ok := ceilingCacheDigest(modID); ok {
+		depDigests["$effects.max"] = digest
+	}
 	// The compiled Core differs by pipeline mode — --release erases Debug
 	// calls — so the mode is part of the compiler identity: without it a
 	// --release compile was served to normal runs (all Debug output gone)
