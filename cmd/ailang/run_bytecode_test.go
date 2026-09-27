@@ -219,7 +219,7 @@ func TestCLI_RunBytecode_QuicksortArity(t *testing.T) {
 	src := filepath.Join("examples", "runnable", "recursion_quicksort.ail")
 	stdout, stderr, exitCode := runCLI(t, "run", "--bytecode", "--caps", "IO", src)
 	if exitCode != 0 {
-		t.Fatalf("expected exit 0, got %d\nstderr=%s", exitCode, stderr)
+		t.Fatalf("expected exit 0, got %d\nstdout=%s\nstderr=%s", exitCode, stdout, stderr)
 	}
 	for _, want := range []string{
 		"Quicksort: [1, 1, 2, 3, 4, 5, 6, 9]",
