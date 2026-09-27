@@ -27,6 +27,72 @@ func init() {
 	registerListSortBy()
 	registerListZip()
 	registerListFlatMap()
+	registerListRange()
+}
+
+// ============================================================================
+// _list_range: [start, end) as a list of int
+// ============================================================================
+
+// std/list's docs send users to map/filter/foldl, which all need a list to
+// start from; without range the only way to get [0..n) was the per-element
+// recursion those docs warn against (M-NUMERICS-QUICK).
+func registerListRange() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "$builtin",
+		Name:    "_list_range",
+		NumArgs: 2,
+		IsPure:  true,
+		Effect:  "",
+		Type: func() types.Type {
+			T := types.NewBuilder()
+			return T.Func(T.Int(), T.Int()).Returns(T.List(T.Int())).Build()
+		},
+		Impl: listRangeImpl,
+		Metadata: &BuiltinMetadata{
+			Description: "Integers from start (inclusive) to end (exclusive)",
+			LongDesc:    "range(0, 3) = [0, 1, 2]. Empty when end <= start. One allocation, no recursion.",
+			Params: []ParamDoc{
+				{Name: "start", Description: "First value (inclusive)"},
+				{Name: "end", Description: "Bound (exclusive)"},
+			},
+			Returns:   "The list [start, start+1, ..., end-1]",
+			Since:     "v0.44.2",
+			Stability: StabilityStable,
+			Tags:      []string{"list", "range", "iota", "iterative"},
+			Category:  "list",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _list_range: %v", err))
+	}
+}
+
+// maxRangeLen bounds a single range so a typo like range(0, 10000000000) is an
+// error, not an attempt to allocate tens of gigabytes.
+const maxRangeLen = 1 << 28
+
+func listRangeImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	start, ok := args[0].(*eval.IntValue)
+	if !ok {
+		return nil, fmt.Errorf("_list_range: start must be int, got %T", args[0])
+	}
+	end, ok := args[1].(*eval.IntValue)
+	if !ok {
+		return nil, fmt.Errorf("_list_range: end must be int, got %T", args[1])
+	}
+	if end.Value <= start.Value {
+		return &eval.ListValue{Elements: []eval.Value{}}, nil
+	}
+	n := end.Value - start.Value
+	if n > maxRangeLen || n < 0 {
+		return nil, fmt.Errorf("range(%d, %d): %d elements exceeds the %d-element limit", start.Value, end.Value, n, maxRangeLen)
+	}
+	out := make([]eval.Value, n)
+	for i := range out {
+		out[i] = &eval.IntValue{Value: start.Value + i}
+	}
+	return &eval.ListValue{Elements: out}, nil
 }
 
 // ============================================================================

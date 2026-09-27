@@ -9,6 +9,12 @@
       "pure": true
     },
     {
+      "name": "axpy",
+      "type": "(float,list[float],list[float])-\u003elist[float]",
+      "effects": [],
+      "pure": true
+    },
+    {
       "name": "cosine",
       "type": "(list[float],list[float])-\u003efloat",
       "effects": [],
