@@ -13,23 +13,105 @@
     "estimated_days": 1.5
   },
   "features": [
-    {"id": "M1_STDLIB_NEVER_LOCAL", "description": "registerModule never registers or records as a drop a std/* module", "estimated_loc": 60, "dependencies": [],
-     "acceptance_criteria": ["0 std/* modules registered for a module importing std/stream", "0 std/* drops", "test fails with the rule reverted"],
-     "passes": null, "started": null, "completed": null, "notes": null},
-    {"id": "M2_INTROSPECTION", "description": "meta listing through isExposed; --no-introspection removes /api/_meta/* and /api/_health", "estimated_loc": 120, "dependencies": [],
-     "acceptance_criteria": ["--routes-only lists only @route exports", "--no-introspection: meta + health 404, routes answer", "reserved paths still refused to @route"],
-     "passes": null, "started": null, "completed": null, "notes": null},
-    {"id": "M3_BASE_PATH", "description": "ResolveBasePath: CLI directory is the floor, module headers only widen outward", "estimated_loc": 150, "dependencies": [],
-     "acceptance_criteria": ["Daneel layout resolves to the given dir", "./api with module api/handlers resolves to project root", "file arg and no-decl cases"],
-     "passes": null, "started": null, "completed": null, "notes": null},
-    {"id": "M4_STATIC_CACHE", "description": "--static-cache immutable|SECONDS on 2xx/304 static responses", "estimated_loc": 110, "dependencies": [],
-     "acceptance_criteria": ["header on 200/304 with flag", "none on 404", "none without flag", "flag without --static is an error"],
-     "passes": null, "started": null, "completed": null, "notes": null},
-    {"id": "M5_WS_PASS_HEADER", "description": "--ws-pass-header allowlist; req built from declared fields; credential headers unnameable; canary", "estimated_loc": 350, "dependencies": [],
-     "acceptance_criteria": ["allowed header reaches handler lower-cased", "multi-valued -> one entry per line", "Authorization/Cookie/api-key header refused at startup", "canary absent from handler/trace/log", "subset-declared req still reads path"],
-     "passes": null, "started": null, "completed": null, "notes": null},
-    {"id": "M6_DOCS_DONE_WHEN", "description": "guide, CHANGELOG, CLI docs; DONE WHEN on fresh binary", "estimated_loc": 100, "dependencies": ["M1_STDLIB_NEVER_LOCAL", "M2_INTROSPECTION", "M3_BASE_PATH", "M4_STATIC_CACHE", "M5_WS_PASS_HEADER"],
-     "acceptance_criteria": ["curl evidence for M1-M4", "WS client with custom header for M5", "make test/lint/file sizes/cli docs green"],
-     "passes": null, "started": null, "completed": null, "notes": null}
-  ]
+    {
+      "id": "M1_STDLIB_NEVER_LOCAL",
+      "description": "registerModule never registers or records as a drop a std/* module",
+      "estimated_loc": 60,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "0 std/* modules registered for a module importing std/stream",
+        "0 std/* drops",
+        "test fails with the rule reverted"
+      ],
+      "passes": true,
+      "started": "2026-09-27T10:40:00Z",
+      "completed": "2026-09-27T11:05:00Z",
+      "notes": "isStdlibModule in registerModule; stdlib_surface_test.go (embedded + on-disk); both failed before the fix. Fresh binary: banner std/* lines 70 -> 0."
+    },
+    {
+      "id": "M2_INTROSPECTION",
+      "description": "meta listing through isExposed; --no-introspection removes /api/_meta/* and /api/_health",
+      "estimated_loc": 120,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "--routes-only lists only @route exports",
+        "--no-introspection: meta + health 404, routes answer",
+        "reserved paths still refused to @route"
+      ],
+      "passes": true,
+      "started": "2026-09-27T10:40:00Z",
+      "completed": "2026-09-27T11:05:00Z",
+      "notes": "exposedView filters /api/_meta/modules(+detail) through isExposed; Config.NoIntrospection gates meta+health, paths stay in builtinPaths; mutation-tested both. Fresh binary: all 6 paths 404, /healthz 200."
+    },
+    {
+      "id": "M3_BASE_PATH",
+      "description": "ResolveBasePath: CLI directory is the floor, module headers only widen outward",
+      "estimated_loc": 150,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Daneel layout resolves to the given dir",
+        "./api with module api/handlers resolves to project root",
+        "file arg and no-decl cases"
+      ],
+      "passes": true,
+      "started": "2026-09-27T10:40:00Z",
+      "completed": "2026-09-27T11:05:00Z",
+      "notes": "apiserver.ResolveBasePath replaces cmd findFirstModuleDecl; 7 table cases; mutations (drop containsAll, drop outermost) each caught. Fresh binary: serve-api . with client/wsclient.ail starts (old binary refuses)."
+    },
+    {
+      "id": "M4_STATIC_CACHE",
+      "description": "--static-cache immutable|SECONDS on 2xx/304 static responses",
+      "estimated_loc": 110,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "header on 200/304 with flag",
+        "none on 404",
+        "none without flag",
+        "flag without --static is an error"
+      ],
+      "passes": true,
+      "started": "2026-09-27T10:40:00Z",
+      "completed": "2026-09-27T11:05:00Z",
+      "notes": "ParseStaticCache + cacheWriter (2xx/304 only); mutation (always set) caught by the 404 case. Fresh binary: 200 carries public, max-age=31536000, immutable; 404 none; none without flag."
+    },
+    {
+      "id": "M5_WS_PASS_HEADER",
+      "description": "--ws-pass-header allowlist; req built from declared fields; credential headers unnameable; canary",
+      "estimated_loc": 350,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "allowed header reaches handler lower-cased",
+        "multi-valued -> one entry per line",
+        "Authorization/Cookie/api-key header refused at startup",
+        "canary absent from handler/trace/log",
+        "subset-declared req still reads path"
+      ],
+      "passes": true,
+      "started": "2026-09-27T10:40:00Z",
+      "completed": "2026-09-27T11:05:00Z",
+      "notes": "ValidatePassHeaders (credential names + api-key header refused), extractWSReq from AST (list is ast.TypeApp), wsReqRecord builds declared fields only; canary test (Cookie/Authorization) proven sensitive by an allow-all mutation (leaked into handler AND trace). Fresh binary + python websockets client: '/live|tailscale-user-login=mark@example.com;' and canary absent from log."
+    },
+    {
+      "id": "M6_DOCS_DONE_WHEN",
+      "description": "guide, CHANGELOG, CLI docs; DONE WHEN on fresh binary",
+      "estimated_loc": 100,
+      "dependencies": [
+        "M1_STDLIB_NEVER_LOCAL",
+        "M2_INTROSPECTION",
+        "M3_BASE_PATH",
+        "M4_STATIC_CACHE",
+        "M5_WS_PASS_HEADER"
+      ],
+      "acceptance_criteria": [
+        "curl evidence for M1-M4",
+        "WS client with custom header for M5",
+        "make test/lint/file sizes/cli docs green"
+      ],
+      "passes": true,
+      "started": "2026-09-27T10:40:00Z",
+      "completed": "2026-09-27T11:05:00Z",
+      "notes": "serve-api guide (basePath note rewritten, introspection, static cache, WS headers), CHANGELOG [Unreleased]; make test rc=0, make lint 0 issues, check-cli-docs ok. check-file-sizes red only on internal/iface/builder.go (801, pre-existing from 79af650f7, not touched here)."
+    }
+  ],
+  "status": "completed"
 }

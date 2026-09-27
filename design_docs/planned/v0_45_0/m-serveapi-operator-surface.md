@@ -160,7 +160,7 @@ file server (not `--frontend`'s Vite proxy, not API routes).
 | Absent | No entry. Present-but-empty → an entry with `value: ""` | Absence and emptiness stay distinguishable |
 | Order of entries | Operator's flag order, then received order within one name | Deterministic |
 | Credential headers | **Startup error** if named: `Authorization`, `Proxy-Authorization`, `Cookie`, `Sec-WebSocket-Protocol` (carries `ailang.key.<key>`), `Sec-WebSocket-Key`, and the configured `--api-key-header` | Fail loudly (principle 2): silently dropping a listed header would leave the operator believing it arrives. These are the headers serve-api itself treats as credentials (`checkWSKey`) or that carry browser session state |
-| Record shape | `req.headers : [{name: string, value: string}]`. The `req` record is now built **field-for-field from the handler's declared type**: only the fields it declares (subset of `path`, `query`, `origin`, `headers`) | The bytecode VM may resolve a closed record's field by static index (`internal/vm/builtins.go:143`); handing a record with extra fields to a handler that declared fewer is exactly the layout mismatch that corrupts reads. Declaring `headers` without the flag yields `[]` |
+| Record shape | `req.headers : [{name: string, value: string}]`. The `req` record is now built **field-for-field from the handler's declared type**: only the fields it declares (subset of `path`, `query`, `origin`, `headers`) | Defence in depth, not a measured bug: the bytecode compiler can resolve a closed record's field to a static index (`internal/vm/builtins.go:143`), so a record with extra fields is a layout the handler's type does not describe. On today's serve-api call path (tree-walking evaluator) extra fields were harmless — a mutation test that re-added them passed the session test, so a separate unit test pins the builder. Declaring `headers` without the flag yields `[]`. A type-alias `req` keeps the legacy `{path, query, origin}` |
 | Validation | At startup, a WS handler whose `req` declares a field outside `{path, query, origin, headers}`, or a `headers` field not of type `[{name: string, value: string}]`, is refused with the accepted shape | Structured failure instead of a runtime crash on first connect |
 | HTTP `@route` handlers | **Unchanged** in this milestone | They already receive *every* header, program-chosen (`_headers: Json`, `@raw`) — `routes_dispatch.go:115`, `routes.go:368`. Narrowing that to an operator allowlist is a breaking change to a documented feature (examples/runnable/mcp_tools.ail `secureParse`). One helper (`passHeaders`) implements the allowlist so HTTP can adopt it later with no second mechanism. Open question for Mark |
 
@@ -205,10 +205,10 @@ export func live(client: StreamConn, req: {path: string, headers: [{name: string
 
 ## Success Criteria
 
-- [ ] Each Goal metric verified with a fresh binary from this worktree (evidence in the PR)
-- [ ] Unit tests for every decision row; key tests mutation-tested (revert the fix, watch them fail)
-- [ ] `make test`, `make lint`, `make check-file-sizes`, CLI docs regenerated
-- [ ] Guide + CHANGELOG updated
+- [x] Each Goal metric verified with a fresh binary from this worktree (evidence in the PR)
+- [x] Unit tests for every decision row; key tests mutation-tested (revert the fix, watch them fail)
+- [x] `make test`, `make lint`, `make check-file-sizes`, CLI docs regenerated
+- [x] Guide + CHANGELOG updated
 
 ## Testing Strategy
 

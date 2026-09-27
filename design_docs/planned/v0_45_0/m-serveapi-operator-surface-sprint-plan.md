@@ -2,6 +2,7 @@
 
 **Design doc**: [m-serveapi-operator-surface.md](m-serveapi-operator-surface.md)
 **Target**: v0.45.0 · **Duration**: 1.5 days (one session) · **Risk**: low-medium
+**Status**: ✅ completed 2026-09-27 (evidence in the sprint JSON notes)
 **Progress file**: `.ailang/state/sprints/sprint_m_serveapi_operator_surface.json`
 
 ## Summary
@@ -13,26 +14,26 @@ in one day; this sprint is ~900 LOC.
 
 ## Milestones
 
-### M1 — Stdlib is never local (D4) · ~60 LOC + tests
+### ✅ M1 — Stdlib is never local (D4) · ~60 LOC + tests
 - `registerModule`: canonical ID or declared path under `std/` → not registered, not a drop.
 - Test: a module importing `std/stream` (embedded root, base = cwd layout) registers 0 `std/*` modules and records 0 drops.
 - **Accept**: banner/`GetModules` hold no `std/*`; test fails with the rule reverted.
 
-### M2 — Introspection: gateway filter + `--no-introspection` (D1, D2) · ~120 LOC + tests
+### ✅ M2 — Introspection: gateway filter + `--no-introspection` (D1, D2) · ~120 LOC + tests
 - `meta.go` listing/detail filtered through `isExposed`; `Config.NoIntrospection`; `buildRoutes` gating; banner.
 - **Accept**: `--routes-only` `/api/_meta/modules` lists only `@route` exports; with the flag every meta path and
   `/api/_health` 404s while routes still answer; `@route` on a reserved path is still refused.
 
-### M3 — Base path from the command line (D5) · ~150 LOC + tests
+### ✅ M3 — Base path from the command line (D5) · ~150 LOC + tests
 - New `apiserver.ResolveBasePath`; `cmd/ailang/serve_api.go` calls it; `findFirstModuleDecl` removed.
 - **Accept**: table test — Daneel layout (`module wsclient` in `client/`) → the given dir; `./api` with
   `module api/handlers` → project root; single file; no module decls → cwd/common dir.
 
-### M4 — `--static-cache` (D6) · ~110 LOC + tests
+### ✅ M4 — `--static-cache` (D6) · ~110 LOC + tests
 - Parse `immutable|SECONDS`; wrapper sets header on 2xx/304 only; flag without `--static` is an error.
 - **Accept**: 200 and 304 carry the header, 404 does not, no header without the flag.
 
-### M5 — `--ws-pass-header` + declared-shape `req` (D7) · ~350 LOC + tests
+### ✅ M5 — `--ws-pass-header` + declared-shape `req` (D7) · ~350 LOC + tests
 - Flag (repeatable) → `WSConfig.PassHeaders`; validation (token syntax, forbidden credential names incl. `--api-key-header`).
 - `ExportInfo.WSReqFields` from the AST; `ValidateWSRoutes` refuses unknown fields / wrong `headers` type.
 - `serveWSSession` builds `req` from declared fields only; `headers` = allowlisted, lower-cased, one entry per line.
@@ -40,7 +41,7 @@ in one day; this sprint is ~900 LOC.
 - **Accept**: handler echo shows exactly the allowed header(s); multi-valued header yields two entries; subset-declared
   handler still reads `path` correctly.
 
-### M6 — Docs, CHANGELOG, CLI reference, DONE WHEN on a fresh binary · ~100 LOC docs
+### ✅ M6 — Docs, CHANGELOG, CLI reference, DONE WHEN on a fresh binary · ~100 LOC docs
 - `docs/docs/guides/serve-api.md`, `changelogs/v0.32-current.md` [Unreleased], `make check-cli-docs` / regenerate.
 - curl evidence for M1–M4; a WS client with a custom header for M5.
 
