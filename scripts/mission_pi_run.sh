@@ -62,6 +62,9 @@
 #   12 stream_dead      — killed: no bytes at all past the stall bound
 #   13 wall_timeout     — killed: exceeded --max-seconds
 #   14 launch_failed    — pi could not start / bad arguments
+#   15 sandbox_unavailable — extension or runtime dependency unavailable
+#   16 sandbox_policy_invalid — explicit mission policy invalid
+#   17 sandbox_not_ready — pi ran without sandbox initialization handshake
 #
 # Bash 3.2 (rig default). No `declare -A`, no `${v,,}`, no `timeout(1)`.
 
@@ -114,8 +117,6 @@ done
   echo "mission_pi_run.sh: --model, --directive, --workdir and --out are all required" >&2
   usage; exit 14
 }
-[ -f "$DIRECTIVE" ] || { echo "mission_pi_run.sh: directive file not found: $DIRECTIVE" >&2; exit 14; }
-[ -d "$WORKDIR" ]   || { echo "mission_pi_run.sh: workdir not found: $WORKDIR" >&2; exit 14; }
 [ -n "$VERDICT" ]   || VERDICT="${OUT}.verdict.json"
 
 # The run cds into $WORKDIR, so every path we hand the filter must be absolute or the
@@ -123,7 +124,75 @@ done
 case "$OUT" in /*) ;; *) OUT="$(pwd)/$OUT" ;; esac
 case "$VERDICT" in /*) ;; *) VERDICT="$(pwd)/$VERDICT" ;; esac
 case "$DIRECTIVE" in /*) ;; *) DIRECTIVE="$(pwd)/$DIRECTIVE" ;; esac
-WORKDIR=$(cd "$WORKDIR" && pwd)
+preflight_fail() { # rc verdict error
+  jq -n --arg verdict "$2" --arg error "$3" --argjson rc "$1" \
+    '{verdict:$verdict, rc:$rc, fenced:false, error:$error}' > "$VERDICT"
+  echo "pi lane verdict: $2 (rc=$1): $3" >&2
+  exit "$1"
+}
+[ -f "$DIRECTIVE" ] || preflight_fail 14 launch_failed "directive file not found: $DIRECTIVE"
+[ -d "$WORKDIR" ] || preflight_fail 14 launch_failed "workdir not found: $WORKDIR"
+WORKDIR=$(cd "$WORKDIR" && pwd -P)
+
+RUNNER_ROOT=$(cd "$(dirname "$0")/.." && pwd -P)
+EXT_SRC="$RUNNER_ROOT/tools/pi-extensions/sandbox"
+FENCE_SRC="$RUNNER_ROOT/tools/pi-extensions/worktree-fence.ts"
+POLICY_SRC="${MISSION_PI_SANDBOX_POLICY_SOURCE:-$EXT_SRC/sandbox.mission.json}"
+[ -f "$EXT_SRC/index.ts" ] && [ -f "$EXT_SRC/package.json" ] && [ -f "$FENCE_SRC" ] || \
+  preflight_fail 15 sandbox_unavailable "runner sandbox extension source is missing"
+
+# Resolve linked worktree metadata without relying on git's newer --path-format.
+GITDIR=$(git -C "$WORKDIR" rev-parse --path-format=absolute --git-dir 2>/dev/null) || \
+  GITDIR=$(git -C "$WORKDIR" rev-parse --git-dir 2>/dev/null) || \
+  preflight_fail 16 sandbox_policy_invalid "workdir is not a git repository"
+COMMON_DIR=$(git -C "$WORKDIR" rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || \
+  COMMON_DIR=$(git -C "$WORKDIR" rev-parse --git-common-dir 2>/dev/null) || \
+  preflight_fail 16 sandbox_policy_invalid "cannot resolve common gitdir"
+case "$GITDIR" in /*) ;; *) GITDIR="$WORKDIR/$GITDIR" ;; esac
+case "$COMMON_DIR" in /*) ;; *) COMMON_DIR="$WORKDIR/$COMMON_DIR" ;; esac
+GITDIR=$(cd "$GITDIR" && pwd -P) || preflight_fail 16 sandbox_policy_invalid "invalid gitdir"
+COMMON_DIR=$(cd "$COMMON_DIR" && pwd -P) || preflight_fail 16 sandbox_policy_invalid "invalid common gitdir"
+MAIN_ROOT=$(cd "$COMMON_DIR/.." && pwd -P) || preflight_fail 15 sandbox_unavailable "main checkout unavailable"
+
+NODE_MODULES="${MISSION_PI_SANDBOX_NODE_MODULES:-}"
+if [ -z "$NODE_MODULES" ]; then
+  for candidate in "$EXT_SRC/node_modules" "$MAIN_ROOT/tools/pi-extensions/sandbox/node_modules"; do
+    if [ -f "$candidate/@anthropic-ai/sandbox-runtime/package.json" ]; then NODE_MODULES="$candidate"; break; fi
+  done
+fi
+[ -f "$NODE_MODULES/@anthropic-ai/sandbox-runtime/package.json" ] || \
+  preflight_fail 15 sandbox_unavailable "@anthropic-ai/sandbox-runtime is unavailable"
+
+STAGE_PARENT="${MISSION_PI_SANDBOX_STAGE_PARENT:-/tmp}"
+[ "$STAGE_PARENT" != "$WORKDIR" ] && [ "$STAGE_PARENT" != "$HOME" ] || \
+  preflight_fail 15 sandbox_unavailable "private stage parent cannot be workdir or HOME"
+STAGE=$(mktemp -d "$STAGE_PARENT/mission-pi.XXXXXX") || \
+  preflight_fail 15 sandbox_unavailable "cannot create private stage"
+mkdir -p "$STAGE/sandbox" || { rm -rf "$STAGE"; preflight_fail 15 sandbox_unavailable "cannot create sandbox stage"; }
+cp "$EXT_SRC/index.ts" "$EXT_SRC/package.json" "$STAGE/sandbox/" && \
+  cp "$EXT_SRC/mission.ts" "$FENCE_SRC" "$STAGE/" && \
+  ln -s "$NODE_MODULES" "$STAGE/sandbox/node_modules" || {
+    rm -rf "$STAGE"; preflight_fail 15 sandbox_unavailable "cannot stage sandbox extension"
+  }
+# index.ts resolves ./mission.ts next to itself.
+mv "$STAGE/mission.ts" "$STAGE/sandbox/mission.ts" || {
+  rm -rf "$STAGE"; preflight_fail 15 sandbox_unavailable "cannot stage mission policy module"
+}
+
+if ! jq -e 'type=="object" and .enabled!=false and
+  (.filesystem|type=="object" and (.allowWrite|type=="array") and (.denyWrite|type=="array") and (.denyRead|type=="array")) and
+  (.network|type=="object" and (.allowedDomains|type=="array") and (.deniedDomains|type=="array"))' "$POLICY_SRC" >/dev/null 2>&1; then
+  rm -rf "$STAGE"; preflight_fail 16 sandbox_policy_invalid "canonical mission sandbox policy is missing or invalid"
+fi
+if ! jq --arg gitdir "$GITDIR" --arg objects "$COMMON_DIR/objects" \
+  --arg heads "$COMMON_DIR/refs/heads" --arg logs "$COMMON_DIR/logs" \
+  '.filesystem.allowWrite += [$gitdir,$objects,$heads,$logs]' "$POLICY_SRC" > "$STAGE/policy.json"; then
+  rm -rf "$STAGE"; preflight_fail 16 sandbox_policy_invalid "cannot generate mission sandbox policy"
+fi
+READY_FILE="$STAGE/ready"
+CLAUDE_TMP="${MISSION_PI_CLAUDE_TMP_DIR:-/tmp/claude}"
+mkdir -p "$CLAUDE_TMP" || { rm -rf "$STAGE"; preflight_fail 15 sandbox_unavailable "cannot create sandbox runtime temp directory"; }
+export PI_SANDBOX_POLICY_FILE="$STAGE/policy.json" PI_SANDBOX_READY_FILE="$READY_FILE" PI_FENCE_ROOT="$WORKDIR"
 
 SNAP="${OUT}.snapshot.ndjson"
 ERR="${OUT}.stderr"
@@ -163,7 +232,7 @@ set -m
   # model's own closing message said it could not find the file and created it.
   cd "$WORKDIR" || exit 14
   AILANG_STORAGE_MESSAGING=gcp AILANG_MESSAGES_PROJECT=ailang-multivac \
-    pi --mode json --no-session --model "$MODEL" < "$DIRECTIVE" 2>"$ERR" |
+    pi --mode json --no-session -e "$STAGE/sandbox/index.ts" -e "$STAGE/worktree-fence.ts" --model "$MODEL" < "$DIRECTIVE" 2>"$ERR" |
     awk -v out="$OUT" -v snap="$SNAP" -v every="$SNAP_EVERY" '
       /"type":"message_update"/ {
         n++
@@ -173,6 +242,7 @@ set -m
       }
       { print $0 >> out; fflush(out) }
     '
+  echo "${PIPESTATUS[0]}" > "$STAGE/pi.rc"
 ) &
 RUNNER_PID=$!
 
@@ -238,7 +308,9 @@ if [ "$OUTCOME" != "finished" ]; then
   kill -KILL -"$RUNNER_PID" 2>/dev/null || kill -KILL "$RUNNER_PID" 2>/dev/null
 fi
 wait "$RUNNER_PID" 2>/dev/null
-PI_RC=$?
+PI_RC=$(cat "$STAGE/pi.rc" 2>/dev/null) || PI_RC=14
+case "$PI_RC" in ''|*[!0-9]*) PI_RC=14 ;; esac
+if [ -f "$READY_FILE" ]; then FENCED=true; else FENCED=false; fi
 
 ELAPSED=$(( $(now) - START ))
 DIFF_LINES=$(git -C "$WORKDIR" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
@@ -262,7 +334,9 @@ OUT_BYTES=$(wc -c < "$OUT" 2>/dev/null | tr -d ' ')
 
 case "$OUTCOME" in
   finished)
-    if [ "${DIFF_LINES:-0}" -gt 0 ] || [ "$COMMITS" -gt 0 ]; then VERDICT_NAME="ok"; RC=0
+    if [ "$FENCED" = false ]; then VERDICT_NAME="sandbox_not_ready"; RC=17
+    elif [ "$PI_RC" -ne 0 ]; then VERDICT_NAME="launch_failed"; RC=14
+    elif [ "${DIFF_LINES:-0}" -gt 0 ] || [ "$COMMITS" -gt 0 ]; then VERDICT_NAME="ok"; RC=0
     else VERDICT_NAME="empty_worktree"; RC=10; fi ;;
   reasoning_stall) VERDICT_NAME="reasoning_stall"; RC=11 ;;
   stream_dead)     VERDICT_NAME="stream_dead";     RC=12 ;;
@@ -274,6 +348,7 @@ cat > "$VERDICT" <<EOF
 {
   "verdict": "$VERDICT_NAME",
   "rc": $RC,
+  "fenced": $FENCED,
   "model": "$MODEL",
   "pi_rc": $PI_RC,
   "elapsed_seconds": $ELAPSED,
@@ -289,6 +364,7 @@ cat > "$VERDICT" <<EOF
   "stderr": "$ERR"
 }
 EOF
+rm -rf "$STAGE"
 
 echo "pi lane verdict: $VERDICT_NAME (rc=$RC) after ${ELAPSED}s — ${DIFF_LINES:-0} changed files, ${TOOL_CALLS:-0} tool executions, $COMMITS commits" >&2
 exit "$RC"
