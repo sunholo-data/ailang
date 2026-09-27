@@ -39,7 +39,7 @@ func boundedFixtures() map[string]Value {
 		"string":    &StringValue{Value: strings.Repeat("abc", 1000)},
 		"bytes":     &BytesValue{Value: []byte(strings.Repeat("z", 100))},
 		"list":      &ListValue{Elements: ints},
-		"array":     &ArrayValue{Elements: ints},
+		"array":     NewArray(ints),
 		"tuple":     &TupleValue{Elements: []Value{&IntValue{Value: 1}, &StringValue{Value: "x"}, rec}},
 		"record":    rec,
 		"map":       m,

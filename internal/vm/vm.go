@@ -638,6 +638,19 @@ func runtimeEq(lhs, rhs bytecode.Value) bool {
 		return runtimeEqAll(lhs.Obj.(*bytecode.ListObj).Elems, rhs.Obj.(*bytecode.ListObj).Elems)
 	case bytecode.TagTuple:
 		return runtimeEqAll(lhs.Obj.(*bytecode.TupleObj).Elems, rhs.Obj.(*bytecode.TupleObj).Elems)
+	case bytecode.TagBytes:
+		return string(lhs.AsBytes().B) == string(rhs.AsBytes().B)
+	case bytecode.TagArray:
+		a, b := lhs.AsArray(), rhs.AsArray()
+		if a.Len() != b.Len() {
+			return false
+		}
+		for i := 0; i < a.Len(); i++ {
+			if !runtimeEq(a.At(i), b.At(i)) {
+				return false
+			}
+		}
+		return true
 	case bytecode.TagRecord:
 		a, b := lhs.Obj.(*bytecode.RecordObj).Fields, rhs.Obj.(*bytecode.RecordObj).Fields
 		if len(a) != len(b) {

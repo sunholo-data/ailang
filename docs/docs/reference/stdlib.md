@@ -19,7 +19,7 @@ See [Effects](/docs/reference/effects) for how the capability system works, [Mod
 | Module | Purpose | Capability |
 |---|---|---|
 | `std/list` | Functional list operations: map, filter, fold, take, drop | — |
-| `std/array` | O(1) indexed arrays (vs lists, which are O(n) indexed) | — |
+| `std/array` | O(1) indexed arrays (vs lists, which are O(n) indexed). `Array[float]` is stored unboxed (8 B/element) with native kernels `dot`, `axpy`, `scale`, `add`, `sub`, `mul`, `sum`, `argmax` (equal lengths required); `updateMany`/`scatterAdd` batch many writes into one copy; `encodeF64LE`/`decodeF64LE` (exact) and `encodeF32LE`/`decodeF32LE` (lossy) binary codecs. `get`/`set` out of bounds are errors | — |
 | `std/map` | O(1) key-value lookup backed by Go hashmaps | — |
 | `std/string` | Length, substring, trim, split, replace, case | — |
 | `std/regex` | Linear-time (RE2) regex: match, find, replace, split | — |
@@ -52,7 +52,7 @@ See [Effects](/docs/reference/effects) for how the capability system works, [Mod
 
 | Module | Purpose | Capability |
 |---|---|---|
-| `std/json` | JSON encode/decode | — |
+| `std/json` | JSON encode/decode; `decodeFloatArray` parses a flat number array straight into an `Array[float]` with no `Json` tree | — |
 | `std/yaml` | [Decode YAML into the same `Json` ADT as `std/json`](./std-yaml) via a pure, WASM-portable YAML→JSON bridge (`yamlToJson`, `decode`) | — |
 | `std/xml` | Parse XML strings into `XmlNode` trees, query elements. v0.21.0+ also ships [tree-walk performance builtins](./std-xml) (`foldChildren`, `getAttrMap`, `nodeKind`). | — |
 | `std/html` | Lenient HTML5 parse (WHATWG-spec) into the same `XmlNode` ADT as `std/xml` | — |
@@ -86,7 +86,7 @@ See [Effects](/docs/reference/effects) for how the capability system works, [Mod
 | Module | Purpose | Capability |
 |---|---|---|
 | `std/ai` | General-purpose AI oracle: `string -> string`, JSON variants | `AI` |
-| `std/embedding` | Pure `[float]` vector math, native loops: `dot`, `cosine`, `magnitude`, `normalize`, `scale`, `add_vectors`, `axpy`, `euclidean_distance`, `cosine_encoded` | none (pure) |
+| `std/embedding` | Pure `[float]` vector math, native loops: `dot`, `cosine`, `magnitude`, `normalize`, `scale`, `add_vectors`, `axpy`, `euclidean_distance`, `cosine_encoded`, and the `[float]` binary codecs `encodeF64LE`/`decodeF64LE` (exact), `encodeF32LE`/`decodeF32LE` (lossy) | none (pure) |
 | `std/sem` | Semantic frame caching primitives | `Clock`, `SharedMem` |
 | `std/sharedmem` | Key-value shared memory (effect wrappers for caching) | `SharedMem` |
 | `std/sharedindex` | Namespace-partitioned similarity search index | `SharedIndex` |

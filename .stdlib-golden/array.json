@@ -3,14 +3,62 @@
   "types": [],
   "funcs": [
     {
+      "name": "add",
+      "type": "(\u003c*types.TArray\u003e,\u003c*types.TArray\u003e)-\u003e\u003c*types.TArray\u003e",
+      "effects": [],
+      "pure": true
+    },
+    {
       "name": "append",
       "type": "(\u003c*types.TArray\u003e,a)-\u003e\u003c*types.TArray\u003e",
       "effects": [],
       "pure": true
     },
     {
+      "name": "argmax",
+      "type": "(\u003c*types.TArray\u003e)-\u003eint",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "axpy",
+      "type": "(float,\u003c*types.TArray\u003e,\u003c*types.TArray\u003e)-\u003e\u003c*types.TArray\u003e",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "decodeF32LE",
+      "type": "(bytes)-\u003eResult[\u003c*types.TArray\u003e,string]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "decodeF64LE",
+      "type": "(bytes)-\u003eResult[\u003c*types.TArray\u003e,string]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "dot",
+      "type": "(\u003c*types.TArray\u003e,\u003c*types.TArray\u003e)-\u003efloat",
+      "effects": [],
+      "pure": true
+    },
+    {
       "name": "empty",
       "type": "(())-\u003e\u003c*types.TArray\u003e",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "encodeF32LE",
+      "type": "(\u003c*types.TArray\u003e)-\u003ebytes",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "encodeF64LE",
+      "type": "(\u003c*types.TArray\u003e)-\u003ebytes",
       "effects": [],
       "pure": true
     },
@@ -45,8 +93,38 @@
       "pure": true
     },
     {
+      "name": "mul",
+      "type": "(\u003c*types.TArray\u003e,\u003c*types.TArray\u003e)-\u003e\u003c*types.TArray\u003e",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "scale",
+      "type": "(float,\u003c*types.TArray\u003e)-\u003e\u003c*types.TArray\u003e",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "scatterAdd",
+      "type": "(\u003c*types.TArray\u003e,list[int],list[float])-\u003e\u003c*types.TArray\u003e",
+      "effects": [],
+      "pure": true
+    },
+    {
       "name": "set",
       "type": "(\u003c*types.TArray\u003e,int,a)-\u003e\u003c*types.TArray\u003e",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "sub",
+      "type": "(\u003c*types.TArray\u003e,\u003c*types.TArray\u003e)-\u003e\u003c*types.TArray\u003e",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "sum",
+      "type": "(\u003c*types.TArray\u003e)-\u003efloat",
       "effects": [],
       "pure": true
     },
@@ -59,6 +137,12 @@
     {
       "name": "unsafeGet",
       "type": "(\u003c*types.TArray\u003e,int)-\u003ea",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "updateMany",
+      "type": "(\u003c*types.TArray\u003e,list[\u003c*types.TTuple\u003e])-\u003e\u003c*types.TArray\u003e",
       "effects": [],
       "pure": true
     }

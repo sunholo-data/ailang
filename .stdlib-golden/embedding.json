@@ -27,8 +27,32 @@
       "pure": true
     },
     {
+      "name": "decodeF32LE",
+      "type": "(bytes)-\u003eResult[list[float],string]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "decodeF64LE",
+      "type": "(bytes)-\u003eResult[list[float],string]",
+      "effects": [],
+      "pure": true
+    },
+    {
       "name": "dot",
       "type": "(list[float],list[float])-\u003efloat",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "encodeF32LE",
+      "type": "(list[float])-\u003ebytes",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "encodeF64LE",
+      "type": "(list[float])-\u003ebytes",
       "effects": [],
       "pure": true
     },

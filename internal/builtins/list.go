@@ -411,11 +411,23 @@ func valuesEqual(left, right eval.Value) bool {
 		return true
 	case *eval.ArrayValue:
 		r, ok := right.(*eval.ArrayValue)
-		if !ok || len(l.Elements) != len(r.Elements) {
+		if !ok || l.Len() != r.Len() {
 			return false
 		}
-		for i := range l.Elements {
-			if !valuesEqual(l.Elements[i], r.Elements[i]) {
+		lf, lp := l.Floats()
+		rf, rp := r.Floats()
+		if lp && rp {
+			for i := range lf {
+				if !types.FloatEq(lf[i], rf[i]) {
+					return false
+				}
+			}
+			return true
+		}
+		for i := 0; i < l.Len(); i++ {
+			le, _ := l.Get(int64(i))
+			re, _ := r.Get(int64(i))
+			if !valuesEqual(le, re) {
 				return false
 			}
 		}

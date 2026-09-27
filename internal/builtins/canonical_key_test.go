@@ -69,7 +69,7 @@ func TestCanonicalKey_TypeTagging(t *testing.T) {
 		{"int vs bool", &eval.IntValue{Value: 1}, &eval.BoolValue{Value: true}},
 		{"string vs bool", &eval.StringValue{Value: "true"}, &eval.BoolValue{Value: true}},
 		{"list vs array", &eval.ListValue{Elements: []eval.Value{&eval.IntValue{Value: 1}}},
-			&eval.ArrayValue{Elements: []eval.Value{&eval.IntValue{Value: 1}}}},
+			eval.NewArray([]eval.Value{&eval.IntValue{Value: 1}})},
 		{"list vs tuple", &eval.ListValue{Elements: []eval.Value{&eval.IntValue{Value: 1}}},
 			&eval.TupleValue{Elements: []eval.Value{&eval.IntValue{Value: 1}}}},
 	}

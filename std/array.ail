@@ -1,7 +1,9 @@
 -- std/array - Fixed-size arrays with O(1) access
 --
 -- Arrays provide O(1) indexed access, unlike lists which are O(n).
--- Use for performance-critical code or when random access is needed.
+-- Use when random access is needed. set() copies the whole array, so a loop of
+-- single-element set() calls is O(n^2): build the values first (fromList,
+-- make) or use a whole-array operation instead.
 --
 -- Pure functions (no effects required)
 
@@ -21,8 +23,8 @@ import std/list (map as listMap, foldl as listFoldl, filter as listFilter)
 --   fromList(xs)   O(n)  - converts each element
 --   toList(arr)    O(n)  - converts each element
 --
--- TIP: For hot loops, minimize set() calls by batching updates
--- or using intermediate data structures.
+-- ERRORS: get, unsafeGet and set fail on an out-of-bounds index, naming the
+-- index and the length. getOpt returns None instead.
 -- ============================================================================
 -- Array creation
 
@@ -62,7 +64,7 @@ export pure func getOpt[a](arr: Array[a], idx: int) -> Option[a] {
   if idx < 0 then None else if idx >= _array_length(arr) then None else Some(_array_get(arr, idx))
 }
 
--- Unsafe get: panics if out of bounds. Use only when you've verified bounds.
+-- Unsafe get: runtime error if out of bounds. Use only when you've verified bounds.
 export pure func unsafeGet[a](arr: Array[a], idx: int) -> a {
   _array_unsafe_get(arr, idx)
 }
@@ -70,7 +72,8 @@ export pure func unsafeGet[a](arr: Array[a], idx: int) -> a {
 -- Array modification (immutable - returns new array)
 
 -- Set element at index, returning NEW array. O(n) due to copy-on-write.
--- Original array is unchanged (immutable semantics).
+-- Original array is unchanged (immutable semantics). An out-of-bounds index
+-- is an error naming the index and the length.
 -- TIP: For many updates, consider building a list and using fromList.
 export pure func set[a](arr: Array[a], idx: int, val: a) -> Array[a] {
   _array_set(arr, idx, val)
@@ -82,3 +85,74 @@ export pure func set[a](arr: Array[a], idx: int, val: a) -> Array[a] {
 export pure func append[a](arr: Array[a], val: a) -> Array[a] {
   _array_append(arr, val)
 }
+
+-- ============================================================================
+-- Bulk updates (one copy, then k writes: O(n + k), not O(n * k))
+-- ============================================================================
+
+-- Apply (index, value) writes in list order with ONE copy; a later write to the
+-- same index wins. Any out-of-bounds index is an error.
+--   updateMany(make(3, 0.0), [(0, 1.0), (2, 5.0)])  -- #[1.0, 0.0, 5.0]
+export pure func updateMany[a](arr: Array[a], writes: [(int, a)]) -> Array[a] {
+  _array_update_many(arr, writes)
+}
+
+-- Add xs[j] into position idx[j] for every j, with ONE copy (gradient
+-- accumulation). idx and xs must have equal length; out of bounds is an error.
+--   scatterAdd(make(3, 0.0), [0, 0, 2], [1.0, 2.0, 5.0])  -- #[3.0, 0.0, 5.0]
+export pure func scatterAdd(arr: Array[float], idx: [int], xs: [float]) -> Array[float] {
+  _array_scatter_add(arr, idx, xs)
+}
+
+-- ============================================================================
+-- Float kernels on Array[float] (native loops over an unboxed store)
+-- ============================================================================
+-- An all-float array is stored as 8 bytes per element. Two-array kernels are
+-- STRICT: a length mismatch is an error (std/embedding's [float] versions keep
+-- a lenient common-prefix rule). Sums run in index order (bit-reproducible).
+-- Use [float] + std/embedding for small vectors; Array[float] when memory or
+-- bulk updates matter.
+
+-- Dot product. O(n).
+export pure func dot(a: Array[float], b: Array[float]) -> float = _array_f_dot(a, b)
+
+-- a*x + y in one pass (the SGD update). O(n).
+export pure func axpy(a: float, x: Array[float], y: Array[float]) -> Array[float] = _array_f_axpy(a, x, y)
+
+-- s * v. O(n).
+export pure func scale(s: float, v: Array[float]) -> Array[float] = _array_f_scale(s, v)
+
+-- Elementwise a + b. O(n).
+export pure func add(a: Array[float], b: Array[float]) -> Array[float] = _array_f_add(a, b)
+
+-- Elementwise a - b. O(n).
+export pure func sub(a: Array[float], b: Array[float]) -> Array[float] = _array_f_sub(a, b)
+
+-- Elementwise a * b. O(n).
+export pure func mul(a: Array[float], b: Array[float]) -> Array[float] = _array_f_mul(a, b)
+
+-- Sum of all elements, in index order. O(n).
+export pure func sum(v: Array[float]) -> float = _array_f_sum(v)
+
+-- Index of the first largest element; NaNs are skipped. Error on empty. O(n).
+export pure func argmax(v: Array[float]) -> int = _array_f_argmax(v)
+
+-- ============================================================================
+-- Binary codecs for Array[float] (packed little-endian floats)
+-- ============================================================================
+-- The width is in the name. F32 is LOSSY (float32 precision: 0.1 does not
+-- round-trip); F64 is exact. Decoding builds the unboxed store directly and
+-- fails with Err naming the byte count when it is not a whole number of floats.
+--   match decodeF64LE(encodeF64LE(make(3, 0.1))) { Ok(a) => length(a), Err(e) => 0 }  -- 3
+
+-- 8 bytes per float, exact.
+export pure func encodeF64LE(v: Array[float]) -> bytes = _array_encode_f64le(v)
+
+-- Inverse of encodeF64LE.
+export pure func decodeF64LE(b: bytes) -> Result[Array[float], string] = _array_decode_f64le(b)
+
+-- 4 bytes per float, LOSSY.
+export pure func encodeF32LE(v: Array[float]) -> bytes = _array_encode_f32le(v)
+
+-- Inverse of encodeF32LE.
+export pure func decodeF32LE(b: bytes) -> Result[Array[float], string] = _array_decode_f32le(b)

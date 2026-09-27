@@ -1,0 +1,33 @@
+-- Array[float]: unboxed float arrays, native kernels, bulk updates and binary
+-- ingest (M-NUMERICS-VEC-ARRAY, v0.47.0).
+--
+-- An all-float Array is stored as 8 bytes per element. The kernels (dot, axpy,
+-- scale, add, sub, mul, sum, argmax) are native loops; two-array kernels require
+-- equal lengths. set() copies the whole array, so batch writes with updateMany
+-- or scatterAdd, and use axpy for a whole-vector update.
+module examples/runnable/array_float_kernels
+import std/array as A
+import std/json (decodeFloatArray)
+import std/list (range, foldl)
+
+-- One SGD step for a linear model: w <- w - lr * (w.x - y) * x
+pure func step(w: Array[float], x: Array[float], y: float) -> Array[float] = A.axpy(0.0 - 0.1 * (A.dot(w, x) - y), x, w)
+
+pure func showResult(r: Result[Array[float], string]) -> string = match r {
+  Ok(a) => show(a),
+  Err(e) => "error: ${e}"
+}
+
+export func main() -> () ! {IO} {
+  let x = A.fromList([1.0, 2.0, 0.5])
+  let w = foldl(\acc i. step(acc, x, 3.0), A.make(3, 0.0), range(0, 50))
+  println("prediction: ${show(A.dot(w, x))}")
+  -- Many writes with ONE copy (a later write to the same index wins).
+  let hist = A.scatterAdd(A.make(4, 0.0), [0, 2, 2, 3], [1.0, 1.0, 1.0, 5.0])
+  println("histogram: ${show(hist)}, argmax = ${show(A.argmax(hist))}")
+  println("updated: ${show(A.updateMany(A.make(3, 0.0), [(0, 1.5), (2, 2.5)]))}")
+  -- Ingest without a Json tree, and an exact binary round trip.
+  println("json: ${showResult(decodeFloatArray("[0.5, 1.5, 2.5]"))}")
+  println("f64: ${showResult(A.decodeF64LE(A.encodeF64LE(x)))}")
+  println("bad json: ${showResult(decodeFloatArray("[1, \"two\"]"))}")
+}

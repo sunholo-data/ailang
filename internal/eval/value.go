@@ -99,43 +99,134 @@ func (l *ListValue) String() string {
 	return b.String()
 }
 
-// ArrayValue represents an array with O(1) indexed access
+// ArrayValue represents an array with O(1) indexed access.
+//
+// It has two backing stores, and exactly one is used (M-NUMERICS-VEC-ARRAY D1):
+// an array whose elements are all floats is packed into floats []float64
+// (8 bytes per element instead of a boxed *FloatValue each); every other array
+// uses elems. The constructors pick the store, and a type-correct program never
+// puts a non-float into an Array[float], so the store does not change after
+// construction. The fields are private so every consumer goes through the
+// accessors below and cannot silently miss the packed store.
 type ArrayValue struct {
-	Elements []Value
+	elems  []Value
+	floats []float64
+}
+
+// NewArray takes ownership of elems. A non-empty slice whose elements are all
+// *FloatValue is packed.
+func NewArray(elems []Value) *ArrayValue {
+	if len(elems) == 0 {
+		return &ArrayValue{elems: elems}
+	}
+	floats := make([]float64, len(elems))
+	for i, e := range elems {
+		f, ok := e.(*FloatValue)
+		if !ok {
+			return &ArrayValue{elems: elems}
+		}
+		floats[i] = f.Value
+	}
+	return &ArrayValue{floats: floats}
+}
+
+// NewArrayCopy builds an array from src without taking ownership: an all-float
+// src is packed, anything else is copied.
+func NewArrayCopy(src []Value) *ArrayValue {
+	if a := NewArray(src); a.floats != nil {
+		return a
+	}
+	elems := make([]Value, len(src))
+	copy(elems, src)
+	return &ArrayValue{elems: elems}
+}
+
+// NewFloatArray takes ownership of xs and returns a packed array (an empty xs
+// gives the boxed empty array, so both empty arrays look the same).
+func NewFloatArray(xs []float64) *ArrayValue {
+	if len(xs) == 0 {
+		return &ArrayValue{elems: []Value{}}
+	}
+	return &ArrayValue{floats: xs}
+}
+
+// Len returns the number of elements.
+func (a *ArrayValue) Len() int {
+	if a.floats != nil {
+		return len(a.floats)
+	}
+	return len(a.elems)
+}
+
+// Packed reports whether the array uses the unboxed float store.
+func (a *ArrayValue) Packed() bool { return a.floats != nil }
+
+// Floats returns the packed store, or (nil, false) for a boxed array. The
+// slice is shared and must not be modified.
+func (a *ArrayValue) Floats() ([]float64, bool) {
+	return a.floats, a.floats != nil
+}
+
+// Elements returns the elements as boxed values. For a boxed array this is the
+// shared backing slice and must not be modified; for a packed array it is a
+// fresh slice.
+func (a *ArrayValue) Elements() []Value {
+	if a.floats == nil {
+		return a.elems
+	}
+	out := make([]Value, len(a.floats))
+	for i, x := range a.floats {
+		out[i] = &FloatValue{Value: x}
+	}
+	return out
 }
 
 func (a *ArrayValue) Type() string { return "array" }
 func (a *ArrayValue) String() string {
 	var b strings.Builder
 	b.WriteString("#[")
-	for i, elem := range a.Elements {
+	for i := 0; i < a.Len(); i++ {
 		if i > 0 {
 			b.WriteString(", ")
 		}
+		elem, _ := a.Get(int64(i))
 		b.WriteString(elem.String())
 	}
 	b.WriteByte(']')
 	return b.String()
 }
 
-// Get returns the element at index i, or nil if out of bounds
+// Get returns the element at index i, or (nil, false) if out of bounds.
 func (a *ArrayValue) Get(i int64) (Value, bool) {
-	if i < 0 || i >= int64(len(a.Elements)) {
+	if i < 0 || i >= int64(a.Len()) {
 		return nil, false
 	}
-	return a.Elements[i], true
+	if a.floats != nil {
+		return &FloatValue{Value: a.floats[i]}, true
+	}
+	return a.elems[i], true
 }
 
-// Set returns a new array with the element at index i replaced
-func (a *ArrayValue) Set(i int64, v Value) *ArrayValue {
-	if i < 0 || i >= int64(len(a.Elements)) {
-		return a // Out of bounds, return unchanged
+// Set returns a new array with the element at index i replaced. An index out
+// of bounds returns (nil, false): the caller must report it, never compute on
+// the unchanged array (M-NUMERICS D5).
+func (a *ArrayValue) Set(i int64, v Value) (*ArrayValue, bool) {
+	if i < 0 || i >= int64(a.Len()) {
+		return nil, false
+	}
+	if a.floats != nil {
+		if f, ok := v.(*FloatValue); ok {
+			floats := make([]float64, len(a.floats))
+			copy(floats, a.floats)
+			floats[i] = f.Value
+			return &ArrayValue{floats: floats}, true
+		}
 	}
 	// Copy-on-write
-	newElements := make([]Value, len(a.Elements))
-	copy(newElements, a.Elements)
+	newElements := make([]Value, a.Len())
+	copy(newElements, a.Elements())
 	newElements[i] = v
-	return &ArrayValue{Elements: newElements}
+	return NewArray(newElements), true
 }
 
 // MapValue represents an immutable hash map with O(1) lookup (copy-on-write)
