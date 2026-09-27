@@ -141,6 +141,29 @@ func holderAlive(dir string) bool {
 	return pidAlive(pid)
 }
 
+// stealable decides whether a held lock may be taken over, reaping orphaned GPU
+// children on the way (children.go).
+//
+//   - holder dead, a registered child still running, window not yet passed:
+//     NOT stealable. The job's agent is still on the GPU; admitting a second
+//     tenant beside it is the thrash the lock exists to prevent (2026-09-22,
+//     2026-09-27: orphaned opencode streaming at the 27B model, lock reading free).
+//   - holder dead, otherwise: stealable. Any children still running past the
+//     window are orphans nothing will ever cancel, so they are reaped first.
+//   - holder alive but past the staleness window: stealable as before (crash
+//     recovery for a wedged holder). Its children are NOT reaped — the holder is
+//     not positively gone, and reapChildren only acts on orphans.
+func stealable(dir string, stale bool) bool {
+	if holderAlive(dir) {
+		return stale
+	}
+	if !stale && len(liveChildren(dir)) > 0 {
+		return false
+	}
+	reapChildren(dir)
+	return true
+}
+
 // Acquire attempts to take the rig lock as an unnamed caller. See AcquireAs.
 func Acquire(mode Mode) (bool, Release, error) {
 	return AcquireAs(mode, "")
@@ -203,7 +226,7 @@ func acquireDir(mode Mode) (bool, Release, error) {
 		// os.Exit, which skips the deferred release — observed 2026-07-11 when
 		// a completed eval-suite left the lock held for its full 6h window).
 		if fi, statErr := os.Stat(dir); statErr == nil {
-			if time.Since(fi.ModTime()) > staleWindow() || !holderAlive(dir) {
+			if stealable(dir, time.Since(fi.ModTime()) > staleWindow()) {
 				_ = os.RemoveAll(dir)
 				continue
 			}

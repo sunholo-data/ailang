@@ -33,6 +33,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/sunholo-data/ailang/internal/executor"
 	"github.com/sunholo-data/ailang/internal/proctree"
+	"github.com/sunholo-data/ailang/internal/riglock"
 	"github.com/sunholo-data/ailang/internal/strutil"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
@@ -178,6 +179,10 @@ func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, 
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("failed to start pi: %w", err)
 	}
+	// Record the agent against a held rig lock, so a holder that dies abruptly
+	// cannot leave it streaming at the GPU while the lock reads free (no-op
+	// without a held lock). See internal/riglock/children.go.
+	riglock.RegisterChild(cmd.Process.Pid, cmd.Path)
 
 	timeout := task.Timeout
 	if timeout == 0 {
