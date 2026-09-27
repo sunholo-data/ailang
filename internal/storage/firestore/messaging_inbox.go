@@ -3,6 +3,7 @@ package firestore
 import (
 	"context"
 	"fmt"
+	"sort"
 	"time"
 
 	"cloud.google.com/go/firestore"
@@ -89,9 +90,19 @@ func (s *MessagingStore) ListInboxMessages(opts messaging.InboxListOptions) ([]m
 		q = q.Where("dup_of", "==", opts.DupOf)
 	}
 
-	q = q.OrderBy("created_at", firestore.Desc)
-	if opts.Limit > 0 {
-		q = q.Limit(opts.Limit)
+	// A sender filter orders and limits in Go, not in Firestore. Every
+	// equality-filter combination ORDERED by created_at needs its own composite
+	// index, and none of the combinations with from_agent exists — so `messages
+	// list --from X` and the dashboard's sender filter failed on the prod store
+	// with FailedPrecondition "the query requires an index" (reported by an agent
+	// 2026-09-27). Equality-only queries need no composite index (Firestore
+	// merges single-field indexes), and one sender's messages are a bounded set.
+	clientOrder := opts.FromAgent != ""
+	if !clientOrder {
+		q = q.OrderBy("created_at", firestore.Desc)
+		if opts.Limit > 0 {
+			q = q.Limit(opts.Limit)
+		}
 	}
 
 	iter := q.Documents(ctx)
@@ -125,7 +136,20 @@ func (s *MessagingStore) ListInboxMessages(opts messaging.InboxListOptions) ([]m
 		}
 		msgs = append(msgs, *m)
 	}
+	if clientOrder {
+		msgs = newestFirst(msgs, opts.Limit)
+	}
 	return msgs, nil
+}
+
+// newestFirst orders messages by created_at descending and keeps the first
+// limit (0 = all) — what the Firestore OrderBy+Limit would have returned.
+func newestFirst(msgs []messaging.InboxMessage, limit int) []messaging.InboxMessage {
+	sort.SliceStable(msgs, func(i, j int) bool { return msgs[i].CreatedAt.After(msgs[j].CreatedAt) })
+	if limit > 0 && len(msgs) > limit {
+		msgs = msgs[:limit]
+	}
+	return msgs
 }
 
 func (s *MessagingStore) GetInboxMessage(id string) (*messaging.InboxMessage, error) {
