@@ -65,3 +65,47 @@ Changing existing watchdog thresholds, sample counts, or their semantics; adding
 - A more expensive W1 condition could cross a fixed CPU threshold and become falsely live. A mostly I/O-bound useful drill could stay below it and be falsely killed.
 - BSD `ps -S` includes reaped child CPU on a parent; attribution must use a stable parent identity, avoid double counting, and account for display precision and PID reuse.
 - A sampling instant can miss short lived processes; no amount of synthetic stubbing proves that live rig accounting captures every harness row.
+
+## M1 result (fleet iteration 4, 2026-09-27, measured outside the sandbox on the rig)
+
+Instrument: `tools/launchd/measure_stall_cpu.sh` (default run: four shapes concurrently, 5 windows of
+about 121 s). TSV and summary banked in the iteration-4 log entry.
+
+**The plan's instrument does not work on the rig.** On macOS 26.6.2, `ps -S -o time` misses almost all of
+a reaped child's CPU. A bash parent whose `perl` child burned about 4 CPU-s reads `0:00.00`, while a live
+busy process reads correctly in the same run. The controller and the evaluator each reproduced this,
+and other `ps` keywords behave the same. The working source is `proc_pid_rusage(pid, RUSAGE_INFO_V2)`:
+`ri_child_user_time + ri_child_system_time` is the CPU of reaped children. It read 2.18–2.99 s for a
+3-second busy child across six controller variants. The tool reads it through
+`tools/launchd/lib/proc_rusage.py`.
+
+Cumulative CPU per window, persistent parent (self plus reaped children):
+
+| Shape | rusage min / median / max (CPU-s per ~121 s) | `ps -S` (CPU-s) |
+|---|---|---|
+| drill (04:45 shape: rewrite a constant, `go test -count=1`, 3 s sleep in the test) | 62.54 / 89.66 / 97.73 | 3.13–4.68 |
+| w1-git (`until git status && false; do sleep 30`) | 0.73 / 1.63 / 1.72 | 0.00–0.01 |
+| w1-gh (`until gh run list … && false; do sleep 30`) | 0.22 / 0.27 / 0.31 | 0.00–0.01 |
+| w2 (blocked FIFO read) | 0.00 / 0.00 / 0.00 | 0.00 |
+
+The whole-tree sum equals the parent's sum within 0.04 CPU-s in every window.
+
+**Controller-process noise, measured separately:** 21 live `claude` processes each accrued
+**0.57–1.60 CPU-s per 120 s** while mostly idle. An arm that included the ROOT controller would put
+W1 (1.72 plus up to 1.60) above the provisional 2 CPU-s line. So the root must be excluded.
+
+**Separation:** the drill's minimum window is 36x w1-git's maximum. The provisional ≥2 CPU-s line
+separates the fixtures only if the root is excluded, and even then its margin over w1-git's maximum is
+only 0.28 CPU-s. A threshold near the geometric midpoint, **10 CPU-s per 120-s window over the
+descendants excluding the controller root**, leaves a margin of about 6x on both sides.
+
+**Caveats for M2:** (1) The drill fixture is a small package, and the real World rows compiled larger
+packages, so the real drill likely sits higher. That direction is safe. (2) A W1 whose condition is
+itself heavy (a `go test` as the poll condition) could cross 10 CPU-s. That is a false-live risk and
+belongs to the ruling. (3) Reading rusage needs `python3` (ctypes) or a compiled helper in the driver
+path, where today the driver uses only `ps`. (4) The evaluator reported a reap-order blind spot in
+`ri_child_*`: 0 after a trivial child is reaped first. The controller did **not** reproduce it in five
+variants, including that exact ordering (2.18–2.99 s each), so it is recorded as unreproduced. M2
+should keep a positive control on live data regardless. (5) The selftest's check for a vanished
+non-root child is racy: the evaluator's mutation was caught in 1 of 10 runs. M2 needs a deterministic
+fixture before it relies on this.
