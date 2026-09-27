@@ -83,7 +83,7 @@ func showR(r: Result[[float], string]) -> string = match r { Ok(xs) => show(xs),
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			for backend, got := range runArrayCase(t, arrayProgram(imports, c.body), false) {
+			for backend, got := range runArrayCase(t, arrayProgram(imports, c.body), true) {
 				if got != c.want {
 					t.Errorf("%s: got %q, want %q", backend, got, c.want)
 				}

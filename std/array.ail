@@ -136,3 +136,23 @@ export pure func sum(v: Array[float]) -> float = _array_f_sum(v)
 
 -- Index of the first largest element; NaNs are skipped. Error on empty. O(n).
 export pure func argmax(v: Array[float]) -> int = _array_f_argmax(v)
+
+-- ============================================================================
+-- Binary codecs for Array[float] (packed little-endian floats)
+-- ============================================================================
+-- The width is in the name. F32 is LOSSY (float32 precision: 0.1 does not
+-- round-trip); F64 is exact. Decoding builds the unboxed store directly and
+-- fails with Err naming the byte count when it is not a whole number of floats.
+--   match decodeF64LE(encodeF64LE(make(3, 0.1))) { Ok(a) => length(a), Err(e) => 0 }  -- 3
+
+-- 8 bytes per float, exact.
+export pure func encodeF64LE(v: Array[float]) -> bytes = _array_encode_f64le(v)
+
+-- Inverse of encodeF64LE.
+export pure func decodeF64LE(b: bytes) -> Result[Array[float], string] = _array_decode_f64le(b)
+
+-- 4 bytes per float, LOSSY.
+export pure func encodeF32LE(v: Array[float]) -> bytes = _array_encode_f32le(v)
+
+-- Inverse of encodeF32LE.
+export pure func decodeF32LE(b: bytes) -> Result[Array[float], string] = _array_decode_f32le(b)

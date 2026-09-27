@@ -25,6 +25,7 @@ const (
 	TagClosure
 	TagADT
 	TagArray
+	TagBytes
 )
 
 // String returns the human-readable tag name. Used for error messages and
@@ -53,6 +54,8 @@ func (t ValueTag) String() string {
 		return "ADT"
 	case TagArray:
 		return "Array"
+	case TagBytes:
+		return "Bytes"
 	}
 	return fmt.Sprintf("UnknownTag(%d)", uint8(t))
 }
@@ -72,7 +75,7 @@ type Value struct {
 	Int  int64
 	Flt  float64
 	Bool bool
-	Obj  any // *StringObj, *ListObj, *TupleObj, *RecordObj, *ClosureObj, *ADTObj, *ArrayObj
+	Obj  any // *StringObj, *ListObj, *TupleObj, *RecordObj, *ClosureObj, *ADTObj, *ArrayObj, *BytesObj
 }
 
 // --- Heap object types -------------------------------------------------------
@@ -113,6 +116,15 @@ func (a *ArrayObj) At(i int) Value {
 		return NewFloat(a.Floats[i])
 	}
 	return a.Elems[i]
+}
+
+// BytesObj is an immutable byte string. The VM has no bytes operations; it
+// carries bytes between evaluator calls (M-NUMERICS-VEC-ARRAY M6), keeping
+// the upload metadata so a round trip is lossless.
+type BytesObj struct {
+	B        []byte
+	Filename string
+	MimeType string
 }
 
 // TupleObj is a fixed-arity heterogeneous record-without-names.
@@ -204,6 +216,44 @@ func (v Value) AsArray() *ArrayObj {
 		panic(fmt.Sprintf("bytecode: AsArray called on %s", v.Tag))
 	}
 	return v.Obj.(*ArrayObj)
+}
+
+// NewBytes constructs a Bytes value. The slice is retained as-is and must
+// not be mutated afterwards.
+func NewBytes(b *BytesObj) Value {
+	return Value{Tag: TagBytes, Obj: b}
+}
+
+// AsBytes returns the underlying BytesObj. Panics if v is not Bytes.
+func (v Value) AsBytes() *BytesObj {
+	if v.Tag != TagBytes {
+		panic(fmt.Sprintf("bytecode: AsBytes called on %s", v.Tag))
+	}
+	return v.Obj.(*BytesObj)
+}
+
+// StdADTTag returns the VM constructor ordinal of a std/option or std/result
+// constructor: the declaration order in std/option.ail (Some | None) and
+// std/result.ail (Ok | Err). The VM's builtins and match compilation use the
+// same ordinals.
+func StdADTTag(modulePath, typeName, ctor string) (int, bool) {
+	switch {
+	case modulePath == "std/option" && typeName == "Option":
+		switch ctor {
+		case "Some":
+			return 0, true
+		case "None":
+			return 1, true
+		}
+	case modulePath == "std/result" && typeName == "Result":
+		switch ctor {
+		case "Ok":
+			return 0, true
+		case "Err":
+			return 1, true
+		}
+	}
+	return 0, false
 }
 
 // NewTuple constructs a Tuple value from the given elements.
@@ -344,6 +394,8 @@ func (v Value) Equal(other Value) bool {
 			}
 		}
 		return true
+	case TagBytes:
+		return string(v.Obj.(*BytesObj).B) == string(other.Obj.(*BytesObj).B)
 	case TagArray:
 		a, b := v.Obj.(*ArrayObj), other.Obj.(*ArrayObj)
 		if a.Len() != b.Len() {
@@ -425,6 +477,8 @@ func (v Value) String() string {
 		}
 		sb.WriteByte(']')
 		return sb.String()
+	case TagBytes:
+		return fmt.Sprintf("<bytes:%d>", len(v.Obj.(*BytesObj).B))
 	case TagArray:
 		a := v.Obj.(*ArrayObj)
 		var sb strings.Builder

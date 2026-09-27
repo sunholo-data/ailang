@@ -21,7 +21,11 @@ _ai_step_with_stream : (string, list[{content: string, images: list[{mime: strin
 _ai_step_with_stream_recorded : (string, list[{content: string, images: list[{mime: string, source: string}], role: string, tool_call_id: string, tool_calls: list[{arguments: string, id: string, name: string}]}], list[{description: string, name: string, parameters: string}], list[{position: string, ttl: string}], StreamChunk -> ()) -> {chunks: list[StreamChunk], outcome: Result[{cache_creation_input_tokens: int, cache_read_input_tokens: int, finish_reason: string, input_tokens: int, message: {content: string, images: list[{mime: string, source: string}], role: string, tool_call_id: string, tool_calls: list[{arguments: string, id: string, name: string}]}, output_tokens: int, tool_calls: list[{arguments: string, id: string, name: string}]}, {code: string, message: string, retryable: bool}]} ! {AI}
 _ai_stream_call : (string, string, string) -> Result[StreamConn, StreamErrorKind] ! {AI, Net, Stream}
 _array_append : (Array[a], a) -> Array[a]
+_array_decode_f32le : bytes -> Result[Array[float], string]
+_array_decode_f64le : bytes -> Result[Array[float], string]
 _array_empty : () -> Array[a]
+_array_encode_f32le : Array[float] -> bytes
+_array_encode_f64le : Array[float] -> bytes
 _array_f_add : (Array[float], Array[float]) -> Array[float]
 _array_f_argmax : Array[float] -> int
 _array_f_axpy : (float, Array[float], Array[float]) -> Array[float]
@@ -135,6 +139,7 @@ _io_println : string -> () ! {IO}
 _io_readLine : () -> string ! {IO}
 _io_writeBytes : bytes -> () ! {IO}
 _json_decode : string -> Result[Json, string]
+_json_decode_float_array : string -> Result[Array[float], string]
 _json_encode : Json -> string
 _json_repair : string -> Result[string, string]
 _list_contains : (list[a], a) -> bool

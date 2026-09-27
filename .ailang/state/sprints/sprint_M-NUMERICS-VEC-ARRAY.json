@@ -110,10 +110,10 @@
         "decodeFloatArray parses flat JSON number array without Json tree",
         "1252x768 binary load < 50 ms and < 50 MB"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-27T17:02:11+00:00",
+      "completed": "2026-09-27T17:02:11+00:00",
+      "notes": "_array_encode/decode_f32le/f64le (packed store directly, Result), _json_decode_float_array (strict JSON number grammar, offset-named Errs). Bridge: TagBytes both ways; eval->VM Option/Result via bytecode.StdADTTag (pinned to std/*.ail declaration order by std_adt_tag_test.go). Tests: cmd/ailang/stdlib_array_ingest_test.go (12 cases, VM-native), M1 codec test flipped to VM-native. Mutation: bytes bridge removed => 4 bytes rows fail VM-native check. Measured 1252x768 f64 binary: 11 ms end to end, +43 MB RSS over baseline; JSON 19.5 MB: 50 ms. Note std/fs.readFileBytes returns base64 text (extra transient copy)."
     },
     {
       "id": "M7",

@@ -27,6 +27,18 @@
       "pure": true
     },
     {
+      "name": "decodeF32LE",
+      "type": "(bytes)-\u003eResult[\u003c*types.TArray\u003e,string]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "decodeF64LE",
+      "type": "(bytes)-\u003eResult[\u003c*types.TArray\u003e,string]",
+      "effects": [],
+      "pure": true
+    },
+    {
       "name": "dot",
       "type": "(\u003c*types.TArray\u003e,\u003c*types.TArray\u003e)-\u003efloat",
       "effects": [],
@@ -35,6 +47,18 @@
     {
       "name": "empty",
       "type": "(())-\u003e\u003c*types.TArray\u003e",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "encodeF32LE",
+      "type": "(\u003c*types.TArray\u003e)-\u003ebytes",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "encodeF64LE",
+      "type": "(\u003c*types.TArray\u003e)-\u003ebytes",
       "effects": [],
       "pure": true
     },
