@@ -8,6 +8,12 @@
 `internal/riglock/children.go` (see Phase 0)
 **Scope**: Rig tooling (Go shell + one AILANG policy function + launchd). No language, compiler or stdlib surface.
 
+**Quorum round 1 (2026-09-27)**: BLOCKED. gpt6-astra and gemini-3-1-pro answered; glm and kimi were unreachable.
+Both objections were accepted and closed in this revision without a second round (Mark: one round):
+(1) ":11435 is not private": answered with an explicit **Threat model**, a **bypass detector**, and optional pf
+hardening (D5). (2) "V10/V11 unmeasured": both are now **measured** (V10, V11 below). Artifact:
+`.ailang/state/mission-quorum/m-rig-gpu-admission-gateway-2026-09-27T17-20-17Z.json`.
+
 **Quorum trigger**: #1 fired (the doc has design-freeze items D1–D4), and #4 partially fired (the premise
 about client templating in opencode and pi is external; it is now measured, see V9). Run `ailang design-quorum` before planning.
 
@@ -76,6 +82,7 @@ Success metrics:
 | D1 | How the gateway identifies a caller | (a) lease token in the base URL path; (b) TCP socket → PID lookup; (c) custom header `X-Rig-Lease`; (d) **lease token as the API key** (`Authorization: Bearer <token>`) | **(d)**. Measured in the Phase 0 spike (V9): **pi does not template `baseUrl`**, so it sent the literal `${SPIKE_LEASE}`, which rules out (a). Both clients template `apiKey` and `headers` from the environment. (b) is refuted on a multi-user rig (V6). Every OpenAI-compatible client already sends an API key, and ollama ignores it (pi's configured key is literally `ollama`). Keep (c) as a fallback for native-API callers with no key field (Daneel's `/api/generate`) | Mark | Medium |
 | D2 | Policy for a long request with no valid lease while a lease is held | reject with 423 and the holder; queue behind; admit | **Reject.** Queueing is exactly what collapsed 09-27. When no lease is held, admit it and mark it `unleased` in the ledger, so ad-hoc use keeps working | Mark | Low |
 | D3 | Where the gateway runs | standalone `dev.ailang.rig-gate` launchd job; inside `ailang serve` (dev.ailang.server) | **Standalone.** dev.ailang.server shows last-exit −9 in `launchctl list`, and restarting it must not drop GPU access | Agent | Low |
+| D5 | Hard enforcement of the private port | none (cooperative model); **pf anchor** allowing TCP to 127.0.0.1:11435 only from the gateway's uid (root, operator-installed) | **Start without pf, with the bypass detector on.** Add pf only if the detector ever fires. A root firewall rule on the rig is Mark's call and not needed for the observed failures | Mark | Low |
 | D4 | Gateway down | clients fail; fall back to direct ollama | **Clients fail** (no silent fallback, per CLAUDE.md §2). rig-watchdog kickstarts it like ollama | Mark | Low |
 
 **Kept as is (measured, not reopened)**: `OLLAMA_MAX_LOADED_MODELS=2`. Mark 2026-09-27: `1` caused a
@@ -83,11 +90,27 @@ large lag whenever a model swap was actually wanted. The gateway does not try to
 The one exception is refusing an **unleased** request for a model that is *not loaded* while a lease is
 held, because that load could evict the holder's model.
 
+### Threat model (quorum objection 1)
+
+The gateway defends against **accidents, not adversaries**. Every failure measured on 2026-09-27 was a
+client using its *configured* endpoint without a lease: an orphaned agent, a tool that never took the lock,
+or a second user's job. All of these reach :11434 and so hit the gateway. It does **not** stop a process that
+deliberately targets the private port. Loopback TCP cannot be restricted per uid without a root pf rule (D5).
+Two things keep that gap visible rather than silent:
+
+- **Bypass detector.** ollama logs one `[GIN]` line per request. The gateway ledger logs one line per request
+  it proxied. A reconciler run by rig-watchdog every 60 s compares the two counts for `/v1/chat/completions`,
+  `/api/chat` and `/api/generate` over the last complete minute. An excess on ollama's side means a bypass: log it
+  and send one controlplane message per hour. It needs no identity, only counts, so it works across users.
+- **The private port is not published**: not in `models.yml`, the opencode or pi configs, or any doc except this
+  one and the plist.
+
 ### Design Freeze
 
 - [ ] D1 lease token as the API key (Bearer), with header fallback. The spike measured it, so ratify
 - [ ] D2 reject-while-held
 - [ ] D4 no fallback
+- [ ] D5 no pf at first; bypass detector on
 
 ## Solution Design
 
@@ -166,7 +189,7 @@ held, because that load could evict the holder's model.
 **Orphan after the lock was stolen**:
 ```
 $ curl -s 127.0.0.1:11434/lease/9f3c…/v1/chat/completions -d @req.json
-HTTP/1.1 423 Locked
+HTTP/1.1 423 Locked      (V11: final for opencode and pi; never 503, which opencode retries)
 {"error":"rig lease revoked","holder":"nightly-eval pid=81448","held_for_s":5412,"your_lease":"9f3c… (released 2026-09-27T00:26:10Z)"}
 ```
 
@@ -201,8 +224,8 @@ run under `/bin/bash` (3.2), because the rig has no bash 4. Mutation-check each 
 | V7 | Daneel's endpoint is a literal | `~/dev/daneel/tools/daneel_model.ail:48` `endpoint() -> "http://127.0.0.1:11434/api/generate"` | Confirmed |
 | V8 | Daneel already honours the rig lock | `~/dev/daneel/tools/daneel:2828` `rig_lock_try`. The q27 measurement script takes the shared lock | Confirmed |
 | V9 | Per-run token injection from the environment | Spike 2026-09-27: a capture server on :18999 recorded each client's request. **opencode 1.15.7** (`{env:SPIKE_LEASE}` in `baseURL`, `apiKey`, `headers`): path `/lease/tokOC123/v1/chat/completions`, `Authorization: Bearer tokOC123`, `X-Rig-Lease: tokOC123`, so all three are templated. **pi 0.85.1** (`${SPIKE_LEASE}` in `models.json`): path `/lease/$%7BSPIKE_LEASE%7D/v1/...` (NOT templated), `Authorization: Bearer tokPI456`, `X-Rig-Lease: tokPI456`. Source agrees: `provider-composer.js` runs `resolveConfigValueOrThrow` on the key and `resolveHeadersOrThrow` on headers; `baseUrl` is used verbatim | **Confirmed**: API key and header work in both; URL path works in opencode only, so D1 = (d) |
-| V11 | Clients retry some error statuses | Same spike: opencode sent the same request repeatedly against a 503 until killed | **Confirmed for 503**. The gateway's rejection status must be one both clients treat as final (403/423 not yet measured). Measure it in Phase 1 before choosing, or a rejection becomes a retry storm |
-| V10 | ollama has no per-request priority or admission hook we could use instead | ollama serve flags and env (`OLLAMA_MAX_QUEUE`, `NUM_PARALLEL` only) | Believed true; re-check the ollama version at Phase 0 |
+| V11 | Which rejection status clients treat as final | Capture server returning a fixed status, both clients at their **real retry defaults** (pi `retry.maxRetries` unset = 3), a 40 s window. **503**: opencode retried until killed. **403**: opencode sent 2 requests (title call + main) and exited in 2 s; pi sent 1 and exited at once. **423**: opencode 2 requests, 1 s; pi 1 request, 0 s | **Confirmed**: 423 and 403 are final in both, 503 is not. The gateway rejects with **423** |
+| V10 | ollama has no per-request auth, priority or admission hook we could use instead | `ollama serve --help` on the rig (ollama **0.33.2**): the environment knobs are HOST, CONTEXT_LENGTH, KEEP_ALIVE, MAX_LOADED_MODELS, MAX_QUEUE, NUM_PARALLEL, ORIGINS (browser CORS only, not caller identity), GPU_OVERHEAD, KV_CACHE_TYPE, LOAD_TIMEOUT and so on. None identifies or admits a caller | **Confirmed** (re-check when ollama is upgraded) |
 
 ## Deferred Decisions (agent latitude)
 
