@@ -258,11 +258,21 @@ func TestGate_LedgerRecordsEveryRequest(t *testing.T) {
 	rg.post("/v1/chat/completions", nil)
 	rg.post("/v1/chat/completions", map[string]string{LeaseHeader: held.Token})
 
-	b, err := os.ReadFile(rg.ledger)
-	if err != nil {
-		t.Fatal(err)
+	// An admitted request is recorded after the proxied response completes,
+	// which can land just after the client has read it: poll, bounded.
+	var b []byte
+	var lines []string
+	for deadline := time.Now().Add(2 * time.Second); ; {
+		var err error
+		if b, err = os.ReadFile(rg.ledger); err != nil {
+			t.Fatal(err)
+		}
+		lines = strings.Split(strings.TrimSpace(string(b)), "\n")
+		if len(lines) >= 3 || time.Now().After(deadline) {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
-	lines := strings.Split(strings.TrimSpace(string(b)), "\n")
 	if len(lines) != 3 {
 		t.Fatalf("ledger has %d lines, want 3:\n%s", len(lines), b)
 	}
