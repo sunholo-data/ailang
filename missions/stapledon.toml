@@ -1,0 +1,19 @@
+# The Stapledon mission — sunholo-data/stapledons-godot.
+#
+# Godot 4 renderer + AILANG simulation sidecar (NDJSON stdio, bytecode VM). Charter:
+# design_docs/stapledon-mission.md in the game repo; verify profile `godot-game`.
+# Bootstrapped attended 2026-09-27 (Mark: "put you on the mission loop"). Runs the ONE
+# shared driver from the origin/dev pin — no driver copy in the game repo.
+name    = "stapledon"
+repo    = "sunholo-data/stapledons-godot"
+workdir = "/Users/voightkampff/dev/sunholo-data/stapledons-godot"
+doc     = "design_docs/stapledon-mission.md"
+
+# ── SCHEDULE ─────────────────────────────────────────────────────────────────
+# Interval (not keepalive) and a 6h floor to start: the sixth loop on a rig with a
+# memory gate and a measured stall rate. Cadence is a measured decision — tighten
+# only after the slot-verdict log shows real durations (mission-loop-change skill).
+[schedule]
+mode             = "interval"
+interval_seconds = 21600
+boot_offset      = 2100

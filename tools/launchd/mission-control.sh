@@ -600,6 +600,7 @@ _mc_boot_offset() {
     docs)   echo 840  ;;
     motoko) echo 1260 ;;
     fleet)  echo 1680 ;;
+    stapledon) echo 2100 ;;
     *)      echo 0    ;;
   esac
 }
