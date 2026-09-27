@@ -1,0 +1,42 @@
+{
+  "id": "M-FLEET-PI-SANDBOX-WIRING",
+  "design_doc": "design_docs/planned/sprint-plan-pi-runner-sandbox-wiring.md",
+  "milestones": [
+    {
+      "id": "M1",
+      "title": "NEEDS-MARK: explicit mission policy and fail-closed sandbox extension",
+      "acceptance_criteria": [
+        "Mark separately approves or routes changes under tools/pi-extensions/**, which is outside the fleet push allowlist",
+        "Mission policy is explicitly supplied, validated, and never replaced by defaults when missing or malformed",
+        "Sandbox initialization failure blocks bash and user_bash; readiness is emitted only after successful initialization",
+        "Focused extension tests cover valid, missing, malformed, disabled, and failed-initialization cases"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "M2",
+      "title": "Wire both extensions and tracked policy into the mission pi runner",
+      "acceptance_criteria": [
+        "Derive main checkout from git common dir, verify source parity and dependency, and pass both absolute -e paths",
+        "Generate validated policy in a private temp directory with worktree gitdir and common objects allowed; do not dirty the worktree",
+        "Set PI_FENCE_ROOT and readiness env, create /tmp/claude, and propagate pi exit status",
+        "Typed verdicts distinguish sandbox_unavailable rc 15, sandbox_policy_invalid rc 16, sandbox_not_ready rc 17, and include fenced true only after readiness",
+        "No routing, timeout threshold, lane order, or quota changes"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "M3",
+      "title": "Fake-pi regression arms and launchd test gate",
+      "acceptance_criteria": [
+        "Fake-pi arms assert both -e flags, fence root, policy delivery, linked git metadata paths, readiness, and fail-closed verdicts without calling a model",
+        "Every arm names the mutation it kills and writes only under mktemp",
+        "Commit-count arm is reconciled with unmerged PR #1329 when available",
+        "/bin/bash tools/launchd/test_mission_pi_run_sandbox.sh and make test-launchd-drivers pass",
+        "git diff --check passes; in-sandbox gate verdicts are labeled UNINFORMATIVE and controller reruns gates outside sandbox"
+      ],
+      "status": "pending"
+    }
+  ],
+  "status": "pending"
+}
