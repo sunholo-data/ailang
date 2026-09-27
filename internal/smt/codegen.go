@@ -148,8 +148,16 @@ func EncodeFunction(
 	var calleeDefs []CalleeDef
 	if len(opts) > 0 && opts[0].Program != nil {
 		var err error
-		calleeDefs, err = ResolveCallees(
-			funcName, body, opts[0].Program,
+		// Roots: the body plus every contract predicate, so user functions called
+		// from requires/ensures (e.g. a nullary named constant) are defined too.
+		roots := []core.CoreExpr{body}
+		for _, c := range opts[0].Contracts {
+			if c != nil && c.Expr != nil {
+				roots = append(roots, c.Expr)
+			}
+		}
+		calleeDefs, err = ResolveCalleesFromRoots(
+			funcName, roots, opts[0].Program,
 			opts[0].SurfaceParams, opts[0].SurfaceReturnSorts, adtTypes,
 			opts[0].ImportedPrograms,
 		)

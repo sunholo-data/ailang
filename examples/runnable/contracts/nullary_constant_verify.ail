@@ -1,0 +1,45 @@
+-- examples/runnable/contracts/nullary_constant_verify.ail
+-- Named constants in verified contracts. A zero-argument pure function is a
+-- constant: `ailang verify` encodes it as a nullary SMT define-fun, so a spend
+-- bound can be written with the same constant the program uses at runtime
+-- instead of inlining a literal that drifts. See M-SMT-NULLARY-CALLEE.
+module examples/runnable/contracts/nullary_constant_verify
+
+export pure func cap() -> int {
+  1000
+}
+
+-- The Daneel repro: previously SKIPPED with 'unencodable type "()"'.
+export pure func bound(x: int) -> int
+requires { x >= 0 }
+ensures { result >= x } {
+  x + cap()
+}
+
+export pure func answerCap() -> int {
+  17000
+}
+
+-- Chained constant: a nullary function built from another.
+export pure func doubledCap() -> int {
+  answerCap() * 2
+}
+
+-- A turn budget whose bound names the constant in the ensures clause too.
+export pure func turnBound(ctx: int) -> int
+requires { ctx >= 0 }
+ensures { result >= 220000 + answerCap() * 17 } {
+  ctx * 3 + 4500 + answerCap() * 17 + 220000
+}
+
+export pure func withChained(x: int) -> int
+requires { x >= 0 }
+ensures { result == x + 34000 } {
+  x + doubledCap()
+}
+
+export func main() -> () ! {IO} {
+  println("bound(5) = ${show(bound(5))}")
+  println("turnBound(10) = ${show(turnBound(10))}")
+  println("withChained(1) = ${show(withChained(1))}")
+}

@@ -301,9 +301,41 @@ func FirstUnencodableCalleeType(
 			return name, describeASTType(fd.ReturnType)
 		}
 		for _, p := range fd.Params {
+			// A zero-arg function desugars to `f(_: ())`; the unit param carries
+			// no information and the encoder drops it (see UnwrapLambdaParams), so
+			// it must not make the callee unencodable. A nullary pure callee is a
+			// named constant.
+			if isUnitParam(p) {
+				continue
+			}
 			if !astTypeEncodable(p.Type, declarable) {
 				return name, describeASTType(p.Type)
 			}
+		}
+	}
+	return "", ""
+}
+
+// firstUnencodableCalleeInFunc applies FirstUnencodableCalleeType to a function's
+// body and then to each of its contract predicates.
+func firstUnencodableCalleeInFunc(
+	funcName string,
+	body core.CoreExpr,
+	contracts []*core.Contract,
+	prog *core.Program,
+	imported map[string]*core.Program,
+	calleeASTFuncs map[string]*ast.FuncDecl,
+	declarable map[string]bool,
+) (string, string) {
+	if callee, bad := FirstUnencodableCalleeType(funcName, body, prog, imported, calleeASTFuncs, declarable); callee != "" {
+		return callee, bad
+	}
+	for _, c := range contracts {
+		if c == nil || c.Expr == nil {
+			continue
+		}
+		if callee, bad := FirstUnencodableCalleeType(funcName, c.Expr, prog, imported, calleeASTFuncs, declarable); callee != "" {
+			return callee, bad
 		}
 	}
 	return "", ""
@@ -378,6 +410,24 @@ func UnwrapLambdaParams(
 		})
 	}
 	return params, innerBody
+}
+
+// SurfaceFunctionParams returns the SMT-relevant parameters of a surface function
+// declaration, used to build callee define-fun signatures. The unit parameter of a
+// zero-arg function (`func f()` → `f(_: ())`) is dropped, so a nullary pure function
+// becomes a nullary define-fun — an SMT-LIB constant — and call sites drop the unit
+// argument to match (see encodeUserFunctionCall).
+func SurfaceFunctionParams(fd *ast.FuncDecl) []FunctionParam {
+	var params []FunctionParam
+	for _, p := range fd.Params {
+		if isUnitParam(p) {
+			continue
+		}
+		if pt := ConvertASTTypeToType(p.Type); pt != nil {
+			params = append(params, FunctionParam{Name: p.Name, Type: pt})
+		}
+	}
+	return params
 }
 
 // isUnitParam returns true if the param is a unit parameter from zero-arg desugaring.
