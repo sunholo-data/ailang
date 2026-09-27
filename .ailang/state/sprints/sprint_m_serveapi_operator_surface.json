@@ -1,0 +1,35 @@
+{
+  "sprint_id": "M-SERVEAPI-OPERATOR-SURFACE",
+  "design_doc": "design_docs/planned/v0_45_0/m-serveapi-operator-surface.md",
+  "sprint_plan": "design_docs/planned/v0_45_0/m-serveapi-operator-surface-sprint-plan.md",
+  "target_version": "v0.45.0",
+  "created": "2026-09-27",
+  "planner_model": "claude-opus-5-5",
+  "github_issues": [],
+  "risk_level": "low-medium",
+  "velocity": {
+    "target_loc_per_day": 600,
+    "estimated_total_loc": 890,
+    "estimated_days": 1.5
+  },
+  "features": [
+    {"id": "M1_STDLIB_NEVER_LOCAL", "description": "registerModule never registers or records as a drop a std/* module", "estimated_loc": 60, "dependencies": [],
+     "acceptance_criteria": ["0 std/* modules registered for a module importing std/stream", "0 std/* drops", "test fails with the rule reverted"],
+     "passes": null, "started": null, "completed": null, "notes": null},
+    {"id": "M2_INTROSPECTION", "description": "meta listing through isExposed; --no-introspection removes /api/_meta/* and /api/_health", "estimated_loc": 120, "dependencies": [],
+     "acceptance_criteria": ["--routes-only lists only @route exports", "--no-introspection: meta + health 404, routes answer", "reserved paths still refused to @route"],
+     "passes": null, "started": null, "completed": null, "notes": null},
+    {"id": "M3_BASE_PATH", "description": "ResolveBasePath: CLI directory is the floor, module headers only widen outward", "estimated_loc": 150, "dependencies": [],
+     "acceptance_criteria": ["Daneel layout resolves to the given dir", "./api with module api/handlers resolves to project root", "file arg and no-decl cases"],
+     "passes": null, "started": null, "completed": null, "notes": null},
+    {"id": "M4_STATIC_CACHE", "description": "--static-cache immutable|SECONDS on 2xx/304 static responses", "estimated_loc": 110, "dependencies": [],
+     "acceptance_criteria": ["header on 200/304 with flag", "none on 404", "none without flag", "flag without --static is an error"],
+     "passes": null, "started": null, "completed": null, "notes": null},
+    {"id": "M5_WS_PASS_HEADER", "description": "--ws-pass-header allowlist; req built from declared fields; credential headers unnameable; canary", "estimated_loc": 350, "dependencies": [],
+     "acceptance_criteria": ["allowed header reaches handler lower-cased", "multi-valued -> one entry per line", "Authorization/Cookie/api-key header refused at startup", "canary absent from handler/trace/log", "subset-declared req still reads path"],
+     "passes": null, "started": null, "completed": null, "notes": null},
+    {"id": "M6_DOCS_DONE_WHEN", "description": "guide, CHANGELOG, CLI docs; DONE WHEN on fresh binary", "estimated_loc": 100, "dependencies": ["M1_STDLIB_NEVER_LOCAL", "M2_INTROSPECTION", "M3_BASE_PATH", "M4_STATIC_CACHE", "M5_WS_PASS_HEADER"],
+     "acceptance_criteria": ["curl evidence for M1-M4", "WS client with custom header for M5", "make test/lint/file sizes/cli docs green"],
+     "passes": null, "started": null, "completed": null, "notes": null}
+  ]
+}
