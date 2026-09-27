@@ -1,6 +1,6 @@
 # M-NUMERICS-VEC-ARRAY-INGEST: Unboxed float arrays, bulk update, binary numeric ingest
 
-**Status**: Planned. **Quorum BLOCKED after round 2**: both round-2 objections are addressed in this text, and the doc needs a human ratification (the re-quorum limit is used up). The Design Freeze items below need human decisions before any phase starts.
+**Status**: Planned, **ratified by Mark 2026-09-27** (attended session): the quorum block after round 2 is overridden on the strength of the round-2 revisions, and all five Design Freeze items are decided as recommended (D1 = D, D2 = `std/array`, D3 = (i), D4 = both widths named, D5 = error). Sprint plan: `m-numerics-vec-array-ingest-sprint-plan.md`.
 **Target**: v0.45.0 (Phase 0 can ship in a patch)
 **Priority**: P2. The quick fixes already closed most of the reported gap (see "What already shipped").
 **Estimated**: Phase 0: 0.5 day. Phase 1: 3–4 days. Phase 2: 2–3 days. Phase 3: 1–2 days.
@@ -132,16 +132,16 @@ single-element updates. Choosing (i) means accepting that limit on purpose.
 
 ### Design Freeze
 
-- [ ] D1 representation. Recommendation: **D**. There is no new public type, `std/array` finally
+- [x] D1 representation. Recommendation: **D**. There is no new public type, `std/array` finally
   fits its "performance-critical" charter, and it doesn't collide with D-19. B only if D's runtime
   backing-store switch proves unsound (see Conflict Surface, item 3).
-- [ ] D2 module. Recommendation (with D): **float kernels in `std/array`** on `Array[float]`;
+- [x] D2 module. Recommendation (with D): **float kernels in `std/array`** on `Array[float]`;
   `std/embedding` keeps its `[float]` API.
-- [ ] D3 update model. Recommendation: **(i)**. Open (ii) or (iii) only if a real program needs
+- [x] D3 update model. Recommendation: **(i)**. Open (ii) or (iii) only if a real program needs
   element-wise mutation that bulk ops can't express.
-- [ ] D4 format. Recommendation: **both, named by width** (`decodeF64LE`, `decodeF32LE`), so the
+- [x] D4 format. Recommendation: **both, named by width** (`decodeF64LE`, `decodeF32LE`), so the
   lossy one says it's lossy.
-- [ ] D5. Recommendation: **error**.
+- [x] D5. Recommendation: **error**.
 
 ## Solution Design
 
