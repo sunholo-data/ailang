@@ -464,6 +464,14 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		cmd.Stderr = io.MultiWriter(stderrBuf, stderrFile)
 		defer stderrFile.Close()
 	}
+	// stdout goes to the same writer. In --headless mode motoko reports a dead
+	// runtime on STDOUT ("[error] The AILANG runtime exited with code 1 before it
+	// reported done or an error."), and stdout used to be discarded, so a run that
+	// died before step 0 left only the runtime's startup banner in this log
+	// (motoko main A/B, 2026-09-27: 7 of 23 runs, cause unrecoverable). One
+	// comparable writer for both streams means exec calls Write from at most one
+	// goroutine, so the shared buffer needs no lock.
+	cmd.Stdout = cmd.Stderr
 
 	startTime := time.Now()
 	if err := cmd.Run(); err != nil {

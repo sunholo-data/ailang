@@ -144,6 +144,7 @@ func (e *MotokoExecutor) clearStalePort8080() {
 	if err != nil || len(out) == 0 {
 		return
 	}
+	killed := false
 	for _, pidStr := range strings.Fields(string(out)) {
 		pid, perr := strconv.Atoi(pidStr)
 		if perr != nil {
@@ -161,6 +162,30 @@ func (e *MotokoExecutor) clearStalePort8080() {
 		if kerr := proctree.KillGroup(pid); kerr != nil {
 			_ = proctree.KillProcess(pid)
 		}
+		killed = true
+	}
+	if killed && !waitPort8080Released(5*time.Second) {
+		fmt.Fprintf(os.Stderr, "[motoko/healthcheck] WARNING: port 8080 still held 5s after killing the stale env-server — this run may fail to bind its env-server\n")
+	}
+}
+
+// waitPort8080Released polls until nothing listens on 8080 or the timeout
+// passes. A kill is asynchronous: spawning the next run straight after it let
+// the new env-server race the dying one for the port, and the runtime died
+// before step 0 with nothing on stderr. Upstream motoko main leaves its
+// env-server running after a headless run, so the eval loop hit this on every
+// run after the first (A/B 2026-09-27: bursts of 7-9 startup crashes).
+func waitPort8080Released(timeout time.Duration) bool {
+	deadline := time.Now().Add(timeout)
+	for {
+		out, err := exec.Command("lsof", "-nP", "-iTCP:8080", "-sTCP:LISTEN", "-t").Output()
+		if err != nil || len(strings.TrimSpace(string(out))) == 0 {
+			return true
+		}
+		if time.Now().After(deadline) {
+			return false
+		}
+		time.Sleep(100 * time.Millisecond)
 	}
 }
 
