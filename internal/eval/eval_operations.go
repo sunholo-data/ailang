@@ -56,7 +56,7 @@ func (e *CoreEvaluator) evalCoreApp(app *core.App) (retVal Value, err error) {
 		e.recursionDepth++
 		if e.recursionDepth > e.maxRecursionDepth {
 			e.recursionDepth--
-			return nil, fmt.Errorf("RT_REC_003: max recursion depth %d exceeded. Try a smaller input, an iterative std/list helper such as foldl or map instead of hand-rolled recursion, or raise the ceiling with --max-recursion-depth", e.maxRecursionDepth)
+			return nil, &RecursionLimitError{Limit: e.maxRecursionDepth}
 		}
 		defer func() { e.recursionDepth-- }()
 

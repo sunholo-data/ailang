@@ -515,6 +515,7 @@ func buildAndRegisterInterface(
 	moduleTypeEnv *types.TypeEnv,
 	modLinker *link.ModuleLinker,
 	importedAliases map[string]types.Type,
+	derivedEq []string,
 ) error {
 	// Convert pipeline constructors to iface constructors
 	ifaceCtors := convertToIfaceConstructors(unit.Constructors)
@@ -528,6 +529,10 @@ func buildAndRegisterInterface(
 	// Package A, we need Usage in B's interface so Package C can resolve it transitively.
 	if len(importedAliases) > 0 {
 		embedTransitiveAliases(unitIface, importedAliases)
+	}
+
+	if err := unitIface.SetDerivedEq(derivedEq); err != nil {
+		return fmt.Errorf("interface build error in %s: %w", modID, err)
 	}
 
 	unit.Iface = unitIface

@@ -26,6 +26,7 @@ separate checkout, not a separate fork. `git worktree list` is the truth.
 | **`dev/mk-ast`** | **`sunholo/eval-canonical`** | **CANONICAL — what `motoko` on PATH runs** |
 | `dev/mk-prwork` | `fix/reliable-compaction` | PR #97 only |
 | `dev/mk-ast-upstream-fix` | `fix/ailang-0.30-message-images` | PR #96 only |
+| `dev/mk-main` | `sunholo/main-dst` | Arni's `main` (DST core, ABI 8.0) — **migration target, not yet the eval version** (see §9) |
 
 Branches `integration/sync-clean-20260624` (was mk-sync) and
 `integration/editdecl-timeout` (was mk-integration) still exist but their
@@ -147,3 +148,21 @@ one uncommitted line in `src/tui/src/runtime-process.ts`
 (`AILANG_OLLAMA_HTTP_TIMEOUT_SEC` forwarding). That change is **already in
 mk-ast** (line 408), so it is redundant and safe to discard — but it is real
 work, so discarding it is a human's call.
+
+## 9. Migration to upstream `main` (ABI 8.0) — in progress since 2026-09-26
+
+Plan: `design_docs/planned/m-motoko-dst-refactor-migration.md` (per-commit verdicts:
+`m-motoko-fork-disposition.md`). The `motoko` shim still runs `mk-ast` until a paired
+A/B says otherwise.
+
+- `~/dev/mk-main` builds on AILANG **≥ v0.44.1** (v0.42.0–v0.44.0 fail on a `deriving (Eq)`
+  regression; v0.44.1 fixed it). `make check_core`: 60/60 core, 9/9 extensions.
+- It carries one local commit, the setup fixes in upstream PR arniwesth/motoko_agent#191
+  (portable lockfiles, herdr lockfile, removal of the shadowing `src/core/ailang.toml`).
+  Drop it once #191 merges.
+- `make dst` needs **GNU make 4** (`gmake`, via `brew install make`). Stock macOS make 3.81
+  skips the parallel targets and still prints "all targets passed".
+- Headless runs need `MODEL` set explicitly: without it motoko ignores the profile's model and
+  falls back to `anthropic/claude-sonnet-4-6`. The eval executor always sets it.
+- Open questions to Arni (package source of truth, where AILANG extensions live, a post-tool
+  hook, versioning): arniwesth/motoko_agent#192. Arni confirms ABI 8.0 is stable.

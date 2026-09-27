@@ -185,6 +185,7 @@ type ifaceFullJSON struct {
 	Types        map[string]*iface.TypeExport `json:"types"`
 	TypeAliases  map[string]json.RawMessage   `json:"type_aliases,omitempty"`
 	AliasParams  map[string][]string          `json:"alias_params,omitempty"` // M-XMOD-ALIAS-POLY
+	DerivedEq    []string                     `json:"derived_eq,omitempty"`
 }
 
 type ifaceItemJSON struct {
@@ -211,6 +212,7 @@ func marshalIfaceFull(ifc *iface.Iface) ([]byte, error) {
 		Exports:      make(map[string]*ifaceItemJSON),
 		Constructors: make(map[string]*ctorSchemeJSON),
 		Types:        ifc.Types,
+		DerivedEq:    ifc.DerivedEq,
 	}
 
 	// Exports
@@ -289,6 +291,7 @@ func unmarshalIfaceFull(data []byte) (*iface.Iface, error) {
 		Types:        d.Types,
 		TypeAliases:  make(map[string]types.Type),
 		AliasParams:  make(map[string][]string),
+		DerivedEq:    d.DerivedEq,
 	}
 
 	// Exports

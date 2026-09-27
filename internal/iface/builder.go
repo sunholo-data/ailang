@@ -685,6 +685,25 @@ type ctorItem struct {
 	Arity      int      `json:"arity"`
 }
 
+// SetDerivedEq records the types this module declares `deriving (Eq)` and
+// recomputes the digest. The names are part of the interface: an importer that
+// uses == on one of them type-checks only while the declaration derives Eq, so
+// adding or dropping `deriving (Eq)` must change what importers' cache keys see.
+func (i *Iface) SetDerivedEq(names []string) error {
+	sorted := append([]string(nil), names...)
+	sort.Strings(sorted)
+	if len(sorted) == 0 {
+		sorted = nil
+	}
+	i.DerivedEq = sorted
+	digest, err := NewBuilder(i.Module, nil).computeDigest(i)
+	if err != nil {
+		return err
+	}
+	i.Digest = digest
+	return nil
+}
+
 // computeDigest computes a deterministic digest of the interface
 func (b *Builder) computeDigest(iface *Iface) (string, error) {
 	// Create a deterministic JSON representation
@@ -693,6 +712,7 @@ func (b *Builder) computeDigest(iface *Iface) (string, error) {
 		Schema       string               `json:"schema"`
 		Exports      map[string]ifaceItem `json:"exports"`
 		Constructors map[string]ctorItem  `json:"constructors,omitempty"`
+		DerivedEq    []string             `json:"derived_eq,omitempty"`
 	}
 
 	// Convert to JSON-friendly format with sorted keys
@@ -701,6 +721,7 @@ func (b *Builder) computeDigest(iface *Iface) (string, error) {
 		Schema:       iface.Schema,
 		Exports:      make(map[string]ifaceItem),
 		Constructors: make(map[string]ctorItem),
+		DerivedEq:    iface.DerivedEq,
 	}
 
 	// Sort export names for deterministic ordering

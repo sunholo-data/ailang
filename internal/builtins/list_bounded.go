@@ -105,7 +105,7 @@ func takeMapImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error)
 	for i := 0; i < len(list.Elements) && len(result) < n; i++ {
 		val, err := ctx.FnCaller(fn, list.Elements[i])
 		if err != nil {
-			return nil, fmt.Errorf("_list_takeMap: callback error at index %d: %w", i, err)
+			return nil, callbackErr(err, "_list_takeMap: callback error at index %d", i)
 		}
 		result = append(result, val)
 	}
@@ -186,7 +186,7 @@ func takeFlatMapImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, er
 		}
 		innerVal, err := ctx.FnCaller(fn, elem)
 		if err != nil {
-			return nil, fmt.Errorf("_list_takeFlatMap: callback error: %w", err)
+			return nil, callbackErr(err, "_list_takeFlatMap: callback error")
 		}
 		innerList, ok := innerVal.(*eval.ListValue)
 		if !ok {

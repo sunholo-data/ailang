@@ -1,5 +1,11 @@
 # Sprint Plan: Docs stdlib resolution for release installs
 
+> **Superseded (2026-09-26)** by [M-STDLIB-ROOT-RESOLUTION](../planned/v0_44_0/m-stdlib-root-resolution.md),
+> which unifies every stdlib resolver (loader, `ailang docs`, import hints) behind one
+> `internal/stdlibroot` package ending at the embedded `std.FS`. PR #1197, which implemented
+> this doc, was closed in favour of it. Kept for history; see "Relation to the earlier doc"
+> in the new doc for what this one got right and what had gone stale.
+
 ## Summary
 
 Make `ailang docs` use the same ordered filesystem locations as the compiler, fall back to the existing version-matched embedded `std.FS`, and package the full stdlib with release archives. This implements the approved deployment/UX ruling for GitHub issue #1131 without changing AILANG semantics, package-registry behavior, or docs-search embeddings.

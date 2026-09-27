@@ -83,7 +83,7 @@ func strFoldCharsImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, e
 		charVal := &eval.StringValue{Value: string(r)}
 		acc, err = ctx.FnCallerN(fn, []eval.Value{acc, charVal})
 		if err != nil {
-			return nil, fmt.Errorf("_str_foldChars: callback error at byte offset %d: %w", i, err)
+			return nil, callbackErr(err, "_str_foldChars: callback error at byte offset %d", i)
 		}
 	}
 	return acc, nil

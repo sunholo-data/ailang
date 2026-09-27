@@ -304,7 +304,17 @@ The executable remedy test at v0.33.1-171-gc62e64878 (2026-08-21) measured a rig
 to 10,000 (`internal/eval/rt_rec_003_message_test.go:31-112`).
 
 **Workaround**: pass `--max-recursion-depth N` to raise the evaluator's depth ceiling. Prefer the
-iterative `map`, `foldl`, and `takeMap` paths above where they express the operation. Raising the
+iterative `map`, `foldl`, and `takeMap` paths above where they express the operation.
+
+**Raised ceilings are honoured (2026-09-26, #1317).** Before, a raised ceiling could not be
+reached: the evaluator recursed on one goroutine, whose stack Go caps at 512 MB (1 GB at most), so
+programs died with `fatal error: stack overflow` well below N (plain recursion at 200k–400k calls,
+list-pattern matching at ~84k). Deep evaluation now continues on a fresh goroutine every 131,072
+evaluator levels (`evalSegmentLevels`, `internal/eval/eval_expressions.go`). Depth is therefore bounded
+by N and memory, and exceeding N is always `RT_REC_003`. Measured: 1,999,000 plain calls under
+`--max-recursion-depth 2000000` complete in 9.5 s at 12.8 GB peak RSS, which is the cost of that
+much live recursion. Recursion that re-enters the evaluator through a builtin callback (`map`,
+`foldl`, `sortBy`, ...) now reports `RT_REC_003` as one line, not once per level. Raising the
 depth ceiling does **not** add tail-call elimination and does **not** fix the memory amplification
 from `::`; allowing a quadratic recursive builder to run longer can increase its memory use.
 

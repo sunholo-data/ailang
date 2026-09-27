@@ -44,9 +44,7 @@ A mistyped stdlib module name is now recoverable from the error itself:
 ```
 $ ailang check my.ail   # my.ail has `import std/time (now)`
 Error: stdlib module not found: std/time
-searched:
-  ...
-tip: set AILANG_STDLIB_PATH=/path/to/ailang/std or use --stdlib-path flag
+stdlib root: the copy built into this binary
 
 did you mean: std/clock?
 available: std/ai, std/array, ..., std/zip (44 modules)

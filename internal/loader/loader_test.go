@@ -6,8 +6,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
-
-	"github.com/sunholo-data/ailang/std"
 )
 
 func TestIsTempPath(t *testing.T) {
@@ -115,54 +113,9 @@ func TestIsTempPath_NestedTempDir(t *testing.T) {
 	}
 }
 
-func TestLoad_EmbeddedStdlibFallback(t *testing.T) {
-	// Use a temp dir with NO std/ subdirectory — forces filesystem resolution to fail
-	tmpDir := t.TempDir()
-	ml := NewModuleLoader(tmpDir)
-	// Point resolver at a non-existent path to ensure filesystem lookup fails
-	ml.ConfigureStdlibResolver("/nonexistent/stdlib/path", false, false)
-
-	t.Run("loads stdlib from embedded FS when filesystem fails", func(t *testing.T) {
-		loaded, err := ml.Load("std/option")
-		if err != nil {
-			t.Fatalf("expected embedded fallback to succeed, got error: %v", err)
-		}
-		if loaded == nil {
-			t.Fatal("expected non-nil LoadedModule")
-		}
-		if len(loaded.Exports) == 0 && len(loaded.Types) == 0 {
-			t.Error("expected loaded module to have exports or types")
-		}
-	})
-
-	t.Run("non-existent embedded module fails", func(t *testing.T) {
-		_, err := ml.Load("std/nonexistent_module_xyz")
-		if err == nil {
-			t.Fatal("expected error for non-existent module")
-		}
-	})
-
-	t.Run("module is cached after embedded load", func(t *testing.T) {
-		loaded1, err := ml.Load("std/result")
-		if err != nil {
-			t.Fatalf("first load failed: %v", err)
-		}
-		loaded2, err := ml.Load("std/result")
-		if err != nil {
-			t.Fatalf("second load failed: %v", err)
-		}
-		if loaded1 != loaded2 {
-			t.Error("expected same pointer from cache")
-		}
-	})
-}
-
 func TestCacheSource_ExactSnapshot(t *testing.T) {
 	t.Run("disk bytes", func(t *testing.T) {
 		assertDiskSourceExactSnapshot(t)
-	})
-	t.Run("embedded stdlib bytes", func(t *testing.T) {
-		assertEmbeddedSourceExactSnapshot(t)
 	})
 }
 
@@ -184,38 +137,6 @@ func assertDiskSourceExactSnapshot(t *testing.T) {
 	}
 	if got := *loaded.SourceContent; got != string(content) {
 		t.Fatalf("disk source snapshot = %q, want exact bytes %q", got, content)
-	}
-}
-
-// assertEmbeddedSourceExactSnapshot asserts the embedded stdlib module's source
-// snapshot equals the embedded std.FS bytes and carries the synthetic embedded
-// AST path.
-func assertEmbeddedSourceExactSnapshot(t *testing.T) {
-	want, err := std.FS.ReadFile("option.ail")
-	if err != nil {
-		t.Fatalf("read embedded control: %v", err)
-	}
-	ml := NewModuleLoader(t.TempDir())
-	ml.stdlibResolver = &StdlibResolver{
-		searchPaths:   []string{filepath.Join(t.TempDir(), "missing")},
-		negativeCache: make(map[string][]string),
-	}
-
-	loaded, err := ml.Load("std/option")
-	if err != nil {
-		t.Fatalf("load embedded source: %v", err)
-	}
-	if loaded.File == nil {
-		t.Fatal("embedded module has no AST")
-	}
-	if filepath.ToSlash(loaded.File.Path) != "<embedded>/std/option.ail" {
-		t.Fatalf("embedded AST path = %q", loaded.File.Path)
-	}
-	if loaded.SourceContent == nil {
-		t.Fatal("embedded source snapshot is unavailable")
-	}
-	if got := *loaded.SourceContent; got != string(want) {
-		t.Fatalf("embedded source snapshot differs from std.FS bytes")
 	}
 }
 

@@ -38,8 +38,8 @@ func runCommand() {
 	maxRecursionDepthFlag := fs.Int("max-recursion-depth", 10000, "Maximum recursion depth (default: 10000)")
 
 	// Stdlib resolution flags
-	stdlibPathFlag := fs.String("stdlib-path", "", "Path to stdlib directory (overrides AILANG_STDLIB_PATH)")
-	traceLoaderFlag := fs.Bool("trace-loader", false, "Enable module loader tracing")
+	stdlibPathFlag := fs.String("stdlib-path", "", "Stdlib directory for this run; beats AILANG_STDLIB_PATH and ./std, and a path without io.ail is an error")
+	traceLoaderFlag := fs.Bool("trace-loader", false, "Print the chosen stdlib root, every candidate tried, and where each std module was read from")
 	strictVersionFlag := fs.Bool("strict", false, "Fail on stdlib version mismatch")
 
 	// Env capability flags

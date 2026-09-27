@@ -1,0 +1,68 @@
+{
+  "sprint_id": "M-STDLIB-ROOT-RESOLUTION",
+  "status": "completed",
+  "created": "2026-09-26T00:00:00Z",
+  "design_doc": "design_docs/planned/v0_44_0/m-stdlib-root-resolution.md",
+  "sprint_plan": "design_docs/planned/v0_44_0/m-stdlib-root-resolution-sprint-plan.md",
+  "github_issues": [
+    1131
+  ],
+  "velocity": {
+    "target_loc_per_day": 600,
+    "estimated_total_loc": 900,
+    "estimated_days": 1.5
+  },
+  "features": [
+    {
+      "id": "M1_STDLIBROOT_LOADER",
+      "description": "internal/stdlibroot resolver (flag, env, ./std, <bin>/../std, user, system, embedded); loader, runner, embed, executor, eval harness on top of it; internal/module deleted",
+      "estimated_loc": 450,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Table tests pin the seven-tier order and the io.ail marker",
+        "Shadow ./std/list.ail plus --stdlib-path returns the real map",
+        "A partial ./std errors naming the root instead of mixing roots",
+        "A bogus explicit override errors listing Tried",
+        "--trace-loader prints the root source; --strict makes a version mismatch fatal"
+      ],
+      "passes": true,
+      "started": "2026-09-26T15:00:00+02:00",
+      "completed": "2026-09-26T18:00:00+02:00",
+      "notes": "internal/stdlibroot + loader/runner/embed/executor/eval_harness on it; internal/module deleted; tests: stdlibroot/root_test.go, loader/stdlib_root_test.go (shadow, partial, bogus env, strict)."
+    },
+    {
+      "id": "M2_DOCS_AND_HINTS",
+      "description": "ailang docs reads through fs.FS and resolves after prelude; stdlibindex scans Root.FS",
+      "estimated_loc": 250,
+      "dependencies": [
+        "M1_STDLIBROOT_LOADER"
+      ],
+      "acceptance_criteria": [
+        "docs std/stream, --list, --all-functions and prelude succeed from a temp dir with AILANG_STDLIB_PATH unset",
+        "stdlibindex.Modules(\"length\") is non-empty from a temp dir"
+      ],
+      "passes": true,
+      "started": "2026-09-26T15:00:00+02:00",
+      "completed": "2026-09-26T18:00:00+02:00",
+      "notes": "docs through fs.FS, prelude before resolution; stdlibindex scans Root.FS; tests: cmd/ailang/docs_outside_repo_test.go, stdlibindex/index_test.go (length hint from a temp dir)."
+    },
+    {
+      "id": "M3_TESTS_DOCS",
+      "description": "Out-of-repo tests, binary smoke in CI, mutation check, CHANGELOG, cli.md precedence section, archive the superseded doc",
+      "estimated_loc": 200,
+      "dependencies": [
+        "M2_DOCS_AND_HINTS"
+      ],
+      "acceptance_criteria": [
+        "Tests fail when the M2 changes are reverted",
+        "cd $(mktemp -d) && ailang docs std/stream prints exports with a fresh binary",
+        "make test, lint, verify-examples, verify-stdlib, check-file-sizes pass"
+      ],
+      "passes": true,
+      "started": "2026-09-26T15:00:00+02:00",
+      "completed": "2026-09-26T18:00:00+02:00",
+      "notes": "binary smoke from mktemp -d passes; CI step added; 6/6 mutations killed; make test/lint/verify-examples/verify-stdlib/check-file-sizes green; CHANGELOG + stdlib.md; old doc archived."
+    }
+  ],
+  "completed": "2026-09-26T18:00:00+02:00"
+}

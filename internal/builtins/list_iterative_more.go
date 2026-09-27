@@ -92,7 +92,7 @@ func listSortByImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, err
 		}
 		v, err := ctx.FnCallerN(cmp, []eval.Value{result[i], result[j]})
 		if err != nil {
-			cmpErr = fmt.Errorf("_list_sortBy: comparator error: %w", err)
+			cmpErr = callbackErr(err, "_list_sortBy: comparator error")
 			return false
 		}
 		iv, ok := v.(*eval.IntValue)
@@ -219,7 +219,7 @@ func listFlatMapImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, er
 	for i, elem := range list.Elements {
 		v, err := ctx.FnCaller(fn, elem)
 		if err != nil {
-			return nil, fmt.Errorf("_list_flatMap: callback error at index %d: %w", i, err)
+			return nil, callbackErr(err, "_list_flatMap: callback error at index %d", i)
 		}
 		inner, ok := v.(*eval.ListValue)
 		if !ok {

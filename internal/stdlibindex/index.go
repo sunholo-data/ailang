@@ -4,20 +4,20 @@
 // without importing it; a bare "undefined variable: length" costs a fix cycle, "add
 // `import std/list (length)`" costs zero.
 //
-// The index is built once, lazily, by scanning the resolved stdlib directory for
+// The index is built once, lazily, by scanning the process stdlib root for
 // `export func <name>` declarations. It is a leaf package (CLI + LSP can both use it).
 package stdlibindex
 
 import (
 	"bufio"
-	"os"
-	"path/filepath"
+	"bytes"
+	"io/fs"
 	"regexp"
 	"sort"
 	"strings"
 	"sync"
 
-	"github.com/sunholo-data/ailang/internal/config"
+	"github.com/sunholo-data/ailang/internal/stdlibroot"
 )
 
 var (
@@ -30,52 +30,48 @@ var (
 	exportRe = regexp.MustCompile(`^export\s+(?:pure\s+)?func\s+(\w+)`)
 )
 
-// stdlibDir resolves the stdlib directory the same way the runtime does: AILANG_STDLIB_PATH
-// (first existing entry of a path-list) else ./std.
-func stdlibDir() string {
-	if p := strings.TrimSpace(config.StdlibPath()); p != "" {
-		for _, e := range strings.Split(p, string(os.PathListSeparator)) {
-			if e == "" {
-				continue
-			}
-			if st, err := os.Stat(e); err == nil && st.IsDir() {
-				return e
-			}
-		}
-	}
-	return "std"
-}
-
+// build scans the process stdlib root (internal/stdlibroot — the same root the
+// loader reads, ending at the copy built into the binary) for export
+// declarations. Before M-STDLIB-ROOT-RESOLUTION it read AILANG_STDLIB_PATH else
+// the literal "std", so outside a repo the index was silently EMPTY and every
+// "undefined variable: length" lost its import hint.
 func build() {
 	idx = map[string][]string{}
-	entries, err := os.ReadDir(stdlibDir())
+	root, err := stdlibroot.Resolve("")
 	if err != nil {
-		return // no stdlib dir resolvable; Modules() just returns empty (no suggestion)
+		return // a bad explicit override; the loader reports it loudly
+	}
+	entries, err := fs.ReadDir(root.FS, ".")
+	if err != nil {
+		return
 	}
 	for _, e := range entries {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".ail") {
 			continue
 		}
-		f, err := os.Open(filepath.Join(stdlibDir(), e.Name()))
+		data, err := fs.ReadFile(root.FS, e.Name())
 		if err != nil {
 			continue
 		}
-		var module string
-		sc := bufio.NewScanner(f)
-		sc.Buffer(make([]byte, 0, 64*1024), 1<<20)
-		for sc.Scan() {
-			line := strings.TrimSpace(sc.Text())
-			if module == "" {
-				if m := moduleRe.FindStringSubmatch(line); m != nil {
-					module = m[1]
-				}
-				continue
+		indexFile(data)
+	}
+}
+
+func indexFile(data []byte) {
+	var module string
+	sc := bufio.NewScanner(bytes.NewReader(data))
+	sc.Buffer(make([]byte, 0, 64*1024), 1<<20)
+	for sc.Scan() {
+		line := strings.TrimSpace(sc.Text())
+		if module == "" {
+			if m := moduleRe.FindStringSubmatch(line); m != nil {
+				module = m[1]
 			}
-			if m := exportRe.FindStringSubmatch(line); m != nil {
-				idx[m[1]] = appendUnique(idx[m[1]], module)
-			}
+			continue
 		}
-		_ = f.Close()
+		if m := exportRe.FindStringSubmatch(line); m != nil {
+			idx[m[1]] = appendUnique(idx[m[1]], module)
+		}
 	}
 }
 

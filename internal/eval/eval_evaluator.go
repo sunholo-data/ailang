@@ -129,6 +129,9 @@ type CoreEvaluator struct {
 	effContext            interface{}        // Effect context (interface{} avoids import cycle with effects package)
 	recursionDepth        int                // Current recursion depth (for stack overflow detection)
 	maxRecursionDepth     int                // Maximum allowed recursion depth (default: 10,000)
+	evalDepth             int                // Current Go-level evalCore nesting (#1317)
+	segmentBase           int                // evalDepth at which the current goroutine's segment began
+	stackHopHook          StackHopHook       // Runs on each continuation goroutine (see SetStackHopHook)
 	coreTypeInfo          types.CoreTypeInfo // Type info for looking up effect budgets on closures
 }
 
@@ -526,6 +529,19 @@ func (e *CoreEvaluator) EvalLetRecBindings(letrec *core.LetRec) (map[string]Valu
 // SetExperimentalBinopShim enables the experimental operator shim
 func (e *CoreEvaluator) SetExperimentalBinopShim(enabled bool) {
 	e.experimentalBinopShim = enabled
+}
+
+// StackHopHook runs at the start of each goroutine that deep evaluation
+// continues on, and returns the cleanup to run when that goroutine finishes.
+type StackHopHook func() (cleanup func())
+
+// SetStackHopHook installs the hook for continuation goroutines. The runtime
+// keys per-request evaluators by goroutine ID so builtins can find the fork
+// they are running under; a continuation goroutine has a new ID, so the
+// runtime re-registers the fork there through this hook. Nil means nothing
+// is keyed by goroutine.
+func (e *CoreEvaluator) SetStackHopHook(h StackHopHook) {
+	e.stackHopHook = h
 }
 
 // SetMaxRecursionDepth sets the maximum allowed recursion depth

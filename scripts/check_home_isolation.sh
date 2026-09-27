@@ -31,7 +31,7 @@ ALLOWLIST="internal/testutil/home.go"
 # wrong there, not merely unnecessary. Each entry is asserted live below: an
 # exemption for a file that no longer matches is a stale exemption, and stale
 # exemptions are how an allowlist quietly becomes the rule.
-EXEMPT="internal/loader/stdlib_resolver_test.go"
+EXEMPT="internal/stdlibroot/userdir_test.go"
 
 # Whitespace-normalised match: strip every space, tab and newline, then look for
 # the call. `tr` cannot fail here in a way that matters, but its output is read

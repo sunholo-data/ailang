@@ -8,8 +8,77 @@ import (
 	"github.com/sunholo-data/ailang/internal/types"
 )
 
-// evalCore evaluates a Core expression
+// evalSegmentLevels is how many nested evalCore levels run on one goroutine
+// before evaluation continues on a fresh one (#1317).
+//
+// Go caps a goroutine stack at 512 MB by default, and at 1 GB whatever
+// debug.SetMaxStack says (stacks grow by doubling under a 2 GB runtime
+// ceiling). The evaluator recurses in Go once per nested expression, so on one
+// goroutine `--max-recursion-depth 2000000` was a promise the runtime could not
+// keep: plain recursion died at 200k-400k calls, list-pattern matching at ~84k,
+// with `fatal error: stack overflow` instead of RT_REC_003. Continuing on a new
+// goroutine gives each segment its own stack, so depth is bounded by
+// --max-recursion-depth and memory, not by one stack.
+//
+// Measured 2026-09-26 (darwin-arm64, binary search under a 64 MB stack): 439-751
+// bytes per level across plain recursion, let chains, list-pattern and nested
+// ADT matches, and recursion re-entering through a map callback. 2^17 levels is
+// under 100 MB at the worst of those, a 5x margin under the 512 MB default.
+var evalSegmentLevels = 1 << 17 // var only so tests can force hops at small depths
+
+// evalCore evaluates a Core expression. Every Go-level recursion of the
+// evaluator passes through here, so evalDepth tracks Go stack use in a way the
+// AILANG call counter (recursionDepth) cannot.
 func (e *CoreEvaluator) evalCore(expr core.CoreExpr) (Value, error) {
+	e.evalDepth++
+	var v Value
+	var err error
+	if e.evalDepth-e.segmentBase >= evalSegmentLevels {
+		v, err = e.evalCoreOnFreshStack(expr)
+	} else {
+		v, err = e.evalCoreDispatch(expr)
+	}
+	e.evalDepth--
+	return v, err
+}
+
+// evalCoreOnFreshStack continues evaluation on a new goroutine and blocks until
+// it returns. Exactly one goroutine runs the evaluator at any moment, and the
+// channel handoff orders every write on either side, so the evaluator stays
+// single-threaded. A panic in the continuation is re-raised here, so recover()
+// sites above this frame behave as before.
+func (e *CoreEvaluator) evalCoreOnFreshStack(expr core.CoreExpr) (Value, error) {
+	type outcome struct {
+		v         Value
+		err       error
+		panicked  bool
+		panicWith interface{}
+	}
+	savedBase := e.segmentBase
+	e.segmentBase = e.evalDepth
+	done := make(chan outcome, 1)
+	go func() {
+		var out outcome
+		defer func() {
+			if p := recover(); p != nil {
+				out.panicked, out.panicWith = true, p
+			}
+			done <- out
+		}()
+		if e.stackHopHook != nil {
+			defer e.stackHopHook()()
+		}
+		out.v, out.err = e.evalCoreDispatch(expr)
+	}()
+	out := <-done
+	e.segmentBase = savedBase
+	if out.panicked {
+		panic(out.panicWith)
+	}
+	return out.v, out.err
+}
+
+func (e *CoreEvaluator) evalCoreDispatch(expr core.CoreExpr) (Value, error) {
 	if expr == nil {
 		return &UnitValue{}, nil
 	}

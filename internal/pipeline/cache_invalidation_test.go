@@ -173,7 +173,7 @@ func TestCachePipeline_EmbeddedKeys(t *testing.T) {
 	root := t.TempDir()
 	t.Chdir(root)
 	testutil.SetHomeDir(t, filepath.Join(root, "home"))
-	t.Setenv("AILANG_STDLIB_PATH", filepath.Join(root, "missing-stdlib"))
+	t.Setenv("AILANG_STDLIB_PATH", "") // an empty temp cwd: the embedded stdlib is the root
 	t.Setenv("AILANG_CACHE_DIR", filepath.Join(root, "cache"))
 	if err := os.WriteFile("main.ail", []byte("module main\nexport pure func main() -> int = 1\n"), 0o644); err != nil {
 		t.Fatalf("write entry source: %v", err)
@@ -336,22 +336,23 @@ func newWarmHitInstrumentedDeps(depCoreReads, warmEncodes *int) cacheDependencie
 }
 
 func TestCacheArtifacts_Migration(t *testing.T) {
-	if cacheKeyVersion != "v4" {
-		t.Fatalf("cache key version = %q, want v4 migration boundary", cacheKeyVersion)
+	if cacheKeyVersion != "v5" {
+		t.Fatalf("cache key version = %q, want v5 migration boundary", cacheKeyVersion)
 	}
 
-	t.Run("v3_manifest_forces_cold_v4_publication", func(t *testing.T) {
-		v3ManifestForcesColdV4Publication(t)
+	t.Run("v4_manifest_forces_cold_v5_publication", func(t *testing.T) {
+		previousManifestForcesColdPublication(t)
 	})
 	t.Run("current_manifest_with_legacy_unstamped_blobs_misses", func(t *testing.T) {
 		legacyUnstampedBlobsMiss(t)
 	})
 }
 
-// v3ManifestForcesColdV4Publication seeds a v4 cache, rewrites the manifest to
-// v3, and asserts the next run recompiles and re-publishes as a fresh v4
-// manifest and stamp (the migration boundary).
-func v3ManifestForcesColdV4Publication(t *testing.T) {
+// previousManifestForcesColdPublication seeds a v5 cache, rewrites the
+// manifest to v4 (whose Iface blobs carry no DerivedEq), and asserts the next
+// run recompiles and re-publishes as a fresh v5 manifest and stamp (the
+// migration boundary).
+func previousManifestForcesColdPublication(t *testing.T) {
 	root := t.TempDir()
 	t.Chdir(root)
 	t.Setenv("AILANG_CACHE_DIR", "")
@@ -363,20 +364,20 @@ func v3ManifestForcesColdV4Publication(t *testing.T) {
 
 	manifestPath := filepath.Join(root, ".ailang", "cache", "compile", "manifest.json")
 	manifest := readCacheManifest(t, manifestPath)
-	manifest.Version = "v3"
+	manifest.Version = "v4"
 	writeCacheManifest(t, manifestPath, manifest)
 
 	var warnings bytes.Buffer
 	result, err := runModuleWithCacheDependencies(t.Context(), cfg, Source{Filename: "answer.ail"}, cacheDependencies{newStore: NewCacheStore, stderr: &warnings})
 	if err != nil || result.Interface == nil || result.Interface.Exports["main"] == nil {
-		t.Fatalf("v3 migration did not compile current source: iface=%v err=%v", result.Interface, err)
+		t.Fatalf("v4 migration did not compile current source: iface=%v err=%v", result.Interface, err)
 	}
 	migrated := readCacheManifest(t, manifestPath)
-	if migrated.Version != "v4" {
-		t.Fatalf("migrated manifest version = %q, want v4", migrated.Version)
+	if migrated.Version != "v5" {
+		t.Fatalf("migrated manifest version = %q, want v5", migrated.Version)
 	}
 	stamp := readArtifactStamp(t, filepath.Join(root, ".ailang", "cache", "compile", "modules", "answer", artifactStampName))
-	if stamp.Version != "v4" || stamp.ModuleID != "answer" {
+	if stamp.Version != "v5" || stamp.ModuleID != "answer" {
 		t.Fatalf("migrated stamp = %#v", stamp)
 	}
 }
@@ -404,8 +405,8 @@ func legacyUnstampedBlobsMiss(t *testing.T) {
 	if !strings.Contains(warnings.String(), "CACHE_INVALID module=answer") {
 		t.Fatalf("legacy miss was silent: %q", warnings.String())
 	}
-	if stamp := readArtifactStamp(t, stampPath); stamp.Version != "v4" {
-		t.Fatalf("repaired stamp version = %q, want v4", stamp.Version)
+	if stamp := readArtifactStamp(t, stampPath); stamp.Version != cacheKeyVersion {
+		t.Fatalf("repaired stamp version = %q, want %s", stamp.Version, cacheKeyVersion)
 	}
 }
 
