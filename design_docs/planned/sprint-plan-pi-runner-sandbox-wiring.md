@@ -19,6 +19,17 @@
 
 ## Milestones
 
+## Execution note (iteration 5)
+
+The runner stages `index.ts`, its local `mission.ts` policy helper, `package.json`, and
+`worktree-fence.ts` from the runner's own versioned checkout in a private run directory.
+The staged sandbox symlinks runtime `node_modules` from the runner checkout first,
+then the main checkout resolved through the worktree's common gitdir. This avoids
+requiring source parity with the intentionally drifting main checkout. The generated
+policy permits the linked worktree gitdir and the common gitdir's `objects`,
+`refs/heads`, and `logs`; the latter two support branch-attached fixture repositories
+and branch-attached mission worktrees without granting writes to the whole checkout.
+
 ### M1 — NEEDS-MARK: explicit policy and fail-closed extension (~45 LOC)
 
 **Files:** `tools/pi-extensions/sandbox/index.ts` and its focused test. This path is **outside the fleet push allowlist**. Mark must approve or route this milestone separately; do not push it as fleet work. M2/M3 cannot claim containment before it lands.
