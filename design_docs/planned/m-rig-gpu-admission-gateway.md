@@ -3,13 +3,13 @@
 **Status**: Planned
 **Target**: v0_44_2+
 **Priority**: P1 (rig throughput; the rig produced zero usable eval rows on 2026-09-23 and 2026-09-27)
-**Estimated**: 4–6 days (Phase 0 is a spike, and Phases 1–3 are gated on it)
+**Estimated**: 4–5 days (Phase 0 spike DONE 2026-09-27; the children.go decision is still open)
 **Dependencies**: M-RIG-LOCK-ENFORCE (v0.25), M-RIG-LOCK-YIELD (v0.38); the stranded
 `internal/riglock/children.go` (see Phase 0)
 **Scope**: Rig tooling (Go shell + one AILANG policy function + launchd). No language, compiler or stdlib surface.
 
 **Quorum trigger**: #1 fired (the doc has design-freeze items D1–D4), and #4 partially fired (the premise
-about client baseUrl templating in opencode and pi is external). Run `ailang design-quorum` before planning.
+about client templating in opencode and pi is external; it is now measured, see V9). Run `ailang design-quorum` before planning.
 
 ## Axiom Compliance
 
@@ -73,7 +73,7 @@ Success metrics:
 
 | # | Decision | Options | Recommendation | Who | Change cost |
 |---|---|---|---|---|---|
-| D1 | How the gateway identifies a caller | (a) **lease token in the base URL path** (`http://127.0.0.1:11434/lease/<token>/v1`); (b) TCP socket → PID lookup; (c) HTTP header | **(a)**. (b) is **refuted** for the multi-user rig (V6: voightkampff cannot see daneel's sockets without root). (c) needs per-client header support. Every OpenAI-compatible client already has a configurable base URL | Mark | Medium |
+| D1 | How the gateway identifies a caller | (a) lease token in the base URL path; (b) TCP socket → PID lookup; (c) custom header `X-Rig-Lease`; (d) **lease token as the API key** (`Authorization: Bearer <token>`) | **(d)**. Measured in the Phase 0 spike (V9): **pi does not template `baseUrl`**, so it sent the literal `${SPIKE_LEASE}`, which rules out (a). Both clients template `apiKey` and `headers` from the environment. (b) is refuted on a multi-user rig (V6). Every OpenAI-compatible client already sends an API key, and ollama ignores it (pi's configured key is literally `ollama`). Keep (c) as a fallback for native-API callers with no key field (Daneel's `/api/generate`) | Mark | Medium |
 | D2 | Policy for a long request with no valid lease while a lease is held | reject with 423 and the holder; queue behind; admit | **Reject.** Queueing is exactly what collapsed 09-27. When no lease is held, admit it and mark it `unleased` in the ledger, so ad-hoc use keeps working | Mark | Low |
 | D3 | Where the gateway runs | standalone `dev.ailang.rig-gate` launchd job; inside `ailang serve` (dev.ailang.server) | **Standalone.** dev.ailang.server shows last-exit −9 in `launchctl list`, and restarting it must not drop GPU access | Agent | Low |
 | D4 | Gateway down | clients fail; fall back to direct ollama | **Clients fail** (no silent fallback, per CLAUDE.md §2). rig-watchdog kickstarts it like ollama | Mark | Low |
@@ -85,7 +85,7 @@ held, because that load could evict the holder's model.
 
 ### Design Freeze
 
-- [ ] D1 lease-token-in-URL, confirmed after the Phase 0 spike proves both opencode and pi can take a per-run base URL
+- [ ] D1 lease token as the API key (Bearer), with header fallback. The spike measured it, so ratify
 - [ ] D2 reject-while-held
 - [ ] D4 no fallback
 
@@ -95,7 +95,7 @@ held, because that load could evict the holder's model.
 
 ```
   opencode / pi / eparse / ailang builtins      (any OS user)
-          │  base URL: http://127.0.0.1:11434[/lease/<tok>]/…
+          │  http://127.0.0.1:11434/…   Authorization: Bearer <lease-token>
           ▼
   rig-gate (Go shell, 127.0.0.1:11434) ── admit(req, lease, loaded) ── policy.ail (pure)
           │  admitted → reverse-proxy, streaming
@@ -103,7 +103,7 @@ held, because that load could evict the holder's model.
   ollama serve (127.0.0.1:11435, private)
 ```
 
-- **Lease = rig lock + token.** Acquiring the lock (shell, Go or `daneel_rig.ail`) also writes a random
+- **Lease = rig lock + token (sent as the API key, D1d).** Acquiring the lock (shell, Go or `daneel_rig.ail`) also writes a random
   token into the lock directory (`/Users/Shared/ailang/rig.lock.d/token`, group `rig`, mode 0640). The
   holder exports `AILANG_RIG_LEASE=<tok>`. Release removes the directory, so the token dies with it.
   **This is what kills orphans structurally**: an orphan's token is revoked when its job's lock is
@@ -121,11 +121,9 @@ held, because that load could evict the holder's model.
 ### Implementation Plan
 
 **Phase 0: spike and stranded work (1 day, gates the rest)**
-1. Prove per-run base-URL injection. opencode: does `opencode.jsonc` provider `baseURL` accept `{env:VAR}`?
-   pi: does `models.json` `baseUrl` accept env, or can the executor pass a per-run models file
-   (`PI_CODING_AGENT_DIR` replaces the whole agent dir, which is too broad)? eparse and daneel_model.ail:
-   the endpoint is a literal in `daneel_model.ail:48`, so it needs a parameter. **If either harness
-   cannot, D1 falls back to (c) headers for that harness, or the doc returns to Mark.**
+1. ~~Prove per-run token injection.~~ **DONE 2026-09-27 (V9).** The API key and a header are templated in
+   both harnesses, and `baseUrl` is templated only in opencode, so D1 moves to (d). Remaining for Daneel:
+   `daneel_model.ail:48` calls native `/api/generate` with no key field, so it sends `X-Rig-Lease` (D1c).
 2. Decide the fate of `internal/riglock/children.go` + `children_test.go`: uncommitted since
    2026-09-22, same diagnosis (a dead holder's orphaned child keeps streaming while the lock reads free).
    Under D1 the token makes child registration redundant for *admission*, but it is still useful for
@@ -202,7 +200,8 @@ run under `/bin/bash` (3.2), because the rig has no bash 4. Mutation-check each 
 | V6 | Socket → PID cannot see another OS user's sockets without root | `lsof -a -nP -iTCP -u daneel` as voightkampff returns 0 rows, while daneel runs `ailang serve-api --bind 127.0.0.1 --port 8945` (a listening TCP socket exists) | Confirmed, so D1(b) is refuted |
 | V7 | Daneel's endpoint is a literal | `~/dev/daneel/tools/daneel_model.ail:48` `endpoint() -> "http://127.0.0.1:11434/api/generate"` | Confirmed |
 | V8 | Daneel already honours the rig lock | `~/dev/daneel/tools/daneel:2828` `rig_lock_try`. The q27 measurement script takes the shared lock | Confirmed |
-| V9 | opencode and pi can take a per-run base URL | — | **PENDING (Phase 0)** |
+| V9 | Per-run token injection from the environment | Spike 2026-09-27: a capture server on :18999 recorded each client's request. **opencode 1.15.7** (`{env:SPIKE_LEASE}` in `baseURL`, `apiKey`, `headers`): path `/lease/tokOC123/v1/chat/completions`, `Authorization: Bearer tokOC123`, `X-Rig-Lease: tokOC123`, so all three are templated. **pi 0.85.1** (`${SPIKE_LEASE}` in `models.json`): path `/lease/$%7BSPIKE_LEASE%7D/v1/...` (NOT templated), `Authorization: Bearer tokPI456`, `X-Rig-Lease: tokPI456`. Source agrees: `provider-composer.js` runs `resolveConfigValueOrThrow` on the key and `resolveHeadersOrThrow` on headers; `baseUrl` is used verbatim | **Confirmed**: API key and header work in both; URL path works in opencode only, so D1 = (d) |
+| V11 | Clients retry some error statuses | Same spike: opencode sent the same request repeatedly against a 503 until killed | **Confirmed for 503**. The gateway's rejection status must be one both clients treat as final (403/423 not yet measured). Measure it in Phase 1 before choosing, or a rejection becomes a retry storm |
 | V10 | ollama has no per-request priority or admission hook we could use instead | ollama serve flags and env (`OLLAMA_MAX_QUEUE`, `NUM_PARALLEL` only) | Believed true; re-check the ollama version at Phase 0 |
 
 ## Deferred Decisions (agent latitude)
