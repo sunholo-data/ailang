@@ -40,10 +40,10 @@
         "show/==/toList identical across stores",
         "Mutation check: Get reading only boxed store fails packed tests"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-27T16:42:21+00:00",
+      "completed": "2026-09-27T16:42:21+00:00",
+      "notes": "ArrayValue{elems,floats} private; NewArray/NewArrayCopy/NewFloatArray; Len/Get/Set/Elements()/Floats()/Packed(). Consumers migrated: builtins/array,list(valuesEqual w/ packed fast path, FloatEq),show,canonical_key; eval show_bounded,eval_expressions; embed/convert. Tests: internal/eval/value_array_test.go (store choice, parity, set, copy isolation; mutation-checked: Get reading only boxed store fails), cmd/ailang/stdlib_array_packed_test.go (both backends). Measured: 10M make(n,1.5) = 137 MB peak RSS evaluator. Note: AILANG has no Eq on Array (No instance for Eq[Array[float]]), so == parity tested via toList. Unrelated flake: TestFolded.../dashboard/health hangs on a local listener (http.Get without timeout)."
     },
     {
       "id": "M3",

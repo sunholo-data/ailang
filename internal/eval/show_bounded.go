@@ -116,7 +116,7 @@ func (w *boundedWriter) render(v Value) {
 	case *ListValue:
 		w.renderSeq("[", "]", val.Elements)
 	case *ArrayValue:
-		w.renderSeq("#[", "]", val.Elements)
+		w.renderSeq("#[", "]", val.Elements())
 	case *TupleValue:
 		if w.redact && len(val.Elements) == 2 {
 			if name, ok := val.Elements[0].(*StringValue); ok && IsSensitiveHeaderName(name.Value) {

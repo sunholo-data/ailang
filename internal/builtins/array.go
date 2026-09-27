@@ -64,7 +64,7 @@ func makeArrayEmptyType() types.Type {
 
 func arrayEmptyImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, error) {
 	// args[0] is unit — ignore it
-	return &eval.ArrayValue{Elements: []eval.Value{}}, nil
+	return eval.NewArray([]eval.Value{}), nil
 }
 
 // registerArrayMake registers the array_make builtin
@@ -116,12 +116,18 @@ func arrayMakeImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, erro
 	}
 
 	defaultVal := args[1]
+	if f, ok := defaultVal.(*eval.FloatValue); ok {
+		floats := make([]float64, size)
+		for i := range floats {
+			floats[i] = f.Value
+		}
+		return eval.NewFloatArray(floats), nil
+	}
 	elements := make([]eval.Value, size)
 	for i := range elements {
 		elements[i] = defaultVal
 	}
-
-	return &eval.ArrayValue{Elements: elements}, nil
+	return eval.NewArray(elements), nil
 }
 
 // registerArrayGet registers the array_get builtin
@@ -179,7 +185,7 @@ func arrayGetImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error
 	elem, found := arr.Get(int64(idxVal.Value))
 	if !found {
 		// TODO: Return None when Option is available
-		return nil, fmt.Errorf("array_get: index %d out of bounds (array length: %d)", idxVal.Value, len(arr.Elements))
+		return nil, fmt.Errorf("array_get: index %d out of bounds (array length: %d)", idxVal.Value, arr.Len())
 	}
 	return elem, nil
 }
@@ -235,7 +241,7 @@ func arrayUnsafeGetImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value,
 
 	elem, found := arr.Get(int64(idxVal.Value))
 	if !found {
-		return nil, fmt.Errorf("array_unsafe_get: index %d out of bounds (array length: %d)", idxVal.Value, len(arr.Elements))
+		return nil, fmt.Errorf("array_unsafe_get: index %d out of bounds (array length: %d)", idxVal.Value, arr.Len())
 	}
 	return elem, nil
 }
@@ -292,7 +298,7 @@ func arraySetImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error
 
 	updated, ok := arr.Set(int64(idxVal.Value), args[2])
 	if !ok {
-		return nil, fmt.Errorf("array_set: index %d out of bounds (array length: %d)", idxVal.Value, len(arr.Elements))
+		return nil, fmt.Errorf("array_set: index %d out of bounds (array length: %d)", idxVal.Value, arr.Len())
 	}
 	return updated, nil
 }
@@ -338,7 +344,7 @@ func arrayLengthImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, er
 	if !ok {
 		return nil, fmt.Errorf("array_length: expected Array, got %T", args[0])
 	}
-	return &eval.IntValue{Value: len(arr.Elements)}, nil
+	return &eval.IntValue{Value: arr.Len()}, nil
 }
 
 // registerArrayFromList registers the array_from_list builtin
@@ -384,9 +390,7 @@ func arrayFromListImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, 
 		return nil, fmt.Errorf("array_from_list: expected List, got %T", args[0])
 	}
 
-	elements := make([]eval.Value, len(list.Elements))
-	copy(elements, list.Elements)
-	return &eval.ArrayValue{Elements: elements}, nil
+	return eval.NewArrayCopy(list.Elements), nil
 }
 
 // registerArrayToList registers the array_to_list builtin
@@ -432,8 +436,10 @@ func arrayToListImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, er
 		return nil, fmt.Errorf("array_to_list: expected Array, got %T", args[0])
 	}
 
-	elements := make([]eval.Value, len(arr.Elements))
-	copy(elements, arr.Elements)
+	elements := arr.Elements()
+	if !arr.Packed() {
+		elements = append([]eval.Value(nil), elements...)
+	}
 	return &eval.ListValue{Elements: elements}, nil
 }
 
@@ -481,8 +487,13 @@ func arrayAppendImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, erro
 		return nil, fmt.Errorf("array_append: expected Array, got %T", args[0])
 	}
 	newVal := args[1]
-	elements := make([]eval.Value, len(arr.Elements)+1)
-	copy(elements, arr.Elements)
-	elements[len(arr.Elements)] = newVal
-	return &eval.ArrayValue{Elements: elements}, nil
+	if floats, packed := arr.Floats(); packed {
+		if f, ok := newVal.(*eval.FloatValue); ok {
+			return eval.NewFloatArray(append(append(make([]float64, 0, len(floats)+1), floats...), f.Value)), nil
+		}
+	}
+	elements := make([]eval.Value, arr.Len()+1)
+	copy(elements, arr.Elements())
+	elements[arr.Len()] = newVal
+	return eval.NewArray(elements), nil
 }

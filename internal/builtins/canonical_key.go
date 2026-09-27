@@ -50,7 +50,7 @@ func canonicalKey(v eval.Value) string {
 	case *eval.ArrayValue:
 		var b strings.Builder
 		b.WriteString("a:[")
-		for i, elem := range val.Elements {
+		for i, elem := range val.Elements() {
 			if i > 0 {
 				b.WriteByte(',')
 			}

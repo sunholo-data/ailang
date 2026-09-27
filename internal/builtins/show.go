@@ -123,7 +123,7 @@ func showValue(v eval.Value, depth int) string {
 		return showSequence(val.Elements, depth, "[", "]")
 
 	case *eval.ArrayValue:
-		return showSequence(val.Elements, depth, "#[", "]")
+		return showSequence(val.Elements(), depth, "#[", "]")
 
 	case *eval.TupleValue:
 		return showSequence(val.Elements, depth, "(", ")")
