@@ -2,7 +2,9 @@ package motoko
 
 import (
 	"fmt"
+	"os"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/sunholo-data/ailang/internal/executor"
 )
@@ -49,6 +51,9 @@ func guardSystemPromptDelivery(result *executor.Result, systemPromptPath, stderr
 	if sysMD == "set" {
 		return sysPromptDelivered, ""
 	}
+	if systemPrefixCarriesPrompt(result, systemPromptPath) {
+		return sysPromptDelivered, ""
+	}
 
 	runSummaryPresent, _ := result.ProviderData["motoko_run_summary_present"].(bool)
 	if sysMD == "" && !runSummaryPresent && result.NumTurns == 0 {
@@ -73,4 +78,23 @@ func guardSystemPromptDelivery(result *executor.Result, systemPromptPath, stderr
 		systemPromptPath, sysMD)
 	result.ProviderData["system_prompt_delivery_error"] = msg
 	return sysPromptDeliveryRegression, msg
+}
+
+// systemPrefixCarriesPrompt is the delivery evidence for motoko builds that do
+// not emit runtime_config_resolved (upstream main, ABI 8.0): the system prefix
+// sent on the provider calls is at least as long as the prompt file we wrote.
+// motoko's own default SYSTEM.md is ~8k characters against a ~95k teaching
+// prompt, so a fallback to the default cannot pass for delivery. Counting the
+// file in runes keeps this true whether motoko counts runes or bytes.
+func systemPrefixCarriesPrompt(result *executor.Result, systemPromptPath string) bool {
+	n, _ := result.ProviderData["system_prefix_chars"].(int)
+	if n <= 0 || systemPromptPath == "" {
+		return false
+	}
+	data, err := os.ReadFile(systemPromptPath)
+	if err != nil {
+		return false
+	}
+	want := utf8.RuneCount(data)
+	return want > 0 && n >= want
 }

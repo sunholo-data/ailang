@@ -1,6 +1,7 @@
 package motoko
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -199,5 +200,35 @@ func TestGuardSystemPromptDelivery_Delivered(t *testing.T) {
 	}
 	if _, has := res.ProviderData["motoko_startup_crash"]; has {
 		t.Error("delivered case must not set motoko_startup_crash")
+	}
+}
+
+// Upstream motoko main never emits runtime_config_resolved; it reports the
+// pinned system prefix on every provider_call_prepared. A prefix at least as
+// long as the prompt file we wrote is delivery. A prefix the size of motoko's
+// own default SYSTEM.md is not: that is the recurring regression, and it must
+// still be reported (A/B 2026-09-27 raised a false alarm on every main run).
+func TestGuardSystemPromptDelivery_SystemPrefixEvidence(t *testing.T) {
+	promptFile := filepath.Join(t.TempDir(), ".motoko_system.md")
+	if err := os.WriteFile(promptFile, []byte(strings.Repeat("teach AILANG. ", 7000)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	fixture := func(prefixChars int) *executor.Result {
+		return parseGuardFixture(t, []string{
+			`{"schema_version":"1","session_id":"s","type":"session_start","task":"t","model":"m"}`,
+			fmt.Sprintf(`{"schema_version":"1","session_id":"s","type":"provider_call_prepared","step":0,"system_prefix_count":1,"system_prefix_chars":%d}`, prefixChars),
+			`{"schema_version":"1","session_id":"s","type":"thinking","step":0,"text":"","finish_reason":"tool_calls","tool_calls":1}`,
+			`{"schema_version":"1","session_id":"s","type":"run_summary","model":"m","finish_reason":"stop","steps_executed":1}`,
+		})
+	}
+	if verdict, msg := guardSystemPromptDelivery(fixture(98000), promptFile, "/tmp/x.log", ""); verdict != sysPromptDelivered {
+		t.Fatalf("a prefix carrying the whole prompt must count as delivered; got %v: %s", verdict, msg)
+	}
+	res := fixture(7760)
+	if verdict, _ := guardSystemPromptDelivery(res, promptFile, "/tmp/x.log", ""); verdict != sysPromptDeliveryRegression {
+		t.Fatalf("a default-SYSTEM.md-sized prefix must still be the delivery regression; got %v", verdict)
+	}
+	if _, has := res.ProviderData["system_prompt_delivery_error"]; !has {
+		t.Error("delivery regression must set system_prompt_delivery_error")
 	}
 }

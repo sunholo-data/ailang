@@ -337,6 +337,7 @@ func parseSessionJSONL(path string) (*executor.Result, error) {
 		motokoModel        string
 		dp7RejectionsCount int
 		systemMDState      string          // 'set'/'unset' from runtime_config_resolved (M-RIG-RELIABILITY)
+		systemPrefixChars  int             // largest system_prefix_chars on provider_call_prepared (upstream main)
 		resolvedProfile    string          // MOTOKO_CONFIG the run ACTUALLY loaded (M-EVAL-MEASUREMENT-CONTRACT M4)
 		resolvedExtensions string          // extension ids actually LOADED — treatment-integrity evidence
 		transcript         strings.Builder // compact tool-call/turn log (M-MOTOKO-OBS-TRANSCRIPT)
@@ -468,6 +469,16 @@ func parseSessionJSONL(path string) (*executor.Result, error) {
 				}
 			}
 
+		case "provider_call_prepared":
+			// Upstream motoko main (DST core) never emits runtime_config_resolved.
+			// It reports the pinned system prefix on every provider call instead,
+			// which is the delivery evidence the guard falls back to.
+			if raw != nil {
+				if n, ok := raw["system_prefix_chars"].(float64); ok && int(n) > systemPrefixChars {
+					systemPrefixChars = int(n)
+				}
+			}
+
 		case "run_summary":
 			gotRunSummary = true
 			res.NumTurns = 0
@@ -527,6 +538,9 @@ func parseSessionJSONL(path string) (*executor.Result, error) {
 	// motoko.go, which uses motoko_run_summary_present below to tell the two
 	// apart).
 	res.ProviderData["system_md"] = systemMDState
+	if systemPrefixChars > 0 {
+		res.ProviderData["system_prefix_chars"] = systemPrefixChars
+	}
 	if resolvedProfile != "" {
 		res.ProviderData["resolved_profile"] = resolvedProfile
 	}
