@@ -55,7 +55,7 @@ export func main() -> string = %s
 				name string
 				args []string
 			}{
-				{"evaluator", []string{"run", "--trace-loader", "--relax-modules", src}},
+				{"evaluator", []string{"run", "--relax-modules", src}},
 				{"vm", []string{"run", "--bytecode", "--relax-modules", src}},
 			} {
 				stdout, stderr, code := runCLI(t, backend.args...)

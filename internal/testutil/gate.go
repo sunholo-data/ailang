@@ -85,18 +85,40 @@ func RequiresLiveNetwork(t *testing.T) {
 
 // HangGuard returns an operation timeout capped by both cap and the test's
 // remaining deadline, with time reserved for reporting and cleanup.
+//
+// When the test binary's -timeout deadline is nearly spent, HangGuard fails the
+// test and names the package budget. It used to hand out a 1s floor instead, so
+// a subprocess that had already printed its correct answer was killed at 1s and
+// the test read "exit 1" with an empty stderr (Windows cmd/ailang, 2026-09-27:
+// the package ran 406s against -timeout 416s, and six unrelated tests went red).
 func HangGuard(t *testing.T, cap time.Duration) time.Duration {
 	t.Helper()
 	deadline, ok := t.Deadline()
 	if !ok {
 		return cap
 	}
-
-	bound := min(cap, time.Until(deadline)-20*time.Second)
-	if bound < time.Second {
-		return time.Second
+	bound, exhausted := hangGuardBound(cap, time.Until(deadline))
+	if exhausted {
+		t.Fatalf("hang guard: the test binary's -timeout deadline is %s away; this PACKAGE has outgrown its go test -timeout budget (not a failure of this test's logic)",
+			time.Until(deadline).Round(time.Millisecond))
 	}
 	return bound
+}
+
+// hangGuardBound is HangGuard's arithmetic: the operation bound for a caller cap
+// and the time left before the test deadline, and whether that deadline is too
+// close (under reserve + 1s) to run anything honestly.
+func hangGuardBound(cap, untilDeadline time.Duration) (time.Duration, bool) {
+	const reserve = 20 * time.Second
+	remaining := untilDeadline - reserve
+	if remaining < time.Second {
+		return 0, true
+	}
+	bound := min(cap, remaining)
+	if bound < time.Second {
+		return time.Second, false
+	}
+	return bound, false
 }
 
 // HangGuardContext returns a background context bounded by HangGuard.
