@@ -1,6 +1,6 @@
 # M-NUMERICS-VEC-ARRAY-INGEST: Unboxed float arrays, bulk update, binary numeric ingest
 
-**Status**: Planned, **ratified by Mark 2026-09-27** (attended session): the quorum block after round 2 is overridden on the strength of the round-2 revisions, and all five Design Freeze items are decided as recommended (D1 = D, D2 = `std/array`, D3 = (i), D4 = both widths named, D5 = error). Sprint plan: `m-numerics-vec-array-ingest-sprint-plan.md`.
+**Status**: IMPLEMENTED (2026-09-27, all four phases; see "Implementation Record"). Was: Planned, **ratified by Mark 2026-09-27** (attended session): the quorum block after round 2 is overridden on the strength of the round-2 revisions, and all five Design Freeze items are decided as recommended (D1 = D, D2 = `std/array`, D3 = (i), D4 = both widths named, D5 = error). Sprint plan: `m-numerics-vec-array-ingest-sprint-plan.md`.
 **Target**: v0.45.0 (Phase 0 can ship in a patch)
 **Priority**: P2. The quick fixes already closed most of the reported gap (see "What already shipped").
 **Estimated**: Phase 0: 0.5 day. Phase 1: 3–4 days. Phase 2: 2–3 days. Phase 3: 1–2 days.
@@ -224,19 +224,67 @@ func step(w: [float], x: [float], lr: float, y: float) -> [float] =
 ```
 
 ```ailang
--- proposed (Phase 1 + 3, option D), NOT valid yet:
-import std/array (Array, make, decodeF32LE, dot, axpy)
+-- Phase 1 + 3, option D (valid since M-NUMERICS-VEC-ARRAY; see examples/runnable/array_float_kernels.ail):
+import std/array (make, decodeF32LE, dot, axpy)  -- Array is a builtin type, not an export
 ```
 
 ## Success Criteria
 
-- [ ] Phase 0: an out-of-bounds `set` is an error (test); the F32/F64 codecs round-trip (test).
-- [ ] Phase 1: every Goals metric measured with `/usr/bin/time -l` and recorded; evaluator and VM run
+- [x] Phase 0: an out-of-bounds `set` is an error (test); the F32/F64 codecs round-trip (test).
+- [x] Phase 1: every Goals metric measured with `/usr/bin/time -l` and recorded; evaluator and VM run
   `Array[float]` programs with **no fallback** (the no-fallback check from `stdlib_numeric_test.go`).
   This is a ship gate: no evaluator-only release.
-- [ ] The quick-fix SGD benchmark (~0.1 ms per step) does not regress.
-- [ ] Prompt: `std/array` in the canonical import block, with the float kernels and the lossy F32 codec marked as lossy.
-- [ ] `make verify-stdlib` re-frozen; changelog; `docs/docs/reference/stdlib.md` row.
+- [x] The quick-fix SGD benchmark (~0.1 ms per step) does not regress.
+- [x] Prompt: `std/array` in the canonical import block, with the float kernels and the lossy F32 codec marked as lossy.
+- [x] `make verify-stdlib` re-frozen; changelog; `docs/docs/reference/stdlib.md` row.
+
+## Implementation Record (2026-09-27)
+
+Sprint plan: `m-numerics-vec-array-ingest-sprint-plan.md`, milestones M1–M7, one commit each.
+
+### Goals, measured (`/usr/bin/time -l`, Mac Studio, evaluator and `--bytecode`)
+
+| Metric | Target | Evaluator | VM |
+|---|---|---:|---:|
+| 10M-element `Array[float]` peak RSS (`make(10000000, 1.5)`) | < 200 MB (was ~2.5 GB as `[float]`) | 137 MB | 132 MB |
+| 100k writes to a 3,840-element array in one batch (D3 i) | < 50 ms | `updateMany` ~1 ms, `scatterAdd` < 1 ms | same |
+| 1,252 × 768 float64 from a binary file | < 50 ms, < 50 MB above baseline | 11 ms end to end (read 5–7, base64 2–3, decode ≤ 2); +43 MB | same, no fallback |
+| Same data as a 19.5 MB JSON file (`decodeFloatArray`) | none (was ~4 s via the `Json` tree) | 50 ms | 49 ms |
+| SGD, 1,000 steps × 768 dims | ~0.1 ms/step, no regression | `[float]` 20 ms, `Array[float]` 9 ms | 19 ms / 10 ms |
+| Silent out-of-bounds writes | 0 | `set`/`updateMany`/`scatterAdd` all error | same |
+
+### What differed from the design
+
+1. **The VM needed no native `_array_*` builtins.** Builtins missing from the VM table make the
+   calling std function `EvalOnly`, and it runs through `EvalInterop`. So the ship gate came down to
+   the bridge: `bytecode.TagArray`, whose packed variant shares the `[]float64` with the evaluator
+   (an O(1) crossing), plus `show`/`==` in the VM. A boxed array still converts element by element.
+2. **Two more bridge gaps closed.** Ingest was still falling back because `bytes` could not cross
+   (the VM had no bytes value) and a `Result` from an evaluator call could not either. `TagBytes` now
+   crosses both ways. `Option`/`Result` from `std/option`/`std/result` cross from the evaluator to
+   the VM with fixed declaration-order ordinals (`bytecode.StdADTTag`, pinned to the `.ail`
+   sources by a test). ADTs going from the VM to the evaluator are still M-BYTECODE-2E scope.
+3. **No `Eq` on arrays.** `==` on `Array[float]` is a type error ("No instance for Eq[Array[float]]"),
+   so parity is tested through `toList`. The Go-level equality reads both stores anyway.
+4. **The `std/array` kernels are strict; the `std/embedding` ones stay lenient.** A length mismatch
+   is an error on `Array[float]`. The `[float]` versions keep their common-prefix rule.
+5. **`std/fs.readFileBytes` returns base64 text, not `bytes`.** A binary load is therefore
+   read → `fromBase64` → `decodeF64LE`, and the base64 string is a transient 1.33× copy. It still
+   fits the budget. A direct bytes reader would be a separate `std/fs` change.
+6. The doc's proposed import `import std/array (Array, ...)` was wrong: `Array` is a builtin type
+   and not an export (`IMP010`). Fixed above.
+
+### Tests and mutation checks
+
+- `cmd/ailang/stdlib_array_test.go` (out-of-bounds `set` on both backends; the `[float]` codecs,
+  VM-native), `stdlib_array_packed_test.go` (11 parity rows), `stdlib_array_kernels_test.go`
+  (16 kernel rows + 7 error rows), `stdlib_array_ingest_test.go` (12 rows). Every table asserts the VM
+  ran it natively.
+- `internal/eval/value_array_test.go`, `internal/builtins/array_float_test.go` (`-count=20`),
+  `internal/bytecode/std_adt_tag_test.go`.
+- Mutations: reverting D5 fails the out-of-bounds test; making `Get` read only the boxed store fails
+  the packed parity test; removing the Array case from the bridge fails all 11 VM parity rows; removing
+  the bytes case fails the 4 ingest rows that use bytes.
 
 ## Testing Strategy
 

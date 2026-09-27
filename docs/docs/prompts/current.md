@@ -638,10 +638,13 @@ import std/fs (readFile, writeFile, fileExists, listDir, mkdir, mkdirAll, isDir,
 import std/env (getArgs, getEnv, getEnvOr)
 import std/net (httpGet, httpPost, httpRequest)
 import std/json (encode, decode, get, getString, getNumber, getInt, getBool, getArray, getObject, asString, asNumber, asArray)
-import std/json (filterStrings, filterNumbers, allStrings, allNumbers, getStringArrayOrEmpty)
+import std/json (filterStrings, filterNumbers, allStrings, allNumbers, getStringArrayOrEmpty, decodeFloatArray)
 import std/list (map, filter, foldl, length, concat, sortBy, take, drop, range, nth, last, any, findIndex, flatMap, zipWith, mapE, filterE, foldlE, flatMapE, forEachE)
 -- [float] vector math, native loops (never foldl(zipWith(...)) for a dot product):
 import std/embedding (dot, cosine, magnitude, normalize, scale, add_vectors, axpy, euclidean_distance)
+-- Array[float] when memory or bulk updates matter: unboxed (8 B/element), strict-length kernels, one-copy batched writes.
+-- Its dot/axpy/scale clash with std/embedding's: import one module qualified (import std/array as A).
+import std/array (make, fromList, toList, get, getOpt, set, length, dot, axpy, scale, add, sub, mul, sum, argmax, updateMany, scatterAdd, encodeF64LE, decodeF64LE)
 import std/string (split, chars, trim, stringToInt, stringToFloat, contains, find, substring, intToStr, floatToStr, join, startsWith, endsWith, length, toUpper, toLower, compare, repeat)
 import std/math (floatToInt, intToFloat, floor, ceil, round, sqrt, pow, abs_Float, abs_Int)
 import std/ai (call, callJson, callJsonSimple)
@@ -1045,7 +1048,17 @@ In addition to `get`/`set`/`length` already covered above:
 - `empty() -> Array[a]` - Empty array
 - `make(size: int, default: a) -> Array[a]` - Fixed-size array initialized to `default`
 - `append(arr, val) -> Array[a]` - Return new array with `val` appended
-- `unsafeGet(arr, idx) -> a` - Get without bounds check (panics on OOB) — use `getOpt` for safety
+- `unsafeGet(arr, idx) -> a` - Get; out of bounds is a runtime error — use `getOpt` for safety
+- `get`/`set` out of bounds are errors naming the index and length (`set` never returns the array unchanged)
+
+**Float arrays.** An `Array[float]` is stored unboxed (8 bytes per element; a 10M-element array is ~130 MB,
+the same data as `[float]` is ~2.5 GB). Native kernels: `dot`, `axpy`, `scale`, `add`, `sub`, `mul`, `sum`,
+`argmax`; two-array kernels require equal lengths. `set` copies the whole array, so never update weights
+one `set` at a time in a loop: use `axpy` for a whole-vector update, `updateMany(arr, [(i, x), ...])` or
+`scatterAdd(arr, idx, xs)` for many writes with one copy.
+Ingest without a `Json` tree: `std/json.decodeFloatArray(s)` for a flat JSON number array, and
+`decodeF64LE(bytes)` (exact) / `decodeF32LE(bytes)` (**lossy**: float32 precision) from `std/array`,
+all returning `Result[Array[float], string]`.
 
 ## Character Processing
 
