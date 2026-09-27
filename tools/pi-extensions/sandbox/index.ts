@@ -44,7 +44,7 @@
 import { spawn } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { initializeMissionSandbox, loadMissionPolicy, missionBashAllowed } from "./mission.ts";
+import { initializeMissionSandbox, loadMissionPolicy, missionBashAllowed, requireMissionBash } from "./mission.ts";
 import { SandboxManager, type SandboxRuntimeConfig } from "@anthropic-ai/sandbox-runtime";
 // Imports VALUES (createBashTool, getAgentDir), so the package name must be the
 // one actually installed — type imports erase, value imports do not. Renamed to
@@ -226,9 +226,7 @@ export default function (pi: ExtensionAPI) {
 		...localBash,
 		label: "bash (sandboxed)",
 		async execute(id, params, signal, onUpdate, _ctx) {
-			if (!missionBashAllowed(missionMode, sandboxInitialized)) {
-				throw new Error("Mission sandbox is not initialized; bash refused");
-			}
+			requireMissionBash(missionMode, sandboxInitialized);
 			if (!sandboxEnabled || !sandboxInitialized) {
 				return localBash.execute(id, params, signal, onUpdate);
 			}
@@ -242,7 +240,7 @@ export default function (pi: ExtensionAPI) {
 
 	pi.on("user_bash", () => {
 		if (!missionBashAllowed(missionMode, sandboxInitialized)) {
-			return { operations: { async exec() { throw new Error("Mission sandbox is not initialized; bash refused"); } } };
+			return { operations: { async exec() { requireMissionBash(missionMode, sandboxInitialized); throw new Error("Sandbox unavailable"); } } };
 		}
 		if (!sandboxEnabled || !sandboxInitialized) return;
 		return { operations: createSandboxedBashOps() };
