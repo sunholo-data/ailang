@@ -43,6 +43,23 @@ mission.
 
 Newest **3** STATUS stamps live here; older ones move to `fleet-mission-status-archive.md`.
 
+## STATUS 2026-09-27 — ITERATION 4: P0 #2 M1 **measured**. On the rig, `ps -S` cannot see reaped-child CPU; `proc_pid_rusage` separates the drill from both wedges. Threshold returns to Mark as **D-FLEET-7**. Evaluator PASS 87.
+
+#1329 and #1330 are **merged** (`c912320fe`, `4d8dff929`), so P0 #3's commit-blind half and P1 #0 have
+landed. At Gate 1, dev `CI` was red on one `launchd drivers (bash 3.2)` timing assertion
+(`test_driver_notify.sh`, "hanging gh comment", elapsed 8 s against a 7 s limit). A rerun was green:
+that is the `ci:launchd-driver-suite-flakes` class (P2 #11), now reproduced once on dev.
+**P0 #2 M1** (D-FLEET-4): a new `tools/launchd/measure_stall_cpu.sh` plus a `proc_rusage.py` helper.
+Both are measurement only; the live watchdog is unchanged. **Finding:** on macOS 26.6.2, `ps -S` reads
+`0:00.00` for a parent whose reaped child burned about 4 CPU-s, so the plan's candidate instrument
+cannot work. Per ~121 s window, rusage (self plus reaped children) reads: drill **62.5–97.7**, w1-git
+**0.73–1.72**, w1-gh **0.22–0.31**, w2 **0**. Idle `claude` roots accrue **0.57–1.60** in the same
+window, so an arm must exclude the root. Recommendation in D-FLEET-7: 10 CPU-s per window over the
+descendants only. Branch `fleet/iter4-stall-cpu-measure`; PR and merge at Gate 3b. Clause map: **1 product share**
+unmeasured; **2 turnaround** at risk (P0 #2 back on Mark; P0 #4 routable); **3 one queue** MET (17
+open, one new: `rotate-log:status-flag-mutates-and-world-resolves-to-status-archive`); **4 idle is free**
+MET; **5 no regressions** MET (nothing live changed).
+
 ## STATUS 2026-09-27 — ITERATION 3: P0 #4 **PARKED (D-FLEET-6: fix needs `tools/pi-extensions/**`)**, plan committed; P1 #0 driver-env scrub **built, evaluated PASS 97, merge blocked on the inherited dev red** ([#1330](https://github.com/sunholo-data/ailang/pull/1330))
 
 **P0 #4** `pi-runner:sandbox-extensions-not-wired`: REAL at HEAD (`scripts/mission_pi_run.sh:165` passes no
@@ -77,17 +94,6 @@ half (the D-58 design) remains. Clause map: **1 product share** unmeasured; **2
 turnaround** at risk (P0 #2 now waits on Mark, P0 #3 waits on V1); **3 one queue** MET (16 tickets,
 one new: `pi-runner:quota-429-reported-as-empty-worktree`); **4 idle is free** MET; **5 no regressions**
 MET (nothing landed unverified).
-
-## STATUS 2026-09-26 — ITERATION 1: **P0 #1 LANDED**, `driver:slot-kill-leaves-orphan-descendants` ([#1325](https://github.com/sunholo-data/ailang/pull/1325), `e3dadcd07`)
-
-Both watchdogs now reap the controller's whole process tree through `_mc_kill_tree`, which
-snapshots before TERM, re-walks before KILL and skips recycled PIDs. A triggered watchdog is no
-longer cancelled mid-grace. Evaluator (sonnet) PASS 87, 0 blocking. Ticket resolved. Thresholds
-are untouched. Clause map: **1 product share** unmeasured (no product-loop window since the
-charter); **2 turnaround** first datum ≈3h (filed 14:50Z); **3 one queue** MET (16 tickets, all in
-`mission-fleet`); **4 idle is free** MET by construction (driver pre-check, iteration 0 dry run);
-**5 no regressions** MET for this ticket, with one caveat: the done-gate's dry-run line cannot
-reach `_mc_run_once` edits (UNINFORMATIVE, see log). Next: P0 #2, mechanical half.
 
 ## CURRENT GOAL
 
@@ -157,6 +163,7 @@ Shared per-role routing from `mission-control`. Overrides in `~/.config/ailang/m
 | D-FLEET-4 | RULED 2026-09-27 (Mark, attended: "go with the recommendations") | **YES to M1 only.** Measure `ps -S -o time` CPU deltas on the rig for the long-drill shape and both reference wedges (plan: `design_docs/planned/sprint-plan-stall-descendant-progress.md`), then bring a MEASURED threshold back as a new decision row. Until that row is ruled, thresholds and sample counts are unchanged; the provisional ≥2 CPU-s / 120 s is not live. |
 | D-FLEET-5 | RULED 2026-09-27 (Mark, attended: "go with the recommendations") | **YES.** `scripts/test_mission_*` is a harness path: the fleet may change it, product loops are refused on it (`tools/launchd/githooks/pre-push`, `_scope_is_harness`). The fleet may now repair `scripts/test_mission_pi_run.sh` TEST 3. |
 | D-FLEET-6 | RULED 2026-09-27 (Mark, attended: "go with the recommendations") | **YES to M1–M3 as one fleet sprint** (`design_docs/planned/sprint-plan-pi-runner-sandbox-wiring.md`): the extension fails closed and reads an explicit policy file; `scripts/mission_pi_run.sh` passes `-e` with typed verdicts rc 15/16/17; tests. The guard allows the fleet `tools/pi-extensions/sandbox/**` only; the rest of `tools/pi-extensions/**` stays outside its scope because the eval harness shares it. This ruling discharges D-FLEET-3 for this ticket. |
+| D-FLEET-7 | **OPEN** 2026-09-27 (iteration 4; asks Mark) | **Stall-watchdog CPU arm: approve the measured threshold?** M1 found two things. On the rig, `ps -S` cannot see reaped-child CPU; `proc_pid_rusage` (`ri_child_*`) can. And an idle `claude` root accrues 0.57–1.60 CPU-s per 120 s. **Recommendation: YES to M2 with this arm:** count a window as progress when the cumulative rusage CPU of the controller's DESCENDANTS, excluding the root, grows by **≥10 CPU-s per 120-s sample**. Measured windows: drill 62.5–97.7, w1-git ≤1.72, w1-gh ≤0.31, w2 0 (`design_docs/planned/sprint-plan-stall-descendant-progress.md`, M1 result). It needs `python3` (ctypes) in the driver path. Sample counts and the 600 s budget stay unchanged. Risk: a W1 whose poll condition is itself heavy (for example a `go test`) would read live. **Default until answered:** nothing changes; the fleet takes the next ticket. |
 
 ## Queue (top = next; tags: [NEXT] [IN-SPRINT] [PARKED] [LANDED] [RULED OUT])
 
@@ -171,15 +178,15 @@ and resolve it as "already fixed" with evidence if it no longer reproduces.
 1. [LANDED 2026-09-26 iter 1, #1325 `e3dadcd07`] `driver:slot-kill-leaves-orphan-descendants`: a killed slot leaves its descendants
    running (world 2026-09-26: the planner's harness ran 26 min past the kill). Leaks processes on a
    box with an OOM history.
-2. [NEXT — D-FLEET-4 RULED 2026-09-27: M1 (measure) only, threshold returns for approval] `stall-watchdog:kills-controller-on-long-drill`: **mechanical half only.** Count a live,
+2. [M1 DONE iter 4: `ps -S` blind on the rig; rusage separates drill (62.5–97.7 CPU-s per window) from w1 (≤1.72) and w2 (0). Threshold = **D-FLEET-7 OPEN**; M2 waits on it] `stall-watchdog:kills-controller-on-long-drill`: **mechanical half only.** Count a live,
    progressing descendant as progress, as 4a86ea17b does for pi. **Changing the 600s threshold
    or the sample counts is POLICY: park it.** Cost world a whole slot today (04:45, rc 143).
-3. [IN-SPRINT iter 2: commit-blind half built + PASS 97 in #1329, merge waits on dev `test` green; pre-dirty half = V1 D-58 design, not started] `pi-runner:verdict-blind-to-commits-and-predirty`: the pi fallback lanes (now the tail after
+3. [commit-blind half LANDED #1329 `c912320fe`; pre-dirty half = V1 D-58 design, not started; ticket stays open] `pi-runner:verdict-blind-to-commits-and-predirty`: the pi fallback lanes (now the tail after
    opus) report `empty_worktree` for executors that commit, so a working lane reads as dead.
-4. [UNPARKED — D-FLEET-6 RULED 2026-09-27: M1–M3 as one sprint; plan in #1330] `pi-runner:sandbox-extensions-not-wired`: pi roles run unfenced. Safety, not throughput. The extension itself fails open, so the fix needs `tools/pi-extensions/**`.
+4. [NEXT — D-FLEET-6 RULED 2026-09-27: M1–M3 as one sprint; plan landed in #1330 (`design_docs/planned/sprint-plan-pi-runner-sandbox-wiring.md`)] `pi-runner:sandbox-extensions-not-wired`: pi roles run unfenced. Safety, not throughput. The extension itself fails open, so the fix needs `tools/pi-extensions/**`.
 
 **P1 — silent wedges and invisible failures**
-0. [IN-SPRINT iter 3: built + PASS 97 in #1330, merge waits on dev `test` green] **[DIRECTIVE, Mark via attended session 2026-09-26, from fleet iteration 1's own friction (a)]**
+0. [LANDED #1330 `4d8dff929` (directive, not a ticket)] **[DIRECTIVE, Mark via attended session 2026-09-26, from fleet iteration 1's own friction (a)]**
    `tests:driver-env-leaks-into-launchd-suite`: inside a fire, the driver's exported `MISSION_*`
    env reaches `make test-launchd-drivers`, and `test_mission_routing` reads it as
    "unparsable-path-entry". So the fleet's own done-gate is red at base on every fire, and each
