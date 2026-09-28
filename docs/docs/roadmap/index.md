@@ -34,6 +34,7 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-PKG-INFLIGHT: Package-in-Flight Tracking for Registry Workflows](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-pkg-inflight.md)
 - [M-PROCESS-MODES: Replay-Contract Modes for the Process Effect](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-process-modes.md)
 - [M-QUASI: Typed Quasiquotes (String Templates)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-quasi-typed-quasiquotes.md)
+- [Type-Anchored Defaultable Record Fields](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-record-defaultable-fields.md)
 - [M-REFLECT: Structural Reflection & User-Defined Type Classes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-reflect-structural-reflection.md)
 - [M-TRACE-FEEDBACK: Execution-Trace Feedback Loop for Harness Diagnostics](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-trace-feedback.md)
 - [M-ZERO-LANGUAGE-LEARNINGS: Borrowed Ideas from Vercel Labs' Zero](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-zero-language-learnings.md)
@@ -55,6 +56,58 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [Sprint Plan: M-NIGHTLY-SUSTAINED-FAILURE-LABEL](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-nightly-sustained-failure-label-sprint-plan.md)
 - [Sprint Plan: M-NIGHTLY-UNMEASURED-CATEGORY-GATE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-nightly-unmeasured-category-gate-sprint-plan.md)
 - [Sprint Plan — M-OLLAMA-V1-STREAMING-IDLE-TIMEOUT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-ollama-v1-streaming-idle-timeout-sprint-plan.md)
+
+## Planned for v0.47.2
+
+- [M-BYTECODE-GETFIELD-SLOT-RESOLUTION — GET_FIELD compiles the wrong slot index when two record types share a field name at different positions (silent wrong reads under `--bytecode`)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_47_2/m-bytecode-getfield-slot-resolution.md)
+- [Sprint Plan: M-VM-DETERMINISM](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_47_2/m-vm-determinism-sprint-plan.md)
+- [M-VM-DETERMINISM: Bytecode VM nondeterminism — Go map iteration order selects record types/field indices at compile time](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_47_2/m-vm-determinism.md)
+
+## Planned for v0.47.1
+
+- [Sprint Plan: M-PKG-REGISTRY-DISCOVERABILITY](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_47_1/m-pkg-registry-discoverability-sprint-plan.md)
+- [M-PKG-REGISTRY-DISCOVERABILITY — the registry as the first stop](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_47_1/m-pkg-registry-discoverability.md)
+
+## Planned for v0.44.0
+
+- [M-CASCADE-ENVELOPE-HYDRATION: close the inbox→task cascade envelope-loss routes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_44_0/m-cascade-envelope-hydration.md)
+- [M-SERVER-ORIGIN-POLICY: `ailang server` becomes same-origin by default, and its WebSocket checks Origin](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_44_0/m-server-origin-policy.md)
+- [Sprint plan: M-STDLIB-ROOT-RESOLUTION](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_44_0/m-stdlib-root-resolution-sprint-plan.md)
+- [M-STDLIB-ROOT-RESOLUTION: one stdlib root for every command (`ailang docs std/<module>` fails outside a project root)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_44_0/m-stdlib-root-resolution.md)
+- [M-TYPE-NAME-SHADOW: a module's own type must win, and the compile cache must see alias edits](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_44_0/m-type-name-shadow-and-cache.md)
+
+## Planned for v0.42.1
+
+- [M-DANEEL-DEEP-RESEARCH — the daneel-executor holds `sunholo/gemini_agents` (Google Deep Research on the ailang_only lane)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_42_1/m-daneel-deep-research.md)
+- [M-PUBLISH-PATH-DEP-SMOKE: make the publish gate tell the truth about path dependencies](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_42_1/m-publish-path-dep-smoke.md)
+
+## Planned for v0.41.3
+
+- [M-CLI-HELP-FLAG-UNIFORMITY — one contract for `--help` and `-h`: exit 0, usage on stdout, at every dispatch level](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_41_3/m-cli-help-flag-uniformity.md)
+
+## Planned for v0.40.0
+
+- [M-PKG-QUALITY-LADDER: Package Quality Gates, an Intent × Measured-Class Approval Ladder, and Staged Effect Tightening](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_40_0/m-pkg-quality-ladder.md)
+
+## Planned for v0.39.2
+
+- [M-STD-WEB-SECOND-BACKEND: Gemini Grounding as an Operator-Selected Second Backend Behind std/web](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_39_2/m-std-web-second-backend.md)
+
+## Planned for v0.39.1
+
+- [Sprint Plan — M-CHAINS-EXECUTOR-TRANSCRIPTS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_39_1/m-chains-executor-transcripts-sprint-plan.md)
+- [M-CHAINS-EXECUTOR-TRANSCRIPTS — Executor transcripts into `ailang chains chat` (pi, codex, opencode — cloud and rig)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_39_1/m-chains-executor-transcripts.md)
+
+## Planned for v0.38.6
+
+- [M-CLI-MSG-HANDLER: CLI Runtime Msg Effect Handler](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_38_6/m-cli-msg-handler.md)
+- [Sprint Plan: M-SMT-DATETIME — Exact UTC Day Arithmetic in Z3](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_38_6/m-smt-datetime-sprint-plan.md)
+
+## Planned for v0.38.0
+
+- [Sprint Plan: M-OPENROUTER-EU-ROUTING](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_38_0/m-openrouter-eu-routing-sprint-plan.md)
+- [M-OPENROUTER-EU-ROUTING: EU In-Region Routing for All OpenRouter Eval Endpoints](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_38_0/m-openrouter-eu-routing.md)
+- [M-SMT-STRING-CASEFOLD-AND-CHARFOLD: Verify `toUpper`/`toLower` and `foldChars` in contracts](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_38_0/m-smt-string-casefold-charfold.md)
 
 ## Planned for v0.36.0
 
@@ -82,12 +135,6 @@ For completed features, see [Design Documents](/docs/design-docs).
 
 - [Sprint Plan: M-CACHESRC-COGNITIVE-COMPLEXITY](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_35_2/m-cachesrc-cognitive-complexity-sprint-plan.md)
 - [M-CACHESRC-COGNITIVE-COMPLEXITY — extract compile-cache orchestration and preserve its regression oracles](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_35_2/m-cachesrc-cognitive-complexity.md)
-- [Sprint Plan — M-COORDINATOR-TEST-PARALLELISM (executor-ready)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_35_2/m-coordinator-test-parallelism-sprint-plan.md)
-- [M-COORDINATOR-TEST-PARALLELISM: Attack the Four Timer-Bound Coordinator Tests by Injecting Their Timers](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_35_2/m-coordinator-test-parallelism.md)
-- [Evaluation — M-DAEMON-TASK-EXEC-RUN-UNTESTED (v1 mission iteration 352, round 1)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_35_2/m-daemon-task-exec-run-untested-evaluation-r1.md)
-- [Mutation audit — M-DAEMON-TASK-EXEC-RUN-UNTESTED (V1 mission iteration 352)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_35_2/m-daemon-task-exec-run-untested-mutation-audit.md)
-- [Sprint plan — M-DAEMON-TASK-EXEC-RUN-UNTESTED (V1 mission iteration 352)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_35_2/m-daemon-task-exec-run-untested-sprint-plan.md)
-- [M-DAEMON-TASK-EXEC-RUN-UNTESTED — make `executeTask` executable under test](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_35_2/m-daemon-task-exec-run-untested.md)
 - [Sprint Plan — M-LAUNCHD-NOTIFY-SUBSHELL-OBSERVATION (V1 mission iteration 347)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_35_2/m-launchd-notify-subshell-observation-sprint-plan.md)
 - [M-LAUNCHD-NOTIFY-SUBSHELL-OBSERVATION: Restore Notification Test Observability and Bound Production Notification Calls](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_35_2/m-launchd-notify-subshell-observation.md)
 - [M-PI-RUNNER-WORKTREE-ASSERTION-VACUOUS-ON-REVISION — replace the post-run dirty-worktree count with a bounded per-invocation content delta](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_35_2/m-pi-runner-worktree-assertion-vacuous-on-revision.md)
@@ -108,7 +155,6 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-DX-QUALITY-MONITOR — empty/looping-output detection with corrective steering + bounded tool-result excerpts](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_35_0/m-dx-quality-monitor.md)
 - [Sprint Plan: M-DX-SESSION-GATE — mechanical session-protocol gate for pi](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_35_0/m-dx-session-gate-sprint-plan.md)
 - [M-DX-SESSION-PROTOCOL-GATE — mechanical enforcement of the session protocol for pi sessions](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_35_0/m-dx-session-protocol-gate.md)
-- [M-EQ-DERIVE-CONTAINERS — make `==` work for records, Options and lists when the parts already have Eq](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_35_0/m-eq-derive-containers.md)
 - [Sprint Plan: M-EVAL-ROLLING-ELO](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_35_0/m-eval-rolling-elo-sprint-plan.md)
 - [M-EVAL-ROLLING-ELO: one anchored rating series across models and AILANG versions](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_35_0/m-eval-rolling-elo.md)
 - [Sprint Plan — `m-fmt-unpinned-hunks` (iteration 288)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_35_0/m-fmt-unpinned-hunks-sprint-plan.md)
@@ -119,7 +165,7 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [Sprint Plan: M-MODEL-REGISTRY-SINGLE-SOURCE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_35_0/m-model-registry-single-source-sprint-plan.md)
 - [M-MODEL-REGISTRY-SINGLE-SOURCE: models.yml becomes the one place models are assigned](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_35_0/m-model-registry-single-source.md)
 - [M-PARTIAL-ACCESSOR-SHAPE — total accessors, honest denominators, self-describing docs](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_35_0/m-partial-accessor-shape.md)
-- [M-PI-HARNESS-UPGRADE — move the fleet off abandoned pi 0.73.1, and make the boundary visible in the data](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_35_0/m-pi-harness-upgrade.md)
+- [M-PKG-DETERMINISTIC-LOCKFILE: ailang.lock as a Pure Function of Its Inputs](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_35_0/m-pkg-deterministic-lockfile.md)
 - [Sprint Plan — M-REGISTRY-INTERFACE-HASH-BLIND-TO-SIGNATURES](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_35_0/m-registry-interface-hash-blind-to-signatures-sprint-plan.md)
 - [M-REGISTRY-INTERFACE-HASH-BLIND-TO-SIGNATURES](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_35_0/m-registry-interface-hash-blind-to-signatures.md)
 - [m unified release model](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_35_0/m-unified-release-model.md)
@@ -192,6 +238,48 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-BILLING: ailang-multivac Responsibility](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/docparse-billing/responsibility-multivac.md)
 - [M-BILLING: ailang-packages Responsibility](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/docparse-billing/responsibility-packages.md)
 
+## Planned for ailang-core-triage
+
+- [std/ai single-shot calls carry no HTTP deadline; named-test round-trip breaks on integral float literals (and brace-bearing strings, via the stripper)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/ai-deadline-and-named-test-roundtrip.md)
+- [ailang check on a package file alone fails MOD010; path-dep syntax "undocumented"](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/ailang-check-package-context.md)
+- [`ailang run -ai claude-opus-5` can never use the Claude OAuth credential the factory already knows how to read](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/ailang-run-claude-oauth-credential-ignored.md)
+- [Cascade routing: unpopulated cascade directive (task-dc0edc0a)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/cascade-directive-unpopulated.md)
+- [Compile cache not invalidated when a PATH dependency's interface changes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/compile-cache-path-dep-invalidation.md)
+- [Coordinator pushes/reports the wrong ref: completion names files on an empty `coordinator/task-*` branch while the work sits on the agent's own `design-doc/*` branch](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/coordinator-completion-wrong-ref.md)
+- [Coordinator: enable auto-merge on design-doc PRs (docs-only paths)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/coordinator-design-pr-auto-merge.md)
+- [Cross-file property generators never run (world/core World/Evidence) — and the ADT half is already landed](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/cross-file-property-generators-world-core.md)
+- [Daemon goes silent after its own binary is rebuilt; dead subscription indistinguishable from idle](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/daemon-liveness-binary-rebuild.md)
+- [Daemon re-stalls ~2 min after clean start; dead subscription indistinguishable from idle](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/daemon-restalls-2min-no-liveness.md)
+- [std/clock & std/datetime: prompt and one guide say "seconds", implementation is milliseconds](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/datetime-clock-ms-vs-seconds-docs.md)
+- [design-doc-creator hard-codes the ailang repo's mission-log path, breaking the daneel repo's proven docs-only gate and auto-merge scope](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/design-quorum-mission-log-path.md)
+- [D4: docparse Dockerfile — bump the ailang pin and add `--max-memory cgroup` to the serve-api CMD](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/docparse-dockerfile-bump-pin-max-memory.md)
+- [Correction to dogfood logreg report — std/embedding already has dot/scale/add_vectors; the narrow ask (native ops) is already shipped](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/dogfood-logreg-correction-embedding-native.md)
+- [Duplicate top-level func definitions in one module silently overwrite (MOD007 gap)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/duplicate-func-binding-silent.md)
+- [Effect checker resolves let-bound lambda to top-level function of same name](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/effect-checker-let-shadowing.md)
+- [Feedback gate classifier → sunholo/decisions (shadow first, then switch)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/feedback-gate-sunholo-decisions-shadow.md)
+- [Forall property blocks fail to lower — #624 / M-M3-RESIDUAL T6](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/forall-properties-parse-failure-624.md)
+- [Gemini Vertex client cannot enforce region: global host accepts any location segment](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/gemini-vertex-regional-host.md)
+- [IFC Label Refinements Lost Across Module Boundaries (Daneel, v0.36.0)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/ifc-labels-lost-across-module-boundary.md)
+- [Imported-type property generator skips (std/json Json) misclassified as vacuous](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/imported-type-generator-skips-json.md)
+- [Issue #1137 severity correction — process-allowlist downgrade to improvement](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/issue-1137-severity-correction-subcmd-allowlist.md)
+- [Local dependency override (Go-style `replace`) for development vs registry resolution](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/local-dep-replace-override.md)
+- [`messages send` silently stores unknown flags as the message body](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/messages-send-unknown-flags-stored-as-body.md)
+- [Named-test bodies fail float comparisons — missing Fractional dictionary in lowered path](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/named-test-float-dict-resolution.md)
+- [Nightly-eval holds the rig lock all night — widen the yield ask from os-rotation-filler to nightly-eval](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/nightly-eval-rig-lock-yield.md)
+- [Per-subcommand process allowlist requested (git push --force leak in Daneel's audit trail)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/process-subcmd-allowlist-already-shipped.md)
+- [PUB012 reads inline-tested packages as testless — interim: distinguish "not discoverable" from "absent"](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/pub012-inline-tests-false-absence.md)
+- [Registry validator over-matches `name:` fields as advertised tool names (daneel_ext_help publish rejected)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/registry-validator-tool-name-overmatch.md)
+- [serve-api silently coexists with coordinator on 127.0.0.1:8765; requests split between listeners](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/serve-api-port-collision.md)
+- [ailang#885 — serveapi/protocol has no SDK-free MCP JSON-RPC dispatch (World 1.0 blocker)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/serveapi-protocol-mcp-dispatch.md)
+- [`show` from string interpolation inside requires/ensures clauses is not encoded — ShowNormalizer misses contract exprs](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/show-in-ensures-clause-unencodable.md)
+- [SMT-encode pure _dt_* datetime builtins (addDays/startOfDay/weekday) for verify](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/smt-encode-dt-builtins.md)
+- [source_strip test skip-range scan miscounts braces inside string literals](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/source-strip-string-brace-skip-ranges.md)
+- [std/json number-accessor naming, and the unwritten Result-vs-Option rule](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/stdlib-number-naming-and-result-option-convention.md)
+- [Effect checker charges a stored (never-called) lambda's effects to the enclosing function](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/stored-lambda-effects-charge-enclosing-fn.md)
+- [`ailang test` evaluates through a hand-built evaluator env that diverges from `ailang run` — mis-wired closures across module paths](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/test-executor-module-env-miswiring.md)
+- [v0.47.0 follow-ups: `show()` silently truncates into "valid-looking" output; float-vector ingest past the JSON boundary; `ailang docs` skips the stdlib version warning; darwin release binary SIGKILLs after copy](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/v047-numerics-followups-show-ingest-docs-macos.md)
+- [verify: VERIFIED not refutable when ensures calls a user function (asymmetric SMT gating)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/verify-ensures-verified-without-encodable-refutation.md)
+
 ## Long-term Vision
 
 AILANG is designed as a deterministic language for autonomous AI code synthesis. The long-term roadmap includes:
@@ -205,4 +293,4 @@ For the complete vision, see [Why AILANG](/docs/why-ailang) and [Vision](/docs/v
 
 ---
 
-*Generated at build time. 146 planned features across 12 upcoming versions.*
+*Generated at build time. 201 planned features across 23 upcoming versions.*

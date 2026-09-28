@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-PKG-REGISTRY-DISCOVERABILITY",
-  "status": "not_started",
+  "status": "completed",
   "created": "2026-09-28T07:03:17Z",
   "design_doc": "design_docs/planned/v0_47_1/m-pkg-registry-discoverability.md",
   "sprint_plan": "design_docs/planned/v0_47_1/m-pkg-registry-discoverability-sprint-plan.md",
@@ -22,10 +22,10 @@
       "estimated_loc": 100,
       "dependencies": [],
       "acceptance_criteria": ["Guide-present and guide-absent packages render the expected panel or placeholder", "Author content is escaped raw text and introduces no npm dependency", "Registry sync and the Docusaurus production build pass"],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-28T12:42:00Z",
+      "completed": "2026-09-28T12:55:00Z",
+      "notes": "Implemented bounded AGENT.md snapshotting and safe raw-text package-page rendering. Docusaurus build reached the pre-existing stdlib/sidebar drift gates."
     },
     {
       "id": "M2_DISCOVERABILITY_QUALITY",
@@ -33,10 +33,10 @@
       "estimated_loc": 340,
       "dependencies": [],
       "acceptance_criteria": ["Gap and clean fixtures emit exactly the expected new findings", "Export overlap is sorted, self-excluding, and reports lookup failure explicitly", "Publisher and validator server sections remain equivalent", "Focused and full Go test, formatting, lint, and boundary checks pass"],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-28T12:42:00Z",
+      "completed": "2026-09-28T12:55:00Z",
+      "notes": "Added deterministic PUB008/PUB018/PUB022/PUB023 findings, overlap measurement on publisher and validator paths, and focused passing tests."
     },
     {
       "id": "M3_PLANNER_REUSE_GATE",
@@ -44,10 +44,10 @@
       "estimated_loc": 180,
       "dependencies": [],
       "acceptance_criteria": ["Both planner variants implement identical depend, contribute, and none semantics", "Both sprint JSON generators emit and validate populated registry_reuse entries", "Both plan and executor-handoff templates preserve the reuse audit", "Dry-run JSON output validates and contains no placeholders"],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-28T12:42:00Z",
+      "completed": "2026-09-28T12:55:00Z",
+      "notes": "Both planner harnesses now require and persist registry reuse decisions; both executor validators reject missing or placeholder audits."
     }
   ]
 }

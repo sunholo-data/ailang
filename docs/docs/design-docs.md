@@ -27,6 +27,90 @@ This page is automatically generated from the [design_docs/implemented](https://
 - [M-NIGHTLY-FLAKE-GUARD: Variance Guard for the Nightly Eval Regression Detector](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v1_0_0/m-nightly-flake-guard.md)
 - [Sprint Plan: M-PLANNER-CODEX-LANE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v1_0_0/m-planner-codex-lane-sprint-plan.md)
 - [M-PLANNER-CODEX-LANE: Route the Mission Planner Through the Hardened codex Spawn Recipe](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v1_0_0/m-planner-codex-lane.md)
+- [Sprint Plan: M-V1-MEMORY-FOOTPRINT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v1_0_0/m-v1-memory-footprint-sprint-plan.md)
+- [M-V1-MEMORY-FOOTPRINT: Memory efficiency audit and fixes for v1.0.0](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v1_0_0/m-v1-memory-footprint.md)
+
+## v0.47.0
+
+- [Sprint plan: M-NUMERICS-VEC-ARRAY-INGEST](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_47_0/m-numerics-vec-array-ingest-sprint-plan.md)
+- [M-NUMERICS-VEC-ARRAY-INGEST: Unboxed float arrays, bulk update, binary numeric ingest](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_47_0/m-numerics-vec-array-ingest.md)
+
+## v0.46.0
+
+- [Sprint Plan: M-EFFECT-CEILING-REACHABLE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_46_0/m-effect-ceiling-reachable-sprint-plan.md)
+- [M-EFFECT-CEILING-REACHABLE: compute the package effect ceiling over what the package reaches](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_46_0/m-effect-ceiling-reachable.md)
+- [Sprint plan: M-SERVEAPI-OPERATOR-SURFACE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_46_0/m-serveapi-operator-surface-sprint-plan.md)
+- [M-SERVEAPI-OPERATOR-SURFACE: what serve-api exposes is the operator's choice](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_46_0/m-serveapi-operator-surface.md)
+- [M-SMT-NULLARY-CALLEE — sprint plan (no design doc)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_46_0/m-smt-nullary-callee-sprint-plan.md)
+
+## v0.44.0
+
+- [Sprint Plan: M-SERVEAPI-BIND-HOST-CORS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_44_0/m-serveapi-bind-host-cors-sprint-plan.md)
+- [M-SERVEAPI-BIND-HOST-CORS: serve-api binds loopback by default, CORS is opt-in and allowlistable](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_44_0/m-serveapi-bind-host-cors.md)
+- [Sprint Plan: M-SERVEAPI-WS-BRIDGE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_44_0/m-serveapi-websocket-bridge-sprint-plan.md)
+- [M-SERVEAPI-WS-BRIDGE: a serve-api WebSocket route with a per-frame AILANG verdict](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_44_0/m-serveapi-websocket-bridge.md)
+- [Sprint Plan: M-STD-AUDIO](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_44_0/m-std-audio-sprint-plan.md)
+- [M-STD-AUDIO: `std/audio`, PCM to WAV in pure AILANG plus a pure-Go Ogg Opus encoder](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_44_0/m-std-audio.md)
+
+## v0.43.2
+
+- [M-COMPILE-CACHE-DIRTY-BUILD-KEY — a rebuilt compiler must not be served its predecessor's verdicts](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_43_2/m-compile-cache-dirty-build-key.md)
+- [M-FLOAT-EQ-ONE-SEMANTICS — one answer to `NaN == NaN`, on every path](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_43_2/m-float-eq-one-semantics.md)
+
+## v0.42.0
+
+- [M-EQ-DERIVE-CONTAINERS — Sprint Plan (re-land)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_42_0/m-eq-derive-containers-sprint-plan.md)
+- [M-EQ-DERIVE-CONTAINERS — make `==` work for records, Options and lists when the parts already have Eq](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_42_0/m-eq-derive-containers.md)
+
+## v0.41.0
+
+- [Sprint Plan: M-EXECUTOR-POLICY-HARDENING](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_41_0/m-executor-policy-hardening-sprint-plan.md)
+- [M-EXECUTOR-POLICY-HARDENING: Make AILANG's Execution Policy an Enforced Boundary](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_41_0/m-executor-policy-hardening.md)
+
+## v0.40.1
+
+- [M-AI-DECIDE-SYSTEM-ONE — shadow lane-router report](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_40_1/m-ai-decide-system-one-shadow-report.md)
+- [Sprint Plan: M-AI-DECIDE-SYSTEM-ONE (Phase 1)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_40_1/m-ai-decide-system-one-sprint-plan.md)
+- [M-AI-DECIDE-SYSTEM-ONE: Typed Decisions as an AILANG Primitive (TypeSafe Jev via OpenRouter)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_40_1/m-ai-decide-system-one.md)
+- [M-PKG-BIN-ENTRYPOINTS: `[bin]` — install a CLI from an AILANG package](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_40_1/m-pkg-bin-entrypoints.md)
+
+## v0.40.0
+
+- [Sprint Plan: M-PKG-QUALITY-LADDER — Sprint 1 "measure" (M1–M5)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_40_0/m-pkg-quality-ladder-sprint-plan.md)
+
+## v0.39.3
+
+- [Sprint Plan: M-DANEEL-AILANG-EXECUTOR](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_39_3/m-daneel-ailang-executor-sprint-plan.md)
+- [M-DANEEL-AILANG-EXECUTOR — Daneel gets its own executor on the `ailang_only` lane](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_39_3/m-daneel-ailang-executor.md)
+
+## v0.39.0
+
+- [Sprint Plan: M-AGENT-AILANG-ONLY-EXECUTION](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_39_0/m-agent-ailang-only-execution-sprint-plan.md)
+- [M-AGENT-AILANG-ONLY-EXECUTION — AILANG as the agent's only route to acting, fleet-wide](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_39_0/m-agent-ailang-only-execution.md)
+
+## v0.38.6
+
+- [Sprint Evaluation — m-debugcacheforms-flaky-on-macos-ci (round 1)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_38_6/m-debugcacheforms-flaky-on-macos-ci-evaluation-r1.md)
+- [Sprint Evaluation — m-debugcacheforms-flaky-on-macos-ci (round 2)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_38_6/m-debugcacheforms-flaky-on-macos-ci-evaluation-r2.md)
+- [Mutation-Audit Record — M-DEBUGCACHEFORMS-FLAKY-ON-MACOS-CI](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_38_6/m-debugcacheforms-flaky-on-macos-ci-mutation-audit.md)
+- [Sprint Plan: M-DEBUGCACHEFORMS-FLAKY-ON-MACOS-CI — drain the capture pipe before closing its read end](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_38_6/m-debugcacheforms-flaky-on-macos-ci-sprint-plan.md)
+- [M-DEBUGCACHEFORMS-FLAKY-ON-MACOS-CI — drain the capture pipe before closing its read end](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_38_6/m-debugcacheforms-flaky-on-macos-ci.md)
+- [Sprint evaluation — v1_iter354_pin_age (m-pin-drift-blind-under-sha-pin)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_38_6/m-pin-drift-blind-under-sha-pin-evaluation-r1.md)
+- [Sprint evaluation — ROUND 2 (delta review) — v1_iter354_pin_age](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_38_6/m-pin-drift-blind-under-sha-pin-evaluation-r2.md)
+- [Mutation audit — M-PIN-DRIFT-BLIND-UNDER-SHA-PIN (sprint `v1_iter354_pin_age`)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_38_6/m-pin-drift-blind-under-sha-pin-mutation-audit.md)
+- [Sprint Plan: M-PIN-DRIFT-BLIND-UNDER-SHA-PIN — PIN_AGE, a stale deployment pin reports its distance from origin/dev](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_38_6/m-pin-drift-blind-under-sha-pin-sprint-plan.md)
+- [M-PIN-DRIFT-BLIND-UNDER-SHA-PIN: PIN_AGE — a stale deployment pin reports its distance from origin/dev](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_38_6/m-pin-drift-blind-under-sha-pin.md)
+
+## v0.38.0
+
+- [Sprint Plan: M-PROCESS-SUBCMD — Subcommand Allowlists for the Process Effect](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_38_0/m-process-subcmd-allowlist-sprint-plan.md)
+- [M-PROCESS-SUBCMD: Subcommand Allowlists for Process Effect](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_38_0/m-process-subcmd-allowlist.md)
+- [M-RIG-LOCK-YIELD: Cooperative Yield Requests for `rig-lock.sh`](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_38_0/m-rig-lock-yield.md)
+
+## v0.37.3
+
+- [Sprint Plan: M-DEBUG-SINK-STRUCTURED-LINES](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_37_3/m-debug-sink-structured-lines-sprint-plan.md)
+- [M-DEBUG-SINK-STRUCTURED-LINES: Structured Debug.log lines survive every host sink](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_37_3/m-debug-sink-structured-lines.md)
 
 ## v0.36.0
 
@@ -36,6 +120,15 @@ This page is automatically generated from the [design_docs/implemented](https://
 ## v0.35.4
 
 - [M-STD-BASE64URL-ENCODE: close the base64url encode/decode asymmetry in std/bytes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_4/m-std-base64url-encode.md)
+
+## v0.35.3
+
+- [Sprint Plan — M-COORDINATOR-TEST-PARALLELISM (executor-ready)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_3/m-coordinator-test-parallelism-sprint-plan.md)
+- [M-COORDINATOR-TEST-PARALLELISM: Attack the Four Timer-Bound Coordinator Tests by Injecting Their Timers](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_3/m-coordinator-test-parallelism.md)
+- [Evaluation — M-DAEMON-TASK-EXEC-RUN-UNTESTED (v1 mission iteration 352, round 1)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_3/m-daemon-task-exec-run-untested-evaluation-r1.md)
+- [Mutation audit — M-DAEMON-TASK-EXEC-RUN-UNTESTED (V1 mission iteration 352)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_3/m-daemon-task-exec-run-untested-mutation-audit.md)
+- [Sprint plan — M-DAEMON-TASK-EXEC-RUN-UNTESTED (V1 mission iteration 352)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_3/m-daemon-task-exec-run-untested-sprint-plan.md)
+- [M-DAEMON-TASK-EXEC-RUN-UNTESTED — make `executeTask` executable under test](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_3/m-daemon-task-exec-run-untested.md)
 
 ## v0.35.2
 
@@ -60,6 +153,8 @@ This page is automatically generated from the [design_docs/implemented](https://
 - [M-MESSAGE-PLANE-FAIL-LOUD: the remaining silent seams](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-message-plane-fail-loud.md)
 - [Sprint plan — M-MOTOKO-CONNECTION-PROBE-RUN-LANE-HARNESS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-motoko-connection-probe-run-lane-harness-sprint-plan.md)
 - [M-MOTOKO-CONNECTION-PROBE-RUN-LANE-HARNESS: behavioral pin for production lane process-group kill](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-motoko-connection-probe-run-lane-harness.md)
+- [Sprint Plan: M-PI-HARNESS-UPGRADE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-pi-harness-upgrade-sprint-plan.md)
+- [M-PI-HARNESS-UPGRADE — move the fleet off abandoned pi 0.73.1, and make the boundary visible in the data](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-pi-harness-upgrade.md)
 - [Sprint Plan: M-PIPELINE-RECONCILIATION](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-pipeline-reconciliation-sprint-plan.md)
 - [M-PIPELINE-RECONCILIATION: one pipeline definition, two execution lanes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-pipeline-reconciliation.md)
 - [Sprint Plan — M-SPAWN-PIN-ENFORCEMENT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-spawn-pin-enforcement-sprint-plan.md)
@@ -894,7 +989,6 @@ This page is automatically generated from the [design_docs/implemented](https://
 - [M-PERF3: Performance Quick Wins for 1.0.0](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-perf3-performance-quick-wins.md)
 - [M-PROCESS: std/process Module for External Command Execution](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-process-exec.md)
 - [Sprint Plan: M-PROCESS — std/process Module](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-process-sprint-plan.md)
-- [M-PROCESS-SUBCMD: Subcommand Allowlists for Process Effect](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_38_0/m-process-subcmd-allowlist.md)
 - [M-SEMANTIC-ENVELOPE: Multi-Aspect Semantic Embeddings for Agent Messaging](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-semantic-envelope.md)
 - [M-STREAM-BIDI: Generic Bidirectional Streaming Primitives](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-stream-bidi-primitives.md)
 - [Sprint Plan: M-STREAM-BIDI Phase 1 — Core WebSocket Streaming](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-stream-bidi-sprint-plan.md)
@@ -1475,4 +1569,4 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ---
 
-*Generated at build time. 1072 design documents across 131 versions.*
+*Generated at build time. 1124 design documents across 145 versions.*

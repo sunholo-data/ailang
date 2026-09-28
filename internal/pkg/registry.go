@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
@@ -21,6 +22,29 @@ type RegistryClient struct {
 	httpClient *http.Client
 	indexCache *RegistryIndex
 	indexETag  string
+}
+
+// ExportOverlap returns other package names sharing at least one exact export.
+// Results are unique, self-excluding, and sorted for deterministic reports.
+func ExportOverlap(index *RegistryIndex, name string, exports []string) []string {
+	wanted := make(map[string]struct{}, len(exports))
+	for _, export := range exports {
+		wanted[export] = struct{}{}
+	}
+	var overlap []string
+	for _, entry := range index.Packages {
+		if entry.Name == name {
+			continue
+		}
+		for _, export := range entry.Exports {
+			if _, ok := wanted[export]; ok {
+				overlap = append(overlap, entry.Name)
+				break
+			}
+		}
+	}
+	sort.Strings(overlap)
+	return overlap
 }
 
 // NewRegistryClient creates a client using AILANG_REGISTRY env var or default URL.

@@ -183,6 +183,10 @@ After creating the JSON file, sprint-executor can:
 
 **CRITICAL: Always end by handing off to sprint-executor after user approval!**
 
+### 0. Check the Registry (Mandatory Reuse Gate)
+
+Before decomposing implementation, run `ailang pkg search <keywords>` for every package-like capability. Inspect candidates with `ailang pkg info <vendor/name>` and `ailang pkg docs <vendor/name>`. Classify every implementable milestone as `depend` (reuse and pin the package), `contribute` (extend the existing package via its `pkg:<name>` inbox), or `none` (record searches and why fresh code is required). Persist populated decisions in the plan and `registry_reuse` sprint JSON; placeholders block handoff.
+
 ### 1. Read and Analyze Design Document
 
 **Input**: Path to design doc (e.g., `design_docs/planned/v0.4-roadmap.md`)
@@ -410,6 +414,7 @@ git commit -m "Add M-<milestone> sprint plan with JSON progress tracking"
 ## Analysis Framework
 
 ### Design Doc Analysis Checklist
+- [ ] Registry reuse audit: every implementable milestone has a populated `depend`, `contribute`, or `none` decision
 - [ ] Current status: What's ✅ vs ❌ vs ⏳
 - [ ] Timeline: Days/weeks remaining, velocity metrics
 - [ ] Priority matrix: Critical vs nice-to-have
@@ -566,6 +571,7 @@ On completion, sprint-planner sends:
   "session_id": "claude-session-xyz",
   "estimated_duration": "3 days",
   "total_loc_estimate": 650,
+	"registry_reuse": [{"milestone":"M1", "package":"sunholo/example", "action":"depend", "reason":"Capability already exists"}],
   "risk_level": "medium"
 }
 ```

@@ -74,6 +74,17 @@ else
     echo -e "${GREEN}✓ No placeholder acceptance criteria${NC}"
 fi
 
+# Registry reuse audit is mandatory for every implementable milestone.
+if ! jq -e '.registry_reuse | type == "array" and length > 0' "$PROGRESS_FILE" >/dev/null 2>&1; then
+    echo -e "${RED}ERROR: registry_reuse must be a populated array${NC}"
+    ERRORS=$((ERRORS + 1))
+elif jq -e '.registry_reuse[] | select(.milestone == "MILESTONE_ID" or (.reason | startswith("REPLACE:")) or (.action != "depend" and .action != "contribute" and .action != "none"))' "$PROGRESS_FILE" >/dev/null 2>&1; then
+    echo -e "${RED}ERROR: registry_reuse contains placeholder or invalid decisions${NC}"
+    ERRORS=$((ERRORS + 1))
+else
+    echo -e "${GREEN}✓ Registry reuse audit populated${NC}"
+fi
+
 # Check minimum milestone count
 MILESTONE_COUNT=$(jq '.features | length' "$PROGRESS_FILE")
 if [ "$MILESTONE_COUNT" -lt 2 ]; then
