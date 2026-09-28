@@ -1,6 +1,6 @@
 # Sprint Plan — M-OLLAMA-V1-STREAMING-IDLE-TIMEOUT
 
-**Design doc**: [../m-ollama-v1-streaming-idle-timeout.md](../m-ollama-v1-streaming-idle-timeout.md)
+**Design doc**: [../m-ollama-v1-streaming-idle-timeout.md](m-ollama-v1-streaming-idle-timeout.md)
 **Sprint ID**: `M-OLLAMA-V1-STREAMING-IDLE-TIMEOUT`
 **Tracking**: ailang#618 · target v0.34.0 · **P0**
 **Planned at**: HEAD `3e1f63f7a` (branch `dev`), 2026-08-10

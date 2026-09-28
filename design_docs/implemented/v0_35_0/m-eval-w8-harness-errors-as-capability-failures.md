@@ -1,10 +1,13 @@
 # M-EVAL-W8: harness errors must not be scored as capability failures
 
-**Status**: Planned — **split out of [m-eval-validity-discipline](m-eval-validity-discipline.md) on 2026-08-13 (Mark) so it can route independently of the disputed W9.**
+**Status**: Implemented in v0.35.0 (c8c841e24; closes #619). Moved from planned/ by the 2026-09-28 issue triage.
+
+_Prior status:_ Planned — **split out of [m-eval-validity-discipline](../../planned/m-eval-validity-discipline.md) on 2026-08-13 (Mark) so it can route independently of the disputed W9.**
+
 **Target**: v0.33.1
 **Priority**: P0 — ailang#619. A published OS-board figure was a ~4× understatement of real capability.
 **Estimated**: 1-2 days
-**Dependencies**: Pairs with [m-eval-failure-attribution](m-eval-failure-attribution.md) — see "Relationship to failure-attribution". Sequence that one first for standard-mode data; this one stands alone for agent/rotation data.
+**Dependencies**: Pairs with [m-eval-failure-attribution](../../planned/m-eval-failure-attribution.md) — see "Relationship to failure-attribution". Sequence that one first for standard-mode data; this one stands alone for agent/rotation data.
 **Provenance**: Authored as W8 of m-eval-validity-discipline (2026-08-07). Reality-checked in-session at iteration 178 (2026-08-11, base `5f471b2b7`). Quorum R1/R2 objections on AC-W8.3 adopted VERBATIM. Content below is carried over unchanged except where marked.
 
 ---
@@ -55,7 +58,7 @@ The parent doc reached **BLOCKED** at quorum on 2026-08-11 across two rounds. Th
 
 The harness already writes `validity: {valid: false, reason: "harness_error"}` on exactly these rows — and the aggregation never reads it.
 
-Concretely on 2026-08-07: 30 `api_error` rows from the ollama 300s-timeout cascade ([m-ollama-v1-streaming-idle-timeout](m-ollama-v1-streaming-idle-timeout.md), ailang#618) put motoko-local's published v0.33.0 **frontier at exactly `3/22 = 0.13636363636363635`** — bit-for-bit the published value — where **17 of the 22 were harness timeouts**. True figure ≈ 60% (n=5): a **~4× understatement**, live on the dashboard and synced to the bucket.
+Concretely on 2026-08-07: 30 `api_error` rows from the ollama 300s-timeout cascade ([m-ollama-v1-streaming-idle-timeout](../v0_33_1/m-ollama-v1-streaming-idle-timeout.md), ailang#618) put motoko-local's published v0.33.0 **frontier at exactly `3/22 = 0.13636363636363635`** — bit-for-bit the published value — where **17 of the 22 were harness timeouts**. True figure ≈ 60% (n=5): a **~4× understatement**, live on the dashboard and synced to the bucket.
 
 **Fix:** exclude `validity.valid == false` rows from BOTH numerator and denominator, and surface the excluded count (`n=5 (17 invalid excluded)`) rather than silently shrinking `n` — a silent drop trades one invisible bug for another. Per CLAUDE.md Critical Principle 2, a harness error must never be scored as a capability failure.
 
@@ -119,7 +122,7 @@ Per Critical Principle 2 a `nil` rate is a no-measurement and must never be rend
 
 ## Relationship to failure-attribution
 
-[m-eval-failure-attribution](m-eval-failure-attribution.md) is the **producer** half: it decides *whose fault* a failure was and sets validity accordingly. This doc is the **consumer** half: it stops aggregation from counting rows already marked invalid.
+[m-eval-failure-attribution](../../planned/m-eval-failure-attribution.md) is the **producer** half: it decides *whose fault* a failure was and sets validity accordingly. This doc is the **consumer** half: it stops aggregation from counting rows already marked invalid.
 
 They cover disjoint populations, split by mode (measured 2026-08-13):
 
@@ -140,9 +143,9 @@ Neither supersedes the other. If both are scheduled, run producer-first so the s
 
 ## Non-Goals
 
-- **W9 and the rest of the umbrella.** They stay in [m-eval-validity-discipline](m-eval-validity-discipline.md); W9's direction is disputed and parked `needs-human-review`.
+- **W9 and the rest of the umbrella.** They stay in [m-eval-validity-discipline](../../planned/m-eval-validity-discipline.md); W9's direction is disputed and parked `needs-human-review`.
 - **`--skip-existing` handling.** Already fixed by `f3189541a` (V6).
-- **Producer-side classification.** That is [m-eval-failure-attribution](m-eval-failure-attribution.md).
+- **Producer-side classification.** That is [m-eval-failure-attribution](../../planned/m-eval-failure-attribution.md).
 
 ## Risks & Mitigations
 
@@ -154,9 +157,9 @@ Neither supersedes the other. If both are scheduled, run producer-first so the s
 
 ## Related Documents
 
-- [m-eval-validity-discipline.md](m-eval-validity-discipline.md) — parent; W1-W7, W9 remain there
-- [m-eval-failure-attribution.md](m-eval-failure-attribution.md) — producer half
-- [m-ollama-v1-streaming-idle-timeout.md](m-ollama-v1-streaming-idle-timeout.md) — ailang#618, source of the 30-row cascade
+- [m-eval-validity-discipline.md](../../planned/m-eval-validity-discipline.md) — parent; W1-W7, W9 remain there
+- [m-eval-failure-attribution.md](../../planned/m-eval-failure-attribution.md) — producer half
+- [m-ollama-v1-streaming-idle-timeout.md](../v0_33_1/m-ollama-v1-streaming-idle-timeout.md) — ailang#618, source of the 30-row cascade
 
 ## References
 
