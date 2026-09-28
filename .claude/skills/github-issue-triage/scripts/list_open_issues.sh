@@ -5,7 +5,7 @@
 # Options:
 #   --json          Output as JSON
 #   --labels LABELS Filter by labels (comma-separated)
-#   --limit N       Limit number of issues (default: 100)
+#   --limit N       Limit number of issues (default: 1000; gh silently truncates at the limit)
 
 set -euo pipefail
 
@@ -15,7 +15,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
 # Defaults
 JSON_OUTPUT=false
 LABELS=""
-LIMIT=100
+LIMIT=1000
 REPO="sunholo-data/ailang"
 
 # Parse args
