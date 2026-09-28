@@ -14,7 +14,10 @@
 -- when two orphaned agents with no lease kept every real eval waiting. Short calls
 -- (embeddings, model listing) are always admitted: they run on the second loaded
 -- model slot and cost milliseconds. With no lease held, long work is admitted and
--- marked "unleased", so ad-hoc use keeps working.
+-- marked "unleased", so ad-hoc use keeps working. Ollama Cloud models ("…:cloud",
+-- "…-cloud") are always admitted too: the local daemon forwards them to
+-- ollama.com, so they never touch the GPU, and missions run on them while an
+-- eval holds the lease.
 --
 -- The refusal status is 423, never 503: measured 2026-09-27 (design doc V11),
 -- opencode retries a 503 indefinitely but treats 423 as final, as does pi.
@@ -23,7 +26,7 @@
 
 module internal/dashboard_transforms/rig_admission
 import std/list (any)
-import std/string (startsWith)
+import std/string (startsWith, endsWith, split)
 
 -- ============================================================================
 -- Types
@@ -35,10 +38,11 @@ import std/string (startsWith)
 -- (Authorization: Bearer or X-Rig-Lease); tokenMatches is whether it equals the
 -- live lease's token. leaseHasToken is false when the holder minted no token (a
 -- holder binary from before leases, or Daneel's lock code until it mints). holder
--- names the current holder for the refusal message.
-export type Request = { path: string, leaseHeld: bool, leaseHasToken: bool, tokenPresent: bool, tokenMatches: bool, holder: string }
+-- names the current holder for the refusal message. model is the request body's
+-- "model" field ("" when there is none or it is not JSON).
+export type Request = { path: string, model: string, leaseHeld: bool, leaseHasToken: bool, tokenPresent: bool, tokenMatches: bool, holder: string }
 
--- The answer. decision is the ledger label: short | unleased | legacy-holder | lease | refused.
+-- The answer. decision is the ledger label: short | cloud | unleased | legacy-holder | lease | refused.
 export type Verdict = { admit: bool, status: int, decision: string, reason: string }
 
 -- ============================================================================
@@ -68,12 +72,34 @@ export pure func isLong(path: string) -> bool
   }, ["/v1/chat/completions", "/v1/completions", "/api/chat", "/api/generate"])
 }
 
+-- An Ollama Cloud model: ollama's naming puts "cloud" in the tag, as the whole
+-- tag for an untagged model ("kimi-k3:cloud") or as a "-cloud" suffix on a
+-- tagged one ("deepseek-v4-flash:0731-cloud"). The daemon proxies these to
+-- ollama.com; no local weights load. A name with no tag is never cloud.
+export pure func isCloudModel(model: string) -> bool
+  tests [
+    ("kimi-k3:cloud", true),
+    ("glm-5.3-flash:cloud", true),
+    ("deepseek-v4-flash:0731-cloud", true),
+    ("qwen3.8:27b-mxfp8", false),
+    ("qwen3:8b", false),
+    ("cloud", false),
+    ("my-cloud", false),
+    ("", false)
+  ] {
+  endsWith(model, ":cloud") || (endsWith(model, "-cloud") && tagged(model))
+}
+
+pure func tagged(model: string) -> bool {
+  match split(model, ":") { [_, _] => true, _ => false }
+}
+
 -- ============================================================================
 -- The decision
 -- ============================================================================
 
 -- The ledger label for one request:
---   short | unleased | legacy-holder | lease | refused-foreign | refused-none.
+--   short | cloud | unleased | legacy-holder | lease | refused-foreign | refused-none.
 --
 -- legacy-holder: the lock is held by a holder that minted no token, so NOBODY
 -- could present a matching one, including the holder's own agents. Admitting
@@ -85,16 +111,19 @@ export pure func isLong(path: string) -> bool
 -- "expected literal expression, got *ast.Record"). decide() only renders it.
 export pure func label(r: Request) -> string
   tests [
-    (({path: "/api/embed", leaseHeld: true, leaseHasToken: true, tokenPresent: false, tokenMatches: false, holder: "h"}), "short"),
-    (({path: "/v1/chat/completions", leaseHeld: false, leaseHasToken: false, tokenPresent: false, tokenMatches: false, holder: ""}), "unleased"),
-    (({path: "/v1/chat/completions", leaseHeld: true, leaseHasToken: true, tokenPresent: true, tokenMatches: true, holder: "h"}), "lease"),
-    (({path: "/api/generate", leaseHeld: true, leaseHasToken: true, tokenPresent: true, tokenMatches: false, holder: "h"}), "refused-foreign"),
-    (({path: "/v1/chat/completions", leaseHeld: true, leaseHasToken: true, tokenPresent: false, tokenMatches: false, holder: "h"}), "refused-none"),
-    (({path: "/api/tags", leaseHeld: true, leaseHasToken: true, tokenPresent: true, tokenMatches: false, holder: "h"}), "short"),
-    (({path: "/api/chat", leaseHeld: true, leaseHasToken: false, tokenPresent: false, tokenMatches: false, holder: "h"}), "legacy-holder")
+    (({model: "qwen3.8:27b-mxfp8", path: "/api/embed", leaseHeld: true, leaseHasToken: true, tokenPresent: false, tokenMatches: false, holder: "h"}), "short"),
+    (({model: "qwen3.8:27b-mxfp8", path: "/v1/chat/completions", leaseHeld: false, leaseHasToken: false, tokenPresent: false, tokenMatches: false, holder: ""}), "unleased"),
+    (({model: "qwen3.8:27b-mxfp8", path: "/v1/chat/completions", leaseHeld: true, leaseHasToken: true, tokenPresent: true, tokenMatches: true, holder: "h"}), "lease"),
+    (({model: "qwen3.8:27b-mxfp8", path: "/api/generate", leaseHeld: true, leaseHasToken: true, tokenPresent: true, tokenMatches: false, holder: "h"}), "refused-foreign"),
+    (({model: "qwen3.8:27b-mxfp8", path: "/v1/chat/completions", leaseHeld: true, leaseHasToken: true, tokenPresent: false, tokenMatches: false, holder: "h"}), "refused-none"),
+    (({model: "qwen3.8:27b-mxfp8", path: "/api/tags", leaseHeld: true, leaseHasToken: true, tokenPresent: true, tokenMatches: false, holder: "h"}), "short"),
+    (({model: "qwen3.8:27b-mxfp8", path: "/api/chat", leaseHeld: true, leaseHasToken: false, tokenPresent: false, tokenMatches: false, holder: "h"}), "legacy-holder"),
+    (({model: "kimi-k3:cloud", path: "/v1/chat/completions", leaseHeld: true, leaseHasToken: true, tokenPresent: false, tokenMatches: false, holder: "h"}), "cloud"),
+    (({model: "deepseek-v4-flash:0731-cloud", path: "/api/generate", leaseHeld: true, leaseHasToken: true, tokenPresent: true, tokenMatches: false, holder: "h"}), "cloud")
   ]
 {
   if !isLong(r.path) then "short"
+  else if isCloudModel(r.model) then "cloud"
   else if !r.leaseHeld then "unleased"
   else if !r.leaseHasToken then "legacy-holder"
   else if r.tokenMatches then "lease"
@@ -106,6 +135,8 @@ export pure func decide(r: Request) -> Verdict {
   let l = label(r);
   if l == "short" then
     {admit: true, status: 200, decision: "short", reason: "short call; always admitted"}
+  else if l == "cloud" then
+    {admit: true, status: 200, decision: "cloud", reason: "Ollama Cloud model ${r.model}; served off-box, no GPU use"}
   else if l == "unleased" then
     {admit: true, status: 200, decision: "unleased", reason: "no lease is held; long work admitted without one"}
   else if l == "legacy-holder" then

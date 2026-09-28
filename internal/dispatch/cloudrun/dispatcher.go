@@ -292,6 +292,7 @@ func (d *Dispatcher) Dispatch(ctx context.Context, params coordinator.DispatchPa
 			})
 		}
 	}
+	envOverrides = append(envOverrides, prMetaEnv(params)...)
 	// M-AGENT-AILANG-ONLY-EXECUTION: the tool lane, and the program policy by
 	// CONTENT (the Job cannot read the coordinator's disk). full = no override.
 	if params.ToolPolicy != "" && params.ToolPolicy != "full" {
@@ -426,4 +427,22 @@ func ProvidersForVariant() map[string][]string {
 		out[k] = append([]string(nil), v...)
 	}
 	return out
+}
+
+// prMetaEnv carries what the job's PR should say it is (its needs-*-approval
+// label) and what merging it starts (the approval's handoff targets).
+// Comma-separated: label and agent ids never contain a comma.
+func prMetaEnv(params coordinator.DispatchParams) []*runpb.EnvVar {
+	var env []*runpb.EnvVar
+	if len(params.PRLabels) > 0 {
+		env = append(env, &runpb.EnvVar{
+			Name: "AILANG_PR_LABELS", Values: &runpb.EnvVar_Value{Value: strings.Join(params.PRLabels, ",")},
+		})
+	}
+	if len(params.MergeStarts) > 0 {
+		env = append(env, &runpb.EnvVar{
+			Name: "AILANG_MERGE_STARTS", Values: &runpb.EnvVar_Value{Value: strings.Join(params.MergeStarts, ",")},
+		})
+	}
+	return env
 }

@@ -26,6 +26,7 @@ const policyModule = "internal/dashboard_transforms/rig_admission"
 // Facts is what the Go shell observed about one request.
 type Facts struct {
 	Path          string
+	Model         string // the JSON body's "model", "" when absent
 	LeaseHeld     bool
 	LeaseHasToken bool
 	TokenPresent  bool
@@ -69,6 +70,7 @@ func (p *Policy) Decide(f Facts) (Verdict, error) {
 	defer p.mu.Unlock()
 	v, err := p.eng.Call(policyModule, "decide", map[string]interface{}{
 		"path":          f.Path,
+		"model":         f.Model,
 		"leaseHeld":     f.LeaseHeld,
 		"leaseHasToken": f.LeaseHasToken,
 		"tokenPresent":  f.TokenPresent,

@@ -167,6 +167,12 @@ against the old fork.
   skips the parallel targets and still prints "all targets passed".
 - Headless runs need `MODEL` set explicitly: without it motoko ignores the profile's model and
   falls back to `anthropic/claude-sonnet-4-6`. The eval executor always sets it.
+- **Blocker for making mk-main the eval tree: the rig lease.** Since 2026-09-28 the rig's ollama sits
+  behind a gateway that, under a held rig lock, refuses long work without the holder's token
+  (M-RIG-GPU-ADMISSION-GATEWAY). The token reaches motoko's AILANG child as `AILANG_RIG_LEASE`.
+  mk-ast forwards every `AILANG_*` variable (`autoForwardedEnvKeys`). mk-main's `buildChildEnv` is a
+  plain allowlist that drops it, so every local-model step would get 423. Add `AILANG_RIG_LEASE` to
+  that allowlist, or port the prefix rule, before the paired A/B.
 - Open questions to Arni (package source of truth, where AILANG extensions live, a post-tool
   hook, versioning): arniwesth/motoko_agent#192. Arni confirms ABI 8.0 is stable.
 - Not yet ported from the fork: compact-interface auto-read, per-edit `ailang check`,
