@@ -140,7 +140,15 @@ func TestEmbeddedMCPReplayIsNeverSniffable(t *testing.T) {
 			if strings.Contains(contentType, "text/html") {
 				t.Fatalf("Content-Type=%q is text/html; body=%q", contentType, recorder.Body.String())
 			}
+			// The SDK this handler used before #885 reflected the payload literally in
+			// text/plain errors. The stdlib dispatcher JSON-encodes every body, so the
+			// payload now reaches the response only escaped. Count that as reflection
+			// (the request data still reaches the body, so the checks above measure
+			// something), and require that the literal form never appears.
 			if strings.Contains(recorder.Body.String(), htmlPayload) {
+				t.Fatalf("request data reflected UNESCAPED: Content-Type=%q body=%q", contentType, recorder.Body.String())
+			}
+			if strings.Contains(recorder.Body.String(), `\u003cscript\u003e`) {
 				reflected++
 			}
 		})
@@ -153,46 +161,73 @@ func TestEmbeddedMCPReplayIsNeverSniffable(t *testing.T) {
 	}
 }
 
-// TestEmbeddedMCPReplayDefaultsContentTypeWhenTransportOmitsIt covers the OTHER half of
-// the #603 guard, which the battery above cannot reach.
+// TestEmbeddedMCPEveryResponseClassIsLabelled covers the half of the #603 guard the
+// battery above cannot reach on its own.
 //
-// The SDK sets a Content-Type on every response path it has today, so the default branch
-// in serveTransport never fires through the public HTTP path — deleting that branch reds
-// no test at all (measured). A guard whose removal breaks nothing is not a guard. The only
-// way to exercise it is to inject a transport that writes an unlabelled body, which is
-// precisely the future the branch exists to survive: a dependency bump that stops setting
-// Content-Type would otherwise hand the browser a sniffable, reflecting body.
-func TestEmbeddedMCPReplayDefaultsContentTypeWhenTransportOmitsIt(t *testing.T) {
-	handler := &embeddedMCPHandler{
-		transport: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			// No Header().Set("Content-Type", ...) — deliberately unlabelled.
-			_, _ = w.Write([]byte("<html>" + htmlPayload + "</html>"))
-		}),
+// Before ailang#885 this wrapper replayed the MCP SDK's buffered headers, and the test
+// here injected a transport that wrote an unlabelled body to prove the replay defaulted
+// Content-Type. There is no replay any more: every writer in serveapi/protocol/mcphttp
+// labels its own response. The guarantee to pin is therefore "every response CLASS is
+// labelled". The battery only produces some of them (SSE results and 400s), so this test
+// drives the rest (405, 202, 401 and the host-failure envelope) and requires each
+// class to be seen, so a class that silently stops being produced cannot pass vacuously.
+func TestEmbeddedMCPEveryResponseClassIsLabelled(t *testing.T) {
+	block := func(ctx context.Context) error { <-ctx.Done(); return ctx.Err() }
+	host := embeddedTestHost{
+		resolve: func(_ context.Context, r *http.Request) (any, error) {
+			if r.Header.Get("X-Deny") != "" {
+				return nil, testAuthorizationError{status: http.StatusUnauthorized}
+			}
+			return "s", nil
+		},
+		tools: func(context.Context, any) ([]ToolDescriptor, error) {
+			return []ToolDescriptor{objectTool("echo"), objectTool("hang")}, nil
+		},
+		invoke: func(ctx context.Context, _ any, name string, args json.RawMessage) (json.RawMessage, error) {
+			if name == "hang" {
+				return nil, block(ctx)
+			}
+			return args, nil
+		},
 	}
-
-	recorder := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodPost, "/mcp/", strings.NewReader(`{}`))
-	request = request.WithContext(context.WithValue(request.Context(), embeddedMCPContextKey{},
-		embeddedMCPContext{failure: &embeddedCallbackFailure{}}))
-
-	handler.serveTransport(recorder, request, json.RawMessage("1"))
-
-	// Control 1: the body really is the hostile payload we wrote, so this test is not
-	// asserting over an empty response.
-	if !strings.Contains(recorder.Body.String(), htmlPayload) {
-		t.Fatalf("control failed: fake transport body did not reach the replay: %q", recorder.Body.String())
+	handler := embeddedHandler(t, host, 50*time.Millisecond, 4)
+	cases := []struct {
+		name, method, body string
+		deny               bool
+		wantStatus         int
+	}{
+		{"GET is refused", http.MethodGet, "", false, http.StatusMethodNotAllowed},
+		{"notification", http.MethodPost, `{"jsonrpc":"2.0","method":"notifications/initialized"}`, false, http.StatusAccepted},
+		{"unauthorized", http.MethodPost, `{"jsonrpc":"2.0","id":1,"method":"tools/list"}`, true, http.StatusUnauthorized},
+		{"host timeout envelope", http.MethodPost, `{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"hang","arguments":{}}}`, false, http.StatusOK},
+		{"sse result", http.MethodPost, `{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"echo","arguments":{"x":"<b>"}}}`, false, http.StatusOK},
 	}
-	// Control 2: absent the guard this body WOULD be sniffed as HTML, so the assertion
-	// below is protecting against a real rendering path rather than a hypothetical one.
-	if sniffed := http.DetectContentType(recorder.Body.Bytes()); !strings.Contains(sniffed, "text/html") {
-		t.Fatalf("control failed: body should sniff to text/html, got %q", sniffed)
+	seen := map[int]int{}
+	for _, tc := range cases {
+		recorder := httptest.NewRecorder()
+		request := httptest.NewRequest(tc.method, "/mcp/", strings.NewReader(tc.body))
+		request.Header.Set("Content-Type", "application/json")
+		request.Header.Set("Accept", "application/json, text/event-stream")
+		if tc.deny {
+			request.Header.Set("X-Deny", "1")
+		}
+		handler.ServeHTTP(recorder, request)
+		if recorder.Code != tc.wantStatus {
+			t.Fatalf("%s: status=%d want=%d body=%q", tc.name, recorder.Code, tc.wantStatus, recorder.Body.String())
+		}
+		seen[recorder.Code]++
+		if recorder.Header().Get("Content-Type") == "" {
+			t.Fatalf("%s: unlabelled response lets a browser sniff it: %q", tc.name, recorder.Body.String())
+		}
+		if recorder.Header().Get("X-Content-Type-Options") != "nosniff" {
+			t.Fatalf("%s: missing nosniff (Content-Type=%q)", tc.name, recorder.Header().Get("Content-Type"))
+		}
 	}
-
-	if got := recorder.Header().Get("Content-Type"); got != "application/json" {
-		t.Fatalf("unlabelled replayed body must be defaulted to application/json, got %q", got)
-	}
-	if got := recorder.Header().Get("X-Content-Type-Options"); got != "nosniff" {
-		t.Fatalf("replayed response must carry nosniff, got %q", got)
+	// Control: every class was actually produced, so the assertions above were not vacuous.
+	for _, status := range []int{http.StatusMethodNotAllowed, http.StatusAccepted, http.StatusUnauthorized, http.StatusOK} {
+		if seen[status] == 0 {
+			t.Fatalf("control failed: no response with status %d was produced", status)
+		}
 	}
 }
 
