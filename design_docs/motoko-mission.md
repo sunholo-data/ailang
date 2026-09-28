@@ -1054,7 +1054,7 @@ are ordered so the UNGATED work runs first.
 6n. [**LANDED 2026-09-01 · iteration 32 · Gate 3b GREEN on the PR head (21/21 checks, `mergeStateStatus=CLEAN`), including `launchd drivers (bash 3.2): success` — the leg decision (d) named as the only place the runner's behaviour is observable, and the leg that failed on V1's `#971` with this exact discovery error. Merged as [#1008](https://github.com/sunholo-data/ailang/pull/1008) → `64ca81852`. Evaluator PASS 93/100, zero blocking. UNPARKED BY ATTENDED RULING `D-MOTOKO-6N-1` (Mark, 2026-09-01, commit `878e0a5a0`), option (B): adopt D4. The arm now asserts `process-tree discovery deadline expired (wall clock)`, which only the wall-clock branch can emit, and the judge's own T1 confirms the mutant reds that arm. Historical PARK text kept below as the trail.**]
    [was: PARKED needs-human-review 2026-09-01 · iteration 31 — design written, quorum BLOCKED 3/3 in BOTH
    rounds on one surface; the row's own runner blocker is DISCHARGED. Doc:
-   [m-motoko-discovery-arm-discriminating-refusal](planned/m-motoko-discovery-arm-discriminating-refusal.md).
+   [m-motoko-discovery-arm-discriminating-refusal](implemented/v0_35_0/m-motoko-discovery-arm-discriminating-refusal.md).
    **The defect is confirmed and the fix is measured to work locally**: baseline 41/41; neuter the wall
    clock alone → 41/41 with arm 33 still `ok`; neuter the node ceiling alone → only arm 40 reds, arm 33
    still `ok` (so each branch independently suffices and the arm cannot discriminate); the minimal fix

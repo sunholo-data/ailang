@@ -14,6 +14,8 @@ func qualityManifest(stability string, effects []string) *PackageManifest {
 	m.Stability.Level = stability
 	m.Effects.Max = effects
 	m.Metadata = map[string]interface{}{"ai_summary": "x", "repository": "https://github.com/test/q/tree/main/packages/q"}
+	m.Metadata["license_url"] = "https://example.test/LICENSE"
+	m.Exports.Modules = []string{"test/q/a"}
 	return m
 }
 
@@ -34,8 +36,40 @@ func cleanInputs() QualityInputs {
 		CompileOK: true, CompileFiles: 2,
 		Verify:          &PackageVerifyReport{Schema: PackageVerifySchema, Verified: 2, Total: 2, Uncontracted: 1},
 		InterfaceHashV1: "sha256:v1", InterfaceHashV2: "sha256:ifacev2:abc",
-		Signatures:  []string{"test/q/a:func:capAt:(int,int)->int:", "test/q/a:func:load:(string)->string:FS", "test/q/a:type:Money/0"},
-		HasAgentDoc: true,
+		Signatures:      []string{"test/q/a:func:capAt:(int,int)->int:", "test/q/a:func:load:(string)->string:FS", "test/q/a:type:Money/0"},
+		HasAgentDoc:     true,
+		AgentDocContent: "Use test/q/a for all operations.",
+	}
+}
+
+func TestBuildQualityReport_DiscoverabilityFindings(t *testing.T) {
+	m := qualityManifest("experimental", []string{})
+	in := cleanInputs()
+	delete(m.Metadata, "ai_summary")
+	delete(m.Metadata, "license_url")
+	in.AgentDocContent = "stale guide"
+	in.Overlap = []string{"z/pkg", "a/pkg"}
+	r := BuildQualityReport(m, ModePublisher, in, false)
+	for _, code := range []string{"PUB008", "PUB018", "PUB022", "PUB023"} {
+		if !hasCode(r.Badges, code) {
+			t.Errorf("missing %s: %+v", code, r.Badges)
+		}
+	}
+	if got := strings.Join(r.Docs.ExportOverlap, ","); got != "a/pkg,z/pkg" {
+		t.Errorf("overlap = %q", got)
+	}
+	strict := BuildQualityReport(m, ModePublisher, in, true)
+	if !hasCode(strict.Gates, "PUB018") || !hasCode(strict.Gates, "PUB022") {
+		t.Errorf("strict warnings not promoted: %+v", strict.Gates)
+	}
+	if hasCode(strict.Gates, "PUB008") || hasCode(strict.Gates, "PUB023") {
+		t.Errorf("info findings promoted: %+v", strict.Gates)
+	}
+	clean := BuildQualityReport(qualityManifest("experimental", []string{}), ModePublisher, cleanInputs(), false)
+	for _, code := range []string{"PUB008", "PUB018", "PUB022", "PUB023"} {
+		if hasCode(clean.Badges, code) {
+			t.Errorf("clean input emitted %s: %+v", code, clean.Badges)
+		}
 	}
 }
 
@@ -63,11 +97,12 @@ func TestBuildQualityReport_ServerSectionsIdenticalAcrossModes(t *testing.T) {
 		Interface InterfaceSection
 		Effects   EffectsSection
 		Release   ReleaseSection
+		Docs      DocsSection
 		Style     StyleSection
 		Gates     []Finding
 	}
 	view := func(r *QualityReport) string {
-		b, _ := json.Marshal(serverView{r.Compile, r.Contracts, r.Interface, r.Effects, r.Release, r.Style, r.Gates})
+		b, _ := json.Marshal(serverView{r.Compile, r.Contracts, r.Interface, r.Effects, r.Release, r.Docs, r.Style, r.Gates})
 		return string(b)
 	}
 	if view(pub) != view(srv) {

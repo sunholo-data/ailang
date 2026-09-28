@@ -183,6 +183,10 @@ After creating the JSON file, sprint-executor can:
 
 **CRITICAL: Always end by handing off to sprint-executor after user approval!**
 
+### 0. Check the Registry (Mandatory Reuse Gate)
+
+Search the registry before planning any package-like capability, and record a `depend` / `contribute` / `none` decision per milestone in `registry_reuse`; placeholders block handoff. Procedure: [resources/registry_reuse_gate.md](resources/registry_reuse_gate.md).
+
 ### 1. Read and Analyze Design Document
 
 **Input**: Path to design doc (e.g., `design_docs/planned/v0.4-roadmap.md`)
@@ -410,6 +414,7 @@ git commit -m "Add M-<milestone> sprint plan with JSON progress tracking"
 ## Analysis Framework
 
 ### Design Doc Analysis Checklist
+- [ ] Registry reuse audit: every implementable milestone has a populated `depend`, `contribute`, or `none` decision
 - [ ] Current status: What's ✅ vs ❌ vs ⏳
 - [ ] Timeline: Days/weeks remaining, velocity metrics
 - [ ] Priority matrix: Critical vs nice-to-have
@@ -529,29 +534,7 @@ coordinator:
       session_continuity: true
 ```
 
-### Receiving Handoffs from design-doc-creator
-
-The sprint-planner receives:
-```json
-{
-  "type": "design_doc_ready",
-  "correlation_id": "task-123",
-  "design_doc_path": "design_docs/planned/v0_6_3/m-semantic-caching.md",
-  "session_id": "claude-session-abc"
-}
-```
-
-### Sending Tasks to sprint-planner
-
-```bash
-# Direct task (skip design-doc-creator)
-ailang messages send sprint-planner "Plan sprint for M-CACHE feature" \
-  --title "Sprint: M-CACHE" --from "user"
-
-# Reference existing design doc
-ailang messages send sprint-planner '{"design_doc_path": "design_docs/planned/v0_6_3/m-cache.md"}' \
-  --title "Sprint: M-CACHE" --from "design-doc-creator"
-```
+Handoff message formats and how to send tasks: [resources/coordinator.md](resources/coordinator.md). **Merging a `coordinator/task-*` sprint-plan PR approves it and starts sprint-executor, which writes code** (the cloud daemon fires the handoff on merge).
 
 ### Handoff Message to sprint-executor
 
@@ -566,6 +549,7 @@ On completion, sprint-planner sends:
   "session_id": "claude-session-xyz",
   "estimated_duration": "3 days",
   "total_loc_estimate": 650,
+  "registry_reuse": [{"milestone":"M1", "package":"sunholo/example", "action":"depend", "reason":"Capability already exists"}],
   "risk_level": "medium"
 }
 ```

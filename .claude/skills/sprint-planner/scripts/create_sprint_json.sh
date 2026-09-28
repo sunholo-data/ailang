@@ -226,6 +226,12 @@ data = {
     "design_doc": design_doc,
     "sprint_plan": sprint_plan,
     "github_issues": [],
+	"registry_reuse": [{
+		"milestone": "MILESTONE_ID",
+		"package": None,
+		"action": "none",
+		"reason": "REPLACE: registry search result and reuse rationale"
+	}],
     "velocity": {
         "target_loc_per_day": target_loc_per_day,
         "estimated_total_loc": estimated_total_loc,

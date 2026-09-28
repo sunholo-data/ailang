@@ -69,10 +69,18 @@ fi
 # wedge from a legitimately-slow docx run). Only FILLER-parented chunks are ever touched, so
 # manual runs and the A/B daemons (ab_*.sh parents) are never killed. Also reap orphaned :8080
 # env-servers (the port-8080-zombie that crashes the next run with "no run_summary").
-LOGDIR="$HOME/dev/mk-ast/.motoko/logfile"
+#
+# Progress = the rotation's OWN log, which eval-suite appends to as each run starts and ends.
+# It used to be motoko's session logs in ~/dev/mk-ast, which only motoko writes: once motoko
+# left the rotation (2026-09-27) and mk-ast was retired, that log only aged, so EVERY healthy
+# opencode/pi chunk was killed as "no-progress" at exactly SOFT_SECS (2026-09-28: 12:11, 14:57,
+# 17:42, "200m/366m/531m since last session write"). The filler log is harness-neutral. A run
+# can legitimately stay silent for its whole per-run timeout (1500s, 5400s for reimplement
+# picks), so STALL_MIN must exceed the longest of those.
+PROGRESS_LOG="${RIG_WATCHDOG_PROGRESS_LOG:-/tmp/ailang-os-filler.log}"
 HARD_SECS=$(( ${RIG_WATCHDOG_HARD_HOURS:-8} * 3600 ))
 SOFT_SECS=$(( ${RIG_WATCHDOG_SOFT_HOURS:-2} * 3600 ))
-STALL_MIN=${RIG_WATCHDOG_STALL_MIN:-30}
+STALL_MIN=${RIG_WATCHDOG_STALL_MIN:-100}
 
 etime_secs() {  # PID → elapsed seconds (0 on any miss). Takes the pid and reads `ps etime`
     # ITSELF — the caller passes $pid, so a version that parsed $1 as an etime string was
@@ -93,10 +101,9 @@ etime_secs() {  # PID → elapsed seconds (0 on any miss). Takes the pid and rea
     echo $(( days*86400 + 10#${h:-0}*3600 + 10#${m:-0}*60 + 10#${s:-0} ))
 }
 
-newest=$(ls -t "$LOGDIR"/session_*.jsonl 2>/dev/null | head -1)
 stall_min=999
-if [ -n "$newest" ]; then
-    mtime=$(stat -f %m "$newest" 2>/dev/null)
+if [ -f "$PROGRESS_LOG" ]; then
+    mtime=$(stat -f %m "$PROGRESS_LOG" 2>/dev/null)
     case "$mtime" in ''|*[!0-9]*) ;; *) stall_min=$(( ( $(date +%s) - mtime ) / 60 ));; esac
 fi
 
@@ -140,7 +147,7 @@ for pid in $(pgrep -f "ailang eval-suite" 2>/dev/null); do
     reason=""
     if [ "$secs" -gt "$HARD_SECS" ]; then reason="hard-max (${secs}s alive)"
     elif [ "$secs" -gt "$SOFT_SECS" ] && [ "$stall_min" -gt "$STALL_MIN" ]; then
-        reason="no-progress (${stall_min}m since last session write, ${secs}s alive)"; fi
+        reason="no-progress (${stall_min}m since the rotation log was written, ${secs}s alive)"; fi
     if [ -n "$reason" ]; then
         groups=$(kill_tree "$pid")
         echo "${TIMESTAMP} [WATCHDOG] WEDGED rotation chunk pid $pid — $reason — killed tree (pgroups:${groups})"

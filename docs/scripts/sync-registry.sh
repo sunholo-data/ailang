@@ -120,6 +120,14 @@ VENDOREOF
     mkdir -p "$PKG_STATIC_DIR"
     echo "$PKG_JSON" > "$PKG_STATIC_DIR/index.json"
 
+    if [ "$(echo "$PKG_JSON" | jq -r '.has_agent_doc // false')" = "true" ]; then
+	  AGENT_URL="$REGISTRY_GCS/packages/$VENDOR/$SHORT_NAME/$LATEST/AGENT.md"
+	  if ! curl -sf --max-time 10 "$AGENT_URL" -o "$PKG_STATIC_DIR/AGENT.md" 2>/dev/null; then
+	    rm -f "$PKG_STATIC_DIR/AGENT.md"
+	    echo "  ⚠ no AGENT.md snapshot for $FULL_NAME (fetch failed)"
+	  fi
+	fi
+
     cat > "$VENDOR_DIR/$SHORT_NAME.mdx" <<PKGEOF
 ---
 title: "${FULL_NAME}"
