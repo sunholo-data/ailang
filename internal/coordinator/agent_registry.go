@@ -674,6 +674,20 @@ func DefaultApprovalConfig(agentID string) *ApprovalConfig {
 	}
 }
 
+// PRApprovalLabel is the label a PR from this agent carries while it waits for a
+// human: the agent's own NeedsLabel (needs-design-approval, needs-sprint-approval,
+// ...), else needs-merge-approval. "" when the agent skips approval — nothing is
+// waiting, so a "needs" label would be false.
+func PRApprovalLabel(a *AgentConfig) string {
+	if a == nil || a.SkipApproval {
+		return ""
+	}
+	if cfg := a.GetEffectiveApprovalConfig(); cfg != nil && cfg.NeedsLabel != "" {
+		return cfg.NeedsLabel
+	}
+	return "needs-merge-approval"
+}
+
 // GetEffectiveApprovalConfig returns the agent's approval config, or defaults for known agents.
 func (a *AgentConfig) GetEffectiveApprovalConfig() *ApprovalConfig {
 	if a.Approval != nil {

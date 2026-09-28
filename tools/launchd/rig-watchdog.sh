@@ -2,8 +2,10 @@
 # rig-watchdog.sh — Poll-based reliability backstop for the local-Ollama
 # eval rig. Called every 60s by dev.ailang.rig-watchdog.plist.
 #
-# Checks two services:
-#   - ollama serve at http://127.0.0.1:11434/api/tags
+# Checks three services:
+#   - ollama serve at http://127.0.0.1:11435/api/tags (its private port)
+#   - the rig GPU gateway (dev.ailang.rig-gate) at 127.0.0.1:11434, ollama's
+#     usual address, when that job is loaded (M-RIG-GPU-ADMISSION-GATEWAY)
 #   - ailang OTLP receiver at http://localhost:1957/health
 #
 # If either is unreachable, kickstart the corresponding launchd job.
@@ -21,15 +23,29 @@ TIMESTAMP=$(date "+%Y-%m-%d %H:%M:%S")
 UID_NUMBER=$(id -u)
 
 # Check ollama. The probe address is PINNED to 127.0.0.1 — it must name the same
-# server this block restarts. dev.ollama.serve binds OLLAMA_HOST=127.0.0.1:11434,
+# server this block restarts. dev.ollama.serve binds OLLAMA_HOST=127.0.0.1:11435,
 # but "localhost" is dual-stack and resolves ::1 first, so the probe and the
 # kickstart target can be DIFFERENT servers. Observed 2026-07-21..08-03 (#557):
 # a second, GUI-launched `ollama serve` held [::1]:11434 for 13 days, so this
 # watchdog probed the app's server while restarting launchd's — meaning a dead
 # dev.ollama.serve would never have been noticed. Do not relax this to localhost.
-if ! curl --max-time 2 -s http://127.0.0.1:11434/api/tags >/dev/null 2>&1; then
+# The probe goes to ollama's PRIVATE port, directly: through the gateway, a dead
+# ollama would look alive whenever the gateway answered.
+if ! curl --max-time 2 -s http://127.0.0.1:11435/api/tags >/dev/null 2>&1; then
     echo "${TIMESTAMP} [WATCHDOG] ollama unreachable — kickstart dev.ollama.serve"
     launchctl kickstart "gui/${UID_NUMBER}/dev.ollama.serve" 2>&1
+fi
+
+# Check the rig gateway. It answers every request itself (a 502 when ollama is
+# down, a 423 when it refuses), so ANY HTTP status means it is alive; only "000"
+# (nothing listening) means it is dead. There is no fallback to direct ollama:
+# a dead gateway is restarted, never bypassed (design doc D4).
+if launchctl print "gui/${UID_NUMBER}/dev.ailang.rig-gate" >/dev/null 2>&1; then
+    gate_code=$(curl --max-time 2 -s -o /dev/null -w '%{http_code}' http://127.0.0.1:11434/api/version 2>/dev/null)
+    if [ "${gate_code:-000}" = "000" ]; then
+        echo "${TIMESTAMP} [WATCHDOG] rig gateway unreachable — kickstart dev.ailang.rig-gate"
+        launchctl kickstart "gui/${UID_NUMBER}/dev.ailang.rig-gate" 2>&1
+    fi
 fi
 
 # Check ailang server (OTLP receiver). Not yet a launchd job by default — only

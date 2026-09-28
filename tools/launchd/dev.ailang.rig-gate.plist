@@ -4,18 +4,20 @@
   M-RIG-GPU-ADMISSION-GATEWAY: the rig GPU admission gateway on ollama's usual
   address (127.0.0.1:11434), proxying to ollama on its private port (11435).
 
-  NOT INSTALLED BY DEFAULT. Cutover order (design doc, Phase 2) — each step needs
-  the one before it, or live GPU work is refused or unreachable:
-    1. Daneel's lock code mints the lease token (daneel_rig.ail) and its
-       /api/generate calls send X-Rig-Lease. Until then its work is admitted
-       only as "legacy-holder" when it holds the lock without a token.
-    2. Eval lanes send the lease: pi via an `ollama-rig` provider whose header is
-       "X-Rig-Lease": "${AILANG_RIG_LEASE}" (pi refuses to start if a templated
-       variable is unset; executors always define it, "none" by default), and
-       opencode via "apiKey": "{env:AILANG_RIG_LEASE}".
-    3. Move ollama: OLLAMA_HOST=127.0.0.1:11435 in dev.ollama.serve.plist (repo
-       AND installed copy), and point rig-watchdog's ollama probe at 11435.
-    4. Install this plist, bootstrap it, and add it to rig-watchdog's probes.
+  Installed on the rig 2026-09-28 (Phase 2 cutover). What each client sends:
+    - ailang's own clients (`--ai ollama:`, the OpenAI-compatible client motoko
+      uses, the lang nightly): X-Rig-Lease from AILANG_RIG_LEASE, loopback only
+      (internal/riglock/lease_transport.go).
+    - pi: "X-Rig-Lease" header on the `ollama` provider in ~/.pi/agent/models.json,
+      as a `!` command value so an unset AILANG_RIG_LEASE reads "none" instead of
+      stopping pi (tools/setup/pi-ollama-models.json).
+    - opencode: "apiKey": "{env:AILANG_RIG_LEASE}" on the ollama provider.
+    - Daneel: admitted as "legacy-holder" while it holds the lock without a
+      token, until daneel_rig.ail mints one and daneel_model.ail sends it.
+    - Ollama Cloud models ("…:cloud", "…-cloud") are always admitted: no GPU use.
+  ollama itself moved to 127.0.0.1:11435 (dev.ollama.serve.plist); rig-watchdog
+  probes both. Rollback: set OLLAMA_HOST back to :11434 in the installed ollama
+  plist, bootout this job, bootstrap ollama again.
 
   Logs: /tmp/ailang-rig-gate.log   Ledger: /Users/Shared/ailang/rig-gate.jsonl
 -->

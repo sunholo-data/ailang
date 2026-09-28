@@ -1,6 +1,9 @@
 # M-PKG-MULTI-NAMESPACE-AUTH — Scoped registry keys (write-restricted, read-all)
 
-**Status:** planned → implementing (2026-09-14)
+**Status**: Implemented in v0.38.7 (6267ef439; closes #633). Moved from planned/ by the 2026-09-28 issue triage.
+
+_Prior status:_ planned → implementing (2026-09-14)
+
 **Trigger:** Daneel needs to publish packages without holding the superuser key.
 **Lane:** registry infra (`cmd/registry-validator`) — not core, not an extension.
 

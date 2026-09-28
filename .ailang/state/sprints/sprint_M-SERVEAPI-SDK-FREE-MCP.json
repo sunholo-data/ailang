@@ -1,0 +1,85 @@
+{
+  "sprint_id": "M-SERVEAPI-SDK-FREE-MCP",
+  "design_doc": "design_docs/planned/v0_48_0/m-serveapi-sdk-free-mcp-dispatch.md",
+  "plan": "design_docs/planned/v0_48_0/m-serveapi-sdk-free-mcp-dispatch-sprint-plan.md",
+  "github_issues": [
+    885
+  ],
+  "created": "2026-09-28",
+  "status": "completed",
+  "velocity": {
+    "target_loc_per_day": 400,
+    "estimated_total_loc": 1030,
+    "estimated_days": 1
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Move callback runner to serveapi/protocol/hostcall",
+      "estimated_loc": 80,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "go test ./serveapi/... green with no behaviour edits",
+        "3 runner tests pass in hostcall"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-09-28T14:04:18Z",
+      "notes": "hostcall.Runner/New/Run; serveapi keeps unexported aliases; runner tests moved with mechanical renames; go test ./serveapi/... green"
+    },
+    {
+      "id": "M2",
+      "description": "Stdlib MCP dispatcher serveapi/protocol/mcphttp + facade adapter + goldens",
+      "estimated_loc": 530,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "AC2 no SDK import in serveapi non-test",
+        "AC3 existing MCP/A2A tests unmodified green (except C4)",
+        "AC5 W-row tests + MUT-SSE-FRAME reds",
+        "AC6 unsupported versions -32600",
+        "AC8 labelling on every path"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-09-28T14:04:18Z",
+      "notes": "mcphttp handler.go/methods.go/wire.go; facade adapter 60 LOC; all embedded MCP+A2A tests green; C4 replaced by per-response-class labelling test; #603 battery control repaired (escaped reflection counts, literal reflection now fails); TestWireContract exact bytes; MUT-SSE-FRAME red 12 rows"
+    },
+    {
+      "id": "M3",
+      "description": "SDK differential + SDK-client interop",
+      "estimated_loc": 220,
+      "dependencies": [
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "AC4 >=30-request differential green",
+        "MUT-PARITY reds",
+        "SDK client initialize/list/call succeeds"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-09-28T14:04:18Z",
+      "notes": "parity_test.go in mcphttp (test-only go-sdk): 39-row corpus (31 parity, 8 diff); MUT-PARITY red 4 rows; SDK client connect/list/call passes"
+    },
+    {
+      "id": "M4",
+      "description": "Exact per-package closure gate + changelog",
+      "estimated_loc": 150,
+      "dependencies": [
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "AC1 four exact arms + MUT-SDK-BACK + MUT-INTERNAL-BACK red",
+        "AC7 protocol package byte-identical",
+        "make ci-quick + race green"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-09-28T14:04:18Z",
+      "notes": "exact per-package arms (facade/mcphttp/hostcall/protocol); self-test 9->11 arms incl MUT-SDK-BACK + MUT-INTERNAL-BACK, both red against the old gate; AC7 pass; ci-quick, lint, race green; changelog entry"
+    }
+  ],
+  "completed": "2026-09-28T14:04:18Z"
+}

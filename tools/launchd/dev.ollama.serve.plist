@@ -1,5 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  ollama listens on its PRIVATE port, 11435. Clients use 127.0.0.1:11434, where
+  the rig GPU gateway (dev.ailang.rig-gate) admits long work only from the rig
+  lock's lease holder and proxies here (M-RIG-GPU-ADMISSION-GATEWAY). Do not
+  point clients at 11435: that bypasses the lease, and rig-watchdog probes it
+  directly only to know whether ollama itself is alive.
+-->
 <plist version="1.0">
 <dict>
 	<key>EnvironmentVariables</key>
@@ -11,7 +18,7 @@
 		<key>OLLAMA_GPU_OVERHEAD</key>
 		<string>34359738368</string>
 		<key>OLLAMA_HOST</key>
-		<string>127.0.0.1:11434</string>
+		<string>127.0.0.1:11435</string>
 		<key>OLLAMA_KEEP_ALIVE</key>
 		<string>60m</string>
 		<key>OLLAMA_KV_CACHE_TYPE</key>

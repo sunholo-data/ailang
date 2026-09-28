@@ -2,6 +2,9 @@
 
 AILANG's package system enables multi-package projects with deterministic dependency resolution, export enforcement, and effect ceilings. Packages are the primary unit of autonomous coordination — they define what an agent can see, change, what authority it has, and what guarantees it must preserve.
 
+Published package pages also snapshot and display the package's `AGENT.md` guide as raw
+text, so consumers can review machine-facing usage instructions before installing.
+
 ## Quick Start
 
 ```bash

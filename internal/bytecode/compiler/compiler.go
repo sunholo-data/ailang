@@ -46,6 +46,8 @@ func Compile(prog *stmt.Program) (*bytecode.BytecodeImage, error) {
 	// Record types record their alphabetically-sorted field list.
 	recordTypes := make(map[string]recordTypeInfo)
 	adtTypes := make(map[string]adtTypeInfo)
+	var adtOrder []string          // ADT names in declaration order (see inferADTFromCases)
+	aliases := map[string]string{} // alias name → named target type
 	for _, td := range prog.TypeDecls {
 		switch k := td.Kind.(type) {
 		case stmt.ADTDecl:
@@ -57,6 +59,9 @@ func Compile(prog *stmt.Program) (*bytecode.BytecodeImage, error) {
 				info.tagOrdinal[v.Tag] = i
 				info.tagFields[v.Tag] = len(v.Fields)
 			}
+			if _, seen := adtTypes[td.Name]; !seen {
+				adtOrder = append(adtOrder, td.Name)
+			}
 			adtTypes[td.Name] = info
 		case stmt.RecordDecl:
 			names := make([]string, len(k.Fields))
@@ -65,9 +70,14 @@ func Compile(prog *stmt.Program) (*bytecode.BytecodeImage, error) {
 			}
 			sortedNames := append([]string(nil), names...)
 			sort.Strings(sortedNames)
-			recordTypes[td.Name] = recordTypeInfo{sortedFields: sortedNames}
+			registerRecordType(recordTypes, td.Name, sortedNames)
+		case stmt.TypeAliasDecl:
+			if nt, ok := k.Target.(stmt.NamedType); ok {
+				aliases[td.Name] = nt.Name
+			}
 		}
 	}
+	resolveRecordAliases(recordTypes, aliases)
 
 	// Phase 1: register every function so calls (M3) can resolve forward refs.
 	//
@@ -118,6 +128,7 @@ func Compile(prog *stmt.Program) (*bytecode.BytecodeImage, error) {
 		fc.currentModule = fd.Module
 		fc.recordTypes = recordTypes
 		fc.adtTypes = adtTypes
+		fc.adtOrder = adtOrder
 		compileErr := fc.compile(fd)
 
 		// After a successful compile, run per-proto structural validation on
@@ -201,6 +212,7 @@ type funcCompiler struct {
 	locals      *scopeStack // named local → register
 	recordTypes map[string]recordTypeInfo
 	adtTypes    map[string]adtTypeInfo
+	adtOrder    []string // adtTypes keys in declaration order
 
 	// currentModule is the module name of the function currently being
 	// compiled. Used to canonicalize bare VarRef lookups in funcIdx so that

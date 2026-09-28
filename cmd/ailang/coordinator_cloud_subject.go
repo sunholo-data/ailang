@@ -158,11 +158,24 @@ func truncateOnWord(s string, max int) string {
 // new wrong answer each time the prompt template changes. The task already HAS
 // a human title, written by whoever asked; AILANG_TASK_TITLE carries it, and
 // derivation is now only the fallback for a dispatcher too old to send it.
+//
+// A carried title can itself be opaque — Daneel names its requests "Daneel
+// design <sha>", and every handoff wraps the parent's title in "Handoff: ", so
+// three stages of one piece of work all read as a hash (PRs #1347, #1356, #1367,
+// 2026-09-28). The handoff wrapping is always removed (the `[agent] <id>:`
+// prefix already says which stage this is), and an opaque title yields to the
+// subject of the original request (requestSubject).
 func taskSubject(directive string) string {
 	if t := config.TaskTitle(); t != "" {
+		clean := strings.Join(strings.Fields(stripTaskPrefix(stripHandoffWrapping(t))), " ")
+		if isOpaqueTitle(clean) {
+			if s := requestSubject(directive); s != "" {
+				return s
+			}
+		}
 		// Same bounds as a derived subject: a title is human-written and
 		// occasionally long, and an unbounded subject is the original bug.
-		return truncateOnWord(strings.Join(strings.Fields(stripTaskPrefix(t)), " "), directiveSubjectMax)
+		return truncateOnWord(clean, directiveSubjectMax)
 	}
 	return summarizeDirective(directive)
 }

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ai"
+	"github.com/sunholo-data/ailang/internal/riglock"
 	"github.com/sunholo-data/ailang/internal/strutil"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
@@ -64,6 +65,9 @@ func NewClient(apiKey string, opts ...ClientOption) *Client {
 	for _, opt := range opts {
 		opt(c)
 	}
+	// A local model behind the rig gateway admits long work only with the
+	// holder's lease; this carries it (loopback hosts only).
+	c.httpClient = riglock.WithLease(c.httpClient)
 	return c
 }
 

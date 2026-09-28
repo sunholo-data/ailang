@@ -100,4 +100,8 @@ if ! grep -qF "changelogs/$ACTIVE" "$ROOT_CHANGELOG"; then
 	exit 1
 fi
 
+# Changelog fragments (changelogs/unreleased/) must be foldable at release time:
+# a malformed one would otherwise surface only when release-manager runs the fold.
+/bin/bash "$(dirname "$0")/changelog_fold.sh" --check || exit 1
+
 echo -e "${GREEN}✓ $ROOT_CHANGELOG is index-only and links changelogs/${ACTIVE}${RESET}"

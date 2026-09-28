@@ -1,6 +1,9 @@
 # M-MOTOKO-DISCOVERY-ARM-DISCRIMINATING-REFUSAL: make the real wall-clock discovery refusal observable and reachable
 
-**Status**: REVISED per attended human ruling D-MOTOKO-6N-1 (Mark Edmondson, 2026-09-01, commit `878e0a5a0`) — awaiting design quorum round 3. Rounds 1-2 were BLOCKED 3/3; the ruling selected §D4 (scoped ceiling), now applied throughout. See Quorum Verification Log.
+**Status**: Implemented in v0.35.0 (64ca81852, #1008; closes #975). Moved from planned/ by the 2026-09-28 issue triage.
+
+_Prior status:_ REVISED per attended human ruling D-MOTOKO-6N-1 (Mark Edmondson, 2026-09-01, commit `878e0a5a0`) — awaiting design quorum round 3. Rounds 1-2 were BLOCKED 3/3; the ruling selected §D4 (scoped ceiling), now applied throughout. See Quorum Verification Log.
+
 **Target**: v0.34.1
 **Priority**: P1 (High — a REQUIRED-adjacent CI gate is vacuous: arm 33 of the 41-arm self-test cannot fail for the reason its name claims)
 **Estimated**: 1 iteration (~3-4 hours implementation + mutation validation)

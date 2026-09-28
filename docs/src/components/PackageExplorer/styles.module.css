@@ -300,6 +300,21 @@
   padding: 1.25rem;
 }
 
+.agentDocPanel {
+  max-height: 480px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.82rem;
+  padding: 1rem;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 6px;
+  background: var(--ifm-background-surface-color);
+}
+
+.agentDocToggle { margin: 0.5rem 0; cursor: pointer; }
+.agentDocPlaceholder { color: var(--ifm-color-emphasis-600); font-size: 0.85rem; }
+
 .sectionTitle {
   font-family: var(--ifm-font-family-monospace);
   font-size: 0.7rem;

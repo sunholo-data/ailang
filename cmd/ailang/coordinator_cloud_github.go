@@ -62,8 +62,8 @@ func openCascadePullRequest(ctx context.Context, workDir, branchName, taskID, ag
 	// where a lookup key belongs. Still a pure function of the directive — the
 	// determinism was never what made the old title uninformative.
 	title := agentPRTitle(agentID, taskID, directive)
-	body := agentPRBody(ctx, taskID, agentID, directive, workDir, baseBranch)
-	labels := []string{"agent-task"}
+	body := mergeWarning(config.MergeStarts()) + agentPRBody(ctx, taskID, agentID, directive, workDir, baseBranch)
+	labels := append([]string{"agent-task"}, config.PRLabels()...)
 
 	if rootPackage != "" {
 		title = fmt.Sprintf("[cascade] bump %s (%s)", rootPackage, taskID)

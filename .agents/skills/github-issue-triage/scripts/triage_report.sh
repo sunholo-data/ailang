@@ -1,261 +1,100 @@
 #!/usr/bin/env bash
-# Generate a complete GitHub issue triage report
-# Usage: triage_report.sh [--output FILE] [--json]
+# Starting-point triage report: where to look, not what to decide.
+# Usage: triage_report.sh [--output FILE] [--stale-days N] [--ref origin/dev]
 #
-# Report includes:
-# - Summary statistics
-# - Closable issues (implemented)
-# - Covered issues (have design docs)
-# - Orphaned issues (need attention)
-# - Stale issues (no activity 30+ days)
-# - Recommendations
+# Sections: summary, close candidates (unverified leads from find_closable.sh),
+# issues missing a priority label, needs-decision, doc coverage, stale.
+# Nothing here is a verdict. Verify every issue against the code (SKILL.md
+# step 3) before closing, relabelling or transferring it.
 
-set -eo pipefail  # Note: removed -u to handle unset vars in loops
+set -eo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
 
-# Defaults
 OUTPUT_FILE=""
-JSON_OUTPUT=false
-REPO="sunholo-data/ailang"
 STALE_DAYS=30
+REF="origin/dev"
+REPO="sunholo-data/ailang"
 
-# Parse args
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --output)
-            OUTPUT_FILE="$2"
-            shift 2
-            ;;
-        --json)
-            JSON_OUTPUT=true
-            shift
-            ;;
-        --stale-days)
-            STALE_DAYS="$2"
-            shift 2
-            ;;
-        *)
-            echo "Unknown option: $1" >&2
-            exit 1
-            ;;
+        --output) OUTPUT_FILE="$2"; shift 2 ;;
+        --stale-days) STALE_DAYS="$2"; shift 2 ;;
+        --ref) REF="$2"; shift 2 ;;
+        *) echo "Unknown option: $1" >&2; exit 1 ;;
     esac
 done
 
 cd "$PROJECT_ROOT"
+"$SCRIPT_DIR/check_auth.sh" --quiet || exit 1
 
-# Check auth
-"$SCRIPT_DIR/check_auth.sh" || exit 1
+TMP=$(mktemp -d)
+trap 'rm -rf "$TMP"' EXIT
 
-echo ""
-echo "Generating Triage Report..."
-echo ""
+gh issue list --repo "$REPO" --state open --limit 1000 \
+  --json number,title,labels,updatedAt > "$TMP/issues.json"
+"$SCRIPT_DIR/find_closable.sh" --json --ref "$REF" > "$TMP/candidates.jsonl" 2>/dev/null
+"$SCRIPT_DIR/match_design_docs.sh" --json --ref "$REF" > "$TMP/docs.jsonl" 2>/dev/null
 
-# Get all open issues with full details
-ISSUES=$(gh issue list --repo "$REPO" --state open --limit 100 --json number,title,labels,createdAt,updatedAt,assignees,url,body 2>/dev/null || echo "[]")
-
-TOTAL=$(echo "$ISSUES" | jq 'length')
-
-if [[ "$TOTAL" == "0" ]]; then
-    echo "No open issues found. Issue tracker is clean!"
-    exit 0
-fi
-
-# Calculate date threshold for stale
-if command -v gdate &> /dev/null; then
-    STALE_DATE=$(gdate -d "$STALE_DAYS days ago" +%Y-%m-%dT%H:%M:%SZ)
-elif date --version 2>/dev/null | grep -q GNU; then
-    STALE_DATE=$(date -d "$STALE_DAYS days ago" +%Y-%m-%dT%H:%M:%SZ)
+if date -v-1d >/dev/null 2>&1; then
+    STALE_DATE=$(date -u -v-"${STALE_DAYS}"d +%Y-%m-%dT%H:%M:%SZ)
 else
-    # macOS date
-    STALE_DATE=$(date -v-${STALE_DAYS}d +%Y-%m-%dT%H:%M:%SZ)
+    STALE_DATE=$(date -u -d "$STALE_DAYS days ago" +%Y-%m-%dT%H:%M:%SZ)
 fi
 
-# Categorize issues
-CLOSABLE_ISSUES=""
-COVERED_ISSUES=""
-ORPHANED_ISSUES=""
-STALE_ISSUES=""
+total=$(jq length "$TMP/issues.json")
+issue_rows() { jq -r "$1" "$TMP/issues.json"; }
+no_priority=$(issue_rows '[.[] | select([.labels[].name] | any(startswith("priority:")) | not)] | length')
+needs_decision=$(issue_rows '[.[] | select([.labels[].name] | index("needs-decision"))] | length')
+stale=$(jq --arg d "$STALE_DATE" '[.[] | select(.updatedAt < $d)] | length' "$TMP/issues.json")
+candidates=$(wc -l < "$TMP/candidates.jsonl" | tr -d ' ')
+covered=$(jq -s '[.[] | select(.status=="PLANNED")] | length' "$TMP/docs.jsonl")
+uncovered=$(jq -s '[.[] | select(.status=="NOT_COVERED")] | length' "$TMP/docs.jsonl")
 
-CLOSABLE_COUNT=0
-COVERED_COUNT=0
-ORPHANED_COUNT=0
-STALE_COUNT=0
-BUG_COUNT=0
-ENHANCEMENT_COUNT=0
-
-echo "$ISSUES" | jq -c '.[]' | while read -r issue; do
-    NUMBER=$(echo "$issue" | jq -r '.number')
-    TITLE=$(echo "$issue" | jq -r '.title')
-    UPDATED=$(echo "$issue" | jq -r '.updatedAt')
-    LABELS=$(echo "$issue" | jq -r '.labels | map(.name) | join(",")')
-    URL=$(echo "$issue" | jq -r '.url')
-
-    # Track label counts
-    if echo "$LABELS" | grep -q "bug"; then
-        BUG_COUNT=$((BUG_COUNT + 1))
-    fi
-    if echo "$LABELS" | grep -q "enhancement"; then
-        ENHANCEMENT_COUNT=$((ENHANCEMENT_COUNT + 1))
-    fi
-
-    # Check if closable (in implemented docs or changelog)
-    IN_IMPLEMENTED=""
-    IN_IMPLEMENTED=$(grep -rl "#$NUMBER" design_docs/implemented/ 2>/dev/null | head -1) || true
-    IN_CHANGELOG=""
-    IN_CHANGELOG=$(grep -rl "#$NUMBER" changelogs/ 2>/dev/null | head -1) || true
-
-    if [[ -n "$IN_IMPLEMENTED" ]] || [[ -n "$IN_CHANGELOG" ]]; then
-        echo "CLOSABLE|$NUMBER|$TITLE|$LABELS|$URL"
-        continue
-    fi
-
-    # Check if covered (in planned docs)
-    IN_PLANNED=""
-    IN_PLANNED=$(grep -rl "#$NUMBER" design_docs/planned/ 2>/dev/null | head -1) || true
-
-    # Also check by M-ID
-    M_ID=""
-    M_ID=$(echo "$TITLE" | grep -oE "M-[A-Z0-9-]+" | head -1) || true
-    if [[ -n "$M_ID" ]] && [[ -z "$IN_PLANNED" ]]; then
-        M_ID_LOWER=$(echo "$M_ID" | tr '[:upper:]' '[:lower:]' | tr '-' '_')
-        IN_PLANNED=$(find design_docs/planned/ -name "*${M_ID_LOWER}*" 2>/dev/null | head -1) || true
-    fi
-
-    if [[ -n "$IN_PLANNED" ]]; then
-        echo "COVERED|$NUMBER|$TITLE|$LABELS|$IN_PLANNED"
-        continue
-    fi
-
-    # Check if stale
-    if [[ "$UPDATED" < "$STALE_DATE" ]]; then
-        echo "STALE|$NUMBER|$TITLE|$LABELS|$UPDATED"
-    else
-        echo "ORPHANED|$NUMBER|$TITLE|$LABELS|$URL"
-    fi
-done > /tmp/triage_categories_$$
-
-# Count categories
-count_category() {
-    local pattern="$1"
-    local count
-    count=$(grep -c "$pattern" /tmp/triage_categories_$$ 2>/dev/null) || count=0
-    echo "$count"
-}
-
-CLOSABLE_COUNT=$(count_category "^CLOSABLE|")
-COVERED_COUNT=$(count_category "^COVERED|")
-STALE_COUNT=$(count_category "^STALE|")
-ORPHANED_COUNT=$(count_category "^ORPHANED|")
-
-# Generate report
-REPORT=""
-REPORT+="# GitHub Issue Triage Report\n"
-REPORT+="\n"
-REPORT+="**Generated:** $(date '+%Y-%m-%d %H:%M:%S')\n"
-REPORT+="**Repository:** $REPO\n"
-REPORT+="\n"
-REPORT+="## Summary\n"
-REPORT+="\n"
-REPORT+="| Category | Count |\n"
-REPORT+="|----------|-------|\n"
-REPORT+="| Total Open | $TOTAL |\n"
-REPORT+="| Closable (implemented) | $CLOSABLE_COUNT |\n"
-REPORT+="| Covered (has design doc) | $COVERED_COUNT |\n"
-REPORT+="| Orphaned (needs attention) | $ORPHANED_COUNT |\n"
-REPORT+="| Stale (${STALE_DAYS}+ days inactive) | $STALE_COUNT |\n"
-REPORT+="\n"
-
-# Closable section
-if [[ "$CLOSABLE_COUNT" -gt 0 ]]; then
-    REPORT+="## Closable Issues\n"
-    REPORT+="\n"
-    REPORT+="These issues are implemented and can be closed:\n"
-    REPORT+="\n"
-    while IFS='|' read -r cat num title labels extra; do
-        [[ "$cat" != "CLOSABLE" ]] && continue
-        REPORT+="- **#$num**: $title\n"
-        REPORT+="  - Labels: ${labels:-none}\n"
-    done < /tmp/triage_categories_$$
-    REPORT+="\n"
-    REPORT+="**Action:** Run \`.claude/skills/github-issue-triage/scripts/find_closable.sh --close\`\n"
-    REPORT+="\n"
+{
+echo "# Issue triage starting point: $REPO"
+echo ""
+echo "Generated $(date '+%Y-%m-%d %H:%M'), docs and history read from \`$REF\` ($(git rev-parse --short "$REF"))."
+echo ""
+echo "| | Count |"
+echo "|---|---|"
+echo "| Open issues | $total |"
+echo "| Close candidates (unverified leads) | $candidates |"
+echo "| Missing a \`priority:*\` label | $no_priority |"
+echo "| \`needs-decision\` | $needs_decision |"
+echo "| Referenced by a planned doc | $covered |"
+echo "| No design doc references it | $uncovered |"
+echo "| No activity in ${STALE_DAYS}+ days | $stale |"
+echo ""
+echo "## Close candidates (unverified)"
+echo ""
+echo "Leads only. Most real fixes never name their issue, so an issue missing here may still be fixed."
+echo ""
+if [[ "$candidates" -gt 0 ]]; then
+    jq -r '"- #\(.number) [\(.signal)]: \(.title)\n  - evidence: \((.fix_commits + .impl_docs) | join(", "))"' "$TMP/candidates.jsonl"
+else
+    echo "_None._"
 fi
+echo ""
+echo "## Missing a priority label"
+echo ""
+issue_rows '.[] | select([.labels[].name] | any(startswith("priority:")) | not) | "- #\(.number): \(.title)"'
+echo ""
+echo "## Needs a maintainer decision"
+echo ""
+issue_rows '.[] | select([.labels[].name] | index("needs-decision")) | "- #\(.number): \(.title)"'
+echo ""
+echo "## Stale (no activity in ${STALE_DAYS}+ days)"
+echo ""
+jq -r --arg d "$STALE_DATE" '.[] | select(.updatedAt < $d) | "- #\(.number) (last \(.updatedAt[:10])): \(.title)"' "$TMP/issues.json"
+echo ""
+echo "Next: verify every open issue against \`$REF\` (SKILL.md step 3); this report only says where to start."
+} > "$TMP/report.md"
 
-# Covered section
-if [[ "$COVERED_COUNT" -gt 0 ]]; then
-    REPORT+="## Covered Issues (In Progress)\n"
-    REPORT+="\n"
-    REPORT+="These issues have design docs and are being worked on:\n"
-    REPORT+="\n"
-    while IFS='|' read -r cat num title labels doc; do
-        [[ "$cat" != "COVERED" ]] && continue
-        REPORT+="- **#$num**: $title\n"
-        REPORT+="  - Design doc: \`$doc\`\n"
-    done < /tmp/triage_categories_$$
-    REPORT+="\n"
-fi
-
-# Orphaned section
-if [[ "$ORPHANED_COUNT" -gt 0 ]]; then
-    REPORT+="## Orphaned Issues (Need Attention)\n"
-    REPORT+="\n"
-    REPORT+="These issues have no design doc coverage:\n"
-    REPORT+="\n"
-    while IFS='|' read -r cat num title labels url; do
-        [[ "$cat" != "ORPHANED" ]] && continue
-        REPORT+="- **#$num**: $title\n"
-        REPORT+="  - Labels: ${labels:-none}\n"
-    done < /tmp/triage_categories_$$
-    REPORT+="\n"
-    REPORT+="**Action:** Create design docs or close with 'won't fix'\n"
-    REPORT+="\n"
-fi
-
-# Stale section
-if [[ "$STALE_COUNT" -gt 0 ]]; then
-    REPORT+="## Stale Issues\n"
-    REPORT+="\n"
-    REPORT+="No activity in ${STALE_DAYS}+ days:\n"
-    REPORT+="\n"
-    while IFS='|' read -r cat num title labels updated; do
-        [[ "$cat" != "STALE" ]] && continue
-        REPORT+="- **#$num**: $title\n"
-        REPORT+="  - Last updated: ${updated%%T*}\n"
-    done < /tmp/triage_categories_$$
-    REPORT+="\n"
-    REPORT+="**Action:** Request update from reporter or close if inactive\n"
-    REPORT+="\n"
-fi
-
-# Recommendations
-REPORT+="## Recommendations\n"
-REPORT+="\n"
-
-if [[ "$CLOSABLE_COUNT" -gt 0 ]]; then
-    REPORT+="1. **Close $CLOSABLE_COUNT implemented issues** - These are done and just need closing\n"
-fi
-
-if [[ "$ORPHANED_COUNT" -gt 0 ]]; then
-    REPORT+="2. **Triage $ORPHANED_COUNT orphaned issues** - Create design docs or close\n"
-fi
-
-if [[ "$STALE_COUNT" -gt 0 ]]; then
-    REPORT+="3. **Review $STALE_COUNT stale issues** - Request updates or close\n"
-fi
-
-REPORT+="\n"
-REPORT+="---\n"
-REPORT+="*Generated by github-issue-triage skill*\n"
-
-# Clean up temp file
-rm -f /tmp/triage_categories_$$
-
-# Output
 if [[ -n "$OUTPUT_FILE" ]]; then
-    echo -e "$REPORT" > "$OUTPUT_FILE"
+    cp "$TMP/report.md" "$OUTPUT_FILE"
     echo "Report written to: $OUTPUT_FILE"
 else
-    echo -e "$REPORT"
+    cat "$TMP/report.md"
 fi
