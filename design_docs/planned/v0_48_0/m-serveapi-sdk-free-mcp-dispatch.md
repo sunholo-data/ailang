@@ -1,6 +1,6 @@
 # M-SERVEAPI-SDK-FREE-MCP: a stdlib-only MCP dispatcher inside `serveapi` (#885)
 
-**Status**: Planned — **awaiting human ruling on D-A / D-B / D-F**. Quorum round 1 and round 2 were both BLOCKED 3/3. Every objection was accepted or refuted with a measurement (§Quorum record). The re-quorum-once guardrail is spent, so round 3 runs **after** Mark's D-A ruling, not before
+**Status**: Planned — **D-A (a′), D-B (i), D-F accept: ruled by Mark 2026-09-28**. Design Freeze fully checked. Quorum round 1 and round 2 were both BLOCKED 3/3. Every objection was accepted or refuted with a measurement (§Quorum record). The re-quorum-once guardrail is spent, so round 3 runs **after** Mark's D-A ruling, not before
 **Target**: v0.48.0
 **Priority**: P1 — the only upstream item blocking ailang-world's MCP projection
 (`w-mcp-dispatch-projection`, charter clause 6); ranked `[NEXT]` at `design_docs/v1-mission.md:1011`
@@ -42,7 +42,7 @@ about MCP, a protocol we do not control; the SDK's behaviour is used as the refe
 | A2: Replayability | +1 | Same stateless POST semantics as today, but the reply bytes are now defined in-repo and asserted by golden tests. A replay no longer depends on which SDK version is linked. |
 | A3: Effect Legibility | 0 | No change to AILANG's effect surface. |
 | A4: Explicit Authority | +1 | Removes an OAuth/credential stack (`golang.org/x/oauth2`, `go-sdk/auth`, `go-sdk/oauthex`, V6) from the closure of the package embedders link. Authority stays entirely in the host's `SessionResolver`. |
-| A5: Bounded Verification | +1 | The closure gate for `serveapi` tightens from "an 11-module-root allowlist" to an **exact package-path** allowlist (stdlib + exactly two ailang packages), a mechanically checkable invariant (V13, AC1). |
+| A5: Bounded Verification | +1 | The closure gate for `serveapi` tightens from "an 11-module-root allowlist" to **exact package-path** sets per package (stdlib plus named ailang packages only), a mechanically checkable invariant (V13, AC1). |
 | A6: Safe Concurrency | 0 | Reuses the existing `callbackRunner` unchanged (bounded slots, timeout). No new shared state. |
 | A7: Machines First | +1 | Consumers under a zero-cloud policy (World) get MCP without writing a codec. Error replies become JSON-RPC objects instead of `text/plain` 400s for a whole class of inputs (V10 rows 7 and 10), which machines can parse. |
 | A8: Minimal Syntax | 0 | No language change. |
@@ -100,8 +100,9 @@ command.
 
 **Primary goal:** `serveapi` links no MCP SDK. `serveapi.New(cfg).MCPHandler()` serves stateless MCP
 Streamable HTTP (`initialize`, `notifications/initialized`, `ping`, `tools/list`, `tools/call`) over
-stdlib + `serveapi/protocol` alone, and the same dispatcher is importable on its own by a zero-cloud
-consumer at a cost of +1 ailang-owned package (V24).
+stdlib + ailang's own `serveapi/protocol/*` packages. The same dispatcher is importable on its own by a
+zero-cloud consumer, at a cost of +2 ailang-owned packages under the prefix World already admits:
+`protocol/mcphttp` and the protocol-neutral runner package `protocol/hostcall` (V24).
 
 **Success metrics:**
 - `go list -deps ./serveapi` contains **no** non-stdlib package other than `serveapi` and
@@ -111,7 +112,7 @@ consumer at a cost of +1 ailang-owned package (V24).
   marked `parity` in §Wire contract, and every `intentional-diff` row is asserted explicitly.
 - All existing `serveapi` MCP behaviour tests pass unchanged, except the one test that
   injects a fake SDK transport (§Conflict Surface C4), which is rewritten.
-- World's gated closure moves **254 → 255** from its current base `58f6022` (V24). Under D-A (a′) the unmodified gate stays green. The SDK arm was 283 on the older 249 base (V21).
+- World's gated closure moves **254 → 256** from its current base `58f6022` (V24), and the unmodified gate stays green. The SDK arm was 283 on the older 249 base (V21).
 
 ---
 
@@ -164,6 +165,11 @@ The drift risk is real, and three mechanisms answer it (not "we'll be careful"):
 | V23 | OpenAI-style function-name constraint that the current grammar matches | the current `protocol` regex `^[a-zA-Z0-9_-]{1,64}$` (V16); quorum reviewer `gemini-3-1-pro` round 1 | taken as the reason to **keep** the grammar (D-C). Not independently re-fetched from a vendor page; the decision does not depend on it, because World needs a name mapping for `/` in any case (V15) |
 | V24 | World's gate **today**, at `58f6022` | `go list -deps ./host/daemon/... ./cmd/ailang-worldd/... \| sort -u \| grep -c .`; `go test ./host/daemon -run TestDaemonDependencyAllowlist -count=1`; `sed -n 770,776p;950,990p host/daemon/daemon_test.go` | closure **254**; gate **green** (`ok`). `serveapi/protocol` is already admitted by **package-path prefix** (line 774). `TestAilangProtocolAdmissionIsNarrow` (line 962) asserts that the `serveapi` **facade is REFUSED** (mutation `MUT-FACADE-IMPORT`), and its control leg asserts that `serveapi/protocol/subpkg` **is admitted** ("a future subpackage rides the same prefix"). This supersedes V21's 249 baseline, which predates World's P6.D landing |
 | V25 | `protocol`'s non-stdlib closure is itself alone | `go list -deps -f '{{if not .Standard}}{{.ImportPath}}{{end}}' ./serveapi/protocol` | exactly `github.com/sunholo-data/ailang/serveapi/protocol`. Refutes quorum r2's claim that it contains third-party roots; V13's 11 roots are the **facade** arm, not protocol's |
+| V26 | Where the callback runner is used (for the move to `hostcall`) | `grep -rln "callbackRunner\\|runCallback\\|newCallbackRunner" serveapi --include='*.go'` | `callbacks.go`, `callbacks_test.go`, `a2a_handler.go`, `mcp_handler.go`, `serveapi.go`, `embedded_a2a_test.go`, `embedded_mcp_test.go`, `serveapi_external_test.go`. Every one is in the Files list or the AC3 fixtures |
+| V27 | Current changelog file | `ls changelogs/ \| grep current` | `v0.32-current.md` |
+| V28 | SDK body-size limit that W2 ports | `grep -n "DefaultMaxRequestBodyBytes\s*=" …/go-sdk@v1.8.0/mcp/streamable.go` | `:224 const DefaultMaxRequestBodyBytes = 4 << 20 // 4 MiB`. `mcphttp` defines its own 4 MiB constant with the same value |
+| V29 | **Spec 2025-03-26** permits batches over Streamable HTTP | WebFetch `modelcontextprotocol.io/specification/2025-03-26/basic/transports` §Sending Messages, 2026-09-28 | verbatim: *"The body of the POST request **MUST** be one of: a single JSON-RPC request, notification, or response · an array batching one or more requests and/or notifications · an array batching one or more responses"*; *"If the input consists solely of … responses or notifications … **MUST** return HTTP status code 202"*; *"one JSON-RPC response per each JSON-RPC request … These responses **MAY** be batched."* Contrast V19: 2025-06-18 allows only a single message |
+| V30 | `outputSchema` is optional on the wire | `sed -n 1925,1940p …/go-sdk@v1.8.0/mcp/protocol.go` | `// OutputSchema holds an optional JSON Schema …` with `json:"outputSchema,omitempty"`. So the SDK's own type marks it optional; the `null` in V10 comes from the embedded handler passing a nil `json.RawMessage` through `any` (a typed-nil, so `omitempty` does not fire). D-E removes that artefact |
 | V18 | Existing MCP tests go through HTTP, not SDK internals, except one | `grep -n "transport:" serveapi/*_test.go` | only `TestEmbeddedMCPReplayDefaultsContentTypeWhenTransportOmitsIt` (`embedded_mcp_replay_test.go`) constructs `embeddedMCPHandler{transport: …}` directly |
 
 ### V10 — the SDK-backed handler on the wire today
@@ -225,9 +231,9 @@ demand. D-C is resolved (keep the grammar).
 
 The sprint-executor pauses on any unchecked item:
 
-- [ ] **D-A** — dispatcher placement (recommended: **(a′)** `serveapi/protocol/mcphttp`, with the facade delegating to it)
-- [ ] **D-B** — supported versions (recommended: (i) 2025-03-26 / 2025-06-18 / 2025-11-25; refuse 2026-07-28)
-- [ ] **D-F** — accept W3–W7, W15 and D-E as **public** wire-compatibility changes to `serveapi.MCPHandler` (V9 cannot prove non-use). If accepted, the changelog carries a "Changed wire behaviour" list and a migration note ("clients sending batches or `2026-07-28` must …")
+- [x] **D-A** — **RULED (a′)** by Mark, 2026-09-28 (attended): `serveapi/protocol/mcphttp`, with the facade delegating to it
+- [x] **D-B** — **RULED (i)** by Mark, 2026-09-28: 2025-03-26 / 2025-06-18 / 2025-11-25; refuse 2026-07-28
+- [x] **D-F** — **RULED accept** by Mark, 2026-09-28 — accept W3–W7, W15 and D-E as **public** wire-compatibility changes to `serveapi.MCPHandler` (V9 cannot prove non-use). If accepted, the changelog carries a "Changed wire behaviour" list and a migration note ("clients sending batches or `2026-07-28` must …")
 - [x] **D-C** — resolved in round-1 revision: `ValidateMCPName` grammar unchanged (see the D-C row)
 
 ---
@@ -235,8 +241,6 @@ The sprint-executor pauses on any unchecked item:
 ## Solution Design
 
 ### Overview
-
-(Written for D-A (a′); under (a) the same code is unexported in `serveapi` and the `mcphttp` package does not exist.)
 
 Replace `serveapi/mcp_handler.go`'s SDK transport with a stdlib dispatcher of the same
 shape as `a2a_handler.go`, in `serveapi/protocol/mcphttp`. The facade's `MCPHandler()` becomes a thin
@@ -254,7 +258,7 @@ The public API (`serveapi.New`, `Config`, `Server.MCPHandler`, `Server.Mount`) i
 | W3 | `Accept` lacks `application/json` **or** `text/event-stream` | 400, JSON-RPC `-32600`, `Content-Type: application/json`, nosniff (D-D) | intentional-diff (row 8) |
 | W4 | `MCP-Protocol-Version` present and not in the D-B set | 400, JSON-RPC `-32600` naming the supported list | intentional-diff (rows 9, 10) |
 | W5 | absent `MCP-Protocol-Version` | treated as `2025-03-26`, the spec SHOULD (V19) | **intentional-diff**: the SDK applies no default (V20) and its row-3 reply carries `ttlMs`/`cacheScope`; ours omits them under D-E. The differential asserts our shape explicitly |
-| W6 | invalid JSON · JSON array (batch) · `jsonrpc` ≠ `"2.0"` | 400, `application/json`, JSON-RPC `-32700` / `-32600` / `-32600`, `id: null` (or the echoed id when one parses) | **intentional-diff** on all three: the SDK answers 400 `text/plain` (rows 15, 17) and **serves** batches (row 16). Rejecting batches follows the 2025-06-18 removal of batching |
+| W6 | invalid JSON · `jsonrpc` ≠ `"2.0"` · JSON array (batch) | invalid JSON / bad version tag: 400, `application/json`, JSON-RPC `-32700` / `-32600`, `id: null`. **Batch:** accepted **only** when the effective version is `2025-03-26` (header absent, per W5, or equal to `2025-03-26`), which is the one supported version whose transport permits batches (V29). A batch of notifications gets 202. A batch containing requests gets **one** SSE event whose `data:` is a JSON array holding one response per request, which the 2025-03-26 spec allows ("These *responses* **MAY** be batched"). Under `2025-06-18`/`2025-11-25` a batch gets `-32600` (V19: "a single JSON-RPC request, notification, or response") | intentional-diff on invalid JSON and version tag: the SDK answers 400 `text/plain` (rows 15, 17). Batch: parity in *acceptance* under 2025-03-26 (row 16, which ran header-absent); the SDK's single-object reply to a one-element batch becomes a one-element array |
 | W7 | `initialize` | SSE single event. `protocolVersion` = the client's version if it is in the D-B set, otherwise our latest supported version (parity with row 14, where the SDK answers `2025-11-25`). `capabilities: {"tools":{"listChanged":false}}`; `serverInfo` from `Config.Agent` | intentional-diff: `listChanged:false` (stateless, so we never notify) and no `logging` capability (we never send logs) |
 | W8 | any notification (no `id`), including `notifications/initialized` | 202, empty body | parity (row 1) |
 | W9 | `ping` | SSE `result: {}` | parity (row 6) |
@@ -271,11 +275,18 @@ obligations list names (`w-mcp-dispatch-projection.md`, "SSE-framing conformance
 
 ### Files to Modify/Create
 
-- `serveapi/protocol/mcphttp/runner.go` — new under (a′): the bounded callback runner, **moved** from `serveapi/callbacks.go`. The facade's A2A handler then uses it too, so one runner exists. Exact export shape is agent latitude, with the constraint of no second copy.
+- `serveapi/protocol/hostcall/runner.go` — new: the bounded callback runner, **moved** from `serveapi/callbacks.go`
+  (V26), exported as `hostcall.Runner` plus a generic `hostcall.Run`. It lives in a **protocol-neutral** package,
+  not in `mcphttp`, so the A2A handler never depends on an MCP-named package (quorum r3, `gemini-3-1-pro`).
+  One runner exists: the facade builds one and passes it to both handlers.
+- `serveapi/callbacks.go` — delete. Its body moves to `hostcall`. `serveapi/callbacks_test.go` moves with it as
+  `serveapi/protocol/hostcall/runner_test.go`, with its three tests unchanged apart from the package name (AC3).
+- `serveapi/a2a_handler.go`, `serveapi/serveapi.go` — switch `callbackRunner`/`runCallback` calls to `hostcall`.
+  No behaviour change; the A2A regression fixtures are in AC3.
 - `serveapi/mcp_handler.go` — rewrite. Remove the SDK import, `bufferedResponseWriter`,
   `serverForRequest`, the per-request `mcp.Server`, and the `recover()` around SDK tool registration.
   Keep the pre-dispatch pipeline and `embeddedMCPConfig`. ~180 lines → ~120.
-- `serveapi/protocol/mcphttp/handler.go` — new (under (a): `serveapi/mcp_dispatch.go`, unexported). JSON-RPC envelope decode, method table
+- `serveapi/protocol/mcphttp/handler.go` — new, exported `mcphttp.NewHandler(mcphttp.Config) (http.Handler, error)`. `Config` carries the `protocol` interfaces, agent info, and a **required** `*hostcall.Runner` (nil is an error, never a silent unbounded default). JSON-RPC envelope decode, method table
   (`initialize`/`ping`/`tools/list`/`tools/call`/notifications), version negotiation (D-B), SSE writer.
   ~200 lines.
 - `serveapi/mcp_parity_test.go` — new. The differential. Imports `go-sdk/mcp` **in test only**, builds
@@ -287,9 +298,9 @@ obligations list names (`w-mcp-dispatch-projection.md`, "SSE-framing conformance
   (C4). Keep the battery test unchanged.
 - `scripts/check_protocol_closure.sh` — replace the `serveapi` arm's **module-root** allowlist (R8, V13)
   with an **exact package-path** allowlist:
-  `go list -deps -f '{{if not .Standard}}{{.ImportPath}}{{end}}' ./serveapi` must print exactly
-  `github.com/sunholo-data/ailang/serveapi` and `github.com/sunholo-data/ailang/serveapi/protocol` and nothing
-  else. A module-root rule would admit any other ailang package, including stdlib-only ones (quorum
+  the facade arm must print exactly `serveapi`, `serveapi/protocol`, `serveapi/protocol/hostcall`, `serveapi/protocol/mcphttp`; a new `mcphttp` arm must print exactly
+  `mcphttp`, `hostcall` and `protocol`; a new `hostcall` arm must print exactly `hostcall` and `protocol`;
+  the existing `protocol` arm stays "exactly itself" (V25). A module-root rule would admit any other ailang package, including stdlib-only ones (quorum
   round 1, `gpt6-astra`). The existing anti-vacuity floors (R1–R12) are kept.
 - `scripts/test_check_protocol_closure.sh` — two new refusal cases, matching MUT-SDK-BACK and
   MUT-INTERNAL-BACK (AC1).
@@ -297,12 +308,11 @@ obligations list names (`w-mcp-dispatch-projection.md`, "SSE-framing conformance
 
 ### Implementation Plan
 
-- **M1 — dispatcher + goldens (1.5d).** `mcp_dispatch.go` + the rewritten `mcp_handler.go`. Every
-  existing test in `embedded_mcp_test.go`, and the #603 battery, stays green **unmodified**. Goldens for W1–W16.
+- **M1 — runner move, dispatcher, goldens (1.5d).** `hostcall` (moved runner), `mcphttp/handler.go`, and the rewritten `mcp_handler.go`. Every
+  existing test in `embedded_mcp_test.go` and `embedded_a2a_test.go`, and the #603 battery, stays green **unmodified**. Goldens for W1–W16.
 - **M2 — differential against the SDK (1d).** `mcp_parity_test.go`. Before relying on it, mutation-test
   it: flip one parity row in the dispatcher and confirm the differential reds.
-- **M3 — closure gate (0.5–1d).** Switch `check_protocol_closure.sh`'s `serveapi` arm to the exact
-  package-path allowlist, run both named mutations across the GOOS matrix, and paste their red output.
+- **M3 — closure gate (0.5–1d).** Switch `check_protocol_closure.sh` to the four exact package-path arms, run both named mutations across the GOOS matrix, and paste their red output.
 - **M4 — consumer proof + close (0.5d).** Run World's own gate against a `replace` pointing at the
   branch, in a scratch World worktree that is never committed to World (World edits are World's own
   reviewable event). Post the measured numbers on #885. Close only when AC-W1..W3 pass.
@@ -330,7 +340,13 @@ public facade), so the section is filled in.
 and **not** "host tool registration failed"), `TestEmbeddedMCPFrozenCallbackEnvelopes` (asserts 200,
 `application/json`, `-32603`, echoed id, per stage), `TestEmbeddedMCPOverloadEnvelopeAndFastControl`.
 `serveapi/embedded_mcp_replay_test.go` — `TestEmbeddedMCPReplayIsNeverSniffable`,
-`TestWriteMCPEnvelopeIsLabelled`.
+`TestWriteMCPEnvelopeIsLabelled`. `serveapi/embedded_a2a_test.go` (touched by the runner move) —
+`TestEmbeddedA2ACardExactRequestLocalSurfaces`, `TestEmbeddedA2ADispatchAuthorizationAndSessionIdentity`,
+`TestEmbeddedA2AFrozenCallbackEnvelopes`, `TestEmbeddedA2AInterleavedRequestLocalSurfaces`,
+`TestEmbeddedA2ABlockedPrincipalDoesNotBlockAnother`, `TestEmbeddedA2AEmptyAndInvalidResultsAreDistinguishable`.
+`serveapi/callbacks_test.go` (moves to `hostcall`) — `TestCallbackRunnerTimeoutAndStopsChain`,
+`TestCallbackRunnerObservedDeadlineAndFastCall`, `TestCallbackRunnerBoundsConcurrencyAndRecovers`.
+`serveapi/serveapi_external_test.go` (the facade's public contract).
 
 **Deliberate incompatibilities:** W3, W4, W5, W6, W7, W15, D-E. All are visible only to clients of
 `serveapi.MCPHandler`, which has no consumer outside this repo's tests (V8, V9).
@@ -339,25 +355,32 @@ and **not** "host tool registration failed"), `TestEmbeddedMCPFrozenCallbackEnve
 
 ## Success Criteria
 
-- [ ] **AC1** — under `GOOS ∈ {linux, darwin, windows}`,
-  `go list -deps -f '{{if not .Standard}}{{.ImportPath}}{{end}}' ./serveapi` prints **exactly** the two
-  paths `github.com/sunholo-data/ailang/serveapi` and `…/serveapi/protocol` (plus `…/serveapi/protocol/mcphttp` under D-A (a′), whose own arm must print exactly itself and `protocol`). V25 shows that protocol's own arm already prints only itself. Enforced by the tightened
+- [ ] **AC1** — under `GOOS ∈ {linux, darwin, windows}`, `go list -deps -f '{{if not .Standard}}{{.ImportPath}}{{end}}'`
+  prints **exactly** these sets (with every path under `github.com/sunholo-data/ailang/`):
+  `./serveapi` → `serveapi`, `serveapi/protocol`, `serveapi/protocol/hostcall`, `serveapi/protocol/mcphttp`;
+  `./serveapi/protocol/mcphttp` → `protocol/mcphttp`, `protocol/hostcall`, `protocol`;
+  `./serveapi/protocol/hostcall` → `protocol/hostcall`, `protocol`;
+  `./serveapi/protocol` → `protocol` (already true, V25). Enforced by the tightened
   `make check-protocol-closure`. Two named mutations, each run across the GOOS matrix with the red output
   pasted: **MUT-SDK-BACK**, re-add `import _ "github.com/modelcontextprotocol/go-sdk/mcp"` to
-  `serveapi/mcp_handler.go`, and the gate must fail naming the SDK package; **MUT-INTERNAL-BACK**, create
-  a stdlib-only scratch package `serveapi/closureprobe` and import it from `serveapi`, and the gate must
-  fail naming exactly that path. MUT-INTERNAL-BACK is the one a module-root rule would pass.
+  `serveapi/protocol/mcphttp/handler.go`, and the gate must fail naming the SDK package on the `mcphttp` and
+  facade arms; **MUT-INTERNAL-BACK**, create a stdlib-only scratch package `serveapi/protocol/closureprobe` and
+  import it from `mcphttp`, and the gate must fail naming exactly that path. MUT-INTERNAL-BACK is the one a
+  module-root or prefix rule would pass.
 - [ ] **AC2** — `grep -rn modelcontextprotocol serveapi --include='*.go' | grep -v _test.go` is empty.
-- [ ] **AC3** — every test listed under "Programs that must still work" passes, with **no edits** except C4.
+- [ ] **AC3** — every test listed under "Programs that must still work" passes, with **no edits** except C4 and
+  the package-name change on the moved runner tests. That list includes the A2A and runner fixtures (V26).
 - [ ] **AC4** — the differential (`mcp_parity_test.go`) passes on ≥ 30 requests. **Named mutation
   MUT-PARITY:** change the W12 error code to `-32601` in the dispatcher; the differential must red on
   that row.
 - [ ] **AC5** — goldens exist for W1–W16 and each is asserted. **MUT-SSE-FRAME:** drop the trailing blank
   line of the SSE frame; the W9/W10/W11 goldens must red.
-- [ ] **AC6** — D-B enforced: an unsupported `MCP-Protocol-Version` (`1999-01-01`, and `2026-07-28` if (i)
-  is chosen) yields JSON-RPC `-32600` naming the supported list, and never a served result.
-- [ ] **AC7** — `git diff <base> -- serveapi/protocol` is empty at delivery (D-C kept; the kept Non-Goal
-  holds). World's naming need is answered in the #885 closing comment (AC-W3), not in code.
+- [ ] **AC6** — D-B enforced: an unsupported `MCP-Protocol-Version` (`1999-01-01` and `2026-07-28`) yields JSON-RPC `-32600` naming the supported list, and never a served result.
+- [ ] **AC7** — package `protocol` itself is byte-identical:
+  `git diff --exit-code <base> -- ':(glob)serveapi/protocol/*.go'` exits 0 (a single-`*` glob does not
+  recurse). **And** every new path under `protocol/` is in one of the two ruled subpackages:
+  `git diff --name-only <base> -- serveapi/protocol | grep -v -e '^serveapi/protocol/mcphttp/' -e '^serveapi/protocol/hostcall/'`
+  prints nothing. World's naming need is answered in the #885 closing comment (AC-W3), not in code.
 - [ ] **AC8** — every response path carries `Content-Type` + `nosniff` (W16). The C4 rewrite includes a
   negative control that fails if a writer ever emits an unlabelled body.
 - [ ] `make ci-quick`, `make test`, `go test -race ./serveapi/...` green; changelog updated.
@@ -367,14 +390,11 @@ and **not** "host tool registration failed"), `TestEmbeddedMCPFrozenCallbackEnve
   go-sdk import. Paste that command's output in the closing comment.
 - [ ] **AC-W2** — base pinned: a scratch World worktree at **`58f6022`** (V24: closure 254, gate green,
   protocol admitted by package-path prefix), with `replace github.com/sunholo-data/ailang => <tag>` and the
-  dispatcher imported from `host/daemon`. Expected, per D-A:
-  **(a′)** — `go list -deps` over both gated patterns gains exactly one non-stdlib package,
-  `…/serveapi/protocol/mcphttp` (254 → 255), and the **unmodified** `TestDaemonDependencyAllowlist` **and**
-  `TestAilangProtocolAdmissionIsNarrow` both stay green.
-  **(a)** — the closure gains exactly `…/serveapi` (254 → 255), and the unmodified
-  `TestDaemonDependencyAllowlist` fails naming **exactly that one package**. Delivery is then proven by
-  the named intruder being ailang-owned and stdlib-closed, and World amends its own narrowness test.
-  Paste the before and after `go list` counts and the test output in the closing comment.
+  dispatcher imported from `host/daemon`. Expected (D-A ruled (a′)):
+  `go list -deps` over both gated patterns gains exactly **two** non-stdlib packages, `…/serveapi/protocol/mcphttp`
+  and `…/serveapi/protocol/hostcall` (254 → 256), and the **unmodified** `TestDaemonDependencyAllowlist` **and**
+  `TestAilangProtocolAdmissionIsNarrow` both stay green. Paste the before and after `go list` counts and the
+  test output in the closing comment.
 - [ ] **AC-W3** — the closing comment names the tag, links this doc, and states the D-B version list and
   the unchanged name grammar (so World sizes its ID→name mapping for both `/` and `.`), so World can write `w-mcp-dispatch-projection` against the delivered seam.
 
@@ -396,7 +416,7 @@ and **not** "host tool registration failed"), `TestEmbeddedMCPFrozenCallbackEnve
 
 ## Deferred Decisions (agent latitude)
 
-- Internal structure of `mcp_dispatch.go` (method map versus switch), and message wording on
+- Internal structure of `mcphttp/handler.go` (method map versus switch), and message wording on
   intentional-diff rows (codes are fixed by the W-table; wording is not).
 - Differential normalisation (key order, SSE whitespace), as long as it is documented in the test header.
 
@@ -405,10 +425,10 @@ and **not** "host tool registration failed"), `TestEmbeddedMCPFrozenCallbackEnve
 - `internal/apiserver`'s MCP server and `cmd/ailang-microrag-mcp`. Both stay on the SDK (C5).
 - Stateful MCP: sessions, GET/SSE streams, resumption, server→client requests, `listChanged`
   notifications, resources, prompts, sampling, and auth flows (OAuth/CIMD/DCR).
-- `2026-07-28` support, if D-B = (i). It becomes a follow-up gated on a consumer asking.
+- `2026-07-28` support (D-B ruled (i)). It becomes a follow-up gated on a consumer asking.
 - Editing ailang-world. AC-W2 runs in a scratch worktree only. World's allowlist edit, and its
   `world/…` → MCP-name mapping, are World's own reviewable events.
-- Moving any executable code into `serveapi/protocol` (the kept Non-Goal), and any change to `protocol` at all.
+- Executable code or any other change in **package** `serveapi/protocol` itself (the kept Non-Goal, AC7). Executable code under the `protocol/` *path* is confined to `protocol/mcphttp` (ruled by Mark, D-A (a′), 2026-09-28) and `protocol/hostcall` (**added in the round-3 revision, after the ruling**. Mark then instructed "sprint plan and execute now" (2026-09-28), so the sprint proceeds on it, and it is flagged to him explicitly in the delivery report for veto. Folding the runner back into `mcphttp` is the cheap reversal if vetoed, at the cost of A2A importing an MCP-named package).
 - Origin validation (V22: absent today; it remains the embedding host's policy).
 
 ## Risks & Mitigations
@@ -457,5 +477,20 @@ spent, so the doc goes to Mark with its gaps labelled rather than into round 3.
 | `gemini-3-1-pro` | AC1's two-package allowlist is impossible because `protocol`'s closure contains third-party roots such as `jsonschema-go` | **Refuted by measurement (V25):** `protocol`'s non-stdlib closure is exactly itself. The 11 roots in V13 belong to the facade arm. AC1 now cites V25 |
 | `oc-glm-5-3` | AC-W2's 249 → 251 / "2 intruders" is inconsistent: World already imports `protocol` | **Accepted, and it changed the design.** V24 measured World at `58f6022`: closure 254, gate green, `protocol` admitted by prefix, facade **refused by test**, `protocol/subpkg` **admitted by test**. AC-W2 is re-pinned to that base, and the D-A recommendation moves from (a) to **(a′)** so World's unmodified gate admits the dispatcher |
 
-**Round 3 (pending):** run after Mark rules on D-A/D-B/D-F, against the ruled option only.
+**Round 3:** runs against the ruled options (D-A (a′), D-B (i), D-F accept).
+
+**Round 3 — 2026-09-28, BLOCKED 3/3** (against the ruled options). All three objections were residue from
+the pre-ruling option (a), plus one coupling defect. All were accepted: AC7 now uses a non-recursive glob
+plus a subpackage whitelist; the closure gate has four exact per-package arms; stale file names are fixed;
+A2A and runner fixtures were added to AC3 (V26); the changelog path is logged (V27); and the runner
+moves to the protocol-neutral `protocol/hostcall` instead of `mcphttp` (`gemini-3-1-pro`: A2A must not
+depend on an MCP-named package). AC-W2 is now 254 → 256.
+
+**Round 4 — 2026-09-28, BLOCKED 3/3.** Closed without a round 5, per Mark's instruction to proceed.
+- `gpt6-astra`: batch rejection contradicts supporting 2025-03-26. **Accepted:** W6 is now version-dependent (V29).
+- `gemini-3-1-pro`: batching removal, `outputSchema` optionality and the body-limit constant were unlogged. **Accepted:** V19 (single message in 2025-06-18), V30, V28.
+- `oc-glm-5-3`: `hostcall` was attributed to Mark's ruling but introduced after it. **Accepted:** the attribution was corrected (Non-Goals) and the item is flagged for veto in the delivery report.
+
+The rounds converged: round 1 raised design objections, round 2 a measurement gap that changed the
+recommendation, and rounds 3–4 consistency and logging. No reviewer disputed the architecture after round 2.
 
