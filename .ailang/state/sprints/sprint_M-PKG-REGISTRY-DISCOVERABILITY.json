@@ -1,0 +1,53 @@
+{
+  "sprint_id": "M-PKG-REGISTRY-DISCOVERABILITY",
+  "status": "not_started",
+  "created": "2026-09-28T07:03:17Z",
+  "design_doc": "design_docs/planned/v0_47_1/m-pkg-registry-discoverability.md",
+  "sprint_plan": "design_docs/planned/v0_47_1/m-pkg-registry-discoverability-sprint-plan.md",
+  "github_issues": [],
+  "registry_reuse": [
+    {"milestone": "M1_WEBSITE_AGENT_GUIDE", "package": null, "action": "none", "reason": "No registry package covers repository-native Docusaurus registry UI and snapshot pipeline changes; search 'registry documentation agent guide' returned no packages."},
+    {"milestone": "M2_DISCOVERABILITY_QUALITY", "package": null, "action": "none", "reason": "No registry package covers the canonical built-in publisher/validator quality seam; search 'package quality validation' returned no packages."},
+    {"milestone": "M3_PLANNER_REUSE_GATE", "package": null, "action": "none", "reason": "No registry package covers repository-local planner skills and progress schema; search 'sprint planning reuse' returned no packages."}
+  ],
+  "velocity": {
+    "target_loc_per_day": 248,
+    "estimated_total_loc": 620,
+    "estimated_days": 2.5
+  },
+  "features": [
+    {
+      "id": "M1_WEBSITE_AGENT_GUIDE",
+      "description": "Snapshot published AGENT.md files and render them safely as raw text on package detail pages.",
+      "estimated_loc": 100,
+      "dependencies": [],
+      "acceptance_criteria": ["Guide-present and guide-absent packages render the expected panel or placeholder", "Author content is escaped raw text and introduces no npm dependency", "Registry sync and the Docusaurus production build pass"],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_DISCOVERABILITY_QUALITY",
+      "description": "Add deterministic PUB008, PUB018, PUB022, and PUB023 feedback on publisher and validator paths.",
+      "estimated_loc": 340,
+      "dependencies": [],
+      "acceptance_criteria": ["Gap and clean fixtures emit exactly the expected new findings", "Export overlap is sorted, self-excluding, and reports lookup failure explicitly", "Publisher and validator server sections remain equivalent", "Focused and full Go test, formatting, lint, and boundary checks pass"],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_PLANNER_REUSE_GATE",
+      "description": "Require registry reuse analysis in both sprint-planner harnesses and persist it in sprint state and handoff templates.",
+      "estimated_loc": 180,
+      "dependencies": [],
+      "acceptance_criteria": ["Both planner variants implement identical depend, contribute, and none semantics", "Both sprint JSON generators emit and validate populated registry_reuse entries", "Both plan and executor-handoff templates preserve the reuse audit", "Dry-run JSON output validates and contains no placeholders"],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
