@@ -2,9 +2,9 @@
 
 **One-line answer (since 2026-09-28):** evals run `/Users/voightkampff/dev/mk-main`, branch
 `sunholo/main-dst` = Arni's `main` (DST core, extension ABI 8.0) plus our local commits
-(portable locks, `cloud` profile with `empty_stop_guard`, runtime `--max-recursion-depth`).
-Its extensions are the in-repo `packages/` copies. `mk-ast` (`sunholo/eval-canonical`, the
-ABI 2.2 fork) is kept for reference only; no evals run on it. See §9.
+(`cloud` and `ollama_microrag` profiles, `motoko_ext_ailang_tools`, rig-lease forwarding).
+Its extensions are the in-repo `packages/` copies. The ABI 2.2 fork (`sunholo/eval-canonical`)
+and its worktrees were removed on 2026-09-28; the branch survives on our fork. See §9.
 
 This file exists because "which motoko are we actually running?" cost a full
 audit once. Read it before touching any `~/dev/mk-*` directory.
@@ -25,9 +25,6 @@ separate checkout, not a separate fork. `git worktree list` is the truth.
 | Path | Branch | What it is |
 |---|---|---|
 | `dev/arniwesth/motoko_agent` | `feat/local-eval-profiles` | the clone; stale branch, do not eval from it |
-| `dev/mk-ast` | `sunholo/eval-canonical` | old ABI 2.2 fork — reference only since 2026-09-28 |
-| `dev/mk-prwork` | `fix/reliable-compaction` | PR #97 only |
-| `dev/mk-ast-upstream-fix` | `fix/ailang-0.30-message-images` | PR #96 only |
 | **`dev/mk-main`** | **`sunholo/main-dst`** | **CANONICAL — what `motoko` on PATH runs** (Arni's `main`, ABI 8.0; see §9) |
 
 Branches `integration/sync-clean-20260624` (was mk-sync) and
@@ -54,26 +51,14 @@ exec /Users/voightkampff/dev/mk-main/scripts/run-agent.sh "$@"
 currently does **not**, so motoko uses the `ailang` on PATH. If motoko ever
 behaves like an old compiler, check for that file first.
 
-## 3. Extensions: the registry is the source of truth
+## 3. Extensions: the in-repo `packages/` are the source of truth
 
-`mk-ast/ailang.toml` pins every extension to a **published registry version**.
-There are deliberately **no `{ path = ... }` overrides** — those were the cause
-of the local-vs-published drift that made this repo hard to reason about.
-
-Workflow when changing an extension:
-
-1. edit in `dev/sunholo-data/ailang-packages/packages/motoko-ext-*`
-2. bump `version` in that package's `ailang.toml`
-3. `ailang publish` (the server does a **stricter** compile than
-   `--dry-run` — trust the server, not the dry run)
-4. repin in `mk-ast/ailang.toml`, then `ailang lock`
-5. `ailang generate-extension-registry`
-6. `make check_core && make verify_extensions`
-
-To validate a change across the *real* dependency graph before publishing,
-temporarily point `mk-ast/ailang.toml` at local paths, converge, then restore
-the registry pins. Per-package `ailang check` **under-reports** — it does not
-see the full graph.
+Upstream `main` resolves every extension by path (`mk-main/ailang.toml`:
+`{ path = "packages/motoko-ext-*" }`). The ABI 2.2 registry packages
+(`sunholo/motoko_ext_*`) were unpublished on 2026-09-28 — see
+`ailang-packages/packages/MOTOKO_EXTENSIONS_RETIRED.md`. Edit an extension in
+`mk-main/packages/`, then `make check_core && make verify_extensions`. Ours
+(`motoko-ext-ailang-tools`) goes upstream as a PR (arniwesth/motoko_agent#200).
 
 ## 4. Profiles decide which extensions actually load
 
@@ -81,9 +66,9 @@ Compiled-in ≠ enabled. A profile's `extensions.order` is what loads at runtime
 
 | Profile | Extensions | Verify gate | Used by |
 |---|---|---|---|
-| `cloud` | compaction_ai, context_mode, ailang_docs, microrag | `ailang check benchmark/solution.ail` | all cloud `motoko-*` models |
-| `ollama` | compaction_ai, context_mode | — | `motoko-local-*` baseline |
-| `ollama_docs` / `ollama_microrag` / `ollama_fmt` / `ollama_dp7` | ollama + one variable | varies | A/B arms |
+| `cloud` | empty_stop_guard, compaction_ai, context_mode, ailang_docs, ailang_tools, microrag | `ailang check benchmark/solution.ail` | all cloud `motoko-*` models |
+| `ollama_microrag` | the `cloud` set, compaction on the local model | — | `motoko-local-qwen3-8-27b-microrag` (full local stack) |
+| `ollama` | compaction_ai, context_mode (upstream's, 50 steps) | — | `motoko-local-*` lean arms |
 | `dogfood` | compaction_ai, context_mode, exa_search | `make check_core` | motoko's own self-hosting work |
 
 `dogfood` is motoko's **development** profile — its `make check_core` gate only
@@ -117,14 +102,17 @@ Historic causes, in order of likelihood:
    stricter over time; motoko's declared rows must widen to match. This killed
    motoko for six days in July 2026 (`1282767ca`) and 72 runs were banked as
    failures before anyone noticed.
-2. **A zombie holding port 8080** (`lsof -i :8080`) — motoko pins `ENV_PORT=8080`.
-3. **Stale `ailang.lock` vs cache** — the log says "dependency … content changed".
-   Fix: `rm -rf ~/.ailang/cache/registry/sunholo/<pkg>` then `ailang lock`.
+2. **stdlib drift** — the stderr log reads "stdlib version mismatch". The executor
+   now exports `AILANG_STDLIB_PATH` only for a std/ identical to the binary's own.
+3. **423 from the rig gateway** — a local model called without the rig lease
+   (`/Users/Shared/ailang/rig-gate.jsonl`, decision `refused-none`).
+
+Port 8080 is no longer a cause: the executor gives every run its own `ENV_PORT`.
 
 A green boot is:
 
 ```bash
-cd /Users/voightkampff/dev/mk-ast && make check_core && make verify_extensions
+cd /Users/voightkampff/dev/mk-main && make check_core && make verify_extensions
 ```
 
 ## 7. Staying mergeable with upstream
@@ -136,20 +124,20 @@ keep the merge cheap:
 - **Never run `ailang fmt` across motoko sources.** It reflows whole
   expressions and inserts blank lines between imports, producing hundreds of
   lines of conflict surface for no benefit. Keep diffs signature-sized.
-- Query our delta with `git log origin/main..sunholo/eval-canonical`.
+- Query our delta with `git log origin/main..sunholo/main-dst`.
 - Rebase deliberately, not reflexively — check what Arni has in flight first
   (`gh pr list --repo arniwesth/motoko_agent`).
 
-## 8. Housekeeping done 2026-07-28
+## 8. Housekeeping
 
-Worktrees for the two superseded branches were removed and the eval branch was
+2026-07-28: worktrees for two superseded branches removed; the eval branch
 renamed `integration/sync-ast-20260624` -> `sunholo/eval-canonical`.
 
-Still outstanding: the clone sits on the stale `feat/local-eval-profiles` with
-one uncommitted line in `src/tui/src/runtime-process.ts`
-(`AILANG_OLLAMA_HTTP_TIMEOUT_SEC` forwarding). That change is **already in
-mk-ast** (line 408), so it is redundant and safe to discard — but it is real
-work, so discarding it is a human's call.
+2026-09-28: worktrees `mk-ast`, `mk-prwork`, `mk-ast-upstream-fix` removed. Every
+branch tip is on our fork; `mk-prwork`'s uncommitted snapshot of older upstream
+files was committed to `backup/mk-prwork-staged-20260928` first.
+
+Still outstanding: the clone sits on the stale `feat/local-eval-profiles`.
 
 ## 9. Migration to upstream `main` (ABI 8.0) — in progress since 2026-09-26
 
@@ -160,19 +148,18 @@ against the old fork.
 
 - `~/dev/mk-main` builds on AILANG **≥ v0.44.1** (v0.42.0–v0.44.0 fail on a `deriving (Eq)`
   regression; v0.44.1 fixed it). `make check_core`: 60/60 core, 9/9 extensions.
-- It carries one local commit, the setup fixes in upstream PR arniwesth/motoko_agent#191
-  (portable lockfiles, herdr lockfile, removal of the shadowing `src/core/ailang.toml`).
-  Drop it once #191 merges.
+- Our delta on top of upstream: `git log origin/main..sunholo/main-dst` (cloud and
+  `ollama_microrag` profiles, `motoko_ext_ailang_tools` = PR #200, rig-lease forwarding, and
+  one local-only commit that drops `src/core/ailang.toml`). #191, #193 and #198 are merged.
 - `make dst` needs **GNU make 4** (`gmake`, via `brew install make`). Stock macOS make 3.81
   skips the parallel targets and still prints "all targets passed".
 - Headless runs need `MODEL` set explicitly: without it motoko ignores the profile's model and
   falls back to `anthropic/claude-sonnet-4-6`. The eval executor always sets it.
-- **Blocker for making mk-main the eval tree: the rig lease.** Since 2026-09-28 the rig's ollama sits
-  behind a gateway that, under a held rig lock, refuses long work without the holder's token
-  (M-RIG-GPU-ADMISSION-GATEWAY). The token reaches motoko's AILANG child as `AILANG_RIG_LEASE`.
-  mk-ast forwards every `AILANG_*` variable (`autoForwardedEnvKeys`). mk-main's `buildChildEnv` is a
-  plain allowlist that drops it, so every local-model step would get 423. Add `AILANG_RIG_LEASE` to
-  that allowlist, or port the prefix rule, before the paired A/B.
+- **The rig lease.** Since 2026-09-28 the rig's ollama sits behind a gateway that, under a held
+  rig lock, refuses long work without the holder's token (M-RIG-GPU-ADMISSION-GATEWAY). The token
+  reaches motoko's AILANG child as `AILANG_RIG_LEASE`; mk-main's `buildChildEnv` allowlist dropped
+  it, so every local-model step got 423. Fixed on `sunholo/main-dst` (3e09f986, with a test). It
+  also needs an ailang whose clients attach the lease (dev after adc59d45b; not in v0.47.2).
 - Open questions to Arni (package source of truth, where AILANG extensions live, a post-tool
   hook, versioning): arniwesth/motoko_agent#192. Arni confirms ABI 8.0 is stable.
 - Not yet ported from the fork: compact-interface auto-read, per-edit `ailang check`,

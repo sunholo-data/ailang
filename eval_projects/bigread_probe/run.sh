@@ -11,7 +11,7 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 STAMP=$(date +%Y%m%d-%H%M%S)
 WS="/tmp/bigread_probe-motoko-${STAMP}"
 SESSION="session_bigread_motoko_${STAMP}"
-MOTOKO_REPO="${MOTOKO_REPO:-/Users/voightkampff/dev/mk-ast}"
+MOTOKO_REPO="${MOTOKO_REPO:-/Users/voightkampff/dev/mk-main}"
 
 AGENTMD="/tmp/ailang_agent_prompt_${STAMP}.md"
 cat > "$AGENTMD" <<'AGENTPROMPT'
