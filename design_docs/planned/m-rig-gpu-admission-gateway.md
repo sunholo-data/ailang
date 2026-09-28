@@ -1,6 +1,6 @@
 # M-RIG-GPU-ADMISSION-GATEWAY: Enforce the rig lock at ollama, not by convention
 
-**Status**: Phase 1 BUILT (2026-09-27): gateway, policy, lease minting, ledger, tests. Phase 2 cutover NOT done (see "Phase 1 as built")
+**Status**: Phase 2 CUT OVER (2026-09-28): ollama on :11435, gateway on :11434, pi/opencode/ailang clients send the lease, cloud models pass. Remaining: Daneel minting (cross-repo), bypass detector, Phase 3 soak (see "Phase 2 as built")
 **Target**: v0_44_2+
 **Priority**: P1 (rig throughput; the rig produced zero usable eval rows on 2026-09-23 and 2026-09-27)
 **Estimated**: 4–5 days (Phase 0 spike DONE 2026-09-27; the children.go decision is still open)
@@ -197,6 +197,14 @@ Two things keep that gap visible rather than silent:
 - End-to-end on the rig: the real binary on :18998 in front of the real ollama, with a fake held lease. `/api/tags` returned 200 in 4 ms. Unleased and foreign long requests got 423 in 0.5 ms and never reached the GPU. There are 3 ledger lines.
 
 **Remaining (Phase 2 + detector):** Daneel mints and sends the token (cross-repo); an `ollama-rig` pi provider plus the opencode apiKey template; the ollama port move; installing the plist; the bypass reconciler in rig-watchdog. Each needs the step before it. The order is in the plist header.
+
+### Phase 2 as built (2026-09-28)
+
+- **Found while cutting over: Ollama Cloud models.** `…:cloud` / `…-cloud` models go through the local daemon to ollama.com. The doc never mentioned them, but under D2 they would be refused while a lease is held, and the mission fleet runs on them. The gateway now peeks at the body's `model` (at most 64 MB, restored for the proxy). `isCloudModel` in `rig_admission.ail` admits them with the label `cloud`.
+- **Found: motoko and `--ai ollama:` never sent a token.** motoko is an AILANG program whose model calls go through ailang's OpenAI-compatible client. `riglock.WithLease` (loopback only, read per request) is used by `internal/ai/openai` and `internal/ai/ollama`. Seam test: a real `Generate` against a loopback server carries the lease, and removing the wrap fails it.
+- **pi: a `!` command value, not an `ollama-rig` provider.** pi's `resolve-config-value.js` runs a `!`-prefixed value through the shell (cached per process). `"X-Rig-Lease": "!printf %s \"${AILANG_RIG_LEASE:-none}\""` sends `none` when the variable is unset, so V12's startup refusal does not apply and model ids stay `ollama/…`. Measured with a capture server: unset → `none`, set → the token, and 423 is final after 1 request.
+- **opencode**: `"apiKey": "{env:AILANG_RIG_LEASE}"`. Measured: set → `Authorization: Bearer <tok>`, unset → no Authorization header, the run proceeds.
+- **Daneel deferred.** `tools/daneel` runs eparse under Daneel's lock, and eparse calls ollama. If `daneel_rig.ail` minted a token before eparse and `daneel_model.ail` sent it, Daneel's own indexing would be refused. Until then Daneel is `legacy-holder`. Latent bug for that PR: `removeLockDir` is non-recursive and does not delete `token`, so Daneel cannot reclaim a dead Go/shell holder's lock (it reads "busy" until someone else clears it).
 
 ## Examples
 

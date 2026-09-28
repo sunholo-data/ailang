@@ -4,6 +4,9 @@
       "baseUrl": "http://localhost:11434/v1",
       "api": "openai-completions",
       "apiKey": "ollama",
+      "headers": {
+        "X-Rig-Lease": "!printf %s \"${AILANG_RIG_LEASE:-none}\""
+      },
       "models": [
         {
           "id": "gemma4:26b"

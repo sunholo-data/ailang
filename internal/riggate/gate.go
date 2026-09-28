@@ -1,11 +1,13 @@
 package riggate
 
 import (
+	"bytes"
 	"context"
 	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -15,10 +17,6 @@ import (
 	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/riglock"
 )
-
-// LeaseHeader is the explicit lease header. It wins over Authorization, which
-// carries the token only for clients whose API key is templated from the lease.
-const LeaseHeader = "X-Rig-Lease"
 
 // Gate is the admission proxy.
 type Gate struct {
@@ -59,8 +57,14 @@ func (g *Gate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	start := g.now()
 	l := g.lease()
 	tok := requestToken(r)
+	model, err := peekModel(r)
+	if err != nil {
+		writeJSONError(w, http.StatusBadRequest, "rig_gate_body", err.Error())
+		return
+	}
 	f := Facts{
 		Path:          r.URL.Path,
+		Model:         model,
 		LeaseHeld:     l.Held,
 		LeaseHasToken: l.Token != "",
 		TokenPresent:  tok != "",
@@ -84,11 +88,42 @@ func (g *Gate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	g.record(r, f, v, sw.status, start)
 }
 
-// requestToken extracts the lease token: X-Rig-Lease first, then a Bearer key.
+// maxPeekBody bounds how much of a request body the gate buffers to read its
+// model. The largest measured prompts (138k tokens) are a few MB of JSON.
+const maxPeekBody = 64 << 20
+
+// peekModel reads the JSON body's "model" field and puts the body back for the
+// proxy. The model decides whether long work needs the GPU at all (Ollama Cloud
+// models are forwarded to ollama.com). A body that is not JSON has no model.
+func peekModel(r *http.Request) (string, error) {
+	if r.Body == nil || r.Body == http.NoBody || r.Method != http.MethodPost {
+		return "", nil
+	}
+	b, err := io.ReadAll(io.LimitReader(r.Body, maxPeekBody+1))
+	_ = r.Body.Close()
+	if err != nil {
+		return "", fmt.Errorf("reading request body: %w", err)
+	}
+	if len(b) > maxPeekBody {
+		return "", fmt.Errorf("request body larger than %d bytes", maxPeekBody)
+	}
+	r.Body = io.NopCloser(bytes.NewReader(b))
+	r.ContentLength = int64(len(b))
+	var m struct {
+		Model string `json:"model"`
+	}
+	if json.Unmarshal(b, &m) != nil {
+		return "", nil
+	}
+	return m.Model, nil
+}
+
+// requestToken extracts the lease token: X-Rig-Lease (riglock.LeaseHeader)
+// first, then a Bearer key for clients whose API key is templated from the lease.
 // The placeholder values clients carry when they have no lease ("none", and pi's
 // literal ollama key "ollama") count as no token.
 func requestToken(r *http.Request) string {
-	t := strings.TrimSpace(r.Header.Get(LeaseHeader))
+	t := strings.TrimSpace(r.Header.Get(riglock.LeaseHeader))
 	if t == "" {
 		if a := r.Header.Get("Authorization"); len(a) > 7 && strings.EqualFold(a[:7], "bearer ") {
 			t = strings.TrimSpace(a[7:])
@@ -109,6 +144,7 @@ func (g *Gate) record(r *http.Request, f Facts, v Verdict, status int, start tim
 		TS:         start.UTC().Format(time.RFC3339Nano),
 		Method:     r.Method,
 		Path:       r.URL.Path,
+		Model:      f.Model,
 		Decision:   v.Decision,
 		Status:     status,
 		DurationMS: g.now().Sub(start).Milliseconds(),

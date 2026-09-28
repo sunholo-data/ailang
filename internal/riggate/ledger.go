@@ -17,6 +17,7 @@ type Entry struct {
 	TS         string `json:"ts"`
 	Method     string `json:"method"`
 	Path       string `json:"path"`
+	Model      string `json:"model,omitempty"`
 	Decision   string `json:"decision"`
 	Status     int    `json:"status"`
 	DurationMS int64  `json:"duration_ms"`
