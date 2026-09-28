@@ -21,6 +21,10 @@
 - ⏳ [Milestone]: [estimated LOC]
 - 📋 [Milestone]: [estimated LOC]
 
+## Registry Reuse Audit
+
+For every implementable milestone, record the `ailang pkg search` terms, packages inspected with `pkg info`/`pkg docs`, and one decision: `depend`, `contribute`, or `none`. Placeholder or missing decisions block executor handoff.
+
 ## Proposed Milestones
 
 ### Milestone 1: [Name]

@@ -69,6 +69,13 @@ Gates vs badges depend on `[stability] level`: at `experimental` only compile fa
 refuted contracts (`PUB006`), release-description problems and identity skew block; at
 `stable`/`frozen` the badges (uncontracted exports, tests, effect ceiling) become gates too.
 
+Discoverability feedback uses four additional codes: `PUB008` asks for a
+`[metadata] license_url`; `PUB018` asks for the short `ai_summary` shown in registry
+search; `PUB022` warns when `AGENT.md` mentions none of the exported modules; and
+`PUB023` lists packages with exact export overlap, or explicitly reports that the
+registry lookup could not run. `PUB018` and `PUB022` are warnings (and therefore gates
+under `--strict`); `PUB008` and `PUB023` remain informational.
+
 ### Every version describes itself
 
 Two things are required from v0.41.0 (badges in v0.40.0):

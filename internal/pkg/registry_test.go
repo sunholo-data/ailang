@@ -75,6 +75,19 @@ func TestRegistryClient_SearchPackages(t *testing.T) {
 	}
 }
 
+func TestExportOverlapSortedAndSelfExcluding(t *testing.T) {
+	index := &RegistryIndex{Packages: []IndexEntry{
+		{Name: "z/pkg", Exports: []string{"shared/mod"}},
+		{Name: "self/pkg", Exports: []string{"shared/mod"}},
+		{Name: "a/pkg", Exports: []string{"shared/mod", "other"}},
+		{Name: "none/pkg", Exports: []string{"different"}},
+	}}
+	got := ExportOverlap(index, "self/pkg", []string{"shared/mod"})
+	if strings.Join(got, ",") != "a/pkg,z/pkg" {
+		t.Fatalf("overlap = %v", got)
+	}
+}
+
 func TestRegistryClient_FetchPackage_NotFound(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)

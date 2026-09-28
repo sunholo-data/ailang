@@ -130,8 +130,13 @@ func measurePackageQuality(dir string, opts qualityMeasureOptions) (*pkg.Package
 		}
 	}
 
-	if st, sErr := os.Stat(filepath.Join(absDir, "AGENT.md")); sErr == nil && !st.IsDir() {
-		in.HasAgentDoc = true
+	if content, readErr := os.ReadFile(filepath.Join(absDir, "AGENT.md")); readErr == nil {
+		in.HasAgentDoc, in.AgentDocContent = true, string(content)
+	}
+	if index, indexErr := pkg.NewRegistryClient().FetchIndex(); indexErr != nil {
+		in.OverlapErr = indexErr.Error()
+	} else {
+		in.Overlap = pkg.ExportOverlap(index, manifest.Package.Name, manifest.Exports.Modules)
 	}
 	in.ChangelogNotes, in.HasChangelogSection = pkg.ChangelogSection(absDir, manifest.Package.Version)
 	in.ReleaseGatesHard = pkg.ReleaseGatesHard(Version)

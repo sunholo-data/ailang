@@ -325,6 +325,16 @@ func (v *validator) handlePublish(w http.ResponseWriter, r *http.Request) {
 		Attested:         decodeAttested(r.FormValue(pkg.AttestedFormField), publishedBy),
 		ReleaseGatesHard: pkg.ReleaseGatesHard(getAilangVersion()),
 	}
+	if agentDoc, readErr := os.ReadFile(filepath.Join(tempDir, "AGENT.md")); readErr == nil {
+		qualityInputs.AgentDocContent = string(agentDoc)
+	}
+	if v.cache == nil {
+		qualityInputs.OverlapErr = "registry index cache unavailable"
+	} else if index, indexErr := v.cache.GetIndex(r.Context()); indexErr != nil {
+		qualityInputs.OverlapErr = indexErr.Error()
+	} else {
+		qualityInputs.Overlap = pkg.ExportOverlap(index, name, manifest.Exports.Modules)
+	}
 	changelogNotes, hasChangelog := pkg.ChangelogSection(tempDir, version)
 	qualityInputs.ChangelogNotes, qualityInputs.HasChangelogSection = changelogNotes, hasChangelog
 	report := pkg.BuildQualityReport(manifest, pkg.ModeServer, qualityInputs, false)

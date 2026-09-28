@@ -15,7 +15,7 @@ Browse all published AILANG packages. Each package has a dedicated page with man
 
 ## How It Works
 
-AILANG packages are published to a [GCS-backed registry](/docs/guides/packages) via `ailang publish`. Each version is validated (compilation, effects, contracts) before acceptance. Package data on these pages is snapshotted at build time and hydrated with live data from the registry API.
+AILANG packages are published to a [GCS-backed registry](/docs/guides/packages) via `ailang publish`. Each version is validated (compilation, effects, contracts) before acceptance. Package data on these pages is snapshotted at build time and hydrated with live data from the registry API. When a package ships an `AGENT.md`, its package page includes that machine-facing usage guide as safely escaped raw text.
 
 ### URL Convention
 
