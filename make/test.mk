@@ -103,6 +103,8 @@ test-launchd-drivers: ## Run launchd driver tests (pin-root + routing + notices 
 test-check-changelog: ## Run the changelog-index gate's own self-test (bash 3.2)
 	@/bin/bash scripts/test_check_changelog.sh
 	@/bin/bash -n scripts/check_changelog.sh
+	@/bin/bash scripts/test_changelog_fold.sh
+	@/bin/bash -n scripts/changelog_fold.sh
 
 test-check-protocol-closure: ## Run the protocol-closure gate's own self-test (bash 3.2)
 	@/bin/bash scripts/test_check_protocol_closure.sh
