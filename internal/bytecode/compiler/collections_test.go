@@ -108,7 +108,7 @@ func TestCompile_RecordLit_AndFieldAccess(t *testing.T) {
 			{
 				Name:   "getX",
 				Params: []stmt.Param{{Name: "p", Type: stmt.NamedType{Name: "Position"}}},
-				Return: stmt.FieldAccess{Record: stmt.VarRef{Name: "p"}, Field: "x"},
+				Return: stmt.FieldAccess{Record: stmt.VarRef{Name: "p"}, Field: "x", RecordType: "Position"},
 			},
 			{
 				Name: "caller",
@@ -148,11 +148,12 @@ func TestCompile_RecordUpdate(t *testing.T) {
 					{Name: "dx", Type: stmt.PrimitiveType{Kind: stmt.PrimInt}},
 				},
 				Return: stmt.RecordUpdate{
-					Base: stmt.VarRef{Name: "p"},
+					Base:       stmt.VarRef{Name: "p"},
+					RecordType: "Position",
 					Fields: []stmt.FieldInit{
 						{Name: "x", Value: stmt.BinOp{
 							Op:    stmt.OpAdd,
-							Left:  stmt.FieldAccess{Record: stmt.VarRef{Name: "p"}, Field: "x"},
+							Left:  stmt.FieldAccess{Record: stmt.VarRef{Name: "p"}, Field: "x", RecordType: "Position"},
 							Right: stmt.VarRef{Name: "dx"},
 						}},
 					},
@@ -174,7 +175,8 @@ func TestCompile_RecordUpdate(t *testing.T) {
 							stmt.LitInt{Value: 5},
 						},
 					},
-					Field: "x",
+					Field:      "x",
+					RecordType: "Position",
 				},
 				Exported: true,
 			},
