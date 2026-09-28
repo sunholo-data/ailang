@@ -1,15 +1,13 @@
 package serveapi
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
-	"io"
+	"fmt"
 	"net/http"
-	"sync"
 
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/sunholo-data/ailang/serveapi/protocol"
+	"github.com/sunholo-data/ailang/serveapi/protocol/mcphttp"
 )
 
 // embeddedMCPConfig supplies the request-scoped host operations used by the
@@ -23,165 +21,40 @@ type embeddedMCPConfig struct {
 	Invoke       func(context.Context, any, string, json.RawMessage) (json.RawMessage, error)
 }
 
-type embeddedMCPHandler struct {
-	config    embeddedMCPConfig
-	transport http.Handler
-}
-
-type embeddedMCPContext struct {
-	surface *protocol.AuthorizedSurface
-	session any
-	failure *embeddedCallbackFailure
-}
-
-type embeddedCallbackFailure struct {
-	mu      sync.Mutex
-	message string
-}
-
-type embeddedMCPContextKey struct{}
-
-// newEmbeddedMCPHandler builds the stateless SDK transport once. The server
-// returned to it is still new for every authorized POST.
+// newEmbeddedMCPHandler adapts the facade's callbacks onto the stdlib-only
+// dispatcher in serveapi/protocol/mcphttp, the single MCP implementation
+// (ailang#885). serveapi links no MCP SDK.
 func newEmbeddedMCPHandler(config embeddedMCPConfig) http.Handler {
-	h := &embeddedMCPHandler{config: config}
-	h.transport = mcp.NewStreamableHTTPHandler(h.serverForRequest,
-		&mcp.StreamableHTTPOptions{Stateless: true})
-	return h
-}
-
-func (h *embeddedMCPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		h.transport.ServeHTTP(w, r)
-		return
-	}
-
-	body, err := io.ReadAll(io.LimitReader(r.Body, mcp.DefaultMaxRequestBodyBytes+1))
-	if err != nil || len(body) > mcp.DefaultMaxRequestBodyBytes {
-		protocol.WriteMCPEnvelope(w, protocol.RequestID(body), "invalid MCP request body")
-		return
-	}
-	r.Body = io.NopCloser(bytes.NewReader(body))
-	id := protocol.RequestID(body)
-
-	session, err := runCallback(r.Context(), h.config.Runner, func(ctx context.Context) (any, error) {
-		return h.config.Resolve(ctx, r)
+	handler, err := mcphttp.NewHandler(mcphttp.Config{
+		Agent:    protocol.AgentInfo{Name: config.AgentName, Version: config.AgentVersion},
+		Resolver: resolverFunc(config.Resolve),
+		Tools:    toolsFunc(config.Tools),
+		Invoker:  invokerFunc(config.Invoke),
+		Runner:   config.Runner,
 	})
 	if err != nil {
-		if status := protocol.AuthorizationStatus(err); status != 0 {
-			http.Error(w, err.Error(), status)
-			return
-		}
-		writeMCPCallbackError(w, id, err)
-		return
+		// New validates every field before it gets here, so this is a programming
+		// error in the facade, not a runtime condition to degrade around.
+		panic(fmt.Sprintf("serveapi: embedded MCP handler: %v", err))
 	}
-
-	descriptors, err := runCallback(r.Context(), h.config.Runner, func(ctx context.Context) ([]ToolDescriptor, error) {
-		return h.config.Tools(ctx, session)
-	})
-	if err != nil {
-		writeMCPCallbackError(w, id, err)
-		return
-	}
-	surface, err := protocol.CallerSurface(descriptors)
-	if err != nil {
-		protocol.WriteMCPEnvelope(w, id, err.Error())
-		return
-	}
-
-	failure := &embeddedCallbackFailure{}
-	ctx := context.WithValue(r.Context(), embeddedMCPContextKey{}, embeddedMCPContext{surface, session, failure})
-	r = r.WithContext(ctx)
-	r.Body = io.NopCloser(bytes.NewReader(body))
-	h.serveTransport(w, r, id)
+	return handler
 }
 
-func (h *embeddedMCPHandler) serveTransport(w http.ResponseWriter, r *http.Request, id json.RawMessage) {
-	buffer := newBufferedResponseWriter()
-	defer func() {
-		if recover() != nil {
-			protocol.WriteMCPEnvelope(w, id, "host tool registration failed")
-		}
-	}()
-	h.transport.ServeHTTP(buffer, r)
-	requestContext := r.Context().Value(embeddedMCPContextKey{}).(embeddedMCPContext)
-	requestContext.failure.mu.Lock()
-	message := requestContext.failure.message
-	requestContext.failure.mu.Unlock()
-	if message != "" {
-		protocol.WriteMCPEnvelope(w, id, message)
-		return
-	}
-	for name, values := range buffer.header {
-		w.Header()[name] = append([]string(nil), values...)
-	}
-	// The SDK sets Content-Type on every response path it has today, but this wrapper
-	// replays its headers wholesale, so that guarantee is inherited rather than ours. An
-	// unlabelled body here would be content-sniffed by the browser, and this body can
-	// contain reflected request data. Assert the invariant locally instead (#603).
-	if w.Header().Get("Content-Type") == "" {
-		w.Header().Set("Content-Type", "application/json")
-	}
-	w.Header().Set("X-Content-Type-Options", "nosniff")
-	w.WriteHeader(buffer.status)
-	_, _ = w.Write(buffer.body.Bytes())
+type resolverFunc func(context.Context, *http.Request) (any, error)
+
+func (f resolverFunc) ResolveSession(ctx context.Context, r *http.Request) (protocol.Session, error) {
+	return f(ctx, r)
 }
 
-type bufferedResponseWriter struct {
-	header http.Header
-	body   bytes.Buffer
-	status int
+type toolsFunc func(context.Context, any) ([]ToolDescriptor, error)
+
+func (f toolsFunc) Tools(ctx context.Context, session protocol.Session) ([]protocol.ToolDescriptor, error) {
+	return f(ctx, session)
 }
 
-func newBufferedResponseWriter() *bufferedResponseWriter {
-	return &bufferedResponseWriter{header: make(http.Header), status: http.StatusOK}
-}
+type invokerFunc func(context.Context, any, string, json.RawMessage) (json.RawMessage, error)
 
-func (w *bufferedResponseWriter) Header() http.Header            { return w.header }
-func (w *bufferedResponseWriter) WriteHeader(status int)         { w.status = status }
-func (w *bufferedResponseWriter) Write(data []byte) (int, error) { return w.body.Write(data) }
-func (w *bufferedResponseWriter) Flush()                         {}
-
-func (h *embeddedMCPHandler) serverForRequest(r *http.Request) *mcp.Server {
-	requestContext, ok := r.Context().Value(embeddedMCPContextKey{}).(embeddedMCPContext)
-	if !ok {
-		return nil
-	}
-	server := mcp.NewServer(&mcp.Implementation{
-		Name: h.config.AgentName, Version: h.config.AgentVersion,
-	}, nil)
-	for _, descriptor := range requestContext.surface.All() {
-		descriptor := descriptor
-		server.AddTool(&mcp.Tool{
-			Name: descriptor.Name, Description: descriptor.Description,
-			InputSchema: descriptor.InputSchema, OutputSchema: descriptor.OutputSchema,
-		}, func(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			result, err := runCallback(ctx, h.config.Runner, func(callCtx context.Context) (json.RawMessage, error) {
-				return h.config.Invoke(callCtx, requestContext.session, descriptor.Name, req.Params.Arguments)
-			})
-			if err != nil {
-				requestContext.failure.mu.Lock()
-				requestContext.failure.message = protocol.CallbackMessage(err)
-				requestContext.failure.mu.Unlock()
-				return mcpError(protocol.CallbackMessage(err)), nil
-			}
-			return &mcp.CallToolResult{
-				Content:           []mcp.Content{&mcp.TextContent{Text: string(result)}},
-				StructuredContent: result,
-			}, nil
-		})
-	}
-	return server
-}
-
-func writeMCPCallbackError(w http.ResponseWriter, id json.RawMessage, err error) {
-	protocol.WriteMCPEnvelope(w, id, protocol.CallbackMessage(err))
-}
-
-// mcpError creates an MCP tool error result shared by standalone and embedded servers.
-func mcpError(msg string) *mcp.CallToolResult {
-	return &mcp.CallToolResult{
-		Content: []mcp.Content{&mcp.TextContent{Text: msg}},
-		IsError: true,
-	}
+func (f invokerFunc) Invoke(ctx context.Context, session protocol.Session, call protocol.Invocation) (protocol.InvocationResult, error) {
+	value, err := f(ctx, session, call.Name, call.Arguments)
+	return protocol.InvocationResult{Value: value}, err
 }
