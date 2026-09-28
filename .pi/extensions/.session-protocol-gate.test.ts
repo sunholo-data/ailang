@@ -78,10 +78,18 @@ test(
 				`#!/usr/bin/env bash
 set -u
 printf '%s\\n' "\${AILANG_STORAGE_MESSAGING-__UNSET__}" "\${AILANG_MESSAGES_PROJECT-__UNSET__}" "\${AILANG_STORAGE-__UNSET__}" > child-env.txt
+[ -n "\${PI_SANDBOX_READY_FILE-}" ] && printf 'ready\\n' > "\$PI_SANDBOX_READY_FILE"
 printf '%s\\n' '{"type":"agent_end"}'
 `,
 			);
 			chmodSync(fakePi, 0o755);
+
+			// The runner fails closed without the sandbox runtime (rc 15) and without the
+			// extension's readiness marker (rc 17); fake both, entirely inside the fixture.
+			const nodeModules = join(fixture, "node_modules");
+			mkdirSync(join(nodeModules, "@anthropic-ai", "sandbox-runtime"), { recursive: true });
+			writeFileSync(join(nodeModules, "@anthropic-ai", "sandbox-runtime", "package.json"), "{}\n");
+			const claudeTmp = join(fixture, "claude-tmp");
 
 			const directive = join(fixture, "directive.txt");
 			writeFileSync(directive, "MISSION-ROLE: evaluator\n");
@@ -115,6 +123,8 @@ printf '%s\\n' '{"type":"agent_end"}'
 					...process.env,
 					PATH: `${binDir}:${process.env.PATH ?? ""}`,
 					MISSION_PI_POLL_SECONDS: "1",
+					MISSION_PI_SANDBOX_NODE_MODULES: nodeModules,
+					MISSION_PI_CLAUDE_TMP_DIR: claudeTmp,
 				};
 				delete env.AILANG_STORAGE_MESSAGING;
 				delete env.AILANG_MESSAGES_PROJECT;
