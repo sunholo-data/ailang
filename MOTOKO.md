@@ -1,8 +1,10 @@
 # motoko_agent on this machine — the map
 
-**One-line answer:** evals run `/Users/voightkampff/dev/mk-ast`, branch
-`sunholo/eval-canonical`, and every extension comes from the **online registry**
-(`registry.ailang.sunholo.com`). Nothing else is the eval version.
+**One-line answer (since 2026-09-28):** evals run `/Users/voightkampff/dev/mk-main`, branch
+`sunholo/main-dst` = Arni's `main` (DST core, extension ABI 8.0) plus our local commits
+(portable locks, `cloud` profile with `empty_stop_guard`, runtime `--max-recursion-depth`).
+Its extensions are the in-repo `packages/` copies. `mk-ast` (`sunholo/eval-canonical`, the
+ABI 2.2 fork) is kept for reference only; no evals run on it. See §9.
 
 This file exists because "which motoko are we actually running?" cost a full
 audit once. Read it before touching any `~/dev/mk-*` directory.
@@ -23,10 +25,10 @@ separate checkout, not a separate fork. `git worktree list` is the truth.
 | Path | Branch | What it is |
 |---|---|---|
 | `dev/arniwesth/motoko_agent` | `feat/local-eval-profiles` | the clone; stale branch, do not eval from it |
-| **`dev/mk-ast`** | **`sunholo/eval-canonical`** | **CANONICAL — what `motoko` on PATH runs** |
+| `dev/mk-ast` | `sunholo/eval-canonical` | old ABI 2.2 fork — reference only since 2026-09-28 |
 | `dev/mk-prwork` | `fix/reliable-compaction` | PR #97 only |
 | `dev/mk-ast-upstream-fix` | `fix/ailang-0.30-message-images` | PR #96 only |
-| `dev/mk-main` | `sunholo/main-dst` | Arni's `main` (DST core, ABI 8.0) — **migration target, not yet the eval version** (see §9) |
+| **`dev/mk-main`** | **`sunholo/main-dst`** | **CANONICAL — what `motoko` on PATH runs** (Arni's `main`, ABI 8.0; see §9) |
 
 Branches `integration/sync-clean-20260624` (was mk-sync) and
 `integration/editdecl-timeout` (was mk-integration) still exist but their
@@ -45,7 +47,7 @@ regardless.
 `~/go/bin/motoko` is a shim, not a binary:
 
 ```bash
-exec /Users/voightkampff/dev/mk-ast/scripts/run-agent.sh "$@"
+exec /Users/voightkampff/dev/mk-main/scripts/run-agent.sh "$@"
 ```
 
 `run-agent.sh` prefers a repo-local `ailang/bin/ailang` if one exists — it
@@ -152,8 +154,9 @@ work, so discarding it is a human's call.
 ## 9. Migration to upstream `main` (ABI 8.0) — in progress since 2026-09-26
 
 Plan: `design_docs/planned/m-motoko-dst-refactor-migration.md` (per-commit verdicts:
-`m-motoko-fork-disposition.md`). The `motoko` shim still runs `mk-ast` until a paired
-A/B says otherwise.
+`m-motoko-fork-disposition.md`). **The shim was switched to `mk-main` on 2026-09-28 (Mark):**
+we are adopting it, so it is measured on its own (before/after per change), not A/B'd
+against the old fork.
 
 - `~/dev/mk-main` builds on AILANG **≥ v0.44.1** (v0.42.0–v0.44.0 fail on a `deriving (Eq)`
   regression; v0.44.1 fixed it). `make check_core`: 60/60 core, 9/9 extensions.
@@ -166,3 +169,7 @@ A/B says otherwise.
   falls back to `anthropic/claude-sonnet-4-6`. The eval executor always sets it.
 - Open questions to Arni (package source of truth, where AILANG extensions live, a post-tool
   hook, versioning): arniwesth/motoko_agent#192. Arni confirms ABI 8.0 is stable.
+- Not yet ported from the fork (ABI 8.0 cannot wrap native tools; post-tool hook asked for on
+  arniwesth/motoko_agent#192): compact-interface auto-read, per-edit `ailang check`,
+  whitespace-tolerant `EditFile`, fmt, `MOTOKO_MAX_STEPS`, the step-0 resolved-config event.
+- Local motoko (`motoko-local-qwen3-8-27b`) is OUT of the GPU rotation until `mk-main` is stable.
