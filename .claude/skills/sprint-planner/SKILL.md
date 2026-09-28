@@ -185,7 +185,7 @@ After creating the JSON file, sprint-executor can:
 
 ### 0. Check the Registry (Mandatory Reuse Gate)
 
-Before decomposing implementation, run `ailang pkg search <keywords>` for every package-like capability. Inspect candidates with `ailang pkg info <vendor/name>` and `ailang pkg docs <vendor/name>`. Classify every implementable milestone as `depend` (reuse and pin the package), `contribute` (extend the existing package via its `pkg:<name>` inbox), or `none` (record searches and why fresh code is required). Persist populated decisions in the plan and `registry_reuse` sprint JSON; placeholders block handoff.
+Search the registry before planning any package-like capability, and record a `depend` / `contribute` / `none` decision per milestone in `registry_reuse`; placeholders block handoff. Procedure: [resources/registry_reuse_gate.md](resources/registry_reuse_gate.md).
 
 ### 1. Read and Analyze Design Document
 
@@ -534,29 +534,7 @@ coordinator:
       session_continuity: true
 ```
 
-### Receiving Handoffs from design-doc-creator
-
-The sprint-planner receives:
-```json
-{
-  "type": "design_doc_ready",
-  "correlation_id": "task-123",
-  "design_doc_path": "design_docs/planned/v0_6_3/m-semantic-caching.md",
-  "session_id": "claude-session-abc"
-}
-```
-
-### Sending Tasks to sprint-planner
-
-```bash
-# Direct task (skip design-doc-creator)
-ailang messages send sprint-planner "Plan sprint for M-CACHE feature" \
-  --title "Sprint: M-CACHE" --from "user"
-
-# Reference existing design doc
-ailang messages send sprint-planner '{"design_doc_path": "design_docs/planned/v0_6_3/m-cache.md"}' \
-  --title "Sprint: M-CACHE" --from "design-doc-creator"
-```
+Handoff message formats and how to send tasks: [resources/coordinator.md](resources/coordinator.md). **Merging a `coordinator/task-*` sprint-plan PR approves it and starts sprint-executor, which writes code** (the cloud daemon fires the handoff on merge).
 
 ### Handoff Message to sprint-executor
 
@@ -571,7 +549,7 @@ On completion, sprint-planner sends:
   "session_id": "claude-session-xyz",
   "estimated_duration": "3 days",
   "total_loc_estimate": 650,
-	"registry_reuse": [{"milestone":"M1", "package":"sunholo/example", "action":"depend", "reason":"Capability already exists"}],
+  "registry_reuse": [{"milestone":"M1", "package":"sunholo/example", "action":"depend", "reason":"Capability already exists"}],
   "risk_level": "medium"
 }
 ```

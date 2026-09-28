@@ -75,7 +75,11 @@ else
 fi
 
 # Registry reuse audit is mandatory for every implementable milestone.
-if ! jq -e '.registry_reuse | type == "array" and length > 0' "$PROGRESS_FILE" >/dev/null 2>&1; then
+# Sprints created before the gate (2026-09-28) have no registry_reuse field: warn, don't
+# block them. A present field must be a real, populated audit.
+if ! jq -e 'has("registry_reuse")' "$PROGRESS_FILE" >/dev/null 2>&1; then
+    echo -e "${YELLOW}WARNING: no registry_reuse audit (pre-gate sprint); new sprints must record one${NC}"
+elif ! jq -e '.registry_reuse | type == "array" and length > 0' "$PROGRESS_FILE" >/dev/null 2>&1; then
     echo -e "${RED}ERROR: registry_reuse must be a populated array${NC}"
     ERRORS=$((ERRORS + 1))
 elif jq -e '.registry_reuse[] | select(.milestone == "MILESTONE_ID" or (.reason | startswith("REPLACE:")) or (.action != "depend" and .action != "contribute" and .action != "none"))' "$PROGRESS_FILE" >/dev/null 2>&1; then

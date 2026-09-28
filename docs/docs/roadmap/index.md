@@ -57,6 +57,11 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [Sprint Plan: M-NIGHTLY-UNMEASURED-CATEGORY-GATE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-nightly-unmeasured-category-gate-sprint-plan.md)
 - [Sprint Plan — M-OLLAMA-V1-STREAMING-IDLE-TIMEOUT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-ollama-v1-streaming-idle-timeout-sprint-plan.md)
 
+## Planned for v0.48.0
+
+- [Sprint plan: M-SERVEAPI-SDK-FREE-MCP (#885)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_48_0/m-serveapi-sdk-free-mcp-dispatch-sprint-plan.md)
+- [M-SERVEAPI-SDK-FREE-MCP: a stdlib-only MCP dispatcher inside `serveapi` (#885)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_48_0/m-serveapi-sdk-free-mcp-dispatch.md)
+
 ## Planned for v0.47.2
 
 - [M-BYTECODE-GETFIELD-SLOT-RESOLUTION — GET_FIELD compiles the wrong slot index when two record types share a field name at different positions (silent wrong reads under `--bytecode`)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_47_2/m-bytecode-getfield-slot-resolution.md)
@@ -253,6 +258,7 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [std/clock & std/datetime: prompt and one guide say "seconds", implementation is milliseconds](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/datetime-clock-ms-vs-seconds-docs.md)
 - [design-doc-creator hard-codes the ailang repo's mission-log path, breaking the daneel repo's proven docs-only gate and auto-merge scope](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/design-quorum-mission-log-path.md)
 - [D4: docparse Dockerfile — bump the ailang pin and add `--max-memory cgroup` to the serve-api CMD](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/docparse-dockerfile-bump-pin-max-memory.md)
+- [`ailang docs` reads a stale stdlib root silently — no version-mismatch warning like `run`](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/docs-stdlib-version-mismatch-warning.md)
 - [Correction to dogfood logreg report — std/embedding already has dot/scale/add_vectors; the narrow ask (native ops) is already shipped](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/dogfood-logreg-correction-embedding-native.md)
 - [Duplicate top-level func definitions in one module silently overwrite (MOD007 gap)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/duplicate-func-binding-silent.md)
 - [Effect checker resolves let-bound lambda to top-level function of same name](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/effect-checker-let-shadowing.md)
@@ -293,4 +299,4 @@ For the complete vision, see [Why AILANG](/docs/why-ailang) and [Vision](/docs/v
 
 ---
 
-*Generated at build time. 201 planned features across 23 upcoming versions.*
+*Generated at build time. 204 planned features across 24 upcoming versions.*
