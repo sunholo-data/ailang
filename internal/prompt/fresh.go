@@ -155,13 +155,15 @@ func fetchFromMCP(ctx context.Context, mcpURL, callerVersion, wantVersion, kind 
 	if servedFor == "" {
 		servedFor = wantVersion
 	}
-	if servedFor != wantVersion {
+	if mcp_client.WireVersion(servedFor) != mcp_client.WireVersion(wantVersion) {
 		return nil, fmt.Errorf("server returned prompt for %s but we asked for %s", servedFor, wantVersion)
 	}
 	return &FreshResult{
 		Content: markdown,
 		Source:  SourceMCP,
-		Version: servedFor,
+		// Report the version in the CLI's own form ("v0.47.1"), as the cache
+		// does; the wire form ("0.47.1") is an MCP snapshot detail.
+		Version: wantVersion,
 		SHA256:  SHA256Hex([]byte(markdown)),
 		MCPNote: "fresh from MCP",
 	}, nil
