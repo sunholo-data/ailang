@@ -472,6 +472,6 @@ bug (V14) and the round-1 fixes (V21/V22) — is banked and survives whichever o
 
 - `tools/launchd/lib/pin-root.sh` (PR #666) — the helper this rolls out; its header is the
   canonical statement of the failure class and the loud-STALE contract.
-- [m-ollama-v1-streaming-idle-timeout](m-ollama-v1-streaming-idle-timeout.md) — owner of the
+- [m-ollama-v1-streaming-idle-timeout](../implemented/v0_33_1/m-ollama-v1-streaming-idle-timeout.md) — owner of the
   pending PLIST rollout this design deliberately does not touch (D7/V8).
 - `design_docs/v1-mission.md` — charter item + unblocking gate this doc discharges (V1).

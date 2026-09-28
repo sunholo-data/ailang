@@ -1,7 +1,10 @@
 # M-OLLAMA-V1-STREAMING-IDLE-TIMEOUT: Stream the ollama /v1 tool-calling path with a read-level idle timeout
 
 **Tracking**: ailang#618 (this) · ailang#619 (the publisher-validity fallout)
-**Status**: REVIVED 2026-08-07 (was archived 2026-07-29 as charter-unreferenced — see Field Evidence below; the diagnosis was never wrong, it just wasn't on the charter) · REVISED 2026-08-10 after quorum round 2: both objections measured, not argued — the publisher claim is now V18, and the streaming feasibility premise is CONFIRMED on the wire (V21/V22), retiring the M3 capture task
+**Status**: Implemented in v0.33.1 (752f997d1, ff1fa0760, 86f7f1c32, 08eef7760; closes #618). Moved from planned/ by the 2026-09-28 issue triage.
+
+_Prior status:_ REVIVED 2026-08-07 (was archived 2026-07-29 as charter-unreferenced — see Field Evidence below; the diagnosis was never wrong, it just wasn't on the charter) · REVISED 2026-08-10 after quorum round 2: both objections measured, not argued — the publisher claim is now V18, and the streaming feasibility premise is CONFIRMED on the wire (V21/V22), retiring the M3 capture task
+
 **Target**: v0.34.0
 **Priority**: **P0** (raised from P1 — measured 43-day production impact: 80 motoko runs lost, ~74.6 GPU-hours burned, and ACCELERATING)
 **Estimated**: 1–2 days (down from 2–3: the repo already ships a tested OpenAI-compatible SSE client with per-index tool-call reassembly — `internal/ai/openai/streamstep.go` — so the streaming/reassembly work this doc originally budgeted does not exist; see Verification Log V8–V11)
@@ -41,7 +44,7 @@ ended at exactly `took=4m59.97x`**.
 `validity` (V18) — so motoko-local's published v0.33.0 **frontier score was exactly 3/22 = 13.6%** where
 **17 of those 22 were harness timeouts**. True figure ≈ 60% (n=5). That publisher defect is a
 distinct bug tracked as W8 in
-[m-eval-validity-discipline](m-eval-validity-discipline.md) / ailang#619; the corrupted rows were deleted
+[m-eval-validity-discipline](../../planned/m-eval-validity-discipline.md) / ailang#619; the corrupted rows were deleted
 2026-08-07.
 
 **Stopgap in place (REMOVE when this lands):** `AILANG_OLLAMA_HTTP_TIMEOUT_SEC=1800` set via
