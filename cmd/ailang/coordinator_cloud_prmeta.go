@@ -20,6 +20,6 @@ func mergeWarning(starts []string) string {
 	for i, s := range starts {
 		names[i] = "**" + s + "**"
 	}
-	return fmt.Sprintf("> ⚠️ **Merging this approves the task and starts %s.** "+
+	return fmt.Sprintf("> ⚠️ Merging this approves the task and starts %s. "+
 		"Merge only when you want that next stage to run.\n\n", strings.Join(names, " and "))
 }
