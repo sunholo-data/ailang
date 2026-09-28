@@ -37,6 +37,7 @@ package motoko
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -572,6 +573,13 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	if runErr != nil && !result.Success {
 		result.ProviderData["motoko_exit"] = runErr.Error()
 		result.Error += fmt.Sprintf(" [motoko process: %v]", runErr)
+		// Killed by our own wall-clock bound: say so, so the run banks as a
+		// timeout (the model needed more time) rather than an api_error (cause
+		// unknown). 2026-09-28: quine streamed ~22k reasoning tokens in one step
+		// and was SIGKILLed at the 1h bound, banked as api_error.
+		if errors.Is(runCtx.Err(), context.DeadlineExceeded) {
+			result.Error = fmt.Sprintf("motoko exceeded its wall-clock bound (%v): timeout — ", runTimeout) + result.Error
+		}
 	}
 
 	// run_summary may carry its own duration_ms (from motoko's internal
