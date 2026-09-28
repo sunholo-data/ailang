@@ -77,6 +77,7 @@ func lowerExpr(e core.CoreExpr, cti types.CoreTypeInfo) stmt.Expr {
 			Record:      lowerExpr(e.Record, cti),
 			Field:       e.Field,
 			KnownFields: recordFieldSet(cti, e.Record),
+			RecordType:  recordTypeName(cti, e.Record),
 		}
 
 	case *core.RecordUpdate:
@@ -279,6 +280,28 @@ func recordFieldSet(cti types.CoreTypeInfo, e core.CoreExpr) []string {
 	return fields
 }
 
+// recordTypeName returns the declared type name of e's inferred type when
+// it is a named type (`v: V` reaches CoreTI as TCon "V", a generic record
+// as TApp over TCon), or "" otherwise. The name is only a hint: the
+// bytecode compiler uses it when its TypeDecl table holds exactly one
+// record of that name, and resolves by name at runtime otherwise.
+func recordTypeName(cti types.CoreTypeInfo, e core.CoreExpr) string {
+	if e == nil {
+		return ""
+	}
+	t, ok := cti.GetForExpr(e)
+	if !ok || t == nil {
+		return ""
+	}
+	if app, isApp := t.(*types.TApp); isApp && app != nil {
+		t = app.Constructor
+	}
+	if con, isCon := t.(*types.TCon); isCon && con != nil {
+		return con.Name
+	}
+	return ""
+}
+
 // parseADTFactoryName splits a `$adt.make_Type_Tag` factory name into its
 // (TypeName, CtorName) components. The elaborator builds these names with
 // `fmt.Sprintf("make_%s_%s", TypeName, CtorName)` in
@@ -462,16 +485,25 @@ func lowerRecord(e *core.Record, cti types.CoreTypeInfo) stmt.Expr {
 }
 
 func lowerRecordUpdate(e *core.RecordUpdate, cti types.CoreTypeInfo) stmt.Expr {
-	fields := make([]stmt.FieldInit, 0, len(e.Updates))
-	for name, val := range e.Updates {
+	// Sorted so the lowered IR (and the bytecode built from it) does not
+	// depend on Go map iteration order.
+	names := make([]string, 0, len(e.Updates))
+	for name := range e.Updates {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	fields := make([]stmt.FieldInit, 0, len(names))
+	for _, name := range names {
 		fields = append(fields, stmt.FieldInit{
 			Name:  name,
-			Value: lowerExpr(val, cti),
+			Value: lowerExpr(e.Updates[name], cti),
 		})
 	}
 	return stmt.RecordUpdate{
-		Base:   lowerExpr(e.Base, cti),
-		Fields: fields,
+		Base:        lowerExpr(e.Base, cti),
+		Fields:      fields,
+		KnownFields: recordFieldSet(cti, e.Base),
+		RecordType:  recordTypeName(cti, e.Base),
 	}
 }
 
