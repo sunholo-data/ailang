@@ -1,6 +1,6 @@
 # M-SERVEAPI-SDK-FREE-MCP: a stdlib-only MCP dispatcher inside `serveapi` (#885)
 
-**Status**: Planned — **D-A (a′), D-B (i), D-F accept: ruled by Mark 2026-09-28**. Design Freeze fully checked. Quorum round 1 and round 2 were both BLOCKED 3/3. Every objection was accepted or refuted with a measurement (§Quorum record). The re-quorum-once guardrail is spent, so round 3 runs **after** Mark's D-A ruling, not before
+**Status**: Implemented on branch `design/m-serveapi-mcp-dispatch-seam` (2026-09-28; unreleased). D-A (a′), D-B (i), D-F accept: ruled by Mark 2026-09-28. AC1–AC8 met; AC-W1..W3 await a release Quorum round 1 and round 2 were both BLOCKED 3/3. Every objection was accepted or refuted with a measurement (§Quorum record). The re-quorum-once guardrail is spent, so round 3 runs **after** Mark's D-A ruling, not before
 **Target**: v0.48.0
 **Priority**: P1 — the only upstream item blocking ailang-world's MCP projection
 (`w-mcp-dispatch-projection`, charter clause 6); ranked `[NEXT]` at `design_docs/v1-mission.md:1011`
