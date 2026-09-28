@@ -1,0 +1,92 @@
+{
+  "sprint_id": "M-VM-DETERMINISM",
+  "status": "not_started",
+  "created": "2026-09-28T08:18:02Z",
+  "design_doc": "design_docs/planned/v0_47_2/m-vm-determinism.md",
+  "sprint_plan": "design_docs/planned/v0_47_2/m-vm-determinism-sprint-plan.md",
+  "github_issues": [
+    1360
+  ],
+  "target_version": "v0.47.2",
+  "risk_level": "high",
+  "velocity": {
+    "target_loc_per_day": 140,
+    "estimated_total_loc": 560,
+    "estimated_days": 4
+  },
+  "features": [
+    {
+      "id": "M1_AMBIGUITY_FIXTURES_FIELD_ADT",
+      "description": "Red-first ambiguity fixtures and deterministic field access",
+      "estimated_loc": 140,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "The unresolved-field regression is demonstrated red on the old implementation and green after the fix.",
+        "200 in-process compiles produce one serialized bytecode image and the expected field value.",
+        "`inferADTFromCases` does not range over `adtTypes`; same-tag candidates resolve in source order.",
+        "Focused compiler tests pass with `go test -count=1 ./internal/bytecode/compiler`."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_RECORD_UPDATE_RUNTIME_FALLBACK",
+      "description": "Typed record-update lowering and runtime fallback",
+      "estimated_loc": 210,
+      "dependencies": [
+        "M1_AMBIGUITY_FIXTURES_FIELD_ADT"
+      ],
+      "acceptance_criteria": [
+        "`compileRecordUpdate` contains no first-match scan over registered record types.",
+        "Known-shape updates retain the indexed fast path; unknown-shape updates preserve the runtime base shape.",
+        "VM record-update results are identical to evaluator results for all unit cases.",
+        "Opcode disassembly and image round-trip tests cover `OpUpdateRecord`.",
+        "`go test -count=1 ./internal/gen/... ./internal/bytecode/... ./internal/vm/...` passes."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_MAP_GUARD_GAME_PARITY",
+      "description": "Systemic guard and game-shaped parity regression",
+      "estimated_loc": 160,
+      "dependencies": [
+        "M1_AMBIGUITY_FIXTURES_FIELD_ADT",
+        "M2_RECORD_UPDATE_RUNTIME_FALLBACK"
+      ],
+      "acceptance_criteria": [
+        "The guard fails under a mutation that restores any of the three first-match map scans.",
+        "The parity fixture produces byte-identical evaluator and VM stdout for 30 repeated VM runs.",
+        "The fixture asserts tick/state advancement, preventing stable-but-wrong output from passing.",
+        "The existing bytecode golden corpus has no unexplained diff."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_VALIDATION_DOCS_EXTERNAL_REPRO",
+      "description": "Validation, external repro, and release documentation",
+      "estimated_loc": 50,
+      "dependencies": [
+        "M3_MAP_GUARD_GAME_PARITY"
+      ],
+      "acceptance_criteria": [
+        "All repository gates listed above pass without a simplicity or boundary regression.",
+        "Rebuilt VM is 30/30 identical to the interpreter on the in-repo fixture.",
+        "Public one-line and offaxis repros are stable when external validation is available.",
+        "Changelog documents restored VM determinism; limitations document the deferred ADT issue.",
+        "No unexplained golden-file changes remain."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
