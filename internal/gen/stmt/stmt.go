@@ -277,12 +277,18 @@ func (Call) expr() {}
 // lexicographic order) as inferred by the type checker. The bytecode
 // compiler uses this to resolve the GET_FIELD index for anonymous /
 // row-polymorphic records that never produced an explicit TypeDecl.
-// Empty means "no type info available — fall back to recordTypes lookup".
 // Added for M-BYTECODE-MULTIMODULE M3.
+//
+// RecordType, when non-empty, names the receiver's declared record type
+// (e.g. "V" for `v: V`), whose sorted field list the compiler takes from
+// its TypeDecl table. With neither hint the compiler resolves the field by
+// name at runtime — it never guesses a slot from another type that merely
+// shares the field name (ailang#1354, #1355).
 type FieldAccess struct {
 	Record      Expr
 	Field       string
 	KnownFields []string
+	RecordType  string
 }
 
 func (FieldAccess) expr() {}
@@ -302,9 +308,15 @@ type FieldInit struct {
 }
 
 // RecordUpdate creates a new record with some fields changed.
+//
+// KnownFields and RecordType describe the base record's type exactly as
+// they do on FieldAccess. With neither, the compiler updates by name at
+// runtime instead of guessing the base's shape (ailang#1354, #1355).
 type RecordUpdate struct {
-	Base   Expr
-	Fields []FieldInit
+	Base        Expr
+	Fields      []FieldInit
+	KnownFields []string
+	RecordType  string
 }
 
 func (RecordUpdate) expr() {}

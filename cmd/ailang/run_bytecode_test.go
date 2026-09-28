@@ -215,6 +215,43 @@ func listPatternProgramOutput(t *testing.T, stdout string) string {
 	return stdout[start:]
 }
 
+// TestCLI_RunBytecode_SharedFieldNames pins ailang#1354 and #1355: record
+// types sharing a field name at different sorted positions. The compiler
+// used to take a field's slot from whichever type it met first in Go map
+// order, so each process compiled different bytecode — an out-of-range
+// GET_FIELD in some runs, a silently wrong value in others. Map order is
+// per process, so one run proves little: the strict VM must match the
+// interpreter on every one of several runs, and the disassembly must be
+// byte-identical across them.
+func TestCLI_RunBytecode_SharedFieldNames(t *testing.T) {
+	src := filepath.Join("tests", "golden", "bytecode", "shared_field_names.ail")
+	const want = "[3.0, 10.0, 5.0, 6.0, 10.0, 14.0] [101.0, 104.0, 200.0, 300.0, 4.0, 3.0] [42.0, 1.0, 2.0, 42.0, 20.0]"
+	args := []string{"--quiet", "--relax-modules", "--entry", "main", "--args-json", "1", src}
+
+	evalOut, evalErr, evalExit := runCLI(t, append([]string{"run"}, args...)...)
+	if evalExit != 0 || strings.TrimSpace(evalOut) != want {
+		t.Fatalf("interpreter: exit %d, got %q, want %q\nstderr=%s", evalExit, evalOut, want, evalErr)
+	}
+
+	const runs = 8
+	var firstDisasm string
+	for i := 0; i < runs; i++ {
+		out, stderr, exit := runCLI(t, append([]string{"run", "--bytecode", "--strict-bytecode"}, args...)...)
+		if exit != 0 || strings.TrimSpace(out) != want {
+			t.Fatalf("strict VM run %d: exit %d, got %q, want %q\nstderr=%s", i, exit, out, want, stderr)
+		}
+		disasm, dErr, dExit := runCLI(t, "disasm", "--relax-modules", src)
+		if dExit != 0 {
+			t.Fatalf("disasm run %d: exit %d\nstderr=%s", i, dExit, dErr)
+		}
+		if i == 0 {
+			firstDisasm = disasm
+		} else if disasm != firstDisasm {
+			t.Fatalf("disasm run %d differs from run 0: codegen is not deterministic", i)
+		}
+	}
+}
+
 func TestCLI_RunBytecode_QuicksortArity(t *testing.T) {
 	src := filepath.Join("examples", "runnable", "recursion_quicksort.ail")
 	stdout, stderr, exitCode := runCLI(t, "run", "--bytecode", "--caps", "IO", src)

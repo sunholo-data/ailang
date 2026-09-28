@@ -9,9 +9,11 @@ TEST_INTRUDER="$REPO_ROOT/serveapi/protocol/zz_intruder_test.go"
 SERVEAPI_INTRUDER="$REPO_ROOT/serveapi/zz_intruder.go"
 GOOS_INTRUDER="$REPO_ROOT/serveapi/protocol/zz_goos_intruder_darwin.go"
 SERVEAPI_GOOS_INTRUDER="$REPO_ROOT/serveapi/zz_goos_intruder_windows.go"
+MCPHTTP_INTRUDER="$REPO_ROOT/serveapi/protocol/mcphttp/zz_intruder.go"
+PROBE_DIR="$REPO_ROOT/serveapi/protocol/closureprobe"
 FAILED=0
 ARMS_RUN=0
-ARMS_EXPECTED=9
+ARMS_EXPECTED=11
 OUT=""; RC=0
 
 pass() { echo "  ok   — $1"; ARMS_RUN=$((ARMS_RUN + 1)); }
@@ -20,7 +22,8 @@ die() { echo "  FAIL — $1"; cleanup; exit 1; }
 
 BEFORE_STATUS=$(cd "$REPO_ROOT" && git status --porcelain)
 cleanup() {
-	rm -f "$PROTOCOL_INTRUDER" "$TEST_INTRUDER" "$SERVEAPI_INTRUDER" "$GOOS_INTRUDER" "$SERVEAPI_GOOS_INTRUDER"
+	rm -f "$PROTOCOL_INTRUDER" "$TEST_INTRUDER" "$SERVEAPI_INTRUDER" "$GOOS_INTRUDER" "$SERVEAPI_GOOS_INTRUDER" "$MCPHTTP_INTRUDER"
+	rm -rf "$PROBE_DIR"
 }
 trap cleanup EXIT HUP INT TERM
 
@@ -45,6 +48,8 @@ echo "protocol closure gate:"
 [ ! -e "$SERVEAPI_INTRUDER" ] || die "$SERVEAPI_INTRUDER already exists"
 [ ! -e "$GOOS_INTRUDER" ] || die "$GOOS_INTRUDER already exists"
 [ ! -e "$SERVEAPI_GOOS_INTRUDER" ] || die "$SERVEAPI_GOOS_INTRUDER already exists"
+[ ! -e "$MCPHTTP_INTRUDER" ] || die "$MCPHTTP_INTRUDER already exists"
+[ ! -e "$PROBE_DIR" ] || die "$PROBE_DIR already exists"
 
 # Clean control and baseline count used by arm (i).
 run_gate
@@ -119,22 +124,12 @@ FAKE_DIR=$(mktemp -d)
 FAKE_GO="$FAKE_DIR/go"
 cat >"$FAKE_GO" <<'EOF'
 #!/bin/sh
-is_format=0
 package=
 for arg in "$@"; do
 	case "$arg" in
-		-f) is_format=1 ;;
-		./serveapi/protocol|./serveapi) package=$arg ;;
+		./serveapi/protocol|./serveapi|./serveapi/protocol/mcphttp|./serveapi/protocol/hostcall) package=$arg ;;
 	esac
 done
-if [ "$is_format" -eq 1 ]; then
-	case "${FAKE_MODE:-}" in
-		r11a) printf '%s\n' 'synthetic module-root failure' >&2; exit 7 ;;
-		r11b) exit 0 ;;
-		r11c) printf '%s\n' 'github.com/google/jsonschema-go'; exit 0 ;;
-		*) printf '%s\n' 'github.com/sunholo-data/ailang'; exit 0 ;;
-	esac
-fi
 case "$package" in
 	./serveapi/protocol)
 		printf '%s\n' 'github.com/sunholo-data/ailang/serveapi/protocol' 'fmt'
@@ -142,6 +137,13 @@ case "$package" in
 	./serveapi)
 		printf '%s\n' 'github.com/sunholo-data/ailang/serveapi'
 		[ "${FAKE_MODE:-}" = r10 ] || printf '%s\n' 'fmt'
+		;;
+	./serveapi/protocol/mcphttp)
+		[ "${FAKE_MODE:-}" = r14a ] || printf '%s\n' 'github.com/sunholo-data/ailang/serveapi/protocol/mcphttp'
+		[ "${FAKE_MODE:-}" = r14b ] || printf '%s\n' 'fmt'
+		;;
+	./serveapi/protocol/hostcall)
+		printf '%s\n' 'github.com/sunholo-data/ailang/serveapi/protocol/hostcall' 'fmt'
 		;;
 	*) exit 9 ;;
 esac
@@ -155,7 +157,8 @@ run_vacuity_probe() {
 	_guard_name=${_probe_name%%(*}
 	OUT=$(cd "$REPO_ROOT" && FAKE_MODE="$_probe_mode" GO_BIN="$FAKE_GO" /bin/bash "$GATE" 2>&1)
 	RC=$?
-	if [ "$RC" -ne 2 ] || ! printf '%s' "$OUT" | grep -qF "vacuous enumeration (serveapi $_guard_name): $_probe_reason"; then
+	_probe_arm=${4:-serveapi}
+	if [ "$RC" -ne 2 ] || ! printf '%s' "$OUT" | grep -qF "vacuous enumeration ($_probe_arm $_guard_name): $_probe_reason"; then
 		VACUITY_FAILURE="$_probe_name probe: rc=$RC output=$OUT"
 	elif printf '%s' "$OUT" | grep -q '✓'; then
 		VACUITY_FAILURE="$_probe_name probe printed a checkmark: $OUT"
@@ -163,12 +166,11 @@ run_vacuity_probe() {
 }
 
 run_vacuity_probe R10 r10 'no stdlib package was enumerated'
-run_vacuity_probe 'R11(a)' r11a 'go list module-root enumeration failed for ./serveapi (rc=7)'
-run_vacuity_probe 'R11(b)' r11b 'module-root enumeration is empty'
-run_vacuity_probe 'R11(c)' r11c 'known-positive github.com/sunholo-data/ailang is absent'
+run_vacuity_probe 'R14(a)' r14a 'known-positive github.com/sunholo-data/ailang/serveapi/protocol/mcphttp is absent' mcphttp
+run_vacuity_probe 'R14(b)' r14b 'no stdlib package was enumerated' mcphttp
 rm -rf "$FAKE_DIR"
 
-if [ -n "$VACUITY_FAILURE" ]; then fail "vacuity arm — $VACUITY_FAILURE"; else pass "vacuity probes R1/R2/R3/R4/R6/R7/R10/R11(a)/R11(b)/R11(c) refuse with rc=2 and no checkmark"; fi
+if [ -n "$VACUITY_FAILURE" ]; then fail "vacuity arm — $VACUITY_FAILURE"; else pass "vacuity probes R1/R2/R3/R4/R6/R7/R10/R14(a)/R14(b) refuse with rc=2 and no checkmark"; fi
 
 # (iv) Matrix anti-vacuity.
 OUT=$(cd "$REPO_ROOT" && GOOS_MATRIX="" /bin/bash "$GATE" 2>&1); RC=$?
@@ -184,7 +186,7 @@ fi
 
 # (ix) Vacuity messages must themselves carry platform attribution. The two "closure
 # contains ..." violator messages are pinned by arms (ii)/(viii); the vacuous() helper
-# feeds every R1/R2/R3/R4/R6/R7/R10/R11/R12 message and was unpinned until this arm.
+# feeds every R1/R2/R3/R4/R6/R7/R10/R12/R14 message and was unpinned until this arm.
 run_gate ./definitely/not/a/package
 if [ "$RC" -ne 2 ]; then
 	fail "vacuity-attribution arm expected rc=2, got rc=$RC: $OUT"
@@ -209,7 +211,7 @@ else
 fi
 rm -f "$TEST_INTRUDER"; assert_restored "scope arm"
 
-# (vii) Serveapi addition: uuid is outside the ten-root facade allowlist.
+# (vii) Serveapi addition: uuid is outside the facade's exact package-path allowlist.
 printf '%s\n' 'package serveapi' '' 'import _ "github.com/google/uuid"' >"$SERVEAPI_INTRUDER"
 [ -s "$SERVEAPI_INTRUDER" ] || die "serveapi arm setup did not land"
 run_gate
@@ -232,12 +234,40 @@ if [ "$RC" -ne 1 ]; then
 	fail "serveapi cross-GOOS arm expected rc=1, got rc=$RC: $OUT"
 elif ! printf '%s\n' "$OUT" | grep -qF 'github.com/google/uuid'; then
 	fail "serveapi cross-GOOS arm did not name github.com/google/uuid: $OUT"
-elif ! printf '%s\n' "$OUT" | grep -qF '[GOOS=windows] serveapi closure contains disallowed module roots'; then
+elif ! printf '%s\n' "$OUT" | grep -qF '[GOOS=windows] serveapi closure contains disallowed packages'; then
 	fail "serveapi cross-GOOS arm did not attribute the refusal to windows: $OUT"
 else
 	pass "serveapi cross-GOOS Windows addition was seen and attributed to windows"
 fi
 rm -f "$SERVEAPI_GOOS_INTRUDER"; assert_restored "serveapi cross-GOOS arm"
+
+# (x) MUT-SDK-BACK (#885): the MCP SDK re-entering the dispatcher must be refused, named.
+printf '%s\n' 'package mcphttp' '' 'import _ "github.com/modelcontextprotocol/go-sdk/mcp"' >"$MCPHTTP_INTRUDER"
+[ -s "$MCPHTTP_INTRUDER" ] || die "MUT-SDK-BACK setup did not land"
+run_gate
+if [ "$RC" -ne 1 ]; then
+	fail "MUT-SDK-BACK expected rc=1, got rc=$RC: $OUT"
+elif ! printf '%s\n' "$OUT" | grep -qF 'github.com/modelcontextprotocol/go-sdk/mcp'; then
+	fail "MUT-SDK-BACK did not name the SDK package: $OUT"
+else
+	pass "MUT-SDK-BACK: an SDK import in mcphttp is refused and named"
+fi
+rm -f "$MCPHTTP_INTRUDER"; assert_restored "MUT-SDK-BACK"
+
+# (xi) MUT-INTERNAL-BACK (#885): a stdlib-only ailang package is exactly what a
+# module-root or prefix rule would admit; the exact package-path arms must refuse it.
+mkdir -p "$PROBE_DIR"
+printf '%s\n' 'package closureprobe' '' 'import _ "fmt"' >"$PROBE_DIR/probe.go"
+printf '%s\n' 'package mcphttp' '' 'import _ "github.com/sunholo-data/ailang/serveapi/protocol/closureprobe"' >"$MCPHTTP_INTRUDER"
+run_gate
+if [ "$RC" -ne 1 ]; then
+	fail "MUT-INTERNAL-BACK expected rc=1, got rc=$RC: $OUT"
+elif ! printf '%s\n' "$OUT" | grep -qF 'github.com/sunholo-data/ailang/serveapi/protocol/closureprobe'; then
+	fail "MUT-INTERNAL-BACK did not name the probe package: $OUT"
+else
+	pass "MUT-INTERNAL-BACK: a stdlib-only ailang package under protocol/ is refused and named"
+fi
+rm -f "$MCPHTTP_INTRUDER"; rm -rf "$PROBE_DIR"; assert_restored "MUT-INTERNAL-BACK"
 
 if [ "$ARMS_RUN" -ne "$ARMS_EXPECTED" ]; then
 	echo "  FAIL — $ARMS_RUN of $ARMS_EXPECTED arms ran; refusing a vacuous green"

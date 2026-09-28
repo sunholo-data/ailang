@@ -33,6 +33,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       code: ${{ steps.classify.outputs.code }}
+      shell: ${{ steps.classify.outputs.shell }}
     steps:
     - uses: actions/checkout@v7
       with:
@@ -51,11 +52,13 @@ jobs:
         # untested code.
         if [ "${{ github.event_name }}" != "pull_request" ]; then
           echo "code=true" >> "$GITHUB_OUTPUT"
+          echo "shell=true" >> "$GITHUB_OUTPUT"
           echo "not a pull_request event -> full matrix"
           exit 0
         fi
         if ! files=$(git diff --name-only "${BASE_SHA}"...HEAD 2>/dev/null) || [ -z "$files" ]; then
           echo "code=true" >> "$GITHUB_OUTPUT"
+          echo "shell=true" >> "$GITHUB_OUTPUT"
           echo "could not read the diff -> full matrix"
           exit 0
         fi
@@ -70,6 +73,18 @@ jobs:
         else
           echo "code=false" >> "$GITHUB_OUTPUT"
           echo "-> docs-only lane (compiler matrix skipped)"
+        fi
+        # Rig-shell lane: the bash 3.2 launchd job needs a macOS runner, which
+        # queued 38 min on 2026-09-28 while the job itself ran 6. It only tests
+        # the paths below (every REPO_ROOT-relative file its suite reads, plus
+        # this workflow and the make target), so other PRs skip it. Pushes to
+        # dev still run it: the non-PR branch above sets shell=true.
+        if echo "$files" | grep -qE '^(tools/launchd/|tools/pi-extensions/|scripts/hooks/|scripts/[^/]*mission[^/]*\.sh$|\.claude/skills/mission-control/|\.claude/settings\.json$|design_docs/v1-mission\.md$|make/test\.mk$|\.github/workflows/ci\.yml$)'; then
+          echo "shell=true" >> "$GITHUB_OUTPUT"
+          echo "-> rig-shell lane (launchd bash 3.2 job runs)"
+        else
+          echo "shell=false" >> "$GITHUB_OUTPUT"
+          echo "-> no rig-shell paths touched (launchd bash 3.2 job skipped)"
         fi
 
   # NOT gated by the docs-only lane, deliberately. This job carries 19 hygiene
@@ -719,7 +734,7 @@ jobs:
     # `declare -A` or ${v,,} that reaches tools/launchd/ breaks the rig and passes on ubuntu.
     # No Go, no cache: these are shell + git tests and nothing else.
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.shell == 'true'
     runs-on: macos-latest
     timeout-minutes: 15
 
