@@ -87,6 +87,23 @@ planner / executor / evaluator, generator≠judge enforced). Overrides for THIS 
 - **Evaluator**: `<must differ in provider from the executor — generator≠judge>`
 - <other overrides, or "none — inherits the shared defaults">
 
+## Decision ledger
+
+<!-- One row per question for Mark. The loop appends OPEN rows (append-only IDs, never reused) and
+     generates each report's `DECISIONS FOR MARK` from OPEN rows only. Mark answers through EITHER
+     channel, equal in rank: (1) an allowlisted comment on the bookkeeping issue, or (2) an attended
+     ruling written here by an attended session with
+       <ailang-checkout>/scripts/mission_answer.sh --id D-n --answer "…" --file design_docs/<mission-name>-mission.md --commit
+     then `scripts/mission_decisions.sh --check`. An attended session MUST record a ruling Mark
+     states this way; only the unattended loop may not resolve rows itself. Keep the markers — the
+     validator anchors on them. -->
+
+<!-- decision-ledger:start -->
+| ID | Status | Decision / recorded answer | Evidence |
+|---|---|---|---|
+| D-1 | OPEN | Ratify the drafted bar, queue and guardrails (iteration 0). Recommendation: ratify as drafted. | Charter bootstrap <YYYY-MM-DD>. |
+<!-- decision-ledger:end -->
+
 ## Queue (top = next; tags: [NEXT] [IN-SPRINT] [PARKED] [LANDED] [RULED OUT])
 
 <!-- Ordered backlog. Every open item carries a clause tag against the bar. NEW-DOC items start with
