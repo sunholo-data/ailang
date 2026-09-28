@@ -181,10 +181,8 @@ against the old fork.
 - **Cloud executors:** once motoko main is stable locally, update the AILANG cloud executor images
   to motoko main + `motoko_ext_ailang_tools` (they still carry the old fork). Mark: "once you are
   happy with motoko locally".
-- **Registry packages:** all 15 `sunholo/motoko_ext_*` in the registry target ABI 2.2 (the retired
-  fork). 13 are superseded by ABI 8.0 copies in Arni's `packages/`, some with colliding version
-  numbers; `fmt` should be ported to 8.0; `typefix_agent` is unused. Retire only after Arni answers
-  #192 Q1 (source of truth). `ailang unpublish` is permanent, and the registry has no
-  deprecated/superseded marker yet; add one first.
+- **Registry packages: RETIRED 2026-09-28 (Mark).** All 14 ABI 2.2 `sunholo/motoko_ext_*`
+  packages (96 versions) were unpublished; see `ailang-packages/packages/MOTOKO_EXTENSIONS_RETIRED.md`.
+  Still to do: port `fmt` to ABI 8.0 (likely inside `motoko_ext_ailang_tools`).
 - **Local motoko in the rotation:** re-add `motoko-local-qwen3-8-27b` with a longer canary once the
   above is stable.
