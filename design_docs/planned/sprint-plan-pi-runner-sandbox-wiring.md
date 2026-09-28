@@ -34,6 +34,7 @@ uncommitted, porcelain counts it, and the controller commits — the codex lane'
 The controller also fixed `index.ts`'s disabled check to `config.enabled === false`: the
 mission policy carries no `enabled` key, and `!config.enabled` disabled the sandbox on every
 real mission run, which would have read `sandbox_not_ready` (rc 17) forever.
+Iteration 5 round 2 adds `sandbox/index.test.ts` to exercise the registered bash, user_bash, and session_start handlers against stubbed pi and sandbox runtime packages.
 
 ### M1 — NEEDS-MARK: explicit policy and fail-closed extension (~45 LOC)
 

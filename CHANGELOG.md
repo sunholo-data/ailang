@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Mission pi runs now require staged sandbox extensions, an explicit policy, and a readiness handshake before reporting fenced success.
+- Handler-level sandbox extension tests cover failed initialization, policy enablement, readiness, and the interactive bash fallback.
 
 For the latest version, see [changelogs/v0.32-current.md](changelogs/v0.32-current.md).
 
