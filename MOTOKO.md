@@ -176,3 +176,15 @@ against the old fork.
   native (see `motoko_ext_microrag`). It cannot APPEND to a native result, so the extension
   performs the write/edit itself. Not blocked on Arni.
 - Local motoko (`motoko-local-qwen3-8-27b`) is OUT of the GPU rotation until `mk-main` is stable.
+
+### To do (agreed 2026-09-28)
+- **Cloud executors:** once motoko main is stable locally, update the AILANG cloud executor images
+  to motoko main + `motoko_ext_ailang_tools` (they still carry the old fork). Mark: "once you are
+  happy with motoko locally".
+- **Registry packages:** all 15 `sunholo/motoko_ext_*` in the registry target ABI 2.2 (the retired
+  fork). 13 are superseded by ABI 8.0 copies in Arni's `packages/`, some with colliding version
+  numbers; `fmt` should be ported to 8.0; `typefix_agent` is unused. Retire only after Arni answers
+  #192 Q1 (source of truth). `ailang unpublish` is permanent, and the registry has no
+  deprecated/superseded marker yet; add one first.
+- **Local motoko in the rotation:** re-add `motoko-local-qwen3-8-27b` with a longer canary once the
+  above is stable.
