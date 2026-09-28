@@ -29,7 +29,7 @@ Use `codebase-organizer` skill for refactoring. `make check-file-sizes` enforces
 ## Documentation Updates
 
 Every change requires:
-1. **CHANGELOG.md** — Semantic versioning, grouped by category
+1. **Changelog fragment** — `changelogs/unreleased/YYYY-MM-DD-<slug>.md` with `### Added|Fixed|Changed — …` sections (see `changelogs/unreleased/README.md`). Never root `CHANGELOG.md` (an index), and not the active `v*-current.md` directly: release-manager folds fragments in at release
 2. **README.md** — Update status/capabilities if public-facing
 3. **Design docs** — Before: `design_docs/planned/`, After: `design_docs/implemented/vX_Y/`
 4. **Example files** — Every language feature needs `examples/feature_name.ail`

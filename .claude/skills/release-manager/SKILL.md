@@ -32,7 +32,7 @@ Create a complete AILANG release with version bump, changelog update, git tag, a
 ls changelogs/ | grep current  # Currently: v0.32-current.md
 ```
 
-**When writing changelog entries**, write to the active `changelogs/v*.*.current.md` file, NOT root `CHANGELOG.md`.
+**When writing changelog entries**, write a **fragment**: `changelogs/unreleased/YYYY-MM-DD-<slug>.md`, one or more `### ...` sections (format: `changelogs/unreleased/README.md`). Never edit root `CHANGELOG.md`; do not add new entries directly to the active file either. Every PR adding at the same line under `## [Unreleased]` conflicted with every other open PR, and each rebase restarted a 25–45 min CI run. Step 1.5 folds the fragments into the active file.
 
 ## Quick Start
 
@@ -225,6 +225,17 @@ Broadcast release notification with changelog to all projects.
 - Linting failing → Run `make fmt` or fix issues
 - File sizes failing → Use `codebase-organizer` agent to split large files
 - **DO NOT proceed until all checks pass**
+
+### 1.5. Fold Changelog Fragments (REQUIRED, before anything reads the active file)
+
+```bash
+scripts/changelog_fold.sh          # inserts changelogs/unreleased/*.md newest-first under ## [Unreleased], git rm's them
+git diff --stat changelogs/        # the active file grew; the fragments are staged as deleted
+```
+
+It refuses (exit 1) on a malformed fragment, or when the active file has no `## [Unreleased]` heading.
+Fix the fragment rather than working around it. Run it BEFORE step 3 renames `## [Unreleased]`,
+otherwise the fragments have no heading to land under. The fold is part of the release commit.
 
 ### 2. Verify Implemented Design Docs (CRITICAL)
 

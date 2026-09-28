@@ -9,15 +9,20 @@
 # anywhere in the tree today, and CI runs only ubuntu and windows runners, so the
 # GOOS axis is the one that can actually differ in practice. A future _arm64.go or
 # _amd64.go under serveapi would NOT be seen by this gate.
-# Both arms require a known-positive and at least one stdlib package. The
-# serveapi module-root enumeration is floored separately from its dependency
-# enumeration because those are two distinct go list calls.
+# Every arm requires a known-positive and at least one stdlib package. Since
+# ailang#885 the facade and the two executable subpackages under protocol/
+# (hostcall, mcphttp) are checked by exact PACKAGE path: their non-stdlib closure
+# may contain only named ailang packages, never another package of the module.
 set -uo pipefail
 
 PROTOCOL_PACKAGE="${1:-./serveapi/protocol}"
 SERVEAPI_PACKAGE="${2:-./serveapi}"
 PROTOCOL_SELF="github.com/sunholo-data/ailang/serveapi/protocol"
 SERVEAPI_SELF="github.com/sunholo-data/ailang/serveapi"
+MCPHTTP_PACKAGE="${3:-./serveapi/protocol/mcphttp}"
+HOSTCALL_PACKAGE="${4:-./serveapi/protocol/hostcall}"
+MCPHTTP_SELF="github.com/sunholo-data/ailang/serveapi/protocol/mcphttp"
+HOSTCALL_SELF="github.com/sunholo-data/ailang/serveapi/protocol/hostcall"
 GO_BIN="${GO_BIN:-go}"
 GOOS_MATRIX="${GOOS_MATRIX-linux darwin windows}"
 RED='\033[0;31m'; GREEN='\033[0;32m'; RESET='\033[0m'
@@ -41,6 +46,40 @@ list_deps() {
 	_ld_output="$2"
 	_ld_error="$3"
 	"$GO_BIN" list -deps "$_ld_package" >"$_ld_output" 2>"$_ld_error"
+}
+
+# check_exact_arm LABEL PACKAGE SELF "ALLOWED..." — the non-stdlib part of
+# PACKAGE's build closure must be a subset of ALLOWED, must contain SELF (known
+# positive) and must enumerate at least one stdlib package (anti-vacuity).
+check_exact_arm() {
+	_label="$1"; _pkg="$2"; _self="$3"; _allowed="$4"
+	_deps="$TMP_DIR/$_label.deps"; _err="$TMP_DIR/$_label.err"; _bad="$TMP_DIR/$_label.violators"
+	if ! list_deps "$_pkg" "$_deps" "$_err" || [ ! -s "$_deps" ]; then
+		vacuous "$_label R14" "go list failed or dependency enumeration is empty for $_pkg"
+		sed 's/^/    /' "$_err"
+		return 2
+	fi
+	if ! grep -qxF "$_self" "$_deps"; then
+		vacuous "$_label R14" "known-positive $_self is absent"
+		return 2
+	fi
+	_std=0; : >"$_bad"
+	while IFS= read -r _package; do
+		if ! is_nonstdlib "$_package"; then _std=$((_std + 1)); continue; fi
+		_ok=1
+		for _a in $_allowed; do [ "$_package" = "$_a" ] && _ok=0; done
+		[ "$_ok" -eq 0 ] || printf '%s\n' "$_package" >>"$_bad"
+	done <"$_deps"
+	if [ "$_std" -eq 0 ]; then
+		vacuous "$_label R14" "no stdlib package was enumerated"
+		return 2
+	fi
+	if [ -s "$_bad" ]; then
+		printf "%b✗ [GOOS=%s] %s closure contains disallowed packages:%b\n" "$RED" "$CURRENT_GOOS" "$_label" "$RESET"
+		sed 's/^/    /' "$_bad"
+		return 1
+	fi
+	return 0
 }
 
 TMP_DIR=$(mktemp -d)
@@ -143,51 +182,28 @@ if [ "$SERVEAPI_STDLIB" -eq 0 ]; then
 	exit 2
 fi
 
-SERVEAPI_ROOTS="$TMP_DIR/serveapi.roots"
-SERVEAPI_ROOTS_RAW="$TMP_DIR/serveapi.roots.raw"
-SERVEAPI_ROOTS_ERR="$TMP_DIR/serveapi.roots.err"
+# R8 (#885): exact PACKAGE paths, not module roots. A module-root allowlist would
+# admit any other ailang package, including stdlib-only ones, and the facade's
+# closure is now meant to be exactly these ailang packages plus the stdlib.
 SERVEAPI_VIOLATORS="$TMP_DIR/serveapi.violators"
-"$GO_BIN" list -deps -f '{{if not .Standard}}{{with .Module}}{{.Path}}{{end}}{{end}}' "$SERVEAPI_PACKAGE" \
-	>"$SERVEAPI_ROOTS_RAW" 2>"$SERVEAPI_ROOTS_ERR"
-SERVEAPI_ROOTS_RC=$?
-# R11
-if [ "$SERVEAPI_ROOTS_RC" -ne 0 ]; then
-	vacuous "serveapi R11" "go list module-root enumeration failed for $SERVEAPI_PACKAGE (rc=$SERVEAPI_ROOTS_RC)"
-	sed 's/^/    /' "$SERVEAPI_ROOTS_ERR"
-	exit 2
-fi
-sed '/^$/d' "$SERVEAPI_ROOTS_RAW" | sort -u >"$SERVEAPI_ROOTS"
-if [ ! -s "$SERVEAPI_ROOTS" ]; then
-	vacuous "serveapi R11" "module-root enumeration is empty"
-	exit 2
-fi
-if ! grep -qxF 'github.com/sunholo-data/ailang' "$SERVEAPI_ROOTS"; then
-	vacuous "serveapi R11" "known-positive github.com/sunholo-data/ailang is absent"
-	exit 2
-fi
 : >"$SERVEAPI_VIOLATORS"
-while IFS= read -r _root; do
-	# R8
-	case "$_root" in
-		github.com/sunholo-data/ailang|\
-		github.com/google/jsonschema-go|\
-		github.com/modelcontextprotocol/go-sdk|\
-		github.com/segmentio/asm|\
-		github.com/segmentio/encoding|\
-		github.com/yosida95/uritemplate/v3|\
-		golang.org/x/oauth2|\
-		golang.org/x/sync|\
-		golang.org/x/sys|\
-		golang.org/x/time) ;;
-		*) printf '%s\n' "$_root" >>"$SERVEAPI_VIOLATORS" ;;
+while IFS= read -r _package; do
+	is_nonstdlib "$_package" || continue
+	case "$_package" in
+		"$SERVEAPI_SELF"|"$PROTOCOL_SELF"|"$HOSTCALL_SELF"|"$MCPHTTP_SELF") ;;
+		*) printf '%s\n' "$_package" >>"$SERVEAPI_VIOLATORS" ;;
 	esac
-done <"$SERVEAPI_ROOTS"
-
+done <"$SERVEAPI_DEPS"
 if [ -s "$SERVEAPI_VIOLATORS" ]; then
-	printf "%b✗ [GOOS=%s] serveapi closure contains disallowed module roots:%b\n" "$RED" "$CURRENT_GOOS" "$RESET"
+	printf "%b✗ [GOOS=%s] serveapi closure contains disallowed packages:%b\n" "$RED" "$CURRENT_GOOS" "$RESET"
 	sed 's/^/    /' "$SERVEAPI_VIOLATORS"
 	exit 1
 fi
+
+# R14 (#885): the two executable subpackages under protocol/ are exactly
+# closed too, so a consumer admitting the serveapi/protocol prefix links nothing else.
+check_exact_arm "mcphttp" "$MCPHTTP_PACKAGE" "$MCPHTTP_SELF" "$MCPHTTP_SELF $HOSTCALL_SELF $PROTOCOL_SELF" || exit $?
+check_exact_arm "hostcall" "$HOSTCALL_PACKAGE" "$HOSTCALL_SELF" "$HOSTCALL_SELF $PROTOCOL_SELF" || exit $?
 
 	MATRIX_COMPLETED=$((MATRIX_COMPLETED + 1))
 done
@@ -206,5 +222,5 @@ if [ "$MATRIX_COMPLETED" -eq 0 ] || [ "$MATRIX_COMPLETED" -ne "$MATRIX_EXPECTED"
 	exit 2
 fi
 
-printf "%b✓ protocol and serveapi build closures hold across GOOS matrix: %s%b\n" \
+printf "%b✓ protocol, hostcall, mcphttp and serveapi build closures hold across GOOS matrix: %s%b\n" \
 	"$GREEN" "$GOOS_MATRIX" "$RESET"

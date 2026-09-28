@@ -9,7 +9,6 @@ import (
 	"runtime"
 	"strings"
 	"time"
-
 )
 
 // HealthCheck verifies the motoko binary exists, is executable, and (when
