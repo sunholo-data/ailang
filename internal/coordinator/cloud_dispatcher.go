@@ -86,6 +86,12 @@ type DispatchParams struct {
 	// AutoMerge itself.
 	ArtifactPatterns []string
 
+	// NextAgents is the agent's registry trigger_on_complete: who the landed-card
+	// daemon hands the task to when this PR merges. The wrapper labels the PR
+	// merge-fires:<agent> and says so in the body, because a merged plan PR
+	// silently starting a code-writing executor is how #1367 happened (2026-09-28).
+	NextAgents []string
+
 	// GitAuthorName/Email author this agent's commits. Empty inherits the
 	// container's identity (the fleet bot).
 	GitAuthorName  string

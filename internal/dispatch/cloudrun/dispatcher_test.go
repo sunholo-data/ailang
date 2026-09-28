@@ -526,3 +526,37 @@ func hasEnvVar(envVars []*runpb.EnvVar, name string) bool {
 	}
 	return false
 }
+
+// The wrapper can only label a PR with what merging it fires if the dispatcher
+// passes the agent's trigger_on_complete through; the job cannot read the registry.
+func TestDispatchNextAgentsEnvVar(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		next []string
+		want string // "" = the variable must be absent
+	}{
+		{"hands off", []string{"sprint-executor"}, "sprint-executor"},
+		{"two targets", []string{"sprint-executor", "docs-sync"}, "sprint-executor,docs-sync"},
+		{"end of chain", nil, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			mock := &mockJobRunner{}
+			d := newDispatcherWithClient(mock, "proj-1", "us-central1", "test")
+			if err := d.Dispatch(context.Background(), coordinator.DispatchParams{TaskID: "task-next", AgentID: "sprint-planner", NextAgents: tc.next}); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			got, found := "", false
+			for _, env := range mock.lastReq.Overrides.ContainerOverrides[0].Env {
+				if env.Name == "AILANG_NEXT_AGENTS" {
+					got, found = env.Values.(*runpb.EnvVar_Value).Value, true
+				}
+			}
+			if tc.want == "" && found {
+				t.Fatalf("AILANG_NEXT_AGENTS set to %q for an agent with no handoff", got)
+			}
+			if tc.want != "" && got != tc.want {
+				t.Fatalf("AILANG_NEXT_AGENTS = %q (found=%v), want %q", got, found, tc.want)
+			}
+		})
+	}
+}

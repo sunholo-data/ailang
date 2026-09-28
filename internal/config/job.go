@@ -13,6 +13,7 @@ const (
 	EnvDirective          = "AILANG_DIRECTIVE"
 	EnvAutoMerge          = "AILANG_AUTO_MERGE"
 	EnvArtifactPatterns   = "AILANG_ARTIFACT_PATTERNS"
+	EnvNextAgents         = "AILANG_NEXT_AGENTS"
 	EnvTaskTitle          = "AILANG_TASK_TITLE"
 	EnvImageProvider      = "AILANG_IMAGE_PROVIDER"
 	EnvProvider           = "AILANG_PROVIDER"
@@ -55,6 +56,7 @@ var jobVars = []Var{
 	{EnvDirective, "", AreaJob, "The task directive text handed to the executor and used to derive the PR title and body; unset derives one from the task and agent ids."},
 	{EnvAutoMerge, "0", AreaJob, "1 lets the job enable GitHub auto-merge on a docs-only PR that matches the artifact patterns."},
 	{EnvArtifactPatterns, "", AreaJob, "Newline-separated path patterns the dispatcher declared as the task's artifacts; the auto-merge scope guard."},
+	{EnvNextAgents, "", AreaJob, "Comma-separated agents the task hands off to when its PR merges (registry trigger_on_complete); the PR is labelled merge-fires:<agent> and says so in its body."},
 	{EnvTaskTitle, "", AreaJob, "Human-written task title used as the message subject; unset derives one from the directive."},
 	{EnvImageProvider, "", AreaJob, "Which provider image the job believes it runs in; verified against AILANG_PROVIDER and printed by preflight diagnostics."},
 	{EnvProvider, "", AreaJob, "Provider the dispatcher requested for the task; deliberately not defaulted, the job resolves and verifies it against the image."},
@@ -152,6 +154,17 @@ func Directive() string { return get(EnvDirective) }
 
 // AutoMerge reports AILANG_AUTO_MERGE=1.
 func AutoMerge() bool { return getOr(EnvAutoMerge) == "1" }
+
+// NextAgents returns the agents AILANG_NEXT_AGENTS names, nil when unset.
+func NextAgents() []string {
+	var out []string
+	for _, a := range strings.Split(get(EnvNextAgents), ",") {
+		if a = strings.TrimSpace(a); a != "" {
+			out = append(out, a)
+		}
+	}
+	return out
+}
 
 // ArtifactPatterns returns the trimmed AILANG_ARTIFACT_PATTERNS, "" when unset.
 func ArtifactPatterns() string { return strings.TrimSpace(get(EnvArtifactPatterns)) }

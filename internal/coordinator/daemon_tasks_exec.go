@@ -280,6 +280,8 @@ func (d *Daemon) dispatchTasksCloud() error {
 				// this, refuse" — so an agent that never declared its artifacts
 				// gets no auto-merge instead of unlimited scope.
 				params.ArtifactPatterns = agent.ArtifactPatterns
+				// Who merging this task's PR hands off to, so the PR can say so.
+				params.NextAgents = agent.TriggerOnComplete
 				params.SSHKeySecret = agent.SSHKeySecret
 				params.SSHHostAlias = agent.SSHHostAlias
 				params.ToolPolicy = agent.GetEffectiveToolPolicy()

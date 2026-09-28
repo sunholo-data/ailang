@@ -292,6 +292,12 @@ func (d *Dispatcher) Dispatch(ctx context.Context, params coordinator.DispatchPa
 			})
 		}
 	}
+	// Agent ids never contain a comma, so a comma list is unambiguous here.
+	if len(params.NextAgents) > 0 {
+		envOverrides = append(envOverrides, &runpb.EnvVar{
+			Name: config.EnvNextAgents, Values: &runpb.EnvVar_Value{Value: strings.Join(params.NextAgents, ",")},
+		})
+	}
 	// M-AGENT-AILANG-ONLY-EXECUTION: the tool lane, and the program policy by
 	// CONTENT (the Job cannot read the coordinator's disk). full = no override.
 	if params.ToolPolicy != "" && params.ToolPolicy != "full" {
