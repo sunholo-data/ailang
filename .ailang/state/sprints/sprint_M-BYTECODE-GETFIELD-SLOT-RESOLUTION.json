@@ -1,0 +1,87 @@
+{
+  "sprint_id": "M-BYTECODE-GETFIELD-SLOT-RESOLUTION",
+  "title": "Deterministic receiver-owned bytecode record slot resolution",
+  "status": "planned",
+  "design_doc": "design_docs/planned/v0_47_2/m-bytecode-getfield-slot-resolution.md",
+  "sprint_plan": "design_docs/planned/v0_47_2/m-bytecode-getfield-slot-resolution-sprint-plan.md",
+  "target_version": "v0.47.2",
+  "github_issues": [
+    1354
+  ],
+  "created": "2026-09-28",
+  "velocity": {
+    "target_loc_per_day": 150,
+    "estimated_total_loc": 300,
+    "estimated_days": 2
+  },
+  "features": [
+    {
+      "id": "M1_TYPE_RESOLVER",
+      "description": "Build deterministic named-record and alias-chain field resolution in lower",
+      "estimated_loc": 75,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Named record TCon receivers resolve to their own lexicographically sorted full field set",
+        "Alias chains resolve with a cycle guard while ADTs and unknown names yield no hint",
+        "Existing anonymous and row-polymorphic record hint behavior remains green"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_HINT_PROPAGATION",
+      "description": "Propagate exact receiver field sets through field access, record update, and merged multi-module lowering",
+      "estimated_loc": 95,
+      "dependencies": [
+        "M1_TYPE_RESOLVER"
+      ],
+      "acceptance_criteria": [
+        "FieldAccess carries correct fields for named parameters, call results, function results, and aliases",
+        "RecordUpdate carries the base record's complete sorted field set",
+        "Imported Motion and Vec3 receivers receive distinct correct hints without changing tuple or ADT lowering"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_REMOVE_GUESSING",
+      "description": "Delete cross-type compiler scans and enforce exact-hint, by-name read, or loud update failure behavior",
+      "estimated_loc": 55,
+      "dependencies": [
+        "M2_HINT_PROPAGATION"
+      ],
+      "acceptance_criteria": [
+        "No map iteration participates in GET_FIELD index or record-update shape selection",
+        "Field access without a hint uses _record_get by name",
+        "Record update without a known base shape returns a compile error and cannot corrupt the record"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_PARITY_DETERMINISM_TESTS",
+      "description": "Add CLI, compiler, golden, multi-module, parity, and repeated-process determinism regression coverage",
+      "estimated_loc": 75,
+      "dependencies": [
+        "M1_TYPE_RESOLVER",
+        "M2_HINT_PROPAGATION",
+        "M3_REMOVE_GUESSING"
+      ],
+      "acceptance_criteria": [
+        "OOB, in-bounds, record-update, alias-chain, and Motion/Vec3 fixtures match interpreter output in 10 of 10 strict runs",
+        "Ten game-shape disassemblies are byte-identical and normal bytecode emits no evaluator fallback warning",
+        "Focused compiler and CLI tests, bytecode goldens, make test-core, formatting, lint, and boundaries pass"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
