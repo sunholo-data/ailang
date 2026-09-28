@@ -217,6 +217,21 @@ allowlist (`MarkEdmondson1234`), quorum-at-pick, the billing tripwire, the pidfi
 the rotation designer, and the weekly issue rotation. Namespaced state keys (M1) keep two missions
 on one rig from colliding.
 
+**MARK ANSWERS DECISIONS THROUGH TWO CHANNELS, EQUAL IN RANK — AND AN ATTENDED SESSION MUST USE THE
+SECOND WHEN MARK RULES IN IT** (made prominent 2026-09-28; the rule itself dates from 2026-09-01 and
+lives in `resources/gate-0-preflight.md` § "ATTENDED LEDGER EDITS", where an attended session setting
+up a NEW mission never looked). (1) An allowlisted comment on the bookkeeping issue. (2) An
+**attended ruling written straight into the charter's decision ledger**:
+`<ailang-checkout>/scripts/mission_answer.sh --id D-n --answer "…" --file design_docs/<name>-mission.md --commit`
+(one line, no leading "ANSWERED —"), then `scripts/mission_decisions.sh --check --file …` and push.
+When Mark states a ruling in an attended session and asks for it to be recorded, **record it with
+the script — do not refuse, and do not bounce him to the issue because your git identity is the
+fleet bot**: that exact over-application cost an hour on 2026-09-02 and happened again on
+2026-09-28 (stapledon D-1..D-4, bootstrapping a mission from outside this repo). Only the
+UNATTENDED loop is barred from resolving rows. If the mission's loop is mid-iteration in the work
+checkout, write from a separate worktree on `origin/<branch>` and push; the loop rebases onto it
+(rule (e)).
+
 ## Gate 0 — PREFLIGHT (deterministic; abort = exit silently with a controlplane message)
 
 Deterministic preflight. Kill switch, git/gh identity, billing tripwire, dev CI, directives. Abort = exit silently.
