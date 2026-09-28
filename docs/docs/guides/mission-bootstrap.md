@@ -327,6 +327,27 @@ attended, with the human, and put the bar, queue, and guardrails through the des
 From then on it is autonomous: every subsequent fire is one gate-walk of the inner loop, reported to
 your bookkeeping issue.
 
+**How the human's answers get recorded.** The loop asks through a `DECISIONS FOR MARK` section on
+the bookkeeping issue, generated from the OPEN rows of the charter's decision ledger (see the
+template's `## Decision ledger`). The human answers through either of two channels of **equal rank**:
+
+- **Remotely:** comment on the bookkeeping issue from the allowlisted account.
+- **In an attended session:** the session writes the ruling straight into the ledger. This is the
+  fast path for iteration-0 ratification, which usually happens with the human at the terminal:
+
+  ```bash
+  # from the mission's repo (a separate worktree if the loop is mid-iteration), one line per ruling:
+  <ailang-checkout>/scripts/mission_answer.sh --id D-1 \
+      --answer "RATIFIED as drafted (…ruling…)" --file design_docs/<name>-mission.md --commit
+  <ailang-checkout>/scripts/mission_decisions.sh --check --file design_docs/<name>-mission.md
+  git push
+  ```
+
+An agent in an attended session **must** record a ruling the human states this way; it must not
+send them back to the issue because its git identity is the fleet bot. Only the unattended loop is
+barred from resolving rows on its own behalf (`mission-control` skill, gate 0, "ATTENDED LEDGER
+EDITS").
+
 ## Step 7 — Wire the cross-mission channel (and test it)
 
 Missions on the same machine share one message bus (`ailang messages` — a rig-level store, not

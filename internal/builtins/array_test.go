@@ -1,6 +1,8 @@
 package builtins
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/effects/testctx"
@@ -35,10 +37,10 @@ func TestArrayMake(t *testing.T) {
 			if !ok {
 				t.Fatalf("expected ArrayValue, got %T", result)
 			}
-			if len(arr.Elements) != tt.wantLen {
-				t.Errorf("want len %d, got %d", tt.wantLen, len(arr.Elements))
+			if arr.Len() != tt.wantLen {
+				t.Errorf("want len %d, got %d", tt.wantLen, arr.Len())
 			}
-			for i, elem := range arr.Elements {
+			for i, elem := range arr.Elements() {
 				v, ok := elem.(*eval.IntValue)
 				if !ok {
 					t.Errorf("element %d: expected IntValue, got %T", i, elem)
@@ -65,13 +67,11 @@ func TestArrayMakeNegativeSize(t *testing.T) {
 
 func TestArrayGet(t *testing.T) {
 	ctx := testctx.NewMockEffContext().EffContext
-	arr := &eval.ArrayValue{
-		Elements: []eval.Value{
-			&eval.IntValue{Value: 10},
-			&eval.IntValue{Value: 20},
-			&eval.IntValue{Value: 30},
-		},
-	}
+	arr := eval.NewArray([]eval.Value{
+		&eval.IntValue{Value: 10},
+		&eval.IntValue{Value: 20},
+		&eval.IntValue{Value: 30},
+	})
 
 	tests := []struct {
 		name    string
@@ -114,13 +114,11 @@ func TestArrayGet(t *testing.T) {
 
 func TestArraySet(t *testing.T) {
 	ctx := testctx.NewMockEffContext().EffContext
-	original := &eval.ArrayValue{
-		Elements: []eval.Value{
-			&eval.IntValue{Value: 1},
-			&eval.IntValue{Value: 2},
-			&eval.IntValue{Value: 3},
-		},
-	}
+	original := eval.NewArray([]eval.Value{
+		&eval.IntValue{Value: 1},
+		&eval.IntValue{Value: 2},
+		&eval.IntValue{Value: 3},
+	})
 
 	// Set middle element
 	result, err := arraySetImpl(ctx, []eval.Value{
@@ -138,12 +136,12 @@ func TestArraySet(t *testing.T) {
 	}
 
 	// Check new array has updated value
-	if v, ok := newArr.Elements[1].(*eval.IntValue); !ok || v.Value != 99 {
+	if v, ok := newArr.Elements()[1].(*eval.IntValue); !ok || v.Value != 99 {
 		t.Error("new array should have value 99 at index 1")
 	}
 
 	// Check original is unchanged (copy-on-write)
-	if v, ok := original.Elements[1].(*eval.IntValue); !ok || v.Value != 2 {
+	if v, ok := original.Elements()[1].(*eval.IntValue); !ok || v.Value != 2 {
 		t.Error("original array should be unchanged")
 	}
 }
@@ -163,7 +161,7 @@ func TestArrayLength(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			arr := &eval.ArrayValue{Elements: make([]eval.Value, tt.len)}
+			arr := eval.NewArray(make([]eval.Value, tt.len))
 			result, err := arrayLengthImpl(ctx, []eval.Value{arr})
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
@@ -199,15 +197,15 @@ func TestArrayFromList(t *testing.T) {
 		t.Fatalf("expected ArrayValue, got %T", result)
 	}
 
-	if len(arr.Elements) != 3 {
-		t.Errorf("want len 3, got %d", len(arr.Elements))
+	if arr.Len() != 3 {
+		t.Errorf("want len 3, got %d", arr.Len())
 	}
 
 	// Verify values
 	for i, want := range []int{1, 2, 3} {
-		v, ok := arr.Elements[i].(*eval.IntValue)
+		v, ok := arr.Elements()[i].(*eval.IntValue)
 		if !ok {
-			t.Errorf("element %d: expected IntValue, got %T", i, arr.Elements[i])
+			t.Errorf("element %d: expected IntValue, got %T", i, arr.Elements()[i])
 			continue
 		}
 		if v.Value != want {
@@ -218,13 +216,11 @@ func TestArrayFromList(t *testing.T) {
 
 func TestArrayToList(t *testing.T) {
 	ctx := testctx.NewMockEffContext().EffContext
-	arr := &eval.ArrayValue{
-		Elements: []eval.Value{
-			&eval.StringValue{Value: "a"},
-			&eval.StringValue{Value: "b"},
-			&eval.StringValue{Value: "c"},
-		},
-	}
+	arr := eval.NewArray([]eval.Value{
+		&eval.StringValue{Value: "a"},
+		&eval.StringValue{Value: "b"},
+		&eval.StringValue{Value: "c"},
+	})
 
 	result, err := arrayToListImpl(ctx, []eval.Value{arr})
 	if err != nil {
@@ -255,11 +251,9 @@ func TestArrayToList(t *testing.T) {
 
 func TestArrayUnsafeGet(t *testing.T) {
 	ctx := testctx.NewMockEffContext().EffContext
-	arr := &eval.ArrayValue{
-		Elements: []eval.Value{
-			&eval.IntValue{Value: 42},
-		},
-	}
+	arr := eval.NewArray([]eval.Value{
+		&eval.IntValue{Value: 42},
+	})
 
 	// Valid access
 	result, err := arrayUnsafeGetImpl(ctx, []eval.Value{
@@ -277,14 +271,23 @@ func TestArrayUnsafeGet(t *testing.T) {
 		t.Errorf("want 42, got %d", v.Value)
 	}
 
-	// Out of bounds should panic
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("expected panic for out of bounds access")
+	// Out of bounds is a typed runtime error, not a Go panic (M-NUMERICS Phase 0).
+	_, err = arrayUnsafeGetImpl(ctx, []eval.Value{arr, &eval.IntValue{Value: 99}})
+	if err == nil || !strings.Contains(err.Error(), "index 99 out of bounds (array length: 1)") {
+		t.Fatalf("want an out-of-bounds error naming index and length, got %v", err)
+	}
+}
+
+// An out-of-bounds set used to return the array unchanged, so a training loop
+// with an off-by-one computed on stale weights and reported nothing (D5).
+func TestArraySetOutOfBoundsIsAnError(t *testing.T) {
+	ctx := testctx.NewMockEffContext().EffContext
+	arr := eval.NewArray([]eval.Value{&eval.IntValue{Value: 1}, &eval.IntValue{Value: 2}})
+	for _, idx := range []int{-1, 2, 99} {
+		_, err := arraySetImpl(ctx, []eval.Value{arr, &eval.IntValue{Value: idx}, &eval.IntValue{Value: 7}})
+		want := fmt.Sprintf("index %d out of bounds (array length: 2)", idx)
+		if err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("set(arr, %d, _): want error containing %q, got %v", idx, want, err)
 		}
-	}()
-	_, _ = arrayUnsafeGetImpl(ctx, []eval.Value{
-		arr,
-		&eval.IntValue{Value: 99},
-	})
+	}
 }

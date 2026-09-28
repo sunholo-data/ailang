@@ -1,5 +1,194 @@
 [
   {
+    "ailang_version": "v0.44.1",
+    "generated": "2026-09-27",
+    "trials": 3,
+    "languages": [
+      "ailang"
+    ],
+    "rows": [
+      {
+        "harness": "motoko",
+        "lang": {
+          "ailang": 0.8333333333333334
+        },
+        "model": "motoko-local-qwen3-8-27b",
+        "tiers": {
+          "core": {
+            "ailang": 1
+          },
+          "frontier": {
+            "ailang": 0.5
+          },
+          "stretch": {
+            "ailang": 1
+          }
+        }
+      },
+      {
+        "harness": "opencode",
+        "lang": {
+          "ailang": 0.6428571428571429
+        },
+        "model": "opencode-qwen3-8-27b",
+        "tiers": {
+          "core": {
+            "ailang": 0.75
+          },
+          "frontier": {
+            "ailang": 0
+          },
+          "stretch": {
+            "ailang": 1
+          }
+        }
+      },
+      {
+        "harness": "pi",
+        "lang": {
+          "ailang": 0.4666666666666667
+        },
+        "model": "pi-qwen3-8-27b",
+        "tiers": {
+          "core": {
+            "ailang": 0.6666666666666666
+          },
+          "frontier": {
+            "ailang": 0.16666666666666666
+          },
+          "stretch": {
+            "ailang": 0.6666666666666666
+          }
+        }
+      }
+    ],
+    "notes": [
+      {
+        "date": "2026-09-15",
+        "ref": "M-V1-SIMPLIFY-S3 M1 / ruling D2",
+        "text": "Pass = compile_ok && runtime_ok && stdout_ok (RunMetrics.Passed) everywhere from this date. The OS rotation summary (SummarizeRotation) always used this conjunction, so OS leaderboard/history rows are unaffected; cloud-baseline views (eval-report matrix, tags, sweet-spot, comparison, ELO) had read stdout_ok alone. Measured over every baseline dir (26,758 valid rows): 31 rows disagree, 30 of them on the retired print_missing_effect benchmark (empty expected stdout graded a compile/runtime failure as stdout_ok); overall delta -0.12pp, worst version v0.4.1 at -0.90pp, v0.30.0 and v0.32.0 unchanged. Nothing was re-banked. Full per-version table: TestD2DiscordantCount in internal/eval_analysis."
+      },
+      {
+        "date": "2026-09-15",
+        "ref": "M-V1-SIMPLIFY-S4 M4 / ruling D9",
+        "text": "Write side unified, bank-forward: from this date standard mode gates stdout_ok on runtime_ok exactly as every agent-mode lane already did, so a run that crashed after printing the expected bytes (or whose expected stdout is empty) banks stdout_ok=false instead of true. Rows banked before this date keep their stored flags; nothing was re-banked. Published rates are unaffected because the D2 read-side predicate above already required all three flags \u2014 this only makes the STORED stdout_ok mean the same thing in both modes. Pinned by TestD9StandardModeStdoutOkGatedOnRuntime in internal/eval_harness."
+      }
+    ]
+  },
+  {
+    "ailang_version": "v0.43.1",
+    "generated": "2026-09-26",
+    "trials": 3,
+    "languages": [
+      "ailang"
+    ],
+    "rows": [
+      {
+        "harness": "opencode",
+        "lang": {
+          "ailang": 1
+        },
+        "model": "opencode-qwen3-8-27b",
+        "tiers": {
+          "core": {
+            "ailang": 1
+          },
+          "stretch": {
+            "ailang": 1
+          }
+        }
+      },
+      {
+        "harness": "pi",
+        "lang": {
+          "ailang": 0.5833333333333334
+        },
+        "model": "pi-qwen3-8-27b",
+        "tiers": {
+          "core": {
+            "ailang": 0.7142857142857143
+          },
+          "frontier": {
+            "ailang": 0
+          },
+          "stretch": {
+            "ailang": 0.6666666666666666
+          }
+        }
+      }
+    ],
+    "notes": [
+      {
+        "date": "2026-09-15",
+        "ref": "M-V1-SIMPLIFY-S3 M1 / ruling D2",
+        "text": "Pass = compile_ok && runtime_ok && stdout_ok (RunMetrics.Passed) everywhere from this date. The OS rotation summary (SummarizeRotation) always used this conjunction, so OS leaderboard/history rows are unaffected; cloud-baseline views (eval-report matrix, tags, sweet-spot, comparison, ELO) had read stdout_ok alone. Measured over every baseline dir (26,758 valid rows): 31 rows disagree, 30 of them on the retired print_missing_effect benchmark (empty expected stdout graded a compile/runtime failure as stdout_ok); overall delta -0.12pp, worst version v0.4.1 at -0.90pp, v0.30.0 and v0.32.0 unchanged. Nothing was re-banked. Full per-version table: TestD2DiscordantCount in internal/eval_analysis."
+      },
+      {
+        "date": "2026-09-15",
+        "ref": "M-V1-SIMPLIFY-S4 M4 / ruling D9",
+        "text": "Write side unified, bank-forward: from this date standard mode gates stdout_ok on runtime_ok exactly as every agent-mode lane already did, so a run that crashed after printing the expected bytes (or whose expected stdout is empty) banks stdout_ok=false instead of true. Rows banked before this date keep their stored flags; nothing was re-banked. Published rates are unaffected because the D2 read-side predicate above already required all three flags \u2014 this only makes the STORED stdout_ok mean the same thing in both modes. Pinned by TestD9StandardModeStdoutOkGatedOnRuntime in internal/eval_harness."
+      }
+    ]
+  },
+  {
+    "ailang_version": "v0.42.0",
+    "generated": "2026-09-25",
+    "trials": 3,
+    "languages": [
+      "ailang"
+    ],
+    "rows": [
+      {
+        "harness": "opencode",
+        "lang": {
+          "ailang": 0.918918918918919
+        },
+        "model": "opencode-qwen3-8-27b",
+        "tiers": {
+          "core": {
+            "ailang": 1
+          },
+          "frontier": {
+            "ailang": 0.6666666666666666
+          },
+          "stretch": {
+            "ailang": 0.8666666666666667
+          }
+        }
+      },
+      {
+        "harness": "pi",
+        "lang": {
+          "ailang": 0.8780487804878049
+        },
+        "model": "pi-qwen3-8-27b",
+        "tiers": {
+          "core": {
+            "ailang": 0.95
+          },
+          "frontier": {
+            "ailang": 0.7142857142857143
+          },
+          "stretch": {
+            "ailang": 0.8571428571428571
+          }
+        }
+      }
+    ],
+    "notes": [
+      {
+        "date": "2026-09-15",
+        "ref": "M-V1-SIMPLIFY-S3 M1 / ruling D2",
+        "text": "Pass = compile_ok && runtime_ok && stdout_ok (RunMetrics.Passed) everywhere from this date. The OS rotation summary (SummarizeRotation) always used this conjunction, so OS leaderboard/history rows are unaffected; cloud-baseline views (eval-report matrix, tags, sweet-spot, comparison, ELO) had read stdout_ok alone. Measured over every baseline dir (26,758 valid rows): 31 rows disagree, 30 of them on the retired print_missing_effect benchmark (empty expected stdout graded a compile/runtime failure as stdout_ok); overall delta -0.12pp, worst version v0.4.1 at -0.90pp, v0.30.0 and v0.32.0 unchanged. Nothing was re-banked. Full per-version table: TestD2DiscordantCount in internal/eval_analysis."
+      },
+      {
+        "date": "2026-09-15",
+        "ref": "M-V1-SIMPLIFY-S4 M4 / ruling D9",
+        "text": "Write side unified, bank-forward: from this date standard mode gates stdout_ok on runtime_ok exactly as every agent-mode lane already did, so a run that crashed after printing the expected bytes (or whose expected stdout is empty) banks stdout_ok=false instead of true. Rows banked before this date keep their stored flags; nothing was re-banked. Published rates are unaffected because the D2 read-side predicate above already required all three flags \u2014 this only makes the STORED stdout_ok mean the same thing in both modes. Pinned by TestD9StandardModeStdoutOkGatedOnRuntime in internal/eval_harness."
+      }
+    ]
+  },
+  {
     "ailang_version": "v0.40.2",
     "generated": "2026-09-21",
     "trials": 4,

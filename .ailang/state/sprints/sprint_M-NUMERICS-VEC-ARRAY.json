@@ -1,0 +1,137 @@
+{
+  "sprint_id": "M-NUMERICS-VEC-ARRAY",
+  "plan_path": "design_docs/implemented/v0_47_0/m-numerics-vec-array-ingest-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_47_0/m-numerics-vec-array-ingest.md",
+  "created": "2026-09-27",
+  "status": "completed",
+  "github_issues": [],
+  "velocity": {
+    "target_loc_per_day": 250,
+    "estimated_total_loc": 1600,
+    "estimated_days": 6
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Phase 0: out-of-bounds set errors (D5), unsafeGet typed error, F32/F64 codecs exported from std/embedding, std/array header",
+      "estimated_loc": 150,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Out-of-bounds std/array.set is an error naming index and length",
+        "unsafeGet out of bounds is a typed error, not a Go panic",
+        "encodeF32LE/decodeF32LE/encodeF64LE/decodeF64LE exported and round-trip tested",
+        "make verify-stdlib re-frozen"
+      ],
+      "passes": true,
+      "started": "2026-09-27T16:25:52+00:00",
+      "completed": "2026-09-27T16:25:52+00:00",
+      "notes": "ArrayValue.Set returns (arr, ok); _array_set/_array_unsafe_get OOB errors; float_codec.go (_vec_encode_f64le, _vec_decode_f32le/_f64le -> Result); std/embedding encode/decode F32LE/F64LE; TestStdArraySetOutOfBoundsFails (both backends, mutation-checked), TestStdEmbeddingFloatCodecs; stdlib + builtin-types goldens refrozen (embedding only)."
+    },
+    {
+      "id": "M2",
+      "description": "Phase 1a: ArrayValue unboxed []float64 store behind accessors; all consumers migrated",
+      "estimated_loc": 350,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "ArrayValue elements private; every consumer uses accessors",
+        "make/fromList/literals pack all-float non-empty arrays",
+        "show/==/toList identical across stores",
+        "Mutation check: Get reading only boxed store fails packed tests"
+      ],
+      "passes": true,
+      "started": "2026-09-27T16:42:21+00:00",
+      "completed": "2026-09-27T16:42:21+00:00",
+      "notes": "ArrayValue{elems,floats} private; NewArray/NewArrayCopy/NewFloatArray; Len/Get/Set/Elements()/Floats()/Packed(). Consumers migrated: builtins/array,list(valuesEqual w/ packed fast path, FloatEq),show,canonical_key; eval show_bounded,eval_expressions; embed/convert. Tests: internal/eval/value_array_test.go (store choice, parity, set, copy isolation; mutation-checked: Get reading only boxed store fails), cmd/ailang/stdlib_array_packed_test.go (both backends). Measured: 10M make(n,1.5) = 137 MB peak RSS evaluator. Note: AILANG has no Eq on Array (No instance for Eq[Array[float]]), so == parity tested via toList. Unrelated flake: TestFolded.../dashboard/health hangs on a local listener (http.Get without timeout)."
+    },
+    {
+      "id": "M3",
+      "description": "Phase 1b: float kernels dot/axpy/scale/add/sub/mul/sum/argmax in std/array",
+      "estimated_loc": 300,
+      "dependencies": [
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "Kernels exported from std/array typed on Array[float]",
+        "Length mismatch and empty argmax are errors",
+        "Inputs not mutated; NaN behaviour tested"
+      ],
+      "passes": true,
+      "started": "2026-09-27T16:49:55+00:00",
+      "completed": "2026-09-27T16:49:55+00:00",
+      "notes": "internal/builtins/array_float.go: _array_f_dot/sum/argmax/add/sub/mul/scale/axpy (strict lengths, index-order sums, argmax skips NaN, empty errors). std/array exports dot/axpy/scale/add/sub/mul/sum/argmax. Tests: cmd/ailang/stdlib_array_kernels_test.go (semantics, no mutation, NaN, errors), internal/builtins/array_float_test.go (-count=20 determinism, boxed store read, non-float element is an error)."
+    },
+    {
+      "id": "M4",
+      "description": "Phase 1c: VM TagArray + bridge (zero-copy float slices) + show/==; no-fallback tests; memory measurements",
+      "estimated_loc": 300,
+      "dependencies": [
+        "M3",
+        "M5"
+      ],
+      "acceptance_criteria": [
+        "std/array programs run via bytecode VM with no evaluator fallback",
+        "Mutation check: removing bridge case fails VM rows",
+        "10M Array[float] peak RSS < 200 MB measured",
+        "SGD benchmark ~0.1ms/step not regressed"
+      ],
+      "passes": true,
+      "started": "2026-09-27T16:55:46+00:00",
+      "completed": "2026-09-27T16:55:46+00:00",
+      "notes": "bytecode.TagArray + ArrayObj{Elems,Floats} (Len/At, Equal, String), vm showValue + runtimeEq, runner bridge both ways (packed slice shared, O(1) crossing). Array test tables (parity 11, kernels 16, OOB) assert VM-native (no fallback). Mutation: eval->bc array bridge removed => all 11 parity VM rows fail. Measured VM: 10M Array[float] 132 MB peak RSS; 1000 SGD steps x 768: Array 10 ms, [float] 19 ms (evaluator 9/20 ms) -> ~0.02 ms/step, not regressed vs ~0.1 ms. Codec tests (std/embedding bytes+Result) still fall back on VM: bridge lacks bytes and eval->VM ADT; addressed in M6."
+    },
+    {
+      "id": "M5",
+      "description": "Phase 2: updateMany and scatterAdd bulk updates",
+      "estimated_loc": 150,
+      "dependencies": [
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "updateMany one copy k writes, OOB error",
+        "scatterAdd length/OOB errors",
+        "100k batched writes to 3840-elem array < 50 ms"
+      ],
+      "passes": true,
+      "started": "2026-09-27T16:49:55+00:00",
+      "completed": "2026-09-27T16:49:55+00:00",
+      "notes": "_array_update_many (generic, packed fast path, later writes win, OOB error) and _array_scatter_add (length + OOB errors). Measured on evaluator: 100k batched writes to 3840-elem array: updateMany ~1 ms, scatterAdd <1 ms (target <50 ms)."
+    },
+    {
+      "id": "M6",
+      "description": "Phase 3: decodeF64LE/decodeF32LE/encoders in std/array; std/json.decodeFloatArray",
+      "estimated_loc": 250,
+      "dependencies": [
+        "M4"
+      ],
+      "acceptance_criteria": [
+        "Binary decode builds packed store; bad length is Err",
+        "decodeFloatArray parses flat JSON number array without Json tree",
+        "1252x768 binary load < 50 ms and < 50 MB"
+      ],
+      "passes": true,
+      "started": "2026-09-27T17:02:11+00:00",
+      "completed": "2026-09-27T17:02:11+00:00",
+      "notes": "_array_encode/decode_f32le/f64le (packed store directly, Result), _json_decode_float_array (strict JSON number grammar, offset-named Errs). Bridge: TagBytes both ways; eval->VM Option/Result via bytecode.StdADTTag (pinned to std/*.ail declaration order by std_adt_tag_test.go). Tests: cmd/ailang/stdlib_array_ingest_test.go (12 cases, VM-native), M1 codec test flipped to VM-native. Mutation: bytes bridge removed => 4 bytes rows fail VM-native check. Measured 1252x768 f64 binary: 11 ms end to end, +43 MB RSS over baseline; JSON 19.5 MB: 50 ms. Note std/fs.readFileBytes returns base64 text (extra transient copy)."
+    },
+    {
+      "id": "M7",
+      "description": "Docs, prompt, example, changelog, design doc to implemented/",
+      "estimated_loc": 100,
+      "dependencies": [
+        "M6"
+      ],
+      "acceptance_criteria": [
+        "examples/runnable/array_float_kernels.ail passes on both backends",
+        "Prompt rule for [float] vs Array[float], F32 marked lossy",
+        "stdlib.md row, CHANGELOG, design doc moved with measurements"
+      ],
+      "passes": true,
+      "started": "2026-09-27T17:05:44+00:00",
+      "completed": "2026-09-27T17:05:44+00:00",
+      "notes": "examples/runnable/array_float_kernels.ail (identical output evaluator + VM, VM-native) + manifest entry/stats; prompt v0.16.6 (unfrozen head, amended in place: canonical std/array line, std/json decodeFloatArray, Arrays section OOB errors / unboxed / bulk ops / F32 lossy) in prompts/, cmd/ailang/prompts/, docs/docs/prompts/current.md, versions.json hash+notes; stdlib.md rows (array, json, embedding); CHANGELOG entries per milestone; design doc + sprint plan moved to implemented/v0_47_0 with Implementation Record (measurements, deviations, mutation checks). make verify-examples green."
+    }
+  ],
+  "completed": "2026-09-27T17:05:44+00:00"
+}

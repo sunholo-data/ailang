@@ -35,7 +35,7 @@ After every Gate-5 report has been sent and this iteration is fully complete, ru
     LEADS with a `DRIFT` line** naming the three landings and the idle critical-path rows, and
     `DECISIONS FOR MARK` carries a proposed regroom (a complete ask: order, recommendation,
     default). As with 2b, a drift alarm is a signal to STOP AND ASK MARK, never to work harder.
-3. Morning report, TWO channels (both required). **DIGEST FORMAT, HARD-CAPPED (Mark directive
+3. Morning report, TWO channels (both required); the controlplane title carries a severity word (3d). **DIGEST FORMAT, HARD-CAPPED (Mark directive
    2026-07-31: "the github progress issues are very verbose … we could work on more conciseness").**
    The issue thread is a COMMUNICATION channel, not loop memory — the loop never re-reads its own
    reports (Gate 0 filters for Mark's comments only); the full record lives in the charter STATUS
@@ -80,6 +80,23 @@ After every Gate-5 report has been sent and this iteration is fully complete, ru
      — the human-facing bookkeeping thread (Mark reads by email; number comes from the driver env /
      `~/.ailang/state/mission-${MISSION_NAME}-gh-issue`, NOT hardcoded and NOT the bare,
      fleet-shared `mission-gh-issue` — see the Repo Profile).
+   - **3d. THE `controlplane` TITLE CARRIES A SEVERITY WORD, SO DANEEL TRIAGES IT (Mark, attended
+     2026-09-28: decisions should reach him through Daneel, "with correct triage").** Daneel
+     (Mark's PA) reads `controlplane` hourly and routes each message by the FIRST word of its
+     title. Untagged reads as `fyi`: measured 2026-09-28, all 150 digests in Daneel's ledger were
+     `fyi · NOTE`, so decision asks were counted and never shown. Prefix the controlplane title
+     (the `gh` comment is unchanged):
+     | Title starts | When | Daneel does |
+     |---|---|---|
+     | `[urgent]` | a NEW ask blocks the critical path: this iteration's Gate 2 took off-critical-path work or idled because of it | one email to Mark within the hour |
+     | `[normal]` | `DECISIONS FOR MARK` holds an ask that is NEW this iteration (first filed, or its options or recommendation changed), or the digest leads with a `DRIFT` line | a line in Mark's next morning brief |
+     | `[fyi]` | everything else, including asks that are already pending and unchanged | a count in the evening summary |
+     Example: `-title "[normal] Mission world iteration 203: row 23 parked — D-WORLD-42 needs Mark"`.
+     Name the decision id in the title when it is `[normal]` or `[urgent]`, because the brief shows
+     the title first. Do not raise an unchanged pending ask to `[normal]` again: that repeats it in
+     every brief, and Daneel escalates at most five a day (over the cap an urgent becomes a
+     brief line, not silence). The ruling still comes back the usual way (issue comment or
+     attended session). Daneel is a messenger; it never replies, marks read or dispatches work.
    **The digest — ≤26 lines / ≤2,200 chars, exactly these sections, nothing else (Mark directive
    2026-08-31: the report exists so Mark can PRIORITIZE — goal distance, the banked queue and
    complete decision asks go IN; narrative goes OUT):**

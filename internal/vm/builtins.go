@@ -226,6 +226,23 @@ func showValue(v bytecode.Value) string {
 			parts[i] = showValue(e)
 		}
 		return "[" + strings.Join(parts, ", ") + "]"
+	case bytecode.TagBytes:
+		// Same rendering as eval.BytesValue.String.
+		b := v.AsBytes()
+		if b.Filename != "" {
+			return fmt.Sprintf("<bytes:%d:%s:%s>", len(b.B), b.MimeType, b.Filename)
+		}
+		if len(b.B) <= 32 {
+			return fmt.Sprintf("<bytes:%x>", b.B)
+		}
+		return fmt.Sprintf("<bytes:%x...>", b.B[:32])
+	case bytecode.TagArray:
+		a := v.AsArray()
+		parts := make([]string, a.Len())
+		for i := range parts {
+			parts[i] = showValue(a.At(i))
+		}
+		return "#[" + strings.Join(parts, ", ") + "]"
 	case bytecode.TagTuple:
 		elems := v.AsTuple()
 		parts := make([]string, len(elems))

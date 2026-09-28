@@ -109,7 +109,7 @@ func fromReflect(rv reflect.Value, preserveFloats bool) (eval.Value, error) {
 			}
 			elements[i] = elem
 		}
-		return &eval.ArrayValue{Elements: elements}, nil
+		return eval.NewArray(elements), nil
 
 	case reflect.Map:
 		if rv.Type().Key().Kind() != reflect.String {
@@ -202,8 +202,8 @@ func ToGo(v eval.Value) (interface{}, error) {
 		return result, nil
 
 	case *eval.ArrayValue:
-		result := make([]interface{}, len(val.Elements))
-		for i, elem := range val.Elements {
+		result := make([]interface{}, val.Len())
+		for i, elem := range val.Elements() {
 			goVal, err := ToGo(elem)
 			if err != nil {
 				return nil, fmt.Errorf("array element %d: %w", i, err)

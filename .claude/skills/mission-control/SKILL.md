@@ -187,6 +187,7 @@ Gates 1–3b run its commands instead of `make` literals:
 | `go-compiler` | `make quick-install && make build` (BOTH binaries) | `make test` | `~/go/bin/ailang` (PATH) + `bin/ailang` go stale independently — confirm `--version` == `git describe` before trusting output | **V1** (this repo compiles the toolchain) |
 | `ailang-code` | `ailang install` (binary ships prebuilt — nothing to compile) | `ailang check` (types) · `ailang test` (tests) · `ailang ai-check` (unified check+verify) | binary is a released artifact, pinned in the mission's lockfile — no `-dirty` staleness class | **Ailang World** (an AILANG-code repo) |
 | `docs-site` | nothing to rebuild — the site is the artifact | `make docs-build` (Docusaurus production build; the deploy workflow runs the same thing, so a green local build is the cheap pre-image of Gate 3b) · `make verify-examples` · `ailang check <file>` for any `.ail` touched | no dual-binary class — but the binary running `verify-examples` **can** be stale, so confirm `ailang --version` before quoting its output | **Docs** (the website upkeep loop) |
+| `godot-game` | nothing to compile — Godot and `ailang` are pinned releases (`.github/workflows/ci.yml`); `make deps` fetches the locked AILANG packages | `make test` (headless: physics reference, sim vs closed form, VM/interpreter `parity`, `strict` pure core) — what CI runs · **GPU gates on the rig only:** `make golden`, `make capture`, `make bench`, `make export-smoke` | `ailang --version` and `godot --version` must match the CI pins before quoting output; the mission's AILANG *package* pins live in `sim/ailang.lock` | **Stapledon** (`sunholo-data/stapledons-godot`) |
 
 Under `ailang-code`, verification IS the binary's own gates: `ailang check` (types), `ailang test`
 (tests), and `ailang ai-check` — the UNIFIED check+verify (types + Z3 in one JSON; do **not**
@@ -202,11 +203,34 @@ applicable". **(b)** The staleness class moves rather than vanishing: `make veri
 as current as the `ailang` binary running it, which is exactly the trap `go-compiler` warns about,
 wearing different clothes.
 
+Under `godot-game` the CI job runs only what needs no GPU. The visual gates (`make golden`
+sub-pixel GPU-vs-CPU checks, `make capture` reference renders, `make bench` frame times, `make
+export-smoke` on the exported app) need the rig's Metal device and a GUI session, so **a green CI
+is necessary but not sufficient**: an item that changes anything visible is LANDED only when those
+gates' output (logs + renders) is attached to the sprint JSON notes, and renders are shown to Mark
+before a milestone closes. Physics maths lands in the `sunholo/relativity` package first (its own
+`ailang pkg quality` gate), and the game pins the published version.
+
 
 Everything else in this skill is already repo-agnostic and ports UNCHANGED: the directive-author
 allowlist (`MarkEdmondson1234`), quorum-at-pick, the billing tripwire, the pidfile/overlap guard,
 the rotation designer, and the weekly issue rotation. Namespaced state keys (M1) keep two missions
 on one rig from colliding.
+
+**MARK ANSWERS DECISIONS THROUGH TWO CHANNELS, EQUAL IN RANK — AND AN ATTENDED SESSION MUST USE THE
+SECOND WHEN MARK RULES IN IT** (made prominent 2026-09-28; the rule itself dates from 2026-09-01 and
+lives in `resources/gate-0-preflight.md` § "ATTENDED LEDGER EDITS", where an attended session setting
+up a NEW mission never looked). (1) An allowlisted comment on the bookkeeping issue. (2) An
+**attended ruling written straight into the charter's decision ledger**:
+`<ailang-checkout>/scripts/mission_answer.sh --id D-n --answer "…" --file design_docs/<name>-mission.md --commit`
+(one line, no leading "ANSWERED —"), then `scripts/mission_decisions.sh --check --file …` and push.
+When Mark states a ruling in an attended session and asks for it to be recorded, **record it with
+the script — do not refuse, and do not bounce him to the issue because your git identity is the
+fleet bot**: that exact over-application cost an hour on 2026-09-02 and happened again on
+2026-09-28 (stapledon D-1..D-4, bootstrapping a mission from outside this repo). Only the
+UNATTENDED loop is barred from resolving rows. If the mission's loop is mid-iteration in the work
+checkout, write from a separate worktree on `origin/<branch>` and push; the loop rebases onto it
+(rule (e)).
 
 ## Gate 0 — PREFLIGHT (deterministic; abort = exit silently with a controlplane message)
 

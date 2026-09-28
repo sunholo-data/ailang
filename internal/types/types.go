@@ -17,6 +17,7 @@ package types
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -182,16 +183,31 @@ type TRecord struct {
 }
 
 func (t *TRecord) String() string {
-	var fields []string
-	for name, typ := range t.Fields {
-		fields = append(fields, fmt.Sprintf("%s: %s", name, typ.String()))
-	}
+	fields := sortedFieldStrings(t.Fields)
 
 	if t.Row != nil {
 		fields = append(fields, fmt.Sprintf("...%s", t.Row.String()))
 	}
 
 	return fmt.Sprintf("{ %s }", strings.Join(fields, ", "))
+}
+
+// sortedFieldStrings renders record fields as "name: type" in label order.
+// Map order is random per iteration, and the rendering feeds the compile-cache
+// key (pipeline.aliasDigest hashes alias bodies), so an unsorted print gave a
+// module importing a record alias a new key on every run — it was never served
+// from cache (v0.45.0 regression, reported by Daneel 2026-09-28).
+func sortedFieldStrings(fields map[string]Type) []string {
+	names := make([]string, 0, len(fields))
+	for name := range fields {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	out := make([]string, 0, len(names)+1)
+	for _, name := range names {
+		out = append(out, fmt.Sprintf("%s: %s", name, fields[name].String()))
+	}
+	return out
 }
 
 func (t *TRecord) Equals(other Type) bool {
@@ -240,10 +256,7 @@ type TRecordOpen struct {
 }
 
 func (t *TRecordOpen) String() string {
-	var fields []string
-	for name, typ := range t.Fields {
-		fields = append(fields, fmt.Sprintf("%s: %s", name, typ.String()))
-	}
+	fields := sortedFieldStrings(t.Fields)
 	if t.Row != nil {
 		fields = append(fields, fmt.Sprintf("| %s", t.Row.String()))
 	}

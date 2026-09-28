@@ -314,3 +314,10 @@ export func getNumberArrayOrEmpty(obj: Json, key: string) -> [float] {
     None => []
   }
 }
+
+-- decodeFloatArray: parse a flat JSON array of numbers ("[1.5, -2, 3e4]") straight
+-- into an unboxed Array[float], without building a Json tree. Use it for a float
+-- column exported from DuckDB or numpy. Anything else (nesting, strings, null,
+-- a trailing comma, trailing data) is Err naming the byte offset.
+--   decodeFloatArray("[1.5, 2]")  -- Ok(#[1.5, 2.0])
+export pure func decodeFloatArray(s: string) -> Result[Array[float], string] = _json_decode_float_array(s)

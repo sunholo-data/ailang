@@ -6,6 +6,7 @@
 -- - magnitude: Vector magnitude (L2 norm)
 -- - normalize: Unit vector normalization
 -- - cosine_encoded: Cosine similarity for packed bytes (convenience)
+-- - encodeF32LE/decodeF32LE (lossy), encodeF64LE/decodeF64LE (exact): binary boundary
 --
 -- Usage:
 --   import std/embedding (cosine, dot, magnitude)
@@ -118,3 +119,25 @@ export pure func add_vectors(a: [float], b: [float]) -> [float] = _vec_add(a, b)
 -- axpy(0.0 - lr, g, w)). x and y must have the same length; a mismatch is a
 -- runtime error, not a silent truncation.
 export pure func axpy(a: float, x: [float], y: [float]) -> [float] = _vec_axpy(a, x, y)
+
+-- ============================================================================
+-- Binary codecs (packed little-endian floats)
+-- ============================================================================
+-- The width is in the name. F32 is LOSSY: every float64 is rounded to the
+-- nearest float32 (0.1 does not round-trip). F64 is exact. Decoding fails with
+-- Err naming the byte count when it is not a whole number of floats.
+--
+-- Example:
+--   match decodeF64LE(encodeF64LE([0.1, 2.5])) { Ok(xs) => xs, Err(e) => [] }  -- [0.1, 2.5]
+
+-- encodeF32LE: 4 bytes per float, lossy (float32 precision).
+export pure func encodeF32LE(v: [float]) -> bytes = _embedding_encode(v)
+
+-- decodeF32LE: inverse of encodeF32LE.
+export pure func decodeF32LE(b: bytes) -> Result[[float], string] = _vec_decode_f32le(b)
+
+-- encodeF64LE: 8 bytes per float, exact.
+export pure func encodeF64LE(v: [float]) -> bytes = _vec_encode_f64le(v)
+
+-- decodeF64LE: inverse of encodeF64LE.
+export pure func decodeF64LE(b: bytes) -> Result[[float], string] = _vec_decode_f64le(b)

@@ -410,7 +410,7 @@ func TestShow_RemainingValueForms(t *testing.T) {
 		expected string
 	}{
 		{"tuple", &eval.TupleValue{Elements: []eval.Value{testctx.MakeInt(1), testctx.MakeString("a")}}, "(1, a)"},
-		{"array", &eval.ArrayValue{Elements: []eval.Value{testctx.MakeInt(1), testctx.MakeInt(2)}}, "#[1, 2]"},
+		{"array", eval.NewArray([]eval.Value{testctx.MakeInt(1), testctx.MakeInt(2)}), "#[1, 2]"},
 		{"map", &eval.MapValue{Entries: map[string]*eval.MapEntry{
 			"s:b": {Key: testctx.MakeString("b"), Value: testctx.MakeInt(2)},
 			"s:a": {Key: testctx.MakeString("a"), Value: testctx.MakeInt(1)},

@@ -1329,9 +1329,14 @@ class RoutingContractTests(unittest.TestCase):
             harness.write_text(
                 "set -euo pipefail\n"
                 "log(){ :; }\n"
+                # Defined above the routing slice in nightly-eval.sh (9aa994ccf):
+                # no truncated arm, and a fixed build target.
+                "arm_truncated(){ return 1; }\n"
+                "TARGET=0123456789abcdef0123456789abcdef01234567\n"
                 "DATE=2026-07-30\nMODEL=model\nBENCH_TIERS=smoke,core\n"
                 "RESULTS_DIR=/tmp/results\nPASS=1/10\nRATE=10%\n"
                 "BUILD_VERSION=vtest\nSHORT=abc123\n"
+                + f"LAST_GOOD_FILE={root}/last-good-commit\n"
                 + route,
                 encoding="utf-8",
             )
@@ -1449,9 +1454,14 @@ class RoutingContractTests(unittest.TestCase):
             harness.write_text(
                 "set -euo pipefail\n"
                 "log(){ :; }\n"
+                # Defined above the routing slice in nightly-eval.sh (9aa994ccf):
+                # no truncated arm, and a fixed build target.
+                "arm_truncated(){ return 1; }\n"
+                "TARGET=0123456789abcdef0123456789abcdef01234567\n"
                 "DATE=2026-07-29\nMODEL=model\nBENCH_TIERS=smoke,core\n"
                 "RESULTS_DIR=/tmp/results\nPASS=14/84\nRATE=16%\n"
                 "BUILD_VERSION=vtest\nSHORT=abc123\n"
+                + f"LAST_GOOD_FILE={root}/last-good-commit\n"
                 + route,
                 encoding="utf-8",
             )
@@ -1517,9 +1527,14 @@ class RoutingContractTests(unittest.TestCase):
             harness.write_text(
                 "set -euo pipefail\n"
                 "log(){ :; }\n"
+                # Defined above the routing slice in nightly-eval.sh (9aa994ccf):
+                # no truncated arm, and a fixed build target.
+                "arm_truncated(){ return 1; }\n"
+                "TARGET=0123456789abcdef0123456789abcdef01234567\n"
                 "DATE=2026-07-28\nMODEL=model\nBENCH_TIERS=smoke,core\n"
                 "RESULTS_DIR=/tmp/results\nPASS=1/10\nRATE=10%\n"
                 "BUILD_VERSION=vtest\nSHORT=abc123\n"
+                + f"LAST_GOOD_FILE={root}/last-good-commit\n"
                 + route,
                 encoding="utf-8",
             )

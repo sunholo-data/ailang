@@ -69,6 +69,12 @@
       "pure": true
     },
     {
+      "name": "decodeFloatArray",
+      "type": "(string)-\u003eResult[\u003c*types.TArray\u003e,string]",
+      "effects": [],
+      "pure": true
+    },
+    {
       "name": "encode",
       "type": "(Json)-\u003estring",
       "effects": [],

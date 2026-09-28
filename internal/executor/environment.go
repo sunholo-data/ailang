@@ -439,7 +439,8 @@ func GetClaudeSettingsPath() (string, error) {
 }
 
 // childStdlibPath picks the stdlib root to export to an agent child process:
-// <workspace>/std, else <cwd>/std, and only if it holds a stdlib; "" otherwise.
+// <workspace>/std, else <cwd>/std, and only if it holds the stdlib this binary
+// was built with; "" otherwise (the child then uses its own embedded stdlib).
 func childStdlibPath(opts EnvironmentOptions) string {
 	var candidates []string
 	if opts.Task != nil && opts.Task.Workspace != "" {
@@ -449,9 +450,17 @@ func childStdlibPath(opts EnvironmentOptions) string {
 		candidates = append(candidates, filepath.Join(cwd, "std"))
 	}
 	for _, c := range candidates {
-		if stdlibroot.IsStdlibDir(c) {
+		if !stdlibroot.IsStdlibDir(c) {
+			continue
+		}
+		// Only a stdlib identical to the one built into this binary is exported
+		// (see stdlibMatchesBinary). The child then runs the same stdlib whether
+		// or not the checkout it was launched from is mid-edit or a release ahead.
+		ok, why := stdlibMatchesBinary(c)
+		if ok {
 			return c
 		}
+		warnStdlibMismatchOnce(c, why)
 	}
 	return ""
 }

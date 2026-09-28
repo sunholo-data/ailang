@@ -524,7 +524,7 @@ func (e *CoreEvaluator) evalCoreArray(arr *core.Array) (Value, error) {
 		elements = append(elements, val)
 	}
 
-	return &ArrayValue{Elements: elements}, nil
+	return NewArray(elements), nil
 }
 
 // evalCoreTuple evaluates tuple construction
