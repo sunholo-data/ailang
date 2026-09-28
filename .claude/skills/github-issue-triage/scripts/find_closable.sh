@@ -1,174 +1,88 @@
 #!/usr/bin/env bash
-# Find issues that have been implemented and can be closed
-# Usage: find_closable.sh [--close] [--dry-run] [--json]
+# List CLOSE CANDIDATES among open issues. Never closes anything.
+# Usage: find_closable.sh [--json] [--ref origin/dev]
 #
-# Checks:
-# 1. Issue referenced in design_docs/implemented/
-# 2. Issue mentioned in CHANGELOG.md
-# 3. Issue keywords match implemented features
+# A candidate is a lead to verify, not a verdict. Every signal is read from the
+# pushed branch (default origin/dev), never the working tree, which in a
+# worktree may be an old branch.
+#
+# Signals, strongest first:
+#   fix_commit   a commit on REF says "fixes/closes/resolves #N"
+#   impl_doc     a design doc under design_docs/implemented/ on REF names #N
+#                in its header (first 20 lines)
+#
+# Deliberately NOT a signal: "#N appears in changelogs/" or anywhere in a doc
+# body. Changelogs and docs cite issues for triage rows, "Refs #N" and
+# cross-references.
+#
+# Measured against the verified 2026-09-28 triage (13 fixed, 18 live):
+#   old heuristic (changelog or any implemented-doc mention): flagged 25;
+#     7 fixed, 18 live (several P0/P1), and it missed 6 real fixes.
+#   these signals: 2 of the 18 live issues still flagged (a false "closes #N",
+#     a partial fix); 3 of the 13 fixes caught.
+# Most fix commits never name the issue, so ABSENCE OF A CANDIDATE MEANS
+# NOTHING. Full recall only comes from reading every issue against the code
+# (SKILL.md step 3). That is also why this script cannot close issues.
 
-set -eo pipefail  # Note: removed -u for unset variable handling
+set -eo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
 
-# Defaults
-DO_CLOSE=false
-DRY_RUN=false
 JSON_OUTPUT=false
+REF="origin/dev"
 REPO="sunholo-data/ailang"
 
-# Parse args
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --close)
-            DO_CLOSE=true
-            shift
-            ;;
-        --dry-run)
-            DRY_RUN=true
-            shift
-            ;;
-        --json)
-            JSON_OUTPUT=true
-            shift
-            ;;
-        *)
-            echo "Unknown option: $1" >&2
-            exit 1
-            ;;
+        --json) JSON_OUTPUT=true; shift ;;
+        --ref) REF="$2"; shift 2 ;;
+        --close|--dry-run)
+            echo "error: $1 was removed: this script only lists candidates. Verify each one, then close by hand with evidence (SKILL.md step 3)." >&2
+            exit 2 ;;
+        *) echo "Unknown option: $1" >&2; exit 1 ;;
     esac
 done
 
 cd "$PROJECT_ROOT"
-
-# Check auth
 "$SCRIPT_DIR/check_auth.sh" --quiet || exit 1
 
-# Get all open issues
-ISSUES=$(gh issue list --repo "$REPO" --state open --limit 100 --json number,title,labels,url 2>/dev/null || echo "[]")
-
-if [[ "$ISSUES" == "[]" ]]; then
-    echo "No open issues found."
-    exit 0
+if [[ "$REF" == origin/* ]]; then
+    git fetch -q origin "${REF#origin/}" || { echo "error: git fetch of $REF failed; refusing to report from a stale ref" >&2; exit 1; }
 fi
+git rev-parse -q --verify "$REF^{commit}" >/dev/null || { echo "error: unknown ref $REF" >&2; exit 1; }
 
-# Temp file for closable issues
-TMPFILE=$(mktemp)
-trap "rm -f $TMPFILE" EXIT
+TMP=$(mktemp -d)
+trap 'rm -rf "$TMP"' EXIT
 
-echo "Finding Closable Issues" >&2
-echo "=======================" >&2
-echo "" >&2
+gh issue list --repo "$REPO" --state open --limit 1000 --json number,title,url > "$TMP/issues.json"
 
-# Process each issue
-CLOSABLE_COUNT=0
+# One pass each over history and the implemented-doc tree, as "<issue> <evidence>" rows.
+git log "$REF" --format='%h %s%n%b' \
+  | awk '/^[0-9a-f]+ /{sha=$1} {line=tolower($0); while (match(line, /(close[sd]?|fix(e[sd])?|resolve[sd]?):? +#[0-9]+/)) { m=substr(line, RSTART, RLENGTH); sub(/.*#/, "", m); print m, sha; line=substr(line, RSTART+RLENGTH) }}' \
+  | sort -u > "$TMP/fix_commits"
+# Header mentions only (first 20 lines): a doc that closes an issue names it in
+# its header. Body mentions are cross-references and flagged live bugs as fixed.
+git grep -noE '#[0-9]+' "$REF" -- design_docs/implemented 2>/dev/null \
+  | awk -F: '$3<=20 {n=$NF; sub(/^#/, "", n); print n, $2}' | sort -u > "$TMP/impl_docs"
 
-echo "$ISSUES" | jq -c '.[]' | while read -r issue; do
-    NUMBER=$(echo "$issue" | jq -r '.number')
-    TITLE=$(echo "$issue" | jq -r '.title')
-    URL=$(echo "$issue" | jq -r '.url')
-
-    CLOSABLE=false
-    REASON=""
-    DOC=""
-
-    # Check 1: Referenced in implemented design docs
-    FOUND=$(grep -rl "#$NUMBER" design_docs/implemented/ 2>/dev/null | head -1 || echo "")
-    if [[ -n "$FOUND" ]]; then
-        CLOSABLE=true
-        REASON="design_doc_implemented"
-        DOC="$FOUND"
-    fi
-
-    # Check 2: Referenced in changelogs/
-    if ! $CLOSABLE && grep -rqE "#$NUMBER\b" changelogs/ 2>/dev/null; then
-        CLOSABLE=true
-        REASON="in_changelog"
-    fi
-
-    # Check 3: M-ID match in implemented docs
-    if ! $CLOSABLE; then
-        M_ID=$(echo "$TITLE" | grep -oE "M-[A-Z0-9-]+" | head -1 || echo "")
-        if [[ -n "$M_ID" ]]; then
-            M_ID_LOWER=$(echo "$M_ID" | tr '[:upper:]' '[:lower:]' | tr '-' '_')
-            FOUND=$(find design_docs/implemented/ -name "*${M_ID_LOWER}*" -o -name "*${M_ID}*" 2>/dev/null | head -1 || echo "")
-            if [[ -n "$FOUND" ]]; then
-                CLOSABLE=true
-                REASON="m_id_implemented"
-                DOC="$FOUND"
-            fi
-        fi
-    fi
-
-    if $CLOSABLE; then
-        CLOSABLE_COUNT=$((CLOSABLE_COUNT + 1))
-
-        if $JSON_OUTPUT; then
-            echo "{\"number\":$NUMBER,\"title\":\"$TITLE\",\"reason\":\"$REASON\",\"doc\":\"$DOC\",\"url\":\"$URL\"}"
-        else
-            echo "Issue #$NUMBER: $TITLE"
-            echo "  Reason: $REASON"
-            [[ -n "$DOC" ]] && echo "  Doc: $DOC"
-            echo "  URL: $URL"
-            echo ""
-        fi
-
-        # Record for closing
-        echo "$NUMBER|$TITLE|$REASON|$DOC" >> "$TMPFILE"
+jq -r '.[] | [.number, .title, .url] | @tsv' "$TMP/issues.json" | while IFS=$'\t' read -r num title url; do
+    commits=$(awk -v n="$num" '$1==n{print $2}' "$TMP/fix_commits" | paste -sd, -)
+    docs=$(awk -v n="$num" '$1==n{print $2}' "$TMP/impl_docs" | head -3 | paste -sd, -)
+    [[ -z "$commits$docs" ]] && continue
+    if [[ -n "$commits" ]]; then signal=fix_commit; else signal=impl_doc; fi
+    if $JSON_OUTPUT; then
+        jq -cn --argjson n "$num" --arg t "$title" --arg u "$url" --arg s "$signal" --arg c "$commits" --arg d "$docs" \
+          '{number:$n, title:$t, url:$u, signal:$s, fix_commits:($c|split(",")|map(select(.!=""))), impl_docs:($d|split(",")|map(select(.!="")))}'
+    else
+        echo "CANDIDATE #$num [$signal]: $title"
+        [[ -n "$commits" ]] && echo "  fix commits on $REF: $commits"
+        [[ -n "$docs" ]] && echo "  mentioned in implemented doc(s): $docs"
+        echo "  $url"
+        echo ""
     fi
 done
 
-# Summary
 if ! $JSON_OUTPUT; then
-    echo "=======================" >&2
-    CLOSABLE_COUNT=$(wc -l < "$TMPFILE" | tr -d ' ')
-    echo "Found $CLOSABLE_COUNT closable issue(s)" >&2
-fi
-
-# Close issues if requested
-if $DO_CLOSE || $DRY_RUN; then
-    echo "" >&2
-
-    while IFS='|' read -r num title reason doc; do
-        [[ -z "$num" ]] && continue
-
-        # Build closing comment
-        COMMENT="This issue has been addressed."
-
-        case "$reason" in
-            design_doc_implemented)
-                COMMENT="$COMMENT\n\nImplemented via design doc: \`$doc\`"
-                ;;
-            in_changelog)
-                COMMENT="$COMMENT\n\nReferenced in CHANGELOG.md."
-                ;;
-            m_id_implemented)
-                COMMENT="$COMMENT\n\nImplemented in: \`$doc\`"
-                ;;
-        esac
-
-        COMMENT="$COMMENT\n\nClosed by github-issue-triage skill."
-
-        if $DRY_RUN; then
-            echo "[DRY RUN] Would close #$num: $title" >&2
-            echo "  Comment: $(echo -e "$COMMENT")" >&2
-        elif $DO_CLOSE; then
-            echo "Closing #$num: $title" >&2
-            if gh issue close "$num" --repo "$REPO" --comment "$(echo -e "$COMMENT")" 2>/dev/null; then
-                echo "  Closed." >&2
-            else
-                echo "  FAILED to close." >&2
-            fi
-        fi
-    done < "$TMPFILE"
-fi
-
-if [[ -s "$TMPFILE" ]] && ! $DO_CLOSE && ! $DRY_RUN && ! $JSON_OUTPUT; then
-    echo "" >&2
-    echo "To close these issues:" >&2
-    echo "  $0 --close" >&2
-    echo "" >&2
-    echo "To preview close actions:" >&2
-    echo "  $0 --dry-run" >&2
+    echo "These are leads, not verdicts. Verify each against $REF (SKILL.md step 3) before closing." >&2
 fi
