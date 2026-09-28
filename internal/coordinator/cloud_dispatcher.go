@@ -86,6 +86,15 @@ type DispatchParams struct {
 	// AutoMerge itself.
 	ArtifactPatterns []string
 
+	// PRLabels and MergeStarts make a PR say what it is and what merging it
+	// does. Every coordinator PR used to carry only `agent-task`, so a triage
+	// note, a design doc, a plan and 530 lines of code looked identical, and
+	// nothing said that merging a plan starts sprint-executor (feedback
+	// 2026-09-28). Both come from the registry (PRApprovalLabel,
+	// approvalHandoffTargets) — the same source the approval card reads.
+	PRLabels    []string
+	MergeStarts []string
+
 	// GitAuthorName/Email author this agent's commits. Empty inherits the
 	// container's identity (the fleet bot).
 	GitAuthorName  string
