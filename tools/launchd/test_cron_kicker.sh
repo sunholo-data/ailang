@@ -34,6 +34,13 @@ cat > "$TMP/bin/launchctl" <<'STUB'
 #!/bin/bash
 case "$1" in
   print)
+    case "$2" in
+      gui/[0-9]*)
+        target="${2#gui/}"
+        case "$target" in */*) ;; *) [ "${STUB_DOMAIN_MISSING:-0}" = "1" ] && exit 125; exit 0 ;; esac
+        ;;
+    esac
+    echo "$2" >> "$STUB_PRINTLOG"
     [ "${STUB_MISSING:-0}" = "1" ] && exit 1
     printf '\tstate = %s\n' "${STUB_STATE:-not running}"
     printf '\truns = %s\n' "${STUB_RUNS:-0}"
@@ -41,7 +48,7 @@ case "$1" in
     [ -n "${STUB_INTERVAL:-}" ] && printf '\trun interval = %s seconds\n' "$STUB_INTERVAL"
     exit 0
     ;;
-  kickstart) echo "$2" >> "$STUB_KICKLOG"; exit 0 ;;
+  kickstart) echo "$2" >> "$STUB_KICKLOG"; [ "${STUB_KICK_FAIL:-0}" = "1" ] && exit 1; exit 0 ;;
 esac
 exit 1
 STUB
@@ -52,6 +59,7 @@ export AILANG_KICKER_STATE="$TMP/state"
 export AILANG_KICKER_LOG="$TMP/kicker.log"
 export AILANG_KICKER_LABELS="dev.ailang.test-job"
 export STUB_KICKLOG="$TMP/kicks"
+export STUB_PRINTLOG="$TMP/prints"
 LABEL_STATE="$TMP/state/dev.ailang.test-job"
 
 reset() { : > "$STUB_KICKLOG"; rm -f "$LABEL_STATE"; }
@@ -121,21 +129,107 @@ fi
 
 echo "arm 7: a failed kick retries on the job's cadence, not every minute"
 reset
-cat > "$TMP/bin/launchctl" <<'STUB'
-#!/bin/bash
-case "$1" in
-  print)
-    printf '\tstate = not running\n\truns = %s\n\trun interval = %s seconds\n' "${STUB_RUNS:-0}" "${STUB_INTERVAL:-60}"
-    exit 0 ;;
-  kickstart) echo "$2" >> "$STUB_KICKLOG"; exit 1 ;;   # kick always fails
-esac
-exit 1
-STUB
-chmod +x "$TMP/bin/launchctl"
+export STUB_KICK_FAIL=1
 STUB_RUNS=5; "$KICKER"
 echo "5 $(( $(date +%s) - STUB_INTERVAL - 5 ))" > "$LABEL_STATE"
 "$KICKER"; "$KICKER"; "$KICKER"     # two further passes, both within the interval
 if [ "$(kicks)" = "1" ]; then ok "1 attempt, then backs off for a full interval"; else fail "expected 1 attempt, got $(kicks) — a failing kick is retrying every pass"; fi
+unset STUB_KICK_FAIL
+
+# All new arms use isolated state and logs. The notifier is always a test stub;
+# no arm can invoke the installed ailang binary or its message store.
+export AILANG_KICKER_AILANG="$TMP/bin/ailang"
+export STUB_NOTIFYLOG="$TMP/notifies"
+cat > "$AILANG_KICKER_AILANG" <<'STUB'
+#!/bin/bash
+printf '%s|%s|%s|%s\n' "$AILANG_STORAGE_MESSAGING" "$AILANG_MESSAGES_PROJECT" "$*" "${STUB_NOTIFY_MODE:-ok}" >> "$STUB_NOTIFYLOG"
+[ "${STUB_NOTIFY_MODE:-ok}" = "hang" ] && sleep 60
+[ "${STUB_NOTIFY_MODE:-ok}" = "fail" ] && exit 1
+exit 0
+STUB
+chmod +x "$AILANG_KICKER_AILANG"
+count_log() { if [ -f "$AILANG_KICKER_LOG" ]; then grep -c "$1" "$AILANG_KICKER_LOG"; else echo 0; fi; }
+
+echo "arm 8: mission labels come from the registry"
+export AILANG_KICKER_STATE="$TMP/state-8" AILANG_KICKER_LOG="$TMP/log-8"
+export AILANG_KICKER_REGISTRY="$TMP/registry-8"
+unset AILANG_KICKER_LABELS
+mkdir -p "$AILANG_KICKER_REGISTRY"
+printf 'name = "v1"\n' > "$AILANG_KICKER_REGISTRY/v1.toml"
+printf 'name    = "fleet"\n' > "$AILANG_KICKER_REGISTRY/fleet.toml"
+printf 'name = "stapledon"\n' > "$AILANG_KICKER_REGISTRY/stapledon.toml"
+: > "$STUB_PRINTLOG"
+"$KICKER"
+if grep -q '/dev.ailang.mission-control$' "$STUB_PRINTLOG" &&
+   grep -q '/dev.ailang.mission-fleet$' "$STUB_PRINTLOG" &&
+   grep -q '/dev.ailang.mission-stapledon$' "$STUB_PRINTLOG" &&
+   ! grep -q '/dev.ailang.mission-v1$' "$STUB_PRINTLOG"; then
+    ok "v1, fleet and stapledon labels derived correctly"
+else fail "registry labels missing or v1 mapped incorrectly"; fi
+
+echo "arm 9: unreadable registry falls back and logs once"
+export AILANG_KICKER_STATE="$TMP/state-9" AILANG_KICKER_LOG="$TMP/log-9"
+export AILANG_KICKER_REGISTRY="$TMP/absent-registry"
+: > "$STUB_PRINTLOG"
+"$KICKER"; "$KICKER"; "$KICKER"
+if grep -q '/dev.ailang.mission-fleet$' "$STUB_PRINTLOG" &&
+   grep -q '/dev.ailang.mission-stapledon$' "$STUB_PRINTLOG" &&
+   [ "$(count_log 'REGISTRY-UNREADABLE')" = "1" ]; then
+    ok "fallback includes all missions; one log across 3 runs"
+else fail "fallback coverage or log count wrong"; fi
+
+echo "arm 10: absent Aqua domain reports and notifies once"
+export AILANG_KICKER_STATE="$TMP/state-10" AILANG_KICKER_LOG="$TMP/log-10"
+export AILANG_KICKER_LABELS="dev.ailang.test-job"
+: > "$STUB_KICKLOG"; : > "$STUB_PRINTLOG"; : > "$STUB_NOTIFYLOG"
+mkdir -p "$AILANG_KICKER_STATE"
+echo "5 1" > "$AILANG_KICKER_STATE/dev.ailang.test-job"
+export STUB_DOMAIN_MISSING=1
+"$KICKER"; "$KICKER"; "$KICKER"
+if [ "$(kicks)" = "0" ] &&
+   [ "$(count_log 'SESSION-LOST')" = "1" ] &&
+   [ "$(wc -l < "$STUB_NOTIFYLOG" | tr -d ' ')" = "1" ] &&
+   [ -f "$AILANG_KICKER_STATE/SESSION-LOST" ] &&
+   grep -q "^gcp|ailang-multivac|messages send user .*marker: $AILANG_KICKER_STATE/SESSION-LOST; recovery: log in to the rig's GUI session" "$STUB_NOTIFYLOG" &&
+   [ ! -s "$STUB_PRINTLOG" ]; then
+    ok "one outage report, one notification, no labels or kicks"
+else fail "outage was silent, repeated, or attempted kickstart"; fi
+
+echo "arm 11: restoration resets overdue clocks"
+unset STUB_DOMAIN_MISSING
+echo "5 1" > "$AILANG_KICKER_STATE/dev.ailang.test-job"
+"$KICKER"
+if [ "$(count_log 'SESSION-RESTORED')" = "1" ] &&
+   [ ! -e "$AILANG_KICKER_STATE/SESSION-LOST" ] &&
+   [ "$(kicks)" = "0" ] &&
+   [ "$(cut -d' ' -f2 "$AILANG_KICKER_STATE/dev.ailang.test-job")" -gt 1 ]; then
+    ok "restored once, first pass observed without kicking"
+else fail "restore marker, logging, or overdue state wrong"; fi
+
+echo "arm 12: healthy domain has no session alert"
+export AILANG_KICKER_STATE="$TMP/state-12" AILANG_KICKER_LOG="$TMP/log-12"
+: > "$STUB_NOTIFYLOG"
+"$KICKER"
+if [ "$(count_log 'SESSION-')" = "0" ] && [ ! -s "$STUB_NOTIFYLOG" ]; then
+    ok "healthy domain stays quiet"
+else fail "healthy domain raised a session alert"; fi
+
+echo "arm 13: failed or hung notifier is fail-soft and bounded"
+export AILANG_KICKER_STATE="$TMP/state-13" AILANG_KICKER_LOG="$TMP/log-13"
+export STUB_DOMAIN_MISSING=1
+export STUB_NOTIFY_MODE=fail
+"$KICKER"; fail_rc=$?
+rm -f "$AILANG_KICKER_STATE/SESSION-LOST"
+export STUB_NOTIFY_MODE=hang AILANG_KICKER_NOTIFY_TIMEOUT=2
+start=$(date +%s)
+"$KICKER"; hang_rc=$?
+elapsed=$(( $(date +%s) - start ))
+if [ "$fail_rc" = "0" ] && [ "$hang_rc" = "0" ] &&
+   [ "$(count_log 'NOTIFY rc=1$')" = "1" ] &&
+   [ "$(count_log 'NOTIFY rc=124$')" = "1" ] &&
+   [ "$elapsed" -lt 10 ]; then
+    ok "send failure and timeout keep kicker at rc 0"
+else fail "notifier rc/timeout wrong: fail_rc=$fail_rc hang_rc=$hang_rc rc1=$(count_log 'NOTIFY rc=1$') rc124=$(count_log 'NOTIFY rc=124$') elapsed=${elapsed}s"; fi
 
 echo
 [ "$FAILED" = "0" ] && { echo "PASS — all arms"; exit 0; }

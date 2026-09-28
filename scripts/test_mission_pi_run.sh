@@ -11,6 +11,12 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 SUT="$HERE/mission_pi_run.sh"
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
+mkdir -p "$TMP/node_modules/@anthropic-ai/sandbox-runtime"
+echo '{}' > "$TMP/node_modules/@anthropic-ai/sandbox-runtime/package.json"
+MISSION_PI_SANDBOX_NODE_MODULES="$TMP/node_modules"
+MISSION_PI_SANDBOX_STAGE_PARENT="$TMP"
+MISSION_PI_CLAUDE_TMP_DIR="$TMP/claude"
+export MISSION_PI_SANDBOX_NODE_MODULES MISSION_PI_SANDBOX_STAGE_PARENT MISSION_PI_CLAUDE_TMP_DIR
 
 PASS=0; FAIL=0
 check() { # check <name> <expected-rc> <actual-rc> <expected-verdict> <verdict-file>
@@ -24,7 +30,7 @@ check() { # check <name> <expected-rc> <actual-rc> <expected-verdict> <verdict-f
 
 mkstub() { # mkstub <script-body> -> writes a `pi` stub and prepends it to PATH
   mkdir -p "$TMP/bin"
-  { echo '#!/usr/bin/env bash'; echo 'cat >/dev/null'; echo "$1"; } > "$TMP/bin/pi"
+  { echo '#!/usr/bin/env bash'; echo 'cat >/dev/null'; echo ': > "$PI_SANDBOX_READY_FILE"'; echo "$1"; } > "$TMP/bin/pi"
   chmod +x "$TMP/bin/pi"
   PATH="$TMP/bin:$PATH"; export PATH
 }
@@ -59,7 +65,8 @@ mkrepo "$TMP/wt3" clean; echo d > "$TMP/d3.txt"
 check "reasoning stall" 11 $? reasoning_stall "$TMP/v3.json"
 SNAP_LINES=$(wc -l < "$TMP/o3.ndjson.snapshot.ndjson" 2>/dev/null | tr -d ' ')
 BANK_BYTES=$(wc -c < "$TMP/o3.ndjson" 2>/dev/null | tr -d ' ')
-if [ "${SNAP_LINES:-0}" -le 1 ] && [ "${BANK_BYTES:-1}" -eq 0 ]; then
+SNAP_EVERY="${MISSION_PI_SNAP_EVERY:-50}"
+if [ "${SNAP_LINES:-0}" -ge 1 ] && [ "${SNAP_LINES:-0}" -le "$SNAP_EVERY" ] && [ "${BANK_BYTES:-1}" -eq 0 ]; then
   echo "  PASS: message_update filtered (banked=${BANK_BYTES}B) and snapshot bounded (${SNAP_LINES} line)"; PASS=$((PASS+1))
 else
   echo "  FAIL: filter leaked — banked=${BANK_BYTES}B snapshot=${SNAP_LINES} lines"; FAIL=$((FAIL+1))

@@ -265,7 +265,7 @@ After Phase 1 initialization, choose between sequential or parallel execution ba
 3. **Write Tests** - TDD recommended for complex logic, comprehensive coverage required
 4. **Verify Quality** - Run `milestone_checkpoint.sh <milestone-name>` (tests + lint must pass)
 5. **Write Documentation** (evaluator verifies completeness):
-   - CHANGELOG entry in `changelogs/` — find active file with `ls changelogs/ | grep current`
+   - CHANGELOG entry as a **fragment**: `changelogs/unreleased/YYYY-MM-DD-<slug>.md`, holding `### ...` sections (format: `changelogs/unreleased/README.md`). Do not edit the active `v*-current.md` file; release-manager folds fragments into it. Fragments never conflict, while edits to the active file did on every merge
    - Example files for new language features: `examples/runnable/<feature>.ail`
    - Update `examples/manifest.json` if adding examples
    - Mark milestone as ✅ in sprint plan markdown

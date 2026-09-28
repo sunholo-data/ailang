@@ -38,7 +38,7 @@ test: build test-pi-extensions ## Run all Go unit tests + the pi extension suite
 .PHONY: test-pi-extensions
 test-pi-extensions: ## Run the pi extension (TypeScript) test suite
 	@echo "Running pi extension tests..."
-	@if ! command -v node >/dev/null 2>&1; then 		echo "  node not found — skipping"; exit 0; 	fi; 	if ! node --experimental-strip-types -e '' >/dev/null 2>&1; then 		echo "  node $$(node -v) lacks --experimental-strip-types — skipping"; exit 0; 	fi; 	rc=0; 	for f in .pi/extensions/.*.test.ts; do 		[ -e "$$f" ] || continue; 		echo "  $$f"; 		node --experimental-strip-types --test "$$f" || rc=1; 	done; 	exit $$rc
+	@if ! command -v node >/dev/null 2>&1; then 		echo "  node not found — skipping"; exit 0; 	fi; 	if ! node --experimental-strip-types -e '' >/dev/null 2>&1; then 		echo "  node $$(node -v) lacks --experimental-strip-types — skipping"; exit 0; 	fi; 	rc=0; 	for f in .pi/extensions/.*.test.ts tools/pi-extensions/sandbox/mission.test.ts tools/pi-extensions/sandbox/index.test.ts; do 		[ -e "$$f" ] || continue; 		echo "  $$f"; 		node --experimental-strip-types --test "$$f" || rc=1; 	done; 	exit $$rc
 
 test-nightly-classifier: ## Run nightly variance-guard contract and replay tests
 	@python3 tools/test_nightly_classify.py -v
@@ -62,6 +62,7 @@ test-launchd-drivers: ## Run launchd driver tests (pin-root + routing + notices 
 	@$(LAUNCHD_SUITE) tools/launchd/test_suite_env.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_pin_root.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_mission_pi_run_commits.sh
+	@$(LAUNCHD_SUITE) tools/launchd/test_mission_pi_run_sandbox.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_driver_notify.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_mission_routing.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_spawn_pin_hook.sh
@@ -102,6 +103,8 @@ test-launchd-drivers: ## Run launchd driver tests (pin-root + routing + notices 
 test-check-changelog: ## Run the changelog-index gate's own self-test (bash 3.2)
 	@/bin/bash scripts/test_check_changelog.sh
 	@/bin/bash -n scripts/check_changelog.sh
+	@/bin/bash scripts/test_changelog_fold.sh
+	@/bin/bash -n scripts/changelog_fold.sh
 
 test-check-protocol-closure: ## Run the protocol-closure gate's own self-test (bash 3.2)
 	@/bin/bash scripts/test_check_protocol_closure.sh

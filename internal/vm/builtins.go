@@ -137,6 +137,8 @@ var BuiltinTable = []BuiltinFunc{
 	builtinXmlGetChildren,       // __xml_getChildren
 	builtinXmlFindAllTexts,      // __xml_findAllTexts
 	builtinXmlFindAllAttrs,      // __xml_findAllAttrs
+	// ailang#1354/#1355: by-name record update for bases of unknown type
+	builtinRecordSet, // _record_set
 }
 
 // builtinRecordGet returns the value of the named field in a record. Used as
@@ -163,6 +165,38 @@ func builtinRecordGet(args []bytecode.Value) (bytecode.Value, error) {
 		}
 	}
 	return bytecode.Value{}, fmt.Errorf("_record_get: field %q not found", name)
+}
+
+// builtinRecordSet returns a copy of a record with the named field set to a
+// new value, adding the field when absent — the evaluator's record-update
+// semantics (evalCoreRecordUpdate). The compiler emits it for `{r | f: v}`
+// when r's static type is unknown, instead of guessing r's shape from some
+// other registered type (ailang#1354, #1355).
+func builtinRecordSet(args []bytecode.Value) (bytecode.Value, error) {
+	if len(args) != 3 {
+		return bytecode.Value{}, fmt.Errorf("_record_set: expected 3 args, got %d", len(args))
+	}
+	if args[0].Tag != bytecode.TagRecord {
+		return bytecode.Value{}, fmt.Errorf("_record_set: arg 0 must be record, got %s", args[0].Tag)
+	}
+	if args[1].Tag != bytecode.TagString {
+		return bytecode.Value{}, fmt.Errorf("_record_set: arg 1 must be string, got %s", args[1].Tag)
+	}
+	name := args[1].AsString()
+	old := args[0].AsRecord()
+	fields := make([]bytecode.RecordField, 0, len(old)+1)
+	replaced := false
+	for _, f := range old {
+		if f.Name == name {
+			f.Value = args[2]
+			replaced = true
+		}
+		fields = append(fields, f)
+	}
+	if !replaced {
+		fields = append(fields, bytecode.RecordField{Name: name, Value: args[2]})
+	}
+	return bytecode.NewRecord(fields), nil
 }
 
 // builtinShow returns a string representation of any value. Matches the
