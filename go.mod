@@ -3,14 +3,14 @@ module github.com/sunholo-data/ailang
 go 1.26.6
 
 require (
-	cloud.google.com/go/firestore v1.25.0
-	cloud.google.com/go/kms v1.34.0
+	cloud.google.com/go/firestore v1.26.0
+	cloud.google.com/go/kms v1.35.0
 	cloud.google.com/go/pubsub v1.51.1
-	cloud.google.com/go/run v1.22.0
-	cloud.google.com/go/secretmanager v1.21.0
+	cloud.google.com/go/run v1.23.0
+	cloud.google.com/go/secretmanager v1.22.0
 	cloud.google.com/go/storage v1.68.0
-	cloud.google.com/go/trace v1.16.0
-	firebase.google.com/go/v4 v4.21.0
+	cloud.google.com/go/trace v1.17.0
+	firebase.google.com/go/v4 v4.22.0
 	github.com/BurntSushi/toml v1.6.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.38.0
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
@@ -19,7 +19,7 @@ require (
 	github.com/google/go-cmp v0.7.0
 	github.com/google/jsonschema-go v0.4.3
 	github.com/google/uuid v1.6.0
-	github.com/googleapis/gax-go/v2 v2.25.0
+	github.com/googleapis/gax-go/v2 v2.26.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/mattn/go-sqlite3 v1.14.52
 	github.com/modelcontextprotocol/go-sdk v1.8.0
