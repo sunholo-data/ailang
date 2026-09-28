@@ -38,7 +38,7 @@ test: build test-pi-extensions ## Run all Go unit tests + the pi extension suite
 .PHONY: test-pi-extensions
 test-pi-extensions: ## Run the pi extension (TypeScript) test suite
 	@echo "Running pi extension tests..."
-	@if ! command -v node >/dev/null 2>&1; then 		echo "  node not found — skipping"; exit 0; 	fi; 	if ! node --experimental-strip-types -e '' >/dev/null 2>&1; then 		echo "  node $$(node -v) lacks --experimental-strip-types — skipping"; exit 0; 	fi; 	rc=0; 	for f in .pi/extensions/.*.test.ts tools/pi-extensions/sandbox/mission.test.ts; do 		[ -e "$$f" ] || continue; 		echo "  $$f"; 		node --experimental-strip-types --test "$$f" || rc=1; 	done; 	exit $$rc
+	@if ! command -v node >/dev/null 2>&1; then 		echo "  node not found — skipping"; exit 0; 	fi; 	if ! node --experimental-strip-types -e '' >/dev/null 2>&1; then 		echo "  node $$(node -v) lacks --experimental-strip-types — skipping"; exit 0; 	fi; 	rc=0; 	for f in .pi/extensions/.*.test.ts tools/pi-extensions/sandbox/mission.test.ts tools/pi-extensions/sandbox/index.test.ts; do 		[ -e "$$f" ] || continue; 		echo "  $$f"; 		node --experimental-strip-types --test "$$f" || rc=1; 	done; 	exit $$rc
 
 test-nightly-classifier: ## Run nightly variance-guard contract and replay tests
 	@python3 tools/test_nightly_classify.py -v
