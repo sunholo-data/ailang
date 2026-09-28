@@ -22,6 +22,11 @@ Append-only, one entry per iteration, newest at the bottom. Charter: [fleet-miss
 > the thing to grep before picking work, so the loop never repeats itself — is in
 > `fleet-mission-index.md`.
 
+> **Older entries are ARCHIVED.** This file holds the newest 20. The full record of every
+> iteration is in `fleet-mission-log-archive.md`, and a one-line index of ALL of them —
+> the thing to grep before picking work, so the loop never repeats itself — is in
+> `fleet-mission-index.md`.
+
 ## 0 — 2026-09-26 — charter ratified as written (attended, Mark)
 
 - **Outcome:** Mark ratified the charter as written: bar clauses 1–5, the Authority allowlist and the Guardrails. Kill switch lifted.
@@ -106,3 +111,4 @@ The tree sum equals the parent sum within 0.04 in every window. Separately, 21 l
 **Ruled out**: (1) Re-doing iteration 5's work: its heads were complete, CI-green and evaluated, and a fresh judge confirmed both. (2) Landing via merge-commit or force-push onto the old branches: the scope guard diffs remote-old-head..new and would list dev's own files, so both are refused. (3) Fixing the gofmt red in-fleet: `internal/executor/**` is outside the allowlist.
 **Retro lane**: frictions. (a) **The scope guard + changelog churn make a PR un-updatable**: a fleet PR that conflicts can only be re-landed as a NEW branch and PR. Instances: iteration 5 (#1348→1349→1351, #1350→1352) and iteration 6 (#1357/1358→1372/1373→1377). That is ≥2 instances, but the fix is a guard-semantics change (diff against the merge-base with origin/dev for non-fast-forward pushes), a harness change the fleet may make. It is filed below as a backlog item rather than a skill edit, and Gate 5's one-edit cap is unused. (b) A required-check red from a product push blocked a fleet landing for the third time (iterations 2, 3, 6). It is policy (who fixes a red in another loop's territory, and which checks gate fleet PRs), so it goes to Mark as a report line. (c) The crashed slot left no record at all, and the recovery depended on the PR bodies. The driver's crash-at-gate-3b verdict names the gate but not the in-flight PRs; one instance, noted.
 **Next**: land #1377 (predicate above), then resolve both tickets. Then P0 #3's pre-dirty half, P1 0a/0b (ruled D-FLEET-1/2), and a new ticket for friction (a).
+**Update (same iteration, after the record push)**: `96fd6c5e1` (someone else's commit) fixed dev `lint`. The record commit `06f509f4a` gave #1377 a fresh test-merge, and all 4 required checks (test, lint, build, docs-gate) went green. `launchd drivers (bash 3.2)` sat **queued** for 30 min on a GitHub-hosted `macos-latest` runner (15 runs queued), which exhausted the Gate-3b cap. The same file content had passed that job on `b0f50d34d` and `ef20b4b8e`. Mark merged #1377 at 15:26:19Z → **`eec86ca4f`**. Merge-commit CI: `test`, `lint` and `launchd drivers (bash 3.2)` all success (`build` still running at resolve time). Resolved `rig:aqua-session-lost:windowserver-watchdog` (1 occurrence, replied to stapledon) and `pi-runner:sandbox-extensions-not-wired` (2 occurrences, replied to stapledon and world) with `--sha eec86ca4f`; 19 tickets open. Weekly rotation: #1321 → **#1380**. The weekly report failed with `unknown mission 'fleet'`, which is the open ticket `weekly-report:unknown-mission`, now seen from a second mission (fleet).
