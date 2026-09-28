@@ -20,6 +20,11 @@
 # unaffected. So cron can still reach gui/<uid> by explicit address even when
 # gui/<uid> will no longer start anything on its own.
 #
+# SESSION-LOST CLASS (2026-09-28): WindowServer was killed by the system
+# watchdog; loginwindow restarted without an Aqua session, and gui/501 vanished.
+# kickstart cannot address a missing domain. bootstrap user/<uid> as the user
+# fails with rc 5. The kicker reports this once and asks for a GUI login.
+#
 # SELF-DISARMING BY CONSTRUCTION. This script never asks "is launchd healthy?" —
 # a question whose only honest answer needs the same broken machinery. It tracks
 # each job's `runs` counter and the wall-clock at which that counter last moved.
@@ -51,23 +56,101 @@ NOW=$(date +%s)
 # unattended, from a backstop whose whole job is to run without supervision, is
 # the one thing here that could panic the box again. Opt in explicitly via
 # AILANG_KICKER_EXTRA if you want them.
-DEFAULT_LABELS="dev.ailang.mission-control
+STATIC_MISSION_LABELS="dev.ailang.mission-control
 dev.ailang.mission-docs
 dev.ailang.mission-world
 dev.ailang.mission-motoko
-dev.ailang.mission-recovery
+dev.ailang.mission-fleet
+dev.ailang.mission-stapledon"
+NON_MISSION_LABELS="dev.ailang.mission-recovery
 dev.ailang.mission-recovery-motoko
 dev.ailang.mission-resume
 dev.ailang.rig-watchdog"
-
-LABELS="${AILANG_KICKER_LABELS:-$DEFAULT_LABELS}
-${AILANG_KICKER_EXTRA:-}"
 
 mkdir -p "$STATE_DIR" || exit 1
 
 log() {
     echo "[$(date '+%F %H:%M:%S')] $*" >> "$LOG"
 }
+
+REGISTRY="${AILANG_KICKER_REGISTRY:-$(cd "$(dirname "$0")/../.." && pwd)/missions}"
+REGISTRY_MARKER="$STATE_DIR/REGISTRY-UNREADABLE"
+if [ -n "${AILANG_KICKER_LABELS:-}" ]; then
+    LABELS="$AILANG_KICKER_LABELS"
+else
+    mission_labels=""
+    if [ -d "$REGISTRY" ] && [ -r "$REGISTRY" ]; then
+        for mission_file in "$REGISTRY"/*.toml; do
+            [ -e "$mission_file" ] || continue
+            [ -r "$mission_file" ] || { mission_labels=""; break; }
+            name=$(sed -n 's/^[[:space:]]*name[[:space:]]*=[[:space:]]*"\([^"]*\)"[[:space:]]*$/\1/p' "$mission_file" | head -1)
+            [ -n "$name" ] || continue
+            if [ "$name" = "v1" ]; then
+                mission_labels="${mission_labels}dev.ailang.mission-control
+"
+            else
+                mission_labels="${mission_labels}dev.ailang.mission-${name}
+"
+            fi
+        done
+    fi
+    if [ -z "$mission_labels" ]; then
+        mission_labels="$STATIC_MISSION_LABELS"
+        if [ ! -e "$REGISTRY_MARKER" ]; then
+            log "REGISTRY-UNREADABLE $REGISTRY — using static label list"
+            echo "$NOW" > "$REGISTRY_MARKER"
+        fi
+    else
+        rm -f "$REGISTRY_MARKER"
+    fi
+    LABELS="${mission_labels}
+${NON_MISSION_LABELS}"
+fi
+LABELS="${LABELS}
+${AILANG_KICKER_EXTRA:-}"
+
+SESSION_MARKER="$STATE_DIR/SESSION-LOST"
+if ! launchctl print "gui/${UID_NUMBER}" >/dev/null 2>&1; then
+    if [ ! -e "$SESSION_MARKER" ]; then
+        echo "$NOW" > "$SESSION_MARKER"
+        log "SESSION-LOST gui/${UID_NUMBER} absent — every LaunchAgent is stopped; kickstart cannot recover this; needs an Aqua login"
+        notifier="${AILANG_KICKER_AILANG:-$HOME/go/bin/ailang}"
+        if [ -x "$notifier" ]; then
+            notify_timeout="${AILANG_KICKER_NOTIFY_TIMEOUT:-30}"
+            case "$notify_timeout" in *[!0-9]*|'') notify_timeout=30 ;; esac
+            body="Aqua session lost at $(date '+%F %T %Z'); marker: $SESSION_MARKER; recovery: log in to the rig's GUI session."
+            ( AILANG_STORAGE_MESSAGING=gcp AILANG_MESSAGES_PROJECT=ailang-multivac "$notifier" messages send user "$body" --title "[rig] Aqua session lost — all mission loops stopped" ) >/dev/null 2>&1 &
+            notify_pid=$!
+            notify_deadline=$(( $(date +%s) + notify_timeout ))
+            notify_rc=0
+            while kill -0 "$notify_pid" 2>/dev/null; do
+                if [ "$(date +%s)" -ge "$notify_deadline" ]; then
+                    kill "$notify_pid" 2>/dev/null || true
+                    notify_rc=124
+                    break
+                fi
+                sleep 1
+            done
+            if wait "$notify_pid" 2>/dev/null; then
+                :
+            else
+                wait_rc=$?
+                [ "$notify_rc" -ne 0 ] || notify_rc=$wait_rc
+            fi
+            log "NOTIFY rc=$notify_rc"
+        fi
+    fi
+    exit 0
+fi
+
+restored=0
+if [ -e "$SESSION_MARKER" ]; then
+    lost_at=$(cat "$SESSION_MARKER")
+    case "$lost_at" in *[!0-9]*|'') lost_at=$NOW ;; esac
+    log "SESSION-RESTORED gui/${UID_NUMBER} after $(( NOW - lost_at ))s"
+    rm -f "$SESSION_MARKER"
+    restored=1
+fi
 
 for label in $LABELS; do
     [ -n "$label" ] || continue
@@ -82,6 +165,13 @@ for label in $LABELS; do
 
     runs=$(printf '%s\n' "$info" | sed -n 's/^[[:space:]]*runs = \([0-9]*\)$/\1/p' | head -1)
     [ -n "$runs" ] || continue
+
+    # A restored Aqua session may have hours-old state. Observe every job afresh
+    # before applying the overdue predicate on a later cron pass.
+    if [ "$restored" -eq 1 ]; then
+        echo "$runs $NOW" > "$STATE_DIR/$label"
+        continue
+    fi
 
     # Already running: not overdue, and kicking would be a no-op anyway. Bump the
     # observed time so a job that legitimately runs longer than its own interval

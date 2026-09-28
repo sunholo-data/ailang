@@ -43,6 +43,26 @@ mission.
 
 Newest **3** STATUS stamps live here; older ones move to `fleet-mission-status-archive.md`.
 
+## STATUS 2026-09-28 — ITERATION 6: iteration 5's two evaluated fixes **re-judged (PASS 92, PASS 96) and combined in [#1377](https://github.com/sunholo-data/ailang/pull/1377)**; merge blocked only on the inherited dev `lint` red (`1fcc479f1`, gofmt, handed to V1)
+
+Iteration 5 (07:56 fire) built both fixes and crashed at Gate 3b on an API DNS error (`ENOTFOUND`,
+slot verdict `CRASHED_at=gate-3b`) with no record. The 23:09 fire before it died in the Aqua-session
+loss that its own pick is about. This iteration resumed rather than redid that work. **(1)** The
+`blocking=all` ticket `rig:aqua-session-lost:windowserver-watchdog`: `cron-kicker.sh` now checks the
+gui domain first, logs `SESSION-LOST` once and sends one bounded, fail-soft notice. On restore it
+re-stamps state, and it derives mission labels from `missions/*.toml`, so fleet and stapledon are
+covered. **(2)** P0 #4 `pi-runner:sandbox-extensions-not-wired` (D-FLEET-6): fail-closed extension,
+`-e` wiring, rc 15/16/17. Fresh sonnet evaluators: **PASS 92** and **PASS 96**, 0 blocking. Each
+single-fix PR conflicted on the changelog within minutes, and the scope guard refuses a rebased
+push. So both commits land in one PR, with their entries at the END of `[Unreleased]`. #1377 is
+MERGEABLE, and every check except `lint` is green or pending. `lint` is required and red on dev itself
+since `1fcc479f1` (a direct push; `internal/executor/motoko/healthcheck.go` gofmt), which is outside
+the fleet's scope, so it is sent to `mission-v1`. **Resume predicate:** dev `lint` success → push any
+commit to #1377's branch (a fresh test-merge) → green → squash-merge → `ailang mission ticket
+resolve` both signatures with the merge SHA. Clause map: **1 product share** unmeasured; **2
+turnaround** at risk (two done fixes wait on a product red, the third time); **3 one queue** MET
+(21 open); **4 idle is free** MET; **5 no regressions** MET (nothing landed unverified).
+
 ## STATUS 2026-09-27 — ITERATION 4: P0 #2 M1 **measured**. On the rig, `ps -S` cannot see reaped-child CPU; `proc_pid_rusage` separates the drill from both wedges. Threshold returns to Mark as **D-FLEET-7**. Evaluator PASS 87.
 
 #1329 and #1330 are **merged** (`c912320fe`, `4d8dff929`), so P0 #3's commit-blind half and P1 #0 have
@@ -77,23 +97,6 @@ is the inherited Go-suite red. Resume predicate, shared with #1329: dev `test` g
 squash-merge both. Clause map: **1 product share** unmeasured; **2 turnaround** at risk (three items wait:
 P0 #2 and P0 #4 on Mark, #1329 and #1330 on V1's red); **3 one queue** MET (16 open tickets, none new);
 **4 idle is free** MET; **5 no regressions** MET (nothing landed unverified).
-
-## STATUS 2026-09-27 — ITERATION 2: P0 #2 **PARKED (policy, D-FLEET-4)**; P0 #3 commit-blind half **built, evaluated PASS 97, merge blocked on the inherited dev red** ([#1329](https://github.com/sunholo-data/ailang/pull/1329))
-
-**P0 #2** `stall-watchdog:kills-controller-on-long-drill`: the codex planner evaluated five progress
-arms against the 09-26 04:45 World kill and the two reference wedges. None works without a new
-numeric threshold, so it is policy (HD-2a). Decision row D-FLEET-4 carries the recommendation. Plan:
-`design_docs/planned/sprint-plan-stall-descendant-progress.md`. **P0 #3**
-`pi-runner:verdict-blind-to-commits-and-predirty`, **commit-blind half**: `mission_pi_run.sh` now
-counts commits since launch as work, and a moved HEAD alone is not work. Evaluator (sonnet): round 1
-FAIL 68 (HEAD_MOVED false greens), round 2 **PASS 97, 0 blocking**. `make test-launchd-drivers`
-rc=0. **Not merged:** the required `test` check is red on dev at base (`internal/iface/builder.go`
-801 > 800 lines since `79af650f7`, language core, handed to V1). Resume predicate: dev `test` green
-→ re-run #1329 CI → squash-merge. The ticket stays open after the merge, because its pre-dirty
-half (the D-58 design) remains. Clause map: **1 product share** unmeasured; **2
-turnaround** at risk (P0 #2 now waits on Mark, P0 #3 waits on V1); **3 one queue** MET (16 tickets,
-one new: `pi-runner:quota-429-reported-as-empty-worktree`); **4 idle is free** MET; **5 no regressions**
-MET (nothing landed unverified).
 
 ## CURRENT GOAL
 
@@ -183,7 +186,10 @@ and resolve it as "already fixed" with evidence if it no longer reproduces.
    or the sample counts is POLICY: park it.** Cost world a whole slot today (04:45, rc 143).
 3. [commit-blind half LANDED #1329 `c912320fe`; pre-dirty half = V1 D-58 design, not started; ticket stays open] `pi-runner:verdict-blind-to-commits-and-predirty`: the pi fallback lanes (now the tail after
    opus) report `empty_worktree` for executors that commit, so a working lane reads as dead.
-4. [NEXT — D-FLEET-6 RULED 2026-09-27: M1–M3 as one sprint; plan landed in #1330 (`design_docs/planned/sprint-plan-pi-runner-sandbox-wiring.md`)] `pi-runner:sandbox-extensions-not-wired`: pi roles run unfenced. Safety, not throughput. The extension itself fails open, so the fix needs `tools/pi-extensions/**`.
+4. [IN-SPRINT — built iter 5, re-judged PASS 96 iter 6, in #1377; lands when dev `lint` is green (inherited `1fcc479f1` gofmt red)] `pi-runner:sandbox-extensions-not-wired`: pi roles run unfenced. Safety, not throughput. The extension itself fails open, so the fix needs `tools/pi-extensions/**`.
+
+**Queue-jumper (`blocking=all`, filed 2026-09-28 by stapledon)**
+- [IN-SPRINT — built iter 5, re-judged PASS 92 iter 6, in #1377; same predicate as P0 #4] `rig:aqua-session-lost:windowserver-watchdog`: WindowServer was watchdog-killed and `gui/501` vanished, so every mission stopped for about 8 h and the kicker logged nothing. The fix detects and reports the class, and derives kicker labels from the registry. Recovery still needs a GUI login; the ticket asks only for "document or handle". **Reach:** the crontab runs the kicker from the main checkout, so the fix takes effect only once that checkout's `dev` includes the merge.
 
 **P1 — silent wedges and invisible failures**
 0. [LANDED #1330 `4d8dff929` (directive, not a ticket)] **[DIRECTIVE, Mark via attended session 2026-09-26, from fleet iteration 1's own friction (a)]**
