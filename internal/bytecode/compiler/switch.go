@@ -133,11 +133,17 @@ func (fc *funcCompiler) compileSwitch(s stmt.SwitchStmt) error {
 // contains all constructor tags used in the switch cases. Returns the ADT name,
 // info, and true if found. This is a fallback for when the lower pass couldn't
 // determine the ADT type (e.g., unresolved type variable in scrutinee).
+//
+// Candidates are tried in declaration order (fc.adtOrder), never Go map
+// order, so the choice is the same on every compile (ailang#1355). When two
+// ADTs share all the case tags the first declared wins — deterministic, but
+// not a soundness guarantee; tag identity at runtime is future work.
 func (fc *funcCompiler) inferADTFromCases(cases []stmt.SwitchCase) (string, adtTypeInfo, bool) {
 	if len(cases) == 0 {
 		return "", adtTypeInfo{}, false
 	}
-	for name, info := range fc.adtTypes {
+	for _, name := range fc.adtOrder {
+		info := fc.adtTypes[name]
 		allMatch := true
 		for _, c := range cases {
 			if _, ok := info.tagOrdinal[c.Tag]; !ok {

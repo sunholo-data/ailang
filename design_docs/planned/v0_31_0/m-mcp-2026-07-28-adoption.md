@@ -150,13 +150,31 @@ An `httptest`-backed test that stands up `MCPServer.HTTPHandler()` and drives it
 
 ### Implementation Plan
 
-**Phase 1: Decouple the client from sessions** (~4 hours) — *ships alone, no SDK change*
-- [ ] `initialize()`: check `resp.StatusCode >= 300` **before** reading the session header; return the HTTP status in the error.
-- [ ] `initialize()`: return `("", nil)` when the header is absent instead of erroring.
-- [ ] `CallTool()`: skip `sendInitialized` when `sessionID == ""`.
-- [ ] `do()`: already guards on non-empty sessionID ([client.go:285](../../../internal/mcp_client/client.go)) — confirm, no change expected.
-- [ ] **NEW** `internal/mcp_client/client_test.go` — the package currently has no tests at all (V4).
-- [ ] Verify `ailang mcp status --json` against the live v1.6.1 endpoint still reports `reachable: true` (no regression).
+**Phase 1: Decouple the client from sessions** (~4 hours) — *ships alone, no SDK change* — **✅ DONE 2026-09-28 (attended, branch `fix/mcp-client-stateless`)**
+
+> **Why it became urgent:** the landmine this doc predicted went off. Dependabot moved the SDK to v1.8.0 (#1169,
+> 2026-09-14) and prod stopped issuing `Mcp-Session-Id`. From then on, every `ailang prompt --source auto`
+> fresh fetch fell back to embedded, and `ailang mcp status` reported `reachable: false` against a server that
+> answered 200. Measured 2026-09-28, first-party with curl as the control. A **second, independent** defect
+> surfaced during the fix: the CLI sent `forVersion: "v0.47.1"`, but snapshots are keyed `0.47.1`, so even a
+> working handshake would have got `unknown_version`.
+
+- [x] `initialize()`: checks the status **before** anything else and returns `HTTP <code>: <body snippet>`.
+- [x] `initialize()`: the session id is optional, echoed only if issued. It also parses the negotiated
+  `protocolVersion` and sends it as `MCP-Protocol-Version` on every later request. That header is what a
+  stateless server has to go on, and `ProtocolVersion` moved `2024-11-05` → `2025-06-18` to get it.
+- [x] `sendInitialized` is **kept** even without a session (deviation). The 2025-06-18 lifecycle still
+  requires it, and prod answers 202.
+- [x] `do()` guards both headers.
+- [x] Requests accept a plain-JSON reply as well as SSE (the transport lets the server choose).
+- [x] `WireVersion()` drops the leading `v`. Git-describe dev builds stay distinct, so they honestly get
+  `unknown_version`.
+- [x] **NEW** `internal/mcp_client/client_test.go`, the package's first tests: stateless, stateful, JSON replies,
+  wire version, mismatch, and 500 diagnosis. Three mutations each fail a test: a mandatory session id, a
+  dropped version header, and a dropped `WireVersion`.
+- [x] Live prod: `ailang mcp status --json` → `reachable: true, server_knows_version: true, drift: false`
+  (binary stamped v0.47.1). The released v0.47.1 binary still reports `reachable: false`. A release carries
+  the fix.
 
 **Phase 2: SDK bump + new protocol** (~4 hours)
 - [ ] `go get github.com/modelcontextprotocol/go-sdk@v1.7.0`; `go mod tidy`; `make ci`.

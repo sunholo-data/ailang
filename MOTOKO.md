@@ -169,7 +169,20 @@ against the old fork.
   falls back to `anthropic/claude-sonnet-4-6`. The eval executor always sets it.
 - Open questions to Arni (package source of truth, where AILANG extensions live, a post-tool
   hook, versioning): arniwesth/motoko_agent#192. Arni confirms ABI 8.0 is stable.
-- Not yet ported from the fork (ABI 8.0 cannot wrap native tools; post-tool hook asked for on
-  arniwesth/motoko_agent#192): compact-interface auto-read, per-edit `ailang check`,
+- Not yet ported from the fork: compact-interface auto-read, per-edit `ailang check`,
   whitespace-tolerant `EditFile`, fmt, `MOTOKO_MAX_STEPS`, the step-0 resolved-config event.
+  ABI 8.0 CAN wrap native tools: a `ToolProvider` advertising `"WriteFile"`/`"EditFile"`/
+  `"ReadFile"` receives those calls and `Delegate` falls through to the next provider, then
+  native (see `motoko_ext_microrag`). It cannot APPEND to a native result, so the extension
+  performs the write/edit itself. Not blocked on Arni.
 - Local motoko (`motoko-local-qwen3-8-27b`) is OUT of the GPU rotation until `mk-main` is stable.
+
+### To do (agreed 2026-09-28)
+- **Cloud executors:** once motoko main is stable locally, update the AILANG cloud executor images
+  to motoko main + `motoko_ext_ailang_tools` (they still carry the old fork). Mark: "once you are
+  happy with motoko locally".
+- **Registry packages: RETIRED 2026-09-28 (Mark).** All 14 ABI 2.2 `sunholo/motoko_ext_*`
+  packages (96 versions) were unpublished; see `ailang-packages/packages/MOTOKO_EXTENSIONS_RETIRED.md`.
+  Still to do: port `fmt` to ABI 8.0 (likely inside `motoko_ext_ailang_tools`).
+- **Local motoko in the rotation:** re-add `motoko-local-qwen3-8-27b` with a longer canary once the
+  above is stable.

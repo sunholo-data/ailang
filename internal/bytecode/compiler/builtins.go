@@ -110,6 +110,8 @@ var BuiltinTable = []string{
 	"__xml_getChildren",
 	"__xml_findAllTexts",
 	"__xml_findAllAttrs",
+	// ailang#1354/#1355: by-name record update for bases of unknown type
+	"_record_set",
 }
 
 var builtinIndex = func() map[string]uint8 {

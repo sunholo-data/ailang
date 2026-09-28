@@ -5,6 +5,12 @@ set -u
 SUT="$(cd "$(dirname "$0")/../.." && pwd)/scripts/mission_pi_run.sh"
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
+mkdir -p "$TMP/node_modules/@anthropic-ai/sandbox-runtime"
+echo '{}' > "$TMP/node_modules/@anthropic-ai/sandbox-runtime/package.json"
+MISSION_PI_SANDBOX_NODE_MODULES="$TMP/node_modules"
+MISSION_PI_SANDBOX_STAGE_PARENT="$TMP"
+MISSION_PI_CLAUDE_TMP_DIR="$TMP/claude"
+export MISSION_PI_SANDBOX_NODE_MODULES MISSION_PI_SANDBOX_STAGE_PARENT MISSION_PI_CLAUDE_TMP_DIR
 mkdir -p "$TMP/bin"
 PATH="$TMP/bin:$PATH"; export PATH
 MISSION_PI_POLL_SECONDS=1; export MISSION_PI_POLL_SECONDS
@@ -22,7 +28,7 @@ check() { # name expected-rc expected-verdict actual-rc verdict-file [expected-c
   fi
 }
 stub() {
-  { echo '#!/bin/bash'; echo 'cat >/dev/null'; echo "$1"; } > "$TMP/bin/pi"
+  { echo '#!/bin/bash'; echo 'cat >/dev/null'; echo ': > "$PI_SANDBOX_READY_FILE"'; echo "$1"; } > "$TMP/bin/pi"
   chmod +x "$TMP/bin/pi"
 }
 repo() { # path base|unborn

@@ -123,7 +123,8 @@ if [ "$IS_PERF_SPRINT" = true ]; then
 
     # Check for benchmark results in changelog
     CHANGELOG_FILE=$(ls changelogs/*current* 2>/dev/null | head -1)
-    if [ -n "$CHANGELOG_FILE" ] && grep -qi 'before.*after\|speedup\|benchmark.*result' "$CHANGELOG_FILE" 2>/dev/null; then
+    # Unfolded fragments (changelogs/unreleased/) count too: that is where new entries live now.
+    if [ -n "$CHANGELOG_FILE" ] && grep -qi 'before.*after\|speedup\|benchmark.*result' "$CHANGELOG_FILE" changelogs/unreleased/*.md 2>/dev/null; then
         HAS_PROFILE_DATA=true
         echo "✅ Benchmark before/after results found in changelog"
     fi

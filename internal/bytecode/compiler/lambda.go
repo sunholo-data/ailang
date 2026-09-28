@@ -51,6 +51,7 @@ func (fc *funcCompiler) compileLambda(lam stmt.Lambda) (uint8, error) {
 	inner := newFuncCompiler(fc.img, innerProto, fc.funcIdx)
 	inner.recordTypes = fc.recordTypes
 	inner.adtTypes = fc.adtTypes
+	inner.adtOrder = fc.adtOrder
 	inner.currentModule = fc.currentModule
 	// Pin parameters to r[0..NumParams-1].
 	for _, p := range lam.Params {

@@ -8,8 +8,11 @@
 //     and the response's served_for is checked. Mismatch -> ErrVersionMismatch
 //     so the caller falls back silently to embedded.
 //   - Bounded latency: 1.5s default timeout, configurable via env
-//   - Stateless: opens + closes one MCP session per call. Caching is the
-//     caller's responsibility (see internal/prompt for the on-disk cache).
+//   - Stateless: one initialize handshake per call. The server may or may not
+//     issue an Mcp-Session-Id (prod runs the SDK with Stateless: true and does
+//     not); the client echoes one only if it was issued, and sends the
+//     negotiated MCP-Protocol-Version on every request after initialize.
+//     Caching is the caller's responsibility (internal/prompt's on-disk cache).
 //
 // Usage:
 //
@@ -45,8 +48,19 @@ const DefaultURL = "https://mcp.ailang.sunholo.com/mcp/"
 // after this elapses.
 const DefaultTimeout = 1500 * time.Millisecond
 
-// ProtocolVersion is the MCP wire version we negotiate during initialize.
-const ProtocolVersion = "2024-11-05"
+// ProtocolVersion is the MCP wire version we ask for during initialize. It is
+// the first version with the MCP-Protocol-Version header, which is what lets a
+// stateless server (no Mcp-Session-Id) know the version of later requests.
+const ProtocolVersion = "2025-06-18"
+
+// WireVersion maps a CLI version onto the key the MCP snapshot is published
+// under: release snapshots are keyed "0.47.1", while the CLI's compile-time
+// version is "v0.47.1". Only the leading "v" is dropped; a git-describe dev
+// build ("v0.47.1-21-gabc") stays distinct, so the server correctly answers
+// unknown_version for content no release has shipped.
+func WireVersion(v string) string {
+	return strings.TrimPrefix(v, "v")
+}
 
 // ErrVersionMismatch means the server returned content tagged for a different
 // AILANG version (typically because the snapshot doesn't have content for the
@@ -133,16 +147,20 @@ func (c *Client) CallTool(ctx context.Context, toolName string, args map[string]
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 
-	sessionID, err := c.initialize(ctx)
+	if v, ok := args["forVersion"].(string); ok {
+		args["forVersion"] = WireVersion(v)
+	}
+
+	sess, err := c.initialize(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("initialize: %w", err)
 	}
 
-	if err := c.sendInitialized(ctx, sessionID); err != nil {
+	if err := c.sendInitialized(ctx, sess); err != nil {
 		return nil, fmt.Errorf("notifications/initialized: %w", err)
 	}
 
-	body, err := c.callTool(ctx, sessionID, toolName, args)
+	body, err := c.callTool(ctx, sess, toolName, args)
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +176,7 @@ func (c *Client) CallTool(ctx context.Context, toolName string, args map[string]
 	// Version-scoped tools return {served_for, data, ...}. Verify match if the
 	// caller passed forVersion and the server told us what it served.
 	if want, ok := args["forVersion"].(string); ok && want != "" {
-		if got, ok := body["served_for"].(string); ok && got != "" && got != want {
+		if got, ok := body["served_for"].(string); ok && got != "" && WireVersion(got) != WireVersion(want) {
 			return body, ErrVersionMismatch
 		}
 	}
@@ -168,7 +186,14 @@ func (c *Client) CallTool(ctx context.Context, toolName string, args map[string]
 
 // ─── internals ──────────────────────────────────────────────────────────
 
-func (c *Client) initialize(ctx context.Context) (string, error) {
+// session is what initialize learned: the negotiated protocol version, and a
+// session id when (and only when) the server issued one.
+type session struct {
+	id      string
+	version string
+}
+
+func (c *Client) initialize(ctx context.Context) (session, error) {
 	payload := map[string]any{
 		"jsonrpc": "2.0",
 		"id":      1,
@@ -179,58 +204,72 @@ func (c *Client) initialize(ctx context.Context) (string, error) {
 			"clientInfo":      map[string]any{"name": "ailang-cli", "version": c.ailangVersion},
 		},
 	}
-	resp, err := c.do(ctx, "POST", c.baseURL+"/", payload, "")
+	resp, err := c.do(ctx, c.baseURL+"/", payload, session{})
 	if err != nil {
-		return "", err
+		return session{}, err
 	}
 	defer resp.Body.Close()
-	sessionID := resp.Header.Get("Mcp-Session-Id")
-	if sessionID == "" {
-		return "", errors.New("server did not return Mcp-Session-Id")
+	// Status first: a 5xx must be reported as a 5xx, not as a missing header.
+	if err := checkStatus(resp); err != nil {
+		return session{}, err
 	}
-	// Drain the SSE response — we don't need the initialize body content,
-	// just a successful 200 + session header.
-	_, _ = io.Copy(io.Discard, resp.Body)
-	if resp.StatusCode >= 300 {
-		return "", fmt.Errorf("initialize: HTTP %d", resp.StatusCode)
+	body, err := readRPC(resp)
+	if err != nil {
+		return session{}, err
 	}
-	return sessionID, nil
+	var rpc struct {
+		Result struct {
+			ProtocolVersion string `json:"protocolVersion"`
+		} `json:"result"`
+		Error *struct {
+			Code    int    `json:"code"`
+			Message string `json:"message"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal(body, &rpc); err != nil {
+		return session{}, fmt.Errorf("parse initialize result: %w", err)
+	}
+	if rpc.Error != nil {
+		return session{}, fmt.Errorf("server refused initialize: %d %s", rpc.Error.Code, rpc.Error.Message)
+	}
+	if rpc.Result.ProtocolVersion == "" {
+		return session{}, errors.New("initialize result has no protocolVersion")
+	}
+	return session{id: resp.Header.Get("Mcp-Session-Id"), version: rpc.Result.ProtocolVersion}, nil
 }
 
-func (c *Client) sendInitialized(ctx context.Context, sessionID string) error {
+func (c *Client) sendInitialized(ctx context.Context, sess session) error {
 	payload := map[string]any{
 		"jsonrpc": "2.0",
 		"method":  "notifications/initialized",
 	}
-	resp, err := c.do(ctx, "POST", c.baseURL+"/", payload, sessionID)
+	resp, err := c.do(ctx, c.baseURL+"/", payload, sess)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
 	_, _ = io.Copy(io.Discard, resp.Body)
 	// Notifications get 202 Accepted (no response body); anything <300 is fine.
-	if resp.StatusCode >= 300 {
-		return fmt.Errorf("HTTP %d", resp.StatusCode)
-	}
-	return nil
+	return checkStatus(resp)
 }
 
-func (c *Client) callTool(ctx context.Context, sessionID, toolName string, args map[string]any) (map[string]any, error) {
+func (c *Client) callTool(ctx context.Context, sess session, toolName string, args map[string]any) (map[string]any, error) {
 	payload := map[string]any{
 		"jsonrpc": "2.0",
 		"id":      2,
 		"method":  "tools/call",
 		"params":  map[string]any{"name": toolName, "arguments": args},
 	}
-	resp, err := c.do(ctx, "POST", c.baseURL+"/", payload, sessionID)
+	resp, err := c.do(ctx, c.baseURL+"/", payload, sess)
 	if err != nil {
 		return nil, fmt.Errorf("tools/call: %w", err)
 	}
 	defer resp.Body.Close()
+	if err := checkStatus(resp); err != nil {
+		return nil, fmt.Errorf("tools/call: %w", err)
+	}
 
-	// Streamable HTTP responses for non-notification calls come back as SSE.
-	// Each line of the form `data: {...}` is a JSON-RPC message.
-	body, err := readSingleSSEFrame(resp.Body)
+	body, err := readRPC(resp)
 	if err != nil {
 		return nil, fmt.Errorf("tools/call: %w", err)
 	}
@@ -270,21 +309,48 @@ func (c *Client) callTool(ctx context.Context, sessionID, toolName string, args 
 	return out, nil
 }
 
-func (c *Client) do(ctx context.Context, method, url string, payload any, sessionID string) (*http.Response, error) {
+func (c *Client) do(ctx context.Context, url string, payload any, sess session) (*http.Response, error) {
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return nil, fmt.Errorf("marshal payload: %w", err)
 	}
-	req, err := http.NewRequestWithContext(ctx, method, url, bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json, text/event-stream")
-	if sessionID != "" {
-		req.Header.Set("Mcp-Session-Id", sessionID)
+	if sess.version != "" {
+		req.Header.Set("MCP-Protocol-Version", sess.version)
+	}
+	if sess.id != "" {
+		req.Header.Set("Mcp-Session-Id", sess.id)
 	}
 	return c.http.Do(req)
+}
+
+// checkStatus turns a non-2xx response into an error carrying the status and
+// the start of the body, so a server-side failure is diagnosable from the CLI.
+func checkStatus(resp *http.Response) error {
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		return nil
+	}
+	snippet, _ := io.ReadAll(io.LimitReader(resp.Body, 300))
+	return fmt.Errorf("HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(snippet)))
+}
+
+// readRPC returns the JSON-RPC message in a response. The Streamable HTTP
+// transport lets a server answer a request with either one JSON object or an
+// SSE stream, and a client MUST accept both.
+func readRPC(resp *http.Response) ([]byte, error) {
+	if strings.HasPrefix(resp.Header.Get("Content-Type"), "application/json") {
+		body, err := io.ReadAll(io.LimitReader(resp.Body, 8*1024*1024))
+		if err != nil {
+			return nil, fmt.Errorf("read JSON response: %w", err)
+		}
+		return body, nil
+	}
+	return readSingleSSEFrame(resp.Body)
 }
 
 // readSingleSSEFrame reads the first `data: {...}` line from an SSE stream

@@ -7,11 +7,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 	"time"
-
-	"github.com/sunholo-data/ailang/internal/proctree"
 )
 
 // HealthCheck verifies the motoko binary exists, is executable, and (when
@@ -128,64 +125,6 @@ func (e *MotokoExecutor) warnIfStaleBunProcesses() {
 		fmt.Fprintf(os.Stderr, "[motoko/healthcheck] WARNING: %d stale bun process(es) hold ports in motoko's range (18080-18099): PIDs %s\n",
 			len(bunPids), strings.Join(pids, ", "))
 		fmt.Fprintf(os.Stderr, "[motoko/healthcheck]          These can cause parallel motoko spawns to hit EADDRINUSE. Cleanup: pkill -9 -f 'bun.*src/tui'\n")
-	}
-}
-
-// clearStalePort8080 kills any orphaned motoko host (bun running src/tui) still
-// LISTENing on the FIXED env-server port 8080 before we spawn. The eval adapter
-// pins ENV_PORT=8080 and the rig runs --parallel 1, so a holder at spawn time is
-// never a legitimate concurrent run — it is an orphan from a crashed/SIGKILLed
-// prior run. Left in place it makes THIS run silently crash with "no run_summary"
-// (the 10h rig-wedge of 2026-06-29). Best-effort: if lsof/ps are absent (Windows)
-// or nothing holds 8080, this is a no-op. It only kills a confirmed motoko host —
-// an unrelated service on 8080 is warned about, never killed.
-func (e *MotokoExecutor) clearStalePort8080() {
-	out, err := exec.Command("lsof", "-nP", "-iTCP:8080", "-sTCP:LISTEN", "-t").Output()
-	if err != nil || len(out) == 0 {
-		return
-	}
-	killed := false
-	for _, pidStr := range strings.Fields(string(out)) {
-		pid, perr := strconv.Atoi(pidStr)
-		if perr != nil {
-			continue
-		}
-		desc := ""
-		if cmdOut, cerr := exec.Command("ps", "-o", "command=", "-p", pidStr).Output(); cerr == nil {
-			desc = strings.TrimSpace(string(cmdOut))
-		}
-		if !strings.Contains(desc, "bun") || !strings.Contains(desc, "src/tui") {
-			fmt.Fprintf(os.Stderr, "[motoko/healthcheck] WARNING: port 8080 held by non-motoko PID %d (%s) — not killing; this run may fail to bind its env-server\n", pid, desc)
-			continue
-		}
-		fmt.Fprintf(os.Stderr, "[motoko/healthcheck] LOUD: killing STALE motoko env-server PID %d squatting port 8080 (orphan from a crashed/hung run; would otherwise crash this run with 'no run_summary')\n", pid)
-		if kerr := proctree.KillGroup(pid); kerr != nil {
-			_ = proctree.KillProcess(pid)
-		}
-		killed = true
-	}
-	if killed && !waitPort8080Released(5*time.Second) {
-		fmt.Fprintf(os.Stderr, "[motoko/healthcheck] WARNING: port 8080 still held 5s after killing the stale env-server — this run may fail to bind its env-server\n")
-	}
-}
-
-// waitPort8080Released polls until nothing listens on 8080 or the timeout
-// passes. A kill is asynchronous: spawning the next run straight after it let
-// the new env-server race the dying one for the port, and the runtime died
-// before step 0 with nothing on stderr. Upstream motoko main leaves its
-// env-server running after a headless run, so the eval loop hit this on every
-// run after the first (A/B 2026-09-27: bursts of 7-9 startup crashes).
-func waitPort8080Released(timeout time.Duration) bool {
-	deadline := time.Now().Add(timeout)
-	for {
-		out, err := exec.Command("lsof", "-nP", "-iTCP:8080", "-sTCP:LISTEN", "-t").Output()
-		if err != nil || len(strings.TrimSpace(string(out))) == 0 {
-			return true
-		}
-		if time.Now().After(deadline) {
-			return false
-		}
-		time.Sleep(100 * time.Millisecond)
 	}
 }
 
