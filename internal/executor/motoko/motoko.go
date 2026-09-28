@@ -37,6 +37,7 @@ package motoko
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -474,7 +475,8 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	cmd.Stdout = cmd.Stderr
 
 	startTime := time.Now()
-	if err := cmd.Run(); err != nil {
+	runErr := cmd.Run()
+	if err := runErr; err != nil {
 		// Process failure is NOT necessarily a task failure — the JSONL may
 		// still contain a valid run_summary with finish_reason="error".
 		// Continue to parse; only fail-hard on unparseable / missing JSONL.
@@ -562,6 +564,22 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	// crash verdict already embedded the same tail.
 	if runSummaryPresent, _ := result.ProviderData["motoko_run_summary_present"].(bool); !result.Success && !runSummaryPresent && !stderrAttached {
 		result.Error = attachStderrTail(result.Error, stderrLogPath, stderrBuf.String())
+	}
+	// How the motoko process itself ended. A run that stops without a
+	// run_summary, an error event or a stderr line was either killed from
+	// outside (a signal) or exited on its own; the exit status is the only
+	// record that tells the two apart (motoko main A/B, 2026-09-28: three runs
+	// whose session logs simply stopped).
+	if runErr != nil && !result.Success {
+		result.ProviderData["motoko_exit"] = runErr.Error()
+		result.Error += fmt.Sprintf(" [motoko process: %v]", runErr)
+		// Killed by our own wall-clock bound: say so, so the run banks as a
+		// timeout (the model needed more time) rather than an api_error (cause
+		// unknown). 2026-09-28: quine streamed ~22k reasoning tokens in one step
+		// and was SIGKILLed at the 1h bound, banked as api_error.
+		if errors.Is(runCtx.Err(), context.DeadlineExceeded) {
+			result.Error = fmt.Sprintf("motoko exceeded its wall-clock bound (%v): timeout — ", runTimeout) + result.Error
+		}
 	}
 
 	// run_summary may carry its own duration_ms (from motoko's internal

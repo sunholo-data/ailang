@@ -44,5 +44,27 @@ ck "std/ push to dev with unbuildable tree is refused" "$rc" 1
 ck "refusal names the fix" "$(printf '%s' "$out" | grep -c 'make freeze-stdlib')" 1
 ck "gate worktree cleaned up" "$(git worktree list | wc -l | tr -d ' ')" 1
 
+# ci-quick gate selection (--needs-quick): Go, examples, changelogs, make files and the
+# generated docs need it; docs, design docs and state files do not.
+Q1=$(commit design_docs/x.md);          ck "design doc skips ci-quick"            "$(bash "$HOOK" --needs-quick "$H6" "$Q1")" no
+Q2=$(commit .ailang/state/x.json);      ck "state file skips ci-quick"            "$(bash "$HOOK" --needs-quick "$Q1" "$Q2")" no
+ck "docs-only change skips ci-quick"    "$(bash "$HOOK" --needs-quick "$BASE" "$H")" no
+ck "std/ .ail change alone skips ci-quick" "$(bash "$HOOK" --needs-quick "$H" "$H2")" no
+ck "Go change needs ci-quick"           "$(bash "$HOOK" --needs-quick "$H3" "$H4")" yes
+Q3=$(commit examples/manifest.json);    ck "examples change needs ci-quick"       "$(bash "$HOOK" --needs-quick "$Q2" "$Q3")" yes
+Q4=$(commit changelogs/v1-current.md);  ck "changelog change needs ci-quick"      "$(bash "$HOOK" --needs-quick "$Q3" "$Q4")" yes
+Q5=$(commit docs/docs/reference/cli.md); ck "cli reference change needs ci-quick" "$(bash "$HOOK" --needs-quick "$Q4" "$Q5")" yes
+ck "unknown base with no origin/dev fails closed (ci-quick)" "$(bash "$HOOK" --needs-quick "" "$Q1")" yes
+# A Go-only push to dev reaches the ci-quick gate; the unbuildable tree must be REFUSED
+# with the ci-quick fix named (not the stdlib one).
+out=$(echo "refs/heads/dev $H4 refs/heads/dev $H3" | bash "$HOOK" origin url 2>&1); rc=$?
+ck "Go push to dev with unbuildable tree is refused" "$rc" 1
+ck "ci-quick refusal names make ci-quick" "$(printf '%s' "$out" | grep -c 'Reproduce and fix:   make ci-quick')" 1
+ck "ci-quick refusal does not blame the stdlib" "$(printf '%s' "$out" | grep -c 'make freeze-stdlib')" 0
+ck "ci-quick gate worktree cleaned up" "$(git worktree list | wc -l | tr -d ' ')" 1
+# A design-doc-only push to dev passes without building anything.
+echo "refs/heads/dev $Q1 refs/heads/dev $H6" | bash "$HOOK" origin url >/dev/null 2>&1
+ck "design-doc push to dev passes" "$?" 0
+
 echo "pre-push: $pass passed, $fail failed"
 [ "$fail" -eq 0 ]

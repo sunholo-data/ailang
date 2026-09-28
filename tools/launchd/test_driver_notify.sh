@@ -896,7 +896,10 @@ else
   _gh_good=0
   case "$_gh_out" in *"BLOCK_RC:0"*) _gh_good=1;; esac
   case "$_gh_out" in *"LOG:WARNING: driver-pin notice FAILED to post to issue #635"*) : ;; *) _gh_good=0;; esac
-  [ "$_gh_elapsed" -le 7 ] || _gh_good=0
+  # The gh bound is 2s; an unbounded gh trips the outer 15s watchdog (rc=124, above).
+  # 12s sits between the two: a 7s ceiling failed on slow macOS runners at 8s with the
+  # bound working (rc=0, BLOCK_RC:0, WARNING present — PR #1362, and #1124 on 09-09).
+  [ "$_gh_elapsed" -le 12 ] || _gh_good=0
   if [ "$_gh_good" -eq 1 ]; then
     ok "production: hanging gh comment is cut off and warns"
   else

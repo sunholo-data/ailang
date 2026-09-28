@@ -1,5 +1,6 @@
 #!/bin/bash
-# pre-push — refuse a push to dev whose stdlib interfaces drift from .stdlib-golden/.
+# pre-push — refuse a push to dev whose stdlib interfaces drift from .stdlib-golden/, or
+# whose generated files and docs are stale (make ci-quick).
 #
 # WHY: PR CI already runs verify-stdlib (the `test` check is required on dev), but the bot
 # account bypasses branch protection, and the attended workflow commits straight to dev
@@ -14,8 +15,16 @@
 # worktree, build it, and run tools/verify-stdlib.sh there. The working tree is never
 # consulted: a shared checkout carries other sessions' edits.
 #
+# Second gate (2026-09-27): if the range touches Go, examples, changelogs, make files or
+# the generated docs, run `make ci-quick` in the same worktree (~25 s): gofmt, the
+# ARCHITECTURE.md closure section, the CLI reference, the devtools prompt commands, file
+# sizes, the changelog index, layer boundaries and the examples manifest. On 2026-09-27
+# three direct pushes turned dev red on exactly these (cli.md for rig-gate, the closure
+# count, manifest statistics), and every open PR inherited the red.
+#
 # Escape hatch (deliberate, visible): git push --no-verify
 # Self-test mode:  pre-push --needs-gate <base-sha> <head-sha>   → prints yes|no
+#                  pre-push --needs-quick <base-sha> <head-sha>  → prints yes|no
 #
 # bash 3.2 compatible (rig shell). Install: make install-hooks.
 
@@ -27,6 +36,29 @@ ZERO=0000000000000000000000000000000000000000
 # change how an interface is computed or printed (#1318 moved list functions onto
 # builtins and the printed spelling changed without any std/ signature changing).
 gate_paths_regex='^(std/|\.stdlib-golden/|internal/(iface|types|builtins)/|tools/(verify-stdlib|freeze-stdlib|stdlib-iface-lib)\.sh$)'
+
+# Paths whose change can make a ci-quick gate fail. Pushes touching none of these (design
+# docs, state files, benchmark data) skip it.
+quick_paths_regex='(\.go$|^go\.(mod|sum)$|^examples/|^changelogs/|^CHANGELOG\.md$|^ARCHITECTURE\.md$|^docs/docs/reference/cli\.md$|^prompts/|^make/|^Makefile$|^scripts/validate_manifest\.go$)'
+
+changed_files() {
+    # $1 base (may be empty), $2 head. Prints the changed paths; exit 1 when the range
+    # cannot be computed (callers fail closed).
+    local base="$1" head="$2"
+    if [ -z "$base" ]; then
+        # New branch / unknown remote tip: judge the whole commit's tree against origin/dev.
+        base=$(git merge-base "$head" origin/dev 2>/dev/null)
+        [ -n "$base" ] || return 1
+    fi
+    git diff --name-only "$base" "$head" 2>/dev/null
+}
+
+needs_quick() {
+    # $1 base (may be empty), $2 head
+    local files
+    files=$(changed_files "$1" "$2") || { echo yes; return; }
+    if printf '%s\n' "$files" | grep -Eq "$quick_paths_regex"; then echo yes; else echo no; fi
+}
 
 needs_gate() {
     # $1 base (may be empty), $2 head
@@ -46,25 +78,42 @@ if [ "${1:-}" = "--needs-gate" ]; then
     needs_gate "${2:-}" "${3:-}"
     exit 0
 fi
+if [ "${1:-}" = "--needs-quick" ]; then
+    needs_quick "${2:-}" "${3:-}"
+    exit 0
+fi
 
 run_gate() {
-    # $1 head sha. Returns verify-stdlib's exit code; any setup failure is a refusal
-    # (Principle 2: an unverifiable push is not a verified one).
-    local head="$1" tmp rc
-    tmp=$(mktemp -d "${TMPDIR:-/tmp}/ailang-prepush.XXXXXX") || return 1
+    # $1 head sha, $2 stdlib gate yes|no, $3 ci-quick gate yes|no. Returns 0 when every
+    # requested gate passes, 1 = stdlib drift, 2 = ci-quick failure. Any setup failure is a
+    # refusal (Principle 2: an unverifiable push is not a verified one), reported as 1 when
+    # the stdlib gate was requested and 2 otherwise.
+    local head="$1" want_stdlib="$2" want_quick="$3" tmp rc setup_rc=2
+    [ "$want_stdlib" = "yes" ] && setup_rc=1
+    tmp=$(mktemp -d "${TMPDIR:-/tmp}/ailang-prepush.XXXXXX") || return $setup_rc
     if ! git worktree add -q --detach "$tmp/wt" "$head" 2>/dev/null; then
-        echo "pre-push: could not check out $head for the stdlib gate" >&2
-        rm -rf "$tmp"; return 1
+        echo "pre-push: could not check out $head for the push gates" >&2
+        rm -rf "$tmp"; return $setup_rc
     fi
     (
-        cd "$tmp/wt" || exit 1
-        echo "pre-push: building $(git rev-parse --short HEAD) to verify stdlib interfaces..." >&2
-        go build -o bin/ailang ./cmd/ailang >&2 || { echo "pre-push: build failed" >&2; exit 1; }
-        bash tools/verify-stdlib.sh > "$tmp/verify.log" 2>&1
+        cd "$tmp/wt" || exit $setup_rc
+        echo "pre-push: building $(git rev-parse --short HEAD) for the push gates..." >&2
+        go build -o bin/ailang ./cmd/ailang >&2 || { echo "pre-push: build failed" >&2; exit $setup_rc; }
+        if [ "$want_stdlib" = "yes" ]; then
+            bash tools/verify-stdlib.sh > "$tmp/verify.log" 2>&1 || exit 1
+        fi
+        if [ "$want_quick" = "yes" ]; then
+            echo "pre-push: running make ci-quick..." >&2
+            make -k ci-quick > "$tmp/quick.log" 2>&1 || exit 2
+        fi
+        exit 0
     )
     rc=$?
-    if [ $rc -ne 0 ]; then
+    if [ $rc -eq 1 ] && [ -f "$tmp/verify.log" ]; then
         grep -E '✗|^\s*[-+] |"name"' "$tmp/verify.log" | head -40 >&2
+    fi
+    if [ $rc -eq 2 ] && [ -f "$tmp/quick.log" ]; then
+        grep -E '✗|Error|error:|FAIL|stale|STALE|differ|not formatted|\*\*\*' "$tmp/quick.log" | head -40 >&2
     fi
     git worktree remove --force "$tmp/wt" >/dev/null 2>&1
     rm -rf "$tmp"
@@ -79,16 +128,30 @@ while read -r _local_ref local_sha remote_ref remote_sha; do
     if [ "$remote_sha" != "$ZERO" ] && git cat-file -e "$remote_sha^{commit}" 2>/dev/null; then
         base="$remote_sha"
     fi
-    [ "$(needs_gate "$base" "$local_sha")" = "yes" ] || continue
-    if ! run_gate "$local_sha"; then
-        cat >&2 <<EOF
+    want_stdlib=$(needs_gate "$base" "$local_sha")
+    want_quick=$(needs_quick "$base" "$local_sha")
+    [ "$want_stdlib" = "yes" ] || [ "$want_quick" = "yes" ] || continue
+    run_gate "$local_sha" "$want_stdlib" "$want_quick"
+    case $? in
+        0) ;;
+        1)
+            cat >&2 <<EOF
 
 ✗ pre-push: refusing to push to dev — std/ interfaces differ from .stdlib-golden/.
   If the change is intentional:   make freeze-stdlib
   and state the interface change in the commit message, then push again.
   (Deliberate override: git push --no-verify)
 EOF
-        status=1
-    fi
+            status=1 ;;
+        *)
+            cat >&2 <<EOF
+
+✗ pre-push: refusing to push to dev — make ci-quick fails on the pushed commit.
+  Reproduce and fix:   make ci-quick
+  (the usual fixes: make fmt, make docs-cli, scripts/gen_architecture_closure.sh,
+  or the manifest statistics). Deliberate override: git push --no-verify
+EOF
+            status=1 ;;
+    esac
 done
 exit $status
