@@ -2,7 +2,7 @@
 
 ## Ticket
 
-`stall-watchdog:kills-controller-on-long-drill` — mechanical half of Mark's attended triage. Sprint ID: `M-FLEET-STALL-DESCENDANT-PROGRESS`. **Policy park:** no implementation is authorized by this plan. The controller must obtain Mark's decision on the proposed numeric discriminator before execution.
+`stall-watchdog:kills-controller-on-long-drill` — mechanical half of Mark's attended triage. Sprint ID: `M-FLEET-STALL-DESCENDANT-PROGRESS`. **M1 complete** (fleet iteration 4, 2026-09-27). **M2 authorized:** Mark ruled D-FLEET-7 on 2026-09-29: descendant-only rusage growth of at least 10 CPU-s per 120-s sample counts as progress. The measured heavy-poll W1 false-live risk is accepted; existing sample counts and 600-s budget stay unchanged.
 
 ## Evidence
 
@@ -25,13 +25,15 @@
 
 No candidate satisfies all five properties. In particular, CPU movement and child churn detect activity, not useful progress; cwd movement is neither reliably attributable nor reliably visible for the measured harness.
 
-## Chosen arm
+## Chosen arm and ruling
 
-**NONE — policy park.** The smallest plausible addition is cumulative CPU time on the persistent descendant shell using BSD `ps -S -o time`, compared between samples. It needs a **new numeric threshold**; any-change semantics leaves W1 alive indefinitely. A provisional discriminator for Mark to evaluate is **at least 2 CPU seconds per 120-second sample**. W1's example four 0.1-second attempts per interval should remain below it; W2's blocked `find` should remain at zero. A 46-row compile/test harness plausibly exceeds it, but the 04:45 log contains only instantaneous `%cpu`, not cumulative CPU time, so its success is **not established**. CPU accounting resolution, different `COND` costs, and harness phases can reverse these expectations. Do not implement this arm until a controller-run replay or direct measurement of all three shapes supports a threshold and Mark approves it.
+Use `proc_pid_rusage` through the landed `tools/launchd/lib/proc_rusage.py` helper. Compare cumulative CPU for the controller's **descendants only**, excluding the root controller, across the existing 120-s samples. A delta of **at least 10 CPU-s** resets the stall hit count as progress. Preserve the existing instantaneous CPU, transcript, held-open write-file, heartbeat, long-child, sample-count, and 600-s budget behavior. A missing or invalid rusage reading is not fabricated as progress; preserve the watchdog's documented fail-open behavior where an instrument needed to distinguish live work is unavailable. D-FLEET-7 expressly approves this threshold and the heavy-poll W1 risk.
+
+Historical pre-M1 proposal: `ps -S -o time` with a provisional 2 CPU-s threshold was parked pending measurement. M1 proved that BSD `ps -S` misses reaped-child CPU on this rig; neither that instrument nor that provisional threshold is an M2 instruction.
 
 ## Milestones
 
-These are conditional execution milestones after the policy decision. The controller owns the decision and the commit. No other implementation files are in scope.
+M1 is measured and landed (`d9e1211d0`); M2 is now executable under D-FLEET-7. The controller owns the commit. No other implementation files are in scope.
 
 ### M1 — Measure and decide the discriminator
 
@@ -40,9 +42,10 @@ These are conditional execution milestones after the policy decision. The contro
 - Exact acceptance command: `/bin/bash tools/launchd/test_mission_stall.sh`. Expected result: all base arms green (16/16 at base), with named 04:45-shape, W1, and W2 arms added and green only if the measured threshold separates them. An unsandboxed controller must inspect the raw measurement; a sandboxed `ps`, socket, or outside-worktree path result is **uninformative under sandbox**, neither pass nor fail.
 - If the measured distributions overlap, stop here and return the decision to Mark; no watchdog change follows.
 
-### M2 — Implement only after Mark approves a measured threshold
+### M2 — Implement the approved descendant rusage arm
 
-- Files: `tools/launchd/mission-control.sh`, `tools/launchd/test_mission_stall.sh`, `changelogs/v0.32-current.md` (the current changelog touched by `4a86ea17b`). Add a cumulative CPU-time arm for the persistent descendant, with process identity protection against PID reuse; fold it into existing progress bookkeeping only after the approved discriminator is met. Keep reads proportional to the process tree and use Bash 3.2 and BSD syntax.
+- Files: `tools/launchd/mission-control.sh`, `tools/launchd/test_mission_stall.sh`, `changelogs/v0.32-current.md` (the current changelog touched by `4a86ea17b`). Reuse the landed `tools/launchd/lib/proc_rusage.py` helper; it emits own and reaped-child CPU centiseconds for each PID. Add an arm for cumulative descendant-only rusage CPU, excluding the controller root. Compare two samples of the same process identity, guarding PID reuse; count a window as progress at **≥1000 centiseconds per existing 120-s sample**. Sum or attribute active and reaped children without double counting. Retain existing progress arms, thresholds, sample counts, and the 600-s budget. Keep reads proportional to the process tree, use Bash 3.2-compatible shell, and surface unavailable or malformed rusage rather than treating it as a zero-cost success.
+- Add a deterministic fixture for vanished non-root children before relying on its mutation check. Keep a live positive control for reaped-child accounting, including the reported but unreproduced reap-order concern. Confirm the new arm affects the Claude long-drill shape; #1391 separately caps pi controller commands at 540 s.
 - Exact acceptance command: `bash -n tools/launchd/mission-control.sh`. Expected result: exit 0.
 - Exact acceptance command: `/bin/bash tools/launchd/test_mission_stall.sh`. Expected result: zero failed arms, including the 04:45-shape positive, W1 negative, W2 negative, and a red-on-mutation check for the new arm.
 - Exact acceptance command: `env -i HOME=$HOME PATH=$PATH make test-launchd-drivers` (**controller-run outside the sandbox**). Expected result: exit 0 with the stall suite and all other launchd suites green. Runs inside this sandbox that touch sockets or paths outside the worktree are **uninformative under sandbox**, neither pass nor fail.
@@ -52,19 +55,19 @@ These are conditional execution milestones after the policy decision. The contro
 - **04:45 positive:** a long-lived descendant runs a mutation/test fixture rooted at `mktemp -d`; controller transcript, held-open write-file bytes, heartbeat, and instantaneous CPU remain flat at their measured shape. The approved cumulative CPU delta alone makes the second sample live. Use the recorded real delta in addition to a deterministic stub; an invented stub alone cannot establish the original false kill is fixed.
 - **W1 negative:** a persistent shell repeatedly runs a short failed command every 30 seconds, with new child PIDs and a nonzero but sub-threshold cumulative CPU delta. With other arms flat, the second sample is stalled.
 - **W2 negative:** a long-lived blocked `find` shape has no writes and zero cumulative CPU delta. With other arms flat, the second sample is stalled.
-- **Mutation for the one proposed new arm:** replace its threshold-satisfied branch with `return 1` on one line. The named “04:45 positive” test must turn red. Also check the opposite one-line mutation, treating any positive CPU delta as progress: the named “W1 negative” test must turn red.
+- **Mutation for the approved new arm:** replace its threshold-satisfied branch with `return 1` on one line. The named “04:45 positive” test must turn red. Also check the opposite one-line mutation, treating any positive CPU delta as progress: the named “W1 negative” test must turn red. The vanished-child fixture must kill its corresponding mutation reliably.
 - Preserve the baseline transcript, heartbeat, held-open write-file, and no-instrument arms. Each test fixture creates and removes its own `mktemp -d` root; no acceptance criterion requires writing to a real path outside the worktree.
 
 ## Out of scope
 
-Changing existing watchdog thresholds, sample counts, or their semantics; adding the proposed numeric threshold before Mark's policy decision; changing other providers' transcript arms; scanning `$HOME` or shared `/tmp`; and implementation outside the three files named in M2.
+Changing existing watchdog thresholds other than the new approved rusage discriminator, sample counts, or their semantics; changing other providers' transcript arms; scanning `$HOME` or shared `/tmp`; changing the landed rusage helper without a demonstrated defect; and implementation outside the three files named in M2.
 
 ## Risks
 
-- The 04:45 CPU-time delta is unmeasured. A provisional threshold cannot be called a fix until the three shapes are measured on the rig.
-- A more expensive W1 condition could cross a fixed CPU threshold and become falsely live. A mostly I/O-bound useful drill could stay below it and be falsely killed.
-- BSD `ps -S` includes reaped child CPU on a parent; attribution must use a stable parent identity, avoid double counting, and account for display precision and PID reuse.
-- A sampling instant can miss short lived processes; no amount of synthetic stubbing proves that live rig accounting captures every harness row.
+- The 04:45 incident itself has no cumulative CPU series; M1's controlled 46-row reproduction measured 62.54–97.73 CPU-s against W1 ≤1.72 and W2 0. The live positive control must exercise rusage rather than rely solely on a stub.
+- A more expensive W1 condition could cross 10 CPU-s and become falsely live; D-FLEET-7 accepts that risk. A mostly I/O-bound useful drill could stay below it and be falsely killed.
+- `proc_pid_rusage` child accounting and PID reuse require stable identity, no double counting, and explicit handling of unavailable data. The evaluator's reap-order concern was unreproduced; retain a live positive control.
+- A sampling instant can miss short lived processes; the deterministic vanished-child fixture must test that edge without relying on timing luck.
 
 ## M1 result (fleet iteration 4, 2026-09-27, measured outside the sandbox on the rig)
 
@@ -109,3 +112,7 @@ variants, including that exact ordering (2.18–2.99 s each), so it is recorded 
 should keep a positive control on live data regardless. (5) The selftest's check for a vanished
 non-root child is racy: the evaluator's mutation was caught in 1 of 10 runs. M2 needs a deterministic
 fixture before it relies on this.
+
+## M2 result (fleet iteration 7, 2026-09-29)
+
+Implementation commits `983ae18dc` and `1f0c57882` add the approved descendant rusage arm. `bash -n tools/launchd/mission-control.sh` passed; the focused stall suite passed 35/35; `env -i HOME=$HOME PATH=$PATH make test-launchd-drivers` exited 0. Independent Sonnet evaluator round 1 found two surviving root-accounting mutations and a vanished-child gap (PASS 74); round 2 confirmed the corrections and passed 88/100 with no blocking findings. The remaining nonblocking finding is that the malformed non-NA fail-open branch lacks a direct mutation victim. This milestone is locally complete; Gate 3b still requires PR and merge-commit CI before the ticket can be resolved.
