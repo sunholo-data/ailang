@@ -54,6 +54,20 @@ UNRELEASED_LINE=$(grep -n -m1 -E '^## \[Unreleased\][[:space:]]*$' "$ACTIVE" | c
 
 COUNT=$(echo "$FRAGMENTS" | grep -c . || true)
 if [ "$MODE" = "--check" ]; then
+	# Between releases `## [Unreleased]` stays EMPTY: entries live only in fragments, and
+	# the release commit folds them and renames the heading in one step. Fragments alone
+	# did not change the habit: the day they landed (#1382, 2026-09-28) five entries were
+	# still written straight under the heading, and each was a guaranteed conflict with
+	# every other open branch. Structural rule, not a lexical one: ANY `### ` section
+	# between `## [Unreleased]` and the next `## ` heading is an entry in the wrong place.
+	DIRECT=$(awk -v start="$UNRELEASED_LINE" 'NR > start && /^## / { exit } NR > start && /^### / { print "    " NR ": " $0 }' "$ACTIVE")
+	if [ -n "$DIRECT" ]; then
+		fail "$ACTIVE has entries directly under '## [Unreleased]':
+$DIRECT
+  Move each section into its own fragment, changelogs/unreleased/YYYY-MM-DD-<slug>.md
+  (see changelogs/unreleased/README.md). Editing the shared block conflicts with every
+  other open branch; separate files cannot."
+	fi
 	echo -e "${GREEN}✓ $COUNT changelog fragment(s) valid; $ACTIVE has '## [Unreleased]'${RESET}"
 	exit 0
 fi

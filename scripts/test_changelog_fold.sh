@@ -5,17 +5,18 @@ set -u
 
 REPO_ROOT=$(cd "$(dirname "$0")/.." && pwd)
 FOLD="$REPO_ROOT/scripts/changelog_fold.sh"
-FAILED=0; ARMS_RUN=0; ARMS_EXPECTED=7
+FAILED=0; ARMS_RUN=0; ARMS_EXPECTED=8
 pass() { echo "  ok   — $1"; ARMS_RUN=$((ARMS_RUN + 1)); }
 fail() { echo "  FAIL — $1"; FAILED=1; ARMS_RUN=$((ARMS_RUN + 1)); }
 
 WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
 
-# fresh_repo DIR: a git repo with an active changelog holding one existing entry.
+# fresh_repo DIR: a git repo with an active changelog: an empty [Unreleased] (the invariant
+# between releases) above a released section holding one existing entry.
 fresh_repo() {
 	mkdir -p "$1/changelogs/unreleased"
-	printf '%s\n' '# Changelog' '' '## [Unreleased]' '' '### Fixed — older entry' '' 'old body' '' '## [v0.1.0] - 2026-01-01' >"$1/changelogs/v0.1-current.md"
+	printf '%s\n' '# Changelog' '' '## [Unreleased]' '' '## [v0.1.0] - 2026-01-01' '' '### Fixed — older entry' '' 'old body' >"$1/changelogs/v0.1-current.md"
 	printf '%s\n' '# How to write a fragment' >"$1/changelogs/unreleased/README.md"
 	(cd "$1" && git init -q && git add -A && git -c user.name=t -c user.email=t@t commit -qm init)
 }
@@ -82,6 +83,15 @@ run "$R"
 if [ "$RC" -eq 1 ] && printf '%s' "$OUT" | grep -qF "no '## [Unreleased]'" && [ -f "$R/changelogs/unreleased/2026-09-06-delta.md" ]; then
 	pass "refuses to fold when there is no [Unreleased] heading, and keeps the fragment"
 else fail "missing-[Unreleased] arm rc=$RC: $OUT"; fi
+
+# (8) An entry written straight under [Unreleased] is refused, naming its line: that shared
+# block is what every branch conflicted on before fragments.
+R="$WORK/r8"; fresh_repo "$R"
+awk '{print} /^## \[Unreleased\]$/ {print ""; print "### Fixed — written in place"}' "$R/changelogs/v0.1-current.md" >"$R/x" && mv "$R/x" "$R/changelogs/v0.1-current.md"
+run "$R" --check
+if [ "$RC" -eq 1 ] && printf '%s' "$OUT" | grep -qF "directly under '## [Unreleased]'" && printf '%s' "$OUT" | grep -qF "5: ### Fixed — written in place"; then
+	pass "refuses an entry written directly under [Unreleased], naming its line"
+else fail "direct-entry arm rc=$RC: $OUT"; fi
 
 if [ "$ARMS_RUN" -ne "$ARMS_EXPECTED" ]; then
 	echo "  FAIL — $ARMS_RUN of $ARMS_EXPECTED arms ran; refusing a vacuous green"; FAILED=1
