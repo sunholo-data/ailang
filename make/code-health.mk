@@ -2,7 +2,7 @@
 # CODE HEALTH & ORGANIZATION TARGETS
 # =============================================================================
 
-.PHONY: check-file-sizes report-file-sizes codebase-health largest-files check-pi-wire-budget check-prompt-freeze check-prompt-commands check-referenced-paths check-architecture-closure gen-architecture-closure simplicity-metrics simplicity-metrics-fast simplicity-audit simplicity-audit-fast perf-sweep perf-sweep-quick perf-sweep-control docs-cli check-cli-docs
+.PHONY: worktree-sweep worktree-sweep-apply check-file-sizes report-file-sizes codebase-health largest-files check-pi-wire-budget check-prompt-freeze check-prompt-commands check-referenced-paths check-architecture-closure gen-architecture-closure simplicity-metrics simplicity-metrics-fast simplicity-audit simplicity-audit-fast perf-sweep perf-sweep-quick perf-sweep-control docs-cli check-cli-docs
 .PHONY: fmt fmt-check fmt-check-ail shellcheck-autopush vet lint install-lint install-hooks
 
 check-referenced-paths: ## Check that referenced tools/scripts paths exist and are tracked
@@ -364,3 +364,9 @@ perf-sweep-control: ## Positive control: the sweep must report WORSE and exit 2 
 # Idempotent; refuses to overwrite a different, unmanaged pre-push hook.
 install-hooks: ## Install versioned git hooks (pre-push stdlib freeze gate)
 	@bash scripts/hooks/install_hooks.sh
+
+worktree-sweep: ## Dry run: which worktrees/branches have landed and would be removed (see scripts/worktree_sweep.sh)
+	@/bin/bash scripts/worktree_sweep.sh
+
+worktree-sweep-apply: ## Remove landed, clean, idle worktrees and landed local branches (logged with SHAs)
+	@/bin/bash scripts/worktree_sweep.sh --apply

@@ -84,6 +84,11 @@
           },
           {
             "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/hooks/git_health.sh",
+            "timeout": 5
+          },
+          {
+            "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/hooks/cloud_setup.sh",
             "timeout": 10
           },

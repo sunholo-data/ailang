@@ -79,7 +79,7 @@ jobs:
         # the paths below (every REPO_ROOT-relative file its suite reads, plus
         # this workflow and the make target), so other PRs skip it. Pushes to
         # dev still run it: the non-PR branch above sets shell=true.
-        if echo "$files" | grep -qE '^(tools/launchd/|tools/pi-extensions/|scripts/hooks/|scripts/[^/]*mission[^/]*\.sh$|\.claude/skills/mission-control/|\.claude/settings\.json$|design_docs/v1-mission\.md$|make/test\.mk$|\.github/workflows/ci\.yml$)'; then
+        if echo "$files" | grep -qE '^(tools/launchd/|tools/pi-extensions/|scripts/hooks/|scripts/[^/]*mission[^/]*\.sh$|scripts/(test_)?worktree_sweep\.sh$|\.claude/skills/mission-control/|\.claude/settings\.json$|design_docs/v1-mission\.md$|make/test\.mk$|\.github/workflows/ci\.yml$)'; then
           echo "shell=true" >> "$GITHUB_OUTPUT"
           echo "-> rig-shell lane (launchd bash 3.2 job runs)"
         else
