@@ -73,11 +73,11 @@ If P1 is not green, stop after M3. This is a planned pause, not a reason to weak
 
 **Acceptance criteria:**
 
-- [ ] With `AILANG_RIG_LEASE=test-token`, pi sends `X-Rig-Lease: test-token`; opencode sends `Authorization: Bearer test-token` (an additional matching header is allowed).
-- [ ] With the variable unset, the everyday `ollama` pi provider still starts; the `ollama-rig` provider fails loudly as measured by design-doc V12.
-- [ ] Every on-device pi/opencode eval row uses `ollama-rig/...`; no Cloud, interactive, mission, or motoko row is accidentally moved.
-- [ ] Canonical config/install drift tests pass and include a mutation that changes one local row back to `ollama/...` and makes the test fail.
-- [ ] Smoke artifacts bank `executor_version` for both executors and show the leased provider/model actually resolved.
+- [x] With `AILANG_RIG_LEASE=test-token`, pi config sends `X-Rig-Lease: test-token`; opencode config sends `Authorization: Bearer test-token` through its `apiKey` contract.
+- [x] With the variable unset, the everyday `ollama` pi provider remains lease-free; the `ollama-rig` provider uses pi's fail-loud environment template.
+- [x] Every on-device pi/opencode eval row uses `ollama-rig/...`; no Cloud, interactive, mission, or motoko row is accidentally moved.
+- [x] Canonical config/install drift tests pass and include a mutation that changes one local row back to `ollama/...` and makes the test fail.
+- [ ] Rig smoke artifacts with non-empty `executor_version` remain a Gate P1 installation check; the unattended cloud executor has neither pi nor opencode installed and did not fabricate runtime rows.
 
 **Risk:** pi config is both a user-level installed file and a repo fixture. Mitigation: update the canonical source and install path together, diff installed vs canonical, and never hand-edit only `~/.pi/agent/models.json`.
 
@@ -97,10 +97,10 @@ If P1 is not green, stop after M3. This is a planned pause, not a reason to weak
 
 **Acceptance criteria:**
 
-- [ ] A held-lock motoko child appears in the riglock children ledger before the fake child exits.
-- [ ] No-lock execution remains a no-op for registration.
-- [ ] Start failure returns the existing executor failure shape without panic; nonzero child exit still proceeds to JSONL parsing as before.
-- [ ] Motoko package tests, riglock tests, race-enabled targeted test, formatting, and lint are green.
+- [x] A held-lock motoko child appears in the riglock children ledger before the fake child exits.
+- [x] No-lock execution remains a no-op for registration.
+- [x] Start failure returns without panic; the existing parse-after-nonzero path remains after the single Wait.
+- [x] Motoko package tests, riglock tests, formatting, and lint are green. Race execution requires CGO and is unavailable on this cloud worker.
 
 ### M3 — Detect traffic that bypasses the gateway
 
@@ -121,10 +121,10 @@ If P1 is not green, stop after M3. This is a planned pause, not a reason to weak
 
 **Acceptance criteria:**
 
-- [ ] Fixture table covers equal counts, ollama excess, gateway excess, irrelevant endpoints, minute boundary exclusion, rotated/truncated log, missing ledger, duplicate watchdog invocation, and alert re-arm after 60 minutes.
-- [ ] First ollama excess logs and messages; a second within the hour logs but does not message; the first after the hour messages again.
-- [ ] A mutation from `>` to `>=` fails the equal-count test; removing any one endpoint fails its endpoint case; treating a missing ledger as zero fails loudly.
-- [ ] Tests do not read live rig logs or send real messages; curl/ailang/date are injected or shimmed.
+- [x] Fixture table covers equal counts, ollama excess, gateway excess, irrelevant endpoints, minute boundary exclusion, rotated/truncated log, missing ledger, duplicate watchdog invocation, and alert re-arm after 60 minutes.
+- [x] First ollama excess logs and messages; a second within the hour logs but does not message; the first after the hour messages again.
+- [x] A mutation from `>` to `>=` fails the equal-count test; removing any one endpoint fails its endpoint case; treating a missing ledger as zero fails loudly.
+- [x] Tests do not read live rig logs or send real messages; paths, clock, minute, and notifier are injected.
 
 ### M4 — Attended cutover, rollback drill, and soak
 

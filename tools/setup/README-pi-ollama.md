@@ -14,14 +14,14 @@ cp tools/setup/pi-ollama-models.json ~/.pi/agent/models.json
 pi --list-models | grep ollama
 ```
 
-Then `ailang eval-suite --agent --models pi-qwen3-6-35b-a3b-mxfp8 ...` works locally.
+Then `ailang eval-suite --agent --models pi-qwen3-6-35b-a3b-mxfp8 ...` works locally
+while the rig lock exports `AILANG_RIG_LEASE`.
 Add more local models by appending `{ "id": "<ollama-tag>" }` to the models array.
 
 ## The rig lease header
 
-The `ollama` provider sends `X-Rig-Lease` so the rig GPU gateway on :11434
-(M-RIG-GPU-ADMISSION-GATEWAY) admits the lock holder's long work. It is a `!`
-command value, `printf %s "${AILANG_RIG_LEASE:-none}"`, not a `${AILANG_RIG_LEASE}`
-template: pi refuses to start when a templated variable is unset, and pi run by
-hand or by a mission loop has no lease. Measured on pi 0.85.1 (2026-09-28): unset
-sends `none`, set sends the token, and pi treats the gateway's 423 as final.
+The separate `ollama-rig` provider sends `X-Rig-Lease` so the rig GPU gateway on
+:11434 admits the lock holder's long work. Its `${AILANG_RIG_LEASE}` template
+deliberately fails loudly when the lease is absent. The everyday `ollama`
+provider remains lease-free for interactive and cloud routes; eval registry
+rows for on-device pi models must use `ollama-rig/...`.

@@ -142,7 +142,7 @@ func TestModels_CloudHeadroomEqualised(t *testing.T) {
 
 	var offTarget []string
 	for name, m := range c.Models {
-		if m.Provider == "ollama" {
+		if m.Provider == "ollama" || m.Provider == "ollama-rig" {
 			continue // VRAM-bound, out of scope
 		}
 		want := target

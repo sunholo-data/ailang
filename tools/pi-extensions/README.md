@@ -109,6 +109,11 @@ Policy: `models.mission.json` here is canonical; installed at `~/.pi/agent/model
 (the OpenRouter `apiKey` is a placeholder in the repo copy — the installed file carries
 the real key, which is why it lives in the config and not in the env: headless-safe).
 
+Local eval rows resolve through the distinct `ollama-rig` provider. It sends
+`X-Rig-Lease: ${AILANG_RIG_LEASE}` and therefore refuses to start without the
+lease minted by the rig lock. Do not put that template on the everyday `ollama`
+provider, which also carries interactive and Ollama Cloud models.
+
 **pi has no max-tokens flag.** It reads `maxTokens` per model from that file and falls
 back to **16384** for any model that omits it (`model-registry.js`), along with
 `contextWindow` 128000 and `reasoning: false`. Our four OpenRouter models were registered

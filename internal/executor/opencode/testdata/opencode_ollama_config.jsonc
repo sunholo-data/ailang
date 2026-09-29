@@ -1,8 +1,8 @@
 // opencode custom provider config for Ollama local models.
 // Place at: ~/.config/opencode/opencode.jsonc
-// Requires: ollama serve running at localhost:11434
+// The everyday ollama provider remains unleased. Eval lanes use ollama-rig.
 //
-// Usage:  opencode run "..." --model ollama/gemma4:latest --format json
+// Usage: AILANG_RIG_LEASE=... opencode run "..." --model ollama-rig/gemma4:latest --format json
 {
   "provider": {
     "ollama": {
@@ -16,6 +16,20 @@
         "gemma3:4b":       { "name": "Gemma 3 4B" },
         "llama3.3:latest": { "name": "Llama 3.3" },
         "qwen3:4b":        { "name": "Qwen3 4B" }
+      }
+    },
+    "ollama-rig": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Ollama Rig (leased)",
+      "options": {
+        "baseURL": "http://127.0.0.1:11434/v1",
+        "apiKey": "{env:AILANG_RIG_LEASE}"
+      },
+      "models": {
+        "gemma4:26b": { "name": "Gemma 4 26B" },
+        "qwen3.5:35b-a3b-mxfp8": { "name": "Qwen 3.5 35B A3B" },
+        "qwen3.6:35b-a3b-mxfp8": { "name": "Qwen 3.6 35B A3B" },
+        "qwen3.8:27b-mxfp8": { "name": "Qwen 3.8 27B" }
       }
     }
   }

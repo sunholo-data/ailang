@@ -315,10 +315,10 @@ func (c *ModelsConfig) UsesLocalGPU(name string) bool {
 	if model.AgentModelName != nil && IsOllamaCloudRoute(*model.AgentModelName) {
 		return false
 	}
-	if model.Provider == "ollama" {
+	if model.Provider == "ollama" || model.Provider == "ollama-rig" {
 		return true
 	}
-	return model.AgentModelName != nil && strings.HasPrefix(*model.AgentModelName, "ollama/")
+	return model.AgentModelName != nil && (strings.HasPrefix(*model.AgentModelName, "ollama/") || strings.HasPrefix(*model.AgentModelName, "ollama-rig/"))
 }
 
 // GetEnvVar returns the environment variable name for a model's API key

@@ -179,6 +179,16 @@ if [ "${RIG_WATCHDOG_REAP_ORPHANS:-0}" = "1" ]; then
     done
 fi
 
+# Reconcile only completed request minutes. The helper owns its lock, durable
+# cursor and hourly alert throttle; detector errors are observable and never
+# interpreted as zero traffic. It does not probe or alter either service port.
+RECONCILER="${RIG_WATCHDOG_RECONCILER:-$(dirname "$0")/rig-watchdog-reconcile.sh}"
+if [ -x "$RECONCILER" ]; then
+    "$RECONCILER"
+else
+    echo "${TIMESTAMP} [WATCHDOG] bypass detector error: reconciler not executable: $RECONCILER"
+fi
+
 for zp in $(lsof -ti :8080 2>/dev/null); do
     zpp=$(ps -o ppid= -p "$zp" 2>/dev/null | tr -d ' ')
     if [ -z "$zpp" ] || [ "$zpp" = "1" ] || ! ps -p "$zpp" >/dev/null 2>&1; then
