@@ -185,69 +185,58 @@ evidence in each line). Still re-check at HEAD in Gate 2 before working a ticket
   queue-jumper (#1377), and the P1 #0 env-scrub directive (#1330).
 - The "likely stale" note on the heartbeat ticket was WRONG: World re-filed it on 2026-09-28.
 
-**P0 — whole slots lost, or rulings Mark already made that were never built**
+**P0 — whole slots lost** (the two unbuilt rulings, D-FLEET-1 and D-FLEET-2, landed in #1398)
 1. [NEXT · D-FLEET-7 RULED 2026-09-29] `stall-watchdog:kills-controller-on-long-drill`: build M2 of
    `design_docs/planned/sprint-plan-stall-descendant-progress.md`. A window counts as progress when
    descendant rusage CPU grows by at least 10 CPU-s per 120-s sample. At HEAD `_mc_stalled` (:517-548)
    still uses only the instantaneous `ps %cpu`; only the M1 measurement tool landed (d9e1211d0).
    #1391 separately bounded **pi** controller commands at 540 s, so this item is the **claude**
    long-drill shape. 1 slot lost, `blocking=item`.
-2. `resolver:planner-lane-field-missing-vs-spawn-pin`: **D-FLEET-1 RULED 2026-09-26, NOT
-   IMPLEMENTED.** `derive-planner-lane.sh:83-86` still fails closed to opus when `planner_lane` is
-   missing (reproduced at HEAD). World and V1 override it by hand every fire. **4 slots lost.**
-3. `skill:heartbeat-relative-path-absent-in-world`: 9 relative `bash
+2. `skill:heartbeat-relative-path-absent-in-world`: 9 relative `bash
    tools/launchd/mission-heartbeat.sh stamp` calls remain across gate-0..gate-5 resources. They do not
    exist from World's (or Stapledon's) CWD. `$AILANG_DRIVER_SRC` is used 0 times in `resources/`.
    **4 slots lost.**
-4. `mission:rotate-log-registry-cwd` + `rotate-log:status-flag-mutates-and-world-resolves-to-status-archive`
+3. `mission:rotate-log-registry-cwd` + `rotate-log:status-flag-mutates-and-world-resolves-to-status-archive`
    (one command, one sprint):
    - The registry still defaults to CWD-relative `missions` (`mission_cmd.go:25,155-186`).
      `AILANG_MISSION_REGISTRY` (absolute path, ad1bf98d3) is an escape hatch that nothing sets.
    - `--status` means "rotate the status archive" and always writes. It needs a rename or a real
      report-only mode.
    - **3 + 1 slots lost** (stapledon, v1, world).
-5. `mission-base:hardcoded-origin-dev`: `mission-base.sh:10` defaults `REF` to `origin/dev`.
+4. `mission-base:hardcoded-origin-dev`: `mission-base.sh:10` defaults `REF` to `origin/dev`.
    Stapledon's default branch is `main`, and nothing sets `MISSION_BASE_REF`, so every stapledon Gate 1
    base is recorded by hand. Derive the default branch. **3 slots lost.**
-6. `spawn-pin-hook:no-fallback-mode`: **D-FLEET-2 RULED 2026-09-26, NOT IMPLEMENTED.**
-   `spawn-pin-hook.sh` has 0 fallback branches, so a dead pinned designer still cannot degrade.
-   `blocking=item`.
-
 **P1 — a lane misreported as dead, or a failure nobody sees** (the class that cost 2026-09-28/29's
 overnight: harness faults read as model faults)
-7. `pi-runner:quota-429-reported-as-empty-worktree`: `mission_pi_run.sh` still parses no
+5. `pi-runner:quota-429-reported-as-empty-worktree`: `mission_pi_run.sh` still parses no
    `message_end` error or 429. A quota-exhausted lane reads as `empty_worktree` rc 10. Add a distinct
    verdict, alongside #1391's `tool_hang`.
-8. `pi-runner:verdict-blind-to-commits-and-predirty`, the **pre-dirty half**: there is no porcelain
+6. `pi-runner:verdict-blind-to-commits-and-predirty`, the **pre-dirty half**: there is no porcelain
    snapshot before the run (`:338-339` says so itself). The commit-blind half landed in #1329.
-9. `skills:agents-copies-stale`: `.agents/skills/mission-control` has no `resources/` at all (so no
-   `gate-0-preflight.md`), and its SKILL.md is 989 diff lines stale. The sprint-planner, executor and
-   evaluator copies are about 20 lines stale. `mission-brief` and `mission-loop-change` are missing.
-   pi and codex roles read `.agents`. Last synced 2026-08-28.
-10. `skill-surface:main-checkout-not-synced-to-dev` (filed 2026-09-29): loops read skills from the
+7. `skill-surface:main-checkout-not-synced-to-dev` (filed 2026-09-29): loops read skills from the
     main checkout, which nothing fast-forwards. Merged skill fixes wait for a manual pull, and a paused
     rebase can freeze them. This feeds the Phase 3a skill-resolution directive below.
-11. `gate0:driver-crash-notices-invisible`: `gate-0-preflight.md` still reads directives but no slot
+8. `gate0:driver-crash-notices-invisible`: `gate-0-preflight.md` still reads directives but no slot
     verdicts or rc=143 notices. The World-local fix (row 73) was never ported.
-12. `quorum:zero-signal-guard-vacuous-with-controller-verdict`: `quorum.go:164-165` counts the
+9. `quorum:zero-signal-guard-vacuous-with-controller-verdict`: `quorum.go:164-165` counts the
     controller as present before the zero-signal guard (:176). A controller-only "quorum" proceeds
     (ailang#651).
-13. `driver:exit-path-notices-unbounded` (**PARTIAL**): the slot-verdict notices are bounded
+10. `driver:exit-path-notices-unbounded` (**PARTIAL**): the slot-verdict notices are bounded
     (10448bad5). Unbounded: `:2579/2582`, `:2596/2599`, `:2114/2117` and `:2133`.
 
 **P2 — hygiene, or correctness with a workaround**
-14. `skill:gate0-ledger-provenance-S`: `gate-0-preflight.md:174` still uses `-S'| D-nn |'`, which
+11. `skill:gate0-ledger-provenance-S`: `gate-0-preflight.md:174` still uses `-S'| D-nn |'`, which
     returns a row's CREATION commit, so attended rulings read as self-resolution. Use `-G` with the
     status.
-15. `weekly-report:unknown-mission`: `tools/mission-weekly-report.py:28-33` hardcodes
+12. `weekly-report:unknown-mission`: `tools/mission-weekly-report.py:28-33` hardcodes
     `[v1, world, motoko]`. Read `missions/*.toml`.
-16. `quorum:invalid-absent-on-quoted-literals`: `ParseReviewResult` is still strict. The repair is
+13. `quorum:invalid-absent-on-quoted-literals`: `ParseReviewResult` is still strict. The repair is
     designed (`design_docs/planned/m-quorum-salvage-retry.md`) but not built.
-17. `ci:launchd-suite-flakes-openrouter-peer-and-gh-hang` (filed 2026-09-29): 5 launchd-job failures
+14. `ci:launchd-suite-flakes-openrouter-peer-and-gh-hang` (filed 2026-09-29): 5 launchd-job failures
     between 09-26 and 09-28 on two signatures, none since 09-28 13:44Z. Verify one reproduces first.
-18. `quorum:artifact-dir-cwd-relative`: `artifact.go:14` is still CWD-relative. `--artifact-dir` is
+15. `quorum:artifact-dir-cwd-relative`: `artifact.go:14` is still CWD-relative. `--artifact-dir` is
     the workaround.
-19. `driver:unclassified-state-unreachable`: `UNCLASSIFIED` appears 0 times in the driver.
+16. `driver:unclassified-state-unreachable`: `UNCLASSIFIED` appears 0 times in the driver.
     Low severity.
 
 **Landed (history)**
@@ -258,6 +247,11 @@ overnight: harness faults read as model faults)
 - `pi-runner:verdict-blind-to-commits-and-predirty`, commit-blind half: #1329.
 - `pi-runner:sandbox-blocks-mission-inbox-handshake`: #1393.
 - The pi fallback rung set (attended 2026-09-29): #1391.
+- `resolver:planner-lane-field-missing-vs-spawn-pin` (D-FLEET-1 built): #1398 `49f18bdbd`.
+- `spawn-pin-hook:no-fallback-mode` (D-FLEET-2 built): #1398 `49f18bdbd`.
+- `skills:agents-copies-stale`, fleet scope (mission-*/sprint-*): #1398 `49f18bdbd`. The
+  `.agents`-only edits in model-manager and design-doc-creator still need a reconciliation
+  (V1's scope).
 
 **[DIRECTIVE, Mark 2026-09-26] After P1, before P2** (still stands after the 2026-09-29 re-rank; P1 #10 feeds it): the Phase 3a skill-resolution spike
 (design doc M-HARNESS-MISSION-LOOP, premises P1–P3). Measure how the claude, codex and pi controllers
