@@ -58,10 +58,6 @@ Testing: openai/gpt-5.1
 Ready to add to models.yml
 ```
 
-The `ollama-cloud` case additionally checks sign-in (`ollama signin` → POST
-/api/me), catalogue membership, a reasoning-safe inference probe through the
-local daemon, and a before/after quota snapshot from ollama.com/api/usage.
-
 ### `scripts/find_model_info.sh <model-keywords>`
 Search for model information using web search and return API names + pricing.
 
@@ -132,29 +128,8 @@ Recommendation: Monitor for availability, check again in 1-2 weeks
 ```
 
 ### `scripts/measure_ollama_credit_rate.sh <tag1> [tag2 ...]`
-Empirical Ollama Cloud credit-rate comparison (V36/V46 method) — the only way to
-answer "how many credits does model X cost vs model Y" without a published rate:
-
-```bash
-# Compare credit burn per token, e.g. the GLM-5.3 family
-scripts/measure_ollama_credit_rate.sh glm-5.3-flash glm-5.3
-```
-
-**Output:** per-arm sessions-numerator delta over real tokens burned → units/M,
-plus the cross-model ratio:
-```
-model                    tokens   credits  units/M
-glm-5.3-flash            142486    +0.004   0.0281
-glm-5.3                 140543    +0.011   0.0783
-
-credit ratio: glm-5.3 costs 2.79x the credits per token of glm-5.3-flash
-```
-
-**Measured 2026-08-31 (three runs, one-shot shape):** glm-5.3-flash ≈ 0.03
-units/M (page level: Medium), glm-5.3 ≈ 0.08–0.14 units/M (High) — ratio ≈ 3x,
-consistent with the published ~3-4x-per-level ladder (V36: gpt-oss:20b 0.0069,
-deepseek-v4-flash 0.029, kimi-k3 0.124). Precision is capped by the 3-decimal
-numerator: prefer ≥140k tokens per arm, and re-run if an arm shows ≤2 ticks.
+Ollama Cloud credit burn per token across models — see
+[resources/ollama_cloud.md](resources/ollama_cloud.md).
 
 ### `scripts/run_test_benchmark.sh <model-name>`
 Run a small test benchmark to verify model works end-to-end.
@@ -291,61 +266,9 @@ this (thinks by default, same 32K cap, unmeasured).
 
 ### 2b. Ollama Cloud models (flat-rate route)
 
-Ollama Cloud hosts open-weight models at a flat subscription rate, reachable as a
-naming convention on an existing row shape — no new provider code. Canonical design:
-[design_docs/planned/v0_34_0/m-ollama-cloud-provider.md](../../../design_docs/planned/v0_34_0/m-ollama-cloud-provider.md).
-
-1. **Find the model** — `curl -s https://ollama.com/v1/models | jq -r '.data[].id'`
-   (200 unauthenticated; ~19 models). The catalogue id is the TAG (e.g.
-   `glm-5.3`, `deepseek-v4-pro:0813`); you request the cloud route by appending
-   `:cloud` to the tag.
-2. **Test access** — `scripts/test_model_access.sh ollama-cloud <tag>` (no
-   `:cloud` — it appends it). Inference auth is the **device key** via
-   `ollama signin` (POST localhost:11434/api/me); the daemon proxies
-   `:cloud` models to ollama.com and loads nothing on the GPU (V21).
-   `OLLAMA_API_KEY` is ONLY for the `GET https://ollama.com/api/usage` gauge —
-   which the local daemon does NOT proxy (V24).
-3. **Quota semantics (measured, V26/V9)** — `/api/usage` is a numerator with NO
-   denominator: no limit/remaining/reset_at is published, so a pre-flight
-   "refuse to start if quota low" gate is unbuildable. Metering: model weight ×
-   tokens at usage levels 1–4 (`gpt-oss:20b` = 1, `deepseek-v4-pro` = 4);
-   session limit resets 5h, weekly 7d; concurrency Free/Pro/Max = 1/3/10 (Max
-   paused for new subs); over-concurrency requests QUEUE, not reject.
-   `activity.cost` reads `0.00000` forever.
-4. **models.yml row conventions (M-Ollama-Cloud-Provider, D1/D2/D6 — RATIFIED):**
-   - api_name: `"<tag>:cloud"`, provider: `"ollama"` (same path as local rows),
-     env_var: `""`, agent_cli: `motoko`, agent_model_name: `ollama/<tag>:cloud`
-   - row key convention: `motoko-cloud-*` (unenforced by test but human-audited;
-     the bank stores the ROW KEY, never api_name, so the key IS the route marker)
-   - pricing: **IMPUTED from the OpenRouter twin's list price** (D1 — do NOT
-     write 0/0; it maps to the false `free-local` provenance). Banks as
-     `list-price-equivalent` = "the run went through a subscription lane and was
-     never billed". Re-impute whenever the twin's rate drifts.
-   - budgets: `max_tokens_per_bench: 3000000`, `hard_timeout_secs: 3600`
-   - `default_thinking: "unknown"` until probed (same §2a rules apply — probe
-     reasoning with max_tokens ≥ 2000; V25 showed reasoning models burn a
-     small budget entirely on thinking)
-5. **Scope (D2)** — these are executor/day-to-day rows, NOT banked-eval-rotation
-   models unless Mark ratifies: an opaque resetting quota can starve a nightly
-   rotation mid-run and bank a cohort with a hole in it.
-6. **Concurrency** — cloud rows are EXEMPT from the single-GPU serial clamp (they
-   touch no VRAM, D4), but ANY motoko row still serializes on its fixed backend
-   port until motoko takes a per-run port.
-7. **Quota check as part of the workflow** — snapshot `/api/usage` before and
-   after any manual test (the script does this), and expect the numbers to move
-   from unrelated traffic: anything else running on the flat route burns the
-   same quota (e.g. a coordinator agent session on `glm-5.3-flash:cloud`).
-8. **Credit-rate comparison** — before adding a cloud row, and whenever a cost
-   question needs answering in Ollama terms:
-   `scripts/measure_ollama_credit_rate.sh <tags…>` measures each model's
-   units-per-M on the session numerator (V36 method) and prints the ratio
-   (measured 2026-08-31: glm-5.3 costs ~3x glm-5.3-flash per token; both match
-   their published page levels Medium/High). Rules: one-shot shape unless you
-   say otherwise (V46 — agentic meters ~2x cheaper); ≥140k tokens per arm
-   because the gauge rounds to 3 decimals; snapshots inside ONE script run;
-   cross-check the ratio against the models' published page levels. This
-   complements, never replaces, D1: banked dollars stay the OpenRouter twin's
-   list price, the credits here are the flat-plan's own internal currency.
+Open-weight models at a flat subscription rate, as `motoko-cloud-*` rows. The row
+conventions, quota semantics and credit-rate measurement are in
+[resources/ollama_cloud.md](resources/ollama_cloud.md) — read it before adding one.
 
 ### 3. Update models.yml
 
@@ -473,101 +396,13 @@ done | column -ts $'\t'
 | `wrong-output` | Compiled and ran, wrong stdout | Spec-following gap, not language gap |
 | `runtime-error` | Compiled, crashed at runtime | Logic bug |
 
-**2026-05-04 finding (precedent):** Tested 6 SOTA OS models (Gemma 4 26B, Qwen3
-30B-A3B, Qwen3 235B-A22B, DeepSeek V4 Flash, Kimi K2.6, Qwen3 Coder Flash)
-against this smoke set. Proprietary baselines passed 3/3; **zero OS models
-passed all 3**. Most common failure: WRONG_LANG (model produced Python). Even
-frontier-class OS models fall back on training-corpus patterns when given
-AILANG's 23k-token teaching prompt — they've seen plenty of Python but very
-little AILANG. Two near-misses (`or-gemma-4-26b`, `or-qwen3-coder-flash`)
-retained on the watchlist; rest cut.
-
-**Implication for stdlib/prompt work:** the smoke test doubles as a
-language-improvement metric. Re-run it after stdlib changes or prompt
-revisions; if the near-miss watchlist starts passing the third benchmark, the
-language has become more "trainable-feel."
-
-**Caveat — agent mode is a separate gate:** the smoke set above runs in
-**standard** (single-shot API generation) mode. Models that fail standard mode
-may still perform usefully in **agent** mode (`--agent` flag, opencode/pi
-harnesses) where they get multi-turn iteration. If a candidate fails standard
-smoke, run `ailang eval-suite --agent --models <candidate> ...` separately
-before fully cutting it. Agent mode results don't override the standard-mode
-gate but can justify adding the model under a different harness entry (e.g.
-`opencode-<candidate>`, `pi-<candidate>`).
-
-**2026-05-04 agent-mode smoke finding (precedent):** Tested 9 OS-via-OR
-candidates through opencode harness. Cross-mode behaviour:
-
-| Model | Standard | Agent | Δ |
-|-------|---------:|------:|--:|
-| **GLM 5** (z.ai) | not tested | **3/3** ✅ | — first OS model to pass |
-| Gemma 4 26B | 2/3 | 2/3 | 0 (same near-miss) |
-| DeepSeek V4 Flash | 0/3 | 2/3 | **+2** (agent unlock) |
-| GLM 4.7 Flash | not tested | 2/3 | — near-miss |
-| Kimi K2.6 | 1/3 | 1/3 | 0 |
-| Qwen3 30B-A3B | 1/3 | 1/3 | 0 |
-| Qwen3 Coder Flash | 2/3 | 1/3 | **-1** (agent regressed) |
-| DeepSeek V4 Pro | not tested | 1/3 | Pro under-performed Flash |
-| Qwen3 235B-A22B | 0/3 | 0/3 | 0 |
-
-Key takeaways for the model-manager workflow:
-
-1. **Agent mode is not a universal fix.** Most models that fail standard
-   smoke also fail agent smoke. Multi-turn helps when the model can read
-   compile errors and adjust; it hurts when the model interprets tool-call
-   setup as the answer (Qwen3 Coder Flash regression).
-
-2. **Pro tier ≠ better.** DeepSeek V4 Pro (1/3) under-performed V4 Flash
-   (2/3) on AILANG smoke. The Pro reasoning/long-output overhead can hurt
-   simple-task accuracy. Test both tiers when available.
-
-3. **csv_to_json_converter is a `core`-tier DISCRIMINATOR, not a smoke gate.**
-   Of the 27 benchmark runs (9 models × 3), csv_to_json was the single most-failed
-   test — only GLM 5 passed it among OS candidates. ⚠️ **CORRECTION (2026-06-02):**
-   this is exactly why it must NOT gate inclusion — it's failed by the *majority of
-   frontier models* (gpt5 base, gemini-3-pro, gemini-3-flash, sonnet-4-5, gpt5-mini
-   all FAIL; only opus-4-6/4-7, sonnet-4-6, gemini-3-1-pro, gpt5-2-codex/gpt5-4
-   pass). It lives in `tier: core`, not `tier: smoke`. Use it as a high-signal
-   **ranking/discriminator** metric in `--tier core` runs and as a language-
-   improvement tracker — never as an OS-model include/exclude gate. The gate is
-   `--tier smoke`.
-
-4. **GLM 5 is genuinely cost-competitive frontier OS.** $0.60/$2.08 per 1M
-   tokens, ~5–7× cheaper than Claude Sonnet 4.6 on input. Worth standing
-   inclusion in eval rotation alongside frontier proprietary models.
-
-5. **Vendor-prefix wiring is forward-compat infrastructure.** When adding
-   models from a new vendor (e.g. `z-ai/`, `moonshotai/`, `microsoft/`,
-   `minimax/`), add the prefix to
-   `internal/ai/config.go::openrouterVendorPrefixes` so future ad-hoc
-   `ailang run --ai vendor/model` invocations work without needing a
-   models.yml entry.
-
-6. **Per-benchmark timeouts can be tighter than agent-mode needs.** The
-   `csv_to_json_converter.yml` spec has `timeout: 90s` baked in (set to
-   match Claude Sonnet 4.6's ~43s typical solve time). OS models in agent
-   mode routinely need 90–180s of iteration on csv_to_json — they CAN
-   solve it but get killed by the timeout. Two follow-up models that
-   demonstrated this on 2026-05-04:
-     - **Kimi K2.6** (Moonshot): fizzbuzz✅ 119s, adt_option✅ 47s,
-       csv_to_json❌ (timeout — initial run also had api_errors)
-     - **MiniMax M2.7**: fizzbuzz✅ 46s, adt_option✅ 42s,
-       csv_to_json❌ (timeout, not capability)
-   Both are effectively 2/3 near-misses pending a benchmark timeout bump.
-   When investigating a model that fails only csv_to_json with
-   `error_category=api_error` and stderr saying "exceeded hard timeout
-   (1m30s)", the failure is the benchmark spec, not the model.
-
-7. **api_error vs syntax-error vs WRONG_LANG matters.** When tabulating
-   smoke results, always check `error_category`:
-   - `api_error` — infrastructure issue (rate limit, timeout, network).
-     Re-run before counting against the model.
-   - `compile_error` (no err_code) — syntax-error: model produced AILANG
-     that doesn't parse. Genuine model gap.
-   - `WRONG_LANG` — model produced Python/JS/etc. instead of AILANG.
-     Genuine prompt-following gap.
-   - `runtime_error` — compiled but crashed. Logic bug in generation.
+**Reading smoke failures** (full precedents, incl. the 2026-05-04 OS-model sweeps, in
+[resources/smoke_precedents.md](resources/smoke_precedents.md)):
+- `api_error` is infrastructure (rate limit, timeout, harness) — re-run before counting it;
+  "exceeded hard timeout" on an agent run is usually the benchmark's `timeout:`, not the model.
+- `compile_error` = invented syntax; `WRONG_LANG` = produced Python/JS — genuine model gaps.
+- Agent mode is a separate gate: a standard-mode failure may pass agent smoke, and vice versa.
+- New OpenRouter vendor prefix → add it to `internal/ai/config.go::openrouterVendorPrefixes`.
 
 ### 5.5 Smoke is a FLOOR, not a RANKING — place the candidate on the ANCHORED ELO series (HARD RULE)
 
