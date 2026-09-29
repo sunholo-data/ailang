@@ -65,6 +65,7 @@ STUB_RUSAGE=0
 STUB_RUSAGE_ROWS=""
 STUB_PIDS="1000 1001"
 STUB_BIRTH="Mon Sep 28 12:00:00 2026"
+STUB_VANISHED_PID=""
 MC_DRIVER_ROOT="$(cd "$HERE/../.." && pwd)"
 LOGGED=""
 
@@ -73,7 +74,11 @@ ps() {
   case "$*" in
     *etime*) printf '%s\n' "$STUB_ETIME" ;;
     *%cpu*)  printf '%s\n' "$STUB_CPU" ;;
-    *lstart*) printf '%s\n' "$STUB_BIRTH" ;;
+    *lstart*)
+      if [ -n "$STUB_VANISHED_PID" ]; then
+        case "$*" in *"-p $STUB_VANISHED_PID") return 1 ;; esac
+      fi
+      printf '%s\n' "$STUB_BIRTH" ;;
   esac
 }
 _mc_rusage_read() {
@@ -109,13 +114,13 @@ TRANSCRIPT="$PROJ/f0ef90f8-18df-459c-8561-06d7b1040255.jsonl"
 LOG="$TMP/driver.log"; : > "$LOG"
 _mc_heartbeat="$TMP/heartbeat"; : > "$_mc_heartbeat"
 
-reset_state() { unset _MC_PROG_PREV _MC_HB_PREV _MC_STALL_NOPROG_LOGGED _MC_RUSAGE_PREV _MC_RUSAGE_IDENT_PREV; LOGGED=""; STUB_RUSAGE=0; STUB_RUSAGE_ROWS=""; STUB_PIDS="1000 1001"; STUB_BIRTH="Mon Sep 28 12:00:00 2026"; }
+reset_state() { unset _MC_PROG_PREV _MC_HB_PREV _MC_STALL_NOPROG_LOGGED _MC_RUSAGE_PREV _MC_RUSAGE_IDENT_PREV; LOGGED=""; STUB_RUSAGE=0; STUB_RUSAGE_ROWS=""; STUB_PIDS="1000 1001"; STUB_BIRTH="Mon Sep 28 12:00:00 2026"; STUB_VANISHED_PID=""; }
 grow() { printf '%s\n' "$1" >> "$2"; }        # append one line to a file
 # _mc_stalled carries state between samples (_MC_PROG_PREV) and writes through
 # log(). Both die in a subshell, so the verdict is taken in THIS shell and left
 # in $V — a `$(verdict)` capture would re-seed on every call and pass vacuously.
 V=""
-verdict() { if _mc_stalled 999; then V=stalled; else V=live; fi; }
+verdict() { if _mc_stalled 1000; then V=stalled; else V=live; fi; }
 
 # ---------------------------------------------------------------------------
 # 1. THE REGRESSION ARM. A controller blocked on the model API reads under the
@@ -307,12 +312,46 @@ verdict
 verdict
 check "W2 negative: blocked read with zero descendant CPU is stalled" "$V" "stalled"
 
+# The controller root's own CPU is excluded even when it alone crosses the
+# threshold. Its reaped-child counter is descendant work and must be included.
 reset_state
 verdict
-STUB_RUSAGE_ROWS=$(printf '1000\t0\t0\n1001\tNA\tNA')
+STUB_RUSAGE_ROWS=$(printf '1000\t2000\t0\n1001\t0\t0')
+verdict
+check "root-own exclusion: busy controller alone leaves wedge stalled" "$V" "stalled"
+reset_state
+verdict
+STUB_RUSAGE_ROWS=$(printf '1000\t0\t1200\n1001\t0\t0')
+verdict
+check "root-reaped inclusion: vanished direct child keeps drill live" "$V" "live"
+
+reset_state
+verdict
+STUB_RUSAGE_ROWS=$(printf '1000\tNA\tNA\n1001\t0\t0')
 verdict
 check "unavailable rusage fails open instead of fabricating zero CPU" "$V" "live"
 check "unavailable rusage identifies the instrument failure" "$_MC_STALL_WHY" "rusage-unavailable"
+
+# A short-lived, non-root PID may disappear during the bounded read. A stable
+# root and long child still provide a valid comparison and must not reset it.
+reset_state
+verdict
+STUB_PIDS="1000 1001 1002"
+STUB_RUSAGE_ROWS=$(printf '1000\t0\t0\n1001\t0\t0\n1002\tNA\tNA')
+verdict
+check "vanished non-root rusage row still permits a stalled verdict" "$V" "stalled"
+reset_state
+verdict
+STUB_PIDS="1000 1001 1002"
+STUB_RUSAGE_ROWS=$(printf '1000\t0\t0\n1001\t0\t0\n1002\t0\t0')
+STUB_VANISHED_PID=1002
+verdict
+check "vanished non-root birth time still permits a stalled verdict" "$V" "stalled"
+reset_state
+verdict
+STUB_VANISHED_PID=1000
+verdict
+check "unavailable root birth time still fails open" "$V" "live"
 
 reset_state
 verdict
@@ -356,6 +395,22 @@ if ( . "$TMP/mut_no_reaped.sh"; reset_state
 else
   bad "mutation: dropping reaped CPU did not turn vanished-child positive red"
 fi
+sed 's/if \[ "$p" != "$root" \]; then total=/if true; then total=/' "$TMP/fn_rusage.sh" > "$TMP/mut_root_own.sh"
+if ( . "$TMP/mut_root_own.sh"; reset_state; verdict
+     STUB_RUSAGE_ROWS=$(printf '1000\t2000\t0\n1001\t0\t0'); verdict
+     [ "$V" = live ] ); then
+  ok "mutation: adding root-own CPU turns root-own exclusion red"
+else
+  bad "mutation: adding root-own CPU did not turn root-own exclusion red"
+fi
+sed 's/total=$((total + child)); root_seen=1/root_seen=1/' "$TMP/fn_rusage.sh" > "$TMP/mut_root_reaped.sh"
+if ( . "$TMP/mut_root_reaped.sh"; reset_state; verdict
+     STUB_RUSAGE_ROWS=$(printf '1000\t0\t1200\n1001\t0\t0'); verdict
+     [ "$V" = stalled ] ); then
+  ok "mutation: dropping root-reaped CPU turns root-reaped inclusion red"
+else
+  bad "mutation: dropping root-reaped CPU did not turn root-reaped inclusion red"
+fi
 
 # Live kernel control for the helper, including a trivial child reaped before
 # a busy child (the evaluator's previously unreproduced ordering concern).
@@ -367,6 +422,27 @@ subprocess.run([sys.executable, "-c", "x=0\nfor i in range(4000000): x+=i"], che
 result = subprocess.run([sys.executable, sys.argv[1], str(__import__('os').getpid())], text=True, capture_output=True, check=True)
 assert int(result.stdout.strip().split('\t')[2]) > 0, result.stdout
 PY
+  if (
+    ps() { command ps "$@"; }
+    _mc_rusage_read() { command python3 "$MC_DRIVER_ROOT/tools/launchd/lib/proc_rusage.py" "$@"; }
+    mkfifo "$TMP/live-start"
+    sh -c 'read x < "$1"; python3 -c "x=0
+for i in range(4000000): x+=i"; touch "$2"; sleep 5' sh "$TMP/live-start" "$TMP/live-done" &
+    worker=$!
+    trap 'kill "$worker" 2>/dev/null; wait "$worker" 2>/dev/null' EXIT
+    _mc_rusage_snapshot "$$" "$$ $worker" || exit 1
+    before=$_MC_RUSAGE_TOTAL
+    printf 'go\n' > "$TMP/live-start"
+    i=0
+    while [ ! -f "$TMP/live-done" ] && [ "$i" -lt 100 ]; do sleep 0.05; i=$((i + 1)); done
+    [ -f "$TMP/live-done" ] || exit 1
+    _mc_rusage_snapshot "$$" "$$ $worker" || exit 1
+    [ "$_MC_RUSAGE_TOTAL" -gt "$before" ]
+  ); then
+    ok "live extracted snapshot sees reaped descendant CPU grow"
+  else
+    bad "live extracted snapshot missed descendant CPU growth"
+  fi
 fi
 
 echo "---"

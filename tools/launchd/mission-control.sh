@@ -510,7 +510,7 @@ EOF_FILES
 # counter. lstart guards a PID reused between the two watchdog samples.
 _mc_rusage_read() { python3 "$MC_DRIVER_ROOT/tools/launchd/lib/proc_rusage.py" "$@"; }
 _mc_rusage_snapshot() {
-  local root="$1" pids="$2" p birth output own child total=0 seen=0
+  local root="$1" pids="$2" p birth output own child total=0 seen=0 root_seen=0
   local args=()
   [ -n "$MC_DRIVER_ROOT" ] && [ -f "$MC_DRIVER_ROOT/tools/launchd/lib/proc_rusage.py" ] || return 1
   command -v python3 >/dev/null 2>&1 || return 1
@@ -519,18 +519,28 @@ _mc_rusage_snapshot() {
   output=$(_mc_rusage_read "${args[@]}") || return 1
   _MC_RUSAGE_SNAPSHOT=""
   while IFS=$'\t' read -r p own child; do
-    case "$p:$own:$child" in *[!0-9:]*|::*|*:NA:*|*:*:NA) return 1 ;; esac
-    [ -n "$p" ] && [ -n "$own" ] && [ -n "$child" ] || return 1
-    birth=$(ps -o lstart= -p "$p" 2>/dev/null) || return 1
-    [ -n "$birth" ] || return 1
-    if [ "$p" != "$root" ]; then total=$((total + own + child)); fi
-    if [ "$p" = "$root" ]; then total=$((total + child)); fi
-    _MC_RUSAGE_SNAPSHOT="${_MC_RUSAGE_SNAPSHOT}${p}|${birth}"$'\n'
     seen=$((seen + 1))
+    # A non-root PID may exit between descendant enumeration and rusage/ps.
+    # Skip that entry; a live parent's child counter can still account for it.
+    # The root is the stable identity anchoring the sample, so losing it fails open.
+    if [ "$own" = NA ] && [ "$child" = NA ] && [ "$p" != "$root" ]; then
+      continue
+    fi
+    case "$p:$own:$child" in *[!0-9:]*|::*) return 1 ;; esac
+    [ -n "$p" ] && [ -n "$own" ] && [ -n "$child" ] || return 1
+    birth=$(ps -o lstart= -p "$p" 2>/dev/null) || birth=""
+    if [ -z "$birth" ]; then
+      [ "$p" = "$root" ] && return 1
+      continue
+    fi
+    if [ "$p" != "$root" ]; then total=$((total + own + child)); fi
+    if [ "$p" = "$root" ]; then total=$((total + child)); root_seen=1; fi
+    _MC_RUSAGE_SNAPSHOT="${_MC_RUSAGE_SNAPSHOT}${p}|${birth}"$'\n'
   done <<EOF_RUSAGE
 $output
 EOF_RUSAGE
   [ "$seen" -eq "${#args[@]}" ] || return 1
+  [ "$root_seen" -eq 1 ] || return 1
   _MC_RUSAGE_TOTAL="$total"
 }
 
