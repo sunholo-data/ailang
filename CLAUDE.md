@@ -8,7 +8,7 @@ every improvement is routed to exactly one lane — an **AILANG fix**, a **motok
 then route it. **Default bias: if it can be an extension, it is an extension — not a core change.** The
 living roadmap (benchmark ladder · extension catalog · AILANG-fix backlog) lives in PROGRAM.md.
 
-## Session start — every machine reads the SAME message store
+## Session start (attended) — every machine reads the SAME message store
 
 **The canonical inbox is prod Firestore, project `ailang-multivac`.** A bare
 `ailang messages list` reads only *this* machine's private SQLite — real user feedback once sat
@@ -29,10 +29,10 @@ work around it.
 
 Then `ailang messages list --unread` spans all inboxes, and a non-local listing names its store
 in the header — **no `store: gcp (...)` header means you are reading local**, usually a stale
-binary. Summarize to the user and ask **before** acking. Triage via `list --unread --json`
-(full IDs + bodies; the list view truncates IDs, and `messages read` marks read as a side
-effect). Ack per message id — `ack --all` also sweeps outbound cross-mission inboxes;
-`unack <id>` if a task fails.
+binary. Summarize to the user and ask **before** acking. **Unattended** (coordinator task or
+mission stage: `AILANG_TASK_ID` / `AILANG_MISSION_STAGE` set), there is no user: skip the inbox
+and do the task. Triage via `list --unread --json` (full IDs + bodies; `messages read` marks
+read). Ack per message id — `ack --all` also sweeps outbound inboxes; `unack <id>` on failure.
 
 The measured traps (stale-binary control, project pinning, `pkg:*` inboxes) and the full
 topology: [docs/internal/message-plane-topology.md](docs/internal/message-plane-topology.md).

@@ -32,7 +32,12 @@
 #
 # The CONTROLLER is deliberately NOT isolated: it is a session-shaped agent and this context is
 # doing its job there. Only frozen stage execution is exempted.
+# Coordinator tasks (AILANG_TASK_ID, set by the cloud dispatcher and the local provider script)
+# are unattended for the same reason: 2026-09-28 two sprint-executor jobs read the unread-inbox
+# banner, applied CLAUDE.md's attended "ask before acking" rule, and BLOCKED on turn 1 waiting
+# for a user who does not exist (task-53f2673c, task-cb51ed78).
 [ -n "${AILANG_MISSION_STAGE:-}" ] && exit 0
+[ -n "${AILANG_TASK_ID:-}" ] && exit 0
 
 set +e
 

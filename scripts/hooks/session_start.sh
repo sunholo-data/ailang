@@ -43,7 +43,12 @@
 # refuses a dev push whose std/ interfaces drift from .stdlib-golden/ (#1274, #1318 reached dev
 # by direct push, where PR CI never ran).
 ( cd "$(dirname "$0")/../.." 2>/dev/null && bash scripts/hooks/install_hooks.sh >&2 ) || true
+# Coordinator tasks (AILANG_TASK_ID, set by the cloud dispatcher and the local provider script)
+# are unattended for the same reason: 2026-09-28 two sprint-executor jobs read the unread-inbox
+# banner, applied CLAUDE.md's attended "ask before acking" rule, and BLOCKED on turn 1 waiting
+# for a user who does not exist (task-53f2673c, task-cb51ed78).
 [ -n "${AILANG_MISSION_STAGE:-}" ] && exit 0
+[ -n "${AILANG_TASK_ID:-}" ] && exit 0
 
 set -euo pipefail
 
