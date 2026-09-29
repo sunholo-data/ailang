@@ -62,4 +62,16 @@ else
   echo "SKIP: brain_on_prompt.sh — no brain corpus reachable, so the positive control cannot be established here (expected on a fresh clone/CI runner)"
 fi
 check session_start.sh ""
+
+# The hooks are only half of it: Codex executors read AGENTS.md, not .claude hooks, and on
+# 2026-09-28 two of them blocked on AGENTS.md's attended "ask the user before acking" rule.
+# Every instruction file carrying an inbox rule must exempt unattended runs.
+ROOT="$HERE/../.."
+for doc in CLAUDE.md AGENTS.md; do
+  if grep -qiE "ask .*before.* ack" "$ROOT/$doc" && ! grep -q "AILANG_TASK_ID" "$ROOT/$doc"; then
+    echo "FAIL: $doc has an ask-before-acking inbox rule with no unattended (AILANG_TASK_ID) exemption"; fail=1
+  else
+    echo "PASS: $doc exempts unattended runs from its inbox rule"
+  fi
+done
 exit $fail
