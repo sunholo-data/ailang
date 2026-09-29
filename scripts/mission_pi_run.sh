@@ -247,7 +247,10 @@ set -m
   # 2026-08-26 when a run reported 4 tool executions and 0 changed files, and the
   # model's own closing message said it could not find the file and created it.
   cd "$WORKDIR" || exit 14
-  AILANG_STORAGE_MESSAGING=gcp AILANG_MESSAGES_PROJECT=ailang-multivac \
+  # AILANG_MISSION_STAGE=1: an unattended stage. The session-protocol gate then does not
+  # demand an `ailang messages` call before unlocking — a call that cannot reach the store
+  # from inside this sandbox and hung every executor run of World iter-208 (2026-09-29).
+  AILANG_MISSION_STAGE=1 AILANG_STORAGE_MESSAGING=gcp AILANG_MESSAGES_PROJECT=ailang-multivac \
     pi --mode json --no-session -e "$STAGE/sandbox/index.ts" -e "$STAGE/worktree-fence.ts" --model "$MODEL" < "$DIRECTIVE" 2>"$ERR" |
     awk -v out="$OUT" -v snap="$SNAP" -v every="$SNAP_EVERY" '
       /"type":"message_update"/ {
