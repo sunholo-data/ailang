@@ -54,7 +54,8 @@ make_fixture() {
     '|------|----------|-------|' \
     '| [v0.18-current.md](changelogs/v0.18-current.md) | v0.18.0+ | Current |' \
     > "$_dir/CHANGELOG.md"
-  printf '%s\n' '# Current changelog' '' '## [Unreleased]' '' '### Added — a real entry' \
+  # [Unreleased] is empty between releases (entries live in changelogs/unreleased/ fragments).
+  printf '%s\n' '# Current changelog' '' '## [Unreleased]' '' '## [v0.18.0] - 2026-01-01' '' '### Added — a real entry' \
     > "$_dir/changelogs/v0.18-current.md"
 }
 
