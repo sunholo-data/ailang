@@ -45,7 +45,7 @@ log() { printf '[%s] [%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$REPO_NAME" "$*"
 # ONE exit trap for everything this hook creates: a second `trap ... EXIT` would silently
 # replace the first and strand the auto-rebase lock.
 LOCK=""; FMT_TMP=""
-# shellcheck disable=SC2329  # invoked through the EXIT/signal traps
+# shellcheck disable=SC2317,SC2329  # invoked through the EXIT/signal traps (SC2317 is the 0.9 code CI apt installs; SC2329 is 0.10+)
 cleanup() { [ -n "$FMT_TMP" ] && rm -rf "$FMT_TMP"; [ -n "$LOCK" ] && rmdir "$LOCK" 2>/dev/null; return 0; }
 
 # perl alarm — the portable bound this repo already uses (macOS ships no timeout/gtimeout).
