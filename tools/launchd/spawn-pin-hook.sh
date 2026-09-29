@@ -46,6 +46,48 @@ emit_printf() {
   exit 0
 }
 
+# --- D-FLEET-2 helpers ----------------------------------------------------------
+# Lane unavailable this fire: recorded dead in the per-fire ledger, or its ration
+# bucket is over (same bucket map as the driver's _mc_rung_bucket).
+_lane_bucket() {
+  case "$1" in
+    codex:*) printf 'codex' ;;
+    pi:openrouter/*) printf 'openrouter' ;;
+    pi:ollama/*:cloud|pi:ollama/*-cloud) printf 'ollama' ;;
+    pi:ollama/*|pi:*) printf '' ;;
+    *) printf 'anthropic' ;;
+  esac
+}
+lane_unavailable() {
+  local lane="$1" b ledger
+  ledger="${AILANG_STATE_DIR:-$HOME/.ailang/state}/mission-lane-dead/${MISSION_FIRE_ID:-none}.tsv"
+  if [ -n "${MISSION_FIRE_ID:-}" ] && [ -f "$ledger" ] \
+     && awk -F '\t' -v r="$ROLE" -v l="$lane" '$2==r && $3==l {f=1} END{exit !f}' "$ledger"; then
+    return 0
+  fi
+  b=$(_lane_bucket "$lane")
+  [ -n "$b" ] && case " ${MISSION_OVER_RATION:-} " in *" $b "*) return 0 ;; esac
+  return 1
+}
+# declared_fallback_allows ROLE_UC PIN MODEL -> 0 (and echo why) when MODEL is the
+# first bare entry of the declared chain whose predecessors are all unavailable.
+declared_fallback_allows() {
+  local fv="MISSION_${1}_FALLBACK" chain entry dead=""
+  chain="${!fv:-}"
+  [ -n "$chain" ] || return 1
+  lane_unavailable "$2" || return 1
+  local IFS=','
+  for entry in $chain; do
+    if [ "$entry" = "$3" ]; then
+      printf 'unavailable before it: %s' "${dead:-pin only}"
+      return 0
+    fi
+    lane_unavailable "$entry" || return 1
+    dead="${dead:+$dead, }$entry"
+  done
+  return 1
+}
+
 # --- 2. Marker gate -----------------------------------------------------------
 # Attended sessions and other repos (marker absent) are untouched: allow.
 if [ "${MISSION_CONTROL_ACTIVE:-}" != "1" ]; then
@@ -119,6 +161,16 @@ fi
 # is denied identically.
 case "$PIN" in
   *:*)
+    # D-FLEET-2 (Mark, attended 2026-09-26; built 2026-09-29): a dead pin may degrade
+    # through the role's DECLARED fallback chain, in order, and nothing else. The
+    # requested Agent model must be a BARE entry of MISSION_<ROLE>_FALLBACK (provider
+    # entries run through their own recipes, not this tool), and the pin plus every
+    # entry before it must be dead this fire (tools/launchd/mission-lane-dead.sh) or
+    # over ration (MISSION_OVER_RATION). A dead designer used to have no Agent path at
+    # all (docs iterations 12-14: astra timed out 3x).
+    if [ -n "$MODEL" ] && _fb_verdict=$(declared_fallback_allows "$ROLE_UC" "$PIN" "$MODEL"); then
+      emit_jq "allow" "allow:declared-fallback — $ROLE pin '$PIN' and every earlier declared lane are dead or over ration this fire; '$MODEL' is the next declared entry ($_fb_verdict)" "allow:declared-fallback"
+    fi
     emit_jq "deny" "deny:provider-pin — $ROLE is pinned to $PIN; Agent-tool alias spawn refused — use the cross-provider recipe (resolve-role-spawn.sh $ROLE)" "deny:provider-pin"
     ;;
 esac

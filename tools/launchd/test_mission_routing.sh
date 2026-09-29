@@ -141,6 +141,23 @@ docsenv="$ROOT/tools/launchd/mission-env/mission-docs.env"
 [ -r "$docsenv" ] && ok "docs mission env profile exists" || bad "docs mission env profile exists" "missing"
 
 # THE TRAP THIS GUARDS: derive-planner-lane.sh Step 0 accepts only codex:* or pi:*.
+# D-FLEET-1: a doc with NO Planner-Lane field uses the mission's planner pin, not opus.
+out=$(MISSION_PLANNER_MODEL='codex:gpt-6-sol' "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/b-field-missing.md")
+want "D-FLEET-1 missing field defaults to the codex pin" "$out" "codex:gpt-6-sol declared:planner-lane-default-pin"
+out=$(MISSION_PLANNER_MODEL='pi:openrouter/moonshotai/kimi-k3' "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/b-field-missing.md")
+want "D-FLEET-1 missing field defaults to the pi pin" "$out" "pi:openrouter/moonshotai/kimi-k3 declared:planner-lane-default-pin"
+# ...but only ABSENCE defaults: an explicit opus-required and an invalid value still decide.
+out=$(MISSION_PLANNER_MODEL='codex:gpt-6-sol' "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/m-opus-required.md")
+want "D-FLEET-1 explicit opus-required still wins" "$out" "opus declared:opus-required"
+out=$(MISSION_PLANNER_MODEL='codex:gpt-6-sol' "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/l-field-invalid.md")
+want "D-FLEET-1 invalid field still fails closed" "$out" "opus fail-closed:planner-lane-field-invalid"
+# ...and a bare (non-vetted) pin still fails closed before the field is read.
+out=$(MISSION_PLANNER_MODEL='sonnet' "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/b-field-missing.md")
+want "D-FLEET-1 bare pin still fails closed at env-pin" "$out" "opus fail-closed:env-pin"
+# Through the resolver: the pin becomes a recipe (and the #1391 ration gate still applies).
+out=$(env -u MISSION_OVER_RATION MISSION_PLANNER_MODEL='codex:gpt-6-sol' "$ROOT/tools/launchd/resolve-role-spawn.sh" planner "$ROOT/tools/launchd/testdata/planner-lane/b-field-missing.md")
+want "D-FLEET-1 resolver maps the default pin to a recipe" "$out" "recipe codex:gpt-6-sol declared:planner-lane-default-pin"
+
 # A bare Anthropic alias as the PLANNER pin emits "opus fail-closed:env-pin" and
 # silently runs OPUS — the most expensive model in the fleet, on the mission built to
 # avoid it. Negative assertion, so a well-meaning "put sonnet first everywhere" edit
@@ -422,14 +439,16 @@ want "R12 planner codex lane over ration reroutes to the resolved planner" "$out
 _seam_bad=""
 _drv_fn=$(awk '/^_mc_rung_bucket\(\)/,/^}/' "$ROOT/tools/launchd/mission-control.sh")
 _res_fn=$(awk '/^_rs_bucket\(\)/,/^}/' "$RESOLVE")
+_hook_fn=$(awk '/^_lane_bucket\(\)/,/^}/' "$ROOT/tools/launchd/spawn-pin-hook.sh")
 for _r in codex:gpt-6-sol pi:openrouter/z-ai/glm-5.3 pi:ollama/glm-5.3:cloud pi:ollama/x-cloud \
           pi:ollama/qwen3.8:27b claude:claude-opus-5-5 opus pi:other/model; do
   _a=$(bash -c "$_drv_fn"'; _mc_rung_bucket "$1"' _ "$_r")
   _b=$(bash -c "$_res_fn"'; _rs_bucket "$1"' _ "$_r")
-  [ "$_a" = "$_b" ] || _seam_bad="$_seam_bad $_r(driver=$_a resolver=$_b)"
+  _c=$(bash -c "$_hook_fn"'; _lane_bucket "$1"' _ "$_r")
+  [ "$_a" = "$_b" ] && [ "$_a" = "$_c" ] || _seam_bad="$_seam_bad $_r(driver=$_a resolver=$_b hook=$_c)"
 done
-if [ -n "$_drv_fn" ] && [ -n "$_res_fn" ] && [ -z "$_seam_bad" ]; then
-  ok "R13 resolver and driver agree on every rung's ration bucket"
+if [ -n "$_drv_fn" ] && [ -n "$_res_fn" ] && [ -n "$_hook_fn" ] && [ -z "$_seam_bad" ]; then
+  ok "R13 resolver, spawn-pin hook and driver agree on every rung's ration bucket"
 else
   bad "R13 resolver and driver agree on every rung's ration bucket" "${_seam_bad:-function not found}"
 fi
