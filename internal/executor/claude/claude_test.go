@@ -253,16 +253,16 @@ func TestClaudeCostModel(t *testing.T) {
 	}
 }
 
-// A CLI short name ("haiku") is not a key, api_name or alias; it resolves
-// through the registry's LAST tier, agent_model_name, and only because every
-// row carrying that wire name agrees on price (modelreg.ErrAmbiguousModel
-// otherwise). A name no tier matches yields an EXPLICIT unpriced card, never
-// another model's rates.
+// A CLI short name ("haiku") resolves through the claude-haiku-4-5 row's
+// aliases. It used to resolve through agent_model_name, until every claude row
+// was pinned to a full id (2026-09-29) because the sonnet/opus/fable aliases
+// re-point at the newest model. A name no tier matches yields an EXPLICIT
+// unpriced card, never another model's rates.
 func TestClaudeCostModel_ShortNameResolvesViaWireName_UnknownIsUnpriced(t *testing.T) {
 	exec, _ := New(testConfig()) // ClaudeModel = "haiku"
 	cm := exec.CostModel()
 	if cm == nil || cm.Unpriced || cm.Model != "claude-haiku-4-5" {
-		t.Fatalf("expected haiku to resolve through agent_model_name to claude-haiku-4-5, got %+v", cm)
+		t.Fatalf("expected haiku to resolve through its alias to claude-haiku-4-5, got %+v", cm)
 	}
 
 	cfg := testConfig()

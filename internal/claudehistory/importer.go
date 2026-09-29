@@ -134,6 +134,13 @@ func (i *Importer) SyncSession(ctx context.Context, sessionID string) (int, erro
 		return 0, fmt.Errorf("stat session file: %w", err)
 	}
 
+	// Look up correlation IDs from sessions table (M-DETERMINISTIC-CHAT-LINKING).
+	// MUST run before BeginTx: it queries through i.db, and sqliteopen caps the
+	// pool at ONE connection, so issuing it while the tx holds that connection
+	// blocks forever. That deadlock hung every claude-CLI agent eval after the
+	// session finished (measured 2026-09-29; latent until 0fba88a82 set the cap).
+	corr := i.getSessionCorrelation(ctx, session.ID)
+
 	// Start transaction
 	tx, err := i.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -146,9 +153,6 @@ func (i *Importer) SyncSession(ctx context.Context, sessionID string) (int, erro
 	if err != nil {
 		return 0, fmt.Errorf("deleting existing messages: %w", err)
 	}
-
-	// Look up correlation IDs from sessions table (M-DETERMINISTIC-CHAT-LINKING)
-	corr := i.getSessionCorrelation(ctx, session.ID)
 
 	// Insert messages
 	turnNumber := 0

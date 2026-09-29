@@ -1912,6 +1912,27 @@ for role in DESIGNER PLANNER EXECUTOR EVALUATOR; do
       # Remember what is left so the pi loop can advance instead of jumping to opus.
       remvar="MISSION_${role}_CHAIN_REMAINING"
       printf -v "$remvar" '%s' "$(_chain_tail "$_chain")"; export "$remvar"
+      # EXECUTOR RUNG 2 (Mark attended 2026-09-29): when codex is dry, the executor goes to
+      # claude-sonnet-5-5 BEFORE the pi chain, on every mission that uses this default.
+      # Grounds: anchored standard ELO 2295.8 vs gpt6-sol's 2288.7 at the same $2/$10, and
+      # 41/42 agent smoke+core on this exact lane (claude CLI, subscription) — models.yml
+      # claude-sonnet-5-5. Probed like the opus rung (_mc_probe carries the Anthropic ration
+      # gate), so a drought or an over-ration week walks the pi chain exactly as before.
+      # The generator != judge check compares model FAMILIES (resolve-role-spawn.sh), so the
+      # `sonnet` evaluator reroutes when this rung is taken. The pi head stays in the
+      # remaining chain. Disable per mission with MISSION_EXECUTOR_ANTHROPIC_RUNG=''.
+      _ex_rung="${MISSION_EXECUTOR_ANTHROPIC_RUNG-claude:claude-sonnet-5-5}"
+      if [ "$role" = EXECUTOR ] && [ -n "$_ex_rung" ] && [ "$fb" != "$_ex_rung" ]; then
+        _ex_m="${_ex_rung#claude:}"
+        case "${_an_probed:-:}" in *":${_ex_m}:"*) : ;; *)
+          _an_probed="${_an_probed:-:}${_ex_m}:"
+          _mc_probe "$_ex_m" || _an_failed="${_an_failed:-:}${_ex_m}:"
+        ;; esac
+        case "${_an_failed:-:}" in
+          *":${_ex_m}:"*) log "codex executor lane: ${_ex_rung} rung skipped (anthropic probe failed or over ration) — walking the chain" ;;
+          *) fb="$_ex_rung"; printf -v "$remvar" '%s' "$_chain"; export "$remvar" ;;
+        esac
+      fi
       # OPUS BEFORE PI (Mark attended 2026-09-26, World first). When codex is dry and the
       # Anthropic subscription has headroom, opus takes the role BEFORE the pi rungs. The
       # pi lanes stay as the tail for an Anthropic drought, not the first thing we try.
@@ -1921,7 +1942,7 @@ for role in DESIGNER PLANNER EXECUTOR EVALUATOR; do
       # completed. _mc_probe carries the Anthropic ration gate (rc=75 when measurably over),
       # so a drought or an over-ration week walks the pi chain exactly as before. One
       # `claude -p` per fire, deduped with the anthropic loop's set.
-      if [ "${MISSION_OPUS_BEFORE_PI:-0}" = 1 ] && [ "$fb" != opus ]; then
+      if [ "${MISSION_OPUS_BEFORE_PI:-0}" = 1 ] && [ "$fb" != opus ] && [ "$fb" = "${fb#claude:}" ]; then
         case "${_an_probed:-:}" in *":opus:"*) : ;; *)
           _an_probed="${_an_probed:-:}opus:"
           _mc_probe opus || _an_failed="${_an_failed:-:}opus:"

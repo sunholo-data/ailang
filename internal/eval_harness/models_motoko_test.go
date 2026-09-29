@@ -16,8 +16,6 @@ func TestMotokoModelsResolve(t *testing.T) {
 	}
 
 	wanted := []string{
-		"motoko-claude-haiku-4-5",
-		"motoko-claude-sonnet-4-6",
 		"motoko-glm-5",
 		"motoko-gemma-4",
 	}

@@ -40,10 +40,12 @@ Test API access to a model and display authentication status.
 scripts/test_model_access.sh openai gpt-5.1
 
 # Test Anthropic model
-scripts/test_model_access.sh anthropic claude-sonnet-4-5-20250929
+scripts/test_model_access.sh anthropic claude-sonnet-5-5
 
 # Test Google Gemini via Vertex AI
 scripts/test_model_access.sh google gemini-3-pro-preview-11-2025
+# Test Ollama Cloud (flat-rate open-weight route; tag WITHOUT :cloud)
+scripts/test_model_access.sh ollama-cloud glm-5.3-flash
 ```
 
 **Output:**
@@ -125,6 +127,10 @@ Checking Vertex AI for: gemini-3-pro-preview-11-2025
 Recommendation: Monitor for availability, check again in 1-2 weeks
 ```
 
+### `scripts/measure_ollama_credit_rate.sh <tag1> [tag2 ...]`
+Ollama Cloud credit burn per token across models — see
+[resources/ollama_cloud.md](resources/ollama_cloud.md).
+
 ### `scripts/run_test_benchmark.sh <model-name>`
 Run a small test benchmark to verify model works end-to-end.
 
@@ -156,11 +162,30 @@ Model is ready for production use
 scripts/test_model_access.sh openai gpt-5.1
 ```
 
+**Credentials live in `~/.config/ailang/secrets.env`** (ANTHROPIC/OPENAI/GOOGLE/OPENROUTER/
+OLLAMA keys). An interactive shell does not source it — `. ~/.config/ailang/secrets.env`
+before `eval-suite` or the access scripts. Without `ANTHROPIC_API_KEY`, standard mode falls
+back to the Claude subscription OAuth token, which the provider serves for **Haiku only**:
+Sonnet 5.5 / Opus 5.5 come back `429 rate_limit_error "Error"` with no rate-limit headers
+(measured 2026-09-29). A 429 with no `anthropic-ratelimit-*` headers is that, not quota.
+
 **What to check:**
 - API key is set (OPENAI_API_KEY, ANTHROPIC_API_KEY, or gcloud auth)
 - API call succeeds (not 401/403/404)
 - Model returns expected structure
 - Token usage is reported
+
+**For Claude models — also probe the agent lane (claude CLI, subscription):**
+```bash
+env -u ANTHROPIC_API_KEY claude -p --model <full-id> --output-format json "Reply OK" | jq '.modelUsage|keys'
+env -u ANTHROPIC_API_KEY claude -p --model claude-sonnet-9-zzz --output-format json "x"  # negative control: must fail
+```
+`modelUsage` must name the exact id. Use the FULL id in `agent_model_name`, never
+`sonnet`/`opus`/`fable`: those aliases re-point at the newest model (2026-09-29 the harness's
+CLI ran `sonnet`→claude-sonnet-5, a newer CLI →claude-sonnet-5-5), so an alias row silently
+benchmarks a different model under its label. The agent harness runs the CLI found by
+`executor.FindNativeBinary` — `~/.local/bin/claude` (self-updating) before any VSCode-bundled
+copy, which lags and once rejected a new model as `unrecognized_model`.
 
 **For Gemini models:**
 - Uses Vertex AI (not public API)
@@ -239,7 +264,20 @@ this (thinks by default, same 32K cap, unmeasured).
    reasoning model must use `output + reasoning`, and expect ~2-10x the completion
    tokens of a non-thinking peer.
 
+### 2b. Ollama Cloud models (flat-rate route)
+
+Open-weight models at a flat subscription rate, as `motoko-cloud-*` rows. The row
+conventions, quota semantics and credit-rate measurement are in
+[resources/ollama_cloud.md](resources/ollama_cloud.md) — read it before adding one.
+
 ### 3. Update models.yml
+
+> **⛔ NEVER add an OpenRouter row for an Anthropic, OpenAI or Google (Gemini) model**
+> (Mark, 2026-09-29). Those vendors have direct lanes here (claude CLI subscription, codex
+> subscription, Vertex). If the direct lane fails, fix or report the lane — do not add an
+> `or-` twin to get a number. Open-weights releases (gemma, gpt-oss) are fine. Enforced by
+> `TestModels_FirstPartyVendorsNeverViaOpenRouter`. Claude CLI rows pin the FULL id in
+> `agent_model_name`, never `sonnet`/`opus`/`fable` (`TestModels_ClaudeCLIRowsNeverUseAnAlias`).
 
 **Add the model configuration:**
 
@@ -358,101 +396,13 @@ done | column -ts $'\t'
 | `wrong-output` | Compiled and ran, wrong stdout | Spec-following gap, not language gap |
 | `runtime-error` | Compiled, crashed at runtime | Logic bug |
 
-**2026-05-04 finding (precedent):** Tested 6 SOTA OS models (Gemma 4 26B, Qwen3
-30B-A3B, Qwen3 235B-A22B, DeepSeek V4 Flash, Kimi K2.6, Qwen3 Coder Flash)
-against this smoke set. Proprietary baselines passed 3/3; **zero OS models
-passed all 3**. Most common failure: WRONG_LANG (model produced Python). Even
-frontier-class OS models fall back on training-corpus patterns when given
-AILANG's 23k-token teaching prompt — they've seen plenty of Python but very
-little AILANG. Two near-misses (`or-gemma-4-26b`, `or-qwen3-coder-flash`)
-retained on the watchlist; rest cut.
-
-**Implication for stdlib/prompt work:** the smoke test doubles as a
-language-improvement metric. Re-run it after stdlib changes or prompt
-revisions; if the near-miss watchlist starts passing the third benchmark, the
-language has become more "trainable-feel."
-
-**Caveat — agent mode is a separate gate:** the smoke set above runs in
-**standard** (single-shot API generation) mode. Models that fail standard mode
-may still perform usefully in **agent** mode (`--agent` flag, opencode/pi
-harnesses) where they get multi-turn iteration. If a candidate fails standard
-smoke, run `ailang eval-suite --agent --models <candidate> ...` separately
-before fully cutting it. Agent mode results don't override the standard-mode
-gate but can justify adding the model under a different harness entry (e.g.
-`opencode-<candidate>`, `pi-<candidate>`).
-
-**2026-05-04 agent-mode smoke finding (precedent):** Tested 9 OS-via-OR
-candidates through opencode harness. Cross-mode behaviour:
-
-| Model | Standard | Agent | Δ |
-|-------|---------:|------:|--:|
-| **GLM 5** (z.ai) | not tested | **3/3** ✅ | — first OS model to pass |
-| Gemma 4 26B | 2/3 | 2/3 | 0 (same near-miss) |
-| DeepSeek V4 Flash | 0/3 | 2/3 | **+2** (agent unlock) |
-| GLM 4.7 Flash | not tested | 2/3 | — near-miss |
-| Kimi K2.6 | 1/3 | 1/3 | 0 |
-| Qwen3 30B-A3B | 1/3 | 1/3 | 0 |
-| Qwen3 Coder Flash | 2/3 | 1/3 | **-1** (agent regressed) |
-| DeepSeek V4 Pro | not tested | 1/3 | Pro under-performed Flash |
-| Qwen3 235B-A22B | 0/3 | 0/3 | 0 |
-
-Key takeaways for the model-manager workflow:
-
-1. **Agent mode is not a universal fix.** Most models that fail standard
-   smoke also fail agent smoke. Multi-turn helps when the model can read
-   compile errors and adjust; it hurts when the model interprets tool-call
-   setup as the answer (Qwen3 Coder Flash regression).
-
-2. **Pro tier ≠ better.** DeepSeek V4 Pro (1/3) under-performed V4 Flash
-   (2/3) on AILANG smoke. The Pro reasoning/long-output overhead can hurt
-   simple-task accuracy. Test both tiers when available.
-
-3. **csv_to_json_converter is a `core`-tier DISCRIMINATOR, not a smoke gate.**
-   Of the 27 benchmark runs (9 models × 3), csv_to_json was the single most-failed
-   test — only GLM 5 passed it among OS candidates. ⚠️ **CORRECTION (2026-06-02):**
-   this is exactly why it must NOT gate inclusion — it's failed by the *majority of
-   frontier models* (gpt5 base, gemini-3-pro, gemini-3-flash, sonnet-4-5, gpt5-mini
-   all FAIL; only opus-4-6/4-7, sonnet-4-6, gemini-3-1-pro, gpt5-2-codex/gpt5-4
-   pass). It lives in `tier: core`, not `tier: smoke`. Use it as a high-signal
-   **ranking/discriminator** metric in `--tier core` runs and as a language-
-   improvement tracker — never as an OS-model include/exclude gate. The gate is
-   `--tier smoke`.
-
-4. **GLM 5 is genuinely cost-competitive frontier OS.** $0.60/$2.08 per 1M
-   tokens, ~5–7× cheaper than Claude Sonnet 4.6 on input. Worth standing
-   inclusion in eval rotation alongside frontier proprietary models.
-
-5. **Vendor-prefix wiring is forward-compat infrastructure.** When adding
-   models from a new vendor (e.g. `z-ai/`, `moonshotai/`, `microsoft/`,
-   `minimax/`), add the prefix to
-   `internal/ai/config.go::openrouterVendorPrefixes` so future ad-hoc
-   `ailang run --ai vendor/model` invocations work without needing a
-   models.yml entry.
-
-6. **Per-benchmark timeouts can be tighter than agent-mode needs.** The
-   `csv_to_json_converter.yml` spec has `timeout: 90s` baked in (set to
-   match Claude Sonnet 4.6's ~43s typical solve time). OS models in agent
-   mode routinely need 90–180s of iteration on csv_to_json — they CAN
-   solve it but get killed by the timeout. Two follow-up models that
-   demonstrated this on 2026-05-04:
-     - **Kimi K2.6** (Moonshot): fizzbuzz✅ 119s, adt_option✅ 47s,
-       csv_to_json❌ (timeout — initial run also had api_errors)
-     - **MiniMax M2.7**: fizzbuzz✅ 46s, adt_option✅ 42s,
-       csv_to_json❌ (timeout, not capability)
-   Both are effectively 2/3 near-misses pending a benchmark timeout bump.
-   When investigating a model that fails only csv_to_json with
-   `error_category=api_error` and stderr saying "exceeded hard timeout
-   (1m30s)", the failure is the benchmark spec, not the model.
-
-7. **api_error vs syntax-error vs WRONG_LANG matters.** When tabulating
-   smoke results, always check `error_category`:
-   - `api_error` — infrastructure issue (rate limit, timeout, network).
-     Re-run before counting against the model.
-   - `compile_error` (no err_code) — syntax-error: model produced AILANG
-     that doesn't parse. Genuine model gap.
-   - `WRONG_LANG` — model produced Python/JS/etc. instead of AILANG.
-     Genuine prompt-following gap.
-   - `runtime_error` — compiled but crashed. Logic bug in generation.
+**Reading smoke failures** (full precedents, incl. the 2026-05-04 OS-model sweeps, in
+[resources/smoke_precedents.md](resources/smoke_precedents.md)):
+- `api_error` is infrastructure (rate limit, timeout, harness) — re-run before counting it;
+  "exceeded hard timeout" on an agent run is usually the benchmark's `timeout:`, not the model.
+- `compile_error` = invented syntax; `WRONG_LANG` = produced Python/JS — genuine model gaps.
+- Agent mode is a separate gate: a standard-mode failure may pass agent smoke, and vice versa.
+- New OpenRouter vendor prefix → add it to `internal/ai/config.go::openrouterVendorPrefixes`.
 
 ### 5.5 Smoke is a FLOOR, not a RANKING — place the candidate on the ANCHORED ELO series (HARD RULE)
 
@@ -494,7 +444,8 @@ ailang eval-suite --models <candidate> --tier core,frontier --langs ailang \
   --output /tmp/cf_<candidate> --parallel 4
 
 ailang eval-elo /tmp/cf_<candidate> --json     # read-only ANCHORED placement fit
-go run ./tools/eval-elo --persist /tmp/cf_<candidate>   # bank it into the series
+go run ./tools/eval-elo /tmp/cf_<candidate> --mode standard \
+  --persist ~/.ailang/state/observatory.db              # bank it into the series
 ```
 
 `ailang eval-elo` does NOT persist — it refuses `--persist` and tells you to use
@@ -521,6 +472,10 @@ Compare the resulting rating to the **banked** ratings already in
 > sqlite3 ~/.ailang/state/observatory.db \
 >   "SELECT mode, COUNT(*), COUNT(DISTINCT model_id) FROM trial_history GROUP BY mode;"
 > ```
+>
+> **Update 2026-09-29:** anchored standard rows now exist — claude-opus-5-5 2871.9 (floor, 29/29),
+> gpt6-sol 2288.7, gpt6-luna 2008.2 (all 2026-09-22, 29-benchmark core+frontier panel) and
+> claude-sonnet-5-5 ≈2296 (28/29). The check below is still how you tell which rows qualify.
 >
 > If `last_updated` predates the anchor, or `trial_history` has no rows for the
 > mode you are placing in, you have a placement but **no valid comparison set**.
@@ -589,8 +544,11 @@ Once the candidate has its core/frontier placement, persist it into the anchored
 series so the next question can be answered from banked data instead of a re-run:
 
 ```bash
-go run ./tools/eval-elo --persist /tmp/cf_<candidate>
+go run ./tools/eval-elo /tmp/cf_<candidate> --mode standard --persist ~/.ailang/state/observatory.db
 ```
+
+`--persist` takes the DB path, not the results dir. `database is locked` means another
+`ailang` process (coordinator, a running eval) holds observatory.db — retry once it is idle.
 
 **`make eval-baseline FULL=true` is NOT part of adding a model.** D3 of
 M-EVAL-ROLLING-ELO demoted the full baseline to a **quarterly re-anchoring**
@@ -633,12 +591,19 @@ This skill loads information progressively:
 - Check for preview/beta status before adding to production suites
 
 **Prerequisites:**
-- API keys set in environment (OPENAI_API_KEY, ANTHROPIC_API_KEY)
+- API keys: `. ~/.config/ailang/secrets.env` (see §1 — shells do not source it)
 - For Gemini: `gcloud` CLI installed and authenticated
+- For Ollama Cloud: local ollama daemon running + `ollama signin` done (inference);
+  `OLLAMA_API_KEY` set only for the /api/usage quota gauge
 - For Gemini: GCP project set (`gcloud config set project PROJECT_ID`)
 - `curl`, `python3`, and `jq` available in PATH
 
 **Files modified by this skill:**
-- `internal/eval_harness/models.yml` - Model configurations
+- `internal/modelreg/models.yml` - Model configurations (the embedded registry)
+- Anthropic rows also need, per model: `internal/ai/reasoning_anthropic.go` (thinking style —
+  `CanDisable:false` if `{type:"disabled"}` 400s), `internal/ai/anthropic/cache.go` (min
+  cacheable prefix), `ceilingLimited` in `internal/eval_harness/models_headroom_test.go`, and
+  `anthropicCacheReadMultiplier` in `internal/modelreg/resolve_test.go` if cache reads ≠ 0.1x
+- `resources/provider_endpoints.md` - When adding a new provider (e.g. Ollama Cloud)
 - (Optional) `prompts/vX.Y.Z.md` - Teaching prompts
 - (Optional) `.claude/skills/model-manager/resources/` - Local model database
