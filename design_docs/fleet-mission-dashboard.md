@@ -1,20 +1,12 @@
 # Fleet Mission Dashboard
 
-Snapshot, overwritten every iteration (Gate 4). History: [fleet-mission.md](fleet-mission.md) STATUS + [fleet-mission-log.md](fleet-mission-log.md).
+Snapshot as of iteration 7 — 2026-09-29. History: [charter](fleet-mission.md) and [log](fleet-mission-log.md).
 
-**As of iteration 6 — 2026-09-28**
-
-- **Latest release**: v0.47.1. The fleet never releases.
-- **Landed since iteration 4**: #1336 (`d9e1211d0`, the stall-watchdog CPU measurement tool).
-- **Iteration 5** (07:56 fire) built the cron-kicker session-lost fix and the pi sandbox wiring, then crashed at Gate 3b on an API DNS error with no record. The 23:09 fire before it died in the Aqua-session loss.
-- **This iteration**: re-judged both fixes with fresh sonnet evaluators (kicker **PASS 92**, sandbox **PASS 96**, 0 blocking) and LANDED them in **#1377** (`eec86ca4f`, merged by Mark). Both tickets are resolved; 19 open.
-- **Kicker reach**: the crontab runs the kicker from the MAIN checkout, which is detached with a merge in progress, so the fix is not live on the rig until a human updates that checkout.
-- **Parked on Mark**:
-  - D-FLEET-7: approve a descendants-only rusage arm at ≥10 CPU-s per 120 s (recommend yes).
-- **Next pick**: P0 #3's pre-dirty half; then P1 0a/0b (ruled D-FLEET-1/2). Bookkeeping issue: #1380.
-- **Open tickets**: 19. Mark's triage order is in the charter Queue.
-- **Dev CI note**: `launchd drivers (bash 3.2)` red on `0c41e3185` and `666c9d4e7` in `tools/eval/test_motoko_connection_probe.sh` (flake class, P2 #11; `tools/eval` is outside fleet scope).
-- **Loop**: `dev.ailang.mission-fleet`, every 6h, idles free with 0 tickets. Runs pinned `origin/dev`.
-- **Routing**: controller claude-opus-5-5 · evaluator sonnet ×2 (Agent tool, ≈265k tok) · designer, planner and executor not needed (iteration 5's work). Codex was over its daily ration this fire (probe rc 75).
-- **Quota posture**: Anthropic subscription buckets only this fire. Metered $0.
-- **Known caveats**: macOS GitHub runners queued 30+ min today; `launchd drivers` waits on them.
+- **Latest release**: v0.48.0. The fleet does not release.
+- **This iteration**: D-FLEET-7 stall-watchdog M2 merged in [#1399](https://github.com/sunholo-data/ailang/pull/1399), `ce1c0639f`; independent Sonnet PASS 88, zero blocking; merge-commit CI SUCCESS (CI run 36562795612; 20 check rows settled success/skipped).
+- **Parked**: heartbeat relative-path ticket after two blocked quorums. D-FLEET-8 asks whether to update both tracked skill copies. No heartbeat implementation landed.
+- **Next**: follow the charter's 2026-09-29 human-ranked queue; do not re-sort it by `slots_lost`.
+- **Open tickets**: 16.
+- **Loop**: `dev.ailang.mission-fleet`, every 6h, pinned to `origin/dev`; 0-ticket fire exits before agent spend.
+- **Routing**: designer gpt-6-astra (Agent fallback), planner/executor gpt-6-sol (Agent), independent evaluator Sonnet 5.5 (`claude-sub` fallback after Agent model rejection).
+- **Cost**: quorum about $0.24 metered; role token totals unavailable; Codex and Anthropic subscription buckets.
