@@ -398,6 +398,45 @@ want "R6 planner opus lane maps to agent-tool opus" "$out" "agent-tool opus fail
 out=$("$RESOLVE" judge)
 want "R7 unknown role fails closed" "$out" "refuse fail-closed:role-unknown"
 
+# R8-R12: ration gate (2026-09-29). World iter-208 ran planner AND executor on codex
+# after the driver had refused codex as over ration for that fire.
+out=$(env -u MISSION_OVER_RATION MISSION_EXECUTOR_MODEL=codex:gpt-6-sol "$RESOLVE" executor)
+want "R8 no ration signal leaves the recipe alone" "$out" "recipe codex:gpt-6-sol declared:provider-pin"
+out=$(MISSION_OVER_RATION="codex ollama" MISSION_EXECUTOR_MODEL=codex:gpt-6-sol \
+  MISSION_EXECUTOR_RESOLVED=pi:openrouter/deepseek/deepseek-v4.1-flash "$RESOLVE" executor)
+want "R9 over-ration recipe reroutes to the driver's resolved lane" "$out" \
+  "recipe pi:openrouter/deepseek/deepseek-v4.1-flash over-ration-reroute:codex"
+out=$(MISSION_OVER_RATION="codex openrouter" MISSION_EXECUTOR_MODEL=codex:gpt-6-sol \
+  MISSION_EXECUTOR_RESOLVED=pi:openrouter/deepseek/deepseek-v4.1-flash "$RESOLVE" executor)
+want "R10 over-ration recipe with an over-ration resolved lane is refused" "$out" "refuse over-ration:codex"
+out=$(MISSION_OVER_RATION="codex" MISSION_EXECUTOR_MODEL=pi:ollama/qwen3.8:27b "$RESOLVE" executor)
+want "R11 a local model maps to no bucket and is never gated" "$out" "recipe pi:ollama/qwen3.8:27b declared:provider-pin"
+out=$(MISSION_OVER_RATION="codex" MISSION_PLANNER_MODEL=codex:gpt-6-sol \
+  MISSION_PLANNER_RESOLVED=pi:openrouter/moonshotai/kimi-k3 "$RESOLVE" planner \
+  "$ROOT/tools/launchd/testdata/planner-lane/c-clean-infra.md")
+want "R12 planner codex lane over ration reroutes to the resolved planner" "$out" \
+  "recipe pi:openrouter/moonshotai/kimi-k3 over-ration-reroute:codex"
+
+# R13 SEAM: the resolver's bucket map must agree with the driver's _mc_rung_bucket, or
+# the gate refuses what the driver allows (or the reverse) with both suites green.
+_seam_bad=""
+_drv_fn=$(awk '/^_mc_rung_bucket\(\)/,/^}/' "$ROOT/tools/launchd/mission-control.sh")
+_res_fn=$(awk '/^_rs_bucket\(\)/,/^}/' "$RESOLVE")
+for _r in codex:gpt-6-sol pi:openrouter/z-ai/glm-5.3 pi:ollama/glm-5.3:cloud pi:ollama/x-cloud \
+          pi:ollama/qwen3.8:27b claude:claude-opus-5-5 opus pi:other/model; do
+  _a=$(bash -c "$_drv_fn"'; _mc_rung_bucket "$1"' _ "$_r")
+  _b=$(bash -c "$_res_fn"'; _rs_bucket "$1"' _ "$_r")
+  [ "$_a" = "$_b" ] || _seam_bad="$_seam_bad $_r(driver=$_a resolver=$_b)"
+done
+if [ -n "$_drv_fn" ] && [ -n "$_res_fn" ] && [ -z "$_seam_bad" ]; then
+  ok "R13 resolver and driver agree on every rung's ration bucket"
+else
+  bad "R13 resolver and driver agree on every rung's ration bucket" "${_seam_bad:-function not found}"
+fi
+grep -q '^MISSION_OVER_RATION=.*export MISSION_OVER_RATION' "$ROOT/tools/launchd/mission-control.sh" \
+  && ok "R14 driver exports MISSION_OVER_RATION with the resolved plan" \
+  || bad "R14 driver exports MISSION_OVER_RATION with the resolved plan" "export missing"
+
 # --- M2 SPAWN-PIN HOOK WIRING (M-SPAWN-PIN-ENFORCEMENT, 2026-09-03) -----------
 # Arm W: the spawn-pin hook suite must be wired into make/test.mk, or a suite
 # that exists but is never invoked is green forever while enforcing nothing —

@@ -79,6 +79,20 @@ mkrepo "$TMP/wt4" clean; echo d > "$TMP/d4.txt"
        --max-seconds 60 --stall-seconds 6 >/dev/null 2>&1
 check "stream dead" 12 $? stream_dead "$TMP/o4.ndjson.verdict.json"
 
+echo "TEST 4b: silent while a tool call is OPEN -> tool_hang (rc 18), not stream_dead"
+# Regression pin, 2026-09-29: three executor runs sat in a hung `ailang messages list`
+# and were banked as the model's stream_dead.
+mkstub 'printf "{\"type\":\"tool_execution_start\",\"toolName\":\"bash\",\"args\":{\"command\":\"ailang messages list --unread\"}}\n"; sleep 300'
+mkrepo "$TMP/wt4b" clean; echo d > "$TMP/d4b.txt"
+"$SUT" --model m --directive "$TMP/d4b.txt" --workdir "$TMP/wt4b" --out "$TMP/o4b.ndjson" \
+       --max-seconds 60 --stall-seconds 6 >/dev/null 2>&1
+check "tool hang" 18 $? tool_hang "$TMP/o4b.ndjson.verdict.json"
+if jq -e '.hung_tool | test("ailang messages list")' "$TMP/o4b.ndjson.verdict.json" >/dev/null 2>&1; then
+  echo "  PASS: verdict names the hung command"; PASS=$((PASS+1))
+else
+  echo "  FAIL: hung_tool missing from verdict"; FAIL=$((FAIL+1))
+fi
+
 echo "TEST 5: progress keeps the clock alive past the stall bound (no false positive)"
 # The guard must NOT fire on a slow-but-working run, or it just re-creates the old
 # 300 MB ceiling in a new costume.

@@ -419,6 +419,15 @@ _mc_etime_secs() {
 # heartbeat cannot be the primary arm: it is stamped by the AGENT at gate
 # boundaries, and that same v1 slot reached Gate 5 having stamped only `gate-0`,
 # so a heartbeat-only test reads "dead" on a session writing its own record.
+# _mc_pi_session_exists ID → true when pi has already saved session ID for $REPO. pi files
+# a session as <sessions>/--<cwd slug>--/<timestamp>_<id>.jsonl (same slug rule as
+# _mc_progress_bytes below). Gates the RESUME prompt: an attempt that reaches pi for the
+# first time (a re-walk from a claude rung) must get the full prompt, not "continue".
+_mc_pi_session_exists() {
+  local slug="${REPO#/}"; slug=$(printf '%s' "$slug" | tr '/\\:' '---')
+  ls "${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/sessions/--${slug}--/"*_"$1".jsonl >/dev/null 2>&1
+}
+
 _mc_progress_bytes() {
   local dir newest total=0 got=0 sz
   case "${CONTROLLER_PROVIDER:-claude}" in
@@ -1228,7 +1237,12 @@ RUNTIME_QUOTA_REWALKS="${MISSION_RUNTIME_QUOTA_REWALKS:-4}"
 
 TRANSIENT_RETRIES="${MISSION_TRANSIENT_RETRIES:-3}"   # total attempts incl. the first
 TRANSIENT_BACKOFF="${MISSION_TRANSIENT_BACKOFF:-45}"  # base seconds, ×attempt (45s,90s)
-TRANSIENT_SIG="API Error: Overloaded|socket connection was closed|overloaded_error|API Error: 5[0-9][0-9]|API Error: Internal|API Error: Connection|API Error: Request timed out"
+TRANSIENT_SIG="API Error: Overloaded|socket connection was closed|overloaded_error|API Error: 5[0-9][0-9]|API Error: Internal|API Error: Connection|API Error: Request timed out|Provider finish_reason: error"
+# `Provider finish_reason: error` is OpenRouter's mid-stream upstream failure as pi prints
+# it. pi's own retry list (pi-ai isRetryableAssistantError) does NOT match it, so pi exits
+# rc=1 on the first one: stapledon 2026-09-29 00:52Z lost an iteration on turn 76 to a
+# single occurrence. A pi controller retry RESUMES the same session (see MC_PI_SESSION_ID),
+# so it continues from that turn rather than re-running the gates.
 
 # PER-ROLE MODEL ROUTING (2026-07-15, m-mission-agentic-provider-routing M1): the charter's routing
 # table was never enforced — every inner role ran on the controller's single session --model, so with
@@ -2255,6 +2269,10 @@ fi
 # and the one-shot override at :904 — exporting earlier would publish a plan the driver
 # then silently changed, which is the exact silent-degradation class this closes.
 export MISSION_CONTROL_ACTIVE=1
+# The over-ration buckets travel with the resolved plan, so resolve-role-spawn.sh can
+# refuse a role recipe the driver itself would have refused (see that script's gate).
+_mc_load_ration
+MISSION_OVER_RATION=$(printf '%s' "$MC_OVER_RATION" | tr -s ' ' | sed 's/^ //; s/ $//'); export MISSION_OVER_RATION
 for _role in DESIGNER PLANNER EXECUTOR EVALUATOR; do
   _mv="MISSION_${_role}_MODEL"; _rv="${!_mv:-}"
   printf -v "MISSION_${_role}_RESOLVED" '%s' "$_rv"; export "MISSION_${_role}_RESOLVED"
@@ -2279,11 +2297,23 @@ export GIT_CONFIG_COUNT=$((_gc_n + 1)) MISSION_NAME
 unset _gc_n
 log "scope guard: git pre-push hooks from $MC_DRIVER_ROOT/tools/launchd/githooks (MISSION_NAME=$MISSION_NAME)"
 
+# The skill path is given ABSOLUTE. A relative `.claude/skills/...` only resolves in the
+# ailang repo; world and stapledon run in their own repos, where claude finds the skill via
+# ~/.claude/skills but a pi or codex controller reads the sentence literally. Measured
+# 2026-09-28: a pi glm-5.3 controller in stapledons-godot could not find it, ran
+# `find ~ -maxdepth 6` to look, and that command never returned (killed 50 min later).
+MC_SKILL_PATH="$REPO/.claude/skills/mission-control/SKILL.md"
+[ -f "$MC_SKILL_PATH" ] || MC_SKILL_PATH="$HOME/.claude/skills/mission-control/SKILL.md"
+if [ -f "$MC_SKILL_PATH" ]; then
+  MC_SKILL_PATH=$(cd "$(dirname "$MC_SKILL_PATH")" && pwd -P)/SKILL.md
+else
+  log "WARNING: mission-control skill not found at \$REPO/.claude/skills or ~/.claude/skills — the controller prompt names a path that does not exist"
+fi
 PROMPT="Run one mission-control iteration: invoke the mission-control skill for \
 ${MISSION_DOC} and follow its gates. You are a scheduled run; \
 there is no human present — park anything needing human input and report via \
 ailang messages and the GitHub bookkeeping issue, per the skill. \
-The authoritative runtime instructions are .claude/skills/mission-control/SKILL.md; \
+The authoritative runtime instructions are ${MC_SKILL_PATH}; \
 read and follow that file even when the controller provider is Codex. \
 This prompt carries the operator's standing request for this run, written in advance \
 because the run is unattended: USE THE AGENT TOOL to spawn the designer, planner, executor \
@@ -2294,6 +2324,13 @@ generator-not-equal-judge is a non-negotiable property of this loop, and an iter
 lands work on the controller's own verdict has no independent review at all. If a role \
 genuinely cannot be spawned, record WHICH role, the error, and the fallback you used in \
 the routing block; do not silently proceed without a judge."
+
+# One pi session per FIRE (not per attempt): see the pi spawn in _mc_run_once.
+MC_PI_SESSION_ID="mission-${MISSION_NAME}-$(date +%s)-$$"
+MC_PI_RESUME_PROMPT="Your previous turn in this mission-control iteration was cut off by a \
+transient provider error. Continue the SAME iteration from where you stopped: do not \
+restart gates you have already completed or re-launch roles that are already running — \
+check their output files first. The original instructions are earlier in this session."
 
 # Resolve the heartbeat/history state root once. Every producer and consumer below
 # uses this value so the helper/driver seam cannot drift between attempts.
@@ -2346,7 +2383,16 @@ _mc_run_once() {
     # The probe above does not hit this because --no-tools takes a different
     # startup path, which is exactly why a green probe never predicted a hung
     # controller: the probe and the thing it certifies are not the same program.
-    ( cd "$REPO" && pi --model "$MODEL" -p "$PROMPT" < /dev/null ) >>"$LOG" 2>&1 &
+    #
+    # -e controller-bash-cap.ts: pi's bash tool has no default timeout; this caps each
+    # command at 540s so a wait or a wedged command returns inside the stall watchdog's
+    # 600s window instead of getting the controller killed (world iter-208, 2026-09-29).
+    # --session-id: fixed per fire, so a transient retry REOPENS this session and the
+    # model continues from where the provider dropped it (pi opens an existing id,
+    # creates a missing one).
+    _mc_pi_prompt="$PROMPT"
+    _mc_pi_session_exists "$MC_PI_SESSION_ID" && _mc_pi_prompt="$MC_PI_RESUME_PROMPT"
+    ( cd "$REPO" && pi --model "$MODEL" -e "$MC_DRIVER_ROOT/tools/pi-extensions/controller-bash-cap.ts" --session-id "$MC_PI_SESSION_ID" -p "$_mc_pi_prompt" < /dev/null ) >>"$LOG" 2>&1 &
   else
     claude -p "$PROMPT" \
       --model "$MODEL" \
@@ -2460,7 +2506,7 @@ while : ; do
     tail -n 200 "$_mc_retry_history" > "${_mc_retry_history}.tmp.$$" && mv "${_mc_retry_history}.tmp.$$" "$_mc_retry_history"
     # --- RETRY HISTORY END ---
     backoff=$(( TRANSIENT_BACKOFF * attempt ))
-    log "transient API error (rc=$RC) attempt $attempt/$TRANSIENT_RETRIES — retrying in ${backoff}s (Anthropic capacity)"
+    log "transient API error (rc=$RC) attempt $attempt/$TRANSIENT_RETRIES — retrying in ${backoff}s (provider capacity)"
     sleep "$backoff"
     attempt=$((attempt + 1))
     continue

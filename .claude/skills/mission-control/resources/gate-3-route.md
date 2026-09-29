@@ -62,6 +62,14 @@ Agent tool is NOT a valid path for that role; use the cross-provider recipe belo
 `reroute <alias> generator-equals-judge` → spawn the named re-route target and say so in the
 Gate-4 row. `refuse …` → that role is a routing **FAILURE**, not a FLAG: record the reason token
 VERBATIM and continue the iteration without the role rather than spending un-budgeted opus.
+`recipe <provider:model> over-ration-reroute:<bucket>` → the lane the table names is over its daily
+ration, so the resolver handed the role the driver's own resolved lane; use it, and name the reroute in
+the Gate-4 row. `refuse over-ration:<bucket>` → no in-budget lane exists for that role this fire;
+treat it like any other `refuse`. **When a role's lane dies mid-iteration** (e.g. `stream_dead`),
+take the next lane from that role's `$MISSION_<ROLE>_CHAIN_REMAINING`, skipping any whose bucket is
+in `$MISSION_OVER_RATION` (`codex:*`→codex, `pi:openrouter/*`→openrouter, `pi:ollama/*:cloud`→ollama;
+a local ollama model is never gated). Never jump by hand to the table's primary lane. World iter-208 (2026-09-29) did that after
+three deepseek failures and ran codex for planner and executor while codex was over ration.
 **Every role prompt MUST begin with the line `MISSION-ROLE: <designer|planner|executor|evaluator>`**
 — that token is the ONLY input the spawn-pin hook uses to map a spawn to a role, and while
 `MISSION_CONTROL_ACTIVE=1` an unlabelled Agent/Task call is DENIED at the tool boundary. A
@@ -366,8 +374,8 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
          --workdir "$WT" \
          --out /tmp/pi_run_iter<N>.ndjson
        # rc 0=ok · 10=empty_worktree · 11=reasoning_stall · 12=stream_dead
-       #    13=wall_timeout · 14=launch_failed.  Anything non-zero is a LANE FAILURE,
-       #    not a result: fall back and FLAG, never re-prompt in place.
+       #    13=wall_timeout · 14=launch_failed · 18=tool_hang.  Anything non-zero except 18
+       #    is a LANE FAILURE, not a result: fall back and FLAG, never re-prompt in place.
        ```
        **⚠ SIZE THE WALL CLOCK TO THE MILESTONE — THE 1800 s DEFAULT IS SMALLER THAN A PLAN-SIZED
        MILESTONE, AND A `wall_timeout` ON THAT ACCOUNT SPENDS THE WHOLE FALLBACK CHAIN ON WORK THE LANE
@@ -430,6 +438,11 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
      Measured 2026-08-26: one bare-id deepseek call hung 90s at HTTP 200 with an empty body while
      14/14 immediate retries succeeded across 6 different provider hosts. Every other verdict
      falls back on the first occurrence.
+     **`tool_hang` (rc 18) is NOT a lane failure at all** — the model was fine; a command it ran
+     never returned (`hung_tool` in the verdict names it). Falling back just hangs the next lane on
+     the same command. Retry ONCE on the same lane with the directive telling it not to run that
+     command, and FLAG the command as a harness ticket. Measured 2026-09-29: every World iter-208
+     "deepseek stream_dead" was `ailang messages list` hanging inside the sandbox (row 121).
      Trial caveat stands (N=1): the replay's single miss was a discretionary refinement
      beyond the plan's letter — this lane wants PRESCRIPTIVE, sprint-plan-shaped directives;
      vague-plan or judgment-heavy work stays on opus until ≥3 datapoints say otherwise (the

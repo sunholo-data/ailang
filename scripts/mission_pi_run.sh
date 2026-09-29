@@ -65,6 +65,9 @@
 #   15 sandbox_unavailable — extension or runtime dependency unavailable
 #   16 sandbox_policy_invalid — explicit mission policy invalid
 #   17 sandbox_not_ready — pi ran without sandbox initialization handshake
+#   18 tool_hang        — killed: silent past the stall bound WHILE a tool call was open.
+#                          The MODEL is fine; a command it ran never returned. NOT a lane
+#                          failure — see hung_tool in the verdict JSON.
 #
 # Bash 3.2 (rig default). No `declare -A`, no `${v,,}`, no `timeout(1)`.
 
@@ -348,6 +351,24 @@ AGENT_END=$(grep -c '"type":"agent_end"' "$OUT" 2>/dev/null | tr -d ' ')
 TOOL_CALLS=$(grep -c '"type":"tool_execution_end"' "$OUT" 2>/dev/null | tr -d ' ')
 OUT_BYTES=$(wc -c < "$OUT" 2>/dev/null | tr -d ' ')
 
+# A silent stream with a tool call still OPEN is not a dead upstream: pi is waiting on
+# the command, and no model is involved. Measured 2026-09-29: all three World iter-208
+# executor runs (deepseek on openrouter AND ollama) were banked `stream_dead` while each
+# sat in `ailang messages list --unread`, which hangs inside this sandbox (its network
+# allowlist has no Google endpoints, and the CLI had no deadline). "deepseek is dead"
+# was read off those verdicts; the lane never got to answer.
+HUNG_TOOL=""
+if [ "$OUTCOME" = "stream_dead" ]; then
+  _starts=$(grep -c '"type":"tool_execution_start"' "$OUT" 2>/dev/null | tr -d ' ')
+  if [ "${_starts:-0}" -gt "${TOOL_CALLS:-0}" ]; then
+    HUNG_TOOL=$(grep '"type":"tool_execution_start"' "$OUT" | tail -1 | \
+      jq -r '(.toolName // "tool") + ": " + ((.args.command // .args.path // "") | tostring | .[0:200])' 2>/dev/null)
+    [ -n "$HUNG_TOOL" ] || HUNG_TOOL="(unparsed tool call)"
+    OUTCOME="tool_hang"
+  fi
+fi
+HUNG_TOOL_JSON=$(printf '%s' "$HUNG_TOOL" | jq -Rs .)
+
 case "$OUTCOME" in
   finished)
     if [ "$FENCED" = false ]; then VERDICT_NAME="sandbox_not_ready"; RC=17
@@ -356,6 +377,7 @@ case "$OUTCOME" in
     else VERDICT_NAME="empty_worktree"; RC=10; fi ;;
   reasoning_stall) VERDICT_NAME="reasoning_stall"; RC=11 ;;
   stream_dead)     VERDICT_NAME="stream_dead";     RC=12 ;;
+  tool_hang)       VERDICT_NAME="tool_hang";       RC=18 ;;
   wall_timeout)    VERDICT_NAME="wall_timeout";    RC=13 ;;
   *)               VERDICT_NAME="launch_failed";   RC=14 ;;
 esac
@@ -373,6 +395,7 @@ cat > "$VERDICT" <<EOF
   "head_after": "$HEAD_AFTER",
   "commits_since_start": $COMMITS,
   "tool_executions": ${TOOL_CALLS:-0},
+  "hung_tool": $HUNG_TOOL_JSON,
   "agent_end_events": ${AGENT_END:-0},
   "ndjson_bytes_filtered": ${OUT_BYTES:-0},
   "ndjson": "$OUT",
@@ -383,4 +406,5 @@ EOF
 rm -rf "$STAGE"
 
 echo "pi lane verdict: $VERDICT_NAME (rc=$RC) after ${ELAPSED}s — ${DIFF_LINES:-0} changed files, ${TOOL_CALLS:-0} tool executions, $COMMITS commits" >&2
+[ -n "$HUNG_TOOL" ] && echo "pi lane verdict: the MODEL did not stall — pi was waiting on a tool call that never returned: $HUNG_TOOL" >&2
 exit "$RC"

@@ -958,7 +958,7 @@ fi
 #
 # A line-shape assertion, not a behavioural one: reproducing the hang in a test
 # would mean spending a real model call and waiting for it NOT to answer.
-_pi_spawn=$(grep -n 'pi --model "\$MODEL" -p "\$PROMPT"' "$DRV" | head -1)
+_pi_spawn=$(grep -n 'pi --model "\$MODEL" .* -p "\$_mc_pi_prompt"' "$DRV" | head -1)
 if printf '%s' "$_pi_spawn" | grep -q '< */dev/null'; then
   ok "wiring: pi controller spawn closes stdin (< /dev/null)"
 else
@@ -986,6 +986,48 @@ if grep -q 'an_why="\$(_mc_ration_reason anthropic)"' "$DRV"; then
 else
   bad "ration gate: the anthropic lane notice uses the real reason, not a fixed phrase" \
       "rc=75 is still mapped to a hardcoded string"
+fi
+
+# (12) guard (green/red): the pi controller spawn carries the bash cap and a fixed session.
+#
+# pi's bash tool has no default timeout. World iter-208 (2026-09-29) waited on its codex
+# executor in ONE 28-minute command, its transcript went flat, and the stall watchdog
+# killed it six minutes before codex finished rc=0 — the work was stranded. The cap
+# extension bounds every command under the watchdog's window; the fixed session id lets
+# a transient retry resume instead of restarting.
+if printf '%s' "$_pi_spawn" | grep -q 'controller-bash-cap.ts' \
+   && [ -f "$(dirname "$DRV")/../pi-extensions/controller-bash-cap.ts" ]; then
+  ok "wiring: pi controller loads controller-bash-cap.ts, and the file exists"
+else
+  bad "wiring: pi controller loads controller-bash-cap.ts, and the file exists" \
+      "got: ${_pi_spawn:-<no pi spawn found>}"
+fi
+if printf '%s' "$_pi_spawn" | grep -q -- '--session-id "\$MC_PI_SESSION_ID"' \
+   && grep -q '^MC_PI_SESSION_ID="mission-' "$DRV" \
+   && grep -q '_mc_pi_session_exists "\$MC_PI_SESSION_ID" && _mc_pi_prompt="\$MC_PI_RESUME_PROMPT"' "$DRV"; then
+  ok "wiring: pi retry resumes one session per fire, and only once that session exists"
+else
+  bad "wiring: pi retry resumes one session per fire, and only once that session exists" \
+      "session id / resume gate missing"
+fi
+
+# (13) guard: OpenRouter's mid-stream `Provider finish_reason: error` is transient.
+# pi's own retry classifier does not match it; stapledon lost iteration on 2026-09-29 to one.
+_sig=$(grep '^TRANSIENT_SIG=' "$DRV")
+if printf '%s' "Provider finish_reason: error" | grep -qiE "$(printf '%s' "$_sig" | sed 's/^TRANSIENT_SIG="//; s/"$//')"; then
+  ok "retry: Provider finish_reason: error matches TRANSIENT_SIG"
+else
+  bad "retry: Provider finish_reason: error matches TRANSIENT_SIG" "got: $_sig"
+fi
+
+# (14) guard: the controller prompt names the skill by an ABSOLUTE path.
+# A relative `.claude/skills/...` does not exist in world or stapledon; a pi controller read
+# it literally and ran `find ~ -maxdepth 6`, which never returned (2026-09-28).
+if grep -q 'The authoritative runtime instructions are \${MC_SKILL_PATH}' "$DRV" \
+   && ! grep -q 'The authoritative runtime instructions are \.claude/skills' "$DRV"; then
+  ok "prompt: skill path is resolved to an absolute MC_SKILL_PATH"
+else
+  bad "prompt: skill path is resolved to an absolute MC_SKILL_PATH" "prompt still names a relative path"
 fi
 
 echo ""
