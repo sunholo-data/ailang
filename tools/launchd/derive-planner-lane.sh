@@ -82,8 +82,15 @@ fi
 
 # Step 2: read and validate the declaration.
 planner_line=$(grep -m1 -E '^\*\*Planner-Lane\*\*:' "$doc" 2>/dev/null)
+# D-FLEET-1 (Mark, attended 2026-09-26; built 2026-09-29): a doc WITHOUT the field
+# uses the mission's planner pin, not opus. Almost no doc carries the field (2 in the
+# repo at iteration 328), so fail-closed was the common case and every World/V1 fire
+# overrode it by hand (role-spawn-routing rule 2a; ticket
+# resolver:planner-lane-field-missing-vs-spawn-pin, 4 slots). Step 0 already
+# guarantees the pin is a vetted codex:/pi: lane. An explicit `opus-required` or an
+# invalid value still decides as before — only ABSENCE defaults to the pin.
 if [ -z "$planner_line" ]; then
-  emit "opus fail-closed:planner-lane-field-missing"
+  emit "${MISSION_PLANNER_MODEL} declared:planner-lane-default-pin"
 fi
 planner_value=${planner_line#\*\*Planner-Lane\*\*:}
 planner_value=$(printf '%s\n' "$planner_value" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')

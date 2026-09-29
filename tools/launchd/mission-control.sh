@@ -2269,6 +2269,13 @@ fi
 # and the one-shot override at :904 — exporting earlier would publish a plan the driver
 # then silently changed, which is the exact silent-degradation class this closes.
 export MISSION_CONTROL_ACTIVE=1
+# One id per fire: keys the D-FLEET-2 dead-lane ledger (tools/launchd/mission-lane-dead.sh),
+# so a new fire always starts with every declared lane presumed alive.
+MISSION_FIRE_ID="${MISSION_NAME:-mission}-$(date +%s)-$$"; export MISSION_FIRE_ID
+# The pinned driver's own tree, for skill steps that call driver tools from a mission
+# repo that has none (world, stapledon). NOT AILANG_DRIVER_SRC: that is the source clone,
+# which can be far behind what actually runs.
+MISSION_DRIVER_ROOT="${MC_DRIVER_ROOT:-}"; export MISSION_DRIVER_ROOT
 # The over-ration buckets travel with the resolved plan, so resolve-role-spawn.sh can
 # refuse a role recipe the driver itself would have refused (see that script's gate).
 _mc_load_ration
