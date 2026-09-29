@@ -1,0 +1,17 @@
+# Top-level `property "..." { forall ... }` runs on the broken source-synthesis path — unparseable `_test.ail`
+
+- **Date**: 2026-09-28
+- **Class**: bug (already diagnosed upstream; report adds a real user, the top-level-decl variant, and a docs mismatch)
+- **Recommend**: duplicate-of `design_docs/planned/v1_1_0/m-forall-properties-direct-core-eval.md`
+- **Searched**: `property` in design_docs/, `forall` in design_docs/, `PAR_UNEXPECTED_TOKEN _test.ail` in internal/, `EvaluateExpression` in internal/ and design_docs/
+- **Estimate**: n/a (duplicate)
+
+Confirmed on v0.47.1 (local build, 0107d3c): `property "inc grows" { forall(n: int) => inc(n) > n }` fails with `PAR_UNEXPECTED_TOKEN at _test.ail:5:23`, and a module with the property but no function fails with `evaluation failed: empty program` — exactly the two failure modes already documented. The mechanism: `internal/testing/runner.go` (`runProperty`) dispatches only `EnsuresKind`/`RequiresKind` to the working direct-Core harnesses; all forall-kind properties fall through to `Executor.EvaluateExpression` (`internal/testing/executor.go`), which `fmt.Sprintf("%v", ast)`-synthesizes `_test.ail` source. A forall body that calls a module function reconstructs into unparseable source (hence PAR_UNEXPECTED_TOKEN); with nothing to synthesize, the pipeline yields `empty program`. The repo's own comment at `runner.go` (M-M3-RESIDUAL T6 block) records this second failure mode and cites #624; the fix (`~250 LOC`, route forall through direct-Core eval like ensures/requires) is precisely M-FORALL-PROPERTIES.
+
+This report extends the earlier triage `design_docs/planned/ailang-core-triage/forall-properties-parse-failure-624.md` in three ways worth folding into the linked doc rather than acting on separately:
+
+1. **Top-level `property "..." { }` declarations are affected too**, not just per-function `properties [...]` — `internal/testing/collector.go` (`collectPropertyDecl`) feeds both into the same broken forall path, so the doc's problem statement (which uses the `properties [...]` reproduce) understates the blast radius.
+2. **A real user has now asked.** M-FORALL-PROPERTIES' decision clause is "move forward — but only when a real user asks"; this report comes from building `sunholo/economic`, which joins sunholo/discord and sunholo/agui (cited in the 624 triage) as production consumers hitting it. The doc's P3/no-urgency status should be revisited.
+3. **Docs mismatch (new fact):** `docs/docs/guides/testing.md` documents `property "name" (param: type, ...) = expression` (lines 42, 105, and throughout), which the parser rejects — `internal/parser/parser_test_decl.go` (`parsePropertyDecl`) requires `property "name" { forall(...) => expr }` and errors with "expected { to start property body" on the documented form. Either the docs must be corrected to the real syntax or the parser extended to accept the documented one — that choice belongs in the same design doc as a small section, not a blind direct fix (row 3: someone could disagree about which surface is canonical).
+
+No search found a doc covering the testing.md syntax mismatch specifically (terms searched: `testing.md` in design_docs/, `property "name" (param`) — none found; fold it into the linked doc.
