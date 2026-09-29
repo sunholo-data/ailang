@@ -503,11 +503,41 @@ EOF_FILES
   [ "$got" -eq 1 ] || return 1
   echo "$total"
 }
-# _mc_stalled PID → true only when FOUR arms agree, sample over sample, that the
-# tree has made no progress: (1) a descendant alive ≥ STALL_CHILD_AGE (the wedged
-# tool call of iteration 13's `until COND; do sleep 30; done`), (2) the progress
-# counter above is unchanged since the previous sample, (3) the gate heartbeat is
-# unchanged since the previous sample, and (4) the tree is under STALL_CPU_PCT.
+# Read one bounded process-tree snapshot. The root's own CPU is excluded, but
+# its reaped-child CPU is included so a short-lived direct child is not lost.
+# Summing each live descendant's own + reaped-child CPU counts each CPU tick
+# once: when a child exits, its contribution transfers to its parent's child
+# counter. lstart guards a PID reused between the two watchdog samples.
+_mc_rusage_read() { python3 "$MC_DRIVER_ROOT/tools/launchd/lib/proc_rusage.py" "$@"; }
+_mc_rusage_snapshot() {
+  local root="$1" pids="$2" p birth output own child total=0 seen=0
+  local args=()
+  [ -n "$MC_DRIVER_ROOT" ] && [ -f "$MC_DRIVER_ROOT/tools/launchd/lib/proc_rusage.py" ] || return 1
+  command -v python3 >/dev/null 2>&1 || return 1
+  for p in $pids; do args+=("$p"); done
+  [ "${#args[@]}" -gt 1 ] || return 1
+  output=$(_mc_rusage_read "${args[@]}") || return 1
+  _MC_RUSAGE_SNAPSHOT=""
+  while IFS=$'\t' read -r p own child; do
+    case "$p:$own:$child" in *[!0-9:]*|::*|*:NA:*|*:*:NA) return 1 ;; esac
+    [ -n "$p" ] && [ -n "$own" ] && [ -n "$child" ] || return 1
+    birth=$(ps -o lstart= -p "$p" 2>/dev/null) || return 1
+    [ -n "$birth" ] || return 1
+    if [ "$p" != "$root" ]; then total=$((total + own + child)); fi
+    if [ "$p" = "$root" ]; then total=$((total + child)); fi
+    _MC_RUSAGE_SNAPSHOT="${_MC_RUSAGE_SNAPSHOT}${p}|${birth}"$'\n'
+    seen=$((seen + 1))
+  done <<EOF_RUSAGE
+$output
+EOF_RUSAGE
+  [ "$seen" -eq "${#args[@]}" ] || return 1
+  _MC_RUSAGE_TOTAL="$total"
+}
+
+# _mc_stalled PID → true only when the progress arms agree, sample over sample,
+# that the tree has made no progress: a descendant alive ≥ STALL_CHILD_AGE,
+# unchanged transcript/open-file bytes and heartbeat, descendant rusage growth
+# below 10 CPU-s, and instantaneous tree CPU under STALL_CPU_PCT.
 # Any one arm showing movement resets the caller's hit counter, so live work is
 # never killed — and unlike the CPU-only predecessor, that is now a property the
 # suite can kill a mutant on rather than a claim in a comment.
@@ -515,7 +545,7 @@ EOF_FILES
 # Fails OPEN: with no progress instrument we cannot tell a wedge from live work,
 # so we refuse to guess and say so in the log; HARD_TIMEOUT still bounds the slot.
 _mc_stalled() {
-  local root="$1" pids p secs cpu long=0 prog hb
+  local root="$1" pids p secs cpu long=0 prog hb rusage_total rusage_snapshot old_birth new_birth
   pids=$(_mc_descendants "$root")
   for p in $pids; do
     [ "$p" = "$root" ] && continue
@@ -537,15 +567,55 @@ _mc_stalled() {
   local tw; tw=$(_mc_tree_write_bytes "$pids") && prog="${prog}+w${tw}"
   hb=$(wc -c < "${_mc_heartbeat:-${AILANG_STATE_DIR:-$HOME/.ailang/state}/mission-${MISSION_NAME:-none}-heartbeat}" 2>/dev/null | tr -d ' '); hb="${hb:-0}"
 
+  if ! _mc_rusage_snapshot "$root" "$pids"; then
+    _MC_STALL_WHY="rusage-unavailable"
+    log "WARNING: stall watchdog descendant rusage unavailable; early kill DISABLED for this sample"
+    unset _MC_RUSAGE_PREV _MC_RUSAGE_IDENT_PREV
+    return 1
+  fi
+  rusage_total="$_MC_RUSAGE_TOTAL"; rusage_snapshot="$_MC_RUSAGE_SNAPSHOT"
+  # A reused controller or descendant PID invalidates this pair of samples.
+  # New and vanished PIDs are ordinary child churn; cumulative parent counters
+  # retain their CPU in the tree total.
+  if [ -n "${_MC_RUSAGE_IDENT_PREV:-}" ]; then
+    while IFS='|' read -r p new_birth; do
+      [ -n "$p" ] || continue
+      old_birth=$(printf '%s\n' "$_MC_RUSAGE_IDENT_PREV" | awk -F '|' -v pid="$p" '$1==pid {print $2; exit}')
+      if [ -n "$old_birth" ] && [ "$old_birth" != "$new_birth" ]; then
+        _MC_RUSAGE_PREV="$rusage_total"; _MC_RUSAGE_IDENT_PREV="$rusage_snapshot"
+        _MC_STALL_WHY="rusage-pid-reuse:$p"; return 1
+      fi
+    done <<EOF_IDENT
+$rusage_snapshot
+EOF_IDENT
+  fi
+
   # A first sample can prove nothing — seed the baseline and report live.
   if [ -z "${_MC_PROG_PREV:-}" ]; then
-    _MC_PROG_PREV="$prog"; _MC_HB_PREV="$hb"; _MC_STALL_WHY="seeding"; return 1
+    _MC_PROG_PREV="$prog"; _MC_HB_PREV="$hb"
+    _MC_RUSAGE_PREV="$rusage_total"; _MC_RUSAGE_IDENT_PREV="$rusage_snapshot"
+    _MC_STALL_WHY="seeding"; return 1
   fi
   if [ "$prog" != "$_MC_PROG_PREV" ] || [ "$hb" != "${_MC_HB_PREV:-}" ]; then
     _MC_STALL_WHY="progress prog=${_MC_PROG_PREV}->${prog} hb=${_MC_HB_PREV:-}->${hb}"
     _MC_PROG_PREV="$prog"; _MC_HB_PREV="$hb"
+    _MC_RUSAGE_PREV="$rusage_total"; _MC_RUSAGE_IDENT_PREV="$rusage_snapshot"
     return 1
   fi
+  if [ -z "${_MC_RUSAGE_PREV:-}" ]; then
+    _MC_RUSAGE_PREV="$rusage_total"; _MC_RUSAGE_IDENT_PREV="$rusage_snapshot"
+    _MC_STALL_WHY="rusage-seeding"; return 1
+  fi
+  if [ "$rusage_total" -lt "$_MC_RUSAGE_PREV" ]; then
+    _MC_RUSAGE_PREV="$rusage_total"; _MC_RUSAGE_IDENT_PREV="$rusage_snapshot"
+    _MC_STALL_WHY="rusage-regressed"; return 1
+  fi
+  if [ "$((rusage_total - _MC_RUSAGE_PREV))" -ge 1000 ]; then
+    _MC_STALL_WHY="descendant-cpu=${_MC_RUSAGE_PREV}->${rusage_total}cs"
+    _MC_RUSAGE_PREV="$rusage_total"; _MC_RUSAGE_IDENT_PREV="$rusage_snapshot"
+    return 1
+  fi
+  _MC_RUSAGE_PREV="$rusage_total"; _MC_RUSAGE_IDENT_PREV="$rusage_snapshot"
   cpu=$(ps -o %cpu= -p "$(echo $pids | tr ' ' ',')" 2>/dev/null | awk '{s+=$1} END{printf "%d", s+0}')
   [ "${cpu:-0}" -lt "${STALL_CPU_PCT:-2}" ] || { _MC_STALL_WHY="cpu=$cpu"; return 1; }
   _MC_STALL_WHY="flat prog=$prog hb=$hb cpu=$cpu"
