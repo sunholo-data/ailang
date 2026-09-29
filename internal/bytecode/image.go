@@ -326,20 +326,42 @@ func (img *BytecodeImage) validateInstruction(p *FuncPrototype, protoIdx, ip int
 			return err
 		}
 		return checkProto(inst.Bx())
-	case OpMakeList, OpMakeTuple, OpMakeRecord, OpMakeADT:
+	case OpMakeList, OpMakeTuple, OpMakeRecord, OpMakeADT, OpUpdateRecord:
 		if err := checkReg(inst.A(), "dest"); err != nil {
 			return err
 		}
 		// Validate element register range; for MakeADT, A+1..A+C are field regs.
-		if op == OpMakeADT {
+		if op == OpMakeADT || op == OpUpdateRecord {
 			highReg := uint16(inst.A()) + uint16(inst.C())
 			if highReg >= uint16(p.NumRegs) {
-				return fmt.Errorf("bytecode: %s: ADT field regs overflow (high=%d, NumRegs=%d)", loc(), highReg, p.NumRegs)
+				return fmt.Errorf("bytecode: %s: field regs overflow (high=%d, NumRegs=%d)", loc(), highReg, p.NumRegs)
 			}
 		} else {
 			highReg := uint16(inst.B()) + uint16(inst.C())
 			if highReg > uint16(p.NumRegs) {
 				return fmt.Errorf("bytecode: %s: element regs overflow (high=%d, NumRegs=%d)", loc(), highReg, p.NumRegs)
+			}
+		}
+		if op == OpUpdateRecord {
+			if err := checkReg(inst.B(), "base record"); err != nil {
+				return err
+			}
+			for offset := 1; offset <= int(inst.C()); offset++ {
+				nameIP := ip + offset
+				if nameIP >= len(p.Instructions) {
+					return fmt.Errorf("bytecode: %s: truncated field-name encoding", loc())
+				}
+				nameInst := p.Instructions[nameIP]
+				if nameInst.Op() != OpLoadConst {
+					return fmt.Errorf("bytecode: %s: expected pseudo-LOAD_CONST for field name", loc())
+				}
+				if err := checkLocalConst(nameInst.Bx()); err != nil {
+					return err
+				}
+				name, _ := p.LookupConstant(int(nameInst.Bx()), img)
+				if name.Tag != TagString {
+					return fmt.Errorf("bytecode: %s: field-name constant is %s, not String", loc(), name.Tag)
+				}
 			}
 		}
 		return nil

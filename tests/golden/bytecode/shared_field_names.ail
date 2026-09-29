@@ -5,6 +5,9 @@
 -- silently wrong value, differing from run to run. Every access below must
 -- match the interpreter on every run, under --strict-bytecode.
 module tests/golden/bytecode/shared_field_names
+import std/json (decode, getObject, getNumber)
+import std/result (Result, Ok, Err)
+import std/option (Option, Some, None)
 
 type M = { a: float, b: float, x: float }
 
@@ -36,6 +39,17 @@ pure func vsum(v: V) -> float = v.x + v.y
 
 pure func step(s: Ship) -> Ship = { s | pos: { s.pos | x: s.pos.x + s.motion.x } }
 
+func headingX(raw: string) -> float = match decode(raw) {
+  Ok(root) => match getObject(root, "heading") {
+    Some(heading) => match getNumber(heading, "x") {
+      Some(x) => x,
+      None => -1.0
+    },
+    None => -2.0
+  },
+  Err(_) => -3.0
+}
+
 export pure func main(n: int) -> string {
   let v = mkV(10.0)
   let s = step({ motion: { phi: 1.0, tau: 2.0, t: 3.0, x: 4.0 }, pos: { x: 100.0, y: 200.0, z: 300.0 } })
@@ -44,7 +58,7 @@ export pure func main(n: int) -> string {
   let pm = setX({ a: 1.0, b: 2.0, x: 3.0 })
   let pv = setX({ x: 10.0, y: 20.0 })
   let named = [mx({ a: 1.0, b: 2.0, x: 3.0 }), vx({ x: 10.0, y: 20.0 }), px({ x: 5.0, y: 6.0 }), qy({ x: 5.0, y: 6.0 }), v.x, (mkV(7.0)).y]
-  let nested = [vsum(vupd({ x: 1.0, y: 2.0 })), s.pos.x, s.pos.y, s.pos.z, s.motion.x, s.motion.t]
+  let nested = [vsum(vupd({ x: 1.0, y: 2.0 })), s.pos.x, s.pos.y, s.pos.z, s.motion.x, s.motion.t, headingX("{\"heading\":{\"x\":7,\"y\":8,\"z\":9}}")]
   let poly = [getX(pm), pm.a, pm.b, getX(pv), pv.y]
   "${show(named)} ${show(nested)} ${show(poly)}"
 }

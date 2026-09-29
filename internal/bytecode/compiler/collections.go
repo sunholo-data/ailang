@@ -292,43 +292,40 @@ func (fc *funcCompiler) compileFieldAccessByName(recReg uint8, field string) (ui
 }
 
 // compileRecordUpdateByName compiles `{base | f1: v1, ...}` whose base type
-// is not statically known as a chain of _record_set builtin calls, each
-// replacing (or adding) one field by name on the runtime record — the same
-// operation the evaluator performs (evalCoreRecordUpdate). The alternative,
-// guessing the base's shape from another registered type, rebuilt records
-// with the wrong field set (ailang#1354).
+// is not statically known to OpUpdateRecord. The opcode copies the runtime
+// base shape and applies every override by name, matching evalCoreRecordUpdate
+// without guessing a registered record type (ailang#1354, #1355).
 func (fc *funcCompiler) compileRecordUpdateByName(e stmt.RecordUpdate) (uint8, error) {
-	builtinIdx, ok := builtinIndex["_record_set"]
-	if !ok {
-		return 0, fmt.Errorf("compiler: _record_set builtin missing from BuiltinTable")
-	}
-	rec, err := fc.compileExpr(e.Base)
+	baseReg, err := fc.compileExpr(e.Base)
 	if err != nil {
 		return 0, err
 	}
-	for _, f := range e.Fields {
-		// Contiguous [dst, rec, name, value] block for BUILTIN_CALL argc=3.
-		block, err := fc.regs.allocContig(4)
-		if err != nil {
-			return 0, err
-		}
-		fc.emit(bytecode.EncodeABC(bytecode.OpMove, block+1, rec, 0))
-		if !fc.isPinned(rec) {
-			fc.regs.freeTemp(rec)
-		}
-		nameIdx, err := fc.addLocalConst(bytecode.NewString(f.Name))
-		if err != nil {
-			return 0, err
-		}
-		fc.emit(bytecode.EncodeABx(bytecode.OpLoadConst, block+2, nameIdx))
-		if err := fc.compileExprIntoSlot(f.Value, block+3); err != nil {
-			return 0, err
-		}
-		fc.emit(bytecode.EncodeABC(bytecode.OpBuiltinCall, block, builtinIdx, 3))
-		fc.regs.freeContig(block+1, 3)
-		rec = block
+	if len(e.Fields) > 255 {
+		return 0, fmt.Errorf("compiler: record update with %d fields exceeds 255", len(e.Fields))
 	}
-	return rec, nil
+	block, err := fc.regs.allocContig(len(e.Fields) + 1)
+	if err != nil {
+		return 0, err
+	}
+	nameConstIdx := make([]uint16, len(e.Fields))
+	for i, f := range e.Fields {
+		if err := fc.compileExprIntoSlot(f.Value, block+uint8(i+1)); err != nil {
+			return 0, err
+		}
+		nameConstIdx[i], err = fc.addLocalConst(bytecode.NewString(f.Name))
+		if err != nil {
+			return 0, err
+		}
+	}
+	fc.emit(bytecode.EncodeABC(bytecode.OpUpdateRecord, block, baseReg, uint8(len(e.Fields))))
+	for _, nameIdx := range nameConstIdx {
+		fc.emit(bytecode.EncodeABx(bytecode.OpLoadConst, 0, nameIdx))
+	}
+	if !fc.isPinned(baseReg) {
+		fc.regs.freeTemp(baseReg)
+	}
+	fc.regs.freeContig(block+1, len(e.Fields))
+	return block, nil
 }
 
 // resolveRecordFields returns the sorted field list of a receiver's record

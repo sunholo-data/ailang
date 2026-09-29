@@ -1,6 +1,7 @@
 package compiler
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/bytecode"
@@ -73,6 +74,9 @@ func TestSharedFieldNames_CorrectAndDeterministic(t *testing.T) {
 		dis := bytecode.Disassemble(img)
 		if i == 0 {
 			first = dis
+			if !strings.Contains(dis, "UPDATE_RECORD") {
+				t.Fatal("unknown-shape update did not lower to UPDATE_RECORD")
+			}
 		} else if dis != first {
 			t.Fatalf("compile %d produced different bytecode than compile 0:\n--- 0 ---\n%s\n--- %d ---\n%s", i, first, i, dis)
 		}

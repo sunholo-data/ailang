@@ -74,6 +74,8 @@ const (
 	OpMakeRecord // R[A] = {fields from R[B]..R[B+C-1]} -- field names from
 	// the immediately following pseudo-instructions encoded
 	// as constant pool indices                                (ABC)
+	OpUpdateRecord // R[A] = R[B] updated with values R[A+1..A+C] -- field
+	// names from the immediately following pseudo-LOAD_CONSTs (ABC)
 	OpCons     // R[A] = R[B] :: R[C]                                     (ABC)
 	OpGetField // R[A] = R[B].Fields[C]  -- C indexes record's sorted
 	// field name table inherited from constant pool           (ABC)
@@ -151,6 +153,8 @@ func (op OpCode) String() string {
 		return "MAKE_TUPLE"
 	case OpMakeRecord:
 		return "MAKE_RECORD"
+	case OpUpdateRecord:
+		return "UPDATE_RECORD"
 	case OpCons:
 		return "CONS"
 	case OpGetField:
