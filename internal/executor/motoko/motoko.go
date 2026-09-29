@@ -52,6 +52,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/executor"
 	"github.com/sunholo-data/ailang/internal/proctree"
+	"github.com/sunholo-data/ailang/internal/riglock"
 	"github.com/sunholo-data/ailang/internal/strutil"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
@@ -476,7 +477,7 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	cmd.Stdout = cmd.Stderr
 
 	startTime := time.Now()
-	runErr := cmd.Run()
+	runErr := runRegisteredCommand(cmd)
 	if err := runErr; err != nil {
 		// Process failure is NOT necessarily a task failure — the JSONL may
 		// still contain a valid run_summary with finish_reason="error".
@@ -620,6 +621,16 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	)
 	span.SetStatus(codes.Ok, "")
 	return result, nil
+}
+
+// runRegisteredCommand keeps the registration ordering explicit: a PID exists
+// only after Start succeeds, and it must be durable before Wait can reap it.
+func runRegisteredCommand(cmd *exec.Cmd) error {
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	riglock.RegisterChild(cmd.Process.Pid, cmd.Path)
+	return cmd.Wait()
 }
 
 // Capabilities returns the list of features this executor supports.

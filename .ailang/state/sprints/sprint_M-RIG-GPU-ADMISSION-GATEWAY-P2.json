@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-RIG-GPU-ADMISSION-GATEWAY-P2",
-  "status": "not_started",
+  "status": "paused_at_gate_p1",
   "created": "2026-09-27T17:56:13Z",
   "design_doc": "design_docs/planned/m-rig-gpu-admission-gateway.md",
   "sprint_plan": "design_docs/planned/m-rig-gpu-admission-gateway-sprint-plan.md",
@@ -23,10 +23,10 @@
         "Canonical config/install drift tests pass and include a mutation that changes one local row back to `ollama/...` and makes the test fail.",
         "Smoke artifacts bank `executor_version` for both executors and show the leased provider/model actually resolved."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-29T06:38:00Z",
+      "completed": "2026-09-29T07:05:00Z",
+      "notes": "Leased ollama-rig providers and registry drift/mutation tests implemented. Runtime smoke rows remain an explicit Gate P1 rig-installation check because this cloud executor has neither CLI installed."
     },
     {
       "id": "M2_MOTOKO_CHILD_REGISTRATION",
@@ -41,10 +41,10 @@
         "Start failure returns the existing executor failure shape without panic; nonzero child exit still proceeds to JSONL parsing as before.",
         "Motoko package tests, riglock tests, race-enabled targeted test, formatting, and lint are green."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-29T07:05:00Z",
+      "completed": "2026-09-29T07:15:00Z",
+      "notes": "Motoko now uses Start, immediate riglock child registration, and one Wait; held-lock and start-failure tests added."
     },
     {
       "id": "M3_BYPASS_DETECTOR",
@@ -59,10 +59,10 @@
         "A mutation from `>` to `>=` fails the equal-count test; removing any one endpoint fails its endpoint case; treating a missing ledger as zero fails loudly.",
         "Tests do not read live rig logs or send real messages; curl/ailang/date are injected or shimmed."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-29T07:15:00Z",
+      "completed": "2026-09-29T07:30:00Z",
+      "notes": "Complete-minute bypass reconciliation, durable cursor, overlap lock, atomic throttle state, observable errors, and injected shell fixtures implemented."
     },
     {
       "id": "M4_ATTENDED_CUTOVER_AND_SOAK",

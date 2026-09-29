@@ -21,6 +21,12 @@ models:
     api_name: "llama3"
     provider: "ollama"
     default_thinking: "none"
+  leased-ollama:
+    api_name: "qwen"
+    provider: "ollama-rig"
+    agent_cli: "pi"
+    agent_model_name: "ollama-rig/qwen"
+    default_thinking: "none"
 `
 	cfg, err := LoadModelsConfigBytes([]byte(yaml))
 	if err != nil {
@@ -32,5 +38,11 @@ models:
 	}
 	if cfg.SupportsStandardEval("control-ollama") {
 		t.Error("SupportsStandardEval(ollama row) = true, want false (control)")
+	}
+	if !cfg.UsesLocalGPU("leased-ollama") {
+		t.Error("UsesLocalGPU(ollama-rig row) = false, want true")
+	}
+	if cfg.SupportsStandardEval("leased-ollama") {
+		t.Error("SupportsStandardEval(ollama-rig row) = true, want false")
 	}
 }
