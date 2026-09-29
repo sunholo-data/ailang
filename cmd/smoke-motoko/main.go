@@ -94,8 +94,8 @@ func main() {
 	// Result.CostUSD field exercise the env-var pricing path. The eval
 	// harness derives this from models.yml; the smoke runner doesn't have
 	// that wired (it's a one-off CLI), so we hardcode the haiku-4-5 rates.
-	// Updating: keep in sync with internal/modelreg/models.yml entry
-	// "motoko-claude-haiku-4-5".pricing (input_per_1k=0.00025, output=0.00125).
+	// (The models.yml row these were copied from, motoko-claude-haiku-4-5, was
+	// retired 2026-09-29 — Claude is never reached via OpenRouter.)
 	startTime := time.Now()
 	res, err := exec.Execute(ctx, &executor.Task{
 		Workspace: wsDir,

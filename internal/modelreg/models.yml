@@ -732,6 +732,70 @@ models:
       Available in GitHub Copilot Pro/Pro+/Business/Enterprise.
       Eval support: ✅ Fully supported via Responses API.
 
+  # Anthropic Claude Sonnet 5.5 (onboarded 2026-09-29)
+  claude-sonnet-5-5:
+    api_name: "claude-sonnet-5-5"
+    provider: "anthropic"
+    default_thinking: "on"  # adaptive by default (omitting `thinking` runs adaptive). Unlike
+      # Sonnet 5, {type:"disabled"} is a 400; the only thinking-off shape is
+      # {type:"between_tools"} (effort <= high, no other fields), which this harness does not
+      # emit — registered CanDisable:false in internal/ai/reasoning_anthropic.go.
+    description: "Claude Sonnet 5.5 - current Sonnet, successor to Sonnet 5 at the same price (Sep 2026)"
+    env_var: "ANTHROPIC_API_KEY"
+    agent_cli: "claude"
+    agent_model_name: "claude-sonnet-5-5"  # explicit id, never the "sonnet" alias. Verified
+      # 2026-09-29 (CLI 2.1.284, ANTHROPIC_API_KEY stripped = subscription lane): `claude -p
+      # --model claude-sonnet-5-5` → modelUsage keys ["claude-sonnet-5-5"]; negative control
+      # claude-sonnet-9-zzz → rc=5. The bare "sonnet" alias ALSO resolves to claude-sonnet-5-5
+      # on this CLI — which is exactly why no row may use it (see claude-sonnet-4-6).
+    model_family: "claude-sonnet-5-5"
+    max_output_tokens: 64000   # Same reasoning as claude-sonnet-5: standard mode calls the
+      # NON-streaming Messages API; 128K is the streaming ceiling. Thinking and text share this
+      # cap — a finish=length failure is truncation until proven otherwise (model-manager §2a).
+    pricing:
+      input_per_1k: 0.002    # $2.00 per million (same as Sonnet 5's vendor list price)
+      output_per_1k: 0.010   # $10.00 per million
+      cache_read_per_1k: 0.0002    # $0.20/M = 0.1x input (standard Anthropic rate)
+      cache_write_per_1k: 0.0025   # $2.50/M = 1.25x input — 5-minute cache write rate
+    notes: |
+      Successor to Claude Sonnet 5 in the Sonnet line at the same $2/$10 per 1M.
+      Same tokenizer as Sonnet 5 (Opus 4.7+ family), 1M context, 128K max output.
+
+      Harness-relevant API deltas vs Sonnet 5 (read before debugging a failure):
+        • Effort default is still "high", but the levels are RECALIBRATED vs Sonnet 5 — a
+          head-to-head at vendor default is not an effort-matched comparison. This row
+          sends no effort (vendor default, model-manager §2a); record any pin here.
+        • {type:"disabled"} thinking → 400. Thinking-off is {type:"between_tools"}, which
+          this harness does not implement; "off" is therefore not expressible here.
+        • Forced tool_choice (any / tool) → 400 — same rule as Opus 5.5 / Fable 5.1, so the
+          ResponseFormat=="json" tool_choice path in internal/ai/anthropic/client.go must not
+          route here. Standard eval code-gen does not use it.
+        • Preserved thinking: blocks are tied to model + conversation; no other model reads
+          Sonnet 5.5's. Irrelevant to single-shot standard mode.
+        • Refusal categories: cyber, bio, frontier_llm, reasoning_extraction, general_harms.
+          A stop_reason "refusal" is NOT an api_error.
+        • Minimum cacheable prefix: 512 per the vendor skill's table (flagged "check the docs
+          before relying on it") — cache.go carries 512; diagnostics only.
+      No Priority Tier; no fast mode.
+
+      Access verified 2026-09-29 on BOTH lanes: Messages API (ANTHROPIC_API_KEY from
+      ~/.config/ailang/secrets.env) and the Claude Code CLI subscription lane.
+      ⚠️ The subscription-OAuth fallback for standard mode does NOT serve this model:
+      429 rate_limit_error "Error", no rate-limit headers (Haiku 4.5 passes on the same
+      token). Source secrets.env for standard runs.
+
+      PLACEMENT 2026-09-29, standard, `--tier core,frontier` N=1, candidate alone (§5.5):
+      28/29, anchored standard ELO 2295.8, $0.75 metered. Same 29-benchmark panel as the
+      2026-09-22 placements: level with gpt6-sol (2288.7), well below claude-opus-5-5
+      (2871.9, floor), above gpt6-luna (2008.2). Only miss: ssa_constant_fold
+      (logic_error, finish=stop, 797 reasoning tokens) — capability, not truncation.
+      AGENT 2026-09-29, claude CLI subscription lane, smoke+core (42 benchmarks) N=1:
+      41/42 in 3m36s wall at --parallel 3, $4.45 list-price-equivalent (not billed).
+      Only miss: csv_to_json_converter (compiled; the program's run timed out) — the
+      known core discriminator. No agent anchor exists, so this is a pass profile, not
+      a rating.
+      Suite promotion: PENDING a decision (executor routing is Mark's call).
+
   # Anthropic Claude Sonnet 5 (released June 2026)
   claude-sonnet-5:
     api_name: "claude-sonnet-5"
@@ -775,7 +839,10 @@ models:
     description: "Claude Sonnet 4.6 - best combination of speed and intelligence"
     env_var: "ANTHROPIC_API_KEY"
     agent_cli: "claude"  # Supports Claude Code CLI for agent evals
-    agent_model_name: "sonnet"  # Pass to --agent-model flag
+    agent_model_name: "claude-sonnet-4-6"  # explicit id — the "sonnet" alias re-points at the newest model
+      # (2026-09-29: sonnet→claude-sonnet-5 / opus→claude-opus-5 on the VSCode-bundled CLI 2.1.259 the
+      # agent harness was running, →*-5-5 on CLI 2.1.284; fable→claude-fable-5-1). While this row used
+      # the alias, agent-mode runs banked under this label measured THAT model, not this one.
     model_family: "claude-sonnet-4-6"  # Cross-harness grouping: pairs with opencode-sonnet-4-6
     max_output_tokens: 64000   # 64K max output (API limit for all Claude 4.5+)
     pricing:
@@ -820,7 +887,10 @@ models:
     description: "Claude Sonnet 4.5 - superseded by Sonnet 4.6"
     env_var: "ANTHROPIC_API_KEY"
     agent_cli: "claude"  # Supports Claude Code CLI for agent evals
-    agent_model_name: "sonnet"  # Pass to --agent-model flag
+    agent_model_name: "claude-sonnet-4-5-20250929"  # explicit id — the "sonnet" alias re-points at the newest model
+      # (2026-09-29: sonnet→claude-sonnet-5 / opus→claude-opus-5 on the VSCode-bundled CLI 2.1.259 the
+      # agent harness was running, →*-5-5 on CLI 2.1.284; fable→claude-fable-5-1). While this row used
+      # the alias, agent-mode runs banked under this label measured THAT model, not this one.
     max_output_tokens: 64000   # 64K max output (API limit for all Claude 4.5+)
     pricing:
       input_per_1k: 0.003  # $3 per million = $0.003 per 1K
@@ -839,7 +909,12 @@ models:
     description: "Claude Haiku 4.5 - fastest and most cost-effective"
     env_var: "ANTHROPIC_API_KEY"
     agent_cli: "claude"  # Supports Claude Code CLI for agent evals
-    agent_model_name: "haiku"  # Pass to --agent-model flag
+    aliases: ["haiku"]  # the CLI short name still means THIS row (2.1.259 and 2.1.284 both run
+      # claude-haiku-4-5-20251001), so a banked or --model "haiku" keeps pricing here. Move it the
+      # day a new Haiku ships — the alias will re-point, as sonnet/opus/fable already have.
+    agent_model_name: "claude-haiku-4-5-20251001"  # explicit id, not the "haiku" alias. The alias still
+      # resolves here (2026-09-29, CLI 2.1.284) — pinned pre-emptively because sonnet, opus and fable
+      # all re-pointed at their newest model and haiku will too on the next Haiku release.
     model_family: "claude-haiku-4-5"  # Cross-harness grouping: pairs with opencode-haiku
     max_output_tokens: 64000   # 64K max output (API limit for all Claude 4.5+)
     pricing:
@@ -877,7 +952,10 @@ models:
     description: "Claude Opus 4.5 - most intelligent model"
     env_var: "ANTHROPIC_API_KEY"
     agent_cli: "claude"  # Supports Claude Code CLI for agent evals
-    agent_model_name: "opus"  # Pass to --agent-model flag
+    agent_model_name: "claude-opus-4-5-20251101"  # explicit id — the "opus" alias re-points at the newest model
+      # (2026-09-29: sonnet→claude-sonnet-5 / opus→claude-opus-5 on the VSCode-bundled CLI 2.1.259 the
+      # agent harness was running, →*-5-5 on CLI 2.1.284; fable→claude-fable-5-1). While this row used
+      # the alias, agent-mode runs banked under this label measured THAT model, not this one.
     max_output_tokens: 64000   # 64K max output (API limit for all Claude 4.5+)
     pricing:
       input_per_1k: 0.005   # $5.00 per million = $0.005 per 1K
@@ -900,7 +978,10 @@ models:
     description: "Claude Opus 4.6 - most capable model with 1M context"
     env_var: "ANTHROPIC_API_KEY"
     agent_cli: "claude"  # Supports Claude Code CLI for agent evals
-    agent_model_name: "opus"  # Pass to --agent-model flag
+    agent_model_name: "claude-opus-4-6"  # explicit id — the "opus" alias re-points at the newest model
+      # (2026-09-29: sonnet→claude-sonnet-5 / opus→claude-opus-5 on the VSCode-bundled CLI 2.1.259 the
+      # agent harness was running, →*-5-5 on CLI 2.1.284; fable→claude-fable-5-1). While this row used
+      # the alias, agent-mode runs banked under this label measured THAT model, not this one.
     max_output_tokens: 64000   # 64K max output (API limit for all Claude 4.5+)
     pricing:
       input_per_1k: 0.005   # $5.00 per million = $0.005 per 1K
@@ -925,7 +1006,10 @@ models:
     description: "Claude Fable 5 - most capable widely released model (Mythos-class, June 2026)"
     env_var: "ANTHROPIC_API_KEY"
     agent_cli: "claude"  # Supports Claude Code CLI for agent evals
-    agent_model_name: "fable"  # Pass to --agent-model flag
+    agent_model_name: "claude-fable-5"  # explicit id — the "fable" alias re-points at the newest model
+      # (2026-09-29: sonnet→claude-sonnet-5 / opus→claude-opus-5 on the VSCode-bundled CLI 2.1.259 the
+      # agent harness was running, →*-5-5 on CLI 2.1.284; fable→claude-fable-5-1). While this row used
+      # the alias, agent-mode runs banked under this label measured THAT model, not this one.
     max_output_tokens: 64000  # M-EVAL-TOKEN-HEADROOM: was 128000; family ceiling (non-streaming Messages API)
     pricing:
       input_per_1k: 0.010   # $10 per million = $0.010 per 1K
@@ -961,9 +1045,8 @@ models:
       # claude-opus-5 / claude-sonnet-5: a CLI alias silently re-points at the newest model
       # in the family, which would benchmark 5.1 under whichever label asked for it. Inert
       # in practice — this row is standard-eval-only (see eval policy below) — but the full
-      # id is the only value that cannot drift. ⚠️ claude-fable-5's row still carries
-      # agent_model_name: "fable"; if fable rows are ever admitted to agent_suite, pin that
-      # one to "claude-fable-5" first.
+      # id is the only value that cannot drift. (claude-fable-5's row was pinned to
+      # "claude-fable-5" on 2026-09-29, when every alias row was.)
     model_family: "claude-fable-5-1"
     max_output_tokens: 64000  # Anthropic family cap for the non-streaming Messages API in
       # this repo (vendor declares 128K; ALL sibling Claude rows sit at 64000 — see
@@ -1176,7 +1259,10 @@ models:
     description: "Claude Opus 4.8 - latest flagship model (June 2026)"
     env_var: "ANTHROPIC_API_KEY"
     agent_cli: "claude"
-    agent_model_name: "opus"
+    agent_model_name: "claude-opus-4-8"  # explicit id — the "opus" alias re-points at the newest model
+      # (2026-09-29: sonnet→claude-sonnet-5 / opus→claude-opus-5 on the VSCode-bundled CLI 2.1.259 the
+      # agent harness was running, →*-5-5 on CLI 2.1.284; fable→claude-fable-5-1). While this row used
+      # the alias, agent-mode runs banked under this label measured THAT model, not this one.
     max_output_tokens: 64000
     pricing:
       input_per_1k: 0.005   # $5.00 per million (same as 4.7)
@@ -1198,7 +1284,10 @@ models:
     description: "Claude Opus 4.7 - flagship model (April 2026)"
     env_var: "ANTHROPIC_API_KEY"
     agent_cli: "claude"  # Supports Claude Code CLI for agent evals
-    agent_model_name: "opus"  # Pass to --agent-model flag
+    agent_model_name: "claude-opus-4-7"  # explicit id — the "opus" alias re-points at the newest model
+      # (2026-09-29: sonnet→claude-sonnet-5 / opus→claude-opus-5 on the VSCode-bundled CLI 2.1.259 the
+      # agent harness was running, →*-5-5 on CLI 2.1.284; fable→claude-fable-5-1). While this row used
+      # the alias, agent-mode runs banked under this label measured THAT model, not this one.
     max_output_tokens: 64000   # 64K max output (API limit for all Claude 4.5+)
     pricing:
       input_per_1k: 0.005   # $5.00 per million = $0.005 per 1K (unchanged from 4.6)
@@ -2011,80 +2100,6 @@ models:
   # routes via OpenRouter to test the cheap-OS-model + tuned-harness vs
   # frontier-model thesis. motoko-gemma-4 covers open-weight model coverage
   # (no first-party Gemma agent CLI exists; OpenRouter is the bridge).
-
-  motoko-claude-haiku-4-5:
-    api_name: "claude-haiku-4-5-20251001"
-    provider: "anthropic"
-    default_thinking: "off"
-    description: "Claude Haiku 4.5 via motoko_agent (AILANG-native harness with DP7 verifier + microRAG context + extensions)"
-    env_var: "OPENROUTER_API_KEY"
-    agent_cli: "motoko"
-    motoko_profile: "cloud"                            # .motoko/config/cloud — compaction_ai+context_mode+ailang_docs+microrag, DP7 gate = `ailang check`
-    agent_model_name: "openrouter/anthropic/claude-haiku-4-5"
-    model_family: "claude-haiku-4-5"                 # Pairs with claude-haiku-4-5 + opencode-haiku + pi-claude-haiku-4-5
-    max_output_tokens: 64000  # M-EVAL-TOKEN-HEADROOM: was 16000; family ceiling (non-streaming Messages API)
-    pricing:
-      input_per_1k: 0.001    # $1.00 per 1M — CORRECTED 2026-08-13 (was 0.00025, Haiku 3.5 rates)
-      output_per_1k: 0.005   # $5.00 per 1M — must match the canonical claude-haiku-4-5 row (same api_name)
-      cache_read_per_1k: 0.0001   # 0.1x input — Anthropic prompt-cache read rate
-      cache_write_per_1k: 0.00125  # 1.25x input — Anthropic 5-minute cache write rate
-    notes: |
-      Claude Haiku 4.5 evaluated via the motoko_agent harness — the FIRST
-      AILANG-native agent in the eval suite. Routes via OpenRouter so this
-      entry uses OPENROUTER_API_KEY (NOT ANTHROPIC_API_KEY) — matches the
-      cost-control rule from EXECUTOR_SHAPE.md §8 (motoko's cloud Job
-      explicitly omits Anthropic API key bindings).
-      Cross-harness threshold-measurement experiment: pair against
-      vanilla claude-haiku-4-5 to quantify the harness lift (DP7 verifier
-      gate + microRAG context + contract feedback) on cheap models.
-      Requires: motoko CLI + OPENROUTER_API_KEY.
-
-  motoko-or-sonnet-5:
-    api_name: "anthropic/claude-sonnet-5"
-    provider: "openrouter"
-    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
-    description: "Claude Sonnet 5 via motoko on the `cloud` profile — the PAID yardstick for the zero-cost aim. Same harness + same extension set as motoko-local-qwen3-8-27b-microrag, so the only variable is the model."
-    env_var: "OPENROUTER_API_KEY"
-    agent_cli: "motoko"
-    motoko_profile: "cloud"    # [compaction_ai, context_mode, ailang_docs, microrag] == ollama_microrag
-    agent_model_name: "openrouter/anthropic/claude-sonnet-5"
-    model_family: "claude-sonnet-5"
-    max_output_tokens: 64000
-    pricing:
-      input_per_1k: 0.002   # $2 per 1M (OpenRouter API, verified 2026-08-27)
-      output_per_1k: 0.01   # $10 per 1M (OpenRouter API, verified 2026-08-27)
-    budgets:
-      hard_timeout_secs: 3600   # matched to the local arm so the timeout decides nothing
-    notes: |
-      Added 2026-08-22. Routed via OpenRouter deliberately: the local `claude` CLI
-      is NOT logged in on this rig (`claude -p` returns "Not logged in"), which
-      silently banked 66/66 api_error rows on the first yardstick attempt — a
-      harness failure that reads as a model result. OPENROUTER_API_KEY works.
-      Pair against motoko-local-qwen3-8-27b-microrag: same harness, same
-      extensions, same timeout, same tiers -> the delta is the MODEL, and the
-      local arm's cost is $0.
-
-  motoko-claude-sonnet-4-6:
-    api_name: "claude-sonnet-4-6"
-    provider: "anthropic"
-    default_thinking: "off"
-    description: "Claude Sonnet 4.6 via motoko_agent — premium model + tuned harness ceiling"
-    env_var: "OPENROUTER_API_KEY"
-    agent_cli: "motoko"
-    motoko_profile: "cloud"                            # .motoko/config/cloud — compaction_ai+context_mode+ailang_docs+microrag, DP7 gate = `ailang check`
-    agent_model_name: "openrouter/anthropic/claude-sonnet-4-6"
-    model_family: "claude-sonnet-4-6"
-    max_output_tokens: 64000
-    pricing:
-      input_per_1k: 0.003
-      output_per_1k: 0.015
-      cache_read_per_1k: 0.0003   # 0.1x input — Anthropic prompt-cache read rate
-      cache_write_per_1k: 0.00375  # 1.25x input — Anthropic 5-minute cache write rate
-    notes: |
-      Claude Sonnet 4.6 via motoko. Establishes the harness-on-frontier
-      ceiling — pair against vanilla claude-sonnet-4-6 to measure
-      "does motoko hurt or help when the model is already strong?"
-      Requires: motoko CLI + OPENROUTER_API_KEY.
 
   # GLM-5.1 (Apr 2026) is the newest z-ai model — released after GLM-5 (Feb 2026)
   # Note: z-ai versioning is non-linear: 5.1 > 5 > 4.7 > 4.6 > 4.5 by date
@@ -5634,7 +5649,10 @@ roles:
   # `:floor` was dropped from the mission executor lane on 2026-08-18 — its two cheapest
   # hosts carry negative health status and it returned rc=0 with zero bytes changed twice.
   # opencode stays last, reachable for comparison rather than deleted.
-  executor:  [gpt6-sol, pi-or-deepseek-v4-flash-bare, opencode-or-deepseek-v4-flash]
+  # claude-sonnet-5-5 is rung 2 (2026-09-29, Mark attended): level with gpt6-sol on the
+  # anchored standard series (2295.8 vs 2288.7, same $2/$10) and 41/42 agent smoke+core on
+  # the claude CLI subscription lane. Mirrors the shell driver's EXECUTOR RUNG 2.
+  executor:  [gpt6-sol, claude-sonnet-5-5, pi-or-deepseek-v4-flash-bare, opencode-or-deepseek-v4-flash]
   # evaluator leads with pi, not opencode (changed 2026-09-14). The binary mission path is
   # the only LaneLocal consumer of this row; the coordinator's retry chain reads it on
   # LaneCloud but short-circuits first for any agent carrying an explicit model
@@ -5875,7 +5893,6 @@ harness_suite:
   - "claude-sonnet-4-6"        # Sonnet via Claude Code CLI
   - "opencode-sonnet-4-6"      # Sonnet via opencode harness
   - "pi-claude-sonnet-4-6"     # Sonnet via pi minimal harness (3-way claude-sonnet-4-6 family)
-  - "motoko-claude-sonnet-4-6" # Sonnet via motoko AILANG-native harness (4-way claude-sonnet-4-6 family)
   - "gemini-3-flash"           # Gemini Flash via Gemini CLI
   - "opencode-gemini-3-flash"  # Gemini Flash via opencode harness (ailang-dev + global location)
   - "gpt5-5"                   # GPT-5.5 via Codex CLI harness (Apr 2026)

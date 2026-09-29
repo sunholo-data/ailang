@@ -379,6 +379,13 @@ out=$(env -u MISSION_EXECUTOR_RESOLVED \
   MISSION_EVALUATOR_FALLBACK=pi:ollama/minimax-m3:cloud,pi:openrouter/minimax/minimax-m3 "$RESOLVE" evaluator)
 want "R4 evaluator collision reroutes to the fallback head" "$out" "reroute pi:ollama/minimax-m3:cloud generator-equals-judge"
 
+# R4c: the collision across spellings — executor on the claude-CLI rung 2
+# (claude:claude-sonnet-5-5), evaluator on the `sonnet` alias. Same model; must reroute.
+out=$(env -u MISSION_EXECUTOR_RESOLVED \
+  MISSION_EVALUATOR_MODEL=sonnet MISSION_EXECUTOR_MODEL=claude:claude-sonnet-5-5 \
+  MISSION_EVALUATOR_FALLBACK=pi:ollama/minimax-m3:cloud,pi:openrouter/minimax/minimax-m3 "$RESOLVE" evaluator)
+want "R4c alias vs full-id of the same family is a collision" "$out" "reroute pi:ollama/minimax-m3:cloud generator-equals-judge"
+
 # R4b: same collision but no fallback -> fail closed.
 out=$(env -u MISSION_EXECUTOR_RESOLVED -u MISSION_EVALUATOR_FALLBACK \
   MISSION_EVALUATOR_MODEL=sonnet MISSION_EXECUTOR_MODEL=sonnet "$RESOLVE" evaluator)

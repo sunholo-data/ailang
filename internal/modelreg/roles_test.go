@@ -261,6 +261,7 @@ func TestResolveRole_ExecutorHasAnAdmissibleNonCodexRung(t *testing.T) {
 	}
 	want := []struct{ friendly, executor string }{
 		{"gpt6-sol", "codex"},
+		{"claude-sonnet-5-5", "claude"}, // rung 2, 2026-09-29 (admitted by role-run)
 		{"pi-or-deepseek-v4-flash-bare", "pi"},
 		{"opencode-or-deepseek-v4-flash", "opencode"},
 	}

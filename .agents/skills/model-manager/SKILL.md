@@ -40,11 +40,10 @@ Test API access to a model and display authentication status.
 scripts/test_model_access.sh openai gpt-5.1
 
 # Test Anthropic model
-scripts/test_model_access.sh anthropic Codex-sonnet-4-5-20250929
+scripts/test_model_access.sh anthropic claude-sonnet-5-5
 
 # Test Google Gemini via Vertex AI
 scripts/test_model_access.sh google gemini-3-pro-preview-11-2025
-
 # Test Ollama Cloud (flat-rate open-weight route; tag WITHOUT :cloud)
 scripts/test_model_access.sh ollama-cloud glm-5.3-flash
 ```
@@ -188,11 +187,30 @@ Model is ready for production use
 scripts/test_model_access.sh openai gpt-5.1
 ```
 
+**Credentials live in `~/.config/ailang/secrets.env`** (ANTHROPIC/OPENAI/GOOGLE/OPENROUTER/
+OLLAMA keys). An interactive shell does not source it — `. ~/.config/ailang/secrets.env`
+before `eval-suite` or the access scripts. Without `ANTHROPIC_API_KEY`, standard mode falls
+back to the Claude subscription OAuth token, which the provider serves for **Haiku only**:
+Sonnet 5.5 / Opus 5.5 come back `429 rate_limit_error "Error"` with no rate-limit headers
+(measured 2026-09-29). A 429 with no `anthropic-ratelimit-*` headers is that, not quota.
+
 **What to check:**
 - API key is set (OPENAI_API_KEY, ANTHROPIC_API_KEY, or gcloud auth)
 - API call succeeds (not 401/403/404)
 - Model returns expected structure
 - Token usage is reported
+
+**For Claude models — also probe the agent lane (claude CLI, subscription):**
+```bash
+env -u ANTHROPIC_API_KEY claude -p --model <full-id> --output-format json "Reply OK" | jq '.modelUsage|keys'
+env -u ANTHROPIC_API_KEY claude -p --model claude-sonnet-9-zzz --output-format json "x"  # negative control: must fail
+```
+`modelUsage` must name the exact id. Use the FULL id in `agent_model_name`, never
+`sonnet`/`opus`/`fable`: those aliases re-point at the newest model (2026-09-29 the harness's
+CLI ran `sonnet`→claude-sonnet-5, a newer CLI →claude-sonnet-5-5), so an alias row silently
+benchmarks a different model under its label. The agent harness runs the CLI found by
+`executor.FindNativeBinary` — `~/.local/bin/claude` (self-updating) before any VSCode-bundled
+copy, which lags and once rejected a new model as `unrecognized_model`.
 
 **For Gemini models:**
 - Uses Vertex AI (not public API)
@@ -331,6 +349,13 @@ naming convention on an existing row shape — no new provider code. Canonical d
 
 ### 3. Update models.yml
 
+> **⛔ NEVER add an OpenRouter row for an Anthropic, OpenAI or Google (Gemini) model**
+> (Mark, 2026-09-29). Those vendors have direct lanes here (claude CLI subscription, codex
+> subscription, Vertex). If the direct lane fails, fix or report the lane — do not add an
+> `or-` twin to get a number. Open-weights releases (gemma, gpt-oss) are fine. Enforced by
+> `TestModels_FirstPartyVendorsNeverViaOpenRouter`. Claude CLI rows pin the FULL id in
+> `agent_model_name`, never `sonnet`/`opus`/`fable` (`TestModels_ClaudeCLIRowsNeverUseAnAlias`).
+
 **Add the model configuration:**
 
 ```bash
@@ -344,7 +369,7 @@ scripts/update_models_yml.sh \
 ```
 
 **Naming conventions:**
-- Friendly name: `gpt5-1`, `Codex-sonnet-4-5`, `gemini-3-pro`
+- Friendly name: `gpt5-1`, `claude-sonnet-4-5`, `gemini-3-pro`
 - API name: Exact string for API calls
 - Use hyphens, lowercase
 
@@ -407,11 +432,11 @@ tags — never hardcode (the list drifts):
 SMOKE=$(grep -l 'tier: smoke' benchmarks/*.yml | xargs -n1 basename | sed 's/\.yml$//' | paste -sd, -)
 
 # Standard mode:
-ailang eval-suite --models <candidate>,Codex-sonnet-4-6 --tier smoke \
+ailang eval-suite --models <candidate>,claude-sonnet-4-6 --tier smoke \
   --langs ailang --output /tmp/smoke_<candidate> --parallel 2
 
 # Agent mode (must pass the derived list explicitly):
-ailang eval-suite --agent --models <candidate>,Codex-sonnet-4-6 \
+ailang eval-suite --agent --models <candidate>,claude-sonnet-4-6 \
   --benchmarks "$SMOKE" --langs ailang --output /tmp/smoke_<candidate> --parallel 2
 
 # Tabulate pass/fail (agent mode → results land under /agent, standard → /standard)
@@ -422,7 +447,7 @@ done | column -ts $'\t'
 ```
 
 **Decision tree** (N = number of benchmarks in the smoke tier, 23 as of 2026-06-16 — derive it, don't assume):
-1. **Codex-sonnet-4-6 fails any smoke-tier benchmark** — smoke tier is broken;
+1. **claude-sonnet-4-6 fails any smoke-tier benchmark** — smoke tier is broken;
    fix the benchmark (or its `tier:` tag) before evaluating candidates.
 2. **Candidate fails most of the tier** — CUT. Do not add to models.yml. Note the
    failure types in the cut commit message (WRONG_LANG, syntax, runtime,
@@ -509,7 +534,7 @@ Key takeaways for the model-manager workflow:
    `--tier smoke`.
 
 4. **GLM 5 is genuinely cost-competitive frontier OS.** $0.60/$2.08 per 1M
-   tokens, ~5–7× cheaper than Codex Sonnet 4.6 on input. Worth standing
+   tokens, ~5–7× cheaper than Claude Sonnet 4.6 on input. Worth standing
    inclusion in eval rotation alongside frontier proprietary models.
 
 5. **Vendor-prefix wiring is forward-compat infrastructure.** When adding
@@ -521,7 +546,7 @@ Key takeaways for the model-manager workflow:
 
 6. **Per-benchmark timeouts can be tighter than agent-mode needs.** The
    `csv_to_json_converter.yml` spec has `timeout: 90s` baked in (set to
-   match Codex Sonnet 4.6's ~43s typical solve time). OS models in agent
+   match Claude Sonnet 4.6's ~43s typical solve time). OS models in agent
    mode routinely need 90–180s of iteration on csv_to_json — they CAN
    solve it but get killed by the timeout. Two follow-up models that
    demonstrated this on 2026-05-04:
@@ -544,48 +569,131 @@ Key takeaways for the model-manager workflow:
      Genuine prompt-following gap.
    - `runtime_error` — compiled but crashed. Logic bug in generation.
 
-### 5.5 Smoke is a FLOOR, not a RANKING — use `--tier core` to decide add/replace (HARD RULE)
+### 5.5 Smoke is a FLOOR, not a RANKING — place the candidate on the ANCHORED ELO series (HARD RULE)
 
 > **Passing smoke is necessary but NOT sufficient. Smoke says "this model can
 > speak AILANG at all"; it does NOT say "this model is good enough to add" or
 > "this model beats the incumbent." Those are RANKING questions, and smoke is
 > saturated — every frontier-class model scores ~the same on it. Never make an
-> add/keep/replace decision on smoke numbers. Make it on `--tier core`.**
+> add/keep/replace decision on smoke numbers.**
 
 Why: the smoke tier is deliberately fundamental ("can it speak AILANG"), so any
 viable model passes ~all of it. A smoke **tie is the expected outcome**, not a
-signal — it carries zero ranking information. The discriminator is the **core
-tier** (`--tier core`, ~26 benchmarks incl. `csv_to_json_converter`, the
-contract/state-machine tests) where frontier models genuinely spread.
+signal — it carries zero ranking information. The discriminator is `--tier core`
+(~26 benchmarks incl. `csv_to_json_converter`, the contract/state-machine tests),
+plus `--tier frontier` when you want placement at the hard end.
 
-**Decision flow once a candidate PASSES smoke:**
-1. **New vendor/family, no incumbent** — run `--tier core` head-to-head vs the
-   `Codex-sonnet-4-6` anchor to size where it lands. Add to suites if it earns it.
-2. **Replacing or competing with an incumbent** (e.g. GLM-5.2 vs GLM-5.1) — run
-   `--tier core` for **candidate + incumbent + anchor in ONE command**, `--langs
-   ailang`. **Only promote/replace if the candidate matches-or-beats the incumbent
-   on core.** A core tie at higher cost → keep the incumbent. A clear core win →
-   the cost bump may be justified.
-3. **Close call on N=1** — core is ~26 single-shot runs; OS-model variance is real.
-   If candidate and incumbent are within 1–2 benchmarks, escalate to N≥3 trials
-   before deciding (don't flip an incumbent on a 1-benchmark N=1 delta).
+#### ⛔ Run the CANDIDATE ALONE. Do not re-run incumbents or anchors.
+
+**M-EVAL-ROLLING-ELO (landed 2026-08-27, PRs #939/#942) changed this.** ELO
+ratings used to be incomparable across fits — `FitFromTrials` seeded every model
+*and* benchmark at 1500 with no scale anchor, so the same rows produced different
+absolute numbers in different pools (measured: or-glm-5-3-flash rated **2763** in
+one pool vs **1995** in another over comparable rows). That is why the old
+protocol re-ran candidate + incumbent + anchor together — a shared pool was the
+only way to make numbers mean anything.
+
+That is no longer true, and doing it now is pure waste:
+
+- `internal/eval_harness/anchor_v1.json` freezes the fitted difficulties of the
+  discriminating standard benchmarks. Standard-mode fits hold that panel fixed
+  and let model ratings move ([`cmd/ailang/eval_elo.go:172`](../../../cmd/ailang/eval_elo.go)).
+- So a candidate run **alone** is *placed* onto the same scale as every model
+  ever measured. Anchored drift is **31.2** ELO vs **311.7** unanchored.
+- **D3 retired full baselines as the default release measurement.** The full run
+  is demoted to quarterly re-anchoring (`make eval-baseline FULL=true`).
 
 ```bash
-# The discriminating run — candidate vs incumbent vs anchor, core tier, one command:
-ailang eval-suite --models <candidate>,<incumbent>,Codex-sonnet-4-6 \
-  --tier core --langs ailang --output /tmp/core_<candidate> --parallel 4
+# CORRECT — candidate only; the anchored fit places it against banked history.
+ailang eval-suite --models <candidate> --tier core,frontier --langs ailang \
+  --output /tmp/cf_<candidate> --parallel 4
+
+ailang eval-elo /tmp/cf_<candidate> --json     # read-only ANCHORED placement fit
+go run ./tools/eval-elo /tmp/cf_<candidate> --mode standard \
+  --persist ~/.ailang/state/observatory.db              # bank it into the series
 ```
 
-> **⚠️ Anti-pattern (2026-06-16, GLM-5.2 vs GLM-5.1):** GLM-5.2 (newest z-ai,
-> reasoning model, 1M ctx, +43% price) cleared standard smoke at **22/23 — an
-> exact tie with GLM-5.1** (both failed only `dense_operator_program`, which the
-> `Codex-sonnet-4-6` anchor ALSO failed → a benchmark/harness issue, not a model
-> gap). The first-pass conclusion was *"tie at +43% cost → keep GLM-5.1."* **That
-> was WRONG.** A smoke tie is meaningless because smoke is saturated — it proves
-> only that GLM-5.2 cleared the floor and QUALIFIES. The replacement decision had
-> to be made on `--tier core`, where the two versions can actually separate. Rule:
-> when a candidate ties the incumbent on smoke, that's your cue to run core, NOT
+`ailang eval-elo` does NOT persist — it refuses `--persist` and tells you to use
+`tools/eval-elo`. Persisting through the cmd path silently no-ops (it swallowed
+`--persist` for weeks; see `project_agent_ratings_seeding_evalelo`).
+
+Compare the resulting rating to the **banked** ratings already in
+`observatory.db` (`LoadModelRatings`) — that is what the series is for.
+
+> **⚠️ CHECK THE BANKED SERIES IS ACTUALLY ANCHORED BEFORE COMPARING.** An
+> anchored placement and a pre-anchor banked rating are on DIFFERENT SCALES, and
+> nothing in the output warns you. Measured 2026-09-01 on the dev box: every
+> `model_ratings` row for `mode='standard'` was stamped **2026-08-03** — before
+> the anchor landed (2026-08-28) — so those 19 values are unanchored, and
+> `trial_history` held **agent-mode rows only** (739 rows, 3 models), meaning
+> there were no banked standard trials to re-level them from. Reading Hy4's
+> anchored 1915.5 against that table would have been exactly the 2763-vs-1995
+> error the anchor exists to prevent.
+>
+> ```bash
+> sqlite3 ~/.ailang/state/observatory.db \
+>   "SELECT model_id, ROUND(rating,1), n_trials, substr(last_updated,1,10)
+>      FROM model_ratings WHERE mode='standard' ORDER BY rating DESC;"
+> sqlite3 ~/.ailang/state/observatory.db \
+>   "SELECT mode, COUNT(*), COUNT(DISTINCT model_id) FROM trial_history GROUP BY mode;"
+> ```
+>
+> **Update 2026-09-29:** anchored standard rows now exist — claude-opus-5-5 2871.9 (floor, 29/29),
+> gpt6-sol 2288.7, gpt6-luna 2008.2 (all 2026-09-22, 29-benchmark core+frontier panel) and
+> claude-sonnet-5-5 ≈2296 (28/29). The check below is still how you tell which rows qualify.
+>
+> If `last_updated` predates the anchor, or `trial_history` has no rows for the
+> mode you are placing in, you have a placement but **no valid comparison set**.
+> Say so plainly rather than ranking against stale numbers. Report the candidate's
+> pass profile against the **anchored benchmark difficulties** (which the fit does
+> give you) and treat the leaderboard position as unavailable until the series is
+> re-fit. Do NOT "fix" this by re-running comparators — that is the anti-pattern
+> above; the fix is banking standard-mode trials so the series can accumulate.
+
+#### When you DO still co-run models
+
+Three cases, and only these:
+
+1. **Agent mode.** There is no agent-mode anchor yet — `eval_elo.go:171-172`
+   anchors standard mode only, agent fits are unanchored. For an agent-mode
+   ranking question the old same-pool rule still holds.
+2. **The incumbent's banked rating predates a baseline-moving language change.**
+   The anchor pins benchmark *difficulty*, not the harness or stdlib. A change
+   that moves what models can do (e.g. the 2026-07-29 extension fix) invalidates
+   older per-benchmark rates. Check the banked rating's version/date provenance
+   first; if it is stale, re-run **just the incumbent** — never the whole panel.
+3. **A paired/discordant analysis**, where `ailang eval-paired <on> <off>` needs
+   both arms from the same run by construction.
+
+When you genuinely do run several models, they must still go in **ONE**
+`eval-suite` command — it overwrites its output directory (`.claude/rules/eval.md`).
+That rule is about not clobbering results; it is not a reason to add models.
+
+#### Deciding promote / replace
+
+- **Match-or-beat the incumbent** to promote. A tie at higher cost keeps the
+  incumbent; a tie at equal-or-lower cost favours the newer generation.
+- **Close call on N=1** — core is ~26 single-shot runs and OS-model variance is
+  real. Within 1–2 benchmarks (or overlapping ELO bands), escalate to N≥3 before
+  deciding. Never flip an incumbent on a 1-benchmark N=1 delta.
+- **Read `finish_reason` + `reason_tokens` on every failure** before calling it
+  capability (§2a). A `finish=length` with large reasoning is truncation.
+
+> **⚠️ Anti-pattern (2026-06-16, GLM-5.2 vs GLM-5.1):** GLM-5.2 cleared standard
+> smoke at **22/23 — an exact tie with GLM-5.1** (both failed only
+> `dense_operator_program`, which the anchor ALSO failed → a benchmark/harness
+> issue, not a model gap). The first-pass conclusion was *"tie at +43% cost →
+> keep GLM-5.1."* **That was WRONG.** A smoke tie is meaningless because smoke is
+> saturated — it proves only that the candidate cleared the floor and QUALIFIES.
+> When a candidate ties the incumbent on smoke, that is your cue to run core, NOT
 > your answer.
+
+> **⚠️ Anti-pattern (2026-09-01, Hy4 preview):** after Hy4 passed smoke 23/23, the
+> placement run was launched as **six models × 31 benchmarks = 186 runs, ~$3.75** —
+> candidate plus incumbent plus four comparators, on the pre-rolling-ELO reflex
+> that a shared pool was needed. It was not: five of those six models already had
+> banked anchored ratings, and the candidate alone costs **$0.23**. Killed at
+> $0.24. **A comparator you re-run is a comparator you pay for twice.**
 
 ### 6. Document the Model
 
@@ -595,17 +703,24 @@ ailang eval-suite --models <candidate>,<incumbent>,Codex-sonnet-4-6 \
 - Document authentication requirements
 - Add to teaching prompts if needed
 
-### 7. Optional: Run Full Eval
+### 7. Bank the placement — do NOT run a full baseline
 
-**If model looks good:**
+Once the candidate has its core/frontier placement, persist it into the anchored
+series so the next question can be answered from banked data instead of a re-run:
 
 ```bash
-# Run small eval suite
-ailang eval-suite --models <model-name> --benchmarks fizzbuzz,recursion_factorial
-
-# Run full suite (expensive!)
-make eval-baseline EVAL_VERSION=vX.Y.Z FULL=true
+go run ./tools/eval-elo /tmp/cf_<candidate> --mode standard --persist ~/.ailang/state/observatory.db
 ```
+
+`--persist` takes the DB path, not the results dir. `database is locked` means another
+`ailang` process (coordinator, a running eval) holds observatory.db — retry once it is idle.
+
+**`make eval-baseline FULL=true` is NOT part of adding a model.** D3 of
+M-EVAL-ROLLING-ELO demoted the full baseline to a **quarterly re-anchoring**
+event (and longitudinal spot-checks). Running one to place a new model costs
+$5-25 + hours of wall clock to produce a number the anchored fit already gives
+you for well under a dollar. If you think you need a full baseline, you almost
+certainly need a linking run instead — re-read §5.5.
 
 ## Resources
 
@@ -641,15 +756,19 @@ This skill loads information progressively:
 - Check for preview/beta status before adding to production suites
 
 **Prerequisites:**
-- API keys set in environment (OPENAI_API_KEY, ANTHROPIC_API_KEY)
+- API keys: `. ~/.config/ailang/secrets.env` (see §1 — shells do not source it)
 - For Gemini: `gcloud` CLI installed and authenticated
-- For Gemini: GCP project set (`gcloud config set project PROJECT_ID`)
 - For Ollama Cloud: local ollama daemon running + `ollama signin` done (inference);
   `OLLAMA_API_KEY` set only for the /api/usage quota gauge
+- For Gemini: GCP project set (`gcloud config set project PROJECT_ID`)
 - `curl`, `python3`, and `jq` available in PATH
 
 **Files modified by this skill:**
-- `internal/modelreg/models.yml` - Model configurations
-- `.agents/skills/model-manager/resources/provider_endpoints.md` - When adding a new provider (e.g. Ollama Cloud)
+- `internal/modelreg/models.yml` - Model configurations (the embedded registry)
+- Anthropic rows also need, per model: `internal/ai/reasoning_anthropic.go` (thinking style —
+  `CanDisable:false` if `{type:"disabled"}` 400s), `internal/ai/anthropic/cache.go` (min
+  cacheable prefix), `ceilingLimited` in `internal/eval_harness/models_headroom_test.go`, and
+  `anthropicCacheReadMultiplier` in `internal/modelreg/resolve_test.go` if cache reads ≠ 0.1x
+- `resources/provider_endpoints.md` - When adding a new provider (e.g. Ollama Cloud)
 - (Optional) `prompts/vX.Y.Z.md` - Teaching prompts
-- (Optional) `.Codex/skills/model-manager/resources/` - Local model database
+- (Optional) `.claude/skills/model-manager/resources/` - Local model database

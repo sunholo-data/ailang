@@ -17,6 +17,11 @@ func setupTestDB(t *testing.T) *sql.DB {
 	if err != nil {
 		t.Fatalf("failed to open test database: %v", err)
 	}
+	// Match production: internal/sqliteopen caps every pool at ONE connection.
+	// An unbounded test pool hid a tx-then-db.Query self-deadlock that hung
+	// every claude-CLI agent eval (and with :memory:, a second connection would
+	// silently see an empty database).
+	db.SetMaxOpenConns(1)
 
 	// Create only the tables needed by claudehistory (avoids import cycle with observatory)
 	// This is a minimal schema for testing - production uses observatory.MigrateWithVersion
@@ -276,6 +281,36 @@ func TestImporter_SyncSession(t *testing.T) {
 	}
 	if status.MessageCount != 2 {
 		t.Errorf("expected message count 2, got %d", status.MessageCount)
+	}
+}
+
+// SyncSession must not query through the pool while its transaction holds the
+// pool's only connection. Before the fix this blocked until the context
+// deadline, the correlation lookup silently returned nil, and the transaction
+// then failed on the expired context.
+func TestImporter_SyncSession_SingleConnectionPoolDoesNotDeadlock(t *testing.T) {
+	baseDir := t.TempDir()
+	sessionID := setupTestData(t, baseDir)
+	db := setupTestDB(t)
+	defer db.Close()
+
+	if _, err := db.Exec(`INSERT INTO sessions (session_id, task_id, chain_id, stage_id) VALUES (?, 'task-1', 'chain-1', 'stage-1')`, sessionID); err != nil {
+		t.Fatalf("seed session: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	importer := NewImporterWithReader(db, NewReaderWithBase(baseDir))
+	if _, err := importer.SyncSession(ctx, sessionID); err != nil {
+		t.Fatalf("SyncSession on a one-connection pool: %v", err)
+	}
+
+	var chainID sql.NullString
+	if err := db.QueryRow(`SELECT chain_id FROM chat_messages WHERE session_id = ? LIMIT 1`, sessionID).Scan(&chainID); err != nil {
+		t.Fatalf("read back: %v", err)
+	}
+	if chainID.String != "chain-1" {
+		t.Errorf("chat_messages.chain_id = %q, want the session's chain-1 (correlation lookup lost)", chainID.String)
 	}
 }
 

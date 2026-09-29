@@ -148,6 +148,7 @@ var minCacheablePrefixByModel = []struct {
 	{"claude-opus-4-7", 2048},
 	{"claude-opus-4-6", 4096},
 	{"claude-opus-4-5", 4096},
+	{"claude-sonnet-5-5", 512}, // vendor skill table, flagged "check the docs" (2026-09-29)
 	{"claude-sonnet-5", 1024},
 	{"claude-sonnet-4-6", 1024},
 	{"claude-sonnet-4-5", 1024},

@@ -177,6 +177,34 @@ func TestFindNativeBinary(t *testing.T) {
 	}
 }
 
+// The self-updating native install wins over a (possibly stale) VSCode bundle.
+func TestFindNativeBinary_PrefersNativeInstallOverVSCodeBundle(t *testing.T) {
+	tmpDir := t.TempDir()
+	testutil.SetHomeDir(t, tmpDir)
+
+	arch := runtime.GOARCH
+	if arch == "amd64" {
+		arch = "x64"
+	}
+	extDir := filepath.Join(tmpDir, ".vscode", "extensions",
+		fmt.Sprintf("anthropic.claude-code-2.1.259-%s-%s", runtime.GOOS, arch),
+		"resources", "native-binary")
+	localBin := filepath.Join(tmpDir, ".local", "bin")
+	for _, d := range []string{extDir, localBin} {
+		if err := os.MkdirAll(d, 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(d, "claude"), []byte("native"), 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	want := filepath.Join(localBin, "claude")
+	if got := FindNativeBinary("claude"); got != want {
+		t.Errorf("FindNativeBinary picked %q, want the native install %q", got, want)
+	}
+}
+
 func TestFindNativeBinary_MultipleVersions(t *testing.T) {
 	tmpDir := t.TempDir()
 	testutil.SetHomeDir(t, tmpDir)
