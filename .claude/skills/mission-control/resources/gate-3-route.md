@@ -460,30 +460,30 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
 ### PI EVALUATOR SESSION HANDSHAKE
 
 Every pi evaluator attempt MUST use `scripts/mission_pi_run.sh`, whose child invocation supplies
-`AILANG_STORAGE_MESSAGING=gcp` and `AILANG_MESSAGES_PROJECT=ailang-multivac` and leaves
-`AILANG_STORAGE` unchanged. The delivered directive begins with the exact preamble below; do not
-prepend controller triage or other startup prose. The bounded one-row listing is local protocol
-evidence, not full mission inbox triage, and protocol acknowledgement is not inbox-message
+`AILANG_MISSION_STAGE=1` (an unattended stage: the session-protocol gate does not require an inbox
+call) together with `AILANG_STORAGE_MESSAGING=gcp` and `AILANG_MESSAGES_PROJECT=ailang-multivac`, and
+leaves `AILANG_STORAGE` unchanged. The delivered directive begins with the exact preamble below; do not
+prepend controller triage or other startup prose. The evaluator does NOT check the inbox: inbox triage
+is the controller's Gate 0, and inside the sandbox the message store is unreachable — the inbox step
+this handshake used to require timed out on every pi evaluator after the sandbox landed, sending each
+one to the fallback judge (World iter-207). Protocol acknowledgement is not inbox-message
 acknowledgement.
 
 ```text
 MISSION-ROLE: evaluator
 Complete this handshake in YOUR OWN pi session before judge work or report/mutation writes.
 1. Use the read tool to read CLAUDE.md completely in the evaluator worktree.
-2. Use the bash tool with arguments {"command":"ailang messages list --unread --json --limit 1","timeout":30}. The timeout is 30 seconds (use the harness-equivalent only if its field differs); --limit 1 bounds result cardinality only. Require a successful tool result before continuing.
-3. Summarize that bounded inbox result to the controller; classify this task as independent evaluation under the supplied approved design and sprint plan. Do not acknowledge inbox messages.
-4. Call the session_protocol_ack tool with {} and verify its result reports acked=true.
-5. Only after that success, perform the supplied independent evaluation and write its report.
+2. Classify this task as independent evaluation under the supplied approved design and sprint plan. This is an unattended mission stage: do not run `ailang messages`.
+3. Call the session_protocol_ack tool with {} and verify its result reports acked=true.
+4. Only after that success, perform the supplied independent evaluation and write its report.
 Controller-provided triage is context, not evidence that this session completed the protocol.
-If a prerequisite or acknowledgement fails, including inbox timeout expiry, report the exact missing step or tool error and stop this attempt. This is a role transport failure for the existing fallback route, never a judge verdict. Do not loop on denied writes, remove extensions, or bypass the guard.
+If a prerequisite or acknowledgement fails, report the exact missing step or tool error and stop this attempt. This is a role transport failure for the existing fallback route, never a judge verdict. Do not loop on denied writes, remove extensions, or bypass the guard.
 ```
 
 Append the task-specific design and plan paths, reviewed commit, isolated evaluator worktree,
-verification commands, mutation matrix, and report path only after this preamble. A listing error,
-timeout, missing canonical launcher configuration, or missing/false protocol acknowledgement stops
-the attempt and enters the existing fallback chain; it never becomes PASS or FAIL. The source-text
-success requirement is intentionally stricter than the current guard predicate, which recognizes
-attempted tool calls but cannot inspect whether a tool result succeeded.
+verification commands, mutation matrix, and report path only after this preamble. A missing canonical
+launcher configuration, or a missing/false protocol acknowledgement, stops the attempt and enters the
+existing fallback chain; it never becomes PASS or FAIL.
 <!-- PI_EVALUATOR_SESSION_HANDSHAKE_END -->
 
 - **Any other `PROVIDER`** (motoko/opencode): NOT wired (motoko needs the GPU `rig.lock`, out of

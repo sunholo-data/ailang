@@ -102,6 +102,19 @@ mkrepo "$TMP/wt5" dirty; echo d > "$TMP/d5.txt"
        --max-seconds 90 --stall-seconds 6 >/dev/null 2>&1
 check "slow-but-working run survives" 0 $? ok "$TMP/o5.ndjson.verdict.json"
 
+echo "TEST 5b: pi children run as an unattended mission stage"
+# The session-protocol gate waives the inbox call only when AILANG_MISSION_STAGE is set;
+# without it every sandboxed role blocks on an unreachable message store (2026-09-29).
+mkstub 'printf "%s" "${AILANG_MISSION_STAGE:-unset}" > stage_marker.txt; printf "{\"type\":\"agent_end\"}\n"'
+mkrepo "$TMP/wt5b" clean; echo d > "$TMP/d5b.txt"
+"$SUT" --model m --directive "$TMP/d5b.txt" --workdir "$TMP/wt5b" --out "$TMP/o5b.ndjson" \
+       --max-seconds 30 --stall-seconds 10 >/dev/null 2>&1
+if [ "$(cat "$TMP/wt5b/stage_marker.txt" 2>/dev/null)" = "1" ]; then
+  echo "  PASS: pi child sees AILANG_MISSION_STAGE=1"; PASS=$((PASS+1))
+else
+  echo "  FAIL: pi child AILANG_MISSION_STAGE=$(cat "$TMP/wt5b/stage_marker.txt" 2>/dev/null || echo '<no marker>')"; FAIL=$((FAIL+1))
+fi
+
 echo "TEST 6: pi runs INSIDE --workdir, not the caller's cwd"
 # Regression pin. Caught live 2026-08-26: a real run reported 4 tool executions and 0
 # changed files because pi edited the caller's cwd while the git assertion read

@@ -178,6 +178,28 @@ export function dispatchTierFromEnv(env?: Record<string, string | undefined>): "
 	return e?.AILANG_WORK_TIER === "tier1" ? "tier1" : "tier2";
 }
 
+/**
+ * Is this an UNATTENDED session — a mission stage or a coordinator task — rather
+ * than a person at a terminal? Read from environment the HARNESS sets at launch
+ * (internal/mission/dispatch and scripts/mission_pi_run.sh set AILANG_MISSION_STAGE
+ * for the role stages they launch; the coordinator sets AILANG_TASK_ID). A mission
+ * CONTROLLER is deliberately not a stage — it triages the inbox at Gate 0 and is not
+ * sandboxed (scripts/hooks/session_start.sh). The model cannot change its own process
+ * environment.
+ *
+ * Unattended sessions do not have to check the inbox before unlocking (CLAUDE.md:
+ * "Unattended … there is no user: skip the inbox and do the task"). The inbox step
+ * exists to put a human's pending messages in front of them; a stage has no human,
+ * and inside the mission sandbox the message store is unreachable, so the required
+ * `ailang messages` call hung until the runner killed the run — World iter-208's
+ * three executor runs, 2026-09-29, each banked as the model's `stream_dead`.
+ * Orientation, the CLAUDE.md read and the ack itself stay required.
+ */
+export function unattendedFromEnv(env?: Record<string, string | undefined>): boolean {
+	const e = env ?? (typeof process !== "undefined" ? process.env : undefined);
+	return Boolean(e?.AILANG_MISSION_STAGE?.trim() || e?.AILANG_TASK_ID?.trim());
+}
+
 /** Permission context for one dispatch, supplied by the coordinator. */
 export interface GateContext {
 	tier: "tier1" | "tier2";
@@ -195,6 +217,7 @@ export interface GateContext {
 export function prerequisitesMet(
 	branch: unknown[],
 	set: PrereqSet = "ailang",
+	unattended = false,
 ): { met: boolean; missing: string[] } {
 	let oriented = false;
 	let messagesChecked = false;
@@ -228,7 +251,9 @@ export function prerequisitesMet(
 
 	const missing: string[] = [];
 	if (!oriented) missing.push("inspect the workspace (a read of a file in it)");
-	if (!messagesChecked) missing.push("run `ailang messages list --unread` and summarize to the user");
+	if (!messagesChecked && !unattended) {
+		missing.push("run `ailang messages list --unread` and summarize to the user");
+	}
 	if (set === "ailang" && !claudeMdRead) missing.push("read CLAUDE.md (a read of CLAUDE.md in this session)");
 
 	return { met: missing.length === 0, missing };
@@ -238,8 +263,11 @@ export function prerequisitesMet(
  * Back-compat alias for the AILANG set — the shape the ack tool has always
  * checked in headless mode.
  */
-export function headlessPrerequisitesMet(branch: unknown[]): { met: boolean; missing: string[] } {
-	return prerequisitesMet(branch, "ailang");
+export function headlessPrerequisitesMet(
+	branch: unknown[],
+	unattended: boolean = unattendedFromEnv(),
+): { met: boolean; missing: string[] } {
+	return prerequisitesMet(branch, "ailang", unattended);
 }
 
 export default async function (pi: ExtensionAPI) {
@@ -289,6 +317,7 @@ export default async function (pi: ExtensionAPI) {
 				prereqsMet: prerequisitesMet(
 					ctx.sessionManager.getBranch() as unknown[],
 					prereqSetForWorkspace(workspace),
+					unattendedFromEnv(),
 				).met,
 			};
 		} catch {
@@ -315,7 +344,8 @@ export default async function (pi: ExtensionAPI) {
 		label: "Acknowledge Session Protocol",
 		description:
 			"Acknowledge completion of the AILANG session protocol, unlocking edit/write/bash-write tools for this session. " +
-			"The protocol: (1) read CLAUDE.md; (2) run `ailang messages list --unread` and summarize to the user BEFORE acking; " +
+			"The protocol: (1) read CLAUDE.md; (2) run `ailang messages list --unread` and summarize to the user BEFORE acking " +
+			"(skipped in an unattended mission stage or coordinator task — there is no user); " +
 			"(3) classify work via the AGENTS.md Work Routing table — feature/semantics work additionally requires " +
 			"design doc -> user approval -> sprint plan -> 'execute sprint'. Calling this without doing the protocol " +
 			"violates the repo's work-routing gate.",
