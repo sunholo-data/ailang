@@ -54,9 +54,16 @@ func messagesCommand() {
 	// The plane must resolve before any subcommand touches a store: a retired
 	// selector (see config.RemovedEnvNames) or an unknown value is a hard error
 	// here, not a silent local read.
-	if _, err := resolveMessagesTarget(); err != nil {
+	target, err := resolveMessagesTarget()
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s %v\n", red("Error:"), err)
 		os.Exit(2)
+	}
+	// Armed before telemetry init and the store open, both of which touch the network.
+	if len(os.Args) >= 3 {
+		armMessagesDeadline(os.Args[2], string(target.store.Mode))
+	} else if !isTerminal() {
+		armMessagesDeadline("list", string(target.store.Mode))
 	}
 
 	// Initialize telemetry (traces exported if GOOGLE_CLOUD_PROJECT or OTEL_EXPORTER_OTLP_ENDPOINT set)
