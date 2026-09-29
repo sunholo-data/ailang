@@ -57,7 +57,8 @@ after=$(ORIGIN_SHA)
 ck "B ahead-only: pushed (origin moved)" "$([ "$before" != "$after" ] && echo yes || echo no)" "yes"
 ck "B ahead-only: reports 2" "$(echo "$out" | grep -c '2 unpushed')" "1"
 
-# C. 1 ahead AND 1 behind -> refuses
+# C. 1 ahead AND 1 behind, no conflict -> rebased onto origin and pushed (was: refused, which
+# is what stranded work on 2026-09-28).
 git clone -q "$W/origin.git" "$W/other"; cd "$W/other" || exit 1; git config user.email t@t; git config user.name t
 git checkout -q dev; echo z > z; git add z; git commit -qm z; git push -q origin dev; cd "$W/local" || exit 1
 echo d > d; git add d; git commit -qm d
@@ -66,18 +67,74 @@ ck "C setup: really diverged (behind ahead)" "$(git rev-list --left-right --coun
 before=$(ORIGIN_SHA)
 out=$(bash "$HOOK" 2>&1)
 after=$(ORIGIN_SHA)
-ck "C diverged: did NOT push" "$before" "$after"
-ck "C diverged: says not auto-pushing" "$(echo "$out" | grep -c 'Not auto-pushing')" "1"
+ck "C diverged: rebased and pushed" "$([ "$before" != "$after" ] && [ "$(git rev-parse dev)" = "$after" ] && echo yes || echo no)" "yes"
+ck "C diverged: says rebased" "$(echo "$out" | grep -c 'rebased 1 local commit')" "1"
+ck "C diverged: upstream commit kept" "$(git log --format=%s dev | grep -c '^z$')" "1"
+# leftovers NAMES...: how many of these exist in the git dir (a glob-free count, SC2010).
+leftovers() { d=$(git rev-parse --git-dir); n=0; for x in "$@"; do [ -e "$d/$x" ] && n=$((n+1)); done; echo "$n"; }
+ck "C diverged: no rebase left, no lock left" "$(leftovers rebase-merge rebase-apply ailang-autorebase.lock)" "0"
+
+# Helpers for the divergence arms: a fresh clone at current origin, and a push from "other".
+mkclone() { git clone -q "$W/origin.git" "$W/$1"; cd "$W/$1" || exit 1; git config user.email t@t; git config user.name t; git checkout -q dev; export CLAUDE_PROJECT_DIR="$W/$1"; }
+pushother() { (cd "$W/other" && git pull -q --rebase origin dev && printf '%s\n' "$2" > "$1" && git add "$1" && git commit -qm "other $1" && git push -q origin dev); }
+
+# C2. Conflicting divergence -> rebase aborted cleanly: never left mid-rebase, nothing pushed,
+# local commits untouched, and the conflicting file named.
+mkclone c2
+pushother a "upstream-a"
+printf 'local-a\n' > a; git commit -qam 'local a'
+local_before=$(git rev-parse dev); before=$(ORIGIN_SHA)
+out=$(bash "$HOOK" 2>&1); after=$(ORIGIN_SHA)
+ck "C2 conflict: nothing pushed" "$after" "$before"
+ck "C2 conflict: local dev untouched" "$(git rev-parse dev)" "$local_before"
+ck "C2 conflict: not left mid-rebase" "$(leftovers rebase-merge rebase-apply)" "0"
+ck "C2 conflict: on dev, clean tree" "$(git branch --show-current):$(git status --porcelain | wc -l | tr -d ' ')" "dev:0"
+ck "C2 conflict: aborted and names the file" "$(echo "$out" | grep -c 'conflicted in a .*aborted cleanly')" "1"
+
+# C3. A dirty tracked file the rebase would rewrite -> refused BEFORE touching the tree, so a
+# sibling session's unsaved edit is never stashed or rewritten.
+pushother shared "v1"; mkclone c3
+pushother shared "v2"
+printf 'mine\n' > mine; git add mine; git commit -qm mine
+printf 'wip\n' > shared
+before=$(ORIGIN_SHA); out=$(bash "$HOOK" 2>&1); after=$(ORIGIN_SHA)
+ck "C3 dirty overlap: nothing pushed" "$after" "$before"
+ck "C3 dirty overlap: names the file" "$(echo "$out" | grep -c 'uncommitted edits touch files the rebase would change: shared')" "1"
+ck "C3 dirty overlap: wip untouched, no stash" "$(cat shared):$(git stash list | wc -l | tr -d ' ')" "wip:0"
+
+# C4. A dirty tracked file the rebase does NOT touch -> rebased, pushed, edit preserved in place.
+mkclone c4
+pushother up4 "u"
+printf 'mine4\n' > mine4; git add mine4; git commit -qm mine4
+printf 'wip4\n' > a
+before=$(ORIGIN_SHA); out=$(bash "$HOOK" 2>&1); after=$(ORIGIN_SHA)
+ck "C4 dirty elsewhere: pushed" "$([ "$before" != "$after" ] && echo yes || echo no)" "yes"
+ck "C4 dirty elsewhere: edit preserved, no stash left" "$(cat a):$(git stash list | wc -l | tr -d ' ')" "wip4:0"
+
+# C5. Opt-out keeps the old refuse-only behaviour.
+mkclone c5
+pushother up5 "u"
+printf 'mine5\n' > mine5; git add mine5; git commit -qm mine5
+before=$(ORIGIN_SHA); out=$(AILANG_AUTOREBASE=0 bash "$HOOK" 2>&1); after=$(ORIGIN_SHA)
+ck "C5 AILANG_AUTOREBASE=0: refused" "$([ "$before" = "$after" ] && echo stayed):$(echo "$out" | grep -c 'Not auto-pushing')" "stayed:1"
+
+cd "$W/local" || exit 1; export CLAUDE_PROJECT_DIR="$W/local"
 
 # D. non-dev branch with commits ahead -> no-op
 git checkout -q -b sprint/x; echo e > e; git add e; git commit -qm e
 out=$(bash "$HOOK" 2>&1); ck "D non-dev branch: silent" "$out" ""
 git checkout -q dev
 
-# E. merge in flight -> no-op
+# E. merge in flight -> nothing pushed, but LOUD (it used to be a log line nobody read).
 touch "$(git rev-parse --git-dir)/MERGE_HEAD"
-out=$(bash "$HOOK" 2>&1); ck "E merge in flight: silent" "$out" ""
+out=$(bash "$HOOK" 2>&1); ck "E merge in flight: loud, names the fix" "$(echo "$out" | grep -c 'merge --continue')" "1"
 rm -f "$(git rev-parse --git-dir)/MERGE_HEAD"
+
+# E2. A rebase stopped mid-way leaves HEAD DETACHED. The old hook checked the branch first and
+# exited silently as "not on dev" — the exact 2026-09-28 overnight stuck rebase.
+git checkout -q --detach; mkdir "$(git rev-parse --git-dir)/rebase-merge"
+out=$(bash "$HOOK" 2>&1); ck "E2 detached mid-rebase: loud" "$(echo "$out" | grep -c 'rebase --abort')" "1"
+rmdir "$(git rev-parse --git-dir)/rebase-merge"; git checkout -q dev
 
 # G. origin unreachable -> LOUD, never silent (regression pin: a silent skip here
 # re-opens the stranding hole; found live 2026-09-02 when a 10s fetch bound timed out).
