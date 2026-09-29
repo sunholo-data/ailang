@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-VM-DETERMINISM",
-  "status": "not_started",
+  "status": "completed",
   "created": "2026-09-28T08:18:02Z",
   "design_doc": "design_docs/planned/v0_47_2/m-vm-determinism.md",
   "sprint_plan": "design_docs/planned/v0_47_2/m-vm-determinism-sprint-plan.md",
@@ -26,10 +26,10 @@
         "`inferADTFromCases` does not range over `adtTypes`; same-tag candidates resolve in source order.",
         "Focused compiler tests pass with `go test -count=1 ./internal/bytecode/compiler`."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-29T06:38:00Z",
+      "completed": "2026-09-29T06:41:00Z",
+      "notes": "Verified inherited red-first fixture and fix: 200 compiles are byte-identical and semantically correct; ADT fallback uses declaration order."
     },
     {
       "id": "M2_RECORD_UPDATE_RUNTIME_FALLBACK",
@@ -45,10 +45,10 @@
         "Opcode disassembly and image round-trip tests cover `OpUpdateRecord`.",
         "`go test -count=1 ./internal/gen/... ./internal/bytecode/... ./internal/vm/...` passes."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-29T06:41:00Z",
+      "completed": "2026-09-29T06:44:00Z",
+      "notes": "Added OpUpdateRecord compiler emission, validation, disassembly, VM semantics, and malformed-encoding tests while preserving the known-shape fast path."
     },
     {
       "id": "M3_MAP_GUARD_GAME_PARITY",
@@ -64,10 +64,10 @@
         "The fixture asserts tick/state advancement, preventing stable-but-wrong output from passing.",
         "The existing bytecode golden corpus has no unexplained diff."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-29T06:44:00Z",
+      "completed": "2026-09-29T06:46:00Z",
+      "notes": "Added AST map-range guard and extended the wired CLI fixture with nested JSON; evaluator and strict VM match for 30 runs with state advancement asserted."
     },
     {
       "id": "M4_VALIDATION_DOCS_EXTERNAL_REPRO",
@@ -83,10 +83,10 @@
         "Changelog documents restored VM determinism; limitations document the deferred ADT issue.",
         "No unexplained golden-file changes remain."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-09-29T06:46:00Z",
+      "completed": "2026-09-29T06:50:00Z",
+      "notes": "Focused tests, lint, format, boundaries, and file-size gates pass. External game checkout unavailable; in-repo proxy passed. Dev-wide simplicity baseline remains independently red."
     }
   ]
 }

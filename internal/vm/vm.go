@@ -427,6 +427,39 @@ func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
 			frame.Regs[inst.A()] = bytecode.NewRecord(fields)
 			frame.IP += 1 + count
 
+		case bytecode.OpUpdateRecord:
+			base := frame.Regs[inst.B()]
+			if base.Tag != bytecode.TagRecord {
+				return bytecode.Value{}, vm.errAt(frame, fmt.Sprintf("UPDATE_RECORD: base is %s, not Record", base.Tag), inst)
+			}
+			count := int(inst.C())
+			fields := append([]bytecode.RecordField(nil), base.AsRecord()...)
+			for i := 0; i < count; i++ {
+				nameInst := frame.Proto.Instructions[frame.IP+1+i]
+				if nameInst.Op() != bytecode.OpLoadConst {
+					return bytecode.Value{}, vm.errAt(frame, "UPDATE_RECORD: expected pseudo-LOAD_CONST for field name", nameInst)
+				}
+				nameVal, ok := frame.Proto.LookupConstant(int(nameInst.Bx()), vm.Image)
+				if !ok || nameVal.Tag != bytecode.TagString {
+					return bytecode.Value{}, vm.errAt(frame, "UPDATE_RECORD: bad field-name constant", nameInst)
+				}
+				name := nameVal.AsString()
+				value := frame.Regs[int(inst.A())+1+i]
+				replaced := false
+				for j := range fields {
+					if fields[j].Name == name {
+						fields[j].Value = value
+						replaced = true
+						break
+					}
+				}
+				if !replaced {
+					fields = append(fields, bytecode.RecordField{Name: name, Value: value})
+				}
+			}
+			frame.Regs[inst.A()] = bytecode.NewRecord(fields)
+			frame.IP += 1 + count
+
 		case bytecode.OpCons:
 			head := frame.Regs[inst.B()]
 			tail := frame.Regs[inst.C()]

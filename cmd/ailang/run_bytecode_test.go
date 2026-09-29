@@ -225,7 +225,7 @@ func listPatternProgramOutput(t *testing.T, stdout string) string {
 // byte-identical across them.
 func TestCLI_RunBytecode_SharedFieldNames(t *testing.T) {
 	src := filepath.Join("tests", "golden", "bytecode", "shared_field_names.ail")
-	const want = "[3.0, 10.0, 5.0, 6.0, 10.0, 14.0] [101.0, 104.0, 200.0, 300.0, 4.0, 3.0] [42.0, 1.0, 2.0, 42.0, 20.0]"
+	const want = "[3.0, 10.0, 5.0, 6.0, 10.0, 14.0] [101.0, 104.0, 200.0, 300.0, 4.0, 3.0, 7.0] [42.0, 1.0, 2.0, 42.0, 20.0]"
 	args := []string{"--quiet", "--relax-modules", "--entry", "main", "--args-json", "1", src}
 
 	evalOut, evalErr, evalExit := runCLI(t, append([]string{"run"}, args...)...)
@@ -233,7 +233,7 @@ func TestCLI_RunBytecode_SharedFieldNames(t *testing.T) {
 		t.Fatalf("interpreter: exit %d, got %q, want %q\nstderr=%s", evalExit, evalOut, want, evalErr)
 	}
 
-	const runs = 8
+	const runs = 30
 	var firstDisasm string
 	for i := 0; i < runs; i++ {
 		out, stderr, exit := runCLI(t, append([]string{"run", "--bytecode", "--strict-bytecode"}, args...)...)

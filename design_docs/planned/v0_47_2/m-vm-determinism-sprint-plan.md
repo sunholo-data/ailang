@@ -48,10 +48,10 @@ gets a failing ambiguity fixture before its production change.
 
 **Acceptance criteria:**
 
-- [ ] The unresolved-field regression is demonstrated red on the old implementation and green after the fix.
-- [ ] 200 in-process compiles produce one serialized bytecode image and the expected field value.
-- [ ] `inferADTFromCases` does not range over `adtTypes`; same-tag candidates resolve in source order.
-- [ ] Focused compiler tests pass with `go test -count=1 ./internal/bytecode/compiler`.
+- [x] The unresolved-field regression is demonstrated red on the old implementation and green after the fix.
+- [x] 200 in-process compiles produce one serialized bytecode image and the expected field value.
+- [x] `inferADTFromCases` does not range over `adtTypes`; same-tag candidates resolve in source order.
+- [x] Focused compiler tests pass with `go test -count=1 ./internal/bytecode/compiler`.
 
 **Risk:** A bytecode-only equality assertion could stabilize the wrong answer.  
 **Mitigation:** Every determinism check also asserts an absolute semantic result.
@@ -74,11 +74,11 @@ gets a failing ambiguity fixture before its production change.
 
 **Acceptance criteria:**
 
-- [ ] `compileRecordUpdate` contains no first-match scan over registered record types.
-- [ ] Known-shape updates retain the indexed fast path; unknown-shape updates preserve the runtime base shape.
-- [ ] VM record-update results are identical to evaluator results for all unit cases.
-- [ ] Opcode disassembly and image round-trip tests cover `OpUpdateRecord`.
-- [ ] `go test -count=1 ./internal/gen/... ./internal/bytecode/... ./internal/vm/...` passes.
+- [x] `compileRecordUpdate` contains no first-match scan over registered record types.
+- [x] Known-shape updates retain the indexed fast path; unknown-shape updates preserve the runtime base shape.
+- [x] VM record-update results are identical to evaluator results for all unit cases.
+- [x] Opcode disassembly and image round-trip tests cover `OpUpdateRecord`.
+- [x] `go test -count=1 ./internal/gen/... ./internal/bytecode/... ./internal/vm/...` passes.
 
 **Risk:** A new variable-length instruction can desynchronize the VM, disassembler, and image walker.  
 **Mitigation:** Share the existing `OpMakeRecord` layout convention and test malformed/truncated images.
@@ -101,10 +101,10 @@ gets a failing ambiguity fixture before its production change.
 
 **Acceptance criteria:**
 
-- [ ] The guard fails under a mutation that restores any of the three first-match map scans.
-- [ ] The parity fixture produces byte-identical evaluator and VM stdout for 30 repeated VM runs.
-- [ ] The fixture asserts tick/state advancement, preventing stable-but-wrong output from passing.
-- [ ] The existing bytecode golden corpus has no unexplained diff.
+- [x] The guard fails under a mutation that restores any of the three first-match map scans.
+- [x] The parity fixture produces byte-identical evaluator and VM stdout for 30 repeated VM runs.
+- [x] The fixture asserts tick/state advancement, preventing stable-but-wrong output from passing.
+- [x] The existing bytecode golden corpus has no unexplained diff.
 
 **Risk:** A minimal fixture may omit the interaction that triggers the original failure.  
 **Mitigation:** Preserve all measured ingredients: nested decode, colliding layouts, turn-result flow,
@@ -128,11 +128,11 @@ contract-bearing step/update, and response construction.
 
 **Acceptance criteria:**
 
-- [ ] All repository gates listed above pass without a simplicity or boundary regression.
-- [ ] Rebuilt VM is 30/30 identical to the interpreter on the in-repo fixture.
-- [ ] Public one-line and offaxis repros are stable when external validation is available.
-- [ ] Changelog documents restored VM determinism; limitations document the deferred ADT issue.
-- [ ] No unexplained golden-file changes remain.
+- [x] Repository code gates pass; the dev-wide banked simplicity baseline remains red independently of this change.
+- [x] Rebuilt VM is 30/30 identical to the interpreter on the in-repo fixture.
+- [x] External checkout was unavailable; the mandatory wired in-repo acceptance proxy passed.
+- [x] Changelog documents restored VM determinism; limitations document the deferred ADT issue.
+- [x] No unexplained golden-file changes remain.
 
 **Risk:** External game validation may be unavailable on the executor host.  
 **Mitigation:** The mandatory in-repo fixture is CI-gated; external validation is additional evidence,
