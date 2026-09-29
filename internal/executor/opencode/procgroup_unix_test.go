@@ -25,7 +25,7 @@ func TestOpenCodeTerminationKillsProcessGroup(t *testing.T) {
 	for _, reason := range []string{"timeout", "cancel"} {
 		t.Run(reason, func(t *testing.T) {
 			dir := t.TempDir()
-			script := "#!/bin/sh\nsleep 60 &\necho $! > child.pid\nwait\n"
+			script := "#!/bin/sh\nsleep 60 &\necho $! > '" + filepath.Join(dir, "child.pid") + "'\nwait\n"
 			binary := filepath.Join(dir, "opencode")
 			if err := os.WriteFile(binary, []byte(script), 0o700); err != nil {
 				t.Fatal(err)
