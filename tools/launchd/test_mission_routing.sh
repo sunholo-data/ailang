@@ -65,7 +65,7 @@ want "pi planner still fails closed outside the allowlist" "$out" "opus fail-clo
 # `codex` for any codex:* pin, dropping the model. Invisible on V1 by coincidence —
 # its pin is codex:gpt-5.6-sol and the consumer default is also sol, so the dropped
 # value equalled the fallback. NOT invisible on a mission pinned to a cheaper tier:
-# the docs mission pins codex:gpt-5.6-luna ($0.20/$1.20 per M) and would have
+# the docs mission pins a luna tier (codex:gpt-5.6-luna at the time, $0.20/$1.20 per M; gpt-6-luna since 2026-09-30) and would have
 # planned on gpt-5.6-sol ($2/$10) every iteration. Asserted with TWO different
 # codex models so a re-hardcoded literal cannot satisfy both.
 out=$(MISSION_PLANNER_MODEL='codex:gpt-5.6-luna' "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/c-clean-infra.md")
@@ -512,9 +512,9 @@ cat > "$lab/scripts-doc.md" <<'EOF'
 ## Files
 - `scripts/verify_examples.go`
 EOF
-out=$(/bin/bash -c 'unset MISSION_PLANNER_ALLOWLIST; . "$1"; export MISSION_PLANNER_ALLOWLIST; MISSION_PLANNER_MODEL=codex:gpt-5.6-luna "$2" "$3"' \
+out=$(/bin/bash -c 'unset MISSION_PLANNER_ALLOWLIST; . "$1"; export MISSION_PLANNER_ALLOWLIST; MISSION_PLANNER_MODEL=codex:gpt-6-luna "$2" "$3"' \
   _ "$docsenv" "$DERIVE" "$lab/scripts-doc.md")
-want "arm12 docs allowlist admits top-level scripts" "$out" "codex:gpt-5.6-luna declared:codex-ok"
+want "arm12 docs allowlist admits top-level scripts" "$out" "codex:gpt-6-luna declared:codex-ok"
 PRE_SCRIPTS_AL='tools/*|.claude/skills/mission-control/SKILL.md|.claude/skills/design-doc-creator/*|docs/*|examples/*|README.md|CHANGELOG.md|.claude/skills/docs-sync/scripts/*'
 out=$(MISSION_PLANNER_ALLOWLIST="$PRE_SCRIPTS_AL" MISSION_PLANNER_MODEL=codex:gpt-5.6-luna \
   "$DERIVE" "$lab/scripts-doc.md")

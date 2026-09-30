@@ -173,7 +173,7 @@ IFS=$old_ifs
 # It was invisible on V1 by coincidence: its pin is `codex:gpt-5.6-sol` and the
 # consumer's default is also sol, so the value being dropped happened to equal the
 # value fallen back to. That coincidence does not hold for a mission pinned to a
-# CHEAPER tier — the docs mission pins `codex:gpt-5.6-luna` ($0.20/$1.20 per M) and
+# CHEAPER tier — the docs mission pinned `codex:gpt-5.6-luna` ($0.20/$1.20 per M; `gpt-6-luna` since 2026-09-30) and
 # would have silently planned on gpt-5.6-sol ($2/$10) on every single iteration, on
 # the mission created specifically to be cheap.
 #
