@@ -64,3 +64,31 @@ func TestInstallSubscriptionAuth_WritesOnceAndNeverOverwrites(t *testing.T) {
 		t.Fatal("a second install must refuse to overwrite the credential in use")
 	}
 }
+
+func TestParseSubscriptionAuth_RejectsMalformedInput(t *testing.T) {
+	for name, in := range map[string]string{
+		"not json":         `{"auth_mode":`,
+		"bad last_refresh": `{"auth_mode":"chatgpt","last_refresh":"yesterday","tokens":{"refresh_token":"r"}}`,
+	} {
+		if _, err := ParseSubscriptionAuth([]byte(in)); err == nil {
+			t.Errorf("%s: want an error, got nil", name)
+		}
+	}
+}
+
+func TestNewerRefresh_InvalidBaselineNeverWritesBack(t *testing.T) {
+	if NewerRefresh([]byte(`not json`), chatgptAuth("2026-10-08T10:00:00Z")) {
+		t.Error("an unparseable baseline must not authorise a write-back")
+	}
+}
+
+func TestInstallSubscriptionAuth_RefusesAPIKeyFile(t *testing.T) {
+	home := t.TempDir()
+	testutil.SetHomeDir(t, home)
+	if err := InstallSubscriptionAuth([]byte(`{"auth_mode":"apikey","OPENAI_API_KEY":"sk"}`)); err == nil {
+		t.Fatal("an api-key file must never be installed on the subscription path")
+	}
+	if _, err := os.Stat(authPath(home)); !os.IsNotExist(err) {
+		t.Fatal("a refused credential must leave no file behind")
+	}
+}
