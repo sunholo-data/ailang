@@ -128,8 +128,9 @@ func printMissionHelp() {
     Ollama Cloud: OLLAMA_API_KEY usage gauge warns at 80%, blocks at 95% in either window.
     Optional ~/.ailang/state/ollama-quota-limits.json adds verified reset-aware pacing.
     Unknown quota blocks cloud routing; local Ollama models are unaffected.
-                                   fleet-wide subscription spend per (bucket, window),
-                                   against the 10%/day ration
+                                   fleet-wide subscription spend per (bucket, window):
+                                   Codex/Anthropic against the weekday pace (20% per
+                                   weekday, weekends spend the slack), others 10%/day
   ailang mission rotate-log <name> [--keep N]
                                    trim the live log, archive the rest, and regenerate
                                    the COMPLETE one-line index (default keep 20)

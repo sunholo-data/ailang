@@ -120,13 +120,12 @@ func codexValidWindows(raw []*codexRateWindow, at time.Time) ([]CodexQuotaWindow
 }
 
 func (o *CodexQuotaObservation) evaluate(now time.Time) {
-	o.evaluateAt(now, DailyRationFraction)
+	o.evaluateAt(now)
 }
 
-// evaluateAt is evaluate with an explicit daily fraction, so a provider whose ration was
-// ruled separately (Anthropic, AnthropicDailyRationFraction) shares the one pacing rule
-// without sharing its number.
-func (o *CodexQuotaObservation) evaluateAt(now time.Time, fraction float64) {
+// evaluateAt applies the weekday pace (WeekdayPacePercent) to every long window. Codex and
+// Anthropic share it: both report provider percentages over a 7-day window with a reset.
+func (o *CodexQuotaObservation) evaluateAt(now time.Time) {
 	// The allowance is arithmetic on the window itself, so it is computed for EVERY window
 	// before any early return. It used to be computed after the staleness and expiry checks,
 	// which left AllowancePercent at its zero value on those paths — and the report prints
@@ -151,13 +150,7 @@ func (o *CodexQuotaObservation) evaluateAt(now time.Time, fraction float64) {
 		if w.WindowMinutes > 24*60 {
 			hasLong = true
 			start := w.ResetsAt.Add(-time.Duration(w.WindowMinutes) * time.Minute)
-			w.AllowancePercent = 100 * fraction * now.Sub(start).Hours() / 24
-			if w.AllowancePercent < 100*fraction {
-				w.AllowancePercent = 100 * fraction
-			}
-			if w.AllowancePercent > 100 {
-				w.AllowancePercent = 100
-			}
+			w.AllowancePercent = WeekdayPacePercent(start, now, paceLocation)
 		}
 		if w.UsedPercent >= 100 || w.UsedPercent > w.AllowancePercent {
 			over = true

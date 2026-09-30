@@ -35,21 +35,60 @@ const (
 	WindowLong Window = "long"
 )
 
-// DailyRationFraction is D-1: spend at most 10% of a bucket per day.
+// DailyRationFraction is D-1: spend at most 10% of a bucket per day. Since 2026-09-30 it
+// paces only the buckets with no weekly window (the token ledger, Ollama's trailing-24h
+// rate, OpenRouter's dollar ration); Codex and Anthropic use WeekdayPacePercent below.
 //
 // 100/7 = 14.3% would spend a weekly bucket exactly, with no margin. 10% leaves 30% of
 // the week in reserve, and the reserve is not decoration — the measured bad day spent
 // 50% of codex in one go.
 const DailyRationFraction = 0.10
 
-// AnthropicDailyRationFraction is Anthropic's own daily ration (Mark, attended 2026-09-24):
-// 13%/day, raised from the fleet-wide 10%. The ration is per CALENDAR day, weekends included,
-// so 13% x 7 = 91% is the most the loops can take in a week and Mark keeps at least 9%.
-// (15% was ruled first and revised the same day: 15% x 7 = 105%, which reserves nothing.)
-// At the old 10% the World loop was pacing-blocked with 64% of the week unspent and fell
-// through to fallback controllers that completed 2 of 7 runs. Codex, Ollama and OpenRouter
-// keep DailyRationFraction.
-const AnthropicDailyRationFraction = 0.13
+// WEEKLY BUCKETS ARE PACED BY WEEKDAY (Mark, attended 2026-09-30), replacing the flat
+// per-calendar-day fractions for Anthropic (13%, ruled 2026-09-24) and Codex (10%):
+// "20% a day is fine assuming 5 day weeks ... having unused slack used up on weekends is
+// good". Attended sessions have priority and are never gated; the pace line is the
+// share of the week they are presumed to need so far — 20% per weekday, nothing on
+// Saturday or Sunday. The loops run only while ACCOUNT usage (attended + loops) is under
+// it, so whatever attended work leaves unspent is theirs, and by the end of a window's
+// last weekday the line is 100%: the weekend spends the slack instead of letting it
+// expire at the reset. The old flat fractions kept 9% (Anthropic) and 30% (Codex) of
+// every week in a reserve that was never released.
+//
+// Any 7-day window contains exactly 120 weekday hours, so the rule is one expression:
+// pace = 100 x weekday-hours-elapsed-in-window / 120. Weekdays are judged in the
+// rig's local time (the operator's week).
+const weekdayHoursPerWeek = 5 * 24
+
+// paceLocation is the calendar the weekday pace is judged in: the rig's local time.
+// A variable only so tests can pin it — CI runs in UTC, the rig does not.
+var paceLocation = time.Local
+
+// WeekdayPacePercent is the weekly pace line at now for a window that started at
+// start: 100 x (weekday hours in [start, now]) / 120, clamped to [0, 100].
+func WeekdayPacePercent(start, now time.Time, loc *time.Location) float64 {
+	if !now.After(start) {
+		return 0
+	}
+	t := start.In(loc)
+	end := now.In(loc)
+	var hours float64
+	for t.Before(end) {
+		next := time.Date(t.Year(), t.Month(), t.Day()+1, 0, 0, 0, 0, loc)
+		if next.After(end) {
+			next = end
+		}
+		if wd := t.Weekday(); wd != time.Saturday && wd != time.Sunday {
+			hours += next.Sub(t).Hours()
+		}
+		t = next
+	}
+	pct := 100 * hours / weekdayHoursPerWeek
+	if pct > 100 {
+		pct = 100
+	}
+	return pct
+}
 
 // windowDuration is how long a window lasts.
 func windowDuration(w Window) time.Duration {
