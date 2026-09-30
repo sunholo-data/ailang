@@ -53,3 +53,34 @@ func (s *CoordinatorStore) CompareAndSetTaskStatus(ctx context.Context, id strin
 	}
 	return applied, nil
 }
+
+// updateTaskIfStatus applies updates only while the task's status is one of
+// expected, in one transaction. It returns whether it applied and the status
+// it found, so a refusal can say what the task had become.
+func (s *CoordinatorStore) updateTaskIfStatus(ctx context.Context, id string, expected []coordinator.TaskStatus, updates []firestore.Update) (bool, string, error) {
+	ref := s.client.Doc(collTasks, id)
+	var applied bool
+	var current string
+	err := s.client.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
+		applied = false
+		doc, err := tx.Get(ref)
+		if err != nil {
+			return fmt.Errorf("reading task %s: %w", id, err)
+		}
+		current = mapval.String(doc.Data(), "status")
+		for _, st := range expected {
+			if current == string(st) {
+				applied = true
+				return tx.Update(ref, updates)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return false, current, err
+	}
+	if applied {
+		s.invalidateStatsCache()
+	}
+	return applied, current, nil
+}

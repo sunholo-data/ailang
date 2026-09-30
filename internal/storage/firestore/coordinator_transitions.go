@@ -2,6 +2,7 @@ package firestore
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"cloud.google.com/go/firestore"
@@ -166,14 +167,17 @@ func (s *CoordinatorStore) MarkTaskRejected(ctx context.Context, id string) erro
 }
 
 func (s *CoordinatorStore) MarkTaskCancelled(ctx context.Context, id string) error {
-	_, err := s.client.Doc(collTasks, id).Update(ctx, []firestore.Update{
+	applied, current, err := s.updateTaskIfStatus(ctx, id, []coordinator.TaskStatus{coordinator.TaskStatusPending}, []firestore.Update{
 		{Path: "status", Value: string(coordinator.TaskStatusCancelled)},
 		{Path: "completed_at", Value: time.Now()},
 	})
-	if err == nil {
-		s.invalidateStatsCache()
+	if err != nil {
+		return err
 	}
-	return err
+	if !applied {
+		return fmt.Errorf("%w: %s is %s", coordinator.ErrTaskNotCancellable, id, current)
+	}
+	return nil
 }
 
 func (s *CoordinatorStore) RequeueTask(ctx context.Context, id string) error {
@@ -191,14 +195,15 @@ func (s *CoordinatorStore) RequeueTask(ctx context.Context, id string) error {
 }
 
 func (s *CoordinatorStore) ResetTaskToPending(ctx context.Context, id string) error {
-	_, err := s.client.Doc(collTasks, id).Update(ctx, []firestore.Update{
-		{Path: "status", Value: string(coordinator.TaskStatusPending)},
-		{Path: "worktree_id", Value: ""},
-		{Path: "provider", Value: ""},
-	})
-	if err == nil {
-		s.invalidateStatsCache()
-	}
+	// Conditional: this was an unconditional write, so a dispatch attempt that
+	// failed after an operator cancelled the task put it straight back.
+	_, _, err := s.updateTaskIfStatus(ctx, id,
+		[]coordinator.TaskStatus{coordinator.TaskStatusQueued, coordinator.TaskStatusRunning},
+		[]firestore.Update{
+			{Path: "status", Value: string(coordinator.TaskStatusPending)},
+			{Path: "worktree_id", Value: ""},
+			{Path: "provider", Value: ""},
+		})
 	return err
 }
 

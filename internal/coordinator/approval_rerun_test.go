@@ -335,7 +335,10 @@ func TestFinalize_RerunWhilePendingRefreshesTheCard(t *testing.T) {
 // rejects anything that is not pending, which is the whole point of it.
 func requeueForRerun(t *testing.T, store *SQLiteStore, ctx context.Context, taskID string) error {
 	t.Helper()
-	if err := store.ResetTaskToPending(ctx, taskID); err != nil {
+	// RequeueTask is the production re-run path (retry, reject-with-retrigger).
+	// ResetTaskToPending only undoes an in-flight claim (queued/running), so it
+	// no longer moves a finished task.
+	if err := store.RequeueTask(ctx, taskID); err != nil {
 		return err
 	}
 	return store.MarkTaskQueued(ctx, taskID)
