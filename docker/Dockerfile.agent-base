@@ -9,7 +9,14 @@ FROM golang:1.26-bookworm AS builder
 WORKDIR /build
 
 COPY go.mod go.sum ./
-RUN go mod download
+# proxy.golang.org resets HTTP/2 streams from Cloud Build's egress under load
+# ("stream error: stream ID N; INTERNAL_ERROR; received from peer"), on a
+# different module each time: the v0.48.0 release build failed three times on it
+# (2026-09-29), in build-dashboard and build-mcp. Retry with backoff, and let a
+# module that still fails come straight from its origin. The separator is "|",
+# not ",": with "," Go falls back to direct only on a 404/410, never on a
+# network error. go.sum still verifies every module, whichever route served it.
+RUN GOPROXY='https://proxy.golang.org|direct' sh -c 'for i in 1 2 3 4; do go mod download && exit 0; echo "go mod download failed (attempt $i/4); retrying" >&2; sleep $((i * 15)); done; exit 1'
 
 COPY . .
 # Stamp the version from std/VERSION, which is IN the build context and which the
