@@ -10,6 +10,12 @@ Regenerated wholesale by `ailang mission rotate-log`, never appended to: an
 append-only index drifts the moment an entry is edited, and an index that answers
 confidently and wrongly is worse than none.
 
+> **Reset 2026-09-30 (`D-MOTOKO-RESET-1`).** Iterations 0–39 below are the fork era (ABI 2.2 →
+> motoko main migration); their full entries are all in `motoko-mission-log-archive.md`, and the live
+> log starts empty at iteration 40. Row numbers these entries cite are the ARCHIVED queue's — the live
+> queue in `motoko-mission.md` starts at row 20. This note is hand-written: `rotate-log` cannot
+> regenerate this index for motoko today (queue row 19), so the next regeneration may drop it.
+
 | # | date | what happened |
 |---|---|---|
 | 39 | 2026-09-07 | the audit the ruling ordered found a reader class three rounds had missed; round-3 quorum blocked 3/3 on a new environment-dependence, row 6s parked on D-MOTOKO-P2-1 [HARNESS] |

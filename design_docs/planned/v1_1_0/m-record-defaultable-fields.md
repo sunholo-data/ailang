@@ -11,7 +11,7 @@
 
 ## Problem Statement
 
-The motoko extension ABI (`pkg/sunholo/motoko_ext_abi/types.ExtensionHooks`, pinned at 2.2.0) is a **closed record**: `id`, `provided_tools`, and 8 function-typed hook fields (`on_describe_tools`, `on_build_system_prompt`, `on_budget_plan`, `on_pre_step`, `on_tool_policy`, `on_tool_handle`, `on_response_intercept`, `on_solver_candidate`). Because AILANG records are closed at their annotated type, every one of the ~17 published extensions must write **all 8 hook fields** even when it overrides one, and **adding a 9th field is a major ABI break** — measured in [m-motoko-dst-refactor-migration](../m-motoko-dst-refactor-migration.md) V30/V31: the 2.2.0→5.0 shape change forced a 25-line mechanical port of even the trivial pilot extension.
+The motoko extension ABI (`pkg/sunholo/motoko_ext_abi/types.ExtensionHooks`, pinned at 2.2.0) is a **closed record**: `id`, `provided_tools`, and 8 function-typed hook fields (`on_describe_tools`, `on_build_system_prompt`, `on_budget_plan`, `on_pre_step`, `on_tool_policy`, `on_tool_handle`, `on_response_intercept`, `on_solver_candidate`). Because AILANG records are closed at their annotated type, every one of the ~17 published extensions must write **all 8 hook fields** even when it overrides one, and **adding a 9th field is a major ABI break** — measured in [m-motoko-dst-refactor-migration](../../implemented/v0_48_0/m-motoko-dst-refactor-migration.md) V30/V31: the 2.2.0→5.0 shape change forced a 25-line mechanical port of even the trivial pilot extension.
 
 **Current State (verified)**:
 - A record literal missing a field fails to type-check against the closed record type (`ailang check`, Verification Log V1).
@@ -155,7 +155,7 @@ Touches `internal/ast/` (new decl kind), `internal/types/` (unification + elabor
 ## References
 
 - **Motivation**: issue #905 (sunholo-data/ailang); motoko_agent ADR-001 `default_hooks()` workaround (runtime-value default)
-- **ABI break measurement**: [m-motoko-dst-refactor-migration.md](../m-motoko-dst-refactor-migration.md) (V30, V31: additive-at-type-level but field-forced break; 12 packages pin `motoko_ext_abi = "2.2.0"`)
+- **ABI break measurement**: [m-motoko-dst-refactor-migration.md](../../implemented/v0_48_0/m-motoko-dst-refactor-migration.md) (V30, V31: additive-at-type-level but field-forced break; 12 packages pin `motoko_ext_abi = "2.2.0"`)
 - **Scaffolding / author flow**: [motoko-extension-development.md](../../docs/docs/guides/motoko-extension-development.md); `cmd/ailang/init_motoko_extension_templates.go`
 - **Record system docs**: [language-syntax.md](../../docs/docs/reference/language-syntax.md) (record subsumption; row polymorphism section)
 - **Axiom reference**: [Design Axioms](/docs/references/axioms)
@@ -170,7 +170,7 @@ Touches `internal/ast/` (new decl kind), `internal/types/` (unification + elabor
 | V4 | `Option[func-ty]` fields compose today | `ailang check` on Option-typed hook field + match | **Confirmed** — `✓ No errors found!` |
 | V5 | Regression fixtures exist | `ls examples/record_cons_pattern.ail record_in_result.ail record_list_extraction.ail extension_self_disable.ail` | **Confirmed** — all four exist |
 | V6 | ExtensionHooks has 8 function-typed hook fields + `id` + `provided_tools`, closed effect rows | Read `cmd/ailang/init_motoko_extension_templates.go` `tmplImplAil` (v0.18.5+, mirrors ABI 2.2.0 shape) | **Confirmed** |
-| V7 | ABI growth is currently a forced break for all pinned consumers | [m-motoko-dst-refactor-migration.md](../m-motoko-dst-refactor-migration.md) V30/V31/V5 (12 packages pin 2.2.0; pilot port = 25 changed lines) | **Confirmed** (cited measurement, not re-measured) |
+| V7 | ABI growth is currently a forced break for all pinned consumers | [m-motoko-dst-refactor-migration.md](../../implemented/v0_48_0/m-motoko-dst-refactor-migration.md) V30/V31/V5 (12 packages pin 2.2.0; pilot port = 25 changed lines) | **Confirmed** (cited measurement, not re-measured) |
 | V8 | Checks ran against the installed v0.38.5 binary (commit 2a2377b) while the workspace shallow clone holds a single newer HEAD commit (agent-set deploy work) | `ailang --version`, `git log --oneline -1`, `git cat-file` on build SHA | **Confirmed** — build SHA absent from the shallow clone, so a HEAD-diff of `internal/types` is impossible; the checks above exercise unchanged core record semantics from the installed release binary |
 
 ## Open Questions (for quorum / sprint planning)

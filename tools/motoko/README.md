@@ -7,7 +7,7 @@ rather than a number in a log entry.
 
 ## `r8_headroom_band.ail`
 
-Settles disposition row **R8** (`design_docs/planned/m-motoko-fork-disposition.md`): *is the band
+Settles disposition row **R8** (`design_docs/implemented/v0_48_0/m-motoko-fork-disposition.md`): *is the band
 between the compaction ladder's 70% target and the seal's 95% permission reachable in practice?*
 
 Answer, measured 2026-08-14 against `main_dst@6c06b08`: **yes**, and the seal permits it —

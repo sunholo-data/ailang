@@ -1,5 +1,7 @@
 # Motoko fork disposition — iteration 1
 
+> **Completed 2026-09-28/30, see [MOTOKO.md](../../../MOTOKO.md).** The fork this table dispositions (`mk-ast`, `sunholo/eval-canonical`) is retired; what survived was carried onto `sunholo/main-dst` (MOTOKO.md §9).
+
 Measured on 2026-08-12 by reading each non-merge commit in fork `9e8d647f18eda6cb32ee9aa82afe8d16f157e537` and comparing its mechanism with `origin/main_dst` at `303d8697caa50cf6ce0552560f26c4c92f4e56be`, using path-scoped content searches and the likely upstream host modules. The range contains 52 commits, but `ed61097` is a merge carrying no unique content: `git -C /Users/voightkampff/dev/mk-ast diff --quiet ed61097^2 ed61097; echo $?` returned `0`; therefore 51 rows is correct.
 
 | R# | sha | date | subject (trimmed) | VERDICT | Evidence (command + result) | Confidence |
