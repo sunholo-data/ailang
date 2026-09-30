@@ -82,7 +82,26 @@ Upstream guidance is the standard OTel OTLP exporters ([MIGRATION.md](https://gi
    v0.49.0 at /Users/mark/dev/sunholo/ailang/std\n"
    ```
 
-   Removing Cloud Trace removes exactly one of the two lines. The second is a **separate defect in the test harness**: `buildAilang` runs a bare `go build` with no ldflags (`cmd/ailang/main_test.go:386`), whereas the real build injects the version (`Makefile:42`), so `version.Version` is `"dev"` while `std/VERSION` is `v0.49.0` and `internal/loader/stdlib_resolver.go:196-199` warns. **This migration alone will NOT turn that test green.** M1 exists to fix the second source; without it the doc's headline success criterion is unreachable.
+   There are indeed two independent stderr sources, but the control run above did
+   not isolate them: it unset `GOOGLE_CLOUD_PROJECT` and `OTLP_GOOGLE_CLOUD_PROJECT`
+   while leaving `AILANG_STDLIB_PATH` set. Isolating both (2026-09-30, same commit):
+
+   | `AILANG_STDLIB_PATH` | cloud project resolvable | result |
+   |---|---|---|
+   | unset | unset | **PASS** — stderr clean |
+   | set | unset | FAIL — `stdlib version mismatch` only |
+   | unset | set | FAIL — deprecation notice only |
+   | set | set | FAIL — both lines |
+
+   So **removing Cloud Trace IS sufficient to turn this test green** on any machine
+   that does not export `AILANG_STDLIB_PATH` — which includes CI and a plain
+   checkout. The `stdlib version mismatch` line is **latent**, not active: it fires
+   only when `AILANG_STDLIB_PATH` points at a `std/` whose `VERSION` differs from the
+   binary's injected version, and `buildAilang` (`cmd/ailang/main_test.go:386`) builds
+   without the ldflags `Makefile:42` injects, so its version is always `"dev"`. That
+   is a real fragility — the test fails on a developer box for a reason unrelated to
+   what it asserts — but it is a developer-environment sensitivity, not a defect that
+   makes the headline criterion unreachable.
 
 5. **Polluted stderr is a correctness hazard**, not cosmetics — anything parsing `ailang` output inherits the noise. Precedent in this repo: the same class of stray warning polluted 291 eval runs' BashExec context in the 2026-06-20 rotation (`internal/loader/stdlib_resolver.go:192-195`).
 
@@ -94,7 +113,7 @@ Upstream guidance is the standard OTel OTLP exporters ([MIGRATION.md](https://gi
 
 **Success metrics:**
 1. `grep -rn opentelemetry-operations-go/exporter/trace go.mod internal/ cmd/` returns nothing (the three *indirect* `operations-go` modules at `go.mod:64-66` stay — see Non-Goals).
-2. `TestInstallPath_ShimRunsFromAnyCwd` passes on a box with `OTLP_GOOGLE_CLOUD_PROJECT` set (needs M1 **and** M3/M4).
+2. `TestInstallPath_ShimRunsFromAnyCwd` passes on a box with a resolvable cloud project (needs M3/M4 alone; it already passes when neither `AILANG_STDLIB_PATH` nor a cloud project is set). M1 additionally makes it insensitive to a developer's `AILANG_STDLIB_PATH`.
 3. A span emitted by `ailang` is retrievable by `ailang trace view` after the flip — or, if M0 proves it cannot be, that loss is an explicit, ratified decision rather than a discovery.
 4. Self-span rate stays 0/min; no scale-to-zero service is held up.
 5. `ailang storage status`-style startup reporting (`InitializationStatus`) still distinguishes "registered" from "delivered".
@@ -149,7 +168,7 @@ Every "high" row above must be resolved before M3 starts. **M0 produces the evid
 - [ ] D4 — `InitializationStatus` JSON key stability
 - [ ] D5 — disposition of `ailang trace list` / `trace view`
 
-**M1 and M2 are deliberately unblocked by the freeze** — M1 is a test-harness fix and M2 is additive terraform, neither depends on D1–D5.
+**M1 and M2 are deliberately unblocked by the freeze** — M1 is a test-robustness fix and M2 is additive terraform, neither depends on D1–D5. Note M1 is not a prerequisite for anything (rescoped 2026-09-30).
 
 ## Solution Design
 
@@ -222,11 +241,17 @@ Not strictly required (no parser/typechecker/codegen files), written anyway per 
 - [ ] Confirm what "archived" means for availability — does a 2027-archived module keep resolving from the proxy, or does the build break?
 - [ ] Deliverable: a spike note with the five answers and a D1–D5 recommendation. **No sprint proceeds past M2 without it.**
 
-### M1 — Make "stderr is clean" testable at all (independent; unblocks the headline criterion) (~0.5 day)
+### M1 — Make the stderr assertion hermetic, and assert it directly (independent; NOT a blocker) (~0.5 day)
 
-- [ ] Fix `buildAilang` (`cmd/ailang/main_test.go:386`) to inject the version ldflags the real build uses (`Makefile:42`), eliminating the `stdlib version mismatch` stderr line proven above to be the *second*, unrelated source.
-- [ ] Add a direct regression test: a trivial `ailang` invocation on a box with `OTLP_GOOGLE_CLOUD_PROJECT` set writes **nothing** to stderr. This is the assertion that actually guards the migration; `TestInstallPath_ShimRunsFromAnyCwd` guards cwd behaviour and merely happens to catch this.
-- [ ] Verify: `TestInstallPath_ShimRunsFromAnyCwd` now fails with **only** the deprecation line — one source left, attributable.
+Rescoped 2026-09-30 after isolating the two stderr sources (see the table in Problem
+Statement item 4). M1 is a robustness fix, not a prerequisite: the migration turns
+`TestInstallPath_ShimRunsFromAnyCwd` green on its own anywhere `AILANG_STDLIB_PATH`
+is unset, which is CI and any plain checkout. What M1 buys is that the test stops
+failing on a developer box for a reason unrelated to what it asserts.
+
+- [ ] Fix `buildAilang` (`cmd/ailang/main_test.go:386`) to inject the version ldflags the real build uses (`Makefile:42`), so `version.Version` is not `"dev"` and a set `AILANG_STDLIB_PATH` no longer trips `internal/loader/stdlib_resolver.go:196-199`.
+- [ ] Add a direct regression test: a trivial `ailang` invocation with a resolvable cloud project writes **nothing** to stderr. This is the assertion that actually guards the migration; `TestInstallPath_ShimRunsFromAnyCwd` guards cwd behaviour and merely happens to catch this.
+- [ ] Verify the 2×2 above holds green in all four cells after M1 + M4.
 
 ### M2 — Infra prerequisites (additive, no behaviour change) (~0.5 day)
 
@@ -245,7 +270,7 @@ Not strictly required (no parser/typechecker/codegen files), written anyway per 
 ### M4 — Flip the default (~0.5 day)
 
 - [ ] New lane on by default; `cloudtrace` becomes explicitly opt-in.
-- [ ] Verify: stderr clean by default; `TestInstallPath_ShimRunsFromAnyCwd` **green** (needs M1); spans still arrive; self-span rate 0/min.
+- [ ] Verify: stderr clean by default; `TestInstallPath_ShimRunsFromAnyCwd` **green** without needing M1 on a box with no `AILANG_STDLIB_PATH`; spans still arrive; self-span rate 0/min.
 
 ### M5 — Delete the deprecated dependency (~0.5 day)
 
@@ -275,7 +300,7 @@ Not strictly required (no parser/typechecker/codegen files), written anyway per 
 
 - [ ] `grep -rn "opentelemetry-operations-go/exporter/trace" go.mod internal/ cmd/` is empty
 - [ ] `ailang repl --help` with `OTLP_GOOGLE_CLOUD_PROJECT` set and no ADC: exit 0, **stderr empty**
-- [ ] `TestInstallPath_ShimRunsFromAnyCwd` passes (requires M1 **and** M4)
+- [ ] `TestInstallPath_ShimRunsFromAnyCwd` passes (requires M4; M1 only for `AILANG_STDLIB_PATH` boxes)
 - [ ] New M1 regression test asserts empty stderr for a cloud-configured invocation
 - [ ] A span emitted by `ailang` is visible in its intended destination after the flip, demonstrated not assumed
 - [ ] Self-span rate measured at 0/min for ≥1h post-flip; no scale-to-zero service held up
@@ -335,7 +360,7 @@ Not strictly required (no parser/typechecker/codegen files), written anyway per 
 | Self-span loop returns under a gRPC transport with a stats handler | High — cost is invisible in the thing it holds up | Extend the exact-match deny-list in M3; prefer HTTP in D2; measure self-span rate at M3 and M4 |
 | The Google lane accidentally reuses `OTEL_EXPORTER_OTLP_ENDPOINT` and redirects all observatory traffic to Google | High — silently breaks the dashboard | D3 freezes a separate setting; Conflict Surface row makes the collision explicit |
 | `telemetry.googleapis.com` not enabled / IAM insufficient in prod | Med | M2 lands the terraform additively before the flip; `roles/cloudtrace.agent` retained until M5 |
-| M4 declared done on a still-red `TestInstallPath_ShimRunsFromAnyCwd` because of the unrelated second stderr source | Med — looks like the migration failed | M1 removes that source first and attributes the remaining line |
+| M4 declared done on a still-red `TestInstallPath_ShimRunsFromAnyCwd` because the developer's box exports `AILANG_STDLIB_PATH` | Med — looks like the migration failed when it did not | Read the 2×2 in Problem Statement item 4 before concluding; re-run with `env -u AILANG_STDLIB_PATH`. M1 removes the sensitivity |
 | `InitializationStatus` JSON key rename breaks a consumer | Low | Three known consumers, all in-repo; D4 decides deliberately |
 
 ## Open Questions / Unverified Premises
@@ -350,7 +375,7 @@ Not strictly required (no parser/typechecker/codegen files), written anyway per 
 | P4 | `roles/cloudtrace.agent` authorizes OTLP ingest, or a different role is needed | **PENDING — M0** |
 | P5 | `otlptracegrpc` attaches no OTel stats handler by default | **PENDING — M0.** Self-span hazard |
 | P6 | An archived module still resolves from the Go proxy after 2027-01-01 | **PENDING — M0.** Affects urgency, not direction |
-| P7 | Whether CI is currently red on `TestInstallPath_ShimRunsFromAnyCwd` | **PENDING.** Verified failing **locally**; CI has no `GOOGLE_CLOUD_PROJECT`, so CI would see only the M1 stdlib-mismatch line — and whether that line appears in CI was not checked |
+| P7 | Whether CI is currently red on `TestInstallPath_ShimRunsFromAnyCwd` | **RESOLVED — no.** The 2×2 in Problem Statement item 4 shows the test PASSES when neither `AILANG_STDLIB_PATH` nor a cloud project is set. CI exports neither: the only two references in `.github/workflows/ci.yml` (lines 148, 152) *unset* it with `env -u AILANG_STDLIB_PATH`. So this is a developer-box-only failure and no CI job is red on it. |
 
 ### Quorum disposition
 
