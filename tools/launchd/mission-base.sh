@@ -1,5 +1,5 @@
 #!/bin/bash
-# mission-base.sh — record the shared origin/dev reading; classify later disagreement as drift.
+# mission-base.sh — record the shared default-branch reading (MISSION_BASE_REF, else origin/HEAD's target); classify later disagreement as drift.
 # bash 3.2.57-safe: no associative arrays, no ${v,,}, no GNU timeout. Portable to ubuntu/windows/bash5.
 set -u
 STATE_DIR="${AILANG_STATE_DIR:-$HOME/.ailang/state}"
@@ -7,7 +7,15 @@ STATE_DIR="${AILANG_STATE_DIR:-$HOME/.ailang/state}"
 # reader takes its verdict from the heartbeat's LAST row, so a trailing base-* row would
 # flip REAPED->CRASHED and degrade the crash-site at= label. (mission-control.sh:1480-1502; Verif. 10)
 BASE="$STATE_DIR/mission-${MISSION_NAME:-v1}-base"
-REF="${MISSION_BASE_REF:-origin/dev}"
+REF=""  # set once by resolve_ref in the dispatcher (snap/record/drift only)
+
+resolve_ref() {  # explicit MISSION_BASE_REF wins; else origin/HEAD's symbolic target; else FAIL (no silent default)
+  if [ -n "${MISSION_BASE_REF:-}" ]; then REF="$MISSION_BASE_REF"; return 0; fi
+  REF=$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null) && [ -n "$REF" ] && return 0
+  echo "mission-base: cannot derive the base ref: refs/remotes/origin/HEAD is unset and MISSION_BASE_REF is empty." >&2
+  echo "mission-base: fix: export MISSION_BASE_REF=origin/<default-branch>, or run 'git remote set-head origin --auto' in this repo." >&2
+  return 1
+}
 
 snap() {  # FULL sha<TAB>ISO8601-UTC from the CURRENT shared ref (no fetch: we read the shared .git)
   local sha iso
@@ -38,7 +46,7 @@ drift() { # compare the last base-<label> row against a fresh snap; exit 1 on di
   # the exit code: an empty `old` must be NO-RECORD (exit 2), never a false DRIFT with an
   # empty old SHA
   old=$(last "$label"); [ -n "$old" ] || { echo "mission-base: no base-$label record yet" >&2; return 2; }
-  new=$(git rev-parse "$REF" 2>/dev/null) || return 1
+  new=$(git rev-parse "$REF" 2>/dev/null) || { echo "mission-base: cannot resolve $REF" >&2; return 1; }
   if [ "$old" = "$new" ]; then
     echo "base $label steady at $new"; return 0
   fi
@@ -47,9 +55,9 @@ drift() { # compare the last base-<label> row against a fresh snap; exit 1 on di
 }
 
 case "${1:-}" in
-  snap) snap ;;
-  record) [ $# -ge 2 ] || { echo "mission-base: record requires a label" >&2; exit 2; }; record "$2" ;;
+  snap) resolve_ref || exit 1; snap ;;
+  record) [ $# -ge 2 ] || { echo "mission-base: record requires a label" >&2; exit 2; }; resolve_ref || exit 1; record "$2" ;;
   last) [ $# -ge 2 ] || { echo "mission-base: last requires a label" >&2; exit 2; }; last "$2" ;;
-  drift) [ $# -ge 2 ] || { echo "mission-base: drift requires a label" >&2; exit 2; }; drift "$2" ;;
+  drift) [ $# -ge 2 ] || { echo "mission-base: drift requires a label" >&2; exit 2; }; resolve_ref || exit 1; drift "$2" ;;
   *) echo "usage: mission-base.sh {snap|record|last|drift} [label]" >&2; exit 2 ;;
 esac
