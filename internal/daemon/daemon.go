@@ -67,6 +67,7 @@ type Daemon struct {
 	notify     func(notify.Notification) error
 	taskDedup  *dedup
 	msgDedup   *dedup
+	msgAbsent  *unresolved
 	log        *log.Logger
 }
 
@@ -85,6 +86,7 @@ func New(cfg Config, sub EventSubscriber, fetcher MessageFetcher, notifyFn func(
 		notify:    notifyFn,
 		taskDedup: newDedup(cfg.TaskWindow),
 		msgDedup:  newDedup(cfg.MsgWindow),
+		msgAbsent: newUnresolved(),
 		log:       logger,
 	}
 	// The primary (task+message) source is also the first message source, using
@@ -185,15 +187,46 @@ func (d *Daemon) messageHandlerFor(src MessageSource) MessageHandler {
 			return nil
 		}
 		full, err := src.Fetcher.Fetch(ctx, m.MessageID)
-		if err != nil {
+		// Absence and failure are different things. Both backends can report
+		// absence — Firestore wraps messaging.ErrMessageNotFound, SQLite returns
+		// (nil, nil) — and absence is only worth retrying for as long as it could
+		// still be replication lag. A retryable failure (network, permission,
+		// deadline) is nacked for as long as it keeps failing.
+		// A nil message means absence only when the fetch itself succeeded: a
+		// failing backend returns (nil, err) too, and reading that as absence is
+		// how a Firestore outage would turn into discarded notifications.
+		absent := (err == nil && full == nil) || messaging.IsMessageNotFound(err)
+		switch {
+		case err != nil && !absent:
 			d.msgDedup.forget(key) // nack: let redelivery retry the fetch
+			d.log.Printf("daemon: RETRY message %s (%s): fetch failed: %v", m.MessageID, src.Label, err)
 			return fmt.Errorf("fetch message %s (%s): %w", m.MessageID, src.Label, err)
-		}
-		if full == nil {
-			// Notification arrived before Firestore replication; nack to retry.
+		case absent:
 			d.msgDedup.forget(key)
+			// Already judged unresolvable: ack on sight. An ack does not reliably
+			// retire the message (30s deadline, no exactly-once, several
+			// deliveries in flight), so without the sticky verdict the same
+			// message would re-time the full grace window every time it came back.
+			if d.msgAbsent.gaveUp(m.MessageID) {
+				return nil
+			}
+			age, firstSighting := d.msgAbsent.age(m.MessageID)
+			if age >= absentGrace {
+				// Permanently unresolvable. Ack it: a nack here puts it straight
+				// back at the head of the backlog, where it blocks every real
+				// message behind it (measured: 160,947 nacks to 10 acks).
+				d.msgAbsent.giveUp(m.MessageID)
+				d.log.Printf("daemon: DROPPING message %s (%s): unresolvable for %s — no such message in the store, acking so it stops blocking the subscription", m.MessageID, src.Label, age.Round(time.Second))
+				return nil
+			}
+			// Log once, not on every redelivery: a poison message cycles several
+			// times a second and would bury the traffic that matters.
+			if firstSighting {
+				d.log.Printf("daemon: RETRY message %s (%s): not yet visible in the store", m.MessageID, src.Label)
+			}
 			return fmt.Errorf("message %s not yet visible (%s)", m.MessageID, src.Label)
 		}
+		d.msgAbsent.clear(m.MessageID)
 		n, fire := messageNotification(full)
 		if !fire {
 			return nil

@@ -2,6 +2,7 @@ package coordinator
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/messaging"
@@ -124,5 +125,23 @@ func TestPubSubAdapter_NoStore_Refuses(t *testing.T) {
 	}
 	if n := len(a.buffered); n != 0 {
 		t.Errorf("buffered %d message(s) with no store to hydrate from", n)
+	}
+}
+
+// The two backends report absence differently: SQLite returns (nil, nil), which
+// the test above covers, and Firestore wraps messaging.ErrMessageNotFound. Both
+// mean the same thing, so both must ack. Reading the Firestore shape as a
+// transient failure instead redelivers a notification that can never resolve,
+// until the subscription's dead-letter policy finally parks it.
+func TestPubSubAdapter_FirestoreShapedAbsence_AcksAndBuffersNothing(t *testing.T) {
+	a := NewPubSubInboxAdapter(nil, "sub", "sprint-planner",
+		&failingGetStore{err: fmt.Errorf("%w: task-08032ebc:handoff:sprint-planner", messaging.ErrMessageNotFound)},
+		newSilentLogger())
+
+	if err := a.HandleNotification(validNotification("task-08032ebc:handoff:sprint-planner"), notifyAttrs()); err != nil {
+		t.Errorf("an absent message must be acked whichever backend reported it, got a nack: %v", err)
+	}
+	if n := len(a.buffered); n != 0 {
+		t.Errorf("buffered %d message(s) for a message that does not exist", n)
 	}
 }

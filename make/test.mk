@@ -385,7 +385,7 @@ test-mission-registry: ## Run mission-registry tests (schema, renderer, doctor; 
 CORE_PKGS := ./internal/lexer/... ./internal/parser/... ./internal/ast/... ./internal/core/... \
 	./internal/types/... ./internal/elaborate/... ./internal/typedast/... ./internal/eval/... \
 	./internal/effects/... ./internal/pipeline/... ./internal/link/... ./internal/loader/... \
-	./internal/module/... ./internal/runtime/... ./internal/iface/... ./internal/format/... \
+	./internal/runtime/... ./internal/iface/... ./internal/format/... \
 	./internal/errors/... ./internal/stdlib/...
 
 test-core: ## Run the language-core tests only (lexer→VM, stdlib, fmt) — the fast inner loop

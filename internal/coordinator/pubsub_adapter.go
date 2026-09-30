@@ -220,7 +220,12 @@ func (a *PubSubInboxAdapter) HandleNotification(data []byte, attrs map[string]st
 		return fmt.Errorf("no message store to hydrate notification %s", notification.MessageID)
 	}
 	fullMsg, fetchErr := a.msgStore.GetInboxMessage(notification.MessageID)
-	if fetchErr != nil {
+	// A retryable failure is worth a redelivery; an absence is not. The two
+	// backends say "absent" differently — SQLite returns (nil, nil), Firestore
+	// wraps messaging.ErrMessageNotFound — and reading the Firestore shape as a
+	// failure redelivers a message that can never resolve until the subscription
+	// dead-letters it.
+	if fetchErr != nil && !messaging.IsMessageNotFound(fetchErr) {
 		a.logger.Printf("PubSubInboxAdapter: cannot fetch message %s: %v — NOT dispatching; Pub/Sub will redeliver",
 			notification.MessageID, fetchErr)
 		return fmt.Errorf("hydrating notification %s: %w", notification.MessageID, fetchErr)

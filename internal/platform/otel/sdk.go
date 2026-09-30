@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/url"
+	"reflect"
 	"strings"
 	"time"
 
@@ -172,6 +173,23 @@ func validateEndpoint(key string) error {
 	return nil
 }
 
+// isNilExporter reports whether e is nil OR is a non-nil interface wrapping a
+// nil pointer. The second case is the one that matters: every failing
+// constructor in this package's dependency tree returns a typed nil, and
+// calling a method on it segfaults rather than erroring. Callers normalise to
+// an untyped nil so the ordinary `!= nil` checks downstream stay correct.
+func isNilExporter(e sdktrace.SpanExporter) bool {
+	if e == nil {
+		return true
+	}
+	switch v := reflect.ValueOf(e); v.Kind() {
+	case reflect.Ptr, reflect.Map, reflect.Slice, reflect.Chan, reflect.Func, reflect.Interface:
+		return v.IsNil()
+	default:
+		return false
+	}
+}
+
 func boundedShutdown(funcs []func(context.Context) error) ShutdownFunc {
 	return func(ctx context.Context) error {
 		ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
@@ -201,10 +219,31 @@ func cloudExporter(ctx context.Context, cfg initConfig) (sdktrace.SpanExporter, 
 			// steady 12 spans/min (the 5s default delay) into every dashboard,
 			// which then discarded 173 of 174 batches as internal noise while the
 			// traffic alone held a scale-to-zero Cloud Run instance up 24/7.
-			return cloudtrace.New(
+			//
+			// Returning cloudtrace.New directly is a nil-interface trap. It is
+			// declared (*Exporter, error) and returns `nil, err` on every failure
+			// path, so assigning that straight into the sdktrace.SpanExporter
+			// interface yields a NON-NIL interface holding a nil *Exporter.
+			// `exporter != nil` then passes and (*Exporter).Shutdown dereferences
+			// e.traceExporter — a segfault, not an error.
+			//
+			// Measured 2026-09-30: with no Application Default Credentials
+			// reachable (a test's temp HOME, or an offline box), cloudtrace.New
+			// fails, the dispose path below calls Shutdown on the nil pointer, and
+			// the whole process dies. `ailang repl --help` exited 2 with a SIGSEGV
+			// instead of printing help — three cmd/ailang tests fail that way, and
+			// it would hit any command on a machine that cannot reach GCP.
+			exp, cerr := cloudtrace.New(
 				cloudtrace.WithProjectID(project),
 				cloudtrace.WithTraceClientOptions(cloudTraceClientOptions()),
 			)
+			if cerr != nil {
+				return nil, cerr
+			}
+			if exp == nil {
+				return nil, errors.New("Cloud Trace constructor returned no exporter and no error")
+			}
+			return exp, nil
 		}
 	}
 	ctx, cancel := context.WithTimeout(ctx, cfg.cloudTimeout)
@@ -216,8 +255,13 @@ func cloudExporter(ctx context.Context, cfg initConfig) (sdktrace.SpanExporter, 
 	results := make(chan result)
 	go func() {
 		exporter, err := cfg.newCloudExporter(cfg.cloudProject)
-		if exporter == nil && err == nil {
-			err = errors.New("Cloud Trace constructor returned no exporter")
+		// isNilExporter, not `== nil`: newCloudExporter is an injection point and
+		// a typed nil satisfies `!= nil`. See the constructor comment above.
+		if isNilExporter(exporter) {
+			exporter = nil
+			if err == nil {
+				err = errors.New("Cloud Trace constructor returned no exporter")
+			}
 		}
 		if err == nil {
 			select {
