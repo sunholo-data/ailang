@@ -3,6 +3,7 @@
 Snapshot: iteration 8 — 2026-09-30. History: [charter](fleet-mission.md), [log](fleet-mission-log.md).
 
 - **Latest release**: v0.49.0; Fleet does not release.
+- **Record**: [PR #1416](https://github.com/sunholo-data/ailang/pull/1416) OPEN, needs-human-review; no auto-merge.
 - **This fire**: paired rotate-log fix PARKED, D-FLEET-9. Synthetic wrong-checkout write confirmed; default World target allegation refuted. No implementation or ticket resolution.
 - **Review**: quorum BLOCKED twice (missing shared-loader caller audit); independent Sonnet technical checkpoint PASS, implementation UNMEASURED.
 - **Next READY**: mission-base hardcoded origin/dev; quota-429 verdict; pre-dirty verdict. Preserve Mark's 2026-09-29 order.
