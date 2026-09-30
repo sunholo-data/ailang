@@ -100,6 +100,16 @@ func (h *CompletionHandler) handleCompletion(ctx context.Context, completion pub
 		return nil // Idempotent: task may not exist in this coordinator.
 	}
 
+	// Bind the claim to the dispatch BEFORE anything else reads it (M-SEC2
+	// SEC2.2, completion_binding.go). Rejected, the message is acked —
+	// redelivering a forged claim cannot make it true — and the task is left
+	// exactly as it was. The prefix is stable so a log-based alert can key on it.
+	if reason := completionBindingViolation(task, completion); reason != "" {
+		h.logger.Printf("ERROR: CompletionHandler: COMPLETION_REJECTED task=%s claimed_agent=%q expected_agent=%q task_status=%s claimed_status=%s branch=%q: %s — acked and dropped, task state unchanged",
+			completion.TaskID, completion.AgentID, task.AgentID, task.Status, completion.Status, completion.BranchName, reason)
+		return nil
+	}
+
 	// Idempotency: skip if task is already in a terminal state.
 	if IsTerminalStatus(task.Status) {
 		h.logger.Printf("CompletionHandler: task %s already in terminal state %q, skipping",
