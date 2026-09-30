@@ -53,11 +53,28 @@ notification daemon uses as an output router.
    > this reason — a hand-written or hand-edited plist that omits it will look
    > correctly configured and silently have no Discord.
    >
+   > **Aqua is necessary but NOT sufficient: the login Keychain is also locked
+   > whenever a DIFFERENT user holds the console.** On a shared machine this is
+   > the sharper trap, because the daemon looks correctly configured and the
+   > Keychain item is present and valid.
+   >
    > Measured on the rig 2026-09-30: the webhook item had been in the Keychain
    > since 2026-05-28 and Discord posts had stopped anyway. `security
    > find-generic-password -s ailang-discord-webhook -w` exited **36**
    > (`errSecInteractionNotAllowed` = -25308, mod 256) printing nothing at all —
-   > no error text, empty stdout. The plist had no `LimitLoadToSessionType`.
+   > no error text, empty stdout. `LimitLoadToSessionType` was not the cause
+   > there: `launchctl print gui/501/com.sunholo.ailang.daemon` showed the job
+   > already running in `domain = gui/501`. The cause was that `/dev/console` was
+   > owned by `daneel` while the daemon ran as `voightkampff` — three users had
+   > console sessions and voightkampff's was not the active one, so its login
+   > Keychain was locked to background processes. `security show-keychain-info`
+   > on it returned `User interaction is not allowed` too.
+   >
+   > **So on any multi-user or fast-user-switched host, do not use the login
+   > Keychain for this secret.** Use the env var below (and `chmod 600` whatever
+   > file carries it), or the System keychain, which is unlocked at boot and is
+   > already on the default search list — neither depends on who holds the
+   > console.
 
    **Or via env var** (any host; takes precedence over the Keychain):
    ```bash
