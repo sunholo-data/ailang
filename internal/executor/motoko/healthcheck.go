@@ -56,7 +56,7 @@ func (e *MotokoExecutor) runHealthCheck(ctx context.Context) error {
 	}
 	info, err := os.Stat(resolvedPath)
 	if err != nil {
-		return fmt.Errorf("motoko CLI not found at %q: %w (build from sunholo-data/motoko_agent or set MotokoPath)", motokoPath, err)
+		return fmt.Errorf("motoko CLI not found at %q: %w (install motoko main: sunholo-voight-kampff/motoko_agent branch sunholo/main-dst, see MOTOKO.md; or set MotokoPath)", motokoPath, err)
 	}
 	if info.IsDir() {
 		return fmt.Errorf("motoko path %q is a directory, expected an executable", motokoPath)

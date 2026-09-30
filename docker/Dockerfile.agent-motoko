@@ -10,7 +10,7 @@
 # Bind only OPENROUTER_API_KEY + OPENAI_API_KEY + GEMINI_API_KEY.
 
 ARG PROJECT
-ARG MOTOKO_COMMIT=84fa44935be1e28bde25b1294e2f15dd214e5658
+ARG MOTOKO_COMMIT=4d4917cda8d95102c9dbe02a64947803a5512606
 FROM europe-west1-docker.pkg.dev/${PROJECT}/ailang/agent-base:latest
 
 # motoko_agent setup (NOT a single binary like pi/opencode — it's a bun TUI
@@ -28,18 +28,20 @@ ARG MOTOKO_COMMIT
 RUN apt-get update && apt-get install -y --no-install-recommends unzip \
     && rm -rf /var/lib/apt/lists/*
 
-# Bun runtime (motoko's TUI wrapper requires bun >= 1.0).
-RUN curl -fsSL https://bun.sh/install | bash -s "bun-v1.1.34" \
+# Bun runtime. motoko main commits a text bun.lock, which needs bun >= 1.2; this
+# is the version the rig runs motoko main with.
+RUN curl -fsSL https://bun.sh/install | bash -s "bun-v1.3.14" \
     && mv /root/.bun/bin/bun /usr/local/bin/bun \
     && chmod +x /usr/local/bin/bun
 
-# Check out motoko_agent at the pinned commit (schema-v1 instrumentation per
-# M-MOTOKO-EVAL-INSTRUMENTATION). This SHA is NOT reachable from any current
-# branch tip — its PR branch was deleted and main has since moved on — so a
-# branch clone can't see it. GitHub still serves the object by SHA, so we
-# init + fetch the exact commit directly (verified: fetch-by-SHA works while
-# clone-then-checkout does not). Bumping this pin requires also bumping it in
-# the in-repo adapter README and recapturing the testdata/ fixtures.
+# Check out motoko_agent at the pinned commit: branch sunholo/main-dst of
+# sunholo-voight-kampff/motoko_agent, which is Arni's upstream main (the DST
+# core, extension ABI 8.0) plus our commits — the cloud and ollama_microrag
+# profiles, motoko_ext_ailang_tools (upstream PR arniwesth/motoko_agent#200)
+# and rig-lease forwarding. It is the same commit ~/dev/mk-main runs on the rig
+# (MOTOKO.md). Until 2026-09-30 this image ran the ABI 2.2 fork at 84fa449 from
+# sunholo-data/motoko_agent. Fetch-by-SHA pins the exact commit whatever the
+# branch does next.
 #
 # The fetch authenticates when the build passes a `github_token` secret
 # (docker buildx build --secret id=github_token,env=GITHUB_TOKEN — the
@@ -52,7 +54,7 @@ RUN curl -fsSL https://bun.sh/install | bash -s "bun-v1.1.34" \
 RUN --mount=type=secret,id=github_token \
     mkdir -p /opt/motoko_agent && cd /opt/motoko_agent \
     && git init -q \
-    && git remote add origin https://github.com/sunholo-data/motoko_agent.git \
+    && git remote add origin https://github.com/sunholo-voight-kampff/motoko_agent.git \
     && if [ -s /run/secrets/github_token ]; then \
          git -c credential.helper='!f() { echo username=x-access-token; echo "password=$(cat /run/secrets/github_token)"; }; f' \
              fetch --depth=1 origin ${MOTOKO_COMMIT}; \
@@ -67,10 +69,12 @@ RUN --mount=type=secret,id=github_token \
 # bun, so no tsc `build` step is needed — bun runs TypeScript natively.
 RUN cd /opt/motoko_agent/src/tui && bun install --frozen-lockfile || bun install
 
-# Install motoko-ext-* packages from the AILANG package registry. The pinned
-# commit's ailang.toml lists the version pins; ailang lock + install resolves
-# them. Requires the ailang binary already in /usr/local/bin/ from agent-base.
-RUN cd /opt/motoko_agent && ailang lock && ailang install || true
+# Resolve motoko's AILANG dependencies. Its extensions are in-repo path packages
+# (packages/motoko-ext-*); `ailang lock` resolves them and fetches the registry
+# ones. No `|| true`: a lock that fails here is a motoko that cannot start. The
+# old line also ran a bare `ailang install`, which prints usage and exits 0, so
+# it never installed anything.
+RUN cd /opt/motoko_agent && ailang lock
 
 # Symlink the run-agent wrapper to /usr/local/bin/motoko so the executor
 # adapter's `exec.LookPath("motoko")` resolves cleanly. The wrapper script
@@ -86,7 +90,7 @@ ENV MOTOKO_COMMIT=${MOTOKO_COMMIT}
 USER ailang
 
 # NOTE for ailang-multivac PR authors:
-#   This image works against the public sunholo-data/motoko_agent repo, but
+#   This image works against the public sunholo-voight-kampff/motoko_agent repo, but
 #   the fetch should still be given the `github_token` build secret in Cloud
 #   Build (see above) or it will intermittently hit GitHub's anonymous-egress
 #   throttle. If you switch the pinned commit to one on a private branch, the

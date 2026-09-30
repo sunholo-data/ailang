@@ -446,3 +446,37 @@ func TestParseSessionJSONL_NoSummarySumsCacheBuckets(t *testing.T) {
 			naive, wantProcessed)
 	}
 }
+
+// TestParseSessionJSONL_MotokoMainSuccess parses a real session from motoko
+// main (extension ABI 8.0, branch sunholo/main-dst at the commit the cloud
+// image pins), captured 2026-09-30 from a clean clone on the cloud profile.
+// The other fixtures come from the ABI 2.2 fork; this one proves the adapter
+// reads the stream the image now produces. Paths were rewritten to /work and
+// /opt/motoko_agent.
+func TestParseSessionJSONL_MotokoMainSuccess(t *testing.T) {
+	res, err := parseSessionJSONL("testdata/session_motoko_main_success.jsonl")
+	if err != nil {
+		t.Fatalf("parse failed: %v", err)
+	}
+	if !res.Success {
+		t.Errorf("Success = false, want true (finish_reason=stop)")
+	}
+	if res.NumTurns != 7 {
+		t.Errorf("NumTurns = %d, want 7 (run_summary.steps_executed)", res.NumTurns)
+	}
+	if res.InputTokens != 25491 || res.OutputTokens != 734 {
+		t.Errorf("tokens = %d in / %d out, want 25491 / 734 (run_summary.usage)", res.InputTokens, res.OutputTokens)
+	}
+	if res.CacheReadInputTokens != 20480 {
+		t.Errorf("CacheReadInputTokens = %d, want 20480", res.CacheReadInputTokens)
+	}
+	if res.ToolCallCount == 0 {
+		t.Errorf("ToolCallCount = 0, want the WriteFile/BashExec calls counted")
+	}
+	if !strings.Contains(res.Transcript, "WriteFile") {
+		t.Errorf("Transcript missing the WriteFile call; got:\n%s", res.Transcript)
+	}
+	if model := res.ProviderData["motoko_model"]; model != "openrouter/deepseek/deepseek-v4-flash" {
+		t.Errorf("ProviderData[motoko_model] = %v", model)
+	}
+}
