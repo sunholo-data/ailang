@@ -211,6 +211,14 @@ func coordinatorExecuteJob(args []string) error {
 		publishCompletion("failed", provErr.Error(), "", nil, gitEvidence{}, "")
 		return provErr
 	}
+	codexCred, credErr := installCodexCredential(ctx, provider, projectID)
+	if credErr != nil {
+		publishCompletion("failed", credErr.Error(), "", nil, gitEvidence{}, "")
+		return credErr
+	}
+	// Write refreshed subscription tokens back however the task ends; a container
+	// is discarded after one task, so an unpersisted refresh is lost.
+	defer codexCred.persist()
 	if err := preflightExecutor(ctx, provider); err != nil {
 		publishCompletion("failed", err.Error(), "", nil, gitEvidence{}, "")
 		return err
