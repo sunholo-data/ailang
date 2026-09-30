@@ -25,7 +25,7 @@ func TestEqContainersExample(t *testing.T) {
 	if strings.Contains(stdout, "WRONG") {
 		t.Errorf("a comparison evaluated to the wrong boolean:\n%s", stdout)
 	}
-	if n := strings.Count(stdout, "\nok "); n < 32 {
+	if n := strings.Count("\n"+stdout, "\nok "); n < 32 {
 		t.Errorf("want 32 evaluated comparisons, got %d:\n%s", n, stdout)
 	}
 }
@@ -81,7 +81,7 @@ func TestFloatNaNExample(t *testing.T) {
 	if strings.Contains(stdout, "WRONG") {
 		t.Errorf("a NaN comparison evaluated to the wrong boolean:\n%s", stdout)
 	}
-	if n := strings.Count(stdout, "\nok "); n < 12 {
+	if n := strings.Count("\n"+stdout, "\nok "); n < 12 {
 		t.Errorf("want 12 evaluated comparisons, got %d:\n%s", n, stdout)
 	}
 }

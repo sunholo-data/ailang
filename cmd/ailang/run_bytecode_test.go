@@ -17,7 +17,7 @@ func TestCLI_RunBytecode_Arithmetic(t *testing.T) {
 		t.Fatalf("write src: %v", err)
 	}
 
-	stdout, stderr, exitCode := runCLI(t, "run", "--bytecode", "--relax-modules", src)
+	stdout, stderr, exitCode := runCLI(t, "run", "--verbose", "--bytecode", "--relax-modules", src)
 	if exitCode != 0 {
 		t.Fatalf("expected exit 0, got %d\nstderr=%s", exitCode, stderr)
 	}
@@ -48,7 +48,7 @@ export func main() -> () ! {IO} = println("hello from bridge")
 		t.Fatalf("write src: %v", err)
 	}
 
-	stdout, stderr, exitCode := runCLI(t, "run", "--bytecode", "--caps", "IO", "--relax-modules", src)
+	stdout, stderr, exitCode := runCLI(t, "run", "--verbose", "--bytecode", "--caps", "IO", "--relax-modules", src)
 	if exitCode != 0 {
 		t.Fatalf("expected exit 0 (transparent bridge), got %d\nstderr=%s", exitCode, stderr)
 	}
@@ -79,7 +79,7 @@ func TestCLI_RunBytecode_DivByZero_ReportsLine(t *testing.T) {
 		t.Fatalf("write src: %v", err)
 	}
 
-	_, stderr, exitCode := runCLI(t, "run", "--bytecode", "--strict-bytecode", "--relax-modules", src)
+	_, stderr, exitCode := runCLI(t, "run", "--verbose", "--bytecode", "--strict-bytecode", "--relax-modules", src)
 	if exitCode == 0 {
 		t.Fatalf("expected non-zero exit (divide by zero), got 0\nstderr=%s", stderr)
 	}
@@ -125,7 +125,7 @@ export func main() -> () ! {IO} = {
 	// Run via the bytecode VM path. Per M3, the entry function will be
 	// EvalOnly and dispatched through the bridge — but the user-visible
 	// stdout must be identical.
-	vmStdout, vmStderr, vmExit := runCLI(t, "run", "--bytecode", "--caps", "IO", "--relax-modules", src)
+	vmStdout, vmStderr, vmExit := runCLI(t, "run", "--verbose", "--bytecode", "--caps", "IO", "--relax-modules", src)
 	if vmExit != 0 {
 		t.Fatalf("bytecode path exited %d\nstderr=%s", vmExit, vmStderr)
 	}
@@ -154,7 +154,7 @@ export func main() -> () ! {IO} = println("nope")
 		t.Fatalf("write src: %v", err)
 	}
 
-	_, stderr, exitCode := runCLI(t, "run", "--bytecode", "--strict-bytecode", "--caps", "IO", "--relax-modules", src)
+	_, stderr, exitCode := runCLI(t, "run", "--verbose", "--bytecode", "--strict-bytecode", "--caps", "IO", "--relax-modules", src)
 	if exitCode == 0 {
 		t.Fatalf("expected non-zero exit, got 0\nstderr=%s", stderr)
 	}
@@ -170,7 +170,7 @@ func TestCLI_ListPatternArity_Bytecode(t *testing.T) {
 		t.Fatalf("evaluator path exited %d\nstderr=%s", evalExit, evalStderr)
 	}
 
-	vmStdout, vmStderr, vmExit := runCLI(t, "run", "--bytecode", "--caps", "IO", src)
+	vmStdout, vmStderr, vmExit := runCLI(t, "run", "--verbose", "--bytecode", "--caps", "IO", src)
 	if vmExit != 0 {
 		t.Fatalf("bytecode path exited %d\nstderr=%s", vmExit, vmStderr)
 	}
@@ -236,7 +236,7 @@ func TestCLI_RunBytecode_SharedFieldNames(t *testing.T) {
 	const runs = 30
 	var firstDisasm string
 	for i := 0; i < runs; i++ {
-		out, stderr, exit := runCLI(t, append([]string{"run", "--bytecode", "--strict-bytecode"}, args...)...)
+		out, stderr, exit := runCLI(t, append([]string{"run", "--verbose", "--bytecode", "--strict-bytecode"}, args...)...)
 		if exit != 0 || strings.TrimSpace(out) != want {
 			t.Fatalf("strict VM run %d: exit %d, got %q, want %q\nstderr=%s", i, exit, out, want, stderr)
 		}
@@ -254,7 +254,7 @@ func TestCLI_RunBytecode_SharedFieldNames(t *testing.T) {
 
 func TestCLI_RunBytecode_QuicksortArity(t *testing.T) {
 	src := filepath.Join("examples", "runnable", "recursion_quicksort.ail")
-	stdout, stderr, exitCode := runCLI(t, "run", "--bytecode", "--caps", "IO", src)
+	stdout, stderr, exitCode := runCLI(t, "run", "--verbose", "--bytecode", "--caps", "IO", src)
 	if exitCode != 0 {
 		t.Fatalf("expected exit 0, got %d\nstdout=%s\nstderr=%s", exitCode, stdout, stderr)
 	}

@@ -117,7 +117,6 @@ func Run(ctx context.Context, opts Options) int {
 	entry := opts.Entry
 	caps := opts.Caps
 	quiet := opts.Quiet
-	emitTrace := opts.EmitTrace
 
 	// One stdlib root for the whole run (M-STDLIB-ROOT-RESOLUTION): --stdlib-path
 	// is a real override (it beats ./std and AILANG_STDLIB_PATH, and a path that
@@ -142,11 +141,9 @@ func Run(ctx context.Context, opts Options) int {
 		return 1
 	}
 
-	// When JSONL tracing is active, status messages go to stderr so stdout is clean JSONL
-	statusOut := os.Stdout
-	if strings.Contains(emitTrace, "jsonl") {
-		statusOut = os.Stderr
-	}
+	// Status messages go to stderr: stdout is the program's output only, so a
+	// caller can compare it byte-for-byte (and --emit-trace jsonl stays clean).
+	statusOut := os.Stderr
 
 	// Check file extension. `.ail` is the one canonical extension — the module
 	// resolver only ever appends `.ail`, so a non-.ail file (e.g. `.ailang`) also
