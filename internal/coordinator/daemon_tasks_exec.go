@@ -356,8 +356,7 @@ func (d *Daemon) dispatchTasksCloud() error {
 				}
 			}
 			if err := d.cloudDispatcher.Dispatch(d.ctx, params); err != nil {
-				d.logger.Printf("Failed to dispatch task %s to Cloud Run Job: %v", task.ID, err)
-				_ = d.taskStore.ResetTaskToPending(d.ctx, task.ID)
+				d.handleDispatchError(task, err)
 				continue
 			}
 			d.logger.Printf("Cloud dispatch: task %s → Cloud Run Job (agent: %s, provider: %s)", task.ID, task.AgentID, provider)
@@ -367,4 +366,22 @@ func (d *Daemon) dispatchTasksCloud() error {
 	}
 
 	return nil
+}
+
+// handleDispatchError settles a task whose cloud dispatch failed. A transient
+// failure goes back to pending for the next tick. A permanent one
+// (ErrDispatchPermanent) fails the task and says so on its thread: requeued,
+// it fails identically every five minutes while reading as merely "pending" —
+// task-68771ff3 did that 18 times on 2026-09-30 before anyone looked.
+func (d *Daemon) handleDispatchError(task *TaskRecord, err error) {
+	if errors.Is(err, ErrDispatchPermanent) {
+		d.logger.Printf("Task %s cannot be dispatched, failing it: %v", task.ID, err)
+		if mErr := d.taskStore.MarkTaskFailed(d.ctx, task.ID, err); mErr != nil {
+			d.logger.Printf("Warning: failed to mark task %s failed: %v", task.ID, mErr)
+		}
+		d.postTaskResult(task, nil, err)
+		return
+	}
+	d.logger.Printf("Failed to dispatch task %s to Cloud Run Job: %v", task.ID, err)
+	_ = d.taskStore.ResetTaskToPending(d.ctx, task.ID)
 }
