@@ -38,6 +38,32 @@ func DecideLandedCard(task *TaskRecord, approval *ApprovalRequestRecord, pr *Lan
 	return true, fmt.Sprintf("PR #%d merged %s by %s", pr.Number, pr.MergedAt, orUnknown(pr.MergedBy))
 }
 
+// DecideClosedCard reports whether task's pending card was decided by pr being
+// closed WITHOUT merging — the reject counterpart of DecideLandedCard. The
+// lookup only reports CLOSED when nothing on the branch is still open, so a PR
+// closed and reopened (or replaced from the same branch) keeps its card.
+//
+// Measured 2026-09-30: 15 of 35 pending prod cards had a PR closed unmerged,
+// the oldest for 21 days. Nothing ever resolved them, so the queue an operator
+// reads as "what needs me" was mostly decisions already made on GitHub.
+func DecideClosedCard(task *TaskRecord, approval *ApprovalRequestRecord, pr *LandedPR) (bool, string) {
+	switch {
+	case task == nil || pr == nil:
+		return false, "no task or no PR"
+	case task.Status != TaskStatusPendingApproval:
+		return false, fmt.Sprintf("task is %s, not pending_approval", task.Status)
+	case approval == nil:
+		return false, "no approval record"
+	case approval.Status != "pending":
+		return false, fmt.Sprintf("approval is already %s", approval.Status)
+	case pr.State != "CLOSED":
+		return false, fmt.Sprintf("PR #%d is %s, not closed", pr.Number, pr.State)
+	case pr.HeadRefName != BranchForTask(task.ID):
+		return false, fmt.Sprintf("PR #%d head %q is not %q", pr.Number, pr.HeadRefName, BranchForTask(task.ID))
+	}
+	return true, fmt.Sprintf("PR #%d closed without merging", pr.Number)
+}
+
 // LandedPR is the subset of a merged PR DecideLandedCard needs; it keeps this
 // package free of the messaging client's types.
 type LandedPR struct {
