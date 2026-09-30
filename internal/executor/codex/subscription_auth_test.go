@@ -2,6 +2,7 @@ package codex
 
 import (
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -55,8 +56,8 @@ func TestInstallSubscriptionAuth_WritesOnceAndNeverOverwrites(t *testing.T) {
 	if err != nil || string(got) != string(data) {
 		t.Fatalf("installed file = %q, %v", got, err)
 	}
-	info, _ := os.Stat(authPath(home))
-	if info.Mode().Perm() != 0o600 {
+	// Windows has no POSIX mode bits (it reports 0666); same guard as the api-key test.
+	if info, _ := os.Stat(authPath(home)); runtime.GOOS != "windows" && info.Mode().Perm() != 0o600 {
 		t.Errorf("mode = %v, want 0600", info.Mode().Perm())
 	}
 	if err := InstallSubscriptionAuth(chatgptAuth("2026-10-01T10:00:00Z")); err == nil {
