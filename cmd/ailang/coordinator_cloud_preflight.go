@@ -3,14 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/executor"
-	"github.com/sunholo-data/ailang/internal/executor/codex"
 )
 
 // The container verifies what the dispatcher chose (2026-09-05).
@@ -92,19 +90,9 @@ func resolveContainerProvider(requested, image string) (string, error) {
 // The error names what is installed, because "opencode: executable file not
 // found in $PATH" says what is missing and not what the container is.
 func preflightExecutor(ctx context.Context, provider string) error {
-	// codex reads its credential from ~/.codex/auth.json and never from the
-	// environment, so a job handed only OPENAI_API_KEY holds no credential codex
-	// can see. Materialise it here — a deployment action at the job's entry
-	// point, not a side effect of building an executor. Never overwrites.
-	if provider == "codex" {
-		if wrote, err := codex.EnsureAPIKeyAuth(); err != nil {
-			// Not fatal on its own: HealthCheck and the first turn report the
-			// real auth state, and this only helps the no-credential case.
-			fmt.Fprintf(os.Stderr, "execute-job: WARNING: could not write codex auth.json: %v\n", err)
-		} else if wrote {
-			fmt.Println("execute-job: wrote codex api-key auth.json from OPENAI_API_KEY (no existing credential)")
-		}
-	}
+	// codex's credential is installed BEFORE this runs (installCodexCredential):
+	// subscription auth.json by default, the metered key only under
+	// AILANG_AUTH_MODE=apikey. HealthCheck below proves whichever landed.
 
 	exec, err := executor.GlobalFactory().GetExecutor(provider)
 	if err != nil {

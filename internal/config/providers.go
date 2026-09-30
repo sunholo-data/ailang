@@ -17,13 +17,15 @@ const (
 	EnvGeminiAPIKey         = "GEMINI_API_KEY"
 	EnvGoogleAPIKey         = "GOOGLE_API_KEY"
 	EnvGitHubToken          = "GITHUB_TOKEN"
+	EnvCodexAuthSecret      = "AILANG_CODEX_AUTH_SECRET"
 )
 
 var providerVars = []Var{
 	{EnvAnthropicAPIKey, "", AreaProviders, "Anthropic API key (METERED); the in-process client resolves it first, and the claude executor requires it under AILANG_AUTH_MODE=apikey and decrypts an ENC:-prefixed value with AILANG_KMS_KEY."},
 	{EnvAnthropicAuthToken, "", AreaProviders, "Anthropic OAuth access token from a Claude subscription profile (SUBSCRIPTION QUOTA); the in-process client resolves it after ANTHROPIC_API_KEY, matching the official SDKs."},
 	{EnvClaudeCodeOAuthToken, "", AreaProviders, "Claude Code subscription token: a JSON credential blob in cloud containers, which the in-process client resolves third; the claude executor writes it to the credentials file, and the mission loop's Anthropic quota reader uses it (an empty-but-set value deliberately bypasses the keychain)."},
-	{EnvOpenAIAPIKey, "", AreaProviders, "OpenAI API key; the codex executor bootstraps auth.json from it when the file is missing."},
+	{EnvOpenAIAPIKey, "", AreaProviders, "OpenAI API key (METERED); a cloud codex job bootstraps an api-key auth.json from it ONLY under AILANG_AUTH_MODE=apikey."},
+	{EnvCodexAuthSecret, "", AreaProviders, "Secret Manager secret holding a ChatGPT-subscription codex auth.json. Cloud codex jobs install it as ~/.codex/auth.json (subscription billing) and write refreshed tokens back as a new version; without it and without AILANG_AUTH_MODE=apikey the job fails loudly."},
 	{EnvOpenRouterAPIKey, "", AreaProviders, "OpenRouter API key; required by motoko smoke runs and the OpenRouter quota observer."},
 	{EnvTypeSafeAPIKey, "", AreaProviders, "TypeSafe direct API key (System One decision model, Jev): read by the sunholo/decisions package's TypeSafeDirect transport via std/env; the OpenRouter transport uses OPENROUTER_API_KEY instead. No Go code reads it — the row exists so the variable is documented and gated like every other provider key."},
 	{EnvOllamaAPIKey, "", AreaProviders, "Ollama Cloud API key; the mission admission policy observes quota with it."},
@@ -53,6 +55,9 @@ func ClaudeCodeOAuthToken() (string, bool) {
 	}
 	return get(EnvClaudeCodeOAuthToken), true
 }
+
+// CodexAuthSecret returns AILANG_CODEX_AUTH_SECRET, "" when unset.
+func CodexAuthSecret() string { return get(EnvCodexAuthSecret) }
 
 // OpenAIAPIKey returns OPENAI_API_KEY, "" when unset.
 func OpenAIAPIKey() string { return get(EnvOpenAIAPIKey) }
