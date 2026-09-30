@@ -28,32 +28,71 @@ const absentGrace = 5 * time.Minute
 type unresolved struct {
 	mu    sync.Mutex
 	first map[string]time.Time
-	now   func() time.Time
+	// dropped is the verdict, kept separately from first so that a message this
+	// process has ALREADY given up on is acked on sight instead of earning a
+	// fresh grace window.
+	//
+	// It has to be sticky because an ack does not reliably retire the message.
+	// The subscription has a 30s ack deadline and no exactly-once delivery, so a
+	// message nacked on every cycle has several deliveries in flight at once;
+	// acking one of them while another is still outstanding puts it straight
+	// back. Without the verdict the daemon re-times the same 5 minutes on every
+	// resurrection, which is a 5-minute storm per restart.
+	dropped map[string]struct{}
+	now     func() time.Time
 }
 
 func newUnresolved() *unresolved {
-	return &unresolved{first: make(map[string]time.Time), now: time.Now}
+	return &unresolved{
+		first:   make(map[string]time.Time),
+		dropped: make(map[string]struct{}),
+		now:     time.Now,
+	}
 }
 
 // age records the first sighting of id and returns how long it has been
-// unresolvable. A first sighting returns 0.
-func (u *unresolved) age(id string) time.Duration {
+// unresolvable, plus whether this call WAS that first sighting.
+//
+// The two are returned together on purpose. Asking separately meant comparing a
+// stored timestamp against a second time.Now(), which differs by nanoseconds, so
+// "is this the first sighting?" was always false against a real clock and only
+// held against a frozen test clock. The caller uses the flag to log the retry
+// once instead of on every redelivery — a poison message cycles several times a
+// second and would bury the traffic that matters.
+func (u *unresolved) age(id string) (time.Duration, bool) {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 	now := u.now()
 	if t, ok := u.first[id]; ok {
-		return now.Sub(t)
+		return now.Sub(t), false
 	}
 	u.first[id] = now
-	return 0
+	return 0, true
 }
 
-// clear drops id, so a message that resolves after a lag (or is given up on)
-// does not leak an entry.
+// giveUp records the verdict that id will never resolve.
+func (u *unresolved) giveUp(id string) {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	delete(u.first, id)
+	u.dropped[id] = struct{}{}
+}
+
+// gaveUp reports whether this process has already decided id is unresolvable.
+func (u *unresolved) gaveUp(id string) bool {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	_, ok := u.dropped[id]
+	return ok
+}
+
+// clear drops id, so a message that resolves after a lag does not leak an entry
+// — and forgets any verdict, because a message that resolved is not poison.
 func (u *unresolved) clear(id string) {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 	delete(u.first, id)
+	delete(u.dropped, id)
 }
 
 // sweep drops ids not seen for well past the grace window, so the map cannot

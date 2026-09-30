@@ -143,3 +143,92 @@ func TestIsMessageNotFound(t *testing.T) {
 		t.Error("a wrapped sentinel is an absence")
 	}
 }
+
+// Once the daemon has given up on a message it must ack it on sight, not re-time
+// the whole grace window.
+//
+// An ack does not reliably retire the message: the subscription has a 30s ack
+// deadline and no exactly-once delivery, so a message nacked on every cycle has
+// several deliveries in flight, and acking one while another is outstanding puts
+// it back. Observed on the laptop 2026-09-30 — the four dropped ids reappeared
+// after a daemon restart and began a second 5-minute storm.
+func TestDaemon_OnceDroppedAMessageIsAckedOnSightNotRegraced(t *testing.T) {
+	d, _, _, _ := newTestDaemon(t)
+	clock := time.Now()
+	d.msgAbsent.now = func() time.Time { return clock }
+	absent := &errFetcher{}
+
+	if err := deliver(t, d, absent, "m-poison"); err == nil {
+		t.Fatal("want nack on first sighting")
+	}
+	clock = clock.Add(absentGrace)
+	if err := deliver(t, d, absent, "m-poison"); err != nil {
+		t.Fatalf("want the drop at the grace boundary, got nack: %v", err)
+	}
+
+	// Resurrected by a redelivery that raced the ack, and again much later.
+	for _, at := range []time.Duration{0, time.Second, time.Hour} {
+		clock = clock.Add(at)
+		if err := deliver(t, d, absent, "m-poison"); err != nil {
+			t.Fatalf("a message already given up on must be acked on sight (+%s), got nack: %v", at, err)
+		}
+	}
+}
+
+// A message that was dropped and then genuinely appears must fire — the verdict
+// is not a permanent blocklist.
+func TestDaemon_DroppedThenResolvableMessageStillFires(t *testing.T) {
+	d, _, _, rec := newTestDaemon(t)
+	clock := time.Now()
+	d.msgAbsent.now = func() time.Time { return clock }
+
+	_ = deliver(t, d, &errFetcher{}, "m-back")
+	clock = clock.Add(absentGrace)
+	_ = deliver(t, d, &errFetcher{}, "m-back")
+	if !d.msgAbsent.gaveUp("m-back") {
+		t.Fatal("want the message given up on")
+	}
+
+	// It only reaches the fetcher again because dedup forgot it; a real store
+	// that now holds the document must still produce a notification.
+	visible := &errFetcher{msg: &messaging.InboxMessage{
+		ID: "m-back", FromAgent: "cli", ToInbox: "daneel", Title: "it exists after all",
+	}}
+	if err := deliver(t, d, visible, "m-back"); err != nil {
+		t.Fatalf("want ack, got %v", err)
+	}
+	if got := rec.calls(); len(got) != 1 {
+		t.Fatalf("a message that resolved must still fire, got %d notifications", len(got))
+	}
+	if d.msgAbsent.gaveUp("m-back") {
+		t.Error("a resolved message must not stay on the given-up list")
+	}
+}
+
+// The retry log must fire once per id, not on every redelivery.
+//
+// This test advances the clock on every read, because the first implementation
+// answered "is this the first sighting?" by comparing the stored timestamp
+// against a second time.Now(). That is true only against a frozen clock, so the
+// unit tests passed while the real daemon logged every redelivery — several
+// lines a second per poison message.
+func TestUnresolved_FirstSightingIsReportedOncePerIDAgainstAMovingClock(t *testing.T) {
+	u := newUnresolved()
+	clock := time.Now()
+	u.now = func() time.Time { clock = clock.Add(time.Millisecond); return clock }
+
+	if _, first := u.age("a"); !first {
+		t.Fatal("the first sighting of an id must report first=true")
+	}
+	for i := 0; i < 5; i++ {
+		if _, first := u.age("a"); first {
+			t.Fatalf("redelivery %d reported itself as the first sighting", i+1)
+		}
+	}
+	if _, first := u.age("b"); !first {
+		t.Fatal("a different id must report its own first sighting")
+	}
+	if age, _ := u.age("a"); age <= 0 {
+		t.Fatalf("age must grow against a moving clock, got %s", age)
+	}
+}

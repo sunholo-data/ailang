@@ -203,15 +203,27 @@ func (d *Daemon) messageHandlerFor(src MessageSource) MessageHandler {
 			return fmt.Errorf("fetch message %s (%s): %w", m.MessageID, src.Label, err)
 		case absent:
 			d.msgDedup.forget(key)
-			if age := d.msgAbsent.age(m.MessageID); age >= absentGrace {
+			// Already judged unresolvable: ack on sight. An ack does not reliably
+			// retire the message (30s deadline, no exactly-once, several
+			// deliveries in flight), so without the sticky verdict the same
+			// message would re-time the full grace window every time it came back.
+			if d.msgAbsent.gaveUp(m.MessageID) {
+				return nil
+			}
+			age, firstSighting := d.msgAbsent.age(m.MessageID)
+			if age >= absentGrace {
 				// Permanently unresolvable. Ack it: a nack here puts it straight
 				// back at the head of the backlog, where it blocks every real
 				// message behind it (measured: 160,947 nacks to 10 acks).
-				d.msgAbsent.clear(m.MessageID)
+				d.msgAbsent.giveUp(m.MessageID)
 				d.log.Printf("daemon: DROPPING message %s (%s): unresolvable for %s — no such message in the store, acking so it stops blocking the subscription", m.MessageID, src.Label, age.Round(time.Second))
 				return nil
 			}
-			d.log.Printf("daemon: RETRY message %s (%s): not yet visible in the store", m.MessageID, src.Label)
+			// Log once, not on every redelivery: a poison message cycles several
+			// times a second and would bury the traffic that matters.
+			if firstSighting {
+				d.log.Printf("daemon: RETRY message %s (%s): not yet visible in the store", m.MessageID, src.Label)
+			}
 			return fmt.Errorf("message %s not yet visible (%s)", m.MessageID, src.Label)
 		}
 		d.msgAbsent.clear(m.MessageID)
