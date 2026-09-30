@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // isolateYield points both the lock and the handoff marker at a temp dir.
@@ -274,5 +276,55 @@ func TestCheckpoint_YieldsAndReacquires(t *testing.T) {
 	// And we must hold it again afterwards.
 	if Holder() == "" {
 		t.Error("Checkpoint must re-acquire the lock before returning")
+	}
+}
+
+// A yield lends the GPU; it does not end the hold. When a SHELL holds the lock
+// (nightly-eval.sh via rig-lock.sh) and an eval-suite child yields, the lock
+// must come back with the shell's token and holder line: every later
+// eval-suite the shell starts inherits that token, and the rig gateway refuses
+// any other with 423. A fresh token here silently broke the rest of the night.
+func TestCheckpoint_YieldKeepsTheLeaseAndHolder(t *testing.T) {
+	isolateYield(t)
+	lockPath := os.Getenv(EnvLockDir)
+	const shellTok = "0123456789abcdef0123456789abcdef"
+	shellHolder := "4242 2026-09-28T03:00:00Z nightly-eval"
+	if err := os.Mkdir(lockPath, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	_ = os.WriteFile(filepath.Join(lockPath, "holder"), []byte(shellHolder), 0o644)
+	_ = os.WriteFile(filepath.Join(lockPath, leaseFile), []byte(shellTok+"\n"), 0o640)
+	t.Setenv(EnvHeld, "1") // inherited from the shell
+	t.Setenv(config.EnvRigLease, shellTok)
+
+	if err := RequestYield("daneel-intake", time.Minute); err != nil {
+		t.Fatalf("RequestYield: %v", err)
+	}
+	go func() { // the short job: take, work, release, clear
+		for i := 0; i < 400; i++ {
+			if _, err := os.Stat(lockPath); os.IsNotExist(err) {
+				break
+			}
+			time.Sleep(50 * time.Millisecond)
+		}
+		if os.Mkdir(lockPath, 0o755) == nil {
+			_ = os.WriteFile(filepath.Join(lockPath, leaseFile), []byte("daneel-1-2\n"), 0o640)
+			_ = os.RemoveAll(lockPath)
+		}
+		ClearYield("daneel-intake")
+	}()
+
+	if yielded, _ := Checkpoint("eval-suite"); !yielded {
+		t.Fatal("expected Checkpoint to yield")
+	}
+	l := CurrentLease()
+	if l.Token != shellTok {
+		t.Errorf("token after yield = %q, want the shell's %q", l.Token, shellTok)
+	}
+	if got := config.RigLease(); got != shellTok {
+		t.Errorf("AILANG_RIG_LEASE after yield = %q, want the shell's %q", got, shellTok)
+	}
+	if l.Holder != shellHolder {
+		t.Errorf("holder after yield = %q, want the shell's %q", l.Holder, shellHolder)
 	}
 }

@@ -77,7 +77,14 @@ log() { printf '[%s] %s\n' "$(date '+%F %H:%M:%S')" "$*" >> "$LOG"; }
 # ("canary did not finish within 4m0s") since ~09-17, so it banked 0-8 rows/day and
 # none 09-23..09-25. Re-add motoko-local-qwen3-8-27b once motoko main (ABI 8.0,
 # ~/dev/mk-main) is the eval checkout and passes its canary; see MOTOKO.md §9.
-MODELS="${OS_FILLER_MODELS:-${OS_FILLER_MODEL:-opencode-qwen3-8-27b,pi-qwen3-8-27b}}"
+# motoko RE-ADDED 2026-09-29 (Mark: "can we continue?", after the canary): mk-main
+# passed the eval-suite pre-flight and 3/4 benches on qwen3.8 through the rig
+# gateway (lease admitted on every call). It runs the FULL local stack
+# (ollama_microrag = the cloud profile's extensions), so its column is a new model
+# name, not a continuation of the old lean motoko-local-qwen3-8-27b. Needs
+# ailang >= v0.48.0: older clients do not send the rig lease and every motoko call
+# is refused (423).
+MODELS="${OS_FILLER_MODELS:-${OS_FILLER_MODEL:-opencode-qwen3-8-27b,pi-qwen3-8-27b,motoko-local-qwen3-8-27b-microrag}}"
 LANGS="${OS_FILLER_LANGS:-ailang,python,javascript,go}"
 CHUNK="${OS_FILLER_CHUNK:-3}"                  # benchmarks per cycle
 CHUNK_TIMEOUT="${OS_FILLER_TIMEOUT:-1500s}"    # ~25-min wall budget per chunk

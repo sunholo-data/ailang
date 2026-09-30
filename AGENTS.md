@@ -4,7 +4,7 @@ This document summarizes the key facts an agent should know while working in thi
 
 ## Start Here (Required)
 - **Read `CLAUDE.md` first — hard gate, not a suggestion.** It is the operational source of truth for AILANG workflows, message handling, coordinator commands, and critical guardrails. If you catch yourself about to edit code without having read it, stop and read it now.
-- **Session start routine (before any work):** Check for messages with `ailang messages list --unread`, summarize any to the user, and ask what to do **before** acking (`ailang messages ack <id>` / `--all`).
+- **Session start routine (attended sessions only):** Check for messages with `ailang messages list --unread`, summarize any to the user, and ask what to do **before** acking (`ailang messages ack <id>` / `--all`). **Unattended** (a coordinator task or mission stage: `AILANG_TASK_ID` / `AILANG_MISSION_STAGE` is set) there is no user to ask: skip the inbox and do the task.
 - **Programming in AILANG:** Use `ailang prompt` to get the current teaching prompt before writing or editing `.ail` code.
 
 ## Work Routing (do not self-approve)

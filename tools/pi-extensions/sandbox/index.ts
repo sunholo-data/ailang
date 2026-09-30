@@ -44,6 +44,7 @@
 import { spawn } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { initializeMissionSandbox, loadMissionPolicy, missionBashAllowed, requireMissionBash } from "./mission.ts";
 import { SandboxManager, type SandboxRuntimeConfig } from "@anthropic-ai/sandbox-runtime";
 // Imports VALUES (createBashTool, getAgentDir), so the package name must be the
 // one actually installed — type imports erase, value imports do not. Renamed to
@@ -219,11 +220,13 @@ export default function (pi: ExtensionAPI) {
 
 	let sandboxEnabled = false;
 	let sandboxInitialized = false;
+	const missionMode = process.env.PI_SANDBOX_POLICY_FILE !== undefined;
 
 	pi.registerTool({
 		...localBash,
 		label: "bash (sandboxed)",
 		async execute(id, params, signal, onUpdate, _ctx) {
+			requireMissionBash(missionMode, sandboxInitialized);
 			if (!sandboxEnabled || !sandboxInitialized) {
 				return localBash.execute(id, params, signal, onUpdate);
 			}
@@ -236,22 +239,30 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.on("user_bash", () => {
+		if (!missionBashAllowed(missionMode, sandboxInitialized)) {
+			return { operations: { async exec() { requireMissionBash(missionMode, sandboxInitialized); throw new Error("Sandbox unavailable"); } } };
+		}
 		if (!sandboxEnabled || !sandboxInitialized) return;
 		return { operations: createSandboxedBashOps() };
 	});
 
 	pi.on("session_start", async (_event, ctx) => {
+		sandboxEnabled = false;
+		sandboxInitialized = false;
 		const noSandbox = pi.getFlag("no-sandbox") as boolean;
 
 		if (noSandbox) {
+			if (missionMode) throw new Error("--no-sandbox is forbidden with PI_SANDBOX_POLICY_FILE");
 			sandboxEnabled = false;
 			ctx.ui.notify("Sandbox disabled via --no-sandbox", "warning");
 			return;
 		}
 
-		const config = loadConfig(ctx.cwd);
+		const config = missionMode ? loadMissionPolicy(process.env.PI_SANDBOX_POLICY_FILE!) : loadConfig(ctx.cwd);
 
-		if (!config.enabled) {
+		// `=== false`, not `!enabled`: the mission policy (sandbox.mission.json) carries no
+		// `enabled` key, and `!undefined` silently disabled the sandbox on every mission run.
+		if (config.enabled === false) {
 			sandboxEnabled = false;
 			ctx.ui.notify("Sandbox disabled via config", "info");
 			return;
@@ -259,6 +270,7 @@ export default function (pi: ExtensionAPI) {
 
 		const platform = process.platform;
 		if (platform !== "darwin" && platform !== "linux") {
+			if (missionMode) throw new Error(`Sandbox not supported on ${platform}`);
 			sandboxEnabled = false;
 			ctx.ui.notify(`Sandbox not supported on ${platform}`, "warning");
 			return;
@@ -270,12 +282,17 @@ export default function (pi: ExtensionAPI) {
 				enableWeakerNestedSandbox?: boolean;
 			};
 
-			await SandboxManager.initialize({
+			const initialize = () => SandboxManager.initialize({
 				network: config.network,
 				filesystem: config.filesystem,
 				ignoreViolations: configExt.ignoreViolations,
 				enableWeakerNestedSandbox: configExt.enableWeakerNestedSandbox,
 			});
+			if (missionMode) {
+				await initializeMissionSandbox(initialize, process.env.PI_SANDBOX_READY_FILE ?? "");
+			} else {
+				await initialize();
+			}
 
 			sandboxEnabled = true;
 			sandboxInitialized = true;
@@ -290,6 +307,7 @@ export default function (pi: ExtensionAPI) {
 		} catch (err) {
 			sandboxEnabled = false;
 			ctx.ui.notify(`Sandbox initialization failed: ${err instanceof Error ? err.message : err}`, "error");
+			if (missionMode) throw err;
 		}
 	});
 
@@ -311,7 +329,7 @@ export default function (pi: ExtensionAPI) {
 				return;
 			}
 
-			const config = loadConfig(ctx.cwd);
+			const config = missionMode ? loadMissionPolicy(process.env.PI_SANDBOX_POLICY_FILE!) : loadConfig(ctx.cwd);
 			const lines = [
 				"Sandbox Configuration:",
 				"",

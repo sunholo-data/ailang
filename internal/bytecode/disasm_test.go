@@ -84,3 +84,15 @@ func TestDisassemble_NoEntry(t *testing.T) {
 		t.Errorf("expected no-entry marker, got:\n%s", out)
 	}
 }
+
+func TestDisassemble_UpdateRecord(t *testing.T) {
+	img := NewImage()
+	p := &FuncPrototype{Name: "update", NumRegs: 3, Instructions: []Instruction{
+		EncodeABC(OpUpdateRecord, 1, 0, 1),
+	}}
+	img.AddPrototype(p)
+	out := Disassemble(img)
+	if !strings.Contains(out, "UPDATE_RECORD r1, base=r0, count=1") {
+		t.Fatalf("missing update-record operands:\n%s", out)
+	}
+}

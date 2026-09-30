@@ -16,7 +16,7 @@
 # GPU-touching sprint steps take it per-step inside the session).
 #
 # MODEL SELECTION (fleet Phase A, 2026-07-14): ordered preference probing.
-# MISSION_MODEL_PREFS (default "claude-opus-5-5,codex:gpt-6-sol,claude-fable-5-1"
+# MISSION_MODEL_PREFS (default "claude-opus-5-5,codex:gpt-6.1-sol"
 # — Opus 5 first since 2026-07-27 (Mark); the 4.8 rung was dropped 2026-08-26 — OPUS-FIRST
 # since 2026-07-16, Mark: Fable is reserved for high-cognition ROLES — design
 # synthesis + evaluation, both bounded pinned sub-agents — never the long
@@ -419,6 +419,15 @@ _mc_etime_secs() {
 # heartbeat cannot be the primary arm: it is stamped by the AGENT at gate
 # boundaries, and that same v1 slot reached Gate 5 having stamped only `gate-0`,
 # so a heartbeat-only test reads "dead" on a session writing its own record.
+# _mc_pi_session_exists ID → true when pi has already saved session ID for $REPO. pi files
+# a session as <sessions>/--<cwd slug>--/<timestamp>_<id>.jsonl (same slug rule as
+# _mc_progress_bytes below). Gates the RESUME prompt: an attempt that reaches pi for the
+# first time (a re-walk from a claude rung) must get the full prompt, not "continue".
+_mc_pi_session_exists() {
+  local slug="${REPO#/}"; slug=$(printf '%s' "$slug" | tr '/\\:' '---')
+  ls "${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/sessions/--${slug}--/"*_"$1".jsonl >/dev/null 2>&1
+}
+
 _mc_progress_bytes() {
   local dir newest total=0 got=0 sz
   case "${CONTROLLER_PROVIDER:-claude}" in
@@ -494,11 +503,51 @@ EOF_FILES
   [ "$got" -eq 1 ] || return 1
   echo "$total"
 }
-# _mc_stalled PID → true only when FOUR arms agree, sample over sample, that the
-# tree has made no progress: (1) a descendant alive ≥ STALL_CHILD_AGE (the wedged
-# tool call of iteration 13's `until COND; do sleep 30; done`), (2) the progress
-# counter above is unchanged since the previous sample, (3) the gate heartbeat is
-# unchanged since the previous sample, and (4) the tree is under STALL_CPU_PCT.
+# Read one bounded process-tree snapshot. The root's own CPU is excluded, but
+# its reaped-child CPU is included so a short-lived direct child is not lost.
+# Summing each live descendant's own + reaped-child CPU counts each CPU tick
+# once: when a child exits, its contribution transfers to its parent's child
+# counter. lstart guards a PID reused between the two watchdog samples.
+_mc_rusage_read() { python3 "$MC_DRIVER_ROOT/tools/launchd/lib/proc_rusage.py" "$@"; }
+_mc_rusage_snapshot() {
+  local root="$1" pids="$2" p birth output own child total=0 seen=0 root_seen=0
+  local args=()
+  [ -n "$MC_DRIVER_ROOT" ] && [ -f "$MC_DRIVER_ROOT/tools/launchd/lib/proc_rusage.py" ] || return 1
+  command -v python3 >/dev/null 2>&1 || return 1
+  for p in $pids; do args+=("$p"); done
+  [ "${#args[@]}" -gt 1 ] || return 1
+  output=$(_mc_rusage_read "${args[@]}") || return 1
+  _MC_RUSAGE_SNAPSHOT=""
+  while IFS=$'\t' read -r p own child; do
+    seen=$((seen + 1))
+    # A non-root PID may exit between descendant enumeration and rusage/ps.
+    # Skip that entry; a live parent's child counter can still account for it.
+    # The root is the stable identity anchoring the sample, so losing it fails open.
+    if [ "$own" = NA ] && [ "$child" = NA ] && [ "$p" != "$root" ]; then
+      continue
+    fi
+    case "$p:$own:$child" in *[!0-9:]*|::*) return 1 ;; esac
+    [ -n "$p" ] && [ -n "$own" ] && [ -n "$child" ] || return 1
+    birth=$(ps -o lstart= -p "$p" 2>/dev/null) || birth=""
+    if [ -z "$birth" ]; then
+      [ "$p" = "$root" ] && return 1
+      continue
+    fi
+    if [ "$p" != "$root" ]; then total=$((total + own + child)); fi
+    if [ "$p" = "$root" ]; then total=$((total + child)); root_seen=1; fi
+    _MC_RUSAGE_SNAPSHOT="${_MC_RUSAGE_SNAPSHOT}${p}|${birth}"$'\n'
+  done <<EOF_RUSAGE
+$output
+EOF_RUSAGE
+  [ "$seen" -eq "${#args[@]}" ] || return 1
+  [ "$root_seen" -eq 1 ] || return 1
+  _MC_RUSAGE_TOTAL="$total"
+}
+
+# _mc_stalled PID → true only when the progress arms agree, sample over sample,
+# that the tree has made no progress: a descendant alive ≥ STALL_CHILD_AGE,
+# unchanged transcript/open-file bytes and heartbeat, descendant rusage growth
+# below 10 CPU-s, and instantaneous tree CPU under STALL_CPU_PCT.
 # Any one arm showing movement resets the caller's hit counter, so live work is
 # never killed — and unlike the CPU-only predecessor, that is now a property the
 # suite can kill a mutant on rather than a claim in a comment.
@@ -506,7 +555,7 @@ EOF_FILES
 # Fails OPEN: with no progress instrument we cannot tell a wedge from live work,
 # so we refuse to guess and say so in the log; HARD_TIMEOUT still bounds the slot.
 _mc_stalled() {
-  local root="$1" pids p secs cpu long=0 prog hb
+  local root="$1" pids p secs cpu long=0 prog hb rusage_total rusage_snapshot old_birth new_birth
   pids=$(_mc_descendants "$root")
   for p in $pids; do
     [ "$p" = "$root" ] && continue
@@ -528,15 +577,55 @@ _mc_stalled() {
   local tw; tw=$(_mc_tree_write_bytes "$pids") && prog="${prog}+w${tw}"
   hb=$(wc -c < "${_mc_heartbeat:-${AILANG_STATE_DIR:-$HOME/.ailang/state}/mission-${MISSION_NAME:-none}-heartbeat}" 2>/dev/null | tr -d ' '); hb="${hb:-0}"
 
+  if ! _mc_rusage_snapshot "$root" "$pids"; then
+    _MC_STALL_WHY="rusage-unavailable"
+    log "WARNING: stall watchdog descendant rusage unavailable; early kill DISABLED for this sample"
+    unset _MC_RUSAGE_PREV _MC_RUSAGE_IDENT_PREV
+    return 1
+  fi
+  rusage_total="$_MC_RUSAGE_TOTAL"; rusage_snapshot="$_MC_RUSAGE_SNAPSHOT"
+  # A reused controller or descendant PID invalidates this pair of samples.
+  # New and vanished PIDs are ordinary child churn; cumulative parent counters
+  # retain their CPU in the tree total.
+  if [ -n "${_MC_RUSAGE_IDENT_PREV:-}" ]; then
+    while IFS='|' read -r p new_birth; do
+      [ -n "$p" ] || continue
+      old_birth=$(printf '%s\n' "$_MC_RUSAGE_IDENT_PREV" | awk -F '|' -v pid="$p" '$1==pid {print $2; exit}')
+      if [ -n "$old_birth" ] && [ "$old_birth" != "$new_birth" ]; then
+        _MC_RUSAGE_PREV="$rusage_total"; _MC_RUSAGE_IDENT_PREV="$rusage_snapshot"
+        _MC_STALL_WHY="rusage-pid-reuse:$p"; return 1
+      fi
+    done <<EOF_IDENT
+$rusage_snapshot
+EOF_IDENT
+  fi
+
   # A first sample can prove nothing — seed the baseline and report live.
   if [ -z "${_MC_PROG_PREV:-}" ]; then
-    _MC_PROG_PREV="$prog"; _MC_HB_PREV="$hb"; _MC_STALL_WHY="seeding"; return 1
+    _MC_PROG_PREV="$prog"; _MC_HB_PREV="$hb"
+    _MC_RUSAGE_PREV="$rusage_total"; _MC_RUSAGE_IDENT_PREV="$rusage_snapshot"
+    _MC_STALL_WHY="seeding"; return 1
   fi
   if [ "$prog" != "$_MC_PROG_PREV" ] || [ "$hb" != "${_MC_HB_PREV:-}" ]; then
     _MC_STALL_WHY="progress prog=${_MC_PROG_PREV}->${prog} hb=${_MC_HB_PREV:-}->${hb}"
     _MC_PROG_PREV="$prog"; _MC_HB_PREV="$hb"
+    _MC_RUSAGE_PREV="$rusage_total"; _MC_RUSAGE_IDENT_PREV="$rusage_snapshot"
     return 1
   fi
+  if [ -z "${_MC_RUSAGE_PREV:-}" ]; then
+    _MC_RUSAGE_PREV="$rusage_total"; _MC_RUSAGE_IDENT_PREV="$rusage_snapshot"
+    _MC_STALL_WHY="rusage-seeding"; return 1
+  fi
+  if [ "$rusage_total" -lt "$_MC_RUSAGE_PREV" ]; then
+    _MC_RUSAGE_PREV="$rusage_total"; _MC_RUSAGE_IDENT_PREV="$rusage_snapshot"
+    _MC_STALL_WHY="rusage-regressed"; return 1
+  fi
+  if [ "$((rusage_total - _MC_RUSAGE_PREV))" -ge 1000 ]; then
+    _MC_STALL_WHY="descendant-cpu=${_MC_RUSAGE_PREV}->${rusage_total}cs"
+    _MC_RUSAGE_PREV="$rusage_total"; _MC_RUSAGE_IDENT_PREV="$rusage_snapshot"
+    return 1
+  fi
+  _MC_RUSAGE_PREV="$rusage_total"; _MC_RUSAGE_IDENT_PREV="$rusage_snapshot"
   cpu=$(ps -o %cpu= -p "$(echo $pids | tr ' ' ',')" 2>/dev/null | awk '{s+=$1} END{printf "%d", s+0}')
   [ "${cpu:-0}" -lt "${STALL_CPU_PCT:-2}" ] || { _MC_STALL_WHY="cpu=$cpu"; return 1; }
   _MC_STALL_WHY="flat prog=$prog hb=$hb cpu=$cpu"
@@ -744,7 +833,12 @@ _mc_mem_ok() {
 #
 # Deliberately NOT added: a second Anthropic rung between opus and sol. Extra rungs in a
 # bucket that is already dry add probes, not availability — which is the (a) defect again.
-PREFS="${MISSION_MODEL_PREFS:-claude-opus-5-5,codex:gpt-6-sol}"
+# RETIERED 2026-09-30 (Mark, attended: "switch over to 6.1 … we are swapping astra for sol 6.1
+# as well"): every codex:gpt-6-sol AND codex:gpt-6-astra default -> codex:gpt-6.1-sol.
+# Needs codex-cli >= 0.159.2 (earlier builds, and the model list before 2026-09-30 09:05Z,
+# reject it as "not supported when using Codex with a ChatGPT account"). Probed rc=0 on the
+# subscription lane 2026-09-30. List price $2/$10 per 1M, same as 6.0 Sol, 1/5 of Astra.
+PREFS="${MISSION_MODEL_PREFS:-claude-opus-5-5,codex:gpt-6.1-sol}"
 # CONTROLLER_FALLBACK is an ordered COMMA CHAIN walked left to right (Mark, attended
 # 2026-08-31: "a longer chain of redundancies after codex", explicitly NOT a new default —
 # codex keeps its rung; the pi rungs exist so a simultaneous Anthropic+codex dry-out no
@@ -938,7 +1032,8 @@ _mc_is_demoted() {
 #
 # Routing has always asked "is this lane UP?" and never "can it AFFORD to be
 # used?". A probe answers the first; only the ledger answers the second. A rung
-# whose bucket is over its 10%/day ration is skipped exactly like a failed probe,
+# whose bucket is over its ration (Codex/Anthropic: the weekday pace, 20% per weekday
+# with weekends spending the slack; others 10%/day) is skipped exactly like a failed probe,
 # so the walk descends to a cheaper rung — and when nothing is left, the existing
 # "NO usable controller" refusal takes over: it announces once per episode and
 # spends zero tokens beyond probes, which IS the pause D-4 asks for.
@@ -1228,7 +1323,12 @@ RUNTIME_QUOTA_REWALKS="${MISSION_RUNTIME_QUOTA_REWALKS:-4}"
 
 TRANSIENT_RETRIES="${MISSION_TRANSIENT_RETRIES:-3}"   # total attempts incl. the first
 TRANSIENT_BACKOFF="${MISSION_TRANSIENT_BACKOFF:-45}"  # base seconds, ×attempt (45s,90s)
-TRANSIENT_SIG="API Error: Overloaded|socket connection was closed|overloaded_error|API Error: 5[0-9][0-9]|API Error: Internal|API Error: Connection|API Error: Request timed out"
+TRANSIENT_SIG="API Error: Overloaded|socket connection was closed|overloaded_error|API Error: 5[0-9][0-9]|API Error: Internal|API Error: Connection|API Error: Request timed out|Provider finish_reason: error"
+# `Provider finish_reason: error` is OpenRouter's mid-stream upstream failure as pi prints
+# it. pi's own retry list (pi-ai isRetryableAssistantError) does NOT match it, so pi exits
+# rc=1 on the first one: stapledon 2026-09-29 00:52Z lost an iteration on turn 76 to a
+# single occurrence. A pi controller retry RESUMES the same session (see MC_PI_SESSION_ID),
+# so it continues from that turn rather than re-running the gates.
 
 # PER-ROLE MODEL ROUTING (2026-07-15, m-mission-agentic-provider-routing M1): the charter's routing
 # table was never enforced — every inner role ran on the controller's single session --model, so with
@@ -1454,7 +1554,7 @@ export MISSION_DESIGNER_MODEL="${MISSION_DESIGNER_MODEL:-claude:claude-opus-5-5}
 # one does.
 # 2026-09-25 (Mark, attended): the rotation is opus -> astra -> GLM 5.3 -> Kimi K3 (deepseek-v4-flash
 # retired), so this chain follows it: flat-rate ollama rungs first, OpenRouter metered after.
-export MISSION_DESIGNER_FALLBACK="${MISSION_DESIGNER_FALLBACK:-codex:gpt-6-astra,pi:ollama/glm-5.3:cloud,pi:ollama/kimi-k3:cloud,pi:openrouter/z-ai/glm-5.3,pi:openrouter/moonshotai/kimi-k3}"
+export MISSION_DESIGNER_FALLBACK="${MISSION_DESIGNER_FALLBACK:-codex:gpt-6.1-sol,pi:ollama/glm-5.3:cloud,pi:ollama/kimi-k3:cloud,pi:openrouter/z-ai/glm-5.3,pi:openrouter/moonshotai/kimi-k3}"
 # Per-iteration METERED-spend ceiling (2026-07-18, Mark: "make sure costs don't go crazy"):
 # the sum of all metered-API spend (codex $ + gemini $) within ONE iteration must stay under
 # this. Enforced by the skill's Gate-3 metered ledger; quota-bucket (subscription) spend is
@@ -1492,7 +1592,7 @@ export MISSION_METERED_BUDGET_USD="${MISSION_METERED_BUDGET_USD:-5}"
 # earlier edit): astra goes IN THE CHAIN, it does not replace sol. Sol keeps the
 # planner primary it has held since iteration 136 — months of track record in this
 # specific role, against astra's one fizzbuzz round-trip and an rc=0 probe.
-export MISSION_PLANNER_MODEL="${MISSION_PLANNER_MODEL:-codex:gpt-6-sol}"
+export MISSION_PLANNER_MODEL="${MISSION_PLANNER_MODEL:-codex:gpt-6.1-sol}"
 # MISSION_PLANNER_ALLOWLIST (M-DOCS-MISSION, 2026-08-28 docs iteration 1): the per-mission
 # env files (~/.config/ailang/mission-<name>.env) set this WITHOUT `export`, so sourcing
 # them only defines a local shell variable in THIS script's process — it never reached the
@@ -1512,7 +1612,7 @@ export MISSION_PLANNER_ALLOWLIST="${MISSION_PLANNER_ALLOWLIST:-tools/launchd/*|.
 # ASTRA IS NOT THE PRIMARY (Mark, attended 2026-09-05). Sol keeps the executor
 # primary; the ratified chain "codex as default, deepseek the replacement when
 # codex is out, opus last" (Mark 2026-08-06) is restored exactly as it was.
-export MISSION_EXECUTOR_MODEL="${MISSION_EXECUTOR_MODEL:-codex:gpt-6-sol}"
+export MISSION_EXECUTOR_MODEL="${MISSION_EXECUTOR_MODEL:-codex:gpt-6.1-sol}"
 # EXECUTOR FALLBACK CHAIN — ailang#611 (2026-08-11).
 #
 # RATIFIED SEMANTICS (Mark 2026-08-06, restated attended 2026-08-10 and 2026-08-11):
@@ -1571,7 +1671,7 @@ export MISSION_PLANNER_FALLBACK="${MISSION_PLANNER_FALLBACK:-pi:ollama/kimi-k3:c
 # has proved the Anthropic subscription unavailable, use Codex Sol rather than
 # wedging or silently inheriting the failed controller. derive-planner-lane.sh
 # applies this only when MISSION_ANTHROPIC_AVAILABLE=0.
-export MISSION_PLANNER_ANTHROPIC_FALLBACK="${MISSION_PLANNER_ANTHROPIC_FALLBACK:-codex:gpt-6-sol}"
+export MISSION_PLANNER_ANTHROPIC_FALLBACK="${MISSION_PLANNER_ANTHROPIC_FALLBACK:-codex:gpt-6.1-sol}"
 # evaluator default = sonnet (2026-07-16, Mark directive on #399: "default can be gemini (if able
 # to git clone the codebase etc)? otherwise sonnet-5"). gemini managed_agents is NOT viable as the
 # evaluator today — VERIFIED iteration 38: (1) architecturally the request body carries only
@@ -1898,6 +1998,27 @@ for role in DESIGNER PLANNER EXECUTOR EVALUATOR; do
       # Remember what is left so the pi loop can advance instead of jumping to opus.
       remvar="MISSION_${role}_CHAIN_REMAINING"
       printf -v "$remvar" '%s' "$(_chain_tail "$_chain")"; export "$remvar"
+      # EXECUTOR RUNG 2 (Mark attended 2026-09-29): when codex is dry, the executor goes to
+      # claude-sonnet-5-5 BEFORE the pi chain, on every mission that uses this default.
+      # Grounds: anchored standard ELO 2295.8 vs gpt6-sol's 2288.7 at the same $2/$10, and
+      # 41/42 agent smoke+core on this exact lane (claude CLI, subscription) — models.yml
+      # claude-sonnet-5-5. Probed like the opus rung (_mc_probe carries the Anthropic ration
+      # gate), so a drought or an over-ration week walks the pi chain exactly as before.
+      # The generator != judge check compares model FAMILIES (resolve-role-spawn.sh), so the
+      # `sonnet` evaluator reroutes when this rung is taken. The pi head stays in the
+      # remaining chain. Disable per mission with MISSION_EXECUTOR_ANTHROPIC_RUNG=''.
+      _ex_rung="${MISSION_EXECUTOR_ANTHROPIC_RUNG-claude:claude-sonnet-5-5}"
+      if [ "$role" = EXECUTOR ] && [ -n "$_ex_rung" ] && [ "$fb" != "$_ex_rung" ]; then
+        _ex_m="${_ex_rung#claude:}"
+        case "${_an_probed:-:}" in *":${_ex_m}:"*) : ;; *)
+          _an_probed="${_an_probed:-:}${_ex_m}:"
+          _mc_probe "$_ex_m" || _an_failed="${_an_failed:-:}${_ex_m}:"
+        ;; esac
+        case "${_an_failed:-:}" in
+          *":${_ex_m}:"*) log "codex executor lane: ${_ex_rung} rung skipped (anthropic probe failed or over ration) — walking the chain" ;;
+          *) fb="$_ex_rung"; printf -v "$remvar" '%s' "$_chain"; export "$remvar" ;;
+        esac
+      fi
       # OPUS BEFORE PI (Mark attended 2026-09-26, World first). When codex is dry and the
       # Anthropic subscription has headroom, opus takes the role BEFORE the pi rungs. The
       # pi lanes stay as the tail for an Anthropic drought, not the first thing we try.
@@ -1907,7 +2028,7 @@ for role in DESIGNER PLANNER EXECUTOR EVALUATOR; do
       # completed. _mc_probe carries the Anthropic ration gate (rc=75 when measurably over),
       # so a drought or an over-ration week walks the pi chain exactly as before. One
       # `claude -p` per fire, deduped with the anthropic loop's set.
-      if [ "${MISSION_OPUS_BEFORE_PI:-0}" = 1 ] && [ "$fb" != opus ]; then
+      if [ "${MISSION_OPUS_BEFORE_PI:-0}" = 1 ] && [ "$fb" != opus ] && [ "$fb" = "${fb#claude:}" ]; then
         case "${_an_probed:-:}" in *":opus:"*) : ;; *)
           _an_probed="${_an_probed:-:}opus:"
           _mc_probe opus || _an_failed="${_an_failed:-:}opus:"
@@ -2255,6 +2376,17 @@ fi
 # and the one-shot override at :904 — exporting earlier would publish a plan the driver
 # then silently changed, which is the exact silent-degradation class this closes.
 export MISSION_CONTROL_ACTIVE=1
+# One id per fire: keys the D-FLEET-2 dead-lane ledger (tools/launchd/mission-lane-dead.sh),
+# so a new fire always starts with every declared lane presumed alive.
+MISSION_FIRE_ID="${MISSION_NAME:-mission}-$(date +%s)-$$"; export MISSION_FIRE_ID
+# The pinned driver's own tree, for skill steps that call driver tools from a mission
+# repo that has none (world, stapledon). NOT AILANG_DRIVER_SRC: that is the source clone,
+# which can be far behind what actually runs.
+MISSION_DRIVER_ROOT="${MC_DRIVER_ROOT:-}"; export MISSION_DRIVER_ROOT
+# The over-ration buckets travel with the resolved plan, so resolve-role-spawn.sh can
+# refuse a role recipe the driver itself would have refused (see that script's gate).
+_mc_load_ration
+MISSION_OVER_RATION=$(printf '%s' "$MC_OVER_RATION" | tr -s ' ' | sed 's/^ //; s/ $//'); export MISSION_OVER_RATION
 for _role in DESIGNER PLANNER EXECUTOR EVALUATOR; do
   _mv="MISSION_${_role}_MODEL"; _rv="${!_mv:-}"
   printf -v "MISSION_${_role}_RESOLVED" '%s' "$_rv"; export "MISSION_${_role}_RESOLVED"
@@ -2279,11 +2411,23 @@ export GIT_CONFIG_COUNT=$((_gc_n + 1)) MISSION_NAME
 unset _gc_n
 log "scope guard: git pre-push hooks from $MC_DRIVER_ROOT/tools/launchd/githooks (MISSION_NAME=$MISSION_NAME)"
 
+# The skill path is given ABSOLUTE. A relative `.claude/skills/...` only resolves in the
+# ailang repo; world and stapledon run in their own repos, where claude finds the skill via
+# ~/.claude/skills but a pi or codex controller reads the sentence literally. Measured
+# 2026-09-28: a pi glm-5.3 controller in stapledons-godot could not find it, ran
+# `find ~ -maxdepth 6` to look, and that command never returned (killed 50 min later).
+MC_SKILL_PATH="$REPO/.claude/skills/mission-control/SKILL.md"
+[ -f "$MC_SKILL_PATH" ] || MC_SKILL_PATH="$HOME/.claude/skills/mission-control/SKILL.md"
+if [ -f "$MC_SKILL_PATH" ]; then
+  MC_SKILL_PATH=$(cd "$(dirname "$MC_SKILL_PATH")" && pwd -P)/SKILL.md
+else
+  log "WARNING: mission-control skill not found at \$REPO/.claude/skills or ~/.claude/skills — the controller prompt names a path that does not exist"
+fi
 PROMPT="Run one mission-control iteration: invoke the mission-control skill for \
 ${MISSION_DOC} and follow its gates. You are a scheduled run; \
 there is no human present — park anything needing human input and report via \
 ailang messages and the GitHub bookkeeping issue, per the skill. \
-The authoritative runtime instructions are .claude/skills/mission-control/SKILL.md; \
+The authoritative runtime instructions are ${MC_SKILL_PATH}; \
 read and follow that file even when the controller provider is Codex. \
 This prompt carries the operator's standing request for this run, written in advance \
 because the run is unattended: USE THE AGENT TOOL to spawn the designer, planner, executor \
@@ -2294,6 +2438,13 @@ generator-not-equal-judge is a non-negotiable property of this loop, and an iter
 lands work on the controller's own verdict has no independent review at all. If a role \
 genuinely cannot be spawned, record WHICH role, the error, and the fallback you used in \
 the routing block; do not silently proceed without a judge."
+
+# One pi session per FIRE (not per attempt): see the pi spawn in _mc_run_once.
+MC_PI_SESSION_ID="mission-${MISSION_NAME}-$(date +%s)-$$"
+MC_PI_RESUME_PROMPT="Your previous turn in this mission-control iteration was cut off by a \
+transient provider error. Continue the SAME iteration from where you stopped: do not \
+restart gates you have already completed or re-launch roles that are already running — \
+check their output files first. The original instructions are earlier in this session."
 
 # Resolve the heartbeat/history state root once. Every producer and consumer below
 # uses this value so the helper/driver seam cannot drift between attempts.
@@ -2346,7 +2497,16 @@ _mc_run_once() {
     # The probe above does not hit this because --no-tools takes a different
     # startup path, which is exactly why a green probe never predicted a hung
     # controller: the probe and the thing it certifies are not the same program.
-    ( cd "$REPO" && pi --model "$MODEL" -p "$PROMPT" < /dev/null ) >>"$LOG" 2>&1 &
+    #
+    # -e controller-bash-cap.ts: pi's bash tool has no default timeout; this caps each
+    # command at 540s so a wait or a wedged command returns inside the stall watchdog's
+    # 600s window instead of getting the controller killed (world iter-208, 2026-09-29).
+    # --session-id: fixed per fire, so a transient retry REOPENS this session and the
+    # model continues from where the provider dropped it (pi opens an existing id,
+    # creates a missing one).
+    _mc_pi_prompt="$PROMPT"
+    _mc_pi_session_exists "$MC_PI_SESSION_ID" && _mc_pi_prompt="$MC_PI_RESUME_PROMPT"
+    ( cd "$REPO" && pi --model "$MODEL" -e "$MC_DRIVER_ROOT/tools/pi-extensions/controller-bash-cap.ts" --session-id "$MC_PI_SESSION_ID" -p "$_mc_pi_prompt" < /dev/null ) >>"$LOG" 2>&1 &
   else
     claude -p "$PROMPT" \
       --model "$MODEL" \
@@ -2460,7 +2620,7 @@ while : ; do
     tail -n 200 "$_mc_retry_history" > "${_mc_retry_history}.tmp.$$" && mv "${_mc_retry_history}.tmp.$$" "$_mc_retry_history"
     # --- RETRY HISTORY END ---
     backoff=$(( TRANSIENT_BACKOFF * attempt ))
-    log "transient API error (rc=$RC) attempt $attempt/$TRANSIENT_RETRIES — retrying in ${backoff}s (Anthropic capacity)"
+    log "transient API error (rc=$RC) attempt $attempt/$TRANSIENT_RETRIES — retrying in ${backoff}s (provider capacity)"
     sleep "$backoff"
     attempt=$((attempt + 1))
     continue

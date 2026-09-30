@@ -36,7 +36,7 @@ func TestAdaptersStopOwnedDescendants(t *testing.T) {
 				} else if adapter == "codex" {
 					event = `{"type":"turn.completed","usage":{"input_tokens":100,"output_tokens":100}}`
 				}
-				script := "#!/bin/sh\nsleep 60 &\necho $! > child.pid\n"
+				script := "#!/bin/sh\nsleep 60 &\necho $! > '" + filepath.Join(dir, "child.pid") + "'\n"
 				if reason == "tokens" || reason == "cost" {
 					script += "echo '" + event + "'\n"
 				}

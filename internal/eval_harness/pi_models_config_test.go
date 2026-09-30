@@ -14,7 +14,8 @@ import (
 // on. Canonical copy: tools/pi-extensions/models.mission.json.
 type piModelsConfig struct {
 	Providers map[string]struct {
-		Models []struct {
+		Headers map[string]string `json:"headers"`
+		Models  []struct {
 			ID               string             `json:"id"`
 			MaxTokens        int                `json:"maxTokens"`
 			ContextWindow    int                `json:"contextWindow"`
@@ -102,7 +103,7 @@ func TestPiModelsConfigMatchesRegistry(t *testing.T) {
 		defaultBudget    string
 	}{
 		{"openrouter", true, true, "16384"},
-		{"ollama", false, false, "16384"},
+		{"ollama-rig", false, false, "16384"},
 	}
 
 	totalChecked := 0
@@ -191,5 +192,62 @@ func TestPiModelsConfigMatchesRegistry(t *testing.T) {
 
 	if totalChecked == 0 {
 		t.Fatal("the test asserted nothing at all")
+	}
+}
+
+func TestLocalEvalRowsRequireLeasedProvider(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Clean(piModelsCanonicalPath))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cfg piModelsConfig
+	if err := json.Unmarshal(raw, &cfg); err != nil {
+		t.Fatal(err)
+	}
+	if got := cfg.Providers["ollama-rig"].Headers["X-Rig-Lease"]; got != "${AILANG_RIG_LEASE}" {
+		t.Fatalf("ollama-rig lease header = %q", got)
+	}
+	if _, present := cfg.Providers["ollama"].Headers["X-Rig-Lease"]; present {
+		t.Fatal("everyday ollama provider must not require a rig lease")
+	}
+
+	modelsCfg, err := LoadModelsConfig("../modelreg/models.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	checked := 0
+	mutated := false
+	for name, model := range modelsCfg.Models {
+		if model.AgentCLI == nil || (*model.AgentCLI != "pi" && *model.AgentCLI != "opencode") {
+			continue
+		}
+		isCloud := model.AgentModelName != nil && strings.Contains(*model.AgentModelName, "cloud")
+		if model.Provider == "ollama" && !isCloud {
+			t.Errorf("local eval row %s uses unleased ollama provider", name)
+		}
+		if model.Provider == "ollama-rig" {
+			checked++
+			if model.AgentModelName == nil || !strings.HasPrefix(*model.AgentModelName, "ollama-rig/") {
+				t.Errorf("leased provider/model disagree for %s", name)
+			}
+			if !mutated {
+				model.Provider = "ollama"
+				modelsCfg.Models[name] = model
+				mutated = true
+			}
+		}
+	}
+	if checked == 0 {
+		t.Fatal("no local eval rows checked")
+	}
+	mutationCaught := false
+	for _, model := range modelsCfg.Models {
+		isCloud := model.AgentModelName != nil && strings.Contains(*model.AgentModelName, "cloud")
+		if model.AgentCLI != nil && (*model.AgentCLI == "pi" || *model.AgentCLI == "opencode") && model.Provider == "ollama" && !isCloud {
+			mutationCaught = true
+		}
+	}
+	if !mutationCaught {
+		t.Fatal("mutation back to ollama was not detected")
 	}
 }

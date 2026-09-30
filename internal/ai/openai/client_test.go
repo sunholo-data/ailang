@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/sunholo-data/ailang/internal/ai"
 )
@@ -307,7 +308,7 @@ func TestClient_NewHandler(t *testing.T) {
 }
 
 func TestClient_WithOptions(t *testing.T) {
-	customHTTP := &http.Client{}
+	customHTTP := &http.Client{Timeout: 7 * time.Second}
 	client := NewClient("test-key",
 		WithBaseURL("https://custom.api.com"),
 		WithHTTPClient(customHTTP),
@@ -316,7 +317,9 @@ func TestClient_WithOptions(t *testing.T) {
 	if client.baseURL != "https://custom.api.com" {
 		t.Errorf("baseURL = %q, want %q", client.baseURL, "https://custom.api.com")
 	}
-	if client.httpClient != customHTTP {
+	// NewClient wraps the transport to carry the rig lease (riglock.WithLease),
+	// so the client is a copy; the caller's settings must survive it.
+	if client.httpClient.Timeout != customHTTP.Timeout {
 		t.Error("httpClient not set correctly")
 	}
 }

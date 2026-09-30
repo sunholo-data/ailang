@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { usePackageDetail } from '@site/src/hooks/useRegistryData';
 import styles from './styles.module.css';
 
@@ -25,6 +25,8 @@ export default function PackageDetail({ packageName, staticData }) {
 
       {/* Source / Docs / License links */}
       <PackageLinks detail={liveDetail} staticData={staticData} />
+
+      <AgentGuide packageName={packageName} hasAgentDoc={staticData?.has_agent_doc} />
 
       <div className={styles.detailGrid}>
         {/* Exports */}
@@ -82,6 +84,34 @@ export default function PackageDetail({ packageName, staticData }) {
           Loading version history from registry...
         </p>
       )}
+    </div>
+  );
+}
+
+function AgentGuide({ packageName, hasAgentDoc }) {
+  const [content, setContent] = useState(null);
+  const [missing, setMissing] = useState(!hasAgentDoc);
+  const [expanded, setExpanded] = useState(true);
+
+  useEffect(() => {
+    if (!hasAgentDoc) return undefined;
+    let active = true;
+    fetch(`/registry/${packageName}/AGENT.md`)
+      .then((response) => { if (!response.ok) throw new Error(`HTTP ${response.status}`); return response.text(); })
+      .then((text) => { if (active) { setContent(text); setExpanded(text.length <= 2048); } })
+      .catch(() => { if (active) setMissing(true); });
+    return () => { active = false; };
+  }, [packageName, hasAgentDoc]);
+
+  return (
+    <div className={styles.detailSection}>
+      <div className={styles.sectionTitle}>Agent Guide (AGENT.md)</div>
+      {missing && <p className={styles.agentDocPlaceholder}>This package ships no AGENT.md (PUB020 flags this at publish).</p>}
+      {!missing && content === null && <p className={styles.agentDocPlaceholder}>Loading agent guide…</p>}
+      {content !== null && <>
+        <button className={styles.agentDocToggle} onClick={() => setExpanded(!expanded)}>{expanded ? 'Hide guide' : 'Show guide'}</button>
+        {expanded && <pre className={styles.agentDocPanel}>{content}</pre>}
+      </>}
     </div>
   );
 }

@@ -66,7 +66,7 @@ fi
 
 # E (kills a vacuous clean-only test): poison must fail directly, then pass cleaned.
 export MISSION_PLANNER_ALLOWLIST='tools/launchd/*|.claude/skills/mission-control/SKILL.md|.claude/skills/design-doc-creator/*'
-export MISSION_PLANNER_ANTHROPIC_FALLBACK=codex:gpt-6-sol
+export MISSION_PLANNER_ANTHROPIC_FALLBACK=codex:gpt-6.1-sol
 export TMPDIR="$T"
 /bin/bash "$ROOT/tools/launchd/test_mission_routing.sh" > "$T/routing-direct.out" 2>&1
 direct_rc=$?

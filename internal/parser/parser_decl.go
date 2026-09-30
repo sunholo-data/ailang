@@ -11,7 +11,9 @@ import (
 // parseAnnotation parses a generic @name(...) annotation.
 // Expects the parser to be AT the '@' token.
 // Returns the parsed annotation, or nil on error.
-// Supported annotations: @verify(depth: N), @route("METHOD", "/path")
+// Supported annotations: @verify(depth: N), @route("METHOD", "/path"),
+// @mcp_name("name"), @optional("param", ...), @allow_empty_ok("why"), @raw,
+// @nowrap, @noexpose, @nomcp
 func (p *Parser) parseAnnotation() *ast.Annotation {
 	pos := p.curPos()
 	// We're at '@', consume it
@@ -20,7 +22,7 @@ func (p *Parser) parseAnnotation() *ast.Annotation {
 	if !p.curTokenIs(lexer.IDENT) {
 		p.report("PAR_INVALID_ATTRIBUTE",
 			fmt.Sprintf("expected annotation name after '@', got '%s'", p.curToken.Literal),
-			"Use @verify(depth: N), @route(\"METHOD\", \"/path\"), @mcp_name(\"name\"), @raw, @nowrap, @noexpose, or @nomcp")
+			"Use @verify(depth: N), @route(\"METHOD\", \"/path\"), @mcp_name(\"name\"), @optional(\"param\"), @raw, @nowrap, @noexpose, or @nomcp")
 		return nil
 	}
 
@@ -33,6 +35,8 @@ func (p *Parser) parseAnnotation() *ast.Annotation {
 		return p.parseRouteAnnotation(pos)
 	case "mcp_name":
 		return p.parseMCPNameAnnotation(pos)
+	case "optional":
+		return p.parseOptionalAnnotation(pos)
 	case "allow_empty_ok":
 		return p.parseAllowEmptyOkAnnotation(pos)
 	case "raw":
@@ -50,8 +54,8 @@ func (p *Parser) parseAnnotation() *ast.Annotation {
 		return &ast.Annotation{Name: "nomcp", Pos: pos}
 	default:
 		p.report("PAR_UNKNOWN_ATTRIBUTE",
-			fmt.Sprintf("unknown attribute '@%s'; supported: @verify, @route, @mcp_name, @allow_empty_ok, @raw, @nowrap, @noexpose, @nomcp", name),
-			"Use @verify(depth: N), @route(\"METHOD\", \"/path\"), @mcp_name(\"name\"), @allow_empty_ok(\"rationale\"), @raw, @nowrap, @noexpose, or @nomcp")
+			fmt.Sprintf("unknown attribute '@%s'; supported: @verify, @route, @mcp_name, @optional, @allow_empty_ok, @raw, @nowrap, @noexpose, @nomcp", name),
+			"Use @verify(depth: N), @route(\"METHOD\", \"/path\"), @mcp_name(\"name\"), @optional(\"param\", ...), @allow_empty_ok(\"rationale\"), @raw, @nowrap, @noexpose, or @nomcp")
 		return nil
 	}
 }
@@ -254,6 +258,37 @@ func (p *Parser) parseMCPNameAnnotation(pos ast.Pos) *ast.Annotation {
 		},
 		Pos: pos,
 	}
+}
+
+// parseOptionalAnnotation parses @optional("param", ...) into an Annotation
+// with one string-literal arg per named parameter. It marks those params as
+// not required on the MCP tool surface: an absent or null argument binds to
+// the param type's zero value instead of being rejected. Whether each name is
+// a real, zero-valuable param is checked at MCP registration, where the
+// signature is known.
+// Expects the parser to be AT the 'optional' identifier.
+func (p *Parser) parseOptionalAnnotation(pos ast.Pos) *ast.Annotation {
+	if !p.expectPeek(lexer.LPAREN) {
+		return nil
+	}
+	var args []ast.Expr
+	for {
+		if !p.expectPeek(lexer.STRING) {
+			p.report("PAR_OPTIONAL_ARG",
+				"@optional expects one or more string-literal parameter names",
+				"Use @optional(\"apiKey\") or @optional(\"apiKey\", \"requestId\")")
+			return nil
+		}
+		args = append(args, &ast.Literal{Kind: ast.StringLit, Value: p.curToken.Literal, Pos: p.curPos()})
+		if !p.peekTokenIs(lexer.COMMA) {
+			break
+		}
+		p.nextToken() // at ','
+	}
+	if !p.expectPeek(lexer.RPAREN) {
+		return nil
+	}
+	return &ast.Annotation{Name: "optional", Args: args, Pos: pos}
 }
 
 // parseTopLevelDecl parses a top-level declaration

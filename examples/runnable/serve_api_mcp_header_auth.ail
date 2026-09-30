@@ -1,0 +1,44 @@
+-- serve_api_mcp_header_auth.ail - MCP tools that take their API key from a header
+-- An agent should never hold an API key in model context, and MCP registries
+-- inject secrets only as HTTP headers. A declared `_headers: Json` param binds
+-- the tools/call request headers (hidden from inputSchema, cannot be forged via
+-- the arguments), and @optional("apiKey") lets the client omit the argument.
+-- Run with: ailang serve-api --mcp-http examples/runnable/serve_api_mcp_header_auth.ail
+--
+-- Header names arrive canonicalized: "Authorization", "X-Api-Key".
+module examples/runnable/serve_api_mcp_header_auth
+import std/json (Json, getString, jo, kv, js)
+import std/option (Option, Some, None)
+import std/string (length, substring, toLower, trim)
+
+-- "Bearer <key>" → "<key>"; any other value → ""
+pure func bearerKey(v: string) -> string {
+  let t = trim(v);
+  if length(t) > 7 && toLower(substring(t, 0, 7)) == "bearer " then trim(substring(t, 7, length(t))) else ""
+}
+
+-- Resolution order: explicit argument > Authorization: Bearer > X-Api-Key.
+export pure func resolveKey(apiKey: string, headers: Json) -> string {
+  if apiKey != "" then apiKey
+  else match getString(headers, "Authorization") {
+    Some(a) if bearerKey(a) != "" => bearerKey(a),
+    _ => match getString(headers, "X-Api-Key") {
+      Some(k) => trim(k),
+      None => ""
+    }
+  }
+}
+
+-- Report which account the key belongs to (demo: echoes the key's prefix).
+@optional("apiKey")
+export pure func whoami(apiKey: string, _headers: Json) -> string {
+  let key = resolveKey(apiKey, _headers);
+  if key == "" then "AUTH_REQUIRED: send Authorization: Bearer <key> or X-API-Key"
+  else "authenticated as ${substring(key, 0, 3)}..."
+}
+
+-- Demo entrypoint for verify-examples
+export func main() -> string {
+  let hdrs = jo([kv("Authorization", js("Bearer dp_secret"))]);
+  "${whoami("", hdrs)} | ${whoami("dp_arg", jo([]))} | ${whoami("", jo([]))}"
+}

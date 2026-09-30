@@ -369,7 +369,7 @@ directly to the sprint planner.
 
 - [Driver pin rollout](../m-driver-pin-rollout.md): caller-emits contract; not reopened.
 - [Mission loop workbench](../v0_36_0/m-mission-loop-workbench.md): configuration registry, distinct.
-- [Motoko refusal sprint plan](../m-motoko-discovery-arm-discriminating-refusal-sprint-plan.md): neural
+- [Motoko refusal sprint plan](../../implemented/v0_35_0/m-motoko-discovery-arm-discriminating-refusal-sprint-plan.md): neural
   match 0.45; mutation discipline, different instrument.
 - Historical commits `63a0d2b32` (production capture change) and `9f267cf1f` (prior fixture repair).
 

@@ -3,8 +3,10 @@ package observatory
 import (
 	"context"
 	"database/sql"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -638,5 +640,40 @@ func TestStore_ChainEnvironmentVars(t *testing.T) {
 		if envVars[key] != expectedVal {
 			t.Errorf("expected %s=%s, got %s", key, expectedVal, envVars[key])
 		}
+	}
+}
+
+// GetChainStages runs through the PRODUCTION opener (pool capped at one
+// connection). Loading spans/sessions used to query s.db while the stage rows
+// were still open, which blocked until the context expired — forever under the
+// CLI's context.Background(), and silently without spans under a request ctx.
+func TestStore_GetChainStages_OneConnectionPoolWithSpansAndSessions(t *testing.T) {
+	store, err := OpenStore(filepath.Join(t.TempDir(), "observatory.db"))
+	if err != nil {
+		t.Fatalf("OpenStore: %v", err)
+	}
+	defer store.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	chain, err := store.CreateChain(ctx, &ChainCreateRequest{SourceType: ChainSourceGitHubIssue})
+	if err != nil {
+		t.Fatalf("CreateChain: %v", err)
+	}
+	for _, agent := range []string{"agent-1", "agent-2"} {
+		if _, err := store.CreateStage(ctx, &StageCreateRequest{ChainID: chain.ID, AgentID: agent}); err != nil {
+			t.Fatalf("CreateStage: %v", err)
+		}
+	}
+
+	stages, err := store.GetChainStages(ctx, chain.ID, ChainReadOptions{IncludeSpans: true, IncludeSessions: true})
+	if err != nil {
+		t.Fatalf("GetChainStages: %v", err)
+	}
+	if len(stages) != 2 {
+		t.Fatalf("expected 2 stages, got %d", len(stages))
+	}
+	if ctx.Err() != nil {
+		t.Fatalf("GetChainStages ran into the context deadline (pool deadlock): %v", ctx.Err())
 	}
 }

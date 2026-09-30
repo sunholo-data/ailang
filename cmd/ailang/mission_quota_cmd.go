@@ -4,7 +4,8 @@ package main
 //
 // Routing has always been able to ask "is this lane up?" and never "can it afford to be
 // used?". This is where the second question is answered: consumption per (bucket, window)
-// against a 10%/day ration, fleet-wide because that is what the subscription is.
+// against the ration, fleet-wide because that is what the subscription is. Codex and
+// Anthropic are paced by weekday (mission.WeekdayPacePercent); the others at 10%/day.
 
 import (
 	"encoding/json"

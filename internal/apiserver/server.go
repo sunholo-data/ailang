@@ -152,6 +152,7 @@ type ExportInfo struct {
 	IsNoExpose  bool     `json:"is_no_expose,omitempty"` // @noexpose annotation: hide from HTTP endpoints
 	IsNoMCP     bool     `json:"is_no_mcp,omitempty"`    // @nomcp annotation: hide from the MCP tool surface only (HTTP/OpenAPI/A2A unaffected)
 	MCPName     string   `json:"mcp_name,omitempty"`     // @mcp_name annotation: explicit MCP tool name override
+	Optional    []string `json:"optional,omitempty"`     // @optional annotation: params not required on MCP (absent/null → zero value)
 	DocComment  string   `json:"doc_comment,omitempty"`  // doc comment (-- lines) preceding the function
 	IsWS        bool     `json:"is_ws,omitempty"`        // @route("WS", ...): a WebSocket route, off every HTTP/MCP/A2A surface
 	Effects     []string `json:"-"`                      // declared effect row (WS registration check)

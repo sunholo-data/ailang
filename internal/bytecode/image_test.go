@@ -155,6 +155,49 @@ func TestValidate_GetFieldIndexNotRegister(t *testing.T) {
 	}
 }
 
+func TestValidate_UpdateRecordEncoding(t *testing.T) {
+	name := NewImage()
+	nameIdx := name.AddConstant(NewString("x"))
+	valid := &FuncPrototype{
+		Name:      "validUpdate",
+		NumRegs:   3,
+		Constants: []int{nameIdx},
+		Instructions: []Instruction{
+			EncodeABC(OpUpdateRecord, 1, 0, 1),
+			EncodeABx(OpLoadConst, 0, 0),
+		},
+	}
+	name.AddPrototype(valid)
+	if err := name.Validate(); err != nil {
+		t.Fatalf("valid update rejected: %v", err)
+	}
+
+	tests := []struct {
+		name         string
+		constants    []Value
+		instructions []Instruction
+		want         string
+	}{
+		{"truncated", nil, []Instruction{EncodeABC(OpUpdateRecord, 1, 0, 1)}, "truncated"},
+		{"wrong pseudo op", nil, []Instruction{EncodeABC(OpUpdateRecord, 1, 0, 1), EncodeABC(OpReturn, 0, 0, 0)}, "pseudo-LOAD_CONST"},
+		{"non-string name", []Value{NewInt(7)}, []Instruction{EncodeABC(OpUpdateRecord, 1, 0, 1), EncodeABx(OpLoadConst, 0, 0)}, "not String"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			img := NewImage()
+			p := &FuncPrototype{Name: tc.name, NumRegs: 3, Instructions: tc.instructions}
+			for _, c := range tc.constants {
+				p.Constants = append(p.Constants, img.AddConstant(c))
+			}
+			img.AddPrototype(p)
+			err := img.Validate()
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("got %v, want error containing %q", err, tc.want)
+			}
+		})
+	}
+}
+
 func TestValidate_BadConstantIndex(t *testing.T) {
 	img := NewImage()
 	p := &FuncPrototype{

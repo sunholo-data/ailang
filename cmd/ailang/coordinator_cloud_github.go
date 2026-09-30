@@ -33,7 +33,7 @@ import (
 //
 // Cascade context (root_package, root_version) is surfaced via env vars set
 // by the dispatcher; if absent, we open a generic agent-task PR instead.
-func openCascadePullRequest(ctx context.Context, workDir, branchName, taskID, agentID, baseBranch string) error {
+func openCascadePullRequest(ctx context.Context, workDir, branchName, taskID, agentID, baseBranch, directive string) error {
 	if baseBranch == "" {
 		baseBranch = "main"
 	}
@@ -56,14 +56,13 @@ func openCascadePullRequest(ctx context.Context, workDir, branchName, taskID, ag
 	// Detect cascade vs generic agent task from env (set by dispatcher when
 	// the inbound message had source=cascade + root_package attribute).
 	rootPackage := config.CascadeRootPackage()
-	directive := config.Directive()
 
 	// The title carries WHAT the change is; the task id moves into the body,
 	// where a lookup key belongs. Still a pure function of the directive — the
 	// determinism was never what made the old title uninformative.
 	title := agentPRTitle(agentID, taskID, directive)
-	body := agentPRBody(ctx, taskID, agentID, directive, workDir, baseBranch)
-	labels := []string{"agent-task"}
+	body := mergeWarning(config.MergeStarts()) + agentPRBody(ctx, taskID, agentID, directive, workDir, baseBranch)
+	labels := append([]string{"agent-task"}, config.PRLabels()...)
 
 	if rootPackage != "" {
 		title = fmt.Sprintf("[cascade] bump %s (%s)", rootPackage, taskID)

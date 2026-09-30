@@ -11,6 +11,12 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 SUT="$HERE/mission_pi_run.sh"
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
+mkdir -p "$TMP/node_modules/@anthropic-ai/sandbox-runtime"
+echo '{}' > "$TMP/node_modules/@anthropic-ai/sandbox-runtime/package.json"
+MISSION_PI_SANDBOX_NODE_MODULES="$TMP/node_modules"
+MISSION_PI_SANDBOX_STAGE_PARENT="$TMP"
+MISSION_PI_CLAUDE_TMP_DIR="$TMP/claude"
+export MISSION_PI_SANDBOX_NODE_MODULES MISSION_PI_SANDBOX_STAGE_PARENT MISSION_PI_CLAUDE_TMP_DIR
 
 PASS=0; FAIL=0
 check() { # check <name> <expected-rc> <actual-rc> <expected-verdict> <verdict-file>
@@ -24,7 +30,7 @@ check() { # check <name> <expected-rc> <actual-rc> <expected-verdict> <verdict-f
 
 mkstub() { # mkstub <script-body> -> writes a `pi` stub and prepends it to PATH
   mkdir -p "$TMP/bin"
-  { echo '#!/usr/bin/env bash'; echo 'cat >/dev/null'; echo "$1"; } > "$TMP/bin/pi"
+  { echo '#!/usr/bin/env bash'; echo 'cat >/dev/null'; echo ': > "$PI_SANDBOX_READY_FILE"'; echo "$1"; } > "$TMP/bin/pi"
   chmod +x "$TMP/bin/pi"
   PATH="$TMP/bin:$PATH"; export PATH
 }
@@ -59,7 +65,8 @@ mkrepo "$TMP/wt3" clean; echo d > "$TMP/d3.txt"
 check "reasoning stall" 11 $? reasoning_stall "$TMP/v3.json"
 SNAP_LINES=$(wc -l < "$TMP/o3.ndjson.snapshot.ndjson" 2>/dev/null | tr -d ' ')
 BANK_BYTES=$(wc -c < "$TMP/o3.ndjson" 2>/dev/null | tr -d ' ')
-if [ "${SNAP_LINES:-0}" -le 1 ] && [ "${BANK_BYTES:-1}" -eq 0 ]; then
+SNAP_EVERY="${MISSION_PI_SNAP_EVERY:-50}"
+if [ "${SNAP_LINES:-0}" -ge 1 ] && [ "${SNAP_LINES:-0}" -le "$SNAP_EVERY" ] && [ "${BANK_BYTES:-1}" -eq 0 ]; then
   echo "  PASS: message_update filtered (banked=${BANK_BYTES}B) and snapshot bounded (${SNAP_LINES} line)"; PASS=$((PASS+1))
 else
   echo "  FAIL: filter leaked — banked=${BANK_BYTES}B snapshot=${SNAP_LINES} lines"; FAIL=$((FAIL+1))
@@ -72,6 +79,20 @@ mkrepo "$TMP/wt4" clean; echo d > "$TMP/d4.txt"
        --max-seconds 60 --stall-seconds 6 >/dev/null 2>&1
 check "stream dead" 12 $? stream_dead "$TMP/o4.ndjson.verdict.json"
 
+echo "TEST 4b: silent while a tool call is OPEN -> tool_hang (rc 18), not stream_dead"
+# Regression pin, 2026-09-29: three executor runs sat in a hung `ailang messages list`
+# and were banked as the model's stream_dead.
+mkstub 'printf "{\"type\":\"tool_execution_start\",\"toolName\":\"bash\",\"args\":{\"command\":\"ailang messages list --unread\"}}\n"; sleep 300'
+mkrepo "$TMP/wt4b" clean; echo d > "$TMP/d4b.txt"
+"$SUT" --model m --directive "$TMP/d4b.txt" --workdir "$TMP/wt4b" --out "$TMP/o4b.ndjson" \
+       --max-seconds 60 --stall-seconds 6 >/dev/null 2>&1
+check "tool hang" 18 $? tool_hang "$TMP/o4b.ndjson.verdict.json"
+if jq -e '.hung_tool | test("ailang messages list")' "$TMP/o4b.ndjson.verdict.json" >/dev/null 2>&1; then
+  echo "  PASS: verdict names the hung command"; PASS=$((PASS+1))
+else
+  echo "  FAIL: hung_tool missing from verdict"; FAIL=$((FAIL+1))
+fi
+
 echo "TEST 5: progress keeps the clock alive past the stall bound (no false positive)"
 # The guard must NOT fire on a slow-but-working run, or it just re-creates the old
 # 300 MB ceiling in a new costume.
@@ -80,6 +101,19 @@ mkrepo "$TMP/wt5" dirty; echo d > "$TMP/d5.txt"
 "$SUT" --model m --directive "$TMP/d5.txt" --workdir "$TMP/wt5" --out "$TMP/o5.ndjson" \
        --max-seconds 90 --stall-seconds 6 >/dev/null 2>&1
 check "slow-but-working run survives" 0 $? ok "$TMP/o5.ndjson.verdict.json"
+
+echo "TEST 5b: pi children run as an unattended mission stage"
+# The session-protocol gate waives the inbox call only when AILANG_MISSION_STAGE is set;
+# without it every sandboxed role blocks on an unreachable message store (2026-09-29).
+mkstub 'printf "%s" "${AILANG_MISSION_STAGE:-unset}" > stage_marker.txt; printf "{\"type\":\"agent_end\"}\n"'
+mkrepo "$TMP/wt5b" clean; echo d > "$TMP/d5b.txt"
+"$SUT" --model m --directive "$TMP/d5b.txt" --workdir "$TMP/wt5b" --out "$TMP/o5b.ndjson" \
+       --max-seconds 30 --stall-seconds 10 >/dev/null 2>&1
+if [ "$(cat "$TMP/wt5b/stage_marker.txt" 2>/dev/null)" = "1" ]; then
+  echo "  PASS: pi child sees AILANG_MISSION_STAGE=1"; PASS=$((PASS+1))
+else
+  echo "  FAIL: pi child AILANG_MISSION_STAGE=$(cat "$TMP/wt5b/stage_marker.txt" 2>/dev/null || echo '<no marker>')"; FAIL=$((FAIL+1))
+fi
 
 echo "TEST 6: pi runs INSIDE --workdir, not the caller's cwd"
 # Regression pin. Caught live 2026-08-26: a real run reported 4 tool executions and 0

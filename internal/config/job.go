@@ -11,9 +11,12 @@ const (
 	EnvCascadeChangeClass = "AILANG_CASCADE_CHANGE_CLASS"
 	EnvCascadeToVersion   = "AILANG_CASCADE_TO_VERSION"
 	EnvDirective          = "AILANG_DIRECTIVE"
+	EnvDirectiveSource    = "AILANG_DIRECTIVE_SOURCE"
 	EnvAutoMerge          = "AILANG_AUTO_MERGE"
 	EnvArtifactPatterns   = "AILANG_ARTIFACT_PATTERNS"
 	EnvTaskTitle          = "AILANG_TASK_TITLE"
+	EnvPRLabels           = "AILANG_PR_LABELS"
+	EnvMergeStarts        = "AILANG_MERGE_STARTS"
 	EnvImageProvider      = "AILANG_IMAGE_PROVIDER"
 	EnvProvider           = "AILANG_PROVIDER"
 	EnvBranch             = "AILANG_BRANCH"
@@ -52,10 +55,13 @@ var jobVars = []Var{
 	{EnvCascadeRootPackage, "", AreaJob, "Root package of a package cascade; when set the job tries the deterministic bump first and the PR is labelled and titled as a cascade."},
 	{EnvCascadeChangeClass, "", AreaJob, "Change class of the cascade (A content-only, B additive, ...); decides whether the deterministic path applies."},
 	{EnvCascadeToVersion, "", AreaJob, "Version the cascade bumps the dependency to."},
-	{EnvDirective, "", AreaJob, "The task directive text handed to the executor and used to derive the PR title and body; unset derives one from the task and agent ids."},
+	{EnvDirective, "", AreaJob, "Inline task directive; read only when AILANG_DIRECTIVE_SOURCE is unset (a coordinator older than the Firestore hand-off). Cloud Run caps it at 32,768 bytes."},
+	{EnvDirectiveSource, "", AreaJob, "Where the job reads its directive: \"firestore\" = task_directives/<AILANG_TASK_ID>, and a missing document fails the task. Unset = AILANG_DIRECTIVE."},
 	{EnvAutoMerge, "0", AreaJob, "1 lets the job enable GitHub auto-merge on a docs-only PR that matches the artifact patterns."},
 	{EnvArtifactPatterns, "", AreaJob, "Newline-separated path patterns the dispatcher declared as the task's artifacts; the auto-merge scope guard."},
 	{EnvTaskTitle, "", AreaJob, "Human-written task title used as the message subject; unset derives one from the directive."},
+	{EnvPRLabels, "", AreaJob, "Comma-separated labels the job adds to its PR besides agent-task (the agent's needs-*-approval label)."},
+	{EnvMergeStarts, "", AreaJob, "Comma-separated agents that approving this task hands off to; the PR says merging starts them."},
 	{EnvImageProvider, "", AreaJob, "Which provider image the job believes it runs in; verified against AILANG_PROVIDER and printed by preflight diagnostics."},
 	{EnvProvider, "", AreaJob, "Provider the dispatcher requested for the task; deliberately not defaulted, the job resolves and verifies it against the image."},
 	{EnvBranch, DefaultJobBranch, AreaJob, "Branch the job clones and branches from."},
@@ -149,6 +155,29 @@ func CascadeRootPackage() string { return get(EnvCascadeRootPackage) }
 
 // Directive returns AILANG_DIRECTIVE, "" when unset.
 func Directive() string { return get(EnvDirective) }
+
+// DirectiveSourceFirestore is the AILANG_DIRECTIVE_SOURCE value naming the
+// task_directives Firestore collection.
+const DirectiveSourceFirestore = "firestore"
+
+// DirectiveSource returns AILANG_DIRECTIVE_SOURCE, "" when unset.
+func DirectiveSource() string { return get(EnvDirectiveSource) }
+
+// PRLabels returns AILANG_PR_LABELS split on commas, empty entries dropped.
+func PRLabels() []string { return splitCSV(get(EnvPRLabels)) }
+
+// MergeStarts returns AILANG_MERGE_STARTS split on commas, empty entries dropped.
+func MergeStarts() []string { return splitCSV(get(EnvMergeStarts)) }
+
+func splitCSV(s string) []string {
+	var out []string
+	for _, p := range strings.Split(s, ",") {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
 
 // AutoMerge reports AILANG_AUTO_MERGE=1.
 func AutoMerge() bool { return getOr(EnvAutoMerge) == "1" }

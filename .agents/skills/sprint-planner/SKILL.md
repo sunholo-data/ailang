@@ -109,7 +109,7 @@ https://ailang.sunholo.com/docs/reference/language-syntax
   - Updates only `passes` field as milestones complete
   - Can pause/resume work across multiple sessions
 
-This separation enables **multi-session continuity** - sprints can span days or weeks with Codex resuming work from where it left off.
+This separation enables **multi-session continuity** - sprints can span days or weeks with Claude resuming work from where it left off.
 
 ## Available Scripts
 
@@ -119,10 +119,10 @@ Analyze recent development velocity from CHANGELOG and git commits.
 **Usage:**
 ```bash
 # Analyze last 7 days (default)
-.Codex/skills/sprint-planner/scripts/analyze_velocity.sh
+.claude/skills/sprint-planner/scripts/analyze_velocity.sh
 
 # Analyze last 14 days
-.Codex/skills/sprint-planner/scripts/analyze_velocity.sh 14
+.claude/skills/sprint-planner/scripts/analyze_velocity.sh 14
 ```
 
 **Output:**
@@ -153,7 +153,7 @@ Based on CHANGELOG entries and git history, estimate:
 **Usage:**
 ```bash
 # Create JSON progress file from sprint plan
-.Codex/skills/sprint-planner/scripts/create_sprint_json.sh \
+.claude/skills/sprint-planner/scripts/create_sprint_json.sh \
   "M-S1" \
   "design_docs/planned/v0_4_0/m-s1-sprint-plan.md" \
   "design_docs/planned/v0_4_0/m-s1-parser-improvements.md"
@@ -175,13 +175,17 @@ Sprint JSON files are stored in `.ailang/state/sprints/` to keep the state direc
 
 **Integration with sprint-executor:**
 After creating the JSON file, sprint-executor can:
-- Resume work across multiple Codex sessions
+- Resume work across multiple Claude Code sessions
 - Track progress programmatically
 - Update velocity metrics automatically
 
 ## Sprint Planning Workflow
 
 **CRITICAL: Always end by handing off to sprint-executor after user approval!**
+
+### 0. Check the Registry (Mandatory Reuse Gate)
+
+Search the registry before planning any package-like capability, and record a `depend` / `contribute` / `none` decision per milestone in `registry_reuse`; placeholders block handoff. Procedure: [resources/registry_reuse_gate.md](resources/registry_reuse_gate.md).
 
 ### 1. Read and Analyze Design Document
 
@@ -205,7 +209,7 @@ After creating the JSON file, sprint-executor can:
 
 **Use the velocity script:**
 ```bash
-.Codex/skills/sprint-planner/scripts/analyze_velocity.sh
+.claude/skills/sprint-planner/scripts/analyze_velocity.sh
 ```
 
 **Calculate:**
@@ -238,7 +242,7 @@ See [`resources/sprint_plan_template.md`](resources/sprint_plan_template.md)
 - **Task List**: Day-by-day breakdown (if < 1 week) or weekly (if longer)
 - **Success Metrics**:
   - Test coverage target
-  - **Example files created and verified working** (CRITICAL - see AGENTS.md)
+  - **Example files created and verified working** (CRITICAL - see CLAUDE.md)
   - Docs to update
 
 ### 6. Present for Feedback
@@ -270,7 +274,7 @@ See [`resources/sprint_plan_template.md`](resources/sprint_plan_template.md)
 **NEW: Create JSON progress file (machine-readable):**
 ```bash
 # Create structured progress file for multi-session execution
-.Codex/skills/sprint-planner/scripts/create_sprint_json.sh \
+.claude/skills/sprint-planner/scripts/create_sprint_json.sh \
   "<sprint-id>" \
   "design_docs/planned/vX_Y/<sprint-id>-plan.md" \
   "design_docs/planned/vX_Y/<feature>-design.md"
@@ -410,6 +414,7 @@ git commit -m "Add M-<milestone> sprint plan with JSON progress tracking"
 ## Analysis Framework
 
 ### Design Doc Analysis Checklist
+- [ ] Registry reuse audit: every implementable milestone has a populated `depend`, `contribute`, or `none` decision
 - [ ] Current status: What's ✅ vs ❌ vs ⏳
 - [ ] Timeline: Days/weeks remaining, velocity metrics
 - [ ] Priority matrix: Critical vs nice-to-have
@@ -529,29 +534,7 @@ coordinator:
       session_continuity: true
 ```
 
-### Receiving Handoffs from design-doc-creator
-
-The sprint-planner receives:
-```json
-{
-  "type": "design_doc_ready",
-  "correlation_id": "task-123",
-  "design_doc_path": "design_docs/planned/v0_6_3/m-semantic-caching.md",
-  "session_id": "Codex-session-abc"
-}
-```
-
-### Sending Tasks to sprint-planner
-
-```bash
-# Direct task (skip design-doc-creator)
-ailang messages send sprint-planner "Plan sprint for M-CACHE feature" \
-  --title "Sprint: M-CACHE" --from "user"
-
-# Reference existing design doc
-ailang messages send sprint-planner '{"design_doc_path": "design_docs/planned/v0_6_3/m-cache.md"}' \
-  --title "Sprint: M-CACHE" --from "design-doc-creator"
-```
+Handoff message formats and how to send tasks: [resources/coordinator.md](resources/coordinator.md). **Merging a `coordinator/task-*` sprint-plan PR approves it and starts sprint-executor, which writes code** (the cloud daemon fires the handoff on merge).
 
 ### Handoff Message to sprint-executor
 
@@ -563,9 +546,10 @@ On completion, sprint-planner sends:
   "sprint_id": "M-CACHE",
   "plan_path": "design_docs/planned/v0_6_3/m-cache-sprint-plan.md",
   "progress_path": ".ailang/state/sprints/sprint_M-CACHE.json",
-  "session_id": "Codex-session-xyz",
+  "session_id": "claude-session-xyz",
   "estimated_duration": "3 days",
   "total_loc_estimate": 650,
+  "registry_reuse": [{"milestone":"M1", "package":"sunholo/example", "action":"depend", "reason":"Capability already exists"}],
   "risk_level": "medium"
 }
 ```
@@ -584,7 +568,7 @@ With `auto_approve_handoffs: false`:
 
 With `session_continuity: true`:
 - Receives `session_id` from design-doc-creator handoff
-- Uses `--resume SESSION_ID` for Codex CLI
+- Uses `--resume SESSION_ID` for Claude Code CLI
 - Preserves context from previous agent's work
 - Enables seamless multi-agent conversations
 

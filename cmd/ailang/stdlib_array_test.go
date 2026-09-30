@@ -32,7 +32,7 @@ func runArrayCase(t *testing.T, prog string, vmNative bool) map[string]string {
 		args []string
 	}{
 		{"evaluator", []string{"run", "--relax-modules", src}},
-		{"vm", []string{"run", "--bytecode", "--relax-modules", src}},
+		{"vm", []string{"run", "--verbose", "--bytecode", "--relax-modules", src}},
 	} {
 		stdout, stderr, code := runCLI(t, backend.args...)
 		if code != 0 {
@@ -58,7 +58,7 @@ func TestStdArraySetOutOfBoundsFails(t *testing.T) {
 	t.Setenv("AILANG_NO_CACHE", "1")
 	for _, args := range [][]string{
 		{"run", "--relax-modules", src},
-		{"run", "--bytecode", "--relax-modules", src},
+		{"run", "--verbose", "--bytecode", "--relax-modules", src},
 	} {
 		_, stderr, code := runCLI(t, args...)
 		if code == 0 || !strings.Contains(stderr, "array_set: index 3 out of bounds (array length: 3)") {

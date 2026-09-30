@@ -1,6 +1,22 @@
 package coordinator
 
-import "context"
+import (
+	"context"
+	"errors"
+)
+
+// ErrDispatchPermanent marks a dispatch that will fail identically on every
+// retry — an oversized directive, a request the backend rejects as malformed.
+// The daemon fails the task on it instead of resetting it to pending: reset,
+// task-68771ff3 was re-dispatched every five minutes for hours (2026-09-30)
+// while its status said only "pending".
+var ErrDispatchPermanent = errors.New("dispatch cannot succeed")
+
+// MaxDirectiveBytes bounds a task directive. It is stored as one Firestore
+// document (1 MiB limit) that the job reads by task id; anything larger is
+// refused at dispatch rather than truncated, since truncation silently drops
+// whatever the request put last.
+const MaxDirectiveBytes = 900 * 1024
 
 // CloudDispatcher triggers remote task execution on a cloud backend.
 // Implementations are backend-specific (Cloud Run Jobs, K8s Jobs, etc.)
@@ -85,6 +101,15 @@ type DispatchParams struct {
 	// configured for it and the checks are green. Registry metadata, like
 	// AutoMerge itself.
 	ArtifactPatterns []string
+
+	// PRLabels and MergeStarts make a PR say what it is and what merging it
+	// does. Every coordinator PR used to carry only `agent-task`, so a triage
+	// note, a design doc, a plan and 530 lines of code looked identical, and
+	// nothing said that merging a plan starts sprint-executor (feedback
+	// 2026-09-28). Both come from the registry (PRApprovalLabel,
+	// approvalHandoffTargets) — the same source the approval card reads.
+	PRLabels    []string
+	MergeStarts []string
 
 	// GitAuthorName/Email author this agent's commits. Empty inherits the
 	// container's identity (the fleet bot).

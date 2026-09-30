@@ -74,6 +74,21 @@ else
     echo -e "${GREEN}✓ No placeholder acceptance criteria${NC}"
 fi
 
+# Registry reuse audit is mandatory for every implementable milestone.
+# Sprints created before the gate (2026-09-28) have no registry_reuse field: warn, don't
+# block them. A present field must be a real, populated audit.
+if ! jq -e 'has("registry_reuse")' "$PROGRESS_FILE" >/dev/null 2>&1; then
+    echo -e "${YELLOW}WARNING: no registry_reuse audit (pre-gate sprint); new sprints must record one${NC}"
+elif ! jq -e '.registry_reuse | type == "array" and length > 0' "$PROGRESS_FILE" >/dev/null 2>&1; then
+    echo -e "${RED}ERROR: registry_reuse must be a populated array${NC}"
+    ERRORS=$((ERRORS + 1))
+elif jq -e '.registry_reuse[] | select(.milestone == "MILESTONE_ID" or (.reason | startswith("REPLACE:")) or (.action != "depend" and .action != "contribute" and .action != "none"))' "$PROGRESS_FILE" >/dev/null 2>&1; then
+    echo -e "${RED}ERROR: registry_reuse contains placeholder or invalid decisions${NC}"
+    ERRORS=$((ERRORS + 1))
+else
+    echo -e "${GREEN}✓ Registry reuse audit populated${NC}"
+fi
+
 # Check minimum milestone count
 MILESTONE_COUNT=$(jq '.features | length' "$PROGRESS_FILE")
 if [ "$MILESTONE_COUNT" -lt 2 ]; then

@@ -207,6 +207,16 @@ func Checkpoint(holder string) (bool, time.Duration) {
 	}
 
 	start := time.Now()
+	// The lease survives the yield. A yield LENDS the GPU; it does not end our
+	// hold. Everything under us carries our token — agents in this process and,
+	// when a shell holds the lock (nightly, rotation filler), every later
+	// eval-suite that shell starts, which inherit the token from it. Re-acquiring
+	// with a fresh token would make the rig gateway refuse all of them with 423
+	// (M-RIG-GPU-ADMISSION-GATEWAY). The holder line is kept for the same reason:
+	// rewritten with this process's pid, a shell-held lock would read "dead holder,
+	// stealable" once this eval-suite exits.
+	prevHolder, _ := os.ReadFile(filepath.Join(lockDir(), "holder"))
+	prevToken := CurrentLease().Token
 	_ = os.RemoveAll(lockDir())
 
 	// Wait for the requester to finish. It signals that by clearing the
@@ -227,6 +237,29 @@ func Checkpoint(holder string) (bool, time.Duration) {
 		// on as if we still held a lock we do not — a silent false hold is how
 		// two jobs end up on one GPU.
 		fmt.Fprintf(os.Stderr, "Warning: rig lock NOT re-acquired after yielding to %s: %v\n", y.Requester, err)
+		return true, time.Since(start)
+	}
+	if err := restoreHold(prevHolder, prevToken); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: rig lease not restored after yielding to %s (agents under the old lease will be refused): %v\n", y.Requester, err)
 	}
 	return true, time.Since(start)
+}
+
+// restoreHold rewrites the re-acquired lock with the holder line and lease token
+// it had before a yield, so the hold is the same hold (see Checkpoint). Empty
+// values (a pre-lease holder) leave what acquireDir wrote.
+func restoreHold(holder []byte, token string) error {
+	dir := lockDir()
+	if len(holder) > 0 {
+		if err := os.WriteFile(filepath.Join(dir, "holder"), holder, 0o644); err != nil {
+			return err
+		}
+	}
+	if token == "" {
+		return nil
+	}
+	if err := os.WriteFile(filepath.Join(dir, leaseFile), []byte(token+"\n"), 0o640); err != nil {
+		return err
+	}
+	return os.Setenv(config.EnvRigLease, token)
 }

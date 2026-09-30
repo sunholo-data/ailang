@@ -37,8 +37,10 @@ package motoko
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -50,6 +52,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/executor"
 	"github.com/sunholo-data/ailang/internal/proctree"
+	"github.com/sunholo-data/ailang/internal/riglock"
 	"github.com/sunholo-data/ailang/internal/strutil"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
@@ -290,12 +293,20 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	// FOREVER — which also hung the eval-suite goroutine waiting on it. A hung
 	// trial's env-server then squatted the fixed ENV_PORT=8080 for 10h, silently
 	// crashing every later spawn with "no run_summary". Defense in depth:
-	//   1) clear any orphaned env-server still holding 8080 before we spawn;
+	//   1) every run gets its OWN free env-server port (ENV_PORT below), so no
+	//      other run, orphan or test can squat it — and nothing has to be killed;
 	//   2) wrap the run in a hard timeout so cmd.Run() can NEVER block forever;
-	//   3) Setpgid + a group-kill Cancel so the timeout reaps the env-server child
-	//      too (a bare Process.Kill leaves it orphaned on 8080).
-	// Proper upstream fix is an ephemeral env-server port (see ENV_PORT note above).
-	e.clearStalePort8080()
+	//   3) Setpgid + a group-kill Cancel so the timeout reaps the env-server child.
+	//
+	// Step 1 replaced "kill any motoko host on 8080 before spawning" (2026-09-28).
+	// That cleanup rested on "the rig runs --parallel 1, so a holder at spawn time is
+	// never a legitimate concurrent run", which was false: this package's own tests
+	// call Execute and so SIGKILLed whatever real eval was live on the machine, as did
+	// any second eval-suite or mission loop running motoko.
+	envPort, portErr := freeLocalPort()
+	if portErr != nil {
+		return nil, fmt.Errorf("motoko: no free local port for the env-server: %w", portErr)
+	}
 	// Bound by the PER-TASK agent budget (task.Timeout = --agent-timeout / benchmark
 	// spec.Timeout, set per-run by the eval runner). NOT e.timeoutSeconds: that is the
 	// executor factory default (300s) and is NOT updated per-run, so using it killed long
@@ -385,19 +396,11 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		// M-MOTOKO-SYSTEM-ROLE: when set, motoko reads its system-role message
 		// from this file (must be inside the workspace). Empty string is a no-op.
 		"SYSTEM_MD="+systemPromptPath,
-		// ENV_PORT must match the port motoko's backend.ail connects to. On the
-		// feat/ollama-local-profile branch the AILANG core dials the STATIC
-		// cfg.url (:8080 in the ollama/dogfood profiles), so an ephemeral bind
-		// (ENV_PORT=0) leaves the core unable to reach its own env-server → no AI
-		// calls → 0-event JSONL → hang. Pin it to 8080 to match cfg.url.
-		//
-		// NOTE: the prior ENV_PORT=0 was a parallel-spawn hardening
-		// (M-MOTOKO-EVAL-HARNESS-HARDENING, 2026-05-08) so N concurrent sessions
-		// don't race on a fixed port. The rig runs motoko at --parallel 1, so a
-		// fixed port is safe here. The proper cross-repo fix (for parallel too)
-		// is to have backend.ail connect to the port startEnvServer() actually
-		// bound, rather than the static cfg.url — tracked for a motoko_agent PR.
-		"ENV_PORT=8080",
+		// Each run binds its own env-server port. motoko main hands the port it
+		// actually bound to its AILANG core (buildSupervisorArgs), which is the
+		// cross-repo fix the old fixed-8080 pin was waiting for; concurrent runs
+		// (--parallel N, a mission loop, this package's tests) no longer collide.
+		fmt.Sprintf("ENV_PORT=%d", envPort),
 	)
 	if task.Workspace != "" {
 		env = append(env, "WORKDIR="+task.Workspace)
@@ -474,7 +477,8 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	cmd.Stdout = cmd.Stderr
 
 	startTime := time.Now()
-	if err := cmd.Run(); err != nil {
+	runErr := runRegisteredCommand(cmd)
+	if err := runErr; err != nil {
 		// Process failure is NOT necessarily a task failure — the JSONL may
 		// still contain a valid run_summary with finish_reason="error".
 		// Continue to parse; only fail-hard on unparseable / missing JSONL.
@@ -563,6 +567,22 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	if runSummaryPresent, _ := result.ProviderData["motoko_run_summary_present"].(bool); !result.Success && !runSummaryPresent && !stderrAttached {
 		result.Error = attachStderrTail(result.Error, stderrLogPath, stderrBuf.String())
 	}
+	// How the motoko process itself ended. A run that stops without a
+	// run_summary, an error event or a stderr line was either killed from
+	// outside (a signal) or exited on its own; the exit status is the only
+	// record that tells the two apart (motoko main A/B, 2026-09-28: three runs
+	// whose session logs simply stopped).
+	if runErr != nil && !result.Success {
+		result.ProviderData["motoko_exit"] = runErr.Error()
+		result.Error += fmt.Sprintf(" [motoko process: %v]", runErr)
+		// Killed by our own wall-clock bound: say so, so the run banks as a
+		// timeout (the model needed more time) rather than an api_error (cause
+		// unknown). 2026-09-28: quine streamed ~22k reasoning tokens in one step
+		// and was SIGKILLed at the 1h bound, banked as api_error.
+		if errors.Is(runCtx.Err(), context.DeadlineExceeded) {
+			result.Error = fmt.Sprintf("motoko exceeded its wall-clock bound (%v): timeout — ", runTimeout) + result.Error
+		}
+	}
 
 	// run_summary may carry its own duration_ms (from motoko's internal
 	// wall clock); prefer it when present, otherwise fall back to our
@@ -601,6 +621,16 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	)
 	span.SetStatus(codes.Ok, "")
 	return result, nil
+}
+
+// runRegisteredCommand keeps the registration ordering explicit: a PID exists
+// only after Start succeeds, and it must be durable before Wait can reap it.
+func runRegisteredCommand(cmd *exec.Cmd) error {
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	riglock.RegisterChild(cmd.Process.Pid, cmd.Path)
+	return cmd.Wait()
 }
 
 // Capabilities returns the list of features this executor supports.
@@ -662,4 +692,16 @@ func Register() {
 
 func init() {
 	Register()
+}
+
+// freeLocalPort asks the kernel for an unused loopback TCP port. The listener is
+// closed before motoko binds it, so another process could take it in between;
+// the window is a few milliseconds and a collision fails that run loudly.
+func freeLocalPort() (int, error) {
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return 0, err
+	}
+	defer l.Close()
+	return l.Addr().(*net.TCPAddr).Port, nil
 }

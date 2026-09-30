@@ -94,7 +94,9 @@ func coordinatorExecuteJob(args []string) error {
 	var provider string
 	repoURL := config.RepoURL()
 	branch := config.Branch()
-	directive := config.Directive()
+	// The directive is resolved below, once publishCompletion exists to report
+	// a failure to read it (resolveJobDirective).
+	var directive string
 	// AILANG_TASK_TITLE is read where it is used (taskSubject); named here so
 	// the env contract above stays the complete list.
 	prefix := pubsub.TopicPrefixFromEnv()
@@ -194,6 +196,12 @@ func coordinatorExecuteJob(args []string) error {
 		publishCompletion("failed", projErr.Error(), "", nil, gitEvidence{}, "")
 		return projErr
 	}
+	var dirErr error
+	directive, dirErr = resolveJobDirective(ctx, config.DirectiveSource(), taskID, openDirectiveStore(projectID))
+	if dirErr != nil {
+		publishCompletion("failed", dirErr.Error(), "", nil, gitEvidence{}, "")
+		return dirErr
+	}
 
 	// Settle which executor runs, and prove it can, BEFORE cloning the repo.
 	// Three prod runs on 2026-08-27/28 cloned 24,032 files and only then failed
@@ -203,6 +211,14 @@ func coordinatorExecuteJob(args []string) error {
 		publishCompletion("failed", provErr.Error(), "", nil, gitEvidence{}, "")
 		return provErr
 	}
+	codexCred, credErr := installCodexCredential(ctx, provider, projectID)
+	if credErr != nil {
+		publishCompletion("failed", credErr.Error(), "", nil, gitEvidence{}, "")
+		return credErr
+	}
+	// Write refreshed subscription tokens back however the task ends; a container
+	// is discarded after one task, so an unpersisted refresh is lost.
+	defer codexCred.persist()
 	if err := preflightExecutor(ctx, provider); err != nil {
 		publishCompletion("failed", err.Error(), "", nil, gitEvidence{}, "")
 		return err
@@ -706,7 +722,7 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 		if !branchWantsPR(branchName, baseBranch) {
 			fmt.Printf("execute-job: %s IS the base branch (direct-push agent) — no PR to open\n", branchName)
 		} else {
-			if prErr := openCascadePullRequest(ctx, workDir, branchName, taskID, agentID, baseBranch); prErr != nil {
+			if prErr := openCascadePullRequest(ctx, workDir, branchName, taskID, agentID, baseBranch, directive); prErr != nil {
 				return branchName, execResult, gitEvidence{}, prErr
 			}
 		}

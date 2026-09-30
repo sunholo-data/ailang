@@ -82,7 +82,7 @@ export func main() -> bool = %s
 				want string
 			}{
 				{"evaluator", []string{"run", "--relax-modules", src}, c.eval},
-				{"vm", []string{"run", "--bytecode", "--relax-modules", src}, c.vm},
+				{"vm", []string{"run", "--verbose", "--bytecode", "--relax-modules", src}, c.vm},
 			} {
 				stdout, stderr, code := runCLI(t, backend.args...)
 				if code != 0 {

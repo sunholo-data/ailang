@@ -2,6 +2,7 @@ package vm
 
 import (
 	"errors"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -540,6 +541,81 @@ func TestVM_MakeRecordAndGetField(t *testing.T) {
 	}
 	if got.Int != 2 {
 		t.Errorf("got %d, want 2 (field y)", got.Int)
+	}
+}
+
+func TestVM_UpdateRecord(t *testing.T) {
+	tests := []struct {
+		name      string
+		overrides []bytecode.RecordField
+		want      []bytecode.RecordField
+	}{
+		{
+			name: "replace and preserve",
+			overrides: []bytecode.RecordField{
+				{Name: "x", Value: bytecode.NewInt(9)},
+			},
+			want: []bytecode.RecordField{
+				{Name: "x", Value: bytecode.NewInt(9)},
+				{Name: "y", Value: bytecode.NewInt(2)},
+			},
+		},
+		{
+			name: "add and replace multiple",
+			overrides: []bytecode.RecordField{
+				{Name: "z", Value: bytecode.NewInt(3)},
+				{Name: "x", Value: bytecode.NewInt(9)},
+			},
+			want: []bytecode.RecordField{
+				{Name: "x", Value: bytecode.NewInt(9)},
+				{Name: "y", Value: bytecode.NewInt(2)},
+				{Name: "z", Value: bytecode.NewInt(3)},
+			},
+		},
+		{
+			name: "empty update copies base",
+			want: []bytecode.RecordField{
+				{Name: "x", Value: bytecode.NewInt(1)},
+				{Name: "y", Value: bytecode.NewInt(2)},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			img := bytecode.NewImage()
+			p := &bytecode.FuncPrototype{Name: "update", NumRegs: uint8(3 + len(tc.overrides))}
+			addConstants(img, p, bytecode.NewString("x"), bytecode.NewString("y"), bytecode.NewInt(1), bytecode.NewInt(2))
+			p.Instructions = []bytecode.Instruction{
+				bytecode.EncodeABx(bytecode.OpLoadConst, 0, 2),
+				bytecode.EncodeABx(bytecode.OpLoadConst, 1, 3),
+				bytecode.EncodeABC(bytecode.OpMakeRecord, 2, 0, 2),
+				bytecode.EncodeABx(bytecode.OpLoadConst, 0, 0),
+				bytecode.EncodeABx(bytecode.OpLoadConst, 0, 1),
+			}
+			for i, override := range tc.overrides {
+				valueIdx := len(p.Constants)
+				addConstants(img, p, override.Value)
+				p.Instructions = append(p.Instructions, bytecode.EncodeABx(bytecode.OpLoadConst, uint8(3+i), uint16(valueIdx)))
+			}
+			p.Instructions = append(p.Instructions, bytecode.EncodeABC(bytecode.OpUpdateRecord, 2, 2, uint8(len(tc.overrides))))
+			for _, override := range tc.overrides {
+				nameIdx := len(p.Constants)
+				addConstants(img, p, bytecode.NewString(override.Name))
+				p.Instructions = append(p.Instructions, bytecode.EncodeABx(bytecode.OpLoadConst, 0, uint16(nameIdx)))
+			}
+			p.Instructions = append(p.Instructions, bytecode.EncodeABC(bytecode.OpReturn, 2, 0, 0))
+			img.AddPrototype(p)
+			_ = img.SetEntryPoint(0)
+
+			got, err := NewVM(img).Run(p, nil)
+			if err != nil {
+				t.Fatalf("Run: %v", err)
+			}
+			if !reflect.DeepEqual(tc.want, got.AsRecord()) {
+				t.Fatalf("got %+v, want %+v", got.AsRecord(), tc.want)
+			}
+		})
 	}
 }
 

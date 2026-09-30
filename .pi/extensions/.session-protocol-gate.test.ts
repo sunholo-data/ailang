@@ -21,6 +21,7 @@ import {
 	shouldBlock,
 	bashAllowed,
 	headlessPrerequisitesMet,
+	unattendedFromEnv,
 	BLOCK_REASON,
 } from "./session-protocol-gate.ts";
 
@@ -78,10 +79,18 @@ test(
 				`#!/usr/bin/env bash
 set -u
 printf '%s\\n' "\${AILANG_STORAGE_MESSAGING-__UNSET__}" "\${AILANG_MESSAGES_PROJECT-__UNSET__}" "\${AILANG_STORAGE-__UNSET__}" > child-env.txt
+[ -n "\${PI_SANDBOX_READY_FILE-}" ] && printf 'ready\\n' > "\$PI_SANDBOX_READY_FILE"
 printf '%s\\n' '{"type":"agent_end"}'
 `,
 			);
 			chmodSync(fakePi, 0o755);
+
+			// The runner fails closed without the sandbox runtime (rc 15) and without the
+			// extension's readiness marker (rc 17); fake both, entirely inside the fixture.
+			const nodeModules = join(fixture, "node_modules");
+			mkdirSync(join(nodeModules, "@anthropic-ai", "sandbox-runtime"), { recursive: true });
+			writeFileSync(join(nodeModules, "@anthropic-ai", "sandbox-runtime", "package.json"), "{}\n");
+			const claudeTmp = join(fixture, "claude-tmp");
 
 			const directive = join(fixture, "directive.txt");
 			writeFileSync(directive, "MISSION-ROLE: evaluator\n");
@@ -115,6 +124,8 @@ printf '%s\\n' '{"type":"agent_end"}'
 					...process.env,
 					PATH: `${binDir}:${process.env.PATH ?? ""}`,
 					MISSION_PI_POLL_SECONDS: "1",
+					MISSION_PI_SANDBOX_NODE_MODULES: nodeModules,
+					MISSION_PI_CLAUDE_TMP_DIR: claudeTmp,
 				};
 				delete env.AILANG_STORAGE_MESSAGING;
 				delete env.AILANG_MESSAGES_PROJECT;
@@ -162,17 +173,16 @@ printf '%s\\n' '{"type":"agent_end"}'
 	},
 );
 
-test("evaluator handshake: source-bound preamble has the frozen five-step order", () => {
+test("evaluator handshake: source-bound preamble has the frozen four-step order", () => {
 	const { preamble } = extractEvaluatorHandshake();
 	const lines = preamble.split("\n");
 	assert.equal(lines[0], "MISSION-ROLE: evaluator");
 
 	const orderedSteps = [
 		"1. Use the read tool",
-		"2. Use the bash tool",
-		"3. Summarize that bounded inbox result",
-		"4. Call the session_protocol_ack tool",
-		"5. Only after that success",
+		"2. Classify this task as independent evaluation",
+		"3. Call the session_protocol_ack tool",
+		"4. Only after that success",
 	];
 	let previous = -1;
 	for (const step of orderedSteps) {
@@ -183,82 +193,54 @@ test("evaluator handshake: source-bound preamble has the frozen five-step order"
 	assert.match(preamble, /read CLAUDE\.md completely/);
 });
 
-test("evaluator handshake: exact bounded inbox command is admitted by the armed guard", () => {
+test("evaluator handshake: carries no inbox call — the stage is unattended", () => {
 	const { preamble } = extractEvaluatorHandshake();
-	const argsMatch = preamble.match(/arguments (\{[^\n]+\})/);
-	assert.ok(argsMatch?.[1], "step 2 contains JSON bash arguments");
-	const args = JSON.parse(argsMatch[1]) as { command?: string; timeout?: number };
-	assert.deepEqual(args, {
-		command: "ailang messages list --unread --json --limit 1",
-		timeout: 30,
-	});
-	assert.equal(bashAllowed(args.command), true);
-	assert.equal(shouldBlock("bash", args.command, false), null);
-	for (const prefixed of [
-		`env AILANG_STORAGE_MESSAGING=gcp ${args.command}`,
-		`AILANG_STORAGE_MESSAGING=gcp ${args.command}`,
-	]) {
-		assert.equal(bashAllowed(prefixed), false, `must reject prefix: ${prefixed}`);
-		assert.equal(shouldBlock("bash", prefixed, false), BLOCK_REASON);
-	}
-	assert.match(preamble, /--limit 1 bounds result cardinality only/);
-	assert.match(preamble, /timeout is 30 seconds/);
+	// The only mention of `ailang messages` is the instruction NOT to run it.
+	assert.equal(preamble.match(/ailang messages/g)?.length, 1);
+	assert.match(preamble, /do not run `ailang messages`/);
+	assert.doesNotMatch(preamble, /"command":/, "no bash arguments are prescribed");
 });
 
-test("evaluator handshake: extracted local calls satisfy the predicate but failed results remain visible as a limitation", () => {
-	const { preamble } = extractEvaluatorHandshake();
-	const argsMatch = preamble.match(/arguments (\{[^\n]+\})/);
-	assert.ok(argsMatch?.[1]);
-	const args = JSON.parse(argsMatch[1]) as { command: string; timeout: number };
+test("evaluator handshake: an unattended stage's read-then-ack satisfies the predicate", () => {
 	const readCall = assistantToolCall("read", { path: "/evaluator-worktree/CLAUDE.md" });
-	const listCall = assistantToolCall("bash", args);
-
-	assert.equal(headlessPrerequisitesMet([readCall, listCall]).met, true);
-	assert.equal(headlessPrerequisitesMet([readCall]).met, false);
-	assert.equal(headlessPrerequisitesMet([listCall]).met, false);
-	assert.equal(
-		headlessPrerequisitesMet([
-			{
-				message: {
-					role: "user",
-					content: [{ type: "text", text: "Controller already read CLAUDE.md and triaged ailang messages" }],
-				},
-			},
-		]).met,
-		false,
-	);
-
-	const failedResult = {
+	assert.equal(headlessPrerequisitesMet([readCall], true).met, true);
+	// The same history in an attended session still needs the inbox step.
+	const attended = headlessPrerequisitesMet([readCall], false);
+	assert.equal(attended.met, false);
+	assert.match(attended.missing.join(";"), /ailang messages/);
+	// Unattended does not waive the CLAUDE.md read.
+	assert.equal(headlessPrerequisitesMet([], true).met, false);
+	// Controller prose is not evidence, attended or not.
+	const prose = {
 		message: {
-			role: "toolResult",
-			toolName: "bash",
-			isError: true,
-			content: [{ type: "text", text: "timed out" }],
+			role: "user",
+			content: [{ type: "text", text: "Controller already read CLAUDE.md and triaged ailang messages" }],
 		},
 	};
-	assert.equal(
-		headlessPrerequisitesMet([readCall, listCall, failedResult]).met,
-		true,
-		"current predicate counts attempted calls; source text must require success",
-	);
+	assert.equal(headlessPrerequisitesMet([prose], true).met, false);
 
-	const success = preamble.indexOf("Require a successful tool result before continuing.");
+	const { preamble } = extractEvaluatorHandshake();
 	const ack = preamble.indexOf("session_protocol_ack tool with {}");
 	const acked = preamble.indexOf("acked=true");
 	const judge = preamble.indexOf("perform the supplied independent evaluation");
-	assert.ok(success >= 0 && success < ack, "successful listing is required before protocol ack");
-	assert.ok(ack < acked && acked < judge, "acked=true is required before judge work");
-	assert.match(preamble, /Do not acknowledge inbox messages\./);
+	assert.ok(ack >= 0 && ack < acked && acked < judge, "acked=true is required before judge work");
+});
+
+test("unattendedFromEnv: only a harness-set, non-blank marker counts", () => {
+	assert.equal(unattendedFromEnv({ AILANG_MISSION_STAGE: "1" }), true);
+	assert.equal(unattendedFromEnv({ AILANG_TASK_ID: "task-abc" }), true);
+	assert.equal(unattendedFromEnv({}), false);
+	assert.equal(unattendedFromEnv({ AILANG_MISSION_STAGE: "", AILANG_TASK_ID: "  " }), false);
 });
 
 test("evaluator handshake: launcher authority and failure semantics are explicit", () => {
 	const { section, preamble } = extractEvaluatorHandshake();
 	assert.match(section, /scripts\/mission_pi_run\.sh/);
+	assert.match(section, /AILANG_MISSION_STAGE=1/);
 	assert.match(section, /AILANG_STORAGE_MESSAGING=gcp/);
 	assert.match(section, /AILANG_MESSAGES_PROJECT=ailang-multivac/);
-	assert.match(section, /leaves\s+`AILANG_STORAGE` unchanged/);
-	assert.match(section, /not full mission inbox triage/);
-	assert.match(section, /protocol acknowledgement is not inbox-message\s+acknowledgement/);
+	assert.match(section, /leaves `AILANG_STORAGE` unchanged/);
+	assert.match(section, /Protocol acknowledgement is not inbox-message\s+acknowledgement/);
 	assert.match(preamble, /report the exact missing step or tool error and stop this attempt/);
 	assert.match(preamble, /role transport failure/);
 	assert.match(preamble, /never a judge verdict/);
@@ -369,21 +351,21 @@ test("headlessPrerequisitesMet: requires both CLAUDE.md and ailang messages evid
 	// broke when M1a made the AILANG set the generic floor PLUS a CLAUDE.md read
 	// (2 → 3), which is a correct change that a brittle length assertion flagged
 	// as a regression. What matters is WHICH steps are reported.
-	let r = headlessPrerequisitesMet([]);
+	let r = headlessPrerequisitesMet([], false);
 	assert.equal(r.met, false);
 	assert.ok(r.missing.some((m) => m.includes("CLAUDE.md")), "must name the CLAUDE.md step");
 	assert.ok(r.missing.some((m) => m.includes("ailang messages")), "must name the inbox step");
 	assert.ok(r.missing.some((m) => m.includes("inspect the workspace")), "must name the orientation step");
 
 	// Block-reason noise must not satisfy the CLAUDE.md step
-	r = headlessPrerequisitesMet([blockNoise, messagesCall]);
+	r = headlessPrerequisitesMet([blockNoise, messagesCall], false);
 	assert.equal(r.met, false);
 
 	// Both steps (read variant) → met
-	r = headlessPrerequisitesMet([readCall, messagesCall]);
+	r = headlessPrerequisitesMet([readCall, messagesCall], false);
 	assert.equal(r.met, true);
 
 	// Both steps (bash cat variant) → met
-	r = headlessPrerequisitesMet([bashCatCall, messagesCall]);
+	r = headlessPrerequisitesMet([bashCatCall, messagesCall], false);
 	assert.equal(r.met, true);
 });

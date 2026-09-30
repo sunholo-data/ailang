@@ -2,8 +2,10 @@
 # rig-watchdog.sh — Poll-based reliability backstop for the local-Ollama
 # eval rig. Called every 60s by dev.ailang.rig-watchdog.plist.
 #
-# Checks two services:
-#   - ollama serve at http://127.0.0.1:11434/api/tags
+# Checks three services:
+#   - ollama serve at http://127.0.0.1:11435/api/tags (its private port)
+#   - the rig GPU gateway (dev.ailang.rig-gate) at 127.0.0.1:11434, ollama's
+#     usual address, when that job is loaded (M-RIG-GPU-ADMISSION-GATEWAY)
 #   - ailang OTLP receiver at http://localhost:1957/health
 #
 # If either is unreachable, kickstart the corresponding launchd job.
@@ -21,15 +23,29 @@ TIMESTAMP=$(date "+%Y-%m-%d %H:%M:%S")
 UID_NUMBER=$(id -u)
 
 # Check ollama. The probe address is PINNED to 127.0.0.1 — it must name the same
-# server this block restarts. dev.ollama.serve binds OLLAMA_HOST=127.0.0.1:11434,
+# server this block restarts. dev.ollama.serve binds OLLAMA_HOST=127.0.0.1:11435,
 # but "localhost" is dual-stack and resolves ::1 first, so the probe and the
 # kickstart target can be DIFFERENT servers. Observed 2026-07-21..08-03 (#557):
 # a second, GUI-launched `ollama serve` held [::1]:11434 for 13 days, so this
 # watchdog probed the app's server while restarting launchd's — meaning a dead
 # dev.ollama.serve would never have been noticed. Do not relax this to localhost.
-if ! curl --max-time 2 -s http://127.0.0.1:11434/api/tags >/dev/null 2>&1; then
+# The probe goes to ollama's PRIVATE port, directly: through the gateway, a dead
+# ollama would look alive whenever the gateway answered.
+if ! curl --max-time 2 -s http://127.0.0.1:11435/api/tags >/dev/null 2>&1; then
     echo "${TIMESTAMP} [WATCHDOG] ollama unreachable — kickstart dev.ollama.serve"
     launchctl kickstart "gui/${UID_NUMBER}/dev.ollama.serve" 2>&1
+fi
+
+# Check the rig gateway. It answers every request itself (a 502 when ollama is
+# down, a 423 when it refuses), so ANY HTTP status means it is alive; only "000"
+# (nothing listening) means it is dead. There is no fallback to direct ollama:
+# a dead gateway is restarted, never bypassed (design doc D4).
+if launchctl print "gui/${UID_NUMBER}/dev.ailang.rig-gate" >/dev/null 2>&1; then
+    gate_code=$(curl --max-time 2 -s -o /dev/null -w '%{http_code}' http://127.0.0.1:11434/api/version 2>/dev/null)
+    if [ "${gate_code:-000}" = "000" ]; then
+        echo "${TIMESTAMP} [WATCHDOG] rig gateway unreachable — kickstart dev.ailang.rig-gate"
+        launchctl kickstart "gui/${UID_NUMBER}/dev.ailang.rig-gate" 2>&1
+    fi
 fi
 
 # Check ailang server (OTLP receiver). Not yet a launchd job by default — only
@@ -53,10 +69,18 @@ fi
 # wedge from a legitimately-slow docx run). Only FILLER-parented chunks are ever touched, so
 # manual runs and the A/B daemons (ab_*.sh parents) are never killed. Also reap orphaned :8080
 # env-servers (the port-8080-zombie that crashes the next run with "no run_summary").
-LOGDIR="$HOME/dev/mk-ast/.motoko/logfile"
+#
+# Progress = the rotation's OWN log, which eval-suite appends to as each run starts and ends.
+# It used to be motoko's session logs in ~/dev/mk-ast, which only motoko writes: once motoko
+# left the rotation (2026-09-27) and mk-ast was retired, that log only aged, so EVERY healthy
+# opencode/pi chunk was killed as "no-progress" at exactly SOFT_SECS (2026-09-28: 12:11, 14:57,
+# 17:42, "200m/366m/531m since last session write"). The filler log is harness-neutral. A run
+# can legitimately stay silent for its whole per-run timeout (1500s, 5400s for reimplement
+# picks), so STALL_MIN must exceed the longest of those.
+PROGRESS_LOG="${RIG_WATCHDOG_PROGRESS_LOG:-/tmp/ailang-os-filler.log}"
 HARD_SECS=$(( ${RIG_WATCHDOG_HARD_HOURS:-8} * 3600 ))
 SOFT_SECS=$(( ${RIG_WATCHDOG_SOFT_HOURS:-2} * 3600 ))
-STALL_MIN=${RIG_WATCHDOG_STALL_MIN:-30}
+STALL_MIN=${RIG_WATCHDOG_STALL_MIN:-100}
 
 etime_secs() {  # PID → elapsed seconds (0 on any miss). Takes the pid and reads `ps etime`
     # ITSELF — the caller passes $pid, so a version that parsed $1 as an etime string was
@@ -77,10 +101,9 @@ etime_secs() {  # PID → elapsed seconds (0 on any miss). Takes the pid and rea
     echo $(( days*86400 + 10#${h:-0}*3600 + 10#${m:-0}*60 + 10#${s:-0} ))
 }
 
-newest=$(ls -t "$LOGDIR"/session_*.jsonl 2>/dev/null | head -1)
 stall_min=999
-if [ -n "$newest" ]; then
-    mtime=$(stat -f %m "$newest" 2>/dev/null)
+if [ -f "$PROGRESS_LOG" ]; then
+    mtime=$(stat -f %m "$PROGRESS_LOG" 2>/dev/null)
     case "$mtime" in ''|*[!0-9]*) ;; *) stall_min=$(( ( $(date +%s) - mtime ) / 60 ));; esac
 fi
 
@@ -124,7 +147,7 @@ for pid in $(pgrep -f "ailang eval-suite" 2>/dev/null); do
     reason=""
     if [ "$secs" -gt "$HARD_SECS" ]; then reason="hard-max (${secs}s alive)"
     elif [ "$secs" -gt "$SOFT_SECS" ] && [ "$stall_min" -gt "$STALL_MIN" ]; then
-        reason="no-progress (${stall_min}m since last session write, ${secs}s alive)"; fi
+        reason="no-progress (${stall_min}m since the rotation log was written, ${secs}s alive)"; fi
     if [ -n "$reason" ]; then
         groups=$(kill_tree "$pid")
         echo "${TIMESTAMP} [WATCHDOG] WEDGED rotation chunk pid $pid — $reason — killed tree (pgroups:${groups})"
@@ -154,6 +177,16 @@ if [ "${RIG_WATCHDOG_REAP_ORPHANS:-0}" = "1" ]; then
         groups=$(kill_tree "$op")
         echo "${TIMESTAMP} [WATCHDOG] ORPHANED GPU client pid $op (PPID 1, ${osecs}s) — killed tree (pgroups:${groups}): $(printf '%s' "$ocmd" | cut -c1-80)"
     done
+fi
+
+# Reconcile only completed request minutes. The helper owns its lock, durable
+# cursor and hourly alert throttle; detector errors are observable and never
+# interpreted as zero traffic. It does not probe or alter either service port.
+RECONCILER="${RIG_WATCHDOG_RECONCILER:-$(dirname "$0")/rig-watchdog-reconcile.sh}"
+if [ -x "$RECONCILER" ]; then
+    "$RECONCILER"
+else
+    echo "${TIMESTAMP} [WATCHDOG] bypass detector error: reconciler not executable: $RECONCILER"
 fi
 
 for zp in $(lsof -ti :8080 2>/dev/null); do

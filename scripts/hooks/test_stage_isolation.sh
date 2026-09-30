@@ -2,7 +2,8 @@
 # The repo's context-injecting hooks must emit NOTHING inside a frozen mission stage.
 #
 # Both are gated on AILANG_MISSION_STAGE, which internal/mission/dispatch sets on every stage
-# task's ExtraEnv. This suite asserts the SHELL half; TestTaskFor_EveryStageIsMarkedFrozenForHooks
+# task's ExtraEnv, and on AILANG_TASK_ID, which every coordinator task carries (unattended: there
+# is no user to ask, so an inbox banner only makes the agent block). This suite asserts the SHELL half; TestTaskFor_EveryStageIsMarkedFrozenForHooks
 # asserts the Go half. Each needs a POSITIVE CONTROL, because a hook that is broken, or whose
 # dependency is missing, is also silent — and silence alone would make this suite pass while
 # proving nothing.
@@ -25,16 +26,21 @@ PROMPT="{\"prompt\":\"$PROMPT_TEXT\"}"
 check() { # $1 = script, $2 = stdin, $3.. = env pinned for BOTH arms of the control
   local name="$1"; local s="$HERE/$1"; shift
   local input="$1"; shift
-  local on off
-  off=$(printf '%s' "$input" | env "$@" bash "$s" 2>/dev/null | wc -c | tr -d ' ')
-  on=$(printf '%s' "$input" | env "$@" AILANG_MISSION_STAGE=1 bash "$s" 2>/dev/null | wc -c | tr -d ' ')
+  local on off marker
+  # The control arm unsets both markers: run inside a coordinator task, an inherited
+  # AILANG_TASK_ID would silence the control and the gate would prove nothing.
+  off=$(printf '%s' "$input" | env -u AILANG_MISSION_STAGE -u AILANG_TASK_ID "$@" bash "$s" 2>/dev/null | wc -c | tr -d ' ')
   if [ "$off" -eq 0 ]; then
     echo "INSTRUMENT BROKEN: $name is silent WITHOUT the marker — control failed, gate proves nothing"; fail=1; return
   fi
-  if [ "$on" -ne 0 ]; then
-    echo "FAIL: $name emitted $on bytes inside a mission stage"; fail=1; return
-  fi
-  echo "PASS: $name — $off bytes normally, 0 inside a stage"
+  # Mission stages are frozen; coordinator tasks (AILANG_TASK_ID) are unattended — both get nothing.
+  for marker in AILANG_MISSION_STAGE=1 AILANG_TASK_ID=task-isolation-test; do
+    on=$(printf '%s' "$input" | env -u AILANG_MISSION_STAGE -u AILANG_TASK_ID "$@" "$marker" bash "$s" 2>/dev/null | wc -c | tr -d ' ')
+    if [ "$on" -ne 0 ]; then
+      echo "FAIL: $name emitted $on bytes with ${marker%%=*} set"; fail=1; return
+    fi
+  done
+  echo "PASS: $name — $off bytes normally, 0 inside a mission stage or a coordinator task"
 }
 
 # brain_on_prompt.sh cannot emit at ANY threshold without an indexed brain corpus, which a fresh
@@ -56,4 +62,16 @@ else
   echo "SKIP: brain_on_prompt.sh — no brain corpus reachable, so the positive control cannot be established here (expected on a fresh clone/CI runner)"
 fi
 check session_start.sh ""
+
+# The hooks are only half of it: Codex executors read AGENTS.md, not .claude hooks, and on
+# 2026-09-28 two of them blocked on AGENTS.md's attended "ask the user before acking" rule.
+# Every instruction file carrying an inbox rule must exempt unattended runs.
+ROOT="$HERE/../.."
+for doc in CLAUDE.md AGENTS.md; do
+  if grep -qiE "ask .*before.* ack" "$ROOT/$doc" && ! grep -q "AILANG_TASK_ID" "$ROOT/$doc"; then
+    echo "FAIL: $doc has an ask-before-acking inbox rule with no unattended (AILANG_TASK_ID) exemption"; fail=1
+  else
+    echo "PASS: $doc exempts unattended runs from its inbox rule"
+  fi
+done
 exit $fail

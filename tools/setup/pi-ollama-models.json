@@ -1,9 +1,12 @@
 {
   "providers": {
-    "ollama": {
+    "ollama-rig": {
       "baseUrl": "http://localhost:11434/v1",
       "api": "openai-completions",
       "apiKey": "ollama",
+      "headers": {
+        "X-Rig-Lease": "${AILANG_RIG_LEASE}"
+      },
       "models": [
         {
           "id": "gemma4:26b"

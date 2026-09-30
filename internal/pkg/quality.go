@@ -59,7 +59,10 @@ type QualityInputs struct {
 	Signatures      []string
 	InterfaceV2Err  string
 
-	HasAgentDoc bool
+	HasAgentDoc     bool
+	AgentDocContent string
+	Overlap         []string
+	OverlapErr      string
 
 	// ChangelogNotes / HasChangelogSection come from ChangelogSection(dir, version).
 	ChangelogNotes      string
@@ -169,8 +172,11 @@ type ReleaseSection struct {
 }
 
 type DocsSection struct {
-	AgentMD   bool `json:"agent_md"`
-	AISummary bool `json:"ai_summary"`
+	AgentMD                bool     `json:"agent_md"`
+	AISummary              bool     `json:"ai_summary"`
+	AgentDocExportsCovered int      `json:"agent_doc_exports_covered,omitempty"`
+	ExportOverlap          []string `json:"export_overlap,omitempty"`
+	ExportOverlapError     string   `json:"export_overlap_error,omitempty"`
 }
 
 type StyleSection struct {
@@ -290,9 +296,28 @@ func BuildQualityReport(m *PackageManifest, mode QualityMode, in QualityInputs, 
 
 	// docs
 	_, hasSummary := m.Metadata["ai_summary"]
-	r.Docs = DocsSection{AgentMD: in.HasAgentDoc, AISummary: hasSummary}
+	covered := agentDocExportsCovered(in.AgentDocContent, m.Exports.Modules)
+	r.Docs = DocsSection{AgentMD: in.HasAgentDoc, AISummary: hasSummary, AgentDocExportsCovered: covered, ExportOverlap: append([]string{}, in.Overlap...), ExportOverlapError: in.OverlapErr}
+	sort.Strings(r.Docs.ExportOverlap)
+	if len(r.Docs.ExportOverlap) > 5 {
+		r.Docs.ExportOverlap = r.Docs.ExportOverlap[:5]
+	}
+	if !hasSummary {
+		r.badge("PUB018", "warn", "[metadata] ai_summary is missing — registry search results have no package summary")
+	}
+	licenseURL, _ := m.Metadata["license_url"].(string)
+	if strings.TrimSpace(licenseURL) == "" {
+		r.badge("PUB008", "info", "[metadata] license_url is missing — registry consumers cannot inspect the package license")
+	}
 	if !in.HasAgentDoc {
 		r.badge("PUB020", "info", "no AGENT.md — agents get no usage guidance for this package")
+	} else if len(m.Exports.Modules) > 0 && covered == 0 {
+		r.badge("PUB022", "warn", "AGENT.md mentions none of the package's exported modules — update the guide to match the public API")
+	}
+	if in.OverlapErr != "" {
+		r.badge("PUB023", "info", "registry export-overlap check did not run: "+firstLine(in.OverlapErr))
+	} else if len(r.Docs.ExportOverlap) > 0 {
+		r.badge("PUB023", "info", "exports overlap existing package(s): "+strings.Join(r.Docs.ExportOverlap, ", "))
 	}
 	// M6: the package's inbox agent is DERIVED from metadata.repository; without
 	// a GitHub tree URL no agent is derived and messages to pkg:<name> are
@@ -354,6 +379,17 @@ func BuildQualityReport(m *PackageManifest, mode QualityMode, in QualityInputs, 
 		r.Badges = kept
 	}
 	return r
+}
+
+func agentDocExportsCovered(content string, exports []string) int {
+	content = strings.ToLower(content)
+	covered := 0
+	for _, module := range exports {
+		if strings.Contains(content, strings.ToLower(module)) {
+			covered++
+		}
+	}
+	return covered
 }
 
 // HasGates reports whether anything blocks.

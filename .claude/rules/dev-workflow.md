@@ -44,17 +44,20 @@ Use the `trace-debugger` skill. Quick: `ailang trace status`, `ailang trace list
 **For releases**: Use the `release-manager` skill
 **After release**: Use the `post-release` skill
 
-## Pushing dev — automatic, fast-forward only
+## Pushing dev — automatic; attended work goes straight to dev
 
-Commit straight to `dev` in the main checkout (never branch there). You do **not** need to
-remember to push: `scripts/hooks/push_dev_on_stop.sh` runs as a `Stop` hook and pushes when
-local `dev` is ahead of origin **and not behind**.
-
-It refuses when the branch is ahead *and* behind, because that needs a real merge and the
-conflicts land in the mission charter and changelog, where a careless resolution silently
-drops decision rows. Do that merge by hand, verify with
-`scripts/mission_decisions.sh --check`, then push. Opt out for a session with
+Attended work: commit straight to `dev` in the main checkout, small and often. Worktrees are for
+unattended loops, coordinator tasks, and long/risky changes — they delay integration, and delay
+is what conflicts. The `Stop` hook (`push_dev_on_stop.sh`) pushes, and when `dev` is ahead *and*
+behind it rebases first — only if no uncommitted edit touches a rebased file, **aborting on any
+conflict** so the checkout is never left mid-rebase. A conflict it reports is yours to resolve
+(charter: verify with `scripts/mission_decisions.sh --check`). Opt-outs: `AILANG_AUTOREBASE=0`,
 `AILANG_AUTOPUSH=0`.
+
+**Changelog = fragments** in `changelogs/unreleased/`; `make check-changelog` refuses entries
+under `## [Unreleased]`. **Worktrees self-clean:** SessionStart (`git_health.sh`) flags a stuck
+rebase or diverged `dev`, and ≤6-hourly runs `worktree_sweep.sh --apply` (landed + clean + idle
+≥2h + unused only; log with SHAs in `~/.ailang/state/worktree-sweep.log`; dry run: `make worktree-sweep`).
 
 **Stdlib freeze gate on push:** a `pre-push` hook (installed by SessionStart / `make install-hooks`)
 refuses a dev push that changes `std/` interfaces without `make freeze-stdlib`. Direct pushes skip

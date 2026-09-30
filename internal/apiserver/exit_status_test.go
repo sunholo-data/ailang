@@ -170,7 +170,7 @@ func TestA2AExitNonzeroFails(t *testing.T) {
 
 func TestMCPExitZeroSucceeds(t *testing.T) {
 	srv := newExitHandlerTestServer(t)
-	handler := NewMCPServer(srv).makeToolHandler(exitFixturePrefix+"exit_zero", "main", nil)
+	handler := NewMCPServer(srv).makeToolHandler(exitFixturePrefix+"exit_zero", ExportInfo{Name: "main"})
 	res, err := handler(context.Background(), mcpCallReq("main", `{}`))
 	if err != nil {
 		t.Fatalf("handler returned Go error: %v", err)
@@ -185,7 +185,7 @@ func TestMCPExitZeroSucceeds(t *testing.T) {
 
 func TestMCPExitNonzeroFails(t *testing.T) {
 	srv := newExitHandlerTestServer(t)
-	handler := NewMCPServer(srv).makeToolHandler(exitFixturePrefix+"exit_nonzero", "main", nil)
+	handler := NewMCPServer(srv).makeToolHandler(exitFixturePrefix+"exit_nonzero", ExportInfo{Name: "main"})
 	res, err := handler(context.Background(), mcpCallReq("main", `{}`))
 	if err != nil {
 		t.Fatalf("handler returned Go error: %v", err)

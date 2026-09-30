@@ -185,6 +185,9 @@ func formatInstruction(inst Instruction, ip int, p *FuncPrototype, img *Bytecode
 	case OpMakeList, OpMakeTuple, OpMakeRecord:
 		return fmt.Sprintf("%-12s r%d, src=r%d, count=%d", op, inst.A(), inst.B(), inst.C())
 
+	case OpUpdateRecord:
+		return fmt.Sprintf("UPDATE_RECORD r%d, base=r%d, count=%d", inst.A(), inst.B(), inst.C())
+
 	case OpReturn, OpLoadNil:
 		return fmt.Sprintf("%-12s r%d", op, inst.A())
 

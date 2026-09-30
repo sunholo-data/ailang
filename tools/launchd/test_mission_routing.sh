@@ -28,10 +28,10 @@ driver="$ROOT/tools/launchd/mission-control.sh"
 # take a primary. These two arms were briefly flipped to astra earlier the same
 # day and are restored — sol keeps both primaries on months of in-role track
 # record, against astra's single fizzbuzz round-trip and an rc=0 probe.
-grep -q 'MISSION_EXECUTOR_MODEL:-codex:gpt-6-sol' "$driver" \
-  && ok "executor primary is Codex Sol (gpt-6-sol since 2026-09-22)" || bad "executor primary is Codex Sol (gpt-6-sol since 2026-09-22)" "missing default"
-grep -q 'MISSION_PLANNER_MODEL:-codex:gpt-6-sol' "$driver" \
-  && ok "planner primary is Codex Sol (gpt-6-sol since 2026-09-22)" || bad "planner primary is Codex Sol (gpt-6-sol since 2026-09-22)" "missing default"
+grep -q 'MISSION_EXECUTOR_MODEL:-codex:gpt-6.1-sol' "$driver" \
+  && ok "executor primary is Codex Sol 6.1 (since 2026-09-30)" || bad "executor primary is Codex Sol 6.1 (since 2026-09-30)" "missing default"
+grep -q 'MISSION_PLANNER_MODEL:-codex:gpt-6.1-sol' "$driver" \
+  && ok "planner primary is Codex Sol 6.1 (since 2026-09-30)" || bad "planner primary is Codex Sol 6.1 (since 2026-09-30)" "missing default"
 # The fallback chains must stay `pi:*`-headed. A `codex:*` value here would run
 # UNPROBED — the codex loop hands off to a value that only the *pi* loop probes —
 # which is the "pin running unprobed on World" defect ailang#611 fixed. This is the
@@ -65,7 +65,7 @@ want "pi planner still fails closed outside the allowlist" "$out" "opus fail-clo
 # `codex` for any codex:* pin, dropping the model. Invisible on V1 by coincidence —
 # its pin is codex:gpt-5.6-sol and the consumer default is also sol, so the dropped
 # value equalled the fallback. NOT invisible on a mission pinned to a cheaper tier:
-# the docs mission pins codex:gpt-5.6-luna ($0.20/$1.20 per M) and would have
+# the docs mission pins a luna tier (codex:gpt-5.6-luna at the time, $0.20/$1.20 per M; gpt-6-luna since 2026-09-30) and would have
 # planned on gpt-5.6-sol ($2/$10) every iteration. Asserted with TWO different
 # codex models so a re-hardcoded literal cannot satisfy both.
 out=$(MISSION_PLANNER_MODEL='codex:gpt-5.6-luna' "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/c-clean-infra.md")
@@ -141,6 +141,23 @@ docsenv="$ROOT/tools/launchd/mission-env/mission-docs.env"
 [ -r "$docsenv" ] && ok "docs mission env profile exists" || bad "docs mission env profile exists" "missing"
 
 # THE TRAP THIS GUARDS: derive-planner-lane.sh Step 0 accepts only codex:* or pi:*.
+# D-FLEET-1: a doc with NO Planner-Lane field uses the mission's planner pin, not opus.
+out=$(MISSION_PLANNER_MODEL='codex:gpt-6-sol' "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/b-field-missing.md")
+want "D-FLEET-1 missing field defaults to the codex pin" "$out" "codex:gpt-6-sol declared:planner-lane-default-pin"
+out=$(MISSION_PLANNER_MODEL='pi:openrouter/moonshotai/kimi-k3' "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/b-field-missing.md")
+want "D-FLEET-1 missing field defaults to the pi pin" "$out" "pi:openrouter/moonshotai/kimi-k3 declared:planner-lane-default-pin"
+# ...but only ABSENCE defaults: an explicit opus-required and an invalid value still decide.
+out=$(MISSION_PLANNER_MODEL='codex:gpt-6-sol' "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/m-opus-required.md")
+want "D-FLEET-1 explicit opus-required still wins" "$out" "opus declared:opus-required"
+out=$(MISSION_PLANNER_MODEL='codex:gpt-6-sol' "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/l-field-invalid.md")
+want "D-FLEET-1 invalid field still fails closed" "$out" "opus fail-closed:planner-lane-field-invalid"
+# ...and a bare (non-vetted) pin still fails closed before the field is read.
+out=$(MISSION_PLANNER_MODEL='sonnet' "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/b-field-missing.md")
+want "D-FLEET-1 bare pin still fails closed at env-pin" "$out" "opus fail-closed:env-pin"
+# Through the resolver: the pin becomes a recipe (and the #1391 ration gate still applies).
+out=$(env -u MISSION_OVER_RATION MISSION_PLANNER_MODEL='codex:gpt-6-sol' "$ROOT/tools/launchd/resolve-role-spawn.sh" planner "$ROOT/tools/launchd/testdata/planner-lane/b-field-missing.md")
+want "D-FLEET-1 resolver maps the default pin to a recipe" "$out" "recipe codex:gpt-6-sol declared:planner-lane-default-pin"
+
 # A bare Anthropic alias as the PLANNER pin emits "opus fail-closed:env-pin" and
 # silently runs OPUS — the most expensive model in the fleet, on the mission built to
 # avoid it. Negative assertion, so a well-meaning "put sonnet first everywhere" edit
@@ -242,7 +259,7 @@ grep -A40 '_an_probed=' "$driver" | grep -q "fbvar=\"MISSION_\${role}_FALLBACK\"
   && ok "all three provider loops cover all four roles" \
   || bad "all three provider loops cover all four roles" "a loop still covers only PLANNER EXECUTOR"
 # The designer needs a chain for the PINNED case; the rotation covers the rotating one.
-grep -q 'MISSION_DESIGNER_FALLBACK:-codex:gpt-6-astra' "$driver" \
+grep -q 'MISSION_DESIGNER_FALLBACK:-codex:gpt-6.1-sol' "$driver" \
   && ok "pinned designer has a codex rung" || bad "pinned designer has a codex rung" "designer chain missing"
 # ASTRA IS OUT OF THE CONTROLLER LADDER (2026-09-06, on measurement). It was 60% of codex
 # spend: four overnight CONTROLLER fires cost 2,121,499 tokens, because a controller drives the
@@ -258,9 +275,9 @@ grep -qE 'MISSION_(MODEL_PREFS|CONTROLLER_FALLBACK):-[^}]*gpt-6-astra' "$driver"
 # It also bought almost nothing under an account-wide Anthropic limit (see the 08-16 note
 # below), and dropping it restores Mark's 2026-07-16 rule that Fable is for high-cognition
 # ROLES. The ladder is now monotonically cheaper with one bucket per rung.
-grep -q 'MISSION_MODEL_PREFS:-claude-opus-5-5,codex:gpt-6-sol}' "$driver" \
-  && ok "controller ladder is opus-5-5 -> gpt-6-sol (fable dropped 2026-09-22)" \
-  || bad "controller ladder is opus-5-5 -> gpt-6-sol (fable dropped 2026-09-22)" "wrong ladder"
+grep -q 'MISSION_MODEL_PREFS:-claude-opus-5-5,codex:gpt-6.1-sol}' "$driver" \
+  && ok "controller ladder is opus-5-5 -> gpt-6.1-sol (retiered 2026-09-30)" \
+  || bad "controller ladder is opus-5-5 -> gpt-6.1-sol (retiered 2026-09-30)" "wrong ladder"
 # The reorder-to-Anthropic-first arm is deliberately NOT reinstated. Anthropic's limit is
 # account-wide, not per-model — the 08-16 drought quota-limited opus-5, opus-4-8 AND fable-5
 # together — so "opus spent but fable healthy" is not a state this account reaches, and the
@@ -271,9 +288,9 @@ grep -q 'MISSION_MODEL_PREFS:-claude-opus-5-5,codex:gpt-6-sol}' "$driver" \
 grep -q 'MISSION_CONTROLLER_FALLBACK:-pi:ollama' "$driver" \
   && ok "controller fallback starts at pi (sol de-duplicated 2026-09-22)" \
   || bad "controller fallback starts at pi (sol de-duplicated 2026-09-22)" "missing"
-# The designer keeps its astra rung — the change is scoped to the controller.
-grep -q 'MISSION_DESIGNER_FALLBACK:-codex:gpt-6-astra' "$driver" \
-  && ok "designer keeps its astra rung" || bad "designer keeps its astra rung" "astra was removed from the designer too"
+# The designer keeps a codex rung — Sol 6.1 since 2026-09-30 (it replaced astra there).
+grep -q 'MISSION_DESIGNER_FALLBACK:-codex:gpt-6.1-sol' "$driver" \
+  && ok "designer keeps its codex rung (gpt-6.1-sol)" || bad "designer keeps its codex rung (gpt-6.1-sol)" "codex rung removed from the designer"
 
 # The chain walker must exist, or a comma value would be passed to pi as ONE
 # model name and every fallback would 404.
@@ -379,6 +396,13 @@ out=$(env -u MISSION_EXECUTOR_RESOLVED \
   MISSION_EVALUATOR_FALLBACK=pi:ollama/minimax-m3:cloud,pi:openrouter/minimax/minimax-m3 "$RESOLVE" evaluator)
 want "R4 evaluator collision reroutes to the fallback head" "$out" "reroute pi:ollama/minimax-m3:cloud generator-equals-judge"
 
+# R4c: the collision across spellings — executor on the claude-CLI rung 2
+# (claude:claude-sonnet-5-5), evaluator on the `sonnet` alias. Same model; must reroute.
+out=$(env -u MISSION_EXECUTOR_RESOLVED \
+  MISSION_EVALUATOR_MODEL=sonnet MISSION_EXECUTOR_MODEL=claude:claude-sonnet-5-5 \
+  MISSION_EVALUATOR_FALLBACK=pi:ollama/minimax-m3:cloud,pi:openrouter/minimax/minimax-m3 "$RESOLVE" evaluator)
+want "R4c alias vs full-id of the same family is a collision" "$out" "reroute pi:ollama/minimax-m3:cloud generator-equals-judge"
+
 # R4b: same collision but no fallback -> fail closed.
 out=$(env -u MISSION_EXECUTOR_RESOLVED -u MISSION_EVALUATOR_FALLBACK \
   MISSION_EVALUATOR_MODEL=sonnet MISSION_EXECUTOR_MODEL=sonnet "$RESOLVE" evaluator)
@@ -397,6 +421,47 @@ want "R6 planner opus lane maps to agent-tool opus" "$out" "agent-tool opus fail
 # R7: unknown role -> fail closed.
 out=$("$RESOLVE" judge)
 want "R7 unknown role fails closed" "$out" "refuse fail-closed:role-unknown"
+
+# R8-R12: ration gate (2026-09-29). World iter-208 ran planner AND executor on codex
+# after the driver had refused codex as over ration for that fire.
+out=$(env -u MISSION_OVER_RATION MISSION_EXECUTOR_MODEL=codex:gpt-6-sol "$RESOLVE" executor)
+want "R8 no ration signal leaves the recipe alone" "$out" "recipe codex:gpt-6-sol declared:provider-pin"
+out=$(MISSION_OVER_RATION="codex ollama" MISSION_EXECUTOR_MODEL=codex:gpt-6-sol \
+  MISSION_EXECUTOR_RESOLVED=pi:openrouter/deepseek/deepseek-v4.1-flash "$RESOLVE" executor)
+want "R9 over-ration recipe reroutes to the driver's resolved lane" "$out" \
+  "recipe pi:openrouter/deepseek/deepseek-v4.1-flash over-ration-reroute:codex"
+out=$(MISSION_OVER_RATION="codex openrouter" MISSION_EXECUTOR_MODEL=codex:gpt-6-sol \
+  MISSION_EXECUTOR_RESOLVED=pi:openrouter/deepseek/deepseek-v4.1-flash "$RESOLVE" executor)
+want "R10 over-ration recipe with an over-ration resolved lane is refused" "$out" "refuse over-ration:codex"
+out=$(MISSION_OVER_RATION="codex" MISSION_EXECUTOR_MODEL=pi:ollama/qwen3.8:27b "$RESOLVE" executor)
+want "R11 a local model maps to no bucket and is never gated" "$out" "recipe pi:ollama/qwen3.8:27b declared:provider-pin"
+out=$(MISSION_OVER_RATION="codex" MISSION_PLANNER_MODEL=codex:gpt-6-sol \
+  MISSION_PLANNER_RESOLVED=pi:openrouter/moonshotai/kimi-k3 "$RESOLVE" planner \
+  "$ROOT/tools/launchd/testdata/planner-lane/c-clean-infra.md")
+want "R12 planner codex lane over ration reroutes to the resolved planner" "$out" \
+  "recipe pi:openrouter/moonshotai/kimi-k3 over-ration-reroute:codex"
+
+# R13 SEAM: the resolver's bucket map must agree with the driver's _mc_rung_bucket, or
+# the gate refuses what the driver allows (or the reverse) with both suites green.
+_seam_bad=""
+_drv_fn=$(awk '/^_mc_rung_bucket\(\)/,/^}/' "$ROOT/tools/launchd/mission-control.sh")
+_res_fn=$(awk '/^_rs_bucket\(\)/,/^}/' "$RESOLVE")
+_hook_fn=$(awk '/^_lane_bucket\(\)/,/^}/' "$ROOT/tools/launchd/spawn-pin-hook.sh")
+for _r in codex:gpt-6-sol pi:openrouter/z-ai/glm-5.3 pi:ollama/glm-5.3:cloud pi:ollama/x-cloud \
+          pi:ollama/qwen3.8:27b claude:claude-opus-5-5 opus pi:other/model; do
+  _a=$(bash -c "$_drv_fn"'; _mc_rung_bucket "$1"' _ "$_r")
+  _b=$(bash -c "$_res_fn"'; _rs_bucket "$1"' _ "$_r")
+  _c=$(bash -c "$_hook_fn"'; _lane_bucket "$1"' _ "$_r")
+  [ "$_a" = "$_b" ] && [ "$_a" = "$_c" ] || _seam_bad="$_seam_bad $_r(driver=$_a resolver=$_b hook=$_c)"
+done
+if [ -n "$_drv_fn" ] && [ -n "$_res_fn" ] && [ -n "$_hook_fn" ] && [ -z "$_seam_bad" ]; then
+  ok "R13 resolver, spawn-pin hook and driver agree on every rung's ration bucket"
+else
+  bad "R13 resolver and driver agree on every rung's ration bucket" "${_seam_bad:-function not found}"
+fi
+grep -q '^MISSION_OVER_RATION=.*export MISSION_OVER_RATION' "$ROOT/tools/launchd/mission-control.sh" \
+  && ok "R14 driver exports MISSION_OVER_RATION with the resolved plan" \
+  || bad "R14 driver exports MISSION_OVER_RATION with the resolved plan" "export missing"
 
 # --- M2 SPAWN-PIN HOOK WIRING (M-SPAWN-PIN-ENFORCEMENT, 2026-09-03) -----------
 # Arm W: the spawn-pin hook suite must be wired into make/test.mk, or a suite
@@ -447,9 +512,9 @@ cat > "$lab/scripts-doc.md" <<'EOF'
 ## Files
 - `scripts/verify_examples.go`
 EOF
-out=$(/bin/bash -c 'unset MISSION_PLANNER_ALLOWLIST; . "$1"; export MISSION_PLANNER_ALLOWLIST; MISSION_PLANNER_MODEL=codex:gpt-5.6-luna "$2" "$3"' \
+out=$(/bin/bash -c 'unset MISSION_PLANNER_ALLOWLIST; . "$1"; export MISSION_PLANNER_ALLOWLIST; MISSION_PLANNER_MODEL=codex:gpt-6-luna "$2" "$3"' \
   _ "$docsenv" "$DERIVE" "$lab/scripts-doc.md")
-want "arm12 docs allowlist admits top-level scripts" "$out" "codex:gpt-5.6-luna declared:codex-ok"
+want "arm12 docs allowlist admits top-level scripts" "$out" "codex:gpt-6-luna declared:codex-ok"
 PRE_SCRIPTS_AL='tools/*|.claude/skills/mission-control/SKILL.md|.claude/skills/design-doc-creator/*|docs/*|examples/*|README.md|CHANGELOG.md|.claude/skills/docs-sync/scripts/*'
 out=$(MISSION_PLANNER_ALLOWLIST="$PRE_SCRIPTS_AL" MISSION_PLANNER_MODEL=codex:gpt-5.6-luna \
   "$DERIVE" "$lab/scripts-doc.md")
@@ -487,12 +552,13 @@ grep -q 'enum in this build lists' "$skill_all" \
 # across three billing surfaces.
 # AMENDED 2026-09-25 (Mark, attended): GLM 5.3 and Kimi K3 replace deepseek-v4-flash, so
 # designers and quorum reviewers share one vendor pool.
-grep -q 'now `claude:claude-opus-5-5` → `codex:gpt-6-astra` → `pi:ollama/glm-5.3:cloud` → `pi:ollama/kimi-k3:cloud` → repeat' "$skill_all" \
-  && ok "S3 designer rotation is opus-5-5 -> astra -> glm-5.3 -> kimi-k3 (four vendors)" \
-  || bad "S3 designer rotation is opus-5-5 -> astra -> glm-5.3 -> kimi-k3 (four vendors)" "rotation is not the four-entry list"
-grep -q 'MISSION_DESIGNER_FALLBACK:-codex:gpt-6-astra,pi:ollama/glm-5.3:cloud,pi:ollama/kimi-k3:cloud,pi:openrouter/z-ai/glm-5.3,pi:openrouter/moonshotai/kimi-k3' tools/launchd/mission-control.sh \
-  && ok "S3b designer fallback chain follows the rotation (astra -> glm-5.3 -> kimi-k3)" \
-  || bad "S3b designer fallback chain follows the rotation (astra -> glm-5.3 -> kimi-k3)" "driver chain still names another model"
+# AMENDED 2026-09-30 (Mark, attended): Sol 6.1 replaces astra in the OpenAI slot.
+grep -q 'now `claude:claude-opus-5-5` → `codex:gpt-6.1-sol` → `pi:ollama/glm-5.3:cloud` → `pi:ollama/kimi-k3:cloud` → repeat' "$skill_all" \
+  && ok "S3 designer rotation is opus-5-5 -> sol-6.1 -> glm-5.3 -> kimi-k3 (four vendors)" \
+  || bad "S3 designer rotation is opus-5-5 -> sol-6.1 -> glm-5.3 -> kimi-k3 (four vendors)" "rotation is not the four-entry list"
+grep -q 'MISSION_DESIGNER_FALLBACK:-codex:gpt-6.1-sol,pi:ollama/glm-5.3:cloud,pi:ollama/kimi-k3:cloud,pi:openrouter/z-ai/glm-5.3,pi:openrouter/moonshotai/kimi-k3' tools/launchd/mission-control.sh \
+  && ok "S3b designer fallback chain follows the rotation (sol-6.1 -> glm-5.3 -> kimi-k3)" \
+  || bad "S3b designer fallback chain follows the rotation (sol-6.1 -> glm-5.3 -> kimi-k3)" "driver chain still names another model"
 # The driver seed must NOT have moved: astra is a rotation entry, so nothing pins it.
 # This is the arm that dies if someone re-applies the "astra takes the fable slot"
 # version, which looked identical in a role table and was not what was asked for.

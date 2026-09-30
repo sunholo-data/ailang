@@ -451,6 +451,18 @@ func (s *Store) GetChainStages(ctx context.Context, chainID string, opts ChainRe
 			}
 		}
 
+		stages = append(stages, stage)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to read stages: %w", err)
+	}
+	// Release the connection BEFORE the per-stage lookups below: sqliteopen caps
+	// the pool at one connection, so querying s.db while these rows are open
+	// blocks forever (hung `ailang chains find` and the chains API with
+	// include_spans/include_sessions; found 2026-09-29).
+	rows.Close()
+
+	for _, stage := range stages {
 		// Load session data if requested
 		if opts.IncludeSessions && stage.SessionID != "" {
 			session, err := s.GetSession(ctx, stage.SessionID)
@@ -466,8 +478,6 @@ func (s *Store) GetChainStages(ctx context.Context, chainID string, opts ChainRe
 				stage.Spans = spans
 			}
 		}
-
-		stages = append(stages, stage)
 	}
 
 	return stages, nil

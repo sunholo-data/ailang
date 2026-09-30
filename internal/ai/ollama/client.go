@@ -13,6 +13,7 @@ import (
 	ollamaapi "github.com/ollama/ollama/api"
 	"github.com/sunholo-data/ailang/internal/ai"
 	"github.com/sunholo-data/ailang/internal/config"
+	"github.com/sunholo-data/ailang/internal/riglock"
 	"github.com/sunholo-data/ailang/internal/strutil"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
@@ -75,7 +76,7 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 	// M-V1-SIMPLIFY-S4 M4 it was exported as OLLAMA_HOST for the whole
 	// process and read back through ollamaapi.ClientFromEnvironment — a
 	// process-wide side effect of constructing one client.
-	c.client = ollamaapi.NewClient(parseHost(c.endpoint), http.DefaultClient)
+	c.client = ollamaapi.NewClient(parseHost(c.endpoint), riglock.WithLease(http.DefaultClient))
 	return c, nil
 }
 

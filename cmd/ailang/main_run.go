@@ -18,7 +18,13 @@ func runCommand() {
 	virtualTime := fs.Bool("virtual-time", false, "Use virtual time for deterministic execution")
 	jsonFlag := fs.Bool("json", false, "Output errors in structured JSON format")
 	compactFlag := fs.Bool("compact", false, "Use compact JSON output")
-	quietFlag := fs.Bool("quiet", false, "Suppress progress messages (only show program output)")
+	// Quiet is the default: stdout carries only the program's output, so a
+	// program whose output is checked byte-for-byte (a quine, a golden file)
+	// is not mixed with "→ Type checking..." lines. --verbose brings the
+	// progress lines back, on stderr. --quiet is kept so existing scripts that
+	// pass it keep working; it is now the default.
+	quietFlag := fs.Bool("quiet", true, "Suppress progress messages (the default; see --verbose)")
+	verboseFlag := fs.Bool("verbose", false, "Print progress messages (type check, effect check, running) to stderr")
 	binopShimFlag := fs.Bool("experimental-binop-shim", false, "Enable experimental operator shim")
 	failOnShimFlag := fs.Bool("fail-on-shim", false, "Fail if operator shim would be used (CI mode)")
 	requireLoweringFlag := fs.Bool("require-lowering", false, "Require operator lowering pass")
@@ -130,6 +136,9 @@ func runCommand() {
 	if err := fs.Parse(os.Args[2:]); err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
 		os.Exit(1)
+	}
+	if *verboseFlag {
+		*quietFlag = false
 	}
 
 	// M-AI-EFFECT-MODES M2: snapshot the routing flag values now and defer

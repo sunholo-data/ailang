@@ -14,6 +14,8 @@ import (
 	"github.com/googleapis/gax-go/v2"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/coordinator"
@@ -26,39 +28,51 @@ type jobRunner interface {
 
 // Dispatcher implements coordinator.CloudDispatcher using Cloud Run Jobs API.
 type Dispatcher struct {
-	client    jobRunner
-	projectID string
-	region    string
-	prefix    string
+	client     jobRunner
+	directives DirectiveWriter
+	projectID  string
+	region     string
+	prefix     string
 }
+
+// DirectiveWriter persists a task's directive where the job reads it
+// (fsstore.TaskDirectiveStore). The directive does not ride an env var: Cloud
+// Run caps one value at 32,768 bytes, and a 43 KB Daneel request (2026-09-30)
+// was refused on every dispatch. See internal/storage/firestore/task_directives.go.
+type DirectiveWriter interface {
+	PutDirective(ctx context.Context, taskID, directive string) error
+}
+
+// maxEnvValueBytes is Cloud Run's limit on one env override value. A value over
+// it is refused by the API with InvalidArgument, identically on every retry.
+const maxEnvValueBytes = 32768
+
+// inlineDirectiveMax bounds the copy of the directive still sent as
+// AILANG_DIRECTIVE, for a job image older than the Firestore read. Only while
+// images roll: a job that sees AILANG_DIRECTIVE_SOURCE=firestore ignores it.
+const inlineDirectiveMax = 16 * 1024
 
 // Compile-time check that Dispatcher implements CloudDispatcher.
 var _ coordinator.CloudDispatcher = (*Dispatcher)(nil)
 
 // NewDispatcher creates a new Cloud Run Jobs dispatcher.
 // It creates a gRPC client to the Cloud Run Admin API.
-func NewDispatcher(ctx context.Context, projectID, region, prefix string) (*Dispatcher, error) {
+func NewDispatcher(ctx context.Context, projectID, region, prefix string, directives DirectiveWriter) (*Dispatcher, error) {
+	if directives == nil {
+		return nil, fmt.Errorf("cloud run dispatcher: a directive store is required (the job reads its directive from it)")
+	}
 	client, err := run.NewJobsClient(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Cloud Run Jobs client: %w", err)
 	}
 
 	return &Dispatcher{
-		client:    client,
-		projectID: projectID,
-		region:    region,
-		prefix:    prefix,
+		client:     client,
+		directives: directives,
+		projectID:  projectID,
+		region:     region,
+		prefix:     prefix,
 	}, nil
-}
-
-// newDispatcherWithClient creates a Dispatcher with a custom client (for testing).
-func newDispatcherWithClient(client jobRunner, projectID, region, prefix string) *Dispatcher {
-	return &Dispatcher{
-		client:    client,
-		projectID: projectID,
-		region:    region,
-		prefix:    prefix,
-	}
 }
 
 // knownVariants is the set of valid executor_variant values.
@@ -183,12 +197,14 @@ func (d *Dispatcher) Dispatch(ctx context.Context, params coordinator.DispatchPa
 	// M-EXECUTOR-VARIANTS + M-CLOUD-DUAL-AUTH: select the Cloud Run Job template.
 	// Each variant has its own job with the corresponding Docker image baked in.
 	// Auth mode selects between OAuth and API-key job templates within each variant.
+	// Both are registry misconfigurations: every retry fails the same way until
+	// someone edits the agent, so they fail the task rather than requeue it.
 	jobSuffix, err := jobSuffixForVariant(params.ExecutorVariant, params.AuthMode)
 	if err != nil {
-		return err
+		return fmt.Errorf("%w: %v", coordinator.ErrDispatchPermanent, err)
 	}
 	if err := checkVariantProviderAgreement(params.ExecutorVariant, params.Provider); err != nil {
-		return err
+		return fmt.Errorf("%w: %v", coordinator.ErrDispatchPermanent, err)
 	}
 	jobName := fmt.Sprintf("projects/%s/locations/%s/jobs/%s-%s",
 		d.projectID, d.region, d.prefix, jobSuffix)
@@ -206,7 +222,7 @@ func (d *Dispatcher) Dispatch(ctx context.Context, params coordinator.DispatchPa
 		// no_changes outcome, so an unset value stays loud.
 		{Name: "AILANG_ACKNOWLEDGE_ONLY", Values: &runpb.EnvVar_Value{Value: strconv.FormatBool(params.AcknowledgeOnly)}},
 		{Name: "AILANG_PROVIDER", Values: &runpb.EnvVar_Value{Value: params.Provider}},
-		{Name: "AILANG_DIRECTIVE", Values: &runpb.EnvVar_Value{Value: params.Directive}},
+		{Name: config.EnvDirectiveSource, Values: &runpb.EnvVar_Value{Value: config.DirectiveSourceFirestore}},
 		// The human description, so the job need not reverse-engineer one from a
 		// template-wrapped prompt. See DispatchParams.TaskTitle.
 		{Name: "AILANG_TASK_TITLE", Values: &runpb.EnvVar_Value{Value: params.TaskTitle}},
@@ -292,6 +308,7 @@ func (d *Dispatcher) Dispatch(ctx context.Context, params coordinator.DispatchPa
 			})
 		}
 	}
+	envOverrides = append(envOverrides, prMetaEnv(params)...)
 	// M-AGENT-AILANG-ONLY-EXECUTION: the tool lane, and the program policy by
 	// CONTENT (the Job cannot read the coordinator's disk). full = no override.
 	if params.ToolPolicy != "" && params.ToolPolicy != "full" {
@@ -389,6 +406,34 @@ func (d *Dispatcher) Dispatch(ctx context.Context, params coordinator.DispatchPa
 		}
 	}
 
+	// Transitional: an older job image reads only AILANG_DIRECTIVE. Sent when it
+	// fits comfortably; a new image ignores it (AILANG_DIRECTIVE_SOURCE above).
+	if len(params.Directive) <= inlineDirectiveMax {
+		envOverrides = append(envOverrides, &runpb.EnvVar{
+			Name: config.EnvDirective, Values: &runpb.EnvVar_Value{Value: params.Directive},
+		})
+	}
+
+	// Refuse here, not at the API: Cloud Run answers an oversized value with
+	// InvalidArgument, the daemon read that as transient, and task-68771ff3
+	// was re-dispatched every five minutes while looking merely "pending".
+	for _, ev := range envOverrides {
+		if n := len(ev.GetValue()); n > maxEnvValueBytes {
+			return fmt.Errorf("%w: env %s is %d bytes, over Cloud Run's %d-byte limit",
+				coordinator.ErrDispatchPermanent, ev.GetName(), n, maxEnvValueBytes)
+		}
+	}
+
+	// The job reads its directive from here, keyed by AILANG_TASK_ID. Written
+	// before RunJob so the job can never start ahead of it.
+	if len(params.Directive) > coordinator.MaxDirectiveBytes {
+		return fmt.Errorf("%w: directive is %d bytes, over the %d-byte limit",
+			coordinator.ErrDispatchPermanent, len(params.Directive), coordinator.MaxDirectiveBytes)
+	}
+	if err := d.directives.PutDirective(ctx, params.TaskID, params.Directive); err != nil {
+		return fmt.Errorf("store directive for %s: %w", params.TaskID, err)
+	}
+
 	req := &runpb.RunJobRequest{
 		Name: jobName,
 		Overrides: &runpb.RunJobRequest_Overrides{
@@ -401,6 +446,11 @@ func (d *Dispatcher) Dispatch(ctx context.Context, params coordinator.DispatchPa
 	// RunJob returns a long-running operation. We only check the initial error —
 	// job completion is reported via Pub/Sub completions topic, not by polling.
 	_, err = d.client.RunJob(ctx, req)
+	if status.Code(err) == codes.InvalidArgument {
+		// The request itself is malformed; the same request fails the same way
+		// on every retry, so say so rather than queue it again.
+		return fmt.Errorf("%w: failed to trigger Cloud Run Job %s: %v", coordinator.ErrDispatchPermanent, jobName, err)
+	}
 	if err != nil {
 		return fmt.Errorf("failed to trigger Cloud Run Job %s: %w", jobName, err)
 	}
@@ -426,4 +476,22 @@ func ProvidersForVariant() map[string][]string {
 		out[k] = append([]string(nil), v...)
 	}
 	return out
+}
+
+// prMetaEnv carries what the job's PR should say it is (its needs-*-approval
+// label) and what merging it starts (the approval's handoff targets).
+// Comma-separated: label and agent ids never contain a comma.
+func prMetaEnv(params coordinator.DispatchParams) []*runpb.EnvVar {
+	var env []*runpb.EnvVar
+	if len(params.PRLabels) > 0 {
+		env = append(env, &runpb.EnvVar{
+			Name: "AILANG_PR_LABELS", Values: &runpb.EnvVar_Value{Value: strings.Join(params.PRLabels, ",")},
+		})
+	}
+	if len(params.MergeStarts) > 0 {
+		env = append(env, &runpb.EnvVar{
+			Name: "AILANG_MERGE_STARTS", Values: &runpb.EnvVar_Value{Value: strings.Join(params.MergeStarts, ",")},
+		})
+	}
+	return env
 }

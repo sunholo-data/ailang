@@ -1407,6 +1407,10 @@ ailang coordinator approve <task-id>
 
 # Reject (preserves worktree, discards changes)
 ailang coordinator reject <task-id>
+
+# Cancel work that has not started yet (status pending), e.g. a request
+# already handled elsewhere. Add --remote gcp for the prod plane.
+ailang coordinator cancel <task-id>... [--remote gcp] [--yes]
 ```
 
 ### Decision Making

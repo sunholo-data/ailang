@@ -33,6 +33,7 @@ func TestEncodeABC_RoundTrip(t *testing.T) {
 		{OpEq, 7, 8, 9},
 		{OpMakeList, 4, 5, 6},
 		{OpMakeRecord, 0, 1, 2},
+		{OpUpdateRecord, 3, 4, 5},
 		{OpCall, 10, 20, 30},
 	}
 	for _, tc := range cases {
@@ -142,7 +143,7 @@ func TestOpCount_Stable(t *testing.T) {
 	// If you add a new opcode, update this number deliberately. This guards
 	// against accidental opcode space changes that would invalidate any
 	// serialized bytecode in the wild (none yet, but the discipline matters).
-	const expected = 33 // bumped for OpBuiltinCallHOF (M-BYTECODE-HOF-BUILTINS)
+	const expected = 34 // bumped for OpUpdateRecord (M-VM-DETERMINISM)
 	if OpCount() != expected {
 		t.Errorf("OpCount() = %d, expected %d — if you added an opcode, update this test and bump bytecode format version", OpCount(), expected)
 	}

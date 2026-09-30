@@ -33,6 +33,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       code: ${{ steps.classify.outputs.code }}
+      shell: ${{ steps.classify.outputs.shell }}
     steps:
     - uses: actions/checkout@v7
       with:
@@ -51,11 +52,13 @@ jobs:
         # untested code.
         if [ "${{ github.event_name }}" != "pull_request" ]; then
           echo "code=true" >> "$GITHUB_OUTPUT"
+          echo "shell=true" >> "$GITHUB_OUTPUT"
           echo "not a pull_request event -> full matrix"
           exit 0
         fi
         if ! files=$(git diff --name-only "${BASE_SHA}"...HEAD 2>/dev/null) || [ -z "$files" ]; then
           echo "code=true" >> "$GITHUB_OUTPUT"
+          echo "shell=true" >> "$GITHUB_OUTPUT"
           echo "could not read the diff -> full matrix"
           exit 0
         fi
@@ -70,6 +73,18 @@ jobs:
         else
           echo "code=false" >> "$GITHUB_OUTPUT"
           echo "-> docs-only lane (compiler matrix skipped)"
+        fi
+        # Rig-shell lane: the bash 3.2 launchd job needs a macOS runner, which
+        # queued 38 min on 2026-09-28 while the job itself ran 6. It only tests
+        # the paths below (every REPO_ROOT-relative file its suite reads, plus
+        # this workflow and the make target), so other PRs skip it. Pushes to
+        # dev still run it: the non-PR branch above sets shell=true.
+        if echo "$files" | grep -qE '^(tools/launchd/|tools/pi-extensions/|scripts/hooks/|scripts/[^/]*mission[^/]*\.sh$|scripts/(test_)?worktree_sweep\.sh$|\.claude/skills/mission-control/|\.claude/settings\.json$|design_docs/v1-mission\.md$|make/test\.mk$|\.github/workflows/ci\.yml$)'; then
+          echo "shell=true" >> "$GITHUB_OUTPUT"
+          echo "-> rig-shell lane (launchd bash 3.2 job runs)"
+        else
+          echo "shell=false" >> "$GITHUB_OUTPUT"
+          echo "-> no rig-shell paths touched (launchd bash 3.2 job skipped)"
         fi
 
   # NOT gated by the docs-only lane, deliberately. This job carries 19 hygiene
@@ -101,7 +116,7 @@ jobs:
     # Python is installed. Update PinnedPythonVersion in
     # internal/eval_harness/python.go if the target moves.
     - name: Set up uv
-      uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+      uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
 
     - name: Install dependencies
       run: make deps
@@ -468,7 +483,7 @@ jobs:
     # continue-on-error keeps CI green if the secret is missing or the scan
     # service has a hiccup — Sonar is a reporting layer, not a gate.
     - name: SonarCloud scan
-      uses: SonarSource/sonarqube-scan-action@22918119ff8e1ca75a623e15c8296b6ea4fbe28f # v7
+      uses: SonarSource/sonarqube-scan-action@ba9859eae8dd6bd29e412f25ddbbef3d032000f4 # v7
       continue-on-error: true
       env:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -525,7 +540,7 @@ jobs:
         cache: true
 
     - name: Set up uv (provides Python for eval-harness Python runner tests)
-      uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+      uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
 
     # Same ordering constraint as the Linux leg: prefetch BEFORE the binary is
     # installed, because `go mod download all` touches the tracked go.sum and the
@@ -719,7 +734,7 @@ jobs:
     # `declare -A` or ${v,,} that reaches tools/launchd/ breaks the rig and passes on ubuntu.
     # No Go, no cache: these are shell + git tests and nothing else.
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.shell == 'true'
     runs-on: macos-latest
     timeout-minutes: 15
 

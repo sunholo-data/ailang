@@ -2,6 +2,7 @@ package compiler
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -14,8 +15,54 @@ import (
 // alphabetically-sorted field-name list. Used for both record literals
 // (to compute the local-constant-index sequence after MAKE_RECORD) and
 // field accesses (to translate field name → sorted index).
+//
+// ambiguous marks a name declared more than once with different field sets
+// (two modules each defining `Point`): the compiler cannot tell which one a
+// receiver is, so accesses through that name resolve by name at runtime.
 type recordTypeInfo struct {
 	sortedFields []string
+	ambiguous    bool
+}
+
+// registerRecordType records a declared record's sorted field list. A name
+// declared again with a different field set (two modules each defining
+// `Point`) becomes ambiguous: no static slot is ever taken from it.
+func registerRecordType(recordTypes map[string]recordTypeInfo, name string, sortedFields []string) {
+	if prev, ok := recordTypes[name]; ok {
+		if prev.ambiguous || !slices.Equal(prev.sortedFields, sortedFields) {
+			recordTypes[name] = recordTypeInfo{ambiguous: true}
+		}
+		return
+	}
+	recordTypes[name] = recordTypeInfo{sortedFields: sortedFields}
+}
+
+// resolveRecordAliases registers each alias (`type P = V`) that names a
+// record type — directly or through a chain of aliases — under the alias's
+// own name. A cycle, a dangling target or a name already declared as
+// something else leaves the alias unregistered, so accesses through it
+// resolve by name at runtime.
+func resolveRecordAliases(recordTypes map[string]recordTypeInfo, aliases map[string]string) {
+	for alias := range aliases {
+		target := aliases[alias]
+		seen := map[string]bool{alias: true}
+		for {
+			if _, isAlias := aliases[target]; !isAlias || seen[target] {
+				break
+			}
+			seen[target] = true
+			target = aliases[target]
+		}
+		info, ok := recordTypes[target]
+		if !ok {
+			continue
+		}
+		if _, clash := recordTypes[alias]; clash {
+			recordTypes[alias] = recordTypeInfo{ambiguous: true}
+			continue
+		}
+		recordTypes[alias] = info
+	}
 }
 
 // fieldIndex returns the index of name in the sorted field list, or -1.
@@ -136,15 +183,6 @@ func (fc *funcCompiler) compileRecordLit(e stmt.RecordLit) (uint8, error) {
 	}
 	sort.Slice(sf, func(i, j int) bool { return sf[i].name < sf[j].name })
 
-	// Register the type schema (used by FieldAccess later).
-	if e.TypeName != "" && fc.recordTypes != nil {
-		names := make([]string, n)
-		for i, f := range sf {
-			names[i] = f.name
-		}
-		fc.recordTypes[e.TypeName] = recordTypeInfo{sortedFields: names}
-	}
-
 	// Allocate contiguous register block for the values, then compile each
 	// value into its target slot.
 	base, err := fc.regs.allocContig(n)
@@ -194,10 +232,10 @@ func (fc *funcCompiler) compileFieldAccess(e stmt.FieldAccess) (uint8, error) {
 		if n, perr := strconv.Atoi(e.Field[1:]); perr == nil {
 			idx = n
 		} else {
-			idx = fc.lookupFieldIndex(e.Record, e.Field, e.KnownFields)
+			idx = fc.lookupFieldIndex(e.Field, e.KnownFields, e.RecordType)
 		}
 	} else {
-		idx = fc.lookupFieldIndex(e.Record, e.Field, e.KnownFields)
+		idx = fc.lookupFieldIndex(e.Field, e.KnownFields, e.RecordType)
 	}
 	if idx < 0 {
 		// Static field index resolution failed — fall back to runtime name
@@ -253,26 +291,72 @@ func (fc *funcCompiler) compileFieldAccessByName(recReg uint8, field string) (ui
 	return block, nil
 }
 
-// lookupFieldIndex resolves a field access to its alphabetical index in the
-// record's sorted field list.
-//
-// Resolution strategy (M-BYTECODE-MULTIMODULE M3):
-//  1. Prefer the lower-pass hint (knownFields) if populated — this comes from
-//     the record expression's inferred type and works for anonymous /
-//     row-polymorphic records that never produced an explicit TypeDecl.
-//  2. Fall back to walking recordTypes — handles named record decls and the
-//     Phase 2C golden corpus.
-func (fc *funcCompiler) lookupFieldIndex(_ stmt.Expr, name string, knownFields []string) int {
-	if len(knownFields) > 0 {
-		for i, f := range knownFields {
-			if f == name {
-				return i
-			}
-		}
-		return -1
+// compileRecordUpdateByName compiles `{base | f1: v1, ...}` whose base type
+// is not statically known to OpUpdateRecord. The opcode copies the runtime
+// base shape and applies every override by name, matching evalCoreRecordUpdate
+// without guessing a registered record type (ailang#1354, #1355).
+func (fc *funcCompiler) compileRecordUpdateByName(e stmt.RecordUpdate) (uint8, error) {
+	baseReg, err := fc.compileExpr(e.Base)
+	if err != nil {
+		return 0, err
 	}
-	for _, info := range fc.recordTypes {
-		if i := info.fieldIndex(name); i >= 0 {
+	if len(e.Fields) > 255 {
+		return 0, fmt.Errorf("compiler: record update with %d fields exceeds 255", len(e.Fields))
+	}
+	block, err := fc.regs.allocContig(len(e.Fields) + 1)
+	if err != nil {
+		return 0, err
+	}
+	nameConstIdx := make([]uint16, len(e.Fields))
+	for i, f := range e.Fields {
+		if err := fc.compileExprIntoSlot(f.Value, block+uint8(i+1)); err != nil {
+			return 0, err
+		}
+		nameConstIdx[i], err = fc.addLocalConst(bytecode.NewString(f.Name))
+		if err != nil {
+			return 0, err
+		}
+	}
+	fc.emit(bytecode.EncodeABC(bytecode.OpUpdateRecord, block, baseReg, uint8(len(e.Fields))))
+	for _, nameIdx := range nameConstIdx {
+		fc.emit(bytecode.EncodeABx(bytecode.OpLoadConst, 0, nameIdx))
+	}
+	if !fc.isPinned(baseReg) {
+		fc.regs.freeTemp(baseReg)
+	}
+	fc.regs.freeContig(block+1, len(e.Fields))
+	return block, nil
+}
+
+// resolveRecordFields returns the sorted field list of a receiver's record
+// type, or nil when the type is not statically known. Sources, in order:
+//  1. knownFields — the receiver's inferred field set from the lower pass
+//     (anonymous / row-polymorphic records, M-BYTECODE-MULTIMODULE M3).
+//  2. recordType — the receiver's declared type name, looked up exactly in
+//     the TypeDecl table (named records such as `v: V`).
+//
+// There is deliberately no third source. Guessing the type from any
+// registered record that merely contains the field name picked another
+// type's slot whenever two records shared a field name, and did so in Go
+// map order, so codegen changed from run to run (ailang#1354, #1355).
+func (fc *funcCompiler) resolveRecordFields(knownFields []string, recordType string) []string {
+	if len(knownFields) > 0 {
+		return knownFields
+	}
+	if recordType != "" {
+		if info, ok := fc.recordTypes[recordType]; ok && !info.ambiguous {
+			return info.sortedFields
+		}
+	}
+	return nil
+}
+
+// lookupFieldIndex resolves a field access to its alphabetical index in the
+// receiver's sorted field list, or -1 when the receiver's type is not
+// statically known — the caller then reads the field by name at runtime.
+func (fc *funcCompiler) lookupFieldIndex(name string, knownFields []string, recordType string) int {
+	for i, f := range fc.resolveRecordFields(knownFields, recordType) {
+		if f == name {
 			return i
 		}
 	}
@@ -287,27 +371,18 @@ func (fc *funcCompiler) compileRecordUpdate(e stmt.RecordUpdate) (uint8, error) 
 	//      set, evaluate the new value; otherwise emit GET_FIELD baseReg.
 	//   3. MAKE_RECORD with all values in a contiguous block.
 	//
-	// We need to know the record type. Pull it from any registered type whose
-	// field set includes the updated fields.
-	var info recordTypeInfo
-	var typeName string
-	for tn, ti := range fc.recordTypes {
-		ok := true
-		for _, f := range e.Fields {
-			if ti.fieldIndex(f.Name) < 0 {
-				ok = false
-				break
-			}
-		}
-		if ok {
-			info = ti
-			typeName = tn
-			break
-		}
-	}
-	_ = typeName
+	// When the base's type is not statically known, update by name at
+	// runtime instead (compileRecordUpdateByName).
+	info := recordTypeInfo{sortedFields: fc.resolveRecordFields(e.KnownFields, e.RecordType)}
 	if len(info.sortedFields) == 0 {
-		return 0, fmt.Errorf("compiler: cannot resolve record type for update")
+		return fc.compileRecordUpdateByName(e)
+	}
+	for _, f := range e.Fields {
+		if info.fieldIndex(f.Name) < 0 {
+			// The update adds a field the static type lacks; only the
+			// by-name path builds that record the way the evaluator does.
+			return fc.compileRecordUpdateByName(e)
+		}
 	}
 
 	overrides := make(map[string]stmt.Expr, len(e.Fields))

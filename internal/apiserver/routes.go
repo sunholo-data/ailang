@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/petermattis/goid"
@@ -222,6 +223,30 @@ func extractMCPNameAnnotations(modInfo *ModuleInfo, file *ast.File) {
 	}
 }
 
+// extractOptionalAnnotations populates ExportInfo.Optional from
+// @optional("param", ...) annotations. Names are recorded as written;
+// validateOptionalParams checks them against the signature at MCP registration.
+func extractOptionalAnnotations(modInfo *ModuleInfo, file *ast.File) {
+	for _, fn := range file.Funcs {
+		ann := fn.GetAnnotation("optional")
+		if ann == nil {
+			continue
+		}
+		var names []string
+		for _, a := range ann.Args {
+			if lit, ok := a.(*ast.Literal); ok && lit.Kind == ast.StringLit {
+				names = append(names, lit.Value.(string))
+			}
+		}
+		for i := range modInfo.Exports {
+			if modInfo.Exports[i].Name == fn.Name {
+				modInfo.Exports[i].Optional = names
+				break
+			}
+		}
+	}
+}
+
 // extractNoExposeAnnotations marks exported functions with @noexpose as hidden
 // from HTTP endpoints. Functions with @route are never hidden (route overrides noexpose).
 func extractNoExposeAnnotations(modInfo *ModuleInfo, file *ast.File) {
@@ -384,10 +409,18 @@ func buildHttpRequestRecord(r *http.Request, body []byte) map[string]interface{}
 
 // stringMapToJObject converts an http.Header or url.Values (map[string][]string)
 // to a JObject TaggedValue: JObject(List[{key: string, value: JString(string)}]).
+// Keys are emitted sorted so the handler sees the same object for the same
+// request (Go map iteration order is random). http.Header keys arrive
+// canonicalized, e.g. "Authorization", "X-Api-Key".
 func stringMapToJObject(m map[string][]string) *eval.TaggedValue {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
 	kvPairs := make([]eval.Value, 0, len(m))
-	for k, v := range m {
-		if len(v) > 0 {
+	for _, k := range keys {
+		if v := m[k]; len(v) > 0 {
 			kvPairs = append(kvPairs, &eval.RecordValue{
 				Fields: map[string]eval.Value{
 					"key": &eval.StringValue{Value: k},
