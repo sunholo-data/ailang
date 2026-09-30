@@ -192,3 +192,81 @@ func min(a, b int) int {
 	}
 	return b
 }
+
+// The generated plist must name the subscription this device pulls. install used
+// to write `daemon run --env <env>` and nothing else, so a second device could
+// only get its own subscription by hand-editing the plist — which the next
+// --force install silently reverted, putting both daemons back on one
+// subscription to work-steal from.
+func TestInstall_PlistCarriesTheMessagesSubscription(t *testing.T) {
+	for _, tc := range []struct{ name, give, want string }{
+		{"explicit", "messages-rig", "messages-rig"},
+		{"default", "", DefaultMessagesSub},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			home := tempHome(t)
+			defer withLaunchctl(t, &fakeLaunchctl{})()
+
+			if err := Install(InstallOpts{Env: "prod", BinaryPath: "/usr/local/bin/ailang", MessagesSub: tc.give}); err != nil {
+				t.Fatalf("Install: %v", err)
+			}
+			data, err := os.ReadFile(filepath.Join(home, "Library", "LaunchAgents", plistFilename))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(string(data), "<string>--messages-sub</string>") {
+				t.Error("plist does not pass --messages-sub at all")
+			}
+			if !strings.Contains(string(data), "<string>"+tc.want+"</string>") {
+				t.Errorf("plist does not name subscription %q", tc.want)
+			}
+		})
+	}
+}
+
+// The daemon needs the MESSAGING store in the cloud and nothing else. A bare
+// AILANG_STORAGE=gcp moves all three stores, so the daemon also pointed its
+// coordinator and observatory reads at the cloud project.
+func TestInstall_PlistMovesOnlyMessagingToTheCloud(t *testing.T) {
+	home := tempHome(t)
+	defer withLaunchctl(t, &fakeLaunchctl{})()
+
+	if err := Install(InstallOpts{Env: "prod", BinaryPath: "/usr/local/bin/ailang"}); err != nil {
+		t.Fatalf("Install: %v", err)
+	}
+	data, err := os.ReadFile(filepath.Join(home, "Library", "LaunchAgents", plistFilename))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(data)
+	if !strings.Contains(got, "<key>AILANG_STORAGE_MESSAGING</key>") {
+		t.Error("plist does not set AILANG_STORAGE_MESSAGING")
+	}
+	if strings.Contains(got, "<key>AILANG_STORAGE</key>") {
+		t.Error("plist sets the whole-plane AILANG_STORAGE, which also moves coordinator and observatory")
+	}
+	if !strings.Contains(got, "<key>AILANG_MESSAGES_PROJECT</key>") {
+		t.Error("plist does not pin the messaging project")
+	}
+}
+
+// Channel registration is fail-closed and reads the Discord webhook from the
+// login Keychain, which is only reachable from the Aqua session. Loaded into the
+// background domain the read returns errSecInteractionNotAllowed and Discord is
+// silently absent.
+func TestInstall_PlistLoadsIntoTheAquaSessionSoTheKeychainIsReadable(t *testing.T) {
+	home := tempHome(t)
+	defer withLaunchctl(t, &fakeLaunchctl{})()
+
+	if err := Install(InstallOpts{Env: "prod", BinaryPath: "/usr/local/bin/ailang"}); err != nil {
+		t.Fatalf("Install: %v", err)
+	}
+	data, err := os.ReadFile(filepath.Join(home, "Library", "LaunchAgents", plistFilename))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "<key>LimitLoadToSessionType</key>") ||
+		!strings.Contains(string(data), "<string>Aqua</string>") {
+		t.Error("plist does not restrict loading to the Aqua session, so the login Keychain is unreachable")
+	}
+}
