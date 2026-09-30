@@ -1,6 +1,0 @@
-### Changed — Codex and Anthropic are paced by weekday; weekends spend the slack (Mark, attended 2026-09-30)
-
-- The mission loops' pace line for the two weekly-window buckets is now `100 × weekday-hours-elapsed-in-window / 120`: 20% per weekday (Mon–Fri, rig-local time), nothing added on Saturday or Sunday, 100% once the window's last weekday has passed. It replaces the flat per-calendar-day fractions (Anthropic 13%, ruled 2026-09-24; Codex 10%), which kept 9% and 30% of every week in a reserve that was never released.
-- Semantics are unchanged: attended sessions are never gated, and the loops run only while account usage (attended + loops) is under the line. They get whatever attended work leaves, and on the weekend they get all of it rather than letting it expire at the reset.
-- Ollama (trailing-24h rate) and OpenRouter (daily dollars) keep their 10%/day rules. New `mission.WeekdayPacePercent`; the per-day fraction tests are rewritten for the weekday rule, and two wall-clock tests no longer depend on the day of the week they run.
-- Measured on the live readings at 2026-09-30 08:18Z: Codex 40.0% used vs 48.6% allowed (was 36.1%), Anthropic 41.0% vs 42.8% (was 27.7%). Both return to the loops.
