@@ -58,6 +58,8 @@ func coordinatorCommand(args []string) error {
 		return coordinatorReject(subargs)
 	case "reopen":
 		return coordinatorReopen(subargs)
+	case "cancel":
+		return coordinatorCancel(subargs)
 	case "retry":
 		return coordinatorRetry(subargs)
 	case "diff":
@@ -107,6 +109,7 @@ func printCoordinatorHelp() {
 	fmt.Println("  worktree       Show/open worktree directory for a task")
 	fmt.Println("  approve        Approve a pending task")
 	fmt.Println("  reject         Reject a pending task")
+	fmt.Println("  cancel         Cancel tasks that have not started (pending only)")
 	fmt.Println("  reopen         Reopen a rejected/cancelled task for re-approval")
 	fmt.Println("  retry          Reset failed tasks to pending for retry")
 	fmt.Println("  cleanup        Cancel stale running/queued tasks")

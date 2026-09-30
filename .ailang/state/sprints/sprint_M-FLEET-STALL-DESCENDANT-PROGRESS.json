@@ -1,28 +1,57 @@
 {
   "sprint_id": "M-FLEET-STALL-DESCENDANT-PROGRESS",
+  "status": "completed",
   "design_doc": "design_docs/planned/sprint-plan-stall-descendant-progress.md",
+  "sprint_plan": "design_docs/planned/sprint-plan-stall-descendant-progress.md",
   "ticket": "stall-watchdog:kills-controller-on-long-drill",
-  "milestones": [
+  "ruling": "D-FLEET-7 RULED 2026-09-29: >=10 CPU-s descendant-only rusage growth per 120-s sample is progress; existing sample counts and 600-s budget unchanged",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Reuse the landed in-repository tools/launchd/lib/proc_rusage.py helper; no package capability is introduced."
+    }
+  ],
+  "velocity": {
+    "estimated_total_loc": 160,
+    "estimated_days": 1,
+    "target_loc_per_day": 160
+  },
+  "features": [
     {
       "id": "M1",
-      "title": "Measure and decide the discriminator",
+      "description": "Measure descendant CPU for the drill and both reference wedges on the rig",
+      "dependencies": [],
+      "estimated_loc": 40,
       "acceptance_criteria": [
-        "Observe rig cumulative CPU-time deltas for a 46-row scratch harness, W1, and W2 with stable PID identity and 120-second endpoints; sandboxed external-path or socket observations are uninformative.",
-        "Observe /bin/bash tools/launchd/test_mission_stall.sh exit 0 with named 04:45-shape, W1, and W2 arms only if one measured threshold separates them; base is 16/16 green.",
-        "If measured deltas overlap, observe a policy decision returned to Mark and no watchdog implementation."
+        "Rig measurement records 120-second descendant rusage windows for the 46-row drill, W1, and W2",
+        "M1 confirms ps -S misses reaped-child CPU and records a discriminator recommendation"
       ],
-      "files": ["tools/launchd/test_mission_stall.sh"]
+      "passes": true,
+      "started": "2026-09-27",
+      "completed": "2026-09-27",
+      "notes": "Landed d9e1211d0; D-FLEET-7 approved the measured >=10 CPU-s descendant-only threshold on 2026-09-29."
     },
     {
       "id": "M2",
-      "title": "Implement approved cumulative CPU-time arm",
-      "acceptance_criteria": [
-        "After Mark approves a measured threshold, observe bash -n tools/launchd/mission-control.sh exit 0.",
-        "Observe /bin/bash tools/launchd/test_mission_stall.sh exit 0 with the 04:45-shape live, W1 and W2 stalled, and named mutation victims red under one-line arm mutations.",
-        "Observe controller-run env -i HOME=$HOME PATH=$PATH make test-launchd-drivers exit 0 outside the sandbox; a sandbox run touching sockets or external paths is uninformative."
+      "description": "Implement the approved descendant-only rusage progress arm in the Claude stall watchdog",
+      "dependencies": [
+        "M1"
       ],
-      "files": ["tools/launchd/mission-control.sh", "tools/launchd/test_mission_stall.sh", "changelogs/v0.32-current.md"]
+      "estimated_loc": 120,
+      "acceptance_criteria": [
+        "Two samples of the same descendant process identity count >=1000 centiseconds of rusage growth as progress, excluding the controller root and avoiding double counting",
+        "Existing sample counts, 600-s budget, and other progress arms remain unchanged; unavailable or malformed rusage is surfaced rather than fabricated as progress",
+        "bash -n tools/launchd/mission-control.sh exits zero",
+        "/bin/bash tools/launchd/test_mission_stall.sh exits zero with drill live, W1 and W2 stalled, and named mutations red, including deterministic vanished-child coverage",
+        "Controller-run env -i HOME=$HOME PATH=$PATH make test-launchd-drivers exits zero outside the sandbox"
+      ],
+      "passes": true,
+      "started": "2026-09-29",
+      "completed": "2026-09-29",
+      "notes": "Implemented in 983ae18dc and corrected in 1f0c57882. bash -n passed; focused stall suite 35/35; env-clean make test-launchd-drivers rc 0. Independent Sonnet evaluation round 2 PASS 88/100, 0 blocking. Merge and origin/dev CI remain Gate 3b requirements."
     }
-  ],
-  "status": "planned"
+  ]
 }

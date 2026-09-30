@@ -338,14 +338,26 @@ func FindNVMNodeBinDir(binaryName string) string {
 	return filepath.Dir(path)
 }
 
-// FindNativeBinary looks for a native (non-Node.js) binary installed by the
-// VSCode Claude Code extension. Returns the absolute path, or empty string.
-// The native binary is a Mach-O/ELF executable that does not require Node,
-// making it the preferred option when available.
+// FindNativeBinary looks for a native (non-Node.js) Claude Code binary.
+// Returns the absolute path, or empty string. The native binary is a
+// Mach-O/ELF executable that does not require Node, making it the preferred
+// option when available.
+//
+// The native installer's ~/.local/bin/<name> is checked FIRST: it self-updates,
+// while the copy bundled in a VSCode extension only moves when VSCode updates
+// extensions. Measured 2026-09-29: the bundled copy was 2.1.259 against an
+// installed 2.1.284, rejected claude-sonnet-5-5 as unrecognized_model, and
+// resolved the "sonnet" alias to claude-sonnet-5 — so every agent eval ran on
+// whatever CLI VSCode last happened to ship.
 func FindNativeBinary(binaryName string) string {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return ""
+	}
+
+	installed := filepath.Join(homeDir, ".local", "bin", binaryName)
+	if info, err := os.Stat(installed); err == nil && !info.IsDir() {
+		return installed
 	}
 
 	// Map Go arch names to VSCode extension arch names

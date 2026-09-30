@@ -104,7 +104,7 @@ All milestones have been completed and tests pass.
 
 ## Multi-Session Continuity (NEW)
 
-**Sprint execution can now span multiple Codex sessions!**
+**Sprint execution can now span multiple Claude Code sessions!**
 
 Based on [Anthropic's long-running agent patterns](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents), sprint-executor implements the "Coding Agent" pattern:
 
@@ -193,10 +193,10 @@ Run checkpoint after completing a milestone.
 **Example:**
 ```bash
 # Verify M1 (should pass if entity sync works)
-.Codex/skills/sprint-executor/scripts/milestone_checkpoint.sh M1 M-TASK-HIERARCHY
+.claude/skills/sprint-executor/scripts/milestone_checkpoint.sh M1 M-TASK-HIERARCHY
 
 # Verify M2 (will fail if OTEL attributes not propagated)
-.Codex/skills/sprint-executor/scripts/milestone_checkpoint.sh M2 M-TASK-HIERARCHY
+.claude/skills/sprint-executor/scripts/milestone_checkpoint.sh M2 M-TASK-HIERARCHY
 ```
 
 **Exit codes:**
@@ -220,7 +220,7 @@ Finalize a completed sprint by moving design docs and updating status.
 
 **Example:**
 ```bash
-.Codex/skills/sprint-executor/scripts/finalize_sprint.sh M-BUG-RECORD-UPDATE-INFERENCE v0_4_9
+.claude/skills/sprint-executor/scripts/finalize_sprint.sh M-BUG-RECORD-UPDATE-INFERENCE v0_4_9
 ```
 
 ## Execution Flow
@@ -231,7 +231,7 @@ Finalize a completed sprint by moving design docs and updating status.
 
 ```bash
 # ALWAYS run session_start.sh first!
-.Codex/skills/sprint-executor/scripts/session_start.sh <sprint-id>
+.claude/skills/sprint-executor/scripts/session_start.sh <sprint-id>
 ```
 
 This prints "Here's where we left off" summary. **Then skip to Phase 2** to continue with the next milestone.
@@ -384,7 +384,7 @@ Task(
     Acceptance criteria met:
     {acceptance_criteria_checklist}
 
-    Co-Authored-By: Codex Opus 4.6 <noreply@anthropic.com>"
+    Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
     ```
 
     **Step 5: Report back**
@@ -488,7 +488,7 @@ make check-file-sizes  # NO file >800 lines (CI-only gate; make test/lint DON'T 
 **Match CI locally before declaring done — `make test`/`lint` are NARROWER than CI**
 (added 2026-07-21 after iter-72 shipped TWO CI-only reds from the same gap — the local
 done-gate missing remote checks): (a) `make check-file-sizes` — a file already near 800
-lines (iter-72: `Codex.go` was at 799; a 30-line addition tipped it to 829, red) trips
+lines (iter-72: `claude.go` was at 799; a 30-line addition tipped it to 829, red) trips
 this gate invisibly to `make test`/`lint`; fix by extracting a cohesive block to a sibling
 file, not by shaving one line. (b) **Windows** — `test-windows`/`Build windows-latest` run
 the Go suite on Windows you never exercise locally; re-scan new tests for the rule-#10
@@ -784,7 +784,7 @@ The sprint-executor receives:
   "sprint_id": "M-CACHE",
   "plan_path": "design_docs/planned/v0_6_3/m-cache-sprint-plan.md",
   "progress_path": ".ailang/state/sprints/sprint_M-CACHE.json",
-  "session_id": "Codex-session-xyz",
+  "session_id": "claude-session-xyz",
   "estimated_duration": "3 days",
   "total_loc_estimate": 650
 }
@@ -794,7 +794,7 @@ The sprint-executor receives:
 
 With `session_continuity: true`:
 - Receives `session_id` from sprint-planner handoff
-- Uses `--resume SESSION_ID` for Codex CLI
+- Uses `--resume SESSION_ID` for Claude Code CLI
 - Preserves full conversation context from design → planning → execution
 - Maintains understanding of design decisions and rationale
 
@@ -827,7 +827,7 @@ As the last agent in the chain:
 - Git commits create a reversible audit trail
 - TodoWrite provides real-time visibility into progress
 - Test-driven development is non-negotiable - tests must pass
-- **Multi-session continuity** - Sprint can span multiple Codex sessions
+- **Multi-session continuity** - Sprint can span multiple Claude Code sessions
 - **JSON state tracking** - Structured progress in `.ailang/state/sprints/sprint_<id>.json`
 - **Parallel execution** - Independent milestones run as concurrent Task sub-agents (Phase 2B)
 - **Failing tests first** - Sub-agents MUST write failing tests before implementation — no exceptions

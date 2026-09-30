@@ -2,6 +2,7 @@ package coordinator
 
 import (
 	"context"
+	"fmt"
 	"time"
 )
 
@@ -97,12 +98,21 @@ func (s *SQLiteStore) MarkTaskFailed(ctx context.Context, id string, taskErr err
 
 // MarkTaskCancelled marks a task as cancelled
 func (s *SQLiteStore) MarkTaskCancelled(ctx context.Context, id string) error {
-	now := time.Now()
-	_, err := s.db.ExecContext(ctx,
-		"UPDATE tasks SET status = ?, completed_at = ? WHERE id = ?",
-		TaskStatusCancelled, now, id,
+	res, err := s.db.ExecContext(ctx,
+		"UPDATE tasks SET status = ?, completed_at = ? WHERE id = ? AND status = ?",
+		TaskStatusCancelled, time.Now(), id, TaskStatusPending,
 	)
-	return err
+	if err != nil {
+		return err
+	}
+	if n, err := res.RowsAffected(); err != nil || n > 0 {
+		return err
+	}
+	var current string
+	if err := s.db.QueryRowContext(ctx, "SELECT status FROM tasks WHERE id = ?", id).Scan(&current); err != nil {
+		return fmt.Errorf("cancel %s: %w", id, err)
+	}
+	return fmt.Errorf("%w: %s is %s", ErrTaskNotCancellable, id, current)
 }
 
 // MarkTaskPendingApproval marks a task as awaiting human approval
@@ -141,8 +151,8 @@ func (s *SQLiteStore) RequeueTask(ctx context.Context, id string) error {
 // ResetTaskToPending resets a running task back to pending state.
 func (s *SQLiteStore) ResetTaskToPending(ctx context.Context, id string) error {
 	_, err := s.db.ExecContext(ctx,
-		"UPDATE tasks SET status = ?, started_at = NULL WHERE id = ?",
-		TaskStatusPending, id,
+		"UPDATE tasks SET status = ?, started_at = NULL WHERE id = ? AND status IN (?, ?)",
+		TaskStatusPending, id, TaskStatusQueued, TaskStatusRunning,
 	)
 	return err
 }

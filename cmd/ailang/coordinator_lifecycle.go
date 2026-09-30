@@ -166,8 +166,15 @@ func coordinatorStart(args []string) error {
 		prefix := pubsub.TopicPrefixFromEnv()
 		var dispatcher *cloudrun.Dispatcher
 		dispErr := errors.Join(projErr, regionErr)
+		// The job reads its directive from Firestore by task id — see
+		// internal/storage/firestore/task_directives.go for why not an env var.
+		var directiveClient *fsstore.Client
 		if dispErr == nil {
-			dispatcher, dispErr = cloudrun.NewDispatcher(ctx, projectID, region, prefix)
+			directiveClient, dispErr = fsstore.NewClientForProject(ctx, projectID)
+		}
+		if dispErr == nil {
+			dispatcher, dispErr = cloudrun.NewDispatcher(ctx, projectID, region, prefix,
+				fsstore.NewTaskDirectiveStore(directiveClient))
 		}
 		if dispErr != nil {
 			fmt.Printf("  %s Cloud Run Jobs dispatcher: %v\n", yellow("⚠"), dispErr)

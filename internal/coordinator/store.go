@@ -232,9 +232,14 @@ type Store interface {
 	MarkTaskCompleted(ctx context.Context, id string, result *ExecuteResult) error
 	MarkTaskFailed(ctx context.Context, id string, err error) error
 	MarkTaskRejected(ctx context.Context, id string) error // Human rejected the work
+	// MarkTaskCancelled cancels a task that is still pending, atomically; any
+	// other status returns ErrTaskNotCancellable (wrapped, naming the status).
 	MarkTaskCancelled(ctx context.Context, id string) error
-	RequeueTask(ctx context.Context, id string) error        // Reset status to pending for next stage execution
-	ResetTaskToPending(ctx context.Context, id string) error // Reset running task back to pending (worktree limit recovery)
+	RequeueTask(ctx context.Context, id string) error // Reset status to pending for next stage execution
+	// ResetTaskToPending returns a queued or running task to pending for a
+	// retry. Any other status is left alone (nil): a task cancelled or decided
+	// while a dispatch attempt was in flight must not be resurrected by it.
+	ResetTaskToPending(ctx context.Context, id string) error
 
 	// Duplicate detection. `since` is the oldest task that may suppress a new
 	// one; the status rule is BlocksDuplicate, shared by every implementation.

@@ -207,12 +207,11 @@ func TestObserveAnthropicQuota_WithinRationIsOK(t *testing.T) {
 	}
 }
 
-// TestEvaluateAnthropicQuota_UsesItsOwnThirteenPercentRation pins Mark's 2026-09-24 ruling
-// with the reading that prompted it: 36% of the week used, 3.17 days in. Under the fleet's
-// 10%/day that is over (31.7% allowed) and World fell through to fallback controllers;
-// under Anthropic's 13%/day it is 41.2% allowed and admitted. The Codex control proves the
-// other buckets did not move with it.
-func TestEvaluateAnthropicQuota_UsesItsOwnThirteenPercentRation(t *testing.T) {
+// TestWeeklyPace_AnthropicAndCodexShareTheWeekdayRule replays the 2026-09-24 reading that
+// prompted the 13%/day Anthropic ruling (36% used, Thursday 09:01, window from Monday 05:00).
+// Under the weekday pace (2026-09-30) both buckets share one rule: 19+24+24+9.02 = 76.02
+// weekday hours of 120 = 63.3% allowed, so both are admitted.
+func TestWeeklyPace_AnthropicAndCodexShareTheWeekdayRule(t *testing.T) {
 	now := time.Date(2026, 9, 24, 9, 1, 0, 0, time.UTC)
 	windows := func() []CodexQuotaWindow {
 		return []CodexQuotaWindow{
@@ -220,19 +219,17 @@ func TestEvaluateAnthropicQuota_UsesItsOwnThirteenPercentRation(t *testing.T) {
 			{UsedPercent: 36, WindowMinutes: 7 * 24 * 60, ResetsAt: time.Date(2026, 9, 28, 5, 0, 0, 0, time.UTC)},
 		}
 	}
-
 	a := AnthropicQuotaObservation{ObservedAt: now, Enforced: true, Windows: windows()}
 	evaluateAnthropicQuota(&a, now)
 	if a.State != "ok" || a.Blocked() {
-		t.Fatalf("anthropic state = %q blocked=%v, want ok (36%% used vs ~41.2%% allowed at 13%%/day)", a.State, a.Blocked())
+		t.Fatalf("anthropic state = %q blocked=%v, want ok (36%% used vs 63.3%% allowed)", a.State, a.Blocked())
 	}
-	if got := a.Windows[1].AllowancePercent; got < 40.7 || got > 41.7 {
-		t.Errorf("anthropic weekly allowance = %.1f%%, want ~41.2%% (13%%/day x 3.17 days)", got)
+	if got := a.Windows[1].AllowancePercent; got < 62.8 || got > 63.8 {
+		t.Errorf("anthropic weekly allowance = %.1f%%, want ~63.3%% (76.02 weekday hours of 120)", got)
 	}
-
 	c := CodexQuotaObservation{ObservedAt: now, Windows: windows()}
 	c.evaluate(now)
-	if c.State != "over" {
-		t.Errorf("codex state = %q on the same reading, want over — the 13%% ration is Anthropic's alone", c.State)
+	if c.State != "ok" || c.Windows[1].AllowancePercent != a.Windows[1].AllowancePercent {
+		t.Errorf("codex state = %q allowance %.1f%%, want ok at the same pace as anthropic", c.State, c.Windows[1].AllowancePercent)
 	}
 }

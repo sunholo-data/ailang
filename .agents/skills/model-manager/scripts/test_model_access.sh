@@ -11,7 +11,7 @@ if [ $# -ne 2 ]; then
     echo ""
     echo "Examples:"
     echo "  $0 openai gpt-5.1"
-    echo "  $0 anthropic claude-sonnet-4-5-20250929"
+    echo "  $0 anthropic claude-sonnet-5-5"
     echo "  $0 google gemini-3-pro-preview-11-2025"
     echo "  $0 ollama-cloud glm-5.3-flash   # tag WITHOUT :cloud — the script adds it"
     exit 1
@@ -19,6 +19,11 @@ fi
 
 PROVIDER="$1"
 MODEL="$2"
+
+# The fleet's keys live in secrets.env, which interactive shells do not source.
+SECRETS="${AILANG_SECRETS_ENV:-$HOME/.config/ailang/secrets.env}"
+# shellcheck disable=SC1090
+[ -f "$SECRETS" ] && . "$SECRETS"
 
 echo "Testing: $PROVIDER/$MODEL"
 echo ""

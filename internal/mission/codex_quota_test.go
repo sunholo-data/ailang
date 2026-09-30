@@ -32,7 +32,8 @@ func TestCodexQuotaProviderWindows(t *testing.T) {
 		{"weekly primary", quotaWindow(now, 17, 10080), nil, 0, "over"},
 		{"weekly secondary", quotaWindow(now, 20, 300), quotaWindow(now, 17, 10080), 0, "over"},
 		{"zero is real", quotaWindow(now, 0, 10080), nil, 0, "ok"},
-		{"exact first day allowance", quotaWindow(now, 10, 10080), nil, 0, "ok"},
+		{"an hour into Monday 10% is over the pace", quotaWindow(now, 10, 10080), nil, 0, "over"},
+		{"under an hour of weekday pace", quotaWindow(now, 0.5, 10080), nil, 0, "ok"},
 		{"short exhausted", quotaWindow(now, 100, 300), quotaWindow(now, 1, 10080), 0, "over"},
 		{"short only", quotaWindow(now, 1, 300), nil, 0, "unknown"},
 		{"missing percentage", map[string]any{"window_minutes": 10080, "resets_at": now.Add(7 * 24 * time.Hour).Unix()}, nil, 0, "unknown"},
@@ -120,7 +121,7 @@ func TestCodexQuotaValidRefreshRecoversMalformedRecord(t *testing.T) {
 	}
 	bad := quotaFixture(t, now.Add(-time.Minute), quotaWindow(now, 99, 10080), nil)
 	bad = []byte(strings.Replace(string(bad), `"used_percent":99`, `"used_percent":"99"`, 1))
-	good := quotaFixture(t, now, quotaWindow(now, 1, 10080), nil)
+	good := quotaFixture(t, now, quotaWindow(now, 0, 10080), nil) // 0%: within the pace on any day of the week
 	if err := os.WriteFile(filepath.Join(dir, "rollout-refresh.jsonl"), append(append(append(bad, '\n'), good...), '\n'), 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -169,8 +170,9 @@ func TestCodexQuotaBoundedScanRequiresNewerObservation(t *testing.T) {
 // allowed" against a real allowance of 20.1%, and the reason named only the staleness —
 // pointing at a refresh that could not have helped, because the bucket was 3.6x over.
 //
-// The reset is placed 5 days out on a 7-day window so the window STARTED 2 days ago,
-// reproducing the measured 20% allowance rather than the 10% first-day floor.
+// The reset is placed 5 days out on a 7-day window so the window STARTED 2 days ago —
+// Saturday 10:00 for a Monday 10:00 reading. Under the weekday pace only Monday's 10 hours
+// count: 8.33% allowed, well above the old uninitialised zero this test guards.
 func TestCodexQuotaBlockedStatesStillReportAllowance(t *testing.T) {
 	now := time.Date(2026, 9, 14, 10, 0, 0, 0, time.UTC)
 	twoDaysIn := func(used float64) map[string]any {
@@ -184,9 +186,9 @@ func TestCodexQuotaBlockedStatesStillReportAllowance(t *testing.T) {
 		wantAllowance float64
 		wantOverNote  bool
 	}{
-		{"stale and over ration", 73, 16 * time.Minute, "stale", 20, true},
-		{"stale but within ration", 5, 16 * time.Minute, "stale", 20, false},
-		{"fresh and over ration", 73, 0, "over", 20, false},
+		{"stale and over ration", 73, 16 * time.Minute, "stale", 8.33, true},
+		{"stale but within ration", 5, 16 * time.Minute, "stale", 8.33, false},
+		{"fresh and over ration", 73, 0, "over", 8.33, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			o := parseCodexQuota(quotaFixture(t, now.Add(-tc.age), twoDaysIn(tc.used), nil), now)

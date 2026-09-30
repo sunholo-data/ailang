@@ -1,7 +1,8 @@
 package coordinator
 
 // Resolve a pending approval card when its coordinator PR merges — and fire
-// the handoff the approval would have fired.
+// the handoff the approval would have fired. A PR closed without merging
+// rejects the card, with no re-attempt and no handoff.
 //
 // The PR -> card direction, run by the daemon. `ailang coordinator prs --landed`
 // is the manual form and exists for the backlog; this is the standing one.
@@ -43,9 +44,13 @@ const landedCardSweepInterval = 10 * time.Minute
 // `ailang coordinator prs --landed --apply`.
 var landedCardSweepSince = time.Date(2026, 9, 23, 15, 0, 0, 0, time.UTC)
 
-// mergedPRLookup finds the merged PR for a branch; nil, nil when there is none.
-// A variable so tests do not reach GitHub.
-var mergedPRLookup = lookupMergedPRREST
+// settledPRLookup finds how a branch's PR ended: State "MERGED", or "CLOSED"
+// when it was closed unmerged and nothing from the branch is still open; nil,
+// nil while one is open or none exists. A variable so tests do not reach GitHub.
+var settledPRLookup = lookupSettledPRREST
+
+// githubAPIBase is GitHub's REST root; a variable so a test can serve it.
+var githubAPIBase = "https://api.github.com"
 
 // sweepLandedCards is called from the poll loop. Cloud only: that is where
 // cloud tasks' cards live, and a local task merges through its worktree.
@@ -73,7 +78,15 @@ func (d *Daemon) runLandedCardSweep(ctx context.Context, token string) {
 		d.logger.Printf("Warning: landed-card sweep could not list tasks: %v", err)
 		return
 	}
-	for _, task := range tasks {
+	for i, task := range tasks {
+		// Cloud Run sends SIGTERM when it scales an idle instance to zero,
+		// often mid-sweep. Every remaining lookup then failed with "context
+		// canceled", one warning per card — 234 in a week, which read as a
+		// sweep that never worked while it was resolving cards on schedule.
+		if ctx.Err() != nil {
+			d.logger.Printf("landed-card sweep interrupted (%v) after %d of %d cards; the next run resumes", ctx.Err(), i, len(tasks))
+			return
+		}
 		if task.CreatedAt.Before(landedCardSweepSince) {
 			continue
 		}
@@ -88,8 +101,11 @@ func (d *Daemon) runLandedCardSweep(ctx context.Context, token string) {
 		if strings.Count(repo, "/") != 1 {
 			continue
 		}
-		pr, err := mergedPRLookup(ctx, token, repo, BranchForTask(task.ID))
+		pr, err := settledPRLookup(ctx, token, repo, BranchForTask(task.ID))
 		if err != nil {
+			if ctx.Err() != nil {
+				continue // interrupted: reported once, at the top of the loop
+			}
 			d.logger.Printf("Warning: landed-card sweep cannot read PRs for %s in %s: %v", task.ID, repo, err)
 			continue
 		}
@@ -99,6 +115,10 @@ func (d *Daemon) runLandedCardSweep(ctx context.Context, token string) {
 		approval, err := d.taskStore.GetApprovalRequestByTaskAnyStatus(ctx, task.ID)
 		if err != nil {
 			d.logger.Printf("Warning: landed-card sweep cannot read approval for %s: %v", task.ID, err)
+			continue
+		}
+		if pr.State == "CLOSED" {
+			d.rejectClosedCard(ctx, task, approval, pr)
 			continue
 		}
 		ok, reason := DecideLandedCard(task, approval, pr)
@@ -124,11 +144,41 @@ func (d *Daemon) runLandedCardSweep(ctx context.Context, token string) {
 	}
 }
 
-// lookupMergedPRREST asks GitHub's REST API for a merged PR from branch.
-func lookupMergedPRREST(ctx context.Context, token, repo, branch string) (*LandedPR, error) {
+// rejectClosedCard rejects a card whose PR was closed unmerged. Closing is the
+// decision, as merging is the approval: the operator already said no on
+// GitHub. RetriggerOnReject stays false — a re-attempt would reopen the very
+// work that was just turned down.
+func (d *Daemon) rejectClosedCard(ctx context.Context, task *TaskRecord, approval *ApprovalRequestRecord, pr *LandedPR) {
+	ok, reason := DecideClosedCard(task, approval, pr)
+	if !ok {
+		return
+	}
+	_, err := ProcessApprovalRequest(ctx, &ApprovalParams{
+		TaskID:        task.ID,
+		Action:        "reject",
+		ApprovedBy:    fmt.Sprintf("pr-closed #%d", pr.Number),
+		Channel:       "pr-closed",
+		Feedback:      reason,
+		Store:         d.taskStore,
+		MsgStore:      d.msgStore,
+		AgentRegistry: d.agentRegistry,
+		ObsBackend:    d.obsBackend,
+		SkipMerge:     true,
+	})
+	if err != nil {
+		d.logger.Printf("ERROR: closed card %s (%s) could not be rejected: %v", task.ID, reason, err)
+		return
+	}
+	d.logger.Printf("Closed card rejected: %s — %s", task.ID, reason)
+}
+
+// lookupSettledPRREST asks GitHub's REST API how branch's PR ended.
+func lookupSettledPRREST(ctx context.Context, token, repo, branch string) (*LandedPR, error) {
 	owner := repo[:strings.IndexByte(repo, '/')]
-	q := url.Values{"state": {"closed"}, "head": {owner + ":" + branch}}
-	apiURL := fmt.Sprintf("https://api.github.com/repos/%s/pulls?%s", repo, q.Encode())
+	// state=all: a closed PR only settles the card when nothing from the same
+	// branch is still open, and that needs the open ones in the same listing.
+	q := url.Values{"state": {"all"}, "head": {owner + ":" + branch}}
+	apiURL := fmt.Sprintf("%s/repos/%s/pulls?%s", githubAPIBase, repo, q.Encode())
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
@@ -150,11 +200,12 @@ func lookupMergedPRREST(ctx context.Context, token, repo, branch string) (*Lande
 	if err := json.NewDecoder(resp.Body).Decode(&prs); err != nil {
 		return nil, fmt.Errorf("decoding PR list: %w", err)
 	}
-	return mergedFromREST(prs, branch), nil
+	return settledFromREST(prs, branch), nil
 }
 
 type restPR struct {
 	Number   int     `json:"number"`
+	State    string  `json:"state"` // "open" or "closed"
 	MergedAt *string `json:"merged_at"`
 	Head     struct {
 		Ref string `json:"ref"`
@@ -164,16 +215,31 @@ type restPR struct {
 	} `json:"user"`
 }
 
-// mergedFromREST picks the merged PR for branch out of a REST listing. A
-// closed-unmerged PR has merged_at null and is not a landing.
-func mergedFromREST(prs []restPR, branch string) *LandedPR {
+// settledFromREST reads how branch's PR ended from a REST listing, in order of
+// precedence: any merged PR is MERGED; else any open PR means undecided (nil);
+// else the newest closed-unmerged PR is CLOSED. Only exact head matches count.
+func settledFromREST(prs []restPR, branch string) *LandedPR {
+	var mine []restPR
 	for _, p := range prs {
-		if p.MergedAt == nil || p.Head.Ref != branch {
-			continue
+		if p.Head.Ref == branch {
+			mine = append(mine, p)
 		}
-		// The list endpoint does not carry merged_by; say so rather than
-		// attribute the merge to the PR's author.
-		return &LandedPR{Number: p.Number, State: "MERGED", HeadRefName: p.Head.Ref, MergedAt: *p.MergedAt}
 	}
-	return nil
+	for _, p := range mine {
+		if p.MergedAt != nil {
+			// The list endpoint does not carry merged_by; say so rather than
+			// attribute the merge to the PR's author.
+			return &LandedPR{Number: p.Number, State: "MERGED", HeadRefName: p.Head.Ref, MergedAt: *p.MergedAt}
+		}
+	}
+	var closed *LandedPR
+	for _, p := range mine {
+		if p.State == "open" {
+			return nil
+		}
+		if closed == nil || p.Number > closed.Number {
+			closed = &LandedPR{Number: p.Number, State: "CLOSED", HeadRefName: p.Head.Ref}
+		}
+	}
+	return closed
 }

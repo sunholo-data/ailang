@@ -135,9 +135,10 @@ func loadPinnedStdout() {
 }
 
 // stripRunPreamble removes `ailang run`'s status preamble — "→ Type checking...",
-// "→ Effect checking...", "✓ Running <path>" — from captured output. The runner
-// prints that preamble to STDOUT, not stderr, so a raw comparison against a
-// manifest pin would mismatch on every single pinned entry.
+// "→ Effect checking...", "✓ Running <path>" — from captured output. Since
+// v0.48.1 the runner is quiet by default and prints that preamble (under
+// --verbose) to stderr, so this is a no-op for current binaries; it stays for
+// output captured from older ones, and for combined stdout+stderr captures.
 //
 // The strip anchors on the example's OWN path, so it is deterministic and
 // cannot eat program output unless the program prints that exact line. (Adding

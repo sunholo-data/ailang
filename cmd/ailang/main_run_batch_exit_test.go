@@ -45,7 +45,7 @@ func runBatchExitFixture(t *testing.T, inputs ...string) (string, int) {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
-	args := append([]string{"run", "--caps", "IO,Env", "--entry", "main", "--batch", src}, inputs...)
+	args := append([]string{"run", "--verbose", "--caps", "IO,Env", "--entry", "main", "--batch", src}, inputs...)
 	cmd := exec.CommandContext(ctx, ailangBin, args...)
 	out, err := cmd.CombinedOutput()
 

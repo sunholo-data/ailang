@@ -142,3 +142,9 @@ func ClassifyCompletionStatus(changedFiles []string, branchPushed bool, expectCh
 // tell "someone else has this" from "the database is broken" either dispatches
 // twice or stops dispatching, and both were reachable before this existed.
 var ErrTaskNotClaimable = errors.New("task not claimable: not in pending status")
+
+// ErrTaskNotCancellable is MarkTaskCancelled refusing a task that is no longer
+// pending. Cancel stops work that has not started; a running task's executor
+// would still finish and write over the cancel, and a pending_approval task is
+// decided with reject, which also resolves its card.
+var ErrTaskNotCancellable = errors.New("task not cancellable: only a pending task can be cancelled")

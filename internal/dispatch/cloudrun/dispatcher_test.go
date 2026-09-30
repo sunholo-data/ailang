@@ -90,7 +90,7 @@ func TestDispatchEnvVarOverrides(t *testing.T) {
 	// nothing about which var is missing when it fails.
 	for _, name := range []string{
 		"AILANG_TASK_ID", "AILANG_AGENT_ID", "AILANG_WORKSPACE", "AILANG_PROVIDER",
-		"AILANG_DIRECTIVE", "AILANG_REPO_URL", "AILANG_BRANCH", "AILANG_WORK_TIER",
+		"AILANG_DIRECTIVE", "AILANG_DIRECTIVE_SOURCE", "AILANG_REPO_URL", "AILANG_BRANCH", "AILANG_WORK_TIER",
 		"AILANG_ACKNOWLEDGE_ONLY",
 	} {
 		if !hasEnvVar(envVars, name) {
@@ -105,8 +105,11 @@ func TestDispatchEnvVarOverrides(t *testing.T) {
 		"AILANG_WORKSPACE": "/workspace/ailang",
 		"AILANG_PROVIDER":  "claude",
 		"AILANG_DIRECTIVE": "Fix the parser bug",
-		"AILANG_REPO_URL":  "https://github.com/sunholo-data/ailang",
-		"AILANG_BRANCH":    "dev",
+		// The job reads the directive from Firestore; the inline copy above is
+		// only for job images that predate that read.
+		"AILANG_DIRECTIVE_SOURCE": "firestore",
+		"AILANG_REPO_URL":         "https://github.com/sunholo-data/ailang",
+		"AILANG_BRANCH":           "dev",
 		// Unset on a bare DispatchParams — and empty is exactly what the gate
 		// reads as tier 2. The fail-closed default is the assertion here.
 		"AILANG_WORK_TIER": "",

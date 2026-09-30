@@ -55,6 +55,22 @@ emit_recipe() {
   emit "recipe $pm $reason"
 }
 
+# Anthropic model FAMILY of a role value, so the generator != judge check compares
+# models rather than spellings: the Agent-tool alias `sonnet` and the CLI pin
+# `claude:claude-sonnet-5-5` are the same model. Without this, a codex-dry fire that
+# hands the executor to claude:claude-sonnet-5-5 (rung 2, 2026-09-29) would be judged
+# by the `sonnet` evaluator unnoticed.
+family() {
+  v=${1#claude:}
+  case "$v" in
+    sonnet|claude-sonnet-*) printf 'sonnet' ;;
+    opus|claude-opus-*) printf 'opus' ;;
+    fable|claude-fable-*) printf 'fable' ;;
+    haiku|claude-haiku-*) printf 'haiku' ;;
+    *) printf '%s' "$v" ;;
+  esac
+}
+
 ROLE=${1:-}
 if [ -z "$ROLE" ]; then
   emit "refuse fail-closed:role-missing"
@@ -107,7 +123,7 @@ case "$PIN" in
     # Bare alias. Evaluator collision check: generator != judge.
     if [ "$ROLE" = "evaluator" ]; then
       EXEC_RESOLVED="${MISSION_EXECUTOR_RESOLVED:-${MISSION_EXECUTOR_MODEL:-}}"
-      if [ "$PIN" = "$EXEC_RESOLVED" ]; then
+      if [ "$(family "$PIN")" = "$(family "$EXEC_RESOLVED")" ]; then
         FALLBACK="${MISSION_EVALUATOR_FALLBACK:-}"
         if [ -z "$FALLBACK" ]; then
           emit "refuse fail-closed:evaluator-collision-no-fallback"

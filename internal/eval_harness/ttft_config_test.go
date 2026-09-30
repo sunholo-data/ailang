@@ -31,11 +31,11 @@ func TestModelFamilyParsed(t *testing.T) {
 			t.Errorf("model %q: model_family=%q, want %q", tc.key, cfg.ModelFamily, tc.wantFamily)
 		}
 	}
-	// harness_suite was 7 prior to v0.18.0; M-MOTOKO-EXECUTOR-ADAPTER added
-	// motoko-claude-sonnet-4-6 (4-way claude-sonnet-4-6 family with claude/
-	// opencode/pi/motoko all running the same model through different harnesses).
-	if len(modelreg.GlobalModelsConfig.HarnessSuite) != 8 {
-		t.Errorf("harness_suite: expected 8 models, got %d: %v", len(modelreg.GlobalModelsConfig.HarnessSuite), modelreg.GlobalModelsConfig.HarnessSuite)
+	// harness_suite went 7 -> 8 in v0.18.0 (motoko-claude-sonnet-4-6) and back to
+	// 7 on 2026-09-29, when that row was retired: it reached Claude via OpenRouter,
+	// which TestModels_FirstPartyVendorsNeverViaOpenRouter now forbids.
+	if len(modelreg.GlobalModelsConfig.HarnessSuite) != 7 {
+		t.Errorf("harness_suite: expected 7 models, got %d: %v", len(modelreg.GlobalModelsConfig.HarnessSuite), modelreg.GlobalModelsConfig.HarnessSuite)
 	}
 }
 

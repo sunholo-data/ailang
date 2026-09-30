@@ -1,6 +1,22 @@
 package coordinator
 
-import "context"
+import (
+	"context"
+	"errors"
+)
+
+// ErrDispatchPermanent marks a dispatch that will fail identically on every
+// retry — an oversized directive, a request the backend rejects as malformed.
+// The daemon fails the task on it instead of resetting it to pending: reset,
+// task-68771ff3 was re-dispatched every five minutes for hours (2026-09-30)
+// while its status said only "pending".
+var ErrDispatchPermanent = errors.New("dispatch cannot succeed")
+
+// MaxDirectiveBytes bounds a task directive. It is stored as one Firestore
+// document (1 MiB limit) that the job reads by task id; anything larger is
+// refused at dispatch rather than truncated, since truncation silently drops
+// whatever the request put last.
+const MaxDirectiveBytes = 900 * 1024
 
 // CloudDispatcher triggers remote task execution on a cloud backend.
 // Implementations are backend-specific (Cloud Run Jobs, K8s Jobs, etc.)

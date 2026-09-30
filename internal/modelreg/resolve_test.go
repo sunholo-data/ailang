@@ -232,6 +232,61 @@ func TestModels_AnthropicRowsDeclareCacheRates(t *testing.T) {
 	}
 }
 
+// A claude-CLI row must pin the full model id, never a CLI alias. The aliases
+// re-point at the newest model in the family: measured 2026-09-29, "sonnet" ran
+// claude-sonnet-5 on the CLI the agent harness used (2.1.259) and claude-sonnet-5-5
+// on 2.1.284, so the agent_suite's claude-sonnet-4-6 seat was benchmarking a
+// different model under the 4.6 label. The full id is the only value that cannot drift.
+func TestModels_ClaudeCLIRowsNeverUseAnAlias(t *testing.T) {
+	if err := InitModelsConfig(); err != nil {
+		t.Fatalf("init: %v", err)
+	}
+	aliases := map[string]bool{"sonnet": true, "opus": true, "haiku": true, "fable": true, "mythos": true}
+	for _, k := range GlobalModelsConfig.sortedKeys() {
+		m := GlobalModelsConfig.Models[k]
+		if m.AgentCLI == nil || *m.AgentCLI != "claude" || m.AgentModelName == nil {
+			continue
+		}
+		if aliases[strings.ToLower(*m.AgentModelName)] {
+			t.Errorf("%s: agent_model_name %q is a CLI alias; pin the full id (%s)", k, *m.AgentModelName, m.APIName)
+		}
+	}
+}
+
+// RULE (Mark, 2026-09-29): Anthropic, OpenAI and Google models are NEVER reached
+// through OpenRouter. We hold direct access to all three (claude CLI subscription,
+// codex subscription, Vertex), so an OpenRouter route for them is metered spend on
+// a model we already pay for — and a second, differently-routed measurement of it.
+// Scope is the vendors' proprietary lines: open-weights releases (google/gemma-*,
+// openai/gpt-oss-*) are hosted by third parties on OpenRouter and are allowed.
+func TestModels_FirstPartyVendorsNeverViaOpenRouter(t *testing.T) {
+	if err := InitModelsConfig(); err != nil {
+		t.Fatalf("init: %v", err)
+	}
+	firstParty := func(slug string) bool {
+		switch {
+		case strings.HasPrefix(slug, "anthropic/"):
+			return true
+		case strings.HasPrefix(slug, "openai/"):
+			return !strings.HasPrefix(slug, "openai/gpt-oss")
+		case strings.HasPrefix(slug, "google/"):
+			return strings.HasPrefix(slug, "google/gemini")
+		}
+		return false
+	}
+	for _, k := range GlobalModelsConfig.sortedKeys() {
+		m := GlobalModelsConfig.Models[k]
+		if m.Provider == "openrouter" && firstParty(m.APIName) {
+			t.Errorf("%s: provider openrouter serves first-party model %q — use the vendor's direct lane", k, m.APIName)
+		}
+		if m.AgentModelName != nil {
+			if slug, ok := strings.CutPrefix(*m.AgentModelName, "openrouter/"); ok && firstParty(slug) {
+				t.Errorf("%s: agent_model_name %q routes a first-party model through OpenRouter", k, *m.AgentModelName)
+			}
+		}
+	}
+}
+
 func strp(s string) *string { return &s }
 
 // The rig banks a harness's wire name as the stage model. It resolves as the

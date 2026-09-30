@@ -12,7 +12,7 @@ The sprint-planner receives:
   "type": "design_doc_ready",
   "correlation_id": "task-123",
   "design_doc_path": "design_docs/planned/v0_6_3/m-semantic-caching.md",
-  "session_id": "Codex-session-abc"
+  "session_id": "claude-session-abc"
 }
 ```
 

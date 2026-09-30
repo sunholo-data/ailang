@@ -207,6 +207,46 @@ else
   bad "arm7c settings.json wires coordinator first + spawn-pin hook beside it" "n=$n c0=$c0 m1=$m1 c1=$c1"
 fi
 
+# --- D-FLEET-2: declared fallback chain, in order, nothing else ----------------
+# The ledger lives under AILANG_STATE_DIR so it survives run_hook's temp HOME.
+FB_STATE=$(mktemp -d)
+FB_ENV=(MISSION_CONTROL_ACTIVE=1 AILANG_STATE_DIR="$FB_STATE" MISSION_FIRE_ID=fire-1
+        MISSION_DESIGNER_MODEL=codex:gpt-6-astra
+        MISSION_DESIGNER_FALLBACK=pi:openrouter/z-ai/glm-5.3,opus)
+fbpayload() { jq -nc --arg m "$1" '{hook_event_name:"PreToolUse",tool_name:"Agent",tool_input:{model:$m,subagent_type:"general-purpose",prompt:"MISSION-ROLE: designer\nDesign it",description:"d"}}'; }
+mark_dead() { env AILANG_STATE_DIR="$FB_STATE" MISSION_FIRE_ID="${3:-fire-1}" \
+  MISSION_DESIGNER_MODEL=codex:gpt-6-astra MISSION_DESIGNER_FALLBACK=pi:openrouter/z-ai/glm-5.3,opus \
+  bash "$ROOT/tools/launchd/mission-lane-dead.sh" designer "$1" "$2" >/dev/null 2>&1; }
+
+run_hook "$(fbpayload opus)" "${FB_ENV[@]}"
+want "fb1 live pin still denies the fallback alias" "$DEC" "deny"
+run_hook "$(fbpayload opus)" "${FB_ENV[@]}" MISSION_OVER_RATION="openrouter"
+want "fb1b a LIVE pin denies even when every earlier chain entry is unavailable" "$DEC" "deny"
+mark_dead codex:gpt-6-astra "timeout x3 (verdict /tmp/x.json)"
+run_hook "$(fbpayload opus)" "${FB_ENV[@]}"
+want "fb2 dead pin but a LIVE earlier chain entry still denies (in order)" "$DEC" "deny"
+run_hook "$(fbpayload opus)" "${FB_ENV[@]}" MISSION_OVER_RATION="openrouter codex"
+if [ "$DEC" = "allow" ] && contains "$REASON" "allow:declared-fallback"; then ok "fb3 dead pin + over-ration earlier entry allows the next declared alias"; else bad "fb3 allow declared fallback" "dec=$DEC reason=$REASON"; fi
+mark_dead pi:openrouter/z-ai/glm-5.3 "tool_hang rc 18"
+run_hook "$(fbpayload opus)" "${FB_ENV[@]}"
+want "fb4 dead pin + dead earlier entry allows the next declared alias" "$DEC" "allow"
+run_hook "$(fbpayload sonnet)" "${FB_ENV[@]}"
+want "fb5 an UNDECLARED alias is still denied" "$DEC" "deny"
+run_hook "$(fbpayload opus)" MISSION_CONTROL_ACTIVE=1 AILANG_STATE_DIR="$FB_STATE" MISSION_FIRE_ID=fire-2 \
+  MISSION_DESIGNER_MODEL=codex:gpt-6-astra MISSION_DESIGNER_FALLBACK=pi:openrouter/z-ai/glm-5.3,opus
+want "fb6 a new fire starts clean (other fire's ledger ignored)" "$DEC" "deny"
+run_hook "$(fbpayload opus)" MISSION_CONTROL_ACTIVE=1 AILANG_STATE_DIR="$FB_STATE" \
+  MISSION_DESIGNER_MODEL=codex:gpt-6-astra MISSION_DESIGNER_FALLBACK=pi:openrouter/z-ai/glm-5.3,opus
+want "fb7 no MISSION_FIRE_ID fails closed" "$DEC" "deny"
+# The helper refuses what it cannot vouch for.
+env AILANG_STATE_DIR="$FB_STATE" MISSION_FIRE_ID=fire-1 MISSION_DESIGNER_MODEL=codex:gpt-6-astra \
+  MISSION_DESIGNER_FALLBACK=pi:openrouter/z-ai/glm-5.3,opus bash "$ROOT/tools/launchd/mission-lane-dead.sh" designer sonnet "x" >/dev/null 2>&1
+want "fb8 helper refuses an undeclared lane (rc 2)" "$?" "2"
+env AILANG_STATE_DIR="$FB_STATE" MISSION_FIRE_ID=fire-1 MISSION_DESIGNER_MODEL=codex:gpt-6-astra \
+  MISSION_DESIGNER_FALLBACK=pi:openrouter/z-ai/glm-5.3,opus bash "$ROOT/tools/launchd/mission-lane-dead.sh" designer opus "" >/dev/null 2>&1
+want "fb9 helper refuses empty evidence (rc 2)" "$?" "2"
+rm -rf "$FB_STATE"
+
 echo ""
 echo "==== $PASS passed, $FAIL failed ===="
 [ "$FAIL" -eq 0 ]
