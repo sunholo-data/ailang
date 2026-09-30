@@ -10,12 +10,16 @@ FROM europe-west1-docker.pkg.dev/${PROJECT}/ailang/agent-base:latest
 # change, not one to fold in silently here.
 ARG PI_PACKAGE=@earendil-works/pi-coding-agent
 ARG PI_VERSION=0.85.1
+# Codex pinned 2026-09-30 — see Dockerfile.agent-codex (gpt-6.1-sol needs >= 0.159.2).
+ARG CODEX_VERSION=0.159.2
 
 # All five executor CLIs — order matters for npm install speed (largest first)
 USER root
 RUN npm install -g @anthropic-ai/claude-code \
     && npm install -g @google/gemini-cli \
-    && npm install -g @openai/codex \
+    && npm install -g "@openai/codex@${CODEX_VERSION}" \
+    && codex --version </dev/null | grep -qx "codex-cli ${CODEX_VERSION}" \
+       || { echo "codex --version = $(codex --version </dev/null), pinned ${CODEX_VERSION}" >&2; exit 1; } \
     && npm install -g opencode-ai \
     && { npm uninstall -g @mariozechner/pi-coding-agent 2>/dev/null || true; } \
     && npm install -g "${PI_PACKAGE}@${PI_VERSION}" \

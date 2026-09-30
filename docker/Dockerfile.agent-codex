@@ -4,9 +4,15 @@
 ARG PROJECT
 FROM europe-west1-docker.pkg.dev/${PROJECT}/ailang/agent-base:latest
 
-# OpenAI Codex CLI
+# OpenAI Codex CLI — PINNED (2026-09-30). Unpinned, each image took whatever npm had
+# at build time, so the 09-28 images carried 0.158.0 while the mission roles moved to
+# gpt-6.1-sol, which needs >= 0.159.2 (older CLIs 400 it exactly like a nonexistent
+# model). Bump deliberately; agent-codex-go inherits this image.
+ARG CODEX_VERSION=0.159.2
 USER root
-RUN npm install -g @openai/codex
+RUN npm install -g "@openai/codex@${CODEX_VERSION}" \
+    && codex --version </dev/null | grep -qx "codex-cli ${CODEX_VERSION}" \
+       || { echo "codex --version = $(codex --version </dev/null), pinned ${CODEX_VERSION}" >&2; exit 1; }
 USER ailang
 
 # The image declares the executor CLI it installs. cmd/ailang execute-job
