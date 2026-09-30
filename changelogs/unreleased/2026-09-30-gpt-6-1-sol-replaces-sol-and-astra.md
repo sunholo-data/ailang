@@ -1,5 +1,5 @@
 ### Changed
-- **GPT-6.1 Sol replaces GPT-6 Sol and GPT-6 Astra in the mission pipelines.** New `gpt6-1-sol` registry row ($2/$10 per 1M, codex subscription lane, needs codex-cli >= 0.159.2). It now heads the planner and executor roles, is the controller's codex rung, and takes astra's designer rung. Measured in one agent-mode pool (core+frontier, 31 benchmarks): 30/31 vs astra 29/31 vs sol 27/31, with zero capability failures and 35% fewer tokens than sol. Standard-mode placement is pending — the OpenAI API account is out of credit.
+- **GPT-6.1 Sol measured, and the registry `roles:` heads follow the mission lanes.** Complements the driver/quorum switch in `2026-09-30-sol-6-1-lanes.md`: `roles.planner` and `roles.executor` now lead with `gpt6-1-sol` (they still named `gpt6-sol`). Agent-mode core+frontier in one pool (31 benchmarks): 30/31 vs astra 29/31 vs sol 27/31, zero capability failures, 35% fewer tokens than sol; banked into the agent ratings. Standard-mode placement is pending — the OpenAI API account is out of credit.
 
 ### Fixed
 - **GPT-6 rows were cost-killed in agent mode.** `gpt6-sol`, `gpt6-astra` and the new `gpt6-1-sol` had no `budgets:` block, so the default $0.50 cap killed codex runs at $0.49–$0.72 before the model finished. They now carry the standard 3.0M-token work gate with a dollar backstop sized so the token gate binds first.
