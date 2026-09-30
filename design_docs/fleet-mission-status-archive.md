@@ -54,3 +54,20 @@ is the inherited Go-suite red. Resume predicate, shared with #1329: dev `test` g
 squash-merge both. Clause map: **1 product share** unmeasured; **2 turnaround** at risk (three items wait:
 P0 #2 and P0 #4 on Mark, #1329 and #1330 on V1's red); **3 one queue** MET (16 open tickets, none new);
 **4 idle is free** MET; **5 no regressions** MET (nothing landed unverified).
+
+## STATUS 2026-09-27 — ITERATION 4: P0 #2 M1 **measured**. On the rig, `ps -S` cannot see reaped-child CPU; `proc_pid_rusage` separates the drill from both wedges. Threshold returns to Mark as **D-FLEET-7**. Evaluator PASS 87.
+
+#1329 and #1330 are **merged** (`c912320fe`, `4d8dff929`), so P0 #3's commit-blind half and P1 #0 have
+landed. At Gate 1, dev `CI` was red on one `launchd drivers (bash 3.2)` timing assertion
+(`test_driver_notify.sh`, "hanging gh comment", elapsed 8 s against a 7 s limit). A rerun was green:
+that is the `ci:launchd-driver-suite-flakes` class (P2 #11), now reproduced once on dev.
+**P0 #2 M1** (D-FLEET-4): a new `tools/launchd/measure_stall_cpu.sh` plus a `proc_rusage.py` helper.
+Both are measurement only; the live watchdog is unchanged. **Finding:** on macOS 26.6.2, `ps -S` reads
+`0:00.00` for a parent whose reaped child burned about 4 CPU-s, so the plan's candidate instrument
+cannot work. Per ~121 s window, rusage (self plus reaped children) reads: drill **62.5–97.7**, w1-git
+**0.73–1.72**, w1-gh **0.22–0.31**, w2 **0**. Idle `claude` roots accrue **0.57–1.60** in the same
+window, so an arm must exclude the root. Recommendation in D-FLEET-7: 10 CPU-s per window over the
+descendants only. Branch `fleet/iter4-stall-cpu-measure`; PR and merge at Gate 3b. Clause map: **1 product share**
+unmeasured; **2 turnaround** at risk (P0 #2 back on Mark; P0 #4 routable); **3 one queue** MET (17
+open, one new: `rotate-log:status-flag-mutates-and-world-resolves-to-status-archive`); **4 idle is free**
+MET; **5 no regressions** MET (nothing live changed).

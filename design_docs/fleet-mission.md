@@ -43,6 +43,10 @@ mission.
 
 Newest **3** STATUS stamps live here; older ones move to `fleet-mission-status-archive.md`.
 
+## STATUS 2026-09-30 — ITERATION 8: paired rotate-log design PARKED · D-FLEET-9; quorum BLOCKED twice, independent Sonnet technical checkpoint PASS, implementation score UNMEASURED
+
+Synthetic A/B registries reproduce a wrong-checkout write; `--status` mutates the status archive, while default World log selection is correct. No implementation or ticket resolution. The intentional flag break needs Mark, and the next design must audit all shared-loader callers or isolate stricter rotate resolution. [Design](planned/m-mission-rotate-log-safe.md), [independent evaluation](planned/m-mission-rotate-log-safe-evaluation.md), [evidence](planned/m-mission-rotate-log-safe-evidence.json). Goal unmoved: clause 1 unmeasured, 2 at risk, 3–4 met, 5 upheld by shipping nothing unverified. Dev CI is independently red on changelog hygiene; handed to V1.
+
 ## STATUS 2026-09-29 — ITERATION 7: D-FLEET-7 stall-watchdog M2 merged in [#1399](https://github.com/sunholo-data/ailang/pull/1399) (`ce1c0639f`), independent evaluator PASS 88; merge CI SUCCESS (CI run 36562795612; 20 check rows settled success/skipped)
 
 The approved arm counts descendant `proc_pid_rusage` growth of at least 10 CPU-s per existing 120-s sample, excluding the controller root's own CPU. The sample count and 600-s budget are unchanged. Focused stall suite 35/35 and full `make test-launchd-drivers` passed locally; all 22 PR checks settled success/skipped. Sonnet round 1 found two surviving root-accounting mutations and child churn; round 2 confirmed the fixes, PASS 88 with zero blocking. The ticket was resolved with merge SHA `ce1c0639f` after merge-commit CI. An initial Gate-2 mis-pick of `skill:heartbeat-relative-path-absent-in-world` missed Mark's ranked charter head; its design blocked at quorum twice and is parked for D-FLEET-8, with no heartbeat implementation. Clause map: **1 product share** unmeasured; **2 turnaround** improved for one ticket; **3 one queue** MET; **4 idle is free** MET; **5 no regressions** MET after merge CI.
@@ -66,23 +70,6 @@ checks went green, and Mark merged #1377 at 15:26Z (`eec86ca4f`). On the merge c
 `launchd drivers (bash 3.2)` are all success. Both tickets are resolved with that SHA (19 open). Clause map: **1 product share** unmeasured; **2
 turnaround** at risk (two tickets resolved; a product red delayed them, the third time); **3 one queue** MET
 (19 open); **4 idle is free** MET; **5 no regressions** MET (nothing landed unverified).
-
-## STATUS 2026-09-27 — ITERATION 4: P0 #2 M1 **measured**. On the rig, `ps -S` cannot see reaped-child CPU; `proc_pid_rusage` separates the drill from both wedges. Threshold returns to Mark as **D-FLEET-7**. Evaluator PASS 87.
-
-#1329 and #1330 are **merged** (`c912320fe`, `4d8dff929`), so P0 #3's commit-blind half and P1 #0 have
-landed. At Gate 1, dev `CI` was red on one `launchd drivers (bash 3.2)` timing assertion
-(`test_driver_notify.sh`, "hanging gh comment", elapsed 8 s against a 7 s limit). A rerun was green:
-that is the `ci:launchd-driver-suite-flakes` class (P2 #11), now reproduced once on dev.
-**P0 #2 M1** (D-FLEET-4): a new `tools/launchd/measure_stall_cpu.sh` plus a `proc_rusage.py` helper.
-Both are measurement only; the live watchdog is unchanged. **Finding:** on macOS 26.6.2, `ps -S` reads
-`0:00.00` for a parent whose reaped child burned about 4 CPU-s, so the plan's candidate instrument
-cannot work. Per ~121 s window, rusage (self plus reaped children) reads: drill **62.5–97.7**, w1-git
-**0.73–1.72**, w1-gh **0.22–0.31**, w2 **0**. Idle `claude` roots accrue **0.57–1.60** in the same
-window, so an arm must exclude the root. Recommendation in D-FLEET-7: 10 CPU-s per window over the
-descendants only. Branch `fleet/iter4-stall-cpu-measure`; PR and merge at Gate 3b. Clause map: **1 product share**
-unmeasured; **2 turnaround** at risk (P0 #2 back on Mark; P0 #4 routable); **3 one queue** MET (17
-open, one new: `rotate-log:status-flag-mutates-and-world-resolves-to-status-archive`); **4 idle is free**
-MET; **5 no regressions** MET (nothing live changed).
 
 ## CURRENT GOAL
 
@@ -155,6 +142,8 @@ Shared per-role routing from `mission-control`. Overrides in `~/.config/ailang/m
 | D-FLEET-7 | RULED 2026-09-29 (Mark, attended: "I agree with D-FLEET-7 recommendation") | **Stall-watchdog CPU arm: approve the measured threshold?** M1 found two things. On the rig, `ps -S` cannot see reaped-child CPU; `proc_pid_rusage` (`ri_child_*`) can. And an idle `claude` root accrues 0.57–1.60 CPU-s per 120 s. **Recommendation: YES to M2 with this arm:** count a window as progress when the cumulative rusage CPU of the controller's DESCENDANTS, excluding the root, grows by **≥10 CPU-s per 120-s sample**. Measured windows: drill 62.5–97.7, w1-git ≤1.72, w1-gh ≤0.31, w2 0 (`design_docs/planned/sprint-plan-stall-descendant-progress.md`, M1 result). It needs `python3` (ctypes) in the driver path. Sample counts and the 600 s budget stay unchanged. Risk: a W1 whose poll condition is itself heavy (for example a `go test`) would read live. **RULING: YES to M2 with the recommended arm** (≥10 CPU-s of descendant rusage per 120-s sample counts as progress; sample counts and the 600-s budget unchanged). The heavy-poll W1 risk is accepted. Note: #1391 (2026-09-29) separately bounded pi controller commands at 540 s; this arm is for the claude long-drill shape. |
 | D-FLEET-8 | OPEN 2026-09-29 | Heartbeat design blocked after two quorum rounds. Should the next design update both tracked `.claude/skills/mission-control/resources/**` and `.agents/skills/mission-control/resources/**` call sites? **YES (recommended):** fix both copies and remove the divergence; **NO:** scope to the user-named authoritative `.claude` copy and leave a separate mirror ticket. Default if unanswered: park this heartbeat ticket; no implementation. |
 
+| D-FLEET-9 | OPEN 2026-09-30 | Paired rotate-log design is needs-human-review after two BLOCKED quorums. Approve the proposed legacy flag migration and next design scope? **A (recommended):** reject old `--status` before writes, replace with `--stream status`, and revise with a complete shared-loader caller audit or rotate-only strictness; prevents misleading mutation. **B:** require guarded deprecation instead; next designer must specify opt-in mutation and a sunset before planning. Either option still requires fresh independent quorum and the normal approved-plan/execute gates. Default if unanswered: keep both rotate-log tickets parked and take the next READY charter item on the next fire. |
+
 ## Queue (top = next; tags: [NEXT] [IN-SPRINT] [PARKED] [LANDED] [RULED OUT])
 
 The live tickets are **`ailang mission ticket open`**. This section is **Mark's triage order**,
@@ -177,14 +166,14 @@ evidence in each line). Still re-check at HEAD in Gate 2 before working a ticket
    tools/launchd/mission-heartbeat.sh stamp` calls remain across gate-0..gate-5 resources. They do not
    exist from World's (or Stapledon's) CWD. `$AILANG_DRIVER_SRC` is used 0 times in `resources/`.
    **4 slots lost.**
-2. [NEXT] `mission:rotate-log-registry-cwd` + `rotate-log:status-flag-mutates-and-world-resolves-to-status-archive`
+2. [PARKED · D-FLEET-9] `mission:rotate-log-registry-cwd` + `rotate-log:status-flag-mutates-and-world-resolves-to-status-archive`
    (one command, one sprint):
    - The registry still defaults to CWD-relative `missions` (`mission_cmd.go:25,155-186`).
      `AILANG_MISSION_REGISTRY` (absolute path, ad1bf98d3) is an escape hatch that nothing sets.
    - `--status` means "rotate the status archive" and always writes. It needs a rename or a real
      report-only mode.
    - **3 + 1 slots lost** (stapledon, v1, world).
-3. `mission-base:hardcoded-origin-dev`: `mission-base.sh:10` defaults `REF` to `origin/dev`.
+3. [NEXT] `mission-base:hardcoded-origin-dev`: `mission-base.sh:10` defaults `REF` to `origin/dev`.
    Stapledon's default branch is `main`, and nothing sets `MISSION_BASE_REF`, so every stapledon Gate 1
    base is recorded by hand. Derive the default branch. **3 slots lost.**
 **P1 — a lane misreported as dead, or a failure nobody sees** (the class that cost 2026-09-28/29's

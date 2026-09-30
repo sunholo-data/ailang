@@ -1,12 +1,15 @@
 # Fleet Mission Dashboard
 
-Snapshot as of iteration 7 — 2026-09-29. History: [charter](fleet-mission.md) and [log](fleet-mission-log.md).
+Snapshot: iteration 8 — 2026-09-30. History: [charter](fleet-mission.md), [log](fleet-mission-log.md).
 
-- **Latest release**: v0.48.0. The fleet does not release.
-- **This iteration**: D-FLEET-7 stall-watchdog M2 merged in [#1399](https://github.com/sunholo-data/ailang/pull/1399), `ce1c0639f`; independent Sonnet PASS 88, zero blocking; merge-commit CI SUCCESS (CI run 36562795612; 20 check rows settled success/skipped).
-- **Parked**: heartbeat relative-path ticket after two blocked quorums. D-FLEET-8 asks whether to update both tracked skill copies. No heartbeat implementation landed.
-- **Next**: follow the charter's 2026-09-29 human-ranked queue; do not re-sort it by `slots_lost`.
-- **Open tickets**: 16.
-- **Loop**: `dev.ailang.mission-fleet`, every 6h, pinned to `origin/dev`; 0-ticket fire exits before agent spend.
-- **Routing**: designer gpt-6-astra (Agent fallback), planner/executor gpt-6-sol (Agent), independent evaluator Sonnet 5.5 (`claude-sub` fallback after Agent model rejection).
-- **Cost**: quorum about $0.24 metered; role token totals unavailable; Codex and Anthropic subscription buckets.
+- **Latest release**: v0.49.0; Fleet does not release.
+- **This fire**: paired rotate-log fix PARKED, D-FLEET-9. Synthetic wrong-checkout write confirmed; default World target allegation refuted. No implementation or ticket resolution.
+- **Review**: quorum BLOCKED twice (missing shared-loader caller audit); independent Sonnet technical checkpoint PASS, implementation UNMEASURED.
+- **Next READY**: mission-base hardcoded origin/dev; quota-429 verdict; pre-dirty verdict. Preserve Mark's 2026-09-29 order.
+- **Parked for Mark**: D-FLEET-8 heartbeat mirror scope; D-FLEET-9 rotate flag compatibility + next design scope.
+- **Open tickets**: 18. Goal unmoved; product-share window unmeasured, turnaround at risk.
+- **CI**: dev 64e10b72c red on changelog index hygiene; handed to mission-v1. No merge over required red.
+- **Loop**: every 6h, dev.ailang.mission-fleet, origin/dev pin; zero-ticket exit before spend.
+- **Actual roles**: controller/designer/planner/executor Codex gpt-6.1-sol; independent evaluator claude-sonnet-4-6 through claude-sub after Agent rejected model.
+- **Quota**: Codex within ration; Ollama/OpenRouter over ration; Anthropic usage probe unknown/429, declared Sonnet CLI fallback worked. No thresholds changed.
+- **Cost**: quorum $0.020752 metered; Codex/Anthropic subscription buckets. Judge 1,906,817 cumulative tokens incl. cache; list-price estimate is not metered spend.

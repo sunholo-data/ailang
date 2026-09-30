@@ -12,7 +12,8 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
-| 7 | 2026-09-29 | D-FLEET-7 stall CPU arm merged in #1399 (PASS 88); heartbeat design blocked twice and parked for D-FLEET-8 [HARNESS] |
+| 8 | 2026-09-30 | paired rotate-log design parked after two quorum blocks; independent Sonnet review completed, compatibility decision D-FLEET-9 [HARNESS] |
+| 7 | 2026-09-29 | approved stall-watchdog CPU arm merged; heartbeat design parked after two quorum blocks [HARNESS] |
 | 6 | 2026-09-28 | iteration 5's kicker and sandbox fixes re-judged (PASS 92 / PASS 96) and combined in #1377; merge blocked on the inherited dev `lint` red [HARNESS] |
 | 5 | 2026-09-28 | slot crashed at Gate 3b (API DNS error) with both fixes built and evaluated; no record written, recovered by iteration 6 [HARNESS] |
 | 4 | 2026-09-27 | stall-watchdog CPU measured: `ps -S` blind on the rig, rusage separates drill from wedges; threshold to Mark (D-FLEET-7) [HARNESS] |
