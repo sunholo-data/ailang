@@ -71,3 +71,23 @@ descendants only. Branch `fleet/iter4-stall-cpu-measure`; PR and merge at Gate 3
 unmeasured; **2 turnaround** at risk (P0 #2 back on Mark; P0 #4 routable); **3 one queue** MET (17
 open, one new: `rotate-log:status-flag-mutates-and-world-resolves-to-status-archive`); **4 idle is free**
 MET; **5 no regressions** MET (nothing live changed).
+
+## STATUS 2026-09-28 — ITERATION 6: iteration 5's two fixes **re-judged (PASS 92, PASS 96) and LANDED in [#1377](https://github.com/sunholo-data/ailang/pull/1377) (`eec86ca4f`)**; both tickets resolved
+
+Iteration 5 (07:56 fire) built both fixes and crashed at Gate 3b on an API DNS error (`ENOTFOUND`,
+slot verdict `CRASHED_at=gate-3b`) with no record. The 23:09 fire before it died in the Aqua-session
+loss that its own pick is about. This iteration resumed rather than redid that work. **(1)** The
+`blocking=all` ticket `rig:aqua-session-lost:windowserver-watchdog`: `cron-kicker.sh` now checks the
+gui domain first, logs `SESSION-LOST` once and sends one bounded, fail-soft notice. On restore it
+re-stamps state, and it derives mission labels from `missions/*.toml`, so fleet and stapledon are
+covered. **(2)** P0 #4 `pi-runner:sandbox-extensions-not-wired` (D-FLEET-6): fail-closed extension,
+`-e` wiring, rc 15/16/17. Fresh sonnet evaluators: **PASS 92** and **PASS 96**, 0 blocking. Each
+single-fix PR conflicted on the changelog within minutes, and the scope guard refuses a rebased
+push. So both commits land in one PR, with their entries at the END of `[Unreleased]`. #1377 is
+MERGEABLE, and every check except `lint` is green or pending. `lint` is required and red on dev itself
+since `1fcc479f1` (a direct push; `internal/executor/motoko/healthcheck.go` gofmt), which is outside
+the fleet's scope, so it is sent to `mission-v1`. **Update, same iteration:** `96fd6c5e1` fixed dev `lint`. The record push re-tested, all 4 required
+checks went green, and Mark merged #1377 at 15:26Z (`eec86ca4f`). On the merge commit, `test`, `lint` and
+`launchd drivers (bash 3.2)` are all success. Both tickets are resolved with that SHA (19 open). Clause map: **1 product share** unmeasured; **2
+turnaround** at risk (two tickets resolved; a product red delayed them, the third time); **3 one queue** MET
+(19 open); **4 idle is free** MET; **5 no regressions** MET (nothing landed unverified).
