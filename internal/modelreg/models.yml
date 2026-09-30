@@ -502,6 +502,35 @@ models:
       agent run reveals that.
 
   # OpenAI GPT-6 Sol + Luna (API model objects created 2026-09-14; on OpenRouter 2026-09-22).
+  # OpenAI GPT-6.1 Sol — the 6.1 mid tier. 1.05M context, 128K max output, knowledge cutoff
+  # Apr 30 2026, reasoning.effort low/medium(DEFAULT)/high/xhigh/max — NO none/minimal
+  # (unlike gpt-6-sol). Source: developers.openai.com/api/docs/models/gpt-6.1-sol
+  # (fetched 2026-09-30).
+  gpt6-1-sol:
+    api_name: "gpt-6.1-sol"
+    provider: "openai"
+    default_thinking: "on"  # medium effort by default and none is not offered
+    description: "GPT-6.1 Sol - GPT-6.1 mid tier (Sep 2026)"
+    env_var: "OPENAI_API_KEY"
+    agent_cli: "codex"  # needs codex-cli >= 0.159.2 on the ChatGPT-account lane
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM convention; declared ceiling is 128000
+    pricing:
+      input_per_1k: 0.002     # $2.00 per 1M = $0.002 per 1K
+      output_per_1k: 0.010    # $10.00 per 1M = $0.010 per 1K
+    notes: |
+      GPT-6.1 Sol. $2/$10 per 1M (cached input $0.10/M): same list price as gpt-6-sol,
+      1/5 of gpt-6-astra. NAME TRAP: gpt6-1-sol is GPT-6.1; gpt6-sol is GPT-6; gpt5-6-sol
+      is GPT-5.6. Read the digits.
+      2026-09-30 (Mark, attended): replaces gpt-6-sol AND gpt-6-astra as every mission
+      codex lane (controller rung, planner, executor, designer) and replaces gpt6-astra as
+      the design-quorum OpenAI reviewer seat.
+      SUBSCRIPTION LANE VERIFIED 2026-09-30: `codex exec --model gpt-6.1-sol` rc=0 on
+      codex-cli 0.159.2 with the ChatGPT account (0.158.0 and the pre-09:05Z model list
+      400'd "not supported when using Codex with a ChatGPT account").
+      API ACCESS NOT VERIFIED: the 2026-09-30 chat/completions probe returned "You have no
+      credits remaining" — the OPENAI_API_KEY org is out of credit, which also leaves this
+      quorum seat absent until the account is topped up. Not placed on any eval suite yet.
+
   # The GPT-6 generation's mid and small tiers, below gpt-6-astra. Both: 1.05M context
   # (922K max input), 128K max output, reasoning.effort none/low/medium(DEFAULT)/high/
   # xhigh/max — unlike astra, "none" exists, so thinking CAN be switched off.

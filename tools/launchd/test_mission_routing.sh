@@ -28,10 +28,10 @@ driver="$ROOT/tools/launchd/mission-control.sh"
 # take a primary. These two arms were briefly flipped to astra earlier the same
 # day and are restored — sol keeps both primaries on months of in-role track
 # record, against astra's single fizzbuzz round-trip and an rc=0 probe.
-grep -q 'MISSION_EXECUTOR_MODEL:-codex:gpt-6-sol' "$driver" \
-  && ok "executor primary is Codex Sol (gpt-6-sol since 2026-09-22)" || bad "executor primary is Codex Sol (gpt-6-sol since 2026-09-22)" "missing default"
-grep -q 'MISSION_PLANNER_MODEL:-codex:gpt-6-sol' "$driver" \
-  && ok "planner primary is Codex Sol (gpt-6-sol since 2026-09-22)" || bad "planner primary is Codex Sol (gpt-6-sol since 2026-09-22)" "missing default"
+grep -q 'MISSION_EXECUTOR_MODEL:-codex:gpt-6.1-sol' "$driver" \
+  && ok "executor primary is Codex Sol 6.1 (since 2026-09-30)" || bad "executor primary is Codex Sol 6.1 (since 2026-09-30)" "missing default"
+grep -q 'MISSION_PLANNER_MODEL:-codex:gpt-6.1-sol' "$driver" \
+  && ok "planner primary is Codex Sol 6.1 (since 2026-09-30)" || bad "planner primary is Codex Sol 6.1 (since 2026-09-30)" "missing default"
 # The fallback chains must stay `pi:*`-headed. A `codex:*` value here would run
 # UNPROBED — the codex loop hands off to a value that only the *pi* loop probes —
 # which is the "pin running unprobed on World" defect ailang#611 fixed. This is the
@@ -259,7 +259,7 @@ grep -A40 '_an_probed=' "$driver" | grep -q "fbvar=\"MISSION_\${role}_FALLBACK\"
   && ok "all three provider loops cover all four roles" \
   || bad "all three provider loops cover all four roles" "a loop still covers only PLANNER EXECUTOR"
 # The designer needs a chain for the PINNED case; the rotation covers the rotating one.
-grep -q 'MISSION_DESIGNER_FALLBACK:-codex:gpt-6-astra' "$driver" \
+grep -q 'MISSION_DESIGNER_FALLBACK:-codex:gpt-6.1-sol' "$driver" \
   && ok "pinned designer has a codex rung" || bad "pinned designer has a codex rung" "designer chain missing"
 # ASTRA IS OUT OF THE CONTROLLER LADDER (2026-09-06, on measurement). It was 60% of codex
 # spend: four overnight CONTROLLER fires cost 2,121,499 tokens, because a controller drives the
@@ -275,9 +275,9 @@ grep -qE 'MISSION_(MODEL_PREFS|CONTROLLER_FALLBACK):-[^}]*gpt-6-astra' "$driver"
 # It also bought almost nothing under an account-wide Anthropic limit (see the 08-16 note
 # below), and dropping it restores Mark's 2026-07-16 rule that Fable is for high-cognition
 # ROLES. The ladder is now monotonically cheaper with one bucket per rung.
-grep -q 'MISSION_MODEL_PREFS:-claude-opus-5-5,codex:gpt-6-sol}' "$driver" \
-  && ok "controller ladder is opus-5-5 -> gpt-6-sol (fable dropped 2026-09-22)" \
-  || bad "controller ladder is opus-5-5 -> gpt-6-sol (fable dropped 2026-09-22)" "wrong ladder"
+grep -q 'MISSION_MODEL_PREFS:-claude-opus-5-5,codex:gpt-6.1-sol}' "$driver" \
+  && ok "controller ladder is opus-5-5 -> gpt-6.1-sol (retiered 2026-09-30)" \
+  || bad "controller ladder is opus-5-5 -> gpt-6.1-sol (retiered 2026-09-30)" "wrong ladder"
 # The reorder-to-Anthropic-first arm is deliberately NOT reinstated. Anthropic's limit is
 # account-wide, not per-model — the 08-16 drought quota-limited opus-5, opus-4-8 AND fable-5
 # together — so "opus spent but fable healthy" is not a state this account reaches, and the
@@ -288,9 +288,9 @@ grep -q 'MISSION_MODEL_PREFS:-claude-opus-5-5,codex:gpt-6-sol}' "$driver" \
 grep -q 'MISSION_CONTROLLER_FALLBACK:-pi:ollama' "$driver" \
   && ok "controller fallback starts at pi (sol de-duplicated 2026-09-22)" \
   || bad "controller fallback starts at pi (sol de-duplicated 2026-09-22)" "missing"
-# The designer keeps its astra rung — the change is scoped to the controller.
-grep -q 'MISSION_DESIGNER_FALLBACK:-codex:gpt-6-astra' "$driver" \
-  && ok "designer keeps its astra rung" || bad "designer keeps its astra rung" "astra was removed from the designer too"
+# The designer keeps a codex rung — Sol 6.1 since 2026-09-30 (it replaced astra there).
+grep -q 'MISSION_DESIGNER_FALLBACK:-codex:gpt-6.1-sol' "$driver" \
+  && ok "designer keeps its codex rung (gpt-6.1-sol)" || bad "designer keeps its codex rung (gpt-6.1-sol)" "codex rung removed from the designer"
 
 # The chain walker must exist, or a comma value would be passed to pi as ONE
 # model name and every fallback would 404.
@@ -552,12 +552,13 @@ grep -q 'enum in this build lists' "$skill_all" \
 # across three billing surfaces.
 # AMENDED 2026-09-25 (Mark, attended): GLM 5.3 and Kimi K3 replace deepseek-v4-flash, so
 # designers and quorum reviewers share one vendor pool.
-grep -q 'now `claude:claude-opus-5-5` → `codex:gpt-6-astra` → `pi:ollama/glm-5.3:cloud` → `pi:ollama/kimi-k3:cloud` → repeat' "$skill_all" \
-  && ok "S3 designer rotation is opus-5-5 -> astra -> glm-5.3 -> kimi-k3 (four vendors)" \
-  || bad "S3 designer rotation is opus-5-5 -> astra -> glm-5.3 -> kimi-k3 (four vendors)" "rotation is not the four-entry list"
-grep -q 'MISSION_DESIGNER_FALLBACK:-codex:gpt-6-astra,pi:ollama/glm-5.3:cloud,pi:ollama/kimi-k3:cloud,pi:openrouter/z-ai/glm-5.3,pi:openrouter/moonshotai/kimi-k3' tools/launchd/mission-control.sh \
-  && ok "S3b designer fallback chain follows the rotation (astra -> glm-5.3 -> kimi-k3)" \
-  || bad "S3b designer fallback chain follows the rotation (astra -> glm-5.3 -> kimi-k3)" "driver chain still names another model"
+# AMENDED 2026-09-30 (Mark, attended): Sol 6.1 replaces astra in the OpenAI slot.
+grep -q 'now `claude:claude-opus-5-5` → `codex:gpt-6.1-sol` → `pi:ollama/glm-5.3:cloud` → `pi:ollama/kimi-k3:cloud` → repeat' "$skill_all" \
+  && ok "S3 designer rotation is opus-5-5 -> sol-6.1 -> glm-5.3 -> kimi-k3 (four vendors)" \
+  || bad "S3 designer rotation is opus-5-5 -> sol-6.1 -> glm-5.3 -> kimi-k3 (four vendors)" "rotation is not the four-entry list"
+grep -q 'MISSION_DESIGNER_FALLBACK:-codex:gpt-6.1-sol,pi:ollama/glm-5.3:cloud,pi:ollama/kimi-k3:cloud,pi:openrouter/z-ai/glm-5.3,pi:openrouter/moonshotai/kimi-k3' tools/launchd/mission-control.sh \
+  && ok "S3b designer fallback chain follows the rotation (sol-6.1 -> glm-5.3 -> kimi-k3)" \
+  || bad "S3b designer fallback chain follows the rotation (sol-6.1 -> glm-5.3 -> kimi-k3)" "driver chain still names another model"
 # The driver seed must NOT have moved: astra is a rotation entry, so nothing pins it.
 # This is the arm that dies if someone re-applies the "astra takes the fable slot"
 # version, which looked identical in a role table and was not what was asked for.

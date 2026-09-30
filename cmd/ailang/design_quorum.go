@@ -20,7 +20,7 @@ import (
 // controller's own review is IN-SESSION (not an API call) and can be folded in
 // via flags.
 //
-// Reviewer POOL (Mark, attended 2026-09-25): gpt6-astra (OpenAI), gemini-3-1-pro
+// Reviewer POOL (Mark, attended 2026-09-25; OpenAI seat -> gpt6-1-sol 2026-09-30): gpt6-1-sol (OpenAI), gemini-3-1-pro
 // (Google), oc-glm-5-3 (Z-AI), oc-kimi-k3 (Moonshot) and claude-sonnet-5@claude-p
 // (Anthropic, subscription); three seats per doc, rotated per doc, distinct
 // vendors preferred, absent seats replaced from the pool. The AUTHOR'S vendor
@@ -29,13 +29,14 @@ import (
 // answers. See quorum/seating.go. This retires the hand-applied "substitute gpt5-6-sol on
 // astra's turn" workaround, which still had OpenAI reviewing OpenAI.
 //
-// History: OpenAI seat gpt5-6-sol -> gpt6-astra (2026-09-05); Z-AI seat
-// oc-glm-5-2 -> oc-glm-5-3 (2026-09-25).
+// History: OpenAI seat gpt5-6-sol -> gpt6-astra (2026-09-05) -> gpt6-1-sol (2026-09-30,
+// Mark: "6.1 sol also replaces the quorum review slot"); Z-AI seat oc-glm-5-2 -> oc-glm-5-3
+// (2026-09-25).
 func runDesignQuorum() {
 	fs := flag.NewFlagSet("design-quorum", flag.ExitOnError)
 	reviewers := fs.String("reviewers", defaultQuorumPool, "comma-separated reviewer POOL (models.yml ids, or "+quorum.ClaudeReviewerID+"); --seats of them review each doc")
 	seats := fs.Int("seats", quorum.DefaultSeats, "independent reviewers per doc, drawn from the pool")
-	author := fs.String("author", config.MissionDesignAuthor(), "model or lane that WROTE the doc (e.g. claude:claude-opus-5-5, codex:gpt-6-astra); its vendor sits out")
+	author := fs.String("author", config.MissionDesignAuthor(), "model or lane that WROTE the doc (e.g. claude:claude-opus-5-5, codex:gpt-6.1-sol); its vendor sits out")
 	maxCost := fs.Float64("max-cost-usd", quorum.DefaultMaxCostUSD, "per-reviewer budget cap in USD")
 	artifactDir := fs.String("artifact-dir", quorum.ArtifactDir, "directory for the machine JSON artifact")
 	logPath := fs.String("mission-log", "", "optional mission log path to append the markdown block")
@@ -137,10 +138,10 @@ const designQuorumHelp = `ailang design-quorum — N-reviewer quorum verdict on 
 
 USAGE:
   ailang design-quorum <doc.md> [flags]
-  ailang design-quorum --author codex:gpt-6-astra < doc.md
+  ailang design-quorum --author codex:gpt-6.1-sol < doc.md
 
 FLAGS:
-  --reviewers <csv>          reviewer POOL (default gpt6-astra,gemini-3-1-pro,oc-glm-5-3,
+  --reviewers <csv>          reviewer POOL (default gpt6-1-sol,gemini-3-1-pro,oc-glm-5-3,
                              oc-kimi-k3,claude-sonnet-5@claude-p)
   --seats <n>                reviewers per doc, drawn from the pool (default 3)
   --max-cost-usd <n>         per-reviewer budget cap in USD (default 0.30)
@@ -179,7 +180,7 @@ SEE ALSO:
 
 // defaultQuorumPool is the reviewer pool, one model per vendor. --seats of them
 // review each doc; the author's vendor sits out. Extend the pool here.
-const defaultQuorumPool = "gpt6-astra,gemini-3-1-pro,oc-glm-5-3,oc-kimi-k3," + quorum.ClaudeReviewerID
+const defaultQuorumPool = "gpt6-1-sol,gemini-3-1-pro,oc-glm-5-3,oc-kimi-k3," + quorum.ClaudeReviewerID
 
 // quorumSeatRunner runs one seat: the Anthropic seat over the subscription (unless
 // the Anthropic bucket is over its mission ration — the ration is what keeps
