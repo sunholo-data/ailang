@@ -52,7 +52,7 @@ func TestMCPHandler_OmittedStringParam_Rejected(t *testing.T) {
 	srv := testServer(t)
 	defer srv.Close()
 	ms := NewMCPServer(srv)
-	handler := ms.makeToolHandler("test/api/greet", "hello", []string{"name"})
+	handler := ms.makeToolHandler("test/api/greet", ExportInfo{Name: "hello", ParamNames: []string{"name"}})
 
 	res, err := handler(context.Background(), mcpCallReq("hello", `{}`))
 	if err != nil {
@@ -74,7 +74,7 @@ func TestMCPHandler_OmittedIntParam_Rejected(t *testing.T) {
 	srv := testServer(t)
 	defer srv.Close()
 	ms := NewMCPServer(srv)
-	handler := ms.makeToolHandler("test/api/greet", "add", []string{"x", "y"})
+	handler := ms.makeToolHandler("test/api/greet", ExportInfo{Name: "add", ParamNames: []string{"x", "y"}})
 
 	res, err := handler(context.Background(), mcpCallReq("add", `{"x": 5}`))
 	if err != nil {
@@ -96,7 +96,7 @@ func TestMCPHandler_MultipleMissing_DeterministicOrder(t *testing.T) {
 	srv := testServer(t)
 	defer srv.Close()
 	ms := NewMCPServer(srv)
-	handler := ms.makeToolHandler("test/api/greet", "add", []string{"x", "y"})
+	handler := ms.makeToolHandler("test/api/greet", ExportInfo{Name: "add", ParamNames: []string{"x", "y"}})
 
 	res, err := handler(context.Background(), mcpCallReq("add", `{}`))
 	if err != nil {
@@ -117,7 +117,7 @@ func TestMCPHandler_ExplicitNull_Rejected(t *testing.T) {
 	srv := testServer(t)
 	defer srv.Close()
 	ms := NewMCPServer(srv)
-	handler := ms.makeToolHandler("test/api/greet", "hello", []string{"name"})
+	handler := ms.makeToolHandler("test/api/greet", ExportInfo{Name: "hello", ParamNames: []string{"name"}})
 
 	res, err := handler(context.Background(), mcpCallReq("hello", `{"name": null}`))
 	if err != nil {
@@ -138,7 +138,7 @@ func TestMCPHandler_AllParamsPresent_Succeeds(t *testing.T) {
 	srv := testServer(t)
 	defer srv.Close()
 	ms := NewMCPServer(srv)
-	handler := ms.makeToolHandler("test/api/greet", "hello", []string{"name"})
+	handler := ms.makeToolHandler("test/api/greet", ExportInfo{Name: "hello", ParamNames: []string{"name"}})
 
 	res, err := handler(context.Background(), mcpCallReq("hello", `{"name": "World"}`))
 	if err != nil {
@@ -159,7 +159,7 @@ func TestMCPHandler_LegacyPositional_Succeeds(t *testing.T) {
 	srv := testServer(t)
 	defer srv.Close()
 	ms := NewMCPServer(srv)
-	handler := ms.makeToolHandler("test/api/greet", "hello", []string{"name"})
+	handler := ms.makeToolHandler("test/api/greet", ExportInfo{Name: "hello", ParamNames: []string{"name"}})
 
 	res, err := handler(context.Background(), mcpCallReq("hello", `{"args": ["World"]}`))
 	if err != nil {

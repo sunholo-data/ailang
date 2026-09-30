@@ -197,31 +197,76 @@ func (ms *MCPServer) registerTools() {
 			}
 		}
 
-		inputSchema := buildNamedInputSchema(export)
-
-		capturedMod := c.modPath
-		capturedFunc := export.Name
+		if err := validateOptionalParams(export); err != nil {
+			// Same posture as an invalid @mcp_name: an author bug, surfaced
+			// at registration rather than as a crash on the first call.
+			log.Printf("  ERROR: skipping MCP tool registration for %s/%s: %v", c.modPath, export.Name, err)
+			continue
+		}
 
 		tool := &mcp.Tool{
 			Name:        toolName,
 			Description: desc,
-			InputSchema: inputSchema,
+			InputSchema: buildNamedInputSchema(export),
 		}
 
-		capturedParamNames := export.ParamNames
-		ms.mcpServer.AddTool(tool, ms.makeToolHandler(capturedMod, capturedFunc, capturedParamNames))
+		ms.mcpServer.AddTool(tool, ms.makeToolHandler(c.modPath, export))
 	}
+}
+
+// headersParam is the reserved parameter name that binds the HTTP request
+// headers as a Json object — the same contract as the REST @route path
+// (routes_dispatch.go). It is never advertised in a tool's inputSchema and
+// never taken from the client's arguments.
+const headersParam = "_headers"
+
+// validateOptionalParams checks an export's @optional names against its
+// signature: each must be a declared param, must not be the reserved
+// _headers param, and must have a type with a zero value to bind when absent.
+func validateOptionalParams(export ExportInfo) error {
+	for _, name := range export.Optional {
+		idx := -1
+		for i, p := range export.ParamNames {
+			if p == name {
+				idx = i
+				break
+			}
+		}
+		switch {
+		case idx < 0:
+			return fmt.Errorf("@optional(%q): no such parameter (params: %s)", name, strings.Join(export.ParamNames, ", "))
+		case name == headersParam:
+			return fmt.Errorf("@optional(%q): _headers is bound from the request, not the client", name)
+		case idx >= len(export.ParamTypes) || zeroValueForType(export.ParamTypes[idx]) == nil:
+			typ := "unknown"
+			if idx < len(export.ParamTypes) {
+				typ = export.ParamTypes[idx]
+			}
+			return fmt.Errorf("@optional(%q): type %s has no zero value; supported: string, int, float, bool, list, array, record", name, typ)
+		}
+	}
+	return nil
 }
 
 // makeToolHandler creates a ToolHandler that calls the AILANG function.
 // Accepts both named parameters ({"filepath": "x"}) and legacy positional
 // format ({"args": ["x"]}) for backward compatibility.
-func (ms *MCPServer) makeToolHandler(modulePath, funcName string, paramNames []string) mcp.ToolHandler {
+//
+// A declared _headers param binds from the tools/call HTTP request headers
+// (nil on stdio → empty object). Anything a client sends under that key is
+// overwritten, so a caller cannot forge headers through the arguments.
+func (ms *MCPServer) makeToolHandler(modulePath string, export ExportInfo) mcp.ToolHandler {
+	funcName := export.Name
+	paramNames := export.ParamNames
+	optional := make(map[string]bool, len(export.Optional))
+	for _, name := range export.Optional {
+		optional[name] = true
+	}
 	return func(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		var args []any
 
+		var argMap map[string]any
 		if len(req.Params.Arguments) > 0 {
-			var argMap map[string]any
 			if err := json.Unmarshal(req.Params.Arguments, &argMap); err == nil {
 				// Try legacy "args" array first for backward compat.
 				if argsRaw, ok := argMap["args"]; ok {
@@ -229,32 +274,52 @@ func (ms *MCPServer) makeToolHandler(modulePath, funcName string, paramNames []s
 						args = argsSlice
 					}
 				}
-				// If no "args" key and we have param names, resolve named params.
-				//
-				// M-MCP-UNIT-PARAM-BINDING: a declared param the client omits
-				// (absent key) or sends as JSON null must NOT bind to nil — the
-				// engine converts nil to Unit and the AILANG function then
-				// crashes deep in stdlib (e.g. _str_len: expected String, got
-				// Unit) before any guard can run. Type-agnostic: an omitted int
-				// param would crash the same way. Reject with a structured error
-				// naming the missing params in declaration order (deterministic).
-				if len(args) == 0 && len(paramNames) > 0 {
-					var missing []string
-					args = make([]any, len(paramNames))
-					for i, name := range paramNames {
-						v, present := argMap[name]
-						if !present || v == nil {
-							missing = append(missing, name)
-							continue
-						}
-						args[i] = v
-					}
-					if len(missing) > 0 {
-						return mcpError(fmt.Sprintf(
-							"missing required parameter(s): %s", strings.Join(missing, ", "),
-						)), nil
-					}
+			}
+		}
+
+		// If no "args" key and we have param names, resolve named params.
+		//
+		// M-MCP-UNIT-PARAM-BINDING: a declared param the client omits
+		// (absent key) or sends as JSON null must NOT bind to nil — the
+		// engine converts nil to Unit and the AILANG function then
+		// crashes deep in stdlib (e.g. _str_len: expected String, got
+		// Unit) before any guard can run. Type-agnostic: an omitted int
+		// param would crash the same way. Reject with a structured error
+		// naming the missing params in declaration order (deterministic).
+		// @optional params bind to their type's zero value instead;
+		// _headers is bound below, never from the client.
+		if len(args) == 0 && len(paramNames) > 0 {
+			var missing []string
+			args = make([]any, len(paramNames))
+			for i, name := range paramNames {
+				if name == headersParam {
+					continue
 				}
+				v, present := argMap[name]
+				if !present || v == nil {
+					if optional[name] {
+						args[i] = zeroValueForType(export.ParamTypes[i])
+						continue
+					}
+					missing = append(missing, name)
+					continue
+				}
+				args[i] = v
+			}
+			if len(missing) > 0 {
+				return mcpError(fmt.Sprintf(
+					"missing required parameter(s): %s", strings.Join(missing, ", "),
+				)), nil
+			}
+		}
+
+		for i, name := range paramNames {
+			if name == headersParam && i < len(args) {
+				var h http.Header
+				if extra := req.GetExtra(); extra != nil {
+					h = extra.Header
+				}
+				args[i] = stringMapToJObject(h)
 			}
 		}
 
@@ -346,7 +411,14 @@ func buildNamedInputSchema(export ExportInfo) map[string]any {
 	if len(export.ParamNames) > 0 {
 		props := map[string]any{}
 		required := make([]string, 0, len(export.ParamNames))
+		optional := make(map[string]bool, len(export.Optional))
+		for _, name := range export.Optional {
+			optional[name] = true
+		}
 		for i, name := range export.ParamNames {
+			if name == headersParam {
+				continue // bound from the request, never supplied by the client
+			}
 			prop := map[string]any{
 				"type": "string", // default
 			}
@@ -354,7 +426,9 @@ func buildNamedInputSchema(export ExportInfo) map[string]any {
 				prop["type"] = ailangTypeToJSONSchema(export.ParamTypes[i])
 			}
 			props[name] = prop
-			required = append(required, name)
+			if !optional[name] {
+				required = append(required, name)
+			}
 		}
 		return map[string]any{
 			"type":       "object",

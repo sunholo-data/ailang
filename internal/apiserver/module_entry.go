@@ -128,6 +128,7 @@ func (s *Server) registerModule(loaded *loader.LoadedModule) (string, bool, erro
 	extractRouteAnnotations(info, loaded.File)
 	extractNoExposeAnnotations(info, loaded.File)
 	extractMCPNameAnnotations(info, loaded.File)
+	extractOptionalAnnotations(info, loaded.File)
 	extractNoMCPAnnotations(info, loaded.File)
 	extractDocComments(info, loaded.File, absFile)
 
