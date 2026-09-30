@@ -189,7 +189,7 @@ reviewer genuinely cannot be restored, then everywhere the verdict is quoted dow
 "PROCEED at N−1, `<model>` absent (`<reason>`)" — never a bare "quorum passed".
 **The author's vendor sits out (Mark, attended 2026-09-25).** Always pass the designer lane that
 wrote the doc: `ailang design-quorum <doc> --author "<designer lane>" ...` (e.g.
-`claude:claude-opus-5-5`, `codex:gpt-6-astra`). Reviewers come from a POOL — `gpt6-astra`,
+`claude:claude-opus-5-5`, `codex:gpt-6.1-sol`). Reviewers come from a POOL — `gpt6-1-sol`,
 `gemini-3-1-pro`, `oc-glm-5-3`, `oc-kimi-k3`, `claude-sonnet-5@claude-p` (Anthropic, subscription) —
 three seats per doc, the same three on every round of that doc, an absent seat replaced from the pool,
 and the author's vendor is benched: opus designs → Claude does not review; astra designs → OpenAI is
