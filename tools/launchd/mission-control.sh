@@ -1027,7 +1027,8 @@ _mc_is_demoted() {
 #
 # Routing has always asked "is this lane UP?" and never "can it AFFORD to be
 # used?". A probe answers the first; only the ledger answers the second. A rung
-# whose bucket is over its 10%/day ration is skipped exactly like a failed probe,
+# whose bucket is over its ration (Codex/Anthropic: the weekday pace, 20% per weekday
+# with weekends spending the slack; others 10%/day) is skipped exactly like a failed probe,
 # so the walk descends to a cheaper rung — and when nothing is left, the existing
 # "NO usable controller" refusal takes over: it announces once per episode and
 # spends zero tokens beyond probes, which IS the pause D-4 asks for.

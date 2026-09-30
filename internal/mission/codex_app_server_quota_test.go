@@ -35,12 +35,24 @@ func codexHomeWithAuth(t *testing.T) string {
 	return home
 }
 
-func TestParseCodexAppServer_LivePayloadIsOverWithReserve(t *testing.T) {
+// overLiveCodexRateLimits is the live capture with usage raised past the weekday pace: the
+// real 59% at Thursday 09:20 sits under the 67.8% line (81.3 weekday hours since Sunday's
+// reset), so the over-ration reason text needs a reading above it.
+var overLiveCodexRateLimits = strings.ReplaceAll(liveCodexRateLimits, `"usedPercent":59`, `"usedPercent":80`)
+
+func TestParseCodexAppServer_LivePayloadIsWithinTheWeekdayPace(t *testing.T) {
 	o := parseCodexAppServerRateLimits([]byte(liveCodexRateLimits), codexLiveNow())
-	if o.State != "over" {
-		t.Fatalf("state = %q (%s), want over: 59%% used vs ~40%% allowed", o.State, o.Reason)
+	if o.State != "ok" {
+		t.Fatalf("state = %q (%s), want ok: 59%% used vs 67.8%% weekday pace", o.State, o.Reason)
 	}
-	if len(o.Windows) != 1 || o.Windows[0].UsedPercent != 59 || o.Windows[0].WindowMinutes != 10080 {
+}
+
+func TestParseCodexAppServer_LivePayloadIsOverWithReserve(t *testing.T) {
+	o := parseCodexAppServerRateLimits([]byte(overLiveCodexRateLimits), codexLiveNow())
+	if o.State != "over" {
+		t.Fatalf("state = %q (%s), want over: 80%% used vs 67.8%% weekday pace", o.State, o.Reason)
+	}
+	if len(o.Windows) != 1 || o.Windows[0].UsedPercent != 80 || o.Windows[0].WindowMinutes != 10080 {
 		t.Fatalf("windows = %+v", o.Windows)
 	}
 	if o.Source != codexAppServerSource {
@@ -110,7 +122,7 @@ func TestObserveCodexQuota_NoRecentSessionsStillGetsAProviderVerdict(t *testing.
 		if method != "account/rateLimits/read" {
 			t.Errorf("method = %q", method)
 		}
-		return json.RawMessage(liveCodexRateLimits), nil
+		return json.RawMessage(overLiveCodexRateLimits), nil
 	})
 	o := ObserveCodexQuota(codexHomeWithAuth(t), codexLiveNow())
 	if o.State != "over" || o.Source != codexAppServerSource || calls != 1 {

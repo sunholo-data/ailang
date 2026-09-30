@@ -345,7 +345,7 @@ func evaluateAnthropicQuota(o *AnthropicQuotaObservation, now time.Time) {
 		return // a locked window is already decided
 	}
 	verdict := CodexQuotaObservation{ObservedAt: now, Windows: o.Windows}
-	verdict.evaluateAt(now, AnthropicDailyRationFraction)
+	verdict.evaluateAt(now)
 	o.State = verdict.State
 	o.Windows = verdict.Windows
 	switch o.State {
