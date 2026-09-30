@@ -43,13 +43,20 @@ var ratifiedRoleMigrations = map[string]string{
 	// 045bb3ed3 (2026-09-22, attended): fleet migration to GPT-6 Sol for the
 	// planner and executor heads — same codex lane and subscription.
 	"gpt-5.6-sol": "gpt-6-sol",
+	// 2026-09-30 (attended): GPT-6.1 Sol replaces GPT-6 Sol on the same heads.
+	"gpt-6-sol": "gpt-6.1-sol",
 }
 
 // expectedRoleHead is what a role must resolve to today: the deleted table's
 // head, carried through any ratified migration.
 func expectedRoleHead(tableHead string) string {
-	if to, ok := ratifiedRoleMigrations[tableHead]; ok {
-		return to
+	// Follow the chain: each ratified upgrade is recorded as one hop from its predecessor.
+	for hops := 0; hops < len(ratifiedRoleMigrations); hops++ {
+		to, ok := ratifiedRoleMigrations[tableHead]
+		if !ok {
+			break
+		}
+		tableHead = to
 	}
 	return tableHead
 }

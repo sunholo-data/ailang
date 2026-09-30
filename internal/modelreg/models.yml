@@ -451,6 +451,16 @@ models:
     pricing:
       input_per_1k: 0.010     # $10.00 per 1M = $0.010 per 1K
       output_per_1k: 0.050    # $50.00 per 1M = $0.050 per 1K
+    budgets:
+      # WORK GATE (2026-07-31 convention): the shared 3.0M blended-token ceiling, so this
+      # row gets the same iterations as every other agent-suite row. Added 2026-09-30:
+      # the GPT-6 rows had NO budgets block, so the default min($0.50, formula) cap
+      # cost-killed codex runs at $0.49-$0.72 on the first agent attempt — the cap, not
+      # the model. $36.00 = 3.0M x 1.2 x the $10/M input rate (claude-sonnet-4-6
+      # convention), set so the TOKEN gate binds first. Subscription lane — not spend.
+      max_tokens_per_bench: 3000000
+      max_cost_usd: 36.00
+      hard_timeout_secs: 600
     notes: |
       GPT-6 Astra — OpenAI's first GPT-6-generation model (August 27, 2026).
       ⚠️ MOST EXPENSIVE non-Pro OpenAI row in this file: $10/$50 per 1M is
@@ -502,35 +512,6 @@ models:
       agent run reveals that.
 
   # OpenAI GPT-6 Sol + Luna (API model objects created 2026-09-14; on OpenRouter 2026-09-22).
-  # OpenAI GPT-6.1 Sol — the 6.1 mid tier. 1.05M context, 128K max output, knowledge cutoff
-  # Apr 30 2026, reasoning.effort low/medium(DEFAULT)/high/xhigh/max — NO none/minimal
-  # (unlike gpt-6-sol). Source: developers.openai.com/api/docs/models/gpt-6.1-sol
-  # (fetched 2026-09-30).
-  gpt6-1-sol:
-    api_name: "gpt-6.1-sol"
-    provider: "openai"
-    default_thinking: "on"  # medium effort by default and none is not offered
-    description: "GPT-6.1 Sol - GPT-6.1 mid tier (Sep 2026)"
-    env_var: "OPENAI_API_KEY"
-    agent_cli: "codex"  # needs codex-cli >= 0.159.2 on the ChatGPT-account lane
-    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM convention; declared ceiling is 128000
-    pricing:
-      input_per_1k: 0.002     # $2.00 per 1M = $0.002 per 1K
-      output_per_1k: 0.010    # $10.00 per 1M = $0.010 per 1K
-    notes: |
-      GPT-6.1 Sol. $2/$10 per 1M (cached input $0.10/M): same list price as gpt-6-sol,
-      1/5 of gpt-6-astra. NAME TRAP: gpt6-1-sol is GPT-6.1; gpt6-sol is GPT-6; gpt5-6-sol
-      is GPT-5.6. Read the digits.
-      2026-09-30 (Mark, attended): replaces gpt-6-sol AND gpt-6-astra as every mission
-      codex lane (controller rung, planner, executor, designer) and replaces gpt6-astra as
-      the design-quorum OpenAI reviewer seat.
-      SUBSCRIPTION LANE VERIFIED 2026-09-30: `codex exec --model gpt-6.1-sol` rc=0 on
-      codex-cli 0.159.2 with the ChatGPT account (0.158.0 and the pre-09:05Z model list
-      400'd "not supported when using Codex with a ChatGPT account").
-      API ACCESS NOT VERIFIED: the 2026-09-30 chat/completions probe returned "You have no
-      credits remaining" — the OPENAI_API_KEY org is out of credit, which also leaves this
-      quorum seat absent until the account is topped up. Not placed on any eval suite yet.
-
   # The GPT-6 generation's mid and small tiers, below gpt-6-astra. Both: 1.05M context
   # (922K max input), 128K max output, reasoning.effort none/low/medium(DEFAULT)/high/
   # xhigh/max — unlike astra, "none" exists, so thinking CAN be switched off.
@@ -550,6 +531,16 @@ models:
     pricing:
       input_per_1k: 0.002     # $2.00 per 1M = $0.002 per 1K
       output_per_1k: 0.010    # $10.00 per 1M = $0.010 per 1K
+    budgets:
+      # WORK GATE (2026-07-31 convention): the shared 3.0M blended-token ceiling, so this
+      # row gets the same iterations as every other agent-suite row. Added 2026-09-30:
+      # the GPT-6 rows had NO budgets block, so the default min($0.50, formula) cap
+      # cost-killed codex runs at $0.49-$0.72 on the first agent attempt — the cap, not
+      # the model. $7.20 = 3.0M x 1.2 x the $2/M input rate (claude-sonnet-4-6
+      # convention), set so the TOKEN gate binds first. Subscription lane — not spend.
+      max_tokens_per_bench: 3000000
+      max_cost_usd: 7.20
+      hard_timeout_secs: 600
     notes: |
       GPT-6 Sol — mid tier of the GPT-6 generation. Knowledge cutoff 2026-04-20.
       $2/$10 per 1M: 1/5 of gpt-6-astra, 2/5 of gpt-5.6-sol ($5/$30), and cheaper
@@ -575,6 +566,60 @@ models:
       For reference, gpt6-astra's 09-05 anchored placement was 2554.4 at 29/31.
       Standard smoke tier NOT run (cloud rows don't normally; astra precedent).
       Suite promotion: PENDING a decision — not in any suite yet.
+      Uses max_completion_tokens instead of max_tokens.
+
+  # OpenAI GPT-6.1 Sol (API model object created 2026-09-27; on OpenRouter 2026-09-29).
+  # Same $2/$10 list as gpt-6-sol; OpenAI positions it as "near-Astra performance at a
+  # lower cost". 1.05M context, 128K max output, reasoning.effort low/medium(DEFAULT)/high/
+  # xhigh/max — NO none/minimal (unlike gpt-6-sol). >272K-token prompts bill 2x input/cache
+  # and 1.5x output for the WHOLE request. Tool calling needs the Responses API.
+  # Source: developers.openai.com/api/docs/models/gpt-6.1-sol (fetched 2026-09-30).
+  gpt6-1-sol:
+    api_name: "gpt-6.1-sol"
+    provider: "openai"
+    default_thinking: "on"  # effort defaults to medium and cannot be set to none (vendor docs)
+    description: "GPT-6.1 Sol - GPT-6.1 mid tier, near-Astra at Sol price (Sep 2026)"
+    env_var: "OPENAI_API_KEY"
+    agent_cli: "codex"  # needs codex-cli >= 0.159.2 — see notes
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM convention; declared ceiling is 128000
+    pricing:
+      input_per_1k: 0.002     # $2.00 per 1M = $0.002 per 1K
+      output_per_1k: 0.010    # $10.00 per 1M = $0.010 per 1K
+    budgets:
+      # WORK GATE (2026-07-31 convention): the shared 3.0M blended-token ceiling, so this
+      # row gets the same iterations as every other agent-suite row. Added 2026-09-30:
+      # the GPT-6 rows had NO budgets block, so the default min($0.50, formula) cap
+      # cost-killed codex runs at $0.49-$0.72 on the first agent attempt — the cap, not
+      # the model. $7.20 = 3.0M x 1.2 x the $2/M input rate (claude-sonnet-4-6
+      # convention), set so the TOKEN gate binds first. Subscription lane — not spend.
+      max_tokens_per_bench: 3000000
+      max_cost_usd: 7.20
+      hard_timeout_secs: 600
+    notes: |
+      GPT-6.1 Sol — point release of the GPT-6 mid tier. $2/$10 per 1M, identical list
+      price to gpt6-sol and 1/5 of gpt6-astra ($10/$50). Cached input $0.10/M (half of
+      gpt6-sol's $0.20), cache writes $2.50/M.
+      NAME TRAP: gpt6-1-sol (GPT-6.1) vs gpt6-sol (GPT-6) vs gpt5-6-sol (GPT-5.6).
+      ⏳ STANDARD MODE NOT PLACED: on 2026-09-30 the OpenAI API account returned "You have
+      no credits remaining" (negative control gpt-9-nonexistent-zzz → "does not exist", so
+      the key and endpoint are live; the org is simply out of credit). Standard placement
+      is blocked on a top-up, NOT on the model. Never route it via OpenRouter instead.
+      ✅ CODEX SUBSCRIPTION LANE — REQUIRES codex-cli >= 0.159.2. On 0.158.0 (OPENAI_API_KEY
+      stripped) `codex exec --model gpt-6.1-sol` 400s "not supported when using Codex with a
+      ChatGPT account" + "Model metadata ... not found" — byte-for-byte the nonexistent-model
+      control, the same trap gpt6-sol hit on 0.154.0. 0.159.2 returns rc=0 and "ok", while
+      gpt-9-nonexistent-zzz still 400s there (control holds). Probed 2026-09-30.
+      AGENT PLACEMENT 2026-09-30 (codex subscription, core+frontier = 31, N=1, ONE pool with
+      the two rows it replaces — agent mode has no anchor, so same-pool per §5.5):
+        gpt6-1-sol 30/31  7.2M tok  2067s  — only miss gauntlet_10, api_error (codex idle 3m)
+        gpt6-astra 29/31  7.4M tok  1440s  — config_file_parser logic_error + gauntlet_10 idle
+        gpt6-sol   27/31 11.1M tok  3670s  — config_file_parser logic_error + 3 api_error
+      Zero capability failures. Banked agent ELO: 3025 / 2293 / 2285 (unanchored; 3025 is
+      inflated by the zero-loss record — trust the order, not the gap).
+      ROLES since 2026-09-30 (Mark, attended): planner + executor head, controller Sol rung,
+      designer codex rung (replacing both gpt6-sol and gpt6-astra), and the design-quorum
+      OpenAI reviewer seat (#1412) — that seat calls the METERED API, so it stays absent
+      until the OpenAI org is topped up. Not in any standard suite until placed.
       Uses max_completion_tokens instead of max_tokens.
 
   gpt6-luna:
@@ -5615,6 +5660,11 @@ default: "claude-sonnet-4-6"
 # only. Said plainly because the table this replaced carried a comment claiming
 # Lane A read it, which a grep showed was never true.
 roles:
+  # MODEL UPGRADE 2026-09-30 (attended): planner and executor heads move gpt6-sol ->
+  # gpt6-1-sol. Same lane, same $2/$10 list, measured better in one agent pool the same
+  # day (core+frontier 30/31 vs 27/31, 35% fewer tokens). REQUIRES codex-cli >= 0.159.2.
+  # The gpt6-sol row stays in the catalogue as the comparator.
+  #
   # MODEL UPGRADE 2026-09-22 (attended): the planner and executor heads move
   # gpt5-6-sol -> gpt6-sol. Same lane (codex subscription), same position, better row:
   # $2/$10 per M, and thinking is PROBED (reasoning_tokens=87 of 161) where gpt5-6-sol
@@ -5666,7 +5716,7 @@ roles:
   # and evaluator rows: it is the route these roles actually ran, so it stays reachable for
   # comparison.
   designer:  [pi-or-kimi-k3, opencode-or-kimi-k3]
-  planner:   [gpt6-sol, pi-or-kimi-k3, opencode-or-kimi-k3]
+  planner:   [gpt6-1-sol, pi-or-kimi-k3, opencode-or-kimi-k3]
   # executor gains a pi rung (2026-09-14), same defect and same fix as evaluator above.
   # Measured: with codex over ration, `mission iterate` reported "no available candidate" —
   # gpt5-6-sol blocked on quota, and opencode-or-deepseek-v4-flash refused with "executor
@@ -5681,7 +5731,7 @@ roles:
   # claude-sonnet-5-5 is rung 2 (2026-09-29, Mark attended): level with gpt6-sol on the
   # anchored standard series (2295.8 vs 2288.7, same $2/$10) and 41/42 agent smoke+core on
   # the claude CLI subscription lane. Mirrors the shell driver's EXECUTOR RUNG 2.
-  executor:  [gpt6-sol, claude-sonnet-5-5, pi-or-deepseek-v4-flash-bare, opencode-or-deepseek-v4-flash]
+  executor:  [gpt6-1-sol, claude-sonnet-5-5, pi-or-deepseek-v4-flash-bare, opencode-or-deepseek-v4-flash]
   # evaluator leads with pi, not opencode (changed 2026-09-14). The binary mission path is
   # the only LaneLocal consumer of this row; the coordinator's retry chain reads it on
   # LaneCloud but short-circuits first for any agent carrying an explicit model
