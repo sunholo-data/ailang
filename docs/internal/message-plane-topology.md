@@ -310,6 +310,81 @@ tagged, alive, and silently claiming nothing.
    on the Studio 2026-08-26: its v0.33.2 binary made both exports inert and kept reading local
    SQLite — the missing `store:` header was the only visible tell.)
 
+## The delivery layer: Pub/Sub subscriptions (traps measured 2026-09-11/30)
+
+Everything above is about the **store** — where a message lives. A notification is a
+separate thing: Firestore holds the message, Pub/Sub carries a bare
+`{"message_id": "..."}` telling a device to go read it. The notify daemon resolves that
+id against the store and fires a macOS/Discord notification. Both halves must line up,
+and the failure modes are invisible from the store side, which is why this section
+exists at all — the delivery layer had no documentation and each of the following was
+rediscovered from Cloud Monitoring metrics.
+
+**Every device pulls its OWN subscription.** `ailang-messages-laptop` and
+`ailang-messages-rig` are separate subscriptions on the one `ailang-messages` topic.
+Pub/Sub work-steals across consumers of a single subscription, so two daemons sharing one
+each see only *part* of the traffic and messages appear to vanish. Name it at install
+time:
+
+```bash
+ailang daemon install --env prod --force --messages-sub messages-rig
+```
+
+`--messages-sub` on `daemon install` landed 2026-09-30. Before that the plist could not
+express it, so the rig's was hand-edited — and a later `--force` install silently
+reverted it onto the laptop's subscription. If you find a hand-edited daemon plist,
+reinstall rather than re-editing. (`--extra-messages-sub` is a different flag: it renames
+the subscription for `--also-subscribe` sources only, and given without extra envs it
+names nothing and is accepted-and-ignored. Measured on the rig 2026-09-11.)
+
+**Ordering is keyed on the inbox, so one stuck message blocks that inbox's whole
+stream.** The topic has `enable_message_ordering` and the publisher sets
+`OrderingKey: <inbox>`. A notification that keeps being nacked therefore holds up every
+*later* notification for the same inbox indefinitely — not just its own place in line.
+
+**A notification whose message is not in the store used to be retried forever.** Absence
+and failure were indistinguishable (SQLite says absent with `(nil, nil)`, Firestore by
+wrapping `messaging.ErrMessageNotFound`) and every nack was unlogged. Measured on the
+laptop 2026-09-30: 360 notifications published 09-24/25 named inbox documents that were
+never written, the daemon nacked 160,947 times against 10 acks in six hours, and the Mac
+stopped alerting for 6.6 days. The daemon now retries an absence for 5 minutes — enough
+for Firestore replication, the only legitimate reason a notification outruns its
+document — then acks it and logs `DROPPING message <id>: unresolvable`. That verdict is
+per-process, so a restart re-times the window; the subscription's dead-letter policy is
+the restart-proof backstop.
+
+**Reading the backlog.** There is no `gcloud monitoring time-series` subcommand, so go via
+the REST API. Note the account: the laptop's active gcloud config is `aitanalabs`, whose
+"Reauthentication failed" error misleadingly suggests expired credentials when the
+account simply has no access to `ailang-multivac`. Go programs are unaffected — they use
+ADC, a different credential — so a gcloud auth error is NOT evidence the daemon is broken.
+
+```bash
+TOK=$(gcloud auth print-access-token --account=m@sunholo.com)
+curl -s -H "Authorization: Bearer $TOK" \
+  "https://monitoring.googleapis.com/v3/projects/ailang-multivac/timeSeries?\
+filter=metric.type%3D%22pubsub.googleapis.com%2Fsubscription%2Fnum_undelivered_messages%22\
+&interval.startTime=$(date -u -v-10M +%Y-%m-%dT%H:%M:%SZ)&interval.endTime=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+```
+
+`num_undelivered_messages` and `oldest_unacked_message_age` are the two that matter, and
+both lag 2–4 minutes — a flat reading right after a fix is staleness, not failure. The
+daemon's own log is the faster signal: `ailang daemon status`.
+
+**Two subscriptions whose backlog is NOT a problem:**
+
+| Subscription | Why a backlog is expected |
+|---|---|
+| `ailang-tasks-executor` | Audit trail only. Nothing consumes it *by design* — the coordinator calls the Cloud Run Jobs API directly and the Eventarc trigger that would have drained it is commented out in `eventarc.tf`. Dispatches accumulate until the 7-day retention drops them. Its old comment said "triggers Cloud Run Jobs via Eventarc" and that misreading was reported as an outage on 2026-09-30. |
+| any subscription mid-drain | Retention is 7 days on the messages topic; an old backlog can also simply age out rather than being delivered, which looks like a successful drain. Check `oldest_unacked_message_age` fell, not just that the count did. |
+
+**An undeclared subscription deletes itself.** Terraform sets `expiration_policy { ttl = "" }`
+(never expire) on everything it declares. A subscription created by hand takes the API
+default of **31 days without a pull**, then is deleted. `ailang-messages-rig` was in that
+state until 2026-09-30 and had not been pulled since 09-23. Declare new client
+subscriptions in `client_subscriptions` in the environment's tfvars, and `terraform import`
+one that already exists or the apply fails with `alreadyExists`.
+
 ## Quick reference
 
 An **attended node** (reads the shared inbox, takes no work):
