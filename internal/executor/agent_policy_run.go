@@ -38,7 +38,7 @@ func MaterializeRunPolicy(policyPath, workspace string) (string, error) {
 	if real, rerr := filepath.EvalSymlinks(ws); rerr == nil {
 		ws = real
 	}
-	toml = strings.ReplaceAll(toml, "${WORKSPACE}", ws)
+	toml = substituteWorkspace(toml, ws)
 
 	home, err := os.UserHomeDir()
 	if err != nil {
