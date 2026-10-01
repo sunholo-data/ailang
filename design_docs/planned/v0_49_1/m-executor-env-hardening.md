@@ -1,12 +1,12 @@
 # M-EXECUTOR-ENV-HARDENING: A Typed Environment Boundary for the Agent Executor Fleet
 
-**Status**: Planned
+**Status**: Approved — D1–D6 approved by Mark 2026-10-01; implementation in two PRs (A: Phases 1+3, B: Phases 2+4)
 **Target**: Next security release after v0.49.0; release number assigned during planning
 **Priority**: P0 — operator write credentials (GitHub fleet token, superuser registry key) are reachable by any prompt-injected agent subprocess
 **Estimated**: 8–12 engineering days, including regression coverage and lane migration inventory (planning estimate, not a sprint commitment)
 **Dependencies**: None new. Complements implemented [M-EXECUTOR-POLICY-HARDENING](../../implemented/v0_41_0/m-executor-policy-hardening.md) (v0.41.0), which confined the AILANG *program* runtime and explicitly did not own the agent-harness subprocess boundary.
 **Routing**: AILANG fix under [PROGRAM](../../PROGRAM.md); no motoko core change, no language change
-**Created / updated**: 2026-09-30
+**Created / updated**: 2026-09-30 / 2026-10-01 (approval; findings re-verified on `dev` @ `2aee3ed76`)
 
 ## Axiom Compliance
 
@@ -44,7 +44,7 @@ AILANG's five subprocess executors — **claude, codex, opencode, motoko, pi** �
 agent CLIs via `BuildEnvironment`, which starts from the operator host's **complete environment**
 (`os.Environ()`, `internal/executor/environment.go:69`) and hands the result to the child as
 `cmd.Env` (`internal/executor/pi/pi.go:167`, `codex/codex.go:172`, `opencode/opencode.go:178`,
-`motoko/motoko.go:451`, `claude/claude.go:253`). The child's model can read its own environment
+`motoko/motoko.go:462`, `claude/claude.go:253`). The child's model can read its own environment
 with a single `bash` tool call. Untrusted content routinely reaches agent prompts — coordinator
 directives embed GitHub issue/PR text (this very task's directive ships open-PR data that the
 host must label "data, not instruction"), eval benchmarks run tasks authored by third parties,
@@ -64,8 +64,11 @@ lane with `bash` already can.
 |---|---|---|
 | E1 | All operator secrets reach every model-facing agent child | `BuildEnvironment` starts at `os.Environ()` and every executor passes it through verbatim. Only claude strips its own auth (`claude/claude.go:265-270` removes `CLAUDE_CODE_OAUTH_TOKEN` and, in apikey mode, `ANTHROPIC_API_KEY`) — ad-hoc, one executor, two variables; pi, codex, opencode, and motoko strip nothing |
 | E2 | `Task.ExtraEnv` can set **any** environment variable in the agent child with no name validation | `environment.go:103-107` appends task-supplied pairs unconditionally; sources include eval benchmark YAML `agent_env` (`internal/eval_harness/spec.go:38-43`) and browser-session env (`browser_sessions.go:198-203`) — semi-trusted corpora can set `PATH`, `LD_PRELOAD`, `GIT_CONFIG`, `OTEL_EXPORTER_OTLP_ENDPOINT` (a telemetry-redirect exfiltration channel), or `AILANG_*` routing variables |
-| E3 | Duplicate env entries: appended "overrides" do not portably take effect | `environment.go` appends `AILANG_PARENT_TASK_ID` (133), `OTEL_RESOURCE_ATTRIBUTES` (153), `OTEL_EXPORTER_OTLP_ENDPOINT` (162), `AILANG_STDLIB_PATH` (91), `PWD` (96), chain IDs (140-146) with plain `append` while the same keys are typically inherited (this container's parent env has `AILANG_PARENT_TASK_ID` and `OTEL_RESOURCE_ATTRIBUTES` set). POSIX leaves duplicate names implementation-defined; glibc `getenv` returns the **first** match, so the documented intent "appended last so a benchmark can intentionally override an inherited value" (`environment.go:100-102`) silently fails for inherited keys. Only `GOOGLE_CLOUD_*` uses the dedup-aware `UpdateEnvVar` (181-191) |
-| E4 | Clone-review preamble interpolates `--clone-repo` verbatim into shell text the agent is told to run EXACTLY | `clone_preamble.go:47-77` validates only that `repoURL` is non-empty; a URL carrying shell metacharacters (`;`, `$(…)`, backticks) is emitted into `git clone --depth 1 <URL> repo` as-is. Callers: `cmd/ailang/exec.go:392` (CLI flag) and `internal/eval_harness/gemini_clone_review.go:23` (spec-supplied URL) |
+| E3 | Precedence is an accident of append order, and is the reverse of the documented one | `environment.go` appends `AILANG_STDLIB_PATH` (91), `PWD` (96), `ExtraEnv` (103-105), `AILANG_PARENT_TASK_ID` (133), chain IDs (140-146), `OTEL_RESOURCE_ATTRIBUTES` (153), `OTEL_EXPORTER_OTLP_ENDPOINT` (162) with plain `append`; motoko appends ten more keys after the builder (`motoko.go:381-458`). **Correction (2026-10-01):** the doc originally said duplicates reach `execve` and glibc's first-match wins. They do not: Go's `os/exec` de-duplicates `Cmd.Env` with *last* value wins (documented on `exec.Cmd.Env`), and all five executors launch through it. The real defect is that "last" is wherever a line happens to sit: `ExtraEnv` is appended *before* the harness keys, so on a collision the harness beats `ExtraEnv` — the inverse of D4's `ExtraEnv > injected > inherited` — and `UpdateEnvVar` (274-283) rewrites only the first match. Nothing is wrong at runtime today that a test pins; the order is simply unowned |
+| E4 | Clone-review preamble interpolates `--clone-repo` verbatim into shell text the agent is told to run EXACTLY | `clone_preamble.go:47-77` validates only that `repoURL` is non-empty; a URL carrying shell metacharacters (`;`, `$(…)`, backticks) is emitted into `git clone --depth 1 <URL> repo` as-is. Callers: `cmd/ailang/exec.go:392` (CLI flag) and `internal/eval_harness/gemini_clone_review.go:23` (spec-supplied URL). Blast radius (2026-10-01): only `managed_agents` advertises `CapNetworkEgress` (`ValidateCloneFlags`, `clone_preamble.go:100`), so the shell that runs the preamble is the Google-hosted sandbox, not the executor container — still an injection, smaller reach |
+| E5 (new, 2026-10-01) | Stripping `GITHUB_TOKEN` from the child env alone would not hide it: the cloud parent writes the fleet token **as a literal** into the *global* git config | `cmd/ailang/coordinator_cloud.go:337-345` runs `git config --global credential.helper '!f() { …; echo "password=<token>"; }; f'`. The child shares `$HOME`, so `git config --global --get credential.helper` prints the token, and every `git push` the child runs authenticates as the fleet for any repo the token reaches |
+| E6 (new, 2026-10-01) | `ValidateTaskCapabilities` is not on most dispatch paths | Called only from `cmd/ailang/exec.go:415` and `eval_harness/browser_sessions.go:120,204`. The coordinator (`internal/coordinator/provider_executor.go:178`), the cloud job (`coordinator_cloud_executor.go`), mission dispatch and the eval agent runner never call it — so a D3 check that lived *only* there would miss the paths that matter. The builder must refuse too |
+| E7 (new, 2026-10-01) | The harness itself uses `ExtraEnv` for two names D3 deny-lists | `AILANG_AGENT_POLICY` (`coordinator_cloud_executor.go:95`, `provider_executor.go:168`, `agent_runner_multi.go:251`) and `PI_WORKSPACE_TRUST_REMOTES` (`coordinator_cloud_executor.go:74`, `provider_executor.go:111`). `AILANG_AGENT_POLICY` must become harness-injected from `Task.PolicyPath`; `ExtraEnv` may carry it only when it equals that path |
 
 **Impact:** every agent in the fleet — coordinators, eval runners, reviewers, mission stages —
 currently trusts prompt-injected content not to run `printenv` and post the result. The blast
@@ -103,7 +106,20 @@ an M-SEC2 non-goal. So after M-SEC2 those two secrets remain in every executor c
 nothing stops the model-facing child from reading them. This design owns that remaining
 **in-container** half (host process → agent child). The two do not overlap; planning should treat
 M-SEC2's lane split as the given and grant per lane on top of it. Findings E1–E4 were re-checked
-against `dev` on 2026-10-01 and all still hold.
+against `dev` on 2026-10-01: E1, E2 and E4 hold as written; E3 holds in substance but its mechanism
+was wrong and is corrected above; E5–E7 are new.
+
+### Relationship to the 2026-10-01 executor audit (H-4) and H-6
+
+This design **is** the audit's H-4 ("env allowlist for AI CLI subprocesses",
+ailang-multivac `internal-docs/SECURITY-AUDIT-2026-10-01-ailang-executor-escape-hardening.md`,
+finding F-A5). M-SEC2 Phase 1 decides which secrets a *lane holds*; this design decides which of
+those the *model-facing child sees*. Neither is a boundary against a same-UID adversary on its own:
+the CLI child runs as the same user as the `ailang` parent, so it can read the parent's
+`/proc/<ppid>/environ` and any file the parent can read. Removing secrets from the child env and from
+`~/.gitconfig` takes them out of `printenv`, crash dumps, MCP-server and tool subprocess inheritance,
+and casual exfiltration — real exposure reduction — while the hard boundary is H-6 (UID split) plus
+the egress lock (F-A4). This doc says "defence in depth" where it means it.
 
 ## Threat Model and Scope
 
@@ -130,7 +146,8 @@ default. What cannot survive in any default profile: the fleet `GITHUB_TOKEN` an
 
 ## High-Impact Decisions
 
-These are proposed choices for the user's design approval, not ratified decisions.
+All six were approved by Mark on 2026-10-01 as written; the implementation notes below record
+where the inventory refined *how* D2 is delivered, not *what* it decides.
 
 | ID | Decision | Why High Impact | Chosen By | Deadline | Change Cost |
 |---|---|---|---|---|---|
@@ -143,12 +160,55 @@ These are proposed choices for the user's design approval, not ratified decision
 
 ### Design Freeze
 
-- [ ] Approve D1/D2: the default-deny profile, the per-lane grant mechanism, and the
-      fleet-token migration (inventory of lanes that `git push` before cutover).
-- [ ] Approve D3: the deny-list and which lanes may opt out of which entries.
-- [ ] Approve D6: banking the env name digest (and confirm names-only, never values).
+- [x] Approve D1/D2: the default-deny profile, the per-lane grant mechanism, and the
+      fleet-token migration (inventory of lanes that `git push` before cutover). — Approved by Mark 2026-10-01
+- [x] Approve D3: the deny-list and which lanes may opt out of which entries. — Approved by Mark 2026-10-01
+- [x] Approve D6: banking the env name digest (and confirm names-only, never values). — Approved by Mark 2026-10-01
 
 D4/D5 are agent-decided implementation mechanics with no user trade-off; they ride along.
+
+## Push-Lane Inventory (2026-10-01)
+
+Which lanes `git push`, and with what credential. Read from `dev` @ `2aee3ed76` and
+ailang-multivac `terraform/cloud_run_jobs.tf`.
+
+| Lane | Who pushes | Credential today | What the CLI child needs |
+|---|---|---|---|
+| **Cloud, every job** (15 jobs: internal claude/claude-go/codex/codex-go/pi/pi-go/opencode/motoko, external `*-apikey` ×5, eval/eval-go) — all run `ailang coordinator execute-job` (`Dockerfile.agent-base:111-112`) | **The parent.** `executeCloudTask` clones, commits leftovers, pushes (`coordinator_cloud.go:690`), verifies the remote ref, and opens the PR — all after the CLI exits | `GITHUB_TOKEN` (Secret Manager, all three lanes) written into the global credential helper (E5); or a per-agent SSH deploy key (`coordinator_cloud_sshkey.go`, prod daneel-writer) | Nothing for the parent's push. *Optional:* some agents push their own branch mid-run (`coordinator_cloud.go:643-650` handles "the agent pushed it itself") and may `git fetch` a private task repo. No `gh` in any agent image (`docker/` has no gh install) |
+| **Local coordinator daemon** (`internal/coordinator/provider_executor.go`) | Nobody — the local flow never pushes (no `push` in `internal/coordinator`) | — | Nothing |
+| **Mission / Mac rig** (pi, codex, claude stages via `internal/mission/dispatch`) | **The child** — e.g. pi's `prepush-gate.ts` intercepts the agent's own `git push` / `gh pr create` | The rig's git uses `gh auth git-credential` (keyring), not an env token; no launchd env file sets `GITHUB_TOKEN` | Nothing from env — `gh` falls back to its stored login when `GH_TOKEN`/`GITHUB_TOKEN` are absent |
+
+**Consequence for D2.** No lane needs the fleet token *in the child's environment*. The parent keeps
+`GITHUB_TOKEN` in its own env for its own git and PR calls, and its global credential helper now
+reads the token from the environment at call time (`$GITHUB_TOKEN`) instead of embedding it — so the
+same helper yields nothing inside the child. For the optional mid-run push/fetch, the parent writes a
+per-task git credential file (0600, in a 0700 dir outside the workspace) **scoped by URL to the task's
+own repository** and points the child's git at it with `GIT_CONFIG_*` entries; it is removed when the
+task ends. `AILANG_CHILD_GIT_CREDENTIALS=none` withholds even that (the parent still pushes). That
+switch exists because a private-repo `git fetch` mid-run is the one behaviour the inventory could not
+rule out; once a probe task per lane shows nobody needs it, flip the default.
+
+## Per-Executor Default Profiles (D1/D2 implementation)
+
+Inherited names pass only when on the allowlist **and** not credential-shaped; credential-shaped
+names (`*_KEY`, `*_TOKEN`, `*SECRET*`, `*PASSWORD*`, `*CREDENTIAL*`, `SSH_AUTH_SOCK`, `AWS_*`, …)
+pass only as an explicit grant. Unknown names are dropped.
+
+| Executor | Granted credential(s) | Source in the cloud job | Notes |
+|---|---|---|---|
+| claude | `ANTHROPIC_API_KEY` **only** under `AILANG_AUTH_MODE=apikey` | external `*-apikey` jobs (per-execution override, KMS-decrypted by the parent) | OAuth lanes authenticate from `~/.claude/.credentials.json` written by the parent; `CLAUDE_CODE_OAUTH_TOKEN` never reaches the child (the old ad-hoc strip, now the seam's default) |
+| codex | `OPENAI_API_KEY`, `CODEX_API_KEY` | eval jobs only; internal codex reads `~/.codex/auth.json` installed by the parent from `codex-auth-json` | `AILANG_CODEX_AUTH_SECRET` (a secret *name*) is withheld — the child does not fetch it |
+| pi | the model's provider key, from the `provider/` prefix: `openrouter`→`OPENROUTER_API_KEY`, `google`→`GEMINI_API_KEY`+`GOOGLE_API_KEY`, `openai`→`OPENAI_API_KEY`, `anthropic`→`ANTHROPIC_API_KEY`, `ollama`→`OLLAMA_API_KEY`; plus, when the task carries an agent policy, the credential vars its restricted worker is allowed (pinned AI provider, std/web backend) | internal pi: GEMINI, OPENROUTER, OLLAMA; pi-go: OPENAI, OPENROUTER | The `ailang_only` lane's worker selects its credentials from pi's env (`run_policy_supervise.go` `workerEnv`), so the policy-derived grant is what keeps it working |
+| opencode | same provider-prefix rule as pi | OPENROUTER | |
+| motoko | `OPENROUTER_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY` | OPENROUTER, GEMINI | the ratified motoko set (`motoko.go:26-29`); never `ANTHROPIC_API_KEY` |
+
+Never granted by default to any executor: `GITHUB_TOKEN`, `GH_TOKEN`, `AILANG_REGISTRY_API_KEY`,
+`CLAUDE_CODE_OAUTH_TOKEN`, `AILANG_KMS_KEY`, `AILANG_CODEX_AUTH_SECRET`, `AILANG_SSH_KEY_SECRET`,
+`GOOGLE_APPLICATION_CREDENTIALS` (unless a policy-pinned Google provider asks for it).
+Operator escape hatch: `AILANG_EXECUTOR_ENV_INHERIT` (comma-separated names, set on the *host*, never
+from a task) forwards additional names — including a credential, which is then an explicit operator
+grant visible in the banked name digest. It is the rollback lever if a lane turns out to need a
+variable the profile drops.
 
 ## Solution Design
 
@@ -282,7 +342,8 @@ grant it in the lane's EnvPolicy or remove it from the benchmark spec
 - [ ] AC1: default-lane agent child env contains no credential-bearing variable other than the
       lane's ratified inference credential (test enumerates `*_API_KEY`, `*TOKEN*`, `*SECRET*`
       name patterns against the built env, per executor)
-- [ ] AC2: no executor produces a child env with duplicate keys (cross-executor test); precedence
+- [ ] AC2: the builder never emits a duplicate key (so the slice handed to `exec.Cmd` already is the
+      child env, with no reliance on `os/exec`'s last-wins de-duplication); precedence
       `ExtraEnv > injected > inherited` pinned by test
 - [ ] AC3: deny-listed `ExtraEnv` names fail loudly pre-dispatch, naming the variable (via
       `ValidateTaskCapabilities` path); mission-dispatch constants and eval `agent_env`
@@ -389,11 +450,11 @@ per the duplicate/coverage gate.
 | ID | Claim checked | Instrument / evidence | Result |
 |---|---|---|---|
 | V1 | Operator secrets are visible to the model-facing agent process in the executor container | `env \| grep -iE "key\|token\|secret\|auth\|credential"` in this coordinator-spawned session (values redacted in this doc) | 5 secret-bearing vars present: `GITHUB_TOKEN`, `AILANG_REGISTRY_API_KEY`, `OPENROUTER_API_KEY`, `GEMINI_API_KEY`, `OLLAMA_API_KEY` |
-| V2 | `BuildEnvironment` inherits the full host env and all five subprocess executors pass it through | Read `environment.go:69`; `pi/pi.go:160-167`; `codex/codex.go:165-172`; `opencode/opencode.go:171-178`; `motoko/motoko.go:362,451`; `claude/claude.go:253` | Confirmed; single shared seam (good for one fix) |
+| V2 | `BuildEnvironment` inherits the full host env and all five subprocess executors pass it through | Read `environment.go:69`; `pi/pi.go:160-167`; `codex/codex.go:165-172`; `opencode/opencode.go:171-178`; `motoko/motoko.go:373,462` (moved by #1429); `claude/claude.go:253` | Confirmed; single shared seam (good for one fix) |
 | V3 | Only claude strips auth secrets, ad-hoc | `grep -rn "RemoveEnvVar(" internal/executor/` (non-test) | Only `claude.go:265,270` (its own two vars) and `environment.go:75,81` (`CLAUDECODE`, rig lease) — no central secret seam exists |
 | V4 | No env sanitization/allowlist seam exists anywhere in the executor layer | `grep -rniE "sanitiz\|allowlist\|denylist\|redact\|scrub" internal/executor/*.go */*.go` (non-test) | Only tool-policy and isolation comments; none govern env |
 | V5 | `ExtraEnv` is forwarded unvalidated, from semi-trusted sources | Read `environment.go:99-107`; `eval_harness/spec.go:38-43` (`agent_env` from benchmark YAML); `browser_sessions.go:198-203`; `mission/dispatch/run.go:243-251` (constants) | Confirmed; mission dispatch is constants-only today, eval/benchmark sources are data files |
-| V6 | Duplicate env entries occur and "last wins" is not portable | `environment.go` appends keys at lines 91,96,104,133,140-146,153,162,166 with plain `append`; live container env already sets `AILANG_PARENT_TASK_ID` and `OTEL_RESOURCE_ATTRIBUTES`; POSIX/glibc duplicate-name behavior is implementation-defined (glibc `getenv`: first match) | Duplicate entries reach `execve` today; the `environment.go:100-102` override comment does not hold for inherited keys on glibc/Go children |
+| V6 | Duplicate env entries occur and "last wins" is not portable | `environment.go` appends keys at 91,96,104,133,140-146,153,162,166 with plain `append`. **Re-checked 2026-10-01:** Go's `os/exec` de-duplicates `Cmd.Env` (last wins) before `execve`, so no child sees a duplicate | Original claim **corrected** — see E3: the defect is unowned precedence (harness beats `ExtraEnv`), not duplicates at `execve` |
 | V7 | Clone preamble interpolates an unvalidated URL into shell text | Read `clone_preamble.go:47-77` (only non-empty checked); callers `cmd/ailang/exec.go:151,392`, `eval_harness/gemini_clone_review.go:23` | Confirmed; contrast: `--clone-sha` IS validated (SHA40) |
 | V8 | Registry key is a write credential worth naming | Read `internal/config/pkgregistry.go:30` — "API key sent as X-API-Key to the validator for **publish, unpublish and key management**" | Confirmed; superuser key, not a read credential |
 | V9 | Duplicate/coverage gate: no planned or implemented doc owns this boundary | `ailang docs search --neural` (fell back to simhash, 0.45-threshold unevaluable — recorded, per the gate's honesty requirement); filename/content search over `design_docs/` for `secur/sandbox/hardening`; read the two closest docs | `m-executor-policy-hardening` (implemented v0.41.0) and `m-agent-safe-runner` (planned v1_1_0) both state explicit, disjoint scope; topic is genuinely distinct |
