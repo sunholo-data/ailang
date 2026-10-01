@@ -90,6 +90,9 @@ func TestGitCeiling_IsResolvedParentOfSandbox(t *testing.T) {
 }
 
 func TestGitCeiling_RefusesWhatItCannotBind(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("posix-only: restricted mode (and its confined git) is refused on Windows")
+	}
 	if _, err := gitCeiling(""); err == nil || !strings.Contains(err.Error(), "fs_sandbox") {
 		t.Errorf("no sandbox must be refused naming fs_sandbox, got %v", err)
 	}
@@ -136,6 +139,9 @@ func TestConfinedEnv_CeilingSetAndCallerGITStripped(t *testing.T) {
 // bare repos are refused; diff-rendering subcommands force off external
 // diff and textconv.
 func TestConfinedGit_HardeningArgv(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("posix-only: restricted mode (and its confined git) is refused on Windows")
+	}
 	if err := os.MkdirAll(gitHooksDisabledPath, 0o755); err == nil {
 		t.Fatalf("%s must be impossible to create", gitHooksDisabledPath)
 	}
