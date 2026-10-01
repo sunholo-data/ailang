@@ -42,6 +42,11 @@ func runCommand() {
 	policyFlag := fs.String("policy", "", "Gate the run by an operator program policy (agent-policy.toml): caps, net allowlist, FS sandbox, entry and limits come from the file; every widening flag is refused by name; denial prints the decision JSON and exits 2 without running; the run is supervised (timeout_ms, output cap)")
 	policyWorkerFlag := fs.Int("policy-worker", 0, "internal: the control-pipe fd handed to the worker by a supervising `run --policy`; never pass by hand")
 	maxRecursionDepthFlag := fs.Int("max-recursion-depth", 10000, "Maximum recursion depth (default: 10000)")
+	// --chdir runs as if started in DIR: the entry path and module names
+	// resolve from it. For a caller that cannot set a child's working
+	// directory (an AILANG program's std/process.exec has no cwd). Under
+	// --policy, DIR must lie inside fs_sandbox (checked in resolveRunPolicyFor).
+	chdirFlag := fs.String("chdir", "", "Run as if started in this directory (entry path and module names resolve from it); under --policy it must be inside fs_sandbox")
 
 	// Stdlib resolution flags
 	stdlibPathFlag := fs.String("stdlib-path", "", "Stdlib directory for this run; beats AILANG_STDLIB_PATH and ./std, and a path without io.ail is an error")
@@ -139,6 +144,12 @@ func runCommand() {
 	}
 	if *verboseFlag {
 		*quietFlag = false
+	}
+	if *chdirFlag != "" {
+		if err := os.Chdir(*chdirFlag); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: --chdir %s: %v\n", *chdirFlag, err)
+			os.Exit(1)
+		}
 	}
 
 	// M-AI-EFFECT-MODES M2: snapshot the routing flag values now and defer
