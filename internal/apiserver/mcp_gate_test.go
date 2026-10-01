@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/testutil"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -160,9 +161,7 @@ func TestMCPGate_AgentSurfaceUngated(t *testing.T) {
 // D7 end to end: a verifier hanging on Net is refused with 503 at the 5 s
 // deadline, and the deadline reaches the AILANG Net call.
 func TestMCPGate_SlowVerifierTimesOut(t *testing.T) {
-	if testing.Short() {
-		t.Skip("waits for the 5 s verification deadline")
-	}
+	testutil.SkipInFastLoop(t, "waits for the 5 s verification deadline")
 	cancelled := make(chan struct{}, 1)
 	hang := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		select {
