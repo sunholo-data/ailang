@@ -90,8 +90,8 @@ func defaultLaneRunner(ctx context.Context, dir string, env []string, name strin
 	if err != nil {
 		var ee *exec.ExitError
 		if errors.As(err, &ee) {
+			// A non-zero exit is an answer (the strict probe expects 2), not a failure to run.
 			code = ee.ExitCode()
-			err = nil
 		} else {
 			return "", -1, err
 		}
