@@ -1,0 +1,90 @@
+{
+  "sprint_id": "M-JSON-NUMBER-ROUNDTRIP",
+  "status": "not_started",
+  "created": "2026-10-01T20:16:00.275696+00:00",
+  "design_doc": "design_docs/planned/v0_50_2/m-json-number-roundtrip.md",
+  "sprint_plan": "design_docs/planned/v0_50_2/m-json-number-roundtrip-sprint-plan.md",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "none: ailang pkg search json found application packages, not host codecs; search float returned no packages. Inspected sunholo/a2ui@0.2.0 via pkg info: UI components only; pkg docs failed because no AGENT.md exists. Language packages cannot repair the Go builtin/VM boundary; reuse existing internal/eval and Go strconv/encoding/json instead."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "none: ailang pkg search json found application packages, not host codecs; search float returned no packages. Inspected sunholo/a2ui@0.2.0 via pkg info: UI components only; pkg docs failed because no AGENT.md exists. Language packages cannot repair the Go builtin/VM boundary; reuse existing internal/eval and Go strconv/encoding/json instead."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "none: ailang pkg search json found application packages, not host codecs; search float returned no packages. Inspected sunholo/a2ui@0.2.0 via pkg info: UI components only; pkg docs failed because no AGENT.md exists. Language packages cannot repair the Go builtin/VM boundary; reuse existing internal/eval and Go strconv/encoding/json instead."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 120,
+    "estimated_total_loc": 360,
+    "estimated_days": 3
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Canonical number formatter and encoder parity",
+      "estimated_loc": 110,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "All three encoders delegate float formatting to eval.FormatJSONNumber with no float-to-int conversion.",
+        "Boundary table covers signed zero, threshold neighbors, subnormals, 2^53, 2^63, maximum float and non-finite values.",
+        "Negative zero emits -0.0; 1e21 emits 1e+21; 1e-7 emits 1e-7; NaN and infinities emit null.",
+        "IntValue/TagInt encoding remains exact integer text and existing mid-range cases pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Float decoding with propagated range errors",
+      "estimated_loc": 100,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "All three number decoders use Float64 without the Int64 text heuristic.",
+        "Registry and VM token builders propagate conversion errors through existing Result Err envelopes, including nested arrays and objects.",
+        "Positive and negative 1e19 decode without saturation; -0 and -0.0 preserve their sign bits.",
+        "Positive and negative overflow tokens return Err; underflow behavior is pinned to the installed Go ParseFloat behavior, propagating every non-nil error."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Backend round-trip verification, example and release notes",
+      "estimated_loc": 150,
+      "dependencies": [
+        "M1",
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "Boundary table and at least 10000 seeded random finite float bit patterns round-trip bit-identically through actual registry, legacy and VM codec paths.",
+        "Differential tests assert byte-identical encoder output across all three implementations.",
+        "New examples/runnable/json_number_roundtrip.ail passes check and has identical expected output in interpreter and strict-bytecode modes.",
+        "json_jint.ail runs successfully; ai_call.ail and claude_haiku_call.ail type-check and their max_tokens JSON remains 100 without requiring network calls.",
+        "Metadata and CHANGELOG describe intentional formatting and overflow-error behavior changes.",
+        "Focused tests, make test, make lint, make check-boundaries and make simplicity-audit pass or infrastructure failures are explicitly reported."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
