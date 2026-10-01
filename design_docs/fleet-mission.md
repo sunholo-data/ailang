@@ -43,6 +43,10 @@ mission.
 
 Newest **3** STATUS stamps live here; older ones move to `fleet-mission-status-archive.md`.
 
+## STATUS 2026-10-01 — ITERATION 10: `pi-runner:quota-429-reported-as-empty-worktree` LANDED in [#1424](https://github.com/sunholo-data/ailang/pull/1424) (`94524a6fc`), independent evaluator PASS 97; ticket resolved; stapledon's stale-pin re-file of `mission-base:hardcoded-origin-dev` resolved against `cb7c51c8e`
+
+`mission_pi_run.sh` now types a run whose last assistant `message_end` is `stopReason:"error"` with a capacity `errorMessage` (429/402, usage limit, quota, rate limit, credits) as `provider_quota` rc 19, above `ok`/`empty_worktree`; every verdict carries `provider_errors`/`provider_error`. Planning found the worse twin: World iter 187's planner had banked a 429 stop as `ok` rc 0 with 10 files changed. Tests: `test_mission_pi_run_provider_quota.sh` 29 checks on real-pi fixtures, executor 10/10 mutants red, evaluator 5 own drills red; controller `make test-launchd-drivers` rc 0; PR checks CLEAN; merge-commit CI success (SonarCloud red inherited from `a03ec7013`). The gate-3-route.md rc list does not name 19 yet: its `.agents` mirror is outside the scope guard (D-FLEET-8 class); the existing text already falls back on any non-zero rc except 18. The pi evaluator lane died again on the extension collision (rc 17); fallback `claude-sonnet-4-6` judged. Clause map: **1 product share** unmeasured; **2 turnaround** at risk (this ticket filed 09-26 19:10Z, resolved ~4.5 days later); **3 one queue** MET (14 open); **4 idle is free** MET; **5 no regressions** MET.
+
 ## STATUS 2026-09-30 — ITERATION 9: `mission-base:hardcoded-origin-dev` LANDED in [#1418](https://github.com/sunholo-data/ailang/pull/1418) (`cb7c51c8e`), independent evaluator PASS 100; ticket resolved; iteration 8's record #1416 landed (`60af11ee0`)
 
 `mission-base.sh` now takes `MISSION_BASE_REF`, else `origin/HEAD`'s target, else fails loudly (rc 1, both remedies named, no row written); no silent `origin/dev` fallback. Live A/B in the stapledon clone: old rc 1 `cannot resolve origin/dev`, new rc 0 recording `origin/main`; `origin/HEAD` measured in all 6 mission clones (5 → `origin/dev`, stapledon → `origin/main`). `test_mission_base.sh` 13/13, `make test-launchd-drivers` rc 0 (controller re-run), PR checks all green; merge-commit CI green except SonarCloud new-code coverage, red on the 4 prior dev commits too (inherited). Evaluator: pi minimax-m3 lane dead on launch (`sandbox_not_ready` rc 17: user-level `~/.pi/agent/extensions` tools collide with the worktree's `.pi/extensions`), declared fallback `claude-sonnet-4-6` PASS 100 with its own mutation drills. #1416 had been held only by dev's changelog-hygiene red, since fixed; branch updated, CI CLEAN, merged. Clause map: **1 product share** unmeasured; **2 turnaround** improved (5-occurrence ticket resolved, first filed 09-27 21:07Z, ~72h — over the 48h target); **3 one queue** MET (15 open); **4 idle is free** MET; **5 no regressions** MET.
@@ -50,10 +54,6 @@ Newest **3** STATUS stamps live here; older ones move to `fleet-mission-status-a
 ## STATUS 2026-09-30 — ITERATION 8: paired rotate-log design PARKED · D-FLEET-9; quorum BLOCKED twice, independent Sonnet technical checkpoint PASS, implementation score UNMEASURED
 
 Synthetic A/B registries reproduce a wrong-checkout write; `--status` mutates the status archive, while default World log selection is correct. No implementation or ticket resolution. Record-only [PR #1416](https://github.com/sunholo-data/ailang/pull/1416) is OPEN, needs-human-review; not landed and no auto-merge armed. The intentional flag break needs Mark, and the next design must audit all shared-loader callers or isolate stricter rotate resolution. [Design](planned/m-mission-rotate-log-safe.md), [independent evaluation](planned/m-mission-rotate-log-safe-evaluation.md), [evidence](planned/m-mission-rotate-log-safe-evidence.json). Goal unmoved: clause 1 unmeasured, 2 at risk, 3–4 met, 5 upheld by shipping nothing unverified. Dev CI is independently red on changelog hygiene; handed to V1.
-
-## STATUS 2026-09-29 — ITERATION 7: D-FLEET-7 stall-watchdog M2 merged in [#1399](https://github.com/sunholo-data/ailang/pull/1399) (`ce1c0639f`), independent evaluator PASS 88; merge CI SUCCESS (CI run 36562795612; 20 check rows settled success/skipped)
-
-The approved arm counts descendant `proc_pid_rusage` growth of at least 10 CPU-s per existing 120-s sample, excluding the controller root's own CPU. The sample count and 600-s budget are unchanged. Focused stall suite 35/35 and full `make test-launchd-drivers` passed locally; all 22 PR checks settled success/skipped. Sonnet round 1 found two surviving root-accounting mutations and child churn; round 2 confirmed the fixes, PASS 88 with zero blocking. The ticket was resolved with merge SHA `ce1c0639f` after merge-commit CI. An initial Gate-2 mis-pick of `skill:heartbeat-relative-path-absent-in-world` missed Mark's ranked charter head; its design blocked at quorum twice and is parked for D-FLEET-8, with no heartbeat implementation. Clause map: **1 product share** unmeasured; **2 turnaround** improved for one ticket; **3 one queue** MET; **4 idle is free** MET; **5 no regressions** MET after merge CI.
 
 ## CURRENT GOAL
 
@@ -160,10 +160,9 @@ evidence in each line). Still re-check at HEAD in Gate 2 before working a ticket
 3. [LANDED] `mission-base:hardcoded-origin-dev`: #1418 `cb7c51c8e` (iteration 9), ticket resolved.
 **P1 — a lane misreported as dead, or a failure nobody sees** (the class that cost 2026-09-28/29's
 overnight: harness faults read as model faults)
-4. [NEXT] `pi-runner:quota-429-reported-as-empty-worktree`: `mission_pi_run.sh` still parses no
-   `message_end` error or 429. A quota-exhausted lane reads as `empty_worktree` rc 10. Add a distinct
-   verdict, alongside #1391's `tool_hang`.
-5. `pi-runner:verdict-blind-to-commits-and-predirty`, the **pre-dirty half**: there is no porcelain
+4. [LANDED] `pi-runner:quota-429-reported-as-empty-worktree`: #1424 `94524a6fc` (iteration 10), ticket
+   resolved. Verdict `provider_quota` rc 19; the gate-3-route.md rc-list line waits on D-FLEET-8 (mirror scope).
+5. [NEXT] `pi-runner:verdict-blind-to-commits-and-predirty`, the **pre-dirty half**: there is no porcelain
    snapshot before the run (`:338-339` says so itself). The commit-blind half landed in #1329.
 6. `skill-surface:main-checkout-not-synced-to-dev` (filed 2026-09-29): loops read skills from the
     main checkout, which nothing fast-forwards. Merged skill fixes wait for a manual pull, and a paused
@@ -192,6 +191,7 @@ overnight: harness faults read as model faults)
     Low severity.
 
 **Landed (history)**
+- `pi-runner:quota-429-reported-as-empty-worktree`: #1424 `94524a6fc` (iteration 10).
 - `mission-base:hardcoded-origin-dev`: #1418 `cb7c51c8e` (iteration 9).
 - `stall-watchdog:kills-controller-on-long-drill`: #1399 `ce1c0639f`, D-FLEET-7 M2.
 - `driver:slot-kill-leaves-orphan-descendants`: #1325.
