@@ -46,6 +46,10 @@ type secretApprovalContext struct {
 	Ref     string `json:"ref"`
 	Purpose string `json:"purpose,omitempty"`
 	Agent   string `json:"agent,omitempty"`
+	// Caller is the AUTHENTICATED identity that created the request (a
+	// service-account email, or the shared-token marker). Agent is whatever
+	// the client says; Caller is what the server verified.
+	Caller string `json:"caller,omitempty"`
 }
 
 // secretIntakeRequest is the POST /api/approvals body from CloudSecretApprover.
@@ -60,6 +64,10 @@ type secretIntakeRequest struct {
 // returns its id. Reached via POST /api/approvals (GET on that path lists
 // approvals — see handleApprovals).
 func (s *Server) handleSecretApprovalIntake(w http.ResponseWriter, r *http.Request) {
+	caller, ok := s.authorizeApprovalCaller(w, r)
+	if !ok {
+		return
+	}
 	if s.approvalStore == nil {
 		http.Error(w, "approval store not configured", http.StatusServiceUnavailable)
 		return
@@ -74,7 +82,7 @@ func (s *Server) handleSecretApprovalIntake(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	ctxJSON, _ := json.Marshal(secretApprovalContext{Ref: body.Ref, Purpose: body.Purpose, Agent: body.Agent})
+	ctxJSON, _ := json.Marshal(secretApprovalContext{Ref: body.Ref, Purpose: body.Purpose, Agent: body.Agent, Caller: caller})
 	agent := body.Agent
 	if agent == "" {
 		agent = "unknown agent"
@@ -98,14 +106,21 @@ func (s *Server) handleSecretApprovalIntake(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	log.Printf("secret approval: %s created by %s (ref %s)", rec.ID, caller, body.Ref)
 	s.publishSecretApprovalRequested(r.Context(), rec)
 
-	httpjson.Write(w, http.StatusOK, map[string]string{"id": rec.ID})
+	httpjson.Write(w, http.StatusCreated, map[string]string{"id": rec.ID})
 }
 
 // handleSecretApprovalStatus returns the current status of one approval.
 // GET /api/approvals/{id} — polled by CloudSecretApprover until a decision.
+//
+// Same credential as the create (approval_intake_auth.go): the status of an
+// enumerable id is the signal of when a secret is released.
 func (s *Server) handleSecretApprovalStatus(w http.ResponseWriter, r *http.Request, id string) {
+	if _, ok := s.authorizeApprovalCaller(w, r); !ok {
+		return
+	}
 	if s.approvalStore == nil {
 		http.Error(w, "approval store not configured", http.StatusServiceUnavailable)
 		return

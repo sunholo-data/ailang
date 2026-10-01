@@ -210,6 +210,11 @@ func parentRepoWithSubdir(t *testing.T) (repo, sub string) {
 	needGit(t)
 	repo = t.TempDir()
 	gitIn(t, repo, "init", "-q", "-b", "main")
+	// No background auto-maintenance: a detached gc/maintenance run after a
+	// commit races the cp -R of .git/objects in the planted-bare-repo test
+	// (cp: cannot stat '.git/objects/maintenance.lock').
+	gitIn(t, repo, "config", "maintenance.auto", "false")
+	gitIn(t, repo, "config", "gc.auto", "0")
 	if err := os.WriteFile(filepath.Join(repo, "top.txt"), []byte("one\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}

@@ -1,0 +1,7 @@
+### Security — secret-approval create/poll now authenticate the caller
+
+- `POST /api/approvals` (create a pending secret approval) and `GET /api/approvals/{id}` (poll) on the dashboard did no auth, and the dashboard is public: anyone could put requests in the approver's queue and poll any approval's decision by its enumerable id. `AILANG_APPROVAL_TOKEN` was sent by the client and never checked.
+- Both routes now fail closed (401 missing/bad credential, 403 a Google identity not allowed) and accept exactly: a Google-signed ID token whose issuer is `accounts.google.com`, audience is the dashboard (`AILANG_APPROVAL_AUDIENCE`, default `AILANG_APPROVAL_BASE_URL`), and verified email is on the new `AILANG_APPROVAL_ALLOWED_CALLERS`; or `AILANG_APPROVAL_TOKEN` set to the same value on the dashboard (constant-time compare). `AILANG_APPROVAL_INTAKE_AUTH=off` is the one way back to anonymous (logged); any other value enforces. Create now returns 201 and records the verified caller.
+- The client (`CloudSecretApprover`) sends `AILANG_APPROVAL_TOKEN` when set, else mints an ID token for `AILANG_APPROVAL_URL` (metadata server on Cloud Run), lazily on the first `secret()`. A 401/403 now says why instead of reading as a bare denial.
+- Approve/reject are unchanged (signed ntfy token or Approver session).
+- Deploy note: the dashboard needs `AILANG_APPROVAL_ALLOWED_CALLERS` (the executor lanes' service accounts) before this image reaches an environment with secret approvals enabled, or every `secret()` there is denied.

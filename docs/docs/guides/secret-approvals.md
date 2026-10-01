@@ -103,7 +103,31 @@ bridge) by the **coordinator**. So the env splits across three places:
 | `AILANG_STORAGE=gcp` | executor | selects cloud mode |
 | `AILANG_APPROVAL_URL` | executor | the **dashboard** base URL the approver POSTs to (falls back to `AILANG_COORDINATOR_URL`) |
 | `AILANG_AGENT_ID` / `AILANG_TASK_ID` | executor | label the approval request (optional) |
-| `AILANG_APPROVAL_TOKEN` | executor | optional bearer token on the intake POST |
+| `AILANG_APPROVAL_ALLOWED_CALLERS` | **dashboard** | comma-separated service-account emails allowed to create/poll secret approvals with a Google ID token (the executor lanes' SAs) |
+| `AILANG_APPROVAL_AUDIENCE` | **dashboard** | optional: comma-separated ID-token audiences to accept; defaults to `AILANG_APPROVAL_BASE_URL` |
+| `AILANG_APPROVAL_INTAKE_AUTH` | **dashboard** | `enforce` (default) or `off` (anonymous create/poll — local dashboards and rollback only) |
+| `AILANG_APPROVAL_TOKEN` | executor **and** dashboard | shared-secret bearer for callers that cannot mint an ID token (local/CLI); the dashboard accepts it only when set to the same value there |
+
+### Who may create and poll approvals
+
+The dashboard is public, so `POST /api/approvals` and `GET /api/approvals/{id}`
+authenticate the caller and fail closed (401 no/bad credential, 403 a Google
+identity not on the allowlist). Two credentials are accepted:
+
+- **A Google-signed ID token** — what an executor on Cloud Run sends. The
+  approver mints it from the metadata server with the audience set to
+  `AILANG_APPROVAL_URL`; the dashboard checks signature, issuer
+  (`accounts.google.com`), audience (`AILANG_APPROVAL_AUDIENCE`, else
+  `AILANG_APPROVAL_BASE_URL`) and that the verified email is on
+  `AILANG_APPROVAL_ALLOWED_CALLERS`. The two URLs must be the same string
+  (a trailing slash is ignored).
+- **`AILANG_APPROVAL_TOKEN`** — a shared secret set on both sides, compared in
+  constant time. A laptop's user ADC cannot mint ID tokens, so this is the
+  route for `ailang run` outside GCP. When it is set on the client it is sent
+  instead of an ID token.
+
+The verified caller is recorded on the approval (`caller` in its context).
+Approve/Deny are unchanged: signed ntfy token or an Approver session.
 
 ## Phone setup
 
@@ -127,6 +151,7 @@ Once the bridge ships and the deploy is done:
 ```bash
 # A gated secret task running in cloud mode (point at the dashboard URL):
 AILANG_STORAGE=gcp AILANG_APPROVAL_URL=<dashboard-url> \
+  AILANG_APPROVAL_TOKEN=<the dashboard's shared token> \
   ailang run --caps Secret,IO --entry main yourtask.ail
 ```
 
