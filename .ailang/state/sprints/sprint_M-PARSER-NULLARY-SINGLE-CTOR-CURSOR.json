@@ -1,0 +1,65 @@
+{
+  "sprint_id": "M-PARSER-NULLARY-SINGLE-CTOR-CURSOR",
+  "status": "not_started",
+  "created": "2026-10-01T21:05:46.260962+00:00",
+  "design_doc": "design_docs/planned/v0_51_1/m-parser-nullary-single-ctor-cursor.md",
+  "sprint_plan": "design_docs/planned/v0_51_1/m-parser-nullary-single-ctor-cursor-sprint-plan.md",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Search parser returned protocol/process helpers, not a compiler parser; change internal/parser and its Go tests."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Search parser yielded no relevant compiler package; reuse existing repository package/CLI test infrastructure."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 240,
+    "estimated_total_loc": 240,
+    "estimated_days": 1
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Guard cursor advance and pin declaration boundaries",
+      "estimated_loc": 150,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Before the fix, new follower regressions fail for the reported cursor corruption; after the fix, they pass.",
+        "Followers export type, export pure func, pure func, func and an annotated exported function parse without errors and retain source flags.",
+        "Single nullary constructors at EOF parse cleanly; multi-variant, deriving, fielded, record and no-pipe alias AST shapes remain unchanged.",
+        "The five named std modules retain their declared export sets.",
+        "Only the approved leadingPipe nullary production branch changes; go test ./internal/parser passes."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Verify package exports and complete regression checks",
+      "estimated_loc": 90,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "The rx/p package fixture imports W and mk successfully and main returns 2 using --quiet --package-dir and --entry main.",
+        "The regression is persistent and exercises package import/export behavior, beyond parser flags alone.",
+        "Rebuilt-binary isolation cases from the design verification log produce their expected outputs; formerly failing cases pass.",
+        "make fmt, make test-core, make test and make lint pass; report any pre-existing/environment failure with evidence rather than marking it green.",
+        "A v0.51.1 changelog entry describes the cursor/export fix without claiming no-pipe constructor syntax is supported."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
