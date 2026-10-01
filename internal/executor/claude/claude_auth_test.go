@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/testutil"
@@ -66,7 +67,7 @@ func TestWriteCredentialsFile_LocalConfigDirAndRefresh(t *testing.T) {
 		if err != nil {
 			t.Fatalf("credential missing at %s: %v", p, err)
 		}
-		if info.Mode().Perm() != 0o600 {
+		if runtime.GOOS != "windows" && info.Mode().Perm() != 0o600 { // Windows has no POSIX modes
 			t.Errorf("%s mode = %o, want 0600", p, info.Mode().Perm())
 		}
 	}

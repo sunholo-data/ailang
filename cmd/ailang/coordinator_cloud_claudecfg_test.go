@@ -4,6 +4,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -25,6 +26,9 @@ var claudeLocalOnlyFiles = []string{
 // files AND a session JSONL through CLAUDE_CONFIG_DIR leaves no secret file under
 // the artifact root, while the JSONL lands at the bucket path readers expect.
 func TestSetupClaudeConfigDir_OnlySessionLogsReachArtifacts(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("cloud executor is Linux-only: POSIX modes and the projects/ symlink")
+	}
 	root := t.TempDir()
 	artifacts := filepath.Join(root, "artifacts")
 	localBase := filepath.Join(root, "home", ".claude-tasks")
