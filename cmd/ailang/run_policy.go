@@ -69,6 +69,7 @@ var refusedWithPolicy = []struct{ name, why string }{
 	{"stream-allow-http", "comes from the policy's net_allow_http"},
 	{"stream-allow-domains", "comes from the policy's net_allow"},
 	{"stream-allow-localhost", "restricted mode has no localhost grant"},
+	{"stream-max-message", "restricted mode keeps the default Stream message cap"},
 	{"process-allowlist", "comes from the policy's process_allow"},
 	{"stdlib-path", "module roots are not the caller's to choose"},
 	{"package-dir", "module roots are not the caller's to choose"},

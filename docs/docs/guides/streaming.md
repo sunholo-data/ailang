@@ -410,9 +410,29 @@ ailang run --caps Stream,Process,IO --entry main module.ail
 # With process allowlist (security)
 ailang run --caps Stream,Process,IO --process-allowlist "echo,ffmpeg,rec" --entry main module.ail
 
-# Stream timing configuration
-ailang run --caps Stream,IO --stream-idle-timeout 30s --stream-max-duration 5m --entry main module.ail
+# Message size cap (default 1MB, both directions)
+ailang run --caps Stream,IO --stream-max-message 8MB --entry main module.ail
 ```
+
+`--stream-idle-timeout` and `--stream-max-duration` are `serve-api` flags; `ailang run` uses the
+defaults (60s idle, 5 minutes total).
+
+### Message size: `--stream-max-message`
+
+One message, sent or received, may be at most `--stream-max-message` bytes (default **1MB**). A send
+over the cap returns `MessageTooLarge`. A received message over the cap ends the connection with
+`1006 read limit exceeded: message over N bytes`, because the read is aborted before the message
+reaches the program. The cap applies to the whole message, however many WebSocket frames carry it.
+Sizes use the same spellings as `--fs-max-bytes` (`65536`, `256KB`, `4MB`).
+
+The cap is set by whoever runs the program, not by the program. That is why `connect` has no size
+option, and why `--policy` runs refuse the flag.
+
+| Set it | When |
+|--------|------|
+| **Higher** (e.g. `8MB`) | The upstream is trusted and sends big single messages: whole images or files, base64 media keyframes, large JSON tool results. |
+| **Default** (`1MB`) | Typical chat, voice and avatar-video APIs. Gemini Live video sends roughly 22KB messages, plus occasional larger ones. |
+| **Lower** (e.g. `64KB`) | A `serve-api` endpoint that untrusted clients can reach, where inbound messages are small (text chat, control frames). Inbound memory is bounded by about `--ws-max-sessions × --ws-queue-frames × cap`, which is 4 × 64 × 1MB = 256MB at the defaults. |
 
 ## Related Resources
 

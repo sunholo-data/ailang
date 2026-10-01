@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/effects"
@@ -83,5 +84,56 @@ func TestSetupNetHandler(t *testing.T) {
 				t.Errorf("AllowedDomains len = %d, want %d", len(effCtx.Net.AllowedDomains), tt.wantDomains)
 			}
 		})
+	}
+}
+
+func streamCtx(caps ...string) *effects.EffContext {
+	ctx := effects.NewEffContext(nil)
+	for _, c := range caps {
+		ctx.Grant(effects.NewCapability(c))
+	}
+	return ctx
+}
+
+func TestSetupStreamHandler_MaxMessage(t *testing.T) {
+	cases := []struct {
+		flag    string
+		want    int64
+		wantErr string
+	}{
+		{"", 1 << 20, ""}, // default
+		{"256KB", 256 << 10, ""},
+		{"8MB", 8 << 20, ""},
+		{"65536", 65536, ""},
+		{"0", 0, "must be positive"},
+		{"lots", 0, "--stream-max-message"},
+		{"-1", 0, "--stream-max-message"},
+	}
+	for _, c := range cases {
+		ctx := streamCtx("Stream")
+		err := SetupStreamHandler(ctx, StreamOptions{MaxMessage: c.flag})
+		if c.wantErr != "" {
+			if err == nil || !strings.Contains(err.Error(), c.wantErr) {
+				t.Errorf("%q: err = %v, want containing %q", c.flag, err, c.wantErr)
+			}
+			continue
+		}
+		if err != nil {
+			t.Fatalf("%q: %v", c.flag, err)
+		}
+		if ctx.Stream.MaxMessageSize != c.want {
+			t.Errorf("%q: MaxMessageSize = %d, want %d", c.flag, ctx.Stream.MaxMessageSize, c.want)
+		}
+	}
+}
+
+// Setting the cap without the capability is an error, not an ignored flag.
+func TestSetupStreamHandler_MaxMessageNeedsStreamCap(t *testing.T) {
+	err := SetupStreamHandler(streamCtx("IO"), StreamOptions{MaxMessage: "4MB"})
+	if err == nil || !strings.Contains(err.Error(), "needs --caps Stream") {
+		t.Errorf("err = %v, want 'needs --caps Stream'", err)
+	}
+	if err := SetupStreamHandler(streamCtx("IO"), StreamOptions{}); err != nil {
+		t.Errorf("no Stream cap, no flag: %v", err)
 	}
 }

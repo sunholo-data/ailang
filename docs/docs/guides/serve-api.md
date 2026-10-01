@@ -1338,6 +1338,12 @@ a longer ceiling, such as `--stream-max-duration 30m`. Each direction queues at 
 `--ws-queue-frames` frames (default 64). When the queue is full the reader blocks, and TCP pushes
 back on the sender. The runtime never drops a frame on its own.
 
+One message on either leg may be at most `--stream-max-message` bytes (default 1MB). Inbound
+memory is therefore bounded by about `--ws-max-sessions × --ws-queue-frames × --stream-max-message`,
+which is 256MB at the defaults. On a public endpoint whose clients send only small messages, lower
+the cap (for example `64KB`). For a trusted upstream that sends large single messages (images,
+files, video keyframes), raise it. See [Message size](/docs/guides/streaming#message-size---stream-max-message).
+
 ### `bridge`: one AILANG verdict per frame
 
 `bridge(client, up, init, step)` relays two connections. `step : (s, BridgeFrame) -> (s, Verdict)`

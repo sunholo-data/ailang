@@ -1,7 +1,11 @@
 package effects
 
 import (
+	"context"
+	"net"
 	"testing"
+
+	"github.com/sunholo-data/ailang/internal/eval"
 )
 
 func TestNewStreamContext_Defaults(t *testing.T) {
@@ -12,9 +16,6 @@ func TestNewStreamContext_Defaults(t *testing.T) {
 	}
 	if sc.MaxMessageSize != 1*1024*1024 {
 		t.Errorf("MaxMessageSize = %d, want 1MB", sc.MaxMessageSize)
-	}
-	if sc.MaxFrameSize != sc.MaxMessageSize { // ReadLimit is per message, not per frame
-		t.Errorf("MaxFrameSize = %d, want MaxMessageSize %d", sc.MaxFrameSize, sc.MaxMessageSize)
 	}
 	if sc.AllowHTTP {
 		t.Error("AllowHTTP should be false by default")
@@ -322,5 +323,40 @@ func TestStreamContext_RegistryEntry(t *testing.T) {
 		if _, exists := ops[name]; !exists {
 			t.Errorf("Stream operation %q not registered", name)
 		}
+	}
+}
+
+// The seam: the host's MaxMessageSize is the read limit the transport gets.
+// Two fields once drifted here (a 64KB read limit under a 1MB message cap)
+// and killed every Vertex Live video session; there is one field now, and
+// this pins that a host's --stream-max-message reaches the dial.
+func TestStreamConnect_DialCarriesMaxMessageSize(t *testing.T) {
+	for _, want := range []int64{NewStreamContext().MaxMessageSize, 256 << 10, 8 << 20} {
+		ctx := NewEffContext(nil)
+		ctx.Grant(NewCapability("Stream"))
+		ctx.Stream = NewStreamContext()
+		ctx.Stream.AllowHTTP = true
+		ctx.Stream.MaxMessageSize = want
+		ctx.Stream.lookupIP = func(string) ([]net.IP, error) { return []net.IP{net.ParseIP("203.0.113.10")}, nil }
+		var got int64 = -1
+		RegisterStreamTransport("ws", func(cfg StreamDialConfig) (StreamTransport, error) {
+			got = cfg.MaxMessageSize
+			return nil, context.Canceled
+		})
+		_, _ = StreamConnect(ctx, []eval.Value{&eval.StringValue{Value: "ws://upstream.example/"}, &eval.RecordValue{Fields: map[string]eval.Value{}}})
+		RegisterStreamTransport("ws", nil)
+		ctx.Stream.CloseAll()
+		if got != want {
+			t.Errorf("dial read limit = %d, want MaxMessageSize %d", got, want)
+		}
+	}
+}
+
+// Child (one per serve-api WS session) keeps the host's cap.
+func TestStreamContext_ChildKeepsMaxMessageSize(t *testing.T) {
+	sc := NewStreamContext()
+	sc.MaxMessageSize = 123456
+	if c := sc.Child(); c.MaxMessageSize != 123456 {
+		t.Errorf("Child MaxMessageSize = %d, want 123456", c.MaxMessageSize)
 	}
 }

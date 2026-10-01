@@ -199,7 +199,7 @@ func (s *Server) serveWSSession(w http.ResponseWriter, r *http.Request, route Ro
 		child.BridgeLog = decisionLogger(callID)
 	}
 
-	t, err := streamws.Accept(w, r, streamws.AcceptOptions{Subprotocol: subprotocol, MaxFrameSize: child.MaxFrameSize})
+	t, err := streamws.Accept(w, r, streamws.AcceptOptions{Subprotocol: subprotocol, MaxMessageSize: child.MaxMessageSize})
 	if err != nil {
 		log.Printf("[ws] %s %s: upgrade failed: %v", callID, route.Path, err)
 		return // gorilla wrote the HTTP error
