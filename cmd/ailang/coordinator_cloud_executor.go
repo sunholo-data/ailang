@@ -410,16 +410,16 @@ func resolveIdleTimeout(raw string) time.Duration {
 func childGitCredential(task *executor.Task, repoURL string) (func(), error) {
 	mode, err := config.ChildGitCredentials()
 	if err != nil {
-		return func() {}, err
+		return noChildCredential, err
 	}
 	token := config.GitHubToken()
 	scopes := executor.GitCredentialScopes(repoURL)
 	if mode == config.ChildGitCredentialsNone || token == "" || len(scopes) == 0 {
-		return func() {}, nil
+		return noChildCredential, nil
 	}
 	path, cleanup, err := executor.WriteGitCredentialFile(scopes, token)
 	if err != nil {
-		return func() {}, err
+		return noChildCredential, err
 	}
 	task.GitCredentialFile = path
 	task.GitCredentialScopes = scopes
@@ -436,3 +436,8 @@ func childGitCredential(task *executor.Task, repoURL string) (func(), error) {
 // helper yields nothing there (the child gets at most childGitCredential's
 // repo-scoped file).
 const envTokenCredentialHelper = `!f() { test -n "$GITHUB_TOKEN" || exit 0; echo username=x-access-token; printf 'password=%s\n' "$(printf %s "$GITHUB_TOKEN" | tr -d '\r\n')"; }; f`
+
+// noChildCredential is childGitCredential's cleanup when no file was written.
+func noChildCredential() {
+	// No credential file was created for the child, so nothing to remove.
+}
