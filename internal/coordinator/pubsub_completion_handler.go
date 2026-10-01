@@ -3,6 +3,7 @@ package coordinator
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -92,6 +93,9 @@ func (h *CompletionHandler) Start(ctx context.Context) {
 // handleCompletion updates the task store based on the completion status.
 func (h *CompletionHandler) handleCompletion(ctx context.Context, completion pubsub.TaskCompletion) error {
 	task, err := h.taskStore.GetTask(ctx, completion.TaskID)
+	if errors.Is(err, ErrTaskNotFound) {
+		task, err = nil, nil // Ack below: a retry cannot make the task exist.
+	}
 	if err != nil {
 		return fmt.Errorf("get task %s: %w", completion.TaskID, err)
 	}

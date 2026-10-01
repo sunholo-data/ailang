@@ -126,6 +126,14 @@ func resolveRunPolicyFor(policyPath, filename string, w runPolicyWidening) (*pol
 	if res.Restricted() && !restrictedModeSupported() {
 		refusePolicy("restricted mode is not supported on %s/%s (confined filesystem roots and descendant termination are unverified here); this policy needs a Linux or macOS worker, or security_mode = %q with its weaker guarantees", runtime.GOOS, runtime.GOARCH, policy.ModeTrustedHost)
 	}
+	if w.set["chdir"] && res.Root != "" {
+		// --chdir sets the module root; under a policy that root, like the
+		// entry file, must be inside the sandbox.
+		cwd, err := os.Getwd()
+		if err != nil || !entryInsideSandbox(res.Root, cwd) {
+			refusePolicy("--chdir %s is outside fs_sandbox %s — under a policy the module root must be inside the sandbox", cwd, res.Root)
+		}
+	}
 	if filename != "" && res.Root != "" {
 		if !entryInsideSandbox(res.Root, filename) {
 			refusePolicy("program %s is outside fs_sandbox %s — under a policy the entry file and its module root must be inside the sandbox", filename, res.Root)
