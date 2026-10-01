@@ -1060,7 +1060,13 @@ _mc_load_ration() {
   # LAST command's status, so `ailang ... | tr` would report tr's 0 and hide the
   # failure on any shell where pipefail happens to be off.
   local _raw _rc
-  _mc_bounded 15 ailang mission quota --over; _rc=$?
+  # The bound must cover the reader's OWN budget, or the gate fails closed on a healthy account.
+  # Measured 2026-10-01: once the keychain token went stale, the Anthropic read became 5s HTTP
+  # (401) + up to 30s of `claude -p /usage`, so the whole command took 31-39s against a 15s
+  # bound. All 7 fires after 2026-09-30 21:40 timed out and blocked Codex, with Codex at 51%
+  # used of 68% allowed. 60s covers internal/mission/anthropic_usage_cli.go's 30s plus the
+  # HTTP reads; it runs once per fire.
+  _mc_bounded "${MISSION_QUOTA_TIMEOUT:-60}" ailang mission quota --over; _rc=$?
   _raw="$MC_BOUNDED_OUT"
   MC_OVER_RATION=$(printf '%s\n' "$_raw" | awk '/^(codex|ollama|anthropic|openrouter|opencode)$/' | tr '\n' ' ')
   # Keep the REASONS, not just the verdict. `--over` emits a bare bucket name as the
