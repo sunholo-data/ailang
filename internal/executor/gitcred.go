@@ -49,26 +49,26 @@ func GitCredentialScopes(repoURL string) []string {
 func WriteGitCredentialFile(scopes []string, token string) (string, func(), error) {
 	token = strings.TrimSpace(token)
 	if len(scopes) == 0 || token == "" {
-		return "", func() {}, fmt.Errorf("git credential: need a scope and a token")
+		return "", noCleanup, fmt.Errorf("git credential: need a scope and a token")
 	}
 	u, err := url.Parse(scopes[0])
 	if err != nil || u.Host == "" {
-		return "", func() {}, fmt.Errorf("git credential: bad scope %q", scopes[0])
+		return "", noCleanup, fmt.Errorf("git credential: bad scope %q", scopes[0])
 	}
 	dir, err := os.MkdirTemp("", "ailang-gitcred-")
 	if err != nil {
-		return "", func() {}, fmt.Errorf("git credential: %w", err)
+		return "", noCleanup, fmt.Errorf("git credential: %w", err)
 	}
 	cleanup := func() { _ = os.RemoveAll(dir) }
 	if err := os.Chmod(dir, 0o700); err != nil {
 		cleanup()
-		return "", func() {}, fmt.Errorf("git credential: %w", err)
+		return "", noCleanup, fmt.Errorf("git credential: %w", err)
 	}
 	path := filepath.Join(dir, "credentials")
 	line := (&url.URL{Scheme: "https", User: url.UserPassword("x-access-token", token), Host: u.Host}).String() + "\n"
 	if err := os.WriteFile(path, []byte(line), 0o600); err != nil {
 		cleanup()
-		return "", func() {}, fmt.Errorf("git credential: %w", err)
+		return "", noCleanup, fmt.Errorf("git credential: %w", err)
 	}
 	return path, cleanup, nil
 }
@@ -95,4 +95,9 @@ func GitCredentialEnv(file string, scopes []string) []string {
 // through, so a temp dir with a space (a Windows profile) stays one word.
 func shellQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
+}
+
+// noCleanup is the cleanup for a call that created nothing.
+func noCleanup() {
+	// Nothing was written, so there is nothing to remove.
 }

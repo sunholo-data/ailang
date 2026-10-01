@@ -338,8 +338,8 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 	// requests without this. GITHUB_TOKEN is provided via Secret Manager.
 	// The helper reads the token at call time, never embeds it (see
 	// envTokenCredentialHelper, M-EXECUTOR-ENV-HARDENING E5).
-	if token := config.GitHubToken(); token != "" {
-		credCmd := exec.CommandContext(ctx, "git", "config", "--global", "credential.helper", envTokenCredentialHelper)
+	if config.GitHubToken() != "" {
+		credCmd := gitexec.CommandContext(ctx, "config", "--global", "credential.helper", envTokenCredentialHelper)
 		if err := credCmd.Run(); err != nil {
 			fmt.Fprintf(os.Stderr, "warning: failed to configure git credentials: %v\n", err)
 		}
