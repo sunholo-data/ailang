@@ -1,0 +1,150 @@
+{
+  "sprint_id": "M-CROSS-ARCH-FLOAT-DETERMINISM",
+  "status": "not_started",
+  "created": "2026-10-01T21:07:12Z",
+  "design_doc": "design_docs/planned/v0_51_1/m-cross-arch-float-determinism.md",
+  "sprint_plan": "design_docs/planned/v0_51_1/m-cross-arch-float-determinism-sprint-plan.md",
+  "github_issues": [
+    1472
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "searches": [
+        "math",
+        "float"
+      ],
+      "inspected_packages": [
+        "sunholo/relativity@0.4.0",
+        "sunholo/deontic@0.3.0"
+      ],
+      "reason": "Canonical host-bit census and replay fixtures are compiler-internal verification, absent from inspected packages."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "searches": [
+        "math",
+        "float"
+      ],
+      "inspected_packages": [
+        "sunholo/relativity@0.4.0",
+        "sunholo/deontic@0.3.0"
+      ],
+      "reason": "Requires dependency-free Go leaf kernels; reuse approved BSD Go sources with attribution, not application AILANG packages."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "searches": [
+        "math",
+        "float"
+      ],
+      "inspected_packages": [
+        "sunholo/relativity@0.4.0",
+        "sunholo/deontic@0.3.0"
+      ],
+      "reason": "Builtin/VM/codegen glue and stdlib-only emitted helpers are repository-internal infrastructure."
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "searches": [
+        "math",
+        "float"
+      ],
+      "inspected_packages": [
+        "sunholo/relativity@0.4.0",
+        "sunholo/deontic@0.3.0"
+      ],
+      "reason": "Native CI, required-check evidence and migration documentation are repository-specific."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 560,
+    "estimated_total_loc": 2800,
+    "estimated_days": 5
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Canonical corpus and architecture census",
+      "estimated_loc": 250,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Repro input and expected exp result 1.2293173989217931 are in the canonical corpus.",
+        "All 11 functions have the specified special/boundary and deterministic sweep coverage, including two-argument cases.",
+        "Native amd64 and arm64 host census reports identify differing functions, counts and representative ULP deltas with provenance.",
+        "Corpus serialization round-trips every input/output bit pattern including signed zeros and non-finite values.",
+        "Arithmetic audit records findings and existing interpreter/VM arithmetic suite results on both architectures."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Portable math core",
+      "estimated_loc": 1100,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "All 11 exports pass the same golden-bit assertions on native amd64 and arm64.",
+        "Exp repro matches the committed expected bits; signed zero, subnormals, infinities and NaNs have explicit bit-level tests.",
+        "Portable-vs-amd64-host comparison has zero deltas over the full corpus; any delta pauses M3 and re-escalates D1 with evidence.",
+        "Dependency closure and fusion-proofing review finds no indirect host transcendental or unrounded multiply-add paths.",
+        "Source provenance and BSD notices are retained; mathx remains a leaf package within documented architecture boundaries."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Integrate interpreter, VM and self-contained codegen",
+      "estimated_loc": 1250,
+      "dependencies": [
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "Interpreter, strict VM and compiled Go match canonical bits for all 11 functions over the full corpus on amd64 and arm64.",
+        "Emitted-helper outputs bit-match mathx, guarding the two algorithm copies.",
+        "Original finite exp/log chain text is 1.2293173989217931 and 0.20645905511071927 on both architectures through interpreter and strict VM; generated-Go finite formatting is checked without broadening show semantics.",
+        "Registry/fallback emission, helper-name collisions, lazy emission, constants-only and multi-file compilation tests pass; generated programs remain stdlib-only.",
+        "Existing tolerant builtin tests pass unchanged; codegen text expectations change deliberately; both existing conflict-surface examples and the new fixture pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4",
+      "description": "Native CI guard and release evidence",
+      "estimated_loc": 200,
+      "dependencies": [
+        "M3",
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Native amd64 and arm64 CI assert the same corpus and execute all three backend comparisons successfully.",
+        "Arm64 guard is included in required checks, or repository-admin configuration is identified as an outstanding release blocker with evidence; do not mark M4 passing while that criterion remains unmet.",
+        "make test, make lint, make check-boundaries and make simplicity-audit pass; any audit regression is resolved or escalated before completion.",
+        "LIMITATIONS documents compiled user-arithmetic fusion; current changelog and migration note accurately describe canonical values and measured arm64 changes.",
+        "Implementation report includes corpus provenance, architecture census, zero-amd64-delta result, native CI runs and performance measurements."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
