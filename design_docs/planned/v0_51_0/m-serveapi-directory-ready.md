@@ -1,6 +1,6 @@
 # M-SERVEAPI-DIRECTORY-READY: any `serve-api` service listable in the Anthropic and OpenAI directories
 
-**Status**: Planned. **Phase A** (Anthropic) is ready for planning. **Phase B** (OpenAI) is gated behind discovery spike S1 (V11 only; V12 was resolved from OpenAI's auth page), which needs a live ChatGPT test outside the session. Quorum rounds 0 and 1 were both BLOCKED. Every objection was accepted and fixed (see §Quorum record). The re-quorum guardrail is spent, so this doc **awaits human ratification**; there is no round 2.
+**Status**: Planned. **Phase A** (Anthropic) is ready for planning. **Phase B** (OpenAI) is gated behind discovery spike S1 (V11 only; V12 was resolved from OpenAI's auth page), which needs a live ChatGPT test outside the session. Quorum rounds 0 and 1 were both BLOCKED. Every objection was accepted and fixed (see §Quorum record). The re-quorum guardrail is spent. **The Design Freeze (D1, D2, D3, D7) was ratified by Mark on 2026-10-01** (attended session). D4 stays open for Phase B.
 **Target**: v0.51.0
 **Priority**: P1. It is the shared path to distribution for every hosted AILANG service. AILANG Parse is the first adopter.
 **Estimated**: 7–9 days across four lanes: L1 3d, L2 1.5d, L3 1.5d, L4 2–3d (package). L5 is docs only.
@@ -87,10 +87,10 @@ directory follows in **Phase B**, once spike S1 settles its wire behaviour.
 
 ### Design Freeze
 
-- [ ] D1: the package, not Go, owns the authorization server.
-- [ ] D2: `@mcp_auth` plus a verifier function; verification stays in AILANG.
-- [ ] D3: two projections in one process; the listed path name.
-- [ ] D7: verifier failure semantics are fail-closed with a time bound (see L1). Ratify.
+- [x] D1: the package, not Go, owns the authorization server.
+- [x] D2: `@mcp_auth` plus a verifier function; verification stays in AILANG.
+- [x] D3: two projections in one process; the listed path name.
+- [x] D7: verifier failure semantics are fail-closed with a time bound (see L1). Ratify.
 - [ ] D4: **Phase B only.** It is resolved by spike S1, not frozen now. Phase A ships the HTTP
   401 (Claude's documented mechanism) and does not emit `securitySchemes` or `_meta`.
 
