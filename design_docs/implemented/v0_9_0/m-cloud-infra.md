@@ -10,6 +10,23 @@
 
 ---
 
+> **Superseded in one respect: task execution never went through Eventarc.**
+> This document plans `Pub/Sub → Eventarc → Cloud Run Job`, and the tables below
+> still describe it that way. What shipped is the coordinator calling the Cloud
+> Run Jobs API directly (`jobs.run`), because that keeps control of execution
+> timing, rate limiting and per-execution env vars in one place. The Eventarc
+> trigger sits commented out in `ailang-multivac/terraform/eventarc.tf` with the
+> reasoning, pending Terraform support for Cloud Run Job destinations.
+>
+> The `ailang-tasks` topic and its `ailang-tasks-executor` subscription still
+> exist, but as an **audit trail with no consumer** — see the note in
+> `daemon_tasks_exec.go` ("Pub/Sub publish above is for audit trail only — the
+> dispatcher actually starts the job"). A backlog on that subscription is the
+> steady state, not a stuck consumer; it was briefly reported as an outage on
+> 2026-09-30 on the strength of the stale comments this plan seeded.
+
+---
+
 ## Executive Summary
 
 Deploy AILANG services (coordinator daemon, dashboard server, agent executors) to GCP as always-on cloud infrastructure. This enables 24/7 autonomous agent execution, multi-user access, and production-scale operations (100+ tasks/day). The architecture uses Cloud Run for services, Cloud Run Jobs for ephemeral agent execution, Pub/Sub as message broker, Firestore for OLTP, and BigQuery for OLAP.
@@ -174,7 +191,7 @@ The coordinator daemon in cloud mode becomes a lightweight **message broker** th
 | | Local Mode | Cloud Mode |
 |---|------------|------------|
 | Message source | SQLite polling | Pub/Sub subscription |
-| Task execution | Direct (daemon calls provider) | Pub/Sub → Eventarc → Cloud Run Job |
+| Task execution | Direct (daemon calls provider) | Pub/Sub → Eventarc → Cloud Run Job *(not shipped — coordinator calls the Cloud Run Jobs API directly; see the note at the top)* |
 | Event streaming | HTTP POST to localhost | Pub/Sub to dashboard |
 
 ```
@@ -341,7 +358,7 @@ for _, nextAgentID := range agent.TriggerOnComplete {
 | Topic | Purpose | Subscribers |
 |-------|---------|-------------|
 | `ailang-inbox-{agent}` | Per-agent message queue | Coordinator daemon |
-| `ailang-tasks` | Task dispatch to jobs | Cloud Run Jobs (Eventarc) |
+| `ailang-tasks` | Task dispatch to jobs | Cloud Run Jobs (Eventarc) *(as shipped: NOBODY. Audit trail only — see the note at the top)* |
 | `ailang-events` | Real-time event streaming | Dashboard WebSocket |
 | `ailang-approvals` | Approval workflow events | Dashboard + CLI |
 

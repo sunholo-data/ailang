@@ -74,6 +74,12 @@ crash, never overflow"; everything smart is above it.
 - **Open (data-named):** the **type-error wall** (unification/arity/undefined-var ergonomics) and the
   **dialect cluster** (generic `PAR_NO_PREFIX`/`PAR_UNEXPECTED` — 7/10 stuck sessions; structural, not
   sharper-message). See [project memory: docx stuck = dialect confusion].
+- **Open (from the motoko queue grooming, 2026-10-01):** the eval harness's AILANG teaching prompt
+  (`ailang prompt`) is **96,908 chars** and rides as the system prefix on **every agent step in every
+  harness** (motoko measured ~99k chars ≈ 26k tokens/step); on the local rig that prefill dominates
+  step time. Measure what each section earns before trimming. And `ParseChatStepResponse`
+  (`internal/ai/openai/step.go`) reads `usage.prompt_tokens_details.cached_tokens` with no test
+  pinning it (`cache_usage_test.go` covers `Generate`, a different path) — add the arm and a mutant.
 
 ## 6. Health metrics (is the flywheel turning?)
 - **Core change-rate** → 0 (commits to `mk-ast/src/core/` excluding the frozen floor).

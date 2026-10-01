@@ -63,6 +63,7 @@ test-launchd-drivers: ## Run launchd driver tests (pin-root + routing + notices 
 	@$(LAUNCHD_SUITE) tools/launchd/test_pin_root.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_mission_pi_run_commits.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_mission_pi_run_sandbox.sh
+	@$(LAUNCHD_SUITE) tools/launchd/test_mission_pi_run_provider_quota.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_driver_notify.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_mission_routing.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_spawn_pin_hook.sh
@@ -385,7 +386,7 @@ test-mission-registry: ## Run mission-registry tests (schema, renderer, doctor; 
 CORE_PKGS := ./internal/lexer/... ./internal/parser/... ./internal/ast/... ./internal/core/... \
 	./internal/types/... ./internal/elaborate/... ./internal/typedast/... ./internal/eval/... \
 	./internal/effects/... ./internal/pipeline/... ./internal/link/... ./internal/loader/... \
-	./internal/module/... ./internal/runtime/... ./internal/iface/... ./internal/format/... \
+	./internal/runtime/... ./internal/iface/... ./internal/format/... \
 	./internal/errors/... ./internal/stdlib/...
 
 test-core: ## Run the language-core tests only (lexer→VM, stdlib, fmt) — the fast inner loop

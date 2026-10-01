@@ -141,7 +141,7 @@ Still outstanding: the clone sits on the stale `feat/local-eval-profiles`.
 
 ## 9. Migration to upstream `main` (ABI 8.0) — in progress since 2026-09-26
 
-Plan: `design_docs/planned/m-motoko-dst-refactor-migration.md` (per-commit verdicts:
+Plan (completed 2026-09-28/30): `design_docs/implemented/v0_48_0/m-motoko-dst-refactor-migration.md` (per-commit verdicts:
 `m-motoko-fork-disposition.md`). **The shim was switched to `mk-main` on 2026-09-28 (Mark):**
 we are adopting it, so it is measured on its own (before/after per change), not A/B'd
 against the old fork.

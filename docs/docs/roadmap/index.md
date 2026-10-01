@@ -55,10 +55,14 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [Sprint Plan: M-NIGHTLY-RUN-VALIDITY-GATE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-nightly-run-validity-gate-sprint-plan.md)
 - [Sprint Plan: M-NIGHTLY-SUSTAINED-FAILURE-LABEL](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-nightly-sustained-failure-label-sprint-plan.md)
 - [Sprint Plan: M-NIGHTLY-UNMEASURED-CATEGORY-GATE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-nightly-unmeasured-category-gate-sprint-plan.md)
-- [Sprint Plan — M-OLLAMA-V1-STREAMING-IDLE-TIMEOUT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-ollama-v1-streaming-idle-timeout-sprint-plan.md)
+
+## Planned for v0.50.0
+
+- [M-OTLP-EXPORTER-MIGRATION: Retire the Deprecated Cloud Trace Exporter](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_50_0/m-otlp-exporter-migration.md)
 
 ## Planned for v0.48.0
 
+- [M-EFFECT-LATENT-FUNCTION-VALUES — Charge the latent effects of function-valued arguments and record fields](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_48_0/m-effect-latent-function-values.md)
 - [Sprint plan: M-SERVEAPI-SDK-FREE-MCP (#885)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_48_0/m-serveapi-sdk-free-mcp-dispatch-sprint-plan.md)
 - [M-SERVEAPI-SDK-FREE-MCP: a stdlib-only MCP dispatcher inside `serveapi` (#885)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_48_0/m-serveapi-sdk-free-mcp-dispatch.md)
 
@@ -249,6 +253,7 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [ailang check on a package file alone fails MOD010; path-dep syntax "undocumented"](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/ailang-check-package-context.md)
 - [`ailang run -ai claude-opus-5` can never use the Claude OAuth credential the factory already knows how to read](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/ailang-run-claude-oauth-credential-ignored.md)
 - [Cascade routing: unpopulated cascade directive (task-dc0edc0a)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/cascade-directive-unpopulated.md)
+- [Chains: no PR linkage, no PR-driven status, no title; attended sessions never become chains; interspersed --remote silently dropped](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/chains-pr-linkage-status-title-attended-sessions.md)
 - [Compile cache not invalidated when a PATH dependency's interface changes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/compile-cache-path-dep-invalidation.md)
 - [Coordinator pushes/reports the wrong ref: completion names files on an empty `coordinator/task-*` branch while the work sits on the agent's own `design-doc/*` branch](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/coordinator-completion-wrong-ref.md)
 - [Coordinator: enable auto-merge on design-doc PRs (docs-only paths)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/coordinator-design-pr-auto-merge.md)
@@ -268,10 +273,12 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [IFC Label Refinements Lost Across Module Boundaries (Daneel, v0.36.0)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/ifc-labels-lost-across-module-boundary.md)
 - [Imported-type property generator skips (std/json Json) misclassified as vacuous](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/imported-type-generator-skips-json.md)
 - [Issue #1137 severity correction — process-allowlist downgrade to improvement](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/issue-1137-severity-correction-subcmd-allowlist.md)
+- [`std/json.getInt` silently truncates non-integral JSON numbers](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/json-getint-silent-float-truncation.md)
 - [Local dependency override (Go-style `replace`) for development vs registry resolution](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/local-dep-replace-override.md)
 - [`messages send` silently stores unknown flags as the message body](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/messages-send-unknown-flags-stored-as-body.md)
 - [Named-test bodies fail float comparisons — missing Fractional dictionary in lowered path](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/named-test-float-dict-resolution.md)
 - [Nightly-eval holds the rig lock all night — widen the yield ask from os-rotation-filler to nightly-eval](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/nightly-eval-rig-lock-yield.md)
+- [`pkg quality` hides smoke output; smoke staging silently drops non-`assets/` data files](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/pkg-quality-smoke-output-and-staging.md)
 - [Per-subcommand process allowlist requested (git push --force leak in Daneel's audit trail)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/process-subcmd-allowlist-already-shipped.md)
 - [PUB012 reads inline-tested packages as testless — interim: distinguish "not discoverable" from "absent"](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/pub012-inline-tests-false-absence.md)
 - [Registry validator over-matches `name:` fields as advertised tool names (daneel_ext_help publish rejected)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/registry-validator-tool-name-overmatch.md)
@@ -281,10 +288,13 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [SMT-encode pure _dt_* datetime builtins (addDays/startOfDay/weekday) for verify](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/smt-encode-dt-builtins.md)
 - [source_strip test skip-range scan miscounts braces inside string literals](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/source-strip-string-brace-skip-ranges.md)
 - [std/json number-accessor naming, and the unwritten Result-vs-Option rule](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/stdlib-number-naming-and-result-option-convention.md)
+- [`ailang storage status` ignores AILANG_MESSAGES_PROJECT and names the wrong project for the messaging store](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/storage-status-ignores-messages-project.md)
 - [Effect checker charges a stored (never-called) lambda's effects to the enclosing function](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/stored-lambda-effects-charge-enclosing-fn.md)
 - [`ailang test` evaluates through a hand-built evaluator env that diverges from `ailang run` — mis-wired closures across module paths](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/test-executor-module-env-miswiring.md)
 - [v0.47.0 follow-ups: `show()` silently truncates into "valid-looking" output; float-vector ingest past the JSON boundary; `ailang docs` skips the stdlib version warning; darwin release binary SIGKILLs after copy](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/v047-numerics-followups-show-ingest-docs-macos.md)
+- [verify: callee `requires` never discharged at call sites (inlined-body verification is unsound)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/verify-call-site-precondition-not-checked.md)
 - [verify: VERIFIED not refutable when ensures calls a user function (asymmetric SMT gating)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/verify-ensures-verified-without-encodable-refutation.md)
+- [verify: proofs reason over Z3 unbounded Int but the runtime int is wrapping int64 — VERIFIED then garbage at runtime](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/verify-int-width-mismatch-z3-int-vs-int64.md)
 
 ## Long-term Vision
 
@@ -299,4 +309,4 @@ For the complete vision, see [Why AILANG](/docs/why-ailang) and [Vision](/docs/v
 
 ---
 
-*Generated at build time. 204 planned features across 24 upcoming versions.*
+*Generated at build time. 211 planned features across 25 upcoming versions.*

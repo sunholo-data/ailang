@@ -78,14 +78,35 @@ func writeStorageStatus(w io.Writer) error {
 			project, projectSrc = p, string(src)
 		}
 	}
+	// The messaging store has its own pin, AILANG_MESSAGES_PROJECT, and it WINS
+	// over the generic resolver (resolveMessagesTarget in messages.go, which is
+	// what `ailang messages` actually opens). Reporting the generic project for
+	// that row made status contradict the tool it is meant to explain: on the
+	// laptop 2026-09-30 it read
+	//   messaging gcp (AILANG_STORAGE_MESSAGING) project ailang-multivac-dev (AILANG_CLOUD_PROJECT)
+	// while `ailang messages list` printed
+	//   store: gcp (Firestore, project ailang-multivac, via AILANG_STORAGE_MESSAGING)
+	// — naming the stale `-dev` graveyard for a store that was reading prod. A
+	// status command whose job is to settle "which store am I on?" pointing at the
+	// wrong project is worse than printing nothing.
+	msgProject, msgProjectSrc := project, projectSrc
+	if sel.Messaging.Mode == config.StoreGCP {
+		if pin := config.MessagesProject(); pin != "" {
+			msgProject, msgProjectSrc = pin, string(projectFromMessages)
+		}
+	}
 	for _, st := range []config.StoreSelection{sel.Messaging, sel.Coordinator, sel.Observatory} {
+		storeProject, storeProjectSrc := project, projectSrc
+		if st.Store == sel.Messaging.Store {
+			storeProject, storeProjectSrc = msgProject, msgProjectSrc
+		}
 		var where string
 		switch st.Mode {
 		case config.StoreGCP:
-			if project == "" {
-				where = "project (unresolved: " + projectSrc + ")"
+			if storeProject == "" {
+				where = "project (unresolved: " + storeProjectSrc + ")"
 			} else {
-				where = fmt.Sprintf("project %s (%s)", project, projectSrc)
+				where = fmt.Sprintf("project %s (%s)", storeProject, storeProjectSrc)
 			}
 		default:
 			if p := storage.LocalPath(st.Store); p != "" {

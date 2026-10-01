@@ -1,6 +1,6 @@
 # M-MOTOKO-DST-MIGRATION: Adopt Arni's phase-core/DST refactor and re-prove our fork's improvements
 
-**Status**: Planned (2026-08-11)
+**Status**: Implemented — completed 2026-09-28/30, see [MOTOKO.md](../../../MOTOKO.md) (§1, §9). Adopted rather than re-ported: `~/dev/mk-main` on `sunholo/main-dst`, extension ABI 8.0, in-repo packages; the ABI 2.2 registry packages were unpublished 2026-09-28 and the mission charter was reset 2026-09-30 (`D-MOTOKO-RESET-1`, `D-MOTOKO-RESET-3`). Planned 2026-08-11.
 **Target**: rolling — operational; no AILANG core changes
 **Priority**: P0 — once [#154](https://github.com/arniwesth/motoko_agent/pull/154) lands on `main`, our fork is 805 commits behind a tree whose ABI it cannot build against. Every motoko eval depends on closing this.
 **Estimated**: 3 phases; Phase 1 is ~12 mechanical package ports; Phase 0 and Phase 3 each carry a
