@@ -18,16 +18,6 @@ import (
 // or list it here with its reason) and when an entry here has become native or
 // adapted (delete it). The list may only shrink.
 var unportedPure = map[string]string{
-	"__array_append":         bytecode.ReasonPolymorphic,
-	"__array_empty":          bytecode.ReasonPolymorphic,
-	"__array_from_list":      bytecode.ReasonPolymorphic,
-	"__array_get":            bytecode.ReasonPolymorphic,
-	"__array_length":         bytecode.ReasonPolymorphic,
-	"__array_make":           bytecode.ReasonPolymorphic,
-	"__array_set":            bytecode.ReasonPolymorphic,
-	"__array_to_list":        bytecode.ReasonPolymorphic,
-	"__array_unsafe_get":     bytecode.ReasonPolymorphic,
-	"__array_update_many":    bytecode.ReasonPolymorphic,
 	"__get_header":           bytecode.ReasonPolymorphic,
 	"__has_header":           bytecode.ReasonPolymorphic,
 	"__html_parse":           bytecode.ReasonOpaque,

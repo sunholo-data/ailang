@@ -38,3 +38,12 @@
   polymorphic arrays, XML/HTML node types, two closure-taking list ops).
 - Found while testing it, filed separately: `show()` of an ADT renders `<adt#0 6>` on the VM, but
   `Some(6)` in the interpreter (#1453, pre-existing).
+
+### Added — native `std/array` on the bytecode VM
+
+- `fromList`, `toList`, `get`, `unsafeGet`, `set`, `length`, `make`, `append`, `updateMany` and `empty` now run
+  natively, so `std/array` (O(1) indexing) works under `--strict-bytecode`. Before this, Stapledon's sky-model
+  fitter had to fall back to chunked lists. Results keep the evaluator's packed-float representation; a
+  parity table checks both value and packing.
+- Pure builtins on the VM: native 106, adapted 121, unported 23. The 23 remaining are Map values (9),
+  XML/HTML node types (8), header lookups over a polymorphic record, and two closure-taking list ops.

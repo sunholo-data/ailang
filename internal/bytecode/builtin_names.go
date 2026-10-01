@@ -114,6 +114,17 @@ var BuiltinNames = []string{
 	"__list_contains",
 	"__list_head",
 	"__list_extract",
+	// polymorphic std/array ops (stapledons_godot 2026-10-01)
+	"__array_empty",
+	"__array_make",
+	"__array_get",
+	"__array_unsafe_get",
+	"__array_length",
+	"__array_set",
+	"__array_from_list",
+	"__array_to_list",
+	"__array_append",
+	"__array_update_many",
 }
 
 // HOFBuiltinNames lists builtins that take closure arguments. These are

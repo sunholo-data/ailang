@@ -147,6 +147,17 @@ var BuiltinTable = []BuiltinFunc{
 	builtinListContains, // __list_contains
 	builtinListHead,     // __list_head
 	builtinListExtract,  // __list_extract
+	// polymorphic std/array ops (stapledons_godot 2026-10-01)
+	builtinArrayEmpty,      // __array_empty
+	builtinArrayMake,       // __array_make
+	builtinArrayGet,        // __array_get
+	builtinArrayUnsafeGet,  // __array_unsafe_get
+	builtinArrayLength,     // __array_length
+	builtinArraySet,        // __array_set
+	builtinArrayFromList,   // __array_from_list
+	builtinArrayToList,     // __array_to_list
+	builtinArrayAppend,     // __array_append
+	builtinArrayUpdateMany, // __array_update_many
 }
 
 // builtinRecordGet returns the value of the named field in a record. Used as
