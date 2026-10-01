@@ -157,13 +157,16 @@ func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, 
 		fmt.Fprintf(os.Stderr, "[DEBUG_PI] Workspace: %s\n", task.Workspace)
 	}
 
-	env := executor.BuildEnvironment(executor.EnvironmentOptions{
+	env, err := executor.BuildEnvironment(executor.EnvironmentOptions{
 		Task:        task,
 		SessionID:   ourTaskID,
 		Context:     ctx,
 		GCPProject:  task.GCPProject,
 		GCPLocation: task.GCPLocation,
 	})
+	if err != nil {
+		return nil, err
+	}
 	cmd.Env = env
 
 	stdout, err := cmd.StdoutPipe()

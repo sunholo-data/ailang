@@ -244,12 +244,10 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 		}
 		task.AllowedTools = tools
 	}
-	if config.PolicyPath != "" {
-		if task.ExtraEnv == nil {
-			task.ExtraEnv = make(map[string]string)
-		}
-		task.ExtraEnv["AILANG_AGENT_POLICY"] = config.PolicyPath
-	}
+	// config.PolicyPath reaches the agent as AILANG_AGENT_POLICY through
+	// task.PolicyPath (set above): BuildEnvironment derives it, and ExtraEnv
+	// may not carry it. It used to ride ExtraEnv, where the agent_env block
+	// below replaced the whole map and silently dropped it.
 
 	// Export benchmark agent_env to the executor subprocess (M-EVAL-REIMPLEMENT-BENCH).
 	// This is the ACTIVE executor path (RunAgentBenchmarkWithExecutor → exec.ExecuteStreaming);
@@ -257,7 +255,9 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 	// (motoko/opencode/pi), so MOTOKO_AST_AUTOREAD silently never reached them. ${WORKSPACE} →
 	// the per-run workspace. BuildEnvironment merges task.ExtraEnv into the agent's env.
 	if len(spec.AgentEnv) > 0 {
-		task.ExtraEnv = make(map[string]string, len(spec.AgentEnv))
+		if task.ExtraEnv == nil {
+			task.ExtraEnv = make(map[string]string, len(spec.AgentEnv))
+		}
 		for k, v := range spec.AgentEnv {
 			task.ExtraEnv[k] = strings.ReplaceAll(v, "${WORKSPACE}", workspace)
 		}

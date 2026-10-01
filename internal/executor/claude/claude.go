@@ -250,7 +250,7 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	fmt.Fprintf(os.Stderr, "claude-executor: %s %s\n", e.claudePath, strings.Join(args, " "))
 
 	// Set up environment using shared builder (M-UNIFIED-AI-CONTROL-PLANE)
-	cmd.Env = executor.BuildEnvironment(executor.EnvironmentOptions{
+	childEnv, err := executor.BuildEnvironment(executor.EnvironmentOptions{
 		Task:                  task,
 		SessionID:             sessionID,
 		Context:               ctx,
@@ -258,6 +258,10 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		GCPProject:            task.GCPProject,
 		GCPLocation:           task.GCPLocation,
 	})
+	if err != nil {
+		return nil, err
+	}
+	cmd.Env = childEnv
 
 	// Strip CLAUDE_CODE_OAUTH_TOKEN from subprocess environment (M-CLOUD-OAUTH).
 	// Credentials are written to ~/.claude/.credentials.json above.
