@@ -2367,6 +2367,28 @@ models:
       enforces extensions.strict (arniwesth/motoko_agent#205), and the policy is
       restricted. Without --tool-policy it would run the profile with no lane
       task, which the extension refuses to register for (no policy).
+  pi-or-glm-5-3-flash:
+    api_name: "z-ai/glm-5.3-flash"
+    provider: "openrouter"
+    default_thinking: "always_on"  # as or-glm-5-3-flash: reasoning is mandatory on this endpoint
+    description: "GLM-5.3-Flash via pi — the pi arm of the pi-vs-motoko ailang_only lane A/B (M-MOTOKO-AILANG-ONLY-LANE D6). Same model and route as the 34 production lane agents (provider: pi, openrouter/z-ai/glm-5.3-flash)."
+    env_var: "OPENROUTER_API_KEY"
+    agent_cli: "pi"
+    agent_model_name: "openrouter/z-ai/glm-5.3-flash"
+    model_family: "glm-5"
+    max_output_tokens: 32000  # pi's wire budget (tools/pi-extensions/models.mission.json maxTokens); the motoko arm declares 65536 — a known A/B asymmetry, check finish_reason=length on pi rows
+    pricing:
+      input_per_1k: 0.000075  # $0.075 per 1M (OpenRouter API, verified 2026-08-27)
+      output_per_1k: 0.00025  # $0.25 per 1M (OpenRouter API, verified 2026-08-27)
+    budgets:
+      max_cost_usd: 0.50
+      hard_timeout_secs: 3600
+    notes: |
+      Added 2026-10-01 as the pi arm of the lane A/B. Pair with
+      motoko-lane-or-glm-5-3-flash, both run with
+      `--tool-policy ailang_only --policy-file <restricted policy>`, same
+      benchmarks, same window. Budgets match the motoko arm so the cap decides
+      nothing.
   motoko-minimax-m3:
     api_name: "minimax/minimax-m3"
     provider: "openrouter"

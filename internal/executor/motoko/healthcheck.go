@@ -65,15 +65,21 @@ func (e *MotokoExecutor) runHealthCheck(ctx context.Context) error {
 		return fmt.Errorf("motoko binary at %q is not executable (chmod +x)", motokoPath)
 	}
 
-	// Best-effort version query (M-MOTOKO-EVAL-HARNESS-HARDENING M2c). Older
-	// motoko binaries (pre-M2c) treat --version as task input and hang. The
-	// 5s timeout caps that worst case; on timeout/error we leave version
-	// fields at their default ("unknown") and proceed.
-	versionCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	// Version query (M-MOTOKO-EVAL-HARNESS-HARDENING M2c). It also discovers
+	// motoko_repo, which findSessionJSONL and the ailang_only lane gate need.
+	// The timeout was 5s, sized for pre-M2c binaries that hung on --version
+	// (that fork is retired). On a loaded box bun's startup exceeded it — seen
+	// 2026-10-01 with pi runs starting alongside — and the query failed SILENTLY,
+	// leaving motoko_repo empty: lane tasks were refused as "motoko repo
+	// unknown" and session logs would not be found. 30s, once per executor, and
+	// a failure now says so.
+	versionCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	out, vErr := exec.CommandContext(versionCtx, motokoPath, "--version").Output()
 	if vErr == nil {
 		e.parseVersionOutput(string(out))
+	} else {
+		fmt.Fprintf(os.Stderr, "[motoko/healthcheck] `%s --version` failed (%v): motoko_repo is unknown, so session logs cannot be located and ailang_only lane tasks will be refused\n", motokoPath, vErr)
 	}
 
 	// M-MOTOKO-PARALLEL-EXECUTION-ISOLATION (v0.18.2) M4-M5: warn loudly

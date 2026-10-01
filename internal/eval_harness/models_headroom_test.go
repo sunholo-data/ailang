@@ -107,6 +107,10 @@ func TestModels_CloudHeadroomEqualised(t *testing.T) {
 		// Re-verify with scripts/check_pi_wire_budget.sh.
 		"pi-gpt5-4": 32000, "pi-gemini-3-flash-preview": 32000,
 		"pi-or-deepseek-v4-flash": 32000,
+		// pi's wire budget for z-ai/glm-5.3-flash is maxTokens 32000
+		// (tools/pi-extensions/models.mission.json; TestPiModelsConfigMatchesRegistry
+		// pins the row to it). The provider allows more; pi sends 32000.
+		"pi-or-glm-5-3-flash": 32000,
 		// Same pi harness clamp; bare-id A/B control for the evaluator route (2026-09-08).
 		"pi-or-deepseek-v4-flash-bare": 32000,
 		// Same pi harness clamp, for the binary mission path's evaluator lane, which has
