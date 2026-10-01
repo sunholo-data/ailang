@@ -1,0 +1,114 @@
+{
+  "sprint_id": "M-CTOR-PATTERN-ALIAS-AND-SCOPE",
+  "status": "not_started",
+  "created": "2026-10-01T23:17:12Z",
+  "design_doc": "design_docs/planned/v0_51_2/m-ctor-pattern-alias-and-scope.md",
+  "sprint_plan": "design_docs/planned/v0_51_2/m-ctor-pattern-alias-and-scope-sprint-plan.md",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "searches": [
+        "constructor",
+        "pattern"
+      ],
+      "inspected_packages": [
+        "sunholo/config@0.1.2"
+      ],
+      "reason": "No constructor package found; inspected config package only loads environment variables. Alias identity requires existing Go compiler changes."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "searches": [
+        "constructor",
+        "pattern"
+      ],
+      "inspected_packages": [
+        "sunholo/config@0.1.2"
+      ],
+      "reason": "The pattern search returned only an unrelated environment config package. Scope checks and structured errors extend internal/types."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "searches": [
+        "constructor",
+        "pattern"
+      ],
+      "inspected_packages": [
+        "sunholo/config@0.1.2"
+      ],
+      "reason": "Compiler route tests, examples and documentation need no package; inspected config package offers no compiler validation capability."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 160,
+    "estimated_total_loc": 480,
+    "estimated_days": 3
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Bind aliases and emit canonical constructor names",
+      "estimated_loc": 165,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "`None as Nada` matches None and constructs None in expressions; `Some as S` matches fields and `S(3)` constructs Some.",
+        "Elaborated constructor patterns use canonical `None`/`Some` names, and factory references retain canonical identity.",
+        "Bare non-nullary aliases still fail arity validation; canonical names remain usable.",
+        "Local declarations and duplicate imports retain existing precedence; a separately aliased imported constructor remains usable beside a local clash.",
+        "Focused pipeline/elaborator tests and `make test-core` pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Reject unknown patterns with tiered resolution",
+      "estimated_loc": 220,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Unknown `Bogus` and `Bogus(v)` fail checking with the structured kind/code, constructor spelling and location.",
+        "Suggested constructors are deterministic and useful; known transitive constructors are distinguished from typos.",
+        "Only importing `std/list (nth)` still permits matching its Option result with Some/None (#323).",
+        "Transitive Err against concrete Option fails with the existing foreign-ADT diagnostic.",
+        "Existing direct foreign-ADT and nullary-pattern suites remain green; wildcard and lowercase variable patterns retain their behavior.",
+        "Focused types/pipeline tests and `make test-core` pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Verify routes and document the contract",
+      "estimated_loc": 95,
+      "dependencies": [
+        "M1",
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "Isolated alias repro returns 1 under interpreter, `--bytecode`, and `--bytecode --strict-bytecode`; argument aliases also agree.",
+        "Isolated unknown patterns fail `check`, all run routes and `compile` before execution.",
+        "Unaliased clash patterns/expressions retain the existing foreign-ADT/unification errors on the applicable routes.",
+        "New runnable examples check and run successfully; existing #323, foreign-ADT and documented ADT fixtures pass.",
+        "Required test, lint, boundary and example gates pass with no new failures against baseline.",
+        "Module documentation explains constructor aliases and the direct/transitive/unknown resolution rule; changelog records the corrected behavior."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
