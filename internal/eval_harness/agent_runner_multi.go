@@ -231,7 +231,16 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 		Metadata:               buildChainMetadata(config.ChainID, config.StageID),
 		MaxTokensPerBench:      config.MaxTokensPerBench,        // M-EVAL-OS-LONGITUDINAL Phase 1
 		MaxOutputTokens:        modelMaxOutputTokens(modelName), // M-OLLAMA-PER-MODEL-MAX-TOKENS
-		PolicyPath:             config.PolicyPath,
+	}
+	// A lane run executes under its OWN policy: fs_sandbox = this run's
+	// workspace (executor.MaterializeRunPolicy). Passing the operator's file
+	// through unchanged pointed every run at one shared sandbox root.
+	if config.PolicyPath != "" {
+		runPolicy, perr := executor.MaterializeRunPolicy(config.PolicyPath, workspace)
+		if perr != nil {
+			return nil, perr
+		}
+		task.PolicyPath = runPolicy
 	}
 
 	// The ailang_only lane (M-AGENT-AILANG-ONLY-EXECUTION D5): a tool policy
@@ -456,9 +465,20 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 	// the error is in Result.Error, NOT the Go error return value.
 	// We check this BEFORE agentic validation to provide clear "executor crashed"
 	// errors instead of misleading "non-agentic result" messages.
+	//
+	// EXCEPT a run that used up its step budget: it did real work for its whole
+	// budget, its tokens were spent, and the file it wrote may even be right.
+	// Returning diagnosticsOnly() banked those rows with zero tokens, $0 and no
+	// grading — the 2026-10-01 lane A/B under-counted motoko by $2.56 across
+	// three such rows, one of which had written a 10 KB solution at step 108.
+	// It is graded like any other run and keeps finish_reason=step_exhausted,
+	// which the categoriser reads when the output does not match.
 	if !result.Success && result.Error != "" {
-		return diagnosticsOnly(), fmt.Errorf("executor %q failed for model %q: %s",
-			executorName, modelName, result.Error)
+		if !stepBudgetExhausted(result) {
+			return diagnosticsOnly(), fmt.Errorf("executor %q failed for model %q: %s",
+				executorName, modelName, result.Error)
+		}
+		result.FinishReason = executor.FinishStepExhausted
 	}
 
 	// Validate agent behavior - NO SILENT FALLBACKS
@@ -713,3 +733,17 @@ func (h *ttftEventHandler) OnError(error)               {}
 // convention agent_prompt.txt uses. A package var (not const) so tests can
 // redirect it at a temp file.
 var trapsCardDefaultPath = "prompts/agent/dialect-traps.md"
+
+// stepBudgetExhausted reports whether a failed run stopped because it used up
+// its step budget (as opposed to crashing): graded and costed, not discarded.
+func stepBudgetExhausted(result *executor.Result) bool {
+	if result == nil || result.Success {
+		return false
+	}
+	if result.FinishReason == executor.FinishStepExhausted {
+		return true
+	}
+	// motoko main ends a step-exhausted run with an error event, not a
+	// run_summary: "step budget exhausted" (step_machine.ail StepBudgetExhausted).
+	return strings.Contains(result.Error, "step budget exhausted")
+}
