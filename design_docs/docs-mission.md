@@ -71,12 +71,100 @@ answer changes the row to `RESOLVED` in the same iteration that consumes the dir
 
 ---
 
+## CURRENT GOAL
+
+**Restored 2026-10-01 (attended).** These sections (goal, bar, guardrails, routing) were swept into
+`docs-mission-status-archive.md` by iteration 4's STATUS rotation on 2026-09-02, so iterations
+5-16 ran without a definition of done and drifted into general design-doc backlog draws. The
+rotation rule below now names exactly what may move.
+
+**Priority, Mark 2026-10-01: concision and staleness first (clauses 5 and 1).** The site still
+carries a lot of stale information and unnecessarily verbose pages, and topics spread over several
+pages. Every iteration should leave the site *shorter or truer*, preferably both. Work one queue
+item per iteration through the inner loop (reality-check → sprint → evaluate); most items need no
+design doc.
+
+**An empty queue is not a licence to draw from the design-doc backlog.** When nothing is `[NEXT]`,
+run the `docs-sync` instruments plus one clause-5 page-cluster audit, file the findings as queue
+items, and land the top one if it fits the iteration. Design docs outside the website are V1's.
+
+## The bar — what "the website is up to date" means
+
+Mark selected all seven clauses attended on 2026-08-28; clauses 5-7 are his additions.
+
+- **Clause 1 — Code/docs drift.** No page contradicts the shipped binary: feature status, version
+  constants, CLI commands and flags, and design docs moved `planned/` → `implemented/`. Instruments:
+  `docs-sync`'s `audit_design_docs.sh` / `check_versions.sh`, plus running the command a page shows.
+- **Clause 2 — Examples compile and run.** Every `.ail` under `examples/` passes
+  `make verify-examples`, and every raw-loader import resolves. Website examples are IMPORTED from
+  `examples/`, never inlined — an inline code block is itself a clause-2 defect.
+- **Clause 3 — Site build health.** `make docs-build` green, the Pages deploy passing, no broken
+  internal links, no orphaned pages unreachable from the nav.
+- **Clause 4 — New features get pages.** Shipped features with no page are tracked and closed, read
+  from the changelogs against the nav. One page per iteration, and prefer a section in an existing
+  page over a new page (clause 5 outranks clause 4).
+- **Clause 5 — Concision and anti-sprawl. (TOP PRIORITY from 2026-10-01.)** The site says each thing
+  **once**, briefly. Redundant pages are merged or deleted; a topic split across pages is
+  consolidated into one; verbose pages are cut to what a reader needs (no history, no war stories,
+  no "as of vX" narration that belongs in the changelog). **Deletion is the normal outcome of this
+  clause** — never substitute "add a clarifying note" for "delete the duplicate". Report each
+  iteration's net line delta for the pages touched; a clause-5 item that grows the site failed.
+- **Clause 6 — Benchmark report maintenance.** `docs/static/benchmarks/{latest,os/latest,os/history}.json`
+  and the pages rendering them are current and honest. Known traps, not to be rediscovered: check
+  data dates first (stale-but-plausible has happened); baselines do not pool across the local-model
+  boundaries (07-21..08-03, 08-13, 08-17); v0.30.0 cost data is invalid. Maintains the *report*
+  only — never re-runs or re-banks evals.
+- **Clause 7 — Doc-related requests are answered.** The mission works the `docs-mission` inbox
+  (prod Firestore) and doc-related GitHub issues. The trigger is docs-1 (LANDED). Read the canonical
+  store: `AILANG_STORAGE_MESSAGING=gcp AILANG_MESSAGES_PROJECT=ailang-multivac ailang messages list
+  --inbox docs-mission --unread --json`; a bare local read shows an empty, wrong inbox. Original
+  verification transcript: `docs-mission-status-archive.md`.
+
+## Guardrails (mission-specific; the skill's Standing Rules always apply on top)
+
+- **Blast radius (POLICY): `docs/`, `examples/`, `README.md`, `CHANGELOG.md`, `tools/` (not
+  `internal/`, not `cmd/`).** `MISSION_PLANNER_ALLOWLIST` is NOT a write gate — it only decides
+  which model plans (inside → the pinned planner; outside → `opus fail-closed`), and its `case`
+  globs match across `/` (D-2). A needed change under `internal/` or `cmd/` is a V1 item: file it
+  across. **Rule: a charter claim about what a mechanism DOES carries the command that
+  demonstrates it, or is not stated** (an unverified one became self-citing in D-2).
+- **Most items need no design doc.** Reality-check straight into a sprint. An item that needs deep
+  design probably belongs to V1.
+- **Deleting or merging a published page is outward-facing.** Measure inbound links first (an empty
+  search is a claim, not a fact) and leave a redirect where the URL was public.
+- **Never re-run or re-bank evals, never take `rig.lock`, never start GPU work.**
+- **Verify every AILANG syntax claim with `ailang check` before it is published.**
+
+## Routing policy
+
+Per-role routing is the shared `mission-control` one, with this mission's overrides in
+`~/.config/ailang/mission-docs.env` (reviewable copy: `tools/launchd/mission-env/mission-docs.env`).
+
+**Codex-led (Mark, attended 2026-10-01), degrading as quota requires.** Codex has the headroom and
+Anthropic is reserved for attended work, so the judgement roles run on Sol, the bulk edits on Luna,
+and the judge stays on a different provider from both authors.
+
+| Role | Chain |
+|---|---|
+| Controller | `codex:gpt-6.1-sol` → `claude-sonnet-5-5` → `codex:gpt-6-luna` |
+| Designer | `codex:gpt-6.1-sol` → `claude:claude-sonnet-5-5` → `pi:openrouter/z-ai/glm-5.3` (rarely needed — see Guardrails) |
+| Planner | `codex:gpt-6.1-sol` → `pi:ollama/glm-5.3-flash:cloud` → `pi:openrouter/z-ai/glm-5.3-flash` |
+| Executor | `codex:gpt-6-luna` → `pi:ollama/glm-5.3-flash:cloud` → `pi:openrouter/z-ai/glm-5.3-flash` |
+| Evaluator | `sonnet` (current Sonnet, 5.5) → `pi:ollama/minimax-m3:cloud` → `pi:openrouter/minimax/minimax-m3` |
+
+The ration gate (`ailang mission quota --over`) skips any over-ration rung, so a degraded fire
+walks down the chain on its own. Metered ceiling: **$1/iteration** — a fire spending real money
+has already fallen to the last rung, so the low ceiling makes that loud rather than a silent bill.
+
+---
+
 ## STATUS (rotation rule)
 
 Newest **3** STATUS stamps live here; older ones move to `docs-mission-status-archive.md`.
-At Gate 4, after adding your stamp, move the now-4th stamp to the TOP of the archive file. Every
-iteration re-reads this charter — unbounded STATUS history is a per-read token tax on the scarcest
-model budget; the append-only history lives in the log + archive.
+At Gate 4, after adding your stamp, move the now-4th stamp to the TOP of the archive file.
+**Only `## STATUS …` blocks ever move.** CURRENT GOAL, The bar, Guardrails, Routing policy, the
+Decision Ledger and the Queue are the charter and never rotate — moving them on 2026-09-02 left
+twelve iterations without a definition of done.
 
 ## STATUS 2026-09-07 — ITERATION 16: docs-12 LANDED — D-5's attended ruling satisfied (wording-only fixes, no 5th quorum round), planner+executor ran end-to-end on `pi:ollama/glm-5.3-flash:cloud`, independent evaluator PASS 98/100 zero blocking with two mutation-verified tests; D-4 and D-5 both now fully consumed
 
@@ -612,6 +700,47 @@ no quorum re-run). Quota buckets: sonnet (controller session).
 Full record: `design_docs/docs-mission-log.md` §ITERATION 10.
 
 ## Queue (top = next; tags: [NEXT] [IN-SPRINT] [PARKED] [LANDED] [RULED OUT])
+
+### Active — rebuilt 2026-10-01 (attended), concision first
+
+Measured 2026-10-01 at `91eb860a2`: `docs/docs` is 184 pages / 68,687 lines. Each item records the
+**line count before**; the evaluator checks the line count after. Targets are ceilings, not goals.
+
+1. `[NEXT]` **docs-14 · clause 5 · three camps: two pages → half a page.** `guides/three-camps-comparison.md`
+   (213 lines) + `guides/three-camps-self-audit.md` (276) + a mention in `intro.mdx` say one thing.
+   Mark 2026-10-01: "two pages on three camps is almost 1.5 pages too many". Keep ONE short section
+   (≤60 lines) wherever the comparison already lives best, delete the other page, redirect both
+   URLs. Measure inbound links before deleting.
+2. `[NEXT]` **docs-15 · clause 5 · the 10 historical prompt pages (22,788 lines — a third of the
+   site).** `docs/docs/prompts/v*.md` publish every old teaching prompt as a page. First prove what
+   consumes them (raw URLs fetched by models or evals? `prompts/` at the repo root is the source —
+   read `jq -r .active` serving before touching anything); then publish only `current.md` and point
+   to git history for the rest. If something external reads those URLs, keep the files but drop them
+   from nav and search.
+3. **docs-16 · clause 5 · messaging + coordinator cluster.** 5 pages / 4,965 lines:
+   `guides/cloud-messaging-integration.md` (1,834), `agent-messaging.md` (928), `coordinator.md`
+   (1,516), `coordinator-setup.md`, `coordinator-workers.md`. One page per audience, no repeated
+   setup blocks; target under half the current size.
+4. **docs-17 · clause 5 · the agent pages.** 7 pages / 2,119 lines (`start-here/for-ai-agents.mdx`,
+   `guides/agent-*.md(x)`, `ailang-vs-agents.mdx`). Merge to the minimum set with distinct readers.
+5. **docs-18 · clause 1+5 · stale and verbose sweep of the largest guides.** `serve-api.md` (1,699),
+   `design-docs.md` (1,581), `wasm-integration.md` (1,058), `debugging.md` (1,037), `telemetry.md`
+   (954), `go-interop.md` (908): cut version narration and history to the changelog, check every
+   command and flag against the binary (CLI went 89 → 17 top-level commands; old names still
+   resolve as routes, so teach the new ones). One page per iteration, largest first.
+6. **docs-19 · clause 4 · release gap v0.36 → v0.49.** 44 releases since the pause, 86 commits
+   touched `docs/docs`. List user-facing features with no page; add each as a section in an existing
+   page where one fits. Ranked below clause 5 on purpose.
+7. **docs-20 · clause 6 · benchmark report freshness.** Uncommitted `os/latest.json` /
+   `os/history.json` changes sat in the main checkout on 2026-10-01 — establish their source and
+   dates before any report page cites them.
+8. **docs-21 · clause 7 · inbox sweep.** `docs-mission` inbox (prod store) and doc-labelled GitHub
+   issues.
+
+`[LANDED]` **docs-13 · restore the charter (attended 2026-10-01).** Goal, bar, guardrails and
+routing moved back from the archive; rotation rule now says only STATUS blocks move; queue rebuilt.
+
+### History
 
 1. `[LANDED]` **docs-0 · ratify this charter — RATIFIED ATTENDED 2026-08-28 (Mark).** Closed by
    human decision after three quorum rounds, not by a passing quorum. The reasoning, recorded so a

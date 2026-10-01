@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -231,10 +232,17 @@ func TestCheckTimeoutAndIgnoredOutput(t *testing.T) {
 		f := newArtifactFixture(t)
 		f.spec.Verification[0].Argv = []string{"sh", "-c", "sleep 30 & wait"}
 		f.spec.Verification[0].TimeoutSeconds = 1
+		// Windows kills only the leader (proctree has no Job Objects), so the
+		// orphaned sleep holds the pipe until WaitDelay: 1s + 2s + slow git on
+		// the runner overran 5s twice. 10s still proves the 30s sleep was cut.
+		bound := 5 * time.Second
+		if runtime.GOOS == "windows" {
+			bound = 10 * time.Second
+		}
 		start := time.Now()
 		e, err := f.validate()
-		if err == nil || e == nil || len(e.Checks) != 1 || time.Since(start) > 5*time.Second {
-			t.Fatalf("timeout not bounded: %v", err)
+		if elapsed := time.Since(start); err == nil || e == nil || len(e.Checks) != 1 || elapsed > bound {
+			t.Fatalf("timeout not bounded (%s > %s?): %v", elapsed, bound, err)
 		}
 	})
 	t.Run("ignored_build_output", func(t *testing.T) {

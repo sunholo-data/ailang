@@ -1,7 +1,7 @@
 # Mission Dashboard — Motoko
 
 *Snapshot, overwritten every iteration. History lives in the charter STATUS stamps and the log.*
-**Last refreshed**: 2026-09-30 (attended charter reset — no iteration has run since 39) · base `91eb860a2`
+**Last refreshed**: 2026-10-01 (attended queue grooming, `D-MOTOKO-GROOM-1` — no iteration has run since 39)
 
 ## Where the mission is
 
@@ -21,23 +21,30 @@ deepseek-v4-flash is at ceiling, not a win.
 
 ## Queue top
 
-1. **Row 20** — cloud motoko executor on motoko main, verified end-to-end in test
-   (#1413 → release → promote → one real cloud task banked).
-2. **Row 21** — upstream #200 (`motoko_ext_ailang_tools`) merged, then drop our carried commit.
-3. **Row 22** — port `fmt` to ABI 8.0; fix `context_limit` resolving to 0 in eval workspaces.
-4. **Row 23** — KPI instrument: paired motoko vs pi vs opencode (local + cloud).
-5. **Row 24** — `ailang_tools` on a set with headroom (local qwen3.8).
+Groomed 2026-10-01 (`D-MOTOKO-GROOM-1`): every row re-checked against motoko main; only motoko
+product work stays here.
+
+1. **Row 23** [NEXT] — KPI instrument: paired motoko vs pi vs opencode (local qwen3.8 + one cloud model).
+   First comparable window started 2026-09-30 10:00; early numbers (9 shared benches): motoko 8/9,
+   pi 8/9, opencode 7/9 — too small to call.
+2. **Row 22a** — `context_limit` resolves to 0 in eval workspaces; compaction and budgets run blind.
+3. **Row 24** — `ailang_tools` on a set with headroom (local qwen3.8).
+4. **Row 27** — upstream hygiene: 12 carried commits → only what must stay ours (#200, the dead
+   `ai_options_json`, rig-lease forwarding, a #198 duplicate, the LOCAL-ONLY commit).
+5. **Row 20** [PARKED on the next release] — cloud motoko executor verified in test. The dev image
+   already builds motoko main (`4d4917cd`, verified in the dev Cloud Build log).
 6. **Row 25** — executor-lane design + gate trial (World first).
 
-Carried loop-health rows: 6s (unblocked by `D-MOTOKO-P2-1`), 6m, 6t, 17/18, 19; R3 (row 9) parked
-behind row 23.
+Parked: 22b (fmt, only if row 24 shows extensions help), 9 (R3, after row 23).
+Moved out as fleet tickets: 6t, 17/18, 19, and the orphaned 6s probe. To the AILANG backlog
+(PROGRAM.md §5c): 6m and the 96,908-char eval teaching prompt.
 
 ## Parked on Mark — 1 open decision
 
 - **`D-MOTOKO-RESTART-1`** — when to restart. Restart needs Mark's say-so to remove
   `~/.ailang/state/mission-motoko.disabled`; the loop then runs on the **shell driver**
   (`tools/launchd/mission-control.sh`, `MISSION_PROFILE=motoko`) and its first fire is iteration 40
-  on row 20. No default: nothing times out into a restart.
+  on row 23. No default: nothing times out into a restart.
 
 ## Blocked, not waiting on Mark
 

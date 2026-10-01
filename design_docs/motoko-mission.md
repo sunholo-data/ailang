@@ -141,6 +141,7 @@ with `scripts/mission_decisions.sh --open`. Rows and IDs are append-only.
 | D-MOTOKO-RESET-2 | RESOLVED | **Supersedes the `mk-ast` premise of `D-MOTOKO-FMT-1`; the ruling's PRINCIPLE stands.** `D-MOTOKO-FMT-1` made tracing motoko's resolved runtime provider a precondition, and located the trace in the `mk-ast` fork's resolution path. That fork is retired (worktrees removed 2026-09-28) and `fmt` has NOT been ported to ABI 8.0, so the trace, the preflight change it discharged and any fmt measurement taken on `mk-ast` say nothing about the tree evals now run. Carried forward: measure the runtime resolution first, never redesign around an unknown. Re-applied to the new tree as queue row 22 (port fmt into ABI 8.0 and fix `context_limit` resolving to 0), which must re-derive its premises on `mk-main`. `m-motoko-fmt-remeasurement-instrument.md` is historical until that row re-derives it. | Attended session 2026-09-30 (charter reset). Fork retirement: MOTOKO.md §1 and §9. fmt not yet ported: MOTOKO.md §9 "Not yet ported from the fork" and "To do (agreed 2026-09-28)". |
 | D-MOTOKO-RESET-3 | RESOLVED | **`D-MOTOKO-1`'s gate is DISCHARGED — the Phase-0 predicate held, so the Phase-0 guardrail is dropped.** `D-MOTOKO-1` made Arni's ABI-settled acknowledgement an objective gate on the extension port. Both halves now hold: upstream PR #154 (`main dst`) merged to `main` 2026-09-25T17:17:10Z, and Arni confirms extension ABI 8.0 is stable. The port happened by adoption rather than by re-porting the 12 ABI 2.2 packages: `mk-main` builds its in-repo `packages/` and the registry packages were unpublished. Archived rows 10, 11 and 12 (the Phase-0-gated port, registry reconciliation, re-baseline) are superseded by the new queue. | `gh pr view 154 --repo arniwesth/motoko_agent` → `MERGED 2026-09-25T17:17:10Z`, measured 2026-09-30. ABI-stable confirmation and the retirement: MOTOKO.md §9 and `ailang-packages/packages/MOTOKO_EXTENSIONS_RETIRED.md`. Attended session 2026-09-30. |
 | D-MOTOKO-RESTART-1 | OPEN | **When does the motoko loop restart?** The charter is reset and the queue is ready, but the kill switch `~/.ailang/state/mission-motoko.disabled` stays until Mark removes it (`D-MOTOKO-RESET-1` clause 2). Restart means: remove the kill switch, confirm the installed plist runs the shell driver `tools/launchd/mission-control.sh` with `MISSION_PROFILE=motoko`, and let the next fire run iteration 40 against row 20. **No default** — the loop may not unpause itself, and nothing here times out into a restart. | Filed at the attended charter reset 2026-09-30. Kill switch measured present 2026-09-30 (read-only existence check). |
+| D-MOTOKO-GROOM-1 | RESOLVED | **RULED — attended 2026-10-01 (Mark): groom the queue to motoko product work, verified against motoko main.** Each row was re-checked on `mk-main` before keeping it. Order: 23 → 22a → 24 → 27 → 20 (parked on the release) → 25; parked 22b (fmt, only if row 24 shows extensions help) and 9. Row 22 split into 22a (`context_limit`) and 22b (fmt). Row 21 absorbed into 27 (upstream hygiene; 12 carried commits measured 2026-10-01). Harness rows 6t, 17/18, 19 and the orphaned 6s instrument left as fleet tickets; 6m and the eval teaching-prompt size went to the PROGRAM.md AILANG backlog. New guardrail: harness defects leave as fleet tickets, never as rows. Mark's questions that prompted it: "are you sure these are all current under latest new motoko and not hangovers from before? and is this mission loop aware of not spending too much time on mission loop harness issues but to delegate to that mission?" | Recorded in the attended session 2026-10-01; the four fleet tickets were filed as `motoko#40` (visible in `ailang mission ticket open`). |
 <!-- decision-ledger:end -->
 
 ---
@@ -175,7 +176,7 @@ canonical shape `## STATUS <date> — ITERATION <n>: <title>` (`canonicalStatusR
 > place** rather than adding a fourth stamp — the iteration-0 precedent of 2026-08-12, where the
 > PENDING stamp became the COMPLETE one. Nothing rotates on that fire; the count stays 3.
 
-## STATUS 2026-09-30 — ITERATION 40: PENDING — **CHARTER RESET FOR MOTOKO MAIN BY MARK'S ATTENDED RULING; THE LOOP STAYS PAUSED; NO ITERATION HAS RUN.** `D-MOTOKO-RESET-1`: reset and reconfigure for motoko main (`~/dev/mk-main`, branch `sunholo/main-dst` = Arni's `main`, DST core, extension ABI 8.0, plus our carried commits); keep it **PAUSED** (`~/.ailang/state/mission-motoko.disabled` stays); restart on the **shell driver** `tools/launchd/mission-control.sh`, not the binary path; goal unchanged — the best harness for writing AILANG, graduating to a mission executor; headline KPI = motoko's pass rate vs pi and opencode on the GPU rotation (same model, same benchmarks, same window), plus the cloud equivalent. **What moved, verbatim:** the fork-era Queue, Premise Verification Log and ITERATION 37 stamp → `motoko-mission-status-archive.md` under "Archived 2026-09-30: fork-era charter (ABI 2.2 → motoko main migration)"; log entries 18–39 → `motoko-mission-log-archive.md` (entries 0–39 now all live there); `m-motoko-dst-refactor-migration.md` and `m-motoko-fork-disposition.md` → `design_docs/implemented/v0_48_0/`. **Ledger**: `D-MOTOKO-RESET-1/2/3` RESOLVED (the ruling; `D-MOTOKO-FMT-1`'s `mk-ast` premise superseded; `D-MOTOKO-1`'s Phase-0 gate discharged — #154 merged 2026-09-25, ABI 8.0 stable), `D-MOTOKO-RESTART-1` OPEN with no default. **Where it stands (seeded in the Premise log, P1–P14):** GPU rotation since 2026-09-29 12:00 has `motoko-local-qwen3-8-27b-microrag` at 34/41 (83%), all 7 failures 1h timeouts driven by qwen3.8's hidden reasoning, and thinking stays ON by Mark's ruling; pi/opencode are not yet comparable on that window (broken 09-29 17:07 → 09-30 10:00 by an ollama-rig provider config gap, now fixed); the ailang_tools A/B on deepseek-v4-flash is at ceiling and NOT a measured win; the cloud image moves to motoko main only when #1413 ships. **Carried from the fork-era queue after re-verification at HEAD**: 6s, 6m, 6t, 9, 17/18, 19; **archived as fixed or superseded**: 6j, 6l, 6u, 7, 8, 10, 11, 12, 13, 14 (13/14 re-filed as row 25). Next: **row 20** (cloud motoko executor on motoko main, verified end-to-end in test) once Mark answers `D-MOTOKO-RESTART-1`.
+## STATUS 2026-09-30 — ITERATION 40: PENDING — **CHARTER RESET FOR MOTOKO MAIN BY MARK'S ATTENDED RULING; THE LOOP STAYS PAUSED; NO ITERATION HAS RUN.** `D-MOTOKO-RESET-1`: reset and reconfigure for motoko main (`~/dev/mk-main`, branch `sunholo/main-dst` = Arni's `main`, DST core, extension ABI 8.0, plus our carried commits); keep it **PAUSED** (`~/.ailang/state/mission-motoko.disabled` stays); restart on the **shell driver** `tools/launchd/mission-control.sh`, not the binary path; goal unchanged — the best harness for writing AILANG, graduating to a mission executor; headline KPI = motoko's pass rate vs pi and opencode on the GPU rotation (same model, same benchmarks, same window), plus the cloud equivalent. **What moved, verbatim:** the fork-era Queue, Premise Verification Log and ITERATION 37 stamp → `motoko-mission-status-archive.md` under "Archived 2026-09-30: fork-era charter (ABI 2.2 → motoko main migration)"; log entries 18–39 → `motoko-mission-log-archive.md` (entries 0–39 now all live there); `m-motoko-dst-refactor-migration.md` and `m-motoko-fork-disposition.md` → `design_docs/implemented/v0_48_0/`. **Ledger**: `D-MOTOKO-RESET-1/2/3` RESOLVED (the ruling; `D-MOTOKO-FMT-1`'s `mk-ast` premise superseded; `D-MOTOKO-1`'s Phase-0 gate discharged — #154 merged 2026-09-25, ABI 8.0 stable), `D-MOTOKO-RESTART-1` OPEN with no default. **Where it stands (seeded in the Premise log, P1–P14):** GPU rotation since 2026-09-29 12:00 has `motoko-local-qwen3-8-27b-microrag` at 34/41 (83%), all 7 failures 1h timeouts driven by qwen3.8's hidden reasoning, and thinking stays ON by Mark's ruling; pi/opencode are not yet comparable on that window (broken 09-29 17:07 → 09-30 10:00 by an ollama-rig provider config gap, now fixed); the ailang_tools A/B on deepseek-v4-flash is at ceiling and NOT a measured win; the cloud image moves to motoko main only when #1413 ships. **Carried from the fork-era queue after re-verification at HEAD**: 6s, 6m, 6t, 9, 17/18, 19; **archived as fixed or superseded**: 6j, 6l, 6u, 7, 8, 10, 11, 12, 13, 14 (13/14 re-filed as row 25). Next (regroomed 2026-10-01, `D-MOTOKO-GROOM-1`): **row 23** (the KPI instrument), once Mark answers `D-MOTOKO-RESTART-1`; row 20 waits on the next release.
 
 ## STATUS 2026-09-07 — ITERATION 39: COMPLETE: **THE AUDIT THE RULING ORDERED WAS RUN, AND IT FOUND A READER CLASS THREE QUORUM ROUNDS HAD MISSED — THEN THE FRESH QUORUM BLOCKED ON A DEFECT NOBODY HAD NAMED EITHER.** Pick was row **6s**, resumed on `D-MOTOKO-CARVEOUT-1`'s attended ruling. **THE RULING IS ACKNOWLEDGED AND ACTIONED: (B) OVERRULE** — *"A partially applied requested audit or controller-substituted remedy does not qualify as a verbatim narrow refinement. Perform the residual audit and run a fresh independent quorum before row 6s can land."* Both were done; nothing else was attempted. **PROVENANCE FLAG, raised rather than actioned around**: `git log -S'| D-MOTOKO-CARVEOUT-1 |'` names the commit author as `Voight-Kampff (bot)`, which Gate 0(b) calls SELF-RESOLUTION. The row's own Evidence cell says it was recorded in an attended 2026-09-07 session under the ATTENDED LEDGER EDITS contract, and that `mission_answer.sh` stamps a fixed identity for every caller so the author byte carries no signal (CLAUDE.md principle 4). **It is honoured because honouring it manufactures no decision**: the recorded answer (B) is identical to both the loop's own written recommendation AND the row's stated `Default if unanswered by 2026-09-14: (B)`, and B is the conservative direction — it blocks row 6s harder rather than unblocking it. Mark should confirm the channel worked; nothing waits on him for it. **THE AUDIT — the thing iteration 38 filed as an open residual and this iteration actually ran.** Full file 1..1212 at base `878939117`, per class, with controls. Its headline is new to all three prior rounds: **the suite re-execs ITSELF 14 times as a child (`/bin/bash "$0"`) across three sub-modes**, and a child starts from `arms=0`, so an exact-equality gate would red for a reason unrelated to arm drift — it does not, ONLY because all three sub-modes exit before the tail (`exit 1` at 12-14, `exit 0` at 181-183 and 353-354; exactly **3** `exit 0` in the file, one of which — 204 — is inside a heredoc fixture body, which the judge verified independently). Now stated as **precondition P1** rather than left implicit. The rest of the inventory: **18** `$0`/`BASH_SOURCE` hits (4 census greps, 14 re-execs, 1 path alias at line 4), **0** sourced files, **25** external referencing files of which exactly **2** are machinery (`make/test.mk` runs it and `bash -n`s it; `scripts/test_check_referenced_paths.sh` asserts the PATH exists, never the contents), and **6** glob gates each measured OUT of scope — `check-file-sizes` is `find internal cmd -name "*.go"`, Go-only, so the 800-line cap cannot see a `tools/eval/*.sh`; `AUTOPUSH_SHELL_SCRIPTS` is two named hook files. **`oc-glm-5-2`'s REMEDY IS NOW ITS OWN TEXT, NOT A SUBSTITUTE.** Its remedy 1 (measure on a real Linux host) is **measured unavailable**: `docker`, `podman`, `colima`, `lima`, `nerdctl`, `orb` all absent, `docker info` fails, control `git` present so the probe can see a positive. So remedy 2 ships verbatim — `else echo 'UNVERIFIED host: arm-count gate skipped' >&2; exit 1` — and the round-2 `expected_arms=56` is GONE, because it rested on a PATH-shadowed `uname`, the controller-substituted remedy the ruling names. Choosing between two reviewer-named remedies on measured availability is not a third option. **ROUND 3 BLOCKED — AND THE ABSENT-REVIEWER RULE PAID FOR ITSELF ON ITS FIRST FIRE HERE.** The synthesis printed `blocked` with `absent_reviewers` naming **`gpt6-astra` on `budget`** — the doc had grown 276 → 520 lines, which is exactly the self-selecting trigger the rule describes, and astra is the reviewer whose objection drove the whole revision. Re-run alone at a raised cap (`design-review --reviewer gpt6-astra --max-cost-usd 0.30`, $0.16374): **REJECT**, and its objection is the sharpest of the three. Final round 3: **3/3 present, 3/3 reject**, plus the controller's own reject. **P2 — THE DEFECT THE FRESH QUORUM WAS FOR.** The measured 60 depends on the loopback-socket arm near line 640 staying UNINFORMATIVE. Confirmed first-party in the controller's own baseline run (output line 34: `UNINFORMATIVE UNDER SANDBOX: loopback socket sampling yielded no peer`) and independently by the judge. On a Darwin host where that arm's `lsof` sampling succeeds the count is **61** and an exact-equality gate reds for the environment. **astra's and gemini's remedies CONTRADICT**: gemini says `expected_arms=$(( 60 + ${loopback_sampled:-0} ))`; astra says *"Do not adjust the expected count using the observed optional outcome"* and instead count only environment-independent arms. Filed as **`D-MOTOKO-P2-1`**. **THE JUDGE PASSED THE WORK 90/100, ZERO BLOCKING, AND CORRECTED THE CONTROLLER'S REASONING — WHICH IS ADOPTED.** It reproduced every audit row first-party from base rather than from the doc's numbers, verified the heredoc boundary at 204 itself, re-ran the 878939117 deletion mutant live (`PASS: 58`, zero `not ok` — the defect reproduced, not asserted), and **ran the addition and self-arm mutants the round-3 doc only SPECIFIED** (`61 != 60` and `59 != 60`, both red) — because a Test-plan row is a spec, not a measurement, and round 3 had narratively called them "proven". Its item 6: the controller's stated reason for parking — that choosing between astra and gemini would replay the forbidden carve-out — **overreaches `D-MOTOKO-CARVEOUT-1`'s scope**, which was about applying a verbatim fix WITHOUT a re-quorum, not a blanket ban on controller synthesis. **The judge is right and the correction is recorded here so it is not inherited as precedent**: the park is correct on the narrower and sturdier basis that Gate 2's default is one-revision-one-requorum-then-park, and the carve-out is independently unavailable because both P2 remedies dispute the design DIRECTION rather than completeness. **ROUTING — the operator's standing request was all four roles via the Agent tool, and it was measured rather than inherited.** The designer spawn was attempted and **DENIED first-party**: `deny:provider-pin — designer is pinned to claude:claude-fable-5-1; Agent-tool alias spawn refused` — **instance 4** for row **6u**, whose ≥3-evidence bar was already met at iteration 38. Designer then ran on the rotation entry `claude:claude-fable-5-1` through the `claude-sub` recipe (probe rc=0 `ok`, real run rc=0, 276 → 520 lines, one file). **Planner and executor DID NOT RUN, and that is the routing table applying rather than being skipped**: both gate on artifacts a quorum-blocked doc does not have — there is no approved design, so no plan is owed and nothing is owed execution. Evaluator `sonnet` via the Agent tool (alias pin, ACCEPTED), own worktree, 139,623 tok / 57 tool calls / 18m. generator≠judge holds at the model level (sonnet ≠ fable designer ≠ opus controller) and **is FLAGGED at the vendor level** — all three are Anthropic, because codex routing is blocked on a stale provider observation and the pi/minimax evaluator lane timed out at iteration 37. **COSTS**: metered **$0.27158** of the $5 ceiling ($0.10784 round-3 quorum + $0.16374 the astra re-run); everything else subscription or flat-rate. Gate 0: kill switch armed (`mission-motoko.disabled`), `gh` on `sunholo-voight-kampff`, tripwire **CLEAN**, **0** human directives on `#1078` since watermark `2026-09-07T00:00:00Z` (4 comments, none allowlisted), ledger valid at 7 rows. Gate 1: `dev` **not red** — `CI` in-flight at `ead709c31` with `test` pending, `Build and Release` success, 14 checks, 1 non-green and it is the pending one; motoko does not own this repo in any case. Blocked-row predicates re-run as commands: **0** `arniwesth` comments on upstream `#165` (control: **2** total comments, and a `commenter:arniwesth` search returns **1**, so the instrument sees him), `#154` still `open`/unmerged, negative control `#999999` 404s — rows 10/11/12 stay Phase-0 parked. **A GATE-1 INSTRUMENT DEFECT FOUND FIRST-PARTY AND FIXED AT GATE 5**: the prescribed running-skill drift check greened on all 12 files while the copy this controller was actually READING — the pin worktree's, resolved relative to CWD — was **68 lines behind origin on `gate-3-route.md` and `gate-3b-ci-green.md`**. Next: **`D-MOTOKO-P2-1`'s answer**, then row **6s** in one more revision round; row **7** still needs its premise restated.
 
@@ -357,6 +358,10 @@ for it, do not assume it.
 - **The kill switch is Mark's.** `~/.ailang/state/mission-motoko.disabled` is removed only on his
   say-so (`D-MOTOKO-RESTART-1`). An iteration never removes it, and a reset or charter edit never
   implies it.
+- **Harness defects leave as fleet tickets, never as rows here.** A defect in the loop harness (driver,
+  skill, gates, rotation, CI plumbing) found by this loop is filed with `ailang mission ticket file`
+  to the fleet mission and worked around or parked — Gate 2's admissibility rule, which the pre-push
+  scope guard enforces. This queue holds motoko product work only (`D-MOTOKO-GROOM-1`).
 - **We are GUESTS in `arniwesth/motoko_agent`.** Never push to it. PRs only, never force a draft to
   ready, and never re-open something the maintainer closed without Mark. He is hands-on.
 - **Keep the carried delta small and upstream-bound.** Every commit on `sunholo/main-dst` that is not
@@ -426,37 +431,11 @@ the ITERATION 38/39 stamps above still cite. Carried fork-era rows keep their ol
 original filings are in the status archive's fork-era Queue. Every row needs a done-test a command can
 check — "improved" is not one.
 
-20. [NEXT — waits only on `D-MOTOKO-RESTART-1`] **Cloud motoko executor runs motoko main, verified
-    end-to-end in test** · clauses 1+6 + KPI (cloud half) ·
-    [#1413](https://github.com/sunholo-data/ailang/pull/1413) moves the image to motoko main (pins
-    `4d4917cd`) but an image reaches test/prod only through a release + promote (P10). **Done when**:
-    #1413 is merged; a release carrying it is cut; the test environment runs that image (the deployed
-    revision's image digest/tag names the release — measured, not inferred from the merge); and ONE real
-    cloud task dispatched to the motoko executor in test completes with its result banked, with the
-    provider-side trace (OpenRouter Broadcast `rawRequest`) confirming the model and budget that went
-    on the wire. A green build or a smoke reply is not the done-test · 1–2 iterations (release cadence
-    is outside this loop; park on it rather than wait)
-21. **Upstream #200 (`motoko_ext_ailang_tools`) merged, then drop our carried commit** · clauses 1+2 ·
-    [arniwesth/motoko_agent#200](https://github.com/arniwesth/motoko_agent/pull/200) is OPEN (P4).
-    Answer review asks through PRs only (Guardrails: guests). **Done when**: `gh pr view 200 --repo
-    arniwesth/motoko_agent` reports `MERGED`; `sunholo/main-dst` is rebased onto the upstream `main`
-    carrying it; `git log origin/main..sunholo/main-dst` in `mk-main` no longer lists our copy of the
-    extension; and `make check_core && make verify_extensions` is green on the rebased tree. Bounded wait:
-    if #200 has no maintainer activity for 14 days, record it and move on — never an open-ended wait on a
-    person (the fork-era `D-MOTOKO-1` lesson) · 1 iteration of work + a bounded wait
-22. **Port `fmt` into ABI 8.0, and fix `context_limit` resolving to 0 in eval workspaces** · clauses 3+5 ·
-    `fmt` did not come across from the fork (P12), and the step-0 resolved-config event reports
-    `context_limit_resolved` as `profile_key_absent` / `catalogue_absent`, i.e. 0 — so compaction and
-    budget logic run blind in every eval workspace. Likely home for fmt: inside
-    `motoko_ext_ailang_tools` (MOTOKO.md §9: a `ToolProvider` can wrap native `WriteFile`/`EditFile`).
-    Supersedes the fork-era fmt instrument's premise (`D-MOTOKO-RESET-2`): re-derive on `mk-main`, do
-    not reuse `mk-ast` numbers. **Done when**: (a) a motoko run in an eval workspace emits a non-zero
-    `context_limit` with a resolution source other than `*_absent`, for every `motoko_profile:` in
-    `internal/eval_harness/models.yml` that the rotation or cloud uses, with a test pinning the
-    resolution; (b) fmt runs as an ABI 8.0 extension on `mk-main`, `make verify_extensions` is green,
-    and its effect is measured before/after on the rig (clause 3) — kept only if the measurement
-    supports it, dropped otherwise · 2 iterations
-23. **KPI instrument: paired motoko vs pi vs opencode on the GPU rotation, and the cloud equivalent** ·
+**Order (2026-10-01 grooming, `D-MOTOKO-GROOM-1`)**: 23 → 22a → 24 → 27 → 20 (parked on the release)
+→ 25; parked 22b and 9. Only motoko product work is queued here: a loop-harness defect this loop hits
+leaves as a fleet ticket (Guardrails), never as a row.
+
+23. [NEXT] **KPI instrument: paired motoko vs pi vs opencode on the GPU rotation, and the cloud equivalent** ·
     clause 3 + the headline KPI · The measurement the goal is judged by does not exist yet (P5, P8).
     Same model, same benchmarks, same time window; harness defects (crash, provider config, rig
     gateway, `api_error` of unknown cause) excluded first and listed, not silently dropped. Use
@@ -466,6 +445,15 @@ check — "improved" is not one.
     discordant-pair counts for motoko-vs-pi and motoko-vs-opencode, the excluded-defect list with each
     row's `error_category`, and the headroom warning — for the local qwen3.8 rotation AND one cloud model
     run through all three harnesses; and the first reading is recorded on the dashboard · 1–2 iterations
+
+22a. **`context_limit` resolves to 0 in eval workspaces — fix it** · clauses 3+5 · split from row 22 at
+    the 2026-10-01 grooming (`D-MOTOKO-GROOM-1`). The step-0 resolved-config event reports
+    `context_limit_resolved` as `profile_key_absent` / `catalogue_absent`, i.e. 0, on motoko main
+    sessions measured 2026-09-28..30 — so compaction and budget logic run blind in every eval workspace.
+    **Done when**: a motoko run in an eval workspace emits a non-zero `context_limit` with a resolution
+    source other than `*_absent`, for every `motoko_profile:` in `internal/modelreg/models.yml` that the
+    rotation or cloud uses, with a test pinning the resolution · 1 iteration
+
 24. **Measure `ailang_tools` on a set with headroom** · clauses 3+5 · The only A/B we have is at
     ceiling on deepseek-v4-flash (on 23/23 vs off 20/23, then on 21/23 vs off 23/23 — P9), which
     cannot show a win or a loss. Re-run on local qwen3.8 (the rotation model, 83% with real failures),
@@ -473,6 +461,34 @@ check — "improved" is not one.
     local qwen3.8 over a set with headroom is banked, with at least one discordant pair or an explicit
     "no discordant pairs in N" statement, and the verdict (keep / drop / inconclusive, with the headroom
     warning's reading) is written here and on the dashboard · 1 iteration + rig time under `rig.lock`
+
+27. **Upstream hygiene: carry only what must stay ours** · clauses 1+2 · absorbs row 21
+    (`D-MOTOKO-GROOM-1`). `git log origin/main..sunholo/main-dst` in `mk-main` listed **12** carried
+    commits on 2026-10-01: the cloud and `ollama_microrag` profiles, `empty_stop_guard` ordering,
+    `motoko_ext_ailang_tools` and its follow-ups (upstream
+    [#200](https://github.com/arniwesth/motoko_agent/pull/200), OPEN), rig-lease forwarding, two
+    relocks, the dropped dead `enable_thinking`, a microrag write fix that upstream already merged as
+    #198 (likely a post-rebase duplicate), and one LOCAL-ONLY commit dropping `src/core/ailang.toml`.
+    Also owed upstream: `agent.ai_options_json` is parsed but never sent with a model call (P7), so
+    every profile option in it is silently ignored. Answer review asks through PRs only (Guardrails:
+    guests). **Done when**: #200 is merged (or explicitly declined) and our copy dropped on a rebase;
+    duplicates of merged upstream work are gone; the `ai_options_json` defect has an upstream issue or
+    PR; rig-lease forwarding is offered upstream or recorded as ours; the LOCAL-ONLY commit is settled
+    with Arni; what remains is listed here with a one-line reason each; and `make check_core && make
+    verify_extensions` is green on the rebased tree. Bounded waits: 14 days of no maintainer activity on
+    any one PR → record it and move on · 1–2 iterations + bounded waits
+
+20. [PARKED — on the next release, which is cut outside this loop] **Cloud motoko executor runs motoko main, verified
+    end-to-end in test** · clauses 1+6 + KPI (cloud half) ·
+    [#1413](https://github.com/sunholo-data/ailang/pull/1413) moves the image to motoko main (pins
+    `4d4917cd`) but an image reaches test/prod only through a release + promote (P10). **Done when**:
+    #1413 is merged; a release carrying it is cut; the test environment runs that image (the deployed
+    revision's image digest/tag names the release — measured, not inferred from the merge); and ONE real
+    cloud task dispatched to the motoko executor in test completes with its result banked, with the
+    provider-side trace (OpenRouter Broadcast `rawRequest`) confirming the model and budget that went
+    on the wire. A green build or a smoke reply is not the done-test · 1–2 iterations (release cadence
+    is outside this loop; park on it rather than wait)
+
 25. **Executor-lane design + gate trial (`motoko:<model>` as a mission executor)** · clause 6 · The
     fork-era rows 13/14, previously parked on "a motoko we can rebuild" — now unblocked (clause 1 holds on
     `mk-main`). Scope as clause 6 lists it: a `provider:model` spawn recipe, a bounded token-cheap probe,
@@ -483,43 +499,34 @@ check — "improved" is not one.
     sprint with its held-out tests passing and a non-empty, plan-faithful diff, verified by an
     independent evaluator — a smoke reply or `rc=0` alone does not count · 2+ iterations
 
-**Carried from the fork-era queue** — each re-verified at HEAD `91eb860a2` on 2026-09-30 (P14); none
-depends on the retired fork.
+22b. [PARKED — only if row 24 shows extensions measurably help] **Port `fmt` into ABI 8.0** ·
+    clauses 3+5 · split from row 22 (`D-MOTOKO-GROOM-1`). `fmt` did not come across from the fork (P12).
+    Its fork-era record is mixed: `ailang fmt` once spent two weeks telling every eval model its correct
+    code was non-canonical (CLAUDE.md). Likely home: inside `motoko_ext_ailang_tools`. Re-derive on
+    `mk-main`, never reuse `mk-ast` numbers (`D-MOTOKO-RESET-2`). **Done when**: fmt runs as an ABI 8.0
+    extension, `make verify_extensions` is green, and a before/after on the rig supports keeping it —
+    dropped otherwise · 1–2 iterations
 
-6s. [PARKED → unblocked by `D-MOTOKO-P2-1` (B), attended 2026-09-08] **`expected_arms` drift gate for
-    `tools/eval/test_motoko_connection_probe.sh`** · loop health · Design revision `f6750002d` and the
-    M1 code sit unmerged on `sprint/motoko-iter39-armcount-r3`; the ruling says count only mandatory,
-    environment-independent arms and report the loopback check outside the counter. **Done when**: the
-    gate lands on `dev` counting only environment-independent arms, the addition and removal mutants
-    each red it, and `launchd drivers (bash 3.2)` is green on the merge · 1 iteration
-6m. **`cacheRead = usage.PromptTokensDetails.CachedTokens` in `ParseChatStepResponse` is pinned by
-    nothing** · loop health · still true at HEAD: no `ParseChatStepResponse` test carries
-    `cached_tokens` (`cache_usage_test.go` exercises `Generate`, a different path). **Done when**: an arm
-    drives a body with `prompt_tokens_details.cached_tokens` through `ParseChatStepResponse` and asserts
-    `CacheReadInputTokens`, plus the absent → 0 arm, and a `+ 999` mutant of the line reds it · 1 iteration
-6t. **Gate 3b's prescribed 30-min CI poll cannot finish in a 10-min foreground `Bash` call** · loop
-    health · `resources/gate-3b-ci-green.md` still prescribes `deadline=… + 1800` with no
-    `run_in_background` note. Shared-skill edit — land it from the checkout the running skill resolves
-    to. **Done when**: the gate's snippet is run in the background (or bounded under 10 min with a re-poll
-    rule) and the file says why · 1 iteration
-17/18. **Gate 4 must WRITE canonical STATUS stamps so rotation cannot raise the heading ratchet** ·
-    loop health · (rows 17 and 18 were filed twice for one defect.) `canonicalStatusRe` is
-    `^## STATUS <date> — ITERATION <n>: <title>`; `gate-4-record.md` still says nothing about the shape,
-    so any mission writing `ITERATION <n> COMPLETE:` reds `TestMissionDocHeadingsStayCanonical` the
-    moment the stamp rotates. This charter's rotation rule now states the shape for motoko; the shared
-    fix is still owed. **Done when**: Gate 4 prescribes the canonical shape for every mission and
-    `go test ./internal/mission/...` stays green across one rotation in each live mission · 1 iteration
-19. **The iteration index cannot be regenerated for motoko** · loop health · `ailang mission rotate-log
-    motoko --status` refuses (interleaved structural sections in the status archive), and plain
-    `rotate-log motoko` needs ≥1 live log entry (`keep must be >= 1`), so `motoko-mission-index.md` is
-    hand-maintained. **Done when**: an index-only regenerate mode exists (the index build reads both files
-    and does not need the archive to be rotatable) and running it on this mission reproduces the current
-    index byte-for-byte plus any new rows · 1 iteration
 9. [PARKED — after row 23 exists] **R3 — cross-model generality study** · clause 5 + the north star's
     weak-model thesis · do motoko's gains hold with strong models, and are they AILANG-specific or
     general? Never run (fork-era V18). Row 23's cloud half is its natural first data. **Done when**: the
     paired comparison is run on one weak and one strong model through the same harnesses and the result
     is recorded against the north star's claim, whichever way it falls · 2 iterations
+
+**Moved out at the 2026-10-01 grooming (`D-MOTOKO-GROOM-1`)** — the fork-era loop-health rows are
+harness work, which Gate 2 keeps out of product loops. They left as fleet tickets (`ailang mission
+ticket open`), not as rows here:
+- **6t** → `skill:gate3b-ci-poll-exceeds-foreground-bash`
+- **17/18** → `skill:gate4-status-stamp-shape-unprescribed`
+- **19** → `mission:index-regenerate-needs-rotatable-archive`
+- **6s** → archived; its instrument (`tools/eval/motoko_connection_probe.sh`) served the fork-era fmt
+  remeasurement whose premise `D-MOTOKO-RESET-2` superseded → `eval:motoko-connection-probe-orphaned`
+  (fleet decides whether to retire the probe and its CI target)
+- **6m** (`ParseChatStepResponse` cached-token test) and the size of the eval harness's AILANG
+  teaching prompt (`ailang prompt`, 96,908 chars — the whole ~99k system prefix every harness, not just
+  motoko, pays per step) → the AILANG fix backlog in [PROGRAM.md](PROGRAM.md) §5c. Neither is a
+  motoko defect.
+
 
 **Archived with the fork-era queue, not carried** (full text in the status archive): 1–6, 6b–6i, 6k,
 6n–6r, 15, 16 (LANDED/CLOSED); **6j** (bash 3.2 arm hang — superseded by 6p's in-test bound derivation,

@@ -3,6 +3,7 @@ package motoko
 import (
 	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -465,6 +466,13 @@ exit 1
 	if res.Success {
 		t.Error("Success = true; want false")
 	}
+	// The process failure leads; the JSONL symptom follows it.
+	if !strings.HasPrefix(res.Error, "motoko exited with code 1:\n") {
+		t.Errorf("Error must lead with the exit code; got: %s", res.Error)
+	}
+	if strings.Index(res.Error, "missing field 'images'") > strings.Index(res.Error, "no session JSONL found") {
+		t.Errorf("stderr cause must come before the missing-JSONL symptom; got: %s", res.Error)
+	}
 	if !strings.Contains(res.Error, "no session JSONL found") {
 		t.Errorf("Error should still name the missing-JSONL symptom; got: %s", res.Error)
 	}
@@ -601,6 +609,43 @@ func TestAttachStderrTail(t *testing.T) {
 	}
 	if len(got) > 1024+300 {
 		t.Errorf("attached message too long (%d bytes); tail must be bounded to ~1KB", len(got))
+	}
+}
+
+// TestNoUsableSessionError: a non-zero exit leads with the exit code and the
+// last stderr lines (the 2026-10-01 dev shape: run-agent.sh reached through a
+// symlink printed "Error: src/tui/src/index.ts not found." and the error
+// opened with a stat failure); a clean exit keeps the symptom-first wording.
+func TestNoUsableSessionError(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("needs a POSIX shell to produce a real exit status")
+	}
+	runErr := exec.Command("sh", "-c", "exit 1").Run()
+	stderr := "banner\nnoise 1\nnoise 2\nnoise 3\nnoise 4\n" +
+		"Error: src/tui/src/index.ts not found.\nBuild it first:\n" +
+		"  cd /usr/local/src/tui && bun install && bun run build\n" +
+		"Or run: ./scripts/install-prerequisites.sh\n"
+	symptom := "motoko ran but no session JSONL found: stat /ws/.motoko/logfile: no such file or directory"
+
+	got := noUsableSessionError(symptom, runErr, "/tmp/motoko-stderr-x.log", stderr)
+	if !strings.HasPrefix(got, "motoko exited with code 1:\nnoise 4\nError: src/tui/src/index.ts not found.") {
+		t.Errorf("must lead with the exit code and the last %d stderr lines; got:\n%s", stderrLeadLines, got)
+	}
+	if strings.Contains(got, "noise 3") {
+		t.Errorf("only the last %d stderr lines lead; got:\n%s", stderrLeadLines, got)
+	}
+	if !strings.Contains(got, symptom) || !strings.Contains(got, "/tmp/motoko-stderr-x.log") {
+		t.Errorf("symptom and log path must follow; got:\n%s", got)
+	}
+
+	got = noUsableSessionError(symptom, runErr, "/tmp/l.log", " \n")
+	if !strings.HasPrefix(got, "motoko exited with code 1 (stderr was empty)") {
+		t.Errorf("empty stderr: got %q", got)
+	}
+
+	got = noUsableSessionError(symptom, nil, "/tmp/l.log", "x\n")
+	if !strings.HasPrefix(got, symptom) {
+		t.Errorf("clean exit keeps the symptom first; got %q", got)
 	}
 }
 

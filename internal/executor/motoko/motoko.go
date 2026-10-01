@@ -85,6 +85,57 @@ func attachStderrTail(msg, stderrLogPath, stderr string) string {
 	return fmt.Sprintf("%s — stderr tail (full log: %s):\n%s", msg, stderrLogPath, tail)
 }
 
+// stderrLeadLines is how many trailing stderr lines lead the error when the
+// motoko process itself failed.
+const stderrLeadLines = 5
+
+// noUsableSessionError builds Result.Error for a run that left no usable
+// session JSONL (missing or unparseable). When the process exited non-zero, the
+// exit status and the last stderr lines LEAD the message and the JSONL symptom
+// follows: a dead launcher never writes a session file, so leading with
+// "no session JSONL found ... stat ..." buried the cause (dev cloud executor,
+// 2026-10-01: run-agent.sh, reached through a symlink, died with "Error:
+// src/tui/src/index.ts not found." and the error opened with a stat failure).
+// A clean exit with no JSONL keeps the symptom-first wording.
+func noUsableSessionError(symptom string, runErr error, stderrLogPath, stderr string) string {
+	if runErr == nil {
+		return attachStderrTail(symptom, stderrLogPath, stderr)
+	}
+	lead := "motoko " + describeProcessFailure(runErr)
+	if last := lastLines(stderr, stderrLeadLines); last != "" {
+		lead += ":\n" + tailString(last, stderrTailBytes)
+	} else {
+		lead += " (stderr was empty)"
+	}
+	return fmt.Sprintf("%s\n[%s; full log: %s]", lead, symptom, stderrLogPath)
+}
+
+// describeProcessFailure renders how the motoko process ended.
+func describeProcessFailure(runErr error) string {
+	var exitErr *exec.ExitError
+	if errors.As(runErr, &exitErr) {
+		if code := exitErr.ExitCode(); code >= 0 {
+			return fmt.Sprintf("exited with code %d", code)
+		}
+		return fmt.Sprintf("was terminated (%v)", runErr)
+	}
+	return fmt.Sprintf("failed to run: %v", runErr)
+}
+
+// lastLines returns the last n non-blank lines of s, newline-joined.
+func lastLines(s string, n int) string {
+	var lines []string
+	for _, l := range strings.Split(s, "\n") {
+		if strings.TrimSpace(l) != "" {
+			lines = append(lines, strings.TrimRight(l, "\r"))
+		}
+	}
+	if len(lines) > n {
+		lines = lines[len(lines)-n:]
+	}
+	return strings.Join(lines, "\n")
+}
+
 // systemPromptViaSystemRole reports whether the AILANG system prompt should be
 // delivered as a persistent system-role message (written to SYSTEM_MD) rather
 // than folded into the user directive (where context compaction strips it on
@@ -188,6 +239,17 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	if err := e.requireModel(task); err != nil {
 		return nil, err
 	}
+	if err := checkToolPolicy(task); err != nil {
+		return nil, err
+	}
+	res, err := e.executeStreaming(ctx, task, handler)
+	if res != nil {
+		res.ToolPolicy = effectiveToolPolicy()
+	}
+	return res, err
+}
+
+func (e *MotokoExecutor) executeStreaming(ctx context.Context, task *executor.Task, handler executor.EventHandler) (*executor.Result, error) {
 	// D1 (M-MOTOKO-FMT-REMEASUREMENT-INSTRUMENT §12.2): per-task resolved-
 	// provider credential refusal, at the choke point through which ALL motoko
 	// work passes. Runs STRICTLY DOWNSTREAM of repo discovery: the eval harness
@@ -497,15 +559,15 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	// Locate the session JSONL motoko wrote during the run. No JSONL at all is
 	// the startup-crash shape (motoko died before its logger initialized — e.g.
 	// an AILANG compile error on stdlib schema drift), so the cause is on
-	// stderr: attach its tail rather than reporting only the missing file.
+	// stderr: lead with the process failure, not the missing file.
 	jsonlPath, findErr := findSessionJSONL(task.Workspace, sessionID, e.motokoRepo)
 	if findErr != nil {
 		span.SetStatus(codes.Error, "session jsonl not found")
 		return &executor.Result{
 			Success: false,
-			Error: attachStderrTail(
+			Error: noUsableSessionError(
 				fmt.Sprintf("motoko ran but no session JSONL found: %v", findErr),
-				stderrLogPath, stderrBuf.String()),
+				runErr, stderrLogPath, stderrBuf.String()),
 			DurationMS: wallDurationMS,
 			SessionID:  sessionID,
 		}, nil
@@ -516,9 +578,9 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		span.SetStatus(codes.Error, "session jsonl parse failed")
 		return &executor.Result{
 			Success: false,
-			Error: attachStderrTail(
+			Error: noUsableSessionError(
 				fmt.Sprintf("motoko session JSONL parse failed: %v", parseErr),
-				stderrLogPath, stderrBuf.String()),
+				runErr, stderrLogPath, stderrBuf.String()),
 			DurationMS: wallDurationMS,
 			SessionID:  sessionID,
 		}, nil
