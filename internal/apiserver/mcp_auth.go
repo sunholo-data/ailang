@@ -106,3 +106,54 @@ func validateSecretParams(e ExportInfo) error {
 	}
 	return nil
 }
+
+// inputSchemaFor is the tool's inputSchema on this surface. The listed
+// surface removes @mcp_secret params from properties and required; the agent
+// surface (/mcp/) is unchanged.
+func (ms *MCPServer) inputSchemaFor(e ExportInfo) map[string]any {
+	schema := buildNamedInputSchema(e)
+	if !ms.listed || len(e.MCPSecret) == 0 {
+		return schema
+	}
+	if props, ok := schema["properties"].(map[string]any); ok {
+		for _, name := range e.MCPSecret {
+			delete(props, name)
+		}
+	}
+	if req, ok := schema["required"].([]string); ok {
+		kept := req[:0:0]
+		for _, name := range req {
+			if !isSecretParam(e, name) {
+				kept = append(kept, name)
+			}
+		}
+		schema["required"] = kept
+	}
+	return schema
+}
+
+func isSecretParam(e ExportInfo, name string) bool {
+	for _, s := range e.MCPSecret {
+		if s == name {
+			return true
+		}
+	}
+	return false
+}
+
+// hasListedSurface reports whether any loaded export opts into the directory
+// projection. /mcp/connect/ is mounted only then, so servers that use none of
+// the listed-surface annotations are unchanged.
+func hasListedSurface(modules map[string]*ModuleInfo) bool {
+	for _, info := range modules {
+		for _, e := range info.Exports {
+			if e.MCPAuth != "" || len(e.MCPSecret) > 0 || e.IsAgentOnly || e.IsTokenVerifier {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// listedMCPPath is where the directory projection is served.
+const listedMCPPath = "/mcp/connect/"

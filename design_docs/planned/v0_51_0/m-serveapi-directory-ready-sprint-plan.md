@@ -75,7 +75,7 @@ registration.
 - [x] `.claude/rules/api-server.md`: `@mcp_agent_only` is documented as the second sanctioned
   projection-scoped narrowing (Conflict Surface item 5).
 
-### M2: Listed surface `/mcp/connect/` (~200 impl + ~150 tests)
+### M2: Listed surface `/mcp/connect/` (~200 impl + ~150 tests) ✅
 
 **Goal:** one process serves `/mcp/` (unchanged) and `/mcp/connect/` (a projection).
 
@@ -90,9 +90,9 @@ registration.
 - `submit_feedback` appears on both surfaces.
 
 **Acceptance criteria:**
-- [ ] On `/mcp/connect/`, `tools/list` has no `@mcp_secret` parameters and no `@mcp_agent_only` tools.
-- [ ] `/mcp/` `tools/list` is byte-identical before and after for a module with none of the new annotations (regression).
-- [ ] `examples/runnable/serve_api_mcp_header_auth.ail` behaves the same on `/mcp/`.
+- [x] On `/mcp/connect/`, `tools/list` has no `@mcp_secret` parameters and no `@mcp_agent_only` tools.
+- [x] `/mcp/` `tools/list` is byte-identical before and after for a module with none of the new annotations (regression).
+- [x] `examples/runnable/serve_api_mcp_header_auth.ail` behaves the same on `/mcp/`.
 
 ### M3: Lazy-auth gate and resource metadata (~300 impl + ~250 tests)
 

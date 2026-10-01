@@ -22,6 +22,10 @@ type MCPServer struct {
 	// verifier is the @mcp_token_verifier function gated tools are checked
 	// with (nil when there is none). M-SERVEAPI-DIRECTORY-READY.
 	verifier *tokenVerifier
+	// listed marks the directory projection served at /mcp/connect/: no
+	// @mcp_agent_only tools, and @mcp_secret params neither advertised nor
+	// accepted. The agent surface (/mcp/) has listed == false.
+	listed bool
 }
 
 func mcpError(msg string) *mcp.CallToolResult {
@@ -39,6 +43,16 @@ func mcpError(msg string) *mcp.CallToolResult {
 // (AILANG_RATELIMIT_RPM, AILANG_RATELIMIT_BURST). Read-only tools are not
 // throttled — they're idempotent and cacheable.
 func NewMCPServer(srv *Server) *MCPServer {
+	return newMCPServer(srv, false)
+}
+
+// NewListedMCPServer builds the directory projection of the same tools
+// (M-SERVEAPI-DIRECTORY-READY D3), mounted at /mcp/connect/.
+func NewListedMCPServer(srv *Server) *MCPServer {
+	return newMCPServer(srv, true)
+}
+
+func newMCPServer(srv *Server, listed bool) *MCPServer {
 	mcpSrv := mcp.NewServer(&mcp.Implementation{
 		Name:    "ailang-api",
 		Version: "0.8.1",
@@ -63,6 +77,7 @@ func NewMCPServer(srv *Server) *MCPServer {
 		server:     srv,
 		mcpServer:  mcpSrv,
 		feedbackRL: NewIPRateLimiter(feedbackRateLimitRPM(), feedbackRateLimitBurst()),
+		listed:     listed,
 	}
 
 	ms.registerTools()
@@ -125,6 +140,9 @@ func (ms *MCPServer) registerTools() {
 			}
 			if export.IsNoMCP {
 				continue // @nomcp: served over HTTP/OpenAPI/A2A but absent from MCP
+			}
+			if ms.listed && export.IsAgentOnly {
+				continue // @mcp_agent_only: on /mcp/, not on the listed surface
 			}
 
 			dedupKey := export.Name + "|" + export.Type
@@ -236,7 +254,7 @@ func (ms *MCPServer) registerTools() {
 			Name:        toolName,
 			Title:       export.MCPTitle,
 			Description: desc,
-			InputSchema: buildNamedInputSchema(export),
+			InputSchema: ms.inputSchemaFor(export),
 			Annotations: sdkToolAnnotations(hints, export.MCPTitle),
 		}
 
@@ -376,6 +394,17 @@ func (ms *MCPServer) makeToolHandler(modulePath string, export ExportInfo) mcp.T
 				return mcpError(fmt.Sprintf(
 					"missing required parameter(s): %s", strings.Join(missing, ", "),
 				)), nil
+			}
+		}
+
+		// Listed surface: a secret is never taken from the client, named or
+		// positional. It binds the zero value (validateSecretParams already
+		// required @optional, so one exists).
+		if ms.listed {
+			for i, name := range paramNames {
+				if i < len(args) && isSecretParam(export, name) {
+					args[i] = zeroValueForType(export.ParamTypes[i])
+				}
 			}
 		}
 

@@ -71,10 +71,10 @@
         "/mcp/ tools/list byte-identical for a module without the new annotations",
         "serve_api_mcp_header_auth.ail example unchanged on /mcp/"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-01T14:39:20+00:00",
+      "completed": "2026-10-01T14:39:20+00:00",
+      "notes": "NewListedMCPServer (listed flag on MCPServer): skips @mcp_agent_only, inputSchemaFor strips @mcp_secret, handler forces secrets to zero (named+positional). Auto-mounted at /mcp/connect/ via hasListedSurface (no new CLI flag; deferred decision resolved). Tests through real buildRoutes over streamable HTTP; 3 mutants each caught. /mcp/ regression = full apiserver suite green (nomcp, header-auth, hints, schema tests). ExportInfo -> export_info.go (800-line gate)."
     },
     {
       "id": "M3",
