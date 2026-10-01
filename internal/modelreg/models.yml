@@ -2376,7 +2376,7 @@ models:
     agent_cli: "pi"
     agent_model_name: "openrouter/z-ai/glm-5.3-flash"
     model_family: "glm-5"
-    max_output_tokens: 65536  # matches motoko-lane-or-glm-5-3-flash; pi itself reads maxTokens from its catalog
+    max_output_tokens: 32000  # pi's wire budget (tools/pi-extensions/models.mission.json maxTokens); the motoko arm declares 65536 — a known A/B asymmetry, check finish_reason=length on pi rows
     pricing:
       input_per_1k: 0.000075  # $0.075 per 1M (OpenRouter API, verified 2026-08-27)
       output_per_1k: 0.00025  # $0.25 per 1M (OpenRouter API, verified 2026-08-27)
