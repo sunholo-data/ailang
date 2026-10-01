@@ -2627,3 +2627,10 @@ orphans), then `m-approval-poll-production-defaults-unexercised` / `m-ratelimit-
 (small, judge-measured) and `m-gate0-self-crash-notice-read` [world-DEMAND]. Watch: the next fire's
 driver log should carry `driver pin age: 0 below warning threshold 25` beside the drift line — the
 first live reading of the instrument this iteration shipped.
+
+#### Design-quorum review — `design_docs/planned/v0_51_1/m-parser-nullary-single-ctor-cursor.md` (2026-10-01T20:27:52Z)
+
+- **Synthesis: PROCEED** (total $0.0000, 0 in / 0 out tok)
+- `gpt5-6-sol` → **ABSENT** (auth) — degraded to N-1, not a silent pass
+- `gemini-3-1-pro` → **ABSENT** (unreachable) — degraded to N-1, not a silent pass
+- controller (in-session, not an API call) → **pass** — Controller in-session verdict: premises verified against the live v0.50.1 binary (18-row Verification Log: repro, isolation matrix across 5 body forms x 5 follower kinds, single-caller grep, v0.8.1 prior-art cross-check). Fix is a 6-line peek-guarded advance mirroring the guarded with-fields branch; no grammar/disambiguation change; conflict surface enumerates all token shapes at the position and every claim carries a command transcript.
