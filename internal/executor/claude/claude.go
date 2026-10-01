@@ -4,6 +4,7 @@ package claude
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -161,6 +162,11 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		// IMPORTANT: The env var alone causes Claude to exit(1) with zero output.
 		// The file-based approach is what works (same as local interactive auth).
 		if err := writeCredentialsFile(); err != nil {
+			if errors.Is(err, ErrCredentialsUnderArtifactRoot) {
+				// Fatal: running on would only prompt for a login, and the fix is
+				// the dispatcher's CLAUDE_CONFIG_DIR, not this run.
+				return nil, fmt.Errorf("claude-auth: %w", err)
+			}
 			fmt.Fprintf(os.Stderr, "claude-auth: warning: %v\n", err)
 		}
 	}
