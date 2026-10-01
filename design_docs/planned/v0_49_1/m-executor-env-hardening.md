@@ -92,6 +92,19 @@ auditable function of the task.
 - The banked `Result` records the child env **name set digest** (names only, never values), so
   the boundary is visible in the data the way `ToolPolicy` and `PolicyDigest` already are.
 
+## Relationship to M-SEC2 (added 2026-10-01, attended triage)
+
+M-SEC2 (ailang-multivac `internal-docs/M-SEC2-cloud-executor-hardening.md`) hardens the **container**
+boundary: Phase 1 (multivac `aac1c82`, 2026-09-30) split executors into internal / external / eval
+lanes with per-lane service accounts and secret-level IAM; SEC2.2 completion binding landed in
+this repo as #1426. Its post-Phase-1 secret table still injects **`github-token` and
+`registry-api-key` into all three lanes, external included** — and per-run GitHub App tokens are
+an M-SEC2 non-goal. So after M-SEC2 those two secrets remain in every executor container, and
+nothing stops the model-facing child from reading them. This design owns that remaining
+**in-container** half (host process → agent child). The two do not overlap; planning should treat
+M-SEC2's lane split as the given and grant per lane on top of it. Findings E1–E4 were re-checked
+against `dev` on 2026-10-01 and all still hold.
+
 ## Threat Model and Scope
 
 **Untrusted inputs:** GitHub issue/PR text delivered in coordinator directives, benchmark task
