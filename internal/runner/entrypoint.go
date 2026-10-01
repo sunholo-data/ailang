@@ -131,7 +131,7 @@ func ExecuteModuleEntrypoint(rt *runtime.ModuleRuntime, params ModuleExecParams)
 	}
 
 	// Decode arguments
-	args, err := decodeEntrypointArgs(params.ArgsJSON, fnType, entry)
+	args, err := decodeEntrypointArgs(params.ArgsJSON, fnType, entry, params.Iface.GetTypeAlias)
 	if err != nil {
 		return err
 	}
@@ -172,7 +172,9 @@ func ExecuteModuleEntrypoint(rt *runtime.ModuleRuntime, params ModuleExecParams)
 }
 
 // decodeEntrypointArgs decodes JSON arguments based on function type signature
-func decodeEntrypointArgs(argsJSON string, fnType *types.TFunc2, entry string) ([]eval.Value, error) {
+// aliases expands named parameter types (`type Args = {…}`) from the entry
+// module's interface.
+func decodeEntrypointArgs(argsJSON string, fnType *types.TFunc2, entry string, aliases argdecode.AliasLookup) ([]eval.Value, error) {
 	var args []eval.Value
 
 	if len(fnType.Params) == 0 {
@@ -184,7 +186,7 @@ func decodeEntrypointArgs(argsJSON string, fnType *types.TFunc2, entry string) (
 		args = []eval.Value{&eval.UnitValue{}} // Unit-argument model
 	} else if len(fnType.Params) == 1 {
 		// Single-arg function - decode JSON to match parameter type
-		argVal, err := argdecode.DecodeJSON(argsJSON, fnType.Params[0])
+		argVal, err := argdecode.DecodeJSONWithAliases(argsJSON, fnType.Params[0], aliases)
 		if err != nil {
 			return nil, fmt.Errorf("failed to decode arguments: %w", err)
 		}

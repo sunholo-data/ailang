@@ -233,6 +233,10 @@ func runCommand() {
 	}
 
 	filename := fs.Arg(0)
+	if tok := misplacedRunFlag(fs, fs.Args()[1:]); tok != "" {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), misplacedRunFlagError(tok))
+		os.Exit(1)
+	}
 
 	// M-AGENT-AILANG-ONLY-EXECUTION M2: with --policy the authority is the
 	// file. Resolved here into the existing flag values rather than threaded
