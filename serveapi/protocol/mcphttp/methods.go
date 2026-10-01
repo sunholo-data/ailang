@@ -9,10 +9,12 @@ import (
 )
 
 type toolJSON struct {
-	Name         string          `json:"name"`
-	Description  string          `json:"description,omitempty"`
-	InputSchema  json.RawMessage `json:"inputSchema"`
-	OutputSchema json.RawMessage `json:"outputSchema,omitempty"`
+	Name         string                    `json:"name"`
+	Title        string                    `json:"title,omitempty"`
+	Description  string                    `json:"description,omitempty"`
+	InputSchema  json.RawMessage           `json:"inputSchema"`
+	OutputSchema json.RawMessage           `json:"outputSchema,omitempty"`
+	Annotations  *protocol.ToolAnnotations `json:"annotations,omitempty"`
 }
 
 type contentJSON struct {
@@ -64,7 +66,7 @@ func listTools(surface *protocol.AuthorizedSurface) []toolJSON {
 	all := surface.All()
 	tools := make([]toolJSON, 0, len(all))
 	for _, d := range all {
-		tools = append(tools, toolJSON{Name: d.Name, Description: d.Description, InputSchema: d.InputSchema, OutputSchema: d.OutputSchema})
+		tools = append(tools, toolJSON{Name: d.Name, Title: d.Title, Description: d.Description, InputSchema: d.InputSchema, OutputSchema: d.OutputSchema, Annotations: d.Annotations})
 	}
 	return tools
 }

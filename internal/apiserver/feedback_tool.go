@@ -9,6 +9,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/feedback"
+	"github.com/sunholo-data/ailang/serveapi/protocol"
 )
 
 // The per-IP feedback rate limiter (see M-MCP-EDGE-THROTTLE) is configured
@@ -31,8 +32,15 @@ func feedbackRateLimitBurst() int { return config.RateLimitBurst() }
 // isn't configured, the FIRST call returns a structured error envelope.
 // Subsequent calls reuse the same singleton.
 func (ms *MCPServer) registerFeedbackTool() {
+	// Sends a message to a human-reviewed queue: additive, never destructive,
+	// and reaches outside the server (Pub/Sub). Declared so MCP directories,
+	// which refuse unannotated tools, accept every serve-api server that keeps
+	// the built-in tool on.
+	hints, _ := protocol.ResolveToolHints([]string{"openWorld"}, true, false)
 	tool := &mcp.Tool{
-		Name: "submit_feedback",
+		Name:        "submit_feedback",
+		Title:       "Send feedback",
+		Annotations: sdkToolAnnotations(hints, "Send feedback"),
 		Description: "Anonymous bug report / feature request / docs gap, queued for human review. " +
 			"Default routing: `public-feedback` inbox (general AILANG). " +
 			"Pass `package=\"vendor/name\"` (e.g. \"sunholo/auth\") to route to that package's `pkg:vendor/name` inbox where its autonomous agent watches. " +

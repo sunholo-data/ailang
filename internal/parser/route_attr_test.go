@@ -704,3 +704,40 @@ export func listDocs(coll: string) -> string ! {} { coll }`
 		t.Error("expected parser error for @allow_empty_ok(\"\") with empty rationale")
 	}
 }
+
+// TestMCPTitleAndHintsAnnotations: @mcp_title takes exactly one string,
+// @mcp_hints one or more; the parser records them verbatim (the hint
+// vocabulary is checked at MCP registration, like @optional names).
+func TestMCPTitleAndHintsAnnotations(t *testing.T) {
+	input := `
+@mcp_title("Parse document")
+@mcp_hints("readOnly", "openWorld")
+export func parse(x: string) -> string ! {IO} { x }`
+	p := New(lexer.New(input, "test.ail"))
+	file := p.ParseFile()
+	if len(p.Errors()) > 0 {
+		t.Fatalf("parser errors: %v", p.Errors())
+	}
+	fn := file.Funcs[0]
+	title := fn.GetAnnotation("mcp_title")
+	if title == nil || len(title.Args) != 1 || title.Args[0].(*ast.Literal).Value != "Parse document" {
+		t.Errorf("@mcp_title: %+v", title)
+	}
+	hints := fn.GetAnnotation("mcp_hints")
+	if hints == nil || len(hints.Args) != 2 || hints.Args[1].(*ast.Literal).Value != "openWorld" {
+		t.Errorf("@mcp_hints: %+v", hints)
+	}
+
+	for _, bad := range []string{
+		`@mcp_title("a", "b")`,
+		`@mcp_title()`,
+		`@mcp_hints()`,
+		`@mcp_hints(readOnly)`,
+	} {
+		p := New(lexer.New(bad+"\nexport func f(x: int) -> int { x }", "test.ail"))
+		p.ParseFile()
+		if len(p.Errors()) == 0 {
+			t.Errorf("%s: expected a parse error", bad)
+		}
+	}
+}

@@ -141,7 +141,7 @@ type ModuleInfo struct {
 type ExportInfo struct {
 	Name        string   `json:"name"`
 	Type        string   `json:"type"`                   // human-readable type signature
-	Pure        bool     `json:"pure"`                   // whether the function is pure
+	Pure        bool     `json:"pure"`                   // declared effect row is empty (set from the AST at load; see extractMCPToolMetaAnnotations)
 	Arity       int      `json:"arity"`                  // number of parameters (-1 if not a function)
 	ParamNames  []string `json:"param_names,omitempty"`  // parameter names in order (for named JSON binding)
 	ParamTypes  []string `json:"param_types,omitempty"`  // parameter type strings in order (for zero-value padding)
@@ -152,6 +152,9 @@ type ExportInfo struct {
 	IsNoExpose  bool     `json:"is_no_expose,omitempty"` // @noexpose annotation: hide from HTTP endpoints
 	IsNoMCP     bool     `json:"is_no_mcp,omitempty"`    // @nomcp annotation: hide from the MCP tool surface only (HTTP/OpenAPI/A2A unaffected)
 	MCPName     string   `json:"mcp_name,omitempty"`     // @mcp_name annotation: explicit MCP tool name override
+	MCPTitle    string   `json:"mcp_title,omitempty"`    // @mcp_title annotation: MCP display title
+	MCPHints    []string `json:"mcp_hints,omitempty"`    // @mcp_hints annotation: MCP behaviour hints (validated at registration)
+	HasMCPHints bool     `json:"-"`                      // @mcp_hints present (an empty list is still a declaration)
 	Optional    []string `json:"optional,omitempty"`     // @optional annotation: params not required on MCP (absent/null → zero value)
 	DocComment  string   `json:"doc_comment,omitempty"`  // doc comment (-- lines) preceding the function
 	IsWS        bool     `json:"is_ws,omitempty"`        // @route("WS", ...): a WebSocket route, off every HTTP/MCP/A2A surface
