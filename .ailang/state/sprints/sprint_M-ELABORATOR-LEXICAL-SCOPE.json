@@ -1,0 +1,138 @@
+{
+  "sprint_id": "M-ELABORATOR-LEXICAL-SCOPE",
+  "status": "not_started",
+  "created": "2026-10-01T21:07:05Z",
+  "design_doc": "design_docs/planned/v0_51_0/m-elaborator-lexical-scope.md",
+  "sprint_plan": "design_docs/planned/v0_51_0/m-elaborator-lexical-scope-sprint-plan.md",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "ailang pkg search lexical and compiler returned no packages; compiler-internal resolution, fixtures, or documentation require repository changes."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "ailang pkg search lexical and compiler returned no packages; compiler-internal resolution, fixtures, or documentation require repository changes."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "ailang pkg search lexical and compiler returned no packages; compiler-internal resolution, fixtures, or documentation require repository changes."
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "reason": "ailang pkg search lexical and compiler returned no packages; compiler-internal resolution, fixtures, or documentation require repository changes."
+    },
+    {
+      "milestone": "M5",
+      "package": null,
+      "action": "none",
+      "reason": "ailang pkg search lexical and compiler returned no packages; compiler-internal resolution, fixtures, or documentation require repository changes."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 160,
+    "estimated_total_loc": 800,
+    "estimated_days": 5
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Capture baseline and executable regression matrix",
+      "estimated_loc": 160,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "All ten design matrix rows have named fixtures, expected lexical outcomes, and recorded pre-fix observations.",
+        "Collision inventory and corpus baseline distinguish intended negative fixtures from new failures.",
+        "#327 regression baseline and elaborator coverage are recorded; failures attributable to the environment are identified explicitly.",
+        "Runnable reporter pair is planned at examples/lexical_scope/a.ail and d.ail; all written fixtures are syntax-checked where their pre-fix semantics permit."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Resolve expressions through lexical binder scopes",
+      "estimated_loc": 260,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Import/builtin/constructor capture fixtures for local binders resolve to core.Var and return the expected values or lexical type errors.",
+        "Qualified alias access resolves to a record when locally shadowed; unshadowed imports still work.",
+        "Constructor patterns retain current classification; guards share arm binders and sibling arms do not.",
+        "Scope state is restored after normalization errors; ResolveAsBuiltin still bypasses user shadowing.",
+        "Focused elaborate and pipeline tests pass for completed shapes."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Preserve local module precedence and deliver MOD015",
+      "estimated_loc": 150,
+      "dependencies": [
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "Matrix row 7 returns 102, with exactly one MOD015 identifying tick and the local source position.",
+        "Local funcs, module lets, self recursion, and mutual recursion win over same-named imports in bodies and initializers.",
+        "Import aliases without collisions and ordinary imports produce no MOD015; collisions use the effective alias name.",
+        "Error-code registry tests and pipeline/CLI warning delivery tests pass; exhaustiveness warnings remain intact."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4",
+      "description": "Apply positional block scope and pin REPL boundaries",
+      "estimated_loc": 120,
+      "dependencies": [
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "Earlier expressions and ordinary let initializers resolve outer bindings; later expressions see preceding block declarations.",
+        "Statement letrec self-calls and subsequent references work, including shadowing imported/builtin names.",
+        "Last-expression and nested-block fixtures pass, with no scope escape to adjacent declarations.",
+        "REPL within-expression resolution follows lexical rules and cross-statement behavior matches the baseline."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M5",
+      "description": "Validate corpus and document restored semantics",
+      "estimated_loc": 110,
+      "dependencies": [
+        "M4"
+      ],
+      "acceptance_criteria": [
+        "All ten matrix rows produce approved outcomes; reporter example evaluates to 4 and module collision example to 102.",
+        "std/examples/package corpus comparison has no unexplained outcome or diagnostic changes; existing intentional negatives remain expected.",
+        "make test-core, make test, make lint, and make check-boundaries pass; focused race/error cleanup checks run where relevant.",
+        "#327 position matrix and ADT controls (pattern_matching_adt, match_hof_lambda, option_pattern_import_free, prelude_option_result) retain expected behavior.",
+        "New resolution branches and binder lifetimes have meaningful tests; elaborator coverage does not regress from M1 baseline.",
+        "Changelog and active prompt describe the rule; examples are checked/run with source-built binary, and evaluation handoff includes concrete results."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
