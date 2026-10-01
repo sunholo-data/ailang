@@ -6,7 +6,7 @@
 **Estimated**: 2–3 days
 **Dependencies**: None
 **Issues**: [#1447](https://github.com/sunholo-data/ailang/issues/1447) (primary), [#1448](https://github.com/sunholo-data/ailang/issues/1448) (bundled, see M4)
-**Reporter**: `stapledons_godot` (Stapledon mission iterations 4 and 7, 2026-09-30 / 2026-10-01)
+**Reporter**: `stapledons_godot` (Stapledon mission iterations 4 and 7, 2026-09-30 / 2026-10-01; M2 sim-core bitwise report 2026-10-01, see §Amendment)
 **Quorum**: none of the four attended triggers fire (no freeze items needing a human; no shared machinery overridden — the adapter is additive; no cost/KPI/schema surface; all premises in-repo). Skipped.
 
 ## Axiom Compliance
@@ -49,6 +49,11 @@ Three defects:
 3. **No measurement, no lockstep check.** Nothing compares the VM tables to the registry, so the gap grows silently
    with each new pure builtin. The comments in `internal/vm/builtins.go:30,45` cite a `validateBuiltinTables` that
    does not exist (V5) — the compiler/VM table lockstep is unenforced.
+
+The gap is not limited to stdlib calls: the **bitwise Int operators `^ & ~ << >>` themselves** lower to pure builtins
+(`bitwiseXor_Int`, …) missing from the table, so `main(n) = n ^ 3` fails `--strict-bytecode` while `+ * / %` compile
+fine (V12–V17, §Amendment). Stapledon's M2 sim core (SplitMix64/PCG PRNG in the strict-pure `sim/core.ail`) is
+blocked on exactly these operators.
 
 **Plus #1448 (M4):** whole-number float literals evaluate as `IntValue` inside `test` blocks — same reporter, same
 "engine paths disagree" family, small. Bundled to share one sprint.
@@ -245,8 +250,63 @@ identical to the interpreter.
 | V10 | compiler→builtins import is cycle-free | `go list -deps ./internal/bytecode/compiler` has no `builtins`/`eval`/`vm`; `go list -deps ./internal/builtins` has no `bytecode`/`vm` |
 | V11 | #1448 cause = text round-trip of float literal | Read `internal/testing/executor_helpers.go:316` (`return e.String() // bool, int, float…`), `internal/ast/ast_expr.go:109` (`%v`), `internal/format/literal.go:120` (`formatFloat` already canonical) |
 | V9 | #1448 reproduces on HEAD | `ailang test probe.ail` → 2/3 fail `_math_sqrt: expected FloatValue … got *eval.IntValue` |
+| V12 | Bitwise operator repro on HEAD | `main(n) = n ^ 3` with `--args-json 6`: interpreter → `5`, exit 0; `--bytecode --strict-bytecode` → `Error: … effectful builtin "_bitwiseXor_Int" not yet wired (Phase 2E)` (v0.50.1, commit 021c469; reporter saw same on pinned v0.47.2 and v0.50.0-6-g021c46907) |
+| V13 | `|` is reserved; `bitwiseOr` is a function; in-repo example fails strict | `internal/lexer/token.go:422` (`BITWISE_OR \| reserved, not an operator`); `std/math.ail:131` (`bitwiseOr(a,b) = ~(~a & ~b)`); `ailang run --bytecode --strict-bytecode examples/bitwise_or.ail` → `Error: … _bitwiseAnd_Int not yet wired (Phase 2E)` |
+| V14 | All six bitwise builtins registered pure, monomorphic int | `ailang builtins list --json` → `bitwiseAnd_Int`/`bitwiseXor_Int`/`bitwiseOr_Int` `(int,int)->int`, `bitwiseNot_Int` `int->int`, `shiftLeft_Int`/`shiftRight_Int` `(int,int)->int`, all `is_pure: true` (registered `internal/builtins/math_bitwise.go:13-27`) |
+| V15 | Zero bitwise/shift names in either BuiltinTable | `grep -c "_bitwise\|_shift" internal/bytecode/compiler/builtins.go internal/vm/builtins.go` → `0` / `0` |
+| V16 | SplitMix64 fixture: evaluator matches u64 reference; strict fails | `ailang check` clean; interpreter `main(0)` → `5807750865143411619` == Python u64 reference (signed wrap arithmetic); strict → `Error: … _bitwiseXor_Int not yet wired`; `lshr64`/`next`/fixture text in §Amendment |
+| V17 | Arithmetic-only PRNG passes strict (gap is precisely bitwise) | LCG `s = s*6364136223846793005 + 1442695040888963407; (s/65536)%100` with `--bytecode --strict-bytecode` → `42`, exit 0 |
+
+## Amendment (2026-10-01): Stapledon M2 — bitwise Int operators are the same gap
+
+A follow-on report from the same mission (M2 stage: strict-pure sim core `sim/core.ail` needs a SplitMix64/PCG PRNG)
+confirmed the bitwise Int operators are six of the ~121 unwired pure builtins — verified on HEAD (v0.50.1,
+021c469): `main(n) = n ^ 3` evaluates to 5 under the interpreter but strict mode fails with
+`compiler: effectful builtin "_bitwiseXor_Int" not yet wired (Phase 2E)` (V12). Same for `& ~ << >>`; `|` is a
+reserved token (ADT alternatives), so `bitwiseOr` is a `std/math` function built from `~` and `&`, and the existing
+`examples/bitwise_or.ail` — which documents the whole bitwise surface — fails strict identically (V13).
+
+**Routing under the frozen decisions (no freeze change):** all six builtins (`bitwiseAnd_Int`, `bitwiseXor_Int`,
+`bitwiseOr_Int`, `bitwiseNot_Int`, `shiftLeft_Int`, `shiftRight_Int`) are registered `is_pure` with monomorphic
+`(int, int) -> int` / `int -> int` signatures (V14) and appear in neither `BuiltinTable` (V15), so per D1/D2 they
+land in the **M2 adapted bucket** — no new mechanism is required for this report. One sprint-planner judgment is
+recorded: these six are hot-loop monomorphic Int ops (a PRNG issues dozens per draw) with the existing native
+`_mod_Int` / `__math_abs_Int` precedent (~40 LOC in `internal/vm/builtins_math.go`); native ports may be pulled
+forward from M3-style work if cheap, but the adapter already unblocks strict mode. Semantics must copy the
+evaluator exactly: `shiftLeft_Int`/`shiftRight_Int` raise `RT_SHIFT` ("negative shift amount") for negative shift
+amounts and `>>` is arithmetic (`internal/builtins/math_bitwise.go:33-57`).
+
+**Regression fixture (reference-validated):** a faithful SplitMix64 in AILANG (logical shift expressed as
+`(x >> n) & ((1 << (64 - n)) - 1)`; u64 constants above int63 spelled as their signed wrap) type-checks, runs on the
+evaluator, and matches a Python u64 reference — `main(0) = 5807750865143411619` (V16). Under strict mode it fails
+at `_bitwiseXor_Int`. Once wired, evaluator and strict must agree on this value. The reporter's stopgap (a 64-bit
+LCG using only `* + / %`) passes strict on HEAD (V17), which proves the strict gap is precisely the bitwise set.
+
+```ailang
+module splitmix
+-- SplitMix64 PRNG (Stapledon M2 sim-core need), all bitwise Int ops.
+-- Logical right shift via arithmetic shift + mask: lshr(x,n) = (x>>n) & ((1<<(64-n))-1)
+-- u64 constants above int63 are spelled as their signed wrap.
+
+export pure func lshr64(x: int, n: int) -> int =
+  (x >> n) & ((1 << (64 - n)) - 1)
+
+export pure func next(state: int) -> (int, int) =
+  let s1 = state + (-7046029254386353131);
+  let z1 = (s1 ^ lshr64(s1, 30)) * (-4658895280553007687);
+  let z2 = (z1 ^ lshr64(z1, 27)) * (-7723592293110705685);
+  let out = z2 ^ lshr64(z2, 31);
+  (out, s1)
+
+export pure func main(seed: int) -> int =
+  match next(seed)
+    { (a, s1) => match next(s1) { (b, s2) => a + b } }
+```
+(Notes for the executor: `let` chains need `;` separators — newline-only chains mis-parse; u64 constants ≥2^63
+must be spelled as signed wraps or the lexer rejects them as integers.)
 
 ## Related Documents
 
 - `design_docs/planned/v0_47_2/m-bytecode-getfield-slot-resolution.md` (#1354), `v0_47_2/m-vm-determinism.md` (#1355)
 - `design_docs/planned/v0_49_1/m-bytecode-nested-pattern-lowering.md` (#1420), `v0_49_1/m-float-ord-one-semantics.md` (#1419)
+- `design_docs/implemented/v0_10_1/m-bitwise-operators.md` — original bitwise operator semantics (v0.10.1)

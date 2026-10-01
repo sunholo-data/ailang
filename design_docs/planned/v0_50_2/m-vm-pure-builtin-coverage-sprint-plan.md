@@ -24,6 +24,7 @@
 `__list_reverse/take/drop/zip/range/contains/head/extract`, `__str_repeat`, `__string_reverse`, copying evaluator semantics exactly.
 - Parity table test per port: registry `Impl` vs VM func (empty, n<0, n>len, ADT elements, nested lists).
 - `examples/vm_strict_pure_builtins.ail` runs under `--strict-bytecode`; added to verify-examples manifest if required.
+- Bitwise Int ops (design-doc §Amendment, V12–V17): `main(n) = n ^ 3` strict `--args-json 6` → `5`; the reference-validated SplitMix64 fixture (`main(0)` → `5807750865143411619`, evaluator == Python u64 reference) runs under strict with identical output; `examples/bitwise_or.ail` runs under strict. The six bitwise builtins route to the M2 adapter per D1/D2; optional ~40 LOC native ports (`_mod_Int` precedent) if the sprint can carry them.
 - **AC**: #1447 `rev.ail` repro strict → `[3, 2, 1]`; example output identical across interpreter / `--bytecode` / strict.
 
 ### M4 — #1448 float literals in test blocks (~80 LOC)
