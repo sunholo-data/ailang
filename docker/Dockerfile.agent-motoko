@@ -10,7 +10,7 @@
 # Bind only OPENROUTER_API_KEY + OPENAI_API_KEY + GEMINI_API_KEY.
 
 ARG PROJECT
-ARG MOTOKO_COMMIT=4d4917cda8d95102c9dbe02a64947803a5512606
+ARG MOTOKO_COMMIT=551c947bb79c1ac30ae38b7bcfe8636219d34726
 FROM europe-west1-docker.pkg.dev/${PROJECT}/ailang/agent-base:latest
 
 # motoko_agent setup (NOT a single binary like pi/opencode — it's a bun TUI
@@ -34,12 +34,13 @@ RUN curl -fsSL https://bun.sh/install | bash -s "bun-v1.3.14" \
     && mv /root/.bun/bin/bun /usr/local/bin/bun \
     && chmod +x /usr/local/bin/bun
 
-# Check out motoko_agent at the pinned commit: branch sunholo/main-dst of
-# sunholo-voight-kampff/motoko_agent, which is Arni's upstream main (the DST
-# core, extension ABI 8.0) plus our commits — the cloud and ollama_microrag
-# profiles, motoko_ext_ailang_tools (upstream PR arniwesth/motoko_agent#200)
-# and rig-lease forwarding. It is the same commit ~/dev/mk-main runs on the rig
-# (MOTOKO.md). Until 2026-09-30 this image ran the ABI 2.2 fork at 84fa449 from
+# Check out motoko_agent at the pinned commit: branch sunholo/main-dst-20261001
+# of sunholo-voight-kampff/motoko_agent — Arni's upstream main at fe108db7 (DST
+# core, extension ABI 8.0, and extensions.strict enforcement, upstream #205)
+# plus our commits: the cloud, ollama_microrag and ailang_only profiles,
+# motoko_ext_ailang_tools (upstream PR #200), motoko_ext_ailang_policy (the
+# ailang_only lane, design m-motoko-ailang-only-lane) and rig-lease forwarding.
+# Branches are never rewritten under a pin: a rebase lands on a new dated branch. Until 2026-09-30 this image ran the ABI 2.2 fork at 84fa449 from
 # sunholo-data/motoko_agent. Fetch-by-SHA pins the exact commit whatever the
 # branch does next.
 #
