@@ -336,9 +336,10 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 	// Step -1: Configure git credentials from GITHUB_TOKEN.
 	// Cloud containers don't have a credential helper — git can't authenticate HTTPS
 	// requests without this. GITHUB_TOKEN is provided via Secret Manager.
+	// The helper reads the token at call time, never embeds it (see
+	// envTokenCredentialHelper, M-EXECUTOR-ENV-HARDENING E5).
 	if token := config.GitHubToken(); token != "" {
-		credHelper := fmt.Sprintf("!f() { echo username=x-access-token; echo \"password=%s\"; }; f", token)
-		credCmd := exec.CommandContext(ctx, "git", "config", "--global", "credential.helper", credHelper)
+		credCmd := exec.CommandContext(ctx, "git", "config", "--global", "credential.helper", envTokenCredentialHelper)
 		if err := credCmd.Run(); err != nil {
 			fmt.Fprintf(os.Stderr, "warning: failed to configure git credentials: %v\n", err)
 		}

@@ -88,6 +88,14 @@ func runExecutor(ctx context.Context, workDir, provider, directive, taskID, plug
 		}
 		task.AllowedTools = tools
 	}
+	// M-EXECUTOR-ENV-HARDENING D2: this process pushes; the child may get a
+	// credential file scoped to the task's repository, never GITHUB_TOKEN.
+	credCleanup, cerr := childGitCredential(task, repoURL)
+	if cerr != nil {
+		return nil, fmt.Errorf("execute-job: %w", cerr)
+	}
+	defer credCleanup()
+
 	if policyPath, perr := executor.MaterializeAgentPolicy(config.AgentPolicyTOML(), workDir); perr != nil {
 		return nil, fmt.Errorf("execute-job: %w", perr)
 	} else if policyPath != "" {
@@ -391,3 +399,40 @@ func resolveIdleTimeout(raw string) time.Duration {
 	}
 	return d
 }
+
+// childGitCredential gives the agent child a git credential for the task's
+// own repository only (AILANG_CHILD_GIT_CREDENTIALS=repo, the default): a
+// 0600 credential-store file outside the workspace, wired in by
+// BuildEnvironment through command-scope git config. With =none, with no
+// GITHUB_TOKEN, or for a non-https clone (an SSH deploy key), the child gets
+// nothing — this process still clones, pushes and opens the PR. An unknown
+// mode is an error, not a guess.
+func childGitCredential(task *executor.Task, repoURL string) (func(), error) {
+	mode, err := config.ChildGitCredentials()
+	if err != nil {
+		return func() {}, err
+	}
+	token := config.GitHubToken()
+	scopes := executor.GitCredentialScopes(repoURL)
+	if mode == config.ChildGitCredentialsNone || token == "" || len(scopes) == 0 {
+		return func() {}, nil
+	}
+	path, cleanup, err := executor.WriteGitCredentialFile(scopes, token)
+	if err != nil {
+		return func() {}, err
+	}
+	task.GitCredentialFile = path
+	task.GitCredentialScopes = scopes
+	return cleanup, nil
+}
+
+// envTokenCredentialHelper is the global git credential helper a cloud job
+// installs (M-EXECUTOR-ENV-HARDENING E5). It answers with GITHUB_TOKEN from
+// the CALLING process's environment and with nothing when that is unset, so
+// git moves on to the next helper. ~/.gitconfig is shared with the agent
+// child; a literal token there (the old helper) was one `git config --get`
+// from the model. This process keeps GITHUB_TOKEN, so its own clone, push and
+// ls-remote authenticate as before; the child's env has none, so the same
+// helper yields nothing there (the child gets at most childGitCredential's
+// repo-scoped file).
+const envTokenCredentialHelper = `!f() { test -n "$GITHUB_TOKEN" || exit 0; echo username=x-access-token; printf 'password=%s\n' "$(printf %s "$GITHUB_TOKEN" | tr -d '\r\n')"; }; f`

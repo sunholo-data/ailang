@@ -249,7 +249,7 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	return res, err
 }
 
-func (e *MotokoExecutor) executeStreaming(ctx context.Context, task *executor.Task, handler executor.EventHandler) (*executor.Result, error) {
+func (e *MotokoExecutor) executeStreaming(ctx context.Context, task *executor.Task, handler executor.EventHandler) (out *executor.Result, outErr error) {
 	// D1 (M-MOTOKO-FMT-REMEASUREMENT-INSTRUMENT §12.2): per-task resolved-
 	// provider credential refusal, at the choke point through which ALL motoko
 	// work passes. Runs STRICTLY DOWNSTREAM of repo discovery: the eval harness
@@ -508,6 +508,8 @@ func (e *MotokoExecutor) executeStreaming(ctx context.Context, task *executor.Ta
 	env, err := executor.BuildEnvironment(executor.EnvironmentOptions{
 		Task:        task,
 		SessionID:   sessionID,
+		Executor:    "motoko",
+		Model:       e.getModel(task),
 		Context:     ctx,
 		GCPProject:  task.GCPProject,
 		GCPLocation: task.GCPLocation,
@@ -516,6 +518,13 @@ func (e *MotokoExecutor) executeStreaming(ctx context.Context, task *executor.Ta
 	if err != nil {
 		return nil, err
 	}
+	// D6: bank the child env's NAME set on every result shape.
+	envNames := executor.EnvNamesDigest(env)
+	defer func() {
+		if out != nil {
+			out.EnvNamesDigest = envNames
+		}
+	}()
 	cmd.Env = env
 
 	// Capture subprocess stderr to a per-task file. When the subprocess

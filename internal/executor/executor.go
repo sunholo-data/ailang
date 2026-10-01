@@ -115,7 +115,17 @@ type Task struct {
 	// uniformly across every executor (the uniform executor contract).
 	// Loader, routing, git, telemetry, proxy and harness-owned names are
 	// refused (ValidateExtraEnv); the program policy travels as PolicyPath.
+	// ExtraEnv sets values; it never unlocks inheritance of a host credential.
 	ExtraEnv map[string]string
+
+	// GitCredentialFile is a per-task git credential-store file (0600, in a
+	// 0700 directory outside the workspace) the dispatcher wrote for this
+	// task, and GitCredentialScopes the repository URLs it answers for
+	// (M-EXECUTOR-ENV-HARDENING D2). BuildEnvironment points the child's git
+	// at it through command-scope config; the fleet token itself never enters
+	// the child's environment. Empty = no git credential for the child.
+	GitCredentialFile   string
+	GitCredentialScopes []string
 
 	// MCPServers configures ephemeral stdio MCP servers for this task. Secret
 	// values must never appear in this structure: EnvVars contains only names
@@ -280,6 +290,12 @@ type Result struct {
 	// changes so the boundary is visible in the data.
 	ToolPolicy   []string
 	PolicyDigest string
+
+	// EnvNamesDigest is the sha256 over the sorted NAMES of the environment
+	// the agent child was launched with (M-EXECUTOR-ENV-HARDENING D6) —
+	// never values. Empty means unmeasured. It makes the env boundary visible
+	// in the banked data: a lane whose digest changes inherited a new name.
+	EnvNamesDigest string
 
 	// Session info
 	SessionID  string // Provider's session identifier

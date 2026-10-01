@@ -152,6 +152,9 @@ type AgentBenchmarkResult struct {
 	// digest the run had. Absent => unmeasured. See executor.Result.
 	ToolPolicy   []string `json:"tool_policy,omitempty"`
 	PolicyDigest string   `json:"policy_digest,omitempty"`
+	// EnvNamesDigest: sha256 of the agent child's env NAME set (never
+	// values). Absent => unmeasured. See executor.Result.EnvNamesDigest.
+	EnvNamesDigest string `json:"env_names_digest,omitempty"`
 
 	// SessionJSONLPath is the executor's own session log — the only record of
 	// what the agent was actually TOLD. The banked agent_transcript holds tool

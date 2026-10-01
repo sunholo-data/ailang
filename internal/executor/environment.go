@@ -50,6 +50,16 @@ type EnvironmentOptions struct {
 	// When empty, falls back to the shell environment value.
 	GCPLocation string
 
+	// Executor names the executor building this env ("claude", "codex", "pi",
+	// "opencode", "motoko"); with Model it selects the child's EnvPolicy —
+	// which credential the CLI is granted (M-EXECUTOR-ENV-HARDENING D1/D2).
+	// Empty means no executor grant at all.
+	Executor string
+
+	// Model is the model the executor will run (its default when the task
+	// names none); pi and opencode derive their provider credential from it.
+	Model string
+
 	// ExecutorEnv is the executor's own required set ("NAME=value"), applied
 	// last (e.g. motoko's MODEL, MOTOKO_CONFIG, ENV_PORT). It is code-owned,
 	// never task-supplied, so it is not validated like Task.ExtraEnv.
@@ -61,7 +71,9 @@ type EnvironmentOptions struct {
 // layers through one de-duplicating builder (envSet), so every key appears
 // once and precedence is fixed:
 //
-//  1. inherited — the host environment (minus CLAUDECODE)
+//  1. inherited — the host environment filtered by the child's EnvPolicy
+//     (default-deny allowlist; credential-shaped names only when granted),
+//     minus CLAUDECODE
 //  2. harness-injected — values the harness owns:
 //     AILANG_RIG_LEASE, AILANG_STDLIB_PATH, PWD, TRACEPARENT/TRACESTATE,
 //     AILANG_TASK_ID/SESSION_ID/PARENT_TASK_ID, AILANG_CHAIN_ID/STAGE_ID/
@@ -72,18 +84,30 @@ type EnvironmentOptions struct {
 //     error, never a silent drop
 //  4. EnvironmentOptions.ExecutorEnv — the executor's own required set
 //
-// Later layers win. The error is non-nil only when Task.ExtraEnv is refused.
+// Later layers win. The error is non-nil when Task.ExtraEnv is refused or the
+// child's credential grants cannot be derived.
 func BuildEnvironment(opts EnvironmentOptions) ([]string, error) {
 	if opts.Task != nil {
 		if err := ValidateExtraEnv(opts.Task.ExtraEnv); err != nil {
 			return nil, err
 		}
 	}
+	envPolicy, err := ResolveEnvPolicy(opts.Executor, opts.Model, opts.Task)
+	if err != nil {
+		return nil, err
+	}
 
 	env := newEnvSet()
 
-	// Layer 1: inherited.
-	env.setEntries(os.Environ())
+	// Layer 1: inherited, through the default-deny policy.
+	inherited, withheld := envPolicy.filterInherited(os.Environ())
+	if len(withheld) > 0 {
+		// Names only, never values: the operator's one-line record of what
+		// the boundary held back, so a lane that needed one is diagnosable.
+		fmt.Fprintf(os.Stderr, "executor-env: withheld from the %s child: %s (grant with %s)\n",
+			executorLabel(opts.Executor), strings.Join(withheld, ", "), config.EnvExecutorEnvInherit)
+	}
+	env.setEntries(inherited)
 	// Strip CLAUDECODE to prevent "Cannot be launched inside another Claude
 	// Code session" errors. Applies to ALL executors — any of them may shell
 	// out to Claude Code.
@@ -124,6 +148,13 @@ func injectHarnessEnv(env *envSet, opts EnvironmentOptions) {
 
 	if opts.Task != nil && opts.Task.Workspace != "" {
 		env.set("PWD", opts.Task.Workspace)
+	}
+
+	// The per-task git credential (D2): a URL-scoped credential-store file the
+	// parent wrote outside the workspace. Delivered as command-scope git config
+	// so it applies only to the task's own repository.
+	if opts.Task != nil && opts.Task.GitCredentialFile != "" {
+		env.setEntries(GitCredentialEnv(opts.Task.GitCredentialFile, opts.Task.GitCredentialScopes))
 	}
 
 	// The program policy the ailang_only lane's tools are gated by. Derived
@@ -487,4 +518,11 @@ func childStdlibPath(opts EnvironmentOptions) string {
 		warnStdlibMismatchOnce(c, why)
 	}
 	return ""
+}
+
+func executorLabel(name string) string {
+	if name == "" {
+		return "agent"
+	}
+	return name
 }
