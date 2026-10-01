@@ -36,6 +36,7 @@ func serveAPICommand(args []string) error {
 	noIntrospectionFlag := fs.Bool("no-introspection", false, "Serve no /api/_meta/* (module list, OpenAPI, Swagger UI, ReDoc) and no /api/_health")
 	staticCacheFlag := fs.String("static-cache", "", "Cache-Control for --static files: 'immutable' (public, max-age=31536000, immutable) or a max-age in seconds")
 	noFeedbackToolFlag := fs.Bool("no-feedback-tool", false, "Suppress the built-in submit_feedback MCP tool (exact tool surface)")
+	oauthIssuerFlag := fs.String("oauth-issuer", "", "OAuth authorization server for @mcp_auth(\"oauth2\") tools on /mcp/connect/")
 	helpFlag := fs.Bool("help", false, "Show help for serve-api command")
 	maxMemoryFlag := fs.String("max-memory", "", "Go soft memory limit: a size (256MB, 1GB) or 'cgroup' (the container limit x 0.9). Unset = AILANG_MEMLIMIT, else none.")
 	logLevelFlag := fs.String("log-level", "", "Minimum log level for Debug output (debug, info, warn, error, none)")
@@ -163,6 +164,7 @@ func serveAPICommand(args []string) error {
 		LogLevel:       debugLogLevel,
 		RoutesOnly:     *routesOnlyFlag,
 		NoFeedbackTool: *noFeedbackToolFlag,
+		OAuthIssuer:    *oauthIssuerFlag,
 		WS:             wsCfg,
 
 		NoIntrospection: *noIntrospectionFlag,
@@ -238,6 +240,7 @@ func printServeAPIHelp() {
 	fmt.Println("  --routes-only        Only expose @route-annotated functions (skip auto-generated endpoints)")
 	fmt.Println("  --no-introspection   Serve no /api/_meta/* and no /api/_health (the paths stay reserved)")
 	fmt.Println("  --no-feedback-tool   Suppress the built-in submit_feedback MCP tool (exact tool surface)")
+	fmt.Println("  --oauth-issuer URL   OAuth authorization server for @mcp_auth(\"oauth2\") tools on /mcp/connect/")
 	printServeAPIWSHelp()
 	fmt.Println("  --help               Show this help message")
 	fmt.Println()

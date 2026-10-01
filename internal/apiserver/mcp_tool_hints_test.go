@@ -73,7 +73,7 @@ export func typoThing(x: string) -> string ! {IO} { x }
 	}
 
 	if tl := tools["readThing"]; tl == nil || tl.Title != "Read a thing" || tl.Annotations == nil ||
-		!tl.Annotations.ReadOnlyHint || tl.Annotations.DestructiveHint != nil ||
+		!tl.Annotations.ReadOnlyHint || tl.Annotations.DestructiveHint == nil || *tl.Annotations.DestructiveHint ||
 		tl.Annotations.OpenWorldHint == nil || !*tl.Annotations.OpenWorldHint {
 		t.Errorf("readThing: %+v", annOf(tl))
 	}

@@ -26,8 +26,8 @@ type ClosureCaller interface {
 type HOFBuiltinFunc func(caller ClosureCaller, args []bytecode.Value) (bytecode.Value, error)
 
 // HOFBuiltinTable is the VM-side dispatch table for OpBuiltinCallHOF.
-// The order MUST match compiler.HOFBuiltinTable — both lists are
-// validated at startup by validateBuiltinTables.
+// The order MUST match bytecode.HOFBuiltinNames — both lists are
+// validated at package init by validateBuiltinTables (builtins_adapted.go).
 var HOFBuiltinTable = []HOFBuiltinFunc{
 	hofBuiltinListMap,          // __list_map
 	hofBuiltinListFilter,       // __list_filter
@@ -41,8 +41,8 @@ var HOFBuiltinTable = []HOFBuiltinFunc{
 }
 
 // BuiltinTable is the VM-side dispatch table for OpBuiltinCall. The order
-// MUST match compiler.BuiltinTable — both lists are validated at startup
-// by validateBuiltinTables (called from the VM constructor in tests).
+// MUST match bytecode.BuiltinNames — both lists are validated at startup
+// by validateBuiltinTables at package init (builtins_adapted.go).
 //
 // Phase 2C scope: only the pure builtins reachable from the golden corpus
 // (`tests/golden/codegen/`). All other builtins lower to OpBuiltinTrap and

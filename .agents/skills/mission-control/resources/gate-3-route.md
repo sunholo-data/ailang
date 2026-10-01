@@ -239,11 +239,16 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
        the planner worktree; (5) run
        `ailang messages import-github --labels bug,feature,ailang-message` outside the sandbox;
        (6) commit with `Co-Authored-By: codex <model>`.
-  3. **generator≠judge guard (HARD, constraint #3):** before spawning the evaluator, assert the
-     evaluator's PROVIDER ≠ the executor's PROVIDER. If the executor ran on codex, the evaluator MUST
-     NOT be a codex `provider:model` — if `$MISSION_EVALUATOR_MODEL` collides, re-route the evaluator
-     to a DISTINCT, PINNABLE Anthropic alias (`sonnet` — fable is unpinnable, gemini is not wired) and
-     **FLAG** the collision in the Gate-5 report.
+  3. **generator≠judge — a PREFERENCE, never a blocker (V1 `D-62`/`D-63` 2026-09-08; restated by
+     Mark, attended 2026-10-01: "its a nice to have, not to wet our pants if we dont have different
+     operators available").** Before spawning the evaluator, PREFER a provider ≠ the executor's: if the
+     executor ran on codex and `$MISSION_EVALUATOR_MODEL` collides, re-route to a distinct pinnable
+     alias (`sonnet`). When no cross-vendor lane has quota, step down — same vendor, different model;
+     then the same model in a fresh context with the full rubric — and **FLAG** the step on the record
+     (`judge-independence: cross-vendor | same-vendor | same-model-fresh-context`). **No step blocks a
+     landing.** The same holds for every role and quorum seat: an unavailable preferred or rotation
+     lane hands off to the next lane WITH QUOTA, flagged; a missing quorum seat is flagged, not a
+     block. Park for lack of a lane only when NO lane has quota at all.
   4. **Fallback (never wedge the loop) — follow the RATIFIED CHAIN, never a straight drop to
      `$MODEL`** (ailang#611, Mark-ratified 2026-08-06; the DRIVER half landed `d14f106bb`, and this
      clause is the in-iteration half the issue explicitly required — a codex 1-token probe can

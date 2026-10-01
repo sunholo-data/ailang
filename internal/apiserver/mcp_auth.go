@@ -1,9 +1,18 @@
 package apiserver
 
 import (
+	"bytes"
+	"context"
+	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"sort"
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/effects"
+	"github.com/sunholo-data/ailang/internal/embed"
+	"github.com/sunholo-data/ailang/serveapi/protocol"
 )
 
 // M-SERVEAPI-DIRECTORY-READY: registration rules for @mcp_auth,
@@ -157,3 +166,81 @@ func hasListedSurface(modules map[string]*ModuleInfo) bool {
 
 // listedMCPPath is where the directory projection is served.
 const listedMCPPath = "/mcp/connect/"
+
+// verifyToken calls the service's @mcp_token_verifier function. The call gets
+// its own effect context whose GoCtx carries the gate's deadline, so any Net
+// request the verifier makes is aborted when the gate stops waiting. Pure
+// computation cannot be interrupted (the evaluator takes no context); the
+// gate's slot cap bounds that case instead.
+func (ms *MCPServer) verifyToken(ctx context.Context, token string) (bool, error) {
+	v := ms.verifier
+	if v == nil {
+		return false, errors.New("no @mcp_token_verifier")
+	}
+	res, err := ms.server.engine.CallPrepared(func(eff interface{}) {
+		if ec, ok := eff.(*effects.EffContext); ok {
+			ec.GoCtx = ctx
+		}
+	}, v.modPath, v.name, token)
+	if err != nil {
+		return false, err
+	}
+	val, err := embed.ToGo(res)
+	if err != nil {
+		return false, err
+	}
+	ok, isBool := val.(bool)
+	if !isBool {
+		return false, fmt.Errorf("@mcp_token_verifier %s returned %T, want bool", v.name, val)
+	}
+	return ok, nil
+}
+
+// gatedHandler puts the Bearer gate in front of the listed surface. Only a
+// tools/call naming a gated tool is checked; initialize, tools/list and open
+// tools pass straight through. The body is read once (bounded by the
+// server's upload limit) and restored for the MCP handler.
+func (ms *MCPServer) gatedHandler(next http.Handler, maxBody int64) http.Handler {
+	gate := protocol.NewBearerGate(ms.verifyToken, listedMetadataURL, 0, 0)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || len(ms.gated) == 0 {
+			next.ServeHTTP(w, r)
+			return
+		}
+		body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxBody))
+		if err != nil {
+			http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
+			return
+		}
+		r.Body = io.NopCloser(bytes.NewReader(body))
+		for _, name := range protocol.ToolCallNames(body) {
+			if ms.gated[name] {
+				if !gate.Admit(w, r) {
+					return
+				}
+				break
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// protectedResourcePath is the RFC 9728 metadata path for the listed surface
+// (path-inserted form); the bare well-known path serves the same document.
+const (
+	protectedResourceRoot = "/.well-known/oauth-protected-resource"
+	protectedResourcePath = protectedResourceRoot + "/mcp/connect/"
+)
+
+func listedMetadataURL(r *http.Request) string {
+	return protocol.PublicBaseURL(r) + protectedResourcePath
+}
+
+// handleProtectedResource serves the listed surface's resource metadata:
+// resource = the listed MCP URL as the client reached it, issuer from
+// --oauth-issuer.
+func (s *Server) handleProtectedResource(w http.ResponseWriter, r *http.Request) {
+	resource := protocol.PublicBaseURL(r) + listedMCPPath
+	w.Header().Set("Content-Type", "application/json")
+	_, _ = w.Write(protocol.ProtectedResourceMetadata(resource, s.oauthIssuer))
+}

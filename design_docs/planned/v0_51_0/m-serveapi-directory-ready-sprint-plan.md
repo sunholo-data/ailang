@@ -94,7 +94,7 @@ registration.
 - [x] `/mcp/` `tools/list` is byte-identical before and after for a module with none of the new annotations (regression).
 - [x] `examples/runnable/serve_api_mcp_header_auth.ail` behaves the same on `/mcp/`.
 
-### M3: Lazy-auth gate and resource metadata (~300 impl + ~250 tests)
+### M3: Lazy-auth gate and resource metadata (~300 impl + ~250 tests) ✅
 
 **Goal:** design doc L1 and D7, on the go-sdk path (`serve-api`).
 
@@ -121,13 +121,13 @@ registration.
   test run against both handlers.
 
 **Acceptance criteria:**
-- [ ] An `httptest` server: a gated tool with no token → 401, and the header's `resource_metadata` resolves; with a valid token → 200 and the tool runs; open tools → 200 with no token.
-- [ ] D7: a verifier that errors, panics or sleeps 6 s → 503 within 5.5 s, and the tool body's side-effect counter stays 0. Mutation-tested (making the error path fall through must fail).
-- [ ] Semaphore: with N slow verifiers in flight, call N+1 → immediate 503; open tools still answer; goroutine count is bounded.
-- [ ] On `/mcp/`, a gated tool called with an argument-carried key and no Bearer token **succeeds** (agent regression).
-- [ ] `mcphttp` parity test passes with the same cases.
+- [x] An `httptest` server: a gated tool with no token → 401, and the header's `resource_metadata` resolves; with a valid token → 200 and the tool runs; open tools → 200 with no token.
+- [x] D7: a verifier that errors, panics or sleeps 6 s → 503 within 5.5 s, and the tool body's side-effect counter stays 0. Mutation-tested (making the error path fall through must fail).
+- [x] Semaphore: with N slow verifiers in flight, call N+1 → immediate 503; open tools still answer; goroutine count is bounded.
+- [x] On `/mcp/`, a gated tool called with an argument-carried key and no Bearer token **succeeds** (agent regression).
+- [x] `mcphttp` parity test passes with the same cases.
 
-### M4: `ailang mcp check --target anthropic` (~300 impl + ~200 tests)
+### M4: `ailang mcp check --target anthropic` (~300 impl + ~200 tests) ✅
 
 **Goal:** the design doc's L3 checks 1–5 against a URL, with human and `--json` output, exiting 1 on failure.
 
@@ -144,12 +144,12 @@ registration.
 - Every finding cites its requirement ID (A1–A6) from `m-serveapi-directory-ready-sources.md`.
 
 **Acceptance criteria:**
-- [ ] Fixture servers (`httptest`) for each check's pass and fail.
-- [ ] Against today's prod Parse `/mcp/` it reports the expected findings: credential params (`apiKey`) and no 401 gate. Checks 1 and 3 pass once docparse M2 is promoted.
-- [ ] Against the M5 example served locally on `/mcp/connect/`, checks 1–4 pass, and check 5 WARNs (no authorization server yet).
-- [ ] `make check-cli-docs` and the CLI reference are updated (new subcommand).
+- [x] Fixture servers (`httptest`) for each check's pass and fail.
+- [x] Against today's prod Parse `/mcp/` it reports the expected findings: credential params (`apiKey`) and no 401 gate. Checks 1 and 3 pass once docparse M2 is promoted.
+- [x] A directory-ready module on `/mcp/connect/` passes all five checks against a fixture authorization server (`TestMCPCheck_ListedSurfaceReady`). Deviation: check 5 FAILs rather than WARNs when an issuer is named but its metadata is unreachable; it SKIPs only when there are no gated tools.
+- [x] `make check-cli-docs` and the CLI reference are updated (new subcommand).
 
-### M5: Example, docs, release notes (~150)
+### M5: Example, docs, release notes (~150) ✅
 
 **Tasks:**
 - `examples/runnable/serve_api_mcp_oauth.ail`: open and gated tools, a verifier, `@mcp_secret`, `@mcp_agent_only`. Passes `ailang check`; run under `serve-api` in a test.
@@ -158,8 +158,8 @@ registration.
 - Changelog fragment(s). Mark Phase A done in the design doc.
 
 **Acceptance criteria:**
-- [ ] The example passes `ailang check`, and `ailang mcp check` passes checks 1–4 against it.
-- [ ] `make ci-quick` gates pass; `make test` is green for `internal/apiserver`, `serveapi/...`, `internal/parser`, `internal/format` and `cmd/ailang`.
+- [x] The example passes `ailang check` and is canonical under `ailang fmt`. `ailang mcp check` passes checks 1–4 against it served with `--oauth-issuer`; check 5 FAILs honestly, because there's no authorization server yet (L4).
+- [x] `make ci-quick` gates pass (verified on a clean worktree; the working tree carries another session's uncommitted `internal/runner` edits, which trip fmt and the closure gate and are not part of this sprint); `make test` is green for `internal/apiserver`, `serveapi/...`, `internal/parser`, `internal/format` and `cmd/ailang`.
 
 ## Success Metrics
 - `ailang mcp check --target anthropic` against the example on `/mcp/connect/`: checks 1–4 pass.

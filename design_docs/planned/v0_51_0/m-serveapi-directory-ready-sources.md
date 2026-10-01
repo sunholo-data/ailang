@@ -14,6 +14,7 @@ re-check the decisions that cite it.
 | A3 | "Claude starts sign-in only when the HTTP request itself fails with `401 Unauthorized` and a `WWW-Authenticate` header. A tool handler can't produce that response" | Lazy authentication: https://claude.com/docs/connectors/building/lazy-authentication |
 | A4 | `static_headers`: "Fixed credential (API key or bearer token) entered by an organization Owner as a request header when adding the connector \| Beta, for a limited set of organizations" | Authentication for connectors: https://claude.com/docs/connectors/building/authentication |
 | A5 | "Claude gives your discovery, registration, and token endpoints 10 seconds to respond and refresh requests 30 seconds" | same page as A4 |
+| A7 | "Every tool must include a `title` and the applicable hint: `readOnlyHint: true` for read-only tools, and `destructiveHint: true` for tools that modify or delete data." | Review criteria: https://claude.com/docs/connectors/building/review-criteria |
 | A6 | Supported types: `oauth_dcr`, `oauth_cimd` ("Supported by default"), `oauth_anthropic_creds` ("Contact `mcp-review@anthropic.com`"), `custom_connection`, `static_headers`, `none` | same page as A4 |
 
 ## OpenAI
@@ -26,6 +27,7 @@ re-check the decisions that cite it.
 | O4 | "For an authenticated MCP server, you are expected to implement an OAuth 2.1 flow that conforms to the MCP authorization spec" | Authentication: https://developers.openai.com/apps-sdk/build/auth |
 | O5 | Mixed auth "requires both metadata (`securitySchemes` and the resource metadata document) **and** runtime errors that carry `_meta["mcp/www_authenticate"]`." | same page as O4 |
 | O6 | "`client_id_metadata_document_supported`: set to `true` when you want ChatGPT to use CIMD for client registration. ChatGPT prioritizes CIMD when it is available" and "For CIMD, ChatGPT supports `none` for public-client token exchange" | same page as O4 |
+| O8 | "Set `readOnlyHint`, `destructiveHint`, and `openWorldHint` to explicit boolean values (`true` or `false`) in each tool’s `annotations` object." (link text unwrapped) | Plugin guidelines: https://developers.openai.com/plugins/plugin-guidelines |
 | O7 | Redirect URI: `https://chatgpt.com/connector_platform_oauth_redirect` | same page as O4 |
 
 ## Not yet established

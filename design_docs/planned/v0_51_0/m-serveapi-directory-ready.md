@@ -1,6 +1,6 @@
 # M-SERVEAPI-DIRECTORY-READY: any `serve-api` service listable in the Anthropic and OpenAI directories
 
-**Status**: Planned. **Phase A** (Anthropic) is ready for planning. **Phase B** (OpenAI) is gated behind discovery spike S1 (V11 only; V12 was resolved from OpenAI's auth page), which needs a live ChatGPT test outside the session. Quorum rounds 0 and 1 were both BLOCKED. Every objection was accepted and fixed (see §Quorum record). The re-quorum guardrail is spent. **The Design Freeze (D1, D2, D3, D7) was ratified by Mark on 2026-10-01** (attended session). D4 stays open for Phase B.
+**Status**: **Phase A IMPLEMENTED on `dev` (2026-10-01)** — L1 `@mcp_auth` gate, L2 `/mcp/connect/`, L3 `ailang mcp check` (sprint `M-SERVEAPI-DIRECTORY-READY-A`: `a784aa7c0`, `7b03f7112`, `6146905f9`, `7d61cc242`, M5). Remaining: L4 `sunholo/mcp_oauth` package (next sprint), L5 template, Phase B (OpenAI) gated on spike S1 (V11). Design Freeze ratified by Mark 2026-10-01.
 **Target**: v0.51.0
 **Priority**: P1. It is the shared path to distribution for every hosted AILANG service. AILANG Parse is the first adopter.
 **Estimated**: 7–9 days across four lanes: L1 3d, L2 1.5d, L3 1.5d, L4 2–3d (package). L5 is docs only.

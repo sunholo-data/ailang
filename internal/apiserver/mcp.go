@@ -26,6 +26,9 @@ type MCPServer struct {
 	// @mcp_agent_only tools, and @mcp_secret params neither advertised nor
 	// accepted. The agent surface (/mcp/) has listed == false.
 	listed bool
+	// gated holds the listed-surface tool names declared @mcp_auth("oauth2").
+	// The Bearer gate guards exactly these; /mcp/ never populates it.
+	gated map[string]bool
 }
 
 func mcpError(msg string) *mcp.CallToolResult {
@@ -259,6 +262,12 @@ func (ms *MCPServer) registerTools() {
 		}
 
 		ms.mcpServer.AddTool(tool, ms.makeToolHandler(c.modPath, export))
+		if ms.listed && export.MCPAuth == mcpAuthOAuth2 {
+			if ms.gated == nil {
+				ms.gated = map[string]bool{}
+			}
+			ms.gated[toolName] = true
+		}
 	}
 	if len(unhinted) > 0 {
 		// Not an error — the tool still works — but MCP directories (Anthropic,
