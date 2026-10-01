@@ -1,6 +1,6 @@
 # M-VM-PURE-BUILTIN-COVERAGE: pure builtins run on the strict VM, and the gap is measured
 
-**Status**: Planned
+**Status**: IMPLEMENTED
 **Target**: v0.50.2
 **Priority**: P1
 **Estimated**: 2–3 days

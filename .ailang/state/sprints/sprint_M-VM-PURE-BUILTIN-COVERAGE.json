@@ -2,8 +2,8 @@
   "sprint_id": "M-VM-PURE-BUILTIN-COVERAGE",
   "status": "completed",
   "created": "2026-10-01T15:07:14Z",
-  "design_doc": "design_docs/planned/v0_50_2/m-vm-pure-builtin-coverage.md",
-  "sprint_plan": "design_docs/planned/v0_50_2/m-vm-pure-builtin-coverage-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_50_2/m-vm-pure-builtin-coverage.md",
+  "sprint_plan": "design_docs/implemented/v0_50_2/m-vm-pure-builtin-coverage-sprint-plan.md",
   "github_issues": [
     1447,
     1448
@@ -104,5 +104,6 @@
       "completed": "2026-10-01T15:44:11Z",
       "notes": "7 native polymorphic list ports with eval-parity table (-count=20), ADT-element test, extract mutation caught; example identical across 3 engines; range/repeat/string.reverse adapted instead (monomorphic). Filed #1453 (show ADT divergence, pre-existing)"
     }
-  ]
+  ],
+  "completed": "2026-10-01T16:13:52Z"
 }
