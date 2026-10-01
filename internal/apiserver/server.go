@@ -597,7 +597,13 @@ func (s *Server) buildRoutes() *http.ServeMux {
 		// picks the longer pattern, so /mcp/connect/ never reaches /mcp/.
 		if hasListedSurface(s.GetModules()) {
 			listed := NewListedMCPServer(s)
-			mux.Handle(listedMCPPath, http.StripPrefix(strings.TrimSuffix(listedMCPPath, "/"), listed.HTTPHandler()))
+			var h http.Handler = http.StripPrefix(strings.TrimSuffix(listedMCPPath, "/"), listed.HTTPHandler())
+			if len(listed.gated) > 0 {
+				h = listed.gatedHandler(h, s.maxUploadSize)
+				mux.HandleFunc(protectedResourceRoot, s.handleProtectedResource)
+				mux.HandleFunc(protectedResourcePath, s.handleProtectedResource)
+			}
+			mux.Handle(listedMCPPath, h)
 		}
 	}
 
@@ -618,6 +624,8 @@ func (s *Server) buildRoutes() *http.ServeMux {
 	if s.mcpEnabled {
 		builtinPaths["/mcp/"] = true
 		builtinPaths[listedMCPPath] = true
+		builtinPaths[protectedResourceRoot] = true
+		builtinPaths[protectedResourcePath] = true
 	}
 
 	// Custom routes from @route annotations (registered before catch-all)

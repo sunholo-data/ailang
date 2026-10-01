@@ -22,6 +22,9 @@ type ToolDescriptor struct {
 	Tags         []string
 	Examples     []string
 	Annotations  *ToolAnnotations // MCP behaviour hints (nil = omitted); see ResolveToolHints
+	// Auth is the tool's auth scheme: "" / ToolAuthNoAuth (open) or
+	// ToolAuthOAuth2 (a tools/call needs a Bearer token the BearerGate admits).
+	Auth string
 }
 
 type AuthorizedSurface struct {
@@ -52,6 +55,11 @@ func CallerSurface(descriptors []ToolDescriptor) (*AuthorizedSurface, error) {
 func validateToolDescriptor(tool ToolDescriptor) error {
 	if err := ValidateMCPName(tool.Name); err != nil {
 		return err
+	}
+	switch tool.Auth {
+	case ToolAuthNone, ToolAuthNoAuth, ToolAuthOAuth2:
+	default:
+		return fmt.Errorf("tool %q: unknown auth scheme %q", tool.Name, tool.Auth)
 	}
 	if tool.InputSchema == nil {
 		return fmt.Errorf("tool %q: input schema is required", tool.Name)

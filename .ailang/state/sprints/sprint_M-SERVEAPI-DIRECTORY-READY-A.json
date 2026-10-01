@@ -91,10 +91,10 @@
         "/mcp/ gated tool with argument-carried key and no Bearer succeeds (agent regression)",
         "mcphttp parity table test passes the same cases"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-01T15:14:19+00:00",
+      "completed": "2026-10-01T15:14:19+00:00",
+      "notes": "protocol.BearerGate (stdlib) shared by serve-api gatedHandler and mcphttp Config.Gate; --oauth-issuer; RFC 9728 metadata at root + path-inserted; verifier via CallPrepared with GoCtx deadline (proved: hung Net request cancelled). Semaphore cap 32 + 5s are constants (flag deferred). Tests: gate unit (-race x3), serve-api e2e incl. AILANG panic->503 and Net cancellation, /mcp/ ungated regression, mcphttp parity. 6 mutants caught (one earlier 'uncaught' was a non-compiling mutant hidden by grep \u2014 re-run confirmed caught). Full apiserver suite green normal + shuffled. Filed #1449 (div-by-zero Go panic)."
     },
     {
       "id": "M4",

@@ -94,7 +94,7 @@ registration.
 - [x] `/mcp/` `tools/list` is byte-identical before and after for a module with none of the new annotations (regression).
 - [x] `examples/runnable/serve_api_mcp_header_auth.ail` behaves the same on `/mcp/`.
 
-### M3: Lazy-auth gate and resource metadata (~300 impl + ~250 tests)
+### M3: Lazy-auth gate and resource metadata (~300 impl + ~250 tests) ✅
 
 **Goal:** design doc L1 and D7, on the go-sdk path (`serve-api`).
 
@@ -121,11 +121,11 @@ registration.
   test run against both handlers.
 
 **Acceptance criteria:**
-- [ ] An `httptest` server: a gated tool with no token → 401, and the header's `resource_metadata` resolves; with a valid token → 200 and the tool runs; open tools → 200 with no token.
-- [ ] D7: a verifier that errors, panics or sleeps 6 s → 503 within 5.5 s, and the tool body's side-effect counter stays 0. Mutation-tested (making the error path fall through must fail).
-- [ ] Semaphore: with N slow verifiers in flight, call N+1 → immediate 503; open tools still answer; goroutine count is bounded.
-- [ ] On `/mcp/`, a gated tool called with an argument-carried key and no Bearer token **succeeds** (agent regression).
-- [ ] `mcphttp` parity test passes with the same cases.
+- [x] An `httptest` server: a gated tool with no token → 401, and the header's `resource_metadata` resolves; with a valid token → 200 and the tool runs; open tools → 200 with no token.
+- [x] D7: a verifier that errors, panics or sleeps 6 s → 503 within 5.5 s, and the tool body's side-effect counter stays 0. Mutation-tested (making the error path fall through must fail).
+- [x] Semaphore: with N slow verifiers in flight, call N+1 → immediate 503; open tools still answer; goroutine count is bounded.
+- [x] On `/mcp/`, a gated tool called with an argument-carried key and no Bearer token **succeeds** (agent regression).
+- [x] `mcphttp` parity test passes with the same cases.
 
 ### M4: `ailang mcp check --target anthropic` (~300 impl + ~200 tests)
 
