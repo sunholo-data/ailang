@@ -88,7 +88,7 @@ func literalString(l *ast.Literal) (string, error) {
 	case ast.FloatLit:
 		switch v := l.Value.(type) {
 		case float64:
-			return formatFloat(v), nil
+			return ast.FormatFloat(v), nil
 		default:
 			return "", fmt.Errorf("float literal has unexpected value type %T", l.Value)
 		}
@@ -113,15 +113,4 @@ func literalString(l *ast.Literal) (string, error) {
 	default:
 		return "", fmt.Errorf("unsupported literal kind %d", int(l.Kind))
 	}
-}
-
-// formatFloat renders a float64 so that re-parsing yields the same value and so
-// that whole-number floats retain a decimal point (canonical AILANG float form).
-func formatFloat(v float64) string {
-	s := strconv.FormatFloat(v, 'g', -1, 64)
-	// Ensure a float always reads back as a float, never as an int literal.
-	if !strings.ContainsAny(s, ".eEnN") { // n/N guards Inf/NaN spellings defensively
-		s += ".0"
-	}
-	return s
 }
