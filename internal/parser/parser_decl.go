@@ -39,9 +39,11 @@ func (p *Parser) parseAnnotation() *ast.Annotation {
 		return p.parseStringListAnnotation(pos, "mcp_title", 1, 1,
 			"PAR_MCP_TITLE_ARG", "@mcp_title expects one string literal", "Use @mcp_title(\"Parse document\")")
 	case "mcp_hints":
-		return p.parseStringListAnnotation(pos, "mcp_hints", 1, -1,
-			"PAR_MCP_HINTS_ARG", "@mcp_hints expects one or more string-literal hints",
-			"Use @mcp_hints(\"readOnly\") or @mcp_hints(\"destructive\", \"openWorld\"); hints: readOnly, destructive, idempotent, openWorld")
+		// Zero hints is a real declaration: the list is complete, so
+		// @mcp_hints() means "writes, additively, closed-world, not idempotent".
+		return p.parseStringListAnnotation(pos, "mcp_hints", 0, -1,
+			"PAR_MCP_HINTS_ARG", "@mcp_hints expects zero or more string-literal hints",
+			"Use @mcp_hints(), @mcp_hints(\"readOnly\") or @mcp_hints(\"destructive\", \"openWorld\"); hints: readOnly, destructive, idempotent, openWorld")
 	case "optional":
 		return p.parseOptionalAnnotation(pos)
 	case "allow_empty_ok":
@@ -273,6 +275,12 @@ func (p *Parser) parseMCPNameAnnotation(pos ast.Pos) *ast.Annotation {
 // checked at MCP registration, the same posture as @optional.
 // Expects the parser to be AT the annotation identifier.
 func (p *Parser) parseStringListAnnotation(pos ast.Pos, name string, min, max int, code, msg, hint string) *ast.Annotation {
+	// The lexer reads "()" as one UNIT token, so an empty argument list never
+	// arrives as LPAREN RPAREN.
+	if min == 0 && p.peekTokenIs(lexer.UNIT) {
+		p.nextToken() // at "()": an explicitly empty list
+		return &ast.Annotation{Name: name, Pos: pos}
+	}
 	if !p.expectPeek(lexer.LPAREN) {
 		return nil
 	}

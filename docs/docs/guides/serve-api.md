@@ -422,7 +422,7 @@ Each exported AILANG function becomes an MCP tool. Module metadata is available 
   ```
 
   Full example: `examples/runnable/serve_api_mcp_header_auth.ail`.
-- **Tool titles and behaviour hints (`@mcp_title`, `@mcp_hints`)** — MCP directories (Anthropic's connector/plugin directory, OpenAI's Plugin Directory) refuse a tool that has no `title` or that declares neither `readOnlyHint` nor `destructiveHint`. `@mcp_title("Parse document")` sets `title`. `@mcp_hints(...)` takes any of `readOnly`, `destructive`, `idempotent`, `openWorld`, and the list is **complete**: a hint you leave out is `false` — including `destructive` and `openWorld`, whose MCP defaults are `true`. So `@mcp_hints("openWorld")` means "writes, additively, to the outside world".
+- **Tool titles and behaviour hints (`@mcp_title`, `@mcp_hints`)** — MCP directories (Anthropic's connector/plugin directory, OpenAI's Plugin Directory) refuse a tool that has no `title` or that declares neither `readOnlyHint` nor `destructiveHint`. `@mcp_title("Parse document")` sets `title`. `@mcp_hints(...)` takes any of `readOnly`, `destructive`, `idempotent`, `openWorld`, and the list is **complete**: a hint you leave out is `false` — including `destructive` and `openWorld`, whose MCP defaults are `true`. So `@mcp_hints("openWorld")` means "writes, additively, to the outside world", and the empty `@mcp_hints()` means "writes, additively, closed-world, not idempotent".
 
   | Declaration | Emitted `annotations` |
   |---|---|

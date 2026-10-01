@@ -731,13 +731,27 @@ export func parse(x: string) -> string ! {IO} { x }`
 	for _, bad := range []string{
 		`@mcp_title("a", "b")`,
 		`@mcp_title()`,
-		`@mcp_hints()`,
 		`@mcp_hints(readOnly)`,
+		`@mcp_hints("readOnly",)`,
 	} {
 		p := New(lexer.New(bad+"\nexport func f(x: int) -> int { x }", "test.ail"))
 		p.ParseFile()
 		if len(p.Errors()) == 0 {
 			t.Errorf("%s: expected a parse error", bad)
 		}
+	}
+}
+
+// @mcp_hints() is a complete, empty declaration: a tool that writes
+// additively in a closed world. It must parse with zero args.
+func TestMCPHintsEmpty(t *testing.T) {
+	p := New(lexer.New("@mcp_hints()\nexport func f(x: int) -> int ! {IO} { x }", "test.ail"))
+	file := p.ParseFile()
+	if len(p.Errors()) > 0 {
+		t.Fatalf("parser errors: %v", p.Errors())
+	}
+	ann := file.Funcs[0].GetAnnotation("mcp_hints")
+	if ann == nil || len(ann.Args) != 0 {
+		t.Fatalf("@mcp_hints(): %+v", ann)
 	}
 }
