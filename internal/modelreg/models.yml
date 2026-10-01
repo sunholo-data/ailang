@@ -2342,6 +2342,31 @@ models:
       harness. Standard-mode results do not transfer to agent mode, so this row is
       registered but its pin is gated on an agent-mode smoke tier (~$0.06 at this
       pricing). Do not read the standard-mode record as evidence for this row.
+  motoko-lane-or-glm-5-3-flash:
+    api_name: "z-ai/glm-5.3-flash"
+    provider: "openrouter"
+    default_thinking: "always_on"  # as motoko-or-glm-5-3-flash: reasoning is mandatory on this endpoint
+    description: "GLM-5.3-Flash under motoko on the ailang_only lane profile — the motoko arm of the pi-vs-motoko lane A/B (M-MOTOKO-AILANG-ONLY-LANE D6). Same model as the 34 production lane agents."
+    env_var: "OPENROUTER_API_KEY"
+    agent_cli: "motoko"
+    motoko_profile: "ailang_only"                      # .motoko/config/ailang_only — ailang_policy first, strict, hybrid off
+    agent_model_name: "openrouter/z-ai/glm-5.3-flash"
+    model_family: "glm-5"
+    max_output_tokens: 65536
+    pricing:
+      input_per_1k: 0.000075  # $0.075 per 1M (OpenRouter API, verified 2026-08-27)
+      output_per_1k: 0.00025  # $0.25 per 1M (OpenRouter API, verified 2026-08-27)
+    budgets:
+      max_cost_usd: 0.50
+      hard_timeout_secs: 3600
+    notes: |
+      Added 2026-10-01 for the lane A/B. Run it ONLY with
+      `--tool-policy ailang_only --policy-file <restricted policy>`: the motoko
+      executor refuses a lane task unless the profile resolves (through motoko's
+      own resolver) to ailang_policy first + strict + hybrid off, the build
+      enforces extensions.strict (arniwesth/motoko_agent#205), and the policy is
+      restricted. Without --tool-policy it would run the profile with no lane
+      task, which the extension refuses to register for (no policy).
   motoko-minimax-m3:
     api_name: "minimax/minimax-m3"
     provider: "openrouter"
