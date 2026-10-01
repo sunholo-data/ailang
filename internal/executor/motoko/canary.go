@@ -128,6 +128,11 @@ func (e *MotokoExecutor) runCanaryOnce(ctx context.Context, subject executor.Can
 		}
 		task.AllowedTools = tools
 		task.PolicyPath = subject.Options["policy_path"]
+		// Lane tools resolve paths from the policy's sandbox root, not the
+		// task workspace, so name the file absolutely — as benchmark prompts
+		// do. "canary.txt" resolved under the sandbox root, was not found, and
+		// the subject spent the canary's budget looking for it (2026-10-01).
+		task.Directive = "Read the file " + filepath.Join(workspace, "canary.txt") + " and report its contents. Do not modify anything."
 	}
 	result, execErr := e.Execute(runCtx, task)
 
