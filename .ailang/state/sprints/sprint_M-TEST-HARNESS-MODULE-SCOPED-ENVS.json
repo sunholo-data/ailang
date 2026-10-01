@@ -1,0 +1,92 @@
+{
+  "sprint_id": "M-TEST-HARNESS-MODULE-SCOPED-ENVS",
+  "status": "not_started",
+  "created": "2026-10-01T20:16:07.429650+00:00",
+  "design_doc": "design_docs/planned/v0_50_2/m-test-harness-module-scoped-envs.md",
+  "sprint_plan": "design_docs/planned/v0_50_2/m-test-harness-module-scoped-envs-sprint-plan.md",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Searches 'test harness' and 'module' returned no packages; internal Go harness repair reuses existing environment/resolver and test infrastructure."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Searches 'test harness' and 'module' returned no packages; internal Go harness repair reuses existing environment/resolver and test infrastructure."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "Searches 'test harness' and 'module' returned no packages; internal Go harness repair reuses existing environment/resolver and test infrastructure."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 250,
+    "estimated_total_loc": 500,
+    "estimated_days": 2
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Module environments and root identity",
+      "estimated_loc": 230,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Two synthetic modules with same-named Let helpers each invoke their own helper in both sorted module orders.",
+        "LetRec self/mutual recursion and calls between separate recursive groups retain module-local resolution.",
+        "Only the canonical root module mirrors ordinary function bare names into the shared environment.",
+        "Declared and module-less root identities work; missing identity does not trigger guessed or arbitrary root selection.",
+        "Existing imported-helper and root harness tests remain green."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Re-exports and owning-module resolver fallback",
+      "estimated_loc": 150,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Qualified exports and aliased imports resolve exactly as before.",
+        "Missing qualified keys fall back to the owning module's evaluated binding, never a different module or inherited root binding.",
+        "Missing non-root bare names fail loudly using existing errors; no new diagnostic codes.",
+        "Re-export consumers continue to work, including a same-named private helper in another module.",
+        "Builtins and imported/root ADT constructors retain existing behavior."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Full harness regression matrix and documentation",
+      "estimated_loc": 120,
+      "dependencies": [
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "Both sort-order variants pass single-file and package named-test execution.",
+        "Colliding helpers pass inline, cluster, and requires/ensures evaluation paths.",
+        "Reproducer main returns true under interpreter and bytecode execution.",
+        "TestAliasImportCollision, TestADTConstructorFromImportedModule, TestADTConstructorInCluster, TestClusterEvalWithImportedHelper, and TestFunctionlessNamedTestsResolveStdlibBuiltins pass.",
+        "Full internal/testing suite, make test-core, make test, and make lint pass; all changed Go files are gofmt-clean.",
+        "Existing CLI fixtures tests/record_update_regression_test.ail, tests/m_rt1_imported_constructor_pattern_test.ail, and std/trace_test.ail pass.",
+        "Changelog cites the design and regression coverage; executable changes stay within internal/testing."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
