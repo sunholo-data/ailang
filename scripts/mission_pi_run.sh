@@ -68,6 +68,10 @@
 #   18 tool_hang        — killed: silent past the stall bound WHILE a tool call was open.
 #                          The MODEL is fine; a command it ran never returned. NOT a lane
 #                          failure — see hung_tool in the verdict JSON.
+#   19 provider_quota   — pi finished, but its LAST assistant message is a provider refusal on
+#                          capacity (HTTP 429/402, usage limit, quota, rate limit, credits). pi
+#                          exits 0 on these. The MODEL did not fail and the work is truncated
+#                          even if files changed. See provider_error / provider_errors in the verdict JSON.
 #
 # Bash 3.2 (rig default). No `declare -A`, no `${v,,}`, no `timeout(1)`.
 
@@ -129,7 +133,7 @@ case "$VERDICT" in /*) ;; *) VERDICT="$(pwd)/$VERDICT" ;; esac
 case "$DIRECTIVE" in /*) ;; *) DIRECTIVE="$(pwd)/$DIRECTIVE" ;; esac
 preflight_fail() { # rc verdict error
   jq -n --arg verdict "$2" --arg error "$3" --argjson rc "$1" \
-    '{verdict:$verdict, rc:$rc, fenced:false, error:$error}' > "$VERDICT"
+    '{verdict:$verdict, rc:$rc, fenced:false, error:$error, provider_errors:0, provider_error:""}' > "$VERDICT"
   echo "pi lane verdict: $2 (rc=$1): $3" >&2
   exit "$1"
 }
@@ -372,9 +376,31 @@ if [ "$OUTCOME" = "stream_dead" ]; then
 fi
 HUNG_TOOL_JSON=$(printf '%s' "$HUNG_TOOL" | jq -Rs .)
 
+# Provider refusals: pi exits 0 and reports them as an assistant message_end with stopReason "error".
+# Measured: World iter-187 planner, 4 x "429 … usage limit", banked ok rc 0 with 10 files changed.
+# Per-line fromjson? so a truncated line (killed write) cannot zero the count.
+PROVIDER_CAPACITY_RE='^\s*(402|429)\b|usage.?limit|quota|rate.?limit|insufficient.?credits|too many requests'
+PERR=$(grep '"type":"message_end"' "$OUT" 2>/dev/null | jq -cRn --arg re "$PROVIDER_CAPACITY_RE" '
+  [inputs | fromjson? | .message? | select(type == "object" and .role == "assistant")] as $a
+  | [$a[] | select(.stopReason == "error")] as $e
+  | ($a | last) as $l
+  | {n: ($e | length),
+     last: ((($e | last) // {}) | .errorMessage // "" | .[0:300]),
+     quota: (($l != null) and ($l.stopReason == "error") and (($l.errorMessage // "") | test($re; "i")))}' 2>/dev/null)
+PROVIDER_ERRORS=$(printf '%s' "$PERR" | jq -r '.n // 0' 2>/dev/null); case "$PROVIDER_ERRORS" in ''|*[!0-9]*) PROVIDER_ERRORS=0 ;; esac
+PROVIDER_ERROR=$(printf '%s' "$PERR" | jq -r '.last // ""' 2>/dev/null)
+PROVIDER_QUOTA=$(printf '%s' "$PERR" | jq -r '.quota // false' 2>/dev/null); [ "$PROVIDER_QUOTA" = true ] || PROVIDER_QUOTA=false
+_err_lines=$(grep '"type":"message_end"' "$OUT" 2>/dev/null | grep -c '"stopReason":"error"' | tr -d ' ')
+if [ "${_err_lines:-0}" -gt 0 ] && [ "$PROVIDER_ERRORS" -eq 0 ]; then   # anti-vacuity
+  PROVIDER_ERRORS="$_err_lines"; PROVIDER_ERROR="(unparsed provider error)"; PROVIDER_QUOTA=false
+  echo "pi lane verdict: WARNING — $_err_lines message_end line(s) carry stopReason error but none parsed" >&2
+fi
+PROVIDER_ERROR_JSON=$(printf '%s' "$PROVIDER_ERROR" | jq -Rs .)
+
 case "$OUTCOME" in
   finished)
     if [ "$FENCED" = false ]; then VERDICT_NAME="sandbox_not_ready"; RC=17
+    elif [ "$PROVIDER_QUOTA" = true ]; then VERDICT_NAME="provider_quota"; RC=19
     elif [ "$PI_RC" -ne 0 ]; then VERDICT_NAME="launch_failed"; RC=14
     elif [ "${DIFF_LINES:-0}" -gt 0 ] || [ "$COMMITS" -gt 0 ]; then VERDICT_NAME="ok"; RC=0
     else VERDICT_NAME="empty_worktree"; RC=10; fi ;;
@@ -399,6 +425,8 @@ cat > "$VERDICT" <<EOF
   "commits_since_start": $COMMITS,
   "tool_executions": ${TOOL_CALLS:-0},
   "hung_tool": $HUNG_TOOL_JSON,
+  "provider_errors": ${PROVIDER_ERRORS:-0},
+  "provider_error": $PROVIDER_ERROR_JSON,
   "agent_end_events": ${AGENT_END:-0},
   "ndjson_bytes_filtered": ${OUT_BYTES:-0},
   "ndjson": "$OUT",
@@ -410,4 +438,6 @@ rm -rf "$STAGE"
 
 echo "pi lane verdict: $VERDICT_NAME (rc=$RC) after ${ELAPSED}s — ${DIFF_LINES:-0} changed files, ${TOOL_CALLS:-0} tool executions, $COMMITS commits" >&2
 [ -n "$HUNG_TOOL" ] && echo "pi lane verdict: the MODEL did not stall — pi was waiting on a tool call that never returned: $HUNG_TOOL" >&2
+[ "$RC" -eq 19 ] && echo "pi lane verdict: the PROVIDER refused on capacity — park the lane, not the model: $PROVIDER_ERROR" >&2
+[ "$RC" -ne 19 ] && [ "$PROVIDER_ERRORS" -gt 0 ] && echo "pi lane verdict: $PROVIDER_ERRORS provider error(s) during the run; last: $PROVIDER_ERROR" >&2
 exit "$RC"

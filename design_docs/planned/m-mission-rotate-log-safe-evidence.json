@@ -1,0 +1,155 @@
+{
+  "iteration": 8,
+  "base": "64e10b72cf248371968b7224fde91522b3307285",
+  "reproduction": {
+    "override_A_from_B": {
+      "rc": 0,
+      "out": "live log   /private/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/fleet-iter8-repro-7wgtluy0/B/design_docs/v1-mission-log.md\n  127 -> 332 bytes (~0k -> ~0k tokens), 1 of 3 entries kept\narchive    /private/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/fleet-iter8-repro-7wgtluy0/B/design_docs/v1-mission-log-archive.md\n  2 entries rotated out (full bodies retained)\nINDEX      /private/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/fleet-iter8-repro-7wgtluy0/B/design_docs/v1-mission-index.md\n  3 iterations, complete history \u2014 grep this before picking work\n",
+      "err": ""
+    },
+    "default_world_log": {
+      "rc": 0,
+      "out": "live log   /var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/fleet-iter8-repro-7wgtluy0/W/design_docs/world-mission-log.md\n  127 -> 338 bytes (~0k -> ~0k tokens), 1 of 3 entries kept\narchive    /var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/fleet-iter8-repro-7wgtluy0/W/design_docs/world-mission-log-archive.md\n  2 entries rotated out (full bodies retained)\nINDEX      /var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/fleet-iter8-repro-7wgtluy0/W/design_docs/world-mission-index.md\n  3 iterations, complete history \u2014 grep this before picking work\n",
+      "err": ""
+    },
+    "legacy_status_mutates": {
+      "rc": 0,
+      "out": "live log   /var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/fleet-iter8-repro-7wgtluy0/W/design_docs/world-mission-status-archive.md\n  172 -> 369 bytes (~0k -> ~0k tokens), 1 of 3 entries kept\narchive    /var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/fleet-iter8-repro-7wgtluy0/W/design_docs/world-mission-status-archive-old.md\n  2 entries rotated out (full bodies retained)\nINDEX      /var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/fleet-iter8-repro-7wgtluy0/W/design_docs/world-mission-status-index.md\n  3 iterations, complete history \u2014 grep this before picking work\n",
+      "err": ""
+    },
+    "foreign_without_registry": {
+      "rc": 1,
+      "out": "",
+      "err": "Error: failed to read mission registry missions: open missions: no such file or directory\n"
+    },
+    "controls": {
+      "A_log_entries": 3,
+      "B_log_entries": 1,
+      "W_status_entries": 1,
+      "root": "/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/fleet-iter8-repro-7wgtluy0"
+    }
+  },
+  "quorum_round_1": {
+    "doc": "design_docs/planned/m-mission-rotate-log-safe.md",
+    "iso_ts": "2026-09-30T13:18:51Z",
+    "reviewers": [
+      {
+        "model": "claude-sonnet-5@claude-p",
+        "cost_usd": 0,
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "present": false,
+        "absent_reason": "quota",
+        "error": "Anthropic bucket blocked by the mission ration: Anthropic usage endpoint returned HTTP 429; CLI fallback also failed (no \"Current session\" line in `claude -p /usage` output)",
+        "landed": null
+      },
+      {
+        "model": "gemini-3-1-pro",
+        "cost_usd": 0.00982,
+        "tokens_in": 3326,
+        "tokens_out": 264,
+        "present": true,
+        "result": {
+          "verdict": "reject",
+          "strongest_objection": "The document fails both Premise Verification and Axiom Compliance. Solution Design #2 proposes exporting `AILANG_MISSION_REGISTRY=\"$MC_DRIVER_ROOT/missions\"`, but V6 verifies that the legacy path exports `MISSION_DRIVER_ROOT`. The unverified `$MC_DRIVER_ROOT` variable will evaluate to an empty string and break registry discovery. Furthermore, the Axiom Compliance section evaluates against a fabricated 12-item list (A1-A12) instead of the required AILANG mission axioms (minimal frozen core, route-to-extension bias, no silent fallbacks, bounded waits, deterministic behavior).",
+          "catch": "The unverified environment variable mismatch that will break the shell script, and the completely hallucinated axiom list.",
+          "proposed_fix": "In Solution Design #2, correct the export to use `AILANG_MISSION_REGISTRY=\"$MISSION_DRIVER_ROOT/missions\"`. Completely rewrite the Axiom Compliance section to evaluate the design strictly against the five official mission axioms: minimal frozen core, route-to-extension bias, no silent fallbacks, bounded waits, and deterministic behavior."
+        },
+        "landed": null
+      }
+    ],
+    "controller_in_session": {
+      "verdict": "reject",
+      "note": "Compatibility break awaits explicit human approval; no implementation authorized. Independent reviewers should judge design feasibility and evidence."
+    },
+    "synthesis": {
+      "verdict": "blocked",
+      "blocking_objections": [
+        "gemini-3-1-pro: The document fails both Premise Verification and Axiom Compliance. Solution Design #2 proposes exporting `AILANG_MISSION_REGISTRY=\"$MC_DRIVER_ROOT/missions\"`, but V6 verifies that the legacy path exports `MISSION_DRIVER_ROOT`. The unverified `$MC_DRIVER_ROOT` variable will evaluate to an empty string and break registry discovery. Furthermore, the Axiom Compliance section evaluates against a fabricated 12-item list (A1-A12) instead of the required AILANG mission axioms (minimal frozen core, route-to-extension bias, no silent fallbacks, bounded waits, deterministic behavior).",
+        "controller (in-session): Compatibility break awaits explicit human approval; no implementation authorized. Independent reviewers should judge design feasibility and evidence."
+      ],
+      "absent_reviewers": [
+        {
+          "model": "claude-sonnet-5@claude-p",
+          "reason": "quota"
+        }
+      ],
+      "total_cost_usd": 0.00982,
+      "total_tokens_in": 3326,
+      "total_tokens_out": 264
+    }
+  },
+  "quorum_round_2": {
+    "doc": "design_docs/planned/m-mission-rotate-log-safe.md",
+    "iso_ts": "2026-09-30T13:23:49Z",
+    "reviewers": [
+      {
+        "model": "claude-sonnet-5@claude-p",
+        "cost_usd": 0,
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "present": false,
+        "absent_reason": "quota",
+        "error": "Anthropic bucket blocked by the mission ration: Anthropic usage endpoint returned HTTP 429; CLI fallback also failed (no \"Current session\" line in `claude -p /usage` output)",
+        "landed": null
+      },
+      {
+        "model": "gemini-3-1-pro",
+        "cost_usd": 0.010931999999999999,
+        "tokens_in": 4188,
+        "tokens_out": 213,
+        "present": true,
+        "result": {
+          "verdict": "reject",
+          "strongest_objection": "The design mandates a loud failure and removes fallbacks in `loadMissionRegistry` (Solution 1), explicitly acknowledging it is a shared loader, but fails to map the conflict surface of this change on other subcommands. Handwaving 'do not change their target behavior' without identifying the callers or verifying their reliance on the current error/fallback semantics violates the Conflict Surface gate.",
+          "catch": "The missing blast-radius audit for other mission subcommands calling the shared `loadMissionRegistry`.",
+          "proposed_fix": "Add a verification log entry auditing all callers of `loadMissionRegistry` (e.g., via `rg -l loadMissionRegistry`). Update the conflict surface section to either prove all existing callers safely tolerate the new loud failure, or isolate the strict resolution logic exclusively to `rotate-log` (e.g., via a strictness parameter) to genuinely preserve existing behavior for other subcommands."
+        },
+        "landed": null
+      }
+    ],
+    "controller_in_session": {
+      "verdict": "pass",
+      "note": "Technical design reviewed with first-party synthetic target-mismatch evidence and driver variable confirmed at lines47/2202/2385. This is design feasibility only: human compatibility approval is pending; no execution authorized."
+    },
+    "synthesis": {
+      "verdict": "blocked",
+      "blocking_objections": [
+        "gemini-3-1-pro: The design mandates a loud failure and removes fallbacks in `loadMissionRegistry` (Solution 1), explicitly acknowledging it is a shared loader, but fails to map the conflict surface of this change on other subcommands. Handwaving 'do not change their target behavior' without identifying the callers or verifying their reliance on the current error/fallback semantics violates the Conflict Surface gate."
+      ],
+      "absent_reviewers": [
+        {
+          "model": "claude-sonnet-5@claude-p",
+          "reason": "quota"
+        }
+      ],
+      "total_cost_usd": 0.010931999999999999,
+      "total_tokens_in": 4188,
+      "total_tokens_out": 213
+    }
+  },
+  "evaluation": {
+    "session_id": "898c2eaf-81cd-4c04-9ef5-27f23e43bda6",
+    "modelUsage": {
+      "claude-sonnet-4-6": {
+        "inputTokens": 25,
+        "outputTokens": 16769,
+        "thinkingTokens": 7225,
+        "cacheReadInputTokens": 1797819,
+        "cacheCreationInputTokens": 92204,
+        "webSearchRequests": 0,
+        "costUSD": 1.3441797,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000,
+        "canonicalModel": "claude-sonnet-4-6",
+        "provider": "firstParty",
+        "costBasis": "list"
+      }
+    },
+    "result": "Three corrections applied to `design_docs/planned/m-mission-rotate-log-safe-evaluation.md`:\n\n1. **Route table corrected**: Controller is now listed as `codex:gpt-6.1-sol` (OpenAI), not `claude:claude-opus-5-5`. The design doc flags this as a fallback since the preferred GLM was rejected. Route independence remains satisfied \u2014 judge (Anthropic/Sonnet) \u2260 designer (OpenAI/Codex) at vendor level.\n\n2. **V4 and V5 independently verified**:\n   - V4 (`missions/world.toml`): confirmed \u2014 `repo = \"sunholo-data/ailang-world\"` (external slug), `workdir` explicitly set. Design step 3's \"External repositories use their registered Workdir\" is accurate.\n   - V5 (`rotate.go:174\u2013255`, `rotate_test.go:151\u2013166`): confirmed \u2014 structural-heading refusal at :197\u2013202 produces the exact error string that appeared in `motoko-mission.md:1312`; status archive uses `-old.md` suffix; under-threshold index write confirmed by test at :151\u2013166.\n\n3. **V9 correctly attributed**: The three heartbeat artifacts live in `/Users/voightkampff/.ailang-driver-pin/fleet` (the fleet-mission pin worktree), not in this iter8 worktree. Verified by reading that directory's `git status` directly. The files match the D-FLEET-8 parked heartbeat design.\n\nDecision remains **BLOCKED (pending human approval for `--status` break) / PASS (independent judge checkpoint discharged)**.",
+    "is_error": false
+  },
+  "planner": "BLOCKED: no human approval; no formal sprint plan or JSON authored",
+  "executor": "GATE_NOT_PASSED: read-only receipt; no code or tests changed",
+  "verification_scope": "Synthetic reproductions only; narrow baseline Go tests passed. No implementation done-gate claimed."
+}
