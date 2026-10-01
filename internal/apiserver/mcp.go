@@ -258,6 +258,20 @@ func sdkToolAnnotations(h *protocol.ToolAnnotations, title string) *mcp.ToolAnno
 // never taken from the client's arguments.
 const headersParam = "_headers"
 
+// isUnitParamType reports whether a param carries no information: `unit`, or
+// the `()` the parser desugars `func f()` into (one param named "_"). Such a
+// param is never advertised and binds to nil, which the engine reads as Unit.
+// Before this, every zero-arg export advertised a required string "_" and a
+// tools/call with {} was rejected as "missing required parameter(s): _".
+func isUnitParamType(t string) bool { return t == "unit" || t == "()" }
+
+func paramTypeAt(export ExportInfo, i int) string {
+	if i < len(export.ParamTypes) {
+		return export.ParamTypes[i]
+	}
+	return ""
+}
+
 // validateOptionalParams checks an export's @optional names against its
 // signature: each must be a declared param, must not be the reserved
 // _headers param, and must have a type with a zero value to bind when absent.
@@ -330,8 +344,8 @@ func (ms *MCPServer) makeToolHandler(modulePath string, export ExportInfo) mcp.T
 			var missing []string
 			args = make([]any, len(paramNames))
 			for i, name := range paramNames {
-				if name == headersParam {
-					continue
+				if name == headersParam || isUnitParamType(paramTypeAt(export, i)) {
+					continue // bound below / nil = Unit
 				}
 				v, present := argMap[name]
 				if !present || v == nil {
@@ -454,8 +468,8 @@ func buildNamedInputSchema(export ExportInfo) map[string]any {
 			optional[name] = true
 		}
 		for i, name := range export.ParamNames {
-			if name == headersParam {
-				continue // bound from the request, never supplied by the client
+			if name == headersParam || isUnitParamType(paramTypeAt(export, i)) {
+				continue // bound by the server, never supplied by the client
 			}
 			prop := map[string]any{
 				"type": "string", // default
