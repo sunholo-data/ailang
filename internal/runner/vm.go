@@ -177,7 +177,7 @@ func tryRunEntryViaVM(rt *runtime.ModuleRuntime, inst *runtime.ModuleInstance, p
 	// Convert decoded args from eval.Value to bytecode.Value via the bridge.
 	bcArgs := make([]bytecode.Value, 0, len(args))
 	for i, a := range args {
-		bv, err := evalValueToBytecode(a)
+		bv, err := vm.EvalToBytecode(a)
 		if err != nil {
 			return false, fmt.Errorf("entry arg %d: %w", i, err)
 		}
@@ -250,7 +250,7 @@ func printVMResult(v bytecode.Value, params ModuleExecParams) {
 	if !params.Print {
 		return
 	}
-	ev, err := bytecodeValueToEval(v)
+	ev, err := vm.BytecodeToEval(v)
 	if err != nil || ev == nil {
 		// Fall back to the bytecode value's own formatting for shapes
 		// the bridge doesn't know how to convert (currently none on
