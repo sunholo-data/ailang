@@ -105,6 +105,15 @@ var BuiltinNames = []string{
 	"__xml_findAllAttrs",
 	// ailang#1354/#1355: by-name record update for bases of unknown type
 	"_record_set",
+	// M-VM-PURE-BUILTIN-COVERAGE M3 (#1447): polymorphic list ops, native
+	// because their elements may be ADTs or closures
+	"__list_reverse",
+	"__list_take",
+	"__list_drop",
+	"__list_zip",
+	"__list_contains",
+	"__list_head",
+	"__list_extract",
 }
 
 // HOFBuiltinNames lists builtins that take closure arguments. These are

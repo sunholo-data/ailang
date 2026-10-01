@@ -3,6 +3,7 @@ package bytecode
 import (
 	"sort"
 	"strings"
+	"unicode"
 
 	"github.com/sunholo-data/ailang/internal/builtins"
 	"github.com/sunholo-data/ailang/internal/types"
@@ -129,10 +130,22 @@ func reasonRank(r string) int {
 	return 1 << 30 // "" ranks last
 }
 
-// IsCallableBuiltin reports whether a registry builtin is reached through a
-// lowered builtin call. Registry entries without the "_" prefix are operators
-// (e.g. "::") that lower to dedicated opcodes instead.
-func IsCallableBuiltin(registryName string) bool { return strings.HasPrefix(registryName, "_") }
+// IsCallableBuiltin reports whether a registry builtin can be reached through a
+// lowered builtin call. Symbolic entries (e.g. "::") lower to dedicated
+// opcodes instead. Identifier-shaped names are callable with or without a
+// leading "_": operator builtins such as "bitwiseXor_Int" are called as
+// "_bitwiseXor_Int" (internal/pipeline/op_table.go, #1450).
+func IsCallableBuiltin(registryName string) bool {
+	if registryName == "" {
+		return false
+	}
+	for _, r := range registryName {
+		if r != '_' && !unicode.IsLetter(r) && !unicode.IsDigit(r) {
+			return false
+		}
+	}
+	return true
+}
 
 // irName is the name a registry builtin has in a lowered stmt.BuiltinCall
 // (internal/gen/lower/expr.go: "_" + registry name).

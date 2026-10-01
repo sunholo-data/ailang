@@ -3002,14 +3002,42 @@
         "std/list",
         "std/string"
       ]
+    },
+    {
+      "path": "runnable/vm_strict_pure_builtins.ail",
+      "status": "working",
+      "tags": [
+        "bytecode",
+        "vm",
+        "strict-bytecode",
+        "std/list",
+        "std/string",
+        "std/bytes"
+      ],
+      "description": "Pure std/list, std/string and std/bytes calls run on the bytecode VM with no evaluator fallback: native polymorphic list ops plus the registry adapter (#1447)",
+      "modules": [
+        "std/bytes",
+        "std/io",
+        "std/list",
+        "std/option",
+        "std/string"
+      ],
+      "run_flags": [
+        "--caps",
+        "IO"
+      ],
+      "expected": {
+        "stdout": "[(5, a), (4, b)] true abab aGk= 6\n",
+        "exit_code": 0
+      }
     }
   ],
   "statistics": {
-    "total": 208,
-    "working": 200,
+    "total": 209,
+    "working": 201,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9615384615384616,
+    "coverage": 0.9617224880382775,
     "experimental": 0
   },
   "milestones": {

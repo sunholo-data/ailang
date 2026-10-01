@@ -139,6 +139,14 @@ var BuiltinTable = []BuiltinFunc{
 	builtinXmlFindAllAttrs,      // __xml_findAllAttrs
 	// ailang#1354/#1355: by-name record update for bases of unknown type
 	builtinRecordSet, // _record_set
+	// M-VM-PURE-BUILTIN-COVERAGE M3 (#1447): polymorphic list ops
+	builtinListReverse,  // __list_reverse
+	builtinListTake,     // __list_take
+	builtinListDrop,     // __list_drop
+	builtinListZip,      // __list_zip
+	builtinListContains, // __list_contains
+	builtinListHead,     // __list_head
+	builtinListExtract,  // __list_extract
 }
 
 // builtinRecordGet returns the value of the named field in a record. Used as

@@ -32,15 +32,8 @@ var unportedPure = map[string]string{
 	"__has_header":           bytecode.ReasonPolymorphic,
 	"__html_parse":           bytecode.ReasonOpaque,
 	"__html_parseFragment":   bytecode.ReasonOpaque,
-	"__list_contains":        bytecode.ReasonPolymorphic,
-	"__list_drop":            bytecode.ReasonPolymorphic,
-	"__list_extract":         bytecode.ReasonPolymorphic,
-	"__list_head":            bytecode.ReasonPolymorphic,
-	"__list_reverse":         bytecode.ReasonPolymorphic,
-	"__list_take":            bytecode.ReasonPolymorphic,
 	"__list_takeFlatMap":     bytecode.ReasonClosure,
 	"__list_takeMap":         bytecode.ReasonClosure,
-	"__list_zip":             bytecode.ReasonPolymorphic,
 	"__map_empty":            bytecode.ReasonMap,
 	"__map_from_list":        bytecode.ReasonPolymorphic,
 	"__map_insert":           bytecode.ReasonMap,
@@ -223,5 +216,23 @@ func TestAdaptedBuiltinMatchesImpl(t *testing.T) {
 		if fmt.Sprint(got) != c.want {
 			t.Errorf("%s = %s, want %s", c.ir, got, c.want)
 		}
+	}
+}
+
+// TestOperatorBuiltinsAreAdapted is #1450: operator builtins are registered
+// without the "_" prefix (bitwiseXor_Int) but called as _bitwiseXor_Int. They
+// were excluded from the adapter, so `n ^ 3` failed --strict-bytecode.
+func TestOperatorBuiltinsAreAdapted(t *testing.T) {
+	adapted := map[string]bool{}
+	for _, n := range bytecode.AdaptedBuiltinNames {
+		adapted[n] = true
+	}
+	for _, ir := range []string{"_bitwiseXor_Int", "_bitwiseAnd_Int", "_shiftLeft_Int", "_shiftRight_Int"} {
+		if !adapted[ir] {
+			t.Errorf("%s is not adapted", ir)
+		}
+	}
+	if bytecode.IsCallableBuiltin("::") {
+		t.Errorf(`"::" lowers to an opcode and must not count as a callable builtin`)
 	}
 }
