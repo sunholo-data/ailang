@@ -148,7 +148,7 @@ func processExec(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 	var confinedEnvironment []string
 	if pc.Confined {
 		var cdenial *ProcessDenial
-		resolvedPath, cmdArgs, confinedEnvironment, cdenial = pc.confine(cmdName, cmdArgs)
+		resolvedPath, cmdArgs, confinedEnvironment, cdenial = pc.confine(cmdName, cmdArgs, ctx.Env.Sandbox)
 		if cdenial != nil {
 			return makeProcessResultErr(cdenial.Ctor, cdenial.Detail), nil
 		}

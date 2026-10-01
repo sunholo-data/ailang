@@ -219,6 +219,14 @@ func Resolve(p *Policy, digest string) (*Resolved, error) {
 				entry, strings.Join(effects.ConfinedProcessEntries(), ", "), ModeTrustedHost)
 		}
 	}
+	// Confined git runs with cwd = the sandbox root and repository discovery
+	// bounded there (security audit 2026-10-01 F-A1). Without a sandbox the
+	// child would start at the executor's cwd and discover whatever repository
+	// encloses it, so restricted Process needs the root — and the root exists
+	// only when FS is admitted with fs_sandbox (Resolved.Root).
+	if mode == ModeRestricted && has("Process") && (!has("FS") || p.FSSandbox == "") {
+		return nil, fmt.Errorf("policy admits Process in restricted mode but sets no fs_sandbox — confined git runs at the sandbox root and never discovers a repository above it; admit FS with fs_sandbox (the clone root), or drop Process")
+	}
 	if has("AI") && p.AIProvider == "" {
 		return nil, fmt.Errorf("policy admits AI but sets no ai_provider — name the model (or \"stub\") or drop AI")
 	}

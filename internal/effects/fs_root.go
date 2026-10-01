@@ -148,7 +148,9 @@ func (ctx *EffContext) fsCheckMutation(path string) error {
 	rel := fsRelToRoot(ctx.Env.Sandbox, path)
 	if ctx.Env.ProtectGitDir {
 		for _, seg := range strings.Split(rel, "/") {
-			if seg == ".git" {
+			// Case-folded: on a case-insensitive filesystem (macOS APFS,
+			// the default) `.GIT/config` IS `.git/config`.
+			if strings.EqualFold(seg, ".git") {
 				return fmt.Errorf("E_FS_PROTECTED: %s is under .git, which is read-only in restricted mode", path)
 			}
 		}
