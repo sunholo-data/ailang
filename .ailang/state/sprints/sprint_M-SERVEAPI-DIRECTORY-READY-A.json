@@ -1,0 +1,135 @@
+{
+  "sprint_id": "M-SERVEAPI-DIRECTORY-READY-A",
+  "status": "not_started",
+  "created": "2026-10-01T14:19:51Z",
+  "design_doc": "design_docs/planned/v0_51_0/m-serveapi-directory-ready.md",
+  "sprint_plan": "design_docs/planned/v0_51_0/m-serveapi-directory-ready-sprint-plan.md",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Parser annotation cases + serve-api extraction are core Go; searched oauth, mcp auth, bearer, token verify, mcp check"
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Listed-surface projection is serve-api MCP registration (Go)"
+    },
+    {
+      "milestone": "M3",
+      "package": "sunholo/auth",
+      "action": "none",
+      "reason": "sunholo/auth@0.4.1 bearer extraction belongs inside a service's AILANG verifier; the gate is Go middleware before AILANG runs. sunholo/oauth@0.1.0 is an OAuth client, not an AS (revisit at L4)"
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "reason": "CLI subcommand under existing `ailang mcp` group"
+    },
+    {
+      "milestone": "M5",
+      "package": null,
+      "action": "none",
+      "reason": "Docs and example"
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 360,
+    "estimated_total_loc": 1850,
+    "estimated_days": 5
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Annotations @mcp_auth/@mcp_token_verifier/@mcp_secret/@mcp_agent_only: parse, fmt round-trip, ExportInfo extraction, registration-time ERROR rules",
+      "estimated_loc": 300,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Parser tests for each new annotation, valid and invalid",
+        "Formatter round-trip test fails when the formatter case is reverted",
+        "Each registration rule (secret not param/not @optional, oauth2 without issuer/verifier, >1 verifier, bad verifier signature) asserts tool absent + ERROR logged",
+        ".claude/rules/api-server.md documents @mcp_agent_only as the second sanctioned narrowing"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Listed surface /mcp/connect/: second MCP projection without @mcp_secret params or @mcp_agent_only tools; /mcp/ unchanged",
+      "estimated_loc": 350,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "/mcp/connect/ tools/list has no @mcp_secret params and no @mcp_agent_only tools",
+        "/mcp/ tools/list byte-identical for a module without the new annotations",
+        "serve_api_mcp_header_auth.ail example unchanged on /mcp/"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Lazy-auth gate on /mcp/connect/ only: --oauth-issuer, protected-resource metadata, 401 challenge, D7 fail-closed verifier via CallPrepared with 5s GoCtx deadline + semaphore; mcphttp parity via ToolDescriptor.Auth",
+      "estimated_loc": 550,
+      "dependencies": [
+        "M1",
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "httptest: gated tool no token -> 401 with resolvable resource_metadata; valid token -> 200; open tools -> 200",
+        "D7: verifier error/panic/6s sleep -> 503 within 5.5s, tool side-effect counter 0; mutation-tested",
+        "Semaphore saturation -> immediate 503, open tools still answer, goroutines bounded",
+        "/mcp/ gated tool with argument-carried key and no Bearer succeeds (agent regression)",
+        "mcphttp parity table test passes the same cases"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4",
+      "description": "ailang mcp check <url> --target anthropic: checks 1-5 citing sources A1-A6, --json, exit 1 on failure",
+      "estimated_loc": 500,
+      "dependencies": [
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "httptest fixture pass+fail per check",
+        "Against prod Parse /mcp/: reports apiKey credential params and missing 401 gate",
+        "Against M5 example on /mcp/connect/: checks 1-4 pass, check 5 WARN-skips (never passes) without an issuer",
+        "make check-cli-docs passes; CLI reference updated"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M5",
+      "description": "Example serve_api_mcp_oauth.ail, serve-api.md 'Listing in the directories', devtools prompts + embedded copies, changelog, design doc Phase A marked done",
+      "estimated_loc": 150,
+      "dependencies": [
+        "M3",
+        "M4"
+      ],
+      "acceptance_criteria": [
+        "Example passes ailang check and ailang mcp check 1-4",
+        "make ci-quick gates pass; apiserver, serveapi, parser, format, cmd/ailang tests green"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
