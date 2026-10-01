@@ -239,6 +239,9 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	if err := e.requireModel(task); err != nil {
 		return nil, err
 	}
+	if isLaneTask(task) {
+		return e.executeLane(ctx, task, handler)
+	}
 	if err := checkToolPolicy(task); err != nil {
 		return nil, err
 	}
