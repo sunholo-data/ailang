@@ -188,6 +188,17 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	if err := e.requireModel(task); err != nil {
 		return nil, err
 	}
+	if err := checkToolPolicy(task); err != nil {
+		return nil, err
+	}
+	res, err := e.executeStreaming(ctx, task, handler)
+	if res != nil {
+		res.ToolPolicy = effectiveToolPolicy()
+	}
+	return res, err
+}
+
+func (e *MotokoExecutor) executeStreaming(ctx context.Context, task *executor.Task, handler executor.EventHandler) (*executor.Result, error) {
 	// D1 (M-MOTOKO-FMT-REMEASUREMENT-INSTRUMENT §12.2): per-task resolved-
 	// provider credential refusal, at the choke point through which ALL motoko
 	// work passes. Runs STRICTLY DOWNSTREAM of repo discovery: the eval harness
