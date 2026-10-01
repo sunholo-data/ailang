@@ -36,7 +36,7 @@ func NewSimple() *SimpleEvaluator {
 			if len(args) != 1 {
 				return nil, fmt.Errorf("show expects exactly 1 argument, got %d", len(args))
 			}
-			return &StringValue{Value: showValue(args[0], 0)}, nil
+			return &StringValue{Value: Show(args[0])}, nil
 		},
 	})
 

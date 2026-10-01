@@ -23,7 +23,7 @@ func TestShow_AllEvalValueImplementationsHandled(t *testing.T) {
 	builtinsDir := filepath.Dir(thisFile)
 
 	valueTypes := evalValueImplementations(t, filepath.Join(builtinsDir, "..", "eval"))
-	handledTypes := showValueCases(t, filepath.Join(builtinsDir, "show.go"))
+	handledTypes := showValueCases(t, filepath.Join(builtinsDir, "..", "eval", "show.go"))
 
 	var unhandled []string
 	for _, name := range valueTypes {
@@ -31,7 +31,7 @@ func TestShow_AllEvalValueImplementationsHandled(t *testing.T) {
 			unhandled = append(unhandled, name)
 		}
 	}
-	require.Empty(t, unhandled, "inspectEvalShow must explicitly handle every eval.Value implementation")
+	require.Empty(t, unhandled, "eval.inspectShow must explicitly handle every eval.Value implementation")
 }
 
 func evalValueImplementations(t *testing.T, evalDir string) []string {
@@ -85,12 +85,12 @@ func showValueCases(t *testing.T, filename string) map[string]bool {
 	var showValue *ast.FuncDecl
 	for _, decl := range file.Decls {
 		fn, ok := decl.(*ast.FuncDecl)
-		if ok && fn.Name.Name == "inspectEvalShow" {
+		if ok && fn.Name.Name == "inspectShow" {
 			showValue = fn
 			break
 		}
 	}
-	require.NotNil(t, showValue, "inspectEvalShow declaration not found")
+	require.NotNil(t, showValue, "inspectShow declaration not found")
 	ast.Inspect(showValue.Body, func(node ast.Node) bool {
 		typeSwitch, ok := node.(*ast.TypeSwitchStmt)
 		if !ok {
@@ -103,9 +103,11 @@ func showValueCases(t *testing.T, filename string) map[string]bool {
 				if !ok {
 					continue
 				}
-				selector, ok := star.X.(*ast.SelectorExpr)
-				if ok {
-					handled[selector.Sel.Name] = true
+				switch x := star.X.(type) {
+				case *ast.SelectorExpr: // *eval.X
+					handled[x.Sel.Name] = true
+				case *ast.Ident: // *X, inside package eval
+					handled[x.Name] = true
 				}
 			}
 		}

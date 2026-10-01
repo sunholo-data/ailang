@@ -1,4 +1,4 @@
-package builtins
+package eval
 
 import (
 	"math"
@@ -7,11 +7,13 @@ import (
 	"strings"
 )
 
-// One renderer for `show`, shared by the evaluator (show.go) and the bytecode
-// VM (internal/vm). Each engine describes its own values as ShowNodes and
+// One renderer for `show`, shared by the `show` builtin (internal/builtins),
+// the REPL/simple evaluator environment (eval_typed_helpers.go, eval_simple.go)
+// and the bytecode VM (internal/vm). Each engine describes its own values as ShowNodes and
 // RenderShow makes every formatting decision: the depth limit, the 80-column
-// elision, float spelling, constructor syntax. Two hand-written renderers had
-// drifted apart: the VM printed ADTs as "<adt#0 6>" and never elided (#1453).
+// elision, float spelling, constructor syntax. Three hand-written renderers had
+// drifted apart: the VM printed ADTs as "<adt#0 6>" and never elided (#1453),
+// and the REPL quoted strings and spelled floats with %g.
 
 // ShowKind says how RenderShow lays out a node.
 type ShowKind uint8
@@ -46,8 +48,9 @@ type ShowNode struct {
 }
 
 const (
-	maxDepth      = 3
-	maxWidth      = 80
+	maxDepth = 3
+	// ShowMaxWidth is the column past which a rendered container is elided.
+	ShowMaxWidth  = 80
 	elisionPrefix = 20
 	elisionSuffix = 20
 )
@@ -133,10 +136,79 @@ func showSeq(items []any, child func(any) string, open, close string) string {
 	return truncateIfNeeded(open + strings.Join(parts, ", ") + close)
 }
 
-// truncateIfNeeded elides the middle of long strings to keep under maxWidth.
+// truncateIfNeeded elides the middle of long strings to keep under ShowMaxWidth.
 func truncateIfNeeded(s string) string {
-	if len(s) <= maxWidth || elisionPrefix+elisionSuffix+3 >= len(s) {
+	if len(s) <= ShowMaxWidth || elisionPrefix+elisionSuffix+3 >= len(s) {
 		return s
 	}
 	return s[:elisionPrefix] + "..." + s[len(s)-elisionSuffix:]
+}
+
+// Show renders v the way the `show` builtin does.
+func Show(v Value) string { return renderShow(v, 0, inspectShow) }
+
+// ShowAt renders v as if it were nested depth levels deep.
+func ShowAt(v Value, depth int) string { return renderShow(v, depth, inspectShow) }
+
+func showItems(vs []Value) []any {
+	out := make([]any, len(vs))
+	for i, x := range vs {
+		out[i] = x
+	}
+	return out
+}
+
+// inspectShow describes an evaluator value for RenderShow.
+func inspectShow(x any) ShowNode {
+	switch val := x.(type) {
+	case *IntValue:
+		return ShowNode{Text: strconv.Itoa(val.Value)}
+	case *FloatValue:
+		return ShowNode{Kind: ShowFloat, Float: val.Value}
+	case *BoolValue:
+		return ShowNode{Text: strconv.FormatBool(val.Value)}
+	case *StringValue:
+		return ShowNode{Text: val.Value} // identity for strings, no quotes
+	case *ListValue:
+		return ShowNode{Kind: ShowList, Items: showItems(val.Elements)}
+	case *ArrayValue:
+		return ShowNode{Kind: ShowArray, Items: showItems(val.Elements())}
+	case *TupleValue:
+		return ShowNode{Kind: ShowTuple, Items: showItems(val.Elements)}
+	case *MapValue:
+		keys := make([]string, 0, len(val.Entries))
+		for key := range val.Entries {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		items := make([]any, 0, 2*len(keys))
+		for _, key := range keys {
+			items = append(items, val.Entries[key].Key, val.Entries[key].Value)
+		}
+		return ShowNode{Kind: ShowMap, Items: items}
+	case *RecordValue:
+		names := make([]string, 0, len(val.Fields))
+		items := make([]any, 0, len(val.Fields))
+		for k, fv := range val.Fields {
+			names = append(names, k)
+			items = append(items, fv)
+		}
+		return ShowNode{Kind: ShowRecord, Names: names, Items: items}
+	case *TaggedValue:
+		return ShowNode{Kind: ShowCtor, Text: val.CtorName, Items: showItems(val.Fields)}
+	case *UnitValue:
+		return ShowNode{Text: "()"}
+	case *FunctionValue, *BuiltinFunction, *ConstructorClosure:
+		return ShowNode{Text: "<function>"}
+	case *BytesValue:
+		return ShowNode{Text: val.String()}
+	case *IndirectValue:
+		if val.Cell == nil || !val.Cell.Init || val.Cell.Val == nil {
+			return ShowNode{Text: "<uninitialized>"}
+		}
+		return ShowNode{Kind: ShowSame, Items: []any{val.Cell.Val}}
+	case *ErrorValue:
+		return ShowNode{Text: "Error: " + val.Message}
+	}
+	return ShowNode{Text: "<unknown>"}
 }

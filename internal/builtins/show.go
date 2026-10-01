@@ -2,8 +2,6 @@ package builtins
 
 import (
 	"fmt"
-	"sort"
-	"strconv"
 
 	"github.com/sunholo-data/ailang/internal/effects"
 	"github.com/sunholo-data/ailang/internal/eval"
@@ -67,72 +65,11 @@ func showImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
 	return &eval.StringValue{Value: showValue(val, 0)}, nil
 }
 
-// showValue renders an evaluator value through the shared show renderer
-// (show_render.go), which the bytecode VM uses too. depth > 0 renders v as if
-// nested that deep.
+// showValue renders v with the one shared show renderer (eval.Show), also
+// used by the bytecode VM and the REPL. depth > 0 renders v as if nested.
 func showValue(v eval.Value, depth int) string {
-	return renderShow(v, depth, inspectEvalShow)
+	return eval.ShowAt(v, depth)
 }
 
-func evalItems(vs []eval.Value) []any {
-	out := make([]any, len(vs))
-	for i, x := range vs {
-		out[i] = x
-	}
-	return out
-}
-
-// inspectEvalShow describes an evaluator value for RenderShow.
-func inspectEvalShow(x any) ShowNode {
-	switch val := x.(type) {
-	case *eval.IntValue:
-		return ShowNode{Text: strconv.Itoa(val.Value)}
-	case *eval.FloatValue:
-		return ShowNode{Kind: ShowFloat, Float: val.Value}
-	case *eval.BoolValue:
-		return ShowNode{Text: strconv.FormatBool(val.Value)}
-	case *eval.StringValue:
-		return ShowNode{Text: val.Value} // identity for strings, no quotes
-	case *eval.ListValue:
-		return ShowNode{Kind: ShowList, Items: evalItems(val.Elements)}
-	case *eval.ArrayValue:
-		return ShowNode{Kind: ShowArray, Items: evalItems(val.Elements())}
-	case *eval.TupleValue:
-		return ShowNode{Kind: ShowTuple, Items: evalItems(val.Elements)}
-	case *eval.MapValue:
-		keys := make([]string, 0, len(val.Entries))
-		for key := range val.Entries {
-			keys = append(keys, key)
-		}
-		sort.Strings(keys)
-		items := make([]any, 0, 2*len(keys))
-		for _, key := range keys {
-			items = append(items, val.Entries[key].Key, val.Entries[key].Value)
-		}
-		return ShowNode{Kind: ShowMap, Items: items}
-	case *eval.RecordValue:
-		names := make([]string, 0, len(val.Fields))
-		items := make([]any, 0, len(val.Fields))
-		for k, fv := range val.Fields {
-			names = append(names, k)
-			items = append(items, fv)
-		}
-		return ShowNode{Kind: ShowRecord, Names: names, Items: items}
-	case *eval.TaggedValue:
-		return ShowNode{Kind: ShowCtor, Text: val.CtorName, Items: evalItems(val.Fields)}
-	case *eval.UnitValue:
-		return ShowNode{Text: "()"}
-	case *eval.FunctionValue, *eval.BuiltinFunction, *eval.ConstructorClosure:
-		return ShowNode{Text: "<function>"}
-	case *eval.BytesValue:
-		return ShowNode{Text: val.String()}
-	case *eval.IndirectValue:
-		if val.Cell == nil || !val.Cell.Init || val.Cell.Val == nil {
-			return ShowNode{Text: "<uninitialized>"}
-		}
-		return ShowNode{Kind: ShowSame, Items: []any{val.Cell.Val}}
-	case *eval.ErrorValue:
-		return ShowNode{Text: "Error: " + val.Message}
-	}
-	return ShowNode{Text: "<unknown>"}
-}
+// maxWidth is the elision column, kept for this package's tests.
+const maxWidth = eval.ShowMaxWidth

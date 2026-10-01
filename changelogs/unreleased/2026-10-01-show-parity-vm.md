@@ -13,3 +13,7 @@
   hand VM ADTs to the evaluator, since they carry no type.
 - `TestShowParityVMvsInterpreter` runs 13 entries on both engines (strict VM). Against the previous binary,
   at least 8 of them differ (those 8 were checked).
+- **REPL `show` too.** The REPL/simple-evaluator environment had a third `show` (and `toText`) that quoted
+  strings and spelled floats with `%g`: `show({a: "x"})` was `{a: "x"}` in the REPL but `{a: x}` under
+  `ailang run`. The renderer now lives in `internal/eval` (`eval.Show`) and every path uses it; the legacy
+  copy and the tests that pinned its output are gone.

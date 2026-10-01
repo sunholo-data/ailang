@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/sunholo-data/ailang/internal/builtins"
 	"github.com/sunholo-data/ailang/internal/bytecode"
 	"github.com/sunholo-data/ailang/internal/eval"
 )
@@ -235,9 +234,9 @@ func builtinShow(args []bytecode.Value) (bytecode.Value, error) {
 }
 
 // showValue renders a VM value through the evaluator's show renderer
-// (builtins.RenderShow), so `show` is byte-identical on both engines (#1453).
+// (eval.RenderShow), so `show` is byte-identical on both engines (#1453).
 func showValue(v bytecode.Value) string {
-	return builtins.RenderShow(v, inspectVMShow)
+	return eval.RenderShow(v, inspectVMShow)
 }
 
 func vmItems(vs []bytecode.Value) []any {
@@ -248,31 +247,31 @@ func vmItems(vs []bytecode.Value) []any {
 	return out
 }
 
-// inspectVMShow describes a VM value for builtins.RenderShow.
-func inspectVMShow(x any) builtins.ShowNode {
+// inspectVMShow describes a VM value for eval.RenderShow.
+func inspectVMShow(x any) eval.ShowNode {
 	v := x.(bytecode.Value)
 	switch v.Tag {
 	case bytecode.TagInt:
-		return builtins.ShowNode{Text: strconv.FormatInt(v.Int, 10)}
+		return eval.ShowNode{Text: strconv.FormatInt(v.Int, 10)}
 	case bytecode.TagFloat:
-		return builtins.ShowNode{Kind: builtins.ShowFloat, Float: v.Flt}
+		return eval.ShowNode{Kind: eval.ShowFloat, Float: v.Flt}
 	case bytecode.TagBool:
-		return builtins.ShowNode{Text: strconv.FormatBool(v.Bool)}
+		return eval.ShowNode{Text: strconv.FormatBool(v.Bool)}
 	case bytecode.TagString:
-		return builtins.ShowNode{Text: v.AsString()}
+		return eval.ShowNode{Text: v.AsString()}
 	case bytecode.TagUnit:
-		return builtins.ShowNode{Text: "()"}
+		return eval.ShowNode{Text: "()"}
 	case bytecode.TagList:
-		return builtins.ShowNode{Kind: builtins.ShowList, Items: vmItems(v.AsList())}
+		return eval.ShowNode{Kind: eval.ShowList, Items: vmItems(v.AsList())}
 	case bytecode.TagArray:
 		a := v.AsArray()
 		items := make([]any, a.Len())
 		for i := range items {
 			items[i] = a.At(i)
 		}
-		return builtins.ShowNode{Kind: builtins.ShowArray, Items: items}
+		return eval.ShowNode{Kind: eval.ShowArray, Items: items}
 	case bytecode.TagTuple:
-		return builtins.ShowNode{Kind: builtins.ShowTuple, Items: vmItems(v.AsTuple())}
+		return eval.ShowNode{Kind: eval.ShowTuple, Items: vmItems(v.AsTuple())}
 	case bytecode.TagRecord:
 		fields := v.AsRecord()
 		names := make([]string, len(fields))
@@ -280,22 +279,22 @@ func inspectVMShow(x any) builtins.ShowNode {
 		for i, f := range fields {
 			names[i], items[i] = f.Name, f.Value
 		}
-		return builtins.ShowNode{Kind: builtins.ShowRecord, Names: names, Items: items}
+		return eval.ShowNode{Kind: eval.ShowRecord, Names: names, Items: items}
 	case bytecode.TagBytes:
 		b := v.AsBytes()
-		return builtins.ShowNode{Text: (&eval.BytesValue{Value: b.B, Filename: b.Filename, MimeType: b.MimeType}).String()}
+		return eval.ShowNode{Text: (&eval.BytesValue{Value: b.B, Filename: b.Filename, MimeType: b.MimeType}).String()}
 	case bytecode.TagADT:
 		a := v.AsADT()
 		if a.Ctor == "" {
 			// Every ADT the VM builds carries its name; an unnamed one is a
 			// construction-site bug, so show it as such rather than guess.
-			return builtins.ShowNode{Text: v.String()}
+			return eval.ShowNode{Text: v.String()}
 		}
-		return builtins.ShowNode{Kind: builtins.ShowCtor, Text: a.Ctor, Items: vmItems(a.Fields)}
+		return eval.ShowNode{Kind: eval.ShowCtor, Text: a.Ctor, Items: vmItems(a.Fields)}
 	case bytecode.TagClosure:
-		return builtins.ShowNode{Text: "<function>"}
+		return eval.ShowNode{Text: "<function>"}
 	}
-	return builtins.ShowNode{Text: fmt.Sprintf("<%s>", v.Tag)}
+	return eval.ShowNode{Text: fmt.Sprintf("<%s>", v.Tag)}
 }
 
 // builtinLen returns the length of a list, tuple, string, or record.
