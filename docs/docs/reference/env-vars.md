@@ -207,7 +207,7 @@ comes from the fallback the description names. The `DEBUG_*` compiler knobs are 
 | `AILANG_EXECUTOR` | — | Executor name that overrides the config file's default_executor. |
 | `AILANG_MOTOKO_AGENT_SYSTEM_FILE` | — | File whose content becomes motoko's system-role prompt for an A/B, keeping the teaching in the user message. |
 | `AILANG_MOTOKO_SYSTEM_ROLE` | `1` | 0 stops motoko receiving the teaching prompt in the system role (the default sends it there; reverting to gated is a known regression). |
-| `CLAUDE_CONFIG_DIR` | — | Claude Code's config dir; when set the executor also writes credentials there, and the cloud job reads session JSONL from it. |
+| `CLAUDE_CONFIG_DIR` | — | Claude Code's config dir; when set the executor also writes credentials there (never under /artifacts). The cloud job sets it to a local per-task dir whose projects/ links to the artifacts bucket. |
 | `MOTOKO_REPO` | — | motoko_agent checkout whose .motoko/logfile holds session JSONL; MOTOKO.md says which one evals use. |
 
 ## Provider credentials

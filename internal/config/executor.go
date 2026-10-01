@@ -13,7 +13,7 @@ const (
 var executorVars = []Var{
 	{EnvExecutor, "", AreaExecutor, "Executor name that overrides the config file's default_executor."},
 	{EnvAuthMode, "", AreaExecutor, "apikey makes the claude executor use ANTHROPIC_API_KEY (billed); anything else writes the OAuth credentials file from CLAUDE_CODE_OAUTH_TOKEN (subscription)."},
-	{EnvClaudeConfigDir, "", AreaExecutor, "Claude Code's config dir; when set the executor also writes credentials there, and the cloud job reads session JSONL from it."},
+	{EnvClaudeConfigDir, "", AreaExecutor, "Claude Code's config dir; when set the executor also writes credentials there (never under /artifacts). The cloud job sets it to a local per-task dir whose projects/ links to the artifacts bucket."},
 	{EnvMotokoRepo, "", AreaExecutor, "motoko_agent checkout whose .motoko/logfile holds session JSONL; MOTOKO.md says which one evals use."},
 	{EnvMotokoSystemRole, "1", AreaExecutor, "0 stops motoko receiving the teaching prompt in the system role (the default sends it there; reverting to gated is a known regression)."},
 	{EnvMotokoAgentSystemFile, "", AreaExecutor, "File whose content becomes motoko's system-role prompt for an A/B, keeping the teaching in the user message."},
