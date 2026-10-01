@@ -22,7 +22,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/config"
@@ -110,35 +112,70 @@ func anthropicOAuthToken(ctx context.Context) string {
 	}
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	out, err := exec.CommandContext(ctx, "security", "find-generic-password",
+	keychain, _ := exec.CommandContext(ctx, "security", "find-generic-password",
 		"-s", anthropicKeychainService, "-w").Output()
+	var file []byte
+	if p := anthropicCredentialsFile(); p != "" {
+		file, _ = os.ReadFile(p)
+	}
+	token, expiry := freshestClaudeCredential(keychain, file)
+	// Record the stored token's expiry so a STALE credential can be named as
+	// such. Claude Code refreshes its access token in memory and does not write
+	// the fresh one back here, so this blob goes stale while the app keeps
+	// working — which is exactly how the fleet ended up reading a week-old
+	// token, getting HTTP 401, and reporting the bucket as unmeasurable.
+	//
+	// Measured 2026-09-22: expiresAt was 2026-09-15, seven days earlier, while
+	// the neighbouring refreshToken was valid for another fourteen. Anthropic
+	// sat at ~89% free and three World iterations were routed away from it.
+	//
+	// So the reader also reads ~/.claude/.credentials.json, which the CLI DOES keep fresh, and
+	// takes whichever token expires later. Measured 2026-10-01: keychain token stale, file token
+	// valid for hours; with only the keychain read, the HTTP call 401'd, the `claude -p /usage`
+	// fallback took 178s against its 30s cut, and Anthropic read "unknown" on every fire.
+	lastKeychainExpiry = expiry
+	return token
+}
+
+// anthropicCredentialsFile is the file Claude Code keeps its OAuth credential in alongside
+// (or instead of) the keychain. A var so tests can point it at a fixture.
+var anthropicCredentialsFile = func() string {
+	home, err := os.UserHomeDir()
 	if err != nil {
 		return ""
 	}
-	var cred struct {
-		ClaudeAIOauth struct {
+	return filepath.Join(home, ".claude", ".credentials.json")
+}
+
+// freshestClaudeCredential parses Claude Code credential blobs (keychain, file) and returns
+// the access token with the LATEST expiry, plus that expiry (0 when unknown). Unparsable or
+// empty blobs are skipped; a blanked record (empty token) never wins.
+func freshestClaudeCredential(blobs ...[]byte) (string, int64) {
+	var best string
+	var bestExp int64
+	for _, b := range blobs {
+		var cred struct {
+			ClaudeAIOauth struct {
+				AccessToken string `json:"accessToken"`
+				ExpiresAt   int64  `json:"expiresAt"`
+			} `json:"claudeAiOauth"`
 			AccessToken string `json:"accessToken"`
-			ExpiresAt   int64  `json:"expiresAt"`
-		} `json:"claudeAiOauth"`
-		AccessToken string `json:"accessToken"`
+		}
+		if len(b) == 0 || json.Unmarshal(b, &cred) != nil {
+			continue
+		}
+		tok, exp := cred.ClaudeAIOauth.AccessToken, cred.ClaudeAIOauth.ExpiresAt
+		if tok == "" {
+			tok, exp = cred.AccessToken, 0
+		}
+		if tok == "" {
+			continue
+		}
+		if best == "" || exp > bestExp {
+			best, bestExp = tok, exp
+		}
 	}
-	if json.Unmarshal(out, &cred) != nil {
-		return ""
-	}
-	if cred.ClaudeAIOauth.AccessToken != "" {
-		// Record the stored token's expiry so a STALE credential can be named as
-		// such. Claude Code refreshes its access token in memory and does not write
-		// the fresh one back here, so this blob goes stale while the app keeps
-		// working — which is exactly how the fleet ended up reading a week-old
-		// token, getting HTTP 401, and reporting the bucket as unmeasurable.
-		//
-		// Measured 2026-09-22: expiresAt was 2026-09-15, seven days earlier, while
-		// the neighbouring refreshToken was valid for another fourteen. Anthropic
-		// sat at ~89% free and three World iterations were routed away from it.
-		lastKeychainExpiry = cred.ClaudeAIOauth.ExpiresAt
-		return cred.ClaudeAIOauth.AccessToken
-	}
-	return cred.AccessToken
+	return best, bestExp
 }
 
 // lastKeychainExpiry is the expiry (unix millis) of the access token most
