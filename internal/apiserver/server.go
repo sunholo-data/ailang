@@ -84,6 +84,7 @@ type Server struct {
 	apiKeyEnv      string              // env var containing expected API key
 	effCtx         *effects.EffContext // for Debug output collection
 	logLevel       int                 // minimum severity for Debug output
+	oauthIssuer    string              // --oauth-issuer: required by @mcp_auth("oauth2") tools
 	routesOnly     bool                // only expose @route-annotated functions
 	noFeedbackTool bool                // suppress the built-in submit_feedback MCP tool
 	ws             *wsState            // WebSocket route sessions (routes_ws.go)
@@ -155,12 +156,20 @@ type ExportInfo struct {
 	MCPTitle    string   `json:"mcp_title,omitempty"`    // @mcp_title annotation: MCP display title
 	MCPHints    []string `json:"mcp_hints,omitempty"`    // @mcp_hints annotation: MCP behaviour hints (validated at registration)
 	HasMCPHints bool     `json:"-"`                      // @mcp_hints present (an empty list is still a declaration)
-	Optional    []string `json:"optional,omitempty"`     // @optional annotation: params not required on MCP (absent/null → zero value)
-	DocComment  string   `json:"doc_comment,omitempty"`  // doc comment (-- lines) preceding the function
-	IsWS        bool     `json:"is_ws,omitempty"`        // @route("WS", ...): a WebSocket route, off every HTTP/MCP/A2A surface
-	Effects     []string `json:"-"`                      // declared effect row (WS registration check)
-	WSReq       []string `json:"-"`                      // WS routes: the declared req record fields, sorted
-	WSReqIssue  string   `json:"-"`                      // WS routes: why the declared req record is refused ("" = accepted)
+	MCPAuth     string   `json:"mcp_auth,omitempty"`     // @mcp_auth: "oauth2" gates the tool on the listed surface; "" / "noauth" = open
+	MCPSecret   []string `json:"-"`                      // @mcp_secret: params dropped (zero-bound) on the listed surface
+	IsAgentOnly bool     `json:"-"`                      // @mcp_agent_only: absent from the listed surface
+	// @mcp_token_verifier: the server's one Bearer-token verifier. Never a
+	// tool (IsNoMCP) and, without @route, never an HTTP endpoint (IsNoExpose):
+	// exposed, it would be a token-guessing oracle.
+	IsTokenVerifier bool     `json:"-"`
+	VerifierSigOK   bool     `json:"-"`                     // declared signature is exactly (string) -> bool
+	Optional        []string `json:"optional,omitempty"`    // @optional annotation: params not required on MCP (absent/null → zero value)
+	DocComment      string   `json:"doc_comment,omitempty"` // doc comment (-- lines) preceding the function
+	IsWS            bool     `json:"is_ws,omitempty"`       // @route("WS", ...): a WebSocket route, off every HTTP/MCP/A2A surface
+	Effects         []string `json:"-"`                     // declared effect row (WS registration check)
+	WSReq           []string `json:"-"`                     // WS routes: the declared req record fields, sorted
+	WSReqIssue      string   `json:"-"`                     // WS routes: why the declared req record is refused ("" = accepted)
 }
 
 // Config holds configuration for the API server.
@@ -189,6 +198,10 @@ type Config struct {
 	// StaticCache is the Cache-Control value set on --static 2xx/304
 	// responses; build it with ParseStaticCache. "" sets none.
 	StaticCache string
+	// OAuthIssuer is the authorization server named in the listed MCP
+	// surface's protected-resource metadata (--oauth-issuer). Required for
+	// any @mcp_auth("oauth2") tool. M-SERVEAPI-DIRECTORY-READY.
+	OAuthIssuer string
 }
 
 // New creates a new API server.
@@ -263,6 +276,7 @@ func New(basePath string, cfg Config) *Server {
 		effCtx:             storedEffCtx,
 		logLevel:           cfg.LogLevel,
 		routesOnly:         cfg.RoutesOnly,
+		oauthIssuer:        cfg.OAuthIssuer,
 		noFeedbackTool:     cfg.NoFeedbackTool,
 		ws:                 newWSState(cfg.WS),
 		noIntrospection:    cfg.NoIntrospection,

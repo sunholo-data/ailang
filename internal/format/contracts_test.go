@@ -202,3 +202,15 @@ func TestMCPAnnotationsRoundTrip(t *testing.T) {
 		}
 	}
 }
+
+// M-SERVEAPI-DIRECTORY-READY M1: the listed-surface annotations round-trip
+// (string args as written; the two parameterless ones stay bare).
+func TestMCPDirectoryAnnotationsRoundTrip(t *testing.T) {
+	src := "module m\n@mcp_auth(\"oauth2\")\n@mcp_secret(\"apiKey\")\n@mcp_agent_only\n@optional(\"apiKey\")\nexport func f(apiKey: string) -> string ! {IO} {\n  apiKey\n}\n\n@mcp_token_verifier\nexport func v(token: string) -> bool ! {IO} {\n  true\n}\n"
+	out := assertIdempotentAndRoundTrips(t, src, "test://mcp_directory_annotations")
+	for _, want := range []string{"@mcp_auth(\"oauth2\")", "@mcp_secret(\"apiKey\")", "@mcp_agent_only\n", "@mcp_token_verifier\n"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output missing %q:\n%s", want, out)
+		}
+	}
+}

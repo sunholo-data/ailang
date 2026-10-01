@@ -239,6 +239,8 @@ func extractMCPToolMetaAnnotations(modInfo *ModuleInfo, file *ast.File) {
 	for _, fn := range file.Funcs {
 		title := fn.GetAnnotation("mcp_title")
 		hints := fn.GetAnnotation("mcp_hints")
+		auth := fn.GetAnnotation("mcp_auth")
+		secret := fn.GetAnnotation("mcp_secret")
 		for i := range modInfo.Exports {
 			if modInfo.Exports[i].Name != fn.Name {
 				continue
@@ -252,6 +254,25 @@ func extractMCPToolMetaAnnotations(modInfo *ModuleInfo, file *ast.File) {
 			if hints != nil {
 				modInfo.Exports[i].MCPHints = stringLitArgs(hints)
 				modInfo.Exports[i].HasMCPHints = true
+			}
+			if auth != nil {
+				if v := stringLitArgs(auth); len(v) == 1 {
+					modInfo.Exports[i].MCPAuth = v[0]
+				}
+			}
+			if secret != nil {
+				modInfo.Exports[i].MCPSecret = stringLitArgs(secret)
+			}
+			modInfo.Exports[i].IsAgentOnly = fn.GetAnnotation("mcp_agent_only") != nil
+			if fn.GetAnnotation("mcp_token_verifier") != nil {
+				e := &modInfo.Exports[i]
+				e.IsTokenVerifier = true
+				e.IsNoMCP = true
+				if e.RoutePath == "" {
+					e.IsNoExpose = true
+				}
+				e.VerifierSigOK = len(fn.Params) == 1 && paramTypeToString(fn.Params[0].Type) == "string" &&
+					fn.ReturnType != nil && paramTypeToString(fn.ReturnType) == "bool"
 			}
 			break
 		}

@@ -19,6 +19,9 @@ type MCPServer struct {
 	server     *Server
 	mcpServer  *mcp.Server
 	feedbackRL *IPRateLimiter // nil = disabled; only applied to submit_feedback
+	// verifier is the @mcp_token_verifier function gated tools are checked
+	// with (nil when there is none). M-SERVEAPI-DIRECTORY-READY.
+	verifier *tokenVerifier
 }
 
 func mcpError(msg string) *mcp.CallToolResult {
@@ -99,6 +102,12 @@ func (ms *MCPServer) registerTools() {
 			modules[info.Path] = info
 		}
 	}
+	verifier, verifierErr := resolveTokenVerifier(modules)
+	if verifierErr != nil {
+		log.Printf("  ERROR: %v", verifierErr)
+	}
+	ms.verifier = verifier
+
 	// Phase 1: dedup by name+type across modules (handles package-loaded duplicates).
 	type toolCandidate struct {
 		modPath string
@@ -202,6 +211,11 @@ func (ms *MCPServer) registerTools() {
 		if err := validateOptionalParams(export); err != nil {
 			// Same posture as an invalid @mcp_name: an author bug, surfaced
 			// at registration rather than as a crash on the first call.
+			log.Printf("  ERROR: skipping MCP tool registration for %s/%s: %v", c.modPath, export.Name, err)
+			continue
+		}
+
+		if err := validateMCPAuth(export, ms.server.oauthIssuer, verifier, verifierErr); err != nil {
 			log.Printf("  ERROR: skipping MCP tool registration for %s/%s: %v", c.modPath, export.Name, err)
 			continue
 		}

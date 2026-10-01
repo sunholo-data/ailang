@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-SERVEAPI-DIRECTORY-READY-A",
-  "status": "not_started",
+  "status": "in_progress",
   "created": "2026-10-01T14:19:51Z",
   "design_doc": "design_docs/planned/v0_51_0/m-serveapi-directory-ready.md",
   "sprint_plan": "design_docs/planned/v0_51_0/m-serveapi-directory-ready-sprint-plan.md",
@@ -54,10 +54,10 @@
         "Each registration rule (secret not param/not @optional, oauth2 without issuer/verifier, >1 verifier, bad verifier signature) asserts tool absent + ERROR logged",
         ".claude/rules/api-server.md documents @mcp_agent_only as the second sanctioned narrowing"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-01T14:28:55+00:00",
+      "completed": "2026-10-01T14:28:55+00:00",
+      "notes": "Parser (4 annotations), extraction, registration rules in internal/apiserver/mcp_auth.go (resolveTokenVerifier, validateMCPAuth, validateSecretParams), Config.OAuthIssuer (flag wiring in M3). Verifier implicitly @nomcp + @noexpose (token-oracle guard). Tests: parser, fmt round-trip, 8 e2e registration cases; mutation-tested (rules off -> 7 fail; verifier REST-exposed -> fail). Formatter needed no change (generic printing round-trips), so 'fails when formatter case reverted' is N/A. api-server rule updated. Parser MCP tests moved to mcp_attr_test.go (800-line gate)."
     },
     {
       "id": "M2",

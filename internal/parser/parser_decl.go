@@ -22,7 +22,7 @@ func (p *Parser) parseAnnotation() *ast.Annotation {
 	if !p.curTokenIs(lexer.IDENT) {
 		p.report("PAR_INVALID_ATTRIBUTE",
 			fmt.Sprintf("expected annotation name after '@', got '%s'", p.curToken.Literal),
-			"Use @verify(depth: N), @route(\"METHOD\", \"/path\"), @mcp_name(\"name\"), @mcp_title(\"Title\"), @mcp_hints(\"readOnly\", ...), @optional(\"param\"), @raw, @nowrap, @noexpose, or @nomcp")
+			"Use @verify(depth: N), @route(\"METHOD\", \"/path\"), @mcp_name(\"name\"), @mcp_title(\"Title\"), @mcp_hints(\"readOnly\", ...), @mcp_auth(\"oauth2\"), @mcp_secret(\"param\"), @mcp_token_verifier, @mcp_agent_only, @optional(\"param\"), @raw, @nowrap, @noexpose, or @nomcp")
 		return nil
 	}
 
@@ -61,10 +61,25 @@ func (p *Parser) parseAnnotation() *ast.Annotation {
 		// @nomcp is a parameterless annotation — hide from the MCP tool surface
 		// only (HTTP, OpenAPI, and A2A remain unaffected).
 		return &ast.Annotation{Name: "nomcp", Pos: pos}
+	case "mcp_auth":
+		return p.parseStringListAnnotation(pos, "mcp_auth", 1, 1,
+			"PAR_MCP_AUTH_ARG", "@mcp_auth expects one string literal: \"oauth2\" or \"noauth\"",
+			"Use @mcp_auth(\"oauth2\") to gate a tool behind OAuth on the listed MCP surface")
+	case "mcp_secret":
+		return p.parseStringListAnnotation(pos, "mcp_secret", 1, -1,
+			"PAR_MCP_SECRET_ARG", "@mcp_secret expects one or more string-literal parameter names",
+			"Use @mcp_secret(\"apiKey\") (the param must also be @optional)")
+	case "mcp_token_verifier":
+		// Parameterless: marks the one (string) -> bool function serve-api calls
+		// to verify a Bearer token before an @mcp_auth("oauth2") tool runs.
+		return &ast.Annotation{Name: "mcp_token_verifier", Pos: pos}
+	case "mcp_agent_only":
+		// Parameterless: served on /mcp/ but absent from the listed surface.
+		return &ast.Annotation{Name: "mcp_agent_only", Pos: pos}
 	default:
 		p.report("PAR_UNKNOWN_ATTRIBUTE",
-			fmt.Sprintf("unknown attribute '@%s'; supported: @verify, @route, @mcp_name, @mcp_title, @mcp_hints, @optional, @allow_empty_ok, @raw, @nowrap, @noexpose, @nomcp", name),
-			"Use @verify(depth: N), @route(\"METHOD\", \"/path\"), @mcp_name(\"name\"), @mcp_title(\"Title\"), @mcp_hints(\"readOnly\", ...), @optional(\"param\", ...), @allow_empty_ok(\"rationale\"), @raw, @nowrap, @noexpose, or @nomcp")
+			fmt.Sprintf("unknown attribute '@%s'; supported: @verify, @route, @mcp_name, @mcp_title, @mcp_hints, @mcp_auth, @mcp_secret, @mcp_token_verifier, @mcp_agent_only, @optional, @allow_empty_ok, @raw, @nowrap, @noexpose, @nomcp", name),
+			"Use @verify(depth: N), @route(\"METHOD\", \"/path\"), @mcp_name(\"name\"), @mcp_title(\"Title\"), @mcp_hints(\"readOnly\", ...), @mcp_auth(\"oauth2\"), @mcp_secret(\"param\"), @mcp_token_verifier, @mcp_agent_only, @optional(\"param\", ...), @allow_empty_ok(\"rationale\"), @raw, @nowrap, @noexpose, or @nomcp")
 		return nil
 	}
 }

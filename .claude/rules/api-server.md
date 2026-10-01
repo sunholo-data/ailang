@@ -9,7 +9,7 @@ paths:
 
 ## Annotation Sync: Runtime + Parser
 
-When adding or modifying annotations (e.g., `@route`, `@raw`, `@nowrap`, `@noexpose`, `@mcp_name`), you MUST update BOTH:
+When adding or modifying annotations (e.g., `@route`, `@raw`, `@nowrap`, `@noexpose`, `@mcp_name`, `@mcp_auth`), you MUST update BOTH:
 
 1. **Runtime** (`internal/apiserver/`) — annotation checking, filtering, behavior
 2. **Parser** (`internal/parser/parser_decl.go`) — annotation whitelist in `parseAnnotation()` switch statement
@@ -37,10 +37,18 @@ loaded-export gateway in `internal/apiserver`; `CallerSurface` remains the
 embedded-callback membership path. Discovery and invocation must consume the
 same authorized surface rather than reconstructing authority.
 
-`@nomcp` is the single sanctioned protocol-scoped narrowing: it is applied by the
-MCP projection only, after membership has been decided. It must remain visible to
-HTTP dispatch, OpenAPI, and A2A. Protocol consumers must not add any other
-authority filtering or fold `@nomcp` into the shared membership gateway.
+Two narrowings are sanctioned, and both are applied by an MCP projection only,
+after membership has been decided:
+- `@nomcp` hides a tool from every MCP surface. It must remain visible to HTTP
+  dispatch, OpenAPI, and A2A.
+- `@mcp_agent_only` hides a tool from the **listed** surface (`/mcp/connect/`) and
+  leaves it on `/mcp/`. M-SERVEAPI-DIRECTORY-READY.
+
+`@mcp_secret` is not a narrowing: it reshapes the schema (the param is dropped and
+zero-bound) on the listed surface only. Protocol consumers must not add any other
+authority filtering or fold either narrowing into the shared membership gateway.
+`@mcp_token_verifier` exports are never tools, and without `@route` they are never
+HTTP endpoints either, because exposed they would be a token-guessing oracle.
 
 ## Request Headers in @route
 

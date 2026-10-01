@@ -48,7 +48,7 @@ exchange), not an authorization server. Re-check it at L4 as a possible `contrib
 
 ## Proposed Milestones
 
-### M1: Annotations and registration rules (~150 impl + ~150 tests)
+### M1: Annotations and registration rules (~150 impl + ~150 tests) ✅
 
 **Goal:** `@mcp_auth("oauth2"|"noauth")`, `@mcp_token_verifier`, `@mcp_secret("p", …)` and
 `@mcp_agent_only` parse, format, are extracted into `ExportInfo`, and are validated at
@@ -69,10 +69,10 @@ registration.
   - a verifier whose signature is not `(string) -> bool`.
 
 **Acceptance criteria:**
-- [ ] Parser tests for every new annotation, valid and invalid.
-- [ ] Formatter round-trip test, which fails when the formatter case is reverted.
-- [ ] Every registration rule has a test that asserts the tool is absent and an ERROR is logged.
-- [ ] `.claude/rules/api-server.md`: `@mcp_agent_only` is documented as the second sanctioned
+- [x] Parser tests for every new annotation, valid and invalid.
+- [x] Formatter round-trip test. N/A part: no formatter case was needed, because generic printing round-trips.
+- [x] Every registration rule has a test that asserts the tool is absent and an ERROR is logged.
+- [x] `.claude/rules/api-server.md`: `@mcp_agent_only` is documented as the second sanctioned
   projection-scoped narrowing (Conflict Surface item 5).
 
 ### M2: Listed surface `/mcp/connect/` (~200 impl + ~150 tests)
