@@ -2,8 +2,8 @@
   "sprint_id": "M-VM-PURE-BUILTIN-COVERAGE",
   "status": "completed",
   "created": "2026-10-01T15:07:14Z",
-  "design_doc": "design_docs/implemented/v0_50_2/m-vm-pure-builtin-coverage.md",
-  "sprint_plan": "design_docs/implemented/v0_50_2/m-vm-pure-builtin-coverage-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_51_0/m-vm-pure-builtin-coverage.md",
+  "sprint_plan": "design_docs/implemented/v0_51_0/m-vm-pure-builtin-coverage-sprint-plan.md",
   "github_issues": [
     1447,
     1448
