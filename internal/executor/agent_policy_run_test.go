@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/policy"
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 // isolatedHome points HOME at a temp dir and, on cleanup, makes the 0555
@@ -14,7 +15,7 @@ import (
 func isolatedHome(t *testing.T) {
 	t.Helper()
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	testutil.SetHomeDir(t, home)
 	t.Cleanup(func() {
 		_ = filepath.Walk(home, func(p string, info os.FileInfo, err error) error {
 			if err == nil && info.IsDir() {
