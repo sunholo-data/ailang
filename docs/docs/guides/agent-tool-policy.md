@@ -64,11 +64,19 @@ read-only subcommands carry flags that reach outside the clone (`--no-index`, `-
 confined adapter (`internal/effects/process_confined.go`): the argv is **built** from a
 per-subcommand schema (only the admitted flags; revs must look like revs; pathspecs stay inside the
 clone), the invocation is hardened (git by absolute path, cwd = sandbox root, the caller's `GIT_*`
-stripped, global/system config disabled, `-c core.fsmonitor=false -c core.hooksPath=/dev/null -c
-core.pager=cat -c diff.external=`, `--no-optional-locks`), and **`.git/` is read-only** to the
+stripped, global/system config disabled, `-c core.fsmonitor=false -c
+core.hooksPath=/dev/null/ailang-hooks-disabled -c core.pager=cat -c diff.external= -c
+safe.bareRepository=explicit`, `--no-ext-diff --no-textconv` on diff/log, `--no-optional-locks`),
+and **`.git/` is read-only** (case-folded: `.GIT/` too, for case-insensitive filesystems) to the
 program's FS effect and to the lane's tools — the repo config is the launcher's clone config and
-nothing else. Confined mode is `exec`-only (`spawnProcess`/`asyncExecProcess` are refused). Any
-other `process_allow` entry (`git:push`, `git:*`, `sh`, `gh:…`) is refused at startup by name.
+nothing else. Repository discovery is **bounded at the sandbox**: `GIT_CEILING_DIRECTORIES` is
+the sandbox's parent, so a `.git` at the sandbox root (the clone-root case) is found but git never
+walks up into an enclosing repository — a sandbox that is a repo subdirectory gets `not a git
+repository`, and `git diff` there is refused outright (outside a repository it would compare
+arbitrary paths). Restricted `Process` therefore requires `FS` with `fs_sandbox` (the clone root);
+a policy without one is refused at resolution. Confined mode is `exec`-only
+(`spawnProcess`/`asyncExecProcess` are refused). Any other `process_allow` entry (`git:push`,
+`git:*`, `sh`, `gh:…`) is refused at startup by name.
 
 **AI in restricted mode.** The AI effect's destination is the operator's (`ai_provider` pins the
 registry entry; `--ai`/`--routing-*` are refused) and the program cannot read the credential (no
