@@ -10,7 +10,7 @@ Snapshot: iteration 11 — 2026-10-01. History: [charter](fleet-mission.md), [lo
 - Resume: declared evaluator accepted; revised both-mirror design plus rc19 and guard scope; fresh quorum and normal plan/execute gates.
 - Inherited three untracked heartbeat design/plan/JSON files left untouched in pin.
 - Banked next: rotate-log pair under D-FLEET-9 A; runner pre-dirty half.
-- Open ticket signatures: 19 at Gate 1. Clause 1 unmeasured; 2 at risk; 3–4 met; 5 preserved by shipping nothing.
+- Open ticket signatures: 25 at Gate 5 (fresh JSON enumeration; Gate-1 list length was not banked). Clause 1 unmeasured; 2 at risk; 3–4 met; 5 preserved by shipping nothing.
 - Dev: Windows policy-workspace red already followed by b9813dd fix; no HEAD-wide green claimed.
 - Every 6h, origin/dev pin; zero-ticket exit. Billing tripwire CLEAN; metered spend not reported, native token counts not reported.
 - Four pending remote coordinator approvals left to operator.
