@@ -66,6 +66,18 @@ func TestPublishSecretApprovalRequested_NoopWithoutConfig(t *testing.T) {
 	s.publishSecretApprovalRequested(context.Background(), &coordinator.ApprovalRequestRecord{ID: "x", Type: "secret"})
 }
 
+// testSharedApprovalToken is the AILANG_APPROVAL_TOKEN the intake/status tests
+// authenticate with; approval_intake_auth_test.go covers the auth itself.
+const testSharedApprovalToken = "test-shared-approval-token"
+
+func withSharedApprovalToken(t *testing.T, req *http.Request) *http.Request {
+	t.Helper()
+	t.Setenv("AILANG_APPROVAL_INTAKE_AUTH", "")
+	t.Setenv("AILANG_APPROVAL_TOKEN", testSharedApprovalToken)
+	req.Header.Set("Authorization", "Bearer "+testSharedApprovalToken)
+	return req
+}
+
 func newSecretApprovalServer() (*Server, *MockApprovalStore) {
 	store := NewMockApprovalStore()
 	s := &Server{}
@@ -79,13 +91,13 @@ func newSecretApprovalServer() (*Server, *MockApprovalStore) {
 func TestSecretApprovalIntake_CreatesPendingValueFreeRecord(t *testing.T) {
 	s, store := newSecretApprovalServer()
 	body, _ := json.Marshal(secretIntakeRequest{Ref: "op://Prod/stripe/key", Purpose: "charge", Agent: "agent-x"})
-	req := httptest.NewRequest(http.MethodPost, "/api/approvals", bytes.NewReader(body))
+	req := withSharedApprovalToken(t, httptest.NewRequest(http.MethodPost, "/api/approvals", bytes.NewReader(body)))
 	w := httptest.NewRecorder()
 
 	s.handleApprovals(w, req) // POST → intake branch
 
-	if w.Code != http.StatusOK {
-		t.Fatalf("intake: expected 200, got %d (%s)", w.Code, w.Body.String())
+	if w.Code != http.StatusCreated {
+		t.Fatalf("intake: expected 201, got %d (%s)", w.Code, w.Body.String())
 	}
 	var resp map[string]string
 	_ = json.Unmarshal(w.Body.Bytes(), &resp)
@@ -108,7 +120,7 @@ func TestSecretApprovalIntake_CreatesPendingValueFreeRecord(t *testing.T) {
 func TestSecretApprovalIntake_RejectsMissingRef(t *testing.T) {
 	s, _ := newSecretApprovalServer()
 	body, _ := json.Marshal(secretIntakeRequest{Purpose: "charge"})
-	req := httptest.NewRequest(http.MethodPost, "/api/approvals", bytes.NewReader(body))
+	req := withSharedApprovalToken(t, httptest.NewRequest(http.MethodPost, "/api/approvals", bytes.NewReader(body)))
 	w := httptest.NewRecorder()
 	s.handleApprovals(w, req)
 	if w.Code != http.StatusBadRequest {
@@ -123,7 +135,7 @@ func TestSecretApprovalStatus_PendingThenApproved(t *testing.T) {
 	store.approvals["secret-1"] = &coordinator.ApprovalRequestRecord{ID: "secret-1", Type: "secret", Status: "pending"}
 
 	get := func() map[string]string {
-		req := httptest.NewRequest(http.MethodGet, "/api/approvals/secret-1", nil)
+		req := withSharedApprovalToken(t, httptest.NewRequest(http.MethodGet, "/api/approvals/secret-1", nil))
 		w := httptest.NewRecorder()
 		s.handleApproval(w, req)
 		if w.Code != http.StatusOK {

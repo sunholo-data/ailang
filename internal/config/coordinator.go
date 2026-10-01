@@ -70,7 +70,7 @@ var coordinatorVars = []Var{
 	{EnvApprovalTimeout, "", AreaCoordinator, "How long an approval request waits for a human, as a positive Go duration (e.g. 24h); unset serves the built-in wait as a deprecated default (D3)."},
 	{EnvApprovalURL, "", AreaCoordinator, "Service that serves /api/approvals (the dashboard), which secret() on the shared storage plane POSTs approval requests to; falls back to AILANG_COORDINATOR_URL, and unset leaves secret() un-gated as a deprecated default (D3)."},
 	{EnvCoordinatorURL, "", AreaCoordinator, "Compatibility fallback for AILANG_APPROVAL_URL."},
-	{EnvApprovalToken, "", AreaCoordinator, "Bearer token the cloud secret approver authenticates its requests with."},
+	{EnvApprovalToken, "", AreaCoordinator, "Shared-secret bearer for secret-approval create/poll: the client sends it in place of a minted Google ID token, and the dashboard accepts it when set to the same value there."},
 }
 
 // CoordinatorAPIKey returns COORDINATOR_API_KEY, "" when unset.

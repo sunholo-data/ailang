@@ -146,6 +146,10 @@ type Server struct {
 	// no push (local mode); the executor still learns the decision by polling.
 	approvalPublisher ApprovalPublisher
 
+	// idTokenValidate verifies approval callers' ID tokens
+	// (approval_intake_auth.go). nil = idtoken.Validate; tests inject a fake.
+	idTokenValidate idTokenValidator
+
 	// Coordinator task event store for historical replay
 	taskEventStore CoordinatorTaskEventStore
 
