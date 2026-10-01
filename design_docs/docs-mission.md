@@ -109,6 +109,9 @@ Mark selected all seven clauses attended on 2026-08-28; clauses 5-7 are his addi
   no "as of vX" narration that belongs in the changelog). **Deletion is the normal outcome of this
   clause** — never substitute "add a clarifying note" for "delete the duplicate". Report each
   iteration's net line delta for the pages touched; a clause-5 item that grows the site failed.
+  **Navigation is part of this clause (Mark 2026-10-01: "make sure the navigation is simplified as
+  well").** Every merge or deletion also removes its sidebar entry; nav may only get shorter.
+  Report navbar items and sidebar categories/entries/depth alongside the line delta.
 - **Clause 6 — Benchmark report maintenance.** `docs/static/benchmarks/{latest,os/latest,os/history}.json`
   and the pages rendering them are current and honest. Known traps, not to be rediscovered: check
   data dates first (stale-but-plausible has happened); baselines do not pool across the local-model
@@ -717,24 +720,32 @@ Measured 2026-10-01 at `91eb860a2`: `docs/docs` is 184 pages / 68,687 lines. Eac
    read `jq -r .active` serving before touching anything); then publish only `current.md` and point
    to git history for the rest. If something external reads those URLs, keep the files but drop them
    from nav and search.
-3. **docs-16 · clause 5 · messaging + coordinator cluster.** 5 pages / 4,965 lines:
+3. `[NEXT]` **docs-22 · clause 5 · simplify the navigation.** Measured 2026-10-01: navbar 10 items
+   (Why AILANG, Vision, Documentation, Examples, Playground, Benchmarks, Live Demos, Feedback,
+   llms.txt, GitHub — Why/Vision and Playground/Live Demos overlap); `docs/sidebars.js` 6 top
+   sections, 23 categories, 155 entries, depth 4. Targets: navbar ≤6, sidebar depth ≤3, categories
+   roughly halved, every entry reachable and none duplicated. Measure (from `docs/`):
+   `node -e 'const v=require("./sidebars.js").default.tutorialSidebar;let c=0,e=0,d=0;(function w(a,l){for(const i of a){if(i.type==="category"){c++;w(i.items||[],l+1)}else{e++;d=Math.max(d,l)}}})(v,1);console.log({top:v.length,categories:c,entries:e,depth:d})'`.
+   `make docs-build` must stay green and moved pages need redirects. Re-run after each cluster merge (docs-16..18) — the
+   sidebar should shrink with them.
+4. **docs-16 · clause 5 · messaging + coordinator cluster.** 5 pages / 4,965 lines:
    `guides/cloud-messaging-integration.md` (1,834), `agent-messaging.md` (928), `coordinator.md`
    (1,516), `coordinator-setup.md`, `coordinator-workers.md`. One page per audience, no repeated
    setup blocks; target under half the current size.
-4. **docs-17 · clause 5 · the agent pages.** 7 pages / 2,119 lines (`start-here/for-ai-agents.mdx`,
+5. **docs-17 · clause 5 · the agent pages.** 7 pages / 2,119 lines (`start-here/for-ai-agents.mdx`,
    `guides/agent-*.md(x)`, `ailang-vs-agents.mdx`). Merge to the minimum set with distinct readers.
-5. **docs-18 · clause 1+5 · stale and verbose sweep of the largest guides.** `serve-api.md` (1,699),
+6. **docs-18 · clause 1+5 · stale and verbose sweep of the largest guides.** `serve-api.md` (1,699),
    `design-docs.md` (1,581), `wasm-integration.md` (1,058), `debugging.md` (1,037), `telemetry.md`
    (954), `go-interop.md` (908): cut version narration and history to the changelog, check every
    command and flag against the binary (CLI went 89 → 17 top-level commands; old names still
    resolve as routes, so teach the new ones). One page per iteration, largest first.
-6. **docs-19 · clause 4 · release gap v0.36 → v0.49.** 44 releases since the pause, 86 commits
+7. **docs-19 · clause 4 · release gap v0.36 → v0.49.** 44 releases since the pause, 86 commits
    touched `docs/docs`. List user-facing features with no page; add each as a section in an existing
    page where one fits. Ranked below clause 5 on purpose.
-7. **docs-20 · clause 6 · benchmark report freshness.** Uncommitted `os/latest.json` /
+8. **docs-20 · clause 6 · benchmark report freshness.** Uncommitted `os/latest.json` /
    `os/history.json` changes sat in the main checkout on 2026-10-01 — establish their source and
    dates before any report page cites them.
-8. **docs-21 · clause 7 · inbox sweep.** `docs-mission` inbox (prod store) and doc-labelled GitHub
+9. **docs-21 · clause 7 · inbox sweep.** `docs-mission` inbox (prod store) and doc-labelled GitHub
    issues.
 
 `[LANDED]` **docs-13 · restore the charter (attended 2026-10-01).** Goal, bar, guardrails and
