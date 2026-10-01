@@ -35,9 +35,16 @@ const SourceCascade = "cascade"
 
 // Subscription base names. The full name is "{prefix}-{base}".
 const (
-	SubMessagesCoordinator    = "messages-coordinator"    // Cloud Run coordinator
-	SubMessagesLaptop         = "messages-laptop"         // Developer laptop (pull)
-	SubTasksExecutor          = "tasks-executor"          // Eventarc → Cloud Run Job
+	SubMessagesCoordinator = "messages-coordinator" // Cloud Run coordinator
+	SubMessagesLaptop      = "messages-laptop"      // Developer laptop (pull)
+	// SubTasksExecutor names an audit-trail subscription that NOTHING SUBSCRIBES
+	// TO. Its old comment said "Eventarc → Cloud Run Job", an architecture that
+	// was rejected: the coordinator calls the Cloud Run Jobs API directly and
+	// publishes to the tasks topic only as an audit record (see
+	// daemon_tasks_exec.go and the commented-out trigger in multivac's
+	// eventarc.tf). This constant is referenced nowhere else — a non-zero
+	// backlog on that subscription is the steady state, not a stuck consumer.
+	SubTasksExecutor          = "tasks-executor"
 	SubCompletionsCoordinator = "completions-coordinator" // Coordinator receives results
 	SubEventsDashboard        = "events-dashboard"        // Dashboard server
 	SubEventsLaptop           = "events-laptop"           // Laptop real-time updates

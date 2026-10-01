@@ -412,6 +412,17 @@ Each exported AILANG function becomes an MCP tool. Module metadata is available 
 
   > **Why MCP rejects but `@route` zero-pads:** MCP `tools/call` is a structured RPC where a declared param is a contract the caller must satisfy, so omission is a caller error worth surfacing loudly. The `@route` HTTP path instead zero-pads missing typed params (see **Zero-value padding for missing parameters** above) so a partially-specified GET/POST can still reach a handler that validates its own inputs. Both avoid the `nil`→Unit crash — MCP by rejecting, `@route` by substituting a well-typed zero — they just pick different points on the strictness spectrum to match their callers.
 
+- **Header auth (`_headers` on MCP)** — A declared `_headers: Json` parameter binds the HTTP headers of the `tools/call` request, the same contract as the REST `@route` path. It is never advertised in `inputSchema`, and a `_headers` key in the client's arguments is ignored, so headers cannot be forged. Keys arrive canonicalized (`Authorization`, `X-Api-Key`). On stdio it binds to an empty object. Use it to take an API key from a header so the agent never holds the key in model context (MCP registries inject secrets only as headers).
+- **Optional parameters (`@optional`)** — `@optional("apiKey", ...)` drops the named params from the tool's `required` list; an absent or `null` value binds to the type's zero value (`""`, `0`, `false`, `[]`, `{}`) instead of being rejected. Names are checked at registration: a name that is not a parameter, is `_headers`, or has a type with no zero value (e.g. `Json`) is logged as an `ERROR` and the tool is not registered.
+
+  ```ailang
+  -- Key from the argument, else Authorization: Bearer, else X-API-Key
+  @optional("apiKey")
+  export func whoami(apiKey: string, _headers: Json) -> string { ... }
+  ```
+
+  Full example: `examples/runnable/serve_api_mcp_header_auth.ail`.
+
 ### A2A (Agent-to-Agent Protocol)
 
 Google's A2A protocol is enabled with the `--a2a` flag:
