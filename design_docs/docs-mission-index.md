@@ -1,26 +1,24 @@
 # docs-mission — ITERATION INDEX
 
-One line per iteration, newest first, covering the live log AND the archive.
-
-**GREP THIS BEFORE PICKING WORK.** It is the cheapest way to find out whether
-something has already been tried, and it is small enough to read in full — which the
-log (2.8 MB, ~715k tokens) has not been for a long time.
-
-Regenerated wholesale by `ailang mission rotate-log`, never appended to: an
-append-only index drifts the moment an entry is edited, and an index that answers
-confidently and wrongly is worse than none.
+One row per iteration; refreshed as explicit Gate4 bookkeeping because rotate-log refuses the existing STATUS archive structural header. Full history remains in the append-only log.
 
 | # | date | what happened |
 |---|---|---|
-| 12 | 2026-09-06 |  |
-| 11 | 2026-09-06 |  |
-| 10 | 2026-09-05 |  |
-| 9 | 2026-09-05 |  |
-| 8 | 2026-09-04 |  |
-| 7 | 2026-09-03 |  |
-| 6 | 2026-09-03 |  |
-| 5 | 2026-09-02 |  |
-| 4 | 2026-09-02 |  |
-| 2 | 2026-08-31 | (recovering a died-mid-flight prior fire) |
-| 1 | 2026-08-28 |  |
-| 0 | 2026-08-28 | (first unattended fire) |
+| 17 | 2026-10-01 | ## 17 — 2026-10-01 — docs-14 PARKED-ON-LANE: independent judge transport unavailable [HARNESS] |
+| 16 | 2026-09-07 | ## 16 — 2026-09-07 — docs-12 LANDED: gate multi-file grading benchmarks out of standard mode |
+| 15 | 2026-09-07 | ## 15 — 2026-09-07 — docs-11 LANDED: GitHub code-search fallback for `ailang docs search` |
+| 14 | 2026-09-07 | ## 14 — 2026-09-07 — retry of `m-anthropic-sandbox`; designer lane failed, parked-on-lane [HARNESS] |
+| 13 | 2026-09-06 | ## 13 — 2026-09-06 |
+| 12 | 2026-09-06 | ## 12 — 2026-09-06 |
+| 11 | 2026-09-06 | ## 11 — 2026-09-06 |
+| 10 | 2026-09-05 | ## 10 — 2026-09-05 |
+| 9 | 2026-09-05 | ## 9 — 2026-09-05 |
+| 8 | 2026-09-04 | ## 8 — 2026-09-04 |
+| 7 | 2026-09-03 | ## 7 — 2026-09-03 |
+| 6 | 2026-09-03 | ## 6 — 2026-09-03 |
+| 5 | 2026-09-02 | ## 5 — 2026-09-02 |
+| 4 | 2026-09-02 | ## 4 — 2026-09-02 |
+| 3 | 2026-09-02 | ## ITERATION 3 — died mid-flight, credited retroactively by iteration 4 (2026-09-02) |
+| 2 | 2026-08-31 | ## 2 — 2026-08-31 — recovering a died-mid-flight prior fire |
+| 1 | 2026-08-28 | ## 1 — 2026-08-28 |
+| 0 | 2026-08-28 | ## 0 — 2026-08-28 — first unattended fire |
