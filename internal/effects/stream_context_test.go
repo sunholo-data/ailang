@@ -13,8 +13,8 @@ func TestNewStreamContext_Defaults(t *testing.T) {
 	if sc.MaxMessageSize != 1*1024*1024 {
 		t.Errorf("MaxMessageSize = %d, want 1MB", sc.MaxMessageSize)
 	}
-	if sc.MaxFrameSize != 64*1024 {
-		t.Errorf("MaxFrameSize = %d, want 64KB", sc.MaxFrameSize)
+	if sc.MaxFrameSize != sc.MaxMessageSize { // ReadLimit is per message, not per frame
+		t.Errorf("MaxFrameSize = %d, want MaxMessageSize %d", sc.MaxFrameSize, sc.MaxMessageSize)
 	}
 	if sc.AllowHTTP {
 		t.Error("AllowHTTP should be false by default")

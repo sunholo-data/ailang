@@ -66,8 +66,15 @@ func TestVariantProviderAgreement_AcceptSetIsPinned(t *testing.T) {
 	}
 
 	cells := len(variants) * len(providers)
-	const wantCells = 104
-	const wantAccepted = 49
+	// 2026-10-01: 104 -> 77 cells and 49 -> 41 accepted. The retired gemini and
+	// gemini-go variants left (13 -> 11 variants) and with them the last image
+	// carrying the gemini CLI, so "gemini" left the provider set too (8 -> 7).
+	// The 8 accepted cells lost: {gemini, gemini-go} x {"", gemini,
+	// managed_agents} and {eval, eval-go} x gemini — every one of them failed
+	// in the container with `unknown executor: gemini` (or ran an image whose
+	// job no longer exists). managed_agents remains accepted on every variant.
+	const wantCells = 77
+	const wantAccepted = 41
 
 	if cells != wantCells {
 		t.Errorf("cells = %d, want %d (variants=%d providers=%d).\n"+

@@ -1,6 +1,6 @@
 # AILANG Agent Base — minimal shared layer for all executor variants.
 # Contains: Node 22 + git + ailang binary + bootstrap plugin pre-clone.
-# Does NOT contain any executor CLI (claude, gemini, codex, opencode) or Go toolchain.
+# Does NOT contain any executor CLI (claude, codex, opencode, pi) or Go toolchain.
 # All executor-specific images build FROM this.
 
 # ── Build stage ──────────────────────────────────────────────
@@ -54,7 +54,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     z3 \
     && rm -rf /var/lib/apt/lists/*
 
-# Node.js 22 (required by all AI CLI tools: claude, gemini, codex, opencode, pi)
+# Node.js 22 (required by all AI CLI tools: claude, codex, opencode, pi)
 #
 # PINNED BY ASSERTION (M-PI-HARNESS-UPGRADE D8). setup_22.x installs whatever 22.x
 # nodesource serves today; pi >= 0.75 needs >= 22.19.0, and an unpinned install is

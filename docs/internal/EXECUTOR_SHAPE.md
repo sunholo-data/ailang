@@ -173,14 +173,14 @@ since 2026-09-03 ailang's own pipelines build every image, and a push to an
 `ailang-multivac` branch builds nothing:
 
 1. **`cloudbuild-dev.yaml`** (this repo) — fires on every push to ailang `dev`
-   (trigger `ailang-core-dev`), builds all 18 images and rolls dev's 4 services
-   and 17 executor jobs. This is the **only** builder of dev's images: a variant
+   (trigger `ailang-core-dev`), builds all 16 images and rolls dev's 4 services
+   and 15 executor jobs. This is the **only** builder of dev's images: a variant
    missing here does not exist in dev, `terraform apply` fails with
    `Image 'agent-<name>:latest' not found.` for the new Cloud Run Job, and Cloud
    Run caches that failure (`ContainerMissing`) until the next successful apply
    re-validates the resource.
 2. **`cloudbuild-release.yaml`** (this repo) — fires on a `v*` tag (trigger
-   `ailang-core-release`), builds the same 18 images from the tagged tree,
+   `ailang-core-release`), builds the same 16 images from the tagged tree,
    deploys **test**, runs the CI + smoke gates, and stops. Same step shape as
    dev, with three differences: it substitutes `$_TEST_PROJECT`, it adds a
    second `-t "$$AR/agent-<name>:$TAG_NAME"` tag, and it carries **no

@@ -81,19 +81,17 @@ func NewDispatcher(ctx context.Context, projectID, region, prefix string, direct
 // image overrides, so variant selection happens via job name, not ContainerOverride.
 // Job naming: {prefix}-agent-executor[-{variant}][-apikey]
 var knownVariants = map[string]bool{
-	"":          true, // defaults to "default"
-	"default":   true,
-	"go":        true,
-	"gemini":    true,
-	"gemini-go": true,
-	"codex":     true,
-	"codex-go":  true,
-	"opencode":  true,
-	"pi":        true,
-	"pi-go":     true, // Dockerfile.agent-pi-go + job ailang-agent-executor-pi-go both exist
-	"motoko":    true, // M-MOTOKO-EXECUTOR-ADAPTER (v0.18.0): AILANG-native agent
-	"eval":      true,
-	"eval-go":   true,
+	"":         true, // defaults to "default"
+	"default":  true,
+	"go":       true,
+	"codex":    true,
+	"codex-go": true,
+	"opencode": true,
+	"pi":       true,
+	"pi-go":    true, // Dockerfile.agent-pi-go + job ailang-agent-executor-pi-go both exist
+	"motoko":   true, // M-MOTOKO-EXECUTOR-ADAPTER (v0.18.0): AILANG-native agent
+	"eval":     true,
+	"eval-go":  true,
 }
 
 // providersForVariant maps an executor variant to the executor binaries baked
@@ -103,19 +101,17 @@ var knownVariants = map[string]bool{
 //
 // A nil value means "any provider" — only agent-eval installs every CLI.
 var providersForVariant = map[string][]string{
-	"":          {"claude"},   // Dockerfile.agent: @anthropic-ai/claude-code
-	"default":   {"claude"},   //   ditto
-	"go":        {"claude"},   // Dockerfile.agent-go: FROM agent
-	"codex":     {"codex"},    // Dockerfile.agent-codex: @openai/codex
-	"codex-go":  {"codex"},    // FROM agent-codex
-	"gemini":    {"gemini"},   // Dockerfile.agent-gemini: @google/gemini-cli
-	"gemini-go": {"gemini"},   // FROM agent-gemini
-	"opencode":  {"opencode"}, // Dockerfile.agent-opencode: opencode-ai
-	"pi":        {"pi"},       // Dockerfile.agent-pi: @mariozechner/pi-coding-agent
-	"pi-go":     {"pi"},       // FROM agent-pi
-	"motoko":    {"motoko"},   // Dockerfile.agent-motoko
-	"eval":      nil,          // agent-eval: claude + gemini + codex + opencode + pi
-	"eval-go":   nil,          // FROM agent-eval
+	"":         {"claude"},   // Dockerfile.agent: @anthropic-ai/claude-code
+	"default":  {"claude"},   //   ditto
+	"go":       {"claude"},   // Dockerfile.agent-go: FROM agent
+	"codex":    {"codex"},    // Dockerfile.agent-codex: @openai/codex
+	"codex-go": {"codex"},    // FROM agent-codex
+	"opencode": {"opencode"}, // Dockerfile.agent-opencode: opencode-ai
+	"pi":       {"pi"},       // Dockerfile.agent-pi: @mariozechner/pi-coding-agent
+	"pi-go":    {"pi"},       // FROM agent-pi
+	"motoko":   {"motoko"},   // Dockerfile.agent-motoko
+	"eval":     nil,          // agent-eval: claude + codex + opencode + pi
+	"eval-go":  nil,          // FROM agent-eval
 }
 
 // binarylessProviders reach a remote API and shell out to nothing, so they are
@@ -177,6 +173,9 @@ func variantImageName(variant string) string {
 //	("go", "apikey")   → "agent-executor-go-apikey"
 //	("codex", "oauth") → "agent-executor-codex"
 func jobSuffixForVariant(variant, authMode string) (string, error) {
+	if err := coordinator.RetiredVariantError(variant); err != nil {
+		return "", err
+	}
 	if !knownVariants[variant] {
 		return "", fmt.Errorf("unknown executor_variant %q — check config.cloud.yaml", variant)
 	}

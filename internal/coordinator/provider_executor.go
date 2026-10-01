@@ -161,11 +161,8 @@ func (p *ExecutorProvider) Execute(ctx context.Context, task *AnalyzedTask, opts
 			if lerr := executor.CheckLanePolicy(opts.AgentConfig.GetEffectiveToolPolicy(), toml); lerr != nil {
 				return nil, fmt.Errorf("agent %s: %w", opts.AgentConfig.ID, lerr)
 			}
+			// BuildEnvironment exports it to the agent as AILANG_AGENT_POLICY.
 			execTask.PolicyPath = opts.AgentConfig.PolicyPath
-			if execTask.ExtraEnv == nil {
-				execTask.ExtraEnv = make(map[string]string)
-			}
-			execTask.ExtraEnv["AILANG_AGENT_POLICY"] = opts.AgentConfig.PolicyPath
 		}
 	}
 

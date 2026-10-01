@@ -1,6 +1,9 @@
 package coordinator
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // The image decides which CLI runs, because the image is the only thing that
 // determines which binaries exist.
@@ -15,17 +18,15 @@ import "testing"
 
 func TestProviderForVariant_EachImageRunsExactlyOneCLI(t *testing.T) {
 	cases := map[string]string{
-		"":          "claude",
-		"default":   "claude",
-		"go":        "claude",
-		"codex":     "codex",
-		"codex-go":  "codex",
-		"gemini":    "gemini",
-		"gemini-go": "gemini",
-		"opencode":  "opencode",
-		"pi":        "pi",
-		"pi-go":     "pi",
-		"motoko":    "motoko",
+		"":         "claude",
+		"default":  "claude",
+		"go":       "claude",
+		"codex":    "codex",
+		"codex-go": "codex",
+		"opencode": "opencode",
+		"pi":       "pi",
+		"pi-go":    "pi",
+		"motoko":   "motoko",
 	}
 	for variant, want := range cases {
 		got, ok := ProviderForVariant(variant)
@@ -123,5 +124,24 @@ func TestValidateAgentProviders_AllowsARedundantDeclaration(t *testing.T) {
 	})
 	if len(errs) != 0 {
 		t.Errorf("correct configs were rejected: %v", errs)
+	}
+}
+
+// TestValidateAgentProviders_RejectsRetiredGeminiVariants: the agent-gemini
+// images and jobs were removed on 2026-10-01 (the Gemini CLI executor itself was
+// retired in v0.22.0). A config still naming them must fail at load and say
+// where Gemini went, not fail per task inside a container.
+func TestValidateAgentProviders_RejectsRetiredGeminiVariants(t *testing.T) {
+	for _, variant := range []string{"gemini", "gemini-go"} {
+		if _, ok := ProviderForVariant(variant); ok {
+			t.Errorf("variant %q still derives a provider; it is retired", variant)
+		}
+		errs := ValidateAgentProviders([]*AgentConfig{{ID: "g", ExecutorVariant: variant}})
+		if len(errs) != 1 {
+			t.Fatalf("variant %q: got %d errors, want 1: %v", variant, len(errs), errs)
+		}
+		if msg := errs[0].Error(); !strings.Contains(msg, "retired") || !strings.Contains(msg, "managed_agents") {
+			t.Errorf("variant %q: error must say retired and name managed_agents, got: %s", variant, msg)
+		}
 	}
 }

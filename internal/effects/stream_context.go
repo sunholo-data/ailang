@@ -20,14 +20,18 @@ import (
 //   - Domain allowlist (optional)
 //   - Private IP blocking (RFC1918 + link-local, default: on)
 //   - Connection count limits (default: 4 concurrent)
-//   - Message size limits (default: 1MB per message, 64KB per frame)
+//   - Message size limit (default: 1MB per message, enforced on read and write)
 //   - Idle timeout (default: 60s)
 //   - Hard duration ceiling (default: 5min)
 type StreamContext struct {
 	// Connection limits
 	MaxConnections int   // Default: 4 (prevent resource exhaustion)
 	MaxMessageSize int64 // Default: 1MB per message (reassembled from frames)
-	MaxFrameSize   int64 // Default: 64KB per frame (gorilla ReadLimit)
+	// MaxFrameSize is the inbound read limit. gorilla's ReadLimit counts the
+	// whole reassembled MESSAGE, not one frame, so it defaults to
+	// MaxMessageSize: at 64KB it killed every Vertex Live video session whose
+	// first media message was larger (Daneel, 2026-10-01).
+	MaxFrameSize int64
 
 	// Timeouts
 	ConnectTimeout time.Duration // Default: 30s
@@ -78,7 +82,7 @@ func NewStreamContext() *StreamContext {
 	return &StreamContext{
 		MaxConnections:  4,
 		MaxMessageSize:  1 * 1024 * 1024, // 1MB
-		MaxFrameSize:    64 * 1024,       // 64KB
+		MaxFrameSize:    1 * 1024 * 1024, // = MaxMessageSize; see the field comment
 		ConnectTimeout:  30 * time.Second,
 		IdleTimeout:     60 * time.Second,
 		MaxDuration:     5 * time.Minute,

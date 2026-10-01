@@ -53,12 +53,13 @@ func Open(cfg effects.StreamDialConfig) (effects.StreamTransport, error) {
 		return nil, err
 	}
 	conn.SetReadLimit(cfg.MaxFrameSize)
-	return &transport{conn: conn}, nil
+	return &transport{conn: conn, readLimit: cfg.MaxFrameSize}, nil
 }
 
 // transport adapts one *websocket.Conn to effects.StreamTransport.
 type transport struct {
-	conn *websocket.Conn
+	conn      *websocket.Conn
+	readLimit int64 // 0 = gorilla's default (none); named in a read-limit error
 }
 
 func (t *transport) Subprotocol() string { return t.conn.Subprotocol() }
@@ -89,6 +90,11 @@ func (t *transport) recvOne() (effects.StreamFrame, bool, error) {
 				ce.Reason = wsErr.Text
 			}
 			return effects.StreamFrame{}, false, ce
+		}
+		// gorilla aborts the read without the size it saw; name the limit so
+		// the bridge's end reason carries a number, not just the sentinel.
+		if errors.Is(err, websocket.ErrReadLimit) {
+			return effects.StreamFrame{}, false, fmt.Errorf("%w: message over %d bytes", err, t.readLimit)
 		}
 		return effects.StreamFrame{}, false, err
 	}

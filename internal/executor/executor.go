@@ -107,11 +107,14 @@ type Task struct {
 	Metadata map[string]string // Provider-specific options
 
 	// ExtraEnv are additional environment variables exported to the agent
-	// subprocess, merged into the executor's process env by BuildEnvironment.
+	// subprocess, merged into the executor's process env by BuildEnvironment
+	// with precedence over inherited and harness-injected values.
 	// The eval harness sets these from a benchmark's `agent_env` (e.g.
 	// MOTOKO_AST_AUTOREAD / MOTOKO_AST_READ_FULL) so multi-file reimplement
 	// benchmarks receive dependency modules as compact interfaces. Applies
 	// uniformly across every executor (the uniform executor contract).
+	// Loader, routing, git, telemetry, proxy and harness-owned names are
+	// refused (ValidateExtraEnv); the program policy travels as PolicyPath.
 	ExtraEnv map[string]string
 
 	// MCPServers configures ephemeral stdio MCP servers for this task. Secret
@@ -415,11 +418,10 @@ const (
 // executor. CLI (executeCLI) and eval-bridge dispatch paths call it before
 // Execute/ExecuteStreaming.
 //
-// Today it enforces exactly one rule: if task.RequiresEgress is true, the
-// resolved executor MUST advertise CapNetworkEgress. This closes the
-// programmatic silent-fallback hole — a non-egress executor can no longer
-// silently ignore an egress request; it fails loudly instead. When
-// RequiresEgress is false the function is a no-op (nil) on any executor.
+// Rules: if task.RequiresEgress is true, the resolved executor MUST advertise
+// CapNetworkEgress (a non-egress executor can no longer silently ignore an
+// egress request); MCP servers need CapMCP; and Task.ExtraEnv must pass
+// ValidateExtraEnv (M-EXECUTOR-ENV-HARDENING D3).
 func ValidateTaskCapabilities(task *Task, exec Executor) error {
 	if task == nil || exec == nil {
 		return nil
@@ -436,6 +438,12 @@ func ValidateTaskCapabilities(task *Task, exec Executor) error {
 			"task configures MCP servers but executor %q does not advertise capability %q",
 			exec.Name(), CapMCP,
 		)
+	}
+	// M-EXECUTOR-ENV-HARDENING D3: refuse a deny-listed ExtraEnv name before
+	// dispatch. BuildEnvironment enforces the same rule on every path; this
+	// is the early, pre-dispatch copy for the paths that call this gate.
+	if err := ValidateExtraEnv(task.ExtraEnv); err != nil {
+		return err
 	}
 	return nil
 }

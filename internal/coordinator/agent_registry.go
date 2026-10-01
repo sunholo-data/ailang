@@ -237,8 +237,9 @@ type AgentConfig struct {
 
 	// Per-agent Docker image variant (M-EXECUTOR-VARIANTS, v1.1.0).
 	// Selects which pre-built agent image to use for Cloud Run Job execution.
-	// Known values: "", "default", "go", "gemini", "gemini-go", "codex", "codex-go",
+	// Known values: "", "default", "go", "codex", "codex-go", "pi", "pi-go", "motoko",
 	// "opencode", "eval", "eval-go". Omitting defaults to "default" (agent:latest).
+	// "gemini"/"gemini-go" are retired (see RetiredVariantError).
 	ExecutorVariant string `yaml:"executor_variant" json:"executor_variant,omitempty"`
 
 	// Per-agent git mode (M-GIT-GUARDRAILS, v0.9.2).

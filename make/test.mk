@@ -65,6 +65,7 @@ test-launchd-drivers: ## Run launchd driver tests (pin-root + routing + notices 
 	@$(LAUNCHD_SUITE) tools/launchd/test_mission_pi_run_sandbox.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_mission_pi_run_provider_quota.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_driver_notify.sh
+	@$(LAUNCHD_SUITE) tools/launchd/test_pi_ext_args.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_mission_routing.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_spawn_pin_hook.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_agents_skills_sync.sh

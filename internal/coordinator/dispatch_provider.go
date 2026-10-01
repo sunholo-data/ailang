@@ -31,7 +31,7 @@ import (
 // multiCLIVariants are the images that carry several executors, where the
 // provider is a genuine choice and must be declared.
 var multiCLIVariants = map[string]bool{
-	"eval":    true, // agent-eval: claude + gemini + codex + opencode + pi
+	"eval":    true, // agent-eval: claude + codex + opencode + pi (+ binaryless managed_agents)
 	"eval-go": true, //   ditto (FROM agent-eval)
 }
 
@@ -109,8 +109,10 @@ func (e ProviderDeclarationError) Error() string {
 
 // ValidateAgentProviders rejects `provider:` declarations that cannot be honoured.
 //
-// Two failures, both config errors rather than runtime ones:
+// Three failures, all config errors rather than runtime ones:
 //
+//   - a retired executor_variant (gemini, gemini-go): its image and job are
+//     gone, so every dispatch to it would fail. The error names managed_agents.
 //   - a declaration that contradicts the image. Previously this dispatched, got
 //     refused by the runtime guard, and retried forever.
 //   - a MISSING declaration on a multi-CLI image, where nothing can derive the
@@ -126,6 +128,11 @@ func ValidateAgentProviders(agents []*AgentConfig) []error {
 		}
 		derived, ok := ProviderForVariant(agent.ExecutorVariant)
 		switch {
+		case RetiredVariantError(agent.ExecutorVariant) != nil:
+			errs = append(errs, ProviderDeclarationError{
+				AgentID: agent.ID, Variant: agent.ExecutorVariant, Declared: agent.Provider,
+				Reason: RetiredVariantError(agent.ExecutorVariant).Error(),
+			})
 		case ok && agent.Provider != "" && agent.Provider != derived:
 			errs = append(errs, ProviderDeclarationError{
 				AgentID: agent.ID, Variant: agent.ExecutorVariant,

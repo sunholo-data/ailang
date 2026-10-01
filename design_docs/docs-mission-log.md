@@ -1730,3 +1730,72 @@ recognizes the same reflex. Second, smaller note: this is the first docs-mission
 a full multi-milestone pi executor end-to-end (prior landings used `codex:*`); the snapshot/
 reconstruct/byte-identity-verify workflow the shared skill already prescribes for pi executors
 worked exactly as documented, no gap found.
+
+## 17 — 2026-10-01 — docs-14 PARKED-ON-LANE: independent judge transport unavailable [HARNESS]
+
+**Pick**: docs-14, attended queue head, clause5. Controller verified both source pages still exist
+(213+276=489 lines), intro callout, IFC deep-link and references taxonomy error before routing.
+No existing index/log entry for this item. Charter authorizes concise consolidation without a new
+design document; this iteration produced a one-milestone plan only, no quorum or product edits.
+
+**Outcome**: PARKED-ON-LANE. No implementation and no independent evaluator verdict. Generator≠judge
+is enforced by withholding product execution/landing; the controller did not substitute its own verdict.
+
+**Progress**: goal unmoved. Clause5 remains UNMET; pages delta0, sidebar entries117→117,
+categories22→22, top6→6, depth4→4; navbar unchanged (not remeasured). Clause1/4 UNMET;
+2/3/6/7 UNVERIFIED this run. Canonical docs-mission inbox returned null (0 messages),
+0 allowlisted directives since2026-09-07T19:42:29Z on#1089; ledger5 RESOLVED,0 OPEN.
+
+**Routing evidence**:
+| Role | Pin / transport | Actual outcome | Tokens |
+|---|---|---|---|
+| Controller | codex:gpt-6.1-sol, API session | Gates0–5, parked/report | not reported |
+| Designer | codex:gpt-6.1-sol, Agent tool | Completed read-only brief, no design doc needed | not reported |
+| Planner | codex:gpt-6.1-sol, Agent tool | Completed one-milestone plan + local JSON | not reported |
+| Executor | codex:gpt-6-luna, Agent tool | Read-only readiness, NO EXECUTION; judge prerequisite blocked | not reported |
+| Evaluator | sonnet, Agent tool | Spawn rejected: Unknown model sonnet; available gpt-6.1-sol,gpt-6-astra,gpt-6-sol,gpt-6-luna,gpt-5.6-sol | not reported |
+| Evaluator fallback1 | pi:ollama/minimax-m3:cloud | Skipped by quota:14.7pp/23h45m exceeds10pp/day ration | no call |
+| Evaluator fallback2 | pi:openrouter/minimax/minimax-m3, canonical runner | rc15 sandbox_unavailable; @anthropic-ai/sandbox-runtime unavailable; no judge verdict | no provider call |
+
+Resolver with exported live profile: designer recipe codex:gpt-6.1-sol declared:provider-pin;
+planner with charter codex:gpt-6.1-sol declared:planner-lane-default-pin (docless resolver:
+agent-tool opus fail-closed:no-doc, followed explicit pin per spawn-hook rule); executor recipe
+codex:gpt-6-luna declared:provider-pin; evaluator agent-tool sonnet declared:alias-pin.
+Operator explicitly required Agent tool, so author pins used native model overrides rather than
+nested Codex CLI. No unsupported cross-provider judge pin was silently mapped to OpenAI.
+Gate1 base=3c7fd218360220661462af2a7b9966bdc931a638@2026-10-01T09:40:49Z;
+Gate4 base=257e7fd5f3717ac6cf4cf1fc1fcd92bdc153794e@2026-10-01T09:52:50Z.
+Origin advanced during planning; clean pin branch moved to fresh recorded base before record writes.
+Both CWD and resolved global skill directory initially matched origin on every readable markdown file;
+explicit /Users/voightkampff/.ailang-driver-pin/docs/.claude/skills/mission-control/SKILL.md followed.
+
+**Cost**: metered=$0.00; Codex subscription stages only; actual token use unavailable from Agent tool.
+No quorum/provider bill. Build/example acceptance gates UNMEASURED, no .ail touched, no eval/GPU work.
+Gate1 exact HEAD checks had13 rows,7 in progress/queued, not a green verdict; prior CI/deploy green
+runs were on earlier SHAs and were not attributed to current HEAD. Gate3b product landing not entered.
+
+**Ruled out**: /docs/intro#three-camps is wrong (intro slug:/ → /docs/#three-camps).
+A worktree showing~25,786 deletions was incomplete checkout with live index.lock, never data loss;
+no status reset/lock deletion performed. Unused checkout creation canceled after judge park;
+partial /tmp/ailang-docs-iter17-docs14-20261001 preserved, no user/product edits existed there.
+/tmp placement was a controller process miss; future execution uses a sibling checkout per skill.
+
+**DECISIONS FOR MARK**: none. This is a transport/capacity park, not a judgment ask. Resume predicate:
+declared Sonnet Agent model becomes supported, OR canonical pi sandbox runtime exists and
+MiniMax launcher completes protocol+evaluation with rc0; recheck quota before choosing lane.
+Fleet ticket judge-transport:sonnet-unavailable-pi-sandbox-runtime, blocking all, no workaround.
+
+**Next**: resume docs-14 on restored judge transport, then docs-15, docs-22. Plan banked at
+[docs-14-sprint-plan.md](docs-14-sprint-plan.md). No other product pick can land without the judge.
+
+**Retro**: no skill/harness edits. Escalated3 tickets: judge transport (blocking all),
+weekly-report:unknown-mission (rc1, docs not recognized; fail-soft),
+rotate-log:status-archive-structural-header (rc1 on --status; refuses structural archive header).
+Manual Gate4 bookkeeping moved ONLY6 older dated STATUS blocks to archive, retained newest3,
+asserted exact line arithmetic and protected charter blocks/queue presence. Log remains append-only;
+index refreshed from existing log headings as record bookkeeping, no tool bypass/repair.
+Issue rotation#1089(closed)→#1436; predecessor comment posted, state keys namespaced.
+Limited50-issue inventory banked separately with per-issue four-corpus counts; not a complete
+repository sweep or triage claim. No doc request identified in its title filter other than bookkeeping.
+Last3 landings:16 none for restored website bar (compiler grading),15 none (CLI search),8 clause5
+(taxonomy consolidation); not3 consecutive none, so no new regroom ask.

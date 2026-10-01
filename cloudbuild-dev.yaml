@@ -10,10 +10,10 @@
 # pipeline, which fired on THAT repo's pushes from whatever ailang dev head was
 # current — so an ailang push could not rebuild the image most agents run on.
 # Every image now has one owner: this file for dev, cloudbuild-release.yaml
-# for the `v*` tag that reaches test (same 18 images, additionally tagged
+# for the `v*` tag that reaches test (same 16 images, additionally tagged
 # :vX.Y.Z), and ailang-multivac's promote-to-prod for prod.
 #
-# The 18 images and their build DAG (children FROM the parent's :latest in
+# The 16 images and their build DAG (children FROM the parent's :latest in
 # this project's registry, so they wait on it):
 #
 #   coordinator (buildpacks)   dashboard   mcp   ntfy        — no dependencies
@@ -21,13 +21,17 @@
 #               ├─ agent-pi ────── agent-pi-go
 #               │                └─ resident-pi (BASE build-arg, context docker/resident)
 #               ├─ agent-codex ─── agent-codex-go
-#               ├─ agent-gemini ── agent-gemini-go
 #               ├─ agent-eval ──── agent-eval-go
 #               ├─ agent-opencode
 #               └─ agent-motoko  (allowFailure: external fork, see below)
 #
+# agent-gemini / agent-gemini-go were removed 2026-10-01: the Gemini CLI
+# executor was retired in v0.22.0 (M-MANAGED-AGENTS) and every execution of
+# those images failed with `unknown executor: gemini`. Gemini models run via the
+# binaryless managed_agents executor, which needs no image of its own.
+#
 # Deploy: the shared library in ailang-multivac (scripts/cloudbuild-lib.sh,
-# cloned at run time) rolls the 4 core services and all 17 executor jobs. The
+# cloned at run time) rolls the 4 core services and all 15 executor jobs. The
 # job -> image map lives there, mirroring terraform/cloud_run_jobs.tf; this
 # file does not carry a copy.
 #
@@ -250,24 +254,6 @@ steps:
           .
     waitFor: ['build-agent-base']
 
-  - id: build-agent-gemini
-    name: gcr.io/cloud-builders/docker
-    entrypoint: bash
-    args:
-      - -c
-      - |
-        AR=${_REGION}-docker.pkg.dev/$_TARGET_PROJECT/ailang
-        docker buildx build \
-          --cache-from "type=registry,ref=$$AR/agent-gemini:cache" \
-          --cache-from "type=registry,ref=$$AR/agent-base:cache" \
-          --cache-to   "type=registry,ref=$$AR/agent-gemini:cache,mode=max" \
-          --build-arg PROJECT=$_TARGET_PROJECT \
-          -t "$$AR/agent-gemini:latest" \
-          -f docker/Dockerfile.agent-gemini \
-          --push \
-          .
-    waitFor: ['build-agent-base']
-
   - id: build-agent-eval
     name: gcr.io/cloud-builders/docker
     entrypoint: bash
@@ -288,7 +274,7 @@ steps:
 
   # motoko fetches the pinned motoko_agent commit from GitHub at build time (same
   # secret as agent-base). It is an optional, externally maintained executor, so
-  # in DEV a broken build must not block the other 17 images: allowFailure keeps
+  # in DEV a broken build must not block the other 15 images: allowFailure keeps
   # :latest unchanged and the job is rolled onto the digest it already runs. The
   # RELEASE pipeline gives it no such pass — a version names the whole deployment.
   - id: build-agent-motoko
@@ -365,24 +351,6 @@ steps:
           --push \
           .
     waitFor: ['build-agent-codex']
-
-  - id: build-agent-gemini-go
-    name: gcr.io/cloud-builders/docker
-    entrypoint: bash
-    args:
-      - -c
-      - |
-        AR=${_REGION}-docker.pkg.dev/$_TARGET_PROJECT/ailang
-        docker buildx build \
-          --cache-from "type=registry,ref=$$AR/agent-gemini-go:cache" \
-          --cache-from "type=registry,ref=$$AR/agent-gemini:cache" \
-          --cache-to   "type=registry,ref=$$AR/agent-gemini-go:cache,mode=max" \
-          --build-arg PROJECT=$_TARGET_PROJECT \
-          -t "$$AR/agent-gemini-go:latest" \
-          -f docker/Dockerfile.agent-gemini-go \
-          --push \
-          .
-    waitFor: ['build-agent-gemini']
 
   - id: build-agent-eval-go
     name: gcr.io/cloud-builders/docker
@@ -465,7 +433,7 @@ steps:
     waitFor: ['build-resident-pi']
     allowFailure: true
 
-  # ── Deploy: 4 core services + all 17 executor jobs, via the shared library ──
+  # ── Deploy: 4 core services + all 15 executor jobs, via the shared library ──
   # Waits on every image, optional ones included, so each job is rolled after
   # its image's build attempt (a failed optional build leaves :latest as it was).
   - id: deploy-services
@@ -488,7 +456,6 @@ steps:
       - build-agent-go
       - build-agent-pi-go
       - build-agent-codex-go
-      - build-agent-gemini-go
       - build-agent-eval-go
       - build-agent-opencode
       - build-agent-motoko
