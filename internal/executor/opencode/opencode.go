@@ -168,13 +168,16 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 		fmt.Fprintf(os.Stderr, "[DEBUG_OPENCODE] Workspace: %s\n", task.Workspace)
 	}
 
-	env := executor.BuildEnvironment(executor.EnvironmentOptions{
+	env, err := executor.BuildEnvironment(executor.EnvironmentOptions{
 		Task:        task,
 		SessionID:   sessionID,
 		Context:     ctx,
 		GCPProject:  task.GCPProject,
 		GCPLocation: task.GCPLocation,
 	})
+	if err != nil {
+		return nil, err
+	}
 	cmd.Env = env
 
 	stdout, err := cmd.StdoutPipe()

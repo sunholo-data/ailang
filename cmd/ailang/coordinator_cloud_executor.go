@@ -91,8 +91,8 @@ func runExecutor(ctx context.Context, workDir, provider, directive, taskID, plug
 	if policyPath, perr := executor.MaterializeAgentPolicy(config.AgentPolicyTOML(), workDir); perr != nil {
 		return nil, fmt.Errorf("execute-job: %w", perr)
 	} else if policyPath != "" {
+		// BuildEnvironment exports it to the agent as AILANG_AGENT_POLICY.
 		task.PolicyPath = policyPath
-		task.ExtraEnv["AILANG_AGENT_POLICY"] = policyPath
 		fmt.Printf("execute-job: program policy materialised at %s (read-only)\n", policyPath)
 	}
 

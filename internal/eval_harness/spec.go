@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/sunholo-data/ailang/internal/eval_harness/langreg"
+	"github.com/sunholo-data/ailang/internal/executor"
 	"gopkg.in/yaml.v3"
 )
 
@@ -206,6 +207,13 @@ func LoadSpec(path string) (*BenchmarkSpec, error) {
 		if err := spec.SourceConstraints.Validate(); err != nil {
 			return nil, fmt.Errorf("spec %q: %w", spec.ID, err)
 		}
+	}
+
+	// agent_env is semi-trusted data that reaches the agent child with the
+	// highest env precedence; refuse loader/routing/harness names at load
+	// time with the same verdict the executor's env builder enforces.
+	if err := executor.ValidateExtraEnv(spec.AgentEnv); err != nil {
+		return nil, fmt.Errorf("spec %q: agent_env: %w", spec.ID, err)
 	}
 
 	if spec.Grading != "" && spec.Grading != "quine" && spec.Grading != "prefix_line" {

@@ -370,18 +370,13 @@ func (e *MotokoExecutor) executeStreaming(ctx context.Context, task *executor.Ta
 	}
 	defer taskCacheCleanup()
 
-	env := executor.BuildEnvironment(executor.EnvironmentOptions{
-		Task:        task,
-		SessionID:   sessionID,
-		Context:     ctx,
-		GCPProject:  task.GCPProject,
-		GCPLocation: task.GCPLocation,
-	})
-	// motoko-specific env vars — see motoko_agent docs for semantics.
-	env = append(env,
-		"MODEL="+e.getModel(task),
+	// motoko-specific env vars — see motoko_agent docs for semantics. They are
+	// the executor's required set: BuildEnvironment applies them last, so they
+	// win over an inherited MOTOKO_CONFIG (the cloud job sets "dogfood").
+	motokoEnv := []string{
+		"MODEL=" + e.getModel(task),
 		"MOTOKO_HEADLESS=1", // batch mode (no interactive TUI) — see --headless above
-		"MOTOKO_CONFIG="+effectiveProfile,
+		"MOTOKO_CONFIG=" + effectiveProfile,
 		// MOTOKO_REPO is REQUIRED for profile resolution and has never been set.
 		//
 		// motoko resolves its profile dir from WORKDIR first. The eval harness
@@ -401,20 +396,20 @@ func (e *MotokoExecutor) executeStreaming(ctx context.Context, task *executor.Ta
 		//
 		// e.motokoRepo is discovered by HealthCheck from `motoko --version`, which
 		// the eval path and the canary both run before Execute.
-		"MOTOKO_REPO="+e.motokoRepo,
-		"MOTOKO_SESSION_ID="+sessionID,
-		"AILANG_CACHE_DIR="+taskCacheDir,
+		"MOTOKO_REPO=" + e.motokoRepo,
+		"MOTOKO_SESSION_ID=" + sessionID,
+		"AILANG_CACHE_DIR=" + taskCacheDir,
 		// M-MOTOKO-SYSTEM-ROLE: when set, motoko reads its system-role message
 		// from this file (must be inside the workspace). Empty string is a no-op.
-		"SYSTEM_MD="+systemPromptPath,
+		"SYSTEM_MD=" + systemPromptPath,
 		// Each run binds its own env-server port. motoko main hands the port it
 		// actually bound to its AILANG core (buildSupervisorArgs), which is the
 		// cross-repo fix the old fixed-8080 pin was waiting for; concurrent runs
 		// (--parallel N, a mission loop, this package's tests) no longer collide.
 		fmt.Sprintf("ENV_PORT=%d", envPort),
-	)
+	}
 	if task.Workspace != "" {
-		env = append(env, "WORKDIR="+task.Workspace)
+		motokoEnv = append(motokoEnv, "WORKDIR="+task.Workspace)
 	}
 	// M-OLLAMA-PER-MODEL-MAX-TOKENS: forward the model's declared output budget
 	// (models.yml max_output_tokens) so motoko's ollama /v1 request uses the model's
@@ -423,7 +418,7 @@ func (e *MotokoExecutor) executeStreaming(ctx context.Context, task *executor.Ta
 	// reads this env (override > floor). Needs the var in motoko's RuntimeProcess
 	// env allowlist (motoko_agent PR); the 16384 floor covers it until then.
 	if task.MaxOutputTokens > 0 {
-		env = append(env, fmt.Sprintf("AILANG_OLLAMA_MAX_TOKENS=%d", task.MaxOutputTokens))
+		motokoEnv = append(motokoEnv, fmt.Sprintf("AILANG_OLLAMA_MAX_TOKENS=%d", task.MaxOutputTokens))
 	}
 	// M-MOTOKO-EVAL-HARNESS-HARDENING M5a (gaps #3, #9): forward cost rates
 	// from Task.Budget (sourced from models.yml by the eval harness) so
@@ -437,11 +432,11 @@ func (e *MotokoExecutor) executeStreaming(ctx context.Context, task *executor.Ta
 			// per-1K USD × 1e8 = per-1M millicents
 			//   (×1000 for K→M, ×100 for $→¢, ×1000 for ¢→m¢)
 			inputMillicents := int64(task.Budget.InputPer1K * 1e8)
-			env = append(env, fmt.Sprintf("MOTOKO_COST_INPUT_PER_1M_MILLICENTS=%d", inputMillicents))
+			motokoEnv = append(motokoEnv, fmt.Sprintf("MOTOKO_COST_INPUT_PER_1M_MILLICENTS=%d", inputMillicents))
 		}
 		if task.Budget.OutputPer1K > 0 {
 			outputMillicents := int64(task.Budget.OutputPer1K * 1e8)
-			env = append(env, fmt.Sprintf("MOTOKO_COST_OUTPUT_PER_1M_MILLICENTS=%d", outputMillicents))
+			motokoEnv = append(motokoEnv, fmt.Sprintf("MOTOKO_COST_OUTPUT_PER_1M_MILLICENTS=%d", outputMillicents))
 		}
 		// M-EVAL-SWEET-SPOT-FOLLOWUP (v0.19.0): forward the hard cost cap so
 		// motoko's internal budget gate actually fires `finish_reason=
@@ -455,9 +450,20 @@ func (e *MotokoExecutor) executeStreaming(ctx context.Context, task *executor.Ta
 		if task.Budget.MaxUSD > 0 {
 			maxUSDCents := int64(task.Budget.MaxUSD * 100)
 			if maxUSDCents > 0 {
-				env = append(env, fmt.Sprintf("AI_MAX_COST_USD_CENTS=%d", maxUSDCents))
+				motokoEnv = append(motokoEnv, fmt.Sprintf("AI_MAX_COST_USD_CENTS=%d", maxUSDCents))
 			}
 		}
+	}
+	env, err := executor.BuildEnvironment(executor.EnvironmentOptions{
+		Task:        task,
+		SessionID:   sessionID,
+		Context:     ctx,
+		GCPProject:  task.GCPProject,
+		GCPLocation: task.GCPLocation,
+		ExecutorEnv: motokoEnv,
+	})
+	if err != nil {
+		return nil, err
 	}
 	cmd.Env = env
 

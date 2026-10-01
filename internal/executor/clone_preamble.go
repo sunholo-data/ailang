@@ -2,6 +2,7 @@ package executor
 
 import (
 	"fmt"
+	"net/url"
 	"regexp"
 	"strings"
 )
@@ -25,6 +26,30 @@ var SHA40 = regexp.MustCompile(`^[0-9a-fA-F]{40}$`)
 // IsValidSHA40 reports whether s is a full 40-hex git SHA.
 func IsValidSHA40(s string) bool { return SHA40.MatchString(s) }
 
+// cloneURLRE is the only shape of --clone-repo the preamble will interpolate
+// into shell text the agent is told to run EXACTLY (M-EXECUTOR-ENV-HARDENING
+// D5): https, a plain host[:port], and a path of URL-safe characters. Every
+// shell metacharacter (; | & $ ` ' " \ < > ( ) { } * ? ! # ~ whitespace) and
+// userinfo (user:token@host) are outside it by construction, so validation is
+// an allowlist, not a hunt for bad bytes.
+var cloneURLRE = regexp.MustCompile(`^https://[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?(?::[0-9]{1,5})?/[A-Za-z0-9._/%+-]+$`)
+
+// ValidateCloneURL reports why repoURL may not be cloned by the clone-review
+// preamble, or nil. It is a named error, never a silent rewrite.
+func ValidateCloneURL(repoURL string) error {
+	if !cloneURLRE.MatchString(repoURL) {
+		return fmt.Errorf("--clone-repo must be a plain https git URL (https://host/owner/repo[.git], no credentials, query, fragment, whitespace or shell metacharacters), got %q", repoURL)
+	}
+	u, err := url.Parse(repoURL)
+	if err != nil || u.Scheme != "https" || u.Hostname() == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
+		return fmt.Errorf("--clone-repo must be a plain https git URL with a host, got %q", repoURL)
+	}
+	if strings.Contains(u.Path, "/../") || strings.HasSuffix(u.Path, "/..") || strings.Contains(u.Path, "//") {
+		return fmt.Errorf("--clone-repo path must not contain empty or '..' segments, got %q", repoURL)
+	}
+	return nil
+}
+
 // BuildClonePreamble renders the canonical clone-review directive preamble for
 // an egress-enabled sandbox. It is bounded-by-construction: BOTH modes are
 // shallow (`--depth 1`), so neither walks full history.
@@ -35,7 +60,8 @@ func IsValidSHA40(s string) bool { return SHA40.MatchString(s) }
 // In both modes the agent must echo `git rev-parse HEAD` on its own line so the
 // caller's evidence check can confirm which revision was actually reviewed.
 //
-// repoURL must be non-empty (callers validate flags before calling). When sha
+// repoURL must be a plain https URL (ValidateCloneURL — checked here too, so
+// the eval-harness caller is covered without its own copy). When sha
 // is non-empty it must be a valid 40-hex SHA; an invalid sha returns an error
 // rather than emitting an unbounded/ambiguous directive (no silent fallback).
 func BuildClonePreamble(repoURL, sha string) (string, error) {
@@ -43,6 +69,9 @@ func BuildClonePreamble(repoURL, sha string) (string, error) {
 	sha = strings.TrimSpace(sha)
 	if repoURL == "" {
 		return "", fmt.Errorf("clone preamble: repo URL is required")
+	}
+	if err := ValidateCloneURL(repoURL); err != nil {
+		return "", fmt.Errorf("clone preamble: %w", err)
 	}
 
 	var b strings.Builder
@@ -81,6 +110,7 @@ func BuildClonePreamble(repoURL, sha string) (string, error) {
 //   - --clone-repo with --api-only             → error (API path has no sandbox)
 //   - --clone-repo on a non-egress resolution  → error (resolvedExecName must be
 //     an executor advertising CapNetworkEgress; today only managed_agents)
+//   - --clone-repo not a plain https URL       → error (ValidateCloneURL)
 //
 // It returns whether egress is requested (cloneRepo non-empty) so the caller can
 // set Task.RequiresEgress. When no clone flags are set it is a no-op (false, nil).
@@ -99,6 +129,9 @@ func ValidateCloneFlags(cloneRepo, cloneSHA string, apiOnly bool, resolvedExecNa
 	}
 	if !egressCapable {
 		return false, fmt.Errorf("--clone-repo requires an egress-capable agentic executor (only 'gemini'/managed_agents qualifies), but the resolved executor %q does not support network egress", resolvedExecName)
+	}
+	if err := ValidateCloneURL(cloneRepo); err != nil {
+		return false, err
 	}
 	if cloneSHA != "" && !IsValidSHA40(cloneSHA) {
 		return false, fmt.Errorf("--clone-sha must be a 40-hex git SHA, got %q", cloneSHA)
