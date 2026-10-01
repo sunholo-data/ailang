@@ -13,9 +13,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/sunholo-data/ailang/internal/ai"
 	"github.com/sunholo-data/ailang/internal/config"
-	"github.com/sunholo-data/ailang/internal/effects"
+	"github.com/sunholo-data/ailang/internal/executor"
 	"github.com/sunholo-data/ailang/internal/policy"
 	"github.com/sunholo-data/ailang/internal/proctree"
 )
@@ -230,13 +229,11 @@ func workerEnv(res *policy.Resolved) []string {
 	if !res.Restricted() {
 		return os.Environ()
 	}
+	// The credential list is shared with the agent child's env policy
+	// (executor.PolicyCredentialVars), so the child that launches this worker
+	// is granted exactly the keys the worker may select.
 	names := append([]string{}, workerEnvAllow...)
-	if res.Admits("AI") {
-		names = append(names, providerCredentialVars(res.AIProvider)...)
-	}
-	if res.Admits("Net") {
-		names = append(names, effects.WebCredentialVars(res.NetAllow)...)
-	}
+	names = append(names, executor.PolicyCredentialVars(res)...)
 	out := make([]string, 0, len(names))
 	for _, name := range names {
 		if config.RawSet(name) {
@@ -244,24 +241,4 @@ func workerEnv(res *policy.Resolved) []string {
 		}
 	}
 	return out
-}
-
-// providerCredentialVars names the environment variables the pinned AI
-// provider reads. "stub" needs none.
-func providerCredentialVars(aiProvider string) []string {
-	if aiProvider == "" || aiProvider == "stub" {
-		return nil
-	}
-	provider := ai.GuessProvider(aiProvider)
-	var vars []string
-	if v := ai.EnvVarForProvider(provider); v != "" {
-		vars = append(vars, v)
-	}
-	switch provider {
-	case ai.ProviderGoogle:
-		vars = append(vars, config.EnvGeminiAPIKey, "GOOGLE_APPLICATION_CREDENTIALS", "GOOGLE_CLOUD_PROJECT", "GOOGLE_CLOUD_LOCATION", "GOOGLE_GENAI_USE_VERTEXAI")
-	case ai.ProviderOllama:
-		vars = append(vars, "OLLAMA_HOST", "OLLAMA_API_KEY")
-	}
-	return vars
 }

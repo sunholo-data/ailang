@@ -105,5 +105,6 @@ func withProvenance(row *AgentBenchmarkResult, res *executor.Result) *AgentBench
 	row.ExecutorVersion = res.ExecutorVersion
 	row.ToolPolicy = res.ToolPolicy
 	row.PolicyDigest = res.PolicyDigest
+	row.EnvNamesDigest = res.EnvNamesDigest
 	return row
 }

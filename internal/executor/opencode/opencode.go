@@ -81,7 +81,7 @@ func (e *OpenCodeExecutor) Execute(ctx context.Context, task *executor.Task) (*e
 
 // ExecuteStreaming runs a task with real-time event callbacks, parsing the
 // opencode NDJSON stream into normalized executor events.
-func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, handler executor.EventHandler) (*executor.Result, error) {
+func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, handler executor.EventHandler) (out *executor.Result, outErr error) {
 	if err := e.requireModel(task); err != nil {
 		return nil, err
 	}
@@ -171,6 +171,8 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 	env, err := executor.BuildEnvironment(executor.EnvironmentOptions{
 		Task:        task,
 		SessionID:   sessionID,
+		Executor:    "opencode",
+		Model:       e.getModel(task),
 		Context:     ctx,
 		GCPProject:  task.GCPProject,
 		GCPLocation: task.GCPLocation,
@@ -178,6 +180,13 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 	if err != nil {
 		return nil, err
 	}
+	// D6: bank the child env's NAME set on every result shape.
+	envNames := executor.EnvNamesDigest(env)
+	defer func() {
+		if out != nil {
+			out.EnvNamesDigest = envNames
+		}
+	}()
 	cmd.Env = env
 
 	stdout, err := cmd.StdoutPipe()

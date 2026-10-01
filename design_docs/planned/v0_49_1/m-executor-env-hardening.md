@@ -1,6 +1,6 @@
 # M-EXECUTOR-ENV-HARDENING: A Typed Environment Boundary for the Agent Executor Fleet
 
-**Status**: Approved — D1–D6 approved by Mark 2026-10-01; implementation in two PRs (A: Phases 1+3, B: Phases 2+4)
+**Status**: Implemented — D1–D6 approved by Mark 2026-10-01; Phases 1+3 in #1435, Phases 2+4 in the follow-up PR-B
 **Target**: Next security release after v0.49.0; release number assigned during planning
 **Priority**: P0 — operator write credentials (GitHub fleet token, superuser registry key) are reachable by any prompt-injected agent subprocess
 **Estimated**: 8–12 engineering days, including regression coverage and lane migration inventory (planning estimate, not a sprint commitment)
@@ -253,28 +253,28 @@ harness relies on (correlation IDs, stdlib pin, telemetry wiring survive as expl
 ### Implementation Plan
 
 **Phase 1: Canonical builder + precedence (~2 days)**
-- [ ] Rework `BuildEnvironment` to the ordered, dedup-by-construction builder; keep the exported
+- [x] Rework `BuildEnvironment` to the ordered, dedup-by-construction builder; keep the exported
       shape so all five executors port in one commit each
-- [ ] Cross-executor test: no duplicate keys, precedence pinned (`ExtraEnv` > injected > inherited)
-- [ ] Existing env tests (`environment_test.go`, per-executor env assertions) stay green
+- [x] Cross-executor test: no duplicate keys, precedence pinned (`ExtraEnv` > injected > inherited)
+- [x] Existing env tests (`environment_test.go`, per-executor env assertions) stay green
 
 **Phase 2: `EnvPolicy` + secret stripping (~3 days)**
-- [ ] `envpolicy.go`: type, resolution, default profiles per executor, lane grant mechanism
-- [ ] Credential-shaped vars dropped by default; claude's strip retired into the seam
-- [ ] Scoped per-task git credential file (outside workspace, 0600) for push-capable lanes (D2)
-- [ ] Adversarial tests: default-lane child env contains no `*_API_KEY`/`*TOKEN` name beyond the
+- [x] `envpolicy.go`: type, resolution, default profiles per executor, lane grant mechanism
+- [x] Credential-shaped vars dropped by default; claude's strip retired into the seam
+- [x] Scoped per-task git credential file (outside workspace, 0600) for push-capable lanes (D2)
+- [x] Adversarial tests: default-lane child env contains no `*_API_KEY`/`*TOKEN` name beyond the
       lane's single inference credential
 
 **Phase 3: Validation + clone URL (~2 days)**
-- [ ] `ExtraEnv` name validation wired into `ValidateTaskCapabilities` (loud, named errors)
-- [ ] URL validation in `ValidateCloneFlags` + `BuildClonePreamble`; metacharacter fixtures
-- [ ] Eval-harness `agent_env` and browser-session flows re-tested end to end
+- [x] `ExtraEnv` name validation wired into `ValidateTaskCapabilities` (loud, named errors)
+- [x] URL validation in `ValidateCloneFlags` + `BuildClonePreamble`; metacharacter fixtures
+- [x] Eval-harness `agent_env` and browser-session flows re-tested end to end
 
 **Phase 4: Banking, migration, docs (~2 days)**
-- [ ] `Result.EnvNamesDigest` + test that values are never banked
-- [ ] Lane migration inventory: which deployed lanes read `GITHUB_TOKEN` / registry key today;
+- [x] `Result.EnvNamesDigest` + test that values are never banked
+- [x] Lane migration inventory: which deployed lanes read `GITHUB_TOKEN` / registry key today;
       explicit grants added where a human ratifies them
-- [ ] Guide updated; example lane profile committed; release notes drafted
+- [x] Guide updated; example lane profile committed; release notes drafted
 
 ### Files to Modify/Create
 

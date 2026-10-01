@@ -97,7 +97,7 @@ func TestBuildEnvironment_Precedence(t *testing.T) {
 // an agent_env block and cannot be overridden through ExtraEnv.
 func TestBuildEnvironment_AgentPolicyFromPolicyPath(t *testing.T) {
 	t.Setenv("AILANG_AGENT_POLICY", "/inherited/policy.toml")
-	task := &Task{PolicyPath: "/run/policy/agent-policy.toml", ExtraEnv: map[string]string{"MOTOKO_AST_AUTOREAD": "1"}}
+	task := &Task{PolicyPath: writeTestPolicy(t, stubAIPolicy), ExtraEnv: map[string]string{"MOTOKO_AST_AUTOREAD": "1"}}
 	m := mustBuild(t, EnvironmentOptions{Task: task})
 	if got := m["AILANG_AGENT_POLICY"]; got != task.PolicyPath {
 		t.Errorf("AILANG_AGENT_POLICY = %q, want Task.PolicyPath %q", got, task.PolicyPath)
