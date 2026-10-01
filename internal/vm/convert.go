@@ -14,6 +14,18 @@ import (
 // BytecodeToEval converts a VM value to an evaluator value. Tier-1 only.
 // Returns an error for shapes the bridge does not yet handle (Closure, ADT).
 func BytecodeToEval(v bytecode.Value) (eval.Value, error) {
+	return bytecodeToEval(v, false)
+}
+
+// BytecodeToEvalForDisplay is BytecodeToEval for printing a result: a VM ADT
+// becomes a TaggedValue that carries only its constructor name, which is all
+// TaggedValue.String() reads (#1453). Never hand the result to the
+// evaluator; it has no type or module, so a match on it would be unsound.
+func BytecodeToEvalForDisplay(v bytecode.Value) (eval.Value, error) {
+	return bytecodeToEval(v, true)
+}
+
+func bytecodeToEval(v bytecode.Value, display bool) (eval.Value, error) {
 	switch v.Tag {
 	case bytecode.TagInt:
 		return &eval.IntValue{Value: int(v.Int)}, nil
@@ -29,7 +41,7 @@ func BytecodeToEval(v bytecode.Value) (eval.Value, error) {
 		src := v.AsList()
 		dst := make([]eval.Value, len(src))
 		for i, e := range src {
-			ev, err := BytecodeToEval(e)
+			ev, err := bytecodeToEval(e, display)
 			if err != nil {
 				return nil, fmt.Errorf("list[%d]: %w", i, err)
 			}
@@ -40,7 +52,7 @@ func BytecodeToEval(v bytecode.Value) (eval.Value, error) {
 		src := v.AsTuple()
 		dst := make([]eval.Value, len(src))
 		for i, e := range src {
-			ev, err := BytecodeToEval(e)
+			ev, err := bytecodeToEval(e, display)
 			if err != nil {
 				return nil, fmt.Errorf("tuple[%d]: %w", i, err)
 			}
@@ -51,7 +63,7 @@ func BytecodeToEval(v bytecode.Value) (eval.Value, error) {
 		src := v.AsRecord()
 		dst := make(map[string]eval.Value, len(src))
 		for _, f := range src {
-			ev, err := BytecodeToEval(f.Value)
+			ev, err := bytecodeToEval(f.Value, display)
 			if err != nil {
 				return nil, fmt.Errorf("record field %q: %w", f.Name, err)
 			}
@@ -66,7 +78,7 @@ func BytecodeToEval(v bytecode.Value) (eval.Value, error) {
 		}
 		dst := make([]eval.Value, len(a.Elems))
 		for i, e := range a.Elems {
-			ev, err := BytecodeToEval(e)
+			ev, err := bytecodeToEval(e, display)
 			if err != nil {
 				return nil, fmt.Errorf("array[%d]: %w", i, err)
 			}
@@ -77,6 +89,17 @@ func BytecodeToEval(v bytecode.Value) (eval.Value, error) {
 		b := v.AsBytes()
 		return &eval.BytesValue{Value: b.B, Filename: b.Filename, MimeType: b.MimeType}, nil
 	case bytecode.TagADT:
+		if a := v.AsADT(); display && a.Ctor != "" {
+			fields := make([]eval.Value, len(a.Fields))
+			for i, f := range a.Fields {
+				ev, err := bytecodeToEval(f, display)
+				if err != nil {
+					return nil, fmt.Errorf("%s field %d: %w", a.Ctor, i, err)
+				}
+				fields[i] = ev
+			}
+			return &eval.TaggedValue{CtorName: a.Ctor, Fields: fields}, nil
+		}
 		// A VM ADT carries only a constructor ordinal, not its type, so it
 		// cannot be named on the evaluator side (M-BYTECODE-2E scope).
 		return nil, fmt.Errorf("bridge: ADT values not yet supported (M-BYTECODE-2E scope)")
@@ -169,7 +192,7 @@ func EvalToBytecode(v eval.Value) (bytecode.Value, error) {
 			}
 			fields[i] = bv
 		}
-		return bytecode.NewADT(tag, fields), nil
+		return bytecode.NewADT(tag, ev.CtorName, fields), nil
 	case *eval.FunctionValue, *eval.BuiltinFunction:
 		return bytecode.Value{}, fmt.Errorf("bridge: function values not yet supported (M-BYTECODE-2E scope)")
 	}

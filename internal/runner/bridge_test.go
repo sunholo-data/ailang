@@ -95,7 +95,7 @@ func TestBridge_Unsupported_Closure_Errors_Both_Directions(t *testing.T) {
 // information.
 func TestBridge_Unsupported_ADT_Errors(t *testing.T) {
 	// bytecode → eval
-	v := bytecode.NewADT(0, []bytecode.Value{bytecode.NewInt(1)})
+	v := bytecode.NewADT(0, "Some", []bytecode.Value{bytecode.NewInt(1)})
 	_, err := vm.BytecodeToEval(v)
 	if err == nil {
 		t.Errorf("BytecodeToEval should reject TagADT")

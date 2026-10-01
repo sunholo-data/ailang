@@ -471,9 +471,9 @@ func builtinStringToInt(args []bytecode.Value) (bytecode.Value, error) {
 	}
 	n, err := strconv.ParseInt(args[0].AsString(), 10, 64)
 	if err != nil {
-		return bytecode.NewADT(optionTagNone, nil), nil
+		return bytecode.NewADT(optionTagNone, "None", nil), nil
 	}
-	return bytecode.NewADT(optionTagSome, []bytecode.Value{bytecode.NewInt(n)}), nil
+	return bytecode.NewADT(optionTagSome, "Some", []bytecode.Value{bytecode.NewInt(n)}), nil
 }
 
 func builtinStringToFloat(args []bytecode.Value) (bytecode.Value, error) {
@@ -486,13 +486,13 @@ func builtinStringToFloat(args []bytecode.Value) (bytecode.Value, error) {
 	s := args[0].AsString()
 	// Reject underscores — Go's ParseFloat accepts them silently
 	if strings.ContainsRune(s, '_') {
-		return bytecode.NewADT(optionTagNone, nil), nil
+		return bytecode.NewADT(optionTagNone, "None", nil), nil
 	}
 	f, err := strconv.ParseFloat(s, 64)
 	if err != nil {
-		return bytecode.NewADT(optionTagNone, nil), nil
+		return bytecode.NewADT(optionTagNone, "None", nil), nil
 	}
-	return bytecode.NewADT(optionTagSome, []bytecode.Value{bytecode.NewFloat(f)}), nil
+	return bytecode.NewADT(optionTagSome, "Some", []bytecode.Value{bytecode.NewFloat(f)}), nil
 }
 
 // --- helpers -----------------------------------------------------------------

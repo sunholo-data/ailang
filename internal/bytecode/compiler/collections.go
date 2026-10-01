@@ -464,7 +464,15 @@ func (fc *funcCompiler) compileADTConstructor(e stmt.ADTConstructor) (uint8, err
 			return 0, err
 		}
 	}
+	// #1453: the constructor name rides in a pseudo-LOAD_CONST after
+	// MAKE_ADT (the same encoding UPDATE_RECORD uses for field names), so
+	// the VM's show can render Some(6) rather than an ordinal.
+	ctorIdx, err := fc.addLocalConst(bytecode.NewString(e.Tag))
+	if err != nil {
+		return 0, err
+	}
 	fc.emit(bytecode.EncodeABC(bytecode.OpMakeADT, dst, uint8(tag), uint8(n)))
+	fc.emit(bytecode.EncodeABx(bytecode.OpLoadConst, 0, ctorIdx))
 	// Free the field regs but keep dst alive.
 	if n > 0 {
 		fc.regs.freeContig(dst+1, n)

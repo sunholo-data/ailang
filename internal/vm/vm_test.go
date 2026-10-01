@@ -626,10 +626,11 @@ func TestVM_MakeADTAndGetTag(t *testing.T) {
 	// Actually GET_INDEX is list-only. We just verify GET_TAG.
 	img := bytecode.NewImage()
 	p := &bytecode.FuncPrototype{Name: "adt", NumRegs: 4}
-	addConstants(img, p, bytecode.NewInt(42))
+	addConstants(img, p, bytecode.NewInt(42), bytecode.NewString("Some"))
 	p.Instructions = []bytecode.Instruction{
 		bytecode.EncodeABx(bytecode.OpLoadConst, 1, 0),  // r1 = 42 (will be field 0 of ADT, sitting at A+1)
 		bytecode.EncodeABC(bytecode.OpMakeADT, 0, 0, 1), // r0 = ADT{tag=0, fields=[r1]}
+		bytecode.EncodeABx(bytecode.OpLoadConst, 0, 1),  // pseudo: constructor name "Some" (#1453)
 		bytecode.EncodeABC(bytecode.OpGetTag, 2, 0, 0),  // r2 = r0.tag
 		bytecode.EncodeABC(bytecode.OpReturn, 2, 0, 0),
 	}

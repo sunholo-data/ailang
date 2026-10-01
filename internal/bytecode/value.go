@@ -169,7 +169,11 @@ type ClosureObj struct {
 // ordinal assigned during type elaboration; it is NOT globally unique. Type
 // disambiguation is the compiler's responsibility (§4.3).
 type ADTObj struct {
-	Tag    int
+	Tag int
+	// Ctor is the constructor name ("Some", "Circle"). It does not take part
+	// in equality or dispatch — Tag does — but `show` needs it to render the
+	// value the way the evaluator does (#1453).
+	Ctor   string
 	Fields []Value
 }
 
@@ -282,8 +286,8 @@ func NewClosure(proto FuncPrototypeRef, captures []Value) Value {
 }
 
 // NewADT constructs an ADT value with the given tag and fields.
-func NewADT(tag int, fields []Value) Value {
-	return Value{Tag: TagADT, Obj: &ADTObj{Tag: tag, Fields: fields}}
+func NewADT(tag int, ctor string, fields []Value) Value {
+	return Value{Tag: TagADT, Obj: &ADTObj{Tag: tag, Ctor: ctor, Fields: fields}}
 }
 
 // --- Accessors (panic on tag mismatch — VM dispatch must check first) -------

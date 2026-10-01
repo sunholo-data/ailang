@@ -112,7 +112,7 @@ func TestPolyArrayEmpty(t *testing.T) {
 
 // TestPolyArrayCarriesADTs: the point of a native port.
 func TestPolyArrayCarriesADTs(t *testing.T) {
-	some := bytecode.NewADT(0, []bytecode.Value{bytecode.NewInt(1)})
+	some := bytecode.NewADT(0, "Some", []bytecode.Value{bytecode.NewInt(1)})
 	arr, err := nativeBuiltin(t, "__array_from_list")([]bytecode.Value{bytecode.NewList([]bytecode.Value{some})})
 	if err != nil {
 		t.Fatal(err)

@@ -49,7 +49,7 @@ func TestBuiltinJsonEncode_Number(t *testing.T) {
 		{0, "0"},
 		{-1, "-1"},
 	} {
-		v := bytecode.NewADT(jsonTagJNumber, []bytecode.Value{bytecode.NewFloat(tc.flt)})
+		v := bytecode.NewADT(jsonTagJNumber, "JNumber", []bytecode.Value{bytecode.NewFloat(tc.flt)})
 		got, err := builtinJsonEncode([]bytecode.Value{v})
 		if err != nil {
 			t.Fatal(err)
@@ -73,7 +73,7 @@ func TestBuiltinJsonEncode_String(t *testing.T) {
 }
 
 func TestBuiltinJsonEncode_Array(t *testing.T) {
-	arr := bytecode.NewADT(jsonTagJArray, []bytecode.Value{
+	arr := bytecode.NewADT(jsonTagJArray, "JArray", []bytecode.Value{
 		bytecode.NewList([]bytecode.Value{
 			vmMakeJNull(),
 			vmMakeJBool(true),
@@ -91,7 +91,7 @@ func TestBuiltinJsonEncode_Array(t *testing.T) {
 }
 
 func TestBuiltinJsonEncode_Object(t *testing.T) {
-	obj := bytecode.NewADT(jsonTagJObject, []bytecode.Value{
+	obj := bytecode.NewADT(jsonTagJObject, "JObject", []bytecode.Value{
 		bytecode.NewList([]bytecode.Value{
 			bytecode.NewRecord([]bytecode.RecordField{
 				{Name: "key", Value: bytecode.NewString("name")},
@@ -99,7 +99,7 @@ func TestBuiltinJsonEncode_Object(t *testing.T) {
 			}),
 			bytecode.NewRecord([]bytecode.RecordField{
 				{Name: "key", Value: bytecode.NewString("age")},
-				{Name: "value", Value: bytecode.NewADT(jsonTagJNumber, []bytecode.Value{bytecode.NewFloat(30)})},
+				{Name: "value", Value: bytecode.NewADT(jsonTagJNumber, "JNumber", []bytecode.Value{bytecode.NewFloat(30)})},
 			}),
 		}),
 	})
@@ -114,15 +114,15 @@ func TestBuiltinJsonEncode_Object(t *testing.T) {
 }
 
 func TestBuiltinJsonEncode_Nested(t *testing.T) {
-	inner := bytecode.NewADT(jsonTagJObject, []bytecode.Value{
+	inner := bytecode.NewADT(jsonTagJObject, "JObject", []bytecode.Value{
 		bytecode.NewList([]bytecode.Value{
 			bytecode.NewRecord([]bytecode.RecordField{
 				{Name: "key", Value: bytecode.NewString("x")},
-				{Name: "value", Value: bytecode.NewADT(jsonTagJNumber, []bytecode.Value{bytecode.NewFloat(1)})},
+				{Name: "value", Value: bytecode.NewADT(jsonTagJNumber, "JNumber", []bytecode.Value{bytecode.NewFloat(1)})},
 			}),
 		}),
 	})
-	outer := bytecode.NewADT(jsonTagJArray, []bytecode.Value{
+	outer := bytecode.NewADT(jsonTagJArray, "JArray", []bytecode.Value{
 		bytecode.NewList([]bytecode.Value{inner, vmMakeJNull()}),
 	})
 	got, err := builtinJsonEncode([]bytecode.Value{outer})

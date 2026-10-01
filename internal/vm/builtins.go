@@ -2,11 +2,11 @@ package vm
 
 import (
 	"fmt"
-	"sort"
 	"strconv"
-	"strings"
 
+	"github.com/sunholo-data/ailang/internal/builtins"
 	"github.com/sunholo-data/ailang/internal/bytecode"
+	"github.com/sunholo-data/ailang/internal/eval"
 )
 
 // BuiltinFunc is a pure-builtin handler. It receives the argument slice
@@ -234,103 +234,68 @@ func builtinShow(args []bytecode.Value) (bytecode.Value, error) {
 	return bytecode.NewString(showValue(args[0])), nil
 }
 
-// showValue is the recursive counterpart of internal/builtins/show.go:showValue
-// for bytecode.Value. Strings are rendered without quotes to match the
-// evaluator's user-facing `show` semantics (identity on strings).
+// showValue renders a VM value through the evaluator's show renderer
+// (builtins.RenderShow), so `show` is byte-identical on both engines (#1453).
 func showValue(v bytecode.Value) string {
+	return builtins.RenderShow(v, inspectVMShow)
+}
+
+func vmItems(vs []bytecode.Value) []any {
+	out := make([]any, len(vs))
+	for i, x := range vs {
+		out[i] = x
+	}
+	return out
+}
+
+// inspectVMShow describes a VM value for builtins.RenderShow.
+func inspectVMShow(x any) builtins.ShowNode {
+	v := x.(bytecode.Value)
 	switch v.Tag {
 	case bytecode.TagInt:
-		return strconv.FormatInt(v.Int, 10)
+		return builtins.ShowNode{Text: strconv.FormatInt(v.Int, 10)}
 	case bytecode.TagFloat:
-		// Match evaluator's show: use 'f' so the decimal point is visible,
-		// and pad whole-number floats to `N.0` (e.g. 5 → "5.0"). See
-		// internal/builtins/show.go:showValue float case.
-		f := v.Flt
-		if f != f { // NaN
-			return "NaN"
-		}
-		if f > 0 && f*2 == f { // +Inf
-			return "Inf"
-		}
-		if f < 0 && f*2 == f { // -Inf
-			return "-Inf"
-		}
-		s := strconv.FormatFloat(f, 'f', -1, 64)
-		if !strings.Contains(s, ".") {
-			s += ".0"
-		}
-		return s
+		return builtins.ShowNode{Kind: builtins.ShowFloat, Float: v.Flt}
 	case bytecode.TagBool:
-		if v.Bool {
-			return "true"
-		}
-		return "false"
+		return builtins.ShowNode{Text: strconv.FormatBool(v.Bool)}
 	case bytecode.TagString:
-		return v.AsString()
+		return builtins.ShowNode{Text: v.AsString()}
 	case bytecode.TagUnit:
-		return "()"
+		return builtins.ShowNode{Text: "()"}
 	case bytecode.TagList:
-		elems := v.AsList()
-		if len(elems) == 0 {
-			return "[]"
-		}
-		parts := make([]string, len(elems))
-		for i, e := range elems {
-			parts[i] = showValue(e)
-		}
-		return "[" + strings.Join(parts, ", ") + "]"
-	case bytecode.TagBytes:
-		// Same rendering as eval.BytesValue.String.
-		b := v.AsBytes()
-		if b.Filename != "" {
-			return fmt.Sprintf("<bytes:%d:%s:%s>", len(b.B), b.MimeType, b.Filename)
-		}
-		if len(b.B) <= 32 {
-			return fmt.Sprintf("<bytes:%x>", b.B)
-		}
-		return fmt.Sprintf("<bytes:%x...>", b.B[:32])
+		return builtins.ShowNode{Kind: builtins.ShowList, Items: vmItems(v.AsList())}
 	case bytecode.TagArray:
 		a := v.AsArray()
-		parts := make([]string, a.Len())
-		for i := range parts {
-			parts[i] = showValue(a.At(i))
+		items := make([]any, a.Len())
+		for i := range items {
+			items[i] = a.At(i)
 		}
-		return "#[" + strings.Join(parts, ", ") + "]"
+		return builtins.ShowNode{Kind: builtins.ShowArray, Items: items}
 	case bytecode.TagTuple:
-		elems := v.AsTuple()
-		parts := make([]string, len(elems))
-		for i, e := range elems {
-			parts[i] = showValue(e)
-		}
-		return "(" + strings.Join(parts, ", ") + ")"
+		return builtins.ShowNode{Kind: builtins.ShowTuple, Items: vmItems(v.AsTuple())}
 	case bytecode.TagRecord:
 		fields := v.AsRecord()
-		if len(fields) == 0 {
-			return "{}"
-		}
-		// Sort field names for deterministic output, matching eval.
 		names := make([]string, len(fields))
-		vals := make(map[string]bytecode.Value, len(fields))
+		items := make([]any, len(fields))
 		for i, f := range fields {
-			names[i] = f.Name
-			vals[f.Name] = f.Value
+			names[i], items[i] = f.Name, f.Value
 		}
-		sort.Strings(names)
-		parts := make([]string, len(names))
-		for i, n := range names {
-			parts[i] = n + ": " + showValue(vals[n])
-		}
-		return "{" + strings.Join(parts, ", ") + "}"
+		return builtins.ShowNode{Kind: builtins.ShowRecord, Names: names, Items: items}
+	case bytecode.TagBytes:
+		b := v.AsBytes()
+		return builtins.ShowNode{Text: (&eval.BytesValue{Value: b.B, Filename: b.Filename, MimeType: b.MimeType}).String()}
 	case bytecode.TagADT:
-		// ADT tag is a per-type ordinal, not a constructor name — mapping
-		// back to a name requires the compiler's type table (§4.3), which
-		// the VM does not currently carry. Defer to Value.String() for the
-		// low-fidelity `<adt#N …>` rendering. Fixing this cleanly is M3
-		// scope (cross-module ADT/record merging).
-		return v.String()
-	default:
-		return fmt.Sprintf("<%s>", v.Tag)
+		a := v.AsADT()
+		if a.Ctor == "" {
+			// Every ADT the VM builds carries its name; an unnamed one is a
+			// construction-site bug, so show it as such rather than guess.
+			return builtins.ShowNode{Text: v.String()}
+		}
+		return builtins.ShowNode{Kind: builtins.ShowCtor, Text: a.Ctor, Items: vmItems(a.Fields)}
+	case bytecode.TagClosure:
+		return builtins.ShowNode{Text: "<function>"}
 	}
+	return builtins.ShowNode{Text: fmt.Sprintf("<%s>", v.Tag)}
 }
 
 // builtinLen returns the length of a list, tuple, string, or record.

@@ -250,7 +250,7 @@ func printVMResult(v bytecode.Value, params ModuleExecParams) {
 	if !params.Print {
 		return
 	}
-	ev, err := vm.BytecodeToEval(v)
+	ev, err := vm.BytecodeToEvalForDisplay(v)
 	if err != nil || ev == nil {
 		// Fall back to the bytecode value's own formatting for shapes
 		// the bridge doesn't know how to convert (currently none on

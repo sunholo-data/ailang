@@ -2,10 +2,8 @@ package builtins
 
 import (
 	"fmt"
-	"math"
 	"sort"
 	"strconv"
-	"strings"
 
 	"github.com/sunholo-data/ailang/internal/effects"
 	"github.com/sunholo-data/ailang/internal/eval"
@@ -69,158 +67,72 @@ func showImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
 	return &eval.StringValue{Value: showValue(val, 0)}, nil
 }
 
-// Constants for show function
-const (
-	maxDepth      = 3
-	maxWidth      = 80
-	elisionPrefix = 20
-	elisionSuffix = 20
-)
-
-// showValue converts a value to its canonical string representation
-// with proper quoting, escaping, and deterministic output.
-// This implementation is based on v0.3.9's showValue function.
+// showValue renders an evaluator value through the shared show renderer
+// (show_render.go), which the bytecode VM uses too. depth > 0 renders v as if
+// nested that deep.
 func showValue(v eval.Value, depth int) string {
-	if depth > maxDepth {
-		return "..."
+	return renderShow(v, depth, inspectEvalShow)
+}
+
+func evalItems(vs []eval.Value) []any {
+	out := make([]any, len(vs))
+	for i, x := range vs {
+		out[i] = x
 	}
+	return out
+}
 
-	switch val := v.(type) {
+// inspectEvalShow describes an evaluator value for RenderShow.
+func inspectEvalShow(x any) ShowNode {
+	switch val := x.(type) {
 	case *eval.IntValue:
-		return strconv.Itoa(val.Value)
-
+		return ShowNode{Text: strconv.Itoa(val.Value)}
 	case *eval.FloatValue:
-		// Handle special cases
-		if math.IsNaN(val.Value) {
-			return "NaN"
-		}
-		if math.IsInf(val.Value, 1) {
-			return "Inf"
-		}
-		if math.IsInf(val.Value, -1) {
-			return "-Inf"
-		}
-		// Use 'f' format to ensure decimal point is always shown
-		// e.g., "5.0" not "5", "3.14" not "3.14"
-		s := strconv.FormatFloat(val.Value, 'f', -1, 64)
-		// Ensure at least one decimal place (e.g., "5" -> "5.0")
-		if !strings.Contains(s, ".") {
-			s += ".0"
-		}
-		return s
-
+		return ShowNode{Kind: ShowFloat, Float: val.Value}
 	case *eval.BoolValue:
-		if val.Value {
-			return "true"
-		}
-		return "false"
-
+		return ShowNode{Text: strconv.FormatBool(val.Value)}
 	case *eval.StringValue:
-		// Return string without quotes (identity for strings)
-		return val.Value
-
+		return ShowNode{Text: val.Value} // identity for strings, no quotes
 	case *eval.ListValue:
-		return showSequence(val.Elements, depth, "[", "]")
-
+		return ShowNode{Kind: ShowList, Items: evalItems(val.Elements)}
 	case *eval.ArrayValue:
-		return showSequence(val.Elements(), depth, "#[", "]")
-
+		return ShowNode{Kind: ShowArray, Items: evalItems(val.Elements())}
 	case *eval.TupleValue:
-		return showSequence(val.Elements, depth, "(", ")")
-
+		return ShowNode{Kind: ShowTuple, Items: evalItems(val.Elements)}
 	case *eval.MapValue:
-		// Map{...} is deliberate debug notation: AILANG has no map literal, so
-		// this rendering is not round-trippable surface syntax.
 		keys := make([]string, 0, len(val.Entries))
 		for key := range val.Entries {
 			keys = append(keys, key)
 		}
 		sort.Strings(keys)
-		parts := make([]string, 0, len(keys))
+		items := make([]any, 0, 2*len(keys))
 		for _, key := range keys {
-			entry := val.Entries[key]
-			parts = append(parts, showValue(entry.Key, depth+1)+": "+showValue(entry.Value, depth+1))
+			items = append(items, val.Entries[key].Key, val.Entries[key].Value)
 		}
-		return truncateIfNeeded("Map{" + strings.Join(parts, ", ") + "}")
-
+		return ShowNode{Kind: ShowMap, Items: items}
 	case *eval.RecordValue:
-		if len(val.Fields) == 0 {
-			return "{}"
+		names := make([]string, 0, len(val.Fields))
+		items := make([]any, 0, len(val.Fields))
+		for k, fv := range val.Fields {
+			names = append(names, k)
+			items = append(items, fv)
 		}
-		// Sort keys for deterministic output
-		keys := make([]string, 0, len(val.Fields))
-		for k := range val.Fields {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-
-		var parts []string
-		for _, k := range keys {
-			parts = append(parts, fmt.Sprintf("%s: %s", k, showValue(val.Fields[k], depth+1)))
-		}
-		result := "{" + strings.Join(parts, ", ") + "}"
-		return truncateIfNeeded(result)
-
+		return ShowNode{Kind: ShowRecord, Names: names, Items: items}
 	case *eval.TaggedValue:
-		// ADT constructors: Some(42) → "Some(42)"
-		if len(val.Fields) == 0 {
-			return val.CtorName
-		}
-		var argStrs []string
-		for _, arg := range val.Fields {
-			argStrs = append(argStrs, showValue(arg, depth+1))
-		}
-		return val.CtorName + "(" + strings.Join(argStrs, ", ") + ")"
-
+		return ShowNode{Kind: ShowCtor, Text: val.CtorName, Items: evalItems(val.Fields)}
 	case *eval.UnitValue:
-		return "()"
-
-	case *eval.FunctionValue:
-		return "<function>"
-
-	case *eval.BuiltinFunction:
-		return "<function>"
-
-	case *eval.ConstructorClosure:
-		return "<function>"
-
+		return ShowNode{Text: "()"}
+	case *eval.FunctionValue, *eval.BuiltinFunction, *eval.ConstructorClosure:
+		return ShowNode{Text: "<function>"}
 	case *eval.BytesValue:
-		return val.String()
-
+		return ShowNode{Text: val.String()}
 	case *eval.IndirectValue:
 		if val.Cell == nil || !val.Cell.Init || val.Cell.Val == nil {
-			return "<uninitialized>"
+			return ShowNode{Text: "<uninitialized>"}
 		}
-		return showValue(val.Cell.Val, depth)
-
+		return ShowNode{Kind: ShowSame, Items: []any{val.Cell.Val}}
 	case *eval.ErrorValue:
-		return fmt.Sprintf("Error: %s", val.Message)
-
-	default:
-		return "<unknown>"
+		return ShowNode{Text: "Error: " + val.Message}
 	}
-}
-
-func showSequence(elements []eval.Value, depth int, open, close string) string {
-	parts := make([]string, 0, len(elements))
-	for _, elem := range elements {
-		parts = append(parts, showValue(elem, depth+1))
-	}
-	return truncateIfNeeded(open + strings.Join(parts, ", ") + close)
-}
-
-// truncateIfNeeded elides the middle of long strings to keep under maxWidth
-func truncateIfNeeded(s string) string {
-	if len(s) <= maxWidth {
-		return s
-	}
-
-	// Calculate elision: keep prefix and suffix, replace middle with "..."
-	if elisionPrefix+elisionSuffix+3 >= len(s) {
-		return s // Too short to bother eliding
-	}
-
-	prefix := s[:elisionPrefix]
-	suffix := s[len(s)-elisionSuffix:]
-	return prefix + "..." + suffix
+	return ShowNode{Text: "<unknown>"}
 }

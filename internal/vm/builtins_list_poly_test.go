@@ -101,8 +101,8 @@ func TestPolyListBuiltinsMatchEvaluator(t *testing.T) {
 // adapted: elements the converter cannot name (ADTs, closures) must pass
 // through untouched.
 func TestPolyListBuiltinsCarryADTs(t *testing.T) {
-	some := func(n int64) bytecode.Value { return bytecode.NewADT(0, []bytecode.Value{bytecode.NewInt(n)}) }
-	xs := bytecode.NewList([]bytecode.Value{some(1), some(2), bytecode.NewADT(1, nil)})
+	some := func(n int64) bytecode.Value { return bytecode.NewADT(0, "Some", []bytecode.Value{bytecode.NewInt(n)}) }
+	xs := bytecode.NewList([]bytecode.Value{some(1), some(2), bytecode.NewADT(1, "None", nil)})
 
 	got, err := nativeBuiltin(t, "__list_reverse")([]bytecode.Value{xs})
 	if err != nil {

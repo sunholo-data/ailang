@@ -526,8 +526,13 @@ func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
 			for i := 0; i < count; i++ {
 				fields[i] = frame.Regs[int(inst.A())+1+i]
 			}
-			frame.Regs[inst.A()] = bytecode.NewADT(tag, fields)
-			frame.IP++
+			nameInst := frame.Proto.Instructions[frame.IP+1]
+			ctor, ok := frame.Proto.LookupConstant(int(nameInst.Bx()), vm.Image)
+			if nameInst.Op() != bytecode.OpLoadConst || !ok || ctor.Tag != bytecode.TagString {
+				return bytecode.Value{}, vm.errAt(frame, "MAKE_ADT: expected pseudo-LOAD_CONST for constructor name", nameInst)
+			}
+			frame.Regs[inst.A()] = bytecode.NewADT(tag, ctor.AsString(), fields)
+			frame.IP += 2
 
 		case bytecode.OpGetTag:
 			v := frame.Regs[inst.B()]

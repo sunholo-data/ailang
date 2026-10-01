@@ -283,7 +283,7 @@ func (b *vmJSONBuilder) pushObject() {
 func (b *vmJSONBuilder) popObject() bytecode.Value {
 	frame := b.stack[len(b.stack)-1]
 	b.stack = b.stack[:len(b.stack)-1]
-	return bytecode.NewADT(jsonTagJObject, []bytecode.Value{bytecode.NewList(frame.kvPairs)})
+	return bytecode.NewADT(jsonTagJObject, "JObject", []bytecode.Value{bytecode.NewList(frame.kvPairs)})
 }
 
 func (b *vmJSONBuilder) pushArray() {
@@ -293,7 +293,7 @@ func (b *vmJSONBuilder) pushArray() {
 func (b *vmJSONBuilder) popArray() bytecode.Value {
 	frame := b.stack[len(b.stack)-1]
 	b.stack = b.stack[:len(b.stack)-1]
-	return bytecode.NewADT(jsonTagJArray, []bytecode.Value{bytecode.NewList(frame.values)})
+	return bytecode.NewADT(jsonTagJArray, "JArray", []bytecode.Value{bytecode.NewList(frame.values)})
 }
 
 func (b *vmJSONBuilder) addValue(val bytecode.Value) {
@@ -335,35 +335,35 @@ func (b *vmJSONBuilder) expectingKey() bool {
 // Json ADT constructors for bytecode values.
 
 func vmMakeJNull() bytecode.Value {
-	return bytecode.NewADT(jsonTagJNull, nil)
+	return bytecode.NewADT(jsonTagJNull, "JNull", nil)
 }
 
 func vmMakeJBool(b bool) bytecode.Value {
-	return bytecode.NewADT(jsonTagJBool, []bytecode.Value{bytecode.NewBool(b)})
+	return bytecode.NewADT(jsonTagJBool, "JBool", []bytecode.Value{bytecode.NewBool(b)})
 }
 
 func vmMakeJNumber(n json.Number) bytecode.Value {
 	str := string(n)
 	if strings.ContainsAny(str, ".eE") {
 		f, _ := n.Float64()
-		return bytecode.NewADT(jsonTagJNumber, []bytecode.Value{bytecode.NewFloat(f)})
+		return bytecode.NewADT(jsonTagJNumber, "JNumber", []bytecode.Value{bytecode.NewFloat(f)})
 	}
 	i, _ := n.Int64()
-	return bytecode.NewADT(jsonTagJNumber, []bytecode.Value{bytecode.NewFloat(float64(i))})
+	return bytecode.NewADT(jsonTagJNumber, "JNumber", []bytecode.Value{bytecode.NewFloat(float64(i))})
 }
 
 func vmMakeJString(s string) bytecode.Value {
-	return bytecode.NewADT(jsonTagJString, []bytecode.Value{bytecode.NewString(s)})
+	return bytecode.NewADT(jsonTagJString, "JString", []bytecode.Value{bytecode.NewString(s)})
 }
 
 // Result ADT constructors.
 
 func vmResultOk(v bytecode.Value) bytecode.Value {
-	return bytecode.NewADT(resultTagOk, []bytecode.Value{v})
+	return bytecode.NewADT(resultTagOk, "Ok", []bytecode.Value{v})
 }
 
 func vmResultErr(msg string) bytecode.Value {
-	return bytecode.NewADT(resultTagErr, []bytecode.Value{bytecode.NewString(msg)})
+	return bytecode.NewADT(resultTagErr, "Err", []bytecode.Value{bytecode.NewString(msg)})
 }
 
 // --- json_repair: string -> Result[string, string] ---------------------------

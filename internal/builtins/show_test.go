@@ -31,7 +31,7 @@ func TestShow_AllEvalValueImplementationsHandled(t *testing.T) {
 			unhandled = append(unhandled, name)
 		}
 	}
-	require.Empty(t, unhandled, "showValue must explicitly handle every eval.Value implementation")
+	require.Empty(t, unhandled, "inspectEvalShow must explicitly handle every eval.Value implementation")
 }
 
 func evalValueImplementations(t *testing.T, evalDir string) []string {
@@ -85,12 +85,12 @@ func showValueCases(t *testing.T, filename string) map[string]bool {
 	var showValue *ast.FuncDecl
 	for _, decl := range file.Decls {
 		fn, ok := decl.(*ast.FuncDecl)
-		if ok && fn.Name.Name == "showValue" {
+		if ok && fn.Name.Name == "inspectEvalShow" {
 			showValue = fn
 			break
 		}
 	}
-	require.NotNil(t, showValue, "showValue declaration not found")
+	require.NotNil(t, showValue, "inspectEvalShow declaration not found")
 	ast.Inspect(showValue.Body, func(node ast.Node) bool {
 		typeSwitch, ok := node.(*ast.TypeSwitchStmt)
 		if !ok {
