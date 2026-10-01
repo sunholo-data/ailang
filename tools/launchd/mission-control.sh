@@ -993,7 +993,10 @@ _mc_probe_pi() {
     log "pi:$m quota admission blocked; skipping inference probe"
     return 75
   fi
-  _mc_bounded "$PROBE_TIMEOUT" pi --mode json --no-session --no-tools --model "$m" -p 'reply with exactly: ok'
+  # --no-extensions: the probe asks whether the MODEL answers. Extension discovery loaded
+  # the global and repo copies of the same tools and exited rc=1 in any checkout with
+  # .pi/extensions (lib/pi-ext-args.sh), so the probe reported a working model as dead.
+  _mc_bounded "$PROBE_TIMEOUT" pi --mode json --no-session --no-tools --no-extensions --model "$m" -p 'reply with exactly: ok'
 }
 
 # ---- runtime bucket exhaustion (M-QUOTA-RATIONING-ROUTING M4) -------------
@@ -2525,7 +2528,10 @@ _mc_run_once() {
     # creates a missing one).
     _mc_pi_prompt="$PROMPT"
     _mc_pi_session_exists "$MC_PI_SESSION_ID" && _mc_pi_prompt="$MC_PI_RESUME_PROMPT"
-    ( cd "$REPO" && pi --model "$MODEL" -e "$MC_DRIVER_ROOT/tools/pi-extensions/controller-bash-cap.ts" --session-id "$MC_PI_SESSION_ID" -p "$_mc_pi_prompt" < /dev/null ) >>"$LOG" 2>&1 &
+    # Each extension once (lib/pi-ext-args.sh): global + repo copies otherwise conflict.
+    . "$MC_DRIVER_ROOT/tools/launchd/lib/pi-ext-args.sh"
+    _mc_pi_ext=(); while IFS= read -r _l; do _mc_pi_ext+=("$_l"); done < <(_mc_pi_ext_args "$REPO")
+    ( cd "$REPO" && pi --model "$MODEL" ${_mc_pi_ext[@]+"${_mc_pi_ext[@]}"} -e "$MC_DRIVER_ROOT/tools/pi-extensions/controller-bash-cap.ts" --session-id "$MC_PI_SESSION_ID" -p "$_mc_pi_prompt" < /dev/null ) >>"$LOG" 2>&1 &
   else
     claude -p "$PROMPT" \
       --model "$MODEL" \

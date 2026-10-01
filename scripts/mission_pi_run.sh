@@ -245,6 +245,10 @@ now() { date +%s; }
 # collided with our own pgid — kill this script. With it, the job leads its own group and
 # the negative-pid kill reaches pi's children, which is the whole point of killing at all.
 BASE_HEAD=$(git -C "$WORKDIR" rev-parse --verify -q HEAD 2>/dev/null) || BASE_HEAD=""
+# Each extension once: a worktree carrying .pi/extensions would otherwise load the global
+# and repo copies of the same tools, and pi exits rc=1 on the conflict (lib/pi-ext-args.sh).
+. "$RUNNER_ROOT/tools/launchd/lib/pi-ext-args.sh"
+PI_EXT_ARGS=(); while IFS= read -r _l; do PI_EXT_ARGS+=("$_l"); done < <(_mc_pi_ext_args "$WORKDIR")
 set -m
 (
   # RUN IN THE WORKTREE. pi edits files relative to its CWD, and --workdir is what we
@@ -258,7 +262,7 @@ set -m
   # demand an `ailang messages` call before unlocking — a call that cannot reach the store
   # from inside this sandbox and hung every executor run of World iter-208 (2026-09-29).
   AILANG_MISSION_STAGE=1 AILANG_STORAGE_MESSAGING=gcp AILANG_MESSAGES_PROJECT=ailang-multivac \
-    pi --mode json --no-session -e "$STAGE/sandbox/index.ts" -e "$STAGE/worktree-fence.ts" --model "$MODEL" < "$DIRECTIVE" 2>"$ERR" |
+    pi --mode json --no-session ${PI_EXT_ARGS[@]+"${PI_EXT_ARGS[@]}"} -e "$STAGE/sandbox/index.ts" -e "$STAGE/worktree-fence.ts" --model "$MODEL" < "$DIRECTIVE" 2>"$ERR" |
     awk -v out="$OUT" -v snap="$SNAP" -v every="$SNAP_EVERY" '
       /"type":"message_update"/ {
         n++
