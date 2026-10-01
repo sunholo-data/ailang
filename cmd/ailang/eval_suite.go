@@ -469,7 +469,10 @@ func runEvalSuite() {
 		if !*noCanary {
 			preCanary := modelList
 			healthy, canarySkipped := eval_harness.FilterCanaryHealthyModels(
-				context.Background(), modelList, eval_harness.RunModelCanary)
+				context.Background(), modelList, eval_harness.RunModelCanaryFor(eval_harness.CanaryLane{
+					ToolPolicy: *toolPolicy, PolicyPath: *policyFile,
+					WorkspaceRoot: filepath.Join(os.TempDir(), "ailang_eval"),
+				}))
 			modelList = healthy
 
 			if len(canarySkipped) > 0 {

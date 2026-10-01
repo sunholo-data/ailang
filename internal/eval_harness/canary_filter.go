@@ -53,7 +53,7 @@ func FilterCanaryHealthyModels(ctx context.Context, models []string, run canaryR
 // is a configuration error which the existing per-run path already reports with
 // better context. The canary's job is narrowly to catch a subject that is
 // present but broken.
-func runModelCanary(ctx context.Context, model string) error {
+func runModelCanary(ctx context.Context, model string, lane CanaryLane) error {
 	if modelreg.GlobalModelsConfig == nil {
 		return nil
 	}
@@ -73,8 +73,17 @@ func runModelCanary(ctx context.Context, model string) error {
 	// first real run failed exactly that way. The profile travels the same route
 	// the real path uses: task metadata.
 	subject := executor.CanarySubject{Model: agentModelName}
+	subject.Options = map[string]string{}
 	if mc, err := modelreg.GlobalModelsConfig.GetModel(model); err == nil && mc.MotokoProfile != "" {
-		subject.Options = map[string]string{"motoko_profile": mc.MotokoProfile}
+		subject.Options["motoko_profile"] = mc.MotokoProfile
+	}
+	// The tool lane travels too: a lane run (--tool-policy ailang_only) on a
+	// profile that only boots under a policy would otherwise be canaried
+	// without one and dropped for doing exactly what it should.
+	if lane.ToolPolicy != "" && lane.ToolPolicy != executor.ToolProfileFull {
+		subject.Options["tool_policy"] = lane.ToolPolicy
+		subject.Options["policy_path"] = lane.PolicyPath
+		subject.Options["workspace_root"] = lane.WorkspaceRoot
 	}
 
 	if err := executor.RunCanary(ctx, exec, subject); err != nil {
@@ -83,5 +92,21 @@ func runModelCanary(ctx context.Context, model string) error {
 	return nil
 }
 
-// RunModelCanary is the production canaryRunner.
-func RunModelCanary(ctx context.Context, model string) error { return runModelCanary(ctx, model) }
+// CanaryLane is the tool lane the benchmarks will run, so the canary probes
+// the same configuration: the tool policy, its program policy file, and the
+// root the run workspaces live under (the policy's sandbox covers it).
+type CanaryLane struct {
+	ToolPolicy    string
+	PolicyPath    string
+	WorkspaceRoot string
+}
+
+// RunModelCanary is the production canaryRunner for a run with no tool lane.
+func RunModelCanary(ctx context.Context, model string) error {
+	return runModelCanary(ctx, model, CanaryLane{})
+}
+
+// RunModelCanaryFor is the production canaryRunner for a run on a tool lane.
+func RunModelCanaryFor(lane CanaryLane) func(context.Context, string) error {
+	return func(ctx context.Context, model string) error { return runModelCanary(ctx, model, lane) }
+}

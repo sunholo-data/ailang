@@ -118,7 +118,8 @@ func writeSession(t *testing.T, lines ...string) string {
 
 func TestLaneSessionViolation(t *testing.T) {
 	start := `{"type":"session_start","loaded_extensions":["ailang_policy","empty_stop_guard"]}`
-	ok := writeSession(t, start,
+	runStart := `{"type":"session_start","mode":"v2","run_id":"r0"}`
+	ok := writeSession(t, start, runStart,
 		`{"type":"native_tool_results","results":[{"tool":"ailang_write","exit_code":0}]}`,
 		`{"type":"native_tool_results","results":[{"exit_code":1,"payload":{"denied_by_policy":true,"tool":"BashExec"}}]}`)
 	if v := laneSessionViolation(ok); v != "" {
@@ -132,7 +133,7 @@ func TestLaneSessionViolation(t *testing.T) {
 	if v := laneSessionViolation(wrongFirst); !strings.Contains(v, "first") {
 		t.Fatalf("a session without ailang_policy first was not flagged: %q", v)
 	}
-	if v := laneSessionViolation(writeSession(t, `{"type":"step"}`)); !strings.Contains(v, "session_start") {
+	if v := laneSessionViolation(writeSession(t, runStart)); !strings.Contains(v, "session_start") {
 		t.Fatalf("a session without session_start was not flagged: %q", v)
 	}
 }

@@ -102,7 +102,9 @@ func defaultLaneRunner(ctx context.Context, dir string, env []string, name strin
 // checkLaneProfile reads the profile through motoko's own resolver and checks
 // the lane properties.
 func checkLaneProfile(ctx context.Context, run laneRunner, repo, workdir, profile string) error {
-	out, code, err := run(ctx, repo, []string{"AILANG_RELAX_MODULES=1"},
+	// MOTOKO_REPO: motoko looks for the profile in the workdir first, then in
+	// the repo (config.ail profile_dir_for) — the same env the real run gets.
+	out, code, err := run(ctx, repo, []string{"AILANG_RELAX_MODULES=1", "MOTOKO_REPO=" + repo},
 		"ailang", "run", "--quiet", "--caps", "IO,FS,Env", "--entry", "print_config_json", "src/core/config.ail",
 		"--", "--workdir", workdir, "--profile", profile)
 	if err != nil || code != 0 {
@@ -223,8 +225,8 @@ func laneSessionViolation(path string) string {
 	sawStart := false
 	for sc.Scan() {
 		var ev struct {
-			Type             string   `json:"type"`
-			LoadedExtensions []string `json:"loaded_extensions"`
+			Type             string    `json:"type"`
+			LoadedExtensions *[]string `json:"loaded_extensions"`
 			Results          []struct {
 				Tool    string         `json:"tool"`
 				Payload map[string]any `json:"payload"`
@@ -235,9 +237,15 @@ func laneSessionViolation(path string) string {
 		}
 		switch ev.Type {
 		case "session_start":
+			// motoko writes two session_start events: the host's, which lists
+			// loaded_extensions, and the run's, which does not. Judge the one
+			// that carries the list; require that one exists.
+			if ev.LoadedExtensions == nil {
+				continue
+			}
 			sawStart = true
-			if len(ev.LoadedExtensions) == 0 || ev.LoadedExtensions[0] != laneExtension {
-				return fmt.Sprintf("session loaded %v; the lane needs %s first", ev.LoadedExtensions, laneExtension)
+			if exts := *ev.LoadedExtensions; len(exts) == 0 || exts[0] != laneExtension {
+				return fmt.Sprintf("session loaded %v; the lane needs %s first", exts, laneExtension)
 			}
 		case "native_tool_results":
 			for _, r := range ev.Results {
@@ -252,13 +260,13 @@ func laneSessionViolation(path string) string {
 		}
 	}
 	if !sawStart {
-		return "session has no session_start event; cannot verify the lane"
+		return "session has no session_start event listing loaded_extensions; cannot verify the lane"
 	}
 	return ""
 }
 
-// executeLane runs an ailang_only task: the pre-spawn gate (lane.go), the
-// policy forwarded as AILANG_AGENT_POLICY, then the post-run session check.
+// executeLane runs an ailang_only task: the pre-spawn gate, the run (the policy
+// reaches motoko as AILANG_AGENT_POLICY), then the post-run session check.
 func (e *MotokoExecutor) executeLane(ctx context.Context, task *executor.Task, handler executor.EventHandler) (*executor.Result, error) {
 	profile := e.profile
 	if p := task.Metadata["motoko_profile"]; p != "" {
@@ -267,13 +275,9 @@ func (e *MotokoExecutor) executeLane(ctx context.Context, task *executor.Task, h
 	if err := e.checkLaneTask(ctx, defaultLaneRunner, task, profile); err != nil {
 		return nil, err
 	}
-	laneTask := *task
-	laneTask.ExtraEnv = make(map[string]string, len(task.ExtraEnv)+1)
-	for k, v := range task.ExtraEnv {
-		laneTask.ExtraEnv[k] = v
-	}
-	laneTask.ExtraEnv["AILANG_AGENT_POLICY"] = task.PolicyPath
-	res, err := e.executeStreaming(ctx, &laneTask, handler)
+	// AILANG_AGENT_POLICY reaches motoko through executor.BuildEnvironment,
+	// which derives it from task.PolicyPath (and refuses it as task ExtraEnv).
+	res, err := e.executeStreaming(ctx, task, handler)
 	if res == nil {
 		return res, err
 	}
