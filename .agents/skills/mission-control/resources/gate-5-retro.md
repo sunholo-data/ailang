@@ -110,7 +110,9 @@ After every Gate-5 report has been sent and this iteration is fully complete, ru
      already-MET clause, writes "goal unmoved" in those words.>
    - **Up next (banked)**: <top 2-3 READY queue items, each "<item> — <why it ranks>" on one line>
    - **Key find**: <≤2 sentences, ONLY if it should change Mark's priorities — else omit the row>
-   - **Cost**: metered $<x> · quota buckets <list>
+   - **Cost**: metered $<x> · quota buckets <list> · routing: <`$MISSION_ROUTING_NOTE` verbatim,
+     or "as configured" when it is empty — the driver no longer comments model up/downgrades on
+     the thread (Mark 2026-10-01: comment spam); this clause is where they surface now>
    - **DECISIONS FOR MARK**: "none", or one bullet per ask. A complete ask carries INLINE: the
      question in one sentence · each option with a one-line consequence · the loop's own
      recommendation · the default if unanswered (and when it triggers). Model on

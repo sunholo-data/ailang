@@ -143,13 +143,19 @@ func daemonRun(args []string) error {
 	}
 
 	// Build the channel registry: macOS desktop (local best-effort) plus any
-	// env-gated remote channels (Discord if AILANG_DISCORD_WEBHOOK_URL is set).
-	// The daemon fans out over all of them; remote channels are authoritative
-	// for ack, the local one is best-effort. With no remote channel configured,
-	// this degrades to today's macOS-only behaviour.
+	// remote channels whose secret resolves. The daemon fans out over all of
+	// them; remote channels are authoritative for ack, the local one is
+	// best-effort. With no remote channel configured, this degrades to today's
+	// macOS-only behaviour.
+	//
+	// project and prefix are passed so the Discord webhook can come from Secret
+	// Manager, which every machine resolves identically. The macOS login
+	// Keychain remains a fallback but cannot be depended on: it locks whenever
+	// another user holds the console, which is how the rig lost Discord while
+	// its Keychain item sat present and valid.
 	reg := notify.NewRegistry()
 	_ = reg.Register(notify.MacOSChannel{})
-	notify.RegisterChannels(reg, log.Default())
+	notify.RegisterChannelsFor(reg, log.Default(), project, prefix)
 
 	d := daemon.New(
 		cfg,
@@ -221,6 +227,8 @@ func daemonInstall(args []string) error {
 	envFlag := fs.String("env", "prod", "Cloud environment to subscribe to (dev|test|prod).")
 	binPath := fs.String("binary", "", "Absolute path to the ailang binary. Default: result of `which ailang`.")
 	force := fs.Bool("force", false, "Overwrite existing plist.")
+	messagesSub := fs.String("messages-sub", daemon.DefaultMessagesSub,
+		"Subscription this device pulls for the PRIMARY env's inbox messages. Give each device its own (e.g. messages-rig) — two daemons on one subscription work-steal and each sees only part of the traffic.")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -232,10 +240,15 @@ func daemonInstall(args []string) error {
 		}
 		bin = resolved
 	}
-	if err := daemon.Install(daemon.InstallOpts{Env: *envFlag, BinaryPath: bin, Force: *force}); err != nil {
+	if err := daemon.Install(daemon.InstallOpts{
+		Env:         *envFlag,
+		BinaryPath:  bin,
+		Force:       *force,
+		MessagesSub: *messagesSub,
+	}); err != nil {
 		return err
 	}
-	fmt.Printf("ailang daemon: installed (env=%s, binary=%s)\n", *envFlag, bin)
+	fmt.Printf("ailang daemon: installed (env=%s, binary=%s, messages-sub=%s)\n", *envFlag, bin, *messagesSub)
 	fmt.Println("            log: /tmp/ailang-daemon.log")
 	fmt.Println("           stop: ailang daemon uninstall")
 	return nil

@@ -1,5 +1,7 @@
 # M-MOTOKO-FMT-REMEASUREMENT-INSTRUMENT: the instrument that decides whether `motoko_ext_fmt` survives the new tree
 
+> **Premise superseded 2026-09-30 (`D-MOTOKO-RESET-2`).** Written against the retired `mk-ast` fork. `fmt` has not been ported to ABI 8.0 yet; motoko-mission queue row 22 re-derives this instrument on `mk-main` before anything here is reused.
+
 **Status**: **UN-PARKED 2026-08-19 (iteration 13) — `D-MOTOKO-FMT-1` RESOLVED by Mark (attended,
 2026-08-19): the trace is a PRECONDITION of D1, and iteration 13 ran it. O4 is CLOSED by measurement
 (§12), and D1 is RE-SHAPED by what the trace found — the preflight cannot be made provider-conditional
@@ -18,7 +20,7 @@ power arithmetic, not the pre-registered decision rule. See §11.
 **The decision this doc enables:** after the migration to Arni's phase-core tree, does
 `motoko_ext_fmt` stay in the extension catalog (KEEP) or get dropped (RETIRE)? The migration doc
 already pre-commits to *"kept if it holds, dropped if not"*
-(`design_docs/planned/m-motoko-dst-refactor-migration.md:67`); this doc defines *what "holds"
+(`design_docs/implemented/v0_48_0/m-motoko-dst-refactor-migration.md:67` at the time of writing); this doc defines *what "holds"
 means*, on what data, at what cost, with the decision rule written before any data exists. DST
 cannot make this call: extension-hook coverage is ≈1 substantively-simulated hook of ~40
 (mission charter, DST-scope section) — *"it will not tell us whether fmt saves tokens"* — so this

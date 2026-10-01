@@ -11,21 +11,39 @@
         <string>run</string>
         <string>--env</string>
         <string>{{.Env}}</string>
+        <string>--messages-sub</string>
+        <string>{{.MessagesSub}}</string>
     </array>
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
     <true/>
+    <!-- The login Keychain is only reachable from the Aqua (GUI login) session.
+         A daemon loaded into the background domain gets
+         errSecInteractionNotAllowed from `security find-generic-password`, and
+         because channel registration is fail-closed it then boots with the
+         Discord channel silently missing — one log line, no Discord posts.
+         Measured on the rig 2026-09-30: the keychain item was present the whole
+         time and read with exit 36. -->
+    <key>LimitLoadToSessionType</key>
+    <string>Aqua</string>
     <key>StandardOutPath</key>
     <string>/tmp/ailang-daemon.log</string>
     <key>StandardErrorPath</key>
     <string>/tmp/ailang-daemon.log</string>
     <key>EnvironmentVariables</key>
     <dict>
+        <!-- Move ONLY messaging to the cloud. AILANG_STORAGE=gcp was used here
+             and it moves all three stores, so the daemon also pointed its
+             coordinator and observatory reads at the cloud project (the
+             "Observatory: 500MB" warning it logs was measuring the wrong
+             store). AILANG_STORAGE_MESSAGING is the per-store override. -->
+        <key>AILANG_STORAGE_MESSAGING</key>
+        <string>gcp</string>
+        <key>AILANG_MESSAGES_PROJECT</key>
+        <string>{{.Project}}</string>
         <key>AILANG_CLOUD_PROJECT</key>
         <string>{{.Project}}</string>
-        <key>AILANG_STORAGE</key>
-        <string>gcp</string>
         <!-- launchd's default PATH excludes /opt/homebrew/bin and /usr/local/bin
              where Homebrew installs terminal-notifier. Without this entry the
              daemon silently falls back to osascript (which shows the Script

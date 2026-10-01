@@ -156,7 +156,10 @@ func (s *MessagingStore) GetInboxMessage(id string) (*messaging.InboxMessage, er
 	doc, err := s.client.Doc(collInbox, id).Get(context.Background())
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
-			return nil, fmt.Errorf("inbox message not found: %s", id)
+			// Wrap the shared sentinel: a caller (the notify daemon) must be able
+			// to tell "this id resolves to nothing, stop retrying" from a network
+			// or permission failure, which IS worth a retry.
+			return nil, fmt.Errorf("%w: %s", messaging.ErrMessageNotFound, id)
 		}
 		return nil, err
 	}

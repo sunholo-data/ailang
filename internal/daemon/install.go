@@ -25,11 +25,26 @@ var launchctlRun = func(args ...string) ([]byte, error) {
 	return exec.Command("launchctl", args...).CombinedOutput()
 }
 
+// DefaultMessagesSub is the base subscription an install uses when the caller
+// names none. It matches the --messages-sub default in `ailang daemon run`.
+const DefaultMessagesSub = "messages-laptop"
+
 // InstallOpts controls plist generation.
 type InstallOpts struct {
 	Env        string // dev|test|prod
 	BinaryPath string // absolute path to the ailang binary
 	Force      bool   // overwrite existing plist
+
+	// MessagesSub is the PRIMARY subscription this device pulls. Empty means
+	// DefaultMessagesSub.
+	//
+	// It is a field because the plist could not express it: install always wrote
+	// `daemon run --env <env>` with no subscription, so the only way to give a
+	// second device its own subscription was to hand-edit the generated plist —
+	// and a hand-edited plist drifts from what install produces and is silently
+	// reverted by the next --force install. Two daemons that share one
+	// subscription work-steal, so each sees only part of the traffic.
+	MessagesSub string
 }
 
 // Install renders and loads the launchd plist for the daemon. Returns an
@@ -57,10 +72,15 @@ func Install(opts InstallOpts) error {
 		return fmt.Errorf("parse plist template: %w", err)
 	}
 	var buf bytes.Buffer
+	messagesSub := strings.TrimSpace(opts.MessagesSub)
+	if messagesSub == "" {
+		messagesSub = DefaultMessagesSub
+	}
 	if err := tmpl.Execute(&buf, map[string]string{
-		"BinaryPath": opts.BinaryPath,
-		"Env":        opts.Env,
-		"Project":    mapping.Project,
+		"BinaryPath":  opts.BinaryPath,
+		"Env":         opts.Env,
+		"Project":     mapping.Project,
+		"MessagesSub": messagesSub,
 	}); err != nil {
 		return fmt.Errorf("render plist: %w", err)
 	}

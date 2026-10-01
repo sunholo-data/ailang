@@ -158,7 +158,10 @@ fi
 unset ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN OPENAI_API_KEY
 
 
-# _mc_notify TITLE BODY LABEL — report a degradation on BOTH human channels.
+# _mc_notify TITLE BODY LABEL [CHANNELS] — report a degradation on the human channels.
+# CHANNELS=messages skips the bookkeeping issue: routing changes (lane degraded, controller
+# switch) reach the thread through the iteration digest's Routing line instead (Mark
+# 2026-10-01: per-fire model up/downgrade comments were spam on the thread).
 # Extracted from the lane-degradation block (564cc4640) when the driver-pin notice (#558) needed
 # the identical shape: two near-identical emit blocks is how one of them silently rots.
 # NOT fail-closed: aborting on a failed post would make GitHub/controlplane availability a hard
@@ -264,7 +267,7 @@ _mc_drain_notices() {
 }
 
 _mc_notify() {
-  local title="$1" body="$2" label="$3" _try rc=1 _rc=1 _ts
+  local title="$1" body="$2" label="$3" channels="${4:-all}" _try rc=1 _rc=1 _ts
   # ONE timestamp for the whole call: it stamps the title (via _mc_notice_title) and, if
   # the send fails, the spool row — so a spooled retry re-derives the SAME title instead
   # of minting a new one per attempt and filling the inbox with near-duplicates.
@@ -319,7 +322,9 @@ _mc_notify() {
     printf '%s\t%s\t%s\n' "$_ts" "$title" "$(printf '%s' "$body" | tr '\n' ' ')" \
       >> "$STATE_DIR/mission-${MISSION_NAME}-notice-spool.tsv" 2>/dev/null || true
   fi
-  if [ -n "${MISSION_GH_ISSUE:-}" ]; then
+  if [ "$channels" = messages ]; then
+    :   # digest-carried (see the header): no issue comment by design
+  elif [ -n "${MISSION_GH_ISSUE:-}" ]; then
     # GH is one-shot (not retried): bounding only caps the wall-clock; a hang or
     # failure still yields the loud WARNING below (non-aborting).
     _mc_bounded "$NOTIFY_TIMEOUT" gh issue comment "$MISSION_GH_ISSUE" --repo "$MISSION_REPO" --body "$body" \
@@ -2231,14 +2236,18 @@ ${_ref_reserve}}" 2>/dev/null
 fi
 rm -f "$BLOCKED_FILE"   # a probe succeeded — the blocked episode (if any) is over
 
-# Announce model CHANGES on #329 (not every iteration — only transitions).
+# Controller model CHANGES (transitions only) go into MISSION_ROUTING_NOTE, which the
+# controller folds into its iteration digest's Routing line (gate-5-retro.md). They used to be
+# their own issue comment — Mark 2026-10-01: model up/downgrade comments were thread spam, and a
+# fire that switches model always posts a digest anyway. Fires that never reach an iteration
+# (no usable controller, PAUSED) still comment: there is no digest to carry them.
+MISSION_ROUTING_NOTE=""
 PREV_MODEL=$(cat "$LAST_MODEL_FILE" 2>/dev/null || true)
 if [ -n "$CONTROLLER_ID" ] && [ "$CONTROLLER_ID" != "${PREV_MODEL:-}" ]; then
   printf '%s\n' "$CONTROLLER_ID" > "$LAST_MODEL_FILE"
   if [ -n "${PREV_MODEL:-}" ]; then
     log "controller model change: ${PREV_MODEL} → ${CONTROLLER_ID} (${MODEL_WHY})"
-    [ -n "${MISSION_GH_ISSUE:-}" ] && gh issue comment "$MISSION_GH_ISSUE" --repo "$MISSION_REPO" \
-      --body "🔁 Controller model: **${PREV_MODEL} → ${CONTROLLER_ID}** (${MODEL_WHY}) at $(date '+%F %H:%M %Z'). Automatic — Anthropic preference order \`$PREFS\`, then \`$CONTROLLER_FALLBACK\`; reverts when a higher-preference probe succeeds again." 2>/dev/null || true
+    MISSION_ROUTING_NOTE="controller ${PREV_MODEL} → ${CONTROLLER_ID} (${MODEL_WHY})"
   fi
 fi
 
@@ -2295,6 +2304,8 @@ if [ -n "$_lane_degraded" ]; then
   _lane_ep="$STATE_DIR/mission-${MISSION_NAME:-control}-lane-degraded.episode"
   _lane_fp=$(printf '%s' "$_lane_degraded" | tr -d '0-9')
   log "LANE DEGRADED this fire:$(printf '%s' "$_lane_degraded" | tr '\n' ' ')"
+  # Every degraded fire's digest says so, even when the controlplane notice is episode-suppressed.
+  MISSION_ROUTING_NOTE="${MISSION_ROUTING_NOTE:+${MISSION_ROUTING_NOTE}; }lanes degraded: $(printf '%s' "$_lane_degraded" | sed 's/^- *//' | tr '\n' ';' | sed 's/;$//; s/;/; /g')"
   if [ -f "$_lane_ep" ] && [ "$(cat "$_lane_ep" 2>/dev/null)" = "$_lane_fp" ]; then
     log "lane degradation unchanged this episode — notice suppressed ($_lane_ep)"
   else
@@ -2308,7 +2319,7 @@ ${_deg_reserve}}
 
 Controller: \`${MODEL}\` (${MODEL_WHY}). Effective roles now: designer=\`${MISSION_DESIGNER_MODEL}\` planner=\`${MISSION_PLANNER_MODEL}\` executor=\`${MISSION_EXECUTOR_MODEL}\` evaluator=\`${MISSION_EVALUATOR_MODEL}\`.
 Driver log: \`${LOG}\`. If this repeats across fires, the lane is down — check the bucket, and check that this mission's plist carries a PATH that reaches the CLI (the World mission lost five iterations to exactly that). Identical notices are suppressed until the degradation changes or heals."
-    _mc_notify "Mission ${MISSION_NAME}: executor/planner lane degraded" "$_deg_body" "lane-degradation"
+    _mc_notify "Mission ${MISSION_NAME}: executor/planner lane degraded" "$_deg_body" "lane-degradation" messages
   fi
 else
   rm -f "$STATE_DIR/mission-${MISSION_NAME:-control}-lane-degraded.episode"
@@ -2379,6 +2390,8 @@ export MISSION_CONTROL_ACTIVE=1
 # One id per fire: keys the D-FLEET-2 dead-lane ledger (tools/launchd/mission-lane-dead.sh),
 # so a new fire always starts with every declared lane presumed alive.
 MISSION_FIRE_ID="${MISSION_NAME:-mission}-$(date +%s)-$$"; export MISSION_FIRE_ID
+# Routing changes on this fire (controller switch, degraded lanes) for the digest's Routing line.
+export MISSION_ROUTING_NOTE
 # The pinned driver's own tree, for skill steps that call driver tools from a mission
 # repo that has none (world, stapledon). NOT AILANG_DRIVER_SRC: that is the source clone,
 # which can be far behind what actually runs.

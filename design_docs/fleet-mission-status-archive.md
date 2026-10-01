@@ -54,3 +54,44 @@ is the inherited Go-suite red. Resume predicate, shared with #1329: dev `test` g
 squash-merge both. Clause map: **1 product share** unmeasured; **2 turnaround** at risk (three items wait:
 P0 #2 and P0 #4 on Mark, #1329 and #1330 on V1's red); **3 one queue** MET (16 open tickets, none new);
 **4 idle is free** MET; **5 no regressions** MET (nothing landed unverified).
+
+## STATUS 2026-09-27 — ITERATION 4: P0 #2 M1 **measured**. On the rig, `ps -S` cannot see reaped-child CPU; `proc_pid_rusage` separates the drill from both wedges. Threshold returns to Mark as **D-FLEET-7**. Evaluator PASS 87.
+
+#1329 and #1330 are **merged** (`c912320fe`, `4d8dff929`), so P0 #3's commit-blind half and P1 #0 have
+landed. At Gate 1, dev `CI` was red on one `launchd drivers (bash 3.2)` timing assertion
+(`test_driver_notify.sh`, "hanging gh comment", elapsed 8 s against a 7 s limit). A rerun was green:
+that is the `ci:launchd-driver-suite-flakes` class (P2 #11), now reproduced once on dev.
+**P0 #2 M1** (D-FLEET-4): a new `tools/launchd/measure_stall_cpu.sh` plus a `proc_rusage.py` helper.
+Both are measurement only; the live watchdog is unchanged. **Finding:** on macOS 26.6.2, `ps -S` reads
+`0:00.00` for a parent whose reaped child burned about 4 CPU-s, so the plan's candidate instrument
+cannot work. Per ~121 s window, rusage (self plus reaped children) reads: drill **62.5–97.7**, w1-git
+**0.73–1.72**, w1-gh **0.22–0.31**, w2 **0**. Idle `claude` roots accrue **0.57–1.60** in the same
+window, so an arm must exclude the root. Recommendation in D-FLEET-7: 10 CPU-s per window over the
+descendants only. Branch `fleet/iter4-stall-cpu-measure`; PR and merge at Gate 3b. Clause map: **1 product share**
+unmeasured; **2 turnaround** at risk (P0 #2 back on Mark; P0 #4 routable); **3 one queue** MET (17
+open, one new: `rotate-log:status-flag-mutates-and-world-resolves-to-status-archive`); **4 idle is free**
+MET; **5 no regressions** MET (nothing live changed).
+
+## STATUS 2026-09-28 — ITERATION 6: iteration 5's two fixes **re-judged (PASS 92, PASS 96) and LANDED in [#1377](https://github.com/sunholo-data/ailang/pull/1377) (`eec86ca4f`)**; both tickets resolved
+
+Iteration 5 (07:56 fire) built both fixes and crashed at Gate 3b on an API DNS error (`ENOTFOUND`,
+slot verdict `CRASHED_at=gate-3b`) with no record. The 23:09 fire before it died in the Aqua-session
+loss that its own pick is about. This iteration resumed rather than redid that work. **(1)** The
+`blocking=all` ticket `rig:aqua-session-lost:windowserver-watchdog`: `cron-kicker.sh` now checks the
+gui domain first, logs `SESSION-LOST` once and sends one bounded, fail-soft notice. On restore it
+re-stamps state, and it derives mission labels from `missions/*.toml`, so fleet and stapledon are
+covered. **(2)** P0 #4 `pi-runner:sandbox-extensions-not-wired` (D-FLEET-6): fail-closed extension,
+`-e` wiring, rc 15/16/17. Fresh sonnet evaluators: **PASS 92** and **PASS 96**, 0 blocking. Each
+single-fix PR conflicted on the changelog within minutes, and the scope guard refuses a rebased
+push. So both commits land in one PR, with their entries at the END of `[Unreleased]`. #1377 is
+MERGEABLE, and every check except `lint` is green or pending. `lint` is required and red on dev itself
+since `1fcc479f1` (a direct push; `internal/executor/motoko/healthcheck.go` gofmt), which is outside
+the fleet's scope, so it is sent to `mission-v1`. **Update, same iteration:** `96fd6c5e1` fixed dev `lint`. The record push re-tested, all 4 required
+checks went green, and Mark merged #1377 at 15:26Z (`eec86ca4f`). On the merge commit, `test`, `lint` and
+`launchd drivers (bash 3.2)` are all success. Both tickets are resolved with that SHA (19 open). Clause map: **1 product share** unmeasured; **2
+turnaround** at risk (two tickets resolved; a product red delayed them, the third time); **3 one queue** MET
+(19 open); **4 idle is free** MET; **5 no regressions** MET (nothing landed unverified).
+
+## STATUS 2026-09-29 — ITERATION 7: D-FLEET-7 stall-watchdog M2 merged in [#1399](https://github.com/sunholo-data/ailang/pull/1399) (`ce1c0639f`), independent evaluator PASS 88; merge CI SUCCESS (CI run 36562795612; 20 check rows settled success/skipped)
+
+The approved arm counts descendant `proc_pid_rusage` growth of at least 10 CPU-s per existing 120-s sample, excluding the controller root's own CPU. The sample count and 600-s budget are unchanged. Focused stall suite 35/35 and full `make test-launchd-drivers` passed locally; all 22 PR checks settled success/skipped. Sonnet round 1 found two surviving root-accounting mutations and child churn; round 2 confirmed the fixes, PASS 88 with zero blocking. The ticket was resolved with merge SHA `ce1c0639f` after merge-commit CI. An initial Gate-2 mis-pick of `skill:heartbeat-relative-path-absent-in-world` missed Mark's ranked charter head; its design blocked at quorum twice and is parked for D-FLEET-8, with no heartbeat implementation. Clause map: **1 product share** unmeasured; **2 turnaround** improved for one ticket; **3 one queue** MET; **4 idle is free** MET; **5 no regressions** MET after merge CI.

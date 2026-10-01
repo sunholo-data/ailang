@@ -43,46 +43,17 @@ mission.
 
 Newest **3** STATUS stamps live here; older ones move to `fleet-mission-status-archive.md`.
 
-## STATUS 2026-09-29 — ITERATION 7: D-FLEET-7 stall-watchdog M2 merged in [#1399](https://github.com/sunholo-data/ailang/pull/1399) (`ce1c0639f`), independent evaluator PASS 88; merge CI SUCCESS (CI run 36562795612; 20 check rows settled success/skipped)
+## STATUS 2026-10-01 — ITERATION 10: `pi-runner:quota-429-reported-as-empty-worktree` LANDED in [#1424](https://github.com/sunholo-data/ailang/pull/1424) (`94524a6fc`), independent evaluator PASS 97; ticket resolved; stapledon's stale-pin re-file of `mission-base:hardcoded-origin-dev` resolved against `cb7c51c8e`
 
-The approved arm counts descendant `proc_pid_rusage` growth of at least 10 CPU-s per existing 120-s sample, excluding the controller root's own CPU. The sample count and 600-s budget are unchanged. Focused stall suite 35/35 and full `make test-launchd-drivers` passed locally; all 22 PR checks settled success/skipped. Sonnet round 1 found two surviving root-accounting mutations and child churn; round 2 confirmed the fixes, PASS 88 with zero blocking. The ticket was resolved with merge SHA `ce1c0639f` after merge-commit CI. An initial Gate-2 mis-pick of `skill:heartbeat-relative-path-absent-in-world` missed Mark's ranked charter head; its design blocked at quorum twice and is parked for D-FLEET-8, with no heartbeat implementation. Clause map: **1 product share** unmeasured; **2 turnaround** improved for one ticket; **3 one queue** MET; **4 idle is free** MET; **5 no regressions** MET after merge CI.
+`mission_pi_run.sh` now types a run whose last assistant `message_end` is `stopReason:"error"` with a capacity `errorMessage` (429/402, usage limit, quota, rate limit, credits) as `provider_quota` rc 19, above `ok`/`empty_worktree`; every verdict carries `provider_errors`/`provider_error`. Planning found the worse twin: World iter 187's planner had banked a 429 stop as `ok` rc 0 with 10 files changed. Tests: `test_mission_pi_run_provider_quota.sh` 29 checks on real-pi fixtures, executor 10/10 mutants red, evaluator 5 own drills red; controller `make test-launchd-drivers` rc 0; PR checks CLEAN; merge-commit CI success (SonarCloud red inherited from `a03ec7013`). The gate-3-route.md rc list does not name 19 yet: its `.agents` mirror is outside the scope guard (D-FLEET-8 class); the existing text already falls back on any non-zero rc except 18. The pi evaluator lane died again on the extension collision (rc 17); fallback `claude-sonnet-4-6` judged. Clause map: **1 product share** unmeasured; **2 turnaround** at risk (this ticket filed 09-26 19:10Z, resolved ~4.5 days later); **3 one queue** MET (14 open); **4 idle is free** MET; **5 no regressions** MET.
 
-## STATUS 2026-09-28 — ITERATION 6: iteration 5's two fixes **re-judged (PASS 92, PASS 96) and LANDED in [#1377](https://github.com/sunholo-data/ailang/pull/1377) (`eec86ca4f`)**; both tickets resolved
+## STATUS 2026-09-30 — ITERATION 9: `mission-base:hardcoded-origin-dev` LANDED in [#1418](https://github.com/sunholo-data/ailang/pull/1418) (`cb7c51c8e`), independent evaluator PASS 100; ticket resolved; iteration 8's record #1416 landed (`60af11ee0`)
 
-Iteration 5 (07:56 fire) built both fixes and crashed at Gate 3b on an API DNS error (`ENOTFOUND`,
-slot verdict `CRASHED_at=gate-3b`) with no record. The 23:09 fire before it died in the Aqua-session
-loss that its own pick is about. This iteration resumed rather than redid that work. **(1)** The
-`blocking=all` ticket `rig:aqua-session-lost:windowserver-watchdog`: `cron-kicker.sh` now checks the
-gui domain first, logs `SESSION-LOST` once and sends one bounded, fail-soft notice. On restore it
-re-stamps state, and it derives mission labels from `missions/*.toml`, so fleet and stapledon are
-covered. **(2)** P0 #4 `pi-runner:sandbox-extensions-not-wired` (D-FLEET-6): fail-closed extension,
-`-e` wiring, rc 15/16/17. Fresh sonnet evaluators: **PASS 92** and **PASS 96**, 0 blocking. Each
-single-fix PR conflicted on the changelog within minutes, and the scope guard refuses a rebased
-push. So both commits land in one PR, with their entries at the END of `[Unreleased]`. #1377 is
-MERGEABLE, and every check except `lint` is green or pending. `lint` is required and red on dev itself
-since `1fcc479f1` (a direct push; `internal/executor/motoko/healthcheck.go` gofmt), which is outside
-the fleet's scope, so it is sent to `mission-v1`. **Update, same iteration:** `96fd6c5e1` fixed dev `lint`. The record push re-tested, all 4 required
-checks went green, and Mark merged #1377 at 15:26Z (`eec86ca4f`). On the merge commit, `test`, `lint` and
-`launchd drivers (bash 3.2)` are all success. Both tickets are resolved with that SHA (19 open). Clause map: **1 product share** unmeasured; **2
-turnaround** at risk (two tickets resolved; a product red delayed them, the third time); **3 one queue** MET
-(19 open); **4 idle is free** MET; **5 no regressions** MET (nothing landed unverified).
+`mission-base.sh` now takes `MISSION_BASE_REF`, else `origin/HEAD`'s target, else fails loudly (rc 1, both remedies named, no row written); no silent `origin/dev` fallback. Live A/B in the stapledon clone: old rc 1 `cannot resolve origin/dev`, new rc 0 recording `origin/main`; `origin/HEAD` measured in all 6 mission clones (5 → `origin/dev`, stapledon → `origin/main`). `test_mission_base.sh` 13/13, `make test-launchd-drivers` rc 0 (controller re-run), PR checks all green; merge-commit CI green except SonarCloud new-code coverage, red on the 4 prior dev commits too (inherited). Evaluator: pi minimax-m3 lane dead on launch (`sandbox_not_ready` rc 17: user-level `~/.pi/agent/extensions` tools collide with the worktree's `.pi/extensions`), declared fallback `claude-sonnet-4-6` PASS 100 with its own mutation drills. #1416 had been held only by dev's changelog-hygiene red, since fixed; branch updated, CI CLEAN, merged. Clause map: **1 product share** unmeasured; **2 turnaround** improved (5-occurrence ticket resolved, first filed 09-27 21:07Z, ~72h — over the 48h target); **3 one queue** MET (15 open); **4 idle is free** MET; **5 no regressions** MET.
 
-## STATUS 2026-09-27 — ITERATION 4: P0 #2 M1 **measured**. On the rig, `ps -S` cannot see reaped-child CPU; `proc_pid_rusage` separates the drill from both wedges. Threshold returns to Mark as **D-FLEET-7**. Evaluator PASS 87.
+## STATUS 2026-09-30 — ITERATION 8: paired rotate-log design PARKED · D-FLEET-9; quorum BLOCKED twice, independent Sonnet technical checkpoint PASS, implementation score UNMEASURED
 
-#1329 and #1330 are **merged** (`c912320fe`, `4d8dff929`), so P0 #3's commit-blind half and P1 #0 have
-landed. At Gate 1, dev `CI` was red on one `launchd drivers (bash 3.2)` timing assertion
-(`test_driver_notify.sh`, "hanging gh comment", elapsed 8 s against a 7 s limit). A rerun was green:
-that is the `ci:launchd-driver-suite-flakes` class (P2 #11), now reproduced once on dev.
-**P0 #2 M1** (D-FLEET-4): a new `tools/launchd/measure_stall_cpu.sh` plus a `proc_rusage.py` helper.
-Both are measurement only; the live watchdog is unchanged. **Finding:** on macOS 26.6.2, `ps -S` reads
-`0:00.00` for a parent whose reaped child burned about 4 CPU-s, so the plan's candidate instrument
-cannot work. Per ~121 s window, rusage (self plus reaped children) reads: drill **62.5–97.7**, w1-git
-**0.73–1.72**, w1-gh **0.22–0.31**, w2 **0**. Idle `claude` roots accrue **0.57–1.60** in the same
-window, so an arm must exclude the root. Recommendation in D-FLEET-7: 10 CPU-s per window over the
-descendants only. Branch `fleet/iter4-stall-cpu-measure`; PR and merge at Gate 3b. Clause map: **1 product share**
-unmeasured; **2 turnaround** at risk (P0 #2 back on Mark; P0 #4 routable); **3 one queue** MET (17
-open, one new: `rotate-log:status-flag-mutates-and-world-resolves-to-status-archive`); **4 idle is free**
-MET; **5 no regressions** MET (nothing live changed).
+Synthetic A/B registries reproduce a wrong-checkout write; `--status` mutates the status archive, while default World log selection is correct. No implementation or ticket resolution. Record-only [PR #1416](https://github.com/sunholo-data/ailang/pull/1416) is OPEN, needs-human-review; not landed and no auto-merge armed. The intentional flag break needs Mark, and the next design must audit all shared-loader callers or isolate stricter rotate resolution. [Design](planned/m-mission-rotate-log-safe.md), [independent evaluation](planned/m-mission-rotate-log-safe-evaluation.md), [evidence](planned/m-mission-rotate-log-safe-evidence.json). Goal unmoved: clause 1 unmeasured, 2 at risk, 3–4 met, 5 upheld by shipping nothing unverified. Dev CI is independently red on changelog hygiene; handed to V1.
 
 ## CURRENT GOAL
 
@@ -155,6 +126,8 @@ Shared per-role routing from `mission-control`. Overrides in `~/.config/ailang/m
 | D-FLEET-7 | RULED 2026-09-29 (Mark, attended: "I agree with D-FLEET-7 recommendation") | **Stall-watchdog CPU arm: approve the measured threshold?** M1 found two things. On the rig, `ps -S` cannot see reaped-child CPU; `proc_pid_rusage` (`ri_child_*`) can. And an idle `claude` root accrues 0.57–1.60 CPU-s per 120 s. **Recommendation: YES to M2 with this arm:** count a window as progress when the cumulative rusage CPU of the controller's DESCENDANTS, excluding the root, grows by **≥10 CPU-s per 120-s sample**. Measured windows: drill 62.5–97.7, w1-git ≤1.72, w1-gh ≤0.31, w2 0 (`design_docs/planned/sprint-plan-stall-descendant-progress.md`, M1 result). It needs `python3` (ctypes) in the driver path. Sample counts and the 600 s budget stay unchanged. Risk: a W1 whose poll condition is itself heavy (for example a `go test`) would read live. **RULING: YES to M2 with the recommended arm** (≥10 CPU-s of descendant rusage per 120-s sample counts as progress; sample counts and the 600-s budget unchanged). The heavy-poll W1 risk is accepted. Note: #1391 (2026-09-29) separately bounded pi controller commands at 540 s; this arm is for the claude long-drill shape. |
 | D-FLEET-8 | OPEN 2026-09-29 | Heartbeat design blocked after two quorum rounds. Should the next design update both tracked `.claude/skills/mission-control/resources/**` and `.agents/skills/mission-control/resources/**` call sites? **YES (recommended):** fix both copies and remove the divergence; **NO:** scope to the user-named authoritative `.claude` copy and leave a separate mirror ticket. Default if unanswered: park this heartbeat ticket; no implementation. |
 
+| D-FLEET-9 | OPEN 2026-09-30 | Paired rotate-log design is needs-human-review after two BLOCKED quorums. Approve the proposed legacy flag migration and next design scope? **A (recommended):** reject old `--status` before writes, replace with `--stream status`, and revise with a complete shared-loader caller audit or rotate-only strictness; prevents misleading mutation. **B:** require guarded deprecation instead; next designer must specify opt-in mutation and a sunset before planning. Either option still requires fresh independent quorum and the normal approved-plan/execute gates. Default if unanswered: keep both rotate-log tickets parked and take the next READY charter item on the next fire. |
+
 ## Queue (top = next; tags: [NEXT] [IN-SPRINT] [PARKED] [LANDED] [RULED OUT])
 
 The live tickets are **`ailang mission ticket open`**. This section is **Mark's triage order**,
@@ -177,22 +150,19 @@ evidence in each line). Still re-check at HEAD in Gate 2 before working a ticket
    tools/launchd/mission-heartbeat.sh stamp` calls remain across gate-0..gate-5 resources. They do not
    exist from World's (or Stapledon's) CWD. `$AILANG_DRIVER_SRC` is used 0 times in `resources/`.
    **4 slots lost.**
-2. [NEXT] `mission:rotate-log-registry-cwd` + `rotate-log:status-flag-mutates-and-world-resolves-to-status-archive`
+2. [PARKED · D-FLEET-9] `mission:rotate-log-registry-cwd` + `rotate-log:status-flag-mutates-and-world-resolves-to-status-archive`
    (one command, one sprint):
    - The registry still defaults to CWD-relative `missions` (`mission_cmd.go:25,155-186`).
      `AILANG_MISSION_REGISTRY` (absolute path, ad1bf98d3) is an escape hatch that nothing sets.
    - `--status` means "rotate the status archive" and always writes. It needs a rename or a real
      report-only mode.
    - **3 + 1 slots lost** (stapledon, v1, world).
-3. `mission-base:hardcoded-origin-dev`: `mission-base.sh:10` defaults `REF` to `origin/dev`.
-   Stapledon's default branch is `main`, and nothing sets `MISSION_BASE_REF`, so every stapledon Gate 1
-   base is recorded by hand. Derive the default branch. **3 slots lost.**
+3. [LANDED] `mission-base:hardcoded-origin-dev`: #1418 `cb7c51c8e` (iteration 9), ticket resolved.
 **P1 — a lane misreported as dead, or a failure nobody sees** (the class that cost 2026-09-28/29's
 overnight: harness faults read as model faults)
-4. `pi-runner:quota-429-reported-as-empty-worktree`: `mission_pi_run.sh` still parses no
-   `message_end` error or 429. A quota-exhausted lane reads as `empty_worktree` rc 10. Add a distinct
-   verdict, alongside #1391's `tool_hang`.
-5. `pi-runner:verdict-blind-to-commits-and-predirty`, the **pre-dirty half**: there is no porcelain
+4. [LANDED] `pi-runner:quota-429-reported-as-empty-worktree`: #1424 `94524a6fc` (iteration 10), ticket
+   resolved. Verdict `provider_quota` rc 19; the gate-3-route.md rc-list line waits on D-FLEET-8 (mirror scope).
+5. [NEXT] `pi-runner:verdict-blind-to-commits-and-predirty`, the **pre-dirty half**: there is no porcelain
    snapshot before the run (`:338-339` says so itself). The commit-blind half landed in #1329.
 6. `skill-surface:main-checkout-not-synced-to-dev` (filed 2026-09-29): loops read skills from the
     main checkout, which nothing fast-forwards. Merged skill fixes wait for a manual pull, and a paused
@@ -221,6 +191,8 @@ overnight: harness faults read as model faults)
     Low severity.
 
 **Landed (history)**
+- `pi-runner:quota-429-reported-as-empty-worktree`: #1424 `94524a6fc` (iteration 10).
+- `mission-base:hardcoded-origin-dev`: #1418 `cb7c51c8e` (iteration 9).
 - `stall-watchdog:kills-controller-on-long-drill`: #1399 `ce1c0639f`, D-FLEET-7 M2.
 - `driver:slot-kill-leaves-orphan-descendants`: #1325.
 - `pi-runner:sandbox-extensions-not-wired`: #1377.
