@@ -422,6 +422,24 @@ Each exported AILANG function becomes an MCP tool. Module metadata is available 
   ```
 
   Full example: `examples/runnable/serve_api_mcp_header_auth.ail`.
+- **Tool titles and behaviour hints (`@mcp_title`, `@mcp_hints`)** — MCP directories (Anthropic's connector/plugin directory, OpenAI's Plugin Directory) refuse a tool that has no `title` or that declares neither `readOnlyHint` nor `destructiveHint`. `@mcp_title("Parse document")` sets `title`. `@mcp_hints(...)` takes any of `readOnly`, `destructive`, `idempotent`, `openWorld`, and the list is **complete**: a hint you leave out is `false` — including `destructive` and `openWorld`, whose MCP defaults are `true`. So `@mcp_hints("openWorld")` means "writes, additively, to the outside world".
+
+  | Declaration | Emitted `annotations` |
+  |---|---|
+  | `@mcp_hints("readOnly", "openWorld")` | `readOnlyHint: true, openWorldHint: true` (no `destructiveHint` — meaningless when read-only) |
+  | `@mcp_hints("destructive", "idempotent")` | `readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false` |
+  | none, empty effect row (`-> T` with no `!`, or `! {}`) | `readOnlyHint: true, openWorldHint: false` — the checker proves the function touches nothing |
+  | none, effectful | **none** — serve-api will not guess; one startup `WARN` names every such tool |
+
+  An unknown hint word, a duplicate, or `readOnly` with `destructive` is logged as an `ERROR` and the tool is not registered. Purity is read from the **declared effect row**, not the `pure` keyword. The built-in `submit_feedback` tool is annotated (`Send feedback`, additive, open-world). Both MCP implementations — the go-sdk one behind `serve-api` and the stdlib `serveapi/protocol/mcphttp` dispatcher for embedders (`ToolDescriptor.Title` / `.Annotations`, resolved with `protocol.ResolveToolHints`) — emit the same JSON.
+
+  ```ailang
+  @mcp_title("Current time")
+  @mcp_hints("readOnly", "openWorld")
+  export func currentTime() -> int ! {Clock} = now()
+  ```
+
+  Full example: `examples/runnable/serve_api_mcp_hints.ail`.
 
 ### A2A (Agent-to-Agent Protocol)
 
@@ -881,6 +899,8 @@ Custom routes are registered before the auto-generated catch-all routes, so they
 | `@noexpose` | Hide exported function from HTTP endpoints (still importable by other modules) |
 | `@nomcp` | Hide from the MCP tool surface ONLY — still served over HTTP, OpenAPI, and A2A (not reset by `@route`) |
 | `@mcp_name("name")` | Override the auto-generated MCP tool name for this function |
+| `@mcp_title("Title")` | MCP display title (directory listings require one) |
+| `@mcp_hints("readOnly", ...)` | MCP behaviour hints: `readOnly`, `destructive`, `idempotent`, `openWorld` — the complete list (absent = false) |
 | `@verify(depth: N)` | Runtime contract validation |
 
 Multiple annotations can be combined:
@@ -1337,6 +1357,12 @@ its own `MaxConnections` (4 legs by default), and its own `--stream-max-duration
 a longer ceiling, such as `--stream-max-duration 30m`. Each direction queues at most
 `--ws-queue-frames` frames (default 64). When the queue is full the reader blocks, and TCP pushes
 back on the sender. The runtime never drops a frame on its own.
+
+One message on either leg may be at most `--stream-max-message` bytes (default 1MB). Inbound
+memory is therefore bounded by about `--ws-max-sessions × --ws-queue-frames × --stream-max-message`,
+which is 256MB at the defaults. On a public endpoint whose clients send only small messages, lower
+the cap (for example `64KB`). For a trusted upstream that sends large single messages (images,
+files, video keyframes), raise it. See [Message size](/docs/guides/streaming#message-size---stream-max-message).
 
 ### `bridge`: one AILANG verdict per frame
 

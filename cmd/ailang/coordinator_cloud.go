@@ -336,9 +336,10 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 	// Step -1: Configure git credentials from GITHUB_TOKEN.
 	// Cloud containers don't have a credential helper — git can't authenticate HTTPS
 	// requests without this. GITHUB_TOKEN is provided via Secret Manager.
-	if token := config.GitHubToken(); token != "" {
-		credHelper := fmt.Sprintf("!f() { echo username=x-access-token; echo \"password=%s\"; }; f", token)
-		credCmd := exec.CommandContext(ctx, "git", "config", "--global", "credential.helper", credHelper)
+	// The helper reads the token at call time, never embeds it (see
+	// envTokenCredentialHelper, M-EXECUTOR-ENV-HARDENING E5).
+	if config.GitHubToken() != "" {
+		credCmd := gitexec.CommandContext(ctx, "config", "--global", "credential.helper", envTokenCredentialHelper)
 		if err := credCmd.Run(); err != nil {
 			fmt.Fprintf(os.Stderr, "warning: failed to configure git credentials: %v\n", err)
 		}
@@ -520,13 +521,14 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 			os.Setenv(config.EnvGitMode, "guardrails")
 		}
 
-		// Direct Claude Code session storage into the GCS-mounted artifact directory.
-		// CLAUDE_CONFIG_DIR overrides ~/.claude — session JSONL is written directly to GCS
-		// without any upload step. Path: /artifacts/tasks/{taskID}/claude/projects/{path}/{sid}.jsonl
-		claudeConfigDir := filepath.Join("/artifacts", "tasks", taskID, "claude")
-		if err := os.MkdirAll(claudeConfigDir, 0755); err == nil {
-			os.Setenv("CLAUDE_CONFIG_DIR", claudeConfigDir)
-			fmt.Printf("execute-job: CLAUDE_CONFIG_DIR=%s (session JSONL → GCS)\n", claudeConfigDir)
+		// F-H6-1: CLAUDE_CONFIG_DIR is LOCAL (it holds the OAuth credential); only its
+		// projects/ is symlinked to /artifacts/tasks/{taskID}/claude/projects, so the
+		// session JSONL still streams to GCS at the same path. See coordinator_cloud_claudecfg.go.
+		if claudeConfigDir, err := setupClaudeConfigDir(cloudClaudeConfigBase(), cloudArtifactRoot, taskID); err != nil {
+			fmt.Fprintf(os.Stderr, "execute-job: WARNING: %v — Claude uses its default config dir; session JSONL will not stream to GCS\n", err)
+		} else {
+			os.Setenv(config.EnvClaudeConfigDir, claudeConfigDir)
+			fmt.Printf("execute-job: CLAUDE_CONFIG_DIR=%s (local; projects/ → GCS)\n", claudeConfigDir)
 		}
 
 		// M-COORDINATOR-EXECUTION-TRUST M6 (V30): the globally installed pi suite

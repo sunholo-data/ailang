@@ -1,6 +1,0 @@
-### Added — MCP tools can take an API key from a request header (`_headers` + `@optional`)
-
-- A declared `_headers: Json` param now binds on the MCP `tools/call` path from the request's HTTP headers (go-sdk `req.Extra.Header`), the same contract the REST `@route` path already had. It is hidden from `inputSchema`, a client-supplied `_headers` argument is overwritten (no forging), and stdio binds an empty object. Before this, headers never reached an MCP tool, so the hosted Parse MCP could only take its key as a tool argument, which puts it in model context. MCP registries (sunholo-platform) inject secrets only as headers.
-- New `@optional("param", ...)` annotation: named params leave the MCP `required` list and bind to their type's zero value when absent or null. Without it, the missing-parameter guard rejected a header-authenticated call with `missing required parameter(s): apiKey` before any code ran. Bad names (not a param, `_headers`, or a type with no zero value) are refused at registration.
-- `stringMapToJObject` now emits header/query keys sorted, so a handler sees the same object for the same request on both REST and MCP.
-- Replaces ailang-parse PR #84 (rejected), which read headers from env vars serve-api never sets. Docparse follow-up: take `_headers: Json`, mark `apiKey` `@optional`. Example: `examples/runnable/serve_api_mcp_header_auth.ail`.

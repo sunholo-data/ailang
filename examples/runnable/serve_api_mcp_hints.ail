@@ -1,0 +1,34 @@
+-- serve_api_mcp_hints.ail - MCP tool titles and behaviour hints
+-- MCP directories (Anthropic, OpenAI) refuse a tool that has no title or that
+-- declares neither readOnlyHint nor destructiveHint. @mcp_title sets the
+-- display title; @mcp_hints is the COMPLETE list of hints (a hint not listed
+-- is false). A tool with an empty effect row needs no @mcp_hints: the checker
+-- proves it is read-only. An effectful tool without @mcp_hints is advertised
+-- with no annotations, and serve-api logs a warning naming it.
+-- Run with: ailang serve-api --mcp-http examples/runnable/serve_api_mcp_hints.ail
+module examples/runnable/serve_api_mcp_hints
+import std/io (println)
+import std/clock (now)
+import std/string (length)
+
+-- Count characters (no effects, so readOnly + closed-world automatically).
+@mcp_title("Word length")
+export func wordLength(word: string) -> int = length(word)
+
+-- Write a line to the server log. Changes the world, but only adds to it.
+@mcp_title("Append to log")
+@mcp_hints("idempotent")
+export func appendLog(line: string) -> string ! {IO} {
+  println(line);
+  "logged"
+}
+
+-- Read the clock: observes the outside world, changes nothing.
+@mcp_title("Current time")
+@mcp_hints("readOnly", "openWorld")
+export func currentTime() -> int ! {Clock} = now()
+
+export func main() -> unit ! {IO} {
+  println(show(wordLength("hello")));
+  println(appendLog("ready"))
+}

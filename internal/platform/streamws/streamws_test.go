@@ -53,7 +53,7 @@ func dial(t *testing.T, srv *httptest.Server) effects.StreamTransport {
 	tr, err := Open(effects.StreamDialConfig{
 		URL:              "ws" + strings.TrimPrefix(srv.URL, "http"),
 		HandshakeTimeout: 2 * time.Second,
-		MaxFrameSize:     1 << 16,
+		MaxMessageSize:   1 << 16,
 		DialContext:      plainDialer,
 	})
 	if err != nil {
@@ -134,7 +134,7 @@ func TestOpen_HandshakeFailureCarriesHTTPStatus(t *testing.T) {
 	_, err := Open(effects.StreamDialConfig{
 		URL:              "ws" + strings.TrimPrefix(srv.URL, "http"),
 		HandshakeTimeout: 2 * time.Second,
-		MaxFrameSize:     1 << 16,
+		MaxMessageSize:   1 << 16,
 		DialContext:      plainDialer,
 	})
 	if err == nil {
@@ -189,7 +189,7 @@ func TestOpen_DialsOnlyThroughSuppliedDialer(t *testing.T) {
 		// A host that does not resolve: reachable ONLY through the dialer.
 		URL:              "ws://pinned.invalid:1/",
 		HandshakeTimeout: 2 * time.Second,
-		MaxFrameSize:     1 << 16,
+		MaxMessageSize:   1 << 16,
 		DialContext:      pinned,
 	})
 	if err != nil {
@@ -216,19 +216,15 @@ func TestOpen_NoDialerIsRefused(t *testing.T) {
 
 // Regression (Daneel, 2026-10-01): the 64KB default read limit killed every
 // Vertex Live video session whose first media message exceeded it. gorilla's
-// ReadLimit is per reassembled message, so the default must admit anything
-// MaxMessageSize admits.
+// ReadLimit is per reassembled message; it is now MaxMessageSize itself.
 func TestOpen_DefaultReadLimitAdmitsMaxMessageSize(t *testing.T) {
 	sc := effects.NewStreamContext()
-	if sc.MaxFrameSize < sc.MaxMessageSize {
-		t.Fatalf("default MaxFrameSize %d < MaxMessageSize %d", sc.MaxFrameSize, sc.MaxMessageSize)
-	}
 	srv := echoServer(t, 0)
 	defer srv.Close()
 	tr, err := Open(effects.StreamDialConfig{
 		URL:              "ws" + strings.TrimPrefix(srv.URL, "http"),
 		HandshakeTimeout: 2 * time.Second,
-		MaxFrameSize:     sc.MaxFrameSize,
+		MaxMessageSize:   sc.MaxMessageSize,
 		DialContext:      plainDialer,
 	})
 	if err != nil {

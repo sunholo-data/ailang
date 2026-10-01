@@ -125,7 +125,8 @@ func TestRunPolicy_RefusesEveryWideningFlag(t *testing.T) {
 		{"--ai", "gpt5-mini"}, {"--ai-stub"}, {"--allow-routing"}, {"--routing-prefer", "x"},
 		{"--entry", "other"}, {"--net-allow-http"}, {"--net-allow-domains", "x"},
 		{"--net-allow-localhost"}, {"--net-allow-metadata"}, {"--stream-allow-http"},
-		{"--stream-allow-domains", "x"}, {"--stream-allow-localhost"}, {"--process-allowlist", "git"},
+		{"--stream-allow-domains", "x"}, {"--stream-allow-localhost"}, {"--stream-max-message", "8MB"},
+		{"--process-allowlist", "git"},
 		{"--stdlib-path", dir}, {"--package-dir", dir}, {"--fs-max-bytes", "1GB"},
 	}
 	for _, extra := range cases {

@@ -57,7 +57,9 @@ func (h *Host) read(req Request) Response {
 // the clone's config, so the tools must not be a way to plant one.
 func underGitDir(path string) bool {
 	for _, seg := range strings.Split(filepath.ToSlash(filepath.Clean(path)), "/") {
-		if seg == ".git" {
+		// Case-folded: on a case-insensitive filesystem (macOS APFS, the
+		// default) `.GIT/config` IS `.git/config`.
+		if strings.EqualFold(seg, ".git") {
 			return true
 		}
 	}

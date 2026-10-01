@@ -52,8 +52,8 @@ func Open(cfg effects.StreamDialConfig) (effects.StreamTransport, error) {
 		}
 		return nil, err
 	}
-	conn.SetReadLimit(cfg.MaxFrameSize)
-	return &transport{conn: conn, readLimit: cfg.MaxFrameSize}, nil
+	conn.SetReadLimit(cfg.MaxMessageSize)
+	return &transport{conn: conn, readLimit: cfg.MaxMessageSize}, nil
 }
 
 // transport adapts one *websocket.Conn to effects.StreamTransport.

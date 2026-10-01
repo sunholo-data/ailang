@@ -291,7 +291,10 @@ func TestBuildEnvironment_ExtraEnv(t *testing.T) {
 			"MOTOKO_AST_READ_FULL": "docx_parser.ail:main.ail",
 		},
 	}
-	env := BuildEnvironment(EnvironmentOptions{Task: task})
+	env, err := BuildEnvironment(EnvironmentOptions{Task: task})
+	if err != nil {
+		t.Fatalf("BuildEnvironment: %v", err)
+	}
 
 	for k, v := range task.ExtraEnv {
 		needle := k + "=" + v

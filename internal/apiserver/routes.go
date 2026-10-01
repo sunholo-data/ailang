@@ -223,6 +223,52 @@ func extractMCPNameAnnotations(modInfo *ModuleInfo, file *ast.File) {
 	}
 }
 
+// extractMCPToolMetaAnnotations populates ExportInfo.MCPTitle and MCPHints
+// from @mcp_title("...") and @mcp_hints("...", ...). Values are recorded as
+// written; registerTools validates the hint vocabulary via
+// protocol.ResolveToolHints, where an invalid list is an author error.
+//
+// It also overwrites ExportInfo.Pure for every function export. The value
+// extractModuleInfo copied from the interface is a stub that is true for
+// everything (iface.determinePurity), and MCP read-only hints, A2A tags and
+// OpenAPI x-ailang-pure all read this field. The `pure` keyword is no proof
+// either: the checker accepts it beside a declared row. What the checker does
+// enforce is that a body stays within its DECLARED row, so an empty row with no
+// row variable is a real proof.
+func extractMCPToolMetaAnnotations(modInfo *ModuleInfo, file *ast.File) {
+	for _, fn := range file.Funcs {
+		title := fn.GetAnnotation("mcp_title")
+		hints := fn.GetAnnotation("mcp_hints")
+		for i := range modInfo.Exports {
+			if modInfo.Exports[i].Name != fn.Name {
+				continue
+			}
+			modInfo.Exports[i].Pure = len(fn.Effects) == 0
+			if title != nil {
+				if names := stringLitArgs(title); len(names) == 1 {
+					modInfo.Exports[i].MCPTitle = names[0]
+				}
+			}
+			if hints != nil {
+				modInfo.Exports[i].MCPHints = stringLitArgs(hints)
+				modInfo.Exports[i].HasMCPHints = true
+			}
+			break
+		}
+	}
+}
+
+// stringLitArgs returns an annotation's string-literal args in order.
+func stringLitArgs(ann *ast.Annotation) []string {
+	var out []string
+	for _, a := range ann.Args {
+		if lit, ok := a.(*ast.Literal); ok && lit.Kind == ast.StringLit {
+			out = append(out, lit.Value.(string))
+		}
+	}
+	return out
+}
+
 // extractOptionalAnnotations populates ExportInfo.Optional from
 // @optional("param", ...) annotations. Names are recorded as written;
 // validateOptionalParams checks them against the signature at MCP registration.

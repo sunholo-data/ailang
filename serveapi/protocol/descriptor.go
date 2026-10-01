@@ -15,11 +15,13 @@ var mcpToolNameRegex = regexp.MustCompile(`^[a-zA-Z0-9_-]{1,64}$`)
 
 type ToolDescriptor struct {
 	Name         string
+	Title        string // MCP `title`: human-readable display name ("" = omitted)
 	Description  string
 	InputSchema  json.RawMessage
 	OutputSchema json.RawMessage
 	Tags         []string
 	Examples     []string
+	Annotations  *ToolAnnotations // MCP behaviour hints (nil = omitted); see ResolveToolHints
 }
 
 type AuthorizedSurface struct {
@@ -122,6 +124,16 @@ func cloneToolDescriptor(tool ToolDescriptor) ToolDescriptor {
 	tool.OutputSchema = append(json.RawMessage(nil), tool.OutputSchema...)
 	tool.Tags = append([]string(nil), tool.Tags...)
 	tool.Examples = append([]string(nil), tool.Examples...)
+	if tool.Annotations != nil {
+		a := *tool.Annotations
+		if a.DestructiveHint != nil {
+			a.DestructiveHint = boolPtr(*a.DestructiveHint)
+		}
+		if a.OpenWorldHint != nil {
+			a.OpenWorldHint = boolPtr(*a.OpenWorldHint)
+		}
+		tool.Annotations = &a
+	}
 	return tool
 }
 

@@ -144,7 +144,7 @@ func newBridgeHarness(t *testing.T, up *fakeUpstream, configure func(*effects.St
 
 	accepted := make(chan effects.StreamTransport, 1)
 	front := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		tr, err := streamws.Accept(w, r, streamws.AcceptOptions{MaxFrameSize: ctx.Stream.MaxFrameSize})
+		tr, err := streamws.Accept(w, r, streamws.AcceptOptions{MaxMessageSize: ctx.Stream.MaxMessageSize})
 		if err != nil {
 			t.Errorf("accept: %v", err)
 			return

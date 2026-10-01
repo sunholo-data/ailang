@@ -36,7 +36,7 @@ The adapter never invokes any motoko sub-command beyond `--version` / `--help` (
 - **NOT bound in cloud Job** (per [EXECUTOR_SHAPE.md §8](../../../docs/internal/EXECUTOR_SHAPE.md) cost-control rule): `ANTHROPIC_API_KEY`. Anthropic API-key billing is pay-per-token; the cloud Job binds only OpenRouter + OpenAI + Gemini keys, matching the Pi-precedent. `motoko-claude-*` models stay LOCAL-only for cost-control.
 
 For local dev, the variable your lane's provider declares is sufficient — `OPENROUTER_API_KEY` for an
-OpenRouter lane, nothing at all for an `ollama/*` one. The adapter does not manage credentials — it inherits the parent process's environment via `executor.BuildEnvironment`.
+OpenRouter lane, nothing at all for an `ollama/*` one. The adapter does not manage credentials — it inherits the parent process's environment via `executor.BuildEnvironment`, whose default-deny profile forwards motoko exactly `OPENROUTER_API_KEY`, `OPENAI_API_KEY` and `GEMINI_API_KEY` among credentials (M-EXECUTOR-ENV-HARDENING; grant more with `AILANG_EXECUTOR_ENV_INHERIT`).
 
 ## Event schema (motoko session JSONL v1)
 

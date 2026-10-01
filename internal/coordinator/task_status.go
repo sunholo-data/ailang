@@ -148,3 +148,10 @@ var ErrTaskNotClaimable = errors.New("task not claimable: not in pending status"
 // would still finish and write over the cancel, and a pending_approval task is
 // decided with reject, which also resolves its card.
 var ErrTaskNotCancellable = errors.New("task not cancellable: only a pending task can be cancelled")
+
+// ErrTaskNotFound is GetTask reporting that no task has the requested ID, as
+// opposed to the store failing. Every Store wraps it, so callers test with
+// errors.Is. A cloud completion for an unknown task is acked on this, not
+// returned: returning it made the push endpoint answer 500 and Pub/Sub
+// redeliver the same orphan completion for its full 24h retention.
+var ErrTaskNotFound = errors.New("task not found")

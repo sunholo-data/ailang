@@ -28,7 +28,7 @@ func (s *CoordinatorStore) GetTask(ctx context.Context, id string) (*coordinator
 	doc, err := s.client.Doc(collTasks, id).Get(ctx)
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
-			return nil, fmt.Errorf("task not found: %s", id)
+			return nil, fmt.Errorf("%w: %s", coordinator.ErrTaskNotFound, id)
 		}
 		return nil, err
 	}

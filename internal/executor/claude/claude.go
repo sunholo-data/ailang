@@ -4,6 +4,7 @@ package claude
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -103,7 +104,7 @@ func (e *ClaudeExecutor) Execute(ctx context.Context, task *executor.Task) (*exe
 }
 
 // ExecuteStreaming runs a task with real-time event callbacks
-func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, handler executor.EventHandler) (*executor.Result, error) {
+func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, handler executor.EventHandler) (out *executor.Result, outErr error) {
 	if err := e.requireModel(task); err != nil {
 		return nil, err
 	}
@@ -161,6 +162,11 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		// IMPORTANT: The env var alone causes Claude to exit(1) with zero output.
 		// The file-based approach is what works (same as local interactive auth).
 		if err := writeCredentialsFile(); err != nil {
+			if errors.Is(err, ErrCredentialsUnderArtifactRoot) {
+				// Fatal: running on would only prompt for a login, and the fix is
+				// the dispatcher's CLAUDE_CONFIG_DIR, not this run.
+				return nil, fmt.Errorf("claude-auth: %w", err)
+			}
 			fmt.Fprintf(os.Stderr, "claude-auth: warning: %v\n", err)
 		}
 	}
@@ -250,25 +256,34 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	fmt.Fprintf(os.Stderr, "claude-executor: %s %s\n", e.claudePath, strings.Join(args, " "))
 
 	// Set up environment using shared builder (M-UNIFIED-AI-CONTROL-PLANE)
-	cmd.Env = executor.BuildEnvironment(executor.EnvironmentOptions{
+	childEnv, err := executor.BuildEnvironment(executor.EnvironmentOptions{
 		Task:                  task,
 		SessionID:             sessionID,
+		Executor:              "claude",
+		Model:                 e.getModel(task),
 		Context:               ctx,
 		EnableClaudeTelemetry: true,
 		GCPProject:            task.GCPProject,
 		GCPLocation:           task.GCPLocation,
 	})
-
-	// Strip CLAUDE_CODE_OAUTH_TOKEN from subprocess environment (M-CLOUD-OAUTH).
-	// Credentials are written to ~/.claude/.credentials.json above.
-	// The env var causes Claude Code to crash (exit 1, 0 turns, no stderr).
-	cmd.Env = executor.RemoveEnvVar(cmd.Env, "CLAUDE_CODE_OAUTH_TOKEN")
-
-	// M-CLOUD-DUAL-AUTH: In OAuth mode, strip ANTHROPIC_API_KEY to prevent conflicts.
-	// In apikey mode, keep it — Claude Code reads it natively.
-	if authMode != "apikey" {
-		cmd.Env = executor.RemoveEnvVar(cmd.Env, "ANTHROPIC_API_KEY")
+	if err != nil {
+		return nil, err
 	}
+	// D6: bank the child env's NAME set on every result shape.
+	envNames := executor.EnvNamesDigest(childEnv)
+	defer func() {
+		if out != nil {
+			out.EnvNamesDigest = envNames
+		}
+	}()
+	cmd.Env = childEnv
+
+	// CLAUDE_CODE_OAUTH_TOKEN (M-CLOUD-OAUTH: the env var crashes Claude Code;
+	// credentials are in ~/.claude/.credentials.json) and, outside apikey
+	// mode, ANTHROPIC_API_KEY (M-CLOUD-DUAL-AUTH) never reach the child: the
+	// shared EnvPolicy withholds every credential-shaped name and grants
+	// ANTHROPIC_API_KEY to claude only under AILANG_AUTH_MODE=apikey
+	// (M-EXECUTOR-ENV-HARDENING retired the ad-hoc strip that lived here).
 
 	// Prepend NVM node bin directory to PATH so the correct Node version
 	// is found by the claude shebang (#!/usr/bin/env node).
