@@ -6,6 +6,7 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/bytecode"
 	"github.com/sunholo-data/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/vm"
 )
 
 // TestBridge_RoundTrip_Tier1 verifies that every Tier-1 value shape can be
@@ -56,13 +57,13 @@ func TestBridge_RoundTrip_Tier1(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ev, err := bytecodeValueToEval(tc.v)
+			ev, err := vm.BytecodeToEval(tc.v)
 			if err != nil {
-				t.Fatalf("bytecodeValueToEval: %v", err)
+				t.Fatalf("BytecodeToEval: %v", err)
 			}
-			back, err := evalValueToBytecode(ev)
+			back, err := vm.EvalToBytecode(ev)
 			if err != nil {
-				t.Fatalf("evalValueToBytecode: %v", err)
+				t.Fatalf("EvalToBytecode: %v", err)
 			}
 			if !back.Equal(tc.v) {
 				t.Errorf("round-trip mismatch:\n  in:  %s\n  out: %s", tc.v, back)
@@ -78,14 +79,14 @@ func TestBridge_RoundTrip_Tier1(t *testing.T) {
 func TestBridge_Unsupported_Closure_Errors_Both_Directions(t *testing.T) {
 	// bytecode → eval: a TagClosure should fail.
 	c := bytecode.NewClosure(&bytecode.FuncPrototype{Name: "stub"}, nil)
-	if _, err := bytecodeValueToEval(c); err == nil {
-		t.Errorf("bytecodeValueToEval should reject TagClosure")
+	if _, err := vm.BytecodeToEval(c); err == nil {
+		t.Errorf("BytecodeToEval should reject TagClosure")
 	}
 
 	// eval → bytecode: a *FunctionValue should fail.
 	fn := &eval.FunctionValue{Params: []string{"x"}}
-	if _, err := evalValueToBytecode(fn); err == nil {
-		t.Errorf("evalValueToBytecode should reject *FunctionValue")
+	if _, err := vm.EvalToBytecode(fn); err == nil {
+		t.Errorf("EvalToBytecode should reject *FunctionValue")
 	}
 }
 
@@ -95,9 +96,9 @@ func TestBridge_Unsupported_Closure_Errors_Both_Directions(t *testing.T) {
 func TestBridge_Unsupported_ADT_Errors(t *testing.T) {
 	// bytecode → eval
 	v := bytecode.NewADT(0, []bytecode.Value{bytecode.NewInt(1)})
-	_, err := bytecodeValueToEval(v)
+	_, err := vm.BytecodeToEval(v)
 	if err == nil {
-		t.Errorf("bytecodeValueToEval should reject TagADT")
+		t.Errorf("BytecodeToEval should reject TagADT")
 	}
 	if err != nil && !strings.Contains(err.Error(), "ADT") {
 		t.Errorf("error should mention ADT, got %v", err)
@@ -105,8 +106,8 @@ func TestBridge_Unsupported_ADT_Errors(t *testing.T) {
 
 	// eval → bytecode
 	tagged := &eval.TaggedValue{TypeName: "Option", CtorName: "Some", Fields: []eval.Value{&eval.IntValue{Value: 1}}}
-	_, err = evalValueToBytecode(tagged)
+	_, err = vm.EvalToBytecode(tagged)
 	if err == nil {
-		t.Errorf("evalValueToBytecode should reject *TaggedValue")
+		t.Errorf("EvalToBytecode should reject *TaggedValue")
 	}
 }

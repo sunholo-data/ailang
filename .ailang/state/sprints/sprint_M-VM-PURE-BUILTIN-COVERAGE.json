@@ -1,9 +1,9 @@
 {
   "sprint_id": "M-VM-PURE-BUILTIN-COVERAGE",
-  "status": "not_started",
+  "status": "completed",
   "created": "2026-10-01T15:07:14Z",
-  "design_doc": "design_docs/planned/v0_50_2/m-vm-pure-builtin-coverage.md",
-  "sprint_plan": "design_docs/planned/v0_50_2/m-vm-pure-builtin-coverage-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_50_2/m-vm-pure-builtin-coverage.md",
+  "sprint_plan": "design_docs/implemented/v0_50_2/m-vm-pure-builtin-coverage-sprint-plan.md",
   "github_issues": [
     1447,
     1448
@@ -50,10 +50,10 @@
         "ailang test on #1448 repro passes 3/3",
         "Goldens inspected before regenerating; make test green"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-01T15:44:11Z",
+      "completed": "2026-10-01T15:44:11Z",
+      "notes": "50147a135: ast.FormatFloat canonical spelling; Literal.String + format delegate; #1448 repro 3/3; red-before-green"
     },
     {
       "id": "M1",
@@ -65,10 +65,10 @@
         "Pure-unwired error reads: pure builtin %q has no VM implementation (<reason>)",
         "Lockstep test fails when one VM table entry is removed (mutation-checked)"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-01T15:44:11Z",
+      "completed": "2026-10-01T15:44:11Z",
+      "notes": "df5130741: TestPureBuiltinCoverage ratchet (unbucketed / stale / unknown entries all mutation-checked); validateBuiltinTables at vm init (mutation-checked); honest pure-unported error + effectful control test"
     },
     {
       "id": "M2",
@@ -82,10 +82,10 @@
         "CLI strict run of an adapted builtin matches interpreter",
         "Bridge tests green after converter move; allowlist shrink reported"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-01T15:44:11Z",
+      "completed": "2026-10-01T15:44:11Z",
+      "notes": "df5130741: adapter covers 81 builtins via OpBuiltinCall index extension (no new opcode); tables moved to internal/bytecode (vm->compiler import cycle); converters moved runner->vm; panic-smoke over all adapted builtins"
     },
     {
       "id": "M3",
@@ -99,10 +99,11 @@
         "Parity table per port incl. ADT elements and edge n values",
         "Example identical across interpreter, --bytecode, --strict-bytecode; make verify-examples green"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-01T15:44:11Z",
+      "completed": "2026-10-01T15:44:11Z",
+      "notes": "7 native polymorphic list ports with eval-parity table (-count=20), ADT-element test, extract mutation caught; example identical across 3 engines; range/repeat/string.reverse adapted instead (monomorphic). Filed #1453 (show ADT divergence, pre-existing)"
     }
-  ]
+  ],
+  "completed": "2026-10-01T16:13:52Z"
 }

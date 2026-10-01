@@ -1,6 +1,6 @@
 # M-VM-PURE-BUILTIN-COVERAGE: pure builtins run on the strict VM, and the gap is measured
 
-**Status**: Planned
+**Status**: IMPLEMENTED
 **Target**: v0.50.2
 **Priority**: P1
 **Estimated**: 2–3 days
@@ -245,6 +245,26 @@ identical to the interpreter.
 | V10 | compiler→builtins import is cycle-free | `go list -deps ./internal/bytecode/compiler` has no `builtins`/`eval`/`vm`; `go list -deps ./internal/builtins` has no `bytecode`/`vm` |
 | V11 | #1448 cause = text round-trip of float literal | Read `internal/testing/executor_helpers.go:316` (`return e.String() // bool, int, float…`), `internal/ast/ast_expr.go:109` (`%v`), `internal/format/literal.go:120` (`formatFloat` already canonical) |
 | V9 | #1448 reproduces on HEAD | `ailang test probe.ail` → 2/3 fail `_math_sqrt: expected FloatValue … got *eval.IntValue` |
+
+## Implementation Notes (2026-10-01, deviations from the design above)
+
+- **No new opcode.** Adapted builtins take the `OpBuiltinCall` indices after the native entries (sorted by
+  name), so the opcode set, disassembler and image format are unchanged. The 256-entry `uint8` index space
+  is guarded by a panic at compiler init (currently 89 + 121 = 210; 46 slots of headroom).
+- **Name tables moved to `internal/bytecode`** (`BuiltinNames`, `HOFBuiltinNames`, `AdaptedBuiltinNames`,
+  `AdaptReason`). D4 placed the adapter in `vm` importing `compiler`, but the compiler's tests import `vm`,
+  which would be a cycle. `bytecode` is the shared contract both already import.
+- **`range`, `repeat`, `string.reverse` are adapted, not native.** Their signatures are monomorphic, so the
+  adapter covers them; M3 ported only the seven polymorphic list ops.
+- **Allowlist is a test-file map** (`internal/vm/builtin_coverage_test.go`). Each reason must equal
+  `AdaptReason`'s computed reason, so the list cannot drift from the rule.
+- **Measured:** 251 pure registry entries. All identifier-shaped names are callable (operator builtins
+  register as `bitwiseXor_Int` and are called as `_bitwiseXor_Int`). Only symbolic entries such as `::` lower
+  to opcodes. A first cut counted only `_`-prefixed names, which missed the bitwise ops (#1450, reported
+  mid-sprint). After: native 96, adapted 121, unported 33.
+- **M4** printed non-finite floats as the expression that produces them (`(0.0 / 0.0)`) instead of erroring:
+  `PrintAILANGSource` returns `string`, and the expression form is correct, not a fallback.
+- Found and filed separately: #1453 (`show` of an ADT differs VM vs interpreter, pre-existing).
 
 ## Related Documents
 

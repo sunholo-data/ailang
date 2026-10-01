@@ -313,7 +313,7 @@ func PrintAILANGSource(expr ast.Expr) string {
 				return buf.String()
 			}
 		}
-		return e.String() // bool, int, float all have correct String()
+		return e.String() // bool, int, float: ast.Literal.String() spells each re-parseably (#1448)
 	case *ast.Identifier:
 		return e.Name
 	case *ast.BinaryOp:

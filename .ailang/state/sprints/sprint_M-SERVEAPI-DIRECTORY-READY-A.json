@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-SERVEAPI-DIRECTORY-READY-A",
-  "status": "in_progress",
+  "status": "completed",
   "created": "2026-10-01T14:19:51Z",
   "design_doc": "design_docs/planned/v0_51_0/m-serveapi-directory-ready.md",
   "sprint_plan": "design_docs/planned/v0_51_0/m-serveapi-directory-ready-sprint-plan.md",
@@ -126,10 +126,10 @@
         "Example passes ailang check and ailang mcp check 1-4",
         "make ci-quick gates pass; apiserver, serveapi, parser, format, cmd/ailang tests green"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-01T15:37:18+00:00",
+      "completed": "2026-10-01T15:37:18+00:00",
+      "notes": "examples/runnable/serve_api_mcp_oauth.ail (check + fmt canonical + runs; served: 401 challenge, token path, mcp check 1-4 PASS, 5 FAIL w/o AS). Dogfooding caught exported main -> unannotated tool; fixed with @nomcp. serve-api.md section + tables, devtools prompts synced, changelog fragments. Gates green on clean worktree."
     }
   ]
 }

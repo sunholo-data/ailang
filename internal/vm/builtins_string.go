@@ -14,7 +14,7 @@ import (
 // M-BYTECODE-STDLIB-BUILTINS M1: Pure string builtins wired to VM OpBuiltinCall.
 //
 // Each function below matches the semantics of its evaluator counterpart in
-// internal/builtins/string*.go. The names in compiler.BuiltinTable use the
+// internal/builtins/string*.go. The names in bytecode.BuiltinNames use the
 // lower-pass convention: "_" + registry name. For example, the evaluator's
 // "_str_upper" becomes "__str_upper" in the compiler table.
 

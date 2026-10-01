@@ -149,7 +149,7 @@ registration.
 - [x] A directory-ready module on `/mcp/connect/` passes all five checks against a fixture authorization server (`TestMCPCheck_ListedSurfaceReady`). Deviation: check 5 FAILs rather than WARNs when an issuer is named but its metadata is unreachable; it SKIPs only when there are no gated tools.
 - [x] `make check-cli-docs` and the CLI reference are updated (new subcommand).
 
-### M5: Example, docs, release notes (~150)
+### M5: Example, docs, release notes (~150) ✅
 
 **Tasks:**
 - `examples/runnable/serve_api_mcp_oauth.ail`: open and gated tools, a verifier, `@mcp_secret`, `@mcp_agent_only`. Passes `ailang check`; run under `serve-api` in a test.
@@ -158,8 +158,8 @@ registration.
 - Changelog fragment(s). Mark Phase A done in the design doc.
 
 **Acceptance criteria:**
-- [ ] The example passes `ailang check`, and `ailang mcp check` passes checks 1–4 against it.
-- [ ] `make ci-quick` gates pass; `make test` is green for `internal/apiserver`, `serveapi/...`, `internal/parser`, `internal/format` and `cmd/ailang`.
+- [x] The example passes `ailang check` and is canonical under `ailang fmt`. `ailang mcp check` passes checks 1–4 against it served with `--oauth-issuer`; check 5 FAILs honestly, because there's no authorization server yet (L4).
+- [x] `make ci-quick` gates pass (verified on a clean worktree; the working tree carries another session's uncommitted `internal/runner` edits, which trip fmt and the closure gate and are not part of this sprint); `make test` is green for `internal/apiserver`, `serveapi/...`, `internal/parser`, `internal/format` and `cmd/ailang`.
 
 ## Success Metrics
 - `ailang mcp check --target anthropic` against the example on `/mcp/connect/`: checks 1–4 pass.

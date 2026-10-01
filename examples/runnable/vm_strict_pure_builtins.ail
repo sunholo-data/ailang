@@ -1,0 +1,37 @@
+-- Pure std/list, std/string and std/bytes calls run on the bytecode VM with
+-- no evaluator fallback (M-VM-PURE-BUILTIN-COVERAGE, #1447). Polymorphic list
+-- ops are native VM builtins; monomorphic ones (range, repeat, base64) go
+-- through the registry adapter. All three engines print the same line:
+--   ailang run --caps IO --entry main examples/runnable/vm_strict_pure_builtins.ail
+--   ailang run --bytecode --caps IO --entry main ...
+--   ailang run --bytecode --strict-bytecode --entry window --args-json 6 ...
+module examples/runnable/vm_strict_pure_builtins
+
+import std/io (println)
+import std/list (reverse, take, drop, zip, range, contains)
+import std/string (repeat)
+import std/bytes (fromString, toBase64)
+import std/option (Option, Some, None)
+
+-- reverse/take/drop over a range: [5, 4]
+export pure func window(n: int) -> [int] = take(2, reverse(drop(1, range(0, n))))
+
+-- Native ports carry ADT elements the adapter could not convert.
+export pure func lastSome(n: int) -> Option[int] =
+  match reverse([Some(1), None, Some(n)]) {
+    x :: _ => x,
+    [] => None
+  }
+
+pure func orZero(o: Option[int]) -> int = match o {
+  Some(v) => v,
+  None => 0
+}
+
+export pure func summary(n: int) -> string {
+  let pairs = zip(window(n), ["a", "b"]);
+  let found = contains(range(0, n), 3);
+  "${show(pairs)} ${show(found)} ${repeat("ab", 2)} ${toBase64(fromString("hi"))} ${show(orZero(lastSome(n)))}"
+}
+
+export func main() -> () ! {IO} = println(summary(6))

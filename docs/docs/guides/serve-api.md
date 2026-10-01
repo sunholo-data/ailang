@@ -441,6 +441,61 @@ Each exported AILANG function becomes an MCP tool. Module metadata is available 
 
   Full example: `examples/runnable/serve_api_mcp_hints.ail`.
 
+### Listing in the MCP directories (Anthropic, OpenAI)
+
+The Anthropic and OpenAI directories require four things of a listed MCP server:
+- every tool has a title and behaviour hints;
+- the model never handles a credential;
+- account-backed tools use OAuth;
+- discovery works before the user signs in.
+
+`serve-api` covers the server side with annotations, and `ailang mcp check` verifies the result.
+
+**Two surfaces from one module.** When any export uses the annotations below, `serve-api`
+mounts a second MCP endpoint:
+
+| Endpoint | For | Differences |
+|---|---|---|
+| `/mcp/` | agents, CLIs, SDK bridges, the MCP Registry | none: every tool, keys accepted as arguments or headers |
+| `/mcp/connect/` | directory listings | no `@mcp_agent_only` tools; `@mcp_secret` params are neither advertised nor accepted; `@mcp_auth("oauth2")` tools need a Bearer token |
+
+| Annotation | Effect |
+|---|---|
+| `@mcp_auth("oauth2")` | On `/mcp/connect/`, a call without an accepted Bearer token gets **HTTP 401 + `WWW-Authenticate: Bearer resource_metadata="…"`**, which starts the client's sign-in. Needs `--oauth-issuer` and a verifier, or the tool is not registered (ERROR). |
+| `@mcp_token_verifier` | The one `(token: string) -> bool` function `serve-api` calls with the Bearer token. It is never a tool, and without `@route` never an HTTP endpoint. |
+| `@mcp_secret("apiKey")` | The param is dropped from `/mcp/connect/` and binds its zero value even if a client sends it. It must also be `@optional`. |
+| `@mcp_agent_only` | The tool is on `/mcp/` only (for example, device-code sign-in tools). |
+
+**Fail-closed verification.** A verifier error, a panic, more than **5 s**, or more than 32
+verifications in flight gives **HTTP 503 + `Retry-After`**, and the tool never runs. The 5 s
+deadline is set on the verifier's own effect context, so a hung `Net` call inside it is
+cancelled. Pure computation cannot be interrupted, so the in-flight cap bounds that case.
+
+**Resource metadata.** With `--oauth-issuer <url>`, `serve-api` serves
+`/.well-known/oauth-protected-resource` and `/.well-known/oauth-protected-resource/mcp/connect/`.
+`resource` is the listed URL as the client reached it (honouring `X-Forwarded-Proto`), and
+`authorization_servers` lists the issuer. The authorization server itself is separate. A shared
+AILANG package is planned (`sunholo/mcp_oauth`); until then, point the flag at your own.
+
+**Check before you submit:**
+
+```bash
+ailang mcp check https://your-service.example.com/mcp/connect/ --target anthropic
+```
+
+The checks:
+1. titles and hints;
+2. no credential-shaped parameters;
+3. zero-argument tools callable with `{}`;
+4. a 401 with resource metadata that names this URL;
+5. the authorization server advertises S256 and CIMD or DCR, and answers within 10 s.
+
+It exits 1 on any FAIL. Each finding cites the vendor requirement it comes from.
+
+Full example: `examples/runnable/serve_api_mcp_oauth.ail`. Embedders using
+`serveapi/protocol/mcphttp` get the same gate through `Config.Gate` (a `protocol.BearerGate`)
+and `ToolDescriptor.Auth`.
+
 ### A2A (Agent-to-Agent Protocol)
 
 Google's A2A protocol is enabled with the `--a2a` flag:
@@ -568,6 +623,7 @@ Flags:
   --no-introspection   Serve no /api/_meta/* and no /api/_health (the paths stay reserved)
   --ws-pass-header H   Give @route("WS") handlers this request header in req.headers (repeatable)
   --no-feedback-tool   Suppress the built-in submit_feedback MCP tool (exact tool surface)
+  --oauth-issuer URL   OAuth authorization server for @mcp_auth("oauth2") tools on /mcp/connect/
 
 Arguments:
   <path...>            One or more .ail files or directories
@@ -901,6 +957,10 @@ Custom routes are registered before the auto-generated catch-all routes, so they
 | `@mcp_name("name")` | Override the auto-generated MCP tool name for this function |
 | `@mcp_title("Title")` | MCP display title (directory listings require one) |
 | `@mcp_hints("readOnly", ...)` | MCP behaviour hints: `readOnly`, `destructive`, `idempotent`, `openWorld` — the complete list (absent = false) |
+| `@mcp_auth("oauth2")` | Gate the tool behind OAuth on the listed surface `/mcp/connect/` (needs `--oauth-issuer` + `@mcp_token_verifier`) |
+| `@mcp_token_verifier` | The `(token: string) -> bool` Bearer-token verifier; never a tool or HTTP endpoint |
+| `@mcp_secret("p")` | Drop param `p` from `/mcp/connect/` (must also be `@optional`) |
+| `@mcp_agent_only` | Serve the tool on `/mcp/` only |
 | `@verify(depth: N)` | Runtime contract validation |
 
 Multiple annotations can be combined:
