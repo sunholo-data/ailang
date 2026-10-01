@@ -193,7 +193,7 @@ comes from the fallback the description names. The `DEBUG_*` compiler knobs are 
 
 | Variable | Default | What it does |
 |---|---|---|
-| `AILANG_APPROVAL_ALLOWED_CALLERS` | — | Comma-separated service-account emails whose Google-signed ID tokens may create and poll secret approvals (POST /api/approvals, GET /api/approvals/{id}); unset admits no ID token. |
+| `AILANG_APPROVAL_ALLOWED_CALLERS` | — | Comma-separated service-account emails whose Google-signed ID tokens may create and poll secret approvals (`POST /api/approvals`, `GET /api/approvals/&lt;id&gt;`); unset admits no ID token. |
 | `AILANG_APPROVAL_AUDIENCE` | — | Comma-separated audiences an approval caller's ID token may carry; unset uses AILANG_APPROVAL_BASE_URL. |
 | `AILANG_APPROVAL_INTAKE_AUTH` | `enforce` | enforce (default) requires an ID token or AILANG_APPROVAL_TOKEN on secret-approval create/poll; off admits anonymous callers (rollback lever, logged loudly). Any other value enforces. |
 | `AILANG_APPROVAL_SIGNING_KEY` | — | HMAC key that signs the secret-approval action links, so ntfy buttons can POST without IAM; unset disables those endpoints. |

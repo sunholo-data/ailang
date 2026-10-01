@@ -22,7 +22,7 @@ var serverVars = []Var{
 	{EnvApprovalSigningKey, "", AreaServer, "HMAC key that signs the secret-approval action links, so ntfy buttons can POST without IAM; unset disables those endpoints."},
 	{EnvBenchmarksBucket, "ailang-multivac-dev-benchmarks", AreaServer, "GCS bucket the benchmarks API reads through."},
 	{EnvDashboardURL, "", AreaServer, "Dashboard base URL for commands that print or open links, after the --dashboard flag."},
-	{EnvApprovalAllowedCallers, "", AreaServer, "Comma-separated service-account emails whose Google-signed ID tokens may create and poll secret approvals (POST /api/approvals, GET /api/approvals/{id}); unset admits no ID token."},
+	{EnvApprovalAllowedCallers, "", AreaServer, "Comma-separated service-account emails whose Google-signed ID tokens may create and poll secret approvals (`POST /api/approvals`, `GET /api/approvals/<id>`); unset admits no ID token."},
 	{EnvApprovalAudience, "", AreaServer, "Comma-separated audiences an approval caller's ID token may carry; unset uses AILANG_APPROVAL_BASE_URL."},
 	{EnvApprovalIntakeAuth, "enforce", AreaServer, "enforce (default) requires an ID token or AILANG_APPROVAL_TOKEN on secret-approval create/poll; off admits anonymous callers (rollback lever, logged loudly). Any other value enforces."},
 }
