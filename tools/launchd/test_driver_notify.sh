@@ -147,6 +147,7 @@ run() { # $1=block  $2=degraded-value  -> prints trace; env AILANG_RC/GH_RC/ISSU
                       # read the rc that printf left behind, masking the block failure)
     TRACE="$(cat "$MC_TRACE_FILE" 2>/dev/null || true)"
     printf "%s" "$TRACE"
+    printf "\nROUTING:%s" "${MISSION_ROUTING_NOTE:-}"
     printf "\nATTEMPTS:%s" "$(cat "$MC_ATTEMPT_FILE" 2>/dev/null || printf 0)"
     printf "\nRC:%s\n" "$_blk_rc"
   ' _ "$LAB/notify.sh" "$LAB/$block.sh" \
@@ -337,11 +338,14 @@ checkno "no gh call attempted"              "$T" "GH:issue"
 echo "== REGRESSION: lane block still works through the extracted _mc_notify =="
 T=$(run lane_block "- codex lane down")
 check "lane fires on ailang"                "$T" "AILANG:messages send controlplane"
-check "lane posts to the issue"             "$T" "GH:issue comment 635"
+checkno "lane does NOT comment on the issue (digest carries it)" "$T" "GH:issue"
+check "lane sets the digest routing note"   "$T" "ROUTING:lanes degraded: codex lane down"
 check "lane keeps its own title"            "$T" "executor/planner lane degraded"
 check "lane logs its summary"               "$T" "LOG:LANE DEGRADED this fire"
 T=$(run lane_block "")
 checkno "lane SILENT when healthy"          "$T" "AILANG:"
+check "no routing note when healthy"        "$T" "ROUTING:
+ATTEMPTS"
 
 echo "== EPISODE GATING: suppression + recovery reset (#978) =="
 # #978: both dedupe guards (_lane_ep/_pin_ep fingerprints over a digit-stripped
