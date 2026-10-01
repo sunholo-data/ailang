@@ -10,7 +10,7 @@
 # Bind only OPENROUTER_API_KEY + OPENAI_API_KEY + GEMINI_API_KEY.
 
 ARG PROJECT
-ARG MOTOKO_COMMIT=551c947bb79c1ac30ae38b7bcfe8636219d34726
+ARG MOTOKO_COMMIT=780b9abda95b55d2f98f55f4546f02967ef8f9aa
 FROM europe-west1-docker.pkg.dev/${PROJECT}/ailang/agent-base:latest
 
 # motoko_agent setup (NOT a single binary like pi/opencode — it's a bun TUI

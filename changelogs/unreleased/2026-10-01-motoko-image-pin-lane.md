@@ -1,6 +1,6 @@
 ### Changed — the cloud motoko image carries the ailang_only lane
 
-`docker/Dockerfile.agent-motoko` now pins `551c947b` on
+`docker/Dockerfile.agent-motoko` now pins `780b9abd` on
 `sunholo/main-dst-20261001`. That is Arni's upstream `main` at `fe108db7`, which
 includes the `extensions.strict` enforcement from upstream #205, plus our
 commits:
