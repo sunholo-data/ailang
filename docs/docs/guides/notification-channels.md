@@ -35,9 +35,30 @@ notification daemon uses as an output router.
 ### Enabling Discord
 
 1. In your Discord server: **Channel → Settings → Integrations → Webhooks → New Webhook**, copy the URL.
-2. Provide the URL where the daemon runs (treat it as a secret — anyone with the URL can post). The daemon resolves it from the env var first, then the macOS login Keychain:
+2. Provide the URL where the daemon runs (treat it as a secret — anyone with the URL can post). The daemon resolves it in this order, and **logs which source it used**:
 
-   **macOS (recommended — Keychain, no plaintext on disk):**
+   | Order | Source | Use it for |
+   |-------|--------|-----------|
+   | 1 | `AILANG_DISCORD_WEBHOOK_URL` | an explicit, per-host override |
+   | 2 | **Secret Manager** — `<prefix>-discord-webhook-url` | **the fleet default**: one value every machine resolves identically |
+   | 3 | macOS login Keychain | a host with no cloud access |
+
+   **Secret Manager (recommended — the fleet source of truth):**
+   ```bash
+   # once per environment; the terraform in ailang-multivac creates the secret
+   printf '%s' 'https://discord.com/api/webhooks/…' | \
+     gcloud secrets versions add ailang-discord-webhook-url \
+       --project ailang-multivac --data-file=-
+   ```
+   The secret is `${prefix}-discord-webhook-url`, so `ailang-discord-webhook-url`
+   in prod and `ailang-dev-discord-webhook-url` in dev. The daemon reads the
+   `latest` version with a 5s bound at registration; a read that fails is logged
+   naming the secret and project, then falls through to the Keychain. No IAM is
+   needed while the daemons authenticate with ADC for an account that is
+   `roles/owner`; grant `roles/secretmanager.secretAccessor` on the secret if that
+   becomes a service account.
+
+   **macOS login Keychain (fallback — read the warning below):**
    ```bash
    security add-generic-password -U -A -a "$USER" -s ailang-discord-webhook -w 'https://discord.com/api/webhooks/…'
    ```
@@ -80,7 +101,7 @@ notification daemon uses as an output router.
    ```bash
    export AILANG_DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/…"
    ```
-3. The channel registers automatically on next daemon start. Neither source set → not registered (macOS-only).
+3. The channel registers automatically on next daemon start. No source set → not registered (macOS-only), and the log names every place that was tried.
 
    **Registration is fail-closed and quiet, so verify it rather than assuming.**
    A daemon that cannot read the secret still boots; it logs one line and carries

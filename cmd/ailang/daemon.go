@@ -143,13 +143,19 @@ func daemonRun(args []string) error {
 	}
 
 	// Build the channel registry: macOS desktop (local best-effort) plus any
-	// env-gated remote channels (Discord if AILANG_DISCORD_WEBHOOK_URL is set).
-	// The daemon fans out over all of them; remote channels are authoritative
-	// for ack, the local one is best-effort. With no remote channel configured,
-	// this degrades to today's macOS-only behaviour.
+	// remote channels whose secret resolves. The daemon fans out over all of
+	// them; remote channels are authoritative for ack, the local one is
+	// best-effort. With no remote channel configured, this degrades to today's
+	// macOS-only behaviour.
+	//
+	// project and prefix are passed so the Discord webhook can come from Secret
+	// Manager, which every machine resolves identically. The macOS login
+	// Keychain remains a fallback but cannot be depended on: it locks whenever
+	// another user holds the console, which is how the rig lost Discord while
+	// its Keychain item sat present and valid.
 	reg := notify.NewRegistry()
 	_ = reg.Register(notify.MacOSChannel{})
-	notify.RegisterChannels(reg, log.Default())
+	notify.RegisterChannelsFor(reg, log.Default(), project, prefix)
 
 	d := daemon.New(
 		cfg,
