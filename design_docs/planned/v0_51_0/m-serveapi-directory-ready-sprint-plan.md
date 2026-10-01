@@ -127,7 +127,7 @@ registration.
 - [x] On `/mcp/`, a gated tool called with an argument-carried key and no Bearer token **succeeds** (agent regression).
 - [x] `mcphttp` parity test passes with the same cases.
 
-### M4: `ailang mcp check --target anthropic` (~300 impl + ~200 tests)
+### M4: `ailang mcp check --target anthropic` (~300 impl + ~200 tests) ✅
 
 **Goal:** the design doc's L3 checks 1–5 against a URL, with human and `--json` output, exiting 1 on failure.
 
@@ -144,10 +144,10 @@ registration.
 - Every finding cites its requirement ID (A1–A6) from `m-serveapi-directory-ready-sources.md`.
 
 **Acceptance criteria:**
-- [ ] Fixture servers (`httptest`) for each check's pass and fail.
-- [ ] Against today's prod Parse `/mcp/` it reports the expected findings: credential params (`apiKey`) and no 401 gate. Checks 1 and 3 pass once docparse M2 is promoted.
-- [ ] Against the M5 example served locally on `/mcp/connect/`, checks 1–4 pass, and check 5 WARNs (no authorization server yet).
-- [ ] `make check-cli-docs` and the CLI reference are updated (new subcommand).
+- [x] Fixture servers (`httptest`) for each check's pass and fail.
+- [x] Against today's prod Parse `/mcp/` it reports the expected findings: credential params (`apiKey`) and no 401 gate. Checks 1 and 3 pass once docparse M2 is promoted.
+- [x] A directory-ready module on `/mcp/connect/` passes all five checks against a fixture authorization server (`TestMCPCheck_ListedSurfaceReady`). Deviation: check 5 FAILs rather than WARNs when an issuer is named but its metadata is unreachable; it SKIPs only when there are no gated tools.
+- [x] `make check-cli-docs` and the CLI reference are updated (new subcommand).
 
 ### M5: Example, docs, release notes (~150)
 

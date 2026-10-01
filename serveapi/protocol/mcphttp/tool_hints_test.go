@@ -24,7 +24,7 @@ func TestListToolsEmitsTitleAndAnnotations(t *testing.T) {
 	}
 	b, _ := json.Marshal(listTools(surface))
 	want := `[{"name":"parse","title":"Parse document","description":"parse","inputSchema":{"type":"object"},` +
-		`"annotations":{"readOnlyHint":true,"idempotentHint":false,"openWorldHint":true}},` +
+		`"annotations":{"readOnlyHint":true,"destructiveHint":false,"idempotentHint":false,"openWorldHint":true}},` +
 		`{"name":"plain","description":"plain","inputSchema":{"type":"object"}}]`
 	if string(b) != want {
 		t.Errorf("tools/list\n got %s\nwant %s", b, want)

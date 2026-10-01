@@ -15,10 +15,10 @@ func TestResolveToolHints(t *testing.T) {
 		wantErr  bool
 	}{
 		{"pure undeclared is read-only closed-world", nil, false, true,
-			`{"readOnlyHint":true,"idempotentHint":false,"openWorldHint":false}`, false},
+			`{"readOnlyHint":true,"destructiveHint":false,"idempotentHint":false,"openWorldHint":false}`, false},
 		{"effectful undeclared is not guessed", nil, false, false, `null`, false},
-		{"readOnly omits destructiveHint", []string{"readOnly", "openWorld"}, true, false,
-			`{"readOnlyHint":true,"idempotentHint":false,"openWorldHint":true}`, false},
+		{"readOnly states destructiveHint false", []string{"readOnly", "openWorld"}, true, false,
+			`{"readOnlyHint":true,"destructiveHint":false,"idempotentHint":false,"openWorldHint":true}`, false},
 		{"absent destructive means additive", []string{"openWorld"}, true, false,
 			`{"readOnlyHint":false,"destructiveHint":false,"idempotentHint":false,"openWorldHint":true}`, false},
 		{"destructive idempotent closed-world", []string{"destructive", "idempotent"}, true, false,

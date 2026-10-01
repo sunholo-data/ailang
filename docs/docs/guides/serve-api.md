@@ -426,9 +426,9 @@ Each exported AILANG function becomes an MCP tool. Module metadata is available 
 
   | Declaration | Emitted `annotations` |
   |---|---|
-  | `@mcp_hints("readOnly", "openWorld")` | `readOnlyHint: true, openWorldHint: true` (no `destructiveHint` — meaningless when read-only) |
+  | `@mcp_hints("readOnly", "openWorld")` | `readOnlyHint: true, destructiveHint: false, openWorldHint: true` (every hint is an explicit boolean, which OpenAI's directory requires) |
   | `@mcp_hints("destructive", "idempotent")` | `readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false` |
-  | none, empty effect row (`-> T` with no `!`, or `! {}`) | `readOnlyHint: true, openWorldHint: false` — the checker proves the function touches nothing |
+  | none, empty effect row (`-> T` with no `!`, or `! {}`) | `readOnlyHint: true, destructiveHint: false, openWorldHint: false` — the checker proves the function touches nothing |
   | none, effectful | **none** — serve-api will not guess; one startup `WARN` names every such tool |
 
   An unknown hint word, a duplicate, or `readOnly` with `destructive` is logged as an `ERROR` and the tool is not registered. Purity is read from the **declared effect row**, not the `pure` keyword. The built-in `submit_feedback` tool is annotated (`Send feedback`, additive, open-world). Both MCP implementations — the go-sdk one behind `serve-api` and the stdlib `serveapi/protocol/mcphttp` dispatcher for embedders (`ToolDescriptor.Title` / `.Annotations`, resolved with `protocol.ResolveToolHints`) — emit the same JSON.

@@ -32,6 +32,8 @@ func runMCPCommand() {
 	switch args[1] {
 	case "status":
 		runMCPStatus(args[2:])
+	case "check":
+		runMCPCheck(args[2:])
 	case "help", "-h", "--help":
 		printMCPHelp()
 	default:
@@ -45,6 +47,8 @@ func printMCPHelp() {
 
 Subcommands:
   status      Show MCP endpoint reachability + drift vs embedded prompt
+  check URL   Check an MCP endpoint against the Anthropic/OpenAI directory
+              requirements (--target anthropic|openai|both, --json; exit 1 on FAIL)
   help        Show this help
 
 Environment:

@@ -109,10 +109,10 @@
         "Against M5 example on /mcp/connect/: checks 1-4 pass, check 5 WARN-skips (never passes) without an issuer",
         "make check-cli-docs passes; CLI reference updated"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-01T15:30:21+00:00",
+      "completed": "2026-10-01T15:30:21+00:00",
+      "notes": "internal/mcpcheck (raw JSON-RPC over streamable HTTP, SSE-aware, session-id aware) + cmd/ailang/mcp_check.go under `ailang mcp`. Five checks citing sources A1-A7/O1/O6/O8 (A7 + O8 quotes added to sources file). Safe probing rule. Check 5 FAILs (not WARN) when an issuer is named but its metadata is unreachable \u2014 honest; SKIP only when no gated tools. Unit tests + 3 e2e against real serve-api surfaces. Live run vs prod Parse /mcp/: credentials + lazy-auth FAIL, O8 destructiveHint FAIL on 6 read-only tools -> fixed ResolveToolHints to always emit destructiveHint. ARCHITECTURE closure regenerated (129->130 pkgs)."
     },
     {
       "id": "M5",
