@@ -1,0 +1,93 @@
+{
+  "sprint_id": "M-VM-VAR-PATTERN-DEFAULT-ARM",
+  "status": "not_started",
+  "created": "2026-10-01T22:04:19Z",
+  "design_doc": "design_docs/planned/v0_51_2/m-vm-var-pattern-default-arm.md",
+  "sprint_plan": "design_docs/planned/v0_51_2/m-vm-var-pattern-default-arm-sprint-plan.md",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1_SOUND_LOWERING_AND_BINDING",
+      "package": null,
+      "action": "none",
+      "reason": "Compiler-internal Core-to-Statement IR lowering; no package-like capability. Reuse existing internal binding and switch helpers; registry search not applicable."
+    },
+    {
+      "milestone": "M2_GO_EMITTER_PARITY",
+      "package": null,
+      "action": "none",
+      "reason": "Compiler-internal Go emission; no package-like capability. Reuse v1 suppression and if-chain infrastructure; registry search not applicable."
+    },
+    {
+      "milestone": "M3_DIFFERENTIAL_REGRESSION_GATE_A",
+      "package": null,
+      "action": "none",
+      "reason": "In-repository differential harnesses and documentation; no package-like capability. Extend existing golden tests; registry search not applicable."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 220,
+    "estimated_total_loc": 440,
+    "estimated_days": 2
+  },
+  "features": [
+    {
+      "id": "M1_SOUND_LOWERING_AND_BINDING",
+      "description": "Sound lowering and binding",
+      "estimated_loc": 230,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Final named defaults bind the scrutinee before body evaluation, including duplicated guard-failure defaults.",
+        "Non-final and guarded variable/wildcard arms produce ordered if-chains; multiple catch-alls cannot use the switch fast path.",
+        "A guard can reference its variable binding; false guards continue to later arms.",
+        "Top-level constructor arguments in routed if-chains bind through `_j` field access; unsupported literal/nested shapes report a precise lowering reason rather than silently mis-binding.",
+        "Final wildcard and underscore defaults emit no binding; existing constructor-with-wildcard and literal-guard tests pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_GO_EMITTER_PARITY",
+      "description": "Go emitter parity",
+      "estimated_loc": 100,
+      "dependencies": [
+        "M1_SOUND_LOWERING_AND_BINDING"
+      ],
+      "acceptance_criteria": [
+        "V1 string/value-switch defaults bind their variable and generate Go that builds.",
+        "V1 non-final variable/wildcard arms preserve source order; guarded catch-alls retain guard behavior.",
+        "V2 default bindings inherited from M1 emit valid Go, including bound-but-unused variables.",
+        "Focused golang and emitgo tests pass, including existing naming/scoping and declaration tests."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_DIFFERENTIAL_REGRESSION_GATE_A",
+      "description": "Differential regression gate and documentation",
+      "estimated_loc": 110,
+      "dependencies": [
+        "M1_SOUND_LOWERING_AND_BINDING",
+        "M2_GO_EMITTER_PARITY"
+      ],
+      "acceptance_criteria": [
+        "Reported cancel/name repro returns `committed` in evaluator, strict VM, v1 Go, and v2 Go.",
+        "Differential cases cover first/middle catch-all order, guarded variable and wildcard arms (true/false), depth-1 constructor bindings, string defaults, used/unused bindings, and final wildcards.",
+        "Literal constructor guard failure followed by a named default executes its binding correctly; all design-listed regression fixtures remain green.",
+        "Routed literal/nested constructor subpatterns explicitly reject strict execution with the lowering reason when still unsupported; supported cases do not become EvalOnly.",
+        "Generated v1/v2 Go is built and executed, with outputs compared against evaluator expectations; snapshot agreement alone is insufficient.",
+        "Baseline and post-change corpus checks show no additional EvalOnly functions or behavioral regressions in std/examples; existing unsupported functions are recorded rather than assumed absent.",
+        "New runnable example is type-checked and runs on the evaluator and strict VM; language reference and changelog describe parity and the remaining nested-pattern boundary accurately.",
+        "Required repository checks pass: make build, make test, make fmt, make lint, make check-boundaries."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
