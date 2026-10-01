@@ -6,15 +6,15 @@
 #   v* tag
 #     (0) CI gate — the GitHub `CI` workflow's `test` job must be green for the
 #         tagged SHA (polled up to 40 min; runs in parallel with the builds)
-#     (1) build all 18 images from the tagged source → TEST registry, each
+#     (1) build all 16 images from the tagged source → TEST registry, each
 #         tagged :latest AND :vX.Y.Z — the version names the WHOLE deployment
-#     (2) deploy TEST: 4 core services + all 17 executor jobs, via the shared
+#     (2) deploy TEST: 4 core services + all 15 executor jobs, via the shared
 #         library in ailang-multivac (scripts/cloudbuild-lib.sh, cloned here)
 #     (3) SMOKE GATE against test
 #
 # It STOPS THERE. Prod is a manual, versioned promotion:
 #     ailang-multivac/scripts/release.sh promote core vX.Y.Z
-# which refuses unless this build SUCCEEDED for the tag and every one of the 18
+# which refuses unless this build SUCCEEDED for the tag and every one of the 16
 # images carries :vX.Y.Z in test, then copies exactly those images to prod.
 # (Until 2026-09-03 this file auto-promoted 5 images to prod after the smoke
 # gate; the other 13 were never versioned at all.)
@@ -102,7 +102,7 @@ steps:
         git clone --depth 1 --branch dev "${_MULTIVAC_REPO}" /workspace/multivac
     waitFor: ['-']
 
-  # ── (1) Build all 18 images → TEST registry, :latest + :$TAG_NAME ──────────
+  # ── (1) Build all 16 images → TEST registry, :latest + :$TAG_NAME ──────────
   - id: build-coordinator
     name: gcr.io/k8s-skaffold/pack
     entrypoint: pack
@@ -283,25 +283,6 @@ steps:
           .
     waitFor: ['build-agent-base']
 
-  - id: build-agent-gemini
-    name: gcr.io/cloud-builders/docker
-    entrypoint: bash
-    args:
-      - -c
-      - |
-        AR=${_REGION}-docker.pkg.dev/$_TEST_PROJECT/ailang
-        docker buildx build \
-          --cache-from "type=registry,ref=$$AR/agent-gemini:cache" \
-          --cache-from "type=registry,ref=$$AR/agent-base:cache" \
-          --cache-to   "type=registry,ref=$$AR/agent-gemini:cache,mode=max" \
-          --build-arg PROJECT=$_TEST_PROJECT \
-          -t "$$AR/agent-gemini:latest" \
-          -t "$$AR/agent-gemini:$TAG_NAME" \
-          -f docker/Dockerfile.agent-gemini \
-          --push \
-          .
-    waitFor: ['build-agent-base']
-
   - id: build-agent-eval
     name: gcr.io/cloud-builders/docker
     entrypoint: bash
@@ -401,25 +382,6 @@ steps:
           .
     waitFor: ['build-agent-codex']
 
-  - id: build-agent-gemini-go
-    name: gcr.io/cloud-builders/docker
-    entrypoint: bash
-    args:
-      - -c
-      - |
-        AR=${_REGION}-docker.pkg.dev/$_TEST_PROJECT/ailang
-        docker buildx build \
-          --cache-from "type=registry,ref=$$AR/agent-gemini-go:cache" \
-          --cache-from "type=registry,ref=$$AR/agent-gemini:cache" \
-          --cache-to   "type=registry,ref=$$AR/agent-gemini-go:cache,mode=max" \
-          --build-arg PROJECT=$_TEST_PROJECT \
-          -t "$$AR/agent-gemini-go:latest" \
-          -t "$$AR/agent-gemini-go:$TAG_NAME" \
-          -f docker/Dockerfile.agent-gemini-go \
-          --push \
-          .
-    waitFor: ['build-agent-gemini']
-
   - id: build-agent-eval-go
     name: gcr.io/cloud-builders/docker
     entrypoint: bash
@@ -472,7 +434,7 @@ steps:
           /usr/local/bin/test-image.sh
     waitFor: ['build-resident-pi']
 
-  # ── (2) Deploy TEST: 4 core services + all 17 jobs ─────────────────────────
+  # ── (2) Deploy TEST: 4 core services + all 15 jobs ─────────────────────────
   # :latest was moved to :$TAG_NAME by the builds above, and :latest is what
   # Terraform pins by string — deploying it means the next config-only apply
   # sees no drift. Waits on the CI gate so red code never reaches test.
@@ -497,7 +459,6 @@ steps:
       - build-agent-go
       - build-agent-pi-go
       - build-agent-codex-go
-      - build-agent-gemini-go
       - build-agent-eval-go
       - build-agent-opencode
       - build-agent-motoko

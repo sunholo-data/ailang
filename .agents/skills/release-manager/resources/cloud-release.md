@@ -10,20 +10,22 @@ On-demand companion to `SKILL.md` §7.6–7.7. Design:
 (0) CI gate     GitHub workflow `CI`, job `test`, must be green for the tagged SHA
                 (160 × 15 s = 40 min budget; CI on dev takes 19–23 min). deploy-test
                 waits on it, so red CI leaves TEST untouched.
-(1) build       all 18 images from the tagged tree → TEST registry, each tagged
+(1) build       all 16 images from the tagged tree → TEST registry, each tagged
                 :vX.Y.Z AND :latest. No allowFailure anywhere (dev gives motoko and
                 resident-pi a pass; a release does not — a version names the whole
                 deployment). The resident image's acceptance suite is a hard gate.
-(2) deploy TEST 4 core services + all 17 executor jobs, via ailang-multivac's
+(2) deploy TEST 4 core services + all 15 executor jobs, via ailang-multivac's
                 scripts/cloudbuild-lib.sh (cloned at run time; the one copy of the
                 roll / job→image logic, mirroring terraform/cloud_run_jobs.tf).
 (3) smoke gate  MCP serves exactly the tag (GATE 1 — hence std/VERSION must equal
                 it), docs_search answers, coordinator + dashboard /health.
 ```
 
-It **stops there**. The 18 images: coordinator, dashboard, mcp, ntfy, agent-base,
+It **stops there**. The 16 images: coordinator, dashboard, mcp, ntfy, agent-base,
 agent, agent-go, agent-pi, agent-pi-go, agent-codex, agent-codex-go, agent-opencode,
-agent-gemini, agent-gemini-go, agent-eval, agent-eval-go, agent-motoko, resident-pi.
+agent-eval, agent-eval-go, agent-motoko, resident-pi. (agent-gemini and agent-gemini-go
+were removed 2026-10-01; the Gemini CLI executor was retired in v0.22.0 and Gemini
+models run on the binaryless managed_agents executor.)
 
 Until 2026-09-03 this pipeline built 5 images, deployed `:latest` rather than the
 version, rolled 2 of 17 jobs, and auto-promoted to prod after the smoke gate; the other
@@ -44,7 +46,7 @@ version, `crane tag … latest` in prod, digest assertion, and a roll with `:lat
 which is what Terraform pins by string, so the next apply sees no drift while the
 registry records which version is live. Rollback: `promote core v<previous>`.
 
-Sets: `core` (all 18 + 4 services + 17 jobs), `agents`, `agent`, `agent-pi`,
+Sets: `core` (all 16 + 4 services + 15 jobs), `agents`, `agent`, `agent-pi`,
 `coordinator`, `dashboard`, `mcp`; `docparse`/`billing` and `website-builder` are
 promoted by their own repos' versions. There is no `all`.
 
@@ -62,6 +64,6 @@ expose the digest only on executions (`gcloud run jobs executions describe …
 
 ## Break-glass caveat
 
-`cloudbuild-dev.yaml` submitted at prod builds all 18 images and rolls 17 jobs but tags
+`cloudbuild-dev.yaml` submitted at prod builds all 16 images and rolls 15 jobs but tags
 `:latest` only, bypassing promote-by-version: the registry will not record which version
 prod runs. Re-promote a real version afterwards.

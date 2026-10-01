@@ -120,19 +120,17 @@ func TestDockerfilesDeclareTheDispatchersProvider(t *testing.T) {
 
 	// variant -> image name. Empty/"default" are the plain agent image.
 	variantImage := map[string]string{
-		"":          "agent",
-		"default":   "agent",
-		"go":        "agent-go",
-		"codex":     "agent-codex",
-		"codex-go":  "agent-codex-go",
-		"gemini":    "agent-gemini",
-		"gemini-go": "agent-gemini-go",
-		"opencode":  "agent-opencode",
-		"pi":        "agent-pi",
-		"pi-go":     "agent-pi-go",
-		"motoko":    "agent-motoko",
-		"eval":      "agent-eval",
-		"eval-go":   "agent-eval-go",
+		"":         "agent",
+		"default":  "agent",
+		"go":       "agent-go",
+		"codex":    "agent-codex",
+		"codex-go": "agent-codex-go",
+		"opencode": "agent-opencode",
+		"pi":       "agent-pi",
+		"pi-go":    "agent-pi-go",
+		"motoko":   "agent-motoko",
+		"eval":     "agent-eval",
+		"eval-go":  "agent-eval-go",
 	}
 
 	table := coordinator.VariantProviders()

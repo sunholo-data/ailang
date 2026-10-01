@@ -327,8 +327,8 @@ func TestJobSuffixForVariant(t *testing.T) {
 		{"default", "apikey", "agent-executor-apikey", false},
 		{"go", "oauth", "agent-executor-go", false},
 		{"go", "apikey", "agent-executor-go-apikey", false},
-		{"gemini", "oauth", "agent-executor-gemini", false},
-		{"gemini-go", "oauth", "agent-executor-gemini-go", false},
+		{"gemini", "oauth", "", true},    // retired 2026-10-01: Gemini CLI gone since v0.22.0
+		{"gemini-go", "oauth", "", true}, //   ditto
 		{"codex", "oauth", "agent-executor-codex", false},
 		{"codex-go", "oauth", "agent-executor-codex-go", false},
 		{"opencode", "oauth", "agent-executor-opencode", false},
@@ -372,6 +372,28 @@ func TestDispatchGoVariantJobName(t *testing.T) {
 	want := "projects/ailang-multivac-dev/locations/europe-west1/jobs/ailang-dev-agent-executor-go"
 	if mock.lastReq.Name != want {
 		t.Errorf("job name = %q, want %q", mock.lastReq.Name, want)
+	}
+}
+
+// TestDispatchRetiredGeminiVariantIsPermanentAndNamesManagedAgents: a dispatch
+// to the removed agent-gemini jobs fails the task (no requeue, no job launched)
+// with a message pointing at the replacement executor.
+func TestDispatchRetiredGeminiVariantIsPermanentAndNamesManagedAgents(t *testing.T) {
+	for _, variant := range []string{"gemini", "gemini-go"} {
+		mock := &mockJobRunner{}
+		d := newDispatcherWithClient(mock, "ailang-multivac-dev", "europe-west1", "ailang-dev")
+		err := d.Dispatch(context.Background(), coordinator.DispatchParams{
+			TaskID: "task-g", AgentID: "g", ExecutorVariant: variant,
+		})
+		if !errors.Is(err, coordinator.ErrDispatchPermanent) {
+			t.Fatalf("variant %q: want ErrDispatchPermanent, got %v", variant, err)
+		}
+		if !strings.Contains(err.Error(), "managed_agents") {
+			t.Errorf("variant %q: error should name managed_agents, got: %v", variant, err)
+		}
+		if mock.lastReq != nil {
+			t.Errorf("variant %q: a job was launched: %s", variant, mock.lastReq.Name)
+		}
 	}
 }
 
