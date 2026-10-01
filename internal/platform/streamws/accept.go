@@ -43,5 +43,5 @@ func Accept(w http.ResponseWriter, r *http.Request, opts AcceptOptions) (effects
 	if opts.MaxFrameSize > 0 {
 		conn.SetReadLimit(opts.MaxFrameSize)
 	}
-	return &transport{conn: conn}, nil
+	return &transport{conn: conn, readLimit: opts.MaxFrameSize}, nil
 }

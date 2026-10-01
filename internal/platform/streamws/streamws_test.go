@@ -213,3 +213,53 @@ func TestOpen_NoDialerIsRefused(t *testing.T) {
 		t.Fatalf("want ErrNoDialer, got %v", err)
 	}
 }
+
+// Regression (Daneel, 2026-10-01): the 64KB default read limit killed every
+// Vertex Live video session whose first media message exceeded it. gorilla's
+// ReadLimit is per reassembled message, so the default must admit anything
+// MaxMessageSize admits.
+func TestOpen_DefaultReadLimitAdmitsMaxMessageSize(t *testing.T) {
+	sc := effects.NewStreamContext()
+	if sc.MaxFrameSize < sc.MaxMessageSize {
+		t.Fatalf("default MaxFrameSize %d < MaxMessageSize %d", sc.MaxFrameSize, sc.MaxMessageSize)
+	}
+	srv := echoServer(t, 0)
+	defer srv.Close()
+	tr, err := Open(effects.StreamDialConfig{
+		URL:              "ws" + strings.TrimPrefix(srv.URL, "http"),
+		HandshakeTimeout: 2 * time.Second,
+		MaxFrameSize:     sc.MaxFrameSize,
+		DialContext:      plainDialer,
+	})
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer tr.Close()
+	const n = 200_000 // > the old 64KB, < 1MB
+	if err := tr.Send(effects.StreamFrame{Kind: effects.StreamFrameBinary, Data: make([]byte, n)}); err != nil {
+		t.Fatalf("Send: %v", err)
+	}
+	f, err := tr.Recv()
+	if err != nil || len(f.Data) != n {
+		t.Fatalf("Recv: got %d bytes, err=%v; want %d", len(f.Data), err, n)
+	}
+}
+
+// A message over the limit still fails, and the error names the limit so the
+// bridge's end reason carries a number.
+func TestRecv_ReadLimitErrorNamesLimit(t *testing.T) {
+	srv := echoServer(t, 0)
+	defer srv.Close()
+	tr := dial(t, srv) // 64KB limit
+	defer tr.Close()
+	if err := tr.Send(effects.StreamFrame{Kind: effects.StreamFrameBinary, Data: make([]byte, 1<<16+1)}); err != nil {
+		t.Fatalf("Send: %v", err)
+	}
+	_, err := tr.Recv()
+	if !errors.Is(err, websocket.ErrReadLimit) {
+		t.Fatalf("want ErrReadLimit, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "message over 65536 bytes") {
+		t.Errorf("error does not name the limit: %v", err)
+	}
+}
