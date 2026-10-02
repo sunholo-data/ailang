@@ -223,12 +223,16 @@ func resolveSelectiveImports(
 			}
 			// M-FIX-RECORD-UPDATE: Also import type alias if present
 			// This enables cross-module record update syntax
+			// Keyed by bindName, the name in scope: `import M (Row as R)` must
+			// expand R, or R stays an opaque constructor that unifies with
+			// nothing and --args-json cannot decode it (stapledons_godot,
+			// 2026-10-01).
 			if alias, hasAlias := depIface.GetTypeAlias(sym); hasAlias {
-				imports.ImportedTypeAliases[sym] = alias
-				imports.ImportedAliasOrigin[sym] = depIface.Module
+				imports.ImportedTypeAliases[bindName] = alias
+				imports.ImportedAliasOrigin[bindName] = depIface.Module
 				// M-XMOD-ALIAS-POLY: carry params for parameterized aliases.
 				if params, ok := depIface.GetTypeAliasParams(sym); ok {
-					imports.ImportedAliasParams[sym] = params
+					imports.ImportedAliasParams[bindName] = params
 				}
 				if cfg.TraceDefaulting {
 					fmt.Printf("  Import type alias %s -> %s\n", sym, alias)
