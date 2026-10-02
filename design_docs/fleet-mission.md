@@ -43,6 +43,10 @@ mission.
 
 Newest **3** STATUS stamps live here; older ones move to `fleet-mission-status-archive.md`.
 
+## STATUS 2026-10-01 — ITERATION 11: heartbeat ticket PARKED-ON-LANE; independent evaluator unavailable in the requested Agent tool
+
+D-FLEET-8 is acknowledged; its scope ruling is not re-asked. Designer, planner and executor ran read-only native `gpt-6.1-sol` checkpoints. All agree the inherited untracked design/plan/JSON must be revised for 18 heartbeat calls in 14 files, both skill mirrors, rc-19 text, and the pre-push mirror enforcement gap. Preferred evaluator `sonnet` and every declared fallback (`minimax-m3`, `claude-sonnet-4-6`, `opus`) were rejected by Agent spawn as Unknown model. No judge ran: evaluator score UNMEASURED, no implementation, no quorum PASS, no landing, no ticket resolution. Resume when a declared independent evaluator is spawnable with the requested Agent transport; then revise and follow the normal design/quorum/plan/execute gates. Clause map: **1 product share** UNMEASURED; **2 turnaround** UNMET/at risk (7 occurrences, first filed 09-26); **3 one queue** MET (25 open signatures at Gate 5); **4 idle is free** MET by prior evidence; **5 no regressions** preserved by shipping no fix. Record is review-only; see iteration 11 log.
+
 ## STATUS 2026-10-01 — ITERATION 10: `pi-runner:quota-429-reported-as-empty-worktree` LANDED in [#1424](https://github.com/sunholo-data/ailang/pull/1424) (`94524a6fc`), independent evaluator PASS 97; ticket resolved; stapledon's stale-pin re-file of `mission-base:hardcoded-origin-dev` resolved against `cb7c51c8e`
 
 `mission_pi_run.sh` now types a run whose last assistant `message_end` is `stopReason:"error"` with a capacity `errorMessage` (429/402, usage limit, quota, rate limit, credits) as `provider_quota` rc 19, above `ok`/`empty_worktree`; every verdict carries `provider_errors`/`provider_error`. Planning found the worse twin: World iter 187's planner had banked a 429 stop as `ok` rc 0 with 10 files changed. Tests: `test_mission_pi_run_provider_quota.sh` 29 checks on real-pi fixtures, executor 10/10 mutants red, evaluator 5 own drills red; controller `make test-launchd-drivers` rc 0; PR checks CLEAN; merge-commit CI success (SonarCloud red inherited from `a03ec7013`). The gate-3-route.md rc list does not name 19 yet: its `.agents` mirror is outside the scope guard (D-FLEET-8 class); the existing text already falls back on any non-zero rc except 18. The pi evaluator lane died again on the extension collision (rc 17); fallback `claude-sonnet-4-6` judged. Clause map: **1 product share** unmeasured; **2 turnaround** at risk (this ticket filed 09-26 19:10Z, resolved ~4.5 days later); **3 one queue** MET (14 open); **4 idle is free** MET; **5 no regressions** MET.
@@ -50,10 +54,6 @@ Newest **3** STATUS stamps live here; older ones move to `fleet-mission-status-a
 ## STATUS 2026-09-30 — ITERATION 9: `mission-base:hardcoded-origin-dev` LANDED in [#1418](https://github.com/sunholo-data/ailang/pull/1418) (`cb7c51c8e`), independent evaluator PASS 100; ticket resolved; iteration 8's record #1416 landed (`60af11ee0`)
 
 `mission-base.sh` now takes `MISSION_BASE_REF`, else `origin/HEAD`'s target, else fails loudly (rc 1, both remedies named, no row written); no silent `origin/dev` fallback. Live A/B in the stapledon clone: old rc 1 `cannot resolve origin/dev`, new rc 0 recording `origin/main`; `origin/HEAD` measured in all 6 mission clones (5 → `origin/dev`, stapledon → `origin/main`). `test_mission_base.sh` 13/13, `make test-launchd-drivers` rc 0 (controller re-run), PR checks all green; merge-commit CI green except SonarCloud new-code coverage, red on the 4 prior dev commits too (inherited). Evaluator: pi minimax-m3 lane dead on launch (`sandbox_not_ready` rc 17: user-level `~/.pi/agent/extensions` tools collide with the worktree's `.pi/extensions`), declared fallback `claude-sonnet-4-6` PASS 100 with its own mutation drills. #1416 had been held only by dev's changelog-hygiene red, since fixed; branch updated, CI CLEAN, merged. Clause map: **1 product share** unmeasured; **2 turnaround** improved (5-occurrence ticket resolved, first filed 09-27 21:07Z, ~72h — over the 48h target); **3 one queue** MET (15 open); **4 idle is free** MET; **5 no regressions** MET.
-
-## STATUS 2026-09-30 — ITERATION 8: paired rotate-log design PARKED · D-FLEET-9; quorum BLOCKED twice, independent Sonnet technical checkpoint PASS, implementation score UNMEASURED
-
-Synthetic A/B registries reproduce a wrong-checkout write; `--status` mutates the status archive, while default World log selection is correct. No implementation or ticket resolution. Record-only [PR #1416](https://github.com/sunholo-data/ailang/pull/1416) is OPEN, needs-human-review; not landed and no auto-merge armed. The intentional flag break needs Mark, and the next design must audit all shared-loader callers or isolate stricter rotate resolution. [Design](planned/m-mission-rotate-log-safe.md), [independent evaluation](planned/m-mission-rotate-log-safe-evaluation.md), [evidence](planned/m-mission-rotate-log-safe-evidence.json). Goal unmoved: clause 1 unmeasured, 2 at risk, 3–4 met, 5 upheld by shipping nothing unverified. Dev CI is independently red on changelog hygiene; handed to V1.
 
 ## CURRENT GOAL
 
@@ -146,7 +146,7 @@ evidence in each line). Still re-check at HEAD in Gate 2 before working a ticket
 - The "likely stale" note on the heartbeat ticket was WRONG: World re-filed it on 2026-09-28.
 
 **P0 — whole slots lost** (the two unbuilt rulings, D-FLEET-1 and D-FLEET-2, landed in #1398)
-1. [UNPARKED · D-FLEET-8 = YES, both copies] `skill:heartbeat-relative-path-absent-in-world`: 9 relative `bash
+1. [PARKED-ON-LANE · evaluator Agent models unavailable; D-FLEET-8 = YES, both copies] `skill:heartbeat-relative-path-absent-in-world`: 9 relative `bash
    tools/launchd/mission-heartbeat.sh stamp` calls remain across gate-0..gate-5 resources. They do not
    exist from World's (or Stapledon's) CWD. `$AILANG_DRIVER_SRC` is used 0 times in `resources/`.
    **4 slots lost.**
