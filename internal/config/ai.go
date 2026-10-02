@@ -17,6 +17,8 @@ const (
 	EnvAIHTTPLog          = "AILANG_AI_HTTP_LOG"
 	EnvBrowserbaseAPIKey  = "BROWSERBASE_API_KEY"
 	EnvBrowserbaseProject = "BROWSERBASE_PROJECT_ID"
+	EnvAINoADC            = "AILANG_AI_NO_ADC"
+	EnvAIKeyFile          = "AILANG_AI_KEY_FILE"
 )
 
 // DefaultLyceumBaseURL is the EU-hosted Lyceum OpenAI-compatible endpoint
@@ -38,6 +40,8 @@ var aiVars = []Var{
 	{EnvAIHTTPLog, "", AreaAI, "Path the OpenAI-compatible clients append their raw HTTP wire log to; unset falls back to the ai-http-log sentinel file under the state dir, and no sentinel means logging off."},
 	{EnvBrowserbaseAPIKey, "", AreaAI, "Browserbase API key for browser eval sessions when the benchmark's browser config does not name another variable (read through Raw, since the name is configurable)."},
 	{EnvBrowserbaseProject, "", AreaAI, "Browserbase project id for browser eval sessions; same rule as the API key."},
+	{EnvAINoADC, "", AreaAI, "Set to 1 to disable the Google provider's Application Default Credentials lane: a missing GOOGLE_API_KEY/GEMINI_API_KEY becomes a hard AuthFailed error instead of silently billing the gcloud project (same as ailang run --ai-no-adc)."},
+	{EnvAIKeyFile, "", AreaAI, "Path to a file holding the API key for the --ai model's provider, read once at startup and never echoed (same as ailang run --ai-key-file, which wins); the file's contents replace the provider's key variable."},
 }
 
 // OpenAIBaseURL returns the trimmed OPENAI_BASE_URL, "" when unset.
@@ -76,3 +80,9 @@ func OpenRouterAttributionConfig() OpenRouterAttribution {
 
 // AIHTTPLog returns the trimmed AILANG_AI_HTTP_LOG, "" when unset.
 func AIHTTPLog() string { return strings.TrimSpace(get(EnvAIHTTPLog)) }
+
+// AINoADC reports whether AILANG_AI_NO_ADC=1 disables the Google ADC lane.
+func AINoADC() bool { return strings.TrimSpace(get(EnvAINoADC)) == "1" }
+
+// AIKeyFile returns the trimmed AILANG_AI_KEY_FILE path, "" when unset.
+func AIKeyFile() string { return strings.TrimSpace(get(EnvAIKeyFile)) }

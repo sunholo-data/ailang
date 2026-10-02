@@ -243,8 +243,10 @@ func (c *Client) buildURL(model string) (string, error) {
 
 	switch c.authType {
 	case AuthAPIKey:
-		// AI Studio: https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}
-		return fmt.Sprintf("%s/models/%s:generateContent?key=%s", aiStudioBaseURL, model, c.apiKey), nil
+		// AI Studio: https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent
+		// The key rides in the x-goog-api-key header (authHeaders), never the
+		// URL: net/http quotes the URL in every transport error (#1499).
+		return fmt.Sprintf("%s/models/%s:generateContent", aiStudioBaseURL, model), nil
 
 	case AuthADC:
 		// Vertex AI: https://aiplatform.googleapis.com/v1/projects/{project}/locations/{location}/publishers/google/models/{model}:generateContent
@@ -268,7 +270,7 @@ func (c *Client) buildStreamURL(model string) (string, error) {
 	}
 	switch c.authType {
 	case AuthAPIKey:
-		return fmt.Sprintf("%s/models/%s:streamGenerateContent?alt=sse&key=%s", aiStudioBaseURL, model, c.apiKey), nil
+		return fmt.Sprintf("%s/models/%s:streamGenerateContent?alt=sse", aiStudioBaseURL, model), nil
 	case AuthADC:
 		return fmt.Sprintf("%s/projects/%s/locations/%s/publishers/google/models/%s:streamGenerateContent?alt=sse",
 			vertexAIBaseURL, c.projectID, c.location, model), nil
@@ -291,12 +293,15 @@ func (c *Client) addAuth(req *http.Request) error {
 	return nil
 }
 
-// authHeaders returns the headers the configured auth type needs: none for
-// an API key (it rides in the URL), a bearer token for ADC.
+// authHeaders returns the headers the configured auth type needs: the
+// x-goog-api-key header for an API key, a bearer token for ADC. The key is
+// a header rather than a ?key= query parameter so it can never surface in a
+// url.Error, a log line or a trace span (#1499); it is also sent to a custom
+// base URL, which used to receive no credential at all.
 func (c *Client) authHeaders() (http.Header, error) {
 	switch c.authType {
 	case AuthAPIKey:
-		return nil, nil
+		return http.Header{"X-Goog-Api-Key": []string{c.apiKey}}, nil
 
 	case AuthADC:
 		token, err := getAccessToken()

@@ -79,6 +79,27 @@ unset GOOGLE_API_KEY
 ailang run --caps IO,AI --ai gemini-2-5-flash --entry main my_app.ail
 ```
 
+### Disabling the ADC fallback, and reading the key from a file
+
+The automatic ADC fallback is convenient on a developer machine, but it is a
+billing hazard for an application that should run on its *user's* key: when
+the key is missing, the call silently bills whatever project `gcloud` points
+at. Two switches close that gap:
+
+| Switch | Effect |
+|--------|--------|
+| `--ai-no-adc` or `AILANG_AI_NO_ADC=1` | The ADC lane is never tried. A missing `GOOGLE_API_KEY` / `GEMINI_API_KEY` is a hard `AuthFailed` error at startup. Combining it with a pinned Vertex project is refused. |
+| `--ai-key-file PATH` or `AILANG_AI_KEY_FILE=PATH` | The API key for the `--ai` model's provider is read from `PATH` once, at startup (the flag wins over the variable). The file must hold the key on a single line (surrounding whitespace is trimmed). The key never enters argv or the environment, and AILANG does not echo it in logs, errors or traces; errors name the path only. A key-less lane (local Ollama, a config-driven provider) refuses the flag instead of ignoring it. |
+
+```bash
+# Run on the player's key only; never fall back to the developer's gcloud project
+ailang run --caps IO,AI --ai gemini-2-5-flash --ai-no-adc \
+  --ai-key-file "$HOME/.config/mygame/gemini.key" --entry main my_app.ail
+```
+
+The Google client sends the key in the `x-goog-api-key` header, not in the
+request URL, so a transport error (which quotes the URL) cannot leak it.
+
 ## Game Development Example
 
 Here's a complete example of using AI for NPC dialogue generation:
@@ -166,6 +187,8 @@ Effects are tracked at the type level, ensuring:
 |------|-------------|
 | `--ai <model>` | Set the AI model to use |
 | `--ai-stub` | Use deterministic stub handler |
+| `--ai-no-adc` | Google: never fall back to Application Default Credentials; a missing key is `AuthFailed` (also `AILANG_AI_NO_ADC=1`) |
+| `--ai-key-file PATH` | Read the provider API key from a file at startup; never echoed (also `AILANG_AI_KEY_FILE`) |
 | `--caps AI` | Enable AI capability |
 
 ### Model Lookup

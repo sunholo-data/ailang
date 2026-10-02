@@ -306,7 +306,9 @@ func TestClient_BuildURL_APIKey(t *testing.T) {
 		t.Fatalf("buildURL() error = %v", err)
 	}
 
-	expected := "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=test-key"
+	// The key rides in the x-goog-api-key header, never the URL: a transport
+	// error's message quotes the URL verbatim (#1499).
+	expected := "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
 	if url != expected {
 		t.Errorf("buildURL() = %q, want %q", url, expected)
 	}
