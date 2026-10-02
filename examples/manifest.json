@@ -3043,6 +3043,29 @@
       }
     },
     {
+      "path": "runnable/fs_bytes_roundtrip.ail",
+      "status": "working",
+      "tags": [
+        "stdlib",
+        "std/fs",
+        "std/bytes",
+        "filesystem",
+        "binary",
+        "result",
+        "effects"
+      ],
+      "description": "std/fs readFileRaw (raw bytes) and writeFileBytesResult (Err instead of panic) round-trip non-UTF-8 bytes; readFileBytes returns base64 text",
+      "modules": [
+        "std/bytes",
+        "std/fs",
+        "std/io"
+      ],
+      "expected": {
+        "stdout": "write: Ok\nreadFileRaw: 6 bytes [0, 255, 254, 128, 97, 10]\nreadFileBytes: base64 text \"AP/+gGEK\"\nmissing parent: Err\nmissing file: Err\n",
+        "exit_code": 0
+      }
+    },
+    {
       "path": "runnable/web_search.ail",
       "status": "working",
       "tags": [
@@ -3113,11 +3136,11 @@
     }
   ],
   "statistics": {
-    "total": 213,
-    "working": 205,
+    "total": 214,
+    "working": 206,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9624413145539906,
+    "coverage": 0.9626168224299065,
     "experimental": 0
   },
   "milestones": {

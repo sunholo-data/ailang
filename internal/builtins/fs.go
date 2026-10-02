@@ -66,7 +66,7 @@ func registerFS() {
 		Module: "std/fs", Name: "_fs_readFileBytes", NumArgs: 1, IsPure: false, Effect: "FS", Type: type1b, Impl: impl1b,
 
 		Metadata: &BuiltinMetadata{
-			Description: "Read entire file contents as a base64-encoded string",
+			Description: "Read entire file contents as a base64-encoded STRING (not bytes); use _fs_readFileRaw for raw bytes",
 			Params: []ParamDoc{
 				{Name: "path", Description: "Path to file to read"},
 			},
@@ -74,8 +74,8 @@ func registerFS() {
 			Examples: []Example{
 				{Code: `_fs_readFileBytes("image.png")`, Description: "Returns Ok(base64-encoded content)"},
 			},
-			LongDesc:  "Reads binary file contents and returns as base64. Use _bytes_from_base64 to decode. Respects AILANG_FS_SANDBOX.",
-			SeeAlso:   []string{"_fs_readFile", "_bytes_from_base64", "_zip_readEntryBytes"},
+			LongDesc:  "Reads binary file contents and returns them base64-encoded as text, so Ok holds a string, not bytes. Use _bytes_from_base64 to decode, or _fs_readFileRaw (std/fs readFileRaw) to get Result[bytes, string] directly. Respects AILANG_FS_SANDBOX.",
+			SeeAlso:   []string{"_fs_readFileRaw", "_fs_readFile", "_bytes_from_base64", "_zip_readEntryBytes"},
 			Since:     "v0.8.0",
 			Stability: StabilityStable,
 			Tags:      []string{"fs", "file", "read", "binary", "base64"},

@@ -18,9 +18,9 @@ import std/string (compare, endsWith)
 -- @sandbox Respects AILANG_FS_SANDBOX
 export func readFile(path: string) -> string ! {FS} = _fs_readFile(path)
 
--- Binary file reading
--- Reads entire file contents as a base64-encoded string
--- Use for PDF, images, or other binary files
+-- Binary file reading as BASE64 TEXT, not bytes: Ok holds a base64 string (use readFileRaw for bytes)
+-- "hi" on disk comes back as Ok("aGk="), not the bytes. Decode with std/bytes.fromBase64,
+-- or call readFileRaw to get Result[bytes, string] directly.
 -- @requires FS capability
 -- @sandbox Respects AILANG_FS_SANDBOX
 export func readFileBytes(path: string) -> Result[string, string] ! {FS} = _fs_readFileBytes(path)
@@ -33,7 +33,7 @@ export func readFileBytes(path: string) -> Result[string, string] ! {FS} = _fs_r
 -- @permissions 0644 (owner: rw, group: r, others: r)
 export func writeFile(path: string, content: string) -> () ! {FS} = _fs_writeFile(path, content)
 
--- Binary file writing
+-- Binary file writing (panics on failure; writeFileBytesResult returns Err instead)
 -- Writes raw bytes to file (truncates if exists)
 -- Use for PCM audio, images, WAV files, or other binary data
 -- @requires FS capability
@@ -156,6 +156,22 @@ export func mkdirResult(path: string) -> Result[(), string] ! {FS} = _fs_mkdirRe
 -- removeDirResult: Remove an EMPTY directory (the lock release). Never recursive:
 -- Err if the directory is missing, non-empty, or not a directory.
 export func removeDirResult(path: string) -> Result[(), string] ! {FS} = _fs_removeDirResult(path)
+
+-- Read a file's raw bytes, returning Result instead of panicking (since v0.51.1)
+-- The bytes come back unchanged: no base64 (unlike readFileBytes) and no UTF-8 decoding.
+-- @example match readFileRaw("image.png") { Ok(b) => length(b), Err(_) => 0 }
+-- @requires FS capability
+-- @sandbox Respects AILANG_FS_SANDBOX
+export func readFileRaw(path: string) -> Result[bytes, string] ! {FS} = _fs_readFileRaw(path)
+
+-- Write raw bytes to a file (truncates if exists), returning Result instead of panicking (since v0.51.1)
+-- writeFileBytes panics on failure; this reports a missing parent dir, permission or sandbox error as Err.
+-- @example match writeFileBytesResult("out.bin", data) { Ok(_) => true, Err(_) => false }
+-- @requires FS capability
+-- @sandbox Respects AILANG_FS_SANDBOX
+-- @permissions 0644 (owner: rw, group: r, others: r)
+export func writeFileBytesResult(path: string, data: bytes) -> Result[(), string] ! {FS} =
+  _fs_writeFileBytesResult(path, data)
 
 -- Atomically rename (move) a file or directory, returning Result instead of panicking (M-FS-RENAME, since v0.35.0)
 -- @example match renameFileResult("run.json.tmp", "run.json") { Ok(_) => (), Err(msg) => () }

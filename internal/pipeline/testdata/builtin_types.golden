@@ -112,6 +112,7 @@ _fs_mkdirAllResult : string -> Result[(), string] ! {FS}
 _fs_mkdirResult : string -> Result[(), string] ! {FS}
 _fs_readFile : string -> string ! {FS}
 _fs_readFileBytes : string -> Result[string, string] ! {FS}
+_fs_readFileRaw : string -> Result[bytes, string] ! {FS}
 _fs_readFileResult : string -> Result[string, string] ! {FS}
 _fs_removeDirResult : string -> Result[(), string] ! {FS}
 _fs_removeFile : string -> () ! {FS}
@@ -120,6 +121,7 @@ _fs_rename : (string, string) -> () ! {FS}
 _fs_renameResult : (string, string) -> Result[(), string] ! {FS}
 _fs_writeFile : (string, string) -> () ! {FS}
 _fs_writeFileBytes : (string, bytes) -> () ! {FS}
+_fs_writeFileBytesResult : (string, bytes) -> Result[(), string] ! {FS}
 _fs_writeFileResult : (string, string) -> Result[(), string] ! {FS}
 _game_delta_time : () -> float ! {Clock}
 _game_frame_count : () -> int ! {Clock}
