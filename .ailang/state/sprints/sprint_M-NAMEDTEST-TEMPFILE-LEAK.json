@@ -1,0 +1,114 @@
+{
+  "sprint_id": "M-NAMEDTEST-TEMPFILE-LEAK",
+  "status": "not_started",
+  "created": "2026-10-02T16:02:35Z",
+  "design_doc": "design_docs/planned/v0_51_1/m-namedtest-tempfile-leak.md",
+  "sprint_plan": "design_docs/planned/v0_51_1/m-namedtest-tempfile-leak-sprint-plan.md",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "searches": [
+        "tempfile",
+        "testing"
+      ],
+      "inspected_packages": [
+        "sunholo/testing_utils@0.1.1"
+      ],
+      "reason": "No tempfile package found; inspected testing_utils with pkg info/docs: pure AILANG assertions cannot supply Go lifecycle, scanning or CLI hygiene changes."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "searches": [
+        "tempfile",
+        "testing"
+      ],
+      "inspected_packages": [
+        "sunholo/testing_utils@0.1.1"
+      ],
+      "reason": "No tempfile package found; inspected testing_utils with pkg info/docs: pure AILANG assertions cannot supply Go lifecycle, scanning or CLI hygiene changes."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "searches": [
+        "tempfile",
+        "testing"
+      ],
+      "inspected_packages": [
+        "sunholo/testing_utils@0.1.1"
+      ],
+      "reason": "No tempfile package found; inspected testing_utils with pkg info/docs: pure AILANG assertions cannot supply Go lifecycle, scanning or CLI hygiene changes."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 400,
+    "estimated_total_loc": 800,
+    "estimated_days": 2
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Consumer immunity and PUB024",
+      "estimated_loc": 320,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Every inventory entry skips artifacts using the shared predicate: check package discovery, pkg discovery, tarball, hash, smoke staging, plain test, package test, directory check.",
+        "PUB024 is a hard gate in publisher and server modes, names sorted files and a deletion remedy, and is absent on clean trees.",
+        "pkg quality exits 2 and publish --dry-run refuses planted debris; JSON output remains parseable.",
+        "Source counts, test counts, tarball bytes and content hash equal the clean baseline despite debris.",
+        "Root and nested artifacts are covered; nonmatching user filenames remain included."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Producer lifecycle and safe startup sweep",
+      "estimated_loc": 360,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Normal success and failures leave no body; registered cleanup is race-safe and closes the creation/registration interruption window.",
+        "SIGTERM exits 143 and SIGINT exits 130 with no body remaining; SIGHUP cleanup is covered on supported platforms.",
+        "Dead-PID artifacts are removed; a real live child PID survives; permission/unknown probes never authorize deletion.",
+        "Legacy files younger than one hour survive; older files are swept; unsupported platforms use age fallback and compile successfully.",
+        "Both runners skip retained debris and sweep nested source directories; plain test executes the baseline count rather than doubling it.",
+        "Relative sibling imports and package manifest resolution still succeed; internal/testing has no signal-handler side effects for embedded callers."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Hygiene, documentation and acceptance verification",
+      "estimated_loc": 120,
+      "dependencies": [
+        "M1",
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "MOD010 remains active for real mismatched source modules and is absent for recognized temp bodies.",
+        "Newly initialized packages ignore body files; existing .gitignore content is preserved.",
+        "Guide explains signal cleanup, SIGKILL limitations, safe sweep, PUB024 and deletion; changelog records the fix.",
+        "SIGKILL subprocess scenario leaves debris, then quality/publish refuse it and the next test run sweeps it without extra tests.",
+        "Focused tests, targeted race tests, make fmt, make lint, make test-core, full make test and make check-boundaries pass.",
+        "Windows build checks for internal/testing and cmd/ailang pass; platform-specific signal assertions are explicitly gated."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
