@@ -144,10 +144,10 @@
         "non-.ail untouched",
         "formatOnEdit default off"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-02T07:35:21+00:00",
+      "completed": "2026-10-02T07:35:21+00:00",
+      "notes": "tools/claude-mods/ailang-check-on-edit: after a successful .ail Edit/Write, ailang check --json from the project root; failure -> 'ailang check <rel>: \u2717 N errors' + up to 5 'line:col cause' lines in the result's context (model-only); pass -> nothing; formatOnEdit (default false) runs fmt --write first. 4 tests pass. Live headless: claude -p wrote a broken module and quoted back '3:8 cannot unify type constructors: int vs string' without running any command."
     },
     {
       "id": "M5_UNOWNED_DIRTY",
