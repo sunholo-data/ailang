@@ -8,7 +8,7 @@ const out = (stdout: string, exitCode = 0) =>
   ({ value: { exitCode, stdout, stderr: '', isStdoutTruncated: false, isStderrTruncated: false } })
 const RUN = { origin: { kind: 'composer' }, presentation: { isFullscreen: false, columns: 120 } } as const
 const BAND = {
-  plugin: 'ailang-inbox', component: 'AbovePrompt',
+  plugin: 'ailang-inbox-band', component: 'AbovePrompt',
   props: { hasSurvey: false, isWorking: false, maxRows: 4, bodyColumns: 100, scroll: { offset: 0, bodyRows: 4 }, view: {} },
 } as const
 
@@ -21,7 +21,7 @@ for (const surface of ['terminal', 'desktop'] as const) {
     on('ui.open', async () => ({ value: { isPlaced: true as const } }))
     on('ui.toast', async () => ({ value: undefined }))
 
-    const { text } = await $.command.run({ command: 'inbox', args: '', ...RUN })
+    const { text } = await $.command.run({ command: 'ail-inbox', args: '', ...RUN })
     expect(text).toBe('2 unread in user.')
     expect(text).not.toContain('strict VM') // C3: no message text in what the model may read
 
@@ -40,7 +40,7 @@ test('no unread: the band draws nothing of its own', async ($, on) => {
     return null as never
   })
 
-  await $.command.run({ command: 'inbox', args: '', ...RUN })
+  await $.command.run({ command: 'ail-inbox', args: '', ...RUN })
   await $.ui.mount({ ...BAND, surface: 'terminal' }).catch(() => undefined)
   expect(isPassedOn).toBe(true)
 })
@@ -54,9 +54,9 @@ test('Ack runs messages ack and drops the row', async ($, on) => {
   on('ui.open', async () => ({ value: { isPlaced: true as const } }))
   on('clock.now', async () => ({ value: Date.parse('2026-10-02T09:00:00Z') }))
 
-  await $.command.run({ command: 'inbox', args: '', ...RUN })
+  await $.command.run({ command: 'ail-inbox', args: '', ...RUN })
   const pane = await $.ui.mount({
-    plugin: 'ailang-inbox', surface: 'terminal', component: 'Pane', requestId: 'ailang-inbox',
+    plugin: 'ailang-inbox-band', surface: 'terminal', component: 'Pane', requestId: 'ailang-inbox-band',
     props: { title: 'AILANG inbox', isFocused: true, bodyColumns: 80, placement: 'dock', scroll: { offset: 0, bodyRows: 30 }, view: {} },
   })
   expect(await pane.find({ text: /stapledons_godot → user · 2h/ })).toBeTruthy()
@@ -76,12 +76,12 @@ test('a new message is toasted once; the first backlog is not', async ($, on) =>
     return { value: undefined }
   })
 
-  await $.command.run({ command: 'inbox', args: '', ...RUN })
+  await $.command.run({ command: 'ail-inbox', args: '', ...RUN })
   expect(toasts.length).toBe(0)
 
   list = [msg('b', 'fresh one', '2026-10-02T08:00:00Z'), ...list]
-  await $.command.run({ command: 'inbox', args: '', ...RUN })
-  await $.command.run({ command: 'inbox', args: '', ...RUN })
+  await $.command.run({ command: 'ail-inbox', args: '', ...RUN })
+  await $.command.run({ command: 'ail-inbox', args: '', ...RUN })
   expect(toasts.length).toBe(1)
   expect(toasts[0]).toContain('fresh one')
 })

@@ -9,7 +9,7 @@ export type InboxMessage = {
 
 declare module 'claude-code' {
   interface PluginState {
-    'ailang-inbox': {
+    'ailang-inbox-band': {
       unread: InboxMessage[]
       toasted: string[]
       openId: string

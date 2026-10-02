@@ -1,6 +1,6 @@
 # M-CLAUDE-CODE-MODS — AILANG features as Claude Code mods (interactive, local agent, headless)
 
-**Status**: Planned
+**Status**: In progress — Phases 0–2 implemented 2026-10-02 ([sprint plan](m-claude-code-mods-sprint-plan.md)); Phases 3–4 open
 **Target**: v0.52.0 (Phase 0 spike can land on any patch)
 **Priority**: P2 — developer experience and fleet ergonomics; nothing is blocked without it
 **Estimated**: Phase 0 ~0.5 session · Phase 1 ~1 session · Phase 2 ~1–2 sessions · Phase 3 ~1 session · Phase 4 ~1 session
@@ -55,6 +55,10 @@ Every load-bearing premise, with how it was checked. PENDING rows gate the phase
 | V12 | Mod hooks run in a sandbox with no Node and no DOM; host access only via `$` (`$.process.run`, `$.fs`, `$.http`, `$.clock`); ~10 s budget per hook excluding time inside `$` calls | Types header + blog | Confirmed — pi extensions (Node) cannot be loaded as-is |
 | V13 | No existing design doc covers Claude Code mods | `grep -rli "claude code mod\|function hooks\|hooks module" design_docs` → empty; neural search top match 0.46 (`M-CLAUDE-CODE-INTEGRATION`, v0.3.20 shell hooks + inbox) | Confirmed |
 | V14 | No `ailang claude install` command exists; `ailang pi install` (`cmd/ailang/pi_setup.go`, `//go:embed all:pi_assets`) and `ailang editor install vscode` are the precedents | `grep` over `cmd/ailang/*.go`; `ls cmd/ailang` | Confirmed |
+| V15 | A `tool.call` result's `context` is read by the model after the tool result and never shown to the person | Types doc for `ToolCallResult.context`; live headless run (V10) and `ailang-check-on-edit` under `claude -p`: the model quoted `3:8 cannot unify type constructors: int vs string` | Confirmed — the channel for every model-facing mod |
+| V16 | The engine statically refuses a hooks module that passes `$` to anything but a function declared at the top of the file | `claude plugin test` refusal on the first `ailang-inbox` draft ("$ is passed to "poll", which is not a function declared at the top of this file") | Confirmed — helpers taking `$` are top-level; module state lives at the top level and is reset in `register` |
+| V17 | The marketplace already has an `ailang-inbox` plugin (the messaging skill) | Dry run of the new sync step against a built `bootstrap-content` tarball | Confirmed — the inbox mod ships as `ailang-inbox-band`; the sync fails loudly on any future name clash |
+| V18 | pi's `unowned-dirty` compares absolute session paths against repo-relative `git status --porcelain` paths, so it flags every dirty file including the session's own | Read `.pi/extensions/unowned-dirty.ts` (`ownFiles.add(`${ctx.cwd}/${p}`)` vs `parsePorcelain`); its test only covers the pure function with relative paths | Confirmed by reading; the mod compares repo-relative paths. pi fix not in this sprint |
 
 ## Problem Statement
 
@@ -101,17 +105,17 @@ without ever making a mod load-bearing.
 |---|----------|---------|----------------|-------------|-------------------|
 | D1 | **Source of truth** for mods | (a) `ailang_bootstrap/plugins/` (where `ailang-lens` is today) · (b) `ailang` repo `tools/claude-mods/`, copied to bootstrap by the existing `sync-ailang.yml` | **(b)** — mods call `ailang` flags and JSON schemas (V3, V4, V7) that change with the binary; versioning them with the binary is the same reasoning that put pi extensions in-tree. Bootstrap stays the *distribution* | Mark | Low (move a folder, add one sync step) |
 | D2 | **Distribution** | (a) marketplace only (`/plugin install ailang-lens@ailang-marketplace`) · (b) also `ailang claude install` (embed, write `~/.claude/ailang-mods/`, add to `CLAUDE_CODE_PLUGIN_DIRS`), mirroring `ailang pi install` (V14) · (c) both | **(a) now, (b) deferred** until the API leaves early access — embedding an early-access surface in every release binary couples our release cadence to theirs | Mark | Low |
-| D3 | **Shared logic with pi** | (a) separate implementations · (b) a pure-TS core (no Node, no `$`) per gate + two thin adapters (pi/Node, Claude/`$`) · (c) code-gen | **(b) for gates with real logic** (`unowned-dirty`, `prepush-gate`, check-on-edit parsing); **(a) for UI-only mods** (lens, inbox) — pi has no equivalent surface. V12 makes a shared core possible only if it takes `run(argv)` and `stat(path)` as injected functions | Agent-resolvable after D1 | Medium |
+| D3 | **Shared logic with pi** | (a) separate implementations · (b) a pure-TS core (no Node, no `$`) per gate + two thin adapters (pi/Node, Claude/`$`) · (c) code-gen | ~~(b)~~ **Resolved 2026-10-02: generated copy.** Neither channel can import a shared file (`make pi-assets` copies `.pi/extensions/*.ts` flat; a plugin cannot import outside its folder), so each port's `hooks/core.ts` is generated verbatim from the pi file's named pure functions by `scripts/check_claude_mods_drift.sh --write`, and the same script without `--write` fails on drift (part of `make claude-mods-check`) | Agent (resolved) | Low |
 | D4 | **Headless scope** | (a) no mods headless · (b) agent-facing mods opt-in per agent via the existing `plugins.install` (V9) · (c) default-on fleet-wide | **(b)**, starting with one dev agent, measured (Phase 3) | Mark | Low (config only) |
 | D5 | **Messages in model context** | (a) interactive UI only (band/pane/toast for the person) · (b) also inject unread-message summaries into the agent's system prompt via `prompt.compose` | **(a)**. Message bodies are external content (other agents, GitHub issues) — putting them in the prompt makes them instruction-shaped input. The person reads them; the agent reads one only when asked, via the existing CLI, as data | Mark | Medium — reversing means a trust review against [M-MESSAGE-PLANE-TRUST](m-message-plane-trust.md) |
 | D6 | **Shell hooks vs mods** | (a) replace hooks with mods · (b) mods alongside hooks; retire a hook only after its mod is proven *and* the rollout question (V11) is settled | **(b)** — hooks keep working when the switch is off and in non-Claude harnesses | Agent-resolvable | Low |
 
 ### Design Freeze
 
-- [ ] D1 source of truth
-- [ ] D2 distribution (marketplace now)
-- [ ] D4 headless scope (opt-in, one agent first)
-- [ ] D5 messages never in model context
+- [x] D1 source of truth — (b), Mark 2026-10-02 ("great please sprint plan and execute" on the recommendations)
+- [x] D2 distribution (marketplace now)
+- [x] D4 headless scope (opt-in, one agent first)
+- [x] D5 messages never in model context
 
 ## Solution Design
 
@@ -122,11 +126,11 @@ Three modes, one catalogue. Each mod is tagged with the modes it serves:
 | Mod | Interactive (person sees) | Local agent (model gets) | Headless (`claude -p`) | Ports from |
 |-----|:---:|:---:|:---:|---|
 | **ailang-lens** — pane of types / effect rows / errors per edited module; status line | ✅ shipped | — | — (no UI) | new |
-| **ailang-inbox** — AbovePrompt band "📬 3 unread · user", `/inbox` pane with Read / Ack, toast on arrival | ✅ | — (D5) | — | `session_start.sh` inbox check, `ailang-inbox` skill |
-| **ailang-check-on-edit** — after a successful `.ail` Edit/Write: `ailang fmt --write`, then `ailang check --format agent`; diagnostics appended to the tool result | ✅ (via lens) | ✅ | ✅ (D4) | `format_ail.sh`, pi `ail-fmt-autolint`, pi `ailang-lsp-lite` |
+| **ailang-inbox-band** — AbovePrompt band "📬 3 unread · user", `/ail-inbox` pane with Read / Ack, toast on arrival | ✅ | — (D5) | — | `session_start.sh` inbox check, `ailang-inbox` skill |
+| **ailang-check-on-edit** — after a successful `.ail` Edit/Write: `ailang check --json` (optional `fmt --write` first, `formatOnEdit`, default off: `format_ail.sh` already formats in this repo and a second rewrite lands under Claude's feet); errors added to the result's `context` | ✅ (via lens) | ✅ | ✅ (D4) | `format_ail.sh`, pi `ail-fmt-autolint`, pi `ailang-lsp-lite` |
 | **unowned-dirty** — tracks files this session wrote (`$.state`); warns on `git add -A` / `commit -a` that would sweep others | ✅ | ✅ | ✅ | pi `unowned-dirty.ts` |
 | **prepush-gate** — runs CI gates before `git push`; with a person present, shows what would go out (blog's "Blast Radius" pattern) | ✅ | ✅ | ✅ | pi `prepush-gate.ts` |
-| **fleet-status** — status-line entry: provider quota, current sprint/mission step | ✅ | — | — | pi `provider-quota`, `builtin-sprint` |
+| **sprint-status** — status-line entry: the in-progress sprint and its next milestone (provider quota deferred: needs provider keys inside the mod) | ✅ | — | — | pi `provider-quota`, `builtin-sprint` |
 | **coordinator-telemetry** — one in-process forwarder replacing the 7-event `coordinator_hook.sh` (V8), via `$.http`, non-blocking | — | — | ✅ | `coordinator_hook.sh` |
 
 ### Architecture

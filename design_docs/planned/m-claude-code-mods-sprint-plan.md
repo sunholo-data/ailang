@@ -46,43 +46,43 @@ packages. The deliverables are TypeScript Claude Code plugins, not AILANG packag
 
 ## Milestones
 
-### M0 — Headless spike (closes V10) · ~40 LOC (scratch, not committed)
+### ✅ M0 — Headless spike (closes V10) · ~40 LOC (scratch, not committed)
 - Probe mod: `session.start` writes a marker via `$.fs`, `tool.call` appends the tool name, `$.process.run(['ailang','--version'])` result recorded.
 - `claude -p --plugin-dir <probe> --max-turns 2 "run: echo hi"`; read the marker and stderr.
 - **Acceptance**: V10 row updated Confirmed/Refuted with the transcript excerpt; if Refuted, Phases 3–4 marked dropped in the design doc.
 
-### M1 — Lens in tree · ~90 LOC
+### ✅ M1 — Lens in tree · ~90 LOC
 - `tools/claude-mods/ailang-lens/` (from bootstrap PR #11 + mtime refresh), `tools/claude-mods/README.md` (layout, dev loop, how each mod ships).
 - Relative `/ail-lens` paths resolved against the session cwd; missing file → `{ text: 'ail-lens: <path> not found' }`.
 - **Acceptance**: validate + tsc clean; test for the missing-file reply.
 
-### M2 — ailang-inbox · ~250 LOC + tests
+### ✅ M2 — ailang-inbox (shipped as `ailang-inbox-band`, `/ail-inbox`; see V17) · ~250 LOC + tests
 - `userConfig`: `inboxes` (default `user`), `pollSeconds` (default 60).
 - `$.clock.every` poll of `ailang messages list --unread --json --inbox <each>` (timeout 10 s); AbovePrompt band with count + newest title (nothing when zero); `/inbox` pane with `Read` and `Ack` Buttons (`messages read`, `messages ack`); toast once per new id.
 - Never touches model context (C3).
 - **Acceptance**: tests — band text for 2 unread, empty band at 0, Ack runs `messages ack <id>` and removes the row, toast fires once per id.
 
-### M3 — sprint-status · ~90 LOC
+### ✅ M3 — sprint-status · ~90 LOC
 - Status line: the newest `.ailang/state/sprints/sprint_*.json` with an unfinished milestone → `sprint M-X 3/7 · M4_NAME`. Refresh on `session.start` and `turn.complete`.
 - (Narrowed from "fleet-status": quota needs provider keys in the mod; deferred per the doc's Deferred Decisions.)
 - **Acceptance**: test with a fixture sprint JSON.
 
-### M4 — ailang-check-on-edit · ~150 LOC + tests
+### ✅ M4 — ailang-check-on-edit · ~150 LOC + tests
 - After a successful Edit/Write of `.ail`: `ailang check --json --quiet` from the project root (V5); on failure append `ailang check: ✗ <line:col> <cause>` (max 5) to the result's `context`; on pass, nothing.
 - `userConfig.formatOnEdit` (default false) runs `ailang fmt --write` first.
 - **Acceptance**: tests — failing edit gets context lines, passing edit gets none, non-.ail untouched.
 
-### M5 — unowned-dirty · ~110 LOC + tests
+### ✅ M5 — unowned-dirty · ~110 LOC + tests
 - `hooks/core.ts` = verbatim `parsePorcelain`, `unownedDirty`, `isSweepingGitOp` from `.pi/extensions/unowned-dirty.ts`.
 - `$.state` set of files written via Edit/Write; on a sweeping Bash git op: `git status --porcelain` (10 s), warning as a toast **and** in the result `context` (headless value). Never blocks.
 - **Acceptance**: tests — warning names unowned files, silent when all dirty files are own.
 
-### M6 — prepush-gate · ~170 LOC + tests
+### ✅ M6 — prepush-gate · ~170 LOC + tests
 - `hooks/core.ts` = verbatim `goRoots`, `makeTargetDefined`, `skipRequested`, `isPushCommand`.
 - Before `git push` / `gh pr create|merge`: same chain as pi (gofmt on tracked roots, `make lint`, `make check-file-sizes` when defined); failure → `{ deny }` with the tail. Escape hatch `AILANG_SKIP_PREPUSH=1` read via `$.env` (launch environment, as pi).
 - **Acceptance**: tests — unformatted file denies, no Go roots passes, undefined make target skipped, hatch skips.
 
-### M7 — Distribution + doc · ~80 LOC
+### ✅ M7 — Distribution + doc · ~80 LOC
 - `scripts/check_claude_mods_drift.sh` + `make claude-mods-check` (drift + `claude plugin validate` per mod when the CLI is present).
 - `make bootstrap-content` copies `tools/claude-mods/*` into the tarball; bootstrap `sync-ailang.yml` copies them to `plugins/` and adds marketplace entries (bootstrap PR).
 - Design doc: V10 result, D3 resolution, findings 4–5, Phase 3–4 status.
@@ -98,3 +98,15 @@ Every mod: `claude plugin validate`, `tsc` against the engine types, `claude plu
 
 ~980 LOC across 8 milestones; ~1.5 sessions at this session's observed pace (lens: ~260
 LOC + tests in ~1 h).
+
+## Outcome (2026-10-02)
+
+All 8 milestones pass. `make claude-mods-check`: drift ok for both pi cores; every mod
+validates and type-checks; 23 tests pass (lens 4, inbox-band 5, check-on-edit 4,
+unowned-dirty 3, prepush-gate 6, sprint-status 1). Headless confirmed twice under
+`claude -p` (probe mod; check-on-edit handing the model a real type error).
+
+Deviations from plan: the inbox mod is `ailang-inbox-band` with `/ail-inbox` (name taken in
+the marketplace); `fleet-status` narrowed to `sprint-status`; check-on-edit formats only on
+opt-in. Found and not fixed here: pi `unowned-dirty` flags the session's own files (V18).
+Still open: Phase 3 (dev-agent A/B, container check) and Phase 4 (telemetry consolidation).

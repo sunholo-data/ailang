@@ -14,7 +14,7 @@ to `plugins/<mod>/` with a marketplace entry, so users install them with
 | Mod | Who it serves | What it does |
 |-----|---------------|--------------|
 | `ailang-lens` | the person | Pane of each edited module's functions, types, effect rows and errors; status line summary; `/ail-lens [file]` |
-| `ailang-inbox` | the person | Band above the prompt with unread `ailang messages`; `/inbox` pane with Read / Ack; toast on arrival. Never puts message text in model context |
+| `ailang-inbox-band` | the person | Band above the prompt with unread `ailang messages`; `/ail-inbox` pane with Read / Ack; toast on arrival. Never puts message text in model context |
 | `sprint-status` | the person | Status line: current sprint and its next milestone |
 | `ailang-check-on-edit` | the model | After a `.ail` Edit/Write, `ailang check` errors are added to what the model reads after the tool result |
 | `unowned-dirty` | both | Warns (toast + model context) when a git sweep would take files this session did not write. Never blocks |
@@ -43,7 +43,7 @@ fails when a copied function body differs from `.pi/extensions/<name>.ts`.
 
 ```bash
 make claude-mods-check                      # validate + tsc + tests + drift, every mod
-scripts/check_claude_mods.sh ailang-inbox   # one mod
+scripts/check_claude_mods.sh ailang-inbox-band   # one mod
 claude --plugin-dir tools/claude-mods/ailang-lens   # try it in a session
 ```
 

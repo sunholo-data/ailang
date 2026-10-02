@@ -5,13 +5,13 @@ import type { InboxMessage } from '../types'
 
 // For the person only (M-CLAUDE-CODE-MODS C3): message text is external
 // content from other agents and GitHub, so nothing here reaches the model.
-// The /inbox command's reply carries a count, never a title or body.
+// The /ail-inbox command's reply carries a count, never a title or body.
 
-const PANE = 'ailang-inbox'
-const unread = atom({ plugin: 'ailang-inbox', key: 'unread' } as const, [])
-const toasted = atom({ plugin: 'ailang-inbox', key: 'toasted' } as const, [])
-const openId = atom({ plugin: 'ailang-inbox', key: 'openId' } as const, '')
-const error = atom({ plugin: 'ailang-inbox', key: 'error' } as const, '')
+const PANE = 'ailang-inbox-band'
+const unread = atom({ plugin: 'ailang-inbox-band', key: 'unread' } as const, [])
+const toasted = atom({ plugin: 'ailang-inbox-band', key: 'toasted' } as const, [])
+const openId = atom({ plugin: 'ailang-inbox-band', key: 'openId' } as const, '')
+const error = atom({ plugin: 'ailang-inbox-band', key: 'error' } as const, '')
 
 type Raw = { id: string; from_agent?: string; to_inbox?: string; title?: string; payload?: string; created_at?: string }
 
@@ -93,13 +93,13 @@ export const register: Register = (on, options) => {
   hasPolled = false
 
   on('session.start', async ($, e, next) => {
-    await $.command.register({ name: 'inbox', description: 'Show unread AILANG messages' })
+    await $.command.register({ name: 'ail-inbox', description: 'Show unread AILANG messages' })
     void poll($, inboxes)
     $.clock.every(pollMs, () => void poll($, inboxes))
     return next(e)
   })
 
-  on('command.run', { command: 'inbox' }, async $ => {
+  on('command.run', { command: 'ail-inbox' }, async $ => {
     const list = await poll($, inboxes)
     await $.ui.open({ id: PANE, title: 'AILANG inbox' })
     return { text: `${list.length} unread in ${inboxes.join(', ')}.` }

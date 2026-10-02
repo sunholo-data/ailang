@@ -27,8 +27,7 @@ const GO = { 'git ls-files': { stdout: 'cmd/ailang/main.go\ninternal/x/x.go\n' }
 test('an unformatted Go file denies the push', async ($, on) => {
   const s = setup(on, { ...GO, 'gofmt -l': { stdout: 'internal/x/x.go\n' } })
   const res = await $.tool.call({ tool: 'Bash', command: 'git push origin dev' })
-  expect(res.isError).toBe(true)
-  expect(res.text).toContain('gofmt: 1 unformatted Go file(s): internal/x/x.go')
+  expect(res.deny).toContain('gofmt: 1 unformatted Go file(s): internal/x/x.go')
   expect(s.wasPushed()).toBe(false)
 })
 
@@ -53,8 +52,8 @@ test('a make target the repo does not define is skipped', async ($, on) => {
 test('a failing lint denies with its tail', async ($, on) => {
   const s = setup(on, { ...GO, 'make lint': { exitCode: 2, stdout: 'internal/x/x.go:3: unused var y\n' } })
   const res = await $.tool.call({ tool: 'Bash', command: 'git push' })
-  expect(res.text).toContain('prepush gate failed (lint)')
-  expect(res.text).toContain('unused var y')
+  expect(res.deny).toContain('prepush gate failed (lint)')
+  expect(res.deny).toContain('unused var y')
   expect(s.wasPushed()).toBe(false)
 })
 
