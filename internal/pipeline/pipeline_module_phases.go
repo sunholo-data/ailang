@@ -344,7 +344,7 @@ func (st *modulePipelineState) compileFreshModule(mod *loader.LoadedModule, modI
 	elaborator.SetModuleLoader(st.modLoader)
 	elaborator.AddBuiltinsToGlobalEnv()
 	for ctorName, info := range imports.ImportedCtorInfos {
-		elaborator.RegisterConstructor(info.TypeName, ctorName, info.Arity, true, info.TypeParamCount)
+		elaborator.RegisterImportedConstructorAs(ctorName, info.CanonicalName, info.TypeName, info.Arity, info.TypeParamCount)
 	}
 
 	var err error

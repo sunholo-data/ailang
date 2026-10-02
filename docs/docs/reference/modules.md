@@ -104,6 +104,22 @@ func main() -> () ! {IO} {
 }
 ```
 
+Constructors can be aliased too (v0.51.1+), which resolves a clash between two
+modules' same-named constructors. The alias works in patterns and expressions
+and matches the original constructor; the original name stays available unless
+something else in scope already uses it:
+
+```typescript
+import std/option (Option, Some as S, None as Nada)
+
+func describe(x: Option[int]) -> int = match x { S(v) => v, Nada => 0 }
+```
+
+A constructor pattern must name a constructor that is declared in the module,
+imported, or defined by a loaded module. Anything else (a typo, or an alias that
+was never written in an import) is rejected with `TC_MATCH_001` instead of
+compiling to an arm that can never match.
+
 ### Combined Aliasing
 
 Use both module and symbol aliasing together:

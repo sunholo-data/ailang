@@ -1,0 +1,31 @@
+module cmd/ailang/testdata/ctoralias/alias
+import std/option (Option, Some as S, None as Nada)
+
+func nothing() -> Option[int] = None
+
+func just(n: int) -> Option[int] = Some(n)
+
+export func aliasedNullary() -> int = match nothing() {
+  Nada => 1,
+  _ => 0
+}
+
+export func aliasedArgs() -> int = match just(41) {
+  S(v) => v + 1,
+  _ => 0
+}
+
+export func aliasedExpr() -> int = let x: Option[int] = Nada in match x {
+  None => 7,
+  _ => 0
+}
+
+export func aliasedCall() -> int = match S(5) {
+  Some(v) => v,
+  None => 0
+}
+
+export func canonicalStillBound() -> int = match just(3) {
+  Some(v) => v,
+  Nada => 0
+}

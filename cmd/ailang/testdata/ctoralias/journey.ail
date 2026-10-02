@@ -1,0 +1,5 @@
+module cmd/ailang/testdata/ctoralias/journey
+
+export type TripPhase = Departed | Arrived
+
+export pure func phaseAt(t: int) -> TripPhase = if t > 10 then Arrived else Departed

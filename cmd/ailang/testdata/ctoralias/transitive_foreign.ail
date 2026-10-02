@@ -1,0 +1,9 @@
+module cmd/ailang/testdata/ctoralias/transitive_foreign
+import std/list (nth)
+
+-- Err is not in scope (std/list exposes Option only). The arm used to compile
+-- and never match.
+export func f() -> int = match nth([1, 2], 0) {
+  Err(e) => 0,
+  _ => 1
+}

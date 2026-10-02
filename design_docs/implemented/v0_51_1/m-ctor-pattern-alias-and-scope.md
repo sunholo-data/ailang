@@ -1,10 +1,15 @@
 # M-CTOR-PATTERN-ALIAS-AND-SCOPE: constructor import aliases are never bound (patterns silently never match; expressions fail "undefined variable"), and a constructor pattern naming an unknown constructor compiles clean and never matches
 
-**Status**: Planned — quorum attempted 2026-10-01 (artifact `.ailang/state/mission-quorum/m-ctor-pattern-alias-and-scope-2026-10-01T22-17-42Z.json`): **both external reviewers absent** (`gpt5-6-sol`: auth; `gemini-3-1-pro`: unreachable), so the quorum degraded to controller-only with the absences recorded by name — NOT quorum-cleared, same degradation as the sibling doc [m-vm-var-pattern-default-arm](../../implemented/v0_51_1/m-vm-var-pattern-default-arm.md) the same day. The 25-row first-party Verification Log (every claim backed by a live binary run or a source read at cited lines) is the load-bearing evidence; re-run quorum when a reviewer route is available.
-**Target**: v0.51.2 (bug fix; pattern-scope soundness family, same clause as [m-vm-var-pattern-default-arm](../../implemented/v0_51_1/m-vm-var-pattern-default-arm.md))
+**Status**: Implemented (2026-10-02, #1478). Quorum history: attempted 2026-10-01, both external reviewers absent (artifact `.ailang/state/mission-quorum/m-ctor-pattern-alias-and-scope-2026-10-01T22-17-42Z.json`).
+**Implementation notes** (deviations from the plan below, found while implementing):
+- Canonicalizing the pattern name alone was not enough for the motivating clash (`import M (Arrived as TripArrived)` next to a local `Arrived`): the typechecker keyed the ADT on the bare name and would resolve `Arrived` to the local ADT. `core.ConstructorPattern` therefore gained a `TypeName` field set by the elaborator, and the typechecker prefers it (`patternADT`). Tested by `cmd/ailang/testdata/ctoralias/clash.ail`.
+- Alias registration writes only the alias key (`Elaborator.RegisterImportedConstructorAs`), never the canonical one, so it cannot overwrite a different module's same-named constructor. Aliases are not added to the typechecker's constructor map (they would be listed among an ADT's constructors in diagnostics).
+- Tier 2's foreign-ADT check: in practice a module's interface carries the constructors of ADTs it imports, so most "transitive" constructors are already in direct scope (tier 1). The V9 shape (`Err` arm, only `std/list` imported) now fails as TC_MATCH_001, since `std/result` is not loaded at all. `AllCtorTypes` records a name two different ADTs define as ambiguous (`""`) so tier 2 never rejects on last-wins map order.
+- Did-you-mean reuses `importhint.Closest` (exported from the IMP010 hint code) rather than a new edit-distance helper.
+**Target**: v0.51.2 (bug fix; pattern-scope soundness family, same clause as [m-vm-var-pattern-default-arm](m-vm-var-pattern-default-arm.md))
 **Priority**: P0 — four confirmed **silent wrong results** that pass `ailang check` with "No errors found!" on every execution route (evaluator, `--bytecode`, `--strict-bytecode`): exit 0, no error, wrong value. Aliasing is the only in-language fix for two packages exporting the same constructor name (qualified constructor patterns do not parse, V12), so the name-clash scenario has no correct workaround today — stapledons-godot had to build a shim module (`sim/tripphase.ail`) to dodge it.
 **Estimated**: ~2 days + 1 day buffer (root cause fully localized to two functions; the alias-binding mechanism for values already exists in the same function and is reused; the unknown-name gate reuses the M-MATCH-ADT-XCHECK error machinery)
-**Dependencies**: none. Builds on [m-match-adt-xcheck.md](../implemented/v0_18_10/m-match-adt-xcheck.md) (landed v0.18.10: the foreign-ADT cross-check this doc extends from direct-scope to transitive scope). Sibling of [m-vm-var-pattern-default-arm](../../implemented/v0_51_1/m-vm-var-pattern-default-arm.md) (planned; both reported from the same stapledons-godot sprint area).
+**Dependencies**: none. Builds on [m-match-adt-xcheck.md](../v0_18_10/m-match-adt-xcheck.md) (landed v0.18.10: the foreign-ADT cross-check this doc extends from direct-scope to transitive scope). Sibling of [m-vm-var-pattern-default-arm](m-vm-var-pattern-default-arm.md) (planned; both reported from the same stapledons-godot sprint area).
 **Reported from**: coordinator task `task-60429428` (stapledons-godot `sim/core.ail`, v0.50.0 binary `2f1193d74ffa`); all repro rows re-verified in this session against the local v0.51.0 build (`b99dd25c`-dirty) — the bug is present unchanged in both.
 
 ## Axiom Compliance
@@ -83,7 +88,7 @@ Qualified constructor patterns (`J.Arrived`) do not parse (V12), so aliasing is 
 in-language fix — and it fails silently: a match that should take the `Arrived` arm falls
 through to the wildcard with zero diagnostics. A typo'd constructor name fails the same way.
 Together with match exhaustiveness not being checked (M-MATCH-EXHAUSTIVENESS, not yet
-planned — see [m-match-adt-xcheck.md](../implemented/v0_18_10/m-match-adt-xcheck.md)), a
+planned — see [m-match-adt-xcheck.md](../v0_18_10/m-match-adt-xcheck.md)), a
 misspelled arm is invisible to the compiler. The only current workaround is the one
 stapledons-godot actually shipped: a hand-written one-function shim module
 (`sim/tripphase.ail`) that imports the clashing constructors unaliased and maps them to an
@@ -337,7 +342,7 @@ resolves to a real, in-scope constructor or fails `ailang check` — zero silent
 **Non-goals:**
 
 - **Match exhaustiveness checking** — M-MATCH-EXHAUSTIVENESS, not yet planned (see
-  [m-match-adt-xcheck.md](../implemented/v0_18_10/m-match-adt-xcheck.md) non-goals). This
+  [m-match-adt-xcheck.md](../v0_18_10/m-match-adt-xcheck.md) non-goals). This
   doc makes arms *resolvable*; coverage is the next level.
 - **Qualified constructor patterns** (`J.Arrived`) — parser feature, own conflict surface
   (V12 documents today's PAR_UNEXPECTED_TOKEN). Aliasing is the in-scope answer to the
@@ -407,9 +412,9 @@ v0.51.0 `b99dd25c`-dirty, `/usr/local/bin/ailang`; repro files under `/tmp/repro
 
 ## Related Documents
 
-- [m-match-adt-xcheck.md](../implemented/v0_18_10/m-match-adt-xcheck.md) (implemented v0.18.10) — the foreign-ADT cross-check this doc extends to transitive scope (tier 2) and whose error machinery the new unknown-ctor error reuses. Its non-goals explicitly deferred constructor-name scope resolution: *"Constructor name shadowing across modules … we'll prefer the imported / qualified one based on the scope-resolution rule already in place"* — this doc supplies that rule.
-- [m-vm-var-pattern-default-arm.md](../../implemented/v0_51_1/m-vm-var-pattern-default-arm.md) (planned v0.51.2) — sibling from the same stapledons-godot sprint area; same fail-loud-over-silent-wrong-result clause (A11), disjoint construct class (variable catch-all arms vs constructor-name resolution).
-- [m-parser-nullary-single-ctor-cursor.md](../v0_51_1/m-parser-nullary-single-ctor-cursor.md) (planned v0.51.1) — adjacent nullary-constructor parser bug; no overlap (declaration cursor vs pattern scope).
+- [m-match-adt-xcheck.md](../v0_18_10/m-match-adt-xcheck.md) (implemented v0.18.10) — the foreign-ADT cross-check this doc extends to transitive scope (tier 2) and whose error machinery the new unknown-ctor error reuses. Its non-goals explicitly deferred constructor-name scope resolution: *"Constructor name shadowing across modules … we'll prefer the imported / qualified one based on the scope-resolution rule already in place"* — this doc supplies that rule.
+- [m-vm-var-pattern-default-arm.md](m-vm-var-pattern-default-arm.md) (planned v0.51.2) — sibling from the same stapledons-godot sprint area; same fail-loud-over-silent-wrong-result clause (A11), disjoint construct class (variable catch-all arms vs constructor-name resolution).
+- [m-parser-nullary-single-ctor-cursor.md](m-parser-nullary-single-ctor-cursor.md) (implemented v0.51.1) — adjacent nullary-constructor parser bug; no overlap (declaration cursor vs pattern scope).
 - [m-dx20-wildcard-pattern-inference](../../implemented/v0_6_1/m-dx20-wildcard-pattern-inference.md) (implemented v0.6.1) — wildcard pattern semantics this doc leaves untouched.
 - [modules.md](/docs/reference/modules) — documents `import M (sym as alias)` as "direct access with new name" (lines 97-98); this doc makes constructor symbols honor that contract.
 - GitHub issue #323 — introduced the by-name fallback this doc preserves for transitive constructors (tier 2) while closing its typo hole (tier 3); regression tests cited in V24.
