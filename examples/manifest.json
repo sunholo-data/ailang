@@ -1432,6 +1432,30 @@
       ]
     },
     {
+      "path": "runnable/ai_call_speech.ail",
+      "status": "working",
+      "tags": [
+        "effects",
+        "ai",
+        "result",
+        "typed-errors",
+        "speech",
+        "audio"
+      ],
+      "description": "Demonstrates std/ai.callSpeech \u2014 text-to-speech returning s16le 24 kHz PCM as Result[bytes, AIError], turned into a WAV with std/audio (--ai-stub returns a fixed 250 ms tone) (#1495)",
+      "modules": [
+        "std/ai",
+        "std/audio",
+        "std/bytes",
+        "std/io",
+        "std/result"
+      ],
+      "expected": {
+        "stdout": "speech: 12000 bytes of PCM, 250 ms at 24000 Hz, 12044-byte WAV\n",
+        "exit_code": 0
+      }
+    },
+    {
       "path": "runnable/ai_call_stream.ail",
       "status": "working",
       "tags": [

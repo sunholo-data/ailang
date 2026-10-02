@@ -154,6 +154,32 @@ export func callJsonResult(input: string, schema: string) -> Result[string, AIEr
 export func callJsonSimpleResult(input: string) -> Result[string, AIError] ! {AI} = _ai_call_json_simple_result(input)
 
 -- ============================================================================
+-- Text-to-speech (#1495)
+-- ============================================================================
+
+-- callSpeech: synthesise speech. Ok(pcm) is RAW PCM in one fixed format:
+-- signed 16-bit little-endian, mono, 24000 Hz (speechSampleRate()). Hand it to
+-- std/audio: wavFromPcm(pcm, speechSampleRate(), 1, 16) or
+-- encode(pcm, speechSampleRate(), 1, OggOpus(24000)).
+--   text    : what to say (empty -> Err SchemaValidation)
+--   voice   : provider voice name (Gemini prebuilt voices, e.g. "Kore",
+--             "Puck"); "" = the provider default
+--   style   : delivery instruction, e.g. "Say cheerfully"; "" = none
+--   options : JSON, "" for none. Keys: model (a TTS model; default the bound
+--             --ai model if its name contains "tts", else
+--             gemini-2.5-flash-preview-tts), language_code (BCP-47).
+--             Any other key is Err(SchemaValidation).
+-- Supported providers: Gemini (AI Studio and Vertex). Others return
+-- Err({code: "CapabilityNotSupported", ...}).
+-- --ai-stub returns a fixed 250 ms 400 Hz tone; --ai-stub-fixtures replays
+-- "speech" fixtures keyed by {style, text, voice}.
+export func callSpeech(text: string, voice: string, style: string, options: string) -> Result[bytes, AIError] ! {AI} =
+  _ai_call_speech(text, voice, style, options)
+
+-- speechSampleRate: the sample rate of every callSpeech result, in Hz.
+export pure func speechSampleRate() -> int = 24000
+
+-- ============================================================================
 -- Multi-turn / tool-aware step
 -- ============================================================================
 --

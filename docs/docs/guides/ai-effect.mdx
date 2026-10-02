@@ -164,7 +164,9 @@ validated at startup (unknown fields, bad base64 or duplicate keys are errors).
     {"kind": "text",  "prompt": "look it up", "response": "",
      "tool_calls": [{"id": "c1", "name": "lookup", "arguments": "{\"q\":\"forge\"}"}]},
     {"kind": "text",  "prompt": "flaky", "error": {"code": "RateLimit", "message": "slow down", "retryable": true}},
-    {"kind": "image", "prompt": "a red cube", "base64": "iVBORw0KGgo...", "mime_type": "image/png"}
+    {"kind": "image", "prompt": "a red cube", "base64": "iVBORw0KGgo...", "mime_type": "image/png"},
+    {"kind": "speech", "request": {"text": "Well met.", "voice": "Kore", "style": "Say gruffly"},
+     "pcm_base64": "AAD/fwCA..."}
   ]
 }
 ```
@@ -174,11 +176,12 @@ validated at startup (unknown fields, bad base64 or duplicate keys are errors).
 | Field | Meaning |
 |-------|---------|
 | `version` | Must be `1`. |
-| `kind` | `text` or `image`. Kinds are separate key spaces. |
-| `prompt` / `sha256` | Exactly one. `prompt` is the literal request; `sha256` is the lowercase hex sha256 of the canonical bytes. |
+| `kind` | `text`, `image` or `speech`. Kinds are separate key spaces. |
+| `prompt` / `request` / `sha256` | Exactly one. `prompt` is the literal request for `text`/`image`; `request` (`{text, voice, style}`) is the literal request for `speech`; `sha256` is the lowercase hex sha256 of the canonical bytes. |
 | `response` | `text`: the reply string. |
 | `tool_calls` | `text`, optional: replayed by `step`; `finish_reason` becomes `"tool_calls"`. |
 | `base64`, `mime_type` | `image`: the image bytes (standard base64) and media type, both required. |
+| `pcm_base64` | `speech`: s16le mono 24 kHz PCM (standard base64, a whole number of samples). |
 | `error` | Any kind, instead of a payload: `{code, message, retryable}` replayed as a typed `AIError`. |
 
 Canonical request bytes:
@@ -188,9 +191,43 @@ Canonical request bytes:
 | `text` | `call`, `callJson`, `callJsonSimple` and their `*Result` variants | the prompt (a `callJson` schema is not part of the key) |
 | `text` | `step`, `stepWithCache`, `stepWithStream` | the `content` of the **last** message in the conversation |
 | `image` | `callImage`, `callImageBase64` | the prompt (options are not part of the key) |
+| `speech` | `callSpeech` | the compact JSON `{"style":S,"text":T,"voice":V}`: keys sorted, no spaces, UTF-8 not escaped. In Python: `json.dumps(d, sort_keys=True, separators=(",", ":"), ensure_ascii=False)`. Options are not part of the key. |
 
 Replay is deterministic: the same file and the same requests always produce
 the same responses.
+
+## Text-to-Speech with `callSpeech`
+
+```ailang
+import std/ai (callSpeech, speechSampleRate)
+import std/audio (wavFromPcm)
+
+-- Result[bytes, AIError] ! {AI}
+match callSpeech("Well met, traveller.", "Kore", "Say it gruffly", "") {
+  Ok(pcm) => writeFileBytes("line.wav", wavFromPcm(pcm, speechSampleRate(), 1, 16)),
+  Err(e)  => println("speech failed (${e.code}): ${e.message}")
+}
+```
+
+- **Output format is fixed:** raw PCM, signed 16-bit little-endian, mono,
+  24000 Hz (`speechSampleRate()`), which is what `std/audio`'s `wavFromPcm`
+  and `encode` take. A provider reply in any other format is
+  `Err(ProtocolError)` rather than bytes that would play as noise.
+- **`voice`**: a provider voice name (Gemini prebuilt voices such as `Kore`,
+  `Puck`); `""` uses the provider default.
+- **`style`**: a natural-language delivery instruction. Gemini receives it as
+  `"<style>: <text>"`; `""` sends the text alone.
+- **`options`**: JSON, `""` for none. `model` picks the TTS model; the default
+  is the bound `--ai` model when its name contains `tts`, else
+  `gemini-2.5-flash-preview-tts`. `language_code` is an optional BCP-47 code.
+  Any other key is `Err(SchemaValidation)`.
+- **Providers:** Gemini (AI Studio and Vertex, through the same `--ai` handler,
+  so `--ai-no-adc` and `--ai-key-file` apply). Every other provider returns
+  `Err(CapabilityNotSupported)`.
+- **Testing:** `--ai-stub` returns a fixed 250 ms 400 Hz tone (12000 bytes,
+  identical on every platform); `--ai-stub-fixtures` replays `speech` fixtures.
+
+Runnable: `examples/runnable/ai_call_speech.ail`.
 
 ## JSON Input/Output Pattern
 

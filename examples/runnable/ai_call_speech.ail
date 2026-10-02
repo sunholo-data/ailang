@@ -1,0 +1,32 @@
+-- Example: callSpeech — text-to-speech through the AI effect (#1495)
+--
+-- callSpeech returns raw PCM (s16le, mono, 24 kHz) as Result[bytes, AIError];
+-- std/audio turns it into a WAV or Ogg Opus file.
+--
+-- Usage:
+--   ailang run --caps AI,IO --ai-stub --entry main examples/runnable/ai_call_speech.ail
+--     (the stub returns a fixed 250 ms tone, so this prints 12000 bytes, 250 ms)
+--   ailang run --caps AI,IO --ai gemini-2-5-flash --entry main examples/runnable/ai_call_speech.ail
+--     (real Gemini TTS; needs GOOGLE_API_KEY or ADC)
+--
+-- With no AI handler configured, callSpeech returns
+-- Err(AIError{code: "ProviderNotFound"}) instead of crashing.
+
+module examples/runnable/ai_call_speech
+import std/ai (callSpeech, speechSampleRate, AIError)
+import std/audio (durationMs, wavFromPcm)
+import std/bytes (length)
+import std/result (Result, Ok, Err)
+import std/io (println)
+
+export func main() -> () ! {AI, IO} {
+  match callSpeech("Well met, traveller.", "Kore", "Say it gruffly", "") {
+    Ok(pcm) => {
+      let rate = speechSampleRate()
+      let ms = durationMs(length(pcm), rate, 1, 16)
+      let wav = wavFromPcm(pcm, rate, 1, 16)
+      println("speech: ${show(length(pcm))} bytes of PCM, ${show(ms)} ms at ${show(rate)} Hz, ${show(length(wav))}-byte WAV")
+    },
+    Err(e) => println("speech failed (${e.code}): ${e.message}")
+  }
+}
