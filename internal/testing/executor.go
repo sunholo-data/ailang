@@ -243,49 +243,31 @@ func (e *Executor) EvaluateNamedTestBodyExprs(bodyExprs []ast.Expr) (eval.Value,
 	sb.WriteString("\n")
 	combinedSource := sb.String()
 
-	// Determine the pipeline filename.  The temp file MUST live in the same
-	// directory as the original source so that relative imports ("./types",
-	// "./engine") and the package manifest (ailang.toml / ailang.lock) can be
-	// found by the module loader.  A random temp dir would break any package
-	// that uses intra-package sibling imports.
-	var pipelineFilename string
-	{
-		var baseName string
-		var sourceDir string
-		if e.modulePath != "" {
-			baseName = strings.TrimSuffix(filepath.Base(e.modulePath), ".ail")
-			sourceDir = filepath.Dir(e.modulePath)
-		} else {
-			baseName = "body"
-			// No source path available — fall back to OS temp dir (will fail for
-			// packages with relative imports, but that is the correct behaviour
-			// for standalone test snippets that have no module path).
-			var err error
-			sourceDir, err = os.MkdirTemp("", "ailang-namedtest-*")
-			if err != nil {
-				return nil, fmt.Errorf("failed to create temp dir: %w", err)
-			}
-			defer os.RemoveAll(sourceDir)
-		}
-
-		// Create a uniquely-named temp file in the same directory.
-		// Use os.CreateTemp so the name does not collide with existing files.
-		tmpFile, err := os.CreateTemp(sourceDir, "_namedtest_body_*.ail")
-		if err != nil {
-			return nil, fmt.Errorf("failed to create temp file in %s: %w", sourceDir, err)
-		}
-		pipelineFilename = tmpFile.Name()
-		tmpFile.Close() // Close before os.WriteFile reopens it
-		defer os.Remove(pipelineFilename)
-
-		if !hasModule {
-			// No module declaration — prepend a synthetic one.
-			combinedSource = fmt.Sprintf("module _test/%s\n\n%s", baseName, combinedSource)
-		}
-
-		if err := os.WriteFile(pipelineFilename, []byte(combinedSource), 0644); err != nil {
-			return nil, fmt.Errorf("failed to write temp file: %w", err)
-		}
+	// Materialise the combined source as the pipeline's root file in a PRIVATE
+	// temp dir, never in the package dir (#1502): a copy next to the source was
+	// removed only by a defer, so any interrupted run (CI timeout SIGTERM,
+	// Ctrl-C, SIGKILL) left it behind for `pkg quality`, `publish` and the next
+	// `ailang test` to pick up as a real module. Sibling imports and the
+	// manifest still resolve against the package: the pipeline's loader base
+	// and package search both use PackageDir (below), not the root file's
+	// directory. TransientRoot tells the pipeline the root's path is not a
+	// module location (no MOD010 warning naming the temp file, no cache entry).
+	baseName := "body"
+	if e.modulePath != "" {
+		baseName = strings.TrimSuffix(filepath.Base(e.modulePath), ".ail")
+	}
+	tmpDir, err := os.MkdirTemp("", "ailang-namedtest-*")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create temp dir for named test body: %w", err)
+	}
+	defer os.RemoveAll(tmpDir)
+	pipelineFilename := filepath.Join(tmpDir, baseName+".ail")
+	if !hasModule {
+		// No module declaration — prepend a synthetic one.
+		combinedSource = fmt.Sprintf("module _test/%s\n\n%s", baseName, combinedSource)
+	}
+	if err := os.WriteFile(pipelineFilename, []byte(combinedSource), 0o600); err != nil {
+		return nil, fmt.Errorf("failed to write named test body: %w", err)
 	}
 
 	// Derive the package directory from the source file path so the pipeline's
@@ -300,6 +282,7 @@ func (e *Executor) EvaluateNamedTestBodyExprs(bodyExprs []ast.Expr) (eval.Value,
 		Mode:           pipeline.ModeEval,
 		RelaxModules:   true,
 		PackageDir:     pkgDir,
+		TransientRoot:  true,
 		GlobalResolver: e.globalResolver,
 	}
 	pipelineSrc := pipeline.Source{
