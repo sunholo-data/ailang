@@ -1,0 +1,106 @@
+{
+  "sprint_id": "M-FULLWIDTH-INT-LITERALS-AND-LOGICAL-SHIFT",
+  "status": "not_started",
+  "created": "2026-10-02T00:19:29.565326+00:00",
+  "design_doc": "design_docs/planned/v0_51_2/m-fullwidth-int-literals-and-logical-shift.md",
+  "sprint_plan": "design_docs/planned/v0_51_2/m-fullwidth-int-literals-and-logical-shift-sprint-plan.md",
+  "github_issues": [
+    1483
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1_LITERAL_SEMANTICS",
+      "package": null,
+      "action": "none",
+      "searches": [
+        "ailang pkg search bitwise",
+        "ailang pkg search splitmix"
+      ],
+      "reason": "Both registry searches returned no packages. Parser conversion, registry primitive and SMT encoding require repository changes; SplitMix64 is a regression fixture, not a new PRNG package."
+    },
+    {
+      "milestone": "M2_LOGICAL_SHIFT",
+      "package": null,
+      "action": "none",
+      "searches": [
+        "ailang pkg search bitwise",
+        "ailang pkg search splitmix"
+      ],
+      "reason": "Both registry searches returned no packages. Parser conversion, registry primitive and SMT encoding require repository changes; SplitMix64 is a regression fixture, not a new PRNG package."
+    },
+    {
+      "milestone": "M3_INTEGRATION",
+      "package": null,
+      "action": "none",
+      "searches": [
+        "ailang pkg search bitwise",
+        "ailang pkg search splitmix"
+      ],
+      "reason": "Both registry searches returned no packages. Parser conversion, registry primitive and SMT encoding require repository changes; SplitMix64 is a regression fixture, not a new PRNG package."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 210,
+    "estimated_total_loc": 420,
+    "estimated_days": 2,
+    "estimated_hours": 13,
+    "basis": "Scoped effort estimate; shallow checkout has no measured implementation velocity"
+  },
+  "features": [
+    {
+      "id": "M1_LITERAL_SEMANTICS",
+      "description": "Full-width radix literals and positioned diagnostics",
+      "estimated_loc": 145,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Hex, binary and octal patterns through MaxUint64 reinterpret as int64; SplitMix64/FNV constants, MinInt64 and all-ones boundaries parse correctly.",
+        "Decimal overflow remains an error; 0123 stays 123; existing in-range radix tests remain unchanged.",
+        "Expression and pattern integer overflow produce positioned PAR021; float pattern overflow produces PAR021 rather than +Inf.",
+        "Top-bit literal patterns match the intended signed value only; errors cannot leak ParseUint clamp values.",
+        "Diagnostic suggestions use computed values and a parseable replacement for MinInt64 (0x8000000000000000); tests pin position, code and suggestions."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_LOGICAL_SHIFT",
+      "description": "Pure logical right shift builtin and std/math export",
+      "estimated_loc": 105,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "shiftRightLogical_Int is pure with int/int -> int metadata and std/math exports shiftRightLogical.",
+        "Both backends return 9223372036854775807 for (-1,1), 1 for (-1,63) and (MinInt64,63), and 4611686018427387904 for (MinInt64,1).",
+        "Count 0 preserves bits; counts 64,65 and MaxInt64 return 0; negative counts raise RT_SHIFT on both backends.",
+        "VM adapter coverage includes _shiftRightLogical_Int; existing arithmetic >> and frozen builtin interface remain unchanged."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_INTEGRATION",
+      "description": "MinInt64 SMT safety, examples and teaching documentation",
+      "estimated_loc": 170,
+      "dependencies": [
+        "M1_LITERAL_SEMANTICS",
+        "M2_LOGICAL_SHIFT"
+      ],
+      "acceptance_criteria": [
+        "SMT encodeLit emits (- 9223372036854775808) for MinInt64; focused encoder tests pass and a contract fixture reaches Z3 when available.",
+        "Report repro with argument 1 yields -7046029254386353130 on interpreter and strict bytecode.",
+        "SplitMix64 runnable example yields -2152535657050944081 for seed 0 and -4767286540954276203 for seed 42 on both backends.",
+        "Formatter output for full-width literals is stable and reparses to the same value, including MinInt64; if MinInt64 cannot round-trip, fix within approved literal scope or surface a design blocker before completion.",
+        "integer_literals, runnable/bitwise, tests/binops_int and existing logical-shift mask construction retain behavior.",
+        "Prompt source/version metadata/current mirror and stdlib reference document radix bit patterns and shiftRightLogical; all new AILANG examples are checked.",
+        "make test-core, focused SMT tests, make verify-examples, make verify-examples-toplevel, make fmt-check, make lint and make check-boundaries pass; example manifest is synchronized."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
