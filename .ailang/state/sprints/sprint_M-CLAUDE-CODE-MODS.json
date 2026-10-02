@@ -1,0 +1,206 @@
+{
+  "sprint_id": "M-CLAUDE-CODE-MODS",
+  "status": "not_started",
+  "created": "2026-10-02T07:28:35Z",
+  "design_doc": "design_docs/planned/m-claude-code-mods.md",
+  "sprint_plan": "design_docs/planned/m-claude-code-mods-sprint-plan.md",
+  "github_issues": [
+    11,
+    1465,
+    1466,
+    1467,
+    1473,
+    1478,
+    1481
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M0_HEADLESS_SPIKE",
+      "package": "none",
+      "action": "none",
+      "reason": "ailang pkg search 'claude code','inbox messages','git dirty','prepush' found nothing; deliverables are TypeScript Claude Code plugins, not AILANG packages"
+    },
+    {
+      "milestone": "M1_LENS_IN_TREE",
+      "package": "none",
+      "action": "none",
+      "reason": "ailang pkg search 'claude code','inbox messages','git dirty','prepush' found nothing; deliverables are TypeScript Claude Code plugins, not AILANG packages"
+    },
+    {
+      "milestone": "M2_AILANG_INBOX",
+      "package": "none",
+      "action": "none",
+      "reason": "ailang pkg search 'claude code','inbox messages','git dirty','prepush' found nothing; deliverables are TypeScript Claude Code plugins, not AILANG packages"
+    },
+    {
+      "milestone": "M3_SPRINT_STATUS",
+      "package": "none",
+      "action": "none",
+      "reason": "ailang pkg search 'claude code','inbox messages','git dirty','prepush' found nothing; deliverables are TypeScript Claude Code plugins, not AILANG packages"
+    },
+    {
+      "milestone": "M4_CHECK_ON_EDIT",
+      "package": "none",
+      "action": "none",
+      "reason": "ailang pkg search 'claude code','inbox messages','git dirty','prepush' found nothing; deliverables are TypeScript Claude Code plugins, not AILANG packages"
+    },
+    {
+      "milestone": "M5_UNOWNED_DIRTY",
+      "package": "none",
+      "action": "none",
+      "reason": "ailang pkg search 'claude code','inbox messages','git dirty','prepush' found nothing; deliverables are TypeScript Claude Code plugins, not AILANG packages"
+    },
+    {
+      "milestone": "M6_PREPUSH_GATE",
+      "package": "none",
+      "action": "none",
+      "reason": "ailang pkg search 'claude code','inbox messages','git dirty','prepush' found nothing; deliverables are TypeScript Claude Code plugins, not AILANG packages"
+    },
+    {
+      "milestone": "M7_DISTRIBUTION_AND_DOC",
+      "package": "none",
+      "action": "none",
+      "reason": "ailang pkg search 'claude code','inbox messages','git dirty','prepush' found nothing; deliverables are TypeScript Claude Code plugins, not AILANG packages"
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 980,
+    "estimated_total_loc": 980,
+    "estimated_days": 1
+  },
+  "features": [
+    {
+      "id": "M0_HEADLESS_SPIKE",
+      "description": "Probe mod under claude -p --plugin-dir; record V10",
+      "estimated_loc": 40,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "V10 row Confirmed or Refuted with transcript excerpt",
+        "If Refuted, Phases 3-4 marked dropped in design doc"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M1_LENS_IN_TREE",
+      "description": "tools/claude-mods/ailang-lens + README; relative-path fix",
+      "estimated_loc": 90,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "validate + tsc clean",
+        "/ail-lens on a missing path replies 'not found'",
+        "relative path resolved against session cwd"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_AILANG_INBOX",
+      "description": "AbovePrompt band + /inbox pane + toast over ailang messages; never model context",
+      "estimated_loc": 250,
+      "dependencies": [
+        "M1_LENS_IN_TREE"
+      ],
+      "acceptance_criteria": [
+        "band shows count and newest title for 2 unread",
+        "no band at 0 unread",
+        "Ack runs messages ack <id> and drops the row",
+        "toast once per new id"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_SPRINT_STATUS",
+      "description": "Status line from newest unfinished sprint JSON",
+      "estimated_loc": 90,
+      "dependencies": [
+        "M1_LENS_IN_TREE"
+      ],
+      "acceptance_criteria": [
+        "fixture sprint JSON renders 'sprint M-X n/m \u00b7 next'"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_CHECK_ON_EDIT",
+      "description": "ailang check after .ail Edit/Write; diagnostics in result context",
+      "estimated_loc": 150,
+      "dependencies": [
+        "M1_LENS_IN_TREE"
+      ],
+      "acceptance_criteria": [
+        "failing edit gets context lines",
+        "passing edit gets none",
+        "non-.ail untouched",
+        "formatOnEdit default off"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M5_UNOWNED_DIRTY",
+      "description": "Port of pi unowned-dirty with verbatim core; toast + context, never blocks",
+      "estimated_loc": 110,
+      "dependencies": [
+        "M1_LENS_IN_TREE"
+      ],
+      "acceptance_criteria": [
+        "warning names unowned files",
+        "silent when all dirty files are own",
+        "core.ts matches pi source"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M6_PREPUSH_GATE",
+      "description": "Port of pi prepush-gate with verbatim core; deny on failure",
+      "estimated_loc": 170,
+      "dependencies": [
+        "M1_LENS_IN_TREE"
+      ],
+      "acceptance_criteria": [
+        "unformatted Go file denies push",
+        "no Go roots passes",
+        "undefined make target skipped",
+        "AILANG_SKIP_PREPUSH=1 in launch env skips"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M7_DISTRIBUTION_AND_DOC",
+      "description": "Drift check, make target, bootstrap-content + sync, design doc updates",
+      "estimated_loc": 80,
+      "dependencies": [
+        "M5_UNOWNED_DIRTY",
+        "M6_PREPUSH_GATE"
+      ],
+      "acceptance_criteria": [
+        "drift script fails on edited core, passes clean",
+        "bootstrap-content tarball lists the mods",
+        "design doc carries V10 result and D3 resolution"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
