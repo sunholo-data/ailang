@@ -1,6 +1,6 @@
 # M-IFC-DECLARED-RECORD-LABELS — labels written inside a type are label sources
 
-**Status**: Planned. Quorum round 0 BLOCKED (annotated-let precision; unverified call rule / r3 mechanism) → fixed (hand-off rule, V10). Round 1 BLOCKED on premise-verification only (String() fidelity, V12, pipeline order) → closed by V12–V14 without a third round (re-quorum guardrail spent).
+**Status**: Implemented on dev 2026-10-02 (ships in v0.52.0). Quorum round 0 BLOCKED (annotated-let precision; unverified call rule / r3 mechanism) → fixed (hand-off rule, V10). Round 1 BLOCKED on premise-verification only (String() fidelity, V12, pipeline order) → closed by V12–V14 without a third round (re-quorum guardrail spent). Proceeding without round 2 on Mark's 2026-10-02 instruction to execute (relayed by the attended session); objections were evidence-only and are answered.
 **Target**: v0.52.0
 **Priority**: P0 (security: silent loss of an IFC guarantee)
 **Estimated**: 1 day

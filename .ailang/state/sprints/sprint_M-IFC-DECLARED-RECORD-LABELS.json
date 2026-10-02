@@ -1,0 +1,71 @@
+{
+  "sprint_id": "M-IFC-DECLARED-RECORD-LABELS",
+  "status": "completed",
+  "created": "2026-10-02T18:44:42Z",
+  "design_doc": "design_docs/planned/v0_52_0/m-ifc-declared-record-labels.md",
+  "sprint_plan": "design_docs/planned/v0_52_0/m-ifc-declared-record-labels-sprint-plan.md",
+  "github_issues": [1523, 1527],
+  "registry_reuse": [
+    {"milestone": "M1", "package": null, "action": "none", "reason": "compiler-internal IFC analysis; no package-like capability"},
+    {"milestone": "M2", "package": null, "action": "none", "reason": "compiler-internal IFC analysis; no package-like capability"},
+    {"milestone": "M3", "package": null, "action": "none", "reason": "verification only"},
+    {"milestone": "M4", "package": null, "action": "none", "reason": "gates and docs"}
+  ],
+  "velocity": {"target_loc_per_day": 600, "estimated_total_loc": 600, "estimated_days": 1},
+  "features": [
+    {
+      "id": "M1",
+      "description": "Failing tests (TDD): 17 negative shapes, field precision, annotation-cannot-lower, mcp_oauth idioms",
+      "estimated_loc": 250,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "TestIFCDeclared_Rejected/<17 shapes> fail before the fix",
+        "TestIFCDeclared_InlineRecordStillRejected passes",
+        "TestIFCDeclared_FieldPrecision/<6 shapes> pass",
+        "TestIFCDeclared_AnnotationCannotLower",
+        "TestIFCDeclared_McpOauthIdioms passes"
+      ],
+      "passes": true, "started": "2026-10-02", "completed": "2026-10-02", "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Implement flow ⊔ declared label + hand-off in ifc_check.go / ifc_static_type.go",
+      "estimated_loc": 250,
+      "dependencies": ["M1"],
+      "acceptance_criteria": [
+        "go test ./internal/types/ -run TestIFC",
+        "go test ./internal/types/... ./internal/elaborate/... ./internal/iface/... ./internal/pipeline/...",
+        "make test-core",
+        "ailang check probe.ail / probe2.ail rejected; pos.ail clean"
+      ],
+      "passes": true, "started": "2026-10-02", "completed": "2026-10-02", "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Mutation test + regression surface",
+      "estimated_loc": 0,
+      "dependencies": ["M2"],
+      "acceptance_criteria": [
+        "mutant compiles and go test ./internal/types/ -run TestIFCDeclared fails",
+        "ailang verify examples/runnable/contracts/inbox_injection_v2.ail output identical",
+        "make verify-examples",
+        "bash tests/ifc_leaks.sh in ailang-packages packages/mcp-oauth (sprint/mcp-oauth)",
+        "ailang check docparse_api/services/api_keys.ail"
+      ],
+      "passes": true, "started": "2026-10-02", "completed": "2026-10-02", "notes": null
+    },
+    {
+      "id": "M4",
+      "description": "Gates, docs, changelog, ship",
+      "estimated_loc": 100,
+      "dependencies": ["M3"],
+      "acceptance_criteria": [
+        "make check-file-sizes check-boundaries check-architecture-closure",
+        "gofmt -l internal/types; golangci-lint run ./internal/types/...",
+        "docs/docs/guides/ifc-labels.mdx + changelogs/unreleased/2026-10-02-ifc-declared-record-labels.md",
+        "gh run list --branch dev --workflow ci.yml green; #1523 and #1527 closed"
+      ],
+      "passes": true, "started": "2026-10-02", "completed": "2026-10-02", "notes": null
+    }
+  ]
+}
