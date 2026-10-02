@@ -22,7 +22,7 @@ mkdir -p "$T/empty/.pi/extensions"
 [ "$(_mc_pi_ext_args "$T/empty")" = "--no-extensions" ] && ok "empty dir -> discovery off, nothing named" || bad "empty dir"
 
 # Wiring: every pi launch site uses it (or, for the probe, disables discovery outright).
-grep -q 'pi --mode json --no-session --no-tools --no-extensions' "$HERE/mission-control.sh" && ok "probe disables discovery" || bad "probe not wired"
+grep -q 'pi --mode json --no-session --no-tools --no-extensions' "$HERE/lib/lane-probe.sh" && ok "probe disables discovery" || bad "probe not wired"
 grep -q '_mc_pi_ext_args "\$REPO"' "$HERE/mission-control.sh" && ok "pi controller wired" || bad "pi controller not wired"
 grep -q '_mc_pi_ext_args "\$WORKDIR"' "$HERE/../../scripts/mission_pi_run.sh" && ok "role runner wired" || bad "role runner not wired"
 echo "==== $PASS passed, $FAIL failed ===="

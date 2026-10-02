@@ -10,7 +10,7 @@ MC_OVER_RATION=ollama
 _mc_load_ration(){ :; }
 _mc_bounded(){ PROBES=$((PROBES+1));MC_BOUNDED_OUT=ok;return 0; }
 for fn in _mc_rung_bucket _mc_is_over_ration _mc_probe_pi; do
- body=$(awk -v f="$fn" '$0 == f "() {" {on=1} on {print} on && /^}$/ {exit}' "$DRIVER")
+ body=$(awk -v f="$fn" '$0 == f "() {" {on=1} on {print} on && /^}$/ {exit}' "$DRIVER" "$HERE/lib/lane-probe.sh")
  [ -n "$body" ] || { echo "FAIL extraction $fn";exit 1; }
  eval "$body"
 done
@@ -38,7 +38,7 @@ _chain_tail(){ printf ''; }
 eval "$role"
 [ "$PROBES" = 4 ] && [ "$MISSION_PLANNER_MODEL" = pi:openrouter/moonshot/kimi-k3 ] && [ "$MISSION_EXECUTOR_MODEL" = pi:openrouter/deepseek/v4-flash ] || { echo 'FAIL actual role fallback';exit 1; }
 # A failed quota command blocks both protected subscriptions, without an API call.
-eval "$(awk '/^_mc_load_ration\(\) \{/,/^\}$/' "$DRIVER")"
+eval "$(awk '/^_mc_load_ration\(\) \{/,/^\}$/' "$DRIVER" "$HERE/lib/lane-probe.sh")"
 _mc_bounded(){ MC_BOUNDED_OUT='unavailable';return 124; }
 MC_OVER_RATION_READ=0
 _mc_load_ration
@@ -51,7 +51,7 @@ _mc_is_demoted(){ return 1; }
 _mc_canon_id(){ printf '%s' "$1"; }
 _mc_probe(){ return 0; }
 for fn in _mc_set_controller select_model; do
- eval "$(awk -v f="$fn" '$0 == f "() {" {on=1} on {print} on && /^}$/ {exit}' "$DRIVER")"
+ eval "$(awk -v f="$fn" '$0 == f "() {" {on=1} on {print} on && /^}$/ {exit}' "$DRIVER" "$HERE/lib/lane-probe.sh")"
 done
 TEMP=$(mktemp -d)
 trap 'rm -rf "$TEMP"' EXIT
