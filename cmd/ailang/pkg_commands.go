@@ -459,23 +459,32 @@ func writeManifestChecked(path string, original []byte, updated string) (parseEr
 func pkgLockCommand(args []string) error {
 	flagSet := flag.NewFlagSet("lock", flag.ExitOnError)
 	helpFlag := flagSet.Bool("help", false, "Show help")
+	checkFlag := flagSet.Bool("check", false, "Verify ailang.lock is current without writing it (exit 1 on drift)")
 
 	if err := flagSet.Parse(args); err != nil {
 		return err
 	}
 
 	if *helpFlag {
-		fmt.Println("Usage: ailang lock")
+		fmt.Println("Usage: ailang lock [--check]")
 		fmt.Println()
 		fmt.Println("Resolve dependencies and generate ailang.lock.")
 		fmt.Println("Reads ailang.toml and writes a deterministic lock file")
 		fmt.Println("with content hashes for all resolved packages.")
+		fmt.Println("Path dependencies are recorded relative to ailang.toml,")
+		fmt.Println("so the lock is valid in every checkout of the repo.")
+		fmt.Println()
+		fmt.Println("  --check  verify the committed lock is current; write nothing")
 		return nil
 	}
 
 	cwd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("failed to get working directory: %w", err)
+	}
+
+	if *checkFlag {
+		return pkgLockCheck(cwd)
 	}
 
 	fmt.Printf("Resolving dependencies in %s\n", cwd)
@@ -505,13 +514,7 @@ func pkgLockCommand(args []string) error {
 		return fmt.Errorf("dependency resolution failed: %w", err)
 	}
 
-	// Convert to LockedPackages
-	locked := make([]pkg.LockedPackage, len(resolved))
-	for i, r := range resolved {
-		locked[i] = pkg.LockedPackage(r)
-	}
-
-	lf := pkg.NewLockFile(locked, fmt.Sprintf("ailang lock %s", Version))
+	lf := pkg.NewLockFile(pkg.LockedFromResolved(resolved), fmt.Sprintf("ailang lock %s", Version))
 	lf.AILANGVersion = Version
 	if err := lf.Save(cwd); err != nil {
 		return fmt.Errorf("failed to write lock file: %w", err)
@@ -532,6 +535,21 @@ func pkgLockCommand(args []string) error {
 		fmt.Printf("  %s %s@%s (%s)\n", cyan("→"), r.Name, r.Version, source)
 	}
 
+	return nil
+}
+
+// pkgLockCheck is `ailang lock --check`: re-resolve and compare with the
+// committed lock without writing. Path deps are relative, so the verdict is
+// the same in every checkout (ailang#1498).
+func pkgLockCheck(dir string) error {
+	drift, err := pkg.CheckLock(dir)
+	if err != nil {
+		return err
+	}
+	if len(drift) > 0 {
+		return fmt.Errorf("%s is out of date:\n  %s\nRun 'ailang lock' to update it", pkg.LockFileName, strings.Join(drift, "\n  "))
+	}
+	fmt.Printf("%s %s is current\n", green("✓"), pkg.LockFileName)
 	return nil
 }
 

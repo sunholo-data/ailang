@@ -9,7 +9,7 @@ Two tiers exist for sharing AILANG packages. Pick the one matching where you are
 
 | Tier | When | Mechanism | Visible to others? |
 |---|---|---|---|
-| **1. Local development** | While editing the package | `path = "../path/to/pkg"` in host's `ailang.toml` | No — your machine only |
+| **1. Local development** | While editing the package | `path = "../path/to/pkg"` in host's `ailang.toml` | Only to checkouts that contain the path (the lock records it relative to `ailang.toml`) |
 | **2. Published** | When the package is stable + reusable | `ailang publish` → AILANG registry | Yes — anyone can `"<your-namespace>/<pkg>" = "0.1.0"` |
 
 The motoko-extension tutorial shows Tier 1 in detail. This guide covers Tier 2.

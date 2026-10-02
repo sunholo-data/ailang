@@ -54,8 +54,9 @@ Use `--json` for automation; record proof results separately.
 ## Dependencies and publication
 
 Registry packages can be published. `ailang install vendor/name@latest` resolves
-once to an exact version. Use path dependencies for local co-development and
-regenerate their lock after moving/cloning; do not call local path locks portable.
+once to an exact version. Use path dependencies for local co-development; the
+lock records them relative to ailang.toml, so it survives a clone or move of the
+tree that contains them. `ailang lock --check` verifies the lock in CI.
 Publish dependencies first, then dependents. `ailang publish` rewrites path deps
 to registry versions in the tarball and restores the local manifest.
 

@@ -33,7 +33,8 @@ func ContentHash(dir string) (string, error) {
 			if err != nil {
 				return err
 			}
-			files = append(files, rel)
+			// Slash-separated so the hash is identical on every OS.
+			files = append(files, filepath.ToSlash(rel))
 		}
 		return nil
 	})
@@ -49,7 +50,7 @@ func ContentHash(dir string) (string, error) {
 		// Write the relative path as a separator (so renaming changes the hash)
 		fmt.Fprintf(h, "file:%s\n", rel)
 
-		f, err := os.Open(filepath.Join(dir, rel))
+		f, err := os.Open(filepath.Join(dir, filepath.FromSlash(rel)))
 		if err != nil {
 			return "", fmt.Errorf("failed to open %s: %w", rel, err)
 		}
