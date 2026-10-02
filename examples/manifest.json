@@ -1539,6 +1539,26 @@
       "description": "Bitwise operators: AND (&), XOR (^), NOT (~), shift left (<<), shift right (>>), XOR encryption pattern, nibble extraction"
     },
     {
+      "path": "runnable/splitmix64.ail",
+      "status": "working",
+      "tags": [
+        "bitwise",
+        "hash",
+        "prng",
+        "int",
+        "hex-literals",
+        "shift"
+      ],
+      "description": "SplitMix64 with full-width hex constants (0x9e3779b97f4a7c15 reads as the 64-bit two's-complement pattern) and std/math shiftRightLogical (the reference >>>); known-answer vectors (#1481)",
+      "modules": [
+        "std/math"
+      ],
+      "expected": {
+        "stdout": "seed 0, 1st:  -2152535657050944081\nseed 0, 2nd:  7960286522194355700\nseed 42, 1st: -4767286540954276203\n-1 >> 1                    = -1\nshiftRightLogical(-1, 1)   = 9223372036854775807\n0x8000000000000000         = -9223372036854775808\n0xffffffffffffffff         = -1\nALL TESTS PASSED\n",
+        "exit_code": 0
+      }
+    },
+    {
       "path": "runnable/contracts/access_control.ail",
       "status": "working",
       "tags": [
@@ -3136,11 +3156,11 @@
     }
   ],
   "statistics": {
-    "total": 214,
-    "working": 206,
+    "total": 215,
+    "working": 207,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9626168224299065,
+    "coverage": 0.9627906976744186,
     "experimental": 0
   },
   "milestones": {

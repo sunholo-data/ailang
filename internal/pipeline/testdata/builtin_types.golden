@@ -388,6 +388,7 @@ neg_Int : int -> int
 not_Bool : bool -> bool
 or_Bool : (bool, bool) -> bool
 shiftLeft_Int : (int, int) -> int
+shiftRightLogical_Int : (int, int) -> int
 shiftRight_Int : (int, int) -> int
 show : α -> string
 sub_Float : (float, float) -> float

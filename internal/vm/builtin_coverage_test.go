@@ -217,7 +217,7 @@ func TestOperatorBuiltinsAreAdapted(t *testing.T) {
 	for _, n := range bytecode.AdaptedBuiltinNames {
 		adapted[n] = true
 	}
-	for _, ir := range []string{"_bitwiseXor_Int", "_bitwiseAnd_Int", "_shiftLeft_Int", "_shiftRight_Int"} {
+	for _, ir := range []string{"_bitwiseXor_Int", "_bitwiseAnd_Int", "_shiftLeft_Int", "_shiftRight_Int", "_shiftRightLogical_Int"} {
 		if !adapted[ir] {
 			t.Errorf("%s is not adapted", ir)
 		}

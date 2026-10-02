@@ -57,6 +57,13 @@ func registerMathCodegenSpecs() {
 		StdlibName:   "E",
 		StdlibModule: "std/math",
 	})
+	// #1481: logical right shift. A negative count panics ("negative shift
+	// amount"), as the native >> does in generated Go.
+	registerIfMissing("shiftRightLogical_Int", 2, true, &GoCodegenSpec{
+		Inline:       `int64(uint64(toInt64({{arg0}})) >> toInt64({{arg1}}))`,
+		StdlibName:   "shiftRightLogical",
+		StdlibModule: "std/math",
+	})
 	// Conversion builtins used by math
 	registerIfMissing("_int_to_float", 1, true, &GoCodegenSpec{
 		Inline:       `float64(toInt64({{arg0}}))`,

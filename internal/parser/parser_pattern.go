@@ -68,9 +68,16 @@ func (p *Parser) parseBasePattern() ast.Pattern {
 			Pos:  p.curPos(),
 		}
 	case lexer.INT, lexer.FLOAT, lexer.STRING, lexer.TRUE, lexer.FALSE:
+		value, err := p.literalValue()
+		if err != nil {
+			// #1481: an out-of-range literal used to become a silent
+			// MaxInt64 / +Inf pattern. It is a positioned PAR021 now.
+			p.errors = append(p.errors, err)
+			return nil
+		}
 		return &ast.Literal{
 			Kind:  p.literalKind(),
-			Value: p.literalValue(),
+			Value: value,
 			Pos:   p.curPos(),
 		}
 	case lexer.DCOLON:
@@ -368,21 +375,30 @@ func (p *Parser) literalKind() ast.LiteralKind {
 	}
 }
 
-func (p *Parser) literalValue() interface{} {
+// literalValue converts the current literal token for a pattern. Range errors
+// are returned, never discarded: Go's parsers return a clamped value
+// (MaxInt64, MaxUint64, +Inf) alongside the error (#1481).
+func (p *Parser) literalValue() (interface{}, error) {
 	switch p.curToken.Type {
 	case lexer.INT:
-		v, _ := parseIntLiteralValue(p.curToken.Literal)
-		return v
+		v, err := parseIntLiteralValue(p.curToken.Literal)
+		if err != nil {
+			return nil, intLiteralError(p.curToken, p.curPos())
+		}
+		return v, nil
 	case lexer.FLOAT:
-		v, _ := strconv.ParseFloat(p.curToken.Literal, 64)
-		return v
+		v, err := strconv.ParseFloat(p.curToken.Literal, 64)
+		if err != nil {
+			return nil, floatLiteralError(p.curToken, p.curPos())
+		}
+		return v, nil
 	case lexer.STRING:
-		return p.curToken.Literal
+		return p.curToken.Literal, nil
 	case lexer.TRUE:
-		return true
+		return true, nil
 	case lexer.FALSE:
-		return false
+		return false, nil
 	default:
-		return p.curToken.Literal
+		return p.curToken.Literal, nil
 	}
 }

@@ -1,6 +1,6 @@
 # M-FULLWIDTH-INT-LITERALS-AND-LOGICAL-SHIFT: Hex/binary/octal int literals above 2^63−1 do not parse (u64 hash constants unwritable), pattern literals silently misparse, and there is no logical right shift
 
-**Status**: Planned
+**Status**: Implemented (2026-10-02, #1481 — see Implementation Report)
 **Target**: v0.51.2
 **Priority**: P1 (High) — blocks every port of 64-bit hash/PRNG reference code (SplitMix64, FNV-1a, murmur3, xxHash) at the *constant* level, and the arithmetic-vs-logical shift distinction is a classic silent-corruption hazard for exactly that class of code. Not P0: nothing already written is corrupted (the loud parse error is honest, and the silent pattern-position misparse is reachable but has not been observed in a real consumer); the workaround exists but is error-prone (see Problem Statement).
 **Estimated**: 2 days (one short sprint: ~55 LOC Go + ~10 LOC stdlib + tests/docs/prompt)
@@ -246,7 +246,7 @@ No grammar ambiguity is introduced: the literal token shape is unchanged; only t
 
 - **A `>>>` operator** — deferred, not rejected. Evidence gate: adopt when a benchmark/eval shows models fail to map reference `>>>` to `shiftRightLogical` *despite* the prompt line (the `bitwiseOr` precedent shows prompt-teaching works), or when a second high-frequency consumer asks. The full pre-audited file list is in Solution Design so the follow-up is a short doc, not a re-derivation.
 - **Unsigned/uint64 type, wrapping decimal literals, literal type suffixes (`u64`)** — out of scope; AILANG `int` is signed two's-complement and stays so (the m-pure-prng value-fork debate settled that signed int + bit-pattern notation is sufficient).
-- **`std/prng` itself** — that is [m-pure-prng](../v0_29_0/m-pure-prng.md) (parked, awaiting a `split` scope decision); this doc only removes the two language-level frictions it worked around. If it unships, its `ushr` helper and signed-decimal constants can be simplified to the natural forms, but that is its sprint's call.
+- **`std/prng` itself** — that is [m-pure-prng](../../planned/v0_29_0/m-pure-prng.md) (parked, awaiting a `split` scope decision); this doc only removes the two language-level frictions it worked around. If it unships, its `ushr` helper and signed-decimal constants can be simplified to the natural forms, but that is its sprint's call.
 - **Float literal policy** — only the silent pattern clamp is fixed; float semantics (print, NaN, etc.) untouched.
 
 ## Timeline
@@ -326,13 +326,13 @@ All probes run 2026-10-01 at HEAD with `ailang` v0.51.0 (commit `b99dd25`, the s
 
 **V14 — Prior art / precedent claims:** v0.26.0 added radix literals after a model burnt its step budget on hex→decimal (changelogs/v0.26-v0.31-measurement-cost.md, "Supporting what models naturally write removes the wall"); m-pure-prng round-1 quorum rejected an off-by-one `lsr` mask helper (objection 2) — the measured basis for calling mask emulation a hazard; the reporter's workaround form (`0 - 7046029254386353131`) and constants are byte-identical to m-pure-prng probe 0's machine-computed values, re-verified independently here by Python (GOLDEN = −7046029254386353131, MIX1 = −4658895280553007687, MIX2 = −7723592293110705685; `int64(0x9e3779b97f4a7c15 + 1)` = −7046029254386353130).
 
-**V15 — Duplicate/coverage gate:** repo-wide search for literal/shift design docs: the **only** related doc is [m-pure-prng](../v0_29_0/m-pure-prng.md) (planned, PARKED), which explicitly deferred both halves of this work — §3.2: "a full-width-hex lexer extension can be proposed independently if a second consumer (hashing, crypto, bit-twidding) shows demand"; §7: logical-shift builtin "Defer unless a second use case appears." This report (stapledons-godot sim/rng.ail) **is** that second consumer — the demand-evidence gate m-pure-prng set is satisfied. No implemented doc touches literal parsing (changelog search: only v0.26.0's radix-prefix addition). SimHash doc-search results returned generic 1.00 scores on unrelated docs (m-openai-agents-api-executor etc.) — noise, disregarded; the authoritative check was the repo-wide content grep.
+**V15 — Duplicate/coverage gate:** repo-wide search for literal/shift design docs: the **only** related doc is [m-pure-prng](../../planned/v0_29_0/m-pure-prng.md) (planned, PARKED), which explicitly deferred both halves of this work — §3.2: "a full-width-hex lexer extension can be proposed independently if a second consumer (hashing, crypto, bit-twidding) shows demand"; §7: logical-shift builtin "Defer unless a second use case appears." This report (stapledons-godot sim/rng.ail) **is** that second consumer — the demand-evidence gate m-pure-prng set is satisfied. No implemented doc touches literal parsing (changelog search: only v0.26.0's radix-prefix addition). SimHash doc-search results returned generic 1.00 scores on unrelated docs (m-openai-agents-api-executor etc.) — noise, disregarded; the authoritative check was the repo-wide content grep.
 
 ## Related Documents
 
 **Planned (check for overlap):**
-- [m-pure-prng](../v0_29_0/m-pure-prng.md) — the parked `std/prng` design. **Distinction:** m-pure-prng is a *stdlib module* that works around both gaps (signed-decimal constants §3.2, pure `ushr` helper §3.3); this doc fixes the *language-level* gaps themselves. No overlap in scope; m-pure-prng's demand-evidence gate is what this report satisfies, and its known-answer vectors (§6) are reused as this doc's acceptance tests.
-- [m-cross-arch-float-determinism](../v0_51_1/m-cross-arch-float-determinism.md) — adjacent (determinism of numeric builtins across GOARCH) but disjoint: that doc is about transcendental floats; this one is exact integer semantics, which are arch-stable.
+- [m-pure-prng](../../planned/v0_29_0/m-pure-prng.md) — the parked `std/prng` design. **Distinction:** m-pure-prng is a *stdlib module* that works around both gaps (signed-decimal constants §3.2, pure `ushr` helper §3.3); this doc fixes the *language-level* gaps themselves. No overlap in scope; m-pure-prng's demand-evidence gate is what this report satisfies, and its known-answer vectors (§6) are reused as this doc's acceptance tests.
+- [m-cross-arch-float-determinism](m-cross-arch-float-determinism.md) — adjacent (determinism of numeric builtins across GOARCH) but disjoint: that doc is about transcendental floats; this one is exact integer semantics, which are arch-stable.
 
 ## References
 
@@ -351,3 +351,35 @@ All probes run 2026-10-01 at HEAD with `ailang` v0.51.0 (commit `b99dd25`, the s
 
 **Document created**: 2026-10-01
 **Last updated**: 2026-10-01
+
+---
+
+## Implementation Report (2026-10-02)
+
+Shipped as designed, with these additions found while verifying:
+- **`ailang fmt` round-trip** (conflict surface the doc assumed was stable): a negative `IntLit`
+  printed as decimal `-7046029254386353131` re-parses as *unary minus* on a positive literal, a
+  different AST, so fmt refused the file ("round-trip verification failed"). `-9223372036854775808`
+  does not re-parse at all. fmt now prints a negative literal as its 64-bit hex pattern. A negative
+  literal can only come from a full-width radix literal, so the canonical form *preserves*
+  `0x9e3779b97f4a7c15` instead of turning it into a decimal (`internal/format/literal.go`, test
+  `TestFullWidthIntLiteralsRoundTrip`).
+- **PAR021 suggestion for 2^63**: the doc proposed suggesting `-9223372036854775808`, but that is
+  unary minus on an out-of-range literal and is itself a PAR021. For that one value the suggestion
+  names only `0x8000000000000000`. For other overflowing decimals ≤ 2^64−1 it names both forms,
+  e.g. `18446744073709551615` → `0xFFFFFFFFFFFFFFFF` or `-1`.
+- **Compiled Go**: `shiftRightLogical` got a `GoCodegenSpec`
+  (`int64(uint64(toInt64(a)) >> toInt64(n))`). Without it `--emit-go` emitted an undefined
+  `ShiftRightLogical`. A negative count panics in generated Go, as the native `>>` does.
+- Prompt: the unfrozen head `v0.16.6` is amended in place (two lines under "Signed hash semantics").
+  The registry hash is updated and mirrored to `cmd/ailang/prompts` and `docs/docs/prompts/current.md`.
+  The stdlib interface for `std/math` is re-frozen (`shiftRightLogical` added).
+
+Verified on both engines (`ailang run` and `--bytecode --strict-bytecode`): `0x9e3779b97f4a7c15 + 1`
+= `-7046029254386353130`; the pattern `0x9e3779b97f4a7c15` matches `-7046029254386353131` and not
+`MaxInt64` (before: it silently matched `MaxInt64` on both engines). The `shiftRightLogical`
+known answers hold, and a negative count raises `RT_SHIFT`. `examples/runnable/splitmix64.ail`
+reproduces the Python/C reference vectors (seed 0 → `-2152535657050944081`, seed 42 →
+`-4767286540954276203`) with manifest-pinned stdout. Mutation-tested: reverting ParseUint→ParseInt,
+discarding the pattern error, making the shift arithmetic, reverting the fmt hex form, or reverting
+the SMT `uint64` magnitude each fails its test.

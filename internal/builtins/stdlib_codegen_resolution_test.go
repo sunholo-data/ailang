@@ -60,6 +60,7 @@ var crossModuleCodegenExemptions = map[StdlibKey]crossModuleCodegenExemption{
 	{"std/list", "minimumString"}:         {"_math_minimumString", "list reduction delegates pairwise comparison to the comparison helper"},
 	{"std/math", "floatToInt"}:            {"_float_to_int", "numeric conversion uses the conversion builtin family"},
 	{"std/math", "intToFloat"}:            {"_int_to_float", "numeric conversion uses the conversion builtin family"},
+	{"std/math", "shiftRightLogical"}:     {"shiftRightLogical_Int", "sibling of the shiftLeft_Int/shiftRight_Int operator-builtin family, which has no _math_ prefix (#1481)"},
 	{"std/stream", "asyncExecProcess"}:    {"_process_asyncExec", "stream source creation is implemented by the process bridge"},
 	{"std/stream", "asyncReadStdinLines"}: {"_process_asyncReadStdinLines", "stdin streaming is implemented by the process bridge"},
 	{"std/string", "floatToStr"}:          {"_string_floatToStr", "legacy numeric formatting builtin predates the canonical string family spelling"},

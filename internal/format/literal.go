@@ -79,6 +79,14 @@ func literalString(l *ast.Literal) (string, error) {
 	case ast.IntLit:
 		switch v := l.Value.(type) {
 		case int64:
+			if v < 0 {
+				// A negative literal can only come from a full-width
+				// base-prefixed one (0x9e3779b97f4a7c15, #1481); `-` is an
+				// operator, not part of a literal. Print the 64-bit pattern:
+				// decimal "-7046029254386353131" re-parses as unary minus (a
+				// different AST), and "-9223372036854775808" not at all.
+				return fmt.Sprintf("0x%x", uint64(v)), nil
+			}
 			return strconv.FormatInt(v, 10), nil
 		case int:
 			return strconv.Itoa(v), nil
