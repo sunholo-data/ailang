@@ -1,6 +1,21 @@
 # M-TEST-HARNESS-MODULE-SCOPED-ENVS: Module-scoped private names in the test harness
 
-**Status**: Planned
+**Status**: Implemented (2026-10-02; also fixes #1516)
+
+> **Implementation note (2026-10-02).** Shipped as designed (Option A, per-module child
+> environments) in `internal/testing/module_scope.go`, with three deviations:
+> (1) the root module is identified by **Core-program identity** (`LoadedModule.Core ==
+> pipeline.Result.Artifacts.Core`), not by `ResolveModuleIdentity` — that identity is the seed
+> identity, and the pipeline's module keys derive from file paths (temp copy, relaxed modules),
+> so a string compare would not match; (2) re-exports are written to the owning module's env and
+> its qualified key, and to the shared env only for the root — writing every module's re-exports
+> to the shared bare namespace would re-open the leak; the old deferred pass also never worked
+> (it called `evaluator.Eval` before any resolver was set, and dropped the error), so re-exports
+> are now resolved directly to a fixpoint; (3) the same root-vs-stdlib collision was reported
+> separately as #1516 (private `isErr`/`words` replaced by std/result / std/string exports when
+> the root module sorted before `std/`) and is fixed by the same rule. The four harness paths now
+> share one `newHarnessEvaluator`. Tests: `internal/testing/module_scope_test.go` (both sort
+> orders, named + inline paths, direct root reference, resolver fallback), each mutation-tested.
 **Target**: v0.50.2
 **Priority**: P1 (High — `ailang test` reports false failures for any multi-module package where two modules define same-named private functions; real consumer hit: stapledons-godot, protocol.reject vs ship.reject)
 **Estimated**: 2 days (~12 hours: 5h implementation + 4h tests + 2h verification/docs + buffer)

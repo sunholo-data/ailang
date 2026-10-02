@@ -1,6 +1,24 @@
 # M-NAMEDTEST-TEMPFILE-LEAK — Interrupted `ailang test` leaves `_namedtest_body_*.ail` in the package; pkg quality/publish/git ship it
 
-**Status**: Planned
+**Status**: Implemented (2026-10-02) — via a different mechanism than designed; see note
+
+> **Implementation note (2026-10-02).** The design's premise — that the temp body must live in
+> the source dir for sibling imports and manifest discovery — did not hold at HEAD: the module
+> loader's base dir and the package search both come from `pipeline.Config.PackageDir`, which the
+> harness already sets, not from the root file's directory. So the body is now written to a
+> private `os.MkdirTemp` dir (`internal/testing/executor.go`), and **no kill of any kind can leave
+> it in the package** — which removes the need for Layer A (PID-named files, signal handler,
+> dead-PID sweep). A new `pipeline.Config.TransientRoot` marks the root as a harness copy: MOD010
+> is skipped for it (the Phase 3 warning item, done), it is never compile-cached, and the cache
+> for the other modules stays in `PackageDir`. Regression test: the package dir is made
+> read-only for the run (`internal/testing/named_test_tempfile_test.go`).
+>
+> Partly done from Layer B: `pkg.IsNamedTestBodyFile` (`internal/pkg/testartifact.go`) is the
+> one predicate, and both `ailang test` walks skip and name leftover debris from older binaries
+> (fixes the V6 doubled-test-count symptom). **Not done:** the PUB024 quality gate and the
+> tarball / hasher / staging / `check` walk exclusions for debris written by pre-fix binaries,
+> the `pkg init` `.gitignore` scaffold, and the package-authoring guide note. New debris can no
+> longer be produced, so these only matter for packages that already carry a leftover file.
 **Target**: v0.51.1
 **Priority**: P1 (Medium-High) — blocks a clean `publish` for any maintainer whose CI timed out mid-test; manual workaround exists (delete the file)
 **Estimated**: 2 days (~12h: 4h consumer immunity + 4h producer hardening + 4h tests/docs)
