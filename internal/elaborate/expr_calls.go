@@ -44,8 +44,9 @@ func (e *Elaborator) normalizeFuncCall(app *ast.FuncCall) (core.CoreExpr, error)
 		}
 	}
 
-	// Check if this is a constructor call
-	if ident, ok := app.Func.(*ast.Identifier); ok {
+	// Check if this is a constructor call (unless a local binder of the same
+	// name is in scope: the local wins at call position too, #1467)
+	if ident, ok := app.Func.(*ast.Identifier); ok && !e.inScope(ident.Name) {
 		if ctorInfo, isConstructor := e.constructors[ident.Name]; isConstructor {
 			// This is a constructor! Emit $adt factory call
 			// Transform Some(x) → $adt.make_Option_Some(x)

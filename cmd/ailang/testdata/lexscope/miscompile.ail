@@ -1,0 +1,8 @@
+module cmd/ailang/testdata/lexscope/miscompile
+import cmd/ailang/testdata/lexscope/a (tick)
+
+-- #1467 row 8: the lambda returns its int parameter, not a function. This
+-- used to type-check by resolving `tick` to the import and returned 6.
+pure func mk(f: int -> (int -> int)) -> (int -> int) = f(0)
+
+export pure func main() -> int = mk(\tick. tick)(5)

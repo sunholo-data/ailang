@@ -274,7 +274,10 @@ func (e *Elaborator) ElaborateFile(file *ast.File) (*core.Program, error) {
 		if astFunc == nil {
 			return nil
 		}
+		// Contracts reference the function's parameters by name (#1467).
+		e.pushScope(f.Params...)
 		contracts, err := e.elaborateContracts(astFunc.Properties)
+		e.popScope()
 		if err != nil {
 			return fmt.Errorf("elaborating contracts for %s: %w", f.Name, err)
 		}

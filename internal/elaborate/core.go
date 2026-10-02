@@ -52,6 +52,9 @@ type Elaborator struct {
 	// M-EQ-DERIVE-CONTAINERS: field types of each derived-Eq type, so the
 	// pipeline can require Eq of every field (lazily initialized)
 	derivedEqFields map[string][]DerivedEqField
+	// scope is the stack of local-binder frames open at the current
+	// normalization point (scope.go, #1467).
+	scope []map[string]bool
 }
 
 // DerivedEqField is one field a `deriving (Eq)` declaration needs Eq for.

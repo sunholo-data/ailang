@@ -1,10 +1,35 @@
 # M-ELABORATOR-LEXICAL-SCOPE: The elaborator resolves identifiers with no lexical scope — imports, builtins, and ADT constructors pre-empt every local binder
 
-**Status**: Planned
-**Target**: v0.51.0
+**Status**: Implemented (2026-10-02, #1467) — lexical binders only; rows 7 and MOD015 deferred (see Implementation notes)
+**Target**: v0.51.0 (landed for v0.51.1)
 **Priority**: P1 (borders P0: the module-level form is a *silent miscompile* — wrong value, no diagnostic)
 **Estimated**: 4–5 days
 **Dependencies**: None. Fixes the bug family named by #327's "the real resolution fix" and the 2026-09-15 effect-checker backlog row; coordinate sequencing with both.
+
+## Implementation notes (2026-10-02)
+
+**Shipped** — the elaborator keeps a scope stack (`internal/elaborate/scope.go`) consulted after
+`ResolveAsBuiltin` and before the constructor table / `globalEnv`, in expression position, at
+constructor-call position, and for `Alias.field` qualified access. Frames are pushed for lambda and
+function-literal parameters, module function parameters (`funcToLambda`, and around their
+`requires`/`ensures` contracts), `let` bodies, `letrec` value + body, match-arm guard + body
+(binders read from the elaborated core pattern, so they agree with `elaboratePattern`'s
+constructor-vs-binder classification by construction), `forall` bodies, and block statement-lets
+via per-index sets (a use textually before `let x = ...;` keeps the outer binding). Matrix rows
+1–6, 8, 9 and 10 now produce the "Should be" outcome; tests: `internal/elaborate/scope_test.go`
+(per binder kind, plus a scope-leak assertion) and `cmd/ailang/lexical_scope_test.go`
+(evaluator + strict VM, values asserted). Corpus sweep (`ailang check` over `std/`, `examples/`,
+`cmd/ailang/testdata/`, 493 files) before/after: only the new fixtures change.
+
+**Not shipped — needs the Design Freeze decision:** row 7 (a module-level function shadowing a
+same-named import; today the import still wins) and the MOD015 warning. Both change the meaning
+of existing module-level code and were listed under "Human confirms"; they are left for a
+follow-up once ruled on.
+
+**Strict-VM gaps found (pre-existing, independent of naming):** a bare variable-pattern arm
+(`match 9 { x => x }`: "unknown ADT \"\" in switch", see m-vm-var-pattern-default-arm) and an
+expression-form `letrec` ("call to unbound name") are evaluator-only on any binder name; those
+fixture rows run on the evaluator only.
 
 ## Axiom Compliance
 

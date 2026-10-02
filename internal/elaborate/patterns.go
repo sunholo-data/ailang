@@ -26,18 +26,12 @@ func (e *Elaborator) normalizeMatch(match *ast.Match) (core.CoreExpr, error) {
 			return nil, err
 		}
 
-		body, err := e.normalize(caseClause.Body)
+		// The pattern's binders are in scope for the guard and body (#1467).
+		e.pushScope(corePatternBinders(pattern)...)
+		body, guard, err := e.normalizeArm(caseClause)
+		e.popScope()
 		if err != nil {
 			return nil, err
-		}
-
-		// Elaborate guard if present
-		var guard core.CoreExpr
-		if caseClause.Guard != nil {
-			guard, err = e.normalize(caseClause.Guard)
-			if err != nil {
-				return nil, fmt.Errorf("failed to elaborate guard: %w", err)
-			}
 		}
 
 		arms = append(arms, core.MatchArm{
@@ -73,6 +67,21 @@ func (e *Elaborator) normalizeMatch(match *ast.Match) (core.CoreExpr, error) {
 	}
 
 	return e.wrapWithBindings(result, binds), nil
+}
+
+// normalizeArm normalizes a match arm's body and optional guard.
+func (e *Elaborator) normalizeArm(caseClause *ast.Case) (body, guard core.CoreExpr, err error) {
+	body, err = e.normalize(caseClause.Body)
+	if err != nil {
+		return nil, nil, err
+	}
+	if caseClause.Guard != nil {
+		guard, err = e.normalize(caseClause.Guard)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to elaborate guard: %w", err)
+		}
+	}
+	return body, guard, nil
 }
 
 // isUpperIdent reports whether an identifier starts with an uppercase letter,

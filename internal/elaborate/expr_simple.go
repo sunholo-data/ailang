@@ -43,8 +43,10 @@ func (e *Elaborator) normalizeLambda(lam *ast.Lambda) (core.CoreExpr, error) {
 		params[i] = p.Name
 	}
 
-	// Normalize body
+	// Normalize body with the parameters in scope (#1467)
+	e.pushScope(params...)
 	body, err := e.normalize(lam.Body)
+	e.popScope()
 	if err != nil {
 		return nil, err
 	}
@@ -82,8 +84,10 @@ func (e *Elaborator) normalizeFuncLit(funcLit *ast.FuncLit) (core.CoreExpr, erro
 		params[i] = p.Name
 	}
 
-	// Normalize body
+	// Normalize body with the parameters in scope (#1467)
+	e.pushScope(params...)
 	body, err := e.normalize(funcLit.Body)
+	e.popScope()
 	if err != nil {
 		return nil, err
 	}

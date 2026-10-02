@@ -44,6 +44,14 @@ func (e *Elaborator) normalize(expr ast.Expr) (core.CoreExpr, error) {
 		if ex.ResolveAsBuiltin {
 			return e.resolveSynthesizedBuiltin(ex)
 		}
+		// A local binder in scope shadows constructors, imports and builtins
+		// of the same name (#1467). Checked before both global tables.
+		if e.inScope(ex.Name) {
+			return &core.Var{
+				CoreNode: e.makeNode(ex.Position()),
+				Name:     ex.Name,
+			}, nil
+		}
 		// Check if this is a nullary constructor (e.g., None, True, False)
 		if ctorInfo, isConstructor := e.constructors[ex.Name]; isConstructor && ctorInfo.Arity == 0 {
 			// Nullary constructor: transform None → $adt.make_Option_None
