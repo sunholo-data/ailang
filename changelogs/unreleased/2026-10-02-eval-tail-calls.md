@@ -15,5 +15,5 @@
   `RT_REC_003`, as it already did under `--bytecode`.
 - The `RT_REC_003` message now recommends rewriting the recursion as a tail call with an accumulator argument.
   Before this, that advice was banned from the message because the interpreter had no tail calls.
-- Design: [M-EVAL-TAIL-CALLS](../design_docs/planned/v0_51_1/m-eval-tail-calls.md) (ratified after two
+- Design: [M-EVAL-TAIL-CALLS](../design_docs/implemented/v0_51_1/m-eval-tail-calls.md) (ratified after two
   independent quorum rounds).

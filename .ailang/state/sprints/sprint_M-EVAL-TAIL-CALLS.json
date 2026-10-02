@@ -1,9 +1,9 @@
 {
   "sprint_id": "M-EVAL-TAIL-CALLS",
-  "status": "not_started",
+  "status": "completed",
   "created": "2026-10-02T07:31:15Z",
-  "design_doc": "design_docs/planned/v0_51_1/m-eval-tail-calls.md",
-  "sprint_plan": "design_docs/planned/v0_51_1/m-eval-tail-calls-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_51_1/m-eval-tail-calls.md",
+  "sprint_plan": "design_docs/implemented/v0_51_1/m-eval-tail-calls-sprint-plan.md",
   "github_issues": [
     1486
   ],
@@ -43,10 +43,10 @@
         "make test-core green",
         "No tailCall produced (all callers tail=false)"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-02T08:05:46Z",
+      "completed": "2026-10-02T08:05:46Z",
+      "notes": "37ba2153a evalCoreT tail plumbing, no behaviour change"
     },
     {
       "id": "M2",
@@ -61,10 +61,10 @@
         "Trace sequence identical; CallFunction contract unchanged; tailCall never escapes; 3-module resolver lookups identical and chain bounded",
         "Mutation: disabling replaceable fails contract/budget tests"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-02T08:05:46Z",
+      "completed": "2026-10-02T08:05:46Z",
+      "notes": "52b9c7297 trampoline + per-frame contracts; mutation-checked; pre-change trace goldens match"
     },
     {
       "id": "M3",
@@ -78,10 +78,11 @@
         "verify-examples, lint, check-file-sizes green",
         "Full make test green (load flakes re-run in isolation)"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-02T08:05:46Z",
+      "completed": "2026-10-02T08:05:46Z",
+      "notes": "3c77de8e4 VM parity, #1486 repro, example; memprobe fixture kept non-tail; cons.ail 364->54 MB"
     }
-  ]
+  ],
+  "completed": "2026-10-02T08:05:46Z"
 }

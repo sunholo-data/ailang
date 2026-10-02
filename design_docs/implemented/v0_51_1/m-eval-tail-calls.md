@@ -1,6 +1,6 @@
 # M-EVAL-TAIL-CALLS: tail-call elimination in the tree-walking evaluator
 
-**Status**: Planned — ratified by the operator 2026-10-02 (attended, after two quorum rounds)
+**Status**: IMPLEMENTED
 **Target**: v0.51.1
 **Priority**: P1
 **Estimated**: 3 days
