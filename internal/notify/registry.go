@@ -132,6 +132,23 @@ func (r *Registry) SendAll(ctx context.Context, n Notification, logger *log.Logg
 	return lastLocalErr
 }
 
+// Split partitions the registry into its local channels (macOS desktop) and
+// its remote ones (Discord, etc.), as two new registries sharing the channel
+// instances.
+func (r *Registry) Split() (local, remote *Registry) {
+	local, remote = NewRegistry(), NewRegistry()
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	for _, ch := range r.channels {
+		if isLocal(ch) {
+			_ = local.Register(ch)
+		} else {
+			_ = remote.Register(ch)
+		}
+	}
+	return local, remote
+}
+
 // FanOut adapts the registry to the daemon's notifier shape
 // (func(Notification) error), delivering to every channel via SendAll.
 func (r *Registry) FanOut(logger *log.Logger) func(Notification) error {

@@ -83,3 +83,17 @@ func TestRegistryNamesSorted(t *testing.T) {
 		}
 	}
 }
+
+func TestRegistry_SplitSeparatesLocalFromRemote(t *testing.T) {
+	r := NewRegistry()
+	_ = r.Register(MacOSChannel{})
+	_ = r.Register(NewDiscordChannel("https://discord.invalid/webhook"))
+
+	local, remote := r.Split()
+	if got := local.Names(); len(got) != 1 || got[0] != "macos" {
+		t.Errorf("local = %v, want [macos]", got)
+	}
+	if got := remote.Names(); len(got) != 1 || got[0] != "discord" {
+		t.Errorf("remote = %v, want [discord]", got)
+	}
+}

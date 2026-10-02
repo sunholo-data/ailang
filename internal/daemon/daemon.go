@@ -57,6 +57,15 @@ type MessageSource struct {
 	Fetcher MessageFetcher
 	SubName string // base sub name; the Pub/Sub client prepends the project prefix
 	Label   string // e.g. "dev", "prod" — for startup/delivery logs only
+
+	// Notify overrides the daemon's notifier for this source; nil uses it.
+	// SplitRemote sets it so per-device sources reach local channels only.
+	Notify func(notify.Notification) error
+	// DedupScope namespaces this source's dedup keys. The same message
+	// arrives on a per-device source AND the shared remote source, and each
+	// must deliver it once to its own channels — a shared key would let
+	// whichever arrived first swallow the other.
+	DedupScope string
 }
 
 // Daemon is the running pull loop.
@@ -108,6 +117,28 @@ func New(cfg Config, sub EventSubscriber, fetcher MessageFetcher, notifyFn func(
 // ailang-multivac without mutating the shared process env).
 func (d *Daemon) AddMessageSource(src MessageSource) {
 	d.msgSources = append(d.msgSources, src)
+}
+
+// SplitRemote moves remote channels (Discord) off the per-device subscriptions
+// onto one subscription that every daemon shares.
+//
+// Each device pulls its own messages subscription so every machine can show
+// its own banner, and Pub/Sub gives each subscription a full copy. Discord is
+// one channel, so when two daemons could both post to it (from 2026-10-01,
+// when the webhook moved to Secret Manager), every message reached it twice.
+// A shared subscription work-steals: each message goes to one daemon, so it is
+// posted once however many daemons are running.
+//
+// Every source registered so far, the per-device ones, delivers to local
+// only; shared delivers to remote only. Task events keep the full notifier:
+// their subscription is already shared.
+func (d *Daemon) SplitRemote(shared MessageSource, local, remote func(notify.Notification) error) {
+	for i := range d.msgSources {
+		d.msgSources[i].Notify = local
+	}
+	shared.Notify = remote
+	shared.DedupScope = "remote"
+	d.msgSources = append(d.msgSources, shared)
 }
 
 // Run blocks until ctx is cancelled, pulling task events from the primary
@@ -182,7 +213,7 @@ func (d *Daemon) messageHandlerFor(src MessageSource) MessageHandler {
 			d.log.Printf("daemon: malformed message event (%s): %v", src.Label, err)
 			return nil
 		}
-		key := messageDedupKey(m.MessageID)
+		key := src.DedupScope + messageDedupKey(m.MessageID)
 		if d.msgDedup.seen(key) {
 			return nil
 		}
@@ -234,7 +265,7 @@ func (d *Daemon) messageHandlerFor(src MessageSource) MessageHandler {
 		if shouldExclude(n, d.cfg.Excludes) {
 			return nil
 		}
-		if err := d.fire(n); err != nil {
+		if err := d.fireWith(src.Notify, n); err != nil {
 			d.msgDedup.forget(key) // nack: let redelivery retry delivery
 			return err
 		}
@@ -247,11 +278,20 @@ func (d *Daemon) messageHandlerFor(src MessageSource) MessageHandler {
 // the upstream Pub/Sub handler to nack so the message is redelivered — this
 // is the "ack only after notify success" guarantee in the design doc.
 func (d *Daemon) fire(n notify.Notification) error {
+	return d.fireWith(nil, n)
+}
+
+// fireWith is fire through notifyFn, or through the daemon's notifier when
+// notifyFn is nil.
+func (d *Daemon) fireWith(notifyFn func(notify.Notification) error, n notify.Notification) error {
+	if notifyFn == nil {
+		notifyFn = d.notify
+	}
 	if d.cfg.DryRun {
 		d.log.Printf("daemon[dry-run]: %s — %s", n.Title, n.Body)
 		return nil
 	}
-	if err := d.notify(n); err != nil {
+	if err := notifyFn(n); err != nil {
 		d.log.Printf("daemon: notify failed: %v", err)
 		return err
 	}
