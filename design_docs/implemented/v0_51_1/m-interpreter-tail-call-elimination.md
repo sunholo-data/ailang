@@ -1,6 +1,6 @@
 # M-INTERPRETER-TAIL-CALL-ELIMINATION: The Tree-Walking Interpreter Diverges From the VM on Tail Calls (RT_REC_003 at 10k Where the VM Runs in Constant Stack)
 
-**Status**: Planned
+**Status**: Superseded — the same problem (#1486, #1317) was solved by [m-eval-tail-calls.md](m-eval-tail-calls.md) (M-EVAL-TAIL-CALLS, commits 37ba2153a..3c77de8e4). Kept for the record; not implemented as written.
 **Target**: v0.51.1
 **Priority**: P1 (High) — blocks VM↔interpreter parity sessions for exactly the loop shape AI-generated code writes most (stateful read/process loops); forces unsafe `--max-recursion-depth` workarounds
 **Estimated**: 3 days (1.5d implementation + 1.5d tests/verification/docs, 2x'd)
