@@ -65,13 +65,17 @@ func netPolicy(ctx *EffContext) destinationPolicy {
 	if n == nil {
 		n = NewNetContext()
 	}
+	// M-NET-SCOPE-PUBLIC part (ii): inside a Net[scope=public] frame,
+	// loopback and the metadata server are off for every hop of every call,
+	// whatever the process setting (serve-api turns both on).
+	public := ctx.NetScopePublic()
 	return destinationPolicy{
 		kind:             "NET",
 		secureSchemes:    []string{"https"},
 		insecureSchemes:  []string{"http"},
 		allowHTTP:        n.AllowHTTP,
-		allowLocalhost:   n.AllowLocalhost,
-		allowMetadata:    n.AllowMetadata,
+		allowLocalhost:   n.AllowLocalhost && !public,
+		allowMetadata:    n.AllowMetadata && !public,
 		blockPrivate:     true,
 		allowedDomains:   n.AllowedDomains,
 		refuseProxy:      n.RefuseProxy,
@@ -293,7 +297,7 @@ func (p destinationPolicy) checkRedirect(originalHost string) func(req *http.Req
 		if len(via) >= p.maxRedirects {
 			return p.errf("TOO_MANY_REDIRECTS", "exceeded max redirects (%d)", p.maxRedirects)
 		}
-		if err := p.authorizeURL(req.URL); err != nil {
+		if err := p.forRedirectHop().authorizeURL(req.URL); err != nil {
 			// Typed so callers unwrap the E_* category out of the url.Error
 			// http.Client wraps around a CheckRedirect refusal.
 			return &targetValidationError{cause: err}
@@ -305,6 +309,19 @@ func (p destinationPolicy) checkRedirect(originalHost string) func(req *http.Req
 		}
 		return nil
 	}
+}
+
+// forRedirectHop is the policy for a redirect hop (M-NET-SCOPE-PUBLIC, #1522
+// part (i)): loopback, link-local (the metadata server included) and private
+// addresses are refused whatever AllowLocalhost/AllowMetadata (or Stream's
+// BlockPrivateIPs) permit for the initial request. Direct requests keep their
+// policy, so sunholo/gcp_auth's hop-0 metadata call still works; nothing
+// legitimate reaches the metadata server through a redirect.
+func (p destinationPolicy) forRedirectHop() destinationPolicy {
+	p.allowLocalhost = false
+	p.allowMetadata = false
+	p.blockPrivate = true
+	return p
 }
 
 // requestContext is the Go context a request runs under: the effect's GoCtx
