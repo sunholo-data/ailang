@@ -9,7 +9,6 @@ import (
 	"github.com/sunholo-data/ailang/internal/eval"
 	"github.com/sunholo-data/ailang/internal/loader"
 	"github.com/sunholo-data/ailang/internal/runtime"
-	"sort"
 )
 
 // CombinedResolver resolves both builtin functions and user-defined functions from the environment.
@@ -23,6 +22,10 @@ type CombinedResolver struct {
 	Builtins *runtime.BuiltinRegistry
 	Env      *eval.Environment               // Environment containing user-defined and imported functions
 	Modules  map[string]*loader.LoadedModule // Loaded modules for module-qualified lookup
+	// ModuleBindings holds each loaded module's OWN bindings (module path →
+	// bare name → value), as injected by injectModuleBindings. It is the
+	// module-scoped fallback for qualified references; see module_scope.go.
+	ModuleBindings map[string]map[string]eval.Value
 }
 
 // ResolveValue implements eval.GlobalResolver for combined resolution.
@@ -54,26 +57,17 @@ func (r *CombinedResolver) ResolveValue(ref core.GlobalRef) (eval.Value, error) 
 		if val, ok := r.Env.Get(qualifiedKey); ok {
 			return val, nil
 		}
-		// Fall back to bare name lookup for modules whose path wasn't captured
-		if mod, ok := r.Modules[ref.Module]; ok && mod != nil {
-			for _, decl := range mod.Core.Decls {
-				if let, ok := decl.(*core.Let); ok && let.Name == ref.Name {
-					if val, ok := r.Env.Get(ref.Name); ok {
-						return val, nil
-					}
-					return nil, fmt.Errorf("function %s.%s not yet evaluated in environment", ref.Module, ref.Name)
-				}
-				if letRec, ok := decl.(*core.LetRec); ok {
-					for _, binding := range letRec.Bindings {
-						if binding.Name == ref.Name {
-							if val, ok := r.Env.Get(ref.Name); ok {
-								return val, nil
-							}
-							return nil, fmt.Errorf("function %s.%s not yet evaluated in environment", ref.Module, ref.Name)
-						}
-					}
-				}
+		// Fall back to the OWNING module's own bindings (modules whose path was
+		// not captured under a qualified key). Never the shared env's bare
+		// names: those belong to the module under test, and a same-named
+		// binding there is a different function (#1461, #1516).
+		if own, ok := r.ModuleBindings[ref.Module]; ok {
+			if val, ok := own[ref.Name]; ok {
+				return val, nil
 			}
+		}
+		if _, ok := r.Modules[ref.Module]; ok {
+			return nil, fmt.Errorf("function %s.%s is not bound in the test harness environment", ref.Module, ref.Name)
 		}
 		return nil, fmt.Errorf("module %s not found or function %s not in module", ref.Module, ref.Name)
 	}
@@ -497,165 +491,6 @@ func (e *Executor) injectADTConstructors(evaluator *eval.CoreEvaluator) {
 					})
 				}
 			}
-		}
-	}
-}
-
-// injectModuleBindings evaluates all module Core programs and injects their bindings
-// into the evaluator's environment. This allows the test harness to reference functions
-// that were imported and elaborated (like functions from std/fs, std/net, etc.).
-//
-// CRITICAL BUG FIX (M-DX25):
-// The issue was that FunctionValues were capturing `env` at injection time, before all
-// module bindings were added to `env`. When a function's body references another imported
-// function, that reference might not be in the captured environment snapshot.
-//
-// Solution: Use a two-pass approach:
-//
-//	Pass 1: Collect all lambda bindings to inject, but don't create FunctionValues yet
-//	Pass 2: After env is populated with all names, create FunctionValues that capture
-//	        the now-complete environment
-func (e *Executor) injectModuleBindings(evaluator *eval.CoreEvaluator, env *eval.Environment) {
-	if len(e.modules) == 0 {
-		return
-	}
-
-	// PASS 1: Inject Let (non-recursive) lambdas and wire LetRec groups with proper
-	// self-referential environments.
-	//
-	// PROBLEM: Naively injecting every lambda with Env=env causes two bugs:
-	//
-	// (a) Name collision: both std/list and std/string export "concat" (different arity).
-	//     The last writer wins for env["concat"], so whichever module is processed last
-	//     (random map iteration order) becomes "concat", corrupting cross-module calls.
-	//
-	// (b) Broken self-recursion: std/list.concat body contains Var{concat} (recursive
-	//     call to itself).  If env["concat"] was overwritten by std/string.concat (1-param),
-	//     the recursive call uses the wrong function → "expects 1 arguments, got 2".
-	//
-	// FIX:
-	//   - For LetRec groups (self/mutual recursion), set up a recEnv child per group
-	//     using IndirectValue cells, exactly like evalCoreLetRec does.  The closures
-	//     capture recEnv so Var{name} within the group resolves back to the cell.
-	//   - Only bind the QUALIFIED key in the outer env (e.g. "pkg/std/list.concat") —
-	//     NOT the bare name.  This prevents collisions between modules.
-	//   - After ALL modules are processed, resolve VarGlobal re-exports into bare names
-	//     in a final pass so engine.ail's `let concat = VarGlobal{pkg/std/list,concat}`
-	//     correctly sets env["concat"] = 2-param FunctionValue.
-
-	type DeferredVarGlobal struct {
-		name string
-		ref  *core.VarGlobal
-	}
-	var deferredVarGlobals []DeferredVarGlobal
-
-	// Use a deterministic module order: sort module paths so results are reproducible
-	// regardless of Go's random map iteration order.
-	sortedPaths := make([]string, 0, len(e.modules))
-	for modPath := range e.modules {
-		sortedPaths = append(sortedPaths, modPath)
-	}
-	// Sort: shorter paths (std/*) before longer (pkg/sunholo/...) for stable dependency order
-	sort.Strings(sortedPaths)
-
-	for _, modulePath := range sortedPaths {
-		mod := e.modules[modulePath]
-		if mod == nil || mod.Core == nil {
-			continue
-		}
-
-		for _, decl := range mod.Core.Decls {
-			switch d := decl.(type) {
-			case *core.Let:
-				if lambda, ok := d.Value.(*core.Lambda); ok {
-					// Non-recursive function: create closure with the outer env
-					// and bind ONLY under the qualified key.  The bare name will
-					// be resolved via VarGlobal re-exports or the qualified lookup.
-					funcVal := &eval.FunctionValue{
-						Params: lambda.Params,
-						Body:   lambda.Body,
-						Env:    env,
-						Typed:  true,
-					}
-					// Qualified key (never collides with same-named functions from
-					// other modules because module paths are unique).
-					if modulePath != "" {
-						env.Set(modulePath+"."+d.Name, funcVal)
-					}
-					// Bare name: set unconditionally.  For Let (non-recursive)
-					// lambdas there is no self-reference issue; the only concern is
-					// ordering, which is now deterministic (sorted paths above).
-					env.Set(d.Name, funcVal)
-				} else if vg, ok := d.Value.(*core.VarGlobal); ok {
-					// Re-export of another module's function: defer until all
-					// lambdas are wired so the qualified key is already in env.
-					deferredVarGlobals = append(deferredVarGlobals, DeferredVarGlobal{
-						name: d.Name,
-						ref:  vg,
-					})
-				}
-
-			case *core.LetRec:
-				// Mutual/self-recursive group: use IndirectValue cells so Var
-				// references within the group resolve to the correct version of
-				// each function — not whatever happened to be last in env.
-				//
-				// Algorithm mirrors evalCoreLetRec phases 1-2.5:
-				//   Phase A: allocate cells in recEnv
-				//   Phase B: build FunctionValues that capture recEnv
-				//   Phase C: fill cells; register qualified keys in outer env;
-				//             also set bare names for non-conflicting functions
-				recEnv := env.NewChildEnvironment()
-				cells := make(map[string]*eval.RefCell, len(d.Bindings))
-
-				// Phase A
-				for _, binding := range d.Bindings {
-					cell := &eval.RefCell{}
-					cells[binding.Name] = cell
-					recEnv.Set(binding.Name, &eval.IndirectValue{Cell: cell})
-				}
-
-				// Phase B+C
-				for _, binding := range d.Bindings {
-					lambda, ok := binding.Value.(*core.Lambda)
-					if !ok {
-						continue
-					}
-					funcVal := &eval.FunctionValue{
-						Params: lambda.Params,
-						Body:   lambda.Body,
-						Env:    recEnv, // captures the group's own env for self-ref
-						Typed:  true,
-					}
-					// Fill the indirect cell so in-group Var{name} resolves correctly
-					cells[binding.Name].Val = funcVal
-					cells[binding.Name].Init = true
-
-					// Register under qualified key in outer env (for CombinedResolver)
-					if modulePath != "" {
-						env.Set(modulePath+"."+binding.Name, funcVal)
-					}
-					// Also expose the actual FunctionValue (not IndirectValue) under
-					// bare name in the outer env, so EvalCoreProgram and cross-module
-					// callers that look up bare names find the correct version.
-					// This is safe: recEnv's self-reference via IndirectValue is still
-					// intact regardless of what env["name"] holds.
-					env.Set(binding.Name, funcVal)
-				}
-			}
-		}
-	}
-
-	// PASS 2: Resolve deferred VarGlobal re-exports now that all lambdas (including
-	// qualified keys) are in env.  For example, engine.ail's
-	//   let concat = VarGlobal{pkg/std/list, concat}
-	// resolves to the 2-param FunctionValue after env["pkg/std/list.concat"] is set.
-	// This overwrites any bare-name "concat" set above, so engine functions that
-	// reference Var{concat} get the correct (2-param) version.
-	for _, dv := range deferredVarGlobals {
-		val, err := evaluator.Eval(dv.ref)
-		if err == nil && val != nil {
-			env.Set(dv.name, val)
 		}
 	}
 }

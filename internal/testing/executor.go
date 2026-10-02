@@ -23,6 +23,7 @@ type Executor struct {
 	globalResolver eval.GlobalResolver
 	enableDebug    bool
 	modules        map[string]*loader.LoadedModule // Cached modules from last pipeline run
+	rootModule     string                          // Key in modules of the module under test (see cacheModules)
 	lastMeta       map[string]*core.DeclMeta       // Cached Core.Meta from last pipeline run (lowered contracts)
 	// maxRecursionDepth is TestConfig.MaxRecursionDepth; 0 = evaluator default.
 	maxRecursionDepth int
@@ -167,17 +168,7 @@ func (e *Executor) evaluateEnsuresHarnessCore(harnessExpr core.CoreExpr) (eval.V
 		Decls: []core.CoreExpr{harnessExpr},
 	}
 
-	evaluator := e.newEvaluator()
-	builtinRegistry := runtime.NewBuiltinRegistry(evaluator)
-	env := evaluator.Env()
-	e.injectModuleBindings(evaluator, env)
-	resolver := &CombinedResolver{
-		Builtins: builtinRegistry,
-		Env:      env,
-		Modules:  e.modules,
-	}
-	evaluator.SetGlobalResolver(resolver)
-	e.injectADTConstructors(evaluator)
+	evaluator := e.newHarnessEvaluator()
 
 	result, err := evaluator.EvalCoreProgram(coreProg)
 	if err != nil {
@@ -332,21 +323,11 @@ func (e *Executor) EvaluateNamedTestBodyExprs(bodyExprs []ast.Expr) (eval.Value,
 	}
 
 	// Cache modules for future use.
-	e.modules = pipelineResult.Modules
+	e.cacheModules(&pipelineResult)
 
 	// Evaluate all decls; EvalCoreProgram returns the last value.
 	// This ensures function bindings are in scope when the body expression is evaluated.
-	evaluator := e.newEvaluator()
-	builtinRegistry := runtime.NewBuiltinRegistry(evaluator)
-	env := evaluator.Env()
-	e.injectModuleBindings(evaluator, env)
-	resolver := &CombinedResolver{
-		Builtins: builtinRegistry,
-		Env:      env,
-		Modules:  e.modules,
-	}
-	evaluator.SetGlobalResolver(resolver)
-	e.injectADTConstructors(evaluator)
+	evaluator := e.newHarnessEvaluator()
 
 	val, err := evaluator.EvalCoreProgram(coreProg)
 	if err != nil {
@@ -410,27 +391,7 @@ func (e *Executor) EvaluateInlineTestsWithHarness(binding core.RecBinding, tests
 	}
 
 	// Evaluate the harness
-	evaluator := e.newEvaluator()
-
-	// Set up builtin registry and combined resolver
-	builtinRegistry := runtime.NewBuiltinRegistry(evaluator)
-
-	// Get the evaluator's environment for the combined resolver
-	env := evaluator.Env()
-
-	// Inject elaborated module functions into the environment
-	e.injectModuleBindings(evaluator, env)
-
-	// Create combined resolver that can handle both builtins and module functions
-	resolver := &CombinedResolver{
-		Builtins: builtinRegistry,
-		Env:      env,
-		Modules:  e.modules,
-	}
-	evaluator.SetGlobalResolver(resolver)
-
-	// Inject ADT constructor bindings from source file so test inputs like (North, 0) work
-	e.injectADTConstructors(evaluator)
+	evaluator := e.newHarnessEvaluator()
 
 	result, err := evaluator.EvalCoreProgram(coreProg)
 	if err != nil {
@@ -503,7 +464,7 @@ func (e *Executor) ExtractFunctionBinding(functionName string, sourceFile *ast.F
 	}
 
 	// Cache the modules from the pipeline result for use in test harness evaluation
-	e.modules = result.Modules
+	e.cacheModules(&result)
 
 	// Extract the LetRec binding from the Core program
 	if result.Artifacts.Core == nil {
@@ -629,17 +590,7 @@ func (e *Executor) EvaluateInlineTestsWithCluster(
 		Decls: []core.CoreExpr{harnessExpr},
 	}
 
-	evaluator := e.newEvaluator()
-	builtinRegistry := runtime.NewBuiltinRegistry(evaluator)
-	env := evaluator.Env()
-	e.injectModuleBindings(evaluator, env)
-	resolver := &CombinedResolver{
-		Builtins: builtinRegistry,
-		Env:      env,
-		Modules:  e.modules,
-	}
-	evaluator.SetGlobalResolver(resolver)
-	e.injectADTConstructors(evaluator)
+	evaluator := e.newHarnessEvaluator()
 
 	result, err := evaluator.EvalCoreProgram(harnessProgram)
 	if err != nil {
@@ -686,7 +637,7 @@ func (e *Executor) ExtractPureClusterForFunction(
 		return nil, nil, fmt.Errorf("pipeline did not produce Core program")
 	}
 
-	e.modules = result.Modules
+	e.cacheModules(&result)
 
 	coreProg := result.Artifacts.Core
 	g := BuildCallGraph(coreProg)
