@@ -1,6 +1,6 @@
 # M-CROSS-ARCH-FLOAT-DETERMINISM: std/math transcendental results (exp, log, sin, …) differ by 1 ulp between arm64 and x86_64 — all three backends delegate to host-Go `math`, which is not bit-stable across GOARCH
 
-**Status**: PLANNED
+**Status**: Implemented (2026-10-02, #1465 — see Implementation Report; D1 resolved to the portable fdlibm value set)
 **Target**: v0.51.1
 **Priority**: P1 — direct violation of AILANG's core determinism promise ("deterministic: all non-determinism explicit", CLAUDE.md): a *pure* builtin returns architecture-conditional bits. Not P0: within one arch nothing is corrupted, VM and interpreter agree per-arch, and consumers carry a per-arch-goldens workaround.
 **Estimated**: 3–4 days (one sprint; ~1,700 LOC incl. vendored algorithms, golden-bit tables and tests)
@@ -306,14 +306,14 @@ A seed's sim output, run on CI (x86_64) and on the arm64 dev laptop, commits one
 The create script's doc search returned no matches (and crashed — adjacent defect 1, re-hit this session); these are curated by code citation:
 
 **Planned (adjacent, same reporter/consumer — distinct defects):**
-- [m-json-number-roundtrip](../../implemented/v0_51_1/m-json-number-roundtrip.md) — float *text* at the JSON system boundary (same stapledons-godot `num` workaround family); this doc is float *arithmetic bits* across CPUs. No overlap in files or behavior; both retire the same consumer's workarounds.
+- [m-json-number-roundtrip](m-json-number-roundtrip.md) — float *text* at the JSON system boundary (same stapledons-godot `num` workaround family); this doc is float *arithmetic bits* across CPUs. No overlap in files or behavior; both retire the same consumer's workarounds.
 
 **Planned (adjacent genre):**
-- [m-bytecode-vm-parity-bugs](../v1_0_0/m-bytecode-vm-parity-bugs.md) — backend parity for effect rows; this doc explicitly does *not* touch VM-vs-interpreter parity (they already agree per-arch).
+- [m-bytecode-vm-parity-bugs](../../planned/v1_0_0/m-bytecode-vm-parity-bugs.md) — backend parity for effect rows; this doc explicitly does *not* touch VM-vs-interpreter parity (they already agree per-arch).
 
 **Implemented (precedents):**
-- [m-numerics-vec-array-ingest](../implemented/v0_47_0/m-numerics-vec-array-ingest.md) — exact `strconv.ParseFloat` handling precedent in the same numeric-adjacent stdlib area
-- [m-bytecode-stdlib-builtins-sprint-plan](../implemented/v0_11_0/m-bytecode-stdlib-builtins-sprint-plan.md) — the M2 VM wiring this doc rewires (tagged from `internal/vm/builtins_math.go` header)
+- [m-numerics-vec-array-ingest](../v0_47_0/m-numerics-vec-array-ingest.md) — exact `strconv.ParseFloat` handling precedent in the same numeric-adjacent stdlib area
+- [m-bytecode-stdlib-builtins-sprint-plan](../v0_11_0/m-bytecode-stdlib-builtins-sprint-plan.md) — the M2 VM wiring this doc rewires (tagged from `internal/vm/builtins_math.go` header)
 
 **External:**
 - stapledons-godot per-arch replay goldens — the consumer workaround this fix retires.
@@ -372,3 +372,43 @@ Run 2026-10-01 with `ailang` v0.50.1 @ `021c469` (same commit as the report's v0
 ## Out of scope (see Non-Goals)
 
 Compiled-mode user-arithmetic fusion; correctly-rounded transcendentals; arbitrary-precision math; `show` formatting; new stdlib API.
+---
+
+## Implementation Report (2026-10-02)
+
+**D1 escalation, resolved as the Risks table pre-specified ("canonical set = portable output either way").**
+Phase 0 falsified the doc's premise that amd64 host output equals the pure-Go algorithm. Go 1.26.6
+runs *assembly* `Exp` and `Log` on amd64 (`exp_amd64.s`, `log_amd64.s`). The `Exp` assembly is a
+SLEEF-derived algorithm that branches on `useFMA = cpu.X86.HasAVX && cpu.X86.HasFMA`, so "today's
+amd64 values" were already two value sets, chosen per CPU. The canonical set is therefore the Go
+pure-Go fdlibm algorithm with every operation individually rounded. That is exactly what Go's own
+`math` returns on `GOOS=js GOARCH=wasm` (no assembly, no fusion). Consequences:
+- The report's input now prints `1.229317398921793` (`0x3ff3ab48b88c5dbe`) on every architecture.
+  That is the old *arm64* value: the fdlibm algorithm is 1 ulp from the correctly rounded
+  `…7931`, and x86's SLEEF assembly happened to round this input correctly.
+- x86_64 can shift by ≤1 ulp for `exp`/`log`/`log10`/`pow` only. `sin cos tan asin acos atan atan2`
+  were already pure Go with no fusion at GOAMD64=v1, so they are unchanged on x86_64.
+
+**Census (darwin/arm64, host `math` vs `mathx`, `TestHostCensus`, 20,051 unary / 21,224 binary inputs):**
+exp 10, log 165, log10 157, sin 165, cos 176, tan 678, asin 1946, acos 1042, atan 55, atan2 82,
+pow 7 inputs differ. **js/wasm: 0 differences for all 11.** That proves the transcription
+bit-identical to Go's algorithm. Disassembly of the v0.51.0 arm64 binary showed FMA instructions in
+`math.archExp` (assembly) and fused `math.log/sin/cos/tan/satan/asin/pow`. It also showed fused
+instructions in `builtins.registerVecDot`, `registerVecAxpy`, `registerArrayFloatReduce`
+(`_array_f_dot`), `registerArrayFloatAxpy` and `randFloatImpl`, and in `simhash.cosine`
+(SharedIndex scores). All of these are now wrapped. The interpreter and VM operator paths had none,
+as VL-8 predicted.
+
+**What shipped:** `internal/mathx` (vendored + fusion-proofed, BSD notice in `LICENSE-GO`);
+interpreter/VM rewired; compiled Go emits the *same embedded source* as `ailmathx_*` helpers
+(`internal/gen/golang/codegen_mathx.go`, go/ast renaming, so there is no second hand-maintained copy).
+Guards: golden SHA-256 digests over the full sweep plus 112 exact points (`golden_test.go`), an
+interpreter/VM/emitted-helper bit-parity test, and the `make check-no-fma` disassembly gate
+(arm64 + amd64/v3, CI test job). The `float-determinism-arm64` CI job runs on `ubuntu-24.04-arm`.
+Mutation-tested: un-wrapping one product in `sinPoly` fails the sin/cos digests. Un-wrapping one
+in `log` leaves the sweep digest unchanged but is caught by `check-no-fma`. Un-wrapping `_vec_dot`
+fails both `TestFloatKernelsDoNotFuse` and the gate.
+
+**Not verified here:** no amd64 hardware or Rosetta on the dev box. amd64 evidence is static:
+`GOARCH=amd64 GOAMD64=v3` disassembly of `mathx` has 0 FMA instructions, so amd64 executes the same
+individually rounded IEEE operation sequence. The CI x86_64 `test` job runs the same golden tests.

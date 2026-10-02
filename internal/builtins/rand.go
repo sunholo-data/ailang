@@ -204,7 +204,8 @@ func randFloatImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, erro
 	if err != nil {
 		return nil, err
 	}
-	return &eval.FloatValue{Value: min + f*(max-min)}, nil
+	// float64(...) forbids FMA fusion so arm64 and amd64 agree bit-for-bit (#1465).
+	return &eval.FloatValue{Value: min + float64(f*(max-min))}, nil
 }
 
 // _rand_bool: Generate random boolean

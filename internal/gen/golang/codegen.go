@@ -161,6 +161,11 @@ type Generator struct {
 	// M-CODEGEN-SUSTAINABILITY: Set by trackImport when math builtins are used
 	needsMathImport bool
 
+	// usesMathx tracks whether generated code calls the portable std/math
+	// helpers (ailmathx_*, #1465). Deliberately NOT reset per Generate: in
+	// multi-file mode the shared runtime is generated after all modules.
+	usesMathx bool
+
 	// needsStrconvImport tracks whether generated code uses strconv package functions
 	// M-CODEGEN-STDLIB-STRING: Set to true when string conversion builtins are used
 	needsStrconvImport bool
@@ -548,6 +553,9 @@ func (g *Generator) writePackageHeader() {
 		g.writef("import (\n")
 		g.writef("\t\"fmt\"\n")
 		g.writef("\t\"math\"\n")
+		if g.usesMathx {
+			g.writef("\t\"math/bits\"\n")
+		}
 		g.writef("\t\"reflect\"\n")
 		g.writef("\t\"sort\"\n")
 		g.writef("\t\"strconv\"\n")
@@ -644,6 +652,9 @@ func (g *Generator) GenerateRuntime() ([]byte, error) {
 	g.writef("\t\"fmt\"\n")
 	if strings.Contains(helpersCode, "math.") || g.needsMathImport {
 		g.writef("\t\"math\"\n")
+	}
+	if strings.Contains(helpersCode, "bits.") {
+		g.writef("\t\"math/bits\"\n")
 	}
 	g.writef("\t\"reflect\"\n")
 	if strings.Contains(helpersCode, "sort.") || g.needsSortImport {

@@ -34,4 +34,7 @@ func (g *Generator) writeRuntimeHelpers() {
 	// Registry-generated helpers — sole source for stdlib runtime functions.
 	// Includes lazy emission (referenced during codegen) + eager ADT-group emission.
 	g.writeRegistryHelpers()
+
+	// #1465: portable std/math transcendentals (emitted only when used).
+	g.writeMathxHelpers()
 }

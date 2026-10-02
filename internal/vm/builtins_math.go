@@ -5,41 +5,44 @@ import (
 	"math"
 
 	"github.com/sunholo-data/ailang/internal/bytecode"
+	"github.com/sunholo-data/ailang/internal/mathx"
 )
 
 // M-BYTECODE-STDLIB-BUILTINS M2: Math + type conversion builtins wired to VM.
+// Transcendentals use internal/mathx so the VM returns the same bits as the
+// interpreter on every architecture (#1465).
 
 // --- Unary float→float math functions ----------------------------------------
 
 func builtinMathSin(args []bytecode.Value) (bytecode.Value, error) {
-	return unaryFloat("__math_sin", math.Sin, args)
+	return unaryFloat("__math_sin", mathx.Sin, args)
 }
 func builtinMathCos(args []bytecode.Value) (bytecode.Value, error) {
-	return unaryFloat("__math_cos", math.Cos, args)
+	return unaryFloat("__math_cos", mathx.Cos, args)
 }
 func builtinMathTan(args []bytecode.Value) (bytecode.Value, error) {
-	return unaryFloat("__math_tan", math.Tan, args)
+	return unaryFloat("__math_tan", mathx.Tan, args)
 }
 func builtinMathAsin(args []bytecode.Value) (bytecode.Value, error) {
-	return unaryFloat("__math_asin", math.Asin, args)
+	return unaryFloat("__math_asin", mathx.Asin, args)
 }
 func builtinMathAcos(args []bytecode.Value) (bytecode.Value, error) {
-	return unaryFloat("__math_acos", math.Acos, args)
+	return unaryFloat("__math_acos", mathx.Acos, args)
 }
 func builtinMathAtan(args []bytecode.Value) (bytecode.Value, error) {
-	return unaryFloat("__math_atan", math.Atan, args)
+	return unaryFloat("__math_atan", mathx.Atan, args)
 }
 func builtinMathSqrt(args []bytecode.Value) (bytecode.Value, error) {
 	return unaryFloat("__math_sqrt", math.Sqrt, args)
 }
 func builtinMathExp(args []bytecode.Value) (bytecode.Value, error) {
-	return unaryFloat("__math_exp", math.Exp, args)
+	return unaryFloat("__math_exp", mathx.Exp, args)
 }
 func builtinMathLog(args []bytecode.Value) (bytecode.Value, error) {
-	return unaryFloat("__math_log", math.Log, args)
+	return unaryFloat("__math_log", mathx.Log, args)
 }
 func builtinMathLog10(args []bytecode.Value) (bytecode.Value, error) {
-	return unaryFloat("__math_log10", math.Log10, args)
+	return unaryFloat("__math_log10", mathx.Log10, args)
 }
 func builtinMathFloor(args []bytecode.Value) (bytecode.Value, error) {
 	return unaryFloat("__math_floor", math.Floor, args)
@@ -57,10 +60,10 @@ func builtinMathAbsFloat(args []bytecode.Value) (bytecode.Value, error) {
 // --- Binary float→float math functions ---------------------------------------
 
 func builtinMathAtan2(args []bytecode.Value) (bytecode.Value, error) {
-	return binaryFloat("__math_atan2", math.Atan2, args)
+	return binaryFloat("__math_atan2", mathx.Atan2, args)
 }
 func builtinMathPow(args []bytecode.Value) (bytecode.Value, error) {
-	return binaryFloat("__math_pow", math.Pow, args)
+	return binaryFloat("__math_pow", mathx.Pow, args)
 }
 
 // --- Integer math ------------------------------------------------------------

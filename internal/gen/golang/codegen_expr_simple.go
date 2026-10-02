@@ -294,31 +294,31 @@ var mathConstants = map[string]string{
 // M-CODEGEN-STDLIB-MATH Bug #27: These need .(float64) type assertions on args.
 var mathFunctions = map[string]string{
 	// Trig functions
-	"_math_sin": "math.Sin",
-	"_math_cos": "math.Cos",
-	"_math_tan": "math.Tan",
-	"sin":       "math.Sin",
-	"cos":       "math.Cos",
-	"tan":       "math.Tan",
+	"_math_sin": "ailmathx_Sin",
+	"_math_cos": "ailmathx_Cos",
+	"_math_tan": "ailmathx_Tan",
+	"sin":       "ailmathx_Sin",
+	"cos":       "ailmathx_Cos",
+	"tan":       "ailmathx_Tan",
 	// Inverse trig
-	"_math_asin":  "math.Asin",
-	"_math_acos":  "math.Acos",
-	"_math_atan":  "math.Atan",
-	"_math_atan2": "math.Atan2",
-	"asin":        "math.Asin",
-	"acos":        "math.Acos",
-	"atan":        "math.Atan",
-	"atan2":       "math.Atan2",
+	"_math_asin":  "ailmathx_Asin",
+	"_math_acos":  "ailmathx_Acos",
+	"_math_atan":  "ailmathx_Atan",
+	"_math_atan2": "ailmathx_Atan2",
+	"asin":        "ailmathx_Asin",
+	"acos":        "ailmathx_Acos",
+	"atan":        "ailmathx_Atan",
+	"atan2":       "ailmathx_Atan2",
 	// Exponential/logarithmic
-	"_math_exp":   "math.Exp",
-	"_math_log":   "math.Log",
-	"_math_log10": "math.Log10",
-	"_math_pow":   "math.Pow",
+	"_math_exp":   "ailmathx_Exp",
+	"_math_log":   "ailmathx_Log",
+	"_math_log10": "ailmathx_Log10",
+	"_math_pow":   "ailmathx_Pow",
 	"_math_sqrt":  "math.Sqrt",
-	"exp":         "math.Exp",
-	"log":         "math.Log",
-	"log10":       "math.Log10",
-	"pow":         "math.Pow",
+	"exp":         "ailmathx_Exp",
+	"log":         "ailmathx_Log",
+	"log10":       "ailmathx_Log10",
+	"pow":         "ailmathx_Pow",
 	"sqrt":        "math.Sqrt",
 	// Rounding
 	"_math_ceil":  "math.Ceil",
@@ -366,7 +366,11 @@ func (g *Generator) getMathFunction(funcExpr core.CoreExpr) string {
 		return ""
 	}
 	if goFunc, ok := mathFunctions[name]; ok {
-		g.needsMathImport = true
+		if strings.HasPrefix(goFunc, mathxPrefix) {
+			g.usesMathx = true // #1465: portable helper, defined in the runtime section
+		} else {
+			g.needsMathImport = true
+		}
 		return goFunc
 	}
 	return ""
