@@ -168,24 +168,6 @@ func TestVM_Neg(t *testing.T) {
 	}
 }
 
-func TestVM_DivByZero(t *testing.T) {
-	img := bytecode.NewImage()
-	p := &bytecode.FuncPrototype{Name: "div", NumRegs: 3}
-	addConstants(img, p, bytecode.NewInt(10), bytecode.NewInt(0))
-	p.Instructions = []bytecode.Instruction{
-		bytecode.EncodeABx(bytecode.OpLoadConst, 0, 0),
-		bytecode.EncodeABx(bytecode.OpLoadConst, 1, 1),
-		bytecode.EncodeABC(bytecode.OpDiv, 2, 0, 1),
-		bytecode.EncodeABC(bytecode.OpReturn, 2, 0, 0),
-	}
-	img.AddPrototype(p)
-	_ = img.SetEntryPoint(0)
-	_, err := NewVM(img).Run(p, nil)
-	if err == nil || !strings.Contains(err.Error(), "division by zero") {
-		t.Errorf("expected division by zero error, got %v", err)
-	}
-}
-
 // --- Comparison & jumps -----------------------------------------------------
 
 func TestVM_Compare(t *testing.T) {

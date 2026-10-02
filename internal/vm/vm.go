@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/sunholo-data/ailang/internal/bytecode"
+	ailerrors "github.com/sunholo-data/ailang/internal/errors"
 	"github.com/sunholo-data/ailang/internal/types"
 )
 
@@ -22,7 +23,15 @@ type VMError struct {
 	Line     int
 	IP       int
 	OpString string
+	// Cause is the error the instruction failed with, when there was one
+	// (an arithmetic fault, a builtin or eval-interop error). Unwrap exposes
+	// it, so a typed error such as RT001's *errors.DivByZeroError stays
+	// reachable with errors.As through the VM frame (#1449).
+	Cause error
 }
+
+// Unwrap returns the underlying cause, or nil.
+func (e *VMError) Unwrap() error { return e.Cause }
 
 func (e *VMError) Error() string {
 	loc := ""
@@ -168,7 +177,7 @@ func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
 			rhs := frame.Regs[inst.C()]
 			res, err := arith(op, lhs, rhs)
 			if err != nil {
-				return bytecode.Value{}, vm.errAt(frame, err.Error(), inst)
+				return bytecode.Value{}, vm.errWrap(frame, "", err, inst)
 			}
 			frame.Regs[inst.A()] = res
 			frame.IP++
@@ -200,7 +209,7 @@ func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
 			rhs := frame.Regs[inst.C()]
 			res, err := compare(op, lhs, rhs)
 			if err != nil {
-				return bytecode.Value{}, vm.errAt(frame, err.Error(), inst)
+				return bytecode.Value{}, vm.errWrap(frame, "", err, inst)
 			}
 			frame.Regs[inst.A()] = bytecode.NewBool(res)
 			frame.IP++
@@ -270,7 +279,7 @@ func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
 				}
 				result, err := vm.Interop.CallEvalFunc(calleeProto.Name, args)
 				if err != nil {
-					return bytecode.Value{}, vm.errAt(frame, fmt.Sprintf("CALL via eval interop: %v", err), inst)
+					return bytecode.Value{}, vm.errWrap(frame, "CALL via eval interop: ", err, inst)
 				}
 				frame.Regs[inst.A()] = result
 				frame.IP++
@@ -320,7 +329,7 @@ func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
 				}
 				result, err := vm.Interop.CallEvalFunc(calleeProto.Name, args)
 				if err != nil {
-					return bytecode.Value{}, vm.errAt(frame, fmt.Sprintf("TAIL_CALL via eval interop: %v", err), inst)
+					return bytecode.Value{}, vm.errWrap(frame, "TAIL_CALL via eval interop: ", err, inst)
 				}
 				// Pop the current frame and write the result to the caller's
 				// return register, mirroring OpReturn's path.
@@ -554,7 +563,7 @@ func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
 			args := frame.Regs[argBase : argBase+argc]
 			result, err := BuiltinTable[builtinIdx](args)
 			if err != nil {
-				return bytecode.Value{}, vm.errAt(frame, fmt.Sprintf("BUILTIN_CALL: %v", err), inst)
+				return bytecode.Value{}, vm.errWrap(frame, "BUILTIN_CALL: ", err, inst)
 			}
 			frame.Regs[inst.A()] = result
 			frame.IP++
@@ -568,7 +577,7 @@ func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
 			args := frame.Regs[argBase : argBase+argc]
 			result, err := HOFBuiltinTable[hofIdx](vm, args)
 			if err != nil {
-				return bytecode.Value{}, vm.errAt(frame, fmt.Sprintf("BUILTIN_CALL_HOF: %v", err), inst)
+				return bytecode.Value{}, vm.errWrap(frame, "BUILTIN_CALL_HOF: ", err, inst)
 			}
 			frame.Regs[inst.A()] = result
 			frame.IP++
@@ -586,6 +595,14 @@ func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
 			return bytecode.Value{}, vm.errAt(frame, fmt.Sprintf("unknown opcode %d", op), inst)
 		}
 	}
+}
+
+// errWrap is errAt for an instruction that failed with err: the message is
+// prefix + err's text and err is kept as the VMError's Cause.
+func (vm *VM) errWrap(frame *Frame, prefix string, err error, inst bytecode.Instruction) *VMError {
+	e := vm.errAt(frame, prefix+err.Error(), inst)
+	e.Cause = err
+	return e
 }
 
 // errAt builds a VMError with source-location info from the current frame.
@@ -623,13 +640,13 @@ func arith(op bytecode.OpCode, lhs, rhs bytecode.Value) (bytecode.Value, error) 
 		case bytecode.OpMul:
 			return bytecode.NewInt(l * r), nil
 		case bytecode.OpDiv:
-			if r == 0 {
-				return bytecode.Value{}, fmt.Errorf("division by zero")
+			if err := ailerrors.CheckIntDivisor(ailerrors.OpDivision, r); err != nil {
+				return bytecode.Value{}, err
 			}
 			return bytecode.NewInt(l / r), nil
 		case bytecode.OpMod:
-			if r == 0 {
-				return bytecode.Value{}, fmt.Errorf("modulo by zero")
+			if err := ailerrors.CheckIntDivisor(ailerrors.OpModulo, r); err != nil {
+				return bytecode.Value{}, err
 			}
 			return bytecode.NewInt(l % r), nil
 		}
