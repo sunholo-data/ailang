@@ -1,17 +1,17 @@
-# Fleet Mission Dashboard
+# Fleet mission — iteration 13, 2026-10-02
 
-Snapshot: iteration 11 — 2026-10-01. History: [charter](fleet-mission.md), [log](fleet-mission-log.md).
-
-- Latest CLI observed: v0.50.0-6-g021c46907-dirty; banner v0.50.1. Fleet does not release.
-- Pick: P0 heartbeat ticket, 7 occurrences; PARKED-ON-LANE, no implementation or ticket resolution.
-- D-FLEET-8 YES and D-FLEET-9 A acknowledged. Neither is an outstanding decision.
-- Required judge unavailable: native Agent rejects sonnet, minimax-m3, claude-sonnet-4-6 and opus. No independent verdict; score UNMEASURED.
-- Designer/planner/executor: native gpt-6.1-sol read-only readiness checkpoints; no sprint executed.
-- Resume: declared evaluator accepted; revised both-mirror design plus rc19 and guard scope; fresh quorum and normal plan/execute gates.
-- Inherited three untracked heartbeat design/plan/JSON files left untouched in pin.
-- Banked next: rotate-log pair under D-FLEET-9 A; runner pre-dirty half.
-- Open ticket signatures: 25 at Gate 5 (fresh JSON enumeration; Gate-1 list length was not banked). Clause 1 unmeasured; 2 at risk; 3–4 met; 5 preserved by shipping nothing.
-- Dev: Windows policy-workspace red already followed by b9813dd fix; no HEAD-wide green claimed.
-- Every 6h, origin/dev pin; zero-ticket exit. Billing tripwire CLEAN; metered spend not reported, native token counts not reported.
-- Four pending remote coordinator approvals left to operator.
-- Record branch is review-only, not a landed fix. No reload mid-iteration.
+- Latest published release: v0.51.0 (session notice); PATH CLI v0.50.0 dirty, no semantics verdict.
+- Record recovery only: rejected heartbeat Revision4 and interrupted iteration12 evidence.
+- Heartbeat: PARKED needs-human-review, D-FLEET-10 OPEN; no implementation/approved plan.
+- D-FLEET-8/9: RESOLVED, preserved attended answers.
+- Four native Agent read-only role checkpoints; evaluator separate fresh Sol6.1 fallback FLAGGED.
+- Evaluator record PASS96/100; product implementation UNMEASURED.
+- Next: D10 ruling → Revision5/fresh quorum; D9 rotate-log pair; runner pre-dirty.
+- New blocking-all controller-capacity ticket open; 402 half not yet verified.
+- Quota probe: ollama/openrouter over; Anthropic unknown/blocked; native Codex available.
+- Dev e513faa checks had launchd/macOS failures, other checks pending at observation.
+- Record branch: mission/fleet-iter13-recover-record; remote CI exact-SHA pending.
+- Existing dirty pin/iter12 worktree preserved; stale plan/JSON excluded.
+- Sixteen coordinator approvals remain for operator; untouched.
+- No drivers/env/plists reloaded. Schedule six hours, ticket-driven.
+- Bookkeeping #1380; authoritative log fleet-mission-log.md.

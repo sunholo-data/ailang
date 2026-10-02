@@ -1,0 +1,77 @@
+{
+  "doc": "design_docs/planned/m-mission-heartbeat-driver-root.md",
+  "iso_ts": "2026-10-02T01:45:38Z",
+  "reviewers": [
+    {
+      "model": "claude-sonnet-5@claude-p",
+      "cost_usd": 0,
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "present": false,
+      "absent_reason": "quota",
+      "error": "Anthropic bucket blocked by the mission ration: provider-reported Anthropic utilisation exceeds ration or exhausts a window",
+      "landed": null
+    },
+    {
+      "model": "gpt6-1-sol",
+      "cost_usd": 0,
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "present": false,
+      "absent_reason": "auth",
+      "error": "reviewer \"gpt6-1-sol\" (openai provider) — OPENAI_API_KEY environment variable required (or set OPENAI_BASE_URL for a custom unauthenticated endpoint)",
+      "landed": null
+    },
+    {
+      "model": "gemini-3-1-pro",
+      "cost_usd": 0.01656,
+      "tokens_in": 7050,
+      "tokens_out": 205,
+      "present": true,
+      "result": {
+        "verdict": "reject",
+        "strongest_objection": "The design relies on a critical, unverified behavioral premise: it asserts that `gate-3-route.md` contains the exact sentence 'Anything non-zero except 18 is a LANE FAILURE...' to justify why no other logic edits are needed for rc 19. If this catch-all text does not exist as quoted, the new quota refusal rc will not be routed correctly.",
+        "catch": "Unverified premise regarding the exact wording of the fallback instruction in gate-3-route.md.",
+        "proposed_fix": "Add a row to the Verification log proving this text exists: `| gate-3 fallback logic | rg -F 'Anything non-zero except 18 is a LANE FAILURE' .claude/skills/mission-control/resources/gate-3-route.md → confirms the catch-all logic exists as quoted |`."
+      },
+      "landed": null
+    },
+    {
+      "model": "oc-kimi-k3",
+      "cost_usd": 0.116076,
+      "tokens_in": 6317,
+      "tokens_out": 6475,
+      "present": false,
+      "absent_reason": "invalid",
+      "error": "reviewer returned non-JSON or malformed response: unexpected end of JSON input (raw: \"{\\\"verdict\\\":\\\"reject\\\",\\\"strongest_objection\\\":\\\"The scope-guard seam — the one change in this doc that alters fleet push authority — rests on an unverified behavioral premise that repo history appears to c\")",
+      "landed": null
+    }
+  ],
+  "controller_in_session": {
+    "verdict": "pass",
+    "note": "Controller verified first-party: 9+9 call sites re-measured with rg -F; both gate-3-route.md copies cmp-identical at base; rc-19 landed in scripts/mission_pi_run.sh:407 (PR #1424); guard line 17 lacks .agents arms; sync-agents-skills.sh covers mission-control; test_agents_skills_sync.sh rc=0 at base; :? guard rc=127 reproduced on rig bash 3.2.57; spaces-root drill row present. D-FLEET-8 scope both mirrors + rc-19 + guard seam. Scope is mechanical, direction ruled by Mark 2026-10-01."
+  },
+  "synthesis": {
+    "verdict": "blocked",
+    "blocking_objections": [
+      "gemini-3-1-pro: The design relies on a critical, unverified behavioral premise: it asserts that `gate-3-route.md` contains the exact sentence 'Anything non-zero except 18 is a LANE FAILURE...' to justify why no other logic edits are needed for rc 19. If this catch-all text does not exist as quoted, the new quota refusal rc will not be routed correctly."
+    ],
+    "absent_reviewers": [
+      {
+        "model": "claude-sonnet-5@claude-p",
+        "reason": "quota"
+      },
+      {
+        "model": "gpt6-1-sol",
+        "reason": "auth"
+      },
+      {
+        "model": "oc-kimi-k3",
+        "reason": "invalid"
+      }
+    ],
+    "total_cost_usd": 0.132636,
+    "total_tokens_in": 13367,
+    "total_tokens_out": 6680
+  }
+}
