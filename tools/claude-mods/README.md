@@ -19,6 +19,7 @@ to `plugins/<mod>/` with a marketplace entry, so users install them with
 | `ailang-check-on-edit` | the model | After a `.ail` Edit/Write, `ailang check` errors are added to what the model reads after the tool result |
 | `unowned-dirty` | both | Warns (toast + model context) when a git sweep would take files this session did not write. Never blocks |
 | `prepush-gate` | both | Runs the repo's CI gates before `git push`; denies the push when they fail |
+| `ailang-brand` | the person | `λ AILANG <version>` beside the prompt hint, compiler-flavoured spinner words (Unifying…, Inferred effects for 3s), `/ailang` pane with the logo (a picture in kitty/Ghostty, `λ AILANG` text elsewhere) |
 
 ## Rules every mod follows
 
