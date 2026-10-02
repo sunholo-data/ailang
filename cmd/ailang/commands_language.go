@@ -238,6 +238,8 @@ func runTestCommand(args []string) error {
 	seedFlag := testFlags.Int64("seed", 0, "Master seed for property generation (signed int64)")
 	randomSeedFlag := testFlags.Bool("random-seed", false, "Read one master seed from crypto/rand and report it")
 	maxRecursionDepthFlag := testFlags.Int("max-recursion-depth", 10000, "Maximum evaluator recursion depth for test bodies (same as ailang run)")
+	bytecodeFlag := testFlags.Bool("bytecode", false, "Run named-test bodies on the bytecode VM where they compile (evaluator fallback otherwise)")
+	strictBytecodeFlag := testFlags.Bool("strict-bytecode", false, "Like --bytecode, but fail a test body instead of falling back to the evaluator")
 	helpTestFlag := testFlags.Bool("help", false, "Show help for test command")
 
 	// Flags may appear before, between or after the paths (ExitOnError handles
@@ -277,7 +279,8 @@ func runTestCommand(args []string) error {
 		fmt.Fprintf(os.Stderr, "Error: cannot determine working directory: %v\n", err)
 		os.Exit(1)
 	}
-	cfg := ailangTesting.TestConfig{WorkspaceRoot: cwd, SeedMode: ailangTesting.SeedModeDerived, MasterSeed: 0, MaxRecursionDepth: *maxRecursionDepthFlag}
+	cfg := ailangTesting.TestConfig{WorkspaceRoot: cwd, SeedMode: ailangTesting.SeedModeDerived, MasterSeed: 0, MaxRecursionDepth: *maxRecursionDepthFlag,
+		Bytecode: *bytecodeFlag || *strictBytecodeFlag, StrictBytecode: *strictBytecodeFlag}
 	switch {
 	case seedSet:
 		cfg.SeedMode, cfg.MasterSeed = ailangTesting.SeedModeMaster, *seedFlag

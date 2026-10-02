@@ -27,6 +27,11 @@ type Executor struct {
 	lastMeta       map[string]*core.DeclMeta       // Cached Core.Meta from last pipeline run (lowered contracts)
 	// maxRecursionDepth is TestConfig.MaxRecursionDepth; 0 = evaluator default.
 	maxRecursionDepth int
+	// bytecode / strictBytecode are TestConfig.Bytecode / StrictBytecode
+	// (#1487); engine counts where named-test bodies actually ran.
+	bytecode       bool
+	strictBytecode bool
+	engine         EngineStats
 }
 
 // newEvaluator returns a fresh evaluator honouring the configured recursion
@@ -225,6 +230,25 @@ func (e *Executor) EvaluateNamedTestBodyExprs(bodyExprs []ast.Expr) (eval.Value,
 		return nil, fmt.Errorf("named test block: FoldTestBody returned nil")
 	}
 
+	// --bytecode (#1487): run the body on the VM when it compiles; otherwise
+	// fall back to the evaluator below, unless --strict-bytecode.
+	if e.bytecode {
+		val, vmErr := e.evalNamedTestBodyOnVM(baseSource, hasModule, folded, len(checks) > 0)
+		switch {
+		case vmErr == nil:
+			e.engine.VMBodies++
+			if len(checks) > 0 {
+				return decodeCheckSentinel(val, checks)
+			}
+			return val, nil
+		case e.strictBytecode:
+			e.engine.StrictFailures++
+			return nil, fmt.Errorf("--strict-bytecode: %w", vmErr)
+		default:
+			e.engine.noteFallback(vmErr)
+		}
+	}
+
 	// Append the folded body expression.
 	// Use PrintAILANGSource (not expr.String()) because String() uses prefix
 	// notation for FuncCall which is not valid AILANG syntax.
@@ -241,24 +265,53 @@ func (e *Executor) EvaluateNamedTestBodyExprs(bodyExprs []ast.Expr) (eval.Value,
 	sb.WriteString(PrintAILANGSource(folded))
 	sb.WriteString(" }")
 	sb.WriteString("\n")
-	combinedSource := sb.String()
 
-	// Materialise the combined source as the pipeline's root file in a PRIVATE
-	// temp dir, never in the package dir (#1502): a copy next to the source was
-	// removed only by a defer, so any interrupted run (CI timeout SIGTERM,
-	// Ctrl-C, SIGKILL) left it behind for `pkg quality`, `publish` and the next
-	// `ailang test` to pick up as a real module. Sibling imports and the
-	// manifest still resolve against the package: the pipeline's loader base
-	// and package search both use PackageDir (below), not the root file's
-	// directory. TransientRoot tells the pipeline the root's path is not a
-	// module location (no MOD010 warning naming the temp file, no cache entry).
+	pipelineResult, err := e.runNamedTestPipeline(sb.String(), hasModule)
+	if err != nil {
+		return nil, err
+	}
+	coreProg := pipelineResult.Artifacts.Core
+
+	// Cache modules for future use.
+	e.cacheModules(&pipelineResult)
+
+	// Evaluate all decls; EvalCoreProgram returns the last value.
+	// This ensures function bindings are in scope when the body expression is evaluated.
+	evaluator := e.newHarnessEvaluator()
+
+	val, err := evaluator.EvalCoreProgram(coreProg)
+	if err != nil {
+		return nil, fmt.Errorf("evaluation error: %w", err)
+	}
+
+	// Assert-bearing bodies evaluate to an int sentinel rather than a bool;
+	// translate it back into the runner's bool pass/fail contract.
+	if len(checks) > 0 {
+		return decodeCheckSentinel(val, checks)
+	}
+	return val, nil
+}
+
+// runNamedTestPipeline compiles a named-test body source (the stripped test
+// module plus the body) through the full pipeline.
+//
+// The source is materialised as the pipeline's root file in a PRIVATE temp
+// dir, never in the package dir (#1502): a copy next to the source was
+// removed only by a defer, so any interrupted run (CI timeout SIGTERM,
+// Ctrl-C, SIGKILL) left it behind for `pkg quality`, `publish` and the next
+// `ailang test` to pick up as a real module. Sibling imports and the
+// manifest still resolve against the package: the pipeline's loader base and
+// package search both use PackageDir (below), not the root file's directory.
+// TransientRoot tells the pipeline the root's path is not a module location
+// (no MOD010 warning naming the temp file, no cache entry).
+func (e *Executor) runNamedTestPipeline(combinedSource string, hasModule bool) (pipeline.Result, error) {
 	baseName := "body"
 	if e.modulePath != "" {
 		baseName = strings.TrimSuffix(filepath.Base(e.modulePath), ".ail")
 	}
 	tmpDir, err := os.MkdirTemp("", "ailang-namedtest-*")
 	if err != nil {
-		return nil, fmt.Errorf("failed to create temp dir for named test body: %w", err)
+		return pipeline.Result{}, fmt.Errorf("failed to create temp dir for named test body: %w", err)
 	}
 	defer os.RemoveAll(tmpDir)
 	pipelineFilename := filepath.Join(tmpDir, baseName+".ail")
@@ -267,7 +320,7 @@ func (e *Executor) EvaluateNamedTestBodyExprs(bodyExprs []ast.Expr) (eval.Value,
 		combinedSource = fmt.Sprintf("module _test/%s\n\n%s", baseName, combinedSource)
 	}
 	if err := os.WriteFile(pipelineFilename, []byte(combinedSource), 0o600); err != nil {
-		return nil, fmt.Errorf("failed to write named test body: %w", err)
+		return pipeline.Result{}, fmt.Errorf("failed to write named test body: %w", err)
 	}
 
 	// Derive the package directory from the source file path so the pipeline's
@@ -291,38 +344,17 @@ func (e *Executor) EvaluateNamedTestBodyExprs(bodyExprs []ast.Expr) (eval.Value,
 		IsREPL:   false,
 	}
 
-	pipelineResult, err := pipeline.Run(cfg, pipelineSrc)
+	res, err := pipeline.Run(cfg, pipelineSrc)
 	if err != nil {
-		return nil, fmt.Errorf("pipeline error: %w", err)
+		return pipeline.Result{}, fmt.Errorf("pipeline error: %w", err)
 	}
-
-	if pipelineResult.Artifacts.Core == nil {
-		return nil, fmt.Errorf("pipeline produced no Core program")
+	if res.Artifacts.Core == nil {
+		return pipeline.Result{}, fmt.Errorf("pipeline produced no Core program")
 	}
-
-	coreProg := pipelineResult.Artifacts.Core
-	if len(coreProg.Decls) == 0 {
-		return nil, fmt.Errorf("Core program has no declarations")
+	if len(res.Artifacts.Core.Decls) == 0 {
+		return pipeline.Result{}, fmt.Errorf("Core program has no declarations")
 	}
-
-	// Cache modules for future use.
-	e.cacheModules(&pipelineResult)
-
-	// Evaluate all decls; EvalCoreProgram returns the last value.
-	// This ensures function bindings are in scope when the body expression is evaluated.
-	evaluator := e.newHarnessEvaluator()
-
-	val, err := evaluator.EvalCoreProgram(coreProg)
-	if err != nil {
-		return nil, fmt.Errorf("evaluation error: %w", err)
-	}
-
-	// Assert-bearing bodies evaluate to an int sentinel rather than a bool;
-	// translate it back into the runner's bool pass/fail contract.
-	if len(checks) > 0 {
-		return decodeCheckSentinel(val, checks)
-	}
-	return val, nil
+	return res, nil
 }
 
 // decodeCheckSentinel converts the int sentinel produced by FoldTestBody's

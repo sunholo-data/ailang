@@ -39,6 +39,11 @@ type TestConfig struct {
 	// `ailang run --max-recursion-depth` does for programs. 0 keeps the
 	// evaluator default (10,000).
 	MaxRecursionDepth int
+	// Bytecode runs named-test bodies on the bytecode VM where they compile,
+	// falling back to the evaluator otherwise (`ailang test --bytecode`,
+	// #1487). StrictBytecode fails a body instead of falling back.
+	Bytecode       bool
+	StrictBytecode bool
 }
 
 // Validate returns an error when the config is not usable for seed derivation.

@@ -18,10 +18,10 @@ import (
 	"github.com/sunholo-data/ailang/internal/vm"
 )
 
-// findEntryProto resolves an entry name (e.g. "main") to a prototype in the
+// FindEntryProto resolves an entry name (e.g. "main") to a prototype in the
 // image. The lower pass prefixes function names with the module package, so
 // we accept several spellings.
-func findEntryProto(img *bytecode.BytecodeImage, name string) *bytecode.FuncPrototype {
+func FindEntryProto(img *bytecode.BytecodeImage, name string) *bytecode.FuncPrototype {
 	for _, p := range img.Prototypes {
 		if p.Name == name {
 			return p
@@ -169,7 +169,7 @@ func tryRunEntryViaVM(rt *runtime.ModuleRuntime, inst *runtime.ModuleInstance, p
 		return false, fmt.Errorf("validate: %w", err)
 	}
 
-	proto := findEntryProto(img, entry)
+	proto := FindEntryProto(img, entry)
 	if proto == nil {
 		return false, fmt.Errorf("entry function %q not found in bytecode image", entry)
 	}

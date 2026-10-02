@@ -1,0 +1,26 @@
+module sweep
+
+-- Engine-parity fixture for `ailang test --bytecode` (#1487): the same suite
+-- must report the same outcomes on the evaluator and on the bytecode VM.
+-- Float-heavy on purpose: a 10^4-point sweep is the reporter's slow shape.
+
+import std/math (sqrt)
+
+export pure func gamma(v: float) -> float = 1.0 / sqrt(1.0 - v * v)
+
+export pure func sweepFrom(i: int, n: int, acc: float) -> float =
+  if i >= n then acc
+  else sweepFrom(i + 1, n, acc + gamma(intToFloat(i) / intToFloat(n + 1)))
+
+test "sweep is finite and above n" {
+  let s = sweepFrom(0, 10000, 0.0);
+  s > 10000.0
+}
+
+test "gamma at rest" {
+  gamma(0.0) == 1.0
+}
+
+test "deliberately failing" {
+  gamma(0.0) == 2.0
+}

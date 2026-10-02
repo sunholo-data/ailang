@@ -59,6 +59,9 @@ type SuiteResult struct {
 	SeedMode       SeedMode         // Derived or master seed policy
 	MasterSeed     int64            // Master seed (0 in derived mode)
 	SeedDerivation string           // Seed derivation contract tag
+	// Engine says where named-test bodies ran under --bytecode. Not reported:
+	// outcomes are engine-independent; the CLI prints it on stderr.
+	Engine EngineStats
 }
 
 // NewSuiteResult creates a new empty suite result.

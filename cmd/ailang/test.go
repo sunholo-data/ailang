@@ -122,8 +122,10 @@ func runTestsV2(paths []string, formatStr string, colorEnabled bool, allowSkips 
 			aggregateResults.SkippedTests += fileResult.SkippedTests
 			aggregateResults.VacuousSkips += fileResult.VacuousSkips
 			aggregateResults.TotalDuration += fileResult.TotalDuration
+			aggregateResults.Engine.Merge(fileResult.Engine)
 		}
 	}
+	reportTestEngine(aggregateResults, cfg)
 
 	// Convert format string to OutputFormat
 	var format ailangTesting.OutputFormat
@@ -264,8 +266,10 @@ func runPackageTests(dir string, formatStr string, colorEnabled bool, allowSkips
 			aggregateResults.SkippedTests += fileResult.SkippedTests
 			aggregateResults.VacuousSkips += fileResult.VacuousSkips
 			aggregateResults.TotalDuration += fileResult.TotalDuration
+			aggregateResults.Engine.Merge(fileResult.Engine)
 		}
 	}
+	reportTestEngine(aggregateResults, cfg)
 
 	// Convert format string to OutputFormat
 	var format ailangTesting.OutputFormat
@@ -290,6 +294,16 @@ func runPackageTests(dir string, formatStr string, colorEnabled bool, allowSkips
 	}
 }
 
+// reportTestEngine names, on stderr, where named-test bodies ran under
+// --bytecode, so an evaluator fallback is never silent. Stdout (including
+// --json) is identical across engines.
+func reportTestEngine(res *ailangTesting.SuiteResult, cfg ailangTesting.TestConfig) {
+	if !cfg.Bytecode {
+		return
+	}
+	fmt.Fprintf(os.Stderr, "%s %s\n", cyan("→"), res.Engine.Summary())
+}
+
 // printTestHelp shows help for the test command.
 func printTestHelp() {
 	fmt.Println("Usage: ailang test [options] [path...]")
@@ -305,6 +319,10 @@ func printTestHelp() {
 	fmt.Println("  --seed N           Master seed for property generation (signed int64; replayable)")
 	fmt.Println("  --random-seed      Read one master seed from crypto/rand and report it for replay")
 	fmt.Println("  --max-recursion-depth N  Evaluator call-depth limit for test bodies (default 10000, as ailang run)")
+	fmt.Println("  --bytecode         Run named-test bodies on the bytecode VM where they compile;")
+	fmt.Println("                     others fall back to the evaluator (inline tests and properties")
+	fmt.Println("                     always use the evaluator). Outcomes and seeds are identical.")
+	fmt.Println("  --strict-bytecode  As --bytecode, but a body the VM cannot run fails its test")
 	fmt.Println()
 	fmt.Println("Examples:")
 	fmt.Println("  ailang test                    # Run all tests in current directory")
