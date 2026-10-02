@@ -12,7 +12,7 @@
 --
 -- Run:  ailang run --caps IO,Net --net-allow-http --net-allow-localhost --net-allow-metadata \
 --         examples/runnable/net_scope_public.ail
--- Design: design_docs/planned/v0_52_0/m-net-scope-public.md (#1522)
+-- Design: design_docs/implemented/v0_52_0/m-net-scope-public.md (#1522)
 module examples/runnable/net_scope_public
 import std/io (println)
 import std/net (httpRequest)

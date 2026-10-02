@@ -1,7 +1,7 @@
 {
   "sprint_id": "M-NET-SCOPE-PUBLIC",
-  "design_doc": "design_docs/planned/v0_52_0/m-net-scope-public.md",
-  "sprint_plan": "design_docs/planned/v0_52_0/m-net-scope-public-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_52_0/m-net-scope-public.md",
+  "sprint_plan": "design_docs/implemented/v0_52_0/m-net-scope-public-sprint-plan.md",
   "target_version": "v0.52.0",
   "created": "2026-10-02",
   "planner_model": "claude-opus-5-5",

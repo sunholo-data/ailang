@@ -19,4 +19,4 @@ scope at frame entry (per-execution state, reset per serve-api request). `scope`
 parameter: a public function may call bare-`Net` helpers and a bare-`Net` function may call a public
 one. Bare `Net` is unchanged; `Net[scope=x]` for other values is `EFF_UNKNOWN_MODE`. Under
 `--bytecode` such functions run on the evaluator. Example: `examples/runnable/net_scope_public.ail`.
-Design: `design_docs/planned/v0_52_0/m-net-scope-public.md` (S0 of `m-mcp-oauth-package`).
+Design: `design_docs/implemented/v0_52_0/m-net-scope-public.md` (S0 of `m-mcp-oauth-package`).

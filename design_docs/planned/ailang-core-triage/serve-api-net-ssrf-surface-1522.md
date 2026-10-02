@@ -2,7 +2,7 @@
 
 - **Date**: 2026-10-02
 - **Class**: bug
-- **Recommend**: design-doc (child of `design_docs/planned/v0_52_0/m-mcp-oauth-package.md` S0) → `design_docs/planned/v0_52_0/m-net-scope-public.md`
+- **Recommend**: design-doc (child of `design_docs/planned/v0_52_0/m-mcp-oauth-package.md` S0) → `design_docs/implemented/v0_52_0/m-net-scope-public.md`
 - **Searched**: `scope=public`, `Net[scope`, `AllowMetadata`, `redirect hop`, `resolvePinned`, `m-effect-scope-params`, `m-effect-clock-net-fs-modes`
 
 Report verified against HEAD: `cmd/ailang/serve_api.go` (the `effCtx.HasCap("Net")` block) sets

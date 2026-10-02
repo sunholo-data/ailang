@@ -1,12 +1,12 @@
 # M-NET-SCOPE-PUBLIC: redirect-hop containment + `Net[scope=public]` (#1522, S0)
 
-**Status**: Planned
+**Status**: Implemented (2026-10-02; self-evaluated 95/100 in-session — not an independent evaluator)
 **Target**: v0.52.0
 **Priority**: P0 (security, defence in depth; blocks deploy of `sunholo/mcp_oauth`)
 **Estimated**: 0.5–1 day
 **Dependencies**: none
-**Parent**: [m-mcp-oauth-package](m-mcp-oauth-package.md) — S0, T5, D5, D6 (**Design Freeze ratified by Mark 2026-10-02**)
-**Issue**: #1522 (duplicate #1526). Triage: [serve-api-net-ssrf-surface-1522](../ailang-core-triage/serve-api-net-ssrf-surface-1522.md)
+**Parent**: [m-mcp-oauth-package](../../planned/v0_52_0/m-mcp-oauth-package.md) — S0, T5, D5, D6 (**Design Freeze ratified by Mark 2026-10-02**)
+**Issue**: #1522 (duplicate #1526). Triage: [serve-api-net-ssrf-surface-1522](../../planned/ailang-core-triage/serve-api-net-ssrf-surface-1522.md)
 
 ## Quorum
 
