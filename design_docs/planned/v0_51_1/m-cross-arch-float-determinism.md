@@ -306,7 +306,7 @@ A seed's sim output, run on CI (x86_64) and on the arm64 dev laptop, commits one
 The create script's doc search returned no matches (and crashed — adjacent defect 1, re-hit this session); these are curated by code citation:
 
 **Planned (adjacent, same reporter/consumer — distinct defects):**
-- [m-json-number-roundtrip](../v0_50_2/m-json-number-roundtrip.md) — float *text* at the JSON system boundary (same stapledons-godot `num` workaround family); this doc is float *arithmetic bits* across CPUs. No overlap in files or behavior; both retire the same consumer's workarounds.
+- [m-json-number-roundtrip](../../implemented/v0_51_1/m-json-number-roundtrip.md) — float *text* at the JSON system boundary (same stapledons-godot `num` workaround family); this doc is float *arithmetic bits* across CPUs. No overlap in files or behavior; both retire the same consumer's workarounds.
 
 **Planned (adjacent genre):**
 - [m-bytecode-vm-parity-bugs](../v1_0_0/m-bytecode-vm-parity-bugs.md) — backend parity for effect rows; this doc explicitly does *not* touch VM-vs-interpreter parity (they already agree per-arch).

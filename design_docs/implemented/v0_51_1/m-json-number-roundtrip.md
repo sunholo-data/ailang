@@ -1,7 +1,7 @@
 # M-JSON-NUMBER-ROUNDTRIP: std/json float numbers do not round-trip — −0.0 sign loss, ≥1e21 integer-digit expansion, ≥2^63 decode saturation, silent ±Inf on out-of-range literals
 
-**Status**: PLANNED
-**Target**: v0.50.2
+**Status**: Implemented (2026-10-02, #1460)
+**Target**: v0.51.1 (planned for v0.50.2)
 **Priority**: P1 — silent data corruption (wrong values, lost signs) at the std/json system boundary, plus architecture-conditional output text (A1 violation). Not P0: no memory-safety or capability impact; the corrupted values are recoverable from source JSON text.
 **Estimated**: 2–3 days (one small sprint; ~200 LOC incl. tests)
 **Dependencies**: None. Self-contained to the three JSON number codecs in `internal/eval`, `internal/builtins`, `internal/vm`.
@@ -104,8 +104,8 @@ Notably `std/json.decodeFloatArray` (`internal/builtins/float_codec.go:212`, shi
 
 Before implementation begins, these must be resolved:
 
-- [ ] **D1** — human confirms the window rule (default) or overrides to strict `FormatFloat(f,'g',-1)` (alternative table provided below; the sprint swaps one function body either way).
-- [ ] **D2** — human confirms `"-0.0"` (vs Go-parity `"-0"`).
+- [x] **D1** — human confirms the window rule (default) or overrides to strict `FormatFloat(f,'g',-1)` (alternative table provided below; the sprint swaps one function body either way).
+- [x] **D2** — human confirms `"-0.0"` (vs Go-parity `"-0"`).
 
 All remaining decisions (D3–D6) are agent-chosen and frozen in this doc.
 
@@ -323,13 +323,13 @@ stapledons-godot `sim/protocol.ail` currently wraps numbers (`num`) to emit expl
 The create-script's neural search returned no matches (and crashed mid-run — see adjacent defects); these are curated by code citation:
 
 **Implemented (may inform design):**
-- [m-json-convenience-builders](../implemented/v0_3_9/m-json-convenience-builders.md) — `jnum`/`jint` constructors (the API this fix makes honest)
-- [m-json-accessors-enabled](../implemented/v0_6_0/m-json-accessors-enabled.md) — accessor layer
-- [m-dx-json-bool-coercion](../implemented/v0_30_0/m-dx-json-bool-coercion.md) — precedent for boundary-tolerance decisions in this module (`asBoolLoose`)
-- [m-numerics-vec-array-ingest](../implemented/v0_47_0/m-numerics-vec-array-ingest.md) — shipped `decodeFloatArray` with correct `ParseFloat` number handling (the in-repo precedent this fix generalizes)
+- [m-json-convenience-builders](../v0_3_9/m-json-convenience-builders.md) — `jnum`/`jint` constructors (the API this fix makes honest)
+- [m-json-accessors-enabled](../v0_6_0/m-json-accessors-enabled.md) — accessor layer
+- [m-dx-json-bool-coercion](../v0_30_0/m-dx-json-bool-coercion.md) — precedent for boundary-tolerance decisions in this module (`asBoolLoose`)
+- [m-numerics-vec-array-ingest](../v0_47_0/m-numerics-vec-array-ingest.md) — shipped `decodeFloatArray` with correct `ParseFloat` number handling (the in-repo precedent this fix generalizes)
 
 **Planned (check for overlap):**
-- [m-bytecode-vm-parity-bugs](../planned/v1_0_0/m-bytecode-vm-parity-bugs.md) — adjacent VM-parity genre (effect rows/EVAL_SKIP files); no number-text overlap (verified by read)
+- [m-bytecode-vm-parity-bugs](../../planned/v1_0_0/m-bytecode-vm-parity-bugs.md) — adjacent VM-parity genre (effect rows/EVAL_SKIP files); no number-text overlap (verified by read)
 
 **External:**
 - stapledons-godot `sim/protocol.ail` (`num`) — the consumer workaround this fix retires.
@@ -386,3 +386,11 @@ Run 2026-10-01 with `ailang` v0.50.1 @ `021c469` (same commit as the report's v0
 ## Out of scope (see Non-Goals)
 
 Arbitrary-precision numbers; compiled-mode JSON; `show`/`floatToStr` presentation; bridge conversion policy; full encoder-tree unification.
+
+## Implementation Notes (2026-10-02)
+
+- D1 and D2 shipped as recommended: window rule, `-0.0`.
+- `FormatJSONNumber` and `ParseJSONNumber` live in `internal/eval/json_number.go`. All six sites delegate to them.
+- Underflow (`1e-400`) is pinned as `Ok(0)`: Go's `ParseFloat` rounds it to zero without an error. Overflow (`1e400`, `1.8e308`) is `Err` at the root and nested in arrays and objects, on all three backends.
+- A live repro on arm64 (the build host) confirmed E3: before the fix, `encode(jnum(9223372036854775808.0))` printed the saturated `9223372036854775807` on both engines.
+- Tests: `internal/eval/json_number_test.go` covers the spec table, the ±1 ulp window edges, byte parity with `encoding/json` over 10k random finite floats, and the legacy codec round-trip. `internal/builtins/json_number_roundtrip_test.go` and `internal/vm/builtins_json_number_test.go` cover the per-backend table, a 10k-sample bit-exact round-trip, a differential check against `FormatJSONNumber`, and out-of-range `Err`.

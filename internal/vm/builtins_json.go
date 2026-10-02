@@ -18,11 +18,11 @@ package vm
 import (
 	"encoding/json"
 	"fmt"
-	"math"
 	"strconv"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/bytecode"
+	"github.com/sunholo-data/ailang/internal/eval"
 )
 
 // Json ADT variant tags (must match std/json.ail declaration order).
@@ -146,14 +146,10 @@ func vmEncodeJson(v bytecode.Value, buf *strings.Builder) error {
 	return nil
 }
 
+// vmFormatNumber delegates to the canonical eval.FormatJSONNumber so the VM
+// emits byte-identical number text to the interpreter.
 func vmFormatNumber(f float64) string {
-	if math.IsNaN(f) || math.IsInf(f, 0) {
-		return "null"
-	}
-	if f == float64(int64(f)) {
-		return strconv.FormatInt(int64(f), 10)
-	}
-	return strconv.FormatFloat(f, 'f', -1, 64)
+	return eval.FormatJSONNumber(f)
 }
 
 func vmEscapeString(s string, buf *strings.Builder) {
@@ -255,7 +251,11 @@ func (b *vmJSONBuilder) build() (bytecode.Value, error) {
 				b.addValue(vmMakeJString(v))
 			}
 		case json.Number:
-			b.addValue(vmMakeJNumber(v))
+			num, err := vmMakeJNumber(v)
+			if err != nil {
+				return bytecode.Value{}, err
+			}
+			b.addValue(num)
 		case bool:
 			b.addValue(vmMakeJBool(v))
 		case nil:
@@ -342,14 +342,14 @@ func vmMakeJBool(b bool) bytecode.Value {
 	return bytecode.NewADT(jsonTagJBool, "JBool", []bytecode.Value{bytecode.NewBool(b)})
 }
 
-func vmMakeJNumber(n json.Number) bytecode.Value {
-	str := string(n)
-	if strings.ContainsAny(str, ".eE") {
-		f, _ := n.Float64()
-		return bytecode.NewADT(jsonTagJNumber, "JNumber", []bytecode.Value{bytecode.NewFloat(f)})
+// vmMakeJNumber mirrors the registry makeJNumber: canonical
+// eval.ParseJSONNumber, out-of-range literals are errors.
+func vmMakeJNumber(n json.Number) (bytecode.Value, error) {
+	f, err := eval.ParseJSONNumber(n)
+	if err != nil {
+		return bytecode.Value{}, err
 	}
-	i, _ := n.Int64()
-	return bytecode.NewADT(jsonTagJNumber, "JNumber", []bytecode.Value{bytecode.NewFloat(float64(i))})
+	return bytecode.NewADT(jsonTagJNumber, "JNumber", []bytecode.Value{bytecode.NewFloat(f)}), nil
 }
 
 func vmMakeJString(s string) bytecode.Value {
