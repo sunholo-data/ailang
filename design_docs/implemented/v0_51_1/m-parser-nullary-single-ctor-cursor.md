@@ -1,6 +1,7 @@
 # M-PARSER-NULLARY-SINGLE-CTOR-CURSOR: Leading-Pipe Nullary Constructor Swallows the Next Declaration's First Token
 
-**Status**: Planned
+**Status**: Implemented
+**Implemented**: 2026-10-02 — guard advances only on `peek PIPE` (a trailing `deriving` is already handled by `parseTypeDeclaration`'s `peekTokenIs(DERIVING)` check, so guarding on DERIVING too was unnecessary). Tests: `internal/parser/type_decl_cursor_test.go`.
 **Target**: v0.51.1
 **Priority**: P0 (High) — silently corrupts module export surfaces; the plain form of a one-constructor ADT is unusable
 **Estimated**: 1 day (1h fix + 3h tests/verification + buffer)
