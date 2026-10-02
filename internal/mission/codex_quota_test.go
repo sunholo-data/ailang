@@ -22,6 +22,8 @@ func quotaWindow(at time.Time, used float64, minutes int64) map[string]any {
 	return map[string]any{"used_percent": used, "window_minutes": minutes, "resets_at": at.Add(time.Duration(minutes)*time.Minute - time.Hour).Unix()}
 }
 func TestCodexQuotaProviderWindows(t *testing.T) {
+	// The pacing arithmetic, isolated from the start margin (quota_margin_test.go).
+	t.Setenv("AILANG_QUOTA_MARGIN_CODEX", "0")
 	now := time.Date(2026, 9, 7, 10, 0, 0, 0, time.UTC)
 	for _, tc := range []struct {
 		name               string
@@ -113,6 +115,8 @@ func TestCodexQuotaMalformedDoesNotExposeOlderPass(t *testing.T) {
 }
 
 func TestCodexQuotaValidRefreshRecoversMalformedRecord(t *testing.T) {
+	// Recovery, not headroom: the fixture window opened an hour ago, inside any margin.
+	t.Setenv("AILANG_QUOTA_MARGIN_CODEX", "0")
 	now := time.Now().UTC()
 	home := t.TempDir()
 	dir := filepath.Join(home, "sessions", now.Format("2006/01/02"))

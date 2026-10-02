@@ -25,6 +25,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/config"
@@ -382,14 +383,17 @@ func evaluateAnthropicQuota(o *AnthropicQuotaObservation, now time.Time) {
 		return // a locked window is already decided
 	}
 	verdict := CodexQuotaObservation{ObservedAt: now, Windows: o.Windows}
-	verdict.evaluateAt(now)
+	margin := StartMargin("anthropic")
+	verdict.evaluateWithMargin(now, margin)
 	o.State = verdict.State
 	o.Windows = verdict.Windows
-	switch o.State {
-	case "ok":
+	switch {
+	case o.State == "ok":
 		o.Reason = "provider-reported Anthropic utilisation is within ration"
-	case "expired":
+	case o.State == "expired":
 		o.Reason = "Anthropic provider window expired; refresh required before routing"
+	case verdict.HeadroomShort:
+		o.Reason = strings.Replace(verdict.Reason, "Codex", "Anthropic", 1)
 	default:
 		o.Reason = "provider-reported Anthropic utilisation exceeds ration or exhausts a window"
 	}
