@@ -162,13 +162,16 @@ against the old fork.
   also needs an ailang whose clients attach the lease (dev after adc59d45b; not in v0.47.2).
 - Open questions to Arni (package source of truth, where AILANG extensions live, a post-tool
   hook, versioning): arniwesth/motoko_agent#192. Arni confirms ABI 8.0 is stable.
-- Not yet ported from the fork: compact-interface auto-read, per-edit `ailang check`,
-  whitespace-tolerant `EditFile`, fmt, `MOTOKO_MAX_STEPS`, the step-0 resolved-config event.
+- Ported: compact-interface auto-read (opt-in `autoread`, OFF in every profile we run),
+  per-edit `ailang check` and whitespace-tolerant `EditFile` — all in `motoko_ext_ailang_tools`,
+  merged upstream as #208. Not yet ported: fmt, `MOTOKO_MAX_STEPS`.
   ABI 8.0 CAN wrap native tools: a `ToolProvider` advertising `"WriteFile"`/`"EditFile"`/
   `"ReadFile"` receives those calls and `Delegate` falls through to the next provider, then
   native (see `motoko_ext_microrag`). It cannot APPEND to a native result, so the extension
   performs the write/edit itself. Not blocked on Arni.
-- Local motoko (`motoko-local-qwen3-8-27b`) is OUT of the GPU rotation until `mk-main` is stable.
+- Local motoko is IN the GPU rotation (`motoko-local-qwen3-8-27b-microrag`, since 2026-09-29).
+  09-29..10-02 on the same benchmarks: motoko 44/53, pi 31/93, opencode 28/86 (pi/opencode
+  mostly config faults and budget kills, not the model).
 
 ### To do (agreed 2026-09-28)
 - **Cloud executors:** once motoko main is stable locally, update the AILANG cloud executor images
@@ -177,5 +180,32 @@ against the old fork.
 - **Registry packages: RETIRED 2026-09-28 (Mark).** All 14 ABI 2.2 `sunholo/motoko_ext_*`
   packages (96 versions) were unpublished; see `ailang-packages/packages/MOTOKO_EXTENSIONS_RETIRED.md`.
   Still to do: port `fmt` to ABI 8.0 (likely inside `motoko_ext_ailang_tools`).
-- **Local motoko in the rotation:** re-add `motoko-local-qwen3-8-27b` with a longer canary once the
-  above is stable.
+- ~~Local motoko in the rotation~~ — done (see above).
+
+## 10. Next branch: `sunholo/main-dst-20261002` (2026-10-02) — rig switch PENDING
+
+Worktree `~/dev/mk-20261002`, fork branch `sunholo/main-dst-20261002`. It is upstream `main`
+`4023bf08` (strict extensions #205/#206, `ailang_tools` #208 with Arni's review fixes) plus:
+
+- our profiles and lane (`cloud`, `ollama_microrag`, `ailang_only`, `motoko_ext_ailang_policy`);
+- `extensions.strict = true` on `cloud`, `ollama_microrag` and `ollama`: a missing extension now
+  refuses to start instead of silently running defaults (registries build 6/6/2 under strict);
+- PR #209 cherry-picked. **Upstream `main` without #209 fails every `EditFile` on macOS**
+  (`chmod --reference`), so never point the rig at plain upstream `main`;
+- a tool-schema dedupe (`tool_catalog.ail`, half of upstream #204). `ailang_tools` and `microrag`
+  both wrap ReadFile/WriteFile/EditFile, and each wrap appended a second schema; OpenRouter
+  providers Relace and Sail Research reject duplicate tool names with 400 ("Provider returned
+  error"). `sunholo/main-dst` (mk-main) still sends the duplicates.
+- a portable path guard: motoko's native guard and `ailang_tools`' `inside_workdir` both
+  needed GNU `realpath -m`. On macOS the native guard let symlink escapes through and
+  `ailang_tools` delegated every `.ail` call (inert on the rig). Both now resolve the deepest
+  existing ancestor with plain `realpath`. `sunholo/main-dst` (mk-main) does not have #208's
+  guard, so its `ailang_tools` works today — switching to plain upstream would break it.
+
+Verified on it (macOS): `make check_core` passes in full (10/10 path-guard checks, symlink
+escapes included), `ailang_tools` unit tests, every profile's registry under strict, and 6
+concurrent cloud motoko trials (`motoko-or-deepseek-v4-flash`, 6/6, $0.06, no port collision).
+
+**Switch the rig** (`mk-main` -> this branch, then the `~/go/bin/motoko` shim comment) only while
+the os rotation is idle. The cloud image pin (`docker/Dockerfile.agent-motoko`) still names
+`4d4917cd`; move it with the rig, not before.

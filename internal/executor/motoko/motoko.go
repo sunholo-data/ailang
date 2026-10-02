@@ -268,6 +268,9 @@ func (e *MotokoExecutor) executeStreaming(ctx context.Context, task *executor.Ta
 	if p := task.Metadata["motoko_profile"]; p != "" {
 		effectiveProfile = p
 	}
+	if err := requireProfileInRepo(e.motokoRepo, effectiveProfile); err != nil {
+		return nil, fmt.Errorf("motoko profile preflight refused: %w", err)
+	}
 	ctx, span := telemetry.StartSpan(ctx, motokoTracer, "motoko.execute",
 		trace.WithAttributes(
 			attribute.String("executor.name", "motoko"),
